@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: modversion
+Query: unavailable
+ExpectedStdout: 1.2.3

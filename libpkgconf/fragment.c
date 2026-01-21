@@ -33,6 +33,31 @@ struct pkgconf_fragment_check {
 };
 
 static inline bool
+pkgconf_fragment_is_greedy(const char *string)
+{
+	static const struct pkgconf_fragment_check check_fragments[] = {
+		{"-F", 2},
+		{"-I", 2},
+		{"-L", 2},
+		{"-D", 2},
+		{"-l", 2},
+	};
+
+	if (*string != '-')
+		return false;
+
+	for (size_t i = 0; i < PKGCONF_ARRAY_SIZE(check_fragments); i++)
+		if (!strncmp(string, check_fragments[i].token, check_fragments[i].len))
+		{
+			/* if it is the bare flag, then we want the next token to be the data */
+			if (!*(string + check_fragments[i].len))
+				return true;
+		}
+
+	return false;
+}
+
+static inline bool
 pkgconf_fragment_is_unmergeable(const char *string)
 {
 	static const struct pkgconf_fragment_check check_fragments[] = {
@@ -469,59 +494,27 @@ pkgconf_fragment_filter(const pkgconf_client_t *client, pkgconf_list_t *dest, pk
 	}
 }
 
-static inline char *
-fragment_quote(const pkgconf_fragment_t *frag)
+static void
+fragment_quote(pkgconf_buffer_t *out, const pkgconf_fragment_t *frag)
 {
-	const char *src = frag->data;
-	ssize_t outlen = strlen(src) + 10;
-	char *out, *dst;
-
 	if (frag->data == NULL)
-		return NULL;
+		return;
 
-	out = dst = calloc(1, outlen);
-	if (out == NULL)
-		return NULL;
+	const pkgconf_buffer_t *src = PKGCONF_BUFFER_FROM_STR(frag->data);
+	const pkgconf_span_t quote_spans[] = {
+		{ 0x00, 0x1f },
+		{ (unsigned char)' ', (unsigned char)'#' },
+		{ (unsigned char)'%', (unsigned char)'\'' },
+		{ (unsigned char)'*', (unsigned char)'*' },
+		{ (unsigned char)';', (unsigned char)'<' },
+		{ (unsigned char)'>', (unsigned char)'?' },
+		{ (unsigned char)'[', (unsigned char)']' },
+		{ (unsigned char)'`', (unsigned char)'`' },
+		{ (unsigned char)'{', (unsigned char)'}' },
+		{ 0x7f, 0xff },
+	};
 
-	for (; *src; src++)
-	{
-		if (((*src < ' ') ||
-		    (*src >= (' ' + (frag->children.head != NULL ? 1 : 0)) && *src < '$') ||
-		    (*src > '$' && *src < '(') ||
-		    (*src > ')' && *src < '+') ||
-		    (*src > ':' && *src < '=') ||
-		    (*src > '=' && *src < '@') ||
-		    (*src > 'Z' && *src < '\\') ||
-#ifndef _WIN32
-		    (*src == '\\') ||
-#endif
-		    (*src > '\\' && *src < '^') ||
-		    (*src == '`') ||
-		    (*src > 'z' && *src < '~') ||
-		    (*src > '~')))
-			*dst++ = '\\';
-
-		*dst++ = *src;
-
-		if ((ptrdiff_t)(dst - out) + 2 > outlen)
-		{
-			ptrdiff_t offset = dst - out;
-			outlen *= 2;
-
-			char *newout = realloc(out, outlen);
-			if (newout == NULL)
-			{
-				free(out);
-				return NULL;
-			}
-
-			out = newout;
-			dst = out + offset;
-		}
-	}
-
-	*dst = 0;
-	return out;
+	pkgconf_buffer_escape(out, src, quote_spans, PKGCONF_ARRAY_SIZE(quote_spans));
 }
 
 static inline size_t
@@ -536,9 +529,10 @@ pkgconf_fragment_len(const pkgconf_fragment_t *frag)
 	{
 		pkgconf_node_t *iter;
 
-		char *quoted = fragment_quote(frag);
-		len += strlen(quoted);
-		free(quoted);
+		pkgconf_buffer_t quoted = PKGCONF_BUFFER_INITIALIZER;
+		fragment_quote(&quoted, frag);
+		len += pkgconf_buffer_len(&quoted);
+		pkgconf_buffer_finalize(&quoted);
 
 		PKGCONF_FOREACH_LIST_ENTRY(frag->children.head, iter)
 		{
@@ -568,64 +562,44 @@ fragment_render_len(const pkgconf_list_t *list, bool escape)
 }
 
 static inline size_t
-fragment_render_item(const pkgconf_fragment_t *frag, char *bptr, size_t bufremain)
+fragment_render_item(const pkgconf_fragment_t *frag, pkgconf_buffer_t *buf, char delim)
 {
 	const pkgconf_node_t *iter;
-	char *base = bptr;
+	pkgconf_buffer_t quoted = PKGCONF_BUFFER_INITIALIZER;
 
-	char *quoted = fragment_quote(frag);
-	if (quoted == NULL)
-		return 0;
-
-	if (strlen(quoted) > bufremain)
-	{
-		free(quoted);
-		return 0;
-	}
+	fragment_quote(&quoted, frag);
 
 	if (frag->type)
-	{
-		*bptr++ = '-';
-		*bptr++ = frag->type;
-	}
+		pkgconf_buffer_append_fmt(buf, "-%c", frag->type);
 
-	if (quoted != NULL)
-	{
-		bptr += pkgconf_strlcpy(bptr, quoted, bufremain - (bptr - base));
-		free(quoted);
-	}
+	pkgconf_buffer_append(buf, pkgconf_buffer_str_or_empty(&quoted));
+	pkgconf_buffer_finalize(&quoted);
 
 	PKGCONF_FOREACH_LIST_ENTRY(frag->children.head, iter)
 	{
 		const pkgconf_fragment_t *child_frag = iter->data;
 
-		*bptr++ = ' ';
-		bptr += fragment_render_item(child_frag, bptr, bufremain - (bptr - base));
+		pkgconf_buffer_push_byte(buf, delim);
+		fragment_render_item(child_frag, buf, delim);
 	}
 
-	return bptr - base;
+	return pkgconf_buffer_len(buf);
 }
 
 static void
-fragment_render_buf(const pkgconf_list_t *list, char *buf, size_t buflen, bool escape)
+fragment_render_buf(const pkgconf_list_t *list, pkgconf_buffer_t *buf, bool escape, char delim)
 {
 	(void) escape;
 
 	pkgconf_node_t *node;
-	char *bptr = buf;
-
-	memset(buf, 0, buflen);
 
 	PKGCONF_FOREACH_LIST_ENTRY(list->head, node)
 	{
 		const pkgconf_fragment_t *frag = node->data;
-		size_t buf_remaining = buflen - (bptr - buf);
-		size_t written = fragment_render_item(frag, bptr, buf_remaining);
-
-		bptr += written;
+		fragment_render_item(frag, buf, delim);
 
 		if (node->next != NULL)
-			*bptr++ = ' ';
+			pkgconf_buffer_push_byte(buf, delim);
 	}
 }
 
@@ -659,7 +633,7 @@ pkgconf_fragment_render_len(const pkgconf_list_t *list, bool escape, const pkgco
 /*
  * !doc
  *
- * .. c:function:: void pkgconf_fragment_render_buf(const pkgconf_list_t *list, char *buf, size_t buflen, bool escape, const pkgconf_fragment_render_ops_t *ops)
+ * .. c:function:: void pkgconf_fragment_render_buf(const pkgconf_list_t *list, char *buf, size_t buflen, bool escape, const pkgconf_fragment_render_ops_t *ops, char delim)
  *
  *    Renders a `fragment list` into a buffer.
  *
@@ -668,41 +642,16 @@ pkgconf_fragment_render_len(const pkgconf_list_t *list, bool escape, const pkgco
  *    :param size_t buflen: The length of the buffer.
  *    :param bool escape: Whether or not to escape special shell characters (deprecated).
  *    :param pkgconf_fragment_render_ops_t* ops: An optional ops structure to use for custom renderers, else ``NULL``.
+ *    :param char delim: The delimiter to use between fragments.
  *    :return: nothing
  */
 void
-pkgconf_fragment_render_buf(const pkgconf_list_t *list, char *buf, size_t buflen, bool escape, const pkgconf_fragment_render_ops_t *ops)
+pkgconf_fragment_render_buf(const pkgconf_list_t *list, pkgconf_buffer_t *buf, bool escape, const pkgconf_fragment_render_ops_t *ops, char delim)
 {
 	(void) escape;
 
 	ops = ops != NULL ? ops : &default_render_ops;
-	ops->render_buf(list, buf, buflen, true);
-}
-
-/*
- * !doc
- *
- * .. c:function:: char *pkgconf_fragment_render(const pkgconf_list_t *list)
- *
- *    Allocate memory and render a `fragment list` into it.
- *
- *    :param pkgconf_list_t* list: The `fragment list` being rendered.
- *    :param bool escape: Whether or not to escape special shell characters (deprecated).
- *    :param pkgconf_fragment_render_ops_t* ops: An optional ops structure to use for custom renderers, else ``NULL``.
- *    :return: An allocated string containing the rendered `fragment list`.
- *    :rtype: char *
- */
-char *
-pkgconf_fragment_render(const pkgconf_list_t *list, bool escape, const pkgconf_fragment_render_ops_t *ops)
-{
-	(void) escape;
-
-	size_t buflen = pkgconf_fragment_render_len(list, true, ops);
-	char *buf = calloc(1, buflen);
-
-	pkgconf_fragment_render_buf(list, buf, buflen, true, ops);
-
-	return buf;
+	ops->render_buf(list, buf, true, delim);
 }
 
 /*
@@ -783,8 +732,6 @@ pkgconf_fragment_parse(const pkgconf_client_t *client, pkgconf_list_t *list, pkg
 
 	for (i = 0; i < argc; i++)
 	{
-		PKGCONF_TRACE(client, "processing %s", argv[i]);
-
 		if (argv[i] == NULL)
 		{
 			PKGCONF_TRACE(client, "parsed fragment string is inconsistent: argc = %d while argv[%d] == NULL", argc, i);
@@ -793,7 +740,24 @@ pkgconf_fragment_parse(const pkgconf_client_t *client, pkgconf_list_t *list, pkg
 			return false;
 		}
 
-		pkgconf_fragment_add(client, list, argv[i], flags);
+		bool greedy = pkgconf_fragment_is_greedy(argv[i]);
+
+		PKGCONF_TRACE(client, "processing [%s] greedy=%d", argv[i], greedy);
+
+		if (greedy && i + 1 < argc)
+		{
+			pkgconf_buffer_t greedybuf = PKGCONF_BUFFER_INITIALIZER;
+
+			pkgconf_buffer_append(&greedybuf, argv[i]);
+			pkgconf_buffer_append(&greedybuf, argv[i + 1]);
+			pkgconf_fragment_add(client, list, pkgconf_buffer_str(&greedybuf), flags);
+			pkgconf_buffer_finalize(&greedybuf);
+
+			/* skip over next arg as we combined them */
+			i++;
+		}
+		else
+			pkgconf_fragment_add(client, list, argv[i], flags);
 	}
 
 	pkgconf_argv_free(argv);

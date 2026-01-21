@@ -31,6 +31,8 @@
 # define WIN32_LEAN_AND_MEAN
 # include <windows.h>
 # include <malloc.h>
+# include <io.h>     /* for _setmode() */
+# include <fcntl.h>
 # define PATH_DEV_NULL	"nul"
 # ifdef _WIN64
 #  ifndef __MINGW32__
@@ -52,9 +54,14 @@
 # ifndef __MINGW32__
 #  include "win-dirent.h"
 # else
-# include <dirent.h>
+#  include <dirent.h>
 # endif
 # define PKGCONF_ITEM_SIZE (_MAX_PATH + 1024)
+# define PKG_CONFIG_PATH_SEP_S   ";"
+# define PKG_DIR_SEP_S   '\\'
+# define strcasecmp _stricmp
+# define strncasecmp _strnicmp
+# define realpath(N,R) _fullpath((R),(N),_MAX_PATH)
 #else
 # define PATH_DEV_NULL	"/dev/null"
 # define SIZE_FMT_SPECIFIER	"%zu"
@@ -65,11 +72,18 @@
 # include <unistd.h>
 # include <limits.h>
 # include <strings.h>
+# include <fcntl.h>    // open
+# include <libgen.h>   // basename/dirname
+# include <sys/stat.h> // lstat, S_ISLNK
+# include <unistd.h>   // close, readlinkat
+# include <string.h>
 # ifdef PATH_MAX
 #  define PKGCONF_ITEM_SIZE (PATH_MAX + 1024)
 # else
 #  define PKGCONF_ITEM_SIZE (4096 + 1024)
 # endif
+# define PKG_CONFIG_PATH_SEP_S   ":"
+# define PKG_DIR_SEP_S   '/'
 #endif
 
 #endif

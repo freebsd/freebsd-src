@@ -32,6 +32,32 @@
 /*
  * !doc
  *
+ * .. c:function:: void pkgconf_queue_push_dependency(pkgconf_list_t *list, const pkgconf_dependency_t *dep)
+ *
+ *    Pushes a requested dependency onto the dependency resolver's queue which is described by
+ *    a pkgconf_dependency_t node.
+ *
+ *    :param pkgconf_list_t* list: the dependency resolution queue to add the package request to.
+ *    :param pkgconf_dependency_t* dep: the dependency requested
+ *    :return: nothing
+ */
+void
+pkgconf_queue_push_dependency(pkgconf_list_t *list, const pkgconf_dependency_t *dep)
+{
+	pkgconf_buffer_t depbuf = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_queue_t *pkgq = calloc(1, sizeof(pkgconf_queue_t));
+
+	pkgconf_buffer_append(&depbuf, dep->package);
+	if (dep->version != NULL)
+		pkgconf_buffer_append_fmt(&depbuf, " %s %s", pkgconf_pkg_get_comparator(dep), dep->version);
+
+	pkgq->package = pkgconf_buffer_freeze(&depbuf);
+	pkgconf_node_insert_tail(&pkgq->iter, pkgq, list);
+}
+
+/*
+ * !doc
+ *
  * .. c:function:: void pkgconf_queue_push(pkgconf_list_t *list, const char *package)
  *
  *    Pushes a requested dependency onto the dependency resolver's queue.
@@ -221,6 +247,45 @@ pkgconf_queue_collect_dependencies(pkgconf_client_t *client,
 }
 
 static inline unsigned int
+pkgconf_queue_collect_conflicts(pkgconf_client_t *client,
+	pkgconf_pkg_t *root,
+	pkgconf_pkg_t *world,
+	int maxdepth)
+{
+	unsigned int eflags = PKGCONF_PKG_ERRF_OK;
+	pkgconf_node_t *node;
+
+	PKGCONF_TRACE(client, "%s: collecting conflicts, level %d", root->id, maxdepth);
+
+	PKGCONF_FOREACH_LIST_ENTRY(root->required.head, node)
+	{
+		pkgconf_dependency_t *dep = node->data;
+		pkgconf_pkg_t *pkg = dep->match;
+		pkgconf_node_t *cnode;
+
+		if (*dep->package == '\0')
+			continue;
+
+		if (pkg == NULL)
+		{
+			PKGCONF_TRACE(client, "WTF: unmatched dependency %p <%s>", dep, dep->package);
+			continue;
+		}
+
+		PKGCONF_FOREACH_LIST_ENTRY(pkg->conflicts.head, cnode)
+		{
+			pkgconf_dependency_t *conflict = cnode->data;
+			pkgconf_dependency_t *flattened_conflict = pkgconf_dependency_copy(client, conflict);
+
+			flattened_conflict->why = strdup(pkg->id);
+			pkgconf_node_insert(&flattened_conflict->iter, flattened_conflict, &world->conflicts);
+		}
+	}
+
+	return eflags;
+}
+
+static inline unsigned int
 pkgconf_queue_verify(pkgconf_client_t *client, pkgconf_pkg_t *world, pkgconf_list_t *list, int maxdepth)
 {
 	unsigned int result;
@@ -253,6 +318,13 @@ pkgconf_queue_verify(pkgconf_client_t *client, pkgconf_pkg_t *world, pkgconf_lis
 		return result;
 	}
 
+	result = pkgconf_queue_collect_conflicts(client, world, world, maxdepth);
+	if (result != PKGCONF_PKG_ERRF_OK)
+	{
+		pkgconf_solution_free(client, &initial_world);
+		return result;
+	}
+
 	if (client->flags & PKGCONF_PKG_PKGF_SEARCH_PRIVATE)
 	{
 		PKGCONF_TRACE(client, "marking public deps");
@@ -260,6 +332,18 @@ pkgconf_queue_verify(pkgconf_client_t *client, pkgconf_pkg_t *world, pkgconf_lis
 		client->flags |= PKGCONF_PKG_PKGF_SKIP_CONFLICTS;
 		result = pkgconf_pkg_traverse(client, &initial_world, pkgconf_queue_mark_public, &world->required, maxdepth, 0);
 		client->flags = saved_flags;
+		if (result != PKGCONF_PKG_ERRF_OK)
+		{
+			pkgconf_solution_free(client, &initial_world);
+			return result;
+		}
+	}
+
+	if (!(client->flags & PKGCONF_PKG_PKGF_SKIP_CONFLICTS))
+	{
+		PKGCONF_TRACE(client, "checking for conflicts");
+
+		result = pkgconf_pkg_walk_conflicts_list(client, world, &world->conflicts);
 		if (result != PKGCONF_PKG_ERRF_OK)
 		{
 			pkgconf_solution_free(client, &initial_world);
@@ -293,6 +377,7 @@ pkgconf_solution_free(pkgconf_client_t *client, pkgconf_pkg_t *world)
 	{
 		pkgconf_dependency_free(&world->required);
 		pkgconf_dependency_free(&world->requires_private);
+		pkgconf_dependency_free(&world->conflicts);
 	}
 }
 

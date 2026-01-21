@@ -1,0 +1,3 @@
+WantedFlags: modversion
+Query: %TEST_FIXTURES_DIR%/lib1/bar.pc
+ExpectedStdout: 1.3

@@ -24,10 +24,6 @@
  * =========================
  */
 
-#ifdef _WIN32
-#	define strcasecmp _stricmp
-#endif
-
 /*
  * Increment each time the default personality is inited, decrement each time
  * it's deinited. Whenever it is 0, then the deinit frees the personality. In
@@ -83,7 +79,7 @@ build_default_search_path(pkgconf_list_t* dirlist)
 		paths = NULL;
 	}
 #else
-	pkgconf_path_split(PKG_DEFAULT_PATH, dirlist, true);
+	pkgconf_path_split(PKG_DEFAULT_PATH, dirlist, false);
 #endif
 }
 
@@ -168,7 +164,7 @@ valid_triplet(const char *triplet)
 	return true;
 }
 
-typedef void (*personality_keyword_func_t)(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value);
+typedef void (*personality_keyword_func_t)(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, char *value);
 typedef struct {
 	const char *keyword;
 	const personality_keyword_func_t func;
@@ -176,30 +172,30 @@ typedef struct {
 } personality_keyword_pair_t;
 
 static void
-personality_bool_func(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value)
+personality_bool_func(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, char *value)
 {
 	(void) keyword;
-	(void) lineno;
+	(void) warnprefix;
 
 	bool *dest = (bool *)((char *) p + offset);
 	*dest = strcasecmp(value, "true") || strcasecmp(value, "yes") || *value == '1';
 }
 
 static void
-personality_copy_func(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value)
+personality_copy_func(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, char *value)
 {
 	(void) keyword;
-	(void) lineno;
+	(void) warnprefix;
 
 	char **dest = (char **)((char *) p + offset);
 	*dest = strdup(value);
 }
 
 static void
-personality_fragment_func(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value)
+personality_fragment_func(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, char *value)
 {
 	(void) keyword;
-	(void) lineno;
+	(void) warnprefix;
 
 	pkgconf_list_t *dest = (pkgconf_list_t *)((char *) p + offset);
 	pkgconf_path_split(value, dest, false);
@@ -224,7 +220,7 @@ personality_keyword_pair_cmp(const void *key, const void *ptr)
 }
 
 static void
-personality_keyword_set(pkgconf_cross_personality_t *p, const size_t lineno, const char *keyword, char *value)
+personality_keyword_set(pkgconf_cross_personality_t *p, const char *warnprefix, const char *keyword, char *value)
 {
 	const personality_keyword_pair_t *pair = bsearch(keyword,
 		personality_keyword_pairs, PKGCONF_ARRAY_SIZE(personality_keyword_pairs),
@@ -233,7 +229,7 @@ personality_keyword_set(pkgconf_cross_personality_t *p, const size_t lineno, con
 	if (pair == NULL || pair->func == NULL)
 		return;
 
-	pair->func(p, keyword, lineno, pair->offset, value);
+	pair->func(p, keyword, warnprefix, pair->offset, value);
 }
 
 static const pkgconf_parser_operand_func_t personality_parser_ops[256] = {
@@ -328,7 +324,7 @@ pkgconf_cross_personality_find(const char *triplet)
 		}
 	}
 
-	pkgconf_path_build_from_environ("XDG_DATA_DIRS", "/usr/local/share" PKG_CONFIG_PATH_SEP_S "/usr/share", &plist, true);
+	pkgconf_path_build_from_environ(NULL, "XDG_DATA_DIRS", "/usr/local/share" PKG_CONFIG_PATH_SEP_S "/usr/share", &plist, true);
 
 	PKGCONF_FOREACH_LIST_ENTRY(plist.head, n)
 	{

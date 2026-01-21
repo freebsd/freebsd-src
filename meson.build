@@ -9,6 +9,7 @@ cc = meson.get_compiler('c')
 
 add_project_arguments(
   '-D_BSD_SOURCE',
+  '-D_DARWIN_C_SOURCE',
   '-D_DEFAULT_SOURCE',
   '-D_POSIX_C_SOURCE=200809L',
   cc.get_supported_arguments(
@@ -30,11 +31,12 @@ check_functions = [
   ['reallocarray', 'stdlib.h'],
   ['pledge', 'unistd.h'],
   ['unveil', 'unistd.h'],
+  ['readlinkat', 'unistd.h'],
 ]
 
 foreach f : check_functions
   name = f[0].to_upper().underscorify()
-  if cc.has_function(f[0], prefix : '#define _BSD_SOURCE\n#define _DEFAULT_SOURCE\n#define _POSIX_C_SOURCE 200809L\n#include <@0@>'.format(f[1])) and cc.has_header_symbol(f[1], f[0], prefix : '#define _BSD_SOURCE\n#define _DEFAULT_SOURCE\n#define _POSIX_C_SOURCE 200809L')
+  if cc.has_function(f[0], prefix : '#define _BSD_SOURCE\n#define _DARWIN_C_SOURCE\n#define _DEFAULT_SOURCE\n#define _POSIX_C_SOURCE 200809L\n#include <@0@>'.format(f[1])) and cc.has_header_symbol(f[1], f[0], prefix : '#define _BSD_SOURCE\n#define _DARWIN_C_SOURCE\n#define _DEFAULT_SOURCE\n#define _POSIX_C_SOURCE 200809L')
     cdata.set('HAVE_@0@'.format(name), 1)
     cdata.set('HAVE_DECL_@0@'.format(name), 1)
   else
@@ -92,6 +94,7 @@ libpkgconf = library('pkgconf',
   'libpkgconf/dependency.c',
   'libpkgconf/fileio.c',
   'libpkgconf/fragment.c',
+  'libpkgconf/output.c',
   'libpkgconf/parser.c',
   'libpkgconf/path.c',
   'libpkgconf/personality.c',
@@ -130,6 +133,7 @@ cli_include = include_directories('cli')
 
 pkgconf_exe = executable('pkgconf',
   'cli/main.c',
+  'cli/core.c',
   'cli/getopt_long.c',
   'cli/renderer-msvc.c',
   link_with : libpkgconf,
@@ -144,6 +148,44 @@ bomtool_exe = executable('bomtool',
   c_args : build_static,
   include_directories : cli_include,
   install : true)
+
+spdxtool_exe = executable('spdxtool',
+  'cli/spdxtool/main.c',
+  'cli/spdxtool/core.c',
+  'cli/spdxtool/software.c',
+  'cli/spdxtool/serialize.c',
+  'cli/spdxtool/simplelicensing.c',
+  'cli/spdxtool/util.c',
+  'cli/getopt_long.c',
+  link_with : libpkgconf,
+  c_args : build_static,
+  include_directories : include_directories('cli', 'cli/spdxtool'),
+  install : true)
+
+test_runner_exe = executable('test-runner',
+  'cli/core.c',
+  'cli/getopt_long.c',
+  'cli/renderer-msvc.c',
+  'tests/test-runner.c',
+  link_with : libpkgconf,
+  c_args : build_static,
+  include_directories : cli_include,
+  install : true)
+
+fixtures_dir = '@0@/tests'.format(meson.current_source_dir())
+test_suites = [
+  'basic',
+  'ordering',
+  'parser',
+  'solver',
+  'sbom',
+  'sysroot',
+  'tuple',
+]
+
+foreach t : test_suites
+  test(t, test_runner_exe, args : ['--test-fixtures', fixtures_dir, '@0@/t/@1@'.format(meson.current_source_dir(), t)])
+endforeach
 
 with_tests = get_option('tests')
 kyua_exe = find_program('kyua', required : with_tests, disabler : true, native : true)

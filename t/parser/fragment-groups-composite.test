@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: fragment-groups-2
+WantedFlags: libs
+ExpectedStdout: -Wl,--start-group -la -lb -Wl,--end-group -nodefaultlibs -Wl,--start-group -la -lgcc -Wl,--end-group -Wl,--gc-sections

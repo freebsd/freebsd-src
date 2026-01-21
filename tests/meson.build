@@ -3,17 +3,12 @@ configure_file(input: 'test_env.sh.in', output: 'test_env.sh', configuration: cd
 
 
 tests = [
-  'basic',
-  'builtins',
-  'conflicts',
-  'framework',
   'parser',
-  'provides',
+  'personality',
   'regress',
   'requires',
+  'spdxtool',
   'symlink',
-  'sysroot',
-  'version',
 ]
 
 

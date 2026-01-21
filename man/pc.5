@@ -116,15 +116,31 @@ not described as dependencies should be specified here.
 .It License
 The asserted SPDX license tag that should be applied to the given package.
 (optional; literal; pkgconf extension)
+.It License.file
+License file location for whole license text.
+(optional; literal; pkgconf extension)
 .It Maintainer
 The preferred contact for the maintainer.  This should be in the format of a
 name followed by an e-mail address or website.
+(optional; literal; pkgconf extension)
+.It Source
+The asserted SPDX downloadLocation tag that should be applied to the given package.
+Source should be URI contain tarball with exact version or Repository that contains
+tag with version same as mentioned in version tag. It can be also be URI with hash
+that is exact release point of the source.
 (optional; literal; pkgconf extension)
 .It Requires
 Required dependencies that must be met for the package to be usable.
 All dependencies must be satisfied or the pkg-config implementation must not use
 the package.
 (optional; dependency list)
+.It Requires.internal
+Required dependencies that must be met for the package to be usable for
+static linking.
+The main differences verses Requires.private are that CFLAGS will not be
+included and the solver will not consider the dependency when solving for
+CFLAGS only.
+(optional; dependency list; pkgconf extension)
 .It Requires.private
 Required dependencies that must be met for the package to be usable for header
 inclusion and static linking.

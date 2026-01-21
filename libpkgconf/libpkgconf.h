@@ -22,29 +22,13 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <libpkgconf/libpkgconf-api.h>
 #include <libpkgconf/iter.h>
 #include <libpkgconf/bsdstubs.h>
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-/* pkg-config uses ';' on win32 as ':' is part of path */
-#ifdef _WIN32
-#define PKG_CONFIG_PATH_SEP_S   ";"
-#else
-#define PKG_CONFIG_PATH_SEP_S   ":"
-#endif
-
-#ifdef _WIN32
-#define PKG_DIR_SEP_S   '\\'
-#else
-#define PKG_DIR_SEP_S   '/'
-#endif
-
-#ifdef _WIN32
-#define realpath(N,R) _fullpath((R),(N),_MAX_PATH)
 #endif
 
 #define PKGCONF_BUFSIZE	(65535)
@@ -64,11 +48,14 @@ typedef enum {
 typedef struct pkgconf_pkg_ pkgconf_pkg_t;
 typedef struct pkgconf_dependency_ pkgconf_dependency_t;
 typedef struct pkgconf_tuple_ pkgconf_tuple_t;
+typedef struct pkgconf_buffer_ pkgconf_buffer_t;
+typedef struct pkgconf_span_ pkgconf_span_t;
 typedef struct pkgconf_fragment_ pkgconf_fragment_t;
 typedef struct pkgconf_path_ pkgconf_path_t;
 typedef struct pkgconf_client_ pkgconf_client_t;
 typedef struct pkgconf_cross_personality_ pkgconf_cross_personality_t;
 typedef struct pkgconf_queue_ pkgconf_queue_t;
+typedef struct pkgconf_output_ pkgconf_output_t;
 
 #define PKGCONF_ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
@@ -116,6 +103,8 @@ struct pkgconf_dependency_ {
 
 	int refcount;
 	pkgconf_client_t *owner;
+
+	char *why;
 };
 
 struct pkgconf_tuple_ {
@@ -125,6 +114,11 @@ struct pkgconf_tuple_ {
 	char *value;
 
 	unsigned int flags;
+};
+
+struct pkgconf_buffer_ {
+	char *base;
+	char *end;
 };
 
 #define PKGCONF_PKG_TUPLEF_OVERRIDE		0x1
@@ -160,6 +154,8 @@ struct pkgconf_pkg_ {
 	char *license;
 	char *maintainer;
 	char *copyright;
+	char *source;
+	char *license_file;
 	char *why;
 
 	pkgconf_list_t libs;
@@ -195,6 +191,7 @@ typedef void (*pkgconf_pkg_traverse_func_t)(pkgconf_client_t *client, pkgconf_pk
 typedef bool (*pkgconf_queue_apply_func_t)(pkgconf_client_t *client, pkgconf_pkg_t *world, void *data, int maxdepth);
 typedef bool (*pkgconf_error_handler_func_t)(const char *msg, const pkgconf_client_t *client, void *data);
 typedef void (*pkgconf_unveil_handler_func_t)(const pkgconf_client_t *client, const char *path, const char *permissions);
+typedef const char *(*pkgconf_environ_lookup_handler_func_t)(const pkgconf_client_t *client, const char *variable);
 
 struct pkgconf_client_ {
 	pkgconf_list_t dir_list;
@@ -204,6 +201,7 @@ struct pkgconf_client_ {
 
 	pkgconf_list_t global_vars;
 
+	void *client_data;
 	void *error_handler_data;
 	void *warn_handler_data;
 	void *trace_handler_data;
@@ -211,6 +209,8 @@ struct pkgconf_client_ {
 	pkgconf_error_handler_func_t error_handler;
 	pkgconf_error_handler_func_t warn_handler;
 	pkgconf_error_handler_func_t trace_handler;
+
+	pkgconf_environ_lookup_handler_func_t environ_lookup_handler;
 
 	FILE *auditf;
 
@@ -232,6 +232,10 @@ struct pkgconf_client_ {
 	pkgconf_unveil_handler_func_t unveil_handler;
 
 	pkgconf_list_t preloaded_pkgs;
+
+	pkgconf_output_t *output;
+
+	const pkgconf_cross_personality_t *personality;
 };
 
 struct pkgconf_cross_personality_ {
@@ -249,8 +253,8 @@ struct pkgconf_cross_personality_ {
 };
 
 /* client.c */
-PKGCONF_API void pkgconf_client_init(pkgconf_client_t *client, pkgconf_error_handler_func_t error_handler, void *error_handler_data, const pkgconf_cross_personality_t *personality);
-PKGCONF_API pkgconf_client_t * pkgconf_client_new(pkgconf_error_handler_func_t error_handler, void *error_handler_data, const pkgconf_cross_personality_t *personality);
+PKGCONF_API void pkgconf_client_init(pkgconf_client_t *client, pkgconf_error_handler_func_t error_handler, void *error_handler_data, const pkgconf_cross_personality_t *personality, void *client_data, pkgconf_environ_lookup_handler_func_t environ_lookup_handler);
+PKGCONF_API pkgconf_client_t * pkgconf_client_new(pkgconf_error_handler_func_t error_handler, void *error_handler_data, const pkgconf_cross_personality_t *personality, void *client_data, pkgconf_environ_lookup_handler_func_t environ_lookup_handler);
 PKGCONF_API void pkgconf_client_deinit(pkgconf_client_t *client);
 PKGCONF_API void pkgconf_client_free(pkgconf_client_t *client);
 PKGCONF_API const char *pkgconf_client_get_sysroot_dir(const pkgconf_client_t *client);
@@ -270,8 +274,11 @@ PKGCONF_API void pkgconf_client_set_trace_handler(pkgconf_client_t *client, pkgc
 PKGCONF_API pkgconf_unveil_handler_func_t pkgconf_client_get_unveil_handler(const pkgconf_client_t *client);
 PKGCONF_API void pkgconf_client_set_unveil_handler(pkgconf_client_t *client, pkgconf_unveil_handler_func_t unveil_handler);
 PKGCONF_API void pkgconf_client_dir_list_build(pkgconf_client_t *client, const pkgconf_cross_personality_t *personality);
+PKGCONF_API bool pkgconf_client_preload_one(pkgconf_client_t *client, pkgconf_pkg_t *pkg);
 PKGCONF_API bool pkgconf_client_preload_path(pkgconf_client_t *client, const char *path);
 PKGCONF_API bool pkgconf_client_preload_from_environ(pkgconf_client_t *client, const char *env);
+PKGCONF_API void pkgconf_client_set_output(pkgconf_client_t *client, pkgconf_output_t *output);
+PKGCONF_API const char *pkgconf_client_getenv(const pkgconf_client_t *client, const char *key);
 
 /* personality.c */
 PKGCONF_API pkgconf_cross_personality_t *pkgconf_cross_personality_default(void);
@@ -299,6 +306,7 @@ PKGCONF_API void pkgconf_cross_personality_deinit(pkgconf_cross_personality_t *p
 #define PKGCONF_PKG_PKGF_DONT_MERGE_SPECIAL_FRAGMENTS	0x4000
 #define PKGCONF_PKG_PKGF_FDO_SYSROOT_RULES		0x8000
 #define PKGCONF_PKG_PKGF_PKGCONF1_SYSROOT_RULES         0x10000
+#define PKGCONF_PKG_PKGF_REQUIRE_INTERNAL		0x20000
 
 #define PKGCONF_PKG_DEPF_INTERNAL		0x1
 #define PKGCONF_PKG_DEPF_PRIVATE		0x2
@@ -328,12 +336,6 @@ PKGCONF_API void pkgconf_cross_personality_deinit(pkgconf_cross_personality_t *p
 # define DEPRECATED
 #endif
 
-/* parser.c */
-typedef void (*pkgconf_parser_operand_func_t)(void *data, const size_t lineno, const char *key, const char *value);
-typedef void (*pkgconf_parser_warn_func_t)(void *data, const char *fmt, ...);
-
-PKGCONF_API void pkgconf_parser_parse(FILE *f, void *data, const pkgconf_parser_operand_func_t *ops, const pkgconf_parser_warn_func_t warnfunc, const char *filename);
-
 /* pkg.c */
 PKGCONF_API bool pkgconf_error(const pkgconf_client_t *client, const char *format, ...) PRINTFLIKE(2, 3);
 PKGCONF_API bool pkgconf_warn(const pkgconf_client_t *client, const char *format, ...) PRINTFLIKE(2, 3);
@@ -359,13 +361,13 @@ PKGCONF_API void pkgconf_pkg_unref(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 PKGCONF_API void pkgconf_pkg_free(pkgconf_client_t *client, pkgconf_pkg_t *pkg);
 PKGCONF_API pkgconf_pkg_t *pkgconf_pkg_find(pkgconf_client_t *client, const char *name);
 PKGCONF_API unsigned int pkgconf_pkg_traverse(pkgconf_client_t *client, pkgconf_pkg_t *root, pkgconf_pkg_traverse_func_t func, void *data, int maxdepth, unsigned int skip_flags);
+PKGCONF_API unsigned int pkgconf_pkg_walk_conflicts_list(pkgconf_client_t *client, pkgconf_pkg_t *root, pkgconf_list_t *deplist);
 PKGCONF_API unsigned int pkgconf_pkg_verify_graph(pkgconf_client_t *client, pkgconf_pkg_t *root, int depth);
 PKGCONF_API pkgconf_pkg_t *pkgconf_pkg_verify_dependency(pkgconf_client_t *client, pkgconf_dependency_t *pkgdep, unsigned int *eflags);
 PKGCONF_API const char *pkgconf_pkg_get_comparator(const pkgconf_dependency_t *pkgdep);
 PKGCONF_API unsigned int pkgconf_pkg_cflags(pkgconf_client_t *client, pkgconf_pkg_t *root, pkgconf_list_t *list, int maxdepth);
 PKGCONF_API unsigned int pkgconf_pkg_libs(pkgconf_client_t *client, pkgconf_pkg_t *root, pkgconf_list_t *list, int maxdepth);
 PKGCONF_API pkgconf_pkg_comparator_t pkgconf_pkg_comparator_lookup_by_name(const char *name);
-PKGCONF_API pkgconf_pkg_t *pkgconf_builtin_pkg_get(const char *name);
 
 PKGCONF_API int pkgconf_compare_version(const char *a, const char *b);
 PKGCONF_API pkgconf_pkg_t *pkgconf_scan_all(pkgconf_client_t *client, void *ptr, pkgconf_pkg_iteration_func_t func);
@@ -389,7 +391,7 @@ PKGCONF_API void pkgconf_argv_free(char **argv);
 /* fragment.c */
 typedef struct pkgconf_fragment_render_ops_ {
 	size_t (*render_len)(const pkgconf_list_t *list, bool escape);
-	void (*render_buf)(const pkgconf_list_t *list, char *buf, size_t len, bool escape);
+	void (*render_buf)(const pkgconf_list_t *list, pkgconf_buffer_t *buf, bool escape, char delim);
 } pkgconf_fragment_render_ops_t;
 
 typedef bool (*pkgconf_fragment_filter_func_t)(const pkgconf_client_t *client, const pkgconf_fragment_t *frag, void *data);
@@ -402,8 +404,7 @@ PKGCONF_API void pkgconf_fragment_delete(pkgconf_list_t *list, pkgconf_fragment_
 PKGCONF_API void pkgconf_fragment_free(pkgconf_list_t *list);
 PKGCONF_API void pkgconf_fragment_filter(const pkgconf_client_t *client, pkgconf_list_t *dest, pkgconf_list_t *src, pkgconf_fragment_filter_func_t filter_func, void *data);
 PKGCONF_API size_t pkgconf_fragment_render_len(const pkgconf_list_t *list, bool escape, const pkgconf_fragment_render_ops_t *ops);
-PKGCONF_API void pkgconf_fragment_render_buf(const pkgconf_list_t *list, char *buf, size_t len, bool escape, const pkgconf_fragment_render_ops_t *ops);
-PKGCONF_API char *pkgconf_fragment_render(const pkgconf_list_t *list, bool escape, const pkgconf_fragment_render_ops_t *ops);
+PKGCONF_API void pkgconf_fragment_render_buf(const pkgconf_list_t *list, pkgconf_buffer_t *buf, bool escape, const pkgconf_fragment_render_ops_t *ops, char delim);
 PKGCONF_API bool pkgconf_fragment_has_system_dir(const pkgconf_client_t *client, const pkgconf_fragment_t *frag);
 
 /* tuple.c */
@@ -419,6 +420,7 @@ PKGCONF_API void pkgconf_tuple_define_global(pkgconf_client_t *client, const cha
 
 /* queue.c */
 PKGCONF_API void pkgconf_queue_push(pkgconf_list_t *list, const char *package);
+PKGCONF_API void pkgconf_queue_push_dependency(pkgconf_list_t *list, const pkgconf_dependency_t *dep);
 PKGCONF_API bool pkgconf_queue_compile(pkgconf_client_t *client, pkgconf_pkg_t *world, pkgconf_list_t *list);
 PKGCONF_API bool pkgconf_queue_solve(pkgconf_client_t *client, pkgconf_list_t *list, pkgconf_pkg_t *world, int maxdepth);
 PKGCONF_API void pkgconf_queue_free(pkgconf_list_t *list);
@@ -441,7 +443,7 @@ PKGCONF_API void pkgconf_audit_log_dependency(pkgconf_client_t *client, const pk
 PKGCONF_API void pkgconf_path_add(const char *text, pkgconf_list_t *dirlist, bool filter);
 PKGCONF_API void pkgconf_path_prepend(const char *text, pkgconf_list_t *dirlist, bool filter);
 PKGCONF_API size_t pkgconf_path_split(const char *text, pkgconf_list_t *dirlist, bool filter);
-PKGCONF_API size_t pkgconf_path_build_from_environ(const char *envvarname, const char *fallback, pkgconf_list_t *dirlist, bool filter);
+PKGCONF_API size_t pkgconf_path_build_from_environ(const pkgconf_client_t *client, const char *envvarname, const char *fallback, pkgconf_list_t *dirlist, bool filter);
 #ifdef _WIN32
 PKGCONF_API size_t pkgconf_path_build_from_registry(/* HKEY -> HANDLE -> PVOID */ void *hKey, pkgconf_list_t *dirlist, bool filter);
 #endif
@@ -452,17 +454,39 @@ PKGCONF_API void pkgconf_path_copy_list(pkgconf_list_t *dst, const pkgconf_list_
 PKGCONF_API void pkgconf_path_prepend_list(pkgconf_list_t *dst, const pkgconf_list_t *src);
 
 /* buffer.c */
-typedef struct pkgconf_buffer_ {
-	char *base;
-	char *end;
-} pkgconf_buffer_t;
+struct pkgconf_span_ {
+	unsigned char lo;
+	unsigned char hi;	/* inclusive */
+};
+
+static inline bool pkgconf_span_contains(unsigned char c, const pkgconf_span_t *spans, size_t nspans) {
+	for (size_t i = 0; i < nspans; i++)
+		if (c >= spans[i].lo && c <= spans[i].hi)
+			return true;
+
+	return false;
+}
 
 PKGCONF_API void pkgconf_buffer_append(pkgconf_buffer_t *buffer, const char *text);
+PKGCONF_API void pkgconf_buffer_append_fmt(pkgconf_buffer_t *buffer, const char *fmt, ...) PRINTFLIKE(2, 3);
+PKGCONF_API void pkgconf_buffer_append_vfmt(pkgconf_buffer_t *buffer, const char *fmt, va_list va);
 PKGCONF_API void pkgconf_buffer_push_byte(pkgconf_buffer_t *buffer, char byte);
 PKGCONF_API void pkgconf_buffer_trim_byte(pkgconf_buffer_t *buffer);
 PKGCONF_API void pkgconf_buffer_finalize(pkgconf_buffer_t *buffer);
+PKGCONF_API void pkgconf_buffer_fputs(pkgconf_buffer_t *buffer, FILE *out);
+PKGCONF_API void pkgconf_buffer_vjoin(pkgconf_buffer_t *buffer, char delim, va_list va);
+PKGCONF_API void pkgconf_buffer_join(pkgconf_buffer_t *buffer, int delim, ...);
+PKGCONF_API bool pkgconf_buffer_contains(const pkgconf_buffer_t *haystack, const pkgconf_buffer_t *needle);
+PKGCONF_API bool pkgconf_buffer_contains_byte(const pkgconf_buffer_t *haystack, char needle);
+PKGCONF_API bool pkgconf_buffer_match(const pkgconf_buffer_t *haystack, const pkgconf_buffer_t *needle);
+PKGCONF_API void pkgconf_buffer_subst(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const char *pattern, const char *value);
+PKGCONF_API void pkgconf_buffer_escape(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const pkgconf_span_t *spans, size_t nspans);
 static inline const char *pkgconf_buffer_str(const pkgconf_buffer_t *buffer) {
 	return buffer->base;
+}
+
+static inline const char *pkgconf_buffer_str_or_empty(const pkgconf_buffer_t *buffer) {
+	return buffer->base != NULL ? buffer->base : "";
 }
 
 static inline size_t pkgconf_buffer_len(const pkgconf_buffer_t *buffer) {
@@ -477,14 +501,55 @@ static inline char pkgconf_buffer_lastc(const pkgconf_buffer_t *buffer) {
 }
 
 #define PKGCONF_BUFFER_INITIALIZER { NULL, NULL }
+#define PKGCONF_BUFFER_FROM_STR(str) &(const pkgconf_buffer_t){ .base = str, .end = str + strlen(str) }
 
 static inline void pkgconf_buffer_reset(pkgconf_buffer_t *buffer) {
 	pkgconf_buffer_finalize(buffer);
 	buffer->base = buffer->end = NULL;
 }
 
+static inline char *pkgconf_buffer_freeze(pkgconf_buffer_t *buffer) {
+	if (buffer->base == NULL)
+		return NULL;
+
+	char *out = strdup(pkgconf_buffer_str(buffer));
+	pkgconf_buffer_reset(buffer);
+	return out;
+}
+
+static inline void pkgconf_buffer_copy(pkgconf_buffer_t *buffer, pkgconf_buffer_t *newptr)
+{
+    pkgconf_buffer_reset(newptr);
+    pkgconf_buffer_append(newptr, pkgconf_buffer_str(buffer));
+}
+
 /* fileio.c */
 PKGCONF_API bool pkgconf_fgetline(pkgconf_buffer_t *buffer, FILE *stream);
+
+/* parser.c */
+typedef void (*pkgconf_parser_operand_func_t)(void *data, const char *warnprefix, const char *key, const char *value);
+typedef void (*pkgconf_parser_warn_func_t)(void *data, const char *fmt, ...);
+
+PKGCONF_API void pkgconf_parser_parse_buffer(void *data, const pkgconf_parser_operand_func_t *ops, const pkgconf_parser_warn_func_t warnfunc, pkgconf_buffer_t *buffer, const char *warnprefix);
+PKGCONF_API void pkgconf_parser_parse(FILE *f, void *data, const pkgconf_parser_operand_func_t *ops, const pkgconf_parser_warn_func_t warnfunc, const char *filename);
+
+/* output.c */
+typedef enum {
+	PKGCONF_OUTPUT_STDOUT,
+	PKGCONF_OUTPUT_STDERR,
+} pkgconf_output_stream_t;
+
+struct pkgconf_output_ {
+	void *privdata;
+
+	bool (*write)(pkgconf_output_t *output, pkgconf_output_stream_t stream, const pkgconf_buffer_t *buffer);
+};
+
+PKGCONF_API bool pkgconf_output_putbuf(pkgconf_output_t *output, pkgconf_output_stream_t stream, const pkgconf_buffer_t *buffer, bool newline);
+PKGCONF_API bool pkgconf_output_puts(pkgconf_output_t *output, pkgconf_output_stream_t stream, const char *str);
+PKGCONF_API bool pkgconf_output_fmt(pkgconf_output_t *output, pkgconf_output_stream_t stream, const char *fmt, ...);
+PKGCONF_API bool pkgconf_output_vfmt(pkgconf_output_t *output, pkgconf_output_stream_t stream, const char *fmt, va_list va);
+PKGCONF_API pkgconf_output_t *pkgconf_output_default(void);
 
 #ifdef __cplusplus
 }

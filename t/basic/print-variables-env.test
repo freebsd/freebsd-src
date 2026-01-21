@@ -1,0 +1,12 @@
+PackageSearchPath: lib1
+Query: foo
+WantedFlags: print-variables cflags libs
+WantEnvPrefix: FOO
+ExpectedStdout: FOO_CFLAGS='-fPIC -I/test/include/foo'
+ExpectedStdout: FOO_LIBS='-L/test/lib -lfoo'
+ExpectedStdout: FOO_INCLUDEDIR='/test/include'
+ExpectedStdout: FOO_LIBDIR='/test/lib'
+ExpectedStdout: FOO_EXEC_PREFIX='/test'
+ExpectedStdout: FOO_PREFIX='/test'
+ExpectedStdout: FOO_PCFILEDIR='%TEST_FIXTURES_DIR%/lib1'
+MatchStdout: partial

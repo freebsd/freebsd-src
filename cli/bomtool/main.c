@@ -31,7 +31,15 @@ static pkgconf_client_t pkg_client;
 static uint64_t want_flags;
 static size_t maximum_package_count = 0;
 static int maximum_traverse_depth = 2000;
-FILE *error_msgout = NULL;
+static FILE *error_msgout = NULL;
+
+static const char *
+environ_lookup_handler(const pkgconf_client_t *client, const char *key)
+{
+	(void) client;
+
+	return getenv(key);
+}
 
 static bool
 error_handler(const char *msg, const pkgconf_client_t *client, void *data)
@@ -135,6 +143,9 @@ write_sbom_package(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused)
 
 	if (pkg->description != NULL)
 		printf("PackageSummary: <text>%s</text>\n", pkg->description);
+
+	if (pkg->source != NULL)
+		printf("PackageDownloadLocation: %s\n", pkg->source);
 
 	printf("\n\n");
 }
@@ -282,7 +293,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	pkgconf_client_init(&pkg_client, error_handler, NULL, personality);
+	pkgconf_client_init(&pkg_client, error_handler, NULL, personality, NULL, environ_lookup_handler);
 
 	/* we have determined what features we want most likely.  in some cases, we override later. */
 	pkgconf_client_set_flags(&pkg_client, want_client_flags);

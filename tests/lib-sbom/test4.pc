@@ -1,0 +1,8 @@
+Name: test4
+Description: Test package 4
+URL: https://github.com/pkgconf/pkgconf/
+Version: 4.0.0
+License: MIT
+Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+Requires: test5 \
+  test6
