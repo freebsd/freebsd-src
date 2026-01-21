@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 28, 2025
+.Dd January 17, 2026
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -52,20 +52,66 @@ These families are defined in the include file
 .In sys/socket.h .
 The currently understood formats are:
 .Pp
-.Bd -literal -offset indent -compact
-PF_LOCAL	Host-internal protocols (alias for PF_UNIX),
-PF_UNIX		Host-internal protocols,
-PF_INET		Internet version 4 protocols,
-PF_INET6	Internet version 6 protocols,
-PF_DIVERT	Firewall packet diversion/re-injection,
-PF_ROUTE	Internal routing protocol,
-PF_KEY		Internal key-management function,
-PF_NETGRAPH	Netgraph sockets,
-PF_NETLINK	Netlink protocols,
-PF_BLUETOOTH	Bluetooth protocols,
-PF_INET_SDP	OFED socket direct protocol (IPv4),
-PF_HYPERV	HyperV sockets
-.Ed
+.Bl -tag -width "PF_BLUETOOTH"
+.It Dv PF_LOCAL
+Host-internal protocols (alias for
+.Dv PF_UNIX ) .
+.It Dv PF_UNIX
+Host-internal protocols.
+See
+.Xr unix 4 .
+.It Dv PF_INET
+Internet version 4 protocols.
+See
+.Xr icmp 4 ,
+.Xr igmp 4 ,
+.Xr ip 4 ,
+.Xr sctp 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr udplite 4 .
+.It Dv PF_INET6
+Internet version 6 protocols.
+See
+.Xr icmp6 4 ,
+.Xr ip6 4 ,
+.Xr mld 4 .
+.It Dv PF_DIVERT
+Firewall packet diversion/re-injection.
+See
+.Xr divert 4 .
+.It Dv PF_ROUTE
+Legacy protocol to control routing tables and receive network
+configuration events from the kernel.
+New applications should prefer
+.Xr rtnetlink 4
+over
+.Xr route 4 .
+.It Dv PF_KEY
+Internal key-management function.
+See
+.Xr ipsec 4 .
+.It Dv PF_NETGRAPH
+Netgraph sockets.
+See
+.Xr netgraph 3
+and
+.Xr ng_socket 4 .
+.It Dv PF_NETLINK
+Netlink protocols.
+See
+.Xr genetlink 4 ,
+.Xr netlink 4 ,
+.Xr rtnetlink 4 .
+.It Dv PF_BLUETOOTH
+Bluetooth protocols.
+See
+.Xr ng_btsocket 4 .
+.It Dv PF_INET_SDP
+OFED socket direct protocol (IPv4).
+.It Dv PF_HYPERV
+HyperV sockets.
+.El
 .Pp
 Each protocol family is connected to an address family, which has the
 same name except that the prefix is
@@ -82,22 +128,47 @@ which specifies the semantics of communication.
 Currently
 defined types are:
 .Pp
-.Bd -literal -offset indent -compact
-SOCK_STREAM	Stream socket,
-SOCK_DGRAM	Datagram socket,
-SOCK_RAW	Raw-protocol interface,
-SOCK_SEQPACKET	Sequenced packet stream
-.Ed
+.Bl -tag -width "SOCK_SEQPACKET"
+.It Dv SOCK_STREAM
+Stream socket.
+.It Dv SOCK_DGRAM
+Datagram socket.
+.It Dv SOCK_RAW
+Raw-protocol interface.
+.It Dv SOCK_SEQPACKET
+Sequenced packet stream.
+.El
 .Pp
 Additionally, the following flags are allowed in the
 .Fa type
 argument:
 .Pp
-.Bd -literal -offset indent -compact
-SOCK_CLOEXEC	Set close-on-exec on the new descriptor,
-SOCK_CLOFORK	Set close-on-fork on the new descriptor,
-SOCK_NONBLOCK	Set non-blocking mode on the new socket
-.Ed
+.Bl -tag -width "SOCK_NONBLOCK"
+.It Dv SOCK_CLOEXEC
+Set close-on-exec on the new socket.
+See
+.Xr fcntl 2
+.Dv FD_CLOEXEC
+flag for
+.Dv F_GETFD
+command.
+.It Dv SOCK_CLOFORK
+Set close-on-fork on the new socket.
+See
+.Xr fcntl 2
+.Dv FD_CLOFORK
+flag for
+.Dv F_GETFD
+command.
+.It Dv SOCK_NONBLOCK
+Set non-blocking mode on the new socket.
+See
+.Xr fcntl 2
+.Dv O_NONBLOCK
+flag for
+.Dv F_SETFL
+command.
+.El
 .Pp
 The
 .Fa protocol
@@ -423,10 +494,22 @@ The socket type is not supported by the protocol.
 .Xr write 2 ,
 .Xr CMSG_DATA 3 ,
 .Xr getprotoent 3 ,
+.Xr netgraph 3 ,
 .Xr divert 4 ,
+.Xr genetlink 4 ,
+.Xr icmp 4 ,
+.Xr icmp6 4 ,
+.Xr igmp 4 ,
 .Xr ip 4 ,
 .Xr ip6 4 ,
-.Xr netgraph 4 ,
+.Xr ipsec 4 ,
+.Xr netlink 4 ,
+.Xr ng_socket 4 ,
+.Xr route 4 ,
+.Xr rtnetlink 4 ,
+.Xr sctp 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
 .Xr protocols 5
 .Rs
 .%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
