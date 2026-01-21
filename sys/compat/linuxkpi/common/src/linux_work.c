@@ -57,6 +57,7 @@ struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_unbound_wq;
 struct workqueue_struct *system_highpri_wq;
 struct workqueue_struct *system_power_efficient_wq;
+struct workqueue_struct *system_percpu_wq;
 
 struct taskqueue *linux_irq_work_tq;
 
@@ -721,7 +722,14 @@ linux_work_init(void *arg)
 
 	/* populate the workqueue pointers */
 	system_long_wq = linux_system_long_wq;
+	/*
+	 * With Linux v6.17 system_wq was "renamed" to system_percpu_wq with the
+	 * old name staying around.
+	 * Note: neither implementation here does fully implement the per-cpu
+	 * characteristics upstream expects.
+	 */
 	system_wq = linux_system_short_wq;
+	system_percpu_wq = linux_system_short_wq;
 	system_power_efficient_wq = linux_system_short_wq;
 	system_unbound_wq = linux_system_short_wq;
 	system_highpri_wq = linux_system_short_wq;
@@ -737,6 +745,7 @@ linux_work_uninit(void *arg)
 	/* clear workqueue pointers */
 	system_long_wq = NULL;
 	system_wq = NULL;
+	system_percpu_wq = NULL;
 	system_power_efficient_wq = NULL;
 	system_unbound_wq = NULL;
 	system_highpri_wq = NULL;
