@@ -1103,6 +1103,8 @@ struct ieee80211_ops {
 
 	void (*rfkill_poll)(struct ieee80211_hw *);
 
+	int (*net_fill_forward_path)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct net_device_path_ctx *, struct net_device_path *);
+
 /* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change depending on compile-time option. */
 	void (*sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct dentry *);
 	void (*vif_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *);
