@@ -108,7 +108,9 @@ Exhibit a list of all configured non-wildcard jails and their parameters.
 No jail creation, modification or removal performed if this option is used.
 The
 .Ar separator
-string is used to separate parameters.
+string is used to separate parameters.  If the separator string is empty (''
+or "") then each parameter will be followed by a NUL byte, with one additional
+NUL byte at end of each jail's parameters.
 Use
 .Xr jls 8
 utility to list running jails.
