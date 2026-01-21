@@ -7151,7 +7151,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 				    sense_returned;
 			else
 				csio->sense_resid = 0;
-			bcopy(cp->sns_bbuf, &csio->sense_data,
+			memcpy(&csio->sense_data, cp->sns_bbuf,
 			    MIN(csio->sense_len, sense_returned));
 #if 0
 			/*
@@ -7636,7 +7636,7 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		/* CDB is a pointer */
 		if (!(ccb_h->flags & CAM_CDB_PHYS)) {
 			/* CDB pointer is virtual */
-			bcopy(csio->cdb_io.cdb_ptr, cp->cdb_buf, cmd_len);
+			memcpy(cp->cdb_buf, csio->cdb_io.cdb_ptr, cmd_len);
 			cmd_ba = CCB_BA (cp, cdb_buf[0]);
 		} else {
 			/* CDB pointer is physical */
@@ -7649,7 +7649,7 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		}
 	} else {
 		/* CDB is in the CAM ccb (buffer) */
-		bcopy(csio->cdb_io.cdb_bytes, cp->cdb_buf, cmd_len);
+		memcpy(cp->cdb_buf, csio->cdb_io.cdb_bytes, cmd_len);
 		cmd_ba = CCB_BA (cp, cdb_buf[0]);
 	}
 
@@ -8636,8 +8636,8 @@ sym_pci_attach(device_t dev)
 	/*
 	 *  Copy scripts to controller instance.
 	 */
-	bcopy(fw->a_base, np->scripta0, np->scripta_sz);
-	bcopy(fw->b_base, np->scriptb0, np->scriptb_sz);
+	memcpy(np->scripta0, fw->a_base, np->scripta_sz);
+	memcpy(np->scriptb0, fw->b_base, np->scriptb_sz);
 
 	/*
 	 *  Setup variable parts in scripts and compute
