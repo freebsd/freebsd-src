@@ -1,0 +1,10 @@
+prefix=/tëst
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: utf8
+Description: Library installed in a prefix with UTF-8
+Version: 0
+Libs: -L${libdir} -lutf8
+Cflags: -I${includedir}

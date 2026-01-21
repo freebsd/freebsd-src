@@ -1,0 +1,231 @@
+.\" Copyright (c) 2011, 2012, 2013, 2014, 2015, 2016 pkgconf authors (see AUTHORS).
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" This software is provided 'as is' and without any warranty, express or
+.\" implied.  In no event shall the authors be liable for any damages arising
+.\" from the use of this software.
+.Dd November 15, 2016
+.Dt PKGCONF 1
+.Os
+.Sh NAME
+.Nm pkgconf
+.Nd a system for configuring build dependency information
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Op Ar list of modules
+.Sh DESCRIPTION
+.Nm
+is a program which helps to configure compiler and linker flags for
+development libraries.
+This allows build systems to detect other dependencies and use them with the
+system toolchain.
+.Sh GENERAL OPTIONS
+.Bl -tag -width indent
+.It Fl -version
+Display the supported pkg-config version and exit.
+.It Fl -atleast-pkgconfig-version Ns = Ns Ar VERSION
+Exit with error if we do not support the requested pkg-config version.
+.It Fl -errors-to-stdout
+Print all errors on the main output stream instead of the error output stream.
+.It Fl -silence-errors
+Do not display any errors at all.
+.It Fl -list-all
+Walk all directories listed in the
+.Va PKG_CONFIG_PATH
+environmental variable and display information on packages which have registered
+information there.
+.It Fl -simulate
+Simulates resolving a dependency graph based on the requested modules on the
+command line.
+Dumps a series of trees denoting pkgconf's resolver state.
+.It Fl -no-cache
+Skip caching packages when they are loaded into the internal resolver.
+This may result in an alternate dependency graph being computed.
+.It Fl -ignore-conflicts
+Ignore
+.Sq Conflicts
+rules in modules.
+.It Fl -env-only
+Learn about pkgconf's configuration strictly from environmental variables.
+.It Fl -validate Ar package ...
+Validate specific
+.Sq .pc
+files for correctness.
+.It Fl -maximum-traverse-depth Ns = Ns Ar DEPTH
+Impose a limit on the allowed depth in the dependency graph.
+For example, a depth of 2 will restrict the resolver from acting on child
+dependencies of modules added to the resolver's solution.
+.It Fl -static
+Compute a deeper dependency graph and use compiler/linker flags intended for
+static linking.
+.It Fl -shared
+Compute a simple dependency graph that is only suitable for shared linking.
+.It Fl -pure
+Treats the computed dependency graph as if it were pure.
+This is mainly intended for use with the
+.Fl -static
+flag.
+.It Fl -no-provides
+Ignore
+.Sq Provides
+rules in modules when resolving dependencies.
+.It Fl -with-path Ns = Ns Ar PATH
+Adds a new module search path to pkgconf's dependency resolver.
+Paths added in this way are given preference before other paths.
+.It Fl -define-prefix
+Attempts to determine the prefix variable to use for CFLAGS and LIBS entry relocations.
+This is mainly useful for platforms where framework SDKs are relocatable, such as Windows.
+.It Fl -dont-define-prefix
+Disables the
+.Sq define-prefix
+feature.
+.It Fl -prefix-variable Ns = Ns Ar VARIABLE
+Sets the
+.Sq prefix
+variable used by the
+.Sq define-prefix
+feature.
+.It Fl -relocate Ns = Ns Ar PATH
+Relocates a path using the pkgconf_path_relocate API.
+This is mainly used by the testsuite to provide a guaranteed interface
+to the system's path relocation backend.
+.It Fl -dont-relocate-paths
+Disables the path relocation feature.
+.El
+.Sh MODULE-SPECIFIC OPTIONS
+.Bl -tag -width indent
+.It Fl -atleast-version Ns = Ns Ar VERSION
+Exit with error if a module's version is less than the specified version.
+.It Fl -exact-version Ns = Ns Ar VERSION
+Exit with error if a module's version is not exactly the specified version.
+.It Fl -max-version Ns = Ns Ar VERSION
+Exit with error if a module's version is greater than the specified version.
+.It Fl -exists
+Exit with a non-zero result if the dependency resolver was unable to find all of
+the requested modules.
+.It Fl -uninstalled
+Exit with a non-zero result if the dependency resolver uses an
+.Sq uninstalled
+module as part of its solution.
+.It Fl -no-uninstalled
+Forbids the dependency resolver from considering 'uninstalled' modules as part
+of a solution.
+.El
+.Sh QUERY-SPECIFIC OPTIONS
+.Bl -tag -width indent
+.It Fl -cflags , Fl -cflags-only-I , Fl -cflags-only-other
+Display either all CFLAGS, only
+.Fl I
+CFLAGS or only CFLAGS that are not
+.Fl I .
+.It Fl -libs , Fl -libs-only-L , Fl -libs-only-l , Fl -libs-only-other
+Display either all linker flags, only
+.Fl L
+linker flags, only
+.Fl l
+linker flags or only linker flags that are not
+.Fl L
+or
+.Fl l .
+.It Fl -keep-system-cflags , Fl -keep-system-libs
+Keep CFLAGS or linker flag fragments that would be filtered due to being
+included by default in the compiler.
+.It Fl -define-variable Ns = Ns Ar VARNAME Ns = Ns Ar VALUE
+Define
+.Va VARNAME
+as
+.Va VALUE .
+Variables are used in query output, and some modules' results may change based
+on the presence of a variable definition.
+.It Fl -print-variables
+Print all seen variables for a module to the output channel.
+.It Fl -print-provides
+Print all relevant
+.Sq Provides
+entries for a module to the output channel.
+.It Fl -variable Ns = Ns Ar VARNAME
+Print the value of
+.Va VARNAME .
+.It Fl -print-requires , Fl -print-requires-private
+Print the modules included in either the
+.Va Requires
+field or the
+.Va Requires.private
+field.
+.It Fl -digraph
+Dump the dependency resolver's solution as a graphviz
+.Sq dot
+file.
+This can be used with graphviz to visualize module interdependencies.
+.It Fl -path
+Display the filenames of the
+.Sq .pc
+files used by the dependency resolver for a given dependency set.
+.It Fl -env Ns = Ns Ar VARNAME
+Print the requested values as variable declarations in a similar format as the
+.Xr env 1
+command.
+.It Fl -fragment-filter Ns = Ns Ar TYPES
+Filter the fragment lists for the specified types.
+.It Fl -modversion
+Print the version of the queried module.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Va PKG_CONFIG_PATH
+List of secondary directories where
+.Sq .pc
+files are looked up.
+.It Va PKG_CONFIG_LIBDIR
+List of primary directories where
+.Sq .pc
+files are looked up.
+.It Va PKG_CONFIG_SYSROOT_DIR
+.Sq sysroot
+directory, will be prepended to every path defined in
+.Va PKG_CONFIG_PATH .
+Useful for cross compilation.
+.It Va PKG_CONFIG_TOP_BUILD_DIR
+Provides an alternative setting for the
+.Sq pc_top_builddir
+global variable.
+.It Va PKG_CONFIG_PURE_DEPGRAPH
+If set, enables the same behaviour as the
+.Fl -pure
+flag.
+.It Va PKG_CONFIG_SYSTEM_INCLUDE_PATH
+List of paths that are considered system include paths by the toolchain.
+This is a pkgconf-specific extension.
+.It Va PKG_CONFIG_SYSTEM_LIBRARY_PATH
+List of paths that are considered system library paths by the toolchain.
+This is a pkgconf-specific extension.
+.It Va PKG_CONFIG_DISABLE_UNINSTALLED
+If set, enables the same behaviour as the
+.Fl -no-uninstalled
+flag.
+.It Va PKG_CONFIG_LOG
+.Sq logfile
+which is used for dumping audit information concerning installed module versions.
+.It Va PKG_CONFIG_DEBUG_SPEW
+If set, enables additional debug logging.
+The format of the debug log messages is implementation-specific.
+.It Va PKG_CONFIG_DONT_RELOCATE_PATHS
+If set, disables the path relocation feature.
+.It Va PKG_CONFIG_MSVC_SYNTAX
+If set, uses MSVC syntax for fragments.
+.It Va PKG_CONFIG_FDO_SYSROOT_RULES
+If set, follow the sysroot prefixing rules that freedesktop.org pkg-config uses.
+.It Va DESTDIR
+If set to PKG_CONFIG_SYSROOT_DIR, assume that PKG_CONFIG_FDO_SYSROOT_RULES is set.
+.El
+.Sh EXAMPLES
+Displaying the CFLAGS of a package:
+.Dl $ pkgconf --cflags foo
+.Dl -fPIC -I/usr/include/foo
+.Sh SEE ALSO
+.Xr pc 5 ,
+.Xr pkg.m4 7

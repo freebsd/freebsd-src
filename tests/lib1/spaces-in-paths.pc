@@ -1,0 +1,7 @@
+prefix=/test\ with\ spaces
+includedir=${prefix}/include
+
+Name: spaces-in-paths
+Version: 1
+Description: test package for properly expanding spaces in variables
+Cflags: -I${includedir} -I${includedir}/subdir
