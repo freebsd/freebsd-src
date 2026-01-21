@@ -243,6 +243,7 @@ ZPOOL_SET='zpool set %s "%s"'
 hline_alnum_arrows_punc_tab_enter="Use alnum, arrows, punctuation, TAB or ENTER"
 hline_arrows_space_tab_enter="Use arrows, SPACE, TAB or ENTER"
 hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+msg_all_possible_gpt_labels_already_taken="All possible GPT labels already taken"
 msg_an_unknown_error_occurred="An unknown error occurred"
 msg_back="Back"
 msg_cancel="Cancel"
@@ -841,6 +842,24 @@ zfs_create_diskpart()
 
 	case "$ZFSBOOT_PARTITION_SCHEME" in
 	""|GPT*) f_dprintf "$funcname: Creating GPT layout..."
+		#
+		# 0. Check for potential GPT label conflicts with disks not
+		# managed by us and adjust $index accordingly
+		#
+		while [ -e /dev/gpt/efiboot$index ] ||
+			[ -e /dev/gpt/gptboot$index ] ||
+			[ -e /dev/gpt/boot$index ] ||
+			[ -e /dev/gpt/swap$index ] ||
+			[ -e /dev/gpt/zfs$index ]; do
+			index=$(( $index + 1 ))
+			if [ $index -ge 4096 ]; then
+				f_dprintf "$funcname: all possible GPT labels already taken"
+				msg_error="$msg_error: $funcname" f_show_err \
+					"$msg_all_possible_gpt_labels_already_taken"
+				return $FAILURE
+			fi
+		done
+
 		#
 		# 1. Create GPT layout using labels
 		#
