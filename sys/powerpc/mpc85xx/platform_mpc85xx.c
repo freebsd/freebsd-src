@@ -302,14 +302,26 @@ mpc85xx_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 static int
 mpc85xx_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 {
+	phandle_t node;
+	pcell_t reg;
+	int i;
 
 	if (cpu >= maxcpu)
 		return (ENOENT);
 
 	cpuref->cr_cpuid = cpu++;
-	cpuref->cr_hwref = cpuref->cr_cpuid;
+
+	node = OF_finddevice("/cpus");
+	for (i = 0, node = OF_child(node); i < cpuref->cr_cpuid;
+	    i++, node = OF_peer(node))
+		;
+	if (OF_getencprop(node, "reg", &reg, sizeof(reg)) > 0)
+		cpuref->cr_hwref = reg;
+	else
+		cpuref->cr_hwref = cpuref->cr_cpuid;
 	if (bootverbose)
-		printf("powerpc_smp_next_cpu: cpuid %d\n", cpuref->cr_cpuid);
+		printf("powerpc_smp_next_cpu: cpuid %d, hwref %d\n",
+		    cpuref->cr_cpuid, (int)cpuref->cr_hwref);
 
 	return (0);
 }
