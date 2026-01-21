@@ -15,6 +15,8 @@ CFLAGS+=	-Wno-error=incompatible-pointer-types-discards-qualifiers
 CFLAGS+=	-Wno-error=cast-qual
 CFLAGS+=	-I${SRCTOP}/lib/libpkgconf -I${PKGCONFDIR} -I${PKGCONFDIR}/cli
 
-.PATH:		${PKGCONFDIR}/cli/bomtool ${PKGCONFDIR}/cli
+.PATH:		${PKGCONFDIR}/cli/bomtool
+.PATH:		${PKGCONFDIR}/cli
+.PATH:		${PKGCONFDIR}/man
 
 .include <bsd.prog.mk>

@@ -9,6 +9,8 @@ SRCS+=		renderer-msvc.c
 
 LIBADD=		pkgconf
 
+SYMLINKS=	pkgconf ${BINDIR}/pkg-config
+
 PKGCONFDIR=	${SRCTOP}/contrib/pkgconf
 
 CFLAGS+=	-Wno-error=missing-variable-declarations
