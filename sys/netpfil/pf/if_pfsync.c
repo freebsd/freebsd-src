@@ -3366,6 +3366,9 @@ vnet_pfsync_uninit(const void *unused __unused)
 	ret = swi_remove(V_pfsync_swi_cookie);
 	MPASS(ret == 0);
 	ret = intr_event_destroy(V_pfsync_swi_ie);
+	if (ret != 0)
+		printf("ERROR: %s(): intr_event_destroy() ret = %d!\n",
+		    __func__, ret);
 	MPASS(ret == 0);
 }
 
