@@ -19,7 +19,7 @@
 .\"
 .\" $Id: cron.8,v 1.2 1998/08/14 00:32:36 vixie Exp $
 .\"
-.Dd February 9, 2022
+.Dd January 20, 2026
 .Dt CRON 8
 .Os
 .Sh NAME
@@ -53,14 +53,15 @@ for crontab files which are named after accounts in
 crontabs found are loaded into memory.
 The
 .Nm
-utility also searches for
+utility also searches
 .Pa /etc/crontab
 and files in
 .Pa /etc/cron.d
 and
-.Pa /usr/local/etc/cron.d
-which are in a different format (see
-.Xr crontab 5 ) .
+.Pa /usr/local/etc/cron.d ,
+which use the system crontab format described in
+.Xr crontab 5
+(including a user field).
 .Pp
 The
 .Nm
