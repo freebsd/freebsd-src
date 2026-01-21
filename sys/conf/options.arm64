@@ -25,6 +25,10 @@ EFIRT				opt_efirt.h
 # Bhyve
 VMM				opt_global.h
 
+# Early printf UART support
+UART_NS8250_EARLY_REGSHIFT       opt_uart.h
+UART_NS8250_EARLY_IOWIDTH        opt_uart.h
+
 # SoC Support
 SOC_ALLWINNER_A64		opt_soc.h
 SOC_ALLWINNER_H5		opt_soc.h

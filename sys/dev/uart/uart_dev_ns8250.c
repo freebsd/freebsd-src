@@ -37,6 +37,9 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
+#if (defined(__arm__) || defined(__aarch64__))
+#include <machine/machdep.h>
+#endif
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -73,6 +76,14 @@
 #define	UART_DEV_TOLERANCE_PCT	30
 #endif	/* UART_DEV_TOLERANCE_PCT */
 
+#ifndef UART_NS8250_EARLY_REGSHIFT
+#define UART_NS8250_EARLY_REGSHIFT 2
+#endif
+
+#ifndef UART_NS8250_EARLY_IOWIDTH
+#define UART_NS8250_EARLY_IOWIDTH 2
+#endif
+
 static int broken_txfifo = 0;
 SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
 	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
@@ -89,9 +100,7 @@ SYSCTL_INT(_hw, OID_AUTO, uart_noise_threshold, CTLFLAG_RWTUN,
  * options EARLY_PRINTF=ns8250
 */
 #if CHECK_EARLY_PRINTF(ns8250)
-#if !(defined(__amd64__) || defined(__i386__))
-#error ns8250 early putc is x86 specific as it uses inb/outb
-#endif
+#if (defined(__amd64__) || defined(__i386__))
 static void
 uart_ns8250_early_putc(int c)
 {
@@ -103,6 +112,58 @@ uart_ns8250_early_putc(int c)
 		continue;
 	outb(tx, c);
 }
+#elif (defined(__arm__) || defined(__aarch64__))
+static void
+uart_ns8250_early_putc(int c)
+{
+	volatile uint8_t  *stat8  = NULL, *tx8 = NULL;
+	volatile uint16_t *stat16 = NULL, *tx16 = NULL;
+	volatile uint32_t *stat32 = NULL, *tx32 = NULL;
+
+	switch(UART_NS8250_EARLY_IOWIDTH) {
+    	case 1:
+        	stat8 = (volatile uint8_t *)(socdev_va + (REG_LSR << UART_NS8250_EARLY_REGSHIFT));
+        	tx8   = (volatile uint8_t *)(socdev_va + (REG_DATA << UART_NS8250_EARLY_REGSHIFT));
+        break;
+    	case 2:
+        	stat16 = (volatile uint16_t *)(socdev_va + (REG_LSR << UART_NS8250_EARLY_REGSHIFT));
+        	tx16   = (volatile uint16_t *)(socdev_va + (REG_DATA << UART_NS8250_EARLY_REGSHIFT));
+        break;
+    	case 4:
+        	stat32 = (volatile uint32_t *)(socdev_va + (REG_LSR << UART_NS8250_EARLY_REGSHIFT));
+        	tx32   = (volatile uint32_t *)(socdev_va + (REG_DATA << UART_NS8250_EARLY_REGSHIFT));
+        break;
+  	default:
+		printf("uart: ns8250: size of iowidth is unknow %d\n", UART_NS8250_EARLY_IOWIDTH);
+	}
+
+    int limit = 1000000;
+
+    switch (UART_NS8250_EARLY_IOWIDTH) {
+    case 1:
+        while ((*stat8 & LSR_THRE) == 0 && --limit > 0)
+            continue;
+        *tx8 = (c & 0xff);
+        break;
+
+    case 2:
+        while ((*stat16 & LSR_THRE) == 0 && --limit > 0)
+            continue;
+        *tx16 = (c & 0xff);
+        break;
+
+    case 4:
+        while ((*stat32 & LSR_THRE) == 0 && --limit > 0)
+            continue;
+        *tx32 = (c & 0xff);
+        break;
+	default:
+		printf("uart: ns8250: size of iowidth is unknow %d\n", UART_NS8250_EARLY_IOWIDTH);
+    }
+}
+#else
+#error ns8250 early putc is not implemented for current  architecture
+#endif
 early_putc_t *early_putc = uart_ns8250_early_putc;
 #endif /* EARLY_PRINTF */
 
