@@ -136,25 +136,6 @@ bman_portals_fdt_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static phandle_t
-bman_portal_find_cpu(int cpu)
-{
-	phandle_t node;
-	pcell_t reg;
-
-	node = OF_finddevice("/cpus");
-	if (node == -1)
-		return (node);
-
-	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
-		if (OF_getprop(node, "reg", &reg, sizeof(reg)) <= 0)
-			continue;
-		if (reg == cpu)
-			return (node);
-	}
-	return (-1);
-}
-
 static int
 bman_portals_fdt_attach(device_t dev)
 {
@@ -185,17 +166,15 @@ bman_portals_fdt_attach(device_t dev)
 		}
 		/* Checkout related cpu */
 		if (OF_getprop(child, "cpu-handle", (void *)&cpu,
-		    sizeof(cpu)) <= 0) {
-			cpu = bman_portal_find_cpu(cpus);
-			if (cpu <= 0)
-				continue;
-		}
-		/* Acquire cpu number */
-		cpu_node = OF_instance_to_package(cpu);
-		if (OF_getencprop(cpu_node, "reg", &cpu_num, sizeof(cpu_num)) <= 0) {
-			device_printf(dev, "Could not retrieve CPU number.\n");
-			return (ENXIO);
-		}
+		    sizeof(cpu)) > 0) {
+			cpu_node = OF_instance_to_package(cpu);
+			/* Acquire cpu number */
+			if (OF_getencprop(cpu_node, "reg", &cpu_num, sizeof(cpu_num)) <= 0) {
+				device_printf(dev, "Could not retrieve CPU number.\n");
+				return (ENXIO);
+			}
+		} else
+			cpu_num = cpus;
 
 		cpus++;
 
