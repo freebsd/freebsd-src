@@ -198,7 +198,7 @@ ifconfig_sfp_get_sfp_info(ifconfig_handle_t *h,
     const char *name, struct ifconfig_sfp_info *sfp)
 {
 	struct i2c_info ii;
-	char buf[8];
+	uint8_t buf[8];
 
 	memset(sfp, 0, sizeof(*sfp));
 
@@ -256,7 +256,7 @@ ifconfig_sfp_channel_count(const struct ifconfig_sfp_info *sfp)
 static void
 get_sff_string(struct i2c_info *ii, uint8_t addr, uint8_t off, char *dst)
 {
-	read_i2c(ii, addr, off, SFF_VENDOR_STRING_SIZE, dst);
+	read_i2c(ii, addr, off, SFF_VENDOR_STRING_SIZE, (uint8_t *)dst);
 	dst += SFF_VENDOR_STRING_SIZE;
 	do { *dst-- = '\0'; } while (*dst == 0x20);
 }
@@ -264,7 +264,7 @@ get_sff_string(struct i2c_info *ii, uint8_t addr, uint8_t off, char *dst)
 static void
 get_sff_date(struct i2c_info *ii, uint8_t addr, uint8_t off, char *dst)
 {
-	char buf[SFF_VENDOR_DATE_SIZE];
+	uint8_t buf[SFF_VENDOR_DATE_SIZE];
 
 	read_i2c(ii, addr, off, SFF_VENDOR_DATE_SIZE, buf);
 	sprintf(dst, "20%c%c-%c%c-%c%c", buf[0], buf[1], buf[2], buf[3],
@@ -386,7 +386,7 @@ get_sfp_status(struct i2c_info *ii, struct ifconfig_sfp_status *ss)
 	uint8_t diag_type, flags;
 
 	/* Read diagnostic monitoring type */
-	read_i2c(ii, SFF_8472_BASE, SFF_8472_DIAG_TYPE, 1, (caddr_t)&diag_type);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_DIAG_TYPE, 1, &diag_type);
 	if (ii->error != 0)
 		return (-1);
 
@@ -557,7 +557,7 @@ ifconfig_sfp_get_sfp_dump(ifconfig_handle_t *h, const char *name,
 	struct i2c_info ii;
 	uint8_t *buf = dump->data;
 
-	memset(dump->data, 0, sizeof(dump->data));
+	memset(buf, 0, sizeof(dump->data));
 
 	if (i2c_info_init(&ii, h, name) != 0)
 		return (-1);
