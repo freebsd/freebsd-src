@@ -160,6 +160,30 @@ struct net_device {
 
 #define	SET_NETDEV_DEV(_ndev, _dev)	(_ndev)->dev.parent = _dev;
 
+enum net_device_path_type {
+	DEV_PATH_MTK_WDMA,
+};
+
+struct net_device_path {
+	enum net_device_path_type		type;
+	const struct net_device			*dev;
+	/* We assume there's a struct per type. */
+	union {
+		struct {
+			uint16_t		wcid;
+			uint8_t			wdma_idx;
+			uint8_t			queue;
+			uint8_t			bss;
+			uint8_t			amsdu;
+		} mtk_wdma;
+	};
+};
+
+struct net_device_path_ctx {
+	const struct net_device			*dev;
+};
+
+
 /* -------------------------------------------------------------------------- */
 /* According to linux::ipoib_main.c. */
 struct netdev_notifier_info {
