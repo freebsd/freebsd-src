@@ -1492,7 +1492,8 @@ handle_error:
 			return (EJUSTRETURN);
 		}
 
-		if ((cnp->cn_flags & MAKEENTRY) != 0 && dattrflag) {
+		if ((cnp->cn_flags & MAKEENTRY) != 0 && dattrflag &&
+		    !NFSHASCASEINSENSITIVE(nmp)) {
 			/*
 			 * Cache the modification time of the parent
 			 * directory from the post-op attributes in
@@ -2206,6 +2207,14 @@ nfs_rename(struct vop_rename_args *ap)
 		goto out;
 
 	/*
+	 * For case insensitive file systems, there may be multiple
+	 * names cached for the one name being rename'd, so purge
+	 * all names from the cache.
+	 */
+	if (NFSHASCASEINSENSITIVE(nmp))
+		cache_purge(fvp);
+
+	/*
 	 * We have to flush B_DELWRI data prior to renaming
 	 * the file.  If we don't, the delayed-write buffers
 	 * can be flushed out later after the file has gone stale
@@ -2221,6 +2230,7 @@ nfs_rename(struct vop_rename_args *ap)
 	if ((nmp->nm_flag & NFSMNT_NOCTO) == 0 || !NFSHASNFSV4(nmp) ||
 	    !NFSHASNFSV4N(nmp) || nfscl_mustflush(fvp) != 0)
 		error = VOP_FSYNC(fvp, MNT_WAIT, curthread);
+
 	NFSVOPUNLOCK(fvp);
 	if (error == 0 && tvp != NULL && ((nmp->nm_flag & NFSMNT_NOCTO) == 0 ||
 	    !NFSHASNFSV4(nmp) || !NFSHASNFSV4N(nmp) ||
