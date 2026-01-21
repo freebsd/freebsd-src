@@ -203,6 +203,7 @@ void
 freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32)
 {
 
+	bzero(s32, sizeof(*s32));
 	TV_CP(*s, *s32, ru_utime);
 	TV_CP(*s, *s32, ru_stime);
 	CP(*s, *s32, ru_maxrss);
