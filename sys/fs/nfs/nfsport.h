@@ -1040,6 +1040,7 @@ void ncl_copy_vattr(struct vnode *vp, struct vattr *dst, struct vattr *src);
 #define	NFSSTA_HASWRITEVERF	0x00040000  /* Has write verifier */
 #define	NFSSTA_GOTFSINFO	0x00100000  /* Got the fsinfo */
 #define	NFSSTA_OPENMODE		0x00200000  /* Must use correct open mode */
+#define	NFSSTA_CASEINSENSITIVE	0x00400000  /* Case insensitive fs */
 #define	NFSSTA_FLEXFILE		0x00800000  /* Use Flex File Layout */
 #define	NFSSTA_NOLAYOUTCOMMIT	0x04000000  /* Don't do LayoutCommit */
 #define	NFSSTA_SESSPERSIST	0x08000000  /* Has a persistent session */
@@ -1073,6 +1074,7 @@ void ncl_copy_vattr(struct vnode *vp, struct vattr *dst, struct vattr *src);
 #define	NFSHASPNFS(n)		((n)->nm_state & NFSSTA_PNFS)
 #define	NFSHASFLEXFILE(n)	((n)->nm_state & NFSSTA_FLEXFILE)
 #define	NFSHASOPENMODE(n)	((n)->nm_state & NFSSTA_OPENMODE)
+#define	NFSHASCASEINSENSITIVE(n) ((n)->nm_state & NFSSTA_CASEINSENSITIVE)
 #define	NFSHASONEOPENOWN(n)	(((n)->nm_flag & NFSMNT_ONEOPENOWN) != 0 &&	\
 				    (n)->nm_minorvers > 0)
 #define	NFSHASTLS(n)		(((n)->nm_newflag & NFSMNT_TLS) != 0)
