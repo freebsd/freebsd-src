@@ -86,7 +86,7 @@ procfs		des	Pre-commit review requested, email only.
 pseudofs	des	Pre-commit review requested, email only.
 random(4),
 random(9)	csprng	Pre-commit discussion and review required,
-release/release.sh	gjb,re	Pre-commit review and regression tests
+release/release.sh	re	Pre-commit review and regression tests
 				requested.
 sctp		rrs,tuexen	Pre-commit review requested (changes need to be backported to github).
 sendmail	gshapiro	Pre-commit review requested.
