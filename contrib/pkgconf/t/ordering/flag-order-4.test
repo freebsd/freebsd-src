@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: flag-order-3, foo
+WantedFlags: libs
+ExpectedStdout: -L/test/lib -Wl,--start-group -lfoo -lbar -Wl,--end-group -lfoo

@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: libs
+Query: intermediary-1 intermediary-2
+ExpectedStdout: -lintermediary-1 -lintermediary-2 -lfoo -lbar -lbaz

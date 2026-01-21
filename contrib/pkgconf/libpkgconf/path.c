@@ -22,10 +22,6 @@
 # define PKGCONF_CACHE_INODES
 #endif
 
-#ifdef _WIN32
-# define PKG_CONFIG_REG_KEY "Software\\pkgconfig\\PKG_CONFIG_PATH"
-#endif
-
 static bool
 #ifdef PKGCONF_CACHE_INODES
 path_list_contains_entry(const char *text, pkgconf_list_t *dirlist, struct stat *st)
@@ -196,6 +192,7 @@ pkgconf_path_split(const char *text, pkgconf_list_t *dirlist, bool filter)
  *    Adds the paths specified in an environment variable to a path list.  If the environment variable is not set,
  *    an optional default set of paths is added.
  *
+ *    :param pkgconf_client_t* client: The client to use for environmental variable lookup (can be NULL).
  *    :param char* envvarname: The environment variable to look up.
  *    :param char* fallback: The fallback paths to use if the environment variable is not set.
  *    :param pkgconf_list_t* dirlist: The path list to add the path nodes to.
@@ -204,11 +201,11 @@ pkgconf_path_split(const char *text, pkgconf_list_t *dirlist, bool filter)
  *    :rtype: size_t
  */
 size_t
-pkgconf_path_build_from_environ(const char *envvarname, const char *fallback, pkgconf_list_t *dirlist, bool filter)
+pkgconf_path_build_from_environ(const pkgconf_client_t *client, const char *envvarname, const char *fallback, pkgconf_list_t *dirlist, bool filter)
 {
 	const char *data;
 
-	data = getenv(envvarname);
+	data = pkgconf_client_getenv(client, envvarname);
 	if (data != NULL)
 		return pkgconf_path_split(data, dirlist, filter);
 
@@ -410,6 +407,7 @@ pkgconf_path_relocate(char *buf, size_t buflen)
 }
 
 #ifdef _WIN32
+#define PKG_CONFIG_REG_KEY "Software\\pkgconfig\\PKG_CONFIG_PATH"
 /*
  * !doc
  *

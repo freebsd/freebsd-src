@@ -79,6 +79,8 @@ command line and do not look at dependencies.
 Limited-output options:
 .Fl -validate ,
 .Fl -license ,
+.Fl -license-file ,
+.Fl -source ,
 .Fl -uninstalled ,
 and
 .Fl -env :
@@ -120,7 +122,8 @@ General output options:
 .Fl -simulate ,
 .Fl -digraph ,
 .Fl -solution ,
-.Fl -fragment-tree :
+.Fl -fragment-tree ,
+.Fl -newlines :
 These options do not limit dependency resolution.
 .El
 .Pp
@@ -385,6 +388,9 @@ output.
 This option is only available if the preprocessor macro
 .Dv PKGCONF_LITE
 was not defined during compilation.
+.It Fl -newlines
+Use newlines to separate individual CFLAGS or linker flag fragments
+instead of spaces.
 .It Fl -no-cache
 Skip caching packages when they are loaded into the internal resolver.
 This may result in an alternate dependency graph being computed.

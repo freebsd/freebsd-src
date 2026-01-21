@@ -199,7 +199,7 @@ should_rewrite_sysroot(const pkgconf_client_t *client, pkgconf_list_t *vars, con
 		return false;
 
 	sysroot_dir = find_sysroot(client, vars);
-	if (sysroot_dir == NULL)
+	if (sysroot_dir == NULL || !*sysroot_dir)
 		return false;
 
 	if (*buf != '/')
@@ -238,8 +238,6 @@ pkgconf_tuple_add(const pkgconf_client_t *client, pkgconf_list_t *list, const ch
 	char *dequote_value;
 	pkgconf_tuple_t *tuple = calloc(1, sizeof(pkgconf_tuple_t));
 
-	pkgconf_tuple_find_delete(list, key);
-
 	dequote_value = dequote(value);
 
 	tuple->key = strdup(key);
@@ -249,6 +247,8 @@ pkgconf_tuple_add(const pkgconf_client_t *client, pkgconf_list_t *list, const ch
 		tuple->value = strdup(dequote_value);
 
 	PKGCONF_TRACE(client, "adding tuple to @%p: %s => %s (parsed? %d)", list, key, tuple->value, parse);
+
+	pkgconf_tuple_find_delete(list, key);
 
 	pkgconf_node_insert(&tuple->iter, tuple, list);
 
@@ -314,12 +314,13 @@ pkgconf_tuple_parse(const pkgconf_client_t *client, pkgconf_list_t *vars, const 
 	char buf[PKGCONF_BUFSIZE];
 	const char *ptr;
 	char *bptr = buf;
+	const char *sysroot_dir = find_sysroot(client, vars);
 
 	if (!(client->flags & PKGCONF_PKG_PKGF_FDO_SYSROOT_RULES) &&
 		(!(flags & PKGCONF_PKG_PROPF_UNINSTALLED) || (client->flags & PKGCONF_PKG_PKGF_PKGCONF1_SYSROOT_RULES)))
 	{
-		if (*value == '/' && client->sysroot_dir != NULL && strncmp(value, client->sysroot_dir, strlen(client->sysroot_dir)))
-			bptr += pkgconf_strlcpy(buf, client->sysroot_dir, sizeof buf);
+		if (*value == '/' && sysroot_dir != NULL && *sysroot_dir && strncmp(value, sysroot_dir, strlen(sysroot_dir)))
+			bptr += pkgconf_strlcpy(buf, sysroot_dir, sizeof buf);
 	}
 
 	for (ptr = value; *ptr != '\0' && bptr - buf < PKGCONF_BUFSIZE; ptr++)
@@ -421,7 +422,6 @@ pkgconf_tuple_parse(const pkgconf_client_t *client, pkgconf_list_t *vars, const 
 	if (should_rewrite_sysroot(client, vars, buf, flags))
 	{
 		char cleanpath[PKGCONF_ITEM_SIZE];
-		const char *sysroot_dir = find_sysroot(client, vars);
 
 		pkgconf_strlcpy(cleanpath, buf + strlen(sysroot_dir), sizeof cleanpath);
 		pkgconf_path_relocate(cleanpath, sizeof cleanpath);

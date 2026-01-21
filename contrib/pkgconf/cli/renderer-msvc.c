@@ -104,68 +104,50 @@ msvc_renderer_render_len(const pkgconf_list_t *list, bool escape)
 }
 
 static void
-msvc_renderer_render_buf(const pkgconf_list_t *list, char *buf, size_t buflen, bool escape)
+msvc_renderer_render_buf(const pkgconf_list_t *list, pkgconf_buffer_t *buf, bool escape, char delim)
 {
 	pkgconf_node_t *node;
-	char *bptr = buf;
-
-	memset(buf, 0, buflen);
 
 	PKGCONF_FOREACH_LIST_ENTRY(list->head, node)
 	{
 		const pkgconf_fragment_t *frag = node->data;
-		size_t buf_remaining = buflen - (bptr - buf);
-		size_t cnt;
 
 		if (!allowed_fragment(frag))
 			continue;
 
-		if (fragment_len(frag) > buf_remaining)
-			break;
-
 		switch(frag->type) {
 		case 'D':
 		case 'I':
-			*bptr++ = '/';
-			*bptr++ = frag->type;
+			pkgconf_buffer_append_fmt(buf, "/%c", frag->type);
 			break;
 		case 'L':
-			cnt = pkgconf_strlcpy(bptr, "/libpath:", buf_remaining);
-			bptr += cnt;
-			buf_remaining -= cnt;
+			pkgconf_buffer_append(buf, "/libpath:");
 			break;
 		}
 
 		escape = fragment_should_quote(frag);
 
 		if (escape)
-			*bptr++ = '"';
+			pkgconf_buffer_push_byte(buf, '"');
 
-		cnt = pkgconf_strlcpy(bptr, frag->data, buf_remaining);
-		bptr += cnt;
-		buf_remaining -= cnt;
+		pkgconf_buffer_append(buf, frag->data);
 
 		if (frag->type == 'l')
-		{
-			cnt = pkgconf_strlcpy(bptr, ".lib", buf_remaining);
-			bptr += cnt;
-		}
+			pkgconf_buffer_append(buf, ".lib");
 
 		if (escape)
-			*bptr++ = '"';
+			pkgconf_buffer_push_byte(buf, '"');
 
-		*bptr++ = ' ';
+		pkgconf_buffer_push_byte(buf, delim);
 	}
-
-	*bptr = '\0';
 }
 
-static const pkgconf_fragment_render_ops_t msvc_renderer_ops = {
+static pkgconf_fragment_render_ops_t msvc_renderer_ops = {
 	.render_len = msvc_renderer_render_len,
 	.render_buf = msvc_renderer_render_buf
 };
 
-const pkgconf_fragment_render_ops_t *
+pkgconf_fragment_render_ops_t *
 msvc_renderer_get(void)
 {
 	return &msvc_renderer_ops;

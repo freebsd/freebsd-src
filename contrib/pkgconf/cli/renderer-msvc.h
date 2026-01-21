@@ -18,6 +18,6 @@
 
 #include <libpkgconf/libpkgconf.h>
 
-const pkgconf_fragment_render_ops_t *msvc_renderer_get(void);
+pkgconf_fragment_render_ops_t *msvc_renderer_get(void);
 
 #endif

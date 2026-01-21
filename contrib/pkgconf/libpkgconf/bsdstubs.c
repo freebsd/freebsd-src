@@ -17,14 +17,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <sys/types.h>
-#include <string.h>
-#include <errno.h>
-#ifndef _WIN32
-#include <unistd.h>
-#endif
-
+#include <libpkgconf/stdinc.h>
 #include <libpkgconf/bsdstubs.h>
 #include <libpkgconf/config.h>
 

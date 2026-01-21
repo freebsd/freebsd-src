@@ -5,8 +5,8 @@ LIB=		pkgconf
 SHLIB_MAJOR=	6
 
 SRCS=		audit.c buffer.c cache.c client.c pkg.c bsdstubs.c fragment.c
-SRCS+=		argvsplit.c fileio.c tuple.c dependency.c queue.c path.c
-SRCS+=		personality.c parser.c
+SRCS+=		argvsplit.c fileio.c tuple.c dependency.c queue.c output.c
+SRCS+=		path.c personality.c parser.c
 INCS=		bsdstubs.h iter.h libpkgconf-api.h libpkgconf.h stdinc.h
 
 CFLAGS+=	-Wno-error=cast-align

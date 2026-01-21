@@ -16,11 +16,13 @@ SRCS = \
 	libpkgconf/argvsplit.c		\
 	libpkgconf/audit.c		\
 	libpkgconf/bsdstubs.c		\
+	libpkgconf/buffer.c		\
 	libpkgconf/cache.c		\
 	libpkgconf/client.c		\
 	libpkgconf/dependency.c		\
 	libpkgconf/fileio.c		\
 	libpkgconf/fragment.c		\
+	libpkgconf/output.c		\
 	libpkgconf/parser.c		\
 	libpkgconf/path.c		\
 	libpkgconf/personality.c	\
@@ -28,7 +30,8 @@ SRCS = \
 	libpkgconf/queue.c		\
 	libpkgconf/tuple.c		\
 	cli/getopt_long.c		\
-	cli/main.c
+	cli/main.c			\
+	cli/core.c
 OBJS = ${SRCS:.c=.o}
 CFLAGS = ${STATIC} -DPKGCONF_LITE -I. -Ilibpkgconf -Icli -DSYSTEM_LIBDIR=\"${SYSTEM_LIBDIR}\" -DSYSTEM_INCLUDEDIR=\"${SYSTEM_INCLUDEDIR}\" -DPKG_DEFAULT_PATH=\"${PKG_DEFAULT_PATH}\"
 STATIC =

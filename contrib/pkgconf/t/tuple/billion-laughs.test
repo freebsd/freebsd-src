@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: validate
+Query: billion-laughs
+ExpectedStderr: warning: truncating very long variable to 64KB
+MatchStderr: partial

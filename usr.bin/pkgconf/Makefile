@@ -4,6 +4,7 @@ PACKAGE=	pkgconf
 
 PROG=		pkgconf
 SRCS=		main.c
+SRCS+=		core.c
 SRCS+=		getopt_long.c
 SRCS+=		renderer-msvc.c
 

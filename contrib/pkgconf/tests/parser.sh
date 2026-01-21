@@ -3,24 +3,6 @@
 . $(atf_get_srcdir)/test_env.sh
 
 tests_init \
-	comments \
-	comments_in_fields \
-	dos \
-	no_trailing_newline \
-	argv_parse \
-	bad_option \
-	argv_parse_3 \
-	tilde_quoting \
-	paren_quoting \
-	multiline_field \
-	multiline_bogus_header \
-	escaped_backslash \
-	flag_order_1 \
-	flag_order_2 \
-	flag_order_3 \
-	flag_order_4 \
-	quoted \
-	variable_whitespace \
 	fragment_escaping_1 \
 	fragment_escaping_2 \
 	fragment_escaping_3 \
@@ -29,167 +11,12 @@ tests_init \
 	fragment_quoting_3 \
 	fragment_quoting_5 \
 	fragment_quoting_7 \
-	fragment_comment \
 	msvc_fragment_quoting \
 	msvc_fragment_render_cflags \
-	tuple_dequote \
 	version_with_whitespace \
 	version_with_whitespace_2 \
 	version_with_whitespace_diagnostic \
-	fragment_groups \
-	fragment_groups_composite \
-	fragment_tree \
-	truncated \
-	c_comment
-
-comments_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-lfoo\n" \
-		pkgconf --libs comments
-}
-
-comments_in_fields_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-lfoo\n" \
-		pkgconf --libs comments-in-fields
-}
-
-dos_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-L/test/lib/dos-lineendings -ldos-lineendings\n" \
-		pkgconf --libs dos-lineendings
-}
-
-no_trailing_newline_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-I/test/include/no-trailing-newline\n" \
-		pkgconf --cflags no-trailing-newline
-}
-
-argv_parse_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-llib-3 -llib-1 -llib-2 -lpthread\n" \
-		pkgconf --libs argv-parse
-}
-
-bad_option_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-e ignore \
-		-s eq:1 \
-		pkgconf --exists -foo
-}
-
-argv_parse_3_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-llib-1 -pthread /test/lib/lib2.so\n" \
-		pkgconf --libs argv-parse-3
-}
-
-tilde_quoting_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-L~ -ltilde\n" \
-		pkgconf --libs tilde-quoting
-	atf_check \
-		-o inline:"-I~\n" \
-		pkgconf --cflags tilde-quoting
-}
-
-paren_quoting_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-L\$(libdir) -ltilde\n" \
-		pkgconf --libs paren-quoting
-}
-
-multiline_field_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-e ignore \
-		-o match:"multiline description" \
-		pkgconf --list-all
-}
-
-multiline_bogus_header_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-s eq:0 \
-		pkgconf --exists multiline-bogus
-}
-
-escaped_backslash_body()
-{
-	atf_check \
-		-e ignore \
-		-o inline:"-IC:\\\\\\\\A\n" \
-		pkgconf --with-path=${selfdir}/lib1 --cflags escaped-backslash
-}
-
-quoted_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-DQUOTED=\\\"bla\\\" -DA=\\\"escaped\\ string\\\'\\ literal\\\" -DB=\\\\\\1\$ -DC=bla\n" \
-		pkgconf --cflags quotes
-}
-
-flag_order_1_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-L/test/lib -Bdynamic -lfoo -Bstatic -lbar\n" \
-		pkgconf --libs flag-order-1
-}
-
-flag_order_2_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-L/test/lib -Bdynamic -lfoo -Bstatic -lbar -lfoo\n" \
-		pkgconf --libs flag-order-1 foo
-}
-
-flag_order_3_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-L/test/lib -Wl,--start-group -lfoo -lbar -Wl,--end-group\n" \
-		pkgconf --libs flag-order-3
-}
-
-flag_order_4_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-L/test/lib -Wl,--start-group -lfoo -lbar -Wl,--end-group -lfoo\n" \
-		pkgconf --libs flag-order-3 foo
-}
-
-variable_whitespace_body()
-{
-	export PKG_CONFIG_PATH="${selfdir}/lib1"
-	atf_check \
-		-o inline:"-I/test/include\n" \
-		pkgconf --cflags variable-whitespace
-}
+	fragment_tree
 
 fragment_quoting_body()
 {
@@ -270,14 +97,6 @@ fragment_quoting_7a_body()
 	set +x
 }
 
-
-fragment_comment_body()
-{
-	atf_check \
-		-o inline:'kuku=\#ttt\n' \
-		pkgconf --with-path="${selfdir}/lib1" --cflags fragment-comment
-}
-
 msvc_fragment_quoting_body()
 {
 	export PKG_CONFIG_PATH="${selfdir}/lib1"
@@ -292,13 +111,6 @@ msvc_fragment_render_cflags_body()
 	atf_check \
 		-o inline:'/I/test/include/foo /DFOO_STATIC \n' \
 		pkgconf --cflags --static --msvc-syntax foo
-}
-
-tuple_dequote_body()
-{
-	atf_check \
-		-o inline:'-L/test/lib -lfoo\n' \
-		pkgconf --with-path="${selfdir}/lib1" --libs tuple-quoting
 }
 
 version_with_whitespace_body()
@@ -322,34 +134,6 @@ version_with_whitespace_diagnostic_body()
 		pkgconf --with-path="${selfdir}/lib1" --validate malformed-version
 }
 
-fragment_groups_body()
-{
-	atf_check \
-		-o inline:'-Wl,--start-group -la -lb -Wl,--end-group -nodefaultlibs -Wl,--start-group -la -lgcc -Wl,--end-group -Wl,--gc-sections\n' \
-		pkgconf --with-path="${selfdir}/lib1" --libs fragment-groups
-}
-
-fragment_groups_composite_body()
-{
-	atf_check \
-		-o inline:'-Wl,--start-group -la -lb -Wl,--end-group -nodefaultlibs -Wl,--start-group -la -lgcc -Wl,--end-group -Wl,--gc-sections\n' \
-		pkgconf --with-path="${selfdir}/lib1" --libs fragment-groups-2
-}
-
-truncated_body()
-{
-	atf_check \
-		-o match:warning -s exit:1 \
-		pkgconf --with-path="${selfdir}/lib1" --validate truncated
-}
-
-c_comment_body()
-{
-	atf_check \
-		-o match:warning \
-		pkgconf --with-path="${selfdir}/lib1" --validate c-comment
-}
-
 fragment_tree_body()
 {
 	atf_check \
@@ -370,3 +154,13 @@ fragment_tree_body()
 		pkgconf --with-path="${selfdir}/lib1" --fragment-tree fragment-groups-2
 }
 
+fragment_whitespace_body()
+{
+	atf_check \
+		-o inline:"'-I/includedir' [type I]\n\n" \
+			pkgconf --with-path="${selfdir}/lib1" --fragment-tree flag-whitespace-2
+
+	atf_check \
+		-o inline:"'-I/includedir' [type I]\n\n" \
+			pkgconf --with-path="${selfdir}/lib1" --fragment-tree flag-whitespace
+}
