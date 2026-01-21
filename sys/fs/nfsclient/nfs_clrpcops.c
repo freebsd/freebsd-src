@@ -5070,7 +5070,8 @@ nfsrpc_statfs(vnode_t vp, struct nfsstatfs *sbp, struct nfsfsinfo *fsp,
 	}
 
 	/* Try and find out if the server fs is case-insensitive. */
-	error = nfsrpc_pathconf(vp, &pc, NULL, NULL, cred, p, &na, &attrflag);
+	error = nfsrpc_pathconf(vp, &pc, NULL, NULL, cred, p, &na, &attrflag,
+	    NULL);
 	if (error == 0 && pc.pc_caseinsensitive != 0) {
 		NFSLOCKMNT(nmp);
 		nmp->nm_state |= NFSSTA_CASEINSENSITIVE;
