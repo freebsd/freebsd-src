@@ -1,0 +1,6 @@
+Name: fragment-collision
+Version: 0
+Description: fragment collision test package
+Requires: fragment-collision-2, fragment-collision-intermediary
+Requires.private: fragment-collision-1
+Cflags: -D_BAZ

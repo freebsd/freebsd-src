@@ -1,0 +1,77 @@
+# Copyright (c) 2019 William Pitcock <nenolod@dereferenced.org>
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# This software is provided 'as is' and without any warranty, express or
+# implied.  In no event shall the authors be liable for any damages arising
+# from the use of this software.
+
+# pkgconf-lite is a staticly-linked version of pkgconf that does not include
+# all features, notably it does not include cross-compile support and MSVC
+# support.  It does not include the libpkgconf library.
+
+SRCS = \
+	libpkgconf/argvsplit.c		\
+	libpkgconf/audit.c		\
+	libpkgconf/bsdstubs.c		\
+	libpkgconf/cache.c		\
+	libpkgconf/client.c		\
+	libpkgconf/dependency.c		\
+	libpkgconf/fileio.c		\
+	libpkgconf/fragment.c		\
+	libpkgconf/parser.c		\
+	libpkgconf/path.c		\
+	libpkgconf/personality.c	\
+	libpkgconf/pkg.c		\
+	libpkgconf/queue.c		\
+	libpkgconf/tuple.c		\
+	cli/getopt_long.c		\
+	cli/main.c
+OBJS = ${SRCS:.c=.o}
+CFLAGS = ${STATIC} -DPKGCONF_LITE -I. -Ilibpkgconf -Icli -DSYSTEM_LIBDIR=\"${SYSTEM_LIBDIR}\" -DSYSTEM_INCLUDEDIR=\"${SYSTEM_INCLUDEDIR}\" -DPKG_DEFAULT_PATH=\"${PKG_DEFAULT_PATH}\"
+STATIC =
+STRIP = strip
+
+all: pkgconf-lite
+
+libpkgconf/config.h:
+	@echo '#define PACKAGE_NAME "pkgconf-lite"' >> $@
+	@echo '#define PACKAGE_BUGREPORT "https://git.dereferenced.org/pkgconf/pkgconf/issues"' >> $@
+	@echo '#define PACKAGE_VERSION "2.4.3"' >> $@
+	@echo '#define PACKAGE PACKAGE_NAME " " PACKAGE_VERSION' >> $@
+	@echo '#define HAVE_STRLCPY' >> $@
+	@echo '#define HAVE_STRLCAT' >> $@
+	@echo '#define HAVE_STRNDUP' >> $@
+
+pkgconf-lite: preflight libpkgconf/config.h ${OBJS}
+	${CC} ${STATIC} -o $@ ${OBJS}
+	${STRIP} $@
+
+clean:
+	rm -f libpkgconf/config.h
+	rm -f ${OBJS}
+	rm -f pkgconf-lite
+
+preflight: preflight-system-libdir preflight-system-includedir preflight-pkg-default-path
+
+preflight-system-libdir:
+	@if test -z "${SYSTEM_LIBDIR}"; then		\
+		echo "SYSTEM_LIBDIR not set.";		\
+		exit 1;					\
+	fi
+
+preflight-system-includedir:
+	@if test -z "${SYSTEM_INCLUDEDIR}"; then	\
+		echo "SYSTEM_INCLUDEDIR not set.";	\
+		exit 1;					\
+	fi
+
+preflight-pkg-default-path:
+	@if test -z "${PKG_DEFAULT_PATH}"; then		\
+		echo "PKG_DEFAULT_PATH not set.";	\
+		exit 1;					\
+	fi
+
+.PHONY: preflight preflight-system-libdir preflight-system-includedir preflight-pkg-default-path clean
