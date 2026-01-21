@@ -1117,7 +1117,8 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
 		| FUSE_BIG_WRITES | FUSE_HAS_IOCTL_DIR | FUSE_WRITEBACK_CACHE
 		| FUSE_NO_OPEN_SUPPORT | FUSE_NO_OPENDIR_SUPPORT
-		| FUSE_SETXATTR_EXT;
+		| FUSE_SETXATTR_EXT | FUSE_INIT_EXT;
+	fiii->flags2 = 0;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
 	fuse_insert_message(fdi.tick, false);

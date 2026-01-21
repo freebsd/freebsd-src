@@ -774,6 +774,7 @@ void MockFS::init(uint32_t flags) {
 	out->body.init.major = FUSE_KERNEL_VERSION;
 	out->body.init.minor = m_kernel_minor_version;;
 	out->body.init.flags = in->body.init.flags & flags;
+	out->body.init.flags2 = 0;
 	out->body.init.max_write = m_maxwrite;
 	out->body.init.max_readahead = m_maxreadahead;
 
