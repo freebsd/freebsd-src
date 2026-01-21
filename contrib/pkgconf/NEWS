@@ -1,6 +1,46 @@
 Changes from previous version of pkgconf
 ========================================
 
+Changes from 2.5.0 to 2.5.1:
+----------------------------
+
+* Fix processing of empty dependency lists.
+
+Changes from 2.4.3 to 2.5.0:
+----------------------------
+
+* Added a manual page for bomtool.
+
+* Add support for preloaded packages.
+  These are modules which are preloaded into the package database
+  and preferred over searching the module search path when present.
+
+* Refactor Windows registry PKG_CONFIG_PATH support so that it
+  augments the main directory search list instead of being treated
+  as a special case.
+
+* Processing of `--with-path` arguments by the pkgconf CLI is
+  now deferred until libpkgconf is fully initialized, effectively
+  aligning behavior with PKG_CONFIG_PATH processing.
+
+* Fix several minor memory safety bugs which were identified by
+  the GCC 15 static analyzer.
+
+* Added support for pledge(2) and unveil(2) on systems where
+  this functionality is available.
+
+* Significant improvements to pkgconf's manual pages.
+  Patches by Ingo Schwarze and Jonathan Gray (OpenBSD).
+
+* Remove questionable default-static assumption on Windows that
+  was inherited from the original pkg-config.  Most distributions
+  of pkgconf on Windows were already patching this out.
+  Patch by Kai Pastor.
+
+* Add -D_POSIX_C_SOURCE=200809L to the build definitions, which
+  is needed for readlinkat on glibc.
+  Patch by Filipe Laíns.
+
 Changes from 2.4.2 to 2.4.3:
 ----------------------------
 

@@ -67,6 +67,11 @@ pkgconf_client_dir_list_build(pkgconf_client_t *client, const pkgconf_cross_pers
 		pkgconf_list_t dir_list = PKGCONF_LIST_INITIALIZER;
 		const pkgconf_list_t *prepend_list = &personality->dir_list;
 
+#ifdef _WIN32
+		(void) pkgconf_path_build_from_registry(HKEY_CURRENT_USER, &client->dir_list, true);
+		(void) pkgconf_path_build_from_registry(HKEY_LOCAL_MACHINE, &client->dir_list, true);
+#endif
+
 		if (getenv("PKG_CONFIG_LIBDIR") != NULL)
 		{
 			/* PKG_CONFIG_LIBDIR= should empty the search path entirely. */
@@ -105,6 +110,9 @@ pkgconf_client_init(pkgconf_client_t *client, pkgconf_error_handler_func_t error
 	if (client->trace_handler == NULL)
 		pkgconf_client_set_trace_handler(client, NULL, NULL);
 #endif
+
+	if (client->unveil_handler == NULL)
+		pkgconf_client_set_unveil_handler(client, NULL);
 
 	pkgconf_client_set_error_handler(client, error_handler, error_handler_data);
 	pkgconf_client_set_warn_handler(client, NULL, NULL);
@@ -162,8 +170,23 @@ pkgconf_client_t *
 pkgconf_client_new(pkgconf_error_handler_func_t error_handler, void *error_handler_data, const pkgconf_cross_personality_t *personality)
 {
 	pkgconf_client_t *out = calloc(1, sizeof(pkgconf_client_t));
+	if (out == NULL)
+		return NULL;
+
 	pkgconf_client_init(out, error_handler, error_handler_data, personality);
 	return out;
+}
+
+static void
+unref_preload_list(pkgconf_client_t *client)
+{
+	pkgconf_node_t *n, *tn;
+
+	PKGCONF_FOREACH_LIST_ENTRY_SAFE(client->preloaded_pkgs.head, n, tn)
+	{
+		pkgconf_pkg_t *pkg = n->data;
+		pkgconf_pkg_unref(client, pkg);
+	}
 }
 
 /*
@@ -180,6 +203,8 @@ void
 pkgconf_client_deinit(pkgconf_client_t *client)
 {
 	PKGCONF_TRACE(client, "deinit @%p", client);
+
+	unref_preload_list(client);
 
 	if (client->prefix_varname != NULL)
 		free(client->prefix_varname);
@@ -318,14 +343,32 @@ pkgconf_client_set_buildroot_dir(pkgconf_client_t *client, const char *buildroot
 bool
 pkgconf_error(const pkgconf_client_t *client, const char *format, ...)
 {
-	char errbuf[PKGCONF_BUFSIZE];
+	char *errbuf;
+	ssize_t msgsize = 0;
+	bool ret;
 	va_list va;
 
 	va_start(va, format);
-	vsnprintf(errbuf, sizeof errbuf, format, va);
+	msgsize = vsnprintf(NULL, 0, format, va);
 	va_end(va);
 
-	return client->error_handler(errbuf, client, client->error_handler_data);
+	if (msgsize < 0)
+		return false;
+
+	msgsize++;
+
+	errbuf = calloc(1, msgsize);
+	if (errbuf == NULL)
+		return false;
+
+	va_start(va, format);
+	vsnprintf(errbuf, msgsize, format, va);
+	va_end(va);
+
+	ret = client->error_handler(errbuf, client, client->error_handler_data);
+	free(errbuf);
+
+	return ret;
 }
 
 /*
@@ -343,14 +386,32 @@ pkgconf_error(const pkgconf_client_t *client, const char *format, ...)
 bool
 pkgconf_warn(const pkgconf_client_t *client, const char *format, ...)
 {
-	char errbuf[PKGCONF_BUFSIZE];
+	char *errbuf;
+	ssize_t msgsize = 0;
+	bool ret;
 	va_list va;
 
 	va_start(va, format);
-	vsnprintf(errbuf, sizeof errbuf, format, va);
+	msgsize = vsnprintf(NULL, 0, format, va);
 	va_end(va);
 
-	return client->warn_handler(errbuf, client, client->warn_handler_data);
+	if (msgsize < 0)
+		return false;
+
+	msgsize++;
+
+	errbuf = calloc(1, msgsize);
+	if (errbuf == NULL)
+		return false;
+
+	va_start(va, format);
+	vsnprintf(errbuf, msgsize, format, va);
+	va_end(va);
+
+	ret = client->warn_handler(errbuf, client, client->warn_handler_data);
+	free(errbuf);
+
+	return ret;
 }
 
 /*
@@ -371,22 +432,50 @@ pkgconf_warn(const pkgconf_client_t *client, const char *format, ...)
 bool
 pkgconf_trace(const pkgconf_client_t *client, const char *filename, size_t lineno, const char *funcname, const char *format, ...)
 {
-	char errbuf[PKGCONF_BUFSIZE];
-	size_t len;
+	char prefix[PKGCONF_ITEM_SIZE];
+	char *errbuf = NULL;
+	ssize_t errlen;
+	char *finalbuf = NULL;
+	ssize_t finallen;
+	bool ret;
 	va_list va;
 
 	if (client == NULL || client->trace_handler == NULL)
 		return false;
 
-	len = snprintf(errbuf, sizeof errbuf, "%s:" SIZE_FMT_SPECIFIER " [%s]: ", filename, lineno, funcname);
+	snprintf(prefix, sizeof prefix, "%s:" SIZE_FMT_SPECIFIER " [%s]:", filename, lineno, funcname);
 
 	va_start(va, format);
-	vsnprintf(errbuf + len, sizeof(errbuf) - len, format, va);
+	errlen = vsnprintf(NULL, 0, format, va);
 	va_end(va);
 
-	pkgconf_strlcat(errbuf, "\n", sizeof errbuf);
+	if (errlen < 0)
+		return false;
 
-	return client->trace_handler(errbuf, client, client->trace_handler_data);
+	errlen++;
+	errbuf = calloc(1, errlen);
+	if (errbuf == NULL)
+		return false;
+
+	va_start(va, format);
+	vsnprintf(errbuf, errlen, format, va);
+	va_end(va);
+
+	finallen = snprintf(NULL, 0, "%s %s\n", prefix, errbuf);
+	if (finallen < 0)
+		return false;
+
+	finallen++;
+	finalbuf = calloc(1, finallen);
+	if (finalbuf == NULL)
+		return false;
+
+	snprintf(finalbuf, finallen, "%s %s\n", prefix, errbuf);
+	ret = client->trace_handler(finalbuf, client, client->trace_handler_data);
+	free(errbuf);
+	free(finalbuf);
+
+	return ret;
 }
 
 /*
@@ -410,6 +499,14 @@ pkgconf_default_error_handler(const char *msg, const pkgconf_client_t *client, v
 	(void) data;
 
 	return true;
+}
+
+static void
+default_unveil_handler(const pkgconf_client_t *client, const char *path, const char *permissions)
+{
+	(void) client;
+	(void) path;
+	(void) permissions;
 }
 
 /*
@@ -571,6 +668,45 @@ pkgconf_client_set_error_handler(pkgconf_client_t *client, pkgconf_error_handler
 	}
 }
 
+/*
+ * !doc
+ *
+ * .. c:function:: pkgconf_client_get_unveil_handler(const pkgconf_client_t *client)
+ *
+ *    Returns the unveil handler if one is set, else ``NULL``.
+ *
+ *    :param pkgconf_client_t* client: The client object to get the unveil handler from.
+ *    :return: a function pointer to the error handler or ``NULL``
+ */
+pkgconf_unveil_handler_func_t
+pkgconf_client_get_unveil_handler(const pkgconf_client_t *client)
+{
+	return client->unveil_handler;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: pkgconf_client_set_unveil_handler(pkgconf_client_t *client, pkgconf_unveil_handler_func_t unveil_handler)
+ *
+ *    Sets an unveil handler on a client object or uninstalls one if set to ``NULL``.
+ *
+ *    :param pkgconf_client_t* client: The client object to set the error handler on.
+ *    :param pkgconf_unveil_handler_func_t unveil_handler: The unveil handler to set.
+ *    :return: nothing
+ */
+void
+pkgconf_client_set_unveil_handler(pkgconf_client_t *client, pkgconf_unveil_handler_func_t unveil_handler)
+{
+	client->unveil_handler = unveil_handler;
+
+	if (client->unveil_handler == NULL)
+	{
+		PKGCONF_TRACE(client, "installing default unveil handler");
+		client->unveil_handler = default_unveil_handler;
+	}
+}
+
 #ifndef PKGCONF_LITE
 /*
  * !doc
@@ -613,3 +749,69 @@ pkgconf_client_set_trace_handler(pkgconf_client_t *client, pkgconf_error_handler
 	}
 }
 #endif
+
+/*
+ * !doc
+ *
+ * .. c:function:: bool pkgconf_client_preload_path(pkgconf_client_t *client, const char *path)
+ *
+ *    Loads a pkg-config file into the preloaded packages set.
+ *
+ *    :param pkgconf_client_t* client: The client object for preloading.
+ *    :param char* path: The path to the pkg-config file to preload.
+ *    :return: true on success, false on error
+ *    :rtype: bool
+ */
+bool
+pkgconf_client_preload_path(pkgconf_client_t *client, const char *path)
+{
+	pkgconf_pkg_t *pkg = pkgconf_pkg_new_from_path(client, path, PKGCONF_PKG_PROPF_PRELOADED);
+	if (pkg == NULL)
+		return false;
+
+	pkgconf_pkg_ref(client, pkg);
+	pkgconf_node_insert_tail(&pkg->preload_node, pkg, &client->preloaded_pkgs);
+
+	return true;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: bool pkgconf_client_preload_from_environ(pkgconf_client_t *client, const char *env)
+ *
+ *    Loads zero or more pkg-config files specified in the given environmental
+ *    variable.
+ *
+ *    :param pkgconf_client_t* client: The client object for preloading.
+ *    :param char* environ: The environment variable to use for preloading.
+ *    :return: true on success, false on error
+ *    :rtype: bool
+ */
+bool
+pkgconf_client_preload_from_environ(pkgconf_client_t *client, const char *env)
+{
+	const char *data;
+	pkgconf_list_t pathlist = PKGCONF_LIST_INITIALIZER;
+	pkgconf_node_t *n;
+	bool ret;
+
+	data = getenv(env);
+	if (data == NULL)
+		return true;
+
+	pkgconf_path_split(data, &pathlist, true);
+
+	PKGCONF_FOREACH_LIST_ENTRY(pathlist.head, n)
+	{
+		pkgconf_path_t *pn = n->data;
+
+		ret = pkgconf_client_preload_path(client, pn->path);
+		if (!ret)
+			break;
+	}
+
+	pkgconf_path_free(&pathlist);
+
+	return ret;
+}

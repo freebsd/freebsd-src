@@ -1,8 +1,8 @@
 project('pkgconf', 'c',
-  version : '2.4.3',
+  version : '2.5.1',
   license : 'ISC',
-  meson_version : '>=0.49',
   default_options : ['c_std=c99'],
+  meson_version: '>=0.52',
 )
 
 cc = meson.get_compiler('c')
@@ -10,6 +10,7 @@ cc = meson.get_compiler('c')
 add_project_arguments(
   '-D_BSD_SOURCE',
   '-D_DEFAULT_SOURCE',
+  '-D_POSIX_C_SOURCE=200809L',
   cc.get_supported_arguments(
     '-Wimplicit-function-declaration',
     '-Wmisleading-indentation',
@@ -27,11 +28,13 @@ check_functions = [
   ['strncasecmp', 'strings.h'],
   ['strcasecmp', 'strings.h'],
   ['reallocarray', 'stdlib.h'],
+  ['pledge', 'unistd.h'],
+  ['unveil', 'unistd.h'],
 ]
 
 foreach f : check_functions
   name = f[0].to_upper().underscorify()
-  if cc.has_function(f[0], prefix : '#define _BSD_SOURCE\n#define _DEFAULT_SOURCE\n#include <@0@>'.format(f[1])) and cc.has_header_symbol(f[1], f[0], prefix : '#define _BSD_SOURCE\n#define _DEFAULT_SOURCE')
+  if cc.has_function(f[0], prefix : '#define _BSD_SOURCE\n#define _DEFAULT_SOURCE\n#define _POSIX_C_SOURCE 200809L\n#include <@0@>'.format(f[1])) and cc.has_header_symbol(f[1], f[0], prefix : '#define _BSD_SOURCE\n#define _DEFAULT_SOURCE\n#define _POSIX_C_SOURCE 200809L')
     cdata.set('HAVE_@0@'.format(name), 1)
     cdata.set('HAVE_DECL_@0@'.format(name), 1)
   else
@@ -97,8 +100,8 @@ libpkgconf = library('pkgconf',
   'libpkgconf/tuple.c',
   c_args: ['-DLIBPKGCONF_EXPORT', build_static],
   install : true,
-  version : '6.0.0',
-  soversion : '6',
+  version : '7.0.0',
+  soversion : '7',
 )
 
 # For other projects using libpkgconfig as a subproject
@@ -123,13 +126,23 @@ pkg.generate(libpkgconf,
   extra_cflags : build_static
 )
 
+cli_include = include_directories('cli')
 
 pkgconf_exe = executable('pkgconf',
   'cli/main.c',
   'cli/getopt_long.c',
   'cli/renderer-msvc.c',
   link_with : libpkgconf,
-  c_args: build_static,
+  c_args : build_static,
+  include_directories : cli_include,
+  install : true)
+
+bomtool_exe = executable('bomtool',
+  'cli/bomtool/main.c',
+  'cli/getopt_long.c',
+  link_with : libpkgconf,
+  c_args : build_static,
+  include_directories : cli_include,
   install : true)
 
 with_tests = get_option('tests')
@@ -139,6 +152,7 @@ kyuafile = configure_file(input : 'Kyuafile.in', output : 'Kyuafile', configurat
 test('kyua', kyua_exe, args : ['--config=none', 'test', '--kyuafile', kyuafile, '--build-root', meson.current_build_dir()])
 subdir('tests')
 
+install_man('man/bomtool.1')
 install_man('man/pkgconf.1')
 install_man('man/pkg.m4.7')
 install_man('man/pc.5')
@@ -146,3 +160,40 @@ install_man('man/pkgconf-personality.5')
 install_data('pkg.m4', install_dir: 'share/aclocal')
 install_data('AUTHORS', install_dir: 'share/doc/pkgconf')
 install_data('README.md', install_dir: 'share/doc/pkgconf')
+
+if host_machine.system() == 'windows'
+  conf_data = configuration_data()
+  conf_data.set('VERSION', meson.project_version())
+  conf_data.set('EXE', pkgconf_exe.full_path())
+  conf_data.set('DLL', libpkgconf.full_path())
+  if host_machine.cpu() != 'x86_64'
+    wixl_arch = 'x86'
+  else
+    wixl_arch = 'x64'
+  endif
+  conf_data.set('WIXL_ARCH', wixl_arch)
+
+  python = find_program('python3')
+  wixl = find_program('wixl', required: false, version: '>= 0.105')
+  msi_filename = 'pkgconf-@0@-@1@.msi'.format(wixl_arch, meson.project_version())
+
+  wxsfile = configure_file(input: 'pkgconf.wxs.in', output: 'pkgconf.wxs', configuration: conf_data)
+
+  if wixl.found()
+    licensefile = custom_target(
+      'License.rtf',
+      input: 'COPYING',
+      output: 'License.rtf',
+      command: [python, files('txt2rtf.py'), '@INPUT@', '@OUTPUT@'],
+    )
+
+    msi = custom_target(
+      msi_filename,
+      input: [wxsfile, licensefile, pkgconf_exe],
+      output: msi_filename,
+      command: [wixl, '--arch', wixl_arch, '--ext', 'ui', '-o', msi_filename, wxsfile],
+    )
+
+    alias_target('msi', msi)
+  endif
+endif

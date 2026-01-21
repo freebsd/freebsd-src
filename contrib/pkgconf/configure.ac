@@ -12,7 +12,7 @@ dnl implied.  In no event shall the authors be liable for any damages arising
 dnl from the use of this software.
 
 AC_PREREQ([2.71])
-AC_INIT([pkgconf],[2.4.3],[https://github.com/pkgconf/pkgconf/issues/new])
+AC_INIT([pkgconf],[2.5.1],[https://github.com/pkgconf/pkgconf/issues/new])
 AC_CONFIG_SRCDIR([cli/main.c])
 AC_CONFIG_MACRO_DIR([m4])
 AX_CHECK_COMPILE_FLAG([-Wall], [CFLAGS="$CFLAGS -Wall"])
@@ -23,6 +23,7 @@ AX_CHECK_COMPILE_FLAG([-std=gnu99], [CFLAGS="$CFLAGS -std=gnu99"], [
 ])
 AC_CONFIG_HEADERS([libpkgconf/config.h])
 AC_CHECK_DECLS([strlcpy, strlcat, strndup], [], [], [[#include <string.h>]])
+AC_CHECK_DECLS([pledge, unveil], [], [], [[#include <unistd.h>]])
 AC_CHECK_DECLS([reallocarray])
 AC_CHECK_HEADERS([sys/stat.h])
 AM_INIT_AUTOMAKE([foreign dist-xz subdir-objects])

@@ -131,6 +131,9 @@ pkgconf_dependency_addraw(pkgconf_client_t *client, pkgconf_list_t *list, const 
 	pkgconf_dependency_t *dep;
 
 	dep = calloc(1, sizeof(pkgconf_dependency_t));
+	if (dep == NULL)
+		return NULL;
+
 	dep->package = pkgconf_strndup(package, package_sz);
 
 	if (version_sz != 0)
@@ -304,19 +307,29 @@ pkgconf_dependency_parse_str(pkgconf_client_t *client, pkgconf_list_t *deplist_h
 	parse_state_t state = OUTSIDE_MODULE;
 	pkgconf_pkg_comparator_t compare = PKGCONF_CMP_ANY;
 	char cmpname[PKGCONF_ITEM_SIZE];
-	char buf[PKGCONF_BUFSIZE];
-	size_t package_sz = 0, version_sz = 0;
-	char *start = buf;
-	char *ptr = buf;
+	size_t package_sz = 0, version_sz = 0, buf_sz = 0;
+	char *buf;
+	char *start = NULL;
+	char *ptr = NULL;
 	char *vstart = NULL;
 	char *package = NULL, *version = NULL;
 	char *cnameptr = cmpname;
 	char *cnameend = cmpname + PKGCONF_ITEM_SIZE - 1;
 
+	if (!*depends)
+		return;
+
 	memset(cmpname, '\0', sizeof cmpname);
 
-	pkgconf_strlcpy(buf, depends, sizeof buf);
-	pkgconf_strlcat(buf, " ", sizeof buf);
+	buf_sz = strlen(depends) * 2;
+	buf = calloc(1, buf_sz);
+	if (buf == NULL)
+		return;
+
+	pkgconf_strlcpy(buf, depends, buf_sz);
+	pkgconf_strlcat(buf, " ", buf_sz);
+
+	start = ptr = buf;
 
 	while (*ptr)
 	{
@@ -427,6 +440,8 @@ pkgconf_dependency_parse_str(pkgconf_client_t *client, pkgconf_list_t *deplist_h
 
 		ptr++;
 	}
+
+	free(buf);
 }
 
 /*
@@ -471,6 +486,9 @@ pkgconf_dependency_copy(pkgconf_client_t *client, const pkgconf_dependency_t *de
 	pkgconf_dependency_t *new_dep;
 
 	new_dep = calloc(1, sizeof(pkgconf_dependency_t));
+	if (new_dep == NULL)
+		return NULL;
+
 	new_dep->package = strdup(dep->package);
 
 	if (dep->version != NULL)

@@ -227,10 +227,15 @@ pkgconf_fragment_add(const pkgconf_client_t *client, pkgconf_list_t *list, const
 		}
 	}
 
+	frag = calloc(1, sizeof(pkgconf_fragment_t));
+	if (frag == NULL)
+	{
+		PKGCONF_TRACE(client, "failed to add new fragment due to allocation failure to list @%p", target);
+		return;
+	}
+
 	if (strlen(string) > 1 && !pkgconf_fragment_is_special(string))
 	{
-		frag = calloc(1, sizeof(pkgconf_fragment_t));
-
 		frag->type = *(string + 1);
 		frag->data = pkgconf_fragment_copy_munged(client, string + 2, flags);
 
@@ -238,8 +243,6 @@ pkgconf_fragment_add(const pkgconf_client_t *client, pkgconf_list_t *list, const
 	}
 	else
 	{
-		frag = calloc(1, sizeof(pkgconf_fragment_t));
-
 		frag->type = 0;
 		frag->data = pkgconf_fragment_copy_munged(client, string, flags);
 
@@ -477,6 +480,8 @@ fragment_quote(const pkgconf_fragment_t *frag)
 		return NULL;
 
 	out = dst = calloc(1, outlen);
+	if (out == NULL)
+		return NULL;
 
 	for (; *src; src++)
 	{
@@ -502,7 +507,15 @@ fragment_quote(const pkgconf_fragment_t *frag)
 		{
 			ptrdiff_t offset = dst - out;
 			outlen *= 2;
-			out = realloc(out, outlen);
+
+			char *newout = realloc(out, outlen);
+			if (newout == NULL)
+			{
+				free(out);
+				return NULL;
+			}
+
+			out = newout;
 			dst = out + offset;
 		}
 	}
@@ -557,9 +570,12 @@ fragment_render_len(const pkgconf_list_t *list, bool escape)
 static inline size_t
 fragment_render_item(const pkgconf_fragment_t *frag, char *bptr, size_t bufremain)
 {
-	char *base = bptr;
-	char *quoted = fragment_quote(frag);
 	const pkgconf_node_t *iter;
+	char *base = bptr;
+
+	char *quoted = fragment_quote(frag);
+	if (quoted == NULL)
+		return 0;
 
 	if (strlen(quoted) > bufremain)
 	{

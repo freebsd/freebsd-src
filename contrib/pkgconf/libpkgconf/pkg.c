@@ -37,7 +37,6 @@
  */
 
 #ifdef _WIN32
-#	define PKG_CONFIG_REG_KEY "Software\\pkgconfig\\PKG_CONFIG_PATH"
 #	undef PKG_DEFAULT_PATH
 #	define PKG_DEFAULT_PATH "../lib/pkgconfig;../share/pkgconfig"
 #	define strncasecmp _strnicmp
@@ -327,6 +326,9 @@ static char *
 convert_path_to_value(const char *path)
 {
 	char *buf = calloc(1, (strlen(path) + 1) * 2);
+	if (buf == NULL)
+		return NULL;
+
 	char *bptr = buf;
 	const char *i;
 
@@ -475,10 +477,68 @@ pkgconf_pkg_validate(const pkgconf_client_t *client, const pkgconf_pkg_t *pkg)
 	return valid;
 }
 
+static void
+pkg_free_object(pkgconf_pkg_t *pkg)
+{
+	if (pkg->flags & PKGCONF_PKG_PROPF_PRELOADED)
+		pkgconf_node_delete(&pkg->preload_node, &pkg->owner->preloaded_pkgs);
+
+	if (pkg->id != NULL)
+		free(pkg->id);
+
+	if (pkg->filename != NULL)
+		free(pkg->filename);
+
+	if (pkg->realname != NULL)
+		free(pkg->realname);
+
+	if (pkg->version != NULL)
+		free(pkg->version);
+
+	if (pkg->description != NULL)
+		free(pkg->description);
+
+	if (pkg->url != NULL)
+		free(pkg->url);
+
+	if (pkg->pc_filedir != NULL)
+		free(pkg->pc_filedir);
+
+	if (pkg->license != NULL)
+		free(pkg->license);
+
+	if (pkg->maintainer != NULL)
+		free(pkg->maintainer);
+
+	if (pkg->copyright != NULL)
+		free(pkg->copyright);
+
+	if (pkg->why != NULL)
+		free(pkg->why);
+
+	free(pkg);
+}
+
+static void
+pkg_free_lists(pkgconf_pkg_t *pkg)
+{
+	pkgconf_dependency_free(&pkg->required);
+	pkgconf_dependency_free(&pkg->requires_private);
+	pkgconf_dependency_free(&pkg->conflicts);
+	pkgconf_dependency_free(&pkg->provides);
+
+	pkgconf_fragment_free(&pkg->cflags);
+	pkgconf_fragment_free(&pkg->cflags_private);
+	pkgconf_fragment_free(&pkg->libs);
+	pkgconf_fragment_free(&pkg->libs_private);
+
+	pkgconf_tuple_free(&pkg->vars);
+}
+
 /*
  * !doc
  *
- * .. c:function:: pkgconf_pkg_t *pkgconf_pkg_new_from_file(const pkgconf_client_t *client, const char *filename, FILE *f, unsigned int flags)
+ * .. c:function:: pkgconf_pkg_t *pkgconf_pkg_new_from_path(const pkgconf_client_t *client, const char *filename, unsigned int flags)
  *
  *    Parse a .pc file into a pkgconf_pkg_t object structure.
  *
@@ -490,16 +550,45 @@ pkgconf_pkg_validate(const pkgconf_client_t *client, const pkgconf_pkg_t *pkg)
  *    :rtype: pkgconf_pkg_t *
  */
 pkgconf_pkg_t *
-pkgconf_pkg_new_from_file(pkgconf_client_t *client, const char *filename, FILE *f, unsigned int flags)
+pkgconf_pkg_new_from_path(pkgconf_client_t *client, const char *filename, unsigned int flags)
 {
 	pkgconf_pkg_t *pkg;
 	char *idptr;
+	FILE *f;
+
+	/* make sure we only load .pc files */
+	if (!str_has_suffix(filename, PKG_CONFIG_EXT))
+		return NULL;
+
+	f = fopen(filename, "r");
+	if (f == NULL)
+		return NULL;
 
 	pkg = calloc(1, sizeof(pkgconf_pkg_t));
+	if (pkg == NULL)
+	{
+		fclose(f);
+		return NULL;
+	}
+
 	pkg->owner = client;
-	pkg->filename = strdup(filename);
-	pkg->pc_filedir = pkg_get_parent_dir(pkg);
 	pkg->flags = flags;
+
+	pkg->filename = strdup(filename);
+	if (pkg->filename == NULL)
+	{
+		fclose(f);
+		pkg_free_object(pkg);
+		return NULL;
+	}
+
+	pkg->pc_filedir = pkg_get_parent_dir(pkg);
+	if (pkg->pc_filedir == NULL)
+	{
+		fclose(f);
+		pkg_free_object(pkg);
+		return NULL;
+	}
 
 	char *pc_filedir_value = convert_path_to_value(pkg->pc_filedir);
 	pkgconf_tuple_add(client, &pkg->vars, "pcfiledir", pc_filedir_value, true, pkg->flags);
@@ -529,6 +618,14 @@ pkgconf_pkg_new_from_file(pkgconf_client_t *client, const char *filename, FILE *
 #endif
 
 	pkg->id = strdup(idptr);
+	if (pkg->id == NULL)
+	{
+		fclose(f);
+		pkg_free_lists(pkg);
+		pkg_free_object(pkg);
+		return NULL;
+	}
+
 	idptr = strrchr(pkg->id, '.');
 	if (idptr)
 		*idptr = '\0';
@@ -541,6 +638,7 @@ pkgconf_pkg_new_from_file(pkgconf_client_t *client, const char *filename, FILE *
 	}
 
 	pkgconf_parser_parse(f, pkg, pkg_parser_funcs, (pkgconf_parser_warn_func_t) pkg_warn_func, pkg->filename);
+	fclose(f);
 
 	if (!pkgconf_pkg_validate(client, pkg))
 	{
@@ -577,55 +675,12 @@ pkgconf_pkg_free(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 
 	pkgconf_cache_remove(client, pkg);
 
-	pkgconf_dependency_free(&pkg->required);
-	pkgconf_dependency_free(&pkg->requires_private);
-	pkgconf_dependency_free(&pkg->conflicts);
-	pkgconf_dependency_free(&pkg->provides);
-
-	pkgconf_fragment_free(&pkg->cflags);
-	pkgconf_fragment_free(&pkg->cflags_private);
-	pkgconf_fragment_free(&pkg->libs);
-	pkgconf_fragment_free(&pkg->libs_private);
-
-	pkgconf_tuple_free(&pkg->vars);
+	pkg_free_lists(pkg);
 
 	if (pkg->flags & PKGCONF_PKG_PROPF_VIRTUAL)
 		return;
 
-	if (pkg->id != NULL)
-		free(pkg->id);
-
-	if (pkg->filename != NULL)
-		free(pkg->filename);
-
-	if (pkg->realname != NULL)
-		free(pkg->realname);
-
-	if (pkg->version != NULL)
-		free(pkg->version);
-
-	if (pkg->description != NULL)
-		free(pkg->description);
-
-	if (pkg->url != NULL)
-		free(pkg->url);
-
-	if (pkg->pc_filedir != NULL)
-		free(pkg->pc_filedir);
-
-	if (pkg->license != NULL)
-		free(pkg->license);
-
-	if (pkg->maintainer != NULL)
-		free(pkg->maintainer);
-
-	if (pkg->copyright != NULL)
-		free(pkg->copyright);
-
-	if (pkg->why != NULL)
-		free(pkg->why);
-
-	free(pkg);
+	pkg_free_object(pkg);
 }
 
 /*
@@ -666,6 +721,11 @@ pkgconf_pkg_ref(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 void
 pkgconf_pkg_unref(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 {
+	if (pkg == NULL) {
+		PKGCONF_TRACE(client, "WTF: client %p unrefs a NULL package", client);
+		return;
+	}
+
 	if (pkg->owner != NULL && pkg->owner != client)
 		PKGCONF_TRACE(client, "WTF: client %p unrefs package %p owned by other client %p", client, pkg, pkg->owner);
 
@@ -680,7 +740,6 @@ static inline pkgconf_pkg_t *
 pkgconf_pkg_try_specific_path(pkgconf_client_t *client, const char *path, const char *name)
 {
 	pkgconf_pkg_t *pkg = NULL;
-	FILE *f;
 	char locbuf[PKGCONF_ITEM_SIZE];
 	char uninst_locbuf[PKGCONF_ITEM_SIZE];
 
@@ -689,16 +748,14 @@ pkgconf_pkg_try_specific_path(pkgconf_client_t *client, const char *path, const 
 	snprintf(locbuf, sizeof locbuf, "%s%c%s" PKG_CONFIG_EXT, path, PKG_DIR_SEP_S, name);
 	snprintf(uninst_locbuf, sizeof uninst_locbuf, "%s%c%s-uninstalled" PKG_CONFIG_EXT, path, PKG_DIR_SEP_S, name);
 
-	if (!(client->flags & PKGCONF_PKG_PKGF_NO_UNINSTALLED) && (f = fopen(uninst_locbuf, "r")) != NULL)
-	{
-		PKGCONF_TRACE(client, "found (uninstalled): %s", uninst_locbuf);
-		pkg = pkgconf_pkg_new_from_file(client, uninst_locbuf, f, PKGCONF_PKG_PROPF_UNINSTALLED);
-	}
-	else if ((f = fopen(locbuf, "r")) != NULL)
-	{
-		PKGCONF_TRACE(client, "found: %s", locbuf);
-		pkg = pkgconf_pkg_new_from_file(client, locbuf, f, 0);
-	}
+	if (!(client->flags & PKGCONF_PKG_PKGF_NO_UNINSTALLED))
+		pkg = pkgconf_pkg_new_from_path(client, uninst_locbuf, PKGCONF_PKG_PROPF_UNINSTALLED);
+
+	if (pkg == NULL)
+		pkg = pkgconf_pkg_new_from_path(client, locbuf, 0);
+
+	if (pkg != NULL)
+		PKGCONF_TRACE(client, "found%s: %s", pkg->flags & PKGCONF_PKG_PROPF_UNINSTALLED ? " (uninstalled)" : "", uninst_locbuf);
 
 	return pkg;
 }
@@ -720,7 +777,6 @@ pkgconf_pkg_scan_dir(pkgconf_client_t *client, const char *path, void *data, pkg
 	{
 		char filebuf[PKGCONF_ITEM_SIZE];
 		pkgconf_pkg_t *pkg;
-		FILE *f;
 
 		pkgconf_strlcpy(filebuf, path, sizeof filebuf);
 		pkgconf_strlcat(filebuf, "/", sizeof filebuf);
@@ -731,11 +787,7 @@ pkgconf_pkg_scan_dir(pkgconf_client_t *client, const char *path, void *data, pkg
 
 		PKGCONF_TRACE(client, "trying file [%s]", filebuf);
 
-		f = fopen(filebuf, "r");
-		if (f == NULL)
-			continue;
-
-		pkg = pkgconf_pkg_new_from_file(client, filebuf, f, 0);
+		pkg = pkgconf_pkg_new_from_path(client, filebuf, 0);
 		if (pkg != NULL)
 		{
 			if (func(pkg, data))
@@ -774,6 +826,22 @@ pkgconf_scan_all(pkgconf_client_t *client, void *data, pkgconf_pkg_iteration_fun
 	pkgconf_node_t *n;
 	pkgconf_pkg_t *pkg;
 
+	PKGCONF_TRACE(client, "scanning preloaded list");
+	PKGCONF_FOREACH_LIST_ENTRY(client->preloaded_pkgs.head, n)
+	{
+		pkg = n->data;
+
+		/* add an additional reference to ensure preloaded packages have the same
+		 * object ownership semantics as non-preloaded packages
+		 */
+		pkgconf_pkg_ref(client, pkg);
+
+		if (func(pkg, data))
+			return pkg;
+
+		pkgconf_pkg_unref(client, pkg);
+	}
+
 	PKGCONF_FOREACH_LIST_ENTRY(client->dir_list.head, n)
 	{
 		pkgconf_path_t *pnode = n->data;
@@ -787,43 +855,24 @@ pkgconf_scan_all(pkgconf_client_t *client, void *data, pkgconf_pkg_iteration_fun
 	return NULL;
 }
 
-#ifdef _WIN32
 static pkgconf_pkg_t *
-pkgconf_pkg_find_in_registry_key(pkgconf_client_t *client, HKEY hkey, const char *name)
+search_preload_list(pkgconf_client_t *client, const char *name)
 {
-	pkgconf_pkg_t *pkg = NULL;
+	pkgconf_node_t *n;
 
-	HKEY key;
-	int i = 0;
-
-	char buf[16384]; /* per registry limits */
-	DWORD bufsize = sizeof buf;
-	if (RegOpenKeyEx(hkey, PKG_CONFIG_REG_KEY,
-				0, KEY_READ, &key) != ERROR_SUCCESS)
-		return NULL;
-
-	while (RegEnumValue(key, i++, buf, &bufsize, NULL, NULL, NULL, NULL)
-			== ERROR_SUCCESS)
+	PKGCONF_FOREACH_LIST_ENTRY(client->preloaded_pkgs.head, n)
 	{
-		char pathbuf[PKGCONF_ITEM_SIZE];
-		DWORD type;
-		DWORD pathbuflen = sizeof pathbuf;
+		pkgconf_pkg_t *pkg = n->data;
 
-		if (RegQueryValueEx(key, buf, NULL, &type, (LPBYTE) pathbuf, &pathbuflen)
-				== ERROR_SUCCESS && type == REG_SZ)
+		if (!strcmp(pkg->id, name))
 		{
-			pkg = pkgconf_pkg_try_specific_path(client, pathbuf, name);
-			if (pkg != NULL)
-				break;
+			pkgconf_pkg_ref(client, pkg);
+			return pkg;
 		}
-
-		bufsize = sizeof buf;
 	}
 
-	RegCloseKey(key);
-	return pkg;
+	return NULL;
 }
-#endif
 
 /*
  * !doc
@@ -842,23 +891,25 @@ pkgconf_pkg_find(pkgconf_client_t *client, const char *name)
 {
 	pkgconf_pkg_t *pkg = NULL;
 	pkgconf_node_t *n;
-	FILE *f;
 
 	PKGCONF_TRACE(client, "looking for: %s", name);
 
 	/* name might actually be a filename. */
 	if (str_has_suffix(name, PKG_CONFIG_EXT))
 	{
-		if ((f = fopen(name, "r")) != NULL)
+		if (client->unveil_handler != NULL)
+			client->unveil_handler(client, name, "r");
+
+		pkg = pkgconf_pkg_new_from_path(client, name, 0);
+		if (pkg != NULL)
 		{
 			PKGCONF_TRACE(client, "%s is a file", name);
 
-			pkg = pkgconf_pkg_new_from_file(client, name, f, 0);
-			if (pkg != NULL)
-			{
-				pkgconf_path_add(pkg->pc_filedir, &client->dir_list, true);
-				goto out;
-			}
+			if (client->unveil_handler != NULL)
+				client->unveil_handler(client, pkg->pc_filedir, "r");
+
+			pkgconf_path_add(pkg->pc_filedir, &client->dir_list, true);
+			goto out;
 		}
 	}
 
@@ -879,6 +930,13 @@ pkgconf_pkg_find(pkgconf_client_t *client, const char *name)
 		}
 	}
 
+	/* check preload list */
+	if ((pkg = search_preload_list(client, name)) != NULL)
+	{
+		PKGCONF_TRACE(client, "%s is preloaded", name);
+		return pkg;
+	}
+
 	PKGCONF_FOREACH_LIST_ENTRY(client->dir_list.head, n)
 	{
 		pkgconf_path_t *pnode = n->data;
@@ -887,13 +945,6 @@ pkgconf_pkg_find(pkgconf_client_t *client, const char *name)
 		if (pkg != NULL)
 			goto out;
 	}
-
-#ifdef _WIN32
-	/* support getting PKG_CONFIG_PATH from registry */
-	pkg = pkgconf_pkg_find_in_registry_key(client, HKEY_CURRENT_USER, name);
-	if (!pkg)
-		pkg = pkgconf_pkg_find_in_registry_key(client, HKEY_LOCAL_MACHINE, name);
-#endif
 
 out:
 	pkgconf_cache_add(client, pkg);

@@ -18,6 +18,8 @@ lib_LTLIBRARIES = libpkgconf.la
 EXTRA_DIST =	pkg.m4 \
 		meson.build \
 		meson_options.txt \
+		pkgconf.wxs.in \
+		txt2rtf.py \
 		libpkgconf/meson.build \
 		libpkgconf/config.h.meson \
 		libpkgconf/win-dirent.h \
@@ -174,9 +176,10 @@ libpkgconf_la_SOURCES  =	\
 		libpkgconf/path.c		\
 		libpkgconf/personality.c	\
 		libpkgconf/parser.c
-libpkgconf_la_LDFLAGS = -no-undefined -version-info 6:0:0 -export-symbols-regex '^pkgconf_'
+libpkgconf_la_LDFLAGS = -no-undefined -version-info 7:0:0 -export-symbols-regex '^pkgconf_'
 
 dist_man_MANS    = 		\
+	man/bomtool.1		\
 	man/pkgconf.1		\
 	man/pkg.m4.7		\
 	man/pc.5		\
