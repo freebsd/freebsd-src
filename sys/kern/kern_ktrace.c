@@ -838,8 +838,8 @@ ktrpsig(int sig, sig_t action, sigset_t *mask, int code)
 	ktrace_exit(td);
 }
 
-void
-ktrcsw(int out, int user, const char *wmesg)
+static void
+ktrcsw_impl(int out, int user, const char *wmesg, const struct timespec *tv)
 {
 	struct thread *td = curthread;
 	struct ktr_request *req;
@@ -854,12 +854,26 @@ ktrcsw(int out, int user, const char *wmesg)
 	kc = &req->ktr_data.ktr_csw;
 	kc->out = out;
 	kc->user = user;
+	if (tv != NULL)
+		req->ktr_header.ktr_time = *tv;
 	if (wmesg != NULL)
 		strlcpy(kc->wmesg, wmesg, sizeof(kc->wmesg));
 	else
 		bzero(kc->wmesg, sizeof(kc->wmesg));
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
+}
+
+void
+ktrcsw(int out, int user, const char *wmesg)
+{
+	ktrcsw_impl(out, user, wmesg, NULL);
+}
+
+void
+ktrcsw_out(const struct timespec *tv, const char *wmesg)
+{
+	ktrcsw_impl(1, 0, wmesg, tv);
 }
 
 void
