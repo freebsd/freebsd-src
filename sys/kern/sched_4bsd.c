@@ -194,7 +194,7 @@ setup_runqs(void)
 }
 
 static int
-sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
+sysctl_kern_4bsd_quantum(SYSCTL_HANDLER_ARGS)
 {
 	int error, new_val, period;
 
@@ -211,50 +211,54 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_kern_sched, OID_AUTO, quantum,
+SYSCTL_NODE(_kern_sched, OID_AUTO, 4bsd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "4BSD Scheduler");
+
+SYSCTL_PROC(_kern_sched_4bsd, OID_AUTO, quantum,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_kern_quantum, "I",
+    sysctl_kern_4bsd_quantum, "I",
     "Quantum for timeshare threads in microseconds");
-SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
+SYSCTL_INT(_kern_sched_4bsd, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
     "Quantum for timeshare threads in stathz ticks");
 #ifdef SMP
 /* Enable forwarding of wakeups to all other cpus */
-static SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup,
+static SYSCTL_NODE(_kern_sched_4bsd, OID_AUTO, ipiwakeup,
     CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Kernel SMP");
 
 static int runq_fuzz = 1;
-SYSCTL_INT(_kern_sched, OID_AUTO, runq_fuzz, CTLFLAG_RW, &runq_fuzz, 0, "");
+SYSCTL_INT(_kern_sched_4bsd, OID_AUTO, runq_fuzz, CTLFLAG_RW,
+    &runq_fuzz, 0, "");
 
 static int forward_wakeup_enabled = 1;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, enabled, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_4bsd_ipiwakeup, OID_AUTO, enabled, CTLFLAG_RW,
 	   &forward_wakeup_enabled, 0,
 	   "Forwarding of wakeup to idle CPUs");
 
 static int forward_wakeups_requested = 0;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, requested, CTLFLAG_RD,
+SYSCTL_INT(_kern_sched_4bsd_ipiwakeup, OID_AUTO, requested, CTLFLAG_RD,
 	   &forward_wakeups_requested, 0,
 	   "Requests for Forwarding of wakeup to idle CPUs");
 
 static int forward_wakeups_delivered = 0;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, delivered, CTLFLAG_RD,
+SYSCTL_INT(_kern_sched_4bsd_ipiwakeup, OID_AUTO, delivered, CTLFLAG_RD,
 	   &forward_wakeups_delivered, 0,
 	   "Completed Forwarding of wakeup to idle CPUs");
 
 static int forward_wakeup_use_mask = 1;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, usemask, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_4bsd_ipiwakeup, OID_AUTO, usemask, CTLFLAG_RW,
 	   &forward_wakeup_use_mask, 0,
 	   "Use the mask of idle cpus");
 
 static int forward_wakeup_use_loop = 0;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_4bsd_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
 	   &forward_wakeup_use_loop, 0,
 	   "Use a loop to find idle cpus");
 
 #endif
 #if 0
 static int sched_followon = 0;
-SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_4bsd, OID_AUTO, followon, CTLFLAG_RW,
 	   &sched_followon, 0,
 	   "allow threads to share a quantum");
 #endif
@@ -434,7 +438,7 @@ maybe_preempt(struct thread *td)
 
 /* decay 95% of `ts_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
-SYSCTL_UINT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
+SYSCTL_UINT(_kern_sched_4bsd, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
     "Decay factor used for updating %CPU");
 
 /*
