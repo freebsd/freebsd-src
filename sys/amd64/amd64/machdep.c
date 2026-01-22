@@ -322,7 +322,6 @@ late_ifunc_resolve(void *dummy __unused)
 }
 SYSINIT(late_ifunc_resolve, SI_SUB_CPU, SI_ORDER_ANY, late_ifunc_resolve, NULL);
 
-
 void
 cpu_setregs(void)
 {
