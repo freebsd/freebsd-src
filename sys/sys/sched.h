@@ -239,6 +239,54 @@ void schedinit(void);
  * Fixup scheduler state for secondary APs
  */
 void schedinit_ap(void);
+
+struct sched_instance {
+	int	(*load)(void);
+	int	(*rr_interval)(void);
+	bool	(*runnable)(void);
+	void	(*exit)(struct proc *p, struct thread *childtd);
+	void	(*fork)(struct thread *td, struct thread *childtd);
+	void	(*fork_exit)(struct thread *td);
+	void	(*class)(struct thread *td, int class);
+	void	(*nice)(struct proc *p, int nice);
+	void	(*ap_entry)(void);
+	void	(*exit_thread)(struct thread *td, struct thread *child);
+	u_int	(*estcpu)(struct thread *td);
+	void	(*fork_thread)(struct thread *td, struct thread *child);
+	void	(*ithread_prio)(struct thread *td, u_char prio);
+	void	(*lend_prio)(struct thread *td, u_char prio);
+	void	(*lend_user_prio)(struct thread *td, u_char pri);
+	void	(*lend_user_prio_cond)(struct thread *td, u_char pri);
+	fixpt_t	(*pctcpu)(struct thread *td);
+	void	(*prio)(struct thread *td, u_char prio);
+	void	(*sleep)(struct thread *td, int prio);
+	void	(*sswitch)(struct thread *td, int flags);
+	void	(*throw)(struct thread *td);
+	void	(*unlend_prio)(struct thread *td, u_char prio);
+	void	(*user_prio)(struct thread *td, u_char prio);
+	void	(*userret_slowpath)(struct thread *td);
+	void	(*add)(struct thread *td, int flags);
+	struct thread *(*choose)(void);
+	void	(*clock)(struct thread *td, int cnt);
+	void	(*idletd)(void *);
+	void	(*preempt)(struct thread *td);
+	void	(*relinquish)(struct thread *td);
+	void	(*rem)(struct thread *td);
+	void	(*wakeup)(struct thread *td, int srqflags);
+	void	(*bind)(struct thread *td, int cpu);
+	void	(*unbind)(struct thread *td);
+	int	(*is_bound)(struct thread *td);
+	void	(*affinity)(struct thread *td);
+	int	(*sizeof_proc)(void);
+	int	(*sizeof_thread)(void);
+	char	*(*tdname)(struct thread *td);
+	void	(*clear_tdname)(struct thread *td);
+	void	(*init)(void);
+	void	(*init_ap)(void);
+};
+
+extern const struct sched_instance *active_sched;
+
 #endif /* _KERNEL */
 
 /* POSIX 1003.1b Process Scheduling */

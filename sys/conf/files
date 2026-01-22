@@ -3922,6 +3922,7 @@ kern/linker_if.m		standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
 kern/sched_4bsd.c		optional sched_4bsd
+kern/sched_shim.c		standard
 kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \

@@ -1,0 +1,94 @@
+/*
+ * Copyright 2026 The FreeBSD Foundation
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
+ */
+
+#include "opt_sched.h"
+
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/proc.h>
+#include <sys/runq.h>
+#include <sys/sched.h>
+#include <machine/ifunc.h>
+
+const struct sched_instance *active_sched;
+
+#ifndef __DO_NOT_HAVE_SYS_IFUNCS
+#define	__DEFINE_SHIM(__m, __r, __n, __p, __a)	\
+	DEFINE_IFUNC(, __r, __n, __p)		\
+	{					\
+		return (active_sched->__m);	\
+	}
+#else
+#define	__DEFINE_SHIM(__m, __r, __n, __p, __a)	\
+	__r					\
+	__n __p					\
+	{					\
+		return (active_sched->__m __a);	\
+	}
+#endif
+#define	DEFINE_SHIM0(__m, __r, __n)	\
+    __DEFINE_SHIM(__m, __r, __n, (void), ())
+#define	DEFINE_SHIM1(__m, __r, __n, __t1, __a1)	\
+    __DEFINE_SHIM(__m, __r, __n, (__t1 __a1), (__a1))
+#define	DEFINE_SHIM2(__m, __r, __n, __t1, __a1, __t2, __a2)	\
+    __DEFINE_SHIM(__m, __r, __n, (__t1 __a1, __t2 __a2), (__a1, __a2))
+
+DEFINE_SHIM0(load, int, sched_load)
+DEFINE_SHIM0(rr_interval, int, sched_rr_interval)
+DEFINE_SHIM0(runnable, bool, sched_runnable)
+DEFINE_SHIM2(exit, void, sched_exit, struct proc *, p,
+    struct thread *, childtd)
+DEFINE_SHIM2(fork, void, sched_fork, struct thread *, td,
+    struct thread *, childtd)
+DEFINE_SHIM1(fork_exit, void, sched_fork_exit, struct thread *, td)
+DEFINE_SHIM2(class, void, sched_class, struct thread *, td, int, class)
+DEFINE_SHIM2(nice, void, sched_nice, struct proc *, p, int, nice)
+DEFINE_SHIM0(ap_entry, void, sched_ap_entry)
+DEFINE_SHIM2(exit_thread, void, sched_exit_thread, struct thread *, td,
+    struct thread *, child)
+DEFINE_SHIM1(estcpu, u_int, sched_estcpu, struct thread *, td)
+DEFINE_SHIM2(fork_thread, void, sched_fork_thread, struct thread *, td,
+    struct thread *, child)
+DEFINE_SHIM2(ithread_prio, void, sched_ithread_prio, struct thread *, td,
+    u_char, prio)
+DEFINE_SHIM2(lend_prio, void, sched_lend_prio, struct thread *, td,
+    u_char, prio)
+DEFINE_SHIM2(lend_user_prio, void, sched_lend_user_prio, struct thread *, td,
+    u_char, pri)
+DEFINE_SHIM2(lend_user_prio_cond, void, sched_lend_user_prio_cond,
+    struct thread *, td, u_char, pri)
+DEFINE_SHIM1(pctcpu, fixpt_t, sched_pctcpu, struct thread *, td)
+DEFINE_SHIM2(prio, void, sched_prio, struct thread *, td, u_char, prio)
+DEFINE_SHIM2(sleep, void, sched_sleep, struct thread *, td, int, prio)
+DEFINE_SHIM2(sswitch, void, sched_switch, struct thread *, td, int, flags)
+DEFINE_SHIM1(throw, void, sched_throw, struct thread *, td)
+DEFINE_SHIM2(unlend_prio, void, sched_unlend_prio, struct thread *, td,
+    u_char, prio)
+DEFINE_SHIM2(user_prio, void, sched_user_prio, struct thread *, td,
+    u_char, prio)
+DEFINE_SHIM1(userret_slowpath, void, sched_userret_slowpath,
+    struct thread *, td)
+DEFINE_SHIM2(add, void, sched_add, struct thread *, td, int, flags)
+DEFINE_SHIM0(choose, struct thread *, sched_choose)
+DEFINE_SHIM2(clock, void, sched_clock, struct thread *, td, int, cnt)
+DEFINE_SHIM1(idletd, void, sched_idletd, void *, dummy)
+DEFINE_SHIM1(preempt, void, sched_preempt, struct thread *, td)
+DEFINE_SHIM1(relinquish, void, sched_relinquish, struct thread *, td)
+DEFINE_SHIM1(rem, void, sched_rem, struct thread *, td)
+DEFINE_SHIM2(wakeup, void, sched_wakeup, struct thread *, td, int, srqflags)
+DEFINE_SHIM2(bind, void, sched_bind, struct thread *, td, int, cpu)
+DEFINE_SHIM1(unbind, void, sched_unbind, struct thread *, td)
+DEFINE_SHIM1(is_bound, int, sched_is_bound, struct thread *, td)
+DEFINE_SHIM1(affinity, void, sched_affinity, struct thread *, td)
+DEFINE_SHIM0(sizeof_proc, int, sched_sizeof_proc)
+DEFINE_SHIM0(sizeof_thread, int, sched_sizeof_thread)
+DEFINE_SHIM1(tdname, char *, sched_tdname, struct thread *, td)
+DEFINE_SHIM1(clear_tdname, void, sched_clear_tdname, struct thread *, td)
+DEFINE_SHIM0(init_ap, void, schedinit_ap)
