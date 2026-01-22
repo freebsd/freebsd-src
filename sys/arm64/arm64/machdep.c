@@ -825,6 +825,7 @@ initarm(struct arm64_bootparams *abp)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(midr, get_midr());
 
+	sched_instance_select();
 	link_elf_ireloc();
 #ifdef FDT
 	try_load_dtb();

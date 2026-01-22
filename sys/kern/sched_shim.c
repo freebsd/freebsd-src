@@ -15,6 +15,7 @@
 #include <sys/proc.h>
 #include <sys/runq.h>
 #include <sys/sched.h>
+#include <sys/sysctl.h>
 #include <machine/ifunc.h>
 
 const struct sched_instance *active_sched;
@@ -92,3 +93,51 @@ DEFINE_SHIM0(sizeof_thread, int, sched_sizeof_thread)
 DEFINE_SHIM1(tdname, char *, sched_tdname, struct thread *, td)
 DEFINE_SHIM1(clear_tdname, void, sched_clear_tdname, struct thread *, td)
 DEFINE_SHIM0(init_ap, void, schedinit_ap)
+
+static char sched_name[32] = "ULE";
+
+SET_DECLARE(sched_instance_set, struct sched_selection);
+
+void
+sched_instance_select(void)
+{
+	struct sched_selection *s, **ss;
+	int i;
+
+	TUNABLE_STR_FETCH("kern.sched.name", sched_name, sizeof(sched_name));
+	SET_FOREACH(ss, sched_instance_set) {
+		s = *ss;
+		for (i = 0; s->name[i] == sched_name[i]; i++) {
+			if (s->name[i] == '\0') {
+				active_sched = s->instance;
+				return;
+			}
+		}
+	}
+
+	/*
+	 * No scheduler matching the configuration was found.  If
+	 * there is any scheduler compiled in, at all, use the first
+	 * scheduler from the linker set.
+	 */
+	if (SET_BEGIN(sched_instance_set) < SET_LIMIT(sched_instance_set)) {
+		s = *SET_BEGIN(sched_instance_set);
+		active_sched = s->instance;
+		for (i = 0;; i++) {
+			sched_name[i] = s->name[i];
+			if (s->name[i] == '\0')
+				break;
+		}
+	}
+}
+
+void
+schedinit(void)
+{
+	if (active_sched == NULL)
+		panic("Cannot find scheduler %s", sched_name);
+	active_sched->init();
+}
+
+SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, sched_name, 0,
+    "Scheduler name");

@@ -523,6 +523,9 @@ initarm(struct arm_boot_params *abp)
 	/* Do basic tuning, hz etc */
 	init_param1();
 
+	sched_instance_select();
+	/* link_elf_ireloc(); */
+
 	/*
 	 * Allocate a page for the system page mapped to 0xffff0000
 	 * This page will just contain the system vectors and can be

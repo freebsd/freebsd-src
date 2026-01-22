@@ -68,6 +68,7 @@
 #ifdef SCHED_STATS
 #include <sys/pcpu.h>
 #endif
+#include <sys/linker_set.h>
 
 struct proc;
 struct thread;
@@ -286,6 +287,19 @@ struct sched_instance {
 };
 
 extern const struct sched_instance *active_sched;
+
+struct sched_selection {
+	const char *name;
+	const struct sched_instance *instance;
+};
+#define	DECLARE_SCHEDULER(xsel_name, xsched_name, xsched_instance)		\
+	static struct sched_selection xsel_name = {				\
+		.name = xsched_name,						\
+		.instance = xsched_instance,				\
+	};									\
+	DATA_SET(sched_instance_set, xsel_name);
+
+void sched_instance_select(void);
 
 #endif /* _KERNEL */
 

@@ -1352,6 +1352,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 	}
 
+	sched_instance_select();
+
 	link_elf_ireloc();
 
 	/*

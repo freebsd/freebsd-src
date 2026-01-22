@@ -479,6 +479,8 @@ parse_metadata(void)
 
 	/* Initialize preload_kmdp */
 	preload_initkmdp(true);
+	sched_instance_select();
+	/* link_elf_ireloc(); */
 
 	/* Read the boot metadata */
 	boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
