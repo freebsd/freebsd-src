@@ -380,10 +380,8 @@ allowed_peer_test_setup()
     atf_check ifconfig ${epair}a vnet syslogd_allowed_peer
     atf_check ifconfig ${epair}b vnet syslogd_client
     atf_check jexec syslogd_allowed_peer ifconfig ${epair}a inet 169.254.0.1/16
-    atf_check jexec syslogd_allowed_peer ifconfig lo0 inet 127.0.0.1/8
     atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.2/16
     atf_check jexec syslogd_client ifconfig ${epair}b alias 169.254.0.3/16
-    atf_check jexec syslogd_client ifconfig lo0 inet 127.0.0.1/8
 }
 
 allowed_peer_test_cleanup()
@@ -529,12 +527,10 @@ forward_body()
     atf_check ifconfig ${epair}a vnet syslogd_server
     atf_check jexec syslogd_server ifconfig ${epair}a inet 169.254.0.1/16
     atf_check jexec syslogd_server ifconfig ${epair}a alias 169.254.0.2/16
-    atf_check jexec syslogd_server ifconfig lo0 inet 127.0.0.1/8
 
     syslogd_mkjail syslogd_client vnet
     atf_check ifconfig ${epair}b vnet syslogd_client
     atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.3/16
-    atf_check jexec syslogd_client ifconfig lo0 inet 127.0.0.1/8
 
     cat <<__EOF__ > ./client_config
 user.debug @169.254.0.1
