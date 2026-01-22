@@ -55,7 +55,6 @@ confirm_INET_support_or_skip()
 
 set_common_atf_metadata()
 {
-    atf_set timeout 5
     atf_set require.user root
 }
 

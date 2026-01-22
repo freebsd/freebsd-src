@@ -15,6 +15,7 @@ readonly SYSLOGD_CONFIG="${PWD}/syslog.conf"
 readonly SYSLOGD_LOCAL_SOCKET="${PWD}/log.sock"
 readonly SYSLOGD_PIDFILE="${PWD}/syslogd.pid"
 readonly SYSLOGD_LOCAL_PRIVSOCKET="${PWD}/logpriv.sock"
+readonly SYSLOGD_LOGFILE="${PWD}/log"
 
 # Start a private syslogd instance.
 syslogd_start()
@@ -83,6 +84,11 @@ syslogd_start()
         &
 
     # Give syslogd a bit of time to spin up.
+    if grep -q "[[:space:]]${SYSLOGD_LOGFILE}$" "${conf_file:-${SYSLOGD_CONFIG}}"; then
+        while [ ! -f "${SYSLOGD_LOGFILE}" ]; do
+            sleep 0.1
+        done
+    fi
     while [ "$((i+=1))" -le 20 ]; do
         [ -S "${socket:-${SYSLOGD_LOCAL_SOCKET}}" ] && return
         sleep 0.1
@@ -106,7 +112,9 @@ syslogd_log_jail()
 # Make syslogd reload its configuration file.
 syslogd_reload()
 {
+    atf_check truncate -s 0 ${SYSLOGD_LOGFILE}
     atf_check pkill -HUP -F "${1:-${SYSLOGD_PIDFILE}}"
+    sleep 0.1
 }
 
 # Stop a private syslogd instance.
@@ -164,4 +172,29 @@ syslogd_cleanup()
     if [ -f epair ]; then
         ifconfig $(cat epair) destroy
     fi
+}
+
+# Check the last entry in the log file for a given message.
+syslogd_check_log_nopoll()
+{
+    local msg=$1
+
+    atf_check -o match:"${msg}" tail -n 1 "${SYSLOGD_LOGFILE}"
+}
+
+# Same as above, but first wait for syslogd to write to the log file.
+syslogd_check_log()
+{
+    local msg=$1
+
+    atf_check -r 10 -o match:"${msg}" tail -n 1 "${SYSLOGD_LOGFILE}"
+}
+
+# Make sure no log entry matching the given message exists.
+syslogd_check_log_nomatch()
+{
+    local msg=$1
+
+    sleep 0.5
+    atf_check -o not-match:"${msg}" cat "${SYSLOGD_LOGFILE}"
 }
