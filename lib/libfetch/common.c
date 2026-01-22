@@ -1287,6 +1287,14 @@ fetch_ssl_read(SSL *ssl, char *buf, size_t len)
 {
 	ssize_t rlen;
 	int ssl_err;
+	struct timeval tv;
+
+	if (fetchTimeout > 0) {
+		tv.tv_sec = fetchTimeout;
+		tv.tv_usec = 0;
+		setsockopt(SSL_get_fd(ssl), SOL_SOCKET, SO_RCVTIMEO,
+			&tv, sizeof(tv));
+	}
 
 	rlen = SSL_read(ssl, buf, len);
 	if (rlen < 0) {
