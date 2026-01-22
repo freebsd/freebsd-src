@@ -452,7 +452,7 @@ allowed_peer_forwarding_body()
 
     printf "+169.254.0.2\nuser.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start -j syslogd_allowed_peer -P ${SYSLOGD_PIDFILE}.2 \
-        -b 169.254.0.1:514 -a 169.254.0.2/32
+        -b 169.254.0.1:514 -a 169.254.0.2/32 -p ${PWD}/peer
 
     # A message forwarded to 169.254.0.1:514 should be logged, but one
     # forwarded to 169.254.0.1:515 should not.
@@ -544,8 +544,10 @@ mail.debug ${SYSLOGD_LOGFILE}
 ftp.debug ${SYSLOGD_LOGFILE}
 __EOF__
 
-    syslogd_start -j syslogd_server -f ${PWD}/server_config -b 169.254.0.1 -b 169.254.0.2
-    syslogd_start -j syslogd_client -f ${PWD}/client_config -P ${SYSLOGD_PIDFILE}.2
+    syslogd_start -j syslogd_server -f ${PWD}/server_config \
+        -b 169.254.0.1 -b 169.254.0.2
+    syslogd_start -j syslogd_client -f ${PWD}/client_config \
+        -p ${PWD}/client -P ${SYSLOGD_PIDFILE}.2
 
     syslogd_log_jail syslogd_client \
         -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p user.debug -t test1 "hello, world"
