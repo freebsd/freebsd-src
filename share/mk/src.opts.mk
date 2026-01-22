@@ -124,6 +124,7 @@ __DEFAULT_YES_OPTIONS = \
     LEGACY_CONSOLE \
     LLD \
     LLD_BOOTSTRAP \
+    LLDB \
     LLVM_ASSERTIONS \
     LLVM_BINUTILS \
     LLVM_COV \
@@ -305,11 +306,6 @@ __DEFAULT_NO_OPTIONS+=FDT
 __DEFAULT_YES_OPTIONS+=FDT
 .endif
 
-.if ${__T:Mriscv64*} == ""
-__DEFAULT_YES_OPTIONS+=LLDB
-.else
-__DEFAULT_NO_OPTIONS+=LLDB
-.endif
 # LIB32 is not supported on all 64-bit architectures.
 .if (${__T:Maarch64*} != "" && ((defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} != "gcc") || (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} != "gcc"))) || ${__T} == "amd64" || ${__T} == "powerpc64"
 __DEFAULT_YES_OPTIONS+=LIB32
