@@ -139,5 +139,30 @@ schedinit(void)
 	active_sched->init();
 }
 
+static void
+sched_setup(void *dummy)
+{
+	active_sched->setup();
+}
+SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL);
+
+static void
+sched_initticks(void *dummy)
+{
+	active_sched->initticks();
+}
+SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
+    NULL);
+
+static void
+sched_schedcpu(void)
+{
+	active_sched->schedcpu();
+}
+SYSINIT(schedcpu, SI_SUB_LAST, SI_ORDER_FIRST, sched_schedcpu, NULL);
+
+SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Scheduler");
+
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, sched_name, 0,
     "Scheduler name");

@@ -284,6 +284,9 @@ struct sched_instance {
 	void	(*clear_tdname)(struct thread *td);
 	void	(*init)(void);
 	void	(*init_ap)(void);
+	void	(*setup)(void);
+	void	(*initticks)(void);
+	void	(*schedcpu)(void);
 };
 
 extern const struct sched_instance *active_sched;
