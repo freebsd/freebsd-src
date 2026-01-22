@@ -507,10 +507,18 @@ ichsmb_device_intr(void *cookie)
 			DBG("%d stat=0x%02x\n", count, status);
 		}
 #endif
-		status &= ~(ICH_HST_STA_INUSE_STS | ICH_HST_STA_HOST_BUSY |
-		    ICH_HST_STA_SMBALERT_STS);
-		if (status == 0)
+		status &= ~(ICH_HST_STA_HOST_BUSY | ICH_HST_STA_SMBALERT_STS);
+		if ((status & ~ICH_HST_STA_INUSE_STS) == 0) {
+			// We're not the target of the interrupt. In that case,
+			// reading the status register can acquire the
+			// semaphore which will lock subsequent accesses to the
+			// SMBus. For that reason, release the semaphore if
+			// we've acquired it.
+			if ((status & ICH_HST_STA_INUSE_STS) == 0)
+				bus_write_1(sc->io_res, ICH_HST_STA, ICH_HST_STA_INUSE_STS);
 			break;
+		}
+		status &= ~ICH_HST_STA_INUSE_STS;
 
 		/* Check for unexpected interrupt */
 		ok_bits = ICH_HST_STA_SMBALERT_STS;
