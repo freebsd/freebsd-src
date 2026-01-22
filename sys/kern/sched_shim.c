@@ -14,6 +14,7 @@
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/runq.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <machine/ifunc.h>
@@ -166,3 +167,33 @@ SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, sched_name, 0,
     "Scheduler name");
+
+static int
+sysctl_kern_sched_available(SYSCTL_HANDLER_ARGS)
+{
+	struct sched_selection *s, **ss;
+	struct sbuf *sb, sm;
+	int error;
+	bool first;
+
+	sb = sbuf_new_for_sysctl(&sm, NULL, 0, req);
+	if (sb == NULL)
+		return (ENOMEM);
+	first = true;
+	SET_FOREACH(ss, sched_instance_set) {
+		s = *ss;
+		if (first)
+			first = false;
+		else
+			sbuf_cat(sb, ",");
+		sbuf_cat(sb, s->name);
+	}
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (error);
+}
+
+SYSCTL_PROC(_kern_sched, OID_AUTO, available,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_kern_sched_available, "A",
+    "List of available schedulers");
