@@ -145,13 +145,17 @@ fail:
 int 
 ichsmb_callback(device_t dev, int index, void *data)
 {
+	const sc_p sc = device_get_softc(dev);
 	int smb_error = 0;
 
 	DBG("index=%d how=%d\n", index, data ? *(int *)data : -1);
 	switch (index) {
 	case SMB_REQUEST_BUS:
+		if ((bus_read_1(sc->io_res, ICH_HST_STA) & ICH_HST_STA_INUSE_STS) != 0)
+			return (EBUSY);
 		break;
 	case SMB_RELEASE_BUS:
+		bus_write_1(sc->io_res, ICH_HST_STA, ICH_HST_STA_INUSE_STS);
 		break;
 	default:
 		smb_error = SMB_EABORT;	/* XXX */
