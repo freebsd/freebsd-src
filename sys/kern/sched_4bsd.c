@@ -137,7 +137,6 @@ static void	setup_runqs(void);
 static void	schedcpu(void);
 static void	schedcpu_thread(void);
 static void	sched_priority(struct thread *td, u_char prio);
-static void	sched_setup(void *dummy);
 static void	maybe_resched(struct thread *td);
 static void	updatepri(struct thread *td);
 static void	resetpriority(struct thread *td);
@@ -153,13 +152,12 @@ static struct kproc_desc sched_kp = {
         schedcpu_thread,
         NULL
 };
-SYSINIT(schedcpu, SI_SUB_LAST, SI_ORDER_FIRST, kproc_start,
-    &sched_kp);
-SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL);
 
-static void sched_initticks(void *dummy);
-SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
-    NULL);
+static void
+sched_4bsd_schedcpu(void)
+{
+	kproc_start(&sched_kp);
+}
 
 /*
  * Global run queue.
@@ -213,11 +211,6 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "Scheduler");
-
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0,
-    "Scheduler name");
 SYSCTL_PROC(_kern_sched, OID_AUTO, quantum,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kern_quantum, "I",
@@ -638,9 +631,8 @@ resetpriority_thread(struct thread *td)
 	sched_prio(td, td->td_user_pri);
 }
 
-/* ARGSUSED */
 static void
-sched_setup(void *dummy)
+sched_4bsd_setup(void)
 {
 
 	setup_runqs();
@@ -653,7 +645,7 @@ sched_setup(void *dummy)
  * This routine determines time constants after stathz and hz are setup.
  */
 static void
-sched_initticks(void *dummy)
+sched_4bsd_initticks(void)
 {
 
 	realstathz = stathz ? stathz : hz;
@@ -670,8 +662,8 @@ sched_initticks(void *dummy)
  * Called from:
  *  proc0_init()
  */
-void
-schedinit(void)
+static void
+sched_4bsd_init(void)
 {
 
 	/*
@@ -682,15 +674,15 @@ schedinit(void)
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN);
 }
 
-void
-schedinit_ap(void)
+static void
+sched_4bsd_init_ap(void)
 {
 
 	/* Nothing needed. */
 }
 
-bool
-sched_runnable(void)
+static bool
+sched_4bsd_runnable(void)
 {
 #ifdef SMP
 	return (runq_not_empty(&runq) ||
@@ -700,8 +692,8 @@ sched_runnable(void)
 #endif
 }
 
-int
-sched_rr_interval(void)
+static int
+sched_4bsd_rr_interval(void)
 {
 
 	/* Convert sched_slice from stathz to hz. */
@@ -771,8 +763,8 @@ sched_clock_tick(struct thread *td)
 	stat->idlecalls = 0;
 }
 
-void
-sched_clock(struct thread *td, int cnt)
+static void
+sched_4bsd_clock(struct thread *td, int cnt)
 {
 
 	for ( ; cnt > 0; cnt--)
@@ -782,8 +774,8 @@ sched_clock(struct thread *td, int cnt)
 /*
  * Charge child's scheduling CPU usage to parent.
  */
-void
-sched_exit(struct proc *p, struct thread *td)
+static void
+sched_4bsd_exit(struct proc *p, struct thread *td)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "proc exit",
@@ -793,8 +785,8 @@ sched_exit(struct proc *p, struct thread *td)
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
 }
 
-void
-sched_exit_thread(struct thread *td, struct thread *child)
+static void
+sched_4bsd_exit_thread(struct thread *td, struct thread *child)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit",
@@ -809,14 +801,14 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	thread_unlock(child);
 }
 
-void
-sched_fork(struct thread *td, struct thread *childtd)
+static void
+sched_4bsd_fork(struct thread *td, struct thread *childtd)
 {
 	sched_fork_thread(td, childtd);
 }
 
-void
-sched_fork_thread(struct thread *td, struct thread *childtd)
+static void
+sched_4bsd_fork_thread(struct thread *td, struct thread *childtd)
 {
 	struct td_sched *ts, *tsc;
 
@@ -834,8 +826,8 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	ts->ts_slice = 1;
 }
 
-void
-sched_nice(struct proc *p, int nice)
+static void
+sched_4bsd_nice(struct proc *p, int nice)
 {
 	struct thread *td;
 
@@ -849,8 +841,8 @@ sched_nice(struct proc *p, int nice)
 	}
 }
 
-void
-sched_class(struct thread *td, int class)
+static void
+sched_4bsd_class(struct thread *td, int class)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_pri_class = class;
@@ -888,8 +880,8 @@ sched_priority(struct thread *td, u_char prio)
  * Update a thread's priority when it is lent another thread's
  * priority.
  */
-void
-sched_lend_prio(struct thread *td, u_char prio)
+static void
+sched_4bsd_lend_prio(struct thread *td, u_char prio)
 {
 
 	td->td_flags |= TDF_BORROWING;
@@ -904,8 +896,8 @@ sched_lend_prio(struct thread *td, u_char prio)
  * important than prio the thread will keep a priority boost
  * of prio.
  */
-void
-sched_unlend_prio(struct thread *td, u_char prio)
+static void
+sched_4bsd_unlend_prio(struct thread *td, u_char prio)
 {
 	u_char base_pri;
 
@@ -921,8 +913,8 @@ sched_unlend_prio(struct thread *td, u_char prio)
 		sched_lend_prio(td, prio);
 }
 
-void
-sched_prio(struct thread *td, u_char prio)
+static void
+sched_4bsd_prio(struct thread *td, u_char prio)
 {
 	u_char oldprio;
 
@@ -948,8 +940,8 @@ sched_prio(struct thread *td, u_char prio)
 		turnstile_adjust(td, oldprio);
 }
 
-void
-sched_ithread_prio(struct thread *td, u_char prio)
+static void
+sched_4bsd_ithread_prio(struct thread *td, u_char prio)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	MPASS(td->td_pri_class == PRI_ITHD);
@@ -957,8 +949,8 @@ sched_ithread_prio(struct thread *td, u_char prio)
 	sched_prio(td, prio);
 }
 
-void
-sched_user_prio(struct thread *td, u_char prio)
+static void
+sched_4bsd_user_prio(struct thread *td, u_char prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -968,8 +960,8 @@ sched_user_prio(struct thread *td, u_char prio)
 	td->td_user_pri = prio;
 }
 
-void
-sched_lend_user_prio(struct thread *td, u_char prio)
+static void
+sched_4bsd_lend_user_prio(struct thread *td, u_char prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -984,8 +976,8 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 /*
  * Like the above but first check if there is anything to do.
  */
-void
-sched_lend_user_prio_cond(struct thread *td, u_char prio)
+static void
+sched_4bsd_lend_user_prio_cond(struct thread *td, u_char prio)
 {
 
 	if (td->td_lend_user_pri == prio)
@@ -996,8 +988,8 @@ sched_lend_user_prio_cond(struct thread *td, u_char prio)
 	thread_unlock(td);
 }
 
-void
-sched_sleep(struct thread *td, int pri)
+static void
+sched_4bsd_sleep(struct thread *td, int pri)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -1007,8 +999,8 @@ sched_sleep(struct thread *td, int pri)
 		sched_prio(td, pri);
 }
 
-void
-sched_switch(struct thread *td, int flags)
+static void
+sched_4bsd_sswitch(struct thread *td, int flags)
 {
 	struct thread *newtd;
 	struct mtx *tmtx;
@@ -1140,8 +1132,8 @@ sched_switch(struct thread *td, int flags)
 	mtx_unlock_spin(&sched_lock);
 }
 
-void
-sched_wakeup(struct thread *td, int srqflags)
+static void
+sched_4bsd_wakeup(struct thread *td, int srqflags)
 {
 	struct td_sched *ts;
 
@@ -1316,8 +1308,8 @@ sched_pickcpu(struct thread *td)
 }
 #endif
 
-void
-sched_add(struct thread *td, int flags)
+static void
+sched_4bsd_add(struct thread *td, int flags)
 #ifdef SMP
 {
 	cpuset_t tidlemsk;
@@ -1464,8 +1456,8 @@ sched_add(struct thread *td, int flags)
 }
 #endif /* SMP */
 
-void
-sched_rem(struct thread *td)
+static void
+sched_4bsd_rem(struct thread *td)
 {
 	struct td_sched *ts;
 
@@ -1494,8 +1486,8 @@ sched_rem(struct thread *td)
  * Select threads to run.  Note that running threads still consume a
  * slot.
  */
-struct thread *
-sched_choose(void)
+static struct thread *
+sched_4bsd_choose(void)
 {
 	struct thread *td;
 	struct runq *rq;
@@ -1539,8 +1531,8 @@ sched_choose(void)
 	return (PCPU_GET(idlethread));
 }
 
-void
-sched_preempt(struct thread *td)
+static void
+sched_4bsd_preempt(struct thread *td)
 {
 	int flags;
 
@@ -1556,8 +1548,8 @@ sched_preempt(struct thread *td)
 	}
 }
 
-void
-sched_userret_slowpath(struct thread *td)
+static void
+sched_4bsd_userret_slowpath(struct thread *td)
 {
 
 	thread_lock(td);
@@ -1566,8 +1558,8 @@ sched_userret_slowpath(struct thread *td)
 	thread_unlock(td);
 }
 
-void
-sched_bind(struct thread *td, int cpu)
+static void
+sched_4bsd_bind(struct thread *td, int cpu)
 {
 #ifdef SMP
 	struct td_sched *ts = td_get_sched(td);
@@ -1587,48 +1579,48 @@ sched_bind(struct thread *td, int cpu)
 #endif
 }
 
-void
-sched_unbind(struct thread* td)
+static void
+sched_4bsd_unbind(struct thread* td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(td == curthread, ("sched_unbind: can only bind curthread"));
 	td->td_flags &= ~TDF_BOUND;
 }
 
-int
-sched_is_bound(struct thread *td)
+static int
+sched_4bsd_is_bound(struct thread *td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	return (td->td_flags & TDF_BOUND);
 }
 
-void
-sched_relinquish(struct thread *td)
+static void
+sched_4bsd_relinquish(struct thread *td)
 {
 	thread_lock(td);
 	mi_switch(SW_VOL | SWT_RELINQUISH);
 }
 
-int
-sched_load(void)
+static int
+sched_4bsd_load(void)
 {
 	return (sched_tdcnt);
 }
 
-int
-sched_sizeof_proc(void)
+static int
+sched_4bsd_sizeof_proc(void)
 {
 	return (sizeof(struct proc));
 }
 
-int
-sched_sizeof_thread(void)
+static int
+sched_4bsd_sizeof_thread(void)
 {
 	return (sizeof(struct thread) + sizeof(struct td_sched));
 }
 
-fixpt_t
-sched_pctcpu(struct thread *td)
+static fixpt_t
+sched_4bsd_pctcpu(struct thread *td)
 {
 	struct td_sched *ts;
 
@@ -1637,8 +1629,8 @@ sched_pctcpu(struct thread *td)
 	return (ts->ts_pctcpu);
 }
 
-u_int
-sched_estcpu(struct thread *td)
+static u_int
+sched_4bsd_estcpu(struct thread *td)
 {
 
 	return (td_get_sched(td)->ts_estcpu);
@@ -1647,8 +1639,8 @@ sched_estcpu(struct thread *td)
 /*
  * The actual idle process.
  */
-void
-sched_idletd(void *dummy)
+static void
+sched_4bsd_idletd(void *dummy)
 {
 	struct pcpuidlestat *stat;
 
@@ -1689,8 +1681,8 @@ sched_throw_tail(struct thread *td)
 /*
  * A CPU is entering for the first time.
  */
-void
-sched_ap_entry(void)
+static void
+sched_4bsd_ap_entry(void)
 {
 
 	/*
@@ -1713,8 +1705,8 @@ sched_ap_entry(void)
 /*
  * A thread is exiting.
  */
-void
-sched_throw(struct thread *td)
+static void
+sched_4bsd_throw(struct thread *td)
 {
 
 	MPASS(td != NULL);
@@ -1727,8 +1719,8 @@ sched_throw(struct thread *td)
 	sched_throw_tail(td);
 }
 
-void
-sched_fork_exit(struct thread *td)
+static void
+sched_4bsd_fork_exit(struct thread *td)
 {
 
 	/*
@@ -1746,8 +1738,8 @@ sched_fork_exit(struct thread *td)
 	SDT_PROBE0(sched, , , on__cpu);
 }
 
-char *
-sched_tdname(struct thread *td)
+static char *
+sched_4bsd_tdname(struct thread *td)
 {
 #ifdef KTR
 	struct td_sched *ts;
@@ -1762,19 +1754,19 @@ sched_tdname(struct thread *td)
 #endif
 }
 
-#ifdef KTR
-void
-sched_clear_tdname(struct thread *td)
+static void
+sched_4bsd_clear_tdname(struct thread *td)
 {
+#ifdef KTR
 	struct td_sched *ts;
 
 	ts = td_get_sched(td);
 	ts->ts_name[0] = '\0';
-}
 #endif
+}
 
-void
-sched_affinity(struct thread *td)
+static void
+sched_4bsd_affinity(struct thread *td)
 {
 #ifdef SMP
 	struct td_sched *ts;
@@ -1836,3 +1828,54 @@ sched_affinity(struct thread *td)
 	}
 #endif
 }
+
+struct sched_instance sched_4bsd_instance = {
+#define	SLOT(name) .name = sched_4bsd_##name
+	SLOT(load),
+	SLOT(rr_interval),
+	SLOT(runnable),
+	SLOT(exit),
+	SLOT(fork),
+	SLOT(fork_exit),
+	SLOT(class),
+	SLOT(nice),
+	SLOT(ap_entry),
+	SLOT(exit_thread),
+	SLOT(estcpu),
+	SLOT(fork_thread),
+	SLOT(ithread_prio),
+	SLOT(lend_prio),
+	SLOT(lend_user_prio),
+	SLOT(lend_user_prio_cond),
+	SLOT(pctcpu),
+	SLOT(prio),
+	SLOT(sleep),
+	SLOT(sswitch),
+	SLOT(throw),
+	SLOT(unlend_prio),
+	SLOT(user_prio),
+	SLOT(userret_slowpath),
+	SLOT(add),
+	SLOT(choose),
+	SLOT(clock),
+	SLOT(idletd),
+	SLOT(preempt),
+	SLOT(relinquish),
+	SLOT(rem),
+	SLOT(wakeup),
+	SLOT(bind),
+	SLOT(unbind),
+	SLOT(is_bound),
+	SLOT(affinity),
+	SLOT(sizeof_proc),
+	SLOT(sizeof_thread),
+	SLOT(tdname),
+	SLOT(clear_tdname),
+	SLOT(init),
+	SLOT(init_ap),
+	SLOT(setup),
+	SLOT(initticks),
+	SLOT(schedcpu),
+#undef SLOT
+};
+DECLARE_SCHEDULER(fourbsd_sched_selector, "4BSD", &sched_4bsd_instance);
