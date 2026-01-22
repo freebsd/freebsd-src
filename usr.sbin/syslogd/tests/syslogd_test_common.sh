@@ -96,6 +96,13 @@ syslogd_log()
     atf_check -s exit:0 -o empty -e empty logger $*
 }
 
+syslogd_log_jail()
+{
+    local jailname=$1
+    shift
+    atf_check -s exit:0 -o empty -e empty jexec ${jailname} logger $*
+}
+
 # Make syslogd reload its configuration file.
 syslogd_reload()
 {

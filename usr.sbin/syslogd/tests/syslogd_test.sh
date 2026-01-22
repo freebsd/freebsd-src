@@ -419,15 +419,16 @@ allowed_peer_body()
     syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32'
 
     # Make sure that a message from 169.254.0.2:514 is logged.
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    syslogd_log_jail syslogd_client \
+	-p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
     atf_check -o match:"test1: hello, world" cat "${logfile}"
+
     # ... but not a message from port 515.
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    syslogd_log_jail syslogd_client \
+	-p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
     atf_check -o not-match:"test2: hello, world" cat "${logfile}"
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
+    syslogd_log_jail syslogd_client \
+	-p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
     atf_check -o not-match:"test2: hello, world" cat "${logfile}"
 
     syslogd_stop
@@ -435,11 +436,11 @@ allowed_peer_body()
     # Now make sure that we can filter by port.
     syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32:515'
 
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
     atf_check -o not-match:"test3: hello, world" cat "${logfile}"
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test4 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test4 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
     atf_check -o match:"test4: hello, world" cat "${logfile}"
 
     syslogd_stop
@@ -472,10 +473,10 @@ allowed_peer_forwarding_body()
 
     # A message forwarded to 169.254.0.1:514 should be logged, but one
     # forwarded to 169.254.0.1:515 should not.
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.2 -p user.debug -t test1 "hello, world"
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.2 -p mark.debug -t test2 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.2 -p user.debug -t test1 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.2 -p mark.debug -t test2 "hello, world"
 
     atf_check -o match:"test1: hello, world" cat "${logfile}"
     atf_check -o not-match:"test2: hello, world" cat "${logfile}"
@@ -502,19 +503,19 @@ allowed_peer_wildcard_body()
     syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32:*'
 
     # Make sure that a message from 169.254.0.2:514 is logged.
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
     atf_check -o match:"test1: hello, world" cat "${logfile}"
     # ... as is a message from 169.254.0.2:515, allowed by the wildcard.
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
     atf_check -o match:"test2: hello, world" cat "${logfile}"
     # ... but not a message from 169.254.0.3.
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:514 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:514 "hello, world"
     atf_check -o not-match:"test3: hello, world" cat "${logfile}"
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
     atf_check -o not-match:"test3: hello, world" cat "${logfile}"
 
     syslogd_stop
@@ -567,15 +568,16 @@ __EOF__
     syslogd_start -j syslogd_server -f ${PWD}/server_config -b 169.254.0.1 -b 169.254.0.2
     syslogd_start -j syslogd_client -f ${PWD}/client_config -P ${SYSLOGD_PIDFILE}.2
 
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p user.debug -t test1 "hello, world"
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p mail.debug -t test2 "you've got mail"
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p ftp.debug -t test3 "transfer complete"
-
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p user.debug -t test1 "hello, world"
     atf_check -o match:"test1: hello, world" cat "${logfile}"
+
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p mail.debug -t test2 "you've got mail"
     atf_check -o match:"test2: you've got mail" cat "${logfile}"
+
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p ftp.debug -t test3 "transfer complete"
     atf_check -o match:"test3: transfer complete" cat "${logfile}"
 }
 forward_cleanup()
