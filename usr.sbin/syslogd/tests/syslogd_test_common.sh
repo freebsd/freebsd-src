@@ -68,6 +68,11 @@ syslogd_start()
         esac
     done
 
+    socket=${socket:-${SYSLOGD_LOCAL_SOCKET}}
+    if [ -S "${socket}" ]; then
+        atf_fail "socket ${socket} already exists"
+    fi
+
     # Setup loopback so we can deliver messages to ourself.
     if [ $($jail sysctl -n security.jail.vnet) -ne 0 ]; then
         atf_check $jail ifconfig lo0 inet 127.0.0.1/8
@@ -80,7 +85,7 @@ syslogd_start()
         -f "${conf_file:-${SYSLOGD_CONFIG}}" \
         -H \
         -P "${pid_file:-${SYSLOGD_PIDFILE}}" \
-        -p "${socket:-${SYSLOGD_LOCAL_SOCKET}}" \
+        -p "${socket}" \
         -S "${privsocket:-${SYSLOGD_LOCAL_PRIVSOCKET}}" \
         ${other_args} \
         &
@@ -92,7 +97,7 @@ syslogd_start()
         done
     fi
     while [ "$((i+=1))" -le 20 ]; do
-        [ -S "${socket:-${SYSLOGD_LOCAL_SOCKET}}" ] && return
+        [ -S "${socket}" ] && return
         sleep 0.1
     done
     atf_fail "timed out waiting for syslogd to start"
