@@ -30,27 +30,11 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_sched.h"
-
 #include <machine/asmacros.h>
 
 #include "assym.inc"
 
-#if defined(SMP) && defined(SCHED_ULE)
-#define	SETOP		xchgl
 #define	BLOCK_SPIN(reg)							\
-		movl		$blocked_lock,%eax ;			\
-	100: ;								\
-		lock ;							\
-		cmpxchgl	%eax,TD_LOCK(reg) ;			\
-		jne		101f ;					\
-		pause ;							\
-		jmp		100b ;					\
-	101:
-#else
-#define	SETOP		movl
-#define	BLOCK_SPIN(reg)
-#endif
 
 /*****************************************************************************/
 /* Scheduling                                                                */
@@ -162,7 +146,7 @@ ENTRY(cpu_switch)
 	/* Switchout td_lock */
 	movl	%esi,%eax
 	movl	PCPU(CPUID),%esi
-	SETOP	%eax,TD_LOCK(%edi)
+	xchgl	%eax,TD_LOCK(%edi)
 
 	/* Release bit from old pmap->pm_active */
 	movl	PCPU(CURPMAP), %ebx
@@ -181,7 +165,18 @@ ENTRY(cpu_switch)
 #endif
 	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
 sw1:
-	BLOCK_SPIN(%ecx)
+#ifdef SMP
+	movl		$blocked_lock,%eax
+100:
+
+	lock
+	cmpxchgl	%eax,TD_LOCK(reg)
+	jne		101f
+	pause
+	jmp		100b
+101:	
+#endif
+
 	/*
 	 * At this point, we have managed thread locks and are ready
 	 * to load up the rest of the next context.

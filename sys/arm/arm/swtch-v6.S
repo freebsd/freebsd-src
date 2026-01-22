@@ -79,7 +79,6 @@
  */
 
 #include "assym.inc"
-#include "opt_sched.h"
 
 #include <machine/asm.h>
 #include <machine/asmacros.h>
@@ -432,11 +431,7 @@ sw1:
 	 *   r11 = newtd
 	 */
 
-#if defined(SMP) && defined(SCHED_ULE)
-	/*
-	 * 386 and amd64 do the blocked lock test only for SMP and SCHED_ULE
-	 * QQQ: What does it mean in reality and why is it done?
-	 */
+#if defined(SMP)
 	ldr	r6, =blocked_lock
 1:
 	ldr	r3, [r11, #TD_LOCK]	/* atomic write regular read */
