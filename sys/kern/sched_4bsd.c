@@ -1833,6 +1833,27 @@ sched_4bsd_affinity(struct thread *td)
 #endif
 }
 
+static bool
+sched_4bsd_do_timer_accounting(void)
+{
+#ifdef SMP
+	/*
+	 * Don't do any accounting for the disabled HTT cores, since it
+	 * will provide misleading numbers for the userland.
+	 *
+	 * No locking is necessary here, since even if we lose the race
+	 * when hlt_cpus_mask changes it is not a big deal, really.
+	 *
+	 * Don't do that for ULE, since ULE doesn't consider hlt_cpus_mask
+	 * and unlike other schedulers it actually schedules threads to
+	 * those CPUs.
+	 */
+	return (!CPU_ISSET(PCPU_GET(cpuid), &hlt_cpus_mask));
+#else
+	return (true);
+#endif
+}
+
 struct sched_instance sched_4bsd_instance = {
 #define	SLOT(name) .name = sched_4bsd_##name
 	SLOT(load),
@@ -1875,6 +1896,7 @@ struct sched_instance sched_4bsd_instance = {
 	SLOT(sizeof_thread),
 	SLOT(tdname),
 	SLOT(clear_tdname),
+	SLOT(do_timer_accounting),
 	SLOT(init),
 	SLOT(init_ap),
 	SLOT(setup),

@@ -93,6 +93,7 @@ DEFINE_SHIM0(sizeof_proc, int, sched_sizeof_proc)
 DEFINE_SHIM0(sizeof_thread, int, sched_sizeof_thread)
 DEFINE_SHIM1(tdname, char *, sched_tdname, struct thread *, td)
 DEFINE_SHIM1(clear_tdname, void, sched_clear_tdname, struct thread *, td)
+DEFINE_SHIM0(do_timer_accounting, bool, sched_do_timer_accounting)
 DEFINE_SHIM0(init_ap, void, schedinit_ap)
 
 static char sched_name[32] = "ULE";

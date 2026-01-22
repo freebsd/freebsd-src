@@ -1443,21 +1443,8 @@ lapic_handle_timer(struct trapframe *frame)
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 	trap_check_kstack();
 
-#if defined(SMP) && !defined(SCHED_ULE)
-	/*
-	 * Don't do any accounting for the disabled HTT cores, since it
-	 * will provide misleading numbers for the userland.
-	 *
-	 * No locking is necessary here, since even if we lose the race
-	 * when hlt_cpus_mask changes it is not a big deal, really.
-	 *
-	 * Don't do that for ULE, since ULE doesn't consider hlt_cpus_mask
-	 * and unlike other schedulers it actually schedules threads to
-	 * those CPUs.
-	 */
-	if (CPU_ISSET(PCPU_GET(cpuid), &hlt_cpus_mask))
+	if (!sched_do_timer_accounting())
 		return;
-#endif
 
 	/* Look up our local APIC structure for the tick counters. */
 	la = &lapics[PCPU_GET(apic_id)];

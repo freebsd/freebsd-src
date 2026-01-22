@@ -241,6 +241,8 @@ void schedinit(void);
  */
 void schedinit_ap(void);
 
+bool sched_do_timer_accounting(void);
+
 struct sched_instance {
 	int	(*load)(void);
 	int	(*rr_interval)(void);
@@ -282,6 +284,7 @@ struct sched_instance {
 	int	(*sizeof_thread)(void);
 	char	*(*tdname)(struct thread *td);
 	void	(*clear_tdname)(struct thread *td);
+	bool	(*do_timer_accounting)(void);
 	void	(*init)(void);
 	void	(*init_ap)(void);
 	void	(*setup)(void);

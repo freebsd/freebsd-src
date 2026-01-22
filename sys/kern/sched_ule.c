@@ -3354,6 +3354,12 @@ sched_ule_schedcpu(void)
 {
 }
 
+static bool
+sched_ule_do_timer_accounting(void)
+{
+	return (true);
+}
+
 struct sched_instance sched_ule_instance = {
 #define	SLOT(name) .name = sched_ule_##name
 	SLOT(load),
@@ -3396,6 +3402,7 @@ struct sched_instance sched_ule_instance = {
 	SLOT(sizeof_thread),
 	SLOT(tdname),
 	SLOT(clear_tdname),
+	SLOT(do_timer_accounting),
 	SLOT(init),
 	SLOT(init_ap),
 	SLOT(setup),
