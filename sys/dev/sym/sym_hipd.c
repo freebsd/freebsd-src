@@ -2249,10 +2249,11 @@ static void sym_update_dflags(hcb_p np, u_char *flags,
 			      struct ccb_trans_settings *cts);
 
 static const struct sym_pci_chip *sym_find_pci_chip (device_t dev);
-static int  sym_pci_probe (device_t dev);
-static int  sym_pci_attach (device_t dev);
 
-static void sym_pci_free (hcb_p np);
+static device_probe_t sym_pci_probe;
+static device_attach_t sym_pci_attach;
+static device_detach_t sym_pci_detach;
+
 static int  sym_cam_attach (hcb_p np);
 static void sym_cam_free (hcb_p np);
 
@@ -8237,6 +8238,7 @@ sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 static device_method_t sym_pci_methods[] = {
 	DEVMETHOD(device_probe,	 sym_pci_probe),
 	DEVMETHOD(device_attach, sym_pci_attach),
+	DEVMETHOD(device_detach, sym_pci_detach),
 	DEVMETHOD_END
 };
 
@@ -8740,20 +8742,24 @@ sym_pci_attach(device_t dev)
 	 */
 attach_failed:
 	if (np)
-		sym_pci_free(np);
+		sym_pci_detach(dev);
 	return ENXIO;
 }
 
 /*
- *  Free everything that have been allocated for this device.
+ *  Detach a device by freeing everything that has been allocated for it.
  */
-static void sym_pci_free(hcb_p np)
+static int
+sym_pci_detach(device_t dev)
 {
+	hcb_p np;
 	SYM_QUEHEAD *qp;
 	ccb_p cp;
 	tcb_p tp;
 	lcb_p lp;
 	int target, lun;
+
+	np = device_get_softc(dev);
 
 	/*
 	 *  First free CAM resources.
@@ -8829,6 +8835,8 @@ static void sym_pci_free(hcb_p np)
 		SYM_LOCK_DESTROY();
 	device_set_softc(np->device, NULL);
 	sym_mfree_dma(np, sizeof(*np), "HCB");
+
+	return (0);
 }
 
 /*
@@ -8902,11 +8910,6 @@ static int sym_cam_attach(hcb_p np)
 
 	return 1;
 fail:
-	if (sim)
-		cam_sim_free(sim, FALSE);
-	if (devq)
-		cam_simq_free(devq);
-
 	SYM_UNLOCK();
 
 	sym_cam_free(np);
@@ -8929,14 +8932,15 @@ static void sym_cam_free(hcb_p np)
 
 	SYM_LOCK();
 
+	if (np->path) {
+		xpt_async(AC_LOST_DEVICE, np->path, NULL);
+		xpt_free_path(np->path);
+		np->path = NULL;
+	}
 	if (np->sim) {
 		xpt_bus_deregister(cam_sim_path(np->sim));
 		cam_sim_free(np->sim, /*free_devq*/ TRUE);
 		np->sim = NULL;
-	}
-	if (np->path) {
-		xpt_free_path(np->path);
-		np->path = NULL;
 	}
 
 	SYM_UNLOCK();
