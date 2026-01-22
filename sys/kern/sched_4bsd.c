@@ -322,7 +322,7 @@ maybe_resched(struct thread *td)
  * determines if the new thread should preempt the current thread.  If so,
  * it sets td_owepreempt to request a preemption.
  */
-int
+static int
 maybe_preempt(struct thread *td)
 {
 #ifdef PREEMPTION
