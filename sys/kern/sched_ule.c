@@ -3360,6 +3360,73 @@ sched_ule_do_timer_accounting(void)
 	return (true);
 }
 
+#ifdef SMP
+static int
+sched_ule_find_child_with_core(int cpu, struct cpu_group *grp)
+{
+	int i;
+
+	if (grp->cg_children == 0)
+		return (-1);
+
+	MPASS(grp->cg_child);
+	for (i = 0; i < grp->cg_children; i++) {
+		if (CPU_ISSET(cpu, &grp->cg_child[i].cg_mask))
+			return (i);
+	}
+
+	return (-1);
+}
+
+static int
+sched_ule_find_l2_neighbor(int cpu)
+{
+	struct cpu_group *grp;
+	int i;
+
+	grp = cpu_top;
+	if (grp == NULL)
+		return (-1);
+
+	/*
+	 * Find the smallest CPU group that contains the given core.
+	 */
+	i = 0;
+	while ((i = sched_ule_find_child_with_core(cpu, grp)) != -1) {
+		/*
+		 * If the smallest group containing the given CPU has less
+		 * than two members, we conclude the given CPU has no
+		 * L2 neighbor.
+		 */
+		if (grp->cg_child[i].cg_count <= 1)
+			return (-1);
+		grp = &grp->cg_child[i];
+	}
+
+	/* Must share L2. */
+	if (grp->cg_level > CG_SHARE_L2 || grp->cg_level == CG_SHARE_NONE)
+		return (-1);
+
+	/*
+	 * Select the first member of the set that isn't the reference
+	 * CPU, which at this point is guaranteed to exist.
+	 */
+	for (i = 0; i < CPU_SETSIZE; i++) {
+		if (CPU_ISSET(i, &grp->cg_mask) && i != cpu)
+			return (i);
+	}
+
+	/* Should never be reached */
+	return (-1);
+}
+#else
+static int
+sched_ule_find_l2_neighbor(int cpu)
+{
+	return (-1);
+}
+#endif
+
 struct sched_instance sched_ule_instance = {
 #define	SLOT(name) .name = sched_ule_##name
 	SLOT(load),
@@ -3403,6 +3470,7 @@ struct sched_instance sched_ule_instance = {
 	SLOT(tdname),
 	SLOT(clear_tdname),
 	SLOT(do_timer_accounting),
+	SLOT(find_l2_neighbor),
 	SLOT(init),
 	SLOT(init_ap),
 	SLOT(setup),

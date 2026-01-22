@@ -243,6 +243,13 @@ void schedinit_ap(void);
 
 bool sched_do_timer_accounting(void);
 
+/*
+ * Find an L2 neighbor of the given CPU or return -1 if none found.  This
+ * does not distinguish among multiple L2 neighbors if the given CPU has
+ * more than one (it will always return the same result in that case).
+ */
+int sched_find_l2_neighbor(int cpu);
+
 struct sched_instance {
 	int	(*load)(void);
 	int	(*rr_interval)(void);
@@ -285,6 +292,7 @@ struct sched_instance {
 	char	*(*tdname)(struct thread *td);
 	void	(*clear_tdname)(struct thread *td);
 	bool	(*do_timer_accounting)(void);
+	int	(*find_l2_neighbor)(int cpuid);
 	void	(*init)(void);
 	void	(*init_ap)(void);
 	void	(*setup)(void);

@@ -1854,6 +1854,12 @@ sched_4bsd_do_timer_accounting(void)
 #endif
 }
 
+static int
+sched_4bsd_find_l2_neighbor(int cpu)
+{
+	return (-1);
+}
+
 struct sched_instance sched_4bsd_instance = {
 #define	SLOT(name) .name = sched_4bsd_##name
 	SLOT(load),
@@ -1897,6 +1903,7 @@ struct sched_instance sched_4bsd_instance = {
 	SLOT(tdname),
 	SLOT(clear_tdname),
 	SLOT(do_timer_accounting),
+	SLOT(find_l2_neighbor),
 	SLOT(init),
 	SLOT(init_ap),
 	SLOT(setup),
