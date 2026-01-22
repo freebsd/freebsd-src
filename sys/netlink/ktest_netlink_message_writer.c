@@ -37,8 +37,6 @@
 #define KTEST_CALLER
 #include <netlink/ktest_netlink_message_writer.h>
 
-#ifdef INVARIANTS
-
 struct test_mbuf_attrs {
 	uint32_t	size;
 	uint32_t	expected_avail;
@@ -146,10 +144,8 @@ test_mbuf_chain_allocation(struct ktest_test_context *ctx)
 
 	return (0);
 }
-#endif
 
 static const struct ktest_test_info tests[] = {
-#ifdef INVARIANTS
 	{
 		.name = "test_mbuf_writer_allocation",
 		.desc = "test different mbuf sizes in the mbuf writer",
@@ -162,6 +158,5 @@ static const struct ktest_test_info tests[] = {
 		.func = &test_mbuf_chain_allocation,
 		.parse = &test_mbuf_parser,
 	},
-#endif
 };
 KTEST_MODULE_DECLARE(ktest_netlink_message_writer, tests);
