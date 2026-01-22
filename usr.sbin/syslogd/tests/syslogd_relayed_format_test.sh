@@ -15,8 +15,7 @@ readonly SERVER_3_PORT="5142"
 setup_relayed_format_test()
 {
     local format="$1"
-    local logfile="$2"
-    local pcapfile="$3"
+    local pcapfile="$2"
 
     confirm_INET_support_or_skip
 
@@ -26,7 +25,7 @@ setup_relayed_format_test()
     tcpdump_pid="$!"
 
     # Start first (central) server: receive UDP, log to file
-    printf "user.debug\t${logfile}\n" \
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" \
         > "$(config_filename ${SERVER_1_PORT})"
     syslogd_start_on_port "${SERVER_1_PORT}" -O "${format}"
 
@@ -56,13 +55,12 @@ O_flag_bsd_relayed_head()
 O_flag_bsd_relayed_body()
 {
     local format="bsd"
-    local logfile="${PWD}/${format}_relayed.log"
     local pcapfile="${PWD}/${format}_relayed.pcap"
 
-    setup_relayed_format_test "${format}" "${logfile}" "${pcapfile}"
+    setup_relayed_format_test "${format}" "${pcapfile}"
 
     atf_expect_fail "PR 220246 issue with the legacy bsd format"
-    atf_check -s exit:0 -o match:"${REGEX_RFC3164_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC3164_LOGFILE}"
     atf_check -s exit:0 -e ignore -o match:"${REGEX_RFC3164_PAYLOAD}" \
         tcpdump -A -r "${pcapfile}"
 }
@@ -83,13 +81,12 @@ O_flag_rfc3164_relayed_head()
 O_flag_rfc3164_relayed_body()
 {
     local format="rfc3164"
-    local logfile="${PWD}/${format}_relayed.log"
     local pcapfile="${PWD}/${format}_relayed.pcap"
 
-    setup_relayed_format_test "${format}" "${logfile}" "${pcapfile}"
+    setup_relayed_format_test "${format}" "${pcapfile}"
 
     atf_expect_fail "PR 220246 issue with the legacy rfc3164 format"
-    atf_check -s exit:0 -o match:"${REGEX_RFC3164_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC3164_LOGFILE}"
     atf_check -s exit:0 -e ignore -o match:"${REGEX_RFC3164_PAYLOAD}" \
         tcpdump -A -r "${pcapfile}"
 }
@@ -110,12 +107,11 @@ O_flag_rfc3164strict_relayed_head()
 O_flag_rfc3164strict_relayed_body()
 {
     local format="rfc3164-strict"
-    local logfile="${PWD}/${format}_relayed.log"
     local pcapfile="${PWD}/${format}_relayed.pcap"
 
-    setup_relayed_format_test "${format}" "${logfile}" "${pcapfile}"
+    setup_relayed_format_test "${format}" "${pcapfile}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC3164_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC3164_LOGFILE}"
     atf_check -s exit:0 -e ignore -o match:"${REGEX_RFC3164_PAYLOAD}" \
         tcpdump -A -r "${pcapfile}"
 }
@@ -136,12 +132,11 @@ O_flag_syslog_relayed_head()
 O_flag_syslog_relayed_body()
 {
     local format="syslog"
-    local logfile="${PWD}/${format}_relayed.log"
     local pcapfile="${PWD}/${format}_relayed.pcap"
 
-    setup_relayed_format_test "${format}" "${logfile}" "${pcapfile}"
+    setup_relayed_format_test "${format}" "${pcapfile}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC5424_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC5424_LOGFILE}"
     atf_check -s exit:0 -e ignore -o match:"${REGEX_RFC5424_PAYLOAD}" \
         tcpdump -A -r "${pcapfile}"
 }
@@ -162,12 +157,11 @@ O_flag_rfc5424_relayed_head()
 O_flag_rfc5424_relayed_body()
 {
     local format="rfc5424"
-    local logfile="${PWD}/${format}_relayed.log"
     local pcapfile="${PWD}/${format}_relayed.pcap"
 
-    setup_relayed_format_test "${format}" "${logfile}" "${pcapfile}"
+    setup_relayed_format_test "${format}" "${pcapfile}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC5424_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC5424_LOGFILE}"
     atf_check -s exit:0 -e ignore -o match:"${REGEX_RFC5424_PAYLOAD}" \
         tcpdump -A -r "${pcapfile}"
 }

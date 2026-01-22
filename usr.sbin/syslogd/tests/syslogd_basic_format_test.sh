@@ -11,9 +11,8 @@
 setup_basic_format_test()
 {
     local format="$1"
-    local logfile="$2"
 
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
 
     syslogd_start \
         -O "${format}" \
@@ -33,11 +32,10 @@ O_flag_bsd_basic_head()
 O_flag_bsd_basic_body()
 {
     local format="bsd"
-    local logfile="${PWD}/O_flag_${format}_basic.log"
 
-    setup_basic_format_test "${format}" "${logfile}"
+    setup_basic_format_test "${format}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC3164_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC3164_LOGFILE}"
 }
 O_flag_bsd_basic_cleanup()
 {
@@ -52,11 +50,10 @@ O_flag_rfc3164_basic_head()
 O_flag_rfc3164_basic_body()
 {
     local format="rfc3164"
-    local logfile="${PWD}/O_flag_${format}_basic.log"
 
-    setup_basic_format_test "${format}" "${logfile}"
+    setup_basic_format_test "${format}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC3164_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC3164_LOGFILE}"
 }
 O_flag_rfc3164_basic_cleanup()
 {
@@ -71,11 +68,10 @@ O_flag_rfc3164strict_basic_head()
 O_flag_rfc3164strict_basic_body()
 {
     local format="rfc3164-strict"
-    local logfile="${PWD}/O_flag_${format}_basic.log"
 
-    setup_basic_format_test "${format}" "${logfile}"
+    setup_basic_format_test "${format}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC3164_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC3164_LOGFILE}"
 }
 O_flag_rfc3164strict_basic_cleanup()
 {
@@ -90,11 +86,10 @@ O_flag_syslog_basic_head()
 O_flag_syslog_basic_body()
 {
     local format="syslog"
-    local logfile="${PWD}/O_flag_${format}_basic.log"
 
-    setup_basic_format_test "${format}" "${logfile}"
+    setup_basic_format_test "${format}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC5424_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC5424_LOGFILE}"
 }
 O_flag_syslog_basic_cleanup()
 {
@@ -109,11 +104,10 @@ O_flag_rfc5424_basic_head()
 O_flag_rfc5424_basic_body()
 {
     local format="rfc5424"
-    local logfile="${PWD}/O_flag_${format}_basic.log"
 
-    setup_basic_format_test "${format}" "${logfile}"
+    setup_basic_format_test "${format}"
 
-    atf_check -s exit:0 -o match:"${REGEX_RFC5424_LOGFILE}" cat "${logfile}"
+    syslogd_check_log "${REGEX_RFC5424_LOGFILE}"
 }
 O_flag_rfc5424_basic_cleanup()
 {
