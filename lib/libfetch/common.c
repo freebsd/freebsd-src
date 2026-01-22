@@ -1049,6 +1049,8 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1_1;
 	if (getenv("SSL_NO_TLS1_2") != NULL)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1_2;
+	if (getenv("SSL_NO_TLS1_3") != NULL)
+		ssl_ctx_options |= SSL_OP_NO_TLSv1_3;
 	if (verbose)
 		fetch_info("SSL options: %lx", ssl_ctx_options);
 	SSL_CTX_set_options(ctx, ssl_ctx_options);
