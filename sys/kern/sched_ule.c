@@ -404,8 +404,8 @@ static void sched_balance(void);
 static bool sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct thread *, int, int);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
-static int sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS);
-static int sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, 
+static int sysctl_kern_sched_ule_topology_spec(SYSCTL_HANDLER_ARGS);
+static int sysctl_kern_sched_ule_topology_spec_internal(struct sbuf *sb,
     struct cpu_group *cg, int indent);
 #endif
 
@@ -3412,8 +3412,8 @@ DECLARE_SCHEDULER(ule_sched_selector, "ULE", &sched_ule_instance);
  * the topology tree.
  */
 static int
-sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
-    int indent)
+sysctl_kern_sched_ule_topology_spec_internal(struct sbuf *sb,
+    struct cpu_group *cg, int indent)
 {
 	char cpusetbuf[CPUSETBUFSIZ];
 	int i, first;
@@ -3450,7 +3450,7 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	if (cg->cg_children > 0) {
 		sbuf_printf(sb, "%*s <children>\n", indent, "");
 		for (i = 0; i < cg->cg_children; i++)
-			sysctl_kern_sched_topology_spec_internal(sb, 
+			sysctl_kern_sched_ule_topology_spec_internal(sb,
 			    &cg->cg_child[i], indent+2);
 		sbuf_printf(sb, "%*s </children>\n", indent, "");
 	}
@@ -3463,7 +3463,7 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
  * the recursive sysctl_kern_smp_topology_spec_internal().
  */
 static int
-sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
+sysctl_kern_sched_ule_topology_spec(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf *topo;
 	int err;
@@ -3475,7 +3475,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	sbuf_cat(topo, "<groups>\n");
-	err = sysctl_kern_sched_topology_spec_internal(topo, cpu_top, 1);
+	err = sysctl_kern_sched_ule_topology_spec_internal(topo, cpu_top, 1);
 	sbuf_cat(topo, "</groups>\n");
 
 	if (err == 0) {
@@ -3506,47 +3506,51 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_kern_sched, OID_AUTO, quantum,
+SYSCTL_NODE(_kern_sched, OID_AUTO, ule, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ULE Scheduler");
+
+SYSCTL_PROC(_kern_sched_ule, OID_AUTO, quantum,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kern_quantum, "I",
     "Quantum for timeshare threads in microseconds");
-SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
     "Quantum for timeshare threads in stathz ticks");
-SYSCTL_UINT(_kern_sched, OID_AUTO, interact, CTLFLAG_RWTUN, &sched_interact, 0,
+SYSCTL_UINT(_kern_sched_ule, OID_AUTO, interact, CTLFLAG_RWTUN, &sched_interact, 0,
     "Interactivity score threshold");
-SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, preempt_thresh, CTLFLAG_RWTUN,
     &preempt_thresh, 0,
     "Maximal (lowest) priority for preemption");
-SYSCTL_INT(_kern_sched, OID_AUTO, static_boost, CTLFLAG_RWTUN, &static_boost, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, static_boost, CTLFLAG_RWTUN,
+    &static_boost, 0,
     "Assign static kernel priorities to sleeping threads");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespins, CTLFLAG_RWTUN, &sched_idlespins, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, idlespins, CTLFLAG_RWTUN,
+    &sched_idlespins, 0,
     "Number of times idle thread will spin waiting for new work");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespinthresh, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, idlespinthresh, CTLFLAG_RW,
     &sched_idlespinthresh, 0,
     "Threshold before we will permit idle thread spinning");
 #ifdef SMP
-SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
     "Number of hz ticks to keep thread affinity for");
-SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RWTUN, &rebalance, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, balance, CTLFLAG_RWTUN, &rebalance, 0,
     "Enables the long-term load balancer");
-SYSCTL_INT(_kern_sched, OID_AUTO, balance_interval, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, balance_interval, CTLFLAG_RW,
     &balance_interval, 0,
     "Average period in stathz ticks to run the long-term balancer");
-SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RWTUN, &steal_idle, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, steal_idle, CTLFLAG_RWTUN,
+    &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
-SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RWTUN, &steal_thresh, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, steal_thresh, CTLFLAG_RWTUN,
+    &steal_thresh, 0,
     "Minimum load on remote CPU before we'll steal");
-SYSCTL_INT(_kern_sched, OID_AUTO, trysteal_limit, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, trysteal_limit, CTLFLAG_RWTUN,
     &trysteal_limit, 0,
     "Topological distance limit for stealing threads in sched_switch()");
-SYSCTL_INT(_kern_sched, OID_AUTO, always_steal, CTLFLAG_RWTUN, &always_steal, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, always_steal, CTLFLAG_RWTUN,
+    &always_steal, 0,
     "Always run the stealer from the idle thread");
-SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
-    CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A",
+SYSCTL_PROC(_kern_sched_ule, OID_AUTO, topology_spec, CTLTYPE_STRING |
+    CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0,
+    sysctl_kern_sched_ule_topology_spec, "A",
     "XML dump of detected CPU topology");
 #endif
-
-/* ps compat.  All cpu percentages from ULE are weighted. */
-static int ccpu = 0;
-SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
-    "Decay factor used for updating %CPU in 4BSD scheduler");
