@@ -129,6 +129,7 @@ struct lvt {
 	u_int lvt_mode:16;
 	u_int lvt_vector:8;
 	u_int lvt_reg;
+	const char *lvt_desc;
 };
 
 struct lapic {
@@ -158,6 +159,7 @@ static struct lvt lvts[] = {
 		.lvt_mode = APIC_LVT_DM_EXTINT,
 		.lvt_vector = 0,
 		.lvt_reg = LAPIC_LVT_LINT0,
+		.lvt_desc = "LINT0",
 	},
 	/* LINT1: NMI */
 	[APIC_LVT_LINT1] = {
@@ -168,6 +170,7 @@ static struct lvt lvts[] = {
 		.lvt_mode = APIC_LVT_DM_NMI,
 		.lvt_vector = 0,
 		.lvt_reg = LAPIC_LVT_LINT1,
+		.lvt_desc = "LINT1",
 	},
 	[APIC_LVT_TIMER] = {
 		.lvt_edgetrigger = 1,
@@ -177,6 +180,7 @@ static struct lvt lvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_TIMER_INT,
 		.lvt_reg = LAPIC_LVT_TIMER,
+		.lvt_desc = "TIMER",
 	},
 	[APIC_LVT_ERROR] = {
 		.lvt_edgetrigger = 1,
@@ -186,6 +190,7 @@ static struct lvt lvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_ERROR_INT,
 		.lvt_reg = LAPIC_LVT_ERROR,
+		.lvt_desc = "ERROR",
 	},
 	[APIC_LVT_PMC] = {
 		.lvt_edgetrigger = 1,
@@ -195,6 +200,7 @@ static struct lvt lvts[] = {
 		.lvt_mode = APIC_LVT_DM_NMI,
 		.lvt_vector = 0,
 		.lvt_reg = LAPIC_LVT_PCINT,
+		.lvt_desc = "PMC",
 	},
 	[APIC_LVT_THERMAL] = {
 		.lvt_edgetrigger = 1,
@@ -204,6 +210,7 @@ static struct lvt lvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_THERMAL_INT,
 		.lvt_reg = LAPIC_LVT_THERMAL,
+		.lvt_desc = "THERM",
 	},
 	[APIC_LVT_CMCI] = {
 		.lvt_edgetrigger = 1,
@@ -213,6 +220,7 @@ static struct lvt lvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_CMC_INT,
 		.lvt_reg = LAPIC_LVT_CMCI,
+		.lvt_desc = "CMCI",
 	},
 };
 
@@ -226,6 +234,7 @@ static struct lvt elvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = 0,
 		.lvt_reg = LAPIC_EXT_LVT0,
+		.lvt_desc = "ELVT0",
 	},
 	[APIC_ELVT_MCA] = {
 		.lvt_edgetrigger = 1,
@@ -235,6 +244,7 @@ static struct lvt elvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = APIC_CMC_INT,
 		.lvt_reg = LAPIC_EXT_LVT1,
+		.lvt_desc = "MCA",
 	},
 	[APIC_ELVT_DEI] = {
 		.lvt_edgetrigger = 1,
@@ -244,6 +254,7 @@ static struct lvt elvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = 0,
 		.lvt_reg = LAPIC_EXT_LVT2,
+		.lvt_desc = "ELVT2",
 	},
 	[APIC_ELVT_SBI] = {
 		.lvt_edgetrigger = 1,
@@ -253,6 +264,7 @@ static struct lvt elvts[] = {
 		.lvt_mode = APIC_LVT_DM_FIXED,
 		.lvt_vector = 0,
 		.lvt_reg = LAPIC_EXT_LVT3,
+		.lvt_desc = "ELVT3",
 	},
 };
 
@@ -1890,17 +1902,33 @@ dump_mask(const char *prefix, uint32_t v, int base)
 /* Show info from the lapic regs for this CPU. */
 DB_SHOW_COMMAND_FLAGS(lapic, db_show_lapic, DB_CMD_MEMSAFE)
 {
-	uint32_t v;
+	const struct lvt *l;
+	int elvt_count, lvts_count, i;
+	uint32_t v, vr;
 
 	db_printf("lapic ID = %d\n", lapic_id());
 	v = lapic_read32(LAPIC_VERSION);
-	db_printf("version  = %d.%d\n", (v & APIC_VER_VERSION) >> 4,
-	    v & 0xf);
+	db_printf("version  = %d.%d (%#x) \n", (v & APIC_VER_VERSION) >> 4,
+	    v & 0xf, v);
 	db_printf("max LVT  = %d\n", lapic_maxlvt(v));
-	v = lapic_read32(LAPIC_SVR);
-	db_printf("SVR      = %02x (%s)\n", v & APIC_SVR_VECTOR,
-	    v & APIC_SVR_ENABLE ? "enabled" : "disabled");
+	vr = lapic_read32(LAPIC_SVR);
+	db_printf("SVR      = %02x (%s)\n", vr & APIC_SVR_VECTOR,
+	    vr & APIC_SVR_ENABLE ? "enabled" : "disabled");
 	db_printf("TPR      = %02x\n", lapic_read32(LAPIC_TPR));
+
+	lvts_count = min(nitems(lvts), lapic_maxlvt(v) + 1);
+	for (i = 0; i < lvts_count; i++) {
+		l = &lvts[i];
+		db_printf("LVT%d  (reg %#x %-5s) = %#010x\n", i, l->lvt_reg,
+		    l->lvt_desc, lapic_read32(l->lvt_reg));
+	}
+
+	elvt_count = amd_read_elvt_count();
+	for (i = 0; i < elvt_count; i++) {
+		l = &elvts[i];
+		db_printf("ELVT%d (reg %#x %-5s) = %#010x\n", i, l->lvt_reg,
+		    l->lvt_desc, lapic_read32(l->lvt_reg));
+	}
 
 #define dump_field(prefix, regn, index)					\
 	dump_mask(__XSTRING(prefix ## index), 				\
