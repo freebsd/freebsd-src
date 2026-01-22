@@ -47,7 +47,6 @@
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_platform.h"
-#include "opt_sched.h"
 #ifdef __i386__
 #include "opt_apic.h"
 #endif
@@ -543,9 +542,7 @@ cpu_idle_enter(int *statep, int newstate)
 	 * is visible before calling cpu_idle_wakeup().
 	 */
 	atomic_store_int(statep, newstate);
-#if defined(SCHED_ULE) && defined(SMP)
 	atomic_thread_fence_seq_cst();
-#endif
 
 	/*
 	 * Since we may be in a critical section from cpu_idle(), if
