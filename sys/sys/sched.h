@@ -174,9 +174,7 @@ int	sched_sizeof_thread(void);
  * functions.
  */
 char	*sched_tdname(struct thread *td);
-#ifdef KTR
 void	sched_clear_tdname(struct thread *td);
-#endif
 
 static __inline void
 sched_pin(void)
