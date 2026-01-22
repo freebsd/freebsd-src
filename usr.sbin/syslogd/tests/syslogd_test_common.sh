@@ -23,9 +23,6 @@ syslogd_start()
     local jail bind_arg conf_file pid_file socket privsocket
     local opt next other_args
 
-    # Setup loopback so we can deliver messages to ourself.
-    atf_check ifconfig lo0 inet 127.0.0.1/16
-
     OPTIND=1
     while getopts ":b:f:j:P:p:S:" opt; do
         case "${opt}" in
@@ -70,6 +67,11 @@ syslogd_start()
             ;;
         esac
     done
+
+    # Setup loopback so we can deliver messages to ourself.
+    if [ $($jail sysctl -n security.jail.vnet) -ne 0 ]; then
+        atf_check $jail ifconfig lo0 inet 127.0.0.1/8
+    fi
 
     $jail syslogd \
         ${bind_arg:--b :${SYSLOGD_UDP_PORT}} \
