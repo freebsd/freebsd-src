@@ -161,16 +161,18 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 	u_int exmode;
 	int bound_cpu, cpu, i, is_bound;
 
-	a.op = op & MSR_OP_OP_MASK;
-	MPASS(a.op == MSR_OP_ANDNOT || a.op == MSR_OP_OR ||
-	    a.op == MSR_OP_WRITE || a.op == MSR_OP_READ);
 	exmode = op & MSR_OP_EXMODE_MASK;
 	MPASS(exmode == MSR_OP_LOCAL || exmode == MSR_OP_SCHED_ALL ||
 	    exmode == MSR_OP_SCHED_ONE || exmode == MSR_OP_RENDEZVOUS_ALL ||
 	    exmode == MSR_OP_RENDEZVOUS_ONE);
+
+	a.op = op & MSR_OP_OP_MASK;
+	MPASS(a.op == MSR_OP_ANDNOT || a.op == MSR_OP_OR ||
+	    a.op == MSR_OP_WRITE || a.op == MSR_OP_READ);
 	a.msr = msr;
 	a.arg1 = arg1;
 	a.res = res;
+
 	switch (exmode) {
 	case MSR_OP_LOCAL:
 		x86_msr_op_one(&a);
