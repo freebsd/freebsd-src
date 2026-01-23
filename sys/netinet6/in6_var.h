@@ -531,6 +531,8 @@ struct in6_ifextra {
 	} scope6_id;
 
 	struct lltable *lltable;
+
+	struct epoch_context	epoch_ctx;
 };
 
 #define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
