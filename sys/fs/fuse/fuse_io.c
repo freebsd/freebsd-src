@@ -401,6 +401,7 @@ retry:
 			fuse_warn(data, FSESS_WARN_WROTE_LONG,
 				"wrote more data than we provided it.");
 			/* This is bonkers.  Clear attr cache. */
+			ASSERT_CACHED_ATTRS_LOCKED(vp);
 			fvdat->flag &= ~FN_SIZECHANGE;
 			fuse_vnode_clear_attr_cache(vp);
 			err = EINVAL;
@@ -416,8 +417,10 @@ retry:
 			fuse_vnode_setsize(vp, as_written_offset, false);
 			getnanouptime(&fvdat->last_local_modify);
 		}
-		if (as_written_offset - diff >= filesize)
+		if (as_written_offset - diff >= filesize) {
+			ASSERT_CACHED_ATTRS_LOCKED(vp);
 			fvdat->flag &= ~FN_SIZECHANGE;
+		}
 
 		if (diff > 0) {
 			/* Short write */
@@ -454,8 +457,11 @@ retry:
 
 	fdisp_destroy(&fdi);
 
-	if (wrote_anything)
+	if (wrote_anything) {
+		CACHED_ATTR_LOCK(vp);
 		fuse_vnode_undirty_cached_timestamps(vp, false);
+		CACHED_ATTR_UNLOCK(vp);
+	}
 
 	vn_rlimit_fsizex_res(uio, r);
 	return (err);
@@ -556,6 +562,7 @@ again:
 			err = fuse_vnode_setsize(vp, uio->uio_offset + n, false);
 			filesize = uio->uio_offset + n;
 			getnanouptime(&fvdat->last_local_modify);
+			ASSERT_CACHED_ATTRS_LOCKED(vp);
 			fvdat->flag |= FN_SIZECHANGE;
 			if (err) {
 				brelse(bp);
@@ -806,6 +813,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			left = uiop->uio_resid;
 			bzero((char *)bp->b_data + nread, left);
 
+			CACHED_ATTR_LOCK(vp);
 			if ((fvdat->flag & FN_SIZECHANGE) == 0) {
 				/*
 				 * A short read with no error, when not using
@@ -838,6 +846,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 					"Short read of a dirty file");
 				uiop->uio_resid = 0;
 			}
+			CACHED_ATTR_UNLOCK(vp);
 		}
 		if (error) {
 			bp->b_ioflags |= BIO_ERROR;
@@ -855,10 +864,18 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		 * anything about it.  In particular, we can't invalidate any
 		 * part of the file's buffers because VOP_STRATEGY is called
 		 * with them already locked.
+		 *
+		 * Normally the vnode should be exclusively locked at this
+		 * point.  However, if clustered reads are in use, then in a
+		 * mixed read-write workload getblkx may need to flush a
+		 * partially written buffer to disk during a read.  In such a
+		 * case, the vnode may only have a shared lock at this point.
 		 */
+		CACHED_ATTR_LOCK(vp);
 		filesize = fvdat->cached_attrs.va_size;
 		/* filesize must've been cached by fuse_vnop_open.  */
 		KASSERT(filesize != VNOVAL, ("filesize should've been cached"));
+		CACHED_ATTR_UNLOCK(vp);
 
 		if ((off_t)bp->b_lblkno * biosize + bp->b_dirtyend > filesize)
 			bp->b_dirtyend = filesize - 
