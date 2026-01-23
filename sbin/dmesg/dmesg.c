@@ -48,6 +48,7 @@
 #include <unistd.h>
 #include <vis.h>
 #include <sys/syslog.h>
+#include <sys/time.h>
 
 static struct nlist nl[] = {
 #define	X_MSGBUF	0
@@ -64,18 +65,23 @@ int
 main(int argc, char *argv[])
 {
 	struct msgbuf *bufp, cur;
+	struct timeval boottime, reltime, abstime, roundtime;
+	char timebuf[64];
 	char *bp, *ep, *memf, *nextp, *nlistf, *p, *q, *visbp;
+	char *timefmt = "%d %b %T";
 	kvm_t *kd;
+	time_t time;
 	size_t buflen, bufpos;
 	long pri;
 	int ch, clear;
-	bool all;
+	bool all, timeconv;
 
 	all = false;
 	clear = false;
+	timeconv = false;
 	(void) setlocale(LC_CTYPE, "");
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "acM:N:")) != -1)
+	while ((ch = getopt(argc, argv, "actM:N:f:")) != -1)
 		switch(ch) {
 		case 'a':
 			all = true;
@@ -83,11 +89,17 @@ main(int argc, char *argv[])
 		case 'c':
 			clear = true;
 			break;
+		case 't':
+			timeconv = true;
+			break;
 		case 'M':
 			memf = optarg;
 			break;
 		case 'N':
 			nlistf = optarg;
+			break;
+		case 'f':
+			timefmt = optarg;
 			break;
 		case '?':
 		default:
@@ -96,6 +108,13 @@ main(int argc, char *argv[])
 	argc -= optind;
 	if (argc != 0)
 		usage();
+
+	if (timeconv) {
+		int mib[6] = {CTL_KERN, KERN_BOOTTIME};
+		size_t l = sizeof(boottime);
+		if (sysctl(mib, 2, &boottime, &l, 0, 0) < 0)
+			err(1, "sysctl kern.boottime");
+        }
 
 	if (memf == NULL) {
 		/*
@@ -188,7 +207,47 @@ main(int argc, char *argv[])
 		}
 
 		(void)strvisx(visbp, p, nextp - p, 0);
-		(void)printf("%s", visbp);
+		if (!timeconv) {
+no_timestamp:
+			(void)printf("%s", visbp);
+			continue;
+		}
+
+		if (visbp[0] != '[' ) {
+			goto no_timestamp;
+		}
+
+		reltime.tv_usec = 0;
+		reltime.tv_sec = strtoul(visbp+1, &q, 10);
+
+		if (q == visbp+1 ) {		/* no digits after '[' */
+			goto no_timestamp;
+		}
+
+		if (*q == '.' ) {
+			char* r;
+			reltime.tv_usec = strtoul(q+1, &r, 10);
+			if (r == q+1 ) {	/* no digits after '.' */
+				goto no_timestamp;
+			}
+			q = r;
+		}
+
+		if (*q != ']' || *(q+1) != ' ' ) {
+			goto no_timestamp;
+		}
+
+		timeradd( &boottime, &reltime, &abstime );
+		reltime.tv_usec = 500000;
+		reltime.tv_sec = 0;
+		timeradd( &abstime, &reltime, &roundtime );
+
+		if (strftime(timebuf, sizeof timebuf, timefmt,
+		    localtime( &roundtime.tv_sec )) != 0) {
+			(void)printf("[%s]%s", timebuf, q+1);
+		} else {
+			goto no_timestamp;
+		}
 	}
 	exit(0);
 }
@@ -196,6 +255,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: dmesg [-ac] [-M core [-N system]]\n");
+	fprintf(stderr, "usage: dmesg [-ac] [-t [-f output_fmt]] [-M core [-N system]]\n");
 	exit(1);
 }
