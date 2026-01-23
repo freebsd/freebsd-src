@@ -1147,7 +1147,7 @@ passout:
 		dontfrag = 1;
 	else
 		dontfrag = 0;
-	if (dontfrag && tlen > IN6_LINKMTU(ifp) && !tso) {	/* Case 2-b. */
+	if (dontfrag && tlen > in6_ifmtu(ifp) && !tso) {	/* Case 2-b. */
 		/*
 		 * If the DONTFRAG option is specified, we cannot send the
 		 * packet when the data length is larger than the MTU of the
@@ -1561,7 +1561,7 @@ ip6_calcmtu(struct ifnet *ifp, const struct in6_addr *dst, u_long rt_mtu,
 	}
 
 	if (mtu == 0)
-		mtu = IN6_LINKMTU(ifp);
+		mtu = in6_ifmtu(ifp);
 
 	*mtup = mtu;
 }

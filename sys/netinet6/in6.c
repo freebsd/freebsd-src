@@ -2627,9 +2627,14 @@ EVENTHANDLER_DEFINE(ifnet_arrival_event, in6_ifarrival, NULL,
     EVENTHANDLER_PRI_ANY);
 
 uint32_t
-in6_ifmtu(struct ifnet *ifp)
+in6_ifmtu(const struct ifnet *ifp)
 {
-	return (IN6_LINKMTU(ifp));
+	struct nd_ifinfo *ndi = ND_IFINFO(ifp);
+
+	return (
+	    (ndi->linkmtu > 0 && ndi->linkmtu < ifp->if_mtu) ? ndi->linkmtu :
+	    ((ndi->maxmtu > 0 && ndi->maxmtu < ifp->if_mtu) ? ndi->maxmtu :
+	    ifp->if_mtu));
 }
 
 /*

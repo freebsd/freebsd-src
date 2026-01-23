@@ -114,10 +114,8 @@ rib6_augment_nh(u_int fibnum, struct nhop_object *nh)
 	 * inherit interface MTU if not set or
 	 * check if MTU is too large.
 	 */
-	if (nh->nh_mtu == 0) {
-		nh->nh_mtu = IN6_LINKMTU(nh->nh_ifp);
-	} else if (nh->nh_mtu > IN6_LINKMTU(nh->nh_ifp))
-		nh->nh_mtu = IN6_LINKMTU(nh->nh_ifp);
+	if (nh->nh_mtu == 0 || nh->nh_mtu > in6_ifmtu(nh->nh_ifp))
+		nh->nh_mtu = in6_ifmtu(nh->nh_ifp);
 
 	/* Set nexthop type */
 	if (nhop_get_type(nh) == 0) {

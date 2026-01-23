@@ -83,11 +83,6 @@ struct llentry;
 
 #ifdef _KERNEL
 #define ND_IFINFO(ifp)	((if_getinet6(ifp))->nd_ifinfo)
-#define IN6_LINKMTU(ifp) \
-	((ND_IFINFO(ifp)->linkmtu && ND_IFINFO(ifp)->linkmtu < (ifp)->if_mtu) \
-	    ? ND_IFINFO(ifp)->linkmtu \
-	    : ((ND_IFINFO(ifp)->maxmtu && ND_IFINFO(ifp)->maxmtu < (ifp)->if_mtu) \
-		? ND_IFINFO(ifp)->maxmtu : (ifp)->if_mtu))
 #endif
 
 struct in6_nbrinfo {

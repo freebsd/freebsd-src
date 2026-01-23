@@ -11708,9 +11708,9 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	 * it here, before we do any NAT.
 	 */
 	if (af == AF_INET6 && dir == PF_OUT && pflags & PFIL_FWD &&
-	    IN6_LINKMTU(ifp) < pf_max_frag_size(*m0)) {
+	    in6_ifmtu(ifp) < pf_max_frag_size(*m0)) {
 		PF_RULES_RUNLOCK();
-		icmp6_error(*m0, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
+		icmp6_error(*m0, ICMP6_PACKET_TOO_BIG, 0, in6_ifmtu(ifp));
 		*m0 = NULL;
 		return (PF_DROP);
 	}
