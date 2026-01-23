@@ -506,6 +506,21 @@ struct in6_ifextra {
 	u_int		nd_dad_failures;
 	uint8_t		nd_curhoplimit;
 
+	struct mld_ifsoftc {
+		/* Timers and invervals measured in seconds. */
+		LIST_ENTRY(mld_ifsoftc) mli_link;
+		struct ifnet *mli_ifp;  /* interface this instance belongs to */
+		uint32_t mli_version;   /* MLDv1 Host Compatibility Mode */
+		uint32_t mli_v1_timer;  /* MLDv1 Querier Present timer */
+		uint32_t mli_v2_timer;  /* MLDv2 General Query timer */
+		uint32_t mli_flags;     /* MLD per-interface flags */
+		uint32_t mli_rv;        /* MLDv2 Robustness Variable */
+		uint32_t mli_qi;        /* MLDv2 Query Interval */
+		uint32_t mli_qri;       /* MLDv2 Query Response Interval */
+		uint32_t mli_uri;       /* MLDv2 Unsolicited Report Interval */
+		struct mbufq     mli_gq; /* queue of general query responses */
+	} mld_ifsoftc;
+
 	struct scope6_id {
 		/*
 		 * 16 is correspondent to 4bit multicast scope field. i.e. from
@@ -516,7 +531,6 @@ struct in6_ifextra {
 	} scope6_id;
 
 	struct lltable *lltable;
-	struct mld_ifsoftc *mld_ifinfo;
 };
 
 #define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
