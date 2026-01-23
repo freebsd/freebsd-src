@@ -30,6 +30,8 @@
 #ifndef __RISCV_IFUNC_H
 #define	__RISCV_IFUNC_H
 
+#define	 __DO_NOT_HAVE_SYS_IFUNCS	1
+
 #define	DEFINE_IFUNC(qual, ret_type, name, args)			\
     static ret_type (*name##_resolver(void))args __used;		\
     qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
