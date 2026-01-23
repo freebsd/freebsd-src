@@ -107,6 +107,12 @@ smbus_poll(struct smbus_softc *sc, int how)
 }
 
 /*
+ * Maximum time to wait for the bus to become free. BIOS/ACPI code may hold
+ * the bus for several transactions of up to 35 ms each.
+ */
+#define	SMBUS_REQUEST_TIMEOUT	(200 * SBT_1MS)
+
+/*
  * smbus_request_bus()
  *
  * Allocate the device to perform transfers.
@@ -118,10 +124,12 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 {
 	struct smbus_softc *sc = device_get_softc(bus);
 	device_t parent;
+	sbintime_t deadline;
 	int error;
 
 	/* first, ask the underlying layers if the request is ok */
 	parent = device_get_parent(bus);
+	deadline = sbinuptime() + SMBUS_REQUEST_TIMEOUT;
 	mtx_lock(&sc->lock);
 	do {
 		mtx_unlock(&sc->lock);
@@ -131,6 +139,12 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 		/* Check if we've successfully got bus access. */
 		if (error == 0)
 			break;
+
+		/* Check for timeout. */
+		if (sbinuptime() >= deadline) {
+			mtx_unlock(&sc->lock);
+			return (EBUSY);
+		}
 
 		switch (how) {
 		case SMB_WAIT | SMB_INTR:
