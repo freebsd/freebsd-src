@@ -31,8 +31,12 @@
 #ifndef _DEV_HWPMC_AMD_H_
 #define	_DEV_HWPMC_AMD_H_ 1
 
-/* AMD K8 PMCs */
+/* CPUIDs */
+#define	CPUID_EXTPERFMON	0x80000022
+#define	EXTPERFMON_CORE_PMCS(x)	((x) & 0x0F)
+#define	EXTPERFMON_DF_PMCS(x)	(((x) >> 10) & 0x3F)
 
+/* AMD K8 PMCs */
 #define	AMD_PMC_EVSEL_0		0xC0010000
 #define	AMD_PMC_EVSEL_1		0xC0010001
 #define	AMD_PMC_EVSEL_2		0xC0010002
@@ -42,40 +46,35 @@
 #define	AMD_PMC_PERFCTR_1	0xC0010005
 #define	AMD_PMC_PERFCTR_2	0xC0010006
 #define	AMD_PMC_PERFCTR_3	0xC0010007
+
+/*
+ * For older AMD processors we have hard coded the original four core counters.
+ * For newer processors we use the cpuid bits to setup the counter table.  The
+ * counts below are the default number of registers assuming that you do not
+ * have CPUID leaf 0x80000022.  The maximum number of counters is computed
+ * based on the available bits in the CPUID leaf and reserved MSR space.
+ *
+ * Refer to the PPRs for AMD Family 1Ah.
+ */
+
 /* CORE */
-#define	AMD_PMC_EVSEL_4		0xC0010208
-#define	AMD_PMC_EVSEL_5		0xC001020A
+#define	AMD_PMC_CORE_BASE	0xC0010200
+#define	AMD_PMC_CORE_DEFAULT	6
+#define	AMD_PMC_CORE_MAX	16
 
-#define	AMD_PMC_PERFCTR_4	0xC0010209
-#define	AMD_PMC_PERFCTR_5	0xC001020B
 /* L3 */
-#define	AMD_PMC_EVSEL_EP_L3_0	0xC0010230
-#define	AMD_PMC_EVSEL_EP_L3_1	0xC0010232
-#define	AMD_PMC_EVSEL_EP_L3_2	0xC0010234
-#define	AMD_PMC_EVSEL_EP_L3_3	0xC0010236
-#define	AMD_PMC_EVSEL_EP_L3_4	0xC0010238
-#define	AMD_PMC_EVSEL_EP_L3_5	0xC001023A
+#define	AMD_PMC_L3_BASE		0xC0010230
+#define	AMD_PMC_L3_DEFAULT	6
+#define	AMD_PMC_L3_MAX		6
 
-#define	AMD_PMC_PERFCTR_EP_L3_0	0xC0010231
-#define	AMD_PMC_PERFCTR_EP_L3_1	0xC0010233
-#define	AMD_PMC_PERFCTR_EP_L3_2	0xC0010235
-#define	AMD_PMC_PERFCTR_EP_L3_3	0xC0010237
-#define	AMD_PMC_PERFCTR_EP_L3_4	0xC0010239
-#define	AMD_PMC_PERFCTR_EP_L3_5	0xC001023B
 /* DF */
-#define	AMD_PMC_EVSEL_EP_DF_0	0xC0010240
-#define	AMD_PMC_EVSEL_EP_DF_1	0xC0010242
-#define	AMD_PMC_EVSEL_EP_DF_2	0xC0010244
-#define	AMD_PMC_EVSEL_EP_DF_3	0xC0010246
+#define	AMD_PMC_DF_BASE		0xC0010240
+#define	AMD_PMC_DF_DEFAULT	4
+#define	AMD_PMC_DF_MAX		64
 
-#define	AMD_PMC_PERFCTR_EP_DF_0	0xC0010241
-#define	AMD_PMC_PERFCTR_EP_DF_1	0xC0010243
-#define	AMD_PMC_PERFCTR_EP_DF_2	0xC0010245
-#define	AMD_PMC_PERFCTR_EP_DF_3	0xC0010247
-
-#define	AMD_NPMCS		16
-#define	AMD_CORE_NPMCS		6
-
+#define	AMD_NPMCS_K8		4
+#define AMD_NPMCS_MAX		(AMD_PMC_CORE_MAX + AMD_PMC_L3_MAX + \
+				 AMD_PMC_DF_MAX)
 
 #define	AMD_PMC_COUNTERMASK	0xFF000000
 #define	AMD_PMC_TO_COUNTER(x)	(((x) << 24) & AMD_PMC_COUNTERMASK)
@@ -118,7 +117,7 @@
 #define	AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(V)	(-(V))
 #define	AMD_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(-(P))
 
-enum sub_class{
+enum sub_class {
 	PMC_AMD_SUB_CLASS_CORE,
 	PMC_AMD_SUB_CLASS_L3_CACHE,
 	PMC_AMD_SUB_CLASS_DATA_FABRIC
