@@ -241,50 +241,99 @@ int bnxt_re_modify_device(struct ib_device *ibdev,
 	return 0;
 }
 
-static void __to_ib_speed_width(u32 espeed, u8 *speed, u8 *width)
+static void __to_ib_speed_width(u32 espeed, u8 lanes, u8 *speed, u8 *width)
 {
-	switch (espeed) {
-	case SPEED_1000:
-		*speed = IB_SPEED_SDR;
+	if (!lanes) {
+		switch (espeed) {
+		case SPEED_1000:
+			*speed = IB_SPEED_SDR;
+			*width = IB_WIDTH_1X;
+			break;
+		case SPEED_10000:
+			*speed = IB_SPEED_QDR;
+			*width = IB_WIDTH_1X;
+			break;
+		case SPEED_20000:
+			*speed = IB_SPEED_DDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_25000:
+			*speed = IB_SPEED_EDR;
+			*width = IB_WIDTH_1X;
+			break;
+		case SPEED_40000:
+			*speed = IB_SPEED_QDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_50000:
+			*speed = IB_SPEED_EDR;
+			*width = IB_WIDTH_2X;
+			break;
+		case SPEED_100000:
+			*speed = IB_SPEED_EDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_200000:
+			*speed = IB_SPEED_HDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_400000:
+			*speed = IB_SPEED_NDR;
+			*width = IB_WIDTH_4X;
+			break;
+		default:
+			*speed = IB_SPEED_SDR;
+			*width = IB_WIDTH_1X;
+			break;
+		}
+		return;
+	}
+
+	switch (lanes) {
+	case 1:
 		*width = IB_WIDTH_1X;
+		break;
+	case 2:
+		*width = IB_WIDTH_2X;
+		break;
+	case 4:
+		*width = IB_WIDTH_4X;
+		break;
+	case 8:
+		*width = IB_WIDTH_8X;
+		break;
+	case 12:
+		*width = IB_WIDTH_12X;
+		break;
+	default:
+		*width = IB_WIDTH_1X;
+	}
+
+	switch (espeed / lanes) {
+	case SPEED_2500:
+		*speed = IB_SPEED_SDR;
+		break;
+	case SPEED_5000:
+		*speed = IB_SPEED_DDR;
 		break;
 	case SPEED_10000:
-		*speed = IB_SPEED_QDR;
-		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_FDR10;
 		break;
-	case SPEED_20000:
-		*speed = IB_SPEED_DDR;
-		*width = IB_WIDTH_4X;
+	case SPEED_14000:
+		*speed = IB_SPEED_FDR;
 		break;
 	case SPEED_25000:
 		*speed = IB_SPEED_EDR;
-		*width = IB_WIDTH_1X;
-		break;
-	case SPEED_40000:
-		*speed = IB_SPEED_QDR;
-		*width = IB_WIDTH_4X;
 		break;
 	case SPEED_50000:
-		*speed = IB_SPEED_EDR;
-		*width = IB_WIDTH_2X;
+		*speed = IB_SPEED_HDR;
 		break;
 	case SPEED_100000:
-		*speed = IB_SPEED_EDR;
-		*width = IB_WIDTH_4X;
-		break;
-	case SPEED_200000:
-		*speed = IB_SPEED_HDR;
-		*width = IB_WIDTH_4X;
-		break;
-	case SPEED_400000:
 		*speed = IB_SPEED_NDR;
-		*width = IB_WIDTH_4X;
 		break;
 	default:
 		*speed = IB_SPEED_SDR;
-		*width = IB_WIDTH_1X;
-		break;
-	}
+        }
 }
 
 /* Port */
@@ -322,9 +371,10 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	port_attr->subnet_timeout = 0;
 	port_attr->init_type_reply = 0;
 	rdev->espeed = rdev->en_dev->espeed;
+	rdev->lanes = rdev->en_dev->lanes;
 
 	if (test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
-		__to_ib_speed_width(rdev->espeed, &active_speed,
+		__to_ib_speed_width(rdev->espeed, rdev->lanes, &active_speed,
 				    &active_width);
 
 	port_attr->active_speed = active_speed;

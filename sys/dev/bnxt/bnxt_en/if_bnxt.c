@@ -4794,9 +4794,11 @@ bnxt_report_link(struct bnxt_softc *softc)
 	const char *duplex = NULL, *flow_ctrl = NULL;
 	const char *signal_mode = "";
 
-	if(softc->edev)
+	if(softc->edev) {
 		softc->edev->espeed =
 		    bnxt_fw_to_ethtool_speed(link_info->link_speed);
+		softc->edev->lanes = link_info->active_lanes;
+	}
 
 	if (link_info->link_up == link_info->last_link_up) {
 		if (!link_info->link_up)
