@@ -151,6 +151,8 @@ static struct arm_gic_softc *gic_sc = NULL;
 /* CPU Interface */
 #define	gic_c_read_4(_sc, _reg)		\
     bus_read_4((_sc)->gic_res[GIC_RES_CPU], (_reg))
+#define	gic_c_peek_4(_sc, _reg, _val)	\
+    bus_peek_4((_sc)->gic_res[GIC_RES_CPU], (_reg), (_val))
 #define	gic_c_write_4(_sc, _reg, _val)		\
     bus_write_4((_sc)->gic_res[GIC_RES_CPU], (_reg), (_val))
 /* Distributor Interface */
@@ -347,7 +349,18 @@ arm_gic_attach(device_t dev)
 		goto cleanup;
 	}
 
-	icciidr = gic_c_read_4(sc, GICC_IIDR);
+	/*
+	 * Try accessing a CPU interface register. On some broken
+	 * virtualization environments this will raise an external
+	 * data abort. When this happens we can detect it using
+	 * by peeking at the register & checking for the fault.
+	 * As there is no way to continue with a normal boot we
+	 * panic.
+	 */
+	if (gic_c_peek_4(sc, GICC_IIDR, &icciidr) != 0)
+		panic("Unable to access %s CPU registers, "
+		    "broken hardware or hypervisor configuration",
+		    device_get_nameunit(dev));
 	device_printf(dev,
 	    "pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x irqs %u\n",
 	    GICD_IIDR_PROD(icciidr), GICD_IIDR_VAR(icciidr),
