@@ -1662,7 +1662,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		/* 0 means 'unspecified' */
 		if (ND.linkmtu != 0) {
 			if (ND.linkmtu < IPV6_MMTU ||
-			    ND.linkmtu > IN6_LINKMTU(ifp)) {
+			    ND.linkmtu > in6_ifmtu(ifp)) {
 				error = EINVAL;
 				break;
 			}
