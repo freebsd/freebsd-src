@@ -120,6 +120,9 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 	device_t parent;
 	int error;
 	int timo = (hz / 1000) == 0 ? 1 : hz / 1000;
+	int retries = 0;
+	/* 200 ms (200 * timo) */
+	int max_retries = 200;
 
 	/* first, ask the underlying layers if the request is ok */
 	parent = device_get_parent(bus);
@@ -132,6 +135,9 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 		/* Check if we've successfully got bus access. */
 		if (error == 0)
 			break;
+		/* Check for timeout.*/
+		if (retries++ > max_retries)
+			return (EBUSY);
 
 		switch (how) {
 		case SMB_WAIT | SMB_INTR:
