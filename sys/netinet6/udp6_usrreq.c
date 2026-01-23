@@ -703,11 +703,6 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 
 	sin6 = (struct sockaddr_in6 *)addr6;
 
-	/*
-	 * In contrast to IPv4 we do not validate the max. packet length
-	 * here due to IPv6 Jumbograms (RFC2675).
-	 */
-
 	scope_ambiguous = 0;
 	if (sin6) {
 		/* Protect *addr6 from overwrites. */
@@ -865,9 +860,20 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 		fport = inp->inp_fport;
 	}
 
+
+	/*
+	 * We do not support IPv6 Jumbograms (RFC2675), so validate the payload
+	 * length fits in a normal gram.
+	 */
 	ulen = m->m_pkthdr.len;
 	plen = sizeof(struct udphdr) + ulen;
 	hlen = sizeof(struct ip6_hdr);
+
+	if (plen > IPV6_MAXPAYLOAD) {
+		m_freem(control);
+		m_freem(m);
+		return (EMSGSIZE);
+	}
 
 	/*
 	 * Calculate data length and get a mbuf for UDP, IP6, and possible
@@ -903,10 +909,10 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 		 * the entire UDPLite packet is covered by the checksum.
 		 */
 		cscov_partial = (cscov == 0) ? 0 : 1;
-	} else if (plen <= 0xffff)
+	} else {
+		MPASS(plen <= IPV6_MAXPAYLOAD);
 		udp6->uh_ulen = htons((u_short)plen);
-	else
-		udp6->uh_ulen = 0;
+	}
 	udp6->uh_sum = 0;
 
 	ip6 = mtod(m, struct ip6_hdr *);

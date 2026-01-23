@@ -393,8 +393,7 @@ int	ip6_lasthdr(const struct mbuf *, int, int, int *);
 extern int	(*ip6_mforward)(struct ip6_hdr *, struct ifnet *,
     struct mbuf *);
 
-int	ip6_process_hopopts(struct mbuf *, u_int8_t *, int, u_int32_t *,
-				 u_int32_t *);
+int	ip6_process_hopopts(struct mbuf *, u_int8_t *, int, u_int32_t *);
 struct mbuf	**ip6_savecontrol_v4(struct inpcb *, struct mbuf *,
 	    struct mbuf **, int *);
 void	ip6_savecontrol(struct inpcb *, struct mbuf *, struct mbuf **);
