@@ -127,6 +127,8 @@ struct bnxt_en_dev {
 	struct bnxt_bar_info		hwrm_bar;
 	u32				espeed;
 	uint8_t				lanes;
+	#define BNXT_VPD_PN_FLD_LEN     32
+        char                            board_part_number[BNXT_VPD_PN_FLD_LEN];
 };
 
 struct bnxt_en_ops {

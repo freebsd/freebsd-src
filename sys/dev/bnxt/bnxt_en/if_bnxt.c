@@ -2674,6 +2674,13 @@ bnxt_attach_pre(if_ctx_t ctx)
 	softc->state_bv = bit_alloc(BNXT_STATE_MAX, M_DEVBUF,
 			M_WAITOK|M_ZERO);
 
+	if (BNXT_PF(softc)) {
+		const char *part_num;
+
+		if (pci_get_vpd_readonly(softc->dev, "PN", &part_num) == 0)
+			snprintf(softc->board_partno, sizeof(softc->board_partno), "%s", part_num);
+	}
+
 	return (rc);
 
 failed:

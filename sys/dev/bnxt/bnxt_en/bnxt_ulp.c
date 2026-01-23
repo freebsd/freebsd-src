@@ -463,6 +463,7 @@ static inline void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt_soft
 	edev->hwrm_bar = bp->hwrm_bar;
 	edev->port_partition_type = bp->port_partition_type;
 	edev->ulp_version = BNXT_ULP_VERSION;
+	memcpy(edev->board_part_number, bp->board_partno, BNXT_VPD_PN_FLD_LEN - 1);
 }
 
 int bnxt_rdma_aux_device_del(struct bnxt_softc *softc)

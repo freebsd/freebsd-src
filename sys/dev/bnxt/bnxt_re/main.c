@@ -2031,11 +2031,30 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
 }
 
+static ssize_t show_board_id(struct device *device, struct device_attribute *attr,
+				char *buf)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+	char buffer[BNXT_VPD_PN_FLD_LEN] = {};
+
+	if (!rdev->is_virtfn)
+		memcpy(buffer, rdev->en_dev->board_part_number,
+			BNXT_VPD_PN_FLD_LEN - 1);
+	else
+		scnprintf(buffer, BNXT_VPD_PN_FLD_LEN,
+			"0x%x-VF", rdev->en_dev->pdev->device);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", buffer);
+}
+
 static DEVICE_ATTR(hw_rev, 0444, show_rev, NULL);
 static DEVICE_ATTR(hca_type, 0444, show_hca, NULL);
+static DEVICE_ATTR(board_id, 0444, show_board_id, NULL);
+
 static struct device_attribute *bnxt_re_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_hca_type
+	&dev_attr_hca_type,
+	&dev_attr_board_id
 };
 
 int ib_register_device_compat(struct bnxt_re_dev *rdev)
