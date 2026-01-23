@@ -80,6 +80,8 @@
 
 #define SDL(s) ((struct sockaddr_dl *)s)
 
+MALLOC_DECLARE(M_IP6NDP);
+
 struct dadq;
 static struct dadq *nd6_dad_find(struct ifaddr *, struct nd_opt_nonce *);
 static void nd6_dad_add(struct dadq *dp);
@@ -173,7 +175,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 
 	rflag = (V_ip6_forwarding) ? ND_NA_FLAG_ROUTER : 0;
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV && V_ip6_norbit_raif)
+	if (ifp->if_inet6->nd_flags & ND6_IFF_ACCEPT_RTADV && V_ip6_norbit_raif)
 		rflag = 0;
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6)) {
@@ -910,7 +912,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 
 			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
 			if (!defrouter_remove(&ln->r_l3addr.addr6, nd6_ifp) &&
-			    (ND_IFINFO(nd6_ifp)->flags &
+			    (nd6_ifp->if_inet6->nd_flags &
 			     ND6_IFF_ACCEPT_RTADV) != 0)
 				/*
 				 * Even if the neighbor is not in the default
@@ -1281,13 +1283,13 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	 */
 	if ((ia->ia6_flags & IN6_IFF_ANYCAST) != 0 ||
 	    V_ip6_dad_count == 0 ||
-	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_NO_DAD) != 0) {
+	    (ifa->ifa_ifp->if_inet6->nd_flags & ND6_IFF_NO_DAD) != 0) {
 		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 		return;
 	}
 	if ((ifa->ifa_ifp->if_flags & IFF_UP) == 0 ||
 	    (ifa->ifa_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED) != 0)
+	    (ifa->ifa_ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED) != 0)
 		return;
 
 	DADQ_WLOCK();
@@ -1377,7 +1379,7 @@ nd6_dad_timer(void *arg)
 	KASSERT(ia != NULL, ("DAD entry %p with no address", dp));
 
 	NET_EPOCH_ENTER(et);
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+	if (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED) {
 		/* Do not need DAD for ifdisabled interface. */
 		log(LOG_ERR, "nd6_dad_timer: cancel DAD on %s because of "
 		    "ND6_IFF_IFDISABLED.\n", ifp->if_xname);
@@ -1414,7 +1416,7 @@ nd6_dad_timer(void *arg)
 		 * We have more NS to go.  Send NS packet for DAD.
 		 */
 		nd6_dad_starttimer(dp,
-		    (long)ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
+		    (long)ifa->ifa_ifp->if_inet6->nd_retrans * hz / 1000);
 		nd6_dad_ns_output(dp);
 		goto done;
 	} else {
@@ -1446,7 +1448,7 @@ nd6_dad_timer(void *arg)
 			dp->dad_count =
 			    dp->dad_ns_ocount + V_nd6_mmaxtries - 1;
 			nd6_dad_starttimer(dp,
-			    (long)ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
+			    (long)ifa->ifa_ifp->if_inet6->nd_retrans * hz / 1000);
 			nd6_dad_ns_output(dp);
 			goto done;
 		} else {
@@ -1458,9 +1460,9 @@ nd6_dad_timer(void *arg)
 			 *
 			 * Reset DAD failures counter if using stable addresses.
 			 */
-			if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) == 0) {
+			if ((ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED) == 0) {
 				ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
-				if ((ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY))
+				if ((ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY))
 					atomic_store_int(&DAD_FAILURES(ifp), 0);
 			}
 
@@ -1509,7 +1511,7 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 	 * For RFC 7217 stable addresses, increment failure counter here if we still have retries.
 	 * More addresses will be generated as long as retries are not exhausted.
 	 */
-	if ((ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY)) {
+	if ((ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY)) {
 		u_int dad_failures = atomic_load_int(&DAD_FAILURES(ifp));
 
 		if (dad_failures <= V_ip6_stableaddr_maxretries) {
@@ -1547,7 +1549,7 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 			in6 = ia->ia_addr.sin6_addr;
 			if (in6_get_hw_ifid(ifp, &in6) == 0 &&
 			    IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr, &in6)) {
-				ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
+				ifp->if_inet6->nd_flags |= ND6_IFF_IFDISABLED;
 				log(LOG_ERR, "%s: possible hardware address "
 				    "duplication detected, disable IPv6\n",
 				    if_name(ifp));

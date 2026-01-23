@@ -3033,8 +3033,8 @@ wg_clone_create(struct if_clone *ifc, char *name, size_t len,
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(uint32_t));
 #ifdef INET6
-	ND_IFINFO(ifp)->flags &= ~ND6_IFF_AUTO_LINKLOCAL;
-	ND_IFINFO(ifp)->flags |= ND6_IFF_NO_DAD;
+	if_getinet6(ifp)->nd_flags &= ~ND6_IFF_AUTO_LINKLOCAL;
+	if_getinet6(ifp)->nd_flags |= ND6_IFF_NO_DAD;
 #endif
 	sx_xlock(&wg_sx);
 	LIST_INSERT_HEAD(&wg_list, sc, sc_entry);

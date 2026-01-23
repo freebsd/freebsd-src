@@ -366,7 +366,7 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		 */
 
 		/* Rule 5: Prefer outgoing interface */
-		if (!(ND_IFINFO(ifp)->flags & ND6_IFF_NO_PREFER_IFACE)) {
+		if (!(ifp->if_inet6->nd_flags & ND6_IFF_NO_PREFER_IFACE)) {
 			if (ia_best->ia_ifp == ifp && ia->ia_ifp != ifp)
 				NEXT(5);
 			if (ia_best->ia_ifp != ifp && ia->ia_ifp == ifp)
@@ -868,7 +868,7 @@ in6_selecthlim(struct inpcb *inp, struct ifnet *ifp)
 	if (inp && inp->in6p_hops >= 0)
 		return (inp->in6p_hops);
 	else if (ifp)
-		return (ND_IFINFO(ifp)->chlim);
+		return (ifp->if_inet6->nd_curhoplimit);
 	else if (inp && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		struct nhop_object *nh;
 		struct in6_addr dst;
@@ -879,7 +879,7 @@ in6_selecthlim(struct inpcb *inp, struct ifnet *ifp)
 		in6_splitscope(&inp->in6p_faddr, &dst, &scopeid);
 		nh = fib6_lookup(fibnum, &dst, scopeid, 0, 0);
 		if (nh != NULL) {
-			hlim = ND_IFINFO(nh->nh_ifp)->chlim;
+			hlim = nh->nh_ifp->if_inet6->nd_curhoplimit;
 			return (hlim);
 		}
 	}

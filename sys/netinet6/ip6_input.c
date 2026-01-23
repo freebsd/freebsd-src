@@ -551,7 +551,7 @@ ip6_input(struct mbuf *m)
 	 * Drop the packet if IPv6 operation is disabled on the interface.
 	 */
 	rcvif = m->m_pkthdr.rcvif;
-	if ((ND_IFINFO(rcvif)->flags & ND6_IFF_IFDISABLED))
+	if ((rcvif->if_inet6->nd_flags & ND6_IFF_IFDISABLED))
 		goto bad;
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
