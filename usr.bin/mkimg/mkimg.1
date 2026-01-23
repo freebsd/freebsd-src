@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 25, 2025
+.Dd December 30, 2025
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Op Fl C Ar max_capacity
 .Op Fl -capacity Ar capacity
 .Op Fl f Ar format
+.Op Fl h
 .Op Fl o Ar outfile
 .Op Fl a Ar active
 .Op Fl t Ar timestamp
@@ -142,6 +143,10 @@ The
 .Fl t
 option causes any timestamps embedded in the output file to be set to the
 given time, specified in seconds since the epoch.
+.Pp
+The
+.Fl h
+option prints a usage message and exits.
 .Pp
 The
 .Fl v
@@ -301,34 +306,43 @@ may be used multiple times to specify a list of created partition entries.
 A specification that is a single dash indicates an unused partition entry.
 Otherwise, a partition specification has the following format:
 .Bd -literal -offset indent
-<type> ':' <kind> <contents>
+<type>[/<label>]::<size>[:[+]<offset>]
+<type>[/<label>]:=<file>[:[+]<offset>]
+<type>[/<label>]:-<cmd>
+-
 .Ed
 .Bl -tag -width indent
 .It Cm type
 the partition type alias (f.e.: freebsd-swap)
-that may be optionally followed by a '/' separator
-and a label for partitioning schemes that feature partition labels
 (see the
 .Sx EXAMPLES
 Section below)
-.It Cm kind
-the interpretation of the contents specification:
-.Bl -tag -width indent
-.It Cm ':'
-contents holds the size of an empty partition,
-a number that may be suffixed with one of K, M, G, T, P or E
-(either upper or lower case) following the SI power of two convention
-(see also
+.It Cm label
+an optional label for partitioning schemes that support labels
+.It Cm size
+the size of an empty partition, a number that may be suffixed with one of
+K, M, G, T, P or E (either upper or lower case) following the SI power of
+two convention (see also
 .Xr expand_number 3 )
-.It Cm '='
-contents holds the name of a file to read
-.It Cm '-'
-contents holds a command to run; the output of which is the contents
-of the partition.
+.It Cm file
+the name of a file to read; the partition size is determined by the file
+.It Cm cmd
+a command to run; the output of which is the contents of the partition.
 Multi-word strings should be quoted according to the shell rules.
-.El
-.It Cm contents
-the specification of a partition's contents
+.It Cm offset
+an optional byte offset for the
+.Cm size
+and
+.Cm file
+forms.
+If prefixed with
+.Ql + ,
+it is relative to the end of the previous partition; otherwise it is an
+absolute offset from the start of the image.
+The value follows the same numeric conventions as
+.Cm size .
+.It Cm -
+an unused partition entry.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width "TMPDIR" -compact
