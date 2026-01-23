@@ -3543,7 +3543,8 @@ sysctl_kern_sched_ule_topology_spec(SYSCTL_HANDLER_ARGS)
 	struct sbuf *topo;
 	int err;
 
-	KASSERT(cpu_top != NULL, ("cpu_top isn't initialized"));
+	if (cpu_top == NULL)
+		return (ENOTTY);
 
 	topo = sbuf_new_for_sysctl(NULL, NULL, 512, req);
 	if (topo == NULL)
