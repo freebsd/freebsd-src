@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 17, 2025
+.Dd January 23, 2026
 .Dt CAPSICUM 4
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@ is a lightweight OS capability and sandbox framework implementing a hybrid
 capability system model.
 .Nm
 is designed to blend capabilities with UNIX.
-This approach achieves many of the beneﬁts of least-privilege operation, while
+This approach achieves many of the benefits of least-privilege operation, while
 preserving existing UNIX APIs and performance, and presents application authors
 with an adoption path for capability-oriented design.
 .Pp
@@ -72,10 +72,10 @@ constrained.
 For instance,
 .Xr sysctl 2
 can be used to query process-local information such as address space layout,
-but also to monitor a system’s network connections.
+but also to monitor a system's network connections.
 .Xr sysctl 2
-is constrained by explicitly marking \(~~60 of over 15000 parameters as permitted
-in capability mode; all others are denied.
+is constrained by explicitly marking \(~~60 of over 15000 parameters as
+permitted in capability mode; all others are denied.
 .Pp
 The system calls which require constraints are
 .Xr sysctl 2 ,
