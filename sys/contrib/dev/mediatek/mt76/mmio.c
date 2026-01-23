@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -41,20 +41,30 @@ static u32 mt76_mmio_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
 static void mt76_mmio_write_copy(struct mt76_dev *dev, u32 offset,
 				 const void *data, int len)
 {
+	int i;
+
+	for (i = 0; i < ALIGN(len, 4); i += 4)
 #if defined(__linux__)
-	__iowrite32_copy(dev->mmio.regs + offset, data, DIV_ROUND_UP(len, 4));
+		writel(get_unaligned_le32(data + i),
+		       dev->mmio.regs + offset + i);
 #elif defined(__FreeBSD__)
-	__iowrite32_copy((u8 *)dev->mmio.regs + offset, data, DIV_ROUND_UP(len, 4));
+		writel(get_unaligned_le32((const u8 *)data + i),
+		       (u8 *)dev->mmio.regs + offset + i);
 #endif
 }
 
 static void mt76_mmio_read_copy(struct mt76_dev *dev, u32 offset,
 				void *data, int len)
 {
+	int i;
+
+	for (i = 0; i < ALIGN(len, 4); i += 4)
 #if defined(__linux__)
-	__ioread32_copy(data, dev->mmio.regs + offset, DIV_ROUND_UP(len, 4));
+		put_unaligned_le32(readl(dev->mmio.regs + offset + i),
+				   data + i);
 #elif defined(__FreeBSD__)
-	__ioread32_copy(data, (u8 *)dev->mmio.regs + offset, DIV_ROUND_UP(len, 4));
+		put_unaligned_le32(readl((u8 *)dev->mmio.regs + offset + i),
+				   (u8 *)data + i);
 #endif
 }
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -175,14 +175,17 @@ static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
 #endif
 }
 
-void
+int
 mt76_eeprom_override(struct mt76_phy *phy)
 {
 	struct mt76_dev *dev = phy->dev;
 #if defined(CONFIG_OF)
 	struct device_node *np = dev->dev->of_node;
+	int err;
 
-	of_get_mac_address(np, phy->macaddr);
+	err = of_get_mac_address(np, phy->macaddr);
+	if (err == -EPROBE_DEFER)
+		return err;
 
 	if (!is_valid_ether_addr(phy->macaddr)) {
 #endif
@@ -193,6 +196,8 @@ mt76_eeprom_override(struct mt76_phy *phy)
 #if defined(CONFIG_OF)
 	}
 #endif
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_eeprom_override);
 
@@ -269,6 +274,19 @@ mt76_get_of_array(struct device_node *np, char *name, size_t *len, int min)
 
 	return prop->value;
 }
+
+static const s8 *
+mt76_get_of_array_s8(struct device_node *np, char *name, size_t *len, int min)
+{
+	struct property *prop = of_find_property(np, name, NULL);
+
+	if (!prop || !prop->value || prop->length < min)
+		return NULL;
+
+	*len = prop->length;
+
+	return prop->value;
+}
 #endif
 
 struct device_node *
@@ -313,7 +331,7 @@ mt76_get_txs_delta(struct device_node *np, u8 nss)
 }
 
 static void
-mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const __be32 *data,
+mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const s8 *data,
 		       s8 target_power, s8 nss_delta, s8 *max_power)
 {
 	int i;
@@ -322,30 +340,29 @@ mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const __be32 *data,
 		return;
 
 	for (i = 0; i < pwr_len; i++) {
-		pwr[i] = min_t(s8, target_power,
-			       be32_to_cpu(data[i]) + nss_delta);
+		pwr[i] = min_t(s8, target_power, data[i] + nss_delta);
 		*max_power = max(*max_power, pwr[i]);
 	}
 }
 
 static void
 mt76_apply_multi_array_limit(s8 *pwr, size_t pwr_len, s8 pwr_num,
-			     const __be32 *data, size_t len, s8 target_power,
-			     s8 nss_delta, s8 *max_power)
+			     const s8 *data, size_t len, s8 target_power,
+			     s8 nss_delta)
 {
 	int i, cur;
+	s8 max_power = -128;
 
 	if (!data)
 		return;
 
-	len /= 4;
-	cur = be32_to_cpu(data[0]);
+	cur = data[0];
 	for (i = 0; i < pwr_num; i++) {
 		if (len < pwr_len + 1)
 			break;
 
 		mt76_apply_array_limit(pwr + pwr_len * i, pwr_len, data + 1,
-				       target_power, nss_delta, max_power);
+				       target_power, nss_delta, &max_power);
 		if (--cur > 0)
 			continue;
 
@@ -354,7 +371,7 @@ mt76_apply_multi_array_limit(s8 *pwr, size_t pwr_len, s8 pwr_num,
 		if (!len)
 			break;
 
-		cur = be32_to_cpu(data[0]);
+		cur = data[0];
 	}
 }
 #endif
@@ -367,7 +384,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 	struct mt76_dev *dev = phy->dev;
 #if defined(CONFIG_OF)
 	struct device_node *np;
-	const __be32 *val;
+	const s8 *val;
 	char name[16];
 #endif
 	u32 mcs_rates = dev->drv->mcs_rates;
@@ -379,12 +396,17 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 	s8 max_power = 0;
 #if defined(CONFIG_OF)
 	s8 txs_delta;
+	s8 max_power_backoff = -127;
+	s8 txs_delta;
+	int n_chains = hweight16(phy->chainmask);
+	s8 target_power_combine = target_power + mt76_tx_power_path_delta(n_chains);
 #endif
 
 	if (!mcs_rates)
 		mcs_rates = 10;
 
-	memset(dest, target_power, sizeof(*dest));
+	memset(dest, target_power, sizeof(*dest) - sizeof(dest->path));
+	memset(&dest->path, 0, sizeof(dest->path));
 
 	if (!IS_ENABLED(CONFIG_OF))
 		return target_power;
@@ -419,24 +441,47 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 
 	txs_delta = mt76_get_txs_delta(np, hweight16(phy->chainmask));
 
-	val = mt76_get_of_array(np, "rates-cck", &len, ARRAY_SIZE(dest->cck));
+	val = mt76_get_of_array_s8(np, "rates-cck", &len, ARRAY_SIZE(dest->cck));
 	mt76_apply_array_limit(dest->cck, ARRAY_SIZE(dest->cck), val,
 			       target_power, txs_delta, &max_power);
 
-	val = mt76_get_of_array(np, "rates-ofdm",
-				&len, ARRAY_SIZE(dest->ofdm));
+	val = mt76_get_of_array_s8(np, "rates-ofdm",
+				   &len, ARRAY_SIZE(dest->ofdm));
 	mt76_apply_array_limit(dest->ofdm, ARRAY_SIZE(dest->ofdm), val,
 			       target_power, txs_delta, &max_power);
 
-	val = mt76_get_of_array(np, "rates-mcs", &len, mcs_rates + 1);
+	val = mt76_get_of_array_s8(np, "rates-mcs", &len, mcs_rates + 1);
 	mt76_apply_multi_array_limit(dest->mcs[0], ARRAY_SIZE(dest->mcs[0]),
 				     ARRAY_SIZE(dest->mcs), val, len,
-				     target_power, txs_delta, &max_power);
+				     target_power, txs_delta);
 
-	val = mt76_get_of_array(np, "rates-ru", &len, ru_rates + 1);
+	val = mt76_get_of_array_s8(np, "rates-ru", &len, ru_rates + 1);
 	mt76_apply_multi_array_limit(dest->ru[0], ARRAY_SIZE(dest->ru[0]),
 				     ARRAY_SIZE(dest->ru), val, len,
-				     target_power, txs_delta, &max_power);
+				     target_power, txs_delta);
+
+	max_power_backoff = max_power;
+	val = mt76_get_of_array_s8(np, "paths-cck", &len, ARRAY_SIZE(dest->path.cck));
+	mt76_apply_array_limit(dest->path.cck, ARRAY_SIZE(dest->path.cck), val,
+			       target_power_combine, txs_delta, &max_power_backoff);
+
+	val = mt76_get_of_array_s8(np, "paths-ofdm", &len, ARRAY_SIZE(dest->path.ofdm));
+	mt76_apply_array_limit(dest->path.ofdm, ARRAY_SIZE(dest->path.ofdm), val,
+			       target_power_combine, txs_delta, &max_power_backoff);
+
+	val = mt76_get_of_array_s8(np, "paths-ofdm-bf", &len, ARRAY_SIZE(dest->path.ofdm_bf));
+	mt76_apply_array_limit(dest->path.ofdm_bf, ARRAY_SIZE(dest->path.ofdm_bf), val,
+			       target_power_combine, txs_delta, &max_power_backoff);
+
+	val = mt76_get_of_array_s8(np, "paths-ru", &len, ARRAY_SIZE(dest->path.ru[0]) + 1);
+	mt76_apply_multi_array_limit(dest->path.ru[0], ARRAY_SIZE(dest->path.ru[0]),
+				     ARRAY_SIZE(dest->path.ru), val, len,
+				     target_power_combine, txs_delta);
+
+	val = mt76_get_of_array_s8(np, "paths-ru-bf", &len, ARRAY_SIZE(dest->path.ru_bf[0]) + 1);
+	mt76_apply_multi_array_limit(dest->path.ru_bf[0], ARRAY_SIZE(dest->path.ru_bf[0]),
+				     ARRAY_SIZE(dest->path.ru_bf), val, len,
+				     target_power_combine, txs_delta);
 
 #endif
 	return max_power;

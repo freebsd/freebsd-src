@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/etherdevice.h>
@@ -304,6 +304,8 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
 	int pwr_delta = mt7915_eeprom_get_power_delta(dev, sband->band);
 	struct mt76_power_limits limits;
 
+	phy->sku_limit_en = true;
+	phy->sku_path_en = true;
 	for (i = 0; i < sband->n_channels; i++) {
 		struct ieee80211_channel *chan = &sband->channels[i];
 		u32 target_power = 0;
@@ -320,6 +322,11 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
 		target_power = mt76_get_rate_power_limits(phy->mt76, chan,
 							  &limits,
 							  target_power);
+
+		/* MT7915N can not enable Backoff table without setting value in dts */
+		if (!limits.path.ofdm[0])
+			phy->sku_path_en = false;
+
 		target_power += path_delta;
 		target_power = DIV_ROUND_UP(target_power, 2);
 		chan->max_power = min_t(int, chan->max_reg_power,
@@ -729,7 +736,9 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
 		mphy->macaddr[0] |= 2;
 		mphy->macaddr[0] ^= BIT(7);
 	}
-	mt76_eeprom_override(mphy);
+	ret = mt76_eeprom_override(mphy);
+	if (ret)
+		return ret;
 
 	/* init wiphy according to mphy and phy */
 	mt7915_init_wiphy(phy);

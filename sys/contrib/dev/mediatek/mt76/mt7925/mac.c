@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2023 MediaTek Inc. */
 
 #include <linux/devcoredump.h>
@@ -6,6 +6,7 @@
 #include <linux/timekeeping.h>
 #include "mt7925.h"
 #include "../dma.h"
+#include "regd.h"
 #include "mac.h"
 #include "mcu.h"
 
@@ -1304,7 +1305,6 @@ void mt7925_mac_reset_work(struct work_struct *work)
 	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
-	dev->sar_inited = false;
 
 	for (i = 0; i < 10; i++) {
 		mutex_lock(&dev->mt76.mutex);
@@ -1333,6 +1333,8 @@ void mt7925_mac_reset_work(struct work_struct *work)
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    mt7925_vif_connect_iter, NULL);
 	mt76_connac_power_save_sched(&dev->mt76.phy, pm);
+
+	mt7925_regd_change(&dev->phy, "00");
 }
 
 void mt7925_coredump_work(struct work_struct *work)

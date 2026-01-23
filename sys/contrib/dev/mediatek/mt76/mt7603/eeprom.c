@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 
 #include <linux/of.h>
 #include "mt7603.h"
@@ -182,7 +182,6 @@ int mt7603_eeprom_init(struct mt7603_dev *dev)
 		dev->mphy.antenna_mask = 1;
 
 	dev->mphy.chainmask = dev->mphy.antenna_mask;
-	mt76_eeprom_override(&dev->mphy);
 
-	return 0;
+	return mt76_eeprom_override(&dev->mphy);
 }

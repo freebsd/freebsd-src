@@ -1,132 +1,118 @@
+/* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
- * Copyright (c) 2020-2025 Bjoern A. Zeeb <bz@FreeBSD.org>
- *
- * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
 
-#ifndef	_MT76_UTIL_H
-#define	_MT76_UTIL_H
+#ifndef __MT76_UTIL_H
+#define __MT76_UTIL_H
 
+#include <linux/skbuff.h>
+#include <linux/bitops.h>
+#include <linux/bitfield.h>
+#include <net/mac80211.h>
+#if defined(__FreeBSD__)
 #include <linux/kthread.h>
+#endif
 
 struct mt76_worker
 {
-	void(*fn)(struct mt76_worker *);
 	struct task_struct *task;
+	void (*fn)(struct mt76_worker *);
 	unsigned long state;
 };
 
-enum mt76_worker_state {
+enum {
 	MT76_WORKER_SCHEDULED,
 	MT76_WORKER_RUNNING,
 };
 
-#if 0
-bool __mt76_poll(struct mt76_dev *, u32, u32, u32, int);
-bool __mt76_poll_msec(struct mt76_dev *, u32, u32, u32, int);
-int mt76_get_min_avg_rssi(struct mt76_dev *, bool);
-#endif
-int mt76_wcid_alloc(u32 *, int);
-int __mt76_worker_fn(void *);
+#define MT76_INCR(_var, _size) \
+	(_var = (((_var) + 1) % (_size)))
 
-/* wcid_phy_mask is [32] */
+int mt76_wcid_alloc(u32 *mask, int size);
+
 static inline void
-mt76_wcid_mask_set(u32 *mask, u16 bit)
+mt76_wcid_mask_set(u32 *mask, int idx)
 {
-
-	mask[bit / 32] |= BIT(bit % 32);
+	mask[idx / 32] |= BIT(idx % 32);
 }
 
 static inline void
-mt76_wcid_mask_clear(u32 *mask, u16 bit)
+mt76_wcid_mask_clear(u32 *mask, int idx)
 {
-
-	mask[bit / 32] &= ~BIT(bit % 32);
+	mask[idx / 32] &= ~BIT(idx % 32);
 }
 
-/* See, e.g., __mt76_worker_fn for some details. */
+static inline void
+mt76_skb_set_moredata(struct sk_buff *skb, bool enable)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
+	if (enable)
+		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+	else
+		hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+}
+
+int __mt76_worker_fn(void *ptr);
+
 static inline int
-mt76_worker_setup(struct ieee80211_hw *hw __unused, struct mt76_worker *w,
-    void (*wfunc)(struct mt76_worker *), const char *name)
+mt76_worker_setup(struct ieee80211_hw *hw, struct mt76_worker *w,
+		  void (*fn)(struct mt76_worker *),
+		  const char *name)
 {
-	int error;
+	const char *dev_name = wiphy_name(hw->wiphy);
+	int ret;
 
-	if (wfunc)
-		w->fn = wfunc;
-
+	if (fn)
+		w->fn = fn;
 	w->task = kthread_run(__mt76_worker_fn, w,
-	    "mt76-%s", name);
+			      "mt76-%s %s", name, dev_name);
 
-	if (!IS_ERR(w->task))
-		return (0);
+	if (IS_ERR(w->task)) {
+		ret = PTR_ERR(w->task);
+		w->task = NULL;
+		return ret;
+	}
 
-	error = PTR_ERR(w->task);
-	w->task = NULL;
-	return (error);
+	return 0;
 }
 
-static inline void
-mt76_worker_schedule(struct mt76_worker *w)
+static inline void mt76_worker_schedule(struct mt76_worker *w)
 {
-
-	if (w->task == NULL)
+	if (!w->task)
 		return;
 
-	if (!test_and_set_bit(MT76_WORKER_SCHEDULED, &w->state) ||
+	if (!test_and_set_bit(MT76_WORKER_SCHEDULED, &w->state) &&
 	    !test_bit(MT76_WORKER_RUNNING, &w->state))
 		wake_up_process(w->task);
 }
 
-static inline void
-mt76_worker_enable(struct mt76_worker *w)
+static inline void mt76_worker_disable(struct mt76_worker *w)
 {
-
-	if (w->task == NULL)
-		return;
-
-	kthread_unpark(w->task);
-	mt76_worker_schedule(w);
-}
-
-static inline void
-mt76_worker_disable(struct mt76_worker *w)
-{
-
-	if (w->task == NULL)
+	if (!w->task)
 		return;
 
 	kthread_park(w->task);
 	WRITE_ONCE(w->state, 0);
 }
 
-static inline void
-mt76_worker_teardown(struct mt76_worker *w)
+static inline void mt76_worker_enable(struct mt76_worker *w)
 {
+	if (!w->task)
+		return;
 
-	if (w->task == NULL)
+	kthread_unpark(w->task);
+	mt76_worker_schedule(w);
+}
+
+static inline void mt76_worker_teardown(struct mt76_worker *w)
+{
+	if (!w->task)
 		return;
 
 	kthread_stop(w->task);
 	w->task = NULL;
 }
 
-static inline void
-mt76_skb_set_moredata(struct sk_buff *skb, bool moredata)
-{
-	/*
-	 * This would be net80211::IEEE80211_FC1_MORE_DATA
-	 * Implement it as mostly LinuxKPI 802.11 to avoid
-	 * further header pollution and possible conflicts.
-	 */
-	struct ieee80211_hdr *hdr;
-	uint16_t val;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	val = cpu_to_le16(IEEE80211_FC1_MORE_DATA << 8);
-	if (!moredata)
-		hdr->frame_control &= ~val;
-	else
-		hdr->frame_control |= val;
-}
-
-#endif	/* _MT76_UTIL_H */
+#endif

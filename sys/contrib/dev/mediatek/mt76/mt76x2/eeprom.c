@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -499,7 +499,9 @@ int mt76x2_eeprom_init(struct mt76x02_dev *dev)
 
 	mt76x02_eeprom_parse_hw_cap(dev);
 	mt76x2_eeprom_get_macaddr(dev);
-	mt76_eeprom_override(&dev->mphy);
+	ret = mt76_eeprom_override(&dev->mphy);
+	if (ret)
+		return ret;
 	dev->mphy.macaddr[0] &= ~BIT(1);
 
 	return 0;

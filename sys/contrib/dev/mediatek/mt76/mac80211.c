@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -652,6 +652,8 @@ int mt76_create_page_pool(struct mt76_dev *dev, struct mt76_queue *q)
 	case MT_RXQ_MAIN:
 	case MT_RXQ_BAND1:
 	case MT_RXQ_BAND2:
+	case MT_RXQ_NPU0:
+	case MT_RXQ_NPU1:
 		pp_params.pool_size = 256;
 		break;
 	default:
@@ -846,6 +848,7 @@ void mt76_free_device(struct mt76_dev *dev)
 		destroy_workqueue(dev->wq);
 		dev->wq = NULL;
 	}
+	mt76_npu_deinit(dev);
 	ieee80211_free_hw(dev->hw);
 }
 EXPORT_SYMBOL_GPL(mt76_free_device);
@@ -856,6 +859,9 @@ static void mt76_reset_phy(struct mt76_phy *phy)
 		return;
 
 	INIT_LIST_HEAD(&phy->tx_list);
+	phy->num_sta = 0;
+	phy->chanctx = NULL;
+	mt76_roc_complete(phy);
 }
 
 void mt76_reset_device(struct mt76_dev *dev)
@@ -1267,6 +1273,8 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	mstat = *((struct mt76_rx_status *)skb->cb);
 	memset(status, 0, sizeof(*status));
 
+	skb->priority = mstat.qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
+
 	status->flag = mstat.flag;
 	status->freq = mstat.freq;
 	status->enc_flags = mstat.enc_flags;
@@ -1582,7 +1590,8 @@ void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 
 	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL) {
 		mt76_check_sta(dev, skb);
-		if (mtk_wed_device_active(&dev->mmio.wed))
+		if (mtk_wed_device_active(&dev->mmio.wed) ||
+		    mt76_npu_device_active(dev))
 			__skb_queue_tail(&frames, skb);
 		else
 			mt76_rx_aggr_reorder(skb, &frames);
@@ -2096,3 +2105,55 @@ void mt76_vif_cleanup(struct mt76_dev *dev, struct ieee80211_vif *vif)
 		mt76_abort_roc(mvif->roc_phy);
 }
 EXPORT_SYMBOL_GPL(mt76_vif_cleanup);
+
+u16 mt76_select_links(struct ieee80211_vif *vif, int max_active_links)
+{
+	unsigned long usable_links = ieee80211_vif_usable_links(vif);
+	struct  {
+		u8 link_id;
+		enum nl80211_band band;
+	} data[IEEE80211_MLD_MAX_NUM_LINKS];
+	unsigned int link_id;
+	int i, n_data = 0;
+	u16 sel_links = 0;
+
+	if (!ieee80211_vif_is_mld(vif))
+		return 0;
+
+	if (vif->active_links == usable_links)
+		return vif->active_links;
+
+	rcu_read_lock();
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf;
+
+		link_conf = rcu_dereference(vif->link_conf[link_id]);
+		if (WARN_ON_ONCE(!link_conf))
+			continue;
+
+		data[n_data].link_id = link_id;
+		data[n_data].band = link_conf->chanreq.oper.chan->band;
+		n_data++;
+	}
+	rcu_read_unlock();
+
+	for (i = 0; i < n_data; i++) {
+		int j;
+
+		if (!(BIT(data[i].link_id) & vif->active_links))
+			continue;
+
+		sel_links = BIT(data[i].link_id);
+		for (j = 0; j < n_data; j++) {
+			if (data[i].band != data[j].band) {
+				sel_links |= BIT(data[j].link_id);
+				if (hweight16(sel_links) == max_active_links)
+					break;
+			}
+		}
+		break;
+	}
+
+	return sel_links;
+}
+EXPORT_SYMBOL_GPL(mt76_select_links);
