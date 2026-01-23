@@ -201,12 +201,16 @@ prompt or in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
 .It Va hw.vga.textmode
-Set to 1 to use virtual terminals in text mode instead of graphics mode.
+Set to 1 to use virtual terminals in text mode instead of graphics mode on
+BIOS boot.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
 .Pp
 If a KMS driver is loaded the console will switch to (and remain in)
 graphics mode.
+Moreover this tunable has no effect with
+.Xr UEFI 8
+boot because it does not use VGA mode.
 .It Va hw.vga.acpi_ignore_no_vga
 Set to 1 to force the usage of the VGA driver regardless of whether
 ACPI IAPC_BOOT_ARCH signals no VGA support.
