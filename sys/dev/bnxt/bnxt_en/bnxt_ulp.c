@@ -458,6 +458,8 @@ static inline void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt_soft
 		edev->flags |= BNXT_EN_FLAG_ROCEV2_CAP;
 	if (bp->is_asym_q)
 		edev->flags |= BNXT_EN_FLAG_ASYM_Q;
+	if (BNXT_SW_RES_LMT(bp))
+		edev->flags |= BNXT_EN_FLAG_SW_RES_LMT;
 	edev->hwrm_bar = bp->hwrm_bar;
 	edev->port_partition_type = bp->port_partition_type;
 	edev->ulp_version = BNXT_ULP_VERSION;
