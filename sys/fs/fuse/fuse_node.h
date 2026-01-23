@@ -79,6 +79,11 @@
  * cache_attrs.va_size field does not time out.
  */
 #define	FN_SIZECHANGE		0x00000100
+/*
+ * Whether I/O to this vnode should bypass the cache.
+ * XXX BUG: this should be part of the file handle, not the vnode data.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=293088
+ */
 #define	FN_DIRECTIO		0x00000200
 /* Indicates that parent_nid is valid */
 #define	FN_PARENT_NID		0x00000400
@@ -92,38 +97,81 @@
 #define	FN_CTIMECHANGE		0x00001000
 #define	FN_ATIMECHANGE		0x00002000
 
+/* vop_delayed_setsize should truncate the file */
+#define FN_DELAYED_TRUNCATE	0x00004000
+
+#define CACHED_ATTR_LOCK(vp)				\
+do {							\
+	ASSERT_VOP_LOCKED(vp, __func__);		\
+	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)		\
+		mtx_lock(&VTOFUD(vp)->cached_attr_mtx);	\
+} while(0)
+
+#define CACHED_ATTR_UNLOCK(vp)					\
+do {								\
+	ASSERT_VOP_LOCKED(vp, __func__);			\
+	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)			\
+		mtx_unlock(&VTOFUD(vp)->cached_attr_mtx);	\
+} while(0)
+
 struct fuse_vnode_data {
-	/** self **/
+	/* self's node id, similar to an inode number. Immutable. */
 	uint64_t	nid;
+	/*
+	 * Generation number.  Distinguishes files with same nid but that don't
+	 * overlap in time.  Immutable.
+	 */
 	uint64_t	generation;
 
-	/** parent **/
+	/* parent's node id.  Protected by the vnode lock. */
 	uint64_t	parent_nid;
 
 	/** I/O **/
-	/* List of file handles for all of the vnode's open file descriptors */
+	/*
+	 * List of file handles for all of the vnode's open file descriptors.
+	 * Protected by the vnode lock.
+	 */
 	LIST_HEAD(, fuse_filehandle)	handles;
 
-	/** flags **/
-	uint32_t	flag;
+	/* Protects flag, attr_cache_timeout and cached_attrs */
+	struct mtx	cached_attr_mtx;
 
-	/** meta **/
-	/* The monotonic time after which the attr cache is invalid */
+	/*
+	 * The monotonic time after which the attr cache is invalid
+	 * Protected by an exclusive vnode lock or the cached_attr_mtx
+	 */
 	struct bintime	attr_cache_timeout;
-	/* 
+
+	/*
 	 * Monotonic time after which the entry is invalid.  Used for lookups
-	 * by nodeid instead of pathname.
+	 * by nodeid instead of pathname.  Protected by the vnode lock.
 	 */
 	struct bintime	entry_cache_timeout;
+
 	/*
 	 * Monotonic time of the last FUSE operation that modified the file
 	 * size.  Used to avoid races between mutator ops like VOP_SETATTR and
-	 * unlocked accessor ops like VOP_LOOKUP.
+	 * unlocked accessor ops like VOP_LOOKUP.  Protected by the vnode lock.
 	 */
 	struct timespec	last_local_modify;
+
+	/* Protected by an exclusive vnode lock or the cached_attr_mtx */
 	struct vattr	cached_attrs;
+
+	/* Number of FUSE_LOOKUPs minus FUSE_FORGETs. Protected by vnode lock */
 	uint64_t	nlookup;
+
+	/*
+	 * Misc flags.  Protected by an exclusive vnode lock or the
+	 * cached_attr_mtx, because some of the flags reflect the contents of
+	 * cached_attrs.
+	 */
+	uint32_t	flag;
+
+	/* Vnode type.  Immutable */
 	__enum_uint8(vtype)	vtype;
+
+	/* State for clustered writes.  Protected by vnode lock */
 	struct vn_clusterw clusterw;
 };
 
@@ -141,18 +189,32 @@ struct fuse_fid {
 #define VTOFUD(vp) \
 	((struct fuse_vnode_data *)((vp)->v_data))
 #define VTOI(vp)    (VTOFUD(vp)->nid)
+
+#define ASSERT_CACHED_ATTRS_LOCKED(vp)				\
+do {								\
+	ASSERT_VOP_LOCKED(vp, __func__);			\
+	VNASSERT(VOP_ISLOCKED(vp) == LK_EXCLUSIVE ||		\
+		mtx_owned(&VTOFUD(vp)->cached_attr_mtx), vp,	\
+		("cached attrs not locked"));			\
+} while(0)
+
 static inline bool
 fuse_vnode_attr_cache_valid(struct vnode *vp)
 {
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct bintime now;
 
+	ASSERT_CACHED_ATTRS_LOCKED(vp);
+
 	getbinuptime(&now);
-	return (bintime_cmp(&(VTOFUD(vp)->attr_cache_timeout), &now, >));
+	return (bintime_cmp(&fvdat->attr_cache_timeout, &now, >));
 }
 
 static inline struct vattr*
 VTOVA(struct vnode *vp)
 {
+	ASSERT_CACHED_ATTRS_LOCKED(vp);
+
 	if (fuse_vnode_attr_cache_valid(vp))
 		return &(VTOFUD(vp)->cached_attrs);
 	else
@@ -162,6 +224,8 @@ VTOVA(struct vnode *vp)
 static inline void
 fuse_vnode_clear_attr_cache(struct vnode *vp)
 {
+	ASSERT_CACHED_ATTRS_LOCKED(vp);
+
 	bintime_clear(&VTOFUD(vp)->attr_cache_timeout);
 }
 
@@ -184,10 +248,14 @@ static inline void
 fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 {
 	if (dvp != NULL && vp->v_type == VDIR) {
+		ASSERT_VOP_ELOCKED(vp, __func__); /* for parent_nid */
+
 		MPASS(dvp->v_type == VDIR);
 		VTOFUD(vp)->parent_nid = VTOI(dvp);
 		VTOFUD(vp)->flag |= FN_PARENT_NID;
 	} else {
+		ASSERT_CACHED_ATTRS_LOCKED(vp);
+
 		VTOFUD(vp)->flag &= ~FN_PARENT_NID;
 	}
 }
@@ -207,6 +275,7 @@ void fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags,
 int fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid);
 
 int fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server);
+int fuse_vnode_setsize_immediate(struct vnode *vp, bool shrink);
 
 void fuse_vnode_undirty_cached_timestamps(struct vnode *vp, bool atime);
 
