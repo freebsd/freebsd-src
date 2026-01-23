@@ -51,6 +51,7 @@ struct bnxt_re_qattr {
 	uint32_t nwr;
 	uint32_t sz_ring;
 	uint32_t sz_shad;
+	uint32_t sw_nwr;
 };
 
 /* spin lock wrapper struct */
