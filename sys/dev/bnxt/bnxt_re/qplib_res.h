@@ -843,4 +843,11 @@ static inline void bnxt_qplib_max_res_supported(struct bnxt_qplib_chip_ctx *cctx
 		break;
 	}
 }
+
+static inline u32 bnxt_re_cap_fw_res(u32 fw_val, u32 drv_cap, bool sw_max_en)
+{
+	if (sw_max_en)
+		return fw_val;
+	return min_t(u32, fw_val, drv_cap);
+}
 #endif

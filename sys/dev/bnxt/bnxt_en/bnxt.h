@@ -1250,6 +1250,10 @@ struct bnxt_softc {
 	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(47)
 	#define BNXT_FW_CAP_ENABLE_RDMA_SRIOV		BIT_ULL(48)
 	#define BNXT_FW_CAP_RSS_TCAM			BIT_ULL(49)
+
+	#define BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS      BIT_ULL(61)
+	#define BNXT_SW_RES_LMT(bp) ((bp)->fw_cap & BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS)
+
 	uint32_t		lpi_tmr_lo;
 	uint32_t		lpi_tmr_hi;
 	/* copied from flags and flags2 in hwrm_port_phy_qcaps_output */
