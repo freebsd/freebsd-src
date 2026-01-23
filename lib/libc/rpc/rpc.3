@@ -254,9 +254,9 @@ enum xdr_op {
  * structure of the data type to be decoded.  If this points to 0,
  * then the type routines should allocate dynamic storage of the
  * appropriate size and return it.
- * bool_t  (*xdrproc_t)(XDR *, caddr_t *);
+ * bool_t  (*xdrproc_t)(XDR *, void *);
  */
-typedef  bool_t (*xdrproc_t)();
+typedef  bool_t (*xdrproc_t)(XDR *, void *);
 
 /*
  * The XDR handle.
