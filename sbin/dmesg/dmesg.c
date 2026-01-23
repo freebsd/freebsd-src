@@ -236,6 +236,7 @@ no_timestamp:
 		if (*q != ']' || q[1) != ' ') {
 			goto no_timestamp;
 		}
+		q++;
 
 		timeradd( &boottime, &reltime, &abstime );
 		reltime.tv_usec = 500000;
@@ -244,7 +245,7 @@ no_timestamp:
 
 		if (strftime(timebuf, sizeof timebuf, timefmt,
 		    localtime( &roundtime.tv_sec )) != 0) {
-			(void)printf("[%s]%s", timebuf, ++q);
+			(void)printf("[%s]%s", timebuf, q);
 		} else {
 			goto no_timestamp;
 		}
