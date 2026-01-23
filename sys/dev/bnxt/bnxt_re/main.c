@@ -3818,6 +3818,7 @@ static int bnxt_re_dev_reg(struct bnxt_re_dev **rdev, struct ifnet *netdev,
 void bnxt_re_get_link_speed(struct bnxt_re_dev *rdev)
 {
 	rdev->espeed = rdev->en_dev->espeed;
+	rdev->lanes = rdev->en_dev->lanes;
 	return;
 }
 

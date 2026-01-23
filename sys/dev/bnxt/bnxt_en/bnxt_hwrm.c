@@ -2917,10 +2917,14 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	}
 
 	link_info->duplex_setting = resp->duplex_cfg;
-	if (link_info->phy_link_status == HWRM_PORT_PHY_QCFG_OUTPUT_LINK_LINK)
+	if (link_info->phy_link_status == HWRM_PORT_PHY_QCFG_OUTPUT_LINK_LINK) {
 		link_info->link_speed = le16toh(resp->link_speed);
-	else
+		if (softc->phy_flags & BNXT_PHY_FL_SPEEDS2)
+			link_info->active_lanes = resp->active_lanes;
+	} else {
 		link_info->link_speed = 0;
+		link_info->active_lanes = 0;
+	}
 	link_info->force_link_speed = le16toh(resp->force_link_speed);
 	link_info->auto_link_speeds = le16toh(resp->auto_link_speed);
 	link_info->support_speeds = le16toh(resp->support_speeds);

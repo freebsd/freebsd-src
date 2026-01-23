@@ -49,8 +49,20 @@ struct bnxt_re_dev;
 #define SPEED_1000		1000
 #endif
 
+#ifndef SPEED_2500
+#define SPEED_2500		2500
+#endif
+
+#ifndef SPEED_5000
+#define SPEED_5000		5000
+#endif
+
 #ifndef SPEED_10000
 #define SPEED_10000		10000
+#endif
+
+#ifndef SPEED_14000
+#define SPEED_14000		14000
 #endif
 
 #ifndef SPEED_20000

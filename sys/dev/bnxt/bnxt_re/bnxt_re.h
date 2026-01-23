@@ -535,6 +535,7 @@ struct bnxt_re_dev {
 	bool				is_virtfn;
 	u32				num_vfs;
 	u32				espeed;
+	u8				lanes;
 	/*
 	 * For storing the speed of slave interfaces.
 	 * Same as espeed when bond is not configured
