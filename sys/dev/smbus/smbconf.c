@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -127,8 +128,21 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 		error = SMBUS_CALLBACK(parent, SMB_REQUEST_BUS, &how);
 		mtx_lock(&sc->lock);
 
-		if (error)
-			error = smbus_poll(sc, how);
+		/* Check if we've successfully got bus access. */
+		if (error == 0)
+			break;
+
+		switch (how) {
+		case SMB_WAIT | SMB_INTR:
+			error = msleep(sc, &sc->lock, SMBPRI|PCATCH, "smbreq", hz / 100);
+			break;
+		case SMB_WAIT | SMB_NOINTR:
+			error = msleep(sc, &sc->lock, SMBPRI, "smbreq", hz / 100);
+			break;
+		default:
+			/* We're in non blocking mode, so exit early. */
+			return (EWOULDBLOCK);
+		}
 	} while (error == EWOULDBLOCK);
 
 	while (error == 0) {
