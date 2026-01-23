@@ -37,21 +37,10 @@
 #ifdef _KERNEL
 #include <net/vnet.h>
 
-#define	IPV6_ADDR_SCOPES_COUNT	16
-struct scope6_id {
-	/*
-	 * 16 is correspondent to 4bit multicast scope field.
-	 * i.e. from node-local to global with some reserved/unassigned types.
-	 */
-	uint32_t s6id_list[IPV6_ADDR_SCOPES_COUNT];
-};
-
 void	scope6_init(void);
-struct scope6_id *scope6_ifattach(struct ifnet *);
-void	scope6_ifdetach(struct scope6_id *);
+void	scope6_ifattach(struct ifnet *);
 int	scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *);
 void	scope6_setdefault(struct ifnet *);
-int	scope6_get_default(struct scope6_id *);
 u_int32_t scope6_addr2default(struct in6_addr *);
 int	sa6_embedscope(struct sockaddr_in6 *, int);
 int	sa6_recoverscope(struct sockaddr_in6 *);

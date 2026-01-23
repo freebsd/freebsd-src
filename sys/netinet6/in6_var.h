@@ -506,7 +506,15 @@ struct in6_ifextra {
 	u_int		nd_dad_failures;
 	uint8_t		nd_curhoplimit;
 
-	struct scope6_id *scope6_id;
+	struct scope6_id {
+		/*
+		 * 16 is correspondent to 4bit multicast scope field. i.e. from
+		 * node-local to global with some reserved/unassigned types.
+		 */
+#define	IPV6_ADDR_SCOPES_COUNT	16
+		uint32_t	s6id_list[IPV6_ADDR_SCOPES_COUNT];
+	} scope6_id;
+
 	struct lltable *lltable;
 	struct mld_ifsoftc *mld_ifinfo;
 };
