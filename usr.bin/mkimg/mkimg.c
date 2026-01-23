@@ -152,15 +152,18 @@ usage(const char *why)
 	fprintf(stderr, "\t--formats\t-  list image formats\n");
 	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
 	fprintf(stderr, "\t--version\t-  show version information\n");
+	fprintf(stderr, "\t--capacity\t-  minimum and maximum capacity (in bytes)\n");
 	fputc('\n', stderr);
 	fprintf(stderr, "\t-a <num>\t-  mark num'th partition as active\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
 	fprintf(stderr, "\t-c <num>\t-  minimum capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-C <num>\t-  maximum capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-f <format>\n");
+	fprintf(stderr, "\t-h\t\t-  show this usage information\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
 	fprintf(stderr, "\t-s <scheme>\n");
+	fprintf(stderr, "\t-t <num>\t-  set timestamp (seconds since epoch)\n");
 	fprintf(stderr, "\t-v\t\t-  increase verbosity\n");
 	fprintf(stderr, "\t-y\t\t-  [developers] enable unit test\n");
 	fprintf(stderr, "\t-H <num>\t-  number of heads to simulate\n");
