@@ -192,6 +192,19 @@ touch_just_atime_body()
 	atf_check_atime 84721020 file
 }
 
+atf_test_case touch_just_mtime
+touch_just_mtime_head()
+{
+	atf_set descr "Update just modify time of file (-m)"
+}
+touch_just_mtime_body()
+{
+	atf_check touch -t 200406151337 file
+	atf_check touch -mt 197209071337 file
+	atf_check_mtime 84721020 file
+	atf_check_atime 1087306620 file
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case touch_none
@@ -204,5 +217,5 @@ atf_init_test_cases()
 	atf_add_test_case touch_symlink_h_flag
 	atf_add_test_case touch_symlink_no_h_flag
 	atf_add_test_case touch_just_atime
-	# TODO: add test cases for -m
+	atf_add_test_case touch_just_mtime
 }
