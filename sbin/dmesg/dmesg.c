@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 {
 	struct msgbuf *bufp, cur;
 	struct timeval boottime, reltime, abstime, roundtime;
-	char timebuf[64];
+	char timebuf[1024];
 	char *bp, *ep, *memf, *nextp, *nlistf, *p, *q, *visbp;
 	char *timefmt = "%d %b %T";
 	kvm_t *kd;
