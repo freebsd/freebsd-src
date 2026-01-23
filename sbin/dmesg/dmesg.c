@@ -226,8 +226,8 @@ no_timestamp:
 
 		if (*q == '.') {
 			char* r;
-			reltime.tv_usec = strtoul(q+1, &r, 10);
-			if (r == q+1 ) {	/* no digits after '.' */
+			reltime.tv_usec = strtoul(++q, &r, 10);
+			if (r == q) {		/* no digits after '.' */
 				goto no_timestamp;
 			}
 			q = r;
@@ -244,7 +244,7 @@ no_timestamp:
 
 		if (strftime(timebuf, sizeof timebuf, timefmt,
 		    localtime( &roundtime.tv_sec )) != 0) {
-			(void)printf("[%s]%s", timebuf, q+1);
+			(void)printf("[%s]%s", timebuf, ++q);
 		} else {
 			goto no_timestamp;
 		}
