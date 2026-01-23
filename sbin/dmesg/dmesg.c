@@ -224,7 +224,7 @@ no_timestamp:
 			goto no_timestamp;
 		}
 
-		if (*q == '.' ) {
+		if (*q == '.') {
 			char* r;
 			reltime.tv_usec = strtoul(q+1, &r, 10);
 			if (r == q+1 ) {	/* no digits after '.' */
