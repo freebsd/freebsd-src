@@ -390,7 +390,6 @@ ip6_destroy(void *unused __unused)
 		}
 		/* IF_ADDR_UNLOCK(ifp); */
 		in6_ifdetach_destroy(ifp);
-		mld_domifdetach(ifp);
 	}
 	IFNET_RUNLOCK();
 
