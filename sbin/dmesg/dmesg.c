@@ -233,7 +233,7 @@ no_timestamp:
 			q = r;
 		}
 
-		if (*q != ']' || *(q+1) != ' ') {
+		if (*q != ']' || q[1) != ' ') {
 			goto no_timestamp;
 		}
 
