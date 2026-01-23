@@ -917,7 +917,6 @@ in6_ifdeparture(void *arg __unused, struct ifnet *ifp)
 #endif
 		_in6_ifdetach(ifp, 1);
 	mld_domifdetach(ifp);
-	scope6_ifdetach(ext->scope6_id);
 	nd6_ifdetach(ifp);
 	lltable_free(ext->lltable);
 	COUNTER_ARRAY_FREE(ext->in6_ifstat,

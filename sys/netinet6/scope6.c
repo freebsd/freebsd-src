@@ -73,10 +73,11 @@ static struct mtx scope6_lock;
 VNET_DEFINE_STATIC(struct scope6_id, sid_default);
 #define	V_sid_default			VNET(sid_default)
 
-#define SID(ifp)	((ifp)->if_inet6->scope6_id)
+#define SID(ifp)	(&(ifp)->if_inet6->scope6_id)
 
 static int	scope6_get(struct ifnet *, struct scope6_id *);
 static int	scope6_set(struct ifnet *, struct scope6_id *);
+static int	scope6_get_default(struct scope6_id *);
 
 void
 scope6_init(void)
@@ -90,26 +91,18 @@ scope6_init(void)
 	SCOPE6_LOCK_INIT();
 }
 
-struct scope6_id *
+void
 scope6_ifattach(struct ifnet *ifp)
 {
-	struct scope6_id *sid;
+	struct scope6_id *sid = &ifp->if_inet6->scope6_id;
 
-	sid = malloc(sizeof(*sid), M_IFADDR, M_WAITOK | M_ZERO);
 	/*
 	 * XXX: IPV6_ADDR_SCOPE_xxx macros are not standard.
 	 * Should we rather hardcode here?
 	 */
+	bzero(sid, sizeof(*sid));
 	sid->s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] = ifp->if_index;
 	sid->s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = ifp->if_index;
-	return (sid);
-}
-
-void
-scope6_ifdetach(struct scope6_id *sid)
-{
-
-	free(sid, M_IFADDR);
 }
 
 int
@@ -280,7 +273,7 @@ scope6_setdefault(struct ifnet *ifp)
 	SCOPE6_UNLOCK();
 }
 
-int
+static int
 scope6_get_default(struct scope6_id *idlist)
 {
 

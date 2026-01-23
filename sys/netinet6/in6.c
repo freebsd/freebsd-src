@@ -2613,8 +2613,8 @@ in6_ifarrival(void *arg __unused, struct ifnet *ifp)
 	COUNTER_ARRAY_ALLOC(ext->icmp6_ifstat,
 	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_WAITOK);
 	nd6_ifattach(ifp);
+	scope6_ifattach(ifp);
 
-	ext->scope6_id = scope6_ifattach(ifp);
 	ext->lltable = in6_lltattach(ifp);
 
 	ext->mld_ifinfo = mld_domifattach(ifp);
