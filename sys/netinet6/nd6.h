@@ -81,10 +81,6 @@ struct llentry;
 #define	ND6_IFF_IPV6_ONLY_MASK	(ND6_IFF_IPV6_ONLY|ND6_IFF_IPV6_ONLY_MANUAL)
 #endif
 
-#ifdef _KERNEL
-#define ND_IFINFO(ifp)	((if_getinet6(ifp))->nd_ifinfo)
-#endif
-
 struct in6_nbrinfo {
 	char ifname[IFNAMSIZ];	/* if name, e.g. "en0" */
 	struct in6_addr addr;	/* IPv6 address of the neighbor */
@@ -235,10 +231,6 @@ struct nd_pfxrouter {
 	struct nd_defrouter *router;
 };
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_IP6NDP);
-#endif
-
 /* nd6.c */
 VNET_DECLARE(int, nd6_mmaxtries);
 VNET_DECLARE(struct nd_prhead, nd_prefix);
@@ -331,8 +323,8 @@ void nd6_init(void);
 #ifdef VIMAGE
 void nd6_destroy(void);
 #endif
-struct nd_ifinfo *nd6_ifattach(struct ifnet *);
-void nd6_ifdetach(struct ifnet *, struct nd_ifinfo *);
+void nd6_ifattach(struct ifnet *);
+void nd6_ifdetach(struct ifnet *);
 int nd6_is_addr_neighbor(const struct sockaddr_in6 *, struct ifnet *);
 void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);

@@ -1090,7 +1090,7 @@ in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * an interface with ND6_IFF_IFDISABLED.
 	 */
 	if (in6if_do_dad(ifp) &&
-	    (hostIsNew || (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)))
+	    (hostIsNew || (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED)))
 		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
 	/* notify other subsystems */
@@ -1386,11 +1386,11 @@ aifaddr_out:
 	 * Try to clear the flag when a new IPv6 address is added
 	 * onto an IFDISABLED interface and it succeeds.
 	 */
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+	if (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED) {
 		struct in6_ndireq nd;
 
 		memset(&nd, 0, sizeof(nd));
-		nd.ndi.flags = ND_IFINFO(ifp)->flags;
+		nd.ndi.flags = ifp->if_inet6->nd_flags;
 		nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
 		if (nd6_ioctl(SIOCSIFINFO_FLAGS, (caddr_t)&nd, ifp) < 0)
 			log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
@@ -1712,7 +1712,7 @@ in6ifa_llaonifp(struct ifnet *ifp)
 	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+	if (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED)
 		return (NULL);
 	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -2136,7 +2136,7 @@ in6if_do_dad(struct ifnet *ifp)
 		return (0);
 	if ((ifp->if_flags & IFF_MULTICAST) == 0)
 		return (0);
-	if ((ND_IFINFO(ifp)->flags &
+	if ((ifp->if_inet6->nd_flags &
 	    (ND6_IFF_IFDISABLED | ND6_IFF_NO_DAD)) != 0)
 		return (0);
 	return (1);
@@ -2607,21 +2607,17 @@ in6_ifarrival(void *arg __unused, struct ifnet *ifp)
 		ifp->if_inet6 = NULL;
 		return;
 	}
-	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);
-	bzero(ext, sizeof(*ext));
-
+	ext = ifp->if_inet6 = malloc(sizeof(*ext), M_IFADDR, M_WAITOK | M_ZERO);
 	COUNTER_ARRAY_ALLOC(ext->in6_ifstat,
 	    sizeof(struct in6_ifstat) / sizeof(uint64_t), M_WAITOK);
 	COUNTER_ARRAY_ALLOC(ext->icmp6_ifstat,
 	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_WAITOK);
+	nd6_ifattach(ifp);
 
-	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
 	ext->lltable = in6_lltattach(ifp);
 
 	ext->mld_ifinfo = mld_domifattach(ifp);
-
-	ifp->if_inet6 = ext;
 }
 EVENTHANDLER_DEFINE(ifnet_arrival_event, in6_ifarrival, NULL,
     EVENTHANDLER_PRI_ANY);
@@ -2629,12 +2625,16 @@ EVENTHANDLER_DEFINE(ifnet_arrival_event, in6_ifarrival, NULL,
 uint32_t
 in6_ifmtu(const struct ifnet *ifp)
 {
-	struct nd_ifinfo *ndi = ND_IFINFO(ifp);
+	const uint32_t
+	    linkmtu = ifp->if_inet6->nd_linkmtu,
+	    maxmtu = ifp->if_inet6->nd_maxmtu,
+	    ifmtu = ifp->if_mtu;
 
-	return (
-	    (ndi->linkmtu > 0 && ndi->linkmtu < ifp->if_mtu) ? ndi->linkmtu :
-	    ((ndi->maxmtu > 0 && ndi->maxmtu < ifp->if_mtu) ? ndi->maxmtu :
-	    ifp->if_mtu));
+	if (linkmtu > 0 && linkmtu < ifmtu)
+		return (linkmtu);
+	if (maxmtu > 0 && maxmtu < ifmtu)
+		return (maxmtu);
+	return (ifmtu);
 }
 
 /*

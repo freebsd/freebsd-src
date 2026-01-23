@@ -495,15 +495,24 @@ struct in6_ifextra {
 	counter_u64_t in6_ifstat[sizeof(struct in6_ifstat) / sizeof(uint64_t)];
 	counter_u64_t icmp6_ifstat[sizeof(struct icmp6_ifstat) /
 				   sizeof(uint64_t)];
-	struct nd_ifinfo *nd_ifinfo;
+	/* ND6 */
+	uint32_t	nd_linkmtu;
+	uint32_t	nd_maxmtu;
+	uint32_t	nd_basereachable;
+	uint32_t	nd_reachable;
+	uint32_t	nd_retrans;
+	uint32_t	nd_flags;
+	int		nd_recalc_timer;
+	u_int		nd_dad_failures;
+	uint8_t		nd_curhoplimit;
+
 	struct scope6_id *scope6_id;
 	struct lltable *lltable;
 	struct mld_ifsoftc *mld_ifinfo;
-	u_int dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
 };
 
 #define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
-#define	DAD_FAILURES(ifp)	((ifp)->if_inet6->dad_failures)
+#define	DAD_FAILURES(ifp)	((ifp)->if_inet6->nd_dad_failures)
 
 VNET_DECLARE(struct in6_ifaddrhead, in6_ifaddrhead);
 VNET_DECLARE(struct in6_ifaddrlisthead *, in6_ifaddrhashtbl);

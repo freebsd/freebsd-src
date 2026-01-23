@@ -4596,9 +4596,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 						}
 					}
 				} else if (ifp != NULL) {
-					if ((ND_IFINFO(ifp)->linkmtu > 0) &&
-					    (stcb->asoc.smallest_mtu > ND_IFINFO(ifp)->linkmtu)) {
-						sctp_pathmtu_adjustment(stcb, ND_IFINFO(ifp)->linkmtu, false);
+					if ((ifp->if_inet6->nd_linkmtu > 0) &&
+					    (stcb->asoc.smallest_mtu > ifp->if_inet6->nd_linkmtu)) {
+						sctp_pathmtu_adjustment(stcb, ifp->if_inet6->nd_linkmtu, false);
 					}
 				}
 			}

@@ -75,6 +75,8 @@
 
 #include <machine/atomic.h>
 
+MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
+
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
     struct mbuf *, int);
@@ -175,7 +177,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	 * Accept RS only when V_ip6_forwarding=1 and the interface has
 	 * no ND6_IFF_ACCEPT_RTADV.
 	 */
-	if (!V_ip6_forwarding || ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV)
+	if (!V_ip6_forwarding || ifp->if_inet6->nd_flags & ND6_IFF_ACCEPT_RTADV)
 		goto freeit;
 
 	/* RFC 6980: Nodes MUST silently ignore fragments */   
@@ -280,7 +282,7 @@ defrtr_ipv6_only_ifp(struct ifnet *ifp)
 	ND6_RUNLOCK();
 
 	IF_ADDR_WLOCK(ifp);
-	ipv6_only_old = ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY;
+	ipv6_only_old = ifp->if_inet6->nd_flags & ND6_IFF_IPV6_ONLY;
 	IF_ADDR_WUNLOCK(ifp);
 
 	/* If nothing changed, we have an early exit. */
@@ -317,9 +319,9 @@ defrtr_ipv6_only_ifp(struct ifnet *ifp)
 
 	IF_ADDR_WLOCK(ifp);
 	if (ipv6_only)
-		ND_IFINFO(ifp)->flags |= ND6_IFF_IPV6_ONLY;
+		ifp->if_inet6->nd_flags |= ND6_IFF_IPV6_ONLY;
 	else
-		ND_IFINFO(ifp)->flags &= ~ND6_IFF_IPV6_ONLY;
+		ifp->if_inet6->nd_flags &= ~ND6_IFF_IPV6_ONLY;
 	IF_ADDR_WUNLOCK(ifp);
 
 #ifdef notyet
@@ -332,7 +334,7 @@ defrtr_ipv6_only_ipf_down(struct ifnet *ifp)
 {
 
 	IF_ADDR_WLOCK(ifp);
-	ND_IFINFO(ifp)->flags &= ~ND6_IFF_IPV6_ONLY;
+	ifp->if_inet6->nd_flags &= ~ND6_IFF_IPV6_ONLY;
 	IF_ADDR_WUNLOCK(ifp);
 }
 #endif	/* EXPERIMENTAL */
@@ -364,7 +366,7 @@ void
 nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 {
 	struct ifnet *ifp;
-	struct nd_ifinfo *ndi;
+	struct in6_ifextra *ndi;
 	struct ip6_hdr *ip6;
 	struct nd_router_advert *nd_ra;
 	struct in6_addr saddr6;
@@ -378,8 +380,8 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	 * ND6_IFF_ACCEPT_RTADV is on the receiving interface.
 	 */
 	ifp = m->m_pkthdr.rcvif;
-	ndi = ND_IFINFO(ifp);
-	if (!(ndi->flags & ND6_IFF_ACCEPT_RTADV))
+	ndi = ifp->if_inet6;
+	if (!(ndi->nd_flags & ND6_IFF_ACCEPT_RTADV))
 		goto freeit;
 
 	/* RFC 6980: Nodes MUST silently ignore fragments */
@@ -441,7 +443,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	 * ND6_IFF_NO_RADR enabled on the receiving interface or
 	 * (ip6.forwarding == 1 && ip6.rfc6204w3 != 1).
 	 */
-	if (ndi->flags & ND6_IFF_NO_RADR)
+	if (ndi->nd_flags & ND6_IFF_NO_RADR)
 		dr0.rtlifetime = 0;
 	else if (V_ip6_forwarding && !V_ip6_rfc6204w3)
 		dr0.rtlifetime = 0;
@@ -453,22 +455,24 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	if (advreachable) {
 		advreachable = ntohl(advreachable);
 		if (advreachable <= MAX_REACHABLE_TIME &&
-		    ndi->basereachable != advreachable) {
-			ndi->basereachable = advreachable;
-			ndi->reachable = ND_COMPUTE_RTIME(ndi->basereachable);
-			ndi->recalctm = V_nd6_recalc_reachtm_interval; /* reset */
+		    ndi->nd_basereachable != advreachable) {
+			ndi->nd_basereachable = advreachable;
+			ndi->nd_reachable =
+			    ND_COMPUTE_RTIME(ndi->nd_basereachable);
+			ndi->nd_recalc_timer = V_nd6_recalc_reachtm_interval;
 		}
 	}
 	if (nd_ra->nd_ra_retransmit)
-		ndi->retrans = ntohl(nd_ra->nd_ra_retransmit);
+		ndi->nd_retrans = ntohl(nd_ra->nd_ra_retransmit);
 	if (nd_ra->nd_ra_curhoplimit) {
-		if (ndi->chlim < nd_ra->nd_ra_curhoplimit)
-			ndi->chlim = nd_ra->nd_ra_curhoplimit;
-		else if (ndi->chlim != nd_ra->nd_ra_curhoplimit) {
+		if (ndi->nd_curhoplimit < nd_ra->nd_ra_curhoplimit)
+			ndi->nd_curhoplimit = nd_ra->nd_ra_curhoplimit;
+		else if (ndi->nd_curhoplimit != nd_ra->nd_ra_curhoplimit) {
 			log(LOG_ERR, "RA with a lower CurHopLimit sent from "
 			    "%s on %s (current = %d, received = %d). "
 			    "Ignored.\n", ip6_sprintf(ip6bufs, &ip6->ip6_src),
-			    if_name(ifp), ndi->chlim, nd_ra->nd_ra_curhoplimit);
+			    if_name(ifp), ndi->nd_curhoplimit,
+			    nd_ra->nd_ra_curhoplimit);
 		}
 	}
 	dr = defrtrlist_update(&dr0);
@@ -557,11 +561,11 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		}
 
 		/* upper bound */
-		maxmtu = (ndi->maxmtu && ndi->maxmtu < ifp->if_mtu)
-		    ? ndi->maxmtu : ifp->if_mtu;
+		maxmtu = (ndi->nd_maxmtu && ndi->nd_maxmtu < ifp->if_mtu)
+		    ? ndi->nd_maxmtu : ifp->if_mtu;
 		if (mtu <= maxmtu) {
-			if (ndi->linkmtu != mtu) {
-				ndi->linkmtu = mtu;
+			if (ndi->nd_linkmtu != mtu) {
+				ndi->nd_linkmtu = mtu;
 				rt_updatemtu(ifp);
 			}
 		} else {
@@ -751,7 +755,7 @@ defrouter_del(struct nd_defrouter *dr)
 	 * Flush all the routing table entries that use the router
 	 * as a next hop.
 	 */
-	if (ND_IFINFO(dr->ifp)->flags & ND6_IFF_ACCEPT_RTADV)
+	if (dr->ifp->if_inet6->nd_flags & ND6_IFF_ACCEPT_RTADV)
 		rt6_flush(&dr->rtaddr, dr->ifp);
 
 #ifdef EXPERIMENTAL
@@ -1202,7 +1206,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	/* make ifaddr */
 	in6_prepare_ifra(&ifra, &pr->ndpr_prefix.sin6_addr, &mask);
 
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR) {
+	if (ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR) {
 		memcpy(&newaddr, &pr->ndpr_prefix.sin6_addr,  sizeof(pr->ndpr_prefix.sin6_addr));
 
 		if(!in6_get_stableifid(ifp, &newaddr, prefixlen))
@@ -1693,7 +1697,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			 * if stable addresses (RFC 7217) are enabled, mark that a temporary address has been found
 			 * to avoid generating uneeded extra ones.
 			 */
-			if (ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR)
+			if (ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR)
 				has_temporary = true;
 
 			if (V_ip6_temp_valid_lifetime >
@@ -1735,7 +1739,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		 * between here and when a new address is generated, but this will cause that generation
 		 * to fail and no further retries should happen.
 		 */
-		if (ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR &&
+		if (ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR &&
 		    atomic_load_int(&DAD_FAILURES(ifp)) <= V_ip6_stableaddr_maxretries &&
 		    ifa6->ia6_flags & (IN6_IFF_DUPLICATED | IN6_IFF_TEMPORARY))
 			continue;
