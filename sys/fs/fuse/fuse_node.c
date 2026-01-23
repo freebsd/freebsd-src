@@ -157,6 +157,8 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 	fvdat->nid = nodeid;
 	LIST_INIT(&fvdat->handles);
 
+	mtx_init(&fvdat->cached_attr_mtx, "fuse attr cache mutex", NULL,
+	    MTX_DEF);
 	vattr_null(&fvdat->cached_attrs);
 	fvdat->cached_attrs.va_birthtime.tv_sec = -1;
 	fvdat->cached_attrs.va_birthtime.tv_nsec = 0;
@@ -181,6 +183,7 @@ fuse_vnode_destroy(struct vnode *vp)
 	struct fuse_vnode_data *fvdat = vp->v_data;
 
 	vp->v_data = NULL;
+	mtx_destroy(&fvdat->cached_attr_mtx);
 	KASSERT(LIST_EMPTY(&fvdat->handles),
 		("Destroying fuse vnode with open files!"));
 	free(fvdat, M_FUSEVN);
@@ -386,7 +389,8 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 	struct fuse_setattr_in *fsai;
 	int err = 0;
 
-	ASSERT_VOP_ELOCKED(vp, "fuse_io_extend");
+	ASSERT_VOP_ELOCKED(vp, __func__); /* For flag and last_local_modify */
+	ASSERT_CACHED_ATTRS_LOCKED(vp);
 
 	if (fuse_isdeadfs(vp)) {
 		return EBADF;
@@ -439,10 +443,10 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server)
 	struct vattr *attrs;
 	off_t oldsize;
 	size_t iosize;
-	struct buf *bp = NULL;
 	int err = 0;
 
-	ASSERT_VOP_ELOCKED(vp, "fuse_vnode_setsize");
+	ASSERT_VOP_LOCKED(vp, __func__);
+	ASSERT_CACHED_ATTRS_LOCKED(vp);
 
 	iosize = fuse_iosize(vp);
 	oldsize = fvdat->cached_attrs.va_size;
@@ -450,7 +454,45 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server)
 	if ((attrs = VTOVA(vp)) != NULL)
 		attrs->va_size = newsize;
 
-	if (newsize < oldsize) {
+	if (from_server && newsize > oldsize && oldsize != VNOVAL) {
+		/*
+		 * The FUSE server changed the file size behind our back.  We
+		 * should invalidate the entire cache.
+		 */
+		daddr_t end_lbn;
+
+		end_lbn = howmany(newsize, iosize);
+		v_inval_buf_range(vp, 0, end_lbn, iosize);
+	}
+
+	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE) {
+		err = fuse_vnode_setsize_immediate(vp, newsize < oldsize);
+	} else {
+		/* Without an exclusive vnode lock, we must defer the operation */
+		fvdat->flag |= FN_DELAYED_TRUNCATE;
+		vn_delayed_setsize(vp);
+	}
+
+	return err;
+}
+
+/* Immediately set the vnode's size in the pager */
+int
+fuse_vnode_setsize_immediate(struct vnode *vp, bool shrink)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct buf *bp = NULL;
+	size_t iosize;
+	off_t newsize;
+	int err = 0;
+
+	MPASS(fvdat);
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
+	iosize = fuse_iosize(vp);
+	newsize = fvdat->cached_attrs.va_size;
+
+	if (shrink) {
 		daddr_t lbn;
 
 		err = vtruncbuf(vp, newsize, fuse_iosize(vp));
@@ -474,21 +516,13 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server)
 		MPASS(bp->b_flags & B_VMIO);
 		vfs_bio_clrbuf(bp);
 		bp->b_dirtyend = MIN(bp->b_dirtyend, newsize - lbn * iosize);
-	} else if (from_server && newsize > oldsize && oldsize != VNOVAL) {
-		/*
-		 * The FUSE server changed the file size behind our back.  We
-		 * should invalidate the entire cache.
-		 */
-		daddr_t end_lbn;
-
-		end_lbn = howmany(newsize, iosize);
-		v_inval_buf_range(vp, 0, end_lbn, iosize);
 	}
 out:
 	if (bp)
 		brelse(bp);
 	vnode_pager_setsize(vp, newsize);
-	return err;
+
+	return (err);
 }
 
 /* Get the current, possibly dirty, size of the file */
@@ -497,15 +531,28 @@ fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
 	struct thread *td)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct vattr va;
 	int error = 0;
 
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	CACHED_ATTR_LOCK(vp);
 	if (!(fvdat->flag & FN_SIZECHANGE) &&
 		(!fuse_vnode_attr_cache_valid(vp) ||
-		  fvdat->cached_attrs.va_size == VNOVAL)) 
-		error = fuse_internal_do_getattr(vp, NULL, cred, td);
-
-	if (!error)
+		  fvdat->cached_attrs.va_size == VNOVAL)) {
+		CACHED_ATTR_UNLOCK(vp);
+		/*
+		 * It incurs a large struct copy, but we supply &va so we don't
+		 * have to acquire the lock a second time after
+		 * fuse_internal_do_getattr returns.
+		 */
+		error = fuse_internal_do_getattr(vp, &va, cred, td);
+		if (!error)
+			*filesize = va.va_size;
+	} else {
 		*filesize = fvdat->cached_attrs.va_size;
+		CACHED_ATTR_UNLOCK(vp);
+	}
 
 	return error;
 }
@@ -514,6 +561,8 @@ void
 fuse_vnode_undirty_cached_timestamps(struct vnode *vp, bool atime)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+
+	ASSERT_CACHED_ATTRS_LOCKED(vp);
 
 	fvdat->flag &= ~(FN_MTIMECHANGE | FN_CTIMECHANGE);
 	if (atime)
@@ -537,6 +586,8 @@ fuse_vnode_update(struct vnode *vp, int flags)
 	if (mp->mnt_flag & MNT_NOATIME)
 		flags &= ~FN_ATIMECHANGE;
 
+	CACHED_ATTR_LOCK(vp);
+
 	if (flags & FN_ATIMECHANGE)
 		fvdat->cached_attrs.va_atime = ts;
 	if (flags & FN_MTIMECHANGE)
@@ -545,6 +596,8 @@ fuse_vnode_update(struct vnode *vp, int flags)
 		fvdat->cached_attrs.va_ctime = ts;
 
 	fvdat->flag |= flags;
+
+	CACHED_ATTR_UNLOCK(vp);
 }
 
 void

@@ -134,6 +134,7 @@ static vop_close_t fuse_vnop_close;
 static vop_copy_file_range_t fuse_vnop_copy_file_range;
 static vop_create_t fuse_vnop_create;
 static vop_deallocate_t fuse_vnop_deallocate;
+static vop_delayed_setsize_t fuse_vnop_delayed_setsize;
 static vop_deleteextattr_t fuse_vnop_deleteextattr;
 static vop_fdatasync_t fuse_vnop_fdatasync;
 static vop_fsync_t fuse_vnop_fsync;
@@ -191,6 +192,7 @@ struct vop_vector fuse_vnops = {
 	.vop_copy_file_range = fuse_vnop_copy_file_range,
 	.vop_create = fuse_vnop_create,
 	.vop_deallocate = fuse_vnop_deallocate,
+	.vop_delayed_setsize = fuse_vnop_delayed_setsize,
 	.vop_deleteextattr = fuse_vnop_deleteextattr,
 	.vop_fsync = fuse_vnop_fsync,
 	.vop_fdatasync = fuse_vnop_fdatasync,
@@ -707,6 +709,8 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 		return (EXTERROR(EOPNOTSUPP, "This server does not implement "
 		    "FUSE_FALLOCATE"));
 
+	ASSERT_CACHED_ATTRS_LOCKED(vp);
+
 	io.uio_offset = *offset;
 	io.uio_resid = *len;
 	err = vn_rlimit_fsize(vp, &io, curthread);
@@ -779,7 +783,7 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 	struct fuse_data *data;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	uint64_t biosize;
-	off_t fsize;
+	off_t fsize = VNOVAL;
 	daddr_t lbn = ap->a_bn;
 	daddr_t *pbn = ap->a_bnp;
 	int *runp = ap->a_runp;
@@ -822,9 +826,10 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 		 * and the risk of getting it wrong is not worth the cost of
 		 * another upcall.
 		 */
-		if (fvdat->cached_attrs.va_size != VNOVAL)
-			fsize = fvdat->cached_attrs.va_size;
-		else
+		CACHED_ATTR_LOCK(vp);
+		fsize = fvdat->cached_attrs.va_size;
+		CACHED_ATTR_UNLOCK(vp);
+		if (fsize == VNOVAL)
 			error = fuse_vnode_size(vp, &fsize, td->td_ucred, td);
 		if (error == 0)
 			*runp = MIN(MAX(0, fsize / (off_t)biosize - lbn - 1),
@@ -894,6 +899,7 @@ fuse_vnop_close(struct vop_close_args *ap)
 		cred = td->td_ucred;
 
 	err = fuse_flush(vp, cred, pid, fflag);
+	ASSERT_CACHED_ATTRS_LOCKED(vp);	/* For fvdat->flag */
 	if (err == 0 && (fvdat->flag & FN_ATIMECHANGE) && !vfs_isrdonly(mp)) {
 		struct vattr vap;
 		struct fuse_data *data;
@@ -911,6 +917,7 @@ fuse_vnop_close(struct vop_close_args *ap)
 		}
 		if (access_e == 0) {
 			VATTR_NULL(&vap);
+			ASSERT_CACHED_ATTRS_LOCKED(vp);
 			vap.va_atime = fvdat->cached_attrs.va_atime;
 			/*
 			 * Ignore errors setting when setting atime.  That
@@ -1035,6 +1042,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		*ap->a_inoffp += fwo->size;
 		*ap->a_outoffp += fwo->size;
 		fuse_internal_clear_suid_on_write(outvp, outcred, td);
+		ASSERT_CACHED_ATTRS_LOCKED(outvp);
 		if (*ap->a_outoffp > outfvdat->cached_attrs.va_size) {
 			fuse_vnode_setsize(outvp, *ap->a_outoffp, false);
 			getnanouptime(&outfvdat->last_local_modify);
@@ -1337,6 +1345,7 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 
 	int need_flush = 1;
 
+	ASSERT_CACHED_ATTRS_LOCKED(vp);	/* For fvdat->flag */
 	LIST_FOREACH_SAFE(fufh, &fvdat->handles, next, fufh_tmp) {
 		if (need_flush && vp->v_type == VREG) {
 			if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
@@ -1557,6 +1566,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	else if ((err = fuse_internal_access(dvp, VEXEC, td, cred)))
 		return err;
 
+	ASSERT_CACHED_ATTRS_LOCKED(dvp);	/* For flag */
 	is_dot = cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.';
 	if (isdotdot && !(data->dataflags & FSESS_EXPORT_SUPPORT)) {
 		if (!(VTOFUD(dvp)->flag & FN_PARENT_NID)) {
@@ -1960,6 +1970,10 @@ fuse_vnop_read(struct vop_read_args *ap)
 		    "to be closed"));
 	}
 
+	/*
+	 * XXX Check this flag without the lock.  See
+	 * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=293088
+	 */
 	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
 		ioflag |= IO_DIRECT;
 	}
@@ -2220,6 +2234,8 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 	return err;
 }
 
+SDT_PROBE_DEFINE4(fusefs, , vnops, erelookup, "struct vnode*",
+	"struct vnode*", "struct vnode*", "struct vnode*");
 /*
     struct vnop_rename_args {
 	struct vnode *a_fdvp;
@@ -2242,6 +2258,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	struct fuse_data *data;
 	bool newparent = fdvp != tdvp;
 	bool isdir = fvp->v_type == VDIR;
+	int locktype;
 	int err = 0;
 
 	if (fuse_isdeadfs(fdvp)) {
@@ -2270,11 +2287,32 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	 * have write permission to it, so ".." can be modified.
 	 */
 	data = fuse_get_mpdata(vnode_mount(tdvp));
+
+	if (tdvp != fdvp)
+		locktype = LK_EXCLUSIVE; /* for fuse_vnode_setparent */
+	else
+		locktype = LK_SHARED;
+
+	/*
+	 * Must use LK_NOWAIT to prevent LORs between fvp and tdvp or
+	 * tvp
+	 */
+	if (vn_lock(fvp, locktype | LK_NOWAIT) != 0) {
+		/*
+		 * Can't release tdvp or tvp to try avoiding the LOR.
+		 * Must return instead.
+		 */
+		SDT_PROBE4(fusefs, , vnops, erelookup, fdvp, fvp, tdvp,
+			tvp);
+		err = ERELOOKUP;
+		goto out;
+	}
+
 	if (data->dataflags & FSESS_DEFAULT_PERMISSIONS && isdir && newparent) {
 		err = fuse_internal_access(fvp, VWRITE,
 			curthread, tcnp->cn_cred);
 		if (err)
-			goto out;
+			goto unlock;
 	}
 	err = fuse_internal_rename(fdvp, fcnp, tdvp, tcnp);
 	if (err == 0) {
@@ -2293,6 +2331,8 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 		}
 		cache_purge(fdvp);
 	}
+unlock:
+	VOP_UNLOCK(fvp);
 out:
 	if (tdvp == tvp) {
 		vrele(tdvp);
@@ -2568,6 +2608,7 @@ static int
 fuse_vnop_write(struct vop_write_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct uio *uio = ap->a_uio;
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
@@ -2583,9 +2624,12 @@ fuse_vnop_write(struct vop_write_args *ap)
 		    "to be closed"));
 	}
 
-	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
+	/*
+	 * XXX Check this flag without the lock.  See
+	 * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=293088
+	 */
+	if (fvdat->flag & FN_DIRECTIO)
 		ioflag |= IO_DIRECT;
-	}
 
 	err = fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
 	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
@@ -3217,6 +3261,29 @@ fallback:
 		fuse_filehandle_close(vp, fufh, curthread, cred);
 
 	return (vop_stddeallocate(ap));
+}
+
+/*
+   struct vop_delayed_setsize_args {
+	struct vop_generic_args a_gen;
+	struct vnode *a_vp;
+  };
+ */
+static int
+fuse_vnop_delayed_setsize(struct vop_delayed_setsize_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct fuse_vnode_data *fvdat = VTOFUD(ap->a_vp);
+	bool shrink = (fvdat->flag & FN_DELAYED_TRUNCATE) != 0;
+	int err;
+
+	if (!fvdat)
+		return (0);
+
+	err = fuse_vnode_setsize_immediate(vp, shrink);
+	fvdat->flag &= ~FN_DELAYED_TRUNCATE;
+
+	return (err);
 }
 
 /*

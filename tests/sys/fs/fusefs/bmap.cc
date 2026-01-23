@@ -44,10 +44,13 @@ using namespace testing;
 const static char FULLPATH[] = "mountpoint/foo";
 const static char RELPATH[] = "foo";
 
-class Bmap: public FuseTest {
+class Bmap: public FuseTest,
+	    public WithParamInterface<tuple<int, int>>
+{
 public:
 virtual void SetUp() {
 	m_maxreadahead = UINT32_MAX;
+	m_init_flags |= get<0>(GetParam());
 	FuseTest::SetUp();
 }
 void expect_bmap(uint64_t ino, uint64_t lbn, uint32_t blocksize, uint64_t pbn)
@@ -73,12 +76,12 @@ void expect_lookup(const char *relpath, uint64_t ino, off_t size)
 }
 };
 
-class BmapEof: public Bmap, public WithParamInterface<int> {};
+class BmapEof: public Bmap {};
 
 /*
  * Test FUSE_BMAP
  */
-TEST_F(Bmap, bmap)
+TEST_P(Bmap, bmap)
 {
 	struct fiobmap2_arg arg;
 	/*
@@ -124,7 +127,7 @@ TEST_F(Bmap, bmap)
  * If the daemon does not implement VOP_BMAP, fusefs should return sensible
  * defaults.
  */
-TEST_F(Bmap, default_)
+TEST_P(Bmap, default_)
 {
 	struct fiobmap2_arg arg;
 	const off_t filesize = 1 << 30;
@@ -181,7 +184,7 @@ TEST_F(Bmap, default_)
  * The server returns an error for some reason for FUSE_BMAP.  fusefs should
  * faithfully report that error up to the caller.
  */
-TEST_F(Bmap, einval)
+TEST_P(Bmap, einval)
 {
 	struct fiobmap2_arg arg;
 	const off_t filesize = 1 << 30;
@@ -217,7 +220,7 @@ TEST_F(Bmap, einval)
  * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=264196 .  The bug did not
  * lie in fusefs, but this is a convenient place for a regression test.
  */
-TEST_F(Bmap, spurious_einval)
+TEST_P(Bmap, spurious_einval)
 {
 	const off_t filesize = 4ull << 30;
 	const ino_t ino = 42;
@@ -288,7 +291,7 @@ TEST_P(BmapEof, eof)
 	int fd;
 	int ngetattrs;
 
-	ngetattrs = GetParam();
+	ngetattrs = get<1>(GetParam());
 	FuseTest::expect_lookup(RELPATH, ino, mode, filesize, 1, 0);
 	expect_open(ino, 0, 1);
 	// Depending on ngetattrs, FUSE_READ could be called with either
@@ -348,6 +351,17 @@ TEST_P(BmapEof, eof)
 	leak(fd);
 }
 
-INSTANTIATE_TEST_SUITE_P(BE, BmapEof,
-	Values(1, 2, 3)
-);
+/*
+ * Try with and without async reads, because it affects the type of vnode lock
+ * on entry to fuse_vnop_bmap.
+ */
+INSTANTIATE_TEST_SUITE_P(B, Bmap, Values(
+	tuple(0, 0),
+	tuple(FUSE_ASYNC_READ, 0)
+));
+
+INSTANTIATE_TEST_SUITE_P(BE, BmapEof, Values(
+	tuple(0, 1),
+	tuple(0, 2),
+	tuple(0, 3)
+));

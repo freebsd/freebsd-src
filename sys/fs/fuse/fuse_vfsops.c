@@ -601,6 +601,8 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	error = fuse_vnode_get(mp, feo, nodeid, NULL, vpp, NULL, vtyp);
 	if (error)
 		goto out;
+	/* for last_local_modify and fuse_internal_cache_attrs */
+	ASSERT_VOP_ELOCKED(*vpp, __func__);
 	fvdat = VTOFUD(*vpp);
 
 	if (timespeccmp(&now, &fvdat->last_local_modify, >)) {
