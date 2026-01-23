@@ -94,6 +94,9 @@ struct bnxt_en_dev {
 #define BNXT_EN_MH(edev)		((edev)->flags & BNXT_EN_FLAG_MULTI_HOST)
 	const struct bnxt_en_ops	*en_ops;
 	struct bnxt_ulp			ulp_tbl[BNXT_MAX_ULP];
+	int                             l2_db_offset;   /* Doorbell BAR offset
+                                                         * of non-cacheable.
+                                                         */
 	int				l2_db_size;	/* Doorbell BAR size in
 							 * bytes mapped by L2
 							 * driver.

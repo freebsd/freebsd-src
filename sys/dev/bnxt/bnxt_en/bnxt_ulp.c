@@ -125,7 +125,7 @@ static void bnxt_fill_msix_vecs(struct bnxt_softc *bp, struct bnxt_msix_entry *e
 		ent[i].vector = bp->irq_tbl[idx + i].vector;
 		ent[i].ring_idx = idx + i;
 		if (BNXT_CHIP_P5_PLUS(bp))
-			ent[i].db_offset = DB_PF_OFFSET_P5;
+			ent[i].db_offset = bp->db_offset;
 		else
 			ent[i].db_offset = (idx + i) * 0x80;
 
@@ -449,6 +449,7 @@ static inline void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt_soft
 	edev->pdev = bp->pdev;
 	edev->softc = bp;
 	edev->l2_db_size = bp->db_size;
+	edev->l2_db_offset = bp->db_offset;
 	mtx_init(&bp->en_ops_lock, "Ethernet ops lock", NULL, MTX_DEF);
 
 	if (bp->flags & BNXT_FLAG_ROCEV1_CAP)

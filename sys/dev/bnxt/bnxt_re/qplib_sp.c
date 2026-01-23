@@ -185,6 +185,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 	attr->page_size_cap = BIT_ULL(28) | BIT_ULL(21) | BIT_ULL(12);
 
 	bnxt_qplib_query_version(rcfw, attr->fw_ver);
+	attr->dev_cap_ext_flags2 = le16_to_cpu(sb->dev_cap_ext_flags_2);
 
 	for (i = 0; i < MAX_TQM_ALLOC_REQ / 4; i++) {
 		temp = le32_to_cpu(sb->tqm_alloc_reqs[i]);

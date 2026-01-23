@@ -1167,6 +1167,7 @@ struct bnxt_softc {
 	struct iflib_dma_info	def_nq_ring_mem;
 	struct task		def_cp_task;
 	int			db_size;
+	int			db_offset;
 	int			legacy_db_size;
 	struct bnxt_doorbell_ops db_ops;
 

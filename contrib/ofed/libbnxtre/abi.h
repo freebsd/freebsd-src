@@ -529,6 +529,7 @@ struct bnxt_re_srq_req {
 struct bnxt_re_srq_resp {
 	struct ibv_create_srq_resp resp;
 	__u32 srqid;
+	__u64 srq_page;
 } __attribute__((packed));
 
 struct bnxt_re_srqe {

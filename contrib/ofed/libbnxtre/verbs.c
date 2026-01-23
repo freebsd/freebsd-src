@@ -342,9 +342,9 @@ struct ibv_cq *_bnxt_re_create_cq(struct ibv_context *ibvctx, int ncqe,
 	}
 
 	if (resp.comp_mask & BNXT_RE_COMP_MASK_CQ_HAS_CQ_PAGE) {
-		cq->cq_page = mmap(NULL, dev->pg_size, PROT_WRITE, MAP_SHARED,
+		cq->cq_page = mmap(NULL, dev->pg_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 				   ibvctx->cmd_fd, resp.cq_page);
-		if (!cq->cq_page)
+		if (cq->cq_page == MAP_FAILED)
 			fprintf(stderr, DEV "Valid cq_page not mapped\n");
 	}
 
@@ -2347,6 +2347,13 @@ struct ibv_srq *bnxt_re_create_srq(struct ibv_pd *ibvpd,
 		goto fail;
 
 	srq->srqid = resp.srqid;
+	if (resp.srq_page) {
+               srq->srq_page = mmap(NULL, uctx->rdev->pg_size, PROT_READ, MAP_SHARED,
+                                    ibvpd->context->cmd_fd, resp.srq_page);
+               if (srq->srq_page == MAP_FAILED)
+                       srq->srq_page = NULL;
+       }
+
 	srq->udpi = &uctx->udpi;
 	srq->cap.max_wr = srq->srqq->depth;
 	srq->cap.max_sge = attr->attr.max_sge;
@@ -2395,6 +2402,8 @@ int bnxt_re_destroy_srq(struct ibv_srq *ibvsrq)
 		bnxt_re_list_del_node(&srq->dbnode, &srq->uctx->srq_dbr_res.head);
 		pthread_spin_unlock(&srq->uctx->srq_dbr_res.lock);
 	}
+	if (srq->srq_page)
+               munmap(srq->srq_page, srq->uctx->rdev->pg_size);
 	ret = ibv_cmd_destroy_srq(ibvsrq);
 	if (ret) {
 		if (_is_db_drop_recovery_enable(srq->uctx)) {
