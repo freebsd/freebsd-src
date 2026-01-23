@@ -1411,12 +1411,14 @@ static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 		dev_info(rdev_to_dev(rdev),
 			 "Couldn't get DB bar size, Low latency framework is disabled\n");
 	/* set register offsets for both UC and WC */
-	if (_is_chip_p7(cctx))
-		res->dpi_tbl.ucreg.offset = offset;
-	else
+	if (_is_chip_p7(cctx)) {
+		res->dpi_tbl.ucreg.offset = en_dev->l2_db_offset;
+		res->dpi_tbl.wcreg.offset = en_dev->l2_db_size;
+	} else {
 		res->dpi_tbl.ucreg.offset = res->is_vf ? BNXT_QPLIB_DBR_VF_DB_OFFSET :
 							 BNXT_QPLIB_DBR_PF_DB_OFFSET;
-	res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
+		res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
+	}
 
 	/* If WC mapping is disabled by L2 driver then en_dev->l2_db_size
 	 * is equal to the DB-Bar actual size. This indicates that L2
@@ -3592,19 +3594,24 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type, u8 wqe_mode)
 		goto release_rtnl;
 	}
 
+	set_bit(BNXT_RE_FLAG_NET_RING_ALLOC, &rdev->flags);
+
 	if (!rdev->chip_ctx)
 		goto release_rtnl;
-	/* Program the NQ ID for DBQ notification */
-	if (rdev->chip_ctx->modes.dbr_pacing_v0 ||
-	    bnxt_qplib_dbr_pacing_en(rdev->chip_ctx) ||
-	    bnxt_qplib_dbr_pacing_ext_en(rdev->chip_ctx)) {
-		rc = bnxt_re_initialize_dbr_pacing(rdev);
-		if (!rc)
-			rdev->dbr_pacing = true;
-		else
-			rdev->dbr_pacing = false;
-		dev_dbg(rdev_to_dev(rdev), "%s: initialize db pacing ret %d\n",
-			__func__, rc);
+
+	if (!(_is_chip_p7(rdev->chip_ctx))) {
+		/* Program the NQ ID for DBQ notification */
+		if (rdev->chip_ctx->modes.dbr_pacing_v0 ||
+		    bnxt_qplib_dbr_pacing_en(rdev->chip_ctx) ||
+		    bnxt_qplib_dbr_pacing_ext_en(rdev->chip_ctx)) {
+			rc = bnxt_re_initialize_dbr_pacing(rdev);
+			if (!rc)
+				rdev->dbr_pacing = true;
+			else
+				rdev->dbr_pacing = false;
+			dev_dbg(rdev_to_dev(rdev), "%s: initialize db pacing ret %d\n",
+				__func__, rc);
+		}
 	}
 
 	vec = rdev->nqr.msix_entries[BNXT_RE_AEQ_IDX].vector;

@@ -276,6 +276,10 @@ static void __to_ib_speed_width(u32 espeed, u8 *speed, u8 *width)
 		*speed = IB_SPEED_HDR;
 		*width = IB_WIDTH_4X;
 		break;
+	case SPEED_400000:
+		*speed = IB_SPEED_NDR;
+		*width = IB_WIDTH_4X;
+		break;
 	default:
 		*speed = IB_SPEED_SDR;
 		*width = IB_WIDTH_1X;
@@ -1666,23 +1670,24 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev,
 		return rc;
 
 	bytes = (qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size);
+	bytes = PAGE_ALIGN(bytes);
 	/* Consider mapping PSN search memory only for RC QPs. */
 	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC) {
 		psn_sz = _is_chip_gen_p5_p7(rdev->chip_ctx) ?
 				sizeof(struct sq_psn_search_ext) :
 				sizeof(struct sq_psn_search);
-		if (rdev->dev_attr && BNXT_RE_HW_RETX(rdev->dev_attr->dev_cap_flags))
+		if (rdev->dev_attr && _is_host_msn_table(rdev->dev_attr->dev_cap_ext_flags2))
 			psn_sz = sizeof(struct sq_msn_search);
 		psn_nume = (qplib_qp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
 			    qplib_qp->sq.max_wqe :
 			    ((qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size) /
 			     sizeof(struct bnxt_qplib_sge));
-		if (BNXT_RE_HW_RETX(rdev->dev_attr->dev_cap_flags))
+		if (rdev->dev_attr && _is_host_msn_table(rdev->dev_attr->dev_cap_ext_flags2))
 			psn_nume = roundup_pow_of_two(psn_nume);
 
 		bytes += (psn_nume * psn_sz);
+		bytes = PAGE_ALIGN(bytes);
 	}
-	bytes = PAGE_ALIGN(bytes);
 	umem = ib_umem_get_compat(rdev, context, udata, ureq.qpsva, bytes,
 				  IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(umem)) {
@@ -5294,11 +5299,9 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *uctx_in,
 	}
 
 	genp5 = _is_chip_gen_p5_p7(cctx);
-	if (BNXT_RE_ABI_VERSION > 5) {
-		resp.modes = genp5 ? cctx->modes.wqe_mode : 0;
-		if (rdev->dev_attr && BNXT_RE_HW_RETX(rdev->dev_attr->dev_cap_flags))
-			resp.comp_mask = BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED;
-	}
+	resp.modes = genp5 ? cctx->modes.wqe_mode : 0;
+	if (rdev->dev_attr && _is_host_msn_table(rdev->dev_attr->dev_cap_ext_flags2))
+		resp.comp_mask = BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED;
 
 	resp.pg_size = PAGE_SIZE;
 	resp.cqe_sz = sizeof(struct cq_base);

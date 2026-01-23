@@ -71,6 +71,7 @@ struct bnxt_qplib_dev_attr {
 	u32				l2_db_size;
 	u8				tqm_alloc_reqs[MAX_TQM_ALLOC_REQ];
 	u8				is_atomic;
+	u16				dev_cap_ext_flags2;
 	u16				dev_cap_flags;
 	u64				page_size_cap;
 	u32				max_dpi;
