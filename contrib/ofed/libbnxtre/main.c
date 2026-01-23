@@ -297,6 +297,7 @@ int bnxt_re_init_context(struct verbs_device *vdev, struct ibv_context *ibvctx,
 
 	req.comp_mask |= BNXT_RE_COMP_MASK_REQ_UCNTX_POW2_SUPPORT;
 	req.comp_mask |= BNXT_RE_COMP_MASK_REQ_UCNTX_RSVD_WQE;
+	req.comp_mask |= BNXT_RE_COMP_MASK_REQ_UCNTX_VAR_WQE_SUPPORT;
 	ret = ibv_cmd_get_context(ibvctx, &req.cmd, sizeof(req),
 				  &resp.resp, sizeof(resp));
 

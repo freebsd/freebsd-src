@@ -129,11 +129,6 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 	 * one extra entry while creating the qp
 	 */
 	attr->max_qp_wqes = le16_to_cpu(sb->max_qp_wr) - 1;
-	/* Adjust for max_qp_wqes for variable wqe */
-	if (cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE) {
-		attr->max_qp_wqes = (BNXT_MAX_SQ_SIZE) /
-			(BNXT_MAX_VAR_WQE_SIZE / BNXT_SGE_SIZE) - 1;
-	}
 	if (!_is_chip_gen_p5_p7(cctx)) {
 		/*
 		 * 128 WQEs needs to be reserved for the HW (8916). Prevent
@@ -141,10 +136,13 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 		 */
 		attr->max_qp_wqes -= BNXT_QPLIB_RESERVED_QP_WRS;
 	}
-	attr->max_qp_sges = sb->max_sge;
-	if (_is_chip_gen_p5_p7(cctx) &&
-	    cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
-		attr->max_qp_sges = sb->max_sge_var_wqe;
+
+	/* Adjust for max_qp_wqes for variable wqe */
+	if (cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
+		attr->max_qp_wqes = BNXT_VAR_MAX_WQE - 1;
+
+	attr->max_qp_sges = cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE ?
+				min_t(u32, sb->max_sge_var_wqe, BNXT_VAR_MAX_SGE) : sb->max_sge;
 	attr->max_cq = bnxt_re_cap_fw_res(le32_to_cpu(sb->max_cq),
 						dev_res.max_cq, sw_max_en);
 

@@ -1101,7 +1101,6 @@ static int bnxt_re_handle_start(struct auxiliary_device *adev)
 	rc = bnxt_re_add_device(&rdev, real_dev,
 				en_info->gsi_mode,
 				BNXT_RE_POST_RECOVERY_INIT,
-				en_info->wqe_mode,
 				en_info->num_msix_requested, adev);
 	if (rc) {
 		/* Add device failed. Unregister the device.
@@ -1435,15 +1434,15 @@ static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 	return;
 }
 
-static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev, u8 mode)
+static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_en_dev *en_dev;
 
 	en_dev = rdev->en_dev;
 	cctx = rdev->chip_ctx;
-	cctx->modes.wqe_mode = _is_chip_gen_p5_p7(rdev->chip_ctx) ?
-					mode : BNXT_QPLIB_WQE_MODE_STATIC;
+	cctx->modes.wqe_mode = _is_chip_p7(rdev->chip_ctx) ?
+			BNXT_QPLIB_WQE_MODE_VARIABLE : BNXT_QPLIB_WQE_MODE_STATIC;
 	cctx->modes.te_bypass = false;
 	if (bnxt_re_hwrm_qcaps(rdev))
 		dev_err(rdev_to_dev(rdev),
@@ -1492,7 +1491,7 @@ static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
 	kfree(chip_ctx);
 }
 
-static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
+static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *chip_ctx;
 	struct bnxt_en_dev *en_dev;
@@ -1527,7 +1526,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 		rc = -ENOMEM;
 		goto fail;
 	}
-	bnxt_re_set_drv_mode(rdev, wqe_mode);
+	bnxt_re_set_drv_mode(rdev);
 
 	bnxt_re_set_db_offset(rdev);
 	rc = bnxt_qplib_map_db_bar(&rdev->qplib_res);
@@ -3551,7 +3550,7 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 	}
 }
 
-static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type, u8 wqe_mode)
+static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 {
 	struct bnxt_re_ring_attr rattr = {};
 	struct bnxt_qplib_creq_ctx *creq;
@@ -3566,7 +3565,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type, u8 wqe_mode)
 	}
 	set_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
 
-	rc = bnxt_re_setup_chip_ctx(rdev, wqe_mode);
+	rc = bnxt_re_setup_chip_ctx(rdev);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to get chip context rc 0x%x", rc);
 		bnxt_re_unregister_netdev(rdev);
@@ -3879,7 +3878,7 @@ void bnxt_re_remove_device(struct bnxt_re_dev *rdev, u8 op_type,
 
 int bnxt_re_add_device(struct bnxt_re_dev **rdev,
 		       struct ifnet *netdev,
-		       u8 qp_mode, u8 op_type, u8 wqe_mode,
+		       u8 qp_mode, u8 op_type,
 		       u32 num_msix_requested,
 		       struct auxiliary_device *aux_dev)
 {
@@ -3952,7 +3951,7 @@ int bnxt_re_add_device(struct bnxt_re_dev **rdev,
 	rtnl_lock();
 	en_info->rdev = *rdev;
 	rtnl_unlock();
-	rc = bnxt_re_dev_init(*rdev, op_type, wqe_mode);
+	rc = bnxt_re_dev_init(*rdev, op_type);
 	if (rc) {
 ref_error:
 		bnxt_re_dev_unreg(*rdev);
@@ -4401,7 +4400,6 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 	rc = bnxt_re_add_device(&rdev, en_dev->net,
 				BNXT_RE_GSI_MODE_ALL,
 				BNXT_RE_COMPLETE_INIT,
-				BNXT_QPLIB_WQE_MODE_STATIC,
 				BNXT_RE_MSIX_FROM_MOD_PARAM, adev);
 	if (rc) {
 		mutex_unlock(&bnxt_re_mutex);
