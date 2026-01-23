@@ -390,6 +390,7 @@ struct bnxt_qplib_qp {
 	u32				msn_tbl_sz;
 	/* get devflags in PI code */
 	u16				dev_cap_flags;
+	bool				is_host_msn_tbl;
 };
 
 

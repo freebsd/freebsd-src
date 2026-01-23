@@ -1309,6 +1309,7 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 		goto end;
 
 	softc->legacy_db_size = le16_to_cpu(resp->legacy_l2_db_size_kb) * 1024;
+	softc->db_offset = le16toh(resp->legacy_l2_db_size_kb) * 1024;
 
 	if (BNXT_CHIP_P5(softc)) {
 		if (BNXT_PF(softc))
@@ -1316,6 +1317,7 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 		else
 			min_db_offset = DB_VF_OFFSET_P5;
 		softc->legacy_db_size = min_db_offset;
+		softc->db_offset = min_db_offset;
 	}
 
 	softc->db_size = roundup2(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *

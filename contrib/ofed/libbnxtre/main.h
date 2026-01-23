@@ -189,6 +189,7 @@ struct bnxt_re_srq {
 	struct xorshift32_state rand;
 	uint8_t dbr_lock;
 	bool arm_req;
+	void *srq_page;
 };
 
 struct bnxt_re_joint_queue {

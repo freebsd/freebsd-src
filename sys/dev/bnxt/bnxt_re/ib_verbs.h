@@ -77,8 +77,16 @@ struct bnxt_re_dev;
 #define SPEED_200000		200000
 #endif
 
+#ifndef SPEED_400000
+#define SPEED_400000		400000
+#endif
+
 #ifndef IB_SPEED_HDR
 #define IB_SPEED_HDR		64
+#endif
+
+#ifndef IB_SPEED_NDR
+#define IB_SPEED_NDR		128
 #endif
 
 #define RDMA_NETWORK_IPV4	1

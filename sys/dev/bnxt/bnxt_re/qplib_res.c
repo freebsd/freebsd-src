@@ -1139,7 +1139,8 @@ int bnxt_qplib_map_db_bar(struct bnxt_qplib_res *res)
 	ucreg->bar_id = RCFW_DBR_PCI_BAR_REGION;
 	ucreg->bar_base = pci_resource_start(res->pdev, ucreg->bar_id);
 
-	ucreg->offset = 65536;
+	if (_is_chip_gen_p5(res->cctx))
+		ucreg->offset = 65536;
 
 	ucreg->len = ucreg->offset + PAGE_SIZE;
 
