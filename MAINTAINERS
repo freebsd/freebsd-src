@@ -58,16 +58,15 @@ fusefs(4)	asomers	Pre-commit review requested.
 geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
-kqueue		jmg	Pre-commit review requested.  Documentation Required.
 libdpv		dteske	Pre-commit review requested. Keep in sync with dpv(1).
-libfetch	des	Pre-commit review requested, email only.
+libfetch	des	Pre-commit review requested
 libfigpar	dteske	Pre-commit review requested.
 libm		freebsd-numerics	Send email with patches to freebsd-numerics@
 libpam		des	Pre-commit review requested, email only.
 linprocfs	des	Pre-commit review requested, email only.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
-nanobsd		imp	Pre-commit phabricator review requested.
+nanobsd		imp,jlduran	Pre-commit phabricator review requested.
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
 mpi3mr(4)	imp	Pre-commit review requested.
@@ -76,11 +75,11 @@ mps(4)		imp	Pre-commit review requested.
 nvd(4)		imp	Pre-commit review requested.
 nvme(4)		imp	Pre-commit review requested.
 nvmecontrol(8)	imp	Pre-commit review requested.
-opencrypto	jmg	Pre-commit review requested.  Documentation Required.
-openssh		des	Pre-commit review requested, email only.
+opencrypto	jhb	Pre-commit review requested.
+openssh		emaste	Pre-commit review requested.
 openssl		benl	Pre-commit review requested.
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
-pci bus		imp,jhb	Pre-commit review requested.
+sys/dev/pci	imp,jhb	Pre-commit review requested.
 pmcstudy(8)	rrs		Pre-commit review requested.
 procfs		des	Pre-commit review requested, email only.
 pseudofs	des	Pre-commit review requested, email only.
@@ -93,7 +92,7 @@ sendmail	gshapiro	Pre-commit review requested.
 sh(1)		jilles		Pre-commit review requested. This also applies
 				to kill(1), printf(1) and test(1) which are
 				compiled in as builtins.
-share/man		ziaee	Pre-commit review please
+share/man	ziaee	Pre-commit review please
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
 share/mk/*.test.mk	imp,bapt,bdrewery,	Pre-commit review requested.
 			emaste,ngie,sjg,#test
@@ -103,33 +102,26 @@ stand			imp	Pre-commit review strongly requested.
 sys/compat/linuxkpi		pre-commit review requested via #linuxkpi phabricator group.
 sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
 sys/netpfil/ipfilter	cy	Pre-commit review requested.
-sys/dev/e1000	erj	Pre-commit phabricator review requested.
-sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
-sys/dev/ixl	erj	Pre-commit phabricator review requested.
-sys/dev/ice	erj	Pre-commit phabricator review requested.
+sys/dev/e1000	#intel_networking	Pre-commit phabricator review requested.
+sys/dev/ixgbe	#intel_networking	Pre-commit phabricator review requested.
+sys/dev/ixl	#intel_networking	Pre-commit phabricator review requested.
+sys/dev/ice	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/xen	royger		Pre-commit review recommended.
 sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 sys/x86/xen	royger		Pre-commit review recommended.
 sys/xen		royger		Pre-commit review recommended.
 tests			ngie,#test		Pre-commit review requested.
-tools/build	imp	Pre-commit review requested, especially to fix bootstrap issues.
+tools/build	imp,jrtc27	Pre-commit review requested, especially to fix bootstrap issues.
 top(1)		eadler	Pre-commit review requested.
 ufshci(4)	jaeyoon	Pre-commit review requested.
 usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
-vmm(4)		jhb	Pre-commit review requested via #bhyve
-			phabricator group.
-libvmmapi	jhb	Pre-commit review requested via #bhyve
-			phabricator group.
-usr.sbin/bhyve*	jhb	Pre-commit review requested via #bhyve
-			phabricator group.
-autofs(4)	trasz	Pre-commit review recommended.
-iscsi(4)	trasz	Pre-commit review recommended.
-rctl(8)		trasz	Pre-commit review recommended.
-sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
+vmm(4)		#bhyve	Pre-commit review requested via #bhyve phabricator group.
+libvmmapi	#bhyve	Pre-commit review requested via #bhyve phabricator group.
+usr.sbin/bhyve*	#bhyve	Pre-commit review requested via #bhyve phabricator group.
 sys/dev/usb/wlan adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/arm/allwinner	manu	Pre-commit review requested
 sys/arm64/rockchip	manu	Pre-commit review requested
