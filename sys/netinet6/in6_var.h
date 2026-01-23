@@ -93,25 +93,6 @@ struct in6_addrlifetime {
 	u_int32_t ia6t_pltime;	/* prefix lifetime */
 };
 
-struct nd_ifinfo;
-struct scope6_id;
-struct lltable;
-struct mld_ifsoftc;
-struct in6_multi;
-
-struct in6_ifextra {
-	counter_u64_t *in6_ifstat;
-	counter_u64_t *icmp6_ifstat;
-	struct nd_ifinfo *nd_ifinfo;
-	struct scope6_id *scope6_id;
-	struct lltable *lltable;
-	struct mld_ifsoftc *mld_ifinfo;
-	u_int dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
-};
-
-#define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
-#define	DAD_FAILURES(ifp)	((ifp)->if_inet6->dad_failures)
-
 #ifdef _KERNEL
 
 SLIST_HEAD(in6_multi_head, in6_multi);
@@ -507,6 +488,23 @@ struct	in6_rrenumreq {
 #endif
 
 #ifdef _KERNEL
+/*
+ * Structure pointed at by ifp->if_inet6.
+ */
+struct in6_ifextra {
+	counter_u64_t in6_ifstat[sizeof(struct in6_ifstat) / sizeof(uint64_t)];
+	counter_u64_t icmp6_ifstat[sizeof(struct icmp6_ifstat) /
+				   sizeof(uint64_t)];
+	struct nd_ifinfo *nd_ifinfo;
+	struct scope6_id *scope6_id;
+	struct lltable *lltable;
+	struct mld_ifsoftc *mld_ifinfo;
+	u_int dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
+};
+
+#define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
+#define	DAD_FAILURES(ifp)	((ifp)->if_inet6->dad_failures)
+
 VNET_DECLARE(struct in6_ifaddrhead, in6_ifaddrhead);
 VNET_DECLARE(struct in6_ifaddrlisthead *, in6_ifaddrhashtbl);
 VNET_DECLARE(u_long, in6_ifaddrhmask);

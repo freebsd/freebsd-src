@@ -922,10 +922,8 @@ in6_ifdeparture(void *arg __unused, struct ifnet *ifp)
 	lltable_free(ext->lltable);
 	COUNTER_ARRAY_FREE(ext->in6_ifstat,
 	    sizeof(struct in6_ifstat) / sizeof(uint64_t));
-	free(ext->in6_ifstat, M_IFADDR);
 	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
 	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
-	free(ext->icmp6_ifstat, M_IFADDR);
 	free(ext, M_IFADDR);
 }
 EVENTHANDLER_DEFINE(ifnet_departure_event, in6_ifdeparture, NULL,
