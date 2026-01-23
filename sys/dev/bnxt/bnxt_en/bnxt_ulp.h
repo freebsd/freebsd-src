@@ -126,6 +126,7 @@ struct bnxt_en_dev {
 	struct bnxt_dbr			*en_dbr;
 	struct bnxt_bar_info		hwrm_bar;
 	u32				espeed;
+	uint8_t				lanes;
 };
 
 struct bnxt_en_ops {

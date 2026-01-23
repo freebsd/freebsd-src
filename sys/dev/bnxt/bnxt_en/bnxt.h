@@ -455,6 +455,7 @@ struct bnxt_link_info {
 	uint16_t	req_link_speed;
 	uint8_t		module_status;
 	struct hwrm_port_phy_qcfg_output    phy_qcfg_resp;
+	uint8_t		active_lanes;
 };
 
 enum bnxt_phy_type {
@@ -1269,6 +1270,7 @@ struct bnxt_softc {
 #define BNXT_PHY_FL_NO_PAUSE            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PAUSE_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_NO_PFC              (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PFC_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_BANK_SEL            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_BANK_ADDR_SUPPORTED << 8)
+#define BNXT_PHY_FL_SPEEDS2		(HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_SPEEDS2_SUPPORTED << 8)
 	struct bnxt_aux_dev     *aux_dev;
 	struct net_device	*net_dev;
 	struct mtx		en_ops_lock;
