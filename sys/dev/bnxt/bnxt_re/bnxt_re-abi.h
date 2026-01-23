@@ -34,7 +34,7 @@
 #include <asm/types.h>
 #include <linux/types.h>
 
-#define BNXT_RE_ABI_VERSION	6
+#define BNXT_RE_ABI_VERSION	7
 
 enum {
 	BNXT_RE_COMP_MASK_UCNTX_WC_DPI_ENABLED = 0x01,
@@ -43,12 +43,14 @@ enum {
 	BNXT_RE_COMP_MASK_UCNTX_MQP_EX_SUPPORTED = 0x08,
 	BNXT_RE_COMP_MASK_UCNTX_DBR_PACING_ENABLED = 0x10,
 	BNXT_RE_COMP_MASK_UCNTX_DBR_RECOVERY_ENABLED = 0x20,
-	BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED = 0x40
+	BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED = 0x40,
+	BNXT_RE_COMP_MASK_UCNTX_CMASK_HAVE_MODE = 0x80,
 };
 
 enum {
 	BNXT_RE_COMP_MASK_REQ_UCNTX_POW2_SUPPORT = 0x01,
-	BNXT_RE_COMP_MASK_REQ_UCNTX_RSVD_WQE = 0x02
+	BNXT_RE_COMP_MASK_REQ_UCNTX_RSVD_WQE = 0x02,
+	BNXT_RE_COMP_MASK_REQ_UCNTX_VAR_WQE_SUPPORT = 0x03
 };
 
 struct bnxt_re_uctx_req {
@@ -66,7 +68,7 @@ struct bnxt_re_uctx_resp {
 	__u32 max_cqd;
 	__u32 chip_id0;
 	__u32 chip_id1;
-	__u32 modes;
+	__u32 mode;
 	__aligned_u64 comp_mask;
 } __attribute__((packed));
 
@@ -134,6 +136,8 @@ struct bnxt_re_qp_req {
 	__u64 qpsva;
 	__u64 qprva;
 	__u64 qp_handle;
+	__u64 comp_mask;
+	__u32 sq_slots;
 } __attribute__((packed));
 
 struct bnxt_re_qp_resp {

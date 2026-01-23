@@ -32,6 +32,7 @@
 #define __BNXT_QPLIB_SP_H__
 
 #include <rdma/ib_verbs.h>
+#include "bnxt_re-abi.h"
 
 #define BNXT_QPLIB_RESERVED_QP_WRS	128
 
@@ -394,6 +395,13 @@ bool ib_modify_qp_is_ok_compat(enum ib_qp_state cur_state, enum ib_qp_state next
 #define BNXT_MAX_SQ_SIZE 0xFFFF
 #define BNXT_MAX_VAR_WQE_SIZE 512
 #define BNXT_SGE_SIZE 16
+
+#define BNXT_VAR_MAX_WQE	4352
+#define BNXT_VAR_MAX_SLOT_ALIGN	256
+#define BNXT_VAR_MAX_SGE	13
+#define BNXT_RE_MAX_RQ_WQES	65536
+
+#define BNXT_STATIC_MAX_SGE    6
 
 /* PF defines */
 #define BNXT_RE_MAX_QP_SUPPORTED(chip_gen) \

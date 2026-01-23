@@ -508,6 +508,11 @@ static inline int bnxt_re_init_pow2_flag(struct bnxt_re_uctx_req *req,
 	return 0;
 }
 
+enum {
+        BNXT_RE_UCNTX_CAP_POW2_DISABLED = 0x1ULL,
+        BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED = 0x2ULL,
+};
+
 static inline u32 bnxt_re_init_depth(u32 ent, struct bnxt_re_ucontext *uctx)
 {
 	return uctx ? (uctx->cmask & BNXT_RE_COMP_MASK_UCNTX_POW2_DISABLED) ?
