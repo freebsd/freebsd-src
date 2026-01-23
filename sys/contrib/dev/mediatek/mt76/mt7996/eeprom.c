@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2022 MediaTek Inc.
  */
@@ -338,9 +338,8 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
 #elif defined(__FreeBSD__)
 	memcpy(dev->mphy.macaddr, (u8 *)dev->mt76.eeprom.data + MT_EE_MAC_ADDR, ETH_ALEN);
 #endif
-	mt76_eeprom_override(&dev->mphy);
 
-	return 0;
+	return mt76_eeprom_override(&dev->mphy);
 }
 
 int mt7996_eeprom_get_target_power(struct mt7996_dev *dev,

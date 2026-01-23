@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+/* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /* Copyright (C) 2023 MediaTek Inc. */
 
 #ifndef __MT76_CONNAC3_MAC_H
@@ -293,6 +293,13 @@ enum tx_frag_idx {
 
 #define MT_TXP_BUF_LEN			GENMASK(11, 0)
 #define MT_TXP_DMA_ADDR_H		GENMASK(15, 12)
+
+#define MT_TXP0_TOKEN_ID0		GENMASK(14, 0)
+#define MT_TXP0_TOKEN_ID0_VALID_MASK	BIT(15)
+
+#define MT_TXP1_TID_ADDBA		GENMASK(14, 12)
+#define MT_TXP3_ML0_MASK		BIT(15)
+#define MT_TXP3_DMA_ADDR_H		GENMASK(13, 12)
 
 #define MT_TX_RATE_STBC			BIT(14)
 #define MT_TX_RATE_NSS			GENMASK(13, 10)

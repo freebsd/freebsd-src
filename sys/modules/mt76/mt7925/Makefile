@@ -5,7 +5,7 @@ DEVDIR=	${SRCTOP}/sys/contrib/dev/mediatek/mt76/mt7925
 KMOD=	if_mt7925
 
 # Common stuff.
-SRCS=	init.c main.c mac.c mcu.c
+SRCS=	init.c main.c mac.c mcu.c regd.c
 
 # PCI stuff.
 SRCS+=	pci.c pci_mac.c pci_mcu.c
