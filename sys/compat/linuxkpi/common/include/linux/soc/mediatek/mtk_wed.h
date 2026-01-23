@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2022-2025 Bjoern A. Zeeb
+ * Copyright (c) 2022-2026 Bjoern A. Zeeb
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -37,7 +37,13 @@ mtk_wed_device_active(struct mtk_wed_device *dev __unused)
 static inline bool
 mtk_wed_get_rx_capa(struct mtk_wed_device *dev __unused)
 {
+	pr_debug("%s: TODO\n", __func__);
+	return (false);
+}
 
+static inline bool
+mtk_wed_is_amsdu_supported(struct mtk_wed_device *dev __unused)
+{
 	pr_debug("%s: TODO\n", __func__);
 	return (false);
 }
@@ -63,6 +69,12 @@ mtk_wed_device_active(struct mtk_wed_device *dev __unused)
 
 static inline bool
 mtk_wed_get_rx_capa(struct mtk_wed_device *dev __unused)
+{
+	return (false);
+}
+
+static inline bool
+mtk_wed_is_amsdu_supported(struct mtk_wed_device *dev __unused)
 {
 	return (false);
 }

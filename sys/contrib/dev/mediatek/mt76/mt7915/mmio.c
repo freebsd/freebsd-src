@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #if defined(__FreeBSD__)
@@ -676,8 +676,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 					 MT_RXQ_WED_RING_BASE;
 		wed->wlan.wpdma_rx_glo = pci_resource_start(pci_dev, 0) +
 					 MT_WPDMA_GLO_CFG;
-		wed->wlan.wpdma_rx = pci_resource_start(pci_dev, 0) +
-				     MT_RXQ_WED_DATA_RING_BASE;
+		wed->wlan.wpdma_rx[0] = pci_resource_start(pci_dev, 0) +
+					MT_RXQ_WED_DATA_RING_BASE;
 	} else {
 		struct platform_device *plat_dev = pdev_ptr;
 		struct resource *res;
@@ -699,7 +699,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 		wed->wlan.wpdma_tx = res->start + MT_TXQ_WED_RING_BASE;
 		wed->wlan.wpdma_txfree = res->start + MT_RXQ_WED_RING_BASE;
 		wed->wlan.wpdma_rx_glo = res->start + MT_WPDMA_GLO_CFG;
-		wed->wlan.wpdma_rx = res->start + MT_RXQ_WED_DATA_RING_BASE;
+		wed->wlan.wpdma_rx[0] = res->start + MT_RXQ_WED_DATA_RING_BASE;
 	}
 	wed->wlan.nbuf = MT7915_HW_TOKEN_SIZE;
 	wed->wlan.tx_tbit[0] = is_mt7915(&dev->mt76) ? 4 : 30;
