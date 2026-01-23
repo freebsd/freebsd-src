@@ -160,6 +160,7 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 	struct thread *td;
 	struct msr_op_arg a;
 	cpuset_t set;
+	register_t flags;
 	u_int exmode;
 	int bound_cpu, cpu, i, is_bound;
 
@@ -171,7 +172,9 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 
 	switch (exmode) {
 	case MSR_OP_LOCAL:
+		flags = intr_disable();
 		x86_msr_op_one(&a);
+		intr_restore(flags);
 		break;
 	case MSR_OP_SCHED_ALL:
 		td = curthread;

@@ -171,6 +171,8 @@ uint64_t rdtsc_ordered(void);
 
 /*
  * Where and which execution mode
+ *
+ * All modes cause execution on the target CPU(s) with interrupts disabled.
  */
 #define	MSR_OP_LOCAL		0x10000000
 #define	MSR_OP_SCHED_ALL	0x20000000
