@@ -436,10 +436,7 @@ maybe_preempt(struct thread *td)
 #define	loadfactor(loadav)	(2 * (loadav))
 #define	decay_cpu(loadfac, cpu)	(((loadfac) * (cpu)) / ((loadfac) + FSCALE))
 
-/* decay 95% of `ts_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
-static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
-SYSCTL_UINT(_kern_sched_4bsd, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
-    "Decay factor used for updating %CPU");
+extern fixpt_t ccpu;
 
 /*
  * If `ccpu' is not equal to `exp(-1/20)' and you still want to use the
@@ -638,6 +635,11 @@ resetpriority_thread(struct thread *td)
 static void
 sched_4bsd_setup(void)
 {
+	/*
+	 * Decay 95% of `ts_pctcpu' in 60 seconds; see CCPU_SHIFT
+	 * before changing.
+	 */
+	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
 
 	setup_runqs();
 

@@ -199,3 +199,7 @@ SYSCTL_PROC(_kern_sched, OID_AUTO, available,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_kern_sched_available, "A",
     "List of available schedulers");
+
+fixpt_t ccpu;
+SYSCTL_UINT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
+    "Decay factor used for updating %CPU");
