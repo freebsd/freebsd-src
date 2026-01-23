@@ -1340,6 +1340,7 @@ struct bnxt_softc {
 	unsigned long		fw_reset_timestamp;
 
 	struct bnxt_fw_health	*fw_health;
+	char			board_partno[64];
 };
 
 struct bnxt_filter_info {
