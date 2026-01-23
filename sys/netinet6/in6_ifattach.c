@@ -900,6 +900,19 @@ in6_ifdetach(struct ifnet *ifp)
 }
 
 static void
+in6_ifextra_free(epoch_context_t ctx)
+{
+	struct in6_ifextra *ext =
+	     __containerof(ctx, struct in6_ifextra, epoch_ctx);
+
+	COUNTER_ARRAY_FREE(ext->in6_ifstat,
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t));
+	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
+	free(ext, M_IFADDR);
+}
+
+static void
 in6_ifdeparture(void *arg __unused, struct ifnet *ifp)
 {
 	struct in6_ifextra *ext = ifp->if_inet6;
@@ -916,14 +929,16 @@ in6_ifdeparture(void *arg __unused, struct ifnet *ifp)
 	if (!VNET_IS_SHUTTING_DOWN(ifp->if_vnet))
 #endif
 		_in6_ifdetach(ifp, 1);
+	/*
+	 * XXXGL: mld and nd bits are left in a consistent state after
+	 * destructors, but I'm not sure if it safe to call lltable_free() here.
+	 * Individual lle entries are epoch(9) protected, but the table itself
+	 * isn't.
+	 */
 	mld_domifdetach(ifp);
 	nd6_ifdetach(ifp);
 	lltable_free(ext->lltable);
-	COUNTER_ARRAY_FREE(ext->in6_ifstat,
-	    sizeof(struct in6_ifstat) / sizeof(uint64_t));
-	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
-	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
-	free(ext, M_IFADDR);
+	NET_EPOCH_CALL(in6_ifextra_free, &ext->epoch_ctx);
 }
 EVENTHANDLER_DEFINE(ifnet_departure_event, in6_ifdeparture, NULL,
     EVENTHANDLER_PRI_ANY);
