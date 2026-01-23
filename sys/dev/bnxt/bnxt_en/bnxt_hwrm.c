@@ -1218,6 +1218,9 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	    flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_DBR_PACING_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_DBR_PACING_SUPPORTED;
 
+	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_SW_MAX_RESOURCE_LIMITS_SUPPORTED)
+		softc->fw_cap |= BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS;
+
 	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_GENERIC_STATS_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_GENERIC_STATS;
 	func->fw_fid = le16toh(resp->fid);

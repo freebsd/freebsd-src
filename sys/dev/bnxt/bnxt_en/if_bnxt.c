@@ -1198,8 +1198,13 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	max_srqs = ctxm->max_entries;
 	if (softc->flags & BNXT_FLAG_ROCE_CAP) {
 		pg_lvl = 2;
-		extra_qps = min_t(u32, 65536, max_qps - l2_qps - qp1_qps);
-		extra_srqs = min_t(u32, 8192, max_srqs - srqs);
+		if (BNXT_SW_RES_LMT(softc)) {
+			extra_qps = max_qps - l2_qps - qp1_qps;
+			extra_srqs = max_srqs - srqs;
+		} else {
+			extra_qps = min_t(uint32_t, 65536, max_qps - l2_qps - qp1_qps);
+			extra_srqs = min_t(uint32_t, 8192, max_srqs - srqs);
+		}
 	}
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
