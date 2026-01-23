@@ -119,6 +119,8 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 	struct smbus_softc *sc = device_get_softc(bus);
 	device_t parent;
 	int error;
+	int retries = 0;
+	int max_retries = 20;
 
 	/* first, ask the underlying layers if the request is ok */
 	parent = device_get_parent(bus);
@@ -131,6 +133,9 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 		/* Check if we've successfully got bus access. */
 		if (error == 0)
 			break;
+		/* Check for timeout.*/
+		if (retries++ < max_retries)
+			return (EBUSY);
 
 		switch (how) {
 		case SMB_WAIT | SMB_INTR:
