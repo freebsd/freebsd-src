@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/time.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -127,9 +128,29 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 		error = SMBUS_CALLBACK(parent, SMB_REQUEST_BUS, &how);
 		mtx_lock(&sc->lock);
 
-		if (error)
-			error = smbus_poll(sc, how);
-	} while (error == EWOULDBLOCK);
+		/* Check if we've successfully got bus access. */
+		if (error == 0)
+			break;
+
+		switch (how) {
+		case SMB_WAIT | SMB_INTR:
+			error = msleep_sbt(sc, &sc->lock, SMBPRI | PCATCH,
+			    "smbreq", SBT_1MS, 0, 0);
+			break;
+		case SMB_WAIT | SMB_NOINTR:
+			error = msleep_sbt(sc, &sc->lock, SMBPRI, "smbreq",
+			    SBT_1MS, 0, 0);
+			break;
+		default:
+			/* We're in non blocking mode, so exit early. */
+			mtx_unlock(&sc->lock);
+			return (EWOULDBLOCK);
+		}
+		/*
+		 * Retry on timeout and on wakeup. A wakeup only means that
+		 * the bus may be free now, not that we've got it.
+		 */
+	} while (error == 0 || error == EWOULDBLOCK);
 
 	while (error == 0) {
 		if (sc->owner && sc->owner != dev)
