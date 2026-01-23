@@ -220,7 +220,7 @@ no_timestamp:
 		reltime.tv_usec = 0;
 		reltime.tv_sec = strtoul(visbp+1, &q, 10);
 
-		if (q == visbp+1 ) {		/* no digits after '[' */
+		if (q == visbp + 1) {		/* no digits after '[' */
 			goto no_timestamp;
 		}
 
