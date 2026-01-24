@@ -114,11 +114,6 @@ void	sched_throw(struct thread *td);
 void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_user_prio(struct thread *td, u_char prio);
 void	sched_userret_slowpath(struct thread *td);
-#ifdef	RACCT
-#ifdef	SCHED_4BSD
-fixpt_t	sched_pctcpu_delta(struct thread *td);
-#endif
-#endif
 
 static inline void
 sched_userret(struct thread *td)
