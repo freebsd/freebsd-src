@@ -28,6 +28,9 @@ gnop9.sh		Waiting for patch commit					20201214
 graid1_3.sh		Hang seen							20250915
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
+gunion.sh		CAM stuk in vmwait						20251226
+ifconfig.sh		https://people.freebsd.org/~pho/stress/log/log0626.txt		20251217
+ifconfig2.sh		Hang in ifnet_de, vlan_sx and sbwait				20250114
 lockf5.sh		Spinning threads seen						20160718
 maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
 memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
@@ -71,6 +74,7 @@ syzkaller59.sh		Page fault							20220625
 syzkaller80.sh		panic								20250711
 syzkaller82.sh		panic: m_apply, length > size of mbuf chain			20250724
 syzkaller85.sh		panic: Assertion uio->uio_resid < 0 failed			20250928
+syzkaller89.sh		panic: MNT_DEFERRED requires MNT_RECURSE | MNT_FORCE		20241224
 quota3.sh		https://people.freebsd.org/~pho/stress/log/log0604.txt		20250728
 quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
 truss3.sh		WiP								20200915
