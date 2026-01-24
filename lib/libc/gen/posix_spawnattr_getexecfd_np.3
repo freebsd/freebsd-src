@@ -1,0 +1,86 @@
+.\" Copyright 2026 The FreeBSD Foundation
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.Dd January 25, 2026
+.Dt POSIX_SPAWNATTR_GETEXECFD_NP 3
+.Os
+.Sh NAME
+.Nm posix_spawnattr_getexecfd_np ,
+.Nm posix_spawnattr_setexecfd_np
+.Nd "get and set the spawn-execfd attribute of a spawn attributes object"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fo posix_spawnattr_getexecfd_np
+.Fa "const posix_spawnattr_t *restrict attr"
+.Fa "int *restrict fdp"
+.Fc
+.Ft int
+.Fo posix_spawnattr_setexecfd_np
+.Fa "posix_spawnattr_t *attr"
+.Fa "int fd"
+.Sh DESCRIPTION
+The
+.Fn posix_spawnattr_getexecfd_np
+function obtains the value of the spawn-execfd attribute from the
+attributes object referenced by
+.Fa attr .
+.Pp
+The
+.Fn posix_spawnattr_setexecfd_np
+function sets the spawn-execfd attribute in an initialized attributes
+object referenced by
+.Fa attr .
+.Pp
+The spawn-execfd attribute provides the file descriptor that is used
+to execute new image in the spawned process by the
+.Xr posix_spawn 3
+family of functions.
+If the attribute is set to a value other then \-1, it must be a valid
+file descriptor which does not have the
+.Va O_CLOFORK
+flag set.
+Then,
+.Fn posix_spawn
+executes the executable image referenced by the file descriptor in the
+newly created process, using the
+.Xr fexecve 2
+system call.
+In this case, the
+.Fa path
+argument to
+.Fn posix_spawn
+is ignored.
+.Pp
+The default value for the spawn-execfd attribute is \-1, which
+means that the executed image is specified by the
+.Fa path
+argument to
+.Fn posix_spawn .
+.Sh RETURN VALUES
+The
+.Fn posix_spawnattr_getexecfd_np
+and
+.Fn posix_spawnattr_setexecfd_np
+functions return zero.
+.Sh SEE ALSO
+.Xr posix_spawn 3 ,
+.Xr posix_spawnattr_destroy 3 ,
+.Xr posix_spawnattr_init 3 ,
+.Xr posix_spawnp 3
+.Sh STANDARDS
+The
+.Fn posix_spawnattr_getexecfd_np
+and
+.Fn posix_spawnattr_setexecfd_np
+are
+.Fx
+extensions that first appeared in
+.Fx 16.0 .
