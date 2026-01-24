@@ -72,12 +72,6 @@
 #include <dev/hwt/hwt_hook.h>
 #endif
 
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-int __read_mostly		dtrace_vtime_active;
-dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
-#endif
-
 #include <machine/cpu.h>
 #include <machine/smp.h>
 

@@ -245,6 +245,12 @@ SDT_PROBE_DECLARE(sched, , , on__cpu);
 SDT_PROBE_DECLARE(sched, , , remain__cpu);
 SDT_PROBE_DECLARE(sched, , , surrender);
 
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+extern int dtrace_vtime_active;
+extern dtrace_vtime_switch_func_t dtrace_vtime_switch_func;
+#endif
+
 /*
  * Fixup scheduler state for proc0 and thread0
  */

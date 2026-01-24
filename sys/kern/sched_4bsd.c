@@ -66,12 +66,6 @@
 #include <dev/hwt/hwt_hook.h>
 #endif
 
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-int __read_mostly		dtrace_vtime_active;
-dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
-#endif
-
 /*
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).

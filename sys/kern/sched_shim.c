@@ -120,6 +120,12 @@ SDT_PROBE_DEFINE(sched, , , remain__cpu);
 SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
     "struct proc *");
 
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+int __read_mostly		dtrace_vtime_active;
+dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
+#endif
+
 static char sched_name[32] = "ULE";
 
 SET_DECLARE(sched_instance_set, struct sched_selection);
