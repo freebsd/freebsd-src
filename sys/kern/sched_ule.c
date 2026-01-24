@@ -409,24 +409,6 @@ static int sysctl_kern_sched_ule_topology_spec_internal(struct sbuf *sb,
     struct cpu_group *cg, int indent);
 #endif
 
-SDT_PROVIDER_DEFINE(sched);
-
-SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *", 
-    "struct proc *", "uint8_t");
-SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *", 
-    "struct proc *", "void *");
-SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *", 
-    "struct proc *", "void *", "int");
-SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *", 
-    "struct proc *", "uint8_t", "struct thread *");
-SDT_PROBE_DEFINE2(sched, , , load__change, "int", "int");
-SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *", 
-    "struct proc *");
-SDT_PROBE_DEFINE(sched, , , on__cpu);
-SDT_PROBE_DEFINE(sched, , , remain__cpu);
-SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
-    "struct proc *");
-
 /*
  * Print the threads waiting on a run-queue.
  */

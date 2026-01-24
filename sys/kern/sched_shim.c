@@ -102,6 +102,24 @@ SCHED_STAT_DEFINE(ithread_demotions, "Interrupt thread priority demotions");
 SCHED_STAT_DEFINE(ithread_preemptions,
     "Interrupt thread preemptions due to time-sharing");
 
+SDT_PROVIDER_DEFINE(sched);
+
+SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *",
+    "struct proc *", "uint8_t");
+SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *",
+    "struct proc *", "void *");
+SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *",
+    "struct proc *", "void *", "int");
+SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *",
+    "struct proc *", "uint8_t", "struct thread *");
+SDT_PROBE_DEFINE2(sched, , , load__change, "int", "int");
+SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *",
+    "struct proc *");
+SDT_PROBE_DEFINE(sched, , , on__cpu);
+SDT_PROBE_DEFINE(sched, , , remain__cpu);
+SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
+    "struct proc *");
+
 static char sched_name[32] = "ULE";
 
 SET_DECLARE(sched_instance_set, struct sched_selection);

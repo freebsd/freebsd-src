@@ -69,6 +69,7 @@
 #include <sys/pcpu.h>
 #endif
 #include <sys/linker_set.h>
+#include <sys/sdt.h>
 
 struct proc;
 struct thread;
@@ -233,6 +234,16 @@ SYSINIT(name, SI_SUB_LAST, SI_ORDER_MIDDLE, name ## _add_proc, NULL);
 
 SCHED_STAT_DECLARE(ithread_demotions);
 SCHED_STAT_DECLARE(ithread_preemptions);
+
+SDT_PROBE_DECLARE(sched, , , change__pri);
+SDT_PROBE_DECLARE(sched, , , dequeue);
+SDT_PROBE_DECLARE(sched, , , enqueue);
+SDT_PROBE_DECLARE(sched, , , lend__pri);
+SDT_PROBE_DECLARE(sched, , , load__change);
+SDT_PROBE_DECLARE(sched, , , off__cpu);
+SDT_PROBE_DECLARE(sched, , , on__cpu);
+SDT_PROBE_DECLARE(sched, , , remain__cpu);
+SDT_PROBE_DECLARE(sched, , , surrender);
 
 /*
  * Fixup scheduler state for proc0 and thread0
