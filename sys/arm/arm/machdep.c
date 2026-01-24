@@ -447,6 +447,8 @@ initarm(struct arm_boot_params *abp)
 
 	set_cpufuncs();
 	cpuinfo_init();
+	sched_instance_select();
+	link_elf_ireloc();
 
 	/*
 	 * Find the dtb passed in by the boot loader.
@@ -522,9 +524,6 @@ initarm(struct arm_boot_params *abp)
 
 	/* Do basic tuning, hz etc */
 	init_param1();
-
-	sched_instance_select();
-	/* link_elf_ireloc(); */
 
 	/*
 	 * Allocate a page for the system page mapped to 0xffff0000

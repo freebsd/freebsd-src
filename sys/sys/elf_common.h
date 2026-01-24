@@ -1122,6 +1122,7 @@ typedef struct {
 #define	R_ARM_PLT32		27	/* Add PC-relative PLT offset. */
 #define	R_ARM_GNU_VTENTRY	100
 #define	R_ARM_GNU_VTINHERIT	101
+#define	R_ARM_IRELATIVE		160
 #define	R_ARM_RSBREL32		250
 #define	R_ARM_THM_RPC22		251
 #define	R_ARM_RREL32		252
