@@ -474,6 +474,11 @@ FBSD_1.8 {
 	str2sig;
 };
 
+FBSD_1.9 {
+	posix_spawnattr_getexecfd_np;
+	posix_spawnattr_setexecfd_np;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
