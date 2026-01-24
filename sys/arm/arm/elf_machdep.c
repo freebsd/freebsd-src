@@ -150,7 +150,7 @@ bool
 elf_is_ifunc_reloc(Elf_Size r_info __unused)
 {
 
-	return (false);
+	return (ELF_R_TYPE(r_info) == R_ARM_IRELATIVE);
 }
 
 /*
@@ -253,6 +253,12 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_ARM_RELATIVE:
 			break;
 
+		case R_ARM_IRELATIVE:
+			addr = relocbase + addend;
+			addr = ((Elf_Addr (*)(void))addr)();
+			if (*where != addr)
+				*where = addr;
+			break;
 		default:
 			printf("kldload: unexpected relocation type %d, "
 			    "symbol index %d\n", rtype, symidx);

@@ -2041,7 +2041,7 @@ link_elf_propagate_vnets(linker_file_t lf)
 }
 #endif
 
-#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__) || defined(__powerpc__)
+#if !defined(__riscv)
 /*
  * Use this lookup routine when performing relocations early during boot.
  * The generic lookup routine depends on kobj, which is not initialized
