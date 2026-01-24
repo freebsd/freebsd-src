@@ -178,7 +178,8 @@ main(int argc, char *argv[])
 					--argc;
 				}
 				fd = open(optarg,
-				    O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC,
+				    O_WRONLY | O_APPEND | O_CREAT |
+				    O_CLOEXEC | O_CLOFORK,
 				    0644);
 				if (fd == -1)
 					errx(EX_OSERR,
