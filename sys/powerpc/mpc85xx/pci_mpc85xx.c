@@ -884,7 +884,7 @@ fsl_msi_intr_filter(void *priv)
 	i = 0;
 	while (reg != 0) {
 		if (reg & 1)
-			powerpc_dispatch_intr(data->vectors[i], NULL);
+			powerpc_dispatch_intr(data->vectors[i]);
 		reg >>= 1;
 		i++;
 	}

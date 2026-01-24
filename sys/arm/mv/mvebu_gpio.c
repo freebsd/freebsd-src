@@ -639,13 +639,11 @@ mvebu_gpio_intr(void *arg)
 {
 	u_int i, lvl, edge;
 	struct mvebu_gpio_softc *sc;
-	struct trapframe *tf;
 	struct mvebu_gpio_irqsrc *mgi;
 	struct mvebu_gpio_irq_cookie *cookie;
 
 	cookie = (struct mvebu_gpio_irq_cookie *)arg;
 	sc = cookie->sc;
-	tf = curthread->td_intr_frame;
 
 	for (i = 0; i < sc->gpio_npins; i++) {
 		lvl = gpio_read(sc, GPIO_DATA_IN, &sc->gpio_pins[i]);
@@ -659,7 +657,7 @@ mvebu_gpio_intr(void *arg)
 		if (!mgi->is_level)
 			mvebu_gpio_isrc_eoi(sc, mgi);
 
-		if (intr_isrc_dispatch(&mgi->isrc, tf) != 0) {
+		if (intr_isrc_dispatch(&mgi->isrc) != 0) {
 			mvebu_gpio_isrc_mask(sc, mgi, 0);
 			if (mgi->is_level)
 				mvebu_gpio_isrc_eoi(sc, mgi);

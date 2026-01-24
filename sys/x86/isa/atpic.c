@@ -42,6 +42,7 @@
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/msan.h>
+#include <sys/proc.h>
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -525,6 +526,7 @@ void
 atpic_handle_intr(u_int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
+	struct trapframe *oldframe;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
@@ -553,7 +555,17 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 		if ((isr & IRQ_MASK(7)) == 0)
 			return;
 	}
-	intr_execute_handlers(isrc, frame);
+
+	critical_enter();
+	++curthread->td_intr_nesting_level;
+	oldframe = curthread->td_intr_frame;
+	curthread->td_intr_frame = frame;
+
+	intr_execute_handlers(isrc);
+
+	curthread->td_intr_frame = oldframe;
+	--curthread->td_intr_nesting_level;
+	critical_exit();
 }
 
 #ifdef DEV_ISA

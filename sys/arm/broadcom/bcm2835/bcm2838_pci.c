@@ -375,8 +375,7 @@ bcm_pcib_write_config(device_t dev, u_int bus, u_int slot,
 }
 
 static void
-bcm_pcib_msi_intr_process(struct bcm_pcib_softc *sc, uint32_t interrupt_bitmap,
-    struct trapframe *tf)
+bcm_pcib_msi_intr_process(struct bcm_pcib_softc *sc, uint32_t interrupt_bitmap)
 {
 	struct bcm_pcib_irqsrc *irqsrc;
 	uint32_t bit, irq;
@@ -392,7 +391,7 @@ bcm_pcib_msi_intr_process(struct bcm_pcib_softc *sc, uint32_t interrupt_bitmap,
 
 		/* Despatch to handler. */
 		irqsrc = &sc->msi_isrcs[irq];
-		if (intr_isrc_dispatch(&irqsrc->isrc, tf))
+		if (intr_isrc_dispatch(&irqsrc->isrc))
 			device_printf(sc->dev,
 			    "note: unexpected interrupt (%d) triggered.\n",
 			    irq);
@@ -406,14 +405,12 @@ static int
 bcm_pcib_msi_intr(void *arg)
 {
 	struct bcm_pcib_softc *sc;
-	struct trapframe *tf;
 	uint32_t interrupt_bitmap;
 
 	sc = (struct bcm_pcib_softc *) arg;
-	tf = curthread->td_intr_frame;
 
 	while ((interrupt_bitmap = bcm_pcib_read_reg(sc, REG_MSI_RAISED)))
-		bcm_pcib_msi_intr_process(sc, interrupt_bitmap, tf);
+		bcm_pcib_msi_intr_process(sc, interrupt_bitmap);
 
 	return (FILTER_HANDLED);
 }

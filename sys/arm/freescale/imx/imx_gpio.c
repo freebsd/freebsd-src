@@ -474,7 +474,7 @@ gpio_pic_filter(void *arg)
 		if ((interrupts & 0x1) == 0)
 			continue;
 		isrc = &sc->gpio_pic_irqsrc[i].gi_isrc;
-		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
+		if (intr_isrc_dispatch(isrc) != 0) {
 			gpio_pic_disable_intr(sc->dev, isrc);
 			gpio_pic_post_filter(sc->dev, isrc);
 			device_printf(sc->dev, "Stray irq %u disabled\n", i);
