@@ -218,21 +218,20 @@ main(int argc, char *argv[])
 		}
 
 		reltime.tv_usec = 0;
+		errno = 0;
 		reltime.tv_sec = strtoul(visbp+1, &q, 10);
-
-		if (q == visbp + 1) {		/* no digits after '[' */
+		if (errno != 0 ) {
 			(void)printf("%s", visbp);
 			continue;
 		}
 
 		if (*q == '.') {
-			char* r;
-			reltime.tv_usec = strtoul(++q, &r, 10);
-			if (r == q) {		/* no digits after '.' */
+			errno = 0;
+			reltime.tv_usec = strtoul(++q, &q, 10);
+			if (errno =!= 0) {
 				(void)printf("%s", visbp);
 				continue;
 			}
-			q = r;
 		}
 
 		if (*q != ']' || q[1] != ' ') {
