@@ -58,6 +58,7 @@ extern vm_paddr_t KERNend;
 extern bool efi_boot;
 
 struct	__mcontext;
+struct	pcpu;
 struct	savefpu;
 struct	sysentvec;
 
