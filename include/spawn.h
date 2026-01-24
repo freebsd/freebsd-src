@@ -123,6 +123,13 @@ int posix_spawnattr_setsigdefault(posix_spawnattr_t * __restrict,
     const sigset_t * __restrict);
 int posix_spawnattr_setsigmask(posix_spawnattr_t * __restrict,
     const sigset_t * __restrict);
+
+#if __BSD_VISIBLE
+int posix_spawnattr_setexecfd_np(posix_spawnattr_t * __restrict, int);
+int posix_spawnattr_getexecfd_np(const posix_spawnattr_t * __restrict,
+    int * __restrict);
+#endif
+
 __END_DECLS
 
 #endif /* !_SPAWN_H_ */
