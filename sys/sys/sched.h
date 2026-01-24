@@ -214,6 +214,10 @@ SYSINIT(name, SI_SUB_LAST, SI_ORDER_MIDDLE, name ## _add_proc, NULL);
 #define	SCHED_STAT_DEFINE(name, descr)					\
     DPCPU_DEFINE(unsigned long, name);					\
     SCHED_STAT_DEFINE_VAR(name, &DPCPU_NAME(name), descr)
+
+#define	SCHED_STAT_DECLARE(name)					\
+    DPCPU_DECLARE(unsigned long, name);
+
 /*
  * Sched stats are always incremented in critical sections so no atomic
  * is necessary to increment them.
@@ -222,6 +226,7 @@ SYSINIT(name, SI_SUB_LAST, SI_ORDER_MIDDLE, name ## _add_proc, NULL);
 #else
 #define	SCHED_STAT_DEFINE_VAR(name, descr, ptr)
 #define	SCHED_STAT_DEFINE(name, descr)
+#define	SCHED_STAT_DECLARE(name)
 #define SCHED_STAT_INC(var)			(void)0
 #endif
 
