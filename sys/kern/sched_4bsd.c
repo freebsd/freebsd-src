@@ -706,10 +706,6 @@ sched_4bsd_rr_interval(void)
 	return (imax(1, (sched_slice * hz + realstathz / 2) / realstathz));
 }
 
-SCHED_STAT_DEFINE(ithread_demotions, "Interrupt thread priority demotions");
-SCHED_STAT_DEFINE(ithread_preemptions,
-    "Interrupt thread preemptions due to time-sharing");
-
 /*
  * We adjust the priority of the current process.  The priority of a
  * process gets worse as it accumulates CPU time.  The cpu usage

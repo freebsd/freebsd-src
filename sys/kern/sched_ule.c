@@ -2693,10 +2693,6 @@ sched_ule_userret_slowpath(struct thread *td)
 	thread_unlock(td);
 }
 
-SCHED_STAT_DEFINE(ithread_demotions, "Interrupt thread priority demotions");
-SCHED_STAT_DEFINE(ithread_preemptions,
-    "Interrupt thread preemptions due to time-sharing");
-
 /*
  * Return time slice for a given thread.  For ithreads this is
  * sched_slice.  For other threads it is tdq_slice(tdq).

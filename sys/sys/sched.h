@@ -231,6 +231,9 @@ SYSINIT(name, SI_SUB_LAST, SI_ORDER_MIDDLE, name ## _add_proc, NULL);
 #define SCHED_STAT_INC(var)			(void)0
 #endif
 
+SCHED_STAT_DECLARE(ithread_demotions);
+SCHED_STAT_DECLARE(ithread_preemptions);
+
 /*
  * Fixup scheduler state for proc0 and thread0
  */

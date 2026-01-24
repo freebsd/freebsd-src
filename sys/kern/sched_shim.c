@@ -97,6 +97,11 @@ DEFINE_SHIM0(do_timer_accounting, bool, sched_do_timer_accounting)
 DEFINE_SHIM1(find_l2_neighbor, int, sched_find_l2_neighbor, int, cpu)
 DEFINE_SHIM0(init_ap, void, schedinit_ap)
 
+
+SCHED_STAT_DEFINE(ithread_demotions, "Interrupt thread priority demotions");
+SCHED_STAT_DEFINE(ithread_preemptions,
+    "Interrupt thread preemptions due to time-sharing");
+
 static char sched_name[32] = "ULE";
 
 SET_DECLARE(sched_instance_set, struct sched_selection);
