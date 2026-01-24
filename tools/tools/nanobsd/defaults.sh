@@ -745,7 +745,7 @@ populate_slice() {
 	nano_umount ${mnt}
 }
 
-_populate_part() (
+_populate_part() {
 	local dir fs lbl metalog size type
 	type=$1
 	fs=$2
@@ -762,7 +762,7 @@ _populate_part() (
 	else
 		if [ "${type}" = "cfg" ]; then
 			dir=$(mktemp -d -p "${NANO_OBJ}" -t "${type}")
-			trap "rm -f ${dir}" 1 2 15 EXIT
+			trap "rm -rf ${dir}" 1 2 15 EXIT
 		fi
 	fi
 
@@ -770,8 +770,7 @@ _populate_part() (
 		# If there is no metalog, create one using the default
 		# NANO_DEF_UNAME and NANO_DEF_GNAME for all entries in the spec.
 		if [ -z "${metalog}" ]; then
-			metalog=$(mktemp -p "${NANO_OBJ}" -t "${type}")
-			trap "rm -f ${metalog}" 1 2 15 EXIT
+			metalog="${NANO_METALOG}.${type}"
 			echo "/set type=dir uname=${NANO_DEF_UNAME}" \
 			    "gname=${NANO_DEF_GNAME} mode=0755" > "${metalog}"
 			echo ". type=dir uname=${NANO_DEF_UNAME}" \
@@ -787,7 +786,7 @@ _populate_part() (
 
 		nano_makefs "-DxZ ${NANO_MAKEFS}" "${metalog}" "${size}" "${fs}" "${dir}"
 	fi
-)
+}
 
 populate_cfg_slice() {
 	populate_slice "$1" "$2" "$3" "$4"
