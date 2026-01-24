@@ -554,8 +554,8 @@ run_late_customize() {
 #
 fixup_before_diskimage() {
 	# Run the deduplication script that takes the metalog journal and
-	# combines multiple entries for the same file (see source for
-	# details). We take the extra step of removing the size keywords. This
+	# combines multiple entries for the same file (see source for details).
+	# We take the extra step of removing the size and time keywords. This
 	# script, and many of the user scripts, copies, appends and otherwise
 	# modifies files in the build, changing their sizes.  These actions are
 	# impossible to trap, so go ahead remove the size= keyword. For this
@@ -566,7 +566,7 @@ fixup_before_diskimage() {
 		cp ${NANO_METALOG} ${NANO_METALOG}.pre
 		echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" > ${NANO_METALOG}
 		cat ${NANO_METALOG}.pre | ${NANO_TOOLS}/mtree-dedup.awk | \
-		    sed -e 's/ size=[0-9][0-9]*//' | sort >> ${NANO_METALOG}
+		    sort -u | mtree -C -K uname,gname,tags -R size,time >> ${NANO_METALOG}
 	fi
 }
 
