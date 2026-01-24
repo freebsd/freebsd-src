@@ -208,33 +208,36 @@ main(int argc, char *argv[])
 
 		(void)strvisx(visbp, p, nextp - p, 0);
 		if (!timeconv) {
-no_timestamp:
 			(void)printf("%s", visbp);
 			continue;
 		}
 
 		if (visbp[0] != '[' ) {
-			goto no_timestamp;
+			(void)printf("%s", visbp);
+			continue;
 		}
 
 		reltime.tv_usec = 0;
 		reltime.tv_sec = strtoul(visbp+1, &q, 10);
 
 		if (q == visbp + 1) {		/* no digits after '[' */
-			goto no_timestamp;
+			(void)printf("%s", visbp);
+			continue;
 		}
 
 		if (*q == '.') {
 			char* r;
 			reltime.tv_usec = strtoul(++q, &r, 10);
 			if (r == q) {		/* no digits after '.' */
-				goto no_timestamp;
+				(void)printf("%s", visbp);
+				continue;
 			}
 			q = r;
 		}
 
 		if (*q != ']' || q[1] != ' ') {
-			goto no_timestamp;
+			(void)printf("%s", visbp);
+			continue;
 		}
 		q++;
 
@@ -247,7 +250,8 @@ no_timestamp:
 		    localtime( &roundtime.tv_sec )) != 0) {
 			(void)printf("[%s]%s", timebuf, q);
 		} else {
-			goto no_timestamp;
+			(void)printf("%s", visbp);
+			continue;
 		}
 	}
 	exit(0);
