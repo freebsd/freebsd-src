@@ -51,7 +51,7 @@ common_cleanup()
 	if [ -f "$TEST_MD_DEVICE_FILE" ]; then
 		md=$(cat $TEST_MD_DEVICE_FILE)
 		if [ -c /dev/"$md" ]; then
-			mdconfig -d -u "$md"
+			mdconfig -o force -d -u "$md"
 		fi
 	fi
 }
@@ -210,7 +210,7 @@ compression_body()
 
 		atf_check zpool destroy ${ZFS_POOL_NAME}
 		atf_check rm -f ${TEST_ZFS_POOL_NAME}
-		atf_check mdconfig -d -u $(cat ${TEST_MD_DEVICE_FILE})
+		atf_check mdconfig -o force -d -u $(cat ${TEST_MD_DEVICE_FILE})
 		atf_check rm -f ${TEST_MD_DEVICE_FILE}
 	done
 }
