@@ -490,8 +490,9 @@ struct dpaa2_ni_softc {
 	struct dpaa2_channel	*channels[DPAA2_MAX_CHANNELS];
 	struct dpaa2_ni_fq	 rxe_queue; /* one per DPNI */
 
+	/* sysctl(9) */
 	struct dpaa2_atomic	 buf_num;
-	struct dpaa2_atomic	 buf_free; /* for sysctl(9) only */
+	struct dpaa2_atomic	 buf_free;
 
 	int			 irq_rid[DPAA2_NI_MSI_COUNT];
 	struct resource		*irq_res;
