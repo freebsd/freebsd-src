@@ -14,6 +14,7 @@ SRCS+=	dpaa2_con.c
 SRCS+=	dpaa2_buf.c
 SRCS+=	dpaa2_channel.c
 SRCS+=	dpaa2_types.c
+SRCS+=	dpaa2_frame.c
 
 SRCS+=	dpaa2_cmd_if.c dpaa2_cmd_if.h
 SRCS+=	dpaa2_swp_if.c dpaa2_swp_if.h
