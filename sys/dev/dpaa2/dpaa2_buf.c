@@ -42,6 +42,7 @@
 #include "dpaa2_swp.h"
 #include "dpaa2_swp_if.h"
 #include "dpaa2_ni.h"
+#include "dpaa2_frame.h"
 
 MALLOC_DEFINE(M_DPAA2_RXB, "dpaa2_rxb", "DPAA2 DMA-mapped buffer (Rx)");
 
@@ -129,7 +130,7 @@ dpaa2_buf_seed_rxb(device_t dev, struct dpaa2_buf *buf, int size,
     struct mtx *dma_mtx)
 {
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
-	struct dpaa2_fa *fa;
+	struct dpaa2_swa *swa;
 	bool map_created = false;
 	bool mbuf_alloc = false;
 	int error;
@@ -178,9 +179,9 @@ dpaa2_buf_seed_rxb(device_t dev, struct dpaa2_buf *buf, int size,
 	buf->vaddr = buf->m->m_data;
 
 	/* Populate frame annotation for future use */
-	fa = (struct dpaa2_fa *)buf->vaddr;
-	fa->magic = DPAA2_MAGIC;
-	fa->buf = buf;
+	swa = (struct dpaa2_swa *)buf->vaddr;
+	swa->magic = DPAA2_MAGIC;
+	swa->buf = buf;
 
 	bus_dmamap_sync(buf->dmat, buf->dmap, BUS_DMASYNC_PREREAD);
 
