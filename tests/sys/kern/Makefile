@@ -29,6 +29,7 @@ ATF_TESTS_C+=	ktls_test
 ATF_TESTS_C+=	ktrace_test
 ATF_TESTS_C+=	listener_wakeup
 ATF_TESTS_C+=	module_test
+ATF_TESTS_C+=	pdrfork
 ATF_TESTS_C+=	prace
 ATF_TESTS_C+=	procdesc
 ATF_TESTS_C+=	ptrace_test
