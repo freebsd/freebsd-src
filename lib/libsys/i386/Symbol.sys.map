@@ -20,6 +20,10 @@ FBSD_1.6 {
 	 x86_pkru_unprotect_range;
 };
 
+FBSD_1.9 {
+	pdrfork_thread;
+};
+
 FBSDprivate_1.0 {
 	_vfork;
 };

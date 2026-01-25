@@ -17,6 +17,10 @@ FBSD_1.8 {
 	amd64_set_tlsbase;
 };
 
+FBSD_1.9 {
+	pdrfork_thread;
+};
+
 FBSDprivate_1.0 {
 	_vfork;
 };
