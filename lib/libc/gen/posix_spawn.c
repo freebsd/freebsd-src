@@ -29,6 +29,7 @@
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/procctl.h>
+#include <sys/procdesc.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
 
@@ -37,6 +38,7 @@
 #include <sched.h>
 #include <spawn.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -51,6 +53,8 @@ struct __posix_spawnattr {
 	sigset_t		sa_sigdefault;
 	sigset_t		sa_sigmask;
 	int			sa_execfd;
+	int			*sa_pdrfork_fdp;
+	int			sa_pdflags;
 };
 
 struct __posix_spawn_file_actions {
@@ -281,6 +285,8 @@ do_posix_spawn(pid_t *pid, const char *path,
 {
 	struct posix_spawn_args psa;
 	pid_t p;
+	int pfd;
+	bool do_pfd;
 #ifdef _RFORK_THREAD_STACK_SIZE
 	char *stack;
 	size_t cnt, stacksz;
@@ -322,6 +328,8 @@ do_posix_spawn(pid_t *pid, const char *path,
 	psa.use_env_path = use_env_path;
 	psa.error = 0;
 
+	do_pfd = sa != NULL && (*sa)->sa_pdrfork_fdp != NULL;
+
 	/*
 	 * Passing RFSPAWN to rfork(2) gives us effectively a vfork that drops
 	 * non-ignored signal handlers.  We'll fall back to the slightly less
@@ -341,10 +349,20 @@ do_posix_spawn(pid_t *pid, const char *path,
 	 * parent.  Because of this, we must use rfork_thread instead while
 	 * almost every other arch stores the return address in a register.
 	 */
-	p = rfork_thread(RFSPAWN, stack + stacksz, _posix_spawn_thr, &psa);
+	if (do_pfd) {
+		p = pdrfork_thread(&pfd, PD_CLOEXEC | (*sa)->sa_pdflags,
+		    RFSPAWN, stack + stacksz, _posix_spawn_thr, &psa);
+	} else {
+		p = rfork_thread(RFSPAWN, stack + stacksz, _posix_spawn_thr,
+		    &psa);
+	}
 	free(stack);
 #else
-	p = rfork(RFSPAWN);
+	if (do_pfd) {
+		p = pdrfork(&pfd, PD_CLOEXEC | (*sa)->sa_pdflags, RFSPAWN);
+	} else {
+		p = rfork(RFSPAWN);
+	}
 	if (p == 0)
 		/* _posix_spawn_thr does not return */
 		_posix_spawn_thr(&psa);
@@ -356,6 +374,8 @@ do_posix_spawn(pid_t *pid, const char *path,
 	 */
 
 	if (p == -1 && errno == EINVAL) {
+		if (do_pfd)
+			return (EOPNOTSUPP);
 		p = vfork();
 		if (p == 0)
 			/* _posix_spawn_thr does not return */
@@ -363,12 +383,18 @@ do_posix_spawn(pid_t *pid, const char *path,
 	}
 	if (p == -1)
 		return (errno);
-	if (psa.error != 0)
+	if (psa.error != 0) {
 		/* Failed; ready to reap */
-		_waitpid(p, NULL, WNOHANG);
-	else if (pid != NULL)
+		if (do_pfd)
+			(void)_close(pfd);
+		else
+			_waitpid(p, NULL, WNOHANG);
+	} else if (pid != NULL) {
 		/* exec succeeded */
 		*pid = p;
+		if (do_pfd)
+			*((*sa)->sa_pdrfork_fdp) = pfd;
+	}
 	return (psa.error);
 }
 
@@ -652,6 +678,15 @@ posix_spawnattr_getexecfd_np(const posix_spawnattr_t * __restrict sa,
 }
 
 int
+posix_spawnattr_getprocdescp_np(const posix_spawnattr_t * __restrict sa,
+    int ** __restrict fdpp, int * __restrict pdrflagsp)
+{
+	*fdpp = (*sa)->sa_pdrfork_fdp;
+	*pdrflagsp = (*sa)->sa_pdflags;
+	return (0);
+}
+
+int
 posix_spawnattr_setflags(posix_spawnattr_t *sa, short flags)
 {
 	if ((flags & ~(POSIX_SPAWN_RESETIDS | POSIX_SPAWN_SETPGROUP |
@@ -706,5 +741,14 @@ posix_spawnattr_setexecfd_np(posix_spawnattr_t * __restrict sa,
     int execfd)
 {
 	(*sa)->sa_execfd = execfd;
+	return (0);
+}
+
+int
+posix_spawnattr_setprocdescp_np(const posix_spawnattr_t * __restrict sa,
+    int * __restrict fdp, int pdrflags)
+{
+	(*sa)->sa_pdrfork_fdp = fdp;
+	(*sa)->sa_pdflags = pdrflags;
 	return (0);
 }

@@ -126,8 +126,12 @@ int posix_spawnattr_setsigmask(posix_spawnattr_t * __restrict,
 
 #if __BSD_VISIBLE
 int posix_spawnattr_setexecfd_np(posix_spawnattr_t * __restrict, int);
+int posix_spawnattr_setprocdescp_np(const posix_spawnattr_t * __restrict,
+    int * __restrict, int);
 int posix_spawnattr_getexecfd_np(const posix_spawnattr_t * __restrict,
     int * __restrict);
+int posix_spawnattr_getprocdescp_np(const posix_spawnattr_t * __restrict,
+    int ** __restrict, int * __restrict);
 #endif
 
 __END_DECLS
