@@ -12,6 +12,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260127:
+	13.5-RELEASE-p9 SA-26:01.openssl
+			SA-26:02.jail
+			EN-26:03.vm
+
+	Fix multiple vulnerabilities in OpenSSL. [SA-26:01.openssl]
+
+	Jail escape by a privileged user via nullfs. [SA-26:02.jail]
+
+	The page fault handler fails to zero memory. [EN-26:03.vm]
+
 20251216:
 	13.5-RELEASE-p8	SA-25:11.ipfw
 			SA-25:12.rtsold
