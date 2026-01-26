@@ -58,7 +58,6 @@
  */
 
 #include <sys/cdefs.h>
-#define SYM_DRIVER_NAME	"sym-1.6.5-20000902"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
@@ -114,27 +113,16 @@ typedef	u_int32_t u32;
 #include <dev/sym/sym_fw.h>
 
 /*
- *  IA32 architecture does not reorder STORES and prevents
- *  LOADS from passing STORES. It is called `program order'
- *  by Intel and allows device drivers to deal with memory
- *  ordering by only ensuring that the code is not reordered
- *  by the compiler when ordering is required.
- *  Other architectures implement a weaker ordering that
- *  requires memory barriers (and also IO barriers when they
- *  make sense) to be used.
+ *  Architectures may implement weak ordering that requires memory barriers
+ *  to be used for LOADS and STORES to become globally visible (and also IO
+ *  barriers when they make sense).
  */
-#if	defined	__i386__ || defined __amd64__
-#define MEMORY_BARRIER()	do { ; } while(0)
-#elif	defined	__powerpc__
-#define MEMORY_BARRIER()	__asm__ volatile("eieio; sync" : : : "memory")
-#elif	defined	__arm__
-#define MEMORY_BARRIER()	dmb()
-#elif	defined	__aarch64__
-#define MEMORY_BARRIER()	dmb(sy)
-#elif	defined __riscv
-#define MEMORY_BARRIER()	fence()
+#ifdef __powerpc__
+#define	MEMORY_READ_BARRIER()	__asm__ volatile("eieio; sync" : : : "memory")
+#define	MEMORY_WRITE_BARRIER()	MEMORY_READ_BARRIER()
 #else
-#error	"Not supported platform"
+#define	MEMORY_READ_BARRIER()	rmb()
+#define	MEMORY_WRITE_BARRIER()	wmb()
 #endif
 
 /*
@@ -892,13 +880,13 @@ struct sym_nvram {
  */
 #define OUTL_DSP(v)				\
 	do {					\
-		MEMORY_BARRIER();		\
+		MEMORY_WRITE_BARRIER();		\
 		OUTL (nc_dsp, (v));		\
 	} while (0)
 
 #define OUTONB_STD()				\
 	do {					\
-		MEMORY_BARRIER();		\
+		MEMORY_WRITE_BARRIER();		\
 		OUTONB (nc_dcntl, (STD|NOCOM));	\
 	} while (0)
 
@@ -2908,7 +2896,7 @@ static void sym_put_start_queue(hcb_p np, ccb_p cp)
 	if (qidx >= MAX_QUEUE*2) qidx = 0;
 
 	np->squeue [qidx]	   = cpu_to_scr(np->idletask_ba);
-	MEMORY_BARRIER();
+	MEMORY_WRITE_BARRIER();
 	np->squeue [np->squeueput] = cpu_to_scr(cp->ccb_ba);
 
 	np->squeueput = qidx;
@@ -2920,7 +2908,7 @@ static void sym_put_start_queue(hcb_p np, ccb_p cp)
 	 *  Script processor may be waiting for reselect.
 	 *  Wake it up.
 	 */
-	MEMORY_BARRIER();
+	MEMORY_WRITE_BARRIER();
 	OUTB (nc_istat, SIGP|np->istat_sem);
 }
 
@@ -3061,7 +3049,7 @@ static int sym_wakeup_done (hcb_p np)
 
 		cp = sym_ccb_from_dsa(np, dsa);
 		if (cp) {
-			MEMORY_BARRIER();
+			MEMORY_READ_BARRIER();
 			sym_complete_ok (np, cp);
 			++n;
 		} else
@@ -3859,7 +3847,7 @@ static void sym_intr1 (hcb_p np)
 	 *  On paper, a memory barrier may be needed here.
 	 *  And since we are paranoid ... :)
 	 */
-	MEMORY_BARRIER();
+	MEMORY_READ_BARRIER();
 
 	/*
 	 *  First, interrupts we want to service cleanly.
