@@ -2698,8 +2698,9 @@ int s_client_main(int argc, char **argv)
                 goto end;
             }
             atyp = ASN1_generate_nconf(genstr, cnf);
-            if (atyp == NULL) {
+            if (atyp == NULL || atyp->type != V_ASN1_SEQUENCE) {
                 NCONF_free(cnf);
+                ASN1_TYPE_free(atyp);
                 BIO_printf(bio_err, "ASN1_generate_nconf failed\n");
                 goto end;
             }
