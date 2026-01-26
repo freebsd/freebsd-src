@@ -182,6 +182,7 @@ FBSD_1.0 {
 	rename;
 	revoke;
 	rfork;
+	rfork_thread;
 	rmdir;
 	rtprio;
 	rtprio_thread;
@@ -391,6 +392,7 @@ FBSD_1.8 {
 
 FBSD_1.9 {
 	pdrfork;
+	pdrfork_thread;
 };
 
 FBSDprivate_1.0 {
