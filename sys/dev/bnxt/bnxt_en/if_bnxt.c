@@ -3280,11 +3280,10 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
-	if (link_info->link_up)
-		ifmr->ifm_status |= IFM_ACTIVE;
-	else
-		ifmr->ifm_status &= ~IFM_ACTIVE;
+	if (!link_info->link_up)
+		return;
 
+	ifmr->ifm_status |= IFM_ACTIVE;
 	if (link_info->duplex == HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_CFG_FULL)
 		ifmr->ifm_active |= IFM_FDX;
 	else
