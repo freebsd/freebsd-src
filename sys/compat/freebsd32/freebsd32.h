@@ -29,9 +29,9 @@
 #ifndef _COMPAT_FREEBSD32_FREEBSD32_H_
 #define _COMPAT_FREEBSD32_FREEBSD32_H_
 
-#include <sys/cdefs.h>
 #include <sys/abi_compat.h>
 #include <sys/devicestat.h>
+#include <sys/event.h>
 #include <sys/mount.h>
 #include <sys/procfs.h>
 #include <sys/socket.h>
