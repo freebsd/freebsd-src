@@ -342,7 +342,7 @@ int CRYPTO_ocb128_encrypt(OCB128_CONTEXT *ctx,
 
     if (num_blocks && all_num_blocks == (size_t)all_num_blocks
         && ctx->stream != NULL) {
-        size_t max_idx = 0, top = (size_t)all_num_blocks;
+        size_t max_idx = 0, top = (size_t)all_num_blocks, processed_bytes = 0;
 
         /*
          * See how many L_{i} entries we need to process data at hand
@@ -356,6 +356,9 @@ int CRYPTO_ocb128_encrypt(OCB128_CONTEXT *ctx,
         ctx->stream(in, out, num_blocks, ctx->keyenc,
                     (size_t)ctx->sess.blocks_processed + 1, ctx->sess.offset.c,
                     (const unsigned char (*)[16])ctx->l, ctx->sess.checksum.c);
+        processed_bytes = num_blocks * 16;
+        in += processed_bytes;
+        out += processed_bytes;
     } else {
         /* Loop through all full blocks to be encrypted */
         for (i = ctx->sess.blocks_processed + 1; i <= all_num_blocks; i++) {
@@ -434,7 +437,7 @@ int CRYPTO_ocb128_decrypt(OCB128_CONTEXT *ctx,
 
     if (num_blocks && all_num_blocks == (size_t)all_num_blocks
         && ctx->stream != NULL) {
-        size_t max_idx = 0, top = (size_t)all_num_blocks;
+        size_t max_idx = 0, top = (size_t)all_num_blocks, processed_bytes = 0;
 
         /*
          * See how many L_{i} entries we need to process data at hand
@@ -448,6 +451,9 @@ int CRYPTO_ocb128_decrypt(OCB128_CONTEXT *ctx,
         ctx->stream(in, out, num_blocks, ctx->keydec,
                     (size_t)ctx->sess.blocks_processed + 1, ctx->sess.offset.c,
                     (const unsigned char (*)[16])ctx->l, ctx->sess.checksum.c);
+        processed_bytes = num_blocks * 16;
+        in += processed_bytes;
+        out += processed_bytes;
     } else {
         OCB_BLOCK tmp;
 
