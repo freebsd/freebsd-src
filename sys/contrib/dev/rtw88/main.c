@@ -2591,3 +2591,8 @@ void rtw_set_ampdu_factor(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ac wireless core module");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_VERSION(rtw88, 1);
+MODULE_DEPEND(rtw88, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(rtw88, linuxkpi_wlan, 1, 1, 1);
+#endif

@@ -1381,3 +1381,7 @@ void rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
 EXPORT_SYMBOL(rtw_dbg);
 
 #endif /* CONFIG_RTW88_DEBUG */
+
+#ifdef CONFIG_RTW88_DEBUGFS
+MODULE_DEPEND(rtw88, lindebugfs, 1, 1, 1);
+#endif
