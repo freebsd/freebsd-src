@@ -60,30 +60,16 @@
 
 . $(atf_get_srcdir)/utils.subr
 
-divert_init()
-{
-	if ! kldstat -q -m ipdivert; then
-		atf_skip "This test requires ipdivert"
-	fi
-}
-
-dummynet_init()
-{
-	if ! kldstat -q -m dummynet; then
-		atf_skip "This test requires dummynet"
-	fi
-}
-
 atf_test_case "in_div" "cleanup"
 in_div_head()
 {
 	atf_set descr 'Test inbound > diverted | divapp terminated'
 	atf_set require.user root
+	atf_set require.kmods ipdivert
 }
 in_div_body()
 {
 	pft_init
-	divert_init
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
@@ -118,11 +104,11 @@ in_div_in_head()
 {
 	atf_set descr 'Test inbound > diverted > inbound | host terminated'
 	atf_set require.user root
+	atf_set require.kmods ipdivert
 }
 in_div_in_body()
 {
 	pft_init
-	divert_init
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
@@ -157,11 +143,11 @@ out_div_head()
 {
 	atf_set descr 'Test outbound > diverted | divapp terminated'
 	atf_set require.user root
+	atf_set require.kmods ipdivert
 }
 out_div_body()
 {
 	pft_init
-	divert_init
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
@@ -197,11 +183,11 @@ out_div_out_head()
 {
 	atf_set descr 'Test outbound > diverted > outbound | network terminated'
 	atf_set require.user root
+	atf_set require.kmods ipdivert
 }
 out_div_out_body()
 {
 	pft_init
-	divert_init
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
@@ -237,11 +223,11 @@ in_div_in_fwd_out_div_out_head()
 {
 	atf_set descr 'Test inbound > diverted > inbound > forwarded > outbound > diverted > outbound | network terminated'
 	atf_set require.user root
+	atf_set require.kmods ipdivert
 }
 in_div_in_fwd_out_div_out_body()
 {
 	pft_init
-	divert_init
 
 	# host <a--epair0--b> router <a--epair1--b> site
 	epair0=$(vnet_mkepair)
@@ -293,12 +279,11 @@ in_dn_in_div_in_out_div_out_dn_out_head()
 {
 	atf_set descr 'Test inbound > delayed+diverted > outbound > diverted+delayed > outbound | network terminated'
 	atf_set require.user root
+	atf_set require.kmods dummynet ipdivert
 }
 in_dn_in_div_in_out_div_out_dn_out_body()
 {
 	pft_init
-	divert_init
-	dummynet_init
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail alcatraz ${epair}b
@@ -377,12 +362,12 @@ pr260867_head()
 {
 	atf_set descr 'Test for the loop reported in PR260867'
 	atf_set require.user root
+	atf_set require.kmods ipdivert
 }
 
 pr260867_body()
 {
 	pft_init
-	divert_init
 
 	epair=$(vnet_mkepair)
 
@@ -417,12 +402,12 @@ pr260867_icmp_head()
 {
 	atf_set descr 'Variant of the PR260867 test'
 	atf_set require.user root
+	atf_set require.kmods ipdivert
 }
 
 pr260867_icmp_body()
 {
 	pft_init
-	divert_init
 
 	epair=$(vnet_mkepair)
 
