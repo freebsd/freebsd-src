@@ -236,7 +236,6 @@ struct posix_spawn_args {
 #define	PSPAWN_STACK_ALIGN(sz) \
 	(((sz) + PSPAWN_STACK_ALIGNBYTES) & ~PSPAWN_STACK_ALIGNBYTES)
 
-#if defined(__i386__) || defined(__amd64__)
 /*
  * Below we'll assume that _RFORK_THREAD_STACK_SIZE is appropriately aligned for
  * the posix_spawn() case where we do not end up calling execvpe and won't ever
@@ -245,7 +244,6 @@ struct posix_spawn_args {
 #define	_RFORK_THREAD_STACK_SIZE	4096
 _Static_assert((_RFORK_THREAD_STACK_SIZE % PSPAWN_STACK_ALIGNMENT) == 0,
     "Inappropriate stack size alignment");
-#endif
 
 static int
 _posix_spawn_thr(void *data)
@@ -287,12 +285,14 @@ do_posix_spawn(pid_t *pid, const char *path,
 	pid_t p;
 	int pfd;
 	bool do_pfd;
-#ifdef _RFORK_THREAD_STACK_SIZE
 	char *stack;
-	size_t cnt, stacksz;
+	size_t stacksz;
 
+#if defined(__i386__) || defined(__amd64__)
 	stacksz = _RFORK_THREAD_STACK_SIZE;
 	if (use_env_path) {
+		size_t cnt;
+
 		/*
 		 * We need to make sure we have enough room on the stack for the
 		 * potential alloca() in execvPe if it gets kicked back an
@@ -319,6 +319,9 @@ do_posix_spawn(pid_t *pid, const char *path,
 		return (ENOMEM);
 	stacksz = (((uintptr_t)stack + stacksz) & ~PSPAWN_STACK_ALIGNBYTES) -
 	    (uintptr_t)stack;
+#else
+	stack = NULL;
+	stacksz = 0;
 #endif
 	psa.path = path;
 	psa.fa = fa;
@@ -341,13 +344,16 @@ do_posix_spawn(pid_t *pid, const char *path,
 	 * a special property of the libthr rtld locks ensure that
 	 * rtld is operational in the child.  In particular, libthr
 	 * rtld locks do not store owner' tid into the lock word.
-	 */
-#ifdef _RFORK_THREAD_STACK_SIZE
-	/*
-	 * x86 stores the return address on the stack, so rfork(2) cannot work
-	 * as-is because the child would clobber the return address of the
-	 * parent.  Because of this, we must use rfork_thread instead while
-	 * almost every other arch stores the return address in a register.
+	 *
+	 * x86 stores the return address on the stack, so rfork(2)
+	 * cannot work as-is because the child would clobber the
+	 * return address of the parent.  Because of this, we must use
+	 * rfork_thread instead.
+	 *
+	 * Every other architecture stores the return address in a
+	 * register, the trivial rfork_thread() wrapper is provided
+	 * for them.  The only minor drawback is that the stack is
+	 * temporarily allocated.
 	 */
 	if (do_pfd) {
 		p = pdrfork_thread(&pfd, PD_CLOEXEC | (*sa)->sa_pdflags,
@@ -357,16 +363,7 @@ do_posix_spawn(pid_t *pid, const char *path,
 		    &psa);
 	}
 	free(stack);
-#else
-	if (do_pfd) {
-		p = pdrfork(&pfd, PD_CLOEXEC | (*sa)->sa_pdflags, RFSPAWN);
-	} else {
-		p = rfork(RFSPAWN);
-	}
-	if (p == 0)
-		/* _posix_spawn_thr does not return */
-		_posix_spawn_thr(&psa);
-#endif
+
 	/*
 	 * The above block should leave us in a state where we've either
 	 * succeeded and we're ready to process the results, or we need to
