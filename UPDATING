@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260127:
+	15.0-RELEASE-p2 SA-26:01.openssl
+			EN-26:01.devinfo
+			EN-26:02.arm64
+			EN-26:03.vm
+
+	Fix multiple vulnerabilities in OpenSSL. [SA-26:01.openssl]
+
+	devinfo output formatting regression. [EN-26:01.devinfo]
+
+	arm64 SVE signal context misalignment. [EN-26:02.arm64]
+
+	The page fault handler fails to zero memory. [EN-26:03.vm]
+
 20251216:
 	15.0-RELEASE-p1	SA-25:12.rtsold
 			EN-25:19.zfs
