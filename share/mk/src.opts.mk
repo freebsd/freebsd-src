@@ -383,6 +383,10 @@ BROKEN_OPTIONS+= OFED
 BROKEN_OPTIONS+= TESTS
 .endif
 
+.if ${__T} != "amd64"
+BROKEN_OPTIONS+=BHYVE_SNAPSHOT
+.endif
+
 .-include <site.src.opts.mk>
 
 .include <bsd.mkopt.mk>
