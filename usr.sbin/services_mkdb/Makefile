@@ -15,7 +15,7 @@ afterinstallconfig:
 	${SERVICES_MKDB_CMD} ${CAP_MKDB_ENDIAN} -q -o ${DESTDIR}/var/db/services.db \
 		${DESTDIR}/etc/services
 .if defined(NO_ROOT) && defined(METALOG)
-	echo ".${DISTBASE}/var/db/services.db type=file mode=0644 uname=root gname=wheel" | \
+	echo ".${DISTBASE}/var/db/services.db type=file uname=root gname=wheel mode=0644" | \
 		cat -l >> ${METALOG}
 .endif
 .endif

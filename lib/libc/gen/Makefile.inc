@@ -585,8 +585,8 @@ install-passwd: .PHONY
 	${PWD_MKDB_CMD} -i -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 .if defined(NO_ROOT) && defined(METALOG)
 	( \
-		echo ".${DISTBASE}/etc/pwd.db type=file mode=0644 uname=root gname=wheel"; \
-		echo ".${DISTBASE}/etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
-		echo ".${DISTBASE}/etc/passwd type=file mode=0644 uname=root gname=wheel"; \
+		echo ".${DISTBASE}/etc/pwd.db type=file uname=root gname=wheel mode=0644"; \
+		echo ".${DISTBASE}/etc/spwd.db type=file uname=root gname=wheel mode=0600"; \
+		echo ".${DISTBASE}/etc/passwd type=file uname=root gname=wheel mode=0644"; \
 	) | cat -l >> ${METALOG}
 .endif
