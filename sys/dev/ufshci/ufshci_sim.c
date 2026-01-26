@@ -494,7 +494,7 @@ ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
 		return ENOMEM;
 	}
 
-	scsi_start_stop(&ccb->csio,
+	scsi_start_stop_pc(&ccb->csio,
 	    /*retries*/ 4,
 	    /*cbfcnp*/ NULL,
 	    /*tag_action*/ MSG_SIMPLE_Q_TAG,
