@@ -350,8 +350,8 @@ vmmpmap_remove(vm_offset_t va, vm_size_t size, bool invalidate)
 	    ("%s: Mapping is not page-sized", __func__));
 
 	if (invalidate) {
-		l3_list = malloc((size / PAGE_SIZE) * sizeof(l3_list[0]),
-		    M_TEMP, M_WAITOK | M_ZERO);
+		l3_list = malloc(atop(size) * sizeof(l3_list[0]), M_TEMP,
+		    M_WAITOK | M_ZERO);
 	}
 
 	sva = va;
@@ -359,32 +359,17 @@ vmmpmap_remove(vm_offset_t va, vm_size_t size, bool invalidate)
 	mtx_lock(&vmmpmap_mtx);
 	for (i = 0; va < eva; va = va_next) {
 		l0e = atomic_load_64(&l0[pmap_l0_index(va)]);
-		if (l0e == 0) {
-			va_next = (va + L0_SIZE) & ~L0_OFFSET;
-			if (va_next < va)
-				va_next = eva;
-			continue;
-		}
+		MPASS(l0e != 0);
 		MPASS((l0e & ATTR_DESCR_MASK) == L0_TABLE);
 
 		l1 = (pd_entry_t *)PHYS_TO_DMAP(l0e & ~ATTR_MASK);
 		l1e = atomic_load_64(&l1[pmap_l1_index(va)]);
-		if (l1e == 0) {
-			va_next = (va + L1_SIZE) & ~L1_OFFSET;
-			if (va_next < va)
-				va_next = eva;
-			continue;
-		}
+		MPASS(l1e != 0);
 		MPASS((l1e & ATTR_DESCR_MASK) == L1_TABLE);
 
 		l2 = (pd_entry_t *)PHYS_TO_DMAP(l1e & ~ATTR_MASK);
 		l2e = atomic_load_64(&l2[pmap_l2_index(va)]);
-		if (l2e == 0) {
-			va_next = (va + L2_SIZE) & ~L2_OFFSET;
-			if (va_next < va)
-				va_next = eva;
-			continue;
-		}
+		MPASS(l2e != 0);
 		MPASS((l2e & ATTR_DESCR_MASK) == L2_TABLE);
 
 		l3 = (pd_entry_t *)PHYS_TO_DMAP(l2e & ~ATTR_MASK);
@@ -419,7 +404,7 @@ vmmpmap_remove(vm_offset_t va, vm_size_t size, bool invalidate)
 		/* Invalidate the memory from the D-cache */
 		vmm_call_hyp(HYP_DC_CIVAC, sva, size);
 
-		for (i = 0; i < (size / PAGE_SIZE); i++) {
+		for (i = 0; i < atop(size); i++) {
 			atomic_store_64(l3_list[i], 0);
 		}
 
