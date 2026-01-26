@@ -115,6 +115,7 @@
 #include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
 
@@ -124,6 +125,7 @@
 #include "usbdevs.h"
 
 #include <dev/usb/quirk/usb_quirk.h>
+#include <dev/usb/usb_msctest.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -705,6 +707,59 @@ static const uint8_t fake_inq_data[SHORT_INQUIRY_LENGTH] = {
 #define	UFI_COMMAND_LENGTH	12	/* UFI commands are always 12 bytes */
 #define	ATAPI_COMMAND_LENGTH	12	/* ATAPI commands are always 12 bytes */
 
+static void
+umass_autoinst_eject_quirks(void *arg __unused, struct usb_device *udev,
+    struct usb_attach_arg *uaa)
+{
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
+
+	if (uaa->dev_state != UAA_DEV_READY)
+		return;
+
+	iface = usbd_get_iface(udev, 0);
+	if (iface == NULL)
+		return;
+
+	id = iface->idesc;
+	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
+		return;
+
+	if (usb_test_quirk(uaa, UQ_MSC_EJECT_SCSIEJECT)) {
+		int error;
+
+		error = usb_msc_eject(uaa->device, 0, MSC_EJECT_STOPUNIT);
+		if (error == 0)
+			uaa->dev_state = UAA_DEV_EJECTING;
+		else
+			printf("UMASS failed to eject by SCSI eject STOPUNIT "
+			    "command based on quirk: %d\n", error);
+	}
+}
+
+static eventhandler_tag umass_drv_evh_tag;
+
+static int
+umass_driver_evh(struct module *mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		umass_drv_evh_tag = EVENTHANDLER_REGISTER(usb_dev_configured,
+		    umass_autoinst_eject_quirks, NULL, EVENTHANDLER_PRI_ANY);
+		break;
+	case MOD_UNLOAD:
+		if (umass_drv_evh_tag != NULL)
+			EVENTHANDLER_DEREGISTER(usb_dev_configured,
+			    umass_drv_evh_tag);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
+}
+
 static device_method_t umass_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, umass_probe),
@@ -725,7 +780,7 @@ static const STRUCT_USB_HOST_ID __used umass_devs[] = {
 	{USB_IFACE_CLASS(UICLASS_MASS),},
 };
 
-DRIVER_MODULE(umass, uhub, umass_driver, NULL, NULL);
+DRIVER_MODULE(umass, uhub, umass_driver, umass_driver_evh, NULL);
 MODULE_DEPEND(umass, usb, 1, 1, 1);
 MODULE_DEPEND(umass, cam, 1, 1, 1);
 MODULE_VERSION(umass, 1);
