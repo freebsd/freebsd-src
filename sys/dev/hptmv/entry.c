@@ -95,8 +95,7 @@ static driver_t hpt_pci_driver = {
 	sizeof(IAL_ADAPTER_T)
 };
 
-#define __DRIVER_MODULE(p1, p2, p3, p4, p5) DRIVER_MODULE(p1, p2, p3, p4, p5)
-__DRIVER_MODULE(PROC_DIR_NAME, pci, hpt_pci_driver, 0, 0);
+DRIVER_MODULE(PROC_DIR_NAME, pci, hpt_pci_driver, NULL, NULL);
 MODULE_DEPEND(PROC_DIR_NAME, cam, 1, 1, 1);
 
 #define ccb_ccb_ptr spriv_ptr0
