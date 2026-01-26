@@ -1,0 +1,94 @@
+.\" Copyright 2026 The FreeBSD Foundation
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.Dd January 26, 2026
+.Dt POSIX_SPAWNATTR_GETPROCDESCP_NP 3
+.Os
+.Sh NAME
+.Nm posix_spawnattr_getprocdesp_np ,
+.Nm posix_spawnattr_setprocdescp_np
+.Nd "get and set the spawn-procdescp attribute of a spawn attributes object"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fo posix_spawnattr_getprocdescp_np
+.Fa "const posix_spawnattr_t *restrict attr"
+.Fa "int **restrict fdpp"
+.Fa "int *restrict pdrflagsp"
+.Fc
+.Ft int
+.Fo posix_spawnattr_setprocdescp_np
+.Fa "posix_spawnattr_t *attr"
+.Fa "int *restrict fdp"
+.Fa "int pdrflags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn posix_spawnattr_getprocdescp_np
+function obtains the value of the spawn-procdescp attribute from the
+attributes object referenced by
+.Fa attr .
+.Pp
+The
+.Fn posix_spawnattr_procdescp_np
+function sets the spawn-procdescp attribute in an initialized attributes
+object referenced by
+.Fa attr .
+.Pp
+The spawn-procdescp attribute provides the location where the child process's
+file descriptor will be stored after a successful spawn.
+Setting the attribute to a non-NULL value implicitly request the creation of
+the file descriptor that references the child process.
+It wiil be created by the
+.Xr pdrfork 2
+system call. which will be used instead of
+.Xr fork/vfork/rfork 2
+when the attribute is set to
+.Va NULL.
+.Pp
+If the attribute is set to a value other then
+.Dv NULL ,
+it must be a valid pointer to a variable of
+.Vt int
+type, where the resulting descriptor will be stored.
+The
+.Fa pdrflags
+argument specifies additional flags that are accepted by the
+.Xr pdfork 2
+system call.
+See its description for the list of the valid flags.
+Note that the
+.Va PD_CLOEXEC
+flag is always set, preventing leakage of the process descriptor
+into the newly created child.
+.Pp
+The default value for the spawn-procdescp attribute is
+.Dv NULL ,
+which means that no process descriptor will be created.
+.Sh RETURN VALUES
+The
+.Fn posix_spawnattr_getprocdescp_np
+and
+.Fn posix_spawnattr_setprocdescp_np
+functions return zero.
+.Sh SEE ALSO
+.Xr posix_spawn 3 ,
+.Xr posix_spawnattr_destroy 3 ,
+.Xr posix_spawnattr_init 3 ,
+.Xr posix_spawnp 3
+.Sh STANDARDS
+The
+.Fn posix_spawnattr_getprocdescp_np
+and
+.Fn posix_spawnattr_setprocdescp_np
+are
+.Fx
+extensions that first appeared in
+.Fx 16.0 .
