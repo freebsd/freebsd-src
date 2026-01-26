@@ -2498,13 +2498,8 @@ dyn_send_keepalive_ipv4(struct ip_fw_chain *chain)
 	uint32_t bucket;
 
 	mbufq_init(&q, INT_MAX);
-	IPFW_UH_RLOCK(chain);
-	/*
-	 * It is safe to not use hazard pointer and just do lockless
-	 * access to the lists, because states entries can not be deleted
-	 * while we hold IPFW_UH_RLOCK.
-	 */
 	for (bucket = 0; bucket < V_curr_dyn_buckets; bucket++) {
+		DYN_BUCKET_LOCK(bucket);
 		CK_SLIST_FOREACH(s, &V_dyn_ipv4[bucket], entry) {
 			/*
 			 * Only established TCP connections that will
@@ -2517,8 +2512,8 @@ dyn_send_keepalive_ipv4(struct ip_fw_chain *chain)
 				continue;
 			dyn_enqueue_keepalive_ipv4(&q, s);
 		}
+		DYN_BUCKET_UNLOCK(bucket);
 	}
-	IPFW_UH_RUNLOCK(chain);
 	while ((m = mbufq_dequeue(&q)) != NULL)
 		ip_output(m, NULL, NULL, 0, NULL, NULL);
 }
@@ -2605,13 +2600,8 @@ dyn_send_keepalive_ipv6(struct ip_fw_chain *chain)
 	uint32_t bucket;
 
 	mbufq_init(&q, INT_MAX);
-	IPFW_UH_RLOCK(chain);
-	/*
-	 * It is safe to not use hazard pointer and just do lockless
-	 * access to the lists, because states entries can not be deleted
-	 * while we hold IPFW_UH_RLOCK.
-	 */
 	for (bucket = 0; bucket < V_curr_dyn_buckets; bucket++) {
+		DYN_BUCKET_LOCK(bucket);
 		CK_SLIST_FOREACH(s, &V_dyn_ipv6[bucket], entry) {
 			/*
 			 * Only established TCP connections that will
@@ -2624,8 +2614,8 @@ dyn_send_keepalive_ipv6(struct ip_fw_chain *chain)
 				continue;
 			dyn_enqueue_keepalive_ipv6(&q, s);
 		}
+		DYN_BUCKET_UNLOCK(bucket);
 	}
-	IPFW_UH_RUNLOCK(chain);
 	while ((m = mbufq_dequeue(&q)) != NULL)
 		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 }
