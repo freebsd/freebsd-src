@@ -230,7 +230,7 @@ void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
 
 int	init_pci(struct vmctx *ctx);
 void	pci_callback(void);
-uint32_t pci_config_read_reg(const struct pcisel *host_sel, nvlist_t *nvl,
+uint32_t pci_config_read_reg(const struct pci_conf *host_conf, nvlist_t *nvl,
 	    uint32_t reg, uint8_t size, uint32_t def);
 int	pci_emul_alloc_bar(struct pci_devinst *pdi, int idx,
 	    enum pcibar_type type, uint64_t size);
