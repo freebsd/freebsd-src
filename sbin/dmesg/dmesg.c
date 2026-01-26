@@ -68,9 +68,8 @@ main(int argc, char *argv[])
 	struct timeval boottime, reltime, abstime, roundtime;
 	char timebuf[1024];
 	char *bp, *ep, *memf, *nextp, *nlistf, *p, *q, *visbp;
-	char *timefmt = "%d %b %T";
+	const char *timefmt = "%d %b %T";
 	kvm_t *kd;
-	time_t time;
 	size_t buflen, bufpos;
 	long pri;
 	int ch, clear;
