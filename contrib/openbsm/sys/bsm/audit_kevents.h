@@ -655,6 +655,7 @@
 #define	AUE_SHMRENAME		43263	/* FreeBSD-specific. */
 #define	AUE_REALPATHAT		43264	/* FreeBSD-specific. */
 #define	AUE_CLOSERANGE		43265	/* FreeBSD-specific. */
+#define	AUE_PDRFORK		43273	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
