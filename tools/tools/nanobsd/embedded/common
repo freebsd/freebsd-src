@@ -622,10 +622,17 @@ calculate_partitioning() {
 create_code_slice() {
 }
 
+_create_code_slice() {
+}
+
 # Each major disk scheme has its own routine. Generally
 # this is for mbr, gpt, etc. These are generally are widely
 # shared, but some specialized formats won't be shared.
 create_diskimage() {
+	eval create_diskimage_${NANO_DISK_SCHEME}
+}
+
+_create_diskimage() {
 	eval create_diskimage_${NANO_DISK_SCHEME}
 }
 
