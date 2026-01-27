@@ -95,12 +95,12 @@ enum ifevent { ARRIVAL, DEPARTURE, RENAME };
 static void
 ipfw_kifhandler(void *arg, struct ifnet *ifp, const char *old_name)
 {
-	enum ifevent *what = arg;
+	enum ifevent what = (uintptr_t)arg;
 	struct ip_fw_chain *ch;
 	struct ipfw_iface *iif;
 	struct namedobj_instance *ii;
 
-	MPASS(*what != RENAME || old_name != NULL);
+	MPASS(what != RENAME || old_name != NULL);
 
 	if (V_ipfw_vnet_ready == 0)
 		return;
@@ -114,9 +114,9 @@ ipfw_kifhandler(void *arg, struct ifnet *ifp, const char *old_name)
 		return;
 	}
 	iif = (struct ipfw_iface*)ipfw_objhash_lookup_name(ii, 0,
-	    *what == RENAME ? old_name : if_name(ifp));
+	    what == RENAME ? old_name : if_name(ifp));
 	if (iif != NULL) {
-		switch (*what) {
+		switch (what) {
 		case ARRIVAL:
 			handle_ifattach(ch, iif, ifp->if_index);
 			break;
