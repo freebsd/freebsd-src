@@ -606,10 +606,8 @@ cxgbe_netmap_split_rss(struct adapter *sc, struct vi_info *vi,
 		    (nm_state == NM_OFF && nm_kring_pending_on(kring))) {
 			MPASS(nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID);
 			nactive[j]++;
-			if (dq[j] == -1) {
+			if (dq[j] == -1)
 				dq[j] = nm_rxq->iq_abs_id;
-				break;
-			}
 		}
 	}
 
