@@ -124,7 +124,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		cpu_update_pcb(td1);
 
 	pcb = (struct pcb *)((td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fUL);
+	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x3fUL);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
