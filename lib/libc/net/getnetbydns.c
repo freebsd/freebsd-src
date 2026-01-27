@@ -304,6 +304,9 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 	for (nn = 4, net2 = net; net2; net2 >>= 8)
 		netbr[--nn] = net2 & 0xff;
 	switch (nn) {
+	case 4: 	/* net was all-zero i.e. 0.0.0.0 */
+		sprintf(qbuf, "0.0.0.0.in-addr.arpa");
+		break;
 	case 3: 	/* Class A */
 		sprintf(qbuf, "0.0.0.%u.in-addr.arpa", netbr[3]);
 		break;
