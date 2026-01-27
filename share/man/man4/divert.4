@@ -1,5 +1,5 @@
 .\"
-.Dd August 30, 2022
+.Dd January 23, 2026
 .Dt DIVERT 4
 .Os
 .Sh NAME
@@ -15,7 +15,6 @@
 To enable support for divert sockets, place the following lines in the
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "options IPFIREWALL"
 .Cd "options IPDIVERT"
 .Ed
 .Pp
@@ -25,14 +24,15 @@ as a module at boot time, add the following lines into the
 .Xr loader.conf 5
 file:
 .Bd -literal -offset indent
-ipfw_load="YES"
 ipdivert_load="YES"
 .Ed
 .Sh DESCRIPTION
 Divert sockets allow to intercept and re-inject packets flowing through
 the
 .Xr ipfw 4
-firewall.
+and
+.Xr pf 4
+firewalls.
 A divert socket can be bound to a specific
 .Nm
 port via the
@@ -43,13 +43,15 @@ desired value.
 Note that the
 .Nm
 port has nothing to do with TCP/UDP ports.
-It is just a cookie number, that allows to differentiate between different
-divert points in the
+It is just a cookie whose value depends on the firewall in use.
+For
 .Xr ipfw 4
-ruleset.
+this is the number of the rule which diverted the packet; for
+.Xr pf 4
+this is a value which indicates the original direction through the
+firewall of the diverted packet.
 A divert socket bound to a divert port will receive all packets diverted
-to that port by
-.Xr ipfw 4 .
+to that port by the firewall.
 Packets may also be written to a divert port, in which case they re-enter
 firewall processing at the next rule.
 .Pp
@@ -67,8 +69,8 @@ Diverted packets may be read unaltered via
 or
 .Xr recvfrom 2 .
 In the latter case, the address returned will have its port set to
-some tag supplied by the packet diverter, (usually the ipfw rule number)
-and the IP address set to the (first) address of
+some tag supplied by the packet diverter, (usually the cookie described
+above) and the IP address set to the (first) address of
 the interface on which the packet was received (if the packet
 was incoming) or
 .Dv INADDR_ANY
@@ -179,6 +181,7 @@ that was not associated with any interface.
 .Xr sendto 2 ,
 .Xr socket 2 ,
 .Xr ipfw 4 ,
+.Xr pf 4 ,
 .Xr ipfw 8
 .Sh AUTHORS
 .An Archie Cobbs Aq Mt archie@FreeBSD.org ,
@@ -186,8 +189,7 @@ Whistle Communications Corp.
 .Sh BUGS
 This is an attempt to provide a clean way for user mode processes
 to implement various IP tricks like address translation, but it
-could be cleaner, and it is too dependent on
-.Xr ipfw 8 .
+could be cleaner.
 .Pp
 It is questionable whether incoming fragments should be reassembled
 before being diverted.
