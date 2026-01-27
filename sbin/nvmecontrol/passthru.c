@@ -31,6 +31,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -243,7 +244,7 @@ passthru(const struct cmd *f, int argc, char *argv[])
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "passthrough request failed");
 	if (!opt.binary)
-		printf("DWORD0 status= %#x\n", pt.cpl.cdw0);
+		xo_emit("{L:DWORD0 status=}{P: }{:command-dword-0/%#x}\n", pt.cpl.cdw0);
 	if (opt.read) {
 		if (opt.binary)
 			write(STDOUT_FILENO, data, opt.data_len);

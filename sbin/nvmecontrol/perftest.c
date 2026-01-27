@@ -33,6 +33,7 @@
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -119,14 +120,14 @@ print_perftest(struct nvme_io_test *io_test, bool perthread)
 	iops = io_completed/io_test->time;
 	mbps = iops * io_test->size / (1024*1024);
 
-	printf("Threads: %2d Size: %6d %5s Time: %3d IO/s: %7ju MB/s: %4ju\n",
+	xo_emit("{Lc:Threads}{P: }{:threads-total/%2d}{P: }{Lc:Size}{P: }{:io-test-size/%6d}{P: }{:io-test-opc/%5s}{P: }{Lc:Time}{P: }{:io-test-time/%3d}{P: }{Lc:IO/s}{P: }{:io-per-second/%7ju}{P: }{Lc:MB/s}{P: }{:mb-per-second/%4ju}\n",
 	    io_test->num_threads, io_test->size,
 	    io_test->opc == NVME_OPC_READ ? "READ" : "WRITE",
 	    io_test->time, (uintmax_t)iops, (uintmax_t)mbps);
 
 	if (perthread)
 		for (i = 0; i < io_test->num_threads; i++)
-			printf("\t%3d: %8ju IO/s\n", i,
+			xo_emit("\t{:thread/%3d}{Lc:}{P: }{:io-per-second/%8ju}{P: }IO/s\n", i,
 			    (uintmax_t)io_test->io_completed[i]/io_test->time);
 }
 

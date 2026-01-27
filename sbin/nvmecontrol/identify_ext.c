@@ -32,6 +32,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,20 +79,28 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	cqes_min = NVMEV(NVME_CTRLR_DATA_CQES_MIN, cdata->cqes);
 	cqes_max = NVMEV(NVME_CTRLR_DATA_CQES_MAX, cdata->cqes);
 
-	printf("Controller Capabilities/Features\n");
-	printf("================================\n");
-	printf("Vendor ID:                   %04x\n", cdata->vid);
-	printf("Subsystem Vendor ID:         %04x\n", cdata->ssvid);
+	xo_emit("{T:Controller Capabilities/Features}\n");
+	xo_emit("{T:================================}\n");
+	xo_emit("{Lc:Vendor ID}{P:                   }"
+		"{:vendor-id/%04x}\n", cdata->vid);
+	xo_emit("{Lc:Subsystem Vendor ID}{P:         }"
+		"{:subsystem-vendor-id/%04x}\n", cdata->ssvid);
 	nvme_strvis(str, cdata->sn, sizeof(str), NVME_SERIAL_NUMBER_LENGTH);
-	printf("Serial Number:               %s\n", str);
+	xo_emit("{Lc:Serial Number}{P:               }{:serial-number/%s}\n", str);
 	nvme_strvis(str, cdata->mn, sizeof(str), NVME_MODEL_NUMBER_LENGTH);
-	printf("Model Number:                %s\n", str);
+	xo_emit("{Lc:Model Number}{P:                }{:model-number/%s}\n", str);
 	nvme_strvis(str, cdata->fr, sizeof(str), NVME_FIRMWARE_REVISION_LENGTH);
-	printf("Firmware Version:            %s\n", str);
-	printf("Recommended Arb Burst:       %d\n", cdata->rab);
-	printf("IEEE OUI Identifier:         %02x %02x %02x\n",
+	xo_emit("{Lc:Firmware Version}{P:            }"
+		"{:firmware-version/%s}\n", str);
+	xo_emit("{Lc:Recommended Arb Burst}{P:       }"
+		"{:arb-burst/%d}\n", cdata->rab);
+	xo_emit("{Lc:IEEE OUI Identifier}{P:         }{:ieee-out-id-2/%02x}{P: }"
+		"{:ieee-out-id-1/%02x}{P: }{:ieee-out-id-0/%02x}\n",
 		cdata->ieee[2], cdata->ieee[1], cdata->ieee[0]);
-	printf("Multi-Path I/O Capabilities: %s%s%s%s%s\n",
+	xo_emit("{Lc:Multi-Path I/O Capabilities}{P: }{:multi-path-io-support/%s}"
+		"{:multi-path-io-assymetric/%s}{:multi-path-io-sr-ivo/%s}"
+		"{:multi-path-io-multi-controllers/%s}"
+		"{:multi-path-io-multi-ports/%s}\n",
 	    (cdata->mic == 0) ? "Not Supported" : "",
 	    NVMEV(NVME_CTRLR_DATA_MIC_ANAR, cdata->mic) != 0 ?
 	    "Asymmetric, " : "",
@@ -102,99 +111,109 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	    NVMEV(NVME_CTRLR_DATA_MIC_MPORTS, cdata->mic) != 0 ?
 	    "Multiple ports" : "");
 	/* TODO: Use CAP.MPSMIN to determine true memory page size. */
-	printf("Max Data Transfer Size:      ");
+	xo_emit("{Lc:Max Data Transfer Size}{P:      }");
 	if (cdata->mdts == 0)
-		printf("Unlimited\n");
+		xo_emit("Unlimited\n");
 	else
-		printf("%ld bytes\n", PAGE_SIZE * (1L << cdata->mdts));
-	printf("Sanitize Crypto Erase:       %s\n",
+		xo_emit("{:max-data-transfer-size/%ld} bytes\n",
+			PAGE_SIZE * (1L << cdata->mdts));
+	xo_emit("{Lc:Sanitize Crypto Erase}{P:       }{:sanitize-crypto/%s}\n",
 	    NVMEV(NVME_CTRLR_DATA_SANICAP_CES, cdata->sanicap) != 0 ?
 	    "Supported" : "Not Supported");
-	printf("Sanitize Block Erase:        %s\n",
+	xo_emit("{Lc:Sanitize Block Erase}{P:        }{:sanitize-block/%s}\n",
 	    NVMEV(NVME_CTRLR_DATA_SANICAP_BES, cdata->sanicap) != 0 ?
 	    "Supported" : "Not Supported");
-	printf("Sanitize Overwrite:          %s\n",
+	xo_emit("{Lc:Sanitize Overwrite}{P:          }{:sanitize-overwrite/%s}\n",
 	    NVMEV(NVME_CTRLR_DATA_SANICAP_OWS, cdata->sanicap) != 0 ?
 	    "Supported" : "Not Supported");
-	printf("Sanitize NDI:                %s\n",
+	xo_emit("{Lc:Sanitize NDI}{P:                }{:sanitize-ndi/%s}\n",
 	    NVMEV(NVME_CTRLR_DATA_SANICAP_NDI, cdata->sanicap) != 0 ?
 	    "Supported" : "Not Supported");
-	printf("Sanitize NODMMAS:            ");
+	xo_emit("{Lc:Sanitize NODMMAS}{P:            }");
 	switch (NVMEV(NVME_CTRLR_DATA_SANICAP_NODMMAS, cdata->sanicap)) {
 	case NVME_CTRLR_DATA_SANICAP_NODMMAS_UNDEF:
-		printf("Undefined\n");
+		xo_emit("Undefined\n");
 		break;
 	case NVME_CTRLR_DATA_SANICAP_NODMMAS_NO:
-		printf("No\n");
+		xo_emit("No\n");
 		break;
 	case NVME_CTRLR_DATA_SANICAP_NODMMAS_YES:
-		printf("Yes\n");
+		xo_emit("Yes\n");
 		break;
 	default:
-		printf("Unknown\n");
+		xo_emit("Unknown\n");
 		break;
 	}
-	printf("Controller ID:               0x%04x\n", cdata->ctrlr_id);
-	printf("Version:                     %d.%d.%d\n",
+	xo_emit("{Lc:Controller ID}{P:               }0x{:controller-id/%04x}\n",
+		cdata->ctrlr_id);
+	xo_emit("{Lc:Version}{P:                     }{:controller-version-2/%d}."
+		"{:controller-version-2/%d}.{:controller-version-0/%d}\n",
 	    (cdata->ver >> 16) & 0xffff, (cdata->ver >> 8) & 0xff,
 	    cdata->ver & 0xff);
-	printf("Traffic Based Keep Alive:    %sSupported\n",
+	xo_emit("Traffic Based Keep Alive:    {:traffic-keep-alive/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_CTRATT_TBKAS, cdata->ctratt) ? "" : "Not ");
-	printf("Controller Type:             ");
+	xo_emit("Controller Type:             ");
 	switch (cdata->cntrltype) {
 	case 0:
-		printf("Not Reported\n");
+		xo_emit("Not Reported\n");
 		break;
 	case 1:
-		printf("I/O Controller\n");
+		xo_emit("I/O Controller\n");
 		break;
 	case 2:
-		printf("Discovery Controller\n");
+		xo_emit("Discovery Controller\n");
 		break;
 	case 3:
-		printf("Administrative Controller\n");
+		xo_emit("Administrative Controller\n");
 		break;
 	default:
-		printf("%d (Reserved)\n", cdata->cntrltype);
+		xo_emit("{:controller-type-reserved/%d} (Reserved)\n",
+			cdata->cntrltype);
 		break;
 	}
-	printf("Keep Alive Timer             ");
+	xo_emit("Keep Alive Timer{P:             }");
 	if (cdata->kas == 0)
-		printf("Not Supported\n");
+		xo_emit("Not Supported\n");
 	else
-		printf("%u ms granularity\n", cdata->kas * 100);
-	printf("Maximum Outstanding Commands ");
+		xo_emit("{:keep-alive-timer/%u} ms granularity\n", cdata->kas * 100);
+	xo_emit("Maximum Outstanding Commands ");
 	if (cdata->maxcmd == 0)
-		printf("Not Specified\n");
+		xo_emit("Not Specified\n");
 	else
-		printf("%u\n", cdata->maxcmd);
-	printf("\n");
+		xo_emit("{:max-outstanding-commands/%u}\n", cdata->maxcmd);
+	xo_emit("\n");
 
-	printf("Admin Command Set Attributes\n");
-	printf("============================\n");
-	printf("Security Send/Receive:       %s\n",
+	xo_emit("{T:Admin Command Set Attributes}\n");
+	xo_emit("{T:============================}\n");
+	xo_emit("{Lc:Security Send/Receive}{P:       }"
+		"{:security-send-receive/%s}\n",
 		security ? "Supported" : "Not Supported");
-	printf("Format NVM:                  %s\n",
+	xo_emit("{Lc:Format NVM}{P:                  }{:format-nvm/%s}\n",
 		fmt ? "Supported" : "Not Supported");
-	printf("Firmware Activate/Download:  %s\n",
+	xo_emit("{Lc:Firmware Activate/Download}{P:  }{:firmware-activate/%s}\n",
 		fw ? "Supported" : "Not Supported");
-	printf("Namespace Management:        %s\n",
+	xo_emit("{Lc:Namespace Management}{P:        }{:namespace-management/%s}\n",
 		nsmgmt ? "Supported" : "Not Supported");
-	printf("Device Self-test:            %sSupported\n",
+	xo_emit("{Lc:Device Self-test}{P:            }"
+		"{:device-self-test/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_OACS_SELFTEST, oacs) != 0 ? "" : "Not ");
-	printf("Directives:                  %sSupported\n",
+	xo_emit("{Lc:Directives}{P:                  }{:directives/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_OACS_DIRECTIVES, oacs) != 0 ? "" : "Not ");
-	printf("NVMe-MI Send/Receive:        %sSupported\n",
+	xo_emit("{Lc:NVMe-MI Send/Receive}{P:        }"
+		"{:nvme-mi-send-receive/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_OACS_NVMEMI, oacs) != 0 ? "" : "Not ");
-	printf("Virtualization Management:   %sSupported\n",
+	xo_emit("{Lc:Virtualization Management}{P:   }"
+		"{:virtual-management/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_OACS_VM, oacs) != 0 ? "" : "Not ");
-	printf("Doorbell Buffer Config:      %sSupported\n",
+	xo_emit("{Lc:Doorbell Buffer Config}{P:      }"
+		"{:doorbell-buffer-config/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_OACS_DBBUFFER, oacs) != 0 ? "" : "Not ");
-	printf("Get LBA Status:              %sSupported\n",
+	xo_emit("{Lc:Get LBA Status}{P:              }{:lba-status/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_OACS_GETLBA, oacs) != 0 ? "" : "Not ");
-	printf("Sanitize:                    ");
+	xo_emit("{Lc:Sanitize}{P:                    }");
 	if (cdata->sanicap != 0) {
-		printf("%s%s%s\n",
+		xo_emit("{:sanitize-crypto/%s}{:sanitize-block/%s}"
+			"{:sanitize-overwrote/%s}\n",
 		    NVMEV(NVME_CTRLR_DATA_SANICAP_CES, cdata->sanicap) != 0 ?
 		    "crypto, " : "",
 		    NVMEV(NVME_CTRLR_DATA_SANICAP_BES, cdata->sanicap) != 0 ?
@@ -202,67 +221,95 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		    NVMEV(NVME_CTRLR_DATA_SANICAP_OWS, cdata->sanicap) != 0 ?
 		    "overwrite" : "");
 	} else {
-		printf("Not Supported\n");
+		xo_emit("Not Supported\n");
 	}
-	printf("Abort Command Limit:         %d\n", cdata->acl+1);
-	printf("Async Event Request Limit:   %d\n", cdata->aerl+1);
-	printf("Number of Firmware Slots:    %d\n", fw_num_slots);
-	printf("Firmware Slot 1 Read-Only:   %s\n", fw_slot1_ro ? "Yes" : "No");
-	printf("Per-Namespace SMART Log:     %s\n",
-		ns_smart ? "Yes" : "No");
-	printf("Error Log Page Entries:      %d\n", cdata->elpe+1);
-	printf("Number of Power States:      %d\n", cdata->npss+1);
+	xo_emit("{Lc:Abort Command Limit}{P:         }"
+		"{:abort-command-limit/%d}\n", cdata->acl+1);
+	xo_emit("{Lc:Async Event Request Limit}{P:   }"
+		"{:async-event-request-limit/%d}\n", cdata->aerl+1);
+	xo_emit("{Lc:Number of Firmware Slots}{P:    }{:firmware-slots/%d}\n",
+		fw_num_slots);
+	xo_emit("{Lc:Firmware Slot 1 Read-Only}{P:   }{:firmware-slot-1-ro/%s}\n",
+		fw_slot1_ro ? "Yes" : "No");
+	xo_emit("{Lc:Per-Namespace SMART Log}{P:     }"
+		"{:per-namespace-smart-log/%s}\n", ns_smart ? "Yes" : "No");
+	xo_emit("{Lc:Error Log Page Entries}{P:      }"
+		"{:error-log-page-entries/%d}\n", cdata->elpe+1);
+	xo_emit("{Lc:Number of Power States}{P:      }"
+		"{:number-of-power-states/%d}\n", cdata->npss+1);
 	if (cdata->ver >= 0x010200) {
-		printf("Total NVM Capacity:          %s bytes\n",
+		xo_emit("{Lc:Total NVM Capacity}{P:          }"
+			"{:nvm-capacity-total/%s} bytes\n",
 		    uint128_to_str(to128(cdata->untncap.tnvmcap),
 		    cbuf, sizeof(cbuf)));
-		printf("Unallocated NVM Capacity:    %s bytes\n",
+		xo_emit("{Lc:Unallocated NVM Capacity}{P:    }"
+			"{:nvm-capacity-unallocated/%s} bytes\n",
 		    uint128_to_str(to128(cdata->untncap.unvmcap),
 		    cbuf, sizeof(cbuf)));
 	}
-	printf("Firmware Update Granularity: %02x ", fwug);
+	xo_emit("{Lc:Firmware Update Granularity}{P: }"
+		"{:firmware-update-granul/%02x} ", fwug);
 	if (fwug == 0)
-		printf("(Not Reported)\n");
+		xo_emit("(Not Reported)\n");
 	else if (fwug == 0xFF)
-		printf("(No Granularity)\n");
+		xo_emit("(No Granularity)\n");
 	else
-		printf("(%d bytes)\n", ((uint32_t)fwug << 12));
-	printf("Host Buffer Preferred Size:  %llu bytes\n",
+		xo_emit("({:firmware-update-granul-bytes/%d} bytes)\n",
+			((uint32_t)fwug << 12));
+	xo_emit("{Lc:Host Buffer Preferred Size}{P:  }"
+		"{:host-buffer-size-preferred/%llu} bytes\n",
 	    (long long unsigned)cdata->hmpre * 4096);
-	printf("Host Buffer Minimum Size:    %llu bytes\n",
+	xo_emit("{Lc:Host Buffer Minimum Size}{P:    }"
+		"{:host-buffer-size-minimun/%llu} bytes\n",
 	    (long long unsigned)cdata->hmmin * 4096);
 
-	printf("\n");
-	printf("NVM Command Set Attributes\n");
-	printf("==========================\n");
-	printf("Submission Queue Entry Size\n");
-	printf("  Max:                       %d\n", 1 << sqes_max);
-	printf("  Min:                       %d\n", 1 << sqes_min);
-	printf("Completion Queue Entry Size\n");
-	printf("  Max:                       %d\n", 1 << cqes_max);
-	printf("  Min:                       %d\n", 1 << cqes_min);
-	printf("Number of Namespaces:        %d\n", cdata->nn);
-	printf("Compare Command:             %s\n",
+	xo_emit("\n");
+	xo_emit("{T:NVM Command Set Attributes}\n");
+	xo_emit("{T:==========================}\n");
+	xo_emit("Submission Queue Entry Size\n");
+	xo_emit("{:P  }{Lc:Max}{P:                       }"
+		"{:nvm-submission-queue-max/%d}\n", 1 << sqes_max);
+	xo_emit("{:P  }{Lc:Min}{P:                       }"
+		"{:nvm-submission-queue-min/%d}\n", 1 << sqes_min);
+	xo_emit("Completion Queue Entry Size\n");
+	xo_emit("{:P  }{Lc:Max}{P:                       }"
+		"{:nvm-completion-max/%d}\n", 1 << cqes_max);
+	xo_emit("{:P  }{Lc:Min}{P:                       }"
+		"{:nvm-completion-min/%d}\n", 1 << cqes_min);
+	xo_emit("{Lc:Number of Namespaces}{P:        }"
+		"{:nvm-namespace-number/%d}\n", cdata->nn);
+	xo_emit("{Lc:Compare Command}{P:             }"
+		"{:nvm-compare/%s}\n",
 		compare ? "Supported" : "Not Supported");
-	printf("Write Uncorrectable Command: %s\n",
+	xo_emit("{Lc:Write Uncorrectable Command}{P: }"
+		"{:nvm-write-uncorrectable/%s}\n",
 		write_unc ? "Supported" : "Not Supported");
-	printf("Dataset Management Command:  %s\n",
+	xo_emit("{Lc:Dataset Management Command}{P:  }"
+		"{:nvm-dataset-management/%s}\n",
 		dsm ? "Supported" : "Not Supported");
-	printf("Write Zeroes Command:        %sSupported\n",
+	xo_emit("{Lc:Write Zeroes Command}{P:        }"
+		"{:nvm-write-zeroes/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_ONCS_WRZERO, oncs) != 0 ? "" : "Not ");
-	printf("Save Features:               %sSupported\n",
+	xo_emit("{Lc:Save Features}{P:               }"
+		"{:nvm-save-features/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_ONCS_SAVEFEAT, oncs) != 0 ? "" : "Not ");
-	printf("Reservations:                %sSupported\n",
+	xo_emit("{Lc:Reservations}{P:                }"
+		"{:nvm-reservations/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_ONCS_RESERV, oncs) != 0 ? "" : "Not ");
-	printf("Timestamp feature:           %sSupported\n",
+	xo_emit("{Lc:Timestamp feature}{P:           }"
+		"{:nvm-timestamp/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_ONCS_TIMESTAMP, oncs) != 0 ? "" : "Not ");
-	printf("Verify feature:              %sSupported\n",
+	xo_emit("{Lc:Verify feature}{P:              }"
+		"{:nvm-verify/%s}Supported\n",
 	    NVMEV(NVME_CTRLR_DATA_ONCS_VERIFY, oncs) != 0 ? "" : "Not ");
-	printf("Fused Operation Support:     %s%s\n",
+	xo_emit("{Lc:Fused Operation Support}{P:     }"
+		"{:nvm-fused-operation/%s}{:nvme-fused-compare-write/%s}\n",
 	    (cdata->fuses == 0) ? "Not Supported" : "",
 	    NVMEV(NVME_CTRLR_DATA_FUSES_CNW, cdata->fuses) != 0 ?
 	    "Compare and Write" : "");
-	printf("Format NVM Attributes:       %s%s Erase, %s Format\n",
+	xo_emit("{Lc:Format NVM Attributes}{P:       }"
+		"{:nvm-crypto/%s}{:nvm-erase-all/%s} "
+		"Erase, {:nvm-format-all/%s} Format\n",
 	    NVMEV(NVME_CTRLR_DATA_FNA_CRYPTO_ERASE, cdata->fna) != 0 ?
 	    "Crypto Erase, " : "",
 	    NVMEV(NVME_CTRLR_DATA_FNA_ERASE_ALL, cdata->fna) != 0 ?
@@ -270,33 +317,37 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	    NVMEV(NVME_CTRLR_DATA_FNA_FORMAT_ALL, cdata->fna) != 0 ?
 	    "All-NVM" : "Per-NS");
 	t = NVMEV(NVME_CTRLR_DATA_VWC_ALL, cdata->vwc);
-	printf("Volatile Write Cache:        %s%s\n",
+	xo_emit("{Lc:Volatile Write Cache}{P:        }{:volatile-write-present/%s}"
+		"{:volatile-write-flush/%s}\n",
 	    NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cdata->vwc) != 0 ?
 	    "Present" : "Not Present",
 	    (t == NVME_CTRLR_DATA_VWC_ALL_NO) ? ", no flush all" :
 	    (t == NVME_CTRLR_DATA_VWC_ALL_YES) ? ", flush all" : "");
 
 	if (cdata->ver >= 0x010201)
-		printf("\nNVM Subsystem Name:          %.256s\n", cdata->subnqn);
+		xo_emit("\n{Lc:NVM Subsystem Name}{P:          }"
+			"{:nvm-subsystem-name/%.256s}\n", cdata->subnqn);
 
 	if (cdata->ioccsz != 0) {
-		printf("\n");
-		printf("Fabrics Attributes\n");
-		printf("==================\n");
-		printf("I/O Command Capsule Size:    %d bytes\n",
-		    cdata->ioccsz * 16);
-		printf("I/O Response Capsule Size:   %d bytes\n",
-		    cdata->iorcsz * 16);
-		printf("In Capsule Data Offset:      %d bytes\n",
-		    cdata->icdoff * 16);
-		printf("Controller Model:            %s\n",
+		xo_emit("\n");
+		xo_emit("{T:Fabrics Attributes}\n");
+		xo_emit("{T:==================}\n");
+		xo_emit("{Lc:I/O Command Capsule Size}{P:    }"
+			"{:fabrics-command-capsule/%d} bytes\n", cdata->ioccsz * 16);
+		xo_emit("{Lc:I/O Response Capsule Size}{P:   }"
+			"{:fabrics-response-capsule/%d} bytes\n", cdata->iorcsz * 16);
+		xo_emit("{Lc:In Capsule Data Offset}{P:      }"
+			"{:fabrics-capsule-offset/%d} bytes\n", cdata->icdoff * 16);
+		xo_emit("{Lc:Controller Model}{P:            }"
+			"{:fabrics-controller-model/%s}\n",
 		    (cdata->fcatt & 1) == 0 ? "Dynamic" : "Static");
-		printf("Max SGL Descriptors:         ");
+		xo_emit("{Lc:Max SGL Descriptors}{P:         }");
 		if (cdata->msdbd == 0)
-			printf("Unlimited\n");
+			xo_emit("Unlimited\n");
 		else
-			printf("%d\n", cdata->msdbd);
-		printf("Disconnect of I/O Queues:    %sSupported\n",
+			xo_emit("{:fabrics-max-sgl/%d}\n", cdata->msdbd);
+		xo_emit("{Lc:Disconnect of I/O Queues}{P:    }"
+			"{:fabrics-queues-disconnect/%s}Supported\n",
 		    (cdata->ofcs & 1) == 1 ? "" : "Not ");
 	}
 }

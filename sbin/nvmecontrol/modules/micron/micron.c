@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -63,8 +64,8 @@ print_micron_unique_smart(const struct nvme_controller_data *cdata __unused, voi
 		{ 0xaf, "Power Loss Protection" },
 	};
 
-	printf("Vendor Unique SMART Information\n");
-	printf("=========================\n");
+	xo_emit("{T:Vendor Unique SMART Information}\n");
+	xo_emit("{T:=========================}\n");
 	/*
 	 * walker[0] = Key
 	 * walker[1,2] = reserved
@@ -84,37 +85,37 @@ print_micron_unique_smart(const struct nvme_controller_data *cdata __unused, voi
 		case 0xf9:
 			/* FALLTHOUGH */
 		case 0xfa:
-			printf("%2X %-24s: %ju GiB\n", *walker, name, (uintmax_t)raw);
+			xo_emit("{:micron-walker/%2X} {:micron-walker-name/%-24s}{Lc:} {:micron-walker-raw/%ju} GiB\n", *walker, name, (uintmax_t)raw);
 			break;
 		case 0xea:
-			printf("%2X %-24s:", *walker, name);
+			xo_emit("{:micron-walker/%2X} {:micron-walker-name/%-24s}{Lc:}", *walker, name);
 			if (*(walker + 5) == 0)
-				printf(" inactive\n");
+				xo_emit(" inactive\n");
 			if (*(walker + 5) == 1)
-				printf(" active, total throttling time %u mins\n", le32dec(walker + 6));
+				xo_emit(" active, total throttling time {:micron-walker-6/%u} mins\n", le32dec(walker + 6));
 			break;
 		case 0xe7:
-			printf("%2X %-24s: max ", *walker, name);
+			xo_emit("{:micron-walker/%2X} {:micron-walker-name/%-24s}{Lc:} max ", *walker, name);
 			print_temp_C(le16dec(walker + 5));
-			printf("                           : min ");
+			xo_emit("                           : min ");
 			print_temp_C(le16dec(walker + 7));
-			printf("                           : cur ");
+			xo_emit("                           : cur ");
 			print_temp_C(le16dec(walker + 9));
 			break;
 		case 0xe8:
-			printf("%2X %-24s: max %u W, min %u W, ave %u W\n",
+			xo_emit("{:micron-walker/%2X} {:micron-walker-name/%-24s}{Lc:} max {:micron-walker-5/%u} W, min {:micron-walker-7/%u} W, ave {:micron-walker-9/%u} W\n",
 			    *walker, name, le16dec(walker + 5), le16dec(walker + 7), le16dec(walker + 9));
 			break;
 		case 0xaf:
-			printf("%2X %-24s:", *walker, name);
+			xo_emit("{:micron-walker/%2X} {:micron-walker-name/%-24s}{Lc:}", *walker, name);
 			if (normalized == 100)
-				printf(" success");
+				xo_emit(" success");
 			if (normalized == 0)
-				printf(" failed");
-			printf(" %3d\n", normalized);
+				xo_emit(" failed");
+			xo_emit(" {:micron-walker-normalized/%3d}\n", normalized);
 			break;
 		default:
-			printf("%2X %-24s: %3d %ju\n",
+			xo_emit("{:micron-walker/%2X} {:micron-walker-name/%-24s}{Lc:} {:micron-walker-normalized/%3d} {:micron-walker-raw/%ju}\n",
 			    *walker, name, normalized, (uintmax_t)raw);
 			break;
 		}

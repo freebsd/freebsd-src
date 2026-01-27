@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -233,11 +234,11 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 	uint8_t					p, sc, sct, m, dnr;
 	struct nvme_error_information_entry	*entry = buf;
 
-	printf("Error Information Log\n");
-	printf("=====================\n");
+	xo_emit("{T:Error Information Log}\n");
+	xo_emit("{T:=====================}\n");
 
 	if (letoh(entry->error_count) == 0) {
-		printf("No error entries found\n");
+		xo_emit("{:error/No error entries found}\n");
 		return;
 	}
 
@@ -254,38 +255,38 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 		m = NVME_STATUS_GET_M(status);
 		dnr = NVME_STATUS_GET_DNR(status);
 
-		printf("Entry %02d\n", i + 1);
-		printf("=========\n");
-		printf(" Error count:          %ju\n", letoh(entry->error_count));
-		printf(" Submission queue ID:  %u\n", letoh(entry->sqid));
-		printf(" Command ID:           %u\n", letoh(entry->cid));
+		xo_emit("{T:Entry }{T:entry/%02d}\n", i + 1);
+		xo_emit("{T:=========}\n");
+		xo_emit("{P: }{Lc:Error count}{P:          }{:error-count/%ju}\n", letoh(entry->error_count));
+		xo_emit("{P: }{Lc:Submission queue ID}{P:  }{:submission-queue-id/%u}\n", letoh(entry->sqid));
+		xo_emit("{P: }{Lc:Command ID}{P:           }{:command-id/%u}\n", letoh(entry->cid));
 		/* TODO: Export nvme_status_string structures from kernel? */
-		printf(" Status:\n");
-		printf("  Phase tag:           %d\n", p);
-		printf("  Status code:         %d\n", sc);
-		printf("  Status code type:    %d\n", sct);
-		printf("  More:                %d\n", m);
-		printf("  DNR:                 %d\n", dnr);
-		printf(" Error location:       %u\n", letoh(entry->error_location));
-		printf(" LBA:                  %ju\n", letoh(entry->lba));
-		printf(" Namespace ID:         %u\n", letoh(entry->nsid));
-		printf(" Vendor specific info: %u\n", letoh(entry->vendor_specific));
-		printf(" Transport type:       %u\n", letoh(entry->trtype));
-		printf(" Command specific info:%ju\n", letoh(entry->csi));
-		printf(" Transport specific:   %u\n", letoh(entry->ttsi));
+		xo_emit("{P: }{Lc:Status}{P:}\n");
+		xo_emit("{P:  }{Lc:Phase tag}{P:           }{:phase-tag/%d}\n", p);
+		xo_emit("{P:  }{Lc:Status code}{P:         }{:status-code/%d}\n", sc);
+		xo_emit("{P:  }{Lc:Status code type}{P:    }{:status-code-type/%d}\n", sct);
+		xo_emit("{P:  }{Lc:More}{P:                }{:more/%d}\n", m);
+		xo_emit("{P:  }{Lc:DNR}{P:                 }{:do-not-retry/%d}\n", dnr);
+		xo_emit("{P: }{Lc:Error location}{P:       }{:error-location/%u}\n", letoh(entry->error_location));
+		xo_emit("{P: }{Lc:LBA}{P:                  }{:logical-block/%ju}\n", letoh(entry->lba));
+		xo_emit("{P: }{Lc:Namespace ID}{P:         }{:namespace-id/%u}\n", letoh(entry->nsid));
+		xo_emit("{P: }{Lc:Vendor specific info}{P: }{:vendor-specific/%u}\n", letoh(entry->vendor_specific));
+		xo_emit("{P: }{Lc:Transport type}{P:       }{:transport-type/%u}\n", letoh(entry->trtype));
+		xo_emit("{P: }{Lc:Command specific info}{P:}{:command-specific-info/%ju}\n", letoh(entry->csi));
+		xo_emit("{P: }{Lc:Transport specific}{P:   }{:transport-specific/%u}\n", letoh(entry->ttsi));
 	}
 }
 
 void
 print_temp_K(uint16_t t)
 {
-	printf("%u K, %2.2f C, %3.2f F\n", t, (float)t - 273.15, (float)t * 9 / 5 - 459.67);
+	xo_emit("{:kelvin/%u} {U:K}, {:celius/%2.2f} {U:C}, {:fahrenheit/%3.2f} {U:F}\n", t, (float)t - 273.15, (float)t * 9 / 5 - 459.67);
 }
 
 void
 print_temp_C(uint16_t t)
 {
-	printf("%2.2f K, %u C, %3.2f F\n", (float)t + 273.15, t, (float)t * 9 / 5 + 32);
+	xo_emit("{:kelvin/%2.2f} {U:K}, {:celius/%u} {U:C}, {:fahrenheit/%3.2f} {U:F}\n", (float)t + 273.15, t, (float)t * 9 / 5 + 32);
 }
 
 static void
@@ -298,62 +299,62 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 
 	warning = letoh(health->critical_warning);
 
-	printf("SMART/Health Information Log\n");
-	printf("============================\n");
+	xo_emit("{T:SMART}/{T:Health Information Log}\n");
+	xo_emit("{T:============================}\n");
 
-	printf("Critical Warning State:         0x%02x\n", warning);
-	printf(" Available spare:               %d\n",
+	xo_emit("{Lc:Critical Warning State}{P:         }0x{:critical-warning/%02x}\n", warning);
+	xo_emit("{P: }{Lc:Available spare}{P:               }{:warn-spare/%d}\n",
 	    !!(warning & NVME_CRIT_WARN_ST_AVAILABLE_SPARE));
-	printf(" Temperature:                   %d\n",
+	xo_emit("{P: }{Lc:Temperature}{P:                   }{:warn-temp/%d}\n",
 	    !!(warning & NVME_CRIT_WARN_ST_TEMPERATURE));
-	printf(" Device reliability:            %d\n",
+	xo_emit("{P: }{Lc:Device reliability}{P:            }{:warn-reliability/%d}\n",
 	    !!(warning & NVME_CRIT_WARN_ST_DEVICE_RELIABILITY));
-	printf(" Read only:                     %d\n",
+	xo_emit("{P: }{Lc:Read only}{P:                     }{:warn-read-only/%d}\n",
 	    !!(warning & NVME_CRIT_WARN_ST_READ_ONLY));
-	printf(" Volatile memory backup:        %d\n",
+	xo_emit("{P: }{Lc:Volatile memory backup}{P:        }{:warn-backup/%d}\n",
 	    !!(warning & NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP));
-	printf("Temperature:                    ");
+	xo_emit("{Lc:Temperature}{P:                    }");
 	print_temp_K(letoh(health->temperature));
-	printf("Available spare:                %u\n",
+	xo_emit("{Lc:Available spare}{P:                }{:available-spare/%u}\n",
 	    letoh(health->available_spare));
-	printf("Available spare threshold:      %u\n",
+	xo_emit("{Lc:Available spare threshold}{P:      }{:available-spare-threshold/%u}\n",
 	    letoh(health->available_spare_threshold));
-	printf("Percentage used:                %u\n",
+	xo_emit("{Lc:Percentage used}{P:                }{:percentage-used/%u}\n",
 	    letoh(health->percentage_used));
 
-	printf("Data units (512,000 byte) read: %s\n",
+	xo_emit("{Lc:Data units (512,000 byte) read}{P: }{:data-units-read/%s}\n",
 	    uint128_to_str(to128(health->data_units_read), cbuf, sizeof(cbuf)));
-	printf("Data units written:             %s\n",
+	xo_emit("{Lc:Data units written}{P:             }{:data-units-written/%s}\n",
 	    uint128_to_str(to128(health->data_units_written), cbuf, sizeof(cbuf)));
-	printf("Host read commands:             %s\n",
+	xo_emit("{Lc:Host read commands}{P:             }{:host-read-commands/%s}\n",
 	    uint128_to_str(to128(health->host_read_commands), cbuf, sizeof(cbuf)));
-	printf("Host write commands:            %s\n",
+	xo_emit("{Lc:Host write commands}{P:            }{:host-write-commands/%s}\n",
 	    uint128_to_str(to128(health->host_write_commands), cbuf, sizeof(cbuf)));
-	printf("Controller busy time (minutes): %s\n",
+	xo_emit("{Lc:Controller busy time (minutes)}{P: }{:controller-busy-time/%s}\n",
 	    uint128_to_str(to128(health->controller_busy_time), cbuf, sizeof(cbuf)));
-	printf("Power cycles:                   %s\n",
+	xo_emit("{Lc:Power cycles}{P:                   }{:power-cycles/%s}\n",
 	    uint128_to_str(to128(health->power_cycles), cbuf, sizeof(cbuf)));
-	printf("Power on hours:                 %s\n",
+	xo_emit("{Lc:Power on hours}{P:                 }{:power-on-hours/%s}\n",
 	    uint128_to_str(to128(health->power_on_hours), cbuf, sizeof(cbuf)));
-	printf("Unsafe shutdowns:               %s\n",
+	xo_emit("{Lc:Unsafe shutdowns}{P:               }{:unsafe-shutdowns/%s}\n",
 	    uint128_to_str(to128(health->unsafe_shutdowns), cbuf, sizeof(cbuf)));
-	printf("Media errors:                   %s\n",
+	xo_emit("{Lc:Media errors}{P:                   }{:media-errors/%s}\n",
 	    uint128_to_str(to128(health->media_errors), cbuf, sizeof(cbuf)));
-	printf("No. error info log entries:     %s\n",
+	xo_emit("{Lc:No. error info log entries}{P:     }{:num-error-info-log-entries/%s}\n",
 	    uint128_to_str(to128(health->num_error_info_log_entries), cbuf, sizeof(cbuf)));
 
-	printf("Warning Temp Composite Time:    %d\n", letoh(health->warning_temp_time));
-	printf("Error Temp Composite Time:      %d\n", letoh(health->error_temp_time));
+	xo_emit("{Lc:Warning Temp Composite Time}{P:    }{:warning-temp-time/%d}\n", letoh(health->warning_temp_time));
+	xo_emit("{Lc:Error Temp Composite Time}{P:      }{:error-temp-time/%d}\n", letoh(health->error_temp_time));
 	for (i = 0; i < 8; i++) {
 		if (letoh(health->temp_sensor[i]) == 0)
 			continue;
-		printf("Temperature Sensor %d:           ", i + 1);
+		xo_emit("{L:Temperature Sensor} {c:temp-sensor/%d}{P:           }", i + 1);
 		print_temp_K(letoh(health->temp_sensor[i]));
 	}
-	printf("Temperature 1 Transition Count: %d\n", letoh(health->tmt1tc));
-	printf("Temperature 2 Transition Count: %d\n", letoh(health->tmt2tc));
-	printf("Total Time For Temperature 1:   %d\n", letoh(health->ttftmt1));
-	printf("Total Time For Temperature 2:   %d\n", letoh(health->ttftmt2));
+	xo_emit("{Lc:Temperature 1 Transition Count}{P: }{:temp-1/%d}\n", letoh(health->tmt1tc));
+	xo_emit("{Lc:Temperature 2 Transition Count}{P: }{:temp-2/%d}\n", letoh(health->tmt2tc));
+	xo_emit("{Lc:Total Time For Temperature 1}{P:   }{:total-time-temp-1/%d}\n", letoh(health->ttftmt1));
+	xo_emit("{Lc:Total Time For Temperature 2}{P:   }{:total-time-temp-2/%d}\n", letoh(health->ttftmt2));
 }
 
 static void
@@ -371,8 +372,8 @@ print_log_firmware(const struct nvme_controller_data *cdata, void *buf, uint32_t
 	oacs_fw = NVMEV(NVME_CTRLR_DATA_OACS_FIRMWARE, cdata->oacs);
 	fw_num_slots = NVMEV(NVME_CTRLR_DATA_FRMW_NUM_SLOTS, cdata->frmw);
 
-	printf("Firmware Slot Log\n");
-	printf("=================\n");
+	xo_emit("{T:Firmware Slot Log}\n");
+	xo_emit("{T:=================}\n");
 
 	if (oacs_fw == 0)
 		slots = 1;
@@ -380,16 +381,16 @@ print_log_firmware(const struct nvme_controller_data *cdata, void *buf, uint32_t
 		slots = MIN(fw_num_slots, MAX_FW_SLOTS);
 
 	for (i = 0; i < slots; i++) {
-		printf("Slot %d: ", i + 1);
+		xo_emit("{L:Slot }{c:slot/%d}{P: }", i + 1);
 		if (afi_slot == i + 1)
 			status = "  Active";
 		else
 			status = "Inactive";
 
 		if (fw->revision[i][0] == '\0')
-			printf("Empty\n");
+			xo_emit("Empty\n");
 		else
-			printf("[%s] %.8s\n", status, fw->revision[i]);
+			xo_emit("[{:status/%s}] {:fw-revision/%.8s}\n", status, fw->revision[i]);
 	}
 }
 
@@ -401,11 +402,11 @@ print_log_ns(const struct nvme_controller_data *cdata __unused, void *buf,
 	u_int i;
 
 	nsl = (struct nvme_ns_list *)buf;
-	printf("Changed Namespace List\n");
-	printf("======================\n");
+	xo_emit("{T:Changed Namespace List}\n");
+	xo_emit("{T:======================}\n");
 
 	for (i = 0; i < nitems(nsl->ns) && letoh(nsl->ns[i]) != 0; i++) {
-		printf("%08x\n", letoh(nsl->ns[i]));
+		xo_emit("{:namespace/%08x}\n", letoh(nsl->ns[i]));
 	}
 }
 
@@ -418,15 +419,15 @@ print_log_command_effects(const struct nvme_controller_data *cdata __unused,
 	uint32_t s;
 
 	ce = (struct nvme_command_effects_page *)buf;
-	printf("Commands Supported and Effects\n");
-	printf("==============================\n");
-	printf("  Command\tLBCC\tNCC\tNIC\tCCC\tCSE\tUUID\n");
+	xo_emit("{T:Commands Supported and Effects}\n");
+	xo_emit("{T:==============================}\n");
+	xo_emit("  Command\tLBCC\tNCC\tNIC\tCCC\tCSE\tUUID\n");
 
 	for (i = 0; i < 255; i++) {
 		s = letoh(ce->acs[i]);
 		if (NVMEV(NVME_CE_PAGE_CSUP, s) == 0)
 			continue;
-		printf("Admin\t%02x\t%s\t%s\t%s\t%s\t%u\t%s\n", i,
+		xo_emit("Admin\t{:admin-command-set/%02x}\t{:lbcc/%s}\t{:namespace-capability/%s}\t{:namespace-inventory/%s}\t{:controller-capability/%s}\t{:command-submit-exec/%u}\t{:unique-id/%s}\n", i,
 		    NVMEV(NVME_CE_PAGE_LBCC, s) != 0 ? "Yes" : "No",
 		    NVMEV(NVME_CE_PAGE_NCC, s) != 0 ? "Yes" : "No",
 		    NVMEV(NVME_CE_PAGE_NIC, s) != 0 ? "Yes" : "No",
@@ -438,7 +439,7 @@ print_log_command_effects(const struct nvme_controller_data *cdata __unused,
 		s = letoh(ce->iocs[i]);
 		if (NVMEV(NVME_CE_PAGE_CSUP, s) == 0)
 			continue;
-		printf("I/O\t%02x\t%s\t%s\t%s\t%s\t%u\t%s\n", i,
+		xo_emit("I/O\t{:id-io-command-set/%02x}\t{:lbcc/%s}\t{:namespace-capability/%s}\t{:namespace-inventory/%s}\t{:controller-capability/%s}\t{:command-submit-exec/%u}\t{:unique-id/%s}\n", i,
 		    NVMEV(NVME_CE_PAGE_LBCC, s) != 0 ? "Yes" : "No",
 		    NVMEV(NVME_CE_PAGE_NCC, s) != 0 ? "Yes" : "No",
 		    NVMEV(NVME_CE_PAGE_NIC, s) != 0 ? "Yes" : "No",
@@ -455,31 +456,31 @@ print_log_res_notification(const struct nvme_controller_data *cdata __unused,
 	struct nvme_res_notification_page *rn;
 
 	rn = (struct nvme_res_notification_page *)buf;
-	printf("Reservation Notification\n");
-	printf("========================\n");
+	xo_emit("{T:Reservation Notification}\n");
+	xo_emit("{T:========================}\n");
 
-	printf("Log Page Count:                %ju\n",
+	xo_emit("{Lc:Log Page Count}{P:                }{:log-page-count/%ju}\n",
 	    (uintmax_t)letoh(rn->log_page_count));
-	printf("Log Page Type:                 ");
+	xo_emit("{Lc:Log Page Type}{P:                 }");
 	switch (letoh(rn->log_page_type)) {
 	case 0:
-		printf("Empty Log Page\n");
+		xo_emit("{d:page-type-name/Empty Log Page}{e:page-type/empty-log}\n");
 		break;
 	case 1:
-		printf("Registration Preempted\n");
+		xo_emit("{d:page-type-name/Registration Preempted}{e:page-type/registration-preempted}\n");
 		break;
 	case 2:
-		printf("Reservation Released\n");
+		xo_emit("{d:page-type-name/Reservation Released}{e:page-type/reservation-released}\n");
 		break;
 	case 3:
-		printf("Reservation Preempted\n");
+		xo_emit("{d:page-type-name/Reservation Preempted}{e:page-type/reservation-preempted}\n");
 		break;
 	default:
-		printf("Unknown %x\n", letoh(rn->log_page_type));
+		xo_emit("Unknown {:log-page-type/%x}\n", letoh(rn->log_page_type));
 		break;
 	};
-	printf("Number of Available Log Pages: %d\n", letoh(rn->available_log_pages));
-	printf("Namespace ID:                  0x%x\n", letoh(rn->nsid));
+	xo_emit("{Lc:Number of Available Log Pages}{P: }{:available-log-pages/%d}\n", letoh(rn->available_log_pages));
+	xo_emit("{Lc:Namespace ID}{P:                 }0x{:namespace-id/%x}\n", letoh(rn->nsid));
 }
 
 static void
@@ -491,47 +492,47 @@ print_log_sanitize_status(const struct nvme_controller_data *cdata __unused,
 	uint16_t sprog, sstat;
 
 	ss = (struct nvme_sanitize_status_page *)buf;
-	printf("Sanitize Status\n");
-	printf("===============\n");
+	xo_emit("{T:Sanitize Status}\n");
+	xo_emit("{T:===============}\n");
 
 	sprog = letoh(ss->sprog);
-	printf("Sanitize Progress:                   %u%% (%u/65535)\n",
+	xo_emit("{Lc:Sanitize Progress}{P:                   }{:progress-percent/%u}% ({:progress/%u}/65535)\n",
 	    (sprog * 100 + 32768) / 65536, sprog);
-	printf("Sanitize Status:                     ");
+	xo_emit("{Lc:Sanitize Status}{P:                     }");
 	sstat = letoh(ss->sstat);
 	switch (NVMEV(NVME_SS_PAGE_SSTAT_STATUS, sstat)) {
 	case NVME_SS_PAGE_SSTAT_STATUS_NEVER:
-		printf("Never sanitized");
+		xo_emit("{d:page-status-name/Never sanitized}{e:page-status/never-sanitized}\n");
 		break;
 	case NVME_SS_PAGE_SSTAT_STATUS_COMPLETED:
-		printf("Completed");
+		xo_emit("{d:page-status-name/Completed}{e:page-status/completed}\n");
 		break;
 	case NVME_SS_PAGE_SSTAT_STATUS_INPROG:
-		printf("In Progress");
+		xo_emit("{d:page-status-name/In Progress}{e:page-status/in-progress}\n");
 		break;
 	case NVME_SS_PAGE_SSTAT_STATUS_FAILED:
-		printf("Failed");
+		xo_emit("{d:page-status-name/Failed}{e:page-status/failed}\n");
 		break;
 	case NVME_SS_PAGE_SSTAT_STATUS_COMPLETEDWD:
-		printf("Completed with deallocation");
+		xo_emit("{d:page-status-name/Completed with deallocation}{e:page-status/completed-dealloc}\n");
 		break;
 	default:
-		printf("Unknown 0x%x", sstat);
+		xo_emit("Unknown 0x{:sstat/%x}", sstat);
 		break;
 	}
 	p = NVMEV(NVME_SS_PAGE_SSTAT_PASSES, sstat);
 	if (p > 0)
-		printf(", %d passes", p);
+		xo_emit(", {:passes/%d}{N:passes}", p);
 	if (NVMEV(NVME_SS_PAGE_SSTAT_GDE, sstat) != 0)
-		printf(", Global Data Erased");
-	printf("\n");
-	printf("Sanitize Command Dword 10:           0x%x\n", letoh(ss->scdw10));
-	printf("Time For Overwrite:                  %u sec\n", letoh(ss->etfo));
-	printf("Time For Block Erase:                %u sec\n", letoh(ss->etfbe));
-	printf("Time For Crypto Erase:               %u sec\n", letoh(ss->etfce));
-	printf("Time For Overwrite No-Deallocate:    %u sec\n", letoh(ss->etfownd));
-	printf("Time For Block Erase No-Deallocate:  %u sec\n", letoh(ss->etfbewnd));
-	printf("Time For Crypto Erase No-Deallocate: %u sec\n", letoh(ss->etfcewnd));
+		xo_emit(", Global Data Erased");
+	xo_emit("\n");
+	xo_emit("{Lc:Sanitize Command Dword 10}{P:           0x%x}\n", letoh(ss->scdw10));
+	xo_emit("{Lc:Time For Overwrite}{P:                  %u} sec\n", letoh(ss->etfo));
+	xo_emit("{Lc:Time For Block Erase}{P:                %u} sec\n", letoh(ss->etfbe));
+	xo_emit("{Lc:Time For Crypto Erase}{P:               %u} sec\n", letoh(ss->etfce));
+	xo_emit("{Lc:Time For Overwrite No-Deallocate}{P:    %u} sec\n", letoh(ss->etfownd));
+	xo_emit("{Lc:Time For Block Erase No-Deallocate}{P:  %u} sec\n", letoh(ss->etfbewnd));
+	xo_emit("{Lc:Time For Crypto Erase No-Deallocate}{P: %u} sec\n", letoh(ss->etfcewnd));
 }
 
 static const char *
@@ -558,31 +559,31 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 	uint16_t vs;
 
 	dst = buf;
-	printf("Device Self-test Status\n");
-	printf("=======================\n");
+	xo_emit("{T:Device Self-test Status}\n");
+	xo_emit("{T:=======================}\n");
 
-	printf("Current Operation: ");
+	xo_emit("Current Operation: ");
 	switch (letoh(dst->curr_operation)) {
 	case 0x0:
-		printf("No device self-test operation in progress\n");
+		xo_emit("{d:page-test-name/No device self-test operation in progress}{e:page-test/no-device}\n");
 		break;
 	case 0x1:
-		printf("Short device self-test operation in progress\n");
+		xo_emit("{d:page-test-name/Short device self-test operation in progress}{e:page-test/short-device}\n");
 		break;
 	case 0x2:
-		printf("Extended device self-test operation in progress\n");
+		xo_emit("{d:page-test-name/Extended device self-test operation in progress}{e:page-test/extended-device}\n");
 		break;
 	case 0xe:
-		printf("Vendor specific\n");
+		xo_emit("{d:page-test-name/Vendor specific}{e:page-test/vendor-specific}\n");
 		break;
 	default:
-		printf("Reserved (0x%x)\n", letoh(dst->curr_operation));
+		xo_emit("Reserved (0x{:curr-operation/%x})\n", letoh(dst->curr_operation));
 	}
 
 	if (letoh(dst->curr_operation) != 0)
-		printf("Current Completion: %u%%\n", letoh(dst->curr_compl) & 0x7f);
+		xo_emit("Current Completion: {:current-completion/%u}%\n", letoh(dst->curr_compl) & 0x7f);
 
-	printf("Results\n");
+	xo_emit("{T:Results}\n");
 	for (r = 0; r < 20; r++) {
 		uint64_t failing_lba;
 		uint8_t code, res, status;
@@ -594,45 +595,45 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 		if (res == 0xf)
 			continue;
 
-		printf("[%2u] ", r);
+		xo_emit("[{:result/%2u}] ", r);
 		switch (code) {
 		case 0x1:
-			printf("Short device self-test");
+			xo_emit("Short device self-test");
 			break;
 		case 0x2:
-			printf("Extended device self-test");
+			xo_emit("Extended device self-test");
 			break;
 		case 0xe:
-			printf("Vendor specific");
+			xo_emit("Vendor specific");
 			break;
 		default:
-			printf("Reserved (0x%x)", code);
+			xo_emit("Reserved (0x{:code/%x})", code);
 		}
 		if (res < self_test_res_max)
-			printf(" %s", self_test_res[res]);
+			xo_emit("{P: }{:result-status/%s}", self_test_res[res]);
 		else
-			printf(" Reserved status 0x%x", res);
+			xo_emit("{P: }Reserved status 0x{:result/%x}", res);
 
 		if (res == 7)
-			printf(" starting in segment %u",
+			xo_emit("{P: }starting in segment {:segment-number/%u}",
 			    letoh(dst->result[r].segment_num));
 
 #define BIT(b) (1 << (b))
 		if (letoh(dst->result[r].valid_diag_info) & BIT(0))
-			printf(" NSID=0x%x", letoh(dst->result[r].nsid));
+			xo_emit("{P: }NSID=0x{:namespace-id/%x}", letoh(dst->result[r].nsid));
 		if (letoh(dst->result[r].valid_diag_info) & BIT(1)) {
 			memcpy(&failing_lba, dst->result[r].failing_lba,
 			    sizeof(failing_lba));
-			printf(" FLBA=0x%jx", (uintmax_t)letoh(failing_lba));
+			xo_emit("{P: }FLBA=0x{:failing-logical-block/%jx}", (uintmax_t)letoh(failing_lba));
 		}
 		if (letoh(dst->result[r].valid_diag_info) & BIT(2))
-			printf(" SCT=0x%x", letoh(dst->result[r].status_code_type));
+			xo_emit("{P: }SCT=0x{:status-code-type/%x}", letoh(dst->result[r].status_code_type));
 		if (letoh(dst->result[r].valid_diag_info) & BIT(3))
-			printf(" SC=0x%x", letoh(dst->result[r].status_code));
+			xo_emit("{P: }SC=0x{:status-code/%x}", letoh(dst->result[r].status_code));
 #undef BIT
 		memcpy(&vs, dst->result[r].vendor_specific, sizeof(vs));
-		printf(" VENDOR_SPECIFIC=0x%x", letoh(vs));
-		printf("\n");
+		xo_emit("{P: }VENDOR_SPECIFIC=0x{:vs/%x}", letoh(vs));
+		xo_emit("\n");
 	}
 }
 

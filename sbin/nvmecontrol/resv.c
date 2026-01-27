@@ -30,6 +30,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -403,33 +404,33 @@ resvreport(const struct cmd *f, int argc, char *argv[])
 
 	s = (struct nvme_resv_status *)data;
 	n = (s->regctl[1] << 8) | s->regctl[0];
-	printf("Generation:                       %u\n", s->gen);
-	printf("Reservation Type:                 %u\n", s->rtype);
-	printf("Number of Registered Controllers: %u\n", n);
-	printf("Persist Through Power Loss State: %u\n", s->ptpls);
+	xo_emit("{Lc:Generation}{P:                       }{:generation/%u}\n", s->gen);
+	xo_emit("{Lc:Reservation Type}{P:                 }{:reservation-type/%u}\n", s->rtype);
+	xo_emit("{Lc:Number of Registered Controllers}{P: }{:registered-controllers/%u}\n", n);
+	xo_emit("{Lc:Persist Through Power Loss State}{P: }{:persist-power-loss/%u}\n", s->ptpls);
 	if (report_opt.eds) {
 		e = (struct nvme_resv_status_ext *)data;
 		n = MIN(n, (sizeof(data) - sizeof(e)) / sizeof(e->ctrlr[0]));
 		for (i = 0; i < n; i++) {
-			printf("Controller ID:                    0x%04x\n",
+			xo_emit("{Lc:Controller ID}{P:                    }0x{:controller-id/%04x}\n",
 			    e->ctrlr[i].ctrlr_id);
-			printf("  Reservation Status:             %u\n",
+			xo_emit("{P:  }{Lc:Reservation Status}{P:             }{:reservation-status/%u}\n",
 			    e->ctrlr[i].rcsts);
-			printf("  Reservation Key:                0x%08jx\n",
+			xo_emit("{P:  }{Lc:Reservation Key}{P:                }0x{:reservation-key/%08jx}\n",
 			    e->ctrlr[i].rkey);
-			printf("  Host Identifier:                0x%08jx%08jx\n",
+			xo_emit("{P:  }{Lc:Host Identifier}{P:                }0x{:host-id-0/%08jx}{:host-id-1/%08jx}\n",
 			    e->ctrlr[i].hostid[0], e->ctrlr[i].hostid[1]);
 		}
 	} else {
 		n = MIN(n, (sizeof(data) - sizeof(s)) / sizeof(s->ctrlr[0]));
 		for (i = 0; i < n; i++) {
-			printf("Controller ID:                    0x%04x\n",
+			xo_emit("{Lc:Controller ID}{P:                    }0x{:controller-id/%04x}\n",
 			    s->ctrlr[i].ctrlr_id);
-			printf("  Reservation Status:             %u\n",
+			xo_emit("{P:  }{Lc:Reservation Status}{P:             }{:reservation-status/%u}\n",
 			    s->ctrlr[i].rcsts);
-			printf("  Host Identifier:                0x%08jx\n",
+			xo_emit("{P:  }{Lc:Host Identifier}{P:                }0x{:host-id/%08jx}\n",
 			    s->ctrlr[i].hostid);
-			printf("  Reservation Key:                0x%08jx\n",
+			xo_emit("{P:  }{Lc:Reservation Key}{P:                }0x{:reservation-key/%08jx}\n",
 			    s->ctrlr[i].rkey);
 		}
 	}
