@@ -262,9 +262,9 @@ struct vif {
     u_long		v_bytes_in;	/* # bytes in on interface	     */
     u_long		v_bytes_out;	/* # bytes out on interface	     */
 #ifdef _KERNEL
-#define	MROUTE_VIF_SYSCTL_LEN	__offsetof(struct vif, v_spin)
-    struct mtx		v_spin;		/* Spin mutex for pkt stats          */
-    char		v_spin_name[32];
+#define	MROUTE_VIF_SYSCTL_LEN	__offsetof(struct vif, v_mtx)
+    struct mtx		v_mtx;		/* mutex for pkt stats               */
+    char		v_mtx_name[32];
 #endif
 };
 
@@ -350,8 +350,8 @@ struct bw_meter {
 #ifdef _KERNEL
 	struct callout	bm_meter_callout;	/* Periodic callout          */
 	void*		arg;			/* custom argument           */
-	struct mtx 	bm_spin;		/* meter spin lock           */
-	char		bm_spin_name[32];
+	struct mtx 	bm_mtx;			/* meter lock                */
+	char		bm_mtx_name[32];
 #endif
 };
 
