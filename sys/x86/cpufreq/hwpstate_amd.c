@@ -428,30 +428,25 @@ sysctl_epp_handler(SYSCTL_HANDLER_ARGS)
 {
 	const u_int max_epp =
 	    BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, (uint64_t)-1);
-	const device_t dev = oidp->oid_arg1;
+	const device_t dev = arg1;
 	struct hwpstate_softc *const sc = device_get_softc(dev);
 	u_int val;
-	int error = 0;
+	int error;
 
 	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
 	check_cppc_enabled(sc, __func__);
 
-	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->cppc.request) * 100 /
-	    max_epp;
+	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->cppc.request);
+
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error != 0 || req->newptr == NULL)
-		goto end;
-	if (val > 100) {
-		error = EINVAL;
-		goto end;
-	}
-	val = (val * max_epp) / 100;
+		return (error);
 
+	if (val > max_epp)
+		return (EINVAL);
 	error = set_cppc_request(dev,
 	    BITS_WITH_VALUE(AMD_CPPC_REQUEST_EPP_BITS, val),
 	    BITS_WITH_VALUE(AMD_CPPC_REQUEST_EPP_BITS, -1));
-
-end:
 	return (error);
 }
 
@@ -924,7 +919,7 @@ hwpstate_attach(device_t dev)
 		    "epp", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, dev, 0,
 		    sysctl_epp_handler, "IU",
 		    "Efficiency/Performance Preference "
-		    "(range from 0, most performant, through 100, most efficient)");
+		    "(range from 0, most performant, through 255, most efficient)");
 	}
 	return (cpufreq_register(dev));
 }
