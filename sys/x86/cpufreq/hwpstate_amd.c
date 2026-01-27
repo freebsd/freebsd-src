@@ -424,10 +424,9 @@ set_cppc_request(device_t hwp_dev, uint64_t request, uint64_t mask)
 }
 
 static int
-sysctl_epp_handler(SYSCTL_HANDLER_ARGS)
+sysctl_cppc_request_field_handler(SYSCTL_HANDLER_ARGS)
 {
-	const u_int max_epp =
-	    BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, (uint64_t)-1);
+	const u_int max = BITS_VALUE(arg2, (uint64_t)-1);
 	const device_t dev = arg1;
 	struct hwpstate_softc *const sc = device_get_softc(dev);
 	u_int val;
@@ -436,17 +435,16 @@ sysctl_epp_handler(SYSCTL_HANDLER_ARGS)
 	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
 	check_cppc_enabled(sc, __func__);
 
-	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->cppc.request);
+	val = BITS_VALUE(arg2, sc->cppc.request);
 
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	if (val > max_epp)
+	if (val > max)
 		return (EINVAL);
-	error = set_cppc_request(dev,
-	    BITS_WITH_VALUE(AMD_CPPC_REQUEST_EPP_BITS, val),
-	    BITS_WITH_VALUE(AMD_CPPC_REQUEST_EPP_BITS, -1));
+	error = set_cppc_request(dev, BITS_WITH_VALUE(arg2, val),
+	    BITS_WITH_VALUE(arg2, -1));
 	return (error);
 }
 
@@ -916,10 +914,42 @@ hwpstate_attach(device_t dev)
 
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "epp", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, dev, 0,
-		    sysctl_epp_handler, "IU",
-		    "Efficiency/Performance Preference "
-		    "(range from 0, most performant, through 255, most efficient)");
+		    "epp", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    dev, AMD_CPPC_REQUEST_EPP_BITS,
+		    sysctl_cppc_request_field_handler, "IU",
+		    "Efficiency/Performance Preference (from 0, "
+		    "most performant, to 255, most efficient)");
+
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "minimum_performance",
+		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    dev, AMD_CPPC_REQUEST_MIN_PERF_BITS,
+		    sysctl_cppc_request_field_handler, "IU",
+		    "Minimum allowed performance level (from 0 to 255; "
+		    "should be smaller than 'maximum_performance'; "
+		    "effective range limited by CPU)");
+
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "maximum_performance",
+		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    dev, AMD_CPPC_REQUEST_MAX_PERF_BITS,
+		    sysctl_cppc_request_field_handler, "IU",
+		    "Maximum allowed performance level (from 0 to 255; "
+		    "should be larger than 'minimum_performance'; "
+		    "effective range limited by CPU)");
+
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "desired_performance",
+		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    dev, AMD_CPPC_REQUEST_DES_PERF_BITS,
+		    sysctl_cppc_request_field_handler, "IU",
+		    "Desired performance level (from 0 to 255, "
+		    "0 enables autonomous mode, otherwise value should be "
+		    "between 'minimum_performance' and 'maximum_performance' "
+		    "inclusive)");
 	}
 	return (cpufreq_register(dev));
 }
