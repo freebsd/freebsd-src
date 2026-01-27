@@ -33,16 +33,20 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_kbd.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/rman.h>
+#include <sys/tslog.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
+
+#include "opt_kbd.h"
 
 #if defined(__amd64__)
 #include <machine/clock.h>
@@ -54,7 +58,13 @@
 
 /* constants */
 
-#define MAXKBDC		1		/* XXX */
+#define MAXKBDC				1	/* XXX */
+#define MILLISECOND_MULTIPLIER		1000	/* micro second values will be
+						 * multiplied to convert to
+						 * milli seconds */
+#define RESET_DELAY_DIVISION_FACTOR	40	/* keyboard reset delay
+						 * time division factor */
+
 
 /* macros */
 
@@ -76,6 +86,11 @@
 			(bus_space_write_1((k)->iot, (k)->ioh0, 0, (d)))
 #define write_command(k, d)	\
 			(bus_space_write_1((k)->iot, (k)->ioh1, 0, (d)))
+
+#define ATKBD_DELAY(x)	(atkbd_short_delay ? (x) : (x) * MILLISECOND_MULTIPLIER)
+#define RESET_DELAY(x) \
+	(atkbd_short_delay ? (x) * MILLISECOND_MULTIPLIER : \
+	(x) * MILLISECOND_MULTIPLIER / RESET_DELAY_DIVISION_FACTOR)
 
 /* local variables */
 
@@ -102,6 +117,18 @@ static int wait_for_kbd_data(atkbdc_softc_t *kbdc);
 static int wait_for_kbd_ack(atkbdc_softc_t *kbdc);
 static int wait_for_aux_data(atkbdc_softc_t *kbdc);
 static int wait_for_aux_ack(atkbdc_softc_t *kbdc);
+
+static int atkbd_short_delay = 0;   /* 1 = short delay (default), 0 = long delay */
+
+/* Create hw.atkbd sysctl node (defines _hw_atkbd) */
+SYSCTL_NODE(_hw, OID_AUTO, atkbd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "AT keyboard controller");
+
+/* sysctl knob: hw.atkbd.short_delay */
+SYSCTL_DECL(_hw_atkbd);
+SYSCTL_INT(_hw_atkbd, OID_AUTO, short_delay, CTLFLAG_RWTUN,
+    &atkbd_short_delay, 0,
+    "Keyboard delays: 1=fast, 0=slow (default)");
 
 struct atkbdc_quirks {
     const char *bios_vendor;
@@ -563,6 +590,8 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
     int f;
     int b;
 
+    TSENTER();
+
     /* CPU will stay inside the loop for 200msec at most */
     retry = kbdc->retry * 2;
 
@@ -572,8 +601,10 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
             b = read_data(kbdc);
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_AUX_BUFFER_FULL) {
 		if ((b == PSM_ACK) || (b == PSM_RESEND) 
-		    || (b == PSM_RESET_FAIL))
+		    || (b == PSM_RESET_FAIL)) {
+		    TSEXIT();
 		    return b;
+		}
 		addq(&kbdc->aux, b);
 	    } else if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL) {
 		addq(&kbdc->kbd, b);
@@ -581,6 +612,7 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
 	}
         DELAY(KBDC_DELAYTIME);
     }
+    TSEXIT();
     return -1;
 }
 
@@ -923,6 +955,8 @@ empty_both_buffers(KBDC p, int wait)
 {
     int t;
     int f;
+
+    TSENTER();
     int waited = 0;
 #if KBDIO_DEBUG >= 2
     int c1 = 0;
@@ -945,17 +979,22 @@ empty_both_buffers(KBDC p, int wait)
 	    t -= delta;
 	}
 
-	/*
-	 * Some systems (Intel/IBM blades) do not have keyboard devices and
-	 * will thus hang in this procedure. Time out after delta seconds to
-	 * avoid this hang -- the keyboard attach will fail later on.
-	 */
-        waited += (delta * 1000);
-        if (waited == (delta * 1000000))
-	    return;
+		/*
+		* Some systems (Intel/IBM blades) do not have keyboard devices and
+		* will thus hang in this procedure. Time out after delta seconds to
+		* avoid this hang -- the keyboard attach will fail later on.
+		*/
+		unsigned int effective_delay = ATKBD_DELAY(delta);
+		waited += effective_delay;
 
-	DELAY(delta*1000);
-    }
+		if (waited == effective_delay * MILLISECOND_MULTIPLIER) {
+			TSEXIT();
+			return;
+		}
+
+		DELAY(effective_delay);
+	}
+
 #if KBDIO_DEBUG >= 2
     if ((c1 > 0) || (c2 > 0))
         log(LOG_DEBUG, "kbdc: %d:%d char read (empty_both_buffers)\n", c1, c2);
@@ -963,6 +1002,7 @@ empty_both_buffers(KBDC p, int wait)
 
     emptyq(&p->kbd);
     emptyq(&p->aux);
+    TSEXIT();
 }
 
 /* keyboard and mouse device control */
@@ -974,34 +1014,46 @@ int
 reset_kbd(KBDC p)
 {
     int retry = KBD_MAXRETRY;
-    int again = KBD_MAXWAIT;
     int c = KBD_RESEND;		/* keep the compiler happy */
+
+    TSENTER();
 
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
         if (!write_kbd_command(p, KBDC_RESET_KBD))
-	    continue;
-	emptyq(&p->kbd);
+            continue;
+        emptyq(&p->kbd);
         c = read_controller_data(p);
-	if (verbose || bootverbose)
+        if (verbose || bootverbose)
             log(LOG_DEBUG, "kbdc: RESET_KBD return code:%04x\n", c);
         if (c == KBD_ACK)	/* keyboard has agreed to reset itself... */
-    	    break;
+            break;
     }
-    if (retry < 0)
+    if (retry < 0) {
+        TSEXIT();
         return FALSE;
+    }
 
-    while (again-- > 0) {
+    int delay_us = RESET_DELAY(KBD_RESETDELAY); /* if the atkbd_short_delay is
+						 * activated,
+						 * the delay will be shorten */
+    int max_wait_us = KBD_RESETDELAY * MILLISECOND_MULTIPLIER * KBD_MAXWAIT;
+    int attempts = max_wait_us / delay_us;
+
+    while (attempts-- > 0) {
         /* wait awhile, well, in fact we must wait quite loooooooooooong */
-        DELAY(KBD_RESETDELAY*1000);
+        DELAY(delay_us);
         c = read_controller_data(p);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
     }
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_KBD status:%04x\n", c);
-    if (c != KBD_RESET_DONE)
+    if (c != KBD_RESET_DONE) {
+        TSEXIT();
         return FALSE;
+    }
+    TSEXIT();
     return TRUE;
 }
 
@@ -1015,6 +1067,7 @@ reset_aux_dev(KBDC p)
     int again = KBD_MAXWAIT;
     int c = PSM_RESEND;		/* keep the compiler happy */
 
+    TSENTER();
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
         if (!write_aux_command(p, PSMC_RESET_DEV))
@@ -1022,7 +1075,7 @@ reset_aux_dev(KBDC p)
 	emptyq(&p->aux);
 	/* NOTE: Compaq Armada laptops require extra delay here. XXX */
 	for (again = KBD_MAXWAIT; again > 0; --again) {
-            DELAY(KBD_RESETDELAY*1000);
+            DELAY(ATKBD_DELAY(KBD_RESETDELAY));
             c = read_aux_data_no_wait(p);
 	    if (c != -1)
 		break;
@@ -1032,25 +1085,31 @@ reset_aux_dev(KBDC p)
         if (c == PSM_ACK)	/* aux dev is about to reset... */
     	    break;
     }
-    if (retry < 0)
+    if (retry < 0) {
+        TSEXIT();
         return FALSE;
+    }
 
     for (again = KBD_MAXWAIT; again > 0; --again) {
         /* wait awhile, well, quite looooooooooooong */
-        DELAY(KBD_RESETDELAY*1000);
+    	DELAY(ATKBD_DELAY(KBD_RESETDELAY));
         c = read_aux_data_no_wait(p);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
     }
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_AUX status:%04x\n", c);
-    if (c != PSM_RESET_DONE)	/* reset status */
+    if (c != PSM_RESET_DONE) { /* reset status */
+        TSEXIT();
         return FALSE;
+    }
 
     c = read_aux_data(p);	/* device ID */
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_AUX ID:%04x\n", c);
     /* NOTE: we could check the device ID now, but leave it later... */
+
+    TSEXIT();
     return TRUE;
 }
 
@@ -1060,7 +1119,6 @@ int
 test_controller(KBDC p)
 {
     int retry = KBD_MAXRETRY;
-    int again = KBD_MAXWAIT;
     int c = KBD_DIAG_FAIL;
 
     while (retry-- > 0) {
@@ -1072,9 +1130,14 @@ test_controller(KBDC p)
         return FALSE;
 
     emptyq(&p->kbd);
-    while (again-- > 0) {
+
+    int delay_us = RESET_DELAY(KBD_RESETDELAY);
+    int max_wait_us = KBD_RESETDELAY * MILLISECOND_MULTIPLIER * KBD_MAXWAIT;
+    int attempts = max_wait_us / delay_us;
+
+    while (attempts-- > 0) {
         /* wait awhile */
-        DELAY(KBD_RESETDELAY*1000);
+        DELAY(delay_us);
         c = read_controller_data(p);	/* DIAG_DONE/DIAG_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
