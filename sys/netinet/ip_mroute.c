@@ -2834,12 +2834,6 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 
 		if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 		    if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
-		if (if_detach_event_tag == NULL) {
-			printf("ip_mroute: unable to register "
-					"ifnet_departure_event handler\n");
-			MRW_LOCK_DESTROY();
-			return (EINVAL);
-		}
 
 		if (!powerof2(mfchashsize)) {
 			printf("WARNING: %s not a power of 2; using default\n",
