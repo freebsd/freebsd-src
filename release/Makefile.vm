@@ -211,6 +211,7 @@ vm-image:	${QEMUTGT} ${PKGBASE_REPO_DIR}
 		PKGBASE_REPO_DIR=${.OBJDIR}/pkgbase-repo-dir \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr \
+		${VMCONFIG:D-c ${VMCONFIG}} \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
 		-i ${.OBJDIR}/${FORMAT}.${FS}.img -s ${VMSIZE} -f ${FORMAT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT} || true
