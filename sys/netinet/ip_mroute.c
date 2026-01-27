@@ -606,12 +606,12 @@ get_vif_cnt(struct sioc_vif_req *req)
 		return EINVAL;
 	}
 
-	mtx_lock_spin(&V_viftable[vifi].v_spin);
+	mtx_lock(&V_viftable[vifi].v_mtx);
 	req->icount = V_viftable[vifi].v_pkt_in;
 	req->ocount = V_viftable[vifi].v_pkt_out;
 	req->ibytes = V_viftable[vifi].v_bytes_in;
 	req->obytes = V_viftable[vifi].v_bytes_out;
-	mtx_unlock_spin(&V_viftable[vifi].v_spin);
+	mtx_unlock(&V_viftable[vifi].v_mtx);
 	MRW_RUNLOCK();
 
 	return 0;
@@ -1004,8 +1004,8 @@ add_vif(struct vifctl *vifcp)
 	vifp->v_pkt_out   = 0;
 	vifp->v_bytes_in  = 0;
 	vifp->v_bytes_out = 0;
-	sprintf(vifp->v_spin_name, "BM[%d] spin", vifcp->vifc_vifi);
-	mtx_init(&vifp->v_spin, vifp->v_spin_name, NULL, MTX_SPIN);
+	sprintf(vifp->v_mtx_name, "BM[%d] mtx", vifcp->vifc_vifi);
+	mtx_init(&vifp->v_mtx, vifp->v_mtx_name, NULL, MTX_DEF);
 
 	/* Adjust numvifs up if the vifi is higher than numvifs */
 	if (V_numvifs <= vifcp->vifc_vifi)
@@ -1053,7 +1053,7 @@ del_vif_locked(vifi_t vifi, struct ifnet **ifp_multi_leave, struct ifnet **ifp_f
 		}
 	}
 
-	mtx_destroy(&vifp->v_spin);
+	mtx_destroy(&vifp->v_mtx);
 
 	bzero((caddr_t)vifp, sizeof (*vifp));
 
@@ -1659,7 +1659,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	}
 
 	/* If I sourced this packet, it counts as output, else it was input. */
-	mtx_lock_spin(&V_viftable[vifi].v_spin);
+	mtx_lock(&V_viftable[vifi].v_mtx);
 	if (in_hosteq(ip->ip_src, V_viftable[vifi].v_lcl_addr)) {
 		V_viftable[vifi].v_pkt_out++;
 		V_viftable[vifi].v_bytes_out += plen;
@@ -1667,7 +1667,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		V_viftable[vifi].v_pkt_in++;
 		V_viftable[vifi].v_bytes_in += plen;
 	}
-	mtx_unlock_spin(&V_viftable[vifi].v_spin);
+	mtx_unlock(&V_viftable[vifi].v_mtx);
 
 	rt->mfc_pkt_cnt++;
 	rt->mfc_byte_cnt += plen;
@@ -1704,14 +1704,14 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		for (x = rt->mfc_bw_meter_leq; x != NULL; x = x->bm_mfc_next) {
 			/*
 			 * Record that a packet is received.
-			 * Spin lock has to be taken as callout context
+			 * A lock has to be taken as callout context
 			 * (expire_bw_meter_leq) might modify these fields
 			 * as well
 			 */
-			mtx_lock_spin(&x->bm_spin);
+			mtx_lock(&x->bm_mtx);
 			x->bm_measured.b_packets++;
 			x->bm_measured.b_bytes += plen;
-			mtx_unlock_spin(&x->bm_spin);
+			mtx_unlock(&x->bm_mtx);
 		}
 	}
 
@@ -1894,13 +1894,14 @@ expire_bw_meter_leq(void *arg)
 
 	/* Reset counters */
 	x->bm_start_time = now;
-	/* Spin lock has to be taken as ip_forward context
+	/*
+	 * The lock has to be taken as ip_forward context
 	 * might modify these fields as well
 	 */
-	mtx_lock_spin(&x->bm_spin);
+	mtx_lock(&x->bm_mtx);
 	x->bm_measured.b_bytes = 0;
 	x->bm_measured.b_packets = 0;
-	mtx_unlock_spin(&x->bm_spin);
+	mtx_unlock(&x->bm_mtx);
 
 	callout_schedule(&x->bm_meter_callout, tvtohz(&x->bm_threshold.b_time));
 
@@ -1986,8 +1987,8 @@ add_bw_upcall(struct bw_upcall *req)
 	x->bm_time_next = NULL;
 	x->bm_mfc = mfc;
 	x->arg = curvnet;
-	sprintf(x->bm_spin_name, "BM spin %p", x);
-	mtx_init(&x->bm_spin, x->bm_spin_name, NULL, MTX_SPIN);
+	sprintf(x->bm_mtx_name, "BM mtx %p", x);
+	mtx_init(&x->bm_mtx, x->bm_mtx_name, NULL, MTX_DEF);
 
 	/* For LEQ case create periodic callout */
 	if (req->bu_flags & BW_UPCALL_LEQ) {
@@ -2014,7 +2015,7 @@ free_bw_list(struct bw_meter *list)
 		/* MRW_WLOCK must be held here */
 		if (x->bm_flags & BW_METER_LEQ) {
 			callout_drain(&x->bm_meter_callout);
-			mtx_destroy(&x->bm_spin);
+			mtx_destroy(&x->bm_mtx);
 		}
 
 		list = list->bm_mfc_next;
@@ -2115,7 +2116,7 @@ bw_meter_geq_receive_packet(struct bw_meter *x, int plen, struct timeval *nowp)
 
 	/*
 	 * Processing for ">=" type of bw_meter entry.
-	 * bm_spin does not have to be hold here as in GEQ
+	 * bm_mtx does not have to be hold here as in GEQ
 	 * case this is the only context accessing bm_measured.
 	 */
 	if (BW_TIMEVALCMP(&delta, &x->bm_threshold.b_time, >)) {
