@@ -33,7 +33,6 @@
 
 /bin/sh		@jillest
 /contrib/atf		@ngie-eign
-/contrib/capsicum-test	@ngie-eign @emaste
 /contrib/googletest	@ngie-eign
 /sbin/ipf		@cschuber
 /contrib/libcxxrt	@DimitryAndric @emaste
@@ -91,6 +90,7 @@
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie-eign
 /tests/sys/aio/	@asomers
+/tests/sys/capsicum-test @ngie-eign @emaste
 /tests/sys/fs/fusefs/ @asomers
 /tests/sys/kqueue/	@jmgurney
 /tests/sys/opencrypto/	@jmgurney
