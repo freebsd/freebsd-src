@@ -193,6 +193,11 @@ CWARNFLAGS+=	-Wno-error=address			\
 		-Wno-error=uninitialized		\
 		-Wno-error=unused-function		\
 		-Wno-error=unused-value
+
+# These warnings are raised by headers in libc++ so are disabled
+# globally for all C++
+CXXWARNFLAGS+=	-Wno-attributes				\
+		-Wno-deprecated-declarations
 .endif
 
 # GCC 6.1.0
@@ -246,6 +251,7 @@ CWARNFLAGS+=	-Wno-error=overflow
 # globally for all C++
 CXXWARNFLAGS+=	-Wno-literal-suffix			\
 		-Wno-c++20-extensions			\
+		-Wno-attributes				\
 		-Wno-error=unknown-pragmas
 .endif
 
