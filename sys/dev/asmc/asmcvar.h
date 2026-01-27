@@ -327,6 +327,39 @@ struct asmc_softc {
 				  "TMBS", "TP0P", "TPCD", "TW0P", "Th1H", \
 				  "Th2H", "Tm0P", "Ts0P", "Ts0S" }
 
+#define ASMC_MBP83_TEMPS	{ "ALSL", "F0Ac", "F1Ac", "IB0R", "IC0R", \
+				  "ID0R", "IG0R", "IO0R", "PCPC", "PCPG", \
+				  "PCPT", "PD0R", "TB1T", "TB2T", "TC0C", \
+				  "TC0D", "TC0P", "TC1C", "TC2C", "TC3C", \
+				  "TC4C", "TG0D", "TG0P", "THSP", "TP0P", \
+				  "TPCD", "Th1H", "Th2H", "Tm0P", "Ts0P", \
+				  "VC0C", "VD0R", "VG0C", "VN0C", "VP0R", NULL }
+
+#define ASMC_MBP83_TEMPNAMES	{ "ambient_light", "fan_leftside", "fan_rightside", \
+				  "battery_current", "cpu_vcorevtt", "dc_current", \
+				  "gpu_voltage", "other", "cpu_package_core", \
+				  "cpu_package_gpu", "cpu_package_total", "dc_in", \
+				  "battery_1", "battery_2", "cpu_die_digital", \
+				  "cpu_die_analog", "cpu_proximity", "cpu_core_1", \
+				  "cpu_core_2", "cpu_core_3", "cpu_core_4", "gpu_die_analog", \
+				  "gpu_proximity", "thunderbolt", "platform_controller", \
+				  "pch_die_digital", "right_fin_stack", "left_fin_stack", \
+				  "dc_in_air_flow", "palm_rest", "cpu_vcore", "dc_in_voltage", \
+				  "gpu_vcore", "intel_gpu_vcore", "pbus_voltage" }
+
+#define ASMC_MBP83_TEMPDESCS	{ "Ambient Light", "Fan Leftside", "Fan Rightside", \
+				  "Battery BMON Current", "CPU VcoreVTT", "DC In AMON Current", \
+				  "GPU Voltage", "Other 5V 3V", "CPU Package Core", \
+				  "CPU Package GPU", "CPU Package Total", "DC In", \
+				  "Battery Sensor 1", "Battery Sensor 2", "CPU Die Digital", \
+				  "CPU Die Analog", "CPU Proximity", "CPU Core 1 DTS", \
+				  "CPU Core 2 DTS", "CPU Core 3 DTS", "CPU Core 4 DTS", \
+				  "GPU Die Analog", "GPU Proximity", "Thunderbolt Proximity", \
+				  "Platform Controller Hub", "PCH Die Digital", \
+				  "Right Fin Stack Proximity", "Left Fin Stack Proximity", \
+				  "DC In Proximity Air Flow", "Palm Rest", "CPU VCore", \
+				  "DC In Voltage", "GPU VCore", "Intel GPU VCore", "PBus Voltage" }
+
 #define ASMC_MBP91_TEMPS	{ "TA0P", "TB0T", "TB1T", "TB2T", "TC0E", \
 				  "TC0F", "TC0P", "TC1C", "TC2C", "TC3C", \
 				  "TC4C", "TCGC", "TCSA", "TCXC", "TG0D", \
