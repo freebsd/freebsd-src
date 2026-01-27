@@ -11961,8 +11961,7 @@ done:
 	    pf_is_loopback(af, pd.dst))
 		pd.m->m_flags |= M_SKIP_FIREWALL;
 
-	if (af == AF_INET && action == PF_PASS && r->divert.port &&
-	    !PACKET_LOOPED(&pd)) {
+	if (action == PF_PASS && r->divert.port && !PACKET_LOOPED(&pd)) {
 		mtag = m_tag_alloc(MTAG_PF_DIVERT, 0,
 		    sizeof(struct pf_divert_mtag), M_NOWAIT | M_ZERO);
 		if (__predict_true(mtag != NULL && ip_divert_ptr != NULL)) {
@@ -12010,9 +12009,6 @@ done:
 			    "pf: divert(4) is not loaded");
 		}
 	}
-	/* XXX: Anybody working on it?! */
-	if (af == AF_INET6 && r->divert.port)
-		printf("pf: divert(9) is not supported for IPv6\n");
 
 	/* this flag will need revising if the pkt is forwarded */
 	if (pd.pf_mtag)
