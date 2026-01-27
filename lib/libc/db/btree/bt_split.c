@@ -542,7 +542,7 @@ bt_broot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 		 * If the key is on an overflow page, mark the overflow chain
 		 * so it isn't deleted when the leaf copy of the key is deleted.
 		 */
-	if (bl->flags & P_BIGKEY) {
+		if (bl->flags & P_BIGKEY) {
 			pgno_t pgno;
 			memcpy(&pgno, bl->bytes, sizeof(pgno));
 			if (bt_preserve(t, pgno) == RET_ERROR)
