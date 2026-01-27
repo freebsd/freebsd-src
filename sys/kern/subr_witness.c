@@ -168,7 +168,7 @@
 #define	WITNESS_RELATED_MASK	(WITNESS_ANCESTOR_MASK | WITNESS_DESCENDANT_MASK)
 #define	WITNESS_REVERSAL	0x10	/* A lock order reversal has been observed. */
 #define	WITNESS_RESERVED1	0x20	/* Unused flag, reserved. */
-#define	WITNESS_RESERVED2	0x40	/* Unused flag, reserved. */
+#define	WITNESS_ORDER_LISTS	0x40	/* Relationship set in order_lists[]. */
 #define	WITNESS_LOCK_ORDER_KNOWN 0x80	/* This lock order is known. */
 
 /* Descendant to ancestor flags */
@@ -858,6 +858,10 @@ witness_startup(void *mem)
 				continue;
 			w1->w_file = "order list";
 			itismychild(w, w1);
+			w_rmatrix[w->w_index][w1->w_index] |=
+			    WITNESS_ORDER_LISTS;
+			w_rmatrix[w1->w_index][w->w_index] |=
+			    WITNESS_ORDER_LISTS;
 			w = w1;
 		}
 	}
@@ -1273,6 +1277,7 @@ sbuf_print_verbose_witness_stacks(struct verbose_tracker *t)
 {
 	struct witness_lock_order_data *data;
 	int i;
+	bool hardcoded;
 
 	for (i = 0; i < (2 * t->pair_count); i += 2) {
 		mtx_lock_spin(&w_mtx);
@@ -1294,18 +1299,20 @@ sbuf_print_verbose_witness_stacks(struct verbose_tracker *t)
 		data = witness_lock_order_get(&t->t_w1, &t->t_w2);
 		if (data != NULL)
 			stack_copy(&data->wlod_stack, &t->t_stack);
+		hardcoded = (w_rmatrix[t->pairs[i]][t->pairs[i + 1]] &
+		    WITNESS_ORDER_LISTS) == WITNESS_ORDER_LISTS;
 		mtx_unlock_spin(&w_mtx);
 
 		sbuf_printf(t->sb,
-		    "Lock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
+		    "%slock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
+		    hardcoded ? "hardcoded " : "",
 		    t->t_w1.w_name, t->t_w1.w_class->lc_name,
 		    t->t_w2.w_name, t->t_w2.w_class->lc_name);
 		if (data != NULL)
 			stack_sbuf_print_flags(t->sb, &t->t_stack,
 			    t->alloc_flags, STACK_SBUF_FMT_LONG);
 		else
-			sbuf_printf(t->sb,
-			    "(No stack trace--hardcoded relationship?)\n");
+			sbuf_printf(t->sb, "(No stack trace)\n");
 		sbuf_putc(t->sb, '\n');
 	}
 }
