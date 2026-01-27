@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+b0d997095022:
+	The pf firewall now supports passing IPv6 packets to divert(4)
+	sockets via divert-to actions.
+
 0fa7b3bee72e, c71f18998e0b, 4162a419a475, f5a77dc8f8df:
 	LinuxKPI based wireless drivers, especially iwlwifi(4) are now
 	supported on RISC-V.
