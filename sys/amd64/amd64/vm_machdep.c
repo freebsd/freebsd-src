@@ -93,8 +93,7 @@ set_top_of_stack_td(struct thread *td)
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
 {
-	KASSERT(((vm_offset_t)td->td_md.md_usr_fpu_save %
-	    XSAVE_AREA_ALIGN) == 0,
+	KASSERT(__is_aligned(td->td_md.md_usr_fpu_save, XSAVE_AREA_ALIGN),
 	    ("Unaligned pcb_user_save area ptr %p td %p",
 	    td->td_md.md_usr_fpu_save, td));
 	return (td->td_md.md_usr_fpu_save);
