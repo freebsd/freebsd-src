@@ -91,7 +91,8 @@ get_pcb_user_save_td(struct thread *td)
 
 	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
 	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN);
-	KASSERT((p % XSAVE_AREA_ALIGN) == 0, ("Unaligned pcb_user_save area"));
+	KASSERT(__is_aligned(p, XSAVE_AREA_ALIGN),
+	    ("Unaligned pcb_user_save area"));
 	return ((union savefpu *)p);
 }
 
