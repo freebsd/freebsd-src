@@ -42,7 +42,7 @@
 
 #include <atf-c.h>
 
-#define	FSIZE	(size_t)(1024 * 1024)
+#define	FSIZE	(size_t)(2 * 1024 * 1024)
 
 struct ctx {
 	EVP_PKEY *pkey;		/* Self-signed key ... */
@@ -338,9 +338,14 @@ ATF_TC_BODY(truncate, tc)
 	char buf[128 * 1024];
 	size_t nread;
 	int n;
-#define	TRUNC	(FSIZE / 2)
+#define	TRUNC	(FSIZE - 1024)
 
 	common_init(&c);
+
+	ATF_REQUIRE(setsockopt(c.ss, SOL_SOCKET, SO_SNDBUF, &(int){FSIZE / 16},
+	    sizeof(int)) == 0);
+	ATF_REQUIRE(setsockopt(c.cs, SOL_SOCKET, SO_RCVBUF, &(int){FSIZE / 16},
+	    sizeof(int)) == 0);
 
 	sendme(&c, 0, 0, false);
 	/* Make sure sender is waiting on the socket buffer. */
@@ -354,7 +359,9 @@ ATF_TC_BODY(truncate, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == TRUNC);
+	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
 	ATF_REQUIRE(c.sbytes == TRUNC);
+	ATF_REQUIRE(pthread_mutex_unlock(&c.mtx) == 0);
 
 	common_cleanup(&c);
 }
@@ -371,6 +378,11 @@ ATF_TC_BODY(grow, tc)
 #define	GROW	(FSIZE/2)
 
 	common_init(&c);
+
+	ATF_REQUIRE(setsockopt(c.ss, SOL_SOCKET, SO_SNDBUF, &(int){FSIZE / 16},
+	    sizeof(int)) == 0);
+	ATF_REQUIRE(setsockopt(c.cs, SOL_SOCKET, SO_RCVBUF, &(int){FSIZE / 16},
+	    sizeof(int)) == 0);
 
 	sendme(&c, 0, 0, false);
 	/* Make sure sender is waiting on the socket buffer. */
@@ -398,7 +410,9 @@ ATF_TC_BODY(grow, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == GROW);
+	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
 	ATF_REQUIRE(c.sbytes == FSIZE + GROW);
+	ATF_REQUIRE(pthread_mutex_unlock(&c.mtx) == 0);
 
 	common_cleanup(&c);
 }
