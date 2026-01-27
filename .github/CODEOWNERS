@@ -34,7 +34,7 @@
 /bin/sh		@jillest
 /contrib/atf		@ngie-eign
 /contrib/blocklist	@jlduran
-/contrib/capsicum-test	@ngie-eign
+/contrib/capsicum-test	@ngie-eign @emaste
 /contrib/googletest	@ngie-eign
 /contrib/libcxxrt	@DimitryAndric @emaste
 /contrib/llvm-project	@DimitryAndric
