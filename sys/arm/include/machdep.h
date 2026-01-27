@@ -15,7 +15,6 @@ extern vm_offset_t abtstack;
 
 /* misc prototypes used by the many arm machdeps */
 struct trapframe;
-void init_proc0(vm_offset_t kstack);
 void halt(void);
 void abort_handler(struct trapframe *, int );
 void set_stackptrs(int cpu);
