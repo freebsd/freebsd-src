@@ -15,6 +15,7 @@ GTESTS_WRAPPER_SH.capsicum-test=	functional
 # unprivileged user.  Serialize them since some tests access global namespaces,
 # e.g., mqueuefs, and can trample on each other.
 TEST_METADATA.functional+=	is_exclusive="true"
+TEST_METADATA.functional+=	required_kmods="mqueuefs"
 
 SRCS.capsicum-test+=	\
 	capsicum-test-main.cc \
