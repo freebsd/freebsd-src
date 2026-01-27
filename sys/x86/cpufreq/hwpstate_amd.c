@@ -147,6 +147,12 @@ enum hwpstate_flags {
 	PSTATE_CPPC = 1,
 };
 
+/*
+ * Atomicity is achieved by only modifying a given softc on its associated CPU
+ * and with interrupts disabled.
+ *
+ * XXX - Only the CPPC support complies at the moment.
+ */
 struct hwpstate_softc {
 	device_t	dev;
 	u_int		flags;
@@ -354,35 +360,78 @@ sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static void
-set_epp(device_t hwp_device, u_int val)
-{
-	struct hwpstate_softc *sc;
 
-	sc = device_get_softc(hwp_device);
-	if (BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->cppc.request) == val)
-		return;
-	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_EPP_BITS, val);
-	x86_msr_op(MSR_AMD_CPPC_REQUEST,
-	    MSR_OP_RENDEZVOUS_ONE | MSR_OP_WRITE |
-		MSR_OP_CPUID(cpu_get_pcpu(hwp_device)->pc_cpuid),
-	    sc->cppc.request, NULL);
+struct set_cppc_request_cb {
+	struct hwpstate_softc	*sc;
+	uint64_t		 request;
+	uint64_t		 mask;
+	int			 res; /* 0 or HWP_ERROR_CPPC_REQUEST_WRITE */
+};
+
+static void
+set_cppc_request_cb(void *args)
+{
+	struct set_cppc_request_cb *const data = args;
+	uint64_t *const req = &data->sc->cppc.request;
+	int error;
+
+	*req &= ~data->mask;
+	*req |= data->request & data->mask;
+
+	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, *req);
+	data->res = error == 0 ? 0 : HWP_ERROR_CPPC_REQUEST_WRITE;
+}
+
+static inline void
+set_cppc_request_send_one(struct set_cppc_request_cb *const data, device_t dev)
+{
+	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
+
+	data->sc = device_get_softc(dev);
+	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
+	    set_cppc_request_cb, smp_no_rendezvous_barrier, data);
+}
+
+static int
+set_cppc_request(device_t hwp_dev, uint64_t request, uint64_t mask)
+{
+	struct set_cppc_request_cb data = {
+		.request = request,
+		.mask = mask,
+		/* 'sc' filled by set_cppc_request_send_one(). */
+	};
+	int error;
+
+	if (hwpstate_pkg_ctrl_enable) {
+		const devclass_t dc = devclass_find(HWP_AMD_CLASSNAME);
+		const int units = devclass_get_maxunit(dc);
+
+		error = 0;
+		for (int i = 0; i < units; ++i) {
+			const device_t dev = devclass_get_device(dc, i);
+
+			set_cppc_request_send_one(&data, dev);
+			if (data.res != 0)
+				/* Note the error, but continue. */
+				error = EFAULT;
+		}
+	} else {
+		set_cppc_request_send_one(&data, hwp_dev);
+		error = data.res != 0 ? EFAULT : 0;
+	}
+
+	return (error);
 }
 
 static int
 sysctl_epp_handler(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev, hwp_dev;
-	devclass_t dc;
-	struct hwpstate_softc *sc;
 	const u_int max_epp =
 	    BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, (uint64_t)-1);
+	const device_t dev = oidp->oid_arg1;
+	struct hwpstate_softc *const sc = device_get_softc(dev);
 	u_int val;
 	int error = 0;
-	int cpu;
-
-	dev = oidp->oid_arg1;
-	sc = device_get_softc(dev);
 
 	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
 	check_cppc_enabled(sc, __func__);
@@ -398,14 +447,9 @@ sysctl_epp_handler(SYSCTL_HANDLER_ARGS)
 	}
 	val = (val * max_epp) / 100;
 
-	if (hwpstate_pkg_ctrl_enable) {
-		dc = devclass_find(HWP_AMD_CLASSNAME);
-		CPU_FOREACH(cpu) {
-			hwp_dev = devclass_get_device(dc, cpu);
-			set_epp(hwp_dev, val);
-		}
-	} else
-		set_epp(dev, val);
+	error = set_cppc_request(dev,
+	    BITS_WITH_VALUE(AMD_CPPC_REQUEST_EPP_BITS, val),
+	    BITS_WITH_VALUE(AMD_CPPC_REQUEST_EPP_BITS, -1));
 
 end:
 	return (error);
