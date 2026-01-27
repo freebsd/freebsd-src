@@ -33,7 +33,7 @@
 
 /bin/sh		@jillest
 /contrib/atf		@ngie-eign
-/contrib/capsicum-test	@ngie-eign
+/contrib/capsicum-test	@ngie-eign @emaste
 /contrib/googletest	@ngie-eign
 /sbin/ipf		@cschuber
 /contrib/libcxxrt	@DimitryAndric @emaste
