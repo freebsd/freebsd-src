@@ -1619,8 +1619,8 @@ static SYSCTL_NODE(_sysctl, CTL_SYSCTL_OIDLABEL, oidlabel, CTLFLAG_RD |
 int
 sysctl_handle_bool(SYSCTL_HANDLER_ARGS)
 {
-	uint8_t temp;
 	int error;
+	uint8_t temp;
 
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
@@ -1630,16 +1630,44 @@ sysctl_handle_bool(SYSCTL_HANDLER_ARGS)
 	else
 		temp = arg2 ? 1 : 0;
 
-	error = SYSCTL_OUT(req, &temp, sizeof(temp));
+	/*
+	 * In order to support backwards-compatible conversion of integer knobs
+	 * that are used as booleans to true boolean knobs, whose internal state
+	 * is stored as a 'bool' and not an 'int', if exactly 4 bytes remain in
+	 * the output buffer, we assume that the caller expected an 'int'
+	 * instead of a 'uint8_t'.
+	 */
+	if (req->oldidx >= req->oldlen)
+		return (ENOMEM);
+	if (req->oldlen - req->oldidx == sizeof(int)) {
+		int temp_int = temp;
+
+		error = SYSCTL_OUT(req, &temp_int, sizeof(temp_int));
+	} else
+		error = SYSCTL_OUT(req, &temp, sizeof(temp));
 	if (error || !req->newptr)
 		return (error);
 
 	if (!arg1)
 		error = EPERM;
 	else {
-		error = SYSCTL_IN(req, &temp, sizeof(temp));
-		if (!error)
-			*(bool *)arg1 = temp ? 1 : 0;
+		/*
+		 * Conversely, if the input buffer has exactly 4 bytes to read,
+		 * use them all to produce a bool.
+		 */
+		if (req->newidx >= req->newlen)
+			return (ENOMEM);
+		if (req->newlen - req->newidx == sizeof(int)) {
+			int temp_int;
+
+			error = SYSCTL_IN(req, &temp_int, sizeof(temp_int));
+			if (error == 0)
+				*(bool *)arg1 = temp_int != 0 ? 1 : 0;
+		} else {
+			error = SYSCTL_IN(req, &temp, sizeof(temp));
+			if (error == 0)
+				*(bool *)arg1 = temp != 0 ? 1 : 0;
+		}
 	}
 	return (error);
 }
