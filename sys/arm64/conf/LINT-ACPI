@@ -2,3 +2,9 @@
 include "../../conf/NOTES"
 include NOTES
 nooptions	FDT
+
+#####################################################################
+# Items broken without FDT that are generally available elsewhere
+
+# Only presently available probe method uses device-trees
+nooptions	XENHVM

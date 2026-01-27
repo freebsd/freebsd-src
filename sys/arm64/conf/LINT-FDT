@@ -2,3 +2,6 @@
 include "../../conf/NOTES"
 include NOTES
 nodevice	acpi
+
+#####################################################################
+# Items broken without ACPI that are generally available elsewhere
