@@ -34,7 +34,6 @@
 /bin/sh		@jillest
 /contrib/atf		@ngie-eign
 /contrib/blocklist	@jlduran
-/contrib/capsicum-test	@ngie-eign @emaste
 /contrib/googletest	@ngie-eign
 /contrib/libcxxrt	@DimitryAndric @emaste
 /contrib/llvm-project	@DimitryAndric
@@ -118,6 +117,7 @@
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie-eign
 /tests/sys/aio/	@asomers
+/tests/sys/capsicum-test @ngie-eign @emaste
 /tests/sys/fs/fusefs/ @asomers
 /tests/sys/kqueue/	@jmgurney
 /tests/sys/opencrypto/	@jmgurney
