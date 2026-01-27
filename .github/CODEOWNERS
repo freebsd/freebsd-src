@@ -48,6 +48,7 @@
 /contrib/one-true-awk/		@bsdimp
 /contrib/openpam/lib/libpam/		@dag-erling
 /contrib/pjdfstest	@ngie-eign @asomers
+/contrib/wpa		@cschuber
 /crypto/heimdal		@cschuber
 /crypto/krb5		@cschuber
 /crypto/openssh	@dag-erling @emaste
@@ -135,3 +136,4 @@
 /usr.sbin/blocklistd	@jlduran
 /usr.sbin/lpr	@gbergling
 /usr.sbin/makefs	@emaste
+/usr.sbin/wpa		@cschuber
