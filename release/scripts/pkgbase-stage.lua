@@ -46,12 +46,14 @@ local function select_packages(pkg, media, all_libcompats)
 	end
 	assert(components["kernel"])
 	assert(components["base"])
+	assert(components["base-jail"])
 	assert(components["pkg"])
 
 	local selected = {}
 	if media == "disc" then
 		table.insert(selected, components["pkg"])
 		table.insert(selected, components["base"])
+		table.insert(selected, components["base-jail"])
 		table.insert(selected, components["kernel"])
 		table.insert(selected, components["kernel-dbg"])
 		table.insert(selected, components["src"])
@@ -63,6 +65,7 @@ local function select_packages(pkg, media, all_libcompats)
 		assert(media == "dvd")
 		table.insert(selected, components["pkg"])
 		table.insert(selected, components["base"])
+		table.insert(selected, components["base-jail"])
 		table.insert(selected, components["base-dbg"])
 		table.insert(selected, components["kernel"])
 		table.insert(selected, components["kernel-dbg"])
