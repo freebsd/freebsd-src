@@ -73,16 +73,20 @@ in_div_body()
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
-	ifconfig ${epair}a 192.0.2.1/24 up
-	jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
+	atf_check jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec div ifconfig ${epair}b inet6 2001:db8::2/64 no_dad
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	jexec div pfctl -e
 	pft_set_rules div \
-		"pass all" \
-		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000"
+	    "pass all" \
+	    "pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000" \
+	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2000"
 
 	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
 	divapp_pid=$!
@@ -91,6 +95,16 @@ in_div_body()
 
 	# divapp is expected to "eat" the packet
 	atf_check -s not-exit:0 -o ignore ping -c1 -t1 192.0.2.2
+
+	wait $divapp_pid
+
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	divapp_pid=$!
+	# Wait for the divapp to be ready
+	sleep 1
+
+	# divapp is expected to "eat" the packet
+	atf_check -s not-exit:0 -o ignore ping -c1 -t1 2001:db8::2
 
 	wait $divapp_pid
 }
@@ -112,16 +126,20 @@ in_div_in_body()
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
-	ifconfig ${epair}a 192.0.2.1/24 up
-	jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
+	atf_check jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec div ifconfig ${epair}b inet6 2001:db8::2/64 no_dad
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	jexec div pfctl -e
 	pft_set_rules div \
-		"pass all" \
-		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000 no state"
+	    "pass all" \
+	    "pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000 no state" \
+	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2000 no state"
 
 	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
 	divapp_pid=$!
@@ -130,6 +148,16 @@ in_div_in_body()
 
 	# divapp is NOT expected to "eat" the packet
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
+
+	wait $divapp_pid
+
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	divapp_pid=$!
+	# Wait for the divapp to be ready
+	sleep 1
+
+	# divapp is expected to "eat" the packet
+	atf_check -s exit:0 -o ignore ping -c1 -t1 2001:db8::2
 
 	wait $divapp_pid
 }
@@ -151,17 +179,22 @@ out_div_body()
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
-	ifconfig ${epair}a 192.0.2.1/24 up
-	jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
+	atf_check jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec div ifconfig ${epair}b inet6 2001:db8::2/64 no_dad
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	jexec div pfctl -e
 	pft_set_rules div \
-		"pass all" \
-		"pass in inet proto icmp icmp-type echoreq no state" \
-		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2000 no state"
+	    "pass all" \
+	    "pass in inet proto icmp icmp-type echoreq no state" \
+	    "pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2000 no state" \
+	    "pass in inet6 proto icmp6 icmp6-type echoreq no state" \
+	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 2000 no state"
 
 	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
 	divapp_pid=$!
@@ -170,6 +203,16 @@ out_div_body()
 
 	# divapp is expected to "eat" the packet
 	atf_check -s not-exit:0 -o ignore ping -c1 -t1 192.0.2.2
+
+	wait $divapp_pid
+
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	divapp_pid=$!
+	# Wait for the divapp to be ready
+	sleep 1
+
+	# divapp is expected to "eat" the packet
+	atf_check -s not-exit:0 -o ignore ping -c1 -t1 2001:db8::2
 
 	wait $divapp_pid
 }
@@ -191,17 +234,22 @@ out_div_out_body()
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
-	ifconfig ${epair}a 192.0.2.1/24 up
-	jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
+	atf_check jexec div ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec div ifconfig ${epair}b inet6 2001:db8::2/64 no_dad
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	jexec div pfctl -e
 	pft_set_rules div \
-		"pass all" \
-		"pass in inet proto icmp icmp-type echoreq no state" \
-		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2000 no state"
+	    "pass all" \
+	    "pass in inet proto icmp icmp-type echoreq no state" \
+	    "pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2000 no state" \
+	    "pass in inet6 proto icmp6 icmp6-type echoreq no state" \
+	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 2000 no state"
 
 	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
 	divapp_pid=$!
@@ -210,6 +258,16 @@ out_div_out_body()
 
 	# divapp is NOT expected to "eat" the packet
 	atf_check -s exit:0 -o ignore ping -c1 192.0.2.2
+
+	wait $divapp_pid
+
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	divapp_pid=$!
+	# Wait for the divapp to be ready
+	sleep 1
+
+	# divapp is NOT expected to "eat" the packet
+	atf_check -s exit:0 -o ignore ping -c1 2001:db8::2
 
 	wait $divapp_pid
 }
@@ -234,38 +292,61 @@ in_div_in_fwd_out_div_out_body()
 	epair1=$(vnet_mkepair)
 
 	vnet_mkjail router ${epair0}b ${epair1}a
-	ifconfig ${epair0}a 192.0.2.1/24 up
-	jexec router sysctl net.inet.ip.forwarding=1
-	jexec router ifconfig ${epair0}b 192.0.2.2/24 up
-	jexec router ifconfig ${epair1}a 198.51.100.1/24 up
+	atf_check ifconfig ${epair0}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair0}a inet6 2001:db8::1/64 no_dad
+	atf_check -o ignore jexec router sysctl net.inet.ip.forwarding=1
+	atf_check -o ignore jexec router sysctl net.inet6.ip6.forwarding=1
+	atf_check jexec router ifconfig ${epair0}b 192.0.2.2/24 up
+	atf_check jexec router ifconfig ${epair0}b inet6 2001:db8::2/64 no_dad
+	atf_check jexec router ifconfig ${epair1}a 198.51.100.1/24 up
+	atf_check jexec router ifconfig ${epair1}a inet6 2001:db9::1/64 no_dad
 
 	vnet_mkjail site ${epair1}b
 	jexec site ifconfig ${epair1}b 198.51.100.2/24 up
+	jexec site ifconfig ${epair1}b inet6 2001:db9::2/64 no_dad
 	jexec site route add default 198.51.100.1
+	jexec site route -6 add default 2001:db9::1
 
-	route add -net 198.51.100.0/24 192.0.2.2
+	atf_check -o ignore route add -net 198.51.100.0/24 192.0.2.2
+	atf_check -o ignore route -6 add -net 2001:db9::/64 2001:db8::2
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	# Should be routed without pf
-	atf_check -s exit:0 -o ignore ping -c3 198.51.100.2
+	atf_check -o ignore ping -c3 198.51.100.2
+	atf_check -o ignore ping -c3 2001:db9::2
 
 	jexec router pfctl -e
 	pft_set_rules router \
-		"pass all" \
-		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2001 no state" \
-		"pass out inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2002 no state"
+	    "pass all" \
+	    "pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2001 no state" \
+	    "pass out inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2002 no state" \
+	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2001 no state" \
+	    "pass out inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2002 no state"
 
 	jexec router $(atf_get_srcdir)/../common/divapp 2001 divert-back &
 	indivapp_pid=$!
 	jexec router $(atf_get_srcdir)/../common/divapp 2002 divert-back &
 	outdivapp_pid=$!
-	# Wait for the divappS to be ready
+	# Wait for the divapps to be ready
 	sleep 1
 
-	# Both divappS are NOT expected to "eat" the packet
+	# Both divapps are NOT expected to "eat" the packet
 	atf_check -s exit:0 -o ignore ping -c1 198.51.100.2
+
+	wait $indivapp_pid && wait $outdivapp_pid
+
+	jexec router $(atf_get_srcdir)/../common/divapp 2001 divert-back &
+	indivapp_pid=$!
+	jexec router $(atf_get_srcdir)/../common/divapp 2002 divert-back &
+	outdivapp_pid=$!
+	# Wait for the divapps to be ready
+	sleep 1
+
+	# Both divapps are NOT expected to "eat" the packet
+	atf_check -o ignore ping -c1 2001:db9::2
 
 	wait $indivapp_pid && wait $outdivapp_pid
 }
@@ -287,12 +368,15 @@ in_dn_in_div_in_out_div_out_dn_out_body()
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail alcatraz ${epair}b
-	ifconfig ${epair}a 192.0.2.1/24 up
-	ifconfig ${epair}a ether 02:00:00:00:00:01
-	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
+	atf_check ifconfig ${epair}a ether 02:00:00:00:00:01
+	atf_check jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec alcatraz ifconfig ${epair}b inet6 2001:db8::2/64 no_dad
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	# a) ping should time out due to very narrow dummynet pipes {
 
@@ -301,20 +385,36 @@ in_dn_in_div_in_out_div_out_dn_out_body()
 
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz \
-		"ether pass in from 02:00:00:00:00:01 l3 all dnpipe 1001" \
-		"ether pass out to 02:00:00:00:00:01 l3 all dnpipe 1002 " \
-		"pass all" \
-		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 1001 no state" \
-		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 1002 no state"
+	    "ether pass in from 02:00:00:00:00:01 l3 all dnpipe 1001" \
+	    "ether pass out to 02:00:00:00:00:01 l3 all dnpipe 1002 " \
+	    "pass all" \
+	    "pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 1001 no state" \
+	    "pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 1002 no state" \
+	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 1001 no state" \
+	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 1002 no state"
 
 	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
 	indivapp_pid=$!
 	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1002 divert-back &
 	outdivapp_pid=$!
-	# Wait for the divappS to be ready
+	# Wait for the divapps to be ready
 	sleep 1
 
 	atf_check -s not-exit:0 -o ignore ping -c1 -s56 -t1 192.0.2.2
+
+	wait $indivapp_pid
+	atf_check_not_equal 0 $?
+	wait $outdivapp_pid
+	atf_check_not_equal 0 $?
+
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
+	indivapp_pid=$!
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1002 divert-back &
+	outdivapp_pid=$!
+	# Wait for the divapps to be ready
+	sleep 1
+
+	atf_check -s not-exit:0 -o ignore ping -c1 -s56 -t1 2001:db8::2
 
 	wait $indivapp_pid
 	atf_check_not_equal 0 $?
@@ -330,20 +430,36 @@ in_dn_in_div_in_out_div_out_dn_out_body()
 
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz \
-		"ether pass in from 02:00:00:00:00:01 l3 all dnpipe 2001" \
-		"ether pass out to 02:00:00:00:00:01 l3 all dnpipe 2002 " \
-		"pass all" \
-		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2001 no state" \
-		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2002 no state"
+	    "ether pass in from 02:00:00:00:00:01 l3 all dnpipe 2001" \
+	    "ether pass out to 02:00:00:00:00:01 l3 all dnpipe 2002 " \
+	    "pass all" \
+	    "pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2001 no state" \
+	    "pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2002 no state" \
+	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2001 no state" \
+	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 2002 no state"
 
 	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2001 divert-back &
 	indivapp_pid=$!
 	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2002 divert-back &
 	outdivapp_pid=$!
-	# Wait for the divappS to be ready
+	# Wait for the divapps to be ready
 	sleep 1
 
-	atf_check -s exit:0 -o ignore ping -c1 -s56 -t1 192.0.2.2
+	atf_check -o ignore ping -c1 -s56 -t1 192.0.2.2
+
+	wait $indivapp_pid
+	atf_check_equal 0 $?
+	wait $outdivapp_pid
+	atf_check_equal 0 $?
+
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2001 divert-back &
+	indivapp_pid=$!
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2002 divert-back &
+	outdivapp_pid=$!
+	# Wait for the divapps to be ready
+	sleep 1
+
+	atf_check -o ignore ping -c1 -s56 -t1 2001:db8::2
 
 	wait $indivapp_pid
 	atf_check_equal 0 $?
@@ -364,20 +480,22 @@ pr260867_head()
 	atf_set require.user root
 	atf_set require.kmods ipdivert
 }
-
 pr260867_body()
 {
 	pft_init
 
 	epair=$(vnet_mkepair)
 
-	ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
 
 	vnet_mkjail alcatraz ${epair}b
-	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec alcatraz ifconfig ${epair}b inet6 2001:db8::2/64 no_dad
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
 	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
@@ -388,10 +506,14 @@ pr260867_body()
 
 	reply=$(echo "foo" | nc -N 192.0.2.2 7)
 	if [ "${reply}" != "foo" ]; then
-		atf_fail "Did not receive echo reply"
+		atf_fail "Did not receive v4 echo reply"
+	fi
+
+	reply=$(echo "foo" | nc -N -6 2001:db8::2 7)
+	if [ "${reply}" != "foo" ]; then
+		atf_fail "Did not receive v6 echo reply"
 	fi
 }
-
 pr260867_cleanup()
 {
 	pft_cleanup
@@ -404,7 +526,6 @@ pr260867_icmp_head()
 	atf_set require.user root
 	atf_set require.kmods ipdivert
 }
-
 pr260867_icmp_body()
 {
 	pft_init
@@ -412,22 +533,26 @@ pr260867_icmp_body()
 	epair=$(vnet_mkepair)
 
 	atf_check ifconfig ${epair}a 192.0.2.1/24 up
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64 no_dad
 
 	vnet_mkjail alcatraz ${epair}b
-	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	atf_check jexec alcatraz ifconfig ${epair}b inet6 2001:db8::2/64 no_dad
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 192.0.2.2
+	atf_check -o ignore ping -c3 2001:db8::2
 
 	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
 
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz \
-	    "pass in on ${epair}b proto icmp from any to any divert-to 0.0.0.0 port 1001"
+	    "pass in on ${epair}b proto icmp from any to any divert-to 0.0.0.0 port 1001" \
+	    "pass in on ${epair}b proto icmp6 from any to any divert-to :: port 1001"
 
 	atf_check -o ignore ping -c 3 192.0.2.2
+	atf_check -o ignore ping -c 3 2001:db8::2
 }
-
 pr260867_icmp_cleanup()
 {
 	pft_cleanup
