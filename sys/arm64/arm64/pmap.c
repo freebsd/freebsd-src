@@ -1015,7 +1015,7 @@ pmap_bootstrap_l0_table(struct pmap_bootstrap_state *state)
 
 		/* Create a new L0 table entry */
 		state->l1 = (pt_entry_t *)state->freemempos;
-		memset(state->l1, 0, PAGE_SIZE);
+		memset_early(state->l1, 0, PAGE_SIZE);
 		state->freemempos += PAGE_SIZE;
 
 		l1_pa = pmap_early_vtophys((vm_offset_t)state->l1);
@@ -1063,7 +1063,7 @@ pmap_bootstrap_l1_table(struct pmap_bootstrap_state *state)
 
 		/* Create a new L1 table entry */
 		state->l2 = (pt_entry_t *)state->freemempos;
-		memset(state->l2, 0, PAGE_SIZE);
+		memset_early(state->l2, 0, PAGE_SIZE);
 		state->freemempos += PAGE_SIZE;
 
 		l2_pa = pmap_early_vtophys((vm_offset_t)state->l2);
@@ -1107,7 +1107,7 @@ pmap_bootstrap_l2_table(struct pmap_bootstrap_state *state)
 
 		/* Create a new L2 table entry */
 		state->l3 = (pt_entry_t *)state->freemempos;
-		memset(state->l3, 0, PAGE_SIZE);
+		memset_early(state->l3, 0, PAGE_SIZE);
 		state->freemempos += PAGE_SIZE;
 
 		l3_pa = pmap_early_vtophys((vm_offset_t)state->l3);
@@ -1406,7 +1406,7 @@ pmap_bootstrap(void)
 #define alloc_pages(var, np)						\
 	(var) = bs_state.freemempos;					\
 	bs_state.freemempos += (np * PAGE_SIZE);			\
-	memset((char *)(var), 0, ((np) * PAGE_SIZE));
+	memset_early((char *)(var), 0, ((np) * PAGE_SIZE));
 
 	/* Allocate dynamic per-cpu area. */
 	alloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
@@ -1444,7 +1444,7 @@ pmap_bootstrap_allocate_san_l2(vm_paddr_t start_pa, vm_paddr_t end_pa,
 			continue;
 		}
 
-		bzero((void *)PHYS_TO_DMAP(pa), L2_SIZE);
+		bzero_early((void *)PHYS_TO_DMAP(pa), L2_SIZE);
 		physmem_exclude_region(pa, L2_SIZE, EXFLAG_NOALLOC);
 		pmap_store(l2, PHYS_TO_PTE(pa) | PMAP_SAN_PTE_BITS | L2_BLOCK);
 	}

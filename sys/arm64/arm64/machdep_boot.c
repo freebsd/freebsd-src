@@ -115,7 +115,7 @@ fake_preload_metadata(void *dtb_ptr, size_t dtb_size)
 		PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_DTBP);
 		PRELOAD_PUSH_VALUE(uint32_t, sizeof(uint64_t));
 		PRELOAD_PUSH_VALUE(uint64_t, (uint64_t)lastaddr);
-		memmove((void *)lastaddr, dtb_ptr, dtb_size);
+		memmove_early((void *)lastaddr, dtb_ptr, dtb_size);
 		lastaddr += dtb_size;
 		lastaddr = roundup(lastaddr, sizeof(int));
 	}

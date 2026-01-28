@@ -2675,14 +2675,15 @@ update_special_regs(u_int cpu)
 
 	if (cpu == 0) {
 		/* Create a user visible cpu description with safe values */
-		memset(&user_cpu_desc, 0, sizeof(user_cpu_desc));
+		memset_early(&user_cpu_desc, 0, sizeof(user_cpu_desc));
 		/* Safe values for these registers */
 		user_cpu_desc.id_aa64pfr0 = ID_AA64PFR0_AdvSIMD_NONE |
 		    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 |
 		    ID_AA64PFR0_EL0_64;
 		user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
 		/* Create the Linux user visible cpu description */
-		memcpy(&l_user_cpu_desc, &user_cpu_desc, sizeof(user_cpu_desc));
+		memcpy_early(&l_user_cpu_desc, &user_cpu_desc,
+		    sizeof(user_cpu_desc));
 	}
 
 	desc = get_cpu_desc(cpu);
