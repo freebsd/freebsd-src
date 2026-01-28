@@ -739,13 +739,14 @@ static const struct if_ipsec_accel_methods  mlx5e_ipsec_funcs = {
 	.if_hwassist = mlx5e_if_ipsec_hwassist,
 };
 
-int mlx5e_ipsec_init(struct mlx5e_priv *priv)
+void
+mlx5e_ipsec_report(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_ipsec *pipsec;
-	if_t ifp = priv->ifp;
-	int ret;
+	struct mlx5_core_dev *mdev;
 
+	if (!bootverbose)
+		return;
+	mdev = priv->mdev;
 	mlx5_core_info(mdev, "ipsec "
 	    "offload %d log_max_dek %d gen_obj_types %d "
 	    "ipsec_encrypt %d ipsec_decrypt %d "
@@ -775,6 +776,14 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
 		reformat_del_esp_transport_over_udp) != 0,
 	    MLX5_CAP_IPSEC(mdev, ipsec_esn) != 0);
+}
+
+int mlx5e_ipsec_init(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_ipsec *pipsec;
+	if_t ifp = priv->ifp;
+	int ret;
 
 	if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
 		mlx5_core_dbg(mdev, "Not an IPSec offload device\n");
