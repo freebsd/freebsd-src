@@ -74,7 +74,6 @@
 
 typedef void (*mask_fn)(void *);
 
-static int intrcnt_index;
 static struct intsrc **interrupt_sources;
 #ifdef SMP
 static struct intsrc **interrupt_sorted;
@@ -94,11 +93,10 @@ u_int num_io_irqs;
 #endif
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
-u_long *intrcnt;
-char *intrnames;
-size_t sintrcnt = sizeof(intrcnt);
-size_t sintrnames = sizeof(intrnames);
-int nintrcnt;
+static u_long *intrcnt;
+static char *intrnames;
+static u_int intrcnt_index;
+static int nintrcnt;
 
 static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
 
@@ -107,8 +105,6 @@ static void	intr_disable_src(void *arg);
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(struct pic *pic);
 static void	intrcnt_setname(const char *name, int index);
-static void	intrcnt_updatename(struct intsrc *is);
-static void	intrcnt_register(struct intsrc *is);
 
 /*
  * SYSINIT levels for SI_SUB_INTR:
@@ -175,13 +171,11 @@ intr_init_sources(void *arg)
 #endif
 
 	/*
-	 * - 1 ??? dummy counter.
-	 * - 2 counters for each I/O interrupt.
 	 * - 1 counter for each CPU for lapic timer.
-	 * - 1 counter for each CPU for the Hyper-V vmbus driver.
+	 * - 1 counter for each CPU for hypervisor drivers.
 	 * - 8 counters for each CPU for IPI counters for SMP.
 	 */
-	nintrcnt = 1 + num_io_irqs * 2 + mp_ncpus * 2;
+	nintrcnt = mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
 		nintrcnt += 8 * mp_ncpus;
@@ -190,11 +184,6 @@ intr_init_sources(void *arg)
 	    M_ZERO);
 	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTR, M_WAITOK |
 	    M_ZERO);
-	sintrcnt = nintrcnt * sizeof(u_long);
-	sintrnames = nintrcnt * INTRNAME_LEN;
-
-	intrcnt_setname("???", 0);
-	intrcnt_index = 1;
 
 	/*
 	 * NB: intrpic_lock is not held here to avoid LORs due to
@@ -238,7 +227,6 @@ intr_register_source(struct intsrc *isrc)
 		intr_event_destroy(isrc->is_event);
 		return (EEXIST);
 	}
-	intrcnt_register(isrc);
 	interrupt_sources[vector] = isrc;
 	isrc->is_handlers = 0;
 	sx_xunlock(&intrsrc_lock);
@@ -285,7 +273,6 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
-		intrcnt_updatename(isrc);
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
 			isrc->is_domain = domain;
@@ -312,7 +299,6 @@ intr_remove_handler(void *cookie)
 			isrc->is_pic->pic_disable_source(isrc, PIC_NO_EOI);
 			isrc->is_pic->pic_disable_intr(isrc);
 		}
-		intrcnt_updatename(isrc);
 		sx_xunlock(&intrsrc_lock);
 	}
 	return (error);
@@ -340,6 +326,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
 	struct intr_event *ie;
 	int vector;
+	u_long strays;
 
 	/*
 	 * We count software interrupts when we process them.  The
@@ -347,7 +334,6 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * argument for counting hardware interrupts when they're
 	 * processed too.
 	 */
-	(*isrc->is_count)++;
 	VM_CNT_INC(v_intr);
 
 	ie = isrc->is_event;
@@ -364,12 +350,11 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * For stray interrupts, mask and EOI the source, bump the
 	 * stray count, and log the condition.
 	 */
-	if (intr_event_handle(ie, frame) != 0) {
+	if ((strays = intr_event_handle(ie, frame)) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
-		(*isrc->is_straycount)++;
-		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
+		if (strays < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
-		else if (*isrc->is_straycount == INTR_STRAY_LOG_MAX)
+		else if (strays == INTR_STRAY_LOG_MAX)
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
@@ -447,32 +432,6 @@ intrcnt_setname(const char *name, int index)
 	    INTRNAME_LEN - 1, name);
 }
 
-static void
-intrcnt_updatename(struct intsrc *is)
-{
-
-	intrcnt_setname(is->is_event->ie_fullname, is->is_index);
-}
-
-static void
-intrcnt_register(struct intsrc *is)
-{
-	char straystr[INTRNAME_LEN];
-
-	KASSERT(is->is_event != NULL, ("%s: isrc with no event", __func__));
-	mtx_lock_spin(&intrcnt_lock);
-	MPASS(intrcnt_index + 2 <= nintrcnt);
-	is->is_index = intrcnt_index;
-	intrcnt_index += 2;
-	snprintf(straystr, sizeof(straystr), "stray irq%d",
-	    is->is_pic->pic_vector(is));
-	intrcnt_updatename(is);
-	is->is_count = &intrcnt[is->is_index];
-	intrcnt_setname(straystr, is->is_index + 1);
-	is->is_straycount = &intrcnt[is->is_index + 1];
-	mtx_unlock_spin(&intrcnt_lock);
-}
-
 void
 intrcnt_add(const char *name, u_long **countp)
 {
@@ -537,13 +496,8 @@ atpic_reset(void)
 int
 intr_describe(struct intsrc *isrc, void *ih, const char *descr)
 {
-	int error;
 
-	error = intr_event_describe_handler(isrc->is_event, ih, descr);
-	if (error)
-		return (error);
-	intrcnt_updatename(isrc);
-	return (0);
+	return (intr_event_describe_handler(isrc->is_event, ih, descr));
 }
 
 void
@@ -697,12 +651,11 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 		isrc = interrupt_sources[i];
 		if (isrc == NULL)
 			continue;
-		sbuf_printf(&sbuf, "%s:%d @cpu%d(domain%d): %ld\n",
+		sbuf_printf(&sbuf, "%s @cpu%d(domain%d): %lu\n",
 		    isrc->is_event->ie_fullname,
-		    isrc->is_index,
 		    isrc->is_cpu,
 		    isrc->is_domain,
-		    *isrc->is_count);
+		    isrc->is_event->ie_intrcnt);
 	}
 
 	sx_sunlock(&intrsrc_lock);
@@ -713,7 +666,7 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, OID_AUTO, intrs,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, 0, sysctl_hw_intrs, "A",
-    "interrupt:number @cpu: count");
+    "interrupt @cpu: count");
 
 /*
  * Compare two, possibly NULL, entries in the interrupt source array
@@ -727,7 +680,7 @@ intrcmp(const void *one, const void *two)
 	i1 = *(const struct intsrc * const *)one;
 	i2 = *(const struct intsrc * const *)two;
 	if (i1 != NULL && i2 != NULL)
-		return (*i1->is_count - *i2->is_count);
+		return (i1->is_event->ie_intrcnt - i2->is_event->ie_intrcnt);
 	if (i1 != NULL)
 		return (1);
 	if (i2 != NULL)
@@ -805,5 +758,76 @@ intr_next_cpu(int domain)
 {
 
 	return (PCPU_GET(apic_id));
+}
+#endif
+
+/*
+ * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
+ */
+static int
+x86_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_opaque(oidp, intrnames,
+	    intrcnt_index * INTRNAME_LEN, req);
+	if (error != 0)
+		return (error);
+
+	return (intr_event_sysctl_intrnames(oidp, arg1, arg2, req));
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, intrnames,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    x86_sysctl_intrnames,
+    "", "Interrupt Names");
+
+static int
+x86_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+#ifdef SCTL_MASK32
+	uint32_t *intrcnt32;
+	unsigned i;
+
+	if (req->flags & SCTL_MASK32) {
+		if (!req->oldptr)
+			return (sysctl_handle_opaque(oidp, NULL,
+			    intrcnt_index * sizeof(uint32_t), req));
+		intrcnt32 = malloc(intrcnt_index * sizeof(uint32_t), M_TEMP,
+		    M_NOWAIT);
+		if (intrcnt32 == NULL)
+			return (ENOMEM);
+		for (i = 0; i < intrcnt_index; i++)
+			intrcnt32[i] = intrcnt[i];
+		error = sysctl_handle_opaque(oidp, intrcnt32,
+		    intrcnt_index * sizeof(uint32_t), req);
+		free(intrcnt32, M_TEMP);
+	} else
+#endif
+		error = sysctl_handle_opaque(oidp, intrcnt,
+		    intrcnt_index * sizeof(u_long), req);
+
+	return (error == 0 ? intr_event_sysctl_intrcnt(oidp, arg1, arg2, req) :
+	    error);
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    x86_sysctl_intrcnt,
+    "", "Interrupt Counts");
+
+#ifdef DDB
+/*
+ * DDB command to dump the IPI interrupt statistics.
+ */
+DB_SHOW_COMMAND_FLAGS(ipicnt, db_show_ipicnt, DB_CMD_MEMSAFE)
+{
+	u_int i;
+
+	for (i = 0; i < intrcnt_index && !db_pager_quit; ++i)
+		if (intrcnt[i] != 0)
+			db_printf("%s\t%lu\n", intrnames + i * INTRNAME_LEN,
+			    intrcnt[i]);
 }
 #endif

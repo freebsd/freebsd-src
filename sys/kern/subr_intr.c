@@ -4,6 +4,7 @@
  * All rights reserved.
  * Copyright (c) 2015-2016 The FreeBSD Foundation
  * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
+ * Copyright © 2022-2023 Elliott Mitchell
  *
  * Portions of this software were developed by Andrew Turner under
  * sponsorship from the FreeBSD Foundation.
@@ -171,13 +172,14 @@ u_int intr_nirq = NIRQ;
 SYSCTL_UINT(_machdep, OID_AUTO, nirq, CTLFLAG_RDTUN, &intr_nirq, 0,
     "Number of IRQs");
 
-/* Data for MI statistics reporting. */
-u_long *intrcnt;
-char *intrnames;
-size_t sintrcnt;
-size_t sintrnames;
-int nintrcnt;
+#ifdef SMP
+/* Data for statistics reporting. */
+static u_long *intrcnt;
+static char *intrnames;
+static u_int intrcnt_index;
+static int nintrcnt;
 static bitstr_t *intrcnt_bitmap;
+#endif
 
 static struct intr_irqsrc *intr_map_get_isrc(u_int res_id);
 static void intr_map_set_isrc(u_int res_id, struct intr_irqsrc *isrc);
@@ -197,130 +199,33 @@ intr_irq_init(void *dummy __unused)
 
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
 
+#ifdef SMP
 	/*
-	 * - 2 counters for each I/O interrupt.
 	 * - mp_maxid + 1 counters for each IPI counters for SMP.
 	 */
-	nintrcnt = intr_nirq * 2;
-#ifdef SMP
 	nintrcnt += INTR_IPI_COUNT * (mp_maxid + 1);
-#endif
 
 	intrcnt = mallocarray(nintrcnt, sizeof(u_long), M_INTRNG,
 	    M_WAITOK | M_ZERO);
 	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTRNG,
 	    M_WAITOK | M_ZERO);
-	sintrcnt = nintrcnt * sizeof(u_long);
-	sintrnames = nintrcnt * INTRNAME_LEN;
 
 	/* Allocate the bitmap tracking counter allocations. */
 	intrcnt_bitmap = bit_alloc(nintrcnt, M_INTRNG, M_WAITOK | M_ZERO);
+#endif
 
 	irq_sources = mallocarray(intr_nirq, sizeof(struct intr_irqsrc*),
 	    M_INTRNG, M_WAITOK | M_ZERO);
 }
 SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
 
+#ifdef SMP
 static void
 intrcnt_setname(const char *name, int index)
 {
 
 	snprintf(intrnames + INTRNAME_LEN * index, INTRNAME_LEN, "%-*s",
 	    INTRNAME_LEN - 1, name);
-}
-
-/*
- *  Update name for interrupt source with interrupt event.
- */
-static void
-intrcnt_updatename(struct intr_irqsrc *isrc)
-{
-
-	/* QQQ: What about stray counter name? */
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-	intrcnt_setname(isrc->isrc_event->ie_fullname, isrc->isrc_index);
-}
-
-/*
- *  Virtualization for interrupt source interrupt counter increment.
- */
-static inline void
-isrc_increment_count(struct intr_irqsrc *isrc)
-{
-
-	if (isrc->isrc_flags & INTR_ISRCF_PPI)
-		atomic_add_long(&isrc->isrc_count[0], 1);
-	else
-		isrc->isrc_count[0]++;
-}
-
-/*
- *  Virtualization for interrupt source interrupt stray counter increment.
- */
-static inline void
-isrc_increment_straycount(struct intr_irqsrc *isrc)
-{
-
-	isrc->isrc_count[1]++;
-}
-
-/*
- *  Virtualization for interrupt source interrupt name update.
- */
-static void
-isrc_update_name(struct intr_irqsrc *isrc, const char *name)
-{
-	char str[INTRNAME_LEN];
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	if (name != NULL) {
-		snprintf(str, INTRNAME_LEN, "%s: %s", isrc->isrc_name, name);
-		intrcnt_setname(str, isrc->isrc_index);
-		snprintf(str, INTRNAME_LEN, "stray %s: %s", isrc->isrc_name,
-		    name);
-		intrcnt_setname(str, isrc->isrc_index + 1);
-	} else {
-		snprintf(str, INTRNAME_LEN, "%s:", isrc->isrc_name);
-		intrcnt_setname(str, isrc->isrc_index);
-		snprintf(str, INTRNAME_LEN, "stray %s:", isrc->isrc_name);
-		intrcnt_setname(str, isrc->isrc_index + 1);
-	}
-}
-
-/*
- *  Virtualization for interrupt source interrupt counters setup.
- */
-static void
-isrc_setup_counters(struct intr_irqsrc *isrc)
-{
-	int index;
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	/*
-	 * Allocate two counter values, the second tracking "stray" interrupts.
-	 */
-	bit_ffc_area(intrcnt_bitmap, nintrcnt, 2, &index);
-	if (index == -1)
-		panic("Failed to allocate 2 counters. Array exhausted?");
-	bit_nset(intrcnt_bitmap, index, index + 1);
-	isrc->isrc_index = index;
-	isrc->isrc_count = &intrcnt[index];
-	isrc_update_name(isrc, NULL);
-}
-
-/*
- *  Virtualization for interrupt source interrupt counters release.
- */
-static void
-isrc_release_counters(struct intr_irqsrc *isrc)
-{
-	int idx = isrc->isrc_index;
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	bit_nclear(intrcnt_bitmap, idx, idx + 1);
 }
 
 /*
@@ -392,9 +297,6 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 
 	KASSERT(isrc != NULL, ("%s: no source", __func__));
 
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_increment_count(isrc);
-
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		int error;
@@ -409,8 +311,6 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	}
 
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_increment_straycount(isrc);
 	return (EINVAL);
 }
 
@@ -514,19 +414,8 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 
 	mtx_lock(&isrc_table_lock);
 	error = isrc_alloc_irq(isrc);
-	if (error != 0) {
-		mtx_unlock(&isrc_table_lock);
-		return (error);
-	}
-	/*
-	 * Setup interrupt counters, but not for IPI sources. Those are setup
-	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
-	 * our counter pool.
-	 */
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_setup_counters(isrc);
 	mtx_unlock(&isrc_table_lock);
-	return (0);
+	return (error);
 }
 
 /*
@@ -538,8 +427,6 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 	int error;
 
 	mtx_lock(&isrc_table_lock);
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_release_counters(isrc);
 	error = isrc_free_irq(isrc);
 	mtx_unlock(&isrc_table_lock);
 	return (error);
@@ -682,9 +569,12 @@ static int
 isrc_event_create(struct intr_irqsrc *isrc)
 {
 	struct intr_event *ie;
+	u_int flags = 0;
 	int error;
 
-	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
+	if (isrc->isrc_flags & (INTR_ISRCF_IPI | INTR_ISRCF_PPI))
+		flags |= IE_MULTIPROC;
+	error = intr_event_create(&ie, isrc, flags, isrc->isrc_irq,
 	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
 	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
 	if (error)
@@ -743,15 +633,8 @@ isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
 			return (error);
 	}
 
-	error = intr_event_add_handler(isrc->isrc_event, name, filter, handler,
-	    arg, intr_priority(flags), flags, cookiep);
-	if (error == 0) {
-		mtx_lock(&isrc_table_lock);
-		intrcnt_updatename(isrc);
-		mtx_unlock(&isrc_table_lock);
-	}
-
-	return (error);
+	return (intr_event_add_handler(isrc->isrc_event, name, filter, handler,
+	    arg, intr_priority(flags), flags, cookiep));
 }
 
 /*
@@ -1184,7 +1067,6 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 		if (isrc->isrc_handlers == 0)
 			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
 		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
-		intrcnt_updatename(isrc);
 		mtx_unlock(&isrc_table_lock);
 	}
 	return (error);
@@ -1194,7 +1076,6 @@ int
 intr_describe_irq(device_t dev, struct resource *res, void *cookie,
     const char *descr)
 {
-	int error;
 	struct intr_irqsrc *isrc;
 	u_int res_id;
 
@@ -1216,13 +1097,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 		return (0);
 	}
 #endif
-	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
-	if (error == 0) {
-		mtx_lock(&isrc_table_lock);
-		intrcnt_updatename(isrc);
-		mtx_unlock(&isrc_table_lock);
-	}
-	return (error);
+	return (intr_event_describe_handler(isrc->isrc_event, cookie, descr));
 }
 
 #ifdef SMP
@@ -1599,7 +1474,7 @@ DB_SHOW_COMMAND_FLAGS(irqs, db_show_irqs, DB_CMD_MEMSAFE)
 		if (isrc == NULL)
 			continue;
 
-		num = isrc->isrc_count != NULL ? isrc->isrc_count[0] : 0;
+		num = isrc->isrc_event != NULL ? isrc->isrc_event->ie_intrcnt : 0;
 		db_printf("irq%-3u <%s>: cpu %02lx%s cnt %lu\n", i,
 		    isrc->isrc_name, isrc->isrc_cpu.__bits[0],
 		    isrc->isrc_flags & INTR_ISRCF_BOUND ? " (bound)" : "", num);
@@ -1818,6 +1693,8 @@ intr_ipi_setup_counters(const char *name)
 		panic("Failed to allocate %d counters. Array exhausted?",
 		    mp_maxid + 1);
 	bit_nset(intrcnt_bitmap, index, index + mp_maxid);
+	if (index >= intrcnt_index)
+		intrcnt_index = index + mp_maxid + 1;
 	for (i = 0; i < mp_maxid + 1; i++) {
 		snprintf(str, INTRNAME_LEN, "cpu%d:%s", i, name);
 		intrcnt_setname(str, index + i);
@@ -1942,5 +1819,87 @@ intr_ipi_dispatch(u_int ipi)
 	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
 
 	ii->ii_handler(ii->ii_handler_arg);
+}
+#endif
+
+/*
+ * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
+ */
+static int
+intr_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_opaque(oidp, intrnames,
+	    intrcnt_index * INTRNAME_LEN, req);
+	if (error != 0)
+		return (error);
+
+	return (intr_event_sysctl_intrnames(oidp, arg1, arg2, req));
+}
+#endif
+
+SYSCTL_PROC(_hw, OID_AUTO, intrnames,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+#ifdef SMP
+    intr_sysctl_intrnames,
+#else
+    intr_event_sysctl_intrnames,
+#endif
+    "", "Interrupt Names");
+
+#ifdef SMP
+static int
+intr_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+#ifdef SCTL_MASK32
+	uint32_t *intrcnt32;
+	unsigned i;
+
+	if (req->flags & SCTL_MASK32) {
+		if (!req->oldptr)
+			return (sysctl_handle_opaque(oidp, NULL,
+			    intrcnt_index * sizeof(uint32_t), req));
+		intrcnt32 = malloc(intrcnt_index * sizeof(uint32_t), M_TEMP,
+		    M_NOWAIT);
+		if (intrcnt32 == NULL)
+			return (ENOMEM);
+		for (i = 0; i < intrcnt_index; i++)
+			intrcnt32[i] = intrcnt[i];
+		error = sysctl_handle_opaque(oidp, intrcnt32,
+		    intrcnt_index * sizeof(uint32_t), req);
+		free(intrcnt32, M_TEMP);
+	} else
+#endif
+		error = sysctl_handle_opaque(oidp, intrcnt,
+		    intrcnt_index * sizeof(u_long), req);
+
+	return (error == 0 ? intr_event_sysctl_intrcnt(oidp, arg1, arg2, req) :
+	    error);
+}
+#endif
+
+SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+#ifdef SMP
+    intr_sysctl_intrcnt,
+#else
+    intr_event_sysctl_intrcnt,
+#endif
+    "", "Interrupt Counts");
+
+#ifdef DDB
+/*
+ * DDB command to dump the IPI interrupt statistics.
+ */
+DB_SHOW_COMMAND_FLAGS(ipicnt, db_show_ipicnt, DB_CMD_MEMSAFE)
+{
+	u_int i;
+
+	for (i = 0; i < intrcnt_index && !db_pager_quit; ++i)
+		if (intrcnt[i] != 0)
+			db_printf("%s\t%lu\n", intrnames + i * INTRNAME_LEN,
+			    intrcnt[i]);
 }
 #endif

@@ -43,6 +43,7 @@
 #include <sys/asan.h>
 #include <sys/bus.h>
 #include <sys/cons.h>	/* cngetc() */
+#include <sys/clock.h>
 #include <sys/cpuset.h>
 #include <sys/csan.h>
 #include <sys/interrupt.h>
@@ -1732,7 +1733,10 @@ void
 ipi_swi_handler(struct trapframe frame)
 {
 
-	intr_event_handle(clk_intr_event, &frame);
+#ifdef DEV_ACPI
+	if (!CK_SLIST_EMPTY(&clk_intr_event->ie_handlers))
+		intr_event_handle(clk_intr_event, &frame);
+#endif
 }
 
 /*
