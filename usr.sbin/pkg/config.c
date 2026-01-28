@@ -328,7 +328,8 @@ parse_mirror_type(struct repository *r, const char *mt)
 {
 	if (strcasecmp(mt, "srv") == 0)
 		r->mirror_type = MIRROR_SRV;
-	r->mirror_type = MIRROR_NONE;
+	else
+		r->mirror_type = MIRROR_NONE;
 }
 
 static void
