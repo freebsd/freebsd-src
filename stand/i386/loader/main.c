@@ -162,9 +162,9 @@ main(void)
 	bi_setboothowto(initial_howto);
 	if (initial_howto & RB_MULTIPLE) {
 		if (initial_howto & RB_SERIAL)
-			setenv("console", "comconsole vidconsole", 1);
+			setenv("console", "comconsole,vidconsole", 1);
 		else
-			setenv("console", "vidconsole comconsole", 1);
+			setenv("console", "vidconsole,comconsole", 1);
 	} else if (initial_howto & RB_SERIAL) {
 		setenv("console", "comconsole", 1);
 	} else if (initial_howto & RB_MUTE) {

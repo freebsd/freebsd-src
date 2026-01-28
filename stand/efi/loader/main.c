@@ -1316,10 +1316,10 @@ main(int argc, CHAR16 *argv[])
 				setenv("console", "comconsole", 1);
 				break;
 			case VID_SER_BOTH:
-				setenv("console", "efi comconsole", 1);
+				setenv("console", "efi,comconsole", 1);
 				break;
 			case SER_VID_BOTH:
-				setenv("console", "comconsole efi", 1);
+				setenv("console", "comconsole,efi", 1);
 				break;
 				/* case VIDEO_ONLY can't happen -- it's the first if above */
 			}
