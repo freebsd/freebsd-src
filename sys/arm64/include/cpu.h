@@ -328,7 +328,12 @@ ADDRESS_TRANSLATE_FUNC(s1e1r)
 ADDRESS_TRANSLATE_FUNC(s1e1w)
 
 #endif /* !__ASSEMBLER__ */
-#endif
+
+#define MEMSET_EARLY_FUNC	memset_std
+#define MEMCPY_EARLY_FUNC	memcpy_std
+#define MEMMOVE_EARLY_FUNC	memmove_std
+
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_CPU_H_ */
 
