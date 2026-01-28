@@ -598,61 +598,6 @@ acpi_attach(device_t dev)
 	goto out;
     }
 
-    /*
-     * Setup our sysctl tree.
-     *
-     * XXX: This doesn't check to make sure that none of these fail.
-     */
-    sysctl_ctx_init(&sc->acpi_sysctl_ctx);
-    sc->acpi_sysctl_tree = SYSCTL_ADD_NODE(&sc->acpi_sysctl_ctx,
-        SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, device_get_name(dev),
-	CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "supported_sleep_state",
-	CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	0, 0, acpi_supported_sleep_state_sysctl, "A",
-	"List supported ACPI sleep states.");
-    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "power_button_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_power_button_stype, 0, acpi_stype_sysctl, "A",
-	"Power button ACPI sleep state.");
-    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "sleep_button_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_sleep_button_stype, 0, acpi_stype_sysctl, "A",
-	"Sleep button ACPI sleep state.");
-    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "lid_switch_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
-	"Lid ACPI sleep state. Set to s2idle or s2mem if you want to suspend "
-	"your laptop when you close the lid.");
-    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	NULL, 0, acpi_suspend_state_sysctl, "A",
-	"Current ACPI suspend state. This sysctl is deprecated; you probably "
-	"want to use kern.power.suspend instead.");
-    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "standby_state",
-	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A",
-	"ACPI Sx state to use when going standby (usually S1 or S2).");
-    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
-	"sleep delay in seconds");
-    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "s4bios", CTLFLAG_RW, &sc->acpi_s4bios, 0,
-	"Use S4BIOS when hibernating.");
-    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "verbose", CTLFLAG_RW, &sc->acpi_verbose, 0, "verbose mode");
-    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "disable_on_reboot", CTLFLAG_RW,
-	&sc->acpi_do_disable, 0, "Disable ACPI when rebooting/halting system");
-    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "handle_reboot", CTLFLAG_RW,
-	&sc->acpi_handle_reboot, 0, "Use ACPI Reset Register to reboot");
-
 #if defined(__amd64__) || defined(__i386__)
     /*
      * Enable workaround for incorrect ISA IRQ polarity by default on
@@ -660,10 +605,6 @@ acpi_attach(device_t dev)
      */
     if (cpu_vendor_id == CPU_VENDOR_INTEL)
 	acpi_override_isa_irq_polarity = 1;
-    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "override_isa_irq_polarity", CTLFLAG_RDTUN,
-	&acpi_override_isa_irq_polarity, 0,
-	"Force active-hi polarity for edge-triggered ISA IRQs");
 #endif
 
     /*
@@ -769,6 +710,67 @@ acpi_attach(device_t dev)
 
     if ((error = acpi_machdep_init(dev)))
 	goto out;
+
+    /*
+     * Setup our sysctl tree.
+     *
+     * XXX: This doesn't check to make sure that none of these fail.
+     */
+    sysctl_ctx_init(&sc->acpi_sysctl_ctx);
+    sc->acpi_sysctl_tree = SYSCTL_ADD_NODE(&sc->acpi_sysctl_ctx,
+        SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, device_get_name(dev),
+	CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "supported_sleep_state",
+	CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	0, 0, acpi_supported_sleep_state_sysctl, "A",
+	"List supported ACPI sleep states.");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "power_button_state",
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	&sc->acpi_power_button_stype, 0, acpi_stype_sysctl, "A",
+	"Power button ACPI sleep state.");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "sleep_button_state",
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	&sc->acpi_sleep_button_stype, 0, acpi_stype_sysctl, "A",
+	"Sleep button ACPI sleep state.");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "lid_switch_state",
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
+	"Lid ACPI sleep state. Set to s2idle or s2mem if you want to suspend "
+	"your laptop when you close the lid.");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	NULL, 0, acpi_suspend_state_sysctl, "A",
+	"Current ACPI suspend state. This sysctl is deprecated; you probably "
+	"want to use kern.power.suspend instead.");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "standby_state",
+	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A",
+	"ACPI Sx state to use when going standby (usually S1 or S2).");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
+	"sleep delay in seconds");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "s4bios", CTLFLAG_RW, &sc->acpi_s4bios, 0,
+	"Use S4BIOS when hibernating.");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "verbose", CTLFLAG_RW, &sc->acpi_verbose, 0, "verbose mode");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "disable_on_reboot", CTLFLAG_RW,
+	&sc->acpi_do_disable, 0, "Disable ACPI when rebooting/halting system");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "handle_reboot", CTLFLAG_RW,
+	&sc->acpi_handle_reboot, 0, "Use ACPI Reset Register to reboot");
+#if defined(__amd64__) || defined(__i386__)
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "override_isa_irq_polarity", CTLFLAG_RDTUN,
+	&acpi_override_isa_irq_polarity, 0,
+	"Force active-hi polarity for edge-triggered ISA IRQs");
+#endif
 
     /* Register ACPI again to pass the correct argument of pm_func. */
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc,
