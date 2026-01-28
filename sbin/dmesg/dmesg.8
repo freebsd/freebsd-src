@@ -34,6 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ac
+.Op Fl t Op Fl f Ar output_fmt
 .Op Fl M Ar core Op Fl N Ar system
 .Sh DESCRIPTION
 The
@@ -58,6 +59,17 @@ This includes any syslog records and
 output.
 .It Fl c
 Clear the kernel buffer after printing.
+.It Fl t
+Convert timestamps (see
+.Sx SYSCTL VARIABLES
+below) to an absolute date and time.
+.It Fl f
+If
+.Fl t
+is also specified,
+use the specified output_fmt for the conversion (see
+.Xr strftime 3
+manual page).
 .It Fl M
 Extract values associated with the name list from the specified core.
 .It Fl N
