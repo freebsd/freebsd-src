@@ -41,6 +41,10 @@
 #include <lfs.h>
 #include <lutils.h>
 
+#ifdef EFI
+#include "efi/lefi.h"
+#endif
+
 struct interp_lua_softc {
 	lua_State	*luap;
 };
@@ -126,6 +130,11 @@ interp_preinit(void)
 		luaL_requiref(luap, lib->name, lib->func, 1);
 		lua_pop(luap, 1);  /* remove lib */
 	}
+
+#ifdef EFI
+	luaopen_efi(luap);
+	lua_setglobal(luap, "efi");
+#endif
 
 	LUA_FOREACH_SET(fnpp)
 	    (*fnpp)(luap);
