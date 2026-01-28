@@ -410,7 +410,7 @@ zfs_mount(const char *dev, const char *path, void **data)
 		goto err;
 	}
 
-	if (mnt->path != NULL) {
+	if (path != NULL) {
 		mnt->path = strdup(path);
 		if (mnt->path == NULL) {
 			rv = ENOMEM;
