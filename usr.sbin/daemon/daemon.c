@@ -86,13 +86,14 @@ struct daemon_state {
 	int syslog_facility;
 	int keep_fds_open;
 	int output_fd;
+	mode_t output_file_mode;
 	bool restart_enabled;
 	bool syslog_enabled;
 	bool log_reopen;
 };
 
 static void restrict_process(const char *);
-static int  open_log(const char *);
+static int  open_log(const char *, mode_t);
 static void reopen_log(struct daemon_state *);
 static bool listen_child(int, struct daemon_state *);
 static int  get_log_mapping(const char *, const CODE *);
@@ -109,7 +110,7 @@ static int daemon_setup_kqueue(void);
 
 static int pidfile_truncate(struct pidfh *);
 
-static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:h";
+static const char shortopts[] = "+cfHSp:P:ru:o:M:s:l:t:m:R:T:h";
 
 static const struct option longopts[] = {
 	{ "change-dir",         no_argument,            NULL,           'c' },
@@ -117,6 +118,7 @@ static const struct option longopts[] = {
 	{ "sighup",             no_argument,            NULL,           'H' },
 	{ "syslog",             no_argument,            NULL,           'S' },
 	{ "output-file",        required_argument,      NULL,           'o' },
+	{ "output-file-mode",   required_argument,      NULL,           'M' },
 	{ "output-mask",        required_argument,      NULL,           'm' },
 	{ "child-pidfile",      required_argument,      NULL,           'p' },
 	{ "supervisor-pidfile", required_argument,      NULL,           'P' },
@@ -136,7 +138,7 @@ usage(int exitcode)
 {
 	(void)fprintf(stderr,
 	    "usage: daemon [-cfHrS] [-p child_pidfile] [-P supervisor_pidfile]\n"
-	    "              [-u user] [-o output_file] [-t title]\n"
+	    "              [-u user] [-o output_file] [-M output_file_mode] [-t title]\n"
 	    "              [-l syslog_facility] [-s syslog_priority]\n"
 	    "              [-T syslog_tag] [-m output_mask] [-R restart_delay_secs]\n"
 	    "command arguments ...\n");
@@ -147,6 +149,7 @@ usage(int exitcode)
 	    "  --sighup             -H         Close and re-open output file on SIGHUP\n"
 	    "  --syslog             -S         Send output to syslog\n"
 	    "  --output-file        -o <file>  Append output of the child process to file\n"
+	    "  --output-file-mode   -M <mode>  Output file mode of the child process\n"
 	    "  --output-mask        -m <mask>  What to send to syslog/file\n"
 	    "                                  1=stdout, 2=stderr, 3=both\n"
 	    "  --child-pidfile      -p <file>  Write PID of the child process to file\n"
@@ -168,6 +171,7 @@ main(int argc, char *argv[])
 {
 	char *p = NULL;
 	int ch = 0;
+	mode_t *set = NULL;
 	struct daemon_state state;
 
 	daemon_state_init(&state);
@@ -228,6 +232,15 @@ main(int argc, char *argv[])
 			 * descriptor as both stderr and stout before execve()
 			 */
 			state.mode = MODE_SUPERVISE;
+			break;
+		case 'M':
+			if ((set = setmode(optarg)) == NULL) {
+				errx(6, "unrecognized output file mode: %s", optarg);
+			} else {
+				state.output_file_mode = getmode(set, 0);
+			}
+			free(set);
+			set = NULL;
 			break;
 		case 'p':
 			state.child_pidfile = optarg;
@@ -293,7 +306,7 @@ main(int argc, char *argv[])
 	}
 
 	if (state.output_filename) {
-		state.output_fd = open_log(state.output_filename);
+		state.output_fd = open_log(state.output_filename, state.output_file_mode);
 		if (state.output_fd == -1) {
 			err(7, "open");
 		}
@@ -726,10 +739,10 @@ do_output(const unsigned char *buf, size_t len, struct daemon_state *state)
 }
 
 static int
-open_log(const char *outfn)
+open_log(const char *outfn, mode_t outfm)
 {
 
-	return open(outfn, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC, 0600);
+	return open(outfn, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC, outfm);
 }
 
 static void
@@ -737,7 +750,7 @@ reopen_log(struct daemon_state *state)
 {
 	int outfd;
 
-	outfd = open_log(state->output_filename);
+	outfd = open_log(state->output_filename, state->output_file_mode);
 	if (state->output_fd >= 0) {
 		close(state->output_fd);
 	}
@@ -771,6 +784,7 @@ daemon_state_init(struct daemon_state *state)
 		.keep_fds_open = 1,
 		.output_fd = -1,
 		.output_filename = NULL,
+		.output_file_mode = 0600
 	};
 }
 
