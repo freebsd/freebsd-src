@@ -2610,11 +2610,37 @@ acpi_EnterSleepStatePrep(device_t acpi_dev, UINT8 SleepState)
 	return (status);
 }
 
+/* Return from this function indicates failure. */
+static void
+acpi_poweroff(device_t acpi_dev)
+{
+	register_t intr;
+	ACPI_STATUS status;
+
+	device_printf(acpi_dev, "Powering system off...\n");
+	status = acpi_EnterSleepStatePrep(acpi_dev, ACPI_STATE_S5);
+	if (ACPI_FAILURE(status)) {
+		device_printf(acpi_dev, "Power-off preparation failed! - %s\n",
+		    AcpiFormatException(status));
+		return;
+	}
+	intr = intr_disable();
+	status = AcpiEnterSleepState(ACPI_STATE_S5);
+	if (ACPI_FAILURE(status)) {
+		intr_restore(intr);
+		device_printf(acpi_dev, "Power-off failed! - %s\n",
+		    AcpiFormatException(status));
+	} else {
+		DELAY(1000000);
+		intr_restore(intr);
+		device_printf(acpi_dev, "Power-off failed! - timeout\n");
+	}
+}
+
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
-    register_t intr;
     ACPI_STATUS status;
 
     /*
@@ -2623,24 +2649,7 @@ acpi_shutdown_final(void *arg, int howto)
      * an AP.
      */
     if ((howto & RB_POWEROFF) != 0) {
-	status = acpi_EnterSleepStatePrep(sc->acpi_dev, ACPI_STATE_S5);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "Power-off preparation failed! - %s\n",
-		AcpiFormatException(status));
-	    return;
-	}
-	device_printf(sc->acpi_dev, "Powering system off\n");
-	intr = intr_disable();
-	status = AcpiEnterSleepState(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status)) {
-	    intr_restore(intr);
-	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
-		AcpiFormatException(status));
-	} else {
-	    DELAY(1000000);
-	    intr_restore(intr);
-	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
-	}
+	acpi_poweroff(sc->acpi_dev);
     } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
 	/* Reboot using the reset register. */
 	status = AcpiReset();
