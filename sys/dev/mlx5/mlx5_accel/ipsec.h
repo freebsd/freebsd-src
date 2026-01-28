@@ -204,6 +204,7 @@ struct mlx5e_ipsec_pol_entry {
 /* This function doesn't really belong here, but let's put it here for now */
 void mlx5_object_change_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 
+void mlx5e_ipsec_report(struct mlx5e_priv *priv);
 int mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 
