@@ -15,6 +15,8 @@
 #include <sys/uuid.h>
 #include <sys/kdb.h>
 
+#include <machine/_inttypes.h>
+
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 
@@ -247,7 +249,8 @@ acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
 	if ((dsms_supported & dsm_set->dsms_expected)
 	    != dsm_set->dsms_expected) {
 		device_printf(sc->dev, "DSM set %s does not support expected "
-		    "DSMs (0x%lx vs 0x%lx). Some methods may fail.\n",
+		    "DSMs (%#" PRIx64 " vs %#" PRIx64 "). "
+		    "Some methods may fail.\n",
 		    dsm_set->name, dsms_supported, dsm_set->dsms_expected);
 	}
 	sc->dsm_sets |= dsm_set->flag;
