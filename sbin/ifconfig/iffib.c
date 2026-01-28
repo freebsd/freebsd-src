@@ -69,14 +69,12 @@ setiffib(if_ctx *ctx, const char *val, int dummy __unused)
 	char *ep;
 
 	fib = strtoul(val, &ep, 0);
-	if (*ep != '\0' || fib > UINT_MAX) {
-		warn("fib %s not valid", val);
-		return;
-	}
+	if (*ep != '\0' || fib > UINT_MAX)
+		errx(1, "fib %s not valid", val);
 
 	ifr.ifr_fib = fib;
 	if (ioctl_ctx_ifr(ctx, SIOCSIFFIB, &ifr) < 0)
-		warn("ioctl (SIOCSIFFIB)");
+		err(1, "ioctl (SIOCSIFFIB)");
 }
 
 static void
@@ -87,14 +85,12 @@ settunfib(if_ctx *ctx, const char *val, int dummy __unused)
 	char *ep;
 
 	fib = strtoul(val, &ep, 0);
-	if (*ep != '\0' || fib > UINT_MAX) {
-		warn("fib %s not valid", val);
-		return;
-	}
+	if (*ep != '\0' || fib > UINT_MAX)
+		errx(1, "fib %s not valid", val);
 
 	ifr.ifr_fib = fib;
 	if (ioctl_ctx_ifr(ctx, SIOCSTUNFIB, &ifr) < 0)
-		warn("ioctl (SIOCSTUNFIB)");
+		err(1, "ioctl (SIOCSTUNFIB)");
 }
 
 static struct cmd fib_cmds[] = {
