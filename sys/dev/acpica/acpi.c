@@ -2593,6 +2593,23 @@ acpi_fake_objhandler(ACPI_HANDLE h, void *data)
 {
 }
 
+/*
+ * Simple wrapper around AcpiEnterSleepStatePrep() printing diagnostic on error.
+ */
+static ACPI_STATUS
+acpi_EnterSleepStatePrep(device_t acpi_dev, UINT8 SleepState)
+{
+	ACPI_STATUS status;
+
+	status = AcpiEnterSleepStatePrep(SleepState);
+	if (ACPI_FAILURE(status))
+		device_printf(acpi_dev,
+		    "AcpiEnterSleepStatePrep(%u) failed - %s\n",
+		    SleepState,
+		    AcpiFormatException(status));
+	return (status);
+}
+
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
@@ -2606,9 +2623,9 @@ acpi_shutdown_final(void *arg, int howto)
      * an AP.
      */
     if ((howto & RB_POWEROFF) != 0) {
-	status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
+	status = acpi_EnterSleepStatePrep(sc->acpi_dev, ACPI_STATE_S5);
 	if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
+	    device_printf(sc->acpi_dev, "Power-off preparation failed! - %s\n",
 		AcpiFormatException(status));
 	    return;
 	}
@@ -3659,12 +3676,9 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
     slp_state |= ACPI_SS_DEV_SUSPEND;
 
     if (stype != POWER_STYPE_SUSPEND_TO_IDLE) {
-	status = AcpiEnterSleepStatePrep(acpi_sstate);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
-		AcpiFormatException(status));
+	status = acpi_EnterSleepStatePrep(sc->acpi_dev, acpi_sstate);
+	if (ACPI_FAILURE(status))
 	    goto backout;
-	}
 	slp_state |= ACPI_SS_SLP_PREP;
     }
 
