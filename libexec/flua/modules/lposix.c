@@ -8,6 +8,7 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <fnmatch.h>
 #include <grp.h>
@@ -254,7 +255,7 @@ lua_execp(lua_State *L)
 	}
 	argv[argc + 1] = NULL;
 
-	execvp(file, (char **)argv);
+	execvp(file, __DECONST(char **, argv));
 	error = errno;
 
 	lua_pushnil(L);
@@ -386,7 +387,7 @@ lua_read(lua_State *L)
 	char *buf;
 	ssize_t ret;
 	size_t sz;
-	int error, fd;
+	int error = 0, fd;
 
 	enforce_max_args(L, 2);
 	fd = luaL_checkinteger(L, 1);
@@ -398,8 +399,10 @@ lua_read(lua_State *L)
 	}
 
 	buf = malloc(sz);
-	if (buf == NULL)
+	if (buf == NULL) {
+		error = errno;
 		goto err;
+	}
 
 	/*
 	 * For 0-byte reads, we'll still push the empty string and let the
@@ -412,12 +415,13 @@ lua_read(lua_State *L)
 		error = errno; /* Save to avoid clobber by free() */
 
 	free(buf);
-	if (error != 0)
+	if (ret < 0)
 		goto err;
 
 	/* Just the string pushed. */
 	return (1);
 err:
+	assert(error != 0);
 	lua_pushnil(L);
 	lua_pushstring(L, strerror(error));
 	lua_pushinteger(L, error);
