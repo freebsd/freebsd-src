@@ -44,7 +44,6 @@ LUASRC?=	${SRCTOP}/contrib/lua/src
 .PATH: ${LUASRC}
 
 PROG=	flua
-WARNS?=	3
 
 CWARNFLAGS.gcc+=	-Wno-format-nonliteral
 
