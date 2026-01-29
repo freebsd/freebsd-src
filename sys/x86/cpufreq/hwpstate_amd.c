@@ -202,6 +202,13 @@ static device_method_t hwpstate_methods[] = {
 	{0, 0}
 };
 
+static inline void
+check_cppc_enabled(const struct hwpstate_softc *const sc, const char *const func)
+{
+	KASSERT((sc->flags & PSTATE_CPPC) != 0, (HWP_AMD_CLASSNAME
+	    ": %s() called but PSTATE_CPPC not set", func));
+}
+
 struct get_cppc_regs_data {
 	uint64_t enable;
 	uint64_t caps;
@@ -270,8 +277,10 @@ sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 	int ret;
 
 	sc = (struct hwpstate_softc *)arg1;
-	dev = sc->dev;
+	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
+	check_cppc_enabled(sc, __func__);
 
+	dev = sc->dev;
 	pc = cpu_get_pcpu(dev);
 	if (pc == NULL)
 		return (ENXIO);
@@ -336,8 +345,8 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	dev = oidp->oid_arg1;
 	sc = device_get_softc(dev);
 
-	if (!(sc->flags & PSTATE_CPPC))
-		return (ENODEV);
+	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
+	check_cppc_enabled(sc, __func__);
 
 	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->req) * 100 /
 	    max_energy_perf;
