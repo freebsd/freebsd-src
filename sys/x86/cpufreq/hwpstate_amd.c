@@ -261,7 +261,7 @@ print_cppc_caps_1(struct sbuf *const sb, const uint64_t caps)
 	    AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, caps);
 }
 
-#define MSR_NOT_READ_MSG	"Fault on read"
+#define MSR_NOT_READ_MSG	"Not read (fault or previous errors)"
 
 static void
 print_cppc_no_caps_1(struct sbuf *const sb)
@@ -644,46 +644,45 @@ hwpstate_identify(driver_t *driver, device_t parent)
 		device_printf(parent, "hwpstate: add child failed\n");
 }
 
-struct amd_set_autonomous_hwp_request {
-	device_t dev;
-	int res;
+struct set_autonomous_hwp_data {
+	/* Inputs */
+	struct hwpstate_softc *sc;
+	/* Outputs */
+	/* HWP_ERROR_CPPC_* */
+	u_int res;
+	/* Below fields filled depending on 'res'. */
+	uint64_t caps;
+	uint64_t init_request;
+	uint64_t request;
 };
 
 static void
 amd_set_autonomous_hwp_cb(void *args)
 {
-	struct hwpstate_softc *sc;
-	struct amd_set_autonomous_hwp_request *req =
-	    (struct amd_set_autonomous_hwp_request *)args;
-	device_t dev;
-	uint64_t caps;
-	int ret;
+	struct set_autonomous_hwp_data *const data = args;
+	struct hwpstate_softc *const sc = data->sc;
+	int error;
 
-	dev = req->dev;
-	sc = device_get_softc(dev);
-	ret = wrmsr_safe(MSR_AMD_CPPC_ENABLE, 1);
-	if (ret != 0) {
-		device_printf(dev, "Failed to enable cppc for cpu%d (%d)\n",
-		    curcpu, ret);
-		req->res = ret;
-	}
+	/* We proceed sequentially, so we'll clear out errors on progress. */
+	data->res = HWP_ERROR_CPPC_ENABLE | HWP_ERROR_CPPC_CAPS |
+	    HWP_ERROR_CPPC_REQUEST | HWP_ERROR_CPPC_REQUEST_WRITE;
 
-	ret = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &sc->cppc.request);
-	if (ret != 0) {
-		device_printf(dev,
-		    "Failed to read CPPC request MSR for cpu%d (%d)\n", curcpu,
-		    ret);
-		req->res = ret;
-	}
-
-	ret = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &caps);
-	if (ret != 0) {
-		device_printf(dev,
-		    "Failed to read HWP capabilities MSR for cpu%d (%d)\n",
-		    curcpu, ret);
-		req->res = ret;
+	error = wrmsr_safe(MSR_AMD_CPPC_ENABLE, 1);
+	if (error != 0)
 		return;
-	}
+	data->res &= ~HWP_ERROR_CPPC_ENABLE;
+
+	error = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &data->caps);
+	if (error != 0)
+		return;
+	data->res &= ~HWP_ERROR_CPPC_CAPS;
+
+	error = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &sc->cppc.request);
+	if (error != 0)
+		return;
+	data->res &= ~HWP_ERROR_CPPC_REQUEST;
+	/* The CPPC_REQUEST value before we tweak it. */
+	data->init_request = sc->cppc.request;
 
 	/*
 	 * In Intel's reference manual, the default value of EPP is 0x80u which
@@ -692,35 +691,71 @@ amd_set_autonomous_hwp_cb(void *args)
 	 */
 	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_EPP_BITS, 0x80);
 	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
-	    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, caps));
+	    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data->caps));
 	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MAX_PERF_BITS,
-	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, caps));
+	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data->caps));
 	/* enable autonomous mode by setting desired performance to 0 */
 	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
 
-	ret = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->cppc.request);
-	if (ret) {
-		device_printf(dev, "Failed to setup autonomous HWP for cpu%d\n",
-		    curcpu);
-		req->res = ret;
+	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->cppc.request);
+	if (error != 0)
 		return;
-	}
-	req->res = 0;
+	data->res &= ~HWP_ERROR_CPPC_REQUEST_WRITE;
+	data->request = sc->cppc.request;
 }
 
 static int
 amd_set_autonomous_hwp(struct hwpstate_softc *sc)
 {
-	struct amd_set_autonomous_hwp_request req;
-	device_t dev;
+	const device_t dev = sc->dev;
+	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
+	struct set_autonomous_hwp_data data;
+	struct sbuf sbs;
+	struct sbuf *sb;
 
-	dev = sc->dev;
-	req.dev = dev;
-	smp_rendezvous_cpu(cpu_get_pcpu(dev)->pc_cpuid,
-	    smp_no_rendezvous_barrier, amd_set_autonomous_hwp_cb,
-	    smp_no_rendezvous_barrier, &req);
+	data.sc = sc;
+	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
+	    amd_set_autonomous_hwp_cb, smp_no_rendezvous_barrier, &data);
 
-	return (req.res);
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_ENABLE)) {
+		device_printf(dev, "CPU%u: Failed to enable CPPC!\n", cpuid);
+		return (ENXIO);
+	}
+	device_printf(dev, "CPU%u: CPPC enabled.\n", cpuid);
+
+	/*
+	 * Now that we have enabled CPPC, we can't go back, so we'll attach even
+	 * in case of further malfunction, allowing the user to retry setting
+	 * CPPC_REQUEST via the sysctl knobs.
+	 */
+
+	sb = sbuf_new(&sbs, NULL, 0, SBUF_AUTOEXTEND);
+
+	if (hwpstate_verbose)
+		sbuf_printf(sb,
+		    "CPU%u: Initial MSR values after CPPC enable:\n", cpuid);
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_CAPS))
+		print_cppc_no_caps_1(sb);
+	else if (hwpstate_verbose)
+		print_cppc_caps_1(sb, data.caps);
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_REQUEST))
+		print_cppc_no_request(sb);
+	else if (hwpstate_verbose)
+		print_cppc_request(sb, data.init_request);
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_REQUEST_WRITE))
+		device_printf(dev, "CPU%u: Could not write into "
+		    MSR_AMD_CPPC_REQUEST_NAME "!\n",
+		    cpuid);
+	else if (hwpstate_verbose) {
+		sbuf_printf(sb, "CPU%u: Tweaked MSR values:\n", cpuid);
+		print_cppc_request(sb, data.request);
+	}
+
+	sbuf_finish(sb);
+	sbuf_putbuf(sb);
+	sbuf_delete(sb);
+
+	return (0);
 }
 
 static int
