@@ -222,8 +222,8 @@ TEST(TypeTraits, IsInvocableRV) {
   // In C++17 and above, where it's guaranteed that functions can return
   // non-moveable objects, everything should work fine for non-moveable rsult
   // types too.
-#if defined(GTEST_INTERNAL_CPLUSPLUS_LANG) && \
-    GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
+  // TODO(b/396121064) - Fix this test under MSVC
+#ifndef _MSC_VER
   {
     struct NonMoveable {
       NonMoveable() = default;
@@ -244,7 +244,7 @@ TEST(TypeTraits, IsInvocableRV) {
     static_assert(!internal::is_callable_r<int, Callable>::value);
     static_assert(!internal::is_callable_r<NonMoveable, Callable, int>::value);
   }
-#endif  // C++17 and above
+#endif  // _MSC_VER
 
   // Nothing should choke when we try to call other arguments besides directly
   // callable objects, but they should not show up as callable.
@@ -441,8 +441,8 @@ TEST(DefaultValueDeathTest, GetReturnsBuiltInDefaultValueWhenUnset) {
 
   EXPECT_EQ(0, DefaultValue<int>::Get());
 
-  EXPECT_DEATH_IF_SUPPORTED({ DefaultValue<MyNonDefaultConstructible>::Get(); },
-                            "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      { DefaultValue<MyNonDefaultConstructible>::Get(); }, "");
 }
 
 TEST(DefaultValueTest, GetWorksForMoveOnlyIfSet) {
@@ -505,8 +505,8 @@ TEST(DefaultValueOfReferenceDeathTest, GetReturnsBuiltInDefaultValueWhenUnset) {
   EXPECT_FALSE(DefaultValue<MyNonDefaultConstructible&>::IsSet());
 
   EXPECT_DEATH_IF_SUPPORTED({ DefaultValue<int&>::Get(); }, "");
-  EXPECT_DEATH_IF_SUPPORTED({ DefaultValue<MyNonDefaultConstructible>::Get(); },
-                            "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      { DefaultValue<MyNonDefaultConstructible>::Get(); }, "");
 }
 
 // Tests that ActionInterface can be implemented by defining the
@@ -1477,6 +1477,54 @@ TEST(DoAll, SupportsTypeErasedActions) {
   }
 }
 
+// A DoAll action should be convertible to a OnceAction, even when its component
+// sub-actions are user-provided types that define only an Action conversion
+// operator. If they supposed being called more than once then they also support
+// being called at most once.
+TEST(DoAll, ConvertibleToOnceActionWithUserProvidedActionConversion) {
+  // Simplest case: only one sub-action.
+  struct CustomFinal final {
+    operator Action<int()>() {  // NOLINT
+      return Return(17);
+    }
+
+    operator Action<int(int, char)>() {  // NOLINT
+      return Return(19);
+    }
+  };
+
+  {
+    OnceAction<int()> action = DoAll(CustomFinal{});
+    EXPECT_EQ(17, std::move(action).Call());
+  }
+
+  {
+    OnceAction<int(int, char)> action = DoAll(CustomFinal{});
+    EXPECT_EQ(19, std::move(action).Call(0, 0));
+  }
+
+  // It should also work with multiple sub-actions.
+  struct CustomInitial final {
+    operator Action<void()>() {  // NOLINT
+      return [] {};
+    }
+
+    operator Action<void(int, char)>() {  // NOLINT
+      return [] {};
+    }
+  };
+
+  {
+    OnceAction<int()> action = DoAll(CustomInitial{}, CustomFinal{});
+    EXPECT_EQ(17, std::move(action).Call());
+  }
+
+  {
+    OnceAction<int(int, char)> action = DoAll(CustomInitial{}, CustomFinal{});
+    EXPECT_EQ(19, std::move(action).Call(0, 0));
+  }
+}
+
 // Tests using WithArgs and with an action that takes 1 argument.
 TEST(WithArgsTest, OneArg) {
   Action<bool(double x, int n)> a = WithArgs<1>(Invoke(Unary));  // NOLINT
@@ -1594,6 +1642,22 @@ TEST(WithArgsTest, RefQualifiedInnerAction) {
 
   MockFunction<int(int, int)> mock;
   EXPECT_CALL(mock, Call).WillOnce(WithArg<1>(SomeAction{}));
+  EXPECT_EQ(19, mock.AsStdFunction()(0, 17));
+}
+
+// It should be fine to provide an lvalue WithArgsAction to WillOnce, even when
+// the inner action only wants to convert to OnceAction.
+TEST(WithArgsTest, ProvideAsLvalueToWillOnce) {
+  struct SomeAction {
+    operator OnceAction<int(int)>() const {  // NOLINT
+      return [](const int arg) { return arg + 2; };
+    }
+  };
+
+  const auto wa = WithArg<1>(SomeAction{});
+
+  MockFunction<int(int, int)> mock;
+  EXPECT_CALL(mock, Call).WillOnce(wa);
   EXPECT_EQ(19, mock.AsStdFunction()(0, 17));
 }
 
