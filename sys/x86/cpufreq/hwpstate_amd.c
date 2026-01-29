@@ -60,6 +60,7 @@
 #include <sys/smp.h>
 #include <sys/sched.h>
 
+#include <machine/_inttypes.h>
 #include <machine/md_var.h>
 #include <machine/cputypes.h>
 #include <machine/specialreg.h>
@@ -83,6 +84,9 @@
 #define	MSR_AMD_CPPC_CAPS_2	0xc00102b2
 #define	MSR_AMD_CPPC_REQUEST	0xc00102b3
 #define	MSR_AMD_CPPC_STATUS	0xc00102b4
+
+#define	MSR_AMD_CPPC_CAPS_1_NAME	"CPPC_CAPABILITY_1"
+#define	MSR_AMD_CPPC_REQUEST_NAME	"CPPC_REQUEST"
 
 #define	MSR_AMD_PWR_ACC		0xc001007a
 #define	MSR_AMD_PWR_ACC_MX	0xc001007b
@@ -206,6 +210,43 @@ struct amdhwp_dump_sysctl_handler_request {
 };
 
 static void
+print_msr_bits(struct sbuf *const sb, const char *const legend,
+    const uint64_t bits, const uint64_t msr_value)
+{
+	sbuf_printf(sb, "\t%s: %" PRIu64 "\n", legend,
+	    BITS_VALUE(bits, msr_value));
+}
+
+static void
+print_cppc_caps_1(struct sbuf *const sb, const uint64_t caps)
+{
+	sbuf_printf(sb, MSR_AMD_CPPC_CAPS_1_NAME ": %#016" PRIx64 "\n", caps);
+	print_msr_bits(sb, "Highest Performance",
+	    AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, caps);
+	print_msr_bits(sb, "Guaranteed Performance",
+	    AMD_CPPC_CAPS_1_NOMINAL_PERF_BITS, caps);
+	print_msr_bits(sb, "Efficient Performance",
+	    AMD_CPPC_CAPS_1_EFFICIENT_PERF_BITS, caps);
+	print_msr_bits(sb, "Lowest Performance",
+	    AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, caps);
+}
+
+static void
+print_cppc_request(struct sbuf *const sb, const uint64_t request)
+{
+	sbuf_printf(sb, MSR_AMD_CPPC_REQUEST_NAME ": %#016" PRIx64 "\n",
+	    request);
+	print_msr_bits(sb, "Efficiency / Energy Preference",
+	    AMD_CPPC_REQUEST_EPP_BITS, request);
+	print_msr_bits(sb, "Desired Performance",
+	    AMD_CPPC_REQUEST_DES_PERF_BITS, request);
+	print_msr_bits(sb, "Minimum Performance",
+	    AMD_CPPC_REQUEST_MIN_PERF_BITS, request);
+	print_msr_bits(sb, "Maximum Performance",
+	    AMD_CPPC_REQUEST_MAX_PERF_BITS, request);
+}
+
+static void
 amdhwp_dump_sysctl_handler_cb(void *args)
 {
 	struct amdhwp_dump_sysctl_handler_request *req =
@@ -251,30 +292,10 @@ amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		goto out;
 
 	data = request.caps;
-	sbuf_printf(sb, "\tHighest Performance: %03ju\n",
-	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data));
-	sbuf_printf(sb, "\tGuaranteed Performance: %03ju\n",
-	    BITS_VALUE(AMD_CPPC_CAPS_1_NOMINAL_PERF_BITS, data));
-	sbuf_printf(sb, "\tEfficient Performance: %03ju\n",
-	    BITS_VALUE(AMD_CPPC_CAPS_1_EFFICIENT_PERF_BITS, data));
-	sbuf_printf(sb, "\tLowest Performance: %03ju\n",
-	    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data));
-	sbuf_putc(sb, '\n');
+	print_cppc_caps_1(sb, data);
 
 	data = request.req;
-#define pkg_print(name, offset)                         \
-	do {                                            \
-		sbuf_printf(sb, "\t%s: %03u\n", name,   \
-		    (unsigned)(data >> offset) & 0xff); \
-	} while (0)
-
-	pkg_print("Requested Efficiency Performance Preference", 24);
-	pkg_print("Requested Desired Performance", 16);
-	pkg_print("Requested Maximum Performance", 8);
-	pkg_print("Requested Minimum Performance", 0);
-#undef pkg_print
-
-	sbuf_putc(sb, '\n');
+	print_cppc_request(sb, data);
 
 out:
 	if (ret == 0)
