@@ -773,9 +773,9 @@ hwpstate_attach(device_t dev)
 	int res;
 
 	sc = device_get_softc(dev);
-	if (sc->flags & PSTATE_CPPC) {
+	if ((sc->flags & PSTATE_CPPC) != 0) {
 		if ((res = amd_set_autonomous_hwp(sc)))
-			return res;
+			return (res);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_STATIC_CHILDREN(_debug), OID_AUTO,
 		    device_get_nameunit(dev),
