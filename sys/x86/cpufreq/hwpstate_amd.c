@@ -661,6 +661,7 @@ amd_set_autonomous_hwp_cb(void *args)
 {
 	struct set_autonomous_hwp_data *const data = args;
 	struct hwpstate_softc *const sc = data->sc;
+	uint64_t lowest_perf, highest_perf;
 	int error;
 
 	/* We proceed sequentially, so we'll clear out errors on progress. */
@@ -690,12 +691,30 @@ amd_set_autonomous_hwp_cb(void *args)
 	 * CPPC driver.
 	 */
 	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_EPP_BITS, 0x80);
-	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
-	    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data->caps));
-	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MAX_PERF_BITS,
-	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data->caps));
-	/* enable autonomous mode by setting desired performance to 0 */
+
+	/* Enable autonomous mode by setting desired performance to 0. */
 	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
+
+	/*
+	 * When MSR_AMD_CPPC_CAPS_1 stays at its reset value (0) before CPPC
+	 * activation (not supposed to happen, but happens in the field), we use
+	 * reasonable default values that are explicitly described by the ACPI
+	 * spec (all 0s for the minimum value, all 1s for the maximum one).
+	 * Going further, we actually do the same as long as the minimum and
+	 * maximum performance levels are not sorted or are equal (in which case
+	 * CPPC is not supposed to make sense at all), which covers the reset
+	 * value case.
+	 */
+	lowest_perf = BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data->caps);
+	highest_perf = BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data->caps);
+	if (lowest_perf >= highest_perf) {
+		lowest_perf = 0;
+		highest_perf = -1;
+	}
+	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
+	    lowest_perf);
+	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MAX_PERF_BITS,
+	    highest_perf);
 
 	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->cppc.request);
 	if (error != 0)
