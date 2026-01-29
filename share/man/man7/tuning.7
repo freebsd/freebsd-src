@@ -601,6 +601,32 @@ See the
 section in the
 .Xr sendfile 2
 manual page for details.
+.Sh SCHEDULERS
+.Fx
+allows having more than one scheduler specified in the kernel config,
+and the desired scheduler selected from them at boot time.
+Right now the options are:
+.Bl -tag -width SCHED_4BSD
+.It Cd SCHED_ULE
+The modern scheduler with O(1) thread selection behavior.
+.It Cd SCHED_4BSD
+Classic scheduler inherited from 4.x BSD.
+.El
+.Pp
+At least one option must be specified.
+.Cd SCHED_ULE
+is used by default if compiled in.
+.Pp
+The
+.Va kern.sched.available
+sysctl provides the comma-separated list of available (compiled in)
+schedulers.
+The
+.Va kern.sched.name
+loader tunable can be set to select the desired scheduler at boot time.
+The
+.Va kern.sched.name
+sysctl reports which scheduler is used.
 .Sh KERNEL CONFIG TUNING
 There are a number of kernel options that you may have to fiddle with in
 a large-scale system.
