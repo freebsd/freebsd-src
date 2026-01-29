@@ -155,13 +155,6 @@ uintptr_t socdev_va __read_mostly;
 vm_paddr_t efi_systbl_phys;
 static struct efi_map_header *efihdr;
 
-/* pagezero_* implementations are provided in support.S */
-void pagezero_simple(void *);
-void pagezero_cache(void *);
-
-/* pagezero_simple is default pagezero */
-void (*pagezero)(void *p) = pagezero_simple;
-
 int (*apei_nmi)(void);
 
 #if defined(PERTHREAD_SSP_WARNING)
@@ -720,9 +713,6 @@ cache_setup(void)
 		/* Same as with above calculations */
 		dczva_line_shift = DCZID_BS_SIZE(dczid_el0);
 		dczva_line_size = sizeof(int) << dczva_line_shift;
-
-		/* Change pagezero function */
-		pagezero = pagezero_cache;
 	}
 }
 

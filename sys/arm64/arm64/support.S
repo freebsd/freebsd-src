@@ -397,4 +397,16 @@ ENTRY(pagezero_cache)
 
 END(pagezero_cache)
 
+/*
+ * pagezero, MOPS implementation
+ */
+ENTRY(pagezero_mops)
+	mov	x1, #PAGE_SIZE
+	.inst   0x19df0420      /* setp    [x0]!, x1!, xzr  */
+	.inst   0x19df4420      /* setm    [x0]!, x1!, xzr  */
+	.inst   0x19df8420      /* sete    [x0]!, x1!, xzr  */
+	ret
+
+END(pagezero_mops)
+
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
