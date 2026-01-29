@@ -110,40 +110,11 @@ static right_info known_rights[] = {
   RIGHTS_INFO(CAP_KQUEUE),
   /* Rights that are only present in some version or some OS, and so are #ifdef'ed */
   /* LINKAT got split */
-#ifdef CAP_LINKAT
-  RIGHTS_INFO(CAP_LINKAT),
-#endif
-#ifdef CAP_LINKAT_SOURCE
   RIGHTS_INFO(CAP_LINKAT_SOURCE),
-#endif
-#ifdef CAP_LINKAT_TARGET
   RIGHTS_INFO(CAP_LINKAT_TARGET),
-#endif
-  /* Linux aliased some FD operations for pdgetpid/pdkill */
-#ifdef CAP_PDGETPID_FREEBSD
-  RIGHTS_INFO(CAP_PDGETPID_FREEBSD),
-#endif
-#ifdef CAP_PDKILL_FREEBSD
-  RIGHTS_INFO(CAP_PDKILL_FREEBSD),
-#endif
   /* Linux-specific rights */
-#ifdef CAP_FSIGNAL
-  RIGHTS_INFO(CAP_FSIGNAL),
-#endif
-#ifdef CAP_EPOLL_CTL
-  RIGHTS_INFO(CAP_EPOLL_CTL),
-#endif
 #ifdef CAP_NOTIFY
   RIGHTS_INFO(CAP_NOTIFY),
-#endif
-#ifdef CAP_SETNS
-  RIGHTS_INFO(CAP_SETNS),
-#endif
-#ifdef CAP_PERFMON
-  RIGHTS_INFO(CAP_PERFMON),
-#endif
-#ifdef CAP_BPF
-  RIGHTS_INFO(CAP_BPF),
 #endif
   /* Rights in later versions of FreeBSD (>10.0) */
 };
@@ -152,7 +123,7 @@ void ShowCapRights(FILE *out, int fd) {
   size_t ii;
   bool first = true;
   cap_rights_t rights;
-  CAP_SET_NONE(&rights);
+  CAP_NONE(&rights);
   if (cap_rights_get(fd, &rights) < 0) {
     fprintf(out, "Failed to get rights for fd %d: errno %d\n", fd, errno);
     return;
@@ -210,11 +181,11 @@ FORK_TEST(Capability, CapNew) {
   cap_rights_t r_rws;
   cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
   cap_rights_t r_all;
-  CAP_SET_ALL(&r_all);
+  CAP_ALL(&r_all);
 
   int cap_fd = dup(STDOUT_FILENO);
   cap_rights_t rights;
-  CAP_SET_NONE(&rights);
+  CAP_NONE(&rights);
   EXPECT_OK(cap_rights_get(cap_fd, &rights));
   EXPECT_RIGHTS_EQ(&r_all, &rights);
 
@@ -511,7 +482,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   close(cap_cap_fd);
 
   char ch;
-  CHECK_RIGHT_RESULT(read(cap_fd, &ch, sizeof(ch)), rights, CAP_READ, CAP_SEEK_ASWAS);
+  CHECK_RIGHT_RESULT(read(cap_fd, &ch, sizeof(ch)), rights, CAP_READ, 0);
 
   ssize_t len1 = pread(cap_fd, &ch, sizeof(ch), 0);
   CHECK_RIGHT_RESULT(len1, rights, CAP_PREAD);
@@ -519,11 +490,10 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   CHECK_RIGHT_RESULT(len2, rights, CAP_PREAD);
   EXPECT_EQ(len1, len2);
 
-  CHECK_RIGHT_RESULT(write(cap_fd, &ch, sizeof(ch)), rights, CAP_WRITE, CAP_SEEK_ASWAS);
+  CHECK_RIGHT_RESULT(write(cap_fd, &ch, sizeof(ch)), rights, CAP_WRITE, 0);
   CHECK_RIGHT_RESULT(pwrite(cap_fd, &ch, sizeof(ch), 0), rights, CAP_PWRITE);
   CHECK_RIGHT_RESULT(lseek(cap_fd, 0, SEEK_SET), rights, CAP_SEEK);
 
-#ifdef HAVE_CHFLAGS
   // Note: this is not expected to work over NFS.
   struct statfs sf;
   EXPECT_OK(fstatfs(fd, &sf));
@@ -531,7 +501,6 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   if (!is_nfs) {
     CHECK_RIGHT_RESULT(fchflags(cap_fd, UF_NODUMP), rights, CAP_FCHFLAGS);
   }
-#endif
 
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_NONE, MAP_SHARED, cap_fd, 0),
                           rights, CAP_MMAP);
@@ -551,9 +520,6 @@ static void TryFileOps(int fd, cap_rights_t rights) {
                           rights, CAP_MMAP_RWX);
 
   CHECK_RIGHT_RESULT(fsync(cap_fd), rights, CAP_FSYNC);
-#ifdef HAVE_SYNC_FILE_RANGE
-  CHECK_RIGHT_RESULT(sync_file_range(cap_fd, 0, 1, 0), rights, CAP_FSYNC, CAP_SEEK);
-#endif
 
   int rc = fcntl(cap_fd, F_GETFL);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FCNTL);
@@ -574,10 +540,6 @@ static void TryFileOps(int fd, cap_rights_t rights) {
 
   struct statfs cap_sf;
   CHECK_RIGHT_RESULT(fstatfs(cap_fd, &cap_sf), rights, CAP_FSTATFS);
-
-#ifdef HAVE_FPATHCONF
-  CHECK_RIGHT_RESULT(fpathconf(cap_fd, _PC_NAME_MAX), rights, CAP_FPATHCONF);
-#endif
 
   CHECK_RIGHT_RESULT(futimes(cap_fd, NULL), rights, CAP_FUTIMES);
 
@@ -806,14 +768,12 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   }
   EXPECT_OK(unlinkat(dirfd, "cap_fsync", 0));
 
-#ifdef HAVE_CHFLAGSAT
   rc = openat(dirfd, "cap_chflagsat", O_CREAT, 0600);
   EXPECT_OK(rc);
   EXPECT_OK(close(rc));
   rc = chflagsat(dfd_cap, "cap_chflagsat", UF_NODUMP, 0);
   CHECK_RIGHT_RESULT(rc, rights, CAP_CHFLAGSAT, CAP_LOOKUP);
   EXPECT_OK(unlinkat(dirfd, "cap_chflagsat", 0));
-#endif
 
   rc = openat(dirfd, "cap_fchownat", O_CREAT, 0600);
   EXPECT_OK(rc);
@@ -871,13 +831,11 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
     EXPECT_OK(unlinkat(dirfd, "cap_mkdirat", AT_REMOVEDIR));
   }
 
-#ifdef HAVE_MKFIFOAT
   rc = mkfifoat(dfd_cap, "cap_mkfifoat", 0600);
   CHECK_RIGHT_RESULT(rc, rights, CAP_MKFIFOAT, CAP_LOOKUP);
   if (rc >= 0) {
     EXPECT_OK(unlinkat(dirfd, "cap_mkfifoat", 0));
   }
-#endif
 
   if (getuid() == 0) {
     rc = mknodat(dfd_cap, "cap_mknodat", S_IFCHR | 0600, 0);
@@ -980,12 +938,10 @@ FORK_TEST(Capability, DirOperations) {
   DirOperationsTest(0);
 }
 
-#ifdef O_PATH
 FORK_TEST(Capability, PathDirOperations) {
   // Make the dfd in the test a path-only file descriptor.
   DirOperationsTest(O_PATH);
 }
-#endif
 
 static void TryReadWrite(int cap_fd) {
   char buffer[64];
@@ -1135,22 +1091,6 @@ TEST(Capability, SyscallAt) {
   unlink(TmpFile("cap_at_topdir/cap_fifo"));
   EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
   unlink(TmpFile("cap_at_topdir/cap_fifo"));
-
-#ifdef HAVE_MKNOD_REG
-  // Need CAP_CREATE to create a regular file with mknodat(2).
-  EXPECT_NOTCAPABLE(mknodat(cap_dfd_all, "cap_regular", S_IFREG|0755, 0));
-  unlink(TmpFile("cap_at_topdir/cap_regular"));
-  EXPECT_OK(mknodat(cap_dfd_create, "cap_regular", S_IFREG|0755, 0));
-  unlink(TmpFile("cap_at_topdir/cap_regular"));
-#endif
-
-#ifdef HAVE_MKNOD_SOCKET
-  // Need CAP_BIND to create a UNIX domain socket with mknodat(2).
-  EXPECT_NOTCAPABLE(mknodat(cap_dfd_all, "cap_socket", S_IFSOCK|0755, 0));
-  unlink(TmpFile("cap_at_topdir/cap_socket"));
-  EXPECT_OK(mknodat(cap_dfd_bind, "cap_socket", S_IFSOCK|0755, 0));
-  unlink(TmpFile("cap_at_topdir/cap_socket"));
-#endif
 
   close(cap_dfd_all);
   close(cap_dfd_no_mkfifo);

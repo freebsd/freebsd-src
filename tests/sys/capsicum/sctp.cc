@@ -11,7 +11,6 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
-#ifdef HAVE_SCTP
 static cap_rights_t r_ro;
 static cap_rights_t r_wo;
 static cap_rights_t r_rw;
@@ -180,12 +179,10 @@ TEST(Sctp, Socket) {
         EXPECT_OK(rc2);
         int peeled = std::max(rc1, rc2);
         if (peeled > 0) {
-#ifdef CAP_FROM_PEELOFF
           // Peeled off FD should have same rights as original socket.
           cap_rights_t rights;
           EXPECT_OK(cap_rights_get(peeled, &rights));
           EXPECT_RIGHTS_EQ(&r_all, &rights);
-#endif
           close(peeled);
         }
       } else if (buffer[0] == DO_TERM) {
@@ -212,4 +209,3 @@ TEST(Sctp, Socket) {
   close(cap_sock_all);
   close(cap_sock_all_nopeel);
 }
-#endif

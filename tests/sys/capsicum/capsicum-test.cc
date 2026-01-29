@@ -1,6 +1,5 @@
 #include "capsicum-test.h"
 
-#ifdef __FreeBSD__
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -8,7 +7,6 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 #include <libprocstat.h>
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -38,26 +36,6 @@ const char *TmpFile(const char *p) {
 }
 
 char ProcessState(int pid) {
-#ifdef __linux__
-  // Open the process status file.
-  char s[1024];
-  snprintf(s, sizeof(s), "/proc/%d/status", pid);
-  FILE *f = fopen(s, "r");
-  if (f == NULL) return '\0';
-
-  // Read the file line by line looking for the state line.
-  const char *prompt = "State:\t";
-  while (!feof(f)) {
-    fgets(s, sizeof(s), f);
-    if (!strncmp(s, prompt, strlen(prompt))) {
-      fclose(f);
-      return s[strlen(prompt)];
-    }
-  }
-  fclose(f);
-  return '?';
-#endif
-#ifdef __FreeBSD__
   // First check if the process exists/we have permission to see it. This
   // Avoids warning messages being printed to stderr by libprocstat.
   size_t len = 0;
@@ -115,5 +93,4 @@ char ProcessState(int pid) {
   procstat_close(prstat);
   if (verbose) fprintf(stderr, "Process %d in state '%c'\n", pid, result);
   return result;
-#endif
 }

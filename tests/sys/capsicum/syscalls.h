@@ -5,11 +5,6 @@
 #ifndef __SYSCALLS_H__
 #define __SYSCALLS_H__
 
-/************************************************************
- * FreeBSD
- ************************************************************/
-#ifdef __FreeBSD__
-
 /* Map umount2 (Linux) syscall to unmount (FreeBSD) syscall */
 #define umount2(T, F) unmount(T, F)
 
@@ -108,11 +103,9 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define connect_ connect
 
 /* Features available */
-#if __FreeBSD_version >= 1000000
 #define HAVE_CHFLAGSAT
 #define HAVE_BINDAT
 #define HAVE_CONNECTAT
-#endif
 #define HAVE_CHFLAGS
 #define HAVE_GETFSSTAT
 #define HAVE_REVOKE
@@ -131,142 +124,5 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define MLOCK_REQUIRES_ROOT 1
 /* FreeBSD effectively only allows root to call sched_setscheduler */
 #define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
-
-#endif  /* FreeBSD */
-
-/************************************************************
- * Linux
- ************************************************************/
-#ifdef __linux__
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/prctl.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/wait.h>
-#include <sys/sendfile.h>
-#include <sys/statfs.h>
-#include <sys/xattr.h>
-#include <sys/mount.h>
-#include <linux/net.h>
-
-/* profil(2) has a first argument of unsigned short* */
-#define profil_arg1_t unsigned short
-
-static inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
-  return syscall(__NR_getdents, fd, dirp, count);
-}
-/* A sample mount(2) call */
-static inline int bogus_mount_() {
-  return mount("/dev/bogus", "/bogus", "debugfs", MS_RDONLY, "");
-}
-
-/* libc's getpid() wrapper caches the pid value, and doesn't invalidate
- * the cached value on pdfork(), so directly syscall. */
-static inline pid_t getpid_() {
-  return syscall(__NR_getpid);
-}
-static inline int execveat(int fd, const char *path,
-                           char *const argv[], char *const envp[], int flags) {
-  return syscall(__NR_execveat, fd, path, argv, envp, flags);
-}
-
-/*
- * Linux glibc includes an fexecve() function, implemented via the /proc
- * filesystem.  Bypass this and go directly to the execveat(2) syscall.
- */
-static inline int fexecve_(int fd, char *const argv[], char *const envp[]) {
-  return execveat(fd, "", argv, envp, AT_EMPTY_PATH);
-}
-/*
- * Linux glibc attempts to be clever and intercepts various uid/gid functions.
- * Bypass by calling the syscalls directly.
- */
-static inline gid_t getegid_(void) { return syscall(__NR_getegid); }
-static inline gid_t getgid_(void) { return syscall(__NR_getgid); }
-static inline uid_t geteuid_(void) { return syscall(__NR_geteuid); }
-static inline uid_t getuid_(void) { return syscall(__NR_getuid); }
-static inline int getgroups_(int size, gid_t list[]) { return syscall(__NR_getgroups, size, list); }
-static inline int getrlimit_(int resource, struct rlimit *rlim) {
-  return syscall(__NR_getrlimit, resource, rlim);
-}
-
-/*
- * Linux glibc for i386 consumes the errno returned from the raw socketcall(2) operation,
- * so use the raw syscall for those operations that are disallowed in capability mode.
- */
-#ifdef __NR_bind
-#define bind_ bind
-#else
-static inline int bind_(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
-  unsigned long args[3] = {(unsigned long)sockfd, (unsigned long)(intptr_t)addr, (unsigned long)addrlen};
-  return syscall(__NR_socketcall, SYS_BIND, args);
-}
-#endif
-#ifdef __NR_connect
-#define connect_ connect
-#else
-static inline int connect_(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
-  unsigned long args[3] = {(unsigned long)sockfd, (unsigned long)(intptr_t)addr, (unsigned long)addrlen};
-  return syscall(__NR_socketcall, SYS_CONNECT, args);
-}
-#endif
-
-#define mincore_ mincore
-#define sendfile_ sendfile
-#define flistxattr_ flistxattr
-#define fgetxattr_ fgetxattr
-#define fsetxattr_ fsetxattr
-#define fremovexattr_ fremovexattr
-#define mq_notify_ mq_notify
-#define mq_open_ mq_open
-#define mq_setattr_ mq_setattr
-#define mq_getattr_ mq_getattr
-#define mq_timedreceive_ mq_timedreceive
-#define mq_timedsend_ mq_timedsend
-#define mq_unlink_ mq_unlink
-#define mq_close_ mq_close
-#define ptrace_ ptrace
-#define PTRACE_PEEKDATA_ PTRACE_PEEKDATA
-
-/* Features available */
-#define HAVE_DUP3
-#define HAVE_PIPE2
-#include <sys/fsuid.h>  /* for setfsgid()/setfsuid() */
-#define HAVE_SETFSUID
-#define HAVE_SETFSGID
-#define HAVE_READAHEAD
-#define HAVE_SEND_RECV_MMSG
-#define HAVE_SYNCFS
-#define HAVE_SYNC_FILE_RANGE
-#include <sys/uio.h>  /* for vmsplice */
-#define HAVE_TEE
-#define HAVE_SPLICE
-#define HAVE_VMSPLICE
-#define HAVE_PSELECT
-#define HAVE_PPOLL
-#define HAVE_EXECVEAT
-#define HAVE_SYSCALL
-#define HAVE_MKNOD_REG
-#define HAVE_MKNOD_SOCKET
-/*
- * O_BENEATH is arch-specific, via <asm/fcntl.h>; however we cannot include both that file
- * and the normal <fcntl.h> as they have some clashing definitions.  Bypass by directly
- * defining O_BENEATH, using the current proposed x86 value.  (This will therefore not
- * work for non-x86, and may need changing in future if a different value gets merged.)
- */
-#ifndef O_BENEATH
-#define O_BENEATH	040000000	/* no / or .. in openat path */
-#endif
-
-
-/* Linux allows anyone to call mlock[all]/munlock[all] */
-#define MLOCK_REQUIRES_ROOT 0
-/* Linux allows anyone to call sched_setscheduler */
-#define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
-
-#endif  /* Linux */
 
 #endif /*__SYSCALLS_H__*/

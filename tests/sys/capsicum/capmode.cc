@@ -3,9 +3,7 @@
 // whether or not they return the expected ECAPMODE.
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef __FreeBSD__
 #include <sys/sockio.h>
-#endif
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
@@ -69,18 +67,14 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   EXPECT_CAPMODE(access(TmpFile("cap_capmode_access"), F_OK));
   EXPECT_CAPMODE(acct(TmpFile("cap_capmode_acct")));
   EXPECT_CAPMODE(chdir(TmpFile("cap_capmode_chdir")));
-#ifdef HAVE_CHFLAGS
   EXPECT_CAPMODE(chflags(TmpFile("cap_capmode_chflags"), UF_NODUMP));
-#endif
   EXPECT_CAPMODE(chmod(TmpFile("cap_capmode_chmod"), 0644));
   EXPECT_CAPMODE(chown(TmpFile("cap_capmode_chown"), -1, -1));
   EXPECT_CAPMODE(chroot(TmpFile("cap_capmode_chroot")));
   EXPECT_CAPMODE(creat(TmpFile("cap_capmode_creat"), 0644));
   EXPECT_CAPMODE(fchdir(fd_dir_));
-#ifdef HAVE_GETFSSTAT
   struct statfs statfs;
   EXPECT_CAPMODE(getfsstat(&statfs, sizeof(statfs), MNT_NOWAIT));
-#endif
   EXPECT_CAPMODE(link(TmpFile("foo"), TmpFile("bar")));
   struct stat sb;
   EXPECT_CAPMODE(lstat(TmpFile("cap_capmode_lstat"), &sb));
@@ -89,9 +83,7 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
   char buf[64];
   EXPECT_CAPMODE(readlink(TmpFile("cap_capmode_readlink"), buf, sizeof(buf)));
-#ifdef HAVE_REVOKE
   EXPECT_CAPMODE(revoke(TmpFile("cap_capmode_revoke")));
-#endif
   EXPECT_CAPMODE(stat(TmpFile("cap_capmode_stat"), &sb));
   EXPECT_CAPMODE(symlink(TmpFile("cap_capmode_symlink_from"), TmpFile("cap_capmode_symlink_to")));
   EXPECT_CAPMODE(unlink(TmpFile("cap_capmode_unlink")));
@@ -122,9 +114,7 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   int fd_dup = dup(fd_file_);
   EXPECT_OK(fd_dup);
   EXPECT_OK(dup2(fd_file_, fd_dup));
-#ifdef HAVE_DUP3
   EXPECT_OK(dup3(fd_file_, fd_dup, 0));
-#endif
   if (fd_dup >= 0) close(fd_dup);
 
   struct stat sb;
@@ -134,12 +124,10 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   EXPECT_OK(read(fd_file_, &ch, sizeof(ch)));
   EXPECT_OK(write(fd_file_, &ch, sizeof(ch)));
 
-#ifdef HAVE_CHFLAGS
   rc = fchflags(fd_file_, UF_NODUMP);
   if (rc < 0) {
     EXPECT_NE(ECAPMODE, errno);
   }
-#endif
 
   char buf[1024];
   rc = getdents_(fd_dir_, (void*)buf, sizeof(buf));
@@ -152,7 +140,7 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   struct iovec io;
   io.iov_base = data;
   io.iov_len = 2;
-#if !defined(__i386__) && !defined(__linux__)
+#if !defined(__i386__)
   // TODO(drysdale): reinstate these tests for 32-bit runs when possible
   // libc bug is fixed.
   EXPECT_OK(pwritev(fd_file_, &io, 1, 0));
@@ -160,18 +148,6 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
 #endif
   EXPECT_OK(writev(fd_file_, &io, 1));
   EXPECT_OK(readv(fd_file_, &io, 1));
-
-#ifdef HAVE_SYNCFS
-  EXPECT_OK(syncfs(fd_file_));
-#endif
-#ifdef HAVE_SYNC_FILE_RANGE
-  EXPECT_OK(sync_file_range(fd_file_, 0, 1, 0));
-#endif
-#ifdef HAVE_READAHEAD
-  if (!tmpdir_on_tmpfs) {  // tmpfs doesn't support readahead(2)
-    EXPECT_OK(readahead(fd_file_, 0, 1));
-  }
-#endif
 }
 
 FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
@@ -301,19 +277,10 @@ FORK_TEST(Capmode, AllowedIdentifierSyscalls) {
   gid_t egid;
   gid_t sgid;
   EXPECT_OK(getresgid(&rgid, &egid, &sgid));
-#ifdef HAVE_GETLOGIN
   EXPECT_TRUE(getlogin() != NULL);
-#endif
 
   // Set various identifiers (to their existing values).
   EXPECT_OK(setgid(my_gid));
-#ifdef HAVE_SETFSGID
-  EXPECT_OK(setfsgid(my_gid));
-#endif
-  EXPECT_OK(setuid(my_uid));
-#ifdef HAVE_SETFSUID
-  EXPECT_OK(setfsuid(my_uid));
-#endif
   EXPECT_OK(setregid(my_gid, my_gid));
   EXPECT_OK(setresgid(my_gid, my_gid, my_gid));
   EXPECT_OK(setreuid(my_uid, my_uid));
@@ -409,14 +376,6 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
   int fd2[2];
   int rc = pipe(fd2);
   EXPECT_EQ(0, rc);
-
-#ifdef HAVE_VMSPLICE
-  char buf[11] = "0123456789";
-  struct iovec iov;
-  iov.iov_base = buf;
-  iov.iov_len = sizeof(buf);
-  EXPECT_FAIL_NOT_CAPMODE(vmsplice(fd2[0], &iov, 1, SPLICE_F_NONBLOCK));
-#endif
 
   if (rc == 0) {
     close(fd2[0]);
@@ -605,7 +564,6 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
 
   // TODO(FreeBSD): ktrace
 
-#ifdef HAVE_SYSARCH
   // sysarch() is, by definition, architecture-dependent
 #if defined (__amd64__) || defined (__i386__)
   long sysarch_arg = 0;
@@ -613,14 +571,13 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
 #else
   // TOOD(jra): write a test for other architectures, like arm
 #endif
-#endif
 }
 
 void *thread_fn(void *p) {
   int fd = (int)(intptr_t)p;
   if (verbose) fprintf(stderr, "  thread waiting to run\n");
   AWAIT_INT_MESSAGE(fd, MSG_PARENT_CHILD_SHOULD_RUN);
-  EXPECT_OK(getpid_());
+  EXPECT_OK(getpid());
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
   // Return whether there have been any failures to the main thread.
   void *rval = (void *)(intptr_t)testing::Test::HasFailure();
@@ -670,7 +627,7 @@ FORK_TEST(Capmode, NewThread) {
   SEND_INT_MESSAGE(proc_pipe[0], MSG_PARENT_CHILD_SHOULD_RUN);
 
   // Do an allowed syscall.
-  EXPECT_OK(getpid_());
+  EXPECT_OK(getpid());
   // Wait for the first child to exit (should get a zero exit code message).
   AWAIT_INT_MESSAGE(proc_pipe[0], 0);
 
@@ -686,7 +643,7 @@ FORK_TEST(Capmode, NewThread) {
     if (verbose) fprintf(stderr, "  second child started\n");
     EXPECT_OK(close(proc_pipe[0]));
     // Child: do an allowed and a disallowed syscall.
-    EXPECT_OK(getpid_());
+    EXPECT_OK(getpid());
     EXPECT_CAPMODE(open("/dev/null", O_RDWR));
     // Notify the parent of success/failure.
     int rval = (int)testing::Test::HasFailure();
