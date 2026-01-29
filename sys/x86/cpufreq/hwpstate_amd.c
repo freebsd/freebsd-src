@@ -202,7 +202,7 @@ static device_method_t hwpstate_methods[] = {
 	{0, 0}
 };
 
-struct amdhwp_dump_sysctl_handler_request {
+struct get_cppc_regs_data {
 	uint64_t enable;
 	uint64_t caps;
 	uint64_t req;
@@ -247,26 +247,25 @@ print_cppc_request(struct sbuf *const sb, const uint64_t request)
 }
 
 static void
-amdhwp_dump_sysctl_handler_cb(void *args)
+get_cppc_regs_cb(void *args)
 {
-	struct amdhwp_dump_sysctl_handler_request *req =
-	    (struct amdhwp_dump_sysctl_handler_request *)args;
+	struct get_cppc_regs_data *data = args;
 
-	req->res = rdmsr_safe(MSR_AMD_CPPC_ENABLE, &req->enable);
-	if (req->res == 0)
-		req->res = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &req->caps);
-	if (req->res == 0)
-		req->res = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &req->req);
+	data->res = rdmsr_safe(MSR_AMD_CPPC_ENABLE, &data->enable);
+	if (data->res == 0)
+		data->res = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &data->caps);
+	if (data->res == 0)
+		data->res = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &data->req);
 }
 
 static int
-amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
+sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	struct pcpu *pc;
 	struct sbuf *sb;
 	struct hwpstate_softc *sc;
-	struct amdhwp_dump_sysctl_handler_request request;
+	struct get_cppc_regs_data request;
 	uint64_t data;
 	int ret;
 
@@ -280,7 +279,7 @@ amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	sb = sbuf_new(NULL, NULL, 1024, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_putc(sb, '\n');
 	smp_rendezvous_cpu(pc->pc_cpuid, smp_no_rendezvous_barrier,
-	    amdhwp_dump_sysctl_handler_cb, smp_no_rendezvous_barrier, &request);
+	    get_cppc_regs_cb, smp_no_rendezvous_barrier, &request);
 	ret = request.res;
 	if (ret)
 		goto out;
@@ -774,7 +773,7 @@ hwpstate_attach(device_t dev)
 		    SYSCTL_STATIC_CHILDREN(_debug), OID_AUTO,
 		    device_get_nameunit(dev),
 		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
-		    sc, 0, amdhwp_dump_sysctl_handler, "A", "");
+		    sc, 0, sysctl_cppc_dump_handler, "A", "");
 
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
