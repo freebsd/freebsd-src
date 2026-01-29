@@ -108,6 +108,8 @@ struct td_sched {
 #define TDF_BOUND	TDF_SCHED1	/* Bound to one CPU. */
 #define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
 
+#define	TDP_RESCHED	TDP_SCHED1	/* Reschedule due to maybe_resched(). */
+
 /* flags kept in ts_flags */
 #define	TSF_AFFINITY	0x0001		/* Has a non-"full" CPU set. */
 
@@ -274,6 +276,17 @@ sched_load_rem(void)
 	KTR_COUNTER0(KTR_SCHED, "load", "global load", sched_tdcnt);
 	SDT_PROBE2(sched, , , load__change, NOCPU, sched_tdcnt);
 }
+
+static void
+maybe_resched_ast(struct thread *td, int tda)
+{
+	MPASS(td == curthread);		/* We are AST */
+	if ((td->td_pflags & TDP_RESCHED) != 0) {
+		td->td_pflags &= ~TDP_RESCHED;
+		ast_scheduler(td, tda);
+	}
+}
+
 /*
  * Arrange to reschedule if necessary, taking the priorities and
  * schedulers into account.
@@ -281,10 +294,12 @@ sched_load_rem(void)
 static void
 maybe_resched(struct thread *td)
 {
+	struct thread *ctd;
 
+	ctd = curthread;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	if (td->td_priority < curthread->td_priority)
-		ast_sched_locked(curthread, TDA_SCHED);
+	if (td->td_priority < ctd->td_priority)
+		ctd->td_pflags |= TDP_RESCHED;
 }
 
 /*
@@ -621,6 +636,8 @@ sched_4bsd_setup(void)
 
 	/* Account for thread0. */
 	sched_load_add();
+
+	ast_register(TDA_SCHED_PRIV, ASTR_UNCOND, 0, maybe_resched_ast);
 }
 
 /*

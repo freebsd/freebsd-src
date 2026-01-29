@@ -503,6 +503,7 @@ enum {
 	TDA_SIGSUSPEND,
 	TDA_MOD3,		/* .. and after */
 	TDA_MOD4,
+	TDA_SCHED_PRIV,
 	TDA_MAX,
 };
 #define	TDAI(tda)		(1U << (tda))

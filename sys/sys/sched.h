@@ -188,6 +188,8 @@ sched_unpin(void)
 	curthread->td_pinned--;
 }
 
+void ast_scheduler(struct thread *td, int tda);
+
 /* sched_add arguments (formerly setrunqueue) */
 #define	SRQ_BORING	0x0000		/* No special circumstances. */
 #define	SRQ_YIELDING	0x0001		/* We are yielding (from mi_switch). */

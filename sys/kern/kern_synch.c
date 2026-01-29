@@ -600,7 +600,7 @@ loadav(void *arg)
 	    loadav, NULL, C_DIRECT_EXEC | C_PREL(32));
 }
 
-static void
+void
 ast_scheduler(struct thread *td, int tda __unused)
 {
 #ifdef KTRACE
