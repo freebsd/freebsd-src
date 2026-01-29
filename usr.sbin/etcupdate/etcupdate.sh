@@ -242,10 +242,6 @@ build_tree()
 	(cd $1 && printf '%s\n' $autogenfiles >> $metatmp && \
 	    rm -f $autogenfiles) || return 1
 
-	# Remove empty files.  These just clutter the output of 'diff'.
-	(cd $1 && find . -type f -size 0 -delete -print >> $metatmp) || \
-	    return 1
-
 	# Trim empty directories.
 	(cd $1 && find . -depth -type d -empty -delete -print >> $metatmp) || \
 	    return 1
