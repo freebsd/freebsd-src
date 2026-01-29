@@ -86,6 +86,7 @@
 #define	MSR_AMD_CPPC_STATUS	0xc00102b4
 
 #define	MSR_AMD_CPPC_CAPS_1_NAME	"CPPC_CAPABILITY_1"
+#define	MSR_AMD_CPPC_ENABLE_NAME	"CPPC_ENABLE"
 #define	MSR_AMD_CPPC_REQUEST_NAME	"CPPC_REQUEST"
 
 #define	MSR_AMD_PWR_ACC		0xc001007a
@@ -216,11 +217,26 @@ check_cppc_enabled(const struct hwpstate_softc *const sc, const char *const func
 	    ": %s() called but PSTATE_CPPC not set", func));
 }
 
+/*
+ * Internal errors conveyed by code executing on another CPU.
+ */
+#define HWP_ERROR_CPPC_ENABLE		(1 << 0)
+#define HWP_ERROR_CPPC_CAPS		(1 << 1)
+#define HWP_ERROR_CPPC_REQUEST		(1 << 2)
+#define HWP_ERROR_CPPC_REQUEST_WRITE	(1 << 3)
+
+static inline bool
+hwp_has_error(u_int res, u_int err)
+{
+	return ((res & err) != 0);
+}
+
 struct get_cppc_regs_data {
 	uint64_t enable;
 	uint64_t caps;
 	uint64_t req;
-	int res;
+	/* HWP_ERROR_CPPC_* except HWP_ERROR_*_WRITE */
+	u_int res;
 };
 
 static void
@@ -245,6 +261,14 @@ print_cppc_caps_1(struct sbuf *const sb, const uint64_t caps)
 	    AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, caps);
 }
 
+#define MSR_NOT_READ_MSG	"Fault on read"
+
+static void
+print_cppc_no_caps_1(struct sbuf *const sb)
+{
+	sbuf_printf(sb, MSR_AMD_CPPC_CAPS_1_NAME ": " MSR_NOT_READ_MSG "\n");
+}
+
 static void
 print_cppc_request(struct sbuf *const sb, const uint64_t request)
 {
@@ -261,65 +285,73 @@ print_cppc_request(struct sbuf *const sb, const uint64_t request)
 }
 
 static void
+print_cppc_no_request(struct sbuf *const sb)
+{
+	sbuf_printf(sb, MSR_AMD_CPPC_REQUEST_NAME ": " MSR_NOT_READ_MSG "\n");
+}
+
+static void
 get_cppc_regs_cb(void *args)
 {
 	struct get_cppc_regs_data *data = args;
+	int error;
 
-	data->res = rdmsr_safe(MSR_AMD_CPPC_ENABLE, &data->enable);
-	if (data->res == 0)
-		data->res = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &data->caps);
-	if (data->res == 0)
-		data->res = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &data->req);
+	data->res = 0;
+
+	error = rdmsr_safe(MSR_AMD_CPPC_ENABLE, &data->enable);
+	if (error != 0)
+		data->res |= HWP_ERROR_CPPC_ENABLE;
+
+	error = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &data->caps);
+	if (error != 0)
+		data->res |= HWP_ERROR_CPPC_CAPS;
+
+	error = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &data->req);
+	if (error != 0)
+		data->res |= HWP_ERROR_CPPC_REQUEST;
 }
 
 static int
 sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev;
-	struct pcpu *pc;
+	const struct hwpstate_softc *const sc = arg1;
+	const device_t dev = sc->dev;
+	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
 	struct sbuf *sb;
-	struct hwpstate_softc *sc;
-	struct get_cppc_regs_data request;
-	uint64_t data;
-	int ret;
+	struct sbuf sbs;
+	struct get_cppc_regs_data data;
+	int error;
 
-	sc = (struct hwpstate_softc *)arg1;
 	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
 	check_cppc_enabled(sc, __func__);
 
-	dev = sc->dev;
-	pc = cpu_get_pcpu(dev);
-	if (pc == NULL)
-		return (ENXIO);
+	sb = sbuf_new_for_sysctl(&sbs, NULL, 0, req);
 
-	sb = sbuf_new(NULL, NULL, 1024, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
-	sbuf_putc(sb, '\n');
-	smp_rendezvous_cpu(pc->pc_cpuid, smp_no_rendezvous_barrier,
-	    get_cppc_regs_cb, smp_no_rendezvous_barrier, &request);
-	ret = request.res;
-	if (ret)
-		goto out;
+	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier, get_cppc_regs_cb,
+	    smp_no_rendezvous_barrier, &data);
 
-	data = request.enable;
-	sbuf_printf(sb, "CPU%d: HWP %sabled\n", pc->pc_cpuid,
-	    ((data & 1) ? "En" : "Dis"));
-	if (data == 0)
-		goto out;
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_ENABLE))
+		sbuf_printf(sb, "CPU%u: " MSR_AMD_CPPC_ENABLE_NAME ": "
+		    MSR_NOT_READ_MSG "\n", cpuid);
+	else
+		sbuf_printf(sb, "CPU%u: HWP %sabled (" MSR_AMD_CPPC_REQUEST_NAME
+		    ": %#" PRIx64 ")\n", cpuid, data.enable & 1 ? "En" : "Dis",
+		    data.enable);
 
-	data = request.caps;
-	print_cppc_caps_1(sb, data);
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_CAPS))
+		print_cppc_no_caps_1(sb);
+	else
+		print_cppc_caps_1(sb, data.caps);
 
-	data = request.req;
-	print_cppc_request(sb, data);
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_REQUEST))
+		print_cppc_no_request(sb);
+	else
+		print_cppc_request(sb, data.req);
 
-out:
-	if (ret == 0)
-		ret = sbuf_finish(sb);
-	if (ret == 0)
-		ret = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
+	error = sbuf_finish(sb);
 	sbuf_delete(sb);
 
-	return (ret);
+	return (error);
 }
 
 static void
