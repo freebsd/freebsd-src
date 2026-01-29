@@ -147,11 +147,18 @@ enum hwpstate_flags {
 };
 
 struct hwpstate_softc {
-	device_t		dev;
-	struct hwpstate_setting hwpstate_settings[AMD_10H_11H_MAX_STATES];
-	int			cfnum;
-	uint32_t flags;
-	uint64_t req;
+	device_t	dev;
+	u_int		flags;
+	union {
+		struct {
+			struct hwpstate_setting
+			hwpstate_settings[AMD_10H_11H_MAX_STATES];
+			int cfnum;
+		};
+		struct {
+			uint64_t request;
+		} cppc;
+	};
 };
 
 static void	hwpstate_identify(driver_t *driver, device_t parent);
@@ -321,13 +328,13 @@ set_epp(device_t hwp_device, u_int val)
 	struct hwpstate_softc *sc;
 
 	sc = device_get_softc(hwp_device);
-	if (BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->req) == val)
+	if (BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->cppc.request) == val)
 		return;
-	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_EPP_BITS, val);
+	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_EPP_BITS, val);
 	x86_msr_op(MSR_AMD_CPPC_REQUEST,
 	    MSR_OP_RENDEZVOUS_ONE | MSR_OP_WRITE |
 		MSR_OP_CPUID(cpu_get_pcpu(hwp_device)->pc_cpuid),
-	    sc->req, NULL);
+	    sc->cppc.request, NULL);
 }
 
 static int
@@ -348,7 +355,7 @@ sysctl_epp_handler(SYSCTL_HANDLER_ARGS)
 	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
 	check_cppc_enabled(sc, __func__);
 
-	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->req) * 100 /
+	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->cppc.request) * 100 /
 	    max_epp;
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error != 0 || req->newptr == NULL)
@@ -629,7 +636,7 @@ amd_set_autonomous_hwp_cb(void *args)
 		req->res = ret;
 	}
 
-	ret = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &sc->req);
+	ret = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &sc->cppc.request);
 	if (ret != 0) {
 		device_printf(dev,
 		    "Failed to read CPPC request MSR for cpu%d (%d)\n", curcpu,
@@ -651,15 +658,15 @@ amd_set_autonomous_hwp_cb(void *args)
 	 * is the balanced mode. For consistency, we set the same value in AMD's
 	 * CPPC driver.
 	 */
-	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_EPP_BITS, 0x80);
-	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_MIN_PERF_BITS,
+	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_EPP_BITS, 0x80);
+	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
 	    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, caps));
-	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_MAX_PERF_BITS,
+	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MAX_PERF_BITS,
 	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, caps));
 	/* enable autonomous mode by setting desired performance to 0 */
-	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
+	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
 
-	ret = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->req);
+	ret = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->cppc.request);
 	if (ret) {
 		device_printf(dev, "Failed to setup autonomous HWP for cpu%d\n",
 		    curcpu);
