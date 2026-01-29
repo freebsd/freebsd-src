@@ -1,10 +1,5 @@
 #include <sys/types.h>
-#ifdef __linux__
-#include <sys/vfs.h>
-#include <linux/magic.h>
-#elif defined(__FreeBSD__)
 #include <sys/sysctl.h>
-#endif
 #include <ctype.h>
 #include <errno.h>
 #include <libgen.h>
@@ -15,11 +10,6 @@
 #include <iostream>
 #include "gtest/gtest.h"
 #include "capsicum-test.h"
-
-// For versions of googletest that lack GTEST_SKIP.
-#ifndef GTEST_SKIP
-#define GTEST_SKIP GTEST_FAIL
-#endif
 
 std::string tmpdir;
 
@@ -38,7 +28,6 @@ public:
     std::cerr << tmpdir << std::endl;
   }
   void CheckCapsicumSupport() {
-#ifdef __FreeBSD__
     int rc;
     bool trap_enotcap_enabled;
     size_t trap_enotcap_enabled_len = sizeof(trap_enotcap_enabled);
@@ -60,7 +49,6 @@ public:
                    << "Skipping tests because its enablement invalidates the "
                    << "test results.";
     }
-#endif /* FreeBSD */
   }
   void CreateTemporaryRoot() {
     char *tmpdir_name = tempnam(nullptr, "cptst");
@@ -147,13 +135,6 @@ int main(int argc, char* argv[]) {
       other_uid = info.st_uid;
     }
   }
-
-#ifdef __linux__
-  // Check whether our temporary directory is on a tmpfs volume.
-  struct statfs fsinfo;
-  statfs(tmpdir.c_str(), &fsinfo);
-  tmpdir_on_tmpfs = (fsinfo.f_type == TMPFS_MAGIC);
-#endif
 
   testing::AddGlobalTestEnvironment(new SetupEnvironment());
   return RUN_ALL_TESTS();
