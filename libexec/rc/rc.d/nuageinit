@@ -56,10 +56,15 @@ nuageinit_start()
 		OpenStack*)
 			mkdir -p /media/nuageinit/openstack/latest
 			ifaces=$(ifconfig -l ether)
-			set -- $ifaces
-			dhclient -p /tmp/ephemeraldhcp.pid $1
+			for iface in $ifaces; do
+				dhclient -p /tmp/ephemeraldhcp.$iface.pid $iface
+			done
+			pids=$(cat /tmp/ephemeraldhcp.*.pid)
+			left=$(pwait -op $pids 2>/dev/null)
+			for iface in $left; do
+				kill -15 $left
+			done
 			fetch_openstack
-			pkill -F /tmp/ephemeraldhcp.pid
 			citype=config-2
 			;;
 		*)
