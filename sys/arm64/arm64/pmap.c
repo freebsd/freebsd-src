@@ -147,6 +147,8 @@
 
 #include <machine/asan.h>
 #include <machine/cpu_feat.h>
+#include <machine/elf.h>
+#include <machine/ifunc.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -529,6 +531,7 @@ static void *bti_dup_range(void *ctx, void *data);
 static void bti_free_range(void *ctx, void *node);
 static int pmap_bti_copy(pmap_t dst_pmap, pmap_t src_pmap);
 static void pmap_bti_deassign_all(pmap_t pmap);
+static void pagezero(void *);
 
 /*
  * These load the old table data and store the new value.
@@ -10207,3 +10210,22 @@ SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP,
     NULL, 0, sysctl_kmaps, "A",
     "Dump kernel address layout");
+
+
+void pagezero_simple(void *);
+void pagezero_cache(void *);
+void pagezero_mops(void *);
+
+DEFINE_IFUNC(static, void, pagezero, (void *))
+{
+	uint32_t dczid_el0;
+
+	dczid_el0 = READ_SPECIALREG(dczid_el0);
+
+	if (elf_hwcap2 & HWCAP2_MOPS)
+		return (pagezero_mops);
+	else if ((dczid_el0 & DCZID_DZP) == 0)
+		return (pagezero_cache);
+	else
+		return (pagezero_simple);
+}
