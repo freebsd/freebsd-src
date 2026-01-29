@@ -1072,14 +1072,24 @@ cd /usr/src/bin/ls
 make clean all
 make install
 .Ed
-.Ss Example 4: Build and upgrade a loadable kernel module
+.Ss Example 4: Build and test a single piece of userspace
+Rebuild and check a single piece of userspace, in this case
+.Xr libbe 3 :
+.Bd -literal -offset indent
+cd /usr/src
+make buildenv
+cd lib/libbe
+DESTDIR=${SYSROOT} make clean all install -DWITHOUT_TESTS
+make check
+.Ed
+.Ss Example 5: Build and upgrade a loadable kernel module
 Rebuild and reinstall a single loadable kernel module, in this case
 .Xr sound 4 :
 .Bd -literal -offset indent
 cd /usr/src/sys/modules/sound
 make all install clean cleandepend KMODDIR=/boot/kernel
 .Ed
-.Ss Example 5: Quickly rebuild a kernel in place
+.Ss Example 6: Quickly rebuild a kernel in place
 Quickly rebuild and reinstall the kernel, only recompiling the files
 changed since last build; note that this will only work if the full
 kernel build has been completed in the past, not on a fresh source tree:
@@ -1087,13 +1097,13 @@ kernel build has been completed in the past, not on a fresh source tree:
 cd /usr/src
 make kernel KERNFAST=1
 .Ed
-.Ss Example 6: Cross-compiling for different architectures
+.Ss Example 7: Cross-compiling for different architectures
 To rebuild parts of
 .Fx
 for another CPU architecture,
 first prepare your source tree by building the cross-toolchain:
 .Bd -literal -offset indent
-cd src
+cd /usr/src
 make toolchain TARGET_ARCH=aarch64
 .Ed
 .Pp
@@ -1108,14 +1118,14 @@ make TARGET_ARCH=aarch64 DESTDIR=/armclient installworld installkernel
 .Pp
 Afterwards, to build and install a single piece of userspace, use:
 .Bd -literal -offset indent
-cd src/bin/ls
+cd /usr/src/bin/ls
 make buildenv TARGET_ARCH=aarch64
 make clean all install DESTDIR=/armclient
 .Ed
 .Pp
 Likewise, to quickly rebuild and reinstall the kernel, use:
 .Bd -literal -offset indent
-cd src
+cd /usr/src
 make buildenv TARGET_ARCH=aarch64
 make kernel KERNFAST=1 DESTDIR=/armclient
 .Ed
