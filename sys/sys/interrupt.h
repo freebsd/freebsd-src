@@ -28,10 +28,28 @@
 
 #ifndef _SYS_INTERRUPT_H_
 #define _SYS_INTERRUPT_H_
+#ifdef	_KERNEL
 
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/interrupt.h included without architecture interrupt header!"
+#endif
+
+#include <sys/_cpuset.h>
+#include <sys/_interrupt.h>
 #include <sys/_lock.h>
-#include <sys/_mutex.h>
 #include <sys/ck.h>
+#include <sys/kobj.h>
+#include <sys/mutex.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+
+/*
+ * Common base class for PICs.  All FreeBSD architectures provide this,
+ * so present in this header.
+ */
+
+DECLARE_CLASS(pic_base_class);
 
 struct intr_event;
 struct intr_thread;
@@ -110,12 +128,8 @@ struct intr_event {
 	char		ie_name[MAXCOMLEN + 1]; /* Individual event name. */
 	char		ie_fullname[MAXCOMLEN + 1];
 	struct mtx	ie_lock;
-	void		*ie_source;	/* Cookie used by MD code. */
+	device_t	ie_pic;
 	struct intr_thread *ie_thread;	/* Thread we are connected to. */
-	void		(*ie_pre_ithread)(void *);
-	void		(*ie_post_ithread)(void *);
-	void		(*ie_post_filter)(void *);
-	int		(*ie_assign_cpu)(void *, int);
 	int		ie_flags;
 	int		ie_hflags;	/* Cumulative flags of all handlers. */
 	int		ie_count;	/* Loop counter. */
@@ -175,20 +189,33 @@ int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
 struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
+int	intr_event_initv_(struct intr_event *ie, struct _device *pic, u_int irq,
+	    int flags, const char *fmt, __va_list ap) __printflike(5, 0)
+	    __result_use_check;
+int	intr_event_init_(struct intr_event *ie, struct _device *pic, u_int irq,
+	    int flags, const char *fmt, ...) __printflike(5, 6)
+	    __result_use_check;
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, u_int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
 	    int (*assign_cpu)(void *, int), const char *fmt, ...)
 	    __printflike(9, 10);
+int	intr_event_describe_handler_(struct intr_event *ie, void *cookie,
+	    const char *descr) __result_use_check;
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
+int	intr_event_shutdown_(struct intr_event *ie) __result_use_check;
+int	intr_event_destroy_(struct intr_event *ie) __result_use_check;
 int	intr_event_destroy(struct intr_event *ie);
+int	intr_event_handle_(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
-int	intr_event_remove_handler(void *cookie);
+int	intr_event_remove_handler_(struct intr_event *ie,
+	    struct intr_handler *handler) __result_use_check;
+int	intr_event_remove_handler(struct intr_event *ie,
+	    struct intr_handler *handler) __result_use_check;
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
 int	intr_getaffinity(int irq, int mode, void *mask);
-void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, int mode, const void *mask);
 void	_intr_drain(int irq);  /* LinuxKPI only. */
 int	swi_add(struct intr_event **eventp, const char *name,
@@ -197,4 +224,29 @@ int	swi_add(struct intr_event **eventp, const char *name,
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
 
-#endif
+static inline bool
+intr_event_is_valid_(struct intr_event *ie)
+{
+	return (mtx_initialized(&ie->ie_lock));
+}
+
+static inline bool
+intr_event_is_valid(struct intr_event *ie)
+{
+	return (ie != NULL ? intr_event_is_valid_(ie) : 0);
+}
+
+static inline bool
+intr_event_has_handlers_(struct intr_event *ie)
+{
+	return (!CK_SLIST_EMPTY(&ie->ie_handlers));
+}
+
+static inline bool
+intr_event_has_handlers(struct intr_event *ie)
+{
+	return (ie != NULL ? intr_event_has_handlers_(ie) : 0);
+}
+
+#endif	/* _KERNEL */
+#endif	/* !_SYS_INTERRUPT_H_ */

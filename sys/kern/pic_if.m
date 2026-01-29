@@ -29,9 +29,16 @@
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/resource.h>
-#include <sys/intr.h>
+
+#include <machine/interrupt.h>
 
 INTERFACE pic;
+
+HEADER {
+	#include <machine/interrupt.h>
+
+	#include "intr_event_if.h"
+};
 
 CODE {
 	static int
@@ -139,21 +146,6 @@ METHOD int teardown_intr {
 	struct resource		*res;
 	struct intr_map_data	*data;
 } DEFAULT null_pic_teardown_intr;
-
-METHOD void post_filter {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
-METHOD void post_ithread {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
-METHOD void pre_ithread {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
 
 METHOD void init_secondary {
 	device_t	dev;

@@ -46,8 +46,8 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
-#include <machine/intr.h>
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -767,6 +767,11 @@ static device_method_t xlnx_pcib_fdt_methods[] = {
 	DEVMETHOD(pcib_release_msi,	xlnx_pcib_release_msi),
 	DEVMETHOD(pcib_map_msi,		xlnx_pcib_map_msi),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	xlnx_pcib_msi_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	xlnx_pcib_msi_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	xlnx_pcib_msi_pre_ithread),
+
 	/* MSI interface */
 	DEVMETHOD(msi_alloc_msi,		xlnx_pcib_msi_alloc_msi),
 	DEVMETHOD(msi_release_msi,		xlnx_pcib_msi_release_msi),
@@ -777,16 +782,13 @@ static device_method_t xlnx_pcib_fdt_methods[] = {
 	DEVMETHOD(pic_enable_intr,		xlnx_pcib_msi_enable_intr),
 	DEVMETHOD(pic_setup_intr,		xlnx_pcib_msi_setup_intr),
 	DEVMETHOD(pic_teardown_intr,		xlnx_pcib_msi_teardown_intr),
-	DEVMETHOD(pic_post_filter,		xlnx_pcib_msi_post_filter),
-	DEVMETHOD(pic_post_ithread,		xlnx_pcib_msi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,		xlnx_pcib_msi_pre_ithread),
 
 	/* End */
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pcib, xlnx_pcib_fdt_driver, xlnx_pcib_fdt_methods,
-    sizeof(struct xlnx_pcib_softc), generic_pcie_fdt_driver);
+PRIVATE_DEFINE_CLASSN(pcib, xlnx_pcib_fdt_driver, xlnx_pcib_fdt_methods,
+    sizeof(struct xlnx_pcib_softc), pic_base_class, generic_pcie_fdt_driver);
 
 DRIVER_MODULE(xlnx_pcib, simplebus, xlnx_pcib_fdt_driver, 0, 0);
 DRIVER_MODULE(xlnx_pcib, ofwbus, xlnx_pcib_fdt_driver, 0, 0);

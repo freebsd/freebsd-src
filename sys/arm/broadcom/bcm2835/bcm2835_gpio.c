@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/gpio.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -44,7 +43,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>
@@ -1336,13 +1335,15 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_set,		bcm_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	bcm_gpio_pin_toggle),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	bcm_gpio_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	bcm_gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	bcm_gpio_pic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	bcm_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	bcm_gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		bcm_gpio_pic_map_intr),
-	DEVMETHOD(pic_post_filter,	bcm_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	bcm_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	bcm_gpio_pic_pre_ithread),
 	DEVMETHOD(pic_setup_intr,	bcm_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	bcm_gpio_pic_teardown_intr),
 
@@ -1355,11 +1356,8 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm_gpio_driver = {
-	"gpio",
-	bcm_gpio_methods,
-	sizeof(struct bcm_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, bcm_gpio_driver, bcm_gpio_methods,
+    sizeof(struct bcm_gpio_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(bcm_gpio, simplebus, bcm_gpio_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

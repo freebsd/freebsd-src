@@ -43,7 +43,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -54,7 +53,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
 #include <machine/resource.h>
@@ -462,9 +461,7 @@ static device_method_t nexus_fdt_methods[] = {
 	DEVMETHOD_END,
 };
 
-#define nexus_baseclasses nexus_fdt_baseclasses
 DEFINE_CLASS_1(nexus, nexus_fdt_driver, nexus_fdt_methods, 1, nexus_driver);
-#undef nexus_baseclasses
 
 EARLY_DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
@@ -619,10 +616,8 @@ static device_method_t nexus_acpi_methods[] = {
 	DEVMETHOD_END,
 };
 
-#define nexus_baseclasses nexus_acpi_baseclasses
 DEFINE_CLASS_1(nexus, nexus_acpi_driver, nexus_acpi_methods, 1,
     nexus_driver);
-#undef nexus_baseclasses
 
 EARLY_DRIVER_MODULE(nexus_acpi, root, nexus_acpi_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);

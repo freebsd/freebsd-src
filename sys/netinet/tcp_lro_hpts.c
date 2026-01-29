@@ -29,7 +29,6 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -37,6 +36,8 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+
+#include <machine/interrupt.h>
 
 #include <net/if.h>
 #include <net/if_var.h>

@@ -59,7 +59,7 @@
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include "pcib_if.h"
 #include "acpi_bus_if.h"

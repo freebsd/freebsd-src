@@ -67,7 +67,6 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -80,6 +79,8 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+
+#include <machine/interrupt.h>
 
 #include <net/bpf.h>
 #include <net/if.h>

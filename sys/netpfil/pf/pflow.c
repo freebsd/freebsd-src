@@ -25,7 +25,6 @@
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/endian.h>
-#include <sys/interrupt.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -37,6 +36,8 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/priv.h>
+
+#include <machine/interrupt.h>
 
 #include <net/if.h>
 #include <net/if_types.h>

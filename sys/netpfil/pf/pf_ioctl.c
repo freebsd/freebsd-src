@@ -52,7 +52,6 @@
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/hash.h>
-#include <sys/interrupt.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -67,6 +66,8 @@
 #include <sys/sysctl.h>
 #include <sys/md5.h>
 #include <sys/ucred.h>
+
+#include <machine/interrupt.h>
 
 #include <net/if.h>
 #include <net/if_var.h>

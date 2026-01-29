@@ -36,7 +36,8 @@
 #include <linux/hardirq.h>
 
 #include <sys/param.h>
-#include <sys/interrupt.h>
+
+#include <machine/interrupt.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 

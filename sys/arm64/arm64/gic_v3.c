@@ -47,14 +47,13 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
-#include <sys/interrupt.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_intr.h>
@@ -85,9 +84,9 @@ static pic_enable_intr_t gic_v3_enable_intr;
 static pic_map_intr_t gic_v3_map_intr;
 static pic_setup_intr_t gic_v3_setup_intr;
 static pic_teardown_intr_t gic_v3_teardown_intr;
-static pic_post_filter_t gic_v3_post_filter;
-static pic_post_ithread_t gic_v3_post_ithread;
-static pic_pre_ithread_t gic_v3_pre_ithread;
+static intr_event_post_filter_t gic_v3_post_filter;
+static intr_event_post_ithread_t gic_v3_post_ithread;
+static intr_event_pre_ithread_t gic_v3_pre_ithread;
 static pic_bind_intr_t gic_v3_bind_intr;
 #ifdef SMP
 static pic_init_secondary_t gic_v3_init_secondary;
@@ -125,15 +124,17 @@ static device_method_t gic_v3_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	gic_v3_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	gic_v3_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	gic_v3_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	gic_v3_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gic_v3_disable_intr),
 	DEVMETHOD(pic_enable_intr,	gic_v3_enable_intr),
 	DEVMETHOD(pic_map_intr,		gic_v3_map_intr),
 	DEVMETHOD(pic_setup_intr,	gic_v3_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	gic_v3_teardown_intr),
-	DEVMETHOD(pic_post_filter,	gic_v3_post_filter),
-	DEVMETHOD(pic_post_ithread,	gic_v3_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gic_v3_pre_ithread),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	gic_v3_bind_intr),
 	DEVMETHOD(pic_init_secondary,	gic_v3_init_secondary),
@@ -159,8 +160,8 @@ static device_method_t gic_v3_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(gic, gic_v3_driver, gic_v3_methods,
-    sizeof(struct gic_v3_softc));
+PUBLIC_DEFINE_CLASSN(gic, gic_v3_driver, gic_v3_methods,
+    sizeof(struct gic_v3_softc), pic_base_class);
 
 /*
  * Driver-specific definitions.

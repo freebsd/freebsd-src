@@ -40,7 +40,6 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -53,7 +52,7 @@
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>

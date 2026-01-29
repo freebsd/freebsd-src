@@ -3830,6 +3830,7 @@ kern/imgact_elf32.c		optional compat_freebsd32
 kern/imgact_shell.c		standard
 kern/init_main.c		standard
 kern/init_sysent.c		standard
+kern/intr_event_if.m		standard
 kern/ksched.c			optional _kposix_priority_scheduling
 kern/kern_acct.c		standard
 kern/kern_alq.c			optional alq

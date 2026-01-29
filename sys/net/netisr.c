@@ -71,7 +71,6 @@
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
-#include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -83,6 +82,8 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+
+#include <machine/interrupt.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

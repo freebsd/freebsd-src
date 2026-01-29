@@ -25,8 +25,18 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_INTR_MACHDEP_H_
-#define	_MACHINE_INTR_MACHDEP_H_
+#ifndef	__MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
+
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct powerpc_intr interrupt_t;
+
+#include <sys/interrupt.h>
+
+/* FreeBSD standard interrupt controller interface */
+
+#include <sys/types.h>
 
 #define	INTR_VECTORS	256
 
@@ -40,7 +50,24 @@
 
 extern device_t root_pic;
 
-struct trapframe;
+/* Main interrupt structure, exported to allow fast read access for PICs */
+struct powerpc_intr {
+	struct intr_event event;
+	long		*cntp;
+	void		*priv;		/* PIC-private data */
+	unsigned int	irq;
+	unsigned int	intline;
+	unsigned int	vector;
+	unsigned int	cntindex;
+	int		fwcode;
+	int		ipi;
+	int		pi_domain;
+	enum intr_trigger trig;
+	enum intr_polarity pol;
+	cpuset_t	 pi_cpuset;
+};
+_Static_assert(offsetof(struct powerpc_intr, event) == 0,
+    ".event misaligned from structure!");
 
 driver_filter_t powerpc_ipi_handler;
 
@@ -53,7 +80,7 @@ void	powerpc_dispatch_intr(u_int, struct trapframe *);
 int	powerpc_enable_intr(void);
 int	powerpc_setup_intr(const char *, u_int, driver_filter_t, driver_intr_t,
 	    void *, enum intr_type, void **, int);
-int	powerpc_teardown_intr(void *);
+int	powerpc_teardown_intr(u_int, struct intr_handler *);
 int	powerpc_bind_intr(u_int irq, u_char cpu);
 int	powerpc_config_intr(int, enum intr_trigger, enum intr_polarity);
 int	powerpc_fw_config_intr(int irq, int sense_code);
@@ -61,4 +88,4 @@ int	powerpc_fw_config_intr(int irq, int sense_code);
 void	powerpc_intr_mask(u_int irq);
 void	powerpc_intr_unmask(u_int irq);
 
-#endif /* _MACHINE_INTR_MACHDEP_H_ */
+#endif /* __MACHINE_INTERRUPT_H__ */

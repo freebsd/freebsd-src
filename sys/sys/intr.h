@@ -33,7 +33,19 @@
 #error Need INTRNG for this file
 #endif
 
-#include <machine/intr.h>
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/intr.h included without architecture interrupt header!"
+#endif
+
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+#include <sys/interrupt.h>
+
+/* FreeBSD standard interrupt controller interface */
+
+#include <sys/types.h>
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
@@ -71,8 +83,6 @@ typedef int intr_irq_filter_t(void *arg);
 #endif
 typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
 
-#define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
-
 #define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
 #define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
 #define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
@@ -81,15 +91,12 @@ struct intr_pic;
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
-	device_t		isrc_dev;	/* where isrc is mapped */
-	u_int			isrc_irq;	/* unique identificator */
+	struct intr_event	isrc_event;
 	u_int			isrc_flags;
-	char			isrc_name[INTR_ISRC_NAMELEN];
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
 	u_int			isrc_index;
 	u_long *		isrc_count;
 	u_int			isrc_handlers;
-	struct intr_event *	isrc_event;
 #ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
 	void *			isrc_arg;
@@ -97,6 +104,10 @@ struct intr_irqsrc {
 	/* Used by MSI interrupts to store the iommu details */
 	void *			isrc_iommu;
 };
+_Static_assert(offsetof(struct intr_irqsrc, isrc_event) == 0,
+    ".isrc_event misaligned from structure!");
+
+struct resource;
 
 /* Intr interface for PIC. */
 int intr_isrc_deregister(struct intr_irqsrc *);

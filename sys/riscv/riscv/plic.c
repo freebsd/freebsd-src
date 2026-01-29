@@ -43,7 +43,7 @@
 #include <sys/smp.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -77,8 +77,8 @@ static pic_disable_intr_t	plic_disable_intr;
 static pic_enable_intr_t	plic_enable_intr;
 static pic_map_intr_t		plic_map_intr;
 static pic_setup_intr_t		plic_setup_intr;
-static pic_post_ithread_t	plic_post_ithread;
-static pic_pre_ithread_t	plic_pre_ithread;
+static intr_event_post_ithread_t plic_post_ithread;
+static intr_event_pre_ithread_t	plic_pre_ithread;
 static pic_bind_intr_t		plic_bind_intr;
 
 struct plic_irqsrc {
@@ -516,26 +516,27 @@ plic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static device_method_t plic_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_probe,		plic_probe),
 	DEVMETHOD(device_attach,	plic_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	plic_post_ithread),
+	DEVMETHOD(intr_event_post_ithread,	plic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	plic_pre_ithread),
+
+	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	plic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	plic_enable_intr),
 	DEVMETHOD(pic_map_intr,		plic_map_intr),
-	DEVMETHOD(pic_pre_ithread,	plic_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	plic_post_ithread),
-	DEVMETHOD(pic_post_filter,	plic_post_ithread),
 	DEVMETHOD(pic_setup_intr,	plic_setup_intr),
 	DEVMETHOD(pic_bind_intr,	plic_bind_intr),
 
 	DEVMETHOD_END
 };
 
-static driver_t plic_driver = {
-	"plic",
-	plic_methods,
-	sizeof(struct plic_softc),
-};
+PRIVATE_DEFINE_CLASSN(plic, plic_driver, plic_methods,
+    sizeof(struct plic_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(plic, simplebus, plic_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
