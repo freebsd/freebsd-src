@@ -9,6 +9,11 @@
  * Copyright (c) 2009 Norikatsu Shigemura
  * Copyright (c) 2008-2009 Gen Otsuji
  * Copyright (c) 2025 ShengYi Hung
+ * Copyright (c) 2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Olivier Certner
+ * <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+ * Foundation.
  *
  * This code is depending on kern_cpu.c, est.c, powernow.c, p4tcc.c, smist.c
  * in various parts. The authors of these files are Nate Lawson,
