@@ -1,0 +1,19 @@
+option(
+  'tests',
+  type: 'feature',
+  description: 'Build tests which depends upon the kyua framework',
+)
+
+option(
+  'with-system-libdir',
+  type: 'string',
+  value: '',
+  description: 'Specify the system library directory (default {prefix}/{libdir})'
+)
+
+option(
+  'with-system-includedir',
+  type: 'string',
+  value: '',
+  description: 'Specify the system include directory (default {prefix}/{includedir})'
+)

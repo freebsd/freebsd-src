@@ -1,0 +1,9 @@
+prefix=/test/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: requires-internal
+Description: A testing pkg-config file
+Version: 1.2.3
+Requires.internal: cflags-internal

@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: static libs
+Query: requires-internal
+ExpectedStdout: -lbar -lbar-private -L/test/lib -lfoo

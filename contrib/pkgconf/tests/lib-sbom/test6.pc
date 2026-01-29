@@ -1,0 +1,7 @@
+Name: test6
+Description: Test package 6
+URL: https://github.com/pkgconf/pkgconf/releases/
+Version: 6.0.0
+License: Apache-2.0
+Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+

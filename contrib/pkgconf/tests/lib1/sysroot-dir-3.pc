@@ -1,0 +1,9 @@
+prefix=/sysroot/usr
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: sysroot-dir
+Description: Package for testing whether sysroot dirs are repeated or not
+Version: 1
+CFlags: -I${includedir}
+Libs: -L${libdir} -lfoo

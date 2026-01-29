@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=${prefix}
+includedir=@includedir@
+libdir=@libdir@
+
+Name: libpkgconf
+Description: a library for accessing and manipulating development framework configuration
+URL: https://gitea.treehouse.systems/ariadne/pkgconf
+License: ISC
+License.file: https://raw.githubusercontent.com/pkgconf/pkgconf/refs/heads/master/COPYING
+Source: https://github.com/pkgconf/pkgconf
+Version: @PACKAGE_VERSION@
+CFlags: -I${includedir}/pkgconf
+Libs: -L${libdir} -lpkgconf

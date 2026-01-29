@@ -1,0 +1,4 @@
+Name: fragment-collision-1
+Version: 0
+Description: fragment collision test package
+Cflags: -D_THREAD_SAFE -pthread

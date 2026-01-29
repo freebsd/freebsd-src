@@ -1,0 +1,4 @@
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib2
+Query: %TEST_FIXTURES_DIR%/lib3/bar.pc
+WantedFlags: cflags
+ExpectedStdout: -fPIC -I/test/include/foo

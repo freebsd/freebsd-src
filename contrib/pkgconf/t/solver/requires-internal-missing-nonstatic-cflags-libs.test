@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags libs
+Query: requires-internal-missing
+ExpectedExitCode: 0

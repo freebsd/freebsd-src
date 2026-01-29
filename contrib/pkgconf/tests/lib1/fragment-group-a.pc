@@ -1,0 +1,4 @@
+Name: fragment-group-a
+Version: 1.0
+Description: Test fixture for fragment groups
+Libs: -Wl,--start-group -la -lb -Wl,--end-group

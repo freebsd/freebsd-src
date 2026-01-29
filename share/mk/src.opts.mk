@@ -160,6 +160,7 @@ __DEFAULT_YES_OPTIONS = \
     PAM \
     PF \
     PKGBOOTSTRAP \
+    PKGCONF \
     PMC \
     PPP \
     PTHREADS_ASSERTIONS \

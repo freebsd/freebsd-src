@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: incomplete
+WantedFlags: libs
+ExpectedStdout: 

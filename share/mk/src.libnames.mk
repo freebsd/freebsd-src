@@ -300,6 +300,11 @@ LIBBEARSSL?=	${LIBBEARSSLDIR}/libbearssl.a
 LIBSECUREBOOT?=	${LIBSECUREBOOTDIR}/libsecureboot.a
 .endif
 
+.if ${MK_PKGCONF} != "no"
+_LIBRARIES+= \
+		pkgconf
+.endif
+
 .if ${MK_VERIEXEC} == "yes"
 _LIBRARIES+= veriexec
 

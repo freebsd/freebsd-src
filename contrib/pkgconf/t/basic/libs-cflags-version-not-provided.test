@@ -1,0 +1,6 @@
+PackageSearchPath: lib1
+Query: foo != 1.2.3
+WantedFlags: libs cflags
+ExpectedExitCode: 1
+MatchStderr: partial
+ExpectedStderr: Package 'foo' has version '1.2.3', required version is '!= 1.2.3'

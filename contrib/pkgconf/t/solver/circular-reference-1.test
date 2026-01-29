@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: validate print-errors errors-on-stdout
+Query: circular-1
+ExpectedStdout: circular-3: breaking circular reference (circular-3 -> circular-1 -> circular-3)
+MatchStdout: partial
