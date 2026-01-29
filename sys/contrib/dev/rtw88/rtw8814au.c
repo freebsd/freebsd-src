@@ -46,6 +46,9 @@ static struct usb_driver rtw_8814au_driver = {
 	.id_table = rtw_8814au_id_table,
 	.probe = rtw_usb_probe,
 	.disconnect = rtw_usb_disconnect,
+#if defined(__FreeBSD__)
+	.bsddriver.name = KBUILD_MODNAME,
+#endif
 };
 module_usb_driver(rtw_8814au_driver);
 
