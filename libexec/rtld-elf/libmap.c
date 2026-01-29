@@ -109,7 +109,7 @@ lmc_parse_file(const char *path)
 			return;
 	}
 
-	fd = open(path, O_RDONLY | O_CLOEXEC);
+	fd = open(path, O_RDONLY | O_CLOFORK);
 	if (fd == -1) {
 		dbg("lm_parse_file: open(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));

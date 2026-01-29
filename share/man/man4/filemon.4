@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 19, 2025
+.Dd January 24, 2026
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -205,7 +205,7 @@ open_filemon(void)
 	if ((fm_fd = open("/dev/filemon", O_RDWR | O_CLOEXEC)) == -1)
 		err(1, "open(\e"/dev/filemon\e", O_RDWR)");
 	if ((fm_log = open("filemon.out",
-	    O_CREAT | O_WRONLY | O_TRUNC | O_CLOEXEC, DEFFILEMODE)) == -1)
+	    O_CREAT | O_WRONLY | O_TRUNC | O_CLOEXEC | O_CLOFORK, DEFFILEMODE)) == -1)
 		err(1, "open(filemon.out)");
 
 	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) == -1)

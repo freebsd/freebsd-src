@@ -153,7 +153,8 @@ create_and_populate_homedir(struct userconf *cnf, struct passwd *pwd,
 	if (skeldir != NULL && *skeldir != '\0') {
 		if (*skeldir == '/')
 			skeldir++;
-		skelfd = openat(conf.rootfd, skeldir, O_DIRECTORY|O_CLOEXEC);
+		skelfd = openat(conf.rootfd, skeldir,
+		    O_DIRECTORY | O_CLOEXEC | O_CLOFORK);
 	}
 
 	copymkdir(conf.rootfd, pwd->pw_dir, skelfd, homemode, pwd->pw_uid,
