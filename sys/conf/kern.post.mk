@@ -457,7 +457,7 @@ kernel-install: .PHONY
 	${INSTALL} -p -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 	${INSTALL} -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} \
 	    $S/tools/kernel-gdb.py ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/${KERNEL_KO}-gdb.py
-	mkdir -p ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/gdb
+	${INSTALL} -d -o ${KMODOWN} -g ${KMODGRP} ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/gdb
 .for file in ${GDB_FILES}
 	${INSTALL} -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} \
 	    $S/tools/gdb/${file} ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/gdb/${file}
