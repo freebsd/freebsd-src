@@ -73,7 +73,6 @@ FORK_TEST_ON(Select, LotsOFileDescriptors, TmpFile("cap_select")) {
   ret = select(maxfd+1, &rset, &wset, NULL, &tv);
   EXPECT_NOTCAPABLE(ret);
 
-#ifdef HAVE_PSELECT
   // And again with pselect
   struct timespec ts;
   ts.tv_sec = 0;
@@ -93,7 +92,6 @@ FORK_TEST_ON(Select, LotsOFileDescriptors, TmpFile("cap_select")) {
   AddFDToSet(&wset, cap_rw, maxfd);
   ret = pselect(maxfd+1, &rset, &wset, NULL, &ts, NULL);
   EXPECT_NOTCAPABLE(ret);
-#endif
 }
 
 FORK_TEST_ON(Poll, LotsOFileDescriptors, TmpFile("cap_poll")) {
@@ -129,7 +127,6 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, TmpFile("cap_poll")) {
   EXPECT_OK(poll(cap_fd, kCapCount + 2, 10));
   EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
 
-#ifdef HAVE_PPOLL
   // And again with ppoll
   struct timespec ts;
   ts.tv_sec = 0;
@@ -138,5 +135,4 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, TmpFile("cap_poll")) {
   // Now also include the capability with no CAP_EVENT.
   EXPECT_OK(ppoll(cap_fd, kCapCount + 2, &ts, NULL));
   EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
-#endif
 }

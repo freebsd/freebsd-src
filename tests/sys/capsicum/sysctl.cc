@@ -1,7 +1,6 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
-#ifdef HAVE_SYSCTL
 #include <sys/sysctl.h>
 
 // Certain sysctls are permitted in capability mode, but most are not.  Test
@@ -12,4 +11,3 @@ TEST(Sysctl, Capability) {
   size_t len = sizeof(ii);
   EXPECT_OK(sysctl(oid, 2, &ii, &len, NULL, 0));
 }
-#endif

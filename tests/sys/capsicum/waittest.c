@@ -6,16 +6,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#ifdef __FreeBSD__
 #include <sys/procdesc.h>
-#endif
-
-#ifdef __linux__
-#include <sys/syscall.h>
-int pdfork(int *fd, int flags) {
-  return syscall(__NR_pdfork, fd, flags);
-}
-#endif
 
 int main() {
   int procfd;
