@@ -6972,7 +6972,9 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	}
 
 	if (bootverbose) {
-		ic_printf(ic, "netdev_features %b\n", hw->netdev_features, NETIF_F_BITS);
+		if (hw->netdev_features != 0)
+			ic_printf(ic, "netdev_features %b\n",
+			    hw->netdev_features, NETIF_F_BITS);
 		ieee80211_announce(ic);
 	}
 
