@@ -258,6 +258,12 @@ static const struct asmc_model asmc_models[] = {
 	},
 
 	{
+	  "MacBookPro8,3", "Apple SMC MacBook Pro (early 2011, 17-inch)",
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS2, ASMC_LIGHT_FUNCS,
+	  ASMC_MBP83_TEMPS, ASMC_MBP83_TEMPNAMES, ASMC_MBP83_TEMPDESCS
+	},
+
+	{
 	  "MacBookPro9,1", "Apple SMC MacBook Pro (mid 2012, 15-inch)",
 	  ASMC_SMS_FUNCS_DISABLED, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP91_TEMPS, ASMC_MBP91_TEMPNAMES, ASMC_MBP91_TEMPDESCS
