@@ -418,24 +418,30 @@ err_xfrm:
 	return err;
 }
 
-#define GET_TRUNK_IF(vifp, ifp, ept)          \
-	if (if_gettype(vifp) == IFT_L2VLAN) { \
-		NET_EPOCH_ENTER(ept);         \
-		ifp = VLAN_TRUNKDEV(vifp);    \
-		NET_EPOCH_EXIT(ept);          \
-	} else {                              \
-		ifp = vifp;                   \
+static struct ifnet *
+mlx5_get_trunk_if(struct ifnet *vifp)
+{
+	struct epoch_tracker et;
+	struct ifnet *res;
+
+	if (if_gettype(vifp) == IFT_L2VLAN) {
+		NET_EPOCH_ENTER(et);
+		res = VLAN_TRUNKDEV(vifp);
+		NET_EPOCH_EXIT(et);
+	} else {
+		res = vifp;
 	}
+	return (res);
+}
 
 static int
 mlx5e_if_sa_newkey(struct ifnet *ifpo, void *sav, u_int dev_spi, void **privp)
 {
 	struct mlx5e_ipsec_priv_bothdir *pb;
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 	int error;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 
 	pb = malloc(sizeof(struct mlx5e_ipsec_priv_bothdir), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -478,10 +484,9 @@ static int
 mlx5e_if_sa_deinstall(struct ifnet *ifpo, u_int dev_spi, void *priv)
 {
 	struct mlx5e_ipsec_priv_bothdir pb, *pbp;
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 
 	pbp = priv;
 	pb = *(struct mlx5e_ipsec_priv_bothdir *)priv;
@@ -516,10 +521,9 @@ mlx5e_if_sa_cnt(struct ifnet *ifpo, void *sa, uint32_t drv_spi, void *priv,
 	struct mlx5e_ipsec_priv_bothdir *pb;
 	u64 packets_in, packets_out;
 	u64 bytes_in, bytes_out;
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 
 	pb = priv;
 	mlx5e_if_sa_cnt_one(ifp, sa, drv_spi, pb->priv_in,
@@ -652,12 +656,11 @@ mlx5e_if_spd_install(struct ifnet *ifpo, void *sp, void *inp1, void **ifdatap)
 {
 	struct mlx5e_ipsec_pol_entry *pol_entry;
 	struct mlx5e_priv *priv;
-	struct epoch_tracker et;
 	u16 vid = VLAN_NONE;
 	struct ifnet *ifp;
 	int err;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 	if (if_gettype(ifpo) == IFT_L2VLAN)
 		VLAN_TAG(ifpo, &vid);
 	priv = if_getsoftc(ifp);
