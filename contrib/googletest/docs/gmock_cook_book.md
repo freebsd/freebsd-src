@@ -177,7 +177,7 @@ class StackInterface {
 template <typename Elem>
 class MockStack : public StackInterface<Elem> {
   ...
-  MOCK_METHOD(int, GetSize, (), (override));
+  MOCK_METHOD(int, GetSize, (), (const, override));
   MOCK_METHOD(void, Push, (const Elem& x), (override));
 };
 ```
@@ -936,8 +936,8 @@ casts a matcher `m` to type `Matcher<T>`. To ensure safety, gMock checks that
     floating-point numbers), the conversion from `T` to `U` is not lossy (in
     other words, any value representable by `T` can also be represented by `U`);
     and
-3.  When `U` is a reference, `T` must also be a reference (as the underlying
-    matcher may be interested in the address of the `U` value).
+3.  When `U` is a non-const reference, `T` must also be a reference (as the
+    underlying matcher may be interested in the address of the `U` value).
 
 The code won't compile if any of these conditions isn't met.
 
@@ -3387,9 +3387,9 @@ With this definition, the above assertion will give a better message:
 
 #### Using EXPECT_ Statements in Matchers
 
-You can also use `EXPECT_...` (and `ASSERT_...`) statements inside custom
-matcher definitions. In many cases, this allows you to write your matcher more
-concisely while still providing an informative error message. For example:
+You can also use `EXPECT_...` statements inside custom matcher definitions. In
+many cases, this allows you to write your matcher more concisely while still
+providing an informative error message. For example:
 
 ```cpp
 MATCHER(IsDivisibleBy7, "") {
@@ -3419,14 +3419,14 @@ itself, as gMock already prints it for you.
 
 #### Argument Types
 
-The type of the value being matched (`arg_type`) is determined by the
-context in which you use the matcher and is supplied to you by the compiler, so
-you don't need to worry about declaring it (nor can you). This allows the
-matcher to be polymorphic. For example, `IsDivisibleBy7()` can be used to match
-any type where the value of `(arg % 7) == 0` can be implicitly converted to a
-`bool`. In the `Bar(IsDivisibleBy7())` example above, if method `Bar()` takes an
-`int`, `arg_type` will be `int`; if it takes an `unsigned long`, `arg_type` will
-be `unsigned long`; and so on.
+The type of the value being matched (`arg_type`) is determined by the context in
+which you use the matcher and is supplied to you by the compiler, so you don't
+need to worry about declaring it (nor can you). This allows the matcher to be
+polymorphic. For example, `IsDivisibleBy7()` can be used to match any type where
+the value of `(arg % 7) == 0` can be implicitly converted to a `bool`. In the
+`Bar(IsDivisibleBy7())` example above, if method `Bar()` takes an `int`,
+`arg_type` will be `int`; if it takes an `unsigned long`, `arg_type` will be
+`unsigned long`; and so on.
 
 ### Writing New Parameterized Matchers Quickly
 
@@ -3567,10 +3567,15 @@ just based on the number of parameters).
 
 ### Writing New Monomorphic Matchers
 
-A matcher of argument type `T` implements the matcher interface for `T` and does
-two things: it tests whether a value of type `T` matches the matcher, and can
-describe what kind of values it matches. The latter ability is used for
-generating readable error messages when expectations are violated.
+A matcher of type `testing::Matcher<T>` implements the matcher interface for `T`
+and does two things: it tests whether a value of type `T` matches the matcher,
+and can describe what kind of values it matches. The latter ability is used for
+generating readable error messages when expectations are violated. Some matchers
+can even explain why it matches or doesn't match a certain value, which can be
+helpful when the reason isn't obvious.
+
+Because a matcher of type `testing::Matcher<T>` for a particular type `T` can
+only be used to match a value of type `T`, we call it "monomorphic."
 
 A matcher of `T` must declare a typedef like:
 
@@ -3662,8 +3667,16 @@ instead of `std::ostream*`.
 
 ### Writing New Polymorphic Matchers
 
-Expanding what we learned above to *polymorphic* matchers is now just as simple
-as adding templates in the right place.
+Unlike a monomorphic matcher, which can only be used to match a value of a
+particular type, a *polymorphic* matcher is one that can be used to match values
+of multiple types. For example, `Eq(5)` is a polymorhpic matcher as it can be
+used to match an `int`, a `double`, a `float`, and so on. You should think of a
+polymorphic matcher as a *matcher factory* as opposed to a
+`testing::Matcher<SomeType>` - itself is not an actual matcher, but can be
+implicitly converted to a `testing::Matcher<SomeType>` depending on the context.
+
+Expanding what we learned above to polymorphic matchers is now as simple as
+adding templates in the right place.
 
 ```cpp
 
@@ -3788,6 +3801,26 @@ virtual.
 
 Like in a monomorphic matcher, you may explain the match result by streaming
 additional information to the `listener` argument in `MatchAndExplain()`.
+
+### Implementing Composite Matchers {#CompositeMatchers}
+
+Sometimes we want to define a matcher that takes other matchers as parameters.
+For example, `DistanceFrom(target, m)` is a polymorphic matcher that takes a
+matcher `m` as a parameter. It tests that the distance from `target` to the
+value being matched satisfies sub-matcher `m`.
+
+If you are implementing such a composite matcher, you'll need to generate the
+description of the matcher based on the description(s) of its sub-matcher(s).
+You can see the implementation of `DistanceFrom()` in
+`googlemock/include/gmock/gmock-matchers.h` for an example. In particular, pay
+attention to `DistanceFromMatcherImpl`. Notice that it stores the sub-matcher as
+a `const Matcher<const Distance&> distance_matcher_` instead of a polymorphic
+matcher - this allows it to call `distance_matcher_.DescribeTo(os)` to describe
+the sub-matcher. If the sub-matcher is stored as a polymorphic matcher instead,
+it would not be possible to get its description as in general polymorphic
+matchers don't know how to describe themselves - they are matcher factories
+instead of actual matchers; only after being converted to `Matcher<SomeType>`
+can they be described.
 
 ### Writing New Cardinalities
 
