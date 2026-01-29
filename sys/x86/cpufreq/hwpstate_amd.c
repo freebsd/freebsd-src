@@ -316,7 +316,7 @@ out:
 }
 
 static void
-sysctl_epp_select_per_core(device_t hwp_device, uint32_t val)
+set_epp(device_t hwp_device, u_int val)
 {
 	struct hwpstate_softc *sc;
 
@@ -331,15 +331,15 @@ sysctl_epp_select_per_core(device_t hwp_device, uint32_t val)
 }
 
 static int
-sysctl_epp_select(SYSCTL_HANDLER_ARGS)
+sysctl_epp_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev, hwp_dev;
 	devclass_t dc;
 	struct hwpstate_softc *sc;
-	const uint32_t max_energy_perf =
+	const u_int max_epp =
 	    BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, (uint64_t)-1);
-	uint32_t val;
-	int ret = 0;
+	u_int val;
+	int error = 0;
 	int cpu;
 
 	dev = oidp->oid_arg1;
@@ -349,29 +349,27 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	check_cppc_enabled(sc, __func__);
 
 	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->req) * 100 /
-	    max_energy_perf;
-	ret = sysctl_handle_int(oidp, &val, 0, req);
-	if (ret != 0 || req->newptr == NULL)
+	    max_epp;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
 		goto end;
 	if (val > 100) {
-		ret = EINVAL;
+		error = EINVAL;
 		goto end;
 	}
-	val = (val * max_energy_perf) / 100;
+	val = (val * max_epp) / 100;
 
 	if (hwpstate_pkg_ctrl_enable) {
 		dc = devclass_find(HWP_AMD_CLASSNAME);
-		KASSERT(dc != NULL,
-		    (HWP_AMD_CLASSNAME ": devclass cannot be null"));
 		CPU_FOREACH(cpu) {
 			hwp_dev = devclass_get_device(dc, cpu);
-			sysctl_epp_select_per_core(hwp_dev, val);
+			set_epp(hwp_dev, val);
 		}
 	} else
-		sysctl_epp_select_per_core(dev, val);
+		set_epp(dev, val);
 
 end:
-	return (ret);
+	return (error);
 }
 
 static driver_t hwpstate_driver = {
@@ -786,8 +784,8 @@ hwpstate_attach(device_t dev)
 
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "epp", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, dev, 0,
-		    sysctl_epp_select, "I",
+		    "epp", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, dev, 0,
+		    sysctl_epp_handler, "IU",
 		    "Efficiency/Performance Preference "
 		    "(range from 0, most performant, through 100, most efficient)");
 	}
