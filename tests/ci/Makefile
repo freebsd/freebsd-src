@@ -140,7 +140,7 @@ KLDFILEMONISLOADED!=kldload -q -n filemon 2>/dev/null && echo "1" || echo "0"
 METAMODE?=-DWITH_META_MODE
 .endif
 
-CLEANFILES+=	${.OBJDIR}/${CIIMAGE} ${.OBJDIR}/ci.img ${META_TAR}
+CLEANFILES+=	${CIDISK} ${.OBJDIR}/ci.img ${META_TAR}
 IMAGEDIR=	${.OBJDIR}/ci-buildimage
 CLEANDIRS+=	${IMAGEDIR}
 
@@ -152,7 +152,7 @@ portinstall-pkg: .PHONY
 .endif
 
 portinstall-qemu: portinstall-pkg .PHONY
-.if !exists(/usr/local/bin/qemu-${QEMU_ARCH}-static)
+.if !empty(QEMUSTATIC) && !exists(${QEMUSTATIC})
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu-user-static
 .endif
 .if !exists(${QEMUBIN})
@@ -172,7 +172,7 @@ clean: beforeclean .PHONY
 
 cleandir: beforeclean .PHONY
 
-ci-buildworld: .PHONY
+ci-buildworld: ci-checktarget .PHONY
 	@echo "Building world for ${TARGET_ARCH}"
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
 		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
@@ -193,14 +193,8 @@ ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
 		${RELEASEDIR}/scripts/mk-vmimage.sh \
 		-C ${RELEASEDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${VMFS} \
 		-i ${.OBJDIR}/ci.img -s ${VMSIZE} -f ${FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${CIIMAGE} -c ${CICONF} ${LOG_TARGET}
+		-S ${WORLDDIR} -o ${CIDISK} -c ${CICONF} ${LOG_TARGET}
 	touch ${.TARGET}
-
-ci-set-smoke-var: .PHONY
-CITYPE=smoke
-
-ci-set-full-var: .PHONY
-CITYPE=full
 
 ci-get-env: .PHONY
 	@echo "TARGET=${TARGET}" > ${ENV_FILE}
@@ -249,29 +243,12 @@ ci-create-meta: ci-get-env .PHONY
 ci-extract-meta: .PHONY
 	tar xfv ${META_TAR} -C ${META_DIROUT}
 	rm -rf ${META_TAR} ${META_DIR}
+	chmod 0755 ${META_DIROUT}
 	@echo "Extracted kyua reports to ${META_DIROUT}"
 
-ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
-.if ${MACHINE} == "amd64" && ( ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" ) && ( !defined(USE_QEMU) || empty(USE_QEMU) )
-	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy || true
-	expect -c "set timeout ${TIMEOUT_EXPECT}; \
-		spawn /usr/bin/timeout -k 5s 30s /usr/sbin/bhyveload \
-		-c stdio -m ${VM_MEM_SIZE} -d ${CIDISK} ${TEST_VM_NAME}; \
-		expect { eof }; \
-		exit [lindex [wait] 3]"
-	expect -c "set timeout ${TIMEOUT_EXPECT}; \
-		spawn /usr/bin/timeout -k 60 ${TIMEOUT_VM} /usr/sbin/bhyve \
-		-c ${PARALLEL_JOBS} -m ${VM_MEM_SIZE} -A -H -P \
-		-s 0:0,hostbridge \
-		-s 1:0,lpc \
-		-s 2:0,virtio-blk,${CIDISK} \
-		-s 3:0,virtio-blk,${META_TAR} \
-		${BHYVE_EXTRA_DISK_PARAM} \
-		-l com1,stdio \
-		${TEST_VM_NAME}; \
-		expect { eof }"
-	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy
-.else
+ci-runtest: ci-create-meta portinstall .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
+
+ci-runtest-qemu: .PHONY
 	timeout -k 60 ${TIMEOUT_VM} ${QEMUBIN} \
 		-machine ${QEMU_MACHINE} \
 		-smp ${QEMU_CPU_COUNT} \
@@ -284,7 +261,6 @@ ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 		-blockdev driver=raw,node-name=hd0,file.driver=file,file.filename=${CIDISK} \
 		-blockdev driver=raw,node-name=hd1,file.driver=file,file.filename=${META_TAR} \
 		${QEMU_DEVICES}
-.endif
 
 ci-checktarget: .PHONY
 .if ${TARGET_ARCH} != "aarch64" && \
@@ -298,10 +274,6 @@ ci-checktarget: .PHONY
 	@echo "Error: ${TARGET_ARCH} is not supported on ${TYPE} ${REVISION} ${BRANCH}"
 .endif
 
-ci-smoke: ci-set-smoke-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .PHONY
-
-ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
-
-ci: ci-${CITYPE:tl} .PHONY
+ci: ci-buildimage-${TARGET_ARCH:tl} .WAIT ci-runtest .PHONY
 
 .include "${RELEASEDIR}/Makefile.inc1"
