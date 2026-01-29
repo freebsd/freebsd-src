@@ -33,6 +33,11 @@
 .Ar beName@snapshot
 .Nm
 .Op Fl r Ar beroot
+.Cm create
+.Op Fl E
+.Ar newBeName
+.Nm
+.Op Fl r Ar beroot
 .Cm destroy
 .Op Fl \&Fo
 .Ar beName Ns Op Cm @ Ns Ar snapshot
@@ -180,6 +185,13 @@ See
 for a discussion on different layouts.
 .Pp
 No new boot environment is created with this subcommand.
+.It Xo
+.Cm create
+.Op Fl E
+.Ar newBeName
+.Xc
+Create a new empty boot environment named
+.Ar newBeName .
 .It Xo
 .Cm destroy
 .Op Fl \&Fo
