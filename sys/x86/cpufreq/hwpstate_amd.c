@@ -103,12 +103,12 @@
 
 #define	AMD_1AH_CUR_FID(msr)			((msr) & 0xFFF)
 
-#define	AMD_CPPC_CAPS_1_HIGH_PERF_BITS		0xff000000
+#define	AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS	0xff000000
 #define	AMD_CPPC_CAPS_1_NOMINAL_PERF_BITS	0x00ff0000
-#define	AMD_CPPC_CAPS_1_LOW_NONLIN_PERF_BITS	0x0000ff00
-#define	AMD_CPPC_CAPS_1_LOW_PERF_BITS		0x000000ff
+#define	AMD_CPPC_CAPS_1_EFFICIENT_PERF_BITS	0x0000ff00
+#define	AMD_CPPC_CAPS_1_LOWEST_PERF_BITS	0x000000ff
 
-#define	AMD_CPPC_REQUEST_ENERGY_PERF_BITS	0xff000000
+#define	AMD_CPPC_REQUEST_EPP_BITS		0xff000000
 #define	AMD_CPPC_REQUEST_DES_PERF_BITS		0x00ff0000
 #define	AMD_CPPC_REQUEST_MIN_PERF_BITS		0x0000ff00
 #define	AMD_CPPC_REQUEST_MAX_PERF_BITS		0x000000ff
@@ -259,13 +259,13 @@ amdhwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	data = request.caps;
 	sbuf_printf(sb, "\tHighest Performance: %03ju\n",
-	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGH_PERF_BITS, data));
+	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data));
 	sbuf_printf(sb, "\tGuaranteed Performance: %03ju\n",
 	    BITS_VALUE(AMD_CPPC_CAPS_1_NOMINAL_PERF_BITS, data));
 	sbuf_printf(sb, "\tEfficient Performance: %03ju\n",
-	    BITS_VALUE(AMD_CPPC_CAPS_1_LOW_NONLIN_PERF_BITS, data));
+	    BITS_VALUE(AMD_CPPC_CAPS_1_EFFICIENT_PERF_BITS, data));
 	sbuf_printf(sb, "\tLowest Performance: %03ju\n",
-	    BITS_VALUE(AMD_CPPC_CAPS_1_LOW_PERF_BITS, data));
+	    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data));
 	sbuf_putc(sb, '\n');
 
 	data = request.req;
@@ -299,9 +299,9 @@ sysctl_epp_select_per_core(device_t hwp_device, uint32_t val)
 	struct hwpstate_softc *sc;
 
 	sc = device_get_softc(hwp_device);
-	if (BITS_VALUE(AMD_CPPC_REQUEST_ENERGY_PERF_BITS, sc->req) == val)
+	if (BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->req) == val)
 		return;
-	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_ENERGY_PERF_BITS, val);
+	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_EPP_BITS, val);
 	x86_msr_op(MSR_AMD_CPPC_REQUEST,
 	    MSR_OP_RENDEZVOUS_ONE | MSR_OP_WRITE |
 		MSR_OP_CPUID(cpu_get_pcpu(hwp_device)->pc_cpuid),
@@ -315,7 +315,7 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	devclass_t dc;
 	struct hwpstate_softc *sc;
 	const uint32_t max_energy_perf =
-	    BITS_VALUE(AMD_CPPC_REQUEST_ENERGY_PERF_BITS, (uint64_t)-1);
+	    BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, (uint64_t)-1);
 	uint32_t val;
 	int ret = 0;
 	int cpu;
@@ -326,7 +326,7 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	if (!(sc->flags & PSTATE_CPPC))
 		return (ENODEV);
 
-	val = BITS_VALUE(AMD_CPPC_REQUEST_ENERGY_PERF_BITS, sc->req) * 100 /
+	val = BITS_VALUE(AMD_CPPC_REQUEST_EPP_BITS, sc->req) * 100 /
 	    max_energy_perf;
 	ret = sysctl_handle_int(oidp, &val, 0, req);
 	if (ret != 0 || req->newptr == NULL)
@@ -631,11 +631,11 @@ amd_set_autonomous_hwp_cb(void *args)
 	 * is the balanced mode. For consistency, we set the same value in AMD's
 	 * CPPC driver.
 	 */
-	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_ENERGY_PERF_BITS, 0x80);
+	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_EPP_BITS, 0x80);
 	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_MIN_PERF_BITS,
-	    BITS_VALUE(AMD_CPPC_CAPS_1_LOW_PERF_BITS, caps));
+	    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, caps));
 	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_MAX_PERF_BITS,
-	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGH_PERF_BITS, caps));
+	    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, caps));
 	/* enable autonomous mode by setting desired performance to 0 */
 	SET_BITS_VALUE(sc->req, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
 
