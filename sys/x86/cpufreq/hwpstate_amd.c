@@ -52,17 +52,17 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
+#include <sys/module.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
-#include <sys/smp.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <machine/_inttypes.h>
-#include <machine/md_var.h>
 #include <machine/cputypes.h>
+#include <machine/md_var.h>
 #include <machine/specialreg.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -73,6 +73,7 @@
 
 #include "acpi_if.h"
 #include "cpufreq_if.h"
+
 
 #define	MSR_AMD_10H_11H_LIMIT	0xc0010061
 #define	MSR_AMD_10H_11H_CONTROL	0xc0010062
