@@ -541,7 +541,7 @@ struct usb_endpoint_descriptor {
 #define	UE_XFERTYPE	0x03
 #define	UE_CONTROL	0x00
 #define	UE_ISOCHRONOUS	0x01
-#define	UE_BULK	0x02
+#define	UE_BULK		0x02
 #define	UE_INTERRUPT	0x03
 #define	UE_BULK_INTR	0xfe		/* for internal use only! */
 #define	UE_TYPE_ANY	0xff		/* for internal use only! */
