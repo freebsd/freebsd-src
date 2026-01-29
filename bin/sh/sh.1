@@ -31,7 +31,17 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 17, 2025
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"     http://www.opengroup.org/unix/online.html.
+.\"
+.Dd January 27, 2026
 .Dt SH 1
 .Os
 .Sh NAME
@@ -254,10 +264,9 @@ Force the shell to behave interactively.
 .It Fl l
 Force the shell to act as if it has been invoked as a login shell.
 .It Fl m Li monitor
-Turn on job control (set automatically when interactive).
-A new process group is created for each pipeline (called a job).
-It is possible to suspend jobs or to have them run in the foreground or
-in the background.
+Turn on job control (see
+.Sx Job Control ) .
+Set automatically when interactive.
 In a non-interactive shell,
 this option can be set even if no terminal is available
 and is useful to place processes in separate process groups.
@@ -1120,7 +1129,9 @@ and known jobs are cleared.
 Any changes do not affect the parent shell environment.
 .Pp
 A subshell environment may be implemented as a child process or differently.
-If job control is enabled in an interactive shell,
+If job control is enabled in an interactive shell
+(see
+.Sx Job Control ) ,
 commands grouped in parentheses can be suspended and continued as a unit.
 .Pp
 For compatibility with other shells,
@@ -1940,6 +1951,58 @@ if any).
 To include a
 .Ql - ,
 make it the first or last character listed.
+.Ss Job Control
+A job is a set of processes, comprising a shell pipeline
+(see
+.Sx Pipelines ) ,
+and any processes descended from it, that are all
+in the same process group.
+.Pp
+The job control facility allows users to
+selectively suspend the execution of processes (by pressing
+.Sq Ctrl-Z ,
+if not adjusted using
+.Xr stty 1 ) ,
+continue their execution at a later point,
+and run them in the foreground or in the background (using builtins
+.Ic fg
+and
+.Ic bg ) .
+.Pp
+A job ID is a handle that is used to refer to a job.
+It can take any of the following forms:
+.Bl -tag -width "%?string"
+.It Cm %%
+Current job.
+.It Cm %+
+Current job.
+.It Cm %-
+Previous job.
+.It Cm % Ns Ar n
+Job number
+.Ar n .
+.It Cm % Ns Ar string
+Job whose command begins with
+.Ar string .
+.It Cm %? Ns Ar string
+Job whose command contains
+.Ar string .
+.El
+.Pp
+The job control built-in commands
+are:
+.Ic bg ,
+.Ic fg ,
+.Ic jobid
+and
+.Ic jobs .
+Additionally, the following built-in commands accept a job ID
+as an argument:
+.Ic kill ,
+.Ic wait .
+See
+.Sx Built-in Commands
+below.
 .Ss Built-in Commands
 This section lists the built-in commands.
 .Bl -tag -width indent
@@ -1993,6 +2056,9 @@ subsection.
 Continue the specified jobs
 (or the current job if no jobs are given)
 in the background.
+See
+.Sx Job Control
+for a list of job ID forms.
 .It Ic bind Oo Fl aeklrsv Oc Oo Ar key Oo Ar command Oc Oc
 List or alter key bindings for the line editor.
 This command is documented in
@@ -2353,6 +2419,9 @@ The number of previous commands that are accessible.
 Move the specified
 .Ar job
 or the current job to the foreground.
+See
+.Sx Job Control
+for a list of job ID forms.
 .It Ic getopts Ar optstring var
 Parse command-line options and arguments.
 The first argument
@@ -2436,19 +2505,118 @@ Print the process IDs of the processes in the specified
 If the
 .Ar job
 argument is omitted, use the current job.
+See
+.Sx Job Control
+for a list of job ID forms.
 .It Ic jobs Oo Fl lps Oc Op Ar job ...
 Print information about the specified jobs, or all jobs if no
 .Ar job
 argument is given.
-The information printed includes job ID, status and command name.
+See
+.Sx Job Control
+for a list of job ID forms.
 .Pp
 If the
 .Fl l
-option is specified, the PID of each job is also printed.
+option is not specified, the output line is the following
+for each job:
+.Dl Oo Ar job_number Oc Ar current Ar state Ar command
+where:
+.Bl -tag -width "job_number"
+.It Ar job_number
+A number that can be used to identify the process group to the
+.Ic bg ,
+.Ic fg ,
+.Ic kill
+and
+.Ic wait
+commands.
+Using these commands, the job can be identified by prefixing
+the
+.Ar job_number
+with
+.Cm % .
+See also
+.Sx Job Control .
+.It Ar current
+One of the following characters:
+.Bl -tag -width "<space>"
+.It Cm +
+Identifies the job that would be used as a default for the
+.Ic fg
+or
+.Ic bg
+commands.
+.It Cm -
+Identifies the job that would become the default if the
+current default job were to exit.
+.It Cm Aq space
+For all other jobs that are neither marked with
+.Cm +
+nor
+.Cm - .
+.El
+.It Ar state
+One of the following strings, describing the current job state:
+.Bl -tag -width "Stopped (tty output)"
+.It Running
+Indicates that the job has not been suspended by a signal and
+has not exited.
+.It Done
+Indicates that the job completed and returned exit status zero.
+.It Done Ns Pq Ar code
+Indicates that the job completed normally and that it exited
+with the specified non-zero exit status,
+.Ar code .
+.It Suspended
+Indicates that the job was interrupted by the
+.Dv SIGTSTP
+signal.
+This is typically because
+.Sq Ctrl-Z
+was pressed.
+.It Suspended Pq signal
+Indicates that the job was interrupted by the
+.Dv SIGSTOP
+signal.
+.It Stopped Pq tty input
+Indicates that the job was interrupted by the
+.Dv SIGTTIN
+signal.
+This is typically because the command attempted to read from the
+terminal while in the background.
+.It Stopped Pq tty output
+Indicates that the job was interrupted by the
+.Dv SIGTTOU
+signal.
+This is typically because the command attempted to change terminal
+settings or (if
+.Ic stty tostop
+is in effect; see
+.Xr stty 1 )
+write to the terminal while in the background.
+.El
+.Pp
+See
+.Xr signal 3
+for additional information on the meanings of the aforementioned signals.
+.El
+.It Ar command
+The associated command that was given to the shell.
+.El
+.Pp
+If the
+.Fl l
+option is specified, the PID of the job is
+inserted before the
+.Ar state
+field.
+.Pp
 If the
 .Fl p
 option is specified, only the process IDs for the process group leaders
 are printed, one per line.
+.Pp
 If the
 .Fl s
 option is specified, only the PIDs of the job commands are printed, one per
@@ -2456,7 +2624,11 @@ line.
 .It Ic kill
 A built-in equivalent of
 .Xr kill 1
-that additionally supports sending signals to jobs.
+that additionally supports sending signals to jobs,
+by means of specifying their job IDs as arguments.
+See
+.Sx Job Control
+for a list of job ID forms.
 .It Ic local Oo Ar variable ... Oc Op Fl
 See the
 .Sx Functions
@@ -2941,6 +3113,7 @@ will return the argument.
 .Xr execve 2 ,
 .Xr getrlimit 2 ,
 .Xr umask 2 ,
+.Xr signal 3 ,
 .Xr wctype 3 ,
 .Xr editrc 5 ,
 .Xr shells 5
