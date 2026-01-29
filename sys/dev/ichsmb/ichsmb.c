@@ -145,13 +145,17 @@ fail:
 int 
 ichsmb_callback(device_t dev, int index, void *data)
 {
+	const sc_p sc = device_get_softc(dev);
 	int smb_error = 0;
 
 	DBG("index=%d how=%d\n", index, data ? *(int *)data : -1);
 	switch (index) {
 	case SMB_REQUEST_BUS:
+		if ((bus_read_1(sc->io_res, ICH_HST_STA) & ICH_HST_STA_INUSE_STS) != 0)
+			return (EBUSY);
 		break;
 	case SMB_RELEASE_BUS:
+		bus_write_1(sc->io_res, ICH_HST_STA, ICH_HST_STA_INUSE_STS);
 		break;
 	default:
 		smb_error = SMB_EABORT;	/* XXX */
@@ -507,10 +511,18 @@ ichsmb_device_intr(void *cookie)
 			DBG("%d stat=0x%02x\n", count, status);
 		}
 #endif
-		status &= ~(ICH_HST_STA_INUSE_STS | ICH_HST_STA_HOST_BUSY |
-		    ICH_HST_STA_SMBALERT_STS);
-		if (status == 0)
+		status &= ~(ICH_HST_STA_HOST_BUSY | ICH_HST_STA_SMBALERT_STS);
+		if ((status & ~ICH_HST_STA_INUSE_STS) == 0) {
+			// We're not the target of the interrupt. In that case,
+			// reading the status register can acquire the
+			// semaphore which will lock subsequent accesses to the
+			// SMBus. For that reason, release the semaphore if
+			// we've acquired it.
+			if ((status & ICH_HST_STA_INUSE_STS) == 0)
+				bus_write_1(sc->io_res, ICH_HST_STA, ICH_HST_STA_INUSE_STS);
 			break;
+		}
+		status &= ~ICH_HST_STA_INUSE_STS;
 
 		/* Check for unexpected interrupt */
 		ok_bits = ICH_HST_STA_SMBALERT_STS;
