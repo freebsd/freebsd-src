@@ -36,6 +36,7 @@ arm64/arm64/busdma_bounce.c			standard
 arm64/arm64/busdma_machdep.c			standard
 arm64/arm64/clock.c				standard
 arm64/arm64/copyinout.S				standard
+arm64/arm64/copyinout_ifunc.c			standard
 arm64/arm64/cpu_errata.c			standard
 arm64/arm64/cpu_feat.c				standard
 arm64/arm64/cpufunc_asm.S			standard
