@@ -150,10 +150,6 @@ epair_clear_mbuf(struct mbuf *m)
 		m->m_pkthdr.csum_flags &= ~CSUM_SND_TAG;
 	}
 
-	/* Clear vlan information. */
-	m->m_flags &= ~M_VLANTAG;
-	m->m_pkthdr.ether_vtag = 0;
-
 	m_tag_delete_nonpersistent(m);
 }
 
@@ -493,6 +489,7 @@ epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifp->if_capenable = ifr->ifr_reqcap | IFCAP_RXCSUM |
 		    IFCAP_RXCSUM_IPV6;
 		epair_caps_changed(ifp);
+		VLAN_CAPABILITIES(ifp);
 		/*
 		 * If IFCAP_TXCSUM(_IPV6) has been changed, change it on the
 		 * other epair interface as well.
@@ -501,17 +498,23 @@ epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * In that case this capability needs to be disabled on the
 		 * other epair interface to avoid sending packets in the bridge
 		 * that rely on this capability.
+		 * Do the same for IFCAP_VLAN_HWTAGGING. If the sending epair
+		 * end has this capability enabled, the other end has to have
+		 * it enabled too. Otherwise, epair would have to add the VLAN
+		 * tag in the Ethernet header.
 		 */
 		sc = ifp->if_softc;
 		if ((ifp->if_capenable ^ sc->oifp->if_capenable) &
-		    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) {
+		    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 | IFCAP_VLAN_HWTAGGING)) {
 			sc->oifp->if_capenable &=
-			    ~(IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			    ~(IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 |
+			      IFCAP_VLAN_HWTAGGING);
 			sc->oifp->if_capenable |= ifp->if_capenable &
-			    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 |
+			     IFCAP_VLAN_HWTAGGING);
 			epair_caps_changed(sc->oifp);
+			VLAN_CAPABILITIES(sc->oifp);
 		}
-		VLAN_CAPABILITIES(ifp);
 		error = 0;
 		break;
 
@@ -626,10 +629,11 @@ epair_setup_ifp(struct epair_softc *sc, char *name, int unit)
 	ifp->if_dname = epairname;
 	ifp->if_dunit = unit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_TXCSUM |
-	    IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
-	ifp->if_capenable = IFCAP_VLAN_MTU | IFCAP_TXCSUM |
-	    IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	ifp->if_capabilities =
+	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_TXCSUM | IFCAP_RXCSUM |
+	    IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM_IPV6;
+	ifp->if_capenable = ifp->if_capabilities;
 	epair_caps_changed(ifp);
 	ifp->if_transmit = epair_transmit;
 	ifp->if_qflush = epair_qflush;
