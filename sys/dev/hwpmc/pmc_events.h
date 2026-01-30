@@ -149,6 +149,15 @@ __PMC_EV(K8, NB_HT_BUS2_BANDWIDTH)
 #define	PMC_EV_K8_FIRST		PMC_EV_K8_FP_DISPATCHED_FPU_OPS
 #define	PMC_EV_K8_LAST		PMC_EV_K8_NB_HT_BUS2_BANDWIDTH
 
+/* AMD IBS PMCs */
+
+#define	__PMC_EV_IBS()							\
+__PMC_EV(IBS, FETCH)							\
+__PMC_EV(IBS, OP)
+
+#define	PMC_EV_IBS_FIRST	PMC_EV_IBS_FETCH
+#define	PMC_EV_IBS_LAST		PMC_EV_IBS_OP
+
 /*
  * Events supported by Intel architectural fixed function counters,
  * from the "Intel 64 and IA-32 Architectures Software Developer's
@@ -2398,7 +2407,7 @@ __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
  * START	#EVENTS		DESCRIPTION
  * 0		0x1000		Reserved
  * 0x1000	0x0001		TSC
- * 0x2000	0x0080		free (was AMD K7 events)
+ * 0x2000	0x0080		AMD IBS (was AMD K7 events)
  * 0x2080	0x0100		AMD K8 events
  * 0x10000	0x0080		INTEL architectural fixed-function events
  * 0x10080	0x0F80		free (was INTEL architectural programmable events)
@@ -2424,6 +2433,8 @@ __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
 #define	__PMC_EVENTS()					\
 	__PMC_EV_BLOCK(TSC,		0x01000)	\
 	__PMC_EV_TSC()					\
+	__PMC_EV_BLOCK(IBS,		0x02000)	\
+	__PMC_EV_IBS()					\
 	__PMC_EV_BLOCK(K8,		0x02080)	\
 	__PMC_EV_K8()					\
 	__PMC_EV_BLOCK(IAF,		0x10000)	\

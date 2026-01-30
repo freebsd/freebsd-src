@@ -50,8 +50,8 @@
 #if defined(__amd64__) || defined(__i386__)
 static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
-#endif
-#if defined(__amd64__) || defined(__i386__)
+static int ibs_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
 static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
@@ -132,6 +132,7 @@ struct pmc_class_descr {
 
 PMC_CLASSDEP_TABLE(iaf, IAF);
 PMC_CLASSDEP_TABLE(k8, K8);
+PMC_CLASSDEP_TABLE(ibs, IBS);
 PMC_CLASSDEP_TABLE(armv7, ARMV7);
 PMC_CLASSDEP_TABLE(armv8, ARMV8);
 PMC_CLASSDEP_TABLE(cmn600_pmu, CMN600_PMU);
@@ -201,8 +202,7 @@ static const struct pmc_class_descr NAME##_class_table_descr =	\
 
 #if	defined(__i386__) || defined(__amd64__)
 PMC_CLASS_TABLE_DESC(k8, K8, k8, k8);
-#endif
-#if	defined(__i386__) || defined(__amd64__)
+PMC_CLASS_TABLE_DESC(ibs, IBS, ibs, ibs);
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #endif
 #if	defined(__arm__)
@@ -691,9 +691,49 @@ k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	return (0);
 }
 
-#endif
+static int
+ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	char *e, *p, *q;
+	uint64_t ctl;
 
-#if	defined(__i386__) || defined(__amd64__)
+	pmc_config->pm_caps |=
+	    (PMC_CAP_SYSTEM | PMC_CAP_EDGE | PMC_CAP_PRECISE);
+	pmc_config->pm_md.pm_ibs.ibs_ctl = 0;
+
+	/* setup parsing tables */
+	switch (pe) {
+	case PMC_EV_IBS_FETCH:
+		pmc_config->pm_md.pm_ibs.ibs_type = IBS_PMC_FETCH;
+		break;
+	case PMC_EV_IBS_OP:
+		pmc_config->pm_md.pm_ibs.ibs_type = IBS_PMC_OP;
+		break;
+	default:
+		return (-1);
+	}
+
+	/* parse parameters */
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWPREFIXMATCH(p, "ctl=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			ctl = strtoull(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+
+			pmc_config->pm_md.pm_ibs.ibs_ctl |= ctl;
+		} else {
+			return (-1);
+		}
+	}
+
+	return (0);
+}
+
 static int
 tsc_allocate_pmc(enum pmc_event pe, char *ctrspec,
     struct pmc_op_pmcallocate *pmc_config)
@@ -1268,6 +1308,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = k8_event_table;
 		count = PMC_EVENT_TABLE_SIZE(k8);
 		break;
+	case PMC_CLASS_IBS:
+		ev = ibs_event_table;
+		count = PMC_EVENT_TABLE_SIZE(ibs);
+		break;
 	case PMC_CLASS_ARMV7:
 		switch (cpu_info.pm_cputype) {
 		default:
@@ -1470,6 +1514,10 @@ pmc_init(void)
 
 		case PMC_CLASS_K8:
 			pmc_class_table[n++] = &k8_class_table_descr;
+			break;
+
+		case PMC_CLASS_IBS:
+			pmc_class_table[n++] = &ibs_class_table_descr;
 			break;
 #endif
 
@@ -1676,7 +1724,9 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	if (pe >= PMC_EV_K8_FIRST && pe <= PMC_EV_K8_LAST) {
 		ev = k8_event_table;
 		evfence = k8_event_table + PMC_EVENT_TABLE_SIZE(k8);
-
+	} else if (pe >= PMC_EV_IBS_FIRST && pe <= PMC_EV_IBS_LAST) {
+		ev = ibs_event_table;
+		evfence = ibs_event_table + PMC_EVENT_TABLE_SIZE(ibs);
 	} else if (pe >= PMC_EV_ARMV7_FIRST && pe <= PMC_EV_ARMV7_LAST) {
 		switch (cpu) {
 		case PMC_CPU_ARMV7_CORTEX_A8:
