@@ -795,25 +795,21 @@ asmc_attach(device_t dev)
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		ret = ENXIO;
-		goto err2;
+		goto err;
 	}
 
 	ret = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC | INTR_MPSAFE,
 	    asmc_sms_intrfast, NULL, dev, &sc->sc_cookie);
 	if (ret) {
 		device_printf(dev, "unable to setup SMS IRQ\n");
-		goto err1;
+		goto err;
 	}
+
 nosms:
 	return (0);
-err1:
-	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid_irq, sc->sc_irq);
-err2:
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_rid_port,
-	    sc->sc_ioport);
-	mtx_destroy(&sc->sc_mtx);
-	if (sc->sc_sms_tq)
-		taskqueue_free(sc->sc_sms_tq);
+
+err:
+	asmc_detach(dev);
 
 	return (ret);
 }
@@ -826,16 +822,25 @@ asmc_detach(device_t dev)
 	if (sc->sc_sms_tq) {
 		taskqueue_drain(sc->sc_sms_tq, &sc->sc_sms_task);
 		taskqueue_free(sc->sc_sms_tq);
+		sc->sc_sms_tq = NULL;
 	}
-	if (sc->sc_cookie)
+	if (sc->sc_cookie) {
 		bus_teardown_intr(dev, sc->sc_irq, sc->sc_cookie);
-	if (sc->sc_irq)
+		sc->sc_cookie = NULL;
+	}
+	if (sc->sc_irq) {
 		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid_irq,
 		    sc->sc_irq);
-	if (sc->sc_ioport)
+		sc->sc_irq = NULL;
+	}
+	if (sc->sc_ioport) {
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_rid_port,
 		    sc->sc_ioport);
-	mtx_destroy(&sc->sc_mtx);
+		sc->sc_ioport = NULL;
+	}
+	if (mtx_initialized(&sc->sc_mtx)) {
+		mtx_destroy(&sc->sc_mtx);
+	}
 
 	return (0);
 }
