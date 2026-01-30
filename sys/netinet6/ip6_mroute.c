@@ -359,16 +359,16 @@ static int get_sg_cnt(struct sioc_sg_req6 *);
 
 static struct callout expire_upcalls_ch;
 
-int X_ip6_mforward(struct ip6_hdr *, struct ifnet *, struct mbuf *);
-int X_ip6_mrouter_done(void);
-int X_ip6_mrouter_set(struct socket *, struct sockopt *);
-int X_ip6_mrouter_get(struct socket *, struct sockopt *);
-int X_mrt6_ioctl(u_long, caddr_t);
+static int X_ip6_mforward(struct ip6_hdr *, struct ifnet *, struct mbuf *);
+static int X_ip6_mrouter_done(void);
+static int X_ip6_mrouter_set(struct socket *, struct sockopt *);
+static int X_ip6_mrouter_get(struct socket *, struct sockopt *);
+static int X_mrt6_ioctl(u_long, caddr_t);
 
 /*
  * Handle MRT setsockopt commands to modify the multicast routing tables.
  */
-int
+static int
 X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0;
@@ -436,7 +436,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 /*
  * Handle MRT getsockopt commands
  */
-int
+static int
 X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0;
@@ -455,7 +455,7 @@ X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 /*
  * Handle ioctl commands to obtain information from the cache
  */
-int
+static int
 X_mrt6_ioctl(u_long cmd, caddr_t data)
 {
 	int ret;
@@ -585,7 +585,7 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 /*
  * Disable IPv6 multicast forwarding.
  */
-int
+static int
 X_ip6_mrouter_done(void)
 {
 	mifi_t mifi;
@@ -1055,7 +1055,7 @@ socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in6 *src)
  * that if this function is called from somewhere else in the originating
  * context in the future.
  */
-int
+static int
 X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 {
 	struct rtdetq *rte;
