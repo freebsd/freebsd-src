@@ -246,7 +246,7 @@ GitHub: https://github.com/fcambus/spleen
 [11]: https://www.freshports.org/x11-fonts/spleen/
 [12]: https://aur.archlinux.org/packages/spleen-font/
 [13]: https://github.com/void-linux/void-packages/tree/master/srcpkgs/font-spleen
-[14]: https://github.com/NixOS/nixpkgs/tree/master/pkgs/data/fonts/spleen
+[14]: https://github.com/NixOS/nixpkgs/tree/master/pkgs/by-name/sp/spleen
 [15]: https://packages.debian.org/search?keywords=spleen
 [16]: https://packages.ubuntu.com/search?keywords=spleen
 [17]: https://ports.macports.org/port/font-spleen/
