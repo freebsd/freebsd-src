@@ -418,8 +418,8 @@ powermac_smp_timebase_sync_fallback(platform_t plat, u_long tb, int ap)
 	static volatile int cpu_done;
 
 	if (bootverbose)
-		printf("[%d] %s: called, AP tb=0x%lx tb=0x%lx\n",
-		    ap, __func__, tb, mftb());
+		printf("[%d] %s: called, AP tb=0x%jx tb=0x%jx\n",
+		    ap, __func__, (uintmax_t)tb, (uintmax_t)mftb());
 
 	/* Do initial timebase sync */
 	mttb(tb);
@@ -457,8 +457,8 @@ powermac_smp_timebase_sync_fallback(platform_t plat, u_long tb, int ap)
 		critical_exit();
 	}
 	if (bootverbose)
-		printf("[%d] %s: finished; AP tb=0x%lx called tb=0x%lx\n",
-		    ap, __func__, tb, mftb());
+		printf("[%d] %s: finished; AP tb=0x%jx called tb=0x%jx\n",
+		    ap, __func__, (uintmax_t)tb, (uintmax_t)mftb());
 }
 
 /**
@@ -479,8 +479,8 @@ powermac_smp_timebase_sync_freeze(platform_t plat, u_long tb, int ap)
 	static volatile int cpu_done;
 
 	if (bootverbose)
-		printf("[%d] %s: called, AP tb=0x%lx tb=0x%lx\n",
-		    ap, __func__, tb, mftb());
+		printf("[%d] %s: called, AP tb=0x%jx tb=0x%jx\n",
+		    ap, __func__, (uintmax_t)tb, (uintmax_t)mftb());
 
 	/*
 	 * This needs to be replaced with a cpu-to-cpu software sync
@@ -517,8 +517,8 @@ powermac_smp_timebase_sync_freeze(platform_t plat, u_long tb, int ap)
 		critical_exit();
 	}
 	if (bootverbose)
-		printf("[%d] %s: finished; AP tb=0x%lx called tb=0x%lx\n",
-		    ap, __func__, tb, mftb());
+		printf("[%d] %s: finished; AP tb=0x%jx called tb=0x%jx\n",
+		    ap, __func__, (uintmax_t)tb, (uintmax_t)mftb());
 }
 
 static void
