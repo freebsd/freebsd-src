@@ -65,7 +65,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #ifdef INET6
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -151,7 +150,7 @@ mroute6pr(void)
 		xo_close_instance("multicast-interface");
 	}
 	if (banner_printed)
-		xo_open_list("multicast-interface");
+		xo_close_list("multicast-interface");
 	else
 		xo_emit("\n{T:IPv6 Multicast Interface Table is empty}\n");
 
@@ -172,19 +171,19 @@ mroute6pr(void)
 				xo_open_list("multicast-forwarding-cache");
 				xo_emit("\n"
 				    "{T:IPv6 Multicast Forwarding Cache}\n");
-				xo_emit(" {T:%-*.*s} {T:%-*.*s} {T:%s}",
+				xo_emit(" {T:/%-*.*s} {T:/%-*.*s} {T:/%s}\n",
 				    WID_ORG, WID_ORG, "Origin",
 				    WID_GRP, WID_GRP, "Group",
-				    "  Packets Waits In-Mif  Out-Mifs\n");
+				    "  Packets Waits In-Mif  Out-Mifs");
 				banner_printed = 1;
 			}
 
 			xo_open_instance("multicast-forwarding-cache");
 
-			xo_emit(" {:origin/%-*.*s}", WID_ORG, WID_ORG,
+			xo_emit(" {t:origin/%-*.*s}", WID_ORG, WID_ORG,
 			    routename(sin6tosa(&mfc.mf6c_origin),
 			    numeric_addr));
-			xo_emit(" {:group/%-*.*s}", WID_GRP, WID_GRP,
+			xo_emit(" {t:group/%-*.*s}", WID_GRP, WID_GRP,
 			    routename(sin6tosa(&mfc.mf6c_mcastgrp),
 			    numeric_addr));
 			xo_emit(" {:total-packets/%9ju}",
@@ -205,7 +204,7 @@ mroute6pr(void)
 			xo_open_list("mif");
 			for (mifi = 0; mifi <= maxmif; mifi++) {
 				if (IF_ISSET(mifi, &mfc.mf6c_ifset))
-					xo_emit(" {l:%u}", mifi);
+					xo_emit(" {l:/%u}", mifi);
 			}
 			xo_close_list("mif");
 			xo_emit("\n");
