@@ -2517,6 +2517,7 @@ dpaa2_ni_transmit(if_t ifp, struct mbuf *m)
 	ch = sc->channels[chidx];
 	error = buf_ring_enqueue(ch->xmit_br, m);
 	if (__predict_false(error != 0)) {
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
 	} else {
 		taskqueue_enqueue(ch->cleanup_tq, &ch->cleanup_task);
@@ -2928,6 +2929,8 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 	bus_dma_segment_t segs[DPAA2_TX_SEGLIMIT];
 	int rc, nsegs;
 	int error;
+	int len;
+	bool mcast;
 
 	mtx_assert(&tx->lock, MA_NOTOWNED);
 	mtx_lock(&tx->lock);
@@ -2942,6 +2945,8 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 		buf->m = m;
 		sgt = buf->sgt;
 	}
+	len = m->m_pkthdr.len;
+	mcast = (m->m_flags & M_MCAST) != 0;
 
 #if defined(INVARIANTS)
 	struct dpaa2_ni_tx_ring *btx = (struct dpaa2_ni_tx_ring *)buf->opt;
@@ -2959,6 +2964,7 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 		if (md == NULL) {
 			device_printf(dev, "%s: m_collapse() failed\n", __func__);
 			fq->chan->tx_dropped++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			goto err;
 		}
 
@@ -2969,6 +2975,7 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 			device_printf(dev, "%s: bus_dmamap_load_mbuf_sg() "
 			    "failed: error=%d\n", __func__, error);
 			fq->chan->tx_dropped++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			goto err;
 		}
 	}
@@ -2978,6 +2985,7 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 		device_printf(dev, "%s: failed to build frame descriptor: "
 		    "error=%d\n", __func__, error);
 		fq->chan->tx_dropped++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		goto err_unload;
 	} else
 		sc->tx_sg_frames++; /* for sysctl(9) */
@@ -2996,8 +3004,13 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 
 	if (rc != 1) {
 		fq->chan->tx_dropped++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		goto err_unload;
 	} else {
+		if (mcast)
+			if_inc_counter(sc->ifp, IFCOUNTER_OMCASTS, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OBYTES, len);
 		fq->chan->tx_frames++;
 	}
 	return;
@@ -3201,6 +3214,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	m->m_pkthdr.rcvif = sc->ifp;
 	m->m_pkthdr.flowid = fq->fqid;
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 
 	if (update_csum_flags && ((if_getcapenable(sc->ifp) & (IFCAP_RXCSUM |
 	    IFCAP_RXCSUM_IPV6)) != 0)) {
