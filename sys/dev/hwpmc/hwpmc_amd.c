@@ -543,6 +543,10 @@ amd_intr(struct trapframe *tf)
 
 	pac = amd_pcpu[cpu];
 
+	retval = pmc_ibs_intr(tf);
+	if (retval)
+		goto done;
+
 	/*
 	 * look for all PMCs that have interrupted:
 	 * - look for a running, sampling PMC which has overflowed
@@ -613,6 +617,7 @@ amd_intr(struct trapframe *tf)
 		}
 	}
 
+done:
 	if (retval)
 		counter_u64_add(pmc_stats.pm_intr_processed, 1);
 	else
@@ -760,7 +765,7 @@ pmc_amd_initialize(void)
 	struct pmc_classdep *pcd;
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_cputype cputype;
-	int error, i, ncpus;
+	int error, i, ncpus, nclasses;
 	int family, model, stepping;
 	int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs;
 	struct amd_descr *d;
@@ -884,10 +889,16 @@ pmc_amd_initialize(void)
 	    M_WAITOK | M_ZERO);
 
 	/*
-	 * These processors have two classes of PMCs: the TSC and
-	 * programmable PMCs.
+	 * These processors have two or three classes of PMCs: the TSC,
+	 * programmable PMCs, and AMD IBS.
 	 */
-	pmc_mdep = pmc_mdep_alloc(2);
+	if ((amd_feature2 & AMDID2_IBS) != 0) {
+		nclasses = 3;
+	} else {
+		nclasses = 2;
+	}
+
+	pmc_mdep = pmc_mdep_alloc(nclasses);
 
 	ncpus = pmc_cpu_max();
 
@@ -926,6 +937,12 @@ pmc_amd_initialize(void)
 	pmc_mdep->pmd_npmc	+= amd_npmcs;
 
 	PMCDBG0(MDP, INI, 0, "amd-initialize");
+
+	if (nclasses >= 3) {
+		error = pmc_ibs_initialize(pmc_mdep, ncpus);
+		if (error != 0)
+			goto error;
+	}
 
 	return (pmc_mdep);
 

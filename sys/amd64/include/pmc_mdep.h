@@ -41,6 +41,7 @@ struct pmc_mdep;
 
 #include <dev/hwpmc/hwpmc_amd.h>
 #include <dev/hwpmc/hwpmc_core.h>
+#include <dev/hwpmc/hwpmc_ibs.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
 #include <dev/hwpmc/hwpmc_uncore.h>
 
@@ -51,6 +52,7 @@ struct pmc_mdep;
  */
 #define	PMC_MDEP_CLASS_INDEX_TSC	1
 #define	PMC_MDEP_CLASS_INDEX_K8		2
+#define	PMC_MDEP_CLASS_INDEX_IBS	3
 #define	PMC_MDEP_CLASS_INDEX_P4		2
 #define	PMC_MDEP_CLASS_INDEX_IAP	2
 #define	PMC_MDEP_CLASS_INDEX_IAF	3
@@ -62,6 +64,7 @@ struct pmc_mdep;
  *
  * TSC		The timestamp counter
  * K8		AMD Athlon64 and Opteron PMCs in 64 bit mode.
+ * IBS		AMD IBS
  * PIV		Intel P4/HTT and P4/EMT64
  * IAP		Intel Core/Core2/Atom CPUs in 64 bits mode.
  * IAF		Intel fixed-function PMCs in Core2 and later CPUs.
@@ -71,6 +74,7 @@ struct pmc_mdep;
 
 union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
+	struct pmc_md_ibs_op_pmcallocate	pm_ibs;
 	struct pmc_md_iap_op_pmcallocate	pm_iap;
 	struct pmc_md_ucf_op_pmcallocate	pm_ucf;
 	struct pmc_md_ucp_op_pmcallocate	pm_ucp;
@@ -85,6 +89,7 @@ union pmc_md_op_pmcallocate  {
 
 union pmc_md_pmc {
 	struct pmc_md_amd_pmc	pm_amd;
+	struct pmc_md_ibs_pmc	pm_ibs;
 	struct pmc_md_iaf_pmc	pm_iaf;
 	struct pmc_md_iap_pmc	pm_iap;
 	struct pmc_md_ucf_pmc	pm_ucf;
