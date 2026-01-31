@@ -1,5 +1,3 @@
-.include <bsd.compiler.mk>
-
 PROG=	wlanstat
 MAN=	wlanstat.8
 
