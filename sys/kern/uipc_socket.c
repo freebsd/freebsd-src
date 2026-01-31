@@ -1292,7 +1292,7 @@ solisten_enqueue(struct socket *so, int connstatus)
 
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 /*
- * Socket part of sctp_peeloff().  Detach a new socket from an
+ * Socket part of sctp_peeloff().  Create a new socket for an
  * association.  The new socket is returned with a reference.
  *
  * XXXGL: reduce copy-paste with solisten_clone().
@@ -1304,6 +1304,8 @@ sopeeloff(struct socket *head)
 
 	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
 	    __func__, __LINE__, head));
+	KASSERT(head->so_type == SOCK_SEQPACKET,
+	    ("%s: unexpecte so_type: %d", __func__, head->so_type));
 	so = soalloc(head->so_vnet);
 	if (so == NULL) {
 		log(LOG_DEBUG, "%s: pcb %p: New socket allocation failure: "
@@ -1311,7 +1313,7 @@ sopeeloff(struct socket *head)
 		    __func__, head->so_pcb);
 		return (NULL);
 	}
-	so->so_type = head->so_type;
+	so->so_type = SOCK_STREAM;
 	so->so_options = head->so_options;
 	so->so_linger = head->so_linger;
 	so->so_state = (head->so_state & SS_NBIO) | SS_ISCONNECTED;
