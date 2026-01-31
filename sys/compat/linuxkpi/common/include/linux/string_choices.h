@@ -68,4 +68,13 @@ str_enable_disable(bool value)
 
 #define	str_disable_enable(_v)		str_enable_disable(!(_v))
 
+static inline const char *
+str_read_write(bool value)
+{
+	if (value)
+		return "read";
+	else
+		return "write";
+}
+
 #endif
