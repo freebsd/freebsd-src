@@ -193,6 +193,7 @@ sub compute_hash {
             print STDERR "Cannot compute hash on '$fname'\n";
             return;
         }
+        binmode($fh, ":crlf");
     }
     return (<$fh>, <$fh>);
 }
