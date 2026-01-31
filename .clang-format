@@ -151,10 +151,10 @@ IncludeCategories:
   - Regex: '^<(fs|nfs(|client|server)|ufs)/'
     Priority: 8
     SortPriority: 80
-  - Regex: '^<[^/].*\.h'
+  - Regex: '^<[^/].*'
     Priority: 9
     SortPriority: 90
-  - Regex: '^\".*\.h\"'
+  - Regex: '^\".*\"'
     Priority: 10
     SortPriority: 100
 # LLVM's header include ordering style is almost the exact opposite of ours.
