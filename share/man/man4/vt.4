@@ -32,38 +32,38 @@
 .Nm vt
 .Nd virtual terminal system video console driver
 .Sh SYNOPSIS
-.Cd "options TERMINAL_KERN_ATTR=<attribute>"
-.Cd "options TERMINAL_NORM_ATTR=<attribute>"
-.Cd "options VT_MAXWINDOWS=<N>"
-.Cd "options VT_ALT_TO_ESC_HACK=1"
-.Cd "options VT_TWOBUTTON_MOUSE"
-.Cd "options VT_FB_MAX_WIDTH=<X>"
-.Cd "options VT_FB_MAX_HEIGHT=<Y>"
-.Cd "options SC_NO_CUTPASTE"
-.Cd "device vt"
+.Cd options TERMINAL_KERN_ATTR= Ns Ao Ar attribute Ac
+.Cd options TERMINAL_NORM_ATTR= Ns Ao Ar attribute Ac
+.Cd options VT_MAXWINDOWS= Ns Ao Ar N Ac
+.Cd options VT_ALT_TO_ESC_HACK= Ns Ar 1
+.Cd options VT_TWOBUTTON_MOUSE
+.Cd options VT_FB_MAX_WIDTH= Ns Ao Ar X Ac
+.Cd options VT_FB_MAX_HEIGHT= Ns Ao Ar Y Ac
+.Cd options SC_NO_CUTPASTE
+.Cd device vt
 .Pp
 In
 .Xr loader.conf 5 :
-.Cd "hw.vga.textmode=1"
-.Cd "hw.vga.acpi_ignore_no_vga=1"
-.Cd "kern.vty=vt"
-.Cd "kern.vt.color.<colornum>.rgb=<colorspec>"
-.Cd "kern.vt.fb.default_mode=<X>x<Y>"
-.Cd "kern.vt.fb.modes.<connector>=<X>x<Y>"
-.Cd "kern.vt.slow_down=<delay>"
-.Cd "screen.font=<X>x<Y>"
+.Cd hw.vga.textmode= Ns Ar 1
+.Cd hw.vga.acpi_ignore_no_vga= Ns Ar 1
+.Cd kern.vty= Ns Ar vt
+.Cd kern.vt.color. Ns Ao Ar colornum Ac Ns .rgb= Ns Ao Ar colorspec Ac
+.Cd kern.vt.fb.default_mode= Ns Ao Ar X Ac Ns x Ns Ao Ar Y Ac
+.Cd kern.vt.fb.modes. Ns Ao Ar connector Ac Ns = Ns Ao Ar X Ac Ns x Ns Ao Ar Y Ac
+.Cd kern.vt.slow_down= Ns Ao Ar delay Ac
+.Cd screen.font= Ns Ao Ar X Ac Ns x Ns Ao Ar Y Ac
 .Pp
 In
 .Xr loader.conf 5 or
 .Xr sysctl.conf 5 :
-.Cd kern.consmute=1
-.Cd kern.vt.kbd_halt=1
-.Cd kern.vt.kbd_poweroff=1
-.Cd kern.vt.kbd_reboot=1
-.Cd kern.vt.kbd_debug=1
-.Cd kern.vt.kbd_panic=0
-.Cd kern.vt.enable_altgr=0
-.Cd kern.vt.enable_bell=1
+.Cd kern.consmute= Ns Ar 1
+.Cd kern.vt.kbd_halt= Ns Ar 1
+.Cd kern.vt.kbd_poweroff= Ns Ar 1
+.Cd kern.vt.kbd_reboot= Ns Ar 1
+.Cd kern.vt.kbd_debug= Ns Ar 1
+.Cd kern.vt.kbd_panic= Ns Ar 0
+.Cd kern.vt.enable_altgr= Ns Ar 0
+.Cd kern.vt.enable_bell= Ns Ar 1
 .Sh DESCRIPTION
 The
 .Nm
@@ -130,8 +130,8 @@ These kernel options control the
 .Nm
 driver.
 .Bl -tag -width MAXCONS
-.It Dv TERMINAL_NORM_ATTR=<attribute>
-.It Dv TERMINAL_KERN_ATTR=<attribute>
+.It Dv TERMINAL_NORM_ATTR= Ns Ao Ar attribute Ac
+.It Dv TERMINAL_KERN_ATTR= Ns Ao Ar attribute Ac
 These options change the default colors used for normal and kernel
 text.
 Available colors are defined in
@@ -139,11 +139,11 @@ Available colors are defined in
 See
 .Sx EXAMPLES
 below.
-.It Dv VT_MAXWINDOWS=<N>
+.It Dv VT_MAXWINDOWS= Ns Ao Ar N Ac
 Set the number of virtual terminals to be created to
 .Fa N .
 The value defaults to 12.
-.It Dv VT_ALT_TO_ESC_HACK=1
+.It Dv VT_ALT_TO_ESC_HACK= Ns Ar 1
 When the Alt key is held down while pressing another key, send an ESC
 sequence instead of the Alt key.
 .It Dv VT_TWOBUTTON_MOUSE
@@ -152,10 +152,10 @@ In effect, this makes the right-hand mouse button perform a paste.
 These options are checked in the order shown.
 .It Dv SC_NO_CUTPASTE
 Disable mouse support.
-.It VT_FB_MAX_WIDTH=<X>
+.It VT_FB_MAX_WIDTH= Ns Ao Ar X Ac
 Set the maximum width to
 .Fa X .
-.It VT_FB_MAX_HEIGHT=<Y>
+.It VT_FB_MAX_HEIGHT= Ns Ao Ar Y Ac
 Set the maximum height to
 .Fa Y .
 .El
@@ -206,7 +206,7 @@ BIOS boot.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
 .Pp
-If a KMS driver is loaded the console will switch to (and remain in)
+If a KMS driver is loaded the console will switch to, and remain in,
 graphics mode.
 Moreover this tunable has no effect with
 .Xr UEFI 8
@@ -234,9 +234,9 @@ Note that
 is not compatible with
 .Xr UEFI 8
 boot.
-.It Va kern.vt.color. Ns Ar colornum Ns . Ns Va rgb
+.It Va kern.vt.color . Ns Ar colornum . Ns Va rgb
 Set this value to override default palette entry for color
-.Pa colornum
+.Ar colornum
 which should be in a range from 0 to 15 inclusive.
 The value should be either a comma-separated triplet of
 red, green, and blue values in a range from 0 to 255 or
@@ -256,7 +256,7 @@ The mode is applied to all output connectors.
 This is currently only supported by the
 .Cm vt_fb
 backend when it is paired with a KMS video driver.
-.It Va kern.vt.fb.modes.<connector_name>
+.It Va kern.vt.fb.modes . Ns Ao Ar connector_name Ac
 Set this value to a graphic mode to override the default picked by the
 .Nm
 backend.
