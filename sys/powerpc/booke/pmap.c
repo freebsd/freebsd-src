@@ -177,6 +177,7 @@ static struct mtx copy_page_mutex;
 #endif
 
 static struct mtx tlbivax_mutex;
+static bool mmuv2;
 
 /**************************************************************************/
 /* PMAP */
@@ -639,6 +640,9 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	void *dpcpu;
 
 	debugf("mmu_booke_bootstrap: entered\n");
+
+	if ((mfspr(SPR_MMUCFG) & MMUCFG_MAVN_M) > 0)
+		mmuv2 = true;
 
 	/* Set interesting system properties */
 #ifdef __powerpc64__
@@ -2703,7 +2707,7 @@ tsize2size(unsigned int tsize)
 	 * size = 4^tsize * 2^10 = 2^(2 * tsize - 10)
 	 */
 
-	return ((1 << (2 * tsize)) * 1024);
+	return ((1UL << tsize) * 1024);
 }
 
 /*
@@ -2713,7 +2717,7 @@ static unsigned int
 size2tsize(vm_size_t size)
 {
 
-	return (ilog2(size) / 2 - 5);
+	return (ilog2(size) - 10);
 }
 
 /*
@@ -2772,23 +2776,29 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size, int wimge)
 {
 	vm_offset_t base;
 	vm_size_t mapped, sz, ssize;
+	int shift;
 
 	mapped = 0;
 	base = va;
 	ssize = size;
 
+	if (mmuv2)
+		shift = 1;
+	else
+		shift = 2;
+
 	while (size > 0) {
-		sz = 1UL << (ilog2(size) & ~1);
+		sz = 1UL << (ilog2(size) & ~(shift - 1));
 		/* Align size to PA */
 		if (pa % sz != 0) {
 			do {
-				sz >>= 2;
+				sz >>= shift;
 			} while (pa % sz != 0);
 		}
 		/* Now align from there to VA */
 		if (va % sz != 0) {
 			do {
-				sz >>= 2;
+				sz >>= shift;
 			} while (va % sz != 0);
 		}
 #ifdef __powerpc64__
@@ -2805,7 +2815,8 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size, int wimge)
 		 * For now, though, since we have plenty of space in TLB1,
 		 * always avoid creating entries larger than 4GB.
 		 */
-		sz = MIN(sz, 1UL << 32);
+		if (!mmuv2)
+			sz = MIN(sz, 1UL << 32);
 #endif
 		if (bootverbose)
 			printf("Wiring VA=%p to PA=%jx (size=%lx)\n",
