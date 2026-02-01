@@ -118,15 +118,60 @@ struct msr_op_arg {
 	int op;
 	uint64_t arg1;
 	uint64_t *res;
+	bool safe;
+	int error;
 };
 
 static void
-x86_msr_op_one(void *argp)
+x86_msr_op_one_safe(struct msr_op_arg *a)
 {
-	struct msr_op_arg *a;
+	uint64_t v;
+	int error;
+
+	error = 0;
+	switch (a->op) {
+	case MSR_OP_ANDNOT:
+		error = rdmsr_safe(a->msr, &v);
+		if (error != 0) {
+			atomic_cmpset_int(&a->error, 0, error);
+			break;
+		}
+		v &= ~a->arg1;
+		error = wrmsr_safe(a->msr, v);
+		if (error != 0)
+			atomic_cmpset_int(&a->error, 0, error);
+		break;
+	case MSR_OP_OR:
+		error = rdmsr_safe(a->msr, &v);
+		if (error != 0) {
+			atomic_cmpset_int(&a->error, 0, error);
+			break;
+		}
+		v |= a->arg1;
+		error = wrmsr_safe(a->msr, v);
+		if (error != 0)
+			atomic_cmpset_int(&a->error, 0, error);
+		break;
+	case MSR_OP_WRITE:
+		error = wrmsr_safe(a->msr, a->arg1);
+		if (error != 0)
+			atomic_cmpset_int(&a->error, 0, error);
+		break;
+	case MSR_OP_READ:
+		error = rdmsr_safe(a->msr, &v);
+		if (error == 0)
+			*a->res = v;
+		else
+			atomic_cmpset_int(&a->error, 0, error);
+		break;
+	}
+}
+
+static void
+x86_msr_op_one_unsafe(struct msr_op_arg *a)
+{
 	uint64_t v;
 
-	a = argp;
 	switch (a->op) {
 	case MSR_OP_ANDNOT:
 		v = rdmsr(a->msr);
@@ -150,11 +195,24 @@ x86_msr_op_one(void *argp)
 	}
 }
 
+static void
+x86_msr_op_one(void *arg)
+{
+	struct msr_op_arg *a;
+
+	a = arg;
+	if (a->safe)
+		x86_msr_op_one_safe(a);
+	else
+		x86_msr_op_one_unsafe(a);
+}
+
 #define	MSR_OP_EXMODE_MASK	0xf0000000
 #define	MSR_OP_OP_MASK		0x000000ff
-#define	MSR_OP_GET_CPUID(x)	(((x) & ~MSR_OP_EXMODE_MASK) >> 8)
+#define	MSR_OP_GET_CPUID(x) \
+    (((x) & ~(MSR_OP_EXMODE_MASK | MSR_OP_SAFE)) >> 8)
 
-void
+int
 x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 {
 	struct thread *td;
@@ -167,8 +225,10 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 	exmode = op & MSR_OP_EXMODE_MASK;
 	a.op = op & MSR_OP_OP_MASK;
 	a.msr = msr;
+	a.safe = (op & MSR_OP_SAFE) != 0;
 	a.arg1 = arg1;
 	a.res = res;
+	a.error = 0;
 
 	switch (exmode) {
 	case MSR_OP_LOCAL:
@@ -209,8 +269,8 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 		thread_unlock(td);
 		break;
 	case MSR_OP_RENDEZVOUS_ALL:
-		smp_rendezvous(smp_no_rendezvous_barrier, x86_msr_op_one,
-		    smp_no_rendezvous_barrier, &a);
+		smp_rendezvous(smp_no_rendezvous_barrier,
+		    x86_msr_op_one, smp_no_rendezvous_barrier, &a);
 		break;
 	case MSR_OP_RENDEZVOUS_ONE:
 		cpu = MSR_OP_GET_CPUID(op);
@@ -221,6 +281,7 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 	default:
 		__assert_unreachable();
 	}
+	return (a.error);
 }
 
 /*
