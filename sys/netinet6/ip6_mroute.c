@@ -326,7 +326,7 @@ VNET_DEFINE_STATIC(int, pim6);
 #ifdef UPCALL_TIMING
 #define UPCALL_MAX	50
 static u_long upcall_data[UPCALL_MAX + 1];
-static void collate();
+static void collate(struct timeval *);
 #endif /* UPCALL_TIMING */
 
 static int ip6_mrouter_init(struct socket *, int, int);
