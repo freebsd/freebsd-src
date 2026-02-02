@@ -255,10 +255,6 @@ static void	expire_upcalls(void *);
 #define	UPCALL_EXPIRE	6		/* number of timeouts */
 
 /*
- * XXX TODO: maintain a count to if_allmulti() calls in struct ifnet.
- */
-
-/*
  * 'Interfaces' associated with decapsulator (so we can tell
  * packets that went through it from ones that get reflected
  * by a broken gateway).  Different from IPv4 register_if,
