@@ -28,8 +28,7 @@
 
 struct pr {
 	int ostdout;
-	int kq;
-	struct kevent *e;
+	int pidfd;
 };
 
 struct pr *start_pr(char *file1, char *file2);

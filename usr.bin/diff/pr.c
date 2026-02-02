@@ -28,6 +28,7 @@
 #include <sys/wait.h>
 
 #include <err.h>
+#include <errno.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
@@ -72,7 +73,7 @@ start_pr(char *file1, char *file2)
 		execl(_PATH_PR, _PATH_PR, "-h", header, (char *)0);
 		_exit(127);
 	default:
-
+		pr->pidfd = pr_pd;
 		/* parent */
 		if (pfd[1] != STDOUT_FILENO) {
 			pr->ostdout = dup(STDOUT_FILENO);
@@ -82,14 +83,6 @@ start_pr(char *file1, char *file2)
 		close(pfd[0]);
 		rewind(stdout);
 		free(header);
-		pr->kq = kqueue();
-		if (pr->kq == -1)
-			err(2, "kqueue");
-		pr->e = xmalloc(sizeof(struct kevent));
-		EV_SET(pr->e, pr_pd, EVFILT_PROCDESC, EV_ADD, NOTE_EXIT, 0,
-		    NULL);
-		if (kevent(pr->kq, pr->e, 1, NULL, 0, NULL) == -1)
-			err(2, "kevent");
 	}
 	return (pr);
 }
@@ -109,10 +102,10 @@ stop_pr(struct pr *pr)
 		dup2(pr->ostdout, STDOUT_FILENO);
 		close(pr->ostdout);
 	}
-	if (kevent(pr->kq, NULL, 0, pr->e, 1, NULL) == -1)
-		err(2, "kevent");
-	wstatus = pr->e[0].data;
-	close(pr->kq);
+	while (pdwait(pr->pidfd, &wstatus, WEXITED, NULL, NULL) == -1) {
+		if (errno != EINTR)
+			err(2, "pdwait");
+	}
 	free(pr);
 	if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != 0)
 		errx(2, "pr exited abnormally");
