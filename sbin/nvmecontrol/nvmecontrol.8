@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd July 9, 2025
+.Dd January 31, 2026
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -256,6 +256,7 @@
 .Ic telemetry-log
 .Fl O Ar output-file
 .Op Fl d Ar data-area
+.Op Fl v
 .Aq Ar device-id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard for SSDs and other
@@ -875,6 +876,9 @@ Output file for the data.
 This parameter is mandatory.
 .It Fl d Ar data-area
 The data area is either 1, 2 or 3.
+.It Fl v
+Verbose output reporing progress.
+This log can be quite large and take minutes to retrieve.
 .El
 .Sh DEVICE NAMES
 Where

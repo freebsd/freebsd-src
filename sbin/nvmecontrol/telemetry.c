@@ -51,6 +51,7 @@ static struct options {
 	const char *outfn;
 	const char *dev;
 	uint8_t da;
+	bool verbose;
 } opt = {
 	.outfn = NULL,
 	.dev = NULL,
@@ -63,6 +64,8 @@ static const struct opts telemetry_log_opts[] = {
 	    "output file for telemetry data"),
 	OPT("data-area", 'd', arg_uint8, opt, da,
 	    "output file for telemetry data"),
+	OPT("verbose", 'v', arg_none, opt, verbose,
+	    "Be verbose about process"),
 	{ NULL, 0, arg_none, NULL, NULL }
 };
 #undef OPT
@@ -96,7 +99,7 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 	int				fd, fdout;
 	char				*path;
 	uint32_t			nsid;
-	ssize_t				size;
+	ssize_t				size, blocks;
 	uint64_t			off;
 	ssize_t				chunk;
 	struct nvme_controller_data	cdata;
@@ -151,13 +154,23 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 	default:
 		errx(EX_USAGE, "Impossible data area %d", opt.da);
 	}
-	size = (size + 1) * 512; /* The count of additional pages */
+	blocks = size + 1;
+	size = blocks * 512; /* The count of additional pages */
 	chunk = 4096;
 
-	printf("Extracting %llu bytes\n", (unsigned long long)size);
+	if (opt.verbose)
+		printf("Extracting %llu bytes %llu blocks\n", (unsigned long long)size,
+		    (unsigned long long)size / 512);
+	else
+		printf("Extracting %llu bytes\n", (unsigned long long)size);
 	do {
 		if (chunk > size)
 			chunk = size;
+		if (opt.verbose && off % 10240 == 0) {
+			printf("%s: %llu / %llu\r", opt.dev, (unsigned long long)off / 512,
+			    (unsigned long long)blocks);
+			fflush(stdout);
+		}
 		read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, true,
 		    off, 0, 0, 0, &buf, chunk);
 		if (write(fdout, &buf, chunk) != chunk)
@@ -165,6 +178,11 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 		off += chunk;
 		size -= chunk;
 	} while (size > 0);
+	if (opt.verbose) {
+		printf("%s: %llu / %llu\n", opt.dev, (unsigned long long)off / 512,
+		    (unsigned long long)blocks);
+		fflush(stdout);
+	}
 
 	close(fdout);
 	close(fd);
