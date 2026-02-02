@@ -2106,11 +2106,11 @@ em_if_set_promisc(if_ctx_t ctx, int flags)
 
 	if (flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-		em_if_vlan_filter_disable(sc);
 		/* Turn this on if you want to see bad packets */
 		if (em_debug_sbp)
 			reg_rctl |= E1000_RCTL_SBP;
 		E1000_WRITE_REG(&sc->hw, E1000_RCTL, reg_rctl);
+		em_if_vlan_filter_disable(sc);
 	} else {
 		if (flags & IFF_ALLMULTI) {
 			reg_rctl |= E1000_RCTL_MPE;
