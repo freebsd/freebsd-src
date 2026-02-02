@@ -136,7 +136,7 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 	/* Read the log page */
 	size = sizeof(tlp);
 	off = 0;
-	read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, 0,
+	read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, true,
 	    off, 0, 0, 0, &tlp, size);
 	switch(opt.da) {
 	case 1:
@@ -158,7 +158,7 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 	do {
 		if (chunk > size)
 			chunk = size;
-		read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, 0,
+		read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, true,
 		    off, 0, 0, 0, &buf, chunk);
 		if (off == 0) {
 			/*
