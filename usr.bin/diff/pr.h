@@ -24,8 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/event.h>
-
 struct pr {
 	int ostdout;
 	int pidfd;
