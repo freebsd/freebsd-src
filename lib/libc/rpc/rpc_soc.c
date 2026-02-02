@@ -72,7 +72,8 @@
 static CLIENT *clnt_com_create(struct sockaddr_in *, rpcprog_t, rpcvers_t,
     int *, u_int, u_int, char *);
 static SVCXPRT *svc_com_create(int, u_int, u_int, char *);
-static bool_t rpc_wrap_bcast(char *, struct netbuf *, struct netconfig *);
+static bool_t rpc_wrap_bcast(char *, const struct netbuf *,
+    const struct netconfig *);
 
 /* XXX */
 #define IN4_LOCALHOST_STRING    "127.0.0.1"
@@ -318,7 +319,8 @@ static _Thread_local clnt_broadcast_resultproc_t clnt_broadcast_result;
  */
 /* ARGSUSED */
 static bool_t
-rpc_wrap_bcast(char *resultp, struct netbuf *addr, struct netconfig *nconf)
+rpc_wrap_bcast(char *resultp, const struct netbuf *addr,
+    const struct netconfig *nconf)
 /*
  *	char *resultp;		// results of the call
  *	struct netbuf *addr;	// address of the guy who responded
@@ -355,7 +357,7 @@ clnt_broadcast(u_long prog, u_long vers, u_long proc, xdrproc_t xargs,
 
 	ret = rpc_broadcast((rpcprog_t)prog, (rpcvers_t)vers,
 	    (rpcproc_t)proc, xargs, argsp, xresults, resultsp,
-	    (resultproc_t) rpc_wrap_bcast, "udp");
+	    rpc_wrap_bcast, "udp");
 
 	clnt_broadcast_result = NULL;
 	return (ret);

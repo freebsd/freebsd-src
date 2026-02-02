@@ -125,7 +125,8 @@ static void	pmapdump(int, char **);
 static void	get_inet_address(struct sockaddr_in *, char *);
 #endif
 
-static bool_t	reply_proc(void *, struct netbuf *, struct netconfig *);
+static bool_t	reply_proc(char *, const struct netbuf *,
+			   const struct netconfig *);
 static void	brdcst(int, char **);
 static void	addrping(char *, char *, int, char **);
 static void	progping(char *, int, char **);
@@ -584,7 +585,8 @@ get_inet_address(struct sockaddr_in *addr, char *host)
 
 /*ARGSUSED*/
 static bool_t
-reply_proc(void *res, struct netbuf *who, struct netconfig *nconf)
+reply_proc(char *res __unused, const struct netbuf *who,
+    const struct netconfig *nconf)
 	/* void *res;			Nothing comes back */
 	/* struct netbuf *who;		Who sent us the reply */
 	/* struct netconfig *nconf; 	On which transport the reply came */
@@ -621,7 +623,7 @@ brdcst(int argc, char **argv)
 	vers = getvers(argv[1]);
 	rpc_stat = rpc_broadcast(prognum, vers, NULLPROC,
 		(xdrproc_t) xdr_void, (char *)NULL, (xdrproc_t) xdr_void,
-		(char *)NULL, (resultproc_t) reply_proc, NULL);
+		(char *)NULL, reply_proc, NULL);
 	if ((rpc_stat != RPC_SUCCESS) && (rpc_stat != RPC_TIMEDOUT))
 		errx(1, "broadcast failed: %s", clnt_sperrno(rpc_stat));
 	exit(0);

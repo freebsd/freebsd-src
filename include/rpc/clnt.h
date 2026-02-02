@@ -514,7 +514,8 @@ __END_DECLS
  *	const char		*nettype;	-- Transport type
  */
 
-typedef bool_t (*resultproc_t)(caddr_t, ...);
+typedef bool_t (*resultproc_t)(caddr_t, const struct netbuf *,
+			       const struct netconfig *);
 
 __BEGIN_DECLS
 extern enum clnt_stat rpc_broadcast(const rpcprog_t, const rpcvers_t,
