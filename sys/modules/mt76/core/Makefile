@@ -1,3 +1,5 @@
+.include <kmod.opts.mk>
+
 KMOD=	mt76_core
 
 # Basic stuff.
@@ -6,10 +8,15 @@ SRCS+=	channel.c scan.c wed.c
 #SRCS+=	trace.c
 
 # Bus stuff.
+# PCI parts; PCI needs to be compiled into the kernel and cannot be loaded.
+.if defined(WITH_PCI) && ${WITH_PCI} > 0 && ${KERN_OPTS:MDEV_PCI}
 SRCS+=	pci.c
+.endif
+
 .if defined(WITH_USB) && ${WITH_USB} > 0
 SRCS+=	usb.c	# usb_trace.c
 .endif
+
 #SRCS+=	sdio.c sdio_txrx.c
 
 # Connac-Lib stuff.
