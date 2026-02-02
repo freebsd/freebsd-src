@@ -8,12 +8,12 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/uuid.h>
-#include <sys/kdb.h>
 
 #include <machine/_inttypes.h>
 
@@ -158,6 +158,9 @@ struct acpi_spmc_softc {
 	ACPI_OBJECT		*obj;
 	enum dsm_set_flags	dsm_sets;
 
+	struct eventhandler_entry	*eh_suspend;
+	struct eventhandler_entry	*eh_resume;
+
 	bool				constraints_populated;
 	size_t				constraint_count;
 	struct acpi_spmc_constraint	*constraints;
@@ -167,6 +170,9 @@ static void	acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc,
 		    ACPI_HANDLE handle, struct dsm_set *dsm_set);
 static int	acpi_spmc_get_constraints(device_t dev);
 static void	acpi_spmc_free_constraints(struct acpi_spmc_softc *sc);
+
+static void	acpi_spmc_suspend(device_t dev, enum power_stype stype);
+static void	acpi_spmc_resume(device_t dev, enum power_stype stype);
 
 static int
 acpi_spmc_probe(device_t dev)
@@ -207,9 +213,8 @@ acpi_spmc_probe(device_t dev)
 static int
 acpi_spmc_attach(device_t dev)
 {
-	struct acpi_spmc_softc *sc;
+	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
-	sc = device_get_softc(dev);
 	sc->dev = dev;
 
 	sc->handle = acpi_get_handle(dev);
@@ -221,7 +226,12 @@ acpi_spmc_attach(device_t dev)
 	sc->constraints = NULL;
 
 	/* Get device constraints. We can only call this once so do this now. */
-	acpi_spmc_get_constraints(sc->dev);
+	acpi_spmc_get_constraints(dev);
+
+	sc->eh_suspend = EVENTHANDLER_REGISTER(acpi_post_dev_suspend,
+	    acpi_spmc_suspend, dev, 0);
+	sc->eh_resume = EVENTHANDLER_REGISTER(acpi_pre_dev_resume,
+	    acpi_spmc_resume, dev, 0);
 
 	return (0);
 }
@@ -229,6 +239,11 @@ acpi_spmc_attach(device_t dev)
 static int
 acpi_spmc_detach(device_t dev)
 {
+	struct acpi_spmc_softc *sc = device_get_softc(dev);
+
+	EVENTHANDLER_DEREGISTER(acpi_post_dev_suspend, sc->eh_suspend);
+	EVENTHANDLER_DEREGISTER(acpi_pre_dev_resume, sc->eh_resume);
+
 	acpi_spmc_free_constraints(device_get_softc(dev));
 	return (0);
 }
@@ -586,22 +601,24 @@ acpi_spmc_exit_notif(device_t dev)
 	}
 }
 
-static int
-acpi_spmc_suspend(device_t dev)
+static void
+acpi_spmc_suspend(device_t dev, enum power_stype stype)
 {
+	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
+		return;
+
 	acpi_spmc_display_off_notif(dev);
 	acpi_spmc_entry_notif(dev);
-
-	return (0);
 }
 
-static int
-acpi_spmc_resume(device_t dev)
+static void
+acpi_spmc_resume(device_t dev, enum power_stype stype)
 {
+	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
+		return;
+
 	acpi_spmc_exit_notif(dev);
 	acpi_spmc_display_on_notif(dev);
-
-	return (0);
 }
 
 static device_method_t acpi_spmc_methods[] = {
