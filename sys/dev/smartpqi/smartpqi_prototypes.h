@@ -251,6 +251,7 @@ int pqisrc_process_task_management_response(pqisrc_softstate_t *,
 
 /* smartpqi_ioctl.c*/
 int pqisrc_passthru_ioctl(struct pqisrc_softstate *, void *, int);
+int pqisrc_big_passthru_ioctl(struct pqisrc_softstate *, void *, int);
 
 /* Functions Prototypes */
 /* smartpqi_mem.c */

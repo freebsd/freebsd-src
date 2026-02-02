@@ -169,6 +169,13 @@ smartpqi_ioctl(struct cdev *cdev, u_long cmd, caddr_t udata,
 			pqi_status = pqisrc_passthru_ioctl(softs, udata, 0);
 			bsd_status = pqi_status_to_bsd_ioctl_status(pqi_status);
 			break;
+		case SMARTPQI_BIG_PASS_THRU:
+			pqi_status = pqisrc_big_passthru_ioctl(softs, udata, 0);
+			bsd_status = pqi_status_to_bsd_ioctl_status(pqi_status);
+			break;
+		case SMARTPQI_BIG_PASSTHRU_SUPPORTED:
+			bsd_status = BSD_SUCCESS;
+			break;
 		case CCISS_REGNEWD:
 			pqi_status = pqisrc_scan_devices(softs);
 			bsd_status = pqi_status_to_bsd_ioctl_status(pqi_status);
@@ -242,6 +249,198 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 	char *drv_buf = NULL;
 	uint32_t tag = 0;
 	IOCTL_Command_struct *iocommand = (IOCTL_Command_struct *)arg;
+	dma_mem_t ioctl_dma_buf;
+	pqisrc_raid_req_t request;
+	raid_path_error_info_elem_t error_info;
+	ib_queue_t *ib_q = &softs->op_raid_ib_q[PQI_DEFAULT_IB_QUEUE];
+	ob_queue_t const *ob_q = &softs->op_ob_q[PQI_DEFAULT_IB_QUEUE];
+	rcb_t *rcb = NULL;
+
+	memset(&request, 0, sizeof(request));
+	memset(&error_info, 0, sizeof(error_info));
+
+	DBG_FUNC("IN\n");
+
+	if (pqisrc_ctrl_offline(softs))
+		return PQI_STATUS_FAILURE;
+
+	if (!arg)
+		return PQI_STATUS_FAILURE;
+
+	if (iocommand->buf_size < 1 &&
+		iocommand->Request.Type.Direction != PQIIOCTL_NONE)
+		return PQI_STATUS_FAILURE;
+	if (iocommand->Request.CDBLen > sizeof(request.cmd.cdb))
+		return PQI_STATUS_FAILURE;
+
+	switch (iocommand->Request.Type.Direction) {
+		case PQIIOCTL_NONE:
+		case PQIIOCTL_WRITE:
+		case PQIIOCTL_READ:
+		case PQIIOCTL_BIDIRECTIONAL:
+			break;
+		default:
+			return PQI_STATUS_FAILURE;
+	}
+
+	if (iocommand->buf_size > 0) {
+		memset(&ioctl_dma_buf, 0, sizeof(struct dma_mem));
+		os_strlcpy(ioctl_dma_buf.tag, "Ioctl_PassthruCmd_Buffer", sizeof(ioctl_dma_buf.tag));
+		ioctl_dma_buf.size = iocommand->buf_size;
+		ioctl_dma_buf.align = PQISRC_DEFAULT_DMA_ALIGN;
+		/* allocate memory */
+		ret = os_dma_mem_alloc(softs, &ioctl_dma_buf);
+		if (ret) {
+			DBG_ERR("Failed to Allocate dma mem for Ioctl PassthruCmd Buffer : %d\n", ret);
+			goto out;
+		}
+
+		DBG_IO("ioctl_dma_buf.dma_addr  = %p\n",(void*)ioctl_dma_buf.dma_addr);
+		DBG_IO("ioctl_dma_buf.virt_addr = %p\n",(void*)ioctl_dma_buf.virt_addr);
+
+		drv_buf = (char *)ioctl_dma_buf.virt_addr;
+		if (iocommand->Request.Type.Direction & PQIIOCTL_WRITE) {
+			ret = os_copy_from_user(softs, (void *)drv_buf, (void *)iocommand->buf, iocommand->buf_size, mode);
+			if (ret != 0) {
+				goto free_mem;
+			}
+		}
+	}
+
+	request.header.iu_type = PQI_IU_TYPE_RAID_PATH_IO_REQUEST;
+	request.header.iu_length = offsetof(pqisrc_raid_req_t, sg_descriptors[1]) -
+									PQI_REQUEST_HEADER_LENGTH;
+	memcpy(request.lun_number, iocommand->LUN_info.LunAddrBytes,
+		sizeof(request.lun_number));
+	memcpy(request.cmd.cdb, iocommand->Request.CDB, iocommand->Request.CDBLen);
+	request.additional_cdb_bytes_usage = PQI_ADDITIONAL_CDB_BYTES_0;
+
+	switch (iocommand->Request.Type.Direction) {
+	case PQIIOCTL_NONE:
+		request.data_direction = SOP_DATA_DIR_NONE;
+		break;
+	case PQIIOCTL_WRITE:
+		request.data_direction = SOP_DATA_DIR_FROM_DEVICE;
+		break;
+	case PQIIOCTL_READ:
+		request.data_direction = SOP_DATA_DIR_TO_DEVICE;
+		break;
+	case PQIIOCTL_BIDIRECTIONAL:
+		request.data_direction = SOP_DATA_DIR_BIDIRECTIONAL;
+		break;
+	}
+
+	request.task_attribute = SOP_TASK_ATTRIBUTE_SIMPLE;
+	if (iocommand->buf_size > 0) {
+		request.buffer_length = iocommand->buf_size;
+		request.sg_descriptors[0].addr = ioctl_dma_buf.dma_addr;
+		request.sg_descriptors[0].len = iocommand->buf_size;
+		request.sg_descriptors[0].flags =  SG_FLAG_LAST;
+	}
+	tag = pqisrc_get_tag(&softs->taglist);
+	if (INVALID_ELEM == tag) {
+		DBG_ERR("Tag not available\n");
+		goto free_mem;
+	}
+	request.request_id = tag;
+	request.response_queue_id = ob_q->q_id;
+	request.error_index = request.request_id;
+	if (softs->timeout_in_passthrough) {
+		request.timeout_in_sec = iocommand->Request.Timeout;
+	}
+
+	rcb = &softs->rcb[tag];
+	rcb->success_cmp_callback = pqisrc_process_internal_raid_response_success;
+	rcb->error_cmp_callback = pqisrc_process_internal_raid_response_error;
+	rcb->tag = tag;
+	rcb->req_pending = true;
+	/* Submit Command */
+	ret = pqisrc_submit_cmnd(softs, ib_q, &request);
+	if (ret != PQI_STATUS_SUCCESS) {
+		DBG_ERR("Unable to submit command\n");
+		goto err_out;
+	}
+
+	ret = pqisrc_wait_on_condition(softs, rcb, PQISRC_PASSTHROUGH_CMD_TIMEOUT);
+	if (ret != PQI_STATUS_SUCCESS) {
+		DBG_ERR("Passthru IOCTL cmd timed out !!\n");
+		goto err_out;
+	}
+
+	memset(&iocommand->error_info, 0, sizeof(iocommand->error_info));
+
+
+	if (rcb->status) {
+		size_t sense_data_length;
+
+		memcpy(&error_info, rcb->error_info, sizeof(error_info));
+		iocommand->error_info.ScsiStatus = error_info.status;
+		sense_data_length = error_info.sense_data_len;
+
+		if (!sense_data_length)
+			sense_data_length = error_info.resp_data_len;
+
+		if (sense_data_length &&
+			(sense_data_length > sizeof(error_info.data)))
+				sense_data_length = sizeof(error_info.data);
+
+		if (sense_data_length) {
+			if (sense_data_length >
+				sizeof(iocommand->error_info.SenseInfo))
+				sense_data_length =
+					sizeof(iocommand->error_info.SenseInfo);
+			memcpy (iocommand->error_info.SenseInfo,
+					error_info.data, sense_data_length);
+			iocommand->error_info.SenseLen = sense_data_length;
+		}
+
+		if (error_info.data_out_result == PQI_RAID_DATA_IN_OUT_UNDERFLOW) {
+			rcb->status = PQI_STATUS_SUCCESS;
+		}
+	}
+
+	if (rcb->status == PQI_STATUS_SUCCESS && iocommand->buf_size > 0 &&
+		(iocommand->Request.Type.Direction & PQIIOCTL_READ)) {
+
+		ret = os_copy_to_user(softs, (void*)iocommand->buf, (void*)drv_buf, iocommand->buf_size, mode);
+		if (ret != 0) {
+			DBG_ERR("Failed to copy the response\n");
+			goto err_out;
+		}
+	}
+
+	os_reset_rcb(rcb);
+	pqisrc_put_tag(&softs->taglist, request.request_id);
+	if (iocommand->buf_size > 0)
+		os_dma_mem_free(softs,&ioctl_dma_buf);
+
+	DBG_FUNC("OUT\n");
+	return PQI_STATUS_SUCCESS;
+
+err_out:
+	os_reset_rcb(rcb);
+	pqisrc_put_tag(&softs->taglist, request.request_id);
+
+free_mem:
+	if (iocommand->buf_size > 0)
+		os_dma_mem_free(softs, &ioctl_dma_buf);
+
+out:
+	DBG_FUNC("Failed OUT\n");
+	return PQI_STATUS_FAILURE;
+}
+
+/*
+ * Function used to send big passthru commands to adapter
+ * to support management tools. For eg. ssacli, sscon.
+ */
+int
+pqisrc_big_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
+{
+	int ret;
+	char *drv_buf = NULL;
+	uint32_t tag = 0;
+	BIG_IOCTL_Command_struct *iocommand = (BIG_IOCTL_Command_struct *)arg;
 	dma_mem_t ioctl_dma_buf;
 	pqisrc_raid_req_t request;
 	raid_path_error_info_elem_t error_info;

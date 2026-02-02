@@ -54,7 +54,7 @@ update_sim_properties(struct cam_sim *sim, struct ccb_pathinq *cpi)
 	cpi->initiator_id = 255;
 	strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN-1);
 	cpi->sim_vid[sizeof(cpi->sim_vid)-1] = '\0';
-	strncpy(cpi->hba_vid, "Microsemi", HBA_IDLEN-1);
+	strncpy(cpi->hba_vid, "Microchip", HBA_IDLEN-1);
 	cpi->hba_vid[sizeof(cpi->hba_vid)-1] = '\0';
 	strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN-1);
 	cpi->dev_name[sizeof(cpi->dev_name)-1] = '\0';

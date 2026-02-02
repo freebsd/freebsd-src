@@ -25,7 +25,7 @@
 
 
 /*
- * Driver for the Microsemi Smart storage controllers
+ * Driver for the Microchip Smart storage controllers
  */
 
 #include "smartpqi_includes.h"
