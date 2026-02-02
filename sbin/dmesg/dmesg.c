@@ -65,7 +65,7 @@ int
 main(int argc, char *argv[])
 {
 	struct msgbuf *bufp, cur;
-	struct timeval boottime, reltime, abstime, roundtime;
+	struct timeval boottime, reltime, abstime;
 	char timebuf[1024];
 	char *bp, *ep, *memf, *nextp, *nlistf, *p, *q, *visbp;
 	const char *timefmt = "%d %b %T";
@@ -211,7 +211,7 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		if (visbp[0] != '[' ) {
+		if (visbp[0] != '[') {
 			(void)printf("%s", visbp);
 			continue;
 		}
@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 		reltime.tv_usec = 0;
 		errno = 0;
 		reltime.tv_sec = strtoul(visbp+1, &q, 10);
-		if (errno != 0 ) {
+		if (errno != 0) {
 			(void)printf("%s", visbp);
 			continue;
 		}
@@ -239,13 +239,10 @@ main(int argc, char *argv[])
 		}
 		q++;
 
-		timeradd( &boottime, &reltime, &abstime );
-		reltime.tv_usec = 500000;
-		reltime.tv_sec = 0;
-		timeradd( &abstime, &reltime, &roundtime );
-
+		timeradd(&boottime, &reltime, &abstime);
+		
 		if (strftime(timebuf, sizeof timebuf, timefmt,
-		    localtime( &roundtime.tv_sec )) != 0) {
+		    localtime(&abstime.tv_sec)) != 0) {
 			(void)printf("[%s]%s", timebuf, q);
 		} else {
 			(void)printf("%s", visbp);
