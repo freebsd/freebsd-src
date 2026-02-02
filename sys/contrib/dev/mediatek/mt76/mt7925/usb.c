@@ -344,3 +344,10 @@ module_usb_driver(mt7925u_driver);
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_DESCRIPTION("MediaTek MT7925U (USB) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_VERSION(mt7925_usb, 1);
+MODULE_DEPEND(mt7925_usb, mt76_core, 1, 1, 1);
+MODULE_DEPEND(mt7925_usb, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(mt7925_usb, linuxkpi_wlan, 1, 1, 1);
+MODULE_DEPEND(mt7925_usb, linuxkpi_usb, 1, 1, 1);
+#endif

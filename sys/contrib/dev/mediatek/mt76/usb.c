@@ -1141,3 +1141,6 @@ EXPORT_SYMBOL_GPL(mt76u_init);
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
 MODULE_DESCRIPTION("MediaTek MT76x USB helpers");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_DEPEND(mt76_core, linuxkpi_usb, 1, 1, 1);
+#endif
