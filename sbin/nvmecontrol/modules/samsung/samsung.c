@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -88,8 +89,8 @@ print_samsung_extended_smart(const struct nvme_controller_data *cdata __unused, 
 		{ 0xf5, "Lifetime Data Units Written" },
 	};
 
-	printf("Extended SMART Information\n");
-	printf("=========================\n");
+	xo_emit("{T:Extended SMART Information}\n");
+	xo_emit("{T:=========================}\n");
 	/*
 	 * walker[0] = Key
 	 * walker[1,2] = reserved
@@ -107,22 +108,22 @@ print_samsung_extended_smart(const struct nvme_controller_data *cdata __unused, 
 		case 0:
 			break;
 		case 0xad:
-			printf("%2X %-41s: %3d min: %u max: %u ave: %u\n",
+			xo_emit("{:samsung-walker/%2X} {:samsung-walker-name/%-41s}{Lc:} {:samsung-walker-normalized/%3d} {Lc:min}{P: }{:samsung-walker-5/%u} {Lc:max}{P: }{:samsung-walker-7/%u} {Lc:ave}{P: }{:samsung-walker-9/%u}\n",
 			    le16dec(walker), name, normalized,
 			    le16dec(walker + 5), le16dec(walker + 7), le16dec(walker + 9));
 			break;
 		case 0xe2:
-			printf("%2X %-41s: %3d %.3f%%\n",
+			xo_emit("{:samsung-walker/%2X} {:samsung-walker-name/%-41s}{Lc:} {:samsung-walker-normalized/%3d} {:samsung-walker-raw/%.3f}%\n}",
 			    le16dec(walker), name, normalized,
 			    raw / 1024.0);
 			break;
 		case 0xea:
-			printf("%2X %-41s: %3d %d%% %d times\n",
+			xo_emit("{:samsung-walker/%2X} {:samsung-walker-name/%-41s}{Lc:} {:samsung-walker-normalized/%3d} {:samsung-walker-5/%d}% {:samsung-walker-6/%d} times\n",
 			    le16dec(walker), name, normalized,
 			    walker[5], le32dec(walker+6));
 			break;
 		default:
-			printf("%2X %-41s: %3d %ju\n",
+			xo_emit("{:samsung-walker/%2X} {:samsung-walker-name/%-41s}{Lc:} {:samsung-walker-normalized/%3d} {:samsung-walker-raw/%ju}\n",
 			    le16dec(walker), name, normalized,
 			    (uintmax_t)raw);
 			break;
@@ -130,29 +131,29 @@ print_samsung_extended_smart(const struct nvme_controller_data *cdata __unused, 
 		walker += 12;
 	}
 
-	printf("   Lifetime Write Amplification Factor      : %u\n", le32dec(&temp->lwaf));
-	printf("   Trailing Hour Write Amplification Factor : %u\n", le32dec(&temp->thwaf));
-	printf("   Lifetime User Writes                     : %s\n",
+	xo_emit("{P:   }{Lc:Lifetime Write Amplification Factor}{P:        }{:samsung-lifetime-write-amp-factor/%u}\n", le32dec(&temp->lwaf));
+	xo_emit("{P:   }{Lc:Trailing Hour Write Amplification Factor}{P:   }{:samsung-hour-write-amp-factor/%u}\n", le32dec(&temp->thwaf));
+	xo_emit("{P:   }{Lc:Lifetime User Writes}{P:                       }{:samsung-lifetime-user-writes/%s}\n",
 	    uint128_to_str(to128(temp->luw), cbuf, sizeof(cbuf)));
-	printf("   Lifetime NAND Writes                     : %s\n",
+	xo_emit("{P:   }{Lc:Lifetime NAND Writes}{P:                       }{:samsung-lifetime-nand-writes/%s}\n",
 	    uint128_to_str(to128(temp->lnw), cbuf, sizeof(cbuf)));
-	printf("   Lifetime User Reads                      : %s\n",
+	xo_emit("{P:   }{Lc:Lifetime User Reads}{P:                        }{:samsung-lifetime-user-reads/%s}\n",
 	    uint128_to_str(to128(temp->lur), cbuf, sizeof(cbuf)));
-	printf("   Lifetime Retired Block Count             : %u\n", le32dec(&temp->lrbc));
-	printf("   Current Temperature                      : ");
+	xo_emit("{P:   }{Lc:Lifetime Retired Block Count}{P:               }{:samsung-lifetime-retired-block-count/%u}\n", le32dec(&temp->lrbc));
+	xo_emit("{P:   }{Lc:Current Temperature}{P:                        }");
 	print_temp_K(le16dec(&temp->ct));
-	printf("   Capacitor Health                         : %u\n", le16dec(&temp->ch));
-	printf("   Reserved Erase Block Count               : %u\n", le32dec(&temp->luurb));
-	printf("   Read Reclaim Count                       : %ju\n", (uintmax_t) le64dec(&temp->rrc));
-	printf("   Lifetime Uncorrectable ECC Count         : %ju\n", (uintmax_t) le64dec(&temp->lueccc));
-	printf("   Reallocated Block Count                  : %u\n", le32dec(&temp->lurb));
-	printf("   Power on Hours                           : %s\n",
+	xo_emit("{P:   }{Lc:Capacitor Health}{P:                           }{:samsung-capacitor-health/%u}\n", le16dec(&temp->ch));
+	xo_emit("{P:   }{Lc:Reserved Erase Block Count}{P:                 }{:samsung-reserved-erase-block-count/%u}\n", le32dec(&temp->luurb));
+	xo_emit("{P:   }{Lc:Read Reclaim Count}{P:                         }{:samsung-read-reclaim-count/%ju}\n", (uintmax_t) le64dec(&temp->rrc));
+	xo_emit("{P:   }{Lc:Lifetime Uncorrectable ECC Count}{P:           }{:samsung-lifetime-uncorrectable-ecc-count/%ju}\n", (uintmax_t) le64dec(&temp->lueccc));
+	xo_emit("{P:   }{Lc:Reallocated Block Count}{P:                    }{:samsung-reallocated-block-count/%u}\n", le32dec(&temp->lurb));
+	xo_emit("{P:   }{Lc:Power on Hours}{P:                             }{:samsung-power-on-hours/%s}\n",
 	    uint128_to_str(to128(temp->poh), cbuf, sizeof(cbuf)));
-	printf("   Normal Power Off Count                   : %s\n",
+	xo_emit("{P:   }{Lc:Normal Power Off Count}{P:                     }{:samsung-normal-power-off-count/%s}\n",
 	    uint128_to_str(to128(temp->npoc), cbuf, sizeof(cbuf)));
-	printf("   Sudden Power Off Count                   : %s\n",
+	xo_emit("{P:   }{Lc:Sudden Power Off Count}{P:                     }{:samsung-sudden-power-off-count/%s}\n",
 	    uint128_to_str(to128(temp->spoc), cbuf, sizeof(cbuf)));
-	printf("   Performance Indicator                    : %u\n", le32dec(&temp->pi));
+	xo_emit("{P:   }{Lc:Performance Indicator}{P:                      }{:samsung-performance-indicator/%u}\n", le32dec(&temp->pi));
 }
 
 #define SAMSUNG_LOG_EXTEND_SMART 0xca

@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -189,13 +190,13 @@ wait:
 	    0, 0, 0, 0, &ss, sizeof(ss));
 	switch (NVMEV(NVME_SS_PAGE_SSTAT_STATUS, ss.sstat)) {
 	case NVME_SS_PAGE_SSTAT_STATUS_NEVER:
-		printf("Never sanitized");
+		xo_emit("Never sanitized");
 		break;
 	case NVME_SS_PAGE_SSTAT_STATUS_COMPLETED:
-		printf("Sanitize completed");
+		xo_emit("Sanitize completed");
 		break;
 	case NVME_SS_PAGE_SSTAT_STATUS_INPROG:
-		printf("Sanitize in progress: %u%% (%u/65535)\r",
+		xo_emit("{Lc:Sanitize in progress}{P: }{:progress-percent/%u}% (:progress-completed/%u}/65535)\r",
 		    (ss.sprog * 100 + 32768) / 65536, ss.sprog);
 		fflush(stdout);
 		if (delay < 16)
@@ -203,18 +204,18 @@ wait:
 		sleep(delay);
 		goto wait;
 	case NVME_SS_PAGE_SSTAT_STATUS_FAILED:
-		printf("Sanitize failed");
+		xo_emit("Sanitize failed");
 		break;
 	case NVME_SS_PAGE_SSTAT_STATUS_COMPLETEDWD:
-		printf("Sanitize completed with deallocation");
+		xo_emit("Sanitize completed with deallocation");
 		break;
 	default:
-		printf("Sanitize status unknown");
+		xo_emit("Sanitize status unknown");
 		break;
 	}
 	if (delay > 1)
-		printf("                       ");
-	printf("\n");
+		xo_emit("{P:                       }");
+	xo_emit("\n");
 
 	close(fd);
 	exit(0);

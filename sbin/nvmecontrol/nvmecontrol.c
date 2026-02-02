@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
+#include <libxo/xo.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -57,14 +58,14 @@ print_bytes(void *data, uint32_t length)
 
 	for (i = 0; i < length; i++) {
 		p = (uint8_t *)data + (i*16);
-		printf("%03x: ", i*16);
+		xo_emit("{:print-bytes-loop-start/%03x}{Lc:}{P: }", i*16);
 		for (j = 0; j < 16 && p < end; j++)
-			printf("%02x ", *p++);
+			xo_emit("{:byte-pointer/%02x}{P: }", *p++);
 		if (p >= end)
 			break;
-		printf("\n");
+		xo_emit("\n");
 	}
-	printf("\n");
+	xo_emit("\n");
 }
 
 static void
@@ -77,13 +78,13 @@ print_dwords(void *data, uint32_t length)
 	length /= sizeof(uint32_t);
 
 	for (i = 0; i < length; i+=8) {
-		printf("%03x: ", i*4);
+		xo_emit("{:print-dwords-loop-start/%03x}{Lc:}{P: }", i*4);
 		for (j = 0; j < 8; j++)
-			printf("%08x ", p[i+j]);
-		printf("\n");
+			xo_emit("{:dword-pointer/%08x}{P: }", p[i+j]);
+		xo_emit("\n");
 	}
 
-	printf("\n");
+	xo_emit("\n");
 }
 
 void

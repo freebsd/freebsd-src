@@ -31,6 +31,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -431,9 +432,9 @@ nsactive(const struct cmd *f, int argc, char *argv[])
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(EX_IOERR, "identify request returned error");
 
-	printf("Active namespaces:\n");
+	xo_emit("{Lc:Active namespaces}\n");
 	for (i = 0; list[i] != 0; i++)
-		printf("%10d\n", le32toh(list[i]));
+		xo_emit("{:nvme-namespace/%10d}\n", le32toh(list[i]));
 
 	exit(0);
 }
@@ -476,9 +477,9 @@ nsallocated(const struct cmd *f, int argc, char *argv[])
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(EX_IOERR, "identify request returned error");
 
-	printf("Allocated namespaces:\n");
+	xo_emit("{Lc:Allocated namespaces}\n");
 	for (i = 0; list[i] != 0; i++)
-		printf("%10d\n", le32toh(list[i]));
+		xo_emit("{:allocated-namespace/%10d}\n", le32toh(list[i]));
 
 	exit(0);
 }
@@ -521,9 +522,9 @@ nscontrollers(const struct cmd *f, int argc, char *argv[])
 		errx(EX_IOERR, "identify request returned error");
 
 	n = le16toh(clist[0]);
-	printf("NVM subsystem includes %d controller(s):\n", n);
+	xo_emit("NVM subsystem includes {:nvm-subsystem-controller-first/%d} controller(s){Lc:}\n", n);
 	for (i = 0; i < n; i++)
-		printf("  0x%04x\n", le16toh(clist[i + 1]));
+		xo_emit("{P:  }0x{:nvm-subsystem-controller-next/%04x}\n", le16toh(clist[i + 1]));
 
 	exit(0);
 }
@@ -622,7 +623,7 @@ nscreate(const struct cmd *f, int argc, char *argv[])
 		errx(EX_IOERR, "namespace creation failed: %s",
 		    get_res_str(NVMEV(NVME_STATUS_SC, pt.cpl.status)));
 	}
-	printf("namespace %d created\n", pt.cpl.cdw0);
+	xo_emit("namespace {:nvme-namespace/%d} created\n", pt.cpl.cdw0);
 	exit(0);
 }
 
@@ -674,7 +675,7 @@ nsdelete(const struct cmd *f, int argc, char *argv[])
 		errx(EX_IOERR, "namespace deletion failed: %s",
 		    get_res_str(NVMEV(NVME_STATUS_SC, pt.cpl.status)));
 	}
-	printf("namespace %d deleted\n", nsid);
+	xo_emit("namespace {:nvme-namespace-id/%d} deleted\n", nsid);
 	exit(0);
 }
 
@@ -759,7 +760,7 @@ nsattach(const struct cmd *f, int argc, char *argv[])
 		errx(EX_IOERR, "namespace attach failed: %s",
 		    get_res_str(NVMEV(NVME_STATUS_SC, pt.cpl.status)));
 	}
-	printf("namespace %d attached\n", nsid);
+	xo_emit("namespace {:nvme-namespace-id/%d} attached\n", nsid);
 	exit(0);
 }
 
@@ -836,7 +837,7 @@ nsdetach(const struct cmd *f, int argc, char *argv[])
 		errx(EX_IOERR, "namespace detach failed: %s",
 		    get_res_str(NVMEV(NVME_STATUS_SC, pt.cpl.status)));
 	}
-	printf("namespace %d detached\n", nsid);
+	xo_emit("namespace {:nvme-namespace-id/%d} detached\n", nsid);
 	exit(0);
 }
 
@@ -884,9 +885,9 @@ nsattached(const struct cmd *f, int argc, char *argv[])
 		errx(EX_IOERR, "identify request returned error");
 
 	n = le16toh(clist[0]);
-	printf("Attached %d controller(s):\n", n);
+	xo_emit("Attached {:nvme-controller-first/%d} controller(s){Lc:}\n", n);
 	for (i = 0; i < n; i++)
-		printf("  0x%04x\n", le16toh(clist[i + 1]));
+		xo_emit("{P:  }0x{:nvme-controller-next/%04x}\n", le16toh(clist[i + 1]));
 
 	exit(0);
 }

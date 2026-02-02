@@ -27,6 +27,7 @@
 
 #include <sys/param.h>
 
+#include <libxo/xo.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -73,6 +74,6 @@ gnsid(const struct cmd *f, int argc, char *argv[])
 	open_dev(nsid_opt.dev, &fd, 0, 1);
 	get_nsid(fd, &path, &nsid);
 	close(fd);
-	printf("%s\t%u\n", path, nsid);
+	xo_emit("{:nvme-namespace-path/%s}\t{:nvme-namespace-id/%u}\n", path, nsid);
 	free(path);
 }

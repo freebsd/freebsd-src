@@ -38,6 +38,7 @@
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -308,31 +309,32 @@ firmware(const struct cmd *f, int argc, char *argv[])
 		read_image_file(opt.fw_img, &buf, &size);
 
 	if (opt.fw_img != NULL&& opt.activate)
-		printf("You are about to download and activate "
-		       "firmware image (%s) to controller %s.\n"
-		       "This may damage your controller and/or "
-		       "overwrite an existing firmware image.\n",
-		       opt.fw_img, opt.dev);
+		xo_emit("You are about to download and activate "
+			"firmware image ({:firmware-image/%s}) to "
+			"controller {:controller/%s}.\n"
+			"This may damage your controller and/or "
+			"overwrite an existing firmware image.\n",
+			opt.fw_img, opt.dev);
 	else if (opt.activate)
-		printf("You are about to activate a new firmware "
-		       "image on controller %s.\n"
-		       "This may damage your controller.\n",
-		       opt.dev);
+		xo_emit("You are about to activate a new firmware "
+			"image on controller {:controller/%s}.\n"
+			"This may damage your controller.\n",
+			opt.dev);
 	else if (opt.fw_img != NULL)
-		printf("You are about to download firmware image "
-		       "(%s) to controller %s.\n"
-		       "This may damage your controller and/or "
-		       "overwrite an existing firmware image.\n",
-		       opt.fw_img, opt.dev);
+		xo_emit("You are about to download firmware image "
+			"({:firmware-image/%s}) to controller {:controller/%s}.\n"
+			"This may damage your controller and/or "
+			"overwrite an existing firmware image.\n",
+			opt.fw_img, opt.dev);
 
-	printf("Are you sure you want to continue? (yes/no) ");
+	xo_emit("Are you sure you want to continue? (yes/no) ");
 	while (1) {
 		fgets(prompt, sizeof(prompt), stdin);
 		if (strncasecmp(prompt, "yes", 3) == 0)
 			break;
 		if (strncasecmp(prompt, "no", 2) == 0)
 			exit(EX_DATAERR);
-		printf("Please answer \"yes\" or \"no\". ");
+		xo_emit("Please answer \"yes\" or \"no\". ");
 	}
 
 	if (opt.fw_img != NULL) {
@@ -349,15 +351,15 @@ firmware(const struct cmd *f, int argc, char *argv[])
 
 	if (opt.activate) {
 		if (reboot_required) {
-			printf("New firmware image activated but requires "
-			       "conventional reset (i.e. reboot) to "
-			       "complete activation.\n");
+			xo_emit("New firmware image activated but requires "
+				"conventional reset (i.e. reboot) to "
+				"complete activation.\n");
 		} else {
-			printf("New firmware image activated and will take "
-			       "effect after next controller reset.\n"
-			       "Controller reset can be initiated via "
-			       "'nvmecontrol reset %s'\n",
-			       opt.dev);
+			xo_emit("New firmware image activated and will take "
+				"effect after next controller reset.\n"
+				"Controller reset can be initiated via "
+				"'nvmecontrol reset {:nvmecontrol-reset/%s}'\n",
+				opt.dev);
 		}
 	}
 

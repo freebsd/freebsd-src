@@ -32,6 +32,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -70,30 +71,36 @@ print_namespace(struct nvme_namespace_data *nsdata)
 
 	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsdata->flbas);
 
-	printf("Size:                        %lld blocks\n",
+	xo_emit("{Lc:Size}{P:                        }{:block-size/%lld} blocks\n",
 	    (long long)nsdata->nsze);
-	printf("Capacity:                    %lld blocks\n",
+	xo_emit("{Lc:Capacity}{P:                    }"
+		"{:block-capacity/%lld} blocks\n",
 	    (long long)nsdata->ncap);
-	printf("Utilization:                 %lld blocks\n",
+	xo_emit("{Lc:Utilization}{P:                 }"
+		"{:blocks-utilized/%lld} blocks\n",
 	    (long long)nsdata->nuse);
-	printf("Thin Provisioning:           %s\n",
+	xo_emit("{Lc:Thin Provisioning}{P:           }{:thin-provisioning/%s}\n",
 		thin_prov ? "Supported" : "Not Supported");
-	printf("Number of LBA Formats:       %d\n", nsdata->nlbaf+1);
-	printf("Current LBA Format:          LBA Format #%02d", flbas_fmt);
+	xo_emit("{Lc:Number of LBA Formats}{P:       }{:lba-formats/%d}\n",
+		nsdata->nlbaf+1);
+	xo_emit("{Lc:Current LBA Format}{P:          }"
+		"LBA Format{P: }#{:current-lba-format/%02d}", flbas_fmt);
 	if (NVMEV(NVME_NS_DATA_LBAF_MS, nsdata->lbaf[flbas_fmt]) != 0)
-		printf(" %s metadata\n",
+		xo_emit(" {:metadata/%s} metadata\n",
 		    NVMEV(NVME_NS_DATA_FLBAS_EXTENDED, nsdata->flbas) != 0 ?
 		    "Extended" : "Separate");
 	else
-		printf("\n");
-	printf("Metadata Capabilities\n");
-	printf("  Extended:                  %s\n",
+		xo_emit("\n");
+	xo_emit("Metadata Capabilities\n");
+	xo_emit("{Lc:  Extended}{P:                  }{:metadata-extended/%s}\n",
 	    NVMEV(NVME_NS_DATA_MC_EXTENDED, nsdata->mc) != 0 ? "Supported" :
 	    "Not Supported");
-	printf("  Separate:                  %s\n",
+	xo_emit("{Lc:  Separate}{P:                  }{:metadata-separate/%s}\n",
 	    NVMEV(NVME_NS_DATA_MC_POINTER, nsdata->mc) != 0 ? "Supported" :
 	    "Not Supported");
-	printf("Data Protection Caps:        %s%s%s%s%s%s\n",
+	xo_emit("{Lc:Data Protection Caps}{P:        }{:metadata-last-bytes/%s}"
+		"{:metadata-first-bytes/%s}{:metadata-first-bytes/%s}"
+		"{:metadata-type3/%s}{:metadata-type2/%s}{:metadata-type1/%s}\n",
 	    (nsdata->dpc == 0) ? "Not Supported" : "",
 	    NVMEV(NVME_NS_DATA_DPC_MD_END, nsdata->dpc) != 0 ? "Last Bytes, " :
 	    "",
@@ -102,20 +109,26 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	    NVMEV(NVME_NS_DATA_DPC_PIT3, nsdata->dpc) != 0 ? "Type 3, " : "",
 	    NVMEV(NVME_NS_DATA_DPC_PIT2, nsdata->dpc) != 0 ? "Type 2, " : "",
 	    NVMEV(NVME_NS_DATA_DPC_PIT1, nsdata->dpc) != 0 ? "Type 1" : "");
-	printf("Data Protection Settings:    ");
+	xo_emit("{Lc:Data Protection Settings}{P:    }");
 	ptype = NVMEV(NVME_NS_DATA_DPS_PIT, nsdata->dps);
 	if (ptype != 0) {
-		printf("Type %d, %s Bytes\n", ptype,
+		xo_emit("Type {:metadata-ptype/%d}, "
+			"{:metadata-bytes/%s} Bytes\n", ptype,
 		    NVMEV(NVME_NS_DATA_DPS_MD_START, nsdata->dps) != 0 ?
 		    "First" : "Last");
 	} else {
-		printf("Not Enabled\n");
+		xo_emit("Not Enabled\n");
 	}
-	printf("Multi-Path I/O Capabilities: %s%s\n",
+	xo_emit("{Lc:Multi-Path I/O Capabilities}{P: }"
+		"{:multi-path-support/%s}{:multi-path-shared/%s}\n",
 	    (nsdata->nmic == 0) ? "Not Supported" : "",
 	    NVMEV(NVME_NS_DATA_NMIC_MAY_BE_SHARED, nsdata->nmic) != 0 ?
 	    "May be shared" : "");
-	printf("Reservation Capabilities:    %s%s%s%s%s%s%s%s%s\n",
+	xo_emit("{Lc:Reservation Capabilities}{P:    }{:reservation-support/%s}"
+		"{:reservation-iekey13/%s}{:reservation-ex-ac-ar/%s}"
+		"{:reservation-wr-ex-ar/%s}{:reservation-ex-ac-ro/%s}"
+		"{:reservation-wr-ex-ro/%s}{:reservation-ex-ac/%s}"
+		"{:reservation-wr-ex/%s}{:reservation-ptpl/%s}\n",
 	    (nsdata->rescap == 0) ? "Not Supported" : "",
 	    NVMEV(NVME_NS_DATA_RESCAP_IEKEY13, nsdata->rescap) != 0 ?
 	    "IEKEY13, " : "",
@@ -132,14 +145,16 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	    NVMEV(NVME_NS_DATA_RESCAP_WR_EX, nsdata->rescap) != 0 ?
 	    "WR_EX, " : "",
 	    NVMEV(NVME_NS_DATA_RESCAP_PTPL, nsdata->rescap) != 0 ? "PTPL" : "");
-	printf("Format Progress Indicator:   ");
+	xo_emit("{Lc:Format Progress Indicator}{P:   }");
 	if (NVMEV(NVME_NS_DATA_FPI_SUPP, nsdata->fpi) != 0) {
-		printf("%u%% remains\n",
+		xo_emit("{:format-progress-indicator/%u}% remains\n",
 		    NVMEV(NVME_NS_DATA_FPI_PERC, nsdata->fpi));
 	} else
-		printf("Not Supported\n");
+		xo_emit("Not Supported\n");
 	t = NVMEV(NVME_NS_DATA_DLFEAT_READ, nsdata->dlfeat);
-	printf("Deallocate Logical Block:    Read %s%s%s\n",
+	xo_emit("{Lc:Deallocate Logical Block}{P:    }Read{P: }"
+		"{:deallocated-block-read/%s}{:deallocated-write-zero/%s}"
+		"{:deallocated-guard-crc/%s}\n",
 	    (t == NVME_NS_DATA_DLFEAT_READ_NR) ? "Not Reported" :
 	    (t == NVME_NS_DATA_DLFEAT_READ_00) ? "00h" :
 	    (t == NVME_NS_DATA_DLFEAT_READ_FF) ? "FFh" : "Unknown",
@@ -147,29 +162,35 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	    ", Write Zero" : "",
 	    NVMEV(NVME_NS_DATA_DLFEAT_GCRC, nsdata->dlfeat) != 0 ?
 	    ", Guard CRC" : "");
-	printf("Optimal I/O Boundary:        %u blocks\n", nsdata->noiob);
-	printf("NVM Capacity:                %s bytes\n",
+	xo_emit("{Lc:Optimal I/O Boundary}{P:        }"
+		"{:io-boundary/%u} blocks\n", nsdata->noiob);
+	xo_emit("{Lc:NVM Capacity}{P:                }{:nvm-capacity/%s} bytes\n",
 	   uint128_to_str(to128(nsdata->nvmcap), cbuf, sizeof(cbuf)));
 	if (NVMEV(NVME_NS_DATA_NSFEAT_NPVALID, nsdata->nsfeat) != 0) {
-		printf("Preferred Write Granularity: %u blocks\n",
+		xo_emit("{Lc:Preferred Write Granularity}{P: }"
+			"{:write-granul/%u} blocks\n",
 		    nsdata->npwg + 1);
-		printf("Preferred Write Alignment:   %u blocks\n",
+		xo_emit("{Lc:Preferred Write Alignment}{P:   }"
+			"{:write-align/%u} blocks\n",
 		    nsdata->npwa + 1);
-		printf("Preferred Deallocate Granul: %u blocks\n",
+		xo_emit("{Lc:Preferred Deallocate Granul}{P: }"
+			"{:deallocate-granul/%u} blocks\n",
 		    nsdata->npdg + 1);
-		printf("Preferred Deallocate Align:  %u blocks\n",
+		xo_emit("{Lc:Preferred Deallocate Align}{P:  }"
+			"{:deallocate-align/%u} blocks\n",
 		    nsdata->npda + 1);
-		printf("Optimal Write Size:          %u blocks\n",
+		xo_emit("{Lc:Optimal Write Size}{P:          }"
+			"{:write-size/%u} blocks\n",
 		    nsdata->nows + 1);
 	}
-	printf("Globally Unique Identifier:  ");
+	xo_emit("{Lc:Globally Unique Identifier}{P:  }");
 	for (i = 0; i < sizeof(nsdata->nguid); i++)
-		printf("%02x", nsdata->nguid[i]);
-	printf("\n");
-	printf("IEEE EUI64:                  ");
+		xo_emit("{:globally-unique-id/%02x}", nsdata->nguid[i]);
+	xo_emit("\n");
+	xo_emit("{Lc:IEEE EUI64}                  ");
 	for (i = 0; i < sizeof(nsdata->eui64); i++)
-		printf("%02x", nsdata->eui64[i]);
-	printf("\n");
+		xo_emit("{:ieee-eui64/%02x}", nsdata->eui64[i]);
+	xo_emit("\n");
 	for (i = 0; i <= nsdata->nlbaf; i++) {
 		lbaf = nsdata->lbaf[i];
 		lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, lbaf);
@@ -177,8 +198,10 @@ print_namespace(struct nvme_namespace_data *nsdata)
 			continue;
 		ms = NVMEV(NVME_NS_DATA_LBAF_MS, lbaf);
 		rp = NVMEV(NVME_NS_DATA_LBAF_RP, lbaf);
-		printf("LBA Format #%02d: Data Size: %5d  Metadata Size: %5d"
-		    "  Performance: %s\n",
+		xo_emit("LBA Format #{:lba-format/%02d}{Lc:}{P: }{Lc:Data Size}{P: }"
+			"{:data-size/%5d}{P:  }{Lc:Metadata Size}{P: }"
+			"{:metadata-size/%5d}"
+			"{P:  }{Lc:Performance}{P: }{:performance/%s}\n",
 		    i, 1 << lbads, ms, (rp == 0) ? "Best" :
 		    (rp == 1) ? "Better" : (rp == 2) ? "Good" : "Degraded");
 	}

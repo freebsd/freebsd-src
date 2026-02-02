@@ -7,6 +7,7 @@
 
 #include <err.h>
 #include <libnvmf.h>
+#include <libxo/xo.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -182,37 +183,43 @@ nvmf_tcp_security_type(uint8_t sectype)
 static void
 print_discovery_entry(u_int i, struct nvme_discovery_log_entry *entry)
 {
-	printf("Entry %02d\n", i + 1);
-	printf("========\n");
-	printf(" Transport type:       %s\n",
+	xo_emit("{T:Entry }{T:entry/%02d}\n", i + 1);
+	xo_emit("{T:========}\n");
+	xo_emit("{P: }{Lc:Transport type}{P:       }{:transport/%s}\n",
 	    nvmf_transport_type(entry->trtype));
-	printf(" Address family:       %s\n",
+	xo_emit("{P: }{Lc:Address family}{P:       }{:address/%s}\n",
 	    nvmf_address_family(entry->adrfam));
-	printf(" Subsystem type:       %s\n",
+	xo_emit("{P: }{Lc:Subsystem type}{P:       }{:subsystem/%s}\n",
 	    nvmf_subsystem_type(entry->subtype));
-	printf(" SQ flow control:      %s\n",
+	xo_emit("{P: }{Lc:SQ flow control}{P:      }{:sq-flow/%s}\n",
 	    (entry->treq & (1 << 2)) == 0 ? "required" : "optional");
-	printf(" Secure Channel:       %s\n", nvmf_secure_channel(entry->treq));
-	printf(" Port ID:              %u\n", entry->portid);
-	printf(" Controller ID:        %s\n",
+	xo_emit("{P: }{Lc:Secure Channel}{P:       }{:secure-chan/%s}\n",
+			nvmf_secure_channel(entry->treq));
+	xo_emit("{P: }{Lc:Port ID}{P:              }{:port-id/%u}\n",
+			entry->portid);
+	xo_emit("{P: }{Lc:Controller ID}{P:        }{:controller-id/%s}\n",
 	    nvmf_controller_id(entry->cntlid));
-	printf(" Max Admin SQ Size:    %u\n", entry->aqsz);
-	printf(" Sub NQN:              %s\n", entry->subnqn);
-	printf(" Transport address:    %s\n", entry->traddr);
-	printf(" Service identifier:   %s\n", entry->trsvcid);
+	xo_emit("{P: }{Lc:Max Admin SQ Size}{P:    }{:max-admin-sq/%u}\n",
+			entry->aqsz);
+	xo_emit("{P: }{Lc:Sub NQN}{P:              }{:sub-nqn/%s}\n",
+			entry->subnqn);
+	xo_emit("{P: }{Lc:Transport address}{P:    }{:transport-addr/%s}\n",
+			entry->traddr);
+	xo_emit("{P: }{Lc:Service identifier}{P:   }{:service-id/%s}\n",
+			entry->trsvcid);
 	switch (entry->trtype) {
 	case NVMF_TRTYPE_RDMA:
-		printf(" RDMA Service Type:    %s\n",
+		xo_emit("{P: }{Lc:RDMA Service Type}{P:    }{:rdma-service-type/%s}\n",
 		    nvmf_rdma_service_type(entry->tsas.rdma.rdma_qptype));
-		printf(" RDMA Provider Type:   %s\n",
+		xo_emit("{P: }{Lc:RDMA Provider Type}{P:   }{:rdma-provider-type/%s}\n",
 		    nvmf_rdma_provider_type(entry->tsas.rdma.rdma_prtype));
-		printf(" RDMA CMS:             %s\n",
+		xo_emit("{P: }{Lc:RDMA CMS}{P:             }{:rdma-cms-type/%s}\n",
 		    nvmf_rdma_cms(entry->tsas.rdma.rdma_cms));
-		printf(" Partition key:        %u\n",
+		xo_emit("{P: }{Lc:Partition key}{P:        }{:part-key/%u}\n",
 		    entry->tsas.rdma.rdma_pkey);
 		break;
 	case NVMF_TRTYPE_TCP:
-		printf(" Security Type:        %s\n",
+		xo_emit("{P: }{Lc:Security Type}{P:        }{:security-type/%s}\n",
 		    nvmf_tcp_security_type(entry->tsas.tcp.sectype));
 		break;
 	}
@@ -228,10 +235,10 @@ dump_discovery_log_page(struct nvmf_qpair *qp)
 	if (error != 0)
 		errc(EX_IOERR, error, "Failed to fetch discovery log page");
 
-	printf("Discovery\n");
-	printf("=========\n");
+	xo_emit("{T:Discovery}\n");
+	xo_emit("{T:=========}\n");
 	if (log->numrec == 0) {
-		printf("No entries found\n");
+		xo_emit("No entries found\n");
 	} else {
 		for (u_int i = 0; i < log->numrec; i++)
 			print_discovery_entry(i, &log->entries[i]);
@@ -262,7 +269,7 @@ discover(const struct cmd *f, int argc, char *argv[])
 	/* Use Identify to fetch controller data */
 	if (opt.verbose) {
 		identify_controller(qp);
-		printf("\n");
+		xo_emit("\n");
 	}
 
 	/* Fetch Log pages */

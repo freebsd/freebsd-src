@@ -36,6 +36,7 @@
 #include <stdbool.h>
 #include <libnvmf.h>
 #include <libutil.h>
+#include <libxo/xo.h>
 #include <paths.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -110,9 +111,10 @@ scan_namespace(int fd, int ctrlr, uint32_t nsid)
 	if (opt.human) {
 		humanize_number(buf, sizeof(buf), size, "B",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-		printf("  %10s (%s)\n", name, buf);
+		xo_emit("{P:  }{:name/%10s} ({:buffer/%s})\n", name, buf);
 	} else {
-		printf("  %10s (%juMB)\n", name, (uintmax_t)size / 1024 / 1024);
+		xo_emit("{P:  }{:name/%10s} ({:buffer-megabytes/%ju}{U:MB})\n", name,
+			(uintmax_t)size / 1024 / 1024);
 	}
 }
 
@@ -151,7 +153,7 @@ print_controller_info(const char *name, int fd)
 	}
 
 	nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
-	printf("%6s: %s", name, mn);
+	xo_emit("{:name/%6s}: {:model-number/%s}", name, mn);
 	if (connected) {
 		const struct nvme_discovery_log_entry *dle;
 		size_t len;
@@ -160,7 +162,8 @@ print_controller_info(const char *name, int fd)
 		if (nvmf_reconnect_params(fd, &nvl) == 0) {
 			dle = nvlist_get_binary(nvl, "dle", &len);
 			if (len == sizeof(*dle)) {
-				printf(" (connected via %s %.*s:%.*s)",
+				xo_emit("{P: }(connected via {:trtype/%s} "
+					"{:traddr/%.*s}:{:trsvcid/%.*s})",
 				    nvmf_transport_type(dle->trtype),
 				    (int)sizeof(dle->traddr), dle->traddr,
 				    (int)sizeof(dle->trsvcid), dle->trsvcid);
@@ -176,10 +179,10 @@ print_controller_info(const char *name, int fd)
 		last_disconnect.tv_sec = nvlist_get_number(nvl_ts, "tv_sec");
 		last_disconnect.tv_nsec = nvlist_get_number(nvl_ts, "tv_nsec");
 		timespecsub(&now, &last_disconnect, &delta);
-		printf(" (disconnected for %ju seconds)",
+		xo_emit("{P: }(disconnected for {:seconds/%ju} seconds)",
 		    (uintmax_t)delta.tv_sec);
 	}
-	printf("\n");
+	xo_emit("\n");
 	nvlist_destroy(nvl);
 	return (connected);
 }
@@ -245,7 +248,7 @@ devlist(const struct cmd *f, int argc, char *argv[])
 	}
 
 	if (found == 0) {
-		printf("No NVMe controllers found.\n");
+		xo_emit("{d:No NVMe controllers found.}{e:devlist-page}\n");
 		exit(EX_UNAVAILABLE);
 	}
 

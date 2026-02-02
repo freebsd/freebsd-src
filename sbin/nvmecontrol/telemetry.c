@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -154,7 +155,7 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 	size = (size + 1) * 512; /* The count of additional pages */
 	chunk = 4096;
 
-	printf("Extracting %llu bytes\n", (unsigned long long)size);
+	xo_emit("Extracting {:telemetry-bytes/%llu} bytes\n", (unsigned long long)size);
 	do {
 		if (chunk > size)
 			chunk = size;

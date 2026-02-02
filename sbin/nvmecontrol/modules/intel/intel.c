@@ -35,6 +35,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -57,24 +58,24 @@ print_intel_temp_stats(const struct nvme_controller_data *cdata __unused, void *
 {
 	struct intel_log_temp_stats	*temp = buf;
 
-	printf("Intel Temperature Log\n");
-	printf("=====================\n");
+	xo_emit("{T:Intel Temperature Log}\n");
+	xo_emit("{T:=====================}\n");
 
-	printf("Current:                        ");
+	xo_emit("{Lc:Current}{P:                        }");
 	print_temp_C(letoh(temp->current));
-	printf("Overtemp Last Flags             %#jx\n",
+	xo_emit("{Lc:Overtemp Last Flags}{P:             }{:intel-overtemp-last-flags/%#jx}\n",
 	    (uintmax_t)letoh(temp->overtemp_flag_last));
-	printf("Overtemp Lifetime Flags         %#jx\n",
+	xo_emit("{Lc:Overtemp Lifetime Flags}{P:         }{:intel-overtemp-lifetime-flags/%#jx}\n",
 	    (uintmax_t)letoh(temp->overtemp_flag_life));
-	printf("Max Temperature                 ");
+	xo_emit("{Lc:Max Temperature}{P:                 }");
 	print_temp_C(letoh(temp->max_temp));
-	printf("Min Temperature                 ");
+	xo_emit("{Lc:Min Temperature}{P:                 }");
 	print_temp_C(letoh(temp->min_temp));
-	printf("Max Operating Temperature       ");
+	xo_emit("{Lc:Max Operating Temperature}{P:       }");
 	print_temp_C(letoh(temp->max_oper_temp));
-	printf("Min Operating Temperature       ");
+	xo_emit("{Lc:Min Operating Temperature}{P:       }");
 	print_temp_C(letoh(temp->min_oper_temp));
-	printf("Estimated Temperature Offset:   %ju C/K\n",
+	xo_emit("{Lc:Estimated Temperature Offset}{P:   }{:intel-temp-offset/%ju} C/K\n",
 	    (uintmax_t)letoh(temp->est_offset));
 }
 
@@ -88,22 +89,22 @@ print_intel_read_write_lat_log(const struct nvme_controller_data *cdata __unused
 	const char *walker = buf;
 	int i;
 
-	printf("Major:                         %d\n", le16dec(walker + 0));
-	printf("Minor:                         %d\n", le16dec(walker + 2));
+	xo_emit("{Lc:Major}{P:                         }{:intel-walker-major/%d}\n", le16dec(walker + 0));
+	xo_emit("{Lc:Minor}{P:                         }{:intel-walker-minor/%d}\n", le16dec(walker + 2));
 	for (i = 0; i < 32; i++)
-		printf("%4dus-%4dus:                 %ju\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 4 + i * 4));
+		xo_emit("{:intel-walker-0/%4dus}-{:intel-walker-1/%4dus}{Lc:}{P:                 }{:intel-walker-2/%ju}\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 4 + i * 4));
 	for (i = 1; i < 32; i++)
-		printf("%4dms-%4dms:                 %ju\n", i, i + 1, (uintmax_t)le32dec(walker + 132 + i * 4));
+		xo_emit("{:intel-walker-0/%4dms}-{:intel-walker-1/%4dms}{Lc:}{P:                 }{:intel-walker-2/%ju}\n", i, i + 1, (uintmax_t)le32dec(walker + 132 + i * 4));
 	for (i = 1; i < 32; i++)
-		printf("%4dms-%4dms:                 %ju\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 256 + i * 4));
+		xo_emit("{:intel-walker-0/%4dms}-{:intel-walker-1/%4dms}{Lc:}{P:                 }{:intel-walker-2/%ju}\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 256 + i * 4));
 }
 
 static void
 print_intel_read_lat_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size)
 {
 
-	printf("Intel Read Latency Log\n");
-	printf("======================\n");
+	xo_emit("{T:Intel Read Latency Log}\n");
+	xo_emit("{T:======================}\n");
 	print_intel_read_write_lat_log(cdata, buf, size);
 }
 
@@ -111,8 +112,8 @@ static void
 print_intel_write_lat_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size)
 {
 
-	printf("Intel Write Latency Log\n");
-	printf("=======================\n");
+	xo_emit("{T:Intel Write Latency Log}\n");
+	xo_emit("{T:=======================}\n");
 	print_intel_read_write_lat_log(cdata, buf, size);
 }
 
@@ -151,8 +152,8 @@ print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *b
 		{ 0xfa, "NAND GiB Read" },
 	};
 
-	printf("Additional SMART Data Log\n");
-	printf("=========================\n");
+	xo_emit("{T:Additional SMART Data Log}\n");
+	xo_emit("{T:=========================}\n");
 	/*
 	 * walker[0] = Key
 	 * walker[1,2] = reserved
@@ -170,25 +171,25 @@ print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *b
 		case 0:
 			break;
 		case 0xad:
-			printf("%-32s: %3d min: %u max: %u ave: %u\n", name, normalized,
+			xo_emit("{:intel-walker-name/%-32s}{Lc:}{P: }{:intel-walker-normalized/%3d} {Lc:min}{P: }{:intel-walker-le16dec-5/%u} {Lc:max}{P: }{:intel-walker-le16dec-7/%u} {Lc:ave}{P: }{:intel-walker-le16dec-9/%u}\n", name, normalized,
 			    le16dec(walker + 5), le16dec(walker + 7), le16dec(walker + 9));
 			break;
 		case 0xe2:
-			printf("%-32s: %3d %.3f%%\n", name, normalized, raw / 1024.0);
+			xo_emit("{:intel-walker-name/%-32s}{Lc:}{P: }{:intel-walker-normalized/%3d} {:intel-walker-raw/%.3f}%\n", name, normalized, raw / 1024.0);
 			break;
 		case 0xe7:
-			printf("%-32s: %3d %#jx max: %dK min: %dK cur: %dK\n", name, normalized,
+			xo_emit("{:intel-walker-name/%-32s}{Lc:}{P: }{:intel-walker-normalized/%3d} {:intel-walker-raw/%#jx} {Lc:max}{P: }{:intel-walker-le16dec-5/%d}K {Lc:min}{P: }{:intel-walker-le16dec-7/%d}K {Lc:cur}{P: }{:intel-walker-le16dec-9/%d}K\n", name, normalized,
 			    (uintmax_t)raw, le16dec(walker+5), le16dec(walker+7), le16dec(walker+9));
 			break;
 		case 0xe8:
-			printf("%-32s: %3d %#jx max: %dW min: %dW cur: %dW\n", name, normalized,
+			xo_emit("{:intel-walker-name/%-32s}{Lc:}{P: }{:intel-walker-normalized/%3d} {:intel-walker-raw/%#jx} {Lc:max}{P: }{:intel-walker-le16dec-5/%d}K {Lc:min}{P: }{:intel-walker-le16dec-7/%d}K {Lc:cur}{P: }{:intel-walker-le16dec-9/%d}K\n", name, normalized,
 			    (uintmax_t)raw, le16dec(walker+5), le16dec(walker+7), le16dec(walker+9));
 			break;
 		case 0xea:
-			printf("%-32s: %3d %d%% %d times\n", name, normalized, walker[5], le32dec(walker+6));
+			xo_emit("{:intel-walker-name/%-32s}{Lc:}{P: }{:intel-walker-normalized/%3d} {:intel-walker-5/%d}% {:intel-walker-6/%d} times\n", name, normalized, walker[5], le32dec(walker+6));
 			break;
 		default:
-			printf("%-32s: %3d %ju %#jx\n", name, normalized, (uintmax_t)raw, (uintmax_t)raw);
+			xo_emit("{:intel-walker-name/%-32s}{Lc:}{P: }{:intel-walker-normalized/%3d} {:intel-walker-raw/%ju} {:intel-walker-raw/%#jx}\n", name, normalized, (uintmax_t)raw, (uintmax_t)raw);
 			break;
 		}
 		walker += 12;
@@ -200,9 +201,9 @@ print_intel_drive_marketing_name(const struct nvme_controller_data *cdata __unus
 {
 	const char *p = buf;
 
-	printf("Intel Drive Marketing Name Log\n");
-	printf("=======================\n");
-	printf("%.*s\n", 29, p);
+	xo_emit("{T:Intel Drive Marketing Name Log}\n");
+	xo_emit("{T:=======================}\n");
+	xo_emit("{:intel-marketing-log/%.*s}\n", 29, p);
 }
 
 #define INTEL_LOG_DRIVE_MARKETING_NAME	0xdd
