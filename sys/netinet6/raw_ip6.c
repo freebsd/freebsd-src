@@ -604,6 +604,9 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
+			if (error != 0)
+				return (error);
 			if (inp->inp_ip_p != IPPROTO_ICMPV6)
 				return (EOPNOTSUPP);
 			error = ip6_mrouter_get ?  ip6_mrouter_get(so, sopt) :
@@ -627,6 +630,9 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
+			if (error != 0)
+				return (error);
 			if (inp->inp_ip_p != IPPROTO_ICMPV6)
 				return (EOPNOTSUPP);
 			error = ip6_mrouter_set ?  ip6_mrouter_set(so, sopt) :

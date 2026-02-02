@@ -546,11 +546,6 @@ X_mrt_ioctl(u_long cmd, caddr_t data, int fibnum __unused)
 {
 	int error;
 
-	/*
-	 * Currently the only function calling this ioctl routine is rtioctl_fib().
-	 * Typically, only root can create the raw socket in order to execute
-	 * this ioctl method, however the request might be coming from a prison
-	 */
 	error = priv_check(curthread, PRIV_NETINET_MROUTE);
 	if (error)
 		return (error);

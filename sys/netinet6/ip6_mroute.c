@@ -89,6 +89,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/domain.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
@@ -458,24 +459,26 @@ X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 static int
 X_mrt6_ioctl(u_long cmd, caddr_t data)
 {
-	int ret;
+	int error;
 
-	ret = EINVAL;
-
+	error = priv_check(curthread, PRIV_NETINET_MROUTE);
+	if (error)
+		return (error);
+	error = EINVAL;
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
-		ret = get_sg_cnt((struct sioc_sg_req6 *)data);
+		error = get_sg_cnt((struct sioc_sg_req6 *)data);
 		break;
 
 	case SIOCGETMIFCNT_IN6:
-		ret = get_mif6_cnt((struct sioc_mif_req6 *)data);
+		error = get_mif6_cnt((struct sioc_mif_req6 *)data);
 		break;
 
 	default:
 		break;
 	}
 
-	return (ret);
+	return (error);
 }
 
 /*
