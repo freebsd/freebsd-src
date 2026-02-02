@@ -65,7 +65,6 @@
 #include <sys/capsicum.h>
 #include <sys/procdesc.h>
 #include <sys/types.h>
-#include <sys/event.h>
 #include <sys/wait.h>
 
 #include <capsicum_helpers.h>
@@ -921,11 +920,26 @@ increase(void)
 	szchanges = newsz;
 }
 
+static void
+wait_and_check(int pd)
+{
+	int status;
+
+	while (pdwait(pd, &status, WEXITED, NULL, NULL) == -1) {
+		if (errno != EINTR)
+			err(2, "pdwait");
+	}
+
+	if (WIFEXITED(status) && WEXITSTATUS(status) >= 2)
+		errx(2, "diff exited abnormally");
+	if (WIFSIGNALED(status))
+		errx(2, "diff killed by signal %d", WTERMSIG(status));
+}
 
 int
 main(int argc, char **argv)
 {
-	int ch, nblabels, status, m, n, kq, nke, nleft, i;
+	int ch, nblabels, m, n;
 	char *labels[] = { NULL, NULL, NULL };
 	const char *diffprog = DIFF_PATH;
 	char *file1, *file2, *file3;
@@ -934,7 +948,6 @@ main(int argc, char **argv)
 	int fd13[2], fd23[2];
 	int pd13, pd23;
 	cap_rights_t rights_ro;
-	struct kevent *e;
 
 	nblabels = 0;
 	eflag = EFLAG_NONE;
@@ -1016,14 +1029,6 @@ main(int argc, char **argv)
 
 	cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
 
-	kq = kqueue();
-	if (kq == -1)
-		err(2, "kqueue");
-
-	e = malloc(2 * sizeof(*e));
-	if (e == NULL)
-		err(2, "malloc");
-
 	/* TODO stdio */
 	file1 = argv[0];
 	file2 = argv[1];
@@ -1069,20 +1074,10 @@ main(int argc, char **argv)
 	diffargv[diffargc] = file1;
 	diffargv[diffargc + 1] = file3;
 	diffargv[diffargc + 2] = NULL;
-
-	nleft = 0;
 	pd13 = diffexec(diffprog, diffargv, fd13);
-	EV_SET(e + nleft , pd13, EVFILT_PROCDESC, EV_ADD, NOTE_EXIT, 0, NULL);
-	if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1)
-		err(2, "kevent1");
-	nleft++;
 
 	diffargv[diffargc] = file2;
 	pd23 = diffexec(diffprog, diffargv, fd23);
-	EV_SET(e + nleft , pd23, EVFILT_PROCDESC, EV_ADD, NOTE_EXIT, 0, NULL);
-	if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1)
-		err(2, "kevent2");
-	nleft++;
 
 	caph_cache_catpages();
 	if (caph_enter() < 0)
@@ -1093,22 +1088,9 @@ main(int argc, char **argv)
 	m = readin(fd13[0], &d13);
 	n = readin(fd23[0], &d23);
 
-	/* waitpid cooked over pdforks */
-	while (nleft > 0) {
-		nke = kevent(kq, NULL, 0, e, nleft, NULL);
-		if (nke == -1)
-			err(2, "kevent");
-		for (i = 0; i < nke; i++) {
-			status = e[i].data;
-			if (WIFEXITED(status) && WEXITSTATUS(status) >= 2)
-				errx(2, "diff exited abnormally");
-			else if (WIFSIGNALED(status))
-				errx(2, "diff killed by signal %d",
-				    WTERMSIG(status));
-		}
-		nleft -= nke;
-	}
-	free(e);
+	wait_and_check(pd13);
+	wait_and_check(pd23);
+
 	merge(m, n);
 
 	return (EXIT_SUCCESS);
