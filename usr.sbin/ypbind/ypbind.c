@@ -748,7 +748,7 @@ broadcast(struct _dom_binding *ypdb)
 		stat = clnt_broadcast(YPPROG, YPVERS, YPPROC_DOMAIN_NONACK,
 	    		(xdrproc_t)xdr_domainname, &ptr,
 		        (xdrproc_t)xdr_bool, &out,
-	    		(resultproc_t)broadcast_result);
+			(clnt_broadcast_resultproc_t)broadcast_result);
 	}
 
 	if (stat != RPC_SUCCESS) {

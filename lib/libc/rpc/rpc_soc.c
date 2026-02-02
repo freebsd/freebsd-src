@@ -310,7 +310,7 @@ registerrpc(int prognum, int versnum, int procnum,
  * Support the earlier calling style of the callback function with a
  * per-thread temporary copy of the real callback.
  */
-static _Thread_local resultproc_t	clnt_broadcast_result;
+static _Thread_local clnt_broadcast_resultproc_t clnt_broadcast_result;
 
 /*
  * Need to translate the netbuf address into sockaddr_in address.
@@ -336,7 +336,8 @@ rpc_wrap_bcast(char *resultp, struct netbuf *addr, struct netconfig *nconf)
  */
 enum clnt_stat
 clnt_broadcast(u_long prog, u_long vers, u_long proc, xdrproc_t xargs,
-    void *argsp, xdrproc_t xresults, void *resultsp, resultproc_t eachresult)
+    void *argsp, xdrproc_t xresults, void *resultsp,
+    clnt_broadcast_resultproc_t eachresult)
 /*
  *	u_long		prog;		// program number
  *	u_long		vers;		// version number

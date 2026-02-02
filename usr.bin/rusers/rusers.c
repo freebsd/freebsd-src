@@ -208,7 +208,7 @@ allhosts(void)
 	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE,
 	    RUSERSPROC_NAMES, (xdrproc_t)xdr_void, NULL,
 	    (xdrproc_t)xdr_utmpidlearr, (char *)&up,
-	    (resultproc_t)rusers_reply);
+	    (clnt_broadcast_resultproc_t)rusers_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
