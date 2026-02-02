@@ -297,26 +297,6 @@ VNET_DEFINE_STATIC(int, pim6);
 				   (g).s6_addr32[2] ^ (g).s6_addr32[3])
 
 /*
- * Find a route for a given origin IPv6 address and Multicast group address.
- */
-#define MF6CFIND(o, g, rt) do { \
-	struct mf6c *_rt = mf6ctable[MF6CHASH(o,g)]; \
-	rt = NULL; \
-	while (_rt) { \
-		if (IN6_ARE_ADDR_EQUAL(&_rt->mf6c_origin.sin6_addr, &(o)) && \
-		    IN6_ARE_ADDR_EQUAL(&_rt->mf6c_mcastgrp.sin6_addr, &(g)) && \
-		    (_rt->mf6c_stall == NULL)) { \
-			rt = _rt; \
-			break; \
-		} \
-		_rt = _rt->mf6c_next; \
-	} \
-	if (rt == NULL) { \
-		MRT6STAT_INC(mrt6s_mfc_misses); \
-	} \
-} while (/*CONSTCOND*/ 0)
-
-/*
  * Macros to compute elapsed time efficiently
  * Borrowed from Van Jacobson's scheduling code
  * XXX: replace with timersub() ?
@@ -365,6 +345,22 @@ static int X_ip6_mrouter_done(void);
 static int X_ip6_mrouter_set(struct socket *, struct sockopt *);
 static int X_ip6_mrouter_get(struct socket *, struct sockopt *);
 static int X_mrt6_ioctl(u_long, caddr_t);
+
+static struct mf6c *
+mf6c_find(const struct in6_addr *origin, const struct in6_addr *group)
+{
+	MFC6_LOCK_ASSERT();
+
+	for (struct mf6c *rt = mf6ctable[MF6CHASH(*origin, *group)]; rt != NULL;
+	    rt = rt->mf6c_next) {
+		if (IN6_ARE_ADDR_EQUAL(&rt->mf6c_origin.sin6_addr, origin) &&
+		    IN6_ARE_ADDR_EQUAL(&rt->mf6c_mcastgrp.sin6_addr, group) &&
+		    rt->mf6c_stall == NULL)
+			return (rt);
+	}
+	MRT6STAT_INC(mrt6s_mfc_misses);
+	return (NULL);
+}
 
 /*
  * Handle MRT setsockopt commands to modify the multicast routing tables.
@@ -494,7 +490,7 @@ get_sg_cnt(struct sioc_sg_req6 *req)
 
 	MFC6_LOCK();
 
-	MF6CFIND(req->src.sin6_addr, req->grp.sin6_addr, rt);
+	rt = mf6c_find(&req->src.sin6_addr, &req->grp.sin6_addr);
 	if (rt == NULL) {
 		ret = ESRCH;
 	} else {
@@ -817,9 +813,8 @@ add_m6fc(struct mf6cctl *mfccp)
 
 	MFC6_LOCK();
 
-	MF6CFIND(mfccp->mf6cc_origin.sin6_addr,
-		 mfccp->mf6cc_mcastgrp.sin6_addr, rt);
-
+	rt = mf6c_find(&mfccp->mf6cc_origin.sin6_addr,
+	    &mfccp->mf6cc_mcastgrp.sin6_addr);
 	/* If an entry already exists, just update the fields */
 	if (rt) {
 		MRT6_DLOG(DEBUG_MFC, "no upcall o %s g %s p %x",
@@ -1114,7 +1109,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	/*
 	 * Determine forwarding mifs from the forwarding cache table
 	 */
-	MF6CFIND(ip6->ip6_src, ip6->ip6_dst, rt);
+	rt = mf6c_find(&ip6->ip6_src, &ip6->ip6_dst);
 	MRT6STAT_INC(mrt6s_mfc_lookups);
 
 	/* Entry exists, so forward if necessary */
