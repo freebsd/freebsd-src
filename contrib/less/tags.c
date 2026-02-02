@@ -256,12 +256,12 @@ static enum tag_result findctag(constant char *tag)
 	char *q;
 	FILE *f;
 	size_t taglen;
+	int n;
 	LINENUM taglinenum;
 	char *tagfile;
 	char *tagpattern;
 	lbool tagendline;
 	int search_char;
-	lbool err;
 	char tline[TAGLINE_SIZE];
 	struct tag *tp;
 
@@ -321,8 +321,9 @@ static enum tag_result findctag(constant char *tag)
 		 * First see if it is a line number. 
 		 */
 		tagendline = FALSE;
-		taglinenum = getnum(&p, 0, &err);
-		if (err)
+		if (getnum(&p, NULL, FALSE, &n))
+			taglinenum = n;
+		else
 		{
 			/*
 			 * No, it must be a pattern.

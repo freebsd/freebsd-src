@@ -24,6 +24,7 @@ extern int pr_type;
 extern lbool new_file;
 extern int linenums;
 extern int hshift;
+extern int sc_width;
 extern int sc_height;
 extern int jump_sline;
 extern int less_is_more;
@@ -47,9 +48,9 @@ static constant char s_proto[] =
 static constant char m_proto[] =
   "?n?f%f .?m(%T %i of %m) ..?e(END) ?x- Next\\: %x.:?pB%pB\\%:byte %bB?s/%s...%t";
 static constant char M_proto[] =
-  "?f%f .?n?m(%T %i of %m) ..?ltlines %lt-%lb?L/%L. :byte %bB?s/%s. .?e(END) ?x- Next\\: %x.:?pB%pB\\%..%t";
+  "?f%f .?n?m(%T %i of %m) ..?ltlines %lt-%lb?L/%L. :byte %bB?s/%s. .?e(END) ?x- Next\\: %x.:?pB%pB\\%..?c (column %c).%t";
 static constant char e_proto[] =
-  "?f%f .?m(%T %i of %m) .?ltlines %lt-%lb?L/%L. .byte %bB?s/%s. ?e(END) :?pB%pB\\%..%t";
+  "?f%f .?m(%T %i of %m) .?ltlines %lt-%lb?L/%L. .byte %bB?s/%s. ?e(END) :?pB%pB\\%..?c (column %c).%t";
 static constant char h_proto[] =
   "HELP -- ?eEND -- Press g to see it again:Press RETURN for more., or q when done";
 static constant char w_proto[] =
@@ -64,6 +65,7 @@ public char constant *wproto = w_proto;
 
 static char message[PROMPT_SIZE];
 static char *mp;
+static int longest_line;
 
 /*
  * Initialize the prompt prototype strings.
@@ -76,6 +78,18 @@ public void init_prompt(void)
 	eqproto = save(e_proto);
 	hproto = save(h_proto);
 	wproto = save(w_proto);
+}
+
+/*
+ * Get width of longest line currently on screen.
+ * Calling longest_line_width() is expensive, so we cache its value here
+ * in case it is called more than once per prompt expansion.
+ */
+static int pr_longest_line(void)
+{
+	if (longest_line < 0)
+		longest_line = longest_line_width();
+	return longest_line;
 }
 
 /*
@@ -233,6 +247,8 @@ static lbool cond(char c, int where)
 		return (currline(where) != 0 &&
 				(len = ch_length()) > 0 &&
 				find_linenum(len) != 0);
+	case 'Q': /* Any on-screen line truncated? */
+		return (hshift + sc_width < pr_longest_line());
 	case 's': /* Size of file known? */
 	case 'B':
 		return (ch_length() != NULL_POSITION);
@@ -275,7 +291,10 @@ static void protochar(char c, int where)
 			ap_quest();
 		break;
 	case 'c':
-		ap_int(hshift);
+		ap_int(hshift+1);
+		break;
+	case 'C':
+		ap_int(hshift + sc_width);
 		break;
 	case 'd': /* Current page number */
 		linenum = currline(where);
@@ -374,6 +393,9 @@ static void protochar(char c, int where)
 		else
 			ap_int(percentage(linenum, last_linenum));
 		break;
+	case 'Q': /* Percent shifted horizontally */
+		ap_int(percentage(hshift + sc_width, pr_longest_line()));
+		break;
 	case 's': /* Size of file */
 	case 'B':
 		len = ch_length();
@@ -394,6 +416,9 @@ static void protochar(char c, int where)
 		else
 #endif
 			ap_str("file");
+		break;
+	case 'W': /* Width of longest line on screen */
+		ap_int(pr_longest_line());
 		break;
 	case 'x': /* Name of next file */
 		h = next_ifile(curr_ifile);
@@ -496,10 +521,11 @@ public constant char * pr_expand(constant char *proto)
 	char c;
 	int where;
 
-	mp = message;
-
 	if (*proto == '\0')
 		return ("");
+
+	mp = message;
+	longest_line = -1;
 
 	for (p = proto;  *p != '\0';  p++)
 	{

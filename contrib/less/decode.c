@@ -36,6 +36,7 @@
 extern int erase_char, erase2_char, kill_char;
 extern int mousecap;
 extern int sc_height;
+extern char *no_config;
 
 static constant lbool allow_drag = TRUE;
 
@@ -92,6 +93,7 @@ static unsigned char cmdtable[] =
 	ESC,'j',0,                      A_F_NEWLINE,
 	ESC,'k',0,                      A_B_NEWLINE,
 	'F',0,                          A_F_FOREVER,
+	ESC,'f',0,                      A_F_FOREVER_BELL,
 	ESC,'F',0,                      A_F_UNTIL_HILITE,
 	'R',0,                          A_FREPAINT,
 	'r',0,                          A_REPAINT,
@@ -100,7 +102,12 @@ static unsigned char cmdtable[] =
 	ESC,'u',0,                      A_UNDO_SEARCH,
 	ESC,'U',0,                      A_CLR_SEARCH,
 	'g',0,                          A_GOLINE,
-	SK(SK_HOME),0,                  A_GOLINE,
+	SK(SK_HOME),0,                  A_LLSHIFT,
+	SK(SK_SHIFT_HOME),0,            A_GOLINE|A_EXTRA,           ESC,'{',0,
+	SK(SK_CTL_HOME),0,              A_GOLINE|A_EXTRA,           ESC,'{',0,
+	SK(SK_END),0,                   A_RRSHIFT,
+	SK(SK_SHIFT_END),0,             A_GOEND|A_EXTRA,            ESC,'}',0,
+	SK(SK_CTL_END),0,               A_GOEND|A_EXTRA,            ESC,'}',0,
 	'<',0,                          A_GOLINE,
 	ESC,'<',0,                      A_GOLINE,
 	'p',0,                          A_PERCENT,
@@ -125,7 +132,6 @@ static unsigned char cmdtable[] =
 	ESC,'G',0,                      A_GOEND_BUF,
 	ESC,'>',0,                      A_GOEND,
 	'>',0,                          A_GOEND,
-	SK(SK_END),0,                   A_GOEND,
 	'P',0,                          A_GOPOS,
 
 	'0',0,                          A_DIGIT,
@@ -183,6 +189,24 @@ static unsigned char cmdtable[] =
 	'!',0,                          A_SHELL,
 	'#',0,                          A_PSHELL,
 	'+',0,                          A_FIRSTCMD,
+
+	SK(SK_PAD_U),0,                 A_B_LINE,
+	SK(SK_PAD_D),0,                 A_F_LINE,
+	SK(SK_PAD_R),0,                 A_RSHIFT,
+	SK(SK_PAD_L),0,                 A_LSHIFT,
+	SK(SK_PAD_UR),0,                A_B_SCREEN,
+	SK(SK_PAD_UL),0,                A_LLSHIFT,
+	SK(SK_PAD_DR),0,                A_RRSHIFT,
+	SK(SK_PAD_DL),0,                A_GOEND,
+	SK(SK_PAD_STAR),0,              A_NOACTION|A_EXTRA,   '*',0,
+	SK(SK_PAD_SLASH),0,             A_NOACTION|A_EXTRA,   '/',0,
+	SK(SK_PAD_DASH),0,              A_NOACTION|A_EXTRA,   '-',0,
+	SK(SK_PAD_PLUS),0,              A_NOACTION|A_EXTRA,   '+',0,
+	SK(SK_PAD_DOT),0,               A_NOACTION|A_EXTRA,   '.',0,
+	SK(SK_PAD_COMMA),0,             A_NOACTION,
+	SK(SK_PAD_ZERO),0,              A_NOACTION|A_EXTRA,   '0',0,
+	SK(SK_PAD_CENTER),0,            A_NOACTION,
+
 	ESC,'[','2','0','0','~',0,      A_START_PASTE,
 	ESC,'[','2','0','1','~',0,      A_END_PASTE,
 
@@ -227,13 +251,33 @@ static unsigned char edittable[] =
 	ESC,SK(SK_BACKSPACE),0,         EC_W_BACKSPACE, /* ESC BACKSPACE */
 	ESC,'0',0,                      EC_HOME,        /* ESC 0 */
 	SK(SK_HOME),0,                  EC_HOME,        /* HOME */
+	SK(SK_SHIFT_HOME),0,            EC_HOME,        /* SHIFT-HOME */
+	SK(SK_CTL_HOME),0,              EC_HOME,        /* CTRL-HOME */
 	ESC,'$',0,                      EC_END,         /* ESC $ */
 	SK(SK_END),0,                   EC_END,         /* END */
+	SK(SK_SHIFT_END),0,             EC_END,         /* SHIFT-END */
+	SK(SK_CTL_END),0,               EC_END,         /* CTRL-END */
 	ESC,'k',0,                      EC_UP,          /* ESC k */
 	SK(SK_UP_ARROW),0,              EC_UP,          /* UPARROW */
 	ESC,'j',0,                      EC_DOWN,        /* ESC j */
 	SK(SK_DOWN_ARROW),0,            EC_DOWN,        /* DOWNARROW */
 	CONTROL('G'),0,                 EC_ABORT,       /* CTRL-G */
+	SK(SK_PAD_U),0,                 EC_UP,
+	SK(SK_PAD_D),0,                 EC_DOWN,
+	SK(SK_PAD_R),0,                 EC_RIGHT,
+	SK(SK_PAD_L),0,                 EC_LEFT,
+	SK(SK_PAD_UR),0,                A_NOACTION,
+	SK(SK_PAD_UL),0,                EC_HOME,
+	SK(SK_PAD_DR),0,                A_NOACTION,
+	SK(SK_PAD_DL),0,                EC_END,
+	SK(SK_PAD_STAR),0,              A_NOACTION|A_EXTRA,   '*',0,
+	SK(SK_PAD_SLASH),0,             A_NOACTION|A_EXTRA,   '/',0,
+	SK(SK_PAD_DASH),0,              A_NOACTION|A_EXTRA,   '-',0,
+	SK(SK_PAD_PLUS),0,              A_NOACTION|A_EXTRA,   '+',0,
+	SK(SK_PAD_DOT),0,               A_NOACTION|A_EXTRA,   '.',0,
+	SK(SK_PAD_COMMA),0,             A_NOACTION|A_EXTRA,   ',',0,
+	SK(SK_PAD_ZERO),0,              A_NOACTION|A_EXTRA,   '0',0,
+	SK(SK_PAD_CENTER),0,            A_NOACTION,
 	ESC,'[','M',0,                  EC_X11MOUSE,    /* X11 mouse report */
 	ESC,'[','<',0,                  EC_X116MOUSE,   /* X11 1006 mouse report */
 	ESC,'[','2','0','0','~',0,      A_START_PASTE,  /* open paste bracket */
@@ -549,8 +593,11 @@ static int mouse_button_left(int x, int y, lbool down, lbool drag)
 	} else if (!down)
 	{
 #if OSC8_LINK
-		if (osc8_click(y, x))
-			return (A_NOACTION);
+		if (secure_allow(SF_OSC8_OPEN))
+		{
+			if (osc8_click(y, x))
+				return (A_NOACTION);
+		}
 #else
 		(void) x;
 #endif /* OSC8_LINK */
@@ -738,7 +785,7 @@ static int cmd_search(constant char *cmd, constant unsigned char *table, constan
 	while (table < endtable)
 	{
 		int taction;
-		const unsigned char *textra;
+		constant unsigned char *textra;
 		size_t cmdlen;
 		size_t match = cmd_match((constant char *) table, cmd);
 		table = cmd_next_entry(table, &taction, &textra, &cmdlen);
@@ -821,6 +868,44 @@ public int ecmd_decode(constant char *cmd, constant char **sp)
 	return (cmd_decode(list_ecmd_tables, cmd, sp));
 }
 
+/*
+ * Parse a comma-separated list.
+ * Call func repeatedly, passing each item in the list.
+ * Stop and return FALSE if func ever returns FALSE,
+ * otherwise parse the entire list and return TRUE.
+ */
+public lbool parse_csl(lbool (*func)(constant char *word, size_t wlen, void *arg), constant char *str, void *arg)
+{
+	for (;;)
+	{
+		constant char *estr;
+		while (*str == ' ' || *str == ',') ++str; /* skip leading spaces/commas */
+		if (*str == '\0') break;
+		estr = strchr(str, ',');
+		if (estr == NULL) estr = str + strlen(str);
+		while (estr > str && estr[-1] == ' ') --estr; /* trim trailing spaces */
+		if (!(*func)(str, ptr_diff(estr, str), arg))
+			return FALSE;
+		str = estr;
+	}
+	return TRUE;
+}
+
+/*
+ * Should we ignore the setting of an environment variable?
+ */
+static lbool word_no_match(constant char *word, size_t wlen, void *arg)
+{
+	constant char *var = (constant char *) arg;
+	return !(wlen == strlen(var) && strncmp(var, word, wlen) == 0);
+}
+static lbool ignore_env(constant char *var)
+{
+	if (isnullenv(no_config))
+		return FALSE; /* no_config is not set; don't ignore anything */
+	/* no_config is set; ignore any var that does not appear in no_config */
+	return parse_csl(word_no_match, no_config, (void*) var);
+}
 
 /*
  * Get the value of an environment variable.
@@ -831,6 +916,8 @@ public constant char * lgetenv(constant char *var)
 	int a;
 	constant char *s;
 
+	if (ignore_env(var))
+		return (NULL);
 	a = cmd_decode(list_var_tables, var, &s);
 	if (a == EV_OK)
 		return (s);
@@ -986,7 +1073,7 @@ public int lesskey(constant char *filename, lbool sysvar)
 	ssize_t n;
 	int f;
 
-	if (!secure_allow(SF_LESSKEY))
+	if (!secure_allow(SF_LESSKEY) || !isnullenv(no_config))
 		return (1);
 	/*
 	 * Try to open the lesskey file.
@@ -1048,7 +1135,7 @@ static int lesskey_text(constant char *filename, lbool sysvar, lbool content)
 	int r;
 	static struct lesskey_tables tables;
 
-	if (!secure_allow(SF_LESSKEY))
+	if (!secure_allow(SF_LESSKEY) || !isnullenv(no_config))
 		return (1);
 	r = content ? parse_lesskey_content(filename, &tables) : parse_lesskey(filename, &tables);
 	if (r != 0)

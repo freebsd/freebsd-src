@@ -40,6 +40,7 @@ public int ctldisp;             /* Send control chars to screen untranslated */
 public int force_open;          /* Open the file even if not regular file */
 public int swindow;             /* Size of scrolling window */
 public int jump_sline;          /* Screen line of "jump target" */
+public int jump_sline_arg;
 public long jump_sline_fraction = -1;
 public int shift_count;         /* Number of positions to shift horizontally */
 public long shift_count_fraction = -1;
@@ -87,6 +88,7 @@ public int stop_on_form_feed;   /* Stop scrolling on a line starting with form f
 public long match_shift_fraction = NUM_FRAC_DENOM/2; /* 1/2 of screen width */
 public char intr_char = CONTROL('X'); /* Char to interrupt reads */
 public char *first_cmd_at_prompt = NULL; /* Command to exec before first prompt */
+public char *autosave;          /* Actions which do autosave of history file */
 #if HILITE_SEARCH
 public int hilite_search;       /* Highlight matched search patterns? */
 #endif
@@ -186,6 +188,7 @@ static struct optname proc_tab_optname = { "proc-tab", NULL };
 static struct optname proc_return_optname = { "proc-return", NULL };
 static struct optname match_shift_optname = { "match-shift", NULL };
 static struct optname first_cmd_at_prompt_optname = { "cmd", NULL };
+static struct optname autosave_optname = { "autosave", NULL };
 #if LESSTEST
 static struct optname ttyin_name_optname = { "tty",              NULL };
 #endif /*LESSTEST*/
@@ -761,6 +764,10 @@ static struct loption option[] =
 			".d",
 			NULL
 		}
+	},
+	{ OLETTER_NONE, &autosave_optname,
+		O_STRING|O_INIT_HANDLER, 0, NULL, opt_autosave,
+		{ "Autosave actions: ", "s", NULL }
 	},
 #if LESSTEST
 	{ OLETTER_NONE, &ttyin_name_optname,

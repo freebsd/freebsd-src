@@ -194,7 +194,7 @@ static void after_header_message(void)
         return;
     last_msg = now;
 #endif
-    bell();
+    lbell();
     /* {{ This message displays before the file text is updated, which is not a good UX. }} */
     /** error("Cannot display text before header; use --header=- to disable header", NULL_PARG); */
 }
@@ -243,9 +243,9 @@ public void jump_loc(POSITION pos, int sline)
 		 */
 		nline -= sindex;
 		if (nline > 0)
-			forw(nline, position(BOTTOM_PLUS_ONE), TRUE, FALSE, FALSE, 0);
+			forw(nline, position(BOTTOM_PLUS_ONE), TRUE, FALSE, FALSE, FALSE, 0);
 		else
-			back(-nline, position(TOP), TRUE, FALSE, FALSE);
+			back(-nline, position(TOP), TRUE, FALSE, FALSE, FALSE);
 #if HILITE_SEARCH
 		if (show_attn)
 			repaint_hilite(TRUE);
@@ -286,7 +286,7 @@ public void jump_loc(POSITION pos, int sline)
 				 * close enough to the current screen
 				 * that we can just scroll there after all.
 				 */
-				forw(sc_height-sindex+nline-1, bpos, TRUE, FALSE, FALSE, 0);
+				forw(sc_height-sindex+nline-1, bpos, TRUE, FALSE, FALSE, FALSE, 0);
 #if HILITE_SEARCH
 				if (show_attn)
 					repaint_hilite(TRUE);
@@ -308,7 +308,7 @@ public void jump_loc(POSITION pos, int sline)
 		lastmark();
 		squished = FALSE;
 		screen_trashed_num(0);
-		forw(sc_height-1, pos, TRUE, FALSE, FALSE, sindex-nline);
+		forw(sc_height-1, pos, TRUE, FALSE, FALSE, FALSE, sindex-nline);
 	} else
 	{
 		/*
@@ -337,7 +337,7 @@ public void jump_loc(POSITION pos, int sline)
 				 * close enough to the current screen
 				 * that we can just scroll there after all.
 				 */
-				back(nline, tpos, TRUE, FALSE, FALSE);
+				back(nline, tpos, TRUE, FALSE, FALSE, FALSE);
 #if HILITE_SEARCH
 				if (show_attn)
 					repaint_hilite(TRUE);
@@ -347,11 +347,11 @@ public void jump_loc(POSITION pos, int sline)
 		}
 		lastmark();
 		if (!top_scroll)
-			clear();
+			lclear();
 		else
 			home();
 		screen_trashed_num(0);
 		add_back_pos(pos);
-		back(sc_height-1, pos, TRUE, FALSE, FALSE);
+		back(sc_height-1, pos, TRUE, FALSE, FALSE, FALSE);
 	}
 }

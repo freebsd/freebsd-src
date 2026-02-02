@@ -53,5 +53,8 @@ typedef __int64 ssize_t;
 typedef __int32 ssize_t;
 #endif
 #endif
+#ifdef __BORLANDC__
+typedef long ssize_t;
+#endif
 
 #endif //  LESS_LANG_H_

@@ -52,9 +52,6 @@
 #if HAVE_CTYPE_H
 #include <ctype.h>
 #endif
-#if HAVE_WCTYPE_H
-#include <wctype.h>
-#endif
 #if HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -264,6 +261,11 @@ typedef off_t           LINENUM;
 #else
 #define OPEN_APPEND     (1)
 #endif
+#endif
+
+/* Use iread() to read tty? */
+#if !MSDOS_COMPILER || MSDOS_COMPILER == DJGPPC
+#define LESS_IREAD_TTY 1
 #endif
 
 /*
@@ -674,4 +676,13 @@ POSITION lstrtoposc(constant char*, constant char**, int);
 unsigned long lstrtoulc(constant char*, constant char**, int);
 #if MSDOS_COMPILER==WIN32C
 int pclose(FILE*);
+#endif
+#if !HAVE_STRCHR
+char * strchr(char *s, char c);
+#endif
+#if !HAVE_MEMCPY
+void * memcpy(void *dst, constant void *src, size_t len);
+#endif
+#if !HAVE_STRSTR
+char * strstr(constant char *haystack, constant char *needle);
 #endif

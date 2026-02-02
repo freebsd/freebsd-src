@@ -1,9 +1,33 @@
-.TH LESSECHO 1 "Version 685: 04 Oct 2025"
+.TH LESSECHO 1 "10 Jan 2026" "less 691"
+.\" Define a string to interpolate the hyphenless break point escape
+.\" sequence (for URLs and similar) if the formatter claims groff
+.\" compatibility, else interpolate nothing.
+.ie \n(.g .ds : \:
+.el       .ds : \" empty
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
+.HP
 .B lessecho
-.I "[-ox] [-cx] [-pn] [-dn] [-mx] [-nn] [-ex] [-a] file ..."
+.RB [ \-a ]
+.RB [ \-o\c
+.IR x ]
+.RB [ \-c\c
+.IR x ]
+.RB [ \-p\c
+.IR n ]
+.RB [ \-d\c
+.IR n ]
+.RB [ \-m\c
+.IR x ]
+.RB [ \-n\c
+.IR n ]
+.RB [ \-e\c
+.IR x ]
+.I file
+\&.\|.\|.
+.PP
+.B "lessecho \-\-version"
 .SH "DESCRIPTION"
 .B lessecho
 is a program that simply echos its arguments on standard output.
@@ -18,12 +42,12 @@ A summary of options is included below.
 .TP
 .B \-e\fIx\fP
 Specifies "\fIx\fP", rather than backslash, to be the escape char for metachars.
-If \fIx\fP is "-", no escape char is used and arguments containing metachars
+If \fIx\fP is "\-", no escape char is used and arguments containing metachars
 are surrounded by quotes instead.
 .TP
 .B \-o\fIx\fP
 Specifies "\fIx\fP", rather than double-quote, to be the open quote character,
-which is used if the \-e- option is specified.
+which is used if the \-e\- option is specified.
 .TP
 .B \-c\fIx\fP
 Specifies "\fIx\fP" to be the close quote character.
@@ -53,4 +77,7 @@ The default is that only arguments containing metacharacters are quoted.
 This manual page was written by Thomas Schoepf <schoepf@debian.org>,
 for the Debian GNU/Linux system (but may be used by others).
 .PP
-Report bugs at https://github.com/gwsw/less/issues.
+Report bugs at
+.nh
+https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues.
+.hy

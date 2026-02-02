@@ -21,91 +21,91 @@
  * be safe to run by unprivileged users.
  * SECURE_COMPILE is set by the --with-secure configure option.
  */
-#define	SECURE		SECURE_COMPILE
+#define SECURE          SECURE_COMPILE
 
 /*
  * SHELL_ESCAPE is 1 if you wish to allow shell escapes.
  * (This is possible only if your system supplies the system() function.)
  */
-#define	SHELL_ESCAPE	(!SECURE)
+#define SHELL_ESCAPE    (!SECURE)
 
 /*
  * EXAMINE is 1 if you wish to allow examining files by name from within less.
  */
-#define	EXAMINE		(!SECURE)
+#define EXAMINE         (!SECURE)
 
 /*
  * TAB_COMPLETE_FILENAME is 1 if you wish to allow the TAB key
  * to complete filenames at prompts.
  */
-#define	TAB_COMPLETE_FILENAME	(!SECURE)
+#define TAB_COMPLETE_FILENAME (!SECURE)
 
 /*
  * CMD_HISTORY is 1 if you wish to allow keys to cycle through
  * previous commands at prompts.
  */
-#define	CMD_HISTORY	1
+#define CMD_HISTORY     1
 
 /*
  * HILITE_SEARCH is 1 if you wish to have search targets to be 
  * displayed in standout mode.
  */
-#define	HILITE_SEARCH	1
+#define HILITE_SEARCH   1
 
 /*
  * EDITOR is 1 if you wish to allow editor invocation (the "v" command).
  * (This is possible only if your system supplies the system() function.)
  * EDIT_PGM is the name of the (default) editor to be invoked.
  */
-#define	EDITOR		(!SECURE)
+#define EDITOR          (!SECURE)
 
 /*
  * TAGS is 1 if you wish to support tag files.
  */
-#define	TAGS		(!SECURE)
+#define TAGS            (!SECURE)
 
 /*
- * USERFILE is 1 if you wish to allow a .less file to specify 
+ * USERFILE is 1 if you wish to allow a .lesskey or .less file to specify 
  * user-defined key bindings.
  */
-#define	USERFILE	(!SECURE)
+#define USERFILE        (!SECURE)
 
 /*
  * GLOB is 1 if you wish to have shell metacharacters expanded in filenames.
  * This will generally work if your system provides the "popen" function
  * and the "echo" shell command.
  */
-#define	GLOB		(!SECURE)
+#define GLOB            (!SECURE)
 
 /*
  * PIPEC is 1 if you wish to have the "|" command
  * which allows the user to pipe data into a shell command.
  */
-#define	PIPEC		(!SECURE && HAVE_POPEN)
+#define PIPEC           (!SECURE && HAVE_POPEN)
 
 /*
  * LOGFILE is 1 if you wish to allow the -o option (to create log files).
  */
-#define	LOGFILE		(!SECURE)
+#define LOGFILE         (!SECURE)
 
 /*
- * OSC8_SEARCH is 1 if you wish to allow the ^O^O and related commands
+ * OSC8_LINK is 1 if you wish to allow the ^O^O and related commands
  * (to open OSC8 hyperlinks).
  */
-#define OSC8_LINK	1
+#define OSC8_LINK       1
 
 /*
  * GNU_OPTIONS is 1 if you wish to support the GNU-style command
  * line options --help and --version.
  */
-#define	GNU_OPTIONS	1
+#define GNU_OPTIONS     1
 
 /*
  * ONLY_RETURN is 1 if you want RETURN to be the only input which
  * will continue past an error message.
  * Otherwise, any key will continue past an error message.
  */
-#define	ONLY_RETURN	0
+#define ONLY_RETURN     0
 
 /*
  * LESSKEYFILE is the filename of the default lesskey output file 
@@ -116,33 +116,36 @@
  * LESSHISTFILE is the filename of the history file
  * (in the HOME directory).
  */
-#define	LESSKEYFILE		".less"
-#define	LESSKEYFILE_SYS		"/etc/lesskey"
-#define	DEF_LESSKEYINFILE	".lesskey"
-#define	LESSKEYINFILE_SYS	"/etc/syslesskey"
-#define LESSHISTFILE		".lesshst"
+/* FreeBSD */
+#define	SYSDIR			"/etc"
+
+#define LESSKEYFILE             ".less"
+#define LESSKEYFILE_SYS         SYSDIR "/sysless"
+#define DEF_LESSKEYINFILE       ".lesskey"
+#define LESSKEYINFILE_SYS       SYSDIR "/syslesskey"
+#define LESSHISTFILE            ".lesshst"
 
 /* Autodetect mingw */
 #if defined(__MINGW32__)
 /*
  * Define MSDOS_COMPILER if compiling under Microsoft C.
  */
-#define	MSDOS_COMPILER	WIN32C
+#define MSDOS_COMPILER  WIN32C
 
 /*
  * Pathname separator character.
  */
-#define	PATHNAME_SEP	"\\"
+#define PATHNAME_SEP    "\\"
 #else
 /*
  * Define MSDOS_COMPILER if compiling under Microsoft C.
  */
-#define	MSDOS_COMPILER	0
+#define MSDOS_COMPILER  0
 
 /*
  * Pathname separator character.
  */
-#define	PATHNAME_SEP	"/"
+#define PATHNAME_SEP    "/"
 #endif
 
 /* Settings always true on Unix.  */
@@ -154,9 +157,9 @@
 #define TGETENT_OK  1
 
 /*
- * HAVE_ANSI_PROTOS	is 1 if your compiler supports ANSI function prototypes.
+ * HAVE_ANSI_PROTOS is 1 if your compiler supports ANSI function prototypes.
  */
-#define HAVE_ANSI_PROTOS	1
+#define HAVE_ANSI_PROTOS 1
 
 /*
  * HAVE_SYS_TYPES_H is 1 if your system has <sys/types.h>.
@@ -172,28 +175,28 @@
  * HAVE_PERROR is 1 if your system has the perror() call.
  * (Actually, if it has sys_errlist, sys_nerr and errno.)
  */
-#define	HAVE_PERROR	1
+#define HAVE_PERROR     1
 
 /*
  * HAVE_TIME is 1 if your system has the time() call.
  */
-#define	HAVE_TIME	1
+#define HAVE_TIME       1
 
 /*
  * HAVE_SHELL is 1 if your system supports a SHELL command interpreter.
  */
-#define	HAVE_SHELL	1
+#define HAVE_SHELL      1
 
 /*
  * Default shell metacharacters and meta-escape character.
  */
-#define	DEF_METACHARS	"; *?\t\n'\"()<>[]|&^`#\\$%=~{},"
-#define	DEF_METAESCAPE	"\\"
+#define DEF_METACHARS   "; *?\t\n'\"()<>[]|&^`#\\$%=~{},"
+#define DEF_METAESCAPE  "\\"
 
 /* 
  * HAVE_DUP is 1 if your system has the dup() call.
  */
-#define	HAVE_DUP	1
+#define HAVE_DUP        1
 
 /* Define to 1 if you have the memcpy() function. */
 #define HAVE_MEMCPY 1
@@ -211,26 +214,26 @@
  * Sizes of various buffers.
  */
 #if 0 /* old sizes for small memory machines */
-#define	CMDBUF_SIZE	512	/* Buffer for multichar commands */
-#define	UNGOT_SIZE	100	/* Max chars to unget() */
-#define	LINEBUF_SIZE	1024	/* Max size of line in input file */
-#define	OUTBUF_SIZE	1024	/* Output buffer */
-#define	PROMPT_SIZE	200	/* Max size of prompt string */
-#define	TERMBUF_SIZE	2048	/* Termcap buffer for tgetent */
-#define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
-#define	TAGLINE_SIZE	512	/* Max size of line in tags file */
-#define	TABSTOP_MAX	32	/* Max number of custom tab stops */
+#define CMDBUF_SIZE     512     /* Buffer for multichar commands */
+#define UNGOT_SIZE      100     /* Max chars to unget() */
+#define LINEBUF_SIZE    1024    /* Max size of line in input file */
+#define OUTBUF_SIZE     1024    /* Output buffer */
+#define PROMPT_SIZE     200     /* Max size of prompt string */
+#define TERMBUF_SIZE    2048    /* Termcap buffer for tgetent */
+#define TERMSBUF_SIZE   1024    /* Buffer to hold termcap strings */
+#define TAGLINE_SIZE    512     /* Max size of line in tags file */
+#define TABSTOP_MAX     32      /* Max number of custom tab stops */
 #define LINENUM_POOL    200     /* Size of line number pool */
 #else /* more reasonable sizes for modern machines */
-#define	CMDBUF_SIZE	2048	/* Buffer for multichar commands */
-#define	UNGOT_SIZE	200	/* Max chars to unget() */
-#define	LINEBUF_SIZE	1024	/* Initial max size of line in input file */
-#define	OUTBUF_SIZE	1024	/* Output buffer */
-#define	PROMPT_SIZE	2048	/* Max size of prompt string */
-#define	TERMBUF_SIZE	2048	/* Termcap buffer for tgetent */
-#define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
-#define	TAGLINE_SIZE	1024	/* Max size of line in tags file */
-#define	TABSTOP_MAX	128	/* Max number of custom tab stops */
+#define CMDBUF_SIZE     2048    /* Buffer for multichar commands */
+#define UNGOT_SIZE      200     /* Max chars to unget() */
+#define LINEBUF_SIZE    1024    /* Initial max size of line in input file */
+#define OUTBUF_SIZE     1024    /* Output buffer */
+#define PROMPT_SIZE     2048    /* Max size of prompt string */
+#define TERMBUF_SIZE    2048    /* Termcap buffer for tgetent */
+#define TERMSBUF_SIZE   1024    /* Buffer to hold termcap strings */
+#define TAGLINE_SIZE    1024    /* Max size of line in tags file */
+#define TABSTOP_MAX     128     /* Max number of custom tab stops */
 #define LINENUM_POOL    1024    /* Size of line number pool */
 #endif
 
@@ -393,6 +396,9 @@
 /* Define to 1 if you have the <termcap.h> header file. */
 #define HAVE_TERMCAP_H 1
 
+/* Define HAVE_TERMINFO if you have the terminfo library. */
+#define HAVE_TERMINFO 1
+
 /* Define HAVE_TERMIOS_FUNCS if you have tcgetattr/tcsetattr. */
 #define HAVE_TERMIOS_FUNCS 1
 
@@ -428,12 +434,6 @@
 
 /* Define HAVE_VOID if your compiler supports the "void" type. */
 #define HAVE_VOID 1
-
-/* Define HAVE_WCTYPE if you have iswupper, iswlower, towupper, towlower. */
-#define HAVE_WCTYPE 1
-
-/* Define to 1 if you have the <wctype.h> header file. */
-#define HAVE_WCTYPE_H 1
 
 /* Define to 1 if you have the '_setjmp' function. */
 #define HAVE__SETJMP 1

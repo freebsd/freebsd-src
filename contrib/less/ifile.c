@@ -31,7 +31,7 @@ struct ifile {
 	void *h_filestate;              /* File state (used in ch.c) */
 	int h_index;                    /* Index within command line list */
 	int h_hold;                     /* Hold count */
-	char h_opened;                  /* Has this ifile been opened? */
+	lbool h_opened;                 /* Has this ifile been opened? */
 	struct scrpos h_scrpos;         /* Saved position within the file */
 	void *h_altpipe;                /* Alt pipe */
 	char *h_altfilename;            /* Alt filename */
@@ -108,7 +108,7 @@ static struct ifile * new_ifile(constant char *filename, struct ifile *prev)
 	p->h_filename = save(filename);
 	p->h_rfilename = lrealpath(filename);
 	p->h_scrpos.pos = NULL_POSITION;
-	p->h_opened = 0;
+	p->h_opened = FALSE;
 	p->h_hold = 0;
 	p->h_filestate = NULL;
 	p->h_altfilename = NULL;
@@ -269,7 +269,7 @@ public int get_index(IFILE ifile)
 /*
  * Save the file position to be associated with a given file.
  */
-public void store_pos(IFILE ifile, struct scrpos *scrpos)
+public void store_pos(IFILE ifile, constant struct scrpos *scrpos)
 {
 	int_ifile(ifile)->h_scrpos = *scrpos;
 }
@@ -288,13 +288,13 @@ public void get_pos(IFILE ifile, struct scrpos *scrpos)
  */
 public void set_open(IFILE ifile)
 {
-	int_ifile(ifile)->h_opened = 1;
+	int_ifile(ifile)->h_opened = TRUE;
 }
 
 /*
  * Return whether the ifile has been opened previously.
  */
-public int opened(IFILE ifile)
+public lbool opened(IFILE ifile)
 {
 	return (int_ifile(ifile)->h_opened);
 }

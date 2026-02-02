@@ -32,7 +32,7 @@ extern int jump_sline;
 extern lbool quitting;
 extern int wscroll;
 extern int top_scroll;
-extern int ignore_eoi;
+extern lbool ignore_eoi;
 extern int hshift;
 extern int bs_mode;
 extern int proc_backspace;
@@ -49,7 +49,6 @@ extern void *ml_examine;
 extern int wheel_lines;
 extern int def_search_type;
 extern lbool search_wrapped;
-extern lbool no_poll;
 extern int no_paste;
 extern lbool pasting;
 extern int no_edit_warn;
@@ -154,7 +153,7 @@ static void start_mca(int action, constant char *prompt, void *mlist, int cmdfla
 	set_mlist(mlist, cmdflags);
 }
 
-public int in_mca(void)
+public lbool in_mca(void)
 {
 	return (mca != 0 && mca != A_PREFIX);
 }
@@ -476,7 +475,7 @@ static int mca_opt_nonfirst_char(char c)
 		}
 	} else if (!ambig)
 	{
-		bell();
+		lbell();
 	}
 	return (MCA_MORE);
 }
@@ -575,7 +574,10 @@ static int mca_search_char(char c)
 	 */
 	if (!cmdbuf_empty() || literal_char)
 	{
+		lbool was_literal_char = literal_char;
 		literal_char = FALSE;
+		if (was_literal_char)
+			mca_search1();
 		return (NO_MCA);
 	}
 
@@ -637,6 +639,17 @@ static int mca_search_char(char c)
 		return (MCA_MORE);
 	}
 	return (NO_MCA);
+}
+
+/*
+ * Jump back to the starting position of an incremental search.
+ */
+static void jump_search_incr_pos(void)
+{
+	if (search_incr_pos.pos == NULL_POSITION)
+		return;
+	hshift = search_incr_hshift;
+	jump_loc(search_incr_pos.pos, search_incr_pos.ln);
 }
 
 /*
@@ -772,30 +785,21 @@ static int mca_char(char c)
 			if (*pattern == '\0')
 			{
 				/* User has backspaced to an empty pattern. */
-				undo_search(1);
-				hshift = search_incr_hshift;
-				jump_loc(search_incr_pos.pos, search_incr_pos.ln);
+				undo_search(TRUE);
+				jump_search_incr_pos();
 			} else
 			{
-				/*
-				 * Suppress tty polling while searching.
-				 * This avoids a problem where tty input
-				 * can cause the search to be interrupted.
-				 */
-				no_poll = TRUE;
 				if (search(st | SRCH_INCR, pattern, 1) != 0)
 				{
 					/* No match, invalid pattern, etc. */
-					undo_search(1);
-					hshift = search_incr_hshift;
-					jump_loc(search_incr_pos.pos, search_incr_pos.ln);
+					undo_search(TRUE);
+					jump_search_incr_pos();
 				}
-				no_poll = FALSE;
 			}
 			/* Redraw the search prompt and search string. */
 			if (is_screen_trashed() || !full_screen)
 			{
-				clear();
+				lclear();
 				repaint();
 			}
 			mca_search1();
@@ -851,7 +855,7 @@ static void make_display(void)
 	 * We need to clear and repaint screen before any change.
 	 */
 	if (!full_screen && !(quit_if_one_screen && one_screen))
-		clear();
+		lclear();
 	/*
 	 * If nothing is displayed yet, display starting from initial_scrpos.
 	 */
@@ -864,9 +868,9 @@ static void make_display(void)
 	} else if (is_screen_trashed() || !full_screen)
 	{
 		int save_top_scroll = top_scroll;
-		int save_ignore_eoi = ignore_eoi;
+		lbool save_ignore_eoi = ignore_eoi;
 		top_scroll = 1;
-		ignore_eoi = 0;
+		ignore_eoi = FALSE;
 		if (is_screen_trashed() == 2)
 		{
 			/* Special case used by ignore_eoi: re-open the input file
@@ -1304,29 +1308,31 @@ static void multi_search(constant char *pattern, int n, int silent)
 /*
  * Forward forever, or until a highlighted line appears.
  */
-static int forw_loop(int until_hilite)
+static int forw_loop(int action)
 {
-	POSITION curr_len;
+	POSITION prev_hilite;
 
 	if (ch_getflags() & CH_HELPFILE)
 		return (A_NOACTION);
 
 	cmd_exec();
 	jump_forw_buffered();
-	curr_len = ch_length();
-	highest_hilite = until_hilite ? curr_len : NULL_POSITION;
-	ignore_eoi = 1;
+	highest_hilite = prev_hilite = 0;
+	ignore_eoi = TRUE;
 	while (!sigs)
 	{
-		if (until_hilite && highest_hilite > curr_len)
+		if (action != A_F_FOREVER && highest_hilite > prev_hilite)
 		{
-			bell();
-			break;
+			lbell();
+			if (action == A_F_UNTIL_HILITE)
+				break;
+			prev_hilite = highest_hilite;
 		}
 		make_display();
 		forward(1, FALSE, FALSE, FALSE);
 	}
-	ignore_eoi = 0;
+	highest_hilite = NULL_POSITION;
+	ignore_eoi = FALSE;
 	ch_set_eof();
 
 	/*
@@ -1334,7 +1340,7 @@ static int forw_loop(int until_hilite)
 	 * a non-abort signal (e.g. window-change).  
 	 */
 	if (sigs && !ABORT_SIGS())
-		return (until_hilite ? A_F_UNTIL_HILITE : A_F_FOREVER);
+		return (action);
 
 	return (A_NOACTION);
 }
@@ -1401,7 +1407,6 @@ public void commands(void)
 #endif
 
 	search_type = SRCH_FORW;
-	wscroll = (sc_height + 1) / 2;
 	newaction = A_NOACTION;
 
 	for (;;)
@@ -1507,7 +1512,9 @@ public void commands(void)
 				 * want erase_char/kill_char to be treated
 				 * as line editing characters.
 				 */
-				constant char tbuf[2] = { c, '\0' };
+				char tbuf[2];
+				tbuf[0] = c;
+				tbuf[1] = '\0';
 				action = fcmd_decode(tbuf, &extra);
 			}
 			/*
@@ -1664,6 +1671,8 @@ public void commands(void)
 			break;
 
 		case A_F_FOREVER:
+		case A_F_FOREVER_BELL:
+		case A_F_UNTIL_HILITE:
 			/*
 			 * Forward forever, ignoring EOF.
 			 */
@@ -1671,11 +1680,7 @@ public void commands(void)
 				error("Warning: command may not work correctly when file is viewed via LESSOPEN", NULL_PARG);
 			if (show_attn)
 				set_attnpos(bottompos);
-			newaction = forw_loop(0);
-			break;
-
-		case A_F_UNTIL_HILITE:
-			newaction = forw_loop(1);
+			newaction = forw_loop(action);
 			break;
 
 		case A_F_SCROLL:
@@ -2143,7 +2148,7 @@ public void commands(void)
 			cmd_exec();
 			if (new_ifile == NULL_IFILE)
 			{
-				bell();
+				lbell();
 				break;
 			}
 			if (edit_ifile(new_ifile) != 0)
@@ -2353,7 +2358,7 @@ public void commands(void)
 			break;
 
 		default:
-			bell();
+			lbell();
 			break;
 		}
 	}

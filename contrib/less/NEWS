@@ -11,6 +11,68 @@
 
 ======================================================================
 
+	Major changes between "less" versions 685 and 691
+
+* Add --autosave option (github #678).
+
+* Add ESC-f command (github #680).
+
+* Add column number to long prompt and = message.
+
+* Add prompt prototype sequences %C, %W, %Q and ?Q (github #685).
+
+* Map keypad keys, and use terminfo rather than termcap since keypad
+  definitions don't exist in termcap (github #650).
+
+* Change HOME key to scroll fully left and END key to scroll fully right.
+  Add shift-HOME and ctrl-HOME to scroll left and jump to top, and
+  add shift-END and ctrl-END to scroll right and jump to end (github #658).
+
+* Add LESSNOCONFIG environment variable.
+
+* Add --without-termlib to configure (github #701).
+
+* When setting line number colors (-DN), don't force bold attribute.
+  To set bold, you must append "d" or "*" to the color string (github #684).
+
+* While waiting for file data, only ^C or ^X will interrupt, not any command.
+  This reverts to behavior that existed before less-670 (github #700).
+
+* When --save-marks is not used, retain any marks saved in the history file
+  (github #662).
+
+* Defer sending the terminal init string until the first char is read
+  from the input file (github #682).
+
+* Make SIGHUP do an orderly exit like SIGTERM.
+
+* Implement modeline handling in Windows build.
+
+* Fix bugs and improve behavior of screen resize on Windows.
+
+* Fix bug when entering search modifier key at start of non-empty 
+  search string (github #668).
+
+* Fix bug repainting screen with --form-feed (github #672).
+
+* Fix bugs passing invalid negative values to some command line
+  options (github #675).
+
+* Fix incorrect display of Lit indicator (github #670).
+
+* Fix incorrect display when returning to a mark after resizeing window
+  (github #681).
+
+* Fix bug using --pattern with --incsearch (github #696).
+
+* Disallow mouse click to open OSC8 link in SECURE mode (github #676).
+
+* Add SECURE_COMPILE environment variable for Windows builds.
+
+* Update Unicode tables.
+
+======================================================================
+
 	Major changes between "less" versions 679 and 685
 
 * Add --cmd option (github #624).

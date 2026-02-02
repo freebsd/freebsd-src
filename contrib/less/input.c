@@ -22,7 +22,6 @@
 extern int squeeze;
 extern int hshift;
 extern int quit_if_one_screen;
-extern int ignore_eoi;
 extern int status_col;
 extern int wordwrap;
 extern POSITION start_attnpos;

@@ -44,6 +44,7 @@ extern char *wproto;
 extern char *every_first_cmd;
 extern IFILE curr_ifile;
 extern char version[];
+extern int jump_sline_arg;
 extern int jump_sline;
 extern long jump_sline_fraction;
 extern int shift_count;
@@ -73,6 +74,7 @@ extern int nosearch_header_cols;
 extern POSITION header_start_pos;
 extern char *init_header;
 extern char *first_cmd_at_prompt;
+extern char *autosave;
 #if LOGFILE
 extern char *namelogfile;
 extern lbool force_logfile;
@@ -166,36 +168,27 @@ public void opt__O(int type, constant char *s)
 }
 #endif
 
-static int toggle_fraction(int *num, long *frac, constant char *s, constant char *printopt, void (*calc)(void))
+static void toggle_fraction(int *num, long *frac, constant char *s, constant char *printopt, lbool neg_ok, void (*calc)(void))
 {
-	lbool err;
 	if (s == NULL)
 	{
-		(*calc)();
 	} else if (*s == '.')
 	{
-        long tfrac;
 		s++;
-		tfrac = getfraction(&s, printopt, &err);
-		if (err)
+		if (!getfraction(&s, frac))
 		{
-			error("Invalid fraction", NULL_PARG);
-			return -1;
+			PARG parg;
+			parg.p_string = printopt;
+			error("Invalid fraction in %s", &parg);
+			return;
 		}
-		*frac = tfrac;
-		(*calc)();
 	} else
 	{
-		int tnum = getnumc(&s, printopt, &err);
-		if (err)
-		{
-			error("Invalid number", NULL_PARG);
-			return -1;
-		}
+		if (!getnumc(&s, printopt, neg_ok, num))
+			return;
 		*frac = -1;
-		*num = tnum;
 	}
-	return 0;
+	(*calc)();
 }
 
 static void query_fraction(int value, long fraction, constant char *int_msg, constant char *frac_msg)
@@ -229,11 +222,11 @@ public void opt_j(int type, constant char *s)
 	{
 	case INIT:
 	case TOGGLE:
-		toggle_fraction(&jump_sline, &jump_sline_fraction,
-			s, "j", calc_jump_sline);
+		toggle_fraction(&jump_sline_arg, &jump_sline_fraction,
+			s, "-j", TRUE, calc_jump_sline);
 		break;
 	case QUERY:
-		query_fraction(jump_sline, jump_sline_fraction, 
+		query_fraction(jump_sline_arg, jump_sline_fraction,
 			"Position target at screen line %d", "Position target at screen position %s");
 		break;
 	}
@@ -241,10 +234,19 @@ public void opt_j(int type, constant char *s)
 
 public void calc_jump_sline(void)
 {
+	jump_sline = jump_sline_arg;
+	/* If jump_sline_fraction is set, calculate jump_sline from it. */
 	if (jump_sline_fraction >= 0)
 		jump_sline = (int) muldiv(sc_height, jump_sline_fraction, NUM_FRAC_DENOM);
+	/* Negative jump_sline means relative to bottom of screen. */
+	if (jump_sline < 0)
+		jump_sline += sc_height;
+	/* If jump_sline is obscured by header, move it after the header. */
 	if (jump_sline <= header_lines)
 		jump_sline = header_lines + 1;
+	/* If jump_sline is past bottom of screen, move it to the bottom. */
+	if (jump_sline >= sc_height)
+		jump_sline = sc_height - 1;
 }
 
 /*
@@ -257,7 +259,7 @@ public void opt_shift(int type, constant char *s)
 	case INIT:
 	case TOGGLE:
 		toggle_fraction(&shift_count, &shift_count_fraction,
-			s, "#", calc_shift_count);
+			s, "-#", FALSE, calc_shift_count);
 		break;
 	case QUERY:
 		query_fraction(shift_count, shift_count_fraction,
@@ -473,6 +475,30 @@ public void opt__P(int type, constant char *s)
 }
 
 /*
+ * Handler for --autosave option.
+ */
+public void opt_autosave(int type, constant char *s)
+{
+	PARG parg;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		if (s == NULL)
+			s = "-";
+		if (autosave != NULL)
+			free(autosave);
+		autosave = save(s);
+		break;
+	case QUERY:
+		parg.p_string = (autosave != NULL) ? autosave : "-";
+		error("Autosave actions: %s", &parg);
+		break;
+	}
+}
+
+/*
  * Handler for the -b option.
  */
 	/*ARGSUSED*/
@@ -522,7 +548,7 @@ public void opt__V(int type, constant char *s)
 		dispversion();
 		break;
 	case INIT:
-		set_output(1); /* Force output to stdout per GNU standard for --version output. */
+		set_output(1, TRUE); /* Force output to stdout per GNU standard for --version output. */
 		putstr("less ");
 		putstr(version);
 		putstr(" (");
@@ -854,7 +880,7 @@ public void opt_match_shift(int type, constant char *s)
 	case INIT:
 	case TOGGLE:
 		toggle_fraction(&match_shift, &match_shift_fraction,
-			s, "--match-shift", calc_match_shift);
+			s, "--match-shift", FALSE, calc_match_shift);
 		break;
 	case QUERY:
 		query_fraction(match_shift, match_shift_fraction,
@@ -1019,28 +1045,24 @@ public void opt_intr(int type, constant char *s)
  * Return -1 if the list entry is missing or empty.
  * Updates *sp to point to the first char of the next number in the list.
  */
-public int next_cnum(constant char **sp, constant char *printopt, constant char *errmsg, lbool *errp)
+static lbool next_cnum(constant char **sp, constant char *printopt, mutable int *p_num)
 {
-	int n;
-	*errp = FALSE;
 	if (**sp == '\0') /* at end of line */
-		return -1;
+	{
+		*p_num = -1;
+		return TRUE;
+	}
 	if (**sp == ',') /* that's the next comma; we have an empty string */
 	{
 		++(*sp);
-		return -1;
+		*p_num = -1;
+		return TRUE;
 	}
-	n = getnumc(sp, printopt, errp);
-	if (*errp)
-	{
-		PARG parg;
-		parg.p_string = errmsg;
-		error("invalid %s", &parg);
-		return -1;
-	}
+	if (!getnumc(sp, printopt, FALSE, p_num))
+		return FALSE;
 	if (**sp == ',')
 		++(*sp);
-	return n;
+	return TRUE;
 }
 
 /*
@@ -1050,26 +1072,21 @@ public int next_cnum(constant char **sp, constant char *printopt, constant char 
 static lbool parse_header(constant char *s, int *lines, int *cols, POSITION *start_pos)
 {
 	int n;
-	lbool err;
 
 	if (*s == '-')
 		s = "0,0";
-
-	n = next_cnum(&s, "header", "number of lines", &err);
-	if (err) return FALSE;
+	if (!next_cnum(&s, "--header", &n))
+		return FALSE;
 	if (n >= 0) *lines = n;
-
-	n = next_cnum(&s, "header", "number of columns", &err);
-	if (err) return FALSE;
+	if (!next_cnum(&s, "--header", &n))
+		return FALSE;
 	if (n >= 0) *cols = n;
-
-	n = next_cnum(&s, "header", "line number", &err);
-	if (err) return FALSE;
-	if (n > 0) 
+	if (!next_cnum(&s, "--header", &n))
+		return FALSE;
+	if (n > 0)
 	{
-		LINENUM lnum = (LINENUM) n;
-		if (lnum < 1) lnum = 1;
-		*start_pos = find_pos(lnum);
+		if (n < 1) n = 1;
+		*start_pos = find_pos((LINENUM)n);
 	}
 	return TRUE;
 }
@@ -1264,3 +1281,10 @@ public int get_swindow(void)
 	return (sc_height - header_lines + swindow);
 }
 
+/*
+ * Should an action initiate an autosave?
+ */
+public lbool autosave_action(char act)
+{
+	return strchr(autosave, act) != NULL || strchr(autosave, '*') != NULL;
+}

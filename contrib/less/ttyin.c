@@ -192,7 +192,7 @@ public int getchr(void)
 	do
 	{
 		flush();
-#if MSDOS_COMPILER && MSDOS_COMPILER != DJGPPC
+#if !LESS_IREAD_TTY
 		/*
 		 * In raw read, we don't see ^C so look here for it.
 		 */
@@ -208,7 +208,7 @@ public int getchr(void)
 		result = 1;
 		if (c == '\003')
 			return (READ_INTR);
-#else
+#else /* LESS_IREAD_TTY */
 		{
 			unsigned char uc;
 			result = iread(tty, &uc, sizeof(char));

@@ -147,19 +147,19 @@ public int onscreen(POSITION pos)
 /*
  * See if the entire screen is empty.
  */
-public int empty_screen(void)
+public lbool empty_screen(void)
 {
 	return (empty_lines(0, sc_height-1));
 }
 
-public int empty_lines(int s, int e)
+public lbool empty_lines(int s, int e)
 {
 	int i;
 
 	for (i = s;  i <= e;  i++)
 		if (table[i] != NULL_POSITION && table[i] != 0)
-			return (0);
-	return (1);
+			return FALSE;
+	return TRUE;
 }
 
 /*
@@ -232,12 +232,12 @@ public int sindex_from_sline(int sline)
 	if (sline < 0)
 		sline += sc_height;
 	/*
-	 * Can't be less than 1 or greater than sc_height.
+	 * Can't be less than 1 or greater than sc_height-1.
 	 */
 	if (sline <= 0)
 		sline = 1;
-	if (sline > sc_height)
-		sline = sc_height;
+	if (sline >= sc_height)
+		sline = sc_height-1;
 	/*
 	 * Return zero-based line number, not one-based.
 	 */

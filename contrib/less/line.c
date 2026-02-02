@@ -97,7 +97,7 @@ extern int twiddle;
 extern int status_col;
 extern int status_col_width;
 extern int linenum_width;
-extern int auto_wrap, ignaw;
+extern int auto_wrap, defer_wrap;
 extern int bo_s_width, bo_e_width;
 extern int ul_s_width, ul_e_width;
 extern int bl_s_width, bl_e_width;
@@ -129,7 +129,7 @@ static struct color_map color_map[] = {
 	{ AT_COLOR_BIN,            "kR" },
 	{ AT_COLOR_CTRL,           "kR" },
 	{ AT_COLOR_ERROR,          "kY" },
-	{ AT_COLOR_LINENUM,        "c" },
+	{ AT_COLOR_LINENUM,        "c*" },
 	{ AT_COLOR_MARK,           "Wb" },
 	{ AT_COLOR_PROMPT,         "kC" },
 	{ AT_COLOR_RSCROLL,        "kc" },
@@ -185,7 +185,7 @@ public void init_line(void)
 			s = skipspc(s);
 			if (*s == ',')
 				++s;
-			xbuf_add_data(&xbuf, (constant void *) &num, sizeof(num));
+			xbuf_add_data(&xbuf, &num, sizeof(num));
 			++osc_ansi_allow_count;
 		}
 		osc_ansi_allow = (long *) xbuf.data;
@@ -436,7 +436,7 @@ public void plinestart(POSITION pos)
 		for (i = 0; i + len < (size_t) linenum_width; i++)
 			add_pfx(' ', AT_NORMAL);
 		for (i = 0; i < len; i++)
-			add_pfx(buf[i], AT_BOLD|AT_COLOR_LINENUM);
+			add_pfx(buf[i], use_color ? AT_COLOR_LINENUM : AT_BOLD);
 		add_pfx(' ', AT_NORMAL);
 	}
 	end_column = (int) linebuf.pfx_end; /*{{type-issue}}*/
@@ -1480,14 +1480,14 @@ public void pdone(lbool endline, lbool chopped, lbool forw)
 	 * the next line is blank.  In that case the single newline output for
 	 * that blank line would be ignored!)
 	 */
-	if (end_column < sc_width + cshift || !auto_wrap || (endline && ignaw) || ctldisp == OPT_ON)
+	if (end_column < sc_width + cshift || !auto_wrap || (endline && defer_wrap) || ctldisp == OPT_ON)
 	{
 		add_linebuf('\n', AT_NORMAL, 0);
 	} 
-	else if (ignaw && end_column >= sc_width + cshift && forw)
+	else if (defer_wrap && end_column >= sc_width + cshift && forw)
 	{
 		/*
-		 * Terminals with "ignaw" don't wrap until they *really* need
+		 * Terminals with "defer_wrap" don't wrap until they *really* need
 		 * to, i.e. when the character *after* the last one to fit on a
 		 * line is output. But they are too hard to deal with when they
 		 * get in the state where a full screen width of characters
@@ -1509,7 +1509,7 @@ public void pdone(lbool endline, lbool chopped, lbool forw)
 	 * colored with the last char's background color before the color
 	 * reset sequence is sent. Clear the line to reset the background color.
 	 */
-	if (auto_wrap && !ignaw && end_column >= sc_width + cshift)
+	if (auto_wrap && !defer_wrap && end_column >= sc_width + cshift)
 		clear_after_line = TRUE;
 	set_linebuf(linebuf.end, '\0', AT_NORMAL);
 }
@@ -1915,27 +1915,36 @@ public void load_line(constant char *str)
 }
 
 /*
- * Find the shift necessary to show the end of the longest displayed line.
+ * Find the length of the longest displayed line on the screen.
  */
-public int rrshift(void)
+public int longest_line_width(void)
 {
 	POSITION pos;
 	int save_width;
-	int sline;
+	int sindex;
 	int longest = 0;
 
 	save_width = sc_width;
 	sc_width = INT_MAX; /* so forw_line() won't chop */
-	for (sline = TOP; sline < sc_height; sline++)
-		if ((pos = position(sline)) != NULL_POSITION)
+	for (sindex = TOP; sindex < sc_height-1; sindex++)
+		if ((pos = position(sindex)) != NULL_POSITION)
 			break;
-	for (; sline < sc_height && pos != NULL_POSITION; sline++)
+	for (; sindex < sc_height-1 && pos != NULL_POSITION; sindex++)
 	{
 		pos = forw_line(pos, NULL, NULL);
 		if (end_column > longest)
 			longest = end_column;
 	}
 	sc_width = save_width;
+	return longest;
+}
+
+/*
+ * Find the shift necessary to show the end of the longest displayed line.
+ */
+public int rrshift(void)
+{
+	int longest = longest_line_width();
 	if (longest < sc_width)
 		return 0;
 	return longest - sc_width;

@@ -23,7 +23,6 @@
 public int errmsgs;    /* Count of messages displayed by error() */
 public int need_clr;
 public int final_attr;
-public int at_prompt;
 
 extern int sigs;
 extern int sc_width;
@@ -32,6 +31,7 @@ extern int is_tty;
 extern int oldbot;
 extern int utf_mode;
 extern char intr_char;
+extern lbool term_init_ever;
 
 #if MSDOS_COMPILER==WIN32C || MSDOS_COMPILER==BORLANDC || MSDOS_COMPILER==DJGPPC
 extern int ctldisp;
@@ -84,7 +84,7 @@ public void put_line(lbool forw_scroll)
 /*
  * win_flush has at least one non-critical issue when an escape sequence
  * begins at the last char of the buffer, and possibly more issues.
- * as a temporary measure to reduce likelyhood of encountering end-of-buffer
+ * as a temporary measure to reduce likelihood of encountering end-of-buffer
  * issues till the SGR parser is replaced, OUTBUF_SIZE is 8K on Windows.
  */
 static char obuf[OUTBUF_SIZE];
@@ -435,17 +435,19 @@ public void flush(void)
 #endif
 #endif
 
-	if (write(outfd, obuf, n) != n)
+	if (write(outfd, obuf, n) != (ssize_t) n)
 		screen_trashed();
 }
 
 /*
  * Set the output file descriptor (1=stdout or 2=stderr).
  */
-public void set_output(int fd)
+public void set_output(int fd, lbool no_term_init)
 {
 	flush();
 	outfd = fd;
+	if (no_term_init)
+		term_init_ever = TRUE; /* don't init terminal in putchr */
 }
 
 /*
@@ -455,8 +457,17 @@ public void set_output(int fd)
 public int putchr(int ch)
 {
 	char c = (char) ch;
+
+	/*
+	 * Init the terminal if this is the first byte written to stdout
+	 * (rather than stderr), and the terminal has never been initted.
+	 * If it has previously been initted, it will be reinitted explicitly
+	 * as part of a term_deinit/term_init pair, so we shouldn't do it here.
+	 */
+	if (!term_init_ever && outfd == 1)
+		term_init();
+
 #if 0 /* fake UTF-8 output for testing */
-	extern int utf_mode;
 	if (utf_mode)
 	{
 		static char ubuf[MAX_UTF_CHAR_LEN];
@@ -494,7 +505,6 @@ public int putchr(int ch)
 	if (ob >= &obuf[sizeof(obuf)-1])
 		flush();
 	*ob++ = c;
-	at_prompt = 0;
 	return (c);
 }
 
@@ -590,7 +600,7 @@ IPRINT_FUNC(iprint_linenum, LINENUM, linenumtoa)
  * {{ This paranoia about the portability of printf dates from experiences
  *    with systems in the 1980s and is of course no longer necessary. }}
  */
-public int less_printf(constant char *fmt, PARG *parg)
+public int less_printf(constant char *fmt, constant PARG *parg)
 {
 	constant char *s;
 	constant char *es;
@@ -664,7 +674,7 @@ public void get_return(void)
 
 #if ONLY_RETURN
 	while ((c = getchr()) != '\n' && c != '\r')
-		bell();
+		lbell();
 #else
 	c = getchr();
 	if (c != '\n' && c != '\r' && c != ' ' && c != READ_INTR)
@@ -676,7 +686,7 @@ public void get_return(void)
  * Output a message in the lower left corner of the screen
  * and wait for carriage return.
  */
-public void error(constant char *fmt, PARG *parg)
+public void error(constant char *fmt, constant PARG *parg)
 {
 	int col = 0;
 	static char return_to_continue[] = "  (press RETURN)";
@@ -722,7 +732,7 @@ public void error(constant char *fmt, PARG *parg)
  * Usually used to warn that we are beginning a potentially
  * time-consuming operation.
  */
-static void ierror_suffix(constant char *fmt, PARG *parg, constant char *suffix1, constant char *suffix2, constant char *suffix3)
+static void ierror_suffix(constant char *fmt, constant PARG *parg, constant char *suffix1, constant char *suffix2, constant char *suffix3)
 {
 	at_exit();
 	clear_bot();
@@ -736,12 +746,12 @@ static void ierror_suffix(constant char *fmt, PARG *parg, constant char *suffix1
 	need_clr = 1;
 }
 
-public void ierror(constant char *fmt, PARG *parg)
+public void ierror(constant char *fmt, constant PARG *parg)
 {
 	ierror_suffix(fmt, parg, "... (interrupt to abort)", "", "");
 }
 
-public void ixerror(constant char *fmt, PARG *parg)
+public void ixerror(constant char *fmt, constant PARG *parg)
 {
 	if (!supports_ctrl_x())
 		ierror(fmt, parg);
@@ -757,7 +767,7 @@ public void ixerror(constant char *fmt, PARG *parg)
  * Output a message in the lower left corner of the screen
  * and return a single-character response.
  */
-public int query(constant char *fmt, PARG *parg)
+public int query(constant char *fmt, constant PARG *parg)
 {
 	int c;
 	int col = 0;

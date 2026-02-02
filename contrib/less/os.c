@@ -82,7 +82,6 @@ static lbool opening;
 public lbool waiting_for_data;
 public int consecutive_nulls = 0;
 public lbool getting_one_screen = FALSE;
-public lbool no_poll = FALSE;
 
 /* Milliseconds to wait for data before displaying "waiting for data" message. */
 static int waiting_for_data_delay = 4000;
@@ -93,7 +92,7 @@ static JUMP_BUF read_label;
 static JUMP_BUF open_label;
 
 extern int sigs;
-extern int ignore_eoi;
+extern lbool ignore_eoi;
 extern int exit_F_on_close;
 extern int follow_mode;
 extern int scanning_eof;
@@ -104,7 +103,7 @@ extern int one_screen;
 #if HAVE_TIME
 extern time_type less_start_time;
 #endif
-#if !MSDOS_COMPILER
+#if LESS_IREAD_TTY
 extern int tty;
 #endif
 
@@ -164,8 +163,6 @@ static int check_poll(int fd, int tty)
 				/* Break out of "waiting for data". */
 				return (READ_INTR);
 			ungetcc_back((char) ch);
-			if (!no_poll)
-				return (READ_INTR);
 		}
 	}
 	if (ignore_eoi && exit_F_on_close && (poller[0].revents & (POLLHUP|POLLIN)) == POLLHUP)
@@ -198,6 +195,7 @@ public lbool ttyin_ready(void)
 	if (!use_poll)
 		return FALSE;
 	{
+		/* {{ assert LESS_IREAD_TTY }} */
 		struct pollfd poller[1] = { { tty, POLLIN, 0 } };
 		poll(poller, 1, 0);
 		return ((poller[0].revents & POLLIN) != 0);
@@ -209,7 +207,7 @@ public lbool ttyin_ready(void)
 #endif
 }
 
-public int supports_ctrl_x(void)
+public lbool supports_ctrl_x(void)
 {
 #if MSDOS_COMPILER==WIN32C
 	return (TRUE);
@@ -269,7 +267,7 @@ start:
 #endif
 #endif
 #endif
-#if !MSDOS_COMPILER
+#if !MSDOS_COMPILER /* {{ LESS_IREAD_TTY? }} */
 		if (fd != tty && !ABORT_SIGS())
 			/* Non-interrupt signal like SIGWINCH. */
 			return (READ_AGAIN);
@@ -316,19 +314,14 @@ start:
 #if MSDOS_COMPILER==WIN32C
 	if (!(quit_if_one_screen && one_screen) && win32_kbhit2(TRUE))
 	{
-		int c;
-		lbool intr;
-
-		c = WIN32getch();
-		intr = (c == CONTROL('C') || c == intr_char);
-		if (!intr)
-			WIN32ungetch((char) c);
-		if (intr || !no_poll)
+		int c = WIN32getch();
+		if (c == CONTROL('C') || c == intr_char)
 		{
 			sigs |= S_SWINTERRUPT;
 			reading = FALSE;
 			return (READ_INTR);
 		}
+		WIN32ungetch(c);
 	}
 #endif
 #endif
@@ -369,10 +362,13 @@ start:
 #endif
 		return (READ_ERR);
 	}
-#if USE_POLL
-	if (fd != tty && n > 0)
-		any_data = TRUE;
+#if LESS_IREAD_TTY
+	if (fd != tty)
 #endif
+	{
+		if (n > 0)
+			polling_ok();
+	}
 	return (n);
 }
 
@@ -416,6 +412,16 @@ public void intio(void)
 	{
 		LONG_JUMP(read_label, 1);
 	}
+}
+
+/*
+ * We can start polling the input file.
+ */
+public void polling_ok(void)
+{
+#if USE_POLL
+	any_data = TRUE;
+#endif
 }
 
 /*
@@ -548,7 +554,7 @@ char * strchr(char *s, char c)
 #endif
 
 #if !HAVE_MEMCPY
-void * memcpy(void *dst, void *src, size_t len)
+void * memcpy(void *dst, constant void *src, size_t len)
 {
 	char *dstp = (char *) dst;
 	char *srcp = (char *) src;
@@ -557,6 +563,25 @@ void * memcpy(void *dst, void *src, size_t len)
 	for (i = 0;  i < len;  i++)
 		dstp[i] = srcp[i];
 	return (dst);
+}
+#endif
+
+#if !HAVE_STRSTR
+char * strstr(constant char *haystack, constant char *needle)
+{
+	if (*needle == '\0')
+		return (char *) haystack;
+	for (; *haystack; haystack++) {
+		constant char *h = haystack;
+		constant char *n = needle;
+		while (*h != '\0' && *n != '\0' && *h == *n) {
+			h++;
+			n++;
+		}
+		if (*n == '\0')
+			return (char *) haystack;
+	}
+	return NULL;
 }
 #endif
 

@@ -469,7 +469,7 @@ public char * fcomplete(constant char *s)
  * be used later to compare to st_size from stat(2) to see if the file
  * is lying about its size.
  */
-public int bin_file(int f, ssize_t *n)
+public lbool bin_file(int f, ssize_t *n)
 {
 	int bin_count = 0;
 	char data[256];
@@ -477,12 +477,12 @@ public int bin_file(int f, ssize_t *n)
 	constant char* edata;
 
 	if (!seekable(f))
-		return (0);
+		return FALSE;
 	if (less_lseek(f, (less_off_t)0, SEEK_SET) == BAD_LSEEK)
-		return (0);
+		return FALSE;
 	*n = read(f, data, sizeof(data));
 	if (*n <= 0)
-		return (0);
+		return FALSE;
 	edata = &data[*n];
 	for (p = data;  p < edata;  )
 	{
@@ -569,9 +569,10 @@ static FILE * shellcmd(constant char *cmd)
 			fd = popen(cmd, "r");
 		} else
 		{
-			size_t len = strlen(shell) + strlen(esccmd) + 5;
+			constant char *copt = shell_coption();
+			size_t len = strlen(shell) + strlen(esccmd) + strlen(copt) + 3;
 			scmd = (char *) ecalloc(len, sizeof(char));
-			SNPRINTF3(scmd, len, "%s %s %s", shell, shell_coption(), esccmd);
+			SNPRINTF3(scmd, len, "%s %s %s", shell, copt, esccmd);
 			free(esccmd);
 			fd = popen(scmd, "r");
 			free(scmd);

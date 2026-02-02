@@ -77,20 +77,20 @@ public void init_textlist(struct textlist *tlist, mutable char *str)
 #if SPACES_IN_FILENAMES
 		if (meta_quoted)
 		{
-			meta_quoted = 0;
+			meta_quoted = FALSE;
 		} else if (esclen > 0 && s + esclen < tlist->endstring &&
 		           strncmp(s, esc, esclen) == 0)
 		{
-			meta_quoted = 1;
+			meta_quoted = TRUE;
 			s += esclen - 1;
 		} else if (delim_quoted)
 		{
 			if (*s == closequote)
-				delim_quoted = 0;
+				delim_quoted = FALSE;
 		} else /* (!delim_quoted) */
 		{
 			if (*s == openquote)
-				delim_quoted = 1;
+				delim_quoted = TRUE;
 			else if (*s == ' ')
 				*s = '\0';
 		}
@@ -101,7 +101,7 @@ public void init_textlist(struct textlist *tlist, mutable char *str)
 	}
 }
 
-public constant char * forw_textlist(struct textlist *tlist, constant char *prev)
+public constant char * forw_textlist(constant struct textlist *tlist, constant char *prev)
 {
 	constant char *s;
 	
@@ -120,7 +120,7 @@ public constant char * forw_textlist(struct textlist *tlist, constant char *prev
 	return (s);
 }
 
-public constant char * back_textlist(struct textlist *tlist, constant char *prev)
+public constant char * back_textlist(constant struct textlist *tlist, constant char *prev)
 {
 	constant char *s;
 	
@@ -210,7 +210,6 @@ static void modeline_options(constant char *str, char end_char)
  */
 static void check_modeline(constant char *line)
 {
-#if HAVE_STRSTR
 	static constant char *pgms[] = { "less:", "vim:", "vi:", "ex:", NULL };
 	constant char **pgm;
 	for (pgm = pgms;  *pgm != NULL;  ++pgm)
@@ -235,7 +234,6 @@ static void check_modeline(constant char *line)
 			pline = str;
 		}
 	}
-#endif /* HAVE_STRSTR */
 }
 
 /*

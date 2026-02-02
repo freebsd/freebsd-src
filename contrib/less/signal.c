@@ -44,7 +44,7 @@ extern int less_is_more;
 static RETSIGTYPE u_interrupt(int type)
 {
 	(void) type;
-	bell();
+	lbell();
 #if OS2
 	LSIGNAL(SIGINT, SIG_ACK);
 #endif
@@ -64,6 +64,7 @@ static RETSIGTYPE u_interrupt(int type)
 #if HILITE_SEARCH
 	set_filter_pattern(NULL, 0);
 #endif
+	polling_ok();
 	intio();
 }
 #endif
@@ -96,10 +97,10 @@ static RETSIGTYPE stop(int type)
  * "Window" change handler
  */
 	/* ARGSUSED*/
-public RETSIGTYPE winch(int type)
+public RETSIGTYPE lwinch(int type)
 {
 	(void) type;
-	LSIGNAL(SIG_LESSWINDOW, winch);
+	LSIGNAL(SIG_LESSWINDOW, lwinch);
 #if LESSTEST
 	/*
 	 * Ignore window changes during lesstest.
@@ -185,16 +186,19 @@ public void init_signals(int on)
 		(void) LSIGNAL(SIGTSTP, !secure_allow(SF_STOP) ? SIG_IGN : stop);
 #endif
 #ifdef SIGWINCH
-		(void) LSIGNAL(SIGWINCH, winch);
+		(void) LSIGNAL(SIGWINCH, lwinch);
 #endif
 #ifdef SIGWIND
-		(void) LSIGNAL(SIGWIND, winch);
+		(void) LSIGNAL(SIGWIND, lwinch);
 #endif
 #ifdef SIGQUIT
 		(void) LSIGNAL(SIGQUIT, SIG_IGN);
 #endif
 #ifdef SIGTERM
 		(void) LSIGNAL(SIGTERM, terminate);
+#endif
+#ifdef SIGHUP
+		(void) LSIGNAL(SIGHUP, terminate);
 #endif
 #ifdef SIGUSR1
 		(void) LSIGNAL(SIGUSR1, sigusr1);
@@ -224,6 +228,9 @@ public void init_signals(int on)
 #ifdef SIGTERM
 		(void) LSIGNAL(SIGTERM, SIG_DFL);
 #endif
+#ifdef SIGHUP
+		(void) LSIGNAL(SIGHUP, SIG_DFL);
+#endif
 #ifdef SIGUSR1
 		(void) LSIGNAL(SIGUSR1, SIG_DFL);
 #endif
@@ -252,7 +259,7 @@ public void psignals(void)
 		LSIGNAL(SIGTTOU, SIG_IGN);
 #endif
 		clear_bot();
-		deinit();
+		term_deinit();
 		flush();
 		raw_mode(0);
 #ifdef SIGTTOU
@@ -268,7 +275,7 @@ public void psignals(void)
 		 */
 		LSIGNAL(SIGTSTP, stop);
 		raw_mode(1);
-		init();
+		term_init();
 		screen_trashed();
 		tsignals |= S_WINCH;
 	}
@@ -284,10 +291,7 @@ public void psignals(void)
 		old_height = sc_height;
 		get_term();
 		if (sc_width != old_width || sc_height != old_height)
-		{
-			wscroll = (sc_height + 1) / 2;
 			screen_size_changed();
-		}
 		screen_trashed();
 	}
 #endif
@@ -295,5 +299,9 @@ public void psignals(void)
 	{
 		if (quit_on_intr)
 			quit(QUIT_INTERRUPT);
+		getcc_clear();
+#if MSDOS_COMPILER==WIN32C
+		win32_getch_clear();
+#endif
 	}
 }

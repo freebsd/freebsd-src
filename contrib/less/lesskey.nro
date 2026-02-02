@@ -1,12 +1,31 @@
 '\" t
-.TH LESSKEY 1 "Version 685: 04 Oct 2025"
+.TH LESSKEY 1 "10 Jan 2026" "less 691"
+.\" Define a string for the caret ("hat") as portably as possible.
+.ie \n(.g .ds ^ \(ha
+.el       .ds ^ ^
+.\" Define a string for the neutral apostrophe as portably as possible.
+.ie \n(.g .ds ' \(aq
+.el       .ds ' '
+.\" Define a string to interpolate the hyphenless break point escape
+.\" sequence (for URLs and similar) if the formatter claims groff
+.\" compatibility, else interpolate nothing.
+.ie \n(.g .ds : \:
+.el       .ds : \" empty
 .SH NAME
 lesskey \- customize key bindings for less
 .SH "SYNOPSIS (deprecated)"
-.B "lesskey [\-o output] [\-\-] [input]"
+.B lesskey
+.RB [ \-o
+.IR output ]
+.B \-\-
+.I input
 .br
-.B "lesskey [\-\-output=output] [\-\-] [input]"
-.br
+.B lesskey
+.RB [ \-\-output=\c
+.IR output ]
+.B \-\-
+.I input
+.PP
 .B "lesskey \-V"
 .br
 .B "lesskey \-\-version"
@@ -43,7 +62,7 @@ Each section starts with a line that identifies the type of section.
 Possible sections are:
 .IP #command
 Customizes command key bindings.
-.IP #line-edit
+.IP #line\-edit
 Customizes line-editing key bindings.
 .IP #env
 Defines environment variables.
@@ -54,15 +73,15 @@ except as noted below.
 .
 .SH "COMMAND SECTION"
 The command section begins with the line
-.sp
+.PP
 #command
-.sp
+.PP
 If the command section is the first section in the file,
 this line may be omitted.
 The command section consists of lines of the form:
-.sp
+.PP
 	\fIstring\fP <whitespace> \fIaction\fP <whitespace> [extra-string] <newline>
-.sp
+.PP
 Whitespace is any sequence of one or more spaces and/or tabs.
 The \fIstring\fP is the command key(s) which invoke the action.
 The \fIstring\fP may be a single command key, or a sequence of up to 15 keys.
@@ -84,8 +103,9 @@ l l l.
 \et	TAB	(0x09)
 .TE
 .RE
-.sp
-\ek followed by a single character represents the char(s) produced when one of these keys is pressed:
+.PP
+\ek followed by one or two characters represents the char(s) produced
+when one of these keys is pressed:
 .RS 5m
 .TS
 l l.
@@ -106,6 +126,22 @@ l l.
 \ekx	DELETE
 \ekX	ctrl-DELETE
 \ek1	F1
+\ekp1	lower left key on the numeric keypad
+\ekp2	lower center key on the numeric keypad
+\ekp3	lower right key on the numeric keypad
+\ekp4	center left key on the numeric keypad
+\ekp5	center key on the numeric keypad
+\ekp6	center right key on the numeric keypad
+\ekp7	upper left key on the numeric keypad
+\ekp8	upper center key on the numeric keypad
+\ekp9	upper right key on the numeric keypad
+\ekp0	0 on the numeric keypad
+\ekp*	* on the numeric keypad
+\ekp/	/ on the numeric keypad
+\ekp\-	\- on the numeric keypad
+\ekp+	+ on the numeric keypad
+\ekp.	. on the numeric keypad
+\ekp,	, on the numeric keypad
 .TE
 .RE
 .PP
@@ -126,11 +162,13 @@ For example, see the "{" and ":t" commands in the example below.
 It can also be used to execute more than one command when a key is pressed.
 For example, if this line were in a lesskey file, pressing the "B" key
 would first set the "b" mark and then search for the string "next":
-.sp
+.PP
+.EX
 .nf
-    B set-mark b/next\en
+    B set\-mark b/next\en
 .fi
-.sp
+.EE
+.PP
 The extra string has a special meaning for the "quit" action:
 when
 .B less
@@ -144,116 +182,131 @@ default command keys used by
 Documentation on each command can be found in the
 .B less
 man page, under the key sequence which invokes the command.
-.sp
+.PP
 .RS 5m
 .TS
 l l.
 #command
-\er	forw-line
-\en	forw-line
-e	forw-line
-j	forw-line
-\ekd	forw-line
-^E	forw-line
-^N	forw-line
-k	back-line
-y	back-line
-^Y	back-line
-^K	back-line
-^P	back-line
-J	forw-line-force
-K	back-line-force
-Y	back-line-force
-\eej	forw-newline
-\eek	back-newline
-d	forw-scroll
-^D	forw-scroll
-u	back-scroll
-^U	back-scroll
-\e40	forw-screen
-f	forw-screen
-^F	forw-screen
-^V	forw-screen
-\ekD	forw-screen
-b	back-screen
-^B	back-screen
-\eev	back-screen
-\ekU	back-screen
-z	forw-window
-w	back-window
-\ee\e40	forw-screen-force
-\eeb	back-screen-force
-F	forw-forever
-\eeF	forw-until-hilite
-R	repaint-flush
+\er	forw\-line
+\en	forw\-line
+e	forw\-line
+j	forw\-line
+\ekd	forw\-line
+\*^E	forw\-line
+\*^N	forw\-line
+k	back\-line
+y	back\-line
+\*^Y	back\-line
+\*^K	back\-line
+\*^P	back\-line
+J	forw\-line\-force
+K	back\-line\-force
+Y	back\-line\-force
+\eej	forw\-newline
+\eek	back\-newline
+d	forw\-scroll
+\*^D	forw\-scroll
+u	back\-scroll
+\*^U	back\-scroll
+\e40	forw\-screen
+f	forw\-screen
+\*^F	forw\-screen
+\*^V	forw\-screen
+\ekD	forw\-screen
+b	back\-screen
+\*^B	back\-screen
+\eev	back\-screen
+\ekU	back\-screen
+z	forw\-window
+w	back\-window
+\ee\e40	forw\-screen\-force
+\eeb	back\-screen\-force
+F	forw\-forever
+\eeF	forw\-until\-hilite
+R	repaint\-flush
 r	repaint
-^R	repaint
-^L	repaint
-\eeu	undo-hilite
-\eeU	clear-search
-g	goto-line
-\ekh	goto-line
-<	goto-line
-\ee<	goto-line
+\*^R	repaint
+\*^L	repaint
+\eeu	undo\-hilite
+\eeU	clear\-search
+g	goto\-line
+\ekh	goto\-line
+<	goto\-line
+\ee<	goto\-line
 p	percent
 %	percent
-\ee(	left-scroll
-\ee)	right-scroll
-\ekl	left-scroll
-\ekr	right-scroll
-\ee{	no-scroll
-\ee}	end-scroll
-{	forw-bracket {}
-}	back-bracket {}
-(	forw-bracket ()
-)	back-bracket ()
-[	forw-bracket []
-]	back-bracket []
-\ee^F	forw-bracket
-\ee^B	back-bracket
-G	goto-end
-\ee>	goto-end
->	goto-end
-\eke	goto-end
-\eeG	goto-end-buffered
+\ee(	left\-scroll
+\ee)	right\-scroll
+\ekl	left\-scroll
+\ekr	right\-scroll
+\ee{	no\-scroll
+\ee}	end\-scroll
+{	forw\-bracket {}
+}	back\-bracket {}
+(	forw\-bracket ()
+)	back\-bracket ()
+[	forw\-bracket []
+]	back\-bracket []
+\ee\*^F	forw\-bracket
+\ee\*^B	back\-bracket
+G	goto\-end
+\ee>	goto\-end
+>	goto\-end
+\eke	goto\-end
+\eeG	goto\-end\-buffered
 \&=	status
-^G	status
+\*^G	status
 :f	status
-/	forw-search
-?	back-search
-\ee/	forw-search *
-\ee?	back-search *
-n	repeat-search
-\een	repeat-search-all
-N	reverse-search
-\eeN	reverse-search-all
-^O^N	osc8-forw-search
-^On	osc8-forw-search
-^O^P	osc8-back-search
-^Op	osc8-back-search
-^O^O	osc8-open
+/	forw\-search
+?	back\-search
+\ee/	forw\-search *
+\ee?	back\-search *
+n	repeat\-search
+\een	repeat\-search\-all
+N	reverse\-search
+\eeN	reverse\-search\-all
+\*^O\*^N	osc8\-forw\-search
+\*^On	osc8\-forw\-search
+\*^O\*^P	osc8\-back\-search
+\*^Op	osc8\-back\-search
+\*^O\*^O	osc8\-open
 &	filter
-m	set-mark
-M	set-mark-bottom
-\eem	clear-mark
-\&'	goto-mark
-^X^X	goto-mark
+m	set\-mark
+M	set\-mark\-bottom
+\eem	clear\-mark
+\&\*'	goto\-mark
+\*^X\*^X	goto\-mark
 E	examine
 :e	examine
-^X^V	examine
-:n	next-file
-:p	prev-file
-t	next-tag
-T	prev-tag
-:x	index-file
-:d	remove-file
--	toggle-option
-:t	toggle-option t
-s	toggle-option o
+\*^X\*^V	examine
+:n	next\-file
+:p	prev\-file
+t	next\-tag
+T	prev\-tag
+:x	index\-file
+:d	remove\-file
+\-	toggle\-option
+:t	toggle\-option t
+s	toggle\-option o
 	## Use a long option name by starting the 
 	## extra string with ONE dash; eg:
-	##   s toggle-option -log-file\en
-\&_	display-option
+	##   s toggle\-option \-log\-file\en
+\&_	display\-option
+\ekp1	goto\-end
+\ekp2	forw\-line
+\ekp3	forw\-screen
+\ekp4	left\-scroll
+\ekp6	right\-scroll
+\ekp7	goto\-line
+\ekp8	back\-line
+\ekp9	back\-screen
+\ekp0	noaction 0
+\ekp*	noaction *
+\ekp/	noaction /
+\ekp\-	noaction \-
+\ekp+	noaction +
+\ekp.	noaction .
+\ekp,	noaction ,
 |	pipe
 v	visual
 !	shell
@@ -281,7 +334,6 @@ Q	quit
 ZZ	quit
 .TE
 .RE
-.sp
 .SH PRECEDENCE
 Commands specified by
 .B lesskey
@@ -296,9 +348,9 @@ will give an error beep for an "invalid" command,
 but not for a "noaction" command.
 In addition, ALL default commands may be disabled by
 adding this control line to the input file:
-.sp
+.PP
 #stop
-.sp
+.PP
 This will cause all default commands to be ignored.
 The #stop line should be the last line in that section of the file.
 .PP
@@ -310,9 +362,11 @@ For example, failure to provide a "quit" command can lead to frustration.
 .
 .SH "LINE EDITING SECTION"
 The line-editing section begins with the line:
-.sp
-#line-edit
-.sp
+.PP
+.EX
+#line\-edit
+.EE
+.PP
 This section specifies new key bindings for the line editing commands,
 in a manner similar to the way key bindings for
 ordinary commands are specified in the #command section.
@@ -323,14 +377,14 @@ one per line as in the example below.
 The following input file describes the set of
 default line-editing keys used by
 .BR less :
-.sp
+.PP
 .RS 5m
 .TS
 l l.
-#line-edit
-\et	forw-complete
-\e17	back-complete
-\ee\et	back-complete
+#line\-edit
+\et	forw\-complete
+\e17	back\-complete
+\ee\et	back\-complete
 ^L	expand
 ^V	literal
 ^A	literal
@@ -338,16 +392,16 @@ l l.
 \ekr	right
 \eeh	left
 \ekl	left
-\eeb	word-left
-\ee\ekl	word-left
-\eew	word-right
-\ee\ekr	word-right
+\eeb	word\-left
+\ee\ekl	word\-left
+\eew	word\-right
+\ee\ekr	word\-right
 \eei	insert
 \eex	delete
 \ekx	delete
-\eeX	word-delete
-\eekx	word-delete
-\ee\eb	word-backspace
+\eeX	word\-delete
+\eekx	word\-delete
+\ee\eb	word\-backspace
 \ee0	home
 \ekh	home
 \ee$	end
@@ -356,17 +410,29 @@ l l.
 \eku	up
 \eej	down
 ^G	abort
+\ekp1	end
+\ekp2	down
+\ekp4	left
+\ekp6	right
+\ekp7	home
+\ekp8	up
+\ekp0	noaction 0
+\ekp*	noaction *
+\ekp/	noaction /
+\ekp\-	noaction \-
+\ekp+	noaction +
+\ekp.	noaction .
+\ekp,	noaction ,
 \ee[M	mouse
 \ee[<	mouse6
 .TE
 .RE
-.sp
 .
 .SH "LESS ENVIRONMENT VARIABLES"
 The environment variable section begins with the line
-.sp
+.PP
 #env
-.sp
+.PP
 Following this line is a list of environment variable assignments.
 Each line consists of an environment variable name, an equals sign (=)
 and the value to be assigned to the environment variable.
@@ -376,7 +442,7 @@ Variables assigned in this way are visible only to
 If a variable is specified in the system environment and also in a
 lesskey file, the value in the lesskey file takes precedence.
 .
-.sp
+.PP
 If the variable name is followed by += rather than =,
 the string is appended to the variable's existing value.
 This currently works only if any += lines immediately follow
@@ -390,7 +456,7 @@ it should be appended to the end of the preceding line.
 (It cannot be added to the beginning of the += string because space after
 the equals sign is ignored, as noted above.)
 .
-.sp
+.PP
 In the string after the = sign, a substring of the form ${NAME}
 is replaced with the value of the environment variable "NAME".
 The value of the variable may come from either the system environment,
@@ -417,18 +483,20 @@ the remainder of the line is parsed if and only if the running version of
 matches the operator.
 This can be helpful if a lesskey file is used by different versions of
 .BR less .
-.sp
-For example, suppose that a new command named 'sideways-search' is added in 
+.PP
+For example, suppose that a new command named 'sideways\-search' is added in
 .B less
 version 777.
 Then the following line would assign the command to the Q key, but only in versions of
 .B less
 which support it. The line would be ignored by versions earlier than 777.
-.sp
+.PP
+.EX
 .nf
-	#version >= 777  Q sideways-search
+	#version >= 777  Q sideways\-search
 .fi
-.sp
+.EE
+.PP
 These six operators are supported:
 .RS 5m
 .TS
@@ -441,7 +509,7 @@ l l.
  !=	Not equal to
 .TE
 .RE
-.sp
+.PP
 The #version feature is not supported in
 .B less
 and
@@ -453,14 +521,16 @@ In those older versions, all #version lines are ignored.
 The following input file sets the \-i and \-S options when
 .B less
 is run and, on version 595 and higher, adds a \-\-color option.
-.sp
+.PP
+.EX
 .nf
 	#env
 	## (Note that there must be a space at the end of the next line,
-	##  to separate the --color option from the -S option.)
+	##  to separate the \-\-color option from the \-S option.)
 	LESS = \-i\ \-S\ 
 	#version\ >=\ 595\ \ LESS\ +=\ \-\-color=Hkc
 .fi
+.EE
 .
 .SH "SEE ALSO"
 .BR less (1)
@@ -496,4 +566,7 @@ See the GNU General Public License for more details.
 .
 Mark Nudelman
 .br
-Report bugs at https://github.com/gwsw/less/issues.
+Report bugs at
+.nh
+https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues.
+.hy

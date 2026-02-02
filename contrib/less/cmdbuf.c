@@ -23,7 +23,7 @@
 extern int sc_width;
 extern int utf_mode;
 extern int no_hist_dups;
-extern int marks_modified;
+extern lbool marks_modified;
 extern int no_paste;
 public lbool pasting = FALSE;
 
@@ -35,6 +35,9 @@ static int cmd_offset;           /* Index into cmdbuf of first displayed char */
 static lbool literal;            /* Next input char should not be interpreted */
 static size_t updown_match;      /* Prefix length in up/down movement */
 static lbool have_updown_match = FALSE;
+#if LESS_INSERT_MODE
+static lbool insert_mode = TRUE;
+#endif
 
 static int cmd_complete(int action);
 /*
@@ -189,7 +192,7 @@ public int len_cmdbuf(void)
  */
 public lbool cmdbuf_empty(void)
 {
-	return cp == cmdbuf && cmd_mbc_buf_len == 0;
+	return cmdbuf[0] == '\0' && cmd_mbc_buf_len == 0;
 }
 
 /*
@@ -455,39 +458,6 @@ static int cmd_left(void)
 }
 
 /*
- * Insert a char into the command buffer, at the current position.
- */
-static int cmd_ichar(constant char *cs, size_t clen)
-{
-	char *s;
-	
-	if (strlen(cmdbuf) + clen >= sizeof(cmdbuf)-1)
-	{
-		/* No room in the command buffer for another char. */
-		bell();
-		return (CC_ERROR);
-	}
-		
-	/*
-	 * Make room for the new character (shift the tail of the buffer right).
-	 */
-	for (s = &cmdbuf[strlen(cmdbuf)];  s >= cp;  s--)
-		s[clen] = s[0];
-	/*
-	 * Insert the character into the buffer.
-	 */
-	for (s = cp;  s < cp + clen;  s++)
-		*s = *cs++;
-	/*
-	 * Reprint the tail of the line from the inserted char.
-	 */
-	have_updown_match = FALSE;
-	cmd_repaint(cp);
-	cmd_right();
-	return (CC_OK);
-}
-
-/*
  * Backspace in the command buffer.
  * Delete the char to the left of the cursor.
  */
@@ -502,7 +472,7 @@ static int cmd_erase(void)
 		 * Backspace past beginning of the buffer:
 		 * this usually means abort the command.
 		 */
-		return (CC_QUIT);
+		return CC_QUIT;
 	}
 	/*
 	 * Move cursor left (to the char being erased).
@@ -532,7 +502,7 @@ static int cmd_erase(void)
 	 * to abort the current command, if CF_QUIT_ON_ERASE is set.
 	 */
 	if ((curr_cmdflags & CF_QUIT_ON_ERASE) && cp == cmdbuf && *cp == '\0')
-		return (CC_QUIT);
+		return CC_QUIT;
 	return (CC_OK);
 }
 
@@ -551,6 +521,43 @@ static int cmd_delete(void)
 	 */
 	cmd_right();
 	cmd_erase();
+	return (CC_OK);
+}
+
+/*
+ * Insert a char into the command buffer, at the current position.
+ */
+static int cmd_ichar(constant char *cs, size_t clen)
+{
+	char *s;
+	
+	if (strlen(cmdbuf) + clen >= sizeof(cmdbuf)-1)
+	{
+		/* No room in the command buffer for another char. */
+		lbell();
+		return (CC_ERROR);
+	}
+		
+#if LESS_INSERT_MODE
+	if (!insert_mode)
+		cmd_delete();
+#endif
+	/*
+	 * Make room for the new character (shift the tail of the buffer right).
+	 */
+	for (s = &cmdbuf[strlen(cmdbuf)];  s >= cp;  s--)
+		s[clen] = s[0];
+	/*
+	 * Insert the character into the buffer.
+	 */
+	for (s = cp;  s < cp + clen;  s++)
+		*s = *cs++;
+	/*
+	 * Reprint the tail of the line from the inserted char.
+	 */
+	have_updown_match = FALSE;
+	cmd_repaint(cp);
+	cmd_right();
 	return (CC_OK);
 }
 
@@ -612,7 +619,7 @@ static int cmd_kill(void)
 	if (cmdbuf[0] == '\0')
 	{
 		/* Buffer is already empty; abort the current command. */
-		return (CC_QUIT);
+		return CC_QUIT;
 	}
 	cmd_offset = 0;
 	cmd_home();
@@ -625,7 +632,7 @@ static int cmd_kill(void)
 	 * to abort the current command, if CF_QUIT_ON_ERASE is set.
 	 */
 	if (curr_cmdflags & CF_QUIT_ON_ERASE)
-		return (CC_QUIT);
+		return CC_QUIT;
 	return (CC_OK);
 }
 
@@ -660,7 +667,7 @@ static int cmd_updown(int action)
 		/*
 		 * The current command has no history list.
 		 */
-		bell();
+		lbell();
 		return (CC_OK);
 	}
 
@@ -705,7 +712,7 @@ static int cmd_updown(int action)
 	/*
 	 * We didn't find a history entry that matches.
 	 */
-	bell();
+	lbell();
 	return (CC_OK);
 }
 
@@ -796,6 +803,15 @@ public void cmd_addhist(struct mlist *mlist, constant char *cmd, lbool modified)
 	 * Thus, an UPARROW will always retrieve the previous command.
 	 */
 	mlist->curr_mp = ml->next;
+	if (modified)
+	{
+		if (mlist == &mlist_search && autosave_action('/'))
+			save_cmdhist();
+#if SHELL_ESCAPE || PIPEC
+		else if (mlist == &mlist_shell && autosave_action('!'))
+			save_cmdhist();
+#endif
+	}
 #endif
 }
 
@@ -904,6 +920,9 @@ static int cmd_edit(char c, lbool stay_in_completion)
 		return (CC_OK);
 	case EC_INSERT:
 		not_in_completion();
+#if LESS_INSERT_MODE
+		insert_mode = !insert_mode;
+#endif
 		return (CC_OK);
 	case EC_BACKSPACE:
 		not_in_completion();
@@ -914,7 +933,7 @@ static int cmd_edit(char c, lbool stay_in_completion)
 	case EC_ABORT:
 		not_in_completion();
 		(void) cmd_kill();
-		return (CC_QUIT);
+		return CC_QUIT;
 	case EC_W_BACKSPACE:
 		not_in_completion();
 		return (cmd_werase());
@@ -950,17 +969,23 @@ static int cmd_istr(constant char *str)
 {
 	constant char *endline = str + strlen(str);
 	constant char *s;
-	int action;
-	
+	int action = CC_OK;
+#if LESS_INSERT_MODE
+	lbool save_insert_mode = insert_mode;
+	insert_mode = TRUE;
+#endif
 	for (s = str;  *s != '\0';  )
 	{
 		constant char *os = s;
 		step_charc(&s, +1, endline);
 		action = cmd_ichar(os, ptr_diff(s, os));
 		if (action != CC_OK)
-			return (action);
+			break;
 	}
-	return (CC_OK);
+#if LESS_INSERT_MODE
+	insert_mode = save_insert_mode;
+#endif
+	return (action);
 }
 
 /*
@@ -1171,7 +1196,7 @@ static int cmd_complete(int action)
 #endif /* TAB_COMPLETE_FILENAME */
 		if (tk_text == NULL)
 		{
-			bell();
+			lbell();
 			return (CC_OK);
 		}
 		if (action == EC_EXPAND)
@@ -1239,7 +1264,7 @@ static int cmd_complete(int action)
 	
 fail:
 	in_completion = FALSE;
-	bell();
+	lbell();
 	return (CC_OK);
 }
 
@@ -1281,7 +1306,7 @@ static int cmd_uchar(char c, size_t *plen)
 			} else
 			{
 				/* UTF8_INVALID or stray UTF8_TRAIL */
-				bell();
+				lbell();
 				return (CC_ERROR);
 			}
 		} else if (IS_UTF8_TRAIL(c))
@@ -1293,14 +1318,14 @@ static int cmd_uchar(char c, size_t *plen)
 			{
 				/* complete, but not well formed (non-shortest form), sequence */
 				cmd_mbc_buf_len = 0;
-				bell();
+				lbell();
 				return (CC_ERROR);
 			}
 		} else
 		{
 			/* Flush incomplete (truncated) sequence.  */
 			cmd_mbc_buf_len = 0;
-			bell();
+			lbell();
 			/* Handle new char.  */
 			goto retry;
 		}
@@ -1388,7 +1413,6 @@ public LINENUM cmd_int(mutable long *frac)
 {
 	constant char *p;
 	LINENUM n = 0;
-	lbool err;
 
 	for (p = cmdbuf;  *p >= '0' && *p <= '9';  p++)
 	{
@@ -1401,8 +1425,8 @@ public LINENUM cmd_int(mutable long *frac)
 	*frac = 0;
 	if (*p++ == '.')
 	{
-		*frac = getfraction(&p, NULL, &err);
-		/* {{ do something if err is set? }} */
+		/* {{ Just ignore error in fractional part. }} */
+		(void) getfraction(&p, frac);
 	}
 	return (n);
 }
@@ -1447,7 +1471,7 @@ static int mlist_size(struct mlist *ml)
 static char * histfile_find(lbool must_exist)
 {
 	constant char *home = lgetenv("HOME");
-	char *name = NULL;
+	char *name;
 
 	/* Try in $XDG_STATE_HOME, then in $HOME/.local/state, then in $XDG_DATA_HOME, then in $HOME. */
 #if OS2
@@ -1738,7 +1762,7 @@ public void save_cmdhist(void)
 	int skip_shell;
 	struct save_ctx ctx;
 	constant char *s;
-	FILE *fout = NULL;
+	FILE *fout;
 	int histsize = 0;
 
 	if (!secure_allow(SF_HISTORY) || !histfile_modified())

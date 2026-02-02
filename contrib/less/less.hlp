@@ -29,6 +29,7 @@
   ESC-{  ^LeftArrow    Left  to first column.
   F                    Forward forever; like "tail -f".
   ESC-F                Like F but stop when search pattern is found.
+  ESC-f                Like F but ring the bell when search pattern is found.
   r  ^R  ^L            Repaint screen.
   R                    Repaint screen, discarding buffered input.
         ---------------------------------------------------
@@ -219,6 +220,8 @@
   -# [_N]  ....  --shift=[_N]
                   Set horizontal scroll amount (0 = one half screen width).
 
+                --autosave=[_m_/_!_*]
+                  Actions which cause the history file to be saved.
                 --exit-follow-on-close
                   Exit F command on a pipe when writer closes pipe.
                 --file-size
