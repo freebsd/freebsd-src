@@ -249,6 +249,7 @@ main(int argc, char **argv)
 				usage();
 			break;
 		case 'l':
+			dflags |= D_PAGINATION;
 			lflag = true;
 			break;
 		case 'N':

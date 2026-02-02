@@ -33,6 +33,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "pr.h"
 #include "diff.h"
 #include <arraylist.h>
 #include <diff_main.h>
@@ -146,6 +147,7 @@ diffreg_new(char *file1, char *file2, int flags, int capsicum)
 {
 	char *str1, *str2;
 	FILE *f1, *f2;
+	struct pr *pr = NULL;
 	struct stat st1, st2;
 	struct diff_input_info info;
 	struct diff_data left = {}, right = {};
@@ -177,6 +179,9 @@ diffreg_new(char *file1, char *file2, int flags, int capsicum)
 
 	f1 = openfile(file1, &str1, &st1);
 	f2 = openfile(file2, &str2, &st2);
+
+	if (flags & D_PAGINATION)
+		pr = start_pr(file1, file2);
 
 	if (capsicum) {
 		cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
@@ -271,6 +276,8 @@ diffreg_new(char *file1, char *file2, int flags, int capsicum)
 		status |= 1;
 	}
 done:
+	if (pr != NULL)
+		stop_pr(pr);
 	diff_result_free(result);
 	diff_data_free(&left);
 	diff_data_free(&right);
