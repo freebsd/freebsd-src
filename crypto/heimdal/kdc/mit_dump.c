@@ -116,7 +116,7 @@ my_fgetln(FILE *f, char **buf, size_t *sz, size_t *len)
             return 0;
         }
         *len += strlen(&(*buf)[*len]); /* *len should be == *sz */
-        n = realloc(buf, *sz + (*sz >> 1));
+        n = realloc(*buf, *sz + (*sz >> 1));
         if (!n) {
             free(*buf);
             *buf = NULL;
