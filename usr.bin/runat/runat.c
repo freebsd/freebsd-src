@@ -8,17 +8,25 @@
 #include <sys/wait.h>
 #include <err.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+static struct option longopts[] = {
+	{ "nofollow", no_argument, NULL, 'h' },
+	{ "-", no_argument, NULL, '-' },
+	{ NULL, 0, NULL, 0}
+};
+
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: runat <file> "
+	(void)fprintf(stderr, "usage: runat [-h/--nofollow] [--] <file> "
 	    "<shell command>\n");
 	exit(1);
 }
@@ -26,15 +34,28 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	int i, file_fd, nameddir_fd, outsiz;
+	int ch, file_fd, flags, i, longindex, nameddir_fd, outsiz;
 	char *buf;
 	long named_enabled;
 	size_t pos, siz;
+	bool done_args;
 
-	if (argc <= 2)
-		usage();
-	argv++;
-	argc--;
+	flags = O_RDONLY | O_CLOEXEC | O_PATH;
+	done_args = false;
+	while (!done_args && (ch = getopt_long(argc, argv, "h-", longopts,
+	    &longindex)) != -1)
+		switch (ch) {
+		case 'h':
+			flags |= O_NOFOLLOW;
+			break;
+		case '-':
+			done_args = true;
+			break;
+		default:
+			usage();
+		}
+	argv += optind;
+	argc -= optind;
 	if (argc < 2)
 		usage();
 
@@ -61,7 +82,7 @@ main(int argc, char *argv[])
 	}
 	buf[pos - 1] = '\0';
 
-	file_fd = open(argv[0], O_RDONLY | O_CLOEXEC, 0);
+	file_fd = open(argv[0], flags, 0);
 	if (file_fd < 0)
 		err(1, "Cannot open %s", argv[0]);
 	nameddir_fd = openat(file_fd, ".", O_RDONLY | O_CLOEXEC | O_NAMEDATTR,
