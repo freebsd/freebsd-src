@@ -304,7 +304,6 @@ struct tdq {
 				 atomic_load_short(&(tdq)->tdq_switchcnt) + 1))
 
 #ifdef SMP
-struct cpu_group __read_mostly *cpu_top;		/* CPU topology */
 
 #define	SCHED_AFFINITY_DEFAULT	(max(1, hz / 1000))
 /*
@@ -398,9 +397,6 @@ static void sched_balance(void);
 static bool sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct thread *, int, int);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
-static int sysctl_kern_sched_ule_topology_spec(SYSCTL_HANDLER_ARGS);
-static int sysctl_kern_sched_ule_topology_spec_internal(struct sbuf *sb,
-    struct cpu_group *cg, int indent);
 #endif
 
 /*
@@ -1590,7 +1586,6 @@ sched_setup_smp(void)
 	struct tdq *tdq;
 	int i;
 
-	cpu_top = smp_topo();
 	CPU_FOREACH(i) {
 		tdq = DPCPU_ID_PTR(i, tdq);
 		tdq_setup(tdq, i);
@@ -3452,89 +3447,6 @@ struct sched_instance sched_ule_instance = {
 };
 DECLARE_SCHEDULER(ule_sched_selector, "ULE", &sched_ule_instance);
 
-#ifdef SMP
-
-/*
- * Build the CPU topology dump string. Is recursively called to collect
- * the topology tree.
- */
-static int
-sysctl_kern_sched_ule_topology_spec_internal(struct sbuf *sb,
-    struct cpu_group *cg, int indent)
-{
-	char cpusetbuf[CPUSETBUFSIZ];
-	int i, first;
-
-	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
-	    "", 1 + indent / 2, cg->cg_level);
-	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"%s\">", indent, "",
-	    cg->cg_count, cpusetobj_strprint(cpusetbuf, &cg->cg_mask));
-	first = TRUE;
-	for (i = cg->cg_first; i <= cg->cg_last; i++) {
-		if (CPU_ISSET(i, &cg->cg_mask)) {
-			if (!first)
-				sbuf_cat(sb, ", ");
-			else
-				first = FALSE;
-			sbuf_printf(sb, "%d", i);
-		}
-	}
-	sbuf_cat(sb, "</cpu>\n");
-
-	if (cg->cg_flags != 0) {
-		sbuf_printf(sb, "%*s <flags>", indent, "");
-		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
-			sbuf_cat(sb, "<flag name=\"HTT\">HTT group</flag>");
-		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
-			sbuf_cat(sb, "<flag name=\"THREAD\">THREAD group</flag>");
-		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
-			sbuf_cat(sb, "<flag name=\"SMT\">SMT group</flag>");
-		if ((cg->cg_flags & CG_FLAG_NODE) != 0)
-			sbuf_cat(sb, "<flag name=\"NODE\">NUMA node</flag>");
-		sbuf_cat(sb, "</flags>\n");
-	}
-
-	if (cg->cg_children > 0) {
-		sbuf_printf(sb, "%*s <children>\n", indent, "");
-		for (i = 0; i < cg->cg_children; i++)
-			sysctl_kern_sched_ule_topology_spec_internal(sb,
-			    &cg->cg_child[i], indent+2);
-		sbuf_printf(sb, "%*s </children>\n", indent, "");
-	}
-	sbuf_printf(sb, "%*s</group>\n", indent, "");
-	return (0);
-}
-
-/*
- * Sysctl handler for retrieving topology dump. It's a wrapper for
- * the recursive sysctl_kern_smp_topology_spec_internal().
- */
-static int
-sysctl_kern_sched_ule_topology_spec(SYSCTL_HANDLER_ARGS)
-{
-	struct sbuf *topo;
-	int err;
-
-	if (cpu_top == NULL)
-		return (ENOTTY);
-
-	topo = sbuf_new_for_sysctl(NULL, NULL, 512, req);
-	if (topo == NULL)
-		return (ENOMEM);
-
-	sbuf_cat(topo, "<groups>\n");
-	err = sysctl_kern_sched_ule_topology_spec_internal(topo, cpu_top, 1);
-	sbuf_cat(topo, "</groups>\n");
-
-	if (err == 0) {
-		err = sbuf_finish(topo);
-	}
-	sbuf_delete(topo);
-	return (err);
-}
-
-#endif
-
 static int
 sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 {
@@ -3597,8 +3509,4 @@ SYSCTL_INT(_kern_sched_ule, OID_AUTO, trysteal_limit, CTLFLAG_RWTUN,
 SYSCTL_INT(_kern_sched_ule, OID_AUTO, always_steal, CTLFLAG_RWTUN,
     &always_steal, 0,
     "Always run the stealer from the idle thread");
-SYSCTL_PROC(_kern_sched_ule, OID_AUTO, topology_spec, CTLTYPE_STRING |
-    CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0,
-    sysctl_kern_sched_ule_topology_spec, "A",
-    "XML dump of detected CPU topology");
 #endif
