@@ -256,7 +256,9 @@ The
 function returns 0 on success and -1 on failure.
 The
 .Fn fdclosedir
-function returns an open file descriptor on success and -1 on failure.
+and
+.Fn dirfd
+functions return an open file descriptor on success and -1 on failure.
 .Sh ERRORS
 The
 .Fn opendir
@@ -327,6 +329,16 @@ function may also fail and set
 .Va errno
 for any of the errors specified for the routine
 .Xr close 2 .
+.Pp
+The
+.Fn dirfd
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa dirp
+argument does not refer to a valid directory stream.
+.El
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr lseek 2 ,
