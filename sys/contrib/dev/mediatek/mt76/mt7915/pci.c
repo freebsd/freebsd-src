@@ -266,7 +266,7 @@ MODULE_FIRMWARE(MT7916_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7916_ROM_PATCH);
 #if defined(__FreeBSD__)
 MODULE_VERSION(mt7915_pci, 1);
+MODULE_DEPEND(mt7915_pci, mt76_core, 1, 1, 1);
 MODULE_DEPEND(mt7915_pci, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mt7915_pci, linuxkpi_wlan, 1, 1, 1);
-MODULE_DEPEND(mt7915_pci, mt76_core, 1, 1, 1);
 #endif

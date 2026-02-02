@@ -651,7 +651,7 @@ MODULE_DESCRIPTION("MediaTek MT7925E (PCIe) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
 #if defined(__FreeBSD__)
 MODULE_VERSION(mt7925_pci, 1);
+MODULE_DEPEND(mt7925_pci, mt76_core, 1, 1, 1);
 MODULE_DEPEND(mt7925_pci, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mt7925_pci, linuxkpi_wlan, 1, 1, 1);
-MODULE_DEPEND(mt7925_pci, mt76_core, 1, 1, 1);
 #endif
