@@ -27,8 +27,6 @@
  */
 
 #include "namespace.h"
-#include <sys/param.h>
-
 #include <dirent.h>
 #include "un-namespace.h"
 
@@ -37,6 +35,5 @@
 int
 dirfd(DIR *dirp)
 {
-
 	return (_dirfd(dirp));
 }

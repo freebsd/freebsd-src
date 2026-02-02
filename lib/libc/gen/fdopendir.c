@@ -37,6 +37,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "un-namespace.h"
 
 #include "gen-private.h"
