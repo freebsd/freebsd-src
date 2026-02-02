@@ -3634,6 +3634,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
         device_printf(sc->acpi_dev, "device_suspend failed\n");
         goto backout;
     }
+    EVENTHANDLER_INVOKE(acpi_post_dev_suspend, stype);
     slp_state |= ACPI_SS_DEV_SUSPEND;
 
     if (stype != POWER_STYPE_SUSPEND_TO_IDLE) {
@@ -3683,6 +3684,7 @@ backout:
 	slp_state &= ~ACPI_SS_GPE_SET;
     }
     if ((slp_state & ACPI_SS_DEV_SUSPEND) != 0) {
+	EVENTHANDLER_INVOKE(acpi_pre_dev_resume, stype);
 	DEVICE_RESUME(root_bus);
 	slp_state &= ~ACPI_SS_DEV_SUSPEND;
     }
