@@ -194,7 +194,11 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 #define	_SDT_ASM_PROBE_CONSTRAINT	"i"
 #endif
 #ifndef	_SDT_ASM_PROBE_OPERAND
+#if !defined(__clang__) && __GNUC_PREREQ__(15, 0)
+#define	_SDT_ASM_PROBE_OPERAND		"cc"
+#else
 #define	_SDT_ASM_PROBE_OPERAND		"c"
+#endif
 #endif
 
 /*
