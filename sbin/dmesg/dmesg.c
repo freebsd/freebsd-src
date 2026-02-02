@@ -240,7 +240,7 @@ main(int argc, char *argv[])
 		q++;
 
 		timeradd(&boottime, &reltime, &abstime);
-		
+
 		if (strftime(timebuf, sizeof timebuf, timefmt,
 		    localtime(&abstime.tv_sec)) != 0) {
 			(void)printf("[%s]%s", timebuf, q);
