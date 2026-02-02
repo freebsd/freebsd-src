@@ -357,6 +357,7 @@ class VnetTestTemplate(BaseTest):
         vnetX_handler() after setting up interface addresses
         """
         vnet.attach()
+        os.chdir(os.getenv("HOME"))
         print("# setup_vnet({})".format(vnet.name))
         if pipe is not None:
             vnet.set_pipe(pipe)
