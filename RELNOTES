@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7f54c65abc67:
+        Update smartpqi(4) to vendor version 14.4690.0.2008 - 15.2.0.2008
+        for the SmartArray storage controllers.  This adds support for new 
+        controllers, adds code that utilizes the new BIG_IOCTL_Command_struct
+        and allows the I/O buffer size for a single passthrough ioctl to be
+        stored as a 32 bit integer instead of the original 16 bit integer.
+
 b0d997095022:
 	The pf firewall now supports passing IPv6 packets to divert(4)
 	sockets via divert-to actions.
