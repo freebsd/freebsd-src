@@ -34,8 +34,6 @@
 
 #include "assym.inc"
 
-#define	BLOCK_SPIN(reg)							\
-
 /*****************************************************************************/
 /* Scheduling                                                                */
 /*****************************************************************************/
@@ -170,7 +168,7 @@ sw1:
 100:
 
 	lock
-	cmpxchgl	%eax,TD_LOCK(reg)
+	cmpxchgl	%eax,TD_LOCK(%ecx)
 	jne		101f
 	pause
 	jmp		100b
