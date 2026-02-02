@@ -160,16 +160,6 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 			chunk = size;
 		read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, true,
 		    off, 0, 0, 0, &buf, chunk);
-		if (off == 0) {
-			/*
-			 * Sanity check to make sure that the generation number
-			 * didn't change between the two reads.
-			 */
-			if (tlp.hi_gen != buf.hi_gen)
-				warnx(
-				    "Generation number changed from %d to %d",
-				    tlp.hi_gen, buf.hi_gen);
-		}
 		if (write(fdout, &buf, chunk) != chunk)
 			err(EX_IOERR, "Error writing %s", opt.outfn);
 		off += chunk;
