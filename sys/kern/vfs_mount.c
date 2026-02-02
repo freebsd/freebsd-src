@@ -1733,6 +1733,8 @@ kern_unmount(struct thread *td, const char *path, int flags)
 	int error;
 
 	AUDIT_ARG_VALUE(flags);
+	if ((flags & (MNT_DEFERRED | MNT_RECURSE)) != 0)
+		return (EINVAL);
 	if (jailed(td->td_ucred) || usermount == 0) {
 		error = priv_check(td, PRIV_VFS_UNMOUNT);
 		if (error)
