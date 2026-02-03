@@ -1637,8 +1637,6 @@ sysctl_handle_bool(SYSCTL_HANDLER_ARGS)
 	 * the output buffer, we assume that the caller expected an 'int'
 	 * instead of a 'uint8_t'.
 	 */
-	if (req->oldidx >= req->oldlen)
-		return (ENOMEM);
 	if (req->oldlen - req->oldidx == sizeof(int)) {
 		int temp_int = temp;
 
@@ -1655,8 +1653,6 @@ sysctl_handle_bool(SYSCTL_HANDLER_ARGS)
 		 * Conversely, if the input buffer has exactly 4 bytes to read,
 		 * use them all to produce a bool.
 		 */
-		if (req->newidx >= req->newlen)
-			return (ENOMEM);
 		if (req->newlen - req->newidx == sizeof(int)) {
 			int temp_int;
 
