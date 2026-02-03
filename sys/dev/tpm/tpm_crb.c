@@ -75,8 +75,52 @@
 
 #define	TPM_CRB_INT_ENABLE_BIT		BIT(31)
 
+struct tpmcrb_sc;
+/* Attach */
+typedef bool (sm_attach_t)(struct tpmcrb_sc *, void *, size_t);
+/* State change notification (timeout == 0 for 'no timeout') */
+typedef bool (sm_statechange_t)(struct tpmcrb_sc *, int);
+
+struct tpmcrb_sm_cfg {
+	sm_attach_t		*sm_attach;
+	sm_statechange_t	*sm_statechange;
+	sm_statechange_t	*sm_cmdready;
+};
+
+static sm_attach_t		pluton_attach;
+static sm_statechange_t		pluton_doorbell;
+
+static const struct tpmcrb_sm_cfg_map {
+	int				acpi_sm;
+	const char			*desc;
+	const struct tpmcrb_sm_cfg	sm_cfg;
+} tpmcrb_sm_cfg_map[] = {
+	{
+		.acpi_sm = TPM2_START_METHOD_CRB,
+		.desc = "Trusted Platform Module 2.0, CRB mode",
+		.sm_cfg = { NULL },	/* No notifications required */
+	},
+	{
+		.acpi_sm = ACPI_TPM2_COMMAND_BUFFER_WITH_PLUTON,
+		.desc = "Trusted Platform Module 2.0, CRB mode (Pluton)",
+		.sm_cfg = {
+			.sm_attach = &pluton_attach,
+			.sm_statechange = &pluton_doorbell,
+			.sm_cmdready = &pluton_doorbell,
+		},
+	},
+};
+
 struct tpmcrb_sc {
 	struct tpm_sc	base;
+	const struct tpmcrb_sm_cfg	*sm_cfg;
+	union {
+		/* StartMethod data */
+		struct {
+			uint64_t	 start_reg;
+			uint64_t	 reply_reg;
+		} pluton;
+	};
 	bus_size_t	cmd_off;
 	bus_size_t	rsp_off;
 	size_t		cmd_buf_size;
@@ -99,23 +143,46 @@ static bool tpmcrb_cancel_cmd(struct tpm_sc *sc);
 
 char *tpmcrb_ids[] = {"MSFT0101", NULL};
 
+static const struct tpmcrb_sm_cfg_map *
+tpmcrb_acpi_startmethod_cfg(int method)
+{
+	const struct tpmcrb_sm_cfg_map *entry;
+
+	for (size_t i = 0; i < nitems(tpmcrb_sm_cfg_map); i++) {
+		entry = &tpmcrb_sm_cfg_map[i];
+
+		if (method == entry->acpi_sm)
+			return (entry);
+	}
+
+	return (NULL);
+}
+
 static int
 tpmcrb_acpi_probe(device_t dev)
 {
-	int err;
+	int err, smethod;
+	const struct tpmcrb_sm_cfg_map *sm_cfg_map;
 	ACPI_TABLE_TPM23 *tbl;
 	ACPI_STATUS status;
+
 	err = ACPI_ID_PROBE(device_get_parent(dev), dev, tpmcrb_ids, NULL);
 	if (err > 0)
 		return (err);
 	/*Find TPM2 Header*/
 	status = AcpiGetTable(ACPI_SIG_TPM2, 1, (ACPI_TABLE_HEADER **) &tbl);
-	if(ACPI_FAILURE(status) ||
-	   tbl->StartMethod != TPM2_START_METHOD_CRB)
+	if (ACPI_FAILURE(status))
 		return (ENXIO);
 
-	device_set_desc(dev, "Trusted Platform Module 2.0, CRB mode");
-	return (err);
+	smethod = tbl->StartMethod;
+	AcpiPutTable((ACPI_TABLE_HEADER *)tbl);
+
+	sm_cfg_map = tpmcrb_acpi_startmethod_cfg(smethod);
+	if (sm_cfg_map == NULL)
+		return (ENXIO);
+
+	device_set_desc(dev, sm_cfg_map->desc);
+	return (0);
 }
 
 static ACPI_STATUS
@@ -141,6 +208,40 @@ tpmcrb_fix_buff_offsets(ACPI_RESOURCE *res, void *arg)
 	return (AE_OK);
 }
 
+static bool
+tpmcrb_attach_startmethod(struct tpmcrb_sc *crb_sc)
+{
+	const struct tpmcrb_sm_cfg_map *sm_cfg_map;
+	const struct tpmcrb_sm_cfg *sm_cfg;
+	ACPI_TABLE_TPM23 *tbl;
+	void *smdata;
+	ACPI_STATUS status;
+	bool ret;
+
+	/*
+	 * Grab what we need from the StartMethod.
+	 */
+	status = AcpiGetTable(ACPI_SIG_TPM2, 1, (ACPI_TABLE_HEADER **)(void **)&tbl);
+	if (ACPI_FAILURE(status))
+		return (false);
+
+	sm_cfg_map = tpmcrb_acpi_startmethod_cfg(tbl->StartMethod);
+	MPASS(sm_cfg_map != NULL);
+	sm_cfg = &sm_cfg_map->sm_cfg;
+
+	crb_sc->sm_cfg = sm_cfg;
+	smdata = tbl + 1;
+	if (sm_cfg->sm_attach != NULL) {
+		ret = (*sm_cfg->sm_attach)(crb_sc, smdata,
+		    tbl->Header.Length - sizeof(*tbl));
+	} else {
+		ret = true;
+	}
+
+	AcpiPutTable((ACPI_TABLE_HEADER *)tbl);
+	return (ret);
+}
+
 static int
 tpmcrb_attach(device_t dev)
 {
@@ -162,6 +263,11 @@ tpmcrb_attach(device_t dev)
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
 					     RF_ACTIVE);
 	if (sc->mem_res == NULL) {
+		tpmcrb_detach(dev);
+		return (ENXIO);
+	}
+
+	if (!tpmcrb_attach_startmethod(crb_sc)) {
 		tpmcrb_detach(dev);
 		return (ENXIO);
 	}
@@ -302,6 +408,30 @@ tpmcrb_cancel_cmd(struct tpm_sc *sc)
 }
 
 static bool
+tpmcrb_notify_cmdready(struct tpmcrb_sc *crb_sc, int timeout)
+{
+	sm_statechange_t *cmdready_fn;
+
+	cmdready_fn = crb_sc->sm_cfg->sm_cmdready;
+	if (cmdready_fn == NULL)
+		return (true);
+
+	return ((*cmdready_fn)(crb_sc, timeout));
+}
+
+static bool
+tpmcrb_notify_state_changing(struct tpmcrb_sc *crb_sc, int timeout)
+{
+	sm_statechange_t *statechange_fn;
+
+	statechange_fn = crb_sc->sm_cfg->sm_statechange;
+	if (statechange_fn == NULL)
+		return (true);
+
+	return ((*statechange_fn)(crb_sc, timeout));
+}
+
+static bool
 tpmcrb_state_idle(struct tpmcrb_sc *crb_sc, bool wait)
 {
 	struct tpm_sc *sc;
@@ -311,6 +441,9 @@ tpmcrb_state_idle(struct tpmcrb_sc *crb_sc, bool wait)
 
 	sc = &crb_sc->base;
 	OR4(sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_IDLE);
+
+	if (!tpmcrb_notify_state_changing(crb_sc, timeout))
+		return (false);
 
 	if (timeout > 0) {
 		mask = TPM_CRB_CTRL_STS_IDLE_BIT;
@@ -332,6 +465,9 @@ tpmcrb_state_ready(struct tpmcrb_sc *crb_sc, bool wait)
 
 	sc = &crb_sc->base;
 	OR4(sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_READY);
+
+	if (!tpmcrb_notify_state_changing(crb_sc, timeout))
+		return (false);
 
 	if (timeout > 0) {
 		mask = TPM_CRB_CTRL_REQ_GO_READY;
@@ -406,6 +542,13 @@ tpmcrb_transmit(device_t dev, size_t length)
 	TPM_WRITE_4(dev, TPM_CRB_CTRL_START, TPM_CRB_CTRL_START_CMD);
 	TPM_WRITE_BARRIER(dev, TPM_CRB_CTRL_START, 4);
 
+	if (!tpmcrb_notify_cmdready(crb_sc, timeout)) {
+		device_printf(dev,
+		    "Timeout while waiting for device to ready\n");
+		if (!tpmcrb_cancel_cmd(sc))
+			return (EIO);
+	}
+
 	mask = ~0;
 	if (!tpm_wait_for_u32(sc, TPM_CRB_CTRL_START, mask, ~mask, timeout)) {
 		device_printf(dev,
@@ -429,6 +572,10 @@ tpmcrb_transmit(device_t dev, size_t length)
 	bus_read_region_stream_1(sc->mem_res, crb_sc->rsp_off + TPM_HEADER_SIZE,
 	      &sc->buf[TPM_HEADER_SIZE], bytes_available - TPM_HEADER_SIZE);
 
+	/*
+	 * No need to wait for the transition to idle on the way out, we can
+	 * relinquish locality right away.
+	 */
 	if (!tpmcrb_state_idle(crb_sc, false)) {
 		device_printf(dev,
 		    "Failed to transition to idle state post-send\n");
@@ -440,6 +587,61 @@ tpmcrb_transmit(device_t dev, size_t length)
 	sc->total_length = bytes_available;
 
 	return (0);
+}
+
+/* StartMethod Implementation Details */
+
+/** Pluton **/
+struct tpmcrb_startmethod_pluton {
+	uint64_t		sm_startaddr;
+	uint64_t		sm_replyaddr;
+};
+
+static bool
+pluton_attach(struct tpmcrb_sc *crb_sc, void *smdataregion, size_t datasz)
+{
+	struct tpmcrb_startmethod_pluton *smdata;
+	struct tpm_sc *sc;
+	rman_res_t base_addr, end_addr;
+
+	if (datasz < sizeof(*smdata))
+		return (false);
+
+	smdata = smdataregion;
+	sc = &crb_sc->base;
+
+	base_addr = rman_get_start(sc->mem_res);
+	end_addr = rman_get_end(sc->mem_res);
+	/* Sanity check */
+	if (smdata->sm_startaddr < base_addr ||
+	    smdata->sm_startaddr > end_addr ||
+	    smdata->sm_replyaddr < base_addr ||
+	    smdata->sm_replyaddr > end_addr)
+		return (false);
+
+	crb_sc->pluton.start_reg = smdata->sm_startaddr - base_addr;
+	crb_sc->pluton.reply_reg = smdata->sm_replyaddr - base_addr;
+	return (true);
+}
+
+static bool
+pluton_doorbell(struct tpmcrb_sc *crb_sc, int timeout)
+{
+	struct tpm_sc *sc;
+	device_t dev;
+
+	sc = &crb_sc->base;
+	dev = sc->dev;
+	TPM_WRITE_4(dev, crb_sc->pluton.start_reg, 1);
+	TPM_WRITE_BARRIER(dev, crb_sc->pluton.start_reg, 4);
+
+	if (timeout > 0) {
+		if (!tpm_wait_for_u32(sc, crb_sc->pluton.reply_reg, ~0U, 1,
+		    timeout))
+			return (false);
+	}
+
+	return (true);
 }
 
 /* ACPI Driver */
