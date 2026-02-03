@@ -191,6 +191,7 @@ linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 	struct skb_shared_info *shinfo;
 	size_t len;
 	unsigned int headroom;
+	uint16_t fragno, count;
 
 	/* Full buffer size + any fragments. */
 	len = skb->end - skb->head + skb->data_len;
@@ -209,10 +210,15 @@ linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 
 	/* Deal with fragments. */
 	shinfo = skb->shinfo;
-	if (shinfo->nr_frags > 0) {
-		printf("%s:%d: NOT YET SUPPORTED; missing %d frags\n",
-		    __func__, __LINE__, shinfo->nr_frags);
-		SKB_TODO();
+	for (count = fragno = 0;
+	    count < shinfo->nr_frags && fragno < nitems(shinfo->frags);
+	    fragno++) {
+		if (shinfo->frags[fragno].page != NULL) {
+			skb_put_data(new,
+			    skb_frag_address(&shinfo->frags[fragno]),
+			    shinfo->frags[fragno].size);
+			count++;
+		}
 	}
 
 	/* Deal with header fields. */
