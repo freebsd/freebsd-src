@@ -131,6 +131,8 @@ struct hyp {
 	uint64_t	feats;		/* Which features are enabled */
 #define	HYP_FEAT_HCX		(0x1ul << 0)
 #define	HYP_FEAT_ECV_POFF	(0x1ul << 1)
+#define	HYP_FEAT_FGT		(0x1ul << 2)
+#define	HYP_FEAT_FGT2		(0x1ul << 3)
 	bool		vgic_attached;
 	struct vgic_v3	*vgic;
 	struct hypctx	*ctx[];

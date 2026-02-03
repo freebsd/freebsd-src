@@ -525,6 +525,18 @@ vmmops_init(struct vm *vm, pmap_t pmap)
 	if (get_kernel_reg(ID_AA64MMFR0_EL1, &idreg)) {
 		if (ID_AA64MMFR0_ECV_VAL(idreg) >= ID_AA64MMFR0_ECV_POFF)
 			hyp->feats |= HYP_FEAT_ECV_POFF;
+
+		switch (ID_AA64MMFR0_FGT_VAL(idreg)) {
+		case ID_AA64MMFR0_FGT_NONE:
+			break;
+		default:
+		case ID_AA64MMFR0_FGT_8_9:
+			hyp->feats |= HYP_FEAT_FGT2;
+			/* FALLTHROUGH */
+		case ID_AA64MMFR0_FGT_8_6:
+			hyp->feats |= HYP_FEAT_FGT;
+			break;
+		}
 	}
 
 	if (get_kernel_reg(ID_AA64MMFR1_EL1, &idreg)) {
