@@ -2149,6 +2149,10 @@ OLD_FILES+=usr/share/man/man6/random.6.gz
 OLD_FILES+=usr/share/man/man6/rot13.6.gz
 OLD_FILES+=usr/share/man/man8/strfile.8.gz
 OLD_FILES+=usr/share/man/man8/unstr.8.gz
+OLD_FILES+=usr/tests/usr.bin/factor/factor_tests
+OLD_FILES+=usr/tests/usr.bin/factor/primes_tests
+OLD_FILES+=usr/tests/usr.bin/factor/Kyuafile
+OLD_DIRS+=usr/tests/usr.bin/factor
 .endif
 
 .if ${MK_GOOGLETEST} == no
