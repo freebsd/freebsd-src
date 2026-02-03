@@ -42,7 +42,8 @@ MDSRCS+= \
 	memcpy_resolver.c \
 	memmove_resolver.c \
 	memset.S \
-	memset_resolver.c
+	memset_resolver.c \
+	memset_zva64.S
 
 #
 # Add the above functions. Generate an asm file that includes the needed
@@ -77,3 +78,4 @@ CFLAGS.${FILE}+=-I${SRCTOP}/contrib/arm-optimized-routines/string
 CFLAGS.memchr.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
 CFLAGS.memcpy.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
 CFLAGS.memset.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
+CFLAGS.memset_zva64.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string

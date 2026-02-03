@@ -25,17 +25,30 @@
  * SUCH DAMAGE.
  */
 #include <sys/types.h>
+
+#include <machine/armreg.h>
 #include <machine/ifunc.h>
 
 #include <elf.h>
 
 void *__memset_aarch64(void *, int, size_t);
+void *__memset_aarch64_zva64(void *, int, size_t);
 void *__memset_aarch64_mops(void *, int, size_t);
 
 DEFINE_UIFUNC(, void *, memset, (void *, int, size_t))
 {
+	uint64_t dczid;
+
 	if (ifunc_arg->_hwcap2 & HWCAP2_MOPS)
 		return (__memset_aarch64_mops);
+
+	/*
+	 * Check for the DC ZVA instruction, and it will
+	 * zero 64 bytes (4 * 4byte words).
+	 */
+	dczid = READ_SPECIALREG(dczid_el0);
+	if ((dczid & DCZID_DZP) == 0 && DCZID_BS_SIZE(dczid) == 4)
+		return (__memset_aarch64_zva64);
 
 	return (__memset_aarch64);
 }
