@@ -1145,9 +1145,13 @@ napi_consume_skb(struct sk_buff *skb, int budget)
 static inline struct sk_buff *
 napi_build_skb(void *data, size_t len)
 {
+	struct sk_buff *skb;
 
-	SKB_TODO();
-	return (NULL);
+	SKB_IMPROVE("len and all needs fixing likely");
+
+	skb = linuxkpi_build_skb(data, len);
+	SKB_TRACE(skb);
+	return (skb);
 }
 
 static inline uint32_t
