@@ -140,6 +140,7 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 	skb->head = skb->data = (uint8_t *)p;
 	skb_reset_tail_pointer(skb);
 	skb->end = skb->head + size;
+	refcount_set(&skb->refcnt, 1);
 
 	SKB_TRACE_FMT(skb, "data %p size %zu", (skb) ? skb->data : NULL, size);
 	return (skb);
@@ -180,6 +181,7 @@ linuxkpi_build_skb(void *data, size_t fragsz)
 	skb->head = skb->data = data;
 	skb_reset_tail_pointer(skb);
 	skb->end = skb->head + fragsz;
+	refcount_set(&skb->refcnt, 1);
 
 	return (skb);
 }
@@ -288,6 +290,20 @@ lkpi___skb_linearize(struct sk_buff *skb)
 	return (0);
 }
 
+static bool
+lkpi_skb_refcount_release(struct sk_buff *skb)
+{
+	if (skb == NULL)
+		return (false);
+
+	/* Do we need further tests to avoid freeing this one? */
+
+	if (!refcount_dec_and_test(&skb->refcnt))
+		return (false);
+
+	return (true);
+}
+
 void
 linuxkpi_kfree_skb(struct sk_buff *skb)
 {
@@ -297,6 +313,11 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 	SKB_TRACE(skb);
 	if (skb == NULL)
 		return;
+
+	if (!lkpi_skb_refcount_release(skb)) {
+		SKB_TRACE_FMT(skb, "not freed due to refcnt");
+		return;
+	}
 
 	/*
 	 * XXX TODO this will go away once we have skb backed by mbuf.
