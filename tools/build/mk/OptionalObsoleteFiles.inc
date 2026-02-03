@@ -748,10 +748,13 @@ OLD_FILES+=usr/share/snmp/mibs/BRIDGE-MIB.txt
 OLD_FILES+=usr/share/snmp/mibs/FOKUS-MIB.txt
 OLD_FILES+=usr/share/snmp/mibs/FREEBSD-MIB.txt
 OLD_FILES+=usr/share/snmp/mibs/RSTP-MIB.txt
+OLD_FILES+=usr/tests/lib/libbsnmp/bsnmpd_test
+OLD_FILES+=usr/tests/lib/libbsnmp/Kyuafile
 OLD_DIRS+=usr/include/bsnmp
 OLD_DIRS+=usr/share/snmp
 OLD_DIRS+=usr/share/snmp/defs
 OLD_DIRS+=usr/share/snmp/mibs
+OLD_DIRS+=usr/tests/lib/libbsnmp
 .endif
 
 .if ${MK_CALENDAR} == no
