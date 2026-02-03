@@ -114,7 +114,7 @@ recv_data(uint16_t blocknum, const char *contents, size_t contents_len)
 	RECV(hdr, msg, sizeof(msg));					\
 } while (0)
 
-/* 
+/*
  * send a command to tftpd.
  * @param	cmd		Command to send, as a char array
  */
@@ -141,7 +141,7 @@ send_data(uint16_t blocknum, const char *contents, size_t contents_len)
 	send_bytes(buffer, 4 + contents_len);
 }
 
-/* 
+/*
  * send a command to tftpd.
  * @param	cmd		Command to send, as a const string
  *				(terminating NUL will be ignored)
@@ -171,7 +171,7 @@ send_ack(uint16_t blocknum)
  */
 #define OPTION_STR(name, value)	name "\000" value "\000"
 
-/* 
+/*
  * send a read request to tftpd.
  * @param	filename	filename as a string, absolute or relative
  * @param	mode		either "octet" or "netascii"
@@ -185,7 +185,7 @@ send_ack(uint16_t blocknum)
 #define SEND_RRQ_OPT(filename, mode, options)				\
 	SEND_STR("\0\001" filename "\0" mode "\000" options)
 
-/* 
+/*
  * send a write request to tftpd.
  * @param	filename	filename as a string, absolute or relative
  * @param	mode		either "octet" or "netascii"
@@ -356,7 +356,7 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 	}
 
 	ATF_REQUIRE_EQ(pwd, getcwd(pwd, sizeof(pwd)));
-	
+
 	/* Must bind(2) pre-fork so it happens before the client's send(2) */
 	server_s = socket(protocol, SOCK_DGRAM, 0);
 	if (server_s < 0 && errno == EAFNOSUPPORT) {
@@ -679,7 +679,7 @@ TFTPD_TC_DEFINE(rrq_netascii,)
 {
 	int fd;
 	char contents[] = "foo\nbar\rbaz\n";
-	/* 
+	/*
 	 * Weirdly, RFC-764 says that CR must be followed by NUL if a line feed
 	 * is not intended
 	 */
@@ -878,7 +878,7 @@ TFTPD_TC_DEFINE(wrq_dropped_ack,)
 	SEND_WRQ("medium.txt", "octet");
 	recv_ack(0);
 	send_data(1, (const char *)&contents[0], 512);
-	/* 
+	/*
 	 * Servers "sends" an ACK packet, but network drops it.
 	 * Eventually, server should resend the last ACK
 	 */
@@ -913,7 +913,7 @@ TFTPD_TC_DEFINE(wrq_dropped_data,)
 
 	SEND_WRQ("small.txt", "octet");
 	recv_ack(0);
-	/* 
+	/*
 	 * Client "sends" a DATA packet, but network drops it.
 	 * Eventually, server should resend the last ACK
 	 */
@@ -1069,7 +1069,7 @@ TFTPD_TC_DEFINE(wrq_netascii,)
 {
 	int fd;
 	ssize_t r;
-	/* 
+	/*
 	 * Weirdly, RFC-764 says that CR must be followed by NUL if a line feed
 	 * is not intended
 	 */
