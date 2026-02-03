@@ -1,5 +1,7 @@
 .include <kmod.opts.mk>
 
+.PATH: ${COMMONDIR}
+
 KMOD=	mt76_core
 
 # Basic stuff.
