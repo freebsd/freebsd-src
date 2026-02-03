@@ -8360,6 +8360,9 @@ OLD_FILES+=usr/bin/tftp
 OLD_FILES+=usr/libexec/tftpd
 OLD_FILES+=usr/share/man/man1/tftp.1.gz
 OLD_FILES+=usr/share/man/man8/tftpd.8.gz
+OLD_FILES+=usr/tests/libexec/tftpd/functional
+OLD_FILES+=usr/tests/libexec/tftpd/Kyuafile
+OLD_DIRS+=usr/tests/libexec/tftpd
 .endif
 
 .if ${MK_TOOLCHAIN} == no
