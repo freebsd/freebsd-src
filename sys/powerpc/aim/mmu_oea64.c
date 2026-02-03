@@ -125,7 +125,7 @@ uintptr_t moea64_get_unique_vsid(void);
 #define PV_LOCK_COUNT	MAXCPU
 static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
 
-#define	PV_LOCK_SHIFT	21
+#define	PV_LOCK_SHIFT	HPT_SP_SIZE
 #define	pa_index(pa)	((pa) >> PV_LOCK_SHIFT)
 
 /*
@@ -145,48 +145,6 @@ static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
 #define PV_PAGE_LOCK(m)		PV_LOCK(VM_PAGE_TO_PHYS(m))
 #define PV_PAGE_UNLOCK(m)	PV_UNLOCK(VM_PAGE_TO_PHYS(m))
 #define PV_PAGE_LOCKASSERT(m)	PV_LOCKASSERT(VM_PAGE_TO_PHYS(m))
-
-/* Superpage PV lock */
-
-#define	PV_LOCK_SIZE		(1 << PV_LOCK_SHIFT)
-
-static __always_inline void
-moea64_sp_pv_lock(vm_paddr_t pa)
-{
-	vm_paddr_t pa_end;
-
-	/* Note: breaking when pa_end is reached to avoid overflows */
-	pa_end = pa + (HPT_SP_SIZE - PV_LOCK_SIZE);
-	for (;;) {
-		mtx_lock_flags(PV_LOCKPTR(pa), MTX_DUPOK);
-		if (pa == pa_end)
-			break;
-		pa += PV_LOCK_SIZE;
-	}
-}
-
-static __always_inline void
-moea64_sp_pv_unlock(vm_paddr_t pa)
-{
-	vm_paddr_t pa_end;
-
-	/* Note: breaking when pa_end is reached to avoid overflows */
-	pa_end = pa;
-	pa += HPT_SP_SIZE - PV_LOCK_SIZE;
-	for (;;) {
-		mtx_unlock_flags(PV_LOCKPTR(pa), MTX_DUPOK);
-		if (pa == pa_end)
-			break;
-		pa -= PV_LOCK_SIZE;
-	}
-}
-
-#define	SP_PV_LOCK_ALIGNED(pa)		moea64_sp_pv_lock(pa)
-#define	SP_PV_UNLOCK_ALIGNED(pa)	moea64_sp_pv_unlock(pa)
-#define	SP_PV_LOCK(pa)			moea64_sp_pv_lock((pa) & ~HPT_SP_MASK)
-#define	SP_PV_UNLOCK(pa)		moea64_sp_pv_unlock((pa) & ~HPT_SP_MASK)
-#define	SP_PV_PAGE_LOCK(m)		SP_PV_LOCK(VM_PAGE_TO_PHYS(m))
-#define	SP_PV_PAGE_UNLOCK(m)		SP_PV_UNLOCK(VM_PAGE_TO_PHYS(m))
 
 struct ofw_map {
 	cell_t	om_va;
@@ -3736,7 +3694,7 @@ moea64_sp_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		}
 	}
 
-	SP_PV_LOCK_ALIGNED(spa);
+	PV_LOCK(spa);
 	PMAP_LOCK(pmap);
 
 	/* Note: moea64_remove_locked() also clears cached REF/CHG bits. */
@@ -3775,7 +3733,7 @@ moea64_sp_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	}
 
 	PMAP_UNLOCK(pmap);
-	SP_PV_UNLOCK_ALIGNED(spa);
+	PV_UNLOCK(spa);
 
 	sync = (sm->a.flags & PGA_EXECUTABLE) == 0;
 	/* Note: moea64_pvo_cleanup() also clears page prot. flags. */
