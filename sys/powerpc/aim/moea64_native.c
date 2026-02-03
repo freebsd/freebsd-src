@@ -568,9 +568,9 @@ moea64_bootstrap_native(vm_offset_t kernelstart, vm_offset_t kernelend)
 	case IBMPOWER8:
 	case IBMPOWER8E:
 	case IBMPOWER8NVL:
-		moea64_need_lock = false;
-		break;
 	case IBMPOWER9:
+	case IBMPOWER10:
+	case IBMPOWER11:
 		moea64_need_lock = false;
 		break;
 	case IBMPOWER4:
