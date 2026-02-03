@@ -139,7 +139,7 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 	/* Read the log page */
 	size = sizeof(tlp);
 	off = 0;
-	read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, true,
+	read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, 1,
 	    off, 0, 0, 0, &tlp, size);
 	switch(opt.da) {
 	case 1:
@@ -171,7 +171,7 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 			    (unsigned long long)blocks);
 			fflush(stdout);
 		}
-		read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, true,
+		read_logpage(fd, NVME_LOG_TELEMETRY_HOST_INITIATED, nsid, 0, 0, 1,
 		    off, 0, 0, 0, &buf, chunk);
 		if (write(fdout, &buf, chunk) != chunk)
 			err(EX_IOERR, "Error writing %s", opt.outfn);
