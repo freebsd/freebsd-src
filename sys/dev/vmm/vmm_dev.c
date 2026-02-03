@@ -876,8 +876,7 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 		free(dsc, M_VMMDEV);
 	}
 
-	if (sc->vm != NULL)
-		vm_destroy(sc->vm);
+	vm_destroy(sc->vm);
 
 	chgvmmcnt(sc->ucred->cr_ruidinfo, -1, 0);
 	crfree(sc->ucred);
