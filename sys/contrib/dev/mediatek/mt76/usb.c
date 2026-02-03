@@ -5,6 +5,8 @@
 
 #if defined(__FreeBSD__)
 #define	LINUXKPI_PARAM_PREFIX	mt76_usb_
+
+#include <linux/delay.h>
 #endif
 
 #include <linux/module.h>
@@ -474,7 +476,11 @@ mt76u_get_rx_entry_len(struct mt76_dev *dev, u8 *data,
 }
 
 static struct sk_buff *
+#if defined(__linux__)
 mt76u_build_rx_skb(struct mt76_dev *dev, void *data,
+#elif defined(__FreeBSD__)
+mt76u_build_rx_skb(struct mt76_dev *dev, u8 *data,
+#endif
 		   int len, int buf_size)
 {
 	int head_room, drv_flags = dev->drv->drv_flags;
@@ -495,7 +501,11 @@ mt76u_build_rx_skb(struct mt76_dev *dev, void *data,
 		data += head_room + MT_SKB_HEAD_LEN;
 		page = virt_to_head_page(data);
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+#if defined(__linux__)
 				page, data - page_address(page),
+#elif defined(__FreeBSD__)
+				page, data - (u8 *)page_address(page),
+#endif
 				len - MT_SKB_HEAD_LEN, buf_size);
 
 		return skb;
