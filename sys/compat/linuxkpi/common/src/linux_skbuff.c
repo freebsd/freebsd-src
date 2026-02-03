@@ -222,6 +222,66 @@ linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 	return (new);
 }
 
+int
+lkpi___skb_linearize(struct sk_buff *skb)
+{
+	struct sk_buff *new;
+	struct skb_shared_info *shinfo;
+	uint16_t fragno, count;
+
+	SKB_TRACE(skb);
+	SKB_IMPROVE("Hack completely re-allocating and freeing; FIXME");
+	new = skb_copy(skb, GFP_NOWAIT);
+	if (new == NULL)
+		return (-ENOMEM);
+
+	/* Now need to swap head, data, tail, ... and free from old (and then new). */
+	shinfo = skb->shinfo;
+	for (count = fragno = 0;
+	    count < shinfo->nr_frags && fragno < nitems(shinfo->frags);
+	    fragno++) {
+
+		if (shinfo->frags[fragno].page != NULL) {
+			struct page *p;
+
+			p = shinfo->frags[fragno].page;
+			shinfo->frags[fragno].size = 0;
+			shinfo->frags[fragno].offset = 0;
+			shinfo->frags[fragno].page = NULL;
+			__free_page(p);
+			count++;
+		}
+	}
+
+	if ((skb->_flags & _SKB_FLAGS_SKBEXTFRAG) != 0) {
+		void *p;
+
+		p = skb->head;
+		skb_free_frag(p);
+		skb->head = NULL;
+		skb->_flags &= ~_SKB_FLAGS_SKBEXTFRAG;
+	}
+
+#ifdef	SKB_DMA32_MALLOC
+	if (__predict_false(linuxkpi_skb_memlimit != 0))
+		free(skb->head, M_LKPISKB);
+	else
+#endif
+	kfree(skb->head);
+
+	skb->head = new->head;
+	skb->data = new->data;
+	skb->tail = new->tail;
+	skb->end = new->end;
+	skb->len = new->len;
+	skb->data_len = new->data_len;
+	skb->truesize = new->truesize;
+
+	uma_zfree(skbzone, new);
+
+	return (0);
+}
+
 void
 linuxkpi_kfree_skb(struct sk_buff *skb)
 {

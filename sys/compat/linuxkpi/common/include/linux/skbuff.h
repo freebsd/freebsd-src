@@ -209,6 +209,8 @@ void linuxkpi_kfree_skb(struct sk_buff *);
 
 struct sk_buff *linuxkpi_skb_copy(const struct sk_buff *, gfp_t);
 
+int lkpi___skb_linearize(struct sk_buff *);
+
 /* -------------------------------------------------------------------------- */
 
 static inline struct sk_buff *
@@ -978,9 +980,7 @@ skb_network_header(struct sk_buff *skb)
 static inline int
 __skb_linearize(struct sk_buff *skb)
 {
-	SKB_TRACE(skb);
-	SKB_TODO();
-	return (-ENXIO);
+	return (lkpi___skb_linearize(skb));
 }
 
 static inline int
