@@ -189,6 +189,12 @@ sg_mark_end(struct scatterlist *sg)
 }
 
 static inline void
+sg_init_marker(struct scatterlist *sg, uint32_t num_sgs)
+{
+	sg_mark_end(&sg[num_sgs - 1]);
+}
+
+static inline void
 sg_init_table(struct scatterlist *sg, unsigned int nents)
 {
 	bzero(sg, sizeof(*sg) * nents);
