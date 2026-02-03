@@ -125,7 +125,7 @@ uintptr_t moea64_get_unique_vsid(void);
 #define PV_LOCK_COUNT	MAXCPU
 static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
 
-#define	PV_LOCK_SHIFT	HPT_SP_SIZE
+#define	PV_LOCK_SHIFT	HPT_SP_SHIFT
 #define	pa_index(pa)	((pa) >> PV_LOCK_SHIFT)
 
 /*
@@ -890,7 +890,7 @@ moea64_early_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	int		rm_pavail;
 
 	/* Level 0 reservations consist of 4096 pages (16MB superpage). */
-	vm_level_0_order = 12;
+	vm_level_0_order = VM_LEVEL_0_ORDER_HPT;
 
 #ifndef __powerpc64__
 	/* We don't have a direct map since there is no BAT */

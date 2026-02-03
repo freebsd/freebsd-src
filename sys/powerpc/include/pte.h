@@ -145,10 +145,11 @@ typedef	struct lpte lpte_t;
 #define	LPTE_RO		LPTE_BR
 
 /* HPT superpage definitions */
-#define	HPT_SP_SHIFT		(VM_LEVEL_0_ORDER + PAGE_SHIFT)
+#define	VM_LEVEL_0_ORDER_HPT	12
+#define	HPT_SP_SHIFT		(VM_LEVEL_0_ORDER_HPT + PAGE_SHIFT)
 #define	HPT_SP_SIZE		(1 << HPT_SP_SHIFT)
 #define	HPT_SP_MASK		(HPT_SP_SIZE - 1)
-#define	HPT_SP_PAGES		(1 << VM_LEVEL_0_ORDER)
+#define	HPT_SP_PAGES		(1 << VM_LEVEL_0_ORDER_HPT)
 
 /* POWER ISA 3.0 Radix Table Definitions */
 #define	RPTE_VALID		0x8000000000000000ULL
