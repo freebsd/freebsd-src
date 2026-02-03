@@ -28,7 +28,6 @@ CSTD=	c99
 # Since there are many asserts in this program, it makes no sense to compile
 # it without debugging.
 CFLAGS+= -g -DDEBUG=1 -Wno-format -DZFS_DEBUG=1
-CFLAGS.gcc+= -fms-extensions
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
