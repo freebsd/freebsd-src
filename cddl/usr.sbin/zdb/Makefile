@@ -25,7 +25,6 @@ CFLAGS+= \
 
 LIBADD=	nvpair umem uutil zdb zfs_core zfs spl avl zutil zpool crypto
 
-CFLAGS.gcc+= -fms-extensions
 # Since there are many asserts in this program, it makes no sense to compile
 # it without debugging.
 CFLAGS+=	-g -DDEBUG=1 -DZFS_DEBUG=1
