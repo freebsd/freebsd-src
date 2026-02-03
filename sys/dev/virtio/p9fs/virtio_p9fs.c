@@ -84,6 +84,8 @@ static struct virtio_feature_desc virtio_9p_feature_desc[] = {
 	{ 0, NULL }
 };
 
+VIRTIO_SIMPLE_PNPINFO(virtio_p9fs, VIRTIO_ID_9P, "VirtIO 9P Transport");
+
 /* We don't currently allow canceling of virtio requests */
 static int
 vt9p_cancel(void *handle, struct p9_req_t *req)
@@ -257,13 +259,7 @@ vt9p_alloc_virtqueue(struct vt9p_softc *sc)
 static int
 vt9p_probe(device_t dev)
 {
-
-	/* If the virtio device type is a 9P device, then we claim and attach it */
-	if (virtio_get_device_type(dev) != VIRTIO_ID_9P)
-		return (ENXIO);
-	device_set_desc(dev, "VirtIO 9P Transport");
-
-	return (BUS_PROBE_DEFAULT);
+	return (VIRTIO_SIMPLE_PROBE(dev, virtio_p9fs));
 }
 
 static void
