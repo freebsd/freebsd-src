@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * Copyright (c) 2021-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -74,9 +74,9 @@ extern int linuxkpi_debug_skb;
     if (linuxkpi_debug_skb & DSKB_TRACE)				\
 	printf("SKB_TRACE %s:%d %p, %p\n", __func__, __LINE__, _s, _p)
 #define	SKB_TRACE_FMT(_s, _fmt, ...)					\
-   if (linuxkpi_debug_skb & DSKB_TRACE)					\
+    if ((linuxkpi_debug_skb & DSKB_TRACE) != 0)				\
 	printf("SKB_TRACE %s:%d %p " _fmt "\n", __func__, __LINE__, _s,	\
-	    __VA_ARGS__)
+	    ##__VA_ARGS__)
 #else
 #define	SKB_TODO()		do { } while(0)
 #define	SKB_IMPROVE(...)	do { } while(0)
@@ -653,6 +653,8 @@ __skb_unlink(struct sk_buff *skb, struct sk_buff_head *q)
 	WRITE_ONCE(q->qlen, q->qlen - 1);
 	p = skb->prev;
 	n = skb->next;
+	KASSERT(p != NULL && n != NULL,
+	    ("%s: skb %p q %p p %p n %p\n", __func__, skb, q, p, n));
 	WRITE_ONCE(n->prev, p);
 	WRITE_ONCE(p->next, n);
 	skb->prev = skb->next = NULL;
