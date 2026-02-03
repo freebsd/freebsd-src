@@ -436,7 +436,7 @@ skb_put_data(struct sk_buff *skb, const void *buf, size_t len)
 
 /* skb_put() + filling with zeros. */
 static inline void *
-skb_put_zero(struct sk_buff *skb, size_t len)
+__skb_put_zero(struct sk_buff *skb, size_t len)
 {
 	void *s;
 
@@ -444,6 +444,12 @@ skb_put_zero(struct sk_buff *skb, size_t len)
 	s = skb_put(skb, len);
 	memset(s, '\0', len);
 	return (s);
+}
+
+static inline void *
+skb_put_zero(struct sk_buff *skb, size_t len)
+{
+	return (__skb_put_zero(skb, len));
 }
 
 /*
