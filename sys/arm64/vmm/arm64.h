@@ -100,6 +100,22 @@ struct hypctx {
 	uint64_t	mdcr_el2;	/* Monitor Debug Configuration Register */
 	uint64_t	vpidr_el2;	/* Virtualization Processor ID Register */
 	uint64_t	vmpidr_el2;	/* Virtualization Multiprocessor ID Register */
+
+	/* FEAT_FGT registers */
+	/*uint64_t	hafgrtr_el2; *//* For FEAT_AMUv1 (not supported) */
+	uint64_t	hdfgrtr_el2;
+	uint64_t	hdfgwtr_el2;
+	uint64_t	hfgitr_el2;
+	uint64_t	hfgrtr_el2;
+	uint64_t	hfgwtr_el2;
+
+	/* FEAT_FGT2 registers */
+	uint64_t	hdfgrtr2_el2;
+	uint64_t	hdfgwtr2_el2;
+	uint64_t	hfgitr2_el2;
+	uint64_t	hfgrtr2_el2;
+	uint64_t	hfgwtr2_el2;
+
 	uint64_t	el2_addr;	/* The address of this in el2 space */
 	struct hyp	*hyp;
 	struct vcpu	*vcpu;
