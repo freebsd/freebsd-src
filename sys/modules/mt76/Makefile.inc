@@ -2,8 +2,6 @@
 
 COMMONDIR=	${SRCTOP}/sys/contrib/dev/mediatek/mt76
 
-.PATH: ${COMMONDIR}
-
 # Bus attachments.
 WITH_PCI=	1
 WITH_USB=	0
