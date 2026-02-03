@@ -41,7 +41,6 @@
 ATF_TC(telldir_after_seekdir);
 ATF_TC_HEAD(telldir_after_seekdir, tc)
 {
-
 	atf_tc_set_md_var(tc, "descr", "Calling telldir(3) after seekdir(3) "
 	    "should return the argument passed to seekdir.");
 }
@@ -50,7 +49,7 @@ ATF_TC_BODY(telldir_after_seekdir, tc)
 	const int NUMFILES = 1000;
 	char template[] = "dXXXXXX";
 	char *tmpdir;
-	int i, dirfd;
+	int i, dd;
 	DIR *dirp;
 	struct dirent *de;
 	long beginning, middle, end, td;
@@ -58,8 +57,8 @@ ATF_TC_BODY(telldir_after_seekdir, tc)
 	/* Create a temporary directory */
 	tmpdir = mkdtemp(template);
 	ATF_REQUIRE_MSG(tmpdir != NULL, "mkdtemp failed");
-	dirfd = open(tmpdir, O_RDONLY | O_DIRECTORY);
-	ATF_REQUIRE(dirfd > 0);
+	dd = open(tmpdir, O_RDONLY | O_DIRECTORY);
+	ATF_REQUIRE(dd > 0);
 
 	/* 
 	 * Fill it with files.  Must be > 128 to ensure that the directory
@@ -70,14 +69,14 @@ ATF_TC_BODY(telldir_after_seekdir, tc)
 		char filename[16];
 
 		snprintf(filename, sizeof(filename), "%d", i);
-		fd = openat(dirfd, filename, O_WRONLY | O_CREAT, 0600);
+		fd = openat(dd, filename, O_WRONLY | O_CREAT, 0600);
 		ATF_REQUIRE(fd > 0);
 		close(fd);
 	}
 
 	/* Get some directory bookmarks in various locations */
-	dirp = fdopendir(dirfd);
-	ATF_REQUIRE_MSG(dirfd >= 0, "fdopendir failed");
+	dirp = fdopendir(dd);
+	ATF_REQUIRE_MSG(dd >= 0, "fdopendir failed");
 	beginning = telldir(dirp);
 	for (i = 0; i < NUMFILES / 2; i = i+1) {
 		de = readdir(dirp);
@@ -126,7 +125,7 @@ ATF_TC_BODY(telldir_at_end_of_block, tc)
 	const int NUMFILES = 129;
 	char template[] = "dXXXXXX";
 	char *tmpdir;
-	int i, dirfd;
+	int i, dd;
 	DIR *dirp;
 	struct dirent *de;
 	long td;
@@ -135,8 +134,8 @@ ATF_TC_BODY(telldir_at_end_of_block, tc)
 	/* Create a temporary directory */
 	tmpdir = mkdtemp(template);
 	ATF_REQUIRE_MSG(tmpdir != NULL, "mkdtemp failed");
-	dirfd = open(tmpdir, O_RDONLY | O_DIRECTORY);
-	ATF_REQUIRE(dirfd > 0);
+	dd = open(tmpdir, O_RDONLY | O_DIRECTORY);
+	ATF_REQUIRE(dd > 0);
 
 	/* 
 	 * Fill it with files.  Must be > 128 to ensure that the directory
@@ -147,14 +146,14 @@ ATF_TC_BODY(telldir_at_end_of_block, tc)
 		char filename[16];
 
 		snprintf(filename, sizeof(filename), "%d", i);
-		fd = openat(dirfd, filename, O_WRONLY | O_CREAT, 0600);
+		fd = openat(dd, filename, O_WRONLY | O_CREAT, 0600);
 		ATF_REQUIRE(fd > 0);
 		close(fd);
 	}
 
 	/* Read all entries within the first page */
-	dirp = fdopendir(dirfd);
-	ATF_REQUIRE_MSG(dirfd >= 0, "fdopendir failed");
+	dirp = fdopendir(dd);
+	ATF_REQUIRE_MSG(dd >= 0, "fdopendir failed");
 	for (i = 0; i < NUMFILES - 1; i = i + 1)
 		ATF_REQUIRE_MSG(readdir(dirp) != NULL, "readdir failed");
 
@@ -178,9 +177,8 @@ ATF_TC_BODY(telldir_at_end_of_block, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, telldir_after_seekdir);
 	ATF_TP_ADD_TC(tp, telldir_at_end_of_block);
 
-	return atf_no_error();
+	return (atf_no_error());
 }
