@@ -990,9 +990,15 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 		return (EEXIST);
 	}
 
+	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
+		sx_xunlock(&vmmdev_mtx);
+		return (ENOMEM);
+	}
+
 	error = vm_create(name, &vm);
 	if (error != 0) {
 		sx_xunlock(&vmmdev_mtx);
+		(void)chgvmmcnt(cred->cr_ruidinfo, -1, 0);
 		return (error);
 	}
 	sc = vmmdev_alloc(vm, cred);
@@ -1014,12 +1020,6 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 		sx_xunlock(&vmmdev_mtx);
 		vmmdev_destroy(sc);
 		return (error);
-	}
-	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
-		sx_xunlock(&vmmdev_mtx);
-		destroy_dev(cdev);
-		vmmdev_destroy(sc);
-		return (ENOMEM);
 	}
 	sc->cdev = cdev;
 	sx_xunlock(&vmmdev_mtx);
