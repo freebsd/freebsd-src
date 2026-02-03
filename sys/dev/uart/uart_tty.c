@@ -447,8 +447,9 @@ uart_tty_detach(struct uart_softc *sc)
 
 	tp = sc->sc_u.u_tty.tp;
 
-	tty_lock(tp);
 	swi_remove(sc->sc_softih);
+
+	tty_lock(tp);
 	tty_rel_gone(tp);
 
 	return (0);
