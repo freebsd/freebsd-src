@@ -4,7 +4,7 @@
 
 # PROVIDE: zfs
 # REQUIRE: zfsbe
-# BEFORE: FILESYSTEMS var
+# BEFORE: FILESYSTEMS tmp var
 
 . /etc/rc.subr
 
