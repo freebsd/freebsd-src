@@ -342,14 +342,14 @@ static int		 pf_dummynet_route(struct pf_pdesc *,
 			    struct ifnet *, const struct sockaddr *, struct mbuf **);
 static int		 pf_test_eth_rule(int, struct pfi_kkif *,
 			    struct mbuf **);
+static enum pf_test_status pf_match_rule(struct pf_test_ctx *, struct pf_kruleset *);
 static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    struct pf_pdesc *, struct pf_krule **,
 			    struct pf_kruleset **, u_short *, struct inpcb *,
 			    struct pf_krule_slist *);
 static int		 pf_create_state(struct pf_krule *,
 			    struct pf_test_ctx *,
-			    struct pf_kstate **, u_int16_t, u_int16_t,
-			    struct pf_krule_slist *match_rules);
+			    struct pf_kstate **, u_int16_t, u_int16_t);
 static int		 pf_state_key_addr_setup(struct pf_pdesc *,
 			    struct pf_state_key_cmp *, int);
 static int		 pf_tcp_track_full(struct pf_kstate *,
@@ -5108,8 +5108,7 @@ pf_tag_packet(struct pf_pdesc *pd, int tag)
 } while (0)
 
 enum pf_test_status
-pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r,
-    struct pf_krule_slist *match_rules)
+pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 {
 	enum pf_test_status	rv;
 
@@ -5127,7 +5126,7 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r,
 		struct pf_kanchor *child;
 		rv = PF_TEST_OK;
 		RB_FOREACH(child, pf_kanchor_node, &r->anchor->children) {
-			rv = pf_match_rule(ctx, &child->ruleset, match_rules);
+			rv = pf_match_rule(ctx, &child->ruleset);
 			if ((rv == PF_TEST_QUICK) || (rv == PF_TEST_FAIL)) {
 				/*
 				 * we either hit a rule with quick action
@@ -5138,7 +5137,7 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r,
 			}
 		}
 	} else {
-		rv = pf_match_rule(ctx, &r->anchor->ruleset, match_rules);
+		rv = pf_match_rule(ctx, &r->anchor->ruleset);
 		/*
 		 * Unless errors occured, stop iff any rule matched
 		 * within quick anchors.
@@ -5987,10 +5986,9 @@ pf_rule_apply_nat(struct pf_test_ctx *ctx, struct pf_krule *r)
 }
 
 enum pf_test_status
-pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
-    struct pf_krule_slist *match_rules)
+pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 {
-	struct pf_krule_item	*ri, *rt;
+	struct pf_krule_item	*ri;
 	struct pf_krule		*r;
 	struct pf_krule		*save_a;
 	struct pf_kruleset	*save_aruleset;
@@ -6300,12 +6298,12 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 				}
 				ri->r = r;
 
-				if (SLIST_EMPTY(match_rules)) {
-					SLIST_INSERT_HEAD(match_rules, ri, entry);
+				if (SLIST_EMPTY(ctx->match_rules)) {
+					SLIST_INSERT_HEAD(ctx->match_rules, ri, entry);
 				} else {
-					SLIST_INSERT_AFTER(rt, ri, entry);
+					SLIST_INSERT_AFTER(ctx->last_match_rule, ri, entry);
 				}
-				rt = ri;
+				ctx->last_match_rule = ri;
 
 				pf_rule_to_actions(r, &pd->act);
 				if (r->log)
@@ -6337,7 +6335,7 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 				ctx->source = sr;
 			}
 			if (pd->act.log & PF_LOG_MATCHES)
-				pf_log_matches(pd, r, ctx->a, ruleset, match_rules);
+				pf_log_matches(pd, r, ctx->a, ruleset, ctx->match_rules);
 			if (r->quick) {
 				ctx->test_status = PF_TEST_QUICK;
 				break;
@@ -6354,7 +6352,7 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
 			 * Note: we don't need to restore if we are not going
 			 * to continue with ruleset evaluation.
 			 */
-			if (pf_step_into_anchor(ctx, r, match_rules) != PF_TEST_OK) {
+			if (pf_step_into_anchor(ctx, r) != PF_TEST_OK) {
 				break;
 			}
 			ctx->a = save_a;
@@ -6391,6 +6389,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	ctx.rsm = rsm;
 	ctx.th = &pd->hdr.tcp;
 	ctx.reason = *reason;
+	ctx.match_rules = match_rules;
 
 	pf_addrcpy(&pd->nsaddr, pd->src, pd->af);
 	pf_addrcpy(&pd->ndaddr, pd->dst, pd->af);
@@ -6488,7 +6487,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		ruleset = *ctx.rsm;
 	} else {
 		ruleset = &pf_main_ruleset;
-		rv = pf_match_rule(&ctx, ruleset, match_rules);
+		rv = pf_match_rule(&ctx, ruleset);
 		if (rv == PF_TEST_FAIL || ctx.limiter_drop == 1) {
 			REASON_SET(reason, ctx.reason);
 			goto cleanup;
@@ -6523,7 +6522,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		PFLOG_PACKET(r->action, ctx.reason, r, ctx.a, ruleset, pd, 1, NULL);
 	}
 	if (pd->act.log & PF_LOG_MATCHES)
-		pf_log_matches(pd, r, ctx.a, ruleset, match_rules);
+		pf_log_matches(pd, r, ctx.a, ruleset, ctx.match_rules);
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
 	   (r->action == PF_DROP) &&
 	    ((r->rule_flag & PFRULE_RETURNRST) ||
@@ -6568,8 +6567,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	    (pd->flags & PFDESC_TCP_NORM)))) {
 		bool nat64;
 
-		action = pf_create_state(r, &ctx, sm, bproto_sum, bip_sum,
-		    match_rules);
+		action = pf_create_state(r, &ctx, sm, bproto_sum, bip_sum);
 		ctx.sk = ctx.nk = NULL;
 		if (action != PF_PASS) {
 			pf_udp_mapping_release(ctx.udp_mapping);
@@ -6659,8 +6657,7 @@ cleanup:
 
 static int
 pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
-    struct pf_kstate **sm, u_int16_t bproto_sum, u_int16_t bip_sum,
-    struct pf_krule_slist *match_rules)
+    struct pf_kstate **sm, u_int16_t bproto_sum, u_int16_t bip_sum)
 {
 	struct pf_pdesc		*pd = ctx->pd;
 	struct pf_kstate	*s = NULL;
@@ -6729,7 +6726,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	s->rule = r;
 	s->nat_rule = ctx->nr;
 	s->anchor = ctx->a;
-	s->match_rules = *match_rules;
+	s->match_rules = *ctx->match_rules;
 	SLIST_INIT(&s->linkage);
 	memcpy(&s->act, &pd->act, sizeof(struct pf_rule_actions));
 
