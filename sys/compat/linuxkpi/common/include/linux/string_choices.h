@@ -33,37 +33,25 @@
 static inline const char *
 str_yes_no(bool value)
 {
-	if (value)
-		return "yes";
-	else
-		return "no";
+	return (value ? "yes" : "no");
 }
 
 static inline const char *
 str_on_off(bool value)
 {
-	if (value)
-		return "on";
-	else
-		return "off";
+	return (value ? "on" : "off");
 }
 
 static inline const char *
 str_enabled_disabled(bool value)
 {
-	if (value)
-		return "enabled";
-	else
-		return "disabled";
+	return (value ? "enabled" : "disabled");
 }
 
 static inline const char *
 str_enable_disable(bool value)
 {
-	if (value)
-		return "enable";
-	else
-		return "disable";
+	return (value ? "enable" : "disable");
 }
 
 #define	str_disable_enable(_v)		str_enable_disable(!(_v))
@@ -71,10 +59,7 @@ str_enable_disable(bool value)
 static inline const char *
 str_read_write(bool value)
 {
-	if (value)
-		return "read";
-	else
-		return "write";
+	return (value ? "read" : "write");
 }
 
 #endif
