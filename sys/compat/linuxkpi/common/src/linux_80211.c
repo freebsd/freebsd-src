@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * Copyright (c) 2020-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -2150,7 +2150,7 @@ lkpi_wake_tx_queues(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		if (no_emptyq && ltxq_empty)
 			continue;
 
-		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid], false);
 	}
 }
 
@@ -5764,7 +5764,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 #endif
 	LKPI_80211_LTXQ_UNLOCK(ltxq);
 	wiphy_lock(hw->wiphy);
-	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
+	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq, true);
 	wiphy_unlock(hw->wiphy);
 	return;
 
@@ -8751,7 +8751,7 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 						ltxq->stopped = false;
 
 						if (!skb_queue_empty(&ltxq->skbq))
-							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid], false);
 					}
 				}
 				rcu_read_unlock();
