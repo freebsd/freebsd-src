@@ -8304,6 +8304,9 @@ _lkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
+	if (skb == NULL)
+		return;
+
 	m = skb->m;
 	skb->m = NULL;
 
@@ -8329,13 +8332,13 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
     struct ieee80211_tx_status *txstat)
 {
 	struct sk_buff *skb;
-	struct ieee80211_tx_info *info;
+	struct ieee80211_tx_info *info, _info = { };
 	struct ieee80211_ratectl_tx_status txs;
 	struct ieee80211_node *ni;
 	int status;
 
 	skb = txstat->skb;
-	if (skb->m != NULL) {
+	if (skb != NULL && skb->m != NULL) {
 		struct mbuf *m;
 
 		m = skb->m;
@@ -8345,7 +8348,13 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		ni = NULL;
 	}
 
+	/*
+	 * If we have no info information on tx, set info to an all-zero struct
+	 * to make the code (and debug output) simpler.
+	 */
 	info = txstat->info;
+	if (info == NULL)
+		info = &_info;
 	if (info->flags & IEEE80211_TX_STAT_ACK) {
 		status = 0;	/* No error. */
 		txs.status = IEEE80211_RATECTL_TX_SUCCESS;
@@ -8410,7 +8419,8 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 	if (txstat->free_list) {
 		_lkpi_ieee80211_free_txskb(hw, skb, status);
-		list_add_tail(&skb->list, txstat->free_list);
+		if (skb != NULL)
+			list_add_tail(&skb->list, txstat->free_list);
 	} else {
 		linuxkpi_ieee80211_free_txskb(hw, skb, status);
 	}
