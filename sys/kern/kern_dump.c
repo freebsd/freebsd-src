@@ -82,7 +82,8 @@ dumpsys_gen_pa_next(struct dump_pa *mdp)
 		return (&dump_map[0]);
 
 	mdp++;
-	if (mdp->pa_size == 0)
+	if (mdp - dump_map >= nitems(dump_map) ||
+	    (mdp->pa_start == 0 && mdp->pa_size == 0))
 		mdp = NULL;
 	return (mdp);
 }
