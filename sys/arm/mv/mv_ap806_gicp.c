@@ -370,6 +370,8 @@ mv_ap806_gicp_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		if (ret != 0)
 			goto fail;
 
+		/* FIXME: Modifying the value of "pic" here is very suspicious,
+		** this really shouldn't be done though it may work */
 		srcs[i]->isrc_event.ie_pic = dev;
 	}
 
@@ -389,6 +391,8 @@ mv_ap806_gicp_release_msi(device_t dev, device_t child, int count,
 	sc = device_get_softc(dev);
 
 	for (i = 0; i < count; i++) {
+		/* FIXME: INTRNG makes no guarantees about the value of "irq"
+		** this is very likely broken. */
 		BIT_SET(sc->msi_bitmap_size,
 		    mv_ap806_gicp_irq_to_msi(sc, srcs[i]->isrc_event.ie_irq),
 		    sc->msi_bitmap);
@@ -406,6 +410,8 @@ mv_ap806_gicp_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 
 	*addr = rman_get_start(sc->res);
+	/* FIXME: INTRNG makes no guarantees about the value of "irq" this is
+	** very likely broken. */
 	*data = mv_ap806_gicp_irq_to_msi(sc, isrc->isrc_event.ie_irq);
 
 	return (0);

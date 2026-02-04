@@ -330,6 +330,8 @@ mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
 	if (irq_no == ICU_INT_SATA1)
 		WR4(sc, ICU_INT_CFG(ICU_INT_SATA0), vector);
 
+	/* FIXME: Modifying the value of "pic" here is very suspicious, this
+	** really shouldn't be done though it may work */
 	(*isrcp)->isrc_event.ie_pic = sc->dev;
 	return (ret);
 
