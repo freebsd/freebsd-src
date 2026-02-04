@@ -5697,8 +5697,10 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		c = ic->ic_curchan;
 	info->band = lkpi_net80211_chan_to_nl80211_band(c);
 	info->hw_queue = vif->hw_queue[ac];
-	if (m->m_flags & M_EAPOL)
+	if ((m->m_flags & M_EAPOL) != 0) {
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
+		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;	/* mt76 */
+	}
 	info->control.vif = vif;
 	/* XXX-BZ info->control.rates */
 #ifdef __notyet__
