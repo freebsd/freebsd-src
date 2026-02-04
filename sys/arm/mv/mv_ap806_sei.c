@@ -449,6 +449,8 @@ mv_ap806_sei_release_msi(device_t dev, device_t child, int count, struct intr_ir
 	sc = device_get_softc(dev);
 
 	for (i = 0; i < count; i++) {
+		/* FIXME: INTRNG makes no guarantees about the value of "irq"
+		** this is very likely broken. */
 		BIT_SET(MV_AP806_SEI_CP_SIZE,
 		    srcs[i]->isrc_event.ie_irq - MV_AP806_SEI_CP_FIRST,
 		    &sc->msi_bitmap);
@@ -466,6 +468,8 @@ mv_ap806_sei_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 
 	*addr = rman_get_start(sc->mem_res) + MV_AP806_SEI_SETSPI_OFFSET;
+	/* FIXME: INTRNG makes no guarantees about the value of "irq" this is
+	** very likely broken. */
 	*data = isrc->isrc_event.ie_irq;
 
 	return (0);
