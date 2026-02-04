@@ -189,6 +189,8 @@ aw_r_intc_gicp_map_intr(device_t dev, struct intr_map_data *data,
 		return (EINVAL);
 
 	ret = PIC_MAP_INTR(sc->parent, data, isrcp);
+	/* FIXME: Modifying the value of "pic" here is very suspicious, this
+	** really shouldn't be done though it may work */
 	(*isrcp)->isrc_event.ie_pic = sc->dev;
 	return(ret);
 }
