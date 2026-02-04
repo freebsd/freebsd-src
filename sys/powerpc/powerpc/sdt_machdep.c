@@ -37,8 +37,8 @@ sdt_tracepoint_patch(uintptr_t patchpoint, uintptr_t target)
 	uint32_t instr;
 
 	KASSERT(sdt_tracepoint_valid(patchpoint, target),
-	    ("%s: invalid tracepoint %#lx -> %#lx",
-	    __func__, patchpoint, target));
+	    ("%s: invalid tracepoint %#jx -> %#jx",
+	    __func__, (uintmax_t)patchpoint, (uintmax_t)target));
 
 	instr = ((target - patchpoint) & 0x7fffffful) | 0x48000000;
 	memcpy((void *)patchpoint, &instr, sizeof(instr));
