@@ -5,9 +5,7 @@ DIRDEPS = \
 	cddl/lib/libicp_rescue \
 	cddl/lib/libnvpair \
 	cddl/lib/libspl \
-	cddl/lib/libtpool \
 	cddl/lib/libumem \
-	cddl/lib/libuutil \
 	cddl/lib/libzfs \
 	cddl/lib/libzfs_core \
 	cddl/lib/libzfsbootenv \
