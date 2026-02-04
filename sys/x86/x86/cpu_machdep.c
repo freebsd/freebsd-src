@@ -136,6 +136,8 @@ x86_msr_op_one_safe(struct msr_op_arg *a)
 			atomic_cmpset_int(&a->error, 0, error);
 			break;
 		}
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		v &= ~a->arg1;
 		error = wrmsr_safe(a->msr, v);
 		if (error != 0)
@@ -147,6 +149,8 @@ x86_msr_op_one_safe(struct msr_op_arg *a)
 			atomic_cmpset_int(&a->error, 0, error);
 			break;
 		}
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		v |= a->arg1;
 		error = wrmsr_safe(a->msr, v);
 		if (error != 0)
@@ -159,10 +163,12 @@ x86_msr_op_one_safe(struct msr_op_arg *a)
 		break;
 	case MSR_OP_READ:
 		error = rdmsr_safe(a->msr, &v);
-		if (error == 0)
-			*a->res = v;
-		else
+		if (error == 0) {
+			if (a->res != NULL)
+				atomic_store_64(a->res, v);
+		} else {
 			atomic_cmpset_int(&a->error, 0, error);
+		}
 		break;
 	}
 }
@@ -175,11 +181,15 @@ x86_msr_op_one_unsafe(struct msr_op_arg *a)
 	switch (a->op) {
 	case MSR_OP_ANDNOT:
 		v = rdmsr(a->msr);
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		v &= ~a->arg1;
 		wrmsr(a->msr, v);
 		break;
 	case MSR_OP_OR:
 		v = rdmsr(a->msr);
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		v |= a->arg1;
 		wrmsr(a->msr, v);
 		break;
@@ -188,7 +198,8 @@ x86_msr_op_one_unsafe(struct msr_op_arg *a)
 		break;
 	case MSR_OP_READ:
 		v = rdmsr(a->msr);
-		*a->res = v;
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		break;
 	default:
 		__assert_unreachable();
