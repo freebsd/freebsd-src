@@ -678,8 +678,8 @@ bpf_detachd(struct bpf_d *d, bool detached_ifp)
 	BPFD_LOCK(d);
 	CK_LIST_REMOVE(d, bd_next);
 	writer = (d->bd_writer > 0);
-	d->bd_bif = NULL;
 	if (detached_ifp) {
+		d->bd_bif = NULL;
 		/*
 		 * Notify descriptor as it's detached, so that any
 		 * sleepers wake up and get ENXIO.
