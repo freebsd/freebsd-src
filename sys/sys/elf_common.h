@@ -419,7 +419,8 @@ typedef struct {
 #define	SHN_LOPROC	0xff00		/* First processor-specific. */
 #define	SHN_HIPROC	0xff1f		/* Last processor-specific. */
 #define	SHN_LOOS	0xff20		/* First operating system-specific. */
-#define	SHN_FBSD_CACHED	SHN_LOOS	/* Transient, for sys/kern/link_elf_obj
+#define	SHN_FREEBSD_CACHED	SHN_LOOS
+					/* Transient, for sys/kern/link_elf_obj
 					   linker only: Cached global in local
 					   symtab. */
 #define	SHN_HIOS	0xff3f		/* Last operating system-specific. */
