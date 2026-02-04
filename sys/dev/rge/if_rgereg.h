@@ -365,12 +365,16 @@ struct rge_hw_mac_stats {
 #define RGE_STATS_ALIGNMENT	64
 
 /* Ram version */
-#define RGE_MAC_R25D_RCODE_VER		0x0027
+#define RGE_MAC_R25D_1_RCODE_VER	0x0027
+#define RGE_MAC_R25D_2_RCODE_VER	0x0031
 #define RGE_MAC_R26_1_RCODE_VER		0x0033
 #define RGE_MAC_R26_2_RCODE_VER		0x0060
 #define RGE_MAC_R27_RCODE_VER		0x0036
 #define RGE_MAC_R25_RCODE_VER		0x0b33
 #define RGE_MAC_R25B_RCODE_VER		0x0b99
+
+#define RGE_TYPE_R25D(sc)						\
+	((sc)->rge_type == MAC_R25D_1 || (sc)->rge_type == MAC_R25D_2)
 
 #define RGE_TYPE_R26(sc)						\
 	((sc)->rge_type == MAC_R26_1 || (sc)->rge_type == MAC_R26_2)
