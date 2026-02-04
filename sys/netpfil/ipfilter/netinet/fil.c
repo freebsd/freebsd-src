@@ -3503,7 +3503,7 @@ ipf_group_add(ipf_main_softc_t *softc, char *group, void *head, u_32_t flags,
 		fg->fg_head = head;
 		fg->fg_start = NULL;
 		fg->fg_next = *fgp;
-		bcopy(group, fg->fg_name, strlen(group) + 1);
+		bcopy(group, fg->fg_name, strnlen(group, FR_GROUPLEN) + 1);
 		fg->fg_flags = gflags;
 		fg->fg_ref = 1;
 		fg->fg_set = &softc->ipf_groups[unit][set];
