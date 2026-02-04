@@ -223,6 +223,49 @@ x86_msr_op_one(void *arg)
 #define	MSR_OP_GET_CPUID(x) \
     (((x) & ~(MSR_OP_EXMODE_MASK | MSR_OP_SAFE)) >> 8)
 
+/*
+ * Utility function to wrap common MSR accesses.
+ *
+ * The msr argument specifies the MSR number to operate on.
+ * arg1 is an optional additional argument which is needed by
+ * modifying ops.
+ *
+ * res is the location where the value read from MSR is placed.  It is
+ * the value that was initially read from the MSR, before applying the
+ * specified operation.  Can be NULL if the value is not needed.  If
+ * the op is executed on more than one CPU, it is unspecified on which
+ * CPU the value was read.
+ *
+ * op encoding combines the target/mode specification and the requested
+ * operation, all or-ed together.
+ *
+ * MSR accesses are executed with interrupts disabled.
+
+ * The following targets can be specified:
+ * MSR_OP_LOCAL				execute on current CPU.
+ * MSR_OP_SCHED_ALL			execute on all CPUs, by migrating
+ *					the current thread to them in sequence.
+ * MSR_OP_SCHED_ALL | MSR_OP_SAFE	execute on all CPUs by migrating, using
+ *					safe MSR access.
+ * MSR_OP_SCHED_ONE			execute on specified CPU, migrate
+ *					curthread to it.
+ * MSR_OP_SCHED_ONE | MSR_OP_SAFE	safely execute on specified CPU,
+ *					migrate curthread to it.
+ * MSR_OP_RENDEZVOUS_ALL		execute on all CPUs in interrupt
+ *					context.
+ * MSR_OP_RENDEZVOUS_ONE		execute on specified CPU in interrupt
+ *					context.
+ * If a _ONE target is specified, 'or' the op value with MSR_OP_CPUID(cpuid)
+ * to name the target CPU.  _SAFE variants might return EFAULT if access to
+ * MSR faulted with #GP.  Non-_SAFE variants most likely panic or reboot
+ * the machine if the MSR is not present or access is not tolerated by hw.
+ *
+ * The following operations can be specified:
+ * MSR_OP_ANDNOT	*res = v = *msr; *msr = v & ~arg1
+ * MSR_OP_OR		*res = v = *msr; *msr = v | arg1
+ * MSR_OP_READ		*res = *msr
+ * MSR_OP_WRITE		*res = *msr; *msr = arg1
+ */
 int
 x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 {
