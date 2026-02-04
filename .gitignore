@@ -1,9 +1,17 @@
 *.a
 *.core
+*.lo
+*.nossppico
 *.o
 *.orig
+*.pico
+*.pieo
+*.po
+# Don't ignore translation files under `contrib/...`.
+!contrib/**/po
 *.rej
 *.so
+*.so.[0-9]*
 *.sw[nop]
 *~
 _.tinderbox.*
@@ -14,6 +22,8 @@ _.arm64.*
 _.i386.*
 _.powerpc.*
 _.riscv.*
+.*DS_Store
+.depend*
 GPATH
 GRTAGS
 GTAGS
