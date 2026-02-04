@@ -423,8 +423,12 @@ rge_attach(device_t dev)
 //		device_printf(dev, "RTL8126_2\n");
 		break;
 	case 0x68800000:
-		sc->rge_type = MAC_R25D;
-//		device_printf(dev, "RTL8125D\n");
+		sc->rge_type = MAC_R25D_1;
+//		device_printf(dev, "RTL8125D_1\n");
+		break;
+	case 0x68900000:
+		sc->rge_type = MAC_R25D_2;
+//		device_printf(dev, "RTL8125D_2\n");
 		break;
 	case 0x6c900000:
 		sc->rge_type = MAC_R27;
@@ -1159,7 +1163,7 @@ rge_init_locked(struct rge_softc *sc)
 		rxconf = RGE_RXCFG_CONFIG;
 	else if (sc->rge_type == MAC_R25B)
 		rxconf = RGE_RXCFG_CONFIG_8125B;
-	else if (sc->rge_type == MAC_R25D)
+	else if (RGE_TYPE_R25D(sc))
 		rxconf = RGE_RXCFG_CONFIG_8125D;
 	else
 		rxconf = RGE_RXCFG_CONFIG_8126;
@@ -1173,7 +1177,7 @@ rge_init_locked(struct rge_softc *sc)
 		/* Disable L1 timeout. */
 		val = rge_read_csi(sc, 0x890) & ~0x00000001;
 		rge_write_csi(sc, 0x890, val);
-	} else if (sc->rge_type != MAC_R25D)
+	} else if (!RGE_TYPE_R25D(sc))
 		RGE_WRITE_2(sc, 0x0382, 0x221b);
 
 	RGE_WRITE_1(sc, RGE_RSS_CTRL, 0);
@@ -1199,7 +1203,7 @@ rge_init_locked(struct rge_softc *sc)
 
 	val = rge_read_mac_ocp(sc, 0xe614);
 	val &= (sc->rge_type == MAC_R27) ? ~0x0f00 : ~0x0700;
-	if (sc->rge_type == MAC_R25 || sc->rge_type == MAC_R25D)
+	if (sc->rge_type == MAC_R25 || RGE_TYPE_R25D(sc))
 		rge_write_mac_ocp(sc, 0xe614, val | 0x0300);
 	else if (sc->rge_type == MAC_R25B)
 		rge_write_mac_ocp(sc, 0xe614, val | 0x0200);
@@ -1235,7 +1239,7 @@ rge_init_locked(struct rge_softc *sc)
 	val = rge_read_mac_ocp(sc, 0xea1c) & ~0x0003;
 	rge_write_mac_ocp(sc, 0xea1c, val | 0x0001);
 
-	if (sc->rge_type == MAC_R25D)
+	if (RGE_TYPE_R25D(sc))
 		rge_write_mac_ocp(sc, 0xe0c0, 0x4403);
 	else
 		rge_write_mac_ocp(sc, 0xe0c0, 0x4000);
@@ -1251,7 +1255,7 @@ rge_init_locked(struct rge_softc *sc)
 	if (sc->rge_type == MAC_R25)
 		RGE_SETBIT_1(sc, RGE_MCUCMD, 0x01);
 
-	if (sc->rge_type != MAC_R25D) {
+	if (!RGE_TYPE_R25D(sc)) {
 		/* Disable EEE plus. */
 		RGE_MAC_CLRBIT(sc, 0xe080, 0x0002);
 	}
@@ -1306,7 +1310,7 @@ rge_init_locked(struct rge_softc *sc)
 	val = rge_read_csi(sc, 0x98) & ~0x0000ff00;
 	rge_write_csi(sc, 0x98, val);
 
-	if (sc->rge_type == MAC_R25D) {
+	if (RGE_TYPE_R25D(sc)) {
 		val = rge_read_mac_ocp(sc, 0xe092) & ~0x00ff;
 		rge_write_mac_ocp(sc, 0xe092, val | 0x0008);
 	} else

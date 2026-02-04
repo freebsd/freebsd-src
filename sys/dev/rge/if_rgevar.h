@@ -30,7 +30,8 @@ enum rge_mac_type {
 	MAC_UNKNOWN = 1,
 	MAC_R25,
 	MAC_R25B,
-	MAC_R25D,
+	MAC_R25D_1,
+	MAC_R25D_2,
 	MAC_R26_1,
 	MAC_R26_2,
 	MAC_R27
