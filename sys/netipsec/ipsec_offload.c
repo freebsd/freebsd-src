@@ -343,6 +343,13 @@ ipsec_accel_sa_newkey_cb(if_t ifp, void *arg)
 		}
 	}
 out:
+	/*
+	 * Return 0, ignoring any errors from the SA installation.
+	 * This function is a callback for if_foreach_sleep(), which
+	 * stops iteration if one of the callbacks returns non-zero.
+	 * We need to offer the SA to all interfaces that could
+	 * offload it.
+	 */
 	return (0);
 }
 
