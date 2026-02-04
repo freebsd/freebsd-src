@@ -632,7 +632,6 @@ static unsigned int isa3_base_pid;
  */
 static struct	mem_region *regions, *pregions;
 static struct	numa_mem_region *numa_pregions;
-static u_int	phys_avail_count;
 static int	regions_sz, pregions_sz, numa_pregions_sz;
 static struct pate *isa3_parttab;
 static struct prte *isa3_proctab;

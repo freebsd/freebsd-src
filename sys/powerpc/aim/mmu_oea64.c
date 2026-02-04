@@ -164,8 +164,9 @@ extern void *slbtrap, *slbtrapend;
 static struct	mem_region *regions;
 static struct	mem_region *pregions;
 static struct	numa_mem_region *numa_pregions;
-static u_int	phys_avail_count;
 static int	regions_sz, pregions_sz, numapregions_sz;
+
+u_int	phys_avail_count;
 
 extern void bs_remap_earlyboot(void);
 
