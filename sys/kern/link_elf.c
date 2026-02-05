@@ -2041,7 +2041,6 @@ link_elf_propagate_vnets(linker_file_t lf)
 }
 #endif
 
-#if !defined(__riscv)
 /*
  * Use this lookup routine when performing relocations early during boot.
  * The generic lookup routine depends on kobj, which is not initialized
@@ -2103,5 +2102,4 @@ link_elf_late_ireloc(void)
 
 	relocate_file1(ef, elf_lookup_ifunc, elf_reloc_late, true);
 }
-#endif
 #endif
