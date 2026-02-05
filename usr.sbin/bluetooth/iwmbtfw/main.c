@@ -40,6 +40,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(__i386__) || defined(__amd64__)
+#include <cpuid.h>
+#endif
 #include <libusb.h>
 
 #include "iwmbt_fw.h"
@@ -83,6 +86,23 @@ static struct iwmbt_devid iwmbt_list[] = {
     { .vendor_id = 0x8087, .product_id = 0x0033, .device = IWMBT_DEVICE_9260 },
 };
 
+static int
+is_n100_n150(void)
+{
+#if defined(__i386__) || defined(__amd64__)
+	u_int eax, ebx, ecx, edx;
+	u_int family, model;
+
+	__cpuid(1, eax, ebx, ecx, edx);
+	family = (eax >> 8) & 0xf;
+	model = ((eax >> 4) & 0xf) | ((eax >> 12) & 0xf0);
+
+	return (family == 0x06 && model == 0xbe);
+#else
+	return (0);
+#endif
+}
+
 static enum iwmbt_device
 iwmbt_is_supported(struct libusb_device_descriptor *d)
 {
@@ -92,6 +112,11 @@ iwmbt_is_supported(struct libusb_device_descriptor *d)
 	for (i = 0; i < (int) nitems(iwmbt_list); i++) {
 		if ((iwmbt_list[i].product_id == d->idProduct) &&
 		    (iwmbt_list[i].vendor_id == d->idVendor)) {
+			if ((iwmbt_list[i].product_id == 0x0aaa || iwmbt_list[i].product_id == 0x0026) &&
+			 is_n100_n150()) {
+				iwmbt_info("found iwmbtfw compatible (N100/N150 override)");
+				return (IWMBT_DEVICE_9260);
+			}
 			iwmbt_info("found iwmbtfw compatible");
 			return (iwmbt_list[i].device);
 		}

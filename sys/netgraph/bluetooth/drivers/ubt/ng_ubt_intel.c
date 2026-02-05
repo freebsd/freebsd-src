@@ -44,6 +44,7 @@
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
+#include <machine/md_var.h>
 
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
@@ -188,6 +189,34 @@ exit:
  */
 
 static int
+ubt_intel_is_n100_n150(void)
+{
+	u_int family, model;
+
+	family = (cpu_id >> 8) & 0xf;
+	model = ((cpu_id >> 4) & 0xf) | ((cpu_id >> 12) & 0xf0);
+
+	return (family == 0x06 && model == 0xbe);
+}
+
+static int
+ubt_intel_lookup_device(struct usb_attach_arg *uaa)
+{
+	int error;
+
+	error = usbd_lookup_id_by_uaa(ubt_intel_devs, sizeof(ubt_intel_devs),
+	    uaa);
+	if (error != 0)
+		return (error);
+
+	if ((uaa->info.idProduct == 0x0aaa || uaa->info.idProduct == 0x0026) && ubt_intel_is_n100_n150()) {
+		uaa->driver_info = UBT_INTEL_DEVICE_9260;
+	}
+
+	return (0);
+}
+
+static int
 ubt_intel_probe(device_t dev)
 {
 	struct usb_attach_arg	*uaa = device_get_ivars(dev);
@@ -202,8 +231,7 @@ ubt_intel_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
-	error = usbd_lookup_id_by_uaa(ubt_intel_devs, sizeof(ubt_intel_devs),
-	    uaa);
+	error = ubt_intel_lookup_device(uaa);
 	if (error != 0)
 		return (error);
 
