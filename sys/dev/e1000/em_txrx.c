@@ -836,6 +836,6 @@ em_determine_rsstype(uint32_t pkt_info)
 	case E1000_RXDADV_RSSTYPE_IPV6_TCP_EX:
 		return M_HASHTYPE_RSS_TCP_IPV6_EX;
 	default:
-		return M_HASHTYPE_OPAQUE;
+		return M_HASHTYPE_NONE;
 	}
 }
