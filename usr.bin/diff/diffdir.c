@@ -235,6 +235,8 @@ static void
 diffit(struct dirent *dp, char *path1, size_t plen1, struct dirent *dp2,
 	char *path2, size_t plen2, int flags)
 {
+	int rc;
+
 	flags |= D_HEADER;
 	strlcpy(path1 + plen1, dp->d_name, PATH_MAX - plen1);
 
