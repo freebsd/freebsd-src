@@ -223,9 +223,11 @@ ena_ring_in_netmap(struct ena_adapter *adapter, int qid, enum txrx x)
 
 	if (if_getcapenable(adapter->ifp) & IFCAP_NETMAP) {
 		na = NA(adapter->ifp);
-		kring = (x == NR_RX) ? na->rx_rings[qid] : na->tx_rings[qid];
-		if (kring->nr_mode == NKR_NETMAP_ON)
-			return true;
+		if (na->na_flags & NAF_NATIVE) {
+			kring = (x == NR_RX) ? na->rx_rings[qid] : na->tx_rings[qid];
+			if (kring->nr_mode == NKR_NETMAP_ON)
+				return true;
+		}
 	}
 	return false;
 }
