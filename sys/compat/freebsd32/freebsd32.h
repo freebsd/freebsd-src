@@ -451,12 +451,12 @@ struct kinfo_knote32 {
 	union {
 		struct {
 			int		knt_vnode_type;
-			uint32_t	knt_vnode_fsid[2];
-			uint32_t	knt_vnode_fileid[2];
+			freebsd32_uint64_t knt_vnode_fsid;
+			freebsd32_uint64_t knt_vnode_fileid;
 			char		knt_vnode_fullpath[PATH_MAX];
 		} knt_vnode;
 		struct {
-			uint32_t	knt_pipe_ino[2];
+			freebsd32_uint64_t knt_pipe_ino;
 		} knt_pipe;
 	};
 };

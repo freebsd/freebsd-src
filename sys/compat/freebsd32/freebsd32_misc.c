@@ -739,38 +739,13 @@ freebsd32_kinfo_knote_to_32(const struct kinfo_knote *kin,
 		break;
 	case KNOTE_EXTDATA_VNODE:
 		CP(*kin, *kin32, knt_vnode.knt_vnode_type);
-#if BYTE_ORDER == LITTLE_ENDIAN
-		kin32->knt_vnode.knt_vnode_fsid[0] = kin->knt_vnode.
-		    knt_vnode_fsid;
-		kin32->knt_vnode.knt_vnode_fsid[1] = kin->knt_vnode.
-		    knt_vnode_fsid >> 32;
-		kin32->knt_vnode.knt_vnode_fileid[0] = kin->knt_vnode.
-		    knt_vnode_fileid;
-		kin32->knt_vnode.knt_vnode_fileid[1] = kin->knt_vnode.
-		    knt_vnode_fileid >> 32;
-#else
-		kin32->knt_vnode.knt_vnode_fsid[1] = kin->knt_vnode.
-		    knt_vnode_fsid;
-		kin32->knt_vnode.knt_vnode_fsid[0] = kin->knt_vnode.
-		    knt_vnode_fsid >> 32;
-		kin32->knt_vnode.knt_vnode_fileid[1] = kin->knt_vnode.
-		    knt_vnode_fileid;
-		kin32->knt_vnode.knt_vnode_fileid[0] = kin->knt_vnode.
-		    knt_vnode_fileid >> 32;
-#endif
+		FU64_CP(*kin, *kin32, knt_vnode.knt_vnode_fsid);
+		FU64_CP(*kin, *kin32, knt_vnode.knt_vnode_fileid);
 		memcpy(kin32->knt_vnode.knt_vnode_fullpath,
 		    kin->knt_vnode.knt_vnode_fullpath, PATH_MAX);
 		break;
 	case KNOTE_EXTDATA_PIPE:
-#if BYTE_ORDER == LITTLE_ENDIAN
-		kin32->knt_pipe.knt_pipe_ino[0] = kin->knt_pipe.knt_pipe_ino;
-		kin32->knt_pipe.knt_pipe_ino[1] = kin->knt_pipe.
-		    knt_pipe_ino >> 32;
-#else
-		kin32->knt_pipe.knt_pipe_ino[1] = kin->knt_pipe.knt_pipe_ino;
-		kin32->knt_pipe.knt_pipe_ino[0] = kin->knt_pipe.
-		    knt_pipe_ino >> 32;
-#endif
+		FU64_CP(*kin, *kin32, knt_pipe.knt_pipe_ino);
 		break;
 	}
 }
