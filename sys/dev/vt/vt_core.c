@@ -804,11 +804,11 @@ vt_machine_kbdevent(struct vt_device *vd, int c)
 		return (1);
 	case SPCLKEY | STBY: /* XXX Not present in kbdcontrol parser. */
 		/* Put machine into Stand-By mode. */
-		power_pm_suspend(POWER_SLEEP_STATE_STANDBY);
+		power_pm_suspend(POWER_SSTATE_TRANSITION_STANDBY);
 		return (1);
 	case SPCLKEY | SUSP: /* kbdmap(5) keyword `susp`. */
 		/* Suspend machine. */
-		power_pm_suspend(POWER_SLEEP_STATE_SUSPEND);
+		power_pm_suspend(POWER_SSTATE_TRANSITION_SUSPEND);
 		return (1);
 	}
 
