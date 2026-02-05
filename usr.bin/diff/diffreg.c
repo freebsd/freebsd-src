@@ -406,6 +406,10 @@ diffreg_stone(char *file1, char *file2, int flags, int capsicum)
 		break;
 	default:
 		/* error */
+		if (ferror(f1))
+			warn("%s", file1);
+		if (ferror(f2))
+			warn("%s", file2);
 		rval = D_ERROR;
 		status |= 2;
 		goto closem;
@@ -499,9 +503,9 @@ files_differ(FILE *f1, FILE *f2, int flags)
 		return (0);
 
 	for (;;) {
-		i = fread(buf1, 1, sizeof(buf1), f1);
-		j = fread(buf2, 1, sizeof(buf2), f2);
-		if ((!i && ferror(f1)) || (!j && ferror(f2)))
+		if ((i = fread(buf1, 1, sizeof(buf1), f1)) == 0 && ferror(f1))
+			return (-1);
+		if ((j = fread(buf2, 1, sizeof(buf2), f2)) == 0 && ferror(f2))
 			return (-1);
 		if (i != j)
 			return (1);
