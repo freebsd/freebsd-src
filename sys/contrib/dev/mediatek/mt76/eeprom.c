@@ -186,16 +186,19 @@ mt76_eeprom_override(struct mt76_phy *phy)
 	err = of_get_mac_address(np, phy->macaddr);
 	if (err == -EPROBE_DEFER)
 		return err;
+#endif
 
 	if (!is_valid_ether_addr(phy->macaddr)) {
-#endif
 		eth_random_addr(phy->macaddr);
 		dev_info(dev->dev,
+#if defined(__linux__)
 			 "Invalid MAC address, using random address %pM\n",
 			 phy->macaddr);
-#if defined(CONFIG_OF)
-	}
+#elif defined(__FreeBSD__)
+			 "Invalid MAC address, using random address %6D\n",
+			 phy->macaddr, ":");
 #endif
+	}
 
 	return 0;
 }
