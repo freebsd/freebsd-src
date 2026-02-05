@@ -252,7 +252,7 @@ static struct virtio_consts vtscsi_vi_consts = {
 	.vc_cfgread =	pci_vtscsi_cfgread,
 	.vc_cfgwrite =	pci_vtscsi_cfgwrite,
 	.vc_apply_features = pci_vtscsi_neg_features,
-	.vc_hv_caps =	0,
+	.vc_hv_caps =	VIRTIO_RING_F_INDIRECT_DESC,
 };
 
 static void *
