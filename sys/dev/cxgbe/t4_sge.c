@@ -828,12 +828,17 @@ t4_tweak_chip_settings(struct adapter *sc)
 		t4_set_reg_field(sc, A_SGE_ITP_CONTROL, m, v);
 
 		if (sc->debug_flags & DF_DISABLE_TCB_CACHE) {
-			m = V_RDTHRESHOLD(M_RDTHRESHOLD) | F_WRTHRTHRESHEN |
-			    V_WRTHRTHRESH(M_WRTHRTHRESH);
 			t4_tp_pio_read(sc, &v, 1, A_TP_CMM_CONFIG, 1);
-			v &= ~m;
-			v |= V_RDTHRESHOLD(1) | F_WRTHRTHRESHEN |
-			    V_WRTHRTHRESH(16);
+			if (chip_id(sc) >= CHELSIO_T7) {
+				v |= F_GLFL;
+			} else {
+				m = V_RDTHRESHOLD(M_RDTHRESHOLD) |
+				    F_WRTHRTHRESHEN |
+				    V_WRTHRTHRESH(M_WRTHRTHRESH);
+				v &= ~m;
+				v |= V_RDTHRESHOLD(1) | F_WRTHRTHRESHEN |
+				    V_WRTHRTHRESH(16);
+			}
 			t4_tp_pio_write(sc, &v, 1, A_TP_CMM_CONFIG, 1);
 		}
 	}
