@@ -22,20 +22,12 @@
 
 const struct sched_instance *active_sched;
 
-#ifndef __DO_NOT_HAVE_SYS_IFUNCS
-#define	__DEFINE_SHIM(__m, __r, __n, __p, __a)	\
-	DEFINE_IFUNC(, __r, __n, __p)		\
-	{					\
-		return (active_sched->__m);	\
-	}
-#else
 #define	__DEFINE_SHIM(__m, __r, __n, __p, __a)	\
 	__r					\
 	__n __p					\
 	{					\
 		return (active_sched->__m __a);	\
 	}
-#endif
 #define	DEFINE_SHIM0(__m, __r, __n)	\
     __DEFINE_SHIM(__m, __r, __n, (void), ())
 #define	DEFINE_SHIM1(__m, __r, __n, __t1, __a1)	\
