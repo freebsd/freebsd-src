@@ -1209,7 +1209,7 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 static void
 nvme_qpair_enable(struct nvme_qpair *qpair)
 {
-	bool is_admin __unused = qpair == &qpair->ctrlr->adminq;
+	bool is_admin __diagused = qpair == &qpair->ctrlr->adminq;
 
 	if (mtx_initialized(&qpair->recovery))
 		mtx_assert(&qpair->recovery, MA_OWNED);
