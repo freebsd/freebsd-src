@@ -374,7 +374,7 @@ struct kinfo_proc32 {
 	u_int	ki_slptime;
 	u_int	ki_swtime;
 	u_int	ki_cow;
-	uint64_t ki_runtime;
+	freebsd32_uint64_t ki_runtime;
 	struct	timeval32 ki_start;
 	struct	timeval32 ki_childtime;
 	int	ki_flag;
@@ -396,7 +396,7 @@ struct kinfo_proc32 {
 	char	ki_moretdname[MAXCOMLEN-TDNAMLEN+1];
 	char	ki_sparestrings[46];
 	int	ki_spareints[KI_NSPARE_INT];
-	uint64_t ki_tdev;
+	freebsd32_uint64_t ki_tdev;
 	int	ki_oncpu;
 	int	ki_lastcpu;
 	int	ki_tracer;
