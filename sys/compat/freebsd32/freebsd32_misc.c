@@ -713,31 +713,16 @@ freebsd32_pselect(struct thread *td, struct freebsd32_pselect_args *uap)
 static void
 freebsd32_kevent_to_kevent32(const struct kevent *kevp, struct kevent32 *ks32)
 {
-	uint64_t e;
 	int j;
 
 	CP(*kevp, *ks32, ident);
 	CP(*kevp, *ks32, filter);
 	CP(*kevp, *ks32, flags);
 	CP(*kevp, *ks32, fflags);
-#if BYTE_ORDER == LITTLE_ENDIAN
-	ks32->data1 = kevp->data;
-	ks32->data2 = kevp->data >> 32;
-#else
-	ks32->data1 = kevp->data >> 32;
-	ks32->data2 = kevp->data;
-#endif
+	FU64_CP(*kevp, *ks32, data);
 	PTROUT_CP(*kevp, *ks32, udata);
-	for (j = 0; j < nitems(kevp->ext); j++) {
-		e = kevp->ext[j];
-#if BYTE_ORDER == LITTLE_ENDIAN
-		ks32->ext64[2 * j] = e;
-		ks32->ext64[2 * j + 1] = e >> 32;
-#else
-		ks32->ext64[2 * j] = e >> 32;
-		ks32->ext64[2 * j + 1] = e;
-#endif
-	}
+	for (j = 0; j < nitems(kevp->ext); j++)
+		FU64_CP(*kevp, *ks32, ext[j]);
 }
 
 void
@@ -819,7 +804,6 @@ freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd32_kevent_args *uap;
 	struct kevent32	ks32[KQ_NEVENTS];
-	uint64_t e;
 	int i, j, error;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
@@ -835,20 +819,10 @@ freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		CP(ks32[i], kevp[i], filter);
 		CP(ks32[i], kevp[i], flags);
 		CP(ks32[i], kevp[i], fflags);
-		kevp[i].data = PAIR32TO64(uint64_t, ks32[i].data);
+		FU64_CP(ks32[i], kevp[i], data);
 		PTRIN_CP(ks32[i], kevp[i], udata);
-		for (j = 0; j < nitems(kevp->ext); j++) {
-#if BYTE_ORDER == LITTLE_ENDIAN
-			e = ks32[i].ext64[2 * j + 1];
-			e <<= 32;
-			e += ks32[i].ext64[2 * j];
-#else
-			e = ks32[i].ext64[2 * j];
-			e <<= 32;
-			e += ks32[i].ext64[2 * j + 1];
-#endif
-			kevp[i].ext[j] = e;
-		}
+		for (j = 0; j < nitems(kevp->ext); j++)
+			FU64_CP(ks32[i], kevp[i], ext[j]);
 	}
 done:
 	return (error);
