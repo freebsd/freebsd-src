@@ -433,16 +433,12 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 		sbuf_cat(sbp, "MODINFOMD_VBE_FB");
 		break;
 #endif
-#ifdef MODINFOMD_FONT
 	case MODINFOMD_FONT:
 		sbuf_cat(sbp, "MODINFOMD_FONT");
 		break;
-#endif
-#ifdef MODINFOMD_SPLASH
 	case MODINFOMD_SPLASH:
 		sbuf_cat(sbp, "MODINFOMD_SPLASH");
 		break;
-#endif
 #ifdef MODINFOMD_BOOT_HARTID
 	case MODINFOMD_BOOT_HARTID:
 		sbuf_cat(sbp, "MODINFOMD_BOOT_HARTID");
@@ -497,12 +493,8 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 #ifdef MODINFOMD_VBE_FB
 	case MODINFO_METADATA | MODINFOMD_VBE_FB:
 #endif
-#ifdef MODINFOMD_FONT
 	case MODINFO_METADATA | MODINFOMD_FONT:
-#endif
-#ifdef MODINFOMD_SPLASH
 	case MODINFO_METADATA | MODINFOMD_SPLASH:
-#endif
 		sbuf_print_vmoffset(sbp, *(vm_offset_t *)bptr);
 		break;
 	case MODINFO_METADATA | MODINFOMD_HOWTO:
