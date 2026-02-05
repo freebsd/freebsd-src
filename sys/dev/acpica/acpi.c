@@ -4062,7 +4062,7 @@ acpi_system_eventhandler_sleep(void *arg, enum power_stype stype)
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, stype);
 
     /* Check if button action is disabled or unknown. */
-    if (stype == ACPI_STATE_UNKNOWN)
+    if (stype == POWER_STYPE_UNKNOWN)
 	return;
 
     /*
