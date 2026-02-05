@@ -36,7 +36,6 @@ subsystem	login	notes
 aio(4)		asomers	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 contrib/atf		ngie,#test		Pre-commit review requested.
-contrib/capsicum-test	ngie,#capsicum,#test	Pre-commit review requested.
 contrib/googletest	ngie,#test		Pre-commit review requested.
 sbin/ipf	cy			Pre-commit review requested.
 contrib/libcxxrt	dim,emaste		Pre-commit review preferred.
@@ -112,6 +111,7 @@ sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 sys/x86/xen	royger		Pre-commit review recommended.
 sys/xen		royger		Pre-commit review recommended.
 tests			ngie,#test		Pre-commit review requested.
+tests/sys/capsicum	ngie,#capsicum,#test	Pre-commit review requested.
 tools/build	imp,jrtc27	Pre-commit review requested, especially to fix bootstrap issues.
 top(1)		eadler	Pre-commit review requested.
 ufshci(4)	jaeyoon	Pre-commit review requested.

@@ -117,7 +117,7 @@
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie-eign
 /tests/sys/aio/	@asomers
-/tests/sys/capsicum-test @ngie-eign @emaste
+/tests/sys/capsicum/	@ngie-eign @emaste
 /tests/sys/fs/fusefs/ @asomers
 /tests/sys/kqueue/	@jmgurney
 /tests/sys/opencrypto/	@jmgurney
