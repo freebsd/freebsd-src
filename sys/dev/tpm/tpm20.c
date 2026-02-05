@@ -45,6 +45,7 @@ static void tpm20_discard_buffer(void *arg);
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 static void tpm20_harvest(void *arg, int unused);
 #endif
+static int  tpm20_restart(device_t dev, bool clear);
 static int  tpm20_save_state(device_t dev, bool suspend);
 
 static d_open_t		tpm20_open;
@@ -243,8 +244,30 @@ tpm20_release(struct tpm_sc *sc)
 }
 
 int
+tpm20_resume(device_t dev)
+{
+
+	tpm20_restart(dev, false);
+
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	struct tpm_sc *sc;
+
+	sc = device_get_softc(dev);
+	taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task,
+	    hz * TPM_HARVEST_INTERVAL);
+#endif
+	return (0);
+}
+
+int
 tpm20_suspend(device_t dev)
 {
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	struct tpm_sc *sc;
+
+	sc = device_get_softc(dev);
+	taskqueue_drain_timeout(taskqueue_thread, &sc->harvest_task);
+#endif
 	return (tpm20_save_state(dev, true));
 }
 
@@ -308,6 +331,43 @@ tpm20_harvest(void *arg, int unused)
 #endif	/* TPM_HARVEST */
 
 static int
+tpm20_restart(device_t dev, bool clear)
+{
+	struct tpm_sc *sc;
+	uint8_t startup_cmd[] = {
+		0x80, 0x01,             /* TPM_ST_NO_SESSIONS tag*/
+		0x00, 0x00, 0x00, 0x0C, /* cmd length */
+		0x00, 0x00, 0x01, 0x44, /* cmd TPM_CC_Startup */
+		0x00, 0x01              /* TPM_SU_STATE */
+	};
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Inform the TPM whether we are resetting or resuming.
+	 */
+	if (clear)
+		startup_cmd[11] = 0; /* TPM_SU_CLEAR */
+
+	if (sc == NULL || sc->buf == NULL)
+		return (0);
+
+	sx_xlock(&sc->dev_lock);
+
+	MPASS(sc->pending_data_length == 0);
+	memcpy(sc->buf, startup_cmd, sizeof(startup_cmd));
+
+	/* XXX Ignoring both TPM_TRANSMIT return and tpm's response */
+	TPM_TRANSMIT(sc->dev, sizeof(startup_cmd));
+	sc->pending_data_length = 0;
+	sc->total_length = 0;
+
+	sx_xunlock(&sc->dev_lock);
+
+	return (0);
+}
+
+static int
 tpm20_save_state(device_t dev, bool suspend)
 {
 	struct tpm_sc *sc;
@@ -331,8 +391,13 @@ tpm20_save_state(device_t dev, bool suspend)
 
 	sx_xlock(&sc->dev_lock);
 
+	MPASS(sc->pending_data_length == 0);
 	memcpy(sc->buf, save_cmd, sizeof(save_cmd));
+
+	/* XXX Ignoring both TPM_TRANSMIT return and tpm's response */
 	TPM_TRANSMIT(sc->dev, sizeof(save_cmd));
+	sc->pending_data_length = 0;
+	sc->total_length = 0;
 
 	sx_xunlock(&sc->dev_lock);
 
