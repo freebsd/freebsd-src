@@ -62,7 +62,7 @@ struct ffclock_estimate32 {
 	struct bintime32 update_time;
 	ffcounter update_ffcount;
 	ffcounter leapsec_next;
-	uint64_t period;
+	freebsd32_uint64_t period;
 	uint32_t errb_abs;
 	uint32_t errb_rate;
 	uint32_t status;
