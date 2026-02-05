@@ -4951,22 +4951,20 @@ acpi_reset_interfaces(device_t dev)
 				/* Disable all other OSI vendor strings. */
 				status = AcpiUpdateInterfaces(
 				    ACPI_DISABLE_ALL_VENDOR_STRINGS);
-				/* Install Darwin */
 				if (ACPI_SUCCESS(status)) {
+					/* Install Darwin OSI */
 					status = AcpiInstallInterface("Darwin");
 				}
 				if (bootverbose) {
 					if (ACPI_SUCCESS(status)) {
 						device_printf(dev,
-						    "Apple hardware: installed Darwin "
-						    "OSI and removed other vendor OSI "
-						    "(Windows, etc)\n");
+						    "disabled non-Darwin OSI & "
+						    "installed Darwin OSI\n");
 					} else {
 						device_printf(dev,
-						    "Apple hardware: failed to install "
-						    "Darwin OSI: %s\n",
-						    AcpiFormatException(
-							status));
+						    "could not install "
+						    "Darwin OSI: %s\n"
+						    AcpiFormatException(status));
 					}
 				}
 			} else if (bootverbose) {
