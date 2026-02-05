@@ -4963,7 +4963,7 @@ acpi_reset_interfaces(device_t dev)
 					} else {
 						device_printf(dev,
 						    "could not install "
-						    "Darwin OSI: %s\n"
+						    "Darwin OSI: %s\n",
 						    AcpiFormatException(status));
 					}
 				}
