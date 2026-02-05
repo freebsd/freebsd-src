@@ -2287,11 +2287,11 @@ copy_stat(struct stat *in, struct stat32 *out)
 	TS_CP(*in, *out, st_mtim);
 	TS_CP(*in, *out, st_ctim);
 	CP(*in, *out, st_size);
-	CP(*in, *out, st_blocks);
+	FU64_CP(*in, *out, st_blocks);
 	CP(*in, *out, st_blksize);
 	CP(*in, *out, st_flags);
-	CP(*in, *out, st_gen);
-	CP(*in, *out, st_filerev);
+	FU64_CP(*in, *out, st_gen);
+	FU64_CP(*in, *out, st_filerev);
 	CP(*in, *out, st_bsdflags);
 	TS_CP(*in, *out, st_birthtim);
 	out->st_padding1 = 0;
@@ -2500,7 +2500,7 @@ freebsd11_cvtstat32(struct stat *in, struct freebsd11_stat32 *out)
 	TS_CP(*in, *out, st_mtim);
 	TS_CP(*in, *out, st_ctim);
 	CP(*in, *out, st_size);
-	CP(*in, *out, st_blocks);
+	FU64_CP(*in, *out, st_blocks);
 	CP(*in, *out, st_blksize);
 	CP(*in, *out, st_flags);
 	CP(*in, *out, st_gen);

@@ -230,12 +230,12 @@ struct stat32 {
 #endif
 	struct timespec32 st_birthtim;
 	off_t	st_size;
-	int64_t	st_blocks;
+	freebsd32_uint64_t st_blocks;
 	uint32_t st_blksize;
 	uint32_t st_flags;
-	uint64_t st_gen;
-	uint64_t st_filerev;
-	uint64_t st_spare[9];
+	freebsd32_uint64_t st_gen;
+	freebsd32_uint64_t st_filerev;
+	freebsd32_uint64_t st_spare[9];
 };
 struct freebsd11_stat32 {
 	uint32_t st_dev;
@@ -249,7 +249,7 @@ struct freebsd11_stat32 {
 	struct timespec32 st_mtim;
 	struct timespec32 st_ctim;
 	off_t	st_size;
-	int64_t	st_blocks;
+	freebsd32_uint64_t st_blocks;
 	uint32_t st_blksize;
 	uint32_t st_flags;
 	uint32_t st_gen;
