@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _COMPAT_H_
-#define	_COMPAT_H_
+#ifndef _ABI_COMPAT_H_
+#define	_ABI_COMPAT_H_
 
 /*
  * Helper macros for translating objects between different ABIs.
@@ -80,4 +80,4 @@
 	FU64_CP((src).fld, (dst).fld, frac);			\
 } while (0)
 
-#endif /* !_COMPAT_H_ */
+#endif /* !_ABI_COMPAT_H_ */
