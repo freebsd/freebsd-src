@@ -3084,8 +3084,6 @@ out:
 	return (error);
 }
 
-#define	PTRIN(p)		((void *)(uintptr_t)(p))
-
 static int
 mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
