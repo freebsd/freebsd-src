@@ -26,7 +26,7 @@
 
 struct pr {
 	int ostdout;
-	int pidfd;
+	int procd;
 };
 
 struct pr *start_pr(char *file1, char *file2);
