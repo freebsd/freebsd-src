@@ -372,6 +372,9 @@ diffreg_stone(char *file1, char *file2, int flags, int capsicum)
 		goto closem;
 	}
 
+	if (stb1.st_dev == stb2.st_dev && stb1.st_ino == stb2.st_ino)
+		goto closem;
+
 	if (lflag)
 		pr = start_pr(file1, file2);
 

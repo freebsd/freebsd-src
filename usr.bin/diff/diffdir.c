@@ -41,8 +41,6 @@ static void diffit(struct dirent *, char *, size_t, struct dirent *,
 	char *, size_t, int);
 static void print_only(const char *, size_t, const char *);
 
-#define d_status	d_type		/* we need to store status for -l */
-
 struct inode {
 	dev_t dev;
 	ino_t ino;
@@ -258,7 +256,6 @@ diffit(struct dirent *dp, char *path1, size_t plen1, struct dirent *dp2,
 			flags |= D_EMPTY1;
 			memset(&stb1, 0, sizeof(stb1));
 		}
-
 		if (lstat(path2, &stb2) != 0) {
 			if (!Nflag || errno != ENOENT) {
 				warn("%s", path2);
@@ -315,7 +312,6 @@ diffit(struct dirent *dp, char *path1, size_t plen1, struct dirent *dp2,
 			flags |= D_EMPTY1;
 			memset(&stb1, 0, sizeof(stb1));
 		}
-
 		if (stat(path2, &stb2) != 0) {
 			if (!Nflag || errno != ENOENT) {
 				warn("%s", path2);
@@ -328,6 +324,8 @@ diffit(struct dirent *dp, char *path1, size_t plen1, struct dirent *dp2,
 		if (stb1.st_mode == 0)
 			stb1.st_mode = stb2.st_mode;
 	}
+	if (stb1.st_dev == stb2.st_dev && stb1.st_ino == stb2.st_ino)
+		return;
 	if (S_ISDIR(stb1.st_mode) && S_ISDIR(stb2.st_mode)) {
 		if (rflag)
 			diffdir(path1, path2, flags);
@@ -337,12 +335,12 @@ diffit(struct dirent *dp, char *path1, size_t plen1, struct dirent *dp2,
 		return;
 	}
 	if (!S_ISREG(stb1.st_mode) && !S_ISDIR(stb1.st_mode))
-		dp->d_status = D_SKIPPED1;
+		rc = D_SKIPPED1;
 	else if (!S_ISREG(stb2.st_mode) && !S_ISDIR(stb2.st_mode))
-		dp->d_status = D_SKIPPED2;
+		rc = D_SKIPPED2;
 	else
-		dp->d_status = diffreg(path1, path2, flags, 0);
-	print_status(dp->d_status, path1, path2, "");
+		rc = diffreg(path1, path2, flags, 0);
+	print_status(rc, path1, path2, "");
 }
 
 /*
