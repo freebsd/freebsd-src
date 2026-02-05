@@ -28,6 +28,7 @@
 
 struct pr {
 	int ostdout;
+	int procd;
 	int kq;
 	struct kevent *e;
 };

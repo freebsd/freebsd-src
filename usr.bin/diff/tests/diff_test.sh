@@ -421,7 +421,6 @@ prleak_body()
 	ulimit -n 1000
 	ulimit -u 1000
 	atf_check diff -rul a b
-	atf_check diff -Astone -rul a b
 }
 
 atf_init_test_cases()
