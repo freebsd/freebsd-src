@@ -24,7 +24,10 @@ atf_test_case functionname
 atf_test_case noderef
 atf_test_case ignorecase
 atf_test_case dirloop
-atf_test_case verylong
+atf_test_case bigc
+atf_test_case bigu
+atf_test_case prleak
+atf_test_case same
 
 simple_body()
 {
