@@ -29,9 +29,29 @@
 #ifndef _ABI_COMPAT_H_
 #define	_ABI_COMPAT_H_
 
+#include <sys/_types.h>
+
 /*
- * Helper macros for translating objects between different ABIs.
+ * Helper types and macros for translating objects between different ABIs.
  */
+
+/*
+ * i386 is the only arch with a 32-bit time_t.
+ * Also it is the only arch with (u)int64_t having 4-bytes alignment.
+ */
+typedef struct {
+#ifdef __amd64__
+	__uint32_t val[2];
+#else
+	__uint64_t val;
+#endif
+} freebsd32_uint64_t;
+
+#ifdef __amd64__
+typedef	__int32_t	time32_t;
+#else
+typedef	__int64_t	time32_t;
+#endif
 
 #define	PTRIN(v)	(void *)(uintptr_t)(v)
 #define	PTROUT(v)	(uintptr_t)(v)
