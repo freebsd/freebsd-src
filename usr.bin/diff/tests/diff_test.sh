@@ -411,6 +411,27 @@ bigu_body()
 	    diff -Astone -U$(((1<<31)-2)) a b
 }
 
+prleak_head()
+{
+	atf_set "descr" "Verify that pagination does not leak resources"
+}
+prleak_body()
+{
+	local n=32
+	mkdir a b
+	for hi in $(jot -w%02x $n 0) ; do
+		mkdir a/$hi b/$hi
+		for lo in $(jot -w%02x $n 0) ; do
+			echo "$hi$lo" >a/$hi/$lo
+			echo "$hi$lo" >b/$hi/$lo
+		done
+	done
+	ulimit -n 1000
+	ulimit -u 1000
+	atf_check diff -rul a b
+	atf_check diff -Astone -rul a b
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -440,4 +461,5 @@ atf_init_test_cases()
 	atf_add_test_case dirloop
 	atf_add_test_case bigc
 	atf_add_test_case bigu
+	atf_add_test_case prleak
 }
