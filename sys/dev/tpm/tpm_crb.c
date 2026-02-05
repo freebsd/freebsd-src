@@ -411,6 +411,7 @@ static device_method_t	tpmcrb_methods[] = {
 	DEVMETHOD(device_detach,	tpmcrb_detach),
 	DEVMETHOD(device_shutdown,	tpm20_shutdown),
 	DEVMETHOD(device_suspend,	tpm20_suspend),
+	DEVMETHOD(device_resume,	tpm20_resume),
 	{0, 0}
 };
 
