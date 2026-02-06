@@ -2440,8 +2440,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         ifmedia_set(&ha->media, (IFM_ETHER | IFM_AUTO));
 
 	ether_ifattach(ifp, ha->primary_mac);
-	bcopy(IF_LLADDR(ha->ifp), ha->primary_mac, ETHER_ADDR_LEN);
-
         QL_DPRINT2(ha, "exit\n");
 
         return;
