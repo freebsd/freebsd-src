@@ -2670,30 +2670,11 @@ qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int		ret = 0, mask;
 	struct ifreq	*ifr = (struct ifreq *)data;
-	struct ifaddr	*ifa = (struct ifaddr *)data;
 	qlnx_host_t	*ha;
 
 	ha = (qlnx_host_t *)ifp->if_softc;
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-		QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx)\n", cmd);
-
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			ifp->if_flags |= IFF_UP;
-			QLNX_LOCK(ha);
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-				qlnx_init_locked(ha);
-			QLNX_UNLOCK(ha);
-			QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx) ipv4 [0x%08x]\n",
-				   cmd, ntohl(IA_SIN(ifa)->sin_addr.s_addr));
-
-			arp_ifinit(ifp, ifa);
-		} else {
-			ether_ioctl(ifp, cmd, data);
-		}
-		break;
-
 	case SIOCSIFMTU:
 		QL_DPRINT4(ha, "SIOCSIFMTU (0x%lx)\n", cmd);
 
