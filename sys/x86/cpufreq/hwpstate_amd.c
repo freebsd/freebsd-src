@@ -68,6 +68,8 @@
 
 #include <dev/acpica/acpivar.h>
 
+#include <x86/cpufreq/hwpstate_common.h>
+
 #include "acpi_if.h"
 #include "cpufreq_if.h"
 
@@ -162,10 +164,6 @@ static int	hwpstate_get_info_from_acpi_perf(device_t dev, device_t perf_dev);
 static int	hwpstate_get_info_from_msr(device_t dev);
 static int	hwpstate_goto_pstate(device_t dev, int pstate_id);
 
-static int	hwpstate_verbose;
-SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RWTUN,
-    &hwpstate_verbose, 0, "Debug hwpstate");
-
 static int	hwpstate_verify;
 SYSCTL_INT(_debug, OID_AUTO, hwpstate_verify, CTLFLAG_RWTUN,
     &hwpstate_verify, 0, "Verify P-state after setting");
@@ -175,11 +173,6 @@ SYSCTL_BOOL(_debug, OID_AUTO, hwpstate_pstate_limit, CTLFLAG_RWTUN,
     &hwpstate_pstate_limit, 0,
     "If enabled (1), limit administrative control of P-states to the value in "
     "CurPstateLimit");
-
-static bool hwpstate_pkg_ctrl_enable = true;
-SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_pkg_ctrl, CTLFLAG_RDTUN,
-    &hwpstate_pkg_ctrl_enable, 0,
-    "Set 1 (default) to enable package-level control, 0 to disable");
 
 static bool hwpstate_amd_cppc_enable = true;
 SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_amd_cppc_enable, CTLFLAG_RDTUN,

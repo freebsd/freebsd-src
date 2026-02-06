@@ -48,6 +48,7 @@
 
 #include <dev/acpica/acpivar.h>
 
+#include <x86/cpufreq/hwpstate_common.h>
 #include <x86/cpufreq/hwpstate_intel_internal.h>
 
 #include "acpi_if.h"
@@ -107,11 +108,6 @@ static driver_t hwpstate_intel_driver = {
 
 DRIVER_MODULE(hwpstate_intel, cpu, hwpstate_intel_driver, NULL, NULL);
 MODULE_VERSION(hwpstate_intel, 1);
-
-static bool hwpstate_pkg_ctrl_enable = true;
-SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_pkg_ctrl, CTLFLAG_RDTUN,
-    &hwpstate_pkg_ctrl_enable, 0,
-    "Set 1 (default) to enable package-level control, 0 to disable");
 
 static int
 intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
