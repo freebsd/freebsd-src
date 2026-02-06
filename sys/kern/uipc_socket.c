@@ -905,7 +905,11 @@ sodealloc(struct socket *so)
  * normal socket(2) syscall it is the pr_attach that calls soreserve(), even
  * for protocols that don't yet do PR_SOCKBUF.  In case of accepted connection
  * it is our shim that calls soreserve() and the hiwat values are taken from
- * the parent socket.
+ * the parent socket.  The SCTP's sopeeloff() hands us a non-listening parent
+ * socket.
+ *
+ * This whole shim should go away when all major protocols fully manage their
+ * socket buffers.
  */
 static int
 soattach(struct socket *so, int proto, struct thread *td, struct socket *head)
@@ -921,8 +925,10 @@ soattach(struct socket *so, int proto, struct thread *td, struct socket *head)
 		so->so_snd.sb_mtx = &so->so_snd_mtx;
 		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
 	}
-	if (head == NULL || (error = soreserve(so, head->sol_sbsnd_hiwat,
-	    head->sol_sbrcv_hiwat)) == 0)
+	if (head == NULL || (error = soreserve(so,
+	    SOLISTENING(head) ? head->sol_sbsnd_hiwat : head->so_snd.sb_hiwat,
+	    SOLISTENING(head) ? head->sol_sbrcv_hiwat : head->so_rcv.sb_hiwat))
+	    == 0)
 		error = so->so_proto->pr_attach(so, proto, td);
 	if (error != 0 && (so->so_proto->pr_flags & PR_SOCKBUF) == 0) {
 		mtx_destroy(&so->so_snd_mtx);
