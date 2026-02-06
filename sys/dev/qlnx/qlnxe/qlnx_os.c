@@ -7057,20 +7057,10 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 	int	rc = 0;
 	uint8_t	filter;
 	const if_t ifp = ha->ifp;
-	const struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 
-	ifa = if_getifaddr(ifp);
-	if (if_gettype(ifp) == IFT_ETHER && ifa != NULL &&
-			ifa->ifa_addr != NULL) {
-		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-
-		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, LLADDR(sdl));
-	} else {
-		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, ha->primary_mac);
-	}
-        if (rc)
-                return rc;
+	rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, if_getlladdr(ifp));
+	if (rc)
+		return rc;
 
 	rc = qlnx_remove_all_mcast_mac(ha);
         if (rc)
