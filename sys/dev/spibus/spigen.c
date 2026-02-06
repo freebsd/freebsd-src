@@ -283,8 +283,10 @@ spigen_mmap_cleanup(void *arg)
 {
 	struct spigen_mmap *mmap = arg;
 
-	if (mmap->kvaddr != 0)
+	if (mmap->kvaddr != 0) {
 		pmap_qremove(mmap->kvaddr, mmap->bufsize / PAGE_SIZE);
+		kva_free(mmap->kvaddr, mmap->bufsize);
+	}
 	if (mmap->bufobj != NULL)
 		vm_object_deallocate(mmap->bufobj);
 	free(mmap, M_DEVBUF);
