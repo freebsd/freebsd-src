@@ -2431,7 +2431,8 @@ qlnx_init(void *arg)
 	QL_DPRINT2(ha, "enter\n");
 
 	QLNX_LOCK(ha);
-	qlnx_init_locked(ha);
+	if ((if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING) == 0)
+		qlnx_init_locked(ha);
 	QLNX_UNLOCK(ha);
 
 	QL_DPRINT2(ha, "exit\n");
