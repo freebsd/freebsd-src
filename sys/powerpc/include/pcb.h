@@ -41,6 +41,11 @@
 #include <machine/setjmp.h>
 
 #ifndef _STANDALONE
+/*
+ * struct pcb is known to and used by kernel debuggers. Its layout must be kept
+ * stable. When adding extra fields that are accessed by kernel debuggers,
+ * debuggers should be backward compatible by using osreldate.
+ */
 struct pcb {
 	register_t	pcb_context[20];	/* non-volatile r12-r31 */
 	register_t	pcb_cr;			/* Condition register */
