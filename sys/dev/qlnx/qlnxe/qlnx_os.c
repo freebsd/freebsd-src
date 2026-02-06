@@ -30,8 +30,6 @@
  * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
  */
 
-#include "opt_inet.h"
-
 #include <sys/cdefs.h>
 #include "qlnx_os.h"
 #include "bcm_osal.h"
@@ -2622,34 +2620,11 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	int		ret = 0, mask;
 	int		flags;
 	struct ifreq	*ifr = (struct ifreq *)data;
-#ifdef INET
-	struct ifaddr	*ifa = (struct ifaddr *)data;
-#endif
 	qlnx_host_t	*ha;
 
 	ha = (qlnx_host_t *)if_getsoftc(ifp);
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-		QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx)\n", cmd);
-
-#ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			if_setflagbits(ifp, IFF_UP, 0);
-			QLNX_LOCK(ha);
-			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
-				qlnx_init_locked(ha);
-			QLNX_UNLOCK(ha);
-			QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx) ipv4 [0x%08x]\n",
-				   cmd, ntohl(IA_SIN(ifa)->sin_addr.s_addr));
-
-			arp_ifinit(ifp, ifa);
-			break;
-		}
-#endif
-		ether_ioctl(ifp, cmd, data);
-		break;
-
 	case SIOCSIFMTU:
 		QL_DPRINT4(ha, "SIOCSIFMTU (0x%lx)\n", cmd);
 
