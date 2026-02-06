@@ -101,6 +101,7 @@ static void qlnx_stop(qlnx_host_t *ha);
 static int qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		struct mbuf **m_headp);
 static int qlnx_get_ifq_snd_maxlen(qlnx_host_t *ha);
+static void qlnx_get_mac_addr(qlnx_host_t *ha);
 static uint32_t qlnx_get_optics(qlnx_host_t *ha,
 			struct qlnx_link_output *if_link);
 static int qlnx_transmit(if_t ifp, struct mbuf  *mp);
@@ -2322,7 +2323,7 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 
         ha->max_frame_size = if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
-        memcpy(ha->primary_mac, qlnx_get_mac_addr(ha), ETH_ALEN);
+	qlnx_get_mac_addr(ha);
 
 	if (!ha->primary_mac[0] && !ha->primary_mac[1] &&
 		!ha->primary_mac[2] && !ha->primary_mac[3] &&
@@ -3772,7 +3773,7 @@ qlnx_get_ifq_snd_maxlen(qlnx_host_t *ha)
         return(TX_RING_SIZE - 1);
 }
 
-uint8_t *
+static void
 qlnx_get_mac_addr(qlnx_host_t *ha)
 {
 	struct ecore_hwfn	*p_hwfn;
@@ -3781,8 +3782,10 @@ qlnx_get_mac_addr(qlnx_host_t *ha)
 
 	p_hwfn = &ha->cdev.hwfns[0];
 
-	if (qlnx_vf_device(ha) != 0) 
-		return (p_hwfn->hw_info.hw_mac_addr);
+	if (qlnx_vf_device(ha) != 0) {
+		memcpy(ha->primary_mac, p_hwfn->hw_info.hw_mac_addr, ETH_ALEN);
+		return;
+	}
 
 	ecore_vf_read_bulletin(p_hwfn, &p_is_forced);
 	if (ecore_vf_bulletin_get_forced_mac(p_hwfn, mac, &p_is_forced) ==
@@ -3792,8 +3795,6 @@ qlnx_get_mac_addr(qlnx_host_t *ha)
 			p_is_forced, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         	memcpy(ha->primary_mac, mac, ETH_ALEN);
 	}
-
-	return (ha->primary_mac);
 }
 
 static uint32_t
