@@ -42,7 +42,7 @@ AHD_DEBUG_OPTS		opt_aic79xx.h
 AHD_TMODE_ENABLE	opt_aic79xx.h	
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 
-# Debugging options.
+# Debugging options
 ALT_BREAK_TO_DEBUGGER	opt_kdb.h
 BREAK_TO_DEBUGGER	opt_kdb.h
 BUF_TRACKING		opt_global.h
@@ -70,7 +70,7 @@ TSLOG	opt_global.h
 TSLOG_PAGEZERO	opt_global.h
 TSLOGSIZE	opt_global.h
 
-# Miscellaneous options.
+# Miscellaneous options
 ALQ
 ATSE_CFI_HACK	opt_cfi.h
 AUDIT		opt_global.h
@@ -325,10 +325,10 @@ UFS_ACL		opt_ufs.h
 UFS_EXTATTR	opt_ufs.h
 UFS_EXTATTR_AUTOSTART	opt_ufs.h
 
-# Enable fast hash lookups for large directories on UFS-based filesystems.
+# Enable fast hash lookups for large directories on UFS-based filesystems
 UFS_DIRHASH	opt_ufs.h
 
-# Enable gjournal-based UFS journal.
+# Enable gjournal-based UFS journal
 UFS_GJOURNAL	opt_ufs.h
 
 # The below sentence is not in English, and neither is this one.
@@ -341,14 +341,14 @@ NFS_ROOT	opt_nfsroot.h
 # SMB/CIFS requester
 NETSMB		opt_netsmb.h
 
-# Enable debugnet(4) networking support.
+# Enable debugnet(4) networking support
 DEBUGNET 	opt_global.h
-# Enable netdump(4) client support.
+# Enable netdump(4) client support
 NETDUMP 	opt_global.h
-# Enable netgdb(4) support.
+# Enable netgdb(4) support
 NETGDB 		opt_global.h
 
-# Options used only in subr_param.c.
+# Options used only in subr_param.c
 HZ		opt_param.h
 MAXFILES	opt_param.h
 NBUF		opt_param.h
@@ -360,7 +360,7 @@ DFLDSIZ		opt_param.h
 MAXDSIZ		opt_param.h
 MAXSSIZ		opt_param.h
 
-# Generic SCSI options.
+# Generic SCSI options
 CAM_MAX_HIGHPOWER	opt_cam.h
 CAMDEBUG		opt_cam.h
 CAM_DEBUG_COMPILE	opt_cam.h
@@ -387,7 +387,7 @@ CHANGER_MAX_BUSY_SECONDS	opt_cd.h
 # Options used only in cam/scsi/scsi_da.c
 DA_TRACK_REFS		opt_da.h
 
-# Options used only in cam/scsi/scsi_sa.c.
+# Options used only in cam/scsi/scsi_sa.c
 SA_IO_TIMEOUT		opt_sa.h
 SA_SPACE_TIMEOUT	opt_sa.h
 SA_REWIND_TIMEOUT	opt_sa.h
@@ -400,7 +400,7 @@ SCSI_PT_DEFAULT_TIMEOUT	opt_pt.h
 # Options used only in cam/scsi/scsi_ses.c
 SES_ENABLE_PASSTHROUGH	opt_ses.h
 
-# Options used in dev/sym/ (Symbios SCSI driver).
+# Options used in dev/sym/ (Symbios SCSI driver)
 SYM_SETUP_SCSI_DIFF	opt_sym.h	#-HVD support for 825a, 875, 885
 					# disabled:0 (default), enabled:1
 SYM_SETUP_PCI_PARITY	opt_sym.h	#-PCI parity checking
@@ -415,7 +415,7 @@ ISP_DEFAULT_ROLES	opt_isp.h
 ISP_INTERNAL_TARGET	opt_isp.h
 ISP_FCTAPE_OFF		opt_isp.h
 
-# Net stuff.
+# Net stuff
 ACCEPT_FILTER_DATA
 ACCEPT_FILTER_DNS
 ACCEPT_FILTER_HTTP
@@ -501,8 +501,8 @@ SCTP_MBUF_LOGGING	opt_sctp.h # Log to KTR general mbuf aloc/free
 SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
 SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
-SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
-SCTP_USE_PERCPU_STAT	opt_sctp.h # Use per cpu stats.
+SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns
+SCTP_USE_PERCPU_STAT	opt_sctp.h # Use per cpu stats
 SCTP_MCORE_INPUT	opt_sctp.h # Have multiple input threads for input mbufs
 SCTP_LOCAL_TRACE_BUF	opt_sctp.h # Use tracebuffer exported via sysctl
 SCTP_DETAILED_STR_STATS	opt_sctp.h # Use per PR-SCTP policy stream stats
@@ -718,7 +718,7 @@ IOMMU			opt_iommu.h
 DEV_ISA			opt_isa.h
 ISAPNP			opt_dontuse.h
 
-# various 'device presence' options.
+# various 'device presence' options
 DEV_BPF			opt_bpf.h
 DEV_CARP		opt_carp.h
 DEV_NETMAP		opt_global.h
@@ -946,7 +946,7 @@ RACCT_DEFAULT_TO_DISABLED	opt_global.h
 RCTL		opt_global.h
 
 # Random number generator(s)
-# Alternative RNG algorithm.
+# Alternative RNG algorithm
 RANDOM_FENESTRASX	opt_global.h
 # With this, no entropy processor is loaded, but the entropy
 # harvesting infrastructure is present. This means an entropy
@@ -1014,5 +1014,5 @@ U2F_DROP_UHID_ALIAS	opt_hid.h
 # environment's contents are known to be safe.
 PRESERVE_EARLY_KENV	opt_global.h
 
-# Options for the Intel QuickAssist (QAT) driver.
+# Options for the Intel QuickAssist (QAT) driver
 QAT_DISABLE_SAFE_DC_MODE	opt_qat.h
