@@ -66,6 +66,8 @@
 
 #include <dev/acpica/acpivar.h>
 
+#include <x86/cpufreq/hwpstate_common.h>
+
 #include "acpi_if.h"
 #include "cpufreq_if.h"
 
@@ -125,10 +127,6 @@ static int	hwpstate_features(driver_t *driver, u_int *features);
 static int	hwpstate_get_info_from_acpi_perf(device_t dev, device_t perf_dev);
 static int	hwpstate_get_info_from_msr(device_t dev);
 static int	hwpstate_goto_pstate(device_t dev, int pstate_id);
-
-static int	hwpstate_verbose;
-SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RWTUN,
-    &hwpstate_verbose, 0, "Debug hwpstate");
 
 static int	hwpstate_verify;
 SYSCTL_INT(_debug, OID_AUTO, hwpstate_verify, CTLFLAG_RWTUN,
