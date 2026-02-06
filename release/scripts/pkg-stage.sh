@@ -9,7 +9,7 @@ export PKG_DBDIR="/tmp/pkg"
 export PERMISSIVE="YES"
 export REPO_AUTOUPDATE="NO"
 export ROOTDIR="$PWD/dvd"
-export PKGCMD="/usr/sbin/pkg -d --rootdir ${ROOTDIR}"
+export PKGCMD="/usr/sbin/pkg --rootdir ${ROOTDIR}"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="
