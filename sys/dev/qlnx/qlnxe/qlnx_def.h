@@ -683,7 +683,6 @@ extern int qlnx_grc_dump(qlnx_host_t *ha, uint32_t *num_dumped_dwords,
 		int hwfn_index);
 extern int qlnx_idle_chk(qlnx_host_t *ha, uint32_t *num_dumped_dwords,
 		int hwfn_index);
-extern uint8_t *qlnx_get_mac_addr(qlnx_host_t *ha);
 extern void qlnx_fill_link(qlnx_host_t *ha, struct ecore_hwfn *hwfn,
                           struct qlnx_link_output *if_link);
 extern int qlnx_set_lldp_tlvx(qlnx_host_t *ha, qlnx_lldp_sys_tlvs_t *lldp_tlvs);
