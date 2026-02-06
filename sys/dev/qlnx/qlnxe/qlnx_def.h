@@ -319,7 +319,6 @@ typedef struct qlnx_link_output qlnx_link_output_t;
 
 #define QLNX_TPA_MAX_AGG_BUFFERS             (20)
 
-#define QLNX_MAX_NUM_MULTICAST_ADDRS	ECORE_MAX_MC_ADDRS
 typedef struct _qlnx_mcast {
         uint16_t        rsrvd;
         uint8_t         addr[6];
@@ -442,9 +441,7 @@ struct qlnx_host {
 	qlnx_ivec_t              irq_vec[QLNX_MAX_RSS];
 
 	uint8_t			filter;
-	uint32_t                nmcast;
-	qlnx_mcast_t            mcast[QLNX_MAX_NUM_MULTICAST_ADDRS];
-	struct ecore_filter_mcast ecore_mcast;
+	uint32_t		ecore_mcast_bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	uint8_t			primary_mac[ETH_ALEN];
 	uint8_t			prio_to_tc[MAX_NUM_PRI];
 	struct ecore_eth_stats	hw_stats;

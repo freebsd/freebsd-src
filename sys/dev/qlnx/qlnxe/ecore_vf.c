@@ -1515,18 +1515,13 @@ void ecore_vf_pf_filter_mcast(struct ecore_hwfn *p_hwfn,
 			      struct ecore_filter_mcast *p_filter_cmd)
 {
 	struct ecore_sp_vport_update_params sp_params;
-	int i;
 
 	OSAL_MEMSET(&sp_params, 0, sizeof(sp_params));
 	sp_params.update_approx_mcast_flg = 1;
 
-	if (p_filter_cmd->opcode == ECORE_FILTER_ADD) {
-		for (i = 0; i < p_filter_cmd->num_mc_addrs; i++) {
-			u32 bit;
-
-			bit = ecore_mcast_bin_from_mac(p_filter_cmd->mac[i]);
-			sp_params.bins[bit / 32] |= 1 << (bit % 32);
-		}
+	if (p_filter_cmd->opcode == ECORE_FILTER_REPLACE) {
+		_Static_assert(sizeof(sp_params.bins) == sizeof(p_filter_cmd->bins), "Size mismatch");
+		memcpy(sp_params.bins, p_filter_cmd->bins, sizeof(sp_params.bins));
 	}
 
 	ecore_vf_pf_vport_update(p_hwfn, &sp_params);

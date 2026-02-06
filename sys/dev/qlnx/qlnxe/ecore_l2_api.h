@@ -162,14 +162,13 @@ struct ecore_filter_ucast {
 };
 
 struct ecore_filter_mcast {
-	/* MOVE is not supported for multicast */
+	/* Only REPLACE and FLUSH is supported for multicast */
 	enum ecore_filter_opcode opcode;
 	u8 vport_to_add_to;
 	u8 vport_to_remove_from;
-	u8	num_mc_addrs;
-#define ECORE_MAX_MC_ADDRS	64
-	unsigned char mac[ECORE_MAX_MC_ADDRS][ETH_ALEN];
+	u32 bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 };
+#define ECORE_MAX_MC_ADDRS	64
 
 struct ecore_filter_accept_flags {
 	u8 update_rx_mode_config;
@@ -384,7 +383,7 @@ struct ecore_sp_vport_update_params {
 	u8			anti_spoofing_en;
 	u8			update_accept_any_vlan_flg;
 	u8			accept_any_vlan;
-	u32			bins[8];
+	u32			bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	struct ecore_rss_params	*rss_params;
 	struct ecore_filter_accept_flags accept_flags;
 	struct ecore_sge_tpa_params *sge_tpa_params;
