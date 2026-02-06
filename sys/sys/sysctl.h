@@ -40,6 +40,7 @@
 #ifdef _KERNEL
 #include <sys/types.h>
 #include <sys/_null.h>
+#include <sys/kassert.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
 #endif
