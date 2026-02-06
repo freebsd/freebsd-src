@@ -370,7 +370,6 @@ struct qlnx_host {
 	uint16_t		device_id;
 
 	if_t			ifp;
-	int			if_flags;
 	volatile int		link_up;
 	struct ifmedia		media;
 	uint16_t		max_frame_size;

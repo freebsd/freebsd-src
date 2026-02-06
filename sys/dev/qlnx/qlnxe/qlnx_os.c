@@ -90,8 +90,8 @@ static void qlnx_init_ifnet(device_t dev, qlnx_host_t *ha);
 static void qlnx_init(void *arg);
 static void qlnx_init_locked(qlnx_host_t *ha);
 static int qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi);
-static int qlnx_set_promisc(qlnx_host_t *ha, int enabled);
-static int qlnx_set_allmulti(qlnx_host_t *ha, int enabled);
+static int qlnx_set_promisc_allmulti(qlnx_host_t *ha, int flags);
+static int _qlnx_set_promisc_allmulti(qlnx_host_t *ha, bool promisc, bool allmulti);
 static int qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data);
 static int qlnx_media_change(if_t ifp);
 static void qlnx_media_status(if_t ifp, struct ifmediareq *ifmr);
@@ -2573,44 +2573,49 @@ qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
 }
 
 static int
-qlnx_set_promisc(qlnx_host_t *ha, int enabled)
+qlnx_set_promisc_allmulti(qlnx_host_t *ha, int flags)
 {
 	int	rc = 0;
-	uint8_t	filter;
 
 	if (qlnx_vf_device(ha) == 0)
 		return (0);
 
-	filter = ha->filter;
-	if (enabled) {
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
-	} else {
-		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
-		filter &= ~ECORE_ACCEPT_UCAST_UNMATCHED;
-	}
-
-	rc = qlnx_set_rx_accept_filter(ha, filter);
+	rc = _qlnx_set_promisc_allmulti(ha, flags & IFF_PROMISC,
+	    flags & IFF_ALLMULTI);
 	return (rc);
 }
 
 static int
-qlnx_set_allmulti(qlnx_host_t *ha, int enabled)
+_qlnx_set_promisc_allmulti(qlnx_host_t *ha, bool promisc, bool allmulti)
 {
 	int	rc = 0;
 	uint8_t	filter;
-
-	if (qlnx_vf_device(ha) == 0)
-		return (0);
+	bool mcast, ucast;
 
 	filter = ha->filter;
-	if (enabled) {
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	} else {
-		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
-	}
-	rc = qlnx_set_rx_accept_filter(ha, filter);
+	filter |= ECORE_ACCEPT_UCAST_MATCHED;
+	filter |= ECORE_ACCEPT_MCAST_MATCHED;
+	filter |= ECORE_ACCEPT_BCAST;
 
+	mcast = promisc || allmulti;
+	ucast = promisc;
+
+	if (mcast)
+		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
+	else
+		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
+
+	if (ucast)
+		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
+	else
+		filter &= ~ECORE_ACCEPT_UCAST_UNMATCHED;
+
+	if (filter == ha->filter)
+		return (0);
+
+	rc = qlnx_set_rx_accept_filter(ha, filter);
+	if (rc == 0)
+		ha->filter = filter;
 	return (rc);
 }
 
@@ -2652,13 +2657,8 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 		if (flags & IFF_UP) {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				if ((flags ^ ha->if_flags) &
-					IFF_PROMISC) {
-					ret = qlnx_set_promisc(ha, flags & IFF_PROMISC);
-				} else if ((if_getflags(ifp) ^ ha->if_flags) &
-					IFF_ALLMULTI) {
-					ret = qlnx_set_allmulti(ha, flags & IFF_ALLMULTI);
-				}
+				if (qlnx_set_promisc_allmulti(ha, flags) != 0)
+					ret = EINVAL;
 			} else {
 				ha->max_frame_size = if_getmtu(ifp) +
 					ETHER_HDR_LEN + ETHER_CRC_LEN;
@@ -2669,7 +2669,6 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 				qlnx_stop(ha);
 		}
 
-		ha->if_flags = if_getflags(ifp);
 		QLNX_UNLOCK(ha);
 		break;
 
@@ -6989,6 +6988,9 @@ qlnx_clean_filters(qlnx_host_t *ha)
 {
         int	rc = 0;
 
+	/* Reset rx filter */
+	ha->filter = 0;
+
 	/* Remove all unicast macs */
 	rc = qlnx_remove_all_ucast_mac(ha);
 	if (rc)
@@ -7032,7 +7034,6 @@ static int
 qlnx_set_rx_mode(qlnx_host_t *ha)
 {
 	int	rc = 0;
-	uint8_t	filter;
 	const if_t ifp = ha->ifp;
 
 	rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, if_getlladdr(ifp));
@@ -7043,19 +7044,10 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
         if (rc)
                 return rc;
 
-	filter = ECORE_ACCEPT_UCAST_MATCHED |
-			ECORE_ACCEPT_MCAST_MATCHED |
-			ECORE_ACCEPT_BCAST;
-
-	if (qlnx_vf_device(ha) == 0 || (if_getflags(ha->ifp) & IFF_PROMISC)) {
-		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	} else if (if_getflags(ha->ifp) & IFF_ALLMULTI) {
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	}
-	ha->filter = filter;
-
-	rc = qlnx_set_rx_accept_filter(ha, filter);
+	if (qlnx_vf_device(ha) == 0)
+		rc = _qlnx_set_promisc_allmulti(ha, true, true);
+	else
+		rc = qlnx_set_promisc_allmulti(ha, if_getflags(ifp));
 
 	return (rc);
 }
