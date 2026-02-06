@@ -208,7 +208,6 @@ static struct mbuf *lagg_default_input(struct lagg_softc *, struct lagg_port *,
 
 /* lagg protocol table */
 static const struct lagg_proto {
-	lagg_proto	pr_num;
 	void		(*pr_attach)(struct lagg_softc *);
 	void		(*pr_detach)(struct lagg_softc *);
 	int		(*pr_start)(struct lagg_softc *, struct mbuf *);
@@ -223,24 +222,20 @@ static const struct lagg_proto {
 	void		(*pr_request)(struct lagg_softc *, void *);
 	void		(*pr_portreq)(struct lagg_port *, void *);
 } lagg_protos[] = {
-    {
-	.pr_num = LAGG_PROTO_NONE,
+    [LAGG_PROTO_NONE] = {
 	.pr_start = lagg_none_start,
 	.pr_input = lagg_none_input,
     },
-    {
-	.pr_num = LAGG_PROTO_ROUNDROBIN,
+    [LAGG_PROTO_ROUNDROBIN] = {
 	.pr_attach = lagg_rr_attach,
 	.pr_start = lagg_rr_start,
 	.pr_input = lagg_default_input,
     },
-    {
-	.pr_num = LAGG_PROTO_FAILOVER,
+    [LAGG_PROTO_FAILOVER] = {
 	.pr_start = lagg_fail_start,
 	.pr_input = lagg_fail_input,
     },
-    {
-	.pr_num = LAGG_PROTO_LOADBALANCE,
+    [LAGG_PROTO_LOADBALANCE] = {
 	.pr_attach = lagg_lb_attach,
 	.pr_detach = lagg_lb_detach,
 	.pr_start = lagg_lb_start,
@@ -248,8 +243,7 @@ static const struct lagg_proto {
 	.pr_addport = lagg_lb_port_create,
 	.pr_delport = lagg_lb_port_destroy,
     },
-    {
-	.pr_num = LAGG_PROTO_LACP,
+    [LAGG_PROTO_LACP] = {
 	.pr_attach = lagg_lacp_attach,
 	.pr_detach = lagg_lacp_detach,
 	.pr_start = lagg_lacp_start,
@@ -263,8 +257,7 @@ static const struct lagg_proto {
 	.pr_request = lacp_req,
 	.pr_portreq = lacp_portreq,
     },
-    {
-	.pr_num = LAGG_PROTO_BROADCAST,
+    [LAGG_PROTO_BROADCAST] = {
 	.pr_start = lagg_bcast_start,
 	.pr_input = lagg_default_input,
     },
