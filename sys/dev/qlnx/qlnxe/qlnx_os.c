@@ -7185,18 +7185,10 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 	int	rc = 0;
 	uint8_t	filter;
 	const struct ifnet *ifp = ha->ifp;
-	struct sockaddr_dl *sdl;
 
-	if (ifp->if_type == IFT_ETHER && ifp->if_addr != NULL &&
-			ifp->if_addr->ifa_addr != NULL) {
-		sdl = (struct sockaddr_dl *) ifp->if_addr->ifa_addr;
-
-		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, LLADDR(sdl));
-	} else {
-		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, ha->primary_mac);
-	}
-        if (rc)
-                return rc;
+	rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, IF_LLADDR(ifp));
+	if (rc)
+		return rc;
 
 	rc = qlnx_remove_all_mcast_mac(ha);
         if (rc)
