@@ -48,6 +48,7 @@
 #include "ecore_sp_commands.h"
 #include "ecore_dev_api.h"
 #include "ecore_l2_api.h"
+#include "ecore_l2.h"
 #include "ecore_mcp.h"
 #include "ecore_hw_defs.h"
 #include "mcp_public.h"
@@ -89,7 +90,7 @@ static void qlnx_fp_isr(void *arg);
 static void qlnx_init_ifnet(device_t dev, qlnx_host_t *ha);
 static void qlnx_init(void *arg);
 static void qlnx_init_locked(qlnx_host_t *ha);
-static int qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi);
+static int qlnx_set_multi(qlnx_host_t *ha);
 static int qlnx_set_promisc_allmulti(qlnx_host_t *ha, int flags);
 static int _qlnx_set_promisc_allmulti(qlnx_host_t *ha, bool promisc, bool allmulti);
 static int qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data);
@@ -127,14 +128,13 @@ static void qlnx_set_id(struct ecore_dev *cdev, char name[NAME_SIZE],
 		char ver_str[VER_SIZE]);
 static void qlnx_unload(qlnx_host_t *ha);
 static int qlnx_load(qlnx_host_t *ha);
-static void qlnx_hw_set_multi(qlnx_host_t *ha, uint8_t *mta, uint32_t mcnt,
-		uint32_t add_mac);
 static void qlnx_dump_buf8(qlnx_host_t *ha, const char *msg, void *dbuf,
 		uint32_t len);
 static int qlnx_alloc_rx_buffer(qlnx_host_t *ha, struct qlnx_rx_queue *rxq);
 static void qlnx_reuse_rx_data(struct qlnx_rx_queue *rxq);
 static void qlnx_update_rx_prod(struct ecore_hwfn *p_hwfn,
 		struct qlnx_rx_queue *rxq);
+static int qlnx_remove_all_mcast_mac(qlnx_host_t *ha);
 static int qlnx_set_rx_accept_filter(qlnx_host_t *ha, uint8_t filter);
 static int qlnx_grc_dumpsize(qlnx_host_t *ha, uint32_t *num_dwords,
 		int hwfn_index);
@@ -2438,138 +2438,45 @@ qlnx_init(void *arg)
 	return;
 }
 
-static int
-qlnx_config_mcast_mac_addr(qlnx_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
-{
-	struct ecore_filter_mcast	*mcast;
-	struct ecore_dev		*cdev;
-	int				rc;
-
-	cdev = &ha->cdev;
-
-	mcast = &ha->ecore_mcast;
-	bzero(mcast, sizeof(struct ecore_filter_mcast));
-
-	if (add_mac)
-		mcast->opcode = ECORE_FILTER_ADD;
-	else
-		mcast->opcode = ECORE_FILTER_REMOVE;
-
-	mcast->num_mc_addrs = 1;
-	memcpy(mcast->mac, mac_addr, ETH_ALEN);
-
-	rc = ecore_filter_mcast_cmd(cdev, mcast, ECORE_SPQ_MODE_CB, NULL);
-
-	return (rc);
-}
-
-static int
-qlnx_hw_add_mcast(qlnx_host_t *ha, uint8_t *mta)
-{
-        int	i;
-
-        for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-                if (QL_MAC_CMP(ha->mcast[i].addr, mta) == 0)
-                        return 0; /* its been already added */
-        }
-
-        for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-                if ((ha->mcast[i].addr[0] == 0) &&
-                        (ha->mcast[i].addr[1] == 0) &&
-                        (ha->mcast[i].addr[2] == 0) &&
-                        (ha->mcast[i].addr[3] == 0) &&
-                        (ha->mcast[i].addr[4] == 0) &&
-                        (ha->mcast[i].addr[5] == 0)) {
-                        if (qlnx_config_mcast_mac_addr(ha, mta, 1))
-                                return (-1);
-
-                        bcopy(mta, ha->mcast[i].addr, ETH_ALEN);
-                        ha->nmcast++;
-
-                        return 0;
-                }
-        }
-        return 0;
-}
-
-static int
-qlnx_hw_del_mcast(qlnx_host_t *ha, uint8_t *mta)
-{
-        int	i;
-
-        for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-                if (QL_MAC_CMP(ha->mcast[i].addr, mta) == 0) {
-                        if (qlnx_config_mcast_mac_addr(ha, mta, 0))
-                                return (-1);
-
-                        ha->mcast[i].addr[0] = 0;
-                        ha->mcast[i].addr[1] = 0;
-                        ha->mcast[i].addr[2] = 0;
-                        ha->mcast[i].addr[3] = 0;
-                        ha->mcast[i].addr[4] = 0;
-                        ha->mcast[i].addr[5] = 0;
-
-                        ha->nmcast--;
-
-                        return 0;
-                }
-        }
-        return 0;
-}
-
-/*
- * Name: qls_hw_set_multi
- * Function: Sets the Multicast Addresses provided the host O.S into the
- *      hardware (for the given interface)
- */
-static void
-qlnx_hw_set_multi(qlnx_host_t *ha, uint8_t *mta, uint32_t mcnt,
-	uint32_t add_mac)
-{
-        int	i;
-
-        for (i = 0; i < mcnt; i++) {
-                if (add_mac) {
-                        if (qlnx_hw_add_mcast(ha, mta))
-                                break;
-                } else {
-                        if (qlnx_hw_del_mcast(ha, mta))
-                                break;
-                }
-
-                mta += ETHER_ADDR_LEN;
-        }
-        return;
-}
-
 static u_int
-qlnx_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
+qlnx_mcast_bins_from_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
 {
-	uint8_t *mta = arg;
+	uint8_t bit;
+	uint32_t *bins = arg;
 
-	if (mcnt == QLNX_MAX_NUM_MULTICAST_ADDRS)
-		return (0);
-
-	bcopy(LLADDR(sdl), &mta[mcnt * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
+	bit = ecore_mcast_bin_from_mac(LLADDR(sdl));
+	bins[bit / 32] |= 1 << (bit % 32);
 
 	return (1);
 }
 
 static int
-qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
+qlnx_set_multi(qlnx_host_t *ha)
 {
-	uint8_t		mta[QLNX_MAX_NUM_MULTICAST_ADDRS * ETHER_ADDR_LEN];
-	if_t		ifp = ha->ifp;
-	u_int		mcnt;
+	struct ecore_filter_mcast	mcast;
+	struct ecore_dev		*cdev;
+	if_t				ifp = ha->ifp;
+	u_int				mcnt __unused;
+	int				rc;
 
 	if (qlnx_vf_device(ha) == 0)
 		return (0);
 
-	mcnt = if_foreach_llmaddr(ifp, qlnx_copy_maddr, mta);
+	bzero(&mcast, sizeof(struct ecore_filter_mcast));
+	mcnt = if_foreach_llmaddr(ifp, qlnx_mcast_bins_from_maddr, mcast.bins);
+	QL_DPRINT1(ha, "total %d multicast MACs found\n", mcnt);
 
-	qlnx_hw_set_multi(ha, mta, mcnt, add_multi);
+	if (memcmp(ha->ecore_mcast_bins, mcast.bins, sizeof(mcast.bins)) == 0)
+		return (0);
 
-	return (0);
+	cdev = &ha->cdev;
+	mcast.opcode = ECORE_FILTER_REPLACE;
+	rc = ecore_filter_mcast_cmd(cdev, &mcast, ECORE_SPQ_MODE_CB, NULL);
+	if (rc == 0)
+		memcpy(ha->ecore_mcast_bins, mcast.bins, sizeof(mcast.bins));
+
+	QL_DPRINT1(ha, "ecore_filter_mcast_cmd: end(%d)\n", rc);
+	return (rc);
 }
 
 static int
@@ -2673,22 +2580,12 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCADDMULTI:
-		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCADDMULTI", cmd);
-
-		QLNX_LOCK(ha);
-		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
-			if (qlnx_set_multi(ha, 1))
-				ret = EINVAL;
-		}
-		QLNX_UNLOCK(ha);
-		break;
-
 	case SIOCDELMULTI:
-		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCDELMULTI", cmd);
+		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCADDMULTI/SIOCDELMULTI", cmd);
 
 		QLNX_LOCK(ha);
 		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
-			if (qlnx_set_multi(ha, 0))
+			if (qlnx_set_multi(ha) != 0)
 				ret = EINVAL;
 		}
 		QLNX_UNLOCK(ha);
@@ -6955,31 +6852,18 @@ qlnx_remove_all_ucast_mac(qlnx_host_t *ha)
 static int
 qlnx_remove_all_mcast_mac(qlnx_host_t *ha)
 {
-	struct ecore_filter_mcast	*mcast;
+	struct ecore_filter_mcast	mcast;
 	struct ecore_dev		*cdev;
-	int				rc, i;
+	int				rc;
 
 	cdev = &ha->cdev;
 
-	mcast = &ha->ecore_mcast;
-	bzero(mcast, sizeof(struct ecore_filter_mcast));
+	bzero(&mcast, sizeof(struct ecore_filter_mcast));
+	mcast.opcode = ECORE_FILTER_FLUSH;
 
-	mcast->opcode = ECORE_FILTER_REMOVE;
-
-	for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-		if (ha->mcast[i].addr[0] || ha->mcast[i].addr[1] ||
-			ha->mcast[i].addr[2] || ha->mcast[i].addr[3] ||
-			ha->mcast[i].addr[4] || ha->mcast[i].addr[5]) {
-			memcpy(&mcast->mac[i][0], &ha->mcast[i].addr[0], ETH_ALEN);
-			mcast->num_mc_addrs++;
-		}
-	}
-	mcast = &ha->ecore_mcast;
-
-	rc = ecore_filter_mcast_cmd(cdev, mcast, ECORE_SPQ_MODE_CB, NULL);
-
-	bzero(ha->mcast, (sizeof(qlnx_mcast_t) * QLNX_MAX_NUM_MULTICAST_ADDRS));
-	ha->nmcast = 0;
+	rc = ecore_filter_mcast_cmd(cdev, &mcast, ECORE_SPQ_MODE_CB, NULL);
+	if (rc == 0)
+		bzero(ha->ecore_mcast_bins, sizeof(ha->ecore_mcast_bins));
 
 	return (rc);
 }
@@ -7041,7 +6925,7 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 	if (rc)
 		return rc;
 
-	rc = qlnx_remove_all_mcast_mac(ha);
+	rc = qlnx_set_multi(ha);
         if (rc)
                 return rc;
 
