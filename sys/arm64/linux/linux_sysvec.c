@@ -338,7 +338,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Make room, keeping the stack aligned */
 	fp--;
-	fp = (struct l_sigframe *)STACKALIGN(fp);
+	fp = STACKALIGN(fp);
 
 	get_mcontext(td, &uc.uc_mcontext, 0);
 	uc.uc_sigmask = *mask;

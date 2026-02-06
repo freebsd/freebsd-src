@@ -100,7 +100,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	ptrauth_fork(td2, td1);
 
-	tf = (struct trapframe *)STACKALIGN((struct trapframe *)pcb2 - 1);
+	tf = STACKALIGN((struct trapframe *)pcb2 - 1);
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 	tf->tf_x[0] = 0;
 	tf->tf_x[1] = 0;

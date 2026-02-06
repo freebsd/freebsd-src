@@ -129,7 +129,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	pcb2->pcb_regs.sf_r4 = (register_t)fork_return;
 	pcb2->pcb_regs.sf_r5 = (register_t)td2;
 	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
-	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
+	pcb2->pcb_regs.sf_sp = (register_t)STACKALIGN(td2->td_frame);
 	pcb2->pcb_regs.sf_tpidrurw = (register_t)get_tls();
 
 #ifdef VFP
@@ -194,7 +194,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	td->td_pcb->pcb_regs.sf_r4 = (register_t)fork_return;
 	td->td_pcb->pcb_regs.sf_r5 = (register_t)td;
 	td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
-	td->td_pcb->pcb_regs.sf_sp = STACKALIGN(td->td_frame);
+	td->td_pcb->pcb_regs.sf_sp = (register_t)STACKALIGN(td->td_frame);
 
 	td->td_frame->tf_spsr &= ~PSR_C;
 	td->td_frame->tf_r0 = 0;

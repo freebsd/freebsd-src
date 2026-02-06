@@ -179,6 +179,9 @@
 #ifndef MAXDUMPPGS
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 #endif
+#ifdef STACKALIGNBYTES
+#define	STACKALIGN(p)	(__align_down(p, STACKALIGNBYTES + 1))
+#endif
 
 /*
  * Constants related to network buffer management.

@@ -655,7 +655,7 @@ initarm(struct arm_boot_params *abp)
 	}
 #endif
 
-	return ((void *)STACKALIGN(thread0.td_pcb));
+	return (STACKALIGN(thread0.td_pcb));
 
 }
 #endif /* FDT */
