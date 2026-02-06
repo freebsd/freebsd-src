@@ -2993,6 +2993,7 @@ qlnx_transmit_locked(if_t ifp, struct qlnx_fastpath *fp, struct mbuf *mp)
                         drbr_advance(ifp, fp->tx_br);
                         fp->tx_pkts_transmitted++;
                         fp->tx_pkts_processed++;
+                        ETHER_BPF_MTAP(ifp, mp);
                 }
 
                 mp = drbr_peek(ifp, fp->tx_br);
