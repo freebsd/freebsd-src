@@ -2568,9 +2568,7 @@ qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
 
 	mcnt = if_foreach_llmaddr(ifp, qlnx_copy_maddr, mta);
 
-	QLNX_LOCK(ha);
 	qlnx_hw_set_multi(ha, mta, mcnt, add_multi);
-	QLNX_UNLOCK(ha);
 
 	return (0);
 }
@@ -2637,11 +2635,10 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 #ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			if_setflagbits(ifp, IFF_UP, 0);
-			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
-				QLNX_LOCK(ha);
+			QLNX_LOCK(ha);
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 				qlnx_init_locked(ha);
-				QLNX_UNLOCK(ha);
-			}
+			QLNX_UNLOCK(ha);
 			QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx) ipv4 [0x%08x]\n",
 				   cmd, ntohl(IA_SIN(ifa)->sin_addr.s_addr));
 
@@ -2703,19 +2700,23 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCADDMULTI", cmd);
 
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+		QLNX_LOCK(ha);
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 			if (qlnx_set_multi(ha, 1))
 				ret = EINVAL;
 		}
+		QLNX_UNLOCK(ha);
 		break;
 
 	case SIOCDELMULTI:
 		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCDELMULTI", cmd);
 
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+		QLNX_LOCK(ha);
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 			if (qlnx_set_multi(ha, 0))
 				ret = EINVAL;
 		}
+		QLNX_UNLOCK(ha);
 		break;
 
 	case SIOCSIFMEDIA:
