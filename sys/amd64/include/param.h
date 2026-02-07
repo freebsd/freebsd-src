@@ -43,6 +43,9 @@
 
 #include <sys/_align.h>
 
+#define	STACKALIGNBYTES	(16 - 1)
+#define	REDZONE_SZ	128
+
 /*
  * Machine dependent constants for AMD64.
  */
