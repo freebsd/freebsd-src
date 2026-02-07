@@ -499,7 +499,6 @@ extern int __isthreaded;
 #define	__sfeof(p)	(((p)->_flags & __SEOF) != 0)
 #define	__sferror(p)	(((p)->_flags & __SERR) != 0)
 #define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
-#define	__sfileno(p)	((p)->_file)
 
 
 #define	feof(p)		(!__isthreaded ? __sfeof(p) : (feof)(p))
@@ -520,7 +519,6 @@ extern int __isthreaded;
 #define	clearerr_unlocked(p)	__sclearerr(p)
 #define	feof_unlocked(p)	__sfeof(p)
 #define	ferror_unlocked(p)	__sferror(p)
-#define	fileno_unlocked(p)	__sfileno(p)
 #define	fputc_unlocked(s, p)	__sputc(s, p)
 #endif
 #if __POSIX_VISIBLE >= 199506

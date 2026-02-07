@@ -50,7 +50,7 @@ __sread(void *cookie, char *buf, int n)
 {
 	FILE *fp = cookie;
 
-	return(_read(fp->_file, buf, (size_t)n));
+	return (_read(__sfileno(fp), buf, (size_t)n));
 }
 
 int
@@ -58,7 +58,7 @@ __swrite(void *cookie, char const *buf, int n)
 {
 	FILE *fp = cookie;
 
-	return (_write(fp->_file, buf, (size_t)n));
+	return (_write(__sfileno(fp), buf, (size_t)n));
 }
 
 fpos_t
@@ -66,14 +66,15 @@ __sseek(void *cookie, fpos_t offset, int whence)
 {
 	FILE *fp = cookie;
 
-	return (lseek(fp->_file, (off_t)offset, whence));
+	return (lseek(__sfileno(fp), (off_t)offset, whence));
 }
 
 int
 __sclose(void *cookie)
 {
+	FILE *fp = cookie;
 
-	return (_close(((FILE *)cookie)->_file));
+	return (_close(__sfileno(fp)));
 }
 
 /*

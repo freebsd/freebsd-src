@@ -72,7 +72,7 @@ vdprintf(int fd, const char * __restrict fmt, va_list ap)
 	f._p = buf;
 	f._w = sizeof(buf);
 	f._flags = __SWR;
-	f._file = fd;
+	__sfileno_set(&f, fd);
 	f._cookie = &f;
 	f._write = __swrite;
 	f._bf._base = buf;
