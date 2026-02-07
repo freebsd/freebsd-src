@@ -940,7 +940,7 @@ after_vmfault:
 static void
 trap_diag(struct trapframe *frame, vm_offset_t eva)
 {
-	int code, ss;
+	int code;
 	u_int type;
 	struct soft_segment_descriptor softseg;
 	struct user_segment_descriptor *gdt;
@@ -948,7 +948,7 @@ trap_diag(struct trapframe *frame, vm_offset_t eva)
 	code = frame->tf_err;
 	type = frame->tf_trapno;
 	gdt = *PCPU_PTR(gdt);
-	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)], &softseg);
+	sdtossd(&gdt[IDXSEL(frame->tf_cs)], &softseg);
 
 	printf("\n\nFatal trap %d: %s while in %s mode\n", type,
 	    type < nitems(trap_msg) ? trap_msg[type] : UNKNOWN,
@@ -967,11 +967,12 @@ trap_diag(struct trapframe *frame, vm_offset_t eva)
 			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
-	printf("instruction pointer	= 0x%lx:0x%lx\n",
-	       frame->tf_cs & 0xffff, frame->tf_rip);
-	ss = frame->tf_ss & 0xffff;
-	printf("stack pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rsp);
-	printf("frame pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rbp);
+	printf("instruction pointer	= %#hx:%#lx\n",
+	       frame->tf_cs, frame->tf_rip);
+	printf("stack pointer	        = %#hx:%#lx\n", frame->tf_ss,
+	    frame->tf_rsp);
+	printf("frame pointer	        = %#hx:%#lx\n", frame->tf_ss,
+	    frame->tf_rbp);
 	printf("code segment		= base 0x%lx, limit 0x%lx, type 0x%x\n",
 	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
 	printf("			= DPL %d, pres %d, long %d, def32 %d, gran %d\n",
@@ -1065,7 +1066,7 @@ dblfault_handler(struct trapframe *frame)
 	    "r8 %#lx r9 %#lx r10 %#lx\n"
 	    "r11 %#lx r12 %#lx r13 %#lx\n"
 	    "r14 %#lx r15 %#lx rflags %#lx\n"
-	    "cs %#lx ss %#lx ds %#hx es %#hx fs %#hx gs %#hx\n"
+	    "cs %#hx ss %#hx ds %#hx es %#hx fs %#hx gs %#hx\n"
 	    "fsbase %#lx gsbase %#lx kgsbase %#lx\n",
 	    frame->tf_rip, frame->tf_rsp, frame->tf_rbp,
 	    frame->tf_rax, frame->tf_rdx, frame->tf_rbx,
