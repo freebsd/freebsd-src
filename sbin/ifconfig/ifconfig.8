@@ -1008,24 +1008,28 @@ Set a flag to disable Duplicate Address Detection.
 Clear a flag
 .Cm no_dad .
 .It Cm stableaddr
-Set a flag to create SLAAC addresses using a stable algorithm according to RFC 7217
-The
+Set a flag to create SLAAC addresses using a stable algorithm
+according to RFC 7217. The
 .Xr sysctl 8
 variable
 .Va net.inet6.ip6.use_stableaddr
-controls whether this flag is set by default or not for newly created interfaces.
-To get consistent defaults for interfaces created at boot it should be set as a tunable via loader.conf(8).
+controls whether this flag is set by default
+or not for newly created interfaces.
+To get consistent defaults for interfaces created at boot
+it should be set as a tunable via
+.Xr loader.conf 8 .
 The
 .Xr sysctl 8
 variable
 .Va net.inet6.ip6.stableaddr_maxretries
-sets the maximum number of retries to generate a unique IPv6 address to be performed in case of DAD failures.
+sets the maximum number of retries to generate a unique IPv6 address
+to be performed in case of DAD failures.
 This defaults to 3 which is also the reccommended minimum value.
 The interface ID source can be configured using the
 .Xr sysctl 8
 variable
-.Va net.inet6.ip6.stableaddr_netifsource:
-.Bl -tag -compact
+.Va net.inet6.ip6.stableaddr_netifsource :
+.Bl -tag -compact -width indent
 .It Cm 0
 uses the interface name string (the default)
 .It Cm 1
@@ -1033,7 +1037,6 @@ uses the interface ID
 .It Cm 2
 uses the MAC address of the interface (if one can be obtained for it)
 .El
-.Pp
 .It Cm -stableaddr
 Clear the flag
 .Cm stableaddr .
