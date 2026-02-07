@@ -30,9 +30,12 @@
 .Nm accf_dns
 .Nd buffer incoming DNS requests until the whole first request is present
 .Sh SYNOPSIS
-.Nm options INET
-.Nm options ACCEPT_FILTER_DNS
-.Nm kldload accf_dns
+.Cd options INET
+.Cd options ACCEPT_FILTER_DNS
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="accf_dns"
 .Sh DESCRIPTION
 This is a filter to be placed on a socket that will be using
 .Fn accept
