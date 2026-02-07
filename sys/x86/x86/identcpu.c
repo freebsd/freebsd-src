@@ -1046,16 +1046,19 @@ printcpuinfo(void)
 				       "\040SSBD"
 				       );
 			}
-#define	STDEXT4_MASK	(CPUID_STDEXT4_LASS | CPUID_STDEXT4_LAM)
-			if ((cpu_stdext_feature4 & STDEXT4_MASK) != 0) {
+
+			if (cpu_stdext_feature4 != 0) {
 				printf("\n  Structured Extended Features4=0x%b",
-				    cpu_stdext_feature4 & STDEXT4_MASK,
+				    cpu_stdext_feature4,
 				       "\020"
 				       "\007LASS"
+				       "\022FRED"
+				       "\023LKGS"
+				       "\024WRMSRNS"
+				       "\025NMISRC"
 				       "\033LAM"
 				       );
 			}
-#undef STDEXT4_MASK
 
 			if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 				cpuid_count(0xd, 0x1, regs);
