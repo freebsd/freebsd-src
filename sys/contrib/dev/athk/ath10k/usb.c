@@ -1128,3 +1128,6 @@ module_usb_driver(ath10k_usb_driver);
 MODULE_AUTHOR("Atheros Communications, Inc.");
 MODULE_DESCRIPTION("Driver support for Qualcomm Atheros USB 802.11ac WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_DEPEND(ath10k, linuxkpi_usb, 1, 1, 1);
+#endif
