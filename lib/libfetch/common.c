@@ -1182,8 +1182,11 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	X509_NAME *name;
 	char *str;
 
-	conn->ssl_meth = SSLv23_client_method();
-	conn->ssl_ctx = SSL_CTX_new(conn->ssl_meth);
+	if ((conn->ssl_ctx = SSL_CTX_new(TLS_client_method())) == NULL) {
+		fprintf(stderr, "SSL context creation failed\n");
+		ERR_print_errors_fp(stderr);
+		return (-1);
+	}
 	SSL_CTX_set_mode(conn->ssl_ctx, SSL_MODE_AUTO_RETRY);
 
 	fetch_ssl_setup_transport_layer(conn->ssl_ctx, verbose);
@@ -1194,7 +1197,8 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 
 	conn->ssl = SSL_new(conn->ssl_ctx);
 	if (conn->ssl == NULL) {
-		fprintf(stderr, "SSL context creation failed\n");
+		fprintf(stderr, "SSL connection creation failed\n");
+		ERR_print_errors_fp(stderr);
 		return (-1);
 	}
 	SSL_set_fd(conn->ssl, conn->sd);
