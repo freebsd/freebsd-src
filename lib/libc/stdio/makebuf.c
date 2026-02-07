@@ -73,7 +73,7 @@ __smakebuf(FILE *fp)
 	flags |= __SMBF;
 	fp->_bf._base = fp->_p = p;
 	fp->_bf._size = size;
-	if (couldbetty && isatty(fp->_file))
+	if (couldbetty && isatty(__sfileno(fp)))
 		flags |= __SLBF;
 	fp->_flags |= flags;
 }
@@ -85,8 +85,9 @@ int
 __swhatbuf(FILE *fp, size_t *bufsize, int *couldbetty)
 {
 	struct stat st;
+	int fd;
 
-	if (fp->_file < 0 || _fstat(fp->_file, &st) < 0) {
+	if ((fd = __sfileno(fp)) < 0 || _fstat(fd, &st) < 0) {
 		*couldbetty = 0;
 		*bufsize = BUFSIZ;
 		return (__SNPT);

@@ -41,10 +41,11 @@
 #define	_STDIO_LOCAL_H
 
 #include <sys/types.h>	/* for off_t */
+#include <limits.h>
+#include <locale.h>
 #include <pthread.h>
 #include <string.h>
 #include <wchar.h>
-#include <locale.h>
 
 /*
  * Information local to this implementation of stdio,
@@ -91,6 +92,18 @@ __fgetwc(FILE *fp, locale_t locale)
 	int nread;
 
 	return (__fgetwc_mbs(fp, &fp->_mbstate, &nread, locale));
+}
+
+static inline int
+__sfileno(const FILE *fp)
+{
+	return ((fp)->_file);
+}
+
+static inline void
+__sfileno_set(FILE *fp, int fd)
+{
+	fp->_file = (unsigned)fd > SHRT_MAX ? -1 : fd;
 }
 
 /*

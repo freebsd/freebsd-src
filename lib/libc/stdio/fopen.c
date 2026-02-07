@@ -72,7 +72,7 @@ fopen(const char * __restrict file, const char * __restrict mode)
 		errno = EMFILE;
 		return (NULL);
 	}
-	fp->_file = f;
+	__sfileno_set(fp, f);
 	fp->_flags = flags;
 	fp->_cookie = fp;
 	fp->_read = __sread;

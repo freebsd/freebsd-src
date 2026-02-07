@@ -78,7 +78,8 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			fp = NULL;
 			goto end;
 		}
-		if ((dflags = _fcntl(fp->_file, F_GETFL)) < 0) {
+		f = __sfileno(fp);
+		if ((dflags = _fcntl(f, F_GETFL)) < 0) {
 			sverrno = errno;
 			fclose(fp);
 			errno = sverrno;
@@ -98,7 +99,7 @@ freopen(const char * __restrict file, const char * __restrict mode,
 		if ((oflags ^ dflags) & O_APPEND) {
 			dflags &= ~O_APPEND;
 			dflags |= oflags & O_APPEND;
-			if (_fcntl(fp->_file, F_SETFL, dflags) < 0) {
+			if (_fcntl(f, F_SETFL, dflags) < 0) {
 				sverrno = errno;
 				fclose(fp);
 				errno = sverrno;
@@ -107,16 +108,15 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			}
 		}
 		if (oflags & O_TRUNC)
-			(void) ftruncate(fp->_file, (off_t)0);
+			(void) ftruncate(f, (off_t)0);
 		if (!(oflags & O_APPEND))
 			(void) _sseek(fp, (fpos_t)0, SEEK_SET);
 		if ((oflags & O_CLOEXEC) != 0) {
-			fdflags = _fcntl(fp->_file, F_GETFD, 0);
+			fdflags = _fcntl(f, F_GETFD, 0);
 			if (fdflags != -1 && (fdflags & FD_CLOEXEC) == 0)
-				(void) _fcntl(fp->_file, F_SETFD,
+				(void) _fcntl(f, F_SETFD,
 				    fdflags | FD_CLOEXEC);
 		}
-		f = fp->_file;
 		isopen = 0;
 		wantfd = -1;
 		goto finish;
@@ -140,7 +140,7 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			(void) __sflush(fp);
 		/* if close is NULL, closing is a no-op, hence pointless */
 		isopen = fp->_close != NULL;
-		if ((wantfd = fp->_file) < 0 && isopen) {
+		if ((wantfd = __sfileno(fp)) < 0 && isopen) {
 			(void) (*fp->_close)(fp->_cookie);
 			isopen = 0;
 		}
@@ -225,7 +225,7 @@ finish:
 	}
 
 	fp->_flags = flags;
-	fp->_file = f;
+	__sfileno_set(fp, f);
 	fp->_cookie = fp;
 	fp->_read = __sread;
 	fp->_write = __swrite;

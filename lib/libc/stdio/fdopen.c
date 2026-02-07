@@ -106,7 +106,7 @@ fdopen(int fd, const char *mode)
 		fp->_flags2 |= __S2OAP;
 	else if (oflags & O_APPEND)
 		fp->_flags |= __SAPP;
-	fp->_file = fd;
+	__sfileno_set(fp, fd);
 	fp->_cookie = fp;
 	fp->_read = __sread;
 	fp->_write = __swrite;

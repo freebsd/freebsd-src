@@ -612,7 +612,7 @@ __xvprintf(FILE *fp, const char *fmt0, va_list ap)
 
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
 	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
-	    fp->_file >= 0)
+	    __sfileno(fp) >= 0)
 		return (__v3printf(fp, fmt0, u, ap));
 	else
 		return (__v2printf(fp, fmt0, u, ap));
