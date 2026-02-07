@@ -1,4 +1,4 @@
-.\" $NetBSD: blocklistd.conf.5,v 1.7 2025/02/11 17:47:05 christos Exp $
+.\" $NetBSD: blocklistd.conf.5,v 1.9 2026/01/13 21:38:18 christos Exp $
 .\"
 .\" Copyright (c) 2015, 2025 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 5, 2025
+.Dd January 13, 2026
 .Dt BLOCKLISTD.CONF 5
 .Os
 .Sh NAME
@@ -102,7 +102,7 @@ The syntax for the
 .Va location
 is:
 .Bd -literal -offset indent
-	[<address>|<interface>][/<mask>][:<port>]
+	[<address>|<interface>[/<mask>]:]<port>
 .Ed
 .Pp
 The
