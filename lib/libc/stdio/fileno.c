@@ -42,7 +42,7 @@
 #undef fileno
 #undef fileno_unlocked
 
-static int
+static inline int
 __fileno_impl(FILE *fp)
 {
 	int fd;

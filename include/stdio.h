@@ -191,7 +191,8 @@ __END_DECLS
 #define	__SALC	0x4000		/* allocate string space dynamically */
 #define	__SIGN	0x8000		/* ignore this file in _fwalk */
 
-#define	__S2OAP	0x0001		/* O_APPEND mode is set */
+#define	__S2OAP	0x00000001	/* O_APPEND mode is set */
+#define	__S2FDX	0x0001fffe	/* Encoded upper sixteen bits of fileno */
 
 /*
  * The following three definitions are for ANSI C, which took them
