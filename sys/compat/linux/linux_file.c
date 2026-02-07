@@ -398,12 +398,50 @@ struct l_dirent64 {
     roundup(offsetof(struct l_dirent64, d_name) + (namlen) + 1,		\
     sizeof(uint64_t))
 
+/*
+ * Do kern_getdirentries() and then skip over any invalid entries.
+ * (Repeat, if there are no valid entries.)
+ * Adjust bufp and lenp.
+ */
+static int
+linux_getdirentries(struct thread *td, int fd, caddr_t *bufp, int buflen,
+    off_t *basep, int *lenp)
+{
+	struct dirent *bdp;
+	caddr_t buf;
+	int error, len;
+
+	/* Loop around until a valid entry is found or at EOF. */
+	for (;;) {
+		error = kern_getdirentries(td, fd, *bufp, buflen,
+		    basep, NULL, UIO_SYSSPACE);
+		if (error != 0)
+			return (error);
+		len = td->td_retval[0];
+		if (len == 0) {
+			*lenp = 0;
+			return (0);
+		}
+		buf = *bufp;
+		while (len > 0) {
+			bdp = (struct dirent *)buf;
+			if (bdp->d_fileno != 0) {
+				*bufp = buf;
+				*lenp = len;
+				return (0);
+			}
+			buf += bdp->d_reclen;
+			len -= bdp->d_reclen;
+		}
+	}
+}
+
 #ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_getdents(struct thread *td, struct linux_getdents_args *args)
 {
 	struct dirent *bdp;
-	caddr_t inp, buf;		/* BSD-format */
+	caddr_t inp, buf, bufsav;	/* BSD-format */
 	int len, reclen;		/* BSD-format */
 	caddr_t outp;			/* Linux-format */
 	int resid, linuxreclen;		/* Linux-format */
@@ -413,11 +451,11 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 	int buflen, error;
 	size_t retval;
 
-	buflen = min(args->count, MAXBSIZE);
-	buf = malloc(buflen, M_LINUX, M_WAITOK);
+	buflen = min(roundup2(args->count, DEV_BSIZE), MAXBSIZE);
+	bufsav = buf = malloc(buflen, M_LINUX, M_WAITOK);
 
-	error = kern_getdirentries(td, args->fd, buf, buflen,
-	    &base, NULL, UIO_SYSSPACE);
+	error = linux_getdirentries(td, args->fd, &buf, buflen,
+	    &base, &len);
 	if (error != 0) {
 		error = linux_getdents_error(td, args->fd, error);
 		goto out1;
@@ -425,7 +463,6 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 
 	lbuf = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_LINUX, M_WAITOK | M_ZERO);
 
-	len = td->td_retval[0];
 	inp = buf;
 	outp = (caddr_t)args->dent;
 	resid = args->count;
@@ -434,44 +471,47 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 	while (len > 0) {
 		bdp = (struct dirent *) inp;
 		reclen = bdp->d_reclen;
-		linuxreclen = LINUX_RECLEN(bdp->d_namlen);
-		/*
-		 * No more space in the user supplied dirent buffer.
-		 * Return EINVAL.
-		 */
-		if (resid < linuxreclen) {
-			error = EINVAL;
-			goto out;
-		}
+		/* Copy a valid entry out. */
+		if (bdp->d_fileno != 0) {
+			linuxreclen = LINUX_RECLEN(bdp->d_namlen);
+			/*
+			 * No more space in the user supplied dirent buffer.
+			 * Return EINVAL.
+			 */
+			if (resid < linuxreclen) {
+				error = EINVAL;
+				goto out;
+			}
 
-		linux_dirent = (struct l_dirent*)lbuf;
-		linux_dirent->d_ino = bdp->d_fileno;
-		linux_dirent->d_off = bdp->d_off;
-		linux_dirent->d_reclen = linuxreclen;
-		/*
-		 * Copy d_type to last byte of l_dirent buffer
-		 */
-		lbuf[linuxreclen - 1] = bdp->d_type;
-		strlcpy(linux_dirent->d_name, bdp->d_name,
-		    linuxreclen - offsetof(struct l_dirent, d_name)-1);
-		error = copyout(linux_dirent, outp, linuxreclen);
-		if (error != 0)
-			goto out;
+			linux_dirent = (struct l_dirent*)lbuf;
+			linux_dirent->d_ino = bdp->d_fileno;
+			linux_dirent->d_off = bdp->d_off;
+			linux_dirent->d_reclen = linuxreclen;
+			/*
+			 * Copy d_type to last byte of l_dirent buffer
+			 */
+			lbuf[linuxreclen - 1] = bdp->d_type;
+			strlcpy(linux_dirent->d_name, bdp->d_name,
+			    linuxreclen - offsetof(struct l_dirent, d_name)-1);
+			error = copyout(linux_dirent, outp, linuxreclen);
+			if (error != 0)
+				goto out;
+			retval += linuxreclen;
+			outp += linuxreclen;
+			resid -= linuxreclen;
+		}
 
 		inp += reclen;
 		base += reclen;
 		len -= reclen;
 
-		retval += linuxreclen;
-		outp += linuxreclen;
-		resid -= linuxreclen;
 	}
 	td->td_retval[0] = retval;
 
 out:
 	free(lbuf, M_LINUX);
 out1:
-	free(buf, M_LINUX);
+	free(bufsav, M_LINUX);
 	return (error);
 }
 #endif
@@ -480,7 +520,7 @@ int
 linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 {
 	struct dirent *bdp;
-	caddr_t inp, buf;		/* BSD-format */
+	caddr_t inp, buf, bufsav;	/* BSD-format */
 	int len, reclen;		/* BSD-format */
 	caddr_t outp;			/* Linux-format */
 	int resid, linuxreclen;		/* Linux-format */
@@ -489,11 +529,11 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 	int buflen, error;
 	size_t retval;
 
-	buflen = min(args->count, MAXBSIZE);
-	buf = malloc(buflen, M_LINUX, M_WAITOK);
+	buflen = min(roundup2(args->count, DEV_BSIZE), MAXBSIZE);
+	bufsav = buf = malloc(buflen, M_LINUX, M_WAITOK);
 
-	error = kern_getdirentries(td, args->fd, buf, buflen,
-	    &base, NULL, UIO_SYSSPACE);
+	error = linux_getdirentries(td, args->fd, &buf, buflen,
+	    &base, &len);
 	if (error != 0) {
 		error = linux_getdents_error(td, args->fd, error);
 		goto out1;
@@ -502,7 +542,6 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 	linux_dirent64 = malloc(LINUX_RECLEN64(LINUX_NAME_MAX), M_LINUX,
 	    M_WAITOK | M_ZERO);
 
-	len = td->td_retval[0];
 	inp = buf;
 	outp = (caddr_t)args->dirent;
 	resid = args->count;
@@ -511,40 +550,43 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 	while (len > 0) {
 		bdp = (struct dirent *) inp;
 		reclen = bdp->d_reclen;
-		linuxreclen = LINUX_RECLEN64(bdp->d_namlen);
-		/*
-		 * No more space in the user supplied dirent buffer.
-		 * Return EINVAL.
-		 */
-		if (resid < linuxreclen) {
-			error = EINVAL;
-			goto out;
-		}
+		/* Copy a valid entry out. */
+		if (bdp->d_fileno != 0) {
+			linuxreclen = LINUX_RECLEN64(bdp->d_namlen);
+			/*
+			 * No more space in the user supplied dirent buffer.
+			 * Return EINVAL.
+			 */
+			if (resid < linuxreclen) {
+				error = EINVAL;
+				goto out;
+			}
 
-		linux_dirent64->d_ino = bdp->d_fileno;
-		linux_dirent64->d_off = bdp->d_off;
-		linux_dirent64->d_reclen = linuxreclen;
-		linux_dirent64->d_type = bdp->d_type;
-		strlcpy(linux_dirent64->d_name, bdp->d_name,
-		    linuxreclen - offsetof(struct l_dirent64, d_name));
-		error = copyout(linux_dirent64, outp, linuxreclen);
-		if (error != 0)
-			goto out;
+			linux_dirent64->d_ino = bdp->d_fileno;
+			linux_dirent64->d_off = bdp->d_off;
+			linux_dirent64->d_reclen = linuxreclen;
+			linux_dirent64->d_type = bdp->d_type;
+			strlcpy(linux_dirent64->d_name, bdp->d_name,
+			    linuxreclen - offsetof(struct l_dirent64, d_name));
+			error = copyout(linux_dirent64, outp, linuxreclen);
+			if (error != 0)
+				goto out;
+			retval += linuxreclen;
+			outp += linuxreclen;
+			resid -= linuxreclen;
+		}
 
 		inp += reclen;
 		base += reclen;
 		len -= reclen;
 
-		retval += linuxreclen;
-		outp += linuxreclen;
-		resid -= linuxreclen;
 	}
 	td->td_retval[0] = retval;
 
 out:
 	free(linux_dirent64, M_LINUX);
 out1:
-	free(buf, M_LINUX);
+	free(bufsav, M_LINUX);
 	return (error);
 }
 
@@ -553,22 +595,22 @@ int
 linux_readdir(struct thread *td, struct linux_readdir_args *args)
 {
 	struct dirent *bdp;
-	caddr_t buf;			/* BSD-format */
+	caddr_t buf, bufsav;		/* BSD-format */
 	int linuxreclen;		/* Linux-format */
 	off_t base;
 	struct l_dirent *linux_dirent;	/* Linux-format */
-	int buflen, error;
+	int buflen, error, len;
 
-	buflen = sizeof(*bdp);
-	buf = malloc(buflen, M_LINUX, M_WAITOK);
+	buflen = DEV_BSIZE;
+	bufsav = buf = malloc(buflen, M_LINUX, M_WAITOK);
 
-	error = kern_getdirentries(td, args->fd, buf, buflen,
-	    &base, NULL, UIO_SYSSPACE);
+	error = linux_getdirentries(td, args->fd, &buf, buflen,
+	    &base, &len);
 	if (error != 0) {
 		error = linux_getdents_error(td, args->fd, error);
 		goto out;
 	}
-	if (td->td_retval[0] == 0)
+	if (len == 0)
 		goto out;
 
 	linux_dirent = malloc(LINUX_RECLEN(LINUX_NAME_MAX), M_LINUX,
@@ -588,7 +630,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 
 	free(linux_dirent, M_LINUX);
 out:
-	free(buf, M_LINUX);
+	free(bufsav, M_LINUX);
 	return (error);
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
