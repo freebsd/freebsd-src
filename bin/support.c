@@ -1,4 +1,4 @@
-/*	$NetBSD: support.c,v 1.3 2025/02/11 17:48:30 christos Exp $	*/
+/*	$NetBSD: support.c,v 1.4 2026/02/07 14:29:58 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -35,7 +35,7 @@
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
 #endif
-__RCSID("$NetBSD: support.c,v 1.3 2025/02/11 17:48:30 christos Exp $");
+__RCSID("$NetBSD: support.c,v 1.4 2026/02/07 14:29:58 christos Exp $");
 
 #include <time.h>
 #include <string.h>
@@ -120,7 +120,6 @@ fmtydhms(char *b, size_t l, time_t t)
 
 	y = t;
 
-	z = 0;
 	o = 0;
 #define APPEND(a) \
 	if (a) { \
