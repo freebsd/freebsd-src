@@ -30,9 +30,12 @@
 .Nm accf_http
 .Nd "buffer incoming connections until a certain complete HTTP request arrives"
 .Sh SYNOPSIS
-.Nm options INET
-.Nm options ACCEPT_FILTER_HTTP
-.Nm kldload accf_http
+.Cd options INET
+.Cd options ACCEPT_FILTER_HTTP
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="accf_http"
 .Sh DESCRIPTION
 This is a filter to be placed on a socket that will be using
 .Fn accept
