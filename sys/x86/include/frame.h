@@ -143,17 +143,60 @@ struct trapframe {
 	/* below portion defined in hardware */
 	register_t	tf_err;
 	register_t	tf_rip;
-	register_t	tf_cs;
+	uint16_t	tf_cs;
+	uint16_t	tf_fred_evinfo3;
+	uint32_t	tf_fred_zero2;
 	register_t	tf_rflags;
 	/* the amd64 frame always has the stack registers */
 	register_t	tf_rsp;
-	register_t	tf_ss;
+	uint16_t	tf_ss;
+	uint16_t	tf_fred_evinfo1;
+	uint32_t	tf_fred_evinfo2;
+	/* two long words added by FRED */
+	uint64_t	tf_fred_evdata;
+	uint64_t	tf_fred_zero1;
 };
 
-#define	TF_HASSEGS	0x1
-#define	TF_HASBASES	0x2
-#define	TF_HASFPXSTATE	0x4
-#define	TF_RESERV0	0x8 /* no tlsbase in the trapframe */
+#define	TF_FRED_EVDATA_B0	0x0000000000000001ull	/* %dr6 B0 */
+#define	TF_FRED_EVDATA_B1	0x0000000000000002ull
+#define	TF_FRED_EVDATA_B2	0x0000000000000004ull
+#define	TF_FRED_EVDATA_B3	0x0000000000000008ull
+#define	TF_FRED_EVDATA_BLD	0x0000000000000800ull	/* bus lock acq
+							   detected */
+#define	TF_FRED_EVDATA_BD	0x0000000000002000ull	/* dr access detected */
+#define	TF_FRED_EVDATA_BS	0x0000000000004000ull	/* single step */
+#define	TF_FRED_EVDATA_RTM	0x0000000000010000ull	/* #db or #bp in RTM */
+
+#define	TF_FRED_EVINFO1_STIINT		0x0001	/* hw intr blocked by STI */
+#define	TF_FRED_EVINFO1_SYSCALL		0x0002	/* SYSCALL/SYSENTER/INTn */
+#define	TF_FRED_EVINFO1_NMI		0x0004	/* NMI */
+
+#define	TF_FRED_EVINFO2_VECMASK		0x000000ff	/* event vector mask */
+#define	TF_FRED_EVINFO2_TYPEMASK	0x000f0000	/* event type mask */
+#define	TF_FRED_EVINFO2_TYPE_EXTINT	0x00000000
+#define	TF_FRED_EVINFO2_TYPE_NMI	0x00020000
+#define	TF_FRED_EVINFO2_TYPE_EXC	0x00030000
+#define	TF_FRED_EVINFO2_TYPE_INTn	0x00040000
+#define	TF_FRED_EVINFO2_TYPE_INT1	0x00050000
+#define	TF_FRED_EVINFO2_TYPE_INT3	0x00060000
+#define	TF_FRED_EVINFO2_TYPE_SYSCALL	0x00070000
+#define	TF_FRED_EVINFO2_ENCL		0x01000000	/* SGX-related */
+#define	TF_FRED_EVINFO2_LM		0x02000000	/* in 64bit mode */
+#define	TF_FRED_EVINFO2_NEST		0x04000000	/* during ev delivery */
+#define	TF_FRED_EVINFO2_INSTLENMASK	0xf0000000	/* instr length mask */
+#define	TF_FRED_EVINFO2_INSTLENSHIFT	28		/* instr length shift */
+
+#define	TF_FRED_EVINFO2_VEC_SYSCALL	1
+#define	TF_FRED_EVINFO2_VEC_SYSENTER	2
+
+#define	TF_FRED_EVINFO3_CSLMASK		0x0003	/* event CSL mask */
+#define	TF_FRED_EVINFO3_WFE		0x0004	/* in WAIT_FOR_ENDBRANCH */
+
+#define	TF_HASSEGS	0x00000001
+#define	TF_HASBASES	0x00000002
+#define	TF_HASFPXSTATE	0x00000004
+#define	TF_RESERV0	0x00000008 /* no tlsbase in the trapframe */
+#define	TF_FRED		0x00000010
 #endif /* __amd64__ */
 
 #endif /* _MACHINE_FRAME_H_ */
