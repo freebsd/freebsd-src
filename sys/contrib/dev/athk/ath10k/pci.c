@@ -3933,15 +3933,6 @@ module_exit(ath10k_pci_exit);
 MODULE_AUTHOR("Qualcomm Atheros");
 MODULE_DESCRIPTION("Driver support for Qualcomm Atheros PCIe/AHB 802.11ac WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");
-#if defined(__FreeBSD__)
-MODULE_VERSION(ath10k_pci, 1);
-MODULE_DEPEND(ath10k_pci, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(ath10k_pci, linuxkpi_wlan, 1, 1, 1);
-MODULE_DEPEND(ath10k_pci, athk_common, 1, 1, 1);
-#ifdef CONFIG_ATH10K_DEBUGFS
-MODULE_DEPEND(ath10k_pci, debugfs, 1, 1, 1);
-#endif
-#endif
 
 /* QCA988x 2.0 firmware files */
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API2_FILE);

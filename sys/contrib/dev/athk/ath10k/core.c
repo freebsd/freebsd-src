@@ -3870,3 +3870,9 @@ EXPORT_SYMBOL(ath10k_core_destroy);
 MODULE_AUTHOR("Qualcomm Atheros");
 MODULE_DESCRIPTION("Core module for Qualcomm Atheros 802.11ac wireless LAN cards.");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_VERSION(ath10k, 1);
+MODULE_DEPEND(ath10k, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(ath10k, linuxkpi_wlan, 1, 1, 1);
+MODULE_DEPEND(ath10k, athk_common, 1, 1, 1);
+#endif
