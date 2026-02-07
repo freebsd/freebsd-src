@@ -4889,3 +4889,8 @@ void rtw89_debug(struct rtw89_dev *rtwdev, enum rtw89_debug_mask mask,
 }
 EXPORT_SYMBOL(rtw89_debug);
 #endif
+#if defined(__FreeBSD__)
+#ifdef CONFIG_RTW89_DEBUGFS
+MODULE_DEPEND(rtw89, lindebugfs, 1, 1, 1);
+#endif
+#endif

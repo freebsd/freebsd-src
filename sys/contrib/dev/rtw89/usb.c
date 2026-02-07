@@ -1069,3 +1069,6 @@ EXPORT_SYMBOL(rtw89_usb_disconnect);
 MODULE_AUTHOR("Bitterblue Smith <rtl8821cerfe2@gmail.com>");
 MODULE_DESCRIPTION("Realtek USB 802.11ax wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_DEPEND(rtw89, linuxkpi_usb, 1, 1, 1);
+#endif

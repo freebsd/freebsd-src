@@ -6723,3 +6723,8 @@ EXPORT_SYMBOL(rtw89_free_ieee80211_hw);
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ax wireless core module");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_VERSION(rtw89, 1);
+MODULE_DEPEND(rtw89, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(rtw89, linuxkpi_wlan, 1, 1, 1);
+#endif
