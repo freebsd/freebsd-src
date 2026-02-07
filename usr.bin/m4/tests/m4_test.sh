@@ -70,6 +70,14 @@ comments_body()
 	m4_test comments
 }
 
+defn_head()
+{
+}
+defn_body()
+{
+	m4_test defn
+}
+
 esyscmd_head()
 {
 }
@@ -219,6 +227,7 @@ atf_init_test_cases()
 	atf_add_test_case args
 	atf_add_test_case args2
 	atf_add_test_case comments
+	atf_add_test_case defn
 	atf_add_test_case esyscmd
 	atf_add_test_case eval
 	atf_add_test_case ff_after_dnl
