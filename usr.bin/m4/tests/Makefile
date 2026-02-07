@@ -1,6 +1,6 @@
 PACKAGE=	tests
 
-TAP_TESTS_SH=	legacy_test
+ATF_TESTS_SH=	m4_test
 
 ${PACKAGE}FILES+=		args.m4
 ${PACKAGE}FILES+=		args2.m4
@@ -20,6 +20,10 @@ ${PACKAGE}FILES+=		m4wrap3.m4
 ${PACKAGE}FILES+=		patterns.m4
 ${PACKAGE}FILES+=		quotes.m4
 ${PACKAGE}FILES+=		redef.m4
+${PACKAGE}FILES+=		strangequotes.m4.uu
+${PACKAGE}FILES+=		translit.m4
+${PACKAGE}FILES+=		translit2.m4
+
 ${PACKAGE}FILES+=		regress.args.out
 ${PACKAGE}FILES+=		regress.args2.out
 ${PACKAGE}FILES+=		regress.comments.out
@@ -31,19 +35,18 @@ ${PACKAGE}FILES+=		regress.gnuformat.out
 ${PACKAGE}FILES+=		regress.gnupatterns.out
 ${PACKAGE}FILES+=		regress.gnupatterns2.out
 ${PACKAGE}FILES+=		regress.gnuprefix.out
+${PACKAGE}FILES+=		regress.gnuprefix.err
 ${PACKAGE}FILES+=		regress.gnusofterror.out
+${PACKAGE}FILES+=		regress.gnusofterror.err
 ${PACKAGE}FILES+=		regress.gnutranslit2.out
 ${PACKAGE}FILES+=		regress.includes.out
 ${PACKAGE}FILES+=		regress.m4wrap3.out
 ${PACKAGE}FILES+=		regress.patterns.out
 ${PACKAGE}FILES+=		regress.quotes.out
+${PACKAGE}FILES+=		regress.quotes.err
 ${PACKAGE}FILES+=		regress.redef.out
-${PACKAGE}FILES+=		regress.sh
 ${PACKAGE}FILES+=		regress.strangequotes.out
 ${PACKAGE}FILES+=		regress.translit.out
 ${PACKAGE}FILES+=		regress.translit2.out
-${PACKAGE}FILES+=		strangequotes.m4.uu
-${PACKAGE}FILES+=		translit.m4
-${PACKAGE}FILES+=		translit2.m4
 
 .include <bsd.test.mk>

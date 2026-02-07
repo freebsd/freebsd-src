@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260204: replaced with ATF test
+OLD_FILES+=usr/tests/usr.bin/m4/legacy_test
+OLD_FILES+=usr/tests/usr.bin/m4/regress.sh
 
 # 20260120: remove obsolete MIT KRB5 plugin files
 OLD_LIBS+=usr/lib/krb5/plugins/kdb/db2.so.121
