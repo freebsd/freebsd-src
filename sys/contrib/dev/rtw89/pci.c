@@ -4931,11 +4931,3 @@ EXPORT_SYMBOL(rtw89_pci_remove);
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek PCI 802.11ax wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
-#if defined(__FreeBSD__)
-MODULE_VERSION(rtw89_pci, 1);
-MODULE_DEPEND(rtw89_pci, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(rtw89_pci, linuxkpi_wlan, 1, 1, 1);
-#ifdef CONFIG_RTW89_DEBUGFS
-MODULE_DEPEND(rtw89_pci, lindebugfs, 1, 1, 1);
-#endif
-#endif
