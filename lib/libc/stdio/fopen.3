@@ -271,6 +271,10 @@ to
 or
 .Fn fmemopen
 was invalid.
+.It Bq Er EMFILE
+The file descriptor for the opened
+.Tn FILE
+is greater than 32,767 and legacy compatibility mode is enabled.
 .El
 .Pp
 The
@@ -320,6 +324,18 @@ may also fail and set
 if the
 .Fa size
 argument is 0.
+.Pp
+The
+.Fn fopen ,
+.Fn fdopen
+and
+.Fn freopen
+functions will enforce the legacy limit of at most 32,767 open files with
+binaries linked against previous versions of the standard C library.
+As a debugging aid, this legacy compatibility mode can also be enabled for
+the time being by setting the environment variable
+.Va __STDIO_FORCE_SHORT_FILDES
+prior to executing the program.
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr fclose 3 ,

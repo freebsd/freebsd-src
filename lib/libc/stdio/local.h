@@ -45,6 +45,7 @@
 #include <locale.h>
 #include <pthread.h>
 #include <string.h>
+#include <stdbool.h>
 #include <wchar.h>
 
 /*
@@ -86,6 +87,8 @@ extern int	__vfwscanf(FILE * __restrict, locale_t, const wchar_t * __restrict,
 extern size_t	__fread(void * __restrict buf, size_t size, size_t count,
 		FILE * __restrict fp);
 
+extern bool	__stdio_force_short_fildes;
+
 static inline wint_t
 __fgetwc(FILE *fp, locale_t locale)
 {
@@ -94,16 +97,97 @@ __fgetwc(FILE *fp, locale_t locale)
 	return (__fgetwc_mbs(fp, &fp->_mbstate, &nread, locale));
 }
 
+static inline bool
+__sforce_short_fildes(bool short_only)
+{
+	return (short_only || __stdio_force_short_fildes);
+}
+
+/*
+ * The following macros and functions support encoding 32-bit
+ * file descriptors in a backward compatible way in FILE objects
+ * using the existing 16-bit _file field as well as a 16-bit
+ * slice of the _flags2 field.
+ *
+ * A signed 32-bit file descriptor 'F' is encoded into two 16-bit
+ * parts 'L' and 'H' as follows:
+ *
+ * 'L' is simply the lower sixteen bits of 'F':
+ *
+ *     short L = (short)F
+ *
+ * 'H' is the upper sixteen bits of 'F' exclusive or'd with the fifteenth
+ * bit of 'F' (i.e. the sign bit of 'L'), or equivalently, the upper
+ * sixteen bits of the result of exclusive or'ing 'F' with the lower
+ * sixteen bits of 'F' sign extended to thirty two bits.
+ *
+ *     short H = (short)((F ^ (int)(short)F) >> 16)
+ *
+ * 'L' is stored in FILE->_file and 'H' is stored in a new 16-bit slice
+ * in FILE->_flags2. Note that for values of 'F' between SHRT_MIN and
+ * SHRT_MAX, 'H' will be zero and thus this encoding has the advantage
+ * of preserving binary encodings of FILE->_file and FILE->_flags2 for
+ * file descriptors in this range.
+ */
+#define __S2FDX_SHFT			(1)
+#define __S2FDX_EXTRACT(_flags2)	\
+	    ((int)((unsigned)((_flags2) & __S2FDX) >> __S2FDX_SHFT))
+
+#define __S2FDX_INSERT(_flags2, val)	\
+	    ((_flags2) & (~__S2FDX) | (__S2FDX & ((val) << __S2FDX_SHFT)))
+
+#define __SFD_TO_LOW(fd)		((short)(fd))
+#define __SFD_TO_HSX(fd)		\
+	    ((unsigned)((fd) ^ (int)(short)(fd)) >> 16)
+
+#define __SLOW_HSX_TO_FD(low, hsx)	((int)(short)(low) ^ ((int)(hsx) << 16))
+
+_Static_assert(USHRT_MAX << __S2FDX_SHFT	== __S2FDX,	 "__S2FDX");
+_Static_assert(__S2FDX_EXTRACT(__S2FDX)		== USHRT_MAX,	 "__S2FDX");
+_Static_assert(__S2FDX_INSERT(~0, 0)		== ~__S2FDX,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MIN - 1)	== SHRT_MAX,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MIN)		== SHRT_MIN,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(-1)			== -1,		 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(0)			== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MAX)		== SHRT_MAX,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MAX + 1)	== SHRT_MIN,	 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MIN - 1)	== USHRT_MAX,	 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MIN)		== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(-1)			== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(0)			== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MAX)		== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MAX + 1)	== USHRT_MAX,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(0, SHRT_MIN)	== INT_MIN,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(SHRT_MIN, 0)	== SHRT_MIN,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(-1, 0)		== -1,		 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(0, 0)		== 0,		 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(SHRT_MAX, 0)	== SHRT_MAX,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(SHRT_MIN, -1)	== SHRT_MAX + 1, "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(-1, SHRT_MIN)	== INT_MAX,	 "__S2FDX");
+
 static inline int
 __sfileno(const FILE *fp)
 {
-	return ((fp)->_file);
+	int fd;
+
+	if (__stdio_force_short_fildes)
+		fd = fp->_file;
+	else {
+		fd = __S2FDX_EXTRACT(fp->_flags2);
+		fd = __SLOW_HSX_TO_FD(fp->_file, fd);
+	}
+	return (fd);
 }
 
 static inline void
 __sfileno_set(FILE *fp, int fd)
 {
-	fp->_file = (unsigned)fd > SHRT_MAX ? -1 : fd;
+	if (__stdio_force_short_fildes)
+		fp->_file = (unsigned)fd > SHRT_MAX ? -1 : (short)fd;
+	else {
+		fp->_file = __SFD_TO_LOW(fd);
+		fp->_flags2 = __S2FDX_INSERT(fp->_flags2, __SFD_TO_HSX(fd));
+	}
 }
 
 /*

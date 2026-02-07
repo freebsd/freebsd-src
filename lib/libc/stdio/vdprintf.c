@@ -55,11 +55,6 @@ vdprintf(int fd, const char * __restrict fmt, va_list ap)
 		return (-1);
 	}
 
-	if (fd > SHRT_MAX) {
-		errno = EMFILE;
-		return (EOF);
-	}
-
 	/* Ensure descriptor has been opened for writing */
 	if ((fdflags = _fcntl(fd, F_GETFL, 0)) == -1)
 		return (-1);

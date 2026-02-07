@@ -39,11 +39,12 @@
 #include <stdio.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdbool.h>
 #include "un-namespace.h"
 #include "local.h"
 
-FILE *
-fdopen(int fd, const char *mode)
+static FILE *
+__sfdopen(int fd, const char * __restrict mode, bool short_only)
 {
 	FILE *fp;
 	int flags, oflags, fdflags, rc, tmp;
@@ -60,7 +61,7 @@ fdopen(int fd, const char *mode)
 	 * invalid file descriptor.  Handle this case by failing the
 	 * open.
 	 */
-	if (fd > SHRT_MAX) {
+	if (__sforce_short_fildes(short_only) && fd > SHRT_MAX) {
 		errno = EMFILE;
 		return (NULL);
 	}
@@ -113,4 +114,17 @@ fdopen(int fd, const char *mode)
 	fp->_seek = __sseek;
 	fp->_close = __sclose;
 	return (fp);
+}
+
+FILE *
+__sfdopen_fbsd10(int fd, const char *mode)
+{
+	return (__sfdopen(fd, mode, true));
+}
+__sym_compat(fdopen, __sfdopen_fbsd10, FBSD_1.0);
+
+FILE *
+fdopen(int fd, const char *mode)
+{
+	return (__sfdopen(fd, mode, false));
 }

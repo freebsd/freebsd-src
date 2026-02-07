@@ -42,6 +42,8 @@
 #include "un-namespace.h"
 #include "local.h"
 
+__weak_symbol bool __stdio_force_short_fildes;
+
 /*
  * Small standard I/O/seek/close functions.
  */
@@ -184,4 +186,15 @@ _cleanup(void)
 {
 	/* (void) _fwalk(fclose); */
 	(void) _fwalk(__sflush);		/* `cheating' */
+}
+
+/*
+ * This function runs at program load time before main() runs
+ * and initialises stdio based on the environment.
+ */
+__attribute__((constructor)) static void
+__stdio_init(void)
+{
+	if (getenv("__STDIO_FORCE_SHORT_FILDES") != NULL)
+		__stdio_force_short_fildes = true;
 }

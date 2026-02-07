@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
@@ -50,9 +51,9 @@
  * ANSI is written such that the original file gets closed if at
  * all possible, no matter what.
  */
-FILE *
-freopen(const char * __restrict file, const char * __restrict mode,
-    FILE * __restrict fp)
+static FILE *
+__sfreopen(const char * __restrict file, const char * __restrict mode,
+    FILE * __restrict fp, bool short_only)
 {
 	int f;
 	int dflags, fdflags, flags, isopen, oflags, sverrno, wantfd;
@@ -216,7 +217,7 @@ finish:
 	 * invalid file descriptor.  Handle this case by failing the
 	 * open.
 	 */
-	if (f > SHRT_MAX) {
+	if (__sforce_short_fildes(short_only) && f > SHRT_MAX) {
 		_close(f);
 		fp->_flags = 0;		/* set it free */
 		errno = EMFILE;
@@ -246,4 +247,19 @@ finish:
 end:
 	FUNLOCKFILE_CANCELSAFE();
 	return (fp);
+}
+
+FILE *
+__sfreopen_fbsd10(const char * __restrict file,
+    const char * __restrict mode, FILE * __restrict fp)
+{
+	return (__sfreopen(file, mode, fp, true));
+}
+__sym_compat(freopen, __sfreopen_fbsd10, FBSD_1.0);
+
+FILE *
+freopen(const char * __restrict file, const char * __restrict mode,
+    FILE * __restrict fp)
+{
+	return (__sfreopen(file, mode, fp, false));
 }
