@@ -91,6 +91,7 @@
 #define	CR4_LASS	0x08000000	/* Linear Address Space Separation */
 #define	CR4_LAM_SUP	0x10000000	/* Linear-Address Masking for
 					   Supervisor */
+#define	CR4_FRED	0x100000000ull	/* FRED */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
@@ -548,6 +549,10 @@
  * CPUID instruction 7 Structured Extended Features, leaf 1 eax info
  */
 #define	CPUID_STDEXT4_LASS		0x00000040
+#define	CPUID_STDEXT4_FRED		0x00020000
+#define	CPUID_STDEXT4_LKGS		0x00040000
+#define	CPUID_STDEXT4_WRMSRNS		0x00080000
+#define	CPUID_STDEXT4_NMISRC		0x00100000
 #define	CPUID_STDEXT4_LAM		0x04000000
 
 /* CPUID_HYBRID_ID leaf 0x1a */
@@ -643,6 +648,15 @@
 #define	MSR_IA32_ENERGY_PERF_BIAS	0x1b0
 #define	MSR_IA32_PKG_THERM_STATUS	0x1b1
 #define	MSR_IA32_PKG_THERM_INTERRUPT	0x1b2
+#define	MSR_FRED_RSP0		0x1cc
+#define	MSR_FRED_RSP1		0x1cd
+#define	MSR_FRED_RSP2		0x1ce
+#define	MSR_FRED_RSP3		0x1cf
+#define	MSR_FRED_STKLVLS	0x1d0
+#define	MSR_FRED_SSP1		0x1d1
+#define	MSR_FRED_SSP2		0x1d2
+#define	MSR_FRED_SSP3		0x1d3
+#define	MSR_FRED_CONFIG		0x1d4
 #define	MSR_DEBUGCTLMSR		0x1d9
 #define	MSR_LASTBRANCHFROMIP	0x1db
 #define	MSR_LASTBRANCHTOIP	0x1dc
@@ -923,6 +937,15 @@
 
 /* MSR IA32_PKG_THERM_INTERRUPT */
 #define	IA32_PKG_THERM_INTERRUPT_HFI_ENABLE		(0x1ULL << 25)
+
+/* MSR IA32_FRED_CONFIG */
+#define	IA32_FRED_CONFIG_CSL_MASK			0x00000003
+#define	IA32_FRED_CONFIG_DECR_SSP			0x00000008
+#define	IA32_FRED_CONFIG_REDZONESZ_MASK			0x000000e0
+#define	IA32_FRED_CONFIG_REDZONESZ_SHIFT		6
+#define	IA32_FRED_CONFIG_REDZONESZ_MULT			64
+#define	IA32_FRED_CONFIG_EXTINT_SLC_MASK		0x00000600
+#define	IA32_FRED_CONFIG_EXTINT_SLC_SHIFT		9
 
 /*
  * PAT modes.
