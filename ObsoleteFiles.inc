@@ -101,6 +101,7 @@ OLD_LIBS+=usr/lib/libtpool.a
 OLD_LIBS+=usr/lib/libtpool.so
 OLD_LIBS+=usr/lib/libtpool_p.a
 OLD_FILES+=usr/tests/cddl/lib/libtpool/libtpool_test
+OLD_FILES+=usr/tests/cddl/lib/libtpool/Kyuafile
 
 # 20251204: zpfind.9 alias to pfind.9 removed
 OLD_FILES+=usr/share/man/man9/zpfind.9
