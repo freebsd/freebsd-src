@@ -95,21 +95,23 @@
 
 #ifdef USB_DEBUG
 static int ukbd_debug = 0;
+#endif
 static int ukbd_no_leds = 0;
 static int ukbd_pollrate = 0;
 static int ukbd_apple_fn_mode = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB keyboard");
+#ifdef USB_DEBUG
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ukbd_debug, 0, "Debug level");
+#endif
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,
     &ukbd_no_leds, 0, "Disables setting of keyboard leds");
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, pollrate, CTLFLAG_RWTUN,
     &ukbd_pollrate, 0, "Force this polling rate, 1-1000Hz");
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, apple_fn_mode, CTLFLAG_RWTUN,
     &ukbd_apple_fn_mode, 0, "0 = Fn + F1..12 -> media, 1 = F1..F12 -> media");
-#endif
 
 #define	UKBD_EMULATE_ATSCANCODE	       1
 #define	UKBD_DRIVER_NAME          "ukbd"
@@ -677,6 +679,8 @@ static uint32_t
 ukbd_apple_fn(uint32_t keycode)
 {
 	switch (keycode) {
+	case 0x0e: return 0x47;	/* K -> SCROLLLOCK (mirror ThinkPad/Latitudes) */
+	case 0x13: return 0x46;	/* P -> SYSRQ/PRTSC */
 	case 0x28: return 0x49; /* RETURN -> INSERT */
 	case 0x2a: return 0x4c; /* BACKSPACE -> DEL */
 	case 0x50: return 0x4a; /* LEFT ARROW -> HOME */
@@ -1093,7 +1097,7 @@ ukbd_parse_hid(struct ukbd_softc *sc, const uint8_t *ptr, uint32_t len)
 	sc->sc_kbd_size = hid_report_size_max(ptr, len,
 	    hid_input, &sc->sc_kbd_id);
 
-	/* investigate if this is an Apple Keyboard. */
+	/* investigate if this is an Apple Keyboard (0x05ac vendor ID). */
 	if (sc->sc_vendor_id == USB_VENDOR_APPLE) {
 		if (hid_locate(ptr, len,
 		    HID_USAGE2(HUP_CONSUMER, HUG_APPLE_EJECT),

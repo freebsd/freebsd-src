@@ -621,6 +621,8 @@ static uint32_t
 hkbd_apple_fn(uint32_t keycode)
 {
 	switch (keycode) {
+	case 0x0e: return 0x47;	/* K -> SCROLLLOCK (mirror ThinkPad/Latitudes) */
+	case 0x13: return 0x46;	/* P -> SYSRQ/PRTSC */
 	case 0x28: return 0x49; /* RETURN -> INSERT */
 	case 0x2a: return 0x4c; /* BACKSPACE -> DEL */
 	case 0x50: return 0x4a; /* LEFT ARROW -> HOME */
@@ -830,8 +832,9 @@ hkbd_parse_hid(struct hkbd_softc *sc, const uint8_t *ptr, uint32_t len,
 
 	const struct hid_device_info *hw = hid_get_device_info(sc->sc_dev);
 
-	/* investigate if this is an Apple Keyboard */
-	if (hw->idVendor == 0x05ac) { /* belt & braces! */
+	/* investigate if this is an Apple Keyboard by checking for
+         * Apple's USB vendor ID: (05AC) */
+	if (hw->idVendor == 0x05ac) {
 		if (hidbus_locate(ptr, len,
 		    HID_USAGE2(HUP_CONSUMER, HUG_APPLE_EJECT),
 		    hid_input, tlc_index, 0, &sc->sc_loc_apple_eject, &flags,
