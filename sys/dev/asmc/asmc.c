@@ -110,8 +110,8 @@ static int 	asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS);
 
 struct asmc_model {
-	const char 	 *smc_model;	/* smbios.system.product env var. */
-	const char 	 *smc_desc;	/* driver description */
+	const char *smc_model; /* smbios.system.product env var. */
+	const char *smc_desc;  /* driver description */
 
 	/* Helper functions */
 	int (*smc_sms_x)(SYSCTL_HANDLER_ARGS);
@@ -599,7 +599,7 @@ asmc_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	sysctlctx  = device_get_sysctl_ctx(dev);
+	sysctlctx = device_get_sysctl_ctx(dev);
 	sysctlnode = device_get_sysctl_tree(dev);
 
 	model = asmc_match(dev);
@@ -774,8 +774,8 @@ asmc_attach(device_t dev)
 	 * Allocate an IRQ for the SMS.
 	 */
 	sc->sc_rid_irq = 0;
-	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &sc->sc_rid_irq, RF_ACTIVE);
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_rid_irq,
+	    RF_ACTIVE);
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		ret = ENXIO;
@@ -840,7 +840,8 @@ asmc_resume(device_t dev)
 }
 
 #ifdef ASMC_DEBUG
-void asmc_dumpall(device_t dev)
+void
+asmc_dumpall(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 	int i;
@@ -945,7 +946,8 @@ nosms:
 	if (asmc_key_read(dev, ASMC_NKEYS, buf, 4) == 0) {
 		sc->sc_nkeys = be32dec(buf);
 		if (bootverbose)
-			device_printf(dev, "number of keys: %d\n", sc->sc_nkeys);
+			device_printf(dev, "number of keys: %d\n",
+			    sc->sc_nkeys);
 	} else {
 		sc->sc_nkeys = 0;
 	}
@@ -1009,11 +1011,12 @@ asmc_wait(device_t dev, uint8_t val)
  * the acknowledgement fails.
  */
 static int
-asmc_command(device_t dev, uint8_t command) {
+asmc_command(device_t dev, uint8_t command)
+{
 	int i;
 	struct asmc_softc *sc = device_get_softc(dev);
 
-	for (i=0; i < 10; i++) {
+	for (i = 0; i < 10; i++) {
 		ASMC_CMDPORT_WRITE(sc, command);
 		if (asmc_wait_ack(dev, 0x0c, 100) == 0) {
 			return (0);
@@ -1056,9 +1059,10 @@ begin:
 	error = 0;
 out:
 	if (error) {
-		if (++try < 10) goto begin;
-		device_printf(dev,"%s for key %s failed %d times, giving up\n",
-			__func__, key, try);
+		if (++try < 10)
+			goto begin;
+		device_printf(dev, "%s for key %s failed %d times, giving up\n",
+		    __func__, key, try);
 	}
 
 	mtx_unlock_spin(&sc->sc_mtx);
@@ -1124,11 +1128,11 @@ begin:
 	error = 0;
 out:
 	if (error) {
-		if (++try < 10) goto begin;
-		device_printf(dev,"%s for key %s failed %d times, giving up\n",
-			__func__, key, try);
+		if (++try < 10)
+			goto begin;
+		device_printf(dev, "%s for key %s failed %d times, giving up\n",
+		    __func__, key, try);
 		mtx_unlock_spin(&sc->sc_mtx);
-	}
 	else {
 		char buf[1024];
 		char buf2[8];
@@ -1192,15 +1196,15 @@ begin:
 	error = 0;
 out:
 	if (error) {
-		if (++try < 10) goto begin;
-		device_printf(dev,"%s for key %s failed %d times, giving up\n",
-			__func__, key, try);
+		if (++try < 10)
+			goto begin;
+		device_printf(dev, "%s for key %s failed %d times, giving up\n",
+		    __func__, key, try);
 	}
 
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (error);
-
 }
 
 /*
@@ -1232,16 +1236,17 @@ asmc_fan_getvalue(device_t dev, const char *key, int fan)
 	return (speed);
 }
 
-static char*
-asmc_fan_getstring(device_t dev, const char *key, int fan, uint8_t *buf, uint8_t buflen)
+static char *
+asmc_fan_getstring(device_t dev, const char *key, int fan, uint8_t *buf,
+    uint8_t buflen)
 {
 	char fankey[5];
-	char* desc;
+	char *desc;
 
 	snprintf(fankey, sizeof(fankey), key, fan);
 	if (asmc_key_read(dev, fankey, buf, buflen) != 0)
 		return (NULL);
-	desc = buf+4;
+	desc = buf + 4;
 
 	return (desc);
 }
@@ -1254,7 +1259,7 @@ asmc_fan_setvalue(device_t dev, const char *key, int fan, int speed)
 
 	speed *= 4;
 
-	buf[0] = speed>>8;
+	buf[0] = speed >> 8;
 	buf[1] = speed;
 
 	snprintf(fankey, sizeof(fankey), key, fan);
@@ -1267,7 +1272,7 @@ asmc_fan_setvalue(device_t dev, const char *key, int fan, int speed)
 static int
 asmc_mb_sysctl_fanspeed(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int fan = arg2;
 	int error;
 	int32_t v;
@@ -1282,10 +1287,10 @@ static int
 asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS)
 {
 	uint8_t buf[16];
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int fan = arg2;
 	int error = true;
-	char* desc;
+	char *desc;
 
 	desc = asmc_fan_getstring(dev, ASMC_KEY_FANID, fan, buf, sizeof(buf));
 
@@ -1298,7 +1303,7 @@ asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_fansafespeed(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int fan = arg2;
 	int error;
 	int32_t v;
@@ -1312,7 +1317,7 @@ asmc_mb_sysctl_fansafespeed(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_fanminspeed(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int fan = arg2;
 	int error;
 	int32_t v;
@@ -1331,7 +1336,7 @@ asmc_mb_sysctl_fanminspeed(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_fanmaxspeed(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int fan = arg2;
 	int error;
 	int32_t v;
@@ -1350,7 +1355,7 @@ asmc_mb_sysctl_fanmaxspeed(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_fantargetspeed(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int fan = arg2;
 	int error;
 	int32_t v;
@@ -1369,7 +1374,7 @@ asmc_mb_sysctl_fantargetspeed(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int fan = arg2;
 	int error;
 	int32_t v;
@@ -1393,7 +1398,8 @@ asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
 		if (v != 0 && v != 1)
 			return (EINVAL);
 		/* Read-modify-write of FS! bitmask */
-		error = asmc_key_read(dev, ASMC_KEY_FANMANUAL, buf, sizeof(buf));
+		error = asmc_key_read(dev, ASMC_KEY_FANMANUAL, buf,
+		    sizeof(buf));
 		if (error == 0) {
 			val = (buf[0] << 8) | buf[1];
 
@@ -1406,7 +1412,8 @@ asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
 			/* Write back */
 			buf[0] = val >> 8;
 			buf[1] = val & 0xff;
-			error = asmc_key_write(dev, ASMC_KEY_FANMANUAL, buf, sizeof(buf));
+			error = asmc_key_write(dev, ASMC_KEY_FANMANUAL, buf,
+			    sizeof(buf));
 		}
 	}
 
@@ -1433,7 +1440,7 @@ asmc_temp_getvalue(device_t dev, const char *key)
 static int
 asmc_temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	struct asmc_softc *sc = device_get_softc(dev);
 	int error, val;
 
@@ -1457,11 +1464,11 @@ asmc_sms_read(device_t dev, const char *key, int16_t *val)
 	case 'X':
 	case 'Y':
 	case 'Z':
-		error =	asmc_key_read(dev, key, buf, sizeof buf);
+		error = asmc_key_read(dev, key, buf, sizeof buf);
 		break;
 	default:
 		device_printf(dev, "%s called with invalid argument %s\n",
-			      __func__, key);
+		    __func__, key);
 		error = 1;
 		goto out;
 	}
@@ -1484,7 +1491,7 @@ static int
 asmc_sms_intrfast(void *arg)
 {
 	uint8_t type;
-	device_t dev = (device_t) arg;
+	device_t dev = (device_t)arg;
 	struct asmc_softc *sc = device_get_softc(dev);
 	if (!sc->sc_sms_intr_works)
 		return (FILTER_HANDLED);
@@ -1557,13 +1564,13 @@ asmc_sms_task(void *arg, int pending)
 static int
 asmc_mb_sysctl_sms_x(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int error;
 	int16_t val;
 	int32_t v;
 
 	asmc_sms_read(dev, ASMC_KEY_SMS_X, &val);
-	v = (int32_t) val;
+	v = (int32_t)val;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	return (error);
@@ -1572,13 +1579,13 @@ asmc_mb_sysctl_sms_x(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_sms_y(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int error;
 	int16_t val;
 	int32_t v;
 
 	asmc_sms_read(dev, ASMC_KEY_SMS_Y, &val);
-	v = (int32_t) val;
+	v = (int32_t)val;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	return (error);
@@ -1587,13 +1594,13 @@ asmc_mb_sysctl_sms_y(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_sms_z(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	int error;
 	int16_t val;
 	int32_t v;
 
 	asmc_sms_read(dev, ASMC_KEY_SMS_Z, &val);
-	v = (int32_t) val;
+	v = (int32_t)val;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	return (error);
@@ -1602,7 +1609,7 @@ asmc_mb_sysctl_sms_z(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	uint8_t buf[6];
 	int error;
 	int32_t v;
@@ -1617,7 +1624,7 @@ asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	uint8_t buf[6];
 	int error;
 	int32_t v;
@@ -1632,7 +1639,7 @@ asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	uint8_t buf[2];
 	int error;
 	int v;
@@ -1654,7 +1661,7 @@ asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = (device_t) arg1;
+	device_t dev = (device_t)arg1;
 	uint8_t buf[10];
 	int error;
 	uint32_t v;
