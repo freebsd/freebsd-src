@@ -1133,7 +1133,7 @@ out:
 		device_printf(dev, "%s for key %s failed %d times, giving up\n",
 		    __func__, key, try);
 		mtx_unlock_spin(&sc->sc_mtx);
-	else {
+	} else {
 		char buf[1024];
 		char buf2[8];
 		mtx_unlock_spin(&sc->sc_mtx);
