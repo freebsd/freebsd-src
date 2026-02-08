@@ -458,7 +458,10 @@ device_add(struct device *dev)
 		if (dev->devt == 0)
 			dev->devt = makedev(0, device_get_unit(dev->bsddev));
 	}
-	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
+	if (dev->parent != NULL)
+		kobject_add(&dev->kobj, &dev->parent->kobj, dev_name(dev));
+	else
+		kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
 
 	if (dev->groups)
 		return (sysfs_create_groups(&dev->kobj, dev->groups));
