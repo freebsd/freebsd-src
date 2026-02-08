@@ -43,13 +43,6 @@ struct sysfs_ops {
 	    size_t);
 };
 
-struct attribute_group {
-	const char		*name;
-	mode_t			(*is_visible)(struct kobject *,
-				    struct attribute *, int);
-	struct attribute	**attrs;
-};
-
 struct bin_attribute {
 	struct attribute	attr;
 	size_t			size;
@@ -57,6 +50,14 @@ struct bin_attribute {
 			struct bin_attribute *, char *, loff_t, size_t);
 	ssize_t (*write)(struct linux_file *, struct kobject *,
 			 struct bin_attribute *, char *, loff_t, size_t);
+};
+
+struct attribute_group {
+	const char		*name;
+	mode_t			(*is_visible)(struct kobject *,
+				    struct attribute *, int);
+	struct attribute	**attrs;
+	struct bin_attribute	**bin_attrs;
 };
 
 #define	__ATTR(_name, _mode, _show, _store) {				\
@@ -370,6 +371,7 @@ static inline int
 sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 {
 	struct attribute **attr;
+	struct bin_attribute **bin_attr;
 	struct sysctl_oid *oidp;
 
 	/* Don't create the group node if grp->name is undefined. */
@@ -378,10 +380,18 @@ sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 		    OID_AUTO, grp->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, grp->name);
 	else
 		oidp = kobj->oidp;
-	for (attr = grp->attrs; *attr != NULL; attr++) {
+	for (attr = grp->attrs; attr != NULL && *attr != NULL; attr++) {
 		SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(oidp), OID_AUTO,
 		    (*attr)->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE,
 		    kobj, (uintptr_t)*attr, sysctl_handle_attr, "A", "");
+	}
+	for (bin_attr = grp->bin_attrs;
+	    bin_attr != NULL && *bin_attr != NULL;
+	    bin_attr++) {
+		SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(oidp), OID_AUTO,
+		    (*bin_attr)->attr.name,
+		    CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_MPSAFE,
+		    kobj, (uintptr_t)*bin_attr, sysctl_handle_bin_attr, "", "");
 	}
 
 	return (0);
@@ -434,13 +444,19 @@ static inline void
 sysfs_unmerge_group(struct kobject *kobj, const struct attribute_group *grp)
 {
 	struct attribute **attr;
+	struct bin_attribute **bin_attr;
 	struct sysctl_oid *oidp;
 
 	SYSCTL_FOREACH(oidp, SYSCTL_CHILDREN(kobj->oidp)) {
 		if (strcmp(oidp->oid_name, grp->name) != 0)
 			continue;
-		for (attr = grp->attrs; *attr != NULL; attr++) {
+		for (attr = grp->attrs; attr != NULL && *attr != NULL; attr++) {
 			sysctl_remove_name(oidp, (*attr)->name, 1, 1);
+		}
+		for (bin_attr = grp->bin_attrs;
+		    bin_attr != NULL && *bin_attr != NULL;
+		    bin_attr++) {
+			sysctl_remove_name(oidp, (*bin_attr)->attr.name, 1, 1);
 		}
 	}
 }
