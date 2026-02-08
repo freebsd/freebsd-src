@@ -1986,7 +1986,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	 */
 	phdr = (Elf_Phdr *)((char *)hdr + ehdr->e_phoff);
 
-	/* The note segement. */
+	/* The note segment. */
 	phdr->p_type = PT_NOTE;
 	phdr->p_offset = hdrsize;
 	phdr->p_vaddr = 0;
