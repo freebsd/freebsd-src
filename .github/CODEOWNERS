@@ -101,6 +101,7 @@
 /sys/dev/pci	@bsdimp @bsdjhb
 /sys/dev/superio/	@stephane-rochoy-stormshield
 /sys/dev/veriexec/	@stephane-rochoy-stormshield
+/sys/dev/vt/	@emaste
 /sys/fs/autofs/	@trasz
 /sys/fs/fuse/	@asomers
 /sys/fs/procfs/		@dag-erling
