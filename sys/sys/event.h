@@ -104,7 +104,7 @@ struct freebsd11_kevent {
 #endif
 
 #if defined(_WANT_KEVENT32) || defined(_KERNEL)
-#include <sys/abi_compat.h>
+#include <sys/abi_types.h>
 
 struct kevent32 {
 	__uint32_t	ident;		/* identifier for this event */
