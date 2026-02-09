@@ -198,7 +198,7 @@ SYSCTL_BOOL(_debug, OID_AUTO, hwpstate_pstate_limit, CTLFLAG_RWTUN,
     "If enabled (1), limit administrative control of P-states to the value in "
     "CurPstateLimit");
 
-static bool hwpstate_amd_cppc_enable = true;
+static bool	hwpstate_amd_cppc_enable = true;
 SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_amd_cppc_enable, CTLFLAG_RDTUN,
     &hwpstate_amd_cppc_enable, 0,
     "Set 1 (default) to enable AMD CPPC, 0 to disable");
