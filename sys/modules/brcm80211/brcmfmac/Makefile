@@ -3,7 +3,7 @@ DEVDIR=	${SRCTOP}/sys/contrib/dev/broadcom/brcm80211/brcmfmac
 .PATH:	${DEVDIR}
 
 # Should split this up into a core driver and 3 more
-WITH_PCIE=1
+WITH_PCI=1
 WITH_SDIO=0
 WITH_USB=0
 
@@ -20,21 +20,24 @@ SRCS+=	fweh.c fwil.c fwvid.c p2p.c pno.c proto.c vendor.c xtlv.c
 
 SRCS+=	wcc/core.c cyw/core.c bca/core.c
 
-.if defined(WITH_PCIE) && ${WITH_PCIE} > 0
-CFLAGS+=	-DCONFIG_BRCMFMAC_PCIE=1
+# PCI parts; PCI needs to be compiled into the kernel and cannot be loaded.
+.if defined(WITH_PCI) && ${WITH_PCI} > 0 && ${KERN_OPTS:MDEV_PCI}
 SRCS+=	pcie.c msgbuf.c commonring.c flowring.c
+CFLAGS+=	-DCONFIG_BRCMFMAC_PCIE=1
 .endif
 
-.if defined(WITH_SDIO) && ${WITH_SDIO} > 0
-CFLAGS+=	-DCONFIG_BRCMFMAC_SDIO=1
+# SDIO parts; SDIO depends on an MMCCAM kernel.
+.if defined(WITH_SDIO) && ${WITH_SDIO} > 0 && ${KERN_OPTS:MMMCCAM}
 SRCS+=	sdio.c bcmsdh.c
 SRCS+=	sdio_if.h
 SRCS+=	sdiodevs.h
+CFLAGS+=	-DCONFIG_BRCMFMAC_SDIO=1
 .endif
 
+# USB parts; USB can be loaded and is unconditional on any kernel config.
 .if defined(WITH_USB) && ${WITH_USB} > 0
-CFLAGS+=	-DCONFIG_BRCMFMAC_USB=1
 SRCS+=	usb.c
+CFLAGS+=	-DCONFIG_BRCMFMAC_USB=1
 .endif
 
 .if (defined(WITH_SDIO) && ${WITH_SDIO} > 0) || \
@@ -74,7 +77,7 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-ferror-limit=0
 
 #CFLAGS+=	-DCONFIG_BRCM_TRACING=${WITH_TRACING}
-CFLAGS+=	-DCONFIG_BRCMFMAC_PROTO_MSGBUF=${WITH_PCIE}
+CFLAGS+=	-DCONFIG_BRCMFMAC_PROTO_MSGBUF=${WITH_PCI}
 CFLAGS+=	-DCONFIG_BRCMDBG=${WITH_DEBUG}
 
 #CFLAGS+=	-DCONFIG_DMI=${WITH_DMI}
