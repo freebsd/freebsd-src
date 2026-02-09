@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2004-2009, Jilles Tjoelker
  * All rights reserved.
  *
