@@ -1720,11 +1720,11 @@ int
 sys_unmount(struct thread *td, struct unmount_args *uap)
 {
 
-	return (kern_unmount(td, uap->path, uap->flags));
+	return (kern_unmount(td, uap->path, (unsigned)uap->flags));
 }
 
 int
-kern_unmount(struct thread *td, const char *path, int flags)
+kern_unmount(struct thread *td, const char *path, uint64_t flags)
 {
 	struct nameidata nd;
 	struct mount *mp;
