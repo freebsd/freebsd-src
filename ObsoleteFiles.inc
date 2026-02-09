@@ -51,6 +51,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260209: Moved allwinner pages to share/man/man4
+OLD_FILES+=usr/share/man/man4/arm/aw_gpio.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_mmc.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_rtc.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_sid.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_spi.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_syscon.4.gz
+
 # 20260204: replaced with ATF test
 OLD_FILES+=usr/tests/usr.bin/m4/legacy_test
 OLD_FILES+=usr/tests/usr.bin/m4/regress.sh
