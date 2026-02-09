@@ -575,6 +575,8 @@ arm/allwinner/h3/h3_padconf.c			optional soc_allwinner_h5 fdt
 arm/allwinner/h3/h3_r_padconf.c			optional soc_allwinner_h5 fdt
 arm/allwinner/h6/h6_padconf.c			optional soc_allwinner_h6 fdt
 arm/allwinner/h6/h6_r_padconf.c			optional soc_allwinner_h6 fdt
+arm/allwinner/h616/h616_padconf.c		optional soc_allwinner_h616 fdt
+arm/allwinner/h616/h616_r_padconf.c		optional soc_allwinner_h616 fdt
 
 # Altera/Intel
 arm64/intel/stratix10-soc-fpga-mgr.c		optional soc_intel_stratix10 fdt
