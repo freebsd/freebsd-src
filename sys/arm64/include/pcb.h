@@ -46,11 +46,6 @@ struct trapframe;
 #define	PCB_FP		10
 #define	PCB_LR		11
 
-/*
- * struct pcb is known to and used by kernel debuggers. Its layout must be kept
- * stable. When adding extra fields that are accessed by kernel debuggers,
- * debuggers should be backward compatible by using osreldate.
- */
 struct pcb {
 	uint64_t	pcb_x[12];
 	/* These two need to be in order as we access them together */

@@ -44,17 +44,16 @@
 #include <machine/npx.h>
 
 /*
- * struct pcb is known to and used by kernel debuggers. Its layout must be kept
- * stable. When adding extra fields that are accessed by kernel debuggers,
- * debuggers should be backward compatible by using osreldate.
+ * NB: The fields marked with (*) are used by kernel debuggers.  Their
+ * ABI should be preserved.
  */
 struct pcb {
-	int	pcb_edi;
-	int	pcb_esi;
-	int	pcb_ebp;
-	int	pcb_esp;
-	int	pcb_ebx;
-	int	pcb_eip;
+	int	pcb_edi;	/* (*) */
+	int	pcb_esi;	/* (*) */
+	int	pcb_ebp;	/* (*) */
+	int	pcb_esp;	/* (*) */
+	int	pcb_ebx;	/* (*) */
+	int	pcb_eip;	/* (*) */
 	struct segment_descriptor pcb_fsd;
 	struct segment_descriptor pcb_gsd;
 	int	pcb_ds;

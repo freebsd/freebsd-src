@@ -42,10 +42,6 @@
 #include <machine/vfp.h>
 
 /*
- * struct pcb is known to and used by kernel debuggers. Its layout must be kept
- * stable. When adding extra fields that are accessed by kernel debuggers,
- * debuggers should be backward compatible by using osreldate.
- *
  * WARNING!
  * Keep pcb_regs first for faster access in switch.S
  */
