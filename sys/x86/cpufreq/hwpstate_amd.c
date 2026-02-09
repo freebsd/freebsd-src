@@ -149,9 +149,7 @@ struct hwpstate_setting {
 	int	pstate_id;	/* P-State id */
 };
 
-enum hwpstate_flags {
-	PSTATE_CPPC = 1,
-};
+#define HWPFL_USE_CPPC		(1 << 0)
 
 /*
  * Atomicity is achieved by only modifying a given softc on its associated CPU
@@ -223,10 +221,10 @@ static device_method_t hwpstate_methods[] = {
 };
 
 static inline void
-check_cppc_enabled(const struct hwpstate_softc *const sc, const char *const func)
+check_cppc_in_use(const struct hwpstate_softc *const sc, const char *const func)
 {
-	KASSERT((sc->flags & PSTATE_CPPC) != 0, (HWP_AMD_CLASSNAME
-	    ": %s() called but PSTATE_CPPC not set", func));
+	KASSERT((sc->flags & HWPFL_USE_CPPC) != 0, (HWP_AMD_CLASSNAME
+	    ": %s() called but HWPFL_USE_CPPC not set", func));
 }
 
 /*
@@ -334,8 +332,8 @@ sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 	struct get_cppc_regs_data data;
 	int error;
 
-	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
-	check_cppc_enabled(sc, __func__);
+	/* Sysctl knob does not exist if HWPFL_USE_CPPC is not set. */
+	check_cppc_in_use(sc, __func__);
 
 	sb = sbuf_new_for_sysctl(&sbs, NULL, 0, req);
 
@@ -438,8 +436,8 @@ sysctl_cppc_request_field_handler(SYSCTL_HANDLER_ARGS)
 	u_int val;
 	int error;
 
-	/* Sysctl knob does not exist if PSTATE_CPPC is not set. */
-	check_cppc_enabled(sc, __func__);
+	/* Sysctl knob does not exist if HWPFL_USE_CPPC is not set. */
+	check_cppc_in_use(sc, __func__);
 
 	val = BITS_VALUE(arg2, sc->cppc.request);
 
@@ -564,7 +562,7 @@ hwpstate_set(device_t dev, const struct cf_setting *cf)
 	if (cf == NULL)
 		return (EINVAL);
 	sc = device_get_softc(dev);
-	if (sc->flags & PSTATE_CPPC)
+	if ((sc->flags & HWPFL_USE_CPPC) != 0)
 		return (EOPNOTSUPP);
 	set = sc->hwpstate_settings;
 	for (i = 0; i < sc->cfnum; i++)
@@ -590,7 +588,7 @@ hwpstate_get(device_t dev, struct cf_setting *cf)
 	if (cf == NULL)
 		return (EINVAL);
 
-	if (sc->flags & PSTATE_CPPC) {
+	if ((sc->flags & HWPFL_USE_CPPC) != 0) {
 		pc = cpu_get_pcpu(dev);
 		if (pc == NULL)
 			return (ENXIO);
@@ -626,7 +624,7 @@ hwpstate_settings(device_t dev, struct cf_setting *sets, int *count)
 	if (sets == NULL || count == NULL)
 		return (EINVAL);
 	sc = device_get_softc(dev);
-	if (sc->flags & PSTATE_CPPC)
+	if ((sc->flags & HWPFL_USE_CPPC) != 0)
 		return (EOPNOTSUPP);
 
 	if (*count < sc->cfnum)
@@ -654,7 +652,7 @@ hwpstate_type(device_t dev, int *type)
 	sc = device_get_softc(dev);
 
 	*type = CPUFREQ_TYPE_ABSOLUTE;
-	*type |= sc->flags & PSTATE_CPPC ?
+	*type |= (sc->flags & HWPFL_USE_CPPC) != 0 ?
 	    CPUFREQ_FLAG_INFO_ONLY | CPUFREQ_FLAG_UNCACHED :
 	    0;
 	return (0);
@@ -832,7 +830,7 @@ hwpstate_probe(device_t dev)
 
 	if (hwpstate_amd_cppc_enable &&
 	   (amd_extended_feature_extensions & AMDFEID_CPPC)) {
-		sc->flags |= PSTATE_CPPC;
+		sc->flags |= HWPFL_USE_CPPC;
 		device_set_desc(dev,
 		    "AMD Collaborative Processor Performance Control (CPPC)");
 	} else {
@@ -846,7 +844,7 @@ hwpstate_probe(device_t dev)
 	}
 
 	sc->dev = dev;
-	if (sc->flags & PSTATE_CPPC)
+	if ((sc->flags & HWPFL_USE_CPPC) != 0)
 		return (0);
 
 	/*
@@ -909,7 +907,7 @@ hwpstate_attach(device_t dev)
 	int res;
 
 	sc = device_get_softc(dev);
-	if ((sc->flags & PSTATE_CPPC) != 0) {
+	if ((sc->flags & HWPFL_USE_CPPC) != 0) {
 		if ((res = amd_set_autonomous_hwp(sc)))
 			return (res);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
@@ -1103,7 +1101,7 @@ hwpstate_detach(device_t dev)
 	struct hwpstate_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (!(sc->flags & PSTATE_CPPC))
+	if ((sc->flags & HWPFL_USE_CPPC) == 0)
 		hwpstate_goto_pstate(dev, 0);
 	return (cpufreq_unregister(dev));
 }
