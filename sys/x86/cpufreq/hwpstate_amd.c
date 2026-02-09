@@ -799,14 +799,6 @@ enable_cppc_cb(void *args)
 
 	data->request = sc->cppc.request;
 	/*
-	 * In Intel's reference manual, the default value of EPP is 0x80u which
-	 * is the balanced mode. For consistency, we set the same value in AMD's
-	 * CPPC driver.
-	 */
-	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_EPP_BITS, 0x80);
-	/* Enable autonomous mode by setting desired performance to 0. */
-	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
-	/*
 	 * Assuming reading MSR_AMD_CPPC_CAPS_1 succeeded, if it stays at its
 	 * reset value (0) before CPPC activation (not supposed to happen, but
 	 * happens in the field), we use reasonable default values that are
@@ -833,6 +825,16 @@ enable_cppc_cb(void *args)
 	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
 	    lowest_perf);
 	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_MAX_PERF_BITS,
+	    highest_perf);
+	/*
+	 * Set controls to maximum performance to avoid regressions now that
+	 * CPPC is activated by default and to match what the P-state support
+	 * does.
+	 */
+	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_EPP_BITS, 0);
+	/* 0 in "Desired Performance" is autonomous mode. */
+	MPASS(highest_perf != 0);
+	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_DES_PERF_BITS,
 	    highest_perf);
 
 	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, data->request);
