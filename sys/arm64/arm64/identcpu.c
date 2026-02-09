@@ -2526,7 +2526,7 @@ get_kernel_reg_iss(u_int iss, uint64_t *val)
 		}
 	}
 
-	return (false);
+	panic("%s: Invalid register %x", __func__, iss);
 }
 
 /*
@@ -2553,7 +2553,7 @@ get_kernel_reg_iss_masked(u_int iss, uint64_t *valp, uint64_t mask)
 		}
 	}
 
-	return (false);
+	panic("%s: Invalid register %x", __func__, iss);
 }
 
 bool
