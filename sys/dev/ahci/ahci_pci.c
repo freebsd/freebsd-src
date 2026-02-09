@@ -523,7 +523,8 @@ ahci_pci_attach(device_t dev)
 	 * here, or the user has to change the mode in the BIOS
 	 * from RST to AHCI.
 	 */
-	if (pci_get_vendor(dev) == 0x8086) {
+	if (pci_get_vendor(dev) == 0x8086 &&
+	    rman_get_size(ctlr->r_mem) >= 512 * 1024) {
 		uint32_t vscap;
 
 		vscap = ATA_INL(ctlr->r_mem, AHCI_VSCAP);
