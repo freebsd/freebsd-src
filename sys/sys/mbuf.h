@@ -579,6 +579,10 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
 #define	M_HASHTYPE_ISHASH(m)	\
     (((m)->m_pkthdr.rsstype & M_HASHTYPE_HASHPROP) != 0)
+#define	M_HASHTYPE_ISHASH_TCP(m)				\
+    (((m)->m_pkthdr.rsstype & (M_HASHTYPE_RSS_TCP_IPV4 |		\
+				M_HASHTYPE_RSS_TCP_IPV6 |		\
+				M_HASHTYPE_RSS_TCP_IPV6_EX)) != 0)
 #define	M_HASHTYPE_SETINNER(m)	do {			\
 	(m)->m_pkthdr.rsstype |= M_HASHTYPE_INNER;	\
     } while (0)
