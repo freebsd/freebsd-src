@@ -30,5 +30,5 @@
  */
 
 void *as_setup(const char *);
-unsigned int as_lookup(void *, char *, sa_family_t);
+unsigned int as_lookup(void *, char *, sa_family_t, int *);
 void as_shutdown(void *);
