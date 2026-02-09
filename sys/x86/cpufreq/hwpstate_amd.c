@@ -698,7 +698,7 @@ struct set_autonomous_hwp_data {
 };
 
 static void
-amd_set_autonomous_hwp_cb(void *args)
+enable_cppc_cb(void *args)
 {
 	struct set_autonomous_hwp_data *const data = args;
 	struct hwpstate_softc *const sc = data->sc;
@@ -765,7 +765,7 @@ amd_set_autonomous_hwp_cb(void *args)
 }
 
 static int
-amd_set_autonomous_hwp(struct hwpstate_softc *sc)
+enable_cppc(struct hwpstate_softc *sc)
 {
 	const device_t dev = sc->dev;
 	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
@@ -775,7 +775,7 @@ amd_set_autonomous_hwp(struct hwpstate_softc *sc)
 
 	data.sc = sc;
 	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
-	    amd_set_autonomous_hwp_cb, smp_no_rendezvous_barrier, &data);
+	    enable_cppc_cb, smp_no_rendezvous_barrier, &data);
 
 	if (hwp_has_error(data.res, HWP_ERROR_CPPC_ENABLE)) {
 		device_printf(dev, "CPU%u: Failed to enable CPPC!\n", cpuid);
@@ -908,7 +908,7 @@ hwpstate_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	if ((sc->flags & HWPFL_USE_CPPC) != 0) {
-		if ((res = amd_set_autonomous_hwp(sc)))
+		if ((res = enable_cppc(sc)) != 0)
 			return (res);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_STATIC_CHILDREN(_debug), OID_AUTO,
