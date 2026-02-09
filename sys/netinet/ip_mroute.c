@@ -593,7 +593,10 @@ get_sg_cnt(struct sioc_sg_req *req)
 static int
 get_vif_cnt(struct sioc_vif_req *req)
 {
-	vifi_t vifi = req->vifi;
+	struct vif *vif;
+	vifi_t vifi;
+
+	vifi = req->vifi;
 
 	MRW_RLOCK();
 	if (vifi >= V_numvifs) {
@@ -601,12 +604,13 @@ get_vif_cnt(struct sioc_vif_req *req)
 		return EINVAL;
 	}
 
-	mtx_lock(&V_viftable[vifi].v_mtx);
-	req->icount = V_viftable[vifi].v_pkt_in;
-	req->ocount = V_viftable[vifi].v_pkt_out;
-	req->ibytes = V_viftable[vifi].v_bytes_in;
-	req->obytes = V_viftable[vifi].v_bytes_out;
-	mtx_unlock(&V_viftable[vifi].v_mtx);
+	vif = &V_viftable[vifi];
+	mtx_lock(&vif->v_mtx);
+	req->icount = vif->v_pkt_in;
+	req->ocount = vif->v_pkt_out;
+	req->ibytes = vif->v_bytes_in;
+	req->obytes = vif->v_bytes_out;
+	mtx_unlock(&vif->v_mtx);
 	MRW_RUNLOCK();
 
 	return 0;
@@ -1573,6 +1577,7 @@ static int
 ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 {
 	struct ip *ip = mtod(m, struct ip *);
+	struct vif *vif;
 	vifi_t vifi;
 	int plen = ntohs(ip->ip_len);
 
@@ -1597,9 +1602,10 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	 * Don't forward if it didn't arrive from the parent vif for its origin.
 	 */
 	vifi = rt->mfc_parent;
-	if ((vifi >= V_numvifs) || (V_viftable[vifi].v_ifp != ifp)) {
+	vif = &V_viftable[vifi];
+	if (vifi >= V_numvifs || vif->v_ifp != ifp) {
 		CTR4(KTR_IPMF, "%s: rx on wrong ifp %p (vifi %d, v_ifp %p)",
-				__func__, ifp, (int)vifi, V_viftable[vifi].v_ifp);
+				__func__, ifp, (int)vifi, vif->v_ifp);
 		MRTSTAT_INC(mrts_wrong_if);
 		++rt->mfc_wrong_if;
 		/*
@@ -1611,7 +1617,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		 * of the iif (broadcast media, GRE tunnel, etc).
 		 */
 		if (V_pim_assert_enabled && (vifi < V_numvifs) &&
-		    V_viftable[vifi].v_ifp) {
+		    vif->v_ifp != NULL) {
 			if (ifp == V_multicast_register_if)
 				PIMSTAT_INC(pims_rcv_registers_wrongiif);
 
@@ -1654,15 +1660,15 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	}
 
 	/* If I sourced this packet, it counts as output, else it was input. */
-	mtx_lock(&V_viftable[vifi].v_mtx);
-	if (in_hosteq(ip->ip_src, V_viftable[vifi].v_lcl_addr)) {
-		V_viftable[vifi].v_pkt_out++;
-		V_viftable[vifi].v_bytes_out += plen;
+	mtx_lock(&vif->v_mtx);
+	if (in_hosteq(ip->ip_src, vif->v_lcl_addr)) {
+		vif->v_pkt_out++;
+		vif->v_bytes_out += plen;
 	} else {
-		V_viftable[vifi].v_pkt_in++;
-		V_viftable[vifi].v_bytes_in += plen;
+		vif->v_pkt_in++;
+		vif->v_bytes_in += plen;
 	}
-	mtx_unlock(&V_viftable[vifi].v_mtx);
+	mtx_unlock(&vif->v_mtx);
 
 	rt->mfc_pkt_cnt++;
 	rt->mfc_byte_cnt += plen;
@@ -1675,12 +1681,13 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	 */
 	for (vifi = 0; vifi < V_numvifs; vifi++)
 		if ((rt->mfc_ttls[vifi] > 0) && (ip->ip_ttl > rt->mfc_ttls[vifi])) {
-			V_viftable[vifi].v_pkt_out++;
-			V_viftable[vifi].v_bytes_out += plen;
-			if (V_viftable[vifi].v_flags & VIFF_REGISTER)
-				pim_register_send(ip, V_viftable + vifi, m, rt);
+			vif = &V_viftable[vifi];
+			vif->v_pkt_out++;
+			vif->v_bytes_out += plen;
+			if (vif->v_flags & VIFF_REGISTER)
+				pim_register_send(ip, vif, m, rt);
 			else
-				phyint_send(ip, V_viftable + vifi, m);
+				phyint_send(ip, vif, m);
 		}
 
 	/*
