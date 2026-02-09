@@ -764,10 +764,9 @@ DEFINE_IFUNC(, uint32_t, calculate_crc32c,
 {
 	uint64_t reg;
 
-	if (get_kernel_reg(ID_AA64ISAR0_EL1, &reg)) {
-		if (ID_AA64ISAR0_CRC32_VAL(reg) >= ID_AA64ISAR0_CRC32_BASE)
-			return (armv8_crc32c);
-	}
+	get_kernel_reg(ID_AA64ISAR0_EL1, &reg);
+	if (ID_AA64ISAR0_CRC32_VAL(reg) >= ID_AA64ISAR0_CRC32_BASE)
+		return (armv8_crc32c);
 
 	return (table_crc32c);
 }

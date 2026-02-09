@@ -178,8 +178,7 @@ pan_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64mfr1;
 
-	if (!get_kernel_reg(ID_AA64MMFR1_EL1, &id_aa64mfr1))
-		return (FEAT_ALWAYS_DISABLE);
+	get_kernel_reg(ID_AA64MMFR1_EL1, &id_aa64mfr1);
 	if (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) == ID_AA64MMFR1_PAN_NONE)
 		return (FEAT_ALWAYS_DISABLE);
 
@@ -224,8 +223,7 @@ mops_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64isar2;
 
-	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
-		return (FEAT_ALWAYS_DISABLE);
+	get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2);
 	if (ID_AA64ISAR2_MOPS_VAL(id_aa64isar2) == ID_AA64ISAR2_MOPS_NONE)
 		return (FEAT_ALWAYS_DISABLE);
 

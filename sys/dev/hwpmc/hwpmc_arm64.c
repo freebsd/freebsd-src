@@ -558,10 +558,9 @@ pmc_arm64_initialize(void)
 	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "0x%016lx", midr);
 
 	/* Check if we have 64-bit counters */
-	if (get_kernel_reg(ID_AA64DFR0_EL1, &dfr)) {
-		if (ID_AA64DFR0_PMUVer_VAL(dfr) >= ID_AA64DFR0_PMUVer_3_5)
-			arm64_64bit_events = true;
-	}
+	get_kernel_reg(ID_AA64DFR0_EL1, &dfr);
+	if (ID_AA64DFR0_PMUVer_VAL(dfr) >= ID_AA64DFR0_PMUVer_3_5)
+		arm64_64bit_events = true;
 
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for

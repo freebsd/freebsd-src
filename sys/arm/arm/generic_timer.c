@@ -662,8 +662,8 @@ arm_tmr_attach(device_t dev)
 
 	sc->get_cntxct = &get_cntxct;
 #ifdef __aarch64__
-	if (get_kernel_reg(ID_AA64MMFR0_EL1, &id_aa64mmfr0_el1) &&
-	    ID_AA64MMFR0_ECV_VAL(id_aa64mmfr0_el1) >= ID_AA64MMFR0_ECV_IMPL)
+	get_kernel_reg(ID_AA64MMFR0_EL1, &id_aa64mmfr0_el1);
+	if (ID_AA64MMFR0_ECV_VAL(id_aa64mmfr0_el1) >= ID_AA64MMFR0_ECV_IMPL)
 		sc->get_cntxct = &get_cntxctss;
 #endif
 #ifdef FDT
@@ -912,8 +912,7 @@ wfxt_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64isar2;
 
-	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
-		return (FEAT_ALWAYS_DISABLE);
+	get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2);
 	if (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) >= ID_AA64ISAR2_WFxT_IMPL)
 		return (FEAT_DEFAULT_ENABLE);
 
