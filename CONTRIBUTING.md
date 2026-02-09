@@ -39,10 +39,10 @@ A pull request will be considered if:
 * You can respond to feedback quickly. If feedback is requested and one month passes without a response we may close the pull request.
 * It touches fewer than about 10 files and the changes are less than about 200 lines. Changes larger than this may be OK, or you may be asked to submit multiple pull requests of a more manageable size.
 * Each logical change is a separate commit within the pull request. Commit messages for each change should follow the [commit log message guide](https://docs.freebsd.org/en/articles/committers-guide/#commit-log-message).
-* All commits have, as the git author, your name and valid email address as you would like to see them in the FreeBSD repository. Fake github.com addresses cannot be used. But see [Author Name and Email][#author-name-and-email] for details.
+* All commits have, as the git author, your name and valid email address as you would like to see them in the FreeBSD repository. Fake github.com addresses cannot be used. But see [Author Name and Email](#author-name-and-email) for details.
 * The scope of the pull request should not change during review. If the review suggests changes that expand the scope, please create an independent pull request.
 * Fixup commits should be squashed with the commit they are fixing. Each commit in your branch should be suitable for FreeBSD's repository.
-* Commit messages should include one or more `Signed-off-by:` trailer lines with name and email address certifying [Developer Certificate of Origin](https://developercertificate.org/). But see [Author Name and Email][#author-name-and-email] for details.
+* Commit messages should include one or more `Signed-off-by:` trailer lines with name and email address certifying [Developer Certificate of Origin](https://developercertificate.org/). But see [Author Name and Email](#author-name-and-email) for details.
 * The commits follow FreeBSD's style guide. See [Style](#Style).
 * Run tools/build/checkstyle9.pl on your Git branch and eliminate all errors, or provide an explanation for exceptions. The tool sometimes makes mistakes, and providing an explanation shows you have examined the output.
 * The commits do not introduce trailing white space.
