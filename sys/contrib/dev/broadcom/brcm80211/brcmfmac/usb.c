@@ -8,6 +8,9 @@
 #include <linux/firmware.h>
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#endif
 
 #include <brcmu_utils.h>
 #include <brcm_hw_ids.h>
@@ -255,7 +258,11 @@ brcmf_usb_send_ctl(struct brcmf_usbdev_info *devinfo, u8 *buf, int len)
 		devinfo->ctl_out_pipe,
 		(unsigned char *) &devinfo->ctl_write,
 		buf, size,
+#if defined(__linux__)
 		(usb_complete_t)brcmf_usb_ctlwrite_complete,
+#elif defined(__FreeBSD__)
+		brcmf_usb_ctlwrite_complete,
+#endif
 		devinfo);
 
 	ret = usb_submit_urb(devinfo->ctl_urb, GFP_ATOMIC);
@@ -289,7 +296,11 @@ brcmf_usb_recv_ctl(struct brcmf_usbdev_info *devinfo, u8 *buf, int len)
 		devinfo->ctl_in_pipe,
 		(unsigned char *) &devinfo->ctl_read,
 		buf, size,
+#if defined(__linux__)
 		(usb_complete_t)brcmf_usb_ctlread_complete,
+#elif defined(__FreeBSD__)
+		brcmf_usb_ctlread_complete,
+#endif
 		devinfo);
 
 	ret = usb_submit_urb(devinfo->ctl_urb, GFP_ATOMIC);
@@ -768,7 +779,11 @@ static int brcmf_usb_dl_cmd(struct brcmf_usbdev_info *devinfo, u8 cmd,
 		usb_rcvctrlpipe(devinfo->usbdev, 0),
 		(unsigned char *) &devinfo->ctl_read,
 		(void *) tmpbuf, size,
+#if defined(__linux__)
 		(usb_complete_t)brcmf_usb_sync_complete, devinfo);
+#elif defined(__FreeBSD__)
+		brcmf_usb_sync_complete, devinfo);
+#endif
 
 	devinfo->ctl_completed = false;
 	ret = usb_submit_urb(devinfo->ctl_urb, GFP_ATOMIC);
@@ -873,7 +888,11 @@ brcmf_usb_dl_send_bulk(struct brcmf_usbdev_info *devinfo, void *buffer, int len)
 	/* Prepare the URB */
 	usb_fill_bulk_urb(devinfo->bulk_urb, devinfo->usbdev,
 			  devinfo->tx_pipe, buffer, len,
+#if defined(__linux__)
 			  (usb_complete_t)brcmf_usb_sync_complete, devinfo);
+#elif defined(__FreeBSD__)
+			  brcmf_usb_sync_complete, devinfo);
+#endif
 
 	devinfo->bulk_urb->transfer_flags |= URB_ZERO_PACKET;
 
@@ -888,10 +907,19 @@ brcmf_usb_dl_send_bulk(struct brcmf_usbdev_info *devinfo, void *buffer, int len)
 }
 
 static int
+#if defined(__linux__)
 brcmf_usb_dl_writeimage(struct brcmf_usbdev_info *devinfo, u8 *fw, int fwlen)
+#elif defined(__FreeBSD__)
+brcmf_usb_dl_writeimage(struct brcmf_usbdev_info *devinfo, const u8 *fw, int fwlen)
+#endif
 {
 	unsigned int sendlen, sent, dllen;
+#if defined(__linux__)
 	char *bulkchunk = NULL, *dlpos;
+#elif defined(__FreeBSD__)
+	char *bulkchunk = NULL;
+	const u8 *dlpos;
+#endif
 	struct rdl_state_le state;
 	u32 rdlstate, rdlbytes;
 	int err = 0;
@@ -973,7 +1001,11 @@ fail:
 	return err;
 }
 
+#if defined(__linux__)
 static int brcmf_usb_dlstart(struct brcmf_usbdev_info *devinfo, u8 *fw, int len)
+#elif defined(__FreeBSD__)
+static int brcmf_usb_dlstart(struct brcmf_usbdev_info *devinfo, const u8 *fw, int len)
+#endif
 {
 	int err;
 
@@ -1049,7 +1081,11 @@ brcmf_usb_fw_download(struct brcmf_usbdev_info *devinfo)
 		goto out;
 
 	err = brcmf_usb_dlstart(devinfo,
+#if defined(__linux__)
 		(u8 *)devinfo->image, devinfo->image_len);
+#elif defined(__FreeBSD__)
+		(const u8 *)devinfo->image, devinfo->image_len);
+#endif
 	if (err == 0)
 		err = brcmf_usb_dlrun(devinfo);
 
@@ -1080,12 +1116,20 @@ static void brcmf_usb_detach(struct brcmf_usbdev_info *devinfo)
 
 static int check_file(const u8 *headers)
 {
+#if defined(__linux__)
 	struct trx_header_le *trx;
+#elif defined(__FreeBSD__)
+	const struct trx_header_le *trx;
+#endif
 	int actual_len = -1;
 
 	brcmf_dbg(USB, "Enter\n");
 	/* Extract trx header */
+#if defined(__linux__)
 	trx = (struct trx_header_le *) headers;
+#elif defined(__FreeBSD__)
+	trx = (const struct trx_header_le *) headers;
+#endif
 	if (trx->magic != cpu_to_le32(TRX_MAGIC))
 		return -1;
 
@@ -1187,6 +1231,10 @@ static void brcmf_usb_probe_phase2(struct device *dev, int ret,
 
 	fw = fwreq->items[BRCMF_USB_FW_CODE].binary;
 	kfree(fwreq);
+#if defined(__FreeBSD__)
+	if (fw == NULL)
+		goto error;
+#endif
 
 	ret = check_file(fw->data);
 	if (ret < 0) {
@@ -1602,3 +1650,7 @@ int brcmf_usb_register(void)
 	brcmf_dbg(USB, "Enter\n");
 	return usb_register(&brcmf_usbdrvr);
 }
+
+#if defined(__FreeBSD__)
+MODULE_DEPEND(brcmfmac, linuxkpi_usb, 1, 1, 1);
+#endif

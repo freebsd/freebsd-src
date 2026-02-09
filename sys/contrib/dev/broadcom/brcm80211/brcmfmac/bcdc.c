@@ -387,12 +387,18 @@ brcmf_proto_bcdc_configure_addr_mode(struct brcmf_pub *drvr, int ifidx,
 
 static void
 brcmf_proto_bcdc_delete_peer(struct brcmf_pub *drvr, int ifidx,
+#if defined(__FreeBSD__)
+			const
+#endif
 			     u8 peer[ETH_ALEN])
 {
 }
 
 static void
 brcmf_proto_bcdc_add_tdls_peer(struct brcmf_pub *drvr, int ifidx,
+#if defined(__FreeBSD__)
+			const
+#endif
 			       u8 peer[ETH_ALEN])
 {
 }
