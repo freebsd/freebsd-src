@@ -227,28 +227,6 @@ check_cppc_in_use(const struct hwpstate_softc *const sc, const char *const func)
 	    ": %s() called but HWPFL_USE_CPPC not set", func));
 }
 
-/*
- * Internal errors conveyed by code executing on another CPU.
- */
-#define HWP_ERROR_CPPC_ENABLE		(1 << 0)
-#define HWP_ERROR_CPPC_CAPS		(1 << 1)
-#define HWP_ERROR_CPPC_REQUEST		(1 << 2)
-#define HWP_ERROR_CPPC_REQUEST_WRITE	(1 << 3)
-
-static inline bool
-hwp_has_error(u_int res, u_int err)
-{
-	return ((res & err) != 0);
-}
-
-struct get_cppc_regs_data {
-	uint64_t enable;
-	uint64_t caps;
-	uint64_t req;
-	/* HWP_ERROR_CPPC_* except HWP_ERROR_*_WRITE */
-	u_int res;
-};
-
 static void
 print_msr_bits(struct sbuf *const sb, const char *const legend,
     const uint64_t bits, const uint64_t msr_value)
@@ -299,6 +277,28 @@ print_cppc_no_request(struct sbuf *const sb)
 {
 	sbuf_printf(sb, MSR_AMD_CPPC_REQUEST_NAME ": " MSR_NOT_READ_MSG "\n");
 }
+
+/*
+ * Internal errors conveyed by code executing on another CPU.
+ */
+#define HWP_ERROR_CPPC_ENABLE		(1 << 0)
+#define HWP_ERROR_CPPC_CAPS		(1 << 1)
+#define HWP_ERROR_CPPC_REQUEST		(1 << 2)
+#define HWP_ERROR_CPPC_REQUEST_WRITE	(1 << 3)
+
+static inline bool
+hwp_has_error(u_int res, u_int err)
+{
+	return ((res & err) != 0);
+}
+
+struct get_cppc_regs_data {
+	uint64_t enable;
+	uint64_t caps;
+	uint64_t req;
+	/* HWP_ERROR_CPPC_* except HWP_ERROR_*_WRITE */
+	u_int res;
+};
 
 static void
 get_cppc_regs_cb(void *args)
