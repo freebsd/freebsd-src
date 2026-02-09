@@ -116,9 +116,10 @@ sdhci_fdt_rockchip_probe(device_t dev)
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
 
 	sc->quirks = 0;
-	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
+
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
 	case SDHCI_FDT_RK3399:
 		device_set_desc(dev, "Rockchip RK3399 fdt SDHCI controller");
 		break;
