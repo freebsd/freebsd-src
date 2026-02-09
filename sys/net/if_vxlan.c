@@ -3616,8 +3616,6 @@ vxlan_ifdetach_event(void *arg __unused, struct ifnet *ifp)
 	struct vxlan_socket *vso;
 	struct vxlan_softc *sc, *tsc;
 
-	if (ifp->if_flags & IFF_RENAMING)
-		return;
 	if ((ifp->if_flags & IFF_MULTICAST) == 0)
 		return;
 

@@ -2291,8 +2291,6 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 	if (bif)
 		sc = bif->bif_sc;
 
-	if (ifp->if_flags & IFF_RENAMING)
-		return;
 	if (V_bridge_cloner == NULL) {
 		/*
 		 * This detach handler can be called after

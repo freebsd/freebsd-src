@@ -3022,14 +3022,6 @@ if_rename(struct ifnet *ifp, char *new_name)
 	if (ifunit(new_name) != NULL)
 		return (EEXIST);
 
-	/*
-	 * XXX: Locking.  Nothing else seems to lock if_flags,
-	 * and there are numerous other races with the
-	 * ifunit() checks not being atomic with namespace
-	 * changes (renames, vmoves, if_attach, etc).
-	 */
-	ifp->if_flags |= IFF_RENAMING;
-
 	if_printf(ifp, "changing name to '%s'\n", new_name);
 
 	IF_ADDR_WLOCK(ifp);
@@ -3057,8 +3049,6 @@ if_rename(struct ifnet *ifp, char *new_name)
 	IF_ADDR_WUNLOCK(ifp);
 
 	EVENTHANDLER_INVOKE(ifnet_rename_event, ifp, old_name);
-
-	ifp->if_flags &= ~IFF_RENAMING;
 
 	snprintf(strbuf, sizeof(strbuf), "name=%s", new_name);
 	devctl_notify("IFNET", old_name, "RENAME", strbuf);
