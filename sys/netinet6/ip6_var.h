@@ -309,7 +309,6 @@ VNET_DECLARE(int, ip6_v6only);
 #define	V_ip6_mcast_pmtu		VNET(ip6_mcast_pmtu)
 #define	V_ip6_v6only			VNET(ip6_v6only)
 
-VNET_DECLARE(struct socket *, ip6_mrouter);	/* multicast routing daemon */
 VNET_DECLARE(int, ip6_sendredirects);	/* send IP redirects when forwarding? */
 VNET_DECLARE(int, ip6_accept_rtadv);	/* Acts as a host not a router */
 VNET_DECLARE(int, ip6_no_radr);		/* No defroute from RA */
@@ -320,7 +319,6 @@ VNET_DECLARE(int, ip6_rfc6204w3);	/* Accept defroute from RA even when
 VNET_DECLARE(int, ip6_hdrnestlimit);	/* upper limit of # of extension
 					 * headers */
 VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
-#define	V_ip6_mrouter			VNET(ip6_mrouter)
 #define	V_ip6_sendredirects		VNET(ip6_sendredirects)
 #define	V_ip6_accept_rtadv		VNET(ip6_accept_rtadv)
 #define	V_ip6_no_radr			VNET(ip6_no_radr)

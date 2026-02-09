@@ -90,6 +90,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
+#include <netinet6/ip6_mroute.h>
 #include <netinet6/mld6.h>
 #include <netinet6/mld6_var.h>
 

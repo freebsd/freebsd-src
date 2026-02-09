@@ -356,14 +356,29 @@ struct bw_meter {
 };
 
 #ifdef _KERNEL
+VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
+#define	V_ip_mrouter		VNET(ip_mrouter)
 
+struct ifnet;
+struct ip;
+struct ip_moptions;
+struct mbuf;
+struct socket;
 struct sockopt;
 
-extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
-extern int	(*ip_mrouter_get)(struct socket *, struct sockopt *);
+extern u_long	(*ip_mcast_src)(int);
+extern int	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
+		    struct ip_moptions *);
 extern int	(*ip_mrouter_done)(void);
-extern int	(*mrt_ioctl)(u_long, caddr_t, int);
+extern int	(*ip_mrouter_get)(struct socket *, struct sockopt *);
+extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
 
+extern void	(*ip_rsvp_force_done)(struct socket *);
+extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
+
+extern int	(*legal_vif_num)(int);
+extern int	(*mrt_ioctl)(u_long, caddr_t, int);
+extern int	(*rsvp_input_p)(struct mbuf **, int *, int);
 #endif /* _KERNEL */
 
 #endif /* _NETINET_IP_MROUTE_H_ */
