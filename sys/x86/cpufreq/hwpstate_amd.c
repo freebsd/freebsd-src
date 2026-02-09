@@ -772,7 +772,10 @@ enable_cppc_cb(void *args)
 	uint64_t lowest_perf, highest_perf;
 	int error;
 
-	/* We proceed sequentially, so we'll clear out errors on progress. */
+	/*
+	 * We proceed mostly sequentially, so we'll clear out errors on
+	 * progress.
+	 */
 	data->res = HWP_ERROR_CPPC_ENABLE | HWP_ERROR_CPPC_CAPS |
 	    HWP_ERROR_CPPC_REQUEST | HWP_ERROR_CPPC_REQUEST_WRITE;
 
@@ -784,9 +787,9 @@ enable_cppc_cb(void *args)
 	data->res &= ~HWP_ERROR_CPPC_ENABLE;
 
 	error = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &data->caps);
-	if (error != 0)
-		return;
-	data->res &= ~HWP_ERROR_CPPC_CAPS;
+	/* We can do away without CAPABILITY_1, so just continue on error. */
+	if (error == 0)
+		data->res &= ~HWP_ERROR_CPPC_CAPS;
 
 	error = get_cppc_request(sc);
 	if (error != 0)
@@ -804,20 +807,28 @@ enable_cppc_cb(void *args)
 	/* Enable autonomous mode by setting desired performance to 0. */
 	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
 	/*
-	 * When MSR_AMD_CPPC_CAPS_1 stays at its reset value (0) before CPPC
-	 * activation (not supposed to happen, but happens in the field), we use
-	 * reasonable default values that are explicitly described by the ACPI
-	 * spec (all 0s for the minimum value, all 1s for the maximum one).
-	 * Going further, we actually do the same as long as the minimum and
-	 * maximum performance levels are not sorted or are equal (in which case
-	 * CPPC is not supposed to make sense at all), which covers the reset
-	 * value case.
+	 * Assuming reading MSR_AMD_CPPC_CAPS_1 succeeded, if it stays at its
+	 * reset value (0) before CPPC activation (not supposed to happen, but
+	 * happens in the field), we use reasonable default values that are
+	 * explicitly described by the ACPI spec (all 0s for the minimum value,
+	 * all 1s for the maximum one).  Going further, we actually do the same
+	 * as long as the minimum and maximum performance levels are not sorted
+	 * or are equal (in which case CPPC is not supposed to make sense at
+	 * all), which covers the reset value case.  And we also fallback to
+	 * these if MSR_AMD_CPPC_CAPS_1 could not be read at all.
 	 */
-	lowest_perf = BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data->caps);
-	highest_perf = BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data->caps);
-	if (lowest_perf >= highest_perf) {
-		lowest_perf = 0;
-		highest_perf = -1;
+	lowest_perf = 0;
+	highest_perf = -1;
+	if (!hwp_has_error(data->res, HWP_ERROR_CPPC_CAPS)) {
+		const uint64_t lowest_cand =
+		    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data->caps);
+		const uint64_t highest_cand =
+		    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data->caps);
+
+		if (lowest_cand < highest_cand) {
+			lowest_perf = lowest_cand;
+			highest_perf = highest_cand;
+		}
 	}
 	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
 	    lowest_perf);
