@@ -104,7 +104,7 @@ OLD_FILES+=usr/tests/cddl/lib/libtpool/libtpool_test
 OLD_FILES+=usr/tests/cddl/lib/libtpool/Kyuafile
 
 # 20251204: zpfind.9 alias to pfind.9 removed
-OLD_FILES+=usr/share/man/man9/zpfind.9
+OLD_FILES+=usr/share/man/man9/zpfind.9.gz
 
 # 20251121: Remove duplicate pam_krb5 manual page
 OLD_FILES+=usr/share/man/man8/pam-krb5.8.gz
