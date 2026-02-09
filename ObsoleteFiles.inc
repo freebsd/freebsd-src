@@ -51,6 +51,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+
 # 20260402: posix_spawn_file_actions_addchdir lost _np suffix
 OLD_FILES+=usr/share/man/man3/posix_spawn_file_actions_addchdir_np.3.gz
 OLD_FILES+=usr/share/man/man3/posix_spawn_file_actions_addfchdir_np.3.gz
@@ -59,6 +60,14 @@ OLD_FILES+=usr/share/man/man3/posix_spawn_file_actions_addfchdir_np.3.gz
 OLD_FILES+=usr/share/doc/ncurses/hackguide.html
 OLD_FILES+=usr/share/doc/ncurses/ncurses-intro.html
 OLD_DIRS+=usr/share/doc/ncurses
+
+# 20260209: Moved allwinner pages to share/man/man4
+OLD_FILES+=usr/share/man/man4/arm/aw_gpio.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_mmc.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_rtc.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_sid.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_spi.4.gz
+OLD_FILES+=usr/share/man/man4/arm/aw_syscon.4.gz
 
 # 20260204: replaced with ATF test
 OLD_FILES+=usr/tests/usr.bin/m4/legacy_test
