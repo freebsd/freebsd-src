@@ -1213,7 +1213,7 @@ linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 int
 linux_umount(struct thread *td, struct linux_umount_args *args)
 {
-	int flags;
+	uint64_t flags;
 
 	flags = 0;
 	if ((args->flags & LINUX_MNT_FORCE) != 0) {
