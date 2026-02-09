@@ -117,6 +117,7 @@ static const struct aw_mmc_conf a64_emmc_conf = {
 
 static const struct aw_mmc_conf h616_mmc_conf = {
 	.dma_xferlen = 0x10000,
+	.dma_desc_shift = 2,
 	.mask_data0 = true,
 	.can_calibrate = true,
 	.new_timing = true,
@@ -736,6 +737,13 @@ aw_mmc_reset(struct aw_mmc_softc *sc)
 	}
 	if (timeout == 0)
 		return (ETIMEDOUT);
+
+	/*
+	 * Assert hardware reset and have the card move to the pre-idle state.
+	 * This is needed on H616 to get the card into a functional state.
+	 */
+	AW_MMC_WRITE_4(sc, AW_MMC_HWRST, AW_MMC_HWRST_ASSERT);
+	AW_MMC_WRITE_4(sc, AW_MMC_HWRST, AW_MMC_HWRST_DEASSERT);
 
 	return (0);
 }
