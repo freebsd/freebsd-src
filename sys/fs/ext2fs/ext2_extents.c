@@ -447,11 +447,7 @@ static int
 ext4_ext_check_header(struct inode *ip, struct ext4_extent_header *eh,
     int depth)
 {
-#ifdef KDTRACE_HOOKS
-	char *error_msg;
-#else
-	char *error_msg __unused;
-#endif
+	char *error_msg __sdt_used;
 
 	if (le16toh(eh->eh_magic) != EXT4_EXT_MAGIC) {
 		error_msg = "header: invalid magic";
