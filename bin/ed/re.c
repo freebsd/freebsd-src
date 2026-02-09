@@ -1,6 +1,8 @@
 /* re.c: This file contains the regular expression interface routines for
    the ed line editor. */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1993 Andrew Moore, Talke Studio.
  * All rights reserved.
  *
