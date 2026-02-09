@@ -2514,7 +2514,7 @@ mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 	return (a - b);
 }
 
-bool
+void
 get_kernel_reg_iss(u_int iss, uint64_t *val)
 {
 	int i;
@@ -2522,7 +2522,7 @@ get_kernel_reg_iss(u_int iss, uint64_t *val)
 	for (i = 0; i < nitems(user_regs); i++) {
 		if (user_regs[i].iss == iss) {
 			*val = CPU_DESC_FIELD(kern_cpu_desc, i);
-			return (true);
+			return;
 		}
 	}
 
@@ -2533,7 +2533,7 @@ get_kernel_reg_iss(u_int iss, uint64_t *val)
  * Fetch the specified register's value, ensuring that individual field values
  * do not exceed those in the mask.
  */
-bool
+void
 get_kernel_reg_iss_masked(u_int iss, uint64_t *valp, uint64_t mask)
 {
 	const struct mrs_field *fields;
@@ -2549,7 +2549,7 @@ get_kernel_reg_iss_masked(u_int iss, uint64_t *valp, uint64_t mask)
 				    fields[j].shift, fields[j].sign);
 			}
 			*valp = mask;
-			return (true);
+			return;
 		}
 	}
 
