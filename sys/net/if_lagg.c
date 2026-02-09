@@ -2326,7 +2326,7 @@ lagg_port_state(struct ifnet *ifp, int state)
 	LAGG_XUNLOCK(sc);
 }
 
-struct lagg_port *
+static struct lagg_port *
 lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 {
 	struct lagg_port *lp_next, *rval = NULL;
