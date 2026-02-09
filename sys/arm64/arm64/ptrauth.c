@@ -113,18 +113,15 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	 * The QARMA5 or implementation defined algorithms are reported in
 	 * ID_AA64ISAR1_EL1.
 	 */
-	if (get_kernel_reg(ID_AA64ISAR1_EL1, &isar)) {
-		if (ID_AA64ISAR1_APA_VAL(isar) > 0 ||
-		    ID_AA64ISAR1_API_VAL(isar) > 0) {
-			return (FEAT_DEFAULT_ENABLE);
-		}
+	get_kernel_reg(ID_AA64ISAR1_EL1, &isar);
+	if (ID_AA64ISAR1_APA_VAL(isar) > 0 || ID_AA64ISAR1_API_VAL(isar) > 0) {
+		return (FEAT_DEFAULT_ENABLE);
 	}
 
 	/* The QARMA3 algorithm is reported in ID_AA64ISAR2_EL1. */
-	if (get_kernel_reg(ID_AA64ISAR2_EL1, &isar)) {
-		if (ID_AA64ISAR2_APA3_VAL(isar) > 0) {
-			return (FEAT_DEFAULT_ENABLE);
-		}
+	get_kernel_reg(ID_AA64ISAR2_EL1, &isar);
+	if (ID_AA64ISAR2_APA3_VAL(isar) > 0) {
+		return (FEAT_DEFAULT_ENABLE);
 	}
 
 	return (FEAT_ALWAYS_DISABLE);

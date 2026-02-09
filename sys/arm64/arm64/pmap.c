@@ -9161,16 +9161,15 @@ pmap_init_mp(void *dummy __unused)
 {
 	uint64_t reg;
 
-	if (get_kernel_reg(ID_AA64PFR1_EL1, &reg)) {
-		if (ID_AA64PFR1_BT_VAL(reg) != ID_AA64PFR1_BT_NONE) {
-			if (bootverbose)
-				printf("Enabling BTI\n");
-			pmap_bti_support = true;
+	get_kernel_reg(ID_AA64PFR1_EL1, &reg);
+	if (ID_AA64PFR1_BT_VAL(reg) != ID_AA64PFR1_BT_NONE) {
+		if (bootverbose)
+			printf("Enabling BTI\n");
+		pmap_bti_support = true;
 
-			pmap_bti_ranges_zone = uma_zcreate("BTI ranges",
-			    sizeof(struct rs_el), NULL, NULL, NULL, NULL,
-			    UMA_ALIGN_PTR, 0);
-		}
+		pmap_bti_ranges_zone = uma_zcreate("BTI ranges",
+		    sizeof(struct rs_el), NULL, NULL, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
 	}
 }
 SYSINIT(pmap_init_mp, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_mp, NULL);
@@ -9185,9 +9184,7 @@ pmap_init_cnp(void *dummy __unused)
 	uint64_t reg;
 	u_int cpuid;
 
-	if (!get_kernel_reg(ID_AA64MMFR2_EL1, &reg))
-		return;
-
+	get_kernel_reg(ID_AA64MMFR2_EL1, &reg);
 	if (ID_AA64MMFR2_CnP_VAL(reg) != ID_AA64MMFR2_CnP_NONE) {
 		if (bootverbose)
 			printf("Enabling CnP\n");
