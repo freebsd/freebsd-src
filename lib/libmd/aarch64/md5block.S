@@ -134,7 +134,7 @@ d_	.req	m5
 	stp	x23, x24, [sp, #0x20]
 	stp	x25, x26, [sp, #0x30]
 
-	bics	len, len, #63		// length in blocks
+	ands	len, len, #~63		// length in blocks
 	add	end, buf, len		// end pointer
 
 	beq	.Lend			// was len == 0 after BICS?
