@@ -113,9 +113,6 @@ static struct ofw_compat_data compat_data[] = {
 static int
 sdhci_fdt_rockchip_probe(device_t dev)
 {
-	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-
-	sc->quirks = 0;
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -130,7 +127,7 @@ sdhci_fdt_rockchip_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
