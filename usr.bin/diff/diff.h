@@ -1,6 +1,8 @@
 /*	$OpenBSD: diff.h,v 1.34 2020/11/01 18:16:08 jcs Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
