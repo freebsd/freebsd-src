@@ -515,7 +515,7 @@ fdesc_setattr(struct vop_setattr_args *ap)
 		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
 	} else {
 		error = getvnode_path(td, fd,
-		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), NULL, &fp);
 	}
 	if (error) {
 		/*
@@ -652,7 +652,7 @@ fdesc_readlink(struct vop_readlink_args *va)
 	VOP_UNLOCK(vn);
 
 	td = curthread;
-	error = fget_cap(td, fd_fd, &cap_no_rights, &fp, NULL);
+	error = fget_cap(td, fd_fd, &cap_no_rights, NULL, &fp, NULL);
 	if (error != 0)
 		goto out;
 

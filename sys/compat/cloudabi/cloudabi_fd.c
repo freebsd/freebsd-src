@@ -389,7 +389,7 @@ cloudabi_sys_fd_stat_get(struct thread *td,
 	int error, oflags;
 
 	/* Obtain file descriptor properties. */
-	error = fget_cap(td, uap->fd, cap_rights_init(&rights), &fp,
+	error = fget_cap(td, uap->fd, cap_rights_init(&rights), NULL, &fp,
 	    &fcaps);
 	if (error != 0)
 		return (error);

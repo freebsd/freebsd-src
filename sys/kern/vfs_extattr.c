@@ -241,7 +241,7 @@ sys_extattr_set_fd(struct thread *td, struct extattr_set_fd_args *uap)
 	AUDIT_ARG_TEXT(attrname);
 
 	error = getvnode_path(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+	    cap_rights_init_one(&rights, CAP_EXTATTR_SET), NULL, &fp);
 	if (error)
 		return (error);
 
@@ -408,7 +408,7 @@ sys_extattr_get_fd(struct thread *td, struct extattr_get_fd_args *uap)
 	AUDIT_ARG_TEXT(attrname);
 
 	error = getvnode_path(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_GET), &fp);
+	    cap_rights_init_one(&rights, CAP_EXTATTR_GET), NULL, &fp);
 	if (error)
 		return (error);
 
@@ -543,7 +543,7 @@ sys_extattr_delete_fd(struct thread *td, struct extattr_delete_fd_args *uap)
 	AUDIT_ARG_TEXT(attrname);
 
 	error = getvnode_path(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_DELETE), &fp);
+	    cap_rights_init_one(&rights, CAP_EXTATTR_DELETE), NULL, &fp);
 	if (error)
 		return (error);
 
@@ -689,7 +689,7 @@ sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = getvnode_path(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_LIST), &fp);
+	    cap_rights_init_one(&rights, CAP_EXTATTR_LIST), NULL, &fp);
 	if (error)
 		return (error);
 
