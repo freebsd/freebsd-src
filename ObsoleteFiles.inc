@@ -247,6 +247,7 @@ OLD_DIRS+=usr/share/examples/drivers
 
 # 20250710: shar(1) removed
 OLD_FILES+=usr/bin/shar
+OLD_FILES+=usr/share/man/man1/shar.1.gz
 
 # 20250708: For 34 days 15.0-CURRENT installed libkadm5clnt symlink without .so
 OLD_FILES+=usr/lib/libkadm5clnt
