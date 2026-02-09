@@ -63,7 +63,7 @@ for i in \
 	i386/i386 \
 	; do
     ta=${i##*/}
-    dobuild $ta _.boot.${ta}.no_geli.log "WITHOUT_LOADER_GEIL=yes"
+    dobuild $ta _.boot.${ta}.no_geli.log "WITHOUT_LOADER_GELI=yes"
 done
 
 # Default build for a almost all architectures
