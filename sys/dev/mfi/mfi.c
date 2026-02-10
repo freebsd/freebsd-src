@@ -55,9 +55,7 @@
 #include "opt_mfi.h"
 
 #include <sys/systm.h>
-#ifdef COMPAT_FREEBSD32
 #include <sys/abi_compat.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
