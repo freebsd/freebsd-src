@@ -18,7 +18,6 @@
  * Command line interface for IP firewall facility
  */
 
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <ctype.h>
 #include <err.h>
@@ -31,8 +30,6 @@
 #include <unistd.h>
 #include <libgen.h>
 
-#include <osreldate.h>
-
 #include "ipfw2.h"
 
 static void
@@ -40,13 +37,14 @@ help(void)
 {
 	if (is_ipfw()) {
 		fprintf(stderr,
+"IPFW compatibility binary from RELENG_15\n\n"
 "ipfw syntax summary (but please do read the ipfw(8) manpage):\n\n"
 "\tipfw [-abcdefhnNqStTv] <command>\n\n"
 "where <command> is one of the following:\n\n"
 "add [num] [set N] [prob x] RULE-BODY\n"
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
-"nat N config {ip IPADDR|if IFNAME|log|deny_in|same_ports|unreg_only|unreg_cgn|\n"
+"nat N config {ip IPADDR|if IFNAME|log|deny_in|same_ports|unreg_only|unreg_cgn|udp_eim|\n"
 "		reset|reverse|proxy_only|redirect_addr linkspec|\n"
 "		redirect_port linkspec|redirect_proto linkspec|\n"
 "		port_range lower-upper}\n"
@@ -81,6 +79,7 @@ help(void)
 );
 	} else {
 		fprintf(stderr,
+"IPFW compatibility binary from RELENG_15\n\n"
 "dnctl syntax summary (but please do read the dnctl(8) manpage):\n\n"
 "\tdnctl [-hnsv] <command>\n\n"
 "where <command> is one of the following:\n\n"
@@ -690,31 +689,10 @@ main(int ac, char *av[])
 
 	if (strcmp("dnctl", basename(av[0])) == 0)
 		g_co.prog = cmdline_prog_dnctl;
+	else if (strcmp("dnctl15", basename(av[0])) == 0)
+		g_co.prog = cmdline_prog_dnctl;
 	else
 		g_co.prog = cmdline_prog_ipfw;
-
-	/*
-	 * KBI-incompatibility detected, check for availability of ipfw/dnctl15
-	 * binaries and run them instead
-	 */
-	if (getosreldate() >= 1500000) {
-		const char *releng15_progname;
-		int ret;
-
-		if (g_co.prog == cmdline_prog_ipfw)
-			releng15_progname = "/sbin/ipfw15";
-		else
-			releng15_progname = "/sbin/dnctl15";
-
-		printf("WARNING! KBI incompatibility for ipfw is detected,"
-		    " trying to run %s.\n", releng15_progname);
-
-		if ((ret = execv(releng15_progname, av)) < 0) {
-			printf("execv(%s) error: %s\n", releng15_progname,
-			    strerror(errno));
-		}
-		return (ret);
-	}
 
 	/*
 	 * If the last argument is an absolute pathname, interpret it

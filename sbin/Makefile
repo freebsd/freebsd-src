@@ -78,6 +78,7 @@ SUBDIR.${MK_HAST}+=	hastd
 SUBDIR.${MK_INET6}+=	rtsol
 SUBDIR.${MK_IPFILTER}+=	ipf
 SUBDIR.${MK_IPFW}+=	ipfw
+SUBDIR.${MK_IPFW}+=	ipfw15
 SUBDIR.${MK_IPFW}+=	natd
 SUBDIR.${MK_OPENSSL}+=	decryptcore
 SUBDIR.${MK_PF}+=	pfctl
