@@ -2131,41 +2131,33 @@ ure_rtl8152_nic_reset(struct ure_softc *sc)
 static void
 ure_rxcsum(int capenb, struct ure_rxpkt *rp, struct mbuf *m)
 {
-	int flags;
 	uint32_t csum, misc;
-	int tcp, udp;
 
 	m->m_pkthdr.csum_flags = 0;
-
-	if (!(capenb & IFCAP_RXCSUM))
-		return;
 
 	csum = le32toh(rp->ure_csum);
 	misc = le32toh(rp->ure_misc);
 
-	tcp = udp = 0;
+	if ((capenb & IFCAP_RXCSUM) == 0 &&
+	    (csum & URE_RXPKT_IPV4_CS) != 0)
+		return;
+	if ((capenb & IFCAP_RXCSUM_IPV6) == 0 &&
+	    (csum & URE_RXPKT_IPV6_CS) != 0)
+		return;
 
-	flags = 0;
-	if (csum & URE_RXPKT_IPV4_CS)
-		flags |= CSUM_IP_CHECKED;
-	else if (csum & URE_RXPKT_IPV6_CS)
-		flags = 0;
-
-	tcp = rp->ure_csum & URE_RXPKT_TCP_CS;
-	udp = rp->ure_csum & URE_RXPKT_UDP_CS;
-
-	if (__predict_true((flags & CSUM_IP_CHECKED) &&
-	    !(misc & URE_RXPKT_IP_F))) {
-		flags |= CSUM_IP_VALID;
+	if ((csum & URE_RXPKT_IPV4_CS) != 0) {
+		m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+		if (__predict_true((misc & URE_RXPKT_IP_F) == 0))
+			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
 	}
 	if (__predict_true(
-	    (tcp && !(misc & URE_RXPKT_TCP_F)) ||
-	    (udp && !(misc & URE_RXPKT_UDP_F)))) {
-		flags |= CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+	    ((rp->ure_csum & URE_RXPKT_TCP_CS) != 0 &&
+	     (misc & URE_RXPKT_TCP_F) == 0) ||
+	    ((rp->ure_csum & URE_RXPKT_UDP_CS) != 0 &&
+	     (misc & URE_RXPKT_UDP_F) == 0))) {
+		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
 	}
-
-	m->m_pkthdr.csum_flags = flags;
 }
 
 /*
