@@ -2023,8 +2023,9 @@ OLD_FILES+=usr/share/examples/diskless/README.BOOTP
 OLD_FILES+=usr/share/examples/diskless/README.TEMPLATING
 OLD_FILES+=usr/share/examples/diskless/clone_root
 
-# 20230905
+# 20230905: Removed rtw8x firmware files from src.git
 OLD_FILES+=usr/share/doc/legal/realtek_rtw88_firmware.LICENCE
+OLD_FILES+=usr/share/man/man4/rtw88fw.4.gz
 
 # 20230828
 MOVED_LIBS+=usr/lib/librt.so.1
