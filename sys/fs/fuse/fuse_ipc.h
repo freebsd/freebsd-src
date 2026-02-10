@@ -194,8 +194,6 @@ struct fuse_data {
 	 */
 	u_long				ticketer;
 
-	struct sx			rename_lock;
-
 	uint32_t			fuse_libabi_major;
 	uint32_t			fuse_libabi_minor;
 

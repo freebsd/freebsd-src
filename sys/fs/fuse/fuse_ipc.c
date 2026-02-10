@@ -550,7 +550,6 @@ fdata_alloc(struct cdev *fdev, struct ucred *cred)
 	TAILQ_INIT(&data->aw_head);
 	data->daemoncred = crhold(cred);
 	data->daemon_timeout = FUSE_DEFAULT_DAEMON_TIMEOUT;
-	sx_init(&data->rename_lock, "fuse rename lock");
 	data->ref = 1;
 
 	return data;
@@ -565,7 +564,6 @@ fdata_trydestroy(struct fuse_data *data)
 		return;
 
 	/* Driving off stage all that stuff thrown at device... */
-	sx_destroy(&data->rename_lock);
 	crfree(data->daemoncred);
 	mtx_destroy(&data->aw_mtx);
 	knlist_delete(&data->ks_rsel.si_note, curthread, 0);

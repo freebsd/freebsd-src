@@ -2272,7 +2272,6 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 		if (err)
 			goto out;
 	}
-	sx_xlock(&data->rename_lock);
 	err = fuse_internal_rename(fdvp, fcnp, tdvp, tcnp);
 	if (err == 0) {
 		if (tdvp != fdvp)
@@ -2280,7 +2279,6 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 		if (tvp != NULL)
 			fuse_vnode_setparent(tvp, NULL);
 	}
-	sx_unlock(&data->rename_lock);
 
 	if (tvp != NULL && tvp != fvp) {
 		cache_purge(tvp);
