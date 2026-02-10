@@ -856,7 +856,7 @@ $ fc-list ':charset=0x1F4A1'
 $ pkg which /usr/local/share/fonts/noto/NotoColorEmoji.ttf
 /usr/local/share/fonts/noto/NotoColorEmoji.ttf was installed by package noto-emoji-2.042
 %
-When netstat reports every 8 seconds, it tells traffic in bits per second:
+When netstat reports every 8 seconds, it tells traffic in bytes per second:
 
 $ netstat -I bge0 8
 %
