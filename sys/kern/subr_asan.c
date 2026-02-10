@@ -241,7 +241,7 @@ kasan_shadow_Nbyte_fill(const void *addr, size_t size, uint8_t code)
 	shad = (void *)kasan_md_addr_to_shad((uintptr_t)addr);
 	size = size >> KASAN_SHADOW_SCALE_SHIFT;
 
-	__builtin_memset(shad, code, size);
+	memset_early(shad, code, size);
 }
 
 /*
@@ -1168,7 +1168,7 @@ __asan_handle_no_return(void)
 	void __asan_set_shadow_##byte(void *, size_t);			\
 	void __asan_set_shadow_##byte(void *addr, size_t size)		\
 	{								\
-		__builtin_memset((void *)addr, 0x##byte, size);		\
+		memset_early((void *)addr, 0x##byte, size);		\
 	}
 
 ASAN_SET_SHADOW(00);
