@@ -8,6 +8,10 @@
 #include <linux/math.h>
 #include <linux/string.h>
 #include <linux/bug.h>
+#if defined(__FreeBSD__)
+#include <linux/kernel.h>
+#include <asm/unaligned.h>
+#endif
 
 #include "xtlv.h"
 

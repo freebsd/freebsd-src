@@ -65,13 +65,21 @@ u32 brcmf_flowring_lookup(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
 	bool found;
 	bool sta;
 	u8 fifo;
+#if defined(__linux__)
 	u8 *mac;
+#elif defined(__FreeBSD__)
+	const u8 *mac;
+#endif
 
 	fifo = brcmf_flowring_prio2fifo[prio];
 	sta = (flow->addr_mode[ifidx] == ADDR_INDIRECT);
 	mac = da;
 	if ((!sta) && (is_multicast_ether_addr(da))) {
+#if defined(__linux__)
 		mac = (u8 *)ALLFFMAC;
+#elif defined(__FreeBSD__)
+		mac = ALLFFMAC;
+#endif
 		fifo = 0;
 	}
 	if ((sta) && (flow->tdls_active) &&
@@ -110,13 +118,21 @@ u32 brcmf_flowring_create(struct brcmf_flowring *flow, u8 da[ETH_ALEN],
 	bool found;
 	u8 fifo;
 	bool sta;
+#if defined(__linux__)
 	u8 *mac;
+#elif defined(__FreeBSD__)
+	const u8 *mac;
+#endif
 
 	fifo = brcmf_flowring_prio2fifo[prio];
 	sta = (flow->addr_mode[ifidx] == ADDR_INDIRECT);
 	mac = da;
 	if ((!sta) && (is_multicast_ether_addr(da))) {
+#if defined(__linux__)
 		mac = (u8 *)ALLFFMAC;
+#elif defined(__FreeBSD__)
+		mac = ALLFFMAC;
+#endif
 		fifo = 0;
 	}
 	if ((sta) && (flow->tdls_active) &&
@@ -428,7 +444,11 @@ void brcmf_flowring_configure_addr_mode(struct brcmf_flowring *flow, int ifidx,
 
 
 void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
+#if defined(__linux__)
 				u8 peer[ETH_ALEN])
+#elif defined(__FreeBSD__)
+				const u8 peer[ETH_ALEN])
+#endif
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(flow->dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
@@ -475,7 +495,11 @@ void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
 
 
 void brcmf_flowring_add_tdls_peer(struct brcmf_flowring *flow, int ifidx,
+#if defined(__linux__)
 				  u8 peer[ETH_ALEN])
+#elif defined(__FreeBSD__)
+				  const u8 peer[ETH_ALEN])
+#endif
 {
 	struct brcmf_flowring_tdls_entry *tdls_entry;
 	struct brcmf_flowring_tdls_entry *search;

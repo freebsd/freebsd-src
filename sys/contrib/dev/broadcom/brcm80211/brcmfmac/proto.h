@@ -29,9 +29,17 @@ struct brcmf_proto {
 	void (*configure_addr_mode)(struct brcmf_pub *drvr, int ifidx,
 				    enum proto_addr_mode addr_mode);
 	void (*delete_peer)(struct brcmf_pub *drvr, int ifidx,
+#if defined(__linux__)
 			    u8 peer[ETH_ALEN]);
+#elif defined(__FreeBSD__)
+			    const u8 peer[ETH_ALEN]);
+#endif
 	void (*add_tdls_peer)(struct brcmf_pub *drvr, int ifidx,
+#if defined(__linux__)
 			      u8 peer[ETH_ALEN]);
+#elif defined(__FreeBSD__)
+			      const u8 peer[ETH_ALEN]);
+#endif
 	void (*rxreorder)(struct brcmf_if *ifp, struct sk_buff *skb);
 	void (*add_if)(struct brcmf_if *ifp);
 	void (*del_if)(struct brcmf_if *ifp);
@@ -91,12 +99,20 @@ brcmf_proto_configure_addr_mode(struct brcmf_pub *drvr, int ifidx,
 	drvr->proto->configure_addr_mode(drvr, ifidx, addr_mode);
 }
 static inline void
+#if defined(__linux__)
 brcmf_proto_delete_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
+#elif defined(__FreeBSD__)
+brcmf_proto_delete_peer(struct brcmf_pub *drvr, int ifidx, const u8 peer[ETH_ALEN])
+#endif
 {
 	drvr->proto->delete_peer(drvr, ifidx, peer);
 }
 static inline void
+#if defined(__linux__)
 brcmf_proto_add_tdls_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
+#elif defined(__FreeBSD__)
+brcmf_proto_add_tdls_peer(struct brcmf_pub *drvr, int ifidx, const u8 peer[ETH_ALEN])
+#endif
 {
 	drvr->proto->add_tdls_peer(drvr, ifidx, peer);
 }

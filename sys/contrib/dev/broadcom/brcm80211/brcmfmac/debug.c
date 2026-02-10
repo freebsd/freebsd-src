@@ -17,7 +17,11 @@
 int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 			       size_t len)
 {
+#if defined(__linux__)
 	void *dump;
+#elif defined(__FreeBSD__)
+	u8 *dump;
+#endif
 	size_t ramsize;
 	int err;
 
@@ -51,6 +55,10 @@ void brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
 			    int (*read_fn)(struct seq_file *seq, void *data))
 {
 	WARN(!drvr->wiphy->debugfsdir, "wiphy not (yet) registered\n");
+#if defined(__linux__)
 	debugfs_create_devm_seqfile(drvr->bus_if->dev, fn,
 				    drvr->wiphy->debugfsdir, read_fn);
+#elif defined(__FreeBSD__)
+	pr_debug("%s: TODO\n", __func__);
+#endif
 }

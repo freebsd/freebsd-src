@@ -147,7 +147,11 @@ s32 brcmf_fil_iovar_int_query(struct brcmf_if *ifp, const char *name, u32 *data)
 
 
 s32 brcmf_fil_bsscfg_data_set(struct brcmf_if *ifp, const char *name,
+#if defined(__linux__)
 			      void *data, u32 len);
+#elif defined(__FreeBSD__)
+			      const void *data, u32 len);
+#endif
 s32 brcmf_fil_bsscfg_data_get(struct brcmf_if *ifp, const char *name,
 			      void *data, u32 len);
 static inline

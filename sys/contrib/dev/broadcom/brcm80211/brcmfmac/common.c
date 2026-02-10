@@ -3,6 +3,10 @@
  * Copyright (c) 2010 Broadcom Corporation
  */
 
+#if defined(__FreeBSD__)
+#define	LINUXKPI_PARAM_PREFIX	brcmfmac_
+#endif
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/netdevice.h>
@@ -24,6 +28,12 @@
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_DEPEND(brcmfmac, brcmutil, 1, 1, 1);
+MODULE_DEPEND(brcmfmac, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(brcmfmac, linuxkpi_wlan, 1, 1, 1);
+MODULE_DEPEND(brcmfmac, lindebugfs, 1, 1, 1);   /* XXX-BZ someone should fix this */
+#endif
 
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
@@ -118,7 +128,11 @@ static int brcmf_c_download(struct brcmf_if *ifp, u16 flag,
 }
 
 static int brcmf_c_download_blob(struct brcmf_if *ifp,
+#if defined(__linux__)
 				 const void *data, size_t size,
+#elif defined(__FreeBSD__)
+				 const u8 *data, size_t size,
+#endif
 				 const char *loadvar, const char *statvar)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
@@ -467,10 +481,22 @@ void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...)
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
+#if defined(__linux__)
 	if (bus)
 		dev_err(bus->dev, "%s: %pV", func, &vaf);
 	else
 		pr_err("%s: %pV", func, &vaf);
+#elif defined(__FreeBSD__)
+	{
+	char *str;
+	vasprintf(&str, M_KMALLOC, vaf.fmt, args);
+	if (bus)
+		dev_err(bus->dev, "ERROR: %s: %s", func, str);
+	else
+		pr_err("ERROR: %s: %s", func, str);
+	free(str, M_KMALLOC);
+	}
+#endif
 
 	va_end(args);
 }
@@ -487,7 +513,16 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	if (brcmf_msg_level & level)
+#if defined(__linux__)
 		pr_debug("%s %pV", func, &vaf);
+#elif defined(__FreeBSD__)
+	{
+		char *str;
+		vasprintf(&str, M_KMALLOC, vaf.fmt, args);
+		pr_debug("%s %s", func, str);
+		free(str, M_KMALLOC);
+	}
+#endif
 	trace_brcmf_dbg(level, func, &vaf);
 	va_end(args);
 }

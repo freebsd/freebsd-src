@@ -35,19 +35,37 @@ struct brcmf_fwvid_entry {
 static DEFINE_MUTEX(fwvid_list_lock);
 
 #if IS_MODULE(CONFIG_BRCMFMAC)
+#if defined(__linux__)
 #define FWVID_ENTRY_INIT(_vid, _name) \
 	[BRCMF_FWVENDOR_ ## _vid] = { \
 		.name = #_name, \
 		.reg_done = COMPLETION_INITIALIZER(fwvid_list[BRCMF_FWVENDOR_ ## _vid].reg_done), \
 		.drvr_list = LIST_HEAD_INIT(fwvid_list[BRCMF_FWVENDOR_ ## _vid].drvr_list), \
 	}
+#elif defined(__FreeBSD__)
+#define FWVID_ENTRY_INIT(_vid, _name) \
+	[BRCMF_FWVENDOR_ ## _vid] = { \
+		.name = #_name, \
+		.reg_done = COMPLETION_INITIALIZER(fwvid_list[BRCMF_FWVENDOR_ ## _vid].reg_done), \
+		.drvr_list = LINUX_LIST_HEAD_INIT(fwvid_list[BRCMF_FWVENDOR_ ## _vid].drvr_list), \
+	}
+#endif
 #else
+#if defined(__linux__)
 #define FWVID_ENTRY_INIT(_vid, _name) \
 	[BRCMF_FWVENDOR_ ## _vid] = { \
 		.name = #_name, \
 		.drvr_list = LIST_HEAD_INIT(fwvid_list[BRCMF_FWVENDOR_ ## _vid].drvr_list), \
 		.vops = _vid ## _VOPS \
 	}
+#elif defined(__FreeBSD__)
+#define FWVID_ENTRY_INIT(_vid, _name) \
+	[BRCMF_FWVENDOR_ ## _vid] = { \
+		.name = #_name, \
+		.drvr_list = LINUX_LIST_HEAD_INIT(fwvid_list[BRCMF_FWVENDOR_ ## _vid].drvr_list), \
+		.vops = _vid ## _VOPS \
+	}
+#endif
 #endif /* IS_MODULE(CONFIG_BRCMFMAC) */
 
 static struct brcmf_fwvid_entry fwvid_list[BRCMF_FWVENDOR_NUM] = {

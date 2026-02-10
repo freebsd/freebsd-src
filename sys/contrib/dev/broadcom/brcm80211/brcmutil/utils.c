@@ -7,12 +7,21 @@
 
 #include <linux/netdevice.h>
 #include <linux/module.h>
+#if defined(__FreeBSD__)
+#ifdef DEBUG
+#include <linux/printk.h>
+#endif
+#endif
 
 #include <brcmu_utils.h>
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver utilities.");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_VERSION(brcmutil, 1);
+MODULE_DEPEND(brcmutil, linuxkpi, 1, 1, 1);
+#endif
 
 struct sk_buff *brcmu_pkt_buf_get_skb(uint len)
 {

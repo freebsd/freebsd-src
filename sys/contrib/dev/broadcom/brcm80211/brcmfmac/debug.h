@@ -6,6 +6,9 @@
 #ifndef BRCMFMAC_DEBUG_H
 #define BRCMFMAC_DEBUG_H
 
+#if defined(__FreeBSD__)
+#include <linux/printk.h>
+#endif
 #include <linux/net.h>	/* net_ratelimit() */
 
 /* message levels */
@@ -64,18 +67,30 @@ void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
 	wiphy_info_once((drvr)->wiphy, "%s: " fmt, __func__,		\
 			##__VA_ARGS__)
 
+/* #if defined(__linux__)
 #if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)
+#elif defined(__FreeBSD__) */
+#if defined(DEBUG) || defined(CONFIG_BRCM_TRACING) || defined(CONFIG_BRCMDBG)
+/* #endif */
 
 /* For debug/tracing purposes treat info messages as errors */
 #define brcmf_info brcmf_err
 
 __printf(3, 4)
 void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...);
+#if defined(__linux__)
 #define brcmf_dbg(level, fmt, ...)				\
 do {								\
 	__brcmf_dbg(BRCMF_##level##_VAL, __func__,		\
 		    fmt, ##__VA_ARGS__);			\
 } while (0)
+#elif defined(__FreeBSD__)
+#define brcmf_dbg(level, ...)					\
+do {								\
+	__brcmf_dbg(BRCMF_##level##_VAL, __func__,		\
+		    __VA_ARGS__);				\
+} while (0)
+#endif
 #define BRCMF_DATA_ON()		(brcmf_msg_level & BRCMF_DATA_VAL)
 #define BRCMF_CTL_ON()		(brcmf_msg_level & BRCMF_CTL_VAL)
 #define BRCMF_HDRS_ON()		(brcmf_msg_level & BRCMF_HDRS_VAL)
@@ -107,12 +122,21 @@ do {								\
 
 #endif /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 
+#if defined(__linux__)
 #define brcmf_dbg_hex_dump(test, data, len, fmt, ...)			\
 do {									\
 	trace_brcmf_hexdump((void *)data, len);				\
 	if (test)							\
 		brcmu_dbg_hex_dump(data, len, fmt, ##__VA_ARGS__);	\
 } while (0)
+#elif defined(__FreeBSD__)
+#define brcmf_dbg_hex_dump(test, data, len, fmt, ...)			\
+do {									\
+	trace_brcmf_hexdump(data, len);					\
+	if (test)							\
+		brcmu_dbg_hex_dump(data, len, fmt, ##__VA_ARGS__);	\
+} while (0)
+#endif
 
 extern int brcmf_msg_level;
 

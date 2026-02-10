@@ -60,8 +60,13 @@ static int brcmf_cfg80211_vndr_cmds_dcmd_handler(struct wiphy *wiphy,
 		if (NULL == dcmd_buf)
 			return -ENOMEM;
 
+#if defined(__linux__)
 		memcpy(dcmd_buf, (void *)cmdhdr + cmdhdr->offset, len);
 		*(char *)(dcmd_buf + len)  = '\0';
+#elif defined(__FreeBSD__)
+		memcpy(dcmd_buf, (void *)((uintptr_t)cmdhdr + cmdhdr->offset), len);
+		*(char *)((uintptr_t)dcmd_buf + len)  = '\0';
+#endif
 	}
 
 	if (cmdhdr->set)
@@ -95,7 +100,11 @@ static int brcmf_cfg80211_vndr_cmds_dcmd_handler(struct wiphy *wiphy,
 		if (ret)
 			break;
 
+#if defined(__linux__)
 		wr_pointer += msglen;
+#elif defined(__FreeBSD__)
+		wr_pointer = (void *)((uintptr_t)wr_pointer + msglen);
+#endif
 	}
 
 exit:

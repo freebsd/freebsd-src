@@ -11,6 +11,12 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#ifdef DEBUG
+#include <linux/seq_file.h>
+#endif
+#endif
 
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
@@ -429,7 +435,11 @@ static void brcmf_msgbuf_release_pktids(struct brcmf_msgbuf *msgbuf)
 
 
 static int brcmf_msgbuf_tx_ioctl(struct brcmf_pub *drvr, int ifidx,
+#if defined(__linux__)
 				 uint cmd, void *buf, uint len)
+#elif defined(__FreeBSD__)
+				 uint cmd, const void *buf, uint len)
+#endif
 {
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
 	struct brcmf_commonring *commonring;
@@ -836,7 +846,11 @@ brcmf_msgbuf_configure_addr_mode(struct brcmf_pub *drvr, int ifidx,
 
 
 static void
+#if defined(__linux__)
 brcmf_msgbuf_delete_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
+#elif defined(__FreeBSD__)
+brcmf_msgbuf_delete_peer(struct brcmf_pub *drvr, int ifidx, const u8 peer[ETH_ALEN])
+#endif
 {
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
 
@@ -845,7 +859,11 @@ brcmf_msgbuf_delete_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
 
 
 static void
+#if defined(__linux__)
 brcmf_msgbuf_add_tdls_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
+#elif defined(__FreeBSD__)
+brcmf_msgbuf_add_tdls_peer(struct brcmf_pub *drvr, int ifidx, const u8 peer[ETH_ALEN])
+#endif
 {
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
 
@@ -904,7 +922,11 @@ static u32 brcmf_msgbuf_rxbuf_data_post(struct brcmf_msgbuf *msgbuf, u32 count)
 {
 	struct brcmf_pub *drvr = msgbuf->drvr;
 	struct brcmf_commonring *commonring;
+#if defined(__linux__)
 	void *ret_ptr;
+#elif defined(__FreeBSD__)
+	u8 *ret_ptr;
+#endif
 	struct sk_buff *skb;
 	u16 alloced;
 	u32 pktlen;
@@ -1012,7 +1034,11 @@ brcmf_msgbuf_rxbuf_ctrl_post(struct brcmf_msgbuf *msgbuf, bool event_buf,
 {
 	struct brcmf_pub *drvr = msgbuf->drvr;
 	struct brcmf_commonring *commonring;
+#if defined(__linux__)
 	void *ret_ptr;
+#elif defined(__FreeBSD__)
+	u8 *ret_ptr;
+#endif
 	struct sk_buff *skb;
 	u16 alloced;
 	u32 pktlen;
@@ -1337,7 +1363,11 @@ static void brcmf_msgbuf_process_msgtype(struct brcmf_msgbuf *msgbuf, void *buf)
 static void brcmf_msgbuf_process_rx(struct brcmf_msgbuf *msgbuf,
 				    struct brcmf_commonring *commonring)
 {
+#if defined(__linux__)
 	void *buf;
+#elif defined(__FreeBSD__)
+	u8 *buf;
+#endif
 	u16 count;
 	u16 processed;
 
@@ -1621,7 +1651,11 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	do {
 		brcmf_msgbuf_rxbuf_data_fill(msgbuf);
 		if (msgbuf->max_rxbufpost != msgbuf->rxbufpost)
+#if defined(__linux__)
 			msleep(10);
+#elif defined(__FreeBSD__)
+			linux_msleep(10);
+#endif
 		else
 			break;
 		count++;

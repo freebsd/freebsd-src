@@ -467,10 +467,18 @@ static void
 brcmf_pcie_fwcon_timer(struct brcmf_pciedev_info *devinfo, bool active);
 static void brcmf_pcie_debugfs_create(struct device *dev);
 
+#if defined(__FreeBSD__)
+#define	VPAA(_x, _a)	(void __iomem *)((uintptr_t)(_x) + (_a))
+#endif
+
 static u16
 brcmf_pcie_read_reg16(struct brcmf_pciedev_info *devinfo, u32 reg_offset)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->regs + reg_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->regs, reg_offset);
+#endif
 
 	return ioread16(address);
 }
@@ -478,7 +486,11 @@ brcmf_pcie_read_reg16(struct brcmf_pciedev_info *devinfo, u32 reg_offset)
 static u32
 brcmf_pcie_read_reg32(struct brcmf_pciedev_info *devinfo, u32 reg_offset)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->regs + reg_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->regs, reg_offset);
+#endif
 
 	return (ioread32(address));
 }
@@ -488,7 +500,11 @@ static void
 brcmf_pcie_write_reg32(struct brcmf_pciedev_info *devinfo, u32 reg_offset,
 		       u32 value)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->regs + reg_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->regs, reg_offset);
+#endif
 
 	iowrite32(value, address);
 }
@@ -497,7 +513,11 @@ brcmf_pcie_write_reg32(struct brcmf_pciedev_info *devinfo, u32 reg_offset,
 static u8
 brcmf_pcie_read_tcm8(struct brcmf_pciedev_info *devinfo, u32 mem_offset)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->tcm + mem_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->tcm, mem_offset);
+#endif
 
 	return (ioread8(address));
 }
@@ -506,7 +526,11 @@ brcmf_pcie_read_tcm8(struct brcmf_pciedev_info *devinfo, u32 mem_offset)
 static u16
 brcmf_pcie_read_tcm16(struct brcmf_pciedev_info *devinfo, u32 mem_offset)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->tcm + mem_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->tcm, mem_offset);
+#endif
 
 	return (ioread16(address));
 }
@@ -516,7 +540,11 @@ static void
 brcmf_pcie_write_tcm16(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 		       u16 value)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->tcm + mem_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->tcm, mem_offset);
+#endif
 
 	iowrite16(value, address);
 }
@@ -525,7 +553,11 @@ brcmf_pcie_write_tcm16(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 static u16
 brcmf_pcie_read_idx(struct brcmf_pciedev_info *devinfo, u32 mem_offset)
 {
+#if defined(__linux__)
 	u16 *address = devinfo->idxbuf + mem_offset;
+#elif defined(__FreeBSD__)
+	u16 *address = (void *)((uintptr_t)devinfo->idxbuf + mem_offset);
+#endif
 
 	return (*(address));
 }
@@ -535,7 +567,11 @@ static void
 brcmf_pcie_write_idx(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 		     u16 value)
 {
+#if defined(__linux__)
 	u16 *address = devinfo->idxbuf + mem_offset;
+#elif defined(__FreeBSD__)
+	u16 *address = (void *)((uintptr_t)devinfo->idxbuf + mem_offset);
+#endif
 
 	*(address) = value;
 }
@@ -544,7 +580,11 @@ brcmf_pcie_write_idx(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 static u32
 brcmf_pcie_read_tcm32(struct brcmf_pciedev_info *devinfo, u32 mem_offset)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->tcm + mem_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->tcm, mem_offset);
+#endif
 
 	return (ioread32(address));
 }
@@ -554,7 +594,11 @@ static void
 brcmf_pcie_write_tcm32(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 		       u32 value)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->tcm + mem_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *address = VPAA(devinfo->tcm, mem_offset);
+#endif
 
 	iowrite32(value, address);
 }
@@ -563,7 +607,11 @@ brcmf_pcie_write_tcm32(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 static u32
 brcmf_pcie_read_ram32(struct brcmf_pciedev_info *devinfo, u32 mem_offset)
 {
+#if defined(__linux__)
 	void __iomem *addr = devinfo->tcm + devinfo->ci->rambase + mem_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *addr = VPAA(devinfo->tcm, devinfo->ci->rambase + mem_offset);
+#endif
 
 	return (ioread32(addr));
 }
@@ -573,7 +621,11 @@ static void
 brcmf_pcie_write_ram32(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 		       u32 value)
 {
+#if defined(__linux__)
 	void __iomem *addr = devinfo->tcm + devinfo->ci->rambase + mem_offset;
+#elif defined(__FreeBSD__)
+	void __iomem *addr = VPAA(devinfo->tcm, devinfo->ci->rambase + mem_offset);
+#endif
 
 	iowrite32(value, addr);
 }
@@ -583,7 +635,11 @@ static void
 brcmf_pcie_copy_dev_tomem(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 			  void *dstaddr, u32 len)
 {
+#if defined(__linux__)
 	void __iomem *address = devinfo->tcm + mem_offset;
+#elif defined(__FreeBSD__)
+	u8 __iomem *address = (void *)((uintptr_t)devinfo->tcm + mem_offset);
+#endif
 	__le32 *dst32;
 	__le16 *dst16;
 	u8 *dst8;
@@ -687,7 +743,11 @@ static void brcmf_pcie_reset_device(struct brcmf_pciedev_info *devinfo)
 	/* Watchdog reset */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_CHIPCOMMON);
 	WRITECC32(devinfo, watchdog, 4);
+#if defined(__linux__)
 	msleep(100);
+#elif defined(__FreeBSD__)
+	linux_msleep(100);
+#endif
 
 	/* Restore ASPM */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
@@ -778,7 +838,11 @@ brcmf_pcie_send_mb_data(struct brcmf_pciedev_info *devinfo, u32 htod_mb_data)
 
 	i = 0;
 	while (cur_htod_mb_data != 0) {
+#if defined(__linux__)
 		msleep(10);
+#elif defined(__FreeBSD__)
+		linux_msleep(10);
+#endif
 		i++;
 		if (i > 100)
 			return -EIO;
@@ -1001,10 +1065,18 @@ static void brcmf_pcie_release_irq(struct brcmf_pciedev_info *devinfo)
 	free_irq(pdev->irq, devinfo);
 	pci_disable_msi(pdev);
 
+#if defined(__linux__)
 	msleep(50);
+#elif defined(__FreeBSD__)
+	linux_msleep(50);
+#endif
 	count = 0;
 	while ((devinfo->in_irq) && (count < 20)) {
+#if defined(__linux__)
 		msleep(50);
+#elif defined(__FreeBSD__)
+		linux_msleep(50);
+#endif
 		count++;
 	}
 	if (devinfo->in_irq)
@@ -1234,7 +1306,11 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 	u16 max_submissionrings;
 	u16 max_completionrings;
 
+#if defined(__linux__)
 	memcpy_fromio(&ringinfo, devinfo->tcm + devinfo->shared.ring_info_addr,
+#elif defined(__FreeBSD__)
+	memcpy_fromio(&ringinfo, (void *)((uintptr_t)devinfo->tcm + devinfo->shared.ring_info_addr),
+#endif
 		      sizeof(ringinfo));
 	if (devinfo->shared.version >= 6) {
 		max_submissionrings = le16_to_cpu(ringinfo.max_submissionrings);
@@ -1308,7 +1384,11 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 		ringinfo.d2h_r_idx_hostaddr.high_addr =
 			cpu_to_le32(address >> 32);
 
+#if defined(__linux__)
 		memcpy_toio(devinfo->tcm + devinfo->shared.ring_info_addr,
+#elif defined(__FreeBSD__)
+		memcpy_toio((void *)((uintptr_t)devinfo->tcm + devinfo->shared.ring_info_addr),
+#endif
 			    &ringinfo, sizeof(ringinfo));
 		brcmf_dbg(PCIE, "Using host memory indices\n");
 	}
@@ -1593,16 +1673,28 @@ static const struct brcmf_bus_ops brcmf_pcie_bus_ops = {
 
 
 static void
+#if defined(__linux__)
 brcmf_pcie_adjust_ramsize(struct brcmf_pciedev_info *devinfo, u8 *data,
+#elif defined(__FreeBSD__)
+brcmf_pcie_adjust_ramsize(struct brcmf_pciedev_info *devinfo, const u8 *data,
+#endif
 			  u32 data_len)
 {
+#if defined(__linux__)
 	__le32 *field;
+#elif defined(__FreeBSD__)
+	const __le32 *field;
+#endif
 	u32 newsize;
 
 	if (data_len < BRCMF_RAMSIZE_OFFSET + 8)
 		return;
 
+#if defined(__linux__)
 	field = (__le32 *)&data[BRCMF_RAMSIZE_OFFSET];
+#elif defined(__FreeBSD__)
+	field = (const __le32 *)&data[BRCMF_RAMSIZE_OFFSET];
+#endif
 	if (le32_to_cpup(field) != BRCMF_RAMSIZE_MAGIC)
 		return;
 	field++;
@@ -1683,7 +1775,11 @@ brcmf_pcie_provide_random_bytes(struct brcmf_pciedev_info *devinfo, u32 address)
 	u8 randbuf[BRCMF_RANDOM_SEED_LENGTH];
 
 	get_random_bytes(randbuf, BRCMF_RANDOM_SEED_LENGTH);
+#if defined(__linux__)
 	memcpy_toio(devinfo->tcm + address, randbuf, BRCMF_RANDOM_SEED_LENGTH);
+#elif defined(__FreeBSD__)
+	memcpy_toio((void *)((uintptr_t)devinfo->tcm + address), randbuf, BRCMF_RANDOM_SEED_LENGTH);
+#endif
 }
 
 static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
@@ -1704,8 +1800,13 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 		return err;
 
 	brcmf_dbg(PCIE, "Download FW %s\n", devinfo->fw_name);
+#if defined(__linux__)
 	memcpy_toio(devinfo->tcm + devinfo->ci->rambase,
 		    (void *)fw->data, fw->size);
+#elif defined(__FreeBSD__)
+	memcpy_toio((void *)((uintptr_t)devinfo->tcm + devinfo->ci->rambase),
+		    fw->data, fw->size);
+#endif
 
 	resetintr = get_unaligned_le32(fw->data);
 	release_firmware(fw);
@@ -1719,7 +1820,11 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 		brcmf_dbg(PCIE, "Download NVRAM %s\n", devinfo->nvram_name);
 		address = devinfo->ci->rambase + devinfo->ci->ramsize -
 			  nvram_len;
+#if defined(__linux__)
 		memcpy_toio(devinfo->tcm + address, nvram, nvram_len);
+#elif defined(__FreeBSD__)
+		memcpy_toio((void *)((uintptr_t)devinfo->tcm + address), nvram, nvram_len);
+#endif
 		brcmf_fw_nvram_free(nvram);
 
 		if (devinfo->fwseed) {
@@ -1735,7 +1840,11 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 			brcmf_dbg(PCIE, "Download random seed\n");
 
 			address -= sizeof(footer);
+#if defined(__linux__)
 			memcpy_toio(devinfo->tcm + address, &footer,
+#elif defined(__FreeBSD__)
+			memcpy_toio((void *)((uintptr_t)devinfo->tcm + address), &footer,
+#endif
 				    sizeof(footer));
 
 			address -= rand_len;
@@ -1758,7 +1867,11 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 	sharedram_addr = sharedram_addr_written;
 	loop_counter = BRCMF_PCIE_FW_UP_TIMEOUT / 50;
 	while ((sharedram_addr == sharedram_addr_written) && (loop_counter)) {
+#if defined(__linux__)
 		msleep(50);
+#elif defined(__FreeBSD__)
+		linux_msleep(50);
+#endif
 		sharedram_addr = brcmf_pcie_read_ram32(devinfo,
 						       devinfo->ci->ramsize -
 						       4);
@@ -2173,7 +2286,11 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	 * the device is shared and the devision is determined by FW. Parse
 	 * the firmware and adjust the chip memory size now.
 	 */
+#if defined(__linux__)
 	brcmf_pcie_adjust_ramsize(devinfo, (u8 *)fw->data, fw->size);
+#elif defined(__FreeBSD__)
+	brcmf_pcie_adjust_ramsize(devinfo, fw->data, fw->size);
+#endif
 
 	ret = brcmf_pcie_download_fw_nvram(devinfo, fw, nvram, nvram_len);
 	if (ret)
