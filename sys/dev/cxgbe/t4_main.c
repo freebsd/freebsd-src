@@ -1249,7 +1249,7 @@ t4_calibration(void *arg)
 
 	sc = (struct adapter *)arg;
 
-	KASSERT(hw_all_ok(sc), ("!hw_all_ok at t4_calibration"));
+	KASSERT(!hw_off_limits(sc), ("hw_off_limits at t4_calibration"));
 	hw = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
 	sbt = sbinuptime();
 
