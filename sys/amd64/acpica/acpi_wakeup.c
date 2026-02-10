@@ -75,9 +75,7 @@ extern struct susppcb	**susppcbs;
 static cpuset_t		suspcpus;
 
 static void		acpi_stop_beep(void *, enum power_stype);
-
 static int		acpi_wakeup_ap(struct acpi_softc *, int);
-static void		acpi_wakeup_cpus(struct acpi_softc *);
 
 #define	ACPI_WAKEPT_PAGES	7
 
@@ -129,24 +127,22 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 #define	BIOS_WARM		(0x0a)
 
 static void
-acpi_wakeup_cpus(struct acpi_softc *sc)
+acpi_wakeup_cpus_bios(struct acpi_softc *sc)
 {
 	uint32_t	mpbioswarmvec;
 	int		cpu;
 	u_char		mpbiosreason;
 
-	if (!efi_boot) {
-		/* save the current value of the warm-start vector */
-		mpbioswarmvec = *((uint32_t *)WARMBOOT_OFF);
-		outb(CMOS_REG, BIOS_RESET);
-		mpbiosreason = inb(CMOS_DATA);
+	/* save the current value of the warm-start vector */
+	mpbioswarmvec = *((uint32_t *)WARMBOOT_OFF);
+	outb(CMOS_REG, BIOS_RESET);
+	mpbiosreason = inb(CMOS_DATA);
 
-		/* setup a vector to our boot code */
-		*((volatile u_short *)WARMBOOT_OFF) = WARMBOOT_TARGET;
-		*((volatile u_short *)WARMBOOT_SEG) = sc->acpi_wakephys >> 4;
-		outb(CMOS_REG, BIOS_RESET);
-		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
-	}
+	/* setup a vector to our boot code */
+	*((volatile u_short *)WARMBOOT_OFF) = WARMBOOT_TARGET;
+	*((volatile u_short *)WARMBOOT_SEG) = sc->acpi_wakephys >> 4;
+	outb(CMOS_REG, BIOS_RESET);
+	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 
 	/* Wake up each AP. */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
@@ -160,12 +156,26 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 		}
 	}
 
-	if (!efi_boot) {
-		/* restore the warmstart vector */
-		*(uint32_t *)WARMBOOT_OFF = mpbioswarmvec;
+	/* restore the warmstart vector */
+	*(uint32_t *)WARMBOOT_OFF = mpbioswarmvec;
 
-		outb(CMOS_REG, BIOS_RESET);
-		outb(CMOS_DATA, mpbiosreason);
+	outb(CMOS_REG, BIOS_RESET);
+	outb(CMOS_DATA, mpbiosreason);
+}
+
+static void
+acpi_wakeup_cpus_efi(struct acpi_softc *sc)
+{
+	int		cpu;
+
+	/* Wake up each AP. */
+	for (cpu = 1; cpu < mp_ncpus; cpu++) {
+		if (!CPU_ISSET(cpu, &suspcpus))
+			continue;
+		if (acpi_wakeup_ap(sc, cpu) == 0) {
+			panic("acpi_wakeup: failed to resume AP #%d (PHY #%d)",
+			    cpu, cpu_apic_ids[cpu]);
+		}
 	}
 }
 
@@ -264,8 +274,12 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
 			lapic_xapic_mode();
-			if (!CPU_EMPTY(&suspcpus))
-				acpi_wakeup_cpus(sc);
+			if (!CPU_EMPTY(&suspcpus)) {
+				if (efi_boot)
+					acpi_wakeup_cpus_efi(sc);
+				else
+					acpi_wakeup_cpus_bios(sc);
+			}
 		}
 
 		if (!CPU_EMPTY(&suspcpus))
