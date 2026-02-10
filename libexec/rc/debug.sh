@@ -439,7 +439,7 @@ DebugShell() {
 	return 0
 }
 
-# For backwards compatability
+# For backwards compatibility
 Debug() {
 	case "${DEBUG_SH:-$DEBUG}" in
 	"")	;;
