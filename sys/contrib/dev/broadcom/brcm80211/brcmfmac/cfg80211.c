@@ -5,13 +5,21 @@
 
 /* Toplevel file. Relies on dhd_linux.c to send commands to the dongle. */
 
+#if defined(__FreeBSD__)
+#include <net/cfg80211.h>
+#endif
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#if defined(__linux__)
 #include <net/cfg80211.h>
+#endif
 #include <net/netlink.h>
 #include <uapi/linux/if_arp.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#endif
 
 #include <brcmu_utils.h>
 #include <defs.h>
@@ -35,6 +43,24 @@
 #include "fwvid.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
+
+#if defined(__FreeBSD__)
+#ifdef WPA_OUI
+#undef WPA_OUI
+#endif
+#ifdef WPA_OUI_TYPE
+#undef WPA_OUI_TYPE
+#endif
+#ifdef RSN_OUI
+#undef RSN_OUI
+#endif
+#ifdef WME_OUI_TYPE
+#undef WME_OUI_TYPE
+#endif
+#ifdef WPS_OUI_TYPE
+#undef WPS_OUI_TYPE
+#endif
+#endif
 
 #define WPA_OUI				"\x00\x50\xF2"	/* WPA OUI */
 #define WPA_OUI_TYPE			1
@@ -257,7 +283,11 @@ struct brcmf_vs_tlv {
 };
 
 struct parsed_vndr_ie_info {
+#if defined(__linux__)
 	u8 *ie_ptr;
+#elif defined(__FreeBSD__)
+	const u8 *ie_ptr;
+#endif
 	u32 ie_len;	/* total length including id & length field */
 	struct brcmf_vs_tlv vndrie;
 };
@@ -429,7 +459,11 @@ brcmf_parse_tlvs(const void *buf, int buflen, uint key)
 		if ((elt->id == key) && (totlen >= (len + TLV_HDR_LEN)))
 			return elt;
 
+#if defined(__linux__)
 		elt = (struct brcmf_tlv *)((u8 *)elt + (len + TLV_HDR_LEN));
+#elif defined(__FreeBSD__)
+		elt = (const struct brcmf_tlv *)((const u8 *)elt + (len + TLV_HDR_LEN));
+#endif
 		totlen -= (len + TLV_HDR_LEN);
 	}
 
@@ -462,7 +496,11 @@ brcmf_tlv_has_ie(const u8 *ie, const u8 **tlvs, u32 *tlvs_len,
 	return false;
 }
 
+#if defined(__linux__)
 static struct brcmf_vs_tlv *
+#elif defined(__FreeBSD__)
+static const struct brcmf_vs_tlv *
+#endif
 brcmf_find_wpaie(const u8 *parse, u32 len)
 {
 	const struct brcmf_tlv *ie;
@@ -470,20 +508,34 @@ brcmf_find_wpaie(const u8 *parse, u32 len)
 	while ((ie = brcmf_parse_tlvs(parse, len, WLAN_EID_VENDOR_SPECIFIC))) {
 		if (brcmf_tlv_has_ie((const u8 *)ie, &parse, &len,
 				     WPA_OUI, TLV_OUI_LEN, WPA_OUI_TYPE))
+#if defined(__linux__)
 			return (struct brcmf_vs_tlv *)ie;
+#elif defined(__FreeBSD__)
+			return (const struct brcmf_vs_tlv *)ie;
+#endif
 	}
 	return NULL;
 }
 
+#if defined(__linux__)
 static struct brcmf_vs_tlv *
+#elif defined(__FreeBSD__)
+static const struct brcmf_vs_tlv *
+#endif
 brcmf_find_wpsie(const u8 *parse, u32 len)
 {
 	const struct brcmf_tlv *ie;
 
 	while ((ie = brcmf_parse_tlvs(parse, len, WLAN_EID_VENDOR_SPECIFIC))) {
+#if defined(__linux__)
 		if (brcmf_tlv_has_ie((u8 *)ie, &parse, &len,
 				     WPA_OUI, TLV_OUI_LEN, WPS_OUI_TYPE))
 			return (struct brcmf_vs_tlv *)ie;
+#elif defined(__FreeBSD__)
+		if (brcmf_tlv_has_ie((const u8 *)ie, &parse, &len,
+				     WPA_OUI, TLV_OUI_LEN, WPS_OUI_TYPE))
+			return (const struct brcmf_vs_tlv *)ie;
+#endif
 	}
 	return NULL;
 }
@@ -1239,8 +1291,13 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 			reqid = brcmf_pno_find_reqid_by_bucket(cfg->pno,
 							       bucket);
 			if (!aborted) {
+#if defined(__linux__)
 				brcmf_dbg(SCAN, "report results: reqid=%llu\n",
 					  reqid);
+#elif defined(__FreeBSD__)
+				brcmf_dbg(SCAN, "report results: reqid=%ju\n",
+					  (uintmax_t)reqid);
+#endif
 				cfg80211_sched_scan_results(cfg_to_wiphy(cfg),
 							    reqid);
 			}
@@ -2413,7 +2470,11 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		ie = NULL;
 		ie_len = 0;
 		/* find the WPA_IE */
+#if defined(__linux__)
 		wpa_ie = brcmf_find_wpaie((u8 *)sme->ie, sme->ie_len);
+#elif defined(__FreeBSD__)
+		wpa_ie = brcmf_find_wpaie(sme->ie, sme->ie_len);
+#endif
 		if (wpa_ie) {
 			ie = wpa_ie;
 			ie_len = wpa_ie->len + TLV_HDR_LEN;
@@ -2450,7 +2511,11 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		chanspec = 0;
 	}
 
+#if defined(__linux__)
 	brcmf_dbg(INFO, "ie (%p), ie_len (%zd)\n", sme->ie, sme->ie_len);
+#elif defined(__FreeBSD__)
+	brcmf_dbg(INFO, "ie (%p), ie_len (%u)\n", sme->ie, sme->ie_len);
+#endif
 
 	err = brcmf_set_wpa_version(ndev, sme);
 	if (err) {
@@ -2840,7 +2905,11 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	key = &ifp->vif->profile.key[key_idx];
 	memset(key, 0, sizeof(*key));
 	if ((ext_key) && (!is_multicast_ether_addr(mac_addr)))
+#if defined(__linux__)
 		memcpy((char *)&key->ea, (void *)mac_addr, ETH_ALEN);
+#elif defined(__FreeBSD__)
+		memcpy((char *)&key->ea, mac_addr, ETH_ALEN);
+#endif
 	key->len = params->key_len;
 	key->index = key_idx;
 	memcpy(key->data, params->key, key->len);
@@ -2849,9 +2918,15 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (params->seq && params->seq_len == 6) {
 		/* rx iv */
+#if defined(__linux__)
 		u8 *ivptr;
 
 		ivptr = (u8 *)params->seq;
+#elif defined(__FreeBSD__)
+		const u8 *ivptr;
+
+		ivptr = params->seq;
+#endif
 		key->rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
 			(ivptr[3] << 8) | ivptr[2];
 		key->rxiv.lo = (ivptr[1] << 8) | ivptr[0];
@@ -3758,8 +3833,13 @@ brcmf_alloc_internal_escan_request(struct wiphy *wiphy, u32 n_netinfo) {
 	req = kzalloc(req_size, GFP_KERNEL);
 	if (req) {
 		req->wiphy = wiphy;
+#if defined(__linux__)
 		req->ssids = (void *)(&req->channels[0]) +
 			     n_netinfo * sizeof(req->channels[0]);
+#elif defined(__FreeBSD__)
+		req->ssids = (void *)((&req->channels[0]) +
+			     n_netinfo * sizeof(req->channels[0]));
+#endif
 	}
 	return req;
 }
@@ -3902,7 +3982,11 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 	}
 
 	netinfo_start = brcmf_get_netinfo_array(pfn_result);
+#if defined(__linux__)
 	datalen = e->datalen - ((void *)netinfo_start - (void *)pfn_result);
+#elif defined(__FreeBSD__)
+	datalen = e->datalen - ((u8 *)netinfo_start - (u8 *)pfn_result);
+#endif
 	if (datalen < result_count * sizeof(*netinfo)) {
 		bphy_err(drvr, "insufficient event data\n");
 		goto out_err;
@@ -3992,7 +4076,11 @@ static __always_inline void brcmf_delay(u32 ms)
 		cond_resched();
 		mdelay(ms);
 	} else {
+#if defined(__linux__)
 		msleep(ms);
+#elif defined(__FreeBSD__)
+		linux_msleep(ms);
+#endif
 	}
 }
 
@@ -4529,7 +4617,11 @@ static s32 brcmf_configure_opensecurity(struct brcmf_if *ifp)
 	return 0;
 }
 
+#if defined(__linux__)
 static bool brcmf_valid_wpa_oui(u8 *oui, bool is_rsn_ie)
+#elif defined(__FreeBSD__)
+static bool brcmf_valid_wpa_oui(const u8 *oui, bool is_rsn_ie)
+#endif
 {
 	if (is_rsn_ie)
 		return (memcmp(oui, RSN_OUI, TLV_OUI_LEN) == 0);
@@ -4553,7 +4645,11 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 	u32 gval = 0;
 	u32 wpa_auth = 0;
 	u32 offset;
+#if defined(__linux__)
 	u8 *data;
+#elif defined(__FreeBSD__)
+	const u8 *data;
+#endif
 	u16 rsn_cap;
 	u32 wme_bss_disable;
 	u32 mfp;
@@ -4563,7 +4659,11 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 		goto exit;
 
 	len = wpa_ie->len + TLV_HDR_LEN;
+#if defined(__linux__)
 	data = (u8 *)wpa_ie;
+#elif defined(__FreeBSD__)
+	data = (const u8 *)wpa_ie;
+#endif
 	offset = TLV_HDR_LEN;
 	if (!is_rsn_ie)
 		offset += VS_IE_FIXED_HDR_LEN;
@@ -4786,19 +4886,32 @@ static s32
 brcmf_parse_vndr_ies(const u8 *vndr_ie_buf, u32 vndr_ie_len,
 		     struct parsed_vndr_ies *vndr_ies)
 {
+#if defined(__linux__)
 	struct brcmf_vs_tlv *vndrie;
 	struct brcmf_tlv *ie;
+#elif defined(__FreeBSD__)
+	const struct brcmf_vs_tlv *vndrie;
+	const struct brcmf_tlv *ie;
+#endif
 	struct parsed_vndr_ie_info *parsed_info;
 	s32 remaining_len;
 
 	remaining_len = (s32)vndr_ie_len;
 	memset(vndr_ies, 0, sizeof(*vndr_ies));
 
+#if defined(__linux__)
 	ie = (struct brcmf_tlv *)vndr_ie_buf;
+#elif defined(__FreeBSD__)
+	ie = (const struct brcmf_tlv *)vndr_ie_buf;
+#endif
 	while (ie) {
 		if (ie->id != WLAN_EID_VENDOR_SPECIFIC)
 			goto next;
+#if defined(__linux__)
 		vndrie = (struct brcmf_vs_tlv *)ie;
+#elif defined(__FreeBSD__)
+		vndrie = (const struct brcmf_vs_tlv *)ie;
+#endif
 		/* len should be bigger than OUI length + one */
 		if (vndrie->len < (VS_IE_FIXED_HDR_LEN - TLV_HDR_LEN + 1)) {
 			brcmf_err("invalid vndr ie. length is too small %d\n",
@@ -4816,7 +4929,11 @@ brcmf_parse_vndr_ies(const u8 *vndr_ie_buf, u32 vndr_ie_len,
 		parsed_info = &vndr_ies->ie_info[vndr_ies->count];
 
 		/* save vndr ie information */
+#if defined(__linux__)
 		parsed_info->ie_ptr = (char *)vndrie;
+#elif defined(__FreeBSD__)
+		parsed_info->ie_ptr = (const char *)vndrie;
+#endif
 		parsed_info->ie_len = vndrie->len + TLV_HDR_LEN;
 		memcpy(&parsed_info->vndrie, vndrie, sizeof(*vndrie));
 
@@ -4833,14 +4950,22 @@ next:
 		if (remaining_len <= TLV_HDR_LEN)
 			ie = NULL;
 		else
+#if defined(__linux__)
 			ie = (struct brcmf_tlv *)(((u8 *)ie) + ie->len +
+#elif defined(__FreeBSD__)
+			ie = (const struct brcmf_tlv *)(((const u8 *)ie) + ie->len +
+#endif
 				TLV_HDR_LEN);
 	}
 	return 0;
 }
 
 static u32
+#if defined(__linux__)
 brcmf_vndr_ie(u8 *iebuf, s32 pktflag, u8 *ie_ptr, u32 ie_len, s8 *add_del_cmd)
+#elif defined(__FreeBSD__)
+brcmf_vndr_ie(u8 *iebuf, s32 pktflag, const u8 *ie_ptr, u32 ie_len, s8 *add_del_cmd)
+#endif
 {
 	strscpy(iebuf, add_del_cmd, VNDR_IE_CMD_LEN);
 
@@ -5085,11 +5210,19 @@ brcmf_parse_configure_security(struct brcmf_if *ifp,
 	s32 err = 0;
 
 	/* find the RSN_IE */
+#if defined(__linux__)
 	rsn_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
+#elif defined(__FreeBSD__)
+	rsn_ie = brcmf_parse_tlvs(settings->beacon.tail,
+#endif
 				  settings->beacon.tail_len, WLAN_EID_RSN);
 
 	/* find the WPA_IE */
+#if defined(__linux__)
 	wpa_ie = brcmf_find_wpaie((u8 *)settings->beacon.tail,
+#elif defined(__FreeBSD__)
+	wpa_ie = brcmf_find_wpaie(settings->beacon.tail,
+#endif
 				  settings->beacon.tail_len);
 
 	if (wpa_ie || rsn_ie) {
@@ -5100,9 +5233,16 @@ brcmf_parse_configure_security(struct brcmf_if *ifp,
 			if (err < 0)
 				return err;
 		} else {
+#if defined(__linux__)
 			struct brcmf_vs_tlv *tmp_ie;
 
 			tmp_ie = (struct brcmf_vs_tlv *)rsn_ie;
+#elif defined(__FreeBSD__)
+			const struct brcmf_vs_tlv *tmp_ie;
+
+			tmp_ie = (const struct brcmf_vs_tlv *)rsn_ie;
+#endif
+
 
 			/* RSN IE */
 			err = brcmf_configure_wpaie(ifp, tmp_ie, true);
@@ -5155,7 +5295,11 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 				  &ifp->vif->is_11d)) {
 		is_11d = supports_11d = false;
 	} else {
+#if defined(__linux__)
 		country_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
+#elif defined(__FreeBSD__)
+		country_ie = brcmf_parse_tlvs(settings->beacon.tail,
+#endif
 					      settings->beacon.tail_len,
 					      WLAN_EID_COUNTRY);
 		is_11d = country_ie ? 1 : 0;
@@ -5166,7 +5310,11 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	if (settings->ssid == NULL || settings->ssid_len == 0) {
 		ie_offset = DOT11_MGMT_HDR_LEN + DOT11_BCN_PRB_FIXED_LEN;
 		ssid_ie = brcmf_parse_tlvs(
+#if defined(__linux__)
 				(u8 *)&settings->beacon.head[ie_offset],
+#elif defined(__FreeBSD__)
+				&settings->beacon.head[ie_offset],
+#endif
 				settings->beacon.head_len - ie_offset,
 				WLAN_EID_SSID);
 		if (!ssid_ie || ssid_ie->len > IEEE80211_MAX_SSID_LEN)
@@ -5382,7 +5530,11 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev,
 	if (ifp->vif->wdev.iftype == NL80211_IFTYPE_AP) {
 		/* Due to most likely deauths outstanding we sleep */
 		/* first to make sure they get processed by fw. */
+#if defined(__linux__)
 		msleep(400);
+#elif defined(__FreeBSD__)
+		linux_msleep(400);
+#endif
 
 		if (profile->use_fwauth != BIT(BRCMF_PROFILE_FWAUTH_NONE)) {
 			struct cfg80211_crypto_settings crypto = {};
@@ -5504,10 +5656,18 @@ brcmf_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED))
 		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SCB_AUTHORIZE,
+#if defined(__linux__)
 					     (void *)mac, ETH_ALEN);
+#elif defined(__FreeBSD__)
+					     __DECONST(u8 *, mac), ETH_ALEN);
+#endif
 	else
 		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SCB_DEAUTHORIZE,
+#if defined(__linux__)
 					     (void *)mac, ETH_ALEN);
+#elif defined(__FreeBSD__)
+					     __DECONST(u8 *, mac), ETH_ALEN);
+#endif
 	if (err < 0)
 		bphy_err(drvr, "Setting SCB (de-)authorize failed, %d\n", err);
 
@@ -5623,8 +5783,13 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		memcpy(action_frame->data, &buf[DOT11_MGMT_HDR_LEN],
 		       le16_to_cpu(action_frame->len));
 
+#if defined(__linux__)
 		brcmf_dbg(TRACE, "Action frame, cookie=%lld, len=%d, channel=%d\n",
 			  *cookie, le16_to_cpu(action_frame->len),
+#elif defined(__FreeBSD__)
+		brcmf_dbg(TRACE, "Action frame, cookie=%ju, len=%d, channel=%d\n",
+			  (uintmax_t)*cookie, le16_to_cpu(action_frame->len),
+#endif
 			  le32_to_cpu(af_params->channel));
 
 		ack = brcmf_p2p_send_action_frame(cfg, cfg_to_ndev(cfg),
@@ -5815,11 +5980,19 @@ brcmf_notify_tdls_peer_event(struct brcmf_if *ifp,
 		break;
 	case BRCMF_E_REASON_TDLS_PEER_CONNECTED:
 		brcmf_dbg(TRACE, "TDLS Peer Connected\n");
+#if defined(__linux__)
 		brcmf_proto_add_tdls_peer(ifp->drvr, ifp->ifidx, (u8 *)e->addr);
+#elif defined(__FreeBSD__)
+		brcmf_proto_add_tdls_peer(ifp->drvr, ifp->ifidx, e->addr);
+#endif
 		break;
 	case BRCMF_E_REASON_TDLS_PEER_DISCONNECTED:
 		brcmf_dbg(TRACE, "TDLS Peer Disconnected\n");
+#if defined(__linux__)
 		brcmf_proto_delete_peer(ifp->drvr, ifp->ifidx, (u8 *)e->addr);
+#elif defined(__FreeBSD__)
+		brcmf_proto_delete_peer(ifp->drvr, ifp->ifidx, e->addr);
+#endif
 		break;
 	}
 
@@ -6553,7 +6726,11 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 	    (e->event_code == BRCMF_E_DEAUTH_IND) ||
 	    (e->event_code == BRCMF_E_DISASSOC_IND) ||
 	    ((e->event_code == BRCMF_E_LINK) && (!e->flags))) {
+#if defined(__linux__)
 		brcmf_proto_delete_peer(ifp->drvr, ifp->ifidx, (u8 *)e->addr);
+#elif defined(__FreeBSD__)
+		brcmf_proto_delete_peer(ifp->drvr, ifp->ifidx, e->addr);
+#endif
 	}
 
 	if (brcmf_is_apmode(ifp->vif)) {
@@ -6640,7 +6817,11 @@ brcmf_notify_mic_status(struct brcmf_if *ifp,
 	else
 		key_type = NL80211_KEYTYPE_PAIRWISE;
 
+#if defined(__linux__)
 	cfg80211_michael_mic_failure(ifp->ndev, (u8 *)&e->addr, key_type, -1,
+#elif defined(__FreeBSD__)
+	cfg80211_michael_mic_failure(ifp->ndev, e->addr, key_type, -1,
+#endif
 				     NULL, GFP_KERNEL);
 
 	return 0;
@@ -8183,7 +8364,11 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 		goto exit;
 
 	/* Add 10 ms for IOVAR completion */
+#if defined(__linux__)
 	msleep(ACS_MSRMNT_DELAY + 10);
+#elif defined(__FreeBSD__)
+	linux_msleep(ACS_MSRMNT_DELAY + 10);
+#endif
 
 	/* Issue IOVAR to collect measurement results */
 	req.msrmnt_query = 1;
@@ -8204,8 +8389,13 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 	brcmf_dbg(INFO, "OBSS dump: channel %d: survey duration %d\n",
 		  ieee80211_frequency_to_channel(info->channel->center_freq),
 		  ACS_MSRMNT_DELAY);
+#if defined(__linux__)
 	brcmf_dbg(INFO, "noise(%d) busy(%llu) rx(%llu) tx(%llu)\n",
 		  info->noise, info->time_busy, info->time_rx, info->time_tx);
+#elif defined(__FreeBSD__)
+	brcmf_dbg(INFO, "noise(%d) busy(%ju) rx(%ju) tx(%ju)\n",
+		  info->noise, (uintmax_t)info->time_busy, (uintmax_t)info->time_rx, (uintmax_t)info->time_tx);
+#endif
 
 exit:
 	if (!brcmf_is_apmode(ifp->vif))

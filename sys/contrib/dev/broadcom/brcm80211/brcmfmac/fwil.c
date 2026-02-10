@@ -246,7 +246,11 @@ brcmf_fil_iovar_data_get(struct brcmf_if *ifp, const char *name, void *data,
 BRCMF_EXPORT_SYMBOL_GPL(brcmf_fil_iovar_data_get);
 
 static u32
+#if defined(__linux__)
 brcmf_create_bsscfg(s32 bsscfgidx, const char *name, char *data, u32 datalen,
+#elif defined(__FreeBSD__)
+brcmf_create_bsscfg(s32 bsscfgidx, const char *name, const char *data, u32 datalen,
+#endif
 		    char *buf, u32 buflen)
 {
 	const s8 *prefix = "bsscfg:";
@@ -292,7 +296,11 @@ brcmf_create_bsscfg(s32 bsscfgidx, const char *name, char *data, u32 datalen,
 
 s32
 brcmf_fil_bsscfg_data_set(struct brcmf_if *ifp, const char *name,
+#if defined(__linux__)
 			  void *data, u32 len)
+#elif defined(__FreeBSD__)
+			  const void *data, u32 len)
+#endif
 {
 	struct brcmf_pub *drvr = ifp->drvr;
 	s32 err;

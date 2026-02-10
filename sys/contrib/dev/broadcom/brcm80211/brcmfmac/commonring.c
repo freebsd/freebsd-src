@@ -119,8 +119,13 @@ again:
 		available = commonring->r_ptr - commonring->w_ptr;
 
 	if (available > 1) {
+#if defined(__linux__)
 		ret_ptr = commonring->buf_addr +
 			  (commonring->w_ptr * commonring->item_len);
+#elif defined(__FreeBSD__)
+		ret_ptr = (void *)((uintptr_t)commonring->buf_addr +
+			  (commonring->w_ptr * commonring->item_len));
+#endif
 		commonring->w_ptr++;
 		if (commonring->w_ptr == commonring->depth)
 			commonring->w_ptr = 0;
@@ -155,8 +160,13 @@ again:
 		available = commonring->r_ptr - commonring->w_ptr;
 
 	if (available > 1) {
+#if defined(__linux__)
 		ret_ptr = commonring->buf_addr +
 			  (commonring->w_ptr * commonring->item_len);
+#elif defined(__FreeBSD__)
+		ret_ptr = (void *)((uintptr_t)commonring->buf_addr +
+			  (commonring->w_ptr * commonring->item_len));
+#endif
 		*alloced = min_t(u16, n_items, available - 1);
 		if (*alloced + commonring->w_ptr > commonring->depth)
 			*alloced = commonring->depth - commonring->w_ptr;
@@ -217,8 +227,13 @@ void *brcmf_commonring_get_read_ptr(struct brcmf_commonring *commonring,
 	if (*n_items == 0)
 		return NULL;
 
+#if defined(__linux__)
 	return commonring->buf_addr +
 	       (commonring->r_ptr * commonring->item_len);
+#elif defined(__FreeBSD__)
+	return (void *)((uintptr_t)commonring->buf_addr +
+	       (commonring->r_ptr * commonring->item_len));
+#endif
 }
 
 

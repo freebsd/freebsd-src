@@ -44,7 +44,11 @@ static int brcmf_pno_store_request(struct brcmf_pno_info *pi,
 		 "pno request storage full\n"))
 		return -ENOSPC;
 
+#if defined(__linux__)
 	brcmf_dbg(SCAN, "reqid=%llu\n", req->reqid);
+#elif defined(__FreeBSD__)
+	brcmf_dbg(SCAN, "reqid=%ju\n", (uintmax_t)req->reqid);
+#endif
 	mutex_lock(&pi->req_lock);
 	pi->reqs[pi->n_reqs++] = req;
 	mutex_unlock(&pi->req_lock);
@@ -72,7 +76,11 @@ static int brcmf_pno_remove_request(struct brcmf_pno_info *pi, u64 reqid)
 		goto done;
 	}
 
+#if defined(__linux__)
 	brcmf_dbg(SCAN, "reqid=%llu\n", reqid);
+#elif defined(__FreeBSD__)
+	brcmf_dbg(SCAN, "reqid=%ju\n", (uintmax_t)reqid);
+#endif
 	pi->n_reqs--;
 
 	/* if last we are done */
@@ -184,8 +192,13 @@ static int brcmf_pno_set_random(struct brcmf_if *ifp, struct brcmf_pno_info *pi)
 	/* Set locally administered */
 	pfn_mac.mac[0] |= 0x02;
 
+#if defined(__linux__)
 	brcmf_dbg(SCAN, "enabling random mac: reqid=%llu mac=%pM\n",
 		  pi->reqs[ri]->reqid, pfn_mac.mac);
+#elif defined(__FreeBSD__)
+	brcmf_dbg(SCAN, "enabling random mac: reqid=%ju mac=%6D\n",
+		  (uintmax_t)pi->reqs[ri]->reqid, pfn_mac.mac, ":");
+#endif
 	err = brcmf_fil_iovar_data_set(ifp, "pfn_macaddr", &pfn_mac,
 				       sizeof(pfn_mac));
 	if (err)
@@ -470,7 +483,11 @@ int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 	struct brcmf_pno_info *pi;
 	int ret;
 
+#if defined(__linux__)
 	brcmf_dbg(TRACE, "reqid=%llu\n", req->reqid);
+#elif defined(__FreeBSD__)
+	brcmf_dbg(TRACE, "reqid=%ju\n", (uintmax_t)req->reqid);
+#endif
 
 	pi = ifp_to_pno(ifp);
 	ret = brcmf_pno_store_request(pi, req);
@@ -492,7 +509,11 @@ int brcmf_pno_stop_sched_scan(struct brcmf_if *ifp, u64 reqid)
 	struct brcmf_pno_info *pi;
 	int err;
 
+#if defined(__linux__)
 	brcmf_dbg(TRACE, "reqid=%llu\n", reqid);
+#elif defined(__FreeBSD__)
+	brcmf_dbg(TRACE, "reqid=%ju\n", (uintmax_t)reqid);
+#endif
 
 	pi = ifp_to_pno(ifp);
 

@@ -7,6 +7,9 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/cfg80211.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#endif
 
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
@@ -1200,7 +1203,11 @@ static s32 brcmf_p2p_af_searching_channel(struct brcmf_p2p_info *p2p)
 		 */
 		if (test_bit(BRCMF_VIF_STATUS_CONNECTED, &pri_vif->sme_state) ||
 		    test_bit(BRCMF_VIF_STATUS_CONNECTING, &pri_vif->sme_state))
+#if defined(__linux__)
 			msleep(P2P_DEFAULT_SLEEP_TIME_VSDB);
+#elif defined(__FreeBSD__)
+			linux_msleep(P2P_DEFAULT_SLEEP_TIME_VSDB);
+#endif
 	}
 
 	brcmf_dbg(TRACE, "Completed search/listen peer_chan=%d\n",
@@ -1334,7 +1341,11 @@ brcmf_p2p_stop_wait_next_action_frame(struct brcmf_cfg80211_info *cfg)
  * return true if recevied action frame is to be dropped.
  */
 static bool
+#if defined(__linux__)
 brcmf_p2p_gon_req_collision(struct brcmf_p2p_info *p2p, u8 *mac)
+#elif defined(__FreeBSD__)
+brcmf_p2p_gon_req_collision(struct brcmf_p2p_info *p2p, const u8 *mac)
+#endif
 {
 	struct brcmf_cfg80211_info *cfg = p2p->cfg;
 	struct brcmf_if *ifp;
@@ -1422,7 +1433,11 @@ int brcmf_p2p_notify_action_frame_rx(struct brcmf_if *ifp,
 		act_frm = (struct brcmf_p2p_pub_act_frame *)frame;
 		action = act_frm->subtype;
 		if ((action == P2P_PAF_GON_REQ) &&
+#if defined(__linux__)
 		    (brcmf_p2p_gon_req_collision(p2p, (u8 *)e->addr))) {
+#elif defined(__FreeBSD__)
+		    (brcmf_p2p_gon_req_collision(p2p, e->addr))) {
+#endif
 			if (test_bit(BRCMF_P2P_STATUS_FINDING_COMMON_CHANNEL,
 				     &p2p->status) &&
 			    (ether_addr_equal(afx_hdl->tx_dst_addr, e->addr))) {
@@ -1803,7 +1818,11 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 	 */
 	if (test_bit(BRCMF_VIF_STATUS_CONNECTING,
 		     &p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->sme_state))
+#if defined(__linux__)
 		msleep(50);
+#elif defined(__FreeBSD__)
+		linux_msleep(50);
+#endif
 
 	/* if scan is ongoing, abort current scan. */
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status))
@@ -1855,7 +1874,11 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 	       (!ack) && (tx_retry < P2P_AF_TX_MAX_RETRY) &&
 		!dwell_overflow) {
 		if (af_params->channel)
+#if defined(__linux__)
 			msleep(P2P_AF_RETRY_DELAY_TIME);
+#elif defined(__FreeBSD__)
+			linux_msleep(P2P_AF_RETRY_DELAY_TIME);
+#endif
 
 		ack = !brcmf_p2p_tx_action_frame(p2p, af_params);
 		tx_retry++;

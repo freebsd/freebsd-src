@@ -144,15 +144,25 @@ static enum nvram_parser_state
 brcmf_nvram_handle_value(struct nvram_parser *nvp)
 {
 	char c;
+#if defined(__linux__)
 	char *skv;
 	char *ekv;
+#elif defined(__FreeBSD__)
+	const char *skv;
+	const char *ekv;
+#endif
 	u32 cplen;
 
 	c = nvp->data[nvp->pos];
 	if (!is_nvram_char(c)) {
 		/* key,value pair complete */
+#if defined(__linux__)
 		ekv = (u8 *)&nvp->data[nvp->pos];
 		skv = (u8 *)&nvp->data[nvp->entry];
+#elif defined(__FreeBSD__)
+		ekv = &nvp->data[nvp->pos];
+		skv = &nvp->data[nvp->entry];
+#endif
 		cplen = ekv - skv;
 		if (nvp->nvram_len + cplen + 1 >= BRCMF_FW_MAX_NVRAM_SIZE)
 			return END;
@@ -171,9 +181,15 @@ brcmf_nvram_handle_value(struct nvram_parser *nvp)
 static enum nvram_parser_state
 brcmf_nvram_handle_comment(struct nvram_parser *nvp)
 {
+#if defined(__linux__)
 	char *eoc, *sol;
 
 	sol = (char *)&nvp->data[nvp->pos];
+#elif defined(__FreeBSD__)
+	const char *eoc, *sol;
+
+	sol = &nvp->data[nvp->pos];
+#endif
 	eoc = strchr(sol, '\n');
 	if (!eoc) {
 		eoc = strchr(sol, '\0');
@@ -543,7 +559,11 @@ static int brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 	bool kfree_nvram = false;
 	u32 nvram_length = 0;
 	void *nvram = NULL;
+#if defined(__linux__)
 	u8 *data = NULL;
+#elif defined(__FreeBSD__)
+	const u8 *data = NULL;
+#endif
 	size_t data_len;
 
 	brcmf_dbg(TRACE, "enter: dev=%s\n", dev_name(fwctx->dev));
@@ -551,7 +571,11 @@ static int brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 	cur = &fwctx->req->items[fwctx->curpos];
 
 	if (fw && fw->data) {
+#if defined(__linux__)
 		data = (u8 *)fw->data;
+#elif defined(__FreeBSD__)
+		data = fw->data;
+#endif
 		data_len = fw->size;
 	} else {
 		if ((data = bcm47xx_nvram_get_contents(&data_len)))

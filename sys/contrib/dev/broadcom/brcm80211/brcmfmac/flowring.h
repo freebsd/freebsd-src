@@ -66,9 +66,17 @@ void brcmf_flowring_detach(struct brcmf_flowring *flow);
 void brcmf_flowring_configure_addr_mode(struct brcmf_flowring *flow, int ifidx,
 					enum proto_addr_mode addr_mode);
 void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
+#if defined(__linux__)
 				u8 peer[ETH_ALEN]);
+#elif defined(__FreeBSD__)
+				const u8 peer[ETH_ALEN]);
+#endif
 void brcmf_flowring_add_tdls_peer(struct brcmf_flowring *flow, int ifidx,
+#if defined(__linux__)
 				  u8 peer[ETH_ALEN]);
+#elif defined(__FreeBSD__)
+				  const u8 peer[ETH_ALEN]);
+#endif
 
 
 #endif /* BRCMFMAC_FLOWRING_H */
