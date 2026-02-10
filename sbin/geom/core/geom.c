@@ -201,7 +201,7 @@ load_module(void)
 		/* Not present in kernel, try loading it. */
 		if (kldload(name2) < 0 || modfind(name1) < 0) {
 			if (errno != EEXIST) {
-				err(EXIT_FAILURE, "cannot load %s", name2);
+				xo_err(EXIT_FAILURE, "cannot load %s", name2);
 			}
 		}
 	}
@@ -259,7 +259,8 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 		size_t optnamesize;
 
 		if (G_OPT_NUM(opt) == UCHAR_MAX)
-			errx(EXIT_FAILURE, "Too many -%c options.", opt->go_char);
+			xo_errx(EXIT_FAILURE, "Too many -%c options.",
+			    opt->go_char);
 
 		/*
 		 * Base option name length plus 3 bytes for option number
@@ -268,7 +269,7 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 		optnamesize = strlen(opt->go_name) + 3 + 1;
 		ptr = malloc(optnamesize);
 		if (ptr == NULL)
-			errx(EXIT_FAILURE, "No memory.");
+			xo_errx(EXIT_FAILURE, "No memory.");
 		snprintf(ptr, optnamesize, "%s%u", opt->go_name, G_OPT_NUM(opt));
 		G_OPT_NUMINC(opt);
 		optname = ptr;
@@ -278,12 +279,12 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 
 	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
 		if (expand_number(val, &number) == -1) {
-			err(EXIT_FAILURE, "Invalid value for '%c' argument",
+			xo_err(EXIT_FAILURE, "Invalid value for '%c' argument",
 			    opt->go_char);
 		}
 		ptr = malloc(sizeof(intmax_t));
 		if (ptr == NULL)
-			errx(EXIT_FAILURE, "No memory.");
+			xo_errx(EXIT_FAILURE, "No memory.");
 		*(intmax_t *)ptr = number;
 		opt->go_val = ptr;
 		gctl_ro_param(req, optname, sizeof(intmax_t), opt->go_val);
@@ -292,7 +293,7 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
 		ptr = malloc(sizeof(int));
 		if (ptr == NULL)
-			errx(EXIT_FAILURE, "No memory.");
+			xo_errx(EXIT_FAILURE, "No memory.");
 		*(int *)ptr = *val - '0';
 		opt->go_val = ptr;
 		gctl_ro_param(req, optname, sizeof(int), opt->go_val);
@@ -346,16 +347,16 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		/* Options passed to kernel. */
 		opt = find_option(cmd, ch);
 		if (opt == NULL) {
-			if (ch == 'v' && (cmd->gc_flags & G_FLAG_VERBOSE) != 0){
+			if (ch == 'v' && (cmd->gc_flags & G_FLAG_VERBOSE) != 0) {
 				if (++vcount < 2)
 					continue;
 				else
-					warnx("Option 'v' specified twice.");
+					xo_warnx("Option 'v' specified twice.");
 			}
 			usage();
 		}
 		if (!G_OPT_ISMULTI(opt) && G_OPT_ISDONE(opt)) {
-			warnx("Option '%c' specified twice.", opt->go_char);
+			xo_warnx("Option '%c' specified twice.", opt->go_char);
 			usage();
 		}
 		G_OPT_DONE(opt);
@@ -383,7 +384,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 			set_option(req, opt, "0");
 		} else {
 			if (opt->go_val == NULL) {
-				warnx("Option '%c' not specified.",
+				xo_warnx("Option '%c' not specified.",
 				    opt->go_char);
 				usage();
 			} else if (opt->go_val == G_VAL_OPTIONAL) {
@@ -470,14 +471,12 @@ run_command(int argc, char *argv[])
 		/* Now, try to find a standard command. */
 		cmd = find_command(argv[0], GEOM_STD_CMDS);
 		if (cmd == NULL) {
-			warnx("Unknown command: %s.", argv[0]);
+			xo_warnx("Unknown command: %s.", argv[0]);
 			usage();
 		}
-		if (!std_available(cmd->gc_name)) {
-			warnx("Command '%s' not available; "
+		if (!std_available(cmd->gc_name))
+			xo_errx(EXIT_FAILURE, "Command '%s' not available; "
 			    "try 'load' first.", argv[0]);
-			exit(EXIT_FAILURE);
-		}
 	}
 	if ((cmd->gc_flags & G_FLAG_LOADKLD) != 0)
 		load_module();
@@ -502,7 +501,7 @@ run_command(int argc, char *argv[])
 		errstr = gctl_issue(req);
 	}
 	if (errstr != NULL && errstr[0] != '\0') {
-		warnx("%s", errstr);
+		xo_warnx("%s", errstr);
 		/* Suppress EXIT_FAILURE for warnings */
 		if (strncmp(errstr, "warning: ", strlen("warning: ")) == 0)
 			req->nerror = 0;
@@ -543,7 +542,7 @@ load_library(void)
 	ret = 0;
 	tofree = totalpath = strdup(library_path());
 	if (totalpath == NULL)
-		err(EXIT_FAILURE, "Not enough memory for library path");
+		xo_err(EXIT_FAILURE, "Not enough memory for library path");
 
 	if (strchr(totalpath, ':') != NULL)
 		curpath = strsep(&totalpath, ":");
@@ -563,7 +562,7 @@ load_library(void)
 				curpath = strsep(&totalpath, ":");
 				continue;
 			}
-			err(EXIT_FAILURE, "Cannot access library");
+			xo_err(EXIT_FAILURE, "Cannot access library");
 		}
 		break;
 	}
@@ -573,27 +572,28 @@ load_library(void)
 		return;
 	dlh = dlopen(path, RTLD_NOW);
 	if (dlh == NULL)
-		errx(EXIT_FAILURE, "Cannot open library: %s.", dlerror());
+		xo_errx(EXIT_FAILURE, "Cannot open library: %s.", dlerror());
 	lib_version = dlsym(dlh, "lib_version");
 	if (lib_version == NULL) {
-		warnx("Cannot find symbol %s: %s.", "lib_version", dlerror());
+		xo_warnx("Cannot find symbol %s: %s.", "lib_version",
+		    dlerror());
 		dlclose(dlh);
 		exit(EXIT_FAILURE);
 	}
 	if (*lib_version != G_LIB_VERSION) {
 		dlclose(dlh);
-		errx(EXIT_FAILURE, "%s and %s are not synchronized.",
+		xo_errx(EXIT_FAILURE, "%s and %s are not synchronized.",
 		    getprogname(), path);
 	}
 	version = dlsym(dlh, "version");
 	if (version == NULL) {
-		warnx("Cannot find symbol %s: %s.", "version", dlerror());
+		xo_warnx("Cannot find symbol %s: %s.", "version", dlerror());
 		dlclose(dlh);
 		exit(EXIT_FAILURE);
 	}
 	class_commands = dlsym(dlh, "class_commands");
 	if (class_commands == NULL) {
-		warnx("Cannot find symbol %s: %s.", "class_commands",
+		xo_warnx("Cannot find symbol %s: %s.", "class_commands",
 		    dlerror());
 		dlclose(dlh);
 		exit(EXIT_FAILURE);
@@ -614,7 +614,7 @@ set_class_name(void)
 		*s1 = tolower(*s1);
 	gclass_name = malloc(strlen(class_name) + 1);
 	if (gclass_name == NULL)
-		errx(EXIT_FAILURE, "No memory");
+		xo_errx(EXIT_FAILURE, "No memory");
 	s1 = gclass_name;
 	s2 = class_name;
 	for (; *s2 != '\0'; s2++)
@@ -645,7 +645,7 @@ get_class(int *argc, char ***argv)
 		*argc -= 1;
 		*argv += 1;
 	} else {
-		errx(EXIT_FAILURE, "Invalid utility name.");
+		xo_errx(EXIT_FAILURE, "Invalid utility name.");
 	}
 
 #ifndef STATIC_GEOM_CLASSES
@@ -664,7 +664,7 @@ get_class(int *argc, char ***argv)
 
 	/* If we can't load or list, it's not a class. */
 	if (!std_load_available() && !std_list_available())
-		errx(EXIT_FAILURE, "Invalid class name '%s'.", class_name);
+		xo_errx(EXIT_FAILURE, "Invalid class name '%s'.", class_name);
 
 	if (*argc < 1)
 		usage();
@@ -786,7 +786,7 @@ show_tree(void)
 
 	error = geom_gettree(&mesh);
 	if (error != 0)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+		xo_errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 
 	width = compute_tree_width(&mesh);
 
@@ -824,7 +824,7 @@ main(int argc, char *argv[])
 			case 'p':
 				provider_name = strdup(optarg);
 				if (provider_name == NULL)
-					err(1, "strdup");
+					xo_err(1, "strdup");
 				break;
 			case 't':
 				tflag = true;
@@ -842,7 +842,7 @@ main(int argc, char *argv[])
 	xo_set_version(GEOM_XO_VERSION);
 
 	if (tflag && provider_name != NULL) {
-		errx(EXIT_FAILURE,
+		xo_errx(EXIT_FAILURE,
 		    "At most one of -P and -t may be specified.");
 	}
 
@@ -1003,11 +1003,11 @@ list_one_geom_by_provider(const char *provider_name)
 
 	error = geom_gettree(&mesh);
 	if (error != 0)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+		xo_errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 
 	gp = find_geom_by_provider(&mesh, provider_name);
 	if (gp == NULL)
-		errx(EXIT_FAILURE, "Cannot find provider '%s'.", provider_name);
+		xo_errx(EXIT_FAILURE, "Cannot find provider '%s'.", provider_name);
 
 	xo_open_container(provider_name);
 	xo_emit("{Lwc:Geom class}{:class}\n", gp->lg_class->lg_name);
@@ -1031,7 +1031,7 @@ std_list_available(void)
 
 	error = geom_gettree_geom(&mesh, gclass_name, "", 0);
 	if (error != 0)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+		xo_errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, gclass_name);
 	geom_deletetree(&mesh);
 	if (classp != NULL)
@@ -1055,11 +1055,11 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 	} else
 		error = geom_gettree(&mesh);
 	if (error != 0)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+		xo_errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, gclass_name);
 	if (classp == NULL) {
 		geom_deletetree(&mesh);
-		errx(EXIT_FAILURE, "Class '%s' not found.", gclass_name);
+		xo_errx(EXIT_FAILURE, "Class '%s' not found.", gclass_name);
 	}
 	all = gctl_get_int(req, "all");
 	if (nargs > 0) {
@@ -1067,7 +1067,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp == NULL) {
-				errx(EXIT_FAILURE, "Class '%s' does not have "
+				xo_errx(EXIT_FAILURE, "Class '%s' does not have "
 				    "an instance named '%s'.",
 				    gclass_name, name);
 			}
@@ -1340,10 +1340,10 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 
 	error = geom_gettree(&mesh);
 	if (error != 0)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+		xo_errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, gclass_name);
 	if (classp == NULL)
-		errx(EXIT_FAILURE, "Class %s not found.", gclass_name);
+		xo_errx(EXIT_FAILURE, "Class %s not found.", gclass_name);
 	nargs = gctl_get_int(req, "nargs");
 	all = gctl_get_int(req, "all");
 	geoms = gctl_get_int(req, "geoms");
@@ -1356,7 +1356,8 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp == NULL)
-				errx(EXIT_FAILURE, "No such geom: %s.", name);
+				xo_errx(EXIT_FAILURE, "No such geom: %s.",
+				    name);
 			if (geoms) {
 				status_update_len(gp,
 				    &name_len, &status_len);
@@ -1438,7 +1439,7 @@ std_load_available(void)
 	bzero(paths, sizeof(paths));
 	len = sizeof(paths);
 	if (sysctlbyname("kern.module_path", paths, &len, NULL, 0) < 0)
-		err(EXIT_FAILURE, "sysctl(kern.module_path)");
+		xo_err(EXIT_FAILURE, "sysctl(kern.module_path)");
 	for (p = strtok(paths, ";"); p != NULL; p = strtok(NULL, ";")) {
 		snprintf(name, sizeof(name), "%s/geom_%s.ko", p, class_name);
 		/*
