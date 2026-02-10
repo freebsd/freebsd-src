@@ -117,7 +117,6 @@ fmtydhms(char *b, size_t l, time_t t)
 
 	y = t;
 
-	z = 0;
 	o = 0;
 #define APPEND(a) \
 	if (a) { \
