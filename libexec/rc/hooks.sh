@@ -71,7 +71,7 @@ if local_works > /dev/null 2>&1; then
 else
     _local=:
 fi
-# for backwards compatability
+# for backwards compatibility
 local=$_local
 
 
