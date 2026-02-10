@@ -246,8 +246,6 @@
                 clang
                 ..
             ..
-            ncurses
-            ..
             ntp
                 drivers
                     icons
