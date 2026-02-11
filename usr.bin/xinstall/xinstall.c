@@ -140,7 +140,7 @@ static char *destdir, *digest, *fflags, *metafile, *tags;
 
 static int	compare(int, const char *, size_t, int, const char *, size_t,
 		    char **);
-static char	*copy(int, const char *, int, const char *, off_t);
+static char	*copy(int, const char *, int, const char *);
 static int	create_tempfile(const char *, char *, size_t);
 static char	*quiet_mktemp(char *template);
 static char	*digest_file(const char *);
@@ -877,7 +877,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 			if (!stripped) {
 				digestresult = copy(from_fd, from_name, to_fd,
-				    tempfile, from_sb.st_size);
+				    tempfile);
 			}
 		}
 	}
@@ -1175,8 +1175,7 @@ create_tempfile(const char *path, char *temp, size_t tsize)
  *	copy from one file to another
  */
 static char *
-copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
-    off_t size)
+copy(int from_fd, const char *from_name, int to_fd, const char *to_name)
 {
 	static char *buf = NULL;
 	static size_t bufsize;
@@ -1198,8 +1197,8 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (digesttype == DIGEST_NONE) {
 		do {
 			ret = copy_file_range(from_fd, NULL, to_fd, NULL,
-			    (size_t)size, 0);
-		} while (ret > 0);
+			    SSIZE_MAX, 0);
+		} while (ret > 0 || (ret < 0 && errno == EINTR));
 		if (ret == 0)
 			goto done;
 		if (errno != EINVAL) {
@@ -1227,28 +1226,29 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 		if (buf == NULL)
 			err(1, "Not enough memory");
 	}
-	while ((nr = read(from_fd, buf, bufsize)) > 0) {
-		if ((nw = write(to_fd, buf, nr)) != nr) {
+	for (;;) {
+		if ((nr = read(from_fd, buf, bufsize)) < 0) {
+			if (errno == EINTR)
+				continue;
 			serrno = errno;
 			(void)unlink(to_name);
-			if (nw >= 0) {
-				errx(EX_OSERR,
-				    "short write to %s: %jd bytes written, "
-				    "%jd bytes asked to write",
-				    to_name, (uintmax_t)nw,
-				    (uintmax_t)size);
-			} else {
+			errno = serrno;
+			err(EX_OSERR, "%s", from_name);
+		}
+		if (nr <= 0)
+			break;
+		digest_update(&ctx, buf, nr);
+		while (nr > 0) {
+			if ((nw = write(to_fd, buf, nr)) < 0) {
+				if (errno == EINTR)
+					continue;
+				serrno = errno;
+				(void)unlink(to_name);
 				errno = serrno;
 				err(EX_OSERR, "%s", to_name);
 			}
+			nr -= nw;
 		}
-		digest_update(&ctx, buf, nr);
-	}
-	if (nr != 0) {
-		serrno = errno;
-		(void)unlink(to_name);
-		errno = serrno;
-		err(EX_OSERR, "%s", from_name);
 	}
 #ifndef BOOTSTRAP_XINSTALL
 done:
