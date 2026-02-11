@@ -1,6 +1,7 @@
 PKGCONFDIR=	${SRCTOP}/contrib/pkgconf
 
 PACKAGE=	pkgconf
+PRIVATELIB=	yes
 LIB=		pkgconf
 SHLIB_MAJOR=	6
 
