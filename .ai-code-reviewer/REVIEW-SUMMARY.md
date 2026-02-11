@@ -6,6 +6,30 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-11 12:43 - bin/expr ✓
+
+**Directory:** `bin/expr`
+
+**Summary:** [ai-code-reviewer] expr: Correct regoff_t comparison
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - .ai-code-reviewer/REVIEW-SUMMARY.md
+  - bin/expr/expr.y
+
+---
+
+## 2026-02-11 12:39 - bin/expr ✓
+
+**Directory:** `bin/expr`
+
+**Summary:** [ai-code-reviewer] expr: Remove unused HAS_TESTS definition
+
+**Files fixed:**
+  - bin/expr/Makefile
+
+---
+
 ## 2026-02-11 08:22 - bin/ed/test ✓
 
 **Directory:** `bin/ed/test`

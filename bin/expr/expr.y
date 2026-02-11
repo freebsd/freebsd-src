@@ -542,7 +542,7 @@ op_colon(struct val *a, struct val *b)
 	/* compare string against pattern */
 	/* remember that patterns are anchored to the beginning of the line */
 	if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0)
-		if (rm[1].rm_so >= 0) {
+		if (rm[1].rm_so >= (regoff_t)0) {
 			*(a->u.s + rm[1].rm_eo) = '\0';
 			v = make_str(a->u.s + rm[1].rm_so);
 
