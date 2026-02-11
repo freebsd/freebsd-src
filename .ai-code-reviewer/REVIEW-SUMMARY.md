@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-11 14:24 - bin/expr/tests ✓
+
+**Directory:** `bin/expr/tests`
+
+**Summary:** [ai-code-reviewer] tests: Update expr_test for compatibility and correctness
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/expr/tests/Makefile
+
+---
+
 ## 2026-02-11 12:43 - bin/expr ✓
 
 **Directory:** `bin/expr`
