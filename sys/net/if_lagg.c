@@ -139,6 +139,7 @@ static int	lagg_port_checkstacking(struct lagg_softc *);
 static void	lagg_port2req(struct lagg_port *, struct lagg_reqport *);
 static void	lagg_if_updown(struct lagg_softc *, bool);
 static void	lagg_init(void *);
+static void	lagg_init_locked(struct lagg_softc *);
 static void	lagg_stop(struct lagg_softc *);
 static int	lagg_ioctl(struct ifnet *, u_long, caddr_t);
 #if defined(KERN_TLS) || defined(RATELIMIT)
@@ -1279,16 +1280,21 @@ static void
 lagg_init(void *xsc)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)xsc;
+
+	LAGG_XLOCK(sc);
+	lagg_init_locked(sc);
+	LAGG_XUNLOCK(sc);
+}
+
+static void
+lagg_init_locked(struct lagg_softc *sc)
+{
 	struct ifnet *ifp = sc->sc_ifp;
 	struct lagg_port *lp;
 
-	LAGG_XLOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		LAGG_XUNLOCK(sc);
+	LAGG_XLOCK_ASSERT(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
-	}
-
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	/*
 	 * Update the port lladdrs if needed.
@@ -1310,8 +1316,7 @@ lagg_init(void *xsc)
 		lagg_watchdog_infiniband(sc);
 		mtx_unlock(&sc->sc_mtx);
 	}
-
-	LAGG_XUNLOCK(sc);
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 }
 
 static void
@@ -1674,24 +1679,21 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			lagg_setflags(lp, 1);
 		}
 
-		if (!(ifp->if_flags & IFF_UP) &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		if ((ifp->if_flags & IFF_UP) == 0 &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 			/*
 			 * If interface is marked down and it is running,
 			 * then stop and disable it.
 			 */
 			lagg_stop(sc);
-			LAGG_XUNLOCK(sc);
-		} else if ((ifp->if_flags & IFF_UP) &&
-		    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		else if ((ifp->if_flags & IFF_UP) != 0 &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
-			LAGG_XUNLOCK(sc);
-			(*ifp->if_init)(sc);
-		} else
-			LAGG_XUNLOCK(sc);
+			lagg_init_locked(sc);
+		LAGG_XUNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
