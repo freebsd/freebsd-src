@@ -60,7 +60,8 @@ static struct inodetree v2 = RB_INITIALIZER(&v2);
 RB_GENERATE_STATIC(inodetree, inode, entry, inodecmp);
 
 static int
-vscandir(struct inodetree *tree, const char *path, struct dirent ***dirp,
+vscandir(struct inodetree *tree, struct inode **inop,
+    const char *path, struct dirent ***dirp,
     int (*selectf)(const struct dirent *),
     int (*comparf)(const struct dirent **, const struct dirent **))
 {
@@ -85,6 +86,7 @@ vscandir(struct inodetree *tree, const char *path, struct dirent ***dirp,
 		goto fail;
 	RB_INSERT(inodetree, tree, ino);
 	close(fd);
+	*inop = ino;
 	return (ret);
 fail:
 	serrno = errno;
@@ -96,6 +98,13 @@ fail:
 	return (-1);
 }
 
+static void
+leavedir(struct inodetree *tree, struct inode *ino)
+{
+	RB_REMOVE(inodetree, tree, ino);
+	free(ino);
+}
+
 /*
  * Diff directory traversal. Will be called recursively if -r was specified.
  */
@@ -104,6 +113,7 @@ diffdir(char *p1, char *p2, int flags)
 {
 	struct dirent *dent1, **dp1, **edp1, **dirp1 = NULL;
 	struct dirent *dent2, **dp2, **edp2, **dirp2 = NULL;
+	struct inode *ino1 = NULL, *ino2 = NULL;
 	size_t dirlen1, dirlen2;
 	char path1[PATH_MAX], path2[PATH_MAX];
 	int pos;
@@ -131,7 +141,7 @@ diffdir(char *p1, char *p2, int flags)
 	 * Get a list of entries in each directory, skipping "excluded" files
 	 * and sorting alphabetically.
 	 */
-	pos = vscandir(&v1, path1, &dirp1, selectfile, alphasort);
+	pos = vscandir(&v1, &ino1, path1, &dirp1, selectfile, alphasort);
 	if (pos == -1) {
 		if (errno == ENOENT && (Nflag || Pflag)) {
 			pos = 0;
@@ -143,7 +153,7 @@ diffdir(char *p1, char *p2, int flags)
 	dp1 = dirp1;
 	edp1 = dirp1 + pos;
 
-	pos = vscandir(&v2, path2, &dirp2, selectfile, alphasort);
+	pos = vscandir(&v2, &ino2, path2, &dirp2, selectfile, alphasort);
 	if (pos == -1) {
 		if (errno == ENOENT && Nflag) {
 			pos = 0;
@@ -217,11 +227,15 @@ diffdir(char *p1, char *p2, int flags)
 
 closem:
 	if (dirp1 != NULL) {
+		if (ino1 != NULL)
+			leavedir(&v1, ino1);
 		for (dp1 = dirp1; dp1 < edp1; dp1++)
 			free(*dp1);
 		free(dirp1);
 	}
 	if (dirp2 != NULL) {
+		if (ino2 != NULL)
+			leavedir(&v2, ino2);
 		for (dp2 = dirp2; dp2 < edp2; dp2++)
 			free(*dp2);
 		free(dirp2);

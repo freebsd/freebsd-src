@@ -382,6 +382,11 @@ dirloop_body()
 	    -e match:"a/foo/bar/up: Directory loop detected" \
 	    -e match:"b/foo/bar/up: Directory loop detected" \
 	    diff -r a b
+	atf_check rm [ab]/foo/bar/up
+	atf_check mkdir -p b/foo/bar
+	atf_check ln -s foo a/baz
+	atf_check ln -s foo b/baz
+	atf_check diff -r a b
 }
 
 bigc_head()
