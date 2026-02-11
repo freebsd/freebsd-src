@@ -75,7 +75,8 @@ setvbuf(FILE * __restrict fp, char * __restrict buf, int mode, size_t size)
 	flags = fp->_flags;
 	if (flags & __SMBF)
 		free((void *)fp->_bf._base);
-	flags &= ~(__SLBF | __SNBF | __SMBF | __SOPT | __SOFF | __SNPT | __SEOF);
+	flags &= ~(__SLBF | __SNBF | __SMBF | __SOPT | __SOFF | __SNPT |
+	    __SEOF);
 
 	/* If setting unbuffered mode, skip all the hard work. */
 	if (mode == _IONBF)

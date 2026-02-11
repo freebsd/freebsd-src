@@ -101,7 +101,6 @@ ungetc(int c, FILE *fp)
 int
 __ungetc(int c, FILE *fp)
 {
-
 	if (c == EOF)
 		return (EOF);
 	if ((fp->_flags & __SRD) == 0) {

@@ -65,7 +65,7 @@ static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 static FILE __sF[3] = {
 	std(__SRD, STDIN_FILENO),
 	std(__SWR, STDOUT_FILENO),
-	std(__SWR|__SNBF, STDERR_FILENO)
+	std(__SWR | __SNBF, STDERR_FILENO)
 };
 
 FILE *__stdinp = &__sF[0];
@@ -75,7 +75,7 @@ FILE *__stderrp = &__sF[2];
 struct glue __sglue = { &uglue, 3, __sF };
 static struct glue *lastglue = &uglue;
 
-static struct glue *	moreglue(int);
+static struct glue *moreglue(int);
 
 spinlock_t __stdio_thread_lock = _SPINLOCK_INITIALIZER;
 
@@ -157,9 +157,8 @@ found:
  * XXX.  Force immediate allocation of internal memory.  Not used by stdio,
  * but documented historically for certain applications.  Bad applications.
  */
-__warn_references(f_prealloc, 
+__warn_references(f_prealloc,
 	"warning: this program uses f_prealloc(), which is not recommended.");
-void f_prealloc(void);
 
 void
 f_prealloc(void)
@@ -174,7 +173,7 @@ f_prealloc(void)
 	 * removed.
 	 */
 	for (g = &__sglue; (n -= g->niobs) > 0 && g->next; g = g->next)
-		/* void */;
+		;	/* nothing */
 	if ((n > 0) && ((g = moreglue(n)) != NULL)) {
 		STDIO_THREAD_LOCK();
 		SET_GLUE_PTR(lastglue->next, g);

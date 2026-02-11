@@ -58,7 +58,7 @@ __swsetup(FILE *fp)
 			/* clobber any ungetc data */
 			if (HASUB(fp))
 				FREEUB(fp);
-			fp->_flags &= ~(__SRD|__SEOF);
+			fp->_flags &= ~(__SRD | __SEOF);
 			fp->_r = 0;
 			fp->_p = fp->_bf._base;
 		}

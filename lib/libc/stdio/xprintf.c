@@ -80,10 +80,14 @@ const char __lowercase_hex[17] = "0123456789abcdef?";	/*lint !e784 */
 const char __uppercase_hex[17] = "0123456789ABCDEF?";	/*lint !e784 */
 
 #define PADSIZE 16
-static char blanks[PADSIZE] =
-	 {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
-static char zeroes[PADSIZE] =
-	 {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
+static char blanks[PADSIZE] = {
+    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
+};
+static char zeroes[PADSIZE] = {
+	'0', '0', '0', '0', '0', '0', '0', '0',
+	'0', '0', '0', '0', '0', '0', '0', '0'
+};
 
 /* printing and padding functions ------------------------------------*/
 
@@ -99,7 +103,6 @@ struct __printf_io {
 static void
 __printf_init(struct __printf_io *io)
 {
-
 	io->uio.uio_iov = io->iovp = &io->iov[0];
 	io->uio.uio_resid = 0;
 	io->uio.uio_iovcnt = 0;
@@ -108,7 +111,6 @@ __printf_init(struct __printf_io *io)
 void
 __printf_flush(struct __printf_io *io)
 {
-
 	__sfvwrite(io->fp, &io->uio);
 	__printf_init(io);
 }
@@ -116,8 +118,6 @@ __printf_flush(struct __printf_io *io)
 int
 __printf_puts(struct __printf_io *io, const void *ptr, int len)
 {
-
-
 	if (io->fp->_flags & __SERR)
 		return (0);
 	if (len == 0)
@@ -145,7 +145,7 @@ __printf_pad(struct __printf_io *io, int howmany, int zero)
 		with = blanks;
 
 	if ((n = (howmany)) > 0) {
-		while (n > PADSIZE) { 
+		while (n > PADSIZE) {
 			ret += __printf_puts(io, with, PADSIZE);
 			n -= PADSIZE;
 		}
@@ -155,7 +155,8 @@ __printf_pad(struct __printf_io *io, int howmany, int zero)
 }
 
 int
-__printf_out(struct __printf_io *io, const struct printf_info *pi, const void *ptr, int len)
+__printf_out(struct __printf_io *io, const struct printf_info *pi,
+    const void *ptr, int len)
 {
 	int ret = 0;
 
@@ -171,16 +172,16 @@ __printf_out(struct __printf_io *io, const struct printf_info *pi, const void *p
 /* percent handling  -------------------------------------------------*/
 
 static int
-__printf_arginfo_pct(const struct printf_info *pi __unused, size_t n __unused, int *argt __unused)
+__printf_arginfo_pct(const struct printf_info *pi __unused, size_t n __unused,
+    int *argt __unused)
 {
-
 	return (0);
 }
 
 static int
-__printf_render_pct(struct __printf_io *io, const struct printf_info *pi __unused, const void *const *arg __unused)
+__printf_render_pct(struct __printf_io *io,
+    const struct printf_info *pi __unused, const void *const *arg __unused)
 {
-
 	return (__printf_puts(io, "%", 1));
 }
 
@@ -189,7 +190,6 @@ __printf_render_pct(struct __printf_io *io, const struct printf_info *pi __unuse
 static int
 __printf_arginfo_n(const struct printf_info *pi, size_t n, int *argt)
 {
-
 	assert(n >= 1);
 	argt[0] = PA_POINTER;
 	return (1);
@@ -201,9 +201,9 @@ __printf_arginfo_n(const struct printf_info *pi, size_t n, int *argt)
  */
 
 static int
-__printf_render_n(FILE *io __unused, const struct printf_info *pi, const void *const *arg)
+__printf_render_n(FILE *io __unused, const struct printf_info *pi,
+    const void *const *arg)
 {
-
 	if (pi->is_char)
 		**((signed char **)arg[0]) = (signed char)pi->sofar;
 	else if (pi->is_short)
@@ -292,7 +292,7 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 		pi->begin = pi->end = fmt;
 		while (*fmt != '\0' && *fmt != '%')
 			pi->end = ++fmt;
-		if (*fmt == '\0') 
+		if (*fmt == '\0')
 			break;
 		fmt++;
 		for (;;) {
@@ -300,8 +300,8 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 			switch (pi->spec) {
 			case ' ':
 				/*-
-				 * ``If the space and + flags both appear, the space
-				 * flag will be ignored.''
+				 * ``If the space and + flags both appear,
+				 * the space flag will be ignored.''
 				 *      -- ANSI X3J11
 				 */
 				if (pi->showsign == 0)
@@ -370,7 +370,7 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 						maxarg = nextarg;
 					nextarg = n;
 					fmt++;
-				} else 
+				} else
 					pi->width = n;
 				continue;
 			case 'D':
@@ -454,51 +454,51 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 #if 0
 		fprintf(stderr, "arg %d %x\n", ch, argt[ch]);
 #endif
-		switch(argt[ch]) {
+		switch (argt[ch]) {
 		case PA_CHAR:
-			args[ch].intarg = (char)va_arg (ap, int);
+			args[ch].intarg = (char)va_arg(ap, int);
 			break;
 		case PA_INT:
-			args[ch].intarg = va_arg (ap, int);
+			args[ch].intarg = va_arg(ap, int);
 			break;
 		case PA_INT | PA_FLAG_SHORT:
-			args[ch].intarg = (short)va_arg (ap, int);
+			args[ch].intarg = (short)va_arg(ap, int);
 			break;
 		case PA_INT | PA_FLAG_LONG:
-			args[ch].longarg = va_arg (ap, long);
+			args[ch].longarg = va_arg(ap, long);
 			break;
 		case PA_INT | PA_FLAG_INTMAX:
-			args[ch].intmaxarg = va_arg (ap, intmax_t);
+			args[ch].intmaxarg = va_arg(ap, intmax_t);
 			break;
 		case PA_INT | PA_FLAG_QUAD:
-			args[ch].intmaxarg = va_arg (ap, quad_t);
+			args[ch].intmaxarg = va_arg(ap, quad_t);
 			break;
 		case PA_INT | PA_FLAG_LONG_LONG:
-			args[ch].intmaxarg = va_arg (ap, long long);
+			args[ch].intmaxarg = va_arg(ap, long long);
 			break;
 		case PA_INT | PA_FLAG_SIZE:
-			args[ch].intmaxarg = va_arg (ap, size_t);
+			args[ch].intmaxarg = va_arg(ap, size_t);
 			break;
 		case PA_INT | PA_FLAG_PTRDIFF:
-			args[ch].intmaxarg = va_arg (ap, ptrdiff_t);
+			args[ch].intmaxarg = va_arg(ap, ptrdiff_t);
 			break;
 		case PA_WCHAR:
-			args[ch].wintarg = va_arg (ap, wint_t);
+			args[ch].wintarg = va_arg(ap, wint_t);
 			break;
 		case PA_POINTER:
-			args[ch].pvoidarg = va_arg (ap, void *);
+			args[ch].pvoidarg = va_arg(ap, void *);
 			break;
 		case PA_STRING:
-			args[ch].pchararg = va_arg (ap, char *);
+			args[ch].pchararg = va_arg(ap, char *);
 			break;
 		case PA_WSTRING:
-			args[ch].pwchararg = va_arg (ap, wchar_t *);
+			args[ch].pwchararg = va_arg(ap, wchar_t *);
 			break;
 		case PA_DOUBLE:
-			args[ch].doublearg = va_arg (ap, double);
+			args[ch].doublearg = va_arg(ap, double);
 			break;
 		case PA_DOUBLE | PA_FLAG_LONG_DOUBLE:
-			args[ch].longdoublearg = va_arg (ap, long double);
+			args[ch].longdoublearg = va_arg(ap, long double);
 			break;
 		default:
 			errx(1, "argtype = %x (fmt = \"%s\")\n",
@@ -511,15 +511,24 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 		fprintf(stderr, " spec '%c'", pi->spec);
 		fprintf(stderr, " args %d",
 		    ((uintptr_t)pi->arg[0] - (uintptr_t)args) / sizeof args[0]);
-		if (pi->width) fprintf(stderr, " width %d", pi->width);
-		if (pi->pad) fprintf(stderr, " pad 0x%x", pi->pad);
-		if (pi->left) fprintf(stderr, " left");
-		if (pi->showsign) fprintf(stderr, " showsign");
-		if (pi->prec != -1) fprintf(stderr, " prec %d", pi->prec);
-		if (pi->is_char) fprintf(stderr, " char");
-		if (pi->is_short) fprintf(stderr, " short");
-		if (pi->is_long) fprintf(stderr, " long");
-		if (pi->is_long_double) fprintf(stderr, " long_double");
+		if (pi->width)
+			fprintf(stderr, " width %d", pi->width);
+		if (pi->pad)
+			fprintf(stderr, " pad 0x%x", pi->pad);
+		if (pi->left)
+			fprintf(stderr, " left");
+		if (pi->showsign)
+			fprintf(stderr, " showsign");
+		if (pi->prec != -1)
+			fprintf(stderr, " prec %d", pi->prec);
+		if (pi->is_char)
+			fprintf(stderr, " char");
+		if (pi->is_short)
+			fprintf(stderr, " short");
+		if (pi->is_long)
+			fprintf(stderr, " long");
+		if (pi->is_long_double)
+			fprintf(stderr, " long_double");
 		fprintf(stderr, "\n");
 		fprintf(stderr, "\t\"%.*s\"\n", pi->end - pi->begin, pi->begin);
 #endif
@@ -536,7 +545,7 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 				pi->width = -pi->width;
 			}
 		}
-		if (pi->get_prec) 
+		if (pi->get_prec)
 			pi->prec = args[pi->get_prec].intarg;
 		ret += __printf_puts(&io, pi->begin, pi->end - pi->begin);
 		if (printf_tbl[pi->spec].gnurender != NULL) {
@@ -558,8 +567,6 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 	__printf_flush(&io);
 	return (ret);
 }
-
-extern int      __fflush(FILE *fp);
 
 /*
  * Helper function for `fprintf to unbuffered unix file': creates a
@@ -611,7 +618,7 @@ __xvprintf(FILE *fp, const char *fmt0, va_list ap)
 	}
 
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
-	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
+	if ((fp->_flags & (__SNBF | __SWR | __SRW)) == (__SNBF | __SWR) &&
 	    __sfileno(fp) >= 0)
 		return (__v3printf(fp, fmt0, u, ap));
 	else
@@ -621,9 +628,9 @@ __xvprintf(FILE *fp, const char *fmt0, va_list ap)
 /* extending ---------------------------------------------------------*/
 
 int
-register_printf_function(int spec, printf_function *render, printf_arginfo_function *arginfo)
+register_printf_function(int spec, printf_function *render,
+    printf_arginfo_function *arginfo)
 {
-
 	if (spec > 255 || spec < 0)
 		return (-1);
 	printf_tbl[spec].gnurender = render;
@@ -633,9 +640,9 @@ register_printf_function(int spec, printf_function *render, printf_arginfo_funct
 }
 
 int
-register_printf_render(int spec, printf_render *render, printf_arginfo_function *arginfo)
+register_printf_render(int spec, printf_render *render,
+    printf_arginfo_function *arginfo)
 {
-
 	if (spec > 255 || spec < 0)
 		return (-1);
 	printf_tbl[spec].render = render;
@@ -647,7 +654,6 @@ register_printf_render(int spec, printf_render *render, printf_arginfo_function 
 int
 register_printf_render_std(const char *specs)
 {
-
 	for (; *specs != '\0'; specs++) {
 		switch (*specs) {
 		case 'H':
