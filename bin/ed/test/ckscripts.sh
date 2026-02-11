@@ -6,26 +6,22 @@
 
 PATH="/bin:/usr/bin:/usr/local/bin/:."
 ED=$1
-[ ! -x $ED ] && { echo "$ED: cannot execute"; exit 1; }
+[ ! -x "$ED" ] && { echo "$ED: cannot execute"; exit 1; }
 
 # Run the *.red scripts first, since these don't generate output;
 # they exit with non-zero status
 for i in *.red; do
-	echo $i
-	if $i; then
-		echo "*** The script $i exited abnormally  ***"
+	echo "$i"
+	if "$i"; then
+		echo "*** The script $i exited abnormally ***"
 	fi
 done >errs.o 2>&1
 
-# Run the remainding scripts; they exit with zero status
+# Run the remaining scripts; they exit with zero status
 for i in *.ed; do
-#	base=`expr $i : '\([^.]*\)'`
-#	base=`echo $i | sed 's/\..*//'`
-	base=`$ED - \!"echo $i" <<-EOF
-		s/\..*
-	EOF`
-	if $base.ed; then
-		if cmp -s $base.o $base.r; then :; else
+	base="${i%.ed}"
+	if "$base.ed"; then
+		if cmp -s "$base.o" "$base.r"; then :; else
 			echo "*** Output $base.o of script $i is incorrect ***"
 		fi
 	else

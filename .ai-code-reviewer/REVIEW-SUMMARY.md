@@ -6,6 +6,19 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-11 04:00 - bin/ed/test ✓
+
+**Directory:** `bin/ed/test`
+
+**Summary:** [ai-code-reviewer] test: Update ckscripts.sh and mkscripts.sh for robustness
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/ed/test/ckscripts.sh
+  - bin/ed/test/mkscripts.sh
+
+---
+
 ## 2026-02-11 02:00 - bin/ed ✓
 
 **Directory:** `bin/ed`
