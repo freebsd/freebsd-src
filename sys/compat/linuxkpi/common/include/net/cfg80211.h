@@ -1021,6 +1021,14 @@ struct survey_info {		/* net80211::struct ieee80211_channel_survey */
 	struct linuxkpi_ieee80211_channel *channel;
 };
 
+enum wiphy_bss_param_flags {
+	WIPHY_BSS_PARAM_AP_ISOLATE		= BIT(0),
+};
+
+struct bss_parameters {
+	int					ap_isolate;
+};
+
 enum wiphy_vendor_cmd_need_flags {
 	WIPHY_VENDOR_CMD_NEED_NETDEV		= 0x01,
 	WIPHY_VENDOR_CMD_NEED_RUNNING		= 0x02,
@@ -1142,6 +1150,8 @@ struct wiphy {
 	int					n_radio;
 	const struct wiphy_radio		*radio;
 
+	uint32_t				bss_param_support;	/* enum wiphy_bss_param_flags */
+
 	int	features, hw_version;
 	int	interface_modes, max_match_sets, max_remain_on_channel_duration, max_scan_ssids, max_sched_scan_ie_len, max_sched_scan_plan_interval, max_sched_scan_plan_iterations, max_sched_scan_plans, max_sched_scan_reqs, max_sched_scan_ssids;
 	int	num_iftype_ext_capab;
@@ -1224,7 +1234,7 @@ struct cfg80211_ops {
 	int (*dump_survey)(struct wiphy *, struct net_device *, int, struct survey_info *);
 	int (*external_auth)(struct wiphy *, struct net_device *, struct cfg80211_external_auth_params *);
         int (*set_cqm_rssi_range_config)(struct wiphy *, struct net_device *, int, int);
-
+	int (*change_bss)(struct wiphy *, struct net_device *, struct bss_parameters *);
 };
 
 
