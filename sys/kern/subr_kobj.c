@@ -326,8 +326,12 @@ kobj_init_static(kobj_t obj, kobj_class_t cls)
 void
 kobj_delete(kobj_t obj, struct malloc_type *mtype)
 {
-	kobj_class_t cls = obj->ops->cls;
+	kobj_class_t cls;
 	int refs;
+
+	if (obj->ops == NULL)
+		goto out;
+	cls = obj->ops->cls;
 
 	/*
 	 * Consider freeing the compiled method table for the class
@@ -344,6 +348,8 @@ kobj_delete(kobj_t obj, struct malloc_type *mtype)
 		kobj_class_free(cls);
 
 	obj->ops = NULL;
+
+out:
 	if (mtype)
 		free(obj, mtype);
 }
