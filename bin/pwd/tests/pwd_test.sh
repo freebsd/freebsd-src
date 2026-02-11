@@ -66,8 +66,29 @@ physical_body()
 	atf_check -o inline:"$root/phy/baz\n" pwd -L
 }
 
+atf_test_case stdout
+stdout_head()
+{
+	atf_set descr "error writing to stdout"
+}
+stdout_body()
+{
+	pwd=$(which pwd)
+	[ -f "$pwd" ] || atf_skip "unable to distinguish binary from builtin"
+	(
+		trap "" PIPE
+		# Give true(1) some time to exit.
+		sleep 1
+		$pwd 2>stderr
+		echo $? >result
+	) | true
+	atf_check -o inline:"1\n" cat result
+	atf_check -o match:"stdout" cat stderr
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case logical
 	atf_add_test_case physical
+	atf_add_test_case stdout
 }

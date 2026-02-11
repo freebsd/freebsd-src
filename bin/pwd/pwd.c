@@ -112,5 +112,7 @@ main(int argc, char *argv[])
 		printf("%s\n", pwd);
 	else
 		err(1, ".");
+	if (fflush(stdout) != 0)
+		err(1, "stdout");
 	exit(0);
 }
