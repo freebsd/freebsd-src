@@ -53,41 +53,41 @@
  * in particular, macros and private variables.
  */
 
-extern int	_sread(FILE *, char *, int);
-extern int	_swrite(FILE *, char const *, int);
-extern fpos_t	_sseek(FILE *, fpos_t, int);
-extern int	_ftello(FILE *, fpos_t *);
-extern int	_fseeko(FILE *, off_t, int, int);
-extern int	__fflush(FILE *fp);
-extern void	__fcloseall(void);
-extern wint_t	__fgetwc_mbs(FILE *, mbstate_t *, int *, locale_t);
-extern wint_t	__fputwc(wchar_t, FILE *, locale_t);
-extern int	__sflush(FILE *);
+extern void	 __fcloseall(void);
+extern int	 __fflush(FILE *fp);
+extern wint_t	 __fgetwc_mbs(FILE *, mbstate_t *, int *, locale_t);
+extern wint_t	 __fputwc(wchar_t, FILE *, locale_t);
+extern size_t	 __fread(void * __restrict buf, size_t size, size_t count,
+		    FILE * __restrict fp);
+extern int	 __sclose(void *);
+extern int	 __sflags(const char *, int *);
+extern int	 __sflush(FILE *);
 extern FILE	*__sfp(void);
-extern int	__slbexpand(FILE *, size_t);
-extern int	__srefill(FILE *);
-extern int	__sread(void *, char *, int);
-extern int	__swrite(void *, char const *, int);
-extern fpos_t	__sseek(void *, fpos_t, int);
-extern int	__sclose(void *);
-extern void	_cleanup(void);
-extern void	__smakebuf(FILE *);
-extern int	__swhatbuf(FILE *, size_t *, int *);
-extern int	_fwalk(int (*)(FILE *));
-extern int	__svfscanf(FILE *, locale_t, const char *, __va_list);
-extern int	__swsetup(FILE *);
-extern int	__sflags(const char *, int *);
-extern int	__ungetc(int, FILE *);
-extern wint_t	__ungetwc(wint_t, FILE *, locale_t);
-extern int	__vfprintf(FILE *, locale_t, int, const char *, __va_list);
-extern int	__vfscanf(FILE *, const char *, __va_list);
-extern int	__vfwprintf(FILE *, locale_t, const wchar_t *, __va_list);
-extern int	__vfwscanf(FILE * __restrict, locale_t, const wchar_t * __restrict,
-		    __va_list);
-extern size_t	__fread(void * __restrict buf, size_t size, size_t count,
-		FILE * __restrict fp);
+extern int	 __slbexpand(FILE *, size_t);
+extern void	 __smakebuf(FILE *);
+extern int	 __sread(void *, char *, int);
+extern int	 __srefill(FILE *);
+extern fpos_t	 __sseek(void *, fpos_t, int);
+extern int	 __svfscanf(FILE *, locale_t, const char *, __va_list);
+extern int	 __swhatbuf(FILE *, size_t *, int *);
+extern int	 __swrite(void *, char const *, int);
+extern int	 __swsetup(FILE *);
+extern int	 __ungetc(int, FILE *);
+extern wint_t	 __ungetwc(wint_t, FILE *, locale_t);
+extern int	 __vfprintf(FILE *, locale_t, int, const char *, __va_list);
+extern int	 __vfscanf(FILE *, const char *, __va_list);
+extern int	 __vfwprintf(FILE *, locale_t, const wchar_t *, __va_list);
+extern int	 __vfwscanf(FILE * __restrict, locale_t,
+		    const wchar_t * __restrict, __va_list);
+extern void	 _cleanup(void);
+extern int	 _fseeko(FILE *, off_t, int, int);
+extern int	 _ftello(FILE *, fpos_t *);
+extern int	 _fwalk(int (*)(FILE *));
+extern int	 _sread(FILE *, char *, int);
+extern fpos_t	 _sseek(FILE *, fpos_t, int);
+extern int	 _swrite(FILE *, char const *, int);
 
-extern bool	__stdio_force_short_fildes;
+extern bool	 __stdio_force_short_fildes;
 
 static inline wint_t
 __fgetwc(FILE *fp, locale_t locale)

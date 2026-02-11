@@ -106,7 +106,7 @@ grouping_init(struct grouping_state *gs, int ndigits, locale_t loc)
 		if (gs->lead <= *gs->grouping)
 			break;
 		gs->lead -= *gs->grouping;
-		if (*(gs->grouping+1)) {
+		if (*(gs->grouping + 1)) {
 			gs->nseps++;
 			gs->grouping++;
 		} else
@@ -274,7 +274,7 @@ vfprintf_l(FILE * __restrict fp, locale_t locale, const char * __restrict fmt0,
 
 	FLOCKFILE_CANCELSAFE(fp);
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
-	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
+	if ((fp->_flags & (__SNBF | __SWR | __SRW)) == (__SNBF | __SWR) &&
 	    __sfileno(fp) >= 0)
 		ret = __sbprintf(fp, locale, serrno, fmt0, ap);
 	else
@@ -285,7 +285,7 @@ vfprintf_l(FILE * __restrict fp, locale_t locale, const char * __restrict fmt0,
 int
 vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 {
-	return vfprintf_l(fp, __get_locale(), fmt0, ap);
+	return (vfprintf_l(fp, __get_locale(), fmt0, ap));
 }
 
 /*
@@ -340,7 +340,7 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	char *dtoaend;		/* pointer to end of converted digits */
 	int expsize;		/* character count for expstr */
 	int ndig;		/* actual number of digits returned by dtoa */
-	char expstr[MAXEXPDIG+2];	/* buffer for exponent string: e+ZZZ */
+	char expstr[MAXEXPDIG + 2];	/* buffer for exponent string: e+ZZZ */
 	char *dtoaresult;	/* buffer allocated by dtoa */
 	u_long	ulval;		/* integer arguments %[diouxX] */
 	uintmax_t ujval;	/* %j, %ll, %q, %t, %z integers */
@@ -354,7 +354,7 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	char buf[BUF];		/* buffer with space for digits of uintmax_t */
 	char ox[2];		/* space for 0x; ox[1] is either x, X, or \0 */
 	union arg *argtable;    /* args, built due to positional arg */
-	union arg statargtable [STATIC_ARG_TBL_SIZE];
+	union arg statargtable[STATIC_ARG_TBL_SIZE];
 	int nextarg;            /* 1-based argument index */
 	va_list orgap;          /* original argument pointer */
 	char *convbuf;		/* wide to multibyte conversion result */
@@ -387,7 +387,7 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	 * argument (and arguments must be gotten sequentially).
 	 */
 #define GETARG(type) \
-	((argtable != NULL) ? *((type*)(&argtable[nextarg++])) : \
+	((argtable != NULL) ? *((type *)(&argtable[nextarg++])) : \
 	    (nextarg++, va_arg(ap, type)))
 
 	/*
@@ -395,25 +395,25 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	 * argument extraction methods.
 	 */
 #define	SARG() \
-	(flags&LONGINT ? GETARG(long) : \
-	    flags&SHORTINT ? (long)(short)GETARG(int) : \
-	    flags&CHARINT ? (long)(signed char)GETARG(int) : \
+	(flags & LONGINT ? GETARG(long) : \
+	    flags & SHORTINT ? (long)(short)GETARG(int) : \
+	    flags & CHARINT ? (long)(signed char)GETARG(int) : \
 	    (long)GETARG(int))
 #define	UARG() \
-	(flags&LONGINT ? GETARG(u_long) : \
-	    flags&SHORTINT ? (u_long)(u_short)GETARG(int) : \
-	    flags&CHARINT ? (u_long)(u_char)GETARG(int) : \
+	(flags & LONGINT ? GETARG(u_long) : \
+	    flags & SHORTINT ? (u_long)(u_short)GETARG(int) : \
+	    flags & CHARINT ? (u_long)(u_char)GETARG(int) : \
 	    (u_long)GETARG(u_int))
-#define	INTMAX_SIZE	(INTMAXT|SIZET|PTRDIFFT|LLONGINT)
+#define	INTMAX_SIZE	(INTMAXT | SIZET | PTRDIFFT | LLONGINT)
 #define SJARG() \
-	(flags&INTMAXT ? GETARG(intmax_t) : \
-	    flags&SIZET ? (intmax_t)GETARG(ssize_t) : \
-	    flags&PTRDIFFT ? (intmax_t)GETARG(ptrdiff_t) : \
+	(flags & INTMAXT ? GETARG(intmax_t) : \
+	    flags & SIZET ? (intmax_t)GETARG(ssize_t) : \
+	    flags & PTRDIFFT ? (intmax_t)GETARG(ptrdiff_t) : \
 	    (intmax_t)GETARG(long long))
 #define	UJARG() \
-	(flags&INTMAXT ? GETARG(uintmax_t) : \
-	    flags&SIZET ? (uintmax_t)GETARG(size_t) : \
-	    flags&PTRDIFFT ? (uintmax_t)GETARG(ptrdiff_t) : \
+	(flags & INTMAXT ? GETARG(uintmax_t) : \
+	    flags & SIZET ? (uintmax_t)GETARG(size_t) : \
+	    flags & PTRDIFFT ? (uintmax_t)GETARG(ptrdiff_t) : \
 	    (uintmax_t)GETARG(unsigned long long))
 
 	/*
@@ -431,17 +431,17 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 		int hold = nextarg; \
 		if (argtable == NULL) { \
 			argtable = statargtable; \
-			if (__find_arguments (fmt0, orgap, &argtable)) { \
+			if (__find_arguments(fmt0, orgap, &argtable)) { \
 				ret = EOF; \
 				goto error; \
 			} \
 		} \
 		nextarg = n2; \
-		val = GETARG (int); \
+		val = GETARG(int); \
 		nextarg = hold; \
 		fmt = ++cp; \
 	} else { \
-		val = GETARG (int); \
+		val = GETARG(int); \
 	}
 
 	if (__use_xprintf > 0)
@@ -473,7 +473,7 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 	 */
 	for (;;) {
 		for (cp = fmt; (ch = *fmt) != '\0' && ch != '%'; fmt++)
-			/* void */;
+			;	/* nothing */
 		if ((n = fmt - cp) != 0) {
 			if ((unsigned)ret + n > INT_MAX) {
 				ret = EOF;
@@ -516,7 +516,7 @@ reswitch:	switch (ch) {
 			 *	-- ANSI X3J11
 			 * They don't exclude field widths read from args.
 			 */
-			GETASTER (width);
+			GETASTER(width);
 			if (width >= 0)
 				goto rflag;
 			width = -width;
@@ -532,7 +532,7 @@ reswitch:	switch (ch) {
 			goto rflag;
 		case '.':
 			if ((ch = *fmt++) == '*') {
-				GETASTER (prec);
+				GETASTER(prec);
 				goto rflag;
 			}
 			prec = 0;
@@ -560,8 +560,8 @@ reswitch:	switch (ch) {
 				nextarg = n;
 				if (argtable == NULL) {
 					argtable = statargtable;
-					if (__find_arguments (fmt0, orgap,
-							      &argtable)) {
+					if (__find_arguments(fmt0, orgap,
+					    &argtable)) {
 						ret = EOF;
 						goto error;
 					}
@@ -606,7 +606,8 @@ reswitch:	switch (ch) {
 			 * int_fast32_t are equivalent to int, and
 			 * int_fast64_t is equivalent to long long int.
 			 */
-			flags &= ~(CHARINT|SHORTINT|LONGINT|LLONGINT|INTMAXT);
+			flags &= ~(CHARINT | SHORTINT | LONGINT | LLONGINT |
+			    INTMAXT);
 			if (fmt[0] == 'f') {
 				flags |= FASTINT;
 				fmt++;
@@ -617,16 +618,16 @@ reswitch:	switch (ch) {
 				if (!(flags & FASTINT))
 					flags |= CHARINT;
 				else
-					/* no flag set = 32 */ ;
+					; /* no flag set = 32 */
 				fmt += 1;
 			} else if (fmt[0] == '1' && fmt[1] == '6') {
 				if (!(flags & FASTINT))
 					flags |= SHORTINT;
 				else
-					/* no flag set = 32 */ ;
+					; /* no flag set = 32 */
 				fmt += 2;
 			} else if (fmt[0] == '3' && fmt[1] == '2') {
-				/* no flag set = 32 */ ;
+				; /* no flag set = 32 */
 				fmt += 2;
 			} else if (fmt[0] == '6' && fmt[1] == '4') {
 				flags |= LLONGINT;
@@ -813,7 +814,8 @@ fp_common:
 				if (prec || flags & ALT)
 					size += prec + decpt_len;
 				if ((flags & GROUPING) && expt > 0)
-					size += grouping_init(&gs, expt, locale);
+					size += grouping_init(&gs, expt,
+					    locale);
 			}
 			break;
 		case 'm':
@@ -972,8 +974,8 @@ invalid:
 
 		/*
 		 * All reasonable formats wind up here.  At this point, `cp'
-		 * points to a string which (if not flags&LADJUST) should be
-		 * padded out to `width' places.  If flags&ZEROPAD, it should
+		 * points to a string which (if not flags & LADJUST) should be
+		 * padded out to `width' places.  If flags & ZEROPAD, it should
 		 * first be prefixed by any sign or other prefix; otherwise,
 		 * it should be blank padded before the prefix is emitted.
 		 * After any left-hand padding and prefixing, emit zeroes
@@ -998,7 +1000,7 @@ invalid:
 		}
 
 		/* right-adjusting blank padding */
-		if ((flags & (LADJUST|ZEROPAD)) == 0)
+		if ((flags & (LADJUST | ZEROPAD)) == 0)
 			PAD(width - realsz, blanks);
 
 		/* prefix */
@@ -1011,7 +1013,7 @@ invalid:
 		}
 
 		/* right-adjusting zero padding */
-		if ((flags & (LADJUST|ZEROPAD)) == ZEROPAD)
+		if ((flags & (LADJUST | ZEROPAD)) == ZEROPAD)
 			PAD(width - realsz, zeroes);
 
 		/* the string or number proper */
@@ -1019,7 +1021,8 @@ invalid:
 			/* leading zeroes from decimal precision */
 			PAD(dprec - size, zeroes);
 			if (gs.grouping) {
-				if (grouping_print(&gs, &io, cp, buf+BUF, locale) < 0)
+				if (grouping_print(&gs, &io, cp, buf + BUF,
+				    locale) < 0)
 					goto error;
 			} else {
 				PRINT(cp, size);
@@ -1029,7 +1032,7 @@ invalid:
 				if (expt <= 0) {
 					PRINT(zeroes, 1);
 					if (prec || flags & ALT)
-						PRINT(decimal_point,decpt_len);
+						PRINT(decimal_point, decpt_len);
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
@@ -1046,14 +1049,14 @@ invalid:
 						cp += expt;
 					}
 					if (prec || flags & ALT)
-						PRINT(decimal_point,decpt_len);
+						PRINT(decimal_point, decpt_len);
 				}
 				PRINTANDPAD(cp, dtoaend, prec, zeroes);
 			} else {	/* %[eE] or sufficiently long %[gG] */
 				if (prec > 1 || flags & ALT) {
 					PRINT(cp++, 1);
 					PRINT(decimal_point, decpt_len);
-					PRINT(cp, ndig-1);
+					PRINT(cp, ndig - 1);
 					PAD(prec - ndig, zeroes);
 				} else	/* XeYYY */
 					PRINT(cp, 1);
@@ -1082,7 +1085,7 @@ error:
 	else
 		fp->_flags |= savserr;
 	if ((argtable != NULL) && (argtable != statargtable))
-		free (argtable);
+		free(argtable);
 	return (ret);
 	/* NOTREACHED */
 }
