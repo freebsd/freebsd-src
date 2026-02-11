@@ -11,22 +11,25 @@ ED=$1
 # Run the *.red scripts first, since these don't generate output;
 # they exit with non-zero status
 for i in *.red; do
-	echo "$i"
+	echo "Running $i..."
 	if "$i"; then
 		echo "*** The script $i exited abnormally ***"
 	fi
-done >errs.o 2>&1
+done >results.o 2>&1
 
 # Run the remaining scripts; they exit with zero status
 for i in *.ed; do
 	base="${i%.ed}"
 	if "$base.ed"; then
-		if cmp -s "$base.o" "$base.r"; then :; else
+		if cmp -s "$base.o" "$base.r"; then
+			echo "Output of $i is correct."
+		else
 			echo "*** Output $base.o of script $i is incorrect ***"
+			diff -u "$base.r" "$base.o"
 		fi
 	else
 		echo "*** The script $i exited abnormally ***"
 	fi
-done >scripts.o 2>&1
+done >>results.o 2>&1
 
-grep -h '\*\*\*' errs.o scripts.o
+grep -h '\*\*\*' results.o
