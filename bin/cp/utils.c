@@ -216,7 +216,10 @@ copy_file(const FTSENT *entp, bool dne, bool beneath)
 		if (!use_copy_file_range) {
 			wcount = copy_fallback(from_fd, to_fd);
 		}
-		wtotal += wcount;
+		if (wcount >= 0)
+			wtotal += wcount;
+		else if (errno != EINTR)
+			break;
 		if (info) {
 			info = 0;
 			(void)fprintf(stderr,
@@ -224,7 +227,7 @@ copy_file(const FTSENT *entp, bool dne, bool beneath)
 			    entp->fts_path, to.base, to.path,
 			    cp_pct(wtotal, fs->st_size));
 		}
-	} while (wcount > 0);
+	} while (wcount != 0);
 	if (wcount < 0) {
 		warn("%s", entp->fts_path);
 		rval = 1;
