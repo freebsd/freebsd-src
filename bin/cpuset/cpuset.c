@@ -272,8 +272,8 @@ main(int argc, char *argv[])
 				err(EXIT_FAILURE, "setdomain");
 		}
 		errno = 0;
-		execvp(*argv, argv);
-		err(errno == ENOENT ? 127 : 126, "%s", *argv);
+		if (execvp(*argv, argv) != 0)
+			err(errno == ENOENT ? 127 : 126, "%s", *argv);
 	}
 	/*
 	 * We're modifying something that presently exists.
