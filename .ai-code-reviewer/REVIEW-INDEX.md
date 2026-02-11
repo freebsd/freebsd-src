@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-10 23:36
+Generated: 2026-02-11 02:00
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-10 23:36
 
 ## Progress
 - Total directories: 8264
-- Completed: 18 (0%)
+- Completed: 19 (0%)
 - Skipped: 1
-- Remaining: 8245
+- Remaining: 8244
 
 ## Current Position
-CURRENT POSITION: `bin/ed`
+CURRENT POSITION: `bin/ed/test`
 
-## bin/ (18/74 done)
+## bin/ (19/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -41,7 +41,7 @@ CURRENT POSITION: `bin/ed`
 - [x] `bin/domainname` (1 .c, 0 .h, 77 lines) - 2026-01-12 - Fixed by session 20260112_031346
 - [x] `bin/echo` (1 .c, 0 .h, 111 lines) - 2026-01-12 - Fixed by session 20260112_031346
 - [x] `bin/echo/tests` (0 .c, 0 .h, 0 lines) - 2026-02-10 - Fixed by session 20260210_233147
-- [ ] `bin/ed` (7 .c, 1 .h, 3032 lines)
+- [x] `bin/ed` (7 .c, 1 .h, 3032 lines) - 2026-02-11 - Fixed by session 20260210_233147
 - [ ] `bin/ed/test` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/expr` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/expr/tests` (0 .c, 0 .h, 0 lines)

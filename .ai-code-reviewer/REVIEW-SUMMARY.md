@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-11 02:00 - bin/ed ✓
+
+**Directory:** `bin/ed`
+
+**Summary:** [ai-code-reviewer] ed: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-10 23:36 - bin/echo/tests ✓
 
 **Directory:** `bin/echo/tests`
