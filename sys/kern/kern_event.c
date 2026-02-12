@@ -873,8 +873,13 @@ filt_timerexpire_l(struct knote *kn, bool proc_locked)
 			PROC_LOCK(p);
 		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
 			if ((kc->flags & KQ_TIMER_CB_ENQUEUED) == 0) {
+				/*
+				 * Insert into head so that
+				 * kqtimer_proc_continue() does not
+				 * iterate into us again.
+				 */
 				kc->flags |= KQ_TIMER_CB_ENQUEUED;
-				TAILQ_INSERT_TAIL(&p->p_kqtim_stop, kc, link);
+				TAILQ_INSERT_HEAD(&p->p_kqtim_stop, kc, link);
 			}
 			if (!proc_locked)
 				PROC_UNLOCK(p);
