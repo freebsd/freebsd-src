@@ -2821,7 +2821,6 @@ bpf_setdlt(struct bpf_d *d, u_int dlt)
 		return (EINVAL);
 
 	opromisc = d->bd_promisc;
-	bpf_detachd(d, false);
 	bpf_attachd(d, bp);
 	if (opromisc) {
 		error = bp->bif_methods->bif_promisc(bp->bif_softc, true);
