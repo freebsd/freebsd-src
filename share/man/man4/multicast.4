@@ -23,7 +23,7 @@
 .\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 .\" DEALINGS IN THE SOFTWARE.
 .\"
-.Dd May 27, 2009
+.Dd February 13, 2026
 .Dt MULTICAST 4
 .Os
 .\"
@@ -124,15 +124,15 @@ Therefore, for portability reason the multicast
 routing socket should be reused for IGMP and MLD messages as well.
 .Pp
 After the multicast routing socket is open, it can be used to enable
-or disable multicast forwarding in the kernel:
+multicast forwarding in the kernel:
 .Bd -literal
 /* IPv4 */
-int v = 1;        /* 1 to enable, or 0 to disable */
+int v = 1;
 setsockopt(mrouter_s4, IPPROTO_IP, MRT_INIT, (void *)&v, sizeof(v));
 .Ed
 .Bd -literal
 /* IPv6 */
-int v = 1;        /* 1 to enable, or 0 to disable */
+int v = 1;
 setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_INIT, (void *)&v, sizeof(v));
 \&...
 /* If necessary, filter all ICMPv6 messages */
@@ -141,6 +141,24 @@ ICMP6_FILTER_SETBLOCKALL(&filter);
 setsockopt(mrouter_s6, IPPROTO_ICMPV6, ICMP6_FILTER, (void *)&filter,
            sizeof(filter));
 .Ed
+.Pp
+When applied to the multicast routing socket, the
+.Dv MRT_DONE
+and
+.Dv MRT6_DONE
+socket options disable multicast forwarding in the kernel:
+.Bd -literal
+/* IPv4 */
+int v = 1;
+setsockopt(mrouter_s4, IPPROTO_IP, MRT_DONE, (void *)&v, sizeof(v));
+.Ed
+.Bd -literal
+/* IPv6 */
+int v = 1;
+setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_DONE, (void *)&v, sizeof(v));
+.Ed
+.Pp
+Closing the socket has the same effect.
 .Pp
 After multicast forwarding is enabled, the multicast routing socket
 can be used to enable PIM processing in the kernel if we are running PIM-SM or
