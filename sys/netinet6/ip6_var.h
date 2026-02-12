@@ -372,9 +372,10 @@ VNET_DECLARE(bool, ip6_log_cannot_forward);
 #define	V_ip6_log_cannot_forward	VNET(ip6_log_cannot_forward)
 
 extern struct	pr_usrreqs rip6_usrreqs;
-struct sockopt;
 
 struct inpcb;
+struct socket;
+struct sockopt;
 struct ucred;
 
 int	icmp6_ctloutput(struct socket *, struct sockopt *sopt);
