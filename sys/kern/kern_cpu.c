@@ -1002,16 +1002,12 @@ cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 	struct sbuf sb;
 	int count, error, i;
 
-	sc = oidp->oid_arg1;
 	sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND);
 
 	/* Get settings from the device and generate the output string. */
-	count = CF_MAX_LEVELS;
+	sc = oidp->oid_arg1;
 	levels = sc->levels_buf;
-	if (levels == NULL) {
-		sbuf_delete(&sb);
-		return (ENOMEM);
-	}
+	count = CF_MAX_LEVELS;
 	error = CPUFREQ_LEVELS(sc->dev, levels, &count);
 	if (error) {
 		if (error == E2BIG)
