@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-12 01:19 - bin/kill ✓
+
+**Directory:** `bin/kill`
+
+**Summary:** [ai-code-reviewer] kill: Improve argument parsing security
+
+**Files fixed:**
+
+
+---
+
 ## 2026-02-12 01:05 - bin/kill ✓
 
 **Directory:** `bin/kill`
