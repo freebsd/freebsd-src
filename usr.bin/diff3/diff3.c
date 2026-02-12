@@ -1,6 +1,8 @@
 /*	$OpenBSD: diff3prog.c,v 1.11 2009/10/27 23:59:37 deraadt Exp $	*/
 
 /*
+ * SPDX-License-Identifier: Caldera-no-preamble AND BSD-3-Clause
+ *
  * Copyright (C) Caldera International Inc.  2001-2002.
  * All rights reserved.
  *
