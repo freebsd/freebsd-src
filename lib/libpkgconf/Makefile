@@ -3,7 +3,6 @@ PKGCONFDIR=	${SRCTOP}/contrib/pkgconf
 PACKAGE=	pkgconf
 PRIVATELIB=	yes
 LIB=		pkgconf
-SHLIB_MAJOR=	6
 
 SRCS=		audit.c buffer.c cache.c client.c pkg.c bsdstubs.c fragment.c
 SRCS+=		argvsplit.c fileio.c tuple.c dependency.c queue.c output.c
