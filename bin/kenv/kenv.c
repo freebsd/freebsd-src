@@ -189,16 +189,35 @@ kdumpenv(int dump_type)
 static int
 kgetenv(const char *env)
 {
-	char buf[1024];
+	char *buf;
+	size_t bufsize;
 	int ret;
 
-	ret = kenv(KENV_GET, env, buf, sizeof(buf));
-	if (ret == -1)
+	bufsize = 1024; // Initial buffer size
+	buf = malloc(bufsize);
+	if (buf == NULL)
+		return (-1);
+
+	ret = kenv(KENV_GET, env, buf, bufsize);
+	while (ret == -1 && errno == ERANGE) {
+		bufsize *= 2;
+		buf = realloc(buf, bufsize);
+		if (buf == NULL)
+			return (-1);
+		ret = kenv(KENV_GET, env, buf, bufsize);
+	}
+
+	if (ret == -1) {
+		free(buf);
 		return (ret);
+	}
+
 	if (vflag)
 		printf("%s=\"%s\"\n", env, buf);
 	else
 		printf("%s\n", buf);
+
+	free(buf);
 	return (0);
 }
 
