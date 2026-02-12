@@ -235,11 +235,7 @@ parse_pxm_tables(void *dummy)
 	if (arm64_bus_method != ARM64_BUS_ACPI)
 		return;
 
-	if (!get_kernel_reg(ID_AA64MMFR0_EL1, &mmfr0)) {
-		/* chosen arbitrarily */
-		mmfr0 = ID_AA64MMFR0_PARange_1T;
-	}
-
+	get_kernel_reg(ID_AA64MMFR0_EL1, &mmfr0);
 	switch (ID_AA64MMFR0_PARange_VAL(mmfr0)) {
 	case ID_AA64MMFR0_PARange_4G:
 		parange = (vm_paddr_t)4 << 30 /* GiB */;

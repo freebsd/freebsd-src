@@ -595,7 +595,7 @@ MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
 #if defined(__FreeBSD__)
 MODULE_VERSION(mt7921_pci, 1);
+MODULE_DEPEND(mt7921_pci, mt76_core, 1, 1, 1);
 MODULE_DEPEND(mt7921_pci, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mt7921_pci, linuxkpi_wlan, 1, 1, 1);
-MODULE_DEPEND(mt7921_pci, mt76_core, 1, 1, 1);
 #endif

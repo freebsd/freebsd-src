@@ -297,6 +297,7 @@ struct rtw89_fw_hdr_section_info {
 
 struct rtw89_fw_bin_info {
 	u8 section_num;
+	u32 part_size;
 	u32 hdr_len;
 	bool dynamic_hdr_en;
 	u32 dynamic_hdr_len;
@@ -446,6 +447,13 @@ struct rtw89_h2c_ra {
 #define RTW89_H2C_RA_W3_FIXED_CSI_MODE GENMASK(25, 24)
 #define RTW89_H2C_RA_W3_FIXED_CSI_GI_LTF GENMASK(28, 26)
 #define RTW89_H2C_RA_W3_FIXED_CSI_BW GENMASK(31, 29)
+#define RTW89_H2C_RA_V1_W3_PARTIAL_BW_SU_ER BIT(15)
+#define RTW89_H2C_RA_V1_W3_FIXED_CSI_RATE_L GENMASK(23, 16)
+#define RTW89_H2C_RA_V1_W3_IS_NOISY BIT(24)
+#define RTW89_H2C_RA_V1_W3_PSRA_EN BIT(25)
+#define RTW89_H2C_RA_V1_W3_MACID_MSB GENMASK(28, 27)
+#define RTW89_H2C_RA_V1_W3_BAND GENMASK(30, 29)
+#define RTW89_H2C_RA_V1_W3_NEW_DBGREG BIT(31)
 
 struct rtw89_h2c_ra_v1 {
 	struct rtw89_h2c_ra v0;
@@ -1601,6 +1609,28 @@ struct rtw89_h2c_bcn_upd_be {
 #define RTW89_H2C_BCN_UPD_BE_W7_VAP7_DTIM_CNT_OFST GENMASK(15, 0)
 #define RTW89_H2C_BCN_UPD_BE_W7_ECSA_OFST GENMASK(30, 16)
 #define RTW89_H2C_BCN_UPD_BE_W7_PROTECTION_KEY_ID BIT(31)
+
+struct rtw89_h2c_tbtt_tuning {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_H2C_TBTT_TUNING_W0_BAND GENMASK(3, 0)
+#define RTW89_H2C_TBTT_TUNING_W0_PORT GENMASK(7, 4)
+#define RTW89_H2C_TBTT_TUNING_W1_SHIFT GENMASK(31, 0)
+
+struct rtw89_h2c_pwr_lvl {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_H2C_PWR_LVL_W0_MACID GENMASK(7, 0)
+#define RTW89_H2C_PWR_LVL_W0_BCN_TO_VAL GENMASK(15, 8)
+#define RTW89_H2C_PWR_LVL_W0_PS_LVL GENMASK(19, 16)
+#define RTW89_H2C_PWR_LVL_W0_TRX_LVL GENMASK(23, 20)
+#define RTW89_H2C_PWR_LVL_W0_BCN_TO_LVL GENMASK(27, 24)
+#define RTW89_H2C_PWR_LVL_W0_DTIM_TO_VAL GENMASK(31, 28)
+#define RTW89_H2C_PWR_LVL_W1_MACID_EXT GENMASK(7, 0)
 
 struct rtw89_h2c_role_maintain {
 	__le32 w0;
@@ -3578,11 +3608,7 @@ struct rtw89_fw_c2h_attr {
 
 static inline struct rtw89_fw_c2h_attr *RTW89_SKB_C2H_CB(struct sk_buff *skb)
 {
-#if defined(__linux__)
 	static_assert(sizeof(skb->cb) >= sizeof(struct rtw89_fw_c2h_attr));
-#elif defined(__FreeBSD__)
-	rtw89_static_assert(sizeof(skb->cb) >= sizeof(struct rtw89_fw_c2h_attr));
-#endif
 
 	return (struct rtw89_fw_c2h_attr *)skb->cb;
 }
@@ -3628,6 +3654,15 @@ struct rtw89_fw_c2h_log_fmt {
 #define RTW89_C2H_FW_LOG_MAX_PARA_NUM 16
 #define RTW89_C2H_FW_LOG_SIGNATURE 0xA5A5
 #define RTW89_C2H_FW_LOG_STR_BUF_SIZE 512
+
+struct rtw89_c2h_bcn_upd_done {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_BCN_UPD_DONE_W2_PORT GENMASK(2, 0)
+#define RTW89_C2H_BCN_UPD_DONE_W2_MBSSID GENMASK(6, 3)
+#define RTW89_C2H_BCN_UPD_DONE_W2_BAND_IDX BIT(7)
 
 struct rtw89_c2h_mac_bcnfltr_rpt {
 	__le32 w0;
@@ -3729,6 +3764,47 @@ struct rtw89_c2h_scanofld {
 #define RTW89_GET_MAC_C2H_MCC_REQ_ACK_H2C_FUNC(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 
+struct rtw89_c2h_mac_tx_rpt {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+} __packed;
+
+#define RTW89_C2H_MAC_TX_RPT_W2_TX_STATE GENMASK(7, 6)
+#define RTW89_C2H_MAC_TX_RPT_W2_SW_DEFINE GENMASK(11, 8)
+#define RTW89_C2H_MAC_TX_RPT_W5_DATA_TX_CNT GENMASK(13, 8)
+#define RTW89_C2H_MAC_TX_RPT_W5_DATA_TX_CNT_V1 GENMASK(15, 10)
+
+struct rtw89_c2h_mac_tx_rpt_v2 {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+	__le32 w8;
+	__le32 w9;
+	__le32 w10;
+	__le32 w11;
+	__le32 w12;
+	__le32 w13;
+	__le32 w14;
+	__le32 w15;
+	__le32 w16;
+	__le32 w17;
+	__le32 w18;
+	__le32 w19;
+} __packed;
+
+#define RTW89_C2H_MAC_TX_RPT_W12_TX_STATE_V2 GENMASK(9, 8)
+#define RTW89_C2H_MAC_TX_RPT_W12_SW_DEFINE_V2 GENMASK(15, 12)
+#define RTW89_C2H_MAC_TX_RPT_W14_DATA_TX_CNT_V2 GENMASK(15, 10)
+
 struct rtw89_mac_mcc_tsf_rpt {
 	u32 macid_x;
 	u32 macid_y;
@@ -3738,11 +3814,7 @@ struct rtw89_mac_mcc_tsf_rpt {
 	u32 tsf_y_high;
 };
 
-#if defined(__linux__)
 static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE);
-#elif defined(__FreeBSD__)
-rtw89_static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE);
-#endif
 
 #define RTW89_GET_MAC_C2H_MCC_TSF_RPT_MACID_X(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 0))
@@ -3970,6 +4042,8 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_2GHZ = 24,
 	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_5GHZ = 25,
 	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_6GHZ = 26,
+	RTW89_FW_ELEMENT_ID_AFE_PWR_SEQ = 27,
+	RTW89_FW_ELEMENT_ID_DIAG_MAC = 28,
 
 	RTW89_FW_ELEMENT_ID_NUM,
 };
@@ -4075,6 +4149,30 @@ struct rtw89_fw_txpwr_track_cfg {
 	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_N) | \
 	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_P))
 
+enum rtw89_fw_afe_action {
+	RTW89_FW_AFE_ACTION_WRITE = 0,
+	RTW89_FW_AFE_ACTION_DELAY = 1,
+	RTW89_FW_AFE_ACTION_POLL = 2,
+};
+
+enum rtw89_fw_afe_cat {
+	RTW89_FW_AFE_CAT_BB = 0,
+	RTW89_FW_AFE_CAT_BB1 = 1,
+	RTW89_FW_AFE_CAT_MAC = 2,
+	RTW89_FW_AFE_CAT_MAC1 = 3,
+	RTW89_FW_AFE_CAT_AFEDIG = 4,
+	RTW89_FW_AFE_CAT_AFEDIG1 = 5,
+};
+
+enum rtw89_fw_afe_class {
+	RTW89_FW_AFE_CLASS_P0 = 0,
+	RTW89_FW_AFE_CLASS_P1 = 1,
+	RTW89_FW_AFE_CLASS_P2 = 2,
+	RTW89_FW_AFE_CLASS_P3 = 3,
+	RTW89_FW_AFE_CLASS_P4 = 4,
+	RTW89_FW_AFE_CLASS_CMN = 5,
+};
+
 struct rtw89_fw_element_hdr {
 	__le32 id; /* enum rtw89_fw_element_id */
 	__le32 size; /* exclude header size */
@@ -4112,6 +4210,22 @@ struct rtw89_fw_element_hdr {
 			u8 rsvd1[3];
 			__le16 offset[];
 		} __packed rfk_log_fmt;
+		struct {
+			u8 rsvd[8];
+			struct rtw89_phy_afe_info {
+				__le32 action; /* enum rtw89_fw_afe_action */
+				__le32 cat; /* enum rtw89_fw_afe_cat */
+				__le32 class; /* enum rtw89_fw_afe_class */
+				__le32 addr;
+				__le32 mask;
+				__le32 val;
+			} __packed infos[];
+		} __packed afe;
+		struct {
+			__le32 rule_size;
+			u8 rsvd[4];
+			u8 rules_and_msgs[];
+		} __packed diag_mac;
 		struct __rtw89_fw_txpwr_element txpwr;
 		struct __rtw89_fw_regd_element regd;
 	} __packed u;
@@ -4209,6 +4323,8 @@ enum rtw89_ps_h2c_func {
 	H2C_FUNC_MAC_LPS_PARM		= 0x0,
 	H2C_FUNC_P2P_ACT		= 0x1,
 	H2C_FUNC_IPS_CFG		= 0x3,
+	H2C_FUNC_PS_POWER_LEVEL		= 0x7,
+	H2C_FUNC_TBTT_TUNING		= 0xA,
 
 	NUM_OF_RTW89_PS_H2C_FUNC,
 };
@@ -4378,6 +4494,7 @@ enum rtw89_rfk_offload_h2c_func {
 	H2C_FUNC_RFK_DACK_OFFLOAD = 0x5,
 	H2C_FUNC_RFK_RXDCK_OFFLOAD = 0x6,
 	H2C_FUNC_RFK_PRE_NOTIFY = 0x8,
+	H2C_FUNC_RFK_TAS_OFFLOAD = 0x9,
 };
 
 struct rtw89_fw_h2c_rf_get_mccch {
@@ -4559,6 +4676,10 @@ struct rtw89_h2c_rf_rxdck_v0 {
 	u8 rxdck_dbg_en;
 } __packed;
 
+struct rtw89_h2c_rf_tas {
+	__le32 enable;
+} __packed;
+
 struct rtw89_h2c_rf_rxdck {
 	struct rtw89_h2c_rf_rxdck_v0 v0;
 	u8 is_chl_k;
@@ -4691,10 +4812,14 @@ struct rtw89_c2h_rfk_report {
 	u8 version;
 } __packed;
 
-struct rtw89_c2h_rf_tas_info {
-	struct rtw89_c2h_hdr hdr;
+struct rtw89_c2h_rf_tas_rpt_log {
 	__le32 cur_idx;
 	__le16 txpwr_history[20];
+} __packed;
+
+struct rtw89_c2h_rf_tas_info {
+	struct rtw89_c2h_hdr hdr;
+	struct rtw89_c2h_rf_tas_rpt_log content;
 } __packed;
 
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
@@ -4758,8 +4883,12 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif_link *rtwvif_link);
 int rtw89_fw_h2c_update_beacon_be(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link);
+int rtw89_fw_h2c_tbtt_tuning(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif_link *rtwvif_link, u32 offset);
+int rtw89_fw_h2c_pwr_lvl(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
 int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif_link *vif,
-		     struct rtw89_sta_link *rtwsta_link, const u8 *scan_mac_addr);
+		     struct rtw89_sta_link *rtwsta_link, const u8 *scan_mac_addr,
+		     enum rtw89_upd_mode upd_mode);
 int rtw89_fw_h2c_dctl_sec_cam_v1(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link,
 				 struct rtw89_sta_link *rtwsta_link);
@@ -4834,6 +4963,7 @@ int rtw89_fw_h2c_rf_dack(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 			 const struct rtw89_chan *chan);
 int rtw89_fw_h2c_rf_rxdck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 			  const struct rtw89_chan *chan, bool is_chl_k);
+int rtw89_fw_h2c_rf_tas_trigger(struct rtw89_dev *rtwdev, bool enable);
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
 			      bool rack, bool dack);

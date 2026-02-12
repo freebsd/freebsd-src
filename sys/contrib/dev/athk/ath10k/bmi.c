@@ -66,7 +66,12 @@ int ath10k_bmi_get_target_info(struct ath10k *ar,
 
 	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, &resp, &resplen);
 	if (ret) {
+#if defined(__linux__)
 		ath10k_warn(ar, "unable to get target info from device\n");
+#elif defined(__FreeBSD__)
+		ath10k_warn(ar, "unable to get target info from device: %d\n",
+			    ret);
+#endif
 		return ret;
 	}
 

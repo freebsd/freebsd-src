@@ -45,10 +45,9 @@ ATF_TC_BODY(diff_atomize_truncated, tc)
 	rewind(f);
 	ATF_REQUIRE(truncate(fn, size / 2) == 0);
 	ATF_REQUIRE((p = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fileno(f), 0)) != MAP_FAILED);
-	ATF_REQUIRE(diff_atomize_file(&d, &cfg, f, p, size, 0) == 0);
+	ATF_REQUIRE(diff_atomize_file(&d, &cfg, f, p, size, 0) == EIO);
 	ATF_REQUIRE((size_t)d.len <= size / 2);
 	ATF_REQUIRE((size_t)d.len >= size / 2 - sizeof(line));
-	ATF_REQUIRE(d.atomizer_flags & DIFF_ATOMIZER_FILE_TRUNCATED);
 }
 ATF_TC_CLEANUP(diff_atomize_truncated, tc)
 {

@@ -118,7 +118,7 @@ as_setup(const char *server)
 }
 
 unsigned int
-as_lookup(void *_asn, char *addr, sa_family_t family)
+as_lookup(void *_asn, char *addr, sa_family_t family, int *status)
 {
 	struct aslookup *asn = _asn;
 	char buf[1024];
@@ -128,8 +128,17 @@ as_lookup(void *_asn, char *addr, sa_family_t family)
 	as = 0;
 	rc = dlen = 0;
 	plen = (family == AF_INET6) ? 128 : 32;
-	(void)fprintf(asn->as_f, "!r%s/%d,l\n", addr, plen);
-	(void)fflush(asn->as_f);
+	*status = fprintf(asn->as_f, "!r%s/%d,l\n", addr, plen);
+	if (*status < 0) {
+		*status = errno;
+		return 0;
+	}
+	*status = fflush(asn->as_f);
+	if (*status == EOF) {
+		*status = errno;
+		return 0;
+	}
+	*status = 0;
 
 #ifdef AS_DEBUG_FILE
 	if (asn->as_debug) {
@@ -138,7 +147,14 @@ as_lookup(void *_asn, char *addr, sa_family_t family)
 	}
 #endif /* AS_DEBUG_FILE */
 
-	while (fgets(buf, sizeof(buf), asn->as_f) != NULL) {
+	while (1) {
+		if (fgets(buf, sizeof(buf), asn->as_f) == NULL) {
+			if(feof(asn->as_f) || ferror(asn->as_f)) {
+				*status = EIO;
+				return 0;
+			}
+			break;
+		}
 		buf[sizeof(buf) - 1] = '\0';
 
 #ifdef AS_DEBUG_FILE

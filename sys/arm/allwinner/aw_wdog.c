@@ -52,25 +52,32 @@
 #define	A10_WDOG_CTRL		0x00
 #define	A31_WDOG_CTRL		0x10
 #define	D1_WDOG_CTRL		0x10
+#define	H616_WDOG_CTRL		0xB0
 #define	 WDOG_CTRL_RESTART	(1 << 0)
 #define	 A31_WDOG_CTRL_KEY	(0xa57 << 1)
 #define	 D1_WDOG_CTRL_KEY	(0xa57 << 1)
+#define	 H616_WDOG_CTRL_KEY	(0xa57 << 1)
 #define	A10_WDOG_MODE		0x04
 #define	A31_WDOG_MODE		0x18
 #define	D1_WDOG_MODE		0x18
+#define	H616_WDOG_MODE		0xB8
 #define	 D1_WDOG_MODE_KEY	(0x16AA << 16)
 #define	 A10_WDOG_MODE_INTVL_SHIFT	3
 #define	 A31_WDOG_MODE_INTVL_SHIFT	4
 #define	 D1_WDOG_MODE_INTVL_SHIFT	4
+#define	 H616_WDOG_MODE_INTVL_SHIFT	4
 #define	 A10_WDOG_MODE_RST_EN	(1 << 1)
 #define	 WDOG_MODE_EN		(1 << 0)
 #define	A31_WDOG_CONFIG		0x14
 #define	D1_WDOG_CONFIG		0x14
+#define	H616_WDOG_CONFIG	0xB4
 #define	 A31_WDOG_CONFIG_RST_EN_SYSTEM	(1 << 0)
 #define	 A31_WDOG_CONFIG_RST_EN_INT	(2 << 0)
 #define	 D1_WDOG_CONFIG_KEY		(0x16AA << 16)
 #define	 D1_WDOG_CONFIG_RST_EN_SYSTEM	(1 << 0)
 #define	 D1_WDOG_CONFIG_RST_EN_INT	(2 << 0)
+#define	 H616_WDOG_CONFIG_RST_EN_SYSTEM	(1 << 0)
+#define	 H616_WDOG_CONFIG_RST_EN_INT	(2 << 0)
 
 struct aw_wdog_interval {
 	uint64_t	milliseconds;
@@ -109,14 +116,18 @@ struct aw_wdog_softc {
 	uint32_t		wdog_config_value;
 };
 
-#define	A10_WATCHDOG	1
-#define	A31_WATCHDOG	2
-#define	D1_WATCHDOG	3
+enum wdog_type {
+	A10_WATCHDOG = 1,
+	A31_WATCHDOG,
+	D1_WATCHDOG,
+	H616_WATCHDOG,
+};
 
 static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-wdt", A10_WATCHDOG},
 	{"allwinner,sun6i-a31-wdt", A31_WATCHDOG},
 	{"allwinner,sun20i-d1-wdt", D1_WATCHDOG},
+	{"allwinner,sun50i-h616-wdt", H616_WATCHDOG},
 	{NULL,             0}
 };
 
@@ -138,6 +149,9 @@ aw_wdog_probe(device_t dev)
 		return (BUS_PROBE_DEFAULT);
 	case D1_WATCHDOG:
 		device_set_desc(dev, "Allwinner D1 Watchdog");
+		return (BUS_PROBE_DEFAULT);
+	case H616_WATCHDOG:
+		device_set_desc(dev, "Allwinner H616 Watchdog");
 		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
@@ -191,6 +205,16 @@ aw_wdog_attach(device_t dev)
 		sc->wdog_mode_en = WDOG_MODE_EN;
 		sc->wdog_config = D1_WDOG_CONFIG;
 		sc->wdog_config_value = D1_WDOG_CONFIG_KEY | D1_WDOG_CONFIG_RST_EN_SYSTEM;
+		break;
+	case H616_WATCHDOG:
+		sc->wdog_ctrl = H616_WDOG_CTRL;
+		sc->wdog_ctrl_key = H616_WDOG_CTRL_KEY;
+		sc->wdog_mode = H616_WDOG_MODE;
+		sc->wdog_mode_key = 0;
+		sc->wdog_mode_intvl_shift = H616_WDOG_MODE_INTVL_SHIFT;
+		sc->wdog_mode_en = WDOG_MODE_EN;
+		sc->wdog_config = H616_WDOG_CONFIG;
+		sc->wdog_config_value = H616_WDOG_CONFIG_RST_EN_SYSTEM;
 		break;
 	default:
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res);

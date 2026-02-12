@@ -524,7 +524,7 @@ ATF_TC_BODY(attach3, tc)
 		_exit(exitval_tracee);
 	}
 	PARENT_TO_CHILD("Message 1", parent_tracee, msg);
-	
+
 	printf("Before calling PT_ATTACH for tracee %d\n", tracee);
 	ATF_REQUIRE(ptrace(PT_ATTACH, tracee, NULL, 0) != -1);
 
@@ -6109,7 +6109,7 @@ ATF_TC_BODY(signal6, tc)
 	printf("Before calling %s() for the forkee - expected exited\n",
 	    TWAIT_FNAME);
 	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child2, &status, 0),
-	    child2);                                                                                                                                         
+	    child2);
 
 	validate_status_exited(status, exitval2);
 
@@ -6120,11 +6120,11 @@ ATF_TC_BODY(signal6, tc)
 
 	printf("Before calling %s() for the child - expected stopped "
 	    "SIGCHLD\n", TWAIT_FNAME);
-	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child, &status, 0), child);                                                                               
+	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child, &status, 0), child);
 
 	validate_status_stopped(status, SIGCHLD);
 
-	printf("Before resuming the child process where it left off and "                                                                                    
+	printf("Before resuming the child process where it left off and "
 	    "without signal to be sent\n");
 	ATF_REQUIRE(ptrace(PT_CONTINUE, child, (void *)1, 0) != -1);
 
@@ -6135,7 +6135,7 @@ ATF_TC_BODY(signal6, tc)
 	validate_status_exited(status, exitval);
 
 	printf("Before calling %s() for the child - expected no process\n",
-	    TWAIT_FNAME);                                                                                                                                    
+	    TWAIT_FNAME);
 	TWAIT_REQUIRE_FAILURE(ECHILD, wpid = TWAIT_GENERIC(child, &status, 0));
 }
 #endif
@@ -6240,7 +6240,7 @@ ATF_TC_BODY(signal7, tc)
 	printf("Before calling %s() for the forkee - expected exited\n",
 	    TWAIT_FNAME);
 	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child2, &status, 0),
-	    child2);                                                                                                                                         
+	    child2);
 
 	validate_status_exited(status, exitval2);
 
@@ -6251,11 +6251,11 @@ ATF_TC_BODY(signal7, tc)
 
 	printf("Before calling %s() for the child - expected stopped "
 	    "SIGCHLD\n", TWAIT_FNAME);
-	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child, &status, 0), child);                                                                               
+	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child, &status, 0), child);
 
 	validate_status_stopped(status, SIGCHLD);
 
-	printf("Before resuming the child process where it left off and "                                                                                    
+	printf("Before resuming the child process where it left off and "
 	    "without signal to be sent\n");
 	ATF_REQUIRE(ptrace(PT_CONTINUE, child, (void *)1, 0) != -1);
 
@@ -6266,7 +6266,7 @@ ATF_TC_BODY(signal7, tc)
 	validate_status_exited(status, exitval);
 
 	printf("Before calling %s() for the child - expected no process\n",
-	    TWAIT_FNAME);                                                                                                                                    
+	    TWAIT_FNAME);
 	TWAIT_REQUIRE_FAILURE(ECHILD, wpid = TWAIT_GENERIC(child, &status, 0));
 }
 #endif
@@ -6356,11 +6356,11 @@ ATF_TC_BODY(signal8, tc)
 
 	printf("Before calling %s() for the child - expected stopped "
 	    "SIGCHLD\n", TWAIT_FNAME);
-	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child, &status, 0), child);                                                                               
+	TWAIT_REQUIRE_SUCCESS(wpid = TWAIT_GENERIC(child, &status, 0), child);
 
 	validate_status_stopped(status, SIGCHLD);
 
-	printf("Before resuming the child process where it left off and "                                                                                    
+	printf("Before resuming the child process where it left off and "
 	    "without signal to be sent\n");
 	ATF_REQUIRE(ptrace(PT_CONTINUE, child, (void *)1, 0) != -1);
 
@@ -6371,7 +6371,7 @@ ATF_TC_BODY(signal8, tc)
 	validate_status_exited(status, exitval);
 
 	printf("Before calling %s() for the child - expected no process\n",
-	    TWAIT_FNAME);                                                                                                                                    
+	    TWAIT_FNAME);
 	TWAIT_REQUIRE_FAILURE(ECHILD, wpid = TWAIT_GENERIC(child, &status, 0));
 }
 

@@ -332,7 +332,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
-	const Elf_Phdr *phdr;
 	SymCache *cache;
 	int r = -1;
 
@@ -361,18 +360,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 done:
 	if (cache != NULL)
 		free(cache);
-
-	/*
-	 * Synchronize icache for executable segments in case we made
-	 * any changes.
-	 */
-	for (phdr = obj->phdr; phdr < obj->phdr + obj->phnum; phdr++) {
-		if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X) != 0) {
-			__syncicache(obj->relocbase + phdr->p_vaddr,
-			    phdr->p_memsz);
-		}
-	}
-
 	return (r);
 }
 

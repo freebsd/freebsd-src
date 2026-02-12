@@ -204,6 +204,7 @@ int cold = 1;
 long Maxmem = 0;
 long realmem = 0;
 int late_console = 1;
+int lass_enabled = 0;
 
 struct kva_md_info kmi;
 
@@ -1216,8 +1217,8 @@ amd64_bsp_pcpu_init2(uint64_t rsp0)
 {
 
 	PCPU_SET(rsp0, rsp0);
-	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
-	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
+	PCPU_SET(pti_rsp0, STACKALIGN((vm_offset_t)PCPU_PTR(pti_stack) +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)));
 	PCPU_SET(curpcb, thread0.td_pcb);
 }
 
@@ -1585,7 +1586,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	rsp0 = thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
-	rsp0 &= ~0xFul;
+	rsp0 = STACKALIGN(rsp0);
 	PCPU_PTR(common_tss)->tss_rsp0 = rsp0;
 	amd64_bsp_pcpu_init2(rsp0);
 

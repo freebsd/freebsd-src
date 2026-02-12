@@ -4202,7 +4202,7 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 		/*
 		 * Parse out the address fields. We expect 6 decimal numbers
 		 * separated by '.'s for AF_INET and two decimal numbers
-		 * preceeded by '.'s for AF_INET6.
+		 * preceded by '.'s for AF_INET6.
 		 */
 		cp = NULL;
 		switch (af) {

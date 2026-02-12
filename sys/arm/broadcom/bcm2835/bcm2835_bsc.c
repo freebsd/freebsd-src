@@ -419,7 +419,7 @@ bcm_bsc_fill_tx_fifo(struct bcm_bsc_softc *sc)
 		} while (sc->sc_resid > 0 && (status & BCM_BSC_STATUS_TXD));
 		/*
 		 * If a repeat-start was pending and we just hit the end of a tx
-		 * buffer, see if it's also the end of the writes that preceeded
+		 * buffer, see if it's also the end of the writes that preceded
 		 * the repeat-start.  If so, log the repeat-start and the start
 		 * of the following read, and return because we're not writing
 		 * anymore (and TXD will be true because there's room to write

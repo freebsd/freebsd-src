@@ -482,8 +482,6 @@ ATF_TC_BODY(nvlist_send_recv__send_many_fds__dgram, tc)
 	size_t len;
 	int error;
 
-	atf_tc_skip("https://bugs.freebsd.org/260891");
-
 	/* size of the largest datagram to send */
 	temp_maxdgram = 16772;
 	len = sizeof(maxdgram);

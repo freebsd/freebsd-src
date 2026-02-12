@@ -1362,96 +1362,98 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	 * for its origin.
 	 */
 	mifi = rt->mf6c_parent;
-	if ((mifi >= nummifs) || (mif6table[mifi].m6_ifp != ifp)) {
-		/* came in the wrong interface */
-		MRT6_DLOG(DEBUG_FORWARD,
-		    "wrong if: ifid %d mifi %d mififid %x", ifp->if_index,
-		    mifi, mif6table[mifi].m6_ifp->if_index);
+	if (mifi >= nummifs || mif6table[mifi].m6_ifp != ifp) {
 		MRT6STAT_INC(mrt6s_wrong_if);
 		rt->mf6c_wrong_if++;
+		if (mifi >= nummifs)
+			return (0);
+
+		mifp = &mif6table[mifi];
+		MRT6_DLOG(DEBUG_FORWARD,
+		    "wrong if: ifid %d mifi %d mififid %x", ifp->if_index,
+		    mifi, mifp->m6_ifp->if_index);
+
 		/*
 		 * If we are doing PIM processing, and we are forwarding
 		 * packets on this interface, send a message to the
 		 * routing daemon.
 		 */
 		/* have to make sure this is a valid mif */
-		if (mifi < nummifs && mif6table[mifi].m6_ifp)
-			if (V_pim6 && (m->m_flags & M_LOOP) == 0) {
-				/*
-				 * Check the M_LOOP flag to avoid an
-				 * unnecessary PIM assert.
-				 * XXX: M_LOOP is an ad-hoc hack...
-				 */
-				static struct sockaddr_in6 sin6 =
-				{ sizeof(sin6), AF_INET6 };
+		if (mifp->m6_ifp && V_pim6 && (m->m_flags & M_LOOP) == 0) {
+			/*
+			 * Check the M_LOOP flag to avoid an
+			 * unnecessary PIM assert.
+			 * XXX: M_LOOP is an ad-hoc hack...
+			 */
+			static struct sockaddr_in6 sin6 =
+			{ sizeof(sin6), AF_INET6 };
 
-				struct mbuf *mm;
-				struct mrt6msg *im;
+			struct mbuf *mm;
+			struct mrt6msg *im;
 #ifdef MRT6_OINIT
-				struct omrt6msg *oim;
+			struct omrt6msg *oim;
 #endif
 
-				mm = m_copym(m, 0, sizeof(struct ip6_hdr),
-				    M_NOWAIT);
-				if (mm &&
-				    (!M_WRITABLE(mm) ||
-				     mm->m_len < sizeof(struct ip6_hdr)))
-					mm = m_pullup(mm, sizeof(struct ip6_hdr));
-				if (mm == NULL)
-					return (ENOBUFS);
+			mm = m_copym(m, 0, sizeof(struct ip6_hdr),
+			    M_NOWAIT);
+			if (mm &&
+			    (!M_WRITABLE(mm) ||
+			     mm->m_len < sizeof(struct ip6_hdr)))
+				mm = m_pullup(mm, sizeof(struct ip6_hdr));
+			if (mm == NULL)
+				return (ENOBUFS);
 
 #ifdef MRT6_OINIT
-				oim = NULL;
+			oim = NULL;
 #endif
-				im = NULL;
-				switch (V_ip6_mrouter_ver) {
+			im = NULL;
+			switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
-				case MRT6_OINIT:
-					oim = mtod(mm, struct omrt6msg *);
-					oim->im6_msgtype = MRT6MSG_WRONGMIF;
-					oim->im6_mbz = 0;
-					break;
+			case MRT6_OINIT:
+				oim = mtod(mm, struct omrt6msg *);
+				oim->im6_msgtype = MRT6MSG_WRONGMIF;
+				oim->im6_mbz = 0;
+				break;
 #endif
-				case MRT6_INIT:
-					im = mtod(mm, struct mrt6msg *);
-					im->im6_msgtype = MRT6MSG_WRONGMIF;
-					im->im6_mbz = 0;
-					break;
-				default:
-					m_freem(mm);
-					return (EINVAL);
-				}
+			case MRT6_INIT:
+				im = mtod(mm, struct mrt6msg *);
+				im->im6_msgtype = MRT6MSG_WRONGMIF;
+				im->im6_mbz = 0;
+				break;
+			default:
+				m_freem(mm);
+				return (EINVAL);
+			}
 
-				for (mifp = mif6table, iif = 0;
-				     iif < nummifs && mifp &&
-					     mifp->m6_ifp != ifp;
-				     mifp++, iif++)
-					;
+			for (mifp = mif6table, iif = 0;
+			     iif < nummifs && mifp->m6_ifp != ifp;
+			     mifp++, iif++)
+				;
 
-				switch (V_ip6_mrouter_ver) {
+			switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
-				case MRT6_OINIT:
-					oim->im6_mif = iif;
-					sin6.sin6_addr = oim->im6_src;
-					break;
+			case MRT6_OINIT:
+				oim->im6_mif = iif;
+				sin6.sin6_addr = oim->im6_src;
+				break;
 #endif
-				case MRT6_INIT:
-					im->im6_mif = iif;
-					sin6.sin6_addr = im->im6_src;
-					break;
-				}
+			case MRT6_INIT:
+				im->im6_mif = iif;
+				sin6.sin6_addr = im->im6_src;
+				break;
+			}
 
-				MRT6STAT_INC(mrt6s_upcalls);
+			MRT6STAT_INC(mrt6s_upcalls);
 
-				if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
-					MRT6_DLOG(DEBUG_ANY,
-					    "ip6_mrouter socket queue full");
-					MRT6STAT_INC(mrt6s_upq_sockfull);
-					return (ENOBUFS);
-				}	/* if socket Q full */
-			}		/* if PIM */
+			if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
+				MRT6_DLOG(DEBUG_ANY,
+				    "ip6_mrouter socket queue full");
+				MRT6STAT_INC(mrt6s_upq_sockfull);
+				return (ENOBUFS);
+			}
+		}
 		return (0);
-	}			/* if wrong iif */
+	}
 
 	/* If I sourced this packet, it counts as output, else it was input. */
 	if (m->m_pkthdr.rcvif == NULL) {

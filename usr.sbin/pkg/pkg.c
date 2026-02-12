@@ -334,6 +334,12 @@ fetchfail:
 	}
 
 cleanup:
+	fetchFreeURL(u);
+	while (mirrors != NULL) {
+		current = mirrors;
+		mirrors = mirrors->next;
+		free(current);
+	}
 	if (remote != NULL)
 		fclose(remote);
 

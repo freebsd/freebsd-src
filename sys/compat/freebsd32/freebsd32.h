@@ -38,24 +38,6 @@
 #include <sys/user.h>
 #include <sys/_ffcounter.h>
 
-/*
- * i386 is the only arch with a 32-bit time_t.
- * Also it is the only arch with (u)int64_t having 4-bytes alignment.
- */
-typedef struct {
-#ifdef __amd64__
-	uint32_t val[2];
-#else
-	uint64_t val;
-#endif
-} freebsd32_uint64_t;
-
-#ifdef __amd64__
-typedef	int32_t	time32_t;
-#else
-typedef	int64_t	time32_t;
-#endif
-
 struct timeval32 {
 	time32_t tv_sec;
 	int32_t tv_usec;
@@ -80,7 +62,7 @@ struct ffclock_estimate32 {
 	struct bintime32 update_time;
 	ffcounter update_ffcount;
 	ffcounter leapsec_next;
-	uint64_t period;
+	freebsd32_uint64_t period;
 	uint32_t errb_abs;
 	uint32_t errb_rate;
 	uint32_t status;
@@ -248,12 +230,12 @@ struct stat32 {
 #endif
 	struct timespec32 st_birthtim;
 	off_t	st_size;
-	int64_t	st_blocks;
+	freebsd32_uint64_t st_blocks;
 	uint32_t st_blksize;
 	uint32_t st_flags;
-	uint64_t st_gen;
-	uint64_t st_filerev;
-	uint64_t st_spare[9];
+	freebsd32_uint64_t st_gen;
+	freebsd32_uint64_t st_filerev;
+	freebsd32_uint64_t st_spare[9];
 };
 struct freebsd11_stat32 {
 	uint32_t st_dev;
@@ -267,7 +249,7 @@ struct freebsd11_stat32 {
 	struct timespec32 st_mtim;
 	struct timespec32 st_ctim;
 	off_t	st_size;
-	int64_t	st_blocks;
+	freebsd32_uint64_t st_blocks;
 	uint32_t st_blksize;
 	uint32_t st_flags;
 	uint32_t st_gen;
@@ -392,7 +374,7 @@ struct kinfo_proc32 {
 	u_int	ki_slptime;
 	u_int	ki_swtime;
 	u_int	ki_cow;
-	uint64_t ki_runtime;
+	freebsd32_uint64_t ki_runtime;
 	struct	timeval32 ki_start;
 	struct	timeval32 ki_childtime;
 	int	ki_flag;
@@ -414,7 +396,7 @@ struct kinfo_proc32 {
 	char	ki_moretdname[MAXCOMLEN-TDNAMLEN+1];
 	char	ki_sparestrings[46];
 	int	ki_spareints[KI_NSPARE_INT];
-	uint64_t ki_tdev;
+	freebsd32_uint64_t ki_tdev;
 	int	ki_oncpu;
 	int	ki_lastcpu;
 	int	ki_tracer;
@@ -431,6 +413,7 @@ struct kinfo_proc32 {
 	uint32_t ki_kstack;
 	uint32_t ki_udata;
 	uint32_t ki_tdaddr;
+	uint32_t ki_pd;
 	uint32_t ki_uerrmsg;
 	uint32_t ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
 	int	ki_sparelongs[KI_NSPARE_LONG];
@@ -469,12 +452,12 @@ struct kinfo_knote32 {
 	union {
 		struct {
 			int		knt_vnode_type;
-			uint32_t	knt_vnode_fsid[2];
-			uint32_t	knt_vnode_fileid[2];
+			freebsd32_uint64_t knt_vnode_fsid;
+			freebsd32_uint64_t knt_vnode_fileid;
 			char		knt_vnode_fullpath[PATH_MAX];
 		} knt_vnode;
 		struct {
-			uint32_t	knt_pipe_ino[2];
+			freebsd32_uint64_t knt_pipe_ino;
 		} knt_pipe;
 	};
 };

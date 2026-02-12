@@ -755,6 +755,10 @@ fetchupgrade_check_params () {
 	esac
 	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
+	if [ "$BASEDIR" != / ] && [ -z "$UNAME_r" ]; then
+		echo "$(basename $0): -b basedir requires --currently-running to be specified."
+		exit 1
+	fi
 
 	# Generate release number.  The s/SECURITY/RELEASE/ bit exists
 	# to provide an upgrade path for FreeBSD Update 1.x users, since

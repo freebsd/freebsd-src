@@ -18,7 +18,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd September 1, 2025
+.Dd February 4, 2026
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -497,3 +497,6 @@ entry:
 .Sh HISTORY
 This manual page first appeared in
 .Fx 4.10 .
+.Sh CAVEATS
+If a line is specified multiple times,
+the file will be rotated multiple times.

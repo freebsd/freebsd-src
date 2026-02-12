@@ -307,7 +307,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	fp--;
 
 	/* make the stack aligned */
-	fp = (struct sigframe *)STACKALIGN(fp);
+	fp = STACKALIGN(fp);
 	/* Populate the siginfo frame. */
 	bzero(&frame, sizeof(frame));
 	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);

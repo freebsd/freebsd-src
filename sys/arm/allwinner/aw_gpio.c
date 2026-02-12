@@ -272,6 +272,26 @@ struct aw_gpio_conf h6_r_gpio_conf = {
 };
 #endif
 
+/* Defined in h616_padconf.c */
+#ifdef SOC_ALLWINNER_H616
+extern struct allwinner_padconf h616_padconf;
+extern struct allwinner_padconf h616_r_padconf;
+struct aw_gpio_conf h616_gpio_conf = {
+	.padconf = &h616_padconf,
+	.banks = "cfghi",
+	.bank_size = 0x24,
+	.drv_pin_shift = 1,
+	.pul_offset = 0x1C,
+};
+struct aw_gpio_conf h616_r_gpio_conf = {
+	.padconf = &h616_r_padconf,
+	.banks = "l",
+	.bank_size = 0x24,
+	.drv_pin_shift = 1,
+	.pul_offset = 0x1C,
+};
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A10
 	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_gpio_conf},
@@ -313,6 +333,10 @@ static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_H6
 	{"allwinner,sun50i-h6-pinctrl",	(uintptr_t)&h6_gpio_conf},
 	{"allwinner,sun50i-h6-r-pinctrl",	(uintptr_t)&h6_r_gpio_conf},
+#endif
+#ifdef SOC_ALLWINNER_H616
+	{"allwinner,sun50i-h616-pinctrl",	(uintptr_t)&h616_gpio_conf},
+	{"allwinner,sun50i-h6-r-pinctrl",	(uintptr_t)&h616_r_gpio_conf},
 #endif
 	{NULL,	0}
 };

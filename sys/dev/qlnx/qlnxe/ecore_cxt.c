@@ -733,7 +733,7 @@ enum _ecore_status_t ecore_cxt_cfg_ilt_compute(struct ecore_hwfn *p_hwfn,
 			 *      block in the ILT client. This is later used to
 			 *      configure the CDU segment offset registers and
 			 *      results in an FL command for TIDs of this
-			 *      segement behaves as regular load commands
+			 *      segment behaves as regular load commands
 			 *      (loading TIDs from the working memory).
 			 */
 			line = p_cli->pf_blks[CDUT_SEG_BLK(i)].start_line;

@@ -10,6 +10,47 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4d707825bf62:
+	The pdwait(2) system call was added.  It provides wait(2)-like
+	functionality for a process descriptor (see procdesc(4)).
+
+5c2ee618d5ec:
+	The pdrfork(2) system call was added.  It behaves like rfork(2) but
+	additionally returns a process descriptor (see procdesc(4)).
+
+41ccf82b29f3, 591c7a08bf8a:
+	On arm64, memcpy(3), memmove(3) and memset(3) are now implemented using
+	the MOPS (Memory Operations) feature instructions when they are
+	implemented by the system.
+
+3f0aea09689f:
+	posix_spawnattr_getexecfd_np(3) and posix_spawnattr_setexecfd_np(3)
+	functions were added to libc.  The latter causes posix_spawn(3) to
+	call fexecve(2) on the specified file descriptor rather than executing
+	the file at the provided path.
+
+fb4b0c911951:
+	witness(4) now prints additional information to the system console when
+	a lock order reversal is detected, making debugging such issues easier.
+
+1322760fd127:
+	It is now possible to compile both the 4BSD and ULE schedulers into the
+	same kernel.  The scheduler is selectable at boot-time using a tunable.
+	See the SCHEDULERS section of the tuning(7) man page for details.
+
+627e126dbb07:
+	The default value of the net.inet6.ip6.connect_in6addr_wild has changed
+	to 0.  This means that connecting to the all-zeroes IPv6 address no longer
+	implicitly results in a loopback connection.
+
+afa70a8496e9:
+	The pthread_tryjoin_np(3) function was added to libthr(3).  It provides
+	the same functionality as pthread_join(3) but returns instead of
+	blocking if the target thread has not yet exited.
+
+ecc039be7fdd:
+	NanoBSD images can now be built as a non-root user.
+
 7f54c65abc67:
         Update smartpqi(4) to vendor version 14.4690.0.2008 - 15.2.0.2008
         for the SmartArray storage controllers.  This adds support for new 

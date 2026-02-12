@@ -79,6 +79,7 @@
 #include <netinet/ip_options.h>
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
+#include <netinet/ip_mroute.h>
 
 #include <machine/in_cksum.h>
 

@@ -1441,7 +1441,6 @@ struct pf_test_ctx {
 	int			 rewrite;
 	int			 limiter_drop;
 	u_short			 reason;
-	struct pf_src_node	*sns[PF_SN_MAX];
 	struct pf_krule_slist	*match_rules;
 	struct pf_krule_item	*last_match_rule;
 	struct pf_krule		*nr;

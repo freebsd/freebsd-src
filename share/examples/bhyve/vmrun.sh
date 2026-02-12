@@ -53,8 +53,8 @@ errmsg() {
 usage() {
 	local msg=$1
 
-	echo "Usage: vmrun.sh [-aAEhiTuvw] [-c <CPUs>] [-C <console>]" \
-	    "[-d <disk file>]"
+	echo "Usage: vmrun.sh [-aAEhiTuvw] [-9 <9p share>=<path>[,<opts>]]"
+	echo "                [-c <CPUs>] [-C <console>] [-d <disk file>]"
 	echo "                [-e <name=value>] [-f <path of firmware>]" \
 	    "[-F <size>]"
 	echo "                [-G [w][address:]port] [-H <directory>]"
@@ -66,6 +66,7 @@ usage() {
 	echo "                [-P <port>] [-t <tapdev>] <vmname>"
 	echo ""
 	echo "       -h: display this help message"
+	echo "       -9: virtio 9p (VirtFS) device to share directory"
 	echo "       -a: force memory mapped local APIC access"
 	echo "       -A: use AHCI disk emulation instead of ${DEFAULT_DISK}"
 	echo "       -c: number of virtual cpus (default: ${DEFAULT_CPUS})"
@@ -128,6 +129,7 @@ disk_total=0
 disk_emulation=${DEFAULT_DISK}
 loader_opt=""
 pass_total=0
+plan9_total=0
 
 # EFI-specific options
 efi_mode=0
@@ -144,16 +146,26 @@ uboot_firmware="/usr/local/share/u-boot/u-boot-bhyve-arm64/u-boot.bin"
 case ${platform} in
 amd64)
 	bhyverun_opt="-H -P"
-	opts="aAc:C:d:e:Ef:F:G:hH:iI:l:L:m:n:p:P:t:Tuvw"
+	opts="9:aAc:C:d:e:Ef:F:G:hH:iI:l:L:m:n:p:P:t:Tuvw"
 	;;
 arm64)
 	bhyverun_opt=""
-	opts="aAc:C:d:e:f:F:G:hH:iI:L:m:n:P:t:uv"
+	opts="9:aAc:C:d:e:f:F:G:hH:iI:L:m:n:P:t:uv"
 	;;
 esac
 
 while getopts $opts c ; do
 	case $c in
+	9)
+		plan9_share=${OPTARG%%=*}
+		plan9_rest=${OPTARG#${plan9_share}=}
+		plan9_path=${plan9_rest%%,*}
+		plan9_opts=${plan9_rest#${plan9_path}}
+		eval "plan9_share${plan9_total}=\"${plan9_share}\""
+		eval "plan9_path${plan9_total}=\"${plan9_path}\""
+		eval "plan9_opts${plan9_total}=\"${plan9_opts}\""
+		plan9_total=$(($plan9_total + 1))
+		;;
 	a)
 		bhyverun_opt="${bhyverun_opt} -a"
 		;;
@@ -383,6 +395,20 @@ while [ 1 ]; do
 	    eval "opts=\$disk_opts${i}"
 	    make_and_check_diskdev "${disk}"
 	    devargs="$devargs -s $nextslot:0,$disk_emulation,${disk}${opts} "
+	    nextslot=$(($nextslot + 1))
+	    i=$(($i + 1))
+	done
+
+	i=0
+	while [ $i -lt $plan9_total ] ; do
+	    eval "share=\$plan9_share${i}"
+	    eval "path=\$plan9_path${i}"
+	    eval "opts=\$plan9_opts${i}"
+	    if [ ! -d ${path} ]; then
+		echo "virtio-9p \"${path}\" is not a directory"
+		exit 1
+	    fi
+	    devargs="$devargs -s $nextslot,virtio-9p,${share}=${path}${opts} "
 	    nextslot=$(($nextslot + 1))
 	    i=$(($i + 1))
 	done

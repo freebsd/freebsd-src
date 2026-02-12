@@ -45,13 +45,6 @@ restore_conf()
 	test -r "test_mixer_conf" && mixer $(cat test_mixer_conf)
 }
 
-load_dummy()
-{
-	if ! kldload -n snd_dummy; then
-		atf_skip "cannot load snd_dummy.ko"
-	fi
-}
-
 set_default()
 {
 	deflt_unit="$(mixer | grep ^pcm | cut -f1 -d:)"
@@ -78,7 +71,6 @@ o_flag_head()
 }
 o_flag_body()
 {
-	load_dummy
 	mixer_exists
 	set_default
 
@@ -96,7 +88,6 @@ d_flag_head()
 }
 d_flag_body()
 {
-	load_dummy
 	mixer_exists
 	set_default
 
@@ -118,7 +109,6 @@ volume_head()
 }
 volume_body()
 {
-	load_dummy
 	mixer_exists
 	set_default
 	save_conf
@@ -204,7 +194,6 @@ mute_head()
 }
 mute_body()
 {
-	load_dummy
 	mixer_exists
 	set_default
 	save_conf
@@ -248,7 +237,6 @@ recsrc_head()
 }
 recsrc_body()
 {
-	load_dummy
 	mixer_exists
 	set_default
 	save_conf

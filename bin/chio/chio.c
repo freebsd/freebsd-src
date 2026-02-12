@@ -1,5 +1,7 @@
 /*	$NetBSD: chio.c,v 1.6 1998/01/04 23:53:58 thorpej Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
  *

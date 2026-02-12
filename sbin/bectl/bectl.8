@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd June 13, 2025
+.Dd February 4, 2026
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -31,6 +31,11 @@
 .Cm create
 .Op Fl r
 .Ar beName@snapshot
+.Nm
+.Op Fl r Ar beroot
+.Cm create
+.Fl E
+.Ar newBeName
 .Nm
 .Op Fl r Ar beroot
 .Cm destroy
@@ -180,6 +185,13 @@ See
 for a discussion on different layouts.
 .Pp
 No new boot environment is created with this subcommand.
+.It Xo
+.Cm create
+.Fl E
+.Ar newBeName
+.Xc
+Create a new empty boot environment named
+.Ar newBeName .
 .It Xo
 .Cm destroy
 .Op Fl \&Fo

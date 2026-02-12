@@ -35,12 +35,12 @@
 #include <stdlib.h>		/* div_t */
 
 div_t
-div(int num, int denom)
+div(int numer, int denom)
 {
 	div_t r;
 
-	r.quot = num / denom;
-	r.rem = num % denom;
+	r.quot = numer / denom;
+	r.rem = numer % denom;
 
 	return (r);
 }

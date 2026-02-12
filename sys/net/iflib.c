@@ -4540,6 +4540,11 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		err = IFDI_PRIV_IOCTL(ctx, command, data);
 		CTX_UNLOCK(ctx);
 		break;
+	case SIOCGIFDOWNREASON:
+		CTX_LOCK(ctx);
+		err = IFDI_GET_DOWNREASON(ctx, (struct ifdownreason *)data);
+		CTX_UNLOCK(ctx);
+		break;
 	default:
 		err = ether_ioctl(ifp, command, data);
 		break;

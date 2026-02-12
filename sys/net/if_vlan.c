@@ -761,9 +761,6 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct ifvlan *ifv;
 	struct ifvlantrunk *trunk;
 
-	/* If the ifnet is just being renamed, don't do anything. */
-	if (ifp->if_flags & IFF_RENAMING)
-		return;
 	VLAN_XLOCK();
 	trunk = ifp->if_vlantrunk;
 	if (trunk == NULL) {

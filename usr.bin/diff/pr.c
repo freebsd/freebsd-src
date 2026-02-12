@@ -45,7 +45,6 @@ struct pr *
 start_pr(char *file1, char *file2)
 {
 	int pfd[2];
-	int pr_pd;
 	pid_t pid;
 	char *header;
 	struct pr *pr;
@@ -55,13 +54,10 @@ start_pr(char *file1, char *file2)
 	xasprintf(&header, "%s %s %s", diffargs, file1, file2);
 	signal(SIGPIPE, SIG_IGN);
 	fflush(stdout);
-	rewind(stdout);
 	if (pipe(pfd) == -1)
 		err(2, "pipe");
-	switch ((pid = pdfork(&pr_pd, PD_CLOEXEC))) {
+	switch ((pid = pdfork(&pr->procd, PD_CLOEXEC))) {
 	case -1:
-		status |= 2;
-		free(header);
 		err(2, "No more processes");
 	case 0:
 		/* child */
@@ -73,15 +69,17 @@ start_pr(char *file1, char *file2)
 		execl(_PATH_PR, _PATH_PR, "-h", header, (char *)0);
 		_exit(127);
 	default:
-		pr->pidfd = pr_pd;
 		/* parent */
-		if (pfd[1] != STDOUT_FILENO) {
-			pr->ostdout = dup(STDOUT_FILENO);
-			dup2(pfd[1], STDOUT_FILENO);
+		if (pfd[1] == STDOUT_FILENO) {
+			pr->ostdout = STDOUT_FILENO;
+		} else {
+			if ((pr->ostdout = dup(STDOUT_FILENO)) < 0 ||
+			    dup2(pfd[1], STDOUT_FILENO) < 0) {
+				err(2, "stdout");
+			}
 			close(pfd[1]);
 		}
 		close(pfd[0]);
-		rewind(stdout);
 		free(header);
 	}
 	return (pr);
@@ -98,14 +96,14 @@ stop_pr(struct pr *pr)
 
 	fflush(stdout);
 	if (pr->ostdout != STDOUT_FILENO) {
-		close(STDOUT_FILENO);
 		dup2(pr->ostdout, STDOUT_FILENO);
 		close(pr->ostdout);
 	}
-	while (pdwait(pr->pidfd, &wstatus, WEXITED, NULL, NULL) == -1) {
+	while (pdwait(pr->procd, &wstatus, WEXITED, NULL, NULL) == -1) {
 		if (errno != EINTR)
 			err(2, "pdwait");
 	}
+	close(pr->procd);
 	free(pr);
 	if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != 0)
 		errx(2, "pr exited abnormally");

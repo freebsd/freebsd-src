@@ -69,6 +69,7 @@ RUNTIMELINKS=\
 	builtin.1 readonly.1 \
 	builtin.1 rehash.1 \
 	builtin.1 repeat.1 \
+	builtin.1 return.1 \
 	builtin.1 sched.1 \
 	builtin.1 set.1 \
 	builtin.1 setenv.1 \

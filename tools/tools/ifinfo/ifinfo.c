@@ -30,6 +30,7 @@
 #include <sys/socket.h>		/* for PF_LINK */
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/mbuf.h>
 
 #include <err.h>
 #include <errno.h>
@@ -38,6 +39,8 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -149,6 +152,47 @@ main(int argc, char **argv)
 	return retval;
 }
 
+/* code after this line copied or based on code from src/sys/kern/subr_prf.c */
+static inline bool
+isbitpos(char c)
+{
+	return (c != '\0' && (c <= ' ' || (c & 0x80) != 0));
+}
+
+static inline bool
+isprintnospace(char c)
+{
+	return (isprint(c) && c != ' ');
+}
+
+static void
+print_bits(uintmax_t num, const char *bitstring)
+{
+	bool first;
+	const char *c;
+	int shift;
+
+	c = ++bitstring;
+	first = true;
+	while (isbitpos(*c)) {
+		if ((*c & 0x80) != 0)
+			shift = *c++ & 0x7f;
+		else
+			shift = *c++ - 1;
+		if (num & (1ULL << shift)) {
+			putchar(first ? (first = false, '<') : ',');
+			for (; isprintnospace(*c); ++c)
+				putchar(*c);
+		} else
+			for (; isprintnospace(*c); ++c)
+				continue;
+	}
+	if (!first) {
+		putchar('>');
+	}
+}
+/* code before this line copied or based on code from src/sys/kern/subr_prf.c */
+
 static void
 printit(const struct ifmibdata *ifmd, const char *dname)
 {
@@ -182,8 +226,10 @@ printit(const struct ifmibdata *ifmd, const char *dname)
 	printf("\tinput queue drops: %lu\n", ifmd->ifmd_data.ifi_iqdrops);
 	printf("\tpackets for unknown protocol: %lu\n",
 	       ifmd->ifmd_data.ifi_noproto);
-	printf("\tHW offload capabilities: 0x%lx\n",
+	printf("\tHW offload capabilities: 0x%lx",
 	    ifmd->ifmd_data.ifi_hwassist);
+	print_bits(ifmd->ifmd_data.ifi_hwassist, CSUM_BITS);
+	printf("\n");
 	printf("\tuptime at attach or stat reset: %lu\n",
 	    ifmd->ifmd_data.ifi_epoch);
 #ifdef notdef

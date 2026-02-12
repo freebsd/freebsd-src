@@ -65,6 +65,7 @@ struct acpi_softc {
 
     int			acpi_standby_sx;
     bool		acpi_s4bios;
+    bool		acpi_s4bios_supported;
 
     int			acpi_sleep_delay;
     int			acpi_do_disable;
@@ -528,6 +529,13 @@ acpi_d_state_to_str(int state)
 
     MPASS(state >= ACPI_STATE_D0 && state <= ACPI_D_STATES_MAX);
     return (strs[state]);
+}
+
+static __inline bool
+acpi_should_do_s4bios(struct acpi_softc *sc)
+{
+    MPASS(!sc->acpi_s4bios || sc->acpi_s4bios_supported);
+    return (sc->acpi_s4bios);
 }
 
 char		*acpi_name(ACPI_HANDLE handle);

@@ -41,9 +41,11 @@ basic_body()
 	epair=$(vnet_mkepair)
 
 	ifconfig ${epair}a 192.0.2.2/24 up
+	ifconfig ${epair}a inet6 2001:db8::2/64 no_dad
 
 	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::1/64 no_dad
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
@@ -63,16 +65,26 @@ basic_body()
 
 	# And after we've sent traffic there's non-zero counters
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore ping -c 1 2001:db8::1
 
 	atf_check -o match:"Interface Stats for ${epair}b" \
 		jexec alcatraz pfctl -s info
-	atf_check -o match:"Passed                               1" \
+	atf_check -o match:"Passed                               1                [1-9]" \
 		jexec alcatraz pfctl -s info
 
 	# And no interface stats once we remove the loginterface
 	pft_set_rules alcatraz \
 		"pass"
 	atf_check -o not-match:"Interface Stats for ${epair}b" \
+		jexec alcatraz pfctl -s info
+
+	# Check blocked count
+	pft_set_rules alcatraz \
+		"set loginterface ${epair}b" \
+		"block"
+	atf_check -s exit:2 -o ignore ping -c 1 2001:db8::1
+	atf_check -s exit:2 -o ignore ping -c 1 192.0.2.1
+	atf_check -o match:"Blocked                              1                [1-9]" \
 		jexec alcatraz pfctl -s info
 }
 

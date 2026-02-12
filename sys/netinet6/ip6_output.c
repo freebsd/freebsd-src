@@ -110,6 +110,7 @@
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
+#include <netinet6/ip6_mroute.h>
 
 #include <netipsec/ipsec_support.h>
 #if defined(SCTP) || defined(SCTP_SUPPORT)

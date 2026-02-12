@@ -11069,11 +11069,13 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		IWX_UNLOCK(sc);
 		return (ENXIO);
 	}
-	memcpy(cmd.common.key, k->wk_key, MIN(sizeof(cmd.common.key),
-	    k->wk_keylen));
+	memcpy(cmd.common.key, ieee80211_crypto_get_key_data(k),
+	    MIN(sizeof(cmd.common.key), ieee80211_crypto_get_key_len(k)));
 	IWX_DPRINTF(sc, IWX_DEBUG_KEYMGMT, "%s: key: id=%d, len=%i, key=%*D\n",
-	    __func__, id, k->wk_keylen, k->wk_keylen,
-	    (const unsigned char *) k->wk_key, "");
+	    __func__, id,
+	    ieee80211_crypto_get_key_len(k),
+	    ieee80211_crypto_get_key_len(k),
+	    (const unsigned char *) ieee80211_crypto_get_key_data(k), "");
 	cmd.common.sta_id = IWX_STATION_ID;
 
 	cmd.transmit_seq_cnt = htole64(k->wk_keytsc);

@@ -278,5 +278,5 @@ while pgrep -q $prog; do sleep 2; done
 while pkill swap; do :; done
 wait
 
-rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core /tmp/$prog.?????? $work
+rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core $work
 exit 0

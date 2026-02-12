@@ -1310,58 +1310,6 @@ passthru_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 	return (val);
 }
 
-static void
-passthru_msix_addr(struct pci_devinst *pi, int baridx, int enabled,
-    uint64_t address)
-{
-	struct passthru_softc *sc;
-	size_t remaining;
-	uint32_t table_size, table_offset;
-
-	sc = pi->pi_arg;
-	table_offset = rounddown2(pi->pi_msix.table_offset, 4096);
-	if (table_offset > 0) {
-		if (!enabled) {
-			if (vm_unmap_pptdev_mmio(pi->pi_vmctx,
-						 sc->psc_sel.pc_bus,
-						 sc->psc_sel.pc_dev,
-						 sc->psc_sel.pc_func, address,
-						 table_offset) != 0)
-				warnx("pci_passthru: unmap_pptdev_mmio failed");
-		} else {
-			if (vm_map_pptdev_mmio(pi->pi_vmctx, sc->psc_sel.pc_bus,
-					       sc->psc_sel.pc_dev,
-					       sc->psc_sel.pc_func, address,
-					       table_offset,
-					       sc->psc_bar[baridx].addr) != 0)
-				warnx("pci_passthru: map_pptdev_mmio failed");
-		}
-	}
-	table_size = pi->pi_msix.table_offset - table_offset;
-	table_size += pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
-	table_size = roundup2(table_size, 4096);
-	remaining = pi->pi_bar[baridx].size - table_offset - table_size;
-	if (remaining > 0) {
-		address += table_offset + table_size;
-		if (!enabled) {
-			if (vm_unmap_pptdev_mmio(pi->pi_vmctx,
-						 sc->psc_sel.pc_bus,
-						 sc->psc_sel.pc_dev,
-						 sc->psc_sel.pc_func, address,
-						 remaining) != 0)
-				warnx("pci_passthru: unmap_pptdev_mmio failed");
-		} else {
-			if (vm_map_pptdev_mmio(pi->pi_vmctx, sc->psc_sel.pc_bus,
-					       sc->psc_sel.pc_dev,
-					       sc->psc_sel.pc_func, address,
-					       remaining,
-					       sc->psc_bar[baridx].addr +
-					       table_offset + table_size) != 0)
-				warnx("pci_passthru: map_pptdev_mmio failed");
-		}
-	}
-}
-
 static int
 passthru_mmio_map(struct pci_devinst *pi, int baridx, int enabled,
     uint64_t address, uint64_t off, uint64_t size)
@@ -1373,19 +1321,43 @@ passthru_mmio_map(struct pci_devinst *pi, int baridx, int enabled,
 		if (vm_unmap_pptdev_mmio(pi->pi_vmctx, sc->psc_sel.pc_bus,
 		    sc->psc_sel.pc_dev, sc->psc_sel.pc_func, address + off,
 		    size) != 0) {
-			warnx("pci_passthru: unmap_pptdev_mmio failed");
+			EPRINTLN("pci_passthru: unmap_pptdev_mmio failed: %s",
+			    strerror(errno));
 			return (-1);
 		}
 	} else {
 		if (vm_map_pptdev_mmio(pi->pi_vmctx, sc->psc_sel.pc_bus,
 		    sc->psc_sel.pc_dev, sc->psc_sel.pc_func, address + off,
 		    size, sc->psc_bar[baridx].addr + off) != 0) {
-			warnx("pci_passthru: map_pptdev_mmio failed");
+			EPRINTLN("pci_passthru: map_pptdev_mmio failed: %s",
+			    strerror(errno));
 			return (-1);
 		}
 	}
 
 	return (0);
+}
+
+static void
+passthru_msix_addr(struct pci_devinst *pi, int baridx, int enabled,
+    uint64_t address)
+{
+	size_t remaining;
+	uint32_t table_size, table_offset;
+
+	table_offset = rounddown2(pi->pi_msix.table_offset, 4096);
+	if (table_offset > 0) {
+		(void)passthru_mmio_map(pi, baridx, enabled, address, 0,
+		    table_offset);
+	}
+	table_size = pi->pi_msix.table_offset - table_offset;
+	table_size += pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
+	table_size = roundup2(table_size, 4096);
+	remaining = pi->pi_bar[baridx].size - table_offset - table_size;
+	if (remaining > 0) {
+		(void)passthru_mmio_map(pi, baridx, enabled, address,
+		    table_offset + table_size, remaining);
+	}
 }
 
 static void

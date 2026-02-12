@@ -35,14 +35,12 @@
 #include <stdlib.h>		/* ldiv_t */
 
 ldiv_t
-ldiv(long num, long denom)
+ldiv(long numer, long denom)
 {
 	ldiv_t r;
 
-	/* see div.c for comments */
-
-	r.quot = num / denom;
-	r.rem = num % denom;
+	r.quot = numer / denom;
+	r.rem = numer % denom;
 
 	return (r);
 }

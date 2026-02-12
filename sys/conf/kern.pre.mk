@@ -119,10 +119,9 @@ CFLAGS+=	${CONF_CFLAGS}
 LDFLAGS+=	--build-id=sha1
 .endif
 
-.if ${MACHINE_CPUARCH} != "riscv" && \
-    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == "" && \
+.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == "" && \
     !make(install)
-.error amd64/arm/arm64/i386/ppc* kernel requires linker ifunc support
+.error kernel requires linker ifunc support
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 LDFLAGS+=	-z max-page-size=2097152

@@ -77,6 +77,7 @@
 #include <paths.h>
 #include <regex.h>
 #include <stdbool.h>
+#include <stdckdint.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -371,6 +372,9 @@ diffreg_stone(char *file1, char *file2, int flags, int capsicum)
 		goto closem;
 	}
 
+	if (stb1.st_dev == stb2.st_dev && stb1.st_ino == stb2.st_ino)
+		goto closem;
+
 	if (lflag)
 		pr = start_pr(file1, file2);
 
@@ -402,6 +406,10 @@ diffreg_stone(char *file1, char *file2, int flags, int capsicum)
 		break;
 	default:
 		/* error */
+		if (ferror(f1))
+			warn("%s", file1);
+		if (ferror(f2))
+			warn("%s", file2);
 		rval = D_ERROR;
 		status |= 2;
 		goto closem;
@@ -495,9 +503,9 @@ files_differ(FILE *f1, FILE *f2, int flags)
 		return (0);
 
 	for (;;) {
-		i = fread(buf1, 1, sizeof(buf1), f1);
-		j = fread(buf2, 1, sizeof(buf2), f2);
-		if ((!i && ferror(f1)) || (!j && ferror(f2)))
+		if ((i = fread(buf1, 1, sizeof(buf1), f1)) == 0 && ferror(f1))
+			return (-1);
+		if ((j = fread(buf2, 1, sizeof(buf2), f2)) == 0 && ferror(f2))
 			return (-1);
 		if (i != j)
 			return (1);
@@ -1056,7 +1064,7 @@ change(char *file1, FILE *f1, char *file2, FILE *f2, int a, int b, int c, int d,
 {
 	static size_t max_context = 64;
 	long curpos;
-	int i, nc;
+	int dist, i, nc;
 	const char *walk;
 	bool skip_blanks, ignore;
 
@@ -1120,8 +1128,9 @@ proceed:
 			 */
 			print_header(file1, file2);
 			anychange = 1;
-		} else if (a > context_vec_ptr->b + (2 * diff_context) + 1 &&
-		    c > context_vec_ptr->d + (2 * diff_context) + 1) {
+		} else if (!ckd_add(&dist, diff_context, diff_context) &&
+		    a - context_vec_ptr->b - 1 > dist &&
+		    c - context_vec_ptr->d - 1 > dist) {
 			/*
 			 * If this change is more than 'diff_context' lines from the
 			 * previous change, dump the record and reset it.
@@ -1506,10 +1515,14 @@ dump_context_vec(FILE *f1, FILE *f2, int flags)
 		return;
 
 	b = d = 0;		/* gcc */
-	lowa = MAX(1, cvp->a - diff_context);
-	upb = MIN((int)len[0], context_vec_ptr->b + diff_context);
-	lowc = MAX(1, cvp->c - diff_context);
-	upd = MIN((int)len[1], context_vec_ptr->d + diff_context);
+	if (ckd_sub(&lowa, cvp->a, diff_context) || lowa < 1)
+		lowa = 1;
+	if (ckd_add(&upb, context_vec_ptr->b, diff_context) || upb > (int)len[0])
+		upb = (int)len[0];
+	if (ckd_sub(&lowc, cvp->c, diff_context) || lowc < 1)
+		lowc = 1;
+	if (ckd_add(&upd, context_vec_ptr->d, diff_context) || upd > (int)len[1])
+		upd = (int)len[1];
 
 	printf("***************");
 	if (flags & (D_PROTOTYPE | D_MATCHLAST)) {
@@ -1609,10 +1622,14 @@ dump_unified_vec(FILE *f1, FILE *f2, int flags)
 		return;
 
 	b = d = 0;		/* gcc */
-	lowa = MAX(1, cvp->a - diff_context);
-	upb = MIN((int)len[0], context_vec_ptr->b + diff_context);
-	lowc = MAX(1, cvp->c - diff_context);
-	upd = MIN((int)len[1], context_vec_ptr->d + diff_context);
+	if (ckd_sub(&lowa, cvp->a, diff_context) || lowa < 1)
+		lowa = 1;
+	if (ckd_add(&upb, context_vec_ptr->b, diff_context) || upb > (int)len[0])
+		upb = (int)len[0];
+	if (ckd_sub(&lowc, cvp->c, diff_context) || lowc < 1)
+		lowc = 1;
+	if (ckd_add(&upd, context_vec_ptr->d, diff_context) || upd > (int)len[1])
+		upd = (int)len[1];
 
 	printf("@@ -");
 	uni_range(lowa, upb);

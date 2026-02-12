@@ -900,6 +900,7 @@ static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpus(SYSCTL_HANDLER_ARGS);
 static int sysctl_reset(SYSCTL_HANDLER_ARGS);
+static int sysctl_tcb_cache(SYSCTL_HANDLER_ARGS);
 #ifdef TCP_OFFLOAD
 static int sysctl_tls(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
@@ -8119,6 +8120,12 @@ t4_sysctls(struct adapter *sc)
 		    sysctl_wcwr_stats, "A", "write combined work requests");
 	}
 
+	if (chip_id(sc) >= CHELSIO_T7) {
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tcb_cache",
+		    CTLTYPE_INT | CTLFLAG_RW, sc, 0, sysctl_tcb_cache, "I",
+		    "1 = enabled (default), 0 = disabled (for debug only)");
+	}
+
 #ifdef KERN_TLS
 	if (is_ktls(sc)) {
 		/*
@@ -12202,6 +12209,40 @@ sysctl_reset(SYSCTL_HANDLER_ARGS)
 
 	taskqueue_enqueue(reset_tq, &sc->reset_task);
 	return (0);
+}
+
+static int
+sysctl_tcb_cache(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int val, v;
+	int rc;
+
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc)) {
+		rc = ENXIO;
+		goto done;
+	}
+	t4_tp_pio_read(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+	mtx_unlock(&sc->reg_lock);
+
+	val = v & F_GLFL ? 0 : 1;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+	if (val == 0)
+		v |= F_GLFL;
+	else
+		v &= ~F_GLFL;
+
+	mtx_lock(&sc->reg_lock);
+	if (hw_off_limits(sc))
+		rc = ENXIO;
+	else
+		t4_tp_pio_write(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+done:
+	mtx_unlock(&sc->reg_lock);
+	return (rc);
 }
 
 #ifdef TCP_OFFLOAD

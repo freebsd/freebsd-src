@@ -176,25 +176,26 @@ power_pm_get_type(void)
 }
 
 void
-power_pm_suspend(int state)
+power_pm_suspend(enum power_sstate_transition trans)
 {
 	enum power_stype	stype;
 
 	if (power_pm_fn == NULL)
 		return;
 
-	switch (state) {
-	case POWER_SLEEP_STATE_STANDBY:
+	switch (trans) {
+	case POWER_SSTATE_TRANSITION_STANDBY:
 		stype = power_standby_stype;
 		break;
-	case POWER_SLEEP_STATE_SUSPEND:
+	case POWER_SSTATE_TRANSITION_SUSPEND:
 		stype = power_suspend_stype;
 		break;
-	case POWER_SLEEP_STATE_HIBERNATE:
+	case POWER_SSTATE_TRANSITION_HIBERNATE:
 		stype = power_hibernate_stype;
 		break;
 	default:
-		printf("%s: unknown sleep state %d\n", __func__, state);
+		printf("%s: unknown sleep state transition %d\n", __func__,
+		    trans);
 		return;
 	}
 

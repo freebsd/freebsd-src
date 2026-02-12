@@ -183,7 +183,8 @@ TLBIE(uint64_t vpn, uint64_t oldptehi)
 				    "memory");
 			__asm __volatile("eieio; tlbsync; ptesync" :::
 			    "memory");
-			goto done;
+			tlbie_lock = 0;
+			return;
 #endif
 		}
 	}
@@ -197,20 +198,8 @@ TLBIE(uint64_t vpn, uint64_t oldptehi)
 	    (oldptehi & LPTE_KERNEL_VSID_BIT) == 0)
 		vpn |= AP_16M;
 
-	/*
-	 * Explicitly clobber r0.  The tlbie instruction has two forms: an old
-	 * one used by PowerISA 2.03 and prior, and a newer one used by PowerISA
-	 * 2.06 (maybe 2.05?) and later.  We need to support both, and it just
-	 * so happens that since we use 4k pages we can simply zero out r0, and
-	 * clobber it, and the assembler will interpret the single-operand form
-	 * of tlbie as having RB set, and everything else as 0.  The RS operand
-	 * in the newer form is in the same position as the L(page size) bit of
-	 * the old form, so a slong as RS is 0, we're good on both sides.
-	 */
-	__asm __volatile("li 0, 0 \n tlbie %0, 0" :: "r"(vpn) : "r0", "memory");
+	__asm __volatile("tlbie %0, %1" :: "r"(vpn), "r"(0) : "memory");
 	__asm __volatile("eieio; tlbsync; ptesync" ::: "memory");
-done:
-
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;

@@ -1825,15 +1825,9 @@ static void rtw8851b_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 #define __DFIR_CFG_ADDR(i) (R_TXFIR0 + ((i) << 2))
 #define __DFIR_CFG_MASK 0xffffffff
 #define __DFIR_CFG_NR 8
-#if defined(__linux__)
 #define __DECL_DFIR_PARAM(_name, _val...) \
 	static const u32 param_ ## _name[] = {_val}; \
 	static_assert(ARRAY_SIZE(param_ ## _name) == __DFIR_CFG_NR)
-#elif defined(__FreeBSD__)
-#define __DECL_DFIR_PARAM(_name, _val...) \
-	static const u32 param_ ## _name[] = {_val}; \
-	rtw89_static_assert(ARRAY_SIZE(param_ ## _name) == __DFIR_CFG_NR)
-#endif
 
 	__DECL_DFIR_PARAM(flat,
 			  0x023D23FF, 0x0029B354, 0x000FC1C8, 0x00FDB053,
@@ -2543,6 +2537,9 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.query_rxdesc		= rtw89_core_query_rxdesc,
 	.fill_txdesc		= rtw89_core_fill_txdesc,
 	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc,
+	.get_ch_dma		= {rtw89_core_get_ch_dma,
+				   rtw89_core_get_ch_dma,
+				   NULL,},
 	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path,
 	.mac_cfg_gnt		= rtw89_mac_cfg_gnt,
 	.stop_sch_tx		= rtw89_mac_stop_sch_tx,
@@ -2634,6 +2631,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.support_ant_gain	= false,
 	.support_tas		= false,
 	.support_sar_by_ant	= false,
+	.support_noise		= false,
 	.ul_tb_waveform_ctrl	= true,
 	.ul_tb_pwr_diff		= false,
 	.rx_freq_frome_ie	= true,
@@ -2650,6 +2648,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.bacam_num		= 2,
 	.bacam_dynamic_num	= 4,
 	.bacam_ver		= RTW89_BACAM_V0,
+	.addrcam_ver		= 0,
 	.ppdu_max_usr		= 4,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
@@ -2695,6 +2694,8 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.cfo_hw_comp		= true,
 	.dcfo_comp		= &rtw8851b_dcfo_comp,
 	.dcfo_comp_sft		= 12,
+	.nhm_report		= NULL,
+	.nhm_th			= NULL,
 	.imr_info		= &rtw8851b_imr_info,
 	.imr_dmac_table		= NULL,
 	.imr_cmac_table		= NULL,

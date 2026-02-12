@@ -50,9 +50,6 @@
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-#define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define	DEV_ALIGN(x)	roundup2((off_t)(x), DEV_BSIZE)
-
 static struct kerneldumpheader kdh;
 
 /* Handle chunked writes. */

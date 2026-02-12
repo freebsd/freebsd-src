@@ -80,6 +80,7 @@
 #include <machine/cpu_feat.h>
 #include <machine/debug_monitor.h>
 #include <machine/hypervisor.h>
+#include <machine/ifunc.h>
 #include <machine/kdb.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
@@ -154,13 +155,6 @@ uintptr_t socdev_va __read_mostly;
 vm_paddr_t efi_systbl_phys;
 static struct efi_map_header *efihdr;
 
-/* pagezero_* implementations are provided in support.S */
-void pagezero_simple(void *);
-void pagezero_cache(void *);
-
-/* pagezero_simple is default pagezero */
-void (*pagezero)(void *p) = pagezero_simple;
-
 int (*apei_nmi)(void);
 
 #if defined(PERTHREAD_SSP_WARNING)
@@ -178,8 +172,7 @@ pan_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64mfr1;
 
-	if (!get_kernel_reg(ID_AA64MMFR1_EL1, &id_aa64mfr1))
-		return (FEAT_ALWAYS_DISABLE);
+	get_kernel_reg(ID_AA64MMFR1_EL1, &id_aa64mfr1);
 	if (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) == ID_AA64MMFR1_PAN_NONE)
 		return (FEAT_ALWAYS_DISABLE);
 
@@ -224,8 +217,7 @@ mops_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64isar2;
 
-	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
-		return (FEAT_ALWAYS_DISABLE);
+	get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2);
 	if (ID_AA64ISAR2_MOPS_VAL(id_aa64isar2) == ID_AA64ISAR2_MOPS_NONE)
 		return (FEAT_ALWAYS_DISABLE);
 
@@ -721,9 +713,6 @@ cache_setup(void)
 		/* Same as with above calculations */
 		dczva_line_shift = DCZID_BS_SIZE(dczid_el0);
 		dczva_line_size = sizeof(int) << dczva_line_shift;
-
-		/* Change pagezero function */
-		pagezero = pagezero_cache;
 	}
 }
 
@@ -809,6 +798,9 @@ initarm(struct arm64_bootparams *abp)
 
 	update_special_regs(0);
 
+	sched_instance_select();
+	link_elf_ireloc();
+
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &pcpu0;
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
@@ -825,8 +817,6 @@ initarm(struct arm64_bootparams *abp)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(midr, get_midr());
 
-	sched_instance_select();
-	link_elf_ireloc();
 #ifdef FDT
 	try_load_dtb();
 #endif
@@ -1078,3 +1068,35 @@ DB_SHOW_COMMAND(vtop, db_show_vtop)
 		db_printf("show vtop <virt_addr>\n");
 }
 #endif
+
+#undef memset
+#undef memmove
+#undef memcpy
+
+void	*memset_std(void *buf, int c, size_t len);
+void	*memset_mops(void *buf, int c, size_t len);
+void    *memmove_std(void * _Nonnull dst, const void * _Nonnull src,
+	    size_t len);
+void    *memmove_mops(void * _Nonnull dst, const void * _Nonnull src,
+	    size_t len);
+void    *memcpy_std(void * _Nonnull dst, const void * _Nonnull src,
+	    size_t len);
+void    *memcpy_mops(void * _Nonnull dst, const void * _Nonnull src,
+	    size_t len);
+
+DEFINE_IFUNC(, void *, memset, (void *, int, size_t))
+{
+	return ((elf_hwcap2 & HWCAP2_MOPS) != 0 ? memset_mops : memset_std);
+}
+
+DEFINE_IFUNC(, void *, memmove, (void * _Nonnull, const void * _Nonnull,
+    size_t))
+{
+	return ((elf_hwcap2 & HWCAP2_MOPS) != 0 ? memmove_mops : memmove_std);
+}
+
+DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull,
+    size_t))
+{
+	return ((elf_hwcap2 & HWCAP2_MOPS) != 0 ? memcpy_mops : memcpy_std);
+}

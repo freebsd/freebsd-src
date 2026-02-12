@@ -69,11 +69,14 @@ const char* PFCTL_SYNCOOKIES_MODE_NAMES[] = {
 
 static int	_pfctl_clear_states(int , const struct pfctl_kill *,
 		    unsigned int *, uint64_t);
+static void	_pfctl_verify_parsers(void);
 
 struct pfctl_handle *
 pfctl_open(const char *pf_device)
 {
 	struct pfctl_handle *h;
+
+	_pfctl_verify_parsers();
 
 	h = calloc(1, sizeof(struct pfctl_handle));
 
@@ -389,8 +392,8 @@ static const struct snl_attr_parser ap_getstatus[] = {
 	{ .type = PF_GS_FCOUNTERS, .off = _OUT(fcounters), .cb = snl_attr_get_counters },
 	{ .type = PF_GS_SCOUNTERS, .off = _OUT(scounters), .cb = snl_attr_get_counters },
 	{ .type = PF_GS_CHKSUM, .off = _OUT(pf_chksum), .arg_u32 = PF_MD5_DIGEST_LENGTH, .cb = snl_attr_get_bytes },
-	{ .type = PF_GS_BCOUNTERS, .off = _OUT(bcounters), .arg_u32 = 2 * 2, .cb = snl_attr_get_uint64_array },
 	{ .type = PF_GS_PCOUNTERS, .off = _OUT(pcounters), .arg_u32 = 2 * 2 * 2, .cb = snl_attr_get_uint64_array },
+	{ .type = PF_GS_BCOUNTERS, .off = _OUT(bcounters), .arg_u32 = 2 * 2, .cb = snl_attr_get_uint64_array },
 	{ .type = PF_GS_NCOUNTERS, .off = _OUT(ncounters), .cb = snl_attr_get_counters },
 	{ .type = PF_GS_FRAGMENTS, .off = _OUT(fragments), .cb = snl_attr_get_uint64 },
 };
@@ -1965,15 +1968,9 @@ static struct snl_attr_parser ap_state[] = {
 #undef _OUT
 SNL_DECLARE_PARSER(state_parser, struct genlmsghdr, snl_f_p_empty, ap_state);
 
-static const struct snl_hdr_parser *all_parsers[] = {
-	&state_parser, &skey_parser, &speer_parser,
-	&creator_parser, &getrules_parser
-};
-
 int
 pfctl_get_states_h(struct pfctl_handle *h, struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg)
 {
-	SNL_VERIFY_PARSERS(all_parsers);
 	int family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
 	int ret;
 
@@ -4233,3 +4230,40 @@ pfctl_source_clear(struct pfctl_handle *h, struct pfctl_source_clear *kill)
 	return (e.error);
 }
 
+static const struct snl_hdr_parser *all_parsers[] = {
+	&begin_addrs_parser,
+	&clear_states_parser,
+	&clr_addrs_parser,
+	&creator_parser,
+	&get_addr_parser,
+	&get_addrs_parser,
+	&get_limit_parser,
+	&get_timeout_parser,
+	&getrule_parser,
+	&getrules_parser,
+	&getstatus_parser,
+	&nadd_parser,
+	&natlook_parser,
+	&ndel_parser,
+	&ruleset_parser,
+	&skey_parser,
+	&source_parser,
+	&sourcelim_parser,
+	&speer_parser,
+	&srcnode_parser,
+	&state_parser,
+	&statelim_parser,
+	&table_add_addr_parser,
+	&table_astats_parser,
+	&table_del_addr_parser,
+	&table_get_addr_parser,
+	&table_set_addr_parser,
+	&tstats_clr_parser,
+	&tstats_parser,
+};
+
+static void
+_pfctl_verify_parsers(void)
+{
+	SNL_VERIFY_PARSERS(all_parsers);
+}

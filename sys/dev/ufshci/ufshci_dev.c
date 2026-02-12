@@ -273,40 +273,31 @@ ufshci_dev_init_unipro(struct ufshci_controller *ctrlr)
 	uint32_t pa_granularity, peer_pa_granularity;
 	uint32_t t_activate, pear_t_activate;
 
-	/*
-	 * Unipro Version:
-	 * - 7~15 = Above 2.0, 6 = 2.0, 5 = 1.8, 4 = 1.61, 3 = 1.6, 2 = 1.41,
-	 * 1 = 1.40, 0 = Reserved
-	 */
-	if (ufshci_uic_send_dme_get(ctrlr, PA_LocalVerInfo,
-		&ctrlr->unipro_version))
-		return (ENXIO);
-	if (ufshci_uic_send_dme_get(ctrlr, PA_RemoteVerInfo,
-		&ctrlr->ufs_dev.unipro_version))
-		return (ENXIO);
-
-	/*
-	 * PA_Granularity: Granularity for PA_TActivate and PA_Hibern8Time
-	 * - 1=1us, 2=4us, 3=8us, 4=16us, 5=32us, 6=100us
-	 */
-	if (ufshci_uic_send_dme_get(ctrlr, PA_Granularity, &pa_granularity))
-		return (ENXIO);
-	if (ufshci_uic_send_dme_peer_get(ctrlr, PA_Granularity,
-		&peer_pa_granularity))
-		return (ENXIO);
-
-	/*
-	 * PA_TActivate: Time to wait before activating a burst in order to
-	 * wake-up peer M-RX
-	 * UniPro automatically sets timing information such as PA_TActivate
-	 * through the PACP_CAP_EXT1_ind command during Link Startup operation.
-	 */
-	if (ufshci_uic_send_dme_get(ctrlr, PA_TActivate, &t_activate))
-		return (ENXIO);
-	if (ufshci_uic_send_dme_peer_get(ctrlr, PA_TActivate, &pear_t_activate))
-		return (ENXIO);
-
 	if (ctrlr->quirks & UFSHCI_QUIRK_LONG_PEER_PA_TACTIVATE) {
+		/*
+		 * PA_Granularity: Granularity for PA_TActivate and
+		 * PA_Hibern8Time
+		 * - 1=1us, 2=4us, 3=8us, 4=16us, 5=32us, 6=100us
+		 */
+		if (ufshci_uic_send_dme_get(ctrlr, PA_Granularity,
+			&pa_granularity))
+			return (ENXIO);
+		if (ufshci_uic_send_dme_peer_get(ctrlr, PA_Granularity,
+			&peer_pa_granularity))
+			return (ENXIO);
+
+		/*
+		 * PA_TActivate: Time to wait before activating a burst in order
+		 * to wake-up peer M-RX UniPro automatically sets timing
+		 * information such as PA_TActivate through the
+		 * PACP_CAP_EXT1_ind command during Link Startup operation.
+		 */
+		if (ufshci_uic_send_dme_get(ctrlr, PA_TActivate, &t_activate))
+			return (ENXIO);
+		if (ufshci_uic_send_dme_peer_get(ctrlr, PA_TActivate,
+			&pear_t_activate))
+			return (ENXIO);
+
 		/*
 		 * Intel Lake-field UFSHCI has a quirk. We need to add 200us to
 		 * the PEER's PA_TActivate.

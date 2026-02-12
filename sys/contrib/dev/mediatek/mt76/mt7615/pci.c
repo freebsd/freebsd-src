@@ -206,7 +206,7 @@ MODULE_FIRMWARE(MT7663_FIRMWARE_N9);
 MODULE_FIRMWARE(MT7663_ROM_PATCH);
 #if defined(__FreeBSD__)
 MODULE_VERSION(mt7615_pci, 1);
+MODULE_DEPEND(mt7615_pci, mt76_core, 1, 1, 1);
 MODULE_DEPEND(mt7615_pci, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mt7615_pci, linuxkpi_wlan, 1, 1, 1);
-MODULE_DEPEND(mt7615_pci, mt76_core, 1, 1, 1);
 #endif

@@ -2777,3 +2777,9 @@ trace: ;
 EXPORT_SYMBOL(ath10k_dbg_dump);
 
 #endif /* CONFIG_ATH10K_DEBUG */
+
+#if defined(__FreeBSD__)
+#ifdef CONFIG_ATH10K_DEBUGFS
+MODULE_DEPEND(ath10k, debugfs, 1, 1, 1);
+#endif
+#endif

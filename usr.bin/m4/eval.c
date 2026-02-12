@@ -490,7 +490,7 @@ expand_builtin(const char *argv[], int argc, int td)
 
 	case DEFNTYPE:
 		if (argc > 2)
-			for (n = 2; n < argc; n++)
+			for (n = argc - 1; n >= 2; n--)
 				dodefn(argv[n]);
 		break;
 

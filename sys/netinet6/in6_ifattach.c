@@ -158,7 +158,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 }
 
 
-/**
+/*
  * Get interface link level sockaddr
  */
 static struct sockaddr_dl *
@@ -178,10 +178,10 @@ get_interface_link_level(struct ifnet *ifp)
 		if (sdl->sdl_alen == 0)
 			continue;
 
-		return sdl;
+		return (sdl);
 	}
 
-	return NULL;
+	return (NULL);
 }
 
 /*
@@ -250,10 +250,10 @@ in6_get_interface_hwaddr(struct ifnet *ifp, size_t *len)
 		return (NULL);
 	}
 
-	return addr;
+	return (addr);
 }
 
- /*
+/*
  * Get interface identifier for the specified interface.
  * XXX assumes single sockaddr_dl (AF_LINK address) per an interface
  *
@@ -268,7 +268,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 	hwaddr = in6_get_interface_hwaddr(ifp, &hwaddr_len);
 	if (hwaddr == NULL || (hwaddr_len != 6 && hwaddr_len != 8))
-		return -1;
+		return (-1);
 
 	/* make EUI64 address */
 	if (hwaddr_len == 8)
@@ -314,7 +314,7 @@ validate_ifid(uint8_t *iid)
 	static uint8_t reserved_eth[5] = { 0x02, 0x00, 0x5E, 0xFF, 0xFE };
 	static uint8_t reserved_anycast[7] = { 0xFD, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-	/* Subnet-Router Anycast (RFC 4291)*/
+	/* Subnet-Router Anycast (RFC 4291) */
 	if (memcmp(iid, allzero, 8) == 0)
 		return (false);
 
@@ -375,7 +375,7 @@ in6_get_stableifid(struct ifnet *ifp, struct in6_addr *in6, int prefixlen)
 	/* Use hostuuid as constant "secret" key */
 	getcredhostuuid(curthread->td_ucred, hostuuid, sizeof(hostuuid));
 	if (strncmp(hostuuid, DEFAULT_HOSTUUID, sizeof(hostuuid)) == 0) {
-		// If hostuuid is not set, use a random value
+		/* If hostuuid is not set, use a random value */
 		arc4rand(hostuuid, HOSTUUIDLEN, 0);
 		hostuuid[HOSTUUIDLEN] = '\0';
 	}
@@ -383,11 +383,7 @@ in6_get_stableifid(struct ifnet *ifp, struct in6_addr *in6, int prefixlen)
 
 	dad_failures = atomic_load_int(&DAD_FAILURES(ifp));
 
-	/*
-	 * RFC 7217 section 7
-	 *
-	 * default max retries
-	 */
+	/* RFC 7217 section 7, default max retries */
 	if (dad_failures > V_ip6_stableaddr_maxretries)
 		return (false);
 

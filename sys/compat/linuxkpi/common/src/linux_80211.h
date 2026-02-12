@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2023 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * Copyright (c) 2020-2021 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -481,7 +481,8 @@ void lkpi_80211_mo_mgd_complete_tx(struct ieee80211_hw *, struct ieee80211_vif *
     struct ieee80211_prep_tx_info *);
 void lkpi_80211_mo_tx(struct ieee80211_hw *, struct ieee80211_tx_control *,
     struct sk_buff *);
-void lkpi_80211_mo_wake_tx_queue(struct ieee80211_hw *, struct ieee80211_txq *);
+void lkpi_80211_mo_wake_tx_queue(struct ieee80211_hw *, struct ieee80211_txq *,
+    bool);
 void lkpi_80211_mo_sync_rx_queues(struct ieee80211_hw *);
 void lkpi_80211_mo_sta_pre_rcu_remove(struct ieee80211_hw *,
     struct ieee80211_vif *, struct ieee80211_sta *);

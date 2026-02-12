@@ -342,6 +342,7 @@ x86/acpica/srat.c		optional	acpi
 x86/bios/vpd.c			optional	vpd
 x86/cpufreq/est.c		optional	cpufreq
 x86/cpufreq/hwpstate_amd.c	optional	cpufreq
+x86/cpufreq/hwpstate_common.c	optional	cpufreq
 x86/cpufreq/hwpstate_intel.c	optional	cpufreq
 x86/cpufreq/p4tcc.c		optional	cpufreq
 x86/cpufreq/powernow.c		optional	cpufreq

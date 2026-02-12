@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2026 Dag-Erling Smørgrav
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,40 +32,74 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #include <err.h>
-#include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-static char *getcwd_logical(void);
-void usage(void);
+static char *
+getcwd_logical(void)
+{
+	struct stat log, phy;
+	char *pwd, *p, *q;
+
+	/* $PWD is set and absolute */
+	if ((pwd = getenv("PWD")) == NULL || *pwd != '/')
+		return (NULL);
+	/* $PWD does not contain /./ or /../ */
+	for (p = pwd; *p; p = q) {
+		for (q = ++p; *q && *q != '/'; q++)
+			/* nothing */;
+		if ((*p == '.' && q == ++p) ||
+		    (*p == '.' && q == ++p))
+			return (NULL);
+	}
+	/* $PWD refers to the current directory */
+	if (stat(pwd, &log) != 0 || stat(".", &phy) != 0 ||
+	    log.st_dev != phy.st_dev || log.st_ino != phy.st_ino)
+		return (NULL);
+	return (pwd);
+}
+
+static char *
+getcwd_physical(void)
+{
+	static char pwd[MAXPATHLEN];
+
+	return (getcwd(pwd, sizeof(pwd)));
+}
+
+static void
+usage(void)
+{
+	(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
+	exit(1);
+}
 
 int
 main(int argc, char *argv[])
 {
-	int physical;
-	int ch;
-	char *p;
+	char *pwd;
+	int opt;
+	bool logical;
 
-	physical = 1;
-	while ((ch = getopt(argc, argv, "LP")) != -1)
-		switch (ch) {
+	logical = true;
+	while ((opt = getopt(argc, argv, "LP")) != -1) {
+		switch (opt) {
 		case 'L':
-			physical = 0;
+			logical = true;
 			break;
 		case 'P':
-			physical = 1;
+			logical = false;
 			break;
-		case '?':
 		default:
 			usage();
 		}
+	}
 	argc -= optind;
 	argv += optind;
-
 	if (argc != 0)
 		usage();
 
@@ -72,40 +107,12 @@ main(int argc, char *argv[])
 	 * If we're trying to find the logical current directory and that
 	 * fails, behave as if -P was specified.
 	 */
-	if ((!physical && (p = getcwd_logical()) != NULL) ||
-	    (p = getcwd(NULL, 0)) != NULL)
-		printf("%s\n", p);
+	if ((logical && (pwd = getcwd_logical()) != NULL) ||
+	    (pwd = getcwd_physical()) != NULL)
+		printf("%s\n", pwd);
 	else
 		err(1, ".");
-
+	if (fflush(stdout) != 0)
+		err(1, "stdout");
 	exit(0);
-}
-
-void __dead2
-usage(void)
-{
-
-	(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
-  	exit(1);
-}
-
-static char *
-getcwd_logical(void)
-{
-	struct stat lg, phy;
-	char *pwd;
-
-	/*
-	 * Check that $PWD is an absolute logical pathname referring to
-	 * the current working directory.
-	 */
-	if ((pwd = getenv("PWD")) != NULL && *pwd == '/') {
-		if (stat(pwd, &lg) == -1 || stat(".", &phy) == -1)
-			return (NULL);
-		if (lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino)
-			return (pwd);
-	}
-
-	errno = ENOENT;
-	return (NULL);
 }

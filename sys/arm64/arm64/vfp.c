@@ -895,9 +895,7 @@ sve_init(const void *dummy __unused)
 	uint64_t reg;
 	int i;
 
-	if (!get_kernel_reg(ID_AA64PFR0_EL1, &reg))
-		return;
-
+	get_kernel_reg(ID_AA64PFR0_EL1, &reg);
 	if (ID_AA64PFR0_SVE_VAL(reg) == ID_AA64PFR0_SVE_NONE)
 		return;
 

@@ -169,6 +169,27 @@ static struct aw_sid_efuse h5_efuses[] = {
 	},
 };
 
+static struct aw_sid_efuse h616_efuses[] = {
+	{
+		.name = "rootkey",
+		.desc = "Root Key or ChipID",
+		.base = EFUSE_OFFSET,
+		.offset = 0x00,
+		.size = 16,
+		.id = AW_SID_FUSE_ROOTKEY,
+		.public = true,
+	},
+	{
+		.name = "calibration",
+		.desc = "Thermal Sensor Calibration Data",
+		.base = EFUSE_OFFSET,
+		.offset = 0x34,
+		.size = 4,
+		.id = AW_SID_FUSE_THSSENSOR,
+		.public = true,
+	},
+};
+
 static struct aw_sid_efuse d1_efuses[] = {
 	{
 		.name = "rootkey",
@@ -225,6 +246,11 @@ static const struct aw_sid_conf h5_conf = {
 	.nfuses = nitems(h5_efuses),
 };
 
+static const struct aw_sid_conf h616_conf = {
+	.efuses = h616_efuses,
+	.nfuses = nitems(h616_efuses),
+};
+
 static const struct aw_sid_conf d1_conf = {
 	.efuses = d1_efuses,
 	.nfuses = nitems(d1_efuses),
@@ -237,6 +263,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun8i-a83t-sid",		(uintptr_t)&a83t_conf},
 	{ "allwinner,sun8i-h3-sid",		(uintptr_t)&h3_conf},
 	{ "allwinner,sun50i-h5-sid",		(uintptr_t)&h5_conf},
+	{ "allwinner,sun50i-h616-sid",		(uintptr_t)&h616_conf},
 	{ "allwinner,sun20i-d1-sid",		(uintptr_t)&d1_conf},
 	{ NULL,					0 }
 };

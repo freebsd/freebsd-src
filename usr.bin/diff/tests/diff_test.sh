@@ -24,6 +24,10 @@ atf_test_case functionname
 atf_test_case noderef
 atf_test_case ignorecase
 atf_test_case dirloop
+atf_test_case bigc
+atf_test_case bigu
+atf_test_case prleak
+atf_test_case same
 
 simple_body()
 {
@@ -378,6 +382,80 @@ dirloop_body()
 	    -e match:"a/foo/bar/up: Directory loop detected" \
 	    -e match:"b/foo/bar/up: Directory loop detected" \
 	    diff -r a b
+	atf_check rm [ab]/foo/bar/up
+	atf_check mkdir -p b/foo/bar
+	atf_check ln -s foo a/baz
+	atf_check ln -s foo b/baz
+	atf_check diff -r a b
+}
+
+bigc_head()
+{
+	atf_set "descr" "Context diff with very large context"
+}
+bigc_body()
+{
+	echo $'x\na\ny' >a
+	echo $'x\nb\ny' >b
+	atf_check -s exit:2 -e ignore diff -C$(((1<<31)-1)) a b
+	atf_check -s exit:1 -o match:'--- 1,3 ---' \
+	    diff -C$(((1<<31)-2)) a b
+	atf_check -s exit:1 -o match:'--- 1,3 ---' \
+	    diff -Astone -C$(((1<<31)-2)) a b
+}
+
+bigu_head()
+{
+	atf_set "descr" "Unified diff with very large context"
+}
+bigu_body()
+{
+	echo $'x\na\ny' >a
+	echo $'x\nb\ny' >b
+	atf_check -s exit:2 -e ignore diff -U$(((1<<31)-1)) a b
+	atf_check -s exit:1 -o match:'^@@ -1,3 \+1,3 @@$' \
+	    diff -U$(((1<<31)-2)) a b
+	atf_check -s exit:1 -o match:'^@@ -1,3 \+1,3 @@$' \
+	    diff -Astone -U$(((1<<31)-2)) a b
+}
+
+prleak_head()
+{
+	atf_set "descr" "Verify that pagination does not leak resources"
+}
+prleak_body()
+{
+	local n=32
+	mkdir a b
+	for hi in $(jot -w%02x $n 0) ; do
+		mkdir a/$hi b/$hi
+		for lo in $(jot -w%02x $n 0) ; do
+			echo "$hi$lo" >a/$hi/$lo
+			echo "$hi$lo" >b/$hi/$lo
+		done
+	done
+	ulimit -n 1000
+	ulimit -u 1000
+	atf_check diff -rul a b
+	atf_check diff -Astone -rul a b
+}
+
+same_head()
+{
+	atf_set "descr" "Don't diff a file or directory with itself"
+}
+same_body()
+{
+	local n=256
+	mkdir a
+	for hi in $(jot -w%02x $n 0) ; do
+		mkdir a/$hi
+		for lo in $(jot -w%02x $n 0) ; do
+			echo "$hi$lo" >a/$hi/$lo
+		done
+	done
+	ln -s a b
+	atf_check timeout 1s diff -rqs a b
 }
 
 atf_init_test_cases()
@@ -407,4 +485,8 @@ atf_init_test_cases()
 	atf_add_test_case noderef
 	atf_add_test_case ignorecase
 	atf_add_test_case dirloop
+	atf_add_test_case bigc
+	atf_add_test_case bigu
+	atf_add_test_case prleak
+	atf_add_test_case same
 }

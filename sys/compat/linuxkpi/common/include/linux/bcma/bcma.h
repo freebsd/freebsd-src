@@ -1,0 +1,29 @@
+/*
+ * Copyright (c) 2025 Bjoern A. Zeeb
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#ifndef	_LINUXKPI_LINUX_BCMA_BCMA_H
+#define	_LINUXKPI_LINUX_BCMA_BCMA_H
+
+#define	BCMA_CORE_80211			0x812
+#define	BCMA_CORE_ARM_CA7		0x847
+#define	BCMA_CORE_ARM_CM3		0x82A
+#define	BCMA_CORE_ARM_CR4		0x83E
+#define	BCMA_CORE_CHIPCOMMON		0x800
+#define	BCMA_CORE_GCI			0x840
+#define	BCMA_CORE_INTERNAL_MEM		0x80E
+#define	BCMA_CORE_PCIE2			0x83C
+#define	BCMA_CORE_PMU			0x827
+#define	BCMA_CORE_SDIO_DEV		0x829
+#define	BCMA_CORE_SYS_MEM		0x849
+
+/* XXX not sure where these belong. */
+#define	BCMA_CC_CAP_EXT_AOB_PRESENT	0x00000040
+#define	BCMA_CC_PMU_CTL_RES_SHIFT	13
+#define	BCMA_CC_PMU_CTL_RES_RELOAD	0x2
+#define	BCMA_CC_SROM_CONTROL_OTPSEL	0x00000010
+#define	BCMA_CC_SROM_CONTROL_OTP_PRESENT 0x00000020
+
+#endif	/* _LINUXKPI_LINUX_BCMA_BCMA_H */

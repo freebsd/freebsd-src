@@ -66,6 +66,7 @@
 #include <net/if_private.h>
 #include <netinet/ip_var.h>
 #include <netinet/igmp_var.h>
+#include <netinet/ip_mroute.h>
 
 #ifndef KTR_IGMPV3
 #define KTR_IGMPV3 KTR_INET

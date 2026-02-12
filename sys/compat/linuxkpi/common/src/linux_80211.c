@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * Copyright (c) 2020-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -2150,7 +2150,7 @@ lkpi_wake_tx_queues(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		if (no_emptyq && ltxq_empty)
 			continue;
 
-		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid], false);
 	}
 }
 
@@ -5697,8 +5697,10 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		c = ic->ic_curchan;
 	info->band = lkpi_net80211_chan_to_nl80211_band(c);
 	info->hw_queue = vif->hw_queue[ac];
-	if (m->m_flags & M_EAPOL)
+	if ((m->m_flags & M_EAPOL) != 0) {
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
+		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;	/* mt76 */
+	}
 	info->control.vif = vif;
 	/* XXX-BZ info->control.rates */
 #ifdef __notyet__
@@ -5762,7 +5764,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 #endif
 	LKPI_80211_LTXQ_UNLOCK(ltxq);
 	wiphy_lock(hw->wiphy);
-	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
+	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq, true);
 	wiphy_unlock(hw->wiphy);
 	return;
 
@@ -8302,6 +8304,9 @@ _lkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
+	if (skb == NULL)
+		return;
+
 	m = skb->m;
 	skb->m = NULL;
 
@@ -8327,13 +8332,13 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
     struct ieee80211_tx_status *txstat)
 {
 	struct sk_buff *skb;
-	struct ieee80211_tx_info *info;
+	struct ieee80211_tx_info *info, _info = { };
 	struct ieee80211_ratectl_tx_status txs;
 	struct ieee80211_node *ni;
 	int status;
 
 	skb = txstat->skb;
-	if (skb->m != NULL) {
+	if (skb != NULL && skb->m != NULL) {
 		struct mbuf *m;
 
 		m = skb->m;
@@ -8343,7 +8348,13 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		ni = NULL;
 	}
 
+	/*
+	 * If we have no info information on tx, set info to an all-zero struct
+	 * to make the code (and debug output) simpler.
+	 */
 	info = txstat->info;
+	if (info == NULL)
+		info = &_info;
 	if (info->flags & IEEE80211_TX_STAT_ACK) {
 		status = 0;	/* No error. */
 		txs.status = IEEE80211_RATECTL_TX_SUCCESS;
@@ -8408,7 +8419,8 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 	if (txstat->free_list) {
 		_lkpi_ieee80211_free_txskb(hw, skb, status);
-		list_add_tail(&skb->list, txstat->free_list);
+		if (skb != NULL)
+			list_add_tail(&skb->list, txstat->free_list);
 	} else {
 		linuxkpi_ieee80211_free_txskb(hw, skb, status);
 	}
@@ -8749,7 +8761,7 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 						ltxq->stopped = false;
 
 						if (!skb_queue_empty(&ltxq->skbq))
-							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid], false);
 					}
 				}
 				rcu_read_unlock();
