@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-11 17:35 - bin/hostname ✓
+
+**Directory:** `bin/hostname`
+
+**Summary:** [ai-code-reviewer] hostname: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-11 16:07 - bin/getfacl ✓
 
 **Directory:** `bin/getfacl`
