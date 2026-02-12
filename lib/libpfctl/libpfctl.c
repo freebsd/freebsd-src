@@ -389,13 +389,17 @@ static const struct snl_attr_parser ap_getstatus[] = {
 	{ .type = PF_GS_FCOUNTERS, .off = _OUT(fcounters), .cb = snl_attr_get_counters },
 	{ .type = PF_GS_SCOUNTERS, .off = _OUT(scounters), .cb = snl_attr_get_counters },
 	{ .type = PF_GS_CHKSUM, .off = _OUT(pf_chksum), .arg_u32 = PF_MD5_DIGEST_LENGTH, .cb = snl_attr_get_bytes },
-	{ .type = PF_GS_BCOUNTERS, .off = _OUT(bcounters), .arg_u32 = 2 * 2, .cb = snl_attr_get_uint64_array },
 	{ .type = PF_GS_PCOUNTERS, .off = _OUT(pcounters), .arg_u32 = 2 * 2 * 2, .cb = snl_attr_get_uint64_array },
+	{ .type = PF_GS_BCOUNTERS, .off = _OUT(bcounters), .arg_u32 = 2 * 2, .cb = snl_attr_get_uint64_array },
 	{ .type = PF_GS_NCOUNTERS, .off = _OUT(ncounters), .cb = snl_attr_get_counters },
 	{ .type = PF_GS_FRAGMENTS, .off = _OUT(fragments), .cb = snl_attr_get_uint64 },
 };
 SNL_DECLARE_PARSER(getstatus_parser, struct genlmsghdr, snl_f_p_empty, ap_getstatus);
 #undef _OUT
+
+static const struct snl_hdr_parser *stat_parser[] = {
+	&getstatus_parser,
+};
 
 struct pfctl_status *
 pfctl_get_status_h(struct pfctl_handle *h)
@@ -406,6 +410,8 @@ pfctl_get_status_h(struct pfctl_handle *h)
 	struct snl_writer nw;
 	uint32_t seq_id;
 	int family_id;
+
+	SNL_VERIFY_PARSERS(stat_parser);
 
 	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
 	if (family_id == 0)
