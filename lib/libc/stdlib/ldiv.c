@@ -39,8 +39,6 @@ ldiv(long num, long denom)
 {
 	ldiv_t r;
 
-	/* see div.c for comments */
-
 	r.quot = num / denom;
 	r.rem = num % denom;
 
