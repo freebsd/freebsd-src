@@ -451,7 +451,7 @@ mycc -o /tmp/syzkaller52 -Wall -Wextra -O0 /tmp/syzkaller52.c -l pthread ||
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt 120 ]; do
 	(cd /tmp; timeout 3m ./syzkaller52)
-done
+done > /dev/null 2>&1
 
 rm -rf /tmp/syzkaller52 /tmp/syzkaller52.c /tmp/syzkaller52.core \
     /tmp/syzkaller.??????
