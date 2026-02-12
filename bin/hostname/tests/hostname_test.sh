@@ -62,19 +62,37 @@ basic_head()
 }
 basic_body()
 {
+    local result
+
     init
 
     result=$(jexec ${test_jail_name} "hostname")
+    if [ $? -ne 0 ]; then
+        atf_fail "Failed to get hostname"
+    fi
     atf_check_equal "test-hostname.example.org" "${result}"
 
     result=$(jexec ${test_jail_name} "hostname" -s)
+    if [ $? -ne 0 ]; then
+        atf_fail "Failed to get short hostname"
+    fi
     atf_check_equal "test-hostname" "${result}"
 
     result=$(jexec ${test_jail_name} "hostname" -d)
+    if [ $? -ne 0 ]; then
+        atf_fail "Failed to get domain name"
+    fi
     atf_check_equal "example.org" "${result}"
 
     jexec ${test_jail_name} "hostname" "test-bsd2"
+    if [ $? -ne 0 ]; then
+        atf_fail "Failed to set new hostname"
+    fi
+
     result=$(jexec ${test_jail_name} "hostname")
+    if [ $? -ne 0 ]; then
+        atf_fail "Failed to get new hostname"
+    fi
     atf_check_equal "test-bsd2" "${result}"
 }
 basic_cleanup()
