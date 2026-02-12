@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 14, 2001
+.Dd February 12, 2026
 .Dt DIV 3
 .Os
 .Sh NAME
@@ -38,21 +38,23 @@
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft div_t
-.Fn div "int num" "int denom"
+.Fn div "int numer" "int denom"
 .Sh DESCRIPTION
 The
 .Fn div
 function
 computes the value
-.Fa num/denom
-and returns the quotient and remainder in a structure named
+.Fa numer Ns / Ns Fa denom
+(numerator/denominator).
+It returns a structure named
 .Fa div_t
 that contains two
 .Vt int
 members named
 .Va quot
-and
-.Va rem .
+(quotient) and
+.Va rem
+(remainder).
 .Sh SEE ALSO
 .Xr imaxdiv 3 ,
 .Xr ldiv 3 ,
