@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-12 08:06 - bin/ls/tests ✓
+
+**Directory:** `bin/ls/tests`
+
+**Summary:** [ai-code-reviewer] tests: Update ls_tests.sh and REVIEW-INDEX.md
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/ls/tests/ls_tests.sh
+
+---
+
 ## 2026-02-12 02:59 - bin/ls ✓
 
 **Directory:** `bin/ls`

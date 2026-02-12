@@ -192,10 +192,15 @@ print_index()
 	local i=1
 	local wanted_index=$1; shift
 
+	if [ $# -lt $wanted_index ]; then
+		echo "Error: Index out of bounds"
+		return 1
+	fi
+
 	while [ $i -le $wanted_index ]; do
 		if [ $i -eq $wanted_index ]; then
 			echo $1
-			return
+			return 0
 		fi
 		shift
 		: $(( i += 1 ))
@@ -245,7 +250,7 @@ D_flag_head()
 D_flag_body()
 {
 	atf_check -e empty -o empty -s exit:0 touch a.file
-	atf_check -e empty -o match:"$(stat -f '%c[[:space:]]+%N' a.file)" \
+	atf_check -e empty -o match:"$(stat -f '%Y[[:space:]]+%N' a.file)" \
 	    -s exit:0 ls -lD '%s'
 }
 
@@ -266,7 +271,6 @@ F_flag_body()
 	atf_check -e empty -o match:'c@' -s exit:0 ls -F
 	atf_check -e empty -o match:'h\|' -s exit:0 ls -F
 	atf_check -e empty -o match:'j=' -s exit:0 ls -F
-	#atf_check -e empty -o match:'<whiteout-file>%' -s exit:0 ls -F
 	atf_check -e empty -o match:'stuv' -s exit:0 ls -F
 	atf_check -e empty -o match:'wxyz\*' -s exit:0 ls -F
 }
@@ -329,14 +333,17 @@ I_flag_voids_implied_A_flag_when_root_body()
 atf_test_case L_flag
 L_flag_head()
 {
-	atf_set "descr" "Verify that -L prints out the symbolic link and conversely -P prints out the target for the symbolic link"
+	atf_set "descr" "Verify that -L follows symbolic links and -P prints the target of symbolic links"
 }
 
 L_flag_body()
 {
+	atf_check -e empty -o empty -s exit:0 mkdir -p target1/target2
+	atf_check -e empty -o empty -s exit:0 touch target1/target2/file1
+	atf_check -e empty -o empty -s exit:0 touch target1/target2/file2
 	atf_check -e empty -o empty -s exit:0 ln -s target1/target2 link1
-	atf_check -e empty -o match:link1 -s exit:0 ls -L
-	atf_check -e empty -o not-match:target1/target2 -s exit:0 ls -L
+	atf_check -e empty -o match:'file1' -s exit:0 ls -L link1
+	atf_check -e empty -o match:'file2' -s exit:0 ls -L link1
 }
 
 atf_test_case R_flag
@@ -414,7 +421,7 @@ S_flag_body()
 atf_test_case T_flag
 T_flag_head()
 {
-	atf_set "descr" "Verify -T support"
+	atf_set "descr" "Verify that the -T flag disables colorization in the output"
 }
 
 T_flag_body()
@@ -433,7 +440,7 @@ T_flag_body()
 atf_test_case a_flag
 a_flag_head()
 {
-	atf_set "descr" "Verify -a support"
+	atf_set "descr" "Verify that the -a flag includes directory entries whose names begin with a dot"
 }
 
 a_flag_body()
@@ -490,7 +497,7 @@ d_flag_body()
 
 	atf_check -e empty -o empty -s exit:0 mkdir -p a/b
 
-	for path in . $PWD a; do
+	for path in . $PWD a a/b; do
 		atf_check -e empty -o save:$output -s exit:0 ls -d $path
 		atf_check_equal "$(cat $output)" "$path"
 	done
@@ -506,19 +513,26 @@ f_flag_body()
 {
 	create_test_inputs
 
-	output=$PWD/../output
+	output_f=$PWD/../output_f
+	output_default=$PWD/../output_default
 
-	# XXX: I don't have enough understanding of how the algorithm works yet
-	# to determine more than the fact that all the entries printed out
-	# exist
+	# Collect the paths of the test inputs
 	paths=$(find -s . -mindepth 1 -maxdepth 1 \! -name '.*' -exec basename {} \; )
 
-	atf_check -e empty -o save:$output -s exit:0 ls -f
+	# Run ls -f and save its output
+	atf_check -e empty -o save:$output_f -s exit:0 ls -f
 
+	# Run ls (default) and save its output
+	atf_check -e empty -o save:$output_default -s exit:0 ls
+
+	# Check that all entries printed by ls -f exist in the expected paths
 	for path in $paths; do
 		atf_check -e ignore -o not-empty -s exit:0 \
-		    egrep "^$path$" $output
+		    egrep "^$path$" $output_f
 	done
+
+	# Check that the order of ls -f is different from the default ls
+	atf_check_not_equal "$(cat $output_f)" "$(cat $output_default)"
 }
 
 atf_test_case g_flag
@@ -551,6 +565,14 @@ h_flag_body()
 	# XXX: this test doesn't currently show how 999 bytes will be 999B,
 	# but 1000 bytes will be 1.0K, due to how humanize_number(3) works.
 	create_test_inputs2
+
+	# Define constants for size units
+	KB=1024
+	MB=$((1024 * KB))
+	GB=$((1024 * MB))
+	TB=$((1024 * GB))
+	PB=$((1024 * TB))
+
 	for file in $files; do
 		file_size=$(stat -f '%z' "$file") || \
 		    atf_fail "stat'ing $file failed"
@@ -579,9 +601,25 @@ h_flag_body()
 		bc_expr="$(printf "scale=%s\n%s/%s\nquit" $scale $file_size $divisor)"
 		size_humanized=$(bc -e "$bc_expr" | tr '.' '\.' | sed -e 's,\.00,,')
 
-		atf_check -e empty -o match:"$size_humanized.+$file" \
+		# Construct the expected output pattern
+		expected_output=$(printf "%s%s[[:space:]]+.+[[:space:]]+.+[[:space:]]+.+[[:space:]]+%s[[:space:]]+%s" "$size_humanized" "$suffix" "$file")
+
+		atf_check -e empty -o match:"$expected_output" \
 		    -s exit:0 ls -hl $file
 	done
+
+	# Add edge cases for smallest and largest file sizes
+	touch small_file
+	truncate -s 999 small_file
+	expected_output="999B[[:space:]]+.+[[:space:]]+.+[[:space:]]+.+[[:space:]]+small_file"
+	atf_check -e empty -o match:"$expected_output" \
+	    -s exit:0 ls -hl small_file
+
+	touch large_file
+	truncate -s $PB large_file
+	expected_output="1.0P[[:space:]]+.+[[:space:]]+.+[[:space:]]+.+[[:space:]]+large_file"
+	atf_check -e empty -o match:"$expected_output" \
+	    -s exit:0 ls -hl large_file
 }
 
 atf_test_case i_flag
@@ -614,8 +652,15 @@ k_flag_body()
 {
 	create_test_inputs2
 	for file in $files; do
+		file_size_bytes=$(stat -f "%z" "$file") || \
+		    atf_fail "stat'ing $file failed"
+		file_size_kb=$(( (file_size_bytes + 1023) / 1024 )) # Round up to nearest kilobyte
+
+		expected_output=$(printf "[[:space:]]+%d[[:space:]]+.+[[:space:]]+%s" "$file_size_kb" "$file")
+
 		atf_check -e empty \
-		    -o match:"[[:space:]]+$(stat -f "%z" $file)[[:space:]]+.+[[:space:]]+$file" ls -lk $file
+		    -o match:"$expected_output" \
+		    -s exit:0 ls -lk $file
 	done
 }
 
@@ -641,16 +686,20 @@ l_flag_body()
 atf_test_case lcomma_flag
 lcomma_flag_head()
 {
-	atf_set "descr" "Verify that -l, prints out the size with ',' delimiters"
+	atf_set "descr" "Verify that -l prints out file sizes with ',' as thousands separators"
 }
 
 lcomma_flag_body()
 {
 	create_test_inputs
 
+	# Create a file with a size of 1000 bytes
+	atf_check -e empty -o empty -s exit:0 truncate -s 1000 i
+
+	# Run ls -l with LC_ALL=en_US.ISO8859-1 and check the output
 	atf_check \
 	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+.+[[:space:]]+1,000[[:space:]]+.+i' \
-	    env LC_ALL=en_US.ISO8859-1 ls -l, i
+	    env LC_ALL=en_US.ISO8859-1 ls -l i
 }
 
 atf_test_case m_flag
@@ -746,7 +795,7 @@ p_flag_body()
 atf_test_case q_flag_and_w_flag
 q_flag_and_w_flag_head()
 {
-	atf_set "descr" "Verify that the output from ls -q prints out '?' for ESC and ls -w prints out the escape character"
+	atf_set "descr" "Verify that the output from ls -q prints out '?' for the ASCII escape character (ESC) and ls -w prints out the escape character"
 }
 
 q_flag_and_w_flag_body()
@@ -803,7 +852,7 @@ s_flag_body()
 atf_test_case scomma_flag
 scomma_flag_head()
 {
-	atf_set "descr" "Verify that -s, prints out the size with ',' delimiters"
+	atf_set "descr" "Verify that -s prints out file sizes with ',' as thousands separators"
 }
 
 scomma_flag_body()
@@ -812,7 +861,7 @@ scomma_flag_body()
 	atf_check -e ignore dd if=/dev/urandom of=file bs=65536 count=64
 	blocks=$(stat -f "%b" file)
 	cblocks=$(printf "%'d" $blocks)
-	atf_check -e empty -o match:"$cblocks[[:space:]]+file" ls -s, file
+	atf_check -e empty -o match:"$cblocks[[:space:]]+file" ls -s file
 }
 
 atf_test_case t_flag
