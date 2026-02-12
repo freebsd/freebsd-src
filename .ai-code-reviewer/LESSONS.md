@@ -1035,3 +1035,9 @@ Each lesson is recorded with timestamp, category, and remediation advice.
 ### COMPILER: Stale .depend Files and Sign Comparison Error
 - Stale .depend files caused build failures; sign comparison error in expr.y prevented successful compilation.
 - Clean build environment using `make clean` and ensure consistent data types in comparisons.
+
+
+## 2026-02-12 01:01
+### COMPILER: Stale Dependencies and Missing Header
+- Stale `.depend` files and missing `limits.h` header caused build failures.
+- Clean build directory with `make clean` and ensure all necessary headers are included.
