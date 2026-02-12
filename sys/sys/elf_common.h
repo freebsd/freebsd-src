@@ -1120,6 +1120,19 @@ typedef struct {
 #define	R_ARM_GOTPC		25	/* Add PC-relative GOT table address. */
 #define	R_ARM_GOT32		26	/* Add PC-relative GOT offset. */
 #define	R_ARM_PLT32		27	/* Add PC-relative PLT offset. */
+#define	R_ARM_CALL		28
+#define	R_ARM_JUMP24		29
+#define	R_ARM_THM_JUMP24	30
+#define	R_ARM_BASE_ABS		31
+#define	R_ARM_MOVW_ABS_NC	43
+#define	R_ARM_MOVT_ABS		44
+#define	R_ARM_MOVW_PREL_NC	45
+#define	R_ARM_MOVT_PREL		46
+#define	R_ARM_THM_MOVW_ABS_NC	47
+#define	R_ARM_THM_MOVT_ABS	48
+#define	R_ARM_THM_MOVW_PREL_NC	49
+#define	R_ARM_THM_MOVT_PREL	50
+#define	R_ARM_THM_JUMP19	51
 #define	R_ARM_GNU_VTENTRY	100
 #define	R_ARM_GNU_VTINHERIT	101
 #define	R_ARM_IRELATIVE		160
