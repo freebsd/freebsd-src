@@ -300,8 +300,8 @@ struct nvme_controller {
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
 
 	uint32_t			is_resetting;
-	u_int				fail_on_reset;
 
+	bool				fail_on_reset;
 	bool				is_failed;
 	bool				is_failed_admin;
 	bool				is_dying;
