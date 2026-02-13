@@ -57,6 +57,7 @@ class VnetInterface(object):
         self.addr_map: Dict[str, Dict] = {"inet6": {}, "inet": {}}
         self.prefixes4: List[List[str]] = []
         self.prefixes6: List[List[str]] = []
+        self.fib: int
         if iface_name.startswith("lo"):
             self.iftype = self.IFT_LOOP
         else:
@@ -106,7 +107,7 @@ class VnetInterface(object):
             run_cmd("/sbin/ifconfig {} -txcsum -txcsum6".format(name))
             if2 = cls(alias_name, name[:-1] + "b")
             if1.epairb = if2
-            ret.append(if2);
+            ret.append(if2)
         return ret
 
     def set_mtu(self, mtu):
@@ -139,6 +140,10 @@ class VnetInterface(object):
 
     def turn_up(self):
         cmd = "/sbin/ifconfig {} up".format(self.name)
+        self.run_cmd(cmd)
+
+    def setfib(self, fib: int):
+        cmd = "/sbin/ifconfig {} fib {}".format(self.name, fib)
         self.run_cmd(cmd)
 
     def enable_ipv6(self):
@@ -375,6 +380,9 @@ class VnetTestTemplate(BaseTest):
             prefixes6 = topo[iface.alias].get("prefixes6", [])
             prefixes4 = topo[iface.alias].get("prefixes4", [])
             mtu = topo[iface.alias].get("mtu", 0)
+            if "fib" in topo[iface.alias]:
+                fib = topo[iface.alias]["fib"]
+                iface.setfib(fib[idx])
             if prefixes6 or prefixes4:
                 ipv6_ifaces.append(iface)
                 iface.turn_up()
@@ -423,16 +431,22 @@ class VnetTestTemplate(BaseTest):
         for obj_name, obj_data in topo.items():
             if obj_name.startswith("vnet"):
                 vnet_ifaces = []
+                maxfib = 0
                 for iface_alias in obj_data["ifaces"]:
                     # epair creates 2 interfaces, grab first _available_
                     # and map it to the VNET being created
                     idx = len(iface_map[iface_alias].vnet_aliases)
                     iface_map[iface_alias].vnet_aliases.append(obj_name)
                     vnet_ifaces.append(iface_map[iface_alias].ifaces[idx])
+                    fib = topo[iface_alias].get("fib", (0, 0))
+                    maxfib = max(maxfib, fib[idx])
                 opts = []
                 if "opts" in obj_data:
                     opts = obj_data["opts"]
                 vnet = vnet_factory.create_vnet(obj_name, vnet_ifaces, opts)
+                if maxfib != 0:
+                    # Make sure the VNET has enough FIBs.
+                    vnet.run_vnet_cmd("/sbin/sysctl net.fibs={}".format(maxfib + 1))
                 vnet_map[obj_name] = vnet
                 # Allow reference to VNETs as attributes
                 setattr(self, obj_name, vnet)
