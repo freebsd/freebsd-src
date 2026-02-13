@@ -108,10 +108,9 @@ void set_argstr(char **, char **);
 int
 main(int argc, char **argv)
 {
-	const char *errstr = NULL;
-	char *ep, **oargv;
-	long  l;
-	int   ch, dflags, lastch, gotstdin, prevoptind, newarg;
+	const char *errstr;
+	char **oargv;
+	int ch, dflags, lastch, gotstdin, prevoptind, newarg;
 
 	oargv = argv;
 	gotstdin = 0;
@@ -148,10 +147,13 @@ main(int argc, char **argv)
 			cflag = 1;
 			diff_format = D_CONTEXT;
 			if (optarg != NULL) {
-				l = strtol(optarg, &ep, 10);
-				if (*ep != '\0' || l < 0 || l >= INT_MAX)
+				diff_context = (int) strtonum(optarg,
+				    1, INT_MAX, &errstr);
+				if (errstr != NULL) {
+					warnx("context size is %s: %s",
+					    errstr, optarg);
 					usage();
-				diff_context = (int)l;
+				}
 			}
 			break;
 		case 'd':
@@ -239,10 +241,13 @@ main(int argc, char **argv)
 				conflicting_format();
 			diff_format = D_UNIFIED;
 			if (optarg != NULL) {
-				l = strtol(optarg, &ep, 10);
-				if (*ep != '\0' || l < 0 || l >= INT_MAX)
+				diff_context = (int) strtonum(optarg,
+				    0, INT_MAX, &errstr);
+				if (errstr != NULL) {
+					warnx("context size is %s: %s",
+					    errstr, optarg);
 					usage();
-				diff_context = (int)l;
+				}
 			}
 			break;
 		case 'w':
@@ -251,8 +256,8 @@ main(int argc, char **argv)
 		case 'W':
 			Wflag = 1;
 			width = (int) strtonum(optarg, 1, INT_MAX, &errstr);
-			if (errstr) {
-				warnx("Invalid argument for width");
+			if (errstr != NULL) {
+				warnx("width is %s: %s", errstr, optarg);
 				usage();
 			}
 			break;
@@ -288,8 +293,8 @@ main(int argc, char **argv)
 			break;
 		case OPT_TSIZE:
 			tabsize = (int) strtonum(optarg, 1, INT_MAX, &errstr);
-			if (errstr) {
-				warnx("Invalid argument for tabsize");
+			if (errstr != NULL) {
+				warnx("tabsize is %s: %s", errstr, optarg);
 				usage();
 			}
 			break;
