@@ -62,7 +62,7 @@ ConfigCmd(int ac, char **av)
 	struct ng_mesg *const resp = (struct ng_mesg *) sbuf;
 	char *const status = (char *) resp->data;
 	char *path;
-	char buf[NG_TEXTRESPONSE];
+	char buf[NG_TEXTRESPONSE], *pos, *end;
 	int nostat = 0, i;
 
 	/* Get arguments */
@@ -70,20 +70,26 @@ ConfigCmd(int ac, char **av)
 		return (CMDRTN_USAGE);
 	path = av[1];
 
-	*buf = '\0';
+	pos = buf;
+	end = buf + sizeof(buf);
 	for (i = 2; i < ac; i++) {
-		if (i != 2)
-			strcat(buf, " ");
-		strcat(buf, av[i]);
+		if (i > 2) {
+			if (pos == end)
+				return (CMDRTN_USAGE);
+			*pos++ = ' ';
+		}
+		if ((pos += strlcpy(pos, av[i], end - pos)) >= end)
+			return (CMDRTN_USAGE);
 	}
-	
+	*pos = '\0';
+
 	/* Get node config summary */
 	if (*buf != '\0')
 		i = NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-	            NGM_TEXT_CONFIG, buf, strlen(buf) + 1);
+		    NGM_TEXT_CONFIG, buf, pos - buf + 1);
 	else
 		i = NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-	            NGM_TEXT_CONFIG, NULL, 0);
+		    NGM_TEXT_CONFIG, NULL, 0);
 	if (i < 0) {
 		switch (errno) {
 		case EINVAL:
