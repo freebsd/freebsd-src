@@ -34,10 +34,12 @@
 #include <sys/socket.h>
 
 #include <err.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_socket.h>
 
 #include "ngctl.h"
@@ -62,6 +64,7 @@ WriteCmd(int ac, char **av)
 	struct sockaddr_ng *sag = (struct sockaddr_ng *)sagbuf;
 	u_char buf[BUF_SIZE];
 	const char *hook;
+	size_t hooklen;
 	FILE *fp;
 	u_int len;
 	int byte;
@@ -71,6 +74,14 @@ WriteCmd(int ac, char **av)
 	if (ac < 3)
 		return (CMDRTN_USAGE);
 	hook = av[1];
+	_Static_assert(sizeof(sagbuf) >=
+	    offsetof(struct sockaddr_ng, sg_data) + NG_HOOKSIZ,
+	    "sagbuf is too small for NG_HOOKSIZ");
+	hooklen = strlcpy(sag->sg_data, hook, NG_HOOKSIZ);
+	if (hooklen >= NG_HOOKSIZ) {
+		warnx("hook name \"%s\" too long", hook);
+		return (CMDRTN_ERROR);
+	}
 
 	/* Get data */
 	if (strcmp(av[2], "-f") == 0) {
@@ -103,11 +114,10 @@ WriteCmd(int ac, char **av)
 	}
 
 	/* Send data */
-	sag->sg_len = 3 + strlen(hook);
+	sag->sg_len = 3 + hooklen;
 	sag->sg_family = AF_NETGRAPH;
-	strlcpy(sag->sg_data, hook, sizeof(sagbuf) - 2);
-	if (sendto(dsock, buf, len,
-	    0, (struct sockaddr *)sag, sag->sg_len) == -1) {
+	if (sendto(dsock, buf, len, 0, (struct sockaddr *)sag,
+	    sag->sg_len) < 0) {
 		warn("writing to hook \"%s\"", hook);
 		return (CMDRTN_ERROR);
 	}
