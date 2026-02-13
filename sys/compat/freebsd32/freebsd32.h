@@ -74,7 +74,7 @@ struct ffclock_estimate32 {
 __attribute__((packed))
 #endif
 ;
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 _Static_assert(sizeof(struct ffclock_estimate32) == 52, "ffclock_estimate32 size");
 #else
 _Static_assert(sizeof(struct ffclock_estimate32) == 56, "ffclock_estimate32 size");
