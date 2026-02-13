@@ -60,8 +60,8 @@ struct bintime32 {
 
 struct ffclock_estimate32 {
 	struct bintime32 update_time;
-	ffcounter update_ffcount;
-	ffcounter leapsec_next;
+	freebsd32_uint64_t update_ffcount;
+	freebsd32_uint64_t leapsec_next;
 	freebsd32_uint64_t period;
 	uint32_t errb_abs;
 	uint32_t errb_rate;
@@ -69,11 +69,9 @@ struct ffclock_estimate32 {
 	int16_t leapsec_total;
 	int8_t leapsec;
 	int8_t _pad;
-}
-#if defined(__amd64__)
-__attribute__((packed))
-#endif
-;
+};
+_Static_assert(sizeof(ffcounter) == sizeof(freebsd32_uint64_t),
+    "'ffcounter' size discrepancy'");
 #if defined(__amd64__) || defined(__i386__)
 _Static_assert(sizeof(struct ffclock_estimate32) == 52, "ffclock_estimate32 size");
 #else

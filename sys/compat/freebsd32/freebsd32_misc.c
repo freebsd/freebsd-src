@@ -4147,8 +4147,8 @@ freebsd32_ffclock_setestimate(struct thread *td,
 
 	CP(cest.update_time, cest32.update_time, sec);
 	memcpy(&cest.update_time.frac, &cest32.update_time.frac, sizeof(uint64_t));
-	CP(cest, cest32, update_ffcount);
-	CP(cest, cest32, leapsec_next);
+	FU64_CP(cest, cest32, update_ffcount);
+	FU64_CP(cest, cest32, leapsec_next);
 	FU64_CP(cest, cest32, period);
 	CP(cest, cest32, errb_abs);
 	CP(cest, cest32, errb_rate);
@@ -4177,8 +4177,8 @@ freebsd32_ffclock_getestimate(struct thread *td,
 
 	CP(cest32.update_time, cest.update_time, sec);
 	memcpy(&cest32.update_time.frac, &cest.update_time.frac, sizeof(uint64_t));
-	CP(cest32, cest, update_ffcount);
-	CP(cest32, cest, leapsec_next);
+	FU64_CP(cest32, cest, update_ffcount);
+	FU64_CP(cest32, cest, leapsec_next);
 	FU64_CP(cest32, cest, period);
 	CP(cest32, cest, errb_abs);
 	CP(cest32, cest, errb_rate);
