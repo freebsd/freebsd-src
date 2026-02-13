@@ -1,0 +1,19 @@
+<<<<<<< conflict3.txt
+root:someone@example.com
+=======
+#root:me@my.domain
+>>>>>>> conflict2.txt
+
+<<<<<<< conflict3.txt
+#Basicsystemaliases--theseMUSTbepresent
+MAILER-DAEMON:postmaster
+postmaster:root
+=======
+#Basicsystemaliases--theseMUSTbepresent
+MAILER-DAEMON:postmaster
+postmaster:root
+
+#Generalredirectionsforpseudoaccounts
+_dhcp:root
+_pflogd:root
+>>>>>>> conflict2.txt
