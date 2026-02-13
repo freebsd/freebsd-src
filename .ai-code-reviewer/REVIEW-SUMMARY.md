@@ -6,6 +6,29 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-13 09:34 - bin/pkill ✓
+
+**Directory:** `bin/pkill`
+
+**Summary:** [ai-code-reviewer] pkill: Remove unused compatibility symlinks
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - .ai-code-reviewer/REVIEW-SUMMARY.md
+
+---
+
+## 2026-02-13 09:30 - bin/pkill ✓
+
+**Directory:** `bin/pkill`
+
+**Summary:** [ai-code-reviewer] pkill: Remove unused compatibility symlinks
+
+**Files fixed:**
+  - bin/pkill/Makefile
+
+---
+
 ## 2026-02-12 22:48 - bin/pax/tests ✓
 
 **Directory:** `bin/pax/tests`
