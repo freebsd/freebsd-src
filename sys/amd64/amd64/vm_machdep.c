@@ -378,7 +378,15 @@ void
 cpu_thread_new_kstack(struct thread *td)
 {
 	td->td_md.md_stack_base = td_kstack_top(td);
-	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
+	if (fred) {
+		struct trapframe_fred *f;
+
+		f = (struct trapframe_fred *)td->td_md.md_stack_base - 1;
+		td->td_frame = &f->tf_idt;
+	} else {
+		td->td_frame = (struct trapframe *)td->td_md.
+		    md_stack_base - 1;
+	}
 }
 
 void

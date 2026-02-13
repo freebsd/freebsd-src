@@ -253,7 +253,8 @@ lapic_ipi_vectored(u_int vector, int dest)
 }
 
 int	lapic_ipi_wait(int delay);
-int	lapic_ipi_alloc(inthand_t *ipifunc);
+int	lapic_ipi_alloc(inthand_t *ipifunc,
+	    void (*fred_ipifunc)(struct trapframe *));
 void	lapic_ipi_free(int vector);
 int	lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked);
 int	lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode);

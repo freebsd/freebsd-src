@@ -240,25 +240,51 @@ init_secondary(void)
 	    IOPERM_BITMAP_SIZE;
 	pc->pc_common_tss.tss_rsp0 = 0;
 
-	/* The doublefault stack runs on IST1. */
-	np = ((struct nmi_pcpu *)&doublefault_stack[DBLFAULT_STACK_SIZE]) - 1;
-	np->np_pcpu = (register_t)pc;
-	pc->pc_common_tss.tss_ist1 = (long)np;
+	/*
+	 * The doublefault stack.
+	 * Runs on IST1 for IDT.
+	 * Uses CSL 2 for FRED.
+	 */
+	if (fred) {
+		wrmsr(MSR_FRED_RSP2, (uint64_t)&doublefault_stack[
+		    DBLFAULT_STACK_SIZE]);
+	} else {
+		np = ((struct nmi_pcpu *)&doublefault_stack[
+		    DBLFAULT_STACK_SIZE]) - 1;
+		np->np_pcpu = (register_t)pc;
+		pc->pc_common_tss.tss_ist1 = (long)np;
+	}
 
-	/* The NMI stack runs on IST2. */
-	np = ((struct nmi_pcpu *)&nmi_stack[NMI_STACK_SIZE]) - 1;
-	np->np_pcpu = (register_t)pc;
-	pc->pc_common_tss.tss_ist2 = (long)np;
+	/*
+	 * The NMI stack.
+	 * Runs on IST2 for IDT.
+	 * Uses CSL 1 for FRED.
+	 */
+	if (fred) {
+		wrmsr(MSR_FRED_RSP1, (uint64_t)&nmi_stack[NMI_STACK_SIZE]);
+	} else {
+		np = ((struct nmi_pcpu *)&nmi_stack[NMI_STACK_SIZE]) - 1;
+		np->np_pcpu = (register_t)pc;
+		pc->pc_common_tss.tss_ist2 = (long)np;
+	}
 
-	/* The MC# stack runs on IST3. */
-	np = ((struct nmi_pcpu *)&mce_stack[MCE_STACK_SIZE]) - 1;
-	np->np_pcpu = (register_t)pc;
-	pc->pc_common_tss.tss_ist3 = (long)np;
+	/*
+	 * The MC# stack.
+	 * Runs on IST3 for IDT.
+	 * Shares CSL 1 with NMI for FRED.
+	 */
+	if (!fred) {
+		np = ((struct nmi_pcpu *)&mce_stack[MCE_STACK_SIZE]) - 1;
+		np->np_pcpu = (register_t)pc;
+		pc->pc_common_tss.tss_ist3 = (long)np;
+	}
 
-	/* The DB# stack runs on IST4. */
-	np = ((struct nmi_pcpu *)&dbg_stack[DBG_STACK_SIZE]) - 1;
-	np->np_pcpu = (register_t)pc;
-	pc->pc_common_tss.tss_ist4 = (long)np;
+	if (!fred) {
+		/* The DB# stack, used for for IDT, runs on IST4. */
+		np = ((struct nmi_pcpu *)&dbg_stack[DBG_STACK_SIZE]) - 1;
+		np->np_pcpu = (register_t)pc;
+		pc->pc_common_tss.tss_ist4 = (long)np;
+	}
 
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long)&pc->pc_common_tss;
@@ -278,7 +304,10 @@ init_secondary(void)
 	wrmsr(MSR_KGSBASE, 0);		/* User value */
 	fix_cpuid();
 
-	lidt(&r_idt);
+	if (fred)
+		amd64_cpu_init_fred();
+	else
+		lidt(&r_idt);
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
@@ -430,12 +459,17 @@ start_all_aps(void)
 		    M_WAITOK | M_ZERO);
 		doublefault_stack = kmem_malloc(DBLFAULT_STACK_SIZE,
 		    M_WAITOK | M_ZERO);
-		mce_stack = kmem_malloc(MCE_STACK_SIZE,
-		    M_WAITOK | M_ZERO);
+		if (!fred) {
+			mce_stack = kmem_malloc(MCE_STACK_SIZE,
+			    M_WAITOK | M_ZERO);
+		}
 		nmi_stack = kmem_malloc_domainset(
 		    DOMAINSET_PREF(domain), NMI_STACK_SIZE, M_WAITOK | M_ZERO);
-		dbg_stack = kmem_malloc_domainset(
-		    DOMAINSET_PREF(domain), DBG_STACK_SIZE, M_WAITOK | M_ZERO);
+		if (!fred) {
+			dbg_stack = kmem_malloc_domainset(
+			    DOMAINSET_PREF(domain), DBG_STACK_SIZE,
+			    M_WAITOK | M_ZERO);
+		}
 		dpcpu = kmem_malloc_domainset(DOMAINSET_PREF(domain),
 		    DPCPU_SIZE, M_WAITOK | M_ZERO);
 

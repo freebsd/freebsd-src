@@ -894,7 +894,7 @@ vmx_modinit(int ipinum)
 		    &tmp);
 		if (error == 0) {
 			pirvec = lapic_ipi_alloc(pti ? &IDTVEC(justreturn1_pti) :
-			    &IDTVEC(justreturn));
+			    &IDTVEC(justreturn), vmm_justreturn);
 			if (pirvec < 0) {
 				if (bootverbose) {
 					printf("vmx_modinit: unable to "

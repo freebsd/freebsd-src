@@ -287,7 +287,7 @@ vmm_modinit(void)
 	vmm_host_state_init();
 
 	vmm_ipinum = lapic_ipi_alloc(pti ? &IDTVEC(justreturn1_pti) :
-	    &IDTVEC(justreturn));
+	    &IDTVEC(justreturn), vmm_justreturn);
 	if (vmm_ipinum < 0)
 		vmm_ipinum = IPI_AST;
 

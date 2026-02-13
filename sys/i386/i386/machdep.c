@@ -187,6 +187,8 @@ struct mtx icu_lock;
 
 struct mem_range_softc mem_range_softc;
 
+int fred;
+
 extern char start_exceptions[], end_exceptions[];
 
 extern struct sysentvec elf32_freebsd_sysvec;

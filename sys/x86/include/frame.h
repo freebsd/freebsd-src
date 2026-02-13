@@ -200,7 +200,6 @@ struct trapframe_fred {
 #define	TF_HASBASES	0x00000002
 #define	TF_HASFPXSTATE	0x00000004
 #define	TF_RESERV0	0x00000008 /* no tlsbase in the trapframe */
-#define	TF_FRED		0x00000010
 #endif /* __amd64__ */
 
 #endif /* _MACHINE_FRAME_H_ */
