@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-12 20:22 - bin/mv/tests ✓
+
+**Directory:** `bin/mv/tests`
+
+**Summary:** [ai-code-reviewer] tests: Update REVIEW-INDEX.md for bin/mv/tests
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-12 17:49 - bin/mv ✓
 
 **Directory:** `bin/mv`
