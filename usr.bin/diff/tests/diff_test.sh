@@ -1,4 +1,3 @@
-
 atf_test_case simple
 atf_test_case unified
 atf_test_case header
@@ -191,19 +190,19 @@ brief_format_body()
 	atf_check \
 	    -s exit:1 \
 	    -o inline:"Files A/test-file and B/test-file differ\n" \
-	    diff -rq A B
+	    diff -q A B
 
 	atf_check diff -rq A C
 
 	atf_check \
 	    -s exit:1 \
 	    -o inline:"Only in D: another-test-file\n" \
-	    diff -rq A D
+	    diff -q A D
 
 	atf_check \
 	    -s exit:1 \
 	    -o inline:"Files A/another-test-file and D/another-test-file differ\n" \
-	    diff -Nrq A D
+	    diff -Nq A D
 }
 
 Bflag_body()
@@ -225,9 +224,9 @@ Nflag_body()
 {
 	atf_check -x 'printf "foo" > A'
 
-	atf_check -s exit:1 -o ignore -e ignore diff -N A NOFILE 
-	atf_check -s exit:1 -o ignore -e ignore diff -N NOFILE A 
-	atf_check -s exit:2 -o ignore -e ignore diff -N NOFILE1 NOFILE2 
+	atf_check -s exit:1 -o ignore -e ignore diff -N A NOFILE
+	atf_check -s exit:1 -o ignore -e ignore diff -N NOFILE A
+	atf_check -s exit:2 -o ignore -e ignore diff -N NOFILE1 NOFILE2
 }
 
 tabsize_body()
@@ -339,23 +338,23 @@ noderef_body()
 
 	atf_check ln -s $(pwd)/test-file B/test-file
 
-	atf_check -o empty -s exit:0 diff -r A B
+	atf_check -o empty -s exit:0 diff A B
 	atf_check -o inline:"File A/test-file is a file while file B/test-file is a symbolic link\n" \
-		-s exit:1 diff -r --no-dereference A B
+		-s exit:1 diff --no-dereference A B
 
 	# both test files are now the same symbolic link
 	atf_check rm A/test-file
 
 	atf_check ln -s $(pwd)/test-file A/test-file
-	atf_check -o empty -s exit:0 diff -r A B
-	atf_check -o empty -s exit:0 diff -r --no-dereference A B
+	atf_check -o empty -s exit:0 diff A B
+	atf_check -o empty -s exit:0 diff --no-dereference A B
 
 	# make test files different symbolic links, but same contents
 	atf_check unlink A/test-file
 	atf_check ln -s $(pwd)/test-file2 A/test-file
 
-	atf_check -o empty -s exit:0 diff -r A B
-	atf_check -o inline:"Symbolic links A/test-file and B/test-file differ\n" -s exit:1 diff -r --no-dereference A B
+	atf_check -o empty -s exit:0 diff A B
+	atf_check -o inline:"Symbolic links A/test-file and B/test-file differ\n" -s exit:1 diff --no-dereference A B
 }
 
 ignorecase_body()
@@ -366,7 +365,7 @@ ignorecase_body()
 	atf_check -x "echo hello > A/foo"
 	atf_check -x "echo hello > B/FOO"
 
-	atf_check -o empty -s exit:0 diff -u -r --ignore-file-name-case A B
+	atf_check -o empty -s exit:0 diff -u --ignore-file-name-case A B
 }
 
 dirloop_head()
@@ -378,6 +377,9 @@ dirloop_body()
 	atf_check mkdir -p a/foo/bar
 	atf_check ln -s .. a/foo/bar/up
 	atf_check cp -a a b
+	atf_check \
+	    -o inline:"Common subdirectories: a/foo and b/foo\n" \
+	    diff a b
 	atf_check \
 	    -e match:"a/foo/bar/up: Directory loop detected" \
 	    -e match:"b/foo/bar/up: Directory loop detected" \
