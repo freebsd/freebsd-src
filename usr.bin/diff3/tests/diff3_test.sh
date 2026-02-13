@@ -5,6 +5,11 @@ atf_test_case diff3_ed
 atf_test_case diff3_A
 atf_test_case diff3_merge
 atf_test_case diff3_E_merge
+atf_test_case diff3_merge_conflict
+atf_test_case diff3_merge_simple
+atf_test_case diff3_Em_simple
+atf_test_case diff3_Em_conflict
+atf_test_case diff3_Em_insert
 
 diff3_body()
 {
@@ -20,10 +25,10 @@ diff3_body()
 	atf_check -o file:$(atf_get_srcdir)/2.out \
 		diff3 -e $(atf_get_srcdir)/1.txt $(atf_get_srcdir)/2.txt $(atf_get_srcdir)/3.txt
 
-	atf_check -o file:$(atf_get_srcdir)/3.out \
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/3.out \
 		diff3 -E -L 1 -L 2 -L 3 $(atf_get_srcdir)/1.txt $(atf_get_srcdir)/2.txt $(atf_get_srcdir)/3.txt
 
-	atf_check -o file:$(atf_get_srcdir)/4.out \
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/4.out \
 		diff3 -X -L 1 -L 2 -L 3 $(atf_get_srcdir)/1.txt $(atf_get_srcdir)/2.txt $(atf_get_srcdir)/3.txt
 
 	atf_check -o file:$(atf_get_srcdir)/5.out \
@@ -75,7 +80,6 @@ expected="<<<<<<< 2
 =======
 # \$FreeBSD: head/local 12345 jhb \$
 >>>>>>> 3
-# \$FreeBSD: head/local 12345 jhb \$
 
 this is a file
 
@@ -97,6 +101,36 @@ these are some local mods to the file
 }
 
 
+diff3_merge_conflict_body()
+{
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/conflict-merge.out \
+		diff3 -m -L conflict3.txt -L conflict1.txt -L conflict2.txt $(atf_get_srcdir)/conflict3.txt $(atf_get_srcdir)/conflict1.txt $(atf_get_srcdir)/conflict2.txt
+}
+
+diff3_merge_simple_body()
+{
+	atf_check -s exit:0 -o file:$(atf_get_srcdir)/simple-merge.out \
+		diff3 -m $(atf_get_srcdir)/simple3.txt $(atf_get_srcdir)/simple1.txt $(atf_get_srcdir)/simple2.txt
+}
+
+diff3_Em_simple_body()
+{
+	atf_check -s exit:0 -o file:$(atf_get_srcdir)/simple-Em.out \
+		diff3 -E -m $(atf_get_srcdir)/simple3.txt $(atf_get_srcdir)/simple1.txt $(atf_get_srcdir)/simple2.txt
+}
+
+diff3_Em_conflict_body()
+{
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/conflict-Em.out \
+		diff3 -E -m -L conflict3.txt -L conflict1.txt -L conflict2.txt $(atf_get_srcdir)/conflict3.txt $(atf_get_srcdir)/conflict1.txt $(atf_get_srcdir)/conflict2.txt
+}
+
+diff3_Em_insert_body()
+{
+	atf_check -s exit:0 -o file:$(atf_get_srcdir)/passwd-Em.out \
+		diff3 -E -m $(atf_get_srcdir)/passwd-test.txt $(atf_get_srcdir)/passwd-old.txt $(atf_get_srcdir)/passwd-new.txt
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case diff3
@@ -105,4 +139,9 @@ atf_init_test_cases()
 	atf_add_test_case diff3_A
 	atf_add_test_case diff3_merge
 	atf_add_test_case diff3_E_merge
+	atf_add_test_case diff3_merge_conflict
+	atf_add_test_case diff3_merge_simple
+	atf_add_test_case diff3_Em_simple
+	atf_add_test_case diff3_Em_conflict
+	atf_add_test_case diff3_Em_insert
 }

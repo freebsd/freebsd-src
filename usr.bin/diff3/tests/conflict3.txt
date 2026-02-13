@@ -1,0 +1,5 @@
+root:someone@example.com
+
+#Basicsystemaliases--theseMUSTbepresent
+MAILER-DAEMON:postmaster
+postmaster:root

@@ -23,6 +23,20 @@ ${PACKAGE}FILES+=	\
 	long-A.out \
 	long-merge.out \
 	fbsdid1.txt \
-	fbsdid2.txt
+	fbsdid2.txt \
+	conflict1.txt \
+	conflict2.txt \
+	conflict3.txt \
+	conflict-merge.out \
+	simple1.txt \
+	simple2.txt \
+	simple3.txt \
+	simple-merge.out \
+	simple-Em.out \
+	conflict-Em.out \
+	passwd-test.txt \
+	passwd-old.txt \
+	passwd-new.txt \
+	passwd-Em.out
 
 .include <bsd.test.mk>
