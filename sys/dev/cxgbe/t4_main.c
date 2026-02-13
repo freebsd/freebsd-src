@@ -11594,7 +11594,7 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 		if (hashen) {
 			if (x)
 				sbuf_printf(sb, "%u-%u, ", t->tid_base, x - 1);
-			sbuf_printf(sb, "%u-%u", y, t->ntids - 1);
+			sbuf_printf(sb, "%u-%u", y, t->tid_base + t->ntids - 1);
 		} else {
 			sbuf_printf(sb, "%u-%u", t->tid_base, t->tid_base +
 			    t->ntids - 1);
