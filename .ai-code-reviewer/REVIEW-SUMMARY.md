@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-13 10:16 - bin/pkill/tests ✓
+
+**Directory:** `bin/pkill/tests`
+
+**Summary:** [ai-code-reviewer] tests: Fix memory leak in spin_helper.c
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/pkill/tests/spin_helper.c
+
+---
+
 ## 2026-02-13 09:34 - bin/pkill ✓
 
 **Directory:** `bin/pkill`

@@ -83,6 +83,7 @@ exec_largeargs(char *argv[])
 		execve(argv[0], nargv, nenvp);
 		bufsz--;
 	} while (errno == E2BIG);
+	free(s);
 	err(1, "execve");
 }
 
