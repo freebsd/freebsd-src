@@ -24,8 +24,8 @@ atf_test_case functionname
 atf_test_case noderef
 atf_test_case ignorecase
 atf_test_case dirloop
-atf_test_case bigc
-atf_test_case bigu
+atf_test_case crange
+atf_test_case urange
 atf_test_case prleak
 atf_test_case same
 
@@ -389,34 +389,48 @@ dirloop_body()
 	atf_check diff -r a b
 }
 
-bigc_head()
+crange_head()
 {
-	atf_set "descr" "Context diff with very large context"
+	atf_set "descr" "Context diff context length range"
 }
-bigc_body()
+crange_body()
 {
-	echo $'x\na\ny' >a
-	echo $'x\nb\ny' >b
-	atf_check -s exit:2 -e ignore diff -C$(((1<<31)-1)) a b
-	atf_check -s exit:1 -o match:'--- 1,3 ---' \
-	    diff -C$(((1<<31)-2)) a b
-	atf_check -s exit:1 -o match:'--- 1,3 ---' \
-	    diff -Astone -C$(((1<<31)-2)) a b
+	echo $'x\nx\na\ny\ny' >a
+	echo $'x\nx\nb\ny\ny' >b
+	atf_check -s exit:2 -e match:'too small' \
+	    diff -C-1 a b
+	atf_check -s exit:2 -e match:'too small' \
+	    diff -C0 a b
+	atf_check -s exit:1 -o match:'--- 2,4 ---' \
+	    diff -C1 a b
+	atf_check -s exit:1 -o match:'--- 2,4 ---' \
+	    diff -Astone -C1 a b
+	atf_check -s exit:2 -e match:'too large' \
+	    diff -C$((1<<31)) a b
+	atf_check -s exit:1 -o match:'--- 1,5 ---' \
+	    diff -C$(((1<<31)-1)) a b
+	atf_check -s exit:1 -o match:'--- 1,5 ---' \
+	    diff -Astone -C$(((1<<31)-1)) a b
 }
 
-bigu_head()
+urange_head()
 {
-	atf_set "descr" "Unified diff with very large context"
+	atf_set "descr" "Unified diff context length range"
 }
-bigu_body()
+urange_body()
 {
-	echo $'x\na\ny' >a
-	echo $'x\nb\ny' >b
-	atf_check -s exit:2 -e ignore diff -U$(((1<<31)-1)) a b
-	atf_check -s exit:1 -o match:'^@@ -1,3 \+1,3 @@$' \
-	    diff -U$(((1<<31)-2)) a b
-	atf_check -s exit:1 -o match:'^@@ -1,3 \+1,3 @@$' \
-	    diff -Astone -U$(((1<<31)-2)) a b
+	echo $'x\nx\na\ny\ny' >a
+	echo $'x\nx\nb\ny\ny' >b
+	atf_check -s exit:2 -e match:'too small' \
+	    diff -U-1 a b
+	atf_check -s exit:1 -o match:'^@@ -3 \+3 @@$' \
+	    diff -U0 a b
+	atf_check -s exit:2 -e match:'too large' \
+	    diff -U$((1<<31)) a b
+	atf_check -s exit:1 -o match:'^@@ -1,5 \+1,5 @@$' \
+	    diff -U$(((1<<31)-1)) a b
+	atf_check -s exit:1 -o match:'^@@ -1,5 \+1,5 @@$' \
+	    diff -Astone -U$(((1<<31)-1)) a b
 }
 
 prleak_head()
@@ -485,8 +499,8 @@ atf_init_test_cases()
 	atf_add_test_case noderef
 	atf_add_test_case ignorecase
 	atf_add_test_case dirloop
-	atf_add_test_case bigc
-	atf_add_test_case bigu
+	atf_add_test_case crange
+	atf_add_test_case urange
 	atf_add_test_case prleak
 	atf_add_test_case same
 }
