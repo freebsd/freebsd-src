@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-12 20:28 - bin/nproc ✓
+
+**Directory:** `bin/nproc`
+
+**Summary:** [ai-code-reviewer] nproc: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-12 20:22 - bin/mv/tests ✓
 
 **Directory:** `bin/mv/tests`

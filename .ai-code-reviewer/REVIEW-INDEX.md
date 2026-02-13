@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-12 20:22
+Generated: 2026-02-12 20:28
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-12 20:22
 
 ## Progress
 - Total directories: 8264
-- Completed: 36 (0%)
+- Completed: 37 (0%)
 - Skipped: 1
-- Remaining: 8227
+- Remaining: 8226
 
 ## Current Position
-CURRENT POSITION: `bin/nproc`
+CURRENT POSITION: `bin/pax`
 
-## bin/ (36/74 done)
+## bin/ (37/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -59,7 +59,7 @@ CURRENT POSITION: `bin/nproc`
 - [x] `bin/mkdir/tests` (0 .c, 0 .h, 0 lines) - 2026-02-12 - Fixed by session 20260212_120516
 - [x] `bin/mv` (1 .c, 0 .h, 495 lines) - 2026-02-12 - Fixed by session 20260212_164507
 - [x] `bin/mv/tests` (0 .c, 0 .h, 0 lines) - 2026-02-12 - Fixed by session 20260212_193733
-- [ ] `bin/nproc` (1 .c, 0 .h, 132 lines)
+- [x] `bin/nproc` (1 .c, 0 .h, 132 lines) - 2026-02-12 - Fixed by session 20260212_193733
 - [ ] `bin/pax` (16 .c, 10 .h, 14402 lines)
 - [ ] `bin/pax/tests` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/pkill` (1 .c, 0 .h, 874 lines)
