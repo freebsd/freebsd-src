@@ -335,8 +335,17 @@ Another feature prevents unintended reads from or writes to user space memory
 from the kernel.
 This also provides effective protection against NULL pointer dereferences from
 kernel.
+An additional mechanism,
+Linear Address Space Separation (LASS), is available on some amd64 machines.
+LASS prevents user-mode applications from accessing kernel-mode memory,
+and the kernel from unsanctioned access to userspace memory.
+Unlike page table-based permission controls, LASS is based only on address
+values.
+As a consequence of enforcing this separation in hardware, LASS also provides
+mitigation against certain speculative-execution side-channel attacks.
 .Bl -column -offset indent "Architecture" "Feature" "Access Type Prevented"
 .It Sy Architecture Ta Sy Feature Ta Sy Access Type Prevented
+.It amd64       Ta LASS  Ta All
 .It amd64       Ta SMAP  Ta Read / Write
 .It amd64       Ta SMEP  Ta Execute
 .It arm64       Ta PAN   Ta Read / Write
@@ -345,8 +354,12 @@ kernel.
 .It riscv       Ta -     Ta Execute
 .El
 .Pp
-These features are automatically used by the kernel.
-There is no user-facing configuration.
+Most of these features are automatically used by the kernel,
+with no user-facing configuration.
+LASS is controlled by the
+.Va hw.lass
+loader tunable.
+It is enabled by default, when available.
 .\"
 .Ss Capsicum
 Capsicum is a lightweight OS capability and sandbox framework.
