@@ -106,16 +106,16 @@ int	(*ng_ipfw_input_p)(struct mbuf **, struct ip_fw_args *, bool);
  */
 
 /*
- * The socket used to communicate with the multicast routing daemon.
+ * A per-VNET flag indicating whether multicast routing is enabled.
  */
-VNET_DEFINE(struct socket *, ip_mrouter);
+VNET_DEFINE(bool, ip_mrouting_enabled);
 
 /*
  * The various mrouter and rsvp functions.
  */
 int (*ip_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip_mrouter_get)(struct socket *, struct sockopt *);
-int (*ip_mrouter_done)(void);
+void (*ip_mrouter_done)(struct socket *);
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *);
 int (*mrt_ioctl)(u_long, caddr_t, int);
@@ -860,8 +860,8 @@ rip_detach(struct socket *so)
 	    ("rip_detach: not closed"));
 
 	/* Disable mrouter first */
-	if (so == V_ip_mrouter && ip_mrouter_done)
-		ip_mrouter_done();
+	if (ip_mrouter_done != NULL)
+		ip_mrouter_done(so);
 
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(&V_ripcbinfo);

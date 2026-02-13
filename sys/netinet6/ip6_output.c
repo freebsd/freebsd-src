@@ -890,7 +890,8 @@ nonh6lookup:
 			 * above, will be forwarded by the ip6_input() routine,
 			 * if necessary.
 			 */
-			if (V_ip6_mrouter && (flags & IPV6_FORWARDING) == 0) {
+			if (V_ip6_mrouting_enabled &&
+			    (flags & IPV6_FORWARDING) == 0) {
 				/*
 				 * XXX: ip6_mforward expects that rcvif is NULL
 				 * when it is called from the originating path.

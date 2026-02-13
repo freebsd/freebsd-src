@@ -3063,7 +3063,7 @@ mld_dispatch_packet(struct mbuf *m)
 	}
 
 	im6o.im6o_multicast_hlim  = 1;
-	im6o.im6o_multicast_loop = (V_ip6_mrouter != NULL);
+	im6o.im6o_multicast_loop = V_ip6_mrouting_enabled;
 	im6o.im6o_multicast_ifp = ifp;
 
 	if (m->m_flags & M_MLDV1) {
