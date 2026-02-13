@@ -356,8 +356,8 @@ struct bw_meter {
 };
 
 #ifdef _KERNEL
-VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
-#define	V_ip_mrouter		VNET(ip_mrouter)
+VNET_DECLARE(bool, ip_mrouting_enabled);
+#define	V_ip_mrouting_enabled	VNET(ip_mrouting_enabled)
 
 struct ifnet;
 struct ip;
@@ -369,7 +369,7 @@ struct sockopt;
 extern u_long	(*ip_mcast_src)(int);
 extern int	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		    struct ip_moptions *);
-extern int	(*ip_mrouter_done)(void);
+extern void	(*ip_mrouter_done)(struct socket *);
 extern int	(*ip_mrouter_get)(struct socket *, struct sockopt *);
 extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
 
