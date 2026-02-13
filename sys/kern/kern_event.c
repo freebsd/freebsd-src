@@ -814,14 +814,11 @@ void
 kqtimer_proc_continue(struct proc *p)
 {
 	struct kq_timer_cb_data *kc, *kc1;
-	struct bintime bt;
 	sbintime_t now;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	getboottimebin(&bt);
-	now = bttosbt(bt);
-
+	now = sbinuptime();
 	TAILQ_FOREACH_SAFE(kc, &p->p_kqtim_stop, link, kc1) {
 		TAILQ_REMOVE(&p->p_kqtim_stop, kc, link);
 		kc->flags &= ~KQ_TIMER_CB_ENQUEUED;
