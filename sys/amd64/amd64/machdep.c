@@ -207,10 +207,14 @@ long realmem = 0;
 int late_console = 1;
 int lass_enabled = 0;
 
+int __read_frequently fred = 0;
+SYSCTL_INT(_hw, OID_AUTO, fred, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &fred, 0,
+    "FRED is used");
+
 struct kva_md_info kmi;
 
 struct region_descriptor r_idt;
-
 struct pcpu *__pcpu;
 struct pcpu temp_bsp_pcpu;
 
@@ -348,9 +352,9 @@ cpu_setregs(void)
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 
-static char dblfault_stack[DBLFAULT_STACK_SIZE] __aligned(16);
+static char dblfault_stack[DBLFAULT_STACK_SIZE] __aligned(64);
 static char mce0_stack[MCE_STACK_SIZE] __aligned(16);
-static char nmi0_stack[NMI_STACK_SIZE] __aligned(16);
+static char nmi0_stack[NMI_STACK_SIZE] __aligned(64);
 static char dbg0_stack[DBG_STACK_SIZE] __aligned(16);
 CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
@@ -485,6 +489,9 @@ void
 setidt(int idx, inthand_t *func, int typ, int dpl, int ist)
 {
 	struct gate_descriptor *ip;
+
+	if (fred)
+		return;
 
 	ip = idt + idx;
 	ip->gd_looffset = (uintptr_t)func;
@@ -1187,9 +1194,11 @@ amd64_conf_fast_syscall(void)
 
 	msr = rdmsr(MSR_EFER) | EFER_SCE;
 	wrmsr(MSR_EFER, msr);
-	wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
-	    (u_int64_t)IDTVEC(fast_syscall));
-	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
+	if (!fred) {
+		wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
+		    (u_int64_t)IDTVEC(fast_syscall));
+		wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
+	}
 	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
 	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
 	wrmsr(MSR_STAR, msr);
@@ -1231,33 +1240,49 @@ amd64_bsp_ist_init(struct pcpu *pc)
 
 	tssp = &pc->pc_common_tss;
 
-	/* doublefault stack space, runs on ist1 */
-	np = ((struct nmi_pcpu *)&dblfault_stack[sizeof(dblfault_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist1 = (long)np;
+	/* Doublefault stack space, runs on ist1 for IDT. */
+	if (fred) {
+		wrmsr(MSR_FRED_RSP2, (uint64_t)&dblfault_stack[
+		    sizeof(dblfault_stack)]);
+	} else {
+		np = ((struct nmi_pcpu *)&dblfault_stack[sizeof(
+		    dblfault_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist1 = (long)np;
+	}
 
 	/*
-	 * NMI stack, runs on ist2.  The pcpu pointer is stored just
-	 * above the start of the ist2 stack.
+	 * NMI stack.
 	 */
-	np = ((struct nmi_pcpu *)&nmi0_stack[sizeof(nmi0_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist2 = (long)np;
+	if (fred) {
+		wrmsr(MSR_FRED_RSP1, (uint64_t)&nmi0_stack[
+		    sizeof(nmi0_stack)]);
+	} else {
+		/*
+		 * Runs on ist2 for IDT.  The pcpu pointer is stored
+		 * just above the start of the ist2 stack.
+		 */
+		np = ((struct nmi_pcpu *)&nmi0_stack[sizeof(nmi0_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist2 = (long)np;
+	}
 
-	/*
-	 * MC# stack, runs on ist3.  The pcpu pointer is stored just
-	 * above the start of the ist3 stack.
-	 */
-	np = ((struct nmi_pcpu *)&mce0_stack[sizeof(mce0_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist3 = (long)np;
+	if (!fred) {
+		/*
+		 * MC# stack for IDT, runs on ist3.  The pcpu pointer
+		 * is stored just above the start of the ist3 stack.
+		 */
+		np = ((struct nmi_pcpu *)&mce0_stack[sizeof(mce0_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist3 = (long)np;
 
-	/*
-	 * DB# stack, runs on ist4.
-	 */
-	np = ((struct nmi_pcpu *)&dbg0_stack[sizeof(dbg0_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist4 = (long)np;
+		/*
+		 * DB# stack for IDT, runs on ist4.
+		 */
+		np = ((struct nmi_pcpu *)&dbg0_stack[sizeof(dbg0_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist4 = (long)np;
+	}
 }
 
 /*
@@ -1358,6 +1383,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 		use_xsave = 1;
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
+	}
+
+	if ((cpu_stdext_feature4 & (CPUID_STDEXT4_FRED | CPUID_STDEXT4_LKGS)) ==
+	    (CPUID_STDEXT4_FRED | CPUID_STDEXT4_LKGS) &&
+	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0 && !pti) {
+		fred = 1;
+		TUNABLE_INT_FETCH("hw.fred", &fred);
 	}
 
 	sched_instance_select();
@@ -1473,9 +1505,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	setidt(IDT_EVTCHN, pti ? &IDTVEC(xen_intr_upcall_pti) :
 	    &IDTVEC(xen_intr_upcall), SDT_SYSIGT, SEL_KPL, 0);
 #endif
-	r_idt.rd_limit = sizeof(idt0) - 1;
-	r_idt.rd_base = (long) idt;
-	lidt(&r_idt);
+	if (!fred) {
+		r_idt.rd_limit = sizeof(idt0) - 1;
+		r_idt.rd_base = (long) idt;
+		lidt(&r_idt);
+	}
 
 	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
 	TUNABLE_INT_FETCH("machdep.mitigations.ibrs.disable", &hw_ibrs_disable);
@@ -1564,6 +1598,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	if (getenv_is_true("debug.dump_modinfo_at_boot"))
 		preload_dump();
+
+	if (fred)
+		amd64_cpu_init_fred();
 
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
@@ -1829,6 +1866,11 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 
 extern const char wrmsr_early_safe_gp_handler[];
 
+/*
+ * What about FRED?  wrmsr_early_safe_start() is used before we
+ * switched CPU to the FRED mode.  We use IDT to catch #GP from MSR
+ * write even if BSP is switched to the FRED mode later.
+ */
 void
 wrmsr_early_safe_start(void)
 {

@@ -167,7 +167,15 @@ copy_thread(struct thread *td1, struct thread *td2)
 		clear_pcb_flags(pcb2, PCB_TLSBASE);
 	}
 
-	td2->td_frame = (struct trapframe *)td2->td_md.md_stack_base - 1;
+	if (fred) {
+		struct trapframe_fred *f;
+
+		f = (struct trapframe_fred *)td2->td_md.md_stack_base - 1;
+		td2->td_frame = &f->tf_idt;
+	} else {
+		td2->td_frame = (struct trapframe *)td2->td_md.
+		    md_stack_base - 1;
+	}
 
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
@@ -383,7 +391,15 @@ cpu_thread_alloc(struct thread *td)
 
 	set_top_of_stack_td(td);
 	td->td_pcb = pcb = get_pcb_td(td);
-	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
+	if (fred) {
+		struct trapframe_fred *f;
+
+		f = (struct trapframe_fred *)td->td_md.md_stack_base - 1;
+		td->td_frame = &f->tf_idt;
+	} else {
+		td->td_frame = (struct trapframe *)td->td_md.
+		    md_stack_base - 1;
+	}
 	td->td_md.md_usr_fpu_save = fpu_save_area_alloc();
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
 	if (use_xsave) {

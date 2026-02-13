@@ -144,6 +144,12 @@ ASSYM(PCB_STAR, offsetof(struct pcb, pcb_star));
 ASSYM(PCB_LSTAR, offsetof(struct pcb, pcb_lstar));
 ASSYM(PCB_CSTAR, offsetof(struct pcb, pcb_cstar));
 ASSYM(PCB_SFMASK, offsetof(struct pcb, pcb_sfmask));
+ASSYM(PCB_FRED_RSP0, offsetof(struct pcb, pcb_fred_rsp0));
+ASSYM(PCB_FRED_RSP1, offsetof(struct pcb, pcb_fred_rsp1));
+ASSYM(PCB_FRED_RSP2, offsetof(struct pcb, pcb_fred_rsp2));
+ASSYM(PCB_FRED_RSP3, offsetof(struct pcb, pcb_fred_rsp3));
+ASSYM(PCB_FRED_STKLVLS, offsetof(struct pcb, pcb_fred_stklvls));
+ASSYM(PCB_FRED_CONFIG, offsetof(struct pcb, pcb_fred_config));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_FULL_IRET, PCB_FULL_IRET);
 ASSYM(PCB_DBREGS, PCB_DBREGS);
@@ -178,9 +184,15 @@ ASSYM(TF_DS, offsetof(struct trapframe, tf_ds));
 ASSYM(TF_ES, offsetof(struct trapframe, tf_es));
 ASSYM(TF_FS, offsetof(struct trapframe, tf_fs));
 ASSYM(TF_GS, offsetof(struct trapframe, tf_gs));
+ASSYM(TF_FRED_EVINFO2, offsetof(struct trapframe, tf_fred_evinfo2));
 ASSYM(TF_FLAGS, offsetof(struct trapframe, tf_flags));
 ASSYM(TF_SIZE, sizeof(struct trapframe));
 ASSYM(TF_HASSEGS, TF_HASSEGS);
+ASSYM(TF_FRED_EVINFO2_TYPE_EXC, TF_FRED_EVINFO2_TYPE_EXC);
+ASSYM(TF_FRED_EVINFO2_TYPE_SYSCALL, TF_FRED_EVINFO2_TYPE_SYSCALL);
+ASSYM(TF_FRED_EVINFO2_TYPEMASK, TF_FRED_EVINFO2_TYPEMASK);
+ASSYM(TF_FRED_EVINFO2_INSTLENMASK, TF_FRED_EVINFO2_INSTLENMASK);
+ASSYM(TF_FRED_EVINFO2_INSTLENSHIFT, TF_FRED_EVINFO2_INSTLENSHIFT);
 
 ASSYM(PTI_RDX, offsetof(struct pti_frame, pti_rdx));
 ASSYM(PTI_RAX, offsetof(struct pti_frame, pti_rax));
@@ -269,6 +281,9 @@ ASSYM(KUG32SEL, GSEL(GUGS32_SEL, SEL_UPL));
 ASSYM(TSSSEL, GSEL(GPROC0_SEL, SEL_KPL));
 ASSYM(LDTSEL, GSEL(GUSERLDT_SEL, SEL_KPL));
 ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
+
+ASSYM(IDT_NP, IDT_NP);
+ASSYM(IDT_GP, IDT_GP);
 
 ASSYM(__FreeBSD_version, __FreeBSD_version);
 

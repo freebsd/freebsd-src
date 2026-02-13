@@ -2378,6 +2378,8 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 void (*ipi_vectored)(u_int, int) = &native_lapic_ipi_vectored;
 #endif /* SMP */
 
+void (*fred_ipi_handlers[IPI_DYN_LAST - IPI_DYN_FIRST])(struct trapframe *);
+
 /*
  * Since the IDT is shared by all CPUs the IPI slot update needs to be globally
  * visible.
@@ -2392,10 +2394,9 @@ void (*ipi_vectored)(u_int, int) = &native_lapic_ipi_vectored;
  * the IDT slot update is globally visible before the IPI is delivered.
  */
 int
-lapic_ipi_alloc(inthand_t *ipifunc)
+lapic_ipi_alloc(inthand_t *ipifunc, void (*fred_ipifunc)(struct trapframe *))
 {
-	struct gate_descriptor *ip;
-	long func;
+	void (*fip)(struct trapframe *);
 	int idx, vector;
 
 	KASSERT(ipifunc != &IDTVEC(rsvd) && ipifunc != &IDTVEC(rsvd_pti),
@@ -2404,14 +2405,10 @@ lapic_ipi_alloc(inthand_t *ipifunc)
 	vector = -1;
 	mtx_lock_spin(&icu_lock);
 	for (idx = IPI_DYN_FIRST; idx <= IPI_DYN_LAST; idx++) {
-		ip = &idt[idx];
-		func = (ip->gd_hioffset << 16) | ip->gd_looffset;
-#ifdef __i386__
-		func -= setidt_disp;
-#endif
-		if ((!pti && func == (uintptr_t)&IDTVEC(rsvd)) ||
-		    (pti && func == (uintptr_t)&IDTVEC(rsvd_pti))) {
+		fip = fred_ipi_handlers[idx - IPI_DYN_FIRST];
+		if (fip == NULL) {
 			vector = idx;
+			fred_ipi_handlers[idx - IPI_DYN_FIRST] = fred_ipifunc;
 			setidt(vector, ipifunc, SDT_APIC, SEL_KPL, GSEL_APIC);
 			break;
 		}
@@ -2430,15 +2427,20 @@ lapic_ipi_free(int vector)
 	    ("%s: invalid vector %d", __func__, vector));
 
 	mtx_lock_spin(&icu_lock);
-	ip = &idt[vector];
-	func = (ip->gd_hioffset << 16) | ip->gd_looffset;
+	KASSERT(fred_ipi_handlers[vector - IPI_DYN_FIRST] != NULL,
+	    ("NULL fred func %d", vector));
+	fred_ipi_handlers[vector - IPI_DYN_FIRST] = NULL;
+	if (!fred) {
+		ip = &idt[vector];
+		func = (ip->gd_hioffset << 16) | ip->gd_looffset;
 #ifdef __i386__
-	func -= setidt_disp;
+		func -= setidt_disp;
 #endif
-	KASSERT(func != (uintptr_t)&IDTVEC(rsvd) &&
-	    func != (uintptr_t)&IDTVEC(rsvd_pti),
-	    ("invalid idtfunc %#lx", func));
-	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APIC,
-	    SEL_KPL, GSEL_APIC);
+		KASSERT(func != (uintptr_t)&IDTVEC(rsvd) &&
+		    func != (uintptr_t)&IDTVEC(rsvd_pti),
+		    ("invalid idtfunc %d %#lx", vector, func));
+		setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd),
+		    SDT_APIC, SEL_KPL, GSEL_APIC);
+	}
 	mtx_unlock_spin(&icu_lock);
 }

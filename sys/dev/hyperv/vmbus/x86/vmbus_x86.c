@@ -151,7 +151,8 @@ vmbus_setup_intr1(struct vmbus_softc *sc)
 	 * free IDT vector for Hyper-V ISR and set it up.
 	 */
 	sc->vmbus_idtvec = lapic_ipi_alloc(
-	    pti ? IDTVEC(vmbus_isr_pti) : IDTVEC(vmbus_isr));
+	    pti ? IDTVEC(vmbus_isr_pti) : IDTVEC(vmbus_isr),
+	    vmbus_handle_intr);
 	if (sc->vmbus_idtvec < 0) {
 #if defined(__amd64__) && defined(KLD_MODULE)
 		pmap_pti_remove_kva(VMBUS_ISR_ADDR, VMBUS_ISR_ADDR + PAGE_SIZE);
