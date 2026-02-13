@@ -26,13 +26,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/fcntl.h>
 #include <sys/procctl.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 
 #include <err.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
@@ -60,14 +60,14 @@ static void __dead2
 usage(void)
 {
 	fprintf(stderr,
-		"Usage: %s [-f | --foreground] [-k time | --kill-after time]"
-		" [-p | --preserve-status] [-s signal | --signal signal] "
-		" [-v | --verbose] <duration> <command> [arg ...]\n",
-		getprogname());
+	    "Usage: %s [-f | --foreground] [-k time | --kill-after time]"
+	    " [-p | --preserve-status] [-s signal | --signal signal] "
+	    " [-v | --verbose] <duration> <command> [arg ...]\n",
+	    getprogname());
 	exit(EXIT_FAILURE);
 }
 
-static void
+static void __printflike(1, 2)
 logv(const char *fmt, ...)
 {
 	va_list ap;
@@ -116,26 +116,6 @@ parse_duration(const char *duration)
 		errx(EXIT_INVALID, "duration out of range");
 
 	return (ret);
-}
-
-static int
-parse_signal(const char *str)
-{
-	int sig, i;
-	const char *errstr;
-
-	sig = strtonum(str, 1, sys_nsig - 1, &errstr);
-	if (errstr == NULL)
-		return (sig);
-
-	if (strncasecmp(str, "SIG", 3) == 0)
-		str += 3;
-	for (i = 1; i < sys_nsig; i++) {
-		if (strcasecmp(str, sys_signame[i]) == 0)
-			return (i);
-	}
-
-	errx(EXIT_INVALID, "invalid signal");
 }
 
 static void
@@ -188,28 +168,22 @@ static void
 send_sig(pid_t pid, int signo, bool foreground)
 {
 	struct procctl_reaper_kill rk;
-	int error;
 
 	logv("sending signal %s(%d) to command '%s'",
-	     sys_signame[signo], signo, command);
+	    sys_signame[signo], signo, command);
 	if (foreground) {
-		if (kill(pid, signo) == -1) {
-			if (errno != ESRCH)
-				warn("kill(%d, %s)", (int)pid,
-				    sys_signame[signo]);
-		}
+		if (kill(pid, signo) < 0 && errno != ESRCH)
+			warn("kill(%d, %s)", (int)pid, sys_signame[signo]);
 	} else {
 		memset(&rk, 0, sizeof(rk));
 		rk.rk_sig = signo;
-		error = procctl(P_PID, getpid(), PROC_REAP_KILL, &rk);
-		if (error == 0 || (error == -1 && errno == ESRCH))
-			;
-		else if (error == -1) {
+		if (procctl(P_PID, getpid(), PROC_REAP_KILL, &rk) < 0 &&
+		    errno != ESRCH) {
 			warn("procctl(PROC_REAP_KILL)");
-			if (rk.rk_fpid > 0)
-				warnx(
-			    "failed to signal some processes: first pid=%d",
-				    (int)rk.rk_fpid);
+			if (rk.rk_fpid > 0) {
+				warnx("failed to signal some processes:"
+				    " first pid=%d", (int)rk.rk_fpid);
+			}
 		}
 		logv("signaled %u processes", rk.rk_killed);
 	}
@@ -222,7 +196,7 @@ send_sig(pid_t pid, int signo, bool foreground)
 	 */
 	if (signo != SIGKILL && signo != SIGSTOP && signo != SIGCONT) {
 		logv("sending signal %s(%d) to command '%s'",
-		     sys_signame[SIGCONT], SIGCONT, command);
+		    sys_signame[SIGCONT], SIGCONT, command);
 		if (foreground) {
 			kill(pid, SIGCONT);
 		} else {
@@ -245,7 +219,7 @@ set_interval(double iv)
 		tim.it_value.tv_usec = (suseconds_t)(iv * 1000000UL);
 	}
 
-	if (setitimer(ITIMER_REAL, &tim, NULL) == -1)
+	if (setitimer(ITIMER_REAL, &tim, NULL) < 0)
 		err(EXIT_FAILURE, "setitimer()");
 }
 
@@ -261,20 +235,20 @@ kill_self(int signo)
 	sigset_t mask;
 	struct rlimit rl;
 
+	logv("killing self with signal %s(%d)", sys_signame[signo], signo);
+
+	/* Disable core generation. */
+	memset(&rl, 0, sizeof(rl));
+	setrlimit(RLIMIT_CORE, &rl);
+
 	/* Reset the signal disposition and make sure it's unblocked. */
 	signal(signo, SIG_DFL);
 	sigfillset(&mask);
 	sigdelset(&mask, signo);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
-	/* Disable core generation. */
-	memset(&rl, 0, sizeof(rl));
-	setrlimit(RLIMIT_CORE, &rl);
-
-	logv("killing self with signal %s(%d)", sys_signame[signo], signo);
-	kill(getpid(), signo);
-	err(128 + signo, "signal %s(%d) failed to kill self",
-	    sys_signame[signo], signo);
+	raise(signo);
+	err(128 + signo, "raise(%d)", signo);
 }
 
 static void
@@ -285,7 +259,7 @@ log_termination(const char *name, const siginfo_t *si)
 	} else if (si->si_code == CLD_DUMPED || si->si_code == CLD_KILLED) {
 		logv("%s: pid=%d, sig=%d", name, si->si_pid, si->si_status);
 	} else {
-		logv("%s: pid=%d, reason=%d, status=%d", si->si_pid,
+		logv("%s: pid=%d, reason=%d, status=%d", name, si->si_pid,
 		    si->si_code, si->si_status);
 	}
 }
@@ -293,22 +267,23 @@ log_termination(const char *name, const siginfo_t *si)
 int
 main(int argc, char **argv)
 {
-	int ch, sig;
-	int pstat = 0;
-	pid_t pid;
-	int pp[2], error;
-	char c;
+	struct procctl_reaper_status info;
+	siginfo_t si, child_si;
+	struct sigaction sa;
+	sigset_t zeromask, allmask, oldmask;
 	double first_kill;
 	double second_kill = 0;
+	ssize_t error;
+	pid_t pid;
+	int pp[2];
+	int ch, sig;
+	int pstat = 0;
+	char c;
 	bool foreground = false;
 	bool preserve = false;
 	bool timedout = false;
 	bool do_second_kill = false;
 	bool child_done = false;
-	sigset_t zeromask, allmask, oldmask;
-	struct sigaction sa;
-	struct procctl_reaper_status info;
-	siginfo_t si, child_si;
 
 	const char optstr[] = "+fhk:ps:v";
 	const struct option longopts[] = {
@@ -334,7 +309,8 @@ main(int argc, char **argv)
 			preserve = true;
 			break;
 		case 's':
-			killsig = parse_signal(optarg);
+			if (str2sig(optarg, &killsig) != 0)
+				errx(EXIT_INVALID, "invalid signal");
 			break;
 		case 'v':
 			verbose = true;
@@ -358,22 +334,22 @@ main(int argc, char **argv)
 
 	if (!foreground) {
 		/* Acquire a reaper */
-		if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == -1)
+		if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) < 0)
 			err(EXIT_FAILURE, "procctl(PROC_REAP_ACQUIRE)");
 	}
 
 	/* Block all signals to avoid racing against the child. */
 	sigfillset(&allmask);
-	if (sigprocmask(SIG_BLOCK, &allmask, &oldmask) == -1)
+	if (sigprocmask(SIG_BLOCK, &allmask, &oldmask) < 0)
 		err(EXIT_FAILURE, "sigprocmask()");
 
-	if (pipe2(pp, O_CLOEXEC) == -1)
+	if (pipe2(pp, O_CLOEXEC) < 0)
 		err(EXIT_FAILURE, "pipe2");
 
 	pid = fork();
-	if (pid == -1) {
+	if (pid < 0)
 		err(EXIT_FAILURE, "fork()");
-	} else if (pid == 0) {
+	if (pid == 0) {
 		/*
 		 * child process
 		 *
@@ -382,11 +358,12 @@ main(int argc, char **argv)
 		 * inherited, except for the signal to be sent upon timeout.
 		 */
 		signal(killsig, SIG_DFL);
-		if (sigprocmask(SIG_SETMASK, &oldmask, NULL) == -1)
+		if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
 			err(EXIT_FAILURE, "sigprocmask(oldmask)");
 
+		(void)close(pp[1]);
 		error = read(pp[0], &c, 1);
-		if (error == -1)
+		if (error < 0)
 			err(EXIT_FAILURE, "read from control pipe");
 		if (error == 0)
 			errx(EXIT_FAILURE, "eof from control pipe");
@@ -396,6 +373,7 @@ main(int argc, char **argv)
 	}
 
 	/* parent continues here */
+	(void)close(pp[0]);
 
 	/* Catch all signals in order to propagate them. */
 	memset(&sa, 0, sizeof(sa));
@@ -403,25 +381,36 @@ main(int argc, char **argv)
 	sa.sa_handler = sig_handler;
 	sa.sa_flags = SA_RESTART;
 	for (sig = 1; sig < sys_nsig; sig++) {
-		if (sig == SIGKILL || sig == SIGSTOP || sig == SIGCONT ||
-		    sig == SIGTTIN || sig == SIGTTOU)
-			continue;
-		if (sigaction(sig, &sa, NULL) == -1)
-			err(EXIT_FAILURE, "sigaction(%d)", sig);
+		switch (sig) {
+		case SIGTTIN:
+		case SIGTTOU:
+			/* Don't stop if background child needs TTY */
+			if (signal(sig, SIG_IGN) == SIG_ERR)
+				err(EXIT_FAILURE, "signal(%d)", sig);
+			break;
+		case SIGKILL:
+		case SIGSTOP:
+		case SIGCONT:
+			/* These can't be caught or ignored */
+			break;
+		default:
+			if (sigaction(sig, &sa, NULL) < 0)
+				err(EXIT_FAILURE, "sigaction(%d)", sig);
+		}
 	}
 
-	/* Don't stop if background child needs TTY */
-	signal(SIGTTIN, SIG_IGN);
-	signal(SIGTTOU, SIG_IGN);
-
+	/* Start the timer */
 	set_interval(first_kill);
+
+	/* Let the child know we're ready */
 	error = write(pp[1], "a", 1);
-	if (error == -1)
+	if (error < 0)
 		err(EXIT_FAILURE, "write to control pipe");
 	if (error == 0)
 		errx(EXIT_FAILURE, "short write to control pipe");
-	sigemptyset(&zeromask);
+	(void)close(pp[1]);
 
+	sigemptyset(&zeromask);
 	for (;;) {
 		sigsuspend(&zeromask);
 
@@ -430,9 +419,8 @@ main(int argc, char **argv)
 
 			for (;;) {
 				memset(&si, 0, sizeof(si));
-				error = waitid(P_ALL, -1, &si, WEXITED |
-				    WNOHANG);
-				if (error == -1) {
+				if (waitid(P_ALL, -1, &si,
+				    WEXITED | WNOHANG) < 0) {
 					if (errno != EINTR)
 						break;
 				} else if (si.si_pid == pid) {
@@ -456,7 +444,7 @@ main(int argc, char **argv)
 					break;
 				} else {
 					procctl(P_PID, getpid(),
-					    	PROC_REAP_STATUS, &info);
+					    PROC_REAP_STATUS, &info);
 					if (info.rs_children == 0)
 						break;
 				}
@@ -471,7 +459,7 @@ main(int argc, char **argv)
 				sig = sig_term;
 				sig_term = 0;
 				logv("received terminating signal %s(%d)",
-				     sys_signame[sig], sig);
+				    sys_signame[sig], sig);
 			}
 
 			send_sig(pid, sig, foreground);
