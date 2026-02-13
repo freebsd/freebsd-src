@@ -1,17 +1,16 @@
-
 /*
  * write.c
  *
  * Copyright (c) 2002 Archie L. Cobbs
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Archie L. Cobbs;
  * provided, however, that:
  * 1. Any and all reproductions of the source or object code must include the
  *    copyright notice above and the following disclaimer of warranties
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY ARCHIE L. COBBS AS IS", AND TO
  * THE MAXIMUM EXTENT PERMITTED BY LAW, ARCHIE L. COBBS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -92,8 +91,8 @@ WriteCmd(int ac, char **av)
 		fclose(fp);
 	} else {
 		for (i = 2, len = 0; i < ac && len < sizeof(buf); i++, len++) {
-			if (sscanf(av[i], "%i", &byte) != 1
-			    || (byte < -128 || byte > 255)) {
+			if (sscanf(av[i], "%i", &byte) != 1 ||
+			    byte < -128 || byte > 255) {
 				warnx("invalid byte \"%s\"", av[i]);
 				return (CMDRTN_ERROR);
 			}
@@ -116,4 +115,3 @@ WriteCmd(int ac, char **av)
 	/* Done */
 	return (CMDRTN_OK);
 }
-

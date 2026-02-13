@@ -1,10 +1,9 @@
-
 /*
  * msg.c
  *
  * Copyright (c) 1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -15,7 +14,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -37,9 +36,9 @@
  * $Whistle: msg.c,v 1.2 1999/11/29 23:38:35 archie Exp $
  */
 
-#include <sys/cdefs.h>
 #include <err.h>
 #include <netgraph.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +63,9 @@ const struct ngcmd msg_cmd = {
 static int
 MsgCmd(int ac, char **av)
 {
+	struct pollfd pfds[1] = {
+		{ .fd = csock, .events = POLLIN },
+	};
 	char *buf;
 	char *path, *cmdstr;
 	int i, len;
@@ -95,22 +97,14 @@ MsgCmd(int ac, char **av)
 	free(buf);
 
 	/* See if a synchronous reply awaits */
-	{
-		struct timeval tv;
-		fd_set rfds;
-
-		FD_ZERO(&rfds);
-		FD_SET(csock, &rfds);
-		memset(&tv, 0, sizeof(tv));
-		switch (select(csock + 1, &rfds, NULL, NULL, &tv)) {
-		case -1:
-			err(EX_OSERR, "select");
-		case 0:
-			break;
-		default:
-			MsgRead();
-			break;
-		}
+	switch (poll(pfds, 1, 0)) {
+	case -1:
+		err(EX_OSERR, "poll");
+	case 0:
+		break;
+	default:
+		MsgRead();
+		break;
 	}
 
 	/* Done */
@@ -135,8 +129,8 @@ MsgRead(void)
 
 	/* Ask originating node to convert message to ASCII */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-	      NGM_BINARY2ASCII, m, sizeof(*m) + m->header.arglen) < 0
-	    || NgAllocRecvMsg(csock, &m2, NULL) < 0) {
+	      NGM_BINARY2ASCII, m, sizeof(*m) + m->header.arglen) < 0 ||
+	    NgAllocRecvMsg(csock, &m2, NULL) < 0) {
 		printf("Rec'd %s %d from \"%s\":\n",
 		    (m->header.flags & NGF_RESP) != 0 ? "response" : "command",
 		    m->header.cmd, path);
@@ -160,4 +154,3 @@ MsgRead(void)
 		printf("No arguments\n");
 	free(m2);
 }
-
