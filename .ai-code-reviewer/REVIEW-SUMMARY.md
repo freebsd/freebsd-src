@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-12 17:49 - bin/mv ✓
+
+**Directory:** `bin/mv`
+
+**Summary:** [ai-code-reviewer] mv: Replace exit() with return in main()
+
+**Files fixed:**
+  - bin/mv/mv.c
+
+---
+
 ## 2026-02-12 12:31 - bin/mkdir/tests ✓
 
 **Directory:** `bin/mkdir/tests`
