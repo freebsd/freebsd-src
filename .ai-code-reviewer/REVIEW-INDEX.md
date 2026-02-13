@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-12 12:27
+Generated: 2026-02-12 16:00
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -57,7 +57,7 @@ CURRENT POSITION: `bin/mv`
 - [x] `bin/ls/tests` (0 .c, 0 .h, 0 lines) - 2026-02-12 - Fixed by session 20260212_005043
 - [x] `bin/mkdir` (1 .c, 0 .h, 206 lines) - 2026-02-12 - Fixed by session 20260212_120516
 - [x] `bin/mkdir/tests` (0 .c, 0 .h, 0 lines) - 2026-02-12 - Fixed by session 20260212_120516
-- [ ] `bin/mv` (1 .c, 0 .h, 495 lines)
+- [>] `bin/mv` (1 .c, 0 .h, 495 lines)
 - [ ] `bin/mv/tests` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/nproc` (1 .c, 0 .h, 132 lines)
 - [ ] `bin/pax` (16 .c, 10 .h, 14402 lines)

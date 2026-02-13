@@ -72,7 +72,7 @@ main(int argc, char *argv[])
 	size_t baselen, len;
 	int ch, rval;
 
-	while ((ch = getopt(argc, argv, "fhinv")) != -1)
+	while ((ch = getopt(argc, argv, "fhinv")) != -1) {
 		switch (ch) {
 		case 'h':
 			hflg = 1;
@@ -95,6 +95,7 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+	}
 	argc -= optind;
 	argv += optind;
 
@@ -105,7 +106,12 @@ main(int argc, char *argv[])
 	 * If the stat on the target fails or the target isn't a directory,
 	 * try the move.  More than 2 arguments is an error in this case.
 	 */
-	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
+	if (stat(argv[argc - 1], &sb) != 0) {
+		if (argc > 2)
+			errx(1, "%s is not a directory", argv[argc - 1]);
+		exit(do_move(argv[0], argv[1]));
+	}
+	if (!S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
 			errx(1, "%s is not a directory", argv[argc - 1]);
 		exit(do_move(argv[0], argv[1]));
@@ -118,14 +124,18 @@ main(int argc, char *argv[])
 	if (hflg) {
 		if (argc > 2)
 			usage();
-		if (lstat(argv[1], &sb) == 0 && S_ISLNK(sb.st_mode))
+		if (lstat(argv[1], &sb) != 0) {
+			warn("lstat %s", argv[1]);
+			exit(1);
+		}
+		if (S_ISLNK(sb.st_mode))
 			exit(do_move(argv[0], argv[1]));
 	}
 
 	/* It's a directory, move each file into it. */
 	if (strlen(argv[argc - 1]) > sizeof(path) - 1)
 		errx(1, "%s: destination pathname too long", *argv);
-	(void)strcpy(path, argv[argc - 1]);
+	strlcpy(path, argv[argc - 1], sizeof(path));
 	baselen = strlen(path);
 	endp = &path[baselen];
 	if (!baselen || *(endp - 1) != '/') {
@@ -147,7 +157,7 @@ main(int argc, char *argv[])
 			warnx("%s: destination pathname too long", *argv);
 			rval = 1;
 		} else {
-			memmove(endp, p, (size_t)len + 1);
+			strlcpy(endp, p, sizeof(path) - baselen);
 			if (do_move(*argv, path))
 				rval = 1;
 		}
@@ -225,7 +235,7 @@ do_move(const char *from, const char *to)
 		if (!S_ISLNK(sb.st_mode)) {
 			/* Can't mv(1) a mount point. */
 			if (realpath(from, path) == NULL) {
-				warn("cannot resolve %s: %s", from, path);
+				warn("cannot resolve %s", from);
 				return (1);
 			}
 			if (!statfs(path, &sfs) &&
@@ -340,12 +350,12 @@ err:		if (unlink(to))
 	} else
 		warn("%s: cannot stat", to);
 
-	if (close(to_fd)) {
+	if (close(to_fd) == -1) {
 		warn("%s", to);
 		return (1);
 	}
 
-	if (unlink(from)) {
+	if (unlink(from) == -1) {
 		warn("%s: remove", from);
 		return (1);
 	}
