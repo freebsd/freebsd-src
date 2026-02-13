@@ -1041,3 +1041,9 @@ Each lesson is recorded with timestamp, category, and remediation advice.
 ### COMPILER: Stale Dependencies and Missing Header
 - Stale `.depend` files and missing `limits.h` header caused build failures.
 - Clean build directory with `make clean` and ensure all necessary headers are included.
+
+
+## 2026-02-13 09:30
+### COMPILER: Stale .depend Files Causing Build Failures
+- Stale `.depend` files were ignored, leading to build errors.
+- Clean the build directory using `make clean` before rebuilding to avoid stale dependencies.
