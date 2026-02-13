@@ -25,14 +25,10 @@ typedef struct {
 #endif
 } freebsd32_uint64_t;
 
-#if __SIZEOF_LONG__ == 8
-#if defined __amd64__
+#if defined(__amd64__) || defined(__i386__)
 typedef	__int32_t	time32_t;
 #else
 typedef	__int64_t	time32_t;
-#endif
-#else
-typedef	__int32_t	time32_t;
 #endif
 #define	__HAVE_TIME32_T
 
