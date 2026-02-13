@@ -3225,8 +3225,8 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_ptp:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
-		hw->fc.pause_time = 0x0650;
-		hw->fc.refresh_time = 0x0400;
+		hw->fc.pause_time = 0xFFFF;
+		hw->fc.refresh_time = 0xFFFF;
 		/* Jumbos need adjusted PBA */
 		if (if_getmtu(ifp) > ETHERMTU)
 			E1000_WRITE_REG(hw, E1000_PBA, 12);
