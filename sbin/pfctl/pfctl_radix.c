@@ -214,25 +214,18 @@ int
 pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *nmatch, int flags)
 {
-	struct pfioc_table io;
+	int ret;
 
 	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
 		errno = EINVAL;
 		return (-1);
 	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	if (ioctl(dev, DIOCRTSTADDRS, &io)) {
-		pfr_report_error(tbl, &io, "test addresses in");
-		return (-1);
-	}
-	if (nmatch)
-		*nmatch = io.pfrio_nmatch;
-	return (0);
+
+	ret = pfctl_test_addrs(pfh, tbl, addr, size, nmatch, flags);
+	if (ret != 0)
+		errno = ret;
+
+	return (ret);
 }
 
 int
