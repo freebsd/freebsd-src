@@ -361,6 +361,7 @@ powerpc/powernv/xive.c		optional	powernv
 powerpc/powerpc/altivec.c	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bus_machdep.c	standard
+powerpc/powerpc/busdma_bounce.c standard
 powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/clock.c		standard
 powerpc/powerpc/copyinout.c	optional	aim
