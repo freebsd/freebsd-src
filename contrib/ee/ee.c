@@ -64,13 +64,17 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.104 $";
 #ifdef NCURSE
 #include "new_curse.h"
 #elif HAS_NCURSES
+#define _XOPEN_SOURCE_EXTENDED
 #include <ncurses.h>
 #else
 #include <curses.h>
 #endif
 
 #include <ctype.h>
+#include <limits.h>
 #include <signal.h>
+#include <wchar.h>
+#include <wctype.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -181,10 +185,6 @@ int local_LINES = 0;		/* copy of LINES, to detect when win resizes */
 int local_COLS = 0;		/* copy of COLS, to detect when win resizes  */
 int curses_initialized = FALSE;	/* flag indicating if curses has been started*/
 int emacs_keys_mode = FALSE;	/* mode for if emacs key binings are used    */
-int ee_chinese = FALSE;		/* allows handling of multi-byte characters  */
-				/* by checking for high bit in a byte the    */
-				/* code recognizes a two-byte character      */
-				/* sequence				     */
 
 unsigned char *point;		/* points to current position in line	*/
 unsigned char *srch_str;	/* pointer for search string		*/
@@ -216,6 +216,53 @@ WINDOW *text_win;
 WINDOW *help_win;
 WINDOW *info_win;
 
+/*
+ |	UTF-8 utility functions.
+ */
+
+/* Return the number of bytes in the UTF-8 character starting at s. */
+static int
+utf8_len(const unsigned char *s)
+{
+	if (*s < 0x80)
+		return 1;
+	if ((*s & 0xE0) == 0xC0)
+		return 2;
+	if ((*s & 0xF0) == 0xE0)
+		return 3;
+	if ((*s & 0xF8) == 0xF0)
+		return 4;
+	return 1;	/* invalid byte: treat as single byte */
+}
+
+/* Return a pointer to the start of the previous UTF-8 character. */
+static unsigned char *
+utf8_prev(const unsigned char *start, const unsigned char *ptr)
+{
+	if (ptr <= start)
+		return (unsigned char *)start;
+	ptr--;
+	while (ptr > start && (*ptr & 0xC0) == 0x80)
+		ptr--;
+	return (unsigned char *)ptr;
+}
+
+/* Return the display width of the UTF-8 character starting at s. */
+static int
+utf8_width(const unsigned char *s)
+{
+	wchar_t wc;
+	mbstate_t mbs;
+	int w;
+
+	if (*s < 0x80)
+		return 1;
+	memset(&mbs, 0, sizeof(mbs));
+	if (mbrtowc(&wc, (const char *)s, utf8_len(s), &mbs) == (size_t)-1)
+		return 1;
+	w = wcwidth(wc);
+	return (w >= 0) ? w : 1;
+}
 
 /*
  |	The following structure allows menu items to be flexibly declared.
@@ -247,6 +294,7 @@ struct menu_entries {
 
 unsigned char *resiz_line(int factor, struct text *rline, int rpos);
 void insert(int character);
+void insert_utf8(const unsigned char *mb, int len);
 void delete(int disp);
 void scanline(unsigned char *pos);
 int tabshift(int temp_int);
@@ -345,14 +393,13 @@ struct menu_entries modes_menu[] = {
 	{"", NULL, NULL, NULL, NULL, -1}, 	/* 6. info window	*/
 	{"", NULL, NULL, NULL, NULL, -1}, 	/* 7. emacs key bindings*/
 	{"", NULL, NULL, NULL, NULL, -1}, 	/* 8. right margin	*/
-	{"", NULL, NULL, NULL, NULL, -1}, 	/* 9. chinese text	*/
-	{"", NULL, NULL, NULL, dump_ee_conf, -1}, /* 10. save editor config */
+	{"", NULL, NULL, NULL, dump_ee_conf, -1}, /* 9. save editor config */
 	{NULL, NULL, NULL, NULL, NULL, -1}	/* terminator		*/
 	};
 
-char *mode_strings[11]; 
+char *mode_strings[10];
 
-#define NUM_MODES_ITEMS 10
+#define NUM_MODES_ITEMS 9
 
 struct menu_entries config_dump_menu[] = {
 	{"", NULL, NULL, NULL, NULL, 0}, 
@@ -422,8 +469,8 @@ char *emacs_help_text[22];
 char *emacs_control_keys[5];
 
 char *command_strings[5];
-char *commands[32];
-char *init_strings[22];
+char *commands[30];
+char *init_strings[20];
 
 #define MENU_WARN 1
 
@@ -523,8 +570,6 @@ char *menu_too_lrg_msg;
 char *more_above_str, *more_below_str;
 char *separator = "===============================================================================";
 
-char *chinese_cmd, *nochinese_cmd;
-
 #ifndef __STDC__
 #ifndef HAS_STDLIB
 extern char *malloc();
@@ -553,7 +598,7 @@ main(int argc, char *argv[])
 	signal(SIGCHLD, SIG_DFL);
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
-	d_char = malloc(3);	/* provide a buffer for multi-byte chars */
+	d_char = malloc(5);	/* UTF-8 chars can be up to 4 bytes + NUL */
 	d_word = malloc(150);
 	*d_word = '\0';
 	d_line = NULL;
@@ -624,41 +669,59 @@ main(int argc, char *argv[])
 		}
 
 		wrefresh(text_win);
-		in = wgetch(text_win);
-		if (in == -1)
-			exit(0);  /* without this exit ee will go into an 
-			             infinite loop if the network 
-			             session detaches */
-
-		resize_check();
-
-		if (clear_com_win)
 		{
-			clear_com_win = FALSE;
-			wmove(com_win, 0, 0);
-			werase(com_win);
-			if (!info_window)
+			wint_t win;
+			int wret = wget_wch(text_win, &win);
+			/*
+			 * ERR if the undersneath terminal is closed (like network failure on a ssh
+			 * session)
+			 * Normal exit as this is not an editor's error, but a network connection
+			 * issue
+			 */
+			if (wret == ERR)
+				exit(0);
+			in = (int)win;
+
+			resize_check();
+
+			if (clear_com_win)
 			{
-				wprintw(com_win, "%s", com_win_message);
+				clear_com_win = FALSE;
+				wmove(com_win, 0, 0);
+				werase(com_win);
+				if (!info_window)
+				{
+					wprintw(com_win, "%s", com_win_message);
+				}
+				wrefresh(com_win);
 			}
-			wrefresh(com_win);
-		}
 
-		if (in > 255)
-			function_key();
-		else if ((in == '\10') || (in == 127))
-		{
-			in = 8;		/* make sure key is set to backspace */
-			delete(TRUE);
-		}
-		else if ((in > 31) || (in == 9))
-			insert(in);
-		else if ((in >= 0) && (in <= 31))
-		{
-			if (emacs_keys_mode)
-				emacs_control();
-			else
-				control();
+			if (wret == KEY_CODE_YES)
+				function_key();
+			else if ((in == '\10') || (in == 127))
+			{
+				in = 8;
+				delete(TRUE);
+			}
+			else if (in >= 0x80)
+			{
+				unsigned char mb[MB_LEN_MAX + 1];
+				mbstate_t mbs;
+				memset(&mbs, 0, sizeof(mbs));
+				size_t n = wcrtomb((char *)mb, (wchar_t)win,
+				    &mbs);
+				if (n != (size_t)-1)
+					insert_utf8(mb, (int)n);
+			}
+			else if ((in > 31) || (in == 9))
+				insert(in);
+			else if ((in >= 0) && (in <= 31))
+			{
+				if (emacs_keys_mode)
+					emacs_control();
+				else
+					control();
+			}
 		}
 	}
 	return(0);
@@ -716,7 +779,7 @@ insert(int character)
 	}
 	*point = character;	/* insert new character			*/
 	wclrtoeol(text_win);
-	if (!isprint((unsigned char)character)) /* check for TAB character*/
+	if (!isprint((unsigned char)character))
 	{
 		scr_pos = scr_horz += out_char(text_win, character, scr_horz);
 		point++;
@@ -763,6 +826,85 @@ insert(int character)
 	draw_line(scr_vert, scr_horz, point, position, curr_line->line_length);
 }
 
+/* insert a complete multi-byte UTF-8 character into line	*/
+void
+insert_utf8(const unsigned char *mb, int len)
+{
+	int counter;
+	unsigned char *temp;
+	unsigned char *temp2;
+	int i;
+
+	text_changes = TRUE;
+	if ((curr_line->max_length - curr_line->line_length) < (len + 5))
+		point = resiz_line(len + 10, curr_line, position);
+
+	/* shift the tail of the line right by len bytes */
+	curr_line->line_length += len;
+	temp = point;
+	counter = position;
+	while (counter < curr_line->line_length)
+	{
+		counter++;
+		temp++;
+	}
+	temp++;
+	while (point < temp)
+	{
+		temp2 = temp - len;
+		*temp = *temp2;
+		temp--;
+	}
+
+	/* copy all bytes of the UTF-8 character */
+	for (i = 0; i < len; i++)
+		point[i] = mb[i];
+
+	/* display the character before advancing past it */
+	wclrtoeol(text_win);
+	{
+		char buf[5];
+		memcpy(buf, point, len);
+		buf[len] = '\0';
+		waddstr(text_win, buf);
+	}
+
+	point += len;
+	position += len;
+
+	scanline(point);
+	scr_pos = scr_horz;
+
+	if ((observ_margins) && (right_margin < scr_pos))
+	{
+		counter = position;
+		while (scr_pos > right_margin)
+			prev_word();
+		if (scr_pos == 0)
+		{
+			while (position < counter)
+				right(TRUE);
+		}
+		else
+		{
+			counter -= position;
+			insert_line(TRUE);
+			for (i = 0; i < counter; i++)
+				right(TRUE);
+		}
+	}
+
+	if ((scr_horz - horiz_offset) > last_col)
+	{
+		horiz_offset += 8;
+		midscreen(scr_vert, point);
+	}
+
+	formatted = FALSE;
+
+	draw_line(scr_vert, scr_horz, point, position, curr_line->line_length);
+}
+
 /* delete character		*/
 void 
 delete(int disp)
@@ -778,29 +920,18 @@ delete(int disp)
 	{
 		text_changes = TRUE;
 		temp2 = tp = point;
-		if ((ee_chinese) && (position >= 2) && (*(point - 2) > 127))
-		{
-			del_width = 2;
-		}
+		unsigned char *prev = utf8_prev(curr_line->line, point);
+		del_width = point - prev;
 		tp -= del_width;
 		point -= del_width;
 		position -= del_width;
 		temp_pos = position;
 		curr_line->line_length -= del_width;
-		if ((*tp < ' ') || (*tp >= 127))	/* check for TAB */
-			scanline(tp);
-		else
-			scr_horz -= del_width;
+		scanline(point);
 		scr_pos = scr_horz;
 		if (in == 8)
 		{
-			if (del_width == 1)
-				*d_char = *point; /* save deleted character  */
-			else
-			{
-				d_char[0] = *point;
-				d_char[1] = *(point + 1);
-			}
+			memcpy(d_char, point, del_width);
 			d_char[del_width] = '\0';
 		}
 		while (temp_pos <= curr_line->line_length)
@@ -891,8 +1022,12 @@ scanline(unsigned char *pos)
 			temp++;
 		else if (*ptr == 127)
 			temp += 2;
-		else if (!eightbit)
-			temp += 5;
+		else if (*ptr >= 0x80)
+		{
+			temp += utf8_width(ptr);
+			ptr += utf8_len(ptr);
+			continue;
+		}
 		else
 			temp++;
 		ptr++;
@@ -1016,29 +1151,55 @@ draw_line(int vertical, int horiz, unsigned char *ptr, int t_pos, int length)
 	}
 	while (column < 0)
 	{
-		d = len_char(*temp, abs_column);
-		abs_column += d;
-		column += d;
-		posit++;
-		temp++;
+		if (*temp >= 0x80)
+		{
+			d = utf8_width(temp);
+			abs_column += d;
+			column += d;
+			posit += utf8_len(temp);
+			temp += utf8_len(temp);
+		}
+		else
+		{
+			d = len_char(*temp, abs_column);
+			abs_column += d;
+			column += d;
+			posit++;
+			temp++;
+		}
 	}
 	wmove(text_win, row, column);
 	wclrtoeol(text_win);
 	while ((posit < length) && (column <= last_col))
 	{
-		if (!isprint(*temp))
+		if (*temp >= 0x80)
+		{
+			int clen = utf8_len(temp);
+			int dw = utf8_width(temp);
+			char buf[5];
+			memcpy(buf, temp, clen);
+			buf[clen] = '\0';
+			waddstr(text_win, buf);
+			abs_column += dw;
+			column += dw;
+			posit += clen;
+			temp += clen;
+		}
+		else if (!isprint(*temp))
 		{
 			column += len_char(*temp, abs_column);
 			abs_column += out_char(text_win, *temp, abs_column);
+			posit++;
+			temp++;
 		}
 		else
 		{
 			abs_column++;
 			column++;
 			waddch(text_win, *temp);
+			posit++;
+			temp++;
 		}
-		posit++;
-		temp++;
 	}
 	if (column < last_col)
 		wclrtoeol(text_win);
@@ -1404,13 +1565,10 @@ left(int disp)
 {
 	if (point != curr_line->line)	/* if not at begin of line	*/
 	{
-		if ((ee_chinese) && (position >= 2) && (*(point - 2) > 127))
-		{
-			point--;
-			position--;
-		}
-		point--;
-		position--;
+		unsigned char *prev = utf8_prev(curr_line->line, point);
+		int char_bytes = point - prev;
+		point = prev;
+		position -= char_bytes;
 		scanline(point);
 		wmove(text_win, scr_vert, (scr_horz - horiz_offset));
 		scr_pos = scr_horz;
@@ -1439,14 +1597,11 @@ right(int disp)
 {
 	if (position < curr_line->line_length)
 	{
-		if ((ee_chinese) && (*point > 127) && 
-		    ((curr_line->line_length - position) >= 2))
-		{
-			point++;
-			position++;
-		}
-		point++;
-		position++;
+		int char_bytes = utf8_len(point);
+		if (position + char_bytes > curr_line->line_length)
+			char_bytes = curr_line->line_length - position;
+		point += char_bytes;
+		position += char_bytes;
 		scanline(point);
 		wmove(text_win, scr_vert, (scr_horz - horiz_offset));
 		scr_pos = scr_horz;
@@ -1485,12 +1640,16 @@ find_pos(void)
 			scr_horz += tabshift(scr_horz);
 		else if (*point < ' ')
 			scr_horz += 2;
-		else if ((ee_chinese) && (*point > 127) && 
-		    ((curr_line->line_length - position) >= 2))
+		else if (*point >= 0x80)
 		{
-			scr_horz += 2;
-			point++;
-			position++;
+			int clen = utf8_len(point);
+			int dw = utf8_width(point);
+			if (scr_horz + dw > scr_pos)
+				break;
+			scr_horz += dw;
+			point += clen;
+			position += clen;
+			continue;
 		}
 		else
 			scr_horz++;
@@ -1789,20 +1948,6 @@ command(char *cmd_str1)
 		expand_tabs = FALSE;
 	else if (compare(cmd_str, Exit_string, FALSE))
 		finish();
-	else if (compare(cmd_str, chinese_cmd, FALSE))
-	{
-		ee_chinese = TRUE;
-#ifdef NCURSE
-		nc_setattrib(A_NC_BIG5);
-#endif /* NCURSE */
-	}
-	else if (compare(cmd_str, nochinese_cmd, FALSE))
-	{
-		ee_chinese = FALSE;
-#ifdef NCURSE
-		nc_clearattrib(A_NC_BIG5);
-#endif /* NCURSE */
-	}
 	else if (compare(cmd_str, QUIT_string, FALSE))
 		quit(0);
 	else if (*cmd_str == '!')
@@ -1855,9 +2000,19 @@ scan(char *line, int offset, int column)
 	j = column;
 	while (i < offset)
 	{
-		i++;
-		j += len_char(*stemp, j);
-		stemp++;
+		if (*(unsigned char *)stemp >= 0x80)
+		{
+			int clen = utf8_len((const unsigned char *)stemp);
+			j += utf8_width((const unsigned char *)stemp);
+			stemp += clen;
+			i += clen;
+		}
+		else
+		{
+			j += len_char(*stemp, j);
+			stemp++;
+			i++;
+		}
 	}
 	return(j);
 }
@@ -1885,14 +2040,25 @@ get_string(char *prompt, int advance)
 	g_pos = 0;
 	do
 	{
+		wint_t win;
+		int wret;
+
 		esc_flag = FALSE;
-		in = wgetch(com_win);
-		if (in == -1)
+		wret = wget_wch(com_win, &win);
+		if (wret == ERR)
 			exit(0);
-		if (((in == 8) || (in == 127) || (in == KEY_BACKSPACE)) && (g_pos > 0))
+		in = (int)win;
+		if (wret == KEY_CODE_YES && win == KEY_BACKSPACE)
+			in = 8;
+		if (((in == 8) || (in == 127)) && (g_pos > 0))
 		{
+			unsigned char *prev = utf8_prev(
+				(const unsigned char *)g_point,
+				(const unsigned char *)nam_str);
+			int char_bytes = (unsigned char *)nam_str - prev;
 			tmp_int = g_horz;
-			g_pos--;
+			g_pos -= char_bytes;
+			nam_str -= char_bytes;
 			g_horz = scan(g_point, g_pos, g_position);
 			tmp_int = tmp_int - g_horz;
 			for (; 0 < tmp_int; tmp_int--)
@@ -1904,28 +2070,65 @@ get_string(char *prompt, int advance)
 					waddch(com_win, '\010');
 				}
 			}
-			nam_str--;
 		}
-		else if ((in != 8) && (in != 127) && (in != '\n') && (in != '\r') && (in < 256))
+		else if (wret == KEY_CODE_YES)
 		{
-			if (in == '\026')	/* control-v, accept next character verbatim	*/
-			{			/* allows entry of ^m, ^j, and ^h	*/
+			/* ignore other function keys in string input */
+		}
+		else if ((in != 8) && (in != 127) && (in != '\n') && (in != '\r'))
+		{
+			if (in == '\026')	/* control-v */
+			{
 				esc_flag = TRUE;
-				in = wgetch(com_win);
-				if (in == -1)
+				wret = wget_wch(com_win, &win);
+				if (wret == ERR)
 					exit(0);
+				in = (int)win;
 			}
-			*nam_str = in;
-			g_pos++;
-			if (!isprint((unsigned char)in) && (g_horz < (last_col - 1)))
-				g_horz += out_char(com_win, in, g_horz);
+			if (in >= 0x80)
+			{
+				char mb[MB_LEN_MAX + 1];
+				mbstate_t mbs;
+				memset(&mbs, 0, sizeof(mbs));
+				size_t n = wcrtomb(mb, (wchar_t)win, &mbs);
+				if (n != (size_t)-1)
+				{
+					size_t i;
+					for (i = 0; i < n; i++)
+					{
+						*nam_str = mb[i];
+						nam_str++;
+						g_pos++;
+					}
+					if (g_horz < (last_col - 1))
+					{
+						char buf[5];
+						memcpy(buf, mb, n);
+						buf[n] = '\0';
+						waddstr(com_win, buf);
+					}
+					g_horz += utf8_width(
+						(const unsigned char *)
+						(nam_str - n));
+				}
+			}
 			else
 			{
-				g_horz++;
-				if (g_horz < (last_col - 1))
-					waddch(com_win, (unsigned char)in);
+				*nam_str = in;
+				g_pos++;
+				if (!isprint((unsigned char)in) &&
+				    (g_horz < (last_col - 1)))
+					g_horz += out_char(com_win, in,
+					    g_horz);
+				else
+				{
+					g_horz++;
+					if (g_horz < (last_col - 1))
+						waddch(com_win,
+						    (unsigned char)in);
+				}
+				nam_str++;
 			}
-			nam_str++;
 		}
 		wrefresh(com_win);
 		if (esc_flag)
@@ -2606,11 +2809,26 @@ search(int display_message)
 			else		/* if not case sensitive	*/
 			{
 				srch_3 = u_srch_str;
-			while ((toupper(*srch_2) == *srch_3) && (*srch_3 != '\0'))
+			while (*srch_3 != '\0')
 				{
+					wchar_t wc_text, wc_srch;
+					mbstate_t mbs;
+					int len_text, len_srch;
+					memset(&mbs, 0, sizeof(mbs));
+					len_text = (int)mbrtowc(&wc_text,
+					    (char *)srch_2,
+					    MB_CUR_MAX, &mbs);
+					if (len_text <= 0) len_text = 1;
+					memset(&mbs, 0, sizeof(mbs));
+					len_srch = (int)mbrtowc(&wc_srch,
+					    (char *)srch_3,
+					    MB_CUR_MAX, &mbs);
+					if (len_srch <= 0) len_srch = 1;
+					if (towupper(wc_text) != towupper(wc_srch))
+						break;
 					found = TRUE;
-					srch_2++;
-					srch_3++;
+					srch_2 += len_text;
+					srch_3 += len_srch;
 				}
 			}	/* end else	*/
 			if (!((*srch_3 == '\0') && (found)))
@@ -2688,12 +2906,38 @@ search_prompt(void)
 	srch_str = get_string(search_prompt_str, FALSE);
 	gold = FALSE;
 	srch_3 = srch_str;
-	srch_1 = u_srch_str = malloc(strlen(srch_str) + 1);
+	srch_1 = u_srch_str = malloc(strlen((char *)srch_str) * 4 + 1);
 	while (*srch_3 != '\0')
 	{
-		*srch_1 = toupper(*srch_3);
-		srch_1++;
-		srch_3++;
+		if (*srch_3 >= 0x80)
+		{
+			wchar_t wc;
+			mbstate_t mbs;
+			int clen;
+			memset(&mbs, 0, sizeof(mbs));
+			clen = (int)mbrtowc(&wc, (char *)srch_3,
+			    utf8_len(srch_3), &mbs);
+			if (clen > 0)
+			{
+				wc = towupper(wc);
+				memset(&mbs, 0, sizeof(mbs));
+				size_t n = wcrtomb((char *)srch_1,
+				    wc, &mbs);
+				if (n != (size_t)-1)
+					srch_1 += n;
+				srch_3 += clen;
+			}
+			else
+			{
+				*srch_1++ = *srch_3++;
+			}
+		}
+		else
+		{
+			*srch_1 = toupper(*srch_3);
+			srch_1++;
+			srch_3++;
+		}
 	}
 	*srch_1 = '\0';
 	search(TRUE);
@@ -2706,14 +2950,11 @@ del_char(void)
 	in = 8;  /* backspace */
 	if (position < curr_line->line_length)	/* if not end of line	*/
 	{
-		if ((ee_chinese) && (*point > 127) && 
-		    ((curr_line->line_length - position) >= 2))
-		{
-			point++;
-			position++;
-		}
-		position++;
-		point++;
+		int clen = utf8_len(point);
+		if (position + clen > curr_line->line_length)
+			clen = curr_line->line_length - position;
+		point += clen;
+		position += clen;
 		scanline(point);
 		delete(TRUE);
 	}
@@ -2730,15 +2971,12 @@ undel_char(void)
 {
 	if (d_char[0] == '\n')	/* insert line if last del_char deleted eol */
 		insert_line(TRUE);
+	else if ((unsigned char)d_char[0] >= 0x80)
+		insert_utf8(d_char, strlen((char *)d_char));
 	else
 	{
 		in = d_char[0];
 		insert(in);
-		if (d_char[1] != '\0')
-		{
-			in = d_char[1];
-			insert(in);
-		}
 	}
 }
 
@@ -2750,14 +2988,12 @@ del_word(void)
 	int difference;
 	unsigned char *d_word2;
 	unsigned char *d_word3;
-	unsigned char tmp_char[3];
+	unsigned char tmp_char[5];
 
 	if (d_word != NULL)
 		free(d_word);
 	d_word = malloc(curr_line->line_length);
-	tmp_char[0] = d_char[0];
-	tmp_char[1] = d_char[1];
-	tmp_char[2] = d_char[2];
+	memcpy(tmp_char, d_char, 5);
 	d_word3 = point;
 	d_word2 = d_word;
 	tposit = position;
@@ -2790,9 +3026,7 @@ del_word(void)
 	curr_line->line_length -= difference;
 	*d_word2 = '\0';
 	draw_line(scr_vert, scr_horz,point,position,curr_line->line_length);
-	d_char[0] = tmp_char[0];
-	d_char[1] = tmp_char[1];
-	d_char[2] = tmp_char[2];
+	memcpy(d_char, tmp_char, 5);
 	text_changes = TRUE;
 	formatted = FALSE;
 }
@@ -3310,11 +3544,6 @@ set_up_term(void)
 	local_LINES = LINES;
 	local_COLS = COLS;
 
-#ifdef NCURSE
-	if (ee_chinese)
-		nc_setattrib(A_NC_BIG5);
-#endif /* NCURSE */
-
 }
 
 void 
@@ -3424,10 +3653,12 @@ menu_op(struct menu_entries menu_list[])
 			wmove(temp_win, (counter + top_offset - off_start), 3);
 
 		wrefresh(temp_win);
-		in = wgetch(temp_win);
-		input = in;
-		if (input == -1)
-			exit(0);
+		{
+			wint_t win;
+			if (wget_wch(temp_win, &win) == ERR)
+				exit(0);
+			in = input = (int)win;
+		}
 
 		if (isascii(input) && isalnum(input))
 		{
@@ -3665,9 +3896,12 @@ help(void)
 	wmove(com_win, 0, 0);
 	wprintw(com_win, "%s", press_any_key_msg);
 	wrefresh(com_win);
-	counter = wgetch(com_win);
-	if (counter == -1)
-		exit(0);
+	{
+		wint_t win;
+		if (wget_wch(com_win, &win) == ERR)
+			exit(0);
+		counter = (int)win;
+	}
 	werase(com_win);
 	wmove(com_win, 0, 0);
 	werase(help_win);
@@ -3905,14 +4139,12 @@ Format(void)
 	unsigned char *tmp_srchstr;
 	unsigned char *temp1, *temp2;
 	unsigned char *temp_dword;
-	unsigned char temp_d_char[3];
+	unsigned char temp_d_char[5];
 
-	temp_d_char[0] = d_char[0];
-	temp_d_char[1] = d_char[1];
-	temp_d_char[2] = d_char[2];
+	memcpy(temp_d_char, d_char, 5);
 
 /*
- |	if observ_margins is not set, or the current line is blank, 
+ |	if observ_margins is not set, or the current line is blank,
  |	do not format the current paragraph
  */
 
@@ -4104,9 +4336,7 @@ Format(void)
 	case_sen = temp_case;
 	free(srch_str);
 	srch_str = tmp_srchstr;
-	d_char[0] = temp_d_char[0];
-	d_char[1] = temp_d_char[1];
-	d_char[2] = temp_d_char[2];
+	memcpy(d_char, temp_d_char, 5);
 	auto_format = tmp_af;
 
 	midscreen(scr_vert, point);
@@ -4210,19 +4440,11 @@ ee_init(void)
 				else if (compare(str1, NOEIGHTBIT, FALSE))
 				{
 					eightbit = FALSE;
-					ee_chinese = FALSE;
 				}
 				else if (compare(str1, EMACS_string, FALSE))
 					emacs_keys_mode = TRUE;
 				else if (compare(str1, NOEMACS_string, FALSE))
 					emacs_keys_mode = FALSE;
-				else if (compare(str1, chinese_cmd, FALSE))
-				{
-					ee_chinese = TRUE;
-					eightbit = TRUE;
-				}
-				else if (compare(str1, nochinese_cmd, FALSE))
-					ee_chinese = FALSE;
 			}
 			fclose(init_file);
 		}
@@ -4230,15 +4452,6 @@ ee_init(void)
 	free(string);
 	free(home);
 
-	string = getenv("LANG");
-	if (string != NULL)
-	{
-		if (strcmp(string, "zh_TW.big5") == 0)
-		{
-			ee_chinese = TRUE;
-			eightbit = TRUE;
-		}
-	}
 }
 
 /*
@@ -4332,7 +4545,6 @@ dump_ee_conf(void)
 	fprintf(init_file, "%s\n", nohighlight ? NOHIGHLIGHT : HIGHLIGHT );
 	fprintf(init_file, "%s\n", eightbit ? EIGHTBIT : NOEIGHTBIT );
 	fprintf(init_file, "%s\n", emacs_keys_mode ? EMACS_string : NOEMACS_string );
-	fprintf(init_file, "%s\n", ee_chinese ? chinese_cmd : nochinese_cmd );
 
 	fclose(init_file);
 
@@ -4505,13 +4717,10 @@ Auto_Format(void)
 	unsigned char *tmp_srchstr;
 	unsigned char *temp1, *temp2;
 	unsigned char *temp_dword;
-	unsigned char temp_d_char[3];
+	unsigned char temp_d_char[5];
 	unsigned char *tmp_d_line;
 
-
-	temp_d_char[0] = d_char[0];
-	temp_d_char[1] = d_char[1];
-	temp_d_char[2] = d_char[2];
+	memcpy(temp_d_char, d_char, 5);
 
 /*
  |	if observ_margins is not set, or the current line is blank, 
@@ -4737,9 +4946,7 @@ Auto_Format(void)
 	case_sen = temp_case;
 	free(srch_str);
 	srch_str = tmp_srchstr;
-	d_char[0] = temp_d_char[0];
-	d_char[1] = temp_d_char[1];
-	d_char[2] = temp_d_char[2];
+	memcpy(d_char, temp_d_char, 5);
 	auto_format = TRUE;
 	dlt_line->line_length = tmp_d_line_length;
 	d_line = tmp_d_line;
@@ -4771,10 +4978,8 @@ modes_op(void)
 					(info_window ? ON : OFF));
 		sprintf(modes_menu[7].item_string, "%s %s", mode_strings[7], 
 					(emacs_keys_mode ? ON : OFF));
-		sprintf(modes_menu[8].item_string, "%s %d", mode_strings[8], 
+		sprintf(modes_menu[8].item_string, "%s %d", mode_strings[8],
 					right_margin);
-		sprintf(modes_menu[9].item_string, "%s %s", mode_strings[9], 
-					(ee_chinese ? ON : OFF));
 
 		ret_value = menu_op(modes_menu);
 
@@ -4796,15 +5001,6 @@ modes_op(void)
 				break;
 			case 5:
 				eightbit = !eightbit;
-				if (!eightbit)
-					ee_chinese = FALSE;
-#ifdef NCURSE
-				if (ee_chinese)
-					nc_setattrib(A_NC_BIG5);
-				else
-					nc_clearattrib(A_NC_BIG5);
-#endif /* NCURSE */
-
 				redraw();
 				wnoutrefresh(text_win);
 				break;
@@ -4828,18 +5024,6 @@ modes_op(void)
 						right_margin = counter;
 					free(string);
 				}
-				break;
-			case 9:
-				ee_chinese = !ee_chinese;
-				if (ee_chinese != FALSE)
-					eightbit = TRUE;
-#ifdef NCURSE
-				if (ee_chinese)
-					nc_setattrib(A_NC_BIG5);
-				else
-					nc_clearattrib(A_NC_BIG5);
-#endif /* NCURSE */
-				redraw();
 				break;
 			default:
 				break;
@@ -5254,7 +5438,7 @@ strings_init(void)
 	usage4 = catgetlocal( 161, "       +#   put cursor at line #\n");
 	conf_dump_err_msg = catgetlocal( 162, "unable to open .init.ee for writing, no configuration saved!");
 	conf_dump_success_msg = catgetlocal( 163, "ee configuration saved in file %s");
-	modes_menu[10].item_string = catgetlocal( 164, "save editor configuration");
+	modes_menu[9].item_string = catgetlocal( 164, "save editor configuration");
 	config_dump_menu[0].item_string = catgetlocal( 165, "save ee configuration");
 	config_dump_menu[1].item_string = catgetlocal( 166, "save in current directory");
 	config_dump_menu[2].item_string = catgetlocal( 167, "save in home directory");
@@ -5263,9 +5447,6 @@ strings_init(void)
 	menu_too_lrg_msg = catgetlocal( 180, "menu too large for window");
 	more_above_str = catgetlocal( 181, "^^more^^");
 	more_below_str = catgetlocal( 182, "VVmoreVV");
-	mode_strings[9] = catgetlocal( 183, "16 bit characters    ");
-	chinese_cmd = catgetlocal( 184, "16BIT");
-	nochinese_cmd = catgetlocal( 185, "NO16BIT");
 
 	commands[0] = HELP;
 	commands[1] = WRITE;
@@ -5296,9 +5477,7 @@ strings_init(void)
 	commands[26] = "8";
 	commands[27] = "9";
 	commands[28] = CHARACTER;
-	commands[29] = chinese_cmd;
-	commands[30] = nochinese_cmd;
-	commands[31] = NULL;
+	commands[29] = NULL;
 	init_strings[0] = CASE;
 	init_strings[1] = NOCASE;
 	init_strings[2] = EXPAND;
@@ -5318,9 +5497,7 @@ strings_init(void)
 	init_strings[16] = NOEIGHTBIT;
 	init_strings[17] = EMACS_string;
 	init_strings[18] = NOEMACS_string;
-	init_strings[19] = chinese_cmd;
-	init_strings[20] = nochinese_cmd;
-	init_strings[21] = NULL;
+	init_strings[19] = NULL;
 
 	/*
 	 |	allocate space for strings here for settings menu
