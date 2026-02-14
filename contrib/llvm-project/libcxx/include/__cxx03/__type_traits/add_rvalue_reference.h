@@ -18,7 +18,7 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-#if __has_builtin(__add_rvalue_reference) && !defined(_LIBCPP_COMPILER_GCC)
+#if __has_builtin(__add_rvalue_reference)
 
 template <class _Tp>
 using __add_rvalue_reference_t = __add_rvalue_reference(_Tp);
