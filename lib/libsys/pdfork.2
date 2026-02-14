@@ -114,11 +114,13 @@ for a description of the possible
 flags.
 The
 .Fn pdrfork
-system call requires that the
+system call requires that both the
 .Va RFPROC
-or
+and
+.Va RFPROCDESC
+flags, or
 .Va RFSPAWN
-flag is specified.
+flag are specified.
 .Pp
 .Fn pdgetpid
 queries the process ID (PID) in the process descriptor

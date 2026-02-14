@@ -214,6 +214,11 @@ sys_pdrfork(struct thread *td, struct pdrfork_args *uap)
 		fr.fr_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM | RFPROCDESC;
 		fr.fr_flags2 = FR2_DROPSIG_CAUGHT;
 	} else {
+		if ((uap->rfflags & (RFPROC | RFPROCDESC)) !=
+		    (RFPROC | RFPROCDESC)) {
+			return (EXTERROR(EINVAL,
+			    "RFPROC|RFPROCDESC required %#jx", uap->rfflags));
+		}
 		fr.fr_flags = uap->rfflags;
 	}
 
