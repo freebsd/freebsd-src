@@ -1737,6 +1737,14 @@ test_prison_created(struct ucred *cred, struct prison *pr,
 	COUNTER_INC(prison_created);
 }
 
+COUNTER_DECL(prison_cleanup);
+static void
+test_prison_cleanup(struct ucred *cred, struct prison *pr)
+{
+
+	COUNTER_INC(prison_cleanup);
+}
+
 COUNTER_DECL(prison_attached);
 static void
 test_prison_attached(struct ucred *cred, struct prison *pr,
@@ -3378,6 +3386,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_prison_check_set = test_prison_check_set,
 	.mpo_prison_check_remove = test_prison_check_remove,
 	.mpo_prison_created = test_prison_created,
+	.mpo_prison_cleanup = test_prison_cleanup,
 	.mpo_prison_attached = test_prison_attached,
 
 	.mpo_proc_check_debug = test_proc_check_debug,
