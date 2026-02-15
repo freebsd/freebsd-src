@@ -26,8 +26,9 @@
  */
 
 #include <sys/types.h>
-#include <sys/user.h>
+#include <sys/mman.h>
 #include <sys/procdesc.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 
 #include <atf-c.h>
@@ -93,7 +94,12 @@ ATF_TC_BODY(child_gets_no_pidfd, tc)
 ATF_TC_WITHOUT_HEAD(efault);
 ATF_TC_BODY(efault, tc)
 {
-	ATF_REQUIRE_ERRNO(EFAULT, pdrfork((int*)-1, 0, RFPROC | RFPROCDESC) < 0);
+	void *unmapped;
+
+	unmapped = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_GUARD, -1, 0);
+	ATF_REQUIRE(unmapped != MAP_FAILED);
+	ATF_REQUIRE_ERRNO(EFAULT, pdrfork(unmapped, 0, RFPROC |
+	    RFPROCDESC) < 0);
 }
 
 /* Invalid combinations of flags should return EINVAL */
