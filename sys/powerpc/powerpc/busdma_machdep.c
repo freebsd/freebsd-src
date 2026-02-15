@@ -49,6 +49,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_phys.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -129,6 +130,10 @@ bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
 	struct bus_dma_tag_common *tc;
 
 	tc = (struct bus_dma_tag_common *)dmat;
-
+	domain = vm_phys_domain_match(domain, 0ul, tc->lowaddr);
+	/* Only call the callback if it changes. */
+	if (domain == tc->domain)
+		return (0);
+	tc->domain = domain;
 	return (tc->impl->tag_set_domain(dmat, domain));
 }

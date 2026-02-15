@@ -34,6 +34,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/domainset.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -49,6 +50,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_phys.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -80,6 +82,7 @@ static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 /* XXX TODO: bounce flags? */
 #define	dmat_bounce_flags(dmat)	(0)
 #define	dmat_boundary(dmat)	((dmat)->common.boundary)
+#define	dmat_domain(dmat)	((dmat)->common.domain)
 #define	dmat_flags(dmat)	((dmat)->common.flags)
 #define	dmat_highaddr(dmat)	((dmat)->common.highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->common.lowaddr)
@@ -219,6 +222,8 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 		newtag->iommu = parent->iommu;
 		newtag->iommu_cookie = parent->iommu_cookie;
+		newtag->common.domain = vm_phys_domain_match(newtag->common.domain, 0ul,
+		    newtag->common.lowaddr);
 	}
 
 	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem) && newtag->iommu == NULL)
