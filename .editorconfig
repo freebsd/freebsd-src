@@ -1,0 +1,23 @@
+[{contrib/**,**/contrib/**,kerberos5/**,krb5/**,crypto/**,sys/crypto/openssl/**}]
+ignore = true
+
+[{*.{awk,c,dts,dtsi,dtso,h,mk,s,S},Makefile,Makefile.*}]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = tab
+indent_size = 8
+
+[*.py]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.{yaml,yml}]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2
