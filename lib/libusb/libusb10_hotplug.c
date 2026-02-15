@@ -430,5 +430,7 @@ libusb_hotplug_get_user_data(struct libusb_context *ctx,
 	}
 	HOTPLUG_UNLOCK(ctx);
 
-	return (handle);
+	if (handle != NULL)
+		return (handle->user_data);
+	return (NULL);
 }
