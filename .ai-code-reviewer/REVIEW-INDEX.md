@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-13 10:16
+Generated: 2026-02-15 09:11
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-13 10:16
 
 ## Progress
 - Total directories: 8264
-- Completed: 41 (0%)
+- Completed: 42 (0%)
 - Skipped: 1
-- Remaining: 8222
+- Remaining: 8221
 
 ## Current Position
-CURRENT POSITION: `bin/ps`
+CURRENT POSITION: `bin/pwait`
 
-## bin/ (41/74 done)
+## bin/ (42/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -64,7 +64,7 @@ CURRENT POSITION: `bin/ps`
 - [x] `bin/pax/tests` (0 .c, 0 .h, 0 lines) - 2026-02-12 - Fixed by session 20260212_223553
 - [x] `bin/pkill` (1 .c, 0 .h, 874 lines) - 2026-02-13 - Fixed by session 20260213_085609
 - [x] `bin/pkill/tests` (1 .c, 0 .h, 123 lines) - 2026-02-13 - Fixed by session 20260213_101023
-- [ ] `bin/ps` (5 .c, 2 .h, 3283 lines)
+- [x] `bin/ps` (5 .c, 2 .h, 3283 lines) - 2026-02-15 - Fixed by session 20260215_090011
 - [ ] `bin/pwait` (1 .c, 0 .h, 260 lines)
 - [ ] `bin/pwait/tests` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/pwd` (1 .c, 0 .h, 111 lines)

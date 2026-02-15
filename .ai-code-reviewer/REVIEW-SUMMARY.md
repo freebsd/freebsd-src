@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 09:11 - bin/ps ✓
+
+**Directory:** `bin/ps`
+
+**Summary:** [ai-code-reviewer] ps: Mark as auto-skipped after 3 retries
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-13 10:16 - bin/pkill/tests ✓
 
 **Directory:** `bin/pkill/tests`
