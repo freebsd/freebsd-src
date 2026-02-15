@@ -29,9 +29,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/stat.h>
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
@@ -73,7 +74,8 @@ main(int argc, char *argv[])
 	int ch;
 	char *p;
 
-	(void)setlocale(LC_ALL, "");
+	if (setlocale(LC_ALL, "") == NULL)
+		err(EX_OSERR, "setlocale");
 
 	/*
 	 * Test for the special case where the utility is called as
@@ -95,7 +97,7 @@ main(int argc, char *argv[])
 	}
 
 	rflag = xflag = 0;
-	while ((ch = getopt(argc, argv, "dfiIPRrvWx")) != -1)
+	while ((ch = getopt(argc, argv, "dfiIPRrvWx")) != -1) {
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -130,6 +132,7 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+	}
 	argc -= optind;
 	argv += optind;
 
@@ -141,7 +144,8 @@ main(int argc, char *argv[])
 
 	checkdot(argv);
 	checkslash(argv);
-	uid = geteuid();
+	if ((uid = geteuid()) == (uid_t)-1)
+		err(EX_OSERR, "geteuid");
 
 	(void)signal(SIGINFO, siginfo);
 	if (*argv) {
@@ -149,7 +153,7 @@ main(int argc, char *argv[])
 
 		if (Iflag) {
 			if (check2(argv) == 0)
-				exit (1);
+				exit(1);
 		}
 		if (rflag)
 			rm_tree(argv);
@@ -157,7 +161,7 @@ main(int argc, char *argv[])
 			rm_file(argv);
 	}
 
-	exit (eval);
+	exit(eval);
 }
 
 static void

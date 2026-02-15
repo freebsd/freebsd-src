@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 15:13 - bin/rm ✓
+
+**Directory:** `bin/rm`
+
+**Summary:** [ai-code-reviewer] rm: Improve error handling for setlocale and geteuid
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/rm/rm.c
+
+---
+
 ## 2026-02-15 10:18 - bin/realpath ✓
 
 **Directory:** `bin/realpath`
