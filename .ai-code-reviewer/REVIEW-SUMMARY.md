@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 09:57 - bin/pwait/tests ✓
+
+**Directory:** `bin/pwait/tests`
+
+**Summary:** [ai-code-reviewer] tests: Update REVIEW-INDEX.md for bin/pwait/tests
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-15 09:34 - bin/pwait ✓
 
 **Directory:** `bin/pwait`
