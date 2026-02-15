@@ -45,9 +45,10 @@ basic_usage_tail(int pd, pid_t pid)
 	ATF_REQUIRE_MSG(pd >= 0, "rfork did not return a process descriptor");
 	r = pdgetpid(pd, &pd_pid);
 	ATF_CHECK_EQ_MSG(r, 0, "pdgetpid failed: %s", strerror(errno));
+	ATF_CHECK_EQ(pd_pid, pid);
 
 	/* We should be able to collect the child's status */
-	waited_pid = waitpid(pid, &status, WEXITED | WNOWAIT);
+	waited_pid = waitpid(pid, &status, WEXITED);
 	ATF_CHECK_EQ(waited_pid, pid);
 
 	/* But after closing the process descriptor, we won't */
@@ -93,7 +94,7 @@ ATF_TC_BODY(child_gets_no_pidfd, tc)
 	r = pdgetpid(pd, &pd_pid);
 	ATF_CHECK_EQ_MSG(r, 0, "pdgetpid failed: %s", strerror(errno));
 
-	waited_pid = waitpid(pid, &status, WEXITED | WNOWAIT);
+	waited_pid = waitpid(pid, &status, WEXITED);
 	ATF_CHECK_EQ(waited_pid, pid);
 	ATF_REQUIRE(WIFEXITED(status) && (WEXITSTATUS(status) == true));
 
