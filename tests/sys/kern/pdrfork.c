@@ -107,48 +107,8 @@ ATF_TC_BODY(einval, tc)
 	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFSPAWN | RFNOWAIT) < 0);
 	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFPROC | RFFDG| RFCFDG) < 0);
 	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFPROCDESC) < 0);
-}
-
-/*
- * Without RFSPAWN, RFPROC, or RFPROCDESC, an existing process may be modified
- */
-ATF_TC_WITHOUT_HEAD(modify_child);
-ATF_TC_BODY(modify_child, tc)
-{
-	int fdp = -1;
-	pid_t pid1, pid2;
-
-	pid1 = pdfork(&fdp, 0);
-	if (pid1 == 0)
-		_exit(0);
-	ATF_REQUIRE_MSG(pid1 >= 0, "pdfork failed: %s", strerror(errno));
-	ATF_REQUIRE_MSG(fdp >= 0, "pdfork didn't return a process descriptor");
-
-	pid2 = pdrfork(&fdp, 0, RFNOWAIT);
-	ATF_REQUIRE_MSG(pid2 >= 0, "pdrfork failed: %s", strerror(errno));
-	ATF_CHECK_EQ_MSG(pid2, 0,
-	    "pdrfork created a process even though we told it not to");
-
-	close(fdp);
-}
-
-/*
- * Basic usage with RFPROC.  No process descriptor will be created.
- * I'm not sure why you would use pdrfork in this case instead of plain rfork
- */
-ATF_TC_WITHOUT_HEAD(rfproc);
-ATF_TC_BODY(rfproc, tc)
-{
-	int pd = -1;
-	pid_t pid;
-
-	pid = pdrfork(&pd, 0, RFPROC);
-	ATF_REQUIRE_MSG(pid > 0, "rfork failed with %s", strerror(errno));
-	if (pid == 0)
-		_exit(0);
-
-	ATF_REQUIRE_EQ_MSG(pd, -1,
-	    "rfork(RFPROC) returned a process descriptor");
+	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFPROC) < 0);
+	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, 0) < 0);
 }
 
 /* basic usage with RFPROCDESC */
@@ -176,8 +136,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, child_gets_no_pidfd);
 	ATF_TP_ADD_TC(tp, efault);
 	ATF_TP_ADD_TC(tp, einval);
-	ATF_TP_ADD_TC(tp, modify_child);
-	ATF_TP_ADD_TC(tp, rfproc);
 	ATF_TP_ADD_TC(tp, rfprocdesc);
 #if !(defined(__i386__)) && !(defined(__amd64__))
 	ATF_TP_ADD_TC(tp, rfspawn);
