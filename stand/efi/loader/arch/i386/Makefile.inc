@@ -7,5 +7,3 @@ SRCS+=	amd64_tramp.S \
 SRCS+=	nullconsole.c \
 	comconsole.c \
 	spinconsole.c
-
-CFLAGS+=	-malign-double
