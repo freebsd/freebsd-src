@@ -1,4 +1,3 @@
-
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -80,5 +79,19 @@
 /* __BITS(m, n): bits m through n, m < n. */
 #define	__BITS(__m, __n)	\
 	((__BIT(MAX((__m), (__n)) + 1) - 1) ^ (__BIT(MIN((__m), (__n))) - 1))
+
+/*
+ * To be used when an empty body is required like:
+ *
+ * #ifdef DEBUG
+ * # define dprintf(a) printf(a)
+ * #else
+ * # define dprintf(a) __nothing
+ * #endif
+ *
+ * We use ((void)0) instead of do {} while (0) so that it
+ * works on , expressions.
+ */
+#define __nothing	(/*LINTED*/(void)0)
 
 #endif /* _LIBNETBSD_SYS_CDEFS_H_ */
