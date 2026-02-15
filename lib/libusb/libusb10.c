@@ -1171,6 +1171,9 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 			    libusb20_tr_get_length(pxfer, i);
 		}
 		libusb10_complete_transfer(pxfer, sxfer, LIBUSB_TRANSFER_COMPLETED);
+
+		/* start next queued transfer, if any */
+		libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 		break;
 	case LIBUSB20_TRANSFER_START:
 		/* setup length(s) */
@@ -1193,6 +1196,9 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 		break;
 	default:
 		libusb10_complete_transfer(pxfer, sxfer, libusb10_convert_error(status));
+
+		/* start next queued transfer, if any */
+		libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 		break;
 	}
 }
@@ -1234,11 +1240,15 @@ libusb10_bulk_intr_proxy(struct libusb20_transfer *pxfer)
 			} else {
 				libusb10_complete_transfer(pxfer, sxfer, LIBUSB_TRANSFER_COMPLETED);
 			}
+			/* start next queued transfer, if any */
+			libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 			break;
 		}
 		/* check for end of data */
 		if (sxfer->rem_len == 0) {
 			libusb10_complete_transfer(pxfer, sxfer, LIBUSB_TRANSFER_COMPLETED);
+			/* start next queued transfer, if any */
+			libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1265,6 +1275,8 @@ libusb10_bulk_intr_proxy(struct libusb20_transfer *pxfer)
 
 	default:
 		libusb10_complete_transfer(pxfer, sxfer, libusb10_convert_error(status));
+		/* start next queued transfer, if any */
+		libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 		break;
 	}
 }
@@ -1309,11 +1321,15 @@ libusb10_ctrl_proxy(struct libusb20_transfer *pxfer)
 			} else {
 				libusb10_complete_transfer(pxfer, sxfer, LIBUSB_TRANSFER_COMPLETED);
 			}
+			/* start next queued transfer, if any */
+			libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 			break;
 		}
 		/* check for end of data */
 		if (sxfer->rem_len == 0) {
 			libusb10_complete_transfer(pxfer, sxfer, LIBUSB_TRANSFER_COMPLETED);
+			/* start next queued transfer, if any */
+			libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1354,6 +1370,8 @@ libusb10_ctrl_proxy(struct libusb20_transfer *pxfer)
 
 	default:
 		libusb10_complete_transfer(pxfer, sxfer, libusb10_convert_error(status));
+		/* start next queued transfer, if any */
+		libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 		break;
 	}
 }
