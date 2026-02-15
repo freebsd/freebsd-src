@@ -36,17 +36,12 @@
 #include <string.h>
 #include <unistd.h>
 
-static void basic_usage(int rfflags) {
-	int pd = -1;
-	pid_t pid, pd_pid, waited_pid;
+static void
+basic_usage_tail(int pd, pid_t pid)
+{
+	pid_t pd_pid, waited_pid;
 	int r, status;
 
-	pid = pdrfork(&pd, 0, rfflags);
-	ATF_REQUIRE_MSG(pid >= 0, "rfork failed with %s", strerror(errno));
-	if (pid == 0) {
-		/* In child */
-		_exit(0);
-	}
 	ATF_REQUIRE_MSG(pd >= 0, "rfork did not return a process descriptor");
 	r = pdgetpid(pd, &pd_pid);
 	ATF_CHECK_EQ_MSG(r, 0, "pdgetpid failed: %s", strerror(errno));
@@ -60,6 +55,21 @@ static void basic_usage(int rfflags) {
 	waited_pid = waitpid(pid, &status, WEXITED | WNOHANG);
 	ATF_CHECK_EQ(-1, waited_pid);
 	ATF_CHECK_EQ(ECHILD, errno);
+}
+
+static void
+basic_usage(int rfflags)
+{
+	int pd = -1;
+	pid_t pid;
+
+	pid = pdrfork(&pd, 0, rfflags);
+	ATF_REQUIRE_MSG(pid >= 0, "rfork failed with %s", strerror(errno));
+	if (pid == 0) {
+		/* In child */
+		_exit(0);
+	}
+	basic_usage_tail(pd, pid);
 }
 
 /* pdrfork does not return a process descriptor to the child */
