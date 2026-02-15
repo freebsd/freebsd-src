@@ -145,18 +145,31 @@ ATF_TC_BODY(rfprocdesc, tc)
 	basic_usage(RFPROC | RFPROCDESC);
 }
 
+static int
+rfspawn_fn(void *arg)
+{
+	_exit(0);
+	return (0);
+}
+
 /* basic usage with RFSPAWN */
-/*
- * Skip on i386 and x86_64 because RFSPAWN cannot be used from C code on those
- * architectures.  See lib/libc/gen/posix_spawn.c for details.
- */
-#if !(defined(__i386__)) && !(defined(__amd64__))
 ATF_TC_WITHOUT_HEAD(rfspawn);
 ATF_TC_BODY(rfspawn, tc)
 {
-	basic_usage(RFSPAWN);
-}
+	char *stack = NULL;
+	int pd = -1;
+	pid_t pid;
+
+#if defined(__i386__) || defined(__amd64__)
+#define STACK_SZ	(PAGE_SIZE * 10)
+	stack = mmap(NULL, STACK_SZ, PROT_READ | PROT_WRITE, MAP_ANON,
+	    -1, 0);
+	ATF_REQUIRE(stack != MAP_FAILED);
+	stack += STACK_SZ;
 #endif
+	pid = pdrfork_thread(&pd, 0, RFSPAWN, stack, rfspawn_fn, NULL);
+	basic_usage_tail(pd, pid);
+}
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -164,9 +177,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, efault);
 	ATF_TP_ADD_TC(tp, einval);
 	ATF_TP_ADD_TC(tp, rfprocdesc);
-#if !(defined(__i386__)) && !(defined(__amd64__))
 	ATF_TP_ADD_TC(tp, rfspawn);
-#endif
 
 	return (atf_no_error());
 }
