@@ -71,15 +71,24 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		   void *lockfuncarg, bus_dma_tag_t *dmat)
 {
+	struct bus_dma_tag_common *tc;
+	int error;
 
 	/* Filters are no longer supported. */
 	if (filter != NULL || filterarg != NULL)
 		return (EINVAL);
 
-
-	return bus_dma_bounce_impl.tag_create(parent, alignment,
-	    boundary, lowaddr, highaddr, maxsize, nsegments,
-	    maxsegsz, flags, lockfunc, lockfuncarg, dmat);
+	if (parent == NULL) {
+		error = bus_dma_bounce_impl.tag_create(parent, alignment,
+		    boundary, lowaddr, highaddr, maxsize, nsegments, maxsegsz,
+		    flags, lockfunc, lockfuncarg, dmat);
+	} else {
+		tc = (struct bus_dma_tag_common *)parent;
+		error = tc->impl->tag_create(parent, alignment,
+		    boundary, lowaddr, highaddr, maxsize, nsegments, maxsegsz,
+		    flags, lockfunc, lockfuncarg, dmat);
+	}
+	return (error);
 }
 
 
