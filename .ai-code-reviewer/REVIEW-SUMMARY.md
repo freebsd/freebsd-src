@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 15:58 - bin/rmdir/tests ✓
+
+**Directory:** `bin/rmdir/tests`
+
+**Summary:** [ai-code-reviewer] tests: Update review status for bin/rmdir/tests
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-15 15:46 - bin/rmdir ✓
 
 **Directory:** `bin/rmdir`
