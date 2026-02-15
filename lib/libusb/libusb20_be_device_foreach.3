@@ -1,0 +1,56 @@
+.\"
+.\" Copyright (c) 2025 Rick Parrish <unitrunker@unitrunker.net>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd December 14, 2025
+.Dt LIBUSB20 3
+.Os
+.Sh NAME
+.Nm libusb20_be_device_foreach
+.Nd iterate connected USB devices
+.Sh SYNOPSIS
+.Lb libusb
+.In libusb20.h
+.Ft struct libusb20_device *
+.Fn libusb20_be_device_foreach "struct libusb20_backend *pbe" "struct libusb20_device *pdev"
+.Sh DESCRIPTION
+The
+.Nm
+function iterates connected USB devices, one device at a time.
+A backend pointer for
+.Fa pbe
+may be obtained by calling
+.Xr libusb20_be_alloc_default 3 .
+The starting value of
+.Fa pdev
+is NULL.
+Calling
+.Nm libusb20_be_device_foreach
+again with
+.Fa pdev
+set to the return value of the previous call yields the next device.
+To begin interacting with a USB device, pass the pointer in a call to
+.Xr libusb20_dev_open 3 .
+.Sh RETURN VALUES
+.Nm
+returns NULL for end of list.
+Otherwise this is a pointer to the next device.
+.Sh EXAMPLES
+.Bd -literal
+    #include <libusb20.h>
+    struct libusb20_backend *be = libusb20_be_alloc_default();
+    struct libusb20_device *device = NULL;
+    while ( (device = libusb20_be_device_foreach(be, device)) != NULL ) {
+        if (libusb20_dev_open(device, 0) == LIBUSB20_SUCCESS) {
+            /* do something */
+            libusb20_dev_close(device);
+        }
+    }
+    libusb20_be_free(be);
+.Ed
+.Sh SEE ALSO
+.Xr libusb20 3 ,
+.Xr libusb20_be_alloc_default 3 ,
+.Xr libusb20_be_free 3 ,
+.Xr libusb20_dev_open 3

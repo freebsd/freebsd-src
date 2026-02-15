@@ -1,0 +1,69 @@
+.\"
+.\" Copyright (c) 2025 Rick Parrish <unitrunker@unitrunker.net>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd December 14, 2025
+.Dt LIBUSB20 3
+.Os
+.Sh NAME
+.Nm libusb20_dev_open
+.Nd open a USB device to retrieve descriptors and initiate transfers
+.Sh SYNOPSIS
+.Lb libusb
+.In libusb20.h
+.Ft int
+.Fn libusb20_dev_open "struct libusb20_device *pdev" "uin16_t transfer_max"
+.Sh DESCRIPTION
+The
+.Nm
+function opens a USB device to retrieve descriptors and initiate transfers.
+.Nm
+accepts a pointer as
+.Fa pdev
+to a libusb20_device obtained from
+.Nm libusb20_be_device_foreach .
+A zero for
+.Fa transfer_max
+limits the device to only control transfers.
+Call
+.Xr libusb20_dev_close 3
+to free resources taken by the open device handle.
+.Sh RETURN VALUES
+.Nm
+returns one of the following to report success or failure:
+.Pp
+.Bl -tag -width "LIBUSB20_ERROR_NO_DEVICE," -compact
+.It Er LIBUSB20_SUCCESS ,
+The operation succeeds.
+.It Er LIBUSB20_ERROR_BUSY ,
+The device is in use elsewhere.
+.It Er LIBUSB20_ERROR_ACCESS ,
+A permissions issue.
+.It Er LIBUSB20_ERROR_NO_DEVICE ,
+The device detached.
+.It Er LIBUSB20_ERROR_NO_MEM
+The library couldn't allocate memory.
+.El
+.Pp
+Errors not listed here may be found in
+.Xr libusb20 3
+and
+.In libusb20.h .
+.Sh EXAMPLES
+.Bd -literal
+    #include <libusb20.h>
+    struct libusb20_backend *be = libusb20_be_alloc_default();
+    struct libusb20_device *device = NULL;
+    while ( (device = libusb20_be_device_foreach(be, device)) != NULL ) {
+        if (libusb20_dev_open(device, 0) == LIBUSB20_SUCCESS) {
+            /* do something */
+            libusb20_dev_close(device);
+        }
+    }
+    libusb20_be_free(be);
+.Ed
+.Sh SEE ALSO
+.Xr libusb20 3 ,
+.Xr libusb20_be_device_foreach 3 ,
+.Xr libusb20_dev_close 3
