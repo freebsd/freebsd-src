@@ -395,6 +395,15 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_MP1_TEMPS, ASMC_MP1_TEMPNAMES, ASMC_MP1_TEMPDESCS
 	},
 
+	/* Idem for the Mac Pro (Early 2008) */
+	{
+	  "MacPro3,1", "Apple SMC Mac Pro (Early 2008)",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS,
+	  NULL, NULL, NULL,
+	  ASMC_MP31_TEMPS, ASMC_MP31_TEMPNAMES, ASMC_MP31_TEMPDESCS
+	},
+
 	/* Idem for the Mac Pro (8-core) */
 	{
 	  "MacPro2", "Apple SMC Mac Pro (8-core)",
