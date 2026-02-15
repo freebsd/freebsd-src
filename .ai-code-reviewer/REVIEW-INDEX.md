@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-15 15:31
+Generated: 2026-02-15 15:46
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-15 15:31
 
 ## Progress
 - Total directories: 8264
-- Completed: 49 (0%)
+- Completed: 50 (0%)
 - Skipped: 1
-- Remaining: 8214
+- Remaining: 8213
 
 ## Current Position
-CURRENT POSITION: `bin/rmdir`
+CURRENT POSITION: `bin/rmdir/tests`
 
-## bin/ (49/74 done)
+## bin/ (50/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -72,7 +72,7 @@ CURRENT POSITION: `bin/rmdir`
 - [x] `bin/rm` (1 .c, 0 .h, 537 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/rm/tests` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/rmail` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
-- [ ] `bin/rmdir` (1 .c, 0 .h, 116 lines)
+- [x] `bin/rmdir` (1 .c, 0 .h, 116 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [ ] `bin/rmdir/tests` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/setfacl` (6 .c, 1 .h, 1277 lines)
 - [ ] `bin/sh` (25 .c, 23 .h, 17597 lines)
