@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2021-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
