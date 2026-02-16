@@ -1921,13 +1921,8 @@ moea64_init(void)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 
-	/*
-	 * Are large page mappings enabled?
-	 *
-	 * While HPT superpages are not better tested, leave it disabled by
-	 * default.
-	 */
-	superpages_enabled = 0;
+	/* Are large page mappings enabled? */
+	superpages_enabled = 1;
 	TUNABLE_INT_FETCH("vm.pmap.superpages_enabled", &superpages_enabled);
 	if (superpages_enabled) {
 		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
