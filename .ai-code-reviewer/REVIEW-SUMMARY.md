@@ -6,6 +6,18 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 16:11 - bin/sh ✓
+
+**Directory:** `bin/sh`
+
+**Summary:** [ai-code-reviewer] sh: Replace atoi() with strtonum() for safer number parsing
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+  - bin/sh/mystring.c
+
+---
+
 ## 2026-02-15 16:03 - bin/setfacl ✓
 
 **Directory:** `bin/setfacl`

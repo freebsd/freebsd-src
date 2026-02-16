@@ -62,9 +62,13 @@ char nullstr[1];		/* zero length string */
 int
 number(const char *s)
 {
-	if (! is_number(s))
-		error("Illegal number: %s", s);
-	return atoi(s);
+	long num;
+	const char *errstr;
+
+	num = strtonum(s, LONG_MIN, LONG_MAX, &errstr);
+	if (errstr)
+		error("Illegal number: %s: %s", s, errstr);
+	return (int)num;
 }
 
 
@@ -87,6 +91,8 @@ is_number(const char *p)
 			return 0;
 	if (q - p > 10 ||
 	    (q - p == 10 && memcmp(p, "2147483647", 10) > 0))
+		return 0;
+	if (*p == '-' && (q - p > 11 || (q - p == 11 && memcmp(p, "-2147483648", 11) > 0)))
 		return 0;
 	return 1;
 }
