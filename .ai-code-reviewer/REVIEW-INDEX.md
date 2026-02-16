@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-15 17:32
+Generated: 2026-02-15 17:37
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-15 17:32
 
 ## Progress
 - Total directories: 8264
-- Completed: 64 (0%)
+- Completed: 65 (0%)
 - Skipped: 1
-- Remaining: 8199
+- Remaining: 8198
 
 ## Current Position
-CURRENT POSITION: `bin/sleep/tests`
+CURRENT POSITION: `bin/stty`
 
-## bin/ (64/74 done)
+## bin/ (65/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -87,7 +87,7 @@ CURRENT POSITION: `bin/sleep/tests`
 - [x] `bin/sh/tests/parser` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sh/tests/set-e` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sleep` (1 .c, 0 .h, 130 lines) - 2026-02-15 - Fixed by session 20260215_141826
-- [ ] `bin/sleep/tests` (0 .c, 0 .h, 0 lines)
+- [x] `bin/sleep/tests` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [ ] `bin/stty` (7 .c, 2 .h, 1357 lines)
 - [ ] `bin/sync` (1 .c, 0 .h, 38 lines)
 - [ ] `bin/test` (1 .c, 0 .h, 624 lines)
