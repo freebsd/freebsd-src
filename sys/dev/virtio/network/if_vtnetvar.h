@@ -190,6 +190,12 @@ struct vtnet_softc {
 	struct mtx		 vtnet_mtx;
 	char			 vtnet_mtx_name[16];
 	uint8_t			 vtnet_hwaddr[ETHER_ADDR_LEN];
+
+	bus_dma_tag_t		 vtnet_rx_dmat;
+	struct mtx		 vtnet_rx_mtx;
+
+	bus_dma_tag_t		 vtnet_tx_dmat;
+	struct mtx		 vtnet_tx_mtx;
 };
 /* vtnet flag descriptions for use with printf(9) %b identifier. */
 #define VTNET_FLAGS_BITS \
@@ -273,6 +279,10 @@ struct vtnet_tx_header {
 	} vth_uhdr;
 
 	struct mbuf *vth_mbuf;
+
+	bus_dmamap_t dmap;
+
+	bus_dmamap_t hdr_dmap;
 };
 
 /*
