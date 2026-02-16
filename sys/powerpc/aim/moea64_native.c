@@ -130,6 +130,19 @@
 /* POWER9 only permits a 64k partition table size. */
 #define	PART_SIZE	0x10000
 
+/*
+ * These values are derived from the POWER8 user manual Version 1.3
+ * (16-March-2016), 3.8.4 (large page support) and 3.8.16 (TLBIE Invalidate
+ * Entry instructions.)
+ *
+ * Notably:
+ *
+ * + POWER8 supports an MPSS (Multple Page Sizes per Segment) configuration
+ *   of 4KB base, 16MB actual page size
+ * + RB[56:58] encoding for 16MB page == 100, RB[54:55] segment either 00 or 01
+ * + RB[56:58] encoding for 4K page == 000, RB[54:55] segment either 00 or 01
+ */
+
 /* Actual page sizes (to be used with tlbie, when L=0) */
 #define	AP_4K		0x00
 #define	AP_16M		0x80
