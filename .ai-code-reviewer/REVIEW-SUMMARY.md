@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 16:03 - bin/setfacl ✓
+
+**Directory:** `bin/setfacl`
+
+**Summary:** [ai-code-reviewer] setfacl: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-15 15:58 - bin/rmdir/tests ✓
 
 **Directory:** `bin/rmdir/tests`
