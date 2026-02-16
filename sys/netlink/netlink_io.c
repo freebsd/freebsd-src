@@ -256,7 +256,7 @@ nl_send(struct nl_writer *nw, struct nlpcb *nlp)
 	}
 }
 
-static int
+static __noinline int
 nl_receive_message(struct nlmsghdr *hdr, int remaining_length,
     struct nlpcb *nlp, struct nl_pstate *npt)
 {
