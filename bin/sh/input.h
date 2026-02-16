@@ -54,7 +54,7 @@ void pungetc(void);
 void pushstring(const char *, int, struct alias *);
 void setinputfile(const char *, int, int);
 void setinputfd(int, int);
-void setinputstring(const char *, int);
+void setinputstring(const char *);
 void popfile(void);
 struct parsefile *getcurrentfile(void);
 void popfilesupto(struct parsefile *);
