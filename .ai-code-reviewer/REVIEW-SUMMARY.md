@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 17:32 - bin/sleep ✓
+
+**Directory:** `bin/sleep`
+
+**Summary:** [ai-code-reviewer] sleep: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-15 17:24 - bin/sh/tests/set-e ✓
 
 **Directory:** `bin/sh/tests/set-e`
