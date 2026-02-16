@@ -95,11 +95,21 @@ ATF_TC_WITHOUT_HEAD(efault);
 ATF_TC_BODY(efault, tc)
 {
 	void *unmapped;
+	pid_t my_pid;
 
 	unmapped = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_GUARD, -1, 0);
 	ATF_REQUIRE(unmapped != MAP_FAILED);
+	my_pid = getpid();
 	ATF_REQUIRE_ERRNO(EFAULT, pdrfork(unmapped, 0, RFPROC |
 	    RFPROCDESC) < 0);
+
+	/*
+	 * EFAULT only means that the copyout of the procdesc failed.
+	 * The runaway child was created anyway.  Prevent
+	 * double-destruction of the atf stuff.
+	 */
+	if (my_pid != getpid())
+		_exit(0);
 }
 
 /* Invalid combinations of flags should return EINVAL */
