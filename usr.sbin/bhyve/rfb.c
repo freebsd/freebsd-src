@@ -335,16 +335,19 @@ rfb_send_extended_keyevent_update_msg(struct rfb_softc *rc, int cfd)
 	stream_write(cfd, &srect_hdr, sizeof(struct rfb_srvr_rect_hdr));
 }
 
-static void
+static int
 rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 {
 	struct rfb_pixfmt_msg pixfmt_msg;
 	uint8_t red_shift, green_shift, blue_shift;
 	uint16_t red_max, green_max, blue_max;
 	bool adjust_pixels = true;
+	int len;
 
-	(void)stream_read(cfd, (uint8_t *)&pixfmt_msg + 1,
+	len = stream_read(cfd, (uint8_t *)&pixfmt_msg + 1,
 	    sizeof(pixfmt_msg) - 1);
+	if (len <= 0)
+		return (-1);
 
 	/*
 	 * The framebuffer is fixed at 32 bit and orders the colors
@@ -356,7 +359,7 @@ rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 		WPRINTF(("rfb: pixfmt unsupported bitdepth bpp: %d "
 			 "truecolor: %d",
 			 pixfmt_msg.pixfmt.bpp, pixfmt_msg.pixfmt.truecolor));
-		return;
+		return (0);
 	}
 
 	red_max = ntohs(pixfmt_msg.pixfmt.red_max);
@@ -368,7 +371,7 @@ rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 		WPRINTF(("rfb: pixfmt unsupported max values "
 			 "r: %d g: %d b: %d",
 			 red_max, green_max, blue_max));
-		return;
+		return (0);
 	}
 
 	red_shift = pixfmt_msg.pixfmt.red_shift;
@@ -382,7 +385,7 @@ rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 		WPRINTF(("rfb: pixfmt unsupported shift values "
 			 "r: %d g: %d b: %d",
 			 red_shift, green_shift, blue_shift));
-		return;
+		return (0);
 	}
 
 	if (red_shift == PIXEL_RED_SHIFT &&
@@ -400,19 +403,27 @@ rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 
 	/* Notify the write thread to update */
 	rc->update_pixfmt = true;
+
+	return (0);
 }
 
-static void
+static int
 rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_enc_msg enc_msg;
 	int i;
 	uint32_t encoding;
+	int len;
 
-	(void)stream_read(cfd, (uint8_t *)&enc_msg + 1, sizeof(enc_msg) - 1);
+	len = stream_read(cfd, (uint8_t *)&enc_msg + 1, sizeof(enc_msg) - 1);
+	if (len <= 0)
+		return (-1);
 
 	for (i = 0; i < htons(enc_msg.numencs); i++) {
-		(void)stream_read(cfd, &encoding, sizeof(encoding));
+		len = stream_read(cfd, &encoding, sizeof(encoding));
+		if (len <= 0)
+			return (-1);
+
 		switch (htonl(encoding)) {
 		case RFB_ENCODING_RAW:
 			rc->enc_raw_ok = true;
@@ -431,6 +442,8 @@ rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 			break;
 		}
 	}
+
+	return (0);
 }
 
 /*
@@ -843,12 +856,16 @@ done:
 }
 
 
-static void
+static int
 rfb_recv_update_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_updt_msg updt_msg;
+	int len;
 
-	(void)stream_read(cfd, (uint8_t *)&updt_msg + 1 , sizeof(updt_msg) - 1);
+	len = stream_read(cfd, (uint8_t *)&updt_msg + 1,
+	    sizeof(updt_msg) - 1);
+	if (len <= 0)
+		return (-1);
 
 	if (rc->enc_extkeyevent_ok && (!rc->enc_extkeyevent_send)) {
 		rfb_send_extended_keyevent_update_msg(rc, cfd);
@@ -858,48 +875,68 @@ rfb_recv_update_msg(struct rfb_softc *rc, int cfd)
 	rc->pending = true;
 	if (!updt_msg.incremental)
 		rc->update_all = true;
+
+	return (0);
 }
 
-static void
+static int
 rfb_recv_key_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_key_msg key_msg;
+	int len;
 
-	(void)stream_read(cfd, (uint8_t *)&key_msg + 1, sizeof(key_msg) - 1);
+	len = stream_read(cfd, (uint8_t *)&key_msg + 1,
+	    sizeof(key_msg) - 1);
+	if (len <= 0)
+		return (-1);
 
 	console_key_event(key_msg.down, htonl(key_msg.sym), htonl(0));
 	rc->input_detected = true;
+
+	return (0);
 }
 
-static void
+static int
 rfb_recv_client_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_client_msg client_msg;
 	struct rfb_extended_key_msg extkey_msg;
+	int len;
 
-	(void)stream_read(cfd, (uint8_t *)&client_msg + 1,
+	len = stream_read(cfd, (uint8_t *)&client_msg + 1,
 	    sizeof(client_msg) - 1);
+	if (len <= 0)
+		return (-1);
 
 	if (client_msg.subtype == RFB_CLIENTMSG_EXT_KEYEVENT) {
-		(void)stream_read(cfd, (uint8_t *)&extkey_msg + 2,
+		len = stream_read(cfd, (uint8_t *)&extkey_msg + 2,
 		    sizeof(extkey_msg) - 2);
+		if (len <= 0)
+			return (-1);
 		console_key_event((int)extkey_msg.down, htonl(extkey_msg.sym), htonl(extkey_msg.code));
 		rc->input_detected = true;
 	}
+
+	return (0);
 }
 
-static void
+static int
 rfb_recv_ptr_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_ptr_msg ptr_msg;
+	int len;
 
-	(void)stream_read(cfd, (uint8_t *)&ptr_msg + 1, sizeof(ptr_msg) - 1);
+	len = stream_read(cfd, (uint8_t *)&ptr_msg + 1, sizeof(ptr_msg) - 1);
+	if (len <= 0)
+		return (-1);
 
 	console_ptr_event(ptr_msg.button, htons(ptr_msg.x), htons(ptr_msg.y));
 	rc->input_detected = true;
+
+	return (0);
 }
 
-static void
+static int
 rfb_recv_cuttext_msg(struct rfb_softc *rc __unused, int cfd)
 {
 	struct rfb_cuttext_msg ct_msg;
@@ -907,12 +944,19 @@ rfb_recv_cuttext_msg(struct rfb_softc *rc __unused, int cfd)
 	int len;
 
 	len = stream_read(cfd, (uint8_t *)&ct_msg + 1, sizeof(ct_msg) - 1);
+	if (len <= 0)
+		return (-1);
+
 	ct_msg.length = htonl(ct_msg.length);
 	while (ct_msg.length > 0) {
 		len = stream_read(cfd, buf, ct_msg.length > sizeof(buf) ?
 			sizeof(buf) : ct_msg.length);
+		if (len <= 0)
+			return (-1);
 		ct_msg.length -= len;
 	}
+
+	return (0);
 }
 
 static int64_t
@@ -1169,25 +1213,32 @@ report_and_done:
 
 		switch (buf[0]) {
 		case CS_SET_PIXEL_FORMAT:
-			rfb_recv_set_pixfmt_msg(rc, cfd);
+			if (rfb_recv_set_pixfmt_msg(rc, cfd) < 0)
+				goto done;
 			break;
 		case CS_SET_ENCODINGS:
-			rfb_recv_set_encodings_msg(rc, cfd);
+			if (rfb_recv_set_encodings_msg(rc, cfd) < 0)
+				goto done;
 			break;
 		case CS_UPDATE_MSG:
-			rfb_recv_update_msg(rc, cfd);
+			if (rfb_recv_update_msg(rc, cfd) < 0)
+				goto done;
 			break;
 		case CS_KEY_EVENT:
-			rfb_recv_key_msg(rc, cfd);
+			if (rfb_recv_key_msg(rc, cfd) < 0)
+				goto done;
 			break;
 		case CS_POINTER_EVENT:
-			rfb_recv_ptr_msg(rc, cfd);
+			if (rfb_recv_ptr_msg(rc, cfd) < 0)
+				goto done;
 			break;
 		case CS_CUT_TEXT:
-			rfb_recv_cuttext_msg(rc, cfd);
+			if (rfb_recv_cuttext_msg(rc, cfd) < 0)
+				goto done;
 			break;
 		case CS_MSG_CLIENT_QEMU:
-			rfb_recv_client_msg(rc, cfd);
+			if (rfb_recv_client_msg(rc, cfd) < 0)
+				goto done;
 			break;
 		default:
 			WPRINTF(("rfb unknown cli-code %d!", buf[0] & 0xff));
