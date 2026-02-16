@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 17:11 - bin/sh/tests/parameters ✓
+
+**Directory:** `bin/sh/tests/parameters`
+
+**Summary:** [ai-code-reviewer] parameters: Update review status to in-progress
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-15 17:06 - bin/sh/tests/invocation ✓
 
 **Directory:** `bin/sh/tests/invocation`
