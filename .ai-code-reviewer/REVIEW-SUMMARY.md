@@ -6,6 +6,17 @@
 **Mission:** Find and fix code that would fail peer review, break builds, or embarrass the project
 
 ---
+## 2026-02-15 16:49 - bin/sh/tests/errors ✓
+
+**Directory:** `bin/sh/tests/errors`
+
+**Summary:** [ai-code-reviewer] errors: Update review status and timestamp
+
+**Files fixed:**
+  - .ai-code-reviewer/REVIEW-INDEX.md
+
+---
+
 ## 2026-02-15 16:40 - bin/sh/tests/builtins ✓
 
 **Directory:** `bin/sh/tests/builtins`
