@@ -114,6 +114,7 @@
 #define	ID_ALDERLAKE			0x7aa3
 #define	ID_ALDERLAKE2			0x51a3
 #define	ID_ALDERLAKE3			0x54a3
+#define	ID_RAPTORLAKE			0x7a23
 #define	ID_METEORLAKE			0x7e22
 #define	ID_METEORLAKE2			0x7f23
 #define	ID_METEORLAKE3			0xae22
@@ -221,6 +222,8 @@ static const struct pci_device_table ichsmb_devices[] = {
 	  PCI_DESCR("Intel Alder Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_ALDERLAKE3),
 	  PCI_DESCR("Intel Alder Lake SMBus controller") },
+	{ PCI_DEV(PCI_VENDOR_INTEL, ID_RAPTORLAKE),
+	  PCI_DESCR("Intel Raptor Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_METEORLAKE),
 	  PCI_DESCR("Intel Meteor Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_METEORLAKE2),
