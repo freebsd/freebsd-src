@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-15 16:19
+Generated: 2026-02-15 16:31
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-15 16:19
 
 ## Progress
 - Total directories: 8264
-- Completed: 54 (0%)
+- Completed: 55 (0%)
 - Skipped: 1
-- Remaining: 8209
+- Remaining: 8208
 
 ## Current Position
-CURRENT POSITION: `bin/sh/tests`
+CURRENT POSITION: `bin/sh/tests/builtins`
 
-## bin/ (54/74 done)
+## bin/ (55/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -77,7 +77,7 @@ CURRENT POSITION: `bin/sh/tests`
 - [x] `bin/setfacl` (6 .c, 1 .h, 1277 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sh` (25 .c, 23 .h, 17597 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sh/bltin` (1 .c, 1 .h, 183 lines) - 2026-02-15 - Fixed by session 20260215_141826
-- [ ] `bin/sh/tests` (0 .c, 0 .h, 0 lines)
+- [x] `bin/sh/tests` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [ ] `bin/sh/tests/builtins` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/sh/tests/errors` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/sh/tests/execution` (0 .c, 0 .h, 0 lines)
