@@ -127,8 +127,7 @@ nbf:
 		flags |= __SNPT;
 
 	/*
-	 * Fix up the FILE fields, and set __cleanup for output flush on
-	 * exit (since we are buffered in some way).
+	 * Fix up the FILE fields.
 	 */
 	if (mode == _IOLBF)
 		flags |= __SLBF;
@@ -150,7 +149,6 @@ nbf:
 		/* begin/continue reading, or stay in intermediate state */
 		fp->_w = 0;
 	}
-	__cleanup = _cleanup;
 
 end:
 	FUNLOCKFILE_CANCELSAFE();

@@ -68,7 +68,6 @@ extern int	__sread(void *, char *, int);
 extern int	__swrite(void *, char const *, int);
 extern fpos_t	__sseek(void *, fpos_t, int);
 extern int	__sclose(void *);
-extern void	__sinit(void);
 extern void	_cleanup(void);
 extern void	__smakebuf(FILE *);
 extern int	__swhatbuf(FILE *, size_t *, int *);
@@ -85,7 +84,6 @@ extern int	__vfwscanf(FILE * __restrict, locale_t, const wchar_t * __restrict,
 		    __va_list);
 extern size_t	__fread(void * __restrict buf, size_t size, size_t count,
 		FILE * __restrict fp);
-extern int	__sdidinit;
 
 static inline wint_t
 __fgetwc(FILE *fp, locale_t locale)

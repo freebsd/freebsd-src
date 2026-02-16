@@ -66,9 +66,6 @@ freopen(const char * __restrict file, const char * __restrict mode,
 
 	FLOCKFILE_CANCELSAFE(fp);
 
-	if (!__sdidinit)
-		__sinit();
-
 	/*
 	 * If the filename is a NULL pointer, the caller is asking us to
 	 * re-open the same file with a different mode. We allow this only

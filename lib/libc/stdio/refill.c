@@ -63,11 +63,6 @@ lflush(FILE *fp)
 int
 __srefill(FILE *fp)
 {
-
-	/* make sure stdio is set up */
-	if (!__sdidinit)
-		__sinit();
-
 	ORIENT(fp, -1);
 
 	fp->_r = 0;		/* largely a convenience for callers */
