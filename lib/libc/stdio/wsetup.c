@@ -45,10 +45,6 @@
 int
 __swsetup(FILE *fp)
 {
-	/* make sure stdio is set up */
-	if (!__sdidinit)
-		__sinit();
-
 	/*
 	 * If we are not writing, we had better be reading and writing.
 	 */

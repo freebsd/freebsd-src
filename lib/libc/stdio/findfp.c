@@ -46,8 +46,6 @@
 #include "local.h"
 #include "glue.h"
 
-int	__sdidinit;
-
 #define	NDYNAMIC 10		/* add ten more whenever necessary */
 
 #define	std(flags, file) {		\
@@ -117,8 +115,6 @@ __sfp(void)
 	int	n;
 	struct glue *g;
 
-	if (!__sdidinit)
-		__sinit();
 	/*
 	 * The list must be locked because a FILE may be updated.
 	 */
@@ -188,8 +184,8 @@ f_prealloc(void)
 }
 
 /*
- * exit() calls _cleanup() through *__cleanup, set whenever we
- * open or buffer a file.  This chicanery is done so that programs
+ * exit() calls _cleanup() through *__cleanup, set via a weak reference
+ * at program initialisation.  This chicanery is done so that programs
  * that do not use stdio need not link it all in.
  *
  * The name `_cleanup' is, alas, fairly well known outside stdio.
@@ -199,16 +195,4 @@ _cleanup(void)
 {
 	/* (void) _fwalk(fclose); */
 	(void) _fwalk(__sflush);		/* `cheating' */
-}
-
-/*
- * __sinit() is called whenever stdio's internal variables must be set up.
- */
-void
-__sinit(void)
-{
-
-	/* Make sure we clean up on exit. */
-	__cleanup = _cleanup;		/* conservative */
-	__sdidinit = 1;
 }
