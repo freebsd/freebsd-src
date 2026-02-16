@@ -280,7 +280,7 @@ reap_kill_proc_locked(struct reap_kill_proc_work *w)
 }
 
 static void
-reap_kill_proc(struct reap_kill_proc_work *w)
+reap_kill_proc(struct reap_kill_proc_work *w, bool *proctree_dropped)
 {
 	struct pgrp *pgrp;
 	int xlocked;
@@ -311,6 +311,7 @@ reap_kill_proc(struct reap_kill_proc_work *w)
 		/* This is safe because pgrp zone is nofree. */
 		sx_xlock(&pgrp->pg_killsx);
 		sx_xunlock(&pgrp->pg_killsx);
+		*proctree_dropped = true;
 		if (xlocked)
 			sx_xlock(&proctree_lock);
 		else
@@ -392,7 +393,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 	struct reap_kill_tracker_head tracker;
 	struct reap_kill_tracker *t;
 	struct proc *p2;
-	bool res;
+	bool proctree_dropped, res;
 
 	res = false;
 	TAILQ_INIT(&tracker);
@@ -400,6 +401,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 	while ((t = TAILQ_FIRST(&tracker)) != NULL) {
 		TAILQ_REMOVE(&tracker, t, link);
 
+again:
 		/*
 		 * Since reap_kill_proc() drops proctree_lock sx, it
 		 * is possible that the tracked reaper is no longer.
@@ -435,6 +437,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 			    (P2_REAPKILLED | P2_WEXIT)) != 0)
 				continue;
 
+			proctree_dropped = false;
 			PROC_LOCK(p2);
 			if ((p2->p_flag2 & P2_WEXIT) == 0) {
 				_PHOLD(p2);
@@ -446,11 +449,13 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 				p2->p_flag2 |= P2_REAPKILLED;
 
 				w->target = p2;
-				reap_kill_proc(w);
+				reap_kill_proc(w, &proctree_dropped);
 				_PRELE(p2);
 			}
 			PROC_UNLOCK(p2);
 			res = true;
+			if (proctree_dropped)
+				goto again;
 		}
 		reap_kill_sched_free(t);
 	}
