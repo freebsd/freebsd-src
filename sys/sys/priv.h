@@ -536,9 +536,14 @@
 #define	PRIV_VERIEXEC_CONTROL	702	/* Can configure veriexec */
 
 /*
+ * vmm privileges.
+ */
+#define	PRIV_VMM_PPTDEV		710	/* Can manipulate ppt devices. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		703
+#define	_PRIV_HIGHEST		711
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid
