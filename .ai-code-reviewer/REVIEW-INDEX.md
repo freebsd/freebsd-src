@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-15 17:00
+Generated: 2026-02-15 17:06
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-15 17:00
 
 ## Progress
 - Total directories: 8264
-- Completed: 59 (0%)
+- Completed: 60 (0%)
 - Skipped: 1
-- Remaining: 8204
+- Remaining: 8203
 
 ## Current Position
-CURRENT POSITION: `bin/sh/tests/invocation`
+CURRENT POSITION: `bin/sh/tests/parameters`
 
-## bin/ (59/74 done)
+## bin/ (60/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -82,7 +82,7 @@ CURRENT POSITION: `bin/sh/tests/invocation`
 - [x] `bin/sh/tests/errors` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sh/tests/execution` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sh/tests/expansion` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
-- [ ] `bin/sh/tests/invocation` (0 .c, 0 .h, 0 lines)
+- [x] `bin/sh/tests/invocation` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [ ] `bin/sh/tests/parameters` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/sh/tests/parser` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/sh/tests/set-e` (0 .c, 0 .h, 0 lines)
