@@ -3,7 +3,7 @@
 This file tracks review progress across the source tree.
 **DO NOT EDIT MANUALLY** - Updated automatically by the review tool.
 
-Generated: 2026-02-15 16:31
+Generated: 2026-02-15 16:40
 
 ## Status Legend
 - `[ ]` Pending - needs review
@@ -13,14 +13,14 @@ Generated: 2026-02-15 16:31
 
 ## Progress
 - Total directories: 8264
-- Completed: 55 (0%)
+- Completed: 56 (0%)
 - Skipped: 1
-- Remaining: 8208
+- Remaining: 8207
 
 ## Current Position
-CURRENT POSITION: `bin/sh/tests/builtins`
+CURRENT POSITION: `bin/sh/tests/errors`
 
-## bin/ (55/74 done)
+## bin/ (56/74 done)
 
 - [x] `bin/cat` (1 .c, 0 .h, 525 lines) - 2026-01-10 - Fixed by session 20260110_042553
 - [x] `bin/cat/tests` (0 .c, 0 .h, 0 lines) - 2026-01-10 - Fixed by session 20260110_042553
@@ -78,7 +78,7 @@ CURRENT POSITION: `bin/sh/tests/builtins`
 - [x] `bin/sh` (25 .c, 23 .h, 17597 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sh/bltin` (1 .c, 1 .h, 183 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [x] `bin/sh/tests` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
-- [ ] `bin/sh/tests/builtins` (0 .c, 0 .h, 0 lines)
+- [x] `bin/sh/tests/builtins` (0 .c, 0 .h, 0 lines) - 2026-02-15 - Fixed by session 20260215_141826
 - [ ] `bin/sh/tests/errors` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/sh/tests/execution` (0 .c, 0 .h, 0 lines)
 - [ ] `bin/sh/tests/expansion` (0 .c, 0 .h, 0 lines)
