@@ -833,6 +833,17 @@ The jail may access
 This flag is only available when the
 .Xr vmm 4
 kernel module is loaded.
+.It Va allow.vmm_ppt
+The jail may configure PCI passtrough devices for use by
+.Xr vmm 4
+virtual machine guests.
+This allows privileged users inside the jail to manipulate physical devices
+claimed by the
+.Dv ppt
+driver, and thus must not be configured in untrusted jails.
+This flag is only available when the
+.Xr vmm 4
+kernel module is loaded.
 .It Va linux
 Determine how a jail's Linux emulation environment appears.
 A value of

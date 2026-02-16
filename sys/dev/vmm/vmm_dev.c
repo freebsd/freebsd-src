@@ -91,7 +91,7 @@ static bool vmm_initialized = false;
 
 static SLIST_HEAD(, vmmdev_softc) head;
 
-static unsigned pr_allow_flag;
+static unsigned int pr_allow_vmm_flag, pr_allow_vmm_ppt_flag;
 static struct sx vmmdev_mtx;
 SX_SYSINIT(vmmdev_mtx, &vmmdev_mtx, "vmm device mutex");
 
@@ -115,7 +115,7 @@ static int
 vmm_priv_check(struct ucred *ucred)
 {
 	if (jailed(ucred) &&
-	    !(ucred->cr_prison->pr_allow & pr_allow_flag))
+	    (ucred->cr_prison->pr_allow & pr_allow_vmm_flag) == 0)
 		return (EPERM);
 
 	return (0);
@@ -459,8 +459,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	if (ioctl == NULL)
 		return (ENOTTY);
 
-	if ((ioctl->flags & VMMDEV_IOCTL_PRIV_CHECK_DRIVER) != 0) {
-		error = priv_check(td, PRIV_DRIVER);
+	if ((ioctl->flags & VMMDEV_IOCTL_PPT) != 0) {
+		if (jailed(td->td_ucred) && (td->td_ucred->cr_prison->pr_allow &
+		    pr_allow_vmm_ppt_flag) == 0)
+			return (EPERM);
+		error = priv_check(td, PRIV_VMM_PPTDEV);
 		if (error != 0)
 			return (error);
 	}
@@ -1178,9 +1181,12 @@ vmmdev_init(void)
 	sx_xlock(&vmmdev_mtx);
 	error = make_dev_p(MAKEDEV_CHECKNAME, &vmmctl_cdev, &vmmctlsw, NULL,
 	    UID_ROOT, GID_WHEEL, 0600, "vmmctl");
-	if (error == 0)
-		pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
-		    "Allow use of vmm in a jail.");
+	if (error == 0) {
+		pr_allow_vmm_flag = prison_add_allow(NULL, "vmm", NULL,
+		    "Allow use of vmm in a jail");
+		pr_allow_vmm_ppt_flag = prison_add_allow(NULL, "vmm_ppt", NULL,
+		    "Allow use of vmm with ppt devices in a jail");
+	}
 	sx_xunlock(&vmmdev_mtx);
 
 	return (error);
