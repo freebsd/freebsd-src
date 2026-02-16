@@ -1,6 +1,8 @@
 /*	$OpenBSD: yplib_host.h,v 1.8 2003/06/02 04:12:38 deraadt Exp $ */
 
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1992, 1993 Theo de Raadt <deraadt@theos.com>
  * All rights reserved.
  *
