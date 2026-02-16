@@ -41,7 +41,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"     http://www.opengroup.org/unix/online.html.
 .\"
-.Dd February 3, 2026
+.Dd February 9, 2026
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1223,6 +1223,10 @@ It terminates the current executional scope, returning from the closest
 nested function or sourced script;
 if no function or sourced script is being executed,
 it exits the shell instance.
+If
+.Ar exitstatus
+is specified, the exit status is set to its value,
+otherwise it is set to the exit status of the last executed command.
 The
 .Ic return
 command is implemented as a special built-in command.
