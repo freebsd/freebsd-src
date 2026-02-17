@@ -11,8 +11,7 @@
 #ifndef _EXTERR_H_
 #define	_EXTERR_H_
 
-#include <sys/cdefs.h>
-#include <sys/exterr_cat.h>
+#include <sys/types.h>
 
 __BEGIN_DECLS
 int uexterr_gettext(char *buf, size_t bufsz);
