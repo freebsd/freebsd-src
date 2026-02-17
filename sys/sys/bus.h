@@ -308,9 +308,9 @@ enum intr_polarity {
 
 #define	BUS_IVARS_PRIVATE	0x0	/* private variables */
 #define	BUS_IVARS_ACPI		0x100
-#define	BUS_IVARS_GIC		500
-#define	BUS_IVARS_GPIOBUS	10500
-#define	BUS_IVARS_SUPERIO	10600
+#define	BUS_IVARS_GIC		0x200
+#define	BUS_IVARS_GPIOBUS	0x300
+#define	BUS_IVARS_SUPERIO	0x400
 
 /**
  * CPU sets supported by bus_get_cpus().  Note that not all sets may be
