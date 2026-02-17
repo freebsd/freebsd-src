@@ -294,6 +294,8 @@ static const struct cpu_parts cpu_parts_apple[] = {
 	{ CPU_PART_M2_AVALANCHE_PRO, "M2 Pro Avalanche" },
 	{ CPU_PART_M2_BLIZZARD_MAX, "M2 Max Blizzard" },
 	{ CPU_PART_M2_AVALANCHE_MAX, "M2 Max Avalanche" },
+  	{ CPU_PART_M4_SEYMOUR, "M4 Seymour" },
+    	{ CPU_PART_M4_TAHOE, "M4 Tahoe" },
 	CPU_PART_NONE,
 };
 
