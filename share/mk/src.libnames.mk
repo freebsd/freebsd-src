@@ -146,9 +146,7 @@ _LIBRARIES=	\
 		devdctl \
 		devinfo \
 		devstat \
-		dialog \
 		dl \
-		dpv \
 		dtrace \
 		dwarf \
 		edit \
@@ -156,7 +154,6 @@ _LIBRARIES=	\
 		elf \
 		execinfo \
 		fetch \
-		figpar \
 		formw \
 		geom \
 		gpio \
@@ -363,8 +360,6 @@ _DP_blacklist+=	pthread
 _DP_blocklist+=	pthread
 .endif
 _DP_devstat=	kvm
-_DP_dialog=	tinfow ncursesw m
-_DP_dpv=	dialog figpar util tinfow ncursesw
 _DP_dtrace=	ctf elf proc pthread rtld_db xo
 _DP_dwarf=	elf z
 _DP_edit=	tinfow
@@ -832,7 +827,6 @@ LIBOSMCOMPDIR=	${_LIB_OBJTOP}/lib/ofed/complib
 LIBOPENSMDIR=	${_LIB_OBJTOP}/lib/ofed/libopensm
 LIBOSMVENDORDIR=${_LIB_OBJTOP}/lib/ofed/libvendor
 
-LIBDIALOGDIR=	${_LIB_OBJTOP}/gnu/lib/libdialog
 LIBSSPDIR=	${_LIB_OBJTOP}/lib/libssp
 LIBSSP_NONSHAREDDIR=	${_LIB_OBJTOP}/lib/libssp_nonshared
 .if ${MK_MITKRB5} != "no"

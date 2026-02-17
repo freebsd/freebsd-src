@@ -58,9 +58,7 @@ fusefs(4)	asomers	Pre-commit review requested.
 geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
-libdpv		dteske	Pre-commit review requested. Keep in sync with dpv(1).
 libfetch	des	Pre-commit review requested.
-libfigpar	dteske	Pre-commit review requested.
 libm		freebsd-numerics	Send email with patches to freebsd-numerics@
 libpam		des	Pre-commit review requested.
 linprocfs	des	Pre-commit review requested.
@@ -120,7 +118,6 @@ tools/build	imp,jrtc27	Pre-commit review requested, especially to fix bootstrap 
 top(1)		eadler	Pre-commit review requested.
 ufshci(4)	jaeyoon	Pre-commit review requested.
 usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
-usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
 vmm(4)		#bhyve	Pre-commit review requested via #bhyve phabricator group.
