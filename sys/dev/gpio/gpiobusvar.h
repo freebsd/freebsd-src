@@ -109,7 +109,7 @@ struct gpiobus_ivar
 };
 
 enum gpiobus_ivars {
-	GPIOBUS_IVAR_NPINS	= 10500,
+	GPIOBUS_IVAR_NPINS	= BUS_IVARS_GPIOBUS,
 	GPIOBUS_IVAR_PINS,
 };
 

@@ -32,12 +32,14 @@
 #include <sys/serial.h>
 #include <serdev_if.h>
 
-#define	SCC_IVAR_CHANNEL	0
-#define	SCC_IVAR_CLASS		1
-#define	SCC_IVAR_CLOCK		2
-#define	SCC_IVAR_MODE		3
-#define	SCC_IVAR_REGSHFT	4
-#define	SCC_IVAR_HWMTX		5
+enum {
+	SCC_IVAR_CHANNEL = BUS_IVARS_PRIVATE,
+	SCC_IVAR_CLASS,
+	SCC_IVAR_CLOCK,
+	SCC_IVAR_MODE,
+	SCC_IVAR_REGSHFT,
+	SCC_IVAR_HWMTX
+};
 
 /* Hardware class -- the SCC type. */
 #define	SCC_CLASS_UNUSED	0

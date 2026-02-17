@@ -32,8 +32,10 @@
 #include <sys/serial.h>
 #include <serdev_if.h>
 
-#define	PUC_IVAR_CLOCK		0
-#define	PUC_IVAR_TYPE		1
+enum {
+	PUC_IVAR_CLOCK = BUS_IVARS_PRIVATE,
+	PUC_IVAR_TYPE
+};
 
 /* Port types. */
 #define	PUC_TYPE_SERIAL		1

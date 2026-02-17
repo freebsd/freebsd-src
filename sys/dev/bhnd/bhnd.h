@@ -60,7 +60,7 @@
  * bhnd child instance variables
  */
 enum bhnd_device_vars {
-	BHND_IVAR_VENDOR,	/**< Designer's JEP-106 manufacturer ID. */
+	BHND_IVAR_VENDOR = BUS_IVARS_PRIVATE,	/**< Designer's JEP-106 manufacturer ID. */
 	BHND_IVAR_DEVICE,	/**< Part number */
 	BHND_IVAR_HWREV,	/**< Core revision */
 	BHND_IVAR_DEVICE_CLASS,	/**< Core class (@sa bhnd_devclass_t) */

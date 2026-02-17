@@ -35,7 +35,7 @@
  */
 
 enum iobus_ivars {
-        IOBUS_IVAR_NODE,
+        IOBUS_IVAR_NODE = BUS_IVARS_PRIVATE,
         IOBUS_IVAR_NAME,
 	IOBUS_IVAR_NREGS,
 	IOBUS_IVAR_REGS,

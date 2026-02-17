@@ -38,7 +38,7 @@ struct pwmbus_ivars {
 };
 
 enum {
-	PWMBUS_IVAR_CHANNEL,	/* Channel used by child dev */
+	PWMBUS_IVAR_CHANNEL = BUS_IVARS_PRIVATE, /* Channel used by child dev */
 };
 
 #define PWMBUS_ACCESSOR(A, B, T)					\

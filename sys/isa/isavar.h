@@ -103,7 +103,7 @@ struct isa_pnp_id {
 };
 
 enum isa_device_ivars {
-	ISA_IVAR_PORT,
+	ISA_IVAR_PORT = BUS_IVARS_PRIVATE,
 	ISA_IVAR_PORT_0 = ISA_IVAR_PORT,
 	ISA_IVAR_PORT_1,
 	ISA_IVAR_PORTSIZE,

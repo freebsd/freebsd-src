@@ -982,7 +982,7 @@ typedef int nid_t;
  ****************************************************************************/
 
 enum hdac_device_ivars {
-    HDA_IVAR_CODEC_ID,
+    HDA_IVAR_CODEC_ID = BUS_IVARS_PRIVATE,
     HDA_IVAR_NODE_ID,
     HDA_IVAR_VENDOR_ID,
     HDA_IVAR_DEVICE_ID,

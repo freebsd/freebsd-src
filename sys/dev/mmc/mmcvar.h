@@ -56,7 +56,7 @@
 #define DEV_MMC_MMCVAR_H
 
 enum mmc_device_ivars {
-    MMC_IVAR_SPEC_VERS,
+    MMC_IVAR_SPEC_VERS = BUS_IVARS_PRIVATE,
     MMC_IVAR_DSR_IMP,
     MMC_IVAR_MEDIA_SIZE,
     MMC_IVAR_RCA,
