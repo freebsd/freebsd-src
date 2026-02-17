@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/event.h>
+#include <sys/mman.h>
 #include <sys/mdioctl.h>
 #include <sys/module.h>
 #include <sys/resource.h>
@@ -1665,6 +1666,7 @@ ATF_TC_BODY(aio_writev_efault, tc)
 	struct aiocb aio;
 	ssize_t buflen;
 	char *buffer;
+	void *unmapped;
 	struct iovec iov[2];
 	long seed;
 	int fd;
@@ -1673,13 +1675,16 @@ ATF_TC_BODY(aio_writev_efault, tc)
 
 	fd = aio_md_setup();
 
+	unmapped = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_GUARD, -1, 0);
+	ATF_REQUIRE(unmapped != MAP_FAILED);
+
 	seed = random();
 	buflen = 4096;
 	buffer = malloc(buflen);
 	aio_fill_buffer(buffer, buflen, seed);
 	iov[0].iov_base = buffer;
 	iov[0].iov_len = buflen;
-	iov[1].iov_base = (void*)-1;	/* Invalid! */
+	iov[1].iov_base = (void*)unmapped;	/* Invalid! */
 	iov[1].iov_len = buflen;
 	bzero(&aio, sizeof(aio));
 	aio.aio_fildes = fd;
