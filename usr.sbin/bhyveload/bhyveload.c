@@ -723,6 +723,8 @@ disk_open(char *path)
 
 	fd = open(path, O_RDWR);
 	if (fd < 0)
+		fd = open(path, O_RDONLY);
+	if (fd < 0)
 		return (errno);
 
 	disk_fd[ndisks] = fd;
