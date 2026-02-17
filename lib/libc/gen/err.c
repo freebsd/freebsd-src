@@ -163,14 +163,14 @@ _warn(const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	vwarnc(errno, fmt, ap);
+	vwarnci(true, errno, fmt, ap);
 	va_end(ap);
 }
 
 void
 vwarn(const char *fmt, va_list ap)
 {
-	vwarnc(errno, fmt, ap);
+	vwarnci(true, errno, fmt, ap);
 }
 
 void
