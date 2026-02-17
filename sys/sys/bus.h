@@ -309,7 +309,6 @@ enum intr_polarity {
 #define	BUS_IVARS_PRIVATE	0x0	/* private variables */
 #define	BUS_IVARS_ACPI		0x100
 #define	BUS_IVARS_GIC		500
-#define	BUS_IVARS_GICV3		1000
 #define	BUS_IVARS_GPIOBUS	10500
 #define	BUS_IVARS_SUPERIO	10600
 
