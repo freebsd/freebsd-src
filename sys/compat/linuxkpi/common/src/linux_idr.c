@@ -62,6 +62,13 @@ DPCPU_DEFINE_STATIC(struct linux_idr_cache, linux_idr_cache);
  */
 static MALLOC_DEFINE(M_IDR, "idr", "Linux IDR compat");
 
+#define	IDR_LOCK_INIT(_idr)	mtx_init(&(_idr)->lock, "idr", NULL, MTX_DEF);
+#define	IDR_LOCK_DESTROY(_idr)	mtx_destroy(&(_idr)->lock);
+#define	IDR_LOCK(_idr)		mtx_lock(&(_idr)->lock);
+#define	IDR_UNLOCK(_idr)	mtx_unlock(&(_idr)->lock);
+#define	IDR_LOCK_ASSERT(_idr)	mtx_assert(&(_idr)->lock, MA_OWNED);
+#define	IDR_LOCK_INITALIZED(_idr) mtx_initialized(&(_idr)->lock)
+
 static struct idr_layer *
 idr_preload_dequeue_locked(struct linux_idr_cache *lic)
 {
@@ -168,7 +175,7 @@ void
 idr_init(struct idr *idr)
 {
 	bzero(idr, sizeof(*idr));
-	mtx_init(&idr->lock, "idr", NULL, MTX_DEF);
+	IDR_LOCK_INIT(idr);
 }
 
 /* Only frees cached pages. */
@@ -182,17 +189,17 @@ idr_destroy(struct idr *idr)
 	 * without a idr_init(). Check if this is the case.  If we do not do this
 	 * then the mutex will panic while asserting that it is valid.
 	 */
-	if (mtx_initialized(&idr->lock) == 0)
+	if (IDR_LOCK_INITALIZED(idr) == 0)
 		return;
 
 	idr_remove_all(idr);
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	for (il = idr->free; il != NULL; il = iln) {
 		iln = il->ary[0];
 		free(il, M_IDR);
 	}
-	mtx_unlock(&idr->lock);
-	mtx_destroy(&idr->lock);
+	IDR_UNLOCK(idr);
+	IDR_LOCK_DESTROY(idr);
 }
 
 static void
@@ -215,11 +222,11 @@ void
 idr_remove_all(struct idr *idr)
 {
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	idr_remove_layer(idr->top, idr->layers - 1);
 	idr->top = NULL;
 	idr->layers = 0;
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 }
 
 static void *
@@ -266,9 +273,9 @@ idr_remove(struct idr *idr, int id)
 {
 	void *res;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	res = idr_remove_locked(idr, id);
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 
 	return (res);
 }
@@ -298,7 +305,7 @@ idr_replace(struct idr *idr, void *ptr, int id)
 	void *res;
 	int idx;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	il = idr_find_layer_locked(idr, id);
 	idx = id & IDR_MASK;
 
@@ -309,7 +316,7 @@ idr_replace(struct idr *idr, void *ptr, int id)
 		res = il->ary[idx];
 		il->ary[idx] = ptr;
 	}
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 	return (res);
 }
 
@@ -319,7 +326,7 @@ idr_find_locked(struct idr *idr, int id)
 	struct idr_layer *il;
 	void *res;
 
-	mtx_assert(&idr->lock, MA_OWNED);
+	IDR_LOCK_ASSERT(idr);
 	il = idr_find_layer_locked(idr, id);
 	if (il != NULL)
 		res = il->ary[id & IDR_MASK];
@@ -333,9 +340,9 @@ idr_find(struct idr *idr, int id)
 {
 	void *res;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	res = idr_find_locked(idr, id);
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 	return (res);
 }
 
@@ -345,7 +352,7 @@ idr_get_next(struct idr *idr, int *nextidp)
 	void *res = NULL;
 	int id = *nextidp;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	for (; id <= idr_max(idr); id++) {
 		res = idr_find_locked(idr, id);
 		if (res == NULL)
@@ -353,7 +360,7 @@ idr_get_next(struct idr *idr, int *nextidp)
 		*nextidp = id;
 		break;
 	}
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 	return (res);
 }
 
@@ -364,12 +371,12 @@ idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 	struct idr_layer *head;
 	int need;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	for (;;) {
 		need = idr->layers + 1;
 		for (il = idr->free; il != NULL; il = il->ary[0])
 			need--;
-		mtx_unlock(&idr->lock);
+		IDR_UNLOCK(idr);
 		if (need <= 0)
 			break;
 		for (head = NULL; need; need--) {
@@ -385,7 +392,7 @@ idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 		}
 		if (head == NULL)
 			return (0);
-		mtx_lock(&idr->lock);
+		IDR_LOCK(idr);
 		il->ary[0] = idr->free;
 		idr->free = head;
 	}
@@ -435,7 +442,7 @@ idr_get_new_locked(struct idr *idr, void *ptr, int *idp)
 	int idx;
 	int id;
 
-	mtx_assert(&idr->lock, MA_OWNED);
+	IDR_LOCK_ASSERT(idr);
 
 	error = -EAGAIN;
 	/*
@@ -506,9 +513,9 @@ idr_get_new(struct idr *idr, void *ptr, int *idp)
 {
 	int retval;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	retval = idr_get_new_locked(idr, ptr, idp);
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 	return (retval);
 }
 
@@ -522,7 +529,7 @@ idr_get_new_above_locked(struct idr *idr, void *ptr, int starting_id, int *idp)
 	int idx, sidx;
 	int id;
 
-	mtx_assert(&idr->lock, MA_OWNED);
+	IDR_LOCK_ASSERT(idr);
 
 	error = -EAGAIN;
 	/*
@@ -624,9 +631,9 @@ idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
 {
 	int retval;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	retval = idr_get_new_above_locked(idr, ptr, starting_id, idp);
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 	return (retval);
 }
 
@@ -643,7 +650,7 @@ idr_alloc_locked(struct idr *idr, void *ptr, int start, int end)
 	int error;
 	int id;
 
-	mtx_assert(&idr->lock, MA_OWNED);
+	IDR_LOCK_ASSERT(idr);
 
 	if (unlikely(start < 0))
 		return (-EINVAL);
@@ -669,9 +676,9 @@ idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 {
 	int retval;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	retval = idr_alloc_locked(idr, ptr, start, end);
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 	return (retval);
 }
 
@@ -680,13 +687,13 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 {
 	int retval;
 
-	mtx_lock(&idr->lock);
+	IDR_LOCK(idr);
 	retval = idr_alloc_locked(idr, ptr, max(start, idr->next_cyclic_id), end);
 	if (unlikely(retval == -ENOSPC))
 		retval = idr_alloc_locked(idr, ptr, start, end);
 	if (likely(retval >= 0))
 		idr->next_cyclic_id = retval + 1;
-	mtx_unlock(&idr->lock);
+	IDR_UNLOCK(idr);
 	return (retval);
 }
 
