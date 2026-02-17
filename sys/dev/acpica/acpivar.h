@@ -279,7 +279,6 @@ extern int	acpi_override_isa_irq_polarity;
  */
 enum {
 	ACPI_IVAR_HANDLE = BUS_IVARS_ACPI,
-	ACPI_IVAR_UNUSED,		/* Unused/reserved. */
 	ACPI_IVAR_PRIVATE,
 	ACPI_IVAR_FLAGS,
 	ACPI_IVAR_DOMAIN
