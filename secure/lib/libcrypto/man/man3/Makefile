@@ -1973,7 +1973,6 @@ MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_free.3
 MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_get0_cipher.3
 MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_get0_name.3
 MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_get1_cipher.3
-MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_get_app_data.3
 MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_get_block_size.3
 MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_get_iv_length.3
 MLINKS+= EVP_EncryptInit.3 EVP_CIPHER_CTX_get_key_length.3
