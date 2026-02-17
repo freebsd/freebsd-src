@@ -343,7 +343,7 @@ nvme_sim_attach(device_t dev)
 	sc->s_ctrlr = ctrlr;
 
 	sc->s_sim = cam_sim_alloc(nvme_sim_action, nvme_sim_poll,
-	    "nvme", sc, device_get_unit(dev),
+	    "nvme", sc, device_get_unit(ctrlr->dev),
 	    NULL, max_trans, max_trans, devq);
 	if (sc->s_sim == NULL) {
 		device_printf(dev, "Failed to allocate a sim\n");
