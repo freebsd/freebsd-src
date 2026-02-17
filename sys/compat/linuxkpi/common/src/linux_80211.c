@@ -3508,7 +3508,7 @@ lkpi_iv_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	} else {
 		ic_printf(vap->iv_ic, "%s: only station mode currently supported: "
-		    "cap %p iv_opmode %d\n", __func__, vap, vap->iv_opmode);
+		    "vap %p iv_opmode %d\n", __func__, vap, vap->iv_opmode);
 		return (ENOSYS);
 	}
 
