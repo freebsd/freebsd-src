@@ -169,6 +169,18 @@
 #define CPU_PART_M2_AVALANCHE_PRO 0x035
 #define CPU_PART_M2_BLIZZARD_MAX  0x038
 #define CPU_PART_M2_AVALANCHE_MAX 0x039
+/* Apple M3 Series (Sawtooth/Malacca) */
+#define CPU_PART_M3_MALACCA       0x042
+#define CPU_PART_M3_SAWTOOTH      0x043
+
+/* Apple M4 Series (Seymour/Tahoe) */
+#define CPU_PART_M4_TAHOE         0x052
+#define CPU_PART_M4_SEYMOUR       0x053
+
+/* Virtualized Apple CPUs (UTM/Framework fallback) */
+#define CPU_PART_APPLE_VIRT_P     0x000
+#define CPU_PART_APPLE_VIRT_E     0x001
+
 
 #define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
 #define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
