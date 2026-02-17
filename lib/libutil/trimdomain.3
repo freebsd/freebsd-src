@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 7, 1999
+.Dd February 17, 2025
 .Dt TRIMDOMAIN 3
 .Os
 .Sh NAME
@@ -60,20 +60,18 @@ name does not exceed
 .Pp
 If the passed
 .Ar fullname
-is actually a
-.Dv DISPLAY
+is actually an X11
+.Ev DISPLAY
 specification of the form
 .Sm off
-.Ar host . domain : nn Oo .
-.Ar nn
-.Oc
+.Ar host . Ar domain : Ar display Op . screen ,
 .Sm on
 and the domain name is the same as the local domain name,
 .Fn trimdomain
 will remove the embedded domain name, copying the screen and display
 numbers to the end of the base host name and resulting in
 .Sm off
-.Ar host : nn Op . Ar nn .
+.Ar host : display Op . Ar screen .
 .Sm on
 .Sh RETURN VALUES
 The
