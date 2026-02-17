@@ -1,0 +1,71 @@
+.\" Copyright 2026 The FreeBSD Foundation
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.Dd Feburary 17, 2026
+.Dt UEXTERR_GETTEXT
+.Os
+.Sh NAME
+.Nm uexterr_gettext
+.Nd "get string representation of the current extended error"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In exterr.h
+.Ft int
+.Fo uexterr_gettext
+.Fa "char *buffer"
+.Fa "size_t buffer_size"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+function fills the buffer pointed to by the
+.Fa buffer
+pointer with the formatted extended null-terminated
+error string, as reported by the
+last error from a system call, which returned an extended error.
+The capacity of the passed buffer is
+.Va buffer_size
+bytes.
+.Pp
+Normally, applications should use the
+.Xr err 3
+family of functions to display errors from system calls.
+If this is not convenient or even not possible,
+for instance for applications with an advanced user interface, the
+.Nm
+function can be used to fetch the string with the extended error.
+.Pp
+Note that most parts of the extended errors are directly provided by
+the kernel, and as such cannot be localized.
+.Pp
+See
+.Xr exterror 9
+for the description of the extended error facilities.
+.Sh RETURN VALUES
+The
+.Fn
+function returns zero.
+There are currently no errors defined for the function,
+which might change in future.
+.Pp
+If any error condition is added, it will be reported by returning \-1
+and setting
+.Va errno
+to the corresponding value.
+.Sh SEE ALSO
+.Xr errno 3 ,
+.Xr err 3 ,
+.Xr exterror 9
+.Sh STANDARDS
+The
+.Nm
+is a
+.Fx
+extension that first appeared in
+.Fx 15.0 .
