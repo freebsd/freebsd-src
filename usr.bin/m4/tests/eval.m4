@@ -3,3 +3,5 @@ dnl expr parser
 eval(224&127)
 eval(224|127)
 eval(224&&127)
+eval(3-2, 10, 5)
+eval(2-3, 10, 4)

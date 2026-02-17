@@ -178,7 +178,7 @@ expand_builtin(const char *argv[], int argc, int td)
 	 */
 	{
 		int base = 10;
-		int maxdigits = 0;
+		int mindigits = 0;
 		const char *errstr;
 
 		if (argc > 3 && *argv[3] != '\0') {
@@ -189,14 +189,14 @@ expand_builtin(const char *argv[], int argc, int td)
 			}
 		}
 		if (argc > 4) {
-			maxdigits = strtonum(argv[4], 0, INT_MAX, &errstr);
+			mindigits = strtonum(argv[4], 0, INT_MAX, &errstr);
 			if (errstr) {
-				m4errx(1, "expr: maxdigits is %s: %s.",
+				m4errx(1, "expr: mindigits is %s: %s.",
 				    errstr, argv[4]);
 			}
 		}
 		if (argc > 2)
-			pbnumbase(expr(argv[2]), base, maxdigits);
+			pbnumbase(expr(argv[2]), base, mindigits);
 		break;
 	}
 
