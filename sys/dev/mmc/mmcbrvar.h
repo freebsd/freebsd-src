@@ -60,7 +60,7 @@
 #include "mmcbr_if.h"
 
 enum mmcbr_device_ivars {
-    MMCBR_IVAR_BUS_TYPE,
+    MMCBR_IVAR_BUS_TYPE = BUS_IVARS_PRIVATE,
     MMCBR_IVAR_BUS_MODE,
     MMCBR_IVAR_BUS_WIDTH,
     MMCBR_IVAR_CHIP_SELECT,

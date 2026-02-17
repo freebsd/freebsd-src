@@ -250,7 +250,7 @@ struct mii_phydesc {
 	(*(p)->mii_funcs->pf_reset)(p)
 
 enum miibus_device_ivars {
-	MIIBUS_IVAR_FLAGS
+	MIIBUS_IVAR_FLAGS = BUS_IVARS_PRIVATE
 };
 
 /*

@@ -215,7 +215,7 @@ typedef struct atkbdc_softc {
 } atkbdc_softc_t; 
 
 enum kbdc_device_ivar {
-	KBDC_IVAR_VENDORID,
+	KBDC_IVAR_VENDORID = BUS_IVARS_PRIVATE,
 	KBDC_IVAR_SERIAL,
 	KBDC_IVAR_LOGICALID,
 	KBDC_IVAR_COMPATID, 

@@ -60,7 +60,7 @@ device_t superio_find_dev(device_t superio, superio_dev_type_t type,
     int ldn);
 
 enum superio_ivars {
-	SUPERIO_IVAR_LDN =	10600,
+	SUPERIO_IVAR_LDN =	BUS_IVARS_SUPERIO,
 	SUPERIO_IVAR_TYPE,
 	SUPERIO_IVAR_IOBASE,
 	SUPERIO_IVAR_IOBASE2,

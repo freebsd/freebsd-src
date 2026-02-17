@@ -69,7 +69,7 @@ struct fdc_data {
 };
 
 enum fdc_device_ivars {
-	FDC_IVAR_FDUNIT,
+	FDC_IVAR_FDUNIT = BUS_IVARS_PRIVATE,
 	FDC_IVAR_FDTYPE,
 };
 

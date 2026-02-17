@@ -277,11 +277,13 @@ extern int	acpi_override_isa_irq_polarity;
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
  */
-#define ACPI_IVAR_HANDLE	0x100
-#define ACPI_IVAR_UNUSED	0x101	/* Unused/reserved. */
-#define ACPI_IVAR_PRIVATE	0x102
-#define ACPI_IVAR_FLAGS		0x103
-#define	ACPI_IVAR_DOMAIN	0x104
+enum {
+	ACPI_IVAR_HANDLE = BUS_IVARS_ACPI,
+	ACPI_IVAR_UNUSED,		/* Unused/reserved. */
+	ACPI_IVAR_PRIVATE,
+	ACPI_IVAR_FLAGS,
+	ACPI_IVAR_DOMAIN
+};
 
 /*
  * ad_domain NUMA domain special value.

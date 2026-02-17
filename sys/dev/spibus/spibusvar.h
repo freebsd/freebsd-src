@@ -48,7 +48,7 @@ struct spibus_ivar
 #define	SPIBUS_CS_HIGH	(1U << 31)
 
 enum {
-	SPIBUS_IVAR_CS,		/* chip select that we're on */
+	SPIBUS_IVAR_CS = BUS_IVARS_PRIVATE,	/* chip select that we're on */
 	SPIBUS_IVAR_MODE,	/* SPI mode (0-3) */
 	SPIBUS_IVAR_CLOCK,	/* maximum clock freq for device */
 	SPIBUS_IVAR_CS_DELAY,	/* delay in microseconds after toggling chip select */
