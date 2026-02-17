@@ -54,7 +54,7 @@ struct vq_alloc_info;
  * VirtIO instance variables indices.
  */
 enum {
-	VIRTIO_IVAR_DEVTYPE = BUS_IVARS_PRIVATE + 1,
+	VIRTIO_IVAR_DEVTYPE = BUS_IVARS_PRIVATE,
 	VIRTIO_IVAR_FEATURE_DESC,
 	VIRTIO_IVAR_VENDOR,
 	VIRTIO_IVAR_DEVICE,

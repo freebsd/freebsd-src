@@ -30,7 +30,7 @@
 #define	_DEV_QUICC_BUS_H_
 
 enum {
-	QUICC_IVAR_CLOCK = BUS_IVARS_PRIVATE + 1,	/* The CPM clock. */
+	QUICC_IVAR_CLOCK = BUS_IVARS_PRIVATE,	/* The CPM clock. */
 	QUICC_IVAR_BRGCLK,		/* The BRG clock affected by SCCR. */
 	QUICC_IVAR_DEVTYPE
 };
