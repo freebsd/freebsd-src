@@ -357,8 +357,8 @@ ndp_prefix_lifetime_extend_body() {
 		atf_fail "Unexpected lifetimes: ${t}"
 	fi
 	ex3=$(prefix_expiry ${prefix}/64)
-	if [ "${ex3}" -lt "${ex2}" ]; then
-		atf_fail "Expiry time was shortened: ${ex2} <= ${ex3}"
+	if [ "${ex3}" -le 10 -o "${ex3}" -gt 20 ]; then
+		atf_fail "Unexpected expiry time: ${ex3}"
 	fi
 }
 
