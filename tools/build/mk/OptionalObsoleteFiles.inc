@@ -1470,10 +1470,14 @@ OLD_LIBS+=usr/lib/libdialog.so.10
 OLD_FILES+=usr/lib/libdpv.a
 OLD_FILES+=usr/lib/libdpv.so
 OLD_LIBS+=usr/lib/libdpv.so.3
+OLD_FILES+=usr/lib/libfigpar.a
+OLD_FILES+=usr/lib/libfigpar.so
+OLD_LIBS+=usr/lib/libfigpar.so.0
 OLD_FILES+=usr/share/man/man1/dialog.1.gz
 OLD_FILES+=usr/share/man/man1/dpv.1.gz
 OLD_FILES+=usr/share/man/man3/dialog.3.gz
 OLD_FILES+=usr/share/man/man3/dpv.3.gz
+OLD_FILES+=usr/share/man/man3/figpar.3.gz
 .endif
 
 .if ${MK_DICT} == no
