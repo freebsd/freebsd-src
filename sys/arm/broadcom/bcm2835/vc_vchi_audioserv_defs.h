@@ -56,7 +56,7 @@ typedef enum
 
 } VC_AUDIO_MSG_TYPE;
 
-static const char *vc_audio_msg_type_names[] = {
+static const char __used *vc_audio_msg_type_names[] = {
 	"VC_AUDIO_MSG_TYPE_RESULT",
 	"VC_AUDIO_MSG_TYPE_COMPLETE",
 	"VC_AUDIO_MSG_TYPE_CONFIG",
