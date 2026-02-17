@@ -69,9 +69,8 @@
 #define DPAA2_NI_BUFS_PER_TX	(1 << 7)
 #define DPAA2_NI_MAX_BPTX	(1 << 8)
 
-/* Number of the DPNI statistics counters. */
-#define DPAA2_NI_STAT_COUNTERS	7u
-#define	DPAA2_NI_STAT_SYSCTLS	9u
+/* Number of the DPNI statistics counters per page. */
+#define	DPAA2_NI_STAT_COUNTERS_PER_PAGE	7u
 
 /* Error and status bits in the frame annotation status word. */
 #define DPAA2_NI_FAS_DISC	0x80000000 /* debug frame */
