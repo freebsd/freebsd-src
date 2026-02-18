@@ -267,7 +267,11 @@ reap_kill_proc_locked(struct reap_kill_proc_work *w)
 
 	error = cr_cansignal(w->cr, w->target, w->rk->rk_sig);
 	if (error != 0) {
-		if (*w->error == ESRCH) {
+		/*
+		 * Hide ESRCH errors to ensure that this function
+		 * cannot be used as an oracle for process visibility.
+		 */
+		if (error != ESRCH && *w->error == 0) {
 			w->rk->rk_fpid = w->target->p_pid;
 			*w->error = error;
 		}
