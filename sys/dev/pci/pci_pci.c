@@ -437,6 +437,24 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	if (!pcib_is_window_open(w))
 		return;
 
+	/*
+	 * Assume that a window where both the base and limit read as
+	 * zero is not really open, or at least not assigned a valid
+	 * range by the firmware.  This can happen if a bridge device
+	 * is never initialized by firmware, or if a platform driver
+	 * resets the bridge.
+	 *
+	 * If devices behind this bridge have firmware-assigned
+	 * resources in this range then the window will be reallocated
+	 * on-demand.
+	 */
+	if (w->base == 0 && w->limit == ((pci_addr_t)1 << w->step) - 1) {
+		w->base = max_address;
+		w->limit = 0;
+		pcib_write_windows(sc, w->mask);
+		return;
+	}
+
 	if (w->base > max_address || w->limit > max_address) {
 		device_printf(sc->dev,
 		    "initial %s window has too many bits, ignoring\n", w->name);
