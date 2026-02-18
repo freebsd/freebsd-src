@@ -207,6 +207,28 @@ in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
 }
 
 /*
+ * Return the first configured IPv4 address on the given ifnet.
+ * Replaces deprecated IFP_TO_IA() from 4.3BSD.
+ * Used only by IPv4 multicast, where source-address selection
+ * has not yet been introduced.
+ *
+ * Returns ifa or NULL.
+ */
+struct in_ifaddr *
+in_ifprimaryaddr(struct ifnet *ifp)
+{
+	struct ifaddr *ifa;
+
+	NET_EPOCH_ASSERT();
+
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			break;
+
+	return ((struct in_ifaddr *)ifa);
+}
+
+/*
  * Return a reference to the interface address which is different to
  * the supplied one but with same IP address value.
  */

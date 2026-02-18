@@ -153,7 +153,7 @@ do {									\
 
 /*
  * Macro for finding the internet address structure (in_ifaddr) corresponding
- * to a given interface (ifnet structure).
+ * to a given interface (ifnet structure). DEPRECATED.
  */
 #define IFP_TO_IA(ifp, ia)						\
 	/* struct ifnet *ifp; */					\
