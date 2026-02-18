@@ -19,7 +19,7 @@ required_modules="zfs"
 zfs_start_jail()
 {
 	if check_jail mount_allowed; then
-		zfs mount -a
+		zfs mount -va
 	fi
 }
 
