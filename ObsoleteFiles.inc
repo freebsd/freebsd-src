@@ -104,8 +104,8 @@ OLD_LIBS+=lib/libuutil.so.2
 OLD_FILES+=usr/lib/libuutil.a
 OLD_FILES+=usr/lib/libuutil.so
 OLD_LIBS+=lib/libtpool.so.2
-OLD_LIBS+=usr/lib/libtpool.a
-OLD_LIBS+=usr/lib/libtpool.so
+OLD_FILES+=usr/lib/libtpool.a
+OLD_FILES+=usr/lib/libtpool.so
 OLD_FILES+=usr/tests/cddl/lib/libtpool/libtpool_test
 OLD_FILES+=usr/tests/cddl/lib/libtpool/Kyuafile
 
