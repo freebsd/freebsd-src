@@ -246,6 +246,15 @@ enum {
 };
 #define IFLA_INFO_MAX	(__IFLA_INFO_MAX - 1)
 
+/* Encapsulation Types */
+enum {
+	IFLA_TUNNEL_NONE,
+	IFLA_TUNNEL_GRE_UDP,	/* GRE UDP Encapsulation */
+	__IFLA_TUNNEL_MAX,
+};
+
+#define IFLA_TUNNEL_MAX	(__IFLA_TUNNEL_MAX - 1)
+
 /* IFLA_INFO_DATA vlan attributes */
 enum {
 	IFLA_VLAN_UNSPEC,
@@ -262,5 +271,19 @@ struct ifla_vlan_flags {
 	uint32_t flags;
 	uint32_t mask;
 };
+
+/* IFLA_INFO_DATA gre attributes */
+enum {
+	IFLA_GRE_UNSPEC,
+	IFLA_GRE_LOCAL,
+	IFLA_GRE_REMOTE,
+	IFLA_GRE_FLAGS,
+	IFLA_GRE_OKEY,
+	IFLA_GRE_ENCAP_TYPE,
+	IFLA_GRE_ENCAP_SPORT,
+	__IFLA_GRE_MAX,
+};
+
+#define IFLA_GRE_MAX	(__IFLA_GRE_MAX - 1)
 
 #endif
