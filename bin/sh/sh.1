@@ -41,7 +41,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"     http://www.opengroup.org/unix/online.html.
 .\"
-.Dd February 9, 2026
+.Dd February 17, 2026
 .Dt SH 1
 .Os
 .Sh NAME
@@ -228,6 +228,8 @@ command line editor (disables the
 .Fl V
 option if it has been set;
 set automatically when interactive on terminals).
+See
+.Sx Command Line Editing .
 .It Fl e Li errexit
 Exit immediately if any untested command fails in non-interactive mode.
 The exit status of a command is considered to be
@@ -337,6 +339,8 @@ Enable the built-in
 command line editor (disables
 .Fl E
 if it has been set).
+See
+.Sx Command Line Editing .
 .It Fl v Li verbose
 The shell writes its input to standard error
 as it is read.
@@ -2064,7 +2068,8 @@ See
 .Sx Job Control
 for a list of job ID forms.
 .It Ic bind Oo Fl aeklrsv Oc Oo Ar key Oo Ar command Oc Oc
-List or alter key bindings for the line editor.
+List or alter key bindings for the line editor,
+.Xr editline 7 .
 This command is documented in
 .Xr editrc 5 .
 .It Ic break Op Ar num
@@ -3049,6 +3054,11 @@ Similarly, the
 command can be used to enable a subset of
 .Nm emacs Ns -style
 command line editing features.
+.Pp
+Command line editing in
+.Nm
+is handled by the
+.Xr editline 7 .
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
@@ -3119,7 +3129,8 @@ will return the argument.
 .Xr signal 3 ,
 .Xr wctype 3 ,
 .Xr editrc 5 ,
-.Xr shells 5
+.Xr shells 5 ,
+.Xr editline 7
 .Sh HISTORY
 A
 .Nm
