@@ -52,7 +52,7 @@ extern int hz;
 
 typedef longlong_t	hrtime_t;
 
-#if defined(__i386__) || defined(__powerpc__)
+#ifdef __i386__
 #define	TIMESPEC_OVERFLOW(ts)						\
 	((ts)->tv_sec < INT32_MIN || (ts)->tv_sec > INT32_MAX)
 #else
