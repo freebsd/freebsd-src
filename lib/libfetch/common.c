@@ -278,13 +278,18 @@ conn_t *
 fetch_reopen(int sd)
 {
 	conn_t *conn;
-	int opt = 1;
+	int flags, opt = 1;
 
 	/* allocate and fill connection structure */
 	if ((conn = calloc(1, sizeof(*conn))) == NULL)
 		return (NULL);
-	fcntl(sd, F_SETFD, FD_CLOEXEC);
-	setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof opt);
+	flags = fcntl(sd, F_GETFD);
+	if (flags != -1 && (flags & FD_CLOEXEC) == 0)
+		(void)fcntl(sd, F_SETFD, flags | FD_CLOEXEC);
+	flags = fcntl(sd, F_GETFL);
+	if (flags != -1 && (flags & O_NONBLOCK) == 0)
+		(void)fcntl(sd, F_SETFL, flags | O_NONBLOCK);
+	(void)setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 	conn->sd = sd;
 	++conn->ref;
 	return (conn);
@@ -1269,14 +1274,6 @@ fetch_ssl_read(SSL *ssl, char *buf, size_t len)
 {
 	ssize_t rlen;
 	int ssl_err;
-	struct timeval tv;
-
-	if (fetchTimeout > 0) {
-		tv.tv_sec = fetchTimeout;
-		tv.tv_usec = 0;
-		setsockopt(SSL_get_fd(ssl), SOL_SOCKET, SO_RCVTIMEO,
-			&tv, sizeof(tv));
-	}
 
 	rlen = SSL_read(ssl, buf, len);
 	if (rlen < 0) {
