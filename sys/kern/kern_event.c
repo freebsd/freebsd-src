@@ -735,7 +735,7 @@ filt_jail(struct knote *kn, long hint)
     (NOTE_SECONDS | NOTE_MSECONDS | NOTE_USECONDS | NOTE_NSECONDS)
 
 static sbintime_t
-timer2sbintime(int64_t data, int flags)
+timer2sbintime(int64_t data, unsigned int flags)
 {
 	int64_t secs;
 
