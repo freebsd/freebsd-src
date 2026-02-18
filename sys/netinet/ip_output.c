@@ -459,7 +459,7 @@ again:
 		 */
 		ifp = imo->imo_multicast_ifp;
 		mtu = ifp->if_mtu;
-		IFP_TO_IA(ifp, ia);
+		ia = in_ifprimaryaddr(ifp);
 		isbroadcast = false;
 		/* Interface may have no addresses. */
 		if (ia != NULL)

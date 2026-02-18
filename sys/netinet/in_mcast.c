@@ -1768,7 +1768,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 				mreqn.imr_ifindex = ifp->if_index;
 				NET_EPOCH_ENTER(et);
-				IFP_TO_IA(ifp, ia);
+				ia = in_ifprimaryaddr(ifp);
 				if (ia != NULL)
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;

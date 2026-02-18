@@ -213,8 +213,8 @@ static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
  * Obviously the IGMPv3 per-interface state has per-vimage granularity
  * also as a result.
  *
- * FUTURE: Stop using IFP_TO_IA/INADDR_ANY, and use source address selection
- * policy to control the address used by IGMP on the link.
+ * FUTURE: Use source address selection policy to control the address
+ * used by IGMP on the link.
  */
 VNET_DEFINE_STATIC(int, interface_timers_running);	/* IGMPv3 general
 							 * query response */
@@ -1283,7 +1283,7 @@ igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	 * Replace 0.0.0.0 with the subnet address if told to do so.
 	 */
 	if (V_igmp_recvifkludge && in_nullhost(ip->ip_src)) {
-		IFP_TO_IA(ifp, ia);
+		ia = in_ifprimaryaddr(ifp);
 		if (ia != NULL)
 			ip->ip_src.s_addr = htonl(ia->ia_subnet);
 	}
@@ -1377,7 +1377,7 @@ igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	 * leave requires knowing that we are the only member of a
 	 * group.
 	 */
-	IFP_TO_IA(ifp, ia);
+	ia = in_ifprimaryaddr(ifp);
 	if (ia != NULL && in_hosteq(ip->ip_src, IA_SIN(ia)->sin_addr)) {
 		return (0);
 	}
@@ -3600,7 +3600,7 @@ igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_flags & M_IGMP_LOOP) {
 		struct in_ifaddr *ia;
 
-		IFP_TO_IA(ifp, ia);
+		ia = in_ifprimaryaddr(ifp);
 		if (ia != NULL)
 			ip->ip_src = ia->ia_addr.sin_addr;
 	}
