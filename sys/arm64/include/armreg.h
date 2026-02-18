@@ -658,7 +658,7 @@
 #define	 ISS_DATA_DFSC_TLB_CONFLICT (0x30 << 0)
 #define	ESR_ELx_IL		(0x01 << 25)
 #define	ESR_ELx_EC_SHIFT	26
-#define	ESR_ELx_EC_MASK		(0x3f << 26)
+#define	ESR_ELx_EC_MASK		(UL(0x3f) << 26)
 #define	ESR_ELx_EXCEPTION(esr)	(((esr) & ESR_ELx_EC_MASK) >> ESR_ELx_EC_SHIFT)
 #define	 EXCP_UNKNOWN		0x00	/* Unkwn exception */
 #define	 EXCP_TRAP_WFI_WFE	0x01	/* Trapped WFI or WFE */
