@@ -1478,6 +1478,13 @@ OLD_FILES+=usr/share/man/man1/dpv.1.gz
 OLD_FILES+=usr/share/man/man3/dialog.3.gz
 OLD_FILES+=usr/share/man/man3/dpv.3.gz
 OLD_FILES+=usr/share/man/man3/figpar.3.gz
+OLD_FILES+=usr/share/man/man3/get_config_option.3.gz
+OLD_FILES+=usr/share/man/man3/parse_config.3.gz
+OLD_FILES+=usr/share/man/man3/replaceall.3.gz
+OLD_FILES+=usr/share/man/man3/strcount.3.gz
+OLD_FILES+=usr/share/man/man3/strexpand.3.gz
+OLD_FILES+=usr/share/man/man3/strexpandnl.3.gz
+OLD_FILES+=usr/share/man/man3/strtolower.3.gz
 .endif
 
 .if ${MK_DICT} == no
