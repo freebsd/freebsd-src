@@ -56,7 +56,7 @@ static const struct diff_algo_config myers_then_myers_divide;
 static const struct diff_algo_config patience;
 static const struct diff_algo_config myers_divide;
 
-static const struct diff_algo_config myers_then_patience = (struct diff_algo_config){
+static const struct diff_algo_config myers_then_patience = {
 	.impl = diff_algo_myers,
 	.permitted_state_size = 1024 * 1024 * sizeof(int),
 	.fallback_algo = &patience,
@@ -69,7 +69,7 @@ static const struct diff_algo_config myers_then_myers_divide =
 	.fallback_algo = &myers_divide,
 };
 
-static const struct diff_algo_config patience = (struct diff_algo_config){
+static const struct diff_algo_config patience = {
 	.impl = diff_algo_patience,
 	/* After subdivision, do Patience again: */
 	.inner_algo = &patience,
@@ -77,14 +77,14 @@ static const struct diff_algo_config patience = (struct diff_algo_config){
 	.fallback_algo = &myers_then_myers_divide,
 };
 
-static const struct diff_algo_config myers_divide = (struct diff_algo_config){
+static const struct diff_algo_config myers_divide = {
 	.impl = diff_algo_myers_divide,
 	/* When division succeeded, start from the top: */
 	.inner_algo = &myers_then_myers_divide,
 	/* (fallback_algo = NULL implies diff_algo_none). */
 };
 
-static const struct diff_algo_config no_algo = (struct diff_algo_config){
+static const struct diff_algo_config none = {
 	.impl = diff_algo_none,
 };
 
@@ -109,8 +109,9 @@ static const struct diff_config diff_config_patience = {
 };
 
 /* Directly force Patience as a first divider of the source file. */
-static const struct diff_config diff_config_no_algo = {
+static const struct diff_config diff_config_none = {
 	.atomize_func = diff_atomize_text_by_line,
+	.algo = &none,
 };
 
 const char *
@@ -174,7 +175,7 @@ diffreg_new(char *file1, char *file2, int flags, int capsicum)
 		cfg = &diff_config_patience;
 		break;
 	case DIFFREG_ALGO_NONE:
-		cfg = &diff_config_no_algo;
+		cfg = &diff_config_none;
 		break;
 	}
 
