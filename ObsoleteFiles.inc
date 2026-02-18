@@ -51,6 +51,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260628: Removed GNU subtree
+OLD_FILES+=usr/tests/gnu/Kyuafile
+OLD_FILES+=usr/tests/gnu/lib/Kyuafile
+OLD_DIRS+=usr/tests/gnu/lib
+OLD_DIRS+=usr/tests/gnu/usr.bin/diff
+OLD_FILES+=usr/tests/gnu/usr.bin/Kyuafile
+OLD_DIRS+=usr/tests/gnu/usr.bin
+OLD_DIRS+=usr/tests/gnu
+
 # 20260628: Removed dialog, figpar, dpv
 OLD_FILES+=usr/bin/dialog
 OLD_FILES+=usr/bin/dpv

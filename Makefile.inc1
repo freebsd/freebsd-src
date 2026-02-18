@@ -434,7 +434,7 @@ SUBDIR+=bin
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
 .endif
-SUBDIR+=gnu include
+SUBDIR+=include
 .if ${MK_KERBEROS} != "no"
 .if ${MK_MITKRB5} != "no"
 SUBDIR+=krb5
@@ -3424,7 +3424,7 @@ lib/liblzma__L: lib/libmd__L lib/libthr__L
 lib/libzstd__L: lib/libthr__L
 lib/librt__L: lib/libthr__L
 
-_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib}
+_generic_libs=	${_cddl_lib} ${_kerberos5_lib} lib ${_secure_lib}
 .if ${MK_IPFILTER} != "no"
 _generic_libs+=	sbin/ipf/libipf
 .endif
