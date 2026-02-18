@@ -1477,6 +1477,7 @@ OLD_FILES+=usr/share/man/man1/dialog.1.gz
 OLD_FILES+=usr/share/man/man1/dpv.1.gz
 OLD_FILES+=usr/share/man/man3/dialog.3.gz
 OLD_FILES+=usr/share/man/man3/dpv.3.gz
+OLD_FILES+=usr/share/man/man3/dpv_free.3.gz
 OLD_FILES+=usr/share/man/man3/figpar.3.gz
 OLD_FILES+=usr/share/man/man3/get_config_option.3.gz
 OLD_FILES+=usr/share/man/man3/parse_config.3.gz
