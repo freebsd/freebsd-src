@@ -53,10 +53,69 @@
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
-#include <machine/cpufunc.h>
-#include <machine/md_var.h>
+#include <machine/bus_dma_impl.h>
 
-#include "iommu_if.h"
+int
+common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
+    bus_size_t alignment, bus_addr_t boundary, bus_addr_t lowaddr,
+    bus_addr_t highaddr, bus_size_t maxsize, int nsegments,
+    bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+    void *lockfuncarg, size_t sz, void **dmat)
+{
+	void *newtag;
+	struct bus_dma_tag_common *common;
+
+	KASSERT(sz >= sizeof(struct bus_dma_tag_common), ("sz"));
+	/* Return a NULL tag on failure */
+	*dmat = NULL;
+	/* Basic sanity checking */
+	if (boundary != 0 && boundary < maxsegsz)
+		maxsegsz = boundary;
+	if (maxsegsz == 0)
+		return (EINVAL);
+
+	newtag = malloc(sz, M_DEVBUF, M_ZERO | M_NOWAIT);
+	if (newtag == NULL) {
+		CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
+		    __func__, newtag, 0, ENOMEM);
+		return (ENOMEM);
+	}
+
+	common = newtag;
+	common->impl = &bus_dma_bounce_impl;
+	common->alignment = alignment;
+	common->boundary = boundary;
+	common->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
+	common->highaddr = trunc_page((vm_paddr_t)highaddr) + (PAGE_SIZE - 1);
+	common->maxsize = maxsize;
+	common->nsegments = nsegments;
+	common->maxsegsz = maxsegsz;
+	common->flags = flags;
+	if (lockfunc != NULL) {
+		common->lockfunc = lockfunc;
+		common->lockfuncarg = lockfuncarg;
+	} else {
+		common->lockfunc = _busdma_dflt_lock;
+		common->lockfuncarg = NULL;
+	}
+
+	/* Take into account any restrictions imposed by our parent tag */
+	if (parent != NULL) {
+		common->impl = parent->impl;
+		common->lowaddr = MIN(parent->lowaddr, common->lowaddr);
+		common->highaddr = MAX(parent->highaddr, common->highaddr);
+		if (common->boundary == 0)
+			common->boundary = parent->boundary;
+		else if (parent->boundary != 0) {
+			common->boundary = MIN(parent->boundary,
+			    common->boundary);
+		}
+		common->domain = vm_phys_domain_match(common->domain, 0ul,
+		    common->lowaddr);
+	}
+	*dmat = common;
+	return (0);
+}
 
 /*
  * Allocate a device specific dma_tag.

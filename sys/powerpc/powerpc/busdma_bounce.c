@@ -159,9 +159,6 @@ bounce_bus_dma_zone_setup(bus_dma_tag_t newtag)
 
 /*
  * Allocate a device specific dma_tag.
- *
- * TODO: this does ALL of the work, rather than it being split into
- * common and bounce specific.  That'll need fixing.
  */
 static int
 bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
@@ -184,46 +181,20 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
-	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF,
-	    M_ZERO | M_NOWAIT);
-	if (newtag == NULL) {
-		CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
-		    __func__, newtag, 0, error);
-		return (ENOMEM);
-	}
+	error = common_bus_dma_tag_create(parent != NULL ? &parent->common :
+	    NULL, alignment, boundary, lowaddr, highaddr, maxsize, nsegments,
+	    maxsegsz, flags, lockfunc, lockfuncarg,
+	    sizeof (struct bus_dma_tag), (void **)&newtag);
+	if (error != 0)
+	    return (error);
 
-	newtag->common.alignment = alignment;
-	newtag->common.boundary = boundary;
-	newtag->common.lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
-	newtag->common.highaddr = trunc_page((vm_paddr_t)highaddr) + (PAGE_SIZE - 1);
-	newtag->common.maxsize = maxsize;
-	newtag->common.nsegments = nsegments;
-	newtag->common.maxsegsz = maxsegsz;
-	newtag->common.flags = flags;
 	newtag->map_count = 0;
 	newtag->common.impl = &bus_dma_bounce_impl;
-	if (lockfunc != NULL) {
-		newtag->common.lockfunc = lockfunc;
-		newtag->common.lockfuncarg = lockfuncarg;
-	} else {
-		newtag->common.lockfunc = _busdma_dflt_lock;
-		newtag->common.lockfuncarg = NULL;
-	}
 
 	/* Take into account any restrictions imposed by our parent tag */
 	if (parent != NULL) {
-		newtag->common.lowaddr = MIN(parent->common.lowaddr, newtag->common.lowaddr);
-		newtag->common.highaddr = MAX(parent->common.highaddr, newtag->common.highaddr);
-		if (newtag->common.boundary == 0)
-			newtag->common.boundary = parent->common.boundary;
-		else if (parent->common.boundary != 0)
-			newtag->common.boundary = MIN(parent->common.boundary,
-					       newtag->common.boundary);
-
 		newtag->iommu = parent->iommu;
 		newtag->iommu_cookie = parent->iommu_cookie;
-		newtag->common.domain = vm_phys_domain_match(newtag->common.domain, 0ul,
-		    newtag->common.lowaddr);
 	}
 
 	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem) && newtag->iommu == NULL)

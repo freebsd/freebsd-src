@@ -80,4 +80,10 @@ struct bus_dma_impl {
 
 extern struct bus_dma_impl bus_dma_bounce_impl;
 
+extern int common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
+	    bus_size_t alignment, bus_addr_t boundary, bus_addr_t lowaddr,
+	    bus_addr_t highaddr, bus_size_t maxsize, int nsegments,
+	    bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+	    void *lockfuncarg, size_t sz, void **dmat);
+
 #endif
