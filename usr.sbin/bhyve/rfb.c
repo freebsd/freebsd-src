@@ -264,7 +264,7 @@ struct rfb_cuttext_msg {
 	uint32_t	length;
 };
 
-static void
+static int
 rfb_send_server_init_msg(struct rfb_softc *rc, int cfd)
 {
 	struct bhyvegc_image *gc_image;
@@ -288,11 +288,14 @@ rfb_send_server_init_msg(struct rfb_softc *rc, int cfd)
 	sinfo.pixfmt.pad[1] = 0;
 	sinfo.pixfmt.pad[2] = 0;
 	sinfo.namelen = htonl(rc->fbnamelen);
-	(void)stream_write(cfd, &sinfo, sizeof(sinfo));
-	(void)stream_write(cfd, rc->fbname, rc->fbnamelen);
+	if (stream_write(cfd, &sinfo, sizeof(sinfo)) <= 0)
+		return (-1);
+	if (stream_write(cfd, rc->fbname, rc->fbnamelen) <= 0)
+		return (-1);
+	return (0);
 }
 
-static void
+static int
 rfb_send_resize_update_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_srvr_updt_msg supdt_msg;
@@ -302,7 +305,8 @@ rfb_send_resize_update_msg(struct rfb_softc *rc, int cfd)
 	supdt_msg.type = 0;
 	supdt_msg.pad = 0;
 	supdt_msg.numrects = htons(1);
-	stream_write(cfd, &supdt_msg, sizeof(struct rfb_srvr_updt_msg));
+	if (stream_write(cfd, &supdt_msg, sizeof(struct rfb_srvr_updt_msg)) <= 0)
+		return (-1);
 
 	/* Rectangle header */
 	srect_hdr.x = htons(0);
@@ -310,10 +314,12 @@ rfb_send_resize_update_msg(struct rfb_softc *rc, int cfd)
 	srect_hdr.width = htons(rc->width);
 	srect_hdr.height = htons(rc->height);
 	srect_hdr.encoding = htonl(RFB_ENCODING_RESIZE);
-	stream_write(cfd, &srect_hdr, sizeof(struct rfb_srvr_rect_hdr));
+	if (stream_write(cfd, &srect_hdr, sizeof(struct rfb_srvr_rect_hdr)) <= 0)
+		return (-1);
+	return (0);
 }
 
-static void
+static int
 rfb_send_extended_keyevent_update_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_srvr_updt_msg supdt_msg;
@@ -323,7 +329,8 @@ rfb_send_extended_keyevent_update_msg(struct rfb_softc *rc, int cfd)
 	supdt_msg.type = 0;
 	supdt_msg.pad = 0;
 	supdt_msg.numrects = htons(1);
-	stream_write(cfd, &supdt_msg, sizeof(struct rfb_srvr_updt_msg));
+	if (stream_write(cfd, &supdt_msg, sizeof(struct rfb_srvr_updt_msg)) <= 0)
+		return (-1);
 
 	/* Rectangle header */
 	srect_hdr.x = htons(0);
@@ -331,7 +338,9 @@ rfb_send_extended_keyevent_update_msg(struct rfb_softc *rc, int cfd)
 	srect_hdr.width = htons(rc->width);
 	srect_hdr.height = htons(rc->height);
 	srect_hdr.encoding = htonl(RFB_ENCODING_EXT_KEYEVENT);
-	stream_write(cfd, &srect_hdr, sizeof(struct rfb_srvr_rect_hdr));
+	if (stream_write(cfd, &srect_hdr, sizeof(struct rfb_srvr_rect_hdr)) <= 0)
+		return (-1);
+	return (0);
 }
 
 static int
@@ -727,7 +736,10 @@ rfb_send_screen(struct rfb_softc *rc, int cfd)
                rc->width = gc_image->width;
                rc->height = gc_image->height;
                if (rc->enc_resize_ok) {
-                       rfb_send_resize_update_msg(rc, cfd);
+                       if (rfb_send_resize_update_msg(rc, cfd) < 0) {
+                               retval = -1;
+                               goto done;
+                       }
 		       rc->update_all = true;
                        goto done;
                }
@@ -818,7 +830,10 @@ rfb_send_screen(struct rfb_softc *rc, int cfd)
 		goto done;
 	}
 
-	rfb_send_update_header(rc, cfd, changes);
+	if (rfb_send_update_header(rc, cfd, changes) <= 0) {
+		retval = -1;
+		goto done;
+	}
 
 	/* Go through all cells, and send only changed ones */
 	crc_p = rc->crc_tmp;
@@ -867,7 +882,8 @@ rfb_recv_update_msg(struct rfb_softc *rc, int cfd)
 		return (-1);
 
 	if (rc->enc_extkeyevent_ok && (!rc->enc_extkeyevent_send)) {
-		rfb_send_extended_keyevent_update_msg(rc, cfd);
+		if (rfb_send_extended_keyevent_update_msg(rc, cfd) < 0)
+			return (-1);
 		rc->enc_extkeyevent_send = true;
 	}
 
@@ -1044,7 +1060,8 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	rc->cfd = cfd;
 
 	/* 1a. Send server version */
-	stream_write(cfd, vbuf, strlen(vbuf));
+	if (stream_write(cfd, vbuf, strlen(vbuf)) <= 0)
+		goto done;
 
 	/* 1b. Read client version */
 	len = stream_read(cfd, buf, VERSION_LENGTH);
@@ -1079,10 +1096,14 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	case CVERS_3_8:
 		buf[0] = 1;
 		buf[1] = auth_type;
-		stream_write(cfd, buf, 2);
+		if (stream_write(cfd, buf, 2) <= 0)
+			goto done;
 
 		/* 2b. Read agreed security type */
 		len = stream_read(cfd, buf, 1);
+		if (len <= 0)
+			goto done;
+
 		if (buf[0] != auth_type) {
 			/* deny */
 			sres = htonl(1);
@@ -1093,7 +1114,8 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	case CVERS_3_3:
 	default:
 		be32enc(buf, auth_type);
-		stream_write(cfd, buf, 4);
+		if (stream_write(cfd, buf, 4) <= 0)
+			goto done;
 		break;
 	}
 
@@ -1127,10 +1149,13 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 
 		/* Initialize a 16-byte random challenge */
 		arc4random_buf(challenge, sizeof(challenge));
-		stream_write(cfd, challenge, AUTH_LENGTH);
+		if (stream_write(cfd, challenge, AUTH_LENGTH) <= 0)
+			goto done;
 
 		/* Receive the 16-byte challenge response */
-		stream_read(cfd, buf, AUTH_LENGTH);
+		len = stream_read(cfd, buf, AUTH_LENGTH);
+		if (len <= 0)
+			goto done;
 
 		memcpy(crypt_expected, challenge, AUTH_LENGTH);
 
@@ -1163,14 +1188,17 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	case CVERS_3_8:
 report_and_done:
 		/* 2d. Write back a status */
-		stream_write(cfd, &sres, 4);
+		if (stream_write(cfd, &sres, 4) <= 0)
+			goto done;
 
 		if (sres) {
 			/* 3.7 does not want string explaining cause */
 			if (client_ver == CVERS_3_8) {
 				be32enc(buf, strlen(message));
-				stream_write(cfd, buf, 4);
-				stream_write(cfd, message, strlen(message));
+				if (stream_write(cfd, buf, 4) <= 0)
+					goto done;
+				if (stream_write(cfd, message, strlen(message)) <= 0)
+					goto done;
 			}
 			goto done;
 		}
@@ -1180,7 +1208,8 @@ report_and_done:
 		/* for VNC auth case send status */
 		if (auth_type == SECURITY_TYPE_VNC_AUTH) {
 			/* 2d. Write back a status */
-			stream_write(cfd, &sres, 4);
+			if (stream_write(cfd, &sres, 4) <= 0)
+				goto done;
 		}
 		if (sres) {
 			goto done;
@@ -1189,9 +1218,12 @@ report_and_done:
 	}
 	/* 3a. Read client shared-flag byte */
 	len = stream_read(cfd, buf, 1);
+	if (len <= 0)
+		goto done;
 
 	/* 4a. Write server-init info */
-	rfb_send_server_init_msg(rc, cfd);
+	if (rfb_send_server_init_msg(rc, cfd) < 0)
+		goto done;
 
 	if (!rc->zbuf) {
 		rc->zbuf = malloc(RFB_ZLIB_BUFSZ + 16);
