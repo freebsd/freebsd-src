@@ -1033,8 +1033,8 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &vmmdevsw;
 	mda.mda_cr = sc->ucred;
-	mda.mda_uid = UID_ROOT;
-	mda.mda_gid = GID_WHEEL;
+	mda.mda_uid = cred->cr_uid;
+	mda.mda_gid = GID_VMM;
 	mda.mda_mode = 0600;
 	mda.mda_si_drv1 = sc;
 	mda.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
@@ -1201,7 +1201,7 @@ vmmdev_init(void)
 
 	sx_xlock(&vmmdev_mtx);
 	error = make_dev_p(MAKEDEV_CHECKNAME, &vmmctl_cdev, &vmmctlsw, NULL,
-	    UID_ROOT, GID_WHEEL, 0600, "vmmctl");
+	    UID_ROOT, GID_VMM, 0660, "vmmctl");
 	if (error == 0) {
 		pr_allow_vmm_flag = prison_add_allow(NULL, "vmm", NULL,
 		    "Allow use of vmm in a jail");
@@ -1357,8 +1357,8 @@ devmem_create_cdev(struct vmmdev_softc *sc, int segid, char *devname)
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &devmemsw;
 	mda.mda_cr = sc->ucred;
-	mda.mda_uid = UID_ROOT;
-	mda.mda_gid = GID_WHEEL;
+	mda.mda_uid = sc->ucred->cr_uid;
+	mda.mda_gid = GID_VMM;
 	mda.mda_mode = 0600;
 	mda.mda_si_drv1 = dsc;
 	mda.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
