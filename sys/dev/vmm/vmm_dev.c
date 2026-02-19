@@ -898,12 +898,23 @@ vmmdev_lookup_and_destroy(const char *name, struct ucred *cred)
 {
 	struct cdev *cdev;
 	struct vmmdev_softc *sc;
+	int error;
 
 	sx_xlock(&vmmdev_mtx);
 	sc = vmmdev_lookup(name, cred);
 	if (sc == NULL || sc->cdev == NULL) {
 		sx_xunlock(&vmmdev_mtx);
 		return (EINVAL);
+	}
+
+	/*
+	 * Only the creator of a VM or a privileged user can destroy it.
+	 */
+	if ((cred->cr_uid != sc->ucred->cr_uid ||
+	     cred->cr_prison != sc->ucred->cr_prison) &&
+	    (error = priv_check_cred(cred, PRIV_VMM_DESTROY)) != 0) {
+		sx_xunlock(&vmmdev_mtx);
+		return (error);
 	}
 
 	/*
@@ -990,6 +1001,16 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 	if (sc != NULL) {
 		sx_xunlock(&vmmdev_mtx);
 		return (EEXIST);
+	}
+
+	/*
+	 * Unprivileged users can only create VMs that will be automatically
+	 * destroyed when the creating descriptor is closed.
+	 */
+	if ((flags & VMMCTL_CREATE_DESTROY_ON_CLOSE) == 0 &&
+	    (error = priv_check_cred(cred, PRIV_VMM_CREATE)) != 0) {
+		sx_xunlock(&vmmdev_mtx);
+		return (error);
 	}
 
 	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
