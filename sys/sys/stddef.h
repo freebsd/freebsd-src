@@ -31,6 +31,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
+#include <sys/_offsetof.h>
 #include <sys/_types.h>
 #include <sys/_visible.h>
 
@@ -45,7 +46,5 @@ typedef	__ptraddr_t	ptraddr_t;
 typedef	__ptrdiff_t	ptrdiff_t;
 #define	_PTRDIFF_T_DECLARED
 #endif
-
-#define	offsetof(type, field)	__offsetof(type, field)
 
 #endif /* !_SYS_STDDEF_H_ */
