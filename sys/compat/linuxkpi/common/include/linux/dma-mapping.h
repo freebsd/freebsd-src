@@ -106,10 +106,10 @@ void lkpi_dma_unmap(struct device *, dma_addr_t, size_t,
     enum dma_data_direction, unsigned long);
 int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
     int nents, enum dma_data_direction direction,
-    unsigned long attrs __unused);
+    unsigned long attrs);
 void linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
     int nents __unused, enum dma_data_direction direction,
-    unsigned long attrs __unused);
+    unsigned long attrs);
 void linuxkpi_dma_sync(struct device *, dma_addr_t, size_t, bus_dmasync_op_t);
 
 static inline int
@@ -201,10 +201,10 @@ dma_map_page_attrs(struct device *dev, struct page *page, size_t offset,
 
 /* linux_dma_(un)map_sg_attrs does not support attrs yet */
 #define	dma_map_sg_attrs(dev, sgl, nents, dir, attrs)	\
-	linux_dma_map_sg_attrs(dev, sgl, nents, dir, 0)
+	linux_dma_map_sg_attrs(dev, sgl, nents, dir, attrs)
 
 #define	dma_unmap_sg_attrs(dev, sg, nents, dir, attrs)	\
-	linux_dma_unmap_sg_attrs(dev, sg, nents, dir, 0)
+	linux_dma_unmap_sg_attrs(dev, sg, nents, dir, attrs)
 
 static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
@@ -361,10 +361,10 @@ dma_max_mapping_size(struct device *dev)
 }
 
 #define	dma_map_single_attrs(dev, ptr, size, dir, attrs)	\
-	_dma_map_single_attrs(dev, ptr, size, dir, 0)
+	_dma_map_single_attrs(dev, ptr, size, dir, attrs)
 
 #define	dma_unmap_single_attrs(dev, dma_addr, size, dir, attrs)	\
-	_dma_unmap_single_attrs(dev, dma_addr, size, dir, 0)
+	_dma_unmap_single_attrs(dev, dma_addr, size, dir, attrs)
 
 #define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, 0)
 #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, 0)
