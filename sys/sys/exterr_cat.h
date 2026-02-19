@@ -39,6 +39,7 @@
 #define	EXTERR_CAT_FUSE_DEVICE	14
 #define	EXTERR_CAT_FORK		15
 #define	EXTERR_CAT_PROCEXIT	16
+#define	EXTERR_CAT_VMM		17
 
 #endif
 

@@ -8,6 +8,8 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#define	EXTERR_CATEGORY	EXTERR_CAT_VMM
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/jail.h>
@@ -1010,7 +1012,8 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 	if ((flags & VMMCTL_CREATE_DESTROY_ON_CLOSE) == 0 &&
 	    (error = priv_check_cred(cred, PRIV_VMM_CREATE)) != 0) {
 		sx_xunlock(&vmmdev_mtx);
-		return (error);
+		return (EXTERROR(error,
+		    "An unprivileged user must run VMs in monitor mode"));
 	}
 
 	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
