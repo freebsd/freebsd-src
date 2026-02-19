@@ -1443,8 +1443,8 @@ OLD_DIRS+=usr/include/fs/cuse
 
 .if ${MK_DEBUG_FILES} == no
 .if exists(${DESTDIR}/usr/lib/debug)
-DEBUG_DIRS!=find ${DESTDIR}/usr/lib/debug -mindepth 1 \
-    -type d \! -path "${DESTDIR}/usr/lib/debug/boot/*" \
+DEBUG_DIRS!=find -E ${DESTDIR}/usr/lib/debug -mindepth 1 \
+    -type d \! -regex "${DESTDIR}/usr/lib/debug/boot(/.*)?" \
     | sed -e 's,^${DESTDIR}/,,'; echo
 DEBUG_FILES!=find ${DESTDIR}/usr/lib/debug \
     \! -type d \! -path "${DESTDIR}/usr/lib/debug/boot/*" \! -name "lib*.so*" \
