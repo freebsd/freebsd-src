@@ -29,7 +29,7 @@
 #include <stdlib.h>
 
 long long
-llabs(long long j)
+llabs(long long i)
 {
-	return (j < 0 ? -j : j);
+	return (i < 0 ? -i : i);
 }

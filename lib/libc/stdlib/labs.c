@@ -32,7 +32,7 @@
 #include <stdlib.h>
 
 long
-labs(long j)
+labs(long i)
 {
-	return(j < 0 ? -j : j);
+	return(i < 0 ? -i : i);
 }

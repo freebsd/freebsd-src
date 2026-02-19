@@ -29,7 +29,7 @@
 #include <inttypes.h>
 
 intmax_t
-imaxabs(intmax_t j)
+imaxabs(intmax_t i)
 {
-	return (j < 0 ? -j : j);
+	return (i < 0 ? -i : i);
 }
