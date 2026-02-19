@@ -3539,7 +3539,7 @@ static inline u64 ib_dma_map_single_attrs(struct ib_device *dev,
 					  struct dma_attrs *dma_attrs)
 {
 	return dma_map_single_attrs(dev->dma_device, cpu_addr, size,
-				    direction, dma_attrs);
+				    direction, dma_attrs->flags);
 }
 
 static inline void ib_dma_unmap_single_attrs(struct ib_device *dev,
@@ -3548,7 +3548,7 @@ static inline void ib_dma_unmap_single_attrs(struct ib_device *dev,
 					     struct dma_attrs *dma_attrs)
 {
 	return dma_unmap_single_attrs(dev->dma_device, addr, size,
-				      direction, dma_attrs);
+				      direction, dma_attrs->flags);
 }
 
 /**
@@ -3630,7 +3630,7 @@ static inline int ib_dma_map_sg_attrs(struct ib_device *dev,
 						  dma_attrs);
 	else
 		return dma_map_sg_attrs(dev->dma_device, sg, nents, direction,
-					dma_attrs);
+					dma_attrs->flags);
 }
 
 static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
@@ -3643,7 +3643,7 @@ static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
 						  dma_attrs);
 	else
 		dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction,
-				   dma_attrs);
+				   dma_attrs->flags);
 }
 /**
  * ib_sg_dma_address - Return the DMA address from a scatter/gather entry
