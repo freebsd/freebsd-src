@@ -99,6 +99,9 @@ SYSINCS+=	stat.h
 SRCS+=		futimens.c utimensat.c
 .endif
 
+# Define ptraddr_t for bootstrapping
+INCS+=		stddef.h
+
 _WITH_EXPLICIT_BZERO!= cat ${HOST_INCLUDE_ROOT}/strings.h ${HOST_INCLUDE_ROOT}/string.h | grep -c explicit_bzero || true
 .if ${_WITH_EXPLICIT_BZERO} == 0
 # .PATH: ${SRCTOP}/sys/libkern
