@@ -343,7 +343,7 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 	idx = xfer->head;
 	for (i = 0; i < xfer->ndata; i++) {
 		xfer->data[idx].bdone = 0;
-		if (data == NULL && USB_DATA_OK(xfer,i)) {
+		if (data == NULL && USB_DATA_OK(xfer, idx)) {
 			data = &xfer->data[idx];
 			udata = data->buf;
 		}
@@ -529,7 +529,9 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 
 	case UREQ(UR_GET_STATUS, UT_READ_DEVICE):
 		DPRINTF(("umouse: (UR_GET_STATUS, UT_READ_DEVICE)"));
-		if (data != NULL && len > 1) {
+		if (data == NULL)
+			break;
+		if (len > 1) {
 			if (sc->hid.feature == UF_DEVICE_REMOTE_WAKEUP)
 				USETW(udata, UDS_REMOTE_WAKEUP);
 			else
@@ -538,18 +540,20 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 			data->bdone += 2;
 		}
 
-		eshort = data != NULL && data->blen > 0;
+		eshort = data->blen > 0;
 		break;
 
 	case UREQ(UR_GET_STATUS, UT_READ_INTERFACE):
 	case UREQ(UR_GET_STATUS, UT_READ_ENDPOINT):
 		DPRINTF(("umouse: (UR_GET_STATUS, UT_READ_INTERFACE)"));
-		if (data != NULL && len > 1) {
+		if (data == NULL)
+			break;
+		if (len > 1) {
 			USETW(udata, 0);
 			data->blen = len - 2;
 			data->bdone += 2;
 		}
-		eshort = data != NULL && data->blen > 0;
+		eshort = data->blen > 0;
 		break;
 
 	case UREQ(UR_SET_ADDRESS, UT_WRITE_DEVICE):
@@ -629,21 +633,25 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 		break;
 
 	case UREQ(UMOUSE_GET_IDLE, UT_READ_CLASS_INTERFACE):
-		if (data != NULL && len > 0) {
+		if (data == NULL)
+			break;
+		if (len > 0) {
 			*udata = sc->hid.idle;
 			data->blen = len - 1;
 			data->bdone += 1;
 		}
-		eshort = data != NULL && data->blen > 0;
+		eshort = data->blen > 0;
 		break;
 
 	case UREQ(UMOUSE_GET_PROTOCOL, UT_READ_CLASS_INTERFACE):
-		if (data != NULL && len > 0) {
+		if (data == NULL)
+			break;
+		if (len > 0) {
 			*udata = sc->hid.protocol;
 			data->blen = len - 1;
 			data->bdone += 1;
 		}
-		eshort = data != NULL && data->blen > 0;
+		eshort = data->blen > 0;
 		break;
 
 	case UREQ(UMOUSE_SET_REPORT, UT_WRITE_CLASS_INTERFACE):
