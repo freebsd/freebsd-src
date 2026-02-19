@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 5, 2026
+.Dd January 23, 2026
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -117,8 +117,23 @@ on arm64 the
 package provides a U-Boot image that can be used to boot the guest.
 .Pp
 .Nm
-runs until the guest operating system reboots or an unhandled hypervisor
-exit is detected.
+runs until the guest operating system reboots (if
+.Ql monitor
+mode is not enabled) or halts, or an unhandled hypervisor exit is
+detected.
+.Pp
+Generally
+.Nm
+must be run by the super-user, but users belonging to the
+.Va vmm
+group can create and run virtual machines as well.
+See
+.Xr vmm 4 .
+When run by an unprivileged user,
+.Nm
+must have access to any required resources such as disk images or
+network devices.
+PCI passthrough cannot be used by unprivileged users.
 .Sh OPTIONS
 .Bl -tag -width 10n
 .It Fl a
@@ -605,8 +620,8 @@ addressing rules.
 The
 .Cm slirp
 backend can be used to provide a NATed network to the guest.
-This backend has poor performance but does not require any network
-configuration on the host system.
+This backend has limited performance but does not require any network
+configuration on the host system and can be used by unprivileged users.
 It depends on the
 .Pa net/libslirp
 port.
