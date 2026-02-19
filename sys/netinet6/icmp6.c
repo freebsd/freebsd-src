@@ -2133,6 +2133,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	m->m_pkthdr.rcvif = NULL;
+	m->m_pkthdr.csum_flags = 0;
 	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
 	if (outif)
 		icmp6_ifoutstat_inc(outif, type, code);
