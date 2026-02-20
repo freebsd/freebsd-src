@@ -88,7 +88,7 @@ ATF_TC_BODY(test_rtnl_gre, tc)
 	struct snl_state ss;
 	struct snl_writer nw;
 	struct nlmsghdr *hdr, *rx_hdr;
-	struct sockaddr_in src, dst;
+	struct in_addr src, dst;
 	struct nla_gre_link lattrs = {};
 	struct nl_parsed_gre attrs = {};
 	struct snl_errmsg_data e = {};
@@ -109,12 +109,10 @@ ATF_TC_BODY(test_rtnl_gre, tc)
         snl_add_msg_attr_string(&nw, IFLA_INFO_KIND, "gre");
 	off2 = snl_add_msg_attr_nested(&nw, IFLA_INFO_DATA);
 
-	src.sin_family = AF_INET;
-	dst.sin_family = AF_INET;
-	inet_pton(src.sin_family, "127.0.0.1", &src.sin_addr);
-	inet_pton(dst.sin_family, "127.0.0.2", &dst.sin_addr);
-	snl_add_msg_attr_ip(&nw, IFLA_GRE_LOCAL, (struct sockaddr *)&src);
-	snl_add_msg_attr_ip(&nw, IFLA_GRE_REMOTE, (struct sockaddr *)&dst);
+	inet_pton(AF_INET, "127.0.0.1", &src);
+	inet_pton(AF_INET, "127.0.0.2", &dst);
+	snl_add_msg_attr_ip4(&nw, IFLA_GRE_LOCAL, &src);
+	snl_add_msg_attr_ip4(&nw, IFLA_GRE_REMOTE, &dst);
 	snl_add_msg_attr_u32(&nw, IFLA_GRE_FLAGS, (GRE_ENABLE_SEQ | GRE_ENABLE_CSUM));
 	snl_add_msg_attr_u32(&nw, IFLA_GRE_OKEY, 123456);
 	snl_add_msg_attr_u32(&nw, IFLA_GRE_ENCAP_TYPE, IFLA_TUNNEL_GRE_UDP);
