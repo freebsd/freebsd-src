@@ -80,6 +80,7 @@ ATF_TC_HEAD(test_rtnl_gre, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "test gre interface using netlink");
 	atf_tc_set_md_var(tc, "require.user", "root");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink if_gre");
 }
 
 ATF_TC_BODY(test_rtnl_gre, tc)
