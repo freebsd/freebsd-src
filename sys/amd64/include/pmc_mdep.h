@@ -65,7 +65,6 @@ struct pmc_mdep;
  * TSC		The timestamp counter
  * K8		AMD Athlon64 and Opteron PMCs in 64 bit mode.
  * IBS		AMD IBS
- * PIV		Intel P4/HTT and P4/EMT64
  * IAP		Intel Core/Core2/Atom CPUs in 64 bits mode.
  * IAF		Intel fixed-function PMCs in Core2 and later CPUs.
  * UCP		Intel Uncore programmable PMCs.
