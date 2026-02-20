@@ -110,7 +110,6 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
     __PMC_CPU(INTEL_EMERALD_RAPIDS,	0xA0,	"Intel Emerald Rapids")		\
     __PMC_CPU(INTEL_ALDERLAKEN,		0xA1,	"Intel AlderlakeN")		\
     __PMC_CPU(INTEL_GRANITE_RAPIDS,	0xA2,	"Intel Granite Rapids")		\
-    __PMC_CPU(INTEL_XSCALE,		0x100,	"Intel XScale")			\
     __PMC_CPU(PPC_7450,			0x300,	"PowerPC MPC7450")		\
     __PMC_CPU(PPC_E500,			0x340,	"PowerPC e500 Core")		\
     __PMC_CPU(PPC_970,			0x380,	"IBM PowerPC 970")		\
@@ -146,7 +145,6 @@ enum pmc_cputype {
     __PMC_CLASS(IAP,		0x07,	"Intel Core...Atom, programmable")	\
     __PMC_CLASS(UCF,		0x08,	"Intel Uncore fixed function")		\
     __PMC_CLASS(UCP,		0x09,	"Intel Uncore programmable")		\
-    __PMC_CLASS(XSCALE,		0x0A,	"Intel XScale counters")		\
     __PMC_CLASS(PPC7450,	0x0D,	"Motorola MPC7450 class")		\
     __PMC_CLASS(PPC970,		0x0E,	"IBM PowerPC 970 class")		\
     __PMC_CLASS(SOFT,		0x0F,	"Software events")			\
