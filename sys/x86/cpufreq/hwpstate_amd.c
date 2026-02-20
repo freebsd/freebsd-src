@@ -1040,7 +1040,7 @@ hwpstate_attach(device_t dev)
 		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		    dev, AMD_CPPC_REQUEST_DES_PERF_BITS,
 		    sysctl_cppc_request_field_handler, "IU",
-		    "Desired performance level (from 0 to 255, "
+		    "Desired performance level (from 0 to 255; "
 		    "0 enables autonomous mode, otherwise value should be "
 		    "between 'minimum_performance' and 'maximum_performance' "
 		    "inclusive)");
