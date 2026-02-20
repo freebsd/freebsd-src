@@ -41,7 +41,6 @@ struct pmc_mdep;
  * On the i386 platform we support the following PMCs.
  *
  * TSC		The timestamp counter
- * K7		AMD Athlon XP/MP and other 32 bit processors.
  * K8		AMD Athlon64 and Opteron PMCs in 32 bit mode.
  * IAP		Intel Core/Core2/Atom programmable PMCs.
  * IAF		Intel fixed-function PMCs.
@@ -49,7 +48,7 @@ struct pmc_mdep;
  * UCF		Intel Uncore fixed-function PMCs.
  */
 
-#include <dev/hwpmc/hwpmc_amd.h> /* K7 and K8 */
+#include <dev/hwpmc/hwpmc_amd.h>
 #include <dev/hwpmc/hwpmc_core.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
 #include <dev/hwpmc/hwpmc_uncore.h>
@@ -60,7 +59,6 @@ struct pmc_mdep;
  * IAF, IAP, UCF and UCP.
  */
 #define	PMC_MDEP_CLASS_INDEX_TSC	1
-#define	PMC_MDEP_CLASS_INDEX_K7		2
 #define	PMC_MDEP_CLASS_INDEX_K8		2
 #define	PMC_MDEP_CLASS_INDEX_IAP	2
 #define	PMC_MDEP_CLASS_INDEX_IAF	3
