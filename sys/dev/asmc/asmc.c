@@ -176,6 +176,11 @@ static const struct asmc_model *asmc_match(device_t dev);
 			 .smc_light_right = NULL, \
 			 .smc_light_control = NULL
 
+#define	ASMC_TEMPS_FUNCS_DISABLED \
+			  .smc_temps = {},		\
+			  .smc_tempnames = {},		\
+			  .smc_tempdescs = {}		\
+
 static const struct asmc_model asmc_models[] = {
 	{
 	  "MacBook1,1", "Apple SMC MacBook Core Duo",
@@ -517,8 +522,42 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_FAN_FUNCS2,
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA7_TEMPS, ASMC_MBA7_TEMPNAMES, ASMC_MBA7_TEMPDESCS
+	}
+};
+
+static const struct asmc_model asmc_generic_models[] = {
+	{
+	  .smc_model = "MacBookAir",
+	  .smc_desc = NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2,
+	  ASMC_LIGHT_FUNCS,
+	  ASMC_TEMPS_FUNCS_DISABLED
 	},
-	{ NULL, NULL }
+	{
+	  .smc_model = "MacBookPro",
+	  .smc_desc = NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2,
+	  ASMC_LIGHT_FUNCS,
+	  ASMC_TEMPS_FUNCS_DISABLED
+	},
+	{
+	  .smc_model = "MacPro",
+	  .smc_desc = NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2,
+	  ASMC_LIGHT_FUNCS_DISABLED,
+	  ASMC_TEMPS_FUNCS_DISABLED
+	},
+	{
+	  .smc_model = "Macmini",
+	  .smc_desc = NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2,
+	  ASMC_LIGHT_FUNCS_DISABLED,
+	  ASMC_TEMPS_FUNCS_DISABLED
+	}
 };
 
 #undef ASMC_SMS_FUNCS
@@ -566,28 +605,41 @@ MODULE_DEPEND(asmc, acpi, 1, 1, 1);
 static const struct asmc_model *
 asmc_match(device_t dev)
 {
+	const struct asmc_model *model;
+	char *model_name;
 	int i;
-	char *model;
 
-	model = kern_getenv("smbios.system.product");
-	if (model == NULL)
-		return (NULL);
+	model = NULL;
 
-	for (i = 0; asmc_models[i].smc_model; i++) {
-		if (!strncmp(model, asmc_models[i].smc_model, strlen(model))) {
-			freeenv(model);
-			return (&asmc_models[i]);
+	model_name = kern_getenv("smbios.system.product");
+	if (model_name == NULL)
+		goto out;
+
+	for (i = 0; i < nitems(asmc_models); i++) {
+		if (strncmp(model_name, asmc_models[i].smc_model,
+		    strlen(model_name)) == 0) {
+			model = &asmc_models[i];
+			goto out;
 		}
 	}
-	freeenv(model);
+	for (i = 0; i < nitems(asmc_generic_models); i++) {
+		if (strncmp(model_name, asmc_generic_models[i].smc_model,
+		    strlen(asmc_generic_models[i].smc_model)) == 0) {
+			model = &asmc_generic_models[i];
+			goto out;
+		}
+	}
 
-	return (NULL);
+out:
+	freeenv(model_name);
+	return (model);
 }
 
 static int
 asmc_probe(device_t dev)
 {
 	const struct asmc_model *model;
+	const char *device_desc;
 	int rv;
 
 	if (resource_disabled("asmc", 0))
@@ -597,11 +649,13 @@ asmc_probe(device_t dev)
 		return (rv);
 
 	model = asmc_match(dev);
-	if (!model) {
+	if (model == NULL) {
 		device_printf(dev, "model not recognized\n");
 		return (ENXIO);
 	}
-	device_set_desc(dev, model->smc_desc);
+	device_desc = model->smc_desc == NULL ?
+	    model->smc_model : model->smc_desc;
+	device_set_desc(dev, device_desc);
 
 	return (rv);
 }
