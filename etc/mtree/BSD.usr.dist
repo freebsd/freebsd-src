@@ -181,8 +181,8 @@
         ..
         hyperv
         ..
-        lpr
-            ru
+        lpr			tags=package=lp
+            ru			tags=package=lp
             ..
         ..
         sendmail
@@ -352,7 +352,7 @@
             ..
             ppp
             ..
-            printing
+            printing		tags=package=lp
             ..
             scsi_target
             ..
