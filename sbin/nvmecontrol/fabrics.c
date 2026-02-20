@@ -485,7 +485,7 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	/* Validate I/O queue size. */
 	memset(io, 0, sizeof(*io) * num_io_queues);
 	if (queue_size == 0)
-		queue_size = (u_int)mqes + 1;
+		queue_size = MIN(NVMF_DEFAULT_IO_ENTRIES, (u_int)mqes + 1);
 	else if (queue_size > (u_int)mqes + 1) {
 		warnx("I/O queue size exceeds controller maximum (%u)",
 		    mqes + 1);
