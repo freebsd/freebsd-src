@@ -1687,7 +1687,8 @@ typedef struct {
 #define	R_X86_64_PLT32		4	/* PC-relative 32 bit PLT offset. */
 #define	R_X86_64_COPY		5	/* Copy data from shared object. */
 #define	R_X86_64_GLOB_DAT	6	/* Set GOT entry to data address. */
-#define	R_X86_64_JMP_SLOT	7	/* Set GOT entry to code address. */
+#define	R_X86_64_JUMP_SLOT	7	/* Set GOT entry to code address. */
+#define	R_X86_64_JMP_SLOT	R_X86_64_JUMP_SLOT /* Alternate name. */
 #define	R_X86_64_RELATIVE	8	/* Add load address of shared object. */
 #define	R_X86_64_GOTPCREL	9	/* Add 32 bit signed pcrel offset to GOT. */
 #define	R_X86_64_32		10	/* Add 32 bit zero extended symbol value */
