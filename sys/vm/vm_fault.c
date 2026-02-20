@@ -509,7 +509,10 @@ vm_fault_populate_cleanup(vm_object_t object, vm_pindex_t first,
 		vm_page_deactivate(m);
 		vm_page_xunbusy(m);
 	}
-	KASSERT(pages.index == last, ("%s: pindex mismatch", __func__));
+	KASSERT(pages.index == last,
+	    ("%s: Object %p first %#jx last %#jx index %#jx",
+	    __func__, object, (uintmax_t)first, (uintmax_t)last,
+	    (uintmax_t)pages.index));
 }
 
 static enum fault_status
