@@ -398,9 +398,9 @@ static const struct asmc_model asmc_models[] = {
 	/* Idem for the Mac Pro (Early 2008) */
 	{
 	  "MacPro3,1", "Apple SMC Mac Pro (Early 2008)",
-	  NULL, NULL, NULL,
+	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL, NULL,
+	  ASMC_LIGHT_FUNCS_DISABLED,
 	  ASMC_MP31_TEMPS, ASMC_MP31_TEMPNAMES, ASMC_MP31_TEMPDESCS
 	},
 
