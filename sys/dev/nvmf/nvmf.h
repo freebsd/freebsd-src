@@ -27,11 +27,12 @@
 #define	NVMF_NN			(1024)
 
 /*
- * Default timeouts for Fabrics hosts.  These match values used by
+ * Default settings for Fabrics hosts.  These match values used by
  * Linux.
  */
 #define	NVMF_DEFAULT_RECONNECT_DELAY	10
 #define	NVMF_DEFAULT_CONTROLLER_LOSS	600
+#define	NVMF_DEFAULT_IO_ENTRIES		128
 
 /*
  * (data, size) is the userspace buffer for a packed nvlist.
