@@ -55,6 +55,22 @@
 #define	___CONCAT(x,y)	__CONCAT(x,y)
 
 /*
+ * Compile Time Assertion.
+ */
+#ifdef __COUNTER__
+#define	__CTASSERT(x)		__CTASSERT0(x, __ctassert, __COUNTER__)
+#else
+#define	__CTASSERT(x)		__CTASSERT99(x, __INCLUDE_LEVEL__, __LINE__)
+#define	__CTASSERT99(x, a, b)	__CTASSERT0(x, __CONCAT(__ctassert,a), \
+					       __CONCAT(_,b))
+#endif
+#define	__CTASSERT0(x, y, z)	__CTASSERT1(x, y, z)
+#define	__CTASSERT1(x, y, z)	\
+	struct y ## z ## _struct { \
+		unsigned int y ## z : /*CONSTCOND*/(x) ? 1 : -1; \
+	}
+
+/*
  * The following macro is used to remove const cast-away warnings
  * from gcc -Wcast-qual; it should be used with caution because it
  * can hide valid errors; in particular most valid uses are in
