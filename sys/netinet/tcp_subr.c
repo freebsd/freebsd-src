@@ -575,7 +575,7 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 #endif
 	struct udphdr *uh;
 	struct tcphdr *th;
-	int thlen;
+	int len, thlen;
 	uint16_t port;
 
 	TCPSTAT_INC(tcps_tunneled_pkts);
@@ -619,15 +619,27 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 	switch (iph->ip_v) {
 #ifdef INET
 	case IPVERSION:
-		iph->ip_len = htons(ntohs(iph->ip_len) - sizeof(struct udphdr));
-		tcp_input_with_port(&m, &off, IPPROTO_TCP, port);
+		len = ntohs(iph->ip_len) - sizeof(struct udphdr);
+		if (len != m->m_pkthdr.len) {
+			TCPSTAT_INC(tcps_tunneled_errs);
+			goto out;
+		} else {
+			iph->ip_len = htons(len);
+			tcp_input_with_port(&m, &off, IPPROTO_TCP, port);
+		}
 		break;
 #endif
 #ifdef INET6
 	case IPV6_VERSION >> 4:
 		ip6 = mtod(m, struct ip6_hdr *);
-		ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) - sizeof(struct udphdr));
-		tcp6_input_with_port(&m, &off, IPPROTO_TCP, port);
+		len = ntohs(ip6->ip6_plen) - sizeof(struct udphdr);
+		if (len + sizeof(struct ip6_hdr) != m->m_pkthdr.len) {
+			TCPSTAT_INC(tcps_tunneled_errs);
+			goto out;
+		} else {
+			ip6->ip6_plen = htons(len);
+			tcp6_input_with_port(&m, &off, IPPROTO_TCP, port);
+		}
 		break;
 #endif
 	default:
