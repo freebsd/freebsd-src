@@ -187,7 +187,7 @@ static device_method_t cxgb_port_methods[] = {
 	DEVMETHOD(device_probe,		cxgb_port_probe),
 	DEVMETHOD(device_attach,	cxgb_port_attach),
 	DEVMETHOD(device_detach,	cxgb_port_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t cxgb_port_driver = {

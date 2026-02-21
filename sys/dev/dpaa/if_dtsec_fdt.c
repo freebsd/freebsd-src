@@ -77,7 +77,7 @@ static device_method_t dtsec_methods[] = {
 	DEVMETHOD(miibus_writereg,	dtsec_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	dtsec_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t dtsec_driver = {

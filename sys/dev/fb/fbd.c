@@ -348,7 +348,7 @@ static device_method_t fbd_methods[] = {
 
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t fbd_driver = {

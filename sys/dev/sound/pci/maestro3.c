@@ -1779,7 +1779,7 @@ static device_method_t m3_methods[] = {
 	DEVMETHOD(device_suspend,       m3_pci_suspend),
 	DEVMETHOD(device_resume,        m3_pci_resume),
 	DEVMETHOD(device_shutdown,      m3_pci_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t m3_driver = {

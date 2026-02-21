@@ -954,7 +954,7 @@ static device_method_t cs4281_methods[] = {
     DEVMETHOD(device_detach,		cs4281_pci_detach),
     DEVMETHOD(device_suspend,		cs4281_pci_suspend),
     DEVMETHOD(device_resume,		cs4281_pci_resume),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t cs4281_driver = {

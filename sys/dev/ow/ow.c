@@ -706,7 +706,7 @@ static device_method_t ow_methods[] = {
 	DEVMETHOD(own_acquire_bus,	ow_acquire_bus),
 	DEVMETHOD(own_release_bus,	ow_release_bus),
 	DEVMETHOD(own_crc,		ow_crc),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ow_driver = {

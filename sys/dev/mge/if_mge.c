@@ -166,7 +166,7 @@ static device_method_t mge_methods[] = {
 	/* MDIO interface */
 	DEVMETHOD(mdio_readreg,		mge_mdio_readreg),
 	DEVMETHOD(mdio_writereg,	mge_mdio_writereg),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(mge, mge_driver, mge_methods, sizeof(struct mge_softc));

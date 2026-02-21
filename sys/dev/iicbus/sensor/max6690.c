@@ -87,7 +87,7 @@ static device_method_t  max6690_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		max6690_probe),
 	DEVMETHOD(device_attach,	max6690_attach),
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t max6690_driver = {

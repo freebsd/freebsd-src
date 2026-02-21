@@ -168,7 +168,7 @@ static kobj_method_t lowrisc_uart_methods[] = {
 	KOBJMETHOD(uart_transmit,	lowrisc_uart_bus_transmit),
 	KOBJMETHOD(uart_grab,		lowrisc_uart_bus_grab),
 	KOBJMETHOD(uart_ungrab,		lowrisc_uart_bus_ungrab),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static struct uart_class uart_lowrisc_class = {

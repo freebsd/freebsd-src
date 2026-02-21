@@ -54,7 +54,7 @@ static device_method_t nvme_pci_methods[] = {
 	DEVMETHOD(device_suspend,   nvme_pci_suspend),
 	DEVMETHOD(device_resume,    nvme_pci_resume),
 	DEVMETHOD(device_shutdown,  nvme_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nvme_pci_driver = {

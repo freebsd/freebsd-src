@@ -62,7 +62,7 @@ static device_method_t mlxd_methods[] = {
     DEVMETHOD(device_probe,	mlxd_probe),
     DEVMETHOD(device_attach,	mlxd_attach),
     DEVMETHOD(device_detach,	mlxd_detach),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t mlxd_driver = {

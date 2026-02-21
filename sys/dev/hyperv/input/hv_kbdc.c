@@ -515,7 +515,7 @@ static device_method_t kbd_methods[] = {
 	DEVMETHOD(device_probe, hv_kbd_probe),
 	DEVMETHOD(device_attach, hv_kbd_attach),
 	DEVMETHOD(device_detach, hv_kbd_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t kbd_driver = {HVKBD_DRIVER_NAME , kbd_methods, sizeof(hv_kbd_sc)};

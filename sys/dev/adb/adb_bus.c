@@ -57,15 +57,15 @@ static device_method_t adb_bus_methods[] = {
 	DEVMETHOD(device_probe,		adb_bus_probe),
 	DEVMETHOD(device_attach,	adb_bus_attach),
 	DEVMETHOD(device_detach,        bus_generic_detach),
-        DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-        DEVMETHOD(device_suspend,       bus_generic_suspend),
-        DEVMETHOD(device_resume,        bus_generic_resume),
+	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+	DEVMETHOD(device_suspend,       bus_generic_suspend),
+	DEVMETHOD(device_resume,        bus_generic_resume),
 
 	/* Bus Interface */
-        DEVMETHOD(bus_probe_nomatch,    adb_probe_nomatch),
-        DEVMETHOD(bus_print_child,	adb_print_child),
+	DEVMETHOD(bus_probe_nomatch,    adb_probe_nomatch),
+	DEVMETHOD(bus_print_child,	adb_print_child),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 driver_t adb_driver = {

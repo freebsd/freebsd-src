@@ -79,7 +79,7 @@ static device_method_t ppc_acpi_methods[] = {
 #else
 	DEVMETHOD(ppbus_write,		ppc_write),
 #endif
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ppc_acpi_driver = {

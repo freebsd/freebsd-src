@@ -574,7 +574,7 @@ static device_method_t ppbus_methods[] = {
 	DEVMETHOD(bus_teardown_intr,	ppbus_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ppbus_driver = {

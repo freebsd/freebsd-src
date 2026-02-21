@@ -80,7 +80,7 @@ static device_method_t onyx_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		onyx_probe),
 	DEVMETHOD(device_attach,	onyx_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t onyx_driver = {

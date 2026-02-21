@@ -131,7 +131,7 @@ static device_method_t  adt746x_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,	 adt746x_probe),
 	DEVMETHOD(device_attach, adt746x_attach),
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t adt746x_driver = {

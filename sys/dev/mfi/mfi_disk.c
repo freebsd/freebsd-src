@@ -70,7 +70,7 @@ static device_method_t mfi_disk_methods[] = {
 	DEVMETHOD(device_probe,		mfi_disk_probe),
 	DEVMETHOD(device_attach,	mfi_disk_attach),
 	DEVMETHOD(device_detach,	mfi_disk_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t mfi_disk_driver = {

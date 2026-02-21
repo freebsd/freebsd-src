@@ -277,7 +277,7 @@ static device_method_t ipmi_methods[] = {
 	DEVMETHOD(device_probe,		ipmi_isa_probe),
 	DEVMETHOD(device_attach,	ipmi_isa_attach),
 	DEVMETHOD(device_detach,	ipmi_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ipmi_isa_driver = {

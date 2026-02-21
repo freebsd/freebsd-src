@@ -90,7 +90,7 @@ static device_method_t pqmdio_methods[] = {
 	DEVMETHOD(miibus_readreg,	pqmdio_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	pqmdio_miibus_writereg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static struct ofw_compat_data mdio_compat_data[] = {

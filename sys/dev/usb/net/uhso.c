@@ -484,7 +484,7 @@ static device_method_t uhso_methods[] = {
 	DEVMETHOD(device_probe,		uhso_probe),
 	DEVMETHOD(device_attach,	uhso_attach),
 	DEVMETHOD(device_detach,	uhso_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t uhso_driver = {

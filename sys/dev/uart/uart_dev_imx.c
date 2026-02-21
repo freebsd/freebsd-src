@@ -296,7 +296,7 @@ static kobj_method_t imx_uart_methods[] = {
 	KOBJMETHOD(uart_transmit,	imx_uart_bus_transmit),
 	KOBJMETHOD(uart_grab,		imx_uart_bus_grab),
 	KOBJMETHOD(uart_ungrab,		imx_uart_bus_ungrab),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static struct uart_class uart_imx_class = {

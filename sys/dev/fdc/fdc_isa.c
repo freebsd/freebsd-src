@@ -210,7 +210,7 @@ static device_method_t fdc_methods[] = {
 	DEVMETHOD(bus_write_ivar,       fdc_write_ivar),
 	/* Our children never use any other bus interface methods. */
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fdc_driver = {

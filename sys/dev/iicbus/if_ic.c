@@ -111,7 +111,7 @@ static device_method_t ic_methods[] = {
 	/* iicbus interface */
 	DEVMETHOD(iicbus_intr,		icintr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ic_driver = {

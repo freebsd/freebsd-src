@@ -56,7 +56,7 @@ static device_method_t bman_methods[] = {
 	DEVMETHOD(device_resume,	bman_resume),
 	DEVMETHOD(device_shutdown,	bman_shutdown),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bman_driver = {
@@ -93,7 +93,7 @@ static device_method_t bm_portals_methods[] = {
 	DEVMETHOD(device_attach,	bman_portals_fdt_attach),
 	DEVMETHOD(device_detach,	bman_portals_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bm_portals_driver = {

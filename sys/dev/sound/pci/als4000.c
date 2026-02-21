@@ -925,7 +925,7 @@ static device_method_t als_methods[] = {
 	DEVMETHOD(device_detach,	als_pci_detach),
 	DEVMETHOD(device_suspend,	als_pci_suspend),
 	DEVMETHOD(device_resume,	als_pci_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t als_driver = {

@@ -106,7 +106,7 @@ static device_method_t snapper_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		snapper_probe),
 	DEVMETHOD(device_attach,	snapper_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t snapper_driver = {

@@ -433,7 +433,7 @@ static device_method_t siis_methods[] = {
 	DEVMETHOD(bus_teardown_intr,siis_teardown_intr),
 	DEVMETHOD(bus_child_location, siis_child_location),
 	DEVMETHOD(bus_get_dma_tag,  siis_get_dma_tag),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t siis_driver = {
@@ -631,7 +631,7 @@ static device_method_t siisch_methods[] = {
 	DEVMETHOD(device_detach,    siis_ch_detach),
 	DEVMETHOD(device_suspend,   siis_ch_suspend),
 	DEVMETHOD(device_resume,    siis_ch_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t siisch_driver = {

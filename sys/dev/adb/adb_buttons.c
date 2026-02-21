@@ -67,7 +67,7 @@ static device_method_t abtn_methods[] = {
 
 	/* ADB interface */
 	DEVMETHOD(adb_receive_packet,	abtn_receive_packet),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t abtn_driver = {

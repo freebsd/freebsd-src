@@ -469,7 +469,7 @@ static device_method_t n25q_methods[] = {
 	DEVMETHOD(device_attach,	n25q_attach),
 	DEVMETHOD(device_detach,	n25q_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t n25q_driver = {

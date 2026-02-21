@@ -266,7 +266,7 @@ static device_method_t ow_temp_methods[] = {
 	DEVMETHOD(device_probe,		ow_temp_probe),
 	DEVMETHOD(device_attach,	ow_temp_attach),
 	DEVMETHOD(device_detach,	ow_temp_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ow_temp_driver = {

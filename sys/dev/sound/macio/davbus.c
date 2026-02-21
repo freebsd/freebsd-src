@@ -76,7 +76,7 @@ static device_method_t pcm_davbus_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		davbus_probe),
 	DEVMETHOD(device_attach, 	davbus_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t pcm_davbus_driver = {

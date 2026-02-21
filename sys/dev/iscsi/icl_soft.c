@@ -166,7 +166,7 @@ static kobj_method_t icl_soft_methods[] = {
 #ifdef ICL_KERNEL_PROXY
 	KOBJMETHOD(icl_conn_connect, icl_soft_conn_connect),
 #endif
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(icl_soft, icl_soft_methods, sizeof(struct icl_soft_conn));

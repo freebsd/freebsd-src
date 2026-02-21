@@ -109,7 +109,7 @@ static device_method_t pcm_i2s_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		i2s_probe),
 	DEVMETHOD(device_attach, 	i2s_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t pcm_i2s_driver = {
@@ -128,7 +128,7 @@ static device_method_t aoagpio_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		aoagpio_probe),
 	DEVMETHOD(device_attach,	aoagpio_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 struct aoagpio_softc {

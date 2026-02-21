@@ -2567,7 +2567,7 @@ static device_method_t envy24ht_methods[] = {
 	DEVMETHOD(device_probe,		envy24ht_pci_probe),
 	DEVMETHOD(device_attach,	envy24ht_pci_attach),
 	DEVMETHOD(device_detach,	envy24ht_pci_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t envy24ht_driver = {

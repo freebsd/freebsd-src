@@ -408,7 +408,7 @@ static device_method_t dwgpio_methods[] = {
 	DEVMETHOD(gpio_pin_toggle,	dwgpio_pin_toggle),
 	DEVMETHOD(gpio_pin_setflags,	dwgpio_pin_setflags),
 	DEVMETHOD(gpio_pin_set,		dwgpio_pin_set),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t dwgpio_driver = {

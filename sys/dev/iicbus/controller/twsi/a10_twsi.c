@@ -139,7 +139,7 @@ static device_method_t a10_twsi_methods[] = {
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,	a10_twsi_get_node),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(iichb, a10_twsi_driver, a10_twsi_methods,

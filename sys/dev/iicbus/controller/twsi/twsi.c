@@ -869,7 +869,7 @@ static device_method_t twsi_methods[] = {
 	DEVMETHOD(iicbus_read,		twsi_read),
 	DEVMETHOD(iicbus_reset,		twsi_reset),
 	DEVMETHOD(iicbus_transfer,	twsi_transfer),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(twsi, twsi_driver, twsi_methods,

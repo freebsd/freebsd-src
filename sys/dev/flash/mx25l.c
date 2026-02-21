@@ -673,7 +673,7 @@ static device_method_t mx25l_methods[] = {
 	DEVMETHOD(device_attach,	mx25l_attach),
 	DEVMETHOD(device_detach,	mx25l_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t mx25l_driver = {

@@ -648,7 +648,7 @@ static device_method_t amdpm_methods[] = {
 	DEVMETHOD(smbus_readw,		amdpm_readw),
 	DEVMETHOD(smbus_bwrite,		amdpm_bwrite),
 	DEVMETHOD(smbus_bread,		amdpm_bread),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t amdpm_driver = {

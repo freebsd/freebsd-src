@@ -49,7 +49,7 @@ static device_method_t uart_acpi_methods[] = {
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
 	DEVMETHOD(device_resume,	uart_bus_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t uart_acpi_driver = {

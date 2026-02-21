@@ -2835,7 +2835,7 @@ static device_method_t sbp_methods[] = {
 	DEVMETHOD(device_detach,	sbp_detach),
 	DEVMETHOD(device_shutdown,	sbp_shutdown),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sbp_driver = {

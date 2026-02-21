@@ -56,7 +56,7 @@ static device_method_t qman_methods[] = {
 	DEVMETHOD(device_resume,	qman_resume),
 	DEVMETHOD(device_shutdown,	qman_shutdown),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t qman_driver = {
@@ -93,7 +93,7 @@ static device_method_t qm_portals_methods[] = {
 	DEVMETHOD(device_attach,	qman_portals_fdt_attach),
 	DEVMETHOD(device_detach,	qman_portals_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t qm_portals_driver = {

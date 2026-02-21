@@ -261,7 +261,7 @@ static device_method_t ti_methods[] = {
 	DEVMETHOD(device_attach,	ti_attach),
 	DEVMETHOD(device_detach,	ti_detach),
 	DEVMETHOD(device_shutdown,	ti_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ti_driver = {

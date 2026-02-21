@@ -242,7 +242,7 @@ static device_method_t al_methods[] = {
 	DEVMETHOD(miibus_writereg,	al_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	al_miibus_statchg),
 	DEVMETHOD(miibus_linkchg,	al_miibus_linkchg),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t al_driver = {

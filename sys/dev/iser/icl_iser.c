@@ -69,7 +69,7 @@ static kobj_method_t icl_iser_methods[] = {
 	KOBJMETHOD(icl_conn_task_done, iser_conn_task_done),
 	KOBJMETHOD(icl_conn_pdu_get_bio, iser_conn_pdu_get_bio),
 	KOBJMETHOD(icl_conn_pdu_get_data, iser_conn_pdu_get_data),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(icl_iser, icl_iser_methods, sizeof(struct iser_conn));

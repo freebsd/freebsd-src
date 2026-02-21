@@ -82,7 +82,7 @@ chromebook_i2c_identify(driver_t *driver, device_t bus)
 
 static device_method_t chromebook_i2c_methods[] = {
 	DEVMETHOD(device_identify,	chromebook_i2c_identify),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t chromebook_i2c_driver = {

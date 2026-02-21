@@ -127,7 +127,7 @@ static device_method_t le_pci_methods[] = {
 	DEVMETHOD(device_suspend,	le_pci_suspend),
 	DEVMETHOD(device_resume,	le_pci_resume),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(le, le_pci_driver, le_pci_methods, sizeof(struct le_pci_softc));

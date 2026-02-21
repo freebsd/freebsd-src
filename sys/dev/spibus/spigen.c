@@ -381,7 +381,7 @@ static device_method_t spigen_methods[] = {
 	DEVMETHOD(device_probe,		spigen_probe),
 	DEVMETHOD(device_attach,	spigen_attach),
 	DEVMETHOD(device_detach,	spigen_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t spigen_driver = {

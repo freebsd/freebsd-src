@@ -50,7 +50,7 @@ static device_method_t ipsd_methods[] = {
 	DEVMETHOD(device_probe,		ipsd_probe),
 	DEVMETHOD(device_attach,	ipsd_attach),
 	DEVMETHOD(device_detach,	ipsd_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ipsd_driver = {

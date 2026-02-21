@@ -106,7 +106,7 @@ static device_method_t tumbler_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		tumbler_probe),
 	DEVMETHOD(device_attach,	tumbler_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t tumbler_driver = {

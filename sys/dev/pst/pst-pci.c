@@ -118,7 +118,7 @@ static device_method_t pst_pci_methods[] = {
     DEVMETHOD(device_probe,		iop_pci_probe),
     DEVMETHOD(device_attach,		iop_pci_attach),
     DEVMETHOD(device_detach,		iop_pci_detach),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t pst_pci_driver = {

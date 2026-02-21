@@ -310,7 +310,7 @@ static device_method_t smbios_methods[] = {
 	DEVMETHOD(device_probe,         smbios_probe),
 	DEVMETHOD(device_attach,        smbios_attach),
 	DEVMETHOD(device_detach,        smbios_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t smbios_driver = {

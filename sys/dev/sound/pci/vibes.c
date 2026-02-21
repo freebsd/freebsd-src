@@ -923,12 +923,12 @@ sv_detach(device_t dev) {
 }
 
 static device_method_t sc_methods[] = {
-        DEVMETHOD(device_probe,         sv_probe),
-        DEVMETHOD(device_attach,        sv_attach),
-        DEVMETHOD(device_detach,        sv_detach),
-        DEVMETHOD(device_resume,        sv_resume),
-        DEVMETHOD(device_suspend,       sv_suspend),
-        { 0, 0 }
+	DEVMETHOD(device_probe,         sv_probe),
+	DEVMETHOD(device_attach,        sv_attach),
+	DEVMETHOD(device_detach,        sv_detach),
+	DEVMETHOD(device_resume,        sv_resume),
+	DEVMETHOD(device_suspend,       sv_suspend),
+	DEVMETHOD_END
 };
 
 static driver_t sonicvibes_driver = {

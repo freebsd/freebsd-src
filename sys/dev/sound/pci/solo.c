@@ -1060,7 +1060,7 @@ static device_method_t ess_methods[] = {
 	DEVMETHOD(device_detach,	ess_detach),
 	DEVMETHOD(device_resume,	ess_resume),
 	DEVMETHOD(device_suspend,	ess_suspend),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ess_driver = {

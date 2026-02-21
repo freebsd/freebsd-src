@@ -65,7 +65,7 @@ static device_method_t mpi3mr_methods[] = {
 	DEVMETHOD(device_resume,	mpi3mr_pci_resume),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 char fmt_os_ver[16];

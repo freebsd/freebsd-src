@@ -642,7 +642,7 @@ static device_method_t alpm_methods[] = {
 	DEVMETHOD(smbus_readw,		alpm_readw),
 	DEVMETHOD(smbus_bwrite,		alpm_bwrite),
 	DEVMETHOD(smbus_bread,		alpm_bread),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t alpm_driver = {

@@ -164,7 +164,7 @@ static kobj_method_t icl_cxgbei_methods[] = {
 	KOBJMETHOD(icl_conn_task_done, icl_cxgbei_conn_task_done),
 	KOBJMETHOD(icl_conn_transfer_setup, icl_cxgbei_conn_transfer_setup),
 	KOBJMETHOD(icl_conn_transfer_done, icl_cxgbei_conn_transfer_done),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_cxgbei_conn));

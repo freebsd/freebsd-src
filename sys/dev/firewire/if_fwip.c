@@ -916,7 +916,7 @@ static device_method_t fwip_methods[] = {
 	DEVMETHOD(device_probe,		fwip_probe),
 	DEVMETHOD(device_attach,	fwip_attach),
 	DEVMETHOD(device_detach,	fwip_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fwip_driver = {

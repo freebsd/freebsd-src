@@ -53,7 +53,7 @@ static device_method_t uart_scc_methods[] = {
 	/* Serdev interface */
 	DEVMETHOD(serdev_ihand,		uart_bus_ihand),
 	DEVMETHOD(serdev_sysdev,	uart_bus_sysdev),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t uart_scc_driver = {

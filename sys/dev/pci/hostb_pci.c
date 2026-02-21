@@ -275,7 +275,7 @@ static device_method_t pci_hostb_methods[] = {
 	DEVMETHOD(pci_find_next_extcap,	pci_hostb_find_next_extcap),
 	DEVMETHOD(pci_find_htcap,	pci_hostb_find_htcap),
 	DEVMETHOD(pci_find_next_htcap,	pci_hostb_find_next_htcap),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t pci_hostb_driver = {

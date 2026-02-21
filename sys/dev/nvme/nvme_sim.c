@@ -486,7 +486,7 @@ static device_method_t nvme_sim_methods[] = {
 	DEVMETHOD(nvme_ns_changed,   	nvme_sim_ns_changed),
 	DEVMETHOD(nvme_controller_failed, nvme_sim_controller_failed),
 	DEVMETHOD(nvme_handle_aen,   	nvme_sim_handle_aen),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nvme_sim_driver = {

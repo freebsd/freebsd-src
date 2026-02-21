@@ -52,7 +52,7 @@ static device_method_t uart_puc_methods[] = {
 	/* Serdev interface */
 	DEVMETHOD(serdev_ihand,		uart_bus_ihand),
 	DEVMETHOD(serdev_ipend,		uart_bus_ipend),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t uart_puc_driver = {

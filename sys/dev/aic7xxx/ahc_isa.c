@@ -285,7 +285,7 @@ static device_method_t ahc_isa_device_methods[] = {
 	DEVMETHOD(device_probe,		ahc_isa_probe),
 	DEVMETHOD(device_attach,	ahc_isa_attach),
 	DEVMETHOD(device_detach,	ahc_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ahc_isa_driver = {

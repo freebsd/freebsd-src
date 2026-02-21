@@ -1226,7 +1226,7 @@ static device_method_t ich_methods[] = {
 	DEVMETHOD(device_detach,	ich_pci_detach),
 	DEVMETHOD(device_suspend, 	ich_pci_suspend),
 	DEVMETHOD(device_resume,	ich_pci_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ich_driver = {

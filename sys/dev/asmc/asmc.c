@@ -534,7 +534,7 @@ static device_method_t	asmc_methods[] = {
 	DEVMETHOD(device_attach,	asmc_attach),
 	DEVMETHOD(device_detach,	asmc_detach),
 	DEVMETHOD(device_resume,	asmc_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t	asmc_driver = {

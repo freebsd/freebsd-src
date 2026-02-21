@@ -56,7 +56,7 @@ static device_method_t fman_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	fman_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	fman_activate_resource),
 	DEVMETHOD(bus_release_resource,	fman_release_resource),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(fman, fman_driver, fman_methods,

@@ -99,7 +99,7 @@ static device_method_t adb_kbd_methods[] = {
 
 	/* ADB interface */
 	DEVMETHOD(adb_receive_packet,	adb_kbd_receive_packet),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t adb_kbd_driver = {
