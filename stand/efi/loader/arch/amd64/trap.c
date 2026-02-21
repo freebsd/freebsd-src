@@ -74,6 +74,7 @@ static uint32_t tss_fw_seg;		/* Fw TSS segment */
 static uint32_t loader_tss;		/* Loader TSS segment */
 static struct region_descriptor fw_gdt;	/* Descriptor of pristine GDT */
 static EFI_PHYSICAL_ADDRESS loader_gdt_pa; /* Address of loader shadow GDT */
+static UINTN loader_gdt_pa_size;
 
 struct frame {
 	struct frame	*fr_savfp;
@@ -194,7 +195,7 @@ free_tables(void)
 		tss_pa = 0;
 	}
 	if (loader_gdt_pa != 0) {
-		BS->FreePages(tss_pa, 2);
+		BS->FreePages(loader_gdt_pa, loader_gdt_pa_size);
 		loader_gdt_pa = 0;
 	}
 	ist = 0;
@@ -294,13 +295,13 @@ efi_redirect_exceptions(void)
 			loader_gdt.rd_limit = roundup2(fw_gdt.rd_limit +
 			    sizeof(struct system_segment_descriptor),
 			    sizeof(struct system_segment_descriptor)) - 1;
+			loader_gdt_pa_size =
+			    EFI_SIZE_TO_PAGES(loader_gdt.rd_limit);
 			i = (loader_gdt.rd_limit + 1 -
 			    sizeof(struct system_segment_descriptor)) /
 			    sizeof(struct system_segment_descriptor) * 2;
 			status = BS->AllocatePages(AllocateAnyPages,
-			    EfiLoaderData,
-			    EFI_SIZE_TO_PAGES(loader_gdt.rd_limit),
-			    &loader_gdt_pa);
+			    EfiLoaderData, loader_gdt_pa_size, &loader_gdt_pa);
 			if (EFI_ERROR(status)) {
 				printf("efi_setup_tss: AllocatePages gdt error "
 				    "%lu\n",  DECODE_ERROR(status));
