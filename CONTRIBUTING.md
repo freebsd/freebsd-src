@@ -20,7 +20,9 @@ changes where the contributor already has a GitHub account.
 
 A change should be submitted by only one method.  For example, please do not
 open a GitHub pull request and create a Phabricator review for the same change
-(unless explicitly requested to do so by a FreeBSD committer).
+(unless explicitly requested to do so by a FreeBSD committer). If asked to move
+from Github to Phabricator, please close the Github pull request adding the URL
+of the Phabricator review as a comment.
 
 ## GitHub Pull Requests
 
