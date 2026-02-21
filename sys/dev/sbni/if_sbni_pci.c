@@ -55,7 +55,7 @@ static device_method_t sbni_pci_methods[] = {
 	DEVMETHOD(device_probe,	sbni_pci_probe),
 	DEVMETHOD(device_attach, sbni_pci_attach),
 	DEVMETHOD(device_detach, sbni_pci_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sbni_pci_driver = {

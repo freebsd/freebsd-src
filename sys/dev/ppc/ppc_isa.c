@@ -73,7 +73,7 @@ static device_method_t ppc_isa_methods[] = {
 	DEVMETHOD(ppbus_ecp_sync,	ppc_ecp_sync),
 	DEVMETHOD(ppbus_read,		ppc_read),
 	DEVMETHOD(ppbus_write,		ppc_isa_write),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ppc_isa_driver = {

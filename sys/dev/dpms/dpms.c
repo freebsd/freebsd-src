@@ -106,7 +106,7 @@ static device_method_t dpms_methods[] = {
 	DEVMETHOD(device_detach,	dpms_detach),
 	DEVMETHOD(device_suspend,	dpms_suspend),
 	DEVMETHOD(device_resume,	dpms_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t dpms_driver = {

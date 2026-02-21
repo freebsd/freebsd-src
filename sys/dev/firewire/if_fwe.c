@@ -613,7 +613,7 @@ static device_method_t fwe_methods[] = {
 	DEVMETHOD(device_probe,		fwe_probe),
 	DEVMETHOD(device_attach,	fwe_attach),
 	DEVMETHOD(device_detach,	fwe_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fwe_driver = {

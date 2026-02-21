@@ -579,7 +579,7 @@ static device_method_t mvsch_methods[] = {
 	DEVMETHOD(device_detach,    mvs_ch_detach),
 	DEVMETHOD(device_suspend,   mvs_ch_suspend),
 	DEVMETHOD(device_resume,    mvs_ch_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t mvsch_driver = {
         "mvsch",

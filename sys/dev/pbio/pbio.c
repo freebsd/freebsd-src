@@ -121,7 +121,7 @@ static device_method_t pbio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pbioprobe),
 	DEVMETHOD(device_attach,	pbioattach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static char driver_name[] = "pbio";

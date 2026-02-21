@@ -970,7 +970,7 @@ static device_method_t flex_spi_methods[] = {
 	DEVMETHOD(device_attach,	flex_spi_attach),
 	DEVMETHOD(device_detach,	flex_spi_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t flex_spi_driver = {

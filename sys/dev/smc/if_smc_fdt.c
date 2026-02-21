@@ -68,7 +68,7 @@ smc_fdt_probe(device_t dev)
 static device_method_t smc_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		smc_fdt_probe),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(smc, smc_fdt_driver, smc_fdt_methods,

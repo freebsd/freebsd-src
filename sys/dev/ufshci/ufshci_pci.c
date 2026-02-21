@@ -32,7 +32,7 @@ static device_method_t ufshci_pci_methods[] = {
 	DEVMETHOD(device_attach, ufshci_pci_attach),
 	DEVMETHOD(device_detach, ufshci_pci_detach),
 	/* TODO: Implement Suspend, Resume */
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ufshci_pci_driver = {

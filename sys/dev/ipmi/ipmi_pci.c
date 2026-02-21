@@ -169,7 +169,7 @@ static device_method_t ipmi_methods[] = {
 	DEVMETHOD(device_probe,     ipmi_pci_probe),
 	DEVMETHOD(device_attach,    ipmi_pci_attach),
 	DEVMETHOD(device_detach,    ipmi_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ipmi_pci_driver = {
@@ -284,7 +284,7 @@ static device_method_t ipmi2_methods[] = {
 	DEVMETHOD(device_probe,     ipmi2_pci_probe),
 	DEVMETHOD(device_attach,    ipmi2_pci_attach),
 	DEVMETHOD(device_detach,    ipmi_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ipmi2_pci_driver = {

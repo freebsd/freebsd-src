@@ -745,7 +745,7 @@ static device_method_t psm_methods[] = {
 	DEVMETHOD(device_attach,	psmattach),
 	DEVMETHOD(device_detach,	psmdetach),
 	DEVMETHOD(device_resume,	psmresume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t psm_driver = {
@@ -7543,7 +7543,7 @@ static	device_attach_t			psmcpnp_attach;
 static device_method_t psmcpnp_methods[] = {
 	DEVMETHOD(device_probe,		psmcpnp_probe),
 	DEVMETHOD(device_attach,	psmcpnp_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t psmcpnp_driver = {

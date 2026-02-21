@@ -808,7 +808,7 @@ static device_method_t nm_methods[] = {
 	DEVMETHOD(device_detach,	nm_pci_detach),
 	DEVMETHOD(device_suspend,	nm_pci_suspend),
 	DEVMETHOD(device_resume,	nm_pci_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nm_driver = {

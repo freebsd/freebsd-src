@@ -380,7 +380,7 @@ static device_method_t owc_gpiobus_methods[] = {
 	DEVMETHOD(owll_write_zero,	owc_gpiobus_write_zero),
 	DEVMETHOD(owll_read_data,	owc_gpiobus_read_data),
 	DEVMETHOD(owll_reset_and_presence,	owc_gpiobus_reset_and_presence),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t owc_gpiobus_driver = {

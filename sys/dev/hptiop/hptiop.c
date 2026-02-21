@@ -1728,7 +1728,7 @@ static device_method_t driver_methods[] = {
 	DEVMETHOD(device_attach,    hptiop_attach),
 	DEVMETHOD(device_detach,    hptiop_detach),
 	DEVMETHOD(device_shutdown,  hptiop_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static struct hptiop_adapter_ops hptiop_itl_ops = {

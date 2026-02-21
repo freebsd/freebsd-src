@@ -1258,7 +1258,7 @@ static device_method_t driver_methods[] = {
 	DEVMETHOD(device_attach,	hpt_attach),
 	DEVMETHOD(device_detach,	hpt_detach),
 	DEVMETHOD(device_shutdown,	hpt_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hpt_pci_driver = {

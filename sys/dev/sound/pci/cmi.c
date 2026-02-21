@@ -1095,7 +1095,7 @@ static device_method_t cmi_methods[] = {
 	DEVMETHOD(device_detach,        cmi_detach),
 	DEVMETHOD(device_resume,        cmi_resume),
 	DEVMETHOD(device_suspend,       cmi_suspend),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t cmi_driver = {
