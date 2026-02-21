@@ -78,7 +78,7 @@ static device_method_t pcf_isa_methods[] = {
 	DEVMETHOD(iicbus_write,		pcf_write),
 	DEVMETHOD(iicbus_read,		pcf_read),
 	DEVMETHOD(iicbus_reset,		pcf_rst_card),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t pcf_isa_driver = {

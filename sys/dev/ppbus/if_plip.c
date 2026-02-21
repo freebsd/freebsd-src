@@ -826,7 +826,7 @@ static device_method_t lp_methods[] = {
 	DEVMETHOD(device_probe,		lp_probe),
 	DEVMETHOD(device_attach,	lp_attach),
 	DEVMETHOD(device_detach,	lp_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t lp_driver = {

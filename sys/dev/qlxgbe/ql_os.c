@@ -106,7 +106,7 @@ static device_method_t qla_pci_methods[] = {
 	DEVMETHOD(device_probe, qla_pci_probe),
 	DEVMETHOD(device_attach, qla_pci_attach),
 	DEVMETHOD(device_detach, qla_pci_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t qla_pci_driver = {

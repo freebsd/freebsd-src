@@ -1809,7 +1809,7 @@ static device_method_t dwc_methods[] = {
 	DEVMETHOD(miibus_writereg,	dwc_miibus_write_reg),
 	DEVMETHOD(miibus_statchg,	dwc_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t dwc_driver = {

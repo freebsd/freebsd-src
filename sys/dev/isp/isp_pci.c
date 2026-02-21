@@ -212,7 +212,7 @@ static device_method_t isp_pci_methods[] = {
 	DEVMETHOD(device_probe,		isp_pci_probe),
 	DEVMETHOD(device_attach,	isp_pci_attach),
 	DEVMETHOD(device_detach,	isp_pci_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t isp_pci_driver = {

@@ -131,7 +131,7 @@ device_method_t cxgbe_methods[] = {
 	DEVMETHOD(device_probe,		cxgbe_probe),
 	DEVMETHOD(device_attach,	cxgbe_attach),
 	DEVMETHOD(device_detach,	cxgbe_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t cxgbe_driver = {
 	"cxgbe",
@@ -147,7 +147,7 @@ static device_method_t vcxgbe_methods[] = {
 	DEVMETHOD(device_probe,		vcxgbe_probe),
 	DEVMETHOD(device_attach,	vcxgbe_attach),
 	DEVMETHOD(device_detach,	vcxgbe_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t vcxgbe_driver = {
 	"vcxgbe",

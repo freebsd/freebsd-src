@@ -266,7 +266,7 @@ static device_method_t glxiic_methods[] = {
 	DEVMETHOD(iicbus_transfer,	glxiic_transfer),
 	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t glxiic_driver = {

@@ -217,7 +217,7 @@ static device_method_t ciss_methods[] = {
     DEVMETHOD(device_attach,	ciss_attach),
     DEVMETHOD(device_detach,	ciss_detach),
     DEVMETHOD(device_shutdown,	ciss_shutdown),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ciss_pci_driver = {

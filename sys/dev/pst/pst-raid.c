@@ -368,7 +368,7 @@ bpack(int8_t *src, int8_t *dst, int len)
 static device_method_t pst_methods[] = {
     DEVMETHOD(device_probe,	pst_probe),
     DEVMETHOD(device_attach,	pst_attach),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t pst_driver = {

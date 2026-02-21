@@ -191,7 +191,7 @@ static device_method_t qlnx_pci_methods[] = {
 	DEVMETHOD(pci_iov_uninit, qlnx_iov_uninit),
 	DEVMETHOD(pci_iov_add_vf, qlnx_iov_add_vf),
 #endif /* #ifdef CONFIG_ECORE_SRIOV */
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t qlnx_pci_driver = {
@@ -211,7 +211,7 @@ static device_method_t qlnxv_pci_methods[] = {
 	DEVMETHOD(device_probe, qlnx_pci_probe),
 	DEVMETHOD(device_attach, qlnx_pci_attach),
 	DEVMETHOD(device_detach, qlnx_pci_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t qlnxv_pci_driver = {
