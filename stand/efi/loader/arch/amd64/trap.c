@@ -418,7 +418,7 @@ command_grab_faults(int argc, char *argv[])
 		printf("failed\n");
 	return (CMD_OK);
 }
-COMMAND_SET(grap_faults, "grab_faults", "grab faults", command_grab_faults);
+COMMAND_SET(grab_faults, "grab_faults", "grab faults", command_grab_faults);
 
 static int
 command_ungrab_faults(int argc, char *argv[])
