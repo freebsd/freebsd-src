@@ -229,12 +229,16 @@ void
 fetch_info(const char *fmt, ...)
 {
 	va_list ap;
+	int serrno = errno;
 
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
+	errno = serrno;
 }
+#define fetch_verbose(...)						\
+	do { if (verbose) fetch_info(__VA_ARGS__); } while (0)
 
 
 /*** Network-related utility functions ***************************************/
@@ -302,7 +306,6 @@ fetch_reopen(int sd)
 conn_t *
 fetch_ref(conn_t *conn)
 {
-
 	++conn->ref;
 	return (conn);
 }
@@ -417,8 +420,7 @@ fetch_socks5_init(conn_t *conn, const char *host, int port, int verbose)
 	unsigned char *ptr;
 	int ret = 1;
 
-	if (verbose)
-		fetch_info("Initializing SOCKS5 connection: %s:%d", host, port);
+	fetch_verbose("Initializing SOCKS5 connection: %s:%d", host, port);
 
 	/* Connection initialization */
 	ptr = buf;
@@ -486,7 +488,7 @@ fetch_socks5_init(conn_t *conn, const char *host, int port, int verbose)
 		goto fail;
 	}
 
-	switch(*ptr++) {
+	switch (*ptr++) {
 	case SOCKS_SUCCESS:
 		break;
 	case SOCKS_GENERAL_FAILURE:
@@ -564,10 +566,8 @@ fetch_socks5_getenv(char **host, int *port)
 		*host = strndup(socks5env, ext - socks5env);
 	}
 
-	if (*host == NULL) {
-		fprintf(stderr, "Failure to allocate memory, exiting.\n");
+	if (*host == NULL)
 		return (-1);
-	}
 	if (ext == NULL) {
 		*port = 1080; /* Default port as defined in RFC1928 */
 	} else {
@@ -613,26 +613,21 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	/* Not using SOCKS5 proxy */
 	if (sockshost == NULL) {
 		/* resolve server address */
-		if (verbose)
-			fetch_info("resolving server address: %s:%d", host,
-			    port);
+		fetch_verbose("resolving server address: %s:%d", host, port);
 		if ((sais = fetch_resolve(host, port, af)) == NULL)
 			goto fail;
 
 		/* resolve client address */
 		bindaddr = getenv("FETCH_BIND_ADDRESS");
 		if (bindaddr != NULL && *bindaddr != '\0') {
-			if (verbose)
-				fetch_info("resolving client address: %s",
-				    bindaddr);
+			fetch_verbose("resolving client address: %s", bindaddr);
 			if ((cais = fetch_resolve(bindaddr, 0, af)) == NULL)
 				goto fail;
 		}
 	} else {
 		/* resolve socks5 proxy address */
-		if (verbose)
-			fetch_info("resolving SOCKS5 server address: %s:%d",
-			    sockshost, socksport);
+		fetch_verbose("resolving SOCKS5 server address: %s:%d",
+		    sockshost, socksport);
 		if ((sais = fetch_resolve(sockshost, socksport, af)) == NULL) {
 			socks5_seterr(SOCKS5_ERR_BAD_HOST);
 			goto fail;
@@ -652,8 +647,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 				break;
 		}
 		if (err != 0) {
-			if (verbose)
-				fetch_info("failed to bind to %s", bindaddr);
+			fetch_verbose("failed to bind to %s", bindaddr);
 			goto syserr;
 		}
 		/* attempt to connect to server address */
@@ -668,10 +662,8 @@ fetch_connect(const char *host, int port, int af, int verbose)
 			fetch_info("failed to connect to %s:%d", host, port);
 			goto syserr;
 		} else if (sockshost != NULL) {
-			if (verbose)
-				fetch_info(
-				    "failed to connect to SOCKS5 server %s:%d",
-				    sockshost, socksport);
+			fetch_verbose("failed to connect to SOCKS5 server %s:%d",
+			    sockshost, socksport);
 			socks5_seterr(SOCKS5_ERR_CONN_REFUSED);
 			goto fail;
 		}
@@ -1053,8 +1045,7 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1_2;
 	if (getenv("SSL_NO_TLS1_3") != NULL)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1_3;
-	if (verbose)
-		fetch_info("SSL options: %lx", ssl_ctx_options);
+	fetch_verbose("SSL options: %lx", ssl_ctx_options);
 	SSL_CTX_set_options(ctx, ssl_ctx_options);
 }
 
@@ -1092,16 +1083,14 @@ fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)
 		else
 			SSL_CTX_set_default_verify_paths(ctx);
 		if ((crl_file = getenv("SSL_CRL_FILE")) != NULL) {
-			if (verbose)
-				fetch_info("Using CRL file: %s", crl_file);
+			fetch_verbose("Using CRL file: %s", crl_file);
 			crl_store = SSL_CTX_get_cert_store(ctx);
 			crl_lookup = X509_STORE_add_lookup(crl_store,
 			    X509_LOOKUP_file());
 			if (crl_lookup == NULL ||
 			    !X509_load_crl_file(crl_lookup, crl_file,
 				X509_FILETYPE_PEM)) {
-				fprintf(stderr,
-				    "Could not load CRL file %s\n",
+				fetch_info("Could not load CRL file %s",
 				    crl_file);
 				return (0);
 			}
@@ -1124,23 +1113,17 @@ fetch_ssl_setup_client_certificate(SSL_CTX *ctx, int verbose)
 	if ((client_cert_file = getenv("SSL_CLIENT_CERT_FILE")) != NULL) {
 		client_key_file = getenv("SSL_CLIENT_KEY_FILE") != NULL ?
 		    getenv("SSL_CLIENT_KEY_FILE") : client_cert_file;
-		if (verbose) {
-			fetch_info("Using client cert file: %s",
-			    client_cert_file);
-			fetch_info("Using client key file: %s",
-			    client_key_file);
-		}
+		fetch_verbose("Using client cert file: %s", client_cert_file);
+		fetch_verbose("Using client key file: %s", client_key_file);
 		if (SSL_CTX_use_certificate_chain_file(ctx,
 			client_cert_file) != 1) {
-			fprintf(stderr,
-			    "Could not load client certificate %s\n",
+			fetch_info("Could not load client certificate %s",
 			    client_cert_file);
 			return (0);
 		}
 		if (SSL_CTX_use_PrivateKey_file(ctx, client_key_file,
 			SSL_FILETYPE_PEM) != 1) {
-			fprintf(stderr,
-			    "Could not load client key %s\n",
+			fetch_info("Could not load client key %s",
 			    client_key_file);
 			return (0);
 		}
@@ -1165,7 +1148,7 @@ fetch_ssl_cb_verify_crt(int verified, X509_STORE_CTX *ctx)
 		if ((crt = X509_STORE_CTX_get_current_cert(ctx)) != NULL &&
 		    (name = X509_get_subject_name(crt)) != NULL)
 			str = X509_NAME_oneline(name, 0, 0);
-		fprintf(stderr, "Certificate verification failed for %s\n",
+		fetch_info("Certificate verification failed for %s",
 		    str != NULL ? str : "no relevant certificate");
 		OPENSSL_free(str);
 	}
@@ -1186,7 +1169,7 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	char *str;
 
 	if ((conn->ssl_ctx = SSL_CTX_new(TLS_client_method())) == NULL) {
-		fprintf(stderr, "SSL context creation failed\n");
+		fetch_info("SSL context creation failed");
 		ERR_print_errors_fp(stderr);
 		return (-1);
 	}
@@ -1200,17 +1183,15 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 
 	conn->ssl = SSL_new(conn->ssl_ctx);
 	if (conn->ssl == NULL) {
-		fprintf(stderr, "SSL connection creation failed\n");
+		fetch_info("SSL connection creation failed");
 		ERR_print_errors_fp(stderr);
 		return (-1);
 	}
 	SSL_set_fd(conn->ssl, conn->sd);
 
 #if !defined(OPENSSL_NO_TLSEXT)
-	if (!SSL_set_tlsext_host_name(conn->ssl,
-	    __DECONST(struct url *, URL)->host)) {
-		fprintf(stderr,
-		    "TLS server name indication extension failed for host %s\n",
+	if (!SSL_set_tlsext_host_name(conn->ssl, __DECONST(char *, URL->host))) {
+		fetch_info("Failed to set TLS server name indication for host %s",
 		    URL->host);
 		return (-1);
 	}
@@ -1226,16 +1207,14 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	conn->ssl_cert = SSL_get_peer_certificate(conn->ssl);
 
 	if (conn->ssl_cert == NULL) {
-		fprintf(stderr, "No server SSL certificate\n");
+		fetch_info("No server SSL certificate");
 		return (-1);
 	}
 
 	if (getenv("SSL_NO_VERIFY_HOSTNAME") == NULL) {
-		if (verbose)
-			fetch_info("Verify hostname");
+		fetch_verbose("Verify hostname");
 		if (!fetch_ssl_verify_hname(conn->ssl_cert, URL->host)) {
-			fprintf(stderr,
-			    "SSL certificate subject doesn't match host %s\n",
+			fetch_info("SSL certificate subject does not match host %s",
 			    URL->host);
 			return (-1);
 		}
@@ -1259,7 +1238,7 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	(void)conn;
 	(void)verbose;
 	(void)URL;
-	fprintf(stderr, "SSL support disabled\n");
+	fetch_info("SSL support disabled");
 	return (-1);
 #endif
 }
@@ -1297,10 +1276,11 @@ fetch_socket_read(int sd, char *buf, size_t len)
 
 	rlen = read(sd, buf, len);
 	if (rlen < 0) {
-		if (errno == EAGAIN || (errno == EINTR && fetchRestartCalls))
+		if (errno == EAGAIN || (errno == EINTR && fetchRestartCalls)) {
 			return (FETCH_READ_WAIT);
-		else
+		} else {
 			return (FETCH_READ_ERROR);
+		}
 	}
 	return (rlen);
 }
@@ -1442,7 +1422,7 @@ fetch_write(conn_t *conn, const char *buf, size_t len)
 
 	iov.iov_base = __DECONST(char *, buf);
 	iov.iov_len = len;
-	return fetch_writev(conn, &iov, 1);
+	return (fetch_writev(conn, &iov, 1));
 }
 
 /*
