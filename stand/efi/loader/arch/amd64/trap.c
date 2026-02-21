@@ -266,6 +266,7 @@ efi_redirect_exceptions(void)
 		return (0);
 	}
 	loader_idt.rd_limit = fw_idt.rd_limit;
+	loader_idt.rd_base = lidt_pa;
 	bcopy((void *)fw_idt.rd_base, (void *)loader_idt.rd_base,
 	    loader_idt.rd_limit);
 	bzero(ist_use_table, sizeof(ist_use_table));
