@@ -637,8 +637,12 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	/* try each server address in turn */
 	for (err = 0, sai = sais; sai != NULL; sai = sai->ai_next) {
 		/* open socket */
-		if ((sd = socket(sai->ai_family, SOCK_STREAM, 0)) < 0)
+		if ((sd = socket(sai->ai_family, SOCK_STREAM, 0)) < 0) {
+			err = -1;
+			if (errno == EAFNOSUPPORT || errno == EPROTONOSUPPORT)
+				continue;
 			goto syserr;
+		}
 		/* attempt to bind to client address */
 		for (err = 0, cai = cais; cai != NULL; cai = cai->ai_next) {
 			if (cai->ai_family != sai->ai_family)
