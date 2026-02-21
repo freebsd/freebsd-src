@@ -347,6 +347,10 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 
 	caps = pm->pm_caps;
 
+	if (((caps & PMC_CAP_PRECISE) != 0) &&
+	    ((pd->pd_caps & PMC_CAP_PRECISE) == 0))
+		return (EINVAL);
+
 	PMCDBG2(MDP, ALL, 1,"amd-allocate ri=%d caps=0x%x", ri, caps);
 
 	/* Validate sub-class. */
@@ -360,6 +364,9 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 		return (0);
 	}
 
+	/*
+	 * Everything below this is for supporting older processors.
+	 */
 	pe = a->pm_ev;
 
 	/* map ev to the correct event mask code */
@@ -817,6 +824,14 @@ pmc_amd_initialize(void)
 		    "K8-%d", i);
 		d->pm_descr.pd_class = PMC_CLASS_K8;
 		d->pm_descr.pd_caps = AMD_PMC_CAPS;
+		/*
+		 * Zen 5 can precisely count retire events.
+		 *
+		 * Refer to PPR Vol 1 for AMD Family 1Ah Model 02h C1 57238
+		 * Rev. 0.24 September 29, 2024.
+		 */
+		if ((family >= 0x1a) && (i == 2))
+			d->pm_descr.pd_caps |= PMC_CAP_PRECISE;
 		d->pm_descr.pd_width = 48;
 		if ((amd_feature2 & AMDID2_PCXC) != 0) {
 			d->pm_evsel = AMD_PMC_CORE_BASE + 2 * i;
@@ -836,7 +851,7 @@ pmc_amd_initialize(void)
 			snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
 			    "K8-L3-%d", i);
 			d->pm_descr.pd_class = PMC_CLASS_K8;
-			d->pm_descr.pd_caps = AMD_PMC_CAPS;
+			d->pm_descr.pd_caps = AMD_PMC_L3_CAPS;
 			d->pm_descr.pd_width = 48;
 			d->pm_evsel = AMD_PMC_L3_BASE + 2 * i;
 			d->pm_perfctr = AMD_PMC_L3_BASE + 2 * i + 1;
@@ -852,7 +867,7 @@ pmc_amd_initialize(void)
 			snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
 			    "K8-DF-%d", i);
 			d->pm_descr.pd_class = PMC_CLASS_K8;
-			d->pm_descr.pd_caps = AMD_PMC_CAPS;
+			d->pm_descr.pd_caps = AMD_PMC_DF_CAPS;
 			d->pm_descr.pd_width = 48;
 			d->pm_evsel = AMD_PMC_DF_BASE + 2 * i;
 			d->pm_perfctr = AMD_PMC_DF_BASE + 2 * i + 1;
