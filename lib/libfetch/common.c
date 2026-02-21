@@ -651,7 +651,13 @@ fetch_connect(const char *host, int port, int af, int verbose)
 			goto syserr;
 		}
 		/* attempt to connect to server address */
-		if ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) == 0)
+		while ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) < 0) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
+			break;
+		}
+		/* success? */
+		if (err == 0)
 			break;
 		/* clean up before next attempt */
 		close(sd);
