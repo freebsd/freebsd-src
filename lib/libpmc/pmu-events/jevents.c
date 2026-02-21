@@ -560,6 +560,10 @@ static int json_events(const char *fn,
 		jsmntok_t *obj = tok++;
 		bool configcode_present = false;
 		char *umask = NULL;
+		char *allcores = NULL;
+		char *allslices = NULL;
+		char *sliceid = NULL;
+		char *threadmask = NULL;
 		char *cmask = NULL;
 		char *inv = NULL;
 		char *any = NULL;
@@ -585,6 +589,22 @@ static int json_events(const char *fn,
 			/* match_field */
 			if (json_streq(map, field, "UMask") && nz) {
 				addfield(map, &umask, "", "umask=", val);
+			} else if (json_streq(map, field, "EnAllCores") && nz) {
+				addfield(map, &allcores, "", "allcores=", val);
+			} else if (json_streq(map, field, "EnAllSlices") && nz) {
+				addfield(map, &allslices, "", "allslices=", val);
+			} else if (json_streq(map, field, "SliceId") && nz) {
+				/*
+				 * We use sourceid because there's a
+				 * descripency where the JSON from linux calls
+				 * it a SliceId, which is not the name used by
+				 * AMD in the PPRs.  The field name from Family
+				 * 19h and below that calls it slicemask see
+				 * the references in hwpmc_amd.h.
+				 */
+				addfield(map, &sliceid, "", "sourceid=", val);
+			} else if (json_streq(map, field, "ThreadMask") && nz) {
+				addfield(map, &threadmask, "", "l3_thread_mask=", val);
 			} else if (json_streq(map, field, "CounterMask") && nz) {
 				addfield(map, &cmask, "", "cmask=", val);
 			} else if (json_streq(map, field, "Invert") && nz) {
@@ -675,8 +695,14 @@ static int json_events(const char *fn,
 				addfield(map, &arch_std, "", "", val);
 				for (s = arch_std; *s; s++)
 					*s = tolower(*s);
+			} else {
+				/*
+				 * We shouldn't ignore unknown fields that
+				 * makes the counter invalid!
+				 */
+				json_copystr(map, field, buf, sizeof(buf));
+				fprintf(stderr, "Unknown field '%s'!\n", buf);
 			}
-			/* ignore unknown fields */
 		}
 		if (precise && je.desc && !strstr(je.desc, "(Precise Event)")) {
 			if (json_streq(map, precise, "2"))
@@ -707,6 +733,14 @@ static int json_events(const char *fn,
 			addfield(map, &event, ",", period, NULL);
 		if (umask)
 			addfield(map, &event, ",", umask, NULL);
+		if (allcores)
+			addfield(map, &event, ",", allcores, NULL);
+		if (allslices)
+			addfield(map, &event, ",", allslices, NULL);
+		if (sliceid)
+			addfield(map, &event, ",", sliceid, NULL);
+		if (threadmask)
+			addfield(map, &event, ",", threadmask, NULL);
 
 		if (je.desc && extra_desc)
 			addfield(map, &je.desc, " ", extra_desc, NULL);
@@ -737,6 +771,10 @@ static int json_events(const char *fn,
 		err = func(data, &je);
 free_strings:
 		free(umask);
+		free(allcores);
+		free(allslices);
+		free(sliceid);
+		free(threadmask);
 		free(cmask);
 		free(inv);
 		free(any);

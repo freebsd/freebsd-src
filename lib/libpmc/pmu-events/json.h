@@ -9,6 +9,7 @@ int json_line(char *map, jsmntok_t *t);
 const char *json_name(jsmntok_t *t);
 int json_streq(char *map, jsmntok_t *t, const char *s);
 int json_len(jsmntok_t *t);
+int json_copystr(char *map, jsmntok_t *t, char *s, int len);
 
 extern int verbose;
 
