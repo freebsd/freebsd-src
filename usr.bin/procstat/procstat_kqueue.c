@@ -135,8 +135,10 @@ procstat_kqueue_flags(const struct pk_elem *names, unsigned flags, bool commas)
 		}
 	}
 
-	if (strlen(res) == 0)
-		return (strdup("-"));
+	if (strlen(res) == 0) {
+		free(res);
+		res = strdup("-");
+	}
 	return (res);
 }
 
