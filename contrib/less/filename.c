@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -475,16 +475,17 @@ public lbool bin_file(int f, ssize_t *n)
 	char data[256];
 	constant char* p;
 	constant char* edata;
+	constant int umax = 4;
 
 	if (!seekable(f))
 		return FALSE;
 	if (less_lseek(f, (less_off_t)0, SEEK_SET) == BAD_LSEEK)
 		return FALSE;
 	*n = read(f, data, sizeof(data));
-	if (*n <= 0)
+	if (*n <= umax)
 		return FALSE;
 	edata = &data[*n];
-	for (p = data;  p < edata;  )
+	for (p = data;  p+umax < edata;  )
 	{
 		if (utf_mode && !is_utf8_well_formed(p, (int) ptr_diff(edata,p)))
 		{

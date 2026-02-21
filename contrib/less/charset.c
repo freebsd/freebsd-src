@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -429,9 +429,18 @@ static void set_charset(void)
 	/*
 	 * Try using the codeset name as the charset name.
 	 */
-	s = nl_langinfo(CODESET);
-	if (icharset(s, 1))
-		return;
+#if LESSTEST
+	/*
+	 * Don't check nl_langinfo in lesstest mode; charset should come
+	 * only from environment variables, not from the system locale.
+	 */
+	if (0) /* {{ unfortunately it's too early to use is_lesstest }} */
+#endif
+	{
+		s = nl_langinfo(CODESET);
+		if (icharset(s, 1))
+			return;
+	}
 #endif
 #endif
 

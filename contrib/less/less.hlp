@@ -66,8 +66,8 @@
 
                            JJUUMMPPIINNGG
 
-  g  <  ESC-<       *  Go to first line in file (or line _N).
-  G  >  ESC->       *  Go to last line in file (or line _N).
+  g  <  ESC-<  HOME *  Go to first line in file (or line _N).
+  G  >  ESC->  END  *  Go to last line in file (or line _N).
   p  %              *  Go to beginning of file (or _N percent into file).
   t                 *  Go to the (_N-th) next tag.
   T                 *  Go to the (_N-th) previous tag.

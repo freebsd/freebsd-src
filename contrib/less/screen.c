@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -369,6 +369,15 @@ static void set_termio_flags(
 		| ONLRET
 #endif
 	);
+
+	s->c_iflag &= ~(0
+#ifdef ICRNL
+		| ICRNL
+#endif
+#ifdef INLCR
+		| INLCR
+#endif
+	);
 }
 #endif
 
@@ -381,7 +390,7 @@ static void set_termio_flags(
  *      4. \t is NOT expanded into spaces.
  *      5. Signal-causing characters such as ctrl-C (interrupt),
  *         etc. are NOT disabled.
- * It doesn't matter whether an input \n is mapped to \r, or vice versa.
+ *      6. Input \r is not mapped to \n, nor vice versa.
  */
 public void raw_mode(int on)
 {
@@ -897,7 +906,7 @@ public void scrsize(void)
 #ifdef TIOCGWINSZ
 	{
 		struct winsize w;
-		if (ioctl(2, TIOCGWINSZ, &w) == 0)
+		if (ioctl(2, TIOCGWINSZ, &w) == 0 || ioctl(1, TIOCGWINSZ, &w) == 0)
 		{
 			if (w.ws_row > 0)
 				sys_height = w.ws_row;
@@ -909,7 +918,7 @@ public void scrsize(void)
 #ifdef WIOCGETD
 	{
 		struct uwdata w;
-		if (ioctl(2, WIOCGETD, &w) == 0)
+		if (ioctl(2, WIOCGETD, &w) == 0 || ioctl(1, WIOCGETD, &w) == 0)
 		{
 			if (w.uw_height > 0)
 				sys_height = w.uw_height / w.uw_vs;
@@ -1030,6 +1039,8 @@ public constant char * special_key_str(int key)
 	static char k_left[]            = { '\340', PCK_LEFT, 0  };
 	static char k_ctl_right[]       = { '\340', PCK_CTL_RIGHT, 0  };
 	static char k_ctl_left[]        = { '\340', PCK_CTL_LEFT, 0  };
+	static char k_shift_right[]     = { '\340', PCK_SHIFT_RIGHT, 0  };
+	static char k_shift_left[]      = { '\340', PCK_SHIFT_LEFT, 0  };
 	static char k_insert[]          = { '\340', PCK_INSERT, 0  };
 	static char k_delete[]          = { '\340', PCK_DELETE, 0  };
 	static char k_ctl_delete[]      = { '\340', PCK_CTL_DELETE, 0  };
@@ -1135,6 +1146,12 @@ public constant char * special_key_str(int key)
 	case SK_CTL_RIGHT_ARROW:
 		s = k_ctl_right;
 		break;
+	case SK_SHIFT_LEFT_ARROW:
+		s = k_shift_left;
+		break;
+	case SK_SHIFT_RIGHT_ARROW:
+		s = k_shift_right;
+		break;
 	case SK_CTL_BACKSPACE:
 		s = k_ctl_backspace;
 		break;
@@ -1204,6 +1221,12 @@ public constant char * special_key_str(int key)
 		break;
 	case SK_BACKTAB:
 		s = ltgetstr("kcbt", "kB", &sp);
+		break;
+	case SK_SHIFT_RIGHT_ARROW:
+		s = ltgetstr("kRIT", NULL, &sp);
+		break;
+	case SK_SHIFT_LEFT_ARROW:
+		s = ltgetstr("kLFT", NULL, &sp);
 		break;
 	case SK_CTL_RIGHT_ARROW:
 		s = ltgetstr("kRIT5", NULL, &sp);
@@ -1289,6 +1312,8 @@ public constant char * special_key_str(int key)
 	default:
 		return (NULL);
 	}
+	if (s != NULL && *s == '\0')
+		s = NULL;
 	return (s);
 }
 
@@ -1418,6 +1443,8 @@ public void get_term()
 		term = DEFAULT_TERM;
 	hardcopy = 0;
 #if USE_TERMINFO
+	if (cur_term != NULL)
+		del_curterm(cur_term);
 	if (setupterm(term, -1, NULL) != OK)
 		hardcopy = 1;
 #else
@@ -3300,6 +3327,12 @@ static lbool win32_scan_code(XINPUT_RECORD *xip)
 		{
 			switch (xip->ir.Event.KeyEvent.wVirtualScanCode)
 			{
+				case PCK_RIGHT:
+					scan = PCK_SHIFT_RIGHT;
+					break;
+				case PCK_LEFT:
+					scan = PCK_SHIFT_LEFT;
+					break;
 				case PCK_HOME:
 					scan = PCK_SHIFT_HOME;
 					break;
