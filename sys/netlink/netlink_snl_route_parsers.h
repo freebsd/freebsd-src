@@ -53,6 +53,7 @@ struct rta_mpath_nh {
 	uint8_t		rtnh_weight;
 	uint32_t	rtax_mtu;
 	uint32_t	rta_rtflags;
+	uint32_t	rta_expire;
 };
 
 #define	_IN(_field)	offsetof(struct rtnexthop, _field)
@@ -67,6 +68,7 @@ static const struct snl_attr_parser _nla_p_mp_nh[] = {
 	{ .type = NL_RTA_METRICS, .arg = &_metrics_mp_nh_parser, .cb = snl_attr_get_nested },
 	{ .type = NL_RTA_RTFLAGS, .off = _OUT(rta_rtflags), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_VIA, .off = _OUT(gw), .cb = snl_attr_get_ipvia },
+	{ .type = NL_RTA_EXPIRES, .off = _OUT(rta_expire), .cb = snl_attr_get_uint32 },
 };
 
 static const struct snl_field_parser _fp_p_mp_nh[] = {
