@@ -73,6 +73,7 @@
 #include <machine/specialreg.h>
 #include <x86/init.h>
 #include <x86/kvm.h>
+#include <contrib/xen/arch-x86/cpuid.h>
 
 #ifdef DDB
 #include <sys/interrupt.h>
@@ -1939,6 +1940,11 @@ detect_extended_dest_id(void)
 
 	/* Check if we support extended destination IDs. */
 	switch (vm_guest) {
+	case VM_GUEST_XEN:
+		cpuid_count(hv_base + 4, 0, regs);
+		if (regs[0] & XEN_HVM_CPUID_EXT_DEST_ID)
+			apic_ext_dest_id = 1;
+		break;
 	case VM_GUEST_KVM:
 		kvm_cpuid_get_features(regs);
 		if (regs[0] & KVM_FEATURE_MSI_EXT_DEST_ID)
