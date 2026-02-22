@@ -72,6 +72,7 @@
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <x86/init.h>
+#include <x86/kvm.h>
 
 #ifdef DDB
 #include <sys/interrupt.h>
@@ -2095,6 +2096,16 @@ SYSCTL_INT(_machdep, OID_AUTO, apic_ext_dest_id, CTLFLAG_RDTUN, &apic_ext_dest_i
 static void
 detect_extended_dest_id(void)
 {
+	u_int regs[4];
+
+	/* Check if we support extended destination IDs. */
+	switch (vm_guest) {
+	case VM_GUEST_KVM:
+		kvm_cpuid_get_features(regs);
+		if (regs[0] & KVM_FEATURE_MSI_EXT_DEST_ID)
+			apic_ext_dest_id = 1;
+		break;
+	}
 }
 
 /*
