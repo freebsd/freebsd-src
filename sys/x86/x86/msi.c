@@ -92,6 +92,10 @@
 #define	INTEL_ADDR(msi)							\
 	(MSI_INTEL_ADDR_BASE | (msi)->msi_cpu << 12 |			\
 	    MSI_INTEL_ADDR_RH_OFF | MSI_INTEL_ADDR_DM_PHYSICAL)
+#define	INTEL_ADDR_EXT(msi)						\
+	(MSI_INTEL_ADDR_BASE | ((msi)->msi_cpu & 0xff) << 12 |		\
+	((msi)->msi_cpu & 0x7f00) >> 3 |				\
+	    MSI_INTEL_ADDR_RH_OFF | MSI_INTEL_ADDR_DM_PHYSICAL)
 #define	INTEL_DATA(msi)							\
 	(MSI_INTEL_DATA_TRGREDG | MSI_INTEL_DATA_DELFIXED | (msi)->msi_vector)
 
@@ -644,13 +648,16 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 	mtx_unlock(&msi_lock);
 	error = EOPNOTSUPP;
 #endif
-	if (error == EOPNOTSUPP && msi->msi_cpu > 0xff) {
+	if (error == EOPNOTSUPP &&
+	    (msi->msi_cpu > 0x7fff ||
+	     (msi->msi_cpu > 0xff && apic_ext_dest_id != 1))) {
 		printf("%s: unsupported destination APIC ID %u\n", __func__,
 		    msi->msi_cpu);
 		error = EINVAL;
 	}
 	if (error == EOPNOTSUPP) {
-		*addr = INTEL_ADDR(msi);
+		*addr = (apic_ext_dest_id == 1) ?
+		    INTEL_ADDR_EXT(msi) : INTEL_ADDR(msi);
 		*data = INTEL_DATA(msi);
 		error = 0;
 	}
