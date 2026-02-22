@@ -263,6 +263,9 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 		snl_end_attr_nested(&nw, off);
 	}
 
+	if (rt_metrics->rmx_expire > 0)
+		snl_add_msg_attr_u32(&nw, NL_RTA_EXPIRES, rt_metrics->rmx_expire);
+
 	if (rt_metrics->rmx_weight > 0)
 		snl_add_msg_attr_u32(&nw, NL_RTA_WEIGHT, rt_metrics->rmx_weight);
 
@@ -343,7 +346,6 @@ static void
 print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
 {
 	struct snl_state *ss = &h->ss_cmd;
-	struct timespec ts;
 	struct snl_parsed_route r = { .rtax_weight = RT_DEFAULT_WEIGHT };
 
 	if (!snl_parse_nlmsg(ss, hdr, &snl_rtm_route_parser, &r))
@@ -385,11 +387,7 @@ print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
 	printf("%8lu  ", 0UL);
 	printf("%8lu  ", rmx.rmx_mtu);
 	printf("%8lu  ", rmx.rmx_weight);
-	if (rmx.rmx_expire > 0)
-		clock_gettime(CLOCK_REALTIME_FAST, &ts);
-	else
-		ts.tv_sec = 0;
-	printf("%8ld \n", (long)(rmx.rmx_expire - ts.tv_sec));
+	printf("%8ld \n", rmx.rmx_expire);
 }
 
 static void
