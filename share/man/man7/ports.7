@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 6, 2025
+.Dd February 21, 2026
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -592,15 +592,30 @@ Which directory to use for the
 data.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
-.It Pa /usr/ports
+.Bl -tag -width "/usr/ports/Mk/bsd.port.mk" -compact
+.It Pa /usr/ports/
 The default ports directory.
 .It Pa /usr/ports/Mk/bsd.port.mk
 The big Kahuna.
-.It Pa /var/db/ports
+.It Pa /var/db/ports/
 The directory where the results of configuring
 .Va OPTIONS
 are stored.
+.It Pa ${PORT}/Makefile
+The specification for building the port.
+.It Pa ${PORT}/distfiles
+The directory where fetched files are stored.
+.It Pa ${PORT}/distinfo
+The checksums generated with
+.Ql make makesum .
+.It Pa ${PORT}/files/
+The directory for any patches.
+.It Pa ${PORT}/pkg-descr
+The long description of the port.
+.It Pa ${PORT}/pkg-plist
+The list of all files installed by the port.
+.It Pa ${PORT}/work
+The port's building and staging directory.
 .El
 .Sh EXAMPLES
 .Bl -tag -width 0n
