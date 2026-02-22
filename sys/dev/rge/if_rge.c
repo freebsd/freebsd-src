@@ -67,6 +67,9 @@
 #include "if_rge_sysctl.h"
 #include "if_rge_stats.h"
 
+#define ETHER_IS_VALID(addr) \
+	(!ETHER_IS_MULTICAST(addr.octet) && !ETHER_IS_ZERO(addr.octet))
+
 #define	RGE_CSUM_FEATURES		(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 static int		rge_attach(device_t);
@@ -182,7 +185,7 @@ rge_attach_if(struct rge_softc *sc, const char *eaddr)
 static int
 rge_attach(device_t dev)
 {
-	uint8_t eaddr[ETHER_ADDR_LEN];
+	struct ether_addr eaddr;
 	struct rge_softc *sc;
 	struct rge_queues *q;
 	uint32_t hwrev, reg;
@@ -195,6 +198,8 @@ rge_attach(device_t dev)
 	sc->sc_ifp = if_gethandle(IFT_ETHER);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+
+	callout_init_mtx(&sc->sc_timeout, &sc->sc_mtx, 0);
 
 	/* Enable bus mastering */
 	pci_enable_busmaster(dev);
@@ -465,8 +470,14 @@ rge_attach(device_t dev)
 		goto fail;
 	}
 
-	rge_get_macaddr(sc, eaddr);
+	rge_get_macaddr(sc, eaddr.octet);
 	RGE_UNLOCK(sc);
+
+	if (!ETHER_IS_VALID(eaddr)) {
+		device_printf(dev,
+		    "No MAC address found.  Using ether_gen_addr().\n");
+		ether_gen_addr_byname(device_get_nameunit(dev), &eaddr);
+	}
 
 	if (rge_allocmem(sc))
 		goto fail;
@@ -481,7 +492,7 @@ rge_attach(device_t dev)
 	ifmedia_set(&sc->sc_media, IFM_ETHER | IFM_AUTO);
 	sc->sc_media.ifm_media = sc->sc_media.ifm_cur->ifm_media;
 
-	rge_attach_if(sc, eaddr);
+	rge_attach_if(sc, eaddr.octet);
 
 	/*
 	 * TODO: technically should be per txq but we only support
@@ -500,8 +511,6 @@ rge_attach(device_t dev)
 	    sc->sc_tq_thr_name);
 
 	TASK_INIT(&sc->sc_tx_task, 0, rge_tx_task, sc);
-
-	callout_init_mtx(&sc->sc_timeout, &sc->sc_mtx, 0);
 
 	return (0);
 fail:
