@@ -75,6 +75,7 @@
 #include <x86/kvm.h>
 #include <contrib/xen/arch-x86/cpuid.h>
 #include <x86/bhyve.h>
+#include <dev/hyperv/vmbus/x86/hyperv_reg.h>
 
 #ifdef DDB
 #include <sys/interrupt.h>
@@ -2086,6 +2087,14 @@ detect_extended_dest_id(void)
 	case VM_GUEST_XEN:
 		cpuid_count(hv_base + 4, 0, regs);
 		if (regs[0] & XEN_HVM_CPUID_EXT_DEST_ID)
+			apic_ext_dest_id = 1;
+		break;
+	case VM_GUEST_HV:
+		cpuid_count(CPUID_LEAF_HV_STACK_INTERFACE, 0, regs);
+		if (regs[0] != HYPERV_STACK_INTERFACE_EAX_SIG)
+			break;
+		cpuid_count(CPUID_LEAF_HV_STACK_PROPERTIES, 0, regs);
+		if (regs[0] & HYPERV_PROPERTIES_EXT_DEST_ID)
 			apic_ext_dest_id = 1;
 		break;
 	case VM_GUEST_KVM:
