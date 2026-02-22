@@ -15,9 +15,9 @@
 #        Other common values include dialup for incoming modem ports,
 #        and unknown when the terminal type cannot be predetermined.
 #
-# status Must be on or off.  If on, init will run the getty program on
-#        the specified port.  If the word "secure" appears, this tty
-#        allows root login.
+# status Must be on, onifconsole, onifexists, or off.  If on, init
+#        will run the getty program on the specified port.  If the
+#        word "secure" appears, this tty allows root login.
 #
 # name	getty				type	status		comments
 #
