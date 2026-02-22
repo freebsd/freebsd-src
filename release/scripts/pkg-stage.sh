@@ -15,6 +15,8 @@ export PORTSDIR="${PORTSDIR:-/usr/ports}"
 _DVD_PACKAGES="
 comms/usbmuxd
 devel/git@lite
+editors/emacs@nox
+editors/vim
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
