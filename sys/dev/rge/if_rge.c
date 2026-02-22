@@ -413,31 +413,31 @@ rge_attach(device_t dev)
 	switch (hwrev) {
 	case 0x60900000:
 		sc->rge_type = MAC_R25;
-//		device_printf(dev, "RTL8125\n");
+		device_printf(dev, "chip rev: RTL8125 (0x%08x)\n", hwrev);
 		break;
 	case 0x64100000:
 		sc->rge_type = MAC_R25B;
-//		device_printf(dev, "RTL8125B\n");
+		device_printf(dev, "chip rev: RTL8125B (0x%08x)\n", hwrev);
 		break;
 	case 0x64900000:
 		sc->rge_type = MAC_R26_1;
-//		device_printf(dev, "RTL8126_1\n");
+		device_printf(dev, "chip rev: RTL8126_1 (0x%08x)\n", hwrev);
 		break;
 	case 0x64a00000:
 		sc->rge_type = MAC_R26_2;
-//		device_printf(dev, "RTL8126_2\n");
+		device_printf(dev, "chip rev: RTL8126_2 (0x%08x)\n", hwrev);
 		break;
 	case 0x68800000:
 		sc->rge_type = MAC_R25D_1;
-//		device_printf(dev, "RTL8125D_1\n");
+		device_printf(dev, "chip rev: RTL8125D_1 (0x%08x)\n", hwrev);
 		break;
 	case 0x68900000:
 		sc->rge_type = MAC_R25D_2;
-//		device_printf(dev, "RTL8125D_2\n");
+		device_printf(dev, "chip rev: RTL8125D_2 (0x%08x)\n", hwrev);
 		break;
 	case 0x6c900000:
 		sc->rge_type = MAC_R27;
-//		device_printf(dev, "RTL8127\n");
+		device_printf(dev, "chip rev: RTL8127 (0x%08x)\n", hwrev);
 		break;
 	default:
 		RGE_PRINT_ERROR(sc, "unknown version 0x%08x\n", hwrev);
