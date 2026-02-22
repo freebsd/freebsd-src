@@ -1724,7 +1724,8 @@ rsu_set_key_group(struct rsu_softc *sc, const struct ieee80211_key *k)
 	RSU_ASSERT_LOCKED(sc);
 
 	/* Map net80211 cipher to HW crypto algorithm. */
-	algo = rsu_crypto_mode(sc, k->wk_cipher->ic_cipher, k->wk_keylen);
+	algo = rsu_crypto_mode(sc, k->wk_cipher->ic_cipher,
+	    ieee80211_crypto_get_key_len(k));
 	if (algo == R92S_KEY_ALGO_INVALID)
 		return (EINVAL);
 
@@ -1732,13 +1733,14 @@ rsu_set_key_group(struct rsu_softc *sc, const struct ieee80211_key *k)
 	key.algo = algo;
 	key.cam_id = k->wk_keyix;
 	key.grpkey = (k->wk_flags & IEEE80211_KEY_GROUP) != 0;
-	memcpy(key.key, k->wk_key, MIN(k->wk_keylen, sizeof(key.key)));
+	memcpy(key.key, ieee80211_crypto_get_key_data(k),
+	    MIN(ieee80211_crypto_get_key_len(k), sizeof(key.key)));
 
 	RSU_DPRINTF(sc, RSU_DEBUG_KEY | RSU_DEBUG_FWCMD,
 	    "%s: keyix %u, group %u, algo %u/%u, flags %04X, len %u, "
 	    "macaddr %s\n", __func__, key.cam_id, key.grpkey,
-	    k->wk_cipher->ic_cipher, key.algo, k->wk_flags, k->wk_keylen,
-	    ether_sprintf(k->wk_macaddr));
+	    k->wk_cipher->ic_cipher, key.algo, k->wk_flags,
+	    ieee80211_crypto_get_key_len(k), ether_sprintf(k->wk_macaddr));
 
 	error = rsu_fw_cmd(sc, R92S_CMD_SET_KEY, &key, sizeof(key));
 	if (error != 0) {
@@ -1764,19 +1766,22 @@ rsu_set_key_pair(struct rsu_softc *sc, const struct ieee80211_key *k)
 		return (ESHUTDOWN);
 
 	/* Map net80211 cipher to HW crypto algorithm. */
-	algo = rsu_crypto_mode(sc, k->wk_cipher->ic_cipher, k->wk_keylen);
+	algo = rsu_crypto_mode(sc, k->wk_cipher->ic_cipher,
+	    ieee80211_crypto_get_key_len(k));
 	if (algo == R92S_KEY_ALGO_INVALID)
 		return (EINVAL);
 
 	memset(&key, 0, sizeof(key));
 	key.algo = algo;
 	memcpy(key.macaddr, k->wk_macaddr, sizeof(key.macaddr));
-	memcpy(key.key, k->wk_key, MIN(k->wk_keylen, sizeof(key.key)));
+	memcpy(key.key, ieee80211_crypto_get_key_data(k),
+	    MIN(ieee80211_crypto_get_key_len(k), sizeof(key.key)));
 
 	RSU_DPRINTF(sc, RSU_DEBUG_KEY | RSU_DEBUG_FWCMD,
 	    "%s: keyix %u, algo %u/%u, flags %04X, len %u, macaddr %s\n",
 	    __func__, k->wk_keyix, k->wk_cipher->ic_cipher, key.algo,
-	    k->wk_flags, k->wk_keylen, ether_sprintf(key.macaddr));
+	    k->wk_flags, ieee80211_crypto_get_key_len(k),
+	    ether_sprintf(key.macaddr));
 
 	error = rsu_fw_cmd(sc, R92S_CMD_SET_STA_KEY, &key, sizeof(key));
 	if (error != 0) {
