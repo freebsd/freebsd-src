@@ -16,6 +16,8 @@ comms/usbmuxd
 devel/git@lite
 editors/emacs@nox
 editors/vim
+filesystems/ext2
+filesystems/ntfs
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
