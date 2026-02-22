@@ -1762,13 +1762,6 @@ rge_freemem(struct rge_softc *sc)
 
 	RGE_ASSERT_UNLOCKED(sc);
 
-	/* TX desc */
-	bus_dmamap_unload(sc->sc_dmat_tx_desc, q->q_tx.rge_tx_list_map);
-	if (q->q_tx.rge_tx_list != NULL)
-		bus_dmamem_free(sc->sc_dmat_tx_desc, q->q_tx.rge_tx_list,
-		    q->q_tx.rge_tx_list_map);
-	memset(&q->q_tx, 0, sizeof(q->q_tx));
-
 	/* TX buf */
 	for (i = 0; i < RGE_TX_LIST_CNT; i++) {
 		struct rge_txq *tx = &q->q_tx.rge_txq[i];
@@ -1800,12 +1793,13 @@ rge_freemem(struct rge_softc *sc)
 		}
 	}
 
-	/* RX desc */
-	bus_dmamap_unload(sc->sc_dmat_rx_desc, q->q_rx.rge_rx_list_map);
-	if (q->q_rx.rge_rx_list != 0)
-		bus_dmamem_free(sc->sc_dmat_rx_desc, q->q_rx.rge_rx_list,
-		    q->q_rx.rge_rx_list_map);
-	memset(&q->q_rx, 0, sizeof(q->q_tx));
+	/* TX desc */
+	if (q->q_tx.rge_tx_list != NULL) {
+		bus_dmamap_unload(sc->sc_dmat_tx_desc, q->q_tx.rge_tx_list_map);
+		bus_dmamem_free(sc->sc_dmat_tx_desc, q->q_tx.rge_tx_list,
+		    q->q_tx.rge_tx_list_map);
+	}
+	memset(&q->q_tx, 0, sizeof(q->q_tx));
 
 	/* RX buf */
 	for (i = 0; i < RGE_RX_LIST_CNT; i++) {
@@ -1830,6 +1824,14 @@ rge_freemem(struct rge_softc *sc)
 		}
 	}
 
+	/* RX desc */
+	if (q->q_rx.rge_rx_list != NULL) {
+		bus_dmamap_unload(sc->sc_dmat_rx_desc, q->q_rx.rge_rx_list_map);
+		bus_dmamem_free(sc->sc_dmat_rx_desc, q->q_rx.rge_rx_list,
+		    q->q_rx.rge_rx_list_map);
+	}
+	memset(&q->q_rx, 0, sizeof(q->q_tx));
+
 	return (0);
 }
 
@@ -1845,9 +1847,10 @@ rge_free_stats_mem(struct rge_softc *sc)
 
 	RGE_ASSERT_UNLOCKED(sc);
 
-	bus_dmamap_unload(sc->sc_dmat_stats_buf, ss->map);
-	if (ss->stats != NULL)
+	if (ss->stats != NULL) {
+		bus_dmamap_unload(sc->sc_dmat_stats_buf, ss->map);
 		bus_dmamem_free(sc->sc_dmat_stats_buf, ss->stats, ss->map);
+	}
 	memset(ss, 0, sizeof(*ss));
 	return (0);
 }
