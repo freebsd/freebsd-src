@@ -218,8 +218,8 @@ p_path(struct snl_parsed_route *rt, bool is_mpath)
 	else
 		xo_emit("{t:interface-name/%*.*s}", wid.iface, wid.iface,
 		    prettyname);
-	if (rt->rta_expires > 0) {
-		xo_emit(" {:expire-time/%*u}", wid.expire, rt->rta_expires);
+	if (rt->rta_expire > 0) {
+		xo_emit(" {:expire-time/%*u}", wid.expire, rt->rta_expire);
 	}
 }
 
@@ -244,6 +244,7 @@ p_rtentry_netlink(struct snl_state *ss, const char *name, struct nlmsghdr *hdr)
 			rt.rtax_weight = nhop->rtnh_weight;
 			rt.rta_rtflags = nhop->rta_rtflags ? nhop->rta_rtflags : orig_rtflags;
 			rt.rtax_mtu = nhop->rtax_mtu ? nhop->rtax_mtu : orig_mtu;
+			rt.rta_expire = nhop->rta_expire;
 
 			xo_open_instance(name);
 			p_path(&rt, true);
