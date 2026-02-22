@@ -74,6 +74,7 @@
 #include <x86/init.h>
 #include <x86/kvm.h>
 #include <contrib/xen/arch-x86/cpuid.h>
+#include <x86/bhyve.h>
 
 #ifdef DDB
 #include <sys/interrupt.h>
@@ -2090,6 +2091,13 @@ detect_extended_dest_id(void)
 	case VM_GUEST_KVM:
 		kvm_cpuid_get_features(regs);
 		if (regs[0] & KVM_FEATURE_MSI_EXT_DEST_ID)
+			apic_ext_dest_id = 1;
+		break;
+	case VM_GUEST_BHYVE:
+		if (hv_high < CPUID_BHYVE_FEATURES)
+			break;
+		cpuid_count(CPUID_BHYVE_FEATURES, 0, regs);
+		if (regs[0] & CPUID_BHYVE_FEAT_EXT_DEST_ID)
 			apic_ext_dest_id = 1;
 		break;
 	}
