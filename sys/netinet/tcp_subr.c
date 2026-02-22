@@ -586,13 +586,14 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		/* Can't handle one that is not a pkt hdr */
 		TCPSTAT_INC(tcps_tunneled_errs);
-		goto out;
+		m_freem(m);
+		return (true);
 	}
 	thlen = sizeof(struct tcphdr);
 	if (m->m_len < off + sizeof(struct udphdr) + thlen &&
 	    (m =  m_pullup(m, off + sizeof(struct udphdr) + thlen)) == NULL) {
 		TCPSTAT_INC(tcps_tunneled_errs);
-		goto out;
+		return (true);
 	}
 	iph = mtod(m, struct ip *);
 	uh = (struct udphdr *)((caddr_t)iph + off);
@@ -602,7 +603,7 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 		m =  m_pullup(m, off + sizeof(struct udphdr) + thlen);
 		if (m == NULL) {
 			TCPSTAT_INC(tcps_tunneled_errs);
-			goto out;
+			return (true);
 		} else {
 			iph = mtod(m, struct ip *);
 			uh = (struct udphdr *)((caddr_t)iph + off);
@@ -624,9 +625,10 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 #ifdef INET
 	case IPVERSION:
 		len = ntohs(iph->ip_len) - sizeof(struct udphdr);
-		if (len != m->m_pkthdr.len) {
+		if (__predict_false(len != m->m_pkthdr.len)) {
 			TCPSTAT_INC(tcps_tunneled_errs);
-			goto out;
+			m_freem(m);
+			return (true);
 		} else {
 			iph->ip_len = htons(len);
 			tcp_input_with_port(&m, &off, IPPROTO_TCP, port);
@@ -637,9 +639,11 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 	case IPV6_VERSION >> 4:
 		ip6 = mtod(m, struct ip6_hdr *);
 		len = ntohs(ip6->ip6_plen) - sizeof(struct udphdr);
-		if (len + sizeof(struct ip6_hdr) != m->m_pkthdr.len) {
+		if (__predict_false(len + sizeof(struct ip6_hdr) !=
+		    m->m_pkthdr.len)) {
 			TCPSTAT_INC(tcps_tunneled_errs);
-			goto out;
+			m_freem(m);
+			return (true);
 		} else {
 			ip6->ip6_plen = htons(len);
 			tcp6_input_with_port(&m, &off, IPPROTO_TCP, port);
@@ -647,13 +651,9 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 		break;
 #endif
 	default:
-		goto out;
+		m_freem(m);
 		break;
 	}
-	return (true);
-out:
-	m_freem(m);
-
 	return (true);
 }
 
