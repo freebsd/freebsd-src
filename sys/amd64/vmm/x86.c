@@ -37,6 +37,7 @@
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
+#include <x86/bhyve.h>
 
 #include <dev/vmm/vmm_ktr.h>
 #include <dev/vmm/vmm_vm.h>
@@ -50,11 +51,7 @@ static SYSCTL_NODE(_hw_vmm, OID_AUTO, topology, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     NULL);
 
 #define CPUID_VM_SIGNATURE	0x40000000
-#define CPUID_BHYVE_FEATURES	0x40000001
 #define	CPUID_VM_HIGH		CPUID_BHYVE_FEATURES
-
-/* Features advertised in CPUID_BHYVE_FEATURES %eax */
-#define CPUID_BHYVE_FEAT_EXT_DEST_ID	(1UL << 0) /* MSI Extended Dest ID */
 
 static const char bhyve_id[12] = "bhyve bhyve ";
 
