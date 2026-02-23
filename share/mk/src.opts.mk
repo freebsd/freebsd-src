@@ -71,7 +71,6 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BOOTPARAMD \
     BOOTPD \
-    BSD_CPIO \
     BSDINSTALL \
     BSNMP \
     BZIP2 \
