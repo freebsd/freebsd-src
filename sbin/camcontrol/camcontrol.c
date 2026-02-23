@@ -1674,7 +1674,7 @@ atacapprint(struct ata_params *parm)
 	}
 	printf("\n");
 
-	printf("Transport revision    ");
+	printf("transport revision    ");
 	if (parm->transport_major == 0 || parm->transport_major == 0xffff) {
 		printf("Unknown");
 	} else {
