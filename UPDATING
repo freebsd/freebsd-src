@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260224:
+	15.0-RELEASE-p4	SA-26:05.route
+
+	Local DoS and possible privilege escalation via routing sockets. [SA-26:05.route]
+
 20260210:
 	15.0-RELEASE-p3 SA-26:03.blocklistd
 			EN-26:04.arm64
