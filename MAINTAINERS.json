@@ -1,0 +1,37 @@
+{
+	"version": 0,
+	"group": {
+		"group1": {
+			"members": ["alice", "bob"],
+			"watch": ["libexec/", "lib/"],
+			"exclude": ["libexec/flua/", "lib/clang/"]
+		},
+		"group2": {
+			"members": ["charlie", "dan"],
+			"watch": ["sys/amd64/", "sys/i386/"]
+		},
+		"group3": {
+			"members": ["dan"],
+			"watch": ["libexec/flua/"],
+			"except": ["libexec/flua/libucl/"]
+		}
+	},
+	"person": {
+		"alice": {
+			"user": "alice-user",
+			"github": "@alice-github"
+		},
+		"bob": {
+			"user": "bob-user",
+			"github": "@bob-github"
+		},
+		"charlie": {
+			"user": "user3",
+			"github": "@charlie-github"
+		},
+		"dan": {
+			"user": "dan-user",
+			"github": "@dan-github"
+		}
+	}
+}
