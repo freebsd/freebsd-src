@@ -13,42 +13,43 @@ Paths to directories must end with trailing separators.
 
 version: 0
 
-# groups
+groups {
+	g1 {
+		members: ["alice-id", "bob-id"]
+		watch: ["libexec/", "lib/"]
+		exclude: ["libexec/flua/", "lib/clang/"]
+	},
 
-group g1 {
-	members: ["alice", "bob"]
-	watch: ["libexec/", "lib/"]
-	exclude: ["libexec/flua/", "lib/clang/"]
+	g2 {
+		members: ["charlie-id", "dan-id"]
+		watch: ["sys/amd64/", "sys/i386/"]
+	},
+
+	g3 {
+		members: ["dan-id"]
+		watch: ["libexec/flua/"]
+		except: ["libexec/flua/libucl/"]
+	}
 }
 
-group g2 {
-	members: ["charlie", "dan"]
-	watch: ["sys/amd64/", "sys/i386/"]
-}
+people {
+	"alice-id" {
+		user: "alice-user"
+		github: "@alice-github"
+	},
 
-"group3": {
-	members: ["dan"]
-	watch: ["libexec/flua/"]
-	except: ["libexec/flua/libucl/"]
-}
+	"bob-id" {
+		user: "bob-user"
+		github: "@bob-github"
+	},
 
-# people
+	"charlie-id" {
+		user: "charlie-user"
+		github: "@charlie-github"
+	},
 
-person alice-id {
-	user: "alice-user"
-	github: "@alice-github"
-}
-person bob-id {
-	user: "bob-user"
-	github: "@bob-github"
-}
-
-person charlie-id {
-	user: "charlie-user"
-	github: "@charlie-github"
-}
-
-person dan-id {
-	user: "dan-user"
-	github: "@dan-github"
+	"dan-id" {
+		user: "dan-user"
+		github: "@dan-github"
+	}
 }

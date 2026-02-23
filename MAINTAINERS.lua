@@ -1,31 +1,49 @@
-#! /usr/bin/lua
+#! /usr/libexec/flua
 
 --[[
 
-Usage: lua MAINTAINERS.lua <command> <maintainers file> [<argument>]
+Usage: 
+  ./MAINTAINERS.lua <command> [argument] [options]
+
+Options:
+  -i | --input     Path to maintainers file. Defaults to 'MAINTAINERS.ucl'.
 
 Commands:
-  get_maintainers  prints maintainers to ping for a path. <argument> should be a path.
-  get_paths        prints paths that a person is responsible for. <argument> should be a person's ID
-  get_info         prints available info for a person. <argument> should be a person's ID.
-  update           generates GitHub/Forgejo CODEOWNERS file. No <argument>.
+  update           generates GitHub/Forgejo CODEOWNERS file.
+  get_maintainers  prints maintainers to ping for a path. Requires argument, a path.
+  get_paths        prints paths that a person is responsible for. Requires argument, a person's ID.
+  get_info         prints available info for a person. Requires argument, a person's ID.
 
 --]]
-
-
-local json = require 'lunajson'
 
 if arg[1] == nil then
 	error('No arguments provided')
 end
 
-io.input(arg[2])
+local f = 'MAINTAINERS.ucl'
+for k, v in ipairs(arg) do
+	if v == '-i' or v == '--input' then
+		local f = arg[k+1]
+		break
+	end
+end
 
-local t = json.decode(io.read('a'))
+local ucl = require('ucl').parser()
+local res, err = ucl:parse_file(f)
+
+if not res then
+	error('Parser error: '..err)
+end
+
+local t = ucl:get_object()
 
 local version = t.version
-local people = t.person
-local groups = t.group
+local people = t.people
+local groups = t.groups
+
+local split_path = function (path)
+	return string.gmatch('..-['..sep..'$]')
+end
 
 -- currently does not support character sets
 -- also currently globbing patterns match periods even at the beginning of a filename
@@ -110,36 +128,49 @@ elseif arg[1] == 'update' then
 			foreach(group.exclude, function (path) if not out[path] then out[path] = {} end end)
 		end
 	end
-
-	-- this stuff sorts the paths so the generated CODEOWNERS files are easier to read
+	
+	-- sort the paths so the generated CODEOWNERS file is easier to read
 	local paths = {}
-	for k, _ in pairs(out) do
-		table.insert(paths, k)
-	end
-
+	for k, _ in pairs(out) do table.insert(paths, k) end
 	table.sort(paths)
-
-	local gen_codeowners = function (fname, field)
-		local file = io.open(fname)
-		if file == nil then
-			print('could not update '..fname)
-		else
-			for _, path in ipairs(paths) do
-				file:write(path, ' ')
-				foreach(out[path], function (m) file:write(people[m][field], ' ') end)
-				file:write('\n')
+	
+	local gen_codeowners = function (file, field)
+		for _, path in ipairs(paths) do
+			file:write(path, ' ')
+			for _, id in ipairs(out[path]) do
+				if people[id] and people[id][field] then
+					file:write(people[id][field], ' ')
+				end
 			end
-			print(fname..' updated')
+			file:write('\n')
 		end
 	end
+	
+	-- github
+	local gh_file = io.open('.github/CODEOWNERS', 'w')
+	if gh_file then
+		gen_codeowners(gh_file, 'github')
+		gh_file:close()
+		print('.github/CODEOWNERS updated')
+	else
+		print('could not update .github/CODEOWNERS')
+	end
 
-	gen_codeowners('.github/CODEOWNERS', 'github')
-
+	-- forgejo
 	-- copy from the already created file if possible
-	if gh_file and os.execute('cp .github/CODEOWNERS .forgejo/CODEOWNERS') == 0 then
+	gh_file = io.open('.github/CODEOWNERS', 'r')
+	local fj_file = io.open('.forgejo/CODEOWNERS', 'w')
+	if fj_file then
+		if gh_file then
+			fj_file:write(gh_file:read('a'))
+			gh_file:close()
+		else
+			gen_codeowners('.forgejo/CODEOWNERS', 'forgejo')
+		end
+		fj_file:close()
 		print('.forgejo/CODEOWNERS updated')
 	else
-		gen_codeowners('.forgejo/CODEOWNERS', 'forgejo')
+		print('could not update .forgejo/CODEOWNERS')
 	end
 else
 	print('Unrecognized command')
