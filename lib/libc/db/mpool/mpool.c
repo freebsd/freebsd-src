@@ -214,10 +214,14 @@ mpool_get(MPOOL *mp, pgno_t pgno,
 	/* Read in the contents. */
 	off = mp->pagesize * pgno;
 	if ((nr = pread(mp->fd, bp->page, mp->pagesize, off)) != (ssize_t)mp->pagesize) {
+		int serrno;
+
 		switch (nr) {
 		case -1:
 			/* errno is set for us by pread(). */
+			serrno = errno;
 			free(bp);
+			errno = serrno;
 			mp->curcache--;
 			return (NULL);
 		case 0:
