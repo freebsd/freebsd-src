@@ -201,7 +201,7 @@ _debugOn() {
 	DEBUG_DO=
 	DEBUG_SKIP=:
 	DEBUG_X=-x
-	# do this firt to reduce noise
+	# do this first to reduce noise
 	case ",$DEBUG_SH," in
 	*,$1:debug_add:*) _debugAdd $1;;
 	*,$2:debug_add:*) _debugAdd $2;;
