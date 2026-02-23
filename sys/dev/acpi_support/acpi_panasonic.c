@@ -80,6 +80,8 @@ static int	acpi_panasonic_probe(device_t dev);
 static int	acpi_panasonic_attach(device_t dev);
 static int	acpi_panasonic_detach(device_t dev);
 static int	acpi_panasonic_shutdown(device_t dev);
+static int	acpi_panasonic_resume(device_t dev);
+static void	acpi_panasonic_clear_rfkill(device_t dev);
 static int	acpi_panasonic_sysctl(SYSCTL_HANDLER_ARGS);
 static UINT64	acpi_panasonic_sinf(ACPI_HANDLE h, UINT64 index);
 static void	acpi_panasonic_sset(ACPI_HANDLE h, UINT64 index,
@@ -116,6 +118,7 @@ static device_method_t acpi_panasonic_methods[] = {
 	DEVMETHOD(device_attach,	acpi_panasonic_attach),
 	DEVMETHOD(device_detach,	acpi_panasonic_detach),
 	DEVMETHOD(device_shutdown,	acpi_panasonic_shutdown),
+	DEVMETHOD(device_resume,	acpi_panasonic_resume),
 
 	DEVMETHOD_END
 };
@@ -171,6 +174,8 @@ acpi_panasonic_attach(device_t dev)
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY |
 		    CTLFLAG_MPSAFE, sc, i, acpi_panasonic_sysctl, "I", "");
 	}
+
+	acpi_panasonic_clear_rfkill(dev);
 
 #if 0
 	/* Activate hotkeys */
@@ -230,6 +235,37 @@ acpi_panasonic_shutdown(device_t dev)
 	mute = 1;
 	hkey_sound_mute(sc->handle, HKEY_SET, &mute);
 	return (0);
+}
+
+static int
+acpi_panasonic_resume(device_t dev)
+{
+
+	acpi_panasonic_clear_rfkill(dev);
+	return (0);
+}
+
+static void
+acpi_panasonic_clear_rfkill(device_t dev)
+{
+	ACPI_HANDLE wlsw_handle;
+	ACPI_STATUS status;
+
+	/*
+	 * Call WLSW.SHRF to clear wireless RF_KILL on models that have it.
+	 * On FZ-Y1 and similar models, the EC latches RF_KILL on shutdown
+	 * and suspend, causing the wireless card to boot with hard block
+	 * enabled.  The SHRF method sets the EC state to deassert RF_KILL
+	 * GPIO on mini-PCIe pin 20 via SMI (ASRV call with function
+	 * 0x0F/0x03).
+	 */
+	status = AcpiGetHandle(NULL, "\\_SB.WLSW", &wlsw_handle);
+	if (ACPI_SUCCESS(status)) {
+		status = AcpiEvaluateObject(wlsw_handle, "SHRF", NULL, NULL);
+		if (ACPI_FAILURE(status) && bootverbose)
+			device_printf(dev, "WLSW.SHRF failed: %s\n",
+			    AcpiFormatException(status));
+	}
 }
 
 static int
