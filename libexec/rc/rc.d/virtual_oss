@@ -24,6 +24,7 @@ required_modules="cuse"
 
 configs=
 pidpath="/var/run/${name}"
+default_unit=$(sysctl -n hw.snd.default_unit)
 virtual_oss_default_args="\
 	-S \
 	-C 2 \
@@ -32,7 +33,7 @@ virtual_oss_default_args="\
 	-b 24 \
 	-s 8ms \
 	-i 8 \
-	-f /dev/dsp \
+	-f /dev/dsp${default_unit} \
 	-d dsp \
 	-t vdsp.ctl"
 
