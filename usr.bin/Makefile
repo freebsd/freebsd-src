@@ -24,6 +24,7 @@ SUBDIR=	apply \
 	comm \
 	command \
 	compress \
+	cpio \
 	csplit \
 	ctlstat \
 	cut \
@@ -185,7 +186,6 @@ SUBDIR=	apply \
 SUBDIR.${MK_ACCT}+=	lastcomm
 SUBDIR.${MK_AT}+=	at
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
-SUBDIR.${MK_BSD_CPIO}+=	cpio
 SUBDIR.${MK_CALENDAR}+=	calendar
 .if ${MK_CLANG} != "no" || ${MK_LLVM_BINUTILS} != "no" || \
     ${MK_LLD} != "no" || ${MK_LLDB} != "no"
