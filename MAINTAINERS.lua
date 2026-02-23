@@ -5,10 +5,10 @@
 Usage: lua MAINTAINERS.lua <command> <maintainers file> [<argument>]
 
 Commands:
-  path_maintainers  prints maintainers to ping for a path. <argument> should be a path.
-  person_paths      prints paths that a person is responsible for. <argument> should be a person's ID
-  person_info       prints available info for a person. <argument> should be a person's ID.
-  update            generates GitHub/Forgejo CODEOWNERS file. No <argument>.
+  get_maintainers  prints maintainers to ping for a path. <argument> should be a path.
+  get_paths        prints paths that a person is responsible for. <argument> should be a person's ID
+  get_info         prints available info for a person. <argument> should be a person's ID.
+  update           generates GitHub/Forgejo CODEOWNERS file. No <argument>.
 
 --]]
 
@@ -59,7 +59,7 @@ local path_has_any = function (arr, path)
 	return false
 end
 
-if arg[1] == 'path_maintainers' then
+if arg[1] == 'get_maintainers' then
 	local path = arg[3]
 	local out = {}
 
@@ -71,7 +71,7 @@ if arg[1] == 'path_maintainers' then
 	end
 
 	foreach(out, function(person_id) print(person_id) end)
-elseif arg[1] == 'person_paths' then
+elseif arg[1] == 'get_paths' then
 	local person_id = arg[3]
 	local watch = {}
 	local exclude = {}
@@ -90,7 +90,7 @@ elseif arg[1] == 'person_paths' then
 
 	foreach(watch, function (path) print('watch', path) end)
 	foreach(exclude, function (path) print('exclude', path) end)
-elseif arg[1] == 'person_info' then
+elseif arg[1] == 'get_info' then
 	local person_id = arg[3]
 	if people[person_id] then
 		for k, v in pairs(people[person_id]) do
@@ -119,33 +119,27 @@ elseif arg[1] == 'update' then
 
 	table.sort(paths)
 
-	local output_file = function (file)
-		for _, path in ipairs(paths) do
-			file:write(path, ' ')
-			foreach(out[path], function (m) file:write(people[m].github, ' ') end)
-			file:write('\n')
+	local gen_codeowners = function (fname, field)
+		local file = io.open(fname)
+		if file == nil then
+			print('could not update '..fname)
+		else
+			for _, path in ipairs(paths) do
+				file:write(path, ' ')
+				foreach(out[path], function (m) file:write(people[m][field], ' ') end)
+				file:write('\n')
+			end
+			print(fname..' updated')
 		end
 	end
 
-	local file = io.open('.github/CODEOWNERS')
-	if file == nil then
-		print('could not update .github/CODEOWNERS')
-	else
-		output_file(file)
-		print('.github/CODEOWNERS updated')
-	end
+	gen_codeowners('.github/CODEOWNERS', 'github')
 
 	-- copy from the already created file if possible
-	if file and os.execute('cp .github/CODEOWNERS .forgejo/CODEOWNERS') == 0 then
+	if gh_file and os.execute('cp .github/CODEOWNERS .forgejo/CODEOWNERS') == 0 then
 		print('.forgejo/CODEOWNERS updated')
 	else
-		file = io.open('.forgejo/CODEOWNERS')
-		if file == nil then
-			print('could not update .forgejo/CODEOWNERS')
-		else
-			output_file(file)
-			print('.forgejo/CODEOWNERS updated')
-		end
+		gen_codeowners('.forgejo/CODEOWNERS', 'forgejo')
 	end
 else
 	print('Unrecognized command')

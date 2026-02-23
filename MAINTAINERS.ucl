@@ -1,0 +1,54 @@
+/*
+
+List of maintainers.
+
+Each maintainer is represented by a unique ID, which is a key in the "person" object.
+Each value in the "person" object contains the user's FreeBSD.org username (key "user"), GitHub username (key "github"), and Forgejo/Codeberg username (key "forgejo").
+All of these are optional.
+
+Each group contains a list of members (maintainer IDs), a list of paths to watch, and a list of paths to ignore.
+Paths to directories must end with trailing separators.
+
+*/
+
+version: 0
+
+# groups
+
+group g1 {
+	members: ["alice", "bob"]
+	watch: ["libexec/", "lib/"]
+	exclude: ["libexec/flua/", "lib/clang/"]
+}
+
+group g2 {
+	members: ["charlie", "dan"]
+	watch: ["sys/amd64/", "sys/i386/"]
+}
+
+"group3": {
+	members: ["dan"]
+	watch: ["libexec/flua/"]
+	except: ["libexec/flua/libucl/"]
+}
+
+# people
+
+person alice-id {
+	user: "alice-user"
+	github: "@alice-github"
+}
+person bob-id {
+	user: "bob-user"
+	github: "@bob-github"
+}
+
+person charlie-id {
+	user: "charlie-user"
+	github: "@charlie-github"
+}
+
+person dan-id {
+	user: "dan-user"
+	github: "@dan-github"
+}
