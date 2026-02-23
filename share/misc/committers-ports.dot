@@ -257,6 +257,7 @@ netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
 nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2002/04/01"]
 novel [label="Roman Bogorodskiy\nnovel@FreeBSD.org\n2005/03/07"]
+nxjoseph [label="Yusuf Yaman\nnxjoseph@FreeBSD.org\n2026/02/18"]
 olivier [label="Olivier Cochard-Labbe\nolivier@FreeBSD.org\n2016/02/02"]
 olivierd [label="Olivier Duchateau\nolivierd@FreeBSD.org\n2012/05/29"]
 osa [label="Sergey A. Osokin\nosa@FreeBSD.org\n2003/06/04"]
@@ -700,6 +701,7 @@ obrien -> gerald
 
 olivier -> pizzamig
 
+osa -> nxjoseph
 osa -> otis
 osa -> vg
 
@@ -848,6 +850,8 @@ tz -> fernape
 tz -> mfechner
 
 vsevolod -> eugen
+
+vvd -> nxjoseph
 
 wen -> cs
 wen -> culot
