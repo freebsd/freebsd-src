@@ -13,7 +13,7 @@
 #define	_SYS__OFFSETOF_H_
 
 #ifndef offsetof
-#define offsetof(type, field)   __builtin_offsetof(type, field)
+#define offsetof(TYPE, MEMBER) __builtin_offsetof (TYPE, MEMBER)
 #endif
 
 #endif /* _SYS__OFFSETOF_H_ */
