@@ -1,12 +1,14 @@
+#! /usr/bin/lua
+
 --[[
 
-Usage: lua maintainers.lua <command> <maintainers file> [<argument>]
+Usage: lua MAINTAINERS.lua <command> <maintainers file> [<argument>]
 
 Commands:
   path_maintainers  prints maintainers to ping for a path. <argument> should be a path.
   person_paths      prints paths that a person is responsible for. <argument> should be a person's ID
   person_info       prints available info for a person. <argument> should be a person's ID.
-  codeowners        generates GitHub CODEOWNERS file. No <argument>.
+  update            generates GitHub/Forgejo CODEOWNERS file. No <argument>.
 
 --]]
 
@@ -95,7 +97,7 @@ elseif arg[1] == 'person_info' then
 			print(k, v)
 		end
 	end
-elseif arg[1] == 'codeowners' then
+elseif arg[1] == 'update' then
 	out = {}
 	for _, group in pairs(groups) do
 		for _, path in ipairs(group.watch) do
@@ -109,6 +111,7 @@ elseif arg[1] == 'codeowners' then
 		end
 	end
 
+	-- this stuff sorts the paths so the generated CODEOWNERS files are easier to read
 	local paths = {}
 	for k, _ in pairs(out) do
 		table.insert(paths, k)
@@ -116,11 +119,33 @@ elseif arg[1] == 'codeowners' then
 
 	table.sort(paths)
 
-	io.output('CODEOWNERS')
-	for _, path in ipairs(paths) do
-		io.write(path, ' ')
-		foreach(out[path], function (m) io.write(people[m].github, ' ') end)
-		io.write('\n')
+	local output_file = function (file)
+		for _, path in ipairs(paths) do
+			file:write(path, ' ')
+			foreach(out[path], function (m) file:write(people[m].github, ' ') end)
+			file:write('\n')
+		end
+	end
+
+	local file = io.open('.github/CODEOWNERS')
+	if file == nil then
+		print('could not update .github/CODEOWNERS')
+	else
+		output_file(file)
+		print('.github/CODEOWNERS updated')
+	end
+
+	-- copy from the already created file if possible
+	if file and os.execute('cp .github/CODEOWNERS .forgejo/CODEOWNERS') == 0 then
+		print('.forgejo/CODEOWNERS updated')
+	else
+		file = io.open('.forgejo/CODEOWNERS')
+		if file == nil then
+			print('could not update .forgejo/CODEOWNERS')
+		else
+			output_file(file)
+			print('.forgejo/CODEOWNERS updated')
+		end
 	end
 else
 	print('Unrecognized command')
