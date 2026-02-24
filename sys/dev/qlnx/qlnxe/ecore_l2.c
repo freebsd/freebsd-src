@@ -1617,14 +1617,13 @@ ecore_sp_eth_filter_mcast(struct ecore_hwfn *p_hwfn,
 			  struct ecore_spq_comp_cb *p_comp_data)
 {
 	struct vport_update_ramrod_data *p_ramrod = OSAL_NULL;
-	u32 bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	struct ecore_spq_entry *p_ent = OSAL_NULL;
 	struct ecore_sp_init_data init_data;
 	u8 abs_vport_id = 0;
 	enum _ecore_status_t rc;
 	int i;
 
-	if (p_filter_cmd->opcode == ECORE_FILTER_ADD)
+	if (p_filter_cmd->opcode == ECORE_FILTER_REPLACE)
 		rc = ecore_fw_vport(p_hwfn, p_filter_cmd->vport_to_add_to,
 				    &abs_vport_id);
 	else
@@ -1654,30 +1653,33 @@ ecore_sp_eth_filter_mcast(struct ecore_hwfn *p_hwfn,
 	/* explicitly clear out the entire vector */
 	OSAL_MEMSET(&p_ramrod->approx_mcast.bins,
 		    0, sizeof(p_ramrod->approx_mcast.bins));
-	OSAL_MEMSET(bins, 0, sizeof(u32) * ETH_MULTICAST_MAC_BINS_IN_REGS);
-	/* filter ADD op is explicit set op and it removes
-	*  any existing filters for the vport.
-	*/
-	if (p_filter_cmd->opcode == ECORE_FILTER_ADD) {
-		for (i = 0; i < p_filter_cmd->num_mc_addrs; i++) {
-			u32 bit;
-
-			bit = ecore_mcast_bin_from_mac(p_filter_cmd->mac[i]);
-			bins[bit / 32] |= 1 << (bit % 32);
-		}
-
+	/*
+	 * filter REPLACE op is explicit set op and it removes
+	 * any existing filters for the vport.
+	 */
+	if (p_filter_cmd->opcode == ECORE_FILTER_REPLACE) {
+		_Static_assert(sizeof(p_filter_cmd->bins) == sizeof(p_ramrod->approx_mcast.bins), "Size mismatch");
+		_Static_assert(nitems(p_filter_cmd->bins) == ETH_MULTICAST_MAC_BINS_IN_REGS, "Size mismatch");
 		/* Convert to correct endianity */
 		for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
 			struct vport_update_ramrod_mcast *p_ramrod_bins;
 
 			p_ramrod_bins = &p_ramrod->approx_mcast;
-			p_ramrod_bins->bins[i] = OSAL_CPU_TO_LE32(bins[i]);
+			p_ramrod_bins->bins[i] = OSAL_CPU_TO_LE32(p_filter_cmd->bins[i]);
 		}
-	}
+	} /* else FLUSH op clears existing filters */
 
 	p_ramrod->common.vport_id = abs_vport_id;
 
 	rc = ecore_spq_post(p_hwfn, p_ent, OSAL_NULL);
+
+	DP_INFO(p_hwfn, "Multicast filter cmd: [%s], bins: [%08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x], ret = %d\n",
+	    p_filter_cmd->opcode == ECORE_FILTER_REPLACE ? "replace" : "flush",
+	    p_ramrod->approx_mcast.bins[0], p_ramrod->approx_mcast.bins[1],
+	    p_ramrod->approx_mcast.bins[2], p_ramrod->approx_mcast.bins[3],
+	    p_ramrod->approx_mcast.bins[4], p_ramrod->approx_mcast.bins[5],
+	    p_ramrod->approx_mcast.bins[6], p_ramrod->approx_mcast.bins[7], rc);
+
 	if (rc != ECORE_SUCCESS)
 		DP_ERR(p_hwfn, "Multicast filter command failed %d\n", rc);
 
@@ -1692,10 +1694,9 @@ enum _ecore_status_t ecore_filter_mcast_cmd(struct ecore_dev *p_dev,
 	enum _ecore_status_t rc = ECORE_SUCCESS;
 	int i;
 
-	/* only ADD and REMOVE operations are supported for multi-cast */
-	if ((p_filter_cmd->opcode != ECORE_FILTER_ADD  &&
-	     (p_filter_cmd->opcode != ECORE_FILTER_REMOVE)) ||
-	     (p_filter_cmd->num_mc_addrs > ECORE_MAX_MC_ADDRS)) {
+	/* only REPLACE and FLUSH operations are supported for multi-cast */
+	if ((p_filter_cmd->opcode != ECORE_FILTER_REPLACE  &&
+	     (p_filter_cmd->opcode != ECORE_FILTER_FLUSH))) {
 		return ECORE_INVAL;
 	}
 

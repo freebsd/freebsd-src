@@ -30,19 +30,13 @@
 #define _COMPAT_FREEBSD32_FREEBSD32_H_
 
 #include <sys/abi_compat.h>
+#include <sys/devicestat.h>
+#include <sys/event.h>
+#include <sys/mount.h>
 #include <sys/procfs.h>
 #include <sys/socket.h>
 #include <sys/user.h>
 #include <sys/_ffcounter.h>
-
-/*
- * i386 is the only arch with a 32-bit time_t
- */
-#ifdef __amd64__
-typedef	int32_t	time32_t;
-#else
-typedef	int64_t	time32_t;
-#endif
 
 struct timeval32 {
 	time32_t tv_sec;
@@ -61,26 +55,24 @@ struct itimerspec32 {
 
 struct bintime32 {
 	time32_t sec;
-	uint32_t frac[2];
+	freebsd32_uint64_t frac;
 };
 
 struct ffclock_estimate32 {
 	struct bintime32 update_time;
-	ffcounter update_ffcount;
-	ffcounter leapsec_next;
-	uint64_t period;
+	freebsd32_uint64_t update_ffcount;
+	freebsd32_uint64_t leapsec_next;
+	freebsd32_uint64_t period;
 	uint32_t errb_abs;
 	uint32_t errb_rate;
 	uint32_t status;
 	int16_t leapsec_total;
 	int8_t leapsec;
 	int8_t _pad;
-}
-#if defined(__amd64__)
-__attribute__((packed))
-#endif
-;
-#if defined(__amd64__)
+};
+_Static_assert(sizeof(ffcounter) == sizeof(freebsd32_uint64_t),
+    "'ffcounter' size discrepancy'");
+#if defined(__amd64__) || defined(__i386__)
 _Static_assert(sizeof(struct ffclock_estimate32) == 52, "ffclock_estimate32 size");
 #else
 _Static_assert(sizeof(struct ffclock_estimate32) == 56, "ffclock_estimate32 size");
@@ -236,12 +228,12 @@ struct stat32 {
 #endif
 	struct timespec32 st_birthtim;
 	off_t	st_size;
-	int64_t	st_blocks;
+	freebsd32_uint64_t st_blocks;
 	uint32_t st_blksize;
 	uint32_t st_flags;
-	uint64_t st_gen;
-	uint64_t st_filerev;
-	uint64_t st_spare[9];
+	freebsd32_uint64_t st_gen;
+	freebsd32_uint64_t st_filerev;
+	freebsd32_uint64_t st_spare[9];
 };
 struct freebsd11_stat32 {
 	uint32_t st_dev;
@@ -255,7 +247,7 @@ struct freebsd11_stat32 {
 	struct timespec32 st_mtim;
 	struct timespec32 st_ctim;
 	off_t	st_size;
-	int64_t	st_blocks;
+	freebsd32_uint64_t st_blocks;
 	uint32_t st_blksize;
 	uint32_t st_flags;
 	uint32_t st_gen;
@@ -380,7 +372,7 @@ struct kinfo_proc32 {
 	u_int	ki_slptime;
 	u_int	ki_swtime;
 	u_int	ki_cow;
-	uint64_t ki_runtime;
+	freebsd32_uint64_t ki_runtime;
 	struct	timeval32 ki_start;
 	struct	timeval32 ki_childtime;
 	int	ki_flag;
@@ -402,7 +394,7 @@ struct kinfo_proc32 {
 	char	ki_moretdname[MAXCOMLEN-TDNAMLEN+1];
 	char	ki_sparestrings[46];
 	int	ki_spareints[KI_NSPARE_INT];
-	uint64_t ki_tdev;
+	freebsd32_uint64_t ki_tdev;
 	int	ki_oncpu;
 	int	ki_lastcpu;
 	int	ki_tracer;
@@ -419,6 +411,7 @@ struct kinfo_proc32 {
 	uint32_t ki_kstack;
 	uint32_t ki_udata;
 	uint32_t ki_tdaddr;
+	uint32_t ki_pd;
 	uint32_t ki_uerrmsg;
 	uint32_t ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
 	int	ki_sparelongs[KI_NSPARE_LONG];
@@ -457,12 +450,12 @@ struct kinfo_knote32 {
 	union {
 		struct {
 			int		knt_vnode_type;
-			uint32_t	knt_vnode_fsid[2];
-			uint32_t	knt_vnode_fileid[2];
+			freebsd32_uint64_t knt_vnode_fsid;
+			freebsd32_uint64_t knt_vnode_fileid;
 			char		knt_vnode_fullpath[PATH_MAX];
 		} knt_vnode;
 		struct {
-			uint32_t	knt_pipe_ino[2];
+			freebsd32_uint64_t knt_pipe_ino;
 		} knt_pipe;
 	};
 };
@@ -529,6 +522,30 @@ struct ptrace_sc_remote32 {
 	u_int		pscr_syscall;
 	u_int		pscr_nargs;
 	uint32_t	pscr_args;
+};
+
+struct devstat32 {
+	u_int			sequence0;
+	int			allocated;
+	u_int			start_count;
+	u_int			end_count;
+	struct bintime32	busy_from;
+	struct { u_int32_t stqe_next; } dev_links;
+	u_int32_t		device_number;
+	char			device_name[DEVSTAT_NAME_LEN];
+	int			unit_number;
+	freebsd32_uint64_t	bytes[DEVSTAT_N_TRANS_FLAGS];
+	freebsd32_uint64_t	operations[DEVSTAT_N_TRANS_FLAGS];
+	struct bintime32	duration[DEVSTAT_N_TRANS_FLAGS];
+	struct bintime32	busy_time;
+	struct bintime32        creation_time;
+	u_int32_t		block_size;
+	freebsd32_uint64_t	tag_types[3];
+	devstat_support_flags	flags;
+	devstat_type_flags	device_type;
+	devstat_priority	priority;
+	u_int32_t		id;
+	u_int			sequence1;
 };
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

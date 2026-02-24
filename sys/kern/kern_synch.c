@@ -133,6 +133,7 @@ _sleep(const void *ident, struct lock_object *lock, int priority,
 {
 	struct thread *td __ktrace_used;
 	struct lock_class *class;
+	struct timespec sw_out_tv __ktrace_used;
 	uintptr_t lock_state;
 	int catch, pri, rval, sleepq_flags;
 	WITNESS_SAVE_DECL(lock_witness);
@@ -141,7 +142,7 @@ _sleep(const void *ident, struct lock_object *lock, int priority,
 	td = curthread;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0, wmesg);
+		nanotime(&sw_out_tv);
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
@@ -222,8 +223,10 @@ _sleep(const void *ident, struct lock_object *lock, int priority,
 		rval = 0;
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW))
+	if (KTRPOINT(td, KTR_CSW)) {
+		ktrcsw_out(&sw_out_tv, wmesg);
 		ktrcsw(0, 0, wmesg);
+	}
 #endif
 	PICKUP_GIANT();
 	if (lock != NULL && lock != &Giant.lock_object && !(priority & PDROP)) {
@@ -239,6 +242,7 @@ msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
     sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td __ktrace_used;
+	struct timespec sw_out_tv __ktrace_used;
 	int rval;
 	WITNESS_SAVE_DECL(mtx);
 
@@ -266,19 +270,9 @@ msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
 	if (sbt != 0)
 		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 
-	/*
-	 * Can't call ktrace with any spin locks held so it can lock the
-	 * ktrace_mtx lock, and WITNESS_WARN considers it an error to hold
-	 * any spin lock.  Thus, we have to drop the sleepq spin lock while
-	 * we handle those requests.  This is safe since we have placed our
-	 * thread on the sleep queue already.
-	 */
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW)) {
-		sleepq_release(ident);
-		ktrcsw(1, 0, wmesg);
-		sleepq_lock(ident);
-	}
+	if (KTRPOINT(td, KTR_CSW))
+		nanotime(&sw_out_tv);
 #endif
 #ifdef WITNESS
 	sleepq_release(ident);
@@ -293,8 +287,10 @@ msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
 		rval = 0;
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW))
+	if (KTRPOINT(td, KTR_CSW)) {
+		ktrcsw_out(&sw_out_tv, wmesg);
 		ktrcsw(0, 0, wmesg);
+	}
 #endif
 	PICKUP_GIANT();
 	mtx_lock_spin(mtx);
@@ -600,7 +596,7 @@ loadav(void *arg)
 	    loadav, NULL, C_DIRECT_EXEC | C_PREL(32));
 }
 
-static void
+void
 ast_scheduler(struct thread *td, int tda __unused)
 {
 #ifdef KTRACE

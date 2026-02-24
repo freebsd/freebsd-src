@@ -624,6 +624,10 @@ initriscv(struct riscv_bootparams *rvbp)
 	 */
 	identify_cpu(0);
 
+	sched_instance_select();
+
+	link_elf_ireloc();
+
 	/* Do basic tuning, hz etc */
 	init_param1();
 

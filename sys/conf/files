@@ -776,6 +776,7 @@ dev/acpica/acpi_thermal.c	optional acpi
 dev/acpica/acpi_throttle.c	optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/acpica/acpi_dock.c		optional acpi_dock acpi
+dev/acpica/acpi_spmc.c		optional acpi
 dev/adlink/adlink.c		optional adlink
 dev/ae/if_ae.c			optional ae pci
 dev/age/if_age.c		optional age pci
@@ -1851,6 +1852,7 @@ dev/iicbus/rtc/ds1307.c		optional ds1307
 dev/iicbus/rtc/ds13rtc.c	optional ds13rtc | ds133x | ds1374
 dev/iicbus/rtc/ds1672.c		optional ds1672
 dev/iicbus/rtc/ds3231.c		optional ds3231
+dev/iicbus/rtc/hym8563.c	optional hym8563 iicbus fdt
 dev/iicbus/rtc/isl12xx.c	optional isl12xx
 dev/iicbus/rtc/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt
@@ -3921,6 +3923,7 @@ kern/linker_if.m		standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
 kern/sched_4bsd.c		optional sched_4bsd
+kern/sched_shim.c		standard
 kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
@@ -4662,6 +4665,8 @@ compat/linuxkpi/common/src/linux_dmi.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_domain.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_eventfd.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_firmware.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_folio.c	optional compat_linuxkpi \
@@ -4699,6 +4704,8 @@ compat/linuxkpi/common/src/linux_radix.c	optional compat_linuxkpi \
 compat/linuxkpi/common/src/linux_rcu.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C} -I$S/contrib/ck/include"
 compat/linuxkpi/common/src/linux_schedule.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_seq_buf.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_shmemfs.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"

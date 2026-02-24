@@ -194,7 +194,11 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 #define	_SDT_ASM_PROBE_CONSTRAINT	"i"
 #endif
 #ifndef	_SDT_ASM_PROBE_OPERAND
+#if !defined(__clang__) && __GNUC_PREREQ__(15, 0)
+#define	_SDT_ASM_PROBE_OPERAND		"cc"
+#else
 #define	_SDT_ASM_PROBE_OPERAND		"c"
+#endif
 #endif
 
 /*
@@ -208,6 +212,12 @@ struct sdt_tracepoint {
 	STAILQ_ENTRY(sdt_tracepoint) tracepoint_entry;
 };
 
+/* XXX: GCC is not able to compile probes in kernel modules for aarch64. */
+#if !defined(__clang__) && defined(KLD_MODULE) && defined(__aarch64__)
+#undef __sdt_used
+#define __sdt_used	__unused
+#define __SDT_PROBE(prov, mod, func, name, uniq, f, ...)
+#else
 #define __SDT_PROBE(prov, mod, func, name, uniq, f, ...) do {		\
 	__WEAK(__CONCAT(__start_set_, _SDT_TRACEPOINT_SET));		\
 	__WEAK(__CONCAT(__stop_set_, _SDT_TRACEPOINT_SET));		\
@@ -230,6 +240,7 @@ __sdt_probe##uniq:;							\
 		f(_SDT_PROBE_NAME(prov, mod, func, name).id, __VA_ARGS__); \
 	}								\
 } while (0)
+#endif
 #define _SDT_PROBE(prov, mod, func, name, uniq, f, ...)			\
 	__SDT_PROBE(prov, mod, func, name, uniq, f, __VA_ARGS__)
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)	\

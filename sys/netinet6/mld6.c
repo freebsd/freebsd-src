@@ -90,6 +90,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
+#include <netinet6/ip6_mroute.h>
 #include <netinet6/mld6.h>
 #include <netinet6/mld6_var.h>
 
@@ -99,7 +100,6 @@
 #define KTR_MLD KTR_INET6
 #endif
 
-static void	mli_delete_locked(struct ifnet *);
 static void	mld_dispatch_packet(struct mbuf *);
 static void	mld_dispatch_queue(struct mbufq *, int);
 static void	mld_final_leave(struct in6_multi *, struct mld_ifsoftc *);
@@ -465,21 +465,21 @@ mld_is_addr_reported(const struct in6_addr *addr)
  * Attach MLD when PF_INET6 is attached to an interface.  Assumes that the
  * current VNET is set by the caller.
  */
-struct mld_ifsoftc *
+void
 mld_domifattach(struct ifnet *ifp)
 {
-	struct mld_ifsoftc *mli;
+	struct mld_ifsoftc *mli = MLD_IFINFO(ifp);
 
 	CTR3(KTR_MLD, "%s: called for ifp %p(%s)", __func__, ifp, if_name(ifp));
 
-	mli = malloc(sizeof(struct mld_ifsoftc), M_MLD, M_WAITOK | M_ZERO);
-	mli->mli_ifp = ifp;
-	mli->mli_version = MLD_VERSION_2;
-	mli->mli_flags = 0;
-	mli->mli_rv = MLD_RV_INIT;
-	mli->mli_qi = MLD_QI_INIT;
-	mli->mli_qri = MLD_QRI_INIT;
-	mli->mli_uri = MLD_URI_INIT;
+	*mli = (struct mld_ifsoftc){
+		.mli_ifp = ifp,
+		.mli_version = MLD_VERSION_2,
+		.mli_rv = MLD_RV_INIT,
+		.mli_qi = MLD_QI_INIT,
+		.mli_qri = MLD_QRI_INIT,
+		.mli_uri = MLD_URI_INIT,
+	};
 	mbufq_init(&mli->mli_gq, MLD_MAX_RESPONSE_PACKETS);
 	if ((ifp->if_flags & IFF_MULTICAST) == 0)
 		mli->mli_flags |= MLIF_SILENT;
@@ -489,8 +489,6 @@ mld_domifattach(struct ifnet *ifp)
 	MLD_LOCK();
 	LIST_INSERT_HEAD(&V_mli_head, mli, mli_link);
 	MLD_UNLOCK();
-
-	return (mli);
 }
 
 /*
@@ -552,44 +550,19 @@ mld_ifdetach(struct ifnet *ifp, struct in6_multi_head *inmh)
 /*
  * Hook for domifdetach.
  * Runs after link-layer cleanup; free MLD state.
- *
- * SMPng: Normally called with LLTABLE_LOCK held.
  */
 void
 mld_domifdetach(struct ifnet *ifp)
 {
+	struct mld_ifsoftc *mli = MLD_IFINFO(ifp);
 
 	CTR3(KTR_MLD, "%s: called for ifp %p(%s)",
 	    __func__, ifp, if_name(ifp));
 
 	MLD_LOCK();
-	mli_delete_locked(ifp);
+	LIST_REMOVE(mli, mli_link);
 	MLD_UNLOCK();
-}
-
-static void
-mli_delete_locked(struct ifnet *ifp)
-{
-	struct mld_ifsoftc *mli, *tmli;
-
-	CTR3(KTR_MLD, "%s: freeing mld_ifsoftc for ifp %p(%s)",
-	    __func__, ifp, if_name(ifp));
-
-	MLD_LOCK_ASSERT();
-
-	LIST_FOREACH_SAFE(mli, &V_mli_head, mli_link, tmli) {
-		if (mli->mli_ifp == ifp) {
-			/*
-			 * Free deferred General Query responses.
-			 */
-			mbufq_drain(&mli->mli_gq);
-
-			LIST_REMOVE(mli, mli_link);
-
-			free(mli, M_MLD);
-			return;
-		}
-	}
+	mbufq_drain(&mli->mli_gq);
 }
 
 /*
@@ -3090,7 +3063,7 @@ mld_dispatch_packet(struct mbuf *m)
 	}
 
 	im6o.im6o_multicast_hlim  = 1;
-	im6o.im6o_multicast_loop = (V_ip6_mrouter != NULL);
+	im6o.im6o_multicast_loop = V_ip6_mrouting_enabled;
 	im6o.im6o_multicast_ifp = ifp;
 
 	if (m->m_flags & M_MLDV1) {

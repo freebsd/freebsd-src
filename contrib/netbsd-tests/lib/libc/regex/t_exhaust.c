@@ -168,6 +168,14 @@ static const struct {
 	{ p6, REG_BASIC },
 };
 
+static void __noinline
+prime_stack(void)
+{
+	char buf[16 * 1024 * 1024];
+
+	explicit_bzero(buf, sizeof(buf));
+}
+
 ATF_TC(regcomp_too_big);
 
 ATF_TC_HEAD(regcomp_too_big, tc)
@@ -186,11 +194,14 @@ ATF_TC_BODY(regcomp_too_big, tc)
 	int e;
 	struct rlimit limit;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/259971");
-
 	limit.rlim_cur = limit.rlim_max = 256 * 1024 * 1024;
 	ATF_REQUIRE(setrlimit(RLIMIT_VMEM, &limit) != -1);
+
+	/*
+	 * Pre-fault the stack to avoid crashes caused by growing the stack
+	 * beyond the limit.
+	 */
+	prime_stack();
 
 	for (size_t i = 0; i < __arraycount(tests); i++) {
 		char *d = (*tests[i].pattern)(REGEX_MAXSIZE);

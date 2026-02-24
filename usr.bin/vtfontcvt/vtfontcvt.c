@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2009, 2014 The FreeBSD Foundation
  *
  * This software was developed by Ed Schouten under sponsorship from the

@@ -117,6 +117,12 @@ CODE {
 	{
 		return (false);
 	}
+
+	static int
+	null_get_downreason(if_ctx_t _ctx __unused, struct ifdownreason *_ifdr __unused)
+	{
+		return (ENOTSUP);
+	}
 };
 
 #
@@ -364,3 +370,8 @@ METHOD bool needs_restart {
 	if_ctx_t _ctx;
 	enum iflib_restart_event _event;
 } DEFAULT null_needs_restart;
+
+METHOD int get_downreason {
+	if_ctx_t _ctx;
+	struct ifdownreason *_ifdr;
+} DEFAULT null_get_downreason;

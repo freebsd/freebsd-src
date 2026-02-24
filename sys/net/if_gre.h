@@ -109,6 +109,7 @@ struct gre_softc {
 	CK_LIST_ENTRY(gre_softc) chain;
 	CK_LIST_ENTRY(gre_softc) srchash;
 };
+
 MALLOC_DECLARE(M_GRE);
 
 #ifndef GRE_HASH_SIZE

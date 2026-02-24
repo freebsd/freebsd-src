@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 7, 2023
+.Dd January 22, 2026
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -450,9 +450,11 @@ allows TLSv1 and newer when negotiating the connecting with the remote
 peer.
 You can change this behavior by setting the
 .Ev SSL_NO_TLS1 ,
-.Ev SSL_NO_TLS1_1 and
-.Ev SSL_NO_TLS1_2
-environment variables to disable TLS 1.0, 1.1 and 1.2 respectively.
+.Ev SSL_NO_TLS1_1 ,
+.Ev SSL_NO_TLS1_2 and
+.Ev SSL_NO_TLS1_3
+environment variables to disable TLS 1.0, 1.1, 1.2 and 1.3
+respectively.
 .Sh AUTHENTICATION
 Apart from setting the appropriate environment variables and
 specifying the user name and password in the URL or the
@@ -676,6 +678,8 @@ Do not allow TLS version 1.0 when negotiating the connection.
 Do not allow TLS version 1.1 when negotiating the connection.
 .It Ev SSL_NO_TLS1_2
 Do not allow TLS version 1.2 when negotiating the connection.
+.It Ev SSL_NO_TLS1_3
+Do not allow TLS version 1.3 when negotiating the connection.
 .It Ev SSL_NO_VERIFY_HOSTNAME
 If set, do not verify that the hostname matches the subject of the
 certificate presented by the server.

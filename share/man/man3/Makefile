@@ -540,6 +540,7 @@ PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
 PTHREAD_MLINKS+=pthread_join.3 pthread_peekjoin_np.3 \
-		pthread_join.3 pthread_timedjoin_np.3
+		pthread_join.3 pthread_timedjoin_np.3 \
+		pthread_join.3 pthread_tryjoin_np.3
 
 .include <bsd.prog.mk>

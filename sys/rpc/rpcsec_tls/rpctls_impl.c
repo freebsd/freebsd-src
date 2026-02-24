@@ -163,7 +163,7 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	mtx_lock(&rpctls_lock);
 	upsp = RB_FIND(upsock_t, &upcall_sockets,
 	    &(struct upsock){
-	    .so = __DECONST(struct socket *, uap->socookie) });
+	    .so = (struct socket *)(uintptr_t)uap->socookie });
 	if (__predict_true(upsp != NULL)) {
 		RB_REMOVE(upsock_t, &upcall_sockets, upsp);
 		/*

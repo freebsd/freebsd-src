@@ -49,8 +49,20 @@ struct bnxt_re_dev;
 #define SPEED_1000		1000
 #endif
 
+#ifndef SPEED_2500
+#define SPEED_2500		2500
+#endif
+
+#ifndef SPEED_5000
+#define SPEED_5000		5000
+#endif
+
 #ifndef SPEED_10000
 #define SPEED_10000		10000
+#endif
+
+#ifndef SPEED_14000
+#define SPEED_14000		14000
 #endif
 
 #ifndef SPEED_20000
@@ -77,8 +89,16 @@ struct bnxt_re_dev;
 #define SPEED_200000		200000
 #endif
 
+#ifndef SPEED_400000
+#define SPEED_400000		400000
+#endif
+
 #ifndef IB_SPEED_HDR
 #define IB_SPEED_HDR		64
+#endif
+
+#ifndef IB_SPEED_NDR
+#define IB_SPEED_NDR		128
 #endif
 
 #define RDMA_NETWORK_IPV4	1
@@ -487,6 +507,11 @@ static inline int bnxt_re_init_pow2_flag(struct bnxt_re_uctx_req *req,
 	}
 	return 0;
 }
+
+enum {
+        BNXT_RE_UCNTX_CAP_POW2_DISABLED = 0x1ULL,
+        BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED = 0x2ULL,
+};
 
 static inline u32 bnxt_re_init_depth(u32 ent, struct bnxt_re_ucontext *uctx)
 {

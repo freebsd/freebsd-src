@@ -191,7 +191,7 @@ int pccard_select_cfe(device_t dev, int entry);
 
 /* ivar interface */
 enum {
-	PCCARD_IVAR_ETHADDR,	/* read ethernet address from CIS tupple */
+	PCCARD_IVAR_ETHADDR = BUS_IVARS_PRIVATE, /* read ethernet address from CIS tupple */
 	PCCARD_IVAR_VENDOR,
 	PCCARD_IVAR_PRODUCT,
 	PCCARD_IVAR_PRODEXT,

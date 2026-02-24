@@ -49,6 +49,8 @@ CFLAGS+=	-DGDB=\"/usr/local/bin/gdb\"			\
 		-DPACKAGE_VERSION=\"${KYUA_VERSION}\"		\
 		-DVERSION=\"${KYUA_VERSION}\"
 
+CXXWARNFLAGS.gcc+=	-Wno-free-nonheap-object
+
 SRCS+=	utils/datetime.cpp			\
 	utils/env.cpp				\
 	utils/memory.cpp			\

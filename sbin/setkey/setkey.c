@@ -86,6 +86,7 @@ static int f_policy = 0;
 static int f_hexdump = 0;
 static int f_tflag = 0;
 static int f_scope = 0;
+static int f_notimeout = 0;
 static time_t thiszone;
 
 extern int lineno;
@@ -129,7 +130,7 @@ main(int ac, char **av)
 
 	thiszone = gmt2local(0);
 
-	while ((c = getopt(ac, av, "acde:f:ghltvxDFP")) != -1) {
+	while ((c = getopt(ac, av, "abcde:f:ghltvxDFPZ")) != -1) {
 		switch (c) {
 		case 'c':
 			f_mode = MODE_SCRIPT;
@@ -186,6 +187,9 @@ main(int ac, char **av)
 			break;
 		case 'v':
 			f_verbose = 1;
+			break;
+		case 'Z':
+			f_notimeout = 1;
 			break;
 		default:
 			usage();
@@ -332,16 +336,18 @@ sendkeymsg(char *buf, size_t len)
 	u_char rbuf[1024 * 32];	/* XXX: Enough ? Should I do MSG_PEEK ? */
 	ssize_t l;
 	struct sadb_msg *msg;
-
-    {
 	struct timeval tv;
-	tv.tv_sec = 1;
-	tv.tv_usec = 0;
-	if (setsockopt(so, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-		perror("setsockopt");
-		goto end;
+
+
+	if (!f_notimeout) {
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+		if (setsockopt(so, SOL_SOCKET, SO_RCVTIMEO, &tv,
+		    sizeof(tv)) < 0) {
+			perror("setsockopt");
+			goto end;
+		}
 	}
-    }
 
 	if (f_forever)
 		shortdump_hdr();

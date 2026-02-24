@@ -770,7 +770,7 @@ ___skb_queue_splice(const struct sk_buff_head *from,
 }
 
 static inline void
-skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
+skb_queue_splice(const struct sk_buff_head *from, struct sk_buff_head *to)
 {
 
 	SKB_TRACE2(from, to);
@@ -780,6 +780,13 @@ skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
 
 	___skb_queue_splice(from, (struct sk_buff *)to, to->next);
 	to->qlen += from->qlen;
+}
+
+static inline void
+skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
+{
+
+	skb_queue_splice(from, to);
 	__skb_queue_head_init(from);
 }
 

@@ -57,8 +57,8 @@
    The loop tail is handled by always copying 64 bytes from the end.
 */
 
-EENTRY(memmove)
-ENTRY(memcpy)
+EENTRY(memmove_std)
+ENTRY(memcpy_std)
 	add	srcend, src, count
 	add	dstend, dstin, count
 	cmp	count, 128
@@ -239,7 +239,23 @@ L(copy64_from_start):
 	stp	B_l, B_h, [dstin, 16]
 	stp	C_l, C_h, [dstin]
 	ret
-END(memcpy)
-EEND(memmove)
+END(memcpy_std)
+EEND(memmove_std)
+
+ENTRY(memcpy_mops)
+	mov	x3, x0
+	.inst	0x19010443	/* cpyfp   [x3]!, [x1]!, x2!  */
+	.inst	0x19410443	/* cpyfm   [x3]!, [x1]!, x2!  */
+	.inst	0x19810443	/* cpyfe   [x3]!, [x1]!, x2!  */
+	ret
+END(memcpy_mops)
+
+ENTRY(memmove_mops)
+	mov	x3, x0
+	.inst	0x1d010443	/* cpyp    [x3]!, [x1]!, x2!  */
+	.inst	0x1d410443	/* cpym    [x3]!, [x1]!, x2!  */
+	.inst	0x1d810443	/* cpye    [x3]!, [x1]!, x2!  */
+	ret
+END(memmove_mops)
 
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

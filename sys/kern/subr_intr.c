@@ -1291,9 +1291,21 @@ intr_irq_shuffle(void *arg __unused)
 	irq_assign_cpu = true;
 	for (i = 0; i < intr_nirq; i++) {
 		isrc = irq_sources[i];
-		if (isrc == NULL || isrc->isrc_handlers == 0 ||
+		if (isrc == NULL ||
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
+
+		/*
+		 * We can reach this point with isrc_handlers == 0 if a
+		 * driver allocates interrupts but does not set them up
+		 * immediately; for example, a network driver might
+		 * postpone calling bus_setup_intr on I/O IRQ(s) until
+		 * the interface is brought up.
+		 */
+		if (isrc->isrc_handlers == 0) {
+			CPU_ZERO(&isrc->isrc_cpu);
+			continue;
+		}
 
 		if (isrc->isrc_event != NULL &&
 		    isrc->isrc_flags & INTR_ISRCF_BOUND &&

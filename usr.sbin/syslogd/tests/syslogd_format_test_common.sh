@@ -48,14 +48,12 @@ local_privsocket_filename()
 
 confirm_INET_support_or_skip()
 {
-    if ! sysctl kern.conftxt | grep -qw INET; then
+    test "$(sysctl -inq kern.features.inet)" = 1 || \
         atf_skip "Running kernel does not support INET"
-    fi
 }
 
 set_common_atf_metadata()
 {
-    atf_set timeout 5
     atf_set require.user root
 }
 

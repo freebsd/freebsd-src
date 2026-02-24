@@ -53,7 +53,7 @@ telldir(DIR *dirp)
 
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
-	/* 
+	/*
 	 * Outline:
 	 * 1) If the directory position fits in a packed structure, return that.
 	 * 2) Otherwise, see if it's already been recorded in the linked list
@@ -95,7 +95,7 @@ telldir(DIR *dirp)
 			LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
 	}
 	ddloc.i.is_packed = 0;
-	/* 
+	/*
 	 * Technically this assignment could overflow on 32-bit architectures,
 	 * but we would get ENOMEM long before that happens.
 	 */

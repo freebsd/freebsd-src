@@ -625,7 +625,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 	 * have been modified, it may be necessary to execute an HFENCE.GVMA
 	 * instruction (see Section 5.3.2) before or after writing hgatp.
 	 */
-	__asm __volatile("hfence.gvma" ::: "memory");
+	hfence_gvma();
 
 	csr_write(hgatp, pmap->pm_satp);
 	if (has_sstc)

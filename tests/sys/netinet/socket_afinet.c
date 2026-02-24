@@ -552,6 +552,8 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
 	ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s", strerror(errno));
 	if (domain == PF_INET)
 		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	else
+		sin6.sin6_addr = in6addr_loopback;
 	error = connect(sd[1], sinp, sinp->sa_len);
 	ATF_REQUIRE_MSG(error == 0, "connect failed: %s", strerror(errno));
 	tmp = accept(sd[0], NULL, NULL);

@@ -98,10 +98,12 @@
 
 #define	A31_P2WI	1
 #define	A23_RSB		2
+#define	H616_P2WI	3
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun6i-a31-p2wi",		A31_P2WI },
 	{ "allwinner,sun8i-a23-rsb",		A23_RSB },
+	{ "allwinner,sun50i-h616-rsb",		H616_P2WI },
 	{ NULL,					0 }
 };
 
@@ -398,6 +400,7 @@ rsb_probe(device_t dev)
 		device_set_desc(dev, "Allwinner RSB");
 		break;
 	case A31_P2WI:
+	case H616_P2WI:
 		device_set_desc(dev, "Allwinner P2WI");
 		break;
 	default:

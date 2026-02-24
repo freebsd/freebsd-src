@@ -4,6 +4,7 @@ SRCS+=	\
 	amd64_set_fsbase.c \
 	amd64_set_gsbase.c \
 	amd64_set_tlsbase.c \
-	rfork_thread.S
+	rfork_thread.S \
+	pdrfork_thread.S
 
 MDASM=	vfork.S cerror.S getcontext.S

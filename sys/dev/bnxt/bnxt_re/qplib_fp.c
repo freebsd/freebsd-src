@@ -388,10 +388,14 @@ static void bnxt_qplib_service_nq(unsigned long data)
 			struct bnxt_qplib_srq *srq;
 			struct nq_srq_event *nqsrqe =
 						(struct nq_srq_event *)nqe;
+			u8 toggle;
 
 			q_handle = le32_to_cpu(nqsrqe->srq_handle_low);
 			q_handle |= (u64)le32_to_cpu(nqsrqe->srq_handle_high) << 32;
 			srq = (struct bnxt_qplib_srq *)q_handle;
+			toggle = (le16_to_cpu(nqe->info10_type) & NQ_CN_TOGGLE_MASK)
+					>> NQ_CN_TOGGLE_SFT;
+			srq->dbinfo.toggle = toggle;
 			bnxt_qplib_armen_db(&srq->dbinfo,
 					    DBC_DBC_TYPE_SRQ_ARMENA);
 			if (!nq->srqn_handler(nq,
@@ -838,15 +842,15 @@ static int bnxt_qplib_alloc_init_swq(struct bnxt_qplib_q *que)
 	int rc = 0;
 	int indx;
 
-	que->swq = kcalloc(que->max_wqe, sizeof(*que->swq), GFP_KERNEL);
+	que->swq = kcalloc(que->max_sw_wqe, sizeof(*que->swq), GFP_KERNEL);
 	if (!que->swq) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
 	que->swq_start = 0;
-	que->swq_last = que->max_wqe - 1;
-	for (indx = 0; indx < que->max_wqe; indx++)
+	que->swq_last = que->max_sw_wqe - 1;
+	for (indx = 0; indx < que->max_sw_wqe; indx++)
 		que->swq[indx].next_idx = indx + 1;
 	que->swq[que->swq_last].next_idx = 0; /* Make it circular */
 	que->swq_last = 0;
@@ -875,19 +879,23 @@ static u32 bnxt_qplib_get_stride(void)
 	return sizeof(struct sq_sge);
 }
 
-static u32 bnxt_qplib_get_depth(struct bnxt_qplib_q *que)
+u32 bnxt_qplib_get_depth(struct bnxt_qplib_q *que, u8 wqe_mode, bool is_sq)
 {
-	u8 stride;
+	u32 slots;
 
-	stride = bnxt_qplib_get_stride();
-	return (que->wqe_size * que->max_wqe) / stride;
+	/* Queue depth is the number of slots. */
+	slots = (que->wqe_size * que->max_wqe) / sizeof(struct sq_sge);
+	 /* For variable WQE mode, need to align the slots to 256 */
+	if (wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE && is_sq)
+		slots = ALIGN(slots, BNXT_VAR_MAX_SLOT_ALIGN);
+	return slots;
 }
 
 static u32 _set_sq_size(struct bnxt_qplib_q *que, u8 wqe_mode)
 {
 	/* For Variable mode supply number of 16B slots */
 	return (wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
-		que->max_wqe : bnxt_qplib_get_depth(que);
+		que->max_wqe : bnxt_qplib_get_depth(que, wqe_mode, true);
 }
 
 static u32 _set_sq_max_slot(u8 wqe_mode)
@@ -925,7 +933,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	hwq_attr.res = res;
 	hwq_attr.sginfo = &sq->sginfo;
 	hwq_attr.stride = bnxt_qplib_get_stride();
-	hwq_attr.depth = bnxt_qplib_get_depth(sq);
+	hwq_attr.depth = bnxt_qplib_get_depth(sq, qp->wqe_mode, false);
 	hwq_attr.type = HWQ_TYPE_QUEUE;
 	rc = bnxt_qplib_alloc_init_hwq(&sq->hwq, &hwq_attr);
 	if (rc)
@@ -949,7 +957,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		hwq_attr.res = res;
 		hwq_attr.sginfo = &rq->sginfo;
 		hwq_attr.stride = bnxt_qplib_get_stride();
-		hwq_attr.depth = bnxt_qplib_get_depth(rq);
+		hwq_attr.depth = bnxt_qplib_get_depth(rq, qp->wqe_mode, false);
 		hwq_attr.type = HWQ_TYPE_QUEUE;
 		rc = bnxt_qplib_alloc_init_hwq(&rq->hwq, &hwq_attr);
 		if (rc)
@@ -1075,8 +1083,11 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	u32 sqsz;
 
 	qp->cctx = res->cctx;
-	if (res->dattr)
+	if (res->dattr) {
 		qp->dev_cap_flags = res->dattr->dev_cap_flags;
+		qp->is_host_msn_tbl = _is_host_msn_table(res->dattr->dev_cap_ext_flags2);
+	}
+
 	/* General */
 	req.type = qp->type;
 	req.dpi = cpu_to_le32(qp->dpi->dpi);
@@ -1087,7 +1098,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		psn_sz = _is_chip_gen_p5_p7(qp->cctx) ?
 			 sizeof(struct sq_psn_search_ext) :
 			 sizeof(struct sq_psn_search);
-		if (BNXT_RE_HW_RETX(qp->dev_cap_flags)) {
+		if (qp->is_host_msn_tbl) {
 			psn_sz = sizeof(struct sq_msn_search);
 			qp->msn = 0;
 		}
@@ -1098,12 +1109,12 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	hwq_attr.res = res;
 	hwq_attr.sginfo = &sq->sginfo;
 	hwq_attr.stride = bnxt_qplib_get_stride();
-	hwq_attr.depth = bnxt_qplib_get_depth(sq);
+	hwq_attr.depth = bnxt_qplib_get_depth(sq, qp->wqe_mode, true);
 	hwq_attr.aux_stride = psn_sz;
 	hwq_attr.aux_depth = (psn_sz) ?
 				 _set_sq_size(sq, qp->wqe_mode) : 0;
 	/* Update msn tbl size */
-	if (BNXT_RE_HW_RETX(qp->dev_cap_flags) && psn_sz) {
+	if (qp->is_host_msn_tbl && psn_sz) {
 		if (qp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC)
 			hwq_attr.aux_depth = roundup_pow_of_two(_set_sq_size(sq, qp->wqe_mode));
 		else
@@ -1131,8 +1142,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	req.sq_pg_size_sq_lvl = pg_sz_lvl;
 	req.sq_fwo_sq_sge = cpu_to_le16(((0 << CMDQ_CREATE_QP_SQ_FWO_SFT) &
 					 CMDQ_CREATE_QP_SQ_FWO_MASK) |
-					 ((BNXT_RE_HW_RETX(qp->dev_cap_flags)) ?
-					  BNXT_MSN_TBLE_SGE : sq->max_sge &
+					 (sq->max_sge &
 					 CMDQ_CREATE_QP_SQ_SGE_MASK));
 	req.scq_cid = cpu_to_le32(qp->scq->id);
 
@@ -1141,7 +1151,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		hwq_attr.res = res;
 		hwq_attr.sginfo = &rq->sginfo;
 		hwq_attr.stride = bnxt_qplib_get_stride();
-		hwq_attr.depth = bnxt_qplib_get_depth(rq);
+		hwq_attr.depth = bnxt_qplib_get_depth(rq, qp->wqe_mode, false);
 		hwq_attr.aux_stride = 0;
 		hwq_attr.aux_depth = 0;
 		hwq_attr.type = HWQ_TYPE_QUEUE;
@@ -1764,7 +1774,7 @@ static void bnxt_qplib_fill_psn_search(struct bnxt_qplib_qp *qp,
 		return;
 
 	/* Handle MSN differently on cap flags  */
-	if (BNXT_RE_HW_RETX(qp->dev_cap_flags)) {
+	if (qp->is_host_msn_tbl) {
 		bnxt_qplib_fill_msn_search(qp, wqe, swq);
 		return;
 	}
@@ -1897,7 +1907,7 @@ static u16 _translate_q_full_delta(struct bnxt_qplib_q *que, u16 wqe_bytes)
 }
 
 static void bnxt_qplib_pull_psn_buff(struct bnxt_qplib_qp *qp, struct bnxt_qplib_q *sq,
-				     struct bnxt_qplib_swq *swq, bool hw_retx)
+				     struct bnxt_qplib_swq *swq, bool is_host_msn_tbl)
 {
 	struct bnxt_qplib_hwq *sq_hwq;
 	u32 pg_num, pg_indx;
@@ -1909,8 +1919,11 @@ static void bnxt_qplib_pull_psn_buff(struct bnxt_qplib_qp *qp, struct bnxt_qplib
 		return;
 
 	tail = swq->slot_idx / sq->dbinfo.max_slot;
-	if (hw_retx)
+	if (is_host_msn_tbl) {
+		/* For HW retx use qp msn index */
+		tail = qp->msn;
 		tail %= qp->msn_tbl_sz;
+	}
 	pg_num = (tail + sq_hwq->pad_pgofft) / (PAGE_SIZE / sq_hwq->pad_stride);
 	pg_indx = (tail + sq_hwq->pad_pgofft) % (PAGE_SIZE / sq_hwq->pad_stride);
 	buff = (void *)(sq_hwq->pad_pg[pg_num] + pg_indx * sq_hwq->pad_stride);
@@ -1935,6 +1948,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 	struct bnxt_qplib_swq *swq;
 	bool sch_handler = false;
 	u16 slots_needed;
+	bool msn_update;
 	void *base_hdr;
 	void *ext_hdr;
 	__le32 temp32;
@@ -1976,7 +1990,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 	sw_prod = sq_hwq->prod;
 	swq = bnxt_qplib_get_swqe(sq, &wqe_idx);
 	swq->slot_idx = sw_prod;
-	bnxt_qplib_pull_psn_buff(qp, sq, swq, BNXT_RE_HW_RETX(qp->dev_cap_flags));
+	bnxt_qplib_pull_psn_buff(qp, sq, swq, qp->is_host_msn_tbl);
 
 	swq->wr_id = wqe->wr_id;
 	swq->type = wqe->type;
@@ -2010,6 +2024,9 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 					       wqe->num_sge, &sw_prod);
 	if (data_len < 0)
 		goto queue_err;
+	/* Make sure we update MSN table only for wired wqes */
+	msn_update = true;
+
 	/* Specifics */
 	switch (wqe->type) {
 	case BNXT_QPLIB_SWQE_TYPE_SEND:
@@ -2064,6 +2081,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 			ext_sqe->avid = cpu_to_le32(wqe->send.avid &
 						SQ_SEND_AVID_MASK);
 			sq->psn = (sq->psn + 1) & BTH_PSN_MASK;
+			msn_update = false;
 		} else {
 			sqe->length = cpu_to_le32(data_len);
 			if (qp->mtu)
@@ -2157,6 +2175,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 			"\tflags = 0x%x\n"
 			"\tinv_l_key = 0x%x\n",
 			sqe->wqe_type, sqe->flags, sqe->inv_l_key);
+		msn_update = false;
 		break;
 	}
 	case BNXT_QPLIB_SWQE_TYPE_FAST_REG_MR:
@@ -2207,6 +2226,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 			sqe->zero_based_page_size_log, sqe->l_key,
 			*(u32 *)sqe->length, sqe->numlevels_pbl_page_size_log,
 			ext_sqe->pblptr, ext_sqe->va);
+		msn_update = false;
 		break;
 	}
 	case BNXT_QPLIB_SWQE_TYPE_BIND_MW:
@@ -2236,6 +2256,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 			sqe->wqe_type, sqe->flags, sqe->access_cntl,
 			sqe->mw_type_zero_based, sqe->parent_l_key,
 			sqe->l_key, sqe->va, ext_sqe->length_lo);
+		msn_update = false;
 		break;
 	}
 	default:
@@ -2243,8 +2264,10 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		rc = -EINVAL;
 		goto done;
 	}
-	swq->next_psn = sq->psn & BTH_PSN_MASK;
-	bnxt_qplib_fill_psn_search(qp, wqe, swq);
+	if (!qp->is_host_msn_tbl || msn_update) {
+		swq->next_psn = sq->psn & BTH_PSN_MASK;
+		bnxt_qplib_fill_psn_search(qp, wqe, swq);
+	}
 
 queue_err:
 	bnxt_qplib_swq_mod_start(sq, wqe_idx);
@@ -2859,6 +2882,32 @@ out:
 	return rc;
 }
 
+static int bnxt_qplib_get_cqe_sq_cons(struct bnxt_qplib_q *sq, u32 cqe_slot)
+{
+	struct bnxt_qplib_hwq *sq_hwq;
+	struct bnxt_qplib_swq *swq;
+	int cqe_sq_cons = -1;
+	u32 start, last;
+
+	sq_hwq = &sq->hwq;
+
+	start = sq->swq_start;
+	last = sq->swq_last;
+
+	while (last != start) {
+		swq = &sq->swq[last];
+		if (swq->slot_idx  == cqe_slot) {
+			cqe_sq_cons = swq->next_idx;
+			dev_err(&sq_hwq->pdev->dev, "%s: Found cons wqe = %d slot = %d\n",
+				__func__, cqe_sq_cons, cqe_slot);
+			break;
+		}
+
+		last = swq->next_idx;
+	}
+	return cqe_sq_cons;
+}
+
 static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 				     struct cq_req *hwcqe,
 				     struct bnxt_qplib_cqe **pcqe, int *budget,
@@ -2867,8 +2916,9 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 	struct bnxt_qplib_qp *qp;
 	struct bnxt_qplib_q *sq;
 	struct bnxt_qplib_cqe *cqe;
-	u32 cqe_sq_cons;
+	u32 cqe_sq_cons, slot_num;
 	struct bnxt_qplib_swq *swq;
+	int cqe_cons;
 	int rc = 0;
 
 	qp = (struct bnxt_qplib_qp *)le64_to_cpu(hwcqe->qp_handle);
@@ -2880,11 +2930,24 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 	}
 	sq = &qp->sq;
 
-	cqe_sq_cons = le16_to_cpu(hwcqe->sq_cons_idx) % sq->max_wqe;
+	cqe_sq_cons = le16_to_cpu(hwcqe->sq_cons_idx) % sq->max_sw_wqe;
 	if (qp->sq.flushed) {
 		dev_dbg(&cq->hwq.pdev->dev,
 			"%s: QPLIB: QP in Flush QP = %p\n", __func__, qp);
 		goto done;
+	}
+
+	if (__is_err_cqe_for_var_wqe(qp, hwcqe->status)) {
+		slot_num = le16_to_cpu(hwcqe->sq_cons_idx);
+		cqe_cons = bnxt_qplib_get_cqe_sq_cons(sq, slot_num);
+		if (cqe_cons < 0) {
+			dev_dbg(&cq->hwq.pdev->dev, "%s: Wrong SQ cons cqe_slot_indx = %d\n",
+				__func__, slot_num);
+			goto done;
+		}
+		cqe_sq_cons = cqe_cons;
+		dev_dbg(&cq->hwq.pdev->dev, "%s: cqe_sq_cons = %d swq_last = %d swq_start = %d\n",
+			__func__, cqe_sq_cons, sq->swq_last, sq->swq_start);
 	}
 
 	/* Require to walk the sq's swq to fabricate CQEs for all previously
@@ -3329,7 +3392,7 @@ static int bnxt_qplib_cq_process_terminal(struct bnxt_qplib_cq *cq,
 	if (cqe_cons == 0xFFFF)
 		goto do_rq;
 
-	cqe_cons %= sq->max_wqe;
+	cqe_cons %= sq->max_sw_wqe;
 	if (qp->sq.flushed) {
 		dev_dbg(&cq->hwq.pdev->dev,
 			"%s: QPLIB: QP in Flush QP = %p\n", __func__, qp);

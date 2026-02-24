@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/firmware.h>
@@ -1662,6 +1662,31 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 			return err;
 	}
 
+	if (enable && vif->bss_conf.bssid_indicator) {
+		struct {
+			struct {
+				u8 bss_idx;
+				u8 pad[3];
+			} __packed hdr;
+			struct bss_info_uni_mbssid mbssid;
+		} mbssid_req = {
+			.hdr = {
+				.bss_idx = mvif->idx,
+			},
+			.mbssid = {
+				.tag = cpu_to_le16(UNI_BSS_INFO_11V_MBSSID),
+				.len = cpu_to_le16(sizeof(struct bss_info_uni_mbssid)),
+				.max_indicator = vif->bss_conf.bssid_indicator,
+				.mbss_idx =  vif->bss_conf.bssid_index,
+			},
+		};
+
+		err = mt76_mcu_send_msg(mdev, MCU_UNI_CMD(BSS_INFO_UPDATE),
+					&mbssid_req, sizeof(mbssid_req), true);
+		if (err < 0)
+			return err;
+	}
+
 	return mt76_connac_mcu_uni_set_chctx(phy, mvif, ctx);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_uni_add_bss);
@@ -1949,7 +1974,11 @@ int mt76_connac_mcu_chip_config(struct mt76_dev *dev)
 		.resp_type = 0,
 	};
 
-	memcpy(req.data, "assert", 7);
+#if defined(__linux__)
+	strscpy(req.data, "assert");
+#elif defined(__FreeBSD__)
+	strscpy(req.data, "assert", sizeof(req.data));
+#endif
 
 	return mt76_mcu_send_msg(dev, MCU_CE_CMD(CHIP_CONFIG),
 				 &req, sizeof(req), false);
@@ -2994,7 +3023,7 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
 	}
 
 	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
-	dev_info(dev->dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
+	dev_info(dev->dev, "WM Firmware Version: %.10s, Build Time: %.15s",
 		 hdr->fw_ver, hdr->build_date);
 
 	ret = mt76_connac_mcu_send_ram_firmware(dev, hdr, fw->data, false);
@@ -3023,7 +3052,7 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
 	}
 
 	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
-	dev_info(dev->dev, "WA Firmware Version: %.10s, Build Time: %.15s\n",
+	dev_info(dev->dev, "WA Firmware Version: %.10s, Build Time: %.15s",
 		 hdr->fw_ver, hdr->build_date);
 
 	ret = mt76_connac_mcu_send_ram_firmware(dev, hdr, fw->data, true);
@@ -3099,7 +3128,7 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
 	}
 
 	hdr = (const void *)fw->data;
-	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
+	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s",
 		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
 
 	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {

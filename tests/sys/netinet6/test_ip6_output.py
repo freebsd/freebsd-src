@@ -10,7 +10,6 @@ from ctypes import Structure
 import pytest
 from atf_python.sys.net.rtsock import SaHelper
 from atf_python.sys.net.tools import ToolsHelper
-from atf_python.sys.net.vnet import run_cmd
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
 from atf_python.sys.net.vnet import VnetTestTemplate
 

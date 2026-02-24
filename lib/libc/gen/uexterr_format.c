@@ -9,6 +9,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/exterr_cat.h>
 #include <sys/exterrvar.h>
 #include <exterr.h>
 #include <stdbool.h>

@@ -1653,6 +1653,7 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 {
 	register struct ip *ip;
 	register int hlen;
+	int as, status;
 	char addr[INET_ADDRSTRLEN];
 
 	ip = (struct ip *) buf;
@@ -1661,8 +1662,24 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 
 	strlcpy(addr, inet_ntoa(from->sin_addr), sizeof(addr));
 
-	if (as_path)
-		Printf(" [AS%u]", as_lookup(asn, addr, AF_INET));
+	while(as_path) {
+		as = as_lookup(asn, addr, AF_INET, &status);
+		if (status) {
+			as_shutdown(asn);
+			asn = as_setup(as_server);
+			if (asn == NULL) {
+				Fprintf(stderr, "%s: as_setup failed, AS# lookups"
+						" disabled\n", prog);
+				(void)fflush(stderr);
+				as_path = 0;
+				break;
+			}
+			else
+				continue;
+		}
+		Printf(" [AS%u]", as);
+		break;
+	}
 
 	if (nflag)
 		Printf(" %s", addr);

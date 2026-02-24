@@ -1907,15 +1907,13 @@ ice_if_promisc_set(if_ctx_t ctx, int flags)
 	
 	ice_set_default_promisc_mask(promisc_mask);
 
-	if (multi_enable)
-		return (EOPNOTSUPP);
-
 	if (promisc_enable) {
 		status = ice_set_vsi_promisc(hw, sc->pf_vsi.idx,
 					     promisc_mask, 0);
 		if (status && status != ICE_ERR_ALREADY_EXISTS) {
 			device_printf(dev,
-				      "Failed to enable promiscuous mode for PF VSI, err %s aq_err %s\n",
+				      "Failed to enable promiscuous mode for "
+				      "PF VSI, err %s aq_err %s\n",
 				      ice_status_str(status),
 				      ice_aq_str(hw->adminq.sq_last_status));
 			return (EIO);
@@ -1925,10 +1923,27 @@ ice_if_promisc_set(if_ctx_t ctx, int flags)
 					       promisc_mask, 0);
 		if (status) {
 			device_printf(dev,
-				      "Failed to disable promiscuous mode for PF VSI, err %s aq_err %s\n",
+				      "Failed to disable promiscuous mode for"
+				      " PF VSI, err %s aq_err %s\n",
 				      ice_status_str(status),
 				      ice_aq_str(hw->adminq.sq_last_status));
 			return (EIO);
+		}
+
+		if (multi_enable) {
+			ice_clear_bit(ICE_PROMISC_UCAST_TX, promisc_mask);
+			ice_clear_bit(ICE_PROMISC_UCAST_RX, promisc_mask);
+			status = ice_set_vsi_promisc(hw, sc->pf_vsi.idx,
+						     promisc_mask, 0);
+			if (status && status != ICE_ERR_ALREADY_EXISTS) {
+				device_printf(dev,
+					      "Failed to enable allmulti mode "
+					      "for PF VSI, err %s aq_err %s\n",
+					      ice_status_str(status),
+					      ice_aq_str(
+					      hw->adminq.sq_last_status));
+				return (EIO);
+			}
 		}
 	}
 

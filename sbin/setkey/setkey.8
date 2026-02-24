@@ -281,7 +281,7 @@ and they cannot be used.
 .Pp
 .It Ar extensions
 take some of the following:
-.Bl -tag -width Fl natt_mtu -compact
+.Bl -tag -width natt_mtu -compact
 .\"
 .It Fl m Ar mode
 Specify a security protocol mode for use.
@@ -326,7 +326,7 @@ Do not allow cyclic sequence number.
 .It Fl lh Ar time
 .It Fl ls Ar time
 Specify hard/soft life time duration of the SA.
-.It Fl natt Ar oai \([ Ar sport \(] Ar oar \([ Ar dport \(]
+.It Fl natt Ar oai \[lB] Ar sport \[rB] Ar oar \[lB] Ar dport \[rB]
 Manually configure NAT-T for the SA, by specifying initiator
 .Ar oai
 and
@@ -334,9 +334,9 @@ requestor
 .Ar oar
 ip addresses and ports.
 Note that the
-.Sq \([
+.Sq \[lB]
 and
-.Sq \(]
+.Sq \[rB]
 symbols are part of the syntax for the ports specification,
 not indication of the optional components.
 .It Fl natt_mtu Ar fragsize
@@ -493,7 +493,7 @@ The direction is followed by one of the following policy levels:
 .Li none ,
 or
 .Li ipsec .
-.Bl -compact -bullet
+.Bl -bullet
 .It
 The
 .Li discard
@@ -510,11 +510,12 @@ The
 policy level means that IPsec operation will take place onto
 the packet.
 .El
+.Pp
 .It Ar protocol/mode/src-dst/level
 The
 .Ar protocol/mode/src-dst/level
 statement gives the rule for how to process the packet.
-.Bl -compact -bullet
+.Bl -bullet
 .It
 The
 .Ar protocol
@@ -563,7 +564,7 @@ or
 If the SA is not available in every level, the kernel will request
 the SA from the key exchange daemon.
 .Pp
-.Bl -compact -bullet
+.Bl -bullet
 .It
 A value of
 .Li default

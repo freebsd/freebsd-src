@@ -71,4 +71,7 @@
 	b = _swap_tmp;			\
 } while (0)
 
+/* XXX would have to make sure both are unsigned. */
+#define	umin(x, y)			MIN(x, y)
+
 #endif /* _LINUXKPI_LINUX_MINMAX_H_ */

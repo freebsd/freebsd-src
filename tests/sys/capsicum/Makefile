@@ -9,14 +9,13 @@ CFLAGS+=	-I${SRCTOP}/tests
 
 .if ${MK_GOOGLETEST} != no
 
-.PATH: ${SRCTOP}/contrib/capsicum-test
-
 GTESTS+=	capsicum-test
 GTESTS_WRAPPER_SH.capsicum-test=	functional
 # This test script runs the same test suite twice, once as root and once as an
 # unprivileged user.  Serialize them since some tests access global namespaces,
 # e.g., mqueuefs, and can trample on each other.
 TEST_METADATA.functional+=	is_exclusive="true"
+TEST_METADATA.functional+=	required_kmods="mqueuefs"
 
 SRCS.capsicum-test+=	\
 	capsicum-test-main.cc \

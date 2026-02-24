@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 5, 2025
+.Dd January 26, 2026
 .Dt WITNESS 4
 .Os
 .Sh NAME
@@ -125,6 +125,26 @@ can be set via
 .Xr loader 8 .
 .Pp
 The sysctl
+.Va debug.witness.trace
+controls whether
+.Nm
+prints stack traces when it detects lock violations.
+A value of 0 disables stack printing.
+A value of 1 specifies that
+.Nm
+should print a stack trace when a lock hierarchy violation occurs or
+non-sleepable locks are held when going to sleep or acquiring a sleepable lock.
+A value of 2 specifies that
+.Nm
+should attempt to display all observed lock chains that contribute to the
+established lock order, along with stack traces for when those locks were
+first acquired.
+The sysctl
+.Va debug.witness.trace
+can be set via
+.Xr loader 8 .
+.Pp
+The sysctl
 .Va debug.witness.output_channel
 specifies the output channel used to display warnings emitted by
 .Nm .
@@ -139,9 +159,28 @@ and
 This sysctl can be set via
 .Xr loader 8 .
 .Pp
+The sysctl
+.Va debug.witness.badstacks
+displays a listing of detected lock order violations cached in the
+.Nm
+module's current view of the lock hierarchy.
+(This means that it may not display information for locks which have been
+destroyed.)
+It displays a similar level of detail to the messages produced by the run-time
+checks.
+However, it always tries to show all observed lock chains that contribute to the
+established lock order.
+(In other words, it acts like
+.Va debug.witness.trace
+was set to 2.)
+It uses '**' to mark lock orders which were attempted but not added to the
+hierarchy because they violated the hierarchy the
+.Nm
+code had previously observed.
+.Pp
 The
 .Nm
-code also provides three extra
+code also provides a few extra
 .Xr ddb 4
 commands if both
 .Nm
@@ -166,10 +205,15 @@ then the locks held by the current thread are displayed.
 Outputs the list of locks held by all threads in the system to the
 kernel console.
 .It Ic show witness
-Dump the current order list to the kernel console.
+Dumps the current order list to the kernel console.
 The code first displays the lock order tree for all of the sleep locks.
 Then it displays the lock order tree for all of the spin locks.
 Finally, it displays a list of locks that have not yet been acquired.
+.It Ic show badstacks
+Displays a listing of all WITNESS lock order violations.
+This listing is identical to that produced by the
+.Va debug.witness.badstacks
+sysctl.
 .El
 .Sh SEE ALSO
 .Xr ddb 4 ,

@@ -54,7 +54,6 @@ vm_offset_t parse_boot_param(struct arm64_bootparams *abp);
 void parse_fdt_bootargs(void);
 #endif
 int memory_mapping_mode(vm_paddr_t pa);
-extern void (*pagezero)(void *);
 
 #ifdef SOCDEV_PA
 /*

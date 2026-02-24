@@ -16,7 +16,8 @@ SRCS=	sserver.c
 MAN=	sserver.8
 
 CFLAGS+=-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 MAN=	sserver.8
 

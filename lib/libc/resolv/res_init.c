@@ -118,21 +118,12 @@ static u_int32_t net_mask(struct in_addr);
 /*%
  * Set up default settings.  If the configuration file exist, the values
  * there will have precedence.  Otherwise, the server address is set to
- * INADDR_ANY and the default domain name comes from the gethostname().
- *
- * An interim version of this code (BIND 4.9, pre-4.4BSD) used 127.0.0.1
- * rather than INADDR_ANY ("0.0.0.0") as the default name server address
- * since it was noted that INADDR_ANY actually meant ``the first interface
- * you "ifconfig"'d at boot time'' and if this was a SLIP or PPP interface,
- * it had to be "up" in order for you to reach your own name server.  It
- * was later decided that since the recommended practice is to always 
- * install local static routes through 127.0.0.1 for all your network
- * interfaces, that we could solve this problem without a code change.
+ * the loopback address the default domain name comes from gethostname().
  *
  * The configuration file should always be used, since it is the only way
- * to specify a default domain.  If you are running a server on your local
- * machine, you should say "nameserver 0.0.0.0" or "nameserver 127.0.0.1"
- * in the configuration file.
+ * to specify options and a default domain.  If you are running a server
+ * on your local machine, you should say "nameserver 127.0.0.1" or
+ * "nameserver ::1" in the configuration file.
  *
  * Return 0 if completes successfully, -1 on error
  */
@@ -146,6 +137,26 @@ res_ninit(res_state statp) {
 /*% This function has to be reachable by res_data.c but not publicly. */
 int
 __res_vinit(res_state statp, int preinit) {
+	union res_sockaddr_union u[] = {
+		{ .sin = {
+			.sin_family = AF_INET,
+#ifdef HAVE_SA_LEN
+			.sin_len = sizeof(struct sockaddr_in),
+#endif
+			.sin_port = htons(NAMESERVER_PORT),
+			.sin_addr = { htonl(INADDR_LOOPBACK) },
+		} },
+#ifdef HAS_INET6_STRUCTS
+		{ .sin6 = {
+			.sin6_family = AF_INET6,
+#ifdef HAVE_SA_LEN
+			.sin6_len = sizeof(struct sockaddr_in6),
+#endif
+			.sin6_port = htons(NAMESERVER_PORT),
+			.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+		} },
+#endif
+	};
 	FILE *fp;
 	char *cp, **pp;
 	int n;
@@ -158,7 +169,6 @@ __res_vinit(res_state statp, int preinit) {
 	char *net;
 #endif
 	int dots;
-	union res_sockaddr_union u[2];
 	int maxns = MAXNS;
 
 	RES_SET_H_ERRNO(statp, 0);
@@ -173,23 +183,6 @@ __res_vinit(res_state statp, int preinit) {
 
 	statp->id = res_nrandomid(statp);
 
-	memset(u, 0, sizeof(u));
-	u[nserv].sin.sin_addr.s_addr = INADDR_ANY;
-	u[nserv].sin.sin_family = AF_INET;
-	u[nserv].sin.sin_port = htons(NAMESERVER_PORT);
-#ifdef HAVE_SA_LEN
-	u[nserv].sin.sin_len = sizeof(struct sockaddr_in);
-#endif
-	nserv++;
-#ifdef HAS_INET6_STRUCTS
-	u[nserv].sin6.sin6_addr = in6addr_any;
-	u[nserv].sin6.sin6_family = AF_INET6;
-	u[nserv].sin6.sin6_port = htons(NAMESERVER_PORT);
-#ifdef HAVE_SA_LEN
-	u[nserv].sin6.sin6_len = sizeof(struct sockaddr_in6);
-#endif
-	nserv++;
-#endif
 	statp->nscount = 0;
 	statp->ndots = 1;
 	statp->pfcode = 0;
@@ -224,7 +217,7 @@ __res_vinit(res_state statp, int preinit) {
 #ifdef RESOLVSORT
 	statp->nsort = 0;
 #endif
-	res_setservers(statp, u, nserv);
+	res_setservers(statp, u, nitems(u));
 
 #ifdef	SOLARIS2
 	/*
@@ -288,7 +281,6 @@ __res_vinit(res_state statp, int preinit) {
 	(line[sizeof(name) - 1] == ' ' || \
 	 line[sizeof(name) - 1] == '\t'))
 
-	nserv = 0;
 	if ((fp = fopen(_PATH_RESCONF, "re")) != NULL) {
 	    struct stat sb;
 	    struct timespec now;
@@ -507,15 +499,8 @@ __res_vinit(res_state statp, int preinit) {
 #endif
 	    (void) fclose(fp);
 	}
-/*
- * Last chance to get a nameserver.  This should not normally
- * be necessary
- */
-#ifdef NO_RESOLV_CONF
-	if(nserv == 0)
-		nserv = get_nameservers(statp);
-#endif
 
+	/* guess default domain if not set */
 	if (statp->defdname[0] == 0 &&
 	    gethostname(buf, sizeof(statp->defdname) - 1) == 0 &&
 	    (cp = strchr(buf, '.')) != NULL)

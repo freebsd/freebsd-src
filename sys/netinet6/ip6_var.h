@@ -309,7 +309,6 @@ VNET_DECLARE(int, ip6_v6only);
 #define	V_ip6_mcast_pmtu		VNET(ip6_mcast_pmtu)
 #define	V_ip6_v6only			VNET(ip6_v6only)
 
-VNET_DECLARE(struct socket *, ip6_mrouter);	/* multicast routing daemon */
 VNET_DECLARE(int, ip6_sendredirects);	/* send IP redirects when forwarding? */
 VNET_DECLARE(int, ip6_accept_rtadv);	/* Acts as a host not a router */
 VNET_DECLARE(int, ip6_no_radr);		/* No defroute from RA */
@@ -320,7 +319,6 @@ VNET_DECLARE(int, ip6_rfc6204w3);	/* Accept defroute from RA even when
 VNET_DECLARE(int, ip6_hdrnestlimit);	/* upper limit of # of extension
 					 * headers */
 VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
-#define	V_ip6_mrouter			VNET(ip6_mrouter)
 #define	V_ip6_sendredirects		VNET(ip6_sendredirects)
 #define	V_ip6_accept_rtadv		VNET(ip6_accept_rtadv)
 #define	V_ip6_no_radr			VNET(ip6_no_radr)
@@ -374,9 +372,10 @@ VNET_DECLARE(bool, ip6_log_cannot_forward);
 #define	V_ip6_log_cannot_forward	VNET(ip6_log_cannot_forward)
 
 extern struct	pr_usrreqs rip6_usrreqs;
-struct sockopt;
 
 struct inpcb;
+struct socket;
+struct sockopt;
 struct ucred;
 
 int	icmp6_ctloutput(struct socket *, struct sockopt *sopt);
@@ -393,8 +392,7 @@ int	ip6_lasthdr(const struct mbuf *, int, int, int *);
 extern int	(*ip6_mforward)(struct ip6_hdr *, struct ifnet *,
     struct mbuf *);
 
-int	ip6_process_hopopts(struct mbuf *, u_int8_t *, int, u_int32_t *,
-				 u_int32_t *);
+int	ip6_process_hopopts(struct mbuf *, u_int8_t *, int, u_int32_t *);
 struct mbuf	**ip6_savecontrol_v4(struct inpcb *, struct mbuf *,
 	    struct mbuf **, int *);
 void	ip6_savecontrol(struct inpcb *, struct mbuf *, struct mbuf **);

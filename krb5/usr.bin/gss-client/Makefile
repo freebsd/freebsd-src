@@ -19,7 +19,8 @@ CFLAGS+=-I${KRB5_DIR}/include \
 	-I${KRB5_OBJTOP}/lib \
 	-I${KRB5_DIR}/lib/gssapi/generic \
 	-I${KRB5_DIR}/lib/gssapi/krb5 \
-	-I${KRB5_DIR}/lib/gssapi/mechglue
+	-I${KRB5_DIR}/lib/gssapi/mechglue \
+	-I${KRB5_OBJTOP}/util/profile
 
 MAN=
 

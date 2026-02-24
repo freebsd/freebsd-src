@@ -4,6 +4,7 @@
 
 #include "acpi.h"
 #include "debug.h"
+#include "fw.h"
 #include "phy.h"
 #include "reg.h"
 #include "sar.h"
@@ -405,11 +406,7 @@ static const struct cfg80211_sar_freq_ranges rtw89_common_sar_freq_ranges[] = {
 	{ .start_freq = 6875, .end_freq = 7115, },
 };
 
-#if defined(__linux__)
 static_assert(RTW89_SAR_SUBBAND_NR ==
-#elif defined(__FreeBSD__)
-rtw89_static_assert(RTW89_SAR_SUBBAND_NR ==
-#endif
 	      ARRAY_SIZE(rtw89_common_sar_freq_ranges));
 
 const struct cfg80211_sar_capa rtw89_sar_capa = {
@@ -846,6 +843,20 @@ void rtw89_tas_chanctx_cb(struct rtw89_dev *rtwdev,
 	}
 }
 EXPORT_SYMBOL(rtw89_tas_chanctx_cb);
+
+void rtw89_tas_fw_timer_enable(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+
+	if (!tas->enable)
+		return;
+
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		return;
+
+	rtw89_fw_h2c_rf_tas_trigger(rtwdev, enable);
+}
 
 void rtw89_sar_init(struct rtw89_dev *rtwdev)
 {

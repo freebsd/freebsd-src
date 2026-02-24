@@ -25,6 +25,12 @@ _hdb_keytab2hdb_entry (
 	hdb_entry_ex */*entry*/);
 
 int
+_hdb_mit_dump2mitdb_entry(
+	krb5_context /*context*/,
+	char */*line*/,
+	krb5_storage */*sp*/);
+
+int
 _hdb_mkey_decrypt (
 	krb5_context /*context*/,
 	hdb_master_key /*key*/,
@@ -50,6 +56,12 @@ _hdb_remove (
 	krb5_context /*context*/,
 	HDB */*db*/,
 	krb5_const_principal /*principal*/);
+
+krb5_error_code
+_hdb_set_master_key_usage (
+	krb5_context /*context*/,
+	HDB */*db*/,
+	unsigned int /*key_usage*/);
 
 krb5_error_code
 _hdb_store (

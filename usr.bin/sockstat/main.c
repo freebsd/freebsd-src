@@ -928,6 +928,7 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	struct sockaddr_un *sun;
 	int error, off, port = 0;
 	char addrstr[NI_MAXHOST] = "";
+	bool needs_ipv6_brackets = false;
 
 	switch (ss->ss_family) {
 	case AF_INET:
@@ -938,6 +939,8 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	case AF_INET6:
 		if (IN6_IS_ADDR_UNSPECIFIED(&sstosin6(ss)->sin6_addr))
 			addrstr[0] = '*';
+		else
+			needs_ipv6_brackets = true;
 		port = ntohs(sstosin6(ss)->sin6_port);
 		break;
 	case AF_UNIX:
@@ -946,7 +949,7 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 		if (is_xo_style_encoding) {
 			xo_emit("{:path/%.*s}", sun->sun_len - off,
 				sun->sun_path);
-			return 0;
+			return (0);
 		}
 		return snprintf(buf, bufsize, "%.*s",
 				sun->sun_len - off, sun->sun_path);
@@ -961,6 +964,11 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 		xo_emit("{:address/%s}", addrstr);
 		xo_emit("{:port/%d}", port);
 		return (0);
+	}
+	if (needs_ipv6_brackets) {
+		if (port == 0)
+			return (snprintf(buf, bufsize, "[%s]:*", addrstr));
+		return (snprintf(buf, bufsize, "[%s]:%d", addrstr, port));
 	}
 	if (port == 0)
 		return (snprintf(buf, bufsize, "%s:*", addrstr));

@@ -75,6 +75,7 @@
 #include <sys/procdesc.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -270,6 +271,9 @@ procdesc_free(struct procdesc *pd)
 		KASSERT((pd->pd_flags & PDF_CLOSED),
 		    ("procdesc_free: !PDF_CLOSED"));
 
+		if (pd->pd_pid != -1)
+			proc_id_clear(PROC_ID_PID, pd->pd_pid);
+
 		knlist_destroy(&pd->pd_selinfo.si_note);
 		PROCDESC_LOCK_DESTROY(pd);
 		free(pd, M_PROCDESC);
@@ -318,6 +322,9 @@ procdesc_exit(struct proc *p)
 	}
 	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_EXIT);
 	PROCDESC_UNLOCK(pd);
+
+	/* Wakeup all waiters for this procdesc' process exit. */
+	wakeup(&p->p_procdesc);
 	return (0);
 }
 
@@ -389,6 +396,7 @@ procdesc_close(struct file *fp, struct thread *td)
 			 */
 			pd->pd_proc = NULL;
 			p->p_procdesc = NULL;
+			pd->pd_pid = -1;
 			procdesc_free(pd);
 
 			/*

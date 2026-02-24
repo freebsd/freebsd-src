@@ -40,6 +40,7 @@
 #include "qplib_res.h"
 #include "qplib_rcfw.h"
 #include "qplib_sp.h"
+#include "bnxt_ulp.h"
 
 const struct bnxt_qplib_gid bnxt_qplib_gid_zero = {{ 0, 0, 0, 0, 0, 0, 0, 0,
 						     0, 0, 0, 0, 0, 0, 0, 0 }};
@@ -79,6 +80,7 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw, char *fw_ver)
 
 int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 {
+	struct bnxt_qplib_max_res dev_res = {};
 	struct creq_query_func_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct creq_query_func_resp_sb *sb;
@@ -86,10 +88,10 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 	struct bnxt_qplib_dev_attr *attr;
 	struct bnxt_qplib_chip_ctx *cctx;
 	struct cmdq_query_func req = {};
+	bool sw_max_en;
 	u8 *tqm_alloc;
 	int i, rc = 0;
 	u32 temp;
-	u8 chip_gen = BNXT_RE_DEFAULT;
 
 	cctx = rcfw->res->cctx;
 	attr = rcfw->res->dattr;
@@ -110,10 +112,11 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
 		goto bail;
+	bnxt_qplib_max_res_supported(cctx, rcfw->res, &dev_res, false);
+	sw_max_en = BNXT_EN_SW_RES_LMT(rcfw->res->en_dev);
 	/* Extract the context from the side buffer */
-	chip_gen = _get_chip_gen_p5_type(cctx);
-	attr->max_qp = le32_to_cpu(sb->max_qp);
-	attr->max_qp = min_t(u32, attr->max_qp, BNXT_RE_MAX_QP_SUPPORTED(chip_gen));
+	attr->max_qp = bnxt_re_cap_fw_res(le32_to_cpu(sb->max_qp),
+					  dev_res.max_qp, sw_max_en);
 	/* max_qp value reported by FW does not include the QP1 */
 	attr->max_qp += 1;
 	attr->max_qp_rd_atom =
@@ -126,11 +129,6 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 	 * one extra entry while creating the qp
 	 */
 	attr->max_qp_wqes = le16_to_cpu(sb->max_qp_wr) - 1;
-	/* Adjust for max_qp_wqes for variable wqe */
-	if (cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE) {
-		attr->max_qp_wqes = (BNXT_MAX_SQ_SIZE) /
-			(BNXT_MAX_VAR_WQE_SIZE / BNXT_SGE_SIZE) - 1;
-	}
 	if (!_is_chip_gen_p5_p7(cctx)) {
 		/*
 		 * 128 WQEs needs to be reserved for the HW (8916). Prevent
@@ -138,33 +136,36 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 		 */
 		attr->max_qp_wqes -= BNXT_QPLIB_RESERVED_QP_WRS;
 	}
-	attr->max_qp_sges = sb->max_sge;
-	if (_is_chip_gen_p5_p7(cctx) &&
-	    cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
-		attr->max_qp_sges = sb->max_sge_var_wqe;
-	attr->max_cq = le32_to_cpu(sb->max_cq);
-	attr->max_cq = min_t(u32, attr->max_cq, BNXT_RE_MAX_CQ_SUPPORTED(chip_gen));
+
+	/* Adjust for max_qp_wqes for variable wqe */
+	if (cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
+		attr->max_qp_wqes = BNXT_VAR_MAX_WQE - 1;
+
+	attr->max_qp_sges = cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE ?
+				min_t(u32, sb->max_sge_var_wqe, BNXT_VAR_MAX_SGE) : sb->max_sge;
+	attr->max_cq = bnxt_re_cap_fw_res(le32_to_cpu(sb->max_cq),
+						dev_res.max_cq, sw_max_en);
 
 	attr->max_cq_wqes = le32_to_cpu(sb->max_cqe);
 	attr->max_cq_wqes = min_t(u32, BNXT_QPLIB_MAX_CQ_WQES, attr->max_cq_wqes);
 
 	attr->max_cq_sges = attr->max_qp_sges;
-	attr->max_mr = le32_to_cpu(sb->max_mr);
-	attr->max_mr = min_t(u32, attr->max_mr, BNXT_RE_MAX_MRW_SUPPORTED(chip_gen));
-	attr->max_mw = le32_to_cpu(sb->max_mw);
-	attr->max_mw = min_t(u32, attr->max_mw, BNXT_RE_MAX_MRW_SUPPORTED(chip_gen));
+	attr->max_mr = bnxt_re_cap_fw_res(le32_to_cpu(sb->max_mr),
+                                      dev_res.max_mr, sw_max_en);
+	attr->max_mw = bnxt_re_cap_fw_res(le32_to_cpu(sb->max_mw),
+                                      dev_res.max_mr, sw_max_en);
 
 	attr->max_mr_size = le64_to_cpu(sb->max_mr_size);
 	attr->max_pd = BNXT_QPLIB_MAX_PD;
 	attr->max_raw_ethy_qp = le32_to_cpu(sb->max_raw_eth_qp);
-	attr->max_ah = le32_to_cpu(sb->max_ah);
-	attr->max_ah = min_t(u32, attr->max_ah, BNXT_RE_MAX_AH_SUPPORTED(chip_gen));
+	attr->max_ah = bnxt_re_cap_fw_res(le32_to_cpu(sb->max_ah),
+					  dev_res.max_ah, sw_max_en);
 
 	attr->max_fmr = le32_to_cpu(sb->max_fmr);
 	attr->max_map_per_fmr = sb->max_map_per_fmr;
 
-	attr->max_srq = le16_to_cpu(sb->max_srq);
-	attr->max_srq = min_t(u32, attr->max_srq, BNXT_RE_MAX_SRQ_SUPPORTED(chip_gen));
+	attr->max_srq = bnxt_re_cap_fw_res(le16_to_cpu(sb->max_srq),
+                                          dev_res.max_srq, sw_max_en);
 	attr->max_srq_wqes = le32_to_cpu(sb->max_srq_wr) - 1;
 	attr->max_srq_sges = sb->max_srq_sge;
 	attr->max_pkey = 1;
@@ -185,6 +186,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 	attr->page_size_cap = BIT_ULL(28) | BIT_ULL(21) | BIT_ULL(12);
 
 	bnxt_qplib_query_version(rcfw, attr->fw_ver);
+	attr->dev_cap_ext_flags2 = le16_to_cpu(sb->dev_cap_ext_flags_2);
 
 	for (i = 0; i < MAX_TQM_ALLOC_REQ / 4; i++) {
 		temp = le32_to_cpu(sb->tqm_alloc_reqs[i]);

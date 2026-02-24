@@ -29,7 +29,7 @@
  * nvstore is abstraction layer to implement data read/write to different
  * types of non-volatile storage.
  *
- * Provides cli command 'nvostre'
+ * Provides cli command 'nvstore'
  */
 
 #include "stand.h"

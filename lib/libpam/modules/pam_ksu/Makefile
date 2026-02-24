@@ -39,6 +39,7 @@ LIBADD+=	krb5
 WARNS=	2
 CFLAGS+=	-I${SRCTOP}/crypto/krb5/src/include
 CFLAGS+=	-I${SRCTOP}/krb5/include
+CFLAGS+=	-I${OBJTOP}/krb5/util/profile
 CFLAGS+=	-include ${SRCTOP}/crypto/krb5/src/include/k5-int.h
 CFLAGS+=	-DMK_MITKRB5=yes
 .endif

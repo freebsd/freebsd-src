@@ -29,7 +29,10 @@ ATF_TESTS_C+=	ktls_test
 ATF_TESTS_C+=	ktrace_test
 ATF_TESTS_C+=	listener_wakeup
 ATF_TESTS_C+=	module_test
+ATF_TESTS_C+=	pdrfork
+ATF_TESTS_C+=	pdwait
 ATF_TESTS_C+=	prace
+ATF_TESTS_C+=	procdesc
 ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
@@ -47,6 +50,7 @@ TEST_METADATA.sigwait+=	is_exclusive="true"
 ATF_TESTS_C+=	subr_physmem_test
 .endif
 PLAIN_TESTS_C+=	subr_unit_test
+ATF_TESTS_C+=	ssl_sendfile
 ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
 ATF_TESTS_C+=	tty_pts
@@ -83,6 +87,7 @@ PROGS+=		sendfile_helper
 
 LIBADD.copy_file_range+=		md
 LIBADD.jail_lookup_root+=		jail util
+LIBADD.ssl_sendfile+=			pthread crypto ssl
 CFLAGS.sys_getrandom+=			-I${SRCTOP}/sys/contrib/zstd/lib
 LIBADD.sys_getrandom+=			zstd
 LIBADD.sys_getrandom+=			c

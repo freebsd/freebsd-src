@@ -174,6 +174,15 @@ libbe_create_body()
 	# the child dataset should exist
 	atf_check -o not-empty \
 		  zfs list "${zpool}/ROOT/relative-snap/usr"
+
+	# test empty BE creation.
+	atf_check $prog "${zpool}/ROOT" \
+		empty \
+		ignored \
+		0
+	# the dataset should exist
+	atf_check -o not-empty \
+		zfs list "${zpool}/ROOT/empty"
 }
 
 libbe_create_cleanup()

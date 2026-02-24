@@ -165,7 +165,7 @@ nvmf_portal::prepare()
 		    "max_admin_qsize", NVME_MAX_ADMIN_ENTRIES,
 		    NVME_MIN_ADMIN_ENTRIES, NVME_MAX_ADMIN_ENTRIES);
 		p_aparams.max_io_qsize = parse_number(nvl.get(), "max_io_qsize",
-		    NVME_MAX_IO_ENTRIES, NVME_MIN_IO_ENTRIES,
+		    NVMF_MAX_IO_ENTRIES, NVME_MIN_IO_ENTRIES,
 		    NVME_MAX_IO_ENTRIES);
 		p_aparams.tcp.pda = 0;
 		break;
@@ -334,9 +334,6 @@ nvmf_port::kernel_create_port()
 	nvlist_add_string(nvl.get(), "ctld_transport_group_name",
 	    pg->name());
 	nvlist_add_stringf(nvl.get(), "portid", "%u", pg->tag());
-	if (!nvlist_exists_string(nvl.get(), "max_io_qsize"))
-		nvlist_add_stringf(nvl.get(), "max_io_qsize", "%u",
-		    NVME_MAX_IO_ENTRIES);
 
 	return ctl_create_port("nvmf", nvl.get(), &p_ctl_port);
 }

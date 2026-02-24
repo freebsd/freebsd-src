@@ -479,7 +479,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 {
 	u_long sendspace, recvspace;
 	struct unpcb *unp;
-	int error;
+	int error, rcvmtxopts;
 	bool locked;
 
 	KASSERT(so->so_pcb == NULL, ("uipc_attach: so_pcb != NULL"));
@@ -494,6 +494,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 		 * limits to unpdg_recvspace.
 		 */
 		sendspace = recvspace = unpdg_recvspace;
+		rcvmtxopts = 0;
 		break;
 
 	case SOCK_STREAM:
@@ -505,14 +506,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 		sendspace = unpsp_sendspace;
 		recvspace = unpsp_recvspace;
 common:
-		/*
-		 * XXXGL: we need to initialize the mutex with MTX_DUPOK.
-		 * Ideally, protocols that have PR_SOCKBUF should be
-		 * responsible for mutex initialization officially, and then
-		 * this uglyness with mtx_destroy(); mtx_init(); would go away.
-		 */
-		mtx_destroy(&so->so_rcv_mtx);
-		mtx_init(&so->so_rcv_mtx, "so_rcv", NULL, MTX_DEF | MTX_DUPOK);
+		rcvmtxopts = MTX_DUPOK;
 		knlist_init(&so->so_wrsel.si_note, so, uipc_wrknl_lock,
 		    uipc_wrknl_unlock, uipc_wrknl_assert_lock);
 		STAILQ_INIT(&so->so_rcv.uxst_mbq);
@@ -520,6 +514,8 @@ common:
 	default:
 		panic("uipc_attach");
 	}
+	mtx_init(&so->so_rcv_mtx, "unix so_rcv", NULL, MTX_DEF | rcvmtxopts);
+	mtx_init(&so->so_snd_mtx, "unix so_snd", NULL, MTX_DEF);
 	error = soreserve(so, sendspace, recvspace);
 	if (error)
 		return (error);
@@ -888,6 +884,9 @@ uipc_detach(struct socket *so)
 		MPASS(TAILQ_EMPTY(&so->so_rcv.uxdg_conns));
 		MPASS(STAILQ_EMPTY(&so->so_snd.uxdg_mb));
 	}
+
+	mtx_destroy(&so->so_snd_mtx);
+	mtx_destroy(&so->so_rcv_mtx);
 }
 
 static int

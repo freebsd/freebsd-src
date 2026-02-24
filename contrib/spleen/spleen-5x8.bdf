@@ -1,7 +1,7 @@
 STARTFONT 2.1
 COMMENT /*
-COMMENT  * Spleen 5x8 2.1.0
-COMMENT  * Copyright (c) 2018-2024, Frederic Cambus
+COMMENT  * Spleen 5x8 2.2.0
+COMMENT  * Copyright (c) 2018-2026, Frederic Cambus
 COMMENT  * https://www.cambus.net/
 COMMENT  *
 COMMENT  * Created:      2018-08-08
@@ -18,7 +18,7 @@ FONTBOUNDINGBOX 5 8 0 -1
 STARTPROPERTIES 20
 FAMILY_NAME "Spleen"
 WEIGHT_NAME "Medium"
-FONT_VERSION "2.1.0"
+FONT_VERSION "2.2.0"
 FOUNDRY "misc"
 SLANT "R"
 SETWIDTH_NAME "Normal"
@@ -33,7 +33,7 @@ CHARSET_ENCODING "1"
 MIN_SPACE 5
 FONT_DESCENT 1
 FONT_ASCENT 7
-COPYRIGHT "Copyright (c) 2018-2024, Frederic Cambus"
+COPYRIGHT "Copyright (c) 2018-2026, Frederic Cambus"
 DEFAULT_CHAR 32
 _GBDFED_INFO "Edited with gbdfed 1.6."
 ENDPROPERTIES

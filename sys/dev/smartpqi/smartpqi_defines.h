@@ -911,8 +911,13 @@ static inline uint64_t CALC_PERCENT_TOTAL(uint64_t val, uint64_t total)
 #define CCISS_GETDRIVVER       _IOWR(SMARTPQI_IOCTL_BASE, 0, driver_info)
 #define CCISS_GETPCIINFO       _IOWR(SMARTPQI_IOCTL_BASE, 1, pqi_pci_info_t)
 #define SMARTPQI_PASS_THRU     _IOWR(SMARTPQI_IOCTL_BASE, 2, IOCTL_Command_struct)
+#define SMARTPQI_BIG_PASS_THRU _IOWR(SMARTPQI_IOCTL_BASE, 3, BIG_IOCTL_Command_struct)
 #define CCISS_PASSTHRU         _IOWR('C', 210, IOCTL_Command_struct)
 #define CCISS_REGNEWD          _IO(CCISS_IOC_MAGIC, 14)
+
+#if !defined(SMARTPQI_BIG_PASSTHRU_SUPPORTED)
+#define SMARTPQI_BIG_PASSTHRU_SUPPORTED  _IO(SMARTPQI_IOCTL_BASE, 4)
+#endif
 
 /*IOCTL  pci_info structure */
 typedef struct pqi_pci_info
@@ -939,12 +944,12 @@ typedef uint8_t *passthru_buf_type_t;
 
 #define PQISRC_DRIVER_MAJOR		__FreeBSD__
 #if __FreeBSD__ <= 14
-#define PQISRC_DRIVER_MINOR	   4660
+#define PQISRC_DRIVER_MINOR	   4690
 #else
-#define PQISRC_DRIVER_MINOR	   0
+#define PQISRC_DRIVER_MINOR	   2
 #endif
 #define PQISRC_DRIVER_RELEASE	   0
-#define PQISRC_DRIVER_REVISION   2002
+#define PQISRC_DRIVER_REVISION   2008
 
 #define STR(s)                          # s
 #define PQISRC_VERSION(a, b, c, d)      STR(a.b.c-d)

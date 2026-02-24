@@ -242,6 +242,40 @@ main(int argc, char **argv)
 					break;
 			} while (s2.state == CCLASS_LOWER && s2.cnt > 1);
 			goto again;
+		} else if (s1.state == CCLASS &&
+			   s2.state == CCLASS_UPPER &&
+			   s1.cnt == 1 && s2.cnt == 1) {
+			do {
+				ch = towupper(s1.lastch);
+				cmap_add(map, s1.lastch, ch);
+				if (sflag && iswupper(ch))
+					cset_add(squeeze, ch);
+				if (!next(&s1))
+					goto endloop;
+			} while (s1.state == CCLASS && s1.cnt > 1);
+			/* skip upper set */
+			do {
+				if (!next(&s2))
+					break;
+			} while (s2.state == CCLASS_UPPER && s2.cnt > 1);
+			goto again;
+		} else if (s1.state == CCLASS &&
+			   s2.state == CCLASS_LOWER &&
+			   s1.cnt == 1 && s2.cnt == 1) {
+			do {
+				ch = towlower(s1.lastch);
+				cmap_add(map, s1.lastch, ch);
+				if (sflag && iswlower(ch))
+					cset_add(squeeze, ch);
+				if (!next(&s1))
+					goto endloop;
+			} while (s1.state == CCLASS && s1.cnt > 1);
+			/* skip lower set */
+			do {
+				if (!next(&s2))
+					break;
+			} while (s2.state == CCLASS_LOWER && s2.cnt > 1);
+			goto again;
 		} else {
 			cmap_add(map, s1.lastch, s2.lastch);
 			if (sflag)

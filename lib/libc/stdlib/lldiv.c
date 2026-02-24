@@ -28,7 +28,6 @@
 
 #include <stdlib.h>
 
-/* See comments in div.c for implementation details. */
 lldiv_t
 lldiv(long long numer, long long denom)
 {

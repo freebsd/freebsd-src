@@ -220,6 +220,7 @@ josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
 jrm [label="Joseph R. Mingrone\njrm@FreeBSD.org\n2016/09/17"]
 jsm [label="Jesper Schmitz Mouridsen\njsm@FreeBSD.org\n2018/06/30"]
+jwb [label="Jason Bacon\njwb@FreeBSD.org\n2017/11/12"]
 kai [label="Kai Knoblich\nkai@FreeBSD.org\n2019/02/01"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
 kbowling [label="Kevin Bowling\nkbowling@FreeBSD.org\n2018/09/02"]
@@ -256,6 +257,7 @@ netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
 nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2002/04/01"]
 novel [label="Roman Bogorodskiy\nnovel@FreeBSD.org\n2005/03/07"]
+nxjoseph [label="Yusuf Yaman\nnxjoseph@FreeBSD.org\n2026/02/18"]
 olivier [label="Olivier Cochard-Labbe\nolivier@FreeBSD.org\n2016/02/02"]
 olivierd [label="Olivier Duchateau\nolivierd@FreeBSD.org\n2012/05/29"]
 osa [label="Sergey A. Osokin\nosa@FreeBSD.org\n2003/06/04"]
@@ -699,6 +701,7 @@ obrien -> gerald
 
 olivier -> pizzamig
 
+osa -> nxjoseph
 osa -> otis
 osa -> vg
 
@@ -847,6 +850,8 @@ tz -> fernape
 tz -> mfechner
 
 vsevolod -> eugen
+
+vvd -> nxjoseph
 
 wen -> cs
 wen -> culot

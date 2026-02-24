@@ -58,7 +58,6 @@
  */
 
 #include <sys/cdefs.h>
-#define SYM_DRIVER_NAME	"sym-1.6.5-20000902"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
@@ -114,17 +113,15 @@ typedef	u_int32_t u32;
 #include <dev/sym/sym_fw.h>
 
 /*
- *  IA32 architecture does not reorder STORES and prevents
- *  LOADS from passing STORES. It is called `program order'
- *  by Intel and allows device drivers to deal with memory
- *  ordering by only ensuring that the code is not reordered
- *  by the compiler when ordering is required.
- *  Other architectures implement a weaker ordering that
- *  requires memory barriers (and also IO barriers when they
- *  make sense) to be used.
+ * With uncacheable memory, x86 does not reorder STORES and prevents LOADS
+ * from passing STORES.  For ensuring this program order, we still need to
+ * employ compiler barriers, though, when the ordering of LOADS and STORES
+ * matters.
+ * Other architectures may implement weaker ordering guarantees and, thus,
+ * require memory barriers (and also IO barriers) to be used.
  */
 #if	defined	__i386__ || defined __amd64__
-#define MEMORY_BARRIER()	do { ; } while(0)
+#define	MEMORY_BARRIER()	__compiler_membar()
 #elif	defined	__powerpc__
 #define MEMORY_BARRIER()	__asm__ volatile("eieio; sync" : : : "memory")
 #elif	defined	__arm__
@@ -594,10 +591,10 @@ static m_addr_t ___dma_getp(m_pool_s *mp)
 		goto out_err;
 
 	if (bus_dmamem_alloc(mp->dmat, &vaddr,
-			BUS_DMA_COHERENT | BUS_DMA_WAITOK, &vbp->dmamap))
+	    BUS_DMA_COHERENT | BUS_DMA_NOCACHE | BUS_DMA_WAITOK, &vbp->dmamap))
 		goto out_err;
-	bus_dmamap_load(mp->dmat, vbp->dmamap, vaddr,
-			MEMO_CLUSTER_SIZE, getbaddrcb, &baddr, BUS_DMA_NOWAIT);
+	bus_dmamap_load(mp->dmat, vbp->dmamap, vaddr, MEMO_CLUSTER_SIZE,
+	    getbaddrcb, &baddr, BUS_DMA_NOWAIT);
 	if (baddr) {
 		int hc = VTOB_HASH_CODE(vaddr);
 		vbp->vaddr = (m_addr_t) vaddr;
@@ -1484,7 +1481,7 @@ struct sym_hcb {
 	u32	scr_ram_seg;
 
 	/*
-	 *  Chip and controller indentification.
+	 *  Chip and controller identification.
 	 */
 	device_t device;
 
@@ -1534,7 +1531,6 @@ struct sym_hcb {
 	struct resource	*io_res;
 	struct resource	*mmio_res;
 	struct resource	*ram_res;
-	int		ram_id;
 	void *intr;
 
 	/*
@@ -1558,8 +1554,6 @@ struct sym_hcb {
 	 *  BUS addresses of the chip
 	 */
 	vm_offset_t	mmio_ba;	/* MMIO BUS address		*/
-	int		mmio_ws;	/* MMIO Window size		*/
-
 	vm_offset_t	ram_ba;		/* RAM BUS address		*/
 	int		ram_ws;		/* RAM window size		*/
 
@@ -2012,8 +2006,8 @@ static void sym_fw_bind_script (hcb_p np, u32 *start, int len)
 		 *  command.
 		 */
 		if (opcode == 0) {
-			printf ("%s: ERROR0 IN SCRIPT at %d.\n",
-				sym_name(np), (int) (cur-start));
+			device_printf(np->device, "ERROR0 IN SCRIPT at %d.\n",
+			    (int)(cur-start));
 			MDELAY (10000);
 			++cur;
 			continue;
@@ -2056,8 +2050,9 @@ static void sym_fw_bind_script (hcb_p np, u32 *start, int len)
 			tmp1 = cur[1];
 			tmp2 = cur[2];
 			if ((tmp1 ^ tmp2) & 3) {
-				printf ("%s: ERROR1 IN SCRIPT at %d.\n",
-					sym_name(np), (int) (cur-start));
+				device_printf(np->device,
+				    "ERROR1 IN SCRIPT at %d.\n",
+				    (int)(cur-start));
 				MDELAY (10000);
 			}
 			/*
@@ -2248,10 +2243,11 @@ static void sym_update_dflags(hcb_p np, u_char *flags,
 			      struct ccb_trans_settings *cts);
 
 static const struct sym_pci_chip *sym_find_pci_chip (device_t dev);
-static int  sym_pci_probe (device_t dev);
-static int  sym_pci_attach (device_t dev);
 
-static void sym_pci_free (hcb_p np);
+static device_probe_t sym_pci_probe;
+static device_attach_t sym_pci_attach;
+static device_detach_t sym_pci_detach;
+
 static int  sym_cam_attach (hcb_p np);
 static void sym_cam_free (hcb_p np);
 
@@ -2426,8 +2422,8 @@ static void sym_print_targets_flag(hcb_p np, int mask, char *msg)
 			continue;
 		if (np->target[i].usrflags & mask) {
 			if (!cnt++)
-				printf("%s: %s disabled for targets",
-					sym_name(np), msg);
+				device_printf(np->device,
+				    "%s disabled for targets", msg);
 			printf(" %d", i);
 		}
 	}
@@ -2750,41 +2746,42 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  Let user know about the settings.
 	 */
 	i = nvram->type;
-	printf("%s: %s NVRAM, ID %d, Fast-%d, %s, %s\n", sym_name(np),
-		i  == SYM_SYMBIOS_NVRAM ? "Symbios" :
-		(i == SYM_TEKRAM_NVRAM  ? "Tekram" : "No"),
-		np->myaddr,
-		(np->features & FE_ULTRA3) ? 80 :
-		(np->features & FE_ULTRA2) ? 40 :
-		(np->features & FE_ULTRA)  ? 20 : 10,
-		sym_scsi_bus_mode(np->scsi_mode),
-		(np->rv_scntl0 & 0xa)	? "parity checking" : "NO parity");
+	device_printf(np->device, "%s NVRAM, ID %d, Fast-%d, %s, %s\n",
+	    i  == SYM_SYMBIOS_NVRAM ? "Symbios" :
+	    (i == SYM_TEKRAM_NVRAM  ? "Tekram" : "No"),
+	    np->myaddr,
+	    (np->features & FE_ULTRA3)	? 80 :
+	    (np->features & FE_ULTRA2)	? 40 :
+	    (np->features & FE_ULTRA)	? 20 : 10,
+	    sym_scsi_bus_mode(np->scsi_mode),
+	    (np->rv_scntl0 & 0xa)	? "parity checking" : "NO parity");
 	/*
 	 *  Tell him more on demand.
 	 */
 	if (sym_verbose) {
-		printf("%s: %s IRQ line driver%s\n",
-			sym_name(np),
-			np->rv_dcntl & IRQM ? "totem pole" : "open drain",
-			np->ram_ba ? ", using on-chip SRAM" : "");
-		printf("%s: using %s firmware.\n", sym_name(np), np->fw_name);
+		device_printf(np->device, "%s IRQ line driver%s\n",
+		    np->rv_dcntl & IRQM ? "totem pole" : "open drain",
+		    np->ram_ba ? ", using on-chip SRAM" : "");
+		device_printf(np->device, "using %s firmware.\n", np->fw_name);
 		if (np->features & FE_NOPM)
-			printf("%s: handling phase mismatch from SCRIPTS.\n",
-			       sym_name(np));
+			device_printf(np->device,
+			    "handling phase mismatch from SCRIPTS.\n");
 	}
 	/*
 	 *  And still more.
 	 */
 	if (sym_verbose > 1) {
-		printf ("%s: initial SCNTL3/DMODE/DCNTL/CTEST3/4/5 = "
-			"(hex) %02x/%02x/%02x/%02x/%02x/%02x\n",
-			sym_name(np), np->sv_scntl3, np->sv_dmode, np->sv_dcntl,
-			np->sv_ctest3, np->sv_ctest4, np->sv_ctest5);
+		device_printf(np->device,
+		    "initial SCNTL3/DMODE/DCNTL/CTEST3/4/5 = "
+		    "(hex) %02x/%02x/%02x/%02x/%02x/%02x\n",
+		    np->sv_scntl3, np->sv_dmode, np->sv_dcntl, np->sv_ctest3,
+		    np->sv_ctest4, np->sv_ctest5);
 
-		printf ("%s: final   SCNTL3/DMODE/DCNTL/CTEST3/4/5 = "
-			"(hex) %02x/%02x/%02x/%02x/%02x/%02x\n",
-			sym_name(np), np->rv_scntl3, np->rv_dmode, np->rv_dcntl,
-			np->rv_ctest3, np->rv_ctest4, np->rv_ctest5);
+		device_printf(np->device,
+		    "final   SCNTL3/DMODE/DCNTL/CTEST3/4/5 = "
+		    "(hex) %02x/%02x/%02x/%02x/%02x/%02x\n",
+		    np->rv_scntl3, np->rv_dmode, np->rv_dcntl,
+		    np->rv_ctest3, np->rv_ctest4, np->rv_ctest5);
 	}
 	/*
 	 *  Let user be aware of targets that have some disable flags set.
@@ -2911,7 +2908,7 @@ static void sym_put_start_queue(hcb_p np, ccb_p cp)
 	np->squeueput = qidx;
 
 	if (DEBUG_FLAGS & DEBUG_QUEUE)
-		printf ("%s: queuepos=%d.\n", sym_name (np), np->squeueput);
+		device_printf(np->device, "queuepos=%d.\n", np->squeueput);
 
 	/*
 	 *  Script processor may be waiting for reselect.
@@ -2965,8 +2962,8 @@ static void sym_soft_reset (hcb_p np)
 		}
 	}
 	if (!i)
-		printf("%s: unable to abort current chip operation.\n",
-			sym_name(np));
+		device_printf(np->device,
+		    "unable to abort current chip operation.\n");
 	sym_chip_reset (np);
 }
 
@@ -3016,13 +3013,12 @@ static int sym_reset_scsi_bus(hcb_p np, int enab_int)
 		term &= 0x3ffff;
 
 	if (term != (2<<7)) {
-		printf("%s: suspicious SCSI data while resetting the BUS.\n",
-			sym_name(np));
-		printf("%s: %sdp0,d7-0,rst,req,ack,bsy,sel,atn,msg,c/d,i/o = "
-			"0x%lx, expecting 0x%lx\n",
-			sym_name(np),
-			(np->features & FE_WIDE) ? "dp1,d15-8," : "",
-			(u_long)term, (u_long)(2<<7));
+		device_printf(np->device,
+		    "suspicious SCSI data while resetting the BUS.\n");
+		device_printf(np->device,
+		    "%sdp0,d7-0,rst,req,ack,bsy,sel,atn,msg,c/d,i/o = "
+		    "0x%lx, expecting 0x%lx\n", (np->features & FE_WIDE) ?
+		    "dp1,d15-8," : "", (u_long)term, (u_long)(2 << 7));
 		if (SYM_SETUP_SCSI_BUS_CHECK == 1)
 			retv = 1;
 	}
@@ -3062,10 +3058,9 @@ static int sym_wakeup_done (hcb_p np)
 			MEMORY_BARRIER();
 			sym_complete_ok (np, cp);
 			++n;
-		}
-		else
-			printf ("%s: bad DSA (%x) in done queue.\n",
-				sym_name(np), (u_int) dsa);
+		} else
+			device_printf(np->device,
+			    "bad DSA (%x) in done queue.\n", (u_int)dsa);
 	}
 	np->dqueueget = i;
 
@@ -3286,8 +3281,8 @@ static void sym_init (hcb_p np, int reason)
 	 */
 	if (np->ram_ba) {
 		if (sym_verbose > 1)
-			printf ("%s: Downloading SCSI SCRIPTS.\n",
-				sym_name(np));
+			device_printf(np->device,
+			    "Downloading SCSI SCRIPTS.\n");
 		if (np->ram_ws == 8192) {
 			OUTRAM_OFF(4096, np->scriptb0, np->scriptb_sz);
 			OUTL (nc_mmws, np->scr_ram_seg);
@@ -3710,11 +3705,11 @@ static void sym_log_hard_error(hcb_p np, u_short sist, u_char dstat)
 
 	if (((script_ofs & 3) == 0) &&
 	    (unsigned)script_ofs < script_size) {
-		printf ("%s: script cmd = %08x\n", sym_name(np),
-			scr_to_cpu((int) *(u32 *)(script_base + script_ofs)));
+		device_printf(np->device, "script cmd = %08x\n",
+		    scr_to_cpu((int) *(u32 *)(script_base + script_ofs)));
 	}
 
-        printf ("%s: regdump:", sym_name(np));
+	device_printf(np->device, "regdump:");
         for (i = 0; i < 24; i++)
             printf (" %02x", (unsigned)INB_OFF(i));
         printf (".\n");
@@ -3727,8 +3722,8 @@ static void sym_log_hard_error(hcb_p np, u_short sist, u_char dstat)
 		pci_sts = pci_read_config(np->device, PCIR_STATUS, 2);
 		if (pci_sts & 0xf900) {
 			pci_write_config(np->device, PCIR_STATUS, pci_sts, 2);
-			printf("%s: PCI STATUS = 0x%04x\n",
-				sym_name(np), pci_sts & 0xf900);
+			device_printf(np->device, "PCI STATUS = 0x%04x\n",
+			    pci_sts & 0xf900);
 		}
 	}
 }
@@ -3933,9 +3928,9 @@ unknown_int:
 	 *  We just miss the cause of the interrupt. :(
 	 *  Print a message. The timeout will do the real work.
 	 */
-	printf(	"%s: unknown interrupt(s) ignored, "
-		"ISTAT=0x%x DSTAT=0x%x SIST=0x%x\n",
-		sym_name(np), istat, dstat, sist);
+	device_printf(np->device,
+	    "unknown interrupt(s) ignored, ISTAT=0x%x DSTAT=0x%x SIST=0x%x\n",
+	    istat, dstat, sist);
 }
 
 static void sym_intr(void *arg)
@@ -4050,7 +4045,7 @@ static void sym_int_sto (hcb_p np)
  */
 static void sym_int_udc (hcb_p np)
 {
-	printf ("%s: unexpected disconnect\n", sym_name(np));
+	device_printf(np->device, "unexpected disconnect\n");
 	sym_recover_scsi_int(np, HS_UNEXPECTED);
 }
 
@@ -4117,8 +4112,9 @@ static void sym_int_par (hcb_p np, u_short sist)
 	int phase	= cmd & 7;
 	ccb_p	cp	= sym_ccb_from_dsa(np, dsa);
 
-	printf("%s: SCSI parity error detected: SCR1=%d DBC=%x SBCL=%x\n",
-		sym_name(np), hsts, dbc, sbcl);
+	device_printf(np->device,
+	    "SCSI parity error detected: SCR1=%d DBC=%x SBCL=%x\n", hsts, dbc,
+	    sbcl);
 
 	/*
 	 *  Check that the chip is connected to the SCSI BUS.
@@ -4305,14 +4301,14 @@ static void sym_int_ma (hcb_p np)
 	}
 
 	if (!vdsp) {
-		printf ("%s: interrupted SCRIPT address not found.\n",
-			sym_name (np));
+		device_printf(np->device,
+		    "interrupted SCRIPT address not found.\n");
 		goto reset_all;
 	}
 
 	if (!cp) {
-		printf ("%s: SCSI phase error fixup: CCB already dequeued.\n",
-			sym_name (np));
+		device_printf(np->device,
+		    "SCSI phase error fixup: CCB already dequeued.\n");
 		goto reset_all;
 	}
 
@@ -6757,15 +6753,15 @@ restart_test:
 	dstat = INB (nc_dstat);
 #if 1	/* Band aiding for broken hardwares that fail PCI parity */
 	if ((dstat & MDPE) && (np->rv_ctest4 & MPEE)) {
-		printf ("%s: PCI DATA PARITY ERROR DETECTED - "
-			"DISABLING MASTER DATA PARITY CHECKING.\n",
-			sym_name(np));
+		device_printf(np->device, "PCI DATA PARITY ERROR DETECTED - "
+		    "DISABLING MASTER DATA PARITY CHECKING.\n");
 		np->rv_ctest4 &= ~MPEE;
 		goto restart_test;
 	}
 #endif
 	if (dstat & (MDPE|BF|IID)) {
-		printf ("CACHE TEST FAILED: DMA error (dstat=0x%02x).", dstat);
+		device_printf(np->device,
+		    "CACHE TEST FAILED: DMA error (dstat=0x%02x).\n", dstat);
 		return (0x80);
 	}
 	/*
@@ -6783,28 +6779,32 @@ restart_test:
 	 *  Check termination position.
 	 */
 	if (pc != SCRIPTB0_BA (np, snoopend)+8) {
-		printf ("CACHE TEST FAILED: script execution failed.\n");
-		printf ("start=%08lx, pc=%08lx, end=%08lx\n",
-			(u_long) SCRIPTB0_BA (np, snooptest), (u_long) pc,
-			(u_long) SCRIPTB0_BA (np, snoopend) +8);
+		device_printf(np->device,
+		    "CACHE TEST FAILED: script execution failed.\n");
+		device_printf(np->device, "start=%08lx, pc=%08lx, end=%08lx\n",
+		    (u_long)SCRIPTB0_BA(np, snooptest), (u_long)pc,
+		    (u_long)SCRIPTB0_BA(np, snoopend) + 8);
 		return (0x40);
 	}
 	/*
 	 *  Show results.
 	 */
 	if (host_wr != sym_rd) {
-		printf ("CACHE TEST FAILED: host wrote %d, chip read %d.\n",
-			(int) host_wr, (int) sym_rd);
+		device_printf(np->device,
+		    "CACHE TEST FAILED: host wrote %d, chip read %d.\n",
+		    (int)host_wr, (int)sym_rd);
 		err |= 1;
 	}
 	if (host_rd != sym_wr) {
-		printf ("CACHE TEST FAILED: chip wrote %d, host read %d.\n",
-			(int) sym_wr, (int) host_rd);
+		device_printf(np->device,
+		    "CACHE TEST FAILED: chip wrote %d, host read %d.\n",
+		    (int)sym_wr, (int)host_rd);
 		err |= 2;
 	}
 	if (sym_bk != sym_wr) {
-		printf ("CACHE TEST FAILED: chip wrote %d, read back %d.\n",
-			(int) sym_wr, (int) sym_bk);
+		device_printf(np->device,
+		    "CACHE TEST FAILED: chip wrote %d, read back %d.\n",
+		    (int)sym_wr, (int)sym_bk);
 		err |= 4;
 	}
 
@@ -6843,7 +6843,7 @@ static void sym_selectclock(hcb_p np, u_char scntl3)
 	}
 
 	if (sym_verbose >= 2)
-		printf ("%s: enabling clock multiplier\n", sym_name(np));
+		device_printf(np->device, "enabling clock multiplier\n");
 
 	OUTB(nc_stest1, DBLEN);	   /* Enable clock multiplier		  */
 	/*
@@ -6855,8 +6855,8 @@ static void sym_selectclock(hcb_p np, u_char scntl3)
 		while (!(INB(nc_stest4) & LCKFRQ) && --i > 0)
 			UDELAY (20);
 		if (!i)
-			printf("%s: the chip cannot lock the frequency\n",
-				sym_name(np));
+			device_printf(np->device,
+			    "the chip cannot lock the frequency\n");
 	} else
 		UDELAY (20);
 	OUTB(nc_stest3, HSC);		/* Halt the scsi clock		*/
@@ -6911,8 +6911,8 @@ static unsigned getfreq (hcb_p np, int gen)
 	f = ms ? ((1 << gen) * 4340) / ms : 0;
 
 	if (sym_verbose >= 2)
-		printf ("%s: Delay (GEN=%d): %u msec, %u KHz\n",
-			sym_name(np), gen, ms, f);
+		device_printf(np->device, "Delay (GEN=%d): %u msec, %u KHz\n",
+		    gen, ms, f);
 
 	return f;
 }
@@ -6954,7 +6954,7 @@ static void sym_getclock (hcb_p np, int mult)
 	 */
 	if (mult > 1 && (stest1 & (DBLEN+DBLSEL)) == DBLEN+DBLSEL) {
 		if (sym_verbose >= 2)
-			printf ("%s: clock multiplier found\n", sym_name(np));
+			device_printf(np->device, "clock multiplier found\n");
 		np->multiplier = mult;
 	}
 
@@ -6968,7 +6968,7 @@ static void sym_getclock (hcb_p np, int mult)
 		f1 = sym_getfreq (np);
 
 		if (sym_verbose)
-			printf ("%s: chip clock is %uKHz\n", sym_name(np), f1);
+			device_printf(np->device, "chip clock is %uKHz\n", f1);
 
 		if	(f1 <	45000)		f1 =  40000;
 		else if (f1 <	55000)		f1 =  50000;
@@ -6976,8 +6976,8 @@ static void sym_getclock (hcb_p np, int mult)
 
 		if (f1 < 80000 && mult > 1) {
 			if (sym_verbose >= 2)
-				printf ("%s: clock multiplier assumed\n",
-					sym_name(np));
+				device_printf(np->device,
+				    "clock multiplier assumed\n");
 			np->multiplier	= mult;
 		}
 	} else {
@@ -7146,7 +7146,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 				    sense_returned;
 			else
 				csio->sense_resid = 0;
-			bcopy(cp->sns_bbuf, &csio->sense_data,
+			memcpy(&csio->sense_data, cp->sns_bbuf,
 			    MIN(csio->sense_len, sense_returned));
 #if 0
 			/*
@@ -7631,7 +7631,7 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		/* CDB is a pointer */
 		if (!(ccb_h->flags & CAM_CDB_PHYS)) {
 			/* CDB pointer is virtual */
-			bcopy(csio->cdb_io.cdb_ptr, cp->cdb_buf, cmd_len);
+			memcpy(cp->cdb_buf, csio->cdb_io.cdb_ptr, cmd_len);
 			cmd_ba = CCB_BA (cp, cdb_buf[0]);
 		} else {
 			/* CDB pointer is physical */
@@ -7644,7 +7644,7 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		}
 	} else {
 		/* CDB is in the CAM ccb (buffer) */
-		bcopy(csio->cdb_io.cdb_bytes, cp->cdb_buf, cmd_len);
+		memcpy(cp->cdb_buf, csio->cdb_io.cdb_bytes, cmd_len);
 		cmd_ba = CCB_BA (cp, cdb_buf[0]);
 	}
 
@@ -7858,9 +7858,9 @@ sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp,
 		data->addr = cpu_to_scr(psegs2->ds_addr);
 		data->size = cpu_to_scr(psegs2->ds_len);
 		if (DEBUG_FLAGS & DEBUG_SCATTER) {
-			printf ("%s scatter: paddr=%lx len=%ld\n",
-				sym_name(np), (long) psegs2->ds_addr,
-				(long) psegs2->ds_len);
+			device_printf(np->device,
+			    "scatter: paddr=%lx len=%ld\n",
+			    (long)psegs2->ds_addr, (long)psegs2->ds_len);
 		}
 		if (psegs2 != psegs) {
 			--data;
@@ -7895,8 +7895,8 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 			pn = ps;
 		k = pe - pn;
 		if (DEBUG_FLAGS & DEBUG_SCATTER) {
-			printf ("%s scatter: paddr=%lx len=%ld\n",
-				sym_name(np), pn, k);
+			device_printf(np->device,
+			    "scatter: paddr=%lx len=%ld\n", pn, k);
 		}
 		cp->phys.data[s].addr = cpu_to_scr(pn);
 		cp->phys.data[s].size = cpu_to_scr(k);
@@ -8232,6 +8232,7 @@ sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 static device_method_t sym_pci_methods[] = {
 	DEVMETHOD(device_probe,	 sym_pci_probe),
 	DEVMETHOD(device_attach, sym_pci_attach),
+	DEVMETHOD(device_detach, sym_pci_detach),
 	DEVMETHOD_END
 };
 
@@ -8521,16 +8522,15 @@ sym_pci_attach(device_t dev)
 	 *  Alloc/get/map/retrieve the corresponding resources.
 	 */
 	if (np->features & (FE_RAM|FE_RAM8K)) {
-		int regs_id = SYM_PCI_RAM;
+		i = SYM_PCI_RAM;
 		if (np->features & FE_64BIT)
-			regs_id = SYM_PCI_RAM64;
-		np->ram_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-						     &regs_id, RF_ACTIVE);
+			i = SYM_PCI_RAM64;
+		np->ram_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i,
+		    RF_ACTIVE);
 		if (!np->ram_res) {
 			device_printf(dev,"failed to allocate RAM resources\n");
 			goto attach_failed;
 		}
-		np->ram_id  = regs_id;
 		np->ram_ba = rman_get_start(np->ram_res);
 	}
 
@@ -8631,8 +8631,8 @@ sym_pci_attach(device_t dev)
 	/*
 	 *  Copy scripts to controller instance.
 	 */
-	bcopy(fw->a_base, np->scripta0, np->scripta_sz);
-	bcopy(fw->b_base, np->scriptb0, np->scriptb_sz);
+	memcpy(np->scripta0, fw->a_base, np->scripta_sz);
+	memcpy(np->scriptb0, fw->b_base, np->scriptb_sz);
 
 	/*
 	 *  Setup variable parts in scripts and compute
@@ -8735,20 +8735,24 @@ sym_pci_attach(device_t dev)
 	 */
 attach_failed:
 	if (np)
-		sym_pci_free(np);
+		sym_pci_detach(dev);
 	return ENXIO;
 }
 
 /*
- *  Free everything that have been allocated for this device.
+ *  Detach a device by freeing everything that has been allocated for it.
  */
-static void sym_pci_free(hcb_p np)
+static int
+sym_pci_detach(device_t dev)
 {
+	hcb_p np;
 	SYM_QUEHEAD *qp;
 	ccb_p cp;
 	tcb_p tp;
 	lcb_p lp;
 	int target, lun;
+
+	np = device_get_softc(dev);
 
 	/*
 	 *  First free CAM resources.
@@ -8761,16 +8765,15 @@ static void sym_pci_free(hcb_p np)
 	 */
 	if (np->ram_res)
 		bus_release_resource(np->device, SYS_RES_MEMORY,
-				     np->ram_id, np->ram_res);
+		    rman_get_rid(np->ram_res), np->ram_res);
 	if (np->mmio_res)
 		bus_release_resource(np->device, SYS_RES_MEMORY,
-				     SYM_PCI_MMIO, np->mmio_res);
+		    rman_get_rid(np->mmio_res), np->mmio_res);
 	if (np->io_res)
 		bus_release_resource(np->device, SYS_RES_IOPORT,
-				     SYM_PCI_IO, np->io_res);
+		    rman_get_rid(np->io_res), np->io_res);
 	if (np->irq_res)
-		bus_release_resource(np->device, SYS_RES_IRQ,
-				     0, np->irq_res);
+		bus_release_resource(np->device, SYS_RES_IRQ, 0, np->irq_res);
 
 	if (np->scriptb0)
 		sym_mfree_dma(np->scriptb0, np->scriptb_sz, "SCRIPTB0");
@@ -8824,6 +8827,8 @@ static void sym_pci_free(hcb_p np)
 		SYM_LOCK_DESTROY();
 	device_set_softc(np->device, NULL);
 	sym_mfree_dma(np, sizeof(*np), "HCB");
+
+	return (0);
 }
 
 /*
@@ -8897,11 +8902,6 @@ static int sym_cam_attach(hcb_p np)
 
 	return 1;
 fail:
-	if (sim)
-		cam_sim_free(sim, FALSE);
-	if (devq)
-		cam_simq_free(devq);
-
 	SYM_UNLOCK();
 
 	sym_cam_free(np);
@@ -8924,14 +8924,15 @@ static void sym_cam_free(hcb_p np)
 
 	SYM_LOCK();
 
+	if (np->path) {
+		xpt_async(AC_LOST_DEVICE, np->path, NULL);
+		xpt_free_path(np->path);
+		np->path = NULL;
+	}
 	if (np->sim) {
 		xpt_bus_deregister(cam_sim_path(np->sim));
 		cam_sim_free(np->sim, /*free_devq*/ TRUE);
 		np->sim = NULL;
-	}
-	if (np->path) {
-		xpt_free_path(np->path);
-		np->path = NULL;
 	}
 
 	SYM_UNLOCK();
@@ -9057,14 +9058,14 @@ static void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
 	int i;
 
 	/* display Symbios nvram host data */
-	printf("%s: HOST ID=%d%s%s%s%s%s%s\n",
-		sym_name(np), nvram->host_id & 0x0f,
-		(nvram->flags  & SYMBIOS_SCAM_ENABLE)	? " SCAM"	:"",
-		(nvram->flags  & SYMBIOS_PARITY_ENABLE)	? " PARITY"	:"",
-		(nvram->flags  & SYMBIOS_VERBOSE_MSGS)	? " VERBOSE"	:"",
-		(nvram->flags  & SYMBIOS_CHS_MAPPING)	? " CHS_ALT"	:"",
-		(nvram->flags2 & SYMBIOS_AVOID_BUS_RESET)?" NO_RESET"	:"",
-		(nvram->flags1 & SYMBIOS_SCAN_HI_LO)	? " HI_LO"	:"");
+	device_printf(np->device, "HOST ID=%d%s%s%s%s%s%s\n",
+	   nvram->host_id & 0x0f,
+	   (nvram->flags  & SYMBIOS_SCAM_ENABLE)	? " SCAM"	: "",
+	   (nvram->flags  & SYMBIOS_PARITY_ENABLE)	? " PARITY"	: "",
+	   (nvram->flags  & SYMBIOS_VERBOSE_MSGS)	? " VERBOSE"	: "",
+	   (nvram->flags  & SYMBIOS_CHS_MAPPING)	? " CHS_ALT"	: "",
+	   (nvram->flags2 & SYMBIOS_AVOID_BUS_RESET)	? " NO_RESET"	: "",
+	   (nvram->flags1 & SYMBIOS_SCAN_HI_LO)		? " HI_LO"	: "");
 
 	/* display Symbios nvram drive data */
 	for (i = 0 ; i < 15 ; i++) {
@@ -9102,17 +9103,18 @@ static void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
 	case 2: rem = " REMOVABLE=all";		break;
 	}
 
-	printf("%s: HOST ID=%d%s%s%s%s%s%s%s%s%s BOOT DELAY=%d tags=%d\n",
-		sym_name(np), nvram->host_id & 0x0f,
-		(nvram->flags1 & SYMBIOS_SCAM_ENABLE)	? " SCAM"	:"",
-		(nvram->flags & TEKRAM_MORE_THAN_2_DRIVES) ? " >2DRIVES"	:"",
-		(nvram->flags & TEKRAM_DRIVES_SUP_1GB)	? " >1GB"	:"",
-		(nvram->flags & TEKRAM_RESET_ON_POWER_ON) ? " RESET"	:"",
-		(nvram->flags & TEKRAM_ACTIVE_NEGATION)	? " ACT_NEG"	:"",
-		(nvram->flags & TEKRAM_IMMEDIATE_SEEK)	? " IMM_SEEK"	:"",
-		(nvram->flags & TEKRAM_SCAN_LUNS)	? " SCAN_LUNS"	:"",
-		(nvram->flags1 & TEKRAM_F2_F6_ENABLED)	? " F2_F6"	:"",
-		rem, boot_delay, tags);
+	device_printf(np->device,
+	    "HOST ID=%d%s%s%s%s%s%s%s%s%s BOOT DELAY=%d tags=%d\n",
+	    nvram->host_id & 0x0f,
+	    (nvram->flags1 & SYMBIOS_SCAM_ENABLE)	? " SCAM"	: "",
+	    (nvram->flags & TEKRAM_MORE_THAN_2_DRIVES)	? " >2DRIVES"	: "",
+	    (nvram->flags & TEKRAM_DRIVES_SUP_1GB)	? " >1GB"	: "",
+	    (nvram->flags & TEKRAM_RESET_ON_POWER_ON)	? " RESET"	: "",
+	    (nvram->flags & TEKRAM_ACTIVE_NEGATION)	? " ACT_NEG"	: "",
+	    (nvram->flags & TEKRAM_IMMEDIATE_SEEK)	? " IMM_SEEK"	: "",
+	    (nvram->flags & TEKRAM_SCAN_LUNS)		? " SCAN_LUNS"	: "",
+	    (nvram->flags1 & TEKRAM_F2_F6_ENABLED)	? " F2_F6"	: "",
+	    rem, boot_delay, tags);
 
 	/* display Tekram nvram drive data */
 	for (i = 0; i <= 15; i++) {

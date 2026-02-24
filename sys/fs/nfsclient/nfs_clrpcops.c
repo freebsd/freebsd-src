@@ -4995,11 +4995,13 @@ nfsrpc_statfs(vnode_t vp, struct nfsstatfs *sbp, struct nfsfsinfo *fsp,
     uint32_t *leasep, uint32_t *cloneblksizep, struct ucred *cred, NFSPROC_T *p,
     struct nfsvattr *nap, int *attrflagp)
 {
+	struct nfsvattr na;
+	struct nfsv3_pathconf pc;
 	u_int32_t *tl = NULL;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	struct nfsmount *nmp;
 	nfsattrbit_t attrbits;
-	int error;
+	int attrflag, error;
 
 	*attrflagp = 0;
 	if (cloneblksizep != NULL)
@@ -5066,6 +5068,16 @@ nfsrpc_statfs(vnode_t vp, struct nfsstatfs *sbp, struct nfsfsinfo *fsp,
 		sbp->sf_bfree = fxdr_unsigned(u_int32_t, *tl++);
 		sbp->sf_bavail = fxdr_unsigned(u_int32_t, *tl);
 	}
+
+	/* Try and find out if the server fs is case-insensitive. */
+	error = nfsrpc_pathconf(vp, &pc, NULL, NULL, cred, p, &na, &attrflag,
+	    NULL);
+	if (error == 0 && pc.pc_caseinsensitive != 0) {
+		NFSLOCKMNT(nmp);
+		nmp->nm_state |= NFSSTA_CASEINSENSITIVE;
+		NFSUNLOCKMNT(nmp);
+	}
+	error = 0;
 nfsmout:
 	m_freem(nd->nd_mrep);
 	return (error);
@@ -5086,9 +5098,11 @@ nfsrpc_pathconf(vnode_t vp, struct nfsv3_pathconf *pc, bool *has_namedattrp,
 	int error;
 	struct nfsnode *np;
 
-	*has_namedattrp = false;
+	if (has_namedattrp != NULL)
+		*has_namedattrp = false;
 	*attrflagp = 0;
-	*clone_blksizep = 0;
+	if (clone_blksizep != NULL)
+		*clone_blksizep = 0;
 	nmp = VFSTONFS(vp->v_mount);
 	if (NFSHASNFSV4(nmp)) {
 		np = VTONFS(vp);

@@ -139,5 +139,6 @@ extern u_long		moea64_pteg_count;
 extern u_long		moea64_pteg_mask;
 extern int		n_slbs;
 extern bool		moea64_has_lp_4k_16m;
+extern u_int		phys_avail_count;
 
 #endif /* _POWERPC_AIM_MMU_OEA64_H */

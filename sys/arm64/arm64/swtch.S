@@ -31,7 +31,6 @@
 
 #include "assym.inc"
 #include "opt_kstack_pages.h"
-#include "opt_sched.h"
 
 #include <sys/elf_common.h>
 
@@ -197,7 +196,7 @@ ENTRY(cpu_switch)
 	 * Release the old thread.
 	 */
 	stlr	x2, [x0, #TD_LOCK]
-#if defined(SCHED_ULE) && defined(SMP)
+#if defined(SMP)
 	/* Spin if TD_LOCK points to a blocked_lock */
 	ldr	x2, =_C_LABEL(blocked_lock)
 1:

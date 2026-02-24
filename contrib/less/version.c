@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -1061,6 +1061,23 @@ v684  9/18/25   Allow mixing of options and filenames on command line;
                 add LESS_TERMCAP_SUSPEND & LESS_TERMCAP_RESUME.
 v685  10/4/25   Make --incsearch return to same column as well as same line;
                 fix some problems reported by valgrind.
+v686  10/30/25  Map keypad keys; make HOME/END scroll horizontally; 
+                retain saved marks even if --save-marks is not specified;
+                fix repaint bug with --form-feed; fix bugs passing negative
+                values to cmd line options.
+v687  11/17/25  Disallow opening OSC8 link via mouse in secure mode;
+                add --autosave; make SIGHUP act like SIGTERM; add ESC-f.
+v688  11/28/25  Add LESSNOCONFIG; defer "ti" until first char received;
+                don't auto-bold line numbers.
+v689  12/27/25  Add prompt seqs %C, %W, %Q, ?Q; don't allow any command to
+                interrupt waiting for data; fix screen resize on Windows;
+                add --without-termlib.
+v690  12/31/25  Cleanup.
+v691  1/10/26   Fix mingw build.
+v692  1/29/26   Fix memory leak in setupterm; clear termio ICRNL|INLCR;
+                fix bug with negative value in -z; fix bug with empty 
+                terminfo caps; make lesstest ignore nl_langinfo;
+				revert HOME/END to g/G; add keys & cmds to lesskey parser.
 */
 
-char version[] = "685";
+char version[] = "692";

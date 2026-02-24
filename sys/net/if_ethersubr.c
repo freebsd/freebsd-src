@@ -479,7 +479,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 #if defined(INET6) && defined(INET)
 	/* draft-ietf-6man-ipv6only-flag */
 	/* Catch ETHERTYPE_IP, and ETHERTYPE_[REV]ARP if we are v6-only. */
-	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY_MASK) != 0) {
+	if ((ifp->if_inet6->nd_flags & ND6_IFF_IPV6_ONLY_MASK) != 0) {
 		struct ether_header *eh;
 
 		eh = mtod(m, struct ether_header *);
@@ -545,7 +545,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 #if defined(INET6) && defined(INET)
 	/* draft-ietf-6man-ipv6only-flag */
 	/* Catch ETHERTYPE_IP, and ETHERTYPE_[REV]ARP if we are v6-only. */
-	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY_MASK) != 0) {
+	if ((ifp->if_inet6->nd_flags & ND6_IFF_IPV6_ONLY_MASK) != 0) {
 		switch (etype) {
 		case ETHERTYPE_IP:
 		case ETHERTYPE_ARP:

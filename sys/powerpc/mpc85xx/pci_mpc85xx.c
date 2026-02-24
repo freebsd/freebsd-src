@@ -360,13 +360,13 @@ fsl_pcib_attach(device_t dev)
 
 	error = ofw_pcib_init(dev);
 	if (error)
-		return (error);
+		goto err;
 
 	/*
 	 * Configure decode windows for PCI(E) access.
 	 */
 	if (fsl_pcib_decode_win(node, sc) != 0)
-		goto err;
+		goto err1;
 
 	cfgreg = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_COMMAND, 2);
 	cfgreg |= PCIM_CMD_SERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN |
@@ -392,6 +392,7 @@ fsl_pcib_attach(device_t dev)
 	if (sc->sc_pcie) {
 		ltssm = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_LTSSM, 1);
 		if (ltssm < LTSSM_STAT_L0) {
+			/* Stay attached, it may change later. */
 			if (bootverbose)
 				printf("PCI %d: no PCIE link, skipping\n",
 				    device_get_unit(dev));
@@ -432,7 +433,15 @@ fsl_pcib_attach(device_t dev)
 
 	return (ofw_pcib_attach(dev));
 
+err1:
+	ofw_pcib_fini(dev);
 err:
+	if (sc->sc_irq_res != NULL)
+		bus_release_resource(dev, sc->sc_irq_res);
+	if (sc->sc_res != NULL)
+		bus_release_resource(dev, sc->sc_res);
+	mtx_destroy(&sc->sc_cfg_mtx);
+
 	return (ENXIO);
 }
 
@@ -680,8 +689,14 @@ fsl_pcib_detach(device_t dev)
 		return (error);
 
 	sc = device_get_softc(dev);
+	ofw_pcib_fini(dev);
 
 	mtx_destroy(&sc->sc_cfg_mtx);
+
+	if (sc->sc_irq_res != NULL)
+		bus_release_resource(dev, sc->sc_irq_res);
+	if (sc->sc_res != NULL)
+		bus_release_resource(dev, sc->sc_res);
 
 	return (0);
 }

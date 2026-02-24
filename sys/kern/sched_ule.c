@@ -37,12 +37,10 @@
  * Isilon Systems and a general lack of creativity on the part of the author.
  */
 
-#include <sys/cdefs.h>
 #include "opt_hwpmc_hooks.h"
 #include "opt_hwt_hooks.h"
 #include "opt_sched.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -72,12 +70,6 @@
 
 #ifdef HWT_HOOKS
 #include <dev/hwt/hwt_hook.h>
-#endif
-
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-int __read_mostly		dtrace_vtime_active;
-dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #endif
 
 #include <machine/cpu.h>
@@ -312,7 +304,6 @@ struct tdq {
 				 atomic_load_short(&(tdq)->tdq_switchcnt) + 1))
 
 #ifdef SMP
-struct cpu_group __read_mostly *cpu_top;		/* CPU topology */
 
 #define	SCHED_AFFINITY_DEFAULT	(max(1, hz / 1000))
 /*
@@ -406,35 +397,7 @@ static void sched_balance(void);
 static bool sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct thread *, int, int);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
-static int sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS);
-static int sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, 
-    struct cpu_group *cg, int indent);
 #endif
-
-static void sched_setup(void *dummy);
-SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL);
-
-static void sched_initticks(void *dummy);
-SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
-    NULL);
-
-SDT_PROVIDER_DEFINE(sched);
-
-SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *", 
-    "struct proc *", "uint8_t");
-SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *", 
-    "struct proc *", "void *");
-SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *", 
-    "struct proc *", "void *", "int");
-SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *", 
-    "struct proc *", "uint8_t", "struct thread *");
-SDT_PROBE_DEFINE2(sched, , , load__change, "int", "int");
-SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *", 
-    "struct proc *");
-SDT_PROBE_DEFINE(sched, , , on__cpu);
-SDT_PROBE_DEFINE(sched, , , remain__cpu);
-SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
-    "struct proc *");
 
 /*
  * Print the threads waiting on a run-queue.
@@ -1623,7 +1586,6 @@ sched_setup_smp(void)
 	struct tdq *tdq;
 	int i;
 
-	cpu_top = smp_topo();
 	CPU_FOREACH(i) {
 		tdq = DPCPU_ID_PTR(i, tdq);
 		tdq_setup(tdq, i);
@@ -1642,7 +1604,7 @@ sched_setup_smp(void)
  * information.
  */
 static void
-sched_setup(void *dummy)
+sched_ule_setup(void)
 {
 	struct tdq *tdq;
 
@@ -1667,7 +1629,7 @@ sched_setup(void *dummy)
  */
 /* ARGSUSED */
 static void
-sched_initticks(void *dummy)
+sched_ule_initticks(void)
 {
 	int incr;
 
@@ -1891,8 +1853,8 @@ sched_interact_fork(struct thread *td)
 /*
  * Called from proc0_init() to setup the scheduler fields.
  */
-void
-schedinit(void)
+static void
+sched_ule_init(void)
 {
 	struct td_sched *ts0;
 
@@ -1916,8 +1878,8 @@ schedinit(void)
  * TDQ_SELF() relies on the below sched pcpu setting; it may be used only
  * after schedinit_ap().
  */
-void
-schedinit_ap(void)
+static void
+sched_ule_init_ap(void)
 {
 
 #ifdef SMP
@@ -1931,8 +1893,8 @@ schedinit_ap(void)
  * priority they will switch when their slices run out, which will be
  * at most sched_slice stathz ticks.
  */
-int
-sched_rr_interval(void)
+static int
+sched_ule_rr_interval(void)
 {
 
 	/* Convert sched_slice from stathz to hz. */
@@ -2051,8 +2013,8 @@ sched_thread_priority(struct thread *td, u_char prio)
  * Update a thread's priority when it is lent another thread's
  * priority.
  */
-void
-sched_lend_prio(struct thread *td, u_char prio)
+static void
+sched_ule_lend_prio(struct thread *td, u_char prio)
 {
 
 	td->td_flags |= TDF_BORROWING;
@@ -2067,8 +2029,8 @@ sched_lend_prio(struct thread *td, u_char prio)
  * important than prio, the thread will keep a priority boost
  * of prio.
  */
-void
-sched_unlend_prio(struct thread *td, u_char prio)
+static void
+sched_ule_unlend_prio(struct thread *td, u_char prio)
 {
 	u_char base_pri;
 
@@ -2087,8 +2049,8 @@ sched_unlend_prio(struct thread *td, u_char prio)
 /*
  * Standard entry for setting the priority to an absolute value.
  */
-void
-sched_prio(struct thread *td, u_char prio)
+static void
+sched_ule_prio(struct thread *td, u_char prio)
 {
 	u_char oldprio;
 
@@ -2117,8 +2079,8 @@ sched_prio(struct thread *td, u_char prio)
 /*
  * Set the base interrupt thread priority.
  */
-void
-sched_ithread_prio(struct thread *td, u_char prio)
+static void
+sched_ule_ithread_prio(struct thread *td, u_char prio)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	MPASS(td->td_pri_class == PRI_ITHD);
@@ -2129,8 +2091,8 @@ sched_ithread_prio(struct thread *td, u_char prio)
 /*
  * Set the base user priority, does not effect current running priority.
  */
-void
-sched_user_prio(struct thread *td, u_char prio)
+static void
+sched_ule_user_prio(struct thread *td, u_char prio)
 {
 
 	td->td_base_user_pri = prio;
@@ -2139,8 +2101,8 @@ sched_user_prio(struct thread *td, u_char prio)
 	td->td_user_pri = prio;
 }
 
-void
-sched_lend_user_prio(struct thread *td, u_char prio)
+static void
+sched_ule_lend_user_prio(struct thread *td, u_char prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -2155,8 +2117,8 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 /*
  * Like the above but first check if there is anything to do.
  */
-void
-sched_lend_user_prio_cond(struct thread *td, u_char prio)
+static void
+sched_ule_lend_user_prio_cond(struct thread *td, u_char prio)
 {
 
 	if (td->td_lend_user_pri == prio)
@@ -2327,8 +2289,8 @@ thread_unblock_switch(struct thread *td, struct mtx *mtx)
  * migrating a thread from one queue to another as running threads may
  * be assigned elsewhere via binding.
  */
-void
-sched_switch(struct thread *td, int flags)
+static void
+sched_ule_sswitch(struct thread *td, int flags)
 {
 	struct thread *newtd;
 	struct tdq *tdq;
@@ -2466,8 +2428,8 @@ sched_switch(struct thread *td, int flags)
 /*
  * Adjust thread priorities as a result of a nice request.
  */
-void
-sched_nice(struct proc *p, int nice)
+static void
+sched_ule_nice(struct proc *p, int nice)
 {
 	struct thread *td;
 
@@ -2485,8 +2447,8 @@ sched_nice(struct proc *p, int nice)
 /*
  * Record the sleep time for the interactivity scorer.
  */
-void
-sched_sleep(struct thread *td, int prio)
+static void
+sched_ule_sleep(struct thread *td, int prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -2506,8 +2468,8 @@ sched_sleep(struct thread *td, int prio)
  *
  * Requires the thread lock on entry, drops on exit.
  */
-void
-sched_wakeup(struct thread *td, int srqflags)
+static void
+sched_ule_wakeup(struct thread *td, int srqflags)
 {
 	struct td_sched *ts;
 	int slptick;
@@ -2546,8 +2508,8 @@ sched_wakeup(struct thread *td, int srqflags)
  * Penalize the parent for creating a new child and initialize the child's
  * priority.
  */
-void
-sched_fork(struct thread *td, struct thread *child)
+static void
+sched_ule_fork(struct thread *td, struct thread *child)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	sched_pctcpu_update(td_get_sched(td), 1);
@@ -2565,8 +2527,8 @@ sched_fork(struct thread *td, struct thread *child)
 /*
  * Fork a new thread, may be within the same process.
  */
-void
-sched_fork_thread(struct thread *td, struct thread *child)
+static void
+sched_ule_fork_thread(struct thread *td, struct thread *child)
 {
 	struct td_sched *ts;
 	struct td_sched *ts2;
@@ -2611,8 +2573,8 @@ sched_fork_thread(struct thread *td, struct thread *child)
 /*
  * Adjust the priority class of a thread.
  */
-void
-sched_class(struct thread *td, int class)
+static void
+sched_ule_class(struct thread *td, int class)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -2624,8 +2586,8 @@ sched_class(struct thread *td, int class)
 /*
  * Return some of the child's priority and interactivity to the parent.
  */
-void
-sched_exit(struct proc *p, struct thread *child)
+static void
+sched_ule_exit(struct proc *p, struct thread *child)
 {
 	struct thread *td;
 
@@ -2642,8 +2604,8 @@ sched_exit(struct proc *p, struct thread *child)
  * jobs such as make.  This has little effect on the make process itself but
  * causes new processes spawned by it to receive worse scores immediately.
  */
-void
-sched_exit_thread(struct thread *td, struct thread *child)
+static void
+sched_ule_exit_thread(struct thread *td, struct thread *child)
 {
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "thread exit",
@@ -2660,8 +2622,8 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	thread_unlock(td);
 }
 
-void
-sched_preempt(struct thread *td)
+static void
+sched_ule_preempt(struct thread *td)
 {
 	struct tdq *tdq;
 	int flags;
@@ -2691,8 +2653,8 @@ sched_preempt(struct thread *td)
  * Fix priorities on return to user-space.  Priorities may be elevated due
  * to static priorities in msleep() or similar.
  */
-void
-sched_userret_slowpath(struct thread *td)
+static void
+sched_ule_userret_slowpath(struct thread *td)
 {
 
 	thread_lock(td);
@@ -2701,10 +2663,6 @@ sched_userret_slowpath(struct thread *td)
 	tdq_setlowpri(TDQ_SELF(), td);
 	thread_unlock(td);
 }
-
-SCHED_STAT_DEFINE(ithread_demotions, "Interrupt thread priority demotions");
-SCHED_STAT_DEFINE(ithread_preemptions,
-    "Interrupt thread preemptions due to time-sharing");
 
 /*
  * Return time slice for a given thread.  For ithreads this is
@@ -2722,8 +2680,8 @@ td_slice(struct thread *td, struct tdq *tdq)
  * Handle a stathz tick.  This is really only relevant for timeshare
  * and interrupt threads.
  */
-void
-sched_clock(struct thread *td, int cnt)
+static void
+sched_ule_clock(struct thread *td, int cnt)
 {
 	struct tdq *tdq;
 	struct td_sched *ts;
@@ -2808,8 +2766,8 @@ sched_clock(struct thread *td, int cnt)
 	}
 }
 
-u_int
-sched_estcpu(struct thread *td __unused)
+static u_int
+sched_ule_estcpu(struct thread *td __unused)
 {
 
 	return (0);
@@ -2819,8 +2777,8 @@ sched_estcpu(struct thread *td __unused)
  * Return whether the current CPU has runnable tasks.  Used for in-kernel
  * cooperative idle threads.
  */
-bool
-sched_runnable(void)
+static bool
+sched_ule_runnable(void)
 {
 	struct tdq *tdq;
 
@@ -2832,8 +2790,8 @@ sched_runnable(void)
  * Choose the highest priority thread to run.  The thread is removed from
  * the run-queue while running however the load remains.
  */
-struct thread *
-sched_choose(void)
+static struct thread *
+sched_ule_choose(void)
 {
 	struct thread *td;
 	struct tdq *tdq;
@@ -2909,8 +2867,8 @@ tdq_add(struct tdq *tdq, struct thread *td, int flags)
  *
  * Requires the thread lock on entry, drops on exit.
  */
-void
-sched_add(struct thread *td, int flags)
+static void
+sched_ule_add(struct thread *td, int flags)
 {
 	struct tdq *tdq;
 #ifdef SMP
@@ -2969,8 +2927,8 @@ sched_add(struct thread *td, int flags)
  * when we're stealing a thread from a remote queue.  Otherwise all threads
  * exit by calling sched_exit_thread() and sched_throw() themselves.
  */
-void
-sched_rem(struct thread *td)
+static void
+sched_ule_rem(struct thread *td)
 {
 	struct tdq *tdq;
 
@@ -2992,8 +2950,8 @@ sched_rem(struct thread *td)
 /*
  * Fetch cpu utilization information.  Updates on demand.
  */
-fixpt_t
-sched_pctcpu(struct thread *td)
+static fixpt_t
+sched_ule_pctcpu(struct thread *td)
 {
 	struct td_sched *ts;
 	u_int len;
@@ -3014,8 +2972,8 @@ sched_pctcpu(struct thread *td)
  * Enforce affinity settings for a thread.  Called after adjustments to
  * cpumask.
  */
-void
-sched_affinity(struct thread *td)
+static void
+sched_ule_affinity(struct thread *td)
 {
 #ifdef SMP
 	struct td_sched *ts;
@@ -3045,8 +3003,8 @@ sched_affinity(struct thread *td)
 /*
  * Bind a thread to a target cpu.
  */
-void
-sched_bind(struct thread *td, int cpu)
+static void
+sched_ule_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
@@ -3069,8 +3027,8 @@ sched_bind(struct thread *td, int cpu)
 /*
  * Release a bound thread.
  */
-void
-sched_unbind(struct thread *td)
+static void
+sched_ule_unbind(struct thread *td)
 {
 	struct td_sched *ts;
 
@@ -3083,8 +3041,8 @@ sched_unbind(struct thread *td)
 	sched_unpin();
 }
 
-int
-sched_is_bound(struct thread *td)
+static int
+sched_ule_is_bound(struct thread *td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	return (td_get_sched(td)->ts_flags & TSF_BOUND);
@@ -3093,8 +3051,8 @@ sched_is_bound(struct thread *td)
 /*
  * Basic yield call.
  */
-void
-sched_relinquish(struct thread *td)
+static void
+sched_ule_relinquish(struct thread *td)
 {
 	thread_lock(td);
 	mi_switch(SW_VOL | SWT_RELINQUISH);
@@ -3103,8 +3061,8 @@ sched_relinquish(struct thread *td)
 /*
  * Return the total system load.
  */
-int
-sched_load(void)
+static int
+sched_ule_load(void)
 {
 #ifdef SMP
 	int total;
@@ -3119,14 +3077,14 @@ sched_load(void)
 #endif
 }
 
-int
-sched_sizeof_proc(void)
+static int
+sched_ule_sizeof_proc(void)
 {
 	return (sizeof(struct proc));
 }
 
-int
-sched_sizeof_thread(void)
+static int
+sched_ule_sizeof_thread(void)
 {
 	return (sizeof(struct thread) + sizeof(struct td_sched));
 }
@@ -3141,8 +3099,8 @@ sched_sizeof_thread(void)
 /*
  * The actual idle process.
  */
-void
-sched_idletd(void *dummy)
+static void
+sched_ule_idletd(void *dummy)
 {
 	struct thread *td;
 	struct tdq *tdq;
@@ -3244,8 +3202,8 @@ sched_throw_grab(struct tdq *tdq)
 /*
  * A CPU is entering for the first time.
  */
-void
-sched_ap_entry(void)
+static void
+sched_ule_ap_entry(void)
 {
 	struct thread *newtd;
 	struct tdq *tdq;
@@ -3274,8 +3232,8 @@ sched_ap_entry(void)
 /*
  * A thread is exiting.
  */
-void
-sched_throw(struct thread *td)
+static void
+sched_ule_throw(struct thread *td)
 {
 	struct thread *newtd;
 	struct tdq *tdq;
@@ -3305,8 +3263,8 @@ sched_throw(struct thread *td)
  * This is called from fork_exit().  Just acquire the correct locks and
  * let fork do the rest of the work.
  */
-void
-sched_fork_exit(struct thread *td)
+static void
+sched_ule_fork_exit(struct thread *td)
 {
 	struct tdq *tdq;
 	int cpuid;
@@ -3331,8 +3289,8 @@ sched_fork_exit(struct thread *td)
 /*
  * Create on first use to catch odd startup conditions.
  */
-char *
-sched_tdname(struct thread *td)
+static char *
+sched_ule_tdname(struct thread *td)
 {
 #ifdef KTR
 	struct td_sched *ts;
@@ -3347,98 +3305,147 @@ sched_tdname(struct thread *td)
 #endif
 }
 
-#ifdef KTR
-void
-sched_clear_tdname(struct thread *td)
+static void
+sched_ule_clear_tdname(struct thread *td)
 {
+#ifdef KTR
 	struct td_sched *ts;
 
 	ts = td_get_sched(td);
 	ts->ts_name[0] = '\0';
-}
 #endif
+}
+
+static void
+sched_ule_schedcpu(void)
+{
+}
+
+static bool
+sched_ule_do_timer_accounting(void)
+{
+	return (true);
+}
 
 #ifdef SMP
-
-/*
- * Build the CPU topology dump string. Is recursively called to collect
- * the topology tree.
- */
 static int
-sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
-    int indent)
+sched_ule_find_child_with_core(int cpu, struct cpu_group *grp)
 {
-	char cpusetbuf[CPUSETBUFSIZ];
-	int i, first;
+	int i;
 
-	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
-	    "", 1 + indent / 2, cg->cg_level);
-	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"%s\">", indent, "",
-	    cg->cg_count, cpusetobj_strprint(cpusetbuf, &cg->cg_mask));
-	first = TRUE;
-	for (i = cg->cg_first; i <= cg->cg_last; i++) {
-		if (CPU_ISSET(i, &cg->cg_mask)) {
-			if (!first)
-				sbuf_cat(sb, ", ");
-			else
-				first = FALSE;
-			sbuf_printf(sb, "%d", i);
-		}
-	}
-	sbuf_cat(sb, "</cpu>\n");
+	if (grp->cg_children == 0)
+		return (-1);
 
-	if (cg->cg_flags != 0) {
-		sbuf_printf(sb, "%*s <flags>", indent, "");
-		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
-			sbuf_cat(sb, "<flag name=\"HTT\">HTT group</flag>");
-		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
-			sbuf_cat(sb, "<flag name=\"THREAD\">THREAD group</flag>");
-		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
-			sbuf_cat(sb, "<flag name=\"SMT\">SMT group</flag>");
-		if ((cg->cg_flags & CG_FLAG_NODE) != 0)
-			sbuf_cat(sb, "<flag name=\"NODE\">NUMA node</flag>");
-		sbuf_cat(sb, "</flags>\n");
+	MPASS(grp->cg_child);
+	for (i = 0; i < grp->cg_children; i++) {
+		if (CPU_ISSET(cpu, &grp->cg_child[i].cg_mask))
+			return (i);
 	}
 
-	if (cg->cg_children > 0) {
-		sbuf_printf(sb, "%*s <children>\n", indent, "");
-		for (i = 0; i < cg->cg_children; i++)
-			sysctl_kern_sched_topology_spec_internal(sb, 
-			    &cg->cg_child[i], indent+2);
-		sbuf_printf(sb, "%*s </children>\n", indent, "");
-	}
-	sbuf_printf(sb, "%*s</group>\n", indent, "");
-	return (0);
+	return (-1);
 }
 
-/*
- * Sysctl handler for retrieving topology dump. It's a wrapper for
- * the recursive sysctl_kern_smp_topology_spec_internal().
- */
 static int
-sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
+sched_ule_find_l2_neighbor(int cpu)
 {
-	struct sbuf *topo;
-	int err;
+	struct cpu_group *grp;
+	int i;
 
-	KASSERT(cpu_top != NULL, ("cpu_top isn't initialized"));
+	grp = cpu_top;
+	if (grp == NULL)
+		return (-1);
 
-	topo = sbuf_new_for_sysctl(NULL, NULL, 512, req);
-	if (topo == NULL)
-		return (ENOMEM);
-
-	sbuf_cat(topo, "<groups>\n");
-	err = sysctl_kern_sched_topology_spec_internal(topo, cpu_top, 1);
-	sbuf_cat(topo, "</groups>\n");
-
-	if (err == 0) {
-		err = sbuf_finish(topo);
+	/*
+	 * Find the smallest CPU group that contains the given core.
+	 */
+	i = 0;
+	while ((i = sched_ule_find_child_with_core(cpu, grp)) != -1) {
+		/*
+		 * If the smallest group containing the given CPU has less
+		 * than two members, we conclude the given CPU has no
+		 * L2 neighbor.
+		 */
+		if (grp->cg_child[i].cg_count <= 1)
+			return (-1);
+		grp = &grp->cg_child[i];
 	}
-	sbuf_delete(topo);
-	return (err);
-}
 
+	/* Must share L2. */
+	if (grp->cg_level > CG_SHARE_L2 || grp->cg_level == CG_SHARE_NONE)
+		return (-1);
+
+	/*
+	 * Select the first member of the set that isn't the reference
+	 * CPU, which at this point is guaranteed to exist.
+	 */
+	for (i = 0; i < CPU_SETSIZE; i++) {
+		if (CPU_ISSET(i, &grp->cg_mask) && i != cpu)
+			return (i);
+	}
+
+	/* Should never be reached */
+	return (-1);
+}
+#else
+static int
+sched_ule_find_l2_neighbor(int cpu)
+{
+	return (-1);
+}
 #endif
+
+struct sched_instance sched_ule_instance = {
+#define	SLOT(name) .name = sched_ule_##name
+	SLOT(load),
+	SLOT(rr_interval),
+	SLOT(runnable),
+	SLOT(exit),
+	SLOT(fork),
+	SLOT(fork_exit),
+	SLOT(class),
+	SLOT(nice),
+	SLOT(ap_entry),
+	SLOT(exit_thread),
+	SLOT(estcpu),
+	SLOT(fork_thread),
+	SLOT(ithread_prio),
+	SLOT(lend_prio),
+	SLOT(lend_user_prio),
+	SLOT(lend_user_prio_cond),
+	SLOT(pctcpu),
+	SLOT(prio),
+	SLOT(sleep),
+	SLOT(sswitch),
+	SLOT(throw),
+	SLOT(unlend_prio),
+	SLOT(user_prio),
+	SLOT(userret_slowpath),
+	SLOT(add),
+	SLOT(choose),
+	SLOT(clock),
+	SLOT(idletd),
+	SLOT(preempt),
+	SLOT(relinquish),
+	SLOT(rem),
+	SLOT(wakeup),
+	SLOT(bind),
+	SLOT(unbind),
+	SLOT(is_bound),
+	SLOT(affinity),
+	SLOT(sizeof_proc),
+	SLOT(sizeof_thread),
+	SLOT(tdname),
+	SLOT(clear_tdname),
+	SLOT(do_timer_accounting),
+	SLOT(find_l2_neighbor),
+	SLOT(init),
+	SLOT(init_ap),
+	SLOT(setup),
+	SLOT(initticks),
+	SLOT(schedcpu),
+#undef SLOT
+};
+DECLARE_SCHEDULER(ule_sched_selector, "ULE", &sched_ule_instance);
 
 static int
 sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
@@ -3459,51 +3466,47 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "Scheduler");
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ULE", 0,
-    "Scheduler name");
-SYSCTL_PROC(_kern_sched, OID_AUTO, quantum,
+SYSCTL_NODE(_kern_sched, OID_AUTO, ule, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ULE Scheduler");
+
+SYSCTL_PROC(_kern_sched_ule, OID_AUTO, quantum,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kern_quantum, "I",
     "Quantum for timeshare threads in microseconds");
-SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
     "Quantum for timeshare threads in stathz ticks");
-SYSCTL_UINT(_kern_sched, OID_AUTO, interact, CTLFLAG_RWTUN, &sched_interact, 0,
+SYSCTL_UINT(_kern_sched_ule, OID_AUTO, interact, CTLFLAG_RWTUN, &sched_interact, 0,
     "Interactivity score threshold");
-SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, preempt_thresh, CTLFLAG_RWTUN,
     &preempt_thresh, 0,
     "Maximal (lowest) priority for preemption");
-SYSCTL_INT(_kern_sched, OID_AUTO, static_boost, CTLFLAG_RWTUN, &static_boost, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, static_boost, CTLFLAG_RWTUN,
+    &static_boost, 0,
     "Assign static kernel priorities to sleeping threads");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespins, CTLFLAG_RWTUN, &sched_idlespins, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, idlespins, CTLFLAG_RWTUN,
+    &sched_idlespins, 0,
     "Number of times idle thread will spin waiting for new work");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespinthresh, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, idlespinthresh, CTLFLAG_RW,
     &sched_idlespinthresh, 0,
     "Threshold before we will permit idle thread spinning");
 #ifdef SMP
-SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
     "Number of hz ticks to keep thread affinity for");
-SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RWTUN, &rebalance, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, balance, CTLFLAG_RWTUN, &rebalance, 0,
     "Enables the long-term load balancer");
-SYSCTL_INT(_kern_sched, OID_AUTO, balance_interval, CTLFLAG_RW,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, balance_interval, CTLFLAG_RW,
     &balance_interval, 0,
     "Average period in stathz ticks to run the long-term balancer");
-SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RWTUN, &steal_idle, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, steal_idle, CTLFLAG_RWTUN,
+    &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
-SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RWTUN, &steal_thresh, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, steal_thresh, CTLFLAG_RWTUN,
+    &steal_thresh, 0,
     "Minimum load on remote CPU before we'll steal");
-SYSCTL_INT(_kern_sched, OID_AUTO, trysteal_limit, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, trysteal_limit, CTLFLAG_RWTUN,
     &trysteal_limit, 0,
     "Topological distance limit for stealing threads in sched_switch()");
-SYSCTL_INT(_kern_sched, OID_AUTO, always_steal, CTLFLAG_RWTUN, &always_steal, 0,
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, always_steal, CTLFLAG_RWTUN,
+    &always_steal, 0,
     "Always run the stealer from the idle thread");
-SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
-    CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A",
-    "XML dump of detected CPU topology");
 #endif
-
-/* ps compat.  All cpu percentages from ULE are weighted. */
-static int ccpu = 0;
-SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
-    "Decay factor used for updating %CPU in 4BSD scheduler");

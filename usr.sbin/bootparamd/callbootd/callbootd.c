@@ -111,7 +111,7 @@ main(int argc, char **argv)
 			       (char *)&whoami_arg,
 			       (xdrproc_t)xdr_bp_whoami_res,
 			       (char *)&stat_whoami_res,
-			       (resultproc_t)eachres_whoami);
+			       (clnt_broadcast_resultproc_t)eachres_whoami);
        exit(0);
      }
 
@@ -134,7 +134,7 @@ main(int argc, char **argv)
 			       (char *)&getfile_arg,
 			       (xdrproc_t)xdr_bp_getfile_res,
 			       (char *)&stat_getfile_res,
-			       (resultproc_t)eachres_getfile);
+			       (clnt_broadcast_resultproc_t)eachres_getfile);
       exit(0);
     }
 

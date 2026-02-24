@@ -220,6 +220,9 @@ MALLOC_DEFINE(M_DPAA2_TXB, "dpaa2_txb", "DPAA2 DMA-mapped buffer (Tx)");
 #define	RXH_L4_B_2_3		(1 << 7) /* dst port in case of TCP/UDP/SCTP */
 #define	RXH_DISCARD		(1 << 31)
 
+/* Transmit checksum offload */
+#define DPAA2_CSUM_TX_OFFLOAD	(CSUM_IP | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)
+
 /* Default Rx hash options, set during attaching. */
 #define DPAA2_RXH_DEFAULT	(RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 | RXH_L4_B_2_3)
 
@@ -559,6 +562,7 @@ dpaa2_ni_attach(device_t dev)
 	if_settransmitfn(ifp, dpaa2_ni_transmit);
 	if_setqflushfn(ifp, dpaa2_ni_qflush);
 
+	if_sethwassist(sc->ifp, DPAA2_CSUM_TX_OFFLOAD);
 	if_setcapabilities(ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM |
 	    IFCAP_HWCSUM_IPV6 | IFCAP_JUMBO_MTU);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
@@ -2528,6 +2532,7 @@ dpaa2_ni_transmit(if_t ifp, struct mbuf *m)
 	ch = sc->channels[chidx];
 	error = buf_ring_enqueue(ch->xmit_br, m);
 	if (__predict_false(error != 0)) {
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
 	} else {
 		taskqueue_enqueue(ch->cleanup_tq, &ch->cleanup_task);
@@ -2598,25 +2603,11 @@ dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		changed = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
-		if (changed & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-			if ((ifr->ifr_reqcap & changed) &
-			    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-				if_setcapenablebit(ifp,
-				    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6, 0);
-			} else {
-				if_setcapenablebit(ifp, 0,
-				    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
-			}
-		}
-		if (changed & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) {
-			if ((ifr->ifr_reqcap & changed) &
-			    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) {
-				if_setcapenablebit(ifp,
-				    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6, 0);
-			} else {
-				if_setcapenablebit(ifp, 0,
-				    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
-			}
+		if ((changed & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) != 0)
+			if_togglecapenable(ifp, IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		if ((changed & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			if_togglehwassist(ifp, DPAA2_CSUM_TX_OFFLOAD);
 		}
 
 		rc = dpaa2_ni_setup_if_caps(sc);
@@ -2953,6 +2944,8 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 	bus_dma_segment_t segs[DPAA2_TX_SEGLIMIT];
 	int rc, nsegs;
 	int error;
+	int len;
+	bool mcast;
 
 	mtx_assert(&tx->lock, MA_NOTOWNED);
 	mtx_lock(&tx->lock);
@@ -2967,6 +2960,8 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 		buf->m = m;
 		sgt = buf->sgt;
 	}
+	len = m->m_pkthdr.len;
+	mcast = (m->m_flags & M_MCAST) != 0;
 
 #if defined(INVARIANTS)
 	struct dpaa2_ni_tx_ring *btx = (struct dpaa2_ni_tx_ring *)buf->opt;
@@ -2984,6 +2979,7 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 		if (md == NULL) {
 			device_printf(dev, "%s: m_collapse() failed\n", __func__);
 			fq->chan->tx_dropped++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			goto err;
 		}
 
@@ -2994,6 +2990,7 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 			device_printf(dev, "%s: bus_dmamap_load_mbuf_sg() "
 			    "failed: error=%d\n", __func__, error);
 			fq->chan->tx_dropped++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			goto err;
 		}
 	}
@@ -3003,6 +3000,7 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 		device_printf(dev, "%s: failed to build frame descriptor: "
 		    "error=%d\n", __func__, error);
 		fq->chan->tx_dropped++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		goto err_unload;
 	}
 
@@ -3020,8 +3018,13 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 
 	if (rc != 1) {
 		fq->chan->tx_dropped++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		goto err_unload;
 	} else {
+		if (mcast)
+			if_inc_counter(sc->ifp, IFCOUNTER_OMCASTS, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_OBYTES, len);
 		fq->chan->tx_frames++;
 	}
 	return;
@@ -3200,6 +3203,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq, struct dpaa2_fd *f
 	m->m_pkthdr.rcvif = sc->ifp;
 	m->m_pkthdr.flowid = fq->fqid;
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 
 	if (ctx->head == NULL) {
 		KASSERT(ctx->tail == NULL, ("%s: tail already given?", __func__));

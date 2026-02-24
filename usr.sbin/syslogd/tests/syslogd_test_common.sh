@@ -15,15 +15,13 @@ readonly SYSLOGD_CONFIG="${PWD}/syslog.conf"
 readonly SYSLOGD_LOCAL_SOCKET="${PWD}/log.sock"
 readonly SYSLOGD_PIDFILE="${PWD}/syslogd.pid"
 readonly SYSLOGD_LOCAL_PRIVSOCKET="${PWD}/logpriv.sock"
+readonly SYSLOGD_LOGFILE="${PWD}/log"
 
 # Start a private syslogd instance.
 syslogd_start()
 {
     local jail bind_arg conf_file pid_file socket privsocket
     local opt next other_args
-
-    # Setup loopback so we can deliver messages to ourself.
-    atf_check ifconfig lo0 inet 127.0.0.1/16
 
     OPTIND=1
     while getopts ":b:f:j:P:p:S:" opt; do
@@ -70,6 +68,16 @@ syslogd_start()
         esac
     done
 
+    socket=${socket:-${SYSLOGD_LOCAL_SOCKET}}
+    if [ -S "${socket}" ]; then
+        atf_fail "socket ${socket} already exists"
+    fi
+
+    # Setup loopback so we can deliver messages to ourself.
+    if [ $($jail sysctl -n security.jail.vnet) -ne 0 ]; then
+        atf_check $jail ifconfig lo0 inet 127.0.0.1/8
+    fi
+
     $jail syslogd \
         ${bind_arg:--b :${SYSLOGD_UDP_PORT}} \
         -C \
@@ -77,14 +85,19 @@ syslogd_start()
         -f "${conf_file:-${SYSLOGD_CONFIG}}" \
         -H \
         -P "${pid_file:-${SYSLOGD_PIDFILE}}" \
-        -p "${socket:-${SYSLOGD_LOCAL_SOCKET}}" \
+        -p "${socket}" \
         -S "${privsocket:-${SYSLOGD_LOCAL_PRIVSOCKET}}" \
         ${other_args} \
         &
 
     # Give syslogd a bit of time to spin up.
+    if grep -q "[[:space:]]${SYSLOGD_LOGFILE}$" "${conf_file:-${SYSLOGD_CONFIG}}"; then
+        while [ ! -f "${SYSLOGD_LOGFILE}" ]; do
+            sleep 0.1
+        done
+    fi
     while [ "$((i+=1))" -le 20 ]; do
-        [ -S "${socket:-${SYSLOGD_LOCAL_SOCKET}}" ] && return
+        [ -S "${socket}" ] && return
         sleep 0.1
     done
     atf_fail "timed out waiting for syslogd to start"
@@ -96,10 +109,19 @@ syslogd_log()
     atf_check -s exit:0 -o empty -e empty logger $*
 }
 
+syslogd_log_jail()
+{
+    local jailname=$1
+    shift
+    atf_check -s exit:0 -o empty -e empty jexec ${jailname} logger $*
+}
+
 # Make syslogd reload its configuration file.
 syslogd_reload()
 {
+    atf_check truncate -s 0 ${SYSLOGD_LOGFILE}
     atf_check pkill -HUP -F "${1:-${SYSLOGD_PIDFILE}}"
+    sleep 0.1
 }
 
 # Stop a private syslogd instance.
@@ -157,4 +179,29 @@ syslogd_cleanup()
     if [ -f epair ]; then
         ifconfig $(cat epair) destroy
     fi
+}
+
+# Check the last entry in the log file for a given message.
+syslogd_check_log_nopoll()
+{
+    local msg=$1
+
+    atf_check -o match:"${msg}" tail -n 1 "${SYSLOGD_LOGFILE}"
+}
+
+# Same as above, but first wait for syslogd to write to the log file.
+syslogd_check_log()
+{
+    local msg=$1
+
+    atf_check -r 10 -o match:"${msg}" tail -n 1 "${SYSLOGD_LOGFILE}"
+}
+
+# Make sure no log entry matching the given message exists.
+syslogd_check_log_nomatch()
+{
+    local msg=$1
+
+    sleep 0.5
+    atf_check -o not-match:"${msg}" cat "${SYSLOGD_LOGFILE}"
 }

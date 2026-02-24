@@ -677,6 +677,9 @@ determine_read_sizes(void)
 			l <<= 1;
 		}
 		medium_read = h;
+		medium_read -= medium_read % small_read;
+		if (medium_read < small_read)
+			medium_read = small_read;
 		printf("# Got medium_read from small_read & big_read: %ju\n",
 		    (uintmax_t)medium_read
 		);

@@ -38,6 +38,7 @@
 .Op Fl d Cm r Ns | Ns Cm w Ns | Ns Cm rw
 .Op Fl f Ar device
 .Op Fl m Ar mode
+.Op Fl S
 .Op Fl s Ar max-speed
 .Nm
 .Op Fl i
@@ -145,6 +146,12 @@ caused the LSB to be transmitted and read first.
 SPI mode, 0 through 3.
 This defines the clock phase and timing with respect to reading and writing
 data, as per the SPI specification.
+.It Fl S
+Constantly stream from
+.Xr stdin 3
+to the
+.Nm
+bus.
 .It Fl s Ar speed
 Specify the maximum speed, in Hz, for the SPI clock.
 The bus will operate at its highest available speed which does not

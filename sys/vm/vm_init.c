@@ -159,6 +159,14 @@ vm_mem_init(void *dummy)
 	pmap_init();
 	vm_pager_init();
 
+	/*
+	 * Now we can properly handle calls into vm_fault() from
+	 * kernel page faults during initialization, typically to
+	 * panic.  Clear the nofaulting flag set for thread0 in the
+	 * image, see kern/init_main.c
+	 */
+	curthread->td_pflags &= ~TDP_NOFAULTING;
+
 #ifdef INVARIANTS
 	vm_check_pagesizes();
 #endif

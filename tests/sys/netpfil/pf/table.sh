@@ -846,6 +846,43 @@ load_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "test" "cleanup"
+test_head()
+{
+	atf_set descr 'Test pfctl -T test functionality'
+	atf_set require.user root
+}
+
+test_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> counters { 192.0.2.1 }" \
+	    "pass all" \
+	    "match in from <foo> to any" \
+	    "match out from any to <foo>"
+
+	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
+
+	atf_check -s exit:2 -e match:"0/1 addresses match." \
+	    jexec alcatraz pfctl -t foo -T test 1.2.3.4
+	atf_check -s exit:0 -e match:"1/1 addresses match." \
+	    jexec alcatraz pfctl -t foo -T test 192.0.2.1
+}
+
+test_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -866,4 +903,5 @@ atf_init_test_cases()
 	atf_add_test_case "in_anchor"
 	atf_add_test_case "replace"
 	atf_add_test_case "load"
+	atf_add_test_case "test"
 }

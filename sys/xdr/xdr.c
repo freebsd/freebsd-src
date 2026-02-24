@@ -620,6 +620,13 @@ xdr_string(XDR *xdrs, char **cpp, u_int maxsize)
 		if (sp == NULL) {
 			return(TRUE);	/* already free */
 		}
+		/*
+		 * XXX: buggy software may call this without a third
+		 * argument via xdr_free().  Ignore maxsize since it may
+		 * be invalid.  Otherwise, if it's very small, we might
+		 * fail to free the string.
+		 */
+		maxsize = RPC_MAXDATASIZE;
 		/* FALLTHROUGH */
 	case XDR_ENCODE:
 		size = strlen(sp);

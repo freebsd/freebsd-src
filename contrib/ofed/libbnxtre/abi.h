@@ -46,7 +46,7 @@
 
 #define __aligned_u64 __attribute__((aligned(8))) u64
 
-#define BNXT_RE_ABI_VERSION	6
+#define BNXT_RE_ABI_VERSION	7
 #define BNXT_RE_MAX_INLINE_SIZE		0x60
 #define BNXT_RE_MAX_INLINE_SIZE_VAR_WQE	0x1E0
 #define BNXT_RE_MAX_PUSH_SIZE_VAR_WQE	0xD0
@@ -267,12 +267,14 @@ enum {
 	BNXT_RE_COMP_MASK_UCNTX_MQP_EX_SUPPORTED = 0x8,
 	BNXT_RE_COMP_MASK_UCNTX_DBR_PACING_ENABLED = 0x10,
 	BNXT_RE_COMP_MASK_UCNTX_DBR_RECOVERY_ENABLED = 0x20,
-	BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED = 0x40
+	BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED = 0x40,
+	BNXT_RE_COMP_MASK_UCNTX_CMASK_HAVE_MODE = 0x80
 };
 
 enum bnxt_re_req_to_drv {
 	BNXT_RE_COMP_MASK_REQ_UCNTX_POW2_SUPPORT = 0x01,
-	BNXT_RE_COMP_MASK_REQ_UCNTX_RSVD_WQE = 0x02
+	BNXT_RE_COMP_MASK_REQ_UCNTX_RSVD_WQE = 0x02,
+	BNXT_RE_COMP_MASK_REQ_UCNTX_VAR_WQE_SUPPORT = 0x03
 };
 
 #define BNXT_RE_WQE_MODES_WQE_MODE_MASK		0x01
@@ -410,6 +412,8 @@ struct bnxt_re_qp_req {
 	__u64 qpsva;
 	__u64 qprva;
 	__u64 qp_handle;
+	__u64 comp_mask;
+	__u32 sq_slots;
 } __attribute__((packed));
 
 struct bnxt_re_qp_resp {
@@ -529,6 +533,7 @@ struct bnxt_re_srq_req {
 struct bnxt_re_srq_resp {
 	struct ibv_create_srq_resp resp;
 	__u32 srqid;
+	__u64 srq_page;
 } __attribute__((packed));
 
 struct bnxt_re_srqe {

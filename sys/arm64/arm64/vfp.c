@@ -895,9 +895,7 @@ sve_init(const void *dummy __unused)
 	uint64_t reg;
 	int i;
 
-	if (!get_kernel_reg(ID_AA64PFR0_EL1, &reg))
-		return;
-
+	get_kernel_reg(ID_AA64PFR0_EL1, &reg);
 	if (ID_AA64PFR0_SVE_VAL(reg) == ID_AA64PFR0_SVE_NONE)
 		return;
 
@@ -934,6 +932,9 @@ get_arm64_sve(struct regset *rs, struct thread *td, void *buf,
 
 	pcb = td->td_pcb;
 
+	if (td == curthread && (pcb->pcb_fpflags & PCB_FP_STARTED) != 0)
+		vfp_save_state(td, pcb);
+
 	/* If there is no SVE support in HW then we don't support NT_ARM_SVE */
 	if (pcb->pcb_sve_len == 0)
 		return (false);
@@ -954,9 +955,6 @@ get_arm64_sve(struct regset *rs, struct thread *td, void *buf,
 	if (buf != NULL) {
 		KASSERT(*sizep == sizeof(struct svereg_header) + buf_size,
 		    ("%s: invalid size", __func__));
-
-		if (td == curthread && (pcb->pcb_fpflags & PCB_FP_STARTED) != 0)
-			vfp_save_state(td, pcb);
 
 		header = buf;
 		memset(header, 0, sizeof(*header));

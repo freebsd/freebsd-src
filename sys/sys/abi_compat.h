@@ -26,11 +26,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _COMPAT_H_
-#define	_COMPAT_H_
+#ifndef _ABI_COMPAT_H_
+#define	_ABI_COMPAT_H_
+
+#include <sys/abi_types.h>
 
 /*
- * Helper macros for translating objects between different ABIs.
+ * Helper types and macros for translating objects between different ABIs.
  */
 
 #define	PTRIN(v)	(void *)(uintptr_t)(v)
@@ -67,9 +69,17 @@
 	TS_CP((src), (dst), it_value);		\
 } while (0)
 
-#define	BT_CP(src, dst, fld) do {				\
-	CP((src).fld, (dst).fld, sec);				\
-	*(uint64_t *)&(dst).fld.frac[0] = (src).fld.frac;	\
+#define	FU64_CP(src, dst, fld) do {				\
+	_Static_assert(sizeof((src).fld) == sizeof(uint64_t),	\
+	    "FU64_CP src: " #src "." #fld "is not 8 bytes");	\
+	_Static_assert(sizeof((dst).fld) == sizeof(uint64_t),	\
+	    "FU64_CP dst: " #dst "." #fld "is not 8 bytes");	\
+	memcpy(&(dst).fld, &(src).fld, sizeof(uint64_t));	\
 } while (0)
 
-#endif /* !_COMPAT_H_ */
+#define	BT_CP(src, dst, fld) do {				\
+	CP((src).fld, (dst).fld, sec);				\
+	FU64_CP((src).fld, (dst).fld, frac);			\
+} while (0)
+
+#endif /* !_ABI_COMPAT_H_ */

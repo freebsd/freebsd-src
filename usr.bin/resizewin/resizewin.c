@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * resizewin
  *
  * Query terminal for size and inform the kernel

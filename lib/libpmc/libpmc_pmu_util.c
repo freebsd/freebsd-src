@@ -498,18 +498,7 @@ pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	pm->pm_class = PMC_CLASS_K8;
 	pe = pmu_event_get(NULL, event_name, &idx);
 
-	if (strcmp("l3cache", pe->topic) == 0){
-		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK(ped->ped_event);
-		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_L3_CACHE;
-		amd->pm_amd_config |= AMD_PMC_TO_L3SLICE(ped->ped_l3_slice);
-		amd->pm_amd_config |= AMD_PMC_TO_L3CORE(ped->ped_l3_thread);
-	}
-	else if (strcmp("data fabric", pe->topic) == 0){
-
-		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK_DF(ped->ped_event);
-		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_DATA_FABRIC;
-	}
-	else{
+	if (pe->pmu == NULL) {
 		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK(ped->ped_event);
 		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_CORE;
 		if ((pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) == 0 ||
@@ -526,7 +515,19 @@ pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 			amd->pm_amd_config |= AMD_PMC_INVERT;
 		if (pm->pm_caps & PMC_CAP_INTERRUPT)
 			amd->pm_amd_config |= AMD_PMC_INT;
+	} else if (strcmp("amd_l3", pe->pmu) == 0) {
+		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK(ped->ped_event);
+		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_L3_CACHE;
+		amd->pm_amd_config |= AMD_PMC_TO_L3SLICE(ped->ped_l3_slice);
+		amd->pm_amd_config |= AMD_PMC_TO_L3CORE(ped->ped_l3_thread);
+	} else if (strcmp("amd_df", pe->pmu) == 0) {
+		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK_DF(ped->ped_event);
+		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_DATA_FABRIC;
+	} else {
+		printf("PMC pmu '%s' is not supported!\n", pe->pmu);
+		return (EOPNOTSUPP);
 	}
+
 	return (0);
 }
 

@@ -74,6 +74,7 @@ static uint32_t tss_fw_seg;		/* Fw TSS segment */
 static uint32_t loader_tss;		/* Loader TSS segment */
 static struct region_descriptor fw_gdt;	/* Descriptor of pristine GDT */
 static EFI_PHYSICAL_ADDRESS loader_gdt_pa; /* Address of loader shadow GDT */
+static UINTN loader_gdt_pa_size;
 
 struct frame {
 	struct frame	*fr_savfp;
@@ -194,7 +195,7 @@ free_tables(void)
 		tss_pa = 0;
 	}
 	if (loader_gdt_pa != 0) {
-		BS->FreePages(tss_pa, 2);
+		BS->FreePages(loader_gdt_pa, loader_gdt_pa_size);
 		loader_gdt_pa = 0;
 	}
 	ist = 0;
@@ -265,6 +266,7 @@ efi_redirect_exceptions(void)
 		return (0);
 	}
 	loader_idt.rd_limit = fw_idt.rd_limit;
+	loader_idt.rd_base = lidt_pa;
 	bcopy((void *)fw_idt.rd_base, (void *)loader_idt.rd_base,
 	    loader_idt.rd_limit);
 	bzero(ist_use_table, sizeof(ist_use_table));
@@ -294,13 +296,13 @@ efi_redirect_exceptions(void)
 			loader_gdt.rd_limit = roundup2(fw_gdt.rd_limit +
 			    sizeof(struct system_segment_descriptor),
 			    sizeof(struct system_segment_descriptor)) - 1;
+			loader_gdt_pa_size =
+			    EFI_SIZE_TO_PAGES(loader_gdt.rd_limit);
 			i = (loader_gdt.rd_limit + 1 -
 			    sizeof(struct system_segment_descriptor)) /
 			    sizeof(struct system_segment_descriptor) * 2;
 			status = BS->AllocatePages(AllocateAnyPages,
-			    EfiLoaderData,
-			    EFI_SIZE_TO_PAGES(loader_gdt.rd_limit),
-			    &loader_gdt_pa);
+			    EfiLoaderData, loader_gdt_pa_size, &loader_gdt_pa);
 			if (EFI_ERROR(status)) {
 				printf("efi_setup_tss: AllocatePages gdt error "
 				    "%lu\n",  DECODE_ERROR(status));
@@ -329,7 +331,7 @@ efi_redirect_exceptions(void)
 			free_tables();
 			return (0);
 		}
-		tss_pa = tss_desc->sd_lobase + (tss_desc->sd_hibase << 16);
+		tss_pa = tss_desc->sd_lobase + (tss_desc->sd_hibase << 24);
 		tss = (struct amd64tss *)tss_pa;
 		tss_desc->sd_type = SDT_SYSTSS; /* unbusy */
 	}
@@ -418,7 +420,7 @@ command_grab_faults(int argc, char *argv[])
 		printf("failed\n");
 	return (CMD_OK);
 }
-COMMAND_SET(grap_faults, "grab_faults", "grab faults", command_grab_faults);
+COMMAND_SET(grab_faults, "grab_faults", "grab faults", command_grab_faults);
 
 static int
 command_ungrab_faults(int argc, char *argv[])

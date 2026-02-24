@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * Copyright (c) 2020-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -896,41 +896,34 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	/* Deflink information. */
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *supband;
+		uint32_t rate_mandatory;;
 
 		supband = hw->wiphy->bands[band];
 		if (supband == NULL)
 			continue;
 
+		switch (band) {
+		case NL80211_BAND_2GHZ:
+			/* We have to assume 11g support here. */
+			rate_mandatory = IEEE80211_RATE_MANDATORY_G |
+			    IEEE80211_RATE_MANDATORY_B;
+			break;
+		case NL80211_BAND_5GHZ:
+			rate_mandatory = IEEE80211_RATE_MANDATORY_A;
+			break;
+		default:
+			continue;
+		}
+
 		for (i = 0; i < supband->n_bitrates; i++) {
-			switch (band) {
-			case NL80211_BAND_2GHZ:
-				switch (supband->bitrates[i].bitrate) {
-				case 240:	/* 11g only */
-				case 120:	/* 11g only */
-				case 110:
-				case 60:	/* 11g only */
-				case 55:
-				case 20:
-				case 10:
-					sta->deflink.supp_rates[band] |= BIT(i);
-					break;
-				}
-				break;
-			case NL80211_BAND_5GHZ:
-				switch (supband->bitrates[i].bitrate) {
-				case 240:
-				case 120:
-				case 60:
-					sta->deflink.supp_rates[band] |= BIT(i);
-					break;
-				}
-				break;
-			}
+			if ((supband->bitrates[i].flags & rate_mandatory) != 0)
+				sta->deflink.supp_rates[band] |= BIT(i);
 		}
 	}
 
 	sta->deflink.smps_mode = IEEE80211_SMPS_OFF;
 	sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
+	sta->deflink.agg.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
 	sta->deflink.rx_nss = 1;
 	sta->deflink.sta = sta;
 
@@ -2157,7 +2150,7 @@ lkpi_wake_tx_queues(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		if (no_emptyq && ltxq_empty)
 			continue;
 
-		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid], false);
 	}
 }
 
@@ -5704,8 +5697,10 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		c = ic->ic_curchan;
 	info->band = lkpi_net80211_chan_to_nl80211_band(c);
 	info->hw_queue = vif->hw_queue[ac];
-	if (m->m_flags & M_EAPOL)
+	if ((m->m_flags & M_EAPOL) != 0) {
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
+		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;	/* mt76 */
+	}
 	info->control.vif = vif;
 	/* XXX-BZ info->control.rates */
 #ifdef __notyet__
@@ -5769,7 +5764,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 #endif
 	LKPI_80211_LTXQ_UNLOCK(ltxq);
 	wiphy_lock(hw->wiphy);
-	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
+	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq, true);
 	wiphy_unlock(hw->wiphy);
 	return;
 
@@ -6979,7 +6974,9 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	}
 
 	if (bootverbose) {
-		ic_printf(ic, "netdev_features %b\n", hw->netdev_features, NETIF_F_BITS);
+		if (hw->netdev_features != 0)
+			ic_printf(ic, "netdev_features %b\n",
+			    hw->netdev_features, NETIF_F_BITS);
 		ieee80211_announce(ic);
 	}
 
@@ -8028,6 +8025,77 @@ linuxkpi_wiphy_free(struct wiphy *wiphy)
 	kfree(lwiphy);
 }
 
+static void
+lkpi_wiphy_band_annotate(struct wiphy *wiphy)
+{
+	int band;
+
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *supband;
+		int i;
+
+		supband = wiphy->bands[band];
+		if (supband == NULL)
+			continue;
+
+		switch (band) {
+		case NL80211_BAND_2GHZ:
+		case NL80211_BAND_5GHZ:
+			break;
+		default:
+#ifdef LINUXKPI_DEBUG_80211
+			IMPROVE("band %d(%s) not yet supported",
+			    band, lkpi_nl80211_band_name(band));
+			/* For bands added here, also check lkpi_lsta_alloc(). */
+#endif
+			continue;
+		}
+
+		for (i = 0; i < supband->n_bitrates; i++) {
+			switch (band) {
+			case NL80211_BAND_2GHZ:
+				switch (supband->bitrates[i].bitrate) {
+				case 110:
+				case 55:
+				case 20:
+				case 10:
+					supband->bitrates[i].flags |=
+					    IEEE80211_RATE_MANDATORY_B;
+					/* FALLTHROUGH */
+				/* 11g only */
+				case 240:
+				case 120:
+				case 60:
+					supband->bitrates[i].flags |=
+					    IEEE80211_RATE_MANDATORY_G;
+					break;
+				}
+				break;
+			case NL80211_BAND_5GHZ:
+				switch (supband->bitrates[i].bitrate) {
+				case 240:
+				case 120:
+				case 60:
+					supband->bitrates[i].flags |=
+					    IEEE80211_RATE_MANDATORY_A;
+					break;
+				}
+				break;
+			}
+		}
+	}
+}
+
+int
+linuxkpi_80211_wiphy_register(struct wiphy *wiphy)
+{
+	TODO("Lots of checks and initialization");
+
+	lkpi_wiphy_band_annotate(wiphy);
+
+	return (0);
+}
+
 static uint32_t
 lkpi_cfg80211_calculate_bitrate_ht(struct rate_info *rate)
 {
@@ -8236,6 +8304,9 @@ _lkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
+	if (skb == NULL)
+		return;
+
 	m = skb->m;
 	skb->m = NULL;
 
@@ -8261,13 +8332,13 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
     struct ieee80211_tx_status *txstat)
 {
 	struct sk_buff *skb;
-	struct ieee80211_tx_info *info;
+	struct ieee80211_tx_info *info, _info = { };
 	struct ieee80211_ratectl_tx_status txs;
 	struct ieee80211_node *ni;
 	int status;
 
 	skb = txstat->skb;
-	if (skb->m != NULL) {
+	if (skb != NULL && skb->m != NULL) {
 		struct mbuf *m;
 
 		m = skb->m;
@@ -8277,7 +8348,13 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		ni = NULL;
 	}
 
+	/*
+	 * If we have no info information on tx, set info to an all-zero struct
+	 * to make the code (and debug output) simpler.
+	 */
 	info = txstat->info;
+	if (info == NULL)
+		info = &_info;
 	if (info->flags & IEEE80211_TX_STAT_ACK) {
 		status = 0;	/* No error. */
 		txs.status = IEEE80211_RATECTL_TX_SUCCESS;
@@ -8342,7 +8419,8 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 	if (txstat->free_list) {
 		_lkpi_ieee80211_free_txskb(hw, skb, status);
-		list_add_tail(&skb->list, txstat->free_list);
+		if (skb != NULL)
+			list_add_tail(&skb->list, txstat->free_list);
 	} else {
 		linuxkpi_ieee80211_free_txskb(hw, skb, status);
 	}
@@ -8683,7 +8761,7 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 						ltxq->stopped = false;
 
 						if (!skb_queue_empty(&ltxq->skbq))
-							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid], false);
 					}
 				}
 				rcu_read_unlock();

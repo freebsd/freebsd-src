@@ -43,7 +43,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_cpu.h>
 
-#if defined(__arm__) || defined(__arm64__) || defined(__riscv)
+#if defined(__arm__) || defined(__aarch64__) || defined(__riscv)
 #include <dev/clk/clk.h>
 #define	HAS_CLK
 #endif
@@ -343,6 +343,11 @@ ofw_cpu_attach(device_t dev)
 	if (sc->sc_cpu_pcpu == NULL)
 		sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
 
+#ifdef HAS_CLK
+	clk_set_assigned(dev, node);
+	if (!OF_hasprop(node, "clocks")) {
+#endif
+
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
 		if (get_freq_from_clk(dev, sc) != 0) {
 			if (bootverbose)
@@ -357,6 +362,10 @@ ofw_cpu_attach(device_t dev)
 		    sc->sc_nominal_mhz);
 
 	OF_device_register_xref(OF_xref_from_node(node), dev);
+
+#ifdef HAS_CLK
+	}
+#endif
 	bus_identify_children(dev);
 	bus_attach_children(dev);
 	return (0);

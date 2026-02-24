@@ -1473,7 +1473,7 @@ typedef struct ipfexp {
 	int		ipfe_cmd;
 	int		ipfe_not;
 	int		ipfe_narg;
-	int		ipfe_size;
+	u_int		ipfe_size;
 	int		ipfe_arg0[1];
 } ipfexp_t;
 

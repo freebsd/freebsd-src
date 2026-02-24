@@ -51,12 +51,6 @@
 #define	BITS_PER_TYPE(t)	(sizeof(t) * BITS_PER_BYTE)
 #define	BITS_TO_BYTES(n)	howmany((n), BITS_PER_BYTE)
 
-#define	hweight8(x)	bitcount((uint8_t)(x))
-#define	hweight16(x)	bitcount16(x)
-#define	hweight32(x)	bitcount32(x)
-#define	hweight64(x)	bitcount64(x)
-#define	hweight_long(x)	bitcountl(x)
-
 #if __has_builtin(__builtin_popcountg)
 #define	HWEIGHT8(x)	(__builtin_popcountg((uint8_t)(x)))
 #define	HWEIGHT16(x)	(__builtin_popcountg((uint16_t)(x)))
@@ -69,6 +63,12 @@
 #define	HWEIGHT32(x)	(__const_bitcount32((uint32_t)(x)))
 #define	HWEIGHT64(x)	(__const_bitcount64((uint64_t)(x)))
 #endif
+
+#define	hweight8(x)	(__builtin_constant_p(x) ? HWEIGHT8(x)  : bitcount((uint8_t)(x)))
+#define	hweight16(x)	(__builtin_constant_p(x) ? HWEIGHT16(x) : bitcount16(x))
+#define	hweight32(x)	(__builtin_constant_p(x) ? HWEIGHT32(x) : bitcount32(x))
+#define	hweight64(x)	(__builtin_constant_p(x) ? HWEIGHT64(x) : bitcount64(x))
+#define	hweight_long(x)	bitcountl(x)
 
 static inline int
 __ffs(int mask)

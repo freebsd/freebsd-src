@@ -2080,7 +2080,8 @@ icmp6_reflect(struct mbuf *m, size_t off)
 
 			if (m->m_pkthdr.rcvif != NULL) {
 				/* XXX: This may not be the outgoing interface */
-				hlim = ND_IFINFO(m->m_pkthdr.rcvif)->chlim;
+				hlim =
+				    m->m_pkthdr.rcvif->if_inet6->nd_curhoplimit;
 			} else
 				hlim = V_ip6_defhlim;
 		}
@@ -2132,6 +2133,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	m->m_pkthdr.rcvif = NULL;
+	m->m_pkthdr.csum_flags = 0;
 	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
 	if (outif)
 		icmp6_ifoutstat_inc(outif, type, code);

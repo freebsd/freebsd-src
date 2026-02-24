@@ -120,23 +120,6 @@ struct mld_ifinfo {
 };
 
 #ifdef _KERNEL
-/*
- * Per-link MLD state.
- */
-struct mld_ifsoftc {
-	LIST_ENTRY(mld_ifsoftc) mli_link;
-	struct ifnet *mli_ifp;	/* interface this instance belongs to */
-	uint32_t mli_version;	/* MLDv1 Host Compatibility Mode */
-	uint32_t mli_v1_timer;	/* MLDv1 Querier Present timer (s) */
-	uint32_t mli_v2_timer;	/* MLDv2 General Query (interface) timer (s)*/
-	uint32_t mli_flags;	/* MLD per-interface flags */
-	uint32_t mli_rv;	/* MLDv2 Robustness Variable */
-	uint32_t mli_qi;	/* MLDv2 Query Interval (s) */
-	uint32_t mli_qri;	/* MLDv2 Query Response Interval (s) */
-	uint32_t mli_uri;	/* MLDv2 Unsolicited Report Interval (s) */
-	struct mbufq	 mli_gq;	/* queue of general query responses */
-};
-
 #define MLD_RANDOM_DELAY(X)		(arc4random() % (X) + 1)
 #define MLD_MAX_STATE_CHANGES		24 /* Max pending changes per group */
 
@@ -155,12 +138,11 @@ struct mld_ifsoftc {
 /*
  * Per-link MLD context.
  */
-#define MLD_IFINFO(ifp)	((ifp)->if_inet6->mld_ifinfo)
+#define MLD_IFINFO(ifp)	(&(ifp)->if_inet6->mld_ifsoftc)
 
 struct in6_multi_head;
 int	mld_change_state(struct in6_multi *, const int);
-struct mld_ifsoftc *
-	mld_domifattach(struct ifnet *);
+void	mld_domifattach(struct ifnet *);
 void	mld_domifdetach(struct ifnet *);
 void	mld_ifdetach(struct ifnet *, struct in6_multi_head *);
 int	mld_input(struct mbuf **, int, int);

@@ -300,6 +300,7 @@ struct bnxt_qplib_q {
 	struct bnxt_qplib_sg_info	sginfo;
 	struct bnxt_qplib_hwq		hwq;
 	u32				max_wqe;
+	u32				max_sw_wqe;
 	u16				max_sge;
 	u16				wqe_size;
 	u16				q_full_delta;
@@ -390,6 +391,7 @@ struct bnxt_qplib_qp {
 	u32				msn_tbl_sz;
 	/* get devflags in PI code */
 	u16				dev_cap_flags;
+	bool				is_host_msn_tbl;
 };
 
 
@@ -634,5 +636,16 @@ static inline uint64_t bnxt_re_update_msn_tbl(uint32_t st_idx, uint32_t npsn, ui
 		SQ_MSN_SEARCH_START_PSN_MASK));
 }
 
+static inline bool __is_var_wqe(struct bnxt_qplib_qp *qp)
+{
+	return (qp->wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE);
+}
+
+static inline bool __is_err_cqe_for_var_wqe(struct bnxt_qplib_qp *qp, u8 status)
+{
+	return (status != CQ_REQ_STATUS_OK) && __is_var_wqe(qp);
+}
+
 void bnxt_re_schedule_dbq_event(struct bnxt_qplib_res *res);
+u32 bnxt_qplib_get_depth(struct bnxt_qplib_q *que, u8 wqe_mode, bool is_sq);
 #endif

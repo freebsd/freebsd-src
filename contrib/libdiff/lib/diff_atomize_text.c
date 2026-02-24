@@ -141,6 +141,7 @@ diff_data_atomize_text_lines_mmap(struct diff_data *d)
 	bool embedded_nul = false;
 	unsigned int array_size_estimate = d->len / 50;
 	unsigned int pow2 = 1;
+	int ret = DIFF_RC_OK;
 	while (array_size_estimate >>= 1)
 		pow2++;
 
@@ -152,13 +153,14 @@ diff_data_atomize_text_lines_mmap(struct diff_data *d)
 	sigaction(SIGBUS, &act, &oact);
 	if (sigsetjmp(diff_data_signal_env, 0) > 0) {
 		/*
-		 * The file was truncated while we were reading it.  Set
-		 * the end pointer to the beginning of the line we were
-		 * trying to read, adjust the file length, and set a flag.
+		 * The file was truncated while we were reading it, or an
+		 * I/O error occurred.  Set the end pointer to the
+		 * beginning of the line we were trying to read, adjust
+		 * the file length, and set the return value to an error.
 		 */
 		end = pos;
 		d->len = end - d->data;
-		d->atomizer_flags |= DIFF_ATOMIZER_FILE_TRUNCATED;
+		ret = EIO;
 	}
 	while (pos < end) {
 		const uint8_t *line_start = pos, *line_end = pos;
@@ -203,7 +205,7 @@ diff_data_atomize_text_lines_mmap(struct diff_data *d)
 	if (embedded_nul)
 		d->atomizer_flags |= DIFF_ATOMIZER_FOUND_BINARY_DATA;
 
-	return DIFF_RC_OK;
+	return ret;
 }
 
 static int

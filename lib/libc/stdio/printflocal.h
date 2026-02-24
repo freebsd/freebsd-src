@@ -82,10 +82,8 @@ union arg {
 	ptrdiff_t *pptrdiffarg;
 	ssize_t	*pssizearg;
 	intmax_t *pintmaxarg;
-#ifndef NO_FLOATING_POINT
 	double	doublearg;
 	long double longdoublearg;
-#endif
 	wint_t	wintarg;
 	wchar_t	*pwchararg;
 };

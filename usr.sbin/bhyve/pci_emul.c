@@ -353,49 +353,51 @@ pci_print_supported_devices(void)
 }
 
 uint32_t
-pci_config_read_reg(const struct pcisel *const host_sel, nvlist_t *nvl,
+pci_config_read_reg(const struct pci_conf *host_conf, nvlist_t *nvl,
     const uint32_t reg, const uint8_t size, const uint32_t def)
 {
 	const char *config;
 	const nvlist_t *pci_regs;
+	uint32_t host;
 
 	assert(size == 1 || size == 2 || size == 4);
 
 	pci_regs = find_relative_config_node(nvl, "pcireg");
 	if (pci_regs == NULL) {
-		return def;
+		return (def);
 	}
 
 	switch (reg) {
 	case PCIR_DEVICE:
 		config = get_config_value_node(pci_regs, "device");
+		host = host_conf != NULL ? host_conf->pc_device : 0;
 		break;
 	case PCIR_VENDOR:
 		config = get_config_value_node(pci_regs, "vendor");
+		host = host_conf != NULL ? host_conf->pc_vendor : 0;
 		break;
 	case PCIR_REVID:
 		config = get_config_value_node(pci_regs, "revid");
+		host = host_conf != NULL ? host_conf->pc_revid : 0;
 		break;
 	case PCIR_SUBVEND_0:
 		config = get_config_value_node(pci_regs, "subvendor");
+		host = host_conf != NULL ? host_conf->pc_subvendor : 0;
 		break;
 	case PCIR_SUBDEV_0:
 		config = get_config_value_node(pci_regs, "subdevice");
+		host = host_conf != NULL ? host_conf->pc_subdevice : 0;
 		break;
 	default:
 		return (-1);
 	}
 
 	if (config == NULL) {
-		return def;
-	} else if (host_sel != NULL && strcmp(config, "host") == 0) {
-#ifdef __amd64__
-		return pci_host_read_config(host_sel, reg, size);
-#else
-		errx(1, "cannot fetch host PCI configuration");
-#endif
+		return (def);
+	} else if (host_conf != NULL && strcmp(config, "host") == 0) {
+		return (host);
 	} else {
-		return strtol(config, NULL, 16);
+		return (strtol(config, NULL, 16));
 	}
 }
 

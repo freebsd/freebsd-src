@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2023 MediaTek Inc.
  *
  * Author: Lorenzo Bianconi <lorenzo@kernel.org>
@@ -7,6 +7,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#endif
 
 #include "mt792x.h"
 #include "mt76_connac2_mac.h"

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -137,5 +137,12 @@ typedef struct pqi_ioctl_passthruCmd_struct {
 
 }OS_ATTRIBUTE_PACKED IOCTL_Command_struct;
 
+typedef struct _BIG_IOCTL_Command_struct {
+	LUNAddr_struct           LUN_info;
+	RequestBlock_struct      Request;
+	ErrorInfo_struct         error_info;
+	DWORD                    buf_size;  /* size in bytes of the buf */
+	passthru_buf_type_t      buf;
+}OS_ATTRIBUTE_PACKED BIG_IOCTL_Command_struct;
 
 #endif  /* _PQI_IOCTL_H_ */

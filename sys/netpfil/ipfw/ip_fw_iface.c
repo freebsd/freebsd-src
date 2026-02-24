@@ -95,12 +95,12 @@ enum ifevent { ARRIVAL, DEPARTURE, RENAME };
 static void
 ipfw_kifhandler(void *arg, struct ifnet *ifp, const char *old_name)
 {
-	enum ifevent *what = arg;
+	enum ifevent what = (uintptr_t)arg;
 	struct ip_fw_chain *ch;
 	struct ipfw_iface *iif;
 	struct namedobj_instance *ii;
 
-	MPASS(*what != RENAME || old_name != NULL);
+	MPASS(what != RENAME || old_name != NULL);
 
 	if (V_ipfw_vnet_ready == 0)
 		return;
@@ -114,9 +114,9 @@ ipfw_kifhandler(void *arg, struct ifnet *ifp, const char *old_name)
 		return;
 	}
 	iif = (struct ipfw_iface*)ipfw_objhash_lookup_name(ii, 0,
-	    *what == RENAME ? old_name : if_name(ifp));
+	    what == RENAME ? old_name : if_name(ifp));
 	if (iif != NULL) {
-		switch (*what) {
+		switch (what) {
 		case ARRIVAL:
 			handle_ifattach(ch, iif, ifp->if_index);
 			break;
@@ -246,13 +246,13 @@ vnet_ipfw_iface_init(struct ip_fw_chain *ch)
 {
 	struct namedobj_instance *ii;
 
+	IPFW_UH_WLOCK_ASSERT(ch);
+
 	ii = ipfw_objhash_create(DEFAULT_IFACES, DEFAULT_OBJHASH_SIZE);
-	IPFW_UH_WLOCK(ch);
 	if (ch->ifcfg == NULL) {
 		ch->ifcfg = ii;
 		ii = NULL;
 	}
-	IPFW_UH_WUNLOCK(ch);
 
 	if (ii != NULL) {
 		/* Already initialized. Free namehash. */
@@ -296,9 +296,7 @@ vnet_ipfw_iface_destroy(struct ip_fw_chain *ch)
 
 /*
  * Notify the subsystem that we are interested in tracking
- * interface @name. This function has to be called without
- * holding any locks to permit allocating the necessary states
- * for proper interface tracking.
+ * interface @name.
  *
  * Returns 0 on success.
  */
@@ -309,10 +307,10 @@ ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 	struct namedobj_instance *ii;
 	struct ipfw_iface *iif, *tmp;
 
+	IPFW_UH_WLOCK_ASSERT(ch);
+
 	if (strlen(name) >= sizeof(iif->ifname))
 		return (EINVAL);
-
-	IPFW_UH_WLOCK(ch);
 
 	ii = CHAIN_TO_II(ch);
 	if (ii == NULL) {
@@ -329,7 +327,6 @@ ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 	if (iif != NULL) {
 		iif->no.refcnt++;
 		ic->iface = iif;
-		IPFW_UH_WUNLOCK(ch);
 		return (0);
 	}
 
@@ -352,7 +349,6 @@ ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 		/* Interface has been created since unlock. Ref and return */
 		tmp->no.refcnt++;
 		ic->iface = tmp;
-		IPFW_UH_WUNLOCK(ch);
 		free(iif, M_IPFW);
 		return (0);
 	}
@@ -363,8 +359,6 @@ ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 
 	ipfw_objhash_add(ii, &iif->no);
 	ic->iface = iif;
-
-	IPFW_UH_WUNLOCK(ch);
 
 	return (0);
 }

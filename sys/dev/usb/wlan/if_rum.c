@@ -193,8 +193,8 @@ static uint32_t		rum_read(struct rum_softc *, uint16_t);
 static void		rum_read_multi(struct rum_softc *, uint16_t, void *,
 			    int);
 static usb_error_t	rum_write(struct rum_softc *, uint16_t, uint32_t);
-static usb_error_t	rum_write_multi(struct rum_softc *, uint16_t, void *,
-			    size_t);
+static usb_error_t	rum_write_multi(struct rum_softc *, uint16_t,
+			    const void *, size_t);
 static usb_error_t	rum_setbits(struct rum_softc *, uint16_t, uint32_t);
 static usb_error_t	rum_clrbits(struct rum_softc *, uint16_t, uint32_t);
 static usb_error_t	rum_modbits(struct rum_softc *, uint16_t, uint32_t,
@@ -1460,7 +1460,8 @@ rum_tx_crypto_flags(struct rum_softc *sc, struct ieee80211_node *ni,
 	if (!(k->wk_flags & IEEE80211_KEY_SWCRYPT)) {
 		cipher = k->wk_cipher->ic_cipher;
 		pos = k->wk_keyix;
-		mode = rum_crypto_mode(sc, cipher, k->wk_keylen);
+		mode = rum_crypto_mode(sc, cipher,
+		    ieee80211_crypto_get_key_len(k));
 		if (mode == 0)
 			return 0;
 
@@ -1843,7 +1844,8 @@ rum_write(struct rum_softc *sc, uint16_t reg, uint32_t val)
 }
 
 static usb_error_t
-rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
+rum_write_multi(struct rum_softc *sc, uint16_t reg, const void *buf,
+    size_t len)
 {
 	struct usb_device_request req;
 	usb_error_t error;
@@ -1858,7 +1860,8 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 		USETW(req.wIndex, reg + offset);
 		USETW(req.wLength, MIN(len - offset, 64));
 
-		error = rum_do_request(sc, &req, (char *)buf + offset);
+		error = rum_do_request(sc, &req, __DECONST(char *, buf)
+		    + offset);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "could not multi write MAC register: %s\n",
@@ -2859,15 +2862,16 @@ rum_common_key_set(struct rum_softc *sc, struct ieee80211_key *k,
     uint16_t base)
 {
 
-	if (rum_write_multi(sc, base, k->wk_key, k->wk_keylen))
+	if (rum_write_multi(sc, base, ieee80211_crypto_get_key_data(k),
+	    ieee80211_crypto_get_key_len(k)))
 		return EIO;
 
 	if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_TKIP) {
 		if (rum_write_multi(sc, base + IEEE80211_KEYBUF_SIZE,
-		    k->wk_txmic, 8))
+		    ieee80211_crypto_get_key_txmic_data(k), 8))
 			return EIO;
 		if (rum_write_multi(sc, base + IEEE80211_KEYBUF_SIZE + 8,
-		    k->wk_rxmic, 8))
+		    ieee80211_crypto_get_key_rxmic_data(k), 8))
 			return EIO;
 	}
 
@@ -2886,7 +2890,8 @@ rum_group_key_set_cb(struct rum_softc *sc, union sec_param *data,
 		sc->sc_clr_shkeys = 1;
 	}
 
-	mode = rum_crypto_mode(sc, k->wk_cipher->ic_cipher, k->wk_keylen);
+	mode = rum_crypto_mode(sc, k->wk_cipher->ic_cipher,
+	    ieee80211_crypto_get_key_len(k));
 	if (mode == 0)
 		goto print_err;
 
@@ -2941,7 +2946,8 @@ rum_pair_key_set_cb(struct rum_softc *sc, union sec_param *data,
 	uint8_t buf[IEEE80211_ADDR_LEN + 1];
 	uint8_t mode;
 
-	mode = rum_crypto_mode(sc, k->wk_cipher->ic_cipher, k->wk_keylen);
+	mode = rum_crypto_mode(sc, k->wk_cipher->ic_cipher,
+	    ieee80211_crypto_get_key_len(k));
 	if (mode == 0)
 		goto print_err;
 

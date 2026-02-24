@@ -389,12 +389,15 @@ svc_vc_accept(struct socket *head, struct socket **sop)
 	SOLISTEN_LOCK(head);
 	nbio = head->so_state & SS_NBIO;
 	head->so_state |= SS_NBIO;
-	error = solisten_dequeue(head, &so, 0);
-	head->so_state &= (nbio & ~SS_NBIO);
+	error = solisten_dequeue(head, &so, nbio ? SOCK_NONBLOCK : 0);
+	if (nbio == 0) {
+		SOLISTEN_LOCK(head);
+		head->so_state &= ~SS_NBIO;
+		SOLISTEN_UNLOCK(head);
+	}
 	if (error)
 		goto done;
 
-	so->so_state |= nbio;
 	*sop = so;
 
 	/* connection has been removed from the listen queue */

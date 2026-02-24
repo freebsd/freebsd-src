@@ -8,6 +8,7 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <fnmatch.h>
 #include <grp.h>
@@ -99,11 +100,11 @@ lua_chown(lua_State *L)
 		owner = (uid_t)lua_tointeger(L, 2);
 	else if (lua_isstring(L, 2)) {
 		char buf[4096];
-		struct passwd passwd, *pwd;
+		struct passwd passwd, *pwd = NULL;
 
 		error = getpwnam_r(lua_tostring(L, 2), &passwd,
 		    buf, sizeof(buf), &pwd);
-		if (error == 0)
+		if (pwd != NULL && error == 0)
 			owner = pwd->pw_uid;
 		else
 			return (luaL_argerror(L, 2,
@@ -120,11 +121,11 @@ lua_chown(lua_State *L)
 		group = (gid_t)lua_tointeger(L, 3);
 	else if (lua_isstring(L, 3)) {
 		char buf[4096];
-		struct group gr, *grp;
+		struct group gr, *grp = NULL;
 
 		error = getgrnam_r(lua_tostring(L, 3), &gr, buf, sizeof(buf),
 		    &grp);
-		if (error == 0)
+		if (grp != NULL && error == 0)
 			group = grp->gr_gid;
 		else
 			return (luaL_argerror(L, 3,
@@ -254,7 +255,7 @@ lua_execp(lua_State *L)
 	}
 	argv[argc + 1] = NULL;
 
-	execvp(file, (char **)argv);
+	execvp(file, __DECONST(char **, argv));
 	error = errno;
 
 	lua_pushnil(L);
@@ -386,7 +387,7 @@ lua_read(lua_State *L)
 	char *buf;
 	ssize_t ret;
 	size_t sz;
-	int error, fd;
+	int error = 0, fd;
 
 	enforce_max_args(L, 2);
 	fd = luaL_checkinteger(L, 1);
@@ -398,8 +399,10 @@ lua_read(lua_State *L)
 	}
 
 	buf = malloc(sz);
-	if (buf == NULL)
+	if (buf == NULL) {
+		error = errno;
 		goto err;
+	}
 
 	/*
 	 * For 0-byte reads, we'll still push the empty string and let the
@@ -412,12 +415,13 @@ lua_read(lua_State *L)
 		error = errno; /* Save to avoid clobber by free() */
 
 	free(buf);
-	if (error != 0)
+	if (ret < 0)
 		goto err;
 
 	/* Just the string pushed. */
 	return (1);
 err:
+	assert(error != 0);
 	lua_pushnil(L);
 	lua_pushstring(L, strerror(error));
 	lua_pushinteger(L, error);

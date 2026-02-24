@@ -1,3 +1,27 @@
+Spleen 2.2.0 (2026-02-01)
+
+- Add stand alone caron in the 8x16, 12x24, 16x32, and 32x64 versions
+- Fix stand alone breve in the 12x24 version
+- Add white square symbol in the 8x16, 16x32, and 32x64 versions
+- Add dagger and double dagger symbols in the 8x16, 12x24, 16x32, and
+  32x64 versions
+- Fix black and white squares alignment in the 16x32 and 32x64 versions
+- Add black and white square characters in the 12x24 version
+- Add hyphen, along with en and em dashes in the 8x16, 12x24, 16x32, and
+  32x64 versions
+- Add mathematical left and right angle brackets in the 8x16, 12x24, 16x32,
+  and 32x64 versions
+- Fix right parenthesis alignment in the 32x64 version
+- Fix right curly bracket alignment in the 12x24 version
+- Fix less-than sign alignment in the 12x24 version
+
+- Makefile: replace BSD Make .for loops with portable dependency rules,
+  the project can now be built with both BSD Make and GNU Make
+- Add 'woff' and 'woff2' targets to generate WOFF and WOFF2 versions
+- Add tests for validating and sanitizing OTF, WOFF and WOFF2 fonts
+
+
+
 Spleen 2.1.0 (2024-03-22)
 
 - Document how wsfont header files (for OpenBSD and NetBSD) are generated

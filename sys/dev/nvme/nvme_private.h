@@ -300,8 +300,8 @@ struct nvme_controller {
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
 
 	uint32_t			is_resetting;
-	u_int				fail_on_reset;
 
+	bool				fail_on_reset;
 	bool				is_failed;
 	bool				is_failed_admin;
 	bool				is_dying;
@@ -502,11 +502,13 @@ _nvme_allocate_request(const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 }
 
 static __inline struct nvme_request *
-nvme_allocate_request_vaddr(void *payload, uint32_t payload_size,
+nvme_allocate_request_vaddr(void *payload, size_t payload_size,
     const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 
+	KASSERT(payload_size <= UINT32_MAX,
+	    ("payload size %zu exceeds maximum", payload_size));
 	req = _nvme_allocate_request(how, cb_fn, cb_arg);
 	if (req != NULL) {
 		req->payload = memdesc_vaddr(payload, payload_size);

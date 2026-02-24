@@ -1,17 +1,16 @@
-
 /*
  * write.c
  *
  * Copyright (c) 2002 Archie L. Cobbs
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Archie L. Cobbs;
  * provided, however, that:
  * 1. Any and all reproductions of the source or object code must include the
  *    copyright notice above and the following disclaimer of warranties
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY ARCHIE L. COBBS AS IS", AND TO
  * THE MAXIMUM EXTENT PERMITTED BY LAW, ARCHIE L. COBBS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -35,10 +34,12 @@
 #include <sys/socket.h>
 
 #include <err.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_socket.h>
 
 #include "ngctl.h"
@@ -63,6 +64,7 @@ WriteCmd(int ac, char **av)
 	struct sockaddr_ng *sag = (struct sockaddr_ng *)sagbuf;
 	u_char buf[BUF_SIZE];
 	const char *hook;
+	size_t hooklen;
 	FILE *fp;
 	u_int len;
 	int byte;
@@ -72,6 +74,14 @@ WriteCmd(int ac, char **av)
 	if (ac < 3)
 		return (CMDRTN_USAGE);
 	hook = av[1];
+	_Static_assert(sizeof(sagbuf) >=
+	    offsetof(struct sockaddr_ng, sg_data) + NG_HOOKSIZ,
+	    "sagbuf is too small for NG_HOOKSIZ");
+	hooklen = strlcpy(sag->sg_data, hook, NG_HOOKSIZ);
+	if (hooklen >= NG_HOOKSIZ) {
+		warnx("hook name \"%s\" too long", hook);
+		return (CMDRTN_ERROR);
+	}
 
 	/* Get data */
 	if (strcmp(av[2], "-f") == 0) {
@@ -92,8 +102,8 @@ WriteCmd(int ac, char **av)
 		fclose(fp);
 	} else {
 		for (i = 2, len = 0; i < ac && len < sizeof(buf); i++, len++) {
-			if (sscanf(av[i], "%i", &byte) != 1
-			    || (byte < -128 || byte > 255)) {
+			if (sscanf(av[i], "%i", &byte) != 1 ||
+			    byte < -128 || byte > 255) {
 				warnx("invalid byte \"%s\"", av[i]);
 				return (CMDRTN_ERROR);
 			}
@@ -104,11 +114,10 @@ WriteCmd(int ac, char **av)
 	}
 
 	/* Send data */
-	sag->sg_len = 3 + strlen(hook);
+	sag->sg_len = 3 + hooklen;
 	sag->sg_family = AF_NETGRAPH;
-	strlcpy(sag->sg_data, hook, sizeof(sagbuf) - 2);
-	if (sendto(dsock, buf, len,
-	    0, (struct sockaddr *)sag, sag->sg_len) == -1) {
+	if (sendto(dsock, buf, len, 0, (struct sockaddr *)sag,
+	    sag->sg_len) < 0) {
 		warn("writing to hook \"%s\"", hook);
 		return (CMDRTN_ERROR);
 	}
@@ -116,4 +125,3 @@ WriteCmd(int ac, char **av)
 	/* Done */
 	return (CMDRTN_OK);
 }
-

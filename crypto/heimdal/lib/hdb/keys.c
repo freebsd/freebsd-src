@@ -238,7 +238,7 @@ hdb_add_current_keys_to_history(krb5_context context, hdb_entry *entry)
 	hist_keys = &ext->data.u.hist_keys;
 	hist_keys->val = calloc(1, sizeof (*hist_keys->val));
 	if (hist_keys->val == NULL) {
-	    free(hist_keys);
+	    free(ext);
 	    return ENOMEM;
 	}
 	hist_keys->len = 1;

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -14,7 +14,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -62,7 +62,7 @@ ConfigCmd(int ac, char **av)
 	struct ng_mesg *const resp = (struct ng_mesg *) sbuf;
 	char *const status = (char *) resp->data;
 	char *path;
-	char buf[NG_TEXTRESPONSE];
+	char buf[NG_TEXTRESPONSE], *pos, *end;
 	int nostat = 0, i;
 
 	/* Get arguments */
@@ -70,20 +70,26 @@ ConfigCmd(int ac, char **av)
 		return (CMDRTN_USAGE);
 	path = av[1];
 
-	*buf = '\0';
+	pos = buf;
+	end = buf + sizeof(buf);
 	for (i = 2; i < ac; i++) {
-		if (i != 2)
-			strcat(buf, " ");
-		strcat(buf, av[i]);
+		if (i > 2) {
+			if (pos == end)
+				return (CMDRTN_USAGE);
+			*pos++ = ' ';
+		}
+		if ((pos += strlcpy(pos, av[i], end - pos)) >= end)
+			return (CMDRTN_USAGE);
 	}
-	
+	*pos = '\0';
+
 	/* Get node config summary */
 	if (*buf != '\0')
 		i = NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-	            NGM_TEXT_CONFIG, buf, strlen(buf) + 1);
+		    NGM_TEXT_CONFIG, buf, pos - buf + 1);
 	else
 		i = NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-	            NGM_TEXT_CONFIG, NULL, 0);
+		    NGM_TEXT_CONFIG, NULL, 0);
 	if (i < 0) {
 		switch (errno) {
 		case EINVAL:
@@ -94,8 +100,8 @@ ConfigCmd(int ac, char **av)
 			return (CMDRTN_ERROR);
 		}
 	} else {
-		if (NgRecvMsg(csock, resp, sizeof(sbuf), NULL) < 0
-		    || (resp->header.flags & NGF_RESP) == 0)
+		if (NgRecvMsg(csock, resp, sizeof(sbuf), NULL) < 0 ||
+		    (resp->header.flags & NGF_RESP) == 0)
 			nostat = 1;
 	}
 
@@ -106,4 +112,3 @@ ConfigCmd(int ac, char **av)
 		printf("Config for \"%s\":\n%s\n", path, status);
 	return (CMDRTN_OK);
 }
-

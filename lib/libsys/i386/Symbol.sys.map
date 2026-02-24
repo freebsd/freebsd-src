@@ -10,7 +10,6 @@ FBSD_1.0 {
 	i386_set_ldt;
 	i386_set_watch;
 	i386_vm86;
-	rfork_thread;
 };
 
 FBSD_1.6 {

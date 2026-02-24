@@ -33,7 +33,8 @@ MAN=	kdb5_util.8
 CFLAGS+=-I. \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_DIR}/lib \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile
 
 MAN=	kdb5_util.8
 

@@ -28,6 +28,9 @@
 #ifndef _IPFW2_PRIVATE_H
 #define _IPFW2_PRIVATE_H
 
+#include <sys/queue.h>
+#include <sys/tree.h>
+
 /*
  * Internal constants and data structures used by ipfw components
  * and not meant to be exported outside the kernel.
@@ -161,9 +164,10 @@ struct ip_fw_chain;
 
 void ipfw_bpf_init(int);
 void ipfw_bpf_uninit(int);
-void ipfw_tap_alloc(uint32_t);
-void ipfw_tap_free(uint32_t);
-void ipfw_bpf_tap(struct ip_fw_args *, struct ip *, uint32_t);
+void ipfw_tap_alloc(struct ip_fw_chain *, uint32_t);
+void ipfw_tap_free(struct ip_fw_chain *, uint32_t);
+void ipfw_bpf_tap(struct ip_fw_chain *, struct ip_fw_args *, struct ip *,
+    uint32_t);
 void ipfw_pflog_tap(void *, struct mbuf *);
 void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
     struct ip_fw_args *args, u_short offset, uint32_t tablearg, struct ip *ip,
@@ -320,6 +324,7 @@ struct ip_fw_chain {
 	void		*ifcfg;		/* interface module data */
 	int		*idxmap_back;	/* standby skipto array of rules */
 	struct namedobj_instance	*srvmap; /* cfg name->number mappings */
+	RB_HEAD(tap_tree, ipfw_tap) taps;	/* see ip_fw_bpf.c */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t uh_lock;
 #else

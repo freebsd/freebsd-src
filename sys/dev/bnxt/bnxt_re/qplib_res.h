@@ -616,6 +616,12 @@ static inline bool _is_hw_retx_supported(u16 dev_cap_flags)
 /* Disable HW_RETX */
 #define BNXT_RE_HW_RETX(a) _is_hw_retx_supported((a))
 
+static inline bool _is_host_msn_table(u16 dev_cap_ext_flags2)
+{
+	return (dev_cap_ext_flags2 & CREQ_QUERY_FUNC_RESP_SB_REQ_RETRANSMISSION_SUPPORT_MASK) ==
+		CREQ_QUERY_FUNC_RESP_SB_REQ_RETRANSMISSION_SUPPORT_HOST_MSN_TABLE;
+}
+
 static inline bool _is_cqe_v2_supported(u16 dev_cap_flags)
 {
 	return dev_cap_flags &
@@ -650,7 +656,7 @@ static inline void bnxt_qplib_ring_db32(struct bnxt_qplib_db_info *info,
 #define BNXT_QPLIB_INIT_DBHDR(xid, type, indx, toggle)			\
 	(((u64)(((xid) & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE |	\
 	    (type) | BNXT_QPLIB_DBR_VALID) << 32) | (indx) |		\
-	    ((toggle) << (BNXT_QPLIB_DBR_TOGGLE_SHIFT)))
+	    (((u32)(toggle)) << (BNXT_QPLIB_DBR_TOGGLE_SHIFT)))
 
 static inline void bnxt_qplib_write_db(struct bnxt_qplib_db_info *info,
 				       u64 key, void __iomem *db,
@@ -724,7 +730,7 @@ static inline void bnxt_qplib_armen_db(struct bnxt_qplib_db_info *info,
 	u64 key = 0;
 	u8 toggle = 0;
 
-	if (type == DBC_DBC_TYPE_CQ_ARMENA)
+	if (type == DBC_DBC_TYPE_CQ_ARMENA || type == DBC_DBC_TYPE_SRQ_ARMENA)
 		toggle = info->toggle;
 	/* Index always at 0 */
 	key = BNXT_QPLIB_INIT_DBHDR(info->xid, type, 0, toggle);
@@ -746,7 +752,7 @@ static inline void bnxt_qplib_srq_arm_db(struct bnxt_qplib_db_info *info)
 	u64 key = 0;
 
 	/* Index always at 0 */
-	key = BNXT_QPLIB_INIT_DBHDR(info->xid, DBC_DBC_TYPE_SRQ_ARM, 0, 0);
+	key = BNXT_QPLIB_INIT_DBHDR(info->xid, DBC_DBC_TYPE_SRQ_ARM, 0, info->toggle);
 	bnxt_qplib_write_db(info, key, info->priv_db, &info->shadow_key);
 }
 
@@ -836,5 +842,12 @@ static inline void bnxt_qplib_max_res_supported(struct bnxt_qplib_chip_ctx *cctx
 		max_res->max_pd = BNXT_QPLIB_GENP4_PF_MAX_PD;
 		break;
 	}
+}
+
+static inline u32 bnxt_re_cap_fw_res(u32 fw_val, u32 drv_cap, bool sw_max_en)
+{
+	if (sw_max_en)
+		return fw_val;
+	return min_t(u32, fw_val, drv_cap);
 }
 #endif

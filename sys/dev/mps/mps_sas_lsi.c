@@ -1152,7 +1152,6 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc, int howto)
 			    /*start*/FALSE,
 			    /*load/eject*/0,
 			    /*immediate*/FALSE,
-			    /*power_condition*/SSS_PC_START_VALID,
 			    MPS_SENSE_LEN,
 			    /*timeout*/10000);
 			xpt_action(ccb);

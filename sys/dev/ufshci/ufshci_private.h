@@ -278,8 +278,6 @@ struct ufshci_device {
 	struct ufshci_device_descriptor dev_desc;
 	struct ufshci_geometry_descriptor geo_desc;
 
-	uint32_t unipro_version;
-
 	/* WriteBooster */
 	bool is_wb_enabled;
 	bool is_wb_flush_enabled;
@@ -398,7 +396,6 @@ struct ufshci_controller {
 
 	/* UFS Interconnect Layer (UIC) */
 	struct mtx uic_cmd_lock;
-	uint32_t unipro_version;
 	uint8_t hs_gear;
 	uint32_t tx_lanes;
 	uint32_t rx_lanes;

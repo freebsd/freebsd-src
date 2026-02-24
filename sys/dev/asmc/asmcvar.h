@@ -756,6 +756,75 @@ struct asmc_softc {
 				  "Power Supply, Location 2", \
 				  "Tv0S", "Tv1S", }
 
+#define ASMC_MP31_TEMPS		{ "TA0P", \
+				  "TC0C", "TC0D", "TC0P", \
+				  "TC1C", "TC1D", \
+				  "TC2C", "TC2D", \
+				  "TC3C", "TC3D", \
+				  "TCAG", "TCAH", "TCBG", "TCBH", \
+				  "TH0P", "TH1P", "TH2P", "TH3P", \
+				  "TM0P", "TM0S", "TM1P", "TM1S", \
+				  "TM2P", "TM2S", "TM3S", \
+				  "TM8P", "TM8S", "TM9P", "TM9S", \
+				  "TMAP", "TMAS", "TMBS", \
+				  "TN0C", "TN0D", "TN0H", \
+				  "TS0C", \
+				  "Tp0C", "Tp1C", \
+				  "Tv0S", "Tv1S", NULL }
+
+#define ASMC_MP31_TEMPNAMES	{ "ambient", \
+				  "cpu_core0", "cpu_diode0", "cpu_a_proximity", \
+				  "cpu_core1", "cpu_diode1", \
+				  "cpu_core2", "cpu_diode2", \
+				  "cpu_core3", "cpu_diode3", \
+				  "cpu_a_pkg", "cpu_a_heatsink", \
+				  "cpu_b_pkg", "cpu_b_heatsink", \
+				  "hdd_bay0", "hdd_bay1", \
+				  "hdd_bay2", "hdd_bay3", \
+				  "mem_riser_a_prox0", "mem_riser_a_slot0", \
+				  "mem_riser_a_prox1", "mem_riser_a_slot1", \
+				  "mem_riser_a_prox2", "mem_riser_a_slot2", \
+				  "mem_riser_a_slot3", \
+				  "mem_riser_b_prox0", "mem_riser_b_slot0", \
+				  "mem_riser_b_prox1", "mem_riser_b_slot1", \
+				  "mem_riser_b_prox2", "mem_riser_b_slot2", \
+				  "mem_riser_b_slot3", \
+				  "northbridge_core", "northbridge_diode", \
+				  "northbridge_heatsink", \
+				  "expansion_slots", \
+				  "power_supply0", "power_supply1", \
+				  "vrm0", "vrm1", }
+
+#define ASMC_MP31_TEMPDESCS	{ "Ambient Air", \
+				  "CPU Core 1", "CPU Diode 1", \
+				  "CPU A Proximity", \
+				  "CPU Core 2", "CPU Diode 2", \
+				  "CPU Core 3", "CPU Diode 3", \
+				  "CPU Core 4", "CPU Diode 4", \
+				  "CPU A Package", "CPU A Heatsink", \
+				  "CPU B Package", "CPU B Heatsink", \
+				  "Hard Drive Bay 1", "Hard Drive Bay 2", \
+				  "Hard Drive Bay 3", "Hard Drive Bay 4", \
+				  "Memory Riser A, Proximity 1", \
+				  "Memory Riser A, Slot 1", \
+				  "Memory Riser A, Proximity 2", \
+				  "Memory Riser A, Slot 2", \
+				  "Memory Riser A, Proximity 3", \
+				  "Memory Riser A, Slot 3", \
+				  "Memory Riser A, Slot 4", \
+				  "Memory Riser B, Proximity 1", \
+				  "Memory Riser B, Slot 1", \
+				  "Memory Riser B, Proximity 2", \
+				  "Memory Riser B, Slot 2", \
+				  "Memory Riser B, Proximity 3", \
+				  "Memory Riser B, Slot 3", \
+				  "Memory Riser B, Slot 4", \
+				  "Northbridge Core", "Northbridge Diode", \
+				  "Northbridge Heatsink", \
+				  "Expansion Slots", \
+				  "Power Supply 1", "Power Supply 2", \
+				  "VRM 1", "VRM 2", }
+
 #define ASMC_MP2_TEMPS		{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
 				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
 				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \

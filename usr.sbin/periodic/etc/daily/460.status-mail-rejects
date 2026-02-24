@@ -36,8 +36,15 @@ case "$daily_status_mail_rejects_enable" in
 	    echo
 	    echo Checking for rejected mail hosts:
 
-	    yesterday=$(date -v-1d '+%b %e')
-	    today=$(date '+%b %e')
+	    # Support both RFC 3164 (traditional) and RFC 5424 syslog timestamps.
+	    today_3164="$(date '+%b %e ')"
+	    today_5424="$(date -I)"
+	    prefix_today="(^${today_3164}|^<[0-9]{1,3}>1 ${today_5424}T)"
+
+	    yesterday_3164="$(date -v-1d '+%b %e ')"
+	    yesterday_5424="$(date -v-1d -I)"
+	    prefix_yesterday="(^${yesterday_3164}|^<[0-9]{1,3}>1 ${yesterday_5424}T)"
+
 	    n=$(($daily_status_mail_rejects_logs - 2))
 	    rc=$({
 		while [ $n -ge 0 ]
@@ -61,7 +68,7 @@ case "$daily_status_mail_rejects_enable" in
 		    n=$(($n - 1))
 		done
 		cat /var/log/maillog
-	    } | sed -Ene "/^$today/q" -e "/^$yesterday/{"'
+	    } | sed -En -e "/$prefix_today/q" -e "/$prefix_yesterday/{"'
 		    s/.*ruleset=check_relay,.* relay=([^,]+), reject=([^ ]*).*/\2 check_relay \1/p
 		    t end
                     s/.*ruleset=check_rcpt,.* arg1=<?([^>,]+).* reject=([^ ]+) .* ([^ ]+)/\2 check_rcpt \1 \3/p

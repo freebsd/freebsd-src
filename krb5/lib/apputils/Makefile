@@ -22,6 +22,7 @@ SRCS=	net-server.c \
 CFLAGS+=-I${KRB5_DIR}/lib/apputils \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile \
 	-I${.OBJDIR}
 
 .include <bsd.lib.mk>

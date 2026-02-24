@@ -23,15 +23,12 @@ unix_head()
 }
 unix_body()
 {
-    local logfile="${PWD}/unix.log"
-
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
     syslogd_log -p user.debug -t unix -h "${SYSLOGD_LOCAL_SOCKET}" \
         "hello, world (unix)"
-    atf_check -s exit:0 -o match:"unix: hello, world \(unix\)" \
-        tail -n 1 "${logfile}"
+    syslogd_check_log "unix: hello, world \(unix\)"
 }
 unix_cleanup()
 {
@@ -45,19 +42,16 @@ inet_head()
 }
 inet_body()
 {
-    local logfile="${PWD}/inet.log"
-
     [ "$(sysctl -n kern.features.inet)" != "1" ] &&
         atf_skip "Kernel does not support INET"
 
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
     # We have INET transport; make sure we can use it.
     syslogd_log -4 -p user.debug -t inet -h 127.0.0.1 -P "${SYSLOGD_UDP_PORT}" \
         "hello, world (v4)"
-    atf_check -s exit:0 -o match:"inet: hello, world \(v4\)" \
-        tail -n 1 "${logfile}"
+    syslogd_check_log "inet: hello, world \(v4\)"
 }
 inet_cleanup()
 {
@@ -71,19 +65,16 @@ inet6_head()
 }
 inet6_body()
 {
-    local logfile="${PWD}/inet6.log"
-
     [ "$(sysctl -n kern.features.inet6)" != "1" ] &&
         atf_skip "Kernel does not support INET6"
 
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
     # We have INET6 transport; make sure we can use it.
     syslogd_log -6 -p user.debug -t unix -h ::1 -P "${SYSLOGD_UDP_PORT}" \
         "hello, world (v6)"
-    atf_check -s exit:0 -o match:"unix: hello, world \(v6\)" \
-        tail -n 1 "${logfile}"
+    syslogd_check_log "unix: hello, world \(v6\)"
 }
 inet6_cleanup()
 {
@@ -97,25 +88,24 @@ reload_head()
 }
 reload_body()
 {
-    logfile="${PWD}/reload.log"
-    printf "user.debug\t/${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
     syslogd_log -p user.debug -t reload -h "${SYSLOGD_LOCAL_SOCKET}" \
         "pre-reload"
-    atf_check -s exit:0 -o match:"reload: pre-reload" tail -n 1 "${logfile}"
+    syslogd_check_log "reload: pre-reload"
 
     # Override the old rule.
-    truncate -s 0 "${logfile}"
-    printf "news.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "news.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_reload
 
     syslogd_log -p user.debug -t reload -h "${SYSLOGD_LOCAL_SOCKET}" \
         "post-reload user"
     syslogd_log -p news.debug -t reload -h "${SYSLOGD_LOCAL_SOCKET}" \
         "post-reload news"
-    atf_check -s exit:0 -o not-match:"reload: post-reload user" cat ${logfile}
-    atf_check -s exit:0 -o match:"reload: post-reload news" cat ${logfile}
+    sleep 0.5
+    syslogd_check_log_nopoll "reload: post-reload news"
+    syslogd_check_log_nomatch "reload: post-reload user"
 }
 reload_cleanup()
 {
@@ -129,30 +119,36 @@ prog_filter_head()
 }
 prog_filter_body()
 {
-    logfile="${PWD}/prog_filter.log"
-    printf "!prog1,prog2\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "!prog1,prog2\nuser.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
-    for i in 1 2 3; do
-        syslogd_log -p user.debug -t "prog${i}" -h "${SYSLOGD_LOCAL_SOCKET}" \
-            "hello this is prog${i}"
-    done
-    atf_check -s exit:0 -o match:"prog1: hello this is prog1" cat "${logfile}"
-    atf_check -s exit:0 -o match:"prog2: hello this is prog2" cat "${logfile}"
-    atf_check -s exit:0 -o not-match:"prog3: hello this is prog3" cat "${logfile}"
+    syslogd_log -p user.debug -t "prog1" -h "${SYSLOGD_LOCAL_SOCKET}" \
+        "hello this is prog1"
+    syslogd_check_log "prog1: hello this is prog1"
+
+    syslogd_log -p user.debug -t "prog2" -h "${SYSLOGD_LOCAL_SOCKET}" \
+        "hello this is prog2"
+    syslogd_check_log "prog2: hello this is prog2"
+
+    syslogd_log -p user.debug -t "prog3" -h "${SYSLOGD_LOCAL_SOCKET}" \
+        "hello this is prog3"
+    syslogd_check_log_nomatch "prog3: hello this is prog3"
 
     # Override the old rule.
-    truncate -s 0 ${logfile}
-    printf "!-prog1,prog2\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "!-prog1,prog2\nuser.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_reload
 
-    for i in 1 2 3; do
-        syslogd_log -p user.debug -t "prog${i}" -h "${SYSLOGD_LOCAL_SOCKET}" \
-            "hello this is prog${i}"
-    done
-    atf_check -s exit:0 -o not-match:"prog1: hello this is prog1" cat "${logfile}"
-    atf_check -s exit:0 -o not-match:"prog2: hello this is prog2" cat "${logfile}"
-    atf_check -s exit:0 -o match:"prog3: hello this is prog3" cat "${logfile}"
+    syslogd_log -p user.debug -t "prog1" -h "${SYSLOGD_LOCAL_SOCKET}" \
+        "hello this is prog1"
+    syslogd_check_log_nomatch "prog1: hello this is prog1"
+
+    syslogd_log -p user.debug -t "prog2" -h "${SYSLOGD_LOCAL_SOCKET}" \
+        "hello this is prog2"
+    syslogd_check_log_nomatch "prog2: hello this is prog2"
+
+    syslogd_log -p user.debug -t "prog3" -h "${SYSLOGD_LOCAL_SOCKET}" \
+        "hello this is prog3"
+    syslogd_check_log "prog3: hello this is prog3"
 }
 prog_filter_cleanup()
 {
@@ -166,30 +162,32 @@ host_filter_head()
 }
 host_filter_body()
 {
-    logfile="${PWD}/host_filter.log"
-    printf "+host1,host2\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "+host1,host2\nuser.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
-    for i in 1 2 3; do
-        syslogd_log -p user.debug -t "host${i}" -H "host${i}" \
-            -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host${i}"
-    done
-    atf_check -s exit:0 -o match:"host1: hello this is host1" cat "${logfile}"
-    atf_check -s exit:0 -o match:"host2: hello this is host2" cat "${logfile}"
-    atf_check -s exit:0 -o not-match:"host3: hello this is host3" cat "${logfile}"
+    syslogd_log -p user.debug -t "host1" -H "host1" \
+        -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host1"
+    syslogd_check_log "host1: hello this is host1"
+    syslogd_log -p user.debug -t "host2" -H "host2" \
+        -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host2"
+    syslogd_check_log "host2: hello this is host2"
+    syslogd_log -p user.debug -t "host3" -H "host3" \
+        -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host3"
+    syslogd_check_log_nomatch "host3: hello this is host3"
 
     # Override the old rule.
-    truncate -s 0 ${logfile}
-    printf "\-host1,host2\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "\-host1,host2\nuser.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_reload
 
-    for i in 1 2 3; do
-        syslogd_log -p user.debug -t "host${i}" -H "host${i}" \
-        -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host${i}"
-    done
-    atf_check -s exit:0 -o not-match:"host1: hello this is host1" cat "${logfile}"
-    atf_check -s exit:0 -o not-match:"host2: hello this is host2" cat "${logfile}"
-    atf_check -s exit:0 -o match:"host3: hello this is host3" cat "${logfile}"
+    syslogd_log -p user.debug -t "host1" -H "host1" \
+        -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host1"
+    syslogd_check_log_nomatch "host1: hello this is host1"
+    syslogd_log -p user.debug -t "host2" -H "host2" \
+        -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host2"
+    syslogd_check_log_nomatch "host2: hello this is host2"
+    syslogd_log -p user.debug -t "host3" -H "host3" \
+        -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is host3"
+    syslogd_check_log "host3: hello this is host3"
 }
 host_filter_cleanup()
 {
@@ -203,47 +201,43 @@ prop_filter_head()
 }
 prop_filter_body()
 {
-    logfile="${PWD}/prop_filter.log"
-    printf ":msg,contains,\"FreeBSD\"\nuser.debug\t${logfile}\n" \
+    printf ":msg,contains,\"FreeBSD\"\nuser.debug\t${SYSLOGD_LOGFILE}\n" \
         > "${SYSLOGD_CONFIG}"
     syslogd_start
 
     syslogd_log -p user.debug -t "prop1" -h "${SYSLOGD_LOCAL_SOCKET}" "FreeBSD"
     syslogd_log -p user.debug -t "prop2" -h "${SYSLOGD_LOCAL_SOCKET}" "freebsd"
-    atf_check -s exit:0 -o match:"prop1: FreeBSD" cat "${logfile}"
-    atf_check -s exit:0 -o not-match:"prop2: freebsd" cat "${logfile}"
+    syslogd_check_log "prop1: FreeBSD"
+    syslogd_check_log_nomatch "prop2: freebsd"
 
-    truncate -s 0 ${logfile}
-    printf ":msg,!contains,\"FreeBSD\"\nuser.debug\t${logfile}\n" \
+    printf ":msg,!contains,\"FreeBSD\"\nuser.debug\t${SYSLOGD_LOGFILE}\n" \
         > "${SYSLOGD_CONFIG}"
     syslogd_reload
 
     syslogd_log -p user.debug -t "prop1" -h "${SYSLOGD_LOCAL_SOCKET}" "FreeBSD"
     syslogd_log -p user.debug -t "prop2" -h "${SYSLOGD_LOCAL_SOCKET}" "freebsd"
-    atf_check -s exit:0 -o not-match:"prop1: FreeBSD" cat "${logfile}"
-    atf_check -s exit:0 -o match:"prop2: freebsd" cat "${logfile}"
+    syslogd_check_log_nomatch "prop1: FreeBSD"
+    syslogd_check_log "prop2: freebsd"
 
-    truncate -s 0 ${logfile}
-    printf ":msg,icase_contains,\"FreeBSD\"\nuser.debug\t${logfile}\n" \
+    printf ":msg,icase_contains,\"FreeBSD\"\nuser.debug\t${SYSLOGD_LOGFILE}\n" \
         > "${SYSLOGD_CONFIG}"
     syslogd_reload
 
     syslogd_log -p user.debug -t "prop1" -h "${SYSLOGD_LOCAL_SOCKET}" "FreeBSD"
+    syslogd_check_log "prop1: FreeBSD"
     syslogd_log -p user.debug -t "prop2" -h "${SYSLOGD_LOCAL_SOCKET}" "freebsd"
-    atf_check -s exit:0 -o match:"prop1: FreeBSD" cat "${logfile}"
-    atf_check -s exit:0 -o match:"prop2: freebsd" cat "${logfile}"
+    syslogd_check_log "prop2: freebsd"
 
-    truncate -s 0 ${logfile}
-    printf ":msg,!icase_contains,\"FreeBSD\"\nuser.debug\t${logfile}\n" \
+    printf ":msg,!icase_contains,\"FreeBSD\"\nuser.debug\t${SYSLOGD_LOGFILE}\n" \
         > "${SYSLOGD_CONFIG}"
     syslogd_reload
 
     syslogd_log -p user.debug -t "prop1" -h "${SYSLOGD_LOCAL_SOCKET}" "FreeBSD"
     syslogd_log -p user.debug -t "prop2" -h "${SYSLOGD_LOCAL_SOCKET}" "freebsd"
     syslogd_log -p user.debug -t "prop3" -h "${SYSLOGD_LOCAL_SOCKET}" "Solaris"
-    atf_check -s exit:0 -o not-match:"prop1: FreeBSD" cat "${logfile}"
-    atf_check -s exit:0 -o not-match:"prop2: freebsd" cat "${logfile}"
-    atf_check -s exit:0 -o match:"prop3: Solaris" cat "${logfile}"
+    syslogd_check_log_nomatch "prop1: FreeBSD"
+    syslogd_check_log_nomatch "prop2: freebsd"
+    syslogd_check_log "prop3: Solaris"
 }
 prop_filter_cleanup()
 {
@@ -258,13 +252,12 @@ host_action_head()
 host_action_body()
 {
     local addr="192.0.2.100"
-    local logfile="${PWD}/host_action.log"
 
     atf_check ifconfig lo1 create
     atf_check ifconfig lo1 inet "${addr}/24"
     atf_check ifconfig lo1 up
 
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start -b "${addr}"
 
     printf "user.debug\t@${addr}\n" > "${SYSLOGD_CONFIG}.2"
@@ -276,8 +269,7 @@ host_action_body()
 
     syslogd_log -p user.debug -t "test" -h "${SYSLOGD_LOCAL_SOCKET}.2" \
         "message from syslogd2"
-    atf_check -s exit:0 -o match:"test: message from syslogd2" \
-        cat "${logfile}"
+    syslogd_check_log "test: message from syslogd2"
 }
 host_action_cleanup()
 {
@@ -296,17 +288,17 @@ pipe_action_head()
 }
 pipe_action_body()
 {
-    logfile="${PWD}/pipe_action.log"
     printf "\"While I'm digging in the tunnel, the elves will often come to me \
-        with solutions to my problem.\"\n-Saymore Crey" > ${logfile}
+        with solutions to my problem.\"\n-Saymore Crey" > testfile
 
     printf "!pipe\nuser.debug\t| sed -i '' -e 's/Saymore Crey/Seymour Cray/g' \
-        ${logfile}\n" > "${SYSLOGD_CONFIG}"
+        testfile\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
     syslogd_log -p user.debug -t "pipe" -h "${SYSLOGD_LOCAL_SOCKET}" \
         "fix spelling error"
-    atf_check -s exit:0 -o match:"Seymour Cray" cat "${logfile}"
+    sleep 0.5
+    atf_check -o match:"Seymour Cray" cat testfile
 }
 pipe_action_cleanup()
 {
@@ -320,16 +312,15 @@ pipe_action_reload_head()
 }
 pipe_action_reload_body()
 {
-    local logfile="${PWD}/pipe_reload.log"
     local pipecmd="${PWD}/pipe_cmd.sh"
 
     cat <<__EOF__ > "${pipecmd}"
 #!/bin/sh
-echo START > ${logfile}
+echo START > ${SYSLOGD_LOGFILE}
 while read msg; do
-    echo \${msg} >> ${logfile}
+    echo \${msg} >> ${SYSLOGD_LOGFILE}
 done
-echo END >> ${logfile}
+echo END >> ${SYSLOGD_LOGFILE}
 exit 0
 __EOF__
     chmod +x "${pipecmd}"
@@ -338,8 +329,9 @@ __EOF__
     syslogd_start
 
     syslogd_log -p user.debug -t "pipe" -h "${SYSLOGD_LOCAL_SOCKET}" "MSG"
-    syslogd_reload
-    atf_check -s exit:0 -o match:"END" tail -n 1 "${logfile}"
+    atf_check pkill -HUP -F "${1:-${SYSLOGD_PIDFILE}}"
+    sleep 0.1
+    syslogd_check_log_nopoll "END"
 }
 pipe_action_reload_cleanup()
 {
@@ -354,17 +346,14 @@ jail_noinet_head()
 }
 jail_noinet_body()
 {
-    local logfile
-
     syslogd_mkjail syslogd_noinet
 
-    logfile="${PWD}/jail_noinet.log"
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start -j syslogd_noinet -s -s
 
     syslogd_log -p user.debug -t "test" -h "${SYSLOGD_LOCAL_SOCKET}" \
         "hello, world"
-    atf_check -s exit:0 -o match:"test: hello, world" cat "${logfile}"
+    syslogd_check_log "test: hello, world"
 }
 jail_noinet_cleanup()
 {
@@ -391,10 +380,8 @@ allowed_peer_test_setup()
     atf_check ifconfig ${epair}a vnet syslogd_allowed_peer
     atf_check ifconfig ${epair}b vnet syslogd_client
     atf_check jexec syslogd_allowed_peer ifconfig ${epair}a inet 169.254.0.1/16
-    atf_check jexec syslogd_allowed_peer ifconfig lo0 inet 127.0.0.1/8
     atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.2/16
     atf_check jexec syslogd_client ifconfig ${epair}b alias 169.254.0.3/16
-    atf_check jexec syslogd_client ifconfig lo0 inet 127.0.0.1/8
 }
 
 allowed_peer_test_cleanup()
@@ -410,37 +397,37 @@ allowed_peer_head()
 }
 allowed_peer_body()
 {
-    local logfile
-
     allowed_peer_test_setup
 
-    logfile="${PWD}/jail.log"
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32'
 
     # Make sure that a message from 169.254.0.2:514 is logged.
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
-    atf_check -o match:"test1: hello, world" cat "${logfile}"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    syslogd_check_log "test1: hello, world"
+
     # ... but not a message from port 515.
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
-    atf_check -o not-match:"test2: hello, world" cat "${logfile}"
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
-    atf_check -o not-match:"test2: hello, world" cat "${logfile}"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    sleep 0.5
+    syslogd_check_log_nomatch "test2: hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
+    sleep 0.5
+    syslogd_check_log_nomatch "test2: hello, world"
 
     syslogd_stop
 
     # Now make sure that we can filter by port.
     syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32:515'
 
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
-    atf_check -o not-match:"test3: hello, world" cat "${logfile}"
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test4 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
-    atf_check -o match:"test4: hello, world" cat "${logfile}"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    syslogd_check_log_nomatch "test3: hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test4 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    syslogd_check_log "test4: hello, world"
 
     syslogd_stop
 }
@@ -457,28 +444,25 @@ allowed_peer_forwarding_head()
 }
 allowed_peer_forwarding_body()
 {
-    local logfile
-
     allowed_peer_test_setup
 
     printf "user.debug\t@169.254.0.1\n" > client_config
     printf "mark.debug\t@169.254.0.1:515\n" >> client_config
     syslogd_start -j syslogd_client -b 169.254.0.2:514 -f ${PWD}/client_config
 
-    logfile="${PWD}/jail.log"
-    printf "+169.254.0.2\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "+169.254.0.2\nuser.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start -j syslogd_allowed_peer -P ${SYSLOGD_PIDFILE}.2 \
-        -b 169.254.0.1:514 -a 169.254.0.2/32
+        -b 169.254.0.1:514 -a 169.254.0.2/32 -p ${PWD}/peer
 
     # A message forwarded to 169.254.0.1:514 should be logged, but one
     # forwarded to 169.254.0.1:515 should not.
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.2 -p user.debug -t test1 "hello, world"
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.2 -p mark.debug -t test2 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.2 -p user.debug -t test1 "hello, world"
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.2 -p mark.debug -t test2 "hello, world"
 
-    atf_check -o match:"test1: hello, world" cat "${logfile}"
-    atf_check -o not-match:"test2: hello, world" cat "${logfile}"
+    syslogd_check_log "test1: hello, world"
+    syslogd_check_log_nomatch "test2: hello, world"
 }
 allowed_peer_forwarding_cleanup()
 {
@@ -493,29 +477,28 @@ allowed_peer_wildcard_head()
 }
 allowed_peer_wildcard_body()
 {
-    local logfile
-
     allowed_peer_test_setup
 
-    logfile="${PWD}/jail.log"
-    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32:*'
 
     # Make sure that a message from 169.254.0.2:514 is logged.
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
-    atf_check -o match:"test1: hello, world" cat "${logfile}"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    syslogd_check_log "test1: hello, world"
+
     # ... as is a message from 169.254.0.2:515, allowed by the wildcard.
-    atf_check jexec syslogd_client \
-        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
-    atf_check -o match:"test2: hello, world" cat "${logfile}"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    syslogd_check_log "test2: hello, world"
+
     # ... but not a message from 169.254.0.3.
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:514 "hello, world"
-    atf_check -o not-match:"test3: hello, world" cat "${logfile}"
-    atf_check -o ignore jexec syslogd_client \
-        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
-    atf_check -o not-match:"test3: hello, world" cat "${logfile}"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:514 "hello, world"
+    syslogd_check_log_nomatch "test3: hello, world"
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
+    syslogd_check_log_nomatch "test3: hello, world"
 
     syslogd_stop
 }
@@ -532,9 +515,9 @@ forward_head()
 }
 forward_body()
 {
-    syslogd_check_req epair
+    local epair
 
-    local epair logfile
+    syslogd_check_req epair
 
     atf_check -o save:epair ifconfig epair create
     epair=$(cat epair)
@@ -544,12 +527,10 @@ forward_body()
     atf_check ifconfig ${epair}a vnet syslogd_server
     atf_check jexec syslogd_server ifconfig ${epair}a inet 169.254.0.1/16
     atf_check jexec syslogd_server ifconfig ${epair}a alias 169.254.0.2/16
-    atf_check jexec syslogd_server ifconfig lo0 inet 127.0.0.1/8
 
     syslogd_mkjail syslogd_client vnet
     atf_check ifconfig ${epair}b vnet syslogd_client
     atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.3/16
-    atf_check jexec syslogd_client ifconfig lo0 inet 127.0.0.1/8
 
     cat <<__EOF__ > ./client_config
 user.debug @169.254.0.1
@@ -557,26 +538,28 @@ mail.debug @169.254.0.2
 ftp.debug @169.254.0.1
 __EOF__
 
-    logfile="${PWD}/jail.log"
     cat <<__EOF__ > ./server_config
-user.debug ${logfile}
-mail.debug ${logfile}
-ftp.debug ${logfile}
+user.debug ${SYSLOGD_LOGFILE}
+mail.debug ${SYSLOGD_LOGFILE}
+ftp.debug ${SYSLOGD_LOGFILE}
 __EOF__
 
-    syslogd_start -j syslogd_server -f ${PWD}/server_config -b 169.254.0.1 -b 169.254.0.2
-    syslogd_start -j syslogd_client -f ${PWD}/client_config -P ${SYSLOGD_PIDFILE}.2
+    syslogd_start -j syslogd_server -f ${PWD}/server_config \
+        -b 169.254.0.1 -b 169.254.0.2
+    syslogd_start -j syslogd_client -f ${PWD}/client_config \
+        -p ${PWD}/client -P ${SYSLOGD_PIDFILE}.2
 
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p user.debug -t test1 "hello, world"
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p mail.debug -t test2 "you've got mail"
-    atf_check jexec syslogd_client \
-        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p ftp.debug -t test3 "transfer complete"
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p user.debug -t test1 "hello, world"
+    syslogd_check_log "test1: hello, world"
 
-    atf_check -o match:"test1: hello, world" cat "${logfile}"
-    atf_check -o match:"test2: you've got mail" cat "${logfile}"
-    atf_check -o match:"test3: transfer complete" cat "${logfile}"
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p mail.debug -t test2 "you've got mail"
+    syslogd_check_log "test2: you've got mail"
+
+    syslogd_log_jail syslogd_client \
+        -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p ftp.debug -t test3 "transfer complete"
+    syslogd_check_log "test3: transfer complete"
 }
 forward_cleanup()
 {

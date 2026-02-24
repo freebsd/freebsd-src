@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2022 MediaTek Inc.
  *
  * Author: Lorenzo Bianconi <lorenzo@kernel.org>
@@ -20,6 +20,9 @@ static const struct usb_device_id mt7921u_device_table[] = {
 		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	/* Netgear, Inc. [A8000,AXE3000] */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0846, 0x9060, 0xff, 0xff, 0xff),
+		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
+	/* Netgear, Inc. A7500 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0846, 0x9065, 0xff, 0xff, 0xff),
 		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	/* TP-Link TXE50UH */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x35bc, 0x0107, 0xff, 0xff, 0xff),
@@ -343,3 +346,10 @@ module_usb_driver(mt7921u_driver);
 MODULE_DESCRIPTION("MediaTek MT7921U (USB) wireless driver");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_VERSION(mt7921_usb, 1);
+MODULE_DEPEND(mt7921_usb, mt76_core, 1, 1, 1);
+MODULE_DEPEND(mt7921_usb, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(mt7921_usb, linuxkpi_wlan, 1, 1, 1);
+MODULE_DEPEND(mt7921_usb, linuxkpi_usb, 1, 1, 1);
+#endif

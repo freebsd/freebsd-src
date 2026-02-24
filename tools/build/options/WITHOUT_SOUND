@@ -1,0 +1,4 @@
+Do not build userland sound utilities such as
+.Xr beep 1
+and
+.Xr mixer 8 .

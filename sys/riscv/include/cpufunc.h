@@ -119,6 +119,13 @@ sfence_vma_asid_page(uint64_t asid, uintptr_t addr)
 	    : "memory");
 }
 
+static __inline void
+hfence_gvma(void)
+{
+
+	__asm __volatile("hfence.gvma" ::: "memory");
+}
+
 #define	rdcycle()			csr_read64(cycle)
 #define	rdtime()			csr_read64(time)
 #define	rdinstret()			csr_read64(instret)

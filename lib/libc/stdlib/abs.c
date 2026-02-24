@@ -32,7 +32,7 @@
 #include <stdlib.h>
 
 int
-abs(int j)
+abs(int i)
 {
-	return(j < 0 ? -j : j);
+	return(i < 0 ? -i : i);
 }

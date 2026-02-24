@@ -651,8 +651,7 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 				list_insert_head(&stack, o);
 			}
 			vdev_indirect_gather_splits(rs->rs_split_offset, dst_v,
-			    dst_offset + inner_offset,
-			    inner_size, arg);
+			    dst_offset + inner_offset, inner_size, arg);
 
 			/*
 			 * vdev_indirect_gather_splits can have memory
@@ -3468,8 +3467,7 @@ zfs_get_root(const spa_t *spa, uint64_t *objid)
 	/*
 	 * Start with the MOS directory object.
 	 */
-	if (objset_get_dnode(spa, spa->spa_mos,
-	    DMU_POOL_DIRECTORY_OBJECT, &dir)) {
+	if (objset_get_dnode(spa, spa->spa_mos, DMU_POOL_DIRECTORY_OBJECT, &dir)) {
 		printf("ZFS: can't read MOS object directory\n");
 		return (EIO);
 	}
@@ -3477,19 +3475,17 @@ zfs_get_root(const spa_t *spa, uint64_t *objid)
 	/*
 	 * Lookup the pool_props and see if we can find a bootfs.
 	 */
-	if (zap_lookup(spa, &dir, DMU_POOL_PROPS,
-	    sizeof(props), 1, &props) == 0 &&
+	if (zap_lookup(spa, &dir, DMU_POOL_PROPS, sizeof(props), 1, &props) == 0 &&
 	    objset_get_dnode(spa, spa->spa_mos, props, &propdir) == 0 &&
-	    zap_lookup(spa, &propdir, "bootfs",
-	    sizeof(bootfs), 1, &bootfs) == 0 && bootfs != 0) {
+	    zap_lookup(spa, &propdir, "bootfs", sizeof(bootfs), 1, &bootfs) == 0 &&
+	    bootfs != 0) {
 		*objid = bootfs;
 		return (0);
 	}
 	/*
 	 * Lookup the root dataset directory
 	 */
-	if (zap_lookup(spa, &dir, DMU_POOL_ROOT_DATASET,
-	    sizeof(root), 1, &root) ||
+	if (zap_lookup(spa, &dir, DMU_POOL_ROOT_DATASET, sizeof(root), 1, &root) ||
 	    objset_get_dnode(spa, spa->spa_mos, root, &dir)) {
 		printf("ZFS: can't find root dsl_dir\n");
 		return (EIO);

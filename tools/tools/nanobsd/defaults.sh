@@ -56,6 +56,9 @@ NANO_PKG_META_BASE=/var/db
 # directory located in Files.
 #NANO_CUST_FILES_MTREE=""
 
+# Use the time of the last commit as a timestamp when doing a NO_PRIV build.
+NANO_TIMESTAMP=$(git log -1 --format=%ct || true)
+
 # Object tree directory
 # default is subdir of /usr/obj
 #NANO_OBJ=""
@@ -104,6 +107,7 @@ NANO_LATE_CUSTOMIZE=""
 
 # Newfs parameters to use
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
+NANO_MAKEFS="-o bsize=4096,density=8192,fsize=512,softupdates=1,version=2"
 
 # The drive name of the media at runtime
 NANO_DRIVE=ada0
@@ -170,7 +174,7 @@ NANO_PARTITION_ALTROOT=a
 NANO_ROOT=s1a
 NANO_ALTROOT=s2a
 
-# Default ownwership for nopriv build
+# Default ownership for nopriv build
 NANO_DEF_UNAME=root
 NANO_DEF_GNAME=wheel
 
@@ -188,9 +192,11 @@ NANO_CPUTYPE=""
 
 # Directory to populate /cfg from
 NANO_CFGDIR=""
+NANO_METALOG_CFG=""
 
 # Directory to populate /data from
 NANO_DATADIR=""
+NANO_METALOG_DATA=""
 
 # We don't need SRCCONF or SRC_ENV_CONF. NanoBSD puts everything we
 # need for the build in files included with __MAKE_CONF. Override in your
@@ -257,27 +263,69 @@ tgt_touch() (
 	cd "${NANO_WORLDDIR}"
 	for i; do
 		touch $i
-		echo "./${i} type=file" >> ${NANO_METALOG}
+		if [ -n "$NANO_METALOG" ]; then
+			echo "./${i} type=file" \
+			    "uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" \
+			    "mode=0644" >> "${NANO_METALOG}"
+		fi
 	done
 )
 
 #
-# Convert a directory into a symlink. Takes two arguments, the
-# current directory and what it should become a symlink to. The
-# directory is removed and a symlink is created. If we're doing
+# Convert a directory into a symlink. Takes three arguments, the current
+# directory, what it should become a symlink to, and optionally, the mode.
+# The directory is removed and a symlink is created. If we're doing
 # a nopriv build, then append this fact to the metalog
 #
 tgt_dir2symlink() (
 	local dir=$1
 	local symlink=$2
+	local mode=${3:-0777}
 
 	cd "${NANO_WORLDDIR}"
 	rm -xrf "$dir"
-	ln -s "$symlink" "$dir"
+	ln -sf "$symlink" "$dir"
 	if [ -n "$NANO_METALOG" ]; then
-		echo "./${dir} type=link mode=0777 link=${symlink}" >> ${NANO_METALOG}
+		echo "./${dir} type=link" \
+		    "uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" \
+		    "mode=${mode} link=${symlink}" >> ${NANO_METALOG}
 	fi
 )
+
+#
+# Create directories in the target tree, and record the fact.  All paths
+# are relative to NANO_WORLDDIR.
+#
+tgt_dir() {
+	for i; do
+		mkdir -p "${NANO_WORLDDIR}/${i}"
+
+		if [ -n "$NANO_METALOG" ]; then
+			path=""
+			for dir in $(echo "$i" | tr "/" " "); do
+				path="${path}/${dir}"
+				echo ".${path} type=dir uname=${NANO_DEF_UNAME}" \
+				    "gname=${NANO_DEF_GNAME} mode=0755" >> "${NANO_METALOG}"
+			done
+		fi
+	done
+}
+
+#
+# Switch the current root partition in the target file system tab.
+# Takes two arguments: the current, and the new partition.
+#
+tgt_switch_root_fstab()
+{
+	local current new
+	current="$1"
+	new="$2"
+
+	for f in ${NANO_WORLDDIR}/etc/fstab ${NANO_WORLDDIR}/conf/base/etc/fstab
+	do
+		sed -i "" "s=${NANO_DRIVE}${current}=${NANO_DRIVE}${new}=g" "${f}"
+	done
+}
 
 # run in the world chroot, errors fatal
 CR() {
@@ -310,6 +358,10 @@ make_conf_build() {
 	nano_global_make_env
 	echo "${CONF_WORLD}"
 	echo "${CONF_BUILD}"
+	if [ -n "${NANO_NOPRIV_BUILD}" ]; then
+		echo NO_ROOT=true
+		echo METALOG="${NANO_METALOG}"
+	fi
 	) > ${NANO_MAKE_CONF_BUILD}
 }
 
@@ -502,8 +554,8 @@ run_late_customize() {
 #
 fixup_before_diskimage() {
 	# Run the deduplication script that takes the metalog journal and
-	# combines multiple entries for the same file (see source for
-	# details). We take the extra step of removing the size keywords. This
+	# combines multiple entries for the same file (see source for details).
+	# We take the extra step of removing the size and time keywords. This
 	# script, and many of the user scripts, copies, appends and otherwise
 	# modifies files in the build, changing their sizes.  These actions are
 	# impossible to trap, so go ahead remove the size= keyword. For this
@@ -514,7 +566,7 @@ fixup_before_diskimage() {
 		cp ${NANO_METALOG} ${NANO_METALOG}.pre
 		echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" > ${NANO_METALOG}
 		cat ${NANO_METALOG}.pre | ${NANO_TOOLS}/mtree-dedup.awk | \
-		    sed -e 's/ size=[0-9][0-9]*//' | sort >> ${NANO_METALOG}
+		    sort -u | mtree -C -K uname,gname,tags -R size,time >> ${NANO_METALOG}
 	fi
 }
 
@@ -542,25 +594,38 @@ setup_nanobsd() {
 	# are installed by this point, but are later in the process,
 	# the symlink not being here causes problems. It never hurts
 	# to have the symlink in error though.
-	ln -sf ../../etc/local usr/local/etc
+	tgt_dir2symlink usr/local/etc ../../etc/local 0755
 
 	for d in var etc
 	do
 		# link /$d under /conf
 		# we use hard links so we have them both places.
 		# the files in /$d will be hidden by the mount.
-		mkdir -p conf/base/$d conf/default/$d
+		tgt_dir conf/base/$d conf/default/$d
 		find $d -print | cpio ${CPIO_SYMLINK} -dumpl conf/base/
+		if [ -n "$NANO_METALOG" ]; then
+			grep "^.\/${d}\/" "${NANO_METALOG}" |
+			    sed -e "s=^./${d}=./conf/base/${d}=g" |
+			    sort | uniq >> "${NANO_METALOG}.conf"
+		fi
 	done
+
+	if [ -n "$NANO_METALOG" ]; then
+		cat "${NANO_METALOG}.conf" >> "${NANO_METALOG}"
+		rm -f "${NANO_METALOG}.conf"
+	fi
 
 	echo "$NANO_RAM_ETCSIZE" > conf/base/etc/md_size
 	echo "$NANO_RAM_TMPVARSIZE" > conf/base/var/md_size
+	tgt_touch conf/base/etc/md_size
+	tgt_touch conf/base/var/md_size
 
 	# pick up config files from the special partition
 	echo "mount -o ro /dev/${NANO_DRIVE}${NANO_SLICE_CFG}" > conf/default/etc/remount
+	tgt_touch conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	tgt_dir2symlink tmp var/tmp
+	tgt_dir2symlink tmp var/tmp 1777
 
 	) > ${NANO_LOG}/_.dl 2>&1
 }
@@ -572,7 +637,7 @@ setup_nanobsd_etc() {
 	cd "${NANO_WORLDDIR}"
 
 	# create diskless marker file
-	touch etc/diskless
+	tgt_touch etc/diskless
 
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 boot/defaults/loader.conf
 	{
@@ -614,13 +679,15 @@ EOF
 
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
+	tgt_touch etc/nanobsd.conf
 
 	echo "/dev/${NANO_DRIVE}${NANO_ROOT} / ufs ro 1 1" > etc/fstab
 	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
-	mkdir -p cfg
+	tgt_touch etc/fstab
+	tgt_dir cfg
 
 	# Create directory for eventual /usr/local/etc contents
-	mkdir -p etc/local
+	tgt_dir etc/local
 	)
 }
 
@@ -641,6 +708,18 @@ newfs_part() {
 	echo newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
 	newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
 	mount -o async ${dev} ${mnt}
+}
+
+nano_makefs() {
+	local dir image metalog options size
+	options=$1
+	metalog=$2
+	size=$3
+	image=$4
+	dir=$5
+
+	makefs ${options} -F "${metalog}" -N "${NANO_WORLDDIR}/etc" \
+	    -s "${size}b" -T "${NANO_TIMESTAMP}" -t ffs "${image}" "${dir}"
 }
 
 # Convenient spot to work around any umount issues that your build environment
@@ -666,12 +745,63 @@ populate_slice() {
 	nano_umount ${mnt}
 }
 
+_populate_part() {
+	local dir fs lbl metalog size type
+	type=$1
+	fs=$2
+	dir=$3
+	lbl=$4
+	size=$5
+	metalog=$6
+
+	echo "Creating ${fs}"
+
+	# Use the directory provided, otherwise create an empty one temporarily.
+	if [ -n "${dir}" ] && [ -d "${dir}" ]; then
+		echo "Populating ${lbl} from ${dir}"
+	else
+		if [ "${type}" = "cfg" ]; then
+			dir=$(mktemp -d -p "${NANO_OBJ}" -t "${type}")
+			trap "rm -rf ${dir}" 1 2 15 EXIT
+		fi
+	fi
+
+	if [ -d "${dir}" ]; then
+		# If there is no metalog, create one using the default
+		# NANO_DEF_UNAME and NANO_DEF_GNAME for all entries in the spec.
+		if [ -z "${metalog}" ]; then
+			metalog="${NANO_METALOG}.${type}"
+			echo "/set type=dir uname=${NANO_DEF_UNAME}" \
+			    "gname=${NANO_DEF_GNAME} mode=0755" > "${metalog}"
+			echo ". type=dir uname=${NANO_DEF_UNAME}" \
+			    "gname=${NANO_DEF_GNAME} mode=0755" >> "${metalog}"
+			(
+				cd "${dir}"
+				mtree -bc -k flags,gid,gname,link,mode,uid,uname |
+				    mtree -C | tail -n +2 |
+				    sed "s/uid=[[:digit:]]*/uname=${NANO_DEF_UNAME}/g" |
+				    sed "s/gid=[[:digit:]]*/gname=${NANO_DEF_GNAME}/g" >> "${metalog}"
+			)
+		fi
+
+		nano_makefs "-DxZ ${NANO_MAKEFS}" "${metalog}" "${size}" "${fs}" "${dir}"
+	fi
+}
+
 populate_cfg_slice() {
 	populate_slice "$1" "$2" "$3" "$4"
 }
 
+_populate_cfg_part() {
+	_populate_part "cfg" "$1" "$2" "$3" "$4" "$5"
+}
+
 populate_data_slice() {
 	populate_slice "$1" "$2" "$3" "$4"
+}
+
+_populate_data_part() {
+	_populate_part "data" "$1" "$2" "$3" "$4" "$5"
 }
 
 last_orders() {
@@ -773,6 +903,8 @@ cust_install_files() (
 	if [ -n "${NANO_CUST_FILES_MTREE}" -a -f ${NANO_CUST_FILES_MTREE} ]; then
 		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
 	fi
+
+	tgt_touch $(find * -type f)
 )
 
 #######################################################################
@@ -812,7 +944,7 @@ cust_pkgng() {
 	mount -t nullfs -o noatime -o ro ${NANO_PACKAGE_DIR} ${NANO_WORLDDIR}/_.p
 	mount -t devfs devfs ${NANO_WORLDDIR}/dev
 
-	trap "umount ${NANO_WORLDDIR}/dev; umount ${NANO_WORLDDIR}/_.p ; rm -xrf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
+	trap "nano_umount ${NANO_WORLDDIR}/dev; nano_umount ${NANO_WORLDDIR}/_.p ; rm -xrf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
 
 	# Install pkg-* package
 	CR "${PKGCMD} add /_.p/${_NANO_PKG_PACKAGE}"
@@ -837,8 +969,8 @@ cust_pkgng() {
 	CR0 "${PKGCMD} info"
 
 	trap - 1 2 15 EXIT
-	umount ${NANO_WORLDDIR}/dev
-	umount ${NANO_WORLDDIR}/_.p
+	nano_umount ${NANO_WORLDDIR}/dev
+	nano_umount ${NANO_WORLDDIR}/_.p
 	rm -xrf ${NANO_WORLDDIR}/_.p
 }
 
@@ -885,7 +1017,7 @@ pprint() {
 
 usage() {
 	(
-	echo "Usage: $0 [-BbfhIiKknpqvWwX] [-c config_file]"
+	echo "Usage: $0 [-BbfhIiKknpqUvWwX] [-c config_file]"
 	echo "	-B	suppress installs (both kernel and world)"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
@@ -898,6 +1030,7 @@ usage() {
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-p	suppress preparing the image"
 	echo "	-q	make output more quiet"
+	echo "	-U	add -DNO_ROOT to build without root privileges"
 	echo "	-v	make output more verbose"
 	echo "	-W	suppress installworld"
 	echo "	-w	suppress buildworld"
@@ -929,6 +1062,9 @@ set_defaults_and_export() {
 	if ! $do_clean; then
 		NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
 	fi
+	if ! $do_root; then
+		NANO_PMAKE="${NANO_PMAKE} -DNO_ROOT"
+	fi
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 
@@ -939,10 +1075,12 @@ set_defaults_and_export() {
 	[ ! -d "${NANO_TOOLS}" ] && [ -d "${NANO_SRC}/${NANO_TOOLS}" ] && \
 		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}" || true
 
-	[ -n "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ] && \
-		NANO_METALOG=${NANO_OBJ}/_.metalog || true
+	if [ -n "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ]; then
+		NANO_METALOG=${NANO_OBJ}/_.metalog
+	fi
 
 	NANO_STARTTIME=`date +%s`
+	: ${NANO_TIMESTAMP:=${NANO_STARTTIME}}
 	pprint 3 "Exporting NanoBSD variables"
 	export_var MAKEOBJDIRPREFIX
 	export_var NANO_ARCH
@@ -956,6 +1094,7 @@ set_defaults_and_export() {
 	export_var NANO_IMGNAME
 	export_var NANO_IMG1NAME
 	export_var NANO_MAKE
+	export_var NANO_MAKEFS
 	export_var NANO_MAKE_CONF_BUILD
 	export_var NANO_MAKE_CONF_INSTALL
 	export_var NANO_MEDIASIZE
@@ -966,6 +1105,7 @@ set_defaults_and_export() {
 	export_var NANO_PMAKE
 	export_var NANO_SECTS
 	export_var NANO_SRC
+	export_var NANO_TIMESTAMP
 	export_var NANO_TOOLS
 	export_var NANO_WORLDDIR
 	export_var NANO_BOOT0CFG

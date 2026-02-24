@@ -28,7 +28,7 @@
 #ifndef _NETLINK_KTEST_NETLINK_MESSAGE_WRITER_H_
 #define _NETLINK_KTEST_NETLINK_MESSAGE_WRITER_H_
 
-#if defined(_KERNEL) && defined(INVARIANTS)
+#if defined(_KERNEL)
 
 bool nlmsg_get_buf_wrapper(struct nl_writer *nw, size_t size, bool waitok);
 

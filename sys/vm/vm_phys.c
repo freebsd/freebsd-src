@@ -1213,7 +1213,7 @@ vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end)
 
 	rw_wlock(&vm_phys_fictitious_reg_lock);
 	seg = RB_FIND(fict_tree, &vm_phys_fictitious_tree, &tmp);
-	if (seg->start != start || seg->end != end) {
+	if (seg == NULL || seg->start != start || seg->end != end) {
 		rw_wunlock(&vm_phys_fictitious_reg_lock);
 		panic(
 		    "Unregistering not registered fictitious range [%#jx:%#jx]",

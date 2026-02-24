@@ -535,6 +535,7 @@ struct bnxt_re_dev {
 	bool				is_virtfn;
 	u32				num_vfs;
 	u32				espeed;
+	u8				lanes;
 	/*
 	 * For storing the speed of slave interfaces.
 	 * Same as espeed when bond is not configured
@@ -716,7 +717,7 @@ void bnxt_re_remove_device(struct bnxt_re_dev *rdev, u8 removal_type,
 void bnxt_re_destroy_lag(struct bnxt_re_dev **rdev);
 int bnxt_re_add_device(struct bnxt_re_dev **rdev,
 		       struct ifnet *netdev,
-		       u8 qp_mode, u8 op_type, u8 wqe_mode, u32 num_msix_requested,
+		       u8 qp_mode, u8 op_type, u32 num_msix_requested,
 		       struct auxiliary_device *aux_dev);
 void bnxt_re_create_base_interface(bool primary);
 int bnxt_re_schedule_work(struct bnxt_re_dev *rdev, unsigned long event,
@@ -1067,6 +1068,15 @@ static inline void bnxt_re_set_def_pacing_threshold(struct bnxt_re_dev *rdev)
 static inline void bnxt_re_set_def_do_pacing(struct bnxt_re_dev *rdev)
 {
 	rdev->qplib_res.pacing_data->do_pacing = rdev->dbr_def_do_pacing;
+}
+
+static inline bool bnxt_re_is_var_size_supported(struct bnxt_re_dev *rdev,
+						struct bnxt_re_ucontext *uctx)
+{
+	if (uctx)
+		return uctx->cmask & BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED;
+	else
+		return rdev->chip_ctx->modes.wqe_mode;
 }
 
 static inline void bnxt_re_set_pacing_dev_state(struct bnxt_re_dev *rdev)

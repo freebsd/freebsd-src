@@ -1447,8 +1447,13 @@ acpi_ibm_eventhandler(struct acpi_ibm_softc *sc, int arg)
 
 	ACPI_SERIAL_BEGIN(ibm);
 	switch (arg) {
+	/*
+	 * XXX "Suspend-to-RAM" here is as opposed to suspend-to-disk, but it is
+	 * fine if our suspend sleep state transition request puts us in s2idle
+	 * instead of suspend-to-RAM.
+	 */
 	case IBM_EVENT_SUSPEND_TO_RAM:
-		power_pm_suspend(POWER_SLEEP_STATE_SUSPEND);
+		power_pm_suspend(POWER_SSTATE_TRANSITION_SUSPEND);
 		break;
 
 	case IBM_EVENT_BLUETOOTH:

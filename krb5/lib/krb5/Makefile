@@ -51,7 +51,8 @@ CFLAGS+=${DEFINES} \
 	-I${KRB5_DIR}/util/profile \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
-	-I${KRB5_DIR}
+	-I${KRB5_DIR} \
+	-I${KRB5_OBJTOP}/util/profile
 
 MANGROUPS=	KRB5
 KRB5=		k5identity.5 \

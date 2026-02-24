@@ -247,6 +247,11 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_ATOM_TREMONT;
 			nclasses = 3;
 			break;
+		case 0xAD:
+		case 0xAE:
+			cputype = PMC_CPU_INTEL_GRANITE_RAPIDS;
+			nclasses = 3;
+			break;
 		case 0xBE:
 			cputype = PMC_CPU_INTEL_ALDERLAKEN;
 			nclasses = 3;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -52,6 +52,9 @@ typedef __int64 ssize_t;
 #else
 typedef __int32 ssize_t;
 #endif
+#endif
+#ifdef __BORLANDC__
+typedef long ssize_t;
 #endif
 
 #endif //  LESS_LANG_H_

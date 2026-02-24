@@ -92,14 +92,6 @@ disable_intr(void)
 
 #ifdef _KERNEL
 static __inline void
-do_cpuid(u_int ax, u_int *p)
-{
-	__asm __volatile("cpuid"
-	    : "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
-	    :  "0" (ax));
-}
-
-static __inline void
 cpuid_count(u_int ax, u_int cx, u_int *p)
 {
 	__asm __volatile("cpuid"
@@ -107,18 +99,6 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 	    :  "0" (ax), "c" (cx));
 }
 #else
-static __inline void
-do_cpuid(u_int ax, u_int *p)
-{
-	__asm __volatile(
-	    "pushl\t%%ebx\n\t"
-	    "cpuid\n\t"
-	    "movl\t%%ebx,%1\n\t"
-	    "popl\t%%ebx"
-	    : "=a" (p[0]), "=DS" (p[1]), "=c" (p[2]), "=d" (p[3])
-	    :  "0" (ax));
-}
-
 static __inline void
 cpuid_count(u_int ax, u_int cx, u_int *p)
 {
@@ -131,6 +111,12 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 	    :  "0" (ax), "c" (cx));
 }
 #endif
+
+static __inline void
+do_cpuid(u_int ax, u_int *p)
+{
+	cpuid_count(ax, 0, p);
+}
 
 static __inline void
 enable_intr(void)

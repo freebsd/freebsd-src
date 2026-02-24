@@ -90,6 +90,7 @@ const cap_rights_t cap_mkfifoat_rights = CAP_RIGHTS_INITIALIZER(CAP_MKFIFOAT);
 const cap_rights_t cap_mknodat_rights = CAP_RIGHTS_INITIALIZER(CAP_MKNODAT);
 const cap_rights_t cap_pdgetpid_rights = CAP_RIGHTS_INITIALIZER(CAP_PDGETPID);
 const cap_rights_t cap_pdkill_rights = CAP_RIGHTS_INITIALIZER(CAP_PDKILL);
+const cap_rights_t cap_pdwait_rights = CAP_RIGHTS_INITIALIZER(CAP_PDWAIT);
 const cap_rights_t cap_pread_rights = CAP_RIGHTS_INITIALIZER(CAP_PREAD);
 const cap_rights_t cap_pwrite_rights = CAP_RIGHTS_INITIALIZER(CAP_PWRITE);
 const cap_rights_t cap_read_rights = CAP_RIGHTS_INITIALIZER(CAP_READ);

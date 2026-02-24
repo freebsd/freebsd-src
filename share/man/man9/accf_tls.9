@@ -28,9 +28,12 @@
 .Nm accf_tls
 .Nd "buffer incoming connections until a TLS handshake like request arrives"
 .Sh SYNOPSIS
-.Nm options INET
-.Nm options ACCEPT_FILTER_TLS
-.Nm kldload accf_tls
+.Cd options INET
+.Cd options ACCEPT_FILTER_TLS
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="accf_tls"
 .Sh DESCRIPTION
 This is a filter to be placed on a socket that will be using
 .Fn accept 2

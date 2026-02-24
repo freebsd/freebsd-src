@@ -56,6 +56,7 @@ enum awusbphy_type {
 	AWUSBPHY_TYPE_A64,
 	AWUSBPHY_TYPE_A83T,
 	AWUSBPHY_TYPE_H6,
+	AWUSBPHY_TYPE_H616,
 	AWUSBPHY_TYPE_D1,
 };
 
@@ -122,6 +123,13 @@ static const struct aw_usbphy_conf h6_usbphy_conf = {
 	.phy0_route = true,
 };
 
+static const struct aw_usbphy_conf h616_usbphy_conf = {
+	.num_phys = 4,
+	.phy_type = AWUSBPHY_TYPE_H616,
+	.pmu_unk1 = false,
+	.phy0_route = true,
+};
+
 static const struct aw_usbphy_conf d1_usbphy_conf = {
 	.num_phys = 2,
 	.phy_type = AWUSBPHY_TYPE_D1,
@@ -138,6 +146,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun50i-a64-usb-phy",	(uintptr_t)&a64_usbphy_conf },
 	{ "allwinner,sun8i-a83t-usb-phy",	(uintptr_t)&a83t_usbphy_conf },
 	{ "allwinner,sun50i-h6-usb-phy",	(uintptr_t)&h6_usbphy_conf },
+	{ "allwinner,sun50i-h616-usb-phy",	(uintptr_t)&h616_usbphy_conf },
 	{ "allwinner,sun20i-d1-usb-phy",	(uintptr_t)&d1_usbphy_conf },
 	{ NULL,					0 }
 };

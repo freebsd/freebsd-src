@@ -735,7 +735,7 @@ filt_jail(struct knote *kn, long hint)
     (NOTE_SECONDS | NOTE_MSECONDS | NOTE_USECONDS | NOTE_NSECONDS)
 
 static sbintime_t
-timer2sbintime(int64_t data, int flags)
+timer2sbintime(int64_t data, unsigned int flags)
 {
 	int64_t secs;
 
@@ -814,14 +814,11 @@ void
 kqtimer_proc_continue(struct proc *p)
 {
 	struct kq_timer_cb_data *kc, *kc1;
-	struct bintime bt;
 	sbintime_t now;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	getboottimebin(&bt);
-	now = bttosbt(bt);
-
+	now = sbinuptime();
 	TAILQ_FOREACH_SAFE(kc, &p->p_kqtim_stop, link, kc1) {
 		TAILQ_REMOVE(&p->p_kqtim_stop, kc, link);
 		kc->flags &= ~KQ_TIMER_CB_ENQUEUED;
@@ -873,8 +870,13 @@ filt_timerexpire_l(struct knote *kn, bool proc_locked)
 			PROC_LOCK(p);
 		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
 			if ((kc->flags & KQ_TIMER_CB_ENQUEUED) == 0) {
+				/*
+				 * Insert into head so that
+				 * kqtimer_proc_continue() does not
+				 * iterate into us again.
+				 */
 				kc->flags |= KQ_TIMER_CB_ENQUEUED;
-				TAILQ_INSERT_TAIL(&p->p_kqtim_stop, kc, link);
+				TAILQ_INSERT_HEAD(&p->p_kqtim_stop, kc, link);
 			}
 			if (!proc_locked)
 				PROC_UNLOCK(p);

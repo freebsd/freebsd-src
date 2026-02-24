@@ -298,6 +298,21 @@ enum intr_polarity {
 };
 
 /**
+ * Bus drivers may maintain a set of bus-specific instance variables
+ * for each child device.  The BUS_READ_IVAR/BUS_WRITE_IVAR API can be
+ * used to access these variables using an index value.  Some index
+ * values are private to a single bus and should be defined in the
+ * private range.  Other index values are shared by multiple busses
+ * and must have the same meaning in all bus drivers.
+ */
+
+#define	BUS_IVARS_PRIVATE	0x0	/* private variables */
+#define	BUS_IVARS_ACPI		0x100
+#define	BUS_IVARS_GIC		0x200
+#define	BUS_IVARS_GPIOBUS	0x300
+#define	BUS_IVARS_SUPERIO	0x400
+
+/**
  * CPU sets supported by bus_get_cpus().  Note that not all sets may be
  * supported for a given device.  If a request is not supported by a
  * device (or its parents), then bus_get_cpus() will fail with EINVAL.

@@ -318,7 +318,7 @@ vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
    return &((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->arm_state;
 }
 
-int
+VCHIQ_STATUS_T
 vchiq_copy_from_user(void *dst, const void *src, int size)
 {
 
@@ -329,7 +329,7 @@ vchiq_copy_from_user(void *dst, const void *src, int size)
 	else
 		bcopy(src, dst, size);
 
-	return 0;
+	return VCHIQ_SUCCESS;
 }
 
 VCHIQ_STATUS_T

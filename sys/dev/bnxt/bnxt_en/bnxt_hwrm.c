@@ -1218,6 +1218,9 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	    flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_DBR_PACING_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_DBR_PACING_SUPPORTED;
 
+	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_SW_MAX_RESOURCE_LIMITS_SUPPORTED)
+		softc->fw_cap |= BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS;
+
 	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_GENERIC_STATS_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_GENERIC_STATS;
 	func->fw_fid = le16toh(resp->fid);
@@ -1309,6 +1312,7 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 		goto end;
 
 	softc->legacy_db_size = le16_to_cpu(resp->legacy_l2_db_size_kb) * 1024;
+	softc->db_offset = le16toh(resp->legacy_l2_db_size_kb) * 1024;
 
 	if (BNXT_CHIP_P5(softc)) {
 		if (BNXT_PF(softc))
@@ -1316,6 +1320,7 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 		else
 			min_db_offset = DB_VF_OFFSET_P5;
 		softc->legacy_db_size = min_db_offset;
+		softc->db_offset = min_db_offset;
 	}
 
 	softc->db_size = roundup2(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
@@ -2912,10 +2917,14 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	}
 
 	link_info->duplex_setting = resp->duplex_cfg;
-	if (link_info->phy_link_status == HWRM_PORT_PHY_QCFG_OUTPUT_LINK_LINK)
+	if (link_info->phy_link_status == HWRM_PORT_PHY_QCFG_OUTPUT_LINK_LINK) {
 		link_info->link_speed = le16toh(resp->link_speed);
-	else
+		if (softc->phy_flags & BNXT_PHY_FL_SPEEDS2)
+			link_info->active_lanes = resp->active_lanes;
+	} else {
 		link_info->link_speed = 0;
+		link_info->active_lanes = 0;
+	}
 	link_info->force_link_speed = le16toh(resp->force_link_speed);
 	link_info->auto_link_speeds = le16toh(resp->auto_link_speed);
 	link_info->support_speeds = le16toh(resp->support_speeds);

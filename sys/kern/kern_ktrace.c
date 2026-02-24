@@ -373,11 +373,17 @@ ktr_getrequest(int type)
 static void
 ktr_enqueuerequest(struct thread *td, struct ktr_request *req)
 {
+	bool sched_ast;
 
 	mtx_lock(&ktrace_mtx);
-	STAILQ_INSERT_TAIL(&td->td_proc->p_ktr, req, ktr_list);
+	sched_ast = td->td_proc->p_ktrioparms != NULL;
+	if (sched_ast)
+		STAILQ_INSERT_TAIL(&td->td_proc->p_ktr, req, ktr_list);
+	else
+		ktr_freerequest_locked(req);
 	mtx_unlock(&ktrace_mtx);
-	ast_sched(td, TDA_KTRACE);
+	if (sched_ast)
+		ast_sched(td, TDA_KTRACE);
 }
 
 /*
@@ -832,8 +838,8 @@ ktrpsig(int sig, sig_t action, sigset_t *mask, int code)
 	ktrace_exit(td);
 }
 
-void
-ktrcsw(int out, int user, const char *wmesg)
+static void
+ktrcsw_impl(int out, int user, const char *wmesg, const struct timespec *tv)
 {
 	struct thread *td = curthread;
 	struct ktr_request *req;
@@ -848,12 +854,26 @@ ktrcsw(int out, int user, const char *wmesg)
 	kc = &req->ktr_data.ktr_csw;
 	kc->out = out;
 	kc->user = user;
+	if (tv != NULL)
+		req->ktr_header.ktr_time = *tv;
 	if (wmesg != NULL)
 		strlcpy(kc->wmesg, wmesg, sizeof(kc->wmesg));
 	else
 		bzero(kc->wmesg, sizeof(kc->wmesg));
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
+}
+
+void
+ktrcsw(int out, int user, const char *wmesg)
+{
+	ktrcsw_impl(out, user, wmesg, NULL);
+}
+
+void
+ktrcsw_out(const struct timespec *tv, const char *wmesg)
+{
+	ktrcsw_impl(1, 0, wmesg, tv);
 }
 
 void

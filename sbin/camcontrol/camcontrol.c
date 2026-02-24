@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997-2007 Kenneth D. Merry
  * All rights reserved.
  *
@@ -1024,7 +1026,6 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 			/* start/stop */ startstop,
 			/* load_eject */ loadeject,
 			/* immediate */ 0,
-			/* power_condition */ SSS_PC_START_VALID,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ timeout ? timeout : 120000);
 

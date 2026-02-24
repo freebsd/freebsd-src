@@ -199,9 +199,6 @@ VNET_DECLARE(int, ipsendredirects);
 VNET_DECLARE(int, ipstealth);			/* stealth forwarding */
 #endif
 VNET_DECLARE(struct socket *, ip_rsvpd);	/* reservation protocol daemon*/
-VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
-extern int	(*legal_vif_num)(int);
-extern u_long	(*ip_mcast_src)(int);
 VNET_DECLARE(int, rsvp_on);
 VNET_DECLARE(int, drop_redirect);
 VNET_DECLARE(int, ip_random_id);
@@ -214,7 +211,6 @@ VNET_DECLARE(int, ip_random_id);
 #define	V_ipstealth		VNET(ipstealth)
 #endif
 #define	V_ip_rsvpd		VNET(ip_rsvpd)
-#define	V_ip_mrouter		VNET(ip_mrouter)
 #define	V_rsvp_on		VNET(rsvp_on)
 #define	V_drop_redirect		VNET(drop_redirect)
 #define	V_ip_random_id		VNET(ip_random_id)
@@ -227,9 +223,6 @@ int	ip_ctloutput(struct socket *, struct sockopt *sopt);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags);
 void	ip_forward(struct mbuf *m, int srcrt);
-extern int
-	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
-	    struct ip_moptions *);
 int	ip_output(struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *,
 	    struct inpcb *);
@@ -244,9 +237,6 @@ int	rsvp_input(struct mbuf **, int *, int);
 
 int	ip_rsvp_init(struct socket *);
 int	ip_rsvp_done(void);
-extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
-extern void	(*ip_rsvp_force_done)(struct socket *);
-extern int	(*rsvp_input_p)(struct mbuf **, int *, int);
 
 typedef int	ipproto_input_t(struct mbuf **, int *, int);
 struct icmp;

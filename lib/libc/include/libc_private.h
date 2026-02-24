@@ -252,6 +252,7 @@ enum {
 	INTERPOS__reserved0, /* was distribute_static_tls */
 	INTERPOS_pdfork,
 	INTERPOS_uexterr_gettext,
+	INTERPOS_pdwait,
 	INTERPOS_MAX
 };
 

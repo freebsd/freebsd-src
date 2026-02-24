@@ -1101,7 +1101,6 @@ static int bnxt_re_handle_start(struct auxiliary_device *adev)
 	rc = bnxt_re_add_device(&rdev, real_dev,
 				en_info->gsi_mode,
 				BNXT_RE_POST_RECOVERY_INIT,
-				en_info->wqe_mode,
 				en_info->num_msix_requested, adev);
 	if (rc) {
 		/* Add device failed. Unregister the device.
@@ -1411,12 +1410,14 @@ static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 		dev_info(rdev_to_dev(rdev),
 			 "Couldn't get DB bar size, Low latency framework is disabled\n");
 	/* set register offsets for both UC and WC */
-	if (_is_chip_p7(cctx))
-		res->dpi_tbl.ucreg.offset = offset;
-	else
+	if (_is_chip_p7(cctx)) {
+		res->dpi_tbl.ucreg.offset = en_dev->l2_db_offset;
+		res->dpi_tbl.wcreg.offset = en_dev->l2_db_size;
+	} else {
 		res->dpi_tbl.ucreg.offset = res->is_vf ? BNXT_QPLIB_DBR_VF_DB_OFFSET :
 							 BNXT_QPLIB_DBR_PF_DB_OFFSET;
-	res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
+		res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
+	}
 
 	/* If WC mapping is disabled by L2 driver then en_dev->l2_db_size
 	 * is equal to the DB-Bar actual size. This indicates that L2
@@ -1433,15 +1434,15 @@ static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 	return;
 }
 
-static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev, u8 mode)
+static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_en_dev *en_dev;
 
 	en_dev = rdev->en_dev;
 	cctx = rdev->chip_ctx;
-	cctx->modes.wqe_mode = _is_chip_gen_p5_p7(rdev->chip_ctx) ?
-					mode : BNXT_QPLIB_WQE_MODE_STATIC;
+	cctx->modes.wqe_mode = _is_chip_p7(rdev->chip_ctx) ?
+			BNXT_QPLIB_WQE_MODE_VARIABLE : BNXT_QPLIB_WQE_MODE_STATIC;
 	cctx->modes.te_bypass = false;
 	if (bnxt_re_hwrm_qcaps(rdev))
 		dev_err(rdev_to_dev(rdev),
@@ -1490,7 +1491,7 @@ static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
 	kfree(chip_ctx);
 }
 
-static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
+static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *chip_ctx;
 	struct bnxt_en_dev *en_dev;
@@ -1525,7 +1526,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 		rc = -ENOMEM;
 		goto fail;
 	}
-	bnxt_re_set_drv_mode(rdev, wqe_mode);
+	bnxt_re_set_drv_mode(rdev);
 
 	bnxt_re_set_db_offset(rdev);
 	rc = bnxt_qplib_map_db_bar(&rdev->qplib_res);
@@ -2029,11 +2030,30 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
 }
 
+static ssize_t show_board_id(struct device *device, struct device_attribute *attr,
+				char *buf)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+	char buffer[BNXT_VPD_PN_FLD_LEN] = {};
+
+	if (!rdev->is_virtfn)
+		memcpy(buffer, rdev->en_dev->board_part_number,
+			BNXT_VPD_PN_FLD_LEN - 1);
+	else
+		scnprintf(buffer, BNXT_VPD_PN_FLD_LEN,
+			"0x%x-VF", rdev->en_dev->pdev->device);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", buffer);
+}
+
 static DEVICE_ATTR(hw_rev, 0444, show_rev, NULL);
 static DEVICE_ATTR(hca_type, 0444, show_hca, NULL);
+static DEVICE_ATTR(board_id, 0444, show_board_id, NULL);
+
 static struct device_attribute *bnxt_re_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_hca_type
+	&dev_attr_hca_type,
+	&dev_attr_board_id
 };
 
 int ib_register_device_compat(struct bnxt_re_dev *rdev)
@@ -3530,7 +3550,7 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 	}
 }
 
-static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type, u8 wqe_mode)
+static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 {
 	struct bnxt_re_ring_attr rattr = {};
 	struct bnxt_qplib_creq_ctx *creq;
@@ -3545,7 +3565,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type, u8 wqe_mode)
 	}
 	set_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
 
-	rc = bnxt_re_setup_chip_ctx(rdev, wqe_mode);
+	rc = bnxt_re_setup_chip_ctx(rdev);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to get chip context rc 0x%x", rc);
 		bnxt_re_unregister_netdev(rdev);
@@ -3592,19 +3612,24 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type, u8 wqe_mode)
 		goto release_rtnl;
 	}
 
+	set_bit(BNXT_RE_FLAG_NET_RING_ALLOC, &rdev->flags);
+
 	if (!rdev->chip_ctx)
 		goto release_rtnl;
-	/* Program the NQ ID for DBQ notification */
-	if (rdev->chip_ctx->modes.dbr_pacing_v0 ||
-	    bnxt_qplib_dbr_pacing_en(rdev->chip_ctx) ||
-	    bnxt_qplib_dbr_pacing_ext_en(rdev->chip_ctx)) {
-		rc = bnxt_re_initialize_dbr_pacing(rdev);
-		if (!rc)
-			rdev->dbr_pacing = true;
-		else
-			rdev->dbr_pacing = false;
-		dev_dbg(rdev_to_dev(rdev), "%s: initialize db pacing ret %d\n",
-			__func__, rc);
+
+	if (!(_is_chip_p7(rdev->chip_ctx))) {
+		/* Program the NQ ID for DBQ notification */
+		if (rdev->chip_ctx->modes.dbr_pacing_v0 ||
+		    bnxt_qplib_dbr_pacing_en(rdev->chip_ctx) ||
+		    bnxt_qplib_dbr_pacing_ext_en(rdev->chip_ctx)) {
+			rc = bnxt_re_initialize_dbr_pacing(rdev);
+			if (!rc)
+				rdev->dbr_pacing = true;
+			else
+				rdev->dbr_pacing = false;
+			dev_dbg(rdev_to_dev(rdev), "%s: initialize db pacing ret %d\n",
+				__func__, rc);
+		}
 	}
 
 	vec = rdev->nqr.msix_entries[BNXT_RE_AEQ_IDX].vector;
@@ -3811,6 +3836,7 @@ static int bnxt_re_dev_reg(struct bnxt_re_dev **rdev, struct ifnet *netdev,
 void bnxt_re_get_link_speed(struct bnxt_re_dev *rdev)
 {
 	rdev->espeed = rdev->en_dev->espeed;
+	rdev->lanes = rdev->en_dev->lanes;
 	return;
 }
 
@@ -3852,7 +3878,7 @@ void bnxt_re_remove_device(struct bnxt_re_dev *rdev, u8 op_type,
 
 int bnxt_re_add_device(struct bnxt_re_dev **rdev,
 		       struct ifnet *netdev,
-		       u8 qp_mode, u8 op_type, u8 wqe_mode,
+		       u8 qp_mode, u8 op_type,
 		       u32 num_msix_requested,
 		       struct auxiliary_device *aux_dev)
 {
@@ -3925,7 +3951,7 @@ int bnxt_re_add_device(struct bnxt_re_dev **rdev,
 	rtnl_lock();
 	en_info->rdev = *rdev;
 	rtnl_unlock();
-	rc = bnxt_re_dev_init(*rdev, op_type, wqe_mode);
+	rc = bnxt_re_dev_init(*rdev, op_type);
 	if (rc) {
 ref_error:
 		bnxt_re_dev_unreg(*rdev);
@@ -4374,7 +4400,6 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 	rc = bnxt_re_add_device(&rdev, en_dev->net,
 				BNXT_RE_GSI_MODE_ALL,
 				BNXT_RE_COMPLETE_INIT,
-				BNXT_QPLIB_WQE_MODE_STATIC,
 				BNXT_RE_MSIX_FROM_MOD_PARAM, adev);
 	if (rc) {
 		mutex_unlock(&bnxt_re_mutex);

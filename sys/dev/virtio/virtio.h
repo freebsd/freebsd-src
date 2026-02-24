@@ -53,13 +53,15 @@ struct vq_alloc_info;
 /*
  * VirtIO instance variables indices.
  */
-#define VIRTIO_IVAR_DEVTYPE		1
-#define VIRTIO_IVAR_FEATURE_DESC	2
-#define VIRTIO_IVAR_VENDOR		3
-#define VIRTIO_IVAR_DEVICE		4
-#define VIRTIO_IVAR_SUBVENDOR		5
-#define VIRTIO_IVAR_SUBDEVICE		6
-#define VIRTIO_IVAR_MODERN		7
+enum {
+	VIRTIO_IVAR_DEVTYPE = BUS_IVARS_PRIVATE,
+	VIRTIO_IVAR_FEATURE_DESC,
+	VIRTIO_IVAR_VENDOR,
+	VIRTIO_IVAR_DEVICE,
+	VIRTIO_IVAR_SUBVENDOR,
+	VIRTIO_IVAR_SUBDEVICE,
+	VIRTIO_IVAR_MODERN
+};
 
 struct virtio_feature_desc {
 	uint64_t	 vfd_val;

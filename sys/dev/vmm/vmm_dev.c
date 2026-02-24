@@ -8,6 +8,8 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#define	EXTERR_CATEGORY	EXTERR_CAT_VMM
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/jail.h>
@@ -91,7 +93,7 @@ static bool vmm_initialized = false;
 
 static SLIST_HEAD(, vmmdev_softc) head;
 
-static unsigned pr_allow_flag;
+static unsigned int pr_allow_vmm_flag, pr_allow_vmm_ppt_flag;
 static struct sx vmmdev_mtx;
 SX_SYSINIT(vmmdev_mtx, &vmmdev_mtx, "vmm device mutex");
 
@@ -115,7 +117,7 @@ static int
 vmm_priv_check(struct ucred *ucred)
 {
 	if (jailed(ucred) &&
-	    !(ucred->cr_prison->pr_allow & pr_allow_flag))
+	    (ucred->cr_prison->pr_allow & pr_allow_vmm_flag) == 0)
 		return (EPERM);
 
 	return (0);
@@ -459,8 +461,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	if (ioctl == NULL)
 		return (ENOTTY);
 
-	if ((ioctl->flags & VMMDEV_IOCTL_PRIV_CHECK_DRIVER) != 0) {
-		error = priv_check(td, PRIV_DRIVER);
+	if ((ioctl->flags & VMMDEV_IOCTL_PPT) != 0) {
+		if (jailed(td->td_ucred) && (td->td_ucred->cr_prison->pr_allow &
+		    pr_allow_vmm_ppt_flag) == 0)
+			return (EPERM);
+		error = priv_check(td, PRIV_VMM_PPTDEV);
 		if (error != 0)
 			return (error);
 	}
@@ -876,8 +881,7 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 		free(dsc, M_VMMDEV);
 	}
 
-	if (sc->vm != NULL)
-		vm_destroy(sc->vm);
+	vm_destroy(sc->vm);
 
 	chgvmmcnt(sc->ucred->cr_ruidinfo, -1, 0);
 	crfree(sc->ucred);
@@ -896,12 +900,23 @@ vmmdev_lookup_and_destroy(const char *name, struct ucred *cred)
 {
 	struct cdev *cdev;
 	struct vmmdev_softc *sc;
+	int error;
 
 	sx_xlock(&vmmdev_mtx);
 	sc = vmmdev_lookup(name, cred);
 	if (sc == NULL || sc->cdev == NULL) {
 		sx_xunlock(&vmmdev_mtx);
 		return (EINVAL);
+	}
+
+	/*
+	 * Only the creator of a VM or a privileged user can destroy it.
+	 */
+	if ((cred->cr_uid != sc->ucred->cr_uid ||
+	     cred->cr_prison != sc->ucred->cr_prison) &&
+	    (error = priv_check_cred(cred, PRIV_VMM_DESTROY)) != 0) {
+		sx_xunlock(&vmmdev_mtx);
+		return (error);
 	}
 
 	/*
@@ -990,9 +1005,26 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 		return (EEXIST);
 	}
 
+	/*
+	 * Unprivileged users can only create VMs that will be automatically
+	 * destroyed when the creating descriptor is closed.
+	 */
+	if ((flags & VMMCTL_CREATE_DESTROY_ON_CLOSE) == 0 &&
+	    (error = priv_check_cred(cred, PRIV_VMM_CREATE)) != 0) {
+		sx_xunlock(&vmmdev_mtx);
+		return (EXTERROR(error,
+		    "An unprivileged user must run VMs in monitor mode"));
+	}
+
+	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
+		sx_xunlock(&vmmdev_mtx);
+		return (ENOMEM);
+	}
+
 	error = vm_create(name, &vm);
 	if (error != 0) {
 		sx_xunlock(&vmmdev_mtx);
+		(void)chgvmmcnt(cred->cr_ruidinfo, -1, 0);
 		return (error);
 	}
 	sc = vmmdev_alloc(vm, cred);
@@ -1004,8 +1036,8 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &vmmdevsw;
 	mda.mda_cr = sc->ucred;
-	mda.mda_uid = UID_ROOT;
-	mda.mda_gid = GID_WHEEL;
+	mda.mda_uid = cred->cr_uid;
+	mda.mda_gid = GID_VMM;
 	mda.mda_mode = 0600;
 	mda.mda_si_drv1 = sc;
 	mda.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
@@ -1014,12 +1046,6 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 		sx_xunlock(&vmmdev_mtx);
 		vmmdev_destroy(sc);
 		return (error);
-	}
-	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
-		sx_xunlock(&vmmdev_mtx);
-		destroy_dev(cdev);
-		vmmdev_destroy(sc);
-		return (ENOMEM);
 	}
 	sc->cdev = cdev;
 	sx_xunlock(&vmmdev_mtx);
@@ -1178,10 +1204,13 @@ vmmdev_init(void)
 
 	sx_xlock(&vmmdev_mtx);
 	error = make_dev_p(MAKEDEV_CHECKNAME, &vmmctl_cdev, &vmmctlsw, NULL,
-	    UID_ROOT, GID_WHEEL, 0600, "vmmctl");
-	if (error == 0)
-		pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
-		    "Allow use of vmm in a jail.");
+	    UID_ROOT, GID_VMM, 0660, "vmmctl");
+	if (error == 0) {
+		pr_allow_vmm_flag = prison_add_allow(NULL, "vmm", NULL,
+		    "Allow use of vmm in a jail");
+		pr_allow_vmm_ppt_flag = prison_add_allow(NULL, "vmm_ppt", NULL,
+		    "Allow use of vmm with ppt devices in a jail");
+	}
 	sx_xunlock(&vmmdev_mtx);
 
 	return (error);
@@ -1228,9 +1257,11 @@ vmm_handler(module_t mod, int what, void *arg)
 		if (error == 0)
 			vmm_initialized = true;
 		else {
-			error = vmmdev_cleanup();
-			KASSERT(error == 0,
-			    ("%s: vmmdev_cleanup failed: %d", __func__, error));
+			int error1 __diagused;
+
+			error1 = vmmdev_cleanup();
+			KASSERT(error1 == 0,
+			    ("%s: vmmdev_cleanup failed: %d", __func__, error1));
 		}
 		break;
 	case MOD_UNLOAD:
@@ -1329,8 +1360,8 @@ devmem_create_cdev(struct vmmdev_softc *sc, int segid, char *devname)
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &devmemsw;
 	mda.mda_cr = sc->ucred;
-	mda.mda_uid = UID_ROOT;
-	mda.mda_gid = GID_WHEEL;
+	mda.mda_uid = sc->ucred->cr_uid;
+	mda.mda_gid = GID_VMM;
 	mda.mda_mode = 0600;
 	mda.mda_si_drv1 = dsc;
 	mda.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;

@@ -89,6 +89,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/domain.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
@@ -170,6 +171,9 @@ static struct sx mrouter6_mtx;
 #define	MROUTER6_LOCK_ASSERT()	sx_assert(MROUTER6_LOCKPTR(), SA_XLOCKED
 #define	MROUTER6_LOCK_INIT()	sx_init(MROUTER6_LOCKPTR(), "mrouter6")
 #define	MROUTER6_LOCK_DESTROY()	sx_destroy(MROUTER6_LOCKPTR())
+
+VNET_DEFINE_STATIC(struct socket *, ip6_mrouter);
+#define	V_ip6_mrouter		VNET(ip6_mrouter)
 
 static struct mf6c *mf6ctable[MF6CTBLSIZ];
 SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mf6ctable, CTLFLAG_RD,
@@ -254,10 +258,6 @@ static void	expire_upcalls(void *);
 #define	UPCALL_EXPIRE	6		/* number of timeouts */
 
 /*
- * XXX TODO: maintain a count to if_allmulti() calls in struct ifnet.
- */
-
-/*
  * 'Interfaces' associated with decapsulator (so we can tell
  * packets that went through it from ones that get reflected
  * by a broken gateway).  Different from IPv4 register_if,
@@ -269,8 +269,6 @@ static void	expire_upcalls(void *);
  * verification.
  */
 static struct ifnet *multicast_register_if6;
-
-#define ENCAP_HOPS 64
 
 /*
  * Private variables.
@@ -294,26 +292,6 @@ VNET_DEFINE_STATIC(int, pim6);
 				   (a).s6_addr32[2] ^ (a).s6_addr32[3] ^ \
 				   (g).s6_addr32[0] ^ (g).s6_addr32[1] ^ \
 				   (g).s6_addr32[2] ^ (g).s6_addr32[3])
-
-/*
- * Find a route for a given origin IPv6 address and Multicast group address.
- */
-#define MF6CFIND(o, g, rt) do { \
-	struct mf6c *_rt = mf6ctable[MF6CHASH(o,g)]; \
-	rt = NULL; \
-	while (_rt) { \
-		if (IN6_ARE_ADDR_EQUAL(&_rt->mf6c_origin.sin6_addr, &(o)) && \
-		    IN6_ARE_ADDR_EQUAL(&_rt->mf6c_mcastgrp.sin6_addr, &(g)) && \
-		    (_rt->mf6c_stall == NULL)) { \
-			rt = _rt; \
-			break; \
-		} \
-		_rt = _rt->mf6c_next; \
-	} \
-	if (rt == NULL) { \
-		MRT6STAT_INC(mrt6s_mfc_misses); \
-	} \
-} while (/*CONSTCOND*/ 0)
 
 /*
  * Macros to compute elapsed time efficiently
@@ -345,7 +323,7 @@ VNET_DEFINE_STATIC(int, pim6);
 #ifdef UPCALL_TIMING
 #define UPCALL_MAX	50
 static u_long upcall_data[UPCALL_MAX + 1];
-static void collate();
+static void collate(struct timeval *);
 #endif /* UPCALL_TIMING */
 
 static int ip6_mrouter_init(struct socket *, int, int);
@@ -359,16 +337,32 @@ static int get_sg_cnt(struct sioc_sg_req6 *);
 
 static struct callout expire_upcalls_ch;
 
-int X_ip6_mforward(struct ip6_hdr *, struct ifnet *, struct mbuf *);
-int X_ip6_mrouter_done(void);
-int X_ip6_mrouter_set(struct socket *, struct sockopt *);
-int X_ip6_mrouter_get(struct socket *, struct sockopt *);
-int X_mrt6_ioctl(u_long, caddr_t);
+static int X_ip6_mforward(struct ip6_hdr *, struct ifnet *, struct mbuf *);
+static void X_ip6_mrouter_done(struct socket *);
+static int X_ip6_mrouter_set(struct socket *, struct sockopt *);
+static int X_ip6_mrouter_get(struct socket *, struct sockopt *);
+static int X_mrt6_ioctl(u_long, caddr_t);
+
+static struct mf6c *
+mf6c_find(const struct in6_addr *origin, const struct in6_addr *group)
+{
+	MFC6_LOCK_ASSERT();
+
+	for (struct mf6c *rt = mf6ctable[MF6CHASH(*origin, *group)]; rt != NULL;
+	    rt = rt->mf6c_next) {
+		if (IN6_ARE_ADDR_EQUAL(&rt->mf6c_origin.sin6_addr, origin) &&
+		    IN6_ARE_ADDR_EQUAL(&rt->mf6c_mcastgrp.sin6_addr, group) &&
+		    rt->mf6c_stall == NULL)
+			return (rt);
+	}
+	MRT6STAT_INC(mrt6s_mfc_misses);
+	return (NULL);
+}
 
 /*
  * Handle MRT setsockopt commands to modify the multicast routing tables.
  */
-int
+static int
 X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0;
@@ -392,7 +386,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 		error = ip6_mrouter_init(so, optval, sopt->sopt_name);
 		break;
 	case MRT6_DONE:
-		error = X_ip6_mrouter_done();
+		X_ip6_mrouter_done(so);
 		break;
 	case MRT6_ADD_MIF:
 		error = sooptcopyin(sopt, &mifc, sizeof(mifc), sizeof(mifc));
@@ -436,7 +430,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 /*
  * Handle MRT getsockopt commands
  */
-int
+static int
 X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0;
@@ -455,27 +449,29 @@ X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 /*
  * Handle ioctl commands to obtain information from the cache
  */
-int
+static int
 X_mrt6_ioctl(u_long cmd, caddr_t data)
 {
-	int ret;
+	int error;
 
-	ret = EINVAL;
-
+	error = priv_check(curthread, PRIV_NETINET_MROUTE);
+	if (error)
+		return (error);
+	error = EINVAL;
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
-		ret = get_sg_cnt((struct sioc_sg_req6 *)data);
+		error = get_sg_cnt((struct sioc_sg_req6 *)data);
 		break;
 
 	case SIOCGETMIFCNT_IN6:
-		ret = get_mif6_cnt((struct sioc_mif_req6 *)data);
+		error = get_mif6_cnt((struct sioc_mif_req6 *)data);
 		break;
 
 	default:
 		break;
 	}
 
-	return (ret);
+	return (error);
 }
 
 /*
@@ -491,7 +487,7 @@ get_sg_cnt(struct sioc_sg_req6 *req)
 
 	MFC6_LOCK();
 
-	MF6CFIND(req->src.sin6_addr, req->grp.sin6_addr, rt);
+	rt = mf6c_find(&req->src.sin6_addr, &req->grp.sin6_addr);
 	if (rt == NULL) {
 		ret = ESRCH;
 	} else {
@@ -563,6 +559,8 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 		return (EADDRINUSE);
 	}
 
+	MFC6_LOCK();
+	V_ip6_mrouting_enabled = true;
 	V_ip6_mrouter = so;
 	V_ip6_mrouter_ver = cmd;
 
@@ -575,6 +573,7 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 	callout_reset(&expire_upcalls_ch, EXPIRE_TIMEOUT,
 	    expire_upcalls, NULL);
 
+	MFC6_UNLOCK();
 	MROUTER6_UNLOCK();
 
 	MRT6_DLOG(DEBUG_ANY, "finished");
@@ -585,8 +584,8 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 /*
  * Disable IPv6 multicast forwarding.
  */
-int
-X_ip6_mrouter_done(void)
+static void
+X_ip6_mrouter_done(struct socket *so)
 {
 	mifi_t mifi;
 	u_long i;
@@ -595,9 +594,9 @@ X_ip6_mrouter_done(void)
 
 	MROUTER6_LOCK();
 
-	if (V_ip6_mrouter == NULL) {
+	if (V_ip6_mrouter != so) {
 		MROUTER6_UNLOCK();
-		return (EINVAL);
+		return;
 	}
 
 	/*
@@ -610,6 +609,7 @@ X_ip6_mrouter_done(void)
 			if_allmulti(mif6table[mifi].m6_ifp, 0);
 		}
 	}
+	MFC6_LOCK();
 	bzero((caddr_t)mif6table, sizeof(mif6table));
 	nummifs = 0;
 
@@ -618,7 +618,6 @@ X_ip6_mrouter_done(void)
 	/*
 	 * Free all multicast forwarding cache entries.
 	 */
-	MFC6_LOCK();
 	for (i = 0; i < MF6CTBLSIZ; i++) {
 		rt = mf6ctable[i];
 		while (rt) {
@@ -637,6 +636,10 @@ X_ip6_mrouter_done(void)
 		}
 	}
 	bzero((caddr_t)mf6ctable, sizeof(mf6ctable));
+
+	V_ip6_mrouter = NULL;
+	V_ip6_mrouting_enabled = false;
+	V_ip6_mrouter_ver = 0;
 	MFC6_UNLOCK();
 
 	callout_drain(&expire_upcalls_ch);
@@ -651,13 +654,8 @@ X_ip6_mrouter_done(void)
 		multicast_register_if6 = NULL;
 	}
 
-	V_ip6_mrouter = NULL;
-	V_ip6_mrouter_ver = 0;
-
 	MROUTER6_UNLOCK();
 	MRT6_DLOG(DEBUG_ANY, "finished");
-
-	return (0);
 }
 
 static struct sockaddr_in6 sin6 = { sizeof(sin6), AF_INET6 };
@@ -814,9 +812,8 @@ add_m6fc(struct mf6cctl *mfccp)
 
 	MFC6_LOCK();
 
-	MF6CFIND(mfccp->mf6cc_origin.sin6_addr,
-		 mfccp->mf6cc_mcastgrp.sin6_addr, rt);
-
+	rt = mf6c_find(&mfccp->mf6cc_origin.sin6_addr,
+	    &mfccp->mf6cc_mcastgrp.sin6_addr);
 	/* If an entry already exists, just update the fields */
 	if (rt) {
 		MRT6_DLOG(DEBUG_MFC, "no upcall o %s g %s p %x",
@@ -916,8 +913,7 @@ add_m6fc(struct mf6cctl *mfccp)
 		}
 		if (rt == NULL) {
 			/* no upcall, so make a new entry */
-			rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE6,
-						  M_NOWAIT);
+			rt = malloc(sizeof(*rt), M_MRTABLE6, M_NOWAIT);
 			if (rt == NULL) {
 				MFC6_UNLOCK();
 				return (ENOBUFS);
@@ -1055,7 +1051,7 @@ socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in6 *src)
  * that if this function is called from somewhere else in the originating
  * context in the future.
  */
-int
+static int
 X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 {
 	struct rtdetq *rte;
@@ -1112,7 +1108,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	/*
 	 * Determine forwarding mifs from the forwarding cache table
 	 */
-	MF6CFIND(ip6->ip6_src, ip6->ip6_dst, rt);
+	rt = mf6c_find(&ip6->ip6_src, &ip6->ip6_dst);
 	MRT6STAT_INC(mrt6s_mfc_lookups);
 
 	/* Entry exists, so forward if necessary */
@@ -1134,7 +1130,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 * Allocate mbufs early so that we don't do extra work if we
 	 * are just going to fail anyway.
 	 */
-	rte = (struct rtdetq *)malloc(sizeof(*rte), M_MRTABLE6, M_NOWAIT);
+	rte = malloc(sizeof(*rte), M_MRTABLE6, M_NOWAIT);
 	if (rte == NULL) {
 		MFC6_UNLOCK();
 		return (ENOBUFS);
@@ -1168,7 +1164,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 		struct omrt6msg *oim;
 #endif
 		/* no upcall, so make a new entry */
-		rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE6, M_NOWAIT);
+		rt = malloc(sizeof(*rt), M_MRTABLE6, M_NOWAIT);
 		if (rt == NULL) {
 			free(rte, M_MRTABLE6);
 			m_freem(mb0);
@@ -1371,96 +1367,98 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	 * for its origin.
 	 */
 	mifi = rt->mf6c_parent;
-	if ((mifi >= nummifs) || (mif6table[mifi].m6_ifp != ifp)) {
-		/* came in the wrong interface */
-		MRT6_DLOG(DEBUG_FORWARD,
-		    "wrong if: ifid %d mifi %d mififid %x", ifp->if_index,
-		    mifi, mif6table[mifi].m6_ifp->if_index);
+	if (mifi >= nummifs || mif6table[mifi].m6_ifp != ifp) {
 		MRT6STAT_INC(mrt6s_wrong_if);
 		rt->mf6c_wrong_if++;
+		if (mifi >= nummifs)
+			return (0);
+
+		mifp = &mif6table[mifi];
+		MRT6_DLOG(DEBUG_FORWARD,
+		    "wrong if: ifid %d mifi %d mififid %x", ifp->if_index,
+		    mifi, mifp->m6_ifp->if_index);
+
 		/*
 		 * If we are doing PIM processing, and we are forwarding
 		 * packets on this interface, send a message to the
 		 * routing daemon.
 		 */
 		/* have to make sure this is a valid mif */
-		if (mifi < nummifs && mif6table[mifi].m6_ifp)
-			if (V_pim6 && (m->m_flags & M_LOOP) == 0) {
-				/*
-				 * Check the M_LOOP flag to avoid an
-				 * unnecessary PIM assert.
-				 * XXX: M_LOOP is an ad-hoc hack...
-				 */
-				static struct sockaddr_in6 sin6 =
-				{ sizeof(sin6), AF_INET6 };
+		if (mifp->m6_ifp && V_pim6 && (m->m_flags & M_LOOP) == 0) {
+			/*
+			 * Check the M_LOOP flag to avoid an
+			 * unnecessary PIM assert.
+			 * XXX: M_LOOP is an ad-hoc hack...
+			 */
+			static struct sockaddr_in6 sin6 =
+			{ sizeof(sin6), AF_INET6 };
 
-				struct mbuf *mm;
-				struct mrt6msg *im;
+			struct mbuf *mm;
+			struct mrt6msg *im;
 #ifdef MRT6_OINIT
-				struct omrt6msg *oim;
+			struct omrt6msg *oim;
 #endif
 
-				mm = m_copym(m, 0, sizeof(struct ip6_hdr),
-				    M_NOWAIT);
-				if (mm &&
-				    (!M_WRITABLE(mm) ||
-				     mm->m_len < sizeof(struct ip6_hdr)))
-					mm = m_pullup(mm, sizeof(struct ip6_hdr));
-				if (mm == NULL)
-					return (ENOBUFS);
+			mm = m_copym(m, 0, sizeof(struct ip6_hdr),
+			    M_NOWAIT);
+			if (mm &&
+			    (!M_WRITABLE(mm) ||
+			     mm->m_len < sizeof(struct ip6_hdr)))
+				mm = m_pullup(mm, sizeof(struct ip6_hdr));
+			if (mm == NULL)
+				return (ENOBUFS);
 
 #ifdef MRT6_OINIT
-				oim = NULL;
+			oim = NULL;
 #endif
-				im = NULL;
-				switch (V_ip6_mrouter_ver) {
+			im = NULL;
+			switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
-				case MRT6_OINIT:
-					oim = mtod(mm, struct omrt6msg *);
-					oim->im6_msgtype = MRT6MSG_WRONGMIF;
-					oim->im6_mbz = 0;
-					break;
+			case MRT6_OINIT:
+				oim = mtod(mm, struct omrt6msg *);
+				oim->im6_msgtype = MRT6MSG_WRONGMIF;
+				oim->im6_mbz = 0;
+				break;
 #endif
-				case MRT6_INIT:
-					im = mtod(mm, struct mrt6msg *);
-					im->im6_msgtype = MRT6MSG_WRONGMIF;
-					im->im6_mbz = 0;
-					break;
-				default:
-					m_freem(mm);
-					return (EINVAL);
-				}
+			case MRT6_INIT:
+				im = mtod(mm, struct mrt6msg *);
+				im->im6_msgtype = MRT6MSG_WRONGMIF;
+				im->im6_mbz = 0;
+				break;
+			default:
+				m_freem(mm);
+				return (EINVAL);
+			}
 
-				for (mifp = mif6table, iif = 0;
-				     iif < nummifs && mifp &&
-					     mifp->m6_ifp != ifp;
-				     mifp++, iif++)
-					;
+			for (mifp = mif6table, iif = 0;
+			     iif < nummifs && mifp->m6_ifp != ifp;
+			     mifp++, iif++)
+				;
 
-				switch (V_ip6_mrouter_ver) {
+			switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
-				case MRT6_OINIT:
-					oim->im6_mif = iif;
-					sin6.sin6_addr = oim->im6_src;
-					break;
+			case MRT6_OINIT:
+				oim->im6_mif = iif;
+				sin6.sin6_addr = oim->im6_src;
+				break;
 #endif
-				case MRT6_INIT:
-					im->im6_mif = iif;
-					sin6.sin6_addr = im->im6_src;
-					break;
-				}
+			case MRT6_INIT:
+				im->im6_mif = iif;
+				sin6.sin6_addr = im->im6_src;
+				break;
+			}
 
-				MRT6STAT_INC(mrt6s_upcalls);
+			MRT6STAT_INC(mrt6s_upcalls);
 
-				if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
-					MRT6_DLOG(DEBUG_ANY,
-					    "ip6_mrouter socket queue full");
-					MRT6STAT_INC(mrt6s_upq_sockfull);
-					return (ENOBUFS);
-				}	/* if socket Q full */
-			}		/* if PIM */
+			if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
+				MRT6_DLOG(DEBUG_ANY,
+				    "ip6_mrouter socket queue full");
+				MRT6STAT_INC(mrt6s_upq_sockfull);
+				return (ENOBUFS);
+			}
+		}
 		return (0);
-	}			/* if wrong iif */
+	}
 
 	/* If I sourced this packet, it counts as output, else it was input. */
 	if (m->m_pkthdr.rcvif == NULL) {
@@ -1582,7 +1580,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 * Put the packet into the sending queue of the outgoing interface
 	 * if it would fit in the MTU of the interface.
 	 */
-	linkmtu = IN6_LINKMTU(ifp);
+	linkmtu = in6_ifmtu(ifp);
 	if (mb_copy->m_pkthdr.len <= linkmtu || linkmtu < IPV6_MMTU) {
 		struct sockaddr_in6 dst6;
 
@@ -1910,14 +1908,14 @@ ip6_mroute_modevent(module_t mod, int type, void *unused)
 		break;
 
 	case MOD_UNLOAD:
-		if (V_ip6_mrouter != NULL)
-			return EINVAL;
+		if (V_ip6_mrouting_enabled)
+			return (EBUSY);
 
 		if (pim6_encap_cookie) {
 			ip6_encap_detach(pim6_encap_cookie);
 			pim6_encap_cookie = NULL;
 		}
-		X_ip6_mrouter_done();
+
 		ip6_mforward = NULL;
 		ip6_mrouter_done = NULL;
 		ip6_mrouter_get = NULL;

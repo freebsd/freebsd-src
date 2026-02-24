@@ -53,11 +53,11 @@ gre_status(if_ctx *ctx)
 	uint32_t opts = 0, port;
 	struct ifreq ifr = { .ifr_data = (caddr_t)&opts };
 
-	if (ioctl_ctx(ctx, GREGKEY, &ifr) == 0)
+	if (ioctl_ctx_ifr(ctx, GREGKEY, &ifr) == 0)
 		if (opts != 0)
 			printf("\tgrekey: 0x%x (%u)\n", opts, opts);
 	opts = 0;
-	if (ioctl_ctx(ctx, GREGOPTS, &ifr) != 0 || opts == 0)
+	if (ioctl_ctx_ifr(ctx, GREGOPTS, &ifr) != 0 || opts == 0)
 		return;
 
 	port = 0;

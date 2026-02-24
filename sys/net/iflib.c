@@ -29,7 +29,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_acpi.h"
-#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -40,8 +39,10 @@
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/kobj.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -1890,6 +1891,7 @@ iflib_txsd_free(if_ctx_t ctx, iflib_txq_t txq, int i)
 		bus_dmamap_unload(txq->ift_tso_buf_tag,
 		    txq->ift_sds.ifsd_tso_map[i]);
 	}
+	txq->ift_sds.ifsd_m[i] = NULL;
 	m_freem(m);
 	DBG_COUNTER_INC(tx_frees);
 }
@@ -4538,6 +4540,11 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		err = IFDI_PRIV_IOCTL(ctx, command, data);
 		CTX_UNLOCK(ctx);
 		break;
+	case SIOCGIFDOWNREASON:
+		CTX_LOCK(ctx);
+		err = IFDI_GET_DOWNREASON(ctx, (struct ifdownreason *)data);
+		CTX_UNLOCK(ctx);
+		break;
 	default:
 		err = ether_ioctl(ifp, command, data);
 		break;
@@ -4812,83 +4819,6 @@ cpuid_advance(if_ctx_t ctx, unsigned int cpuid, unsigned int n)
 	return (cpuid);
 }
 
-#if defined(SMP) && defined(SCHED_ULE)
-extern struct cpu_group *cpu_top;	/* CPU topology */
-
-static int
-find_child_with_core(int cpu, struct cpu_group *grp)
-{
-	int i;
-
-	if (grp->cg_children == 0)
-		return (-1);
-
-	MPASS(grp->cg_child);
-	for (i = 0; i < grp->cg_children; i++) {
-		if (CPU_ISSET(cpu, &grp->cg_child[i].cg_mask))
-			return (i);
-	}
-
-	return (-1);
-}
-
-
-/*
- * Find an L2 neighbor of the given CPU or return -1 if none found.  This
- * does not distinguish among multiple L2 neighbors if the given CPU has
- * more than one (it will always return the same result in that case).
- */
-static int
-find_l2_neighbor(int cpu)
-{
-	struct cpu_group *grp;
-	int i;
-
-	grp = cpu_top;
-	if (grp == NULL)
-		return (-1);
-
-	/*
-	 * Find the smallest CPU group that contains the given core.
-	 */
-	i = 0;
-	while ((i = find_child_with_core(cpu, grp)) != -1) {
-		/*
-		 * If the smallest group containing the given CPU has less
-		 * than two members, we conclude the given CPU has no
-		 * L2 neighbor.
-		 */
-		if (grp->cg_child[i].cg_count <= 1)
-			return (-1);
-		grp = &grp->cg_child[i];
-	}
-
-	/* Must share L2. */
-	if (grp->cg_level > CG_SHARE_L2 || grp->cg_level == CG_SHARE_NONE)
-		return (-1);
-
-	/*
-	 * Select the first member of the set that isn't the reference
-	 * CPU, which at this point is guaranteed to exist.
-	 */
-	for (i = 0; i < CPU_SETSIZE; i++) {
-		if (CPU_ISSET(i, &grp->cg_mask) && i != cpu)
-			return (i);
-	}
-
-	/* Should never be reached */
-	return (-1);
-}
-
-#else
-static int
-find_l2_neighbor(int cpu)
-{
-
-	return (-1);
-}
-#endif
-
 /*
  * CPU mapping behaviors
  * ---------------------
@@ -4941,7 +4871,7 @@ get_cpuid_for_queue(if_ctx_t ctx, unsigned int base_cpuid, unsigned int qid,
 			unsigned int rx_cpuid;
 
 			rx_cpuid = cpuid_advance(ctx, base_cpuid, qid);
-			l2_neighbor = find_l2_neighbor(rx_cpuid);
+			l2_neighbor = sched_find_l2_neighbor(rx_cpuid);
 			if (l2_neighbor != -1) {
 				return (l2_neighbor);
 			}

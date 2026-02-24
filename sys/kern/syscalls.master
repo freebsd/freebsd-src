@@ -3402,4 +3402,23 @@
 			u_long flags
 		);
 	}
+
+600     AUE_PDRFORK     STD|CAPENABLED {
+		int pdrfork(
+			_Out_ int *fdp,
+			int pdflags,
+			int rfflags
+		);
+	}
+
+601	AUE_PDWAIT	STD|CAPENABLED {
+		int pdwait(
+		    int fd,
+		    _Out_opt_ int *status,
+		    int options,
+		    _Out_opt_ _Contains_long_ struct __wrusage *wrusage,
+		    _Out_opt_ _Contains_long_ptr_ struct __siginfo *info
+		);
+	}
+
 ; vim: syntax=off

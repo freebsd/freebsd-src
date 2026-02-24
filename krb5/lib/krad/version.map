@@ -23,5 +23,16 @@ krad_0_MIT {
 		krad_client_new;
 		krad_client_free;
 		krad_client_send;
+		kr_attr_decode;
+		kr_attr_encode;
+		kr_attr_valid;
+		kr_attrset_decode;
+		kr_attrset_encode;
+		kr_remote_cancel;
+		kr_remote_cancel_all;
+		kr_remote_equals;
+		kr_remote_free;
+		kr_remote_new;
+		kr_remote_send;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

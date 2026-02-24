@@ -55,10 +55,8 @@ enum __e_fmtcheck_types {
 	FMTCHECK_INTMAXTPOINTER,
 	FMTCHECK_PTRDIFFTPOINTER,
 	FMTCHECK_SIZETPOINTER,
-#ifndef NO_FLOATING_POINT
 	FMTCHECK_DOUBLE,
 	FMTCHECK_LONGDOUBLE,
-#endif
 	FMTCHECK_STRING,
 	FMTCHECK_WSTRING,
 	FMTCHECK_WIDTH,
@@ -185,7 +183,6 @@ get_next_format_from_precision(const char **pf)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_LONG);
 	}
-#ifndef NO_FLOATING_POINT
 	if (strchr("aAeEfFgG", *f)) {
 		switch (modifier) {
 		case MOD_LONGDOUBLE:
@@ -197,7 +194,6 @@ get_next_format_from_precision(const char **pf)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		}
 	}
-#endif
 	if (*f == 'c') {
 		switch (modifier) {
 		case MOD_LONG:

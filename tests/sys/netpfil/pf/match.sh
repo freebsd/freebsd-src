@@ -177,9 +177,67 @@ allow_opts_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "double_match" "cleanup"
+double_match_head()
+{
+	atf_set descr 'Test two match statements in separate anchors'
+	atf_set require.user root
+}
+
+double_match_body()
+{
+	pft_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	vnet_mkjail rtr ${epair_one}a ${epair_two}a
+	vnet_mkjail srv ${epair_two}b
+
+	ifconfig ${epair_one}b 192.0.2.2/24 up
+
+	jexec rtr ifconfig ${epair_one}a 192.0.2.1/24 up
+	jexec rtr ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec rtr sysctl net.inet.ip.forwarding=1
+
+	jexec srv ifconfig ${epair_two}b 198.51.100.2/24 up
+
+	route add default 192.0.2.1
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+		"nat on ${epair_two}a from 192.0.2.0/24 to any -> (${epair_two}a)" \
+		"block all" \
+		"anchor \"userrules\" all {\n \
+		anchor \"one\" all { \n\
+		    match in tag \"allow\"\n\
+		}\n\
+		anchor \"two\" all { \n\
+		    match tag \"allow\"\n\
+		}\n\
+		}\n" \
+		"pass quick tagged \"allow\""
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 198.51.100.2
+
+	jexec rtr pfctl -ss -vv
+	jexec rtr pfctl -sr -vv -a "*"
+	jexec rtr pfctl -sr -a "*"
+}
+
+double_match_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "dummynet"
 	atf_add_test_case "quick"
 	atf_add_test_case "allow_opts"
+	atf_add_test_case "double_match"
 }

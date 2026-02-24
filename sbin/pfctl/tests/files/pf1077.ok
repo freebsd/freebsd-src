@@ -1,2 +1,2 @@
 source limiter dns-server id 1 entries 2 limit 3 rate 4/5 inet mask 16
-pass in proto tcp from any to any port = domain flags S/SA keep state source limiter id 1 (no-match)
+pass in proto tcp from any to any port = domain flags S/SA keep state source limiter id 1 (block)

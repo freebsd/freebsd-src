@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 25, 2015
+.Dd January 19. 2026
 .Dt MAC.CONF 5
 .Os
 .Sh NAME
@@ -79,6 +79,7 @@ and
 # Default label set to be used by simple MAC applications
 
 default_labels file ?biba,?lomac,?mls,?sebsd
+default_labels jail ?
 default_labels ifnet ?biba,?lomac,?mls,?sebsd
 default_labels process ?biba,?lomac,?mls,?partition,?sebsd
 default_labels socket ?biba,?lomac,?mls

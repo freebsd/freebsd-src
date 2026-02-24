@@ -93,25 +93,6 @@ struct in6_addrlifetime {
 	u_int32_t ia6t_pltime;	/* prefix lifetime */
 };
 
-struct nd_ifinfo;
-struct scope6_id;
-struct lltable;
-struct mld_ifsoftc;
-struct in6_multi;
-
-struct in6_ifextra {
-	counter_u64_t *in6_ifstat;
-	counter_u64_t *icmp6_ifstat;
-	struct nd_ifinfo *nd_ifinfo;
-	struct scope6_id *scope6_id;
-	struct lltable *lltable;
-	struct mld_ifsoftc *mld_ifinfo;
-	u_int dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
-};
-
-#define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
-#define	DAD_FAILURES(ifp)	((ifp)->if_inet6->dad_failures)
-
 #ifdef _KERNEL
 
 SLIST_HEAD(in6_multi_head, in6_multi);
@@ -507,6 +488,56 @@ struct	in6_rrenumreq {
 #endif
 
 #ifdef _KERNEL
+/*
+ * Structure pointed at by ifp->if_inet6.
+ */
+struct in6_ifextra {
+	counter_u64_t in6_ifstat[sizeof(struct in6_ifstat) / sizeof(uint64_t)];
+	counter_u64_t icmp6_ifstat[sizeof(struct icmp6_ifstat) /
+				   sizeof(uint64_t)];
+	/* ND6 */
+	uint32_t	nd_linkmtu;
+	uint32_t	nd_maxmtu;
+	uint32_t	nd_basereachable;
+	uint32_t	nd_reachable;
+	uint32_t	nd_retrans;
+	uint32_t	nd_flags;
+	int		nd_recalc_timer;
+	u_int		nd_dad_failures;
+	uint8_t		nd_curhoplimit;
+
+	struct mld_ifsoftc {
+		/* Timers and invervals measured in seconds. */
+		LIST_ENTRY(mld_ifsoftc) mli_link;
+		struct ifnet *mli_ifp;  /* interface this instance belongs to */
+		uint32_t mli_version;   /* MLDv1 Host Compatibility Mode */
+		uint32_t mli_v1_timer;  /* MLDv1 Querier Present timer */
+		uint32_t mli_v2_timer;  /* MLDv2 General Query timer */
+		uint32_t mli_flags;     /* MLD per-interface flags */
+		uint32_t mli_rv;        /* MLDv2 Robustness Variable */
+		uint32_t mli_qi;        /* MLDv2 Query Interval */
+		uint32_t mli_qri;       /* MLDv2 Query Response Interval */
+		uint32_t mli_uri;       /* MLDv2 Unsolicited Report Interval */
+		struct mbufq     mli_gq; /* queue of general query responses */
+	} mld_ifsoftc;
+
+	struct scope6_id {
+		/*
+		 * 16 is correspondent to 4bit multicast scope field. i.e. from
+		 * node-local to global with some reserved/unassigned types.
+		 */
+#define	IPV6_ADDR_SCOPES_COUNT	16
+		uint32_t	s6id_list[IPV6_ADDR_SCOPES_COUNT];
+	} scope6_id;
+
+	struct lltable *lltable;
+
+	struct epoch_context	epoch_ctx;
+};
+
+#define	LLTABLE6(ifp)	((ifp)->if_inet6->lltable)
+#define	DAD_FAILURES(ifp)	((ifp)->if_inet6->nd_dad_failures)
+
 VNET_DECLARE(struct in6_ifaddrhead, in6_ifaddrhead);
 VNET_DECLARE(struct in6_ifaddrlisthead *, in6_ifaddrhashtbl);
 VNET_DECLARE(u_long, in6_ifaddrhmask);
@@ -863,7 +894,7 @@ void	in6_purgeaddr(struct ifaddr *);
 void	in6_purgeifaddr(struct in6_ifaddr *);
 int	in6if_do_dad(struct ifnet *);
 void	in6_savemkludge(struct in6_ifaddr *);
-uint32_t in6_ifmtu(struct ifnet *);
+uint32_t in6_ifmtu(const struct ifnet *);
 struct rib_head *in6_inithead(uint32_t fibnum);
 void	in6_detachhead(struct rib_head *rh);
 int	in6_if2idlen(struct ifnet *);

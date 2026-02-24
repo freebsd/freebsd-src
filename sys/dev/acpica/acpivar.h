@@ -64,7 +64,8 @@ struct acpi_softc {
     enum power_stype	acpi_lid_switch_stype;
 
     int			acpi_standby_sx;
-    int			acpi_s4bios;
+    bool		acpi_s4bios;
+    bool		acpi_s4bios_supported;
 
     int			acpi_sleep_delay;
     int			acpi_do_disable;
@@ -191,6 +192,7 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_THERMAL		0x01000000
 #define	ACPI_TIMER		0x02000000
 #define	ACPI_OEM		0x04000000
+#define	ACPI_SPMC		0x08000000
 
 /*
  * Constants for different interrupt models used with acpi_SetIntrModel().
@@ -275,11 +277,12 @@ extern int	acpi_override_isa_irq_polarity;
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
  */
-#define ACPI_IVAR_HANDLE	0x100
-#define ACPI_IVAR_UNUSED	0x101	/* Unused/reserved. */
-#define ACPI_IVAR_PRIVATE	0x102
-#define ACPI_IVAR_FLAGS		0x103
-#define	ACPI_IVAR_DOMAIN	0x104
+enum {
+	ACPI_IVAR_HANDLE = BUS_IVARS_ACPI,
+	ACPI_IVAR_PRIVATE,
+	ACPI_IVAR_FLAGS,
+	ACPI_IVAR_DOMAIN
+};
 
 /*
  * ad_domain NUMA domain special value.
@@ -481,12 +484,14 @@ UINT32		acpi_event_sleep_button_wake(void *context);
 #define ACPI_EVENT_PRI_DEFAULT    10000
 #define ACPI_EVENT_PRI_LAST       20000
 
-typedef void (*acpi_event_handler_t)(void *, int);
+typedef void (*acpi_event_handler_t)(void *, enum power_stype);
 
 EVENTHANDLER_DECLARE(acpi_sleep_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_acad_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
+EVENTHANDLER_DECLARE(acpi_post_dev_suspend, acpi_event_handler_t);
+EVENTHANDLER_DECLARE(acpi_pre_dev_resume, acpi_event_handler_t);
 
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
@@ -525,6 +530,13 @@ acpi_d_state_to_str(int state)
 
     MPASS(state >= ACPI_STATE_D0 && state <= ACPI_D_STATES_MAX);
     return (strs[state]);
+}
+
+static __inline bool
+acpi_should_do_s4bios(struct acpi_softc *sc)
+{
+    MPASS(!sc->acpi_s4bios || sc->acpi_s4bios_supported);
+    return (sc->acpi_s4bios);
 }
 
 char		*acpi_name(ACPI_HANDLE handle);

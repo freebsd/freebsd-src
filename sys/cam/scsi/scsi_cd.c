@@ -3406,7 +3406,6 @@ cdstartunit(struct cam_periph *periph, int load)
 			/* start */ TRUE,
 			/* load_eject */ load,
 			/* immediate */ FALSE,
-			/* power_condition */ SSS_PC_START_VALID,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ 50000);
 
@@ -3435,7 +3434,6 @@ cdstopunit(struct cam_periph *periph, uint32_t eject)
 			/* start */ FALSE,
 			/* load_eject */ eject,
 			/* immediate */ FALSE,
-			/* power_condition */ SSS_PC_START_VALID,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ 50000);
 

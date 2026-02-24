@@ -141,7 +141,7 @@ read_scom(register_t address)
 	__asm __volatile ("mfspr %0,%1;"
             " mr %0+1, %0; srdi %0,%0,32" : "=r" (ret) : "K" (SPR_SCOMD));
 
-	(void)mfspr(SPR_SCOMC); /* Complete transcation */
+	(void)mfspr(SPR_SCOMC); /* Complete transaction */
 
 	mtmsr(msr); isync();
 

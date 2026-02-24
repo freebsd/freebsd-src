@@ -30,8 +30,6 @@
  * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
  */
 
-#include "opt_inet.h"
-
 #include <sys/cdefs.h>
 #include "qlnx_os.h"
 #include "bcm_osal.h"
@@ -50,6 +48,7 @@
 #include "ecore_sp_commands.h"
 #include "ecore_dev_api.h"
 #include "ecore_l2_api.h"
+#include "ecore_l2.h"
 #include "ecore_mcp.h"
 #include "ecore_hw_defs.h"
 #include "mcp_public.h"
@@ -91,9 +90,9 @@ static void qlnx_fp_isr(void *arg);
 static void qlnx_init_ifnet(device_t dev, qlnx_host_t *ha);
 static void qlnx_init(void *arg);
 static void qlnx_init_locked(qlnx_host_t *ha);
-static int qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi);
-static int qlnx_set_promisc(qlnx_host_t *ha, int enabled);
-static int qlnx_set_allmulti(qlnx_host_t *ha, int enabled);
+static int qlnx_set_multi(qlnx_host_t *ha);
+static int qlnx_set_promisc_allmulti(qlnx_host_t *ha, int flags);
+static int _qlnx_set_promisc_allmulti(qlnx_host_t *ha, bool promisc, bool allmulti);
 static int qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data);
 static int qlnx_media_change(if_t ifp);
 static void qlnx_media_status(if_t ifp, struct ifmediareq *ifmr);
@@ -101,6 +100,7 @@ static void qlnx_stop(qlnx_host_t *ha);
 static int qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		struct mbuf **m_headp);
 static int qlnx_get_ifq_snd_maxlen(qlnx_host_t *ha);
+static void qlnx_get_mac_addr(qlnx_host_t *ha);
 static uint32_t qlnx_get_optics(qlnx_host_t *ha,
 			struct qlnx_link_output *if_link);
 static int qlnx_transmit(if_t ifp, struct mbuf  *mp);
@@ -128,14 +128,13 @@ static void qlnx_set_id(struct ecore_dev *cdev, char name[NAME_SIZE],
 		char ver_str[VER_SIZE]);
 static void qlnx_unload(qlnx_host_t *ha);
 static int qlnx_load(qlnx_host_t *ha);
-static void qlnx_hw_set_multi(qlnx_host_t *ha, uint8_t *mta, uint32_t mcnt,
-		uint32_t add_mac);
 static void qlnx_dump_buf8(qlnx_host_t *ha, const char *msg, void *dbuf,
 		uint32_t len);
 static int qlnx_alloc_rx_buffer(qlnx_host_t *ha, struct qlnx_rx_queue *rxq);
 static void qlnx_reuse_rx_data(struct qlnx_rx_queue *rxq);
 static void qlnx_update_rx_prod(struct ecore_hwfn *p_hwfn,
 		struct qlnx_rx_queue *rxq);
+static int qlnx_remove_all_mcast_mac(qlnx_host_t *ha);
 static int qlnx_set_rx_accept_filter(qlnx_host_t *ha, uint8_t filter);
 static int qlnx_grc_dumpsize(qlnx_host_t *ha, uint32_t *num_dwords,
 		int hwfn_index);
@@ -2322,7 +2321,7 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 
         ha->max_frame_size = if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
-        memcpy(ha->primary_mac, qlnx_get_mac_addr(ha), ETH_ALEN);
+	qlnx_get_mac_addr(ha);
 
 	if (!ha->primary_mac[0] && !ha->primary_mac[1] &&
 		!ha->primary_mac[2] && !ha->primary_mac[3] &&
@@ -2392,8 +2391,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         ifmedia_set(&ha->media, (IFM_ETHER | IFM_AUTO));
 
 	ether_ifattach(ifp, ha->primary_mac);
-	bcopy(if_getlladdr(ha->ifp), ha->primary_mac, ETHER_ADDR_LEN);
-
         QL_DPRINT2(ha, "exit\n");
 
         return;
@@ -2432,7 +2429,8 @@ qlnx_init(void *arg)
 	QL_DPRINT2(ha, "enter\n");
 
 	QLNX_LOCK(ha);
-	qlnx_init_locked(ha);
+	if ((if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING) == 0)
+		qlnx_init_locked(ha);
 	QLNX_UNLOCK(ha);
 
 	QL_DPRINT2(ha, "exit\n");
@@ -2440,181 +2438,91 @@ qlnx_init(void *arg)
 	return;
 }
 
-static int
-qlnx_config_mcast_mac_addr(qlnx_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
-{
-	struct ecore_filter_mcast	*mcast;
-	struct ecore_dev		*cdev;
-	int				rc;
-
-	cdev = &ha->cdev;
-
-	mcast = &ha->ecore_mcast;
-	bzero(mcast, sizeof(struct ecore_filter_mcast));
-
-	if (add_mac)
-		mcast->opcode = ECORE_FILTER_ADD;
-	else
-		mcast->opcode = ECORE_FILTER_REMOVE;
-
-	mcast->num_mc_addrs = 1;
-	memcpy(mcast->mac, mac_addr, ETH_ALEN);
-
-	rc = ecore_filter_mcast_cmd(cdev, mcast, ECORE_SPQ_MODE_CB, NULL);
-
-	return (rc);
-}
-
-static int
-qlnx_hw_add_mcast(qlnx_host_t *ha, uint8_t *mta)
-{
-        int	i;
-
-        for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-                if (QL_MAC_CMP(ha->mcast[i].addr, mta) == 0)
-                        return 0; /* its been already added */
-        }
-
-        for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-                if ((ha->mcast[i].addr[0] == 0) &&
-                        (ha->mcast[i].addr[1] == 0) &&
-                        (ha->mcast[i].addr[2] == 0) &&
-                        (ha->mcast[i].addr[3] == 0) &&
-                        (ha->mcast[i].addr[4] == 0) &&
-                        (ha->mcast[i].addr[5] == 0)) {
-                        if (qlnx_config_mcast_mac_addr(ha, mta, 1))
-                                return (-1);
-
-                        bcopy(mta, ha->mcast[i].addr, ETH_ALEN);
-                        ha->nmcast++;
-
-                        return 0;
-                }
-        }
-        return 0;
-}
-
-static int
-qlnx_hw_del_mcast(qlnx_host_t *ha, uint8_t *mta)
-{
-        int	i;
-
-        for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-                if (QL_MAC_CMP(ha->mcast[i].addr, mta) == 0) {
-                        if (qlnx_config_mcast_mac_addr(ha, mta, 0))
-                                return (-1);
-
-                        ha->mcast[i].addr[0] = 0;
-                        ha->mcast[i].addr[1] = 0;
-                        ha->mcast[i].addr[2] = 0;
-                        ha->mcast[i].addr[3] = 0;
-                        ha->mcast[i].addr[4] = 0;
-                        ha->mcast[i].addr[5] = 0;
-
-                        ha->nmcast--;
-
-                        return 0;
-                }
-        }
-        return 0;
-}
-
-/*
- * Name: qls_hw_set_multi
- * Function: Sets the Multicast Addresses provided the host O.S into the
- *      hardware (for the given interface)
- */
-static void
-qlnx_hw_set_multi(qlnx_host_t *ha, uint8_t *mta, uint32_t mcnt,
-	uint32_t add_mac)
-{
-        int	i;
-
-        for (i = 0; i < mcnt; i++) {
-                if (add_mac) {
-                        if (qlnx_hw_add_mcast(ha, mta))
-                                break;
-                } else {
-                        if (qlnx_hw_del_mcast(ha, mta))
-                                break;
-                }
-
-                mta += ETHER_ADDR_LEN;
-        }
-        return;
-}
-
 static u_int
-qlnx_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
+qlnx_mcast_bins_from_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
 {
-	uint8_t *mta = arg;
+	uint8_t bit;
+	uint32_t *bins = arg;
 
-	if (mcnt == QLNX_MAX_NUM_MULTICAST_ADDRS)
-		return (0);
-
-	bcopy(LLADDR(sdl), &mta[mcnt * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
+	bit = ecore_mcast_bin_from_mac(LLADDR(sdl));
+	bins[bit / 32] |= 1 << (bit % 32);
 
 	return (1);
 }
 
 static int
-qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
+qlnx_set_multi(qlnx_host_t *ha)
 {
-	uint8_t		mta[QLNX_MAX_NUM_MULTICAST_ADDRS * ETHER_ADDR_LEN];
-	if_t		ifp = ha->ifp;
-	u_int		mcnt;
+	struct ecore_filter_mcast	mcast;
+	struct ecore_dev		*cdev;
+	if_t				ifp = ha->ifp;
+	u_int				mcnt __unused;
+	int				rc;
 
 	if (qlnx_vf_device(ha) == 0)
 		return (0);
 
-	mcnt = if_foreach_llmaddr(ifp, qlnx_copy_maddr, mta);
+	bzero(&mcast, sizeof(struct ecore_filter_mcast));
+	mcnt = if_foreach_llmaddr(ifp, qlnx_mcast_bins_from_maddr, mcast.bins);
+	QL_DPRINT1(ha, "total %d multicast MACs found\n", mcnt);
 
-	QLNX_LOCK(ha);
-	qlnx_hw_set_multi(ha, mta, mcnt, add_multi);
-	QLNX_UNLOCK(ha);
-
-	return (0);
-}
-
-static int
-qlnx_set_promisc(qlnx_host_t *ha, int enabled)
-{
-	int	rc = 0;
-	uint8_t	filter;
-
-	if (qlnx_vf_device(ha) == 0)
+	if (memcmp(ha->ecore_mcast_bins, mcast.bins, sizeof(mcast.bins)) == 0)
 		return (0);
 
-	filter = ha->filter;
-	if (enabled) {
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
-	} else {
-		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
-		filter &= ~ECORE_ACCEPT_UCAST_UNMATCHED;
-	}
+	cdev = &ha->cdev;
+	mcast.opcode = ECORE_FILTER_REPLACE;
+	rc = ecore_filter_mcast_cmd(cdev, &mcast, ECORE_SPQ_MODE_CB, NULL);
+	if (rc == 0)
+		memcpy(ha->ecore_mcast_bins, mcast.bins, sizeof(mcast.bins));
 
-	rc = qlnx_set_rx_accept_filter(ha, filter);
+	QL_DPRINT1(ha, "ecore_filter_mcast_cmd: end(%d)\n", rc);
 	return (rc);
 }
 
 static int
-qlnx_set_allmulti(qlnx_host_t *ha, int enabled)
+qlnx_set_promisc_allmulti(qlnx_host_t *ha, int flags)
 {
 	int	rc = 0;
-	uint8_t	filter;
 
 	if (qlnx_vf_device(ha) == 0)
 		return (0);
 
-	filter = ha->filter;
-	if (enabled) {
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	} else {
-		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
-	}
-	rc = qlnx_set_rx_accept_filter(ha, filter);
+	rc = _qlnx_set_promisc_allmulti(ha, flags & IFF_PROMISC,
+	    flags & IFF_ALLMULTI);
+	return (rc);
+}
 
+static int
+_qlnx_set_promisc_allmulti(qlnx_host_t *ha, bool promisc, bool allmulti)
+{
+	int	rc = 0;
+	uint8_t	filter;
+	bool mcast, ucast;
+
+	filter = ha->filter;
+	filter |= ECORE_ACCEPT_UCAST_MATCHED;
+	filter |= ECORE_ACCEPT_MCAST_MATCHED;
+	filter |= ECORE_ACCEPT_BCAST;
+
+	mcast = promisc || allmulti;
+	ucast = promisc;
+
+	if (mcast)
+		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
+	else
+		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
+
+	if (ucast)
+		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
+	else
+		filter &= ~ECORE_ACCEPT_UCAST_UNMATCHED;
+
+	if (filter == ha->filter)
+		return (0);
+
+	rc = qlnx_set_rx_accept_filter(ha, filter);
+	if (rc == 0)
+		ha->filter = filter;
 	return (rc);
 }
 
@@ -2624,35 +2532,11 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	int		ret = 0, mask;
 	int		flags;
 	struct ifreq	*ifr = (struct ifreq *)data;
-#ifdef INET
-	struct ifaddr	*ifa = (struct ifaddr *)data;
-#endif
 	qlnx_host_t	*ha;
 
 	ha = (qlnx_host_t *)if_getsoftc(ifp);
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-		QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx)\n", cmd);
-
-#ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			if_setflagbits(ifp, IFF_UP, 0);
-			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
-				QLNX_LOCK(ha);
-				qlnx_init_locked(ha);
-				QLNX_UNLOCK(ha);
-			}
-			QL_DPRINT4(ha, "SIOCSIFADDR (0x%lx) ipv4 [0x%08x]\n",
-				   cmd, ntohl(IA_SIN(ifa)->sin_addr.s_addr));
-
-			arp_ifinit(ifp, ifa);
-			break;
-		}
-#endif
-		ether_ioctl(ifp, cmd, data);
-		break;
-
 	case SIOCSIFMTU:
 		QL_DPRINT4(ha, "SIOCSIFMTU (0x%lx)\n", cmd);
 
@@ -2680,13 +2564,8 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 		if (flags & IFF_UP) {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				if ((flags ^ ha->if_flags) &
-					IFF_PROMISC) {
-					ret = qlnx_set_promisc(ha, flags & IFF_PROMISC);
-				} else if ((if_getflags(ifp) ^ ha->if_flags) &
-					IFF_ALLMULTI) {
-					ret = qlnx_set_allmulti(ha, flags & IFF_ALLMULTI);
-				}
+				if (qlnx_set_promisc_allmulti(ha, flags) != 0)
+					ret = EINVAL;
 			} else {
 				ha->max_frame_size = if_getmtu(ifp) +
 					ETHER_HDR_LEN + ETHER_CRC_LEN;
@@ -2697,26 +2576,19 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 				qlnx_stop(ha);
 		}
 
-		ha->if_flags = if_getflags(ifp);
 		QLNX_UNLOCK(ha);
 		break;
 
 	case SIOCADDMULTI:
-		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCADDMULTI", cmd);
-
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-			if (qlnx_set_multi(ha, 1))
-				ret = EINVAL;
-		}
-		break;
-
 	case SIOCDELMULTI:
-		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCDELMULTI", cmd);
+		QL_DPRINT4(ha, "%s (0x%lx)\n", "SIOCADDMULTI/SIOCDELMULTI", cmd);
 
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-			if (qlnx_set_multi(ha, 0))
+		QLNX_LOCK(ha);
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+			if (qlnx_set_multi(ha) != 0)
 				ret = EINVAL;
 		}
+		QLNX_UNLOCK(ha);
 		break;
 
 	case SIOCSIFMEDIA:
@@ -3018,6 +2890,7 @@ qlnx_transmit_locked(if_t ifp, struct qlnx_fastpath *fp, struct mbuf *mp)
                         drbr_advance(ifp, fp->tx_br);
                         fp->tx_pkts_transmitted++;
                         fp->tx_pkts_processed++;
+                        ETHER_BPF_MTAP(ifp, mp);
                 }
 
                 mp = drbr_peek(ifp, fp->tx_br);
@@ -3774,7 +3647,7 @@ qlnx_get_ifq_snd_maxlen(qlnx_host_t *ha)
         return(TX_RING_SIZE - 1);
 }
 
-uint8_t *
+static void
 qlnx_get_mac_addr(qlnx_host_t *ha)
 {
 	struct ecore_hwfn	*p_hwfn;
@@ -3783,8 +3656,10 @@ qlnx_get_mac_addr(qlnx_host_t *ha)
 
 	p_hwfn = &ha->cdev.hwfns[0];
 
-	if (qlnx_vf_device(ha) != 0) 
-		return (p_hwfn->hw_info.hw_mac_addr);
+	if (qlnx_vf_device(ha) != 0) {
+		memcpy(ha->primary_mac, p_hwfn->hw_info.hw_mac_addr, ETH_ALEN);
+		return;
+	}
 
 	ecore_vf_read_bulletin(p_hwfn, &p_is_forced);
 	if (ecore_vf_bulletin_get_forced_mac(p_hwfn, mac, &p_is_forced) ==
@@ -3794,8 +3669,6 @@ qlnx_get_mac_addr(qlnx_host_t *ha)
 			p_is_forced, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         	memcpy(ha->primary_mac, mac, ETH_ALEN);
 	}
-
-	return (ha->primary_mac);
 }
 
 static uint32_t
@@ -6979,31 +6852,18 @@ qlnx_remove_all_ucast_mac(qlnx_host_t *ha)
 static int
 qlnx_remove_all_mcast_mac(qlnx_host_t *ha)
 {
-	struct ecore_filter_mcast	*mcast;
+	struct ecore_filter_mcast	mcast;
 	struct ecore_dev		*cdev;
-	int				rc, i;
+	int				rc;
 
 	cdev = &ha->cdev;
 
-	mcast = &ha->ecore_mcast;
-	bzero(mcast, sizeof(struct ecore_filter_mcast));
+	bzero(&mcast, sizeof(struct ecore_filter_mcast));
+	mcast.opcode = ECORE_FILTER_FLUSH;
 
-	mcast->opcode = ECORE_FILTER_REMOVE;
-
-	for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-		if (ha->mcast[i].addr[0] || ha->mcast[i].addr[1] ||
-			ha->mcast[i].addr[2] || ha->mcast[i].addr[3] ||
-			ha->mcast[i].addr[4] || ha->mcast[i].addr[5]) {
-			memcpy(&mcast->mac[i][0], &ha->mcast[i].addr[0], ETH_ALEN);
-			mcast->num_mc_addrs++;
-		}
-	}
-	mcast = &ha->ecore_mcast;
-
-	rc = ecore_filter_mcast_cmd(cdev, mcast, ECORE_SPQ_MODE_CB, NULL);
-
-	bzero(ha->mcast, (sizeof(qlnx_mcast_t) * QLNX_MAX_NUM_MULTICAST_ADDRS));
-	ha->nmcast = 0;
+	rc = ecore_filter_mcast_cmd(cdev, &mcast, ECORE_SPQ_MODE_CB, NULL);
+	if (rc == 0)
+		bzero(ha->ecore_mcast_bins, sizeof(ha->ecore_mcast_bins));
 
 	return (rc);
 }
@@ -7012,6 +6872,9 @@ static int
 qlnx_clean_filters(qlnx_host_t *ha)
 {
         int	rc = 0;
+
+	/* Reset rx filter */
+	ha->filter = 0;
 
 	/* Remove all unicast macs */
 	rc = qlnx_remove_all_ucast_mac(ha);
@@ -7056,40 +6919,20 @@ static int
 qlnx_set_rx_mode(qlnx_host_t *ha)
 {
 	int	rc = 0;
-	uint8_t	filter;
 	const if_t ifp = ha->ifp;
-	const struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 
-	ifa = if_getifaddr(ifp);
-	if (if_gettype(ifp) == IFT_ETHER && ifa != NULL &&
-			ifa->ifa_addr != NULL) {
-		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+	rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, if_getlladdr(ifp));
+	if (rc)
+		return rc;
 
-		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, LLADDR(sdl));
-	} else {
-		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, ha->primary_mac);
-	}
+	rc = qlnx_set_multi(ha);
         if (rc)
                 return rc;
 
-	rc = qlnx_remove_all_mcast_mac(ha);
-        if (rc)
-                return rc;
-
-	filter = ECORE_ACCEPT_UCAST_MATCHED |
-			ECORE_ACCEPT_MCAST_MATCHED |
-			ECORE_ACCEPT_BCAST;
-
-	if (qlnx_vf_device(ha) == 0 || (if_getflags(ha->ifp) & IFF_PROMISC)) {
-		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	} else if (if_getflags(ha->ifp) & IFF_ALLMULTI) {
-		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	}
-	ha->filter = filter;
-
-	rc = qlnx_set_rx_accept_filter(ha, filter);
+	if (qlnx_vf_device(ha) == 0)
+		rc = _qlnx_set_promisc_allmulti(ha, true, true);
+	else
+		rc = qlnx_set_promisc_allmulti(ha, if_getflags(ifp));
 
 	return (rc);
 }

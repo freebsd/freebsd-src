@@ -117,7 +117,7 @@ class ATFHandler(object):
         reason: str
 
     def __init__(self, report_file_name: Optional[str]):
-        self._tests_state_map: Dict[str, ReportStatus] = {}
+        self._tests_state_map: Dict[str, self.ReportState] = {}
         self._report_file_name = report_file_name
         self._report_file_handle = None
 

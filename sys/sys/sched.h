@@ -68,6 +68,8 @@
 #ifdef SCHED_STATS
 #include <sys/pcpu.h>
 #endif
+#include <sys/linker_set.h>
+#include <sys/sdt.h>
 
 struct proc;
 struct thread;
@@ -114,11 +116,6 @@ void	sched_throw(struct thread *td);
 void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_user_prio(struct thread *td, u_char prio);
 void	sched_userret_slowpath(struct thread *td);
-#ifdef	RACCT
-#ifdef	SCHED_4BSD
-fixpt_t	sched_pctcpu_delta(struct thread *td);
-#endif
-#endif
 
 static inline void
 sched_userret(struct thread *td)
@@ -174,9 +171,7 @@ int	sched_sizeof_thread(void);
  * functions.
  */
 char	*sched_tdname(struct thread *td);
-#ifdef KTR
 void	sched_clear_tdname(struct thread *td);
-#endif
 
 static __inline void
 sched_pin(void)
@@ -192,6 +187,8 @@ sched_unpin(void)
 	MPASS(curthread->td_pinned > 0);
 	curthread->td_pinned--;
 }
+
+void ast_scheduler(struct thread *td, int tda);
 
 /* sched_add arguments (formerly setrunqueue) */
 #define	SRQ_BORING	0x0000		/* No special circumstances. */
@@ -221,6 +218,10 @@ SYSINIT(name, SI_SUB_LAST, SI_ORDER_MIDDLE, name ## _add_proc, NULL);
 #define	SCHED_STAT_DEFINE(name, descr)					\
     DPCPU_DEFINE(unsigned long, name);					\
     SCHED_STAT_DEFINE_VAR(name, &DPCPU_NAME(name), descr)
+
+#define	SCHED_STAT_DECLARE(name)					\
+    DPCPU_DECLARE(unsigned long, name);
+
 /*
  * Sched stats are always incremented in critical sections so no atomic
  * is necessary to increment them.
@@ -229,7 +230,27 @@ SYSINIT(name, SI_SUB_LAST, SI_ORDER_MIDDLE, name ## _add_proc, NULL);
 #else
 #define	SCHED_STAT_DEFINE_VAR(name, descr, ptr)
 #define	SCHED_STAT_DEFINE(name, descr)
+#define	SCHED_STAT_DECLARE(name)
 #define SCHED_STAT_INC(var)			(void)0
+#endif
+
+SCHED_STAT_DECLARE(ithread_demotions);
+SCHED_STAT_DECLARE(ithread_preemptions);
+
+SDT_PROBE_DECLARE(sched, , , change__pri);
+SDT_PROBE_DECLARE(sched, , , dequeue);
+SDT_PROBE_DECLARE(sched, , , enqueue);
+SDT_PROBE_DECLARE(sched, , , lend__pri);
+SDT_PROBE_DECLARE(sched, , , load__change);
+SDT_PROBE_DECLARE(sched, , , off__cpu);
+SDT_PROBE_DECLARE(sched, , , on__cpu);
+SDT_PROBE_DECLARE(sched, , , remain__cpu);
+SDT_PROBE_DECLARE(sched, , , surrender);
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+extern int dtrace_vtime_active;
+extern dtrace_vtime_switch_func_t dtrace_vtime_switch_func;
 #endif
 
 /*
@@ -241,6 +262,81 @@ void schedinit(void);
  * Fixup scheduler state for secondary APs
  */
 void schedinit_ap(void);
+
+bool sched_do_timer_accounting(void);
+
+/*
+ * Find an L2 neighbor of the given CPU or return -1 if none found.  This
+ * does not distinguish among multiple L2 neighbors if the given CPU has
+ * more than one (it will always return the same result in that case).
+ */
+int sched_find_l2_neighbor(int cpu);
+
+struct sched_instance {
+	int	(*load)(void);
+	int	(*rr_interval)(void);
+	bool	(*runnable)(void);
+	void	(*exit)(struct proc *p, struct thread *childtd);
+	void	(*fork)(struct thread *td, struct thread *childtd);
+	void	(*fork_exit)(struct thread *td);
+	void	(*class)(struct thread *td, int class);
+	void	(*nice)(struct proc *p, int nice);
+	void	(*ap_entry)(void);
+	void	(*exit_thread)(struct thread *td, struct thread *child);
+	u_int	(*estcpu)(struct thread *td);
+	void	(*fork_thread)(struct thread *td, struct thread *child);
+	void	(*ithread_prio)(struct thread *td, u_char prio);
+	void	(*lend_prio)(struct thread *td, u_char prio);
+	void	(*lend_user_prio)(struct thread *td, u_char pri);
+	void	(*lend_user_prio_cond)(struct thread *td, u_char pri);
+	fixpt_t	(*pctcpu)(struct thread *td);
+	void	(*prio)(struct thread *td, u_char prio);
+	void	(*sleep)(struct thread *td, int prio);
+	void	(*sswitch)(struct thread *td, int flags);
+	void	(*throw)(struct thread *td);
+	void	(*unlend_prio)(struct thread *td, u_char prio);
+	void	(*user_prio)(struct thread *td, u_char prio);
+	void	(*userret_slowpath)(struct thread *td);
+	void	(*add)(struct thread *td, int flags);
+	struct thread *(*choose)(void);
+	void	(*clock)(struct thread *td, int cnt);
+	void	(*idletd)(void *);
+	void	(*preempt)(struct thread *td);
+	void	(*relinquish)(struct thread *td);
+	void	(*rem)(struct thread *td);
+	void	(*wakeup)(struct thread *td, int srqflags);
+	void	(*bind)(struct thread *td, int cpu);
+	void	(*unbind)(struct thread *td);
+	int	(*is_bound)(struct thread *td);
+	void	(*affinity)(struct thread *td);
+	int	(*sizeof_proc)(void);
+	int	(*sizeof_thread)(void);
+	char	*(*tdname)(struct thread *td);
+	void	(*clear_tdname)(struct thread *td);
+	bool	(*do_timer_accounting)(void);
+	int	(*find_l2_neighbor)(int cpuid);
+	void	(*init)(void);
+	void	(*init_ap)(void);
+	void	(*setup)(void);
+	void	(*initticks)(void);
+	void	(*schedcpu)(void);
+};
+
+extern const struct sched_instance *active_sched;
+
+struct sched_selection {
+	const char *name;
+	const struct sched_instance *instance;
+};
+#define	DECLARE_SCHEDULER(xsel_name, xsched_name, xsched_instance)		\
+	static struct sched_selection xsel_name = {				\
+		.name = xsched_name,						\
+		.instance = xsched_instance,				\
+	};									\
+	DATA_SET(sched_instance_set, xsel_name);
+
+void sched_instance_select(void);
+
 #endif /* _KERNEL */
 
 /* POSIX 1003.1b Process Scheduling */

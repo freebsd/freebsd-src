@@ -72,7 +72,8 @@
 static CLIENT *clnt_com_create(struct sockaddr_in *, rpcprog_t, rpcvers_t,
     int *, u_int, u_int, char *);
 static SVCXPRT *svc_com_create(int, u_int, u_int, char *);
-static bool_t rpc_wrap_bcast(char *, struct netbuf *, struct netconfig *);
+static bool_t rpc_wrap_bcast(char *, const struct netbuf *,
+    const struct netconfig *);
 
 /* XXX */
 #define IN4_LOCALHOST_STRING    "127.0.0.1"
@@ -307,19 +308,10 @@ registerrpc(int prognum, int versnum, int procnum,
 }
 
 /*
- * All the following clnt_broadcast stuff is convulated; it supports
- * the earlier calling style of the callback function
+ * Support the earlier calling style of the callback function with a
+ * per-thread temporary copy of the real callback.
  */
-static thread_key_t	clnt_broadcast_key;
-static resultproc_t	clnt_broadcast_result_main;
-static once_t		clnt_broadcast_once = ONCE_INITIALIZER;
-
-static void
-clnt_broadcast_key_init(void)
-{
-
-	thr_keycreate(&clnt_broadcast_key, free);
-}
+static _Thread_local clnt_broadcast_resultproc_t clnt_broadcast_result;
 
 /*
  * Need to translate the netbuf address into sockaddr_in address.
@@ -327,21 +319,16 @@ clnt_broadcast_key_init(void)
  */
 /* ARGSUSED */
 static bool_t
-rpc_wrap_bcast(char *resultp, struct netbuf *addr, struct netconfig *nconf)
+rpc_wrap_bcast(char *resultp, const struct netbuf *addr,
+    const struct netconfig *nconf)
 /*
  *	char *resultp;		// results of the call
  *	struct netbuf *addr;	// address of the guy who responded
  *	struct netconfig *nconf; // Netconf of the transport
  */
 {
-	resultproc_t clnt_broadcast_result;
-
 	if (strcmp(nconf->nc_netid, "udp"))
 		return (FALSE);
-	if (thr_main())
-		clnt_broadcast_result = clnt_broadcast_result_main;
-	else
-		clnt_broadcast_result = (resultproc_t)thr_getspecific(clnt_broadcast_key);
 	return (*clnt_broadcast_result)(resultp,
 				(struct sockaddr_in *)addr->buf);
 }
@@ -351,7 +338,8 @@ rpc_wrap_bcast(char *resultp, struct netbuf *addr, struct netconfig *nconf)
  */
 enum clnt_stat
 clnt_broadcast(u_long prog, u_long vers, u_long proc, xdrproc_t xargs,
-    void *argsp, xdrproc_t xresults, void *resultsp, resultproc_t eachresult)
+    void *argsp, xdrproc_t xresults, void *resultsp,
+    clnt_broadcast_resultproc_t eachresult)
 /*
  *	u_long		prog;		// program number
  *	u_long		vers;		// version number
@@ -363,16 +351,16 @@ clnt_broadcast(u_long prog, u_long vers, u_long proc, xdrproc_t xargs,
  *	resultproc_t	eachresult;	// call with each result obtained
  */
 {
+	enum clnt_stat ret;
 
-	if (thr_main())
-		clnt_broadcast_result_main = eachresult;
-	else {
-		thr_once(&clnt_broadcast_once, clnt_broadcast_key_init);
-		thr_setspecific(clnt_broadcast_key, (void *) eachresult);
-	}
-	return rpc_broadcast((rpcprog_t)prog, (rpcvers_t)vers,
+	clnt_broadcast_result = eachresult;
+
+	ret = rpc_broadcast((rpcprog_t)prog, (rpcvers_t)vers,
 	    (rpcproc_t)proc, xargs, argsp, xresults, resultsp,
-	    (resultproc_t) rpc_wrap_bcast, "udp");
+	    rpc_wrap_bcast, "udp");
+
+	clnt_broadcast_result = NULL;
+	return (ret);
 }
 
 /*

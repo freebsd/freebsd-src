@@ -119,6 +119,8 @@ ATF_TC_BODY(udp6_connect, tc)
 	};
 	struct sockaddr_in6 sin6 = {
 		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = in6addr_loopback,
 	};
 	socklen_t slen = sizeof(sin6);
 	int cs, ds, us;
@@ -148,6 +150,7 @@ ATF_TC_BODY(udp6_bind, tc)
 	struct sockaddr_in6 sin6 = {
 		.sin6_family = AF_INET6,
 		.sin6_len = sizeof(sin6),
+		.sin6_addr = in6addr_loopback,
 	};
 	struct ng_mesg *rep;
 	int cs, ds, us;

@@ -1379,8 +1379,5 @@ MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek USB 802.11ac wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
 #if defined(__FreeBSD__)
-MODULE_VERSION(rtw88_usb, 1);
-MODULE_DEPEND(rtw88_usb, rtw88_core, 1, 1, 1);
-MODULE_DEPEND(rtw88_usb, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(rtw88_usb, linuxkpi_wlan, 1, 1, 1);
+MODULE_DEPEND(rtw88, linuxkpi_usb, 1, 1, 1);
 #endif

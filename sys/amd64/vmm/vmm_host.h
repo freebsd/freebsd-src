@@ -29,6 +29,8 @@
 #ifndef	_VMM_HOST_H_
 #define	_VMM_HOST_H_
 
+#include <sys/pcpu.h>
+
 #ifndef	_KERNEL
 #error "no user-serviceable parts inside"
 #endif

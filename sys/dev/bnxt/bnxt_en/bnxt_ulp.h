@@ -90,10 +90,15 @@ struct bnxt_en_dev {
 	#define BNXT_EN_FLAG_ULP_STOPPED	0x8
 	#define BNXT_EN_FLAG_ASYM_Q		0x10
 	#define BNXT_EN_FLAG_MULTI_HOST		0x20
+	#define BNXT_EN_FLAG_SW_RES_LMT         0x400
 #define BNXT_EN_ASYM_Q(edev)		((edev)->flags & BNXT_EN_FLAG_ASYM_Q)
 #define BNXT_EN_MH(edev)		((edev)->flags & BNXT_EN_FLAG_MULTI_HOST)
+#define BNXT_EN_SW_RES_LMT(edev)       ((edev)->flags & BNXT_EN_FLAG_SW_RES_LMT)
 	const struct bnxt_en_ops	*en_ops;
 	struct bnxt_ulp			ulp_tbl[BNXT_MAX_ULP];
+	int                             l2_db_offset;   /* Doorbell BAR offset
+                                                         * of non-cacheable.
+                                                         */
 	int				l2_db_size;	/* Doorbell BAR size in
 							 * bytes mapped by L2
 							 * driver.
@@ -121,6 +126,9 @@ struct bnxt_en_dev {
 	struct bnxt_dbr			*en_dbr;
 	struct bnxt_bar_info		hwrm_bar;
 	u32				espeed;
+	uint8_t				lanes;
+	#define BNXT_VPD_PN_FLD_LEN     32
+        char                            board_part_number[BNXT_VPD_PN_FLD_LEN];
 };
 
 struct bnxt_en_ops {

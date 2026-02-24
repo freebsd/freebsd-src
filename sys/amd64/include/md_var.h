@@ -45,6 +45,7 @@ extern int	hw_ibrs_disable;
 extern int	hw_ssb_disable;
 extern int	nmi_flush_l1d_sw;
 extern int	syscall_ret_l1d_flush_mode;
+extern int	lass_enabled;
 
 extern vm_paddr_t intel_graphics_stolen_base;
 extern vm_paddr_t intel_graphics_stolen_size;
@@ -58,6 +59,7 @@ extern vm_paddr_t KERNend;
 extern bool efi_boot;
 
 struct	__mcontext;
+struct	pcpu;
 struct	savefpu;
 struct	sysentvec;
 

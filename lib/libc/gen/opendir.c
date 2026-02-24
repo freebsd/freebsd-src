@@ -42,6 +42,5 @@
 DIR *
 opendir(const char *name)
 {
-
 	return (__opendir2(name, DTF_HIDEW | DTF_NODUP));
 }

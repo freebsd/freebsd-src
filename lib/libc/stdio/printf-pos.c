@@ -311,11 +311,9 @@ reswitch:	switch (ch) {
 				goto rflag;
 			}
 			goto reswitch;
-#ifndef NO_FLOATING_POINT
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
-#endif
 		case 'h':
 			if (flags & SHORTINT) {
 				flags &= ~SHORTINT;
@@ -359,7 +357,6 @@ reswitch:	switch (ch) {
 			if ((error = addsarg(&types, flags)))
 				goto error;
 			break;
-#ifndef NO_FLOATING_POINT
 		case 'a':
 		case 'A':
 		case 'e':
@@ -372,7 +369,6 @@ reswitch:	switch (ch) {
 			if (error)
 				goto error;
 			break;
-#endif /* !NO_FLOATING_POINT */
 		case 'n':
 			if (flags & INTMAXT)
 				error = addtype(&types, TP_INTMAXT);
@@ -504,11 +500,9 @@ reswitch:	switch (ch) {
 				goto rflag;
 			}
 			goto reswitch;
-#ifndef NO_FLOATING_POINT
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
-#endif
 		case 'h':
 			if (flags & SHORTINT) {
 				flags &= ~SHORTINT;
@@ -552,7 +546,6 @@ reswitch:	switch (ch) {
 			if ((error = addsarg(&types, flags)))
 				goto error;
 			break;
-#ifndef NO_FLOATING_POINT
 		case 'a':
 		case 'A':
 		case 'e':
@@ -565,7 +558,6 @@ reswitch:	switch (ch) {
 			if (error)
 				goto error;
 			break;
-#endif /* !NO_FLOATING_POINT */
 		case 'n':
 			if (flags & INTMAXT)
 				error = addtype(&types, TP_INTMAXT);
@@ -744,14 +736,10 @@ build_arg_table(struct typetable *types, va_list ap, union arg **argtable)
 			(*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
 			break;
 		    case T_DOUBLE:
-#ifndef NO_FLOATING_POINT
 			(*argtable) [n].doublearg = va_arg (ap, double);
-#endif
 			break;
 		    case T_LONG_DOUBLE:
-#ifndef NO_FLOATING_POINT
 			(*argtable) [n].longdoublearg = va_arg (ap, long double);
-#endif
 			break;
 		    case TP_CHAR:
 			(*argtable) [n].pchararg = va_arg (ap, char *);

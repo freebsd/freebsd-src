@@ -134,7 +134,7 @@ link_status(if_ctx *ctx, const struct ifaddrs *ifa)
 	    sdl->sdl_alen != ETHER_ADDR_LEN)
 		return;
 
-	strncpy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name));
 	memcpy(&ifr.ifr_addr, ifa->ifa_addr, sizeof(ifa->ifa_addr->sa_len));
 	ifr.ifr_addr.sa_family = AF_LOCAL;
 	if ((sock_hw = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0) {

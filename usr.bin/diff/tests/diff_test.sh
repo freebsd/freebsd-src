@@ -1,4 +1,3 @@
-
 atf_test_case simple
 atf_test_case unified
 atf_test_case header
@@ -24,6 +23,10 @@ atf_test_case functionname
 atf_test_case noderef
 atf_test_case ignorecase
 atf_test_case dirloop
+atf_test_case crange
+atf_test_case urange
+atf_test_case prleak
+atf_test_case same
 
 simple_body()
 {
@@ -187,19 +190,19 @@ brief_format_body()
 	atf_check \
 	    -s exit:1 \
 	    -o inline:"Files A/test-file and B/test-file differ\n" \
-	    diff -rq A B
+	    diff -q A B
 
 	atf_check diff -rq A C
 
 	atf_check \
 	    -s exit:1 \
 	    -o inline:"Only in D: another-test-file\n" \
-	    diff -rq A D
+	    diff -q A D
 
 	atf_check \
 	    -s exit:1 \
 	    -o inline:"Files A/another-test-file and D/another-test-file differ\n" \
-	    diff -Nrq A D
+	    diff -Nq A D
 }
 
 Bflag_body()
@@ -221,9 +224,9 @@ Nflag_body()
 {
 	atf_check -x 'printf "foo" > A'
 
-	atf_check -s exit:1 -o ignore -e ignore diff -N A NOFILE 
-	atf_check -s exit:1 -o ignore -e ignore diff -N NOFILE A 
-	atf_check -s exit:2 -o ignore -e ignore diff -N NOFILE1 NOFILE2 
+	atf_check -s exit:1 -o ignore -e ignore diff -N A NOFILE
+	atf_check -s exit:1 -o ignore -e ignore diff -N NOFILE A
+	atf_check -s exit:2 -o ignore -e ignore diff -N NOFILE1 NOFILE2
 }
 
 tabsize_body()
@@ -335,23 +338,23 @@ noderef_body()
 
 	atf_check ln -s $(pwd)/test-file B/test-file
 
-	atf_check -o empty -s exit:0 diff -r A B
+	atf_check -o empty -s exit:0 diff A B
 	atf_check -o inline:"File A/test-file is a file while file B/test-file is a symbolic link\n" \
-		-s exit:1 diff -r --no-dereference A B
+		-s exit:1 diff --no-dereference A B
 
 	# both test files are now the same symbolic link
 	atf_check rm A/test-file
 
 	atf_check ln -s $(pwd)/test-file A/test-file
-	atf_check -o empty -s exit:0 diff -r A B
-	atf_check -o empty -s exit:0 diff -r --no-dereference A B
+	atf_check -o empty -s exit:0 diff A B
+	atf_check -o empty -s exit:0 diff --no-dereference A B
 
 	# make test files different symbolic links, but same contents
 	atf_check unlink A/test-file
 	atf_check ln -s $(pwd)/test-file2 A/test-file
 
-	atf_check -o empty -s exit:0 diff -r A B
-	atf_check -o inline:"Symbolic links A/test-file and B/test-file differ\n" -s exit:1 diff -r --no-dereference A B
+	atf_check -o empty -s exit:0 diff A B
+	atf_check -o inline:"Symbolic links A/test-file and B/test-file differ\n" -s exit:1 diff --no-dereference A B
 }
 
 ignorecase_body()
@@ -362,7 +365,7 @@ ignorecase_body()
 	atf_check -x "echo hello > A/foo"
 	atf_check -x "echo hello > B/FOO"
 
-	atf_check -o empty -s exit:0 diff -u -r --ignore-file-name-case A B
+	atf_check -o empty -s exit:0 diff -u --ignore-file-name-case A B
 }
 
 dirloop_head()
@@ -375,9 +378,100 @@ dirloop_body()
 	atf_check ln -s .. a/foo/bar/up
 	atf_check cp -a a b
 	atf_check \
+	    -o inline:"Common subdirectories: a/foo and b/foo\n" \
+	    diff a b
+	atf_check \
 	    -e match:"a/foo/bar/up: Directory loop detected" \
 	    -e match:"b/foo/bar/up: Directory loop detected" \
 	    diff -r a b
+	atf_check rm [ab]/foo/bar/up
+	atf_check mkdir -p b/foo/bar
+	atf_check ln -s foo a/baz
+	atf_check ln -s foo b/baz
+	atf_check diff -r a b
+}
+
+crange_head()
+{
+	atf_set "descr" "Context diff context length range"
+}
+crange_body()
+{
+	echo $'x\nx\na\ny\ny' >a
+	echo $'x\nx\nb\ny\ny' >b
+	atf_check -s exit:2 -e match:'too small' \
+	    diff -C-1 a b
+	atf_check -s exit:2 -e match:'too small' \
+	    diff -C0 a b
+	atf_check -s exit:1 -o match:'--- 2,4 ---' \
+	    diff -C1 a b
+	atf_check -s exit:1 -o match:'--- 2,4 ---' \
+	    diff -Astone -C1 a b
+	atf_check -s exit:2 -e match:'too large' \
+	    diff -C$((1<<31)) a b
+	atf_check -s exit:1 -o match:'--- 1,5 ---' \
+	    diff -C$(((1<<31)-1)) a b
+	atf_check -s exit:1 -o match:'--- 1,5 ---' \
+	    diff -Astone -C$(((1<<31)-1)) a b
+}
+
+urange_head()
+{
+	atf_set "descr" "Unified diff context length range"
+}
+urange_body()
+{
+	echo $'x\nx\na\ny\ny' >a
+	echo $'x\nx\nb\ny\ny' >b
+	atf_check -s exit:2 -e match:'too small' \
+	    diff -U-1 a b
+	atf_check -s exit:1 -o match:'^@@ -3 \+3 @@$' \
+	    diff -U0 a b
+	atf_check -s exit:2 -e match:'too large' \
+	    diff -U$((1<<31)) a b
+	atf_check -s exit:1 -o match:'^@@ -1,5 \+1,5 @@$' \
+	    diff -U$(((1<<31)-1)) a b
+	atf_check -s exit:1 -o match:'^@@ -1,5 \+1,5 @@$' \
+	    diff -Astone -U$(((1<<31)-1)) a b
+}
+
+prleak_head()
+{
+	atf_set "descr" "Verify that pagination does not leak resources"
+}
+prleak_body()
+{
+	local n=32
+	mkdir a b
+	for hi in $(jot -w%02x $n 0) ; do
+		mkdir a/$hi b/$hi
+		for lo in $(jot -w%02x $n 0) ; do
+			echo "$hi$lo" >a/$hi/$lo
+			echo "$hi$lo" >b/$hi/$lo
+		done
+	done
+	ulimit -n 1000
+	ulimit -u 1000
+	atf_check diff -rul a b
+	atf_check diff -Astone -rul a b
+}
+
+same_head()
+{
+	atf_set "descr" "Don't diff a file or directory with itself"
+}
+same_body()
+{
+	local n=256
+	mkdir a
+	for hi in $(jot -w%02x $n 0) ; do
+		mkdir a/$hi
+		for lo in $(jot -w%02x $n 0) ; do
+			echo "$hi$lo" >a/$hi/$lo
+		done
+	done
+	ln -s a b
+	atf_check timeout 1s diff -rqs a b
 }
 
 atf_init_test_cases()
@@ -407,4 +501,8 @@ atf_init_test_cases()
 	atf_add_test_case noderef
 	atf_add_test_case ignorecase
 	atf_add_test_case dirloop
+	atf_add_test_case crange
+	atf_add_test_case urange
+	atf_add_test_case prleak
+	atf_add_test_case same
 }

@@ -1800,7 +1800,7 @@ ar5211GetInterpolatedValue(uint16_t target,
 /*
  *  Look for value being within 0.1 of the search values
  *  however, NDIS can't do float calculations, so multiply everything
- *  up by EEP_SCALE so can do integer arithmatic
+ *  up by EEP_SCALE so can do integer arithmetic
  *
  * INPUT  value	   -value to search for
  * INPUT  pList	   -ptr to the list to search

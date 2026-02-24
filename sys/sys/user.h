@@ -196,8 +196,8 @@ struct kinfo_proc {
 	int	ki_fibnum;		/* Default FIB number */
 	u_int	ki_cr_flags;		/* Credential flags */
 	int	ki_jid;			/* Process jail ID */
-	int	ki_numthreads;		/* XXXKSE number of threads in total */
-	lwpid_t	ki_tid;			/* XXXKSE thread id */
+	int	ki_numthreads;		/* number of threads in total */
+	lwpid_t	ki_tid;			/* thread id */
 	struct	priority ki_pri;	/* process priority */
 	struct	rusage ki_rusage;	/* process rusage statistics */
 	/* XXX - most fields in ki_rusage_ch are not (yet) filled in */
@@ -216,7 +216,7 @@ struct kinfo_proc {
 	void	*ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
 	long	ki_sparelongs[KI_NSPARE_LONG];	/* spare room for growth */
 	long	ki_sflag;		/* PS_* flags */
-	long	ki_tdflags;		/* XXXKSE kthread flag */
+	long	ki_tdflags;		/* kthread flag */
 };
 void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
 /* XXX - the following two defines are temporary */

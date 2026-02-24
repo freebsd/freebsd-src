@@ -39,7 +39,8 @@ __RCSID("$NetBSD: t_rpc.c,v 1.10 2016/08/27 14:36:22 christos Exp $");
 #define RPCBPROC_NULL 0
 
 static int
-reply(caddr_t replyp, struct netbuf * raddrp, struct netconfig * nconf)
+reply(caddr_t replyp, const struct netbuf * raddrp,
+    const struct netconfig * nconf)
 {
 	char host[NI_MAXHOST];
 	struct sockaddr *sock = raddrp->buf;
@@ -244,7 +245,7 @@ allhosts(const char *transp)
 
 	clnt_stat = rpc_broadcast(RPCBPROG, RPCBVERS, RPCBPROC_NULL,
 	    (xdrproc_t)xdr_void, NULL, (xdrproc_t)xdr_void,
-	    NULL, (resultproc_t)reply, transp);
+	    NULL, reply, transp);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		ERRX(EXIT_FAILURE, "%s", clnt_sperrno(clnt_stat));
 }

@@ -104,7 +104,17 @@ void mi_startup(void);				/* Should be elsewhere */
 static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
-struct thread0_storage thread0_st __aligned(32);
+struct thread0_storage thread0_st __aligned(32) = {
+	.t0st_thread = {
+		/*
+		 * thread0.td_pflags is set with TDP_NOFAULTING to
+		 * short-cut the vm page fault handler until it is
+		 * ready.  It is cleared in vm_init() after VM
+		 * initialization.
+		 */
+		.td_pflags = TDP_NOFAULTING,
+	},
+};
 struct	vmspace vmspace0;
 struct	proc *initproc;
 

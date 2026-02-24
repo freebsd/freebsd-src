@@ -84,9 +84,7 @@
 #define	CT_INT		3	/* %[dioupxX] conversion */
 #define	CT_FLOAT	4	/* %[efgEFG] conversion */
 
-#ifndef NO_FLOATING_POINT
 static int parsefloat(FILE *, wchar_t *, wchar_t *, locale_t);
-#endif
 
 struct ccl {
 	const wchar_t *start;	/* character class start */
@@ -630,12 +628,10 @@ literal:
 			base = 16;
 			break;
 
-#ifndef NO_FLOATING_POINT
 		case 'A': case 'E': case 'F': case 'G':
 		case 'a': case 'e': case 'f': case 'g':
 			c = CT_FLOAT;
 			break;
-#endif
 
 		case 'S':
 			flags |= LONG;
@@ -813,7 +809,6 @@ literal:
 			}
 			break;
 
-#ifndef NO_FLOATING_POINT
 		case CT_FLOAT:
 			/* scan a floating point number as if by strtod */
 			if (width == 0 || width > sizeof(buf) /
@@ -835,7 +830,6 @@ literal:
 				}
 			}
 			break;
-#endif /* !NO_FLOATING_POINT */
 		}
 		if (!(flags & SUPPRESS))
 			nassigned++;
@@ -848,7 +842,6 @@ match_failure:
 	return (nassigned);
 }
 
-#ifndef NO_FLOATING_POINT
 static int
 parsefloat(FILE *fp, wchar_t *buf, wchar_t *end, locale_t locale)
 {
@@ -1007,4 +1000,3 @@ parsedone:
 	*++commit = '\0';
 	return (commit - buf);
 }
-#endif

@@ -652,7 +652,7 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/output AUTH chunk%s}\n");
 	p1a(sctps_senderrors, "\t\t{:send-errors/%ju} "
 	    "{N:/ip_output error counter}\n");
-	p1a(sctps_sendswcrc, "\t\t{:performed-receive-crc32c-computation/%ju} "
+	p1a(sctps_sendswcrc, "\t\t{:performed-transmit-crc32c-computation/%ju} "
 	    "{N:/performed transmit crc32c computation}\n");
 	p1a(sctps_sendhwcrc, "\t\t{:performed-transmit-crc32c-offloading/%ju} "
 	    "{N:/performed transmit crc32c offloading}\n");

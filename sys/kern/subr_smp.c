@@ -50,8 +50,42 @@
 
 #include "opt_sched.h"
 
-#ifdef SMP
 MALLOC_DEFINE(M_TOPO, "toponodes", "SMP topology data");
+
+struct cpu_group *
+smp_topo_alloc(u_int count)
+{
+	static struct cpu_group *group = NULL;
+	static u_int index;
+	u_int curr;
+
+	if (group == NULL) {
+		group = mallocarray((mp_maxid + 1) * MAX_CACHE_LEVELS + 1,
+		    sizeof(*group), M_DEVBUF, M_WAITOK | M_ZERO);
+	}
+	curr = index;
+	index += count;
+	return (&group[curr]);
+}
+
+struct cpu_group *
+smp_topo_none(void)
+{
+	struct cpu_group *top;
+
+	top = smp_topo_alloc(1);
+	top->cg_parent = NULL;
+	top->cg_child = NULL;
+	top->cg_mask = all_cpus;
+	top->cg_count = mp_ncpus;
+	top->cg_children = 0;
+	top->cg_level = CG_SHARE_NONE;
+	top->cg_flags = 0;
+
+	return (top);
+}
+
+#ifdef SMP
 
 volatile cpuset_t stopped_cpus;
 volatile cpuset_t started_cpus;
@@ -554,7 +588,7 @@ smp_rendezvous_cpus(cpuset_t map,
 	void (* teardown_func)(void *),
 	void *arg)
 {
-	int curcpumap, i, ncpus = 0;
+	int curcpumap, ncpus = 0;
 
 	/* See comments in the !SMP case. */
 	if (!smp_started) {
@@ -575,10 +609,8 @@ smp_rendezvous_cpus(cpuset_t map,
 	 */
 	MPASS(curthread->td_md.md_spinlock_count == 0);
 
-	CPU_FOREACH(i) {
-		if (CPU_ISSET(i, &map))
-			ncpus++;
-	}
+	CPU_AND(&map, &map, &all_cpus);
+	ncpus = CPU_COUNT(&map);
 	if (ncpus == 0)
 		panic("ncpus is 0 with non-zero map");
 
@@ -731,39 +763,6 @@ smp_topo(void)
 	return (top);
 }
 
-struct cpu_group *
-smp_topo_alloc(u_int count)
-{
-	static struct cpu_group *group = NULL;
-	static u_int index;
-	u_int curr;
-
-	if (group == NULL) {
-		group = mallocarray((mp_maxid + 1) * MAX_CACHE_LEVELS + 1,
-		    sizeof(*group), M_DEVBUF, M_WAITOK | M_ZERO);
-	}
-	curr = index;
-	index += count;
-	return (&group[curr]);
-}
-
-struct cpu_group *
-smp_topo_none(void)
-{
-	struct cpu_group *top;
-
-	top = smp_topo_alloc(1);
-	top->cg_parent = NULL;
-	top->cg_child = NULL;
-	top->cg_mask = all_cpus;
-	top->cg_count = mp_ncpus;
-	top->cg_children = 0;
-	top->cg_level = CG_SHARE_NONE;
-	top->cg_flags = 0;
-
-	return (top);
-}
-
 static int
 smp_topo_addleaf(struct cpu_group *parent, struct cpu_group *child, int share,
     int count, int flags, int start)
@@ -899,6 +898,18 @@ smp_rendezvous(void (*setup_func)(void *),
 
 	smp_rendezvous_cpus(all_cpus, setup_func, action_func, teardown_func,
 	    arg);
+}
+
+struct cpu_group *
+smp_topo(void)
+{
+	static struct cpu_group *top = NULL;
+
+	if (top != NULL)
+		return (top);
+
+	top = smp_topo_none();
+	return (top);
 }
 
 /*

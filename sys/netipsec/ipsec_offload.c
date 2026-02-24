@@ -829,8 +829,6 @@ ipsec_accel_on_ifdown_impl(struct ifnet *ifp)
 static void
 ipsec_accel_ifdetach_event(void *arg __unused, struct ifnet *ifp)
 {
-	if ((ifp->if_flags & IFF_RENAMING) != 0)
-		return;
 	ipsec_accel_on_ifdown_impl(ifp);
 }
 

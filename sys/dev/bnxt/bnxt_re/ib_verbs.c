@@ -241,46 +241,99 @@ int bnxt_re_modify_device(struct ib_device *ibdev,
 	return 0;
 }
 
-static void __to_ib_speed_width(u32 espeed, u8 *speed, u8 *width)
+static void __to_ib_speed_width(u32 espeed, u8 lanes, u8 *speed, u8 *width)
 {
-	switch (espeed) {
-	case SPEED_1000:
-		*speed = IB_SPEED_SDR;
+	if (!lanes) {
+		switch (espeed) {
+		case SPEED_1000:
+			*speed = IB_SPEED_SDR;
+			*width = IB_WIDTH_1X;
+			break;
+		case SPEED_10000:
+			*speed = IB_SPEED_QDR;
+			*width = IB_WIDTH_1X;
+			break;
+		case SPEED_20000:
+			*speed = IB_SPEED_DDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_25000:
+			*speed = IB_SPEED_EDR;
+			*width = IB_WIDTH_1X;
+			break;
+		case SPEED_40000:
+			*speed = IB_SPEED_QDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_50000:
+			*speed = IB_SPEED_EDR;
+			*width = IB_WIDTH_2X;
+			break;
+		case SPEED_100000:
+			*speed = IB_SPEED_EDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_200000:
+			*speed = IB_SPEED_HDR;
+			*width = IB_WIDTH_4X;
+			break;
+		case SPEED_400000:
+			*speed = IB_SPEED_NDR;
+			*width = IB_WIDTH_4X;
+			break;
+		default:
+			*speed = IB_SPEED_SDR;
+			*width = IB_WIDTH_1X;
+			break;
+		}
+		return;
+	}
+
+	switch (lanes) {
+	case 1:
 		*width = IB_WIDTH_1X;
+		break;
+	case 2:
+		*width = IB_WIDTH_2X;
+		break;
+	case 4:
+		*width = IB_WIDTH_4X;
+		break;
+	case 8:
+		*width = IB_WIDTH_8X;
+		break;
+	case 12:
+		*width = IB_WIDTH_12X;
+		break;
+	default:
+		*width = IB_WIDTH_1X;
+	}
+
+	switch (espeed / lanes) {
+	case SPEED_2500:
+		*speed = IB_SPEED_SDR;
+		break;
+	case SPEED_5000:
+		*speed = IB_SPEED_DDR;
 		break;
 	case SPEED_10000:
-		*speed = IB_SPEED_QDR;
-		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_FDR10;
 		break;
-	case SPEED_20000:
-		*speed = IB_SPEED_DDR;
-		*width = IB_WIDTH_4X;
+	case SPEED_14000:
+		*speed = IB_SPEED_FDR;
 		break;
 	case SPEED_25000:
 		*speed = IB_SPEED_EDR;
-		*width = IB_WIDTH_1X;
-		break;
-	case SPEED_40000:
-		*speed = IB_SPEED_QDR;
-		*width = IB_WIDTH_4X;
 		break;
 	case SPEED_50000:
-		*speed = IB_SPEED_EDR;
-		*width = IB_WIDTH_2X;
+		*speed = IB_SPEED_HDR;
 		break;
 	case SPEED_100000:
-		*speed = IB_SPEED_EDR;
-		*width = IB_WIDTH_4X;
-		break;
-	case SPEED_200000:
-		*speed = IB_SPEED_HDR;
-		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_NDR;
 		break;
 	default:
 		*speed = IB_SPEED_SDR;
-		*width = IB_WIDTH_1X;
-		break;
-	}
+        }
 }
 
 /* Port */
@@ -318,9 +371,10 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	port_attr->subnet_timeout = 0;
 	port_attr->init_type_reply = 0;
 	rdev->espeed = rdev->en_dev->espeed;
+	rdev->lanes = rdev->en_dev->lanes;
 
 	if (test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
-		__to_ib_speed_width(rdev->espeed, &active_speed,
+		__to_ib_speed_width(rdev->espeed, rdev->lanes, &active_speed,
 				    &active_width);
 
 	port_attr->active_speed = active_speed;
@@ -1613,15 +1667,18 @@ static int bnxt_re_setup_swqe_size(struct bnxt_re_qp *qp,
 	align = sizeof(struct sq_send_hdr);
 	ilsize = ALIGN(init_attr->cap.max_inline_data, align);
 
-	sq->wqe_size = bnxt_re_get_swqe_size(ilsize, sq->max_sge);
-	if (sq->wqe_size > _get_swqe_sz(dev_attr->max_qp_sges))
-		return -EINVAL;
-	/* For Cu/Wh and gen p5 backward compatibility mode
-	 * wqe size is fixed to 128 bytes
+	/* For gen p4 and gen p5 fixed wqe compatibility mode
+	 * wqe size is fixed to 128 bytes - ie 6 SGEs
 	 */
-	if (sq->wqe_size < _get_swqe_sz(dev_attr->max_qp_sges) &&
-	    qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC)
-		sq->wqe_size = _get_swqe_sz(dev_attr->max_qp_sges);
+	if (qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) {
+		sq->wqe_size = _get_swqe_sz(BNXT_STATIC_MAX_SGE);
+		sq->max_sge = BNXT_STATIC_MAX_SGE;
+	} else {
+		sq->wqe_size = bnxt_re_get_swqe_size(ilsize, sq->max_sge);
+		if (sq->wqe_size > _get_swqe_sz(dev_attr->max_qp_sges))
+			return -EINVAL;
+	}
+
 
 	if (init_attr->cap.max_inline_data) {
 		qplqp->max_inline_data = sq->wqe_size -
@@ -1666,23 +1723,28 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev,
 		return rc;
 
 	bytes = (qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size);
+	bytes = PAGE_ALIGN(bytes);
 	/* Consider mapping PSN search memory only for RC QPs. */
 	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC) {
 		psn_sz = _is_chip_gen_p5_p7(rdev->chip_ctx) ?
 				sizeof(struct sq_psn_search_ext) :
 				sizeof(struct sq_psn_search);
-		if (rdev->dev_attr && BNXT_RE_HW_RETX(rdev->dev_attr->dev_cap_flags))
+		if (rdev->dev_attr && _is_host_msn_table(rdev->dev_attr->dev_cap_ext_flags2))
 			psn_sz = sizeof(struct sq_msn_search);
-		psn_nume = (qplib_qp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
-			    qplib_qp->sq.max_wqe :
-			    ((qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size) /
-			     sizeof(struct bnxt_qplib_sge));
-		if (BNXT_RE_HW_RETX(rdev->dev_attr->dev_cap_flags))
+		if (cntx && bnxt_re_is_var_size_supported(rdev, cntx)) {
+			psn_nume = ureq.sq_slots;
+		} else {
+			psn_nume = (qplib_qp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
+				    qplib_qp->sq.max_wqe :
+				    ((qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size) /
+				     sizeof(struct bnxt_qplib_sge));
+		}
+		if (rdev->dev_attr && _is_host_msn_table(rdev->dev_attr->dev_cap_ext_flags2))
 			psn_nume = roundup_pow_of_two(psn_nume);
 
 		bytes += (psn_nume * psn_sz);
+		bytes = PAGE_ALIGN(bytes);
 	}
-	bytes = PAGE_ALIGN(bytes);
 	umem = ib_umem_get_compat(rdev, context, udata, ureq.qpsva, bytes,
 				  IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(umem)) {
@@ -1857,6 +1919,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp(struct bnxt_re_pd *pd,
 	/* Shadow QP SQ depth should be same as QP1 RQ depth */
 	qp->qplib_qp.sq.wqe_size = bnxt_re_get_swqe_size(0, 6);
 	qp->qplib_qp.sq.max_wqe = qp1_qp->rq.max_wqe;
+	qp->qplib_qp.sq.max_sw_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.sq.max_sge = 2;
 	/* Q full delta can be 1 since it is internal QP */
 	qp->qplib_qp.sq.q_full_delta = 1;
@@ -1868,6 +1931,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp(struct bnxt_re_pd *pd,
 
 	qp->qplib_qp.rq.wqe_size = _max_rwqe_sz(6); /* 128 Byte wqe size */
 	qp->qplib_qp.rq.max_wqe = qp1_qp->rq.max_wqe;
+	qp->qplib_qp.rq.max_sw_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.rq.max_sge = qp1_qp->rq.max_sge;
 	qp->qplib_qp.rq.sginfo.pgsize = PAGE_SIZE;
 	qp->qplib_qp.rq.sginfo.pgshft = PAGE_SHIFT;
@@ -1940,6 +2004,7 @@ static int bnxt_re_init_rq_attr(struct bnxt_re_qp *qp,
 		entries = init_attr->cap.max_recv_wr + 1;
 		entries = bnxt_re_init_depth(entries, cntx);
 		rq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + 1);
+		rq->max_sw_wqe = rq->max_wqe;
 		rq->q_full_delta = 0;
 		rq->sginfo.pgsize = PAGE_SIZE;
 		rq->sginfo.pgshft = PAGE_SHIFT;
@@ -1964,10 +2029,11 @@ static void bnxt_re_adjust_gsi_rq_attr(struct bnxt_re_qp *qp)
 
 static int bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
 				struct ib_qp_init_attr *init_attr,
-				void *cntx)
+				void *cntx, struct ib_udata *udata)
 {
 	struct bnxt_qplib_dev_attr *dev_attr;
 	struct bnxt_qplib_qp *qplqp;
+	struct bnxt_re_qp_req ureq;
 	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_q *sq;
 	int diff = 0;
@@ -1979,35 +2045,53 @@ static int bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
 	sq = &qplqp->sq;
 	dev_attr = rdev->dev_attr;
 
+	if (udata) {
+		rc = ib_copy_from_udata(&ureq, udata,
+			min(udata->inlen, sizeof(ureq)));
+		if (rc)
+			return -EINVAL;
+	}
+
 	sq->max_sge = init_attr->cap.max_send_sge;
-	if (sq->max_sge > dev_attr->max_qp_sges) {
-		sq->max_sge = dev_attr->max_qp_sges;
-		init_attr->cap.max_send_sge = sq->max_sge;
-	}
-	rc = bnxt_re_setup_swqe_size(qp, init_attr);
-	if (rc)
-		return rc;
-	/*
-	 * Change the SQ depth if user has requested minimum using
-	 * configfs. Only supported for kernel consumers. Setting
-	 * min_tx_depth to 4096 to handle iser SQ full condition
-	 * in most of the newer OS distros
-	 */
 	entries = init_attr->cap.max_send_wr;
-	if (!cntx && rdev->min_tx_depth && init_attr->qp_type != IB_QPT_GSI) {
+	if (cntx && udata && qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE) {
+		sq->max_wqe = ureq.sq_slots;
+		sq->max_sw_wqe = ureq.sq_slots;
+		sq->wqe_size = sizeof(struct sq_sge);
+	} else {
+		if (sq->max_sge > dev_attr->max_qp_sges) {
+			sq->max_sge = dev_attr->max_qp_sges;
+			init_attr->cap.max_send_sge = sq->max_sge;
+		}
+		rc = bnxt_re_setup_swqe_size(qp, init_attr);
+		if (rc)
+			return rc;
 		/*
-		 * If users specify any value greater than 1 use min_tx_depth
-		 * provided by user for comparison. Else, compare it with the
-		 * BNXT_RE_MIN_KERNEL_QP_TX_DEPTH and adjust it accordingly.
+		 * Change the SQ depth if user has requested minimum using
+		 * configfs. Only supported for kernel consumers. Setting
+		 * min_tx_depth to 4096 to handle iser SQ full condition
+		 * in most of the newer OS distros
 		 */
-		if (rdev->min_tx_depth > 1 && entries < rdev->min_tx_depth)
-			entries = rdev->min_tx_depth;
-		else if (entries < BNXT_RE_MIN_KERNEL_QP_TX_DEPTH)
-			entries = BNXT_RE_MIN_KERNEL_QP_TX_DEPTH;
+
+		if (!cntx && rdev->min_tx_depth && init_attr->qp_type != IB_QPT_GSI) {
+			/*
+			 * If users specify any value greater than 1 use min_tx_depth
+			 * provided by user for comparison. Else, compare it with the
+			 * BNXT_RE_MIN_KERNEL_QP_TX_DEPTH and adjust it accordingly.
+			 */
+			if (rdev->min_tx_depth > 1 && entries < rdev->min_tx_depth)
+				entries = rdev->min_tx_depth;
+			else if (entries < BNXT_RE_MIN_KERNEL_QP_TX_DEPTH)
+				entries = BNXT_RE_MIN_KERNEL_QP_TX_DEPTH;
+		}
+		diff = bnxt_re_get_diff(cntx, rdev->chip_ctx);
+		entries = bnxt_re_init_depth(entries + diff + 1, cntx);
+		sq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + diff + 1);
+		if (qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
+			sq->max_sw_wqe = bnxt_qplib_get_depth(sq, qplqp->wqe_mode, true);
+		else
+			sq->max_sw_wqe = sq->max_wqe;
 	}
-	diff = bnxt_re_get_diff(cntx, rdev->chip_ctx);
-	entries = bnxt_re_init_depth(entries + diff + 1, cntx);
-	sq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + diff + 1);
 	sq->q_full_delta = diff + 1;
 	/*
 	 * Reserving one slot for Phantom WQE. Application can
@@ -2073,11 +2157,6 @@ out:
 	return qptype;
 }
 
-static int bnxt_re_init_qp_wqe_mode(struct bnxt_re_dev *rdev)
-{
-	return rdev->chip_ctx->modes.wqe_mode;
-}
-
 static int bnxt_re_init_qp_attr(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata)
@@ -2111,7 +2190,7 @@ static int bnxt_re_init_qp_attr(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 		goto out;
 	}
 	qplqp->type = (u8)qptype;
-	qplqp->wqe_mode = bnxt_re_init_qp_wqe_mode(rdev);
+	qplqp->wqe_mode = bnxt_re_is_var_size_supported(rdev, cntx);
 	ether_addr_copy(qplqp->smac, rdev->dev_addr);
 
 	if (init_attr->qp_type == IB_QPT_RC) {
@@ -2158,7 +2237,7 @@ static int bnxt_re_init_qp_attr(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 		bnxt_re_adjust_gsi_rq_attr(qp);
 
 	/* Setup SQ */
-	rc = bnxt_re_init_sq_attr(qp, init_attr, cntx);
+	rc = bnxt_re_init_sq_attr(qp, init_attr, cntx, udata);
 	if (rc)
 		goto out;
 	if (init_attr->qp_type == IB_QPT_GSI)
@@ -2794,6 +2873,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 			if (entries > dev_attr->max_qp_wqes)
 				entries = dev_attr->max_qp_wqes;
 			qp->qplib_qp.rq.max_wqe = entries;
+			qp->qplib_qp.rq.max_sw_wqe = qp->qplib_qp.rq.max_wqe;
 			qp->qplib_qp.rq.q_full_delta = qp->qplib_qp.rq.max_wqe -
 						       qp_attr->cap.max_recv_wr;
 			qp->qplib_qp.rq.max_sge = qp_attr->cap.max_recv_sge;
@@ -5294,11 +5374,9 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *uctx_in,
 	}
 
 	genp5 = _is_chip_gen_p5_p7(cctx);
-	if (BNXT_RE_ABI_VERSION > 5) {
-		resp.modes = genp5 ? cctx->modes.wqe_mode : 0;
-		if (rdev->dev_attr && BNXT_RE_HW_RETX(rdev->dev_attr->dev_cap_flags))
-			resp.comp_mask = BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED;
-	}
+	resp.mode = genp5 ? cctx->modes.wqe_mode : 0;
+	if (rdev->dev_attr && _is_host_msn_table(rdev->dev_attr->dev_cap_ext_flags2))
+		resp.comp_mask = BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED;
 
 	resp.pg_size = PAGE_SIZE;
 	resp.cqe_sz = sizeof(struct cq_base);
@@ -5331,6 +5409,12 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *uctx_in,
 		if (bnxt_re_init_rsvd_wqe_flag(&ureq, &resp, genp5))
 			dev_warn(rdev_to_dev(rdev),
 				 "Rsvd wqe in use! Try the updated library.\n");
+		if (ureq.comp_mask & BNXT_RE_COMP_MASK_REQ_UCNTX_VAR_WQE_SUPPORT) {
+                        resp.comp_mask |= BNXT_RE_COMP_MASK_UCNTX_CMASK_HAVE_MODE;
+                        resp.mode = rdev->chip_ctx->modes.wqe_mode;
+                        if (resp.mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
+				resp.comp_mask |= BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED;
+                }
 	} else {
 		dev_warn(rdev_to_dev(rdev),
 			 "Enabled roundup logic. Update the library!\n");

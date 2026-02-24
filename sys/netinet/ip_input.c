@@ -82,6 +82,7 @@
 #include <machine/in_cksum.h>
 #include <netinet/ip_carp.h>
 #include <netinet/in_rss.h>
+#include <netinet/ip_mroute.h>
 #ifdef SCTP
 #include <netinet/sctp_var.h>
 #endif
@@ -532,6 +533,12 @@ ip_input(struct mbuf *m)
 
 	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
 		sum = !(m->m_pkthdr.csum_flags & CSUM_IP_VALID);
+	} else if (m->m_pkthdr.csum_flags & CSUM_IP) {
+		/*
+		 * Packet from local host that offloaded checksum computation.
+		 * Checksum not required since the packet wasn't on the wire.
+		 */
+		sum = 0;
 	} else {
 		if (hlen == sizeof(struct ip)) {
 			sum = in_cksum_hdr(ip);
@@ -765,7 +772,8 @@ passin:
 		 * RFC 3927 2.7: Do not forward multicast packets from
 		 * IN_LINKLOCAL.
 		 */
-		if (V_ip_mrouter && !IN_LINKLOCAL(ntohl(ip->ip_src.s_addr))) {
+		if (V_ip_mrouting_enabled &&
+		    !IN_LINKLOCAL(ntohl(ip->ip_src.s_addr))) {
 			/*
 			 * If we are acting as a multicast router, all
 			 * incoming multicast packets are passed to the

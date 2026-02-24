@@ -257,7 +257,17 @@ struct ip6_frag {
 #define IPV6_HLIMDEC	1	/* subtracted when forwarding */
 
 #define IPV6_MMTU	1280	/* minimal MTU and reassembly. 1024 + 256 */
-#define IPV6_MAXPACKET	65535	/* ip6 max packet size without Jumbo payload*/
+/*
+ * XXX: IPV6_MAXPACKET is historically used as the maximum packet size.
+ * The maximum IPv6 packet size is:
+ *
+ * 	v6 header size (40) + payload load size (65535)
+ *
+ * practically this isn't encountered as it requires a link with an mtu of
+ * 65575 octets. IPV6_MAXPACKET is preserved at this value for compatibility.
+ */
+#define IPV6_MAXPACKET	65535
+#define IPV6_MAXPAYLOAD	65535	/* max size that can be carried in a payload */
 #define IPV6_MAXOPTHDR	2048	/* max option header size, 256 64-bit words */
 
 #endif /* not _NETINET_IP6_H_ */

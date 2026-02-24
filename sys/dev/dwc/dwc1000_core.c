@@ -238,7 +238,7 @@ dwc1000_enable_csum_offload(struct dwc_softc *sc)
 
 	DWC_ASSERT_LOCKED(sc);
 	reg = READ4(sc, MAC_CONFIGURATION);
-	if ((if_getcapenable(sc->ifp) & IFCAP_RXCSUM) != 0)
+	if ((if_getcapenable(sc->ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) != 0)
 		reg |= CONF_IPC;
 	else
 		reg &= ~CONF_IPC;

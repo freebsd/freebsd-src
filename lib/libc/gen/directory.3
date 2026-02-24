@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 1, 2020
+.Dd January 31, 2026
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -86,13 +86,6 @@ and
 returns a pointer to be used to identify the
 .Em directory stream
 in subsequent operations.
-The pointer
-.Dv NULL
-is returned if
-.Fa filename
-cannot be accessed, or if it cannot
-.Xr malloc 3
-enough memory to hold the whole thing.
 .Pp
 The
 .Fn fdopendir
@@ -134,14 +127,6 @@ or
 .Fn closedir
 on the same
 .Em directory stream .
-The function returns
-.Dv NULL
-upon reaching the end of the directory or on error.
-In the event of an error,
-.Va errno
-may be set to any of the values documented for the
-.Xr getdirentries 2
-system call.
 .Pp
 The
 .Fn readdir_r
@@ -166,10 +151,6 @@ upon reaching the end of the directory
 .Fa result
 is set to
 .Dv NULL .
-The
-.Fn readdir_r
-function
-returns 0 on success or an error number to indicate failure.
 .Pp
 The
 .Fn telldir
@@ -179,12 +160,9 @@ returns a token representing the current location associated with the named
 Values returned by
 .Fn telldir
 are good only for the lifetime of the
-.Dv DIR
-pointer,
-.Fa dirp ,
+.Em directory stream
 from which they are derived.
-If the directory is closed and then
-reopened, prior values returned by
+If the directory is closed and then reopened, prior values returned by
 .Fn telldir
 will no longer be valid.
 Values returned by
@@ -217,28 +195,22 @@ The
 function
 closes the named
 .Em directory stream
-and frees the structure associated with the
-.Fa dirp
-pointer,
-returning 0 on success.
-On failure, \-1 is returned and the global variable
-.Va errno
-is set to indicate the error.
+and frees the structure associated with
+.Fa dirp .
 .Pp
 The
 .Fn fdclosedir
 function is equivalent to the
 .Fn closedir
-function except that this function returns directory file descriptor instead of
-closing it.
+function except that it returns the file descriptor associated with
+.Fa dirp
+instead of closing it.
 .Pp
 The
 .Fn dirfd
 function
-returns the integer file descriptor associated with the named
-.Em directory stream ,
-see
-.Xr open 2 .
+returns the file descriptor associated with
+.Fa dirp .
 .Sh EXAMPLES
 Sample code which searches a directory for entry ``name'' is:
 .Bd -literal -offset indent
@@ -255,6 +227,38 @@ while ((dp = readdir(dirp)) != NULL) {
 (void)closedir(dirp);
 return (NOT_FOUND);
 .Ed
+.Sh RETURN VALUES
+The
+.Fn opendir
+and
+.Fn fdopendir
+functions return a pointer to the new
+.Em directory stream
+on success and
+.Dv NULL
+on failure.
+.Pp
+The
+.Fn readdir
+function returns a pointer to a directory entry on success and
+.Dv NULL
+on failure.
+The
+.Fn readdir_r
+function returns 0 on success and an error number on failure.
+.Pp
+The
+.Fn telldir
+function returns a nonnegative value on success and -1 on failure.
+.Pp
+The
+.Fn closedir
+function returns 0 on success and -1 on failure.
+The
+.Fn fdclosedir
+and
+.Fn dirfd
+functions return an open file descriptor on success and -1 on failure.
 .Sh ERRORS
 The
 .Fn opendir
@@ -325,6 +329,16 @@ function may also fail and set
 .Va errno
 for any of the errors specified for the routine
 .Xr close 2 .
+.Pp
+The
+.Fn dirfd
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa dirp
+argument does not refer to a valid directory stream.
+.El
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr lseek 2 ,

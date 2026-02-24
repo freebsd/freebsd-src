@@ -42,6 +42,7 @@
 /* Machine type dependent parameters. */
 #include <machine/endian.h>
 #include <sys/_types.h>
+#include <sys/_offsetof.h>
 
 #include <sys/_pthreadtypes.h>
 
@@ -291,7 +292,6 @@ typedef	__uint64_t	uoff_t;
 typedef	char		vm_memattr_t;	/* memory attribute codes */
 typedef	struct vm_page	*vm_page_t;
 
-#define offsetof(type, field) __offsetof(type, field)
 #endif /* _KERNEL */
 
 #if	defined(_KERNEL) || defined(_STANDALONE)

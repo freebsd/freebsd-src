@@ -18,7 +18,8 @@ SRCS=	ktutil.c \
 CFLAGS+=-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
 	-I${KRB5_DIR}/util \
-	-I${KRB5_OBJTOP}/util
+	-I${KRB5_OBJTOP}/util \
+	-I${KRB5_OBJTOP}/util/profile
 
 MAN=	ktutil.1
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: blocklistd.c,v 1.14 2025/12/15 15:51:37 christos Exp $	*/
+/*	$NetBSD: blocklistd.c,v 1.15 2026/02/07 14:32:04 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -35,7 +35,7 @@
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
 #endif
-__RCSID("$NetBSD: blocklistd.c,v 1.14 2025/12/15 15:51:37 christos Exp $");
+__RCSID("$NetBSD: blocklistd.c,v 1.15 2026/02/07 14:32:04 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -346,10 +346,10 @@ addfd(struct pollfd **pfdp, bl_t **blp, size_t *nfd, size_t *maxfd,
 		exit(EXIT_FAILURE);
 	if (*nfd >= *maxfd) {
 		*maxfd += 10;
-		*blp = realloc(*blp, sizeof(**blp) * *maxfd);
+		*blp = reallocarray(*blp, *maxfd, sizeof(**blp));
 		if (*blp == NULL)
 			err(EXIT_FAILURE, "malloc");
-		*pfdp = realloc(*pfdp, sizeof(**pfdp) * *maxfd);
+		*pfdp = reallocarray(*pfdp, *maxfd, sizeof(**pfdp));
 		if (*pfdp == NULL)
 			err(EXIT_FAILURE, "malloc");
 	}
@@ -373,7 +373,7 @@ uniqueadd(struct conf ***listp, size_t *nlist, size_t *mlist, struct conf *c)
 	}
 	if (*nlist == *mlist) {
 		*mlist += 10;
-		void *p = realloc(*listp, *mlist * sizeof(*list));
+		void *p = reallocarray(*listp, *mlist, sizeof(*list));
 		if (p == NULL)
 			err(EXIT_FAILURE, "Can't allocate for rule list");
 		list = *listp = p;
@@ -410,7 +410,7 @@ rules_restore(void)
 	db = state_open(dbfile, O_RDONLY, 0);
 	if (db == NULL) {
 		(*lfun)(LOG_ERR, "Can't open `%s' to restore state (%m)",
-			dbfile);
+		    dbfile);
 		return;
 	}
 	for (f = 1; state_iterate(db, &c, &dbi, f) == 1; f = 0) {
@@ -468,12 +468,12 @@ main(int argc, char *argv[])
 		case 's':
 			if (nblsock >= maxblsock) {
 				maxblsock += 10;
-				void *p = realloc(blsock,
-				    sizeof(*blsock) * maxblsock);
+				void *p = reallocarray(blsock, maxblsock,
+				    sizeof(*blsock));
 				if (p == NULL)
-				    err(EXIT_FAILURE,
-					"Can't allocate memory for %zu sockets",
-					maxblsock);
+					err(EXIT_FAILURE, "Can't allocate "
+					    "memory for %zu sockets",
+					    maxblsock);
 				blsock = p;
 			}
 			blsock[nblsock++] = optarg;
@@ -552,7 +552,7 @@ main(int argc, char *argv[])
 		}
 	}
 	if (state == NULL)
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 
 	if (!debug) {
 		if (daemon(0, 0) == -1)
@@ -574,7 +574,7 @@ main(int argc, char *argv[])
 			if (errno == EINTR)
 				continue;
 			(*lfun)(LOG_ERR, "poll (%m)");
-			return EXIT_FAILURE;
+			exit(EXIT_FAILURE);
 		case 0:
 			state_sync(state);
 			break;
@@ -590,5 +590,5 @@ main(int argc, char *argv[])
 		update();
 	}
 	state_close(state);
-	return 0;
+	exit(EXIT_SUCCESS);
 }

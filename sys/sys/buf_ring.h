@@ -266,7 +266,7 @@ buf_ring_advance_sc(struct buf_ring *br)
  * the compare and an atomic.
  */
 static __inline void
-buf_ring_putback_sc(struct buf_ring *br, void *new)
+buf_ring_putback_sc(struct buf_ring *br, void *buf)
 {
 	uint32_t cons_idx, mask;
 
@@ -274,7 +274,7 @@ buf_ring_putback_sc(struct buf_ring *br, void *new)
 	cons_idx = atomic_load_32(&br->br_cons_head) & mask;
 	KASSERT(cons_idx != (atomic_load_32(&br->br_prod_tail) & mask),
 		("Buf-Ring has none in putback")) ;
-	br->br_ring[cons_idx] = new;
+	br->br_ring[cons_idx] = buf;
 }
 
 /*
@@ -305,7 +305,7 @@ static __inline void *
 buf_ring_peek_clear_sc(struct buf_ring *br)
 {
 	uint32_t cons_head, prod_tail, mask;
-	void *ret;
+	void *buf;
 
 #if defined(DEBUG_BUFRING) && defined(_KERNEL)
 	if (!mtx_owned(br->br_lock))
@@ -319,7 +319,7 @@ buf_ring_peek_clear_sc(struct buf_ring *br)
 	if (cons_head == prod_tail)
 		return (NULL);
 
-	ret = br->br_ring[cons_head & mask];
+	buf = br->br_ring[cons_head & mask];
 #ifdef DEBUG_BUFRING
 	/*
 	 * Single consumer, i.e. cons_head will not move while we are
@@ -327,13 +327,12 @@ buf_ring_peek_clear_sc(struct buf_ring *br)
 	 */
 	br->br_ring[cons_head & mask] = NULL;
 #endif
-	return (ret);
+	return (buf);
 }
 
 static __inline int
 buf_ring_full(struct buf_ring *br)
 {
-
 	return (atomic_load_32(&br->br_prod_head) ==
 	    atomic_load_32(&br->br_cons_tail) + br->br_cons_size - 1);
 }
@@ -341,7 +340,6 @@ buf_ring_full(struct buf_ring *br)
 static __inline int
 buf_ring_empty(struct buf_ring *br)
 {
-
 	return (atomic_load_32(&br->br_cons_head) ==
 	    atomic_load_32(&br->br_prod_tail));
 }

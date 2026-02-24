@@ -1,0 +1,16 @@
+#
+root:<rpass>:0:0::0:0:Charlie &:/root:/bin/csh
+toor:*:0:0::0:0:Bourne-again Superuser:/root:
+daemon:*:1:1::0:0:Owner of many system processes:/root:/usr/sbin/nologin
+operator:*:2:5::0:0:System &:/:/usr/sbin/nologin
+_dhcp:*:65:65::0:0:dhcp programs:/var/empty:/usr/sbin/nologin
+uucp:*:66:66::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/local/libexec/uucp/uucico
+pop:*:68:6::0:0:Post Office Owner:/nonexistent:/usr/sbin/nologin
+auditdistd:*:78:77::0:0:Auditdistd unprivileged user:/var/empty:/usr/sbin/nologin
+www:*:80:80::0:0:World Wide Web Owner:/nonexistent:/usr/sbin/nologin
+hast:*:845:845::0:0:HAST unprivileged user:/var/empty:/usr/sbin/nologin
+nobody:*:65534:65534::0:0:Unprivileged user:/nonexistent:/usr/sbin/nologin
+john:<password>:1001:1001::0:0:John Baldwin:/home/john:/bin/tcsh
+messagebus:*:556:556::0:0:D-BUS Daemon User:/nonexistent:/usr/sbin/nologin
+polkit:*:562:562::0:0:PolicyKit User:/nonexistent:/usr/sbin/nologin
+haldaemon:*:560:560::0:0:HAL Daemon User:/nonexistent:/usr/sbin/nologin

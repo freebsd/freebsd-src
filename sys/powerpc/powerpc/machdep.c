@@ -83,6 +83,7 @@
 #include <sys/reboot.h>
 #include <sys/reg.h>
 #include <sys/rwlock.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -467,6 +468,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	 * Bring up MMU
 	 */
 	pmap_mmu_init();
+	sched_instance_select();
 	link_elf_ireloc();
 	pmap_bootstrap(startkernel, endkernel);
 	mtmsr(psl_kernset & ~PSL_EE);
@@ -488,9 +490,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	/*
 	 * Finish setting up thread0.
 	 */
-	thread0.td_pcb = (struct pcb *)
-	    ((thread0.td_kstack + thread0.td_kstack_pages * PAGE_SIZE -
-	    sizeof(struct pcb)) & ~15UL);
+	thread0.td_pcb = (struct pcb *)__align_down(thread0.td_kstack +
+	    thread0.td_kstack_pages * PAGE_SIZE - sizeof(struct pcb), 16);
 	bzero((void *)thread0.td_pcb, sizeof(struct pcb));
 	pc->pc_curpcb = thread0.td_pcb;
 

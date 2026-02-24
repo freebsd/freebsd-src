@@ -38,7 +38,7 @@
 #define BNXT_RE_MAX_FIFO_DEPTH_P5	0x2c00
 
 #define BNXT_RE_DB_FIFO_ROOM_MASK_P7	0x3FFF8000
-#define BNXT_RE_MAX_FIFO_DEPTH_P7	0x8000
+#define BNXT_RE_MAX_FIFO_DEPTH_P7	0x7fff
 
 #define BNXT_RE_DB_FIFO_ROOM_SHIFT      15
 #define BNXT_RE_DB_THRESHOLD		20
@@ -248,10 +248,15 @@ void bnxt_re_ring_srq_db(struct bnxt_re_srq *srq)
 void bnxt_re_ring_srq_arm(struct bnxt_re_srq *srq)
 {
 	struct bnxt_re_db_hdr hdr;
+	uint32_t toggle = 0;
+
+	if (srq->srq_page)
+		toggle = *(uint32_t *)srq->srq_page;
 
 	if (bnxt_re_do_pacing(srq->uctx, &srq->rand))
 		return;
-	bnxt_re_init_db_hdr(&hdr, srq->cap.srq_limit, 0, srq->srqid,
+	bnxt_re_init_db_hdr(&hdr, srq->cap.srq_limit,
+			    toggle << BNXT_RE_DB_TOGGLE_SHIFT, srq->srqid,
 			    BNXT_RE_QUE_TYPE_SRQ_ARM);
 	bnxt_re_ring_db(srq->udpi, hdr.typ_qid_indx, &srq->shadow_db_key,
 			&srq->dbr_lock);

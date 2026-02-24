@@ -126,6 +126,14 @@ bectl_create_body()
 		zfs list "${zpool}/ROOT/recursive/usr"
 	atf_check -o not-empty \
 		zfs list "${zpool}/ROOT/recursive-snap/usr"
+
+	# Test creation of an empty BE.
+	atf_check bectl -r ${zpool}/ROOT create -E empty
+	atf_check -o inline:"-\n" zfs get -H -o value origin ${zpool}/ROOT/empty
+	atf_check -e match:"cannot be combined" -s not-exit:0 \
+		bectl -r ${zpool}/ROOT create -E -e not-allowed empty-existing
+	atf_check -e match:"cannot be combined" -s not-exit:0 \
+		bectl -r ${zpool}/ROOT create -E -r empty-recursive
 }
 bectl_create_cleanup()
 {

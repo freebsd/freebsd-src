@@ -12,6 +12,12 @@ atf_check_mtime()
 	atf_check -o inline:"$((mtime))\n" stat -f%m "$filename"
 }
 
+atf_check_atime()
+{
+	local atime=$1 filename=$2
+	atf_check -o inline:"$((atime))\n" stat -f%a "$filename"
+}
+
 atf_test_case touch_none
 touch_none_head()
 {
@@ -144,6 +150,61 @@ touch_nocreate_body()
 	atf_check -s exit:1 test -f bar
 }
 
+atf_test_case touch_symlink_h_flag
+touch_symlink_h_flag_head()
+{
+	atf_set descr "Update time of symlink but not file pointed to"
+}
+touch_symlink_h_flag_body()
+{
+	atf_check touch -t 200406151337 pointed
+	atf_check ln -s pointed symlink
+	atf_check touch -t 197209071337 -h symlink
+	atf_check_mtime 1087306620 pointed
+	atf_check_mtime 84721020 symlink
+}
+
+atf_test_case touch_symlink_no_h_flag
+touch_symlink_no_h_flag_head()
+{
+	atf_set descr "Update time of file pointed to but not symlink"
+}
+touch_symlink_no_h_flag_body()
+{
+	atf_check touch -t 200406151337 pointed
+	atf_check ln -s pointed symlink
+	local orig_mtime=$(stat -f %m symlink)
+	atf_check touch -t 197209071337 symlink
+	atf_check_mtime 84721020 pointed
+	atf_check_mtime $orig_mtime symlink
+}
+
+atf_test_case touch_just_atime
+touch_just_atime_head()
+{
+	atf_set descr "Update just access time of file (-a)"
+}
+touch_just_atime_body()
+{
+	atf_check touch -t 200406151337 file
+	atf_check touch -at 197209071337 file
+	atf_check_mtime 1087306620 file
+	atf_check_atime 84721020 file
+}
+
+atf_test_case touch_just_mtime
+touch_just_mtime_head()
+{
+	atf_set descr "Update just modify time of file (-m)"
+}
+touch_just_mtime_body()
+{
+	atf_check touch -t 200406151337 file
+	atf_check touch -mt 197209071337 file
+	atf_check_mtime 84721020 file
+	atf_check_atime 1087306620 file
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case touch_none
@@ -153,5 +214,8 @@ atf_init_test_cases()
 	atf_add_test_case touch_relative
 	atf_add_test_case touch_copy
 	atf_add_test_case touch_nocreate
-	# TODO: add test cases for -a, -h, -m
+	atf_add_test_case touch_symlink_h_flag
+	atf_add_test_case touch_symlink_no_h_flag
+	atf_add_test_case touch_just_atime
+	atf_add_test_case touch_just_mtime
 }

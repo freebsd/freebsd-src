@@ -281,7 +281,7 @@ try_binary_file(const char *imagename, uint32_t flags)
 	int oflags;
 	size_t resid;
 	int error;
-	bool warn = flags & FIRMWARE_GET_NOWARN;
+	bool warn = (flags & FIRMWARE_GET_NOWARN) == 0;
 
 	/*
 	 * XXX TODO: Loop over some path instead of a single element path.

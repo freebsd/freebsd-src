@@ -293,6 +293,28 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest,
 	}
 	isb();
 
+#ifdef VMM_VHE
+	if (guest) {
+		/* Fine-grained trap controls */
+		if ((hyp->feats & HYP_FEAT_FGT) != 0) {
+			WRITE_SPECIALREG(HDFGWTR_EL2_REG, hypctx->hdfgwtr_el2);
+			WRITE_SPECIALREG(HFGITR_EL2_REG, hypctx->hfgitr_el2);
+			WRITE_SPECIALREG(HFGRTR_EL2_REG, hypctx->hfgrtr_el2);
+			WRITE_SPECIALREG(HFGWTR_EL2_REG, hypctx->hfgwtr_el2);
+		}
+
+		if ((hyp->feats & HYP_FEAT_FGT2) != 0) {
+			WRITE_SPECIALREG(HDFGRTR2_EL2_REG,
+			    hypctx->hdfgrtr2_el2);
+			WRITE_SPECIALREG(HDFGWTR2_EL2_REG,
+			    hypctx->hdfgwtr2_el2);
+			WRITE_SPECIALREG(HFGITR2_EL2_REG, hypctx->hfgitr2_el2);
+			WRITE_SPECIALREG(HFGRTR2_EL2_REG, hypctx->hfgrtr2_el2);
+			WRITE_SPECIALREG(HFGWTR2_EL2_REG, hypctx->hfgwtr2_el2);
+		}
+	}
+#endif
+
 	WRITE_SPECIALREG(sp_el0, hypctx->sp_el0);
 	WRITE_SPECIALREG(tpidr_el0, hypctx->tpidr_el0);
 	WRITE_SPECIALREG(tpidrro_el0, hypctx->tpidrro_el0);

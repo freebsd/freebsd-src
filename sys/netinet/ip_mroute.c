@@ -169,6 +169,9 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_ip, OID_AUTO, mrtstat, struct mrtstat,
     mrtstat, "IPv4 Multicast Forwarding Statistics (struct mrtstat, "
     "netinet/ip_mroute.h)");
 
+VNET_DEFINE_STATIC(struct socket *, ip_mrouter);
+#define	V_ip_mrouter		VNET(ip_mrouter)
+
 VNET_DEFINE_STATIC(u_long, mfchash);
 #define	V_mfchash		VNET(mfchash)
 #define	MFCHASH(a, g)							\
@@ -305,7 +308,7 @@ VNET_DEFINE_STATIC(struct ifnet *, multicast_register_if);
 static u_long	X_ip_mcast_src(int);
 static int	X_ip_mforward(struct ip *, struct ifnet *, struct mbuf *,
 		    struct ip_moptions *);
-static int	X_ip_mrouter_done(void);
+static void	X_ip_mrouter_done(struct socket *);
 static int	X_ip_mrouter_get(struct socket *, struct sockopt *);
 static int	X_ip_mrouter_set(struct socket *, struct sockopt *);
 static int	X_legal_vif_num(int);
@@ -435,7 +438,7 @@ X_ip_mrouter_set(struct socket *so, struct sockopt *sopt)
 		error = ip_mrouter_init(so, optval);
 		break;
 	case MRT_DONE:
-		error = ip_mrouter_done();
+		ip_mrouter_done(so);
 		break;
 	case MRT_ADD_VIF:
 		error = sooptcopyin(sopt, &vifc, sizeof vifc, sizeof vifc);
@@ -546,11 +549,6 @@ X_mrt_ioctl(u_long cmd, caddr_t data, int fibnum __unused)
 {
 	int error;
 
-	/*
-	 * Currently the only function calling this ioctl routine is rtioctl_fib().
-	 * Typically, only root can create the raw socket in order to execute
-	 * this ioctl method, however the request might be coming from a prison
-	 */
 	error = priv_check(curthread, PRIV_NETINET_MROUTE);
 	if (error)
 		return (error);
@@ -598,7 +596,10 @@ get_sg_cnt(struct sioc_sg_req *req)
 static int
 get_vif_cnt(struct sioc_vif_req *req)
 {
-	vifi_t vifi = req->vifi;
+	struct vif *vif;
+	vifi_t vifi;
+
+	vifi = req->vifi;
 
 	MRW_RLOCK();
 	if (vifi >= V_numvifs) {
@@ -606,12 +607,13 @@ get_vif_cnt(struct sioc_vif_req *req)
 		return EINVAL;
 	}
 
-	mtx_lock_spin(&V_viftable[vifi].v_spin);
-	req->icount = V_viftable[vifi].v_pkt_in;
-	req->ocount = V_viftable[vifi].v_pkt_out;
-	req->ibytes = V_viftable[vifi].v_bytes_in;
-	req->obytes = V_viftable[vifi].v_bytes_out;
-	mtx_unlock_spin(&V_viftable[vifi].v_spin);
+	vif = &V_viftable[vifi];
+	mtx_lock(&vif->v_mtx);
+	req->icount = vif->v_pkt_in;
+	req->ocount = vif->v_pkt_out;
+	req->ibytes = vif->v_bytes_in;
+	req->obytes = vif->v_bytes_out;
+	mtx_unlock(&vif->v_mtx);
 	MRW_RUNLOCK();
 
 	return 0;
@@ -625,8 +627,7 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
 	struct ifnet *free_ptr, *multi_leave;
 
 	MRW_WLOCK();
-
-	if (V_ip_mrouter == NULL) {
+	if (!V_ip_mrouting_enabled) {
 		MRW_WUNLOCK();
 		return;
 	}
@@ -741,6 +742,7 @@ ip_mrouter_init(struct socket *so, int version)
 	    curvnet);
 
 	V_ip_mrouter = so;
+	V_ip_mrouting_enabled = true;
 	atomic_add_int(&ip_mrouter_cnt, 1);
 
 	/* This is a mutex required by buf_ring init, but not used internally */
@@ -757,8 +759,8 @@ ip_mrouter_init(struct socket *so, int version)
 /*
  * Disable multicast forwarding.
  */
-static int
-X_ip_mrouter_done(void)
+static void
+X_ip_mrouter_done(struct socket *so)
 {
 	struct ifnet **ifps;
 	int nifp;
@@ -767,22 +769,22 @@ X_ip_mrouter_done(void)
 	struct bw_upcall *bu;
 
 	MRW_TEARDOWN_WLOCK();
-
-	if (V_ip_mrouter == NULL) {
+	if (so != V_ip_mrouter) {
 		MRW_TEARDOWN_WUNLOCK();
-		return (EINVAL);
+		return;
 	}
 
 	/*
 	 * Detach/disable hooks to the reset of the system.
 	 */
 	V_ip_mrouter = NULL;
+	V_ip_mrouting_enabled = false;
 	atomic_subtract_int(&ip_mrouter_cnt, 1);
 	V_mrt_api_config = 0;
 
 	/*
-	 * Wait for all epoch sections to complete to ensure
-	 * V_ip_mrouter = NULL is visible to others.
+	 * Wait for all epoch sections to complete to ensure the new value of
+	 * V_ip_mrouting_enabled is visible to others.
 	 */
 	NET_EPOCH_WAIT();
 
@@ -857,8 +859,6 @@ X_ip_mrouter_done(void)
 	free(ifps, M_TEMP);
 
 	CTR1(KTR_IPMF, "%s: done", __func__);
-
-	return 0;
 }
 
 /*
@@ -1004,8 +1004,8 @@ add_vif(struct vifctl *vifcp)
 	vifp->v_pkt_out   = 0;
 	vifp->v_bytes_in  = 0;
 	vifp->v_bytes_out = 0;
-	sprintf(vifp->v_spin_name, "BM[%d] spin", vifcp->vifc_vifi);
-	mtx_init(&vifp->v_spin, vifp->v_spin_name, NULL, MTX_SPIN);
+	sprintf(vifp->v_mtx_name, "BM[%d] mtx", vifcp->vifc_vifi);
+	mtx_init(&vifp->v_mtx, vifp->v_mtx_name, NULL, MTX_DEF);
 
 	/* Adjust numvifs up if the vifi is higher than numvifs */
 	if (V_numvifs <= vifcp->vifc_vifi)
@@ -1053,7 +1053,7 @@ del_vif_locked(vifi_t vifi, struct ifnet **ifp_multi_leave, struct ifnet **ifp_f
 		}
 	}
 
-	mtx_destroy(&vifp->v_spin);
+	mtx_destroy(&vifp->v_mtx);
 
 	bzero((caddr_t)vifp, sizeof (*vifp));
 
@@ -1578,6 +1578,7 @@ static int
 ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 {
 	struct ip *ip = mtod(m, struct ip *);
+	struct vif *vif;
 	vifi_t vifi;
 	int plen = ntohs(ip->ip_len);
 
@@ -1602,9 +1603,10 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	 * Don't forward if it didn't arrive from the parent vif for its origin.
 	 */
 	vifi = rt->mfc_parent;
-	if ((vifi >= V_numvifs) || (V_viftable[vifi].v_ifp != ifp)) {
+	vif = &V_viftable[vifi];
+	if (vifi >= V_numvifs || vif->v_ifp != ifp) {
 		CTR4(KTR_IPMF, "%s: rx on wrong ifp %p (vifi %d, v_ifp %p)",
-				__func__, ifp, (int)vifi, V_viftable[vifi].v_ifp);
+				__func__, ifp, (int)vifi, vif->v_ifp);
 		MRTSTAT_INC(mrts_wrong_if);
 		++rt->mfc_wrong_if;
 		/*
@@ -1616,7 +1618,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		 * of the iif (broadcast media, GRE tunnel, etc).
 		 */
 		if (V_pim_assert_enabled && (vifi < V_numvifs) &&
-		    V_viftable[vifi].v_ifp) {
+		    vif->v_ifp != NULL) {
 			if (ifp == V_multicast_register_if)
 				PIMSTAT_INC(pims_rcv_registers_wrongiif);
 
@@ -1659,15 +1661,15 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	}
 
 	/* If I sourced this packet, it counts as output, else it was input. */
-	mtx_lock_spin(&V_viftable[vifi].v_spin);
-	if (in_hosteq(ip->ip_src, V_viftable[vifi].v_lcl_addr)) {
-		V_viftable[vifi].v_pkt_out++;
-		V_viftable[vifi].v_bytes_out += plen;
+	mtx_lock(&vif->v_mtx);
+	if (in_hosteq(ip->ip_src, vif->v_lcl_addr)) {
+		vif->v_pkt_out++;
+		vif->v_bytes_out += plen;
 	} else {
-		V_viftable[vifi].v_pkt_in++;
-		V_viftable[vifi].v_bytes_in += plen;
+		vif->v_pkt_in++;
+		vif->v_bytes_in += plen;
 	}
-	mtx_unlock_spin(&V_viftable[vifi].v_spin);
+	mtx_unlock(&vif->v_mtx);
 
 	rt->mfc_pkt_cnt++;
 	rt->mfc_byte_cnt += plen;
@@ -1680,12 +1682,13 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	 */
 	for (vifi = 0; vifi < V_numvifs; vifi++)
 		if ((rt->mfc_ttls[vifi] > 0) && (ip->ip_ttl > rt->mfc_ttls[vifi])) {
-			V_viftable[vifi].v_pkt_out++;
-			V_viftable[vifi].v_bytes_out += plen;
-			if (V_viftable[vifi].v_flags & VIFF_REGISTER)
-				pim_register_send(ip, V_viftable + vifi, m, rt);
+			vif = &V_viftable[vifi];
+			vif->v_pkt_out++;
+			vif->v_bytes_out += plen;
+			if (vif->v_flags & VIFF_REGISTER)
+				pim_register_send(ip, vif, m, rt);
 			else
-				phyint_send(ip, V_viftable + vifi, m);
+				phyint_send(ip, vif, m);
 		}
 
 	/*
@@ -1704,14 +1707,14 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		for (x = rt->mfc_bw_meter_leq; x != NULL; x = x->bm_mfc_next) {
 			/*
 			 * Record that a packet is received.
-			 * Spin lock has to be taken as callout context
+			 * A lock has to be taken as callout context
 			 * (expire_bw_meter_leq) might modify these fields
 			 * as well
 			 */
-			mtx_lock_spin(&x->bm_spin);
+			mtx_lock(&x->bm_mtx);
 			x->bm_measured.b_packets++;
 			x->bm_measured.b_bytes += plen;
-			mtx_unlock_spin(&x->bm_spin);
+			mtx_unlock(&x->bm_mtx);
 		}
 	}
 
@@ -1894,13 +1897,14 @@ expire_bw_meter_leq(void *arg)
 
 	/* Reset counters */
 	x->bm_start_time = now;
-	/* Spin lock has to be taken as ip_forward context
+	/*
+	 * The lock has to be taken as ip_forward context
 	 * might modify these fields as well
 	 */
-	mtx_lock_spin(&x->bm_spin);
+	mtx_lock(&x->bm_mtx);
 	x->bm_measured.b_bytes = 0;
 	x->bm_measured.b_packets = 0;
-	mtx_unlock_spin(&x->bm_spin);
+	mtx_unlock(&x->bm_mtx);
 
 	callout_schedule(&x->bm_meter_callout, tvtohz(&x->bm_threshold.b_time));
 
@@ -1986,8 +1990,8 @@ add_bw_upcall(struct bw_upcall *req)
 	x->bm_time_next = NULL;
 	x->bm_mfc = mfc;
 	x->arg = curvnet;
-	sprintf(x->bm_spin_name, "BM spin %p", x);
-	mtx_init(&x->bm_spin, x->bm_spin_name, NULL, MTX_SPIN);
+	sprintf(x->bm_mtx_name, "BM mtx %p", x);
+	mtx_init(&x->bm_mtx, x->bm_mtx_name, NULL, MTX_DEF);
 
 	/* For LEQ case create periodic callout */
 	if (req->bu_flags & BW_UPCALL_LEQ) {
@@ -2014,7 +2018,7 @@ free_bw_list(struct bw_meter *list)
 		/* MRW_WLOCK must be held here */
 		if (x->bm_flags & BW_METER_LEQ) {
 			callout_drain(&x->bm_meter_callout);
-			mtx_destroy(&x->bm_spin);
+			mtx_destroy(&x->bm_mtx);
 		}
 
 		list = list->bm_mfc_next;
@@ -2115,7 +2119,7 @@ bw_meter_geq_receive_packet(struct bw_meter *x, int plen, struct timeval *nowp)
 
 	/*
 	 * Processing for ">=" type of bw_meter entry.
-	 * bm_spin does not have to be hold here as in GEQ
+	 * bm_mtx does not have to be hold here as in GEQ
 	 * case this is the only context accessing bm_measured.
 	 */
 	if (BW_TIMEVALCMP(&delta, &x->bm_threshold.b_time, >)) {
@@ -2834,12 +2838,6 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 
 		if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 		    if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
-		if (if_detach_event_tag == NULL) {
-			printf("ip_mroute: unable to register "
-					"ifnet_departure_event handler\n");
-			MRW_LOCK_DESTROY();
-			return (EINVAL);
-		}
 
 		if (!powerof2(mfchashsize)) {
 			printf("WARNING: %s not a power of 2; using default\n",
@@ -2875,7 +2873,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		MRW_WLOCK();
 		if (ip_mrouter_cnt != 0) {
 			MRW_WUNLOCK();
-			return (EINVAL);
+			return (EBUSY);
 		}
 		ip_mrouter_unloading = 1;
 		MRW_WUNLOCK();

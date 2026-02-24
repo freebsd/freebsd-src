@@ -135,7 +135,7 @@ main(int argc, char *argv[])
 		if (c.divert_back)
 			send_pkt(&c);
 		npkt++;
-		if (npkt >= 10)
+		if (npkt >= 20)
 			break;
 	}
 

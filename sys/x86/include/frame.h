@@ -38,6 +38,7 @@
 
 /*
  * System stack frames.
+ * struct trapframe is known to and used by kernel debuggers.
  */
 
 #ifdef __i386__

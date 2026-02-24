@@ -1180,7 +1180,7 @@ fill_lba_for_scsi_rw(pqisrc_softstate_t *softs, uint8_t *cdb, aio_req_locator_t 
 
 
 /* determine whether writes to certain types of RAID are supported. */
-static inline boolean_t
+static boolean_t
 pqisrc_is_supported_write(pqisrc_softstate_t const *softs,
 	pqi_scsi_dev_t const *device)
 {

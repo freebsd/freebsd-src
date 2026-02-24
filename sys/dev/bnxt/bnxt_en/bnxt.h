@@ -455,6 +455,7 @@ struct bnxt_link_info {
 	uint16_t	req_link_speed;
 	uint8_t		module_status;
 	struct hwrm_port_phy_qcfg_output    phy_qcfg_resp;
+	uint8_t		active_lanes;
 };
 
 enum bnxt_phy_type {
@@ -1167,6 +1168,7 @@ struct bnxt_softc {
 	struct iflib_dma_info	def_nq_ring_mem;
 	struct task		def_cp_task;
 	int			db_size;
+	int			db_offset;
 	int			legacy_db_size;
 	struct bnxt_doorbell_ops db_ops;
 
@@ -1249,6 +1251,10 @@ struct bnxt_softc {
 	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(47)
 	#define BNXT_FW_CAP_ENABLE_RDMA_SRIOV		BIT_ULL(48)
 	#define BNXT_FW_CAP_RSS_TCAM			BIT_ULL(49)
+
+	#define BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS      BIT_ULL(61)
+	#define BNXT_SW_RES_LMT(bp) ((bp)->fw_cap & BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS)
+
 	uint32_t		lpi_tmr_lo;
 	uint32_t		lpi_tmr_hi;
 	/* copied from flags and flags2 in hwrm_port_phy_qcaps_output */
@@ -1264,6 +1270,7 @@ struct bnxt_softc {
 #define BNXT_PHY_FL_NO_PAUSE            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PAUSE_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_NO_PFC              (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PFC_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_BANK_SEL            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_BANK_ADDR_SUPPORTED << 8)
+#define BNXT_PHY_FL_SPEEDS2		(HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_SPEEDS2_SUPPORTED << 8)
 	struct bnxt_aux_dev     *aux_dev;
 	struct net_device	*net_dev;
 	struct mtx		en_ops_lock;
@@ -1333,6 +1340,7 @@ struct bnxt_softc {
 	unsigned long		fw_reset_timestamp;
 
 	struct bnxt_fw_health	*fw_health;
+	char			board_partno[64];
 };
 
 struct bnxt_filter_info {

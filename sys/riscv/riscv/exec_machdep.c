@@ -370,7 +370,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Make room, keeping the stack aligned */
 	fp--;
-	fp = (struct sigframe *)STACKALIGN(fp);
+	fp = STACKALIGN(fp);
 
 	/* Fill in the frame to copy out */
 	bzero(&frame, sizeof(frame));

@@ -71,6 +71,7 @@ CFLAGS+=-I${KRB5_DIR}/lib/rpc \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
 	-I${KRB5_OBJTOP}/lib \
+	-I${KRB5_OBJTOP}/util/profile \
 	-DGSSAPI_KRB5 \
 	-DDEBUG_GSSAPI=0 \
 	-DGSSRPC__IMPL

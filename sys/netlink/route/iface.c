@@ -36,6 +36,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -675,6 +676,8 @@ static int
 rtnl_handle_newlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	struct nlattr_bmask bm;
+	struct thread *td = curthread;
+	struct ucred *cred;
 	int error;
 
 	struct nl_parsed_link attrs = {};
@@ -683,10 +686,16 @@ rtnl_handle_newlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 		return (error);
 	nl_get_attrs_bmask_nlmsg(hdr, &ifmsg_parser, &bm);
 
+	/* XXX: temporary patch until the D39180 review lands */
+	cred = td->td_ucred;
+	td->td_ucred = nlp_get_cred(nlp);
 	if (hdr->nlmsg_flags & NLM_F_CREATE)
-		return (create_link(hdr, &attrs, &bm, nlp, npt));
+		error = create_link(hdr, &attrs, &bm, nlp, npt);
 	else
-		return (modify_link(hdr, &attrs, &bm, nlp, npt));
+		error = modify_link(hdr, &attrs, &bm, nlp, npt);
+	td->td_ucred = cred;
+
+	return (error);
 }
 
 static void

@@ -137,14 +137,14 @@ VNET_PCPUSTAT_SYSUNINIT(rip6stat);
 /*
  * The socket used to communicate with the multicast routing daemon.
  */
-VNET_DEFINE(struct socket *, ip6_mrouter);
+VNET_DEFINE(bool, ip6_mrouting_enabled);
 
 /*
  * The various mrouter functions.
  */
 int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
-int (*ip6_mrouter_done)(void);
+void (*ip6_mrouter_done)(struct socket *);
 int (*ip6_mforward)(struct ip6_hdr *, struct ifnet *, struct mbuf *);
 int (*mrt6_ioctl)(u_long, caddr_t);
 
@@ -604,6 +604,9 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
+			if (error != 0)
+				return (error);
 			if (inp->inp_ip_p != IPPROTO_ICMPV6)
 				return (EOPNOTSUPP);
 			error = ip6_mrouter_get ?  ip6_mrouter_get(so, sopt) :
@@ -627,6 +630,9 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
+			if (error != 0)
+				return (error);
 			if (inp->inp_ip_p != IPPROTO_ICMPV6)
 				return (EOPNOTSUPP);
 			error = ip6_mrouter_set ?  ip6_mrouter_set(so, sopt) :
@@ -688,8 +694,8 @@ rip6_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_detach: inp == NULL"));
 
-	if (so == V_ip6_mrouter && ip6_mrouter_done)
-		ip6_mrouter_done();
+	if (ip6_mrouter_done != NULL)
+		ip6_mrouter_done(so);
 	/* xxx: RSVP */
 	INP_WLOCK(inp);
 	free(inp->in6p_icmp6filt, M_PCB);

@@ -1198,8 +1198,13 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	max_srqs = ctxm->max_entries;
 	if (softc->flags & BNXT_FLAG_ROCE_CAP) {
 		pg_lvl = 2;
-		extra_qps = min_t(u32, 65536, max_qps - l2_qps - qp1_qps);
-		extra_srqs = min_t(u32, 8192, max_srqs - srqs);
+		if (BNXT_SW_RES_LMT(softc)) {
+			extra_qps = max_qps - l2_qps - qp1_qps;
+			extra_srqs = max_srqs - srqs;
+		} else {
+			extra_qps = min_t(uint32_t, 65536, max_qps - l2_qps - qp1_qps);
+			extra_srqs = min_t(uint32_t, 8192, max_srqs - srqs);
+		}
 	}
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
@@ -2669,6 +2674,13 @@ bnxt_attach_pre(if_ctx_t ctx)
 	softc->state_bv = bit_alloc(BNXT_STATE_MAX, M_DEVBUF,
 			M_WAITOK|M_ZERO);
 
+	if (BNXT_PF(softc)) {
+		const char *part_num;
+
+		if (pci_get_vpd_readonly(softc->dev, "PN", &part_num) == 0)
+			snprintf(softc->board_partno, sizeof(softc->board_partno), "%s", part_num);
+	}
+
 	return (rc);
 
 failed:
@@ -3280,11 +3292,10 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
-	if (link_info->link_up)
-		ifmr->ifm_status |= IFM_ACTIVE;
-	else
-		ifmr->ifm_status &= ~IFM_ACTIVE;
+	if (!link_info->link_up)
+		return;
 
+	ifmr->ifm_status |= IFM_ACTIVE;
 	if (link_info->duplex == HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_CFG_FULL)
 		ifmr->ifm_active |= IFM_FDX;
 	else
@@ -4790,9 +4801,11 @@ bnxt_report_link(struct bnxt_softc *softc)
 	const char *duplex = NULL, *flow_ctrl = NULL;
 	const char *signal_mode = "";
 
-	if(softc->edev)
+	if(softc->edev) {
 		softc->edev->espeed =
 		    bnxt_fw_to_ethtool_speed(link_info->link_speed);
+		softc->edev->lanes = link_info->active_lanes;
+	}
 
 	if (link_info->link_up == link_info->last_link_up) {
 		if (!link_info->link_up)

@@ -761,9 +761,6 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct ifvlan *ifv;
 	struct ifvlantrunk *trunk;
 
-	/* If the ifnet is just being renamed, don't do anything. */
-	if (ifp->if_flags & IFF_RENAMING)
-		return;
 	VLAN_XLOCK();
 	trunk = ifp->if_vlantrunk;
 	if (trunk == NULL) {
@@ -1348,6 +1345,7 @@ vlan_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 
 	VLAN_SLOCK();
 	if (__predict_false((ifv = ifp->if_softc) == NULL)) {
+		VLAN_SUNLOCK();
 		/*
 		 * XXXGL: the interface already went through if_dead().  This
 		 * check to be removed when we got better interface removal.

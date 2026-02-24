@@ -2106,11 +2106,11 @@ em_if_set_promisc(if_ctx_t ctx, int flags)
 
 	if (flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-		em_if_vlan_filter_disable(sc);
 		/* Turn this on if you want to see bad packets */
 		if (em_debug_sbp)
 			reg_rctl |= E1000_RCTL_SBP;
 		E1000_WRITE_REG(&sc->hw, E1000_RCTL, reg_rctl);
+		em_if_vlan_filter_disable(sc);
 	} else {
 		if (flags & IFF_ALLMULTI) {
 			reg_rctl |= E1000_RCTL_MPE;
@@ -3225,8 +3225,8 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_ptp:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
-		hw->fc.pause_time = 0x0650;
-		hw->fc.refresh_time = 0x0400;
+		hw->fc.pause_time = 0xFFFF;
+		hw->fc.refresh_time = 0xFFFF;
 		/* Jumbos need adjusted PBA */
 		if (if_getmtu(ifp) > ETHERMTU)
 			E1000_WRITE_REG(hw, E1000_PBA, 12);

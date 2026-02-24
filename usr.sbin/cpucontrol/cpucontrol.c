@@ -36,7 +36,9 @@
 #include <errno.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <paths.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -112,6 +114,21 @@ usage(void)
 	exit(EX_USAGE);
 }
 
+static uint32_t
+strtouint32(const char *str, char **endptr, int base)
+{
+	uintmax_t val;
+
+	errno = 0;
+	val = strtoumax(str, endptr, base);
+	if (*str == '\0' || errno == ERANGE || val > UINT32_MAX) {
+		WARNX(0, "invalid operand: %s", str);
+		exit(EX_USAGE);
+		/* NOTREACHED */
+	}
+	return ((uint32_t)val);
+}
+
 static int
 do_cpuid(const char *cmdarg, const char *dev)
 {
@@ -123,7 +140,7 @@ do_cpuid(const char *cmdarg, const char *dev)
 	assert(cmdarg != NULL);
 	assert(dev != NULL);
 
-	level = strtoul(cmdarg, &endptr, 16);
+	level = strtouint32(cmdarg, &endptr, 16);
 	if (*cmdarg == '\0' || *endptr != '\0') {
 		WARNX(0, "incorrect operand: %s", cmdarg);
 		usage();
@@ -162,7 +179,7 @@ do_cpuid_count(const char *cmdarg, const char *dev)
 	assert(cmdarg != NULL);
 	assert(dev != NULL);
 
-	level = strtoul(cmdarg, &endptr, 16);
+	level = strtouint32(cmdarg, &endptr, 16);
 	if (*cmdarg == '\0' || *endptr == '\0') {
 		WARNX(0, "incorrect or missing operand: %s", cmdarg);
 		usage();
@@ -172,7 +189,7 @@ do_cpuid_count(const char *cmdarg, const char *dev)
 	cmdarg1 = strstr(endptr, ",");
 	/* ... and skip past it */
 	cmdarg1 += 1;
-	level_type = strtoul(cmdarg1, &endptr1, 16);
+	level_type = strtouint32(cmdarg1, &endptr1, 16);
 	if (*cmdarg1 == '\0' || *endptr1 != '\0') {
 		WARNX(0, "incorrect or missing operand: %s", cmdarg);
 		usage();
@@ -228,7 +245,7 @@ do_msr(const char *cmdarg, const char *dev)
 	/*
 	 * Parse command string.
 	 */
-	msr = strtoul(cmdarg, &endptr, 16);
+	msr = strtouint32(cmdarg, &endptr, 16);
 	switch (*endptr) {
 	case '\0':
 		op = OP_READ;

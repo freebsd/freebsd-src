@@ -71,3 +71,7 @@ FBSD_1.6 {
 FBSD_1.7 {
 	_Fork;
 };
+
+FBSD_1.9 {
+	pdwait;
+};

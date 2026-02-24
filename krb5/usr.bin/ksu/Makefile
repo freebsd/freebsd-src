@@ -24,6 +24,7 @@ SRCS=	authorization.c \
 
 CFLAGS+=-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
+	-I${KRB5_OBJTOP}/util/profile \
 	-DGET_TGT_VIA_PASSWD \
 	-DPRINC_LOOK_AHEAD
 

@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 15, 2016
+.Dd October 8, 2025
 .Dt BCMP 3
 .Os
 .Sh NAME
@@ -73,3 +73,11 @@ before it was moved to
 for
 .St -p1003.1-2001
 compliance.
+.Pp
+.St -p1003.1-2008
+removes the specification of
+.Fn bcmp
+and it is marked as LEGACY in
+.St -p1003.1-2004 .
+For portability with other systems new programs should use
+.Xr memcmp 3 .

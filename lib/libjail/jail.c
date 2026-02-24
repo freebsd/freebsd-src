@@ -1436,18 +1436,21 @@ jps_get_mac_label(struct jailparam *jp, struct iovec *jiov)
 	int error;
 
 	error = mac_prepare_type(pmac, "jail");
+	if (error != 0 && errno == ENOENT) {
+		/*
+		 * We special-case the scenario where a system has a custom
+		 * mac.conf(5) that doesn't include a jail entry -- just let
+		 * an empty label slide.
+		 */
+		error = mac_prepare(pmac, "?");
+	}
 	if (error != 0) {
 		int serrno = errno;
 
 		free(jp->jp_value);
 		jp->jp_value = NULL;
-		if (serrno == ENOENT) {
-			snprintf(jail_errmsg, sizeof(jail_errmsg),
-			    "jail_get: no mac.conf(5) jail config");
-		} else {
-			strerror_r(serrno, jail_errmsg, JAIL_ERRMSGLEN);
-		}
 
+		strerror_r(serrno, jail_errmsg, JAIL_ERRMSGLEN);
 		errno = serrno;
 		return (-1);
 	}

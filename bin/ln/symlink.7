@@ -72,12 +72,14 @@ or a loop is detected.
 links that may be followed, and an error results if this limit is
 exceeded.)
 .Pp
-There are three separate areas that need to be discussed.
+There are four separate areas that need to be discussed.
 They are as follows:
 .Pp
 .Bl -enum -compact -offset indent
 .It
 Symbolic links used as file name arguments for system calls.
+.It
+Mount options to ignore symbolic links.
 .It
 Symbolic links specified as command line arguments to utilities that
 are not traversing a file tree.
@@ -178,6 +180,20 @@ The
 system call was added later when the limitations of the new
 .Xr chown 2
 became apparent.
+.Ss Mount options
+.Fx
+has a 
+.Xr mount 8
+option nosymfollow. When this option is enabled, the kernel
+does not follow symlinks on the mounted file system and return EACCES.
+You can still create or remove symlinks, or read the value of a symbolic link.
+.Pp
+This option is intended to be used when mounting file systems from
+untrusted external storage systems or public writable /tmp file systems
+to prevent symlink-based privilege escalation and sandbox escape attacks.
+.Pp
+The mount option nosymfollow first appeared in
+.Fx 3.0
 .Ss Commands not traversing a file tree.
 The second area is symbolic links, specified as command line file
 name arguments, to commands which are not traversing a file tree.
@@ -478,4 +494,5 @@ whether specified on the command line or encountered in the tree walk.
 .Xr unlink 2 ,
 .Xr fts 3 ,
 .Xr remove 3 ,
-.Xr chown 8
+.Xr chown 8 ,
+.Xr mount 8

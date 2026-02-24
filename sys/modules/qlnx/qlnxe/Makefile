@@ -58,7 +58,6 @@ SRCS+=qlnx_rdma.c
 
 SRCS+=qlnx_ioctl.c
 SRCS+=qlnx_os.c
-SRCS+=opt_inet.h
 
 SRCS+=	${LINUXKPI_GENSRCS}
 

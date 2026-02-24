@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2014 Juniper Networks, Inc.
  * All rights reserved.
  *
