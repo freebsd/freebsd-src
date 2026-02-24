@@ -1,4 +1,4 @@
-/*-
+/-
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2002 Tim J. Robbins.
@@ -248,21 +248,35 @@ static void
 cleanup(void)
 {
 	char fnbuf[PATH_MAX];
-	long i;
+	long i, j;
+	const char *src;
+	char *base, *p;
 
 	if (!doclean)
 		return;
 
 	/*
-	 * NOTE: One cannot portably assume to be able to call snprintf()
-	 * from inside a signal handler. It does, however, appear to be safe
-	 * to do on FreeBSD. The solution to this problem is worse than the
-	 * problem itself.
+	 * NOTE: `snprintf` is not async-signal-safe, so we cannot use it
+	 * here. We manually construct the filename to ensure safety when
+	 * the signal handler is called.
 	 */
+	
+	/* Copy the prefix first. */
+	base = fnbuf;
+	src = prefix;
+	while (*src != '\0') *base++ = *src++;
 
 	for (i = 0; i < nfiles; i++) {
-		snprintf(fnbuf, sizeof(fnbuf), "%s%0*ld", prefix,
-		    (int)sufflen, i);
+		long val = i; 
+		/* Point to the end of filename and null terminate. */
+		p = base + sufflen;
+		*p = '\0';
+		
+		/* Fill the suffix digits backwards. */
+		for (j = 0; j < sufflen; j++) {
+			*--p = (val % 10) + '/0';
+			val /= 10;
+		}
 		unlink(fnbuf);
 	}
 }
