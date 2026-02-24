@@ -36,14 +36,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#pragma once
+
+/*
+ * The header guard is left out on purpose here. Both clang and gcc's
+ * stddef.h are designed to be included multiple times with different
+ * combinations of __need_* macros defined (e.g __need_size_t).
+ */
+
 #include_next <stddef.h>
 
 #ifndef _PTRADDR_T_DECLARED
 #ifdef __PTRADDR_TYPE__
 typedef	__PTRADDR_TYPE__	ptraddr_t;
 #else
-typedef	size_t			ptraddr_t;
+/*
+ * If anything other than __need_size_t is defined (see above), we won't
+ * have size_t. Use __SIZE_TYPE__ instead.
+ */
+typedef	__SIZE_TYPE__		ptraddr_t;
 #endif
 #define _PTRADDR_T_DECLARED
 #endif
