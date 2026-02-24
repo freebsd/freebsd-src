@@ -610,6 +610,19 @@ int		acpi_pxm_parse(device_t dev);
 int		acpi_map_pxm_to_vm_domainid(int pxm);
 bus_get_cpus_t		acpi_get_cpus;
 
+/*
+ * Hook for ACPI sleep routine.
+ */
+extern int (*acpi_prepare_sleep)(uint8_t state, uint32_t a, uint32_t b,
+    bool ext);
+
+static inline void
+acpi_set_prepare_sleep(
+    int (*hook)(uint8_t state, uint32_t a, uint32_t b, bool ext))
+{
+	acpi_prepare_sleep = hook;
+}
+
 #ifdef __aarch64__
 /*
  * ARM specific ACPI interfaces, relating to IORT table.
