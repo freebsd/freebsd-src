@@ -649,7 +649,7 @@
 #endif
 #if !__has_builtin(__builtin_align_down)
 #define __builtin_align_down(x, align)	\
-	((__typeof__(x))((x)&(~((align)-1))))
+	((__typeof__(x))((__uintptr_t)(x)&(~((align)-1))))
 #endif
 
 #define __align_up(x, y) __builtin_align_up(x, y)
