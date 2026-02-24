@@ -978,7 +978,7 @@ jailparam_free(struct jailparam *jp, unsigned njp)
 	for (j = 0; j < njp; j++) {
 		free(jp[j].jp_name);
 		if (!(jp[j].jp_flags & JP_RAWVALUE)) {
-			jps_free(jp);
+			jps_free(&jp[j]);
 			free(jp[j].jp_value);
 		}
 	}
