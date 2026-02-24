@@ -56,5 +56,6 @@ AuthenticAMD-23-[012][0-9A-F],v2,amdzen1,core
 AuthenticAMD-23-[[:xdigit:]]+,v1,amdzen2,core
 AuthenticAMD-25-[0245][[:xdigit:]],v1,amdzen3,core
 AuthenticAMD-25-[[:xdigit:]]+,v1,amdzen4,core
-AuthenticAMD-26-[[:xdigit:]]+,v1,amdzen5,core
+AuthenticAMD-26-[12467][[:xdigit:]],v1,amdzen5,core
+AuthenticAMD-26-[[:xdigit:]]+,v1,amdzen6,core
 HygonGenuine-24-00,v2,amdzen1,core
