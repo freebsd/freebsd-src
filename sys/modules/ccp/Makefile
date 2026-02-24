@@ -10,9 +10,6 @@ SRCS+=	device_if.h
 SRCS+=	cryptodev_if.h
 SRCS+=	pci_if.h
 
-CFLAGS+=	-fms-extensions
-CFLAGS.clang+=	-Wno-microsoft-anon-tag
-
 MFILES=	kern/bus_if.m kern/device_if.m opencrypto/cryptodev_if.m \
 	dev/pci/pci_if.m
 

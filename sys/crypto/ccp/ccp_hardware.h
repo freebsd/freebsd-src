@@ -259,7 +259,7 @@ enum ccp_passthru_byteswap {
  */
 
 struct ccp_desc {
-	union dword0 {
+	union /* dword0 */ {
 		struct {
 			uint32_t hoc:1;		/* Halt on completion */
 			uint32_t ioc:1;		/* Intr. on completion */
@@ -382,7 +382,7 @@ struct ccp_desc {
 	uint32_t length;
 	uint32_t src_lo;
 
-	struct dword3 {
+	struct /* dword3 */ {
 		uint32_t src_hi:16;
 		uint32_t src_mem:2;
 		uint32_t lsb_ctx_id:8;
@@ -390,12 +390,12 @@ struct ccp_desc {
 		uint32_t src_fixed:1;
 	};
 
-	union dword4 {
+	union /* dword4 */ {
 		uint32_t dst_lo;	/* NON-SHA */
 		uint32_t sha_len_lo;	/* SHA */
 	};
 
-	union dword5 {
+	union /* dword5 */ {
 		struct {
 			uint32_t dst_hi:16;
 			uint32_t dst_mem:2;
@@ -407,7 +407,7 @@ struct ccp_desc {
 
 	uint32_t key_lo;
 
-	struct dword7 {
+	struct /* dword7 */ {
 		uint32_t key_hi:16;
 		uint32_t key_mem:2;
 		uint32_t reserved_5:14;
