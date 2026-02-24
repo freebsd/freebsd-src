@@ -36,14 +36,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#pragma once
 #include_next <stddef.h>
 
 #ifndef _PTRADDR_T_DECLARED
 #ifdef __PTRADDR_TYPE__
 typedef	__PTRADDR_TYPE__	ptraddr_t;
 #else
-typedef	size_t			ptraddr_t;
+#define ptraddr_t		size_t
 #endif
 #define _PTRADDR_T_DECLARED
 #endif
