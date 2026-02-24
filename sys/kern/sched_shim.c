@@ -23,10 +23,9 @@
 const struct sched_instance *active_sched;
 
 #define	__DEFINE_SHIM(__m, __r, __n, __p, __a)	\
-	__r					\
-	__n __p					\
+	DEFINE_IFUNC(, __r, __n, __p)		\
 	{					\
-		return (active_sched->__m __a);	\
+		return (active_sched->__m);	\
 	}
 #define	DEFINE_SHIM0(__m, __r, __n)	\
     __DEFINE_SHIM(__m, __r, __n, (void), ())
