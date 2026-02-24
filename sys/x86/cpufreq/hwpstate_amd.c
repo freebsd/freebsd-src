@@ -152,6 +152,13 @@ struct hwpstate_setting {
 #define HWPFL_USE_CPPC			(1 << 0)
 #define HWPFL_CPPC_REQUEST_NOT_READ	(1 << 1)
 
+struct hwpstate_cpufreq_methods {
+	int (*get)(device_t dev, struct cf_setting *cf);
+	int (*set)(device_t dev, const struct cf_setting *cf);
+	int (*settings)(device_t dev, struct cf_setting *sets, int *count);
+	int (*type)(device_t dev, int *type);
+};
+
 /*
  * Atomicity is achieved by only modifying a given softc on its associated CPU
  * and with interrupts disabled.
@@ -161,6 +168,7 @@ struct hwpstate_setting {
 struct hwpstate_softc {
 	device_t	dev;
 	u_int		flags;
+	const struct hwpstate_cpufreq_methods *cpufreq_methods;
 	union {
 		struct {
 			struct hwpstate_setting
@@ -620,80 +628,105 @@ hwpstate_goto_pstate(device_t dev, int id)
 }
 
 static int
-hwpstate_set(device_t dev, const struct cf_setting *cf)
+hwpstate_set_cppc(device_t dev __unused, const struct cf_setting *cf __unused)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
+hwpstate_set_pstate(device_t dev, const struct cf_setting *cf)
 {
 	struct hwpstate_softc *sc;
 	struct hwpstate_setting *set;
 	int i;
 
-	if (cf == NULL)
-		return (EINVAL);
 	sc = device_get_softc(dev);
-	if ((sc->flags & HWPFL_USE_CPPC) != 0)
-		return (EOPNOTSUPP);
 	set = sc->hwpstate_settings;
 	for (i = 0; i < sc->cfnum; i++)
 		if (CPUFREQ_CMP(cf->freq, set[i].freq))
 			break;
 	if (i == sc->cfnum)
 		return (EINVAL);
-
 	return (hwpstate_goto_pstate(dev, set[i].pstate_id));
+}
+
+static int
+hwpstate_set(device_t dev, const struct cf_setting *cf)
+{
+	struct hwpstate_softc *sc = device_get_softc(dev);
+
+	if (cf == NULL)
+		return (EINVAL);
+	return (sc->cpufreq_methods->set(dev, cf));
+}
+
+static int
+hwpstate_get_cppc(device_t dev, struct cf_setting *cf)
+{
+	struct pcpu *pc;
+	uint64_t rate;
+	int ret;
+
+	pc = cpu_get_pcpu(dev);
+	if (pc == NULL)
+		return (ENXIO);
+
+	memset(cf, CPUFREQ_VAL_UNKNOWN, sizeof(*cf));
+	cf->dev = dev;
+	if ((ret = cpu_est_clockrate(pc->pc_cpuid, &rate)))
+		return (ret);
+	cf->freq = rate / 1000000;
+	return (0);
+}
+
+static int
+hwpstate_get_pstate(device_t dev, struct cf_setting *cf)
+{
+	struct hwpstate_softc *sc;
+	struct hwpstate_setting set;
+	uint64_t msr;
+
+	sc = device_get_softc(dev);
+	msr = rdmsr(MSR_AMD_10H_11H_STATUS);
+	if (msr >= sc->cfnum)
+		return (EINVAL);
+	set = sc->hwpstate_settings[msr];
+
+	cf->freq = set.freq;
+	cf->volts = set.volts;
+	cf->power = set.power;
+	cf->lat = set.lat;
+	cf->dev = dev;
+
+	return (0);
 }
 
 static int
 hwpstate_get(device_t dev, struct cf_setting *cf)
 {
 	struct hwpstate_softc *sc;
-	struct hwpstate_setting set;
-	struct pcpu *pc;
-	uint64_t msr;
-	uint64_t rate;
-	int ret;
 
 	sc = device_get_softc(dev);
 	if (cf == NULL)
 		return (EINVAL);
-
-	if ((sc->flags & HWPFL_USE_CPPC) != 0) {
-		pc = cpu_get_pcpu(dev);
-		if (pc == NULL)
-			return (ENXIO);
-
-		memset(cf, CPUFREQ_VAL_UNKNOWN, sizeof(*cf));
-		cf->dev = dev;
-		if ((ret = cpu_est_clockrate(pc->pc_cpuid, &rate)))
-			return (ret);
-		cf->freq = rate / 1000000;
-	} else {
-		msr = rdmsr(MSR_AMD_10H_11H_STATUS);
-		if (msr >= sc->cfnum)
-			return (EINVAL);
-		set = sc->hwpstate_settings[msr];
-
-		cf->freq = set.freq;
-		cf->volts = set.volts;
-		cf->power = set.power;
-		cf->lat = set.lat;
-		cf->dev = dev;
-	}
-
-	return (0);
+	return (sc->cpufreq_methods->get(dev, cf));
 }
 
 static int
-hwpstate_settings(device_t dev, struct cf_setting *sets, int *count)
+hwpstate_settings_cppc(device_t dev __unused, struct cf_setting *sets __unused,
+    int *count __unused)
 {
-	struct hwpstate_softc *sc;
+	return (EOPNOTSUPP);
+}
+
+static int
+hwpstate_settings_pstate(device_t dev, struct cf_setting *sets, int *count)
+{
 	struct hwpstate_setting set;
+	struct hwpstate_softc *sc;
 	int i;
 
-	if (sets == NULL || count == NULL)
-		return (EINVAL);
 	sc = device_get_softc(dev);
-	if ((sc->flags & HWPFL_USE_CPPC) != 0)
-		return (EOPNOTSUPP);
-
 	if (*count < sc->cfnum)
 		return (E2BIG);
 	for (i = 0; i < sc->cfnum; i++, sets++) {
@@ -710,19 +743,38 @@ hwpstate_settings(device_t dev, struct cf_setting *sets, int *count)
 }
 
 static int
+hwpstate_settings(device_t dev, struct cf_setting *sets, int *count)
+{
+	struct hwpstate_softc *sc;
+
+	if (sets == NULL || count == NULL)
+		return (EINVAL);
+	sc = device_get_softc(dev);
+	return (sc->cpufreq_methods->settings(dev, sets, count));
+}
+
+static int
+hwpstate_type_cppc(device_t dev, int *type)
+{
+	*type |= CPUFREQ_TYPE_ABSOLUTE | CPUFREQ_FLAG_INFO_ONLY |
+	    CPUFREQ_FLAG_UNCACHED;
+	return (0);
+}
+
+static int
+hwpstate_type_pstate(device_t dev, int *type)
+{
+	*type = CPUFREQ_TYPE_ABSOLUTE;
+	return (0);
+}
+
+static int
 hwpstate_type(device_t dev, int *type)
 {
 	struct hwpstate_softc *sc;
 
-	if (type == NULL)
-		return (EINVAL);
 	sc = device_get_softc(dev);
-
-	*type = CPUFREQ_TYPE_ABSOLUTE;
-	*type |= (sc->flags & HWPFL_USE_CPPC) != 0 ?
-	    CPUFREQ_FLAG_INFO_ONLY | CPUFREQ_FLAG_UNCACHED :
-	    0;
-	return (0);
+	return (sc->cpufreq_methods->type(dev, type));
 }
 
 static void
@@ -909,34 +961,14 @@ enable_cppc(struct hwpstate_softc *sc)
 }
 
 static int
-hwpstate_probe(device_t dev)
+hwpstate_probe_pstate(device_t dev)
 {
 	struct hwpstate_softc *sc;
 	device_t perf_dev;
-	uint64_t msr;
 	int error, type;
+	uint64_t msr;
 
 	sc = device_get_softc(dev);
-
-	if (hwpstate_amd_cppc_enable &&
-	   (amd_extended_feature_extensions & AMDFEID_CPPC)) {
-		sc->flags |= HWPFL_USE_CPPC;
-		device_set_desc(dev,
-		    "AMD Collaborative Processor Performance Control (CPPC)");
-	} else {
-		/*
-		 * No CPPC support.  Only keep hwpstate0, it goes well with
-		 * acpi_throttle.
-		 */
-		if (device_get_unit(dev) != 0)
-			return (ENXIO);
-		device_set_desc(dev, "Cool`n'Quiet 2.0");
-	}
-
-	sc->dev = dev;
-	if ((sc->flags & HWPFL_USE_CPPC) != 0)
-		return (0);
-
 	/*
 	 * Check if acpi_perf has INFO only flag.
 	 */
@@ -984,10 +1016,49 @@ hwpstate_probe(device_t dev)
 	 */
 	if (error)
 		error = hwpstate_get_info_from_msr(dev);
-	if (error)
-		return (error);
+	return (error);
+}
 
-	return (0);
+static const struct hwpstate_cpufreq_methods cppc_methods = {
+	.get = hwpstate_get_cppc,
+	.set = hwpstate_set_cppc,
+	.settings = hwpstate_settings_cppc,
+	.type = hwpstate_type_cppc };
+
+static const struct hwpstate_cpufreq_methods pstate_methods = {
+	.get = hwpstate_get_pstate,
+	.set = hwpstate_set_pstate,
+	.settings = hwpstate_settings_pstate,
+	.type = hwpstate_type_pstate };
+
+static int
+hwpstate_probe(device_t dev)
+{
+	struct hwpstate_softc *sc;
+	sc = device_get_softc(dev);
+
+	if (hwpstate_amd_cppc_enable &&
+	    (amd_extended_feature_extensions & AMDFEID_CPPC)) {
+		sc->flags |= HWPFL_USE_CPPC;
+		device_set_desc(dev,
+		    "AMD Collaborative Processor Performance Control (CPPC)");
+	} else {
+		/*
+		 * No CPPC support.  Only keep hwpstate0, it goes well with
+		 * acpi_throttle.
+		 */
+		if (device_get_unit(dev) != 0)
+			return (ENXIO);
+		device_set_desc(dev, "Cool`n'Quiet 2.0");
+	}
+
+	sc->dev = dev;
+	if ((sc->flags & HWPFL_USE_CPPC) != 0) {
+		sc->cpufreq_methods = &cppc_methods;
+		return (0);
+	}
+	sc->cpufreq_methods = &pstate_methods;
+	return (hwpstate_probe_pstate(dev));
 }
 
 static int
@@ -1037,8 +1108,8 @@ hwpstate_attach(device_t dev)
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		    "desired_performance",
-		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-		    dev, AMD_CPPC_REQUEST_DES_PERF_BITS,
+		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, dev,
+		    AMD_CPPC_REQUEST_DES_PERF_BITS,
 		    sysctl_cppc_request_field_handler, "IU",
 		    "Desired performance level (from 0 to 255; "
 		    "0 enables autonomous mode, otherwise value should be "
