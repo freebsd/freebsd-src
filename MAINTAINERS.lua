@@ -136,17 +136,16 @@ elseif arg[1] == 'update' then
 	
 	local gen_codeowners = function (file, field)
 		for _, path in ipairs(paths) do
-			file:write(path, ' ')
+			file:write(path)
 			for _, id in ipairs(out[path]) do
 				if people[id] and people[id][field] then
-					file:write(people[id][field], ' ')
+					file:write(' ', people[id][field])
 				end
 			end
 			file:write('\n')
 		end
 	end
-	
-	-- github
+
 	local gh_file = io.open('.github/CODEOWNERS', 'w')
 	if gh_file then
 		gen_codeowners(gh_file, 'github')
@@ -156,17 +155,9 @@ elseif arg[1] == 'update' then
 		print('could not update .github/CODEOWNERS')
 	end
 
-	-- forgejo
-	-- copy from the already created file if possible
-	gh_file = io.open('.github/CODEOWNERS', 'r')
 	local fj_file = io.open('.forgejo/CODEOWNERS', 'w')
 	if fj_file then
-		if gh_file then
-			fj_file:write(gh_file:read('a'))
-			gh_file:close()
-		else
-			gen_codeowners('.forgejo/CODEOWNERS', 'forgejo')
-		end
+		gen_codeowners(fj_file, 'forgejo')
 		fj_file:close()
 		print('.forgejo/CODEOWNERS updated')
 	else
