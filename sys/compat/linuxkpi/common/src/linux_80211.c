@@ -1373,6 +1373,15 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return (0);
 
 	lockdep_assert_wiphy(hw->wiphy);
+
+	if (vif->cfg.assoc && lsta->state == IEEE80211_STA_AUTHORIZED) {
+		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+			ic_printf(lsta->ni->ni_ic,
+			    "%d %lu %s: vif still assoc; not deleting keys\n",
+			    curthread->td_tid, jiffies, __func__);
+		return (0);
+	}
+
 	ieee80211_ref_node(lsta->ni);
 
 	error = 0;
@@ -1452,6 +1461,15 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	 */
 	lockdep_assert_wiphy(hw->wiphy);
 
+	ni = ieee80211_ref_node(vap->iv_bss);
+	lsta = ni->ni_drv_data;
+	if (lsta == NULL) {
+		ic_printf(ic, "%s: ni %p (%6D) with lsta NULL\n",
+		    __func__, ni, ni->ni_bssid, ":");
+		ieee80211_free_node(ni);
+		return (0);
+	}
+
 	/*
 	 * While we are assoc we may still send packets.  We cannot delete the
 	 * keys as otherwise packets could go out unencrypted.  Some firmware
@@ -1462,30 +1480,24 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	 * How to test: run 800Mbit/s UDP traffic and during that restart your
 	 * supplicant.  You want to survive that.
 	 */
-	if (vif->cfg.assoc) {
+	if (vif->cfg.assoc && lsta->state == IEEE80211_STA_AUTHORIZED) {
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
 			ic_printf(ic, "%d %lu %s: vif still assoc; not deleting keys\n",
 			    curthread->td_tid, jiffies, __func__);
+		ieee80211_free_node(ni);
 		return (0);
 	}
 
 	if (IEEE80211_KEY_UNDEFINED(k)) {
 		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
 		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
+		ieee80211_free_node(ni);
 		return (0);
 	}
 
 	if (vap->iv_bss == NULL) {
 		ic_printf(ic, "%s: iv_bss %p for vap %p is NULL\n",
 		    __func__, vap->iv_bss, vap);
-		return (0);
-	}
-
-	ni = ieee80211_ref_node(vap->iv_bss);
-	lsta = ni->ni_drv_data;
-	if (lsta == NULL) {
-		ic_printf(ic, "%s: ni %p (%6D) with lsta NULL\n",
-		    __func__, ni, ni->ni_bssid, ":");
 		ieee80211_free_node(ni);
 		return (0);
 	}
