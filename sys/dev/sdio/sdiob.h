@@ -73,6 +73,8 @@ enum sdiob_dev_enum {
 	SDIOB_IVAR_DRVDATA,
 };
 
+struct sdio_func;
+
 #define	SDIOB_ACCESSOR(var, ivar, type)				\
     __BUS_ACCESSOR(sdio, var, SDIOB, ivar, type)
 
