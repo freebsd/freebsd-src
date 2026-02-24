@@ -943,7 +943,7 @@ DECLARE_MODULE(_name##_##busname, _name##_##busname##_mod,		\
 /**
  * Generic ivar accessor generation macros for bus drivers
  */
-#define __BUS_ACCESSOR(varp, var, ivarp, ivar, type)			\
+#define __BUS_ACCESSOR_COMMON(varp, var, ivarp, ivar, type)		\
 									\
 static __inline bool							\
 varp ## _has_ ## var(device_t dev)					\
@@ -956,19 +956,6 @@ varp ## _has_ ## var(device_t dev)					\
 	return (e == 0);						\
 }									\
 									\
-static __inline type							\
-varp ## _get_ ## var(device_t dev)					\
-{									\
-	uintptr_t v = 0;						\
-	int e __diagused;						\
-	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
-	    ivarp ## _IVAR_ ## ivar, &v);				\
-	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
-	    __func__, device_get_nameunit(dev),				\
-	    device_get_nameunit(device_get_parent(dev)), e));		\
-	return ((type) v);						\
-}									\
-									\
 static __inline void							\
 varp ## _set_ ## var(device_t dev, type t)				\
 {									\
@@ -979,6 +966,37 @@ varp ## _set_ ## var(device_t dev, type t)				\
 	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
 	    __func__, device_get_nameunit(dev),				\
 	    device_get_nameunit(device_get_parent(dev)), e));		\
+}
+
+#define __BUS_ACCESSOR(varp, var, ivarp, ivar, type)			\
+	__BUS_ACCESSOR_COMMON(varp, var, ivarp, ivar, type)		\
+									\
+static __inline type							\
+varp ## _get_ ## var(device_t dev)					\
+{									\
+	uintptr_t v = 0;						\
+	int e __diagused;						\
+									\
+	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
+	    ivarp ## _IVAR_ ## ivar, &v);				\
+	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
+	    __func__, device_get_nameunit(dev),				\
+	    device_get_nameunit(device_get_parent(dev)), e));		\
+	return ((type) v);						\
+}
+
+#define __BUS_ACCESSOR_DEFAULT(varp, var, ivarp, ivar, type, default)	\
+	__BUS_ACCESSOR_COMMON(varp, var, ivarp, ivar, type)		\
+									\
+static __inline type							\
+varp ## _get_ ## var(device_t dev)					\
+{									\
+	uintptr_t v = 0;						\
+	int e;								\
+									\
+	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
+	    ivarp ## _IVAR_ ## ivar, &v);				\
+	return (e == 0 ? (type) v : (default));				\
 }
 
 struct device_location_cache;
