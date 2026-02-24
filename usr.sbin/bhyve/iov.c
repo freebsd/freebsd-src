@@ -81,19 +81,14 @@ count_iov(const struct iovec *iov, int niov)
 void
 truncate_iov(struct iovec *iov, int *niov, size_t length)
 {
-	size_t done = 0;
 	int i;
 
-	for (i = 0; i < *niov; i++) {
-		size_t toseek = MIN(length - done, iov[i].iov_len);
-		done += toseek;
-
-		if (toseek <= iov[i].iov_len) {
-			iov[i].iov_len = toseek;
-			*niov = i + 1;
-			return;
-		}
+	for (i = 0; i < *niov && length > 0; i++) {
+		if (length < iov[i].iov_len)
+			iov[i].iov_len = length;
+		length -= iov[i].iov_len;
 	}
+	*niov = i;
 }
 
 ssize_t
