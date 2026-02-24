@@ -945,6 +945,17 @@ DECLARE_MODULE(_name##_##busname, _name##_##busname##_mod,		\
  */
 #define __BUS_ACCESSOR(varp, var, ivarp, ivar, type)			\
 									\
+static __inline bool							\
+varp ## _has_ ## var(device_t dev)					\
+{									\
+	uintptr_t v = 0;						\
+	int e;								\
+									\
+	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
+	    ivarp ## _IVAR_ ## ivar, &v);				\
+	return (e == 0);						\
+}									\
+									\
 static __inline type							\
 varp ## _get_ ## var(device_t dev)					\
 {									\
