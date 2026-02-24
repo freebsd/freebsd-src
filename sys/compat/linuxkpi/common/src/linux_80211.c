@@ -3256,6 +3256,7 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 #if 0
 	enum ieee80211_bss_changed bss_changed;
 #endif
+	struct ieee80211_rx_ampdu *rap;
 	int error;
 
 	lhw = vap->iv_ic->ic_softc;
@@ -3309,6 +3310,16 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
 		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
 		goto outni;
+	}
+
+	/* Stop any BA sessions if still active. */
+	for (int rapn = 0; rapn < WME_NUM_TID; rapn++) {
+		rap = &ni->ni_rx_ampdu[rapn];
+
+		if ((rap->rxa_flags & IEEE80211_AGGR_RUNNING) == 0)
+			continue;
+
+		vap->iv_ic->ic_ampdu_rx_stop(ni, rap);
 	}
 
 	IEEE80211_UNLOCK(vap->iv_ic);
@@ -3412,6 +3423,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	struct ieee80211_sta *sta;
 	struct ieee80211_prep_tx_info prep_tx_info;
 	enum ieee80211_bss_changed bss_changed;
+	struct ieee80211_rx_ampdu *rap;
 	int error;
 
 	lhw = vap->iv_ic->ic_softc;
@@ -3465,6 +3477,16 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
 		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
 		goto outni;
+	}
+
+	/* Stop any BA sessions if still active. */
+	for (int rapn = 0; rapn < WME_NUM_TID; rapn++) {
+		rap = &ni->ni_rx_ampdu[rapn];
+
+		if ((rap->rxa_flags & IEEE80211_AGGR_RUNNING) == 0)
+			continue;
+
+		vap->iv_ic->ic_ampdu_rx_stop(ni, rap);
 	}
 
 	IEEE80211_UNLOCK(vap->iv_ic);
