@@ -83,11 +83,13 @@ uefi_copy_loader()
 
 update_uefi_bootentry()
 {
-	nentries=$(efibootmgr | grep -c "${EFI_LABEL_NAME}$")
+	local nentries=$(efibootmgr | grep -c "${EFI_LABEL_NAME}$")
+	local loader_path=$1
+
 	# No entries so directly create one and return
 	if [ ${nentries} -eq 0 ]; then
 		f_dprintf "Creating UEFI boot entry"
-		efibootmgr --create --activate --label "$EFI_LABEL_NAME" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+		efibootmgr --create --activate --label "$EFI_LABEL_NAME" --loader "${loader_path}" > /dev/null
 		return
 	fi
 
@@ -97,13 +99,13 @@ update_uefi_bootentry()
 		for entry in $(efibootmgr | awk "\$NF == \"$EFI_LABEL_NAME\" { sub(/.*Boot/,\"\", \$1); sub(/\*/,\"\", \$1); print \$1 }"); do
 			efibootmgr -B -b ${entry}
 		done
-		efibootmgr --create --activate --label "$EFI_LABEL_NAME" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+		efibootmgr --create --activate --label "$EFI_LABEL_NAME" --loader "${loader_path}" > /dev/null
 		return
 	fi
 
 	FREEBSD_BOOTLABEL=$(dialog_uefi_entryname "${EFI_LABEL_NAME}")
 	[ $? -eq $DIALOG_CANCEL ] && exit 1
-	efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+	efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${loader_path}" > /dev/null
 }
 
 f_dialog_title "Boot Configuration"
@@ -151,21 +153,22 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 	# over gmirror, so we only do this for ZFS.
 	esps=${TMPDIR:-"/tmp"}/bsdinstall-esps
 	if [ -f "$esps" ]; then
-		mntpt=$(mktemp -d -t bsdinstall-esp)
+		tmpmnt=$(mktemp -d -t bsdinstall-esp)
 		for dev in $(cat $esps); do
 			f_dprintf "Installing ${file} onto redundant ESP ${dev}"
-			mount -t msdos "$dev" "$mntpt"
+			mount -t msdos "$dev" "$tmpmnt"
 			uefi_copy_loader "$BSDINSTALL_CHROOT/boot/${file}" \
-				"${mntpt}/efi/freebsd" "${mntpt}/efi/boot" \
+				"${tmpmnt}/efi/freebsd" "${tmpmnt}/efi/boot" \
 				boot${ARCHBOOTNAME}.efi
-			umount "$mntpt"
+			umount "$tmpmnt"
 		done
-		rmdir "${mntpt}"
+		rmdir "${tmpmnt}"
 	fi
 
-	# Try to set the UEFI NV BootXXXX variables to record the boot location
+	# Try to set the UEFI NV BootXXXX variables to record the boot location.
+	# Note that the ESP is mounted at ${mntpt}/efi.
 	if [ "$BSDINSTALL_CONFIGCURRENT" ] && [ "$ARCHBOOTNAME" != ia32 ]; then
-		update_uefi_bootentry
+		update_uefi_bootentry "${mntpt}/efi/freebsd/${file}"
 	fi
 
 	f_dprintf "Finished configuring ESP"
