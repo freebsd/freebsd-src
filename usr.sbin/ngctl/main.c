@@ -243,7 +243,7 @@ ReadFile(FILE *fp)
 	unsigned int lineno = 0;
 	int rtn = CMDRTN_OK;
 
-	while ((len = getline(&line, &sz, fp)) > 0) {
+	while ((len = getline(&line, &sz, fp)) >= 0) {
 		lineno++;
 		if (*line == '#')
 			continue;
@@ -252,7 +252,7 @@ ReadFile(FILE *fp)
 			break;
 		}
 	}
-	if (len < 0)
+	if (ferror(fp))
 		rtn = CMDRTN_ERROR;
 	free(line);
 	return (rtn);
