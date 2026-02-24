@@ -1154,6 +1154,9 @@ acpi_child_deleted(device_t dev, device_t child)
     free(dinfo, M_ACPIDEV);
 }
 
+_Static_assert(ACPI_IVAR_PRIVATE >= ISA_IVAR_LAST,
+    "ACPI private IVARs overlap with ISA IVARs");
+
 /*
  * Handle per-device ivars
  */

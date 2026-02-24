@@ -278,10 +278,10 @@ extern int	acpi_override_isa_irq_polarity;
  * attach to ACPI.
  */
 enum {
-	ACPI_IVAR_HANDLE = BUS_IVARS_ACPI,
-	ACPI_IVAR_PRIVATE,
+	ACPI_IVAR_PRIVATE = 20,
 	ACPI_IVAR_FLAGS,
-	ACPI_IVAR_DOMAIN
+	ACPI_IVAR_DOMAIN,
+	ACPI_IVAR_HANDLE = BUS_IVARS_ACPI
 };
 
 /*
