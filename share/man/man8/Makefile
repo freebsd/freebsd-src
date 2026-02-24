@@ -25,7 +25,8 @@ RCLINKS=	rc.8 rc.d.8 \
 		rc.8 rc.pccard.8 \
 		rc.8 rc.resume.8 \
 		rc.8 rc.serial.8 \
-		rc.8 rc.shutdown.8
+		rc.8 rc.shutdown.8 \
+		rc.8 rc.suspend.8
 RCPACKAGE=	rc
 
 .if ${MK_NIS} != "no"
