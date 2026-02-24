@@ -20742,8 +20742,17 @@ just_return_nolock:
 			 * The idea behind that is instead of having to have
 			 * the peer wait for the delayed-ack timer to run off
 			 * we send an ack that makes the peer send us an ack.
+			 *
+			 * Note we do not send anything if its been less than
+			 * a srtt.
 			 */
-			rack_send_ack_challange(rack);
+			uint64_t tmark;
+
+			tmark = tcp_get_u64_usecs(&tv);
+			if ((tmark > rack->r_ctl.lt_timemark) &&
+			    (((tmark - rack->r_ctl.lt_timemark) / 1000) > tp->t_srtt)) {
+				rack_send_ack_challange(rack);
+			}
 		}
 		if (tot_len_this_send > 0) {
 			rack->r_ctl.fsb.recwin = recwin;
@@ -21143,7 +21152,7 @@ send:
 			to.to_tsecr = tp->ts_recent;
 			to.to_flags |= TOF_TS;
 			if ((len == 0) &&
-			    (TCPS_HAVEESTABLISHED(tp->t_state)) &&
+			    (tp->t_state == TCPS_ESTABLISHED) &&
 			    ((ms_cts - rack->r_ctl.last_rcv_tstmp_for_rtt) > RCV_PATH_RTT_MS) &&
 			    (tp->snd_una == tp->snd_max) &&
 			    (flags & TH_ACK) &&
