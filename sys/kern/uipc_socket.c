@@ -1316,7 +1316,7 @@ solisten_enqueue(struct socket *so, int connstatus)
  * XXXGL: reduce copy-paste with solisten_clone().
  */
 struct socket *
-sopeeloff(struct socket *head)
+sopeeloff(struct socket *head, struct protosw *so_proto)
 {
 	struct socket *so;
 
@@ -1336,7 +1336,7 @@ sopeeloff(struct socket *head)
 	so->so_linger = head->so_linger;
 	so->so_state = (head->so_state & SS_NBIO) | SS_ISCONNECTED;
 	so->so_fibnum = head->so_fibnum;
-	so->so_proto = head->so_proto;
+	so->so_proto = so_proto;
 	so->so_cred = crhold(head->so_cred);
 #ifdef MAC
 	mac_socket_newconn(head, so);

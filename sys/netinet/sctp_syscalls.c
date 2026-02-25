@@ -75,6 +75,8 @@
 #include <security/mac/mac_framework.h>
 
 #include <netinet/sctp.h>
+#include <netinet/sctp_pcb.h>
+#include <netinet/sctp_var.h>
 #include <netinet/sctp_os_bsd.h>
 #include <netinet/sctp_peeloff.h>
 
@@ -171,7 +173,7 @@ sys_sctp_peeloff(struct thread *td, struct sctp_peeloff_args *uap)
 	td->td_retval[0] = fd;
 
 	CURVNET_SET(head->so_vnet);
-	so = sopeeloff(head);
+	so = sopeeloff(head, &sctp_stream_protosw);
 	if (so == NULL) {
 		error = ENOMEM;
 		goto noconnection;

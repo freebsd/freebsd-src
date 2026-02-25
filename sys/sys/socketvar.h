@@ -525,7 +525,7 @@ struct socket *
 struct socket *
 	sonewconn(struct socket *head, int connstatus);
 struct socket *
-	sopeeloff(struct socket *);
+	sopeeloff(struct socket *, struct protosw *);
 int	sopoll_generic(struct socket *so, int events, struct thread *td);
 int	sokqfilter_generic(struct socket *so, struct knote *kn);
 int	soaio_queue_generic(struct socket *so, struct kaiocb *job);
