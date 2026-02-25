@@ -539,9 +539,12 @@ cc_ecnpkt_handler_flags(struct tcpcb *tp, uint16_t flags, uint8_t iptos)
 
 		CC_ALGO(tp)->ecnpkt_handler(&tp->t_ccv);
 
-		if (tp->t_ccv.flags & CCF_ACKNOW) {
-			tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
+		if (((tp->t_state == TCPS_ESTABLISHED) || 
+		     (tp->t_state == TCPS_FIN_WAIT_1) ||
+		     (tp->t_state == TCPS_FIN_WAIT_2)) &&
+		    (tp->t_ccv.flags & CCF_ACKNOW)) {
 			tp->t_flags |= TF_ACKNOW;
+			tp->t_ccv.flags &= ~CCF_ACKNOW;
 		}
 	}
 }

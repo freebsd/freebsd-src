@@ -15709,6 +15709,8 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			tcp_packets_this_ack(tp, ae->ack),
 			ae->codepoint))
 			rack_cong_signal(tp, CC_ECN, ae->ack, __LINE__);
+		if (tp->t_flags & TF_ACKNOW)
+			rack->r_wanted_output = 1;
 #ifdef TCP_ACCOUNTING
 		/* Count for the specific type of ack in */
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
@@ -16566,7 +16568,8 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	    tcp_packets_this_ack(tp, th->th_ack),
 	    iptos))
 		rack_cong_signal(tp, CC_ECN, th->th_ack, __LINE__);
-
+	if (tp->t_flags & TF_ACKNOW)
+		rack->r_wanted_output = 1;
 	/*
 	 * If echoed timestamp is later than the current time, fall back to
 	 * non RFC1323 RTT calculation.  Normalize timestamp if syncookies
