@@ -2,7 +2,8 @@
 #
 
 PROG=	syscall_timing
-CFLAGS+=	-static -O
+CFLAGS+=	-O
+NO_SHARED=
 MAN=
 
 #LIBADD=	pthread
