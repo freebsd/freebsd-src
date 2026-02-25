@@ -282,7 +282,7 @@ restart:
 		NDFREE_PNBUF(&nd);
 		vput(nd.ni_dvp);
 		if ((error = vn_start_write(NULL, &wrtmp,
-		    V_XSLEEP | PCATCH)) != 0)
+		    V_XSLEEP | V_PCATCH)) != 0)
 			return (error);
 		goto restart;
 	}
