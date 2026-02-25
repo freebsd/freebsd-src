@@ -24,27 +24,26 @@ groups {
 			"libexec/",
 			"lib/"
 		],
-		exclude: [
-			"libexec/flua/",
-			"lib/clang/"
-		]
+		except: [ "lib/clang/" ]
 	},
 
 	g2 {
-		members: [
-			"charlie-id",
-			"dan-id"
-		],
-		watch: [
-			"sys/amd64/",
-			"sys/i386/"
-		]
+		members: [ "dan-id" ],
+		watch: [ "sys/amd64/" ]
 	},
 
-	g3 {
-		members: ["dan-id"]
-		watch: ["libexec/flua/"]
-		except: ["libexec/flua/libucl/"]
+	theft1 {
+		members: [
+			"dan-id",
+			"charlie-id"
+		]
+		watch: [ "libexec/flua/" ]
+		except: [ "libexec/flua/libucl/" ]
+	},
+
+	theft2 {
+		members: [ "bob-id" ],
+		watch: [ "libexec/flua/libucl/" ]
 	}
 }
 

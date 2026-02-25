@@ -3,10 +3,7 @@
 --[[
 
 Usage: 
-  ./MAINTAINERS.lua <command> [argument] [options]
-
-Options:
-  -i | --input     Path to maintainers file. Defaults to 'MAINTAINERS.ucl'.
+  ./MAINTAINERS.lua <command> [argument]
 
 Commands:
   update           generates GitHub/Forgejo CODEOWNERS file.
@@ -41,10 +38,6 @@ local version = t.version
 local people = t.people
 local groups = t.groups
 
-local split_path = function (path)
-	return string.gmatch('..-['..sep..'$]')
-end
-
 -- currently does not support character sets
 -- also currently globbing patterns match periods even at the beginning of a filename
 local luafy_glob = function (s)
@@ -62,6 +55,17 @@ local luafy_glob = function (s)
 	return '^'..s
 end
 
+local is_child_of = function (maybe_child, of)
+	local s = ''
+	for segment in string.gmatch(maybe_child, '..-[/%$]') do
+		s = s..segment
+		if string.find(of, luafy_glob(s)..'$') and s ~= maybe_child then
+			return true
+		end
+	end
+	return false
+end
+
 local foreach = function (table, fn)
 	for _, v in ipairs(table) do
 		fn(v)
@@ -77,29 +81,38 @@ local path_has_any = function (arr, path)
 	return false
 end
 
+local try_insert = function (arr, item)
+	for _, i in ipairs(arr) do
+		if i == item then
+			return
+		end
+	end
+	table.insert(arr, item)
+end
+
 if arg[1] == 'get_maintainers' then
-	local path = arg[3]
+	local path = arg[2]
 	local out = {}
 
 	for _, group in pairs(groups) do
-		if (group.exclude == nil or not path_has_any(group.exclude, path))
+		if not (group.except and path_has_any(group.except, path))
 			and path_has_any(group.watch, path) then
-			foreach(group.members, function (member) table.insert(out, member) end)
+			foreach(group.members, function (member) try_insert(out, member) end)
 		end
 	end
 
 	foreach(out, function(person_id) print(person_id) end)
 elseif arg[1] == 'get_paths' then
-	local person_id = arg[3]
+	local person_id = arg[2]
 	local watch = {}
-	local exclude = {}
+	local except = {}
 
 	for _, group in pairs(groups) do
 		for _, member in ipairs(group.members) do
 			if member == person_id then
 				foreach(group.watch, function (path) table.insert(watch, path) end)
-				if group.exclude then
-					foreach(group.exclude, function (path) table.insert(exclude, path) end)
+				if group.except then
+					foreach(group.except, function (path) try_insert(except, path) end)
 				end
 				break
 			end
@@ -107,57 +120,83 @@ elseif arg[1] == 'get_paths' then
 	end
 
 	foreach(watch, function (path) print('watch', path) end)
-	foreach(exclude, function (path) print('exclude', path) end)
+	foreach(except, function (path) print('except', path) end)
 elseif arg[1] == 'get_info' then
-	local person_id = arg[3]
+	local person_id = arg[2]
 	if people[person_id] then
 		for k, v in pairs(people[person_id]) do
 			print(k, v)
 		end
 	end
 elseif arg[1] == 'update' then
-	out = {}
-	for _, group in pairs(groups) do
-		for _, path in ipairs(group.watch) do
-			if not out[path] then
-				out[path] = {}
-			end
-			foreach(group.members, function (m) table.insert(out[path], m) end)
-		end
-		if group.exclude then
-			foreach(group.exclude, function (path) if not out[path] then out[path] = {} end end)
-		end
-	end
+	--
+	-- GitHub
+	--
 	
-	-- sort the paths so the generated CODEOWNERS file is easier to read
-	local paths = {}
-	for k, _ in pairs(out) do table.insert(paths, k) end
-	table.sort(paths)
-	
-	local gen_codeowners = function (file, field)
-		for _, path in ipairs(paths) do
-			file:write(path)
-			for _, id in ipairs(out[path]) do
-				if people[id] and people[id][field] then
-					file:write(' ', people[id][field])
-				end
+	-- check if adding path to t would steal from an existing path
+	local checked_add_path = function (path, table)
+		table[path] = {}
+		for old_path, watchers in pairs(table) do
+			if is_child_of(path, old_path) then
+				foreach(watchers, function (w) try_insert(table[path], w) end)
 			end
-			file:write('\n')
 		end
 	end
 
+	local gh_table = {}
+	for _, group in pairs(groups) do
+		if group.except then
+			for _, except_path in ipairs(group.except) do
+				if not gh_table[except_path] then
+					checked_add_path(except_path, gh_table)	
+				end
+			end
+		end
+		for _, path in ipairs(group.watch) do
+			-- check if anybody is stealing from us
+			for old_path, _ in pairs(gh_table) do
+				if is_child_of(old_path, path) and not (group.except and path_has_any(group.except, old_path)) then
+						foreach(group.members, function (m) try_insert(gh_table[old_path], m) end)
+				end
+			end
+
+			if not gh_table[path] then
+				checked_add_path(path, gh_table)
+			end
+
+			foreach(group.members, function (m) try_insert(gh_table[path], m) end)
+		end
+	end
+	
+	-- sort the paths so the generated file is easier to read
+	local paths = {}
+	for k, _ in pairs(gh_table) do table.insert(paths, k) end
+	table.sort(paths)
+	
 	local gh_file = io.open('.github/CODEOWNERS', 'w')
 	if gh_file then
-		gen_codeowners(gh_file, 'github')
+		for _, path in ipairs(paths) do
+			gh_file:write(path)
+			for _, id in ipairs(gh_table[path]) do
+				if people[id] and people[id].github then
+					gh_file:write(' ', people[id].github)
+				end
+			end
+			gh_file:write('\n')
+		end
 		gh_file:close()
 		print('.github/CODEOWNERS updated')
 	else
 		print('could not update .github/CODEOWNERS')
 	end
 
+	--
+	-- Forgejo stuff
+	--
+
 	local fj_file = io.open('.forgejo/CODEOWNERS', 'w')
 	if fj_file then
-		gen_codeowners(fj_file, 'forgejo')
+		-- TODO: write fj table
 		fj_file:close()
 		print('.forgejo/CODEOWNERS updated')
 	else
