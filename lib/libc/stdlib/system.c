@@ -32,21 +32,22 @@
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/wait.h>
+
+#include <errno.h>
+#include <paths.h>
 #include <signal.h>
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <paths.h>
-#include <errno.h>
 #include "un-namespace.h"
 #include "libc_private.h"
+#include "spinlock.h"
 
 #pragma weak system
 int
 system(const char *command)
 {
-
 	return (((int (*)(const char *))
 	    __libc_interposing[INTERPOS_system])(command));
 }
@@ -54,54 +55,83 @@ system(const char *command)
 int
 __libc_system(const char *command)
 {
-	pid_t pid, savedpid;
-	int pstat;
-	struct sigaction ign, intact, quitact;
-	sigset_t newsigblock, oldsigblock;
+	static spinlock_t lock = _SPINLOCK_INITIALIZER;
+	static volatile unsigned long concurrent;
+	static struct sigaction ointact, oquitact;
+	struct sigaction ign;
+	sigset_t sigblock, osigblock;
+	int pstat = -1, serrno = 0;
+	pid_t pid;
 
-	if (!command)		/* just checking... */
-		return(1);
+	if (command == NULL)			/* just checking... */
+		return (1);
 
-	(void)sigemptyset(&newsigblock);
-	(void)sigaddset(&newsigblock, SIGCHLD);
-	(void)sigaddset(&newsigblock, SIGINT);
-	(void)sigaddset(&newsigblock, SIGQUIT);
-	(void)__libc_sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
-	switch(pid = vfork()) {
 	/*
-	 * In the child, use unwrapped syscalls.  libthr is in
-	 * undefined state after vfork().
+	 * If we are the first concurrent instance, ignore SIGINT and
+	 * SIGQUIT.  Block SIGCHLD regardless of concurrency, since on
+	 * FreeBSD, sigprocmask() is equivalent to pthread_sigmask().
 	 */
-	case -1:			/* error */
-		(void)__libc_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
-		return (-1);
-	case 0:				/* child */
-		/*
-		 * Restore original signal dispositions and exec the command.
-		 */
-		(void)__sys_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
-		execl(_PATH_BSHELL, "sh", "-c", command, (char *)NULL);
-		_exit(127);
+	if (__isthreaded)
+		_SPINLOCK(&lock);
+	if (concurrent++ == 0) {
+		memset(&ign, 0, sizeof(ign));
+		ign.sa_handler = SIG_IGN;
+		sigemptyset(&ign.sa_mask);
+		(void)__libc_sigaction(SIGINT, &ign, &ointact);
+		(void)__libc_sigaction(SIGQUIT, &ign, &oquitact);
 	}
-	/* 
-	 * If we are running means that the child has either completed
-	 * its execve, or has failed.
-	 * Block SIGINT/QUIT because sh -c handles it and wait for
-	 * it to clean up.
+	sigemptyset(&sigblock);
+	sigaddset(&sigblock, SIGCHLD);
+	(void)__libc_sigprocmask(SIG_BLOCK, &sigblock, &osigblock);
+	if (__isthreaded)
+		_SPINUNLOCK(&lock);
+
+	/*
+	 * Fork the child process.
 	 */
-	memset(&ign, 0, sizeof(ign));
-	ign.sa_handler = SIG_IGN;
-	(void)sigemptyset(&ign.sa_mask);
-	(void)__libc_sigaction(SIGINT, &ign, &intact);
-	(void)__libc_sigaction(SIGQUIT, &ign, &quitact);
-	savedpid = pid;
-	do {
-		pid = _wait4(savedpid, &pstat, 0, (struct rusage *)0);
-	} while (pid == -1 && errno == EINTR);
-	(void)__libc_sigaction(SIGINT, &intact, NULL);
-	(void)__libc_sigaction(SIGQUIT,  &quitact, NULL);
-	(void)__libc_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
-	return (pid == -1 ? -1 : pstat);
+	if ((pid = fork()) < 0) {		/* error */
+		serrno = errno;
+	} else if (pid == 0) {			/* child */
+		/*
+		 * Restore original signal dispositions.
+		 */
+		(void)__libc_sigaction(SIGINT, &ointact, NULL);
+		(void)__libc_sigaction(SIGQUIT,  &oquitact, NULL);
+		(void)__sys_sigprocmask(SIG_SETMASK, &osigblock, NULL);
+		/*
+		 * Exec the command.
+		 */
+		execl(_PATH_BSHELL, "sh", "-c", command, NULL);
+		_exit(127);
+	} else {				/* parent */
+		/*
+		 * Wait for the child to terminate.
+		 */
+		while (_wait4(pid, &pstat, 0, NULL) < 0) {
+			if (errno != EINTR) {
+				serrno = errno;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * If we are the last concurrent instance, restore original signal
+	 * dispositions.  Unblock SIGCHLD, unless it was already blocked.
+	 */
+	if (__isthreaded)
+		_SPINLOCK(&lock);
+	if (--concurrent == 0) {
+		(void)__libc_sigaction(SIGINT, &ointact, NULL);
+		(void)__libc_sigaction(SIGQUIT,  &oquitact, NULL);
+	}
+	if (!sigismember(&osigblock, SIGCHLD))
+		(void)__libc_sigprocmask(SIG_UNBLOCK, &sigblock, NULL);
+	if (__isthreaded)
+		_SPINUNLOCK(&lock);
+	if (serrno != 0)
+		errno = serrno;
+	return (pstat);
 }
 
 __weak_reference(__libc_system, __system);
