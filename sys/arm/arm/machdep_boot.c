@@ -69,7 +69,7 @@
 static char static_kenv[4096];
 #endif
 
-extern int *end;
+extern char end[];
 
 static uint32_t board_revision;
 /* hex representation of uint64_t */
