@@ -461,16 +461,12 @@ nullfs_unlink_lowervp(struct mount *mp, struct vnode *lowervp)
 	vhold(vp);
 	vunref(vp);
 
-	if (vp->v_usecount == 0) {
+	if (VN_IS_DOOMED(vp)) {
 		/*
-		 * If vunref() dropped the last use reference on the
-		 * nullfs vnode, it must be reclaimed, and its lock
-		 * was split from the lower vnode lock.  Need to do
-		 * extra unlock before allowing the final vdrop() to
-		 * free the vnode.
+		 * If the vnode is doomed, its lock was split from the lower
+		 * vnode lock.  Therefore we need to do an extra unlock before
+		 * allowing the final vdrop() to free the vnode.
 		 */
-		KASSERT(VN_IS_DOOMED(vp),
-		    ("not reclaimed nullfs vnode %p", vp));
 		VOP_UNLOCK(vp);
 	} else {
 		/*
@@ -480,8 +476,6 @@ nullfs_unlink_lowervp(struct mount *mp, struct vnode *lowervp)
 		 * relevant for future reclamations.
 		 */
 		ASSERT_VOP_ELOCKED(vp, "unlink_lowervp");
-		KASSERT(!VN_IS_DOOMED(vp),
-		    ("reclaimed nullfs vnode %p", vp));
 		xp->null_flags &= ~NULLV_NOUNLOCK;
 	}
 	vdrop(vp);
