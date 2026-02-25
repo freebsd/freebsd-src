@@ -159,8 +159,6 @@ ACPI_SERIAL_DECL(cpu, "ACPI CPU");
 
 static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
-static int	acpi_cpu_suspend(device_t dev);
-static int	acpi_cpu_resume(device_t dev);
 static int	acpi_pcpu_get_id(device_t dev, uint32_t acpi_id,
 		    u_int *cpu_id);
 static void	acpi_cpu_madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg);
@@ -199,8 +197,8 @@ static device_method_t acpi_cpu_methods[] = {
     DEVMETHOD(device_attach,	acpi_cpu_attach),
     DEVMETHOD(device_detach,	bus_generic_detach),
     DEVMETHOD(device_shutdown,	acpi_cpu_shutdown),
-    DEVMETHOD(device_suspend,	acpi_cpu_suspend),
-    DEVMETHOD(device_resume,	acpi_cpu_resume),
+    DEVMETHOD(device_suspend,	bus_generic_suspend),
+    DEVMETHOD(device_resume,	bus_generic_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_add_child,	acpi_cpu_add_child),
@@ -530,30 +528,6 @@ is_idle_disabled(struct acpi_cpu_softc *sc)
     return (sc->cpu_disable_idle);
 }
 #endif
-
-/*
- * Disable any entry to the idle function during suspend and re-enable it
- * during resume.
- */
-static int
-acpi_cpu_suspend(device_t dev)
-{
-    int error;
-
-    error = bus_generic_suspend(dev);
-    if (error)
-	return (error);
-    disable_idle(device_get_softc(dev));
-    return (0);
-}
-
-static int
-acpi_cpu_resume(device_t dev)
-{
-
-    enable_idle(device_get_softc(dev));
-    return (bus_generic_resume(dev));
-}
 
 /*
  * Find the processor associated with a given ACPI ID.
