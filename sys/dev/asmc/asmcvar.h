@@ -126,6 +126,11 @@ struct asmc_softc {
 #define ASMC_KEY_CLAMSHELL	"MSLD"	/* RO; 1 byte */
 
 /*
+ * Auto power on / Wake-on-LAN.
+ */
+#define ASMC_KEY_AUPO		"AUPO"	/* RW; 1 byte */
+
+/*
  * Interrupt keys.
  */
 #define ASMC_KEY_INTOK		"NTOK"	/* WO; 1 byte */

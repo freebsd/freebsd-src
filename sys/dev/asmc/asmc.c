@@ -108,6 +108,7 @@ static int 	asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS);
+static int	asmc_wol_sysctl(SYSCTL_HANDLER_ARGS);
 
 struct asmc_model {
 	const char *smc_model; /* smbios.system.product env var. */
@@ -879,8 +880,11 @@ static int
 asmc_init(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *sysctlctx;
 	int i, error = 1;
 	uint8_t buf[4];
+
+	sysctlctx = device_get_sysctl_ctx(dev);
 
 	if (sc->sc_model->smc_sms_x == NULL)
 		goto nosms;
@@ -951,6 +955,16 @@ asmc_init(device_t dev)
 out:
 	asmc_sms_calibrate(dev);
 nosms:
+	/* Wake-on-LAN convenience sysctl */
+	if (asmc_key_read(dev, ASMC_KEY_AUPO, buf, 1) == 0) {
+		SYSCTL_ADD_PROC(sysctlctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "wol",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    dev, 0, asmc_wol_sysctl, "I",
+		    "Wake-on-LAN enable (0=off, 1=on)");
+	}
+
 	sc->sc_nfan = asmc_fan_count(dev);
 	if (sc->sc_nfan > ASMC_MAXFANS) {
 		device_printf(dev,
@@ -1703,4 +1717,35 @@ asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	return (error);
+}
+
+/*
+ * Wake-on-LAN convenience sysctl.
+ * Reading returns 1 if WoL is enabled, 0 if disabled.
+ * Writing 1 enables WoL, 0 disables it.
+ */
+static int
+asmc_wol_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	uint8_t aupo;
+	int val, error;
+
+	/* Read current AUPO value */
+	if (asmc_key_read(dev, ASMC_KEY_AUPO, &aupo, 1) != 0)
+		return (EIO);
+
+	val = (aupo != 0) ? 1 : 0;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Clamp to 0 or 1 */
+	aupo = (val != 0) ? 1 : 0;
+
+	/* Write AUPO */
+	if (asmc_key_write(dev, ASMC_KEY_AUPO, &aupo, 1) != 0)
+		return (EIO);
+
+	return (0);
 }
