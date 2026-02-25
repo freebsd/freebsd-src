@@ -5961,7 +5961,19 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		dev->flags &= ~DF_FIXEDCLASS;
 		dev->flags |= DF_WILDCARD;
 		devclass_delete_device(dev->devclass, dev);
-		error = device_probe_and_attach(dev);
+
+		/*
+		 * Don't use device_probe_and_attach so that failing
+		 * to find a new driver isn't reported as an error.
+		 */
+		error = device_probe(dev);
+		if (error == ENXIO) {
+			error = 0;
+			break;
+		}
+		if (error == 0) {
+			error = device_attach(dev);
+		}
 		break;
 	case DEV_RESCAN:
 		if (!device_is_attached(dev)) {
