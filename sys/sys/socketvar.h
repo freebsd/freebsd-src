@@ -525,7 +525,7 @@ struct socket *
 struct socket *
 	sonewconn(struct socket *head, int connstatus);
 struct socket *
-	sopeeloff(struct socket *);
+	sopeeloff(struct socket *, struct protosw *);
 int	sopoll(struct socket *so, int events, struct ucred *active_cred,
 	    struct thread *td);
 int	sopoll_generic(struct socket *so, int events,
