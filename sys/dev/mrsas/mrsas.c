@@ -856,9 +856,6 @@ mrsas_attach(device_t dev)
 	struct mrsas_softc *sc = device_get_softc(dev);
 	uint32_t cmd, error;
 
-	device_printf(dev, "AVAGO MegaRAID SAS driver version: %s\n",
-		MRSAS_VERSION);
-
 	memset(sc, 0, sizeof(struct mrsas_softc));
 
 	/* Look up our softc and initialize its fields. */
