@@ -248,35 +248,33 @@ static void
 cleanup(void)
 {
 	char fnbuf[PATH_MAX];
-	long i, j;
-	const char *src;
 	char *base, *p;
+	long i, j;
 
 	if (!doclean)
 		return;
 
 	/*
-	 * NOTE: `snprintf` is not async-signal-safe, so we cannot use it
-	 * here. We manually construct the filename to ensure safety when
-	 * the signal handler is called.
+	 * POSIX 2024 adds strcpy and strlen to the async-signal-safe list.
+	 * We use them for the prefix, but manually format the integer suffix
+	 * since snprintf is still unsafe.
 	 */
-	
-	/* Copy the prefix first. */
-	base = fnbuf;
-	src = prefix;
-	while (*src != '\0') *base++ = *src++;
+	strcpy(fnbuf, prefix);
+	base = fnbuf + strlen(fnbuf);
 
 	for (i = 0; i < nfiles; i++) {
-		long val = i; 
-		/* Point to the end of filename and null terminate. */
+		long val = i;
+
+		/* Point to the end of the filename and null-terminate. */
 		p = base + sufflen;
 		*p = '\0';
-		
+
 		/* Fill the suffix digits backwards. */
 		for (j = 0; j < sufflen; j++) {
-			*--p = (val % 10) + '/0';
+			*--p = (val % 10) + '0';
 			val /= 10;
 		}
+
 		unlink(fnbuf);
 	}
 }
