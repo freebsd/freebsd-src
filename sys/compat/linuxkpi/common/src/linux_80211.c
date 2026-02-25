@@ -7106,6 +7106,14 @@ lkpi_ieee80211_iterate_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
     void *arg)
 {
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+		net80211_vap_printf(LVIF_TO_VAP(VIF_TO_LVIF(vif)),
+		    "%s:%d: lsta %6D added_to_drv %d kc[keyix %u] %p\n",
+		    __func__, __LINE__, LSTA_TO_STA(lsta)->addr, ":",
+		    lsta->added_to_drv, keyix, lsta->kc[keyix]);
+#endif
+
 	if (!lsta->added_to_drv)
 		return;
 
