@@ -488,6 +488,8 @@ print_nlmsg_route_nhop(struct nl_helper *h, struct snl_parsed_route *r,
 		printf("iface %s ", link.ifla_ifname);
 		if (nh->rtax_mtu != 0)
 			printf("mtu %d ", nh->rtax_mtu);
+		if (nh->rta_expire > 0)
+			printf("expire %u ", nh->rta_expire);
 	}
 
 	if (first) {
