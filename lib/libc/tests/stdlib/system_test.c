@@ -57,10 +57,20 @@ ATF_TC(system_null);
 ATF_TC_HEAD(system_null, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "system(NULL)");
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(system_null, tc)
 {
+	/* First, test in a normal environment */
 	ATF_REQUIRE_EQ(1, system(NULL));
+
+	/* Now enter an empty chroot */
+	ATF_REQUIRE_EQ(0, chroot("."));
+	ATF_REQUIRE_EQ(0, chdir("/"));
+
+	/* Test again with no shell available */
+	ATF_REQUIRE_EQ(0, system(NULL));
+	ATF_REQUIRE_EQ(W_EXITCODE(127, 0), system("true"));
 }
 
 /*

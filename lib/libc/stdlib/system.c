@@ -64,7 +64,7 @@ __libc_system(const char *command)
 	pid_t pid;
 
 	if (command == NULL)			/* just checking... */
-		return (1);
+		return (eaccess(_PATH_BSHELL, X_OK) == 0);
 
 	/*
 	 * If we are the first concurrent instance, ignore SIGINT and
