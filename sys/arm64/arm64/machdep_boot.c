@@ -53,7 +53,7 @@
 #include <ddb/ddb.h>
 #endif
 
-extern int *end;
+extern char end[];
 static char *loader_envp;
 
 #ifdef FDT
