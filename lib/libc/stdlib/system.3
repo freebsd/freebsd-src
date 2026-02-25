@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 11, 2024
+.Dd February 24, 2026
 .Dt SYSTEM 3
 .Os
 .Sh NAME
@@ -77,8 +77,10 @@ or \-1 if an error occurred when invoking
 .Xr fork 2
 or
 .Xr waitpid 2 .
-A return value of 127 means the execution of the shell
-failed.
+If the child process fails to execute the shell, it will terminate
+with an exit code of 127 and
+.Nm
+will return the corresponding exit status.
 .Sh SEE ALSO
 .Xr sh 1 ,
 .Xr execve 2 ,
