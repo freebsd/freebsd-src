@@ -536,11 +536,59 @@ amdgpio_detach(device_t dev)
 	return (0);
 }
 
+static int
+amdgpio_suspend(device_t dev)
+{
+	struct amdgpio_softc *sc = device_get_softc(dev);
+	uint32_t reg;
+	size_t i;
+	int pin, off;
+
+	AMDGPIO_LOCK(sc);
+
+	for (i = 0; i < AMD_GPIO_PINS_EXPOSED; i++) {
+		pin = kernzp_pins[i].pin_num;
+		off = AMDGPIO_PIN_REGISTER(pin);
+
+		reg = amdgpio_read_4(sc, off);
+		if ((reg & UNSERVICED_INTERRUPT_MASK) != 0)
+			device_printf(dev, "unserviced interrupt on pin %d!\n",
+			    pin);
+		/*
+		 * "Service" interrupt and mask.  In the future we should only
+		 * mask non-wake interrupts (see WAKE_CNTRL_OFF_S0I3 &c).
+		 *
+		 * (From BKDG) write 1 to interrupt & wake status registers to
+		 * clear them.  We can do this by just writing back to them.
+		 */
+		reg &= ~(1 << INTERRUPT_MASK_OFF);
+		reg &= ~(1 << INTERRUPT_ENABLE_OFF);
+		amdgpio_write_4(sc, off, reg);
+	}
+
+	amdgpio_eoi_locked(sc);
+	AMDGPIO_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+amdgpio_resume(device_t dev)
+{
+	/*
+	 * XXX Will have to resume properly once we're actually able to use
+	 * amdgpio for interrupts.
+	 */
+	return (0);
+}
+
 static device_method_t amdgpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, amdgpio_probe),
 	DEVMETHOD(device_attach, amdgpio_attach),
 	DEVMETHOD(device_detach, amdgpio_detach),
+	DEVMETHOD(device_suspend, amdgpio_suspend),
+	DEVMETHOD(device_resume, amdgpio_resume),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus, amdgpio_get_bus),
