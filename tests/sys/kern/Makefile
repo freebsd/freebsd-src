@@ -25,6 +25,7 @@ ATF_TESTS_C+=	inotify_test
 ATF_TESTS_C+=	kill_zombie
 .if ${MK_OPENSSL} != "no"
 ATF_TESTS_C+=	ktls_test
+ATF_TESTS_C+=	ssl_sendfile
 .endif
 ATF_TESTS_C+=	ktrace_test
 ATF_TESTS_C+=	listener_wakeup
@@ -50,7 +51,6 @@ TEST_METADATA.sigwait+=	is_exclusive="true"
 ATF_TESTS_C+=	subr_physmem_test
 .endif
 PLAIN_TESTS_C+=	subr_unit_test
-ATF_TESTS_C+=	ssl_sendfile
 ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
 ATF_TESTS_C+=	tty_pts
