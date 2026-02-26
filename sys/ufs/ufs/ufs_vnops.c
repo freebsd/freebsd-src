@@ -1255,6 +1255,7 @@ ufs_rename(
 		struct vnode *a_tdvp;
 		struct vnode *a_tvp;
 		struct componentname *a_tcnp;
+		u_int a_flags;
 	} */ *ap)
 {
 	struct vnode *tvp = ap->a_tvp;
@@ -1289,6 +1290,12 @@ ufs_rename(
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
+		mp = NULL;
+		goto releout;
+	}
+
+	if (ap->a_flags != 0) {
+		error = EOPNOTSUPP;
 		mp = NULL;
 		goto releout;
 	}

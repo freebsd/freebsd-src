@@ -1413,6 +1413,11 @@ unionfs_rename(struct vop_rename_args *ap)
 		goto unionfs_rename_abort;
 	}
 
+	if (ap->a_flags != 0) {
+		error = EOPNOTSUPP;
+		goto unionfs_rename_abort;
+	}
+
 	/* Renaming a file to itself has no effect. */
 	if (fvp == tvp)
 		goto unionfs_rename_abort;
@@ -1581,7 +1586,7 @@ unionfs_rename(struct vop_rename_args *ap)
 	if (rfvp == rtvp)
 		goto unionfs_rename_abort;
 
-	error = VOP_RENAME(rfdvp, rfvp, fcnp, rtdvp, rtvp, tcnp);
+	error = VOP_RENAME(rfdvp, rfvp, fcnp, rtdvp, rtvp, tcnp, ap->a_flags);
 
 	if (error == 0) {
 		if (rtvp != NULLVP && rtvp->v_type == VDIR)
