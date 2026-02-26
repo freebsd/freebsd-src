@@ -12,54 +12,31 @@ Commands:
   get_info         prints available info for a person. Requires argument, a person's ID.
 
 --]]
+local ucl = require('ucl').parser()
+local glob = require('posix.fnmatch')
 
 if arg[1] == nil then
 	error('No arguments provided')
 end
 
-local f = 'MAINTAINERS.ucl'
-for k, v in ipairs(arg) do
-	if v == '-i' or v == '--input' then
-		local f = arg[k+1]
-		break
-	end
-end
-
-local ucl = require('ucl').parser()
-local res, err = ucl:parse_file(f)
+local res, err = ucl:parse_file('MAINTAINERS.ucl')
 
 if not res then
 	error('Parser error: '..err)
 end
 
 local t = ucl:get_object()
-
 local version = t.version
 local people = t.people
 local groups = t.groups
 
--- currently does not support character sets
--- also currently globbing patterns match periods even at the beginning of a filename
-local luafy_glob = function (s)
-	-- escape stuff that is not a glob character, but is a lua match special character
-	s = string.gsub(s, '([[%%.^$+-%(%)])', '%%%1')
-	-- globstar
-	s = string.gsub(s, '([^\\])%*%*', '%1[^.]-')
-	-- ? matches any single character that is not /
-	s = string.gsub(s, '([^\\])%?', '%1[^/]')
-	-- * matches any amount of characters that are not /
-	s = string.gsub(s, '([^\\])%*', '%1[^/]-')
-	-- handle the escapes
-	s = string.gsub(s, '\\([[*?])', '%%%1')
-	s = string.gsub(s, '\\(.)', '%1')
-	return '^'..s
-end
+local regexify_glob = function (s) end
 
 local is_child_of = function (maybe_child, of)
 	local s = ''
 	for segment in string.gmatch(maybe_child, '..-[/%$]') do
 		s = s..segment
-		if string.find(of, luafy_glob(s)..'$') and s ~= maybe_child then
+		if glob.fnmatch(s, of) == 0 and s ~= maybe_child then
 			return true
 		end
 	end
@@ -73,8 +50,8 @@ local foreach = function (table, fn)
 end
 
 local path_has_any = function (arr, path)
-	for _, glob in ipairs(arr) do
-		if string.find(path, luafy_glob(glob)) then
+	for _, match in ipairs(arr) do
+		if glob.fnmatch(match, path) == 0 then
 			return true
 		end
 	end
@@ -123,7 +100,7 @@ elseif arg[1] == 'get_paths' then
 	foreach(except, function (path) print('except', path) end)
 elseif arg[1] == 'get_info' then
 	local person_id = arg[2]
-	if people[person_id] then
+	if people[person_id] ~= nil then
 		for k, v in pairs(people[person_id]) do
 			print(k, v)
 		end
@@ -145,7 +122,7 @@ elseif arg[1] == 'update' then
 
 	local gh_table = {}
 	for _, group in pairs(groups) do
-		if group.except then
+		if group.except ~= nil then
 			for _, except_path in ipairs(group.except) do
 				if not gh_table[except_path] then
 					checked_add_path(except_path, gh_table)	
@@ -160,7 +137,7 @@ elseif arg[1] == 'update' then
 				end
 			end
 
-			if not gh_table[path] then
+			if gh_table[path] == nil then
 				checked_add_path(path, gh_table)
 			end
 
@@ -174,11 +151,11 @@ elseif arg[1] == 'update' then
 	table.sort(paths)
 	
 	local gh_file = io.open('.github/CODEOWNERS', 'w')
-	if gh_file then
+	if gh_file ~= nil then
 		for _, path in ipairs(paths) do
 			gh_file:write(path)
 			for _, id in ipairs(gh_table[path]) do
-				if people[id] and people[id].github then
+				if people[id] ~= nil and people[id].github ~= nil then
 					gh_file:write(' ', people[id].github)
 				end
 			end
@@ -195,13 +172,17 @@ elseif arg[1] == 'update' then
 	--
 
 	local fj_file = io.open('.forgejo/CODEOWNERS', 'w')
-	if fj_file then
-		-- TODO: write fj table
-		fj_file:close()
-		print('.forgejo/CODEOWNERS updated')
-	else
+	if fj_file == nil then
 		print('could not update .forgejo/CODEOWNERS')
+		return
 	end
+
+	for _, group in pairs(groups) do
+		-- generate a single regex for each group???		
+	end
+	
+	fj_file:close()
+	print('.forgejo/CODEOWNERS updated')
 else
 	print('Unrecognized command')
 end
