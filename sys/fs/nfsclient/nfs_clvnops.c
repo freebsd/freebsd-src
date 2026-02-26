@@ -2196,6 +2196,12 @@ nfs_rename(struct vop_rename_args *ap)
 		error = EXDEV;
 		goto out;
 	}
+
+	if (ap->a_flags != 0) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
 	nmp = VFSTONFS(fvp->v_mount);
 
 	if (fvp == tvp) {

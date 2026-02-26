@@ -970,6 +970,11 @@ msdosfs_rename(struct vop_rename_args *ap)
 		goto abortit;
 	}
 
+	if (ap->a_flags != 0) {
+		error = EOPNOTSUPP;
+		goto abortit;
+	}
+
 	/*
 	 * If source and dest are the same, do nothing.
 	 */
