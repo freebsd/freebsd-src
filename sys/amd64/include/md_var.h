@@ -62,6 +62,7 @@ struct	__mcontext;
 struct	pcpu;
 struct	savefpu;
 struct	sysentvec;
+struct trapframe;
 
 void	amd64_conf_fast_syscall(void);
 void	amd64_db_resume_dbreg(void);
@@ -77,6 +78,7 @@ void	cpu_init_small_core(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	flush_l1d_sw_abi(void);
+void	ia32_syscall(struct trapframe *);
 void	ld_ds(void) __asm(__STRING(ld_ds));
 void	ld_es(void) __asm(__STRING(ld_es));
 void	ld_fs(void) __asm(__STRING(ld_fs));
