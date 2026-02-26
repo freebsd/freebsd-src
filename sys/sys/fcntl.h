@@ -245,6 +245,9 @@ typedef	__pid_t		pid_t;
 #define	AT_RESOLVE_BENEATH	0x2000	/* Do not allow name resolution
 					   to walk out of dirfd */
 #define	AT_EMPTY_PATH		0x4000	/* Operate on dirfd if path is empty */
+
+#define	AT_RENAME_NOREPLACE	0x0001	/* Fail rename if target exists */
+#define	RENAME_NOREPLACE	AT_RENAME_NOREPLACE
 #endif	/* __BSD_VISIBLE */
 
 /*

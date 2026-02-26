@@ -993,7 +993,7 @@ tmpfs_rename(struct vop_rename_args *v)
 		goto out;
 	}
 
-	if (v->a_flags != 0) {
+	if ((v->a_flags & ~(AT_RENAME_NOREPLACE)) != 0) {
 		error = EOPNOTSUPP;
 		goto out;
 	}
@@ -1018,9 +1018,14 @@ tmpfs_rename(struct vop_rename_args *v)
 			    "tmpfs_rename: fdvp not locked");
 			ASSERT_VOP_ELOCKED(tdvp,
 			    "tmpfs_rename: tdvp not locked");
-			if (tvp != NULL)
+			if (tvp != NULL) {
 				ASSERT_VOP_ELOCKED(tvp,
 				    "tmpfs_rename: tvp not locked");
+				if ((v->a_flags & AT_RENAME_NOREPLACE) != 0) {
+					error = EEXIST;
+					goto out_locked;
+				}
+			}
 			if (fvp == tvp) {
 				error = 0;
 				goto out_locked;
