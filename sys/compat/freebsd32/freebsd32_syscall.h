@@ -519,4 +519,5 @@
 #define	FREEBSD32_SYS_jail_remove_jd	598
 #define	FREEBSD32_SYS_pdrfork	600
 #define	FREEBSD32_SYS_freebsd32_pdwait	601
-#define	FREEBSD32_SYS_MAXSYSCALL	602
+#define	FREEBSD32_SYS_renameat2	602
+#define	FREEBSD32_SYS_MAXSYSCALL	603

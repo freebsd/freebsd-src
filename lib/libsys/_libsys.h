@@ -474,6 +474,7 @@ typedef int (__sys_jail_remove_jd_t)(int);
 typedef int (__sys_kexec_load_t)(uint64_t, u_long, struct kexec_segment *, u_long);
 typedef int (__sys_pdrfork_t)(int *, int, int);
 typedef int (__sys_pdwait_t)(int, int *, int, struct __wrusage *, struct __siginfo *);
+typedef int (__sys_renameat2_t)(int, const char *, int, const char *, int);
 
 _Noreturn void __sys__exit(int rval);
 int __sys_fork(void);
@@ -883,6 +884,7 @@ int __sys_jail_remove_jd(int fd);
 int __sys_kexec_load(uint64_t entry, u_long nseg, struct kexec_segment * segments, u_long flags);
 int __sys_pdrfork(int * fdp, int pdflags, int rfflags);
 int __sys_pdwait(int fd, int * status, int options, struct __wrusage * wrusage, struct __siginfo * info);
+int __sys_renameat2(int oldfd, const char * old, int newfd, const char * new, int flags);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */

@@ -607,4 +607,5 @@ const char *syscallnames[] = {
 	"kexec_load",			/* 599 = kexec_load */
 	"pdrfork",			/* 600 = pdrfork */
 	"pdwait",			/* 601 = pdwait */
+	"renameat2",			/* 602 = renameat2 */
 };
