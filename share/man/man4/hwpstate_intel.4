@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 21, 2020
+.Dd June 24, 2026
 .Dt HWPSTATE_INTEL 4
 .Os
 .Sh NAME
@@ -75,9 +75,9 @@ For example
 .It dev.hwpstate_intel.0.%parent: cpu0
 .It Va dev.hwpstate_intel.%d.epp
 Energy/Performance Preference.
-Valid values range from 0 to 100.
+Valid values range from 0 to 255.
 Setting this field conveys a hint to the hardware regarding a preference towards
-performance (at value 0), energy efficiency (at value 100), or somewhere in
+performance (at value 0), energy efficiency (at value 255), or somewhere in
 between.
 .It dev.hwpstate_intel.0.epp: 0
 .El

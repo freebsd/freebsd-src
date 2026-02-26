@@ -254,53 +254,8 @@ out:
 	return (ret);
 }
 
-static inline int
-percent_to_raw(int x)
-{
-
-	MPASS(x <= 100 && x >= 0);
-	return (0xff * x / 100);
-}
-
-/*
- * Given x * 10 in [0, 1000], round to the integer nearest x.
- *
- * This allows round-tripping nice human readable numbers through this
- * interface.  Otherwise, user-provided percentages such as 25, 50, 75 get
- * rounded down to 24, 49, and 74, which is a bit ugly.
- */
-static inline int
-round10(int xtimes10)
-{
-	return ((xtimes10 + 5) / 10);
-}
-
-static inline int
-raw_to_percent(int x)
-{
-	MPASS(x <= 0xff && x >= 0);
-	return (round10(x * 1000 / 0xff));
-}
-
-/* Range of MSR_IA32_ENERGY_PERF_BIAS is more limited: 0-0xf. */
-static inline int
-percent_to_raw_perf_bias(int x)
-{
-	/*
-	 * Round up so that raw values present as nice round human numbers and
-	 * also round-trip to the same raw value.
-	 */
-	MPASS(x <= 100 && x >= 0);
-	return (((0xf * x) + 50) / 100);
-}
-
-static inline int
-raw_to_percent_perf_bias(int x)
-{
-	/* Rounding to nice human numbers despite a step interval of 6.67%. */
-	MPASS(x <= 0xf && x >= 0);
-	return (((x * 20) / 0xf) * 5);
-}
+#define EPB_TO_EPP(x) ((x) * 17)
+#define EPP_TO_EPB(x) ((x) >> 4)
 
 static int
 sysctl_epp_select(SYSCTL_HANDLER_ARGS)
@@ -310,7 +265,6 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	struct pcpu *pc;
 	uint64_t epb;
 	uint32_t val;
-	uint64_t req_cached;
 	int ret;
 
 	dev = oidp->oid_arg1;
@@ -324,7 +278,6 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 
 	if (sc->hwp_pref_ctrl) {
 		val = (sc->req & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
-		val = raw_to_percent(val);
 	} else {
 		/*
 		 * If cpuid indicates EPP is not supported, the HWP controller
@@ -341,35 +294,33 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		}
 		val = sc->hwp_energy_perf_bias &
 		    IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK;
-		val = raw_to_percent_perf_bias(val);
+		val = EPB_TO_EPP(val);
 	}
 
-	MPASS(val >= 0 && val <= 100);
+	MPASS(val >= 0 && val <= 255);
 
 	ret = sysctl_handle_int(oidp, &val, 0, req);
 	if (ret || req->newptr == NULL)
 		goto out;
 
-	if (val > 100) {
+	if (val > 255 || val < 0) {
 		ret = EINVAL;
 		goto out;
 	}
 
 	if (sc->hwp_pref_ctrl) {
-		val = percent_to_raw(val);
-		req_cached = sc->req =
-		    ((sc->req &
-			 ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) |
-			(val << 24u));
+		sc->req =
+		    ((sc->req & ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE)
+		    | (val << 24u));
 
 		if (sc->hwp_pkg_ctrl_en)
 			ret = WRMSR_ON_CPU(dev, MSR_IA32_HWP_REQUEST_PKG,
-			    req_cached);
+			    sc->req);
 		else
 			ret = WRMSR_ON_CPU(dev, MSR_IA32_HWP_REQUEST,
-			    req_cached);
+			    sc->req);
 	} else {
-		val = percent_to_raw_perf_bias(val);
+		val = EPP_TO_EPB(val);
 		MPASS((val & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
 
 		sc->hwp_energy_perf_bias =
