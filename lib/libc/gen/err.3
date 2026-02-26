@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 29, 2012
+.Dd February 23, 2026
 .Dt ERR 3
 .Os
 .Sh NAME
@@ -128,6 +128,12 @@ environment variable is present, an additional report is printed.
 The report includes at least the category of the error, the name of
 the source file (if known by the used version of libc),
 the source line number, and parameters.
+If the
+.Ev EXTERROR_VERBOSE
+environment variable is present and set to "brief",
+the report adds only the name of
+the source file (if known by the used version of libc)
+and the source line number.
 The format of the printed string is not contractual and might be changed.
 .Pp
 In the case of the
