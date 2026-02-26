@@ -305,7 +305,7 @@ int	kern_readv(struct thread *td, int fd, struct uio *auio);
 int	kern_recvit(struct thread *td, int s, struct msghdr *mp,
 	    enum uio_seg fromseg, struct mbuf **controlp);
 int	kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
-	    const char *new, enum uio_seg pathseg);
+	    const char *new, enum uio_seg pathseg, u_int flags);
 int	kern_sched_getparam(struct thread *td, struct thread *targettd,
 	    struct sched_param *param);
 int	kern_sched_getscheduler(struct thread *td, struct thread *targettd,

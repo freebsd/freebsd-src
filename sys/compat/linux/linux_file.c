@@ -811,7 +811,7 @@ linux_rename(struct thread *td, struct linux_rename_args *args)
 {
 
 	return (kern_renameat(td, AT_FDCWD, args->from, AT_FDCWD,
-	    args->to, UIO_USERSPACE));
+	    args->to, UIO_USERSPACE, 0));
 }
 #endif
 
@@ -858,7 +858,7 @@ linux_renameat2(struct thread *td, struct linux_renameat2_args *args)
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
 	newdfd = (args->newdfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->newdfd;
 	return (kern_renameat(td, olddfd, args->oldname, newdfd,
-	    args->newname, UIO_USERSPACE));
+	    args->newname, UIO_USERSPACE, 0));
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
