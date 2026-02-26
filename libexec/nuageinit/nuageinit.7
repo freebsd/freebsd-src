@@ -3,7 +3,7 @@
 .\" Copyright (c) 2025 Baptiste Daroussin <bapt@FreeBSD.org>
 .\" Copyright (c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 .\"
-.Dd January 6, 2026
+.Dd February 26, 2026
 .Dt NUAGEINIT 7
 .Os
 .Sh NAME
@@ -340,11 +340,10 @@ Boolean to force the user to change their password on first login.
 .It Ic users
 An array of objects:
 .Bl -tag -width "password"
-.It Ic user
+.It Ic name
 Specify the user whose password will be changed.
 .It Ic password
 Specify a text line with the new password or
-specify the user whose password will be changed.
 .Qq Cm RANDOM
 to assign the password randomly.
 If the textline starts with
