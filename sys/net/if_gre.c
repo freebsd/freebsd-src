@@ -327,10 +327,10 @@ gre_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 #endif
 	} else if (sc->gre_family == AF_INET6) {
 #ifdef INET6
-		if (in_gre_ioctl(sc, SIOCGIFPSRCADDR_IN6, (caddr_t)&ifr) == 0)
+		if (in6_gre_ioctl(sc, SIOCGIFPSRCADDR_IN6, (caddr_t)&ifr) == 0)
 			nlattr_add_in6_addr(nw, IFLA_GRE_LOCAL,
 			    (const struct in6_addr *)&ifr.ifr_addr);
-		if (in_gre_ioctl(sc, SIOCGIFPDSTADDR_IN6, (caddr_t)&ifr) == 0)
+		if (in6_gre_ioctl(sc, SIOCGIFPDSTADDR_IN6, (caddr_t)&ifr) == 0)
 			nlattr_add_in6_addr(nw, IFLA_GRE_LOCAL,
 			    (const struct in6_addr *)&ifr.ifr_dstaddr);
 #endif
@@ -1041,10 +1041,16 @@ static int
 gre_set_addr_nl(struct gre_softc *sc, struct nl_pstate *npt,
     struct sockaddr *src, struct sockaddr *dst)
 {
+#if defined(INET) || defined(INET6)
 	union {
+#ifdef INET
 		struct in_aliasreq in;
+#endif
+#ifdef INET6
 		struct in6_aliasreq in6;
+#endif
 	} aliasreq;
+#endif
 	int error;
 
 	/* XXX: this sanity check runs again in in[6]_gre_ioctl */
@@ -1057,16 +1063,18 @@ gre_set_addr_nl(struct gre_softc *sc, struct nl_pstate *npt,
 		sx_xlock(&gre_ioctl_sx);
 		error = in_gre_ioctl(sc, SIOCSIFPHYADDR, (caddr_t)&aliasreq.in);
 		sx_xunlock(&gre_ioctl_sx);
+	}
 #endif
 #ifdef INET6
-	} else if (src->sa_family == AF_INET6) {
+	else if (src->sa_family == AF_INET6) {
 		memcpy(&aliasreq.in6.ifra_addr, src, sizeof(struct sockaddr_in6));
 		memcpy(&aliasreq.in6.ifra_dstaddr, dst, sizeof(struct sockaddr_in6));
 		sx_xlock(&gre_ioctl_sx);
 		error = in6_gre_ioctl(sc, SIOCSIFPHYADDR_IN6, (caddr_t)&aliasreq.in6);
 		sx_xunlock(&gre_ioctl_sx);
+	}
 #endif
-	} else
+	else
 		error = EAFNOSUPPORT;
 
 	if (error == EADDRNOTAVAIL)
