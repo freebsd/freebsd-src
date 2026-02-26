@@ -607,4 +607,5 @@ const char *freebsd32_syscallnames[] = {
 	"#599",			/* 599 = kexec_load */
 	"pdrfork",			/* 600 = pdrfork */
 	"freebsd32_pdwait",			/* 601 = freebsd32_pdwait */
+	"renameat2",			/* 602 = renameat2 */
 };
