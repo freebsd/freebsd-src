@@ -1,4 +1,3 @@
-
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -56,6 +55,22 @@
 #define	___CONCAT(x,y)	__CONCAT(x,y)
 
 /*
+ * Compile Time Assertion.
+ */
+#ifdef __COUNTER__
+#define	__CTASSERT(x)		__CTASSERT0(x, __ctassert, __COUNTER__)
+#else
+#define	__CTASSERT(x)		__CTASSERT99(x, __INCLUDE_LEVEL__, __LINE__)
+#define	__CTASSERT99(x, a, b)	__CTASSERT0(x, __CONCAT(__ctassert,a), \
+					       __CONCAT(_,b))
+#endif
+#define	__CTASSERT0(x, y, z)	__CTASSERT1(x, y, z)
+#define	__CTASSERT1(x, y, z)	\
+	struct y ## z ## _struct { \
+		unsigned int y ## z : /*CONSTCOND*/(x) ? 1 : -1; \
+	}
+
+/*
  * The following macro is used to remove const cast-away warnings
  * from gcc -Wcast-qual; it should be used with caution because it
  * can hide valid errors; in particular most valid uses are in
@@ -80,5 +95,19 @@
 /* __BITS(m, n): bits m through n, m < n. */
 #define	__BITS(__m, __n)	\
 	((__BIT(MAX((__m), (__n)) + 1) - 1) ^ (__BIT(MIN((__m), (__n))) - 1))
+
+/*
+ * To be used when an empty body is required like:
+ *
+ * #ifdef DEBUG
+ * # define dprintf(a) printf(a)
+ * #else
+ * # define dprintf(a) __nothing
+ * #endif
+ *
+ * We use ((void)0) instead of do {} while (0) so that it
+ * works on , expressions.
+ */
+#define __nothing	(/*LINTED*/(void)0)
 
 #endif /* _LIBNETBSD_SYS_CDEFS_H_ */

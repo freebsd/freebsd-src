@@ -22,7 +22,10 @@ DTS=	\
 	rockchip/rk3568-nanopi-r5s.dts \
 	rockchip/rk3566-radxa-zero-3e.dts \
 	rockchip/rk3566-radxa-zero-3w.dts \
-	rockchip/rk3568-bpi-r2-pro.dts
+	rockchip/rk3568-bpi-r2-pro.dts \
+	rockchip/rk3588-rock-5-itx.dts \
+	rockchip/rk3588-rock-5b.dts \
+	rockchip/rk3588-orangepi-5-plus
 
 DTSO=	rk3328-analog-sound.dtso \
 	rk3328-i2c0.dtso \

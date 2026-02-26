@@ -35,10 +35,12 @@ struct arm_gic_range {
 	uint64_t size;
 };
 
-#define	GIC_IVAR_HW_REV		500
-#define	GIC_IVAR_BUS		501
-#define	GIC_IVAR_VGIC		502
-#define	GIC_IVAR_SUPPORT_LPIS	503
+enum {
+	GIC_IVAR_HW_REV = BUS_IVARS_GIC,
+	GIC_IVAR_BUS,
+	GIC_IVAR_VGIC,
+	GIC_IVAR_SUPPORT_LPIS
+};
 
 /* GIC_IVAR_BUS values */
 #define	GIC_BUS_UNKNOWN		0

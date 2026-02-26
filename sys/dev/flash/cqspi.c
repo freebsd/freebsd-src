@@ -754,7 +754,7 @@ static device_method_t cqspi_methods[] = {
 	DEVMETHOD(qspi_write,		cqspi_write),
 	DEVMETHOD(qspi_erase,		cqspi_erase),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(cqspi, cqspi_driver, cqspi_methods,

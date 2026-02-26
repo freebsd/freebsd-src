@@ -1373,6 +1373,15 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return (0);
 
 	lockdep_assert_wiphy(hw->wiphy);
+
+	if (vif->cfg.assoc && lsta->state == IEEE80211_STA_AUTHORIZED) {
+		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+			ic_printf(lsta->ni->ni_ic,
+			    "%d %lu %s: vif still assoc; not deleting keys\n",
+			    curthread->td_tid, jiffies, __func__);
+		return (0);
+	}
+
 	ieee80211_ref_node(lsta->ni);
 
 	error = 0;
@@ -1452,6 +1461,15 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	 */
 	lockdep_assert_wiphy(hw->wiphy);
 
+	ni = ieee80211_ref_node(vap->iv_bss);
+	lsta = ni->ni_drv_data;
+	if (lsta == NULL) {
+		ic_printf(ic, "%s: ni %p (%6D) with lsta NULL\n",
+		    __func__, ni, ni->ni_bssid, ":");
+		ieee80211_free_node(ni);
+		return (0);
+	}
+
 	/*
 	 * While we are assoc we may still send packets.  We cannot delete the
 	 * keys as otherwise packets could go out unencrypted.  Some firmware
@@ -1462,30 +1480,24 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	 * How to test: run 800Mbit/s UDP traffic and during that restart your
 	 * supplicant.  You want to survive that.
 	 */
-	if (vif->cfg.assoc) {
+	if (vif->cfg.assoc && lsta->state == IEEE80211_STA_AUTHORIZED) {
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
 			ic_printf(ic, "%d %lu %s: vif still assoc; not deleting keys\n",
 			    curthread->td_tid, jiffies, __func__);
+		ieee80211_free_node(ni);
 		return (0);
 	}
 
 	if (IEEE80211_KEY_UNDEFINED(k)) {
 		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
 		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
+		ieee80211_free_node(ni);
 		return (0);
 	}
 
 	if (vap->iv_bss == NULL) {
 		ic_printf(ic, "%s: iv_bss %p for vap %p is NULL\n",
 		    __func__, vap->iv_bss, vap);
-		return (0);
-	}
-
-	ni = ieee80211_ref_node(vap->iv_bss);
-	lsta = ni->ni_drv_data;
-	if (lsta == NULL) {
-		ic_printf(ic, "%s: ni %p (%6D) with lsta NULL\n",
-		    __func__, ni, ni->ni_bssid, ":");
 		ieee80211_free_node(ni);
 		return (0);
 	}
@@ -2109,7 +2121,7 @@ lkpi_disassoc(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
 		 * The caller is responsible for removing the sta gong to
 		 * IEEE80211_STA_NOTEXIST and then executing the
 		 * bss_info_changed() update.
-		 * See lkpi_sta_run_to_init() for more detailed comment.
+		 * See DOWN4 for more detailed comment.
 		 */
 
 		lvif = VIF_TO_LVIF(vif);
@@ -2236,13 +2248,17 @@ lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 static int
 lkpi_sta_state_do_nada(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
-
 	return (0);
 }
 
-/* lkpi_iv_newstate() handles the stop scan case generally. */
-#define	lkpi_sta_scan_to_init(_v, _n, _a)	lkpi_sta_state_do_nada(_v, _n, _a)
+/* UP1 */
+static int
+lkpi_sta_init_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	return (lkpi_sta_state_do_nada(vap, nstate, arg));
+}
 
+/* UP2 */
 static int
 lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -2567,136 +2583,7 @@ out_relocked:
 	return (error);
 }
 
-static int
-lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
-{
-	struct lkpi_hw *lhw;
-	struct ieee80211_hw *hw;
-	struct lkpi_vif *lvif;
-	struct ieee80211_vif *vif;
-	struct ieee80211_node *ni;
-	struct lkpi_sta *lsta;
-	struct ieee80211_sta *sta;
-	struct ieee80211_prep_tx_info prep_tx_info;
-	enum ieee80211_bss_changed bss_changed;
-	int error;
-
-	lhw = vap->iv_ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-#ifdef LINUXKPI_DEBUG_80211
-	/* XXX-BZ KASSERT later; state going down so no action. */
-	if (lvif->lvif_bss == NULL)
-		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
-		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
-		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
-		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
-		    lvif->lvif_bss_synched);
-#endif
-
-	lsta = lvif->lvif_bss;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
-	    "lvif %p vap %p\n", __func__,
-	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
-	ni = lsta->ni;			/* Reference held for lvif_bss. */
-	sta = LSTA_TO_STA(lsta);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	IEEE80211_UNLOCK(vap->iv_ic);
-	wiphy_lock(hw->wiphy);
-
-	/* flush, drop. */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
-
-	/* Wake tx queues to get packet(s) out. */
-	lkpi_wake_tx_queues(hw, sta, false, true);
-
-	/* flush, no drop */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
-
-	/* End mgd_complete_tx. */
-	if (lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
-		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = false;
-	}
-
-	/* sync_rx_queues */
-	lkpi_80211_mo_sync_rx_queues(hw);
-
-	/* sta_pre_rcu_remove */
-        lkpi_80211_mo_sta_pre_rcu_remove(hw, vif, sta);
-
-	/* Take the station down. */
-
-	/* Adjust sta and change state (from NONE) to NOTEXIST. */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_NONE, ("%s: lsta %p state not "
-	    "NONE: %#x, nstate %d arg %d\n", __func__, lsta, lsta->state, nstate, arg));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NOTEXIST);
-	if (error != 0) {
-		IMPROVE("do we need to undo the chan ctx?");
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NOTEXIST) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-#if 0
-	lsta->added_to_drv = false;	/* mo manages. */
-#endif
-
-	bss_changed = 0;
-	vif->bss_conf.dtim_period = 0; /* go back to 0. */
-	bss_changed |= BSS_CHANGED_BEACON_INFO;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-	/* Remove ni reference for this cache of lsta. */
-	lvif->lvif_bss = NULL;
-	lvif->lvif_bss_synched = false;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-	lkpi_lsta_remove(lsta, lvif);
-
-	/* conf_tx */
-
-	lkpi_remove_chanctx(hw, vif);
-
-out:
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-	if (error == 0) {
-		/*
-		 * We do this outside the wiphy lock as net80211::node_free() may call
-		 * into crypto code to delete keys and we have a recursed on
-		 * non-recursive sx panic.  Also only do this if we get here w/o error.
-		 *
-		 * The very last release the reference on the ni for the ni/lsta on
-		 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
-		 * and potentially freed.
-		 */
-		ieee80211_free_node(ni);
-	}
-	return (error);
-}
-
-static int
-lkpi_sta_auth_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
-{
-	int error;
-
-	error = lkpi_sta_auth_to_scan(vap, nstate, arg);
-	if (error == 0)
-		error = lkpi_sta_scan_to_init(vap, nstate, arg);
-	return (error);
-}
-
+/* UP3.1 */
 static int
 lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -2756,18 +2643,21 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 		lsta->in_mgd = false;
 	}
 
-	/* Now start assoc. */
+	/* Now start assoc. unless nstate=RUN (auth_to_run). */
 
 	/* Start mgd_prepare_tx. */
-	if (!lsta->in_mgd) {
+	if (nstate == IEEE80211_S_ASSOC && !lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 		prep_tx_info.duration = PREP_TX_INFO_DURATION;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
 
+#if 0
+	/* We do not yet have a packet to go out. */
 	/* Wake tx queue to get packet out. */
 	lkpi_wake_tx_queues(hw, LSTA_TO_STA(lsta), false, true);
+#endif
 
 	/*
 	 * <twiddle> .. we end up in "assoc_to_run"
@@ -2782,6 +2672,628 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 out:
 	wiphy_unlock(hw->wiphy);
 	IEEE80211_LOCK(vap->iv_ic);
+	return (error);
+}
+
+static int lkpi_sta_assoc_to_run(struct ieee80211vap *, enum ieee80211_state, int);
+
+/* UP3.2 */
+static int
+lkpi_sta_auth_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	int error;
+
+	error = lkpi_sta_auth_to_assoc(vap, nstate, arg);
+	if (error == 0)
+		error = lkpi_sta_assoc_to_run(vap, nstate, arg);
+	return (error);
+}
+
+/* UP4 */
+static int
+lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct ieee80211_node *ni;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+	struct ieee80211_prep_tx_info prep_tx_info;
+	enum ieee80211_bss_changed bss_changed;
+	int error;
+
+	lhw = vap->iv_ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+
+	IEEE80211_UNLOCK(vap->iv_ic);
+	wiphy_lock(hw->wiphy);
+
+	LKPI_80211_LVIF_LOCK(lvif);
+	/* XXX-BZ KASSERT later? */
+	if (!lvif->lvif_bss_synched || lvif->lvif_bss == NULL) {
+#ifdef LINUXKPI_DEBUG_80211
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
+		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		    lvif->lvif_bss_synched);
+#endif
+		LKPI_80211_LVIF_UNLOCK(lvif);
+		error = ENOTRECOVERABLE;
+		goto out;
+	}
+	lsta = lvif->lvif_bss;
+	LKPI_80211_LVIF_UNLOCK(lvif);
+	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
+	    "lvif %p vap %p\n", __func__,
+	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
+
+	ni = lsta->ni;		/* Reference held for lvif_bss. */
+
+	IMPROVE("ponder some of this moved to ic_newassoc, scan_assoc_success, "
+	    "and to lesser extend ieee80211_notify_node_join");
+
+	/* Finish assoc. (even if this is auth_to_run!) */
+	/* Update sta_state (AUTH to ASSOC) and set aid. */
+	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
+	    "AUTH: %#x\n", __func__, lsta, lsta->state));
+	sta = LSTA_TO_STA(lsta);
+	sta->aid = IEEE80211_NODE_AID(ni);
+#ifdef LKPI_80211_WME
+	if (vap->iv_flags & IEEE80211_F_WME)
+		sta->wme = true;
+#endif
+	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
+		    "failed: %d\n", __func__, __LINE__, error);
+		goto out;
+	}
+
+	IMPROVE("wme / conf_tx [all]");
+
+	/* Update bss info (bss_info_changed) (assoc, aid, ..). */
+	bss_changed = 0;
+#ifdef LKPI_80211_WME
+	bss_changed |= lkpi_wme_update(lhw, vap, true);
+#endif
+	if (!vif->cfg.assoc || vif->cfg.aid != IEEE80211_NODE_AID(ni)) {
+		lvif->beacons = 0;
+		vif->cfg.assoc = true;
+		vif->cfg.aid = IEEE80211_NODE_AID(ni);
+		bss_changed |= BSS_CHANGED_ASSOC;
+	}
+	/* We set SSID but this is not BSSID! */
+	vif->cfg.ssid_len = ni->ni_esslen;
+	memcpy(vif->cfg.ssid, ni->ni_essid, ni->ni_esslen);
+	if ((vap->iv_flags & IEEE80211_F_SHPREAMBLE) !=
+	    vif->bss_conf.use_short_preamble) {
+		vif->bss_conf.use_short_preamble ^= 1;
+		/* bss_changed |= BSS_CHANGED_??? */
+	}
+	if ((vap->iv_flags & IEEE80211_F_SHSLOT) !=
+	    vif->bss_conf.use_short_slot) {
+		vif->bss_conf.use_short_slot ^= 1;
+		/* bss_changed |= BSS_CHANGED_??? */
+	}
+	if ((ni->ni_flags & IEEE80211_NODE_QOS) !=
+	    vif->bss_conf.qos) {
+		vif->bss_conf.qos ^= 1;
+		bss_changed |= BSS_CHANGED_QOS;
+	}
+
+	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+
+	/* - change_chanctx (if needed)
+	 * - event_callback
+	 */
+
+	/* End mgd_complete_tx. (we do not have to check ostate == IEEE80211_S_ASSOC). */
+	if (lsta->in_mgd) {
+		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.success = true;
+		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
+		lsta->in_mgd = false;
+	}
+
+	/*
+	 * And then:
+	 * - (more packets)?
+	 * - set_key
+	 * - set_default_unicast_key
+	 * - set_key (?)
+	 * - ipv6_addr_change (?)
+	 */
+
+	if (!ieee80211_node_is_authorized(ni)) {
+		IMPROVE("net80211 does not consider node authorized");
+	}
+
+	IMPROVE("Is this the right spot, has net80211 done all updates already?");
+	lkpi_sta_sync_from_ni(hw, vif, sta, ni, true);
+
+	/* Update thresholds. */
+	hw->wiphy->frag_threshold = vap->iv_fragthreshold;
+	lkpi_80211_mo_set_frag_threshold(hw, vap->iv_fragthreshold);
+	hw->wiphy->rts_threshold = vap->iv_rtsthreshold;
+	lkpi_80211_mo_set_rts_threshold(hw, vap->iv_rtsthreshold);
+
+	/* Update sta_state (ASSOC to AUTHORIZED). */
+	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
+	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
+	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
+	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTHORIZED);
+	if (error != 0) {
+		IMPROVE("undo some changes?");
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTHORIZED) "
+		    "failed: %d\n", __func__, __LINE__, error);
+		goto out;
+	}
+
+	/* - drv_config (?)
+	 * - bss_info_changed
+	 * - set_rekey_data (?)
+	 *
+	 * And now we should be passing packets.
+	 */
+	IMPROVE("Need that bssid setting, and the keys");
+
+	bss_changed = 0;
+	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+
+	/* Prepare_multicast && configure_filter. */
+	lkpi_update_mcast_filter(vap->iv_ic);
+
+out:
+	wiphy_unlock(hw->wiphy);
+	IEEE80211_LOCK(vap->iv_ic);
+	return (error);
+}
+
+/*
+ * DOWN1
+ * "to assoc" means we are going back to State 2 from State 4[/3].
+ * This means ni still is authenticated, so we keep sta, chanctx, ..
+ */
+static int
+lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct ieee80211_node *ni;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+	struct ieee80211_prep_tx_info prep_tx_info;
+#if 0
+	enum ieee80211_bss_changed bss_changed;
+#endif
+	struct ieee80211_rx_ampdu *rap;
+	int error;
+
+	lhw = vap->iv_ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+
+	IEEE80211_UNLOCK(vap->iv_ic);
+	wiphy_lock(hw->wiphy);
+
+	LKPI_80211_LVIF_LOCK(lvif);
+#ifdef LINUXKPI_DEBUG_80211
+	/* XXX-BZ KASSERT later; state going down so no action. */
+	if (lvif->lvif_bss == NULL)
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
+		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		    lvif->lvif_bss_synched);
+#endif
+	lsta = lvif->lvif_bss;
+	LKPI_80211_LVIF_UNLOCK(lvif);
+	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
+	    "lvif %p vap %p\n", __func__,
+	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
+
+	ni = lsta->ni;		/* Reference held for lvif_bss. */
+	sta = LSTA_TO_STA(lsta);
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	/* flush, drop. */
+	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
+
+	IMPROVE("What are the proper conditions for DEAUTH_NEED_MGD_TX_PREP?");
+	if (ieee80211_hw_check(hw, DEAUTH_NEED_MGD_TX_PREP) &&
+	    !lsta->in_mgd) {
+		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		prep_tx_info.was_assoc = true;
+		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
+		lsta->in_mgd = true;
+	}
+
+	wiphy_unlock(hw->wiphy);
+	IEEE80211_LOCK(vap->iv_ic);
+
+	/* Call iv_newstate first so we get potential (RE-)ASSOC/DEAUTH? packet out. */
+	error = lvif->iv_newstate(vap, nstate, arg);
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
+		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
+		goto outni;
+	}
+
+	/* Stop any BA sessions if still active. */
+	for (int rapn = 0; rapn < WME_NUM_TID; rapn++) {
+		rap = &ni->ni_rx_ampdu[rapn];
+
+		if ((rap->rxa_flags & IEEE80211_AGGR_RUNNING) == 0)
+			continue;
+
+		vap->iv_ic->ic_ampdu_rx_stop(ni, rap);
+	}
+
+	IEEE80211_UNLOCK(vap->iv_ic);
+
+	/* Ensure the packets get out. */
+	lkpi_80211_flush_tx(lhw, lsta);
+
+	wiphy_lock(hw->wiphy);
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	/* Wake tx queues to get packet(s) out. */
+	lkpi_wake_tx_queues(hw, sta, false, true);
+
+	/* flush, no drop */
+	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
+
+	/* End mgd_complete_tx. */
+	if (lsta->in_mgd) {
+		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.success = false;
+		prep_tx_info.was_assoc = true;
+		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
+		lsta->in_mgd = false;
+	}
+
+#if 0
+	/* sync_rx_queues */
+	lkpi_80211_mo_sync_rx_queues(hw);
+
+	/* sta_pre_rcu_remove */
+	lkpi_80211_mo_sta_pre_rcu_remove(hw, vif, sta);
+#endif
+
+	/* Take the station down. */
+
+	/* Adjust sta and change state (from AUTHORIZED) to ASSOC. */
+	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
+	KASSERT(lsta->state == IEEE80211_STA_AUTHORIZED, ("%s: lsta %p state not "
+	    "AUTHORIZED: %#x\n", __func__, lsta, lsta->state));
+	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
+		    "failed: %d\n", __func__, __LINE__, error);
+		goto out;
+	}
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+#ifdef LKPI_80211_HW_CRYPTO
+	if (lkpi_hwcrypto) {
+		error = lkpi_sta_del_keys(hw, vif, lsta);
+		if (error != 0) {
+			ic_printf(vap->iv_ic, "%s:%d: lkpi_sta_del_keys "
+			    "failed: %d\n", __func__, __LINE__, error);
+			/*
+			 * Either drv/fw will crash or cleanup itself,
+			 * otherwise net80211 will delete the keys (at a
+			 * less appropriate time).
+			 */
+			/* goto out; */
+		}
+	}
+#endif
+
+	/* Update sta_state (ASSOC to AUTH). */
+	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
+	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
+	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
+	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTH);
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTH) "
+		    "failed: %d\n", __func__, __LINE__, error);
+		goto out;
+	}
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+#if 0
+	/* Update bss info (bss_info_changed) (assoc, aid, ..). */
+	/* See comment in DOWN4. */
+	lkpi_disassoc(sta, vif, lhw);
+#endif
+
+	error = EALREADY;
+out:
+	wiphy_unlock(hw->wiphy);
+	IEEE80211_LOCK(vap->iv_ic);
+outni:
+	return (error);
+}
+
+/*
+ * DOWN2
+ * We are in state 2 and go back to state 1 and will try to auth again
+ * (to IEEE80211_S_AUTH in FreeBSD means "try to auth").  This should be
+ * like scan_to_auth but that we keep the "ni" and with that chanctx/bssid,
+ * which essentially makes this "a_to_a" in LinuxKPI.
+ */
+static int
+lkpi_sta_assoc_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct ieee80211_node *ni;
+	struct lkpi_sta *lsta;
+	int error;
+
+	lhw = vap->iv_ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+
+	IEEE80211_UNLOCK(vap->iv_ic);
+	wiphy_lock(hw->wiphy);
+
+	LKPI_80211_LVIF_LOCK(lvif);
+#ifdef LINUXKPI_DEBUG_80211
+	/* XXX-BZ KASSERT later; state going down so no action. */
+	if (lvif->lvif_bss == NULL)
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
+		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		    lvif->lvif_bss_synched);
+#endif
+	lsta = lvif->lvif_bss;
+	LKPI_80211_LVIF_UNLOCK(lvif);
+	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
+	    "lvif %p vap %p\n", __func__,
+	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
+
+	ni = lsta->ni;		/* Reference held for lvif_bss. */
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	/* Take the station down. */
+	/* Update sta_state (AUTH to NONE). */
+	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
+	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
+	    "AUTH: %#x\n", __func__, lsta, lsta->state));
+	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NONE);
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NONE) "
+		    "failed: %d\n", __func__, __LINE__, error);
+		goto out;
+	}
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+out:
+	wiphy_unlock(hw->wiphy);
+	IEEE80211_LOCK(vap->iv_ic);
+	return (error);
+}
+
+/*
+ * DOWN3
+ * We are in state 1.  Either auth timed out (arg != 0) or we have an internal
+ * state change forcing us to give up trying to authenticate.
+ * Cleanup and remove chanctx, sta, ...
+ */
+static int
+lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct ieee80211_node *ni;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+	struct ieee80211_prep_tx_info prep_tx_info;
+	enum ieee80211_bss_changed bss_changed;
+	int error;
+
+	lhw = vap->iv_ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+
+	IEEE80211_UNLOCK(vap->iv_ic);
+	wiphy_lock(hw->wiphy);
+
+	LKPI_80211_LVIF_LOCK(lvif);
+#ifdef LINUXKPI_DEBUG_80211
+	/* XXX-BZ KASSERT later; state going down so no action. */
+	if (lvif->lvif_bss == NULL)
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
+		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		    lvif->lvif_bss_synched);
+#endif
+
+	lsta = lvif->lvif_bss;
+	LKPI_80211_LVIF_UNLOCK(lvif);
+	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
+	    "lvif %p vap %p\n", __func__,
+	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
+	ni = lsta->ni;			/* Reference held for lvif_bss. */
+	sta = LSTA_TO_STA(lsta);
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	/* flush, drop. */
+	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
+
+	/* Wake tx queues to get packet(s) out. */
+	lkpi_wake_tx_queues(hw, sta, false, true);
+
+	/* flush, no drop */
+	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
+
+	/* End mgd_complete_tx. */
+	if (lsta->in_mgd) {
+		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.success = false;
+		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
+		lsta->in_mgd = false;
+	}
+
+	/* sync_rx_queues */
+	lkpi_80211_mo_sync_rx_queues(hw);
+
+#ifdef LKPI_80211_HW_CRYPTO
+	if (lkpi_hwcrypto) {
+		error = lkpi_sta_del_keys(hw, vif, lsta);
+		if (error != 0) {
+			ic_printf(vap->iv_ic, "%s:%d: lkpi_sta_del_keys "
+			    "failed: %d\n", __func__, __LINE__, error);
+			/*
+			 * Either drv/fw will crash or cleanup itself,
+			 * otherwise net80211 will delete the keys (at a
+			 * less appropriate time).
+			 */
+			/* goto out; */
+		}
+	}
+#endif
+
+	/* sta_pre_rcu_remove */
+        lkpi_80211_mo_sta_pre_rcu_remove(hw, vif, sta);
+
+	synchronize_net();
+
+	/* Take the station down. */
+
+	bss_changed = 0;
+	/*
+	 * Start updating bss info (bss_info_changed) (assoc, aid, ..).
+	 *
+	 * One would expect this to happen when going off AUTHORIZED.
+	 * See comment there; removes the sta from fw if not careful
+	 * (bss_info_changed() change is executed right away).
+	 *
+	 * We need to do this now, before sta changes to IEEE80211_STA_NOTEXIST
+	 * as otherwise drivers (iwlwifi at least) will silently not remove
+	 * the sta from the firmware and when we will add a new one trigger
+	 * a fw assert.
+	 *
+	 * The order which works best so far avoiding early removal or silent
+	 * non-removal seems to be (for iwlwifi::mld-mac80211.c cases;
+	 * the iwlwifi:mac80211.c case still to be tested):
+	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false (aid=0 side effect here)
+	 * 2) call the last sta_state update -> IEEE80211_STA_NOTEXIST
+	 *    (removes the sta given assoc is false)
+	 * 3) add the remaining BSS_CHANGED changes and call bss_info_changed()
+	 * 4) call unassign_vif_chanctx
+	 * 5) call lkpi_hw_conf_idle
+	 * 6) call remove_chanctx
+	 *
+	 * Note: vif->driver_flags & IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC
+	 * might change this.
+	 */
+	bss_changed |= lkpi_disassoc(sta, vif, lhw);
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	/* Adjust sta and change state (from NONE) to NOTEXIST. */
+	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
+	KASSERT(lsta->state == IEEE80211_STA_NONE, ("%s: lsta %p state not "
+	    "NONE: %#x, nstate %d arg %d\n", __func__, lsta, lsta->state, nstate, arg));
+	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NOTEXIST);
+	if (error != 0) {
+		IMPROVE("do we need to undo the chan ctx?");
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NOTEXIST) "
+		    "failed: %d\n", __func__, __LINE__, error);
+		goto out;
+	}
+
+	lkpi_lsta_remove(lsta, lvif);
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	IMPROVE("Any bss_info changes to announce?");
+	vif->bss_conf.qos = false;
+	bss_changed |= BSS_CHANGED_QOS;
+	vif->cfg.ssid_len = 0;
+	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
+	bss_changed |= BSS_CHANGED_BSSID;
+	vif->bss_conf.use_short_preamble = false;
+	/* XXX BSS_CHANGED_???? */
+	vif->bss_conf.dtim_period = 0; /* go back to 0. */
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+
+	LKPI_80211_LVIF_LOCK(lvif);
+	/* Remove ni reference for this cache of lsta. */
+	lvif->lvif_bss = NULL;
+	lvif->lvif_bss_synched = false;
+	LKPI_80211_LVIF_UNLOCK(lvif);
+
+	/* conf_tx */
+
+	lkpi_remove_chanctx(hw, vif);
+
+out:
+	wiphy_unlock(hw->wiphy);
+	IEEE80211_LOCK(vap->iv_ic);
+	if (error == 0) {
+		/*
+		 * We do this outside the wiphy lock as net80211::node_free() may call
+		 * into crypto code to delete keys and we have a recursed on
+		 * non-recursive sx panic.  Also only do this if we get here w/o error.
+		 *
+		 * The very last release the reference on the ni for the ni/lsta on
+		 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
+		 * and potentially freed.
+		 */
+		ieee80211_free_node(ni);
+	}
+	return (error);
+}
+
+/* DOWN4 */
+static int
+lkpi_sta_scan_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	/* lkpi_iv_newstate() handles the stop scan case in common code. */
+	return (lkpi_sta_state_do_nada(vap, nstate, arg));
+}
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+
+static int
+lkpi_sta_auth_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
+{
+	int error;
+
+	error = lkpi_sta_auth_to_scan(vap, nstate, arg);
+	if (error == 0)
+		error = lkpi_sta_scan_to_init(vap, nstate, arg);
 	return (error);
 }
 
@@ -2854,205 +3366,15 @@ out:
 }
 
 static int
-_lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
-{
-	struct lkpi_hw *lhw;
-	struct ieee80211_hw *hw;
-	struct lkpi_vif *lvif;
-	struct ieee80211_vif *vif;
-	struct ieee80211_node *ni;
-	struct lkpi_sta *lsta;
-	struct ieee80211_sta *sta;
-	struct ieee80211_prep_tx_info prep_tx_info;
-	enum ieee80211_bss_changed bss_changed;
-	int error;
-
-	lhw = vap->iv_ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
-
-	IEEE80211_UNLOCK(vap->iv_ic);
-	wiphy_lock(hw->wiphy);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-#ifdef LINUXKPI_DEBUG_80211
-	/* XXX-BZ KASSERT later; state going down so no action. */
-	if (lvif->lvif_bss == NULL)
-		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
-		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
-		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
-		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
-		    lvif->lvif_bss_synched);
-#endif
-	lsta = lvif->lvif_bss;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
-	    "lvif %p vap %p\n", __func__,
-	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
-
-	ni = lsta->ni;		/* Reference held for lvif_bss. */
-	sta = LSTA_TO_STA(lsta);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* flush, drop. */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
-
-	IMPROVE("What are the proper conditions for DEAUTH_NEED_MGD_TX_PREP?");
-	if (ieee80211_hw_check(hw, DEAUTH_NEED_MGD_TX_PREP) &&
-	    !lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = true;
-	}
-
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-
-	/* Call iv_newstate first so we get potential DEAUTH packet out. */
-	error = lvif->iv_newstate(vap, nstate, arg);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
-		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
-		goto outni;
-	}
-
-	IEEE80211_UNLOCK(vap->iv_ic);
-
-	/* Ensure the packets get out. */
-	lkpi_80211_flush_tx(lhw, lsta);
-
-	wiphy_lock(hw->wiphy);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* Wake tx queues to get packet(s) out. */
-	lkpi_wake_tx_queues(hw, sta, false, true);
-
-	/* flush, no drop */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
-
-	/* End mgd_complete_tx. */
-	if (lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = false;
-	}
-
-	/* sync_rx_queues */
-	lkpi_80211_mo_sync_rx_queues(hw);
-
-	/* sta_pre_rcu_remove */
-        lkpi_80211_mo_sta_pre_rcu_remove(hw, vif, sta);
-
-	/* Take the station down. */
-
-	/* Update sta and change state (from AUTH) to NONE. */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
-	    "AUTH: %#x\n", __func__, lsta, lsta->state));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NONE);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NONE) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	/* See comment in lkpi_sta_run_to_init(). */
-	bss_changed = 0;
-	bss_changed |= lkpi_disassoc(sta, vif, lhw);
-
-#ifdef LKPI_80211_HW_CRYPTO
-	/*
-	 * In theory we remove keys here but there must not exist any for this
-	 * state change until we clean them up again into small steps and no
-	 * code duplication.
-	 */
-#endif
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* Adjust sta and change state (from NONE) to NOTEXIST. */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_NONE, ("%s: lsta %p state not "
-	    "NONE: %#x, nstate %d arg %d\n", __func__, lsta, lsta->state, nstate, arg));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NOTEXIST);
-	if (error != 0) {
-		IMPROVE("do we need to undo the chan ctx?");
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NOTEXIST) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);	/* sta no longer save to use. */
-
-	IMPROVE("Any bss_info changes to announce?");
-	vif->bss_conf.qos = 0;
-	bss_changed |= BSS_CHANGED_QOS;
-	vif->cfg.ssid_len = 0;
-	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
-	bss_changed |= BSS_CHANGED_BSSID;
-	vif->bss_conf.dtim_period = 0; /* go back to 0. */
-	bss_changed |= BSS_CHANGED_BEACON_INFO;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-	/* Remove ni reference for this cache of lsta. */
-	lvif->lvif_bss = NULL;
-	lvif->lvif_bss_synched = false;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-	lkpi_lsta_remove(lsta, lvif);
-
-	/* conf_tx */
-
-	lkpi_remove_chanctx(hw, vif);
-
-	error = EALREADY;
-out:
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-	if (error == EALREADY) {
-		/*
-		 * We do this outside the wiphy lock as net80211::node_free() may call
-		 * into crypto code to delete keys and we have a recursed on
-		 * non-recursive sx panic.  Also only do this if we get here w/o error.
-		 *
-		 * The very last release the reference on the ni for the ni/lsta on
-		 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
-		 * and potentially freed.
-		 */
-		ieee80211_free_node(ni);
-	}
-outni:
-	return (error);
-}
-
-static int
-lkpi_sta_assoc_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
-{
-	int error;
-
-	error = _lkpi_sta_assoc_to_down(vap, nstate, arg);
-	if (error != 0 && error != EALREADY)
-		return (error);
-
-	/* At this point iv_bss is long a new node! */
-
-	error |= lkpi_sta_scan_to_auth(vap, nstate, 0);
-	return (error);
-}
-
-static int
 lkpi_sta_assoc_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	int error;
 
-	error = _lkpi_sta_assoc_to_down(vap, nstate, arg);
+	error = lkpi_sta_assoc_to_auth(vap, nstate, arg);
+	if (error != 0 && error != EALREADY)
+		return (error);
+
+	error = lkpi_sta_auth_to_scan(vap, nstate, arg);
 	return (error);
 }
 
@@ -3061,602 +3383,38 @@ lkpi_sta_assoc_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 {
 	int error;
 
-	error = _lkpi_sta_assoc_to_down(vap, nstate, arg);
-	return (error);
-}
+	error = lkpi_sta_assoc_to_scan(vap, nstate, arg);
+	if (error != 0 && error != EALREADY)
+		return (error);
 
-static int
-lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
-{
-	struct lkpi_hw *lhw;
-	struct ieee80211_hw *hw;
-	struct lkpi_vif *lvif;
-	struct ieee80211_vif *vif;
-	struct ieee80211_node *ni;
-	struct lkpi_sta *lsta;
-	struct ieee80211_sta *sta;
-	struct ieee80211_prep_tx_info prep_tx_info;
-	enum ieee80211_bss_changed bss_changed;
-	int error;
-
-	lhw = vap->iv_ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
-
-	IEEE80211_UNLOCK(vap->iv_ic);
-	wiphy_lock(hw->wiphy);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-	/* XXX-BZ KASSERT later? */
-	if (!lvif->lvif_bss_synched || lvif->lvif_bss == NULL) {
-#ifdef LINUXKPI_DEBUG_80211
-		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
-		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
-		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
-		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
-		    lvif->lvif_bss_synched);
-#endif
-		LKPI_80211_LVIF_UNLOCK(lvif);
-		error = ENOTRECOVERABLE;
-		goto out;
-	}
-	lsta = lvif->lvif_bss;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
-	    "lvif %p vap %p\n", __func__,
-	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
-
-	ni = lsta->ni;		/* Reference held for lvif_bss. */
-
-	IMPROVE("ponder some of this moved to ic_newassoc, scan_assoc_success, "
-	    "and to lesser extend ieee80211_notify_node_join");
-
-	/* Finish assoc. */
-	/* Update sta_state (AUTH to ASSOC) and set aid. */
-	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
-	    "AUTH: %#x\n", __func__, lsta, lsta->state));
-	sta = LSTA_TO_STA(lsta);
-	sta->aid = IEEE80211_NODE_AID(ni);
-#ifdef LKPI_80211_WME
-	if (vap->iv_flags & IEEE80211_F_WME)
-		sta->wme = true;
-#endif
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	IMPROVE("wme / conf_tx [all]");
-
-	/* Update bss info (bss_info_changed) (assoc, aid, ..). */
-	bss_changed = 0;
-#ifdef LKPI_80211_WME
-	bss_changed |= lkpi_wme_update(lhw, vap, true);
-#endif
-	if (!vif->cfg.assoc || vif->cfg.aid != IEEE80211_NODE_AID(ni)) {
-		lvif->beacons = 0;
-		vif->cfg.assoc = true;
-		vif->cfg.aid = IEEE80211_NODE_AID(ni);
-		bss_changed |= BSS_CHANGED_ASSOC;
-	}
-	/* We set SSID but this is not BSSID! */
-	vif->cfg.ssid_len = ni->ni_esslen;
-	memcpy(vif->cfg.ssid, ni->ni_essid, ni->ni_esslen);
-	if ((vap->iv_flags & IEEE80211_F_SHPREAMBLE) !=
-	    vif->bss_conf.use_short_preamble) {
-		vif->bss_conf.use_short_preamble ^= 1;
-		/* bss_changed |= BSS_CHANGED_??? */
-	}
-	if ((vap->iv_flags & IEEE80211_F_SHSLOT) !=
-	    vif->bss_conf.use_short_slot) {
-		vif->bss_conf.use_short_slot ^= 1;
-		/* bss_changed |= BSS_CHANGED_??? */
-	}
-	if ((ni->ni_flags & IEEE80211_NODE_QOS) !=
-	    vif->bss_conf.qos) {
-		vif->bss_conf.qos ^= 1;
-		bss_changed |= BSS_CHANGED_QOS;
-	}
-
-	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
-
-	/* - change_chanctx (if needed)
-	 * - event_callback
-	 */
-
-	/* End mgd_complete_tx. */
-	if (lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = true;
-		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = false;
-	}
-
-	/*
-	 * And then:
-	 * - (more packets)?
-	 * - set_key
-	 * - set_default_unicast_key
-	 * - set_key (?)
-	 * - ipv6_addr_change (?)
-	 */
-
-	if (!ieee80211_node_is_authorized(ni)) {
-		IMPROVE("net80211 does not consider node authorized");
-	}
-
-	IMPROVE("Is this the right spot, has net80211 done all updates already?");
-	lkpi_sta_sync_from_ni(hw, vif, sta, ni, true);
-
-	/* Update thresholds. */
-	hw->wiphy->frag_threshold = vap->iv_fragthreshold;
-	lkpi_80211_mo_set_frag_threshold(hw, vap->iv_fragthreshold);
-	hw->wiphy->rts_threshold = vap->iv_rtsthreshold;
-	lkpi_80211_mo_set_rts_threshold(hw, vap->iv_rtsthreshold);
-
-	/* Update sta_state (ASSOC to AUTHORIZED). */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
-	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTHORIZED);
-	if (error != 0) {
-		IMPROVE("undo some changes?");
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTHORIZED) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	/* - drv_config (?)
-	 * - bss_info_changed
-	 * - set_rekey_data (?)
-	 *
-	 * And now we should be passing packets.
-	 */
-	IMPROVE("Need that bssid setting, and the keys");
-
-	bss_changed = 0;
-	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
-
-	/* Prepare_multicast && configure_filter. */
-	lkpi_update_mcast_filter(vap->iv_ic);
-
-out:
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-	return (error);
-}
-
-static int
-lkpi_sta_auth_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
-{
-	int error;
-
-	error = lkpi_sta_auth_to_assoc(vap, nstate, arg);
-	if (error == 0)
-		error = lkpi_sta_assoc_to_run(vap, nstate, arg);
-	return (error);
-}
-
-static int
-lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
-{
-	struct lkpi_hw *lhw;
-	struct ieee80211_hw *hw;
-	struct lkpi_vif *lvif;
-	struct ieee80211_vif *vif;
-	struct ieee80211_node *ni;
-	struct lkpi_sta *lsta;
-	struct ieee80211_sta *sta;
-	struct ieee80211_prep_tx_info prep_tx_info;
-#if 0
-	enum ieee80211_bss_changed bss_changed;
-#endif
-	int error;
-
-	lhw = vap->iv_ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-#ifdef LINUXKPI_DEBUG_80211
-	/* XXX-BZ KASSERT later; state going down so no action. */
-	if (lvif->lvif_bss == NULL)
-		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
-		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
-		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
-		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
-		    lvif->lvif_bss_synched);
-#endif
-	lsta = lvif->lvif_bss;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
-	    "lvif %p vap %p\n", __func__,
-	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
-
-	ni = lsta->ni;		/* Reference held for lvif_bss. */
-	sta = LSTA_TO_STA(lsta);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	IEEE80211_UNLOCK(vap->iv_ic);
-	wiphy_lock(hw->wiphy);
-
-	/* flush, drop. */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
-
-	IMPROVE("What are the proper conditions for DEAUTH_NEED_MGD_TX_PREP?");
-	if (ieee80211_hw_check(hw, DEAUTH_NEED_MGD_TX_PREP) &&
-	    !lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = true;
-	}
-
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-
-	/* Call iv_newstate first so we get potential DISASSOC packet out. */
-	error = lvif->iv_newstate(vap, nstate, arg);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
-		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
-		goto outni;
-	}
-
-	IEEE80211_UNLOCK(vap->iv_ic);
-
-	/* Ensure the packets get out. */
-	lkpi_80211_flush_tx(lhw, lsta);
-
-	wiphy_lock(hw->wiphy);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* Wake tx queues to get packet(s) out. */
-	lkpi_wake_tx_queues(hw, sta, false, true);
-
-	/* flush, no drop */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
-
-	/* End mgd_complete_tx. */
-	if (lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = false;
-	}
-
-#if 0
-	/* sync_rx_queues */
-	lkpi_80211_mo_sync_rx_queues(hw);
-
-	/* sta_pre_rcu_remove */
-        lkpi_80211_mo_sta_pre_rcu_remove(hw, vif, sta);
-#endif
-
-	/* Take the station down. */
-
-	/* Adjust sta and change state (from AUTHORIZED) to ASSOC. */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_AUTHORIZED, ("%s: lsta %p state not "
-	    "AUTHORIZED: %#x\n", __func__, lsta, lsta->state));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-#ifdef LKPI_80211_HW_CRYPTO
-	if (lkpi_hwcrypto) {
-		error = lkpi_sta_del_keys(hw, vif, lsta);
-		if (error != 0) {
-			ic_printf(vap->iv_ic, "%s:%d: lkpi_sta_del_keys "
-			    "failed: %d\n", __func__, __LINE__, error);
-			/*
-			 * Either drv/fw will crash or cleanup itself,
-			 * otherwise net80211 will delete the keys (at a
-			 * less appropriate time).
-			 */
-			/* goto out; */
-		}
-	}
-#endif
-
-	/* Update sta_state (ASSOC to AUTH). */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
-	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTH);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTH) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-#if 0
-	/* Update bss info (bss_info_changed) (assoc, aid, ..). */
-	lkpi_disassoc(sta, vif, lhw);
-#endif
-
-	error = EALREADY;
-out:
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-outni:
+	error = lkpi_sta_scan_to_init(vap, nstate, arg);	/* do_nada */
 	return (error);
 }
 
 static int
 lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
-	struct lkpi_hw *lhw;
-	struct ieee80211_hw *hw;
-	struct lkpi_vif *lvif;
-	struct ieee80211_vif *vif;
-	struct ieee80211_node *ni;
-	struct lkpi_sta *lsta;
-	struct ieee80211_sta *sta;
-	struct ieee80211_prep_tx_info prep_tx_info;
-	enum ieee80211_bss_changed bss_changed;
 	int error;
 
-	lhw = vap->iv_ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
+	error = lkpi_sta_run_to_assoc(vap, nstate, arg);
+	if (error != 0 && error != EALREADY)
+		return (error);
 
-	IEEE80211_UNLOCK(vap->iv_ic);
-	wiphy_lock(hw->wiphy);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-#ifdef LINUXKPI_DEBUG_80211
-	/* XXX-BZ KASSERT later; state going down so no action. */
-	if (lvif->lvif_bss == NULL)
-		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
-		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
-		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
-		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
-		    lvif->lvif_bss_synched);
-#endif
-	lsta = lvif->lvif_bss;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
-	    "lvif %p vap %p\n", __func__,
-	    lsta, (lsta != NULL) ? lsta->ni : NULL, lvif, vap));
-
-	ni = lsta->ni;		/* Reference held for lvif_bss. */
-	sta = LSTA_TO_STA(lsta);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* flush, drop. */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
-
-	IMPROVE("What are the proper conditions for DEAUTH_NEED_MGD_TX_PREP?");
-	if (ieee80211_hw_check(hw, DEAUTH_NEED_MGD_TX_PREP) &&
-	    !lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = true;
-	}
-
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-
-	/* Call iv_newstate first so we get potential DISASSOC packet out. */
-	error = lvif->iv_newstate(vap, nstate, arg);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
-		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
-		goto outni;
-	}
-
-	IEEE80211_UNLOCK(vap->iv_ic);
-
-	/* Ensure the packets get out. */
-	lkpi_80211_flush_tx(lhw, lsta);
-
-	wiphy_lock(hw->wiphy);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* Wake tx queues to get packet(s) out. */
-	lkpi_wake_tx_queues(hw, sta, false, true);
-
-	/* flush, no drop */
-	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
-
-	/* End mgd_complete_tx. */
-	if (lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = false;
-	}
-
-	/* sync_rx_queues */
-	lkpi_80211_mo_sync_rx_queues(hw);
-
-	/* sta_pre_rcu_remove */
-        lkpi_80211_mo_sta_pre_rcu_remove(hw, vif, sta);
-
-	/* Take the station down. */
-
-	/* Adjust sta and change state (from AUTHORIZED) to ASSOC. */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_AUTHORIZED, ("%s: lsta %p state not "
-	    "AUTHORIZED: %#x\n", __func__, lsta, lsta->state));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-#ifdef LKPI_80211_HW_CRYPTO
-	if (lkpi_hwcrypto) {
-		/*
-		 * In theory we only need to do this if we changed assoc.
-		 * If we were not assoc, there should be no keys and we
-		 * should not be here.
-		 */
-#ifdef notyet
-		KASSERT((bss_changed & BSS_CHANGED_ASSOC) != 0, ("%s: "
-		    "trying to remove keys but were not assoc: %#010jx, lvif %p\n",
-		    __func__, (uintmax_t)bss_changed, lvif));
-#endif
-		error = lkpi_sta_del_keys(hw, vif, lsta);
-		if (error != 0) {
-			ic_printf(vap->iv_ic, "%s:%d: lkpi_sta_del_keys "
-			    "failed: %d\n", __func__, __LINE__, error);
-			/*
-			 * Either drv/fw will crash or cleanup itself,
-			 * otherwise net80211 will delete the keys (at a
-			 * less appropriate time).
-			 */
-			/* goto out; */
-		}
-	}
-#endif
-
-	/* Update sta_state (ASSOC to AUTH). */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
-	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTH);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTH) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* Update sta and change state (from AUTH) to NONE. */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
-	    "AUTH: %#x\n", __func__, lsta, lsta->state));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NONE);
-	if (error != 0) {
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NONE) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	bss_changed = 0;
-	/*
-	 * Start updating bss info (bss_info_changed) (assoc, aid, ..).
-	 *
-	 * One would expect this to happen when going off AUTHORIZED.
-	 * See comment there; removes the sta from fw if not careful
-	 * (bss_info_changed() change is executed right away).
-	 *
-	 * We need to do this now, before sta changes to IEEE80211_STA_NOTEXIST
-	 * as otherwise drivers (iwlwifi at least) will silently not remove
-	 * the sta from the firmware and when we will add a new one trigger
-	 * a fw assert.
-	 *
-	 * The order which works best so far avoiding early removal or silent
-	 * non-removal seems to be (for iwlwifi::mld-mac80211.c cases;
-	 * the iwlwifi:mac80211.c case still to be tested):
-	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false (aid=0 side effect here)
-	 * 2) call the last sta_state update -> IEEE80211_STA_NOTEXIST
-	 *    (removes the sta given assoc is false)
-	 * 3) add the remaining BSS_CHANGED changes and call bss_info_changed()
-	 * 4) call unassign_vif_chanctx
-	 * 5) call lkpi_hw_conf_idle
-	 * 6) call remove_chanctx
-	 *
-	 * Note: vif->driver_flags & IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC
-	 * might change this.
-	 */
-	bss_changed |= lkpi_disassoc(sta, vif, lhw);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* Adjust sta and change state (from NONE) to NOTEXIST. */
-	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
-	KASSERT(lsta->state == IEEE80211_STA_NONE, ("%s: lsta %p state not "
-	    "NONE: %#x, nstate %d arg %d\n", __func__, lsta, lsta->state, nstate, arg));
-	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NOTEXIST);
-	if (error != 0) {
-		IMPROVE("do we need to undo the chan ctx?");
-		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NOTEXIST) "
-		    "failed: %d\n", __func__, __LINE__, error);
-		goto out;
-	}
-
-	lkpi_lsta_remove(lsta, lvif);
-
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);	/* sta no longer save to use. */
-
-	IMPROVE("Any bss_info changes to announce?");
-	vif->bss_conf.qos = 0;
-	bss_changed |= BSS_CHANGED_QOS;
-	vif->cfg.ssid_len = 0;
-	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
-	bss_changed |= BSS_CHANGED_BSSID;
-	vif->bss_conf.use_short_preamble = false;
-	vif->bss_conf.qos = false;
-	/* XXX BSS_CHANGED_???? */
-	vif->bss_conf.dtim_period = 0; /* go back to 0. */
-	bss_changed |= BSS_CHANGED_BEACON_INFO;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-	/* Remove ni reference for this cache of lsta. */
-	lvif->lvif_bss = NULL;
-	lvif->lvif_bss_synched = false;
-	LKPI_80211_LVIF_UNLOCK(lvif);
-
-	/* conf_tx */
-
-	lkpi_remove_chanctx(hw, vif);
-
-	error = EALREADY;
-out:
-	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(vap->iv_ic);
-	if (error == EALREADY) {
-		/*
-		 * We do this outside the wiphy lock as net80211::node_free() may call
-		 * into crypto code to delete keys and we have a recursed on
-		 * non-recursive sx panic.  Also only do this if we get here w/o error.
-		 *
-		 * The very last release the reference on the ni for the ni/lsta on
-		 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
-		 * and potentially freed.
-		 */
-		ieee80211_free_node(ni);
-	}
-outni:
+	error = lkpi_sta_assoc_to_init(vap, nstate, arg);
 	return (error);
 }
 
 static int
 lkpi_sta_run_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
+	int error;
 
-	return (lkpi_sta_run_to_init(vap, nstate, arg));
+	error = lkpi_sta_run_to_assoc(vap, nstate, arg);
+	if (error != 0 && error != EALREADY)
+		return (error);
+
+	error = lkpi_sta_assoc_to_scan(vap, nstate, arg);
+	return (error);
 }
 
 static int
@@ -3664,13 +3422,11 @@ lkpi_sta_run_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 {
 	int error;
 
-	error = lkpi_sta_run_to_init(vap, nstate, arg);
+	error = lkpi_sta_run_to_assoc(vap, nstate, arg);
 	if (error != 0 && error != EALREADY)
 		return (error);
 
-	/* At this point iv_bss is long a new node! */
-
-	error |= lkpi_sta_scan_to_auth(vap, nstate, 0);
+	error = lkpi_sta_assoc_to_auth(vap, nstate, arg);
 	return (error);
 }
 
@@ -3688,29 +3444,29 @@ struct fsm_state {
 	int (*handler)(struct ieee80211vap *, enum ieee80211_state, int);
 } sta_state_fsm[] = {
 	{ IEEE80211_S_INIT,	IEEE80211_S_INIT, lkpi_sta_state_do_nada },
-	{ IEEE80211_S_SCAN,	IEEE80211_S_INIT, lkpi_sta_state_do_nada },	/* scan_to_init */
+	{ IEEE80211_S_SCAN,	IEEE80211_S_INIT, lkpi_sta_state_do_nada },	/* DOWN4 scan_to_init */
 	{ IEEE80211_S_AUTH,	IEEE80211_S_INIT, lkpi_sta_auth_to_init },	/* not explicitly in sta_newstate() */
 	{ IEEE80211_S_ASSOC,	IEEE80211_S_INIT, lkpi_sta_assoc_to_init },	/* Send DEAUTH. */
 	{ IEEE80211_S_RUN,	IEEE80211_S_INIT, lkpi_sta_run_to_init },	/* Send DISASSOC. */
 
-	{ IEEE80211_S_INIT,	IEEE80211_S_SCAN, lkpi_sta_state_do_nada },
+	{ IEEE80211_S_INIT,	IEEE80211_S_SCAN, lkpi_sta_init_to_scan },	/* UP1 */
 	{ IEEE80211_S_SCAN,	IEEE80211_S_SCAN, lkpi_sta_state_do_nada },
-	{ IEEE80211_S_AUTH,	IEEE80211_S_SCAN, lkpi_sta_auth_to_scan },
+	{ IEEE80211_S_AUTH,	IEEE80211_S_SCAN, lkpi_sta_auth_to_scan },	/* DOWN3 */
 	{ IEEE80211_S_ASSOC,	IEEE80211_S_SCAN, lkpi_sta_assoc_to_scan },
 	{ IEEE80211_S_RUN,	IEEE80211_S_SCAN, lkpi_sta_run_to_scan },	/* Beacon miss. */
 
 	{ IEEE80211_S_INIT,	IEEE80211_S_AUTH, lkpi_sta_scan_to_auth },	/* Send AUTH. */
-	{ IEEE80211_S_SCAN,	IEEE80211_S_AUTH, lkpi_sta_scan_to_auth },	/* Send AUTH. */
+	{ IEEE80211_S_SCAN,	IEEE80211_S_AUTH, lkpi_sta_scan_to_auth },	/* UP2 Send AUTH. */
 	{ IEEE80211_S_AUTH,	IEEE80211_S_AUTH, lkpi_sta_a_to_a },		/* Send ?AUTH. */
-	{ IEEE80211_S_ASSOC,	IEEE80211_S_AUTH, lkpi_sta_assoc_to_auth },	/* Send ?AUTH. */
+	{ IEEE80211_S_ASSOC,	IEEE80211_S_AUTH, lkpi_sta_assoc_to_auth },	/* DOWN2 Send ?AUTH. */
 	{ IEEE80211_S_RUN,	IEEE80211_S_AUTH, lkpi_sta_run_to_auth },	/* Send ?AUTH. */
 
-	{ IEEE80211_S_AUTH,	IEEE80211_S_ASSOC, lkpi_sta_auth_to_assoc },	/* Send ASSOCREQ. */
+	{ IEEE80211_S_AUTH,	IEEE80211_S_ASSOC, lkpi_sta_auth_to_assoc },	/* UP3.1 Send ASSOCREQ. */
 	{ IEEE80211_S_ASSOC,	IEEE80211_S_ASSOC, lkpi_sta_a_to_a },		/* Send ASSOCREQ. */
-	{ IEEE80211_S_RUN,	IEEE80211_S_ASSOC, lkpi_sta_run_to_assoc },	/* Send ASSOCREQ/REASSOCREQ. */
+	{ IEEE80211_S_RUN,	IEEE80211_S_ASSOC, lkpi_sta_run_to_assoc },	/* DOWN1 Send ASSOCREQ/REASSOCREQ. */
 
-	{ IEEE80211_S_AUTH,	IEEE80211_S_RUN, lkpi_sta_auth_to_run },
-	{ IEEE80211_S_ASSOC,	IEEE80211_S_RUN, lkpi_sta_assoc_to_run },
+	{ IEEE80211_S_AUTH,	IEEE80211_S_RUN, lkpi_sta_auth_to_run },	/* UP3.2 */
+	{ IEEE80211_S_ASSOC,	IEEE80211_S_RUN, lkpi_sta_assoc_to_run },	/* UP4 */
 	{ IEEE80211_S_RUN,	IEEE80211_S_RUN, lkpi_sta_state_do_nada },
 
 	/* Dummy at the end without handler. */
@@ -7072,6 +6828,14 @@ lkpi_ieee80211_iterate_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
     void *arg)
 {
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+		net80211_vap_printf(LVIF_TO_VAP(VIF_TO_LVIF(vif)),
+		    "%s:%d: lsta %6D added_to_drv %d kc[keyix %u] %p\n",
+		    __func__, __LINE__, LSTA_TO_STA(lsta)->addr, ":",
+		    lsta->added_to_drv, keyix, lsta->kc[keyix]);
+#endif
+
 	if (!lsta->added_to_drv)
 		return;
 

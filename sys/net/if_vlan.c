@@ -1345,6 +1345,7 @@ vlan_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 
 	VLAN_SLOCK();
 	if (__predict_false((ifv = ifp->if_softc) == NULL)) {
+		VLAN_SUNLOCK();
 		/*
 		 * XXXGL: the interface already went through if_dead().  This
 		 * check to be removed when we got better interface removal.

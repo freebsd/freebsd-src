@@ -345,6 +345,25 @@ typedef struct {
 #define	EF_ARM_VFP_FLOAT	EF_ARM_ABI_FLOAT_HARD /* Pre-V5 ABI name */
 #define	EF_ARM_MAVERICK_FLOAT	0x00000800
 
+/*
+ * Loongson LoongArch Specific e_flags
+ *
+ * Definitions from LoongArch ELF psABI v2.01.
+ * Reference: https://github.com/loongson/LoongArch-Documentation
+ * (commit hash 296de4def055c871809068e0816325a4ac04eb12)
+ */
+
+/* LoongArch Base ABI Modifiers */
+#define	EF_LOONGARCH_ABI_SOFT_FLOAT	0x00000001
+#define	EF_LOONGARCH_ABI_SINGLE_FLOAT	0x00000002
+#define	EF_LOONGARCH_ABI_DOUBLE_FLOAT	0x00000003
+#define	EF_LOONGARCH_ABI_MODIFIER_MASK	0x00000007
+
+/* LoongArch Object file ABI versions */
+#define	EF_LOONGARCH_OBJABI_V0		0x00000000
+#define	EF_LOONGARCH_OBJABI_V1		0x00000040
+#define	EF_LOONGARCH_OBJABI_MASK	0x000000C0
+
 #define	EF_MIPS_NOREORDER	0x00000001
 #define	EF_MIPS_PIC		0x00000002	/* Contains PIC code */
 #define	EF_MIPS_CPIC		0x00000004	/* STD PIC calling sequence */
@@ -383,25 +402,6 @@ typedef struct {
 #define	EF_RISCV_RVE		0x00000008
 #define	EF_RISCV_TSO		0x00000010
 
-/*
- * Loongson LoongArch Specific e_flags
- *
- * Definitions from LoongArch ELF psABI v2.01.
- * Reference: https://github.com/loongson/LoongArch-Documentation
- * (commit hash 296de4def055c871809068e0816325a4ac04eb12)
- */
-
-/* LoongArch Base ABI Modifiers */
-#define	EF_LOONGARCH_ABI_SOFT_FLOAT	0x00000001
-#define	EF_LOONGARCH_ABI_SINGLE_FLOAT	0x00000002
-#define	EF_LOONGARCH_ABI_DOUBLE_FLOAT	0x00000003
-#define	EF_LOONGARCH_ABI_MODIFIER_MASK	0x00000007
-
-/* LoongArch Object file ABI versions */
-#define	EF_LOONGARCH_OBJABI_V0		0x00000000
-#define	EF_LOONGARCH_OBJABI_V1		0x00000040
-#define	EF_LOONGARCH_OBJABI_MASK	0x000000C0
-
 #define	EF_SPARC_EXT_MASK	0x00ffff00
 #define	EF_SPARC_32PLUS		0x00000100
 #define	EF_SPARC_SUN_US1	0x00000200
@@ -419,7 +419,8 @@ typedef struct {
 #define	SHN_LOPROC	0xff00		/* First processor-specific. */
 #define	SHN_HIPROC	0xff1f		/* Last processor-specific. */
 #define	SHN_LOOS	0xff20		/* First operating system-specific. */
-#define	SHN_FBSD_CACHED	SHN_LOOS	/* Transient, for sys/kern/link_elf_obj
+#define	SHN_FREEBSD_CACHED	SHN_LOOS
+					/* Transient, for sys/kern/link_elf_obj
 					   linker only: Cached global in local
 					   symtab. */
 #define	SHN_HIOS	0xff3f		/* Last operating system-specific. */
@@ -469,8 +470,6 @@ typedef struct {
 #define	SHT_HISUNW		0x6fffffff
 #define	SHT_HIOS		0x6fffffff	/* Last of OS specific semantics */
 #define	SHT_LOPROC		0x70000000	/* reserved range for processor */
-#define	SHT_X86_64_UNWIND	0x70000001	/* unwind information */
-#define	SHT_AMD64_UNWIND	SHT_X86_64_UNWIND
 
 #define	SHT_ARM_EXIDX		0x70000001	/* Exception index table. */
 #define	SHT_ARM_PREEMPTMAP	0x70000002	/* BPABI DLL dynamic linking
@@ -510,6 +509,9 @@ typedef struct {
 #define	SHT_MIPS_ABIFLAGS	0x7000002a
 
 #define	SHT_SPARC_GOTDATA	0x70000000
+
+#define	SHT_X86_64_UNWIND	0x70000001	/* unwind information */
+#define	SHT_AMD64_UNWIND	SHT_X86_64_UNWIND
 
 #define	SHTORDERED
 #define	SHT_HIPROC		0x7fffffff	/* specific section header types */
@@ -1120,6 +1122,19 @@ typedef struct {
 #define	R_ARM_GOTPC		25	/* Add PC-relative GOT table address. */
 #define	R_ARM_GOT32		26	/* Add PC-relative GOT offset. */
 #define	R_ARM_PLT32		27	/* Add PC-relative PLT offset. */
+#define	R_ARM_CALL		28
+#define	R_ARM_JUMP24		29
+#define	R_ARM_THM_JUMP24	30
+#define	R_ARM_BASE_ABS		31
+#define	R_ARM_MOVW_ABS_NC	43
+#define	R_ARM_MOVT_ABS		44
+#define	R_ARM_MOVW_PREL_NC	45
+#define	R_ARM_MOVT_PREL		46
+#define	R_ARM_THM_MOVW_ABS_NC	47
+#define	R_ARM_THM_MOVT_ABS	48
+#define	R_ARM_THM_MOVW_PREL_NC	49
+#define	R_ARM_THM_MOVT_PREL	50
+#define	R_ARM_THM_JUMP19	51
 #define	R_ARM_GNU_VTENTRY	100
 #define	R_ARM_GNU_VTINHERIT	101
 #define	R_ARM_IRELATIVE		160
@@ -1211,6 +1226,162 @@ typedef struct {
 #define	R_IA_64_DTPREL64MSB	0xb6	/* word64 MSB	@dtprel(S + A) */
 #define	R_IA_64_DTPREL64LSB	0xb7	/* word64 LSB	@dtprel(S + A) */
 #define	R_IA_64_LTOFF_DTPREL22	0xba	/* imm22	@ltoff(@dtprel(S+A)) */
+
+/*
+ * Loongson LoongArch relocation types.
+ *
+ * LoongArch ELF psABI: https://github.com/loongson/LoongArch-Documentation
+ * (commit hash 9b3bd9f4a497115913c22f1a2a47863798fbc02a)
+ */
+
+/* Relocation types used by the dynamic linker */
+#define	R_LARCH_NONE				0
+#define	R_LARCH_32				1
+#define	R_LARCH_64				2
+#define	R_LARCH_RELATIVE			3
+#define	R_LARCH_COPY				4
+#define	R_LARCH_JUMP_SLOT			5
+#define	R_LARCH_TLS_DTPMOD32			6
+#define	R_LARCH_TLS_DTPMOD64			7
+#define	R_LARCH_TLS_DTPREL32			8
+#define	R_LARCH_TLS_DTPREL64			9
+#define	R_LARCH_TLS_TPREL32			10
+#define	R_LARCH_TLS_TPREL64			11
+#define	R_LARCH_IRELATIVE			12
+#define	R_LARCH_MARK_LA				20
+#define	R_LARCH_MARK_PCREL			21
+#define	R_LARCH_SOP_PUSH_PCREL			22
+#define	R_LARCH_SOP_PUSH_ABSOLUTE		23
+#define	R_LARCH_SOP_PUSH_DUP			24
+#define	R_LARCH_SOP_PUSH_GPREL			25
+#define	R_LARCH_SOP_PUSH_TLS_TPREL		26
+#define	R_LARCH_SOP_PUSH_TLS_GOT		27
+#define	R_LARCH_SOP_PUSH_TLS_GD			28
+#define	R_LARCH_SOP_PUSH_PLT_PCREL		29
+#define	R_LARCH_SOP_ASSERT			30
+#define	R_LARCH_SOP_NOT				31
+#define	R_LARCH_SOP_SUB				32
+#define	R_LARCH_SOP_SL				33
+#define	R_LARCH_SOP_SR				34
+#define	R_LARCH_SOP_ADD				35
+#define	R_LARCH_SOP_AND				36
+#define	R_LARCH_SOP_IF_ELSE			37
+#define	R_LARCH_SOP_POP_32_S_10_5		38
+#define	R_LARCH_SOP_POP_32_U_10_12		39
+#define	R_LARCH_SOP_POP_32_S_10_12		40
+#define	R_LARCH_SOP_POP_32_S_10_16		41
+#define	R_LARCH_SOP_POP_32_S_10_16_S2		42
+#define	R_LARCH_SOP_POP_32_S_5_20		43
+#define	R_LARCH_SOP_POP_32_S_0_5_10_16_S2	44
+#define	R_LARCH_SOP_POP_32_S_0_10_10_16_S2	45
+#define	R_LARCH_SOP_POP_32_U			46
+#define	R_LARCH_ADD8				47
+#define	R_LARCH_ADD16				48
+#define	R_LARCH_ADD24				49
+#define	R_LARCH_ADD32				50
+#define	R_LARCH_ADD64				51
+#define	R_LARCH_SUB8				52
+#define	R_LARCH_SUB16				53
+#define	R_LARCH_SUB24				54
+#define	R_LARCH_SUB32				55
+#define	R_LARCH_SUB64				56
+#define	R_LARCH_GNU_VTINHERIT			57
+#define	R_LARCH_GNU_VTENTRY			58
+
+/*
+ * Relocs whose processing do not require a stack machine.
+ *
+ * Spec addition: https://github.com/loongson/LoongArch-Documentation/pull/57
+ */
+#define	R_LARCH_B16				64
+#define	R_LARCH_B21				65
+#define	R_LARCH_B26				66
+#define	R_LARCH_ABS_HI20			67
+#define	R_LARCH_ABS_LO12			68
+#define	R_LARCH_ABS64_LO20			69
+#define	R_LARCH_ABS64_HI12			70
+#define	R_LARCH_PCALA_HI20			71
+#define	R_LARCH_PCALA_LO12			72
+#define	R_LARCH_PCALA64_LO20			73
+#define	R_LARCH_PCALA64_HI12			74
+#define	R_LARCH_GOT_PC_HI20			75
+#define	R_LARCH_GOT_PC_LO12			76
+#define	R_LARCH_GOT64_PC_LO20			77
+#define	R_LARCH_GOT64_PC_HI12			78
+#define	R_LARCH_GOT_HI20			79
+#define	R_LARCH_GOT_LO12			80
+#define	R_LARCH_GOT64_LO20			81
+#define	R_LARCH_GOT64_HI12			82
+#define	R_LARCH_TLS_LE_HI20			83
+#define	R_LARCH_TLS_LE_LO12			84
+#define	R_LARCH_TLS_LE64_LO20			85
+#define	R_LARCH_TLS_LE64_HI12			86
+#define	R_LARCH_TLS_IE_PC_HI20			87
+#define	R_LARCH_TLS_IE_PC_LO12			88
+#define	R_LARCH_TLS_IE64_PC_LO20		89
+#define	R_LARCH_TLS_IE64_PC_HI12		90
+#define	R_LARCH_TLS_IE_HI20			91
+#define	R_LARCH_TLS_IE_LO12			92
+#define	R_LARCH_TLS_IE64_LO20			93
+#define	R_LARCH_TLS_IE64_HI12			94
+#define	R_LARCH_TLS_LD_PC_HI20			95
+#define	R_LARCH_TLS_LD_HI20			96
+#define	R_LARCH_TLS_GD_PC_HI20			97
+#define	R_LARCH_TLS_GD_HI20			98
+#define	R_LARCH_32_PCREL			99
+#define	R_LARCH_RELAX				100
+
+/*
+ * Relocs added in ELF for the LoongArch™ Architecture v20230519, part of the
+ * v2.10 LoongArch ABI specs.
+ *
+ * Spec addition: https://github.com/loongson/la-abi-specs/pull/1
+ *
+ * Note that the 101 and 104 relocation numbers are defined as R_LARCH_DELETE
+ * and R_LARCH_CFA respectively in psABI 2.10. But they are marked as reserved
+ * in psABI v2.20 because they were proved not necessary to be exposed outside
+ * of the linker.
+ */
+#define	R_LARCH_ALIGN				102
+#define	R_LARCH_PCREL20_S2			103
+#define	R_LARCH_ADD6				105
+#define	R_LARCH_SUB6				106
+#define	R_LARCH_ADD_ULEB128			107
+#define	R_LARCH_SUB_ULEB128			108
+#define	R_LARCH_64_PCREL			109
+
+/*
+ * Relocs added in ELF for the LoongArch™ Architecture v20231102, part of the
+ * v2.20 LoongArch ABI specs.
+ *
+ * Spec addition: https://github.com/loongson/la-abi-specs/pull/4
+ */
+#define	R_LARCH_CALL36				110
+
+/*
+ * Relocs added in ELF for the LoongArch™ Architecture v20231219, part of the
+ * v2.30 LoongArch ABI specs.
+ *
+ * Spec addition: https://github.com/loongson/la-abi-specs/pull/5
+ */
+#define	R_LARCH_TLS_DESC32			13
+#define	R_LARCH_TLS_DESC64			14
+#define	R_LARCH_TLS_DESC_PC_HI20		111
+#define	R_LARCH_TLS_DESC_PC_LO12		112
+#define	R_LARCH_TLS_DESC64_PC_LO20		113
+#define	R_LARCH_TLS_DESC64_PC_HI12		114
+#define	R_LARCH_TLS_DESC_HI20			115
+#define	R_LARCH_TLS_DESC_LO12			116
+#define	R_LARCH_TLS_DESC64_LO20			117
+#define	R_LARCH_TLS_DESC64_HI12			118
+#define	R_LARCH_TLS_DESC_LD			119
+#define	R_LARCH_TLS_DESC_CALL			120
+#define	R_LARCH_TLS_LE_HI20_R			121
+#define	R_LARCH_TLS_LE_ADD_R			122
+#define	R_LARCH_TLS_LE_LO12_R			123
+#define	R_LARCH_TLS_LD_PCREL20_S2		124
+#define	R_LARCH_TLS_GD_PCREL20_S2		125
+#define	R_LARCH_TLS_DESC_PCREL20_S2		126
 
 #define	R_MIPS_NONE	0	/* No reloc */
 #define	R_MIPS_16	1	/* Direct 16 bit */
@@ -1411,162 +1582,6 @@ typedef struct {
 #define	R_RISCV_TLSDESC_ADD_LO12 64
 #define	R_RISCV_TLSDESC_CALL	65
 #define	R_RISCV_VENDOR		191
-
-/*
- * Loongson LoongArch relocation types.
- *
- * LoongArch ELF psABI: https://github.com/loongson/LoongArch-Documentation
- * (commit hash 9b3bd9f4a497115913c22f1a2a47863798fbc02a)
- */
-
-/* Relocation types used by the dynamic linker */
-#define	R_LARCH_NONE				0
-#define	R_LARCH_32				1
-#define	R_LARCH_64				2
-#define	R_LARCH_RELATIVE			3
-#define	R_LARCH_COPY				4
-#define	R_LARCH_JUMP_SLOT			5
-#define	R_LARCH_TLS_DTPMOD32			6
-#define	R_LARCH_TLS_DTPMOD64			7
-#define	R_LARCH_TLS_DTPREL32			8
-#define	R_LARCH_TLS_DTPREL64			9
-#define	R_LARCH_TLS_TPREL32			10
-#define	R_LARCH_TLS_TPREL64			11
-#define	R_LARCH_IRELATIVE			12
-#define	R_LARCH_MARK_LA				20
-#define	R_LARCH_MARK_PCREL			21
-#define	R_LARCH_SOP_PUSH_PCREL			22
-#define	R_LARCH_SOP_PUSH_ABSOLUTE		23
-#define	R_LARCH_SOP_PUSH_DUP			24
-#define	R_LARCH_SOP_PUSH_GPREL			25
-#define	R_LARCH_SOP_PUSH_TLS_TPREL		26
-#define	R_LARCH_SOP_PUSH_TLS_GOT		27
-#define	R_LARCH_SOP_PUSH_TLS_GD			28
-#define	R_LARCH_SOP_PUSH_PLT_PCREL		29
-#define	R_LARCH_SOP_ASSERT			30
-#define	R_LARCH_SOP_NOT				31
-#define	R_LARCH_SOP_SUB				32
-#define	R_LARCH_SOP_SL				33
-#define	R_LARCH_SOP_SR				34
-#define	R_LARCH_SOP_ADD				35
-#define	R_LARCH_SOP_AND				36
-#define	R_LARCH_SOP_IF_ELSE			37
-#define	R_LARCH_SOP_POP_32_S_10_5		38
-#define	R_LARCH_SOP_POP_32_U_10_12		39
-#define	R_LARCH_SOP_POP_32_S_10_12		40
-#define	R_LARCH_SOP_POP_32_S_10_16		41
-#define	R_LARCH_SOP_POP_32_S_10_16_S2		42
-#define	R_LARCH_SOP_POP_32_S_5_20		43
-#define	R_LARCH_SOP_POP_32_S_0_5_10_16_S2	44
-#define	R_LARCH_SOP_POP_32_S_0_10_10_16_S2	45
-#define	R_LARCH_SOP_POP_32_U			46
-#define	R_LARCH_ADD8				47
-#define	R_LARCH_ADD16				48
-#define	R_LARCH_ADD24				49
-#define	R_LARCH_ADD32				50
-#define	R_LARCH_ADD64				51
-#define	R_LARCH_SUB8				52
-#define	R_LARCH_SUB16				53
-#define	R_LARCH_SUB24				54
-#define	R_LARCH_SUB32				55
-#define	R_LARCH_SUB64				56
-#define	R_LARCH_GNU_VTINHERIT			57
-#define	R_LARCH_GNU_VTENTRY			58
-
-/*
- * Relocs whose processing do not require a stack machine.
- *
- * Spec addition: https://github.com/loongson/LoongArch-Documentation/pull/57
- */
-#define	R_LARCH_B16				64
-#define	R_LARCH_B21				65
-#define	R_LARCH_B26				66
-#define	R_LARCH_ABS_HI20			67
-#define	R_LARCH_ABS_LO12			68
-#define	R_LARCH_ABS64_LO20			69
-#define	R_LARCH_ABS64_HI12			70
-#define	R_LARCH_PCALA_HI20			71
-#define	R_LARCH_PCALA_LO12			72
-#define	R_LARCH_PCALA64_LO20			73
-#define	R_LARCH_PCALA64_HI12			74
-#define	R_LARCH_GOT_PC_HI20			75
-#define	R_LARCH_GOT_PC_LO12			76
-#define	R_LARCH_GOT64_PC_LO20			77
-#define	R_LARCH_GOT64_PC_HI12			78
-#define	R_LARCH_GOT_HI20			79
-#define	R_LARCH_GOT_LO12			80
-#define	R_LARCH_GOT64_LO20			81
-#define	R_LARCH_GOT64_HI12			82
-#define	R_LARCH_TLS_LE_HI20			83
-#define	R_LARCH_TLS_LE_LO12			84
-#define	R_LARCH_TLS_LE64_LO20			85
-#define	R_LARCH_TLS_LE64_HI12			86
-#define	R_LARCH_TLS_IE_PC_HI20			87
-#define	R_LARCH_TLS_IE_PC_LO12			88
-#define	R_LARCH_TLS_IE64_PC_LO20		89
-#define	R_LARCH_TLS_IE64_PC_HI12		90
-#define	R_LARCH_TLS_IE_HI20			91
-#define	R_LARCH_TLS_IE_LO12			92
-#define	R_LARCH_TLS_IE64_LO20			93
-#define	R_LARCH_TLS_IE64_HI12			94
-#define	R_LARCH_TLS_LD_PC_HI20			95
-#define	R_LARCH_TLS_LD_HI20			96
-#define	R_LARCH_TLS_GD_PC_HI20			97
-#define	R_LARCH_TLS_GD_HI20			98
-#define	R_LARCH_32_PCREL			99
-#define	R_LARCH_RELAX				100
-
-/*
- * Relocs added in ELF for the LoongArch™ Architecture v20230519, part of the
- * v2.10 LoongArch ABI specs.
- *
- * Spec addition: https://github.com/loongson/la-abi-specs/pull/1
- *
- * Note that the 101 and 104 relocation numbers are defined as R_LARCH_DELETE
- * and R_LARCH_CFA respectively in psABI 2.10. But they are marked as reserved
- * in psABI v2.20 because they were proved not necessary to be exposed outside
- * of the linker.
- */
-#define	R_LARCH_ALIGN				102
-#define	R_LARCH_PCREL20_S2			103
-#define	R_LARCH_ADD6				105
-#define	R_LARCH_SUB6				106
-#define	R_LARCH_ADD_ULEB128			107
-#define	R_LARCH_SUB_ULEB128			108
-#define	R_LARCH_64_PCREL			109
-
-/*
- * Relocs added in ELF for the LoongArch™ Architecture v20231102, part of the
- * v2.20 LoongArch ABI specs.
- *
- * Spec addition: https://github.com/loongson/la-abi-specs/pull/4
- */
-#define	R_LARCH_CALL36				110
-
-/*
- * Relocs added in ELF for the LoongArch™ Architecture v20231219, part of the
- * v2.30 LoongArch ABI specs.
- *
- * Spec addition: https://github.com/loongson/la-abi-specs/pull/5
- */
-#define	R_LARCH_TLS_DESC32			13
-#define	R_LARCH_TLS_DESC64			14
-#define	R_LARCH_TLS_DESC_PC_HI20		111
-#define	R_LARCH_TLS_DESC_PC_LO12		112
-#define	R_LARCH_TLS_DESC64_PC_LO20		113
-#define	R_LARCH_TLS_DESC64_PC_HI12		114
-#define	R_LARCH_TLS_DESC_HI20			115
-#define	R_LARCH_TLS_DESC_LO12			116
-#define	R_LARCH_TLS_DESC64_LO20			117
-#define	R_LARCH_TLS_DESC64_HI12			118
-#define	R_LARCH_TLS_DESC_LD			119
-#define	R_LARCH_TLS_DESC_CALL			120
-#define	R_LARCH_TLS_LE_HI20_R			121
-#define	R_LARCH_TLS_LE_ADD_R			122
-#define	R_LARCH_TLS_LE_LO12_R			123
-#define	R_LARCH_TLS_LD_PCREL20_S2		124
-#define	R_LARCH_TLS_GD_PCREL20_S2		125
-#define	R_LARCH_TLS_DESC_PCREL20_S2		126
 
 #define	R_SPARC_NONE		0
 #define	R_SPARC_8		1

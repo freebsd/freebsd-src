@@ -2087,7 +2087,7 @@ static device_method_t fd_methods[] = {
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend), /* XXX */
 	DEVMETHOD(device_resume,	bus_generic_resume), /* XXX */
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fd_driver = {

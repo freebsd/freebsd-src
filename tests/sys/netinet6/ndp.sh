@@ -152,7 +152,10 @@ ndp_slaac_default_route_body() {
 	ndp_if_up ${epair0}b
 	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
 
-        # Send an RA advertising a prefix.
+	# Make sure that NAs from us are flagged as coming from a router.
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+
+	# Send an RA advertising a prefix.
 	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
 	    --sendif ${epair0}b \
 	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
@@ -167,7 +170,7 @@ ndp_slaac_default_route_body() {
 	    jexec ${jname} netstat -rn -6
 
 	# Get rid of the default route.
-	jexec ${jname} route -6 flush
+	atf_check -o ignore jexec ${jname} route -6 flush
 	atf_check -o not-match:"^default[[:space:]]+fe80:" \
 	    jexec ${jname} netstat -rn -6
 
@@ -357,8 +360,8 @@ ndp_prefix_lifetime_extend_body() {
 		atf_fail "Unexpected lifetimes: ${t}"
 	fi
 	ex3=$(prefix_expiry ${prefix}/64)
-	if [ "${ex3}" -lt "${ex2}" ]; then
-		atf_fail "Expiry time was shortened: ${ex2} <= ${ex3}"
+	if [ "${ex3}" -le 10 -o "${ex3}" -gt 20 ]; then
+		atf_fail "Unexpected expiry time: ${ex3}"
 	fi
 }
 

@@ -3916,6 +3916,73 @@ pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	return (ret);
 }
 
+static int
+_pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
+    struct pfr_addr *addrs, int size, int *nmatch, int flags)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	struct nl_astats attrs;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_TABLE_TEST_ADDRS);
+
+	snl_add_msg_attr_table(&nw, PF_TA_TABLE, tbl);
+	snl_add_msg_attr_u32(&nw, PF_TA_FLAGS, flags);
+	for (int i = 0; i < size; i++)
+		snl_add_msg_attr_pfr_addr(&nw, PF_TA_ADDR, &addrs[i]);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_astats_parser, &attrs))
+			continue;
+	}
+
+	if (nmatch)
+		*nmatch = attrs.total_count;
+
+	return (e.error);
+}
+
+int
+pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
+    struct pfr_addr *addrs, int size, int *nmatch, int flags)
+{
+	int ret;
+	int off = 0;
+	int partial_match;
+	int chunk_size;
+
+	if (nmatch)
+		*nmatch = 0;
+
+	do {
+		chunk_size = MIN(size - off, 256);
+		ret = _pfctl_test_addrs(h, tbl, &addrs[off], chunk_size,
+		    &partial_match, flags);
+		if (ret != 0)
+			break;
+		if (nmatch)
+			*nmatch += partial_match;
+		off += chunk_size;
+	} while (off < size);
+
+	return (ret);
+}
+
 static void
 snl_add_msg_attr_limit_rate(struct snl_writer *nw, uint32_t type,
     const struct pfctl_limit_rate *rate)

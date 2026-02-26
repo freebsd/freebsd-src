@@ -6,3 +6,8 @@ SRCS+=	__vdso_gettc.c \
 MDASM= \
 	cerror.S \
 	vfork.S
+
+.if ${LIB} == "sys"
+.PATH: ${LIBSYS_SRCTOP}/../libc/arm/aeabi
+SRCS+=	aeabi_unwind_cpp.c
+.endif

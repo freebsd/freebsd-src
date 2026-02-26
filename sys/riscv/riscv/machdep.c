@@ -118,7 +118,7 @@ uint32_t boot_hart = BOOT_HART_INVALID;	/* The hart we booted on. */
 
 cpuset_t all_harts;
 
-extern int *end;
+extern char end[];
 
 static char static_kenv[PAGE_SIZE];
 

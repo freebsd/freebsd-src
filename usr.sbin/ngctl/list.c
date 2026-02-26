@@ -1,10 +1,9 @@
-
 /*
  * list.c
  *
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -15,7 +14,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -70,6 +69,7 @@ ListCmd(int ac, char **av)
 	int ch, rtn = CMDRTN_OK;
 
 	/* Get options */
+	optreset = 1;
 	optind = 1;
 	while ((ch = getopt(ac, av, "ln")) != -1) {
 		switch (ch) {
@@ -79,7 +79,6 @@ ListCmd(int ac, char **av)
 		case 'n':
 			named_only = 1;
 			break;
-		case '?':
 		default:
 			return (CMDRTN_USAGE);
 			break;
@@ -114,11 +113,11 @@ ListCmd(int ac, char **av)
 	ninfo = nlist->nodeinfo;
 	if (list_hooks) {
 		char	path[NG_PATHSIZ];
-		char	*argv[2] = { "show", path };
+		char	*argv[] = { "show", path, NULL };
 
 		while (nlist->numnames > 0) {
-			snprintf(path, sizeof(path),
-			    "[%lx]:", (u_long)ninfo->id);
+			snprintf(path, sizeof(path), "[%lx]:",
+			    (unsigned long)ninfo->id);
 			if ((rtn = (*show_cmd.func)(2, argv)) != CMDRTN_OK)
 				break;
 			ninfo++;
@@ -143,4 +142,3 @@ ListCmd(int ac, char **av)
 	free(resp);
 	return (rtn);
 }
-

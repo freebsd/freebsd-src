@@ -418,24 +418,30 @@ err_xfrm:
 	return err;
 }
 
-#define GET_TRUNK_IF(vifp, ifp, ept)          \
-	if (if_gettype(vifp) == IFT_L2VLAN) { \
-		NET_EPOCH_ENTER(ept);         \
-		ifp = VLAN_TRUNKDEV(vifp);    \
-		NET_EPOCH_EXIT(ept);          \
-	} else {                              \
-		ifp = vifp;                   \
+static struct ifnet *
+mlx5_get_trunk_if(struct ifnet *vifp)
+{
+	struct epoch_tracker et;
+	struct ifnet *res;
+
+	if (if_gettype(vifp) == IFT_L2VLAN) {
+		NET_EPOCH_ENTER(et);
+		res = VLAN_TRUNKDEV(vifp);
+		NET_EPOCH_EXIT(et);
+	} else {
+		res = vifp;
 	}
+	return (res);
+}
 
 static int
 mlx5e_if_sa_newkey(struct ifnet *ifpo, void *sav, u_int dev_spi, void **privp)
 {
 	struct mlx5e_ipsec_priv_bothdir *pb;
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 	int error;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 
 	pb = malloc(sizeof(struct mlx5e_ipsec_priv_bothdir), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -478,10 +484,9 @@ static int
 mlx5e_if_sa_deinstall(struct ifnet *ifpo, u_int dev_spi, void *priv)
 {
 	struct mlx5e_ipsec_priv_bothdir pb, *pbp;
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 
 	pbp = priv;
 	pb = *(struct mlx5e_ipsec_priv_bothdir *)priv;
@@ -516,10 +521,9 @@ mlx5e_if_sa_cnt(struct ifnet *ifpo, void *sa, uint32_t drv_spi, void *priv,
 	struct mlx5e_ipsec_priv_bothdir *pb;
 	u64 packets_in, packets_out;
 	u64 bytes_in, bytes_out;
-	struct epoch_tracker et;
 	struct ifnet *ifp;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 
 	pb = priv;
 	mlx5e_if_sa_cnt_one(ifp, sa, drv_spi, pb->priv_in,
@@ -652,12 +656,11 @@ mlx5e_if_spd_install(struct ifnet *ifpo, void *sp, void *inp1, void **ifdatap)
 {
 	struct mlx5e_ipsec_pol_entry *pol_entry;
 	struct mlx5e_priv *priv;
-	struct epoch_tracker et;
 	u16 vid = VLAN_NONE;
 	struct ifnet *ifp;
 	int err;
 
-	GET_TRUNK_IF(ifpo, ifp, et);
+	ifp = mlx5_get_trunk_if(ifpo);
 	if (if_gettype(ifpo) == IFT_L2VLAN)
 		VLAN_TAG(ifpo, &vid);
 	priv = if_getsoftc(ifp);
@@ -739,13 +742,14 @@ static const struct if_ipsec_accel_methods  mlx5e_ipsec_funcs = {
 	.if_hwassist = mlx5e_if_ipsec_hwassist,
 };
 
-int mlx5e_ipsec_init(struct mlx5e_priv *priv)
+void
+mlx5e_ipsec_report(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_ipsec *pipsec;
-	if_t ifp = priv->ifp;
-	int ret;
+	struct mlx5_core_dev *mdev;
 
+	if (!bootverbose)
+		return;
+	mdev = priv->mdev;
 	mlx5_core_info(mdev, "ipsec "
 	    "offload %d log_max_dek %d gen_obj_types %d "
 	    "ipsec_encrypt %d ipsec_decrypt %d "
@@ -775,6 +779,14 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
 		reformat_del_esp_transport_over_udp) != 0,
 	    MLX5_CAP_IPSEC(mdev, ipsec_esn) != 0);
+}
+
+int mlx5e_ipsec_init(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_ipsec *pipsec;
+	if_t ifp = priv->ifp;
+	int ret;
 
 	if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
 		mlx5_core_dbg(mdev, "Not an IPSec offload device\n");

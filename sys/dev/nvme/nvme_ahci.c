@@ -43,7 +43,7 @@ static device_method_t nvme_ahci_methods[] = {
 	DEVMETHOD(device_attach,    nvme_ahci_attach),
 	DEVMETHOD(device_detach,    nvme_ahci_detach),
 	DEVMETHOD(device_shutdown,  nvme_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nvme_ahci_driver = {

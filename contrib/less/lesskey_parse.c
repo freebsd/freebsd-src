@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -53,6 +53,7 @@ static constant struct lesskey_cmdname cmdnames[] =
 	{ "first-cmd",            A_FIRSTCMD },
 	{ "firstcmd",             A_FIRSTCMD },
 	{ "flush-repaint",        A_FREPAINT },
+	{ "forw-bell-hilite",     A_F_FOREVER_BELL },
 	{ "forw-bracket",         A_F_BRACKET },
 	{ "forw-forever",         A_F_FOREVER },
 	{ "forw-line",            A_F_LINE },
@@ -68,6 +69,7 @@ static constant struct lesskey_cmdname cmdnames[] =
 	{ "goto-end-buffered",    A_GOEND_BUF },
 	{ "goto-line",            A_GOLINE },
 	{ "goto-mark",            A_GOMARK },
+	{ "goto-pos",             A_GOPOS },
 	{ "help",                 A_HELP },
 	{ "index-file",           A_INDEX_FILE },
 	{ "invalid",              A_UINVALID },
@@ -80,6 +82,7 @@ static constant struct lesskey_cmdname cmdnames[] =
 	{ "noaction",             A_NOACTION },
 	{ "osc8-forw-search",     A_OSC8_F_SEARCH },
 	{ "osc8-back-search",     A_OSC8_B_SEARCH },
+	{ "osc8-jump",            A_OSC8_JUMP },
 	{ "osc8-open",            A_OSC8_OPEN },
 	{ "percent",              A_PERCENT },
 	{ "pipe",                 A_PIPE },
@@ -255,12 +258,18 @@ static constant char * tstr(char **pp, int xlate)
 				case 'd': ch = SK_DOWN_ARROW; break;
 				case 'D': ch = SK_PAGE_DOWN; break;
 				case 'e': ch = SK_END; break;
+				case 'E': ch = SK_CTL_END; break;
+				case 'F': ch = SK_SHIFT_END; break;
 				case 'h': ch = SK_HOME; break;
+				case 'H': ch = SK_CTL_HOME; break;
+				case 'I': ch = SK_SHIFT_HOME; break;
 				case 'i': ch = SK_INSERT; break;
 				case 'l': ch = SK_LEFT_ARROW; break;
 				case 'L': ch = SK_CTL_LEFT_ARROW; break;
+				case 'M': ch = SK_SHIFT_LEFT_ARROW; break;
 				case 'r': ch = SK_RIGHT_ARROW; break;
 				case 'R': ch = SK_CTL_RIGHT_ARROW; break;
+				case 'S': ch = SK_SHIFT_RIGHT_ARROW; break;
 				case 't': ch = SK_BACKTAB; break;
 				case 'u': ch = SK_UP_ARROW; break;
 				case 'U': ch = SK_PAGE_UP; break;

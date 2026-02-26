@@ -987,8 +987,13 @@ passthru_init(struct pci_devinst *pi, nvlist_t *nvl)
 	}
 
 	if (vm_assign_pptdev(pi->pi_vmctx, bus, slot, func) != 0) {
-		warnx("PCI device at %d/%d/%d is not using the ppt(4) driver",
-		    bus, slot, func);
+		if (errno == ENOENT) {
+			EPRINTLN(
+		    "PCI device at %d/%d/%d is not using the ppt driver",
+			    bus, slot, func);
+		} else {
+			EPRINTLN("vm_assign_pptdev: %s", strerror(errno));
+		}
 		goto done;
 	}
 

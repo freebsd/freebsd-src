@@ -118,23 +118,78 @@ struct msr_op_arg {
 	int op;
 	uint64_t arg1;
 	uint64_t *res;
+	bool safe;
+	int error;
 };
 
 static void
-x86_msr_op_one(void *argp)
+x86_msr_op_one_safe(struct msr_op_arg *a)
 {
-	struct msr_op_arg *a;
+	uint64_t v;
+	int error;
+
+	error = 0;
+	switch (a->op) {
+	case MSR_OP_ANDNOT:
+		error = rdmsr_safe(a->msr, &v);
+		if (error != 0) {
+			atomic_cmpset_int(&a->error, 0, error);
+			break;
+		}
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
+		v &= ~a->arg1;
+		error = wrmsr_safe(a->msr, v);
+		if (error != 0)
+			atomic_cmpset_int(&a->error, 0, error);
+		break;
+	case MSR_OP_OR:
+		error = rdmsr_safe(a->msr, &v);
+		if (error != 0) {
+			atomic_cmpset_int(&a->error, 0, error);
+			break;
+		}
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
+		v |= a->arg1;
+		error = wrmsr_safe(a->msr, v);
+		if (error != 0)
+			atomic_cmpset_int(&a->error, 0, error);
+		break;
+	case MSR_OP_WRITE:
+		error = wrmsr_safe(a->msr, a->arg1);
+		if (error != 0)
+			atomic_cmpset_int(&a->error, 0, error);
+		break;
+	case MSR_OP_READ:
+		error = rdmsr_safe(a->msr, &v);
+		if (error == 0) {
+			if (a->res != NULL)
+				atomic_store_64(a->res, v);
+		} else {
+			atomic_cmpset_int(&a->error, 0, error);
+		}
+		break;
+	}
+}
+
+static void
+x86_msr_op_one_unsafe(struct msr_op_arg *a)
+{
 	uint64_t v;
 
-	a = argp;
 	switch (a->op) {
 	case MSR_OP_ANDNOT:
 		v = rdmsr(a->msr);
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		v &= ~a->arg1;
 		wrmsr(a->msr, v);
 		break;
 	case MSR_OP_OR:
 		v = rdmsr(a->msr);
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		v |= a->arg1;
 		wrmsr(a->msr, v);
 		break;
@@ -143,18 +198,75 @@ x86_msr_op_one(void *argp)
 		break;
 	case MSR_OP_READ:
 		v = rdmsr(a->msr);
-		*a->res = v;
+		if (a->res != NULL)
+			atomic_store_64(a->res, v);
 		break;
 	default:
 		__assert_unreachable();
 	}
 }
 
+static void
+x86_msr_op_one(void *arg)
+{
+	struct msr_op_arg *a;
+
+	a = arg;
+	if (a->safe)
+		x86_msr_op_one_safe(a);
+	else
+		x86_msr_op_one_unsafe(a);
+}
+
 #define	MSR_OP_EXMODE_MASK	0xf0000000
 #define	MSR_OP_OP_MASK		0x000000ff
-#define	MSR_OP_GET_CPUID(x)	(((x) & ~MSR_OP_EXMODE_MASK) >> 8)
+#define	MSR_OP_GET_CPUID(x) \
+    (((x) & ~(MSR_OP_EXMODE_MASK | MSR_OP_SAFE)) >> 8)
 
-void
+/*
+ * Utility function to wrap common MSR accesses.
+ *
+ * The msr argument specifies the MSR number to operate on.
+ * arg1 is an optional additional argument which is needed by
+ * modifying ops.
+ *
+ * res is the location where the value read from MSR is placed.  It is
+ * the value that was initially read from the MSR, before applying the
+ * specified operation.  Can be NULL if the value is not needed.  If
+ * the op is executed on more than one CPU, it is unspecified on which
+ * CPU the value was read.
+ *
+ * op encoding combines the target/mode specification and the requested
+ * operation, all or-ed together.
+ *
+ * MSR accesses are executed with interrupts disabled.
+
+ * The following targets can be specified:
+ * MSR_OP_LOCAL				execute on current CPU.
+ * MSR_OP_SCHED_ALL			execute on all CPUs, by migrating
+ *					the current thread to them in sequence.
+ * MSR_OP_SCHED_ALL | MSR_OP_SAFE	execute on all CPUs by migrating, using
+ *					safe MSR access.
+ * MSR_OP_SCHED_ONE			execute on specified CPU, migrate
+ *					curthread to it.
+ * MSR_OP_SCHED_ONE | MSR_OP_SAFE	safely execute on specified CPU,
+ *					migrate curthread to it.
+ * MSR_OP_RENDEZVOUS_ALL		execute on all CPUs in interrupt
+ *					context.
+ * MSR_OP_RENDEZVOUS_ONE		execute on specified CPU in interrupt
+ *					context.
+ * If a _ONE target is specified, 'or' the op value with MSR_OP_CPUID(cpuid)
+ * to name the target CPU.  _SAFE variants might return EFAULT if access to
+ * MSR faulted with #GP.  Non-_SAFE variants most likely panic or reboot
+ * the machine if the MSR is not present or access is not tolerated by hw.
+ *
+ * The following operations can be specified:
+ * MSR_OP_ANDNOT	*res = v = *msr; *msr = v & ~arg1
+ * MSR_OP_OR		*res = v = *msr; *msr = v | arg1
+ * MSR_OP_READ		*res = *msr
+ * MSR_OP_WRITE		*res = *msr; *msr = arg1
+ */
+int
 x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 {
 	struct thread *td;
@@ -167,8 +279,10 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 	exmode = op & MSR_OP_EXMODE_MASK;
 	a.op = op & MSR_OP_OP_MASK;
 	a.msr = msr;
+	a.safe = (op & MSR_OP_SAFE) != 0;
 	a.arg1 = arg1;
 	a.res = res;
+	a.error = 0;
 
 	switch (exmode) {
 	case MSR_OP_LOCAL:
@@ -209,8 +323,8 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 		thread_unlock(td);
 		break;
 	case MSR_OP_RENDEZVOUS_ALL:
-		smp_rendezvous(smp_no_rendezvous_barrier, x86_msr_op_one,
-		    smp_no_rendezvous_barrier, &a);
+		smp_rendezvous(smp_no_rendezvous_barrier,
+		    x86_msr_op_one, smp_no_rendezvous_barrier, &a);
 		break;
 	case MSR_OP_RENDEZVOUS_ONE:
 		cpu = MSR_OP_GET_CPUID(op);
@@ -221,6 +335,7 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 	default:
 		__assert_unreachable();
 	}
+	return (a.error);
 }
 
 /*

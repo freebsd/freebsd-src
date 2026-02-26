@@ -121,7 +121,7 @@ static device_method_t iicbb_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	iicbb_get_node),
 #endif
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t iicbb_driver = {

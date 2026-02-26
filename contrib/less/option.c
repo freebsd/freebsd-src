@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -93,7 +93,7 @@ public void scan_option(constant char *s, lbool is_env)
 				break;
 			case O_NUMBER:
 				printopt = opt_desc(pendopt);
-				getnumc(&s, printopt, FALSE, pendopt->ovar);
+				getnumc(&s, printopt, (pendopt->otype & O_NEGOK) != 0, pendopt->ovar);
 				break;
 			}
 		}
@@ -295,7 +295,7 @@ public void scan_option(constant char *s, lbool is_env)
 			}
 			if (o->otype & O_UNSUPPORTED)
 				break;
-			getnumc(&s, printopt, FALSE, o->ovar);
+			getnumc(&s, printopt, (o->otype & O_NEGOK) != 0, o->ovar);
 			break;
 		}
 		/*
@@ -437,7 +437,7 @@ public lbool toggle_option(struct loption *o, lbool lower, constant char *s, int
 			switch (how_toggle)
 			{
 			case OPT_TOGGLE:
-				if (!getnumc(&s, opt_desc(o), FALSE, o->ovar))
+				if (!getnumc(&s, opt_desc(o), (o->otype & O_NEGOK) != 0, o->ovar))
 					return FALSE;
 				break;
 			case OPT_UNSET:

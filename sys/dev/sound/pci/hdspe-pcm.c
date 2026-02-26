@@ -1109,7 +1109,7 @@ static device_method_t hdspe_pcm_methods[] = {
 	DEVMETHOD(device_probe,     hdspe_pcm_probe),
 	DEVMETHOD(device_attach,    hdspe_pcm_attach),
 	DEVMETHOD(device_detach,    hdspe_pcm_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hdspe_pcm_driver = {

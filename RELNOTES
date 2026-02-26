@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+af099eaa5ec:
+	Users belonging to the new vmm group can now create bhyve VMs.  See the
+	vmm(4) man page for details.
+
+c71354030a2:
+	Users wishing to use bhyve PCI passthrough in jails must create the
+	jail with the allow.vmm_ppt option configured.
+
 4d707825bf62:
 	The pdwait(2) system call was added.  It provides wait(2)-like
 	functionality for a process descriptor (see procdesc(4)).

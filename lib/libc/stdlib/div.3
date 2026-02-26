@@ -1,8 +1,12 @@
 .\" Copyright (c) 1990, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
+.\" Copyright (c) 2026 Aymeric Wibo <obiwac@freebsd.org>
 .\"
 .\" This code is derived from software contributed to Berkeley by
-.\" Chris Torek.
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -27,41 +31,77 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 12, 2026
+.Dd February 18, 2026
 .Dt DIV 3
 .Os
 .Sh NAME
-.Nm div
+.Nm div ,
+.Nm ldiv ,
+.Nm lldiv ,
+.Nm imaxdiv
 .Nd return quotient and remainder from division
-.Sh LIBRARY
-.Lb libc
 .Sh SYNOPSIS
+.Lb libc
 .In stdlib.h
 .Ft div_t
 .Fn div "int numer" "int denom"
+.Ft ldiv_t
+.Fn ldiv "long numer" "long denom"
+.Ft lldiv_t
+.Fn lldiv "long long numer" "long long denom"
+.In inttypes.h
+.Ft imaxdiv_t
+.Fn imaxdiv "intmax_t numer" "intmax_t denom"
 .Sh DESCRIPTION
 The
-.Fn div
-function
-computes the value
-.Fa numer Ns / Ns Fa denom
-(numerator/denominator).
-It returns a structure named
-.Fa div_t
-that contains two
-.Vt int
+.Fn div ,
+.Fn ldiv ,
+.Fn lldiv ,
+and
+.Fn imaxdiv
+functions compute the value of
+.Fa numer
+(the numerator) divided by
+.Fa denom
+(the denominator) and return the stored result in the form of the
+.Fa div_t ,
+.Fa ldiv_t ,
+.Fa lldiv_t ,
+or
+.Fa imaxdiv_t
+types, respectively.
+These types are structs which contain two
+.Vt int ,
+.Vt long ,
+.Vt long long ,
+or
+.Vt intmax_t
 members named
 .Va quot
-(quotient) and
+(the quotient) and
 .Va rem
-(remainder).
-.Sh SEE ALSO
-.Xr imaxdiv 3 ,
-.Xr ldiv 3 ,
-.Xr lldiv 3
+(the remainder).
 .Sh STANDARDS
 The
+.Fn div ,
+.Fn ldiv ,
+.Fn lldiv ,
+and
+.Fn imaxdiv
+functions conform to
+.St -isoC-2023
+and
+.St -p1003.1-2024 .
+.Sh HISTORY
+The
 .Fn div
-function
-conforms to
-.St -isoC-99 .
+and
+.Fn ldiv
+functions first appeared in
+.Bx 4.3 .
+The
+.Fn lldiv
+and
+.Fn imaxdiv
+functions first appeared in
+.Fx 5.0 .

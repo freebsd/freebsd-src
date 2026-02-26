@@ -59,6 +59,29 @@ riscv: The CPUs must implement the H (hypervisor) RISC-V ISA extension.
 .Pp
 PCI device passthrough to a virtual machine requires
 hardware with VT-d support and is available only on amd64.
+.Sh ACCESS CONTROL
+Only the super-user and processes with write access to the
+.Pa /dev/vmmctl
+device file may create and destroy virtual machines.
+By default, members of the
+.Va vmm
+group have such access.
+Once created, a virtual machine may be destroyed only by that user or
+the super-user.
+.Pp
+Unprivileged users must use
+.Dq monitor mode
+to run the virtual machine; in this mode, the virtual machine is automatically
+destroyed when its device file is closed.
+When running
+.Xr bhyve 8 ,
+this mode can be selected by specifying the
+.Fl M
+flag.
+.Pp
+Virtual machines can be created in a jail if the jail has the
+.Va allow.vmm
+flag set.
 .Sh PCI PASSTHROUGH
 On amd64 where the hardware supports VT-d,
 PCI devices can be reserved for use by the hypervisor.
@@ -99,6 +122,12 @@ The
 and
 .Va pptdevs3
 variables can be used for additional entries.
+.Pp
+In general, PCI passthrough cannot be used when running
+.Xr bhyve 8
+as an unprivileged user or in a jail, as this feature requires write
+access to
+.Pa /dev/pci .
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
@@ -109,6 +138,14 @@ prompt before booting the kernel or stored in
 Maximum number of virtual CPUs.
 The default is the number of physical CPUs in the system.
 .El
+.Sh FILES
+.Bl -tag -width /dev/vmm.io/* -compact
+.It Pa /dev/vmmctl
+control interface for creating and destroying virtual machines.
+.It Pa /dev/vmm/*
+device interface for individual virtual machines.
+.It Pa /dev/vmm.io/*
+device interface for device memory mapped into virtual machines.
 .Sh EXAMPLES
 Reserve three PCI devices for use by the hypervisor: bus 10 slot 0 function 0,
 bus 6 slot 5 function 0, and bus 6 slot 5 function 1.
@@ -143,8 +180,10 @@ back:
 .Xr bhyve 4 ,
 .Xr loader.conf 5 ,
 .Xr bhyve 8 ,
+.Xr bhyvectl 8 ,
 .Xr bhyveload 8 ,
 .Xr devctl 8 ,
+.Xr jail 8 ,
 .Xr kldload 8
 .Sh HISTORY
 .Nm vmm.ko

@@ -8530,7 +8530,7 @@ ipf_matcharray_load(ipf_main_softc_t *softc, caddr_t data, ipfobj_t *objp,
 int
 ipf_matcharray_verify(int *array, int arraysize)
 {
-	int i, nelem, maxidx;
+	u_int i, nelem, maxidx;
 	ipfexp_t *e;
 
 	nelem = arraysize / sizeof(*array);
@@ -8591,7 +8591,7 @@ ipf_matcharray_verify(int *array, int arraysize)
 static int
 ipf_fr_matcharray(fr_info_t *fin, int *array)
 {
-	int i, n, *x, rv, p;
+	u_int i, n, *x, rv, p;
 	ipfexp_t *e;
 
 	rv = 0;

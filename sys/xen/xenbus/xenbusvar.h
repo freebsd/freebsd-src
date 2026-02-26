@@ -55,7 +55,7 @@ enum {
 	/**
 	 * Path of this device node.
 	 */
-	XENBUS_IVAR_NODE,
+	XENBUS_IVAR_NODE = BUS_IVARS_PRIVATE,
 
 	/**
 	 * The device type (e.g. vif, vbd).

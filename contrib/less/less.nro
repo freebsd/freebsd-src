@@ -1,5 +1,5 @@
 '\" t
-.TH LESS 1 "10 Jan 2026" "less 691"
+.TH LESS 1 "29 Jan 2026" "less 692"
 .\" Define a string for the caret ("hat") as portably as possible.
 .ie \n(.g .ds ^ \(ha
 .el       .ds ^ ^
@@ -171,9 +171,9 @@ Scroll horizontally left N characters, default half the screen width
 option).
 If a number N is specified, it becomes the default for future RIGHTARROW
 and LEFTARROW commands.
-.IP "ESC-} or \*^RIGHTARROW or END"
+.IP "ESC-} or \*^RIGHTARROW or SHIFT-RIGHTARROW"
 Scroll horizontally right to show the end of the longest displayed line.
-.IP "ESC-{ or \*^LEFTARROW or HOME"
+.IP "ESC-{ or \*^LEFTARROW or SHIFT-LEFTARROW"
 Scroll horizontally left back to the first column.
 .IP "\*^END or SHIFT-END"
 Go to line N in the file, default the end of the file, and
@@ -213,10 +213,10 @@ the last search pattern, the terminal bell is rung.
 Like F, but as soon as a line is found which matches
 the last search pattern, the terminal bell is rung
 and forward scrolling stops.
-.IP "g or < or ESC-<"
+.IP "g or < or ESC-< or HOME"
 Go to line N in the file, default 1 (beginning of file).
 (Warning: this may be slow if N is large.)
-.IP "G or > or ESC->"
+.IP "G or > or ESC-> or END"
 Go to line N in the file, default the end of the file.
 (Warning: this may be slow if N is large,
 or if N is not specified and
@@ -1624,7 +1624,7 @@ lines less than the current screen size.
 For example, if the screen is 24 lines,
 .B "\-z\-4"
 sets the
-scrolling window to 20 lines.  If the screen is resized to 40 lines,
+scrolling window to 20 lines.  If the screen is later resized to 40 lines,
 the scrolling window automatically changes to 36 lines.
 .IP "\fB\-""\fP\fIcc\fP\ or\ \fB\-\-quotes=\fP\fIcc\fP"
 Changes the filename quoting character.
@@ -3198,7 +3198,7 @@ Possible location of the history file; see the description of the LESSHISTFILE e
 .BR lessecho (1)
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2025  Mark Nudelman
+Copyright (C) 1984-2026  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it

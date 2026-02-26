@@ -610,7 +610,8 @@ again:
 			 * above, will be forwarded by the ip_input() routine,
 			 * if necessary.
 			 */
-			if (V_ip_mrouter && (flags & IP_FORWARDING) == 0) {
+			if (V_ip_mrouting_enabled &&
+			    (flags & IP_FORWARDING) == 0) {
 				/*
 				 * If rsvp daemon is not running, do not
 				 * set ip_moptions. This ensures that the packet

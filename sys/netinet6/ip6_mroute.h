@@ -273,8 +273,8 @@ struct rtdetq {		/* XXX: rtdetq is also defined in ip_mroute.h */
 #endif /* _KERNEL || KERNEL */
 
 #ifdef _KERNEL
-VNET_DECLARE(struct socket *, ip6_mrouter);	/* multicast routing daemon */
-#define	V_ip6_mrouter			VNET(ip6_mrouter)
+VNET_DECLARE(bool, ip6_mrouting_enabled);
+#define	V_ip6_mrouting_enabled	VNET(ip6_mrouting_enabled)
 
 struct ifnet;
 struct ip6_hdr;
@@ -286,7 +286,7 @@ extern int	(*ip6_mforward)(struct ip6_hdr *, struct ifnet *,
 		    struct mbuf *);
 extern int	(*ip6_mrouter_set)(struct socket *so, struct sockopt *sopt);
 extern int	(*ip6_mrouter_get)(struct socket *so, struct sockopt *sopt);
-extern int	(*ip6_mrouter_done)(void);
+extern void	(*ip6_mrouter_done)(struct socket *so);
 
 extern int	(*mrt6_ioctl)(u_long, caddr_t);
 #endif /* _KERNEL */

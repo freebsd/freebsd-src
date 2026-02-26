@@ -207,7 +207,7 @@ simple_mfd_attach(device_t dev)
 
 	if (ofw_bus_is_compatible(dev, "syscon")) {
 		sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-		    RF_ACTIVE);
+		    RF_ACTIVE | RF_SHAREABLE);
 		if (sc->mem_res == NULL) {
 			device_printf(dev,
 			    "Cannot allocate memory resource\n");

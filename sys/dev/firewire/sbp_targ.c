@@ -2036,7 +2036,7 @@ static device_method_t sbp_targ_methods[] = {
 	DEVMETHOD(device_probe,		sbp_targ_probe),
 	DEVMETHOD(device_attach,	sbp_targ_attach),
 	DEVMETHOD(device_detach,	sbp_targ_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sbp_targ_driver = {

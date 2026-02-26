@@ -102,7 +102,6 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     FTP \
     GAMES \
-    GNU_DIFF \
     GOOGLETEST \
     GPIO \
     HAST \

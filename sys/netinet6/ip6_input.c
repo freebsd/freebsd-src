@@ -891,7 +891,7 @@ passin:
 	/*
 	 * Forward if desirable.
 	 */
-	if (V_ip6_mrouter &&
+	if (V_ip6_mrouting_enabled &&
 	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		/*
 		 * If we are acting as a multicast router, all

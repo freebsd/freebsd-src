@@ -64,7 +64,7 @@
 #ifdef _SYS_BUS_H_
 /* Ivars for sdiob. */
 enum sdiob_dev_enum {
-	SDIOB_IVAR_SUPPORT_MULTIBLK,
+	SDIOB_IVAR_SUPPORT_MULTIBLK = BUS_IVARS_PRIVATE,
 	SDIOB_IVAR_FUNCTION,
 	SDIOB_IVAR_FUNCNUM,
 	SDIOB_IVAR_CLASS,
@@ -72,6 +72,8 @@ enum sdiob_dev_enum {
 	SDIOB_IVAR_DEVICE,
 	SDIOB_IVAR_DRVDATA,
 };
+
+struct sdio_func;
 
 #define	SDIOB_ACCESSOR(var, ivar, type)				\
     __BUS_ACCESSOR(sdio, var, SDIOB, ivar, type)

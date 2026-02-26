@@ -1455,11 +1455,11 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 
 		if (gsa->sin6.sin6_family != AF_INET6 ||
 		    gsa->sin6.sin6_len != sizeof(struct sockaddr_in6))
-			return (EINVAL);
+			return (EAFNOSUPPORT);
 
 		if (ssa->sin6.sin6_family != AF_INET6 ||
 		    ssa->sin6.sin6_len != sizeof(struct sockaddr_in6))
-			return (EINVAL);
+			return (EAFNOSUPPORT);
 
 		/*
 		 * XXXGL: this function should use ifnet_byindex_ref, or
@@ -1684,7 +1684,7 @@ in6p_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 
 	if (msfr.msfr_group.ss_family != AF_INET6 ||
 	    msfr.msfr_group.ss_len != sizeof(struct sockaddr_in6))
-		return (EINVAL);
+		return (EAFNOSUPPORT);
 
 	gsa = (sockunion_t *)&msfr.msfr_group;
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
@@ -1963,12 +1963,13 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 		if (gsa->sin6.sin6_family != AF_INET6 ||
 		    gsa->sin6.sin6_len != sizeof(struct sockaddr_in6))
-			return (EINVAL);
+			return (EAFNOSUPPORT);
 
 		if (sopt->sopt_name == MCAST_JOIN_SOURCE_GROUP) {
 			if (ssa->sin6.sin6_family != AF_INET6 ||
 			    ssa->sin6.sin6_len != sizeof(struct sockaddr_in6))
-				return (EINVAL);
+				return (EAFNOSUPPORT);
+
 			if (IN6_IS_ADDR_MULTICAST(&ssa->sin6.sin6_addr))
 				return (EINVAL);
 			/*
@@ -2265,11 +2266,13 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 
 		if (gsa->sin6.sin6_family != AF_INET6 ||
 		    gsa->sin6.sin6_len != sizeof(struct sockaddr_in6))
-			return (EINVAL);
+			return (EAFNOSUPPORT);
+
 		if (sopt->sopt_name == MCAST_LEAVE_SOURCE_GROUP) {
 			if (ssa->sin6.sin6_family != AF_INET6 ||
 			    ssa->sin6.sin6_len != sizeof(struct sockaddr_in6))
-				return (EINVAL);
+				return (EAFNOSUPPORT);
+
 			if (IN6_IS_ADDR_MULTICAST(&ssa->sin6.sin6_addr))
 				return (EINVAL);
 			/*
@@ -2509,7 +2512,7 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 
 	if (msfr.msfr_group.ss_family != AF_INET6 ||
 	    msfr.msfr_group.ss_len != sizeof(struct sockaddr_in6))
-		return (EINVAL);
+		return (EAFNOSUPPORT);
 
 	gsa = (sockunion_t *)&msfr.msfr_group;
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))

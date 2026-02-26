@@ -54,7 +54,7 @@ static device_method_t uart_fdt_methods[] = {
 	DEVMETHOD(device_probe,		uart_fdt_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t uart_fdt_driver = {

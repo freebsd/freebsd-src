@@ -978,7 +978,7 @@ static device_method_t lpt_methods[] = {
 	DEVMETHOD(device_probe,		lpt_probe),
 	DEVMETHOD(device_attach,	lpt_attach),
 	DEVMETHOD(device_detach,	lpt_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t lpt_driver = {

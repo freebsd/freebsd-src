@@ -905,7 +905,7 @@ static device_method_t kvp_methods[] = {
 	DEVMETHOD(device_probe, hv_kvp_probe),
 	DEVMETHOD(device_attach, hv_kvp_attach),
 	DEVMETHOD(device_detach, hv_kvp_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t kvp_driver = { "hvkvp", kvp_methods, sizeof(hv_kvp_sc)};

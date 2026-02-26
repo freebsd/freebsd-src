@@ -3489,7 +3489,7 @@ igmp_intr(struct mbuf *m)
 
 	imo.imo_multicast_ttl  = 1;
 	imo.imo_multicast_vif  = -1;
-	imo.imo_multicast_loop = (V_ip_mrouter != NULL);
+	imo.imo_multicast_loop = V_ip_mrouting_enabled;
 
 	/*
 	 * If the user requested that IGMP traffic be explicitly

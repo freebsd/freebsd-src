@@ -1852,6 +1852,7 @@ dev/iicbus/rtc/ds1307.c		optional ds1307
 dev/iicbus/rtc/ds13rtc.c	optional ds13rtc | ds133x | ds1374
 dev/iicbus/rtc/ds1672.c		optional ds1672
 dev/iicbus/rtc/ds3231.c		optional ds3231
+dev/iicbus/rtc/hym8563.c	optional hym8563 iicbus fdt
 dev/iicbus/rtc/isl12xx.c	optional isl12xx
 dev/iicbus/rtc/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt

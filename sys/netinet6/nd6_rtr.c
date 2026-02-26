@@ -2294,7 +2294,7 @@ regen:
 	/*
 	 * Check if generated address is not inappropriate:
 	 *
-	 * - Reserved IPv6 Interface aIdentifers
+	 * - Reserved IPv6 Interface Identifiers
 	 *   (https://www.iana.org/assignments/ipv6-interface-ids/)
 	 */
 

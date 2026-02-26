@@ -26,8 +26,9 @@
  */
 
 #include <sys/types.h>
-#include <sys/user.h>
+#include <sys/mman.h>
 #include <sys/procdesc.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 
 #include <atf-c.h>
@@ -35,23 +36,19 @@
 #include <string.h>
 #include <unistd.h>
 
-static void basic_usage(int rfflags) {
-	int pd = -1;
-	pid_t pid, pd_pid, waited_pid;
+static void
+basic_usage_tail(int pd, pid_t pid)
+{
+	pid_t pd_pid, waited_pid;
 	int r, status;
 
-	pid = pdrfork(&pd, 0, rfflags);
-	ATF_REQUIRE_MSG(pid >= 0, "rfork failed with %s", strerror(errno));
-	if (pid == 0) {
-		/* In child */
-		_exit(0);
-	}
 	ATF_REQUIRE_MSG(pd >= 0, "rfork did not return a process descriptor");
 	r = pdgetpid(pd, &pd_pid);
 	ATF_CHECK_EQ_MSG(r, 0, "pdgetpid failed: %s", strerror(errno));
+	ATF_CHECK_EQ(pd_pid, pid);
 
 	/* We should be able to collect the child's status */
-	waited_pid = waitpid(pid, &status, WEXITED | WNOWAIT);
+	waited_pid = waitpid(pid, &status, WEXITED);
 	ATF_CHECK_EQ(waited_pid, pid);
 
 	/* But after closing the process descriptor, we won't */
@@ -59,6 +56,21 @@ static void basic_usage(int rfflags) {
 	waited_pid = waitpid(pid, &status, WEXITED | WNOHANG);
 	ATF_CHECK_EQ(-1, waited_pid);
 	ATF_CHECK_EQ(ECHILD, errno);
+}
+
+static void
+basic_usage(int rfflags)
+{
+	int pd = -1;
+	pid_t pid;
+
+	pid = pdrfork(&pd, 0, rfflags);
+	ATF_REQUIRE_MSG(pid >= 0, "rfork failed with %s", strerror(errno));
+	if (pid == 0) {
+		/* In child */
+		_exit(0);
+	}
+	basic_usage_tail(pd, pid);
 }
 
 /* pdrfork does not return a process descriptor to the child */
@@ -82,7 +94,7 @@ ATF_TC_BODY(child_gets_no_pidfd, tc)
 	r = pdgetpid(pd, &pd_pid);
 	ATF_CHECK_EQ_MSG(r, 0, "pdgetpid failed: %s", strerror(errno));
 
-	waited_pid = waitpid(pid, &status, WEXITED | WNOWAIT);
+	waited_pid = waitpid(pid, &status, WEXITED);
 	ATF_CHECK_EQ(waited_pid, pid);
 	ATF_REQUIRE(WIFEXITED(status) && (WEXITSTATUS(status) == true));
 
@@ -93,7 +105,22 @@ ATF_TC_BODY(child_gets_no_pidfd, tc)
 ATF_TC_WITHOUT_HEAD(efault);
 ATF_TC_BODY(efault, tc)
 {
-	ATF_REQUIRE_ERRNO(EFAULT, pdrfork((int*)-1, 0, RFPROC | RFPROCDESC) < 0);
+	void *unmapped;
+	pid_t my_pid;
+
+	unmapped = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_GUARD, -1, 0);
+	ATF_REQUIRE(unmapped != MAP_FAILED);
+	my_pid = getpid();
+	ATF_REQUIRE_ERRNO(EFAULT, pdrfork(unmapped, 0, RFPROC |
+	    RFPROCDESC) < 0);
+
+	/*
+	 * EFAULT only means that the copyout of the procdesc failed.
+	 * The runaway child was created anyway.  Prevent
+	 * double-destruction of the atf stuff.
+	 */
+	if (my_pid != getpid())
+		_exit(0);
 }
 
 /* Invalid combinations of flags should return EINVAL */
@@ -107,48 +134,8 @@ ATF_TC_BODY(einval, tc)
 	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFSPAWN | RFNOWAIT) < 0);
 	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFPROC | RFFDG| RFCFDG) < 0);
 	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFPROCDESC) < 0);
-}
-
-/*
- * Without RFSPAWN, RFPROC, or RFPROCDESC, an existing process may be modified
- */
-ATF_TC_WITHOUT_HEAD(modify_child);
-ATF_TC_BODY(modify_child, tc)
-{
-	int fdp = -1;
-	pid_t pid1, pid2;
-
-	pid1 = pdfork(&fdp, 0);
-	if (pid1 == 0)
-		_exit(0);
-	ATF_REQUIRE_MSG(pid1 >= 0, "pdfork failed: %s", strerror(errno));
-	ATF_REQUIRE_MSG(fdp >= 0, "pdfork didn't return a process descriptor");
-
-	pid2 = pdrfork(&fdp, 0, RFNOWAIT);
-	ATF_REQUIRE_MSG(pid2 >= 0, "pdrfork failed: %s", strerror(errno));
-	ATF_CHECK_EQ_MSG(pid2, 0,
-	    "pdrfork created a process even though we told it not to");
-
-	close(fdp);
-}
-
-/*
- * Basic usage with RFPROC.  No process descriptor will be created.
- * I'm not sure why you would use pdrfork in this case instead of plain rfork
- */
-ATF_TC_WITHOUT_HEAD(rfproc);
-ATF_TC_BODY(rfproc, tc)
-{
-	int pd = -1;
-	pid_t pid;
-
-	pid = pdrfork(&pd, 0, RFPROC);
-	ATF_REQUIRE_MSG(pid > 0, "rfork failed with %s", strerror(errno));
-	if (pid == 0)
-		_exit(0);
-
-	ATF_REQUIRE_EQ_MSG(pd, -1,
-	    "rfork(RFPROC) returned a process descriptor");
+	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, RFPROC) < 0);
+	ATF_CHECK_ERRNO(EINVAL, pdrfork(&pd, 0, 0) < 0);
 }
 
 /* basic usage with RFPROCDESC */
@@ -158,30 +145,39 @@ ATF_TC_BODY(rfprocdesc, tc)
 	basic_usage(RFPROC | RFPROCDESC);
 }
 
+static int
+rfspawn_fn(void *arg)
+{
+	_exit(0);
+	return (0);
+}
+
 /* basic usage with RFSPAWN */
-/*
- * Skip on i386 and x86_64 because RFSPAWN cannot be used from C code on those
- * architectures.  See lib/libc/gen/posix_spawn.c for details.
- */
-#if !(defined(__i386__)) && !(defined(__amd64__))
 ATF_TC_WITHOUT_HEAD(rfspawn);
 ATF_TC_BODY(rfspawn, tc)
 {
-	basic_usage(RFSPAWN);
-}
+	char *stack = NULL;
+	int pd = -1;
+	pid_t pid;
+
+#if defined(__i386__) || defined(__amd64__)
+#define STACK_SZ	(PAGE_SIZE * 10)
+	stack = mmap(NULL, STACK_SZ, PROT_READ | PROT_WRITE, MAP_ANON,
+	    -1, 0);
+	ATF_REQUIRE(stack != MAP_FAILED);
+	stack += STACK_SZ;
 #endif
+	pid = pdrfork_thread(&pd, 0, RFSPAWN, stack, rfspawn_fn, NULL);
+	basic_usage_tail(pd, pid);
+}
 
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, child_gets_no_pidfd);
 	ATF_TP_ADD_TC(tp, efault);
 	ATF_TP_ADD_TC(tp, einval);
-	ATF_TP_ADD_TC(tp, modify_child);
-	ATF_TP_ADD_TC(tp, rfproc);
 	ATF_TP_ADD_TC(tp, rfprocdesc);
-#if !(defined(__i386__)) && !(defined(__amd64__))
 	ATF_TP_ADD_TC(tp, rfspawn);
-#endif
 
 	return (atf_no_error());
 }

@@ -75,6 +75,7 @@
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet/tcpip.h>
 
 #include <netinet/udp.h>
@@ -286,8 +287,10 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * Acknowledge the segment if it has data or is not a duplicate ACK.
 	 */
-	if (thflags != TH_ACK || tlen != 0 ||
+	if ((thflags & (TH_SYN | TH_FIN)) != 0 || tlen != 0 ||
 	    th->th_seq != tp->rcv_nxt || th->th_ack != tp->snd_nxt) {
+		TCP_LOG_EVENT(tp, th, NULL, NULL, TCP_LOG_IN, 0, tlen, NULL,
+		    true);
 		TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 		tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
 		    tp->snd_nxt, TH_ACK);

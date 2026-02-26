@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -472,7 +472,7 @@ static struct loption option[] =
 		}
 	},
 	{ 'z', &z_optname,
-		O_NUMBER, -1, &swindow, NULL,
+		O_NUMBER|O_NEGOK, -1, &swindow, NULL,
 		{
 			"Scroll window size: ",
 			"Scroll window size is %d lines",

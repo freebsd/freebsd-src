@@ -118,7 +118,7 @@ static device_method_t ipmi_methods[] = {
 	DEVMETHOD(device_probe,		ipmi_smbus_probe),
 	DEVMETHOD(device_attach,	ipmi_smbus_attach),
 	DEVMETHOD(device_detach,	ipmi_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ipmi_smbus_driver = {

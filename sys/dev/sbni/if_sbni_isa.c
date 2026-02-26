@@ -53,7 +53,7 @@ static device_method_t sbni_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,	sbni_probe_isa),
 	DEVMETHOD(device_attach, sbni_attach_isa),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sbni_isa_driver = {

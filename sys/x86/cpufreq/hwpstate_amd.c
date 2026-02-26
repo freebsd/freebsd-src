@@ -149,7 +149,8 @@ struct hwpstate_setting {
 	int	pstate_id;	/* P-State id */
 };
 
-#define HWPFL_USE_CPPC		(1 << 0)
+#define HWPFL_USE_CPPC			(1 << 0)
+#define HWPFL_CPPC_REQUEST_NOT_READ	(1 << 1)
 
 /*
  * Atomicity is achieved by only modifying a given softc on its associated CPU
@@ -321,6 +322,9 @@ get_cppc_regs_cb(void *args)
 		data->res |= HWP_ERROR_CPPC_REQUEST;
 }
 
+/*
+ * Debug: Read all MSRs (bypassing the softc) and dump them.
+ */
 static int
 sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -364,26 +368,58 @@ sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * Read CPPC_REQUEST's value in the softc, if not already present.
+ */
+static int
+get_cppc_request(struct hwpstate_softc *const sc)
+{
+	uint64_t val;
+	int error;
+
+	check_cppc_in_use(sc, __func__);
+
+	if ((sc->flags & HWPFL_CPPC_REQUEST_NOT_READ) != 0) {
+		error = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &val);
+		if (error != 0)
+			return (EIO);
+		sc->flags &= ~HWPFL_CPPC_REQUEST_NOT_READ;
+		sc->cppc.request = val;
+	}
+
+	return (0);
+}
 
 struct set_cppc_request_cb {
 	struct hwpstate_softc	*sc;
 	uint64_t		 request;
 	uint64_t		 mask;
-	int			 res; /* 0 or HWP_ERROR_CPPC_REQUEST_WRITE */
+	int			 res; /* 0 or HWP_ERROR_CPPC_REQUEST* */
 };
 
 static void
 set_cppc_request_cb(void *args)
 {
 	struct set_cppc_request_cb *const data = args;
-	uint64_t *const req = &data->sc->cppc.request;
+	uint64_t *const sc_req = &data->sc->cppc.request;
+	uint64_t new_req;
 	int error;
 
-	*req &= ~data->mask;
-	*req |= data->request & data->mask;
+	/* We proceed sequentially, so we'll clear out errors on progress. */
+	data->res = HWP_ERROR_CPPC_REQUEST | HWP_ERROR_CPPC_REQUEST_WRITE;
 
-	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, *req);
-	data->res = error == 0 ? 0 : HWP_ERROR_CPPC_REQUEST_WRITE;
+	error = get_cppc_request(data->sc);
+	if (error != 0)
+		return;
+	data->res &= ~HWP_ERROR_CPPC_REQUEST;
+
+	new_req = (*sc_req & ~data->mask) | (data->request & data->mask);
+
+	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, new_req);
+	if (error != 0)
+		return;
+	data->res &= ~HWP_ERROR_CPPC_REQUEST_WRITE;
+	*sc_req = new_req;
 }
 
 static inline void
@@ -396,6 +432,21 @@ set_cppc_request_send_one(struct set_cppc_request_cb *const data, device_t dev)
 	    set_cppc_request_cb, smp_no_rendezvous_barrier, data);
 }
 
+static inline void
+set_cppc_request_update_error(const struct set_cppc_request_cb *const data,
+    int *const error)
+{
+	/* A read error has precedence on a write error. */
+	if (hwp_has_error(data->res, HWP_ERROR_CPPC_REQUEST))
+		*error = EIO;
+	else if (hwp_has_error(data->res, HWP_ERROR_CPPC_REQUEST_WRITE) &&
+	    *error != EIO)
+		*error = EOPNOTSUPP;
+	else if (data->res != 0)
+		/* Fallback case (normally not needed; defensive). */
+		*error = EFAULT;
+}
+
 static int
 set_cppc_request(device_t hwp_dev, uint64_t request, uint64_t mask)
 {
@@ -404,27 +455,33 @@ set_cppc_request(device_t hwp_dev, uint64_t request, uint64_t mask)
 		.mask = mask,
 		/* 'sc' filled by set_cppc_request_send_one(). */
 	};
-	int error;
+	int error = 0;
 
 	if (hwpstate_pkg_ctrl_enable) {
 		const devclass_t dc = devclass_find(HWP_AMD_CLASSNAME);
 		const int units = devclass_get_maxunit(dc);
 
-		error = 0;
 		for (int i = 0; i < units; ++i) {
 			const device_t dev = devclass_get_device(dc, i);
 
 			set_cppc_request_send_one(&data, dev);
-			if (data.res != 0)
-				/* Note the error, but continue. */
-				error = EFAULT;
+			/* Note errors, but always continue. */
+			set_cppc_request_update_error(&data, &error);
 		}
 	} else {
 		set_cppc_request_send_one(&data, hwp_dev);
-		error = data.res != 0 ? EFAULT : 0;
+		set_cppc_request_update_error(&data, &error);
 	}
 
 	return (error);
+}
+
+static void
+get_cppc_request_cb(void *args)
+{
+	struct hwpstate_softc *const sc = args;
+
+	(void)get_cppc_request(sc);
 }
 
 static int
@@ -438,6 +495,16 @@ sysctl_cppc_request_field_handler(SYSCTL_HANDLER_ARGS)
 
 	/* Sysctl knob does not exist if HWPFL_USE_CPPC is not set. */
 	check_cppc_in_use(sc, __func__);
+
+	if ((sc->flags & HWPFL_CPPC_REQUEST_NOT_READ) != 0) {
+		const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
+
+		smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
+		    get_cppc_request_cb, smp_no_rendezvous_barrier, sc);
+
+		if ((sc->flags & HWPFL_CPPC_REQUEST_NOT_READ) != 0)
+			return (EIO);
+	}
 
 	val = BITS_VALUE(arg2, sc->cppc.request);
 
@@ -705,9 +772,14 @@ enable_cppc_cb(void *args)
 	uint64_t lowest_perf, highest_perf;
 	int error;
 
-	/* We proceed sequentially, so we'll clear out errors on progress. */
+	/*
+	 * We proceed mostly sequentially, so we'll clear out errors on
+	 * progress.
+	 */
 	data->res = HWP_ERROR_CPPC_ENABLE | HWP_ERROR_CPPC_CAPS |
 	    HWP_ERROR_CPPC_REQUEST | HWP_ERROR_CPPC_REQUEST_WRITE;
+
+	sc->flags |= HWPFL_CPPC_REQUEST_NOT_READ;
 
 	error = wrmsr_safe(MSR_AMD_CPPC_ENABLE, 1);
 	if (error != 0)
@@ -715,53 +787,61 @@ enable_cppc_cb(void *args)
 	data->res &= ~HWP_ERROR_CPPC_ENABLE;
 
 	error = rdmsr_safe(MSR_AMD_CPPC_CAPS_1, &data->caps);
-	if (error != 0)
-		return;
-	data->res &= ~HWP_ERROR_CPPC_CAPS;
+	/* We can do away without CAPABILITY_1, so just continue on error. */
+	if (error == 0)
+		data->res &= ~HWP_ERROR_CPPC_CAPS;
 
-	error = rdmsr_safe(MSR_AMD_CPPC_REQUEST, &sc->cppc.request);
+	error = get_cppc_request(sc);
 	if (error != 0)
 		return;
 	data->res &= ~HWP_ERROR_CPPC_REQUEST;
-	/* The CPPC_REQUEST value before we tweak it. */
 	data->init_request = sc->cppc.request;
 
+	data->request = sc->cppc.request;
 	/*
-	 * In Intel's reference manual, the default value of EPP is 0x80u which
-	 * is the balanced mode. For consistency, we set the same value in AMD's
-	 * CPPC driver.
+	 * Assuming reading MSR_AMD_CPPC_CAPS_1 succeeded, if it stays at its
+	 * reset value (0) before CPPC activation (not supposed to happen, but
+	 * happens in the field), we use reasonable default values that are
+	 * explicitly described by the ACPI spec (all 0s for the minimum value,
+	 * all 1s for the maximum one).  Going further, we actually do the same
+	 * as long as the minimum and maximum performance levels are not sorted
+	 * or are equal (in which case CPPC is not supposed to make sense at
+	 * all), which covers the reset value case.  And we also fallback to
+	 * these if MSR_AMD_CPPC_CAPS_1 could not be read at all.
 	 */
-	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_EPP_BITS, 0x80);
+	lowest_perf = 0;
+	highest_perf = -1;
+	if (!hwp_has_error(data->res, HWP_ERROR_CPPC_CAPS)) {
+		const uint64_t lowest_cand =
+		    BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data->caps);
+		const uint64_t highest_cand =
+		    BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data->caps);
 
-	/* Enable autonomous mode by setting desired performance to 0. */
-	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_DES_PERF_BITS, 0);
-
-	/*
-	 * When MSR_AMD_CPPC_CAPS_1 stays at its reset value (0) before CPPC
-	 * activation (not supposed to happen, but happens in the field), we use
-	 * reasonable default values that are explicitly described by the ACPI
-	 * spec (all 0s for the minimum value, all 1s for the maximum one).
-	 * Going further, we actually do the same as long as the minimum and
-	 * maximum performance levels are not sorted or are equal (in which case
-	 * CPPC is not supposed to make sense at all), which covers the reset
-	 * value case.
-	 */
-	lowest_perf = BITS_VALUE(AMD_CPPC_CAPS_1_LOWEST_PERF_BITS, data->caps);
-	highest_perf = BITS_VALUE(AMD_CPPC_CAPS_1_HIGHEST_PERF_BITS, data->caps);
-	if (lowest_perf >= highest_perf) {
-		lowest_perf = 0;
-		highest_perf = -1;
+		if (lowest_cand < highest_cand) {
+			lowest_perf = lowest_cand;
+			highest_perf = highest_cand;
+		}
 	}
-	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
+	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_MIN_PERF_BITS,
 	    lowest_perf);
-	SET_BITS_VALUE(sc->cppc.request, AMD_CPPC_REQUEST_MAX_PERF_BITS,
+	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_MAX_PERF_BITS,
+	    highest_perf);
+	/*
+	 * Set controls to maximum performance to avoid regressions now that
+	 * CPPC is activated by default and to match what the P-state support
+	 * does.
+	 */
+	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_EPP_BITS, 0);
+	/* 0 in "Desired Performance" is autonomous mode. */
+	MPASS(highest_perf != 0);
+	SET_BITS_VALUE(data->request, AMD_CPPC_REQUEST_DES_PERF_BITS,
 	    highest_perf);
 
-	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, sc->cppc.request);
+	error = wrmsr_safe(MSR_AMD_CPPC_REQUEST, data->request);
 	if (error != 0)
 		return;
 	data->res &= ~HWP_ERROR_CPPC_REQUEST_WRITE;
-	data->request = sc->cppc.request;
+	sc->cppc.request = data->request;
 }
 
 static int
@@ -784,9 +864,10 @@ enable_cppc(struct hwpstate_softc *sc)
 	device_printf(dev, "CPU%u: CPPC enabled.\n", cpuid);
 
 	/*
-	 * Now that we have enabled CPPC, we can't go back, so we'll attach even
-	 * in case of further malfunction, allowing the user to retry setting
-	 * CPPC_REQUEST via the sysctl knobs.
+	 * Now that we have enabled CPPC, we can't go back (hardware does not
+	 * support doing so), so we'll attach even in case of further
+	 * malfunction, allowing the user to retry retrieving/setting MSRs via
+	 * the sysctl knobs.
 	 */
 
 	sb = sbuf_new(&sbs, NULL, 0, SBUF_AUTOEXTEND);
@@ -802,11 +883,20 @@ enable_cppc(struct hwpstate_softc *sc)
 		print_cppc_no_request(sb);
 	else if (hwpstate_verbose)
 		print_cppc_request(sb, data.init_request);
-	if (hwp_has_error(data.res, HWP_ERROR_CPPC_REQUEST_WRITE))
-		device_printf(dev, "CPU%u: Could not write into "
-		    MSR_AMD_CPPC_REQUEST_NAME "!\n",
-		    cpuid);
-	else if (hwpstate_verbose) {
+	if (hwp_has_error(data.res, HWP_ERROR_CPPC_REQUEST_WRITE)) {
+		const bool request_read = !hwp_has_error(data.res,
+		    HWP_ERROR_CPPC_REQUEST);
+
+		/* This is printed first, as it is not printed into 'sb'. */
+		device_printf(dev, "CPU%u: %s not write into "
+		    MSR_AMD_CPPC_REQUEST_NAME "!\n", cpuid,
+		    request_read ? "Could" : "Did");
+		if (request_read) {
+			sbuf_printf(sb, "CPU%u: Failed when trying to set:",
+			    cpuid);
+			print_cppc_request(sb, data.request);
+		}
+	} else if (hwpstate_verbose) {
 		sbuf_printf(sb, "CPU%u: Tweaked MSR values:\n", cpuid);
 		print_cppc_request(sb, data.request);
 	}
@@ -950,7 +1040,7 @@ hwpstate_attach(device_t dev)
 		    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		    dev, AMD_CPPC_REQUEST_DES_PERF_BITS,
 		    sysctl_cppc_request_field_handler, "IU",
-		    "Desired performance level (from 0 to 255, "
+		    "Desired performance level (from 0 to 255; "
 		    "0 enables autonomous mode, otherwise value should be "
 		    "between 'minimum_performance' and 'maximum_performance' "
 		    "inclusive)");

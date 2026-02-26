@@ -6586,7 +6586,7 @@ static device_method_t agtiapi_methods[] = {   // Device interface
   DEVMETHOD( device_shutdown, agtiapi_shutdown   ),
   DEVMETHOD( device_suspend,  agtiapi_suspend    ),
   DEVMETHOD( device_resume,   agtiapi_resume     ),
-  { 0, 0 }
+  DEVMETHOD_END
 };
 
 static driver_t pmspcv_driver = {

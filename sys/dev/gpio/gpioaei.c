@@ -208,7 +208,7 @@ gpio_aei_attach(device_t dev)
 	/* This is us. */
 	device_set_desc(dev, "ACPI Event Information Device");
 
-	handle = acpi_gpiobus_get_handle(dev);
+	handle = acpi_get_handle(dev);
 	status = AcpiGetParent(handle, &sc->dev_handle);
 	if (ACPI_FAILURE(status)) {
 		device_printf(dev, "Cannot get parent of %s\n",

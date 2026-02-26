@@ -298,6 +298,21 @@ enum intr_polarity {
 };
 
 /**
+ * Bus drivers may maintain a set of bus-specific instance variables
+ * for each child device.  The BUS_READ_IVAR/BUS_WRITE_IVAR API can be
+ * used to access these variables using an index value.  Some index
+ * values are private to a single bus and should be defined in the
+ * private range.  Other index values are shared by multiple busses
+ * and must have the same meaning in all bus drivers.
+ */
+
+#define	BUS_IVARS_PRIVATE	0x0	/* private variables */
+#define	BUS_IVARS_ACPI		0x100
+#define	BUS_IVARS_GIC		0x200
+#define	BUS_IVARS_GPIOBUS	0x300
+#define	BUS_IVARS_SUPERIO	0x400
+
+/**
  * CPU sets supported by bus_get_cpus().  Note that not all sets may be
  * supported for a given device.  If a request is not supported by a
  * device (or its parents), then bus_get_cpus() will fail with EINVAL.
@@ -928,19 +943,17 @@ DECLARE_MODULE(_name##_##busname, _name##_##busname##_mod,		\
 /**
  * Generic ivar accessor generation macros for bus drivers
  */
-#define __BUS_ACCESSOR(varp, var, ivarp, ivar, type)			\
+#define __BUS_ACCESSOR_COMMON(varp, var, ivarp, ivar, type)		\
 									\
-static __inline type							\
-varp ## _get_ ## var(device_t dev)					\
+static __inline bool							\
+varp ## _has_ ## var(device_t dev)					\
 {									\
 	uintptr_t v = 0;						\
-	int e __diagused;						\
+	int e;								\
+									\
 	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
 	    ivarp ## _IVAR_ ## ivar, &v);				\
-	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
-	    __func__, device_get_nameunit(dev),				\
-	    device_get_nameunit(device_get_parent(dev)), e));		\
-	return ((type) v);						\
+	return (e == 0);						\
 }									\
 									\
 static __inline void							\
@@ -953,6 +966,37 @@ varp ## _set_ ## var(device_t dev, type t)				\
 	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
 	    __func__, device_get_nameunit(dev),				\
 	    device_get_nameunit(device_get_parent(dev)), e));		\
+}
+
+#define __BUS_ACCESSOR(varp, var, ivarp, ivar, type)			\
+	__BUS_ACCESSOR_COMMON(varp, var, ivarp, ivar, type)		\
+									\
+static __inline type							\
+varp ## _get_ ## var(device_t dev)					\
+{									\
+	uintptr_t v = 0;						\
+	int e __diagused;						\
+									\
+	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
+	    ivarp ## _IVAR_ ## ivar, &v);				\
+	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
+	    __func__, device_get_nameunit(dev),				\
+	    device_get_nameunit(device_get_parent(dev)), e));		\
+	return ((type) v);						\
+}
+
+#define __BUS_ACCESSOR_DEFAULT(varp, var, ivarp, ivar, type, default)	\
+	__BUS_ACCESSOR_COMMON(varp, var, ivarp, ivar, type)		\
+									\
+static __inline type							\
+varp ## _get_ ## var(device_t dev)					\
+{									\
+	uintptr_t v = 0;						\
+	int e;								\
+									\
+	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
+	    ivarp ## _IVAR_ ## ivar, &v);				\
+	return (e == 0 ? (type) v : (default));				\
 }
 
 struct device_location_cache;

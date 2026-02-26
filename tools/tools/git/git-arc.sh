@@ -459,6 +459,7 @@ find_author()
     # commits reviewed).
     case "${addr}" in
     *.*) ;;             # external user
+    guest-*) ;;		# Fake email address, not a FreeBSD user
     *)
         echo "${name} <${addr}@FreeBSD.org>"
         return

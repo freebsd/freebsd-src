@@ -29,9 +29,11 @@
 #ifndef _DEV_QUICC_BUS_H_
 #define	_DEV_QUICC_BUS_H_
 
-#define	QUICC_IVAR_CLOCK	1	/* The CPM clock. */
-#define	QUICC_IVAR_BRGCLK	2	/* The BRG clock affected by SCCR. */
-#define	QUICC_IVAR_DEVTYPE	3
+enum {
+	QUICC_IVAR_CLOCK = BUS_IVARS_PRIVATE,	/* The CPM clock. */
+	QUICC_IVAR_BRGCLK,		/* The BRG clock affected by SCCR. */
+	QUICC_IVAR_DEVTYPE
+};
 
 /* Device types. */
 #define	QUICC_DEVTYPE_SCC	1

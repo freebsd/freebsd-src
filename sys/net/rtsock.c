@@ -1875,8 +1875,8 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 #endif
 			dlen = SA_SIZE(sa);
 		if (cp != NULL && buflen >= dlen) {
-			KASSERT(dlen <= sizeof(ss),
-			    ("%s: sockaddr size overflow", __func__));
+			if (sa->sa_len > sizeof(ss))
+				return (EINVAL);
 			bzero(&ss, sizeof(ss));
 			bcopy(sa, &ss, sa->sa_len);
 			sa = (struct sockaddr *)&ss;

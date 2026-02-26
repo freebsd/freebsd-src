@@ -57,7 +57,7 @@ struct iicbus_ivar
 
 /* Value of 0x100 is reserved for ACPI_IVAR_HANDLE used by acpi_iicbus */
 enum {
-	IICBUS_IVAR_ADDR		/* Address or base address */
+	IICBUS_IVAR_ADDR = BUS_IVARS_PRIVATE	/* Address or base address */
 };
 
 #define IICBUS_ACCESSOR(A, B, T)					\

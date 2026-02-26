@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -102,10 +102,10 @@ static unsigned char cmdtable[] =
 	ESC,'u',0,                      A_UNDO_SEARCH,
 	ESC,'U',0,                      A_CLR_SEARCH,
 	'g',0,                          A_GOLINE,
-	SK(SK_HOME),0,                  A_LLSHIFT,
+	SK(SK_HOME),0,                  A_GOLINE,
 	SK(SK_SHIFT_HOME),0,            A_GOLINE|A_EXTRA,           ESC,'{',0,
 	SK(SK_CTL_HOME),0,              A_GOLINE|A_EXTRA,           ESC,'{',0,
-	SK(SK_END),0,                   A_RRSHIFT,
+	SK(SK_END),0,                   A_GOEND,
 	SK(SK_SHIFT_END),0,             A_GOEND|A_EXTRA,            ESC,'}',0,
 	SK(SK_CTL_END),0,               A_GOEND|A_EXTRA,            ESC,'}',0,
 	'<',0,                          A_GOLINE,
@@ -120,6 +120,8 @@ static unsigned char cmdtable[] =
 	SK(SK_LEFT_ARROW),0,            A_LSHIFT,
 	SK(SK_CTL_RIGHT_ARROW),0,       A_RRSHIFT,
 	SK(SK_CTL_LEFT_ARROW),0,        A_LLSHIFT,
+	SK(SK_SHIFT_RIGHT_ARROW),0,     A_RRSHIFT,
+	SK(SK_SHIFT_LEFT_ARROW),0,      A_LLSHIFT,
 	'{',0,                          A_F_BRACKET|A_EXTRA,        '{','}',0,
 	'}',0,                          A_B_BRACKET|A_EXTRA,        '{','}',0,
 	'(',0,                          A_F_BRACKET|A_EXTRA,        '(',')',0,
@@ -195,8 +197,8 @@ static unsigned char cmdtable[] =
 	SK(SK_PAD_R),0,                 A_RSHIFT,
 	SK(SK_PAD_L),0,                 A_LSHIFT,
 	SK(SK_PAD_UR),0,                A_B_SCREEN,
-	SK(SK_PAD_UL),0,                A_LLSHIFT,
-	SK(SK_PAD_DR),0,                A_RRSHIFT,
+	SK(SK_PAD_UL),0,                A_GOLINE,
+	SK(SK_PAD_DR),0,                A_F_SCREEN,
 	SK(SK_PAD_DL),0,                A_GOEND,
 	SK(SK_PAD_STAR),0,              A_NOACTION|A_EXTRA,   '*',0,
 	SK(SK_PAD_SLASH),0,             A_NOACTION|A_EXTRA,   '/',0,
@@ -1176,6 +1178,10 @@ static int add_hometable(int (*call_lesskey)(constant char *, lbool), constant c
 	constant char *efilename;
 	int r;
 
+#if LESSTEST
+	if (is_lesstest()) /* Don't use lesskey files in lesstest */
+		return -1;
+#endif
 	if (envname != NULL && (efilename = lgetenv(envname)) != NULL)
 		filename = save(efilename);
 	else if (sysvar) /* def_filename is full path */

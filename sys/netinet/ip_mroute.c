@@ -169,6 +169,9 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_ip, OID_AUTO, mrtstat, struct mrtstat,
     mrtstat, "IPv4 Multicast Forwarding Statistics (struct mrtstat, "
     "netinet/ip_mroute.h)");
 
+VNET_DEFINE_STATIC(struct socket *, ip_mrouter);
+#define	V_ip_mrouter		VNET(ip_mrouter)
+
 VNET_DEFINE_STATIC(u_long, mfchash);
 #define	V_mfchash		VNET(mfchash)
 #define	MFCHASH(a, g)							\
@@ -305,7 +308,7 @@ VNET_DEFINE_STATIC(struct ifnet *, multicast_register_if);
 static u_long	X_ip_mcast_src(int);
 static int	X_ip_mforward(struct ip *, struct ifnet *, struct mbuf *,
 		    struct ip_moptions *);
-static int	X_ip_mrouter_done(void);
+static void	X_ip_mrouter_done(struct socket *);
 static int	X_ip_mrouter_get(struct socket *, struct sockopt *);
 static int	X_ip_mrouter_set(struct socket *, struct sockopt *);
 static int	X_legal_vif_num(int);
@@ -435,7 +438,7 @@ X_ip_mrouter_set(struct socket *so, struct sockopt *sopt)
 		error = ip_mrouter_init(so, optval);
 		break;
 	case MRT_DONE:
-		error = ip_mrouter_done();
+		ip_mrouter_done(so);
 		break;
 	case MRT_ADD_VIF:
 		error = sooptcopyin(sopt, &vifc, sizeof vifc, sizeof vifc);
@@ -624,8 +627,7 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
 	struct ifnet *free_ptr, *multi_leave;
 
 	MRW_WLOCK();
-
-	if (V_ip_mrouter == NULL) {
+	if (!V_ip_mrouting_enabled) {
 		MRW_WUNLOCK();
 		return;
 	}
@@ -740,6 +742,7 @@ ip_mrouter_init(struct socket *so, int version)
 	    curvnet);
 
 	V_ip_mrouter = so;
+	V_ip_mrouting_enabled = true;
 	atomic_add_int(&ip_mrouter_cnt, 1);
 
 	/* This is a mutex required by buf_ring init, but not used internally */
@@ -756,8 +759,8 @@ ip_mrouter_init(struct socket *so, int version)
 /*
  * Disable multicast forwarding.
  */
-static int
-X_ip_mrouter_done(void)
+static void
+X_ip_mrouter_done(struct socket *so)
 {
 	struct ifnet **ifps;
 	int nifp;
@@ -766,22 +769,22 @@ X_ip_mrouter_done(void)
 	struct bw_upcall *bu;
 
 	MRW_TEARDOWN_WLOCK();
-
-	if (V_ip_mrouter == NULL) {
+	if (so != V_ip_mrouter) {
 		MRW_TEARDOWN_WUNLOCK();
-		return (EINVAL);
+		return;
 	}
 
 	/*
 	 * Detach/disable hooks to the reset of the system.
 	 */
 	V_ip_mrouter = NULL;
+	V_ip_mrouting_enabled = false;
 	atomic_subtract_int(&ip_mrouter_cnt, 1);
 	V_mrt_api_config = 0;
 
 	/*
-	 * Wait for all epoch sections to complete to ensure
-	 * V_ip_mrouter = NULL is visible to others.
+	 * Wait for all epoch sections to complete to ensure the new value of
+	 * V_ip_mrouting_enabled is visible to others.
 	 */
 	NET_EPOCH_WAIT();
 
@@ -856,8 +859,6 @@ X_ip_mrouter_done(void)
 	free(ifps, M_TEMP);
 
 	CTR1(KTR_IPMF, "%s: done", __func__);
-
-	return 0;
 }
 
 /*
@@ -2872,7 +2873,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		MRW_WLOCK();
 		if (ip_mrouter_cnt != 0) {
 			MRW_WUNLOCK();
-			return (EINVAL);
+			return (EBUSY);
 		}
 		ip_mrouter_unloading = 1;
 		MRW_WUNLOCK();

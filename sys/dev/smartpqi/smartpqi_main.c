@@ -561,7 +561,7 @@ static device_method_t pqi_methods[] = {
 	DEVMETHOD(device_suspend,	smartpqi_suspend),
 	DEVMETHOD(device_resume,	smartpqi_resume),
 	DEVMETHOD(device_shutdown,	smartpqi_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t smartpqi_pci_driver = {

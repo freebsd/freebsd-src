@@ -44,7 +44,7 @@
  * This can be used early on when we don't know the CPUs endianness.
  */
 .macro	mov_q reg, val
-	mov	\reg, :abs_g0_nc:\val
+	movz	\reg, :abs_g0_nc:\val
 .if (\val >> 16) & 0xffff != 0
 	movk	\reg, :abs_g1_nc:\val
 .endif

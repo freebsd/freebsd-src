@@ -401,7 +401,7 @@ acpi_gpiobus_read_ivar(device_t dev, device_t child, int which,
 	struct acpi_gpiobus_ivar *devi = device_get_ivars(child);
 
 	switch (which) {
-	case ACPI_GPIOBUS_IVAR_HANDLE:
+	case ACPI_IVAR_HANDLE:
 		*result = (uintptr_t)devi->handle;
 		break;
 	default:

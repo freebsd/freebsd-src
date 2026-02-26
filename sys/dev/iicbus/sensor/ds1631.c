@@ -101,7 +101,7 @@ static device_method_t  ds1631_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ds1631_probe),
 	DEVMETHOD(device_attach,	ds1631_attach),
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t ds1631_driver = {

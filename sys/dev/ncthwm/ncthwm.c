@@ -244,7 +244,7 @@ static device_method_t ncthwm_methods[] = {
 	DEVMETHOD(device_detach,	ncthwm_detach),
 
 	/* Terminate method list */
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ncthwm_driver = {

@@ -128,7 +128,7 @@ device_method_t cxgbe_methods[] = {
 	DEVMETHOD(device_probe,		cxgbe_probe),
 	DEVMETHOD(device_attach,	cxgbe_attach),
 	DEVMETHOD(device_detach,	cxgbe_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t cxgbe_driver = {
 	"cxgbe",
@@ -144,7 +144,7 @@ static device_method_t vcxgbe_methods[] = {
 	DEVMETHOD(device_probe,		vcxgbe_probe),
 	DEVMETHOD(device_attach,	vcxgbe_attach),
 	DEVMETHOD(device_detach,	vcxgbe_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t vcxgbe_driver = {
 	"vcxgbe",
@@ -1249,7 +1249,7 @@ t4_calibration(void *arg)
 
 	sc = (struct adapter *)arg;
 
-	KASSERT(hw_all_ok(sc), ("!hw_all_ok at t4_calibration"));
+	KASSERT(!hw_off_limits(sc), ("hw_off_limits at t4_calibration"));
 	hw = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
 	sbt = sbinuptime();
 
@@ -11594,7 +11594,7 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 		if (hashen) {
 			if (x)
 				sbuf_printf(sb, "%u-%u, ", t->tid_base, x - 1);
-			sbuf_printf(sb, "%u-%u", y, t->ntids - 1);
+			sbuf_printf(sb, "%u-%u", y, t->tid_base + t->ntids - 1);
 		} else {
 			sbuf_printf(sb, "%u-%u", t->tid_base, t->tid_base +
 			    t->ntids - 1);

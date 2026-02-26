@@ -1,5 +1,7 @@
 /* ed.h: type and constant definitions for the ed editor. */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1993 Andrew Moore
  * All rights reserved.
  *
