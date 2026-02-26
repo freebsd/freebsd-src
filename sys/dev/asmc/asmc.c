@@ -305,7 +305,7 @@ static const struct asmc_model asmc_models[] = {
 
 	{
 	  "MacBookPro11,4", "Apple SMC MacBook Pro Retina Core i7 (mid 2015, 15-inch)",
-	  ASMC_SMS_FUNCS_DISABLED, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
+	  ASMC_SMS_FUNCS_DISABLED, ASMC_FAN_FUNCS2, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP114_TEMPS, ASMC_MBP114_TEMPNAMES, ASMC_MBP114_TEMPDESCS
 	},
 
