@@ -668,4 +668,5 @@ struct sysent sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },	/* 599 = kexec_load */
 	{ .sy_narg = AS(pdrfork_args), .sy_call = (sy_call_t *)sys_pdrfork, .sy_auevent = AUE_PDRFORK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 600 = pdrfork */
 	{ .sy_narg = AS(pdwait_args), .sy_call = (sy_call_t *)sys_pdwait, .sy_auevent = AUE_PDWAIT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 601 = pdwait */
+	{ .sy_narg = AS(renameat2_args), .sy_call = (sy_call_t *)sys_renameat2, .sy_auevent = AUE_RENAMEAT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 602 = renameat2 */
 };

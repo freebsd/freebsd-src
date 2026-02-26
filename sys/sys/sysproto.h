@@ -1919,6 +1919,13 @@ struct pdwait_args {
 	char wrusage_l_[PADL_(struct __wrusage *)]; struct __wrusage * wrusage; char wrusage_r_[PADR_(struct __wrusage *)];
 	char info_l_[PADL_(struct __siginfo *)]; struct __siginfo * info; char info_r_[PADR_(struct __siginfo *)];
 };
+struct renameat2_args {
+	char oldfd_l_[PADL_(int)]; int oldfd; char oldfd_r_[PADR_(int)];
+	char old_l_[PADL_(const char *)]; const char * old; char old_r_[PADR_(const char *)];
+	char newfd_l_[PADL_(int)]; int newfd; char newfd_r_[PADR_(int)];
+	char new_l_[PADL_(const char *)]; const char * new; char new_r_[PADR_(const char *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
 int	sys__exit(struct thread *, struct _exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2327,6 +2334,7 @@ int	sys_jail_attach_jd(struct thread *, struct jail_attach_jd_args *);
 int	sys_jail_remove_jd(struct thread *, struct jail_remove_jd_args *);
 int	sys_pdrfork(struct thread *, struct pdrfork_args *);
 int	sys_pdwait(struct thread *, struct pdwait_args *);
+int	sys_renameat2(struct thread *, struct renameat2_args *);
 
 #ifdef COMPAT_43
 
@@ -3327,6 +3335,7 @@ int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 #define	SYS_AUE_jail_remove_jd	AUE_JAIL_REMOVE
 #define	SYS_AUE_pdrfork	AUE_PDRFORK
 #define	SYS_AUE_pdwait	AUE_PDWAIT
+#define	SYS_AUE_renameat2	AUE_RENAMEAT
 
 #undef PAD_
 #undef PADL_

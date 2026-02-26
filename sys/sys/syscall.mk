@@ -442,4 +442,5 @@ MIASM =  \
 	jail_attach_jd.o \
 	jail_remove_jd.o \
 	pdrfork.o \
-	pdwait.o
+	pdwait.o \
+	renameat2.o

@@ -539,4 +539,5 @@
 #define	SYS_jail_remove_jd	598
 #define	SYS_pdrfork	600
 #define	SYS_pdwait	601
-#define	SYS_MAXSYSCALL	602
+#define	SYS_renameat2	602
+#define	SYS_MAXSYSCALL	603
