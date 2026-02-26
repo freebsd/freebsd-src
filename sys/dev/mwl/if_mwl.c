@@ -1638,28 +1638,43 @@ _mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	switch (cip->ic_cipher) {
 	case IEEE80211_CIPHER_WEP:
 		hk.keyTypeId = KEY_TYPE_ID_WEP;
-		hk.keyLen = k->wk_keylen;
+		hk.keyLen = ieee80211_crypto_get_key_len(k);
 		if (k->wk_keyix == vap->iv_def_txkey)
 			hk.keyFlags = KEY_FLAG_WEP_TXKEY;
 		if (!IEEE80211_IS_STATICKEY(k)) {
 			/* NB: WEP is never used for the PTK */
 			(void) addgroupflags(&hk, k);
 		}
+		memcpy(hk.key.aes, ieee80211_crypto_get_key_data(k),
+		    ieee80211_crypto_get_key_len(k));
 		break;
 	case IEEE80211_CIPHER_TKIP:
 		hk.keyTypeId = KEY_TYPE_ID_TKIP;
 		hk.key.tkip.tsc.high = (uint32_t)(k->wk_keytsc >> 16);
 		hk.key.tkip.tsc.low = (uint16_t)k->wk_keytsc;
 		hk.keyFlags = KEY_FLAG_TSC_VALID | KEY_FLAG_MICKEY_VALID;
-		hk.keyLen = k->wk_keylen + IEEE80211_MICBUF_SIZE;
+		hk.keyLen = ieee80211_crypto_get_key_len(k)
+		    + IEEE80211_MICBUF_SIZE;
 		if (!addgroupflags(&hk, k))
 			hk.keyFlags |= KEY_FLAG_PAIRWISE;
+
+		/* Copy in TKIP MIC after the 16 byte main key */
+		memcpy(hk.key.aes, ieee80211_crypto_get_key_data(k),
+		    ieee80211_crypto_get_key_len(k));
+		memcpy(hk.key.aes + IEEE80211_KEYBUF_SIZE,
+		    ieee80211_crypto_get_key_txmic_data(k),
+		    8);
+		memcpy(hk.key.aes + IEEE80211_KEYBUF_SIZE + 8,
+		    ieee80211_crypto_get_key_rxmic_data(k),
+		    8);
 		break;
 	case IEEE80211_CIPHER_AES_CCM:
 		hk.keyTypeId = KEY_TYPE_ID_AES;
-		hk.keyLen = k->wk_keylen;
+		hk.keyLen = ieee80211_crypto_get_key_len(k);
 		if (!addgroupflags(&hk, k))
 			hk.keyFlags |= KEY_FLAG_PAIRWISE;
+		memcpy(hk.key.aes, ieee80211_crypto_get_key_data(k),
+		    ieee80211_crypto_get_key_len(k));
 		break;
 	default:
 		/* XXX should not happen */
@@ -1667,11 +1682,6 @@ _mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 		    __func__, k->wk_cipher->ic_cipher);
 		return 0;
 	}
-	/*
-	 * NB: tkip mic keys get copied here too; the layout
-	 *     just happens to match that in ieee80211_key.
-	 */
-	memcpy(hk.key.aes, k->wk_key, hk.keyLen);
 
 	/*
 	 * Locate address of sta db entry for writing key;
