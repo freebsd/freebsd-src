@@ -3739,6 +3739,14 @@ sys_renameat(struct thread *td, struct renameat_args *uap)
 	    UIO_USERSPACE, 0));
 }
 
+int
+sys_renameat2(struct thread *td, struct renameat2_args *uap)
+{
+
+	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
+	    UIO_USERSPACE, uap->flags));
+}
+
 #ifdef MAC
 static int
 kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
@@ -3775,6 +3783,8 @@ kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 	int error;
 	short irflag;
 
+	if (flags != 0)
+		return (EINVAL);
 again:
 	tmp = mp = NULL;
 	bwillwrite();
