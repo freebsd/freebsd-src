@@ -502,10 +502,11 @@ static int
 div_output_inbound(int family, struct socket *so, struct mbuf *m,
     struct sockaddr_in *sin)
 {
-	struct divcb *dcb;
+#if defined(INET) || defined(INET6)
+	struct divcb *dcb = so->so_pcb;
+#endif
 	struct ifaddr *ifa;
 
-	dcb = so->so_pcb;
 	if (m->m_pkthdr.rcvif == NULL) {
 		/*
 		 * No luck with the name, check by IP address.
