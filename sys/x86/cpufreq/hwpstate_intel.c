@@ -2,6 +2,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2018 Intel Corporation
+ * Copyright (c) 2026 The FreeBSD Foundation
+ * Portions of this software were developed by ShengYi Hung
+ * <aokblast@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted providing that the following conditions
@@ -81,6 +84,18 @@ static device_method_t intel_hwpstate_methods[] = {
 	DEVMETHOD_END
 };
 
+#define RDMSR_ON_CPU(dev, msr, val)                        \
+	(x86_msr_op(msr,                                   \
+	    MSR_OP_RENDEZVOUS_ONE | MSR_OP_READ |          \
+		MSR_OP_CPUID(cpu_get_pcpu(dev)->pc_cpuid), \
+	    0, val));
+
+#define WRMSR_ON_CPU(dev, msr, val)                        \
+	x86_msr_op(msr,                                    \
+	    MSR_OP_RENDEZVOUS_ONE | MSR_OP_WRITE |         \
+		MSR_OP_CPUID(cpu_get_pcpu(dev)->pc_cpuid), \
+	    val, NULL)
+
 struct hwp_softc {
 	device_t		dev;
 	bool 			hwp_notifications;
@@ -109,6 +124,55 @@ static driver_t hwpstate_intel_driver = {
 DRIVER_MODULE(hwpstate_intel, cpu, hwpstate_intel_driver, NULL, NULL);
 MODULE_VERSION(hwpstate_intel, 1);
 
+/*
+ * Internal errors conveyed by code executing on another CPU.
+ */
+#define HWP_ERROR_CPPC_ENABLE	     (1 << 0)
+#define HWP_ERROR_CPPC_CAPS	     (1 << 1)
+#define HWP_ERROR_CPPC_REQUEST	     (1 << 2)
+#define HWP_ERROR_CPPC_REQUEST_WRITE (1 << 3)
+#define HWP_ERROR_CPPC_REQUEST_PKG   (1 << 3)
+#define HWP_ERROR_CPPC_EPP_WRITE     (1 << 4)
+
+struct dump_cppc_request_cb {
+	struct hwp_softc *sc;
+	uint64_t enabled;
+	uint64_t caps;
+	uint64_t request;
+	uint64_t request_pkg;
+	int err;
+};
+
+static void
+dump_cppc_request_cb(void *args)
+{
+	struct dump_cppc_request_cb *const data = args;
+
+	if (rdmsr_safe(MSR_IA32_PM_ENABLE, &data->enabled))
+		data->err |= HWP_ERROR_CPPC_ENABLE;
+	if (rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &data->caps))
+		data->err |= HWP_ERROR_CPPC_CAPS;
+	if (rdmsr_safe(MSR_IA32_HWP_REQUEST, &data->request))
+		data->err |= HWP_ERROR_CPPC_REQUEST;
+
+	if (data->sc->hwp_pkg_ctrl &&
+	    (data->request & IA32_HWP_REQUEST_PACKAGE_CONTROL)) {
+		if (rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG, &data->request_pkg))
+			data->err |= HWP_ERROR_CPPC_REQUEST_PKG;
+	}
+}
+
+static inline void
+dump_cppc_request_one(struct hwp_softc *sc, struct dump_cppc_request_cb *req)
+{
+	req->sc = sc;
+	smp_rendezvous_cpu(cpu_get_pcpu(sc->dev)->pc_cpuid,
+	    smp_no_rendezvous_barrier, dump_cppc_request_cb,
+	    smp_no_rendezvous_barrier, req);
+}
+
+#define MSR_NOT_READ_MSG "Not read (fault or previous errors)"
+
 static int
 intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -116,8 +180,8 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	struct pcpu *pc;
 	struct sbuf *sb;
 	struct hwp_softc *sc;
-	uint64_t data, data2;
-	int ret;
+	struct dump_cppc_request_cb data;
+	int ret = 0;
 
 	sc = (struct hwp_softc *)arg1;
 	dev = sc->dev;
@@ -126,59 +190,61 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	if (pc == NULL)
 		return (ENXIO);
 
+	dump_cppc_request_one(sc, &data);
 	sb = sbuf_new(NULL, NULL, 1024, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_putc(sb, '\n');
-	thread_lock(curthread);
-	sched_bind(curthread, pc->pc_cpuid);
-	thread_unlock(curthread);
 
-	rdmsr_safe(MSR_IA32_PM_ENABLE, &data);
-	sbuf_printf(sb, "CPU%d: HWP %sabled\n", pc->pc_cpuid,
-	    ((data & 1) ? "En" : "Dis"));
+	if (data.err | HWP_ERROR_CPPC_ENABLE)
+		sbuf_printf(sb, "CPU%u: IA32_PM_ENABLE: " MSR_NOT_READ_MSG "\n",
+		    pc->pc_cpuid);
+	else
+		sbuf_printf(sb, "CPU%d: HWP %sabled\n", pc->pc_cpuid,
+		    ((data.enabled & 1) ? "En" : "Dis"));
 
-	if (data == 0) {
-		ret = 0;
+	if (data.enabled == 0)
 		goto out;
+	if (data.err | HWP_ERROR_CPPC_CAPS) {
+		sbuf_printf(sb,
+		    "IA32_HWP_CAPABILITIES: " MSR_NOT_READ_MSG "\n");
+	} else {
+		sbuf_printf(sb, "\tHighest Performance: %03ju\n",
+		    data.caps & 0xff);
+		sbuf_printf(sb, "\tGuaranteed Performance: %03ju\n",
+		    (data.caps >> 8) & 0xff);
+		sbuf_printf(sb, "\tEfficient Performance: %03ju\n",
+		    (data.caps >> 16) & 0xff);
+		sbuf_printf(sb, "\tLowest Performance: %03ju\n",
+		    (data.caps >> 24) & 0xff);
+		sbuf_putc(sb, '\n');
 	}
 
-	rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &data);
-	sbuf_printf(sb, "\tHighest Performance: %03ju\n", data & 0xff);
-	sbuf_printf(sb, "\tGuaranteed Performance: %03ju\n", (data >> 8) & 0xff);
-	sbuf_printf(sb, "\tEfficient Performance: %03ju\n", (data >> 16) & 0xff);
-	sbuf_printf(sb, "\tLowest Performance: %03ju\n", (data >> 24) & 0xff);
-
-	rdmsr_safe(MSR_IA32_HWP_REQUEST, &data);
-	data2 = 0;
-	if (sc->hwp_pkg_ctrl && (data & IA32_HWP_REQUEST_PACKAGE_CONTROL))
-		rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG, &data2);
-
-	sbuf_putc(sb, '\n');
-
 #define pkg_print(x, name, offset) do {					\
-	if (!sc->hwp_pkg_ctrl || (data & x) != 0) 			\
+	if (!sc->hwp_pkg_ctrl || (data.request & x) != 0) 			\
 		sbuf_printf(sb, "\t%s: %03u\n", name,			\
-		    (unsigned)(data >> offset) & 0xff);			\
+		    (unsigned)(data.request >> offset) & 0xff);			\
 	else								\
 		sbuf_printf(sb, "\t%s: %03u\n", name,			\
-		    (unsigned)(data2 >> offset) & 0xff);		\
+		    (unsigned)(data.request_pkg >> offset) & 0xff);		\
 } while (0)
-
-	pkg_print(IA32_HWP_REQUEST_EPP_VALID,
-	    "Requested Efficiency Performance Preference", 24);
-	pkg_print(IA32_HWP_REQUEST_DESIRED_VALID,
-	    "Requested Desired Performance", 16);
-	pkg_print(IA32_HWP_REQUEST_MAXIMUM_VALID,
-	    "Requested Maximum Performance", 8);
-	pkg_print(IA32_HWP_REQUEST_MINIMUM_VALID,
-	    "Requested Minimum Performance", 0);
+	if (data.err | HWP_ERROR_CPPC_REQUEST) {
+		sbuf_printf(sb, "IA32_HWP_REQUEST: " MSR_NOT_READ_MSG "\n");
+	} else if (data.err | HWP_ERROR_CPPC_REQUEST_PKG) {
+		sbuf_printf(sb, "IA32_HWP_REQUEST_PKG: " MSR_NOT_READ_MSG "\n");
+	} else {
+		pkg_print(IA32_HWP_REQUEST_EPP_VALID,
+		    "Requested Efficiency Performance Preference", 24);
+		pkg_print(IA32_HWP_REQUEST_DESIRED_VALID,
+		    "Requested Desired Performance", 16);
+		pkg_print(IA32_HWP_REQUEST_MAXIMUM_VALID,
+		    "Requested Maximum Performance", 8);
+		pkg_print(IA32_HWP_REQUEST_MINIMUM_VALID,
+		    "Requested Minimum Performance", 0);
+	}
 #undef pkg_print
 
 	sbuf_putc(sb, '\n');
 
 out:
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
 
 	ret = sbuf_finish(sb);
 	if (ret == 0)
@@ -244,6 +310,7 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	struct pcpu *pc;
 	uint64_t epb;
 	uint32_t val;
+	uint64_t req_cached;
 	int ret;
 
 	dev = oidp->oid_arg1;
@@ -255,10 +322,6 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	if (pc == NULL)
 		return (ENXIO);
 
-	thread_lock(curthread);
-	sched_bind(curthread, pc->pc_cpuid);
-	thread_unlock(curthread);
-
 	if (sc->hwp_pref_ctrl) {
 		val = (sc->req & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
 		val = raw_to_percent(val);
@@ -269,7 +332,8 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		 * This register is per-core (but not HT).
 		 */
 		if (!sc->hwp_perf_bias_cached) {
-			ret = rdmsr_safe(MSR_IA32_ENERGY_PERF_BIAS, &epb);
+			ret = RDMSR_ON_CPU(dev, MSR_IA32_ENERGY_PERF_BIAS,
+			    &epb);
 			if (ret)
 				goto out;
 			sc->hwp_energy_perf_bias = epb;
@@ -293,15 +357,17 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 
 	if (sc->hwp_pref_ctrl) {
 		val = percent_to_raw(val);
-
-		sc->req =
-		    ((sc->req & ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE)
-		    | (val << 24u));
+		req_cached = sc->req =
+		    ((sc->req &
+			 ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) |
+			(val << 24u));
 
 		if (sc->hwp_pkg_ctrl_en)
-			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
+			ret = WRMSR_ON_CPU(dev, MSR_IA32_HWP_REQUEST_PKG,
+			    req_cached);
 		else
-			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
+			ret = WRMSR_ON_CPU(dev, MSR_IA32_HWP_REQUEST,
+			    req_cached);
 	} else {
 		val = percent_to_raw_perf_bias(val);
 		MPASS((val & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
@@ -309,15 +375,11 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		sc->hwp_energy_perf_bias =
 		    ((sc->hwp_energy_perf_bias &
 		    ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) | val);
-		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
+		ret = WRMSR_ON_CPU(dev, MSR_IA32_ENERGY_PERF_BIAS,
 		    sc->hwp_energy_perf_bias);
 	}
 
 out:
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
 	return (ret);
 }
 
@@ -377,23 +439,20 @@ intel_hwpstate_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-static int
-set_autonomous_hwp(struct hwp_softc *sc)
+struct set_autonomous_hwp_cb {
+	struct hwp_softc *sc;
+	uint32_t flag;
+};
+
+static void
+set_autonomous_hwp_cb(void *arg)
 {
-	struct pcpu *pc;
-	device_t dev;
-	uint64_t caps;
 	int ret;
+	uint64_t caps, req;
+	struct set_autonomous_hwp_cb *data = arg;
+	struct hwp_softc *sc = data->sc;
 
-	dev = sc->dev;
-
-	pc = cpu_get_pcpu(dev);
-	if (pc == NULL)
-		return (ENXIO);
-
-	thread_lock(curthread);
-	sched_bind(curthread, pc->pc_cpuid);
-	thread_unlock(curthread);
+	data->flag = 0;
 
 	/* XXX: Many MSRs aren't readable until feature is enabled */
 	ret = wrmsr_safe(MSR_IA32_PM_ENABLE, 1);
@@ -406,27 +465,17 @@ set_autonomous_hwp(struct hwp_softc *sc)
 		 * condition should not happen given we gate on the HWP CPUID
 		 * feature flag, if the Intel SDM is correct.
 		 */
-		device_printf(dev, "Failed to enable HWP for cpu%d (%d)\n",
-		    pc->pc_cpuid, ret);
-		goto out;
+		data->flag |= HWP_ERROR_CPPC_ENABLE;
+		return;
 	}
-
-	ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &sc->req);
-	if (ret) {
-		device_printf(dev,
-		    "Failed to read HWP request MSR for cpu%d (%d)\n",
-		    pc->pc_cpuid, ret);
-		goto out;
-	}
-
 	ret = rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &caps);
 	if (ret) {
-		device_printf(dev,
-		    "Failed to read HWP capabilities MSR for cpu%d (%d)\n",
-		    pc->pc_cpuid, ret);
-		goto out;
+		data->flag |= HWP_ERROR_CPPC_CAPS;
 	}
-
+	ret = rdmsr_safe(MSR_IA32_HWP_REQUEST, &req);
+	if (ret) {
+		data->flag |= HWP_ERROR_CPPC_REQUEST;
+	}
 	/*
 	 * High and low are static; "guaranteed" is dynamic; and efficient is
 	 * also dynamic.
@@ -437,31 +486,30 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	sc->low = IA32_HWP_CAPABILITIES_LOWEST_PERFORMANCE(caps);
 
 	/* hardware autonomous selection determines the performance target */
-	sc->req &= ~IA32_HWP_DESIRED_PERFORMANCE;
+	req &= ~IA32_HWP_DESIRED_PERFORMANCE;
 
 	/* enable HW dynamic selection of window size */
-	sc->req &= ~IA32_HWP_ACTIVITY_WINDOW;
+	req &= ~IA32_HWP_ACTIVITY_WINDOW;
 
-	/* IA32_HWP_REQUEST.Minimum_Performance = IA32_HWP_CAPABILITIES.Lowest_Performance */
-	sc->req &= ~IA32_HWP_MINIMUM_PERFORMANCE;
-	sc->req |= sc->low;
+	/* IA32_HWP_REQUEST.Minimum_Performance =
+	 * IA32_HWP_CAPABILITIES.Lowest_Performance */
+	req &= ~IA32_HWP_MINIMUM_PERFORMANCE;
+	req |= sc->low;
 
-	/* IA32_HWP_REQUEST.Maximum_Performance = IA32_HWP_CAPABILITIES.Highest_Performance. */
-	sc->req &= ~IA32_HWP_REQUEST_MAXIMUM_PERFORMANCE;
-	sc->req |= sc->high << 8;
+	/* IA32_HWP_REQUEST.Maximum_Performance =
+	 * IA32_HWP_CAPABILITIES.Highest_Performance. */
+	req &= ~IA32_HWP_REQUEST_MAXIMUM_PERFORMANCE;
+	req |= sc->high << 8;
+	sc->req = req;
 
 	/* If supported, request package-level control for this CPU. */
 	if (sc->hwp_pkg_ctrl_en)
-		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
-		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST,
+		    sc->req | IA32_HWP_REQUEST_PACKAGE_CONTROL);
 	else
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
-	if (ret) {
-		device_printf(dev,
-		    "Failed to setup%s autonomous HWP for cpu%d\n",
-		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
-		goto out;
-	}
+	if (ret)
+		data->flag |= HWP_ERROR_CPPC_REQUEST_WRITE;
 
 	/* If supported, write the PKG-wide control MSR. */
 	if (sc->hwp_pkg_ctrl_en) {
@@ -472,25 +520,72 @@ set_autonomous_hwp(struct hwp_softc *sc)
 		 * not exist." (Intel SDM §14.4.4)
 		 */
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
-		if (ret) {
-			device_printf(dev,
-			    "Failed to set autonomous HWP for package\n");
-		}
+		if (ret)
+			data->flag |= HWP_ERROR_CPPC_REQUEST_PKG;
 	}
+}
+
+static inline void
+set_autonomous_hwp_send_one(struct hwp_softc *sc,
+    struct set_autonomous_hwp_cb *data)
+{
+	data->sc = sc;
+	smp_rendezvous_cpu(cpu_get_pcpu(sc->dev)->pc_cpuid,
+	    smp_no_rendezvous_barrier, set_autonomous_hwp_cb,
+	    smp_no_rendezvous_barrier, data);
+}
+
+static int
+set_autonomous_hwp(struct hwp_softc *sc)
+{
+	struct pcpu *pc;
+	struct set_autonomous_hwp_cb data;
+	device_t dev;
+
+	dev = sc->dev;
+
+	pc = cpu_get_pcpu(dev);
+	if (pc == NULL)
+		return (ENXIO);
+
+	set_autonomous_hwp_send_one(sc, &data);
+	if (data.flag | HWP_ERROR_CPPC_ENABLE) {
+		device_printf(dev, "Failed to enable HWP for cpu%d (%d)\n",
+		    pc->pc_cpuid, EFAULT);
+		goto out;
+	}
+	if (data.flag | HWP_ERROR_CPPC_REQUEST) {
+		device_printf(dev,
+		    "Failed to read HWP request MSR for cpu%d (%d)\n",
+		    pc->pc_cpuid, EFAULT);
+		goto out;
+	}
+	if (data.flag | HWP_ERROR_CPPC_CAPS) {
+		device_printf(dev,
+		    "Failed to read HWP capabilities MSR for cpu%d (%d)\n",
+		    pc->pc_cpuid, EFAULT);
+		goto out;
+	}
+	if (data.flag | HWP_ERROR_CPPC_REQUEST_WRITE) {
+		device_printf(dev,
+		    "Failed to setup%s autonomous HWP for cpu%d\n",
+		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
+		goto out;
+	}
+	if (data.flag | HWP_ERROR_CPPC_REQUEST_PKG)
+		device_printf(dev,
+		    "Failed to set autonomous HWP for package\n");
 
 out:
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
-	return (ret);
+	if (data.flag)
+		return (EFAULT);
+	return (0);
 }
 
 static int
 intel_hwpstate_attach(device_t dev)
 {
 	struct hwp_softc *sc;
-	int ret;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -512,10 +607,7 @@ intel_hwpstate_attach(device_t dev)
 	if (cpu_power_ecx & CPUID_PERF_BIAS)
 		sc->hwp_perf_bias = true;
 
-	ret = set_autonomous_hwp(sc);
-	if (ret)
-		return (ret);
-
+	set_autonomous_hwp(sc);
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_STATIC_CHILDREN(_debug), OID_AUTO, device_get_nameunit(dev),
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
@@ -534,7 +626,6 @@ intel_hwpstate_attach(device_t dev)
 static int
 intel_hwpstate_detach(device_t dev)
 {
-
 	return (cpufreq_unregister(dev));
 }
 
@@ -582,6 +673,59 @@ intel_hwpstate_suspend(device_t dev)
 	return (0);
 }
 
+struct hwpstate_resume_cb {
+	struct hwp_softc *sc;
+	uint32_t flag;
+};
+
+static void
+hwpstate_resume_cb(void *arg)
+{
+	struct hwpstate_resume_cb *data = arg;
+	struct hwp_softc *sc = data->sc;
+	int ret;
+
+	data->flag = 0;
+
+	ret = wrmsr_safe(MSR_IA32_PM_ENABLE, 1);
+	if (ret) {
+		data->flag |= HWP_ERROR_CPPC_ENABLE;
+		return;
+	}
+	if (sc->hwp_pkg_ctrl_en)
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST,
+		    sc->req | IA32_HWP_REQUEST_PACKAGE_CONTROL);
+	else
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
+	if (ret) {
+		data->flag |= HWP_ERROR_CPPC_REQUEST_WRITE;
+		return;
+	}
+	if (sc->hwp_pkg_ctrl_en) {
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
+		if (ret) {
+			data->flag |= HWP_ERROR_CPPC_REQUEST_PKG;
+			return;
+		}
+	}
+	if (!sc->hwp_pref_ctrl && sc->hwp_perf_bias_cached) {
+		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
+		    sc->hwp_energy_perf_bias);
+		if (ret) {
+			data->flag |= HWP_ERROR_CPPC_EPP_WRITE;
+		}
+	}
+}
+
+static inline void
+hwpstate_resume_send_one(struct hwp_softc *sc, struct hwpstate_resume_cb *req)
+{
+	req->sc = sc;
+	smp_rendezvous_cpu(cpu_get_pcpu(sc->dev)->pc_cpuid,
+	    smp_no_rendezvous_barrier, hwpstate_resume_cb,
+	    smp_no_rendezvous_barrier, req);
+}
+
 /*
  * Redo a subset of set_autonomous_hwp on resume; untested.  Without this,
  * testers observed that on resume MSR_IA32_HWP_REQUEST was bogus.
@@ -591,7 +735,7 @@ intel_hwpstate_resume(device_t dev)
 {
 	struct hwp_softc *sc;
 	struct pcpu *pc;
-	int ret;
+	struct hwpstate_resume_cb data;
 
 	sc = device_get_softc(dev);
 
@@ -599,52 +743,35 @@ intel_hwpstate_resume(device_t dev)
 	if (pc == NULL)
 		return (ENXIO);
 
-	thread_lock(curthread);
-	sched_bind(curthread, pc->pc_cpuid);
-	thread_unlock(curthread);
-
-	ret = wrmsr_safe(MSR_IA32_PM_ENABLE, 1);
-	if (ret) {
+	hwpstate_resume_send_one(sc, &data);
+	if (data.flag | HWP_ERROR_CPPC_ENABLE) {
 		device_printf(dev,
 		    "Failed to enable HWP for cpu%d after suspend (%d)\n",
-		    pc->pc_cpuid, ret);
+		    pc->pc_cpuid, EFAULT);
 		goto out;
 	}
 
-	if (sc->hwp_pkg_ctrl_en)
-		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
-		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
-	else
-		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
-	if (ret) {
+	if (data.flag | HWP_ERROR_CPPC_REQUEST_WRITE) {
 		device_printf(dev,
 		    "Failed to set%s autonomous HWP for cpu%d after suspend\n",
 		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
 		goto out;
 	}
-	if (sc->hwp_pkg_ctrl_en) {
-		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
-		if (ret) {
-			device_printf(dev,
-			    "Failed to set autonomous HWP for package after "
-			    "suspend\n");
-			goto out;
-		}
+	if (data.flag | HWP_ERROR_CPPC_REQUEST_PKG) {
+		device_printf(dev,
+		    "Failed to set autonomous HWP for package after "
+		    "suspend\n");
+		goto out;
 	}
-	if (!sc->hwp_pref_ctrl && sc->hwp_perf_bias_cached) {
-		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
-		    sc->hwp_energy_perf_bias);
-		if (ret) {
-			device_printf(dev,
-			    "Failed to set energy perf bias for cpu%d after "
-			    "suspend\n", pc->pc_cpuid);
-		}
+	if (data.flag | HWP_ERROR_CPPC_EPP_WRITE) {
+		device_printf(dev,
+		    "Failed to set energy perf bias for cpu%d after "
+		    "suspend\n",
+		    pc->pc_cpuid);
 	}
 
 out:
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
-	return (ret);
+	if (data.flag)
+		return (EFAULT);
+	return (0);
 }
