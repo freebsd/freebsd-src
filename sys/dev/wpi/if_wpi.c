@@ -2917,7 +2917,8 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			break;
 		}
 
-		memcpy(tx->key, k->wk_key, k->wk_keylen);
+		memcpy(tx->key, ieee80211_crypto_get_key_data(k),
+		    ieee80211_crypto_get_key_len(k));
 	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
@@ -3031,7 +3032,8 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 			break;
 		}
 
-		memcpy(tx->key, k->wk_key, k->wk_keylen);
+		memcpy(tx->key, ieee80211_crypto_get_key_data(k),
+		    ieee80211_crypto_get_key_len(k));
 	}
 
 	tx->len = htole16(totlen);
@@ -4627,7 +4629,8 @@ wpi_load_key(struct ieee80211_node *ni, const struct ieee80211_key *k)
 	node.control = WPI_NODE_UPDATE;
 	node.flags = WPI_FLAG_KEY_SET;
 	node.kflags = htole16(kflags);
-	memcpy(node.key, k->wk_key, k->wk_keylen);
+	memcpy(node.key, ieee80211_crypto_get_key_data(k),
+	    ieee80211_crypto_get_key_len(k));
 again:
 	DPRINTF(sc, WPI_DEBUG_KEY,
 	    "%s: setting %s key id %d for node %d (%s)\n", __func__,
