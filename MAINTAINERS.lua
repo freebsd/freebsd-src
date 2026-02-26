@@ -59,10 +59,20 @@ local path_has_any = function (arr, path)
 end
 
 local regexify_glob = function (s)
-	s = s:gsub('%*%*+', '*') -- more than two stars in a row is a single glob
+	-- escape periods
+	s = s:gsub('%.', '\\.')
+	-- more than two stars in a row is a single glob
+	s = s:gsub('%*%*+', '*')
+	-- the first two prevent ? from matching dotfiles
+	s = s:gsub('^%?', '[^./]') 
+	s = s:gsub('/%?', '/[^./]')
 	s = s:gsub('%?', '[^/]')
-	s = s:gsub('%*%*', '.-')
-	s = s:gsub('%*', '(?:[^./][^/\n]*?|$|)')
+	-- globstar
+	s = s:gsub('%*%*', '.*?')
+	-- the first two prevent * from matching dotfiles
+	s = s:gsub('/%*', '/(?:[^./][^/]*?|)')
+	s = s:gsub('^%*', '(?:[^./][^/]*?|)')
+	s = s:gsub('%*', '[^/]*?')
 	return s
 end
 
