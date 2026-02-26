@@ -3783,7 +3783,7 @@ kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 	int error;
 	short irflag;
 
-	if (flags != 0)
+	if ((flags & ~(AT_RENAME_NOREPLACE)) != 0)
 		return (EINVAL);
 again:
 	tmp = mp = NULL;
@@ -3820,6 +3820,19 @@ again:
 	}
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
+	if (tvp != NULL && (flags & AT_RENAME_NOREPLACE) != 0) {
+		/*
+		 * Often filesystems need to relock the vnodes in
+		 * VOP_RENAME(), which opens a window for invalidation
+		 * of this check.  Then, not all filesystems might
+		 * implement AT_RENAME_NOREPLACE.  This leads to
+		 * situation where sometimes EOPNOTSUPP might be
+		 * returned from the VOP due to race, while most of
+		 * the time this check works.
+		 */
+		error = EEXIST;
+		goto out;
+	}
 	error = vn_start_write(fvp, &mp, V_NOWAIT);
 	if (error != 0) {
 again1:
@@ -3912,9 +3925,12 @@ out:
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
 	}
-	lockmgr(&tmp->mnt_renamelock, LK_RELEASE, 0);
-	vfs_rel(tmp);
-	vn_finished_write(mp);
+	if (tmp != NULL) {
+		lockmgr(&tmp->mnt_renamelock, LK_RELEASE, 0);
+		vfs_rel(tmp);
+	}
+	if (mp != NULL)
+		vn_finished_write(mp);
 out1:
 	if (error == ERESTART)
 		return (0);

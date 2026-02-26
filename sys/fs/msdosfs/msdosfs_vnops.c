@@ -49,12 +49,12 @@
  * October 1992
  */
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/clock.h>
 #include <sys/dirent.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/lockf.h>
 #include <sys/malloc.h>
@@ -970,7 +970,7 @@ msdosfs_rename(struct vop_rename_args *ap)
 		goto abortit;
 	}
 
-	if (ap->a_flags != 0) {
+	if ((ap->a_flags & ~(AT_RENAME_NOREPLACE)) != 0) {
 		error = EOPNOTSUPP;
 		goto abortit;
 	}
@@ -1040,6 +1040,11 @@ relock:
 	if (error == EJUSTRETURN && tvp != NULL) {
 		vrele(tvp);
 		tvp = NULL;
+	}
+	if (error == 0 && tvp != NULL &&
+	    (ap->a_flags & AT_RENAME_NOREPLACE) != 0) {
+		error = EEXIST;
+		goto unlock;
 	}
 	if (error == 0) {
 		nip = NULL;
