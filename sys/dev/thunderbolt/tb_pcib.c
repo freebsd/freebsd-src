@@ -304,7 +304,7 @@ static int
 tb_pcib_detach(device_t dev)
 {
 	struct tb_pcib_softc *sc;
-	int error;
+	int error __diagused;
 
 	sc = device_get_softc(dev);
 

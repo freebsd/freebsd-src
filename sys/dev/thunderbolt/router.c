@@ -277,7 +277,8 @@ _tb_router_attach(struct router_softc *sc)
 {
 	struct tb_cfg_router *cfg;
 	uint32_t *buf;
-	int error, up;
+	int error;
+	int up __diagused;
 
 	buf = malloc(9 * 4, M_THUNDERBOLT, M_NOWAIT|M_ZERO);
 	if (buf == NULL)
@@ -297,8 +298,9 @@ _tb_router_attach(struct router_softc *sc)
 	sc->uuid[1] = cfg->uuid_hi;
 	sc->uuid[2] = 0xffffffff;
 	sc->uuid[3] = 0xffffffff;
-	tb_debug(sc, DBG_ROUTER, "Router upstream_port= %d, max_port= %d, "
-	    "depth= %d\n", up, sc->max_adap, sc->depth);
+	tb_debug(sc, DBG_ROUTER,
+	    "Router upstream_port= %d, max_port= %d, depth= %d\n",
+	    up, sc->max_adap, sc->depth);
 	free(buf, M_THUNDERBOLT);
 
 	/* Downstream adapters are indexed in the array allocated here. */
@@ -718,7 +720,8 @@ router_notify_intr(void *context, union nhi_ring_desc *ring, struct nhi_cmd_fram
 	struct router_softc *sc;
 	struct router_command *cmd;
 	struct tb_cfg_notify event;
-	u_int ev, adap;
+	u_int adap __diagused;
+	u_int ev;
 
 	KASSERT(context != NULL, ("context cannot be NULL\n"));
 

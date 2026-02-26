@@ -120,7 +120,7 @@ tb_acpi_pcib_attach(device_t dev)
 		ACPI_OBJECT_LIST list;
 		ACPI_OBJECT arg;
 		ACPI_BUFFER buf;
-		ACPI_STATUS s;
+		ACPI_STATUS s __diagused;
 
 		tb_debug(sc, DBG_BRIDGE, "Executing OSUP\n");
 

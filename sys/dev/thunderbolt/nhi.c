@@ -788,7 +788,10 @@ nhi_tx_schedule(struct nhi_ring_pair *r, struct nhi_cmd_frame *cmd)
 int
 nhi_tx_synchronous(struct nhi_ring_pair *r, struct nhi_cmd_frame *cmd)
 {
+	struct nhi_softc *sc __diagused;
 	int error, count;
+
+	sc = r->sc;
 
 	if ((error = nhi_tx_schedule(r, cmd)) != 0)
 		return (error);
@@ -812,16 +815,16 @@ nhi_tx_synchronous(struct nhi_ring_pair *r, struct nhi_cmd_frame *cmd)
 	if ((cmd->flags & CMD_REQ_COMPLETE) == 0)
 		error = ETIMEDOUT;
 
-	tb_debug(r->sc, DBG_TXQ|DBG_FULL, "tx_synchronous done waiting, "
+	tb_debug(sc, DBG_TXQ|DBG_FULL, "tx_synchronous done waiting, "
 	    "err= %d, TX_COMPLETE= %d\n", error,
 	    !!(cmd->flags & CMD_REQ_COMPLETE));
 
 	if (error == ERESTART) {
-		tb_printf(r->sc, "TX command interrupted\n");
+		tb_printf(sc, "TX command interrupted\n");
 	} else if ((error == EWOULDBLOCK) || (error == ETIMEDOUT)) {
-		tb_printf(r->sc, "TX command timed out\n");
+		tb_printf(sc, "TX command timed out\n");
 	} else if (error != 0) {
-		tb_printf(r->sc, "TX command failed error= %d\n", error);
+		tb_printf(sc, "TX command failed error= %d\n", error);
 	}
 
 	return (error);
@@ -831,7 +834,7 @@ static int
 nhi_tx_complete(struct nhi_ring_pair *r, struct nhi_tx_buffer_desc *desc,
     struct nhi_cmd_frame *cmd)
 {
-	struct nhi_softc *sc;
+	struct nhi_softc *sc __diagused;
 	struct nhi_pdf_dispatch *txpdf;
 	u_int sof;
 
@@ -865,9 +868,10 @@ static int
 nhi_rx_complete(struct nhi_ring_pair *r, struct nhi_rx_post_desc *desc,
     struct nhi_cmd_frame *cmd)
 {
-	struct nhi_softc *sc;
+	struct nhi_softc *sc __diagused;
 	struct nhi_pdf_dispatch *rxpdf;
-	u_int eof, len;
+	u_int eof;
+	u_int len __diagused;
 
 	sc = r->sc;
 	eof = desc->eof_len >> RX_BUFFER_DESC_EOF_SHIFT;
