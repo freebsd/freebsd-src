@@ -3887,7 +3887,7 @@ again1:
 out:
 	if (error == 0) {
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
-		    tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
+		    tond.ni_dvp, tond.ni_vp, &tond.ni_cnd, 0);
 		NDFREE_PNBUF(&fromnd);
 		NDFREE_PNBUF(&tond);
 	} else {

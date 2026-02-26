@@ -1715,7 +1715,7 @@ out:
 	if (error == 0) {
 		error = VOP_RENAME(fromndp->ni_dvp, fromndp->ni_vp,
 		    &fromndp->ni_cnd, tondp->ni_dvp, tondp->ni_vp,
-		    &tondp->ni_cnd);
+		    &tondp->ni_cnd, 0);
 		lockmgr(&mp->mnt_renamelock, LK_RELEASE, 0);
 		vfs_rel(mp);
 	} else {

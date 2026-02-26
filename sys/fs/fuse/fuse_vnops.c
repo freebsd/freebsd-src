@@ -2254,6 +2254,10 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 		err = EXTERROR(EXDEV, "Cross-device rename");
 		goto out;
 	}
+	if (ap->a_flags != 0) {
+		err = EOPNOTSUPP;
+		goto out;
+	}
 	cache_purge(fvp);
 
 	/*

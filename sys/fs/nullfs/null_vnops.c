@@ -741,7 +741,8 @@ null_rename(struct vop_rename_args *ap)
 		ltvp = NULL;
 	}
 
-	error = VOP_RENAME(lfdvp, lfvp, ap->a_fcnp, ltdvp, ltvp, ap->a_tcnp);
+	error = VOP_RENAME(lfdvp, lfvp, ap->a_fcnp, ltdvp, ltvp, ap->a_tcnp,
+	    ap->a_flags);
 	vrele(fdvp);
 	vrele(fvp);
 	vrele(tdvp);

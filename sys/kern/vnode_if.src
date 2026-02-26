@@ -336,6 +336,7 @@ vop_rename {
 	IN WILLRELE struct vnode *tdvp;
 	IN WILLRELE struct vnode *tvp;
 	IN struct componentname *tcnp;
+	IN u_int flags;
 };
 
 
