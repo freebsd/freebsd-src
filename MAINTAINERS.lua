@@ -1,5 +1,4 @@
 #! /usr/libexec/flua
-
 --[[
 
 Usage: 
@@ -12,6 +11,7 @@ Commands:
   get_info         prints available info for a person. Requires argument, a person's ID.
 
 --]]
+
 local ucl = require('ucl').parser()
 local glob = require('posix.fnmatch')
 
@@ -30,7 +30,41 @@ local version = t.version
 local people = t.people
 local groups = t.groups
 
-local regexify_glob = function (s) end
+--
+-- Helper functions
+--
+
+local foreach = function (table, fn)
+	for _, v in ipairs(table) do
+		fn(v)
+	end
+end
+
+local set_insert = function (arr, item)
+	for _, i in ipairs(arr) do
+		if i == item then
+			return
+		end
+	end
+	table.insert(arr, item)
+end
+
+local path_has_any = function (arr, path)
+	for _, match in ipairs(arr) do
+		if glob.fnmatch(match, path) == 0 then
+			return true
+		end
+	end
+	return false
+end
+
+local regexify_glob = function (s)
+	s = s:gsub('%*%*+', '*') -- more than two stars in a row is a single glob
+	s = s:gsub('%?', '[^/]')
+	s = s:gsub('%*%*', '.-')
+	s = s:gsub('%*', '(?:[^./][^/\n]*?|$|)')
+	return s
+end
 
 local is_child_of = function (maybe_child, of)
 	local s = ''
@@ -43,30 +77,6 @@ local is_child_of = function (maybe_child, of)
 	return false
 end
 
-local foreach = function (table, fn)
-	for _, v in ipairs(table) do
-		fn(v)
-	end
-end
-
-local path_has_any = function (arr, path)
-	for _, match in ipairs(arr) do
-		if glob.fnmatch(match, path) == 0 then
-			return true
-		end
-	end
-	return false
-end
-
-local try_insert = function (arr, item)
-	for _, i in ipairs(arr) do
-		if i == item then
-			return
-		end
-	end
-	table.insert(arr, item)
-end
-
 if arg[1] == 'get_maintainers' then
 	local path = arg[2]
 	local out = {}
@@ -74,7 +84,7 @@ if arg[1] == 'get_maintainers' then
 	for _, group in pairs(groups) do
 		if not (group.except and path_has_any(group.except, path))
 			and path_has_any(group.watch, path) then
-			foreach(group.members, function (member) try_insert(out, member) end)
+			foreach(group.members, function (member) set_insert(out, member) end)
 		end
 	end
 
@@ -89,7 +99,7 @@ elseif arg[1] == 'get_paths' then
 			if member == person_id then
 				foreach(group.watch, function (path) table.insert(watch, path) end)
 				if group.except then
-					foreach(group.except, function (path) try_insert(except, path) end)
+					foreach(group.except, function (path) set_insert(except, path) end)
 				end
 				break
 			end
@@ -115,7 +125,7 @@ elseif arg[1] == 'update' then
 		table[path] = {}
 		for old_path, watchers in pairs(table) do
 			if is_child_of(path, old_path) then
-				foreach(watchers, function (w) try_insert(table[path], w) end)
+				foreach(watchers, function (w) set_insert(table[path], w) end)
 			end
 		end
 	end
@@ -133,7 +143,7 @@ elseif arg[1] == 'update' then
 			-- check if anybody is stealing from us
 			for old_path, _ in pairs(gh_table) do
 				if is_child_of(old_path, path) and not (group.except and path_has_any(group.except, old_path)) then
-						foreach(group.members, function (m) try_insert(gh_table[old_path], m) end)
+						foreach(group.members, function (m) set_insert(gh_table[old_path], m) end)
 				end
 			end
 
@@ -141,20 +151,15 @@ elseif arg[1] == 'update' then
 				checked_add_path(path, gh_table)
 			end
 
-			foreach(group.members, function (m) try_insert(gh_table[path], m) end)
+			foreach(group.members, function (m) set_insert(gh_table[path], m) end)
 		end
 	end
 	
-	-- sort the paths so the generated file is easier to read
-	local paths = {}
-	for k, _ in pairs(gh_table) do table.insert(paths, k) end
-	table.sort(paths)
-	
 	local gh_file = io.open('.github/CODEOWNERS', 'w')
 	if gh_file ~= nil then
-		for _, path in ipairs(paths) do
+		for path, id_arr in pairs(gh_table) do
 			gh_file:write(path)
-			for _, id in ipairs(gh_table[path]) do
+			for _, id in ipairs(id_arr) do
 				if people[id] ~= nil and people[id].github ~= nil then
 					gh_file:write(' ', people[id].github)
 				end
@@ -177,8 +182,17 @@ elseif arg[1] == 'update' then
 		return
 	end
 
+	-- currently does not handle the contents of `except`
 	for _, group in pairs(groups) do
-		-- generate a single regex for each group???		
+		for _, path in ipairs(group.watch) do
+			fj_file:write(regexify_glob(path))
+			for _, id in ipairs(group.members) do
+				if people[id] ~= nil and people[id].forgejo ~= nil then
+					fj_file:write(' ', people[id].forgejo)
+				end
+			end
+			fj_file:write('\n')
+		end
 	end
 	
 	fj_file:close()
