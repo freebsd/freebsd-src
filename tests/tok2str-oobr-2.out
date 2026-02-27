@@ -6,7 +6,8 @@
 	  Return Code: unknown (65)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000023, Sequence: 1
-	  Sender Timestamp: 3558141471.506155999 (2012-10-02T04:37:51Z) Receiver Timestamp: 0.000000000
+	  TimeStamp Sent: 3558141471.506155999 (2012-10-02T04:37:51Z)
+	  TimeStamp Received: 0.000000000
 	  Target FEC Stack TLV (1), length: 24
 	    Unknown subTLV (17), length: 20
 	      0x0000:  0000 0001 0000 0001 c0a8 0001 c0a8 0001

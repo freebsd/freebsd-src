@@ -3,7 +3,7 @@
 	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 8 (256s), precision 0
 	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
 	  Reference Timestamp:  0.000000000
-	  Originator Timestamp: 0.000000000
+	  Origin Timestamp:     0.000000000
 	  Receive Timestamp:    0.000000000
 	  Transmit Timestamp:   3712483316.928478999 (2017-08-23T13:21:56Z)
 	    Originator - Receive Timestamp:  0.000000000
@@ -13,7 +13,7 @@
 	Leap indicator:  (0), Stratum 2 (secondary reference), poll 8 (256s), precision -24
 	Root Delay: 0.000320, Root dispersion: 0.036407, Reference-ID: 0x84c707c9
 	  Reference Timestamp:  3712482106.337741360 (2017-08-23T13:01:46Z)
-	  Originator Timestamp: 3712483316.928478999 (2017-08-23T13:21:56Z)
+	  Origin Timestamp:     3712483316.928478999 (2017-08-23T13:21:56Z)
 	  Receive Timestamp:    3712483316.929920629 (2017-08-23T13:21:56Z)
 	  Transmit Timestamp:   3712483316.929948437 (2017-08-23T13:21:56Z)
 	    Originator - Receive Timestamp:  +0.001441629

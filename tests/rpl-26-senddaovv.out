@@ -1,1 +1,1 @@
-    1  2014-01-05 04:16:05.263422 IP6 (hlim 64, next-header ICMPv6 (58) payload length: 24) fe80::216:3eff:fe11:3424 > ff02::1: [icmp6 sum ok] ICMP6, RPL, (CLR)Destination Advertisement Object Ack [dagid:7468:6973:6973:6d79:6469:6365:6461:6732,seq:11,instance:43,status:0]
+    1  2014-01-05 04:16:05.263422 IP6 (hlim 64, next-header ICMPv6 (58), payload length 24) fe80::216:3eff:fe11:3424 > ff02::1: [icmp6 sum ok] ICMP6, RPL, (CLR)Destination Advertisement Object Ack [dagid:7468:6973:6973:6d79:6469:6365:6461:6732,seq:11,instance:43,status:0]

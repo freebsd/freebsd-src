@@ -5,4 +5,5 @@
 	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 1
-	  Sender Timestamp: 3809381051.326312999 (2020-09-18T01:24:11Z) Receiver Timestamp: 3809381051.327528999 (2020-09-18T01:24:11Z)
+	  TimeStamp Sent: 3809381051.326312999 (2020-09-18T01:24:11Z)
+	  TimeStamp Received: 3809381051.327528999 (2020-09-18T01:24:11Z)

@@ -1151,53 +1151,53 @@
 	    10.0.0.9
 	    10.0.0.8
 	    0x0000:  0100 0a00 0009 0100 0a00 0008
-  129  2019-07-05 17:21:21.305747 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+  129  2019-07-05 17:21:21.305747 IP6 (hlim 64, next-header PIM (103), payload length 26) 10::2 > ff02::d: PIMv2, length 26
 	Bootstrap, cksum 0xbc73 (correct) tag=5f hashmlen=29 BSRprio=7 BSR=1::2
-  130  2019-07-05 17:21:36.317463 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+  130  2019-07-05 17:21:36.317463 IP6 (hlim 64, next-header PIM (103), payload length 26) 10::2 > ff02::d: PIMv2, length 26
 	Bootstrap, cksum 0xbc73 (correct) tag=5f hashmlen=29 BSRprio=7 BSR=1::2
-  131  2019-07-05 17:21:51.327358 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+  131  2019-07-05 17:21:51.327358 IP6 (hlim 64, next-header PIM (103), payload length 26) 10::2 > ff02::d: PIMv2, length 26
 	Bootstrap, cksum 0xc1d1 (correct) tag=195 hashmlen=22 BSRprio=114 BSR=1::3
-  132  2019-07-05 17:21:51.342877 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+  132  2019-07-05 17:21:51.342877 IP6 (hlim 64, next-header PIM (103), payload length 26) 10::2 > ff02::d: PIMv2, length 26
 	Bootstrap, cksum 0xcd68 (correct) tag=133 hashmlen=11 BSRprio=60 BSR=1::4
-  133  2019-07-05 17:21:51.359070 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+  133  2019-07-05 17:21:51.359070 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > ff02::d: PIMv2, length 50
 	Bootstrap, cksum 0xbe23 (correct) tag=116 hashmlen=25 BSRprio=1 BSR=1::5 (group0: ff02::1 RPcnt=0 FRPcnt=0)
-  134  2019-07-05 17:21:51.375173 IP6 (hlim 64, next-header PIM (103) payload length: 118) 10::2 > ff02::d: PIMv2, length 118
+  134  2019-07-05 17:21:51.375173 IP6 (hlim 64, next-header PIM (103), payload length 118) 10::2 > ff02::d: PIMv2, length 118
 	Bootstrap, cksum 0x9791 (correct) tag=1e9 hashmlen=16 BSRprio=59 BSR=1::8 (group0: ff02::2(0x01) RPcnt=1 FRPcnt=1 RP0=1::6,holdtime=1m15s,prio=64) (group1: ff02::3 RPcnt=1 FRPcnt=1 RP0=1::7,holdtime=1m30s,prio=229)
-  135  2019-07-05 17:21:51.389973 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > 10::1: PIMv2, length 26
+  135  2019-07-05 17:21:51.389973 IP6 (hlim 64, next-header PIM (103), payload length 26) 10::2 > 10::1: PIMv2, length 26
 	Bootstrap, cksum 0xbadd (correct) tag=9e hashmlen=29 BSRprio=86 BSR=1::9
-  136  2019-07-05 17:22:06.397655 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 26) 10::1 > ff02::d: PIMv2, length 26
+  136  2019-07-05 17:22:06.397655 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 26) 10::1 > ff02::d: PIMv2, length 26
 	Bootstrap, cksum 0xcdee (correct) tag=6c hashmlen=11 BSRprio=120 BSR=1::a
-  137  2019-07-05 17:22:06.401467 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 26) 10::1 > ff02::d: PIMv2, length 26
+  137  2019-07-05 17:22:06.401467 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 26) 10::1 > ff02::d: PIMv2, length 26
 	Bootstrap, cksum 0xd0dc (correct) tag=75 hashmlen=8 BSRprio=128 BSR=1::b
-  138  2019-07-05 17:22:06.405175 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 50) 10::1 > ff02::d: PIMv2, length 50
+  138  2019-07-05 17:22:06.405175 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 50) 10::1 > ff02::d: PIMv2, length 50
 	Bootstrap, cksum 0xcfd8 (correct) tag=1f9 hashmlen=6 BSRprio=96 BSR=1::c (group0: ff02::4 RPcnt=0 FRPcnt=0)
-  139  2019-07-05 17:22:06.409793 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 118) 10::1 > ff02::d: PIMv2, length 118
+  139  2019-07-05 17:22:06.409793 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 118) 10::1 > ff02::d: PIMv2, length 118
 	Bootstrap, cksum 0x773d (correct) tag=110 hashmlen=18 BSRprio=218 BSR=1::f (group0: ff02::5(0x01) RPcnt=1 FRPcnt=1 RP0=1::d,holdtime=1m52s,prio=205) (group1: ff02::6 RPcnt=1 FRPcnt=1 RP0=1::e,holdtime=2m49s,prio=118)
-  140  2019-07-05 17:22:28.670554 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+  140  2019-07-05 17:22:28.670554 IP6 (hlim 64, next-header PIM (103), payload length 46) 10::2 > 10::1: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xce65 (correct) prefix-cnt=1 prio=73 holdtime=13m6s RP=1::2 Group0=ff02::1(0x01)
-  141  2019-07-05 17:22:28.686085 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+  141  2019-07-05 17:22:28.686085 IP6 (hlim 64, next-header PIM (103), payload length 46) 10::2 > 10::1: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xcedd (correct) prefix-cnt=1 prio=152 holdtime=14m1s RP=1::3 Group0=ff02::2
-  142  2019-07-05 17:22:28.701051 IP6 (hlim 64, next-header PIM (103) payload length: 66) 10::2 > 10::1: PIMv2, length 66
+  142  2019-07-05 17:22:28.701051 IP6 (hlim 64, next-header PIM (103), payload length 66) 10::2 > 10::1: PIMv2, length 66
 	Candidate RP Advertisement, cksum 0xcd13 (correct) prefix-cnt=2 prio=131 holdtime=10m51s RP=1::4 Group0=ff02::3 Group1=ff02::4
-  143  2019-07-05 17:22:28.716663 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+  143  2019-07-05 17:22:28.716663 IP6 (hlim 64, next-header PIM (103), payload length 46) 10::2 > 10::1: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xcfa4 (correct) prefix-cnt=1 prio=75 holdtime=7m38s RP=1::5 Group0=ff02::5(0x01)
-  144  2019-07-05 17:22:28.732342 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+  144  2019-07-05 17:22:28.732342 IP6 (hlim 64, next-header PIM (103), payload length 46) 10::2 > 10::1: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xcfa4 (correct) prefix-cnt=1 prio=75 holdtime=7m38s RP=1::5 Group0=ff02::5(0x01)
-  145  2019-07-05 17:22:28.747319 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > ff02::d: PIMv2, length 46
+  145  2019-07-05 17:22:28.747319 IP6 (hlim 64, next-header PIM (103), payload length 46) 10::2 > ff02::d: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xd0bf (correct) prefix-cnt=1 prio=211 holdtime=4m54s RP=1::6 Group0=ff02::6(0x01)
-  146  2019-07-05 17:22:43.754936 IP6 (hlim 64, next-header PIM (103) payload length: 226) 10::2 > 10::1: PIMv2, length 226
+  146  2019-07-05 17:22:43.754936 IP6 (hlim 64, next-header PIM (103), payload length 226) 10::2 > 10::1: PIMv2, length 226
 	Candidate RP Advertisement, cksum 0xb46b (correct) prefix-cnt=2 prio=242 holdtime=15m25s RP=1::7 Group0=ff02::7(0x01) Group1=ff02::8(0x01)
-  147  2019-07-05 17:22:58.764755 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > ff02::d: PIMv2, length 46
+  147  2019-07-05 17:22:58.764755 IP6 (hlim 64, next-header PIM (103), payload length 46) 10::2 > ff02::d: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xce10 (correct) prefix-cnt=1 prio=189 holdtime=16m30s RP=1::8 Group0=ff02::11(0x01)
-  148  2019-07-05 17:23:13.771504 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 46) 10::1 > 10::2: PIMv2, length 46
+  148  2019-07-05 17:23:13.771504 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 46) 10::1 > 10::2: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xccca (correct) prefix-cnt=1 prio=233 holdtime=16m53s RP=1::9 Group0=ff02::12(0x01)
-  149  2019-07-05 17:23:13.775525 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 46) 10::1 > 10::2: PIMv2, length 46
+  149  2019-07-05 17:23:13.775525 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 46) 10::1 > 10::2: PIMv2, length 46
 	Candidate RP Advertisement, cksum 0xcf2c (correct) prefix-cnt=1 prio=48 holdtime=14m2s RP=1::a Group0=ff02::13
-  150  2019-07-05 17:23:13.779819 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 66) 10::1 > 10::2: PIMv2, length 66
+  150  2019-07-05 17:23:13.779819 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 66) 10::1 > 10::2: PIMv2, length 66
 	Candidate RP Advertisement, cksum 0xceda (correct) prefix-cnt=2 prio=113 holdtime=2m53s RP=1::b Group0=ff02::15 Group1=ff02::14
-  151  2019-07-05 17:23:13.784515 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 66) 10::1 > 10::2: PIMv2, length 66
+  151  2019-07-05 17:23:13.784515 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 66) 10::1 > 10::2: PIMv2, length 66
 	Candidate RP Advertisement, cksum 0xcca8 (incorrect) prefix-cnt=2 prio=49 holdtime=13m31s RP=1::c Group0=ff02::17 Group1=ff02::16
-  152  2019-07-05 17:23:26.044171 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  152  2019-07-05 17:23:26.044171 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0xf292 (correct), upstream-neighbor: 1::9
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::3(0x80), joined sources: 4, pruned sources: 3
@@ -1224,7 +1224,7 @@
 	      pruned source #1: 1::8(R)
 	      pruned source #2: 1::7(R)
 	      pruned source #3: 1::6(S)
-  153  2019-07-05 17:23:26.059514 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  153  2019-07-05 17:23:26.059514 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0xf292 (correct), upstream-neighbor: 1::9
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::3(0x80), joined sources: 4, pruned sources: 3
@@ -1251,7 +1251,7 @@
 	      pruned source #1: 1::8(R)
 	      pruned source #2: 1::7(R)
 	      pruned source #3: 1::6(S)
-  154  2019-07-05 17:23:26.075326 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  154  2019-07-05 17:23:26.075326 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0xf1d9 (correct), upstream-neighbor: 1::11
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::6(0x80), joined sources: 4, pruned sources: 3
@@ -1278,7 +1278,7 @@
 	      pruned source #1: 1::e(S)
 	      pruned source #2: 1::10(R)
 	      pruned source #3: 1::f(R)
-  155  2019-07-05 17:23:41.083345 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  155  2019-07-05 17:23:41.083345 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0xf1d9 (correct), upstream-neighbor: 1::11
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::6(0x80), joined sources: 4, pruned sources: 3
@@ -1305,7 +1305,7 @@
 	      pruned source #1: 1::e(S)
 	      pruned source #2: 1::10(R)
 	      pruned source #3: 1::f(R)
-  156  2019-07-05 17:23:56.095440 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  156  2019-07-05 17:23:56.095440 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x7122 (correct), upstream-neighbor: 1::19
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::7, joined sources: 4, pruned sources: 3
@@ -1332,7 +1332,7 @@
 	      pruned source #1: 1::18(R)
 	      pruned source #2: 1::17(R)
 	      pruned source #3: 1::16(S)
-  157  2019-07-05 17:24:11.103070 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  157  2019-07-05 17:24:11.103070 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x7122 (correct), upstream-neighbor: 1::19
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::7, joined sources: 4, pruned sources: 3
@@ -1359,7 +1359,7 @@
 	      pruned source #1: 1::18(R)
 	      pruned source #2: 1::17(R)
 	      pruned source #3: 1::16(S)
-  158  2019-07-05 17:24:26.112599 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  158  2019-07-05 17:24:26.112599 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x7069 (correct), upstream-neighbor: 1::21
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::c, joined sources: 4, pruned sources: 3
@@ -1386,7 +1386,7 @@
 	      pruned source #1: 1::1e(S)
 	      pruned source #2: 1::20(R)
 	      pruned source #3: 1::1f(R)
-  159  2019-07-05 17:24:26.128184 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  159  2019-07-05 17:24:26.128184 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x7069 (correct), upstream-neighbor: 1::21
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::c, joined sources: 4, pruned sources: 3
@@ -1413,7 +1413,7 @@
 	      pruned source #1: 1::1e(S)
 	      pruned source #2: 1::20(R)
 	      pruned source #3: 1::1f(R)
-  160  2019-07-05 17:24:26.144272 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  160  2019-07-05 17:24:26.144272 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x6fb0 (correct), upstream-neighbor: 1::29
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::f, joined sources: 4, pruned sources: 3
@@ -1440,7 +1440,7 @@
 	      pruned source #1: 1::28(R)
 	      pruned source #2: 1::26(S)
 	      pruned source #3: 1::27(R)
-  161  2019-07-05 17:24:41.152302 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+  161  2019-07-05 17:24:41.152302 IP6 (hlim 64, next-header PIM (103), payload length 518) 10::2 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x6fb0 (correct), upstream-neighbor: 1::29
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::f, joined sources: 4, pruned sources: 3
@@ -1467,7 +1467,7 @@
 	      pruned source #1: 1::28(R)
 	      pruned source #2: 1::26(S)
 	      pruned source #3: 1::27(R)
-  162  2019-07-05 17:24:56.163412 IP6 (hlim 64, next-header PIM (103) payload length: 758) 10::2 > 10::1: PIMv2, length 758
+  162  2019-07-05 17:24:56.163412 IP6 (hlim 64, next-header PIM (103), payload length 758) 10::2 > 10::1: PIMv2, length 758
 	Join / Prune, cksum 0x2e8c (correct), upstream-neighbor: 1::35
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::12, joined sources: 4, pruned sources: 7
@@ -1506,7 +1506,7 @@
 	      pruned source #5: 1::32(R)
 	      pruned source #6: 1::31(R)
 	      pruned source #7: 1::34(R)
-  163  2019-07-05 17:25:11.174870 IP6 (hlim 64, next-header PIM (103) payload length: 578) 10::2 > ff02::d: PIMv2, length 578
+  163  2019-07-05 17:25:11.174870 IP6 (hlim 64, next-header PIM (103), payload length 578) 10::2 > ff02::d: PIMv2, length 578
 	Join / Prune, cksum 0x506c (correct), upstream-neighbor: 1::3e
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::13, joined sources: 4, pruned sources: 4
@@ -1536,7 +1536,7 @@
 	      pruned source #2: 1::3b(S)
 	      pruned source #3: 1::3a(S)
 	      pruned source #4: 1::3d(R)
-  164  2019-07-05 17:25:26.184381 IP6 (hlim 64, next-header PIM (103) payload length: 758) 10::2 > 10::1: PIMv2, length 758
+  164  2019-07-05 17:25:26.184381 IP6 (hlim 64, next-header PIM (103), payload length 758) 10::2 > 10::1: PIMv2, length 758
 	Join / Prune, cksum 0x2bb0 (correct), upstream-neighbor: 1::4a
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::17, joined sources: 4, pruned sources: 7
@@ -1575,7 +1575,7 @@
 	      pruned source #5: 1::44(S)
 	      pruned source #6: 1::49(R)
 	      pruned source #7: 1::48(R)
-  165  2019-07-05 17:25:41.195284 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+  165  2019-07-05 17:25:41.195284 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 518) 10::1 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0xb005 (correct), upstream-neighbor: 1::52
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::1a(0x80), joined sources: 4, pruned sources: 3
@@ -1602,7 +1602,7 @@
 	      pruned source #1: 1::50(SR)
 	      pruned source #2: 1::51(SR)
 	      pruned source #3: 1::4f(S)
-  166  2019-07-05 17:25:41.202437 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+  166  2019-07-05 17:25:41.202437 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 518) 10::1 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0xb005 (correct), upstream-neighbor: 1::52
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::1a(0x80), joined sources: 4, pruned sources: 3
@@ -1629,7 +1629,7 @@
 	      pruned source #1: 1::50(SR)
 	      pruned source #2: 1::51(SR)
 	      pruned source #3: 1::4f(S)
-  167  2019-07-05 17:26:01.234759 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+  167  2019-07-05 17:26:01.234759 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 518) 10::1 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x2ddc (correct), upstream-neighbor: 1::6a
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::23, joined sources: 4, pruned sources: 3
@@ -1656,7 +1656,7 @@
 	      pruned source #1: 1::68(SR)
 	      pruned source #2: 1::69(SR)
 	      pruned source #3: 1::67(S)
-  168  2019-07-05 17:26:01.241645 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+  168  2019-07-05 17:26:01.241645 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 518) 10::1 > ff02::d: PIMv2, length 518
 	Join / Prune, cksum 0x2ddc (correct), upstream-neighbor: 1::6a
 	  3 group(s), holdtime: 45s
 	    group #1: ff02::23, joined sources: 4, pruned sources: 3
@@ -1683,175 +1683,175 @@
 	      pruned source #1: 1::68(SR)
 	      pruned source #2: 1::69(SR)
 	      pruned source #3: 1::67(S)
-  169  2019-07-05 17:26:13.486913 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+  169  2019-07-05 17:26:13.486913 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > ff02::d: PIMv2, length 50
 	Assert, cksum 0xd7bd (correct) group=ff02::1 src=1::2 pref=0 metric=0
-  170  2019-07-05 17:26:13.501898 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+  170  2019-07-05 17:26:13.501898 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > ff02::d: PIMv2, length 50
 	Assert, cksum 0xd7bd (correct) group=ff02::1 src=1::2 pref=0 metric=0
-  171  2019-07-05 17:26:13.517759 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+  171  2019-07-05 17:26:13.517759 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > ff02::d: PIMv2, length 50
 	Assert, cksum 0xd7bb (correct) group=ff02::2 src=1::3 pref=0 metric=0
-  172  2019-07-05 17:26:28.527906 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+  172  2019-07-05 17:26:28.527906 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > ff02::d: PIMv2, length 50
 	Assert, cksum 0xd7bb (correct) group=ff02::2 src=1::3 pref=0 metric=0
-  173  2019-07-05 17:26:43.534167 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > 10::1: PIMv2, length 50
+  173  2019-07-05 17:26:43.534167 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > 10::1: PIMv2, length 50
 	Assert, cksum 0xd6b8 (correct) group=ff02::3 src=1::4 pref=0 metric=0
-  174  2019-07-05 17:26:58.543141 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+  174  2019-07-05 17:26:58.543141 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > ff02::d: PIMv2, length 50
 	Assert, cksum 0xd7b7 (correct) group=ff02::4 src=1::5 pref=0 metric=0
-  175  2019-07-05 17:27:13.553752 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > 10::1: PIMv2, length 50
+  175  2019-07-05 17:27:13.553752 IP6 (hlim 64, next-header PIM (103), payload length 50) 10::2 > 10::1: PIMv2, length 50
 	Assert, cksum 0xd6b4 (correct) group=ff02::5 src=1::6 pref=0 metric=0
-  176  2019-07-05 17:27:28.562985 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 50) 10::1 > ff02::d: PIMv2, length 50
+  176  2019-07-05 17:27:28.562985 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 50) 10::1 > ff02::d: PIMv2, length 50
 	Assert, cksum 0xd7b4 (correct) group=ff02::6 src=1::7 pref=0 metric=0
-  177  2019-07-05 17:27:28.566721 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 50) 10::1 > ff02::d: PIMv2, length 50
+  177  2019-07-05 17:27:28.566721 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 50) 10::1 > ff02::d: PIMv2, length 50
 	Assert, cksum 0xd7b4 (correct) group=ff02::6 src=1::7 pref=0 metric=0
-  178  2019-07-05 17:27:40.810753 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+  178  2019-07-05 17:27:40.810753 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > 10::1: PIMv2, length 48
 	Register, cksum 0xcc3c (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
-  179  2019-07-05 17:27:40.827314 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::2 > ff02::1:  [|pim]
+  179  2019-07-05 17:27:40.827314 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > 10::1: PIMv2, length 48
 	Register, cksum 0xcc3c (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
-  180  2019-07-05 17:27:40.843664 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::2 > ff02::1:  [|pim]
+  180  2019-07-05 17:27:40.843664 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > 10::1: PIMv2, length 48
 	Register, cksum 0xcc3c (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
-  181  2019-07-05 17:27:40.860071 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::2 > ff02::1:  [|pim]
+  181  2019-07-05 17:27:40.860071 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > 10::1: PIMv2, length 48
 	Register, cksum 0xcc3c (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
-  182  2019-07-05 17:27:40.879398 IP6 (hlim 64, next-header PIM (103) payload length: 1400) 10::2 > 10::1: PIMv2, length 1400
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::2 > ff02::1:  [|pim]
+  182  2019-07-05 17:27:40.879398 IP6 (hlim 64, next-header PIM (103), payload length 1400) 10::2 > 10::1: PIMv2, length 1400
 	Register, cksum 0x67ce (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 1352) 1::3.2468 > ff02::2.2468: [udp sum ok] UDP, length 1344
-  183  2019-07-05 17:27:40.898565 IP6 (hlim 64, next-header PIM (103) payload length: 1500) 10::2 > 10::1: PIMv2, length 1500
+	IP6 (hlim 64, next-header UDP (17), payload length 1352) 1::3.2468 > ff02::2.2468: [udp sum ok] UDP, length 1344
+  183  2019-07-05 17:27:40.898565 IP6 (hlim 64, next-header PIM (103), payload length 1500) 10::2 > 10::1: PIMv2, length 1500
 	Register, cksum 0x676a (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 1452) 1::4.2468 > ff02::3.2468: [udp sum ok] UDP, length 1444
-  184  2019-07-05 17:27:40.918476 IP6 (hlim 64, next-header PIM (103) payload length: 32000) 10::2 > 10::1: PIMv2, length 32000
+	IP6 (hlim 64, next-header UDP (17), payload length 1452) 1::4.2468 > ff02::3.2468: [udp sum ok] UDP, length 1444
+  184  2019-07-05 17:27:40.918476 IP6 (hlim 64, next-header PIM (103), payload length 32000) 10::2 > 10::1: PIMv2, length 32000
 	Register, cksum 0xf045 (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 31952) 1::5.2468 > ff02::4.2468: [udp sum ok] UDP, length 31944
-  185  2019-07-05 17:27:40.939877 IP6 (hlim 64, next-header PIM (103) payload length: 65535) 10::2 > 10::1: PIMv2, length 65535
+	IP6 (hlim 64, next-header UDP (17), payload length 31952) 1::5.2468 > ff02::4.2468: [udp sum ok] UDP, length 31944
+  185  2019-07-05 17:27:40.939877 IP6 (hlim 64, next-header PIM (103), payload length 65535) 10::2 > 10::1: PIMv2, length 65535
 	Register, cksum 0x6d46 (unverified), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 65487) 1::6.2468 > ff02::5.2468: UDP, length 65479
-  186  2019-07-05 17:27:40.957722 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	IP6 (hlim 64, next-header UDP (17), payload length 65487) 1::6.2468 > ff02::5.2468: UDP, length 65479
+  186  2019-07-05 17:27:40.957722 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > 10::1: PIMv2, length 48
 	Register, cksum 0xcc32 (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::7 > ff02::6:  [|pim]
-  187  2019-07-05 17:27:40.975732 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::7 > ff02::6:  [|pim]
+  187  2019-07-05 17:27:40.975732 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > 10::1: PIMv2, length 48
 	Register, cksum 0xcc32 (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::7 > ff02::6:  [|pim]
-  188  2019-07-05 17:27:40.993200 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > ff02::d: PIMv2, length 48
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::7 > ff02::6:  [|pim]
+  188  2019-07-05 17:27:40.993200 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > ff02::d: PIMv2, length 48
 	Register, cksum 0xcd31 (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::8 > ff02::7:  [|pim]
-  189  2019-07-05 17:27:56.005578 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > ff02::d: PIMv2, length 48
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::8 > ff02::7:  [|pim]
+  189  2019-07-05 17:27:56.005578 IP6 (hlim 64, next-header PIM (103), payload length 48) 10::2 > ff02::d: PIMv2, length 48
 	Register, cksum 0xcd2f (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::9 > ff02::8:  [|pim]
-  190  2019-07-05 17:28:11.113454 IP6 (class 0xc0, flowlabel 0xe75c5, hlim 255, next-header PIM (103) payload length: 156) 1::b > 10::2: PIMv2, length 156
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::9 > ff02::8:  [|pim]
+  190  2019-07-05 17:28:11.113454 IP6 (class 0xc0, flowlabel 0xe75c5, hlim 255, next-header PIM (103), payload length 156) 1::b > 10::2: PIMv2, length 156
 	Register, cksum 0xde72 (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
-  191  2019-07-05 17:28:11.122290 IP6 (class 0xc0, flowlabel 0xe75c5, hlim 1, next-header PIM (103) payload length: 156) 1::b > 10::2: PIMv2, length 156
+	IP6 (hlim 64, next-header UDP (17), payload length 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  191  2019-07-05 17:28:11.122290 IP6 (class 0xc0, flowlabel 0xe75c5, hlim 1, next-header PIM (103), payload length 156) 1::b > 10::2: PIMv2, length 156
 	Register, cksum 0xde72 (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
-  192  2019-07-05 17:28:11.130752 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 10, next-header PIM (103) payload length: 156) 10::1 > 10::2: PIMv2, length 156
+	IP6 (hlim 64, next-header UDP (17), payload length 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  192  2019-07-05 17:28:11.130752 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 10, next-header PIM (103), payload length 156) 10::1 > 10::2: PIMv2, length 156
 	Register, cksum 0xde6d (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
-  193  2019-07-05 17:28:11.138877 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 200, next-header PIM (103) payload length: 156) 10::1 > 10::2: PIMv2, length 156
+	IP6 (hlim 64, next-header UDP (17), payload length 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  193  2019-07-05 17:28:11.138877 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 200, next-header PIM (103), payload length 156) 10::1 > 10::2: PIMv2, length 156
 	Register, cksum 0xde6d (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
-  194  2019-07-05 17:28:11.147140 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 20, next-header PIM (103) payload length: 156) 10::1 > 10::2: PIMv2, length 156
+	IP6 (hlim 64, next-header UDP (17), payload length 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  194  2019-07-05 17:28:11.147140 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 20, next-header PIM (103), payload length 156) 10::1 > 10::2: PIMv2, length 156
 	Register, cksum 0xde6d (correct), Flags [ none ]
-	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
-  195  2019-07-05 17:28:11.213700 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 48) 10::1 > 10::2: PIMv2, length 48
+	IP6 (hlim 64, next-header UDP (17), payload length 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  195  2019-07-05 17:28:11.213700 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 48) 10::1 > 10::2: PIMv2, length 48
 	Register, cksum 0x9e6d (correct), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::c > ff02::a:  [|pim]
-  196  2019-07-05 17:28:11.228981 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 48) 10::1 > 10::2: PIMv2, length 48
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::c > ff02::a:  [|pim]
+  196  2019-07-05 17:28:11.228981 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 48) 10::1 > 10::2: PIMv2, length 48
 	Register, cksum 0x9e7e (incorrect), Flags [ Null ]
-	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::d > ff02::b:  [|pim]
-  197  2019-07-05 17:28:18.502726 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+	IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 0) 1::d > ff02::b:  [|pim]
+  197  2019-07-05 17:28:18.502726 IP6 (hlim 64, next-header PIM (103), payload length 42) 10::2 > 10::1: PIMv2, length 42
 	Register Stop, cksum 0xd9c4 (correct) group=ff02::1 source=1::2
-  198  2019-07-05 17:28:18.517840 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+  198  2019-07-05 17:28:18.517840 IP6 (hlim 64, next-header PIM (103), payload length 42) 10::2 > 10::1: PIMv2, length 42
 	Register Stop, cksum 0xd9c4 (correct) group=ff02::1 source=1::2
-  199  2019-07-05 17:28:18.533422 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+  199  2019-07-05 17:28:18.533422 IP6 (hlim 64, next-header PIM (103), payload length 42) 10::2 > 10::1: PIMv2, length 42
 	Register Stop, cksum 0xd9c2 (correct) group=ff02::2 source=1::3
-  200  2019-07-05 17:28:18.549676 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+  200  2019-07-05 17:28:18.549676 IP6 (hlim 64, next-header PIM (103), payload length 42) 10::2 > 10::1: PIMv2, length 42
 	Register Stop, cksum 0xd9c2 (correct) group=ff02::2 source=1::3
-  201  2019-07-05 17:28:18.564554 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > ff02::d: PIMv2, length 42
+  201  2019-07-05 17:28:18.564554 IP6 (hlim 64, next-header PIM (103), payload length 42) 10::2 > ff02::d: PIMv2, length 42
 	Register Stop, cksum 0xdac1 (correct) group=ff02::3 source=1::4
-  202  2019-07-05 17:28:33.570694 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > ff02::d: PIMv2, length 42
+  202  2019-07-05 17:28:33.570694 IP6 (hlim 64, next-header PIM (103), payload length 42) 10::2 > ff02::d: PIMv2, length 42
 	Register Stop, cksum 0xdabf (correct) group=ff02::4 source=1::5
-  203  2019-07-05 17:28:48.578934 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+  203  2019-07-05 17:28:48.578934 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 42) 10::1 > 10::2: PIMv2, length 42
 	Register Stop, cksum 0xd9bc (correct) group=ff02::5 source=1::6
-  204  2019-07-05 17:28:48.582687 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+  204  2019-07-05 17:28:48.582687 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 42) 10::1 > 10::2: PIMv2, length 42
 	Register Stop, cksum 0xd9bc (correct) group=ff02::5 source=1::6
-  205  2019-07-05 17:28:48.586062 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+  205  2019-07-05 17:28:48.586062 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 42) 10::1 > 10::2: PIMv2, length 42
 	Register Stop, cksum 0xd9bc (correct) group=ff02::5 source=1::6
-  206  2019-07-05 17:28:48.590187 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+  206  2019-07-05 17:28:48.590187 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103), payload length 42) 10::1 > 10::2: PIMv2, length 42
 	Register Stop, cksum 0xd9cb (incorrect) group=ff02::6 source=1::7
-  207  2019-07-05 17:28:55.824177 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+  207  2019-07-05 17:28:55.824177 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3d7 (correct)
 	  Offer, rpa=1::2 sender pref=100 sender metric=10
-  208  2019-07-05 17:28:55.839949 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+  208  2019-07-05 17:28:55.839949 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3d7 (correct)
 	  Offer, rpa=1::2 sender pref=100 sender metric=10
-  209  2019-07-05 17:28:55.855650 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+  209  2019-07-05 17:28:55.855650 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3c6 (correct)
 	  Winner, rpa=1::3 sender pref=100 sender metric=10
-  210  2019-07-05 17:28:55.871248 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+  210  2019-07-05 17:28:55.871248 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3c6 (correct)
 	  Winner, rpa=1::3 sender pref=100 sender metric=10
-  211  2019-07-05 17:28:55.887289 IP6 (hlim 64, next-header PIM (103) payload length: 58) 10::2 > ff02::d: PIMv2, length 58
+  211  2019-07-05 17:28:55.887289 IP6 (hlim 64, next-header PIM (103), payload length 58) 10::2 > ff02::d: PIMv2, length 58
 	DF Election, cksum 0x7f8b (correct)
 	  Backoff, rpa=1::4 sender pref=100 sender metric=10
 	  offer addr=1::5 offer pref=1000 offer metric=10000 interval 10000ms
-  212  2019-07-05 17:28:55.903013 IP6 (hlim 64, next-header PIM (103) payload length: 58) 10::2 > ff02::d: PIMv2, length 58
+  212  2019-07-05 17:28:55.903013 IP6 (hlim 64, next-header PIM (103), payload length 58) 10::2 > ff02::d: PIMv2, length 58
 	DF Election, cksum 0x7f8b (correct)
 	  Backoff, rpa=1::4 sender pref=100 sender metric=10
 	  offer addr=1::5 offer pref=1000 offer metric=10000 interval 10000ms
-  213  2019-07-05 17:28:55.919550 IP6 (hlim 64, next-header PIM (103) payload length: 56) 10::2 > ff02::d: PIMv2, length 56
+  213  2019-07-05 17:28:55.919550 IP6 (hlim 64, next-header PIM (103), payload length 56) 10::2 > ff02::d: PIMv2, length 56
 	DF Election, cksum 0xa689 (correct)
 	  Pass, rpa=1::6 sender pref=100 sender metric=10
 	  new winner addr=1::7 new winner pref=1000 new winner metric=10000
-  214  2019-07-05 17:28:55.935209 IP6 (hlim 64, next-header PIM (103) payload length: 56) 10::2 > ff02::d: PIMv2, length 56
+  214  2019-07-05 17:28:55.935209 IP6 (hlim 64, next-header PIM (103), payload length 56) 10::2 > ff02::d: PIMv2, length 56
 	DF Election, cksum 0xa689 (correct)
 	  Pass, rpa=1::6 sender pref=100 sender metric=10
 	  new winner addr=1::7 new winner pref=1000 new winner metric=10000
-  215  2019-07-05 17:28:55.951452 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+  215  2019-07-05 17:28:55.951452 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3d1 (correct)
 	  Offer, rpa=1::8 sender pref=100 sender metric=10
-  216  2019-07-05 17:29:10.963613 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+  216  2019-07-05 17:29:10.963613 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3d1 (correct)
 	  Offer, rpa=1::8 sender pref=100 sender metric=10
-  217  2019-07-05 17:29:25.974998 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > 10::1: PIMv2, length 30
+  217  2019-07-05 17:29:25.974998 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > 10::1: PIMv2, length 30
 	DF Election, cksum 0xd2cf (correct)
 	  Offer, rpa=1::9 sender pref=100 sender metric=10
-  218  2019-07-05 17:29:40.984969 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+  218  2019-07-05 17:29:40.984969 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3cf (correct)
 	  Offer, rpa=1::a sender pref=100 sender metric=10
-  219  2019-07-05 17:29:55.998320 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > 10::1: PIMv2, length 30
+  219  2019-07-05 17:29:55.998320 IP6 (hlim 64, next-header PIM (103), payload length 30) 10::2 > 10::1: PIMv2, length 30
 	DF Election, cksum 0xd2cd (correct)
 	  Offer, rpa=1::b sender pref=100 sender metric=10
-  220  2019-07-05 17:30:11.006628 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+  220  2019-07-05 17:30:11.006628 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 30) 10::1 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3ce (correct)
 	  Offer, rpa=1::c sender pref=100 sender metric=10
-  221  2019-07-05 17:30:11.011282 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+  221  2019-07-05 17:30:11.011282 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 30) 10::1 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3ce (correct)
 	  Offer, rpa=1::c sender pref=100 sender metric=10
-  222  2019-07-05 17:30:11.015823 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+  222  2019-07-05 17:30:11.015823 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 30) 10::1 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3bd (correct)
 	  Winner, rpa=1::d sender pref=100 sender metric=10
-  223  2019-07-05 17:30:11.020041 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+  223  2019-07-05 17:30:11.020041 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 30) 10::1 > ff02::d: PIMv2, length 30
 	DF Election, cksum 0xd3bd (correct)
 	  Winner, rpa=1::d sender pref=100 sender metric=10
-  224  2019-07-05 17:30:11.024077 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 58) 10::1 > ff02::d: PIMv2, length 58
+  224  2019-07-05 17:30:11.024077 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 58) 10::1 > ff02::d: PIMv2, length 58
 	DF Election, cksum 0x7f78 (correct)
 	  Backoff, rpa=1::e sender pref=100 sender metric=10
 	  offer addr=1::f offer pref=1000 offer metric=10000 interval 10000ms
-  225  2019-07-05 17:30:11.028134 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 58) 10::1 > ff02::d: PIMv2, length 58
+  225  2019-07-05 17:30:11.028134 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 58) 10::1 > ff02::d: PIMv2, length 58
 	DF Election, cksum 0x7f78 (correct)
 	  Backoff, rpa=1::e sender pref=100 sender metric=10
 	  offer addr=1::f offer pref=1000 offer metric=10000 interval 10000ms
-  226  2019-07-05 17:30:11.032519 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 56) 10::1 > ff02::d: PIMv2, length 56
+  226  2019-07-05 17:30:11.032519 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 56) 10::1 > ff02::d: PIMv2, length 56
 	DF Election, cksum 0xa676 (correct)
 	  Pass, rpa=1::10 sender pref=100 sender metric=10
 	  new winner addr=1::11 new winner pref=1000 new winner metric=10000
-  227  2019-07-05 17:30:11.037060 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 56) 10::1 > ff02::d: PIMv2, length 56
+  227  2019-07-05 17:30:11.037060 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103), payload length 56) 10::1 > ff02::d: PIMv2, length 56
 	DF Election, cksum 0xa676 (correct)
 	  Pass, rpa=1::10 sender pref=100 sender metric=10
 	  new winner addr=1::11 new winner pref=1000 new winner metric=10000
-  228  2019-07-05 17:30:23.287232 IP6 (hlim 64, next-header PIM (103) payload length: 4) 10::2 > ff02::d: PIMv2, length 4
+  228  2019-07-05 17:30:23.287232 IP6 (hlim 64, next-header PIM (103), payload length 4) 10::2 > ff02::d: PIMv2, length 4
 	Graft, cksum 0xda72 (correct), upstream-neighbor:  [|pimv2]
-  229  2019-07-05 17:30:45.519013 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+  229  2019-07-05 17:30:45.519013 IP6 (hlim 64, next-header PIM (103), payload length 78) 10::2 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd83b (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1869,7 +1869,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  230  2019-07-05 17:30:45.534657 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+  230  2019-07-05 17:30:45.534657 IP6 (hlim 64, next-header PIM (103), payload length 74) 10::2 > ff02::d: PIMv2, length 74
 	Hello, cksum 0xd855 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1886,7 +1886,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  231  2019-07-05 17:30:45.549731 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+  231  2019-07-05 17:30:45.549731 IP6 (hlim 64, next-header PIM (103), payload length 74) 10::2 > ff02::d: PIMv2, length 74
 	Hello, cksum 0xd855 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1903,7 +1903,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  232  2019-07-05 17:30:45.564397 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+  232  2019-07-05 17:30:45.564397 IP6 (hlim 64, next-header PIM (103), payload length 74) 10::2 > ff02::d: PIMv2, length 74
 	Hello, cksum 0xd855 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1920,7 +1920,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  233  2019-07-05 17:30:45.580862 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+  233  2019-07-05 17:30:45.580862 IP6 (hlim 64, next-header PIM (103), payload length 78) 10::2 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd83b (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1938,7 +1938,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  234  2019-07-05 17:30:45.595688 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+  234  2019-07-05 17:30:45.595688 IP6 (hlim 64, next-header PIM (103), payload length 74) 10::2 > ff02::d: PIMv2, length 74
 	Hello, cksum 0xd855 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1955,7 +1955,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  235  2019-07-05 17:30:45.610185 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+  235  2019-07-05 17:30:45.610185 IP6 (hlim 64, next-header PIM (103), payload length 78) 10::2 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd83b (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1973,7 +1973,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  236  2019-07-05 17:30:45.624903 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+  236  2019-07-05 17:30:45.624903 IP6 (hlim 64, next-header PIM (103), payload length 78) 10::2 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd83b (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -1991,7 +1991,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  237  2019-07-05 17:30:45.639276 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+  237  2019-07-05 17:30:45.639276 IP6 (hlim 64, next-header PIM (103), payload length 78) 10::2 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd83b (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2009,7 +2009,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  238  2019-07-05 17:30:45.653978 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+  238  2019-07-05 17:30:45.653978 IP6 (hlim 64, next-header PIM (103), payload length 78) 10::2 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd83b (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2027,7 +2027,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  239  2019-07-05 17:30:45.668528 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+  239  2019-07-05 17:30:45.668528 IP6 (hlim 64, next-header PIM (103), payload length 78) 10::2 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd83b (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2045,7 +2045,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0003
-  240  2019-07-05 17:30:45.684110 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+  240  2019-07-05 17:30:45.684110 IP6 (hlim 64, next-header PIM (103), payload length 74) 10::2 > ff02::d: PIMv2, length 74
 	Hello, cksum 0xd851 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2062,7 +2062,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0004 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0005
-  241  2019-07-05 17:31:00.691792 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+  241  2019-07-05 17:31:00.691792 IP6 (hlim 64, next-header PIM (103), payload length 74) 10::2 > ff02::d: PIMv2, length 74
 	Hello, cksum 0xd851 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2079,7 +2079,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0004 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0005
-  242  2019-07-05 17:31:15.702513 IP6 (hlim 64, next-header PIM (103) payload length: 34) 10::2 > 10::1: PIMv2, length 34
+  242  2019-07-05 17:31:15.702513 IP6 (hlim 64, next-header PIM (103), payload length 34) 10::2 > 10::1: PIMv2, length 34
 	Hello, cksum 0xdbbf (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2090,7 +2090,7 @@
 	    0x0000:  0000 0096
 	  Generation ID Option (20), length 4, Value: 0x00000226
 	    0x0000:  0000 0226
-  243  2019-07-05 17:31:30.708003 IP6 (hlim 64, next-header PIM (103) payload length: 34) 10::2 > 10::1: PIMv2, length 34
+  243  2019-07-05 17:31:30.708003 IP6 (hlim 64, next-header PIM (103), payload length 34) 10::2 > 10::1: PIMv2, length 34
 	Hello, cksum 0xdbbf (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2101,7 +2101,7 @@
 	    0x0000:  0000 0096
 	  Generation ID Option (20), length 4, Value: 0x00000226
 	    0x0000:  0000 0226
-  244  2019-07-05 17:31:45.717892 IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 78) 10::1 > ff02::d: PIMv2, length 78
+  244  2019-07-05 17:31:45.717892 IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 78) 10::1 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd834 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032
@@ -2119,7 +2119,7 @@
 	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
 	    0x0010:  0007 0200 0001 0000 0000 0000 0000 0000
 	    0x0020:  0000 0006
-  245  2019-07-05 17:31:45.723603 IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 78) 10::1 > ff02::d: PIMv2, length 78
+  245  2019-07-05 17:31:45.723603 IP6 (class 0xc0, hlim 1, next-header PIM (103), payload length 78) 10::1 > ff02::d: PIMv2, length 78
 	Hello, cksum 0xd834 (correct)
 	  Hold Time Option (1), length 2, Value: 50s
 	    0x0000:  0032

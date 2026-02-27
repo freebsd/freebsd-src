@@ -1,0 +1,16 @@
+    1  2025-07-17 12:10:56.004346 IP6 2001:db8::1 > 2001:db8::2: mobility: BRR
+    2  2025-07-17 12:10:56.005457 IP6 2001:db8::1 > 2001:db8::2: mobility: HoTI
+    3  2025-07-17 12:10:56.006410 IP6 2001:db8::1 > 2001:db8::2: mobility: CoTI
+    4  2025-07-17 12:10:56.007470 IP6 2001:db8::1 > 2001:db8::2: mobility: HoT nonce id=0x90a
+    5  2025-07-17 12:10:56.008509 IP6 2001:db8::1 > 2001:db8::2: mobility: CoT nonce id=0x90a
+    6  2025-07-17 12:10:56.010012 IP6 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400
+    7  2025-07-17 12:10:56.011973 IP6 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400
+    8  2025-07-17 12:10:56.013393 IP6 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400
+    9  2025-07-17 12:10:56.014768 IP6 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400
+   10  2025-07-17 12:10:56.016129 IP6 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400
+   11  2025-07-17 12:10:56.017534 IP6 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400
+   12  2025-07-17 12:10:56.018886 IP6 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400
+   13  2025-07-17 12:10:56.020575 IP6 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400
+   14  2025-07-17 12:10:56.021972 IP6 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400
+   15  2025-07-17 12:10:56.023034 IP6 2001:db8::1 > 2001:db8::2: mobility: BE status=1 homeaddr 2001:db8::1
+   16  2025-07-17 12:10:56.024547 IP6 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400

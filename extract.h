@@ -415,7 +415,7 @@ EXTRACT_IPV4_TO_NETWORK_ORDER(const void *p)
 	             ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 3)) << 8) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 4)) << 0))) : \
-	  ((int64_t)(INT64_T_CONSTANT(0xFFFFFF0000000000U) | \
+	  ((int64_t)(UINT64_C(0xFFFFFF0000000000) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 0)) << 32) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 1)) << 24) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
@@ -438,7 +438,7 @@ EXTRACT_IPV4_TO_NETWORK_ORDER(const void *p)
 	              ((uint64_t)(*((const uint8_t *)(p) + 3)) << 16) | \
 	              ((uint64_t)(*((const uint8_t *)(p) + 4)) << 8) | \
 	              ((uint64_t)(*((const uint8_t *)(p) + 5)) << 0))) : \
-	  ((int64_t)(INT64_T_CONSTANT(0xFFFFFFFF00000000U) | \
+	  ((int64_t)(UINT64_C(0xFFFFFFFF00000000) | \
 	              ((uint64_t)(*((const uint8_t *)(p) + 0)) << 40) | \
 	              ((uint64_t)(*((const uint8_t *)(p) + 1)) << 32) | \
 	              ((uint64_t)(*((const uint8_t *)(p) + 2)) << 24) | \
@@ -464,7 +464,7 @@ EXTRACT_IPV4_TO_NETWORK_ORDER(const void *p)
 	             ((uint64_t)(*((const uint8_t *)(p) + 4)) << 16) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 5)) << 8) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 6)) << 0))) : \
-	    ((int64_t)(INT64_T_CONSTANT(0xFFFFFFFFFF000000U) | \
+	    ((int64_t)(UINT64_C(0xFFFFFFFFFF000000) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 0)) << 48) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 1)) << 40) | \
 	             ((uint64_t)(*((const uint8_t *)(p) + 2)) << 32) | \

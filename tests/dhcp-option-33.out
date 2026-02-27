@@ -1,0 +1,60 @@
+    1  2025-03-22 09:05:13.138257 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 294)
+    192.168.1.1.67 > 255.255.255.255.68: [udp sum ok] BOOTP/DHCP, Reply, length 266, xid 0x12345678, Flags [none] (0x0000)
+	  Your-IP 192.168.1.100
+	  Server-IP 192.168.1.1
+	  Client-Ethernet-Address 00:11:22:33:44:55
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 192.168.1.1
+	    Lease-Time (51), length 4: 86400
+	    Static-Route (33), length 8: (10.0.0.1:10.0.0.2)
+	    END (255), length 0
+    2  2025-03-22 09:05:13.141437 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 302)
+    192.168.1.1.67 > 255.255.255.255.68: [udp sum ok] BOOTP/DHCP, Reply, length 274, xid 0x12345678, Flags [none] (0x0000)
+	  Your-IP 192.168.1.100
+	  Server-IP 192.168.1.1
+	  Client-Ethernet-Address 00:11:22:33:44:55
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 192.168.1.1
+	    Lease-Time (51), length 4: 86400
+	    Static-Route (33), length 16: (10.0.0.1:10.0.0.2),(10.0.0.3:10.0.0.4)
+	    END (255), length 0
+    3  2025-03-22 09:05:13.144047 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 310)
+    192.168.1.1.67 > 255.255.255.255.68: [udp sum ok] BOOTP/DHCP, Reply, length 282, xid 0x12345678, Flags [none] (0x0000)
+	  Your-IP 192.168.1.100
+	  Server-IP 192.168.1.1
+	  Client-Ethernet-Address 00:11:22:33:44:55
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 192.168.1.1
+	    Lease-Time (51), length 4: 86400
+	    Static-Route (33), length 24: (10.0.0.1:10.0.0.2),(10.0.0.3:10.0.0.4),(10.0.0.5:10.0.0.6)
+	    END (255), length 0
+    4  2025-03-22 09:05:13.146056 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 289)
+    192.168.1.1.67 > 255.255.255.255.68: [udp sum ok] BOOTP/DHCP, Reply, length 261, xid 0x12345678, Flags [none] (0x0000)
+	  Your-IP 192.168.1.100
+	  Server-IP 192.168.1.1
+	  Client-Ethernet-Address 00:11:22:33:44:55
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 192.168.1.1
+	    Lease-Time (51), length 4: 86400
+	    Static-Route (33), length 3: [length != N x 8 bytes]
+	    END (255), length 0
+    5  2025-03-22 09:05:13.148070 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 286)
+    192.168.1.1.67 > 255.255.255.255.68: [udp sum ok] BOOTP/DHCP, Reply, length 258, xid 0x12345678, Flags [none] (0x0000)
+	  Your-IP 192.168.1.100
+	  Server-IP 192.168.1.1
+	  Client-Ethernet-Address 00:11:22:33:44:55
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 192.168.1.1
+	    Lease-Time (51), length 4: 86400
+	    Static-Route (33), length 0 [length != N x 8 bytes]
+	    END (255), length 0

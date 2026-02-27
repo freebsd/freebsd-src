@@ -1,4 +1,4 @@
     1  [Invalid header: len(34) < caplen(35)]
     2  [Invalid header: len==0]
-    3  1975-05-03 04:59:44.4061069334 IP (tos 0x7f,CE, ttl 254, id 40208, offset 0, flags [none], proto ICMP (1), length 30, options (unknown 201 [bad length 255]), bad cksum 101 (->6470)!)
+    3  1975-05-03 04:59:44.999999 IP (tos 0x7f,CE, ttl 254, id 40208, offset 0, flags [none], proto ICMP (1), length 30, options (unknown 201 [bad length 255]), bad cksum 101 (->6470)!)
     1.241.1.250 > 219.91.15.170: ICMP type-#255, length 2 [|icmp]

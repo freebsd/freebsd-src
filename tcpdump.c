@@ -34,6 +34,9 @@
  */
 
 #include <config.h>
+#ifndef TCPDUMP_CONFIG_H_
+#error "The included config.h header is not from the tcpdump build."
+#endif
 
 /*
  * Some older versions of Mac OS X ship pcap.h from libpcap 0.6 with a
@@ -149,7 +152,6 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <sys/sysctl.h>
 #endif /* __FreeBSD__ */
 
-#include "netdissect-stdinc.h"
 #include "netdissect.h"
 #include "interface.h"
 #include "addrtoname.h"
@@ -226,7 +228,9 @@ static int Uflag;			/* "unbuffered" output of dump files */
 #endif
 static int Wflag;			/* recycle output files after this number of files */
 static int WflagChars;
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 static char *zflag = NULL;		/* compress each savefile using a specified command (like gzip or bzip2) */
+#endif
 static int timeout = 1000;		/* default timeout = 1000 ms = 1 s */
 #ifdef HAVE_PCAP_SET_IMMEDIATE_MODE
 static int immediate_mode;
@@ -244,7 +248,9 @@ static void warning(FORMAT_STRING(const char *), ...) PRINTFLIKE(1, 2);
 static NORETURN void exit_tcpdump(int);
 static void (*setsignal (int sig, void (*func)(int)))(int);
 static void cleanup(int);
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 static void child_cleanup(int);
+#endif
 static void print_version(FILE *);
 static void print_usage(FILE *);
 #ifdef HAVE_PCAP_SET_TSTAMP_TYPE
@@ -591,13 +597,10 @@ show_remote_devices_and_exit(void)
 /*
  * Short options.
  *
- * Note that there we use all letters for short options except for g, k,
+ * Note that there we use all letters for short options except for k,
  * o, and P, and those are used by other versions of tcpdump, and we should
  * only use them for the same purposes that the other versions of tcpdump
  * use them:
- *
- * macOS tcpdump uses -g to force non--v output for IP to be on one
- * line, making it more "g"repable;
  *
  * macOS tcpdump uses -k to specify that packet comments in pcapng files
  * should be printed;
@@ -670,7 +673,27 @@ show_remote_devices_and_exit(void)
 #define U_FLAG
 #endif
 
-#define SHORTOPTS "aAb" B_FLAG "c:C:d" D_FLAG "eE:fF:G:hHi:" I_FLAG j_FLAG J_FLAG "KlLm:M:nNOpq" Q_FLAG "r:s:StT:u" U_FLAG "vV:w:W:xXy:Yz:Z:#"
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
+#define z_FLAG		"z:"
+#define z_FLAG_USAGE    "[ -z postrotate-command ] "
+#else
+#define z_FLAG
+#define z_FLAG_USAGE
+#endif
+
+#ifdef HAVE_LIBCRYPTO
+#define E_FLAG		"E:"
+#define E_FLAG_USAGE    "[ -E algo:secret ] "
+#define M_FLAG		"M:"
+#define M_FLAG_USAGE	"[ -M secret ] "
+#else
+#define E_FLAG
+#define E_FLAG_USAGE
+#define M_FLAG
+#define M_FLAG_USAGE
+#endif
+
+#define SHORTOPTS "aAb" B_FLAG "c:C:d" D_FLAG "e" E_FLAG "fF:gG:hHi:" I_FLAG j_FLAG J_FLAG "KlLm:" M_FLAG "nNOpq" Q_FLAG "r:s:StT:u" U_FLAG "vV:w:W:xXy:Y" z_FLAG "Z:#"
 
 /*
  * Long options.
@@ -701,6 +724,7 @@ show_remote_devices_and_exit(void)
 #define OPTION_TSTAMP_NANO		134
 #define OPTION_FP_TYPE			135
 #define OPTION_COUNT			136
+#define OPTION_TIME_T_SIZE		139
 
 static const struct option longopts[] = {
 #if defined(HAVE_PCAP_CREATE) || defined(_WIN32)
@@ -748,6 +772,8 @@ static const struct option longopts[] = {
 	{ "fp-type", no_argument, NULL, OPTION_FP_TYPE },
 	{ "number", no_argument, NULL, '#' },
 	{ "print", no_argument, NULL, OPTION_PRINT },
+	{ "time-t-size", no_argument, NULL, OPTION_TIME_T_SIZE },
+	{ "ip-oneline", no_argument, NULL, 'g' },
 	{ "version", no_argument, NULL, OPTION_VERSION },
 	{ NULL, 0, NULL, 0 }
 };
@@ -785,7 +811,7 @@ droproot(const char *username, const char *chroot_dir)
 		{
 			int ret = capng_change_id(pw->pw_uid, pw->pw_gid, CAPNG_NO_FLAG);
 			if (ret < 0)
-				error("capng_change_id(): return %d\n", ret);
+				error("capng_change_id(): return %d", ret);
 			else
 				fprintf(stderr, "dropped privs to %s\n", username);
 		}
@@ -991,7 +1017,7 @@ tstamp_precision_to_string(int precision)
  * that requires that it be able to do an F_GETFL fcntl() to read
  * the O_ flags.
  *
- * Tcpdump uses ftell() to determine how much data has been written
+ * tcpdump uses ftell() to determine how much data has been written
  * to a file in order to, when used with -C, determine when it's time
  * to rotate capture files.  ftell() therefore needs to do an lseek()
  * to find out the file offset and must, thanks to the aforementioned
@@ -1231,6 +1257,8 @@ _U_
 	status = pcap_findalldevs(&devlist, ebuf);
 	if (status < 0)
 		error("%s", ebuf);
+	if (devlist == NULL)
+		error("no interfaces available for capture");
 	/*
 	 * Look for the devnum-th entry in the list of devices (1-based).
 	 */
@@ -1239,8 +1267,8 @@ _U_
 		;
 	if (dev == NULL) {
 		pcap_freealldevs(devlist);
-		error("Invalid adapter index %ld: only %ld interfaces found",
-		    devnum, i);
+		error("Invalid adapter index %ld: only %ld interface%s found",
+		    devnum, i, (i == 1) ? "" : "s");
 	}
 	device = strdup(dev->name);
 	pcap_freealldevs(devlist);
@@ -1387,7 +1415,7 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 		 */
 		cp = pcap_geterr(pc);
 		if (status == PCAP_ERROR)
-			error("%s", cp);
+			error("%s: %s", device, cp);
 		else if (status == PCAP_ERROR_NO_SUCH_DEVICE) {
 			/*
 			 * Return an error for our caller to handle.
@@ -1397,6 +1425,11 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 		} else if (status == PCAP_ERROR_PERM_DENIED && *cp != '\0')
 			error("%s: %s\n(%s)", device,
 			    pcap_statustostr(status), cp);
+#ifdef PCAP_ERROR_CAPTURE_NOTSUP
+		else if (status == PCAP_ERROR_CAPTURE_NOTSUP && *cp != '\0')
+			error("%s: %s\n(%s)", device,
+			    pcap_statustostr(status), cp);
+#endif
 #ifdef __FreeBSD__
 		else if (status == PCAP_ERROR_RFMON_NOTSUP &&
 		    strncmp(device, "wlan", 4) == 0) {
@@ -1414,7 +1447,7 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 			 * specific case would be an error message that looks a bit odd.
 			 */
 			newdev[strlen(newdev)-1]++;
-			error("%s is not a monitor mode VAP\n"
+			error("%s is not a monitor mode VAP"
 			    "To create a new monitor mode VAP use:\n"
 			    "  ifconfig %s create wlandev %s wlanmode monitor\n"
 			    "and use %s as the tcpdump interface",
@@ -1515,9 +1548,161 @@ main(int argc, char **argv)
 	int yflag_dlt = -1;
 	const char *yflag_dlt_name = NULL;
 	int print = 0;
+	long Cflagmult;
 
 	netdissect_options Ndo;
 	netdissect_options *ndo = &Ndo;
+
+#ifdef _WIN32
+	/*
+	 * We need to look for wpcap.dll in \Windows\System32\Npcap first,
+	 * as either:
+	 *
+	 *  1) WinPcap isn't installed and Npcap isn't installed in "WinPcap
+	 *     API-compatible Mode", so there's no wpcap.dll in
+	 *     \Windows\System32, only in \Windows\System32\Npcap;
+	 *
+	 *  2) WinPcap is installed and Npcap isn't installed in "WinPcap
+	 *     API-compatible Mode", so the wpcap.dll in \Windows\System32
+	 *     is a WinPcap DLL, but we'd prefer an Npcap DLL (we should
+	 *     work with either one if we're configured against WinPcap,
+	 *     and we'll probably require Npcap if we're configured against
+	 *     it), and that's in \Windows\System32\Npcap;
+	 *
+	 *  3) Npcap is installed in "WinPcap API-compatible Mode", so both
+	 *     \Windows\System32 and \Windows\System32\Npcap have an Npcap
+	 *     wpcap.dll.
+	 *
+	 * Unfortunately, Windows has no notion of an rpath, so we can't
+	 * set the rpath to include \Windows\System32\Npcap at link time;
+	 * what we need to do is to link wpcap as a delay-load DLL and
+	 * add \Windows\System32\Npcap to the DLL search path early in
+	 * main() with a call to SetDllDirectory().
+	 *
+	 * The same applies to packet.dll.
+	 *
+	 * We add \Windows\System32\Npcap here.
+	 *
+	 * See https://npcap.com/guide/npcap-devguide.html#npcap-feature-native-dll-implicitly
+	 */
+	WCHAR *dll_directory = NULL;
+	size_t dll_directory_buf_len = 0;	/* units of bytes */
+	UINT system_directory_buf_len = 0;	/* units of WCHARs */
+	UINT system_directory_len;		/* units of WCHARs */
+	static const WCHAR npcap[] = L"\\Npcap";
+
+	/*
+	 * Get the system directory path, in UTF-16, into a buffer that's
+	 * large enough for that directory path plus "\Npcap".
+	 *
+	 * String manipulation in C, plus fetching a variable-length
+	 * string into a buffer whose size is fixed at the time of
+	 * the call, with an oddball return value (see below), is just
+	 * a huge bag of fun.
+	 *
+	 * And it's even more fun when dealing with UTF-16, so that the
+	 * buffer sizes used in GetSystemDirectoryW() are in different
+	 * units from the buffer sizes used in realloc()!   We maintain
+	 * all sizes/length in units of bytes, not WCHARs, so that our
+	 * heads don't explode.
+	 */
+	for (;;) {
+		/*
+		 * Try to fetch the system directory.
+		 *
+		 * GetSystemDirectoryW() expects a buffer size in units
+		 * of WCHARs, not bytes, and returns a directory path
+		 * length in units of WCHARs, not bytes.
+		 *
+		 * For extra fun, if GetSystemDirectoryW() succeeds,
+		 * the return value is the length of the directory
+		 * path in units of WCHARs, *not* including the
+		 * terminating '\0', but if it fails because the
+		 * path string wouldn't fit, the return value is
+		 * the length of the directory path in units of WCHARs,
+		 * *including* the terminating '\0'.
+		 */
+		system_directory_len = GetSystemDirectoryW(dll_directory,
+		    system_directory_buf_len);
+		if (system_directory_len == 0)
+			error("GetSystemDirectoryW() failed");
+
+		/*
+		 * Did the directory path fit in the buffer?
+		 *
+		 * As per the above, this means that the return value
+		 * *plus 1*, so that the terminating '\0' is counted,
+		 * is <= the buffer size.
+		 *
+		 * (If the directory path, complete with the terminating
+		 * '\0', fits *exactly*, the return value would be the
+		 * size of the buffer minus 1, as it doesn't count the
+		 * terminating '\0', so the test below would succeed.
+		 *
+		 * If everything *but* the terminating '\0' fits,
+		 * the return value would be the size of the buffer + 1,
+		 * i.e., the size that the string in question would
+		 * have required.
+		 *
+		 * The astute reader will note that returning the
+		 * size of the buffer is not one of the two cases
+		 * above, and should never happen.)
+		 */
+		if ((system_directory_len + 1) <= system_directory_buf_len) {
+			/*
+			 * No.  We have a buffer that's large enough
+			 * for our purposes.
+			 */
+			break;
+		}
+
+		/*
+		 * Yes.  Grow the buffer.
+		 *
+		 * The space we'll need in the buffer for the system
+		 * directory, in units of WCHARs, is system_directory_len,
+		 * as that's the length of the system directory path
+		 * including the terminating '\0'.
+		 */
+		system_directory_buf_len = system_directory_len;
+
+		/*
+		 * The size of the DLL directory buffer, in *bytes*, must
+		 * be the number of WCHARs taken by the system directory,
+		 * *minus* the terminating '\0' (as we'll overwrite that
+		 * with the "\" of the "\Npcap" string), multiplied by
+		 * sizeof(WCHAR) to convert it to the number of bytes,
+		 * plus the size of the "\Npcap" string, in bytes (which
+		 * will include the terminating '\0', as that will become
+		 * the DLL path's terminating '\0').
+		 */
+		dll_directory_buf_len =
+		    ((system_directory_len - 1)*sizeof(WCHAR)) + sizeof npcap;
+		dll_directory = realloc(dll_directory, dll_directory_buf_len);
+		if (dll_directory == NULL)
+			error("Can't allocate string for Npcap directory");
+	}
+
+	/*
+	 * OK, that worked.
+	 *
+	 * Now append \Npcap.  We add the length of the system directory path,
+	 * in WCHARs, *not* including the terminating '\0' (which, since
+	 * GetSystemDirectoryW() succeeded, is the return value of
+	 * GetSystemDirectoryW(), as per the above), to the pointer to the
+	 * beginning of the path, to go past the end of the system directory
+	 * to point to the terminating '\0'.
+	 */
+	memcpy(dll_directory + system_directory_len, npcap, sizeof npcap);
+
+	/*
+	 * Now add that as a system DLL directory.
+	 */
+	if (!SetDllDirectoryW(dll_directory))
+		error("SetDllDirectory failed");
+
+	free(dll_directory);
+#endif
 
 	/*
 	 * Initialize the netdissect code.
@@ -1603,19 +1788,77 @@ main(int argc, char **argv)
 #else
 			Cflag = strtol(optarg, &endp, 10);
 #endif
-			if (endp == optarg || *endp != '\0' || errno != 0
-			    || Cflag <= 0)
+			if (endp == optarg || errno != 0 || Cflag <= 0)
 				error("invalid file size %s", optarg);
+
+			if (*endp == '\0') {
+				/*
+				 * There's nothing after the file size,
+				 * so the size is in units of 1 MB
+				 * (1,000,000 bytes).
+				 */
+				Cflagmult = 1000000;
+			} else {
+				/*
+				 * There's something after the file
+				 * size.
+				 *
+				 * If it's a single letter, then:
+				 *
+				 *   if the letter is k or K, the size
+				 *   is in units of 1 KiB (1024 bytes);
+				 *
+				 *   if the letter is m or M, the size
+				 *   is in units of 1 MiB (1,048,576 bytes);
+				 *
+				 *   if the letter is g or G, the size
+				 *   is in units of 1 GiB (1,073,741,824 bytes).
+				 *
+				 * Otherwise, it's an error.
+				 */
+				switch (*endp) {
+
+				case 'k':
+				case 'K':
+					Cflagmult = 1024;
+					break;
+
+				case 'm':
+				case 'M':
+					Cflagmult = 1024*1024;
+					break;
+
+				case 'g':
+				case 'G':
+					Cflagmult = 1024*1024*1024;
+					break;
+
+				default:
+					error("invalid file size %s", optarg);
+				}
+
+				/*
+				 * OK, there was a letter that we treat
+				 * as a units indication; was there
+				 * anything after it?
+				 */
+				endp++;
+				if (*endp != '\0') {
+					/* Yes - error */
+					error("invalid file size %s", optarg);
+				}
+			}
+
 			/*
-			 * Will multiplying it by 1000000 overflow?
+			 * Will multiplying it by multiplier overflow?
 			 */
 #ifdef HAVE_PCAP_DUMP_FTELL64
-			if (Cflag > INT64_T_CONSTANT(0x7fffffffffffffff) / 1000000)
+			if (Cflag > INT64_MAX / Cflagmult)
 #else
-			if (Cflag > LONG_MAX / 1000000)
+			if (Cflag > LONG_MAX / Cflagmult)
 #endif
 				error("file size %s is too large", optarg);
-			Cflag *= 1000000;
+			Cflag *= Cflagmult;
 			break;
 
 		case 'd':
@@ -1642,12 +1885,11 @@ main(int argc, char **argv)
 			++ndo->ndo_eflag;
 			break;
 
+#ifdef HAVE_LIBCRYPTO
 		case 'E':
-#ifndef HAVE_LIBCRYPTO
-			warning("crypto code not compiled in");
-#endif
 			ndo->ndo_espsecret = optarg;
 			break;
+#endif
 
 		case 'f':
 			++ndo->ndo_fflag;
@@ -1655,6 +1897,10 @@ main(int argc, char **argv)
 
 		case 'F':
 			infile = optarg;
+			break;
+
+		case 'g':
+			++ndo->ndo_gflag;
 			break;
 
 		case 'G':
@@ -1740,13 +1986,12 @@ main(int argc, char **argv)
 			}
 			break;
 
+#ifdef HAVE_LIBCRYPTO
 		case 'M':
 			/* TCP-MD5 shared secret */
-#ifndef HAVE_LIBCRYPTO
-			warning("crypto code not compiled in");
-#endif
 			ndo->ndo_sigsecret = optarg;
 			break;
+#endif
 
 		case 'n':
 			++ndo->ndo_nflag;
@@ -1902,9 +2147,12 @@ main(int argc, char **argv)
 			}
 			break;
 #endif
+
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 		case 'z':
 			zflag = optarg;
 			break;
+#endif
 
 		case 'Z':
 			username = optarg;
@@ -1913,6 +2161,10 @@ main(int argc, char **argv)
 		case '#':
 			ndo->ndo_packet_number = 1;
 			break;
+
+		case OPTION_TIME_T_SIZE:
+			printf("%zu\n", sizeof(time_t) * 8);
+			return 0;
 
 		case OPTION_VERSION:
 			print_version(stdout);
@@ -1968,6 +2220,21 @@ main(int argc, char **argv)
 			/* NOTREACHED */
 		}
 
+	if (ndo->ndo_Aflag && ndo->ndo_xflag)
+		error("-A and -x[x] are mutually exclusive.");
+	if (ndo->ndo_Aflag && ndo->ndo_Xflag)
+		error("-A and -X[X] are mutually exclusive.");
+	if (ndo->ndo_xflag && ndo->ndo_Xflag)
+		error("-x[x] and -X[X] are mutually exclusive.");
+	if (Cflag != 0 && WFileName == NULL)
+		error("-C cannot be used without -w.");
+	if (Gflag != 0 && WFileName == NULL)
+		error("-G cannot be used without -w.");
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
+	if (zflag != NULL && (WFileName == NULL || (Cflag == 0 && Gflag == 0)))
+		error("-z cannot be used without -w and (-C or -G).");
+#endif
+
 #ifdef HAVE_PCAP_FINDALLDEVS
 	if (Dflag)
 		show_devices_and_exit();
@@ -1993,7 +2260,7 @@ main(int argc, char **argv)
 	}
 
 	if (ndo->ndo_fflag != 0 && (VFileName != NULL || RFileName != NULL))
-		error("-f can not be used with -V or -r");
+		error("-f cannot be used with -V or -r.");
 
 	if (VFileName != NULL && RFileName != NULL)
 		error("-V and -r are mutually exclusive.");
@@ -2061,11 +2328,11 @@ main(int argc, char **argv)
 				VFile = fopen(VFileName, "r");
 
 			if (VFile == NULL)
-				error("Unable to open file: %s\n", pcap_strerror(errno));
+				error("Unable to open file: %s", pcap_strerror(errno));
 
 			ret = get_next_file(VFile, VFileLine);
 			if (!ret)
-				error("Nothing in %s\n", VFileName);
+				error("Nothing in %s", VFileName);
 			RFileName = VFileLine;
 		}
 
@@ -2327,7 +2594,7 @@ DIAG_ON_WARN_UNUSED_RESULT
 	 * devices, and can't just give users that permission,
 	 * you'd make tcpdump set-UID or set-GID).
 	 *
-	 * Tcpdump doesn't necessarily write only to one savefile;
+	 * tcpdump doesn't necessarily write only to one savefile;
 	 * the general only way to allow a -Z instance to write to
 	 * savefiles as the user under whose UID it's run, rather
 	 * than as the user specified with -Z, would thus be to switch
@@ -2642,6 +2909,7 @@ DIAG_ON_ASSIGN_ENUM
 			info(1);
 		}
 		pcap_close(pd);
+		pd = NULL;
 		if (VFileName != NULL) {
 			ret = get_next_file(VFile, VFileLine);
 			if (ret) {
@@ -2790,7 +3058,8 @@ cleanup(int signo _U_)
 	 * to do anything with standard I/O streams in a signal handler -
 	 * the ANSI C standard doesn't say it is).
 	 */
-	pcap_breakloop(pd);
+	if (pd)
+		pcap_breakloop(pd);
 #else
 	/*
 	 * We don't have "pcap_breakloop()"; this isn't safe, but
@@ -2883,8 +3152,8 @@ compress_savefile(const char *filename)
 	child = fork_subprocess();
 	if (child == -1) {
 		fprintf(stderr,
-			"compress_savefile: fork failed: %s\n",
-			pcap_strerror(errno));
+			"%s: fork failed: %s\n",
+			__func__, pcap_strerror(errno));
 		return;
 	}
 	if (child != 0) {
@@ -2903,24 +3172,15 @@ compress_savefile(const char *filename)
 #endif
 	if (execlp(zflag, zflag, filename, (char *)NULL) == -1)
 		fprintf(stderr,
-			"compress_savefile: execlp(%s, %s) failed: %s\n",
-			zflag,
-			filename,
-			pcap_strerror(errno));
+			"%s: execlp(%s, %s) failed: %s\n",
+			__func__, zflag, filename, pcap_strerror(errno));
 #ifdef HAVE_FORK
 	exit(S_ERR_HOST_PROGRAM);
 #else
 	_exit(S_ERR_HOST_PROGRAM);
 #endif
 }
-#else  /* HAVE_FORK && HAVE_VFORK */
-static void
-compress_savefile(const char *filename)
-{
-	fprintf(stderr,
-		"compress_savefile failed. Functionality not implemented under your system\n");
-}
-#endif /* HAVE_FORK && HAVE_VFORK */
+#endif /* HAVE_FORK || HAVE_VFORK */
 
 static void
 dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
@@ -2968,11 +3228,13 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			 */
 			pcap_dump_close(dump_info->pdd);
 
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 			/*
 			 * Compress the file we just closed, if the user asked for it
 			 */
 			if (zflag != NULL)
 				compress_savefile(dump_info->CurrentFileName);
+#endif
 
 			/*
 			 * Check to see if we've exceeded the Wflag (when
@@ -3073,12 +3335,14 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			 */
 			pcap_dump_close(dump_info->pdd);
 
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 			/*
 			 * Compress the file we just closed, if the user
 			 * asked for it.
 			 */
 			if (zflag != NULL)
 				compress_savefile(dump_info->CurrentFileName);
+#endif
 
 			Cflag_count++;
 			if (Wflag > 0) {
@@ -3272,9 +3536,9 @@ print_usage(FILE *f)
 {
 	print_version(f);
 	(void)fprintf(f,
-"Usage: %s [-Abd" D_FLAG "efhH" I_FLAG J_FLAG "KlLnNOpqStu" U_FLAG "vxX#]" B_FLAG_USAGE " [ -c count ] [--count]\n", program_name);
+"Usage: %s [-Abd" D_FLAG "efghH" I_FLAG J_FLAG "KlLnNOpqStu" U_FLAG "vxX#]" B_FLAG_USAGE " [ -c count ] [--count]\n", program_name);
 	(void)fprintf(f,
-"\t\t[ -C file_size ] [ -E algo:secret ] [ -F file ] [ -G seconds ]\n");
+"\t\t[ -C file_size ] " E_FLAG_USAGE "[ -F file ] [ -G seconds ]\n");
 	(void)fprintf(f,
 "\t\t[ -i interface ]" IMMEDIATE_MODE_USAGE j_FLAG_USAGE "\n");
 #ifdef HAVE_PCAP_FINDALLDEVS_EX
@@ -3286,7 +3550,7 @@ print_usage(FILE *f)
 "\t\t" m_FLAG_USAGE "\n");
 #endif
 	(void)fprintf(f,
-"\t\t[ -M secret ] [ --number ] [ --print ]" Q_FLAG_USAGE "\n");
+"\t\t" M_FLAG_USAGE "[ --number ] [ --print ]" Q_FLAG_USAGE "\n");
 	(void)fprintf(f,
 "\t\t[ -r file ] [ -s snaplen ] [ -T type ] [ --version ]\n");
 	(void)fprintf(f,
@@ -3296,5 +3560,5 @@ print_usage(FILE *f)
 "\t\t[ --time-stamp-precision precision ] [ --micro ] [ --nano ]\n");
 #endif
 	(void)fprintf(f,
-"\t\t[ -z postrotate-command ] [ -Z user ] [ expression ]\n");
+"\t\t" z_FLAG_USAGE "[ -Z user ] [ expression ]\n");
 }

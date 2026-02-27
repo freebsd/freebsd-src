@@ -1,0 +1,41 @@
+    1  2022-03-20 13:44:56.520846 IS-IS, length 495
+	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
+	  lsp-id: 0192.0168.0001.00-00, seq: 0x0000000b, lifetime:  1196s
+	  chksum: 0xc074 (incorrect should be 0xdc23), PDU length: 495, Flags: [ L2 IS ]
+	    Area address(es) TLV #1, length: 4
+	      Area address (length: 3): 49.0002
+	    LSP Buffersize TLV #14, length: 2
+	      LSP Buffersize: 1426
+	    Area address(es) TLV #1, length: 104
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 1): 00
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 11): c0.7403.0104.0349.0002.0e02
+	      Area address (length: 5): d4.8102.cc8e
+	    Partition DIS TLV #4, length: 8
+	      0000.0180.0000
+	    unknown TLV #11, length: 32
+		0x0000:  4cee 6b28 4cee 6b28 4cee 6b28 4cee 6b28
+		0x0010:  4cee 6b28 4cee 6b28 4cee 6b28 4cee 6b28
+	    Authentication TLV #10, length: 4
+	      unknown Authentication type 0x4c: 
+		  0x0000:  ee6b 28
+	    LSP entries TLV #9, length: 4
+	    ES Neighbor(s) TLV #3, length: 4
+	    unknown TLV #32, length: 11
+		0x0000:  3000 0192 0168 0002 0000 12
+	    Area address(es) TLV #1, length: 146
+	      Area address (length: 1): 68
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 3): 02.0000
+	      Area address (length: 63): isonsap_string: illegal length
+	      Area address (length: 3): 04.0000
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 0): isonsap_string: illegal length
+	      Area address (length: 32): isonsap_string: illegal length
+	      Area address (length: 8): 00.0001.8300.0000.00
+	      Area address (length: 11): 20.4cee.6b28.4cee.6b28.4cee
+	    unknown TLV #76, length: 238 [|isis]

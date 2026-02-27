@@ -1,4 +1,4 @@
-    1  2014-04-24 06:58:21.3858891542 IP (tos 0xfd,ECT(1), ttl 254, id 45839, offset 0, flags [+, DF, rsvd], proto UDP (17), length 56871, bad cksum fe07 (->ddf0)!)
+    1  2014-04-24 06:58:21.999999 IP (tos 0xfd,ECT(1), ttl 254, id 45839, offset 0, flags [+, DF, rsvd], proto UDP (17), length 56871, bad cksum fe07 (->ddf0)!)
     17.8.8.255.701 > 40.184.42.8.12: 
 	LMPv1, msg-type: unknown, type: 249, Flags: [none], length: 212
 	  Data Link Object (12), Class-Type: Unnumbered (3) Flags: [non-negotiable], length: 20
@@ -8,7 +8,7 @@
 	    Subobject, Type: Interface Switching Type (1), Length: 4
 	      Switching Type: Unknown (0)
 	      Encoding Type: Unknown (0) [|lmp]
-    2  2014-02-16 00:02:08.1114902 IP (tos 0xfd,ECT(1), ttl 254, id 45839, offset 0, flags [+, DF, rsvd], proto UDP (17), length 56871, bad cksum fe07 (->ddf0)!)
+    2  2014-02-16 00:02:08.999999 IP (tos 0xfd,ECT(1), ttl 254, id 45839, offset 0, flags [+, DF, rsvd], proto UDP (17), length 56871, bad cksum fe07 (->ddf0)!)
     17.8.8.255.701 > 40.184.42.8.12: 
 	LMPv1, msg-type: unknown, type: 249, Flags: [none], length: 212
 	  Data Link Object (12), Class-Type: Unnumbered (3) Flags: [non-negotiable], length: 20

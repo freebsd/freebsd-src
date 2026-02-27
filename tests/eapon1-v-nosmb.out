@@ -37,7 +37,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -52,7 +52,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -83,7 +83,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -98,7 +98,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -113,7 +113,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -159,7 +159,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -202,7 +202,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -245,7 +245,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"
@@ -302,7 +302,7 @@
 	  Vendor-rfc1048 Extensions
 	    Magic Cookie 0x63825363
 	    DHCP-Message (53), length 1: Discover
-	    NOAUTO (116), length 1: Y
+	    Auto-Configure (116), length 1: Y
 	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
 	    Requested-IP (50), length 4: 192.168.1.249
 	    Hostname (12), length 8: "DJP95S0J"

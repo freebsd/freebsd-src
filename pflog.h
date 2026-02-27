@@ -92,6 +92,7 @@
 #define PF_SYNPROXY_DROP	10
 #if defined(__FreeBSD__)
 #define PF_DEFER		11
+#define PF_MATCH		12
 #elif defined(__OpenBSD__)
 #define PF_DEFER		11
 #define PF_MATCH		12

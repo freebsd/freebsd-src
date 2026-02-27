@@ -1,4 +1,4 @@
-    1  2014-05-19 01:44:45.1048579 LLDP, length 296
+    1  2014-05-19 01:44:45.999999 LLDP, length 296
 	Chassis ID TLV (1), length 6
 	  Subtype Network address (5): AFI IPv4 (1): 0.0.32.0
 	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)

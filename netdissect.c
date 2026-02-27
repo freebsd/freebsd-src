@@ -79,7 +79,7 @@ nd_init(char *errbuf, size_t errbuf_size)
 }
 
 /*
- * Clean up anything that ndo_init() did.
+ * Clean up anything that nd_init() did.
  */
 void
 nd_cleanup(void)

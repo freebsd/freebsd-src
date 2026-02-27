@@ -1,3 +1,3 @@
-    1  2014-04-24 06:58:21.1048579 AoE length 18, Ver 1, Flags: [Response, MBZ-1, MBZ-0]
+    1  2014-04-24 06:58:21.999999 AoE length 18, Ver 1, Flags: [Response, MBZ-1, MBZ-0]
 	Major: 0x40f6, Minor: 0x02, Command: Reserve/Release, Tag: 0x01010101
 	RCmd: Set reserve list, NMacs: 1 [|aoe]

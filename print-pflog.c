@@ -64,6 +64,7 @@ static const struct tok pf_actions[] = {
 	{ PF_PASS,		"pass" },
 	{ PF_DROP,		"block" },
 	{ PF_SCRUB,		"scrub" },
+	{ PF_NOSCRUB,		"noscrub" },
 	{ PF_NAT,		"nat" },
 	{ PF_NONAT,		"nonat" },
 	{ PF_BINAT,		"binat" },
@@ -73,6 +74,7 @@ static const struct tok pf_actions[] = {
 	{ PF_SYNPROXY_DROP,	"synproxy-drop" },
 #if defined(__FreeBSD__)
 	{ PF_DEFER,		"defer" },
+	{ PF_MATCH,		"match" },
 #elif defined(__OpenBSD__)
 	{ PF_DEFER,		"defer" },
 	{ PF_MATCH,		"match" },
