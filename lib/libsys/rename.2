@@ -39,6 +39,16 @@
 .Fn rename "const char *from" "const char *to"
 .Ft int
 .Fn renameat "int fromfd" "const char *from" "int tofd" "const char *to"
+.In sys/fcntl.h
+.In stdio.h
+.Ft int
+.Fo renameat2
+.Fa "int fromfd"
+.Fa "const char *from"
+.Fa "int tofd"
+.Fa "const char *to"
+.Fa "unsigned int flags"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn rename
@@ -112,6 +122,28 @@ or
 .Fa tofd
 parameter, the current working directory is used in the determination
 of the file for the respective path parameter.
+.Pp
+The
+.Fn renameat2
+system call takes an additional
+.Fa flags
+argument.
+If
+.Fa flags
+is zero, the
+.Fn renameat2
+call operates identically to
+.Fn renameat .
+Additionally, the following flags can be specified:
+.Bl -tag -width AT_RENAME_NOREPLACE
+.It Dv AT_RENAME_NOREPLACE
+If the path specified by
+.Fa tofd
+and
+.Fa to
+exists, the request fails with the error
+.Er EEXIST .
+.El
 .Sh RETURN VALUES
 .Rv -std rename
 .Sh ERRORS
@@ -298,6 +330,35 @@ file descriptor lacks the
 .Dv CAP_RENAMEAT_TARGET
 right.
 .El
+.Pp
+In addition to the errors returned by the
+.Fn renameat
+system call, the
+.Fn renameat2
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EEXIST
+The
+.Dv AT_RENAME_NOREPLACE
+flag was provided, and a file exists at the path specified by
+.Fa to .
+.It Bq Er EOPNOTSUPP
+One of the
+.Fa flags
+specified is not supported by the filesystem where the to-be
+renamed file is located.
+.El
+.Sh CAVEATS
+If the filesystem which owns the file to be renamed does not
+implement the
+.Dv AT_RENAME_NOREPLACE
+flag, it is possible that due to race with target file creation,
+the error returned by the
+.Fn renameat2
+system call would be non-deterministically either
+.Er EEXIST
+or
+.Er EOPNOTSUPP .
 .Sh SEE ALSO
 .Xr chflags 2 ,
 .Xr open 2 ,
@@ -315,3 +376,7 @@ The
 .Fn renameat
 system call appeared in
 .Fx 8.0 .
+The
+.Fn renameat2
+system call appeared in
+.Fx 16.0 .
