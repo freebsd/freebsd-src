@@ -179,6 +179,7 @@ IDTVEC(spuriousint)
 	INTR_HANDLER ipi_intr_bitmap_handler
 	call	as_lapic_eoi
 	KMSAN_ENTER
+	movq	%rsp,%rdi
 	call	ipi_bitmap_handler
 	KMSAN_LEAVE
 	jmp	doreti
@@ -209,6 +210,7 @@ IDTVEC(spuriousint)
 	INTR_HANDLER ipi_swi
 	call	as_lapic_eoi
 	KMSAN_ENTER
+	movq	%rsp,%rdi
 	call	ipi_swi_handler
 	KMSAN_LEAVE
 	jmp	doreti
