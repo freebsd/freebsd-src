@@ -95,5 +95,5 @@ mycc -o /tmp/$prog -Wall -Wextra -O0 -m32 /tmp/$prog.c || exit 1
 
 (cd /tmp; timeout 2m ./$prog)
 
-rm -rf /tmp/$prog /tmp/$prog.c /tmp/syzkaller.*
+rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core /tmp/syzkaller.*
 exit 0

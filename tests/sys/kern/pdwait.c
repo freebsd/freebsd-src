@@ -27,6 +27,7 @@
 
 #include <sys/types.h>
 #include <sys/capsicum.h>
+#include <sys/mman.h>
 #include <sys/procdesc.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -36,6 +37,16 @@
 #include <atf-c.h>
 #include <signal.h>
 #include <string.h>
+
+static void*
+unmapped(void) {
+	void *unmapped;
+
+	unmapped = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_GUARD, -1, 0);
+	ATF_REQUIRE(unmapped != MAP_FAILED);
+
+	return(unmapped);
+}
 
 /* basic usage */
 ATF_TC_WITHOUT_HEAD(basic);
@@ -108,7 +119,8 @@ ATF_TC_BODY(efault1, tc)
 	ATF_REQUIRE_MSG(pid >= 0, "pdfork failed: %s", strerror(errno));
 	ATF_REQUIRE_MSG(fdp >= 0, "pdfork didn't return a process descriptor");
 
-	ATF_CHECK_ERRNO(EFAULT, pdwait(fdp, (int*)-1, WEXITED, NULL, NULL) < 0);
+	ATF_CHECK_ERRNO(EFAULT,
+	    pdwait(fdp, (int*)unmapped(), WEXITED, NULL, NULL) < 0);
 
 	close(fdp);
 }
@@ -127,7 +139,8 @@ ATF_TC_BODY(efault2, tc)
 	ATF_REQUIRE_MSG(fdp >= 0, "pdfork didn't return a process descriptor");
 
 	ATF_CHECK_ERRNO(EFAULT,
-	    pdwait(fdp, NULL, WEXITED, (struct __wrusage*)-1, NULL) < 0);
+	    pdwait(fdp, NULL, WEXITED, (struct __wrusage*)unmapped(), NULL) < 0
+	);
 
 	close(fdp);
 }
@@ -146,7 +159,8 @@ ATF_TC_BODY(efault3, tc)
 	ATF_REQUIRE_MSG(fdp >= 0, "pdfork didn't return a process descriptor");
 
 	ATF_CHECK_ERRNO(EFAULT,
-	    pdwait(fdp, NULL, WEXITED, NULL, (struct __siginfo*)-1) < 0);
+	    pdwait(fdp, NULL, WEXITED, NULL, (struct __siginfo*)unmapped()) < 0
+	);
 
 	close(fdp);
 }

@@ -26,11 +26,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _COMPAT_H_
-#define	_COMPAT_H_
+#ifndef _ABI_COMPAT_H_
+#define	_ABI_COMPAT_H_
+
+#include <sys/abi_types.h>
 
 /*
- * Helper macros for translating objects between different ABIs.
+ * Helper types and macros for translating objects between different ABIs.
  */
 
 #define	PTRIN(v)	(void *)(uintptr_t)(v)
@@ -80,4 +82,4 @@
 	FU64_CP((src).fld, (dst).fld, frac);			\
 } while (0)
 
-#endif /* !_COMPAT_H_ */
+#endif /* !_ABI_COMPAT_H_ */

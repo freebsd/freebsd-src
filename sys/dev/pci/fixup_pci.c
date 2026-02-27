@@ -55,7 +55,7 @@ static void	fixc1_nforce2(device_t dev);
 static device_method_t fixup_pci_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		fixup_pci_probe),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t fixup_pci_driver = {

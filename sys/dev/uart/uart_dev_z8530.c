@@ -297,7 +297,7 @@ static kobj_method_t z8530_methods[] = {
 	KOBJMETHOD(uart_transmit,	z8530_bus_transmit),
 	KOBJMETHOD(uart_grab,		z8530_bus_grab),
 	KOBJMETHOD(uart_ungrab,		z8530_bus_ungrab),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct uart_class uart_z8530_class = {

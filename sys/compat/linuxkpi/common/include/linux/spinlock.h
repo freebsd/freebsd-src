@@ -36,6 +36,7 @@
 #include <sys/mutex.h>
 #include <sys/kdb.h>
 
+#include <linux/cleanup.h>
 #include <linux/compiler.h>
 #include <linux/rwlock.h>
 #include <linux/bottom_half.h>
@@ -197,5 +198,14 @@ typedef struct raw_spinlock {
 #define	raw_spin_lock_irqsave(rl, f)		spin_lock_irqsave(&(rl)->lock, (f))
 #define	raw_spin_trylock_irqsave(rl, f)		spin_trylock_irqsave(&(rl)->lock, (f))
 #define	raw_spin_unlock_irqrestore(rl, f)	spin_unlock_irqrestore(&(rl)->lock, (f))
+
+/*
+ * cleanup.h related pre-defined cases.
+ */
+DEFINE_LOCK_GUARD_1(spinlock_irqsave,
+    spinlock_t,
+    spin_lock_irqsave(_T->lock, _T->flags),
+    spin_unlock_irqrestore(_T->lock, _T->flags),
+    unsigned long flags)
 
 #endif					/* _LINUXKPI_LINUX_SPINLOCK_H_ */

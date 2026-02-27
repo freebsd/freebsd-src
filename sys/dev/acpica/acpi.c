@@ -193,6 +193,7 @@ static void	acpi_system_eventhandler_sleep(void *arg,
 		    enum power_stype stype);
 static void	acpi_system_eventhandler_wakeup(void *arg,
 		    enum power_stype stype);
+static int	acpi_s4bios_sysctl(SYSCTL_HANDLER_ARGS);
 static enum power_stype	acpi_sstate_to_stype(int sstate);
 static int	acpi_sname_to_sstate(const char *sname);
 static const char	*acpi_sstate_to_sname(int sstate);
@@ -624,9 +625,12 @@ acpi_attach(device_t dev)
     if (AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER)
 	sc->acpi_handle_reboot = 1;
 
-    /* Only enable S4BIOS by default if the FACS says it is available. */
+    /*
+     * Mark whether S4BIOS is available according to the FACS, and if it is,
+     * enable it by default.
+     */
     if (AcpiGbl_FACS != NULL && AcpiGbl_FACS->Flags & ACPI_FACS_S4_BIOS_PRESENT)
-	sc->acpi_s4bios = true;
+	sc->acpi_s4bios = sc->acpi_s4bios_supported = true;
 
     /*
      * Probe all supported ACPI sleep states.  Awake (S0) is always supported,
@@ -754,9 +758,13 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
 	"sleep delay in seconds");
-    SYSCTL_ADD_BOOL(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "s4bios", CTLFLAG_RW, &sc->acpi_s4bios, 0,
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "s4bios", CTLTYPE_U8 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	sc, 0, acpi_s4bios_sysctl, "CU",
 	"On hibernate, have the firmware save/restore the machine state (S4BIOS).");
+    SYSCTL_ADD_BOOL(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "s4bios_supported", CTLFLAG_RD, &sc->acpi_s4bios_supported, 0,
+	"Whether firmware supports saving/restoring the machine state (S4BIOS).");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RW, &sc->acpi_verbose, 0, "verbose mode");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
@@ -1145,6 +1153,9 @@ acpi_child_deleted(device_t dev, device_t child)
 	AcpiDetachData(dinfo->ad_handle, acpi_fake_objhandler);
     free(dinfo, M_ACPIDEV);
 }
+
+_Static_assert(ACPI_IVAR_PRIVATE >= ISA_IVAR_LAST,
+    "ACPI private IVARs overlap with ISA IVARs");
 
 /*
  * Handle per-device ivars
@@ -2585,11 +2596,54 @@ acpi_fake_objhandler(ACPI_HANDLE h, void *data)
 {
 }
 
+/*
+ * Simple wrapper around AcpiEnterSleepStatePrep() printing diagnostic on error.
+ */
+static ACPI_STATUS
+acpi_EnterSleepStatePrep(device_t acpi_dev, UINT8 SleepState)
+{
+	ACPI_STATUS status;
+
+	status = AcpiEnterSleepStatePrep(SleepState);
+	if (ACPI_FAILURE(status))
+		device_printf(acpi_dev,
+		    "AcpiEnterSleepStatePrep(%u) failed - %s\n",
+		    SleepState,
+		    AcpiFormatException(status));
+	return (status);
+}
+
+/* Return from this function indicates failure. */
+static void
+acpi_poweroff(device_t acpi_dev)
+{
+	register_t intr;
+	ACPI_STATUS status;
+
+	device_printf(acpi_dev, "Powering system off...\n");
+	status = acpi_EnterSleepStatePrep(acpi_dev, ACPI_STATE_S5);
+	if (ACPI_FAILURE(status)) {
+		device_printf(acpi_dev, "Power-off preparation failed! - %s\n",
+		    AcpiFormatException(status));
+		return;
+	}
+	intr = intr_disable();
+	status = AcpiEnterSleepState(ACPI_STATE_S5);
+	if (ACPI_FAILURE(status)) {
+		intr_restore(intr);
+		device_printf(acpi_dev, "Power-off failed! - %s\n",
+		    AcpiFormatException(status));
+	} else {
+		DELAY(1000000);
+		intr_restore(intr);
+		device_printf(acpi_dev, "Power-off failed! - timeout\n");
+	}
+}
+
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
-    register_t intr;
     ACPI_STATUS status;
 
     /*
@@ -2598,24 +2652,7 @@ acpi_shutdown_final(void *arg, int howto)
      * an AP.
      */
     if ((howto & RB_POWEROFF) != 0) {
-	status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
-		AcpiFormatException(status));
-	    return;
-	}
-	device_printf(sc->acpi_dev, "Powering system off\n");
-	intr = intr_disable();
-	status = AcpiEnterSleepState(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status)) {
-	    intr_restore(intr);
-	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
-		AcpiFormatException(status));
-	} else {
-	    DELAY(1000000);
-	    intr_restore(intr);
-	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
-	}
+	acpi_poweroff(sc->acpi_dev);
     } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
 	/* Reboot using the reset register. */
 	status = AcpiReset();
@@ -3651,12 +3688,9 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
     slp_state |= ACPI_SS_DEV_SUSPEND;
 
     if (stype != POWER_STYPE_SUSPEND_TO_IDLE) {
-	status = AcpiEnterSleepStatePrep(acpi_sstate);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
-		AcpiFormatException(status));
+	status = acpi_EnterSleepStatePrep(sc->acpi_dev, acpi_sstate);
+	if (ACPI_FAILURE(status))
 	    goto backout;
-	}
 	slp_state |= ACPI_SS_SLP_PREP;
     }
 
@@ -4431,6 +4465,25 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
     }
 
     return (error);
+}
+
+static int
+acpi_s4bios_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    struct acpi_softc *const sc = arg1;
+    bool val;
+    int error;
+
+    val = sc->acpi_s4bios;
+    error = sysctl_handle_bool(oidp, &val, 0, req);
+    if (error != 0 || req->newptr == NULL)
+	return (error);
+
+    if (val && !sc->acpi_s4bios_supported)
+	return (EOPNOTSUPP);
+    sc->acpi_s4bios = val;
+
+    return (0);
 }
 
 static int

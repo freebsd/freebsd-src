@@ -106,7 +106,7 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	if (cdata->mdts == 0)
 		printf("Unlimited\n");
 	else
-		printf("%ld bytes\n", PAGE_SIZE * (1L << cdata->mdts));
+		printf("%ld bytes\n", 1L << (cdata->mdts + NVME_MPS_SHIFT));
 	printf("Sanitize Crypto Erase:       %s\n",
 	    NVMEV(NVME_CTRLR_DATA_SANICAP_CES, cdata->sanicap) != 0 ?
 	    "Supported" : "Not Supported");

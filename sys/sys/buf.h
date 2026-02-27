@@ -321,7 +321,7 @@ struct buf {
  * it has been handed off to biodone.
  */
 #define	BUF_UNLOCK(bp) do {						\
-	KASSERT(((bp)->b_flags & B_REMFREE) == 0,			\
+	KASSERT(((bp)->b_flags & B_REMFREE) == 0 || BUF_LOCKRECURSED(bp), \
 	    ("BUF_UNLOCK %p while B_REMFREE is still set.", (bp)));	\
 									\
 	BUF_UNLOCK_RAW((bp));						\

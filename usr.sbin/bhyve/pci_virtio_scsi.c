@@ -252,7 +252,7 @@ static struct virtio_consts vtscsi_vi_consts = {
 	.vc_cfgread =	pci_vtscsi_cfgread,
 	.vc_cfgwrite =	pci_vtscsi_cfgwrite,
 	.vc_apply_features = pci_vtscsi_neg_features,
-	.vc_hv_caps =	0,
+	.vc_hv_caps =	VIRTIO_RING_F_INDIRECT_DESC,
 };
 
 static void *
@@ -308,7 +308,8 @@ pci_vtscsi_reset(void *vsc)
 		.num_queues = VTSCSI_REQUESTQ,
 		/* Leave room for the request and the response. */
 		.seg_max = VTSCSI_MAXSEG - 2,
-		.max_sectors = 2,
+		/* CTL apparently doesn't have a limit here */
+		.max_sectors = INT32_MAX,
 		.cmd_per_lun = 1,
 		.event_info_size = sizeof(struct pci_vtscsi_event),
 		.sense_size = 96,

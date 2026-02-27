@@ -115,6 +115,19 @@ static const struct aw_mmc_conf a64_emmc_conf = {
 	.can_calibrate = true,
 };
 
+static const struct aw_mmc_conf h616_mmc_conf = {
+	.dma_xferlen = 0x10000,
+	.dma_desc_shift = 2,
+	.mask_data0 = true,
+	.can_calibrate = true,
+	.new_timing = true,
+};
+
+static const struct aw_mmc_conf h616_emmc_conf = {
+	.dma_xferlen = 0x10000,
+	.can_calibrate = true,
+};
+
 static const struct aw_mmc_conf d1_mmc_conf = {
 	.dma_xferlen = 0x1000,
 	.dma_desc_shift = 2,
@@ -131,6 +144,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun20i-d1-mmc", (uintptr_t)&d1_mmc_conf},
 	{"allwinner,sun50i-a64-mmc", (uintptr_t)&a64_mmc_conf},
 	{"allwinner,sun50i-a64-emmc", (uintptr_t)&a64_emmc_conf},
+	{"allwinner,sun50i-h616-mmc", (uintptr_t)&h616_mmc_conf},
+	{"allwinner,sun50i-h616-emmc", (uintptr_t)&h616_emmc_conf},
 	{NULL,             0}
 };
 
@@ -722,6 +737,13 @@ aw_mmc_reset(struct aw_mmc_softc *sc)
 	}
 	if (timeout == 0)
 		return (ETIMEDOUT);
+
+	/*
+	 * Assert hardware reset and have the card move to the pre-idle state.
+	 * This is needed on H616 to get the card into a functional state.
+	 */
+	AW_MMC_WRITE_4(sc, AW_MMC_HWRST, AW_MMC_HWRST_ASSERT);
+	AW_MMC_WRITE_4(sc, AW_MMC_HWRST, AW_MMC_HWRST_DEASSERT);
 
 	return (0);
 }

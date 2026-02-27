@@ -75,7 +75,7 @@ static device_method_t mfi_syspd_methods[] = {
 	DEVMETHOD(device_probe,		mfi_syspd_probe),
 	DEVMETHOD(device_attach,	mfi_syspd_attach),
 	DEVMETHOD(device_detach,	mfi_syspd_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t mfi_syspd_driver = {

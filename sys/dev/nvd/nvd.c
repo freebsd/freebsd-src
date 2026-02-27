@@ -627,7 +627,7 @@ static device_method_t nvdc_methods[] = {
 	DEVMETHOD(nvme_ns_changed,	nvdc_ns_changed),
 	DEVMETHOD(nvme_controller_failed, nvdc_controller_failed),
 	DEVMETHOD(nvme_handle_aen,   	nvdc_handle_aen),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nvdc_driver = {

@@ -915,6 +915,12 @@ stub_prison_created(struct ucred *cred, struct prison *pr,
 }
 
 static void
+stub_prison_cleanup(struct ucred *cred, struct prison *pr)
+{
+
+}
+
+static void
 stub_prison_attached(struct ucred *cred, struct prison *pr,
     struct label *prlabel, struct proc *p, struct label *proclabel)
 {
@@ -1923,6 +1929,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_prison_check_set = stub_prison_check_set,
 	.mpo_prison_check_remove = stub_prison_check_remove,
 	.mpo_prison_created = stub_prison_created,
+	.mpo_prison_cleanup = stub_prison_cleanup,
 	.mpo_prison_attached = stub_prison_attached,
 
 	.mpo_priv_check = stub_priv_check,

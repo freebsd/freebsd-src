@@ -480,7 +480,7 @@ static device_method_t smc_methods[] = {
 	DEVMETHOD(miibus_readreg,	smc_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	smc_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	smc_miibus_statchg),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t smc_driver = {

@@ -2,6 +2,10 @@ DEVATH10KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath10k
 
 .PATH: ${DEVATH10KDIR}
 
+# Bus attachments.
+WITH_PCI=		1
+WITH_USB=		0	# Never finished upstream, not working.
+
 WITH_CONFIG_FWLOG=	1
 WITH_LEDS=		0
 
@@ -12,7 +16,15 @@ SRCS+=	htc.c htt.c htt_rx.c htt_tx.c
 SRCS+=	txrx.c wmi.c wmi-tlv.c
 SRCS+=	p2p.c swap.c
 
+# PCI parts; PCI needs to be compiled into the kernel and cannot be loaded.
+.if defined(WITH_PCI) && ${WITH_PCI} > 0 && ${KERN_OPTS:MDEV_PCI}
 SRCS+=	pci.c
+.endif
+
+# USB parts; USB can be loaded and is unconditional on any kernel config.
+.if defined(WITH_USB) && ${WITH_USB} > 0
+SRCS+=	usb.c
+.endif
 
 # Other
 SRCS+=	${LINUXKPI_GENSRCS}
@@ -38,6 +50,7 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 #CFLAGS+=	-ferror-limit=0
 
 CFLAGS+=	-DCONFIG_ATH10K_DEBUG
+CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 
 #CFLAGS+=	-DCONFIG_ATH10K_AHB
 #CFLAGS+=	-DCONFIG_ATH10K_DEBUGFS

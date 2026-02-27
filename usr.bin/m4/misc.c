@@ -138,8 +138,6 @@ pbnumbase(int n, int base, int d)
 	}
 	while ((num /= base) > 0);
 
-	if (n < 0)
-		printed++;
 	while (printed++ < d)
 		pushback('0');
 

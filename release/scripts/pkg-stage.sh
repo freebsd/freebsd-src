@@ -16,6 +16,8 @@ comms/usbmuxd
 devel/git@lite
 editors/emacs@nox
 editors/vim
+filesystems/ext2
+filesystems/ntfs
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
@@ -59,7 +61,7 @@ while getopts N opt; do
 	esac
 done
 
-PKG_ARGS="-d --rootdir ${ROOTDIR}"
+PKG_ARGS="--rootdir ${ROOTDIR}"
 PKG_ARGS="$PKG_ARGS -o INSTALL_AS_USER=1"
 PKGCMD="/usr/sbin/pkg ${PKG_ARGS}"
 

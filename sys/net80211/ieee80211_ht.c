@@ -1130,7 +1130,8 @@ again:
 		 */
 		if (rap->rxa_qframes != 0) {
 			/* XXX honor batimeout? */
-			if (ticks - rap->rxa_age > ieee80211_ampdu_age) {
+			if (ieee80211_time_after(ticks - rap->rxa_age,
+			    ieee80211_ampdu_age)) {
 				/*
 				 * Too long since we received the first
 				 * frame; flush the reorder buffer.
@@ -1392,7 +1393,8 @@ ieee80211_ht_node_age(struct ieee80211_node *ni)
 		 * See above for more details on what's happening here.
 		 */
 		/* XXX honor batimeout? */
-		if (ticks - rap->rxa_age > ieee80211_ampdu_age) {
+		if (ieee80211_time_after(ticks - rap->rxa_age,
+		    ieee80211_ampdu_age)) {
 			/*
 			 * Too long since we received the first
 			 * frame; flush the reorder buffer.
@@ -2824,7 +2826,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 		/* defer next try so we don't slam the driver with requests */
 		tap->txa_attempts = ieee80211_addba_maxtries;
 		/* NB: check in case driver wants to override */
-		if (tap->txa_nextrequest <= ticks)
+		if (ieee80211_time_before_eq(tap->txa_nextrequest, ticks))
 			tap->txa_nextrequest = ticks + ieee80211_addba_backoff;
 		return 0;
 	}

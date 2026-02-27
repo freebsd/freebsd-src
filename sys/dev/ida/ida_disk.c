@@ -66,7 +66,7 @@ static device_method_t idad_methods[] = {
 	DEVMETHOD(device_probe,		idad_probe),
 	DEVMETHOD(device_attach,	idad_attach),
 	DEVMETHOD(device_detach,	idad_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t idad_driver = {

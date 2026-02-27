@@ -9,7 +9,8 @@ SRCS+=	bus_if.h cpufreq_if.h device_if.h pci_if.h
 .PATH:	${SRCTOP}/sys/x86/cpufreq
 
 SRCS+=	acpi_if.h opt_acpi.h
-SRCS+=	est.c hwpstate_amd.c p4tcc.c powernow.c hwpstate_intel.c
+SRCS+=	est.c p4tcc.c powernow.c
+SRCS+=	hwpstate_amd.c hwpstate_common.c hwpstate_intel.c
 .endif
 
 .if ${MACHINE} == "i386"

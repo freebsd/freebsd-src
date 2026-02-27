@@ -61,7 +61,7 @@ static device_method_t atkbd_methods[] = {
 	DEVMETHOD(device_probe,		atkbdprobe),
 	DEVMETHOD(device_attach,	atkbdattach),
 	DEVMETHOD(device_resume,	atkbdresume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t atkbd_driver = {

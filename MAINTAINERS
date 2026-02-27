@@ -106,6 +106,7 @@ sys/dev/ixgbe	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/ixl	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/ice	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/xen	royger		Pre-commit review recommended.
+sys/dev/vt	emaste
 sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 sys/x86/xen	royger		Pre-commit review recommended.

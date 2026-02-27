@@ -104,6 +104,8 @@ struct freebsd11_kevent {
 #endif
 
 #if defined(_WANT_KEVENT32) || defined(_KERNEL)
+#include <sys/abi_types.h>
+
 struct kevent32 {
 	__uint32_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
@@ -112,12 +114,12 @@ struct kevent32 {
 #ifndef __amd64__
 	__uint32_t	pad0;
 #endif
-	__uint32_t	data1, data2;
+	freebsd32_uint64_t data;
 	__uint32_t	udata;		/* opaque user data identifier */
 #ifndef __amd64__
 	__uint32_t	pad1;
 #endif
-	__uint32_t	ext64[8];
+	freebsd32_uint64_t ext[4];
 };
 
 #ifdef _WANT_FREEBSD11_KEVENT
@@ -314,7 +316,7 @@ struct knote {
 #define KN_KQUEUE	0x40			/* this knote belongs to a kq */
 #define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
 	int			kn_influx;
-	int			kn_sfflags;	/* saved filter flags */
+	unsigned int		kn_sfflags;	/* saved filter flags */
 	int64_t			kn_sdata;	/* saved data field */
 	union {
 		struct		file *p_fp;	/* file data pointer */

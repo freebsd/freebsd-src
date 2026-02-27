@@ -436,6 +436,8 @@ typedef int	(*mpo_prison_check_remove_t)(struct ucred *cred,
 		    struct prison *pr, struct label *prlabel);
 typedef void	(*mpo_prison_created_t)(struct ucred *cred,
 		    struct prison *pr, struct label *prlabel);
+typedef void	(*mpo_prison_cleanup_t)(struct ucred *cred,
+		    struct prison *pr);
 typedef void	(*mpo_prison_attached_t)(struct ucred *cred,
 		    struct prison *pr, struct label *prlabel, struct proc *p,
 		    struct label *proclabel);
@@ -909,6 +911,7 @@ struct mac_policy_ops {
 	mpo_prison_check_set_t			mpo_prison_check_set;
 	mpo_prison_check_remove_t		mpo_prison_check_remove;
 	mpo_prison_created_t			mpo_prison_created;
+	mpo_prison_cleanup_t			mpo_prison_cleanup;
 	mpo_prison_attached_t			mpo_prison_attached;
 
 	mpo_priv_check_t			mpo_priv_check;

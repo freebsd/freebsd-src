@@ -141,6 +141,7 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME
 # NOTE: Anything after pound/hash character [#] is ignored as a comment.
+# NOTE: Keep in sync with release/tools/vmimage.subr
 #
 f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# DATASET	OPTIONS (comma or space separated; or both)
@@ -160,8 +161,6 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 
 	# Ports tree
 	/usr/ports	setuid=off
-	/usr/ports/distfiles	compress=off
-	/usr/ports/packages	compress=off
 
 	# Source tree
 	/usr/src

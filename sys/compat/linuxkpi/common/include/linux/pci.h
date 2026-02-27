@@ -76,24 +76,6 @@ struct pci_device_id {
 MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
     _bus, lkpi_ ## _table, _table, nitems(_table) - 1)
 
-/* Linux has an empty element at the end of the ID table -> nitems() - 1. */
-#define	MODULE_DEVICE_TABLE(_bus, _table)				\
-									\
-static device_method_t _ ## _bus ## _ ## _table ## _methods[] = {	\
-	DEVMETHOD_END							\
-};									\
-									\
-static driver_t _ ## _bus ## _ ## _table ## _driver = {			\
-	"lkpi_" #_bus #_table,						\
-	_ ## _bus ## _ ## _table ## _methods,				\
-	0								\
-};									\
-									\
-DRIVER_MODULE(lkpi_ ## _table, _bus, _ ## _bus ## _ ## _table ## _driver,\
-	0, 0);								\
-									\
-MODULE_DEVICE_TABLE_BUS_ ## _bus(_bus, _table)
-
 #define	PCI_ANY_ID			-1U
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))

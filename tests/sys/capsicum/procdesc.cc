@@ -20,13 +20,6 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
-#ifndef __WALL
-// Linux requires __WALL in order for waitpid(specific_pid,...) to
-// see and reap any specific pid.  Define this to nothing for platforms
-// (FreeBSD) where it doesn't exist, to reduce macroing.
-#define __WALL 0
-#endif
-
 //------------------------------------------------
 // Utilities for the tests.
 
@@ -40,7 +33,6 @@ static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
   if (rc < 0) {
     return rc;
   }
-  options |= __WALL;
   return wait4(pid, status, options, ru);
 #endif
 }
@@ -55,17 +47,13 @@ static void print_stat(FILE *f, const struct stat *stat) {
   fprintf(f,
           "{ .st_dev=%ld, st_ino=%ld, st_mode=%04o, st_nlink=%ld, st_uid=%d, st_gid=%d,\n"
           "  .st_rdev=%ld, .st_size=%ld, st_blksize=%ld, .st_block=%ld,\n  "
-#ifdef HAVE_STAT_BIRTHTIME
           ".st_birthtime=%ld, "
-#endif
           ".st_atime=%ld, .st_mtime=%ld, .st_ctime=%ld}\n",
           (long)stat->st_dev, (long)stat->st_ino, stat->st_mode,
           (long)stat->st_nlink, stat->st_uid, stat->st_gid,
           (long)stat->st_rdev, (long)stat->st_size, (long)stat->st_blksize,
           (long)stat->st_blocks,
-#ifdef HAVE_STAT_BIRTHTIME
           (long)stat->st_birthtime,
-#endif
           (long)stat->st_atime, (long)stat->st_mtime, (long)stat->st_ctime);
 }
 
@@ -83,7 +71,7 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
   int rc;
   int status = 0;
   do {
-    rc = waitpid(pid, &status, __WALL);
+    rc = waitpid(pid, &status, 0);
     if (rc < 0) {
       fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
       ADD_FAILURE() << "Failed to wait for child";
@@ -170,7 +158,7 @@ TEST(Pdfork, InvalidFlag) {
   }
   EXPECT_EQ(-1, pid);
   EXPECT_EQ(EINVAL, errno);
-  if (pid > 0) waitpid(pid, NULL, __WALL);
+  if (pid > 0) waitpid(pid, NULL, 0);
 }
 
 TEST(Pdfork, TimeCheck) {
@@ -188,21 +176,17 @@ TEST(Pdfork, TimeCheck) {
     exit(HasFailure());
   }
 
-#ifdef HAVE_PROCDESC_FSTAT
   // Parent process. Ensure that [acm]times have been set correctly.
   struct stat stat;
   memset(&stat, 0, sizeof(stat));
   EXPECT_OK(fstat(pd, &stat));
   if (verbose) print_stat(stderr, &stat);
 
-#ifdef HAVE_STAT_BIRTHTIME
   EXPECT_GE(now, stat.st_birthtime);
   EXPECT_EQ(stat.st_birthtime, stat.st_atime);
-#endif
   EXPECT_LT((now - stat.st_atime), 2);
   EXPECT_EQ(stat.st_atime, stat.st_ctime);
   EXPECT_EQ(stat.st_ctime, stat.st_mtime);
-#endif
 
   // Wait for the child to finish.
   pid_t pd_pid = -1;
@@ -339,7 +323,7 @@ class PipePdforkBase : public ::testing::Test {
     }
     if (pid_ > 0) {
       kill(pid_, SIGKILL);
-      waitpid(pid_, NULL, __WALL|WNOHANG);
+      waitpid(pid_, NULL, WNOHANG);
     }
     // Check signal expectations.
     EXPECT_FALSE(had_signal[SIGCHLD]);
@@ -448,7 +432,7 @@ TEST_F(PipePdfork, PollMultiple) {
   } else {
     // Parent: wait on process D.
     int rc = 0;
-    waitpid(doppel, &rc, __WALL);
+    waitpid(doppel, &rc, 0);
     EXPECT_TRUE(WIFEXITED(rc));
     EXPECT_EQ(0, WEXITSTATUS(rc));
     // Also wait on process B.
@@ -495,30 +479,12 @@ TEST_F(PipePdfork, ChildExit) {
   pid_ = 0;
 }
 
-#ifdef HAVE_PROC_FDINFO
-TEST_F(PipePdfork, FdInfo) {
-  char buffer[1024];
-  sprintf(buffer, "/proc/%d/fdinfo/%d", getpid_(), pd_);
-  int procfd = open(buffer, O_RDONLY);
-  EXPECT_OK(procfd);
-
-  EXPECT_OK(read(procfd, buffer, sizeof(buffer)));
-  // The fdinfo should include the file pos of the underlying file
-  EXPECT_NE((char*)NULL, strstr(buffer, "pos:\t0")) << buffer;
-  // ...and the underlying pid
-  char pidline[256];
-  sprintf(pidline, "pid:\t%d", pid_);
-  EXPECT_NE((char*)NULL, strstr(buffer, pidline)) << buffer;
-  close(procfd);
-}
-#endif
-
 // Closing a normal process descriptor terminates the underlying process.
 TEST_F(PipePdfork, Close) {
   sighandler_t original = signal(SIGCHLD, handle_signal);
   EXPECT_PID_ALIVE(pid_);
   int status;
-  EXPECT_EQ(0, waitpid(pid_, &status, __WALL|WNOHANG));
+  EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
 
   EXPECT_OK(close(pd_));
   pd_ = -1;
@@ -526,7 +492,7 @@ TEST_F(PipePdfork, Close) {
   EXPECT_PID_DEAD(pid_);
 
 #ifdef __FreeBSD__
-  EXPECT_EQ(-1, waitpid(pid_, NULL, __WALL));
+  EXPECT_EQ(-1, waitpid(pid_, NULL, 0));
   EXPECT_EQ(errno, ECHILD);
 #else
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
@@ -535,7 +501,7 @@ TEST_F(PipePdfork, Close) {
   EXPECT_EQ(EBADF, errno);
 
   // Closing all process descriptors means the the child can only be reaped via pid.
-  EXPECT_EQ(pid_, waitpid(pid_, &status, __WALL|WNOHANG));
+  EXPECT_EQ(pid_, waitpid(pid_, &status, WNOHANG));
 #endif
   signal(SIGCHLD, original);
 }
@@ -551,7 +517,7 @@ TEST_F(PipePdfork, CloseLast) {
 
   EXPECT_PID_ALIVE(pid_);
   int status;
-  EXPECT_EQ(0, waitpid(pid_, &status, __WALL|WNOHANG));
+  EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
 
   // Can no longer pdwait4() the closed process descriptor...
   EXPECT_EQ(-1, pdwait4_(pd_, &status, WNOHANG, NULL));
@@ -621,7 +587,7 @@ TEST_F(PipePdfork, WaitPidThenPd) {
   TerminateChild();
   int status;
   // If we waitpid(pid) first...
-  int rc = waitpid(pid_, &status, __WALL);
+  int rc = waitpid(pid_, &status, 0);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
 
@@ -640,7 +606,7 @@ TEST_F(PipePdfork, WaitPdThenPid) {
   EXPECT_EQ(pid_, rc);
 
   // ...the zombie is reaped and cannot subsequently waitpid(pid).
-  EXPECT_EQ(-1, waitpid(pid_, &status, __WALL));
+  EXPECT_EQ(-1, waitpid(pid_, &status, 0));
   EXPECT_EQ(ECHILD, errno);
 }
 
@@ -721,7 +687,7 @@ TEST(Pdfork, PdkillOtherSignal) {
 
   // Child's exit status confirms whether it received the signal.
   int status;
-  int rc = waitpid(pid, &status, __WALL);
+  int rc = waitpid(pid, &status, 0);
   EXPECT_OK(rc);
   EXPECT_EQ(pid, rc);
   EXPECT_TRUE(WIFEXITED(status)) << "status: 0x" << std::hex << status;
@@ -810,7 +776,7 @@ TEST_F(PipePdfork, NoSigchld) {
   TerminateChild();
   int rc = 0;
   // Can waitpid() for the specific pid of the pdfork()ed child.
-  EXPECT_EQ(pid_, waitpid(pid_, &rc, __WALL));
+  EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
   EXPECT_FALSE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
@@ -826,19 +792,18 @@ TEST_F(PipePdforkDaemon, NoPDSigchld) {
   EXPECT_OK(close(pd_));
   TerminateChild();
 #ifdef __FreeBSD__
-  EXPECT_EQ(-1, waitpid(pid_, NULL, __WALL));
+  EXPECT_EQ(-1, waitpid(pid_, NULL, 0));
   EXPECT_EQ(errno, ECHILD);
 #else
   int rc = 0;
   // Can waitpid() for the specific pid of the pdfork()ed child.
-  EXPECT_EQ(pid_, waitpid(pid_, &rc, __WALL));
+  EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
 #endif
   EXPECT_FALSE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
 
-#ifdef HAVE_PROCDESC_FSTAT
 TEST_F(PipePdfork, ModeBits) {
   // Owner rwx bits indicate liveness of child
   struct stat stat;
@@ -855,7 +820,6 @@ TEST_F(PipePdfork, ModeBits) {
   if (verbose) print_stat(stderr, &stat);
   EXPECT_EQ(0, (int)(stat.st_mode & S_IRWXU));
 }
-#endif
 
 TEST_F(PipePdfork, WildcardWait) {
   TerminateChild();
@@ -1087,7 +1051,7 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
 
   // wait for child2
   int status;
-  EXPECT_EQ(child2, waitpid(child2, &status, __WALL));
+  EXPECT_EQ(child2, waitpid(child2, &status, 0));
   rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
   EXPECT_EQ(0, rc);
 

@@ -2226,8 +2226,10 @@ pf_find_state(struct pf_pdesc *pd, const struct pf_state_key_cmp *key,
 	/* Look through the other list, in case of AF-TO */
 	idx = idx == PF_SK_WIRE ? PF_SK_STACK : PF_SK_WIRE;
 	TAILQ_FOREACH(s, &sk->states[idx], key_list[idx]) {
-		if (s->key[PF_SK_WIRE]->af == s->key[PF_SK_STACK]->af)
+		if (s->timeout < PFTM_MAX &&
+		    s->key[PF_SK_WIRE]->af == s->key[PF_SK_STACK]->af)
 			continue;
+
 		if (s->kif == V_pfi_all || s->kif == pd->kif ||
 		    s->orig_kif == pd->kif) {
 			PF_STATE_LOCK(s);

@@ -1024,7 +1024,7 @@ static device_method_t tr_methods[] = {
 	DEVMETHOD(device_detach,	tr_pci_detach),
 	DEVMETHOD(device_suspend,	tr_pci_suspend),
 	DEVMETHOD(device_resume,	tr_pci_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t tr_driver = {

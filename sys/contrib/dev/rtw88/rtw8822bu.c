@@ -96,7 +96,7 @@ static struct usb_driver rtw_8822bu_driver = {
 	.id_table = rtw_8822bu_id_table,
 	.probe = rtw8822bu_probe,
 	.disconnect = rtw_usb_disconnect,
-#if defined(__FreeBSD__) && defined(__notyet__)
+#if defined(__FreeBSD__)
 	.bsddriver.name = KBUILD_MODNAME,
 #endif
 };

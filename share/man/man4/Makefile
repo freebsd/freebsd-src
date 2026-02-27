@@ -719,6 +719,7 @@ MLINKS+=ext2fs.4 ext4fs.4
 MLINKS+=fd.4 stderr.4 \
 	fd.4 stdin.4 \
 	fd.4 stdout.4
+MLINKS+=ffs.4 ufs.4
 MLINKS+=fdt.4 FDT.4
 MLINKS+=firewire.4 ieee1394.4
 MLINKS+=fwe.4 if_fwe.4

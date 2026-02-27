@@ -476,6 +476,35 @@ b_flag_body()
 	atf_check -e empty -o match:'y\\vz' -s exit:0 ls -b
 }
 
+atf_test_case childerr
+childerr_head()
+{
+	atf_set "descr" "Verify that fts_children() in pre-order errors are checked"
+	atf_set "require.user" "unprivileged"
+}
+
+childerr_body()
+{
+	atf_check mkdir -p root/dir root/edir
+	atf_check touch root/c
+
+	# Check that listing an empty directory hasn't regressed into being
+	# called an error.
+	atf_check -o match:"total 0" -e empty ls -l root/dir
+
+	atf_check chmod 0 root/dir
+
+	# If we did not abort after fts_children() properly, then stdout would
+	# have an output of the total files enumerated (0).  Thus, assert that
+	# it's empty and that we see the correct error on stderr.
+	atf_check -s not-exit:0 -e match:"Permission denied" ls -l root/dir
+
+	# Now ensure that we didn't just stop there, we printed out a directory
+	# that would've been enumerated later.
+	atf_check -s not-exit:0 -o match:"^root/edir" \
+	    -e match:"Permission denied" ls -lR root
+}
+
 atf_test_case d_flag
 d_flag_head()
 {
@@ -971,6 +1000,7 @@ atf_init_test_cases()
 	#atf_add_test_case Z_flag
 	atf_add_test_case a_flag
 	atf_add_test_case b_flag
+	atf_add_test_case childerr
 	#atf_add_test_case c_flag
 	atf_add_test_case d_flag
 	atf_add_test_case f_flag

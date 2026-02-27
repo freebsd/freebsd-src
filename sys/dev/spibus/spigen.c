@@ -283,8 +283,10 @@ spigen_mmap_cleanup(void *arg)
 {
 	struct spigen_mmap *mmap = arg;
 
-	if (mmap->kvaddr != 0)
+	if (mmap->kvaddr != 0) {
 		pmap_qremove(mmap->kvaddr, mmap->bufsize / PAGE_SIZE);
+		kva_free(mmap->kvaddr, mmap->bufsize);
+	}
 	if (mmap->bufobj != NULL)
 		vm_object_deallocate(mmap->bufobj);
 	free(mmap, M_DEVBUF);
@@ -379,7 +381,7 @@ static device_method_t spigen_methods[] = {
 	DEVMETHOD(device_probe,		spigen_probe),
 	DEVMETHOD(device_attach,	spigen_attach),
 	DEVMETHOD(device_detach,	spigen_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t spigen_driver = {

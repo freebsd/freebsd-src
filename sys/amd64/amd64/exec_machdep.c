@@ -151,7 +151,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
-		sp = (char *)regs->tf_rsp - 128;
+		sp = (char *)regs->tf_rsp - REDZONE_SZ;
 	if (xfpusave != NULL) {
 		sp -= xfpusave_len;
 		sp = (char *)((unsigned long)sp & ~0x3Ful);
@@ -159,7 +159,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 	sp -= sizeof(struct sigframe);
 	/* Align to 16 bytes. */
-	sfp = (struct sigframe *)((unsigned long)sp & ~0xFul);
+	sfp = (struct sigframe *)STACKALIGN(sp);
 
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */

@@ -510,7 +510,7 @@ static device_method_t mvs_methods[] = {
 	DEVMETHOD(bus_child_location, mvs_child_location),
 	DEVMETHOD(bus_get_dma_tag,  mvs_get_dma_tag),
 	DEVMETHOD(mvs_edma,         mvs_edma),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t mvs_driver = {
         "mvs",

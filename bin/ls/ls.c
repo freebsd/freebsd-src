@@ -707,6 +707,23 @@ traverse(int argc, char *argv[], int options)
 				output = 1;
 			}
 			chp = fts_children(ftsp, ch_options);
+			if (chp == NULL && errno != 0) {
+				warn("%s", p->fts_path);
+				rval = 1;
+
+				/*
+				 * Avoid further errors on this entry.  We won't
+				 * always get an FTS_ERR/FTS_DNR for errors
+				 * in fts_children(), because opendir could
+				 * have failed early on and that only flags an
+				 * error for fts_read() when we try to recurse
+				 * into it.  We catch both the non-recursive and
+				 * the recursive case here.
+				 */
+				(void)fts_set(ftsp, p, FTS_SKIP);
+				break;
+			}
+
 			display(p, chp, options);
 
 			if (!f_recursive && chp != NULL)

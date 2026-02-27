@@ -144,7 +144,7 @@ static device_method_t cferes_methods[] = {
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t cferes_driver = {

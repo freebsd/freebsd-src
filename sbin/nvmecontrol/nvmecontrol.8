@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd January 31, 2026
+.Dd February 20, 2026
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -828,8 +828,8 @@ NVMe Qualified Name to use for this host.
 By default an NQN is auto-generated from the current host's UUID.
 .It Fl Q Ar entries
 Number of entries in each I/O queue.
-By default the maximum queue size reported by the MQES field
-of the remote host's CAP property is used.
+The default is the minimum of 128 or the maximum queue size reported
+by the MQES field of the remote host's CAP property.
 .El
 .Ss connect-all
 Query the Discovery Controller at

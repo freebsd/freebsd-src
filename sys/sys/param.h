@@ -74,7 +74,7 @@
  * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1600011
+#define __FreeBSD_version 1600012
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -178,6 +178,9 @@
 #endif
 #ifndef MAXDUMPPGS
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
+#endif
+#ifdef STACKALIGNBYTES
+#define	STACKALIGN(p)	(__align_down(p, STACKALIGNBYTES + 1))
 #endif
 
 /*

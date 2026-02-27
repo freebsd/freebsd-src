@@ -85,6 +85,7 @@
 /sys/arm64/arm64	@zxombie
 /sys/arm64/include	@zxombie
 /sys/arm64/rockchip	@evadot
+/sys/arm64/vmm		@zxombie
 /sys/compat/linprocfs/	@dag-erling
 /sys/crypto/openssl/	@juikim
 /sys/dev/drm2	@bsdimp
@@ -101,6 +102,7 @@
 /sys/dev/pci	@bsdimp @bsdjhb
 /sys/dev/superio/	@stephane-rochoy-stormshield
 /sys/dev/veriexec/	@stephane-rochoy-stormshield
+/sys/dev/vt/	@emaste
 /sys/fs/autofs/	@trasz
 /sys/fs/fuse/	@asomers
 /sys/fs/procfs/		@dag-erling

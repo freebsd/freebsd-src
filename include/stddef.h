@@ -33,8 +33,16 @@
 #define _STDDEF_H_
 
 #include <sys/_null.h>
+#include <sys/_offsetof.h>
 #include <sys/_types.h>
 #include <sys/_visible.h>
+
+#if __BSD_VISIBLE
+#ifndef _PTRADDR_T_DECLARED
+typedef __ptraddr_t     ptraddr_t;
+#define	_PTRADDR_T_DECLARED
+#endif
+#endif
 
 #ifndef _PTRDIFF_T_DECLARED
 typedef	__ptrdiff_t	ptrdiff_t;
@@ -59,10 +67,6 @@ typedef	__max_align_t	max_align_t;
 #define __CLANG_MAX_ALIGN_T_DEFINED
 #define _GCC_MAX_ALIGN_T
 #endif
-#endif
-
-#ifndef offsetof
-#define	offsetof(type, field)	__builtin_offsetof(type, field)
 #endif
 
 #if __EXT1_VISIBLE

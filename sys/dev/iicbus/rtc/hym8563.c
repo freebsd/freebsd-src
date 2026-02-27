@@ -40,7 +40,8 @@
 #include <sys/lock.h>
 #include <sys/module.h>
 
-#ifdef FDT
+#if defined(FDT) && !defined(__powerpc64__) 
+#include <dev/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
@@ -73,14 +74,28 @@
 #define	HYM8563_WEEKDAY		0x06
 #define	HYM8563_MONTH		0x07	/* plus 1 bit for century */
 #define	 HYM8563_MONTH_CENTURY		(1 << 7)
-#define HYM8563_YEAR		0x08
+#define	HYM8563_YEAR		0x08
+
+#define	HYM8563_CLKOUT		0x0D
+#define	 HYM8563_CLKOUT_ENABLE	(1 << 7)
+#define	 HYM8563_CLKOUT_32768	0
+#define	 HYM8563_CLKOUT_1024	1
+#define	 HYM8563_CLKOUT_32	2
+#define	 HYM8563_CLKOUT_1	3
+#define	 HYM8563_CLKOUT_MASK	3
 
 struct hym8563_softc {
 	device_t			dev;
 	struct intr_config_hook		init_hook;
 };
 
-#ifdef FDT
+#if defined(FDT) && !defined(__powerpc64__) 
+/* Clock class and method */
+struct hym8563_clk_sc {
+	device_t		base_dev;
+};
+
+
 static struct ofw_compat_data compat_data[] = {
 	{"haoyu,hym8563", 1},
 	{NULL,           0},
@@ -89,34 +104,199 @@ static struct ofw_compat_data compat_data[] = {
 
 
 static inline int
-hym8563_read_buf(struct hym8563_softc *sc, uint8_t reg, uint8_t *buf,
-    uint16_t buflen) 
+hym8563_read_buf(device_t dev, uint8_t reg, uint8_t *buf, uint16_t buflen)
 {
 
-	return (iicdev_readfrom(sc->dev, reg, buf, buflen, IIC_WAIT));
+	return (iicdev_readfrom(dev, reg, buf, buflen, IIC_WAIT));
 }
 
 static inline int
-hym8563_write_buf(struct hym8563_softc *sc, uint8_t reg, uint8_t *buf,
-    uint16_t buflen) 
+hym8563_write_buf(device_t dev, uint8_t reg, uint8_t *buf,  uint16_t buflen)
 {
 
-	return (iicdev_writeto(sc->dev, reg, buf, buflen, IIC_WAIT));
+	return (iicdev_writeto(dev, reg, buf, buflen, IIC_WAIT));
 }
 
 static inline int
-hym8563_read_1(struct hym8563_softc *sc, uint8_t reg, uint8_t *data) 
+hym8563_read_1(device_t dev, uint8_t reg, uint8_t *data)
 {
 
-	return (iicdev_readfrom(sc->dev, reg, data, 1, IIC_WAIT));
+	return (iicdev_readfrom(dev, reg, data, 1, IIC_WAIT));
 }
 
 static inline int
-hym8563_write_1(struct hym8563_softc *sc, uint8_t reg, uint8_t val) 
+hym8563_write_1(device_t dev, uint8_t reg, uint8_t val)
 {
 
-	return (iicdev_writeto(sc->dev, reg, &val, 1, IIC_WAIT));
+	return (iicdev_writeto(dev, reg, &val, 1, IIC_WAIT));
 }
+
+#if defined(FDT) && !defined(__powerpc64__) 
+static int
+hym8563_clk_set_gate(struct clknode *clk, bool enable)
+{
+	struct hym8563_clk_sc *sc;
+	uint8_t val;
+	int rv;
+
+	sc = clknode_get_softc(clk);
+
+	rv = hym8563_read_1(sc->base_dev, HYM8563_CLKOUT, &val);
+	if (rv != 0) {
+		device_printf(sc->base_dev,
+		    "Cannot read CLKOUT registers: %d\n", rv);
+		return (rv);
+	}
+	if (enable)
+		val |= HYM8563_CLKOUT_ENABLE;
+	else
+		val &= ~HYM8563_CLKOUT_ENABLE;
+	hym8563_write_1(sc->base_dev, HYM8563_CLKOUT, val);
+	if (rv != 0) {
+		device_printf(sc->base_dev,
+		    "Cannot write CLKOUT registers: %d\n", rv);
+		return (rv);
+	}
+	return (0);
+}
+
+static int
+hym8563_clk_recalc(struct clknode *clk, uint64_t *freq)
+{
+	struct hym8563_clk_sc *sc;
+	uint8_t val;
+	int rv;
+
+	sc = clknode_get_softc(clk);
+
+	rv = hym8563_read_1(sc->base_dev, HYM8563_CLKOUT, &val);
+	if (rv != 0) {
+		device_printf(sc->base_dev,
+		    "Cannot read CLKOUT registers: %d\n", rv);
+		return (rv);
+	}
+
+	switch (val & HYM8563_CLKOUT_MASK) {
+	case HYM8563_CLKOUT_32768:
+		*freq = 32768;
+		break;
+	case HYM8563_CLKOUT_1024:
+		*freq = 1024;
+		break;
+	case HYM8563_CLKOUT_32:
+		*freq = 32;
+		break;
+	case HYM8563_CLKOUT_1:
+		*freq = 1;
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+static int
+hym8563_clk_set(struct clknode *clk, uint64_t fparent, uint64_t *fout,
+    int flags, int *stop)
+{
+	struct hym8563_clk_sc *sc;
+	uint8_t val, tmp;
+	int rv;
+
+	sc = clknode_get_softc(clk);
+
+	switch (*fout) {
+	case 32768:
+		tmp = HYM8563_CLKOUT_32768;
+		break;
+	case 1024:
+		tmp = HYM8563_CLKOUT_1024;
+		break;
+	case 32:
+		tmp = HYM8563_CLKOUT_32;
+		break;
+	case 1:
+		tmp = HYM8563_CLKOUT_1;
+		break;
+	default:
+		*stop = 1;
+		return (EINVAL);
+	}
+
+	rv = hym8563_read_1(sc->base_dev, HYM8563_CLKOUT, &val);
+	if (rv != 0) {
+		device_printf(sc->base_dev,
+		    "Cannot read CLKOUT registers: %d\n", rv);
+		return (rv);
+	}
+
+	val &= ~HYM8563_CLKOUT_MASK;
+	val |= tmp;
+	rv = hym8563_write_1(sc->base_dev, HYM8563_CLKOUT, val);
+	if (rv != 0) {
+		device_printf(sc->base_dev,
+		    "Cannot write CLKOUT registers: %d\n", rv);
+		return (rv);
+	}
+
+	return (0);
+}
+
+static clknode_method_t hym8563_clk_clknode_methods[] = {
+	CLKNODEMETHOD(clknode_recalc_freq,	hym8563_clk_recalc),
+	CLKNODEMETHOD(clknode_set_freq,		hym8563_clk_set),
+	CLKNODEMETHOD(clknode_set_gate,		hym8563_clk_set_gate),
+	CLKNODEMETHOD_END
+};
+
+DEFINE_CLASS_1(hym8563_clk_clknode, hym8563_clk_clknode_class,
+    hym8563_clk_clknode_methods, sizeof(struct hym8563_clk_sc),
+    clknode_class);
+
+
+static int
+hym8563_attach_clocks(struct hym8563_softc *sc)
+{
+	struct clkdom *clkdom;
+	struct clknode_init_def clkidef;
+	struct clknode *clk;
+	struct hym8563_clk_sc *clksc;
+	const char **clknames;
+	phandle_t node;
+	int nclks, rv;
+
+	node = ofw_bus_get_node(sc->dev);
+
+	/* clock-output-names are optional. Could use them for clkidef.name. */
+	nclks = ofw_bus_string_list_to_array(node, "clock-output-names",
+	    &clknames);
+
+	clkdom = clkdom_create(sc->dev);
+
+	memset(&clkidef, 0, sizeof(clkidef));
+	clkidef.id = 1;
+	clkidef.name = (nclks == 1) ? clknames[0] : "hym8563-clkout";
+	clk = clknode_create(clkdom, &hym8563_clk_clknode_class, &clkidef);
+	if (clk == NULL) {
+		device_printf(sc->dev, "Cannot create '%s'.\n", clkidef.name);
+		return (ENXIO);
+	}
+	clksc = clknode_get_softc(clk);
+	clksc->base_dev = sc->dev;
+	clknode_register(clkdom, clk);
+
+	rv = clkdom_finit(clkdom);
+	if (rv != 0) {
+		device_printf(sc->dev, "Cannot finalize clkdom initialization: "
+		    "%d\n", rv);
+		return (ENXIO);
+	}
+
+	if (bootverbose)
+		clkdom_dump(clkdom);
+
+	return (0);
+}
+#endif
 
 static int
 hym8563_gettime(device_t dev, struct timespec *ts)
@@ -129,7 +309,7 @@ hym8563_gettime(device_t dev, struct timespec *ts)
 	sc = device_get_softc(dev);
 
 	/* Read all RTC data */
-	rv = hym8563_read_buf(sc, HYM8563_SEC, buf, sizeof(buf));
+	rv = hym8563_read_buf(sc->dev, HYM8563_SEC, buf, sizeof(buf));
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot read time registers: %d\n", rv);
 		return (rv);
@@ -154,7 +334,7 @@ hym8563_gettime(device_t dev, struct timespec *ts)
 	if (buf[5] & HYM8563_MONTH_CENTURY)
 		bct.year += 0x100;
 
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
@@ -182,14 +362,14 @@ hym8563_settime(device_t dev, struct timespec *ts)
 		buf[5] |= HYM8563_MONTH_CENTURY;
 
 	/* Stop RTC */
-	rv = hym8563_write_1(sc, HYM8563_CTRL1, HYM8563_CTRL1_STOP);
+	rv = hym8563_write_1(sc->dev, HYM8563_CTRL1, HYM8563_CTRL1_STOP);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot write CTRL1 register: %d\n", rv);
 		return (rv);
 	}
 
 	/* Write all RTC data */
-	rv = hym8563_write_buf(sc, HYM8563_SEC, buf, sizeof(buf));
+	rv = hym8563_write_buf(sc->dev, HYM8563_SEC, buf, sizeof(buf));
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot write time registers: %d\n", rv);
 		return (rv);
@@ -197,7 +377,7 @@ hym8563_settime(device_t dev, struct timespec *ts)
 	return (rv);
 
 	/* Start RTC again */
-	rv = hym8563_write_1(sc, HYM8563_CTRL1, 0);
+	rv = hym8563_write_1(sc->dev, HYM8563_CTRL1, 0);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot write CTRL1 register: %d\n", rv);
 		return (rv);
@@ -217,14 +397,14 @@ hym8563_init(void *arg)
 	config_intrhook_disestablish(&sc->init_hook);
 
 	/* Clear CTL1 register (stop and test bits) */
-	rv = hym8563_write_1(sc, HYM8563_CTRL1, 0);
+	rv = hym8563_write_1(sc->dev, HYM8563_CTRL1, 0);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot init CTRL1 register: %d\n", rv);
 		return;
 	}
-	
+
 	/* Disable interrupts and alarms */
-	rv = hym8563_read_1(sc, HYM8563_CTRL2, &reg);
+	rv = hym8563_read_1(sc->dev, HYM8563_CTRL2, &reg);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot read CTRL2 register: %d\n", rv);
 		return;
@@ -232,7 +412,7 @@ hym8563_init(void *arg)
 	rv &= ~HYM8563_CTRL2_TI_TP;
 	rv &= ~HYM8563_CTRL2_AF;
 	rv &= ~HYM8563_CTRL2_TF;
-	rv = hym8563_write_1(sc, HYM8563_CTRL2, 0);
+	rv = hym8563_write_1(sc->dev, HYM8563_CTRL2, 0);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot write CTRL2 register: %d\n", rv);
 		return;
@@ -250,7 +430,7 @@ static int
 hym8563_probe(device_t dev)
 {
 
-#ifdef FDT
+#if defined(FDT) && !defined(__powerpc64__) 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -266,9 +446,14 @@ static int
 hym8563_attach(device_t dev)
 {
 	struct hym8563_softc *sc;
-	
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+
+#if defined(FDT) && !defined(__powerpc64__) 
+	if (hym8563_attach_clocks(sc) != 0)
+		return(ENXIO);
+#endif
 
 	/*
 	 * Chip init must wait until interrupts are enabled.  Often i2c access
@@ -305,7 +490,10 @@ static device_method_t hym8563_methods[] = {
 
 static DEFINE_CLASS_0(hym8563_rtc, hym8563_driver, hym8563_methods,
     sizeof(struct hym8563_softc));
-DRIVER_MODULE(hym8563, iicbus, hym8563_driver, NULL, NULL);
+EARLY_DRIVER_MODULE(hym8563, iicbus, hym8563_driver, NULL, NULL,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(hym8563, 1);
 MODULE_DEPEND(hym8563, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+#if defined(FDT) && !defined(__powerpc64__) 
 IICBUS_FDT_PNP_INFO(compat_data);
+#endif

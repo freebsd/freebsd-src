@@ -65,9 +65,9 @@ END(copyio_fault)
 /*
  * Copies from a kernel to user address
  *
- * int copyout(const void *kaddr, void *udaddr, size_t len)
+ * int copyout_std(const void *kaddr, void *udaddr, size_t len)
  */
-ENTRY(copyout)
+ENTRY(copyout_std)
 	cbz	x2, 1f
 	check_user_access 1, 2, copyio_fault_nopcb
 
@@ -76,14 +76,37 @@ ENTRY(copyout)
 1:	mov	x0, xzr		/* return 0 */
 	ret
 
-END(copyout)
+END(copyout_std)
+
+/*
+ * Copies from a kernel to user address
+ *
+ * int copyout_mops(const void *kaddr, void *udaddr, size_t len)
+ */
+ENTRY(copyout_mops)
+	cbz	x2, 1f
+	check_user_access 1, 2, copyio_fault_nopcb
+
+	adr	x6, copyio_fault /* Get the handler address */
+	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
+
+	.inst   0x19001441      /* cpyfpwt   [x1]!, [x0]!, x2!  */
+	.inst   0x19401441      /* cpyfmwt   [x1]!, [x0]!, x2!  */
+	.inst   0x19801441      /* cpyfewt   [x1]!, [x0]!, x2!  */
+
+	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
+
+1:	mov	x0, xzr		/* return 0 */
+	ret
+
+END(copyout_mops)
 
 /*
  * Copies from a user to kernel address
  *
- * int copyin(const void *uaddr, void *kdaddr, size_t len)
+ * int copyin_std(const void *uaddr, void *kdaddr, size_t len)
  */
-ENTRY(copyin)
+ENTRY(copyin_std)
 	cbz	x2, 1f
 	check_user_access 0, 2, copyio_fault_nopcb
 
@@ -92,7 +115,30 @@ ENTRY(copyin)
 1:	mov	x0, xzr		/* return 0 */
 	ret
 
-END(copyin)
+END(copyin_std)
+
+/*
+ * Copies from a user to kernel address
+ *
+ * int copyin_mops(const void *uaddr, void *kdaddr, size_t len)
+ */
+ENTRY(copyin_mops)
+	cbz	x2, 1f
+	check_user_access 0, 2, copyio_fault_nopcb
+
+	adr	x6, copyio_fault /* Get the handler address */
+	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
+
+	.inst   0x19002441      /* cpyfprt   [x1]!, [x0]!, x2!  */
+	.inst   0x19402441      /* cpyfmrt   [x1]!, [x0]!, x2!  */
+	.inst   0x19802441      /* cpyfert   [x1]!, [x0]!, x2!  */
+
+	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
+
+1:	mov	x0, xzr		/* return 0 */
+	ret
+
+END(copyin_mops)
 
 /*
  * Copies a string from a user to kernel address

@@ -4713,6 +4713,9 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_rl_init;
 	}
 
+#ifdef IPSEC_OFFLOAD
+	mlx5e_ipsec_report(priv);
+#endif
 	if ((if_getcapenable2(ifp) & IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD)) != 0) {
 		err = mlx5e_ipsec_init(priv);
 		if (err) {

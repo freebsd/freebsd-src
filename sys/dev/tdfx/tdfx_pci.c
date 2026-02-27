@@ -83,7 +83,7 @@ static device_method_t tdfx_methods[] = {
 	DEVMETHOD(device_attach,	tdfx_attach),
 	DEVMETHOD(device_detach,	tdfx_detach),
 	DEVMETHOD(device_shutdown,	tdfx_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static MALLOC_DEFINE(M_TDFX,"tdfx_driver","3DFX Graphics[/2D]/3D Accelerators");

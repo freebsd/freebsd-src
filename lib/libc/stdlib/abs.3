@@ -1,5 +1,6 @@
 .\" Copyright (c) 1990, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2026 Aymeric Wibo <obiwac@freebsd.org>
 .\"
 .\" This code is derived from software contributed to Berkeley by
 .\" the American National Standards Committee X3, on Information
@@ -29,49 +30,74 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 3, 2022
+.Dd February 19, 2026
 .Dt ABS 3
 .Os
 .Sh NAME
-.Nm abs
-.Nd integer absolute value function
-.Sh LIBRARY
-.Lb libc
+.Nm abs ,
+.Nm labs ,
+.Nm llabs ,
+.Nm imaxabs
+.Nd return absolute value for integer types
 .Sh SYNOPSIS
+.Lb libc
 .In stdlib.h
 .Ft int
-.Fn abs "int j"
+.Fn abs "int i"
+.Ft long
+.Fn labs "long i"
+.Ft long long
+.Fn llabs "long long i"
+.In inttypes.h
+.Ft intmax_t
+.Fn imaxabs "intmax_t i"
 .Sh DESCRIPTION
 The
-.Fn abs
-function
-computes
-the absolute value of the integer
-.Fa j .
+.Fn abs ,
+.Fn labs ,
+.Fn llabs ,
+and
+.Fn imaxabs
+functions compute the absolute value of
+.Fa i .
 .Sh RETURN VALUES
 The
-.Fn abs
-function
-returns
-the absolute value.
+.Fn abs ,
+.Fn labs ,
+.Fn llabs ,
+and
+.Fn imaxabs
+functions return the absolute value.
 .Sh SEE ALSO
 .Xr cabs 3 ,
 .Xr fabs 3 ,
 .Xr floor 3 ,
-.Xr hypot 3 ,
-.Xr imaxabs 3 ,
-.Xr labs 3 ,
-.Xr llabs 3 ,
-.Xr math 3
+.Xr hypot 3
 .Sh STANDARDS
 The
-.Fn abs
-function conforms to
-.St -isoC-99 .
+.Fn abs ,
+.Fn labs ,
+.Fn llabs ,
+and
+.Fn imaxabs
+functions conform to
+.St -isoC-2023
+and
+.St -p1003.1-2024 .
 .Sh HISTORY
 The
 .Fn abs
 function first appeared in
 .At v6 .
+The
+.Fn labs
+function first appeared in
+.Bx 4.3 .
+The
+.Fn llabs
+and
+.Fn imaxabs
+functions first appeared in
+.Fx 5.0 .
 .Sh BUGS
 The absolute value of the most negative integer remains negative.

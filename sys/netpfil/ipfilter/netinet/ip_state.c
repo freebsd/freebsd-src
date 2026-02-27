@@ -4910,7 +4910,7 @@ ipf_state_matchflush(ipf_main_softc_t *softc, caddr_t data)
 static int
 ipf_state_matcharray(ipstate_t *state, int *array, u_long ticks)
 {
-	int i, n, *x, rv, p;
+	u_int i, n, *x, rv, p;
 	ipfexp_t *e;
 
 	rv = 0;

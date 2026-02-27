@@ -57,15 +57,11 @@ FORK_TEST(Openat, Relative) {
   int etc_cap_base = dup(etc);
   EXPECT_OK(etc_cap_base);
   EXPECT_OK(cap_rights_limit(etc_cap_base, &r_base));
-#ifdef HAVE_CAP_FCNTLS_LIMIT
   // Also limit fcntl(2) subrights.
   EXPECT_OK(cap_fcntls_limit(etc_cap_base, CAP_FCNTL_GETFL));
-#endif
-#ifdef HAVE_CAP_IOCTLS_LIMIT
   // Also limit ioctl(2) subrights.
   cap_ioctl_t ioctl_nread = FIONREAD;
   EXPECT_OK(cap_ioctls_limit(etc_cap_base, &ioctl_nread, 1));
-#endif
 
   // openat(2) with regular file descriptors in non-capability mode
   // Should Just Work (tm).
@@ -93,12 +89,9 @@ FORK_TEST(Openat, Relative) {
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(fd, &rights));
   EXPECT_RIGHTS_IN(&rights, &r_base);
-#ifdef HAVE_CAP_FCNTLS_LIMIT
   cap_fcntl_t fcntls;
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
   EXPECT_EQ((cap_fcntl_t)CAP_FCNTL_GETFL, fcntls);
-#endif
-#ifdef HAVE_CAP_IOCTLS_LIMIT
   cap_ioctl_t ioctls[16];
   ssize_t nioctls;
   memset(ioctls, 0, sizeof(ioctls));
@@ -106,7 +99,6 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
   EXPECT_EQ((cap_ioctl_t)FIONREAD, ioctls[0]);
-#endif
   close(fd);
 
   // Enter capability mode; now ALL lookups are strictly relative.
@@ -270,10 +262,8 @@ class OpenatTest : public ::testing::Test {
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "../subdir/bottomfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "..", O_RDONLY|oflag);
 
-#ifdef HAVE_OPENAT_INTERMEDIATE_DOTDOT
     // OK for dotdot lookups that don't escape the top directory
     EXPECT_OPEN_OK(openat(dir_fd_, "subdir/../topfile", O_RDONLY|oflag));
-#endif
 
     // Check that we can't escape the top directory by the cunning
     // ruse of going via a subdirectory.
@@ -341,11 +331,6 @@ FORK_TEST_F(OpenatTest, InCapabilityMode) {
   EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "/etc/passwd", O_RDONLY);
 }
 
-#if !defined(O_RESOLVE_BENEATH) && defined(O_BENEATH)
-#define O_RESOLVE_BENEATH O_BENEATH
-#endif
-
-#ifdef O_RESOLVE_BENEATH
 TEST_F(OpenatTest, WithFlag) {
   CheckPolicing(O_RESOLVE_BENEATH);
 
@@ -363,4 +348,3 @@ FORK_TEST_F(OpenatTest, WithFlagInCapabilityMode) {
   EXPECT_OK(cap_enter());  // Enter capability mode
   CheckPolicing(O_RESOLVE_BENEATH);
 }
-#endif

@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 8, 2013
+.Dd February 6, 2025
 .Dt NEWGRP 1
 .Os
 .Sh NAME
@@ -67,6 +67,21 @@ exits >0.
 Otherwise, the exit status of
 .Nm
 is the exit status of the shell.
+.Sh EXAMPLES
+Create a new group,
+.Ar foo ,
+with
+.Xr pw 8 :
+.Pp
+.Dl pw group add foo
+.Pp
+Set the group password:
+.Pp
+.Dl pw group mod foo -h 0
+.Pp
+As a non-root user, switch to the group:
+.Pp
+.Dl newgrp foo
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr groups 1 ,

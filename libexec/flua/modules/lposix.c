@@ -100,11 +100,11 @@ lua_chown(lua_State *L)
 		owner = (uid_t)lua_tointeger(L, 2);
 	else if (lua_isstring(L, 2)) {
 		char buf[4096];
-		struct passwd passwd, *pwd;
+		struct passwd passwd, *pwd = NULL;
 
 		error = getpwnam_r(lua_tostring(L, 2), &passwd,
 		    buf, sizeof(buf), &pwd);
-		if (error == 0)
+		if (pwd != NULL && error == 0)
 			owner = pwd->pw_uid;
 		else
 			return (luaL_argerror(L, 2,
@@ -121,11 +121,11 @@ lua_chown(lua_State *L)
 		group = (gid_t)lua_tointeger(L, 3);
 	else if (lua_isstring(L, 3)) {
 		char buf[4096];
-		struct group gr, *grp;
+		struct group gr, *grp = NULL;
 
 		error = getgrnam_r(lua_tostring(L, 3), &gr, buf, sizeof(buf),
 		    &grp);
-		if (error == 0)
+		if (grp != NULL && error == 0)
 			group = grp->gr_gid;
 		else
 			return (luaL_argerror(L, 3,

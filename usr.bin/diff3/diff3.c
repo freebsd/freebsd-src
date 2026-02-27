@@ -118,6 +118,7 @@ static struct diff *d23;
  */
 static struct diff *de;
 static char *overlap;
+static int  *de_delta;	/* file1-file3 line number delta per edit */
 static int  overlapcnt;
 static FILE *fp[3];
 static int cline[3];		/* # of the last-read line in each file (0-2) */
@@ -149,7 +150,7 @@ static void repos(int);
 static void separate(const char *);
 static void edscript(int) __dead2;
 static void Ascript(int) __dead2;
-static void mergescript(int) __dead2;
+static void mergescript(int, int) __dead2;
 static void increase(void);
 static void usage(void);
 static void printrange(FILE *, struct range *);
@@ -360,11 +361,13 @@ merge(int m1, int m2)
 {
 	struct diff *d1, *d2, *d3;
 	int j, t1, t2;
+	int f1f3delta;
 	bool dup = false;
 
 	d1 = d13;
 	d2 = d23;
 	j = 0;
+	f1f3delta = 0;
 
 	for (;;) {
 		t1 = (d1 < d13 + m1);
@@ -380,9 +383,17 @@ merge(int m1, int m2)
 				change(1, &d1->old, false);
 				keep(2, &d1->new);
 				change(3, &d1->new, false);
+			} else if (mflag) {
+				j++;
+				de[j].type = DIFF_TYPE1;
+				de[j].old = d1->old;
+				de[j].new = d1->new;
+				overlap[j] = 0;
 			} else if (eflag == EFLAG_OVERLAP) {
 				j = edit(d2, dup, j, DIFF_TYPE1);
 			}
+			f1f3delta += (d1->old.to - d1->old.from) -
+			    (d1->new.to - d1->new.from);
 			d1++;
 			continue;
 		}
@@ -394,9 +405,10 @@ merge(int m1, int m2)
 				change(3, &d2->new, false);
 				change(2, &d2->old, false);
 			} else if (Aflag || mflag) {
-				// XXX-THJ: What does it mean for the second file to differ?
-				if (eflag == EFLAG_UNMERGED)
+				if (eflag == EFLAG_UNMERGED) {
 					j = edit(d2, dup, j, DIFF_TYPE2);
+					de_delta[j] = f1f3delta;
+				}
 			}
 			d2++;
 			continue;
@@ -432,10 +444,20 @@ merge(int m1, int m2)
 				change(2, &d2->old, false);
 				d3 = d1->old.to > d1->old.from ? d1 : d2;
 				change(3, &d3->new, false);
+			} else if (mflag) {
+				j++;
+				de[j].type = DIFF_TYPE3;
+				de[j].old = d1->old;
+				de[j].new = d1->new;
+				overlap[j] = !dup;
+				if (!dup)
+					overlapcnt++;
 			} else {
 				j = edit(d1, dup, j, DIFF_TYPE3);
 			}
 			dup = false;
+			f1f3delta += (d1->old.to - d1->old.from) -
+			    (d1->new.to - d1->new.from);
 			d1++;
 			d2++;
 			continue;
@@ -461,7 +483,7 @@ merge(int m1, int m2)
 	}
 
 	if (mflag)
-		mergescript(j);
+		mergescript(j, f1f3delta);
 	else if (Aflag)
 		Ascript(j);
 	else if (eflag)
@@ -694,7 +716,7 @@ edscript(int n)
 	if (iflag)
 		printf("w\nq\n");
 
-	exit(eflag == EFLAG_NONE ? overlapcnt : 0);
+	exit(oflag ? overlapcnt > 0 : 0);
 }
 
 /*
@@ -723,7 +745,7 @@ Ascript(int n)
 				prange(old, deletenew);
 				printrange(fp[2], new);
 			} else {
-				startmark = new->to - 1;
+				startmark = new->to - 1 + de_delta[n];
 
 				printf("%da\n", startmark);
 				printf("%s %s\n", newmark, f3mark);
@@ -788,11 +810,10 @@ Ascript(int n)
  * inbetween lines.
  */
 static void
-mergescript(int i)
+mergescript(int i, int f1f3delta)
 {
 	struct range r, *new, *old;
 	int n;
-	bool delete = false;
 
 	r.from = 1;
 	r.to = 1;
@@ -805,21 +826,17 @@ mergescript(int i)
 		 * Print any lines leading up to here. If we are merging don't
 		 * print deleted ranges.
 		 */
-		delete = (new->from == new->to);
-		if (de[n].type == DIFF_TYPE1 && delete)
-			r.to = new->from - 1;
-		else if (de[n].type == DIFF_TYPE3 && (old->from == old->to)) {
-			r.from = old->from - 1;
-			r.to = new->from;
-		} else
+		if (de[n].type == DIFF_TYPE1)
+			r.to = old->to;
+		else if (de[n].type == DIFF_TYPE2)
+			r.to = new->from + de_delta[n];
+		else
 			r.to = old->from;
 
 		printrange(fp[0], &r);
 		switch (de[n].type) {
 		case DIFF_TYPE1:
-			/* If this isn't a delete print it */
-			if (!delete)
-				printrange(fp[2], new);
+			/* Content included in "between" printing from fp[0] */
 			break;
 		case DIFF_TYPE2:
 			printf("%s %s\n", oldmark, f2mark);
@@ -859,8 +876,8 @@ mergescript(int i)
 			exit(EXIT_FAILURE);
 		}
 
-		if (old->from == old->to)
-			r.from = new->to;
+		if (de[n].type == DIFF_TYPE2)
+			r.from = new->to + de_delta[n];
 		else
 			r.from = old->to;
 	}
@@ -868,18 +885,11 @@ mergescript(int i)
 	/*
 	 * Print from the final range to the end of 'myfile'. Any deletions or
 	 * additions to this file should have been handled by now.
-	 *
-	 * If the ranges are the same we need to rewind a line.
-	 * If the new range is 0 length (from == to), we need to use the old
-	 * range.
 	 */
 	new = &de[n-1].new;
 	old = &de[n-1].old;
 
-	if (old->from == new->from && old->to == new->to)
-		r.from--;
-	else if (new->from == new->to)
-		r.from = old->from;
+	r.from -= f1f3delta;
 
 	r.to = INT_MAX;
 	printrange(fp[2], &r);
@@ -891,6 +901,7 @@ increase(void)
 {
 	struct diff *p;
 	char *q;
+	int *s;
 	size_t newsz, incr;
 
 	/* are the memset(3) calls needed? */
@@ -917,6 +928,11 @@ increase(void)
 		err(1, NULL);
 	memset(q + szchanges, 0, incr * 1);
 	overlap = q;
+	s = reallocarray(de_delta, newsz, sizeof(*s));
+	if (s == NULL)
+		err(1, NULL);
+	memset(s + szchanges, 0, incr * sizeof(*s));
+	de_delta = s;
 	szchanges = newsz;
 }
 

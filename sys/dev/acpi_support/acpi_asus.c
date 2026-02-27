@@ -517,7 +517,7 @@ static device_method_t acpi_asus_methods[] = {
 	DEVMETHOD(device_probe,  acpi_asus_probe),
 	DEVMETHOD(device_attach, acpi_asus_attach),
 	DEVMETHOD(device_detach, acpi_asus_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t acpi_asus_driver = {

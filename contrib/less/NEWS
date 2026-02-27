@@ -11,6 +11,27 @@
 
 ======================================================================
 
+	Major changes between "less" versions 691 and 692
+
+* Revert HOME key to scroll to beginning of file and END key
+  to scroll to end of file (github #658).
+
+* Configure tty to leave CR and NL unmodified (github #703).
+
+* Add commands to lesskey parser (forw-bell-hilite, goto-pos and osc8-jump).
+
+* Add key sequences to lesskey parser (\kE, \kF, \kH, \kI, \kM, and \kS).
+
+* Fix bug using negative value with -z option (github #709).
+
+* Fix bug handling empty terminfo capabilties (github #710).
+
+* Fix memory leak in setupterm (github #707).
+
+* Make lesstest ignore system locale (nl_langinfo) (github #708).
+
+======================================================================
+
 	Major changes between "less" versions 685 and 691
 
 * Add --autosave option (github #678).

@@ -2020,9 +2020,10 @@ ipw_setwepkeys(struct ipw_softc *sc)
 			continue;
 
 		wepkey.idx = i;
-		wepkey.len = wk->wk_keylen;
+		wepkey.len = ieee80211_crypto_get_key_len(wk);
 		memset(wepkey.key, 0, sizeof wepkey.key);
-		memcpy(wepkey.key, wk->wk_key, wk->wk_keylen);
+		memcpy(wepkey.key, ieee80211_crypto_get_key_data(wk),
+		    ieee80211_crypto_get_key_len(wk));
 		DPRINTF(("Setting wep key index %u len %u\n", wepkey.idx,
 		    wepkey.len));
 		error = ipw_cmd(sc, IPW_CMD_SET_WEP_KEY, &wepkey,

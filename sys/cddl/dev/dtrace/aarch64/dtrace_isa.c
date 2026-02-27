@@ -228,10 +228,22 @@ zero:
 int
 dtrace_getustackdepth(void)
 {
+	proc_t *p = curproc;
+	struct trapframe *tf;
+	uintptr_t pc, fp;
+	int n = 0;
 
-	printf("IMPLEMENT ME: %s\n", __func__);
+	if (p == NULL || (tf = curthread->td_frame) == NULL)
+		return (0);
 
-	return (0);
+	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_FAULT))
+		return (-1);
+
+	pc = tf->tf_elr;
+	fp = tf->tf_x[29];
+	n += dtrace_getustack_common(NULL, 0, pc, fp);
+
+	return (n);
 }
 
 void

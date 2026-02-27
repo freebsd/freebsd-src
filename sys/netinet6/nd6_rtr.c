@@ -95,7 +95,7 @@ VNET_DEFINE(int, nd6_defifindex);
 #define	V_nd6_defifp			VNET(nd6_defifp)
 
 VNET_DEFINE(int, ip6_use_tempaddr) = 0;
-VNET_DEFINE(bool, ip6_use_stableaddr) = 0;
+VNET_DEFINE(bool, ip6_use_stableaddr) = 1;
 
 VNET_DEFINE(int, ip6_desync_factor);
 VNET_DEFINE(uint32_t, ip6_temp_max_desync_factor) = TEMP_MAX_DESYNC_FACTOR_BASE;
@@ -2294,7 +2294,7 @@ regen:
 	/*
 	 * Check if generated address is not inappropriate:
 	 *
-	 * - Reserved IPv6 Interface aIdentifers
+	 * - Reserved IPv6 Interface Identifiers
 	 *   (https://www.iana.org/assignments/ipv6-interface-ids/)
 	 */
 

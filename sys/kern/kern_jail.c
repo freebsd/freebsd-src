@@ -4736,6 +4736,13 @@ prison_priv_check(struct ucred *cred, int priv)
 		else
 			return (EPERM);
 
+	case PRIV_VMM_PPTDEV:
+		/*
+		 * Allow jailed root to manage passthrough devices.  vmm(4) also
+		 * checks for the dynamically added allow.vmm_ppt.
+		 */
+		return (0);
+
 	default:
 		/*
 		 * In all remaining cases, deny the privilege request.  This

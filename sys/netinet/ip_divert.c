@@ -502,6 +502,9 @@ static int
 div_output_inbound(int family, struct socket *so, struct mbuf *m,
     struct sockaddr_in *sin)
 {
+#if defined(INET) || defined(INET6)
+	struct divcb *dcb = so->so_pcb;
+#endif
 	struct ifaddr *ifa;
 
 	if (m->m_pkthdr.rcvif == NULL) {
@@ -540,14 +543,14 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 			m->m_flags |= M_MCAST;
 		else if (in_ifnet_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
 			m->m_flags |= M_BCAST;
-		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
+		netisr_queue_src(NETISR_IP, (uintptr_t)dcb->dcb_gencnt, m);
 		DIVSTAT_INC(inbound);
 		break;
 	    }
 #endif
 #ifdef INET6
 	case AF_INET6:
-		netisr_queue_src(NETISR_IPV6, (uintptr_t)so, m);
+		netisr_queue_src(NETISR_IPV6, (uintptr_t)dcb->dcb_gencnt, m);
 		DIVSTAT_INC(inbound);
 		break;
 #endif

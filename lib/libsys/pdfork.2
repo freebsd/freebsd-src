@@ -114,11 +114,13 @@ for a description of the possible
 flags.
 The
 .Fn pdrfork
-system call requires that the
+system call requires that both the
 .Va RFPROC
-or
+and
+.Va RFPROCDESC
+flags, or
 .Va RFSPAWN
-flag is specified.
+flag are specified.
 .Pp
 .Fn pdgetpid
 queries the process ID (PID) in the process descriptor
@@ -203,6 +205,24 @@ may return the same error numbers as
 .Xr fork 2 ) ,
 with the following additions:
 .Bl -tag -width Er
+.It Bq Er EFAULT
+The copyout of the resulting file descriptor value to the memory pointed
+to by
+.Fa fdp
+failed.
+.Pp
+Note that the child process was already created when this condition
+is detected,
+and the child continues execution, same as the parent.
+If this error must be handled, it is advisable to memoize the
+.Fn getpid
+result before the call to
+.Fn pdfork
+or
+.Fn pdrfork ,
+and compare it to the value returned by
+.Fn getpid
+after, to see if code is executing in parent or child.
 .It Bq Er EINVAL
 The signal number given to
 .Fn pdkill

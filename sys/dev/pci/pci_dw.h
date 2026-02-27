@@ -61,6 +61,9 @@
 #define	DW_MISC_CONTROL_1		0x8BC
 #define	 DBI_RO_WR_EN				(1 << 0)
 
+#define DW_MISC_VERSION			0x8F8
+#define DW_MISC_VERSION_TYPE		0x8FC
+
 /* Legacy (pre-4.80) iATU mode */
 #define	DW_IATU_VIEWPORT			0x900
 #define	 IATU_REGION_INBOUND			(1U << 31)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -36,3 +36,5 @@
 #define PCK_CTL_HOME            '\x7a'
 #define PCK_CTL_END             '\x7c'
 #define PCK_SHIFT_HOME          '\x7d'
+#define PCK_SHIFT_LEFT          '\x73'
+#define PCK_SHIFT_RIGHT         '\x7f'

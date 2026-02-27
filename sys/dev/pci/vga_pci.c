@@ -746,7 +746,7 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(pci_release_msi,	vga_pci_release_msi),
 	DEVMETHOD(pci_msi_count,	vga_pci_msi_count),
 	DEVMETHOD(pci_msix_count,	vga_pci_msix_count),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t vga_pci_driver = {

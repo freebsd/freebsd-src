@@ -240,7 +240,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		pmap_remap_lowptdi(true);
 
 		/* Call ACPICA to enter the desired sleep state */
-		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
+		if (state == ACPI_STATE_S4 && acpi_should_do_s4bios(sc))
 			status = AcpiEnterSleepStateS4bios();
 		else
 			status = AcpiEnterSleepState(state);

@@ -952,6 +952,9 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 			VT_UNLOCK(vd);
 			break;
 		}
+		case BKEY | BTAB: /* Back tab (usually, shift+tab). */
+			terminal_input_special(vw->vw_terminal, TKEY_BTAB);
+			break;
 		case FKEY | F(1):  case FKEY | F(2):  case FKEY | F(3):
 		case FKEY | F(4):  case FKEY | F(5):  case FKEY | F(6):
 		case FKEY | F(7):  case FKEY | F(8):  case FKEY | F(9):
@@ -1963,6 +1966,9 @@ vtterm_cngetc(struct terminal *tm)
 				vw->vw_flags &= ~VWF_SCROLL;
 				VTBUF_SLCK_DISABLE(&vw->vw_buf);
 			}
+			break;
+		case SPCLKEY | BTAB: /* Back tab (usually, shift+tab). */
+			vw->vw_kbdsq = "\x1b[Z";
 			break;
 		/* XXX: KDB can handle history. */
 		case SPCLKEY | FKEY | F(50): /* Arrow up. */

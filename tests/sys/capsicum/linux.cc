@@ -494,7 +494,7 @@ TEST(Linux, FanotifyIfRoot) {
   // only have rights that are a subset of those for the original
   // monitored directory file descriptor.
   cap_rights_t rights;
-  CAP_SET_ALL(&rights);
+  CAL_ALL(&rights);
   EXPECT_OK(cap_rights_get(ev.fd, &rights));
   EXPECT_RIGHTS_IN(&rights, &r_rslstat);
 #endif

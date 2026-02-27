@@ -1324,7 +1324,7 @@ net80211_vap_printf(const struct ieee80211vap *vap, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	snprintf(if_fmt, sizeof(if_fmt), "%s: %s", if_name(vap->iv_ifp), fmt);
-	vlog(LOG_INFO, if_fmt, ap);
+	vprintf(if_fmt, ap);
 	va_end(ap);
 }
 
@@ -1334,14 +1334,12 @@ net80211_vap_printf(const struct ieee80211vap *vap, const char *fmt, ...)
 void
 net80211_ic_printf(const struct ieee80211com *ic, const char *fmt, ...)
 {
+	char if_fmt[256];
 	va_list ap;
 
-	/*
-	 * TODO: do the vap_printf stuff above, use vlog(LOG_INFO, ...)
-	 */
-	printf("%s: ", ic->ic_name);
+	snprintf(if_fmt, sizeof(if_fmt), "%s: %s", ic->ic_name, fmt);
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	vprintf(if_fmt, ap);
 	va_end(ap);
 }
 

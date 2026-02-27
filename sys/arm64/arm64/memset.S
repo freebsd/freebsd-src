@@ -51,7 +51,7 @@
 #define dst		x8
 #define tmp3w		w9
 
-ENTRY(memset)
+ENTRY(memset_std)
 
 	mov	dst, dstin		/* Preserve return value.  */
 	ands	A_lw, val, #255
@@ -196,6 +196,14 @@ ENTRY(memset)
 	ands	count, count, zva_bits_x
 	b.ne	.Ltail_maybe_long
 	ret
-END(memset)
+END(memset_std)
+
+ENTRY(memset_mops)
+	mov     x3, x0
+	.inst   0x19c10443	/* setp    [x3]!, x2!, x1  */
+	.inst   0x19c14443	/* setm    [x3]!, x2!, x1  */
+	.inst   0x19c18443	/* sete    [x3]!, x2!, x1  */
+	ret
+END(memset_mops)
 
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

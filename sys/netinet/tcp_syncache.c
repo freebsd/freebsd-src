@@ -1173,7 +1173,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			return (-1); /* Do not send RST */
 		}
 #endif /* TCP_SIGNATURE */
-		if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+		if (m != NULL && M_HASHTYPE_ISHASH_TCP(m)) {
 			sc->sc_flowid = m->m_pkthdr.flowid;
 			sc->sc_flowtype = M_HASHTYPE_GET(m);
 		}
@@ -1771,7 +1771,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		sc->sc_flowlabel = htonl(sc->sc_flowlabel) & IPV6_FLOWLABEL_MASK;
 	}
 #endif
-	if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+	if (m != NULL && M_HASHTYPE_ISHASH_TCP(m)) {
 		sc->sc_flowid = m->m_pkthdr.flowid;
 		sc->sc_flowtype = M_HASHTYPE_GET(m);
 	}

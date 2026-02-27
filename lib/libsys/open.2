@@ -72,11 +72,18 @@ function is equivalent to the
 .Fn open
 function except in the case where the
 .Fa path
-specifies a relative path.
+specifies a relative path or the
+.Va O_EMPTY_PATH
+flag is specified.
 For
 .Fn openat
 and relative
 .Fa path ,
+when
+.Fa fd
+references a directory, and the
+.Va O_EMPTY_PATH
+flag is not specified,
 the file to be opened is determined relative to the directory
 associated with the file descriptor
 .Fa fd
@@ -103,6 +110,14 @@ is called with an absolute
 it ignores the
 .Fa fd
 argument.
+.Pp
+When
+.Fn openat
+is called with the
+.Fa fd
+argument that does not reference a directory, the call fails unless
+.Va O_EMPTY_PATH
+flag is specified, see below.
 .Pp
 In
 .Xr capsicum 4
@@ -421,9 +436,11 @@ by the descriptor at the time of the
 call.
 .Pp
 .Dv O_PATH
-returns a file descriptor that can be used as a directory file descriptor for
+returns a file descriptor that can be used as the first argument for
 .Fn openat
-and other system calls taking a file descriptor argument, like
+and other filesystem-related system calls collectively named
+.Fn *at
+taking a file descriptor argument, like
 .Xr fstatat 2
 and others.
 The other functionality of the returned file descriptor is limited to

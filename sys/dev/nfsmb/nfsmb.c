@@ -601,7 +601,7 @@ static device_method_t nfsmb_methods[] = {
 	DEVMETHOD(smbus_readw,		nfsmb_readw),
 	DEVMETHOD(smbus_bwrite,		nfsmb_bwrite),
 	DEVMETHOD(smbus_bread,		nfsmb_bread),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static device_method_t nfsmbsub_methods[] = {
@@ -621,7 +621,7 @@ static device_method_t nfsmbsub_methods[] = {
 	DEVMETHOD(smbus_readw,		nfsmb_readw),
 	DEVMETHOD(smbus_bwrite,		nfsmb_bwrite),
 	DEVMETHOD(smbus_bread,		nfsmb_bread),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nfsmb_driver = {

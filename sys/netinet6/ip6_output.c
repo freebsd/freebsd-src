@@ -110,6 +110,7 @@
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
+#include <netinet6/ip6_mroute.h>
 
 #include <netipsec/ipsec_support.h>
 #if defined(SCTP) || defined(SCTP_SUPPORT)
@@ -889,7 +890,8 @@ nonh6lookup:
 			 * above, will be forwarded by the ip6_input() routine,
 			 * if necessary.
 			 */
-			if (V_ip6_mrouter && (flags & IPV6_FORWARDING) == 0) {
+			if (V_ip6_mrouting_enabled &&
+			    (flags & IPV6_FORWARDING) == 0) {
 				/*
 				 * XXX: ip6_mforward expects that rcvif is NULL
 				 * when it is called from the originating path.

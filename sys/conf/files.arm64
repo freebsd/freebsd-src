@@ -36,6 +36,7 @@ arm64/arm64/busdma_bounce.c			standard
 arm64/arm64/busdma_machdep.c			standard
 arm64/arm64/clock.c				standard
 arm64/arm64/copyinout.S				standard
+arm64/arm64/copyinout_ifunc.c			standard
 arm64/arm64/cpu_errata.c			standard
 arm64/arm64/cpu_feat.c				standard
 arm64/arm64/cpufunc_asm.S			standard
@@ -565,6 +566,7 @@ dev/clk/allwinner/ccu_a64.c			optional soc_allwinner_a64 aw_ccu fdt
 dev/clk/allwinner/ccu_h3.c			optional soc_allwinner_h5 aw_ccu fdt
 dev/clk/allwinner/ccu_h6.c			optional soc_allwinner_h6 aw_ccu fdt
 dev/clk/allwinner/ccu_h6_r.c			optional soc_allwinner_h6 aw_ccu fdt
+dev/clk/allwinner/ccu_h616.c			optional soc_allwinner_h616 aw_ccu fdt
 dev/clk/allwinner/ccu_sun8i_r.c			optional aw_ccu fdt
 dev/clk/allwinner/ccu_de2.c			optional aw_ccu fdt
 
@@ -575,6 +577,8 @@ arm/allwinner/h3/h3_padconf.c			optional soc_allwinner_h5 fdt
 arm/allwinner/h3/h3_r_padconf.c			optional soc_allwinner_h5 fdt
 arm/allwinner/h6/h6_padconf.c			optional soc_allwinner_h6 fdt
 arm/allwinner/h6/h6_r_padconf.c			optional soc_allwinner_h6 fdt
+arm/allwinner/h616/h616_padconf.c		optional soc_allwinner_h616 fdt
+arm/allwinner/h616/h616_r_padconf.c		optional soc_allwinner_h616 fdt
 
 # Altera/Intel
 arm64/intel/stratix10-soc-fpga-mgr.c		optional soc_intel_stratix10 fdt

@@ -56,6 +56,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
@@ -367,6 +368,97 @@ pmcstat_pmcindex_to_pmcr(int pmcin)
 	return NULL;
 }
 
+#if defined(__amd64__) || defined(__i386__)
+static void
+pmcstat_print_ibs_fetch(struct pmclog_ev_callchain *cc, int offset)
+{
+	uint64_t *ibsbuf = (uint64_t *)&cc->pl_pc[offset];
+	uint64_t ctl;
+
+	ctl = ibsbuf[PMC_MPIDX_FETCH_CTL];
+	PMCSTAT_PRINT_ENTRY("ibs-fetch", "%s%s%s%s",
+	    (ctl & IBS_FETCH_CTL_ICMISS) ? "icmiss " : "",
+	    (ctl & IBS_FETCH_CTL_L1TLBMISS) ? "l1tlbmiss " : "",
+	    (ctl & IBS_FETCH_CTL_OPCACHEMISS) ? "opcachemiss " : "",
+	    (ctl & IBS_FETCH_CTL_L3MISS) ? "l3miss" : "");
+	PMCSTAT_PRINT_ENTRY("ibs-fetch", "Latency %" PRIu64,
+	    IBS_FETCH_CTL_TO_LAT(ctl));
+	PMCSTAT_PRINT_ENTRY("IBS", "Address %" PRIx64,
+	    ibsbuf[PMC_MPIDX_FETCH_LINADDR]);
+	if ((ctl & IBS_FETCH_CTL_PHYSADDRVALID) != 0) {
+		PMCSTAT_PRINT_ENTRY("IBS", "Physical Address %" PRIx64,
+		    ibsbuf[PMC_MPIDX_FETCH_PHYSADDR]);
+	}
+}
+
+static void
+pmcstat_print_ibs_op(struct pmclog_ev_callchain *cc, int offset)
+{
+	uint64_t *ibsbuf = (uint64_t *)&cc->pl_pc[offset];
+	uint64_t data, data3;
+
+	data = ibsbuf[PMC_MPIDX_OP_DATA];
+	data3 = ibsbuf[PMC_MPIDX_OP_DATA3];
+
+	if ((data & IBS_OP_DATA_RIPINVALID) == 0) {
+		PMCSTAT_PRINT_ENTRY("ibs-op", "RIP %" PRIx64,
+		    ibsbuf[PMC_MPIDX_OP_RIP]);
+	}
+	PMCSTAT_PRINT_ENTRY("ibs-op", "%s%s%s%s",
+	    (data & IBS_OP_DATA_BRANCHRETIRED) ? "branchretired " : "",
+	    (data & IBS_OP_DATA_BRANCHMISPREDICTED) ? "branchmispredicted " : "",
+	    (data & IBS_OP_DATA_BRANCHTAKEN) ? "branchtaken " : "",
+	    (data & IBS_OP_DATA_RETURN) ? "return" : "");
+	PMCSTAT_PRINT_ENTRY("ibs-op", "%s%s%s%s%s",
+	    (data3 & IBS_OP_DATA3_LOAD) ? "load " : "",
+	    (data3 & IBS_OP_DATA3_STORE) ? "store " : "",
+	    (data3 & IBS_OP_DATA3_LOCKEDOP) ? "lock " : "",
+	    (data3 & IBS_OP_DATA3_DCL1TLBMISS) ? "l1tlbmiss " : "",
+	    (data3 & IBS_OP_DATA3_DCMISS) ? "dcmiss " : "");
+	PMCSTAT_PRINT_ENTRY("ibs-op", "Latency %" PRIu64,
+	    IBS_OP_DATA3_TO_DCLAT(data3));
+	if ((data3 & IBS_OP_DATA3_DCLINADDRVALID) != 0) {
+		PMCSTAT_PRINT_ENTRY("ibs-op", "Address %" PRIx64,
+		    ibsbuf[PMC_MPIDX_OP_DC_LINADDR]);
+	}
+	if ((data3 & IBS_OP_DATA3_DCPHYADDRVALID) != 0) {
+		PMCSTAT_PRINT_ENTRY("ibs-op", "Physical Address %" PRIx64,
+		    ibsbuf[PMC_MPIDX_OP_DC_PHYSADDR]);
+	}
+}
+#endif
+
+static int
+pmcstat_print_multipart(struct pmclog_ev_callchain *cc)
+{
+	int i;
+	uint8_t *hdr = (uint8_t *)&cc->pl_pc[0];
+	int offset = PMC_MULTIPART_HEADER_LENGTH / sizeof(uintptr_t);
+
+	for (i = 0; i < PMC_MULTIPART_HEADER_ENTRIES; i++) {
+		uint8_t type = hdr[2 * i];
+		uint8_t len = hdr[2 * i + 1];
+
+		if (type == PMC_CC_MULTIPART_NONE) {
+			break;
+		} else if (type == PMC_CC_MULTIPART_CALLCHAIN) {
+			return (offset);
+#if defined(__amd64__) || defined(__i386__)
+		} else if (type == PMC_CC_MULTIPART_IBS_FETCH) {
+			pmcstat_print_ibs_fetch(cc, offset);
+		} else if (type == PMC_CC_MULTIPART_IBS_OP) {
+			pmcstat_print_ibs_op(cc, offset);
+#endif
+		} else {
+			PMCSTAT_PRINT_ENTRY("unsupported multipart type!");
+		}
+
+		offset += len;
+	}
+
+	return (offset);
+}
+
 /*
  * Print log entries as text.
  */
@@ -388,7 +480,12 @@ pmcstat_print_log(void)
 				pl_cpuflags), ev.pl_u.pl_cc.pl_npc,
 			    PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(ev.pl_u.pl_cc.\
 			        pl_cpuflags) ? 'u' : 's');
-			for (npc = 0; npc < ev.pl_u.pl_cc.pl_npc; npc++)
+			if ((ev.pl_u.pl_cc.pl_cpuflags & PMC_CC_F_MULTIPART)
+			    != 0)
+				npc = pmcstat_print_multipart(&ev.pl_u.pl_cc);
+			else
+				npc = 0;
+			for (; npc < ev.pl_u.pl_cc.pl_npc; npc++)
 				PMCSTAT_PRINT_ENTRY("...", "%p",
 				    (void *) ev.pl_u.pl_cc.pl_pc[npc]);
 			break;

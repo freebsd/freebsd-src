@@ -597,6 +597,8 @@ int	pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	    struct pfr_astats *addr, int *size, int flags);
 int	pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	    struct pfr_addr *addr, int size, int *nzero, int flags);
+int	pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
+	    struct pfr_addr *addr, int size, int *nmatch, int flags);
 
 struct pfctl_limit_rate {
 	unsigned int	 limit;

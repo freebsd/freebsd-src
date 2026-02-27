@@ -109,10 +109,11 @@ struct gic_v3_devinfo {
 MALLOC_DECLARE(M_GIC_V3);
 
 /* ivars */
-#define	GICV3_IVAR_NIRQS	1000
-/* 1001 was GICV3_IVAR_REDIST_VADDR */
-#define	GICV3_IVAR_REDIST	1002
-#define	GICV3_IVAR_FLAGS	1003
+enum {
+	GICV3_IVAR_NIRQS = BUS_IVARS_PRIVATE,
+	GICV3_IVAR_REDIST,
+	GICV3_IVAR_FLAGS,
+};
 
 __BUS_ACCESSOR(gicv3, nirqs, GICV3, NIRQS, u_int);
 __BUS_ACCESSOR(gicv3, redist, GICV3, REDIST, void *);

@@ -35,10 +35,12 @@
  * CPU device support.
  */
 
-#define CPU_IVAR_PCPU		1
-#define CPU_IVAR_NOMINAL_MHZ	2
-#define CPU_IVAR_CPUID_SIZE	3
-#define CPU_IVAR_CPUID		4
+enum {
+	CPU_IVAR_PCPU = BUS_IVARS_PRIVATE,
+	CPU_IVAR_NOMINAL_MHZ,
+	CPU_IVAR_CPUID_SIZE,
+	CPU_IVAR_CPUID
+};
 
 static __inline struct pcpu *
 cpu_get_pcpu(device_t dev)

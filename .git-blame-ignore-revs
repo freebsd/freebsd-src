@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# asmc style cleanup
+d76bb14e0224e235209d8c07ec132d602b18648b
 # sys/bus.h style fixes
 22238759c57d942865cf9d1a355a0d04819eb621
 # sys/efi.h style(9) tweaks

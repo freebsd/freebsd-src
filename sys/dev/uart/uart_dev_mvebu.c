@@ -299,7 +299,7 @@ static kobj_method_t uart_mvebu_methods[] = {
 	KOBJMETHOD(uart_transmit,	uart_mvebu_bus_transmit),
 	KOBJMETHOD(uart_grab,		uart_mvebu_bus_grab),
 	KOBJMETHOD(uart_ungrab,		uart_mvebu_bus_ungrab),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct uart_class uart_mvebu_class = {

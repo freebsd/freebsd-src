@@ -2272,17 +2272,24 @@ create-world-packages-jobs: create-world-package-${pkgname}
 create-world-package-${pkgname}: .PHONY
 	@sh ${SRCDIR}/release/packages/generate-ucl.sh -o ${pkgname} \
 		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl
-	@awk -F\" ' \
-		/^name/ { printf("===> Creating %s-", $$2); next } \
-		/^version/ { print $$2; next } \
-		' ${WSTAGEDIR}/${pkgname}.ucl
-	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
-		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} ${PKG_CLEVEL} -T${PKG_CTHREADS} \
-		-M ${WSTAGEDIR}/${pkgname}.ucl \
-		-p ${WSTAGEDIR}/${pkgname}.plist \
-		-r ${WSTAGEDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+	@if [ "$$(grep -vc '^@dir' ${WSTAGEDIR}/${pkgname}.plist)" -gt 0 ]; then \
+		awk -F\" ' \
+			/^name/ { printf("===> Creating %s-", $$2); next } \
+			/^version/ { print $$2; next } \
+			' ${WSTAGEDIR}/${pkgname}.ucl && \
+		${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
+			-o OSVERSION="${SRCRELDATE}" \
+			create -f ${PKG_FORMAT} ${PKG_CLEVEL} -T${PKG_CTHREADS} \
+			-M ${WSTAGEDIR}/${pkgname}.ucl \
+			-p ${WSTAGEDIR}/${pkgname}.plist \
+			-r ${WSTAGEDIR} \
+			-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}; \
+	else \
+		awk -F\" ' \
+			/^name/ { printf("===> Skipping %s-", $$2); next } \
+			/^version/ { print $$2; next } \
+			' ${WSTAGEDIR}/${pkgname}.ucl; \
+	fi
 .endfor
 
 create-sets-packages-jobs: .PHONY create-sets-packages

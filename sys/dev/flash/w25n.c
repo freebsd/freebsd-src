@@ -586,7 +586,7 @@ static device_method_t w25n_methods[] = {
 	DEVMETHOD(device_attach,	w25n_attach),
 	DEVMETHOD(device_detach,	w25n_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t w25n_driver = {

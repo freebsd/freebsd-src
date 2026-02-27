@@ -842,14 +842,22 @@ static int ath10k_usb_setup_pipe_resources(struct ath10k *ar,
 				   ATH10K_USB_IS_DIR_IN
 				   (endpoint->bEndpointAddress) ?
 				   "rx" : "tx", endpoint->bEndpointAddress,
+#if defined(__linux__)
 				   le16_to_cpu(endpoint->wMaxPacketSize));
+#elif defined(__FreeBSD__)
+				   UGETW(endpoint->wMaxPacketSize));
+#endif
 		} else if (ATH10K_USB_IS_INT_EP(endpoint->bmAttributes)) {
 			ath10k_dbg(ar, ATH10K_DBG_USB,
 				   "usb %s int ep 0x%2.2x maxpktsz %d interval %d\n",
 				   ATH10K_USB_IS_DIR_IN
 				   (endpoint->bEndpointAddress) ?
 				   "rx" : "tx", endpoint->bEndpointAddress,
+#if defined(__linux__)
 				   le16_to_cpu(endpoint->wMaxPacketSize),
+#elif defined(__FreeBSD__)
+				   UGETW(endpoint->wMaxPacketSize),
+#endif
 				   endpoint->bInterval);
 		} else if (ATH10K_USB_IS_ISOC_EP(endpoint->bmAttributes)) {
 			/* TODO for ISO */
@@ -858,7 +866,11 @@ static int ath10k_usb_setup_pipe_resources(struct ath10k *ar,
 				   ATH10K_USB_IS_DIR_IN
 				   (endpoint->bEndpointAddress) ?
 				   "rx" : "tx", endpoint->bEndpointAddress,
+#if defined(__linux__)
 				   le16_to_cpu(endpoint->wMaxPacketSize),
+#elif defined(__FreeBSD__)
+				   UGETW(endpoint->wMaxPacketSize),
+#endif
 				   endpoint->bInterval);
 		}
 
@@ -881,8 +893,13 @@ static int ath10k_usb_setup_pipe_resources(struct ath10k *ar,
 
 		pipe->ar_usb = ar_usb;
 		pipe->logical_pipe_num = pipe_num;
+#if defined(__linux__)
 		pipe->ep_address = endpoint->bEndpointAddress;
 		pipe->max_packet_size = le16_to_cpu(endpoint->wMaxPacketSize);
+#elif defined(__FreeBSD__)
+		pipe->ep_address = endpoint->bEndpointAddress & UE_ADDR;
+		pipe->max_packet_size = UGETW(endpoint->wMaxPacketSize);
+#endif
 
 		if (ATH10K_USB_IS_BULK_EP(endpoint->bmAttributes)) {
 			if (ATH10K_USB_IS_DIR_IN(pipe->ep_address)) {
@@ -1017,8 +1034,13 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	netif_napi_add(ar->napi_dev, &ar->napi, ath10k_usb_napi_poll);
 
 	usb_get_dev(dev);
+#if defined(__linux__)
 	vendor_id = le16_to_cpu(dev->descriptor.idVendor);
 	product_id = le16_to_cpu(dev->descriptor.idProduct);
+#elif defined(__FreeBSD__)
+	vendor_id = UGETW(dev->descriptor.idVendor);
+	product_id = UGETW(dev->descriptor.idProduct);
+#endif
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "usb new func vendor 0x%04x product 0x%04x\n",
@@ -1128,3 +1150,6 @@ module_usb_driver(ath10k_usb_driver);
 MODULE_AUTHOR("Atheros Communications, Inc.");
 MODULE_DESCRIPTION("Driver support for Qualcomm Atheros USB 802.11ac WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");
+#if defined(__FreeBSD__)
+MODULE_DEPEND(ath10k, linuxkpi_usb, 1, 1, 1);
+#endif

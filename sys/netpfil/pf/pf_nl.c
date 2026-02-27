@@ -2467,6 +2467,40 @@ pf_handle_table_clear_astats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
+static int
+pf_handle_table_test_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_parsed_table_addrs attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	error = nl_parse_nlmsg(hdr, &table_addr_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_RLOCK();
+	error = pfr_tst_addrs(&attrs.table, &attrs.addrs[0],
+	    attrs.addr_count, &attrs.nchange,
+	    attrs.flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_RUNLOCK();
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_TABLE_TEST_ADDRS;
+
+	nlattr_add_u32(nw, PF_TAS_ASTATS_COUNT, attrs.nchange);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
 static const struct nlattr_parser nla_p_rate[] = {
 	{ .type = PF_LR_LIMIT, .off = 0, .cb = nlattr_get_uint32 },
 	{ .type = PF_LR_SECONDS, .off = sizeof(unsigned int), .cb = nlattr_get_uint32 },
@@ -3152,6 +3186,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "SOURCE_CLEAR",
 		.cmd_cb = pf_handle_source_clear,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_TABLE_TEST_ADDRS,
+		.cmd_name = "TABLE_TEST_ADDRS",
+		.cmd_cb = pf_handle_table_test_addrs,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };

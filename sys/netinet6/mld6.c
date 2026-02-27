@@ -90,6 +90,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
+#include <netinet6/ip6_mroute.h>
 #include <netinet6/mld6.h>
 #include <netinet6/mld6_var.h>
 
@@ -3062,7 +3063,7 @@ mld_dispatch_packet(struct mbuf *m)
 	}
 
 	im6o.im6o_multicast_hlim  = 1;
-	im6o.im6o_multicast_loop = (V_ip6_mrouter != NULL);
+	im6o.im6o_multicast_loop = V_ip6_mrouting_enabled;
 	im6o.im6o_multicast_ifp = ifp;
 
 	if (m->m_flags & M_MLDV1) {

@@ -80,4 +80,10 @@ struct dmi_system_id {
 
 #define	ACPI_ID_LEN		16
 
+/* -----------------------------------------------------------------------------
+ * USB
+ */
+/* struct usb_device_id is defined in sys/dev/usb/usbdi.h. */
+/* MODULE_DEVICE_TABLE_BUS_usb we have in usb.h. */
+
 #endif	/* __LINUXKPI_LINUX_MOD_DEVICETABLE_H__ */

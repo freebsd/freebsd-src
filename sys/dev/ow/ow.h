@@ -27,7 +27,7 @@
 #define DEV_OW_OW_H 1
 
 enum ow_device_ivars {
-	OW_IVAR_FAMILY,
+	OW_IVAR_FAMILY = BUS_IVARS_PRIVATE,
 	OW_IVAR_ROMID
 };
 

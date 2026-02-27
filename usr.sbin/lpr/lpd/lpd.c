@@ -61,28 +61,28 @@
  */
 
 #include <sys/param.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <netdb.h>
-#include <unistd.h>
-#include <syslog.h>
-#include <signal.h>
+#include <ctype.h>
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <dirent.h>
+#include <netdb.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
-#include <ctype.h>
+#include <syslog.h>
+#include <unistd.h>
 #include "lp.h"
 #include "lp.local.h"
 #include "pathnames.h"
@@ -117,6 +117,7 @@ uid_t	uid, euid;
 int
 main(int argc, char **argv)
 {
+	struct timeval tv = { .tv_sec = 120 };
 	int ch_options, errs, f, funix, *finet, i, lfd, socket_debug;
 	fd_set defreadfds;
 	struct sockaddr_un un, fromunix;
@@ -139,7 +140,7 @@ main(int argc, char **argv)
 		errx(EX_NOPERM,"must run as root");
 
 	errs = 0;
-	while ((i = getopt(argc, argv, "cdlpswFW46")) != -1)
+	while ((i = getopt(argc, argv, "cdlpst:wFW46")) != -1)
 		switch (i) {
 		case 'c':
 			/* log all kinds of connection-errors to syslog */
@@ -158,6 +159,9 @@ main(int argc, char **argv)
 			/* FALLTHROUGH */
 		case 's':		/* secure (no inet) */
 			sflag++;
+			break;
+		case 't':
+			tv.tv_sec = atol(optarg);
 			break;
 		case 'w':		/* netbsd uses -w for maxwait */
 			/*
@@ -385,6 +389,10 @@ main(int argc, char **argv)
 			if (errno != EINTR)
 				syslog(LOG_WARNING, "accept: %m");
 			continue;
+		}
+		if (tv.tv_sec > 0) {
+			(void) setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv,
+			    sizeof(tv));
 		}
 		if (fork() == 0) {
 			/*

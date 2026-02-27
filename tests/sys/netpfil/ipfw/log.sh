@@ -57,31 +57,34 @@ bpf_body()
 		pids="${pids} $!"
 	done
 
-	# wait for tcpdumps to attach, include netstat(1) header in ${count}
-	count=$(( $(echo ${rules} ${auto} | wc -w) + 1))
-	while [ $(jexec alcatraz netstat -B | wc -l) -ne ${count} ]; do
-		sleep 0.01;
+	# wait for tcpdumps to fully attach and block in bpfread()
+	for p in ${pids}; do
+		while [ $(ps -o wchan ${p} | tr "\n" " " | cut -w -f 2) != \
+		    "bpf" ]; do
+			sleep 0.01;
+		done
 	done
 
 	for p in ${rules} 666; do
-		echo foo | nc -u 192.0.2.1 10${p} -w 0
+		echo foo | nc -u 192.0.2.1 10${p}
 	done
 
 	for p in ${pids}; do
-		atf_check -s exit:0 sh -c "wait $pid; exit $?"
+		wait ${p}
+		atf_check_equal 0 $?
 	done
 
 	# statically numbered taps
 	for p in ${rules}; do
 		atf_check -o match:"192.0.2.0.[0-9]+ > 192.0.2.1.10${p}: UDP" \
 		    -e match:"reading from file [a-zA-Z0-9/.]+${p}.pcap" \
-		    tcpdump -nr ${PWD}/${p}.pcap
+		    tcpdump -qnr ${PWD}/${p}.pcap
 	done
 
 	# autonumbered tap with 10666 port
 	atf_check -o match:"192.0.2.0.[0-9]+ > 192.0.2.1.10666: UDP" \
 	    -e match:"reading from file [a-zA-Z0-9/.]+${auto}.pcap" \
-	    tcpdump -nr ${PWD}/${auto}.pcap
+	    tcpdump -qnr ${PWD}/${auto}.pcap
 }
 
 bpf_cleanup()

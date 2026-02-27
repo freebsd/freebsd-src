@@ -111,13 +111,8 @@ void InitRights() {
   cap_rights_init(&(fcntl_rights[1]), CAP_READ, CAP_WRITE);
   cap_rights_init(&(fcntl_rights[2]), CAP_FCNTL);
   cap_rights_init(&(fcntl_rights[3]), CAP_FLOCK);
-#ifdef CAP_FSIGNAL
-  cap_rights_init(&(fcntl_rights[4]), CAP_EVENT, CAP_FSIGNAL);
-  cap_rights_init(&(fcntl_rights[5]), CAP_FLOCK, CAP_FSIGNAL);
-#else
   cap_rights_init(&(fcntl_rights[4]), 0);
   cap_rights_init(&(fcntl_rights[5]), 0);
-#endif
 #ifdef CAP_NOTIFY
   cap_rights_init(&(fcntl_rights[6]), CAP_NOTIFY);
 #else
@@ -176,13 +171,11 @@ TEST(Fcntl, Commands) {
   EXPECT_OK(cap_rights_get(newfd, &rights));
   EXPECT_RIGHTS_EQ(&(fcntl_rights[0]), &rights);
   close(newfd);
-#ifdef HAVE_F_DUP2FD
   EXPECT_OK(fcntl(caps[0], F_DUP2FD, newfd));
   // dup2()'ed FD should have same rights.
   EXPECT_OK(cap_rights_get(newfd, &rights));
   EXPECT_RIGHTS_EQ(&(fcntl_rights[0]), &rights);
   close(newfd);
-#endif
 
   EXPECT_OK(fcntl(caps[0], F_GETFD, 0));
   EXPECT_OK(fcntl(caps[0], F_SETFD, 0));
@@ -258,7 +251,6 @@ TEST(Fcntl, WriteLock) {
   unlink(TmpFile("cap_fcntl_readlock"));
 }
 
-#ifdef HAVE_CAP_FCNTLS_LIMIT
 TEST(Fcntl, SubRightNormalFD) {
   int fd = open(TmpFile("cap_fcntl_subrightnorm"), O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
@@ -273,7 +265,7 @@ TEST(Fcntl, SubRightNormalFD) {
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(fd, &rights));
   cap_rights_t all;
-  CAP_SET_ALL(&all);
+  CAP_ALL(&all);
   EXPECT_RIGHTS_EQ(&all, &rights);
   cap_fcntl_t fcntls;
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
@@ -408,4 +400,3 @@ TEST(Fcntl, OWNSubRights) {
 
   close(sock);
 }
-#endif

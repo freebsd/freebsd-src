@@ -1009,7 +1009,7 @@ static device_method_t hdsp_methods[] = {
 	DEVMETHOD(device_attach,    hdsp_attach),
 	DEVMETHOD(device_detach,    hdsp_detach),
 	DEVMETHOD(bus_child_deleted, hdsp_child_deleted),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hdsp_driver = {

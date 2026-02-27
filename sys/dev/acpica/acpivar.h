@@ -65,6 +65,7 @@ struct acpi_softc {
 
     int			acpi_standby_sx;
     bool		acpi_s4bios;
+    bool		acpi_s4bios_supported;
 
     int			acpi_sleep_delay;
     int			acpi_do_disable;
@@ -276,42 +277,22 @@ extern int	acpi_override_isa_irq_polarity;
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
  */
-#define ACPI_IVAR_HANDLE	0x100
-#define ACPI_IVAR_UNUSED	0x101	/* Unused/reserved. */
-#define ACPI_IVAR_PRIVATE	0x102
-#define ACPI_IVAR_FLAGS		0x103
-#define	ACPI_IVAR_DOMAIN	0x104
+enum {
+	ACPI_IVAR_PRIVATE = 20,
+	ACPI_IVAR_FLAGS,
+	ACPI_IVAR_DOMAIN,
+	ACPI_IVAR_HANDLE = BUS_IVARS_ACPI
+};
 
 /*
  * ad_domain NUMA domain special value.
  */
 #define	ACPI_DEV_DOMAIN_UNKNOWN	(-1)
 
-/*
- * Accessor functions for our ivars.  Default value for BUS_READ_IVAR is
- * (type) 0.  The <sys/bus.h> accessor functions don't check return values.
- */
-#define __ACPI_BUS_ACCESSOR(varp, var, ivarp, ivar, type)	\
-								\
-static __inline type varp ## _get_ ## var(device_t dev)		\
-{								\
-    uintptr_t v = 0;						\
-    BUS_READ_IVAR(device_get_parent(dev), dev,			\
-	ivarp ## _IVAR_ ## ivar, &v);				\
-    return ((type) v);						\
-}								\
-								\
-static __inline void varp ## _set_ ## var(device_t dev, type t)	\
-{								\
-    uintptr_t v = (uintptr_t) t;				\
-    BUS_WRITE_IVAR(device_get_parent(dev), dev,			\
-	ivarp ## _IVAR_ ## ivar, v);				\
-}
-
-__ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
-__ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
-__ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
-__ACPI_BUS_ACCESSOR(acpi, domain, ACPI, DOMAIN, int)
+__BUS_ACCESSOR_DEFAULT(acpi, handle, ACPI, HANDLE, ACPI_HANDLE, NULL)
+__BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
+__BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
+__BUS_ACCESSOR(acpi, domain, ACPI, DOMAIN, int)
 
 void acpi_fake_objhandler(ACPI_HANDLE h, void *data);
 static __inline device_t
@@ -530,6 +511,13 @@ acpi_d_state_to_str(int state)
     return (strs[state]);
 }
 
+static __inline bool
+acpi_should_do_s4bios(struct acpi_softc *sc)
+{
+    MPASS(!sc->acpi_s4bios || sc->acpi_s4bios_supported);
+    return (sc->acpi_s4bios);
+}
+
 char		*acpi_name(ACPI_HANDLE handle);
 int		acpi_avoid(ACPI_HANDLE handle);
 int		acpi_disabled(char *subsys);
@@ -621,6 +609,19 @@ int		acpi_pxm_parse(device_t dev);
  */
 int		acpi_map_pxm_to_vm_domainid(int pxm);
 bus_get_cpus_t		acpi_get_cpus;
+
+/*
+ * Hook for ACPI sleep routine.
+ */
+extern int (*acpi_prepare_sleep)(uint8_t state, uint32_t a, uint32_t b,
+    bool ext);
+
+static inline void
+acpi_set_prepare_sleep(
+    int (*hook)(uint8_t state, uint32_t a, uint32_t b, bool ext))
+{
+	acpi_prepare_sleep = hook;
+}
 
 #ifdef __aarch64__
 /*

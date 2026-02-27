@@ -94,6 +94,9 @@ void
 mac_prison_destroy(struct prison *pr)
 {
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
+
+	/* Symmetry with prison_created */
+	MAC_POLICY_PERFORM_NOSLEEP(prison_cleanup, curthread->td_ucred, pr);
 	mac_prison_label_free(pr->pr_label);
 	pr->pr_label = NULL;
 }

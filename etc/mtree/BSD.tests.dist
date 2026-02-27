@@ -31,6 +31,8 @@
         ..
         echo
         ..
+        ed
+        ..
         expr
         ..
         hostname
@@ -48,6 +50,8 @@
         pkill
         ..
         pwait
+        ..
+        pwd
         ..
         rm
         ..

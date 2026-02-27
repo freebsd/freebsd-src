@@ -127,7 +127,7 @@ static device_method_t le_isa_methods[] = {
 	DEVMETHOD(device_suspend,	le_isa_suspend),
 	DEVMETHOD(device_resume,	le_isa_resume),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 struct le_isa_param {

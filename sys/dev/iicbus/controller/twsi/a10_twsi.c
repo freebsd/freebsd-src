@@ -63,6 +63,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-i2c", 1},
 	{"allwinner,sun6i-a31-i2c", 1},
 	{"allwinner,sun8i-a83t-i2c", 1},
+	{"allwinner,sun50i-h616-i2c", 1},
 	{NULL, 0},
 };
 
@@ -138,7 +139,7 @@ static device_method_t a10_twsi_methods[] = {
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,	a10_twsi_get_node),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(iichb, a10_twsi_driver, a10_twsi_methods,

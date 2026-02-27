@@ -474,7 +474,8 @@ main(int ac, char **av)
 	memset(&qparams, 0, sizeof(qparams));
 	tcp_qpair_params(&qparams, false, address, port);
 
-	io = nvmf_connect(na, &qparams, 1, info.mqes + 1, hostid,
+	io = nvmf_connect(na, &qparams, 1,
+	    MIN(NVMF_DEFAULT_IO_ENTRIES, info.mqes + 1), hostid,
 	    nvmf_cntlid(admin), av[2], hostnqn, 0);
 	if (io == NULL) {
 		warn("Failed to create I/O queue: %s",

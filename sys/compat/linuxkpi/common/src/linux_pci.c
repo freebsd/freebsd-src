@@ -385,14 +385,16 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->dev.bsddev = dev;
 	pdev->dev.parent = &linux_root_device;
 	pdev->dev.release = lkpi_pci_dev_release;
-	INIT_LIST_HEAD(&pdev->dev.irqents);
 
 	if (pci_msi_count(dev) > 0)
 		pdev->msi_desc = malloc(pci_msi_count(dev) *
 		    sizeof(*pdev->msi_desc), M_DEVBUF, M_WAITOK | M_ZERO);
 
+	TAILQ_INIT(&pdev->mmio);
+	spin_lock_init(&pdev->pcie_cap_lock);
 	spin_lock_init(&pdev->dev.devres_lock);
 	INIT_LIST_HEAD(&pdev->dev.devres_head);
+	INIT_LIST_HEAD(&pdev->dev.irqents);
 
 	return (0);
 }
@@ -612,9 +614,6 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	error = linux_pdev_dma_init(pdev);
 	if (error)
 		goto out_dma_init;
-
-	TAILQ_INIT(&pdev->mmio);
-	spin_lock_init(&pdev->pcie_cap_lock);
 
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -1720,9 +1719,26 @@ lkpi_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len,
 	}
 	LINUX_DMA_PCTRIE_REMOVE(&priv->ptree, dma_addr);
 
-	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0)
-		dma_sync_single_for_cpu(dev, dma_addr, len, direction);
+	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) != 0)
+		goto skip_sync;
 
+	/* dma_sync_single_for_cpu() unrolled to avoid lock recursicn. */
+	switch (direction) {
+	case DMA_BIDIRECTIONAL:
+		bus_dmamap_sync(obj->dmat, obj->dmamap, BUS_DMASYNC_POSTREAD);
+		bus_dmamap_sync(obj->dmat, obj->dmamap, BUS_DMASYNC_PREREAD);
+		break;
+	case DMA_TO_DEVICE:
+		bus_dmamap_sync(obj->dmat, obj->dmamap, BUS_DMASYNC_POSTWRITE);
+		break;
+	case DMA_FROM_DEVICE:
+		bus_dmamap_sync(obj->dmat, obj->dmamap, BUS_DMASYNC_POSTREAD);
+		break;
+	default:
+		break;
+	}
+
+skip_sync:
 	bus_dmamap_unload(obj->dmat, obj->dmamap);
 	bus_dmamap_destroy(obj->dmat, obj->dmamap);
 	DMA_PRIV_UNLOCK(priv);

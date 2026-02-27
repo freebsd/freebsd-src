@@ -74,7 +74,7 @@ static device_method_t  ds1775_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ds1775_probe),
 	DEVMETHOD(device_attach,	ds1775_attach),
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t ds1775_driver = {

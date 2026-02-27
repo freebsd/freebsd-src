@@ -2404,11 +2404,7 @@ ktrstructarray(struct ktr_struct_array *ksa, size_t buflen)
 			kev.filter = kev32.filter;
 			kev.flags = kev32.flags;
 			kev.fflags = kev32.fflags;
-#if BYTE_ORDER == BIG_ENDIAN
-			kev.data = kev32.data2 | ((int64_t)kev32.data1 << 32);
-#else
-			kev.data = kev32.data1 | ((int64_t)kev32.data2 << 32);
-#endif
+			memcpy(&kev.data, &kev32.data, sizeof(kev.data));
 			kev.udata = (void *)(uintptr_t)kev32.udata;
 			ktrkevent(&kev);
 		} else if (strcmp(name, "freebsd11_kevent32") == 0) {

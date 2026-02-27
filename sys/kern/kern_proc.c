@@ -1437,7 +1437,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_sid);
 	CP(*ki, *ki32, ki_tsid);
 	CP(*ki, *ki32, ki_jobc);
-	CP(*ki, *ki32, ki_tdev);
+	FU64_CP(*ki, *ki32, ki_tdev);
 	CP(*ki, *ki32, ki_tdev_freebsd11);
 	CP(*ki, *ki32, ki_siglist);
 	CP(*ki, *ki32, ki_sigmask);
@@ -1464,7 +1464,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_slptime);
 	CP(*ki, *ki32, ki_swtime);
 	CP(*ki, *ki32, ki_cow);
-	CP(*ki, *ki32, ki_runtime);
+	FU64_CP(*ki, *ki32, ki_runtime);
 	TV_CP(*ki, *ki32, ki_start);
 	TV_CP(*ki, *ki32, ki_childtime);
 	CP(*ki, *ki32, ki_flag);
@@ -1503,6 +1503,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	PTRTRIM_CP(*ki, *ki32, ki_kstack);
 	PTRTRIM_CP(*ki, *ki32, ki_udata);
 	PTRTRIM_CP(*ki, *ki32, ki_tdaddr);
+	PTRTRIM_CP(*ki, *ki32, ki_pd);
 	CP(*ki, *ki32, ki_sflag);
 	CP(*ki, *ki32, ki_tdflags);
 	PTRTRIM_CP(*ki, *ki32, ki_uerrmsg);
