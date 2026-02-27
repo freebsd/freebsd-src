@@ -40,8 +40,6 @@
 #ifdef EFI_ZFS_BOOT
 static zfsinfo_list_t zfsinfo;
 
-uint64_t pool_guid;
-
 zfsinfo_list_t *
 efizfs_get_zfsinfo_list(void)
 {
@@ -111,13 +109,8 @@ efi_zfs_probe(void)
 		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
 			snprintf(devname, sizeof(devname), "%s%dp%d:",
 			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
-			guid = 0;
-			if (zfs_probe_dev(devname, &guid, false) == 0) {
+			if (zfs_probe_dev(devname, &guid, false) == 0)
 				insert_zfs(pd->pd_handle, guid);
-				if (pd->pd_handle == boot_img->DeviceHandle)
-					pool_guid = guid;
-			}
-
 		}
 	}
 }

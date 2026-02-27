@@ -588,6 +588,9 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 	}
 
 #ifdef EFI_ZFS_BOOT
+	zfsinfo_list_t *zfsinfo = efizfs_get_zfsinfo_list();
+	zfsinfo_t *zi;
+
 	/*
 	 * Did efi_zfs_probe() detect the boot pool? If so, use the zpool
 	 * it found, if it's sane. ZFS is the only thing that looks for
@@ -595,9 +598,9 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 	 * if we allow specifying which pool to boot from via UEFI variables
 	 * rather than the bootenv stuff that FreeBSD uses today.
 	 */
-	if (pool_guid != 0) {
-		printf("Trying ZFS pool\n");
-		if (probe_zfs_currdev(pool_guid))
+	STAILQ_FOREACH(zi, zfsinfo, zi_link) {
+		printf("Trying ZFS pool 0x%jx\n", zi->zi_pool_guid);
+		if (probe_zfs_currdev(zi->zi_pool_guid))
 			return (0);
 	}
 #endif /* EFI_ZFS_BOOT */
