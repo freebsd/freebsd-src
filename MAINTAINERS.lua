@@ -60,25 +60,25 @@ end
 
 local regexify_glob = function (s)
 	-- escape periods
-	s = s:gsub('%.', '\\.')
+	s = s:gsub('([.^$+])', '\\%1')
 	-- more than two stars in a row is a single glob
 	s = s:gsub('%*%*+', '*')
 	-- the first two prevent ? from matching dotfiles
 	s = s:gsub('^%?', '[^./]') 
 	s = s:gsub('/%?', '/[^./]')
 	s = s:gsub('%?', '[^/]')
-	-- globstar
-	s = s:gsub('%*%*', '.*?')
-	-- the first two prevent * from matching dotfiles
+	-- globstar (is weird to prevent the stuff below from replacing it)
+	s = s:gsub('%*%*', '(.+?|)')
+	-- prevent * from matching dotfiles
+	s = s:gsub('([^/])%*', '%1[^/]*?')
 	s = s:gsub('/%*', '/(?:[^./][^/]*?|)')
 	s = s:gsub('^%*', '(?:[^./][^/]*?|)')
-	s = s:gsub('%*', '[^/]*?')
 	return s
 end
 
 local is_child_of = function (maybe_child, of)
 	local s = ''
-	for segment in string.gmatch(maybe_child, '..-[/%$]') do
+	for segment in string.gmatch(maybe_child, '..-/') do
 		s = s..segment
 		if glob.fnmatch(s, of) == 0 and s ~= maybe_child then
 			return true
@@ -126,6 +126,17 @@ elseif arg[1] == 'get_info' then
 		end
 	end
 elseif arg[1] == 'update' then
+	local names_sorted = function (id_arr, name_path)
+		local name_arr = {}
+		for _, id in ipairs(id_arr) do
+			if people[id] ~= nil and people[id][name_path] ~= nil then
+				table.insert(name_arr, people[id][name_path])
+			end
+		end
+		table.sort(name_arr)
+		return name_arr
+	end
+
 	--
 	-- GitHub
 	--
@@ -164,15 +175,21 @@ elseif arg[1] == 'update' then
 			foreach(group.members, function (m) set_insert(gh_table[path], m) end)
 		end
 	end
-	
+
+	-- sort stuff
+	local gh_paths = {}
+	for path, _ in pairs(gh_table) do
+		table.insert(gh_paths, path)
+	end
+	table.sort(gh_paths)
+
+	-- output to file
 	local gh_file = io.open('.github/CODEOWNERS', 'w')
 	if gh_file ~= nil then
-		for path, id_arr in pairs(gh_table) do
+		for _, path in ipairs(gh_paths) do
 			gh_file:write(path)
-			for _, id in ipairs(id_arr) do
-				if people[id] ~= nil and people[id].github ~= nil then
-					gh_file:write(' ', people[id].github)
-				end
+			for _, name in pairs(names_sorted(gh_table[path], 'github')) do
+				gh_file:write(' ', name)
 			end
 			gh_file:write('\n')
 		end
@@ -192,14 +209,20 @@ elseif arg[1] == 'update' then
 		return
 	end
 
+	-- sort groups to ensure consistent ordering
+	local fj_groups = {}
+	for group, _ in pairs(groups) do
+		table.insert(fj_groups, group)
+	end
+	table.sort(fj_groups)
+
 	-- currently does not handle the contents of `except`
-	for _, group in pairs(groups) do
+	for _, g in ipairs(fj_groups) do
+		local group = groups[g]
 		for _, path in ipairs(group.watch) do
 			fj_file:write(regexify_glob(path))
-			for _, id in ipairs(group.members) do
-				if people[id] ~= nil and people[id].forgejo ~= nil then
-					fj_file:write(' ', people[id].forgejo)
-				end
+			for _, name in ipairs(names_sorted(group.members, 'forgejo')) do
+				fj_file:write(' ', name)
 			end
 			fj_file:write('\n')
 		end
