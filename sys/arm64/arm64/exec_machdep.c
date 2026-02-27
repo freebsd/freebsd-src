@@ -482,6 +482,7 @@ int
 get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 {
 	struct trapframe *tf = td->td_frame;
+	ksiginfo_t *ksi = td->td_proc->p_ksi;
 
 	if (clear_ret & GET_MC_CLEAR_RET) {
 		mcp->mc_gpregs.gp_x[0] = 0;
@@ -497,6 +498,10 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	mcp->mc_gpregs.gp_sp = tf->tf_sp;
 	mcp->mc_gpregs.gp_lr = tf->tf_lr;
 	mcp->mc_gpregs.gp_elr = tf->tf_elr;
+	if (ksi != NULL && (ksi->ksi_flags & KSI_EXCEPT) != 0) {
+		mcp->mc_esr = tf->tf_esr;
+		mcp->mc_flags |= _MC_ESR_VALID;
+	}
 	get_fpcontext(td, mcp);
 
 	return (0);
