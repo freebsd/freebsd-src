@@ -113,7 +113,6 @@ struct snl_parsed_route {
 	struct sockaddr		*rta_gw;
 	struct nlattr		*rta_metrics;
 	struct rta_mpath	rta_multipath;
-	uint32_t		rta_expires;
 	uint32_t		rta_oif;
 	uint32_t		rta_expire;
 	uint32_t		rta_table;
