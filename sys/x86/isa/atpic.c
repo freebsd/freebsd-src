@@ -68,8 +68,6 @@
 
 #define	IMEN_MASK(ai)		(IRQ_MASK((ai)->at_irq))
 
-#define	NUM_ISA_IRQS		16
-
 static void	atpic_init(void *dummy);
 
 inthand_t
