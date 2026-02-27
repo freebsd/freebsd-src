@@ -1,0 +1,16 @@
+    1  2025-07-17 12:10:56.004346 IP6 (hlim 64, next-header Mobility (135), payload length 8) 2001:db8::1 > 2001:db8::2: mobility: BRR
+    2  2025-07-17 12:10:56.005457 IP6 (hlim 64, next-header Mobility (135), payload length 16) 2001:db8::1 > 2001:db8::2: mobility: HoTI Home Init Cookie=01020304:05060708
+    3  2025-07-17 12:10:56.006410 IP6 (hlim 64, next-header Mobility (135), payload length 16) 2001:db8::1 > 2001:db8::2: mobility: CoTI Care-of Init Cookie=090a0b0c:0d0e0f10
+    4  2025-07-17 12:10:56.007470 IP6 (hlim 64, next-header Mobility (135), payload length 24) 2001:db8::1 > 2001:db8::2: mobility: HoT nonce id=0x90a Home Init Cookie=0b0c0d0e:0f1004d2 Home Keygen Token=11121314:15161718
+    5  2025-07-17 12:10:56.008509 IP6 (hlim 64, next-header Mobility (135), payload length 24) 2001:db8::1 > 2001:db8::2: mobility: CoT nonce id=0x90a Care-of Init Cookie=0b0c0d0e:0f10162e Care-of Keygen Token=191a1b1c:1d1e1f20
+    6  2025-07-17 12:10:56.010012 IP6 (hlim 64, next-header Mobility (135), payload length 16) 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400(padn)
+    7  2025-07-17 12:10:56.011973 IP6 (hlim 64, next-header Mobility (135), payload length 32) 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400(alt-CoA: 2001:660:4701:f004:20d:54ff:fe98:bc93)(padn)
+    8  2025-07-17 12:10:56.013393 IP6 (hlim 64, next-header Mobility (135), payload length 24) 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400(ni: ho=0x04d2 co=0x162e)(padn)
+    9  2025-07-17 12:10:56.014768 IP6 (hlim 64, next-header Mobility (135), payload length 32) 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400(auth)(padn)
+   10  2025-07-17 12:10:56.016129 IP6 (hlim 64, next-header Mobility (135), payload length 56) 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400(alt-CoA: 2001:660:4701:f004:20d:54ff:fe98:bc93)(ni: ho=0x04d2 co=0x162e)(auth)(padn)
+   11  2025-07-17 12:10:56.017534 IP6 (hlim 64, next-header Mobility (135), payload length 16) 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400(padn)
+   12  2025-07-17 12:10:56.018886 IP6 (hlim 64, next-header Mobility (135), payload length 16) 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400(refresh: 7200)
+   13  2025-07-17 12:10:56.020575 IP6 (hlim 64, next-header Mobility (135), payload length 32) 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400(auth)(padn)
+   14  2025-07-17 12:10:56.021972 IP6 (hlim 64, next-header Mobility (135), payload length 32) 2001:db8::1 > 2001:db8::2: mobility: BA status=0 seq#=1000 lifetime=14400(refresh: 7200)(auth)(padn)
+   15  2025-07-17 12:10:56.023034 IP6 (hlim 64, next-header Mobility (135), payload length 24) 2001:db8::1 > 2001:db8::2: mobility: BE status=1 homeaddr 2001:db8::1
+   16  2025-07-17 12:10:56.024547 IP6 (hlim 64, next-header Mobility (135), payload length 16) 2001:db8::1 > 2001:db8::2: mobility: BU seq#=1000 A lifetime=14400(pad1)(pad1)(pad1)(pad1)

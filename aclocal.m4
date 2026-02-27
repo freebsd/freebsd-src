@@ -1003,6 +1003,11 @@ dnl	os-proto.h (symlinked)
 dnl
 AC_DEFUN(AC_LBL_DEVEL,
     [rm -f os-proto.h
+    #
+    # MKDEP defaults to no-op (":") if we don't test whether the compiler
+    # supports generating dependencies
+    #
+    MKDEP=:
     if test "${LBL_CFLAGS+set}" = set; then
 	    $1="$$1 ${LBL_CFLAGS}"
     fi
@@ -1015,6 +1020,7 @@ AC_DEFUN(AC_LBL_DEVEL,
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wall)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wassign-enum)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcast-qual)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcomma)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-prototypes)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-variable-declarations)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wnull-pointer-subtraction)
@@ -1041,14 +1047,16 @@ AC_DEFUN(AC_LBL_DEVEL,
 	    # .devel file; why should the ABI for which we produce code
 	    # depend on .devel?
 	    #
+	    AC_MSG_CHECKING([whether to use an os-proto.h header])
 	    os=`echo $host_os | sed -e 's/\([[0-9]][[0-9]]*\)[[^0-9]].*$/\1/'`
 	    name="lbl/os-$os.h"
 	    if test -f $name ; then
+		    AC_MSG_RESULT([yes, at "$name"])
 		    ln -s $name os-proto.h
 		    AC_DEFINE(HAVE_OS_PROTO_H, 1,
-			[if there's an os_proto.h for this platform, to use additional prototypes])
+			[if there's an os-proto.h for this platform, to use additional prototypes])
 	    else
-		    AC_MSG_WARN(can't find $name)
+		    AC_MSG_RESULT([no])
 	    fi
     fi])
 

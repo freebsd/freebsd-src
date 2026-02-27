@@ -1,42 +1,42 @@
-    1  2008-08-31 12:43:11.663317 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
+    1  2008-08-31 12:43:11.663317 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Neighbor List:
-    2  2008-08-31 12:43:21.639415 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
+    2  2008-08-31 12:43:21.639415 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Neighbor List:
-    3  2008-08-31 12:43:31.662021 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
+    3  2008-08-31 12:43:31.662021 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Neighbor List:
-    4  2008-08-31 12:43:41.642109 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
+    4  2008-08-31 12:43:41.642109 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 36) fe80::1 > ff02::5: OSPFv3, Hello, length 36
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Neighbor List:
-    5  2008-08-31 12:43:46.469862 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 36) fe80::2 > ff02::5: OSPFv3, Hello, length 36
+    5  2008-08-31 12:43:46.469862 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 36) fe80::2 > ff02::5: OSPFv3, Hello, length 36
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Neighbor List:
-    6  2008-08-31 12:43:51.641566 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
+    6  2008-08-31 12:43:51.641566 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Designated Router 1.1.1.1
 	  Neighbor List:
 	    2.2.2.2
-    7  2008-08-31 12:43:51.657571 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 28) fe80::2 > fe80::1: OSPFv3, Database Description, length 28
+    7  2008-08-31 12:43:51.657571 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 28) fe80::2 > fe80::1: OSPFv3, Database Description, length 28
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	Options [V6, External, Router], DD Flags [Init, More, Master], MTU 1500, DD-Sequence 0x00001d46
-    8  2008-08-31 12:43:51.661568 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 28) fe80::1 > fe80::2: OSPFv3, Database Description, length 28
+    8  2008-08-31 12:43:51.661568 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 28) fe80::1 > fe80::2: OSPFv3, Database Description, length 28
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router], DD Flags [Init, More, Master], MTU 1500, DD-Sequence 0x0000242c
-    9  2008-08-31 12:43:51.665572 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 168) fe80::1 > fe80::2: OSPFv3, Database Description, length 168
+    9  2008-08-31 12:43:51.665572 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 168) fe80::1 > fe80::2: OSPFv3, Database Description, length 168
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router], DD Flags [More], MTU 1500, DD-Sequence 0x00001d46
 	  Advertising Router 1.1.1.1, seq 0x80000002, age 39s, length 4
@@ -53,7 +53,7 @@
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
 	  Advertising Router 1.1.1.1, seq 0x80000001, age 34s, length 24
 	    Intra-Area Prefix LSA (9), Area Local Scope, LSA-ID 0.0.0.0
-   10  2008-08-31 12:43:51.669564 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 148) fe80::2 > fe80::1: OSPFv3, Database Description, length 148
+   10  2008-08-31 12:43:51.669564 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 148) fe80::2 > fe80::1: OSPFv3, Database Description, length 148
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	Options [V6, External, Router], DD Flags [More, Master], MTU 1500, DD-Sequence 0x00001d47
 	  Advertising Router 2.2.2.2, seq 0x80000002, age 4s, length 4
@@ -68,10 +68,10 @@
 	    Inter-Area Prefix LSA (3), Area Local Scope, LSA-ID 0.0.0.3
 	  Advertising Router 2.2.2.2, seq 0x80000001, age 4s, length 24
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
-   11  2008-08-31 12:43:51.673558 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 28) fe80::1 > fe80::2: OSPFv3, Database Description, length 28
+   11  2008-08-31 12:43:51.673558 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 28) fe80::1 > fe80::2: OSPFv3, Database Description, length 28
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router], DD Flags [none], MTU 1500, DD-Sequence 0x00001d47
-   12  2008-08-31 12:43:51.673584 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 100) fe80::2 > fe80::1: OSPFv3, LS-Request, length 100
+   12  2008-08-31 12:43:51.673584 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 100) fe80::2 > fe80::1: OSPFv3, LS-Request, length 100
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 1.1.1.1
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
@@ -87,7 +87,7 @@
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
 	  Advertising Router 1.1.1.1
 	    Intra-Area Prefix LSA (9), Area Local Scope, LSA-ID 0.0.0.0
-   13  2008-08-31 12:43:51.677560 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 88) fe80::1 > fe80::2: OSPFv3, LS-Request, length 88
+   13  2008-08-31 12:43:51.677560 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 88) fe80::1 > fe80::2: OSPFv3, LS-Request, length 88
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 2.2.2.2
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
@@ -101,10 +101,10 @@
 	    Inter-Area Prefix LSA (3), Area Local Scope, LSA-ID 0.0.0.0
 	  Advertising Router 2.2.2.2
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
-   14  2008-08-31 12:43:51.677587 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 28) fe80::2 > fe80::1: OSPFv3, Database Description, length 28
+   14  2008-08-31 12:43:51.677587 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 28) fe80::2 > fe80::1: OSPFv3, Database Description, length 28
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	Options [V6, External, Router], DD Flags [Master], MTU 1500, DD-Sequence 0x00001d48
-   15  2008-08-31 12:43:51.681554 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 288) fe80::1 > fe80::2: OSPFv3, LS-Update, length 288
+   15  2008-08-31 12:43:51.681554 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 288) fe80::1 > fe80::2: OSPFv3, LS-Update, length 288
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000002, age 40s, length 4
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
@@ -131,7 +131,7 @@
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
 	      Prefixes 1:
 		2001:db8:0:12::/64, metric 10
-   16  2008-08-31 12:43:51.681579 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 232) fe80::2 > fe80::1: OSPFv3, LS-Update, length 232
+   16  2008-08-31 12:43:51.681579 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 232) fe80::2 > fe80::1: OSPFv3, LS-Update, length 232
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000002, age 5s, length 4
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
@@ -152,17 +152,17 @@
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
 	      Options [V6, External, Router, Demand Circuit]
 	      Priority 1, Link-local address fe80::2, Prefixes 0:
-   17  2008-08-31 12:43:51.685573 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 28) fe80::1 > fe80::2: OSPFv3, Database Description, length 28
+   17  2008-08-31 12:43:51.685573 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 28) fe80::1 > fe80::2: OSPFv3, Database Description, length 28
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router], DD Flags [none], MTU 1500, DD-Sequence 0x00001d48
-   18  2008-08-31 12:43:52.169543 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 60) fe80::2 > ff02::5: OSPFv3, LS-Update, length 60
+   18  2008-08-31 12:43:52.169543 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 60) fe80::2 > ff02::5: OSPFv3, LS-Update, length 60
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000003, age 1s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
 	      Options [V6, External, Router, Demand Circuit], RLA-Flags [ABR]
 	      Neighbor Network-ID 1.1.1.1
 	      Neighbor Interface-ID 0.0.0.5, Interface 0.0.0.5, metric 10
-   19  2008-08-31 12:43:52.173536 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 168) fe80::1 > ff02::5: OSPFv3, LS-Update, length 168
+   19  2008-08-31 12:43:52.173536 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 168) fe80::1 > ff02::5: OSPFv3, LS-Update, length 168
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000001, age 1s, length 12
 	    Network LSA (2), Area Local Scope, LSA-ID 0.0.0.5
@@ -184,14 +184,14 @@
 	      Options [V6, External, Router, Demand Circuit], RLA-Flags [ABR]
 	      Neighbor Network-ID 1.1.1.1
 	      Neighbor Interface-ID 0.0.0.5, Interface 0.0.0.5, metric 10
-   20  2008-08-31 12:43:52.657486 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 76) fe80::2 > ff02::5: OSPFv3, LS-Update, length 76
+   20  2008-08-31 12:43:52.657486 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 76) fe80::2 > ff02::5: OSPFv3, LS-Update, length 76
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000002, age 1s, length 36
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
 	      Options [V6, External, Router, Demand Circuit]
 	      Priority 1, Link-local address fe80::2, Prefixes 1:
 		2001:db8:0:12::/64, metric 0
-   21  2008-08-31 12:43:54.185384 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 136) fe80::1 > ff02::5: OSPFv3, LS-Ack, length 136
+   21  2008-08-31 12:43:54.185384 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 136) fe80::1 > ff02::5: OSPFv3, LS-Ack, length 136
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000002, age 5s, length 4
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
@@ -205,7 +205,7 @@
 	    Inter-Area Prefix LSA (3), Area Local Scope, LSA-ID 0.0.0.0
 	  Advertising Router 2.2.2.2, seq 0x80000001, age 5s, length 24
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
-   22  2008-08-31 12:43:54.189410 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 196) fe80::2 > ff02::5: OSPFv3, LS-Ack, length 196
+   22  2008-08-31 12:43:54.189410 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 196) fe80::2 > ff02::5: OSPFv3, LS-Ack, length 196
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000002, age 40s, length 4
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
@@ -225,21 +225,21 @@
 	    Network LSA (2), Area Local Scope, LSA-ID 0.0.0.5
 	  Advertising Router 1.1.1.1, seq 0x80000001, age 1s, length 24
 	    Intra-Area Prefix LSA (9), Area Local Scope, LSA-ID 0.0.20.0
-   23  2008-08-31 12:43:56.473237 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 40) fe80::2 > ff02::5: OSPFv3, Hello, length 40
+   23  2008-08-31 12:43:56.473237 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 40) fe80::2 > ff02::5: OSPFv3, Hello, length 40
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Designated Router 1.1.1.1, Backup Designated Router 2.2.2.2
 	  Neighbor List:
 	    1.1.1.1
-   24  2008-08-31 12:43:57.029218 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 60) fe80::2 > fe80::1: OSPFv3, LS-Update, length 60
+   24  2008-08-31 12:43:57.029218 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 60) fe80::2 > fe80::1: OSPFv3, LS-Update, length 60
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000003, age 5s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
 	      Options [V6, External, Router, Demand Circuit], RLA-Flags [ABR]
 	      Neighbor Network-ID 1.1.1.1
 	      Neighbor Interface-ID 0.0.0.5, Interface 0.0.0.5, metric 10
-   25  2008-08-31 12:43:57.177184 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 92) fe80::1 > fe80::2: OSPFv3, LS-Update, length 92
+   25  2008-08-31 12:43:57.177184 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 92) fe80::1 > fe80::2: OSPFv3, LS-Update, length 92
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000002, age 3600s, length 12
 	    Intra-Area Prefix LSA (9), Area Local Scope, LSA-ID 0.0.0.0
@@ -250,83 +250,83 @@
 	      Options [V6, External, Router, Demand Circuit], RLA-Flags [ABR]
 	      Neighbor Network-ID 1.1.1.1
 	      Neighbor Interface-ID 0.0.0.5, Interface 0.0.0.5, metric 10
-   26  2008-08-31 12:43:57.361169 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 60) fe80::1 > ff02::5: OSPFv3, LS-Update, length 60
+   26  2008-08-31 12:43:57.361169 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 60) fe80::1 > ff02::5: OSPFv3, LS-Update, length 60
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000004, age 1s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
 	      Options [V6, External, Router, Demand Circuit], RLA-Flags [ABR]
 	      Neighbor Network-ID 1.1.1.1
 	      Neighbor Interface-ID 0.0.0.5, Interface 0.0.0.5, metric 10
-   27  2008-08-31 12:43:57.589177 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 76) fe80::2 > fe80::1: OSPFv3, LS-Update, length 76
+   27  2008-08-31 12:43:57.589177 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 76) fe80::2 > fe80::1: OSPFv3, LS-Update, length 76
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000002, age 5s, length 36
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
 	      Options [V6, External, Router, Demand Circuit]
 	      Priority 1, Link-local address fe80::2, Prefixes 1:
 		2001:db8:0:12::/64, metric 0
-   28  2008-08-31 12:43:59.512989 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 56) fe80::1 > ff02::5: OSPFv3, LS-Ack, length 56
+   28  2008-08-31 12:43:59.512989 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 56) fe80::1 > ff02::5: OSPFv3, LS-Ack, length 56
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000003, age 5s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
 	  Advertising Router 2.2.2.2, seq 0x80000002, age 5s, length 36
 	    Link LSA (8), Link Local Scope, LSA-ID 0.0.0.5
-   29  2008-08-31 12:43:59.697003 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 56) fe80::2 > ff02::5: OSPFv3, LS-Ack, length 56
+   29  2008-08-31 12:43:59.697003 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 56) fe80::2 > ff02::5: OSPFv3, LS-Ack, length 56
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000002, age 3600s, length 12
 	    Intra-Area Prefix LSA (9), Area Local Scope, LSA-ID 0.0.0.0
 	  Advertising Router 1.1.1.1, seq 0x80000003, age 6s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
-   30  2008-08-31 12:44:01.660902 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
+   30  2008-08-31 12:44:01.660902 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Designated Router 1.1.1.1, Backup Designated Router 2.2.2.2
 	  Neighbor List:
 	    2.2.2.2
-   31  2008-08-31 12:44:02.136860 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 60) fe80::1 > fe80::2: OSPFv3, LS-Update, length 60
+   31  2008-08-31 12:44:02.136860 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 60) fe80::1 > fe80::2: OSPFv3, LS-Update, length 60
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000004, age 5s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
 	      Options [V6, External, Router, Demand Circuit], RLA-Flags [ABR]
 	      Neighbor Network-ID 1.1.1.1
 	      Neighbor Interface-ID 0.0.0.5, Interface 0.0.0.5, metric 10
-   32  2008-08-31 12:44:02.176890 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 60) fe80::2 > ff02::5: OSPFv3, LS-Update, length 60
+   32  2008-08-31 12:44:02.176890 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 60) fe80::2 > ff02::5: OSPFv3, LS-Update, length 60
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000004, age 1s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
 	      Options [V6, External, Router, Demand Circuit], RLA-Flags [ABR]
 	      Neighbor Network-ID 1.1.1.1
 	      Neighbor Interface-ID 0.0.0.5, Interface 0.0.0.5, metric 10
-   33  2008-08-31 12:44:04.652686 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 36) fe80::2 > ff02::5: OSPFv3, LS-Ack, length 36
+   33  2008-08-31 12:44:04.652686 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 36) fe80::2 > ff02::5: OSPFv3, LS-Ack, length 36
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	  Advertising Router 1.1.1.1, seq 0x80000004, age 5s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
-   34  2008-08-31 12:44:04.696653 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 36) fe80::1 > ff02::5: OSPFv3, LS-Ack, length 36
+   34  2008-08-31 12:44:04.696653 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 36) fe80::1 > ff02::5: OSPFv3, LS-Ack, length 36
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	  Advertising Router 2.2.2.2, seq 0x80000004, age 1s, length 20
 	    Router LSA (1), Area Local Scope, LSA-ID 0.0.0.0
-   35  2008-08-31 12:44:06.479868 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 40) fe80::2 > ff02::5: OSPFv3, Hello, length 40
+   35  2008-08-31 12:44:06.479868 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 40) fe80::2 > ff02::5: OSPFv3, Hello, length 40
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Designated Router 1.1.1.1, Backup Designated Router 2.2.2.2
 	  Neighbor List:
 	    1.1.1.1
-   36  2008-08-31 12:44:11.632208 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
+   36  2008-08-31 12:44:11.632208 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Designated Router 1.1.1.1, Backup Designated Router 2.2.2.2
 	  Neighbor List:
 	    2.2.2.2
-   37  2008-08-31 12:44:16.451231 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 40) fe80::2 > ff02::5: OSPFv3, Hello, length 40
+   37  2008-08-31 12:44:16.451231 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 40) fe80::2 > ff02::5: OSPFv3, Hello, length 40
 	Router-ID 2.2.2.2, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1
 	  Designated Router 1.1.1.1, Backup Designated Router 2.2.2.2
 	  Neighbor List:
 	    1.1.1.1
-   38  2008-08-31 12:44:21.651575 IP6 (class 0xe0, hlim 1, next-header OSPF (89) payload length: 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
+   38  2008-08-31 12:44:21.651575 IP6 (class 0xe0, hlim 1, next-header OSPF (89), payload length 40) fe80::1 > ff02::5: OSPFv3, Hello, length 40
 	Router-ID 1.1.1.1, Area 0.0.0.1
 	Options [V6, External, Router]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.5, Priority 1

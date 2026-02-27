@@ -3,7 +3,7 @@
 	Leap indicator:  (0), Stratum 0 (unspecified), poll 0 (1s), precision 32
 	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
 	  Reference Timestamp:  0.000000000
-	  Originator Timestamp: 0.000000000
+	  Origin Timestamp:     0.000000000
 	  Receive Timestamp:    0.000000000
 	  Transmit Timestamp:   2763234513.007738396 (1987-07-25T21:08:33Z)
 	    Originator - Receive Timestamp:  0.000000000
@@ -15,7 +15,7 @@
 	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 3 (8s), precision -23
 	Root Delay: 0.000000, Root dispersion: 0.001373, Reference-ID: (unspec)
 	  Reference Timestamp:  0.000000000
-	  Originator Timestamp: 2763234513.007738396 (1987-07-25T21:08:33Z)
+	  Origin Timestamp:     2763234513.007738396 (1987-07-25T21:08:33Z)
 	  Receive Timestamp:    3706870329.516015118 (2017-06-19T14:12:09Z)
 	  Transmit Timestamp:   3706870329.516074047 (2017-06-19T14:12:09Z)
 	    Originator - Receive Timestamp:  +943635816.508276721
@@ -26,8 +26,8 @@
 	Leap indicator:  (0), Stratum 0 (unspecified), poll 0 (1s), precision 32
 	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
 	  Reference Timestamp:  0.000000000
-	  Originator Timestamp: 3706870757.473833108 (2017-06-19T14:19:17Z)
-	  Receive Timestamp:    1802554105.693999877 (1957-02-13T21:28:25Z)
+	  Origin Timestamp:     3706870757.473833108 (2017-06-19T14:19:17Z)
+	  Receive Timestamp:    1802554105.693999877 (2093-03-22T03:56:41Z)
 	  Transmit Timestamp:   2929527464.107565978 (1992-10-31T13:37:44Z)
 	    Originator - Receive Timestamp:  -1904316651.779833231
 	    Originator - Transmit Timestamp: -777343293.366267130
@@ -38,7 +38,7 @@
 	Leap indicator:  (0), Stratum 2 (secondary reference), poll 0 (1s), precision -23
 	Root Delay: 0.155502, Root dispersion: 0.001571, Reference-ID: 0x0a051b0a
 	  Reference Timestamp:  3706870757.720418353 (2017-06-19T14:19:17Z)
-	  Originator Timestamp: 2929527464.107565978 (1992-10-31T13:37:44Z)
+	  Origin Timestamp:     2929527464.107565978 (1992-10-31T13:37:44Z)
 	  Receive Timestamp:    3706870758.494427815 (2017-06-19T14:19:18Z)
 	  Transmit Timestamp:   3706870758.494546877 (2017-06-19T14:19:18Z)
 	    Originator - Receive Timestamp:  +777343294.386861836
@@ -50,7 +50,7 @@
 	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 3 (8s), precision -6
 	Root Delay: 1.000000, Root dispersion: 1.000000, Reference-ID: (unspec)
 	  Reference Timestamp:  0.000000000
-	  Originator Timestamp: 0.000000000
+	  Origin Timestamp:     0.000000000
 	  Receive Timestamp:    0.000000000
 	  Transmit Timestamp:   3706870974.488488492 (2017-06-19T14:22:54Z)
 	    Originator - Receive Timestamp:  0.000000000
@@ -60,7 +60,7 @@
 	Leap indicator:  (0), Stratum 2 (secondary reference), poll 3 (8s), precision -23
 	Root Delay: 0.155456, Root dispersion: 0.001007, Reference-ID: 0x0a051b0a
 	  Reference Timestamp:  3706870972.021018556 (2017-06-19T14:22:52Z)
-	  Originator Timestamp: 3706870974.488488492 (2017-06-19T14:22:54Z)
+	  Origin Timestamp:     3706870974.488488492 (2017-06-19T14:22:54Z)
 	  Receive Timestamp:    3706870974.488540573 (2017-06-19T14:22:54Z)
 	  Transmit Timestamp:   3706870974.488665335 (2017-06-19T14:22:54Z)
 	    Originator - Receive Timestamp:  +0.000052081
@@ -70,7 +70,7 @@
 	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 6 (64s), precision -25
 	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
 	  Reference Timestamp:  0.000000000
-	  Originator Timestamp: 0.000000000
+	  Origin Timestamp:     0.000000000
 	  Receive Timestamp:    0.000000000
 	  Transmit Timestamp:   3706872432.800841171 (2017-06-19T14:47:12Z)
 	    Originator - Receive Timestamp:  0.000000000
@@ -82,7 +82,7 @@
 	Leap indicator:  (0), Stratum 2 (secondary reference), poll 6 (64s), precision -23
 	Root Delay: 0.116577, Root dispersion: 0.001739, Reference-ID: 0x0a0ba0ee
 	  Reference Timestamp:  3706872421.265296222 (2017-06-19T14:47:01Z)
-	  Originator Timestamp: 3706872432.800841171 (2017-06-19T14:47:12Z)
+	  Origin Timestamp:     3706872432.800841171 (2017-06-19T14:47:12Z)
 	  Receive Timestamp:    3706872432.799168336 (2017-06-19T14:47:12Z)
 	  Transmit Timestamp:   3706872432.799217265 (2017-06-19T14:47:12Z)
 	    Originator - Receive Timestamp:  -0.001672834

@@ -188,7 +188,7 @@
 	      YS (41), NTP (42), MTU (26), Unknown (119)
 	      Default-Gateway (3), Classless-Static-Route (121), Classless-Static-Route-Microsoft (249), Unknown (252)
 	      NTP (42)
-    9  2013-08-05 06:05:56.022134 IP6 (hlim 1, next-header Options (0) payload length: 76) :: > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 3 group record(s) [gaddr ff02::1:ff46:e884 to_ex { }] [gaddr ff02::2 to_ex { }] [gaddr ff02::202 to_ex { }]
+    9  2013-08-05 06:05:56.022134 IP6 (hlim 1, next-header HBH (0), payload length 76) :: > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 3 group record(s) [gaddr ff02::1:ff46:e884 to_ex { }] [gaddr ff02::2 to_ex { }] [gaddr ff02::202 to_ex { }]
    10  2013-08-05 06:05:56.373478 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 328)
     0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from 08:00:27:46:e8:84, length 300, xid 0xbb58bf40, Flags [none] (0x0000)
 	  Client-Ethernet-Address 08:00:27:46:e8:84
@@ -201,11 +201,11 @@
 	      YS (41), NTP (42), MTU (26), Unknown (119)
 	      Default-Gateway (3), Classless-Static-Route (121), Classless-Static-Route-Microsoft (249), Unknown (252)
 	      NTP (42)
-   11  2013-08-05 06:05:56.498519 IP6 (hlim 255, next-header ICMPv6 (58) payload length: 24) :: > ff02::1:ff46:e884: [icmp6 sum ok] ICMP6, neighbor solicitation, length 24, who has fe80::a00:27ff:fe46:e884
-   12  2013-08-05 06:05:57.500560 IP6 (hlim 255, next-header ICMPv6 (58) payload length: 16) fe80::a00:27ff:fe46:e884 > ff02::2: [icmp6 sum ok] ICMP6, router solicitation, length 16
+   11  2013-08-05 06:05:56.498519 IP6 (hlim 255, next-header ICMPv6 (58), payload length 24) :: > ff02::1:ff46:e884: [icmp6 sum ok] ICMP6, neighbor solicitation, length 24, who has fe80::a00:27ff:fe46:e884
+   12  2013-08-05 06:05:57.500560 IP6 (hlim 255, next-header ICMPv6 (58), payload length 16) fe80::a00:27ff:fe46:e884 > ff02::2: [icmp6 sum ok] ICMP6, router solicitation, length 16
 	  source link-address option (1), length 8 (1): 08:00:27:46:e8:84
 	    0x0000:  0800 2746 e884
-   13  2013-08-05 06:05:57.501813 IP6 (hlim 1, next-header Options (0) payload length: 96) fe80::a00:27ff:fe46:e884 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 4 group record(s) [gaddr ff02::1:ff00:0 to_ex { }] [gaddr ff02::1:ff46:e884 to_ex { }] [gaddr ff02::2 to_ex { }] [gaddr ff02::202 to_ex { }]
+   13  2013-08-05 06:05:57.501813 IP6 (hlim 1, next-header HBH (0), payload length 96) fe80::a00:27ff:fe46:e884 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 4 group record(s) [gaddr ff02::1:ff00:0 to_ex { }] [gaddr ff02::1:ff46:e884 to_ex { }] [gaddr ff02::2 to_ex { }] [gaddr ff02::202 to_ex { }]
    14  2013-08-05 06:06:00.550022 LLDP, length 86
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:42:ba:59
@@ -280,7 +280,7 @@
 	      YS (41), NTP (42), MTU (26), Unknown (119)
 	      Default-Gateway (3), Classless-Static-Route (121), Classless-Static-Route-Microsoft (249), Unknown (252)
 	      NTP (42)
-   17  2013-08-05 06:06:04.106458 IP6 (hlim 1, next-header Options (0) payload length: 36) fe80::a00:27ff:fe46:e884 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 1 group record(s) [gaddr ff02::1:ff00:0 to_ex { }]
+   17  2013-08-05 06:06:04.106458 IP6 (hlim 1, next-header HBH (0), payload length 36) fe80::a00:27ff:fe46:e884 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 1 group record(s) [gaddr ff02::1:ff00:0 to_ex { }]
    18  2013-08-05 06:06:07.011961 LLDP, length 94
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:0d:f1:3c

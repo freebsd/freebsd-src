@@ -227,8 +227,8 @@ struct udphdr {
 #ifndef HNCP_PORT
 #define HNCP_PORT			8231	/* RFC 7788 */
 #endif
-#ifndef OTV_PORT
-#define OTV_PORT			8472	/* draft-hasmit-otv-04 */
+#ifndef VXLAN_LINUX_PORT
+#define VXLAN_LINUX_PORT		8472	/* Linux, drivers/net/vxlan/vxlan_core.c */
 #endif
 #ifndef ISAKMP_PORT_USER2
 #define ISAKMP_PORT_USER2		8500	/*XXX - nonstandard*/

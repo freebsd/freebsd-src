@@ -1,4 +1,4 @@
-    1  1975-04-27 04:29:01.371655446 IP (tos 0xff,CE, ttl 254, id 32783, offset 0, flags [rsvd], proto TCP (6), length 65535, bad cksum 8e15 (->5bbf)!)
+    1  1975-04-27 04:29:01.999999 IP (tos 0xff,CE, ttl 254, id 32783, offset 0, flags [rsvd], proto TCP (6), length 65535, bad cksum 8e15 (->5bbf)!)
     241.0.128.39.179 > 239.0.0.1.0: Flags [none], seq 4144029695:4144095150, win 65535, options [eol], length 65455: BGP [|bgp]
 	Update Message (2), length: 45
 	  Withdrawn routes:

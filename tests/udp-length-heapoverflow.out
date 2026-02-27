@@ -1,2 +1,2 @@
-    1  1995-08-15 05:27:12.808464432 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->699d)!)
+    1  1995-08-15 05:27:12.999999 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->699d)!)
     48.48.48.48.12336 > 48.48.48.48.12336:  [|udp]

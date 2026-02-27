@@ -19,6 +19,17 @@ print-XX	print-flags.pcap	print-capXX.out	-XX
 print-A		print-flags.pcap	print-A.out	-A
 print-AA	print-flags.pcap	print-AA.out	-AA
 
+# Invalid timestamps, micro and nano precision
+timestamp_invalid_micro timestamp_invalid_micro.pcap timestamp_invalid_micro.out -q SPECIAL_t
+timestamp_invalid_nano timestamp_invalid_nano.pcap timestamp_invalid_nano.out -q --nano SPECIAL_t
+
+# TCP with data in the RST segment
+tcp_rst_data tcp_rst_data.pcap tcp_rst_data-v.out -v
+tcp_rst_data tcp_rst_data.pcap tcp_rst_data.out
+# TCP with data in the RST segment, truncated example
+tcp_rst_data-trunc tcp_rst_data-trunc.pcap tcp_rst_data-trunc-v.out -v
+tcp_rst_data-trunc tcp_rst_data-trunc.pcap tcp_rst_data-trunc.out
+
 # BGP tests
 bgp_vpn_attrset bgp_vpn_attrset.pcap bgp_vpn_attrset.out -v
 mpbgp-linklocal-nexthop mpbgp-linklocal-nexthop.pcap mpbgp-linklocal-nexthop.out -v
@@ -82,11 +93,9 @@ mpls-ldp-hello	mpls-ldp-hello.pcap	mpls-ldp-hello.out -v
 ldp-common-session ldp-common-session.pcap ldp-common-session.out -v
 ldp_infloop	ldp-infinite-loop.pcap	ldp_infloop.out
 lspping-fec-ldp    lspping-fec-ldp.pcap lspping-fec-ldp.out
-lspping-fec-ldp-v  lspping-fec-ldp.pcap lspping-fec-ldp-v.out -v
-lspping-fec-ldp-vv lspping-fec-ldp.pcap lspping-fec-ldp-vv.out -vv
+# Tests with -v and -vv are now in time.tests skipped if not HAVE_TIME_T_64
 lspping-fec-rsvp    lspping-fec-rsvp.pcap lspping-fec-rsvp.out
-lspping-fec-rsvp-v  lspping-fec-rsvp.pcap lspping-fec-rsvp-v.out -v
-lspping-fec-rsvp-vv lspping-fec-rsvp.pcap lspping-fec-rsvp-vv.out -vv
+# Tests with -v and -vv are now in time.tests skipped if not HAVE_TIME_T_64
 mpls-traceroute   mpls-traceroute.pcap mpls-traceroute.out
 mpls-traceroute-v mpls-traceroute.pcap mpls-traceroute-v.out -v
 mpls-over-udp  mpls-over-udp.pcap  mpls-over-udp.out
@@ -183,6 +192,10 @@ icmpv6-rfc7112	icmpv6-rfc7112.pcap	icmpv6-rfc7112.out
 icmpv6-RFC2894-RR icmpv6-RFC2894-RR.pcap icmpv6-RFC2894-RR.out
 icmpv6-RFC2894-RR-v icmpv6-RFC2894-RR.pcap icmpv6-RFC2894-RR-v.out -v
 icmpv6-ni-flags	icmpv6-ni-flags.pcap	icmpv6-ni-flags.out
+icmpv6_nodeinfo_queryipv4 icmpv6_nodeinfo_queryipv4.pcap icmpv6_nodeinfo_queryipv4.out -v
+icmpv6_nodeinfo_replyipv4 icmpv6_nodeinfo_replyipv4.pcap icmpv6_nodeinfo_replyipv4.out -v
+icmpv6_nodeinfo_queryipv6 icmpv6_nodeinfo_queryipv6.pcap icmpv6_nodeinfo_queryipv6.out -v
+icmpv6_nodeinfo_replyipv6 icmpv6_nodeinfo_replyipv6.pcap icmpv6_nodeinfo_replyipv6.out -v
 
 # SPB tests
 spb	            spb.pcap	            spb.out
@@ -295,6 +308,10 @@ dns_udp dns_udp.pcap dns_udp.out
 dns_udp-v dns_udp.pcap dns_udp-v.out -v
 dns_udp-vv dns_udp.pcap dns_udp-vv.out -vv
 dns_udp-vvv dns_udp.pcap dns_udp-vvv.out -vvv
+ppp_ip_udp_dns-vv ppp_ip_udp_dns.pcap ppp_ip_udp_dns.out -vv
+# tests with -g option
+dns_udp-g dns_udp.pcap dns_udp.out -g
+dns_udp-vg dns_udp.pcap dns_udp-vg.out -vg
 
 # DNS on non-standard ports.
 dns_tcp_8053 dns_tcp_8053.pcap dns_tcp_8053.out -vv
@@ -435,6 +452,7 @@ dhcp-rfc3004	dhcp-rfc3004.pcap	dhcp-rfc3004-v.out	-v
 dhcp-rfc4388	dhcp-rfc4388.pcap	dhcp-rfc4388.out	-v
 dhcp-rfc5859	dhcp-rfc5859.pcap	dhcp-rfc5859-v.out	-v
 dhcp-mud	dhcp-mud.pcap		dhcp-mud.out	-vv
+dhcp-option-33	dhcp-option-33.pcap	dhcp-option-33.out	-vvv
 
 # VXLAN tests
 vxlan  vxlan.pcap  vxlan.out -e
@@ -477,9 +495,12 @@ olsrv1_1	OLSRv1_HNA_sgw_1.pcap		OLSRv1_HNA_sgw_1.out	-v
 unaligned-nfs-1	unaligned-nfs-1.pcap	unaligned-nfs-1.out	-v
 
 # LISP tests
-lisp_eid_notify		lisp_eid_notify.pcap	lisp_eid_notify.out	-v
-lisp_eid_register	lisp_eid_register.pcap	lisp_eid_register.out	-v
-lisp_ipv6_eid		lisp_ipv6.pcap		lisp_ipv6.out		-v
+lisp_eid_notify		lisp_eid_notify.pcap	lisp_eid_notify.out
+lisp_eid_register	lisp_eid_register.pcap	lisp_eid_register.out
+lisp_ipv6_eid		lisp_ipv6.pcap		lisp_ipv6.out
+lisp_eid_notify-v	lisp_eid_notify.pcap	lisp_eid_notify-v.out	-v
+lisp_eid_register-v	lisp_eid_register.pcap	lisp_eid_register-v.out	-v
+lisp_ipv6_eid-v		lisp_ipv6.pcap		lisp_ipv6-v.out		-v
 
 # NSH tests
 nsh                    nsh.pcap                nsh.out
@@ -553,8 +574,6 @@ relts-0x80000000	relts-0x80000000.pcap	relts-0x80000000.out	-v
 # bad packets from Brian Carpenter
 ipv6hdr-heapoverflow	ipv6hdr-heapoverflow.pcap	ipv6hdr-heapoverflow.out
 ipv6hdr-heapoverflow-v	ipv6hdr-heapoverflow.pcap	ipv6hdr-heapoverflow-v.out	-v
-otv-heapoverflow-1	otv-heapoverflow-1.pcap		otv-heapoverflow-1.out
-otv-heapoverflow-2	otv-heapoverflow-2.pcap		otv-heapoverflow-2.out
 q933-heapoverflow-2	q933-heapoverflow-2.pcap	q933-heapoverflow-2.out
 atm-heapoverflow	atm-heapoverflow.pcap		atm-heapoverflow.out -e
 ipv6-next-header-oobr-1	ipv6-next-header-oobr-1.pcap	ipv6-next-header-oobr-1.out
@@ -679,7 +698,8 @@ pim_header_asan		pim_header_asan.pcap		pim_header_asan.out	-v
 pim_header_asan-2	pim_header_asan-2.pcap		pim_header_asan-2.out	-v
 pim_header_asan-3	pim_header_asan-3.pcap		pim_header_asan-3.out	-v
 pim_header_asan-4	pim_header_asan-4.pcap		pim_header_asan-4.out	-v
-ip6_frag_asan		ip6_frag_asan.pcap		ip6_frag_asan.out	-v
+ip6_frag_asan		ip6_frag_asan.pcap		ip6_frag_asan.out
+ip6_frag_asan-v		ip6_frag_asan.pcap		ip6_frag_asan-v.out	-v
 radius_attr_asan	radius_attr_asan.pcap		radius_attr_asan.out	-v
 ospf6_decode_v3_asan	ospf6_decode_v3_asan.pcap	ospf6_decode_v3_asan.out -v
 ip_ts_opts_asan		ip_ts_opts_asan.pcap		ip_ts_opts_asan.out	-v
@@ -706,6 +726,7 @@ rsvp_uni-oobr-1	rsvp_uni-oobr-1.pcap	rsvp_uni-oobr-1.out	-v
 rsvp_uni-oobr-2	rsvp_uni-oobr-2.pcap	rsvp_uni-oobr-2.out	-v
 rsvp_uni-oobr-3	rsvp_uni-oobr-3.pcap	rsvp_uni-oobr-3.out	-v
 rpki-rtr-oobr		rpki-rtr-oobr.pcap	rpki-rtr-oobr.out	-v
+rpki-rtr-oobr-vv	rpki-rtr-oobr.pcap	rpki-rtr-oobr-vv.out	-vv
 lldp_8023_mtu-oobr	lldp_8023_mtu-oobr.pcap	lldp_8023_mtu-oobr.out	-v
 bgp_vpn_rt-oobr	bgp_vpn_rt-oobr.pcap	bgp_vpn_rt-oobr.out	-v -c1
 cfm_sender_id-oobr	cfm_sender_id-oobr.pcap	cfm_sender_id-oobr.out	-v
@@ -783,7 +804,7 @@ dns-zlip-3		dns-zlip-3.pcap		dns-zlip-3.out
 
 # NTP tests
 ntp			ntp.pcap		ntp.out
-ntp-v			ntp.pcap		ntp-v.out		-v
+# Test with -v is now in time.tests skipped if not HAVE_TIME_T_64
 ntp-time		ntp-time.pcap		ntp-time.out
 ntp-time--v		ntp-time.pcap		ntp-time--v.out		-v
 ntp-control		ntp-control.pcap	ntp-control.out
@@ -842,6 +863,7 @@ ptp         ptp.pcap    ptp.out
 ptp_ethernet	ptp_ethernet.pcap	ptp_ethernet.out	-e
 ptp_corrections	ptp_corrections.pcap	ptp_corrections.out
 ptp_v2_1	ptp_v2_1.pcap		ptp_v2_1.out
+ptp_management	ptp_management.pcap	ptp_management.out
 
 # bad packets from Jason Xiaole
 ldp_tlv_print-oobr ldp_tlv_print-oobr.pcap ldp_tlv_print-oobr.out -v
@@ -879,3 +901,9 @@ ip6-snmp-oid-unsigned ip6-snmp-oid-unsigned.pcap ip6-snmp-oid-unsigned.out
 lwres-pointer-arithmetic-ub lwres-pointer-arithmetic-ub.pcap lwres-pointer-arithmetic-ub.out
 ospf-signed-integer-ubsan       ospf-signed-integer-ubsan.pcap          ospf-signed-integer-ubsan.out -vv
 bgp-ub bgp-ub.pcap bgp-ub.out -v
+fletcher-checksum-negative-shift fletcher-checksum-negative-shift.pcap fletcher-checksum-negative-shift.out     -v
+
+# Mobility Support in IPv6
+# ipv6_mobility_1.pcap is built with scapy
+ipv6_mobility_1 ipv6_mobility_1.pcap ipv6_mobility_1.out
+ipv6_mobility_1-v ipv6_mobility_1.pcap ipv6_mobility_1-v.out -v

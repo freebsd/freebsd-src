@@ -1,6 +1,6 @@
     1  2014-11-24 17:19:33.663606 IP (tos 0x10, ttl 64, id 63177, offset 0, flags [none], proto unknown (240), length 168, bad cksum 418f (->80a5)!)
     204.9.54.80 > 204.9.51.132:  ip-proto-240 148
-    2  2014-11-24 17:19:33.520765928 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3da6 (->35a6)!)
+    2  2014-11-24 17:19:33.999999 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3da6 (->35a6)!)
     212.9.51.132.50079 > 204.9.54.80.22: Flags [.], cksum 0x8611 (incorrect -> 0x4811), ack 1819218606, win 17918, options [nop,nop,TS val 941371903 ecr 1340592074], length 0
     3  2014-11-24 17:19:33.684826 84:b5:9c:be:30:48 Unknown SSAP 0x10 > 0c:c4:7a:08:e9:12 Unknown DSAP 0x44 Information, send seq 0, rcv seq 26, Flags [Command], length 52
 	0x0000:  4510 0034 f5c8 4000 3e06 4504 cc09 3384  E..4..@.>.E...3.

@@ -21,7 +21,7 @@
 #include "ipproto.h"
 
 const struct tok ipproto_values[] = {
-    { IPPROTO_HOPOPTS, "Options" },
+    { IPPROTO_HOPOPTS, "HBH" },
     { IPPROTO_ICMP, "ICMP" },
     { IPPROTO_IGMP, "IGMP" },
     { IPPROTO_IPV4, "IPIP" },
@@ -39,6 +39,7 @@ const struct tok ipproto_values[] = {
     { IPPROTO_AH, "AH" },
     { IPPROTO_MOBILE, "Mobile IP" },
     { IPPROTO_ICMPV6, "ICMPv6" },
+    { IPPROTO_DSTOPTS, "DSTOPT" },
     { IPPROTO_MOBILITY_OLD, "Mobile IP (old)" },
     { IPPROTO_EIGRP, "EIGRP" },
     { IPPROTO_OSPF, "OSPF" },

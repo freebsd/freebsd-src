@@ -1,15 +1,15 @@
-    1  1995-08-15 05:27:12.808464432 MPLS (label 197376, tc 7, [S], ttl 48)
+    1  1995-08-15 05:27:12.999999 MPLS (label 197376, tc 7, [S], ttl 48)
 	IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->7754)!)
     48.4.4.4.4400 > 127.0.0.1.3503:  [|lspping]
-    2  1995-08-15 05:27:12.808464432 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->699d)!)
+    2  1995-08-15 05:27:12.999999 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->699d)!)
     48.48.48.48.3503 > 48.48.48.48.4567: * wb-prep: [|wb]
-    3  1995-08-15 05:27:12.808464432 MPLS (label 197376, tc 7, [S], ttl 48)
+    3  1995-08-15 05:27:12.999999 MPLS (label 197376, tc 7, [S], ttl 48)
 	IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->699d)!)
     48.48.48.48.4400 > 48.48.48.48.3503:  [|lspping]
-    4  1995-08-15 05:27:12.808464432 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->c624)!)
+    4  1995-08-15 05:27:12.999999 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->c624)!)
     48.48.0.1.3503 > 48.4.4.4.4567: * wb-prep: [|wb]
-    5  1995-08-15 05:27:12.808464432 MPLS (label 197376, tc 7, [S], ttl 48)
+    5  1995-08-15 05:27:12.999999 MPLS (label 197376, tc 7, [S], ttl 48)
 	IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->7754)!)
     48.4.4.4.4400 > 127.0.0.1.3503:  [|lspping]
-    6  1995-08-15 05:27:12.808464432 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->c624)!)
+    6  1995-08-15 05:27:12.999999 IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->c624)!)
     48.48.0.1.3503 > 48.4.4.4.4567: * wb-prep: [|wb]

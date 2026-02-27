@@ -1,12 +1,12 @@
     1  1970-01-13 19:46:40.000128 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-,.M-0^Vn [|kerberos]
     2  1970-06-19 21:47:44.000000 IP 10.0.0.1 > 0.234.154.214: ip-proto-17
     3  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.179.24191: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .*^C@>M-z}M-uM-tM-+M-_M-{S^PM-=OM-^Y [|kerberos]
-    4  1970-01-01 00:00:00.8454143 58:5e:0a:02:f4:0a > 02:8e:00:50:6a:e1, ethertype Unknown (0xb104), length 262144: 
+    4  1970-01-01 00:00:00.999999 58:5e:0a:02:f4:0a > 02:8e:00:50:6a:e1, ethertype Unknown (0xb104), length 262144: 
 	0x0000:  020f 0f0f 0f0f 0f0f 0f0f 04b2 a1b1 b1b1  ................
 	0x0010:  b1b1 b1b1 b158 5e0a 02f4 0ab1 0402 0f0f  .....X^.........
 	0x0020:  ff80 0f0f 0f0f 0f00 80a1 00b2 b2b2 b20d  ................
 	0x0030:  0d3a 3400 0001 00                        .:4....
-    5  1970-03-17 20:26:40.2097152 IP 6.3.218.255.6379 > 0.1.31.99.52759: Flags [S.UW], seq 2751463404:2751463426, ack 1006637056, win 45746, urg 25778, length 22: RESP [|resp]
+    5  1970-03-17 20:26:40.999999 IP 6.3.218.255.6379 > 0.1.31.99.52759: Flags [S.UW], seq 2751463404:2751463426, ack 1006637056, win 45746, urg 25778, length 22: RESP [|resp]
     6  1970-03-17 20:27:12.000000 IP 6.3.208.255.6379 > 0.1.31.99.52759: Flags [S.UW], seq 2751463404:2751463426, ack 1006640128, win 45746, urg 25778, length 22: RESP "M-2M-2M-2M-2M-2M-7dM-2M-2M-2M-2M-2" [|resp]
     7  1970-03-17 20:27:12.000000 IP 208.21.10.1.654 > 31.99.100.232.80:  aodv rrep 34  prefix 4 hops 11
 	dst 237.34.38.84 dseq 32203525 src 232.11.2.0 67108864 ms
@@ -27,7 +27,7 @@
 	0x0030:  b1b1 b100 b016 6e                        ......n
    18  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^U.@ ^D^R^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
    19  1970-01-01 00:00:00.000000 IP 10.0.255.127.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-z}M-uM-tM-^\M-`^VM-^?^?M-=OM-^Y [|kerberos]
-   20  1970-01-01 00:00:00.8454143 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|kerberos]
+   20  1970-01-01 00:00:00.999999 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|kerberos]
    21  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
    22  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
    23  1971-01-24 09:18:56.000000 IP 0.0.1.0 > 234.154.214.0: ip-proto-106
@@ -86,7 +86,7 @@
 	0x0030:  b1b1 b100 b016 6e                        ......n
    69  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^U.@ ^D^R^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
    70  1970-01-01 00:00:00.000000 IP 10.0.255.127.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-z}M-uM-tM-^\M-`^VM-^?^?M-=OM-^Y [|kerberos]
-   71  1970-01-01 00:00:00.8454143 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|kerberos]
+   71  1970-01-01 00:00:00.999999 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|kerberos]
    72  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
    73  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
    74  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]

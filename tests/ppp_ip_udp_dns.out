@@ -1,0 +1,2 @@
+    1  2037-11-24 07:59:58.999999 unknown PPP protocol (0x7e08): IP [total length 49441 > length 348] (invalid) (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 49441, bad cksum 45ee (->13)!)
+    69.168.178.248.53 > 192.168.0.111.1024: [bad udp cksum 0x33ea -> 0x73b6!] 0 [0q] [65535au] ar: . OPT UDPsize=26995 [Opt25701], . (Class 3584) Type0 [|domain]

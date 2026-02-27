@@ -33,6 +33,7 @@
 
 #include "netdissect-stdinc.h"
 
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
@@ -40,107 +41,84 @@
 #include "ip6.h"
 
 static int
-ip6_sopt_print(netdissect_options *ndo, const u_char *bp, int len)
+ip6_sopt_print(netdissect_options *ndo, const u_char *bp, const u_int len)
 {
-    int i;
-    int optlen;
+    unsigned int i, opttype, optlen;
 
     for (i = 0; i < len; i += optlen) {
-	if (GET_U_1(bp + i) == IP6OPT_PAD1)
+	opttype = GET_U_1(bp + i);
+	if (opttype == IP6OPT_PAD1)
 	    optlen = 1;
 	else {
-	    if (i + 1 < len)
-		optlen = GET_U_1(bp + i + 1) + 2;
-	    else
-		goto trunc;
+	    ND_ICHECKMSG_U("remaining length", (u_int)(len - i), <,
+			   IP6OPT_MINLEN);
+	    optlen = GET_U_1(bp + i + 1) + 2;
 	}
-	if (i + optlen > len)
-	    goto trunc;
+	ND_ICHECKMSG_U("remaining length", (u_int)(len - i), <, optlen);
+	ND_TCHECK_LEN(bp + i, optlen);
 
-	switch (GET_U_1(bp + i)) {
+	switch (opttype) {
 	case IP6OPT_PAD1:
             ND_PRINT(", pad1");
 	    break;
 	case IP6OPT_PADN:
-	    if (len - i < IP6OPT_MINLEN) {
-		ND_PRINT(", padn: trunc");
-		goto trunc;
-	    }
             ND_PRINT(", padn");
 	    break;
 	default:
-	    if (len - i < IP6OPT_MINLEN) {
-		ND_PRINT(", sopt_type %u: trunc)", GET_U_1(bp + i));
-		goto trunc;
-	    }
-	    ND_PRINT(", sopt_type 0x%02x: len=%u", GET_U_1(bp + i),
-                     GET_U_1(bp + i + 1));
+	    ND_PRINT(", unknown subopt-type 0x%02x len=%u", opttype, optlen - 2);
 	    break;
 	}
     }
     return 0;
 
-trunc:
+invalid:
     return -1;
 }
 
 static int
-ip6_opt_process(netdissect_options *ndo, const u_char *bp, int len,
+ip6_opt_process(netdissect_options *ndo, const u_char *bp, const u_int len,
 		int *found_jumbop, uint32_t *payload_len)
 {
-    int i;
-    int optlen = 0;
+    unsigned int i, opttype, optlen;
     int found_jumbo = 0;
     uint32_t jumbolen = 0;
 
     if (len == 0)
         return 0;
     for (i = 0; i < len; i += optlen) {
-	if (GET_U_1(bp + i) == IP6OPT_PAD1)
+	opttype = GET_U_1(bp + i);
+	if (opttype == IP6OPT_PAD1)
 	    optlen = 1;
 	else {
-	    if (i + 1 < len)
-		optlen = GET_U_1(bp + i + 1) + 2;
-	    else
-		goto trunc;
+	    ND_ICHECKMSG_U("remaining length", (u_int)(len - i), <,
+			   IP6OPT_MINLEN);
+	    optlen = GET_U_1(bp + i + 1) + 2;
 	}
-	if (i + optlen > len)
-	    goto trunc;
+	ND_ICHECKMSG_U("remaining length", (u_int)(len - i), <, optlen);
+	ND_TCHECK_LEN(bp + i, optlen);
 
-	switch (GET_U_1(bp + i)) {
+	switch (opttype) {
 	case IP6OPT_PAD1:
 	    if (ndo->ndo_vflag)
                 ND_PRINT("(pad1)");
 	    break;
 	case IP6OPT_PADN:
-	    if (len - i < IP6OPT_MINLEN) {
-		ND_PRINT("(padn: trunc)");
-		goto trunc;
-	    }
 	    if (ndo->ndo_vflag)
                 ND_PRINT("(padn)");
 	    break;
 	case IP6OPT_ROUTER_ALERT:
-	    if (len - i < IP6OPT_RTALERT_LEN) {
-		ND_PRINT("(rtalert: trunc)");
-		goto trunc;
-	    }
-	    if (GET_U_1(bp + i + 1) != IP6OPT_RTALERT_LEN - 2) {
-		ND_PRINT("(rtalert: invalid len %u)", GET_U_1(bp + i + 1));
-		goto trunc;
-	    }
+	    ND_ICHECKMSG_U("(rtalert) remaining length", (u_int)(len - i), <,
+			   IP6OPT_RTALERT_LEN);
+	    ND_ICHECKMSG_U("(rtalert) length", optlen - 2, !=,
+			   IP6OPT_RTALERT_LEN - 2);
 	    if (ndo->ndo_vflag)
 		ND_PRINT("(rtalert: 0x%04x) ", GET_BE_U_2(bp + i + 2));
 	    break;
 	case IP6OPT_JUMBO:
-	    if (len - i < IP6OPT_JUMBO_LEN) {
-		ND_PRINT("(jumbo: trunc)");
-		goto trunc;
-	    }
-	    if (GET_U_1(bp + i + 1) != IP6OPT_JUMBO_LEN - 2) {
-		ND_PRINT("(jumbo: invalid len %u)", GET_U_1(bp + i + 1));
-		goto trunc;
-	    }
+	    ND_ICHECKMSG_U("(jumbo) remaining length", (u_int)(len - i), <,
+			   IP6OPT_JUMBO_LEN);
+	    ND_ICHECKMSG_U("(jumbo) length", optlen - 2, !=,
+			   IP6OPT_JUMBO_LEN - 2);
 	    jumbolen = GET_BE_U_4(bp + i + 2);
 	    if (found_jumbo) {
 		/* More than one Jumbo Payload option */
@@ -176,32 +154,23 @@ ip6_opt_process(netdissect_options *ndo, const u_char *bp, int len,
 	    }
 	    break;
         case IP6OPT_HOME_ADDRESS:
-	    if (len - i < IP6OPT_HOMEADDR_MINLEN) {
-		ND_PRINT("(homeaddr: trunc)");
-		goto trunc;
-	    }
-	    if (GET_U_1(bp + i + 1) < IP6OPT_HOMEADDR_MINLEN - 2) {
-		ND_PRINT("(homeaddr: invalid len %u)", GET_U_1(bp + i + 1));
-		goto trunc;
-	    }
+	    ND_ICHECKMSG_U("(homeaddr) remaining length", (u_int)(len - i), <,
+			   IP6OPT_HOMEADDR_MINLEN);
+	    ND_ICHECKMSG_U("(homeaddr) length", optlen - 2, <,
+			   IP6OPT_HOMEADDR_MINLEN - 2);
 	    if (ndo->ndo_vflag) {
 		ND_PRINT("(homeaddr: %s", GET_IP6ADDR_STRING(bp + i + 2));
-		if (GET_U_1(bp + i + 1) > IP6OPT_HOMEADDR_MINLEN - 2) {
+		if (optlen > IP6OPT_HOMEADDR_MINLEN) {
 		    if (ip6_sopt_print(ndo, bp + i + IP6OPT_HOMEADDR_MINLEN,
 				       (optlen - IP6OPT_HOMEADDR_MINLEN)) == -1)
-			goto trunc;
+			goto invalid;
 		}
 		ND_PRINT(")");
 	    }
 	    break;
 	default:
-	    if (len - i < IP6OPT_MINLEN) {
-		ND_PRINT("(type %u: trunc)", GET_U_1(bp + i));
-		goto trunc;
-	    }
 	    if (ndo->ndo_vflag)
-		ND_PRINT("(opt_type 0x%02x: len=%u)", GET_U_1(bp + i),
-			 GET_U_1(bp + i + 1));
+		ND_PRINT("(unknown opt-type 0x%02x len=%u)", opttype, optlen - 2);
 	    break;
 	}
     }
@@ -209,7 +178,7 @@ ip6_opt_process(netdissect_options *ndo, const u_char *bp, int len,
         ND_PRINT(" ");
     return 0;
 
-trunc:
+invalid:
     return -1;
 }
 
@@ -220,17 +189,18 @@ hbhopt_process(netdissect_options *ndo, const u_char *bp, int *found_jumbo,
     const struct ip6_hbh *dp = (const struct ip6_hbh *)bp;
     u_int hbhlen = 0;
 
-    ndo->ndo_protocol = "hbhopt";
+    ndo->ndo_protocol = "hbh";
     hbhlen = (GET_U_1(dp->ip6h_len) + 1) << 3;
     ND_TCHECK_LEN(dp, hbhlen);
-    ND_PRINT("HBH ");
+    nd_print_protocol_caps(ndo);
+    ND_PRINT(" ");
     if (ip6_opt_process(ndo, (const u_char *)dp + sizeof(*dp),
 			hbhlen - sizeof(*dp), found_jumbo, jumbolen) == -1)
-	goto trunc;
+	goto invalid;
     return hbhlen;
 
-trunc:
-    nd_print_trunc(ndo);
+invalid:
+    nd_print_invalid(ndo);
     return -1;
 }
 
@@ -243,7 +213,8 @@ dstopt_process(netdissect_options *ndo, const u_char *bp)
     ndo->ndo_protocol = "dstopt";
     dstoptlen = (GET_U_1(dp->ip6d_len) + 1) << 3;
     ND_TCHECK_LEN(dp, dstoptlen);
-    ND_PRINT("DSTOPT ");
+    nd_print_protocol_caps(ndo);
+    ND_PRINT(" ");
     if (ndo->ndo_vflag) {
 	/*
 	 * The Jumbo Payload option is a hop-by-hop option; we don't
@@ -252,12 +223,12 @@ dstopt_process(netdissect_options *ndo, const u_char *bp)
 	 */
 	if (ip6_opt_process(ndo, (const u_char *)dp + sizeof(*dp),
 			    dstoptlen - sizeof(*dp), NULL, NULL) == -1)
-	    goto trunc;
+	    goto invalid;
     }
 
     return dstoptlen;
 
-trunc:
-    nd_print_trunc(ndo);
+invalid:
+    nd_print_invalid(ndo);
     return -1;
 }

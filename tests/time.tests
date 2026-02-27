@@ -1,0 +1,117 @@
+# -*- perl -*-
+
+# The packet time when > 2038-01-19T03:14:07Z cannot be correctly printed
+# if time_t size is 32 bits (overflow).
+# Some tests are run only if HAVE_TIME_T_64 is set. it depends on the
+# output of "./tcpdump --time-t-size" (32 or 64).
+
+# A 32-bit unsigned time_t goes until 2106-02-07T06:28:15Z.
+# All values above require a pcapng file.
+
+$testlist = [
+    {
+        name => 'time_2038',
+        input => 'time_2038.pcap',
+        output => 'time_2038.out',
+        args   => '-q'
+    },
+    {
+        name => 'time_2038_max',
+        input => 'time_2038_max.pcap',
+        output => 'time_2038_max.out',
+        args   => '-q'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2038_overflow',
+        input => 'time_2038_overflow.pcap',
+        output => 'time_2038_overflow.out',
+        args   => '-q'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2039',
+        input => 'time_2039.pcap',
+        output => 'time_2039.out',
+        args   => '-q'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2106',
+        input => 'time_2106.pcap',
+        output => 'time_2106.out',
+        args   => '-q'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2106_max',
+        input => 'time_2106_max.pcap',
+        output => 'time_2106_max.out',
+        args   => '-q'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2106_overflow',
+        input => 'time_2106_overflow.pcapng',
+        output => 'time_2106_overflow.out',
+        args   => '-q'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2107',
+        input => 'time_2107.pcapng',
+        output => 'time_2107.out',
+        args   => '-q'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2106_overflow-tt',
+        input => 'time_2106_overflow.pcapng',
+        output => 'time_2106_overflow-tt.out',
+        args   => '-tt -q SPECIAL_t'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'time_2107-tt',
+        input => 'time_2107.pcapng',
+        output => 'time_2107-tt.out',
+        args   => '-tt -q SPECIAL_t'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'lspping-fec-ldp-v',
+        input => 'lspping-fec-ldp.pcap',
+        output => 'lspping-fec-ldp-v.out',
+        args => '-v'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'lspping-fec-ldp-vv',
+        input => 'lspping-fec-ldp.pcap',
+        output => 'lspping-fec-ldp-vv.out',
+        args => '-vv'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'lspping-fec-rsvp-v',
+        input => 'lspping-fec-rsvp.pcap',
+        output => 'lspping-fec-rsvp-v.out',
+        args => '-v'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'lspping-fec-rsvp-vv',
+        input => 'lspping-fec-rsvp.pcap',
+        output => 'lspping-fec-rsvp-vv.out',
+        args => '-vv'
+    },
+    {
+        config_set => 'HAVE_TIME_T_64',
+        name => 'ntp-v',
+        input => 'ntp.pcap',
+        output => 'ntp-v.out',
+        args => '-v'
+    },
+];
+
+1;

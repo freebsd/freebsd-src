@@ -1,7 +1,7 @@
-    1  2014-04-23 18:01:37.17835523 IP (tos 0x4, ttl 64, id 3584, offset 0, flags [none], proto ICMP (1), length 23, bad cksum a (->1e0f)!)
+    1  2014-04-23 18:01:37.999999 IP (tos 0x4, ttl 64, id 3584, offset 0, flags [none], proto ICMP (1), length 23, bad cksum a (->1e0f)!)
     22.3.2.0 > 54.209.0.0: ICMP type-#49, length 3 [|icmp]
-    2  2014-04-24 06:58:21.471597027 IP (tos 0x4, ttl 64, id 32512, offset 0, flags [none], proto VRRP (112), length 31, bad cksum 82 (->db96)!)
+    2  2014-04-24 06:58:21.999999 IP (tos 0x4, ttl 64, id 32512, offset 0, flags [none], proto VRRP (112), length 31, bad cksum 82 (->db96)!)
     22.3.211.0 > 54.209.0.0: VRRPv3, Advertisement, (ttl 64), vrid 128, prio 69 [|vrrp]
-    3  2021-07-27 12:37:33.1049347 c0:05:ff:ff:40:9d > 00:0c:02:49:96:7e, ethertype Unknown (0xf1ff), length 65570: 
+    3  2021-07-27 12:37:33.999999 c0:05:ff:ff:40:9d > 00:0c:02:49:96:7e, ethertype Unknown (0xf1ff), length 65570: 
 	0x0000:  4404 0020 0e00 0000 4070 000a 1603 0200  D.......@p......
 	0x0010:  36d1 0000 3180 bc                        6...1..

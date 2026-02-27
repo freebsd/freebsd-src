@@ -1,0 +1,1 @@
+    1  2025-02-18 16:31:31.435136 IP6 (hlim 64, next-header ICMPv6 (58), payload length 40) ::1 > ::1: [icmp6 sum ok] ICMP6, node information reply (success, ipv4 addresses [A] 127.0.0.1(0) 192.0.2.1(0) 193.0.2.1(0))

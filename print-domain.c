@@ -722,11 +722,10 @@ ns_rprint(netdissect_options *ndo,
 	len = GET_BE_U_2(cp);
 	cp += 2;
 
-	rp = cp + len;
-
 	ND_PRINT(" %s", tok2str(ns_type2str, "Type%u", typ));
-	if (rp > ndo->ndo_snapend)
-		return(NULL);
+
+	ND_TCHECK_LEN(cp, len);
+	rp = cp + len;
 
 	switch (typ) {
 	case T_A:
@@ -896,6 +895,9 @@ ns_rprint(netdissect_options *ndo,
 	    }
 	}
 	return (rp);		/* XXX This isn't always right */
+
+trunc:
+	return(NULL);
 }
 
 void
