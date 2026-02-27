@@ -29,6 +29,8 @@
  */
 
 #include "opt_capsicum.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_sctp.h"
 #include "opt_ktrace.h"
 
@@ -77,6 +79,9 @@
 #include <netinet/sctp.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_var.h>
+#ifdef INET6
+#include <netinet6/sctp6_var.h>
+#endif
 #include <netinet/sctp_os_bsd.h>
 #include <netinet/sctp_peeloff.h>
 
@@ -173,7 +178,21 @@ sys_sctp_peeloff(struct thread *td, struct sctp_peeloff_args *uap)
 	td->td_retval[0] = fd;
 
 	CURVNET_SET(head->so_vnet);
-	so = sopeeloff(head, &sctp_stream_protosw);
+	switch (head->so_proto->pr_domain->dom_family) {
+#ifdef INET
+	case AF_INET:
+		so = sopeeloff(head, &sctp_stream_protosw);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		so = sopeeloff(head, &sctp6_stream_protosw);
+		break;
+#endif
+	default:
+		error = EOPNOTSUPP;
+		goto noconnection;
+	}
 	if (so == NULL) {
 		error = ENOMEM;
 		goto noconnection;
