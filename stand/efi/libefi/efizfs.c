@@ -76,7 +76,7 @@ efizfs_get_guid_by_handle(EFI_HANDLE handle, uint64_t *guid)
 }
 
 static void
-insert_zfs(EFI_HANDLE handle, uint64_t guid)
+insert_zfs(EFI_HANDLE handle, uint64_t guid, bool head)
 {
         zfsinfo_t *zi;
 
@@ -84,7 +84,10 @@ insert_zfs(EFI_HANDLE handle, uint64_t guid)
 	if (zi != NULL) {
         	zi->zi_handle = handle;
         	zi->zi_pool_guid = guid;
-        	STAILQ_INSERT_TAIL(&zfsinfo, zi, zi_link);
+		if (head)
+			STAILQ_INSERT_HEAD(&zfsinfo, zi, zi_link);
+		else
+			STAILQ_INSERT_TAIL(&zfsinfo, zi, zi_link);
 	}
 }
 
@@ -110,7 +113,8 @@ efi_zfs_probe(void)
 			snprintf(devname, sizeof(devname), "%s%dp%d:",
 			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
 			if (zfs_probe_dev(devname, &guid, false) == 0)
-				insert_zfs(pd->pd_handle, guid);
+				insert_zfs(pd->pd_handle, guid,
+				    pd->pd_handle == boot_img->DeviceHandle);
 		}
 	}
 }

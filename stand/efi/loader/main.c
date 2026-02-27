@@ -143,6 +143,16 @@ UINT16 boot_current;
  */
 EFI_LOADED_IMAGE *boot_img;
 
+enum boot_policies {
+	STRICT,
+	RELAXED,
+} boot_policy = RELAXED;
+
+const char *policy_map[] = {
+	[STRICT] = "strict",
+	[RELAXED] = "relaxed",
+};
+
 static bool
 has_keyboard(void)
 {
@@ -592,13 +602,14 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 	zfsinfo_t *zi;
 
 	/*
-	 * Did efi_zfs_probe() detect the boot pool? If so, use the zpool
-	 * it found, if it's sane. ZFS is the only thing that looks for
-	 * disks and pools to boot. This may change in the future, however,
-	 * if we allow specifying which pool to boot from via UEFI variables
-	 * rather than the bootenv stuff that FreeBSD uses today.
+	 * First try the zfs pool(s) that were on the boot device, then
+	 * try any other pool if we have a relaxed policy. zfsinfo has
+	 * the pools that had elements on the boot device first.
 	 */
 	STAILQ_FOREACH(zi, zfsinfo, zi_link) {
+		if (boot_policy == STRICT &&
+		    zi->zi_handle != boot_img->DeviceHandle)
+			continue;
 		printf("Trying ZFS pool 0x%jx\n", zi->zi_pool_guid);
 		if (probe_zfs_currdev(zi->zi_pool_guid))
 			return (0);
@@ -1189,6 +1200,23 @@ efi_smbios_detect(void)
 		(void)smbios_detect(smbios_v2_ptr);
 }
 
+static void
+set_boot_policy(void)
+{
+	const char *policy;
+
+	if ((policy = getenv("boot_policy")) == NULL)
+		return;
+	for (int i = 0; i < nitems(policy_map); i++) {
+		if (strcmp(policy, policy_map[i]) == 0) {
+			boot_policy = i;
+			return;
+		}
+	}
+	printf("Unknown boot_policy '%s', defaulting to %s\n",
+	    policy, policy_map[boot_policy]);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -1286,6 +1314,8 @@ main(int argc, CHAR16 *argv[])
 	 */
 	read_loader_env("LoaderEnv", "/efi/freebsd/loader.env", false);
 	read_loader_env("NextLoaderEnv", NULL, true);
+
+	set_boot_policy();
 
 	/*
 	 * We now have two notions of console. howto should be viewed as
