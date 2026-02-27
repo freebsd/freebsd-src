@@ -261,7 +261,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 	cld
 	KENTER
 	call	as_lapic_eoi
-	movl	$ipi_bitmap_handler, %eax
+	movl	$ipi_bitmap_handler_i386, %eax
 	call	*%eax
 	jmp	doreti
 
@@ -306,7 +306,7 @@ IDTVEC(ipi_swi)
 	cld
 	KENTER
 	call	as_lapic_eoi
-	movl	$ipi_swi_handler, %eax
+	movl	$ipi_swi_handler_i386, %eax
 	call	*%eax
 	jmp	doreti
 

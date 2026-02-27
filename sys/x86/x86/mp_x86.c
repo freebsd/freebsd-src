@@ -1328,14 +1328,14 @@ ipi_send_cpu(int cpu, u_int ipi)
 }
 
 void
-ipi_bitmap_handler(struct trapframe frame)
+ipi_bitmap_handler(struct trapframe *frame)
 {
 	struct trapframe *oldframe;
 	struct thread *td;
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
 
-	kasan_mark(&frame, sizeof(frame), sizeof(frame), 0);
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 
 	td = curthread;
 	ipi_bitmap = atomic_readandclear_int(&cpuid_to_pcpu[cpu]->
@@ -1353,7 +1353,7 @@ ipi_bitmap_handler(struct trapframe frame)
 
 	td->td_intr_nesting_level++;
 	oldframe = td->td_intr_frame;
-	td->td_intr_frame = &frame;
+	td->td_intr_frame = frame;
 #if defined(STACK) || defined(DDB)
 	if (ipi_bitmap & (1 << IPI_TRACE))
 		stack_capture_intr();
@@ -1729,10 +1729,10 @@ cpuoff_handler(void)
  * Handle an IPI_SWI by waking delayed SWI thread.
  */
 void
-ipi_swi_handler(struct trapframe frame)
+ipi_swi_handler(struct trapframe *frame)
 {
 
-	intr_event_handle(clk_intr_event, &frame);
+	intr_event_handle(clk_intr_event, frame);
 }
 
 /*
