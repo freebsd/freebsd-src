@@ -7,8 +7,11 @@ Each value in the "person" object contains the user's FreeBSD.org username (key 
 All of these are optional.
 
 Each group is a key-value pair in the "groups" object.
-Each value contains a list of members (maintainer IDs), a list of paths to watch, and a list of paths to ignore.
+Each value contains a list of members (maintainer IDs), a list of paths to watch ("watch"), and a list of paths to ignore ("except").
+The functionality to ignore paths does not work with Forgejo's CODEOWNERS currently.
 Paths to directories must end with trailing separators.
+
+After editing this file, run `MAINTAINERS.lua update` to update CODEOWNERS files for GitHub and Forgejo.
 
 */
 
