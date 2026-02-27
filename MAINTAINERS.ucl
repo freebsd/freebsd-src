@@ -24,15 +24,16 @@ groups {
 			"bob-id"
 		],
 		watch: [
-			"libexec/",
-			"lib/"
+			"libexec/*",
+			"lib/*",
+			"share/mk/sys.*"
 		],
 		except: [ "lib/clang/" ]
 	},
 
 	g2 {
 		members: [ "dan-id" ],
-		watch: [ "sys/amd64/" ]
+		watch: [ "sys/a??64" ]
 	},
 
 	theft1 {
