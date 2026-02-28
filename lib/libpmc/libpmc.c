@@ -1121,8 +1121,11 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	r = spec_copy = strdup(ctrspec);
 	ctrname = strsep(&r, ",");
 	if (pmc_pmu_enabled()) {
-		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0)
+		errno = pmc_pmu_pmcallocate(ctrname, &pmc_config);
+		if (errno == 0)
 			goto found;
+		if (errno == EOPNOTSUPP)
+			goto out;
 	}
 	free(spec_copy);
 	spec_copy = NULL;
