@@ -847,6 +847,14 @@ vop_inotify_add_watch {
 	IN struct thread *td;
 };
 
+
+%% delayed_setsize	vp	E E E
+
+vop_delayed_setsize {
+	IN struct vnode *vp;
+};
+
+
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should
 # be added above these spares.  When merging a new VOP to a stable branch,
