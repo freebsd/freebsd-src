@@ -501,6 +501,7 @@ _DP_netmap=
 _DP_ifconfig=	m
 _DP_pfctl=	nv
 _DP_krb5ss=		edit
+_DP_iscsiutil=	md
 
 # OFED support
 .if ${MK_OFED} != "no"
