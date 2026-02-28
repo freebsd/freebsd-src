@@ -20,7 +20,7 @@ NO_WCAST_ALIGN=
 CXXWARNFLAGS.gcc= -Wno-shadow
 MAN=		ctld.8 ctl.conf.5
 
-LIBADD=		bsdxml iscsiutil nvmf md sbuf util ucl m nv util++
+LIBADD=		bsdxml iscsiutil nvmf sbuf util ucl m nv util++
 
 YFLAGS+=	-v
 CLEANFILES=	y.tab.c y.tab.h y.output
