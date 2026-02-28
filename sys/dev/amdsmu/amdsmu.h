@@ -25,10 +25,20 @@
 static const struct amdsmu_product {
 	uint16_t	amdsmu_vendorid;
 	uint16_t	amdsmu_deviceid;
+	int16_t		idlemask_reg;
+	size_t		ip_block_count;
 } amdsmu_products[] = {
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_REMBRANDT_ROOT },
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_PHOENIX_ROOT },
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_STRIX_POINT_ROOT },
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_CEZANNE_ROOT,
+	    SMU_REG_IDLEMASK_CEZANNE,	12 },
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_REMBRANDT_ROOT,
+	    SMU_REG_IDLEMASK_PHOENIX,	12 },
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_PHOENIX_ROOT,
+	    SMU_REG_IDLEMASK_PHOENIX,	21 },
+	/*
+	 * XXX Strix Point (PCI_DEVICEID_AMD_STRIX_POINT_ROOT) doesn't support
+	 * S0i3 and thus doesn't have an idlemask.  Since our driver doesn't
+	 * yet understand this, don't attach to Strix Point for the time being.
+	 */
 };
 
 static const char *const amdsmu_ip_blocks_names[] = {
@@ -59,6 +69,8 @@ static const char *const amdsmu_ip_blocks_names[] = {
 CTASSERT(nitems(amdsmu_ip_blocks_names) <= 32);
 
 struct amdsmu_softc {
+	const struct amdsmu_product	*product;
+
 	struct sysctl_ctx_list	*sysctlctx;
 	struct sysctl_oid	*sysctlnode;
 
@@ -76,7 +88,6 @@ struct amdsmu_softc {
 
 	uint32_t		active_ip_blocks;
 	struct sysctl_oid	*ip_blocks_sysctlnode;
-	size_t			ip_block_count;
 	struct sysctl_oid	*ip_block_sysctlnodes[
 				    nitems(amdsmu_ip_blocks_names)];
 	bool			ip_blocks_active[

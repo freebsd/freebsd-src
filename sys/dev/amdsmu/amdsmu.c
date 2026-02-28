@@ -58,9 +58,12 @@ amdsmu_identify(driver_t *driver, device_t parent)
 static int
 amdsmu_probe(device_t dev)
 {
+	struct amdsmu_softc *sc;
+
 	if (resource_disabled("amdsmu", 0))
 		return (ENXIO);
-	if (!amdsmu_match(device_get_parent(dev), NULL))
+	sc = device_get_softc(dev);
+	if (!amdsmu_match(device_get_parent(dev), &sc->product))
 		return (ENXIO);
 	device_set_descf(dev, "AMD System Management Unit");
 
@@ -154,27 +157,10 @@ static int
 amdsmu_get_ip_blocks(device_t dev)
 {
 	struct amdsmu_softc *sc = device_get_softc(dev);
-	const uint16_t deviceid = pci_get_device(dev);
 	int err;
 	struct amdsmu_metrics *m = &sc->metrics;
 	bool active;
 	char sysctl_descr[32];
-
-	/* Get IP block count. */
-	switch (deviceid) {
-	case PCI_DEVICEID_AMD_REMBRANDT_ROOT:
-		sc->ip_block_count = 12;
-		break;
-	case PCI_DEVICEID_AMD_PHOENIX_ROOT:
-		sc->ip_block_count = 21;
-		break;
-	/* TODO How many IP blocks does Strix Point (and the others) have? */
-	case PCI_DEVICEID_AMD_STRIX_POINT_ROOT:
-	default:
-		sc->ip_block_count = nitems(amdsmu_ip_blocks_names);
-	}
-	KASSERT(sc->ip_block_count <= nitems(amdsmu_ip_blocks_names),
-	    ("too many IP blocks for array"));
 
 	/* Get and print out IP blocks. */
 	err = amdsmu_cmd(dev, SMU_MSG_GET_SUP_CONSTRAINTS, 0,
@@ -184,13 +170,13 @@ amdsmu_get_ip_blocks(device_t dev)
 		return (err);
 	}
 	device_printf(dev, "Active IP blocks: ");
-	for (size_t i = 0; i < sc->ip_block_count; i++) {
+	for (size_t i = 0; i < sc->product->ip_block_count; i++) {
 		active = (sc->active_ip_blocks & (1 << i)) != 0;
 		sc->ip_blocks_active[i] = active;
 		if (!active)
 			continue;
 		printf("%s%s", amdsmu_ip_blocks_names[i],
-		    i + 1 < sc->ip_block_count ? " " : "\n");
+		    i + 1 < sc->product->ip_block_count ? " " : "\n");
 	}
 
 	/* Create a sysctl node for IP blocks. */
@@ -203,7 +189,7 @@ amdsmu_get_ip_blocks(device_t dev)
 	}
 
 	/* Create a sysctl node for each IP block. */
-	for (size_t i = 0; i < sc->ip_block_count; i++) {
+	for (size_t i = 0; i < sc->product->ip_block_count; i++) {
 		/* Create the sysctl node itself for the IP block. */
 		snprintf(sysctl_descr, sizeof sysctl_descr,
 		    "Metrics about the %s AMD IP block",
@@ -293,7 +279,7 @@ amdsmu_fetch_idlemask(device_t dev)
 {
 	struct amdsmu_softc *sc = device_get_softc(dev);
 
-	sc->idlemask = amdsmu_read4(sc, SMU_REG_IDLEMASK);
+	sc->idlemask = amdsmu_read4(sc, sc->product->idlemask_reg);
 }
 
 static void
@@ -301,6 +287,10 @@ amdsmu_suspend(device_t dev, enum power_stype stype)
 {
 	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
 		return;
+	/*
+	 * XXX It seems that Cezanne needs a special workaround here for
+	 * firmware versions < 64.53.  See amd_pmc_verify_czn_rtc() in Linux.
+	 */
 	if (amdsmu_cmd(dev, SMU_MSG_SLEEP_HINT, true, NULL) != 0)
 		device_printf(dev, "failed to hint to SMU to enter sleep");
 }
