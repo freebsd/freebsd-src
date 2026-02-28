@@ -1041,7 +1041,7 @@ again:
 				NFSLOCKNODE(np);
 				np->n_size = uio->uio_offset + n;
 				np->n_flag |= NMODIFIED;
-				np->n_flag &= ~NVNSETSZSKIP;
+				vn_clear_delayed_setsize(vp);
 				vnode_pager_setsize(vp, np->n_size);
 				NFSUNLOCKNODE(np);
 
@@ -1071,7 +1071,7 @@ again:
 			if (uio->uio_offset + n > np->n_size) {
 				np->n_size = uio->uio_offset + n;
 				np->n_flag |= NMODIFIED;
-				np->n_flag &= ~NVNSETSZSKIP;
+				vn_clear_delayed_setsize(vp);
 				vnode_pager_setsize(vp, np->n_size);
 			}
 			NFSUNLOCKNODE(np);
