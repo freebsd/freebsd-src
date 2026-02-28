@@ -44,7 +44,6 @@ MIRROR=`bsddialog --backtitle "$OSNAME Installer" \
 	ftp://ftp.freebsd.org		"Main Site (GeoDNS, FTP)"\
 	http://ftp.au.freebsd.org 	"Australia - IPv6"\
 	ftp://ftp3.au.freebsd.org 	"Australia #3"\
-	ftp://ftp.at.freebsd.org 	"Austria - IPv6"\
 	ftp://ftp2.br.freebsd.org 	"Brazil #2"\
 	ftp://ftp3.br.freebsd.org 	"Brazil #3"\
 	ftp://ftp.bg.freebsd.org 	"Bulgaria - IPv6"\
