@@ -398,6 +398,7 @@ ip6_destroy(void *unused __unused)
 
 	frag6_destroy();
 	nd6_destroy();
+	addrsel_policy_destroy();
 	in6_ifattach_destroy();
 
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
