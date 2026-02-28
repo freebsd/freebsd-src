@@ -155,7 +155,7 @@ static vop_getextattr_t nfs_getextattr;
 static vop_setextattr_t nfs_setextattr;
 static vop_listextattr_t nfs_listextattr;
 static vop_deleteextattr_t nfs_deleteextattr;
-static vop_lock1_t	nfs_lock;
+static vop_delayed_setsize_t	nfs_delayed_setsize;
 
 /*
  * Global vfs data structures for nfs
@@ -168,13 +168,13 @@ static struct vop_vector newnfs_vnodeops_nosig = {
 	.vop_advlockasync =	nfs_advlockasync,
 	.vop_close =		nfs_close,
 	.vop_create =		nfs_create,
+	.vop_delayed_setsize =	nfs_delayed_setsize,
 	.vop_fsync =		nfs_fsync,
 	.vop_getattr =		nfs_getattr,
 	.vop_getpages =		ncl_getpages,
 	.vop_putpages =		ncl_putpages,
 	.vop_inactive =		ncl_inactive,
 	.vop_link =		nfs_link,
-	.vop_lock1 =		nfs_lock,
 	.vop_lookup =		nfs_lookup,
 	.vop_mkdir =		nfs_mkdir,
 	.vop_mknod =		nfs_mknod,
@@ -331,73 +331,19 @@ SYSCTL_U64(_vfs_nfs, OID_AUTO, maxalloclen, CTLFLAG_RW,
  */
 
 static int
-nfs_lock(struct vop_lock1_args *ap)
+nfs_delayed_setsize(struct vop_delayed_setsize_args *ap)
 {
 	struct vnode *vp;
 	struct nfsnode *np;
 	u_quad_t nsize;
-	int error, lktype;
-	bool onfault;
 
 	vp = ap->a_vp;
-	lktype = ap->a_flags & LK_TYPE_MASK;
-	error = VOP_LOCK1_APV(&default_vnodeops, ap);
-	if (error != 0 || vp->v_op != &newnfs_vnodeops)
-		return (error);
 	np = VTONFS(vp);
-	if (np == NULL)
-		return (0);
-	NFSLOCKNODE(np);
-	if ((np->n_flag & NVNSETSZSKIP) == 0 || (lktype != LK_SHARED &&
-	    lktype != LK_EXCLUSIVE && lktype != LK_UPGRADE &&
-	    lktype != LK_TRYUPGRADE)) {
-		NFSUNLOCKNODE(np);
-		return (0);
-	}
-	onfault = (ap->a_flags & LK_EATTR_MASK) == LK_NOWAIT &&
-	    (ap->a_flags & LK_INIT_MASK) == LK_CANRECURSE &&
-	    (lktype == LK_SHARED || lktype == LK_EXCLUSIVE);
-	if (onfault && vp->v_vnlock->lk_recurse == 0) {
-		/*
-		 * Force retry in vm_fault(), to make the lock request
-		 * sleepable, which allows us to piggy-back the
-		 * sleepable call to vnode_pager_setsize().
-		 */
-		NFSUNLOCKNODE(np);
-		VOP_UNLOCK(vp);
-		return (EBUSY);
-	}
-	if ((ap->a_flags & LK_NOWAIT) != 0 ||
-	    (lktype == LK_SHARED && vp->v_vnlock->lk_recurse > 0)) {
-		NFSUNLOCKNODE(np);
-		return (0);
-	}
-	if (lktype == LK_SHARED) {
-		NFSUNLOCKNODE(np);
-		VOP_UNLOCK(vp);
-		ap->a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
-		ap->a_flags |= LK_EXCLUSIVE;
-		error = VOP_LOCK1_APV(&default_vnodeops, ap);
-		if (error != 0 || vp->v_op != &newnfs_vnodeops)
-			return (error);
-		if (vp->v_data == NULL)
-			goto downgrade;
-		MPASS(vp->v_data == np);
+	if (np != NULL) {
 		NFSLOCKNODE(np);
-		if ((np->n_flag & NVNSETSZSKIP) == 0) {
-			NFSUNLOCKNODE(np);
-			goto downgrade;
-		}
-	}
-	np->n_flag &= ~NVNSETSZSKIP;
-	nsize = np->n_size;
-	NFSUNLOCKNODE(np);
-	vnode_pager_setsize(vp, nsize);
-downgrade:
-	if (lktype == LK_SHARED) {
-		ap->a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
-		ap->a_flags |= LK_DOWNGRADE;
-		(void)VOP_LOCK1_APV(&default_vnodeops, ap);
+		nsize = np->n_size;
+		NFSUNLOCKNODE(np);
+		vnode_pager_setsize(vp, nsize);
 	}
 	return (0);
 }
