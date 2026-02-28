@@ -241,6 +241,7 @@ struct pmu_event_desc {
 	uint8_t	ped_edge;
 	uint8_t	ped_fc_mask;
 	uint8_t	ped_ch_mask;
+	uint8_t ped_pebs;
 };
 
 static const struct pmu_events_map *
@@ -377,6 +378,8 @@ pmu_parse_event(struct pmu_event_desc *ped, const char *eventin)
 			ped->ped_allcores = strtol(value, NULL, 10);
 		else if (strcmp(key, "allsources") == 0)
 			ped->ped_allsources = strtol(value, NULL, 10);
+		else if (strcmp(key, "pebs") == 0)
+			ped->ped_pebs = strtol(value, NULL, 10);
 		else {
 			debug = getenv("PMUDEBUG");
 			if (debug != NULL && strcmp(debug, "true") == 0 && value != NULL)
@@ -487,6 +490,8 @@ pmc_pmu_print_counter_full(const char *ev)
 			continue;
 		if (strcasestr(pe->name, ev) == NULL)
 			continue;
+		if (pe != pme->table)
+			printf("\n");
 		printf("name: %s\n", pe->name);
 		if (pe->long_desc != NULL)
 			printf("desc: %s\n", pe->long_desc);
@@ -603,6 +608,7 @@ pmc_pmu_intel_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	    strcasestr(event_name, "uncore") != NULL) {
 		pm->pm_class = PMC_CLASS_UCP;
 		pm->pm_caps |= PMC_CAP_QUALIFIER;
+		/* XXX Check and block unsupported uncore counters */
 	} else if (ped->ped_event == 0x0) {
 		pm->pm_class = PMC_CLASS_IAF;
 	} else {
@@ -631,6 +637,19 @@ pmc_pmu_intel_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 		iap->pm_iap_config |= IAP_INV;
 	if (pm->pm_caps & PMC_CAP_INTERRUPT)
 		iap->pm_iap_config |= IAP_INT;
+
+	/* XXX Implement alone flag in the kernel module */
+
+	/*
+	 * PEBS counters are not implemented on FreeBSD yet.  Counters labeled
+	 * with PEBS = 2 in the JSON definitions require PEBS.  It seems that
+	 * some of them return bogus counts if you attempt to use them.
+	 */
+	if (ped->ped_pebs == 2) {
+		printf("PEBS only counters are not supported!\n");
+		return (EOPNOTSUPP);
+	}
+
 	return (0);
 }
 
