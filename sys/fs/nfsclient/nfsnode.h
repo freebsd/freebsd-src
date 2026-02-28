@@ -160,7 +160,6 @@ struct nfsnode {
 #define	NWRITEOPENED	0x00040000  /* Has been opened for writing */
 #define	NHASBEENLOCKED	0x00080000  /* Has been file locked. */
 #define	NDSCOMMIT	0x00100000  /* Commit is done via the DS. */
-#define	NVNSETSZSKIP	0x00200000  /* Skipped vnode_pager_setsize() */
 #define	NMIGHTBELOCKED	0x00400000  /* Might be file locked. */
 #define	NNAMEDNOTSUPP	0x00800000  /* Openattr is not supported. */
 
