@@ -1632,8 +1632,8 @@ next:
 			/*
 			 * Entries are never inserted in middle of a list, thus
 			 * as long as we are in SMR, we can continue traversal.
-			 * Jump to 'restart' should yield in the same result,
-			 * but could produce unnecessary looping.  Could this
+			 * Jump to 'next' should yield in the same result, but
+			 * could produce unnecessary looping.  Could this
 			 * looping be unbound?
 			 */
 			inp_unlock(inp, lock);
