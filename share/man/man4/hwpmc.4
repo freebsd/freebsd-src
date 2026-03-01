@@ -325,6 +325,10 @@ This operation returns to the caller after the write operation
 has returned.
 The returned error code reflects any pending error state inside
 .Nm .
+.It Dv PMC_OP_GETCAPS
+Retrieve the capabilities associated with a specific PMC counter.
+Some capabilities may be limited to specific indices (i.e., not available
+across all counters within a class).
 .It Dv PMC_OP_GETCPUINFO
 Retrieve information about the highest possible CPU number for the system,
 and the number of hardware performance monitoring counters available per CPU.
