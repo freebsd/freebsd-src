@@ -99,7 +99,7 @@ main(int argc, char **argv)
 	/* read from stdin */
 	if (strcmp(file, "-") == 0) {
 		mbox = stdin;
-	} 
+	}
 	else if ((mbox = fopen(file, "r")) == NULL) {
 		errx(EXIT_FAILURE, "can't read %s", file);
 	}
@@ -122,7 +122,7 @@ main(int argc, char **argv)
 	}
 	if (count != -1)
 		printf("There %s %d message%s in your incoming mailbox.\n",
-		    count == 1 ? "is" : "are", count, count == 1 ? "" : "s"); 
+		    count == 1 ? "is" : "are", count, count == 1 ? "" : "s");
 	fclose(mbox);
 	exit(EXIT_SUCCESS);
 }
@@ -142,14 +142,14 @@ match(const char *line, const char *sender)
 
 	for (first = *sender++;;) {
 		if (isspace(ch = *line))
-			return(0);
+			return (0);
 		++line;
 		ch = tolower(ch);
 		if (ch != first)
 			continue;
 		for (p = sender, t = line;;) {
 			if (!(pch = *p++))
-				return(1);
+				return (1);
 			ch = tolower(*t);
 			t++;
 			if (ch != pch)
