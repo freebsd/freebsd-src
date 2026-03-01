@@ -37,7 +37,11 @@ from atf_python.sys.netpfil.ipfw.insns import InsnProto
 from atf_python.sys.netpfil.ipfw.insns import InsnReject
 from atf_python.sys.netpfil.ipfw.insns import InsnTable
 from atf_python.sys.netpfil.ipfw.insns import InsnU32
+from atf_python.sys.netpfil.ipfw.insns import InsnKidx
+from atf_python.sys.netpfil.ipfw.insns import InsnLookup
 from atf_python.sys.netpfil.ipfw.insns import IpFwOpcode
+from atf_python.sys.netpfil.ipfw.insn_headers import IpFwTableLookupType
+from atf_python.sys.netpfil.ipfw.insn_headers import IpFwTableValueType
 from atf_python.sys.netpfil.ipfw.ioctl import CTlv
 from atf_python.sys.netpfil.ipfw.ioctl import CTlvRule
 from atf_python.sys.netpfil.ipfw.ioctl import IpFwTlvType
@@ -153,13 +157,225 @@ class TestAddRule(BaseTest):
                             NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
                         ],
                         "insns": [
-                            InsnU32(IpFwOpcode.O_IP_SRC_LOOKUP, u32=1),
-                            InsnU32(IpFwOpcode.O_IP_DST_LOOKUP, u32=2),
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnKidx(IpFwOpcode.O_IP_DST_LOOKUP, kidx=2),
                             InsnEmpty(IpFwOpcode.O_ACCEPT),
                         ],
                     },
                 },
                 id="test_tables",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA) to any lookup dst-ip BBB",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
+                        ],
+                        "insns": [
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnLookup(IpFwOpcode.O_TABLE_LOOKUP,
+                                kidx=2,
+                                arg1=InsnLookup.compile_arg1(lookup_type=IpFwTableLookupType.LOOKUP_DST_IP),
+                                ),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_lookup_no_mask",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA) to any lookup mark:0xf00baa1 BBB",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
+                        ],
+                        "insns": [
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnLookup(IpFwOpcode.O_TABLE_LOOKUP,
+                                kidx=2,
+                                arg1=InsnLookup.compile_arg1(lookup_type=IpFwTableLookupType.LOOKUP_MARK, bitmask=True),
+                                bitmask=0xf00baa1),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_lookup_u32_mask",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA) to any lookup src-mac:1a:2b:3c:4d:5e:6f BBB",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
+                        ],
+                        "insns": [
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnLookup(IpFwOpcode.O_TABLE_LOOKUP,
+                                kidx=2,
+                                arg1=InsnLookup.compile_arg1(lookup_type=IpFwTableLookupType.LOOKUP_SRC_MAC, bitmask=True),
+                                bitmask="1a:2b:3c:4d:5e:6f"),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_lookup_mac_mask",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA) to any lookup dst-ip4:1715004 BBB",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
+                        ],
+                        "insns": [
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnLookup(IpFwOpcode.O_TABLE_LOOKUP,
+                                kidx=2,
+                                arg1=InsnLookup.compile_arg1(lookup_type=IpFwTableLookupType.LOOKUP_DST_IP4, bitmask=True),
+                                bitmask="60.43.26.0"),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_lookup_dst_ip4_numeric",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA) to any lookup src-ip4:0.0.0.255 BBB",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
+                        ],
+                        "insns": [
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnLookup(IpFwOpcode.O_TABLE_LOOKUP,
+                                kidx=2,
+                                arg1=InsnLookup.compile_arg1(lookup_type=IpFwTableLookupType.LOOKUP_SRC_IP4, bitmask=True),
+                                bitmask="0.0.0.255"),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_lookup_src_ip4_addr",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA) to any lookup jail:0.0.252.128 BBB",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
+                        ],
+                        "insns": [
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnLookup(IpFwOpcode.O_TABLE_LOOKUP,
+                                kidx=2,
+                                arg1=InsnLookup.compile_arg1(lookup_type=IpFwTableLookupType.LOOKUP_JAIL, bitmask=True),
+                                bitmask=64640),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_lookup_jail_addr",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA) to any lookup dst-ip6:ffff:ffff:f00:baaa:b00c:: BBB",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=2, name="BBB"),
+                        ],
+                        "insns": [
+                            InsnKidx(IpFwOpcode.O_IP_SRC_LOOKUP, kidx=1),
+                            InsnLookup(IpFwOpcode.O_TABLE_LOOKUP,
+                                kidx=2,
+                                arg1=InsnLookup.compile_arg1(lookup_type=IpFwTableLookupType.LOOKUP_DST_IP6, bitmask=True),
+                                bitmask="ffff:ffff:f00:baaa:b00c::"),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_lookup_dst_ip6",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA,16777215) to any",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                        ],
+                        "insns": [
+                            InsnLookup(IpFwOpcode.O_IP_SRC_LOOKUP,
+                                kidx=1,
+                                arg1=InsnLookup.compile_arg1(value_type=IpFwTableValueType.TVALUE_TAG),
+                                value=16777215),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_check_value_legacy",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA,nat=1231) to any",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                        ],
+                        "insns": [
+                            InsnLookup(IpFwOpcode.O_IP_SRC_LOOKUP,
+                                kidx=1,
+                                arg1=InsnLookup.compile_arg1(value_type=IpFwTableValueType.TVALUE_NAT),
+                                value=1231),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_check_value_nat",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA,nh4=10.20.30.40) to any",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                        ],
+                        "insns": [
+                            InsnLookup(IpFwOpcode.O_IP_SRC_LOOKUP,
+                                kidx=1,
+                                arg1=InsnLookup.compile_arg1(value_type=IpFwTableValueType.TVALUE_NH4),
+                                value="10.20.30.40"),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_check_value_nh4",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip from table(AAA,nh6=ff02:1234:b00c::abcd) to any",
+                    "out": {
+                        "objs": [
+                            NTlv(IpFwTlvType.IPFW_TLV_TBL_NAME, idx=1, name="AAA"),
+                        ],
+                        "insns": [
+                            InsnLookup(IpFwOpcode.O_IP_SRC_LOOKUP,
+                                kidx=1,
+                                arg1=InsnLookup.compile_arg1(value_type=IpFwTableValueType.TVALUE_NH6),
+                                value="ff02:1234:b00c::abcd"),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_tables_check_value_nh6",
             ),
             pytest.param(
                 {
@@ -183,7 +399,7 @@ class TestAddRule(BaseTest):
                         ],
                         "insns": [
                             InsnIp(IpFwOpcode.O_IP_DST, ip="1.2.3.4"),
-                            InsnU32(IpFwOpcode.O_EXTERNAL_ACTION, u32=1),
+                            InsnKidx(IpFwOpcode.O_EXTERNAL_ACTION, kidx=1),
                             Insn(IpFwOpcode.O_EXTERNAL_DATA, arg1=123),
                         ],
                     },
@@ -192,20 +408,20 @@ class TestAddRule(BaseTest):
             ),
             pytest.param(
                 {
-                    "in": "add eaction ntpv6 AAA ip from any to 1.2.3.4",
+                    "in": "add eaction nptv6 AAA ip from any to 1.2.3.4",
                     "out": {
                         "objs": [
-                            NTlv(IpFwTlvType.IPFW_TLV_EACTION, idx=1, name="ntpv6"),
+                            NTlv(IpFwTlvType.IPFW_TLV_EACTION, idx=1, name="nptv6"),
                             NTlv(0, idx=2, name="AAA"),
                         ],
                         "insns": [
                             InsnIp(IpFwOpcode.O_IP_DST, ip="1.2.3.4"),
-                            InsnU32(IpFwOpcode.O_EXTERNAL_ACTION, u32=1),
-                            InsnU32(IpFwOpcode.O_EXTERNAL_INSTANCE, u32=2),
+                            InsnKidx(IpFwOpcode.O_EXTERNAL_ACTION, kidx=1),
+                            InsnKidx(IpFwOpcode.O_EXTERNAL_INSTANCE, kidx=2),
                         ],
                     },
                 },
-                id="test_eaction_ntp",
+                id="test_eaction_nptv6",
             ),
             pytest.param(
                 {
@@ -228,7 +444,7 @@ class TestAddRule(BaseTest):
                         ],
                         "insns": [
                             InsnComment(comment="test comment"),
-                            InsnU32(IpFwOpcode.O_CHECK_STATE, u32=1),
+                            InsnKidx(IpFwOpcode.O_CHECK_STATE, kidx=1),
                         ],
                     },
                 },
@@ -242,9 +458,9 @@ class TestAddRule(BaseTest):
                             NTlv(IpFwTlvType.IPFW_TLV_STATE_NAME, idx=1, name="OUT"),
                         ],
                         "insns": [
-                            InsnU32(IpFwOpcode.O_PROBE_STATE, u32=1),
+                            InsnKidx(IpFwOpcode.O_PROBE_STATE, kidx=1),
                             Insn(IpFwOpcode.O_PROTO, arg1=6),
-                            InsnU32(IpFwOpcode.O_KEEP_STATE, u32=1),
+                            InsnKidx(IpFwOpcode.O_KEEP_STATE, kidx=1),
                             InsnEmpty(IpFwOpcode.O_ACCEPT),
                         ],
                     },
@@ -260,7 +476,7 @@ class TestAddRule(BaseTest):
                         ],
                         "insns": [
                             Insn(IpFwOpcode.O_PROTO, arg1=6),
-                            InsnU32(IpFwOpcode.O_KEEP_STATE, u32=1),
+                            InsnKidx(IpFwOpcode.O_KEEP_STATE, kidx=1),
                             InsnEmpty(IpFwOpcode.O_ACCEPT),
                         ],
                     },
@@ -372,6 +588,9 @@ class TestAddRule(BaseTest):
             pytest.param(("pipe 42", Insn(IpFwOpcode.O_PIPE, arg1=42)), id="pipe_42"),
             pytest.param(
                 ("skipto 42", InsnU32(IpFwOpcode.O_SKIPTO, u32=42)), id="skipto_42"
+            ),
+            pytest.param(
+                ("skipto 4200", InsnU32(IpFwOpcode.O_SKIPTO, u32=4200)), id="skipto_4200"
             ),
             pytest.param(
                 ("netgraph 42", Insn(IpFwOpcode.O_NETGRAPH, arg1=42)), id="netgraph_42"
