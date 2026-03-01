@@ -149,6 +149,11 @@ int	rss_debug = 0;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, debug, CTLFLAG_RWTUN, &rss_debug, 0,
     "RSS debug level");
 
+static u_int	rss_udp_4tuple = 0;
+SYSCTL_INT(_net_inet_rss, OID_AUTO, udp_4tuple, CTLFLAG_RDTUN,
+    &rss_udp_4tuple, 0,
+    "Enable UDP 4-tuple RSS hashing (src/dst IP + src/dst port)");
+
 /*
  * RSS secret key, intended to prevent attacks on load-balancing.  Its
  * effectiveness may be limited by algorithm choice and available entropy
@@ -487,19 +492,24 @@ rss_gethashconfig(void)
 	 * So for now disable UDP 4-tuple hashing until all of the other
 	 * pieces are in place.
 	 */
-	return (
+	u_int config;
+
+	config =
 	    RSS_HASHTYPE_RSS_IPV4
-	|    RSS_HASHTYPE_RSS_TCP_IPV4
-	|    RSS_HASHTYPE_RSS_IPV6
-	|    RSS_HASHTYPE_RSS_TCP_IPV6
-	|    RSS_HASHTYPE_RSS_IPV6_EX
-	|    RSS_HASHTYPE_RSS_TCP_IPV6_EX
-#if 0
-	|    RSS_HASHTYPE_RSS_UDP_IPV4
-	|    RSS_HASHTYPE_RSS_UDP_IPV6
-	|    RSS_HASHTYPE_RSS_UDP_IPV6_EX
-#endif
-	);
+	|   RSS_HASHTYPE_RSS_TCP_IPV4
+	|   RSS_HASHTYPE_RSS_IPV6
+	|   RSS_HASHTYPE_RSS_TCP_IPV6
+	|   RSS_HASHTYPE_RSS_IPV6_EX
+	|   RSS_HASHTYPE_RSS_TCP_IPV6_EX;
+
+	if (rss_udp_4tuple) {
+		config |=
+		    RSS_HASHTYPE_RSS_UDP_IPV4
+		|   RSS_HASHTYPE_RSS_UDP_IPV6
+		|   RSS_HASHTYPE_RSS_UDP_IPV6_EX;
+	}
+
+	return (config);
 }
 
 /*
