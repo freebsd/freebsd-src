@@ -25,6 +25,8 @@ from typing import Union
 from atf_python.sys.netpfil.ipfw.insn_headers import IpFwOpcode
 from atf_python.sys.netpfil.ipfw.insn_headers import IcmpRejectCode
 from atf_python.sys.netpfil.ipfw.insn_headers import Icmp6RejectCode
+from atf_python.sys.netpfil.ipfw.insn_headers import IpFwTableLookupType
+from atf_python.sys.netpfil.ipfw.insn_headers import IpFwTableValueType
 from atf_python.sys.netpfil.ipfw.utils import AttrDescr
 from atf_python.sys.netpfil.ipfw.utils import enum_or_int
 from atf_python.sys.netpfil.ipfw.utils import enum_from_int
@@ -165,7 +167,7 @@ class BaseInsn(object):
             hdr = IpFwInsn.from_buffer_copy(data[off : off + sizeof(IpFwInsn)])
             insn_len = (hdr.length & 0x3F) * 4
             if off + insn_len > len(data):
-                raise ValueError("wrng length")
+                raise ValueError("wrong length")
             # print("GET insn type {} len {}".format(hdr.opcode, insn_len))
             attr = attr_map.get(hdr.opcode, None)
             if attr is None:
@@ -309,6 +311,22 @@ class InsnU32(Insn):
         return " arg1={} u32={}".format(self.arg1, self.u32)
 
 
+class InsnKidx(InsnU32):
+    def __init__(self, opcode, is_or=False, is_not=False, arg1=0, kidx=0):
+        super().__init__(opcode, is_or=is_or, is_not=is_not, arg1=arg1, u32=kidx)
+
+    @property
+    def kidx(self):
+        return self.u32
+
+    @kidx.setter
+    def kidx(self, kidx):
+        self.u32 = kidx
+
+    def _print_obj_value(self):
+        return " arg1={}, kidx={}".format(self.arg1, self.kidx)
+
+
 class InsnProb(InsnU32):
     def __init__(
         self,
@@ -353,18 +371,23 @@ class InsnIp(InsnU32):
         return " ip={}".format(self.ip)
 
 
-class InsnTable(Insn):
+class InsnTable(InsnKidx):
+    def __init__(self, opcode, is_or=False, is_not=False, arg1=0, kidx=0, value=None):
+        super().__init__(opcode, is_or=is_or, is_not=is_not, arg1=arg1, kidx=kidx)
+        self.val = value
+
     @classmethod
     def _validate(cls, data):
-        cls._validate_len(data, [4, 8])
+        cls._validate_len(data, [8, 12])
 
     @classmethod
     def _parse(cls, data):
         self = super()._parse(data)
 
-        if len(data) == 8:
-            (self.val,) = struct.unpack("@I", data[4:8])
-            self.ilen = 2
+        (self.kidx,) = struct.unpack("@I", data[4:8])
+        if len(data) == 12:
+            (self.val,) = struct.unpack("@I", data[8:12])
+            self.ilen = 3
         else:
             self.val = None
         return self
@@ -377,9 +400,131 @@ class InsnTable(Insn):
 
     def _print_obj_value(self):
         if getattr(self, "val", None) is not None:
-            return " table={} value={}".format(self.arg1, self.val)
+            return " table={} value={}".format(self.kidx, self.val)
         else:
-            return " table={}".format(self.arg1)
+            return " table={}".format(self.kidx)
+
+
+class InsnLookup(InsnKidx):
+    def __init__(self, opcode, is_or=False, is_not=False, arg1=0, kidx=0, value=None, bitmask=None):
+        super().__init__(opcode, is_or=is_or, is_not=is_not, arg1=arg1, kidx=kidx)
+        self.val = value
+        self.bm = bitmask
+        self.decompile_arg1()
+
+    @classmethod
+    def _validate(cls, data):
+        cls._validate_len(data, [8, 24])
+
+    @classmethod
+    def _parse(cls, data):
+        self = super()._parse(data)
+
+        if len(data) == 24:
+            self.decompile_arg1()
+            self.ilen = 8
+            if self.do_masking != 0:
+                if self.lookup_type in [IpFwTableLookupType.LOOKUP_DST_IP4, IpFwTableLookupType.LOOKUP_SRC_IP4]:
+                    self.bm = socket.inet_ntop(socket.AF_INET, data[8:12])
+                elif self.lookup_type in [IpFwTableLookupType.LOOKUP_DST_IP6, IpFwTableLookupType.LOOKUP_SRC_IP6]:
+                    self.bm = socket.inet_ntop(socket.AF_INET6, data[8:24])
+                elif self.lookup_type in [IpFwTableLookupType.LOOKUP_DST_MAC, IpFwTableLookupType.LOOKUP_SRC_MAC]:
+                    self.bm = ':'.join(f'{b:02x}' for b in struct.unpack('!6B', data[8:14]))
+                elif self.lookup_type in [IpFwTableLookupType.LOOKUP_DST_IP, IpFwTableLookupType.LOOKUP_SRC_IP]:
+                    raise ValueError(f"maksing LOOKUP_SRC/DST_IP is invalid")
+                else:
+                    (self.bm,) = struct.unpack("@I", data[8:12])
+            elif self.do_matching != 0:
+                match self.tvalue_type:
+                    case IpFwTableValueType.TVALUE_NH4:
+                        self.val = socket.inet_ntop(socket.AF_INET, data[8:12])
+                    case IpFwTableValueType.TVALUE_NH6:
+                        self.val = socket.inet_ntop(socket.AF_INET6, data[8:24])
+                    case _:
+                        (self.val,) = struct.unpack("@I", data[8:12])
+            else:
+                raise ValueError(f"insn_lookup is used but neither masking or matching are set")
+
+        return self
+
+    @classmethod
+    def compile_arg1(cls, value_type=None, value=None, lookup_type=None, bitmask=None):
+        arg1 = 0
+        if value_type is not None:
+            arg1 |= value_type.value << 8
+            arg1 |= 0x8000
+        if lookup_type is not None:
+            arg1 |= lookup_type.value
+        if bitmask is not None:
+            arg1 |= 0x0080
+        return arg1
+
+    def decompile_arg1(self):
+        self.do_masking = ((self.arg1 & 0x0080) != 0)
+        self.do_matching = ((self.arg1 & 0x8000) != 0)
+        self.lookup_int_type = self.arg1 & 0x007F
+        self.tvalue_int_type = (self.arg1 & 0x7F00) >> 8
+        self.lookup_type = enum_from_int(IpFwTableLookupType, self.lookup_int_type)
+        self.tvalue_type = enum_from_int(IpFwTableValueType, self.tvalue_int_type)
+
+        if self.do_matching != 0 and self.do_masking != 0:
+            raise ValueError(f"masking and matching can not be combined")
+        elif self.do_matching == 0 and self.do_masking == 0:
+            return
+        self.ilen = 8
+
+    def _validate_arg1(self):
+        if self.do_matching == 0 and self.val is not None:
+            raise ValueError(f"matching bit is NOT set yet value is set to {self.val}")
+        elif self.do_matching != 0 and self.val is None:
+            raise ValueError("matching bit is set yet value is None")
+        elif self.do_matching != 0 and self.tvalue_type is None:
+            raise ValueError(f"matching bit is set but unknown table value ({self.tvalue_type}) is set")
+
+        if self.do_masking == 0 and self.bm is not None:
+            raise ValueError(f"masking bit is NOT set yet bitmask is set to {self.bm}")
+        elif self.do_masking != 0 and self.bm is None:
+            raise ValueError("masking bit is set yet bitmask is None")
+        elif self.do_masking != 0 and self.lookup_type is None:
+            raise ValueError(f"masking bit is set but unknown lookup type ({self.lookup_int_type}) is set")
+        elif self.do_masking != 0 and self.lookup_type == IpFwTableLookupType.LOOKUP_NONE:
+            raise ValueError(f"masking bit is set but LOOKUP_NONE lookup type is set")
+
+    def __bytes__(self):
+        # perform sanity check
+        self._validate_arg1()
+        ret = super().__bytes__()
+        if self.do_masking != 0:
+            if (isinstance(self.bm, str) and
+              self.lookup_type in [IpFwTableLookupType.LOOKUP_DST_IP4, IpFwTableLookupType.LOOKUP_SRC_IP4]):
+                ret += socket.inet_pton(socket.AF_INET, self.bm)
+            elif self.lookup_type in [IpFwTableLookupType.LOOKUP_DST_IP6, IpFwTableLookupType.LOOKUP_SRC_IP6]:
+                ret += socket.inet_pton(socket.AF_INET6, self.bm)
+            elif self.lookup_type in [IpFwTableLookupType.LOOKUP_SRC_MAC, IpFwTableLookupType.LOOKUP_SRC_MAC]:
+                ret += struct.pack('!6B10x', *(int(b, 16) for b in self.bm.split(':')))
+            else:
+                ret += struct.pack("@I12x", self.bm)
+        elif self.do_matching != 0:
+            match self.tvalue_type:
+                case IpFwTableValueType.TVALUE_NH4:
+                    ret += socket.inet_pton(socket.AF_INET, self.val)
+                case IpFwTableValueType.TVALUE_NH6:
+                    ret += socket.inet_pton(socket.AF_INET6, self.val)
+                case _:
+                    ret += struct.pack("@I12x", self.val)
+        return ret
+
+    def _print_obj_value(self):
+        # perform sanity check
+        self._validate_arg1()
+        if self.do_matching != 0:
+            return " arg1={}, lookup_type={}, tvalue_type={}, kidx={}, value={}".format(
+              self.arg1, self.lookup_type, self.tvalue_type, self.kidx, self.val)
+        elif self.do_masking != 0:
+            return " arg1={}, lookup_type{}, tvalue_type={}, kidx={}, bitmask={}".format(
+              self.arg1, self.lookup_type, self.tvalue_type, self.kidx, self.bm)
+        else:
+            return " arg1={}, kidx={}".format(self.arg1, self.kidx)
 
 
 class InsnReject(Insn):
@@ -510,7 +655,7 @@ class InsnIp6(Insn):
 
 insn_attrs = prepare_attrs_map(
     [
-        AttrDescr(IpFwOpcode.O_CHECK_STATE, InsnU32),
+        AttrDescr(IpFwOpcode.O_CHECK_STATE, InsnKidx),
         AttrDescr(IpFwOpcode.O_ACCEPT, InsnEmpty),
         AttrDescr(IpFwOpcode.O_COUNT, InsnEmpty),
 
@@ -530,10 +675,9 @@ insn_attrs = prepare_attrs_map(
         AttrDescr(IpFwOpcode.O_SETFIB, Insn),
         AttrDescr(IpFwOpcode.O_SETDSCP, Insn),
         AttrDescr(IpFwOpcode.O_REASS, InsnEmpty),
-        AttrDescr(IpFwOpcode.O_SETMARK, InsnU32),
-
-        AttrDescr(IpFwOpcode.O_EXTERNAL_ACTION, InsnU32),
-        AttrDescr(IpFwOpcode.O_EXTERNAL_INSTANCE, InsnU32),
+        AttrDescr(IpFwOpcode.O_SETMARK, Insn),
+        AttrDescr(IpFwOpcode.O_EXTERNAL_ACTION, InsnKidx),
+        AttrDescr(IpFwOpcode.O_EXTERNAL_INSTANCE, InsnKidx),
 
 
 
@@ -548,11 +692,12 @@ insn_attrs = prepare_attrs_map(
         AttrDescr(IpFwOpcode.O_IP_DST, InsnIp),
         AttrDescr(IpFwOpcode.O_IP6_DST, InsnIp6),
         AttrDescr(IpFwOpcode.O_IP6_SRC, InsnIp6),
-        AttrDescr(IpFwOpcode.O_IP_SRC_LOOKUP, InsnU32),
-        AttrDescr(IpFwOpcode.O_IP_DST_LOOKUP, InsnU32),
+        AttrDescr(IpFwOpcode.O_IP_SRC_LOOKUP, InsnLookup),
+        AttrDescr(IpFwOpcode.O_IP_DST_LOOKUP, InsnLookup),
         AttrDescr(IpFwOpcode.O_IP_SRCPORT, InsnPorts),
         AttrDescr(IpFwOpcode.O_IP_DSTPORT, InsnPorts),
-        AttrDescr(IpFwOpcode.O_PROBE_STATE, InsnU32),
-        AttrDescr(IpFwOpcode.O_KEEP_STATE, InsnU32),
+        AttrDescr(IpFwOpcode.O_PROBE_STATE, InsnKidx),
+        AttrDescr(IpFwOpcode.O_KEEP_STATE, InsnKidx),
+        AttrDescr(IpFwOpcode.O_TABLE_LOOKUP, InsnLookup),
     ]
 )

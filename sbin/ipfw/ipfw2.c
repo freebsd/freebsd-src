@@ -313,6 +313,10 @@ static struct _s_x rule_action_params[] = {
 static struct _s_x lookup_keys[] = {
 	{ "dst-ip",		LOOKUP_DST_IP },
 	{ "src-ip",		LOOKUP_SRC_IP },
+	{ "dst-ip6",		LOOKUP_DST_IP6 },
+	{ "src-ip6",		LOOKUP_SRC_IP6 },
+	{ "dst-ip4",		LOOKUP_DST_IP4 },
+	{ "src-ip4",		LOOKUP_SRC_IP4 },
 	{ "dst-port",		LOOKUP_DST_PORT },
 	{ "src-port",		LOOKUP_SRC_PORT },
 	{ "dst-mac",		LOOKUP_DST_MAC },
@@ -338,6 +342,7 @@ static struct _s_x tvalue_names[] = {
 	{ "fib",		TVALUE_FIB },
 	{ "nat",		TVALUE_NAT },
 	{ "nh4",		TVALUE_NH4 },
+	{ "nh6",		TVALUE_NH6 },
 	{ "dscp",		TVALUE_DSCP },
 	{ "limit",		TVALUE_LIMIT },
 	{ "mark",		TVALUE_MARK },
@@ -1311,12 +1316,27 @@ print_flags(struct buf_pr *bp, char const *name, const ipfw_insn *cmd,
 }
 
 static void
-print_tvalue(struct buf_pr *bp, const ipfw_insn_table *cmd)
+print_tvalue(struct buf_pr *bp, const ipfw_insn_lookup *cmd)
 {
+	char maskbuf[INET6_ADDRSTRLEN];
 	const char *name;
 
 	name = match_value(tvalue_names, IPFW_TVALUE_TYPE(&cmd->o));
-	bprintf(bp, ",%s=%u", name != NULL ? name: "<invalid>", cmd->value);
+	switch(IPFW_TVALUE_TYPE(&cmd->o)) {
+	case TVALUE_NH6:
+		if (inet_ntop(AF_INET6, &insntoc(&cmd->o, lookup)->ip6,
+		    maskbuf, sizeof(maskbuf)) == NULL)
+			strcpy(maskbuf, "<invalid>");
+		bprintf(bp, ",%s=%s", name != NULL ? name: "<invalid>",
+		    maskbuf);
+		return;
+	case TVALUE_NH4:
+		bprintf(bp, ",%s=%s", name != NULL ? name: "<invalid>",
+		    inet_ntoa(cmd->ip4));
+		return;
+	}
+	bprintf(bp, ",%s=%u", name != NULL ? name: "<invalid>",
+	    cmd->u32);
 }
 
 
@@ -1327,11 +1347,14 @@ static void
 print_ip(struct buf_pr *bp, const struct format_opts *fo,
     const ipfw_insn_ip *cmd)
 {
+	char maskbuf[INET6_ADDRSTRLEN];
+	const uint32_t *a = insntoc(cmd, u32)->d;
 	struct hostent *he = NULL;
 	const struct in_addr *ia;
-	const uint32_t *a = ((const ipfw_insn_u32 *)cmd)->d;
-	uint32_t len = F_LEN(&cmd->o);
+	const ipfw_insn_lookup *l = insntoc(cmd, lookup);
+	const char *key;
 	char *t;
+	uint32_t len = F_LEN(&cmd->o);
 
 	bprintf(bp, " ");
 	switch (cmd->o.opcode) {
@@ -1340,32 +1363,65 @@ print_ip(struct buf_pr *bp, const struct format_opts *fo,
 		bprintf(bp, "me");
 		return;
 
-	case O_IP_DST_LOOKUP:
-		if ((len == F_INSN_SIZE(ipfw_insn_kidx) ||
-		    len == F_INSN_SIZE(ipfw_insn_table)) &&
-		    IPFW_LOOKUP_TYPE(&cmd->o) != LOOKUP_NONE) {
-			const char *key;
-
-			key = match_value(lookup_keys,
-			    IPFW_LOOKUP_TYPE(&cmd->o));
-			t = table_search_ctlv(fo->tstate,
-			    insntoc(&cmd->o, kidx)->kidx);
-			if (len == F_INSN_SIZE(ipfw_insn_table)) {
-				bprintf(bp, "lookup %s:%#x %s",
-				    (key != NULL ? key : "<invalid>"),
-				    insntoc(&cmd->o, table)->value, t);
-			} else
-				bprintf(bp, "lookup %s %s", key != NULL ? key:
-				    "<invalid>", t);
+	case O_TABLE_LOOKUP: {
+		key = match_value(lookup_keys,
+		    IPFW_LOOKUP_TYPE(&cmd->o));
+		t = table_search_ctlv(fo->tstate,
+		    insntoc(&cmd->o, kidx)->kidx);
+		if (IPFW_LOOKUP_MASKING(&cmd->o) == 0 ||
+		    len != F_INSN_SIZE(ipfw_insn_lookup)) {
+			bprintf(bp, "lookup %s %s",
+			    (key != NULL ? key : "<invalid>"), t);
 			return;
 		}
-		/* FALLTHROUGH */
+		switch (IPFW_LOOKUP_TYPE(&cmd->o)) {
+		case LOOKUP_DST_IP6:
+		case LOOKUP_SRC_IP6:
+			if (inet_ntop(AF_INET6, &l->ip6,
+			     maskbuf, sizeof(maskbuf)) == NULL)
+				strcpy(maskbuf, "<invalid>");
+			bprintf(bp, "lookup %s:%s %s", key, maskbuf, t);
+			break;
+		case LOOKUP_DST_IP:
+		case LOOKUP_SRC_IP:
+		case LOOKUP_DST_IP4:
+		case LOOKUP_SRC_IP4:
+			bprintf(bp, "lookup %s:%s %s", key,
+			    inet_ntoa(l->ip4), t);
+			break;
+		case LOOKUP_DST_MAC:
+		case LOOKUP_SRC_MAC:
+			bprintf(bp, "lookup %s:%s %s", key,
+			    ether_ntoa((const struct ether_addr *)&l->mac), t);
+			break;
+		default:
+			bprintf(bp, "lookup %s:%#x %s",
+			    (key != NULL ? key : "<invalid>"),
+			    l->u32, t);
+		}
+		return;
+	}
+	case O_IP_DST_LOOKUP:
 	case O_IP_SRC_LOOKUP:
 		t = table_search_ctlv(fo->tstate,
 		    insntoc(&cmd->o, kidx)->kidx);
+		/*
+		 * XXX: compatibility layer, to be removed.
+		 * Properly show rules loaded into new kernel modules by
+		 * an old ipfw binary.
+		 */
+		if (IPFW_LOOKUP_MASKING(&cmd->o) != 0 &&
+		    len == F_INSN_SIZE(ipfw_insn_table)) {
+			key = match_value(lookup_keys,
+			    IPFW_LOOKUP_TYPE(&cmd->o));
+			bprintf(bp, "lookup %s:%#x %s",
+			    (key != NULL ? key : "<invalid>"),
+			    insntoc(&cmd->o, table)->value, t);
+			return;
+		}
 		bprintf(bp, "table(%s", t);
-		if (len == F_INSN_SIZE(ipfw_insn_table))
-			print_tvalue(bp, insntoc(&cmd->o, table));
+		if (IPFW_LOOKUP_MATCH_TVALUE(&cmd->o) != 0)
+			print_tvalue(bp, l);
 		bprintf(bp, ")");
 		return;
 	}
@@ -1470,15 +1526,14 @@ static void
 print_mac_lookup(struct buf_pr *bp, const struct format_opts *fo,
     const ipfw_insn *cmd)
 {
-	uint32_t len = F_LEN(cmd);
 	char *t;
 
 	bprintf(bp, " ");
 
 	t = table_search_ctlv(fo->tstate, insntoc(cmd, kidx)->kidx);
 	bprintf(bp, "table(%s", t);
-	if (len == F_INSN_SIZE(ipfw_insn_table))
-		print_tvalue(bp, insntoc(cmd, table));
+	if (IPFW_LOOKUP_MATCH_TVALUE(cmd) != 0)
+		print_tvalue(bp, insntoc(cmd, lookup));
 	bprintf(bp, ")");
 }
 
@@ -1643,6 +1698,8 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 	case O_IP_SRC_SET:
 		if (state->flags & HAVE_SRCIP)
 			bprintf(bp, " src-ip");
+		/* FALLTHROUGH */
+	case O_TABLE_LOOKUP:
 		print_ip(bp, fo, insntoc(cmd, ip));
 		break;
 	case O_IP_DST:
@@ -1767,8 +1824,8 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		s = table_search_ctlv(fo->tstate,
 		    insntoc(cmd, kidx)->kidx);
 		bprintf(bp, " flow table(%s", s);
-		if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_table))
-			print_tvalue(bp, insntoc(cmd, table));
+		if (IPFW_LOOKUP_MATCH_TVALUE(cmd) != 0)
+			print_tvalue(bp, insntoc(cmd, lookup));
 		bprintf(bp, ")");
 		break;
 	case O_IPID:
@@ -3304,8 +3361,11 @@ pack_table(struct tidx *tstate, const char *name)
 	return (pack_object(tstate, name, IPFW_TLV_TBL_NAME));
 }
 
+/*
+ * Parse table(NAME, value) and table(NAME,key=value)
+ */
 static void
-fill_table_value(ipfw_insn *cmd, char *s)
+fill_table_value(ipfw_insn_lookup *cmd, char *s)
 {
 	char *p;
 	int i;
@@ -3322,8 +3382,20 @@ fill_table_value(ipfw_insn *cmd, char *s)
 		p = s;
 	}
 
-	IPFW_SET_TVALUE_TYPE(cmd, i);
-	insntod(cmd, table)->value = strtoul(p, NULL, 0);
+	IPFW_SET_TVALUE_TYPE(&cmd->o, i);
+
+	if (i == TVALUE_NH6) {
+		if (inet_pton(AF_INET6, p, &cmd->ip6) != 1)
+			errx(EX_USAGE, "invalid IPv6 address provided");
+	/* mask in a dotted-quad notation */
+	} else if (strchr(p, '.') != NULL) {
+		if (inet_aton(p, &cmd->ip4) != 1)
+			errx(EX_USAGE, "invalid IPv4 address provided");
+		if (i == TVALUE_NH4)
+			return;
+		cmd->u32 = ntohl(cmd->u32);
+	} else
+		cmd->u32 = strtoul(p, NULL, 0);
 }
 
 void
@@ -3344,9 +3416,11 @@ fill_table(ipfw_insn *cmd, char *av, uint8_t opcode, struct tidx *tstate)
 
 	cmd->opcode = opcode;
 	if (p) {
-		cmd->len |= F_INSN_SIZE(ipfw_insn_table);
-		fill_table_value(cmd, p);
+		cmd->len |= F_INSN_SIZE(ipfw_insn_lookup);
+		IPFW_SET_LOOKUP_MATCH_TVALUE(cmd, 1);
+		fill_table_value(insntod(cmd, lookup), p);
 	} else {
+		/* table(NAME) */
 		IPFW_SET_LOOKUP_TYPE(cmd, LOOKUP_NONE);
 		cmd->len |= F_INSN_SIZE(ipfw_insn_kidx);
 	}
@@ -4124,6 +4198,38 @@ get_divert_port(const char *arg, const char *action)
 	if (s == NULL)
 		errx(EX_DATAERR, "illegal divert/tee port");
 	return (ntohs(s->s_port));
+}
+
+static void
+get_lookup_bitmask(int ltype, ipfw_insn_lookup *cmd, const char *src)
+{
+	struct ether_addr *mac;
+	const char *macset = "0123456789abcdefABCDEF:";
+
+	if (ltype == LOOKUP_SRC_IP6 || ltype == LOOKUP_DST_IP6) {
+		if (inet_pton(AF_INET6, src, &cmd->ip6) != 1)
+			errx(EX_USAGE, "invalid IPv6 mask provided");
+		return;
+	} else if (ltype == LOOKUP_SRC_MAC || ltype == LOOKUP_DST_MAC) {
+		if (strspn(src, macset) != strlen(src) ||
+		    (mac = ether_aton(src)) == NULL)
+			errx(EX_DATAERR, "Incorrect MAC address");
+
+		bcopy(mac, cmd->mac, ETHER_ADDR_LEN);
+		return;
+	/* mask in a dotted-quad notation */
+	} else if (strchr(src, '.') != NULL) {
+		if (inet_aton(src, &cmd->ip4) != 1)
+			errx(EX_USAGE, "invalid dotted-quad mask provided");
+		switch (ltype) {
+		case LOOKUP_SRC_IP4:
+		case LOOKUP_DST_IP4:
+			return;
+		}
+		cmd->u32 = ntohl(cmd->u32);
+		return;
+	}
+	cmd->u32 = strtoul(src, NULL, 0);
 }
 
 /*
@@ -5448,13 +5554,13 @@ read_options:
 
 		case TOK_LOOKUP: {
 			/* optional mask for some LOOKUP types */
-			ipfw_insn_table *c = insntod(cmd, table);
+			ipfw_insn_lookup *c = insntod(cmd, lookup);
 			char *lkey;
 
 			if (!av[0] || !av[1])
 				errx(EX_USAGE,
 				    "format: lookup argument tablenum");
-			cmd->opcode = O_IP_DST_LOOKUP;
+			cmd->opcode = O_TABLE_LOOKUP;
 
 			lkey = strsep(av, ":");
 			i = match_token(lookup_keys, lkey);
@@ -5471,18 +5577,21 @@ read_options:
 				case LOOKUP_DSCP:
 				case LOOKUP_MARK:
 				case LOOKUP_RULENUM:
+				case LOOKUP_SRC_MAC:
+				case LOOKUP_DST_MAC:
+				case LOOKUP_SRC_IP6:
+				case LOOKUP_DST_IP6:
+				case LOOKUP_SRC_IP4:
+				case LOOKUP_DST_IP4:
 					break;
 				default:
 					errx(EX_USAGE,
 					    "masked lookup is not supported "
 					    "for %s", lkey);
 				}
-				cmd->len |= F_INSN_SIZE(ipfw_insn_table);
-				c->value = strtoul(*av, NULL, 0);
-				if (c->value == 0)
-					errx(EX_USAGE,
-					    "all-zeroes bitmask for lookup "
-					    "is meaningless");
+				cmd->len |= F_INSN_SIZE(ipfw_insn_lookup);
+				IPFW_SET_LOOKUP_MASKING(cmd, 1);
+				get_lookup_bitmask(i, c, *av);
 			} else {
 				cmd->len |= F_INSN_SIZE(ipfw_insn_kidx);
 			}

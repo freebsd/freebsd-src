@@ -1309,7 +1309,7 @@ jump(struct ip_fw_chain *chain, struct ip_fw *f, uint32_t num,
 #define	TARG(k, f)	IP_FW_ARG_TABLEARG(chain, k, f)
 
 static inline int
-tvalue_match(struct ip_fw_chain *ch, const ipfw_insn_table *cmd,
+tvalue_match(struct ip_fw_chain *ch, const ipfw_insn_lookup *cmd,
     uint32_t tablearg)
 {
 	uint32_t tvalue;
@@ -1336,6 +1336,11 @@ tvalue_match(struct ip_fw_chain *ch, const ipfw_insn_table *cmd,
 	case TVALUE_NH4:
 		tvalue = TARG_VAL(ch, tablearg, nh4);
 		break;
+	case TVALUE_NH6:
+		if (F_LEN(&cmd->o) != F_INSN_SIZE(ipfw_insn_lookup))
+			return (0);
+		return (0 == memcmp(&TARG_VAL(ch, tablearg, nh6),
+		    &cmd->ip6, sizeof(struct in6_addr)));
 	case TVALUE_DSCP:
 		tvalue = TARG_VAL(ch, tablearg, dscp);
 		break;
@@ -1350,7 +1355,13 @@ tvalue_match(struct ip_fw_chain *ch, const ipfw_insn_table *cmd,
 		tvalue = TARG_VAL(ch, tablearg, tag);
 		break;
 	}
-	return (tvalue == cmd->value);
+	/*
+	 * XXX: compatibility layer, to be removed.
+	 * Match u32 values specified as ipfw_insn_table structure.
+	 */
+	if (F_LEN(&cmd->o) == F_INSN_SIZE(ipfw_insn_table))
+		return (tvalue == insntoc(cmd, table)->value);
+	return (tvalue == cmd->u32);
 }
 
 /*
@@ -2097,135 +2108,15 @@ do {								\
 				break;
 
 			case O_IP_DST_LOOKUP:
-				if (IPFW_LOOKUP_TYPE(cmd) != LOOKUP_NONE) {
-				  void *pkey = NULL;
-				  uint32_t key, vidx;
-				  uint16_t keylen = 0; /* zero if can't match the packet */
-				  uint8_t lookup_type;
-
-				lookup_type = IPFW_LOOKUP_TYPE(cmd);
-
-				switch (lookup_type) {
-				case LOOKUP_DST_IP:
-				case LOOKUP_SRC_IP:
-					if (is_ipv4) {
-						keylen = sizeof(in_addr_t);
-						if (lookup_type == LOOKUP_DST_IP)
-							pkey = &dst_ip;
-						else
-							pkey = &src_ip;
-					} else if (is_ipv6) {
-						keylen = sizeof(struct in6_addr);
-						if (lookup_type == LOOKUP_DST_IP)
-							pkey = &args->f_id.dst_ip6;
-						else
-							pkey = &args->f_id.src_ip6;
-					}
-					break;
-				case LOOKUP_DSCP:
-					if (is_ipv4)
-						key = ip->ip_tos >> 2;
-					else if (is_ipv6)
-						key = IPV6_DSCP(
-						    (struct ip6_hdr *)ip) >> 2;
-					else
-						break; /* only for L3 */
-
-					key &= 0x3f;
-					if (cmdlen == F_INSN_SIZE(ipfw_insn_table))
-						key &= insntod(cmd, table)->value;
-					pkey = &key;
-					keylen = sizeof(key);
-					break;
-				case LOOKUP_DST_PORT:
-				case LOOKUP_SRC_PORT:
-					/* only for L3 */
-					if (is_ipv6 == 0 && is_ipv4 == 0) {
-						break;
-					}
-					/* Skip fragments */
-					if (offset != 0) {
-						break;
-					}
-					/* Skip proto without ports */
-					if (proto != IPPROTO_TCP &&
-					    proto != IPPROTO_UDP &&
-					    proto != IPPROTO_UDPLITE &&
-					    proto != IPPROTO_SCTP)
-						break;
-					if (lookup_type == LOOKUP_DST_PORT)
-						key = dst_port;
-					else
-						key = src_port;
-					pkey = &key;
-					if (cmdlen == F_INSN_SIZE(ipfw_insn_table))
-						key &= insntod(cmd, table)->value;
-					keylen = sizeof(key);
-					break;
-				case LOOKUP_DST_MAC:
-				case LOOKUP_SRC_MAC:
-					/* only for L2 */
-					if ((args->flags & IPFW_ARGS_ETHER) == 0)
-						break;
-
-					pkey = lookup_type == LOOKUP_DST_MAC ?
-					    eh->ether_dhost : eh->ether_shost;
-					keylen = ETHER_ADDR_LEN;
-					break;
-#ifndef USERSPACE
-				case LOOKUP_UID:
-				case LOOKUP_JAIL:
-					check_uidgid(insntod(cmd, u32),
-					    args, &ucred_lookup,
-#ifdef __FreeBSD__
-					    &ucred_cache);
-					if (lookup_type == LOOKUP_UID)
-						key = ucred_cache->cr_uid;
-					else if (lookup_type == LOOKUP_JAIL)
-						key = ucred_cache->cr_prison->pr_id;
-#else /* !__FreeBSD__ */
-					    (void *)&ucred_cache);
-					if (lookup_type == LOOKUP_UID)
-						key = ucred_cache.uid;
-					else if (lookup_type == LOOKUP_JAIL)
-						key = ucred_cache.xid;
-#endif /* !__FreeBSD__ */
-					pkey = &key;
-					if (cmdlen == F_INSN_SIZE(ipfw_insn_table))
-						key &= insntod(cmd, table)->value;
-					keylen = sizeof(key);
-					break;
-#endif /* !USERSPACE */
-				case LOOKUP_MARK:
-					key = args->rule.pkt_mark;
-					if (cmdlen == F_INSN_SIZE(ipfw_insn_table))
-						key &= insntod(cmd, table)->value;
-					pkey = &key;
-					keylen = sizeof(key);
-					break;
-				case LOOKUP_RULENUM:
-					key = f->rulenum;
-					if (cmdlen == F_INSN_SIZE(ipfw_insn_table))
-						key &= insntod(cmd, table)->value;
-					pkey = &key;
-					keylen = sizeof(key);
-					break;
-				}
-				/* unknown key type */
-				if (keylen == 0)
-					break;
-				match = ipfw_lookup_table(chain,
-				    insntod(cmd, kidx)->kidx, keylen,
-				    pkey, &vidx);
-
-				if (match)
-					tablearg = vidx;
-				break;
-			}
-				/* LOOKUP_NONE */
-				/* FALLTHROUGH */
 			case O_IP_SRC_LOOKUP:
-			{
+				/*
+				 * XXX: compatibility layer, to be removed.
+				 * The following if and subsequent fallthrough
+				 * are here for backward opcode compatibility
+				 * used for lookup opcode until O_TABLE_LOOKUP
+				 * appeared.
+				 */
+				if (IPFW_LOOKUP_TYPE(cmd) == LOOKUP_NONE) {
 				void *pkey;
 				uint32_t vidx;
 				uint16_t keylen;
@@ -2249,15 +2140,171 @@ do {								\
 				    keylen, pkey, &vidx);
 				if (!match)
 					break;
-				if (cmdlen == F_INSN_SIZE(ipfw_insn_table)) {
+				if (IPFW_LOOKUP_MATCH_TVALUE(cmd) != 0) {
 					match = tvalue_match(chain,
-					    insntod(cmd, table), vidx);
+					    insntod(cmd, lookup), vidx);
 					if (!match)
 						break;
 				}
 				tablearg = vidx;
 				break;
-			}
+				}
+				/* FALLTHROUGH */
+			case O_TABLE_LOOKUP:
+			{
+				ipfw_insn_lookup key;
+				uint32_t vidx;
+				uint16_t keylen = 0; /* zero if can't match the packet */
+				uint8_t lookup_type;
+
+				lookup_type = IPFW_LOOKUP_TYPE(cmd);
+
+				switch (lookup_type) {
+				case LOOKUP_DST_IP:
+				case LOOKUP_DST_IP4:
+					if (is_ipv4) {
+						keylen = sizeof(in_addr_t);
+						key.ip4 = dst_ip;
+						break;
+					}
+					if (lookup_type == LOOKUP_DST_IP4)
+						break;
+					/* FALLTHOUGH */
+				case LOOKUP_DST_IP6:
+					if (is_ipv6 == 0)
+						break;
+					keylen = sizeof(struct in6_addr);
+					key.ip6 = args->f_id.dst_ip6;
+					break;
+				case LOOKUP_SRC_IP:
+				case LOOKUP_SRC_IP4:
+					if (is_ipv4) {
+						keylen = sizeof(in_addr_t);
+						key.ip4 = src_ip;
+						break;
+					}
+					if (lookup_type == LOOKUP_SRC_IP4)
+						break;
+					/* FALLTHOUGH */
+				case LOOKUP_SRC_IP6:
+					if (is_ipv6 == 0)
+						break;
+					keylen = sizeof(struct in6_addr);
+					key.ip6 = args->f_id.src_ip6;
+					break;
+				case LOOKUP_DSCP:
+					if (is_ipv4)
+						key.u32 = ip->ip_tos >> 2;
+					else if (is_ipv6)
+						key.u32 = IPV6_DSCP(
+						    (struct ip6_hdr *)ip) >> 2;
+					else
+						break; /* only for L3 */
+
+					keylen = sizeof(key.u32);
+					key.u32 &= 0x3f;
+					break;
+				case LOOKUP_DST_PORT:
+				case LOOKUP_SRC_PORT:
+					/* only for L3 */
+					if (is_ipv6 == 0 && is_ipv4 == 0) {
+						break;
+					}
+					/* Skip fragments */
+					if (offset != 0) {
+						break;
+					}
+					/* Skip proto without ports */
+					if (proto != IPPROTO_TCP &&
+					    proto != IPPROTO_UDP &&
+					    proto != IPPROTO_UDPLITE &&
+					    proto != IPPROTO_SCTP)
+						break;
+					if (lookup_type == LOOKUP_DST_PORT)
+						key.u32 = dst_port;
+					else
+						key.u32 = src_port;
+					keylen = sizeof(key.u32);
+					break;
+				case LOOKUP_DST_MAC:
+					/* only for L2 */
+					if ((args->flags & IPFW_ARGS_ETHER) == 0)
+						break;
+					keylen = ETHER_ADDR_LEN;
+					memcpy(key.mac, eh->ether_dhost,
+					    sizeof(key.mac));
+					break;
+				case LOOKUP_SRC_MAC:
+					/* only for L2 */
+					if ((args->flags & IPFW_ARGS_ETHER) == 0)
+						break;
+					keylen = ETHER_ADDR_LEN;
+					memcpy(key.mac, eh->ether_shost,
+					    sizeof(key.mac));
+					break;
+#ifndef USERSPACE
+				case LOOKUP_UID:
+				case LOOKUP_JAIL:
+					check_uidgid(insntod(cmd, u32),
+					    args, &ucred_lookup,
+#ifdef __FreeBSD__
+					    &ucred_cache);
+					if (lookup_type == LOOKUP_UID)
+						key.u32 = ucred_cache->cr_uid;
+					else if (lookup_type == LOOKUP_JAIL)
+						key.u32 = ucred_cache->cr_prison->pr_id;
+#else /* !__FreeBSD__ */
+					    (void *)&ucred_cache);
+					if (lookup_type == LOOKUP_UID)
+						key.u32 = ucred_cache.uid;
+					else if (lookup_type == LOOKUP_JAIL)
+						key.u32 = ucred_cache.xid;
+#endif /* !__FreeBSD__ */
+					keylen = sizeof(key.u32);
+					break;
+#endif /* !USERSPACE */
+				case LOOKUP_MARK:
+					key.u32 = args->rule.pkt_mark;
+					keylen = sizeof(key.u32);
+					break;
+				case LOOKUP_RULENUM:
+					key.u32 = f->rulenum;
+					keylen = sizeof(key.u32);
+					break;
+				}
+				/* unknown key type */
+				if (keylen == 0)
+					break;
+
+				if (IPFW_LOOKUP_MASKING(cmd) == 0) {
+					/* no masking needed */
+				} else if (cmdlen ==
+				    F_INSN_SIZE(ipfw_insn_table)) {
+					/*
+					 * XXX: compatibility layer,
+					 * to be removed.
+					 */
+					key.u32 &= insntod(cmd, table)->value;
+				} else {
+					key.__mask64[0] &=
+					    insntod(cmd, lookup)->__mask64[0];
+					key.__mask64[1] &=
+					    insntod(cmd, lookup)->__mask64[1];
+				}
+
+				match = ipfw_lookup_table(chain,
+				    insntod(cmd, kidx)->kidx, keylen,
+				    key.__mask64, &vidx);
+
+				if (!match)
+					break;
+				/*
+				 * XXX should we support check for value
+				 * simultaneously with masked lookup?
+				 */
+				tablearg = vidx;
+				break;
+			} /* O_TABLE_LOOKUP */
 
 			case O_MAC_SRC_LOOKUP:
 			case O_MAC_DST_LOOKUP:
@@ -2280,9 +2327,9 @@ do {								\
 				    keylen, pkey, &vidx);
 				if (!match)
 					break;
-				if (cmdlen == F_INSN_SIZE(ipfw_insn_table)) {
+				if (IPFW_LOOKUP_MATCH_TVALUE(cmd) != 0) {
 					match = tvalue_match(chain,
-					    insntod(cmd, table), vidx);
+					    insntod(cmd, lookup), vidx);
 					if (!match)
 						break;
 				}
@@ -2299,9 +2346,9 @@ do {								\
 				    &args->f_id, &vidx);
 				if (!match)
 					break;
-				if (cmdlen == F_INSN_SIZE(ipfw_insn_table))
+				if (IPFW_LOOKUP_MATCH_TVALUE(cmd) != 0)
 					match = tvalue_match(chain,
-					    insntod(cmd, table), vidx);
+					    insntod(cmd, lookup), vidx);
 				if (match)
 					tablearg = vidx;
 				break;
