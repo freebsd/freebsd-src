@@ -710,7 +710,7 @@ do_zfs_replay_rename(zfsvfs_t *zfsvfs, _lr_rename_t *lr, char *sname,
 	    wo_vap, zfs_init_idmap);
 #else
 	error = zfs_rename(sdzp, sname, tdzp, tname, kcred, vflg, rflags,
-	    wo_vap, NULL);
+	    0, wo_vap, NULL);
 #endif
 
 	zrele(tdzp);
