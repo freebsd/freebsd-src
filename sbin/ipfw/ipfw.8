@@ -1,5 +1,5 @@
 .\"
-.Dd December 29, 2025
+.Dd March 1, 2026
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1428,8 +1428,7 @@ The second format
 with multiple addresses) is provided for convenience only and
 its use is discouraged.
 .It Ar addr : Oo Cm not Oc Bro
-.Cm any | me | me6 |
-.Cm table Ns Pq Ar name Ns Op , Ns Ar value
+.Cm any | me | me6 | Ar table-ref
 .Ar | addr-list | addr-set
 .Brc
 .Bl -tag -width indent
@@ -1441,26 +1440,32 @@ Matches any IP address configured on an interface in the system.
 Matches any IPv6 address configured on an interface in the system.
 The address list is evaluated at the time the packet is
 analysed.
-.It Cm table Ns Pq Ar name Ns Op , Ns Ar value
+.El
+.It Ar table-ref :
+A table lookup can be specified in one of the following ways:
+.Bl -tag -width indent
+.It table Ns Pq Ar name Ns
 Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
 .Ar number .
-If an optional 32-bit unsigned
+.It table Ns Pq Ar name , Ns Ar value
+Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
+.Ar number
+and 32-bit unsigned
 .Ar value
-is also specified, an entry will match only if it has this value.
-If
+specified matchess entry value.
+.It table Ns Pq Ar name , Ns Ar value-type Ns = Ns Ar value
+Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
+.Ar number
+and 32-bit unsigned
 .Ar value
-is specified in form
-.Ar valtype=value ,
-then specified value type field will be checked.
-It can be
-.Ar skipto, pipe, fib, nat, dscp, tag, divert, netgraph, limit, nh4
-and
-.Ar mark.
-
+specified matches corresponding
+.Ar value-type
+field for the record found.
+.El
+.Pp
 See the
 .Sx LOOKUP TABLES
 section below for more information on lookup tables.
-.El
 .It Ar addr-list : ip-addr Ns Op , Ns Ar addr-list
 .It Ar ip-addr :
 A host or subnet address specified in one of the following ways:
@@ -1681,9 +1686,9 @@ and IPsec encapsulating security payload headers
 .It Cm fib Ar fibnum
 Matches a packet that has been tagged to use
 the given FIB (routing table) number.
-.It Cm flow Ar table Ns Pq Ar name Ns Op , Ns Ar value
-Search for the flow entry in lookup table
-.Ar name .
+.It Cm flow Ar table-ref
+Search for the flow entry in lookup table specified by
+.Ar table-ref .
 If not found, the match fails.
 Otherwise, the match succeeds and
 .Cm tablearg
@@ -1699,16 +1704,16 @@ Matches IPv6 packets containing any of the flow labels given in
 .Ar labels .
 .Ar labels
 is a comma separated list of numeric flow labels.
-.It Cm dst-mac Ar table Ns Pq Ar name Ns Op , Ns Ar value
-Search for the destination MAC address entry in lookup table
-.Ar name .
+.It Cm dst-mac Ar table-ref
+Search for the destination MAC address entry in lookup table specified by
+.Ar table-ref .
 If not found, the match fails.
 Otherwise, the match succeeds and
 .Cm tablearg
 is set to the value extracted from the table.
-.It Cm src-mac Ar table Ns Pq Ar name Ns Op , Ns Ar value
-Search for the source MAC address entry in lookup table
-.Ar name .
+.It Cm src-mac Ar table-ref
+Search for the source MAC address entry in lookup table specified by
+.Ar table-ref .
 If not found, the match fails.
 Otherwise, the match succeeds and
 .Cm tablearg
@@ -1926,8 +1931,10 @@ set of parameters as specified in the rule.
 One or more
 of source and destination addresses and ports can be
 specified.
-.It Cm lookup Bro Cm dst-ip | dst-port | dst-mac | src-ip | src-port | src-mac | uid |
-.Cm jail | dscp | mark | rulenum Brc Ar name
+.It Cm lookup Bro Cm dst-ip | dst-ip4 | dst-ip6 | dst-port | dst-mac | src-ip |
+.Cm src-ip4 | src-ip6 | src-port | src-mac | uid | jail | dscp | mark |
+.Cm rulenum
+.Brc Ns Oo : Ns Ar bitmask Oc Ar name
 Search an entry in lookup table
 .Ar name
 that matches the field specified as argument.
@@ -1936,8 +1943,56 @@ Otherwise, the match succeeds and
 .Cm tablearg
 is set to the value extracted from the table.
 .Pp
+If an optional
+.Ar bitmask
+is specified, value of the field is altered by bitwize AND with
+.Ar bitmask
+and resulting value is being searched instead of the original one.
+The
+.Ar bitmask
+is accepted in the following formats:
+.Bl -enum -width indent
+.It
+In a dotted-quad form, e.g. 127.88.34.0.
+This form can be used for IPv4 lookups as well as for all numeric lookup
+types.
+.It
+As a 32-bit number, e.g. 0xf00baa1 or 255.
+This form can be used for IPv4 lookups as well as for all numeric lookup
+types.
+.It
+As an IPv6 address when specified alongwith
+.Cm dst-ip6
+or
+.Cm src-ip6
+field.
+If used, the rule will match IPv6 packets only.
+Example: src-ip6:afff:ff00:ffff:ffff:0:0:0:0f0f.
+.It
+As a Ethernet mac address when specified alongwith
+.Cm dst-mac
+or
+.Cm src-mac
+field. E.g. 00:11:22:33:44:55.
+.El
+.Pp
+The
+.Ar bitmask
+can not be specified for
+.Cm dst-ip
+or
+.Cm src-ip
+as these field specifiers lookup both IPv4 and IPv6 addresses.
+.Pp
 This option can be useful to quickly dispatch traffic based on
 certain packet fields.
+The
+.Ar bitmask
+allows to implement wildcard lookups by inserting into table masked prefix and
+appying
+.Ar bitmask
+upon each lookup.
+.Pp
 See the
 .Sx LOOKUP TABLES
 section below for more information on lookup tables.
@@ -2000,7 +2055,7 @@ However, this option doesn't imply an implicit
 .Cm check-state
 in contrast to
 .Cm keep-state .
-.It Cm recv | xmit | via Brq Ar ifX | Ar ifmask | Ar table Ns Po Ar name Ns Oo , Ns Ar value Oc Pc | Ar ipno | Ar any
+.It Cm recv | xmit | via Brq Ar ifX | Ar ifmask | Ar table-ref | Ar ipno | Ar any
 Matches packets received, transmitted or going through,
 respectively, the interface specified by exact name
 .Po Ar ifX Pc ,
@@ -2018,8 +2073,8 @@ See also the
 .Sx EXAMPLES
 section.
 .Pp
-Table
-.Ar name
+A lookup table specified by
+.Ar table-ref
 may be used to match interface by its kernel ifindex.
 See the
 .Sx LOOKUP TABLES
@@ -4350,7 +4405,8 @@ Capture messages from
 .Xr route 4
 socket, that were logged using rules with
 .Cm log Cm logdst Ar rtsock
-opcode. Optional
+opcode.
+Optional
 .Ar filter-comment
 can be specified to show only those messages, that were logged
 by rules with specific rule comment.
@@ -4705,10 +4761,41 @@ In the following example per-interface firewall is created:
 The following example illustrate usage of flow tables:
 .Pp
 .Dl "ipfw table fl create type flow:src-ip,proto,dst-ip,dst-port"
-.Dl "ipfw table fl add 2a02:6b8:77::88,tcp,2a02:6b8:77::99,80 11"
+.Dl "ipfw table fl add 2001:db8:77::88,tcp,2001:db8:77::99,80 11"
 .Dl "ipfw table fl add 10.0.0.1,udp,10.0.0.2,53 12"
 .Dl ".."
 .Dl "ipfw add 100 allow ip from any to any flow 'table(fl,11)' recv ix0"
+.Pp
+The following example illustrate masked table lookups to aid uniform client
+distribution among multiple NAT instances:
+.Bd -literal -offset indent
+# Configure NAT instances
+ipfw nat 10 config ip 192.0.2.0
+ipfw nat 11 config ip 192.0.2.1
+ipfw nat 12 config ip 192.0.2.2
+ipfw nat 13 config ip 192.0.2.3
+
+ipfw table mynats create type addr valtype nat
+# Map external NAT address to NAT instance
+ipfw table mynats add 192.0.2.0 10
+ipfw table mynats add 192.0.2.1 11
+ipfw table mynats add 192.0.2.2 12
+ipfw table mynats add 192.0.2.3 13
+
+# Map last 2 bits of client's IP address to NAT instance
+ipfw table mynats add 0.0.0.0 10
+ipfw table mynats add 0.0.0.1 11
+ipfw table mynats add 0.0.0.2 12
+ipfw table mynats add 0.0.0.3 13
+
+# In -> Out NAT, zero out all bits in a client's IP exept
+# 2 least significant prior to table lookup
+ipfw add nat tablearg ip from 10.0.0.0/24 to any
+			lookup src-ip4:0.0.0.3 mynats
+# Out -> In NAT
+ipfw add nat tablearg ip from any to 192.0.2.0/30
+			lookup dst-ip mynats
+.Ed
 .Ss SETS OF RULES
 To add a set of rules atomically, e.g.\& set 18:
 .Pp

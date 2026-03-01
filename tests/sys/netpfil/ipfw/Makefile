@@ -5,9 +5,11 @@ TESTSDIR=       ${TESTSBASE}/sys/netpfil/ipfw
 ATF_TESTS_SH+=	fwd \
 		divert \
 		log \
+		lookup \
 		table
 
-${PACKAGE}FILES+=	fwd_inetd.conf
+${PACKAGE}FILES+=	fwd_inetd.conf \
+			lookup_inetd.conf
 
 # Allow tests to run in parallel in their own jails
 TEST_METADATA+= execenv="jail"

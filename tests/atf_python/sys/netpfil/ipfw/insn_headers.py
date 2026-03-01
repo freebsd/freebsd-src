@@ -101,7 +101,8 @@ class IpFwOpcode(Enum):
     O_MAC_DST_LOOKUP = 96
     O_SETMARK = 97
     O_MARK = 98
-    O_LAST_OPCODE = 99
+    O_TABLE_LOOKUP = 99
+    O_LAST_OPCODE = 100
 
 
 class Op3CmdType(Enum):
@@ -196,3 +197,37 @@ class Icmp6RejectCode(Enum):
     ICMP6_DST_UNREACH_SRCROUTE = 7
     ICMP6_UNREACH_RST = 256
     ICMP6_UNREACH_ABORT = 257
+
+
+class IpFwTableLookupType(Enum):
+    LOOKUP_NONE = 0
+    LOOKUP_DST_IP = 1
+    LOOKUP_SRC_IP = 2
+    LOOKUP_DST_PORT = 3
+    LOOKUP_SRC_PORT = 4
+    LOOKUP_UID = 5
+    LOOKUP_JAIL = 6
+    LOOKUP_DSCP = 7
+    LOOKUP_DST_MAC = 8
+    LOOKUP_SRC_MAC = 9
+    LOOKUP_MARK = 10
+    LOOKUP_RULENUM = 11
+    LOOKUP_DST_IP4 = 12
+    LOOKUP_SRC_IP4 = 13
+    LOOKUP_DST_IP6 = 14
+    LOOKUP_SRC_IP6 = 15
+
+
+class IpFwTableValueType(Enum):
+    TVALUE_TAG = 0
+    TVALUE_PIPE = 1
+    TVALUE_DIVERT = 2
+    TVALUE_SKIPTO = 3
+    TVALUE_NETGRAPH = 4
+    TVALUE_FIB = 5
+    TVALUE_NAT = 6
+    TVALUE_NH4 = 7
+    TVALUE_DSCP = 8
+    TVALUE_LIMIT = 9
+    TVALUE_MARK = 10
+    TVALUE_NH6 = 11

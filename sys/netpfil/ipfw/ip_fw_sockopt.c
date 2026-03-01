@@ -1418,7 +1418,39 @@ ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 	case O_MAC_SRC_LOOKUP:
 	case O_MAC_DST_LOOKUP:
 		if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx) &&
+		    cmdlen != F_INSN_SIZE(ipfw_insn_lookup) &&
 		    cmdlen != F_INSN_SIZE(ipfw_insn_table))
+			return (BAD_SIZE);
+		if (insntod(cmd, kidx)->kidx >= V_fw_tables_max) {
+			printf("ipfw: invalid table index %u\n",
+			    insntod(cmd, kidx)->kidx);
+			return (FAILED);
+		}
+		ci->object_opcodes++;
+		/*
+		 * XXX: compatibility layer, to be removed.
+
+		 * ipfw_insn_table was used to match table value for u32
+		 * values and cmdlen was used to detect such intention.
+		 * A special flag is now used for that in module so
+		 * adopt legacy sbin/ipfw behavior and set it for all
+		 * lookup instructions with ipfw_insn_table opcode.
+		 *
+		 * Lookup type different from LOOKUP_NONE was used for
+		 * 32-bit bitmasking prior to lookup.
+		 * Table value matching was expected otherwise.
+		 */
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_table))
+			break;
+
+		if (IPFW_LOOKUP_TYPE(cmd) != LOOKUP_NONE)
+			IPFW_SET_LOOKUP_MASKING(cmd, 1);
+		else
+			IPFW_SET_LOOKUP_MATCH_TVALUE(cmd, 1);
+		break;
+	case O_TABLE_LOOKUP:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx) &&
+		    cmdlen != F_INSN_SIZE(ipfw_insn_lookup))
 			return (BAD_SIZE);
 		if (insntod(cmd, kidx)->kidx >= V_fw_tables_max) {
 			printf("ipfw: invalid table index %u\n",

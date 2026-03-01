@@ -26,6 +26,7 @@ import pytest
 from atf_python.sys.netpfil.ipfw.insns import BaseInsn
 from atf_python.sys.netpfil.ipfw.insns import insn_attrs
 from atf_python.sys.netpfil.ipfw.ioctl_headers import IpFwTableLookupType
+from atf_python.sys.netpfil.ipfw.ioctl_headers import IpFwTableValueType
 from atf_python.sys.netpfil.ipfw.ioctl_headers import IpFwTlvType
 from atf_python.sys.netpfil.ipfw.ioctl_headers import Op3CmdType
 from atf_python.sys.netpfil.ipfw.utils import align8
