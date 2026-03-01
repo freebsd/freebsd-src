@@ -672,6 +672,21 @@ amd_get_msr(int ri, uint32_t *msr)
 }
 
 /*
+ * Return the capabilities of the given PMC.
+ */
+static int
+amd_get_caps(int ri, uint32_t *caps)
+{
+
+	KASSERT(ri >= 0 && ri < amd_npmcs,
+	    ("[amd,%d] ri %d out of range", __LINE__, ri));
+
+	*caps = amd_pmcdesc[ri].pm_descr.pd_caps;
+
+	return (0);
+}
+
+/*
  * Processor-dependent initialization.
  */
 static int
@@ -928,6 +943,7 @@ pmc_amd_initialize(void)
 	pcd->pcd_start_pmc	= amd_start_pmc;
 	pcd->pcd_stop_pmc	= amd_stop_pmc;
 	pcd->pcd_write_pmc	= amd_write_pmc;
+	pcd->pcd_get_caps	= amd_get_caps;
 
 	pmc_mdep->pmd_cputype	= cputype;
 	pmc_mdep->pmd_intr	= amd_intr;
