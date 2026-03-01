@@ -276,7 +276,7 @@ void
 initializecpu(void)
 {
 	uint64_t msr;
-	uint32_t cr4;
+	uint64_t cr4;
 
 	TSENTER();
 	cr4 = rcr4();
