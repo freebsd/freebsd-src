@@ -78,6 +78,9 @@ struct asmc_softc {
 /* Number of keys */
 #define ASMC_NKEYS		"#KEY"	/* RO; 4 bytes */
 
+/* Query the ASMC revision */
+#define ASMC_KEY_REV		"REV "  /* RO: 6 bytes */
+
 /*
  * Fan control via SMC.
  */

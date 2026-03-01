@@ -51,6 +51,7 @@
 #include <sys/rman.h>
 
 #include <machine/resource.h>
+#include <netinet/in.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 
@@ -935,10 +936,16 @@ asmc_init(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 	struct sysctl_ctx_list *sysctlctx;
+	uint8_t buf[6];
 	int i, error = 1;
-	uint8_t buf[4];
 
 	sysctlctx = device_get_sysctl_ctx(dev);
+
+	error = asmc_key_read(dev, ASMC_KEY_REV, buf, 6);
+	if (error != 0)
+		goto out_err;
+	device_printf(dev, "SMC revision: %x.%x%x%x\n", buf[0], buf[1], buf[2],
+	    ntohs(*(uint16_t *)buf + 4));
 
 	if (sc->sc_model->smc_sms_x == NULL)
 		goto nosms;
@@ -1039,10 +1046,10 @@ nosms:
 		sc->sc_nkeys = 0;
 	}
 
+out_err:
 #ifdef ASMC_DEBUG
 	asmc_dumpall(dev);
 #endif
-
 	return (error);
 }
 
