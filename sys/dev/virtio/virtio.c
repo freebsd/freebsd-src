@@ -31,6 +31,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/module.h>
 #include <sys/sbuf.h>
 
@@ -83,6 +84,9 @@ static struct virtio_feature_desc virtio_common_feature_desc[] = {
 
 	{ 0, NULL }
 };
+
+SYSCTL_NODE(_hw, OID_AUTO, virtio, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VirtIO driver parameters");
 
 const char *
 virtio_device_name(uint16_t devid)
