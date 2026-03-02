@@ -2502,7 +2502,9 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* Start mgd_prepare_tx. */
 	memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-	prep_tx_info.duration = PREP_TX_INFO_DURATION;
+	prep_tx_info.duration = PREP_TX_INFO_DURATION;		/* SAE */
+	prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+	prep_tx_info.link_id = 0;
 	lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 	lsta->in_mgd = true;
 
@@ -2638,6 +2640,7 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	/* End mgd_complete_tx. */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
 		prep_tx_info.success = true;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
@@ -2648,7 +2651,8 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	/* Start mgd_prepare_tx. */
 	if (nstate == IEEE80211_S_ASSOC && !lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
@@ -2796,7 +2800,9 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* End mgd_complete_tx. (we do not have to check ostate == IEEE80211_S_ASSOC). */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = true;
+		prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.success = true;	/* Needs vif->cfg.assoc set! */
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
@@ -2860,6 +2866,9 @@ out:
  * DOWN1
  * "to assoc" means we are going back to State 2 from State 4[/3].
  * This means ni still is authenticated, so we keep sta, chanctx, ..
+ * We will send a (Re)Assoc Request in case net80211 handles roadming.
+ * Note: this can be called as part of a DEAUTH going to State 1 as well,
+ * so for RoC prep_tx_info we need to check nstate (see run_to_{auth,scan,init}).
  */
 static int
 lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
@@ -2910,15 +2919,33 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* flush, drop. */
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
 
-	IMPROVE("What are the proper conditions for DEAUTH_NEED_MGD_TX_PREP?");
-	if (ieee80211_hw_check(hw, DEAUTH_NEED_MGD_TX_PREP) &&
-	    !lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = true;
+	/* We should make this a KASSERT. */
+	if (lsta->in_mgd) {
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p lsta %p in_mgd\n",
+		    __func__, __LINE__, lvif, vap, lsta);
 	}
+	/*
+	 * Problem is that we should hook into the tx/rx flow and not
+	 * try to re-model the state machine parts.  We may miss a SME
+	 * triggered frame this way.
+	 */
+	memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+	if (nstate == IEEE80211_S_ASSOC) {
+		if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
+			if (arg)
+				prep_tx_info.subtype = IEEE80211_STYPE_REASSOC_REQ;
+			else
+				prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		} else {
+			/* wpa_supplicant upon RTM_IEEE80211_LEAVE. */
+			prep_tx_info.subtype = IEEE80211_STYPE_DISASSOC;
+		}
+	} else
+		prep_tx_info.subtype = IEEE80211_STYPE_DEAUTH;
+	prep_tx_info.was_assoc = true;
+	prep_tx_info.link_id = 0;
+	lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
+	lsta->in_mgd = true;
 
 	wiphy_unlock(hw->wiphy);
 	IEEE80211_LOCK(vap->iv_ic);
@@ -2957,13 +2984,13 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
 
 	/* End mgd_complete_tx. */
-	if (lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = false;
+	/* We should make this a KASSERT. */
+	if (!lsta->in_mgd) {
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p lsta %p !in_mgd\n",
+		    __func__, __LINE__, lvif, vap, lsta);
 	}
+	lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
+	lsta->in_mgd = false;
 
 #if 0
 	/* sync_rx_queues */
@@ -3047,6 +3074,7 @@ lkpi_sta_assoc_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	struct ieee80211_vif *vif;
 	struct ieee80211_node *ni;
 	struct lkpi_sta *lsta;
+	struct ieee80211_prep_tx_info prep_tx_info;
 	int error;
 
 	lhw = vap->iv_ic->ic_softc;
@@ -3076,6 +3104,20 @@ lkpi_sta_assoc_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	ni = lsta->ni;		/* Reference held for lvif_bss. */
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	/* End mgd_complete_tx. */
+	if (lsta->in_mgd && vap->iv_state == IEEE80211_S_ASSOC) {
+		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
+		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
+		lsta->in_mgd = false;
+	} else if (lsta->in_mgd) {
+		ic_printf(vap->iv_ic, "%s:%d: in_mgd %d (%s) -> %d (%s) %d\n",
+		    __func__, __LINE__,
+		    vap->iv_state, ieee80211_state_name[vap->iv_state],
+		    nstate, ieee80211_state_name[nstate], arg);
+	}
 
 	/* Take the station down. */
 	/* Update sta_state (AUTH to NONE). */
@@ -3158,7 +3200,8 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* End mgd_complete_tx. */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
+		prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
@@ -3342,17 +3385,25 @@ lkpi_sta_a_to_a(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	/* End mgd_complete_tx. */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
+		if (vap->iv_state == IEEE80211_S_AUTH)
+			prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+		else
+			prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
 
-	/* Now start assoc. */
+	/* Now start auth/assoc. */
 
 	/* Start mgd_prepare_tx. */
 	if (!lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		if (nstate == IEEE80211_S_AUTH)
+			prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+		else
+			prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
