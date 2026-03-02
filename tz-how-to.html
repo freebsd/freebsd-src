@@ -3,14 +3,15 @@
 <head>
 <title>How to Read the tz Database</title>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-pre {margin-left: 2em; white-space: pre-wrap;}
-pre.td {margin-left: 0;}
+pre {margin-left: 1.3rem; overflow: auto;}
 td {text-align: center;}
 table {border: 1px outset;}
 th, td {border: 1px inset;}
 table.rule {border: none; margin: auto;}
 td.footnote {text-align: left;}
+ul {padding-left: 1.3rem;}
 </style>
 </head>
 <body>
@@ -38,16 +39,7 @@ about the zones.</p>
 for Chicago (from the <code>northamerica</code> file in
 the <code>data</code> subdirectory):</p>
 
-<table>
-<tr>
-  <th colspan="6">From the Source File</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
-#Rule NAME    FROM TO    -   IN  ON      AT   SAVE LETTER
+<pre>#Rule NAME    FROM TO    -   IN  ON      AT   SAVE LETTER
 Rule  Chicago 1920 only  -   Jun 13      2:00 1:00 D
 Rule  Chicago 1920 1921  -   Oct lastSun 2:00 0    S
 Rule  Chicago 1921 only  -   Mar lastSun 2:00 1:00 D
@@ -55,8 +47,7 @@ Rule  Chicago 1922 1966  -   Apr lastSun 2:00 1:00 D
 Rule  Chicago 1922 1954  -   Sep lastSun 2:00 0    S
 Rule  Chicago 1955 1966  -   Oct lastSun 2:00 0    S
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="6">Reformatted a Bit</th>
 </tr>
@@ -160,16 +151,7 @@ time changed in 1955. Got it?</p>
 
 <p>OK, now for the somewhat more interesting “US” rules:</p>
 
-<table>
-<tr>
-  <th colspan="6">From the Source File</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
-#Rule NAME FROM TO    -   IN  ON        AT   SAVE LETTER/S
+<pre>#Rule NAME FROM TO    -   IN  ON        AT   SAVE LETTER/S
 Rule  US   1918 1919  -   Mar lastSun  2:00  1:00 D
 Rule  US   1918 1919  -   Oct lastSun  2:00  0    S
 Rule  US   1942 only  -   Feb 9        2:00  1:00 W # War
@@ -184,8 +166,7 @@ Rule  US   1987 2006  -   Apr Sun&gt;=1   2:00  1:00 D
 Rule  US   2007 max   -   Mar Sun&gt;=8   2:00  1:00 D
 Rule  US   2007 max   -   Nov Sun&gt;=1   2:00  0    S
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="6">Reformatted a Bit</th>
 </tr>
@@ -328,15 +309,7 @@ rule, so there should be no change.</li>
 
 <p>OK, now let’s look at a Zone record:</p>
 
-<table>
-<tr>
-  <th colspan="5">From the Source File</th>
-</tr>
-<tr>
-  <td colspan="5">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
+<pre>
 #Zone       NAME      STDOFF   RULES FORMAT [UNTIL]
 Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
                       -6:00    US      C%sT 1920
@@ -347,8 +320,7 @@ Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
                       -6:00    Chicago C%sT 1967
                       -6:00    US      C%sT
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="5">Columns Renamed</th>
 </tr>
@@ -576,31 +548,14 @@ the true offset is undefined.
 
 <p>As a final example, here’s the complete history for Hawaii:</p>
 
-<table>
-<tr>
-  <th colspan="6">Relevant Excerpts from the US Rules</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
+<pre># Relevant Excerpts from the US Rules
 #Rule NAME FROM TO   -    IN  ON      AT     SAVE LETTER/S
 Rule  US   1918 1919 -    Oct lastSun  2:00  0    S
 Rule  US   1942 only -    Feb  9       2:00  1:00 W # War
 Rule  US   1945 only -    Aug 14      23:00u 1:00 P # Peace
 Rule  US   1945 only -    Sep lastSun  2:00  0    S
-</pre>
-  </td></tr></table></td>
-</tr>
-<tr>
-  <th colspan="6">The Zone Record</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
+
+# The Zone Record
 #Zone NAME            STDOFF    RULES FORMAT [UNTIL]
 Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
                       -10:30    -     HST    1933 Apr 30  2:00
@@ -608,8 +563,7 @@ Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
                       -10:30    US    H%sT   1947 Jun  8  2:00
                       -10:00    -     HST
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="6">What We Infer</th>
 </tr>

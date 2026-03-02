@@ -37,7 +37,7 @@ FILES
        /etc/localtime               local timezone file
        /usr/lib/locale/L/LC_TIME    description of time locale L
        /usr/share/zoneinfo          timezone directory
-       /usr/share/zoneinfo/Etc/UTC  for UTC leap seconds
+       /usr/share/zoneinfo/Etc/UTC  for UTC leap seconds, if supported
 
 SEE ALSO
        strftime(3).

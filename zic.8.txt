@@ -46,23 +46,27 @@ OPTIONS
        -L leapsecondfilename
               Read leap second information from the file with the given name.
               If this option is not used, no leap second information appears
-              in output files.
+              in output files; this is required by some TZif readers.
 
        -p timezone
-              Use timezone's rules when handling nonstandard TZ strings like
-              "EET-2EEST" that lack transition rules.  zic will act as if the
-              input contained a link line of the form
+              Act as if the input contained a link line of the form
 
                 Link  timezone  posixrules
 
               If timezone is “-” (the default), any already-existing link is
               removed.
 
-              Unless timezone is “-”, this option is obsolete and poorly
-              supported.  Among other things it should not be used for
-              timestamps after the year 2037, and it should not be combined
-              with -b slim if timezone's transitions are at standard time or
-              Universal Time (UT) instead of local time.
+              Unless timezone is “-”, this option is obsolete and is no longer
+              supported by most runtimes.  Among other things it should not be
+              used for timestamps after the year 2037, and it should not be
+              combined with -b slim if timezone's transitions are at standard
+              time or Universal Time (UT) instead of local time.  The option
+              is present only to support obsolete runtimes that used
+              timezone's rules when handling obsolescent TZ strings like
+              "AST4ADT" that lack transition rules; modern runtimes that
+              support these TZ strings typically just use current US rules as
+              the TZ strings were mainly used in the US.  Similarly, any Zone
+              or Link named "posixrules" is obsolete and problematic.
 
        -m mode
               Create TZif files with the given file mode bits.  By default the

@@ -123,7 +123,8 @@ size_overflow(void)
 
 /* Return A + B, exiting if the result would overflow either ptrdiff_t
    or size_t.  A and B are both nonnegative.  */
-ATTRIBUTE_PURE_114833 static ptrdiff_t
+ATTRIBUTE_PURE_114833_HACK
+static ptrdiff_t
 sumsize(ptrdiff_t a, ptrdiff_t b)
 {
 #ifdef ckd_add

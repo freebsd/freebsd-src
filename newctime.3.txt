@@ -90,7 +90,7 @@ DESCRIPTION
        years.  This function is deprecated starting in C23.  Callers can use
        strftime instead.
 
-       The ctime function is equivalent to calliing localtime and then calling
+       The ctime function is equivalent to calling localtime and then calling
        asctime on the result.  Like asctime, this function is deprecated
        starting in C23.  Callers can use localtime and strftime instead.
 
@@ -144,10 +144,9 @@ DESCRIPTION
        older platforms, as required by POSIX.
 
 FILES
-       /etc/localtime                  local timezone file
-       /usr/share/zoneinfo             timezone directory
-       /usr/share/zoneinfo/posixrules  default DST rules (obsolete)
-       /usr/share/zoneinfo/GMT         for UTC leap seconds
+       /etc/localtime           local timezone file
+       /usr/share/zoneinfo      timezone directory
+       /usr/share/zoneinfo/GMT  for UTC leap seconds
 
        If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
        /usr/share/zoneinfo/GMT0 if present.

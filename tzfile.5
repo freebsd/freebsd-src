@@ -188,14 +188,15 @@ for another time zone specified via
 a proleptic TZ string that lacks rules.
 For example, when TZ="EET\-2EEST" and there is no TZif file "EET\-2EEST",
 the idea was to adapt the transition times from a TZif file with the
-well-known name "posixrules" that is present only for this purpose and
-is a copy of the file "Europe/Brussels", a file with a different UT offset.
+well-known name "posixrules" that was present only for this purpose and
+was a copy of the file "Europe/Brussels", a file with a different UT offset.
 POSIX does not specify the details of this obsolete transformational behavior,
 the default rules are installation-dependent, and no implementation
 is known to support this feature for timestamps past 2037,
 so users desiring (say) Greek time should instead specify
 TZ="Europe/Athens" for better historical coverage, falling back on
-TZ="EET\-2EEST,M3.5.0/3,M10.5.0/4" if POSIX conformance is required
+TZ="EET\-2EEST,M3.5.0/3,M10.5.0/4"
+if conformance to POSIX.1-2017 or earlier is required
 and older timestamps need not be handled accurately.
 .PP
 The

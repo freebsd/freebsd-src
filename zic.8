@@ -107,15 +107,11 @@ any already-existing link is removed.
 .BI "\-L " leapsecondfilename
 Read leap second information from the file with the given name.
 If this option is not used,
-no leap second information appears in output files.
+no leap second information appears in output files;
+this is required by some TZif readers.
 .TP
 .BI "\-p " timezone
-Use
-.IR timezone 's
-rules when handling nonstandard
-TZ strings like "EET\-2EEST" that lack transition rules.
-.B zic
-will act as if the input contained a link line of the form
+Act as if the input contained a link line of the form
 .sp
 .ti +2
 Link	\fItimezone\fP		posixrules
@@ -129,13 +125,21 @@ is
 Unless
 .I timezone is
 .q "\-" ,
-this option is obsolete and poorly supported.
+this option is obsolete and is no longer supported by most runtimes.
 Among other things it should not be used for timestamps after the year 2037,
 and it should not be combined with
 .B "\-b slim"
 if
 .IR timezone 's
 transitions are at standard time or Universal Time (UT) instead of local time.
+The option is present only to support obsolete runtimes that used
+.IR timezone 's
+rules when handling obsolescent
+TZ strings like "AST4ADT" that lack transition rules;
+modern runtimes that support these TZ strings
+typically just use current US rules
+as the TZ strings were mainly used in the US.
+Similarly, any Zone or Link named "posixrules" is obsolete and problematic.
 .TP
 .BI "\-m " mode
 Create TZif files with the given file mode bits.

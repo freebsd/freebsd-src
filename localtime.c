@@ -52,6 +52,10 @@ struct stat { char st_ctime, st_dev, st_ino; };
 # define THREAD_TM_MULTI 0
 #endif
 
+#ifndef USE_TIMEX_T
+# define USE_TIMEX_T false
+#endif
+
 #if THREAD_SAFE
 # include <pthread.h>
 
@@ -88,6 +92,10 @@ extern int __isthreaded;
 #   endif
 #  endif
 # endif
+#endif
+
+#if !defined TM_GMTOFF || !USE_TIMEX_T
+# if THREAD_SAFE
 
 /* True if the current process might be multi-threaded,
    false if it is definitely single-threaded.
@@ -98,24 +106,25 @@ extern int __isthreaded;
 static bool
 is_threaded(void)
 {
-# if THREAD_PREFER_SINGLE && HAVE___ISTHREADED
+#  if THREAD_PREFER_SINGLE && HAVE___ISTHREADED
   return !!__isthreaded;
-# elif THREAD_PREFER_SINGLE && HAVE_SYS_SINGLE_THREADED_H
+#  elif THREAD_PREFER_SINGLE && HAVE_SYS_SINGLE_THREADED_H
   return !__libc_single_threaded;
-# else
+#  else
   return true;
-# endif
+#  endif
 }
 
-# if THREAD_RWLOCK
+#  if THREAD_RWLOCK
 static pthread_rwlock_t locallock = PTHREAD_RWLOCK_INITIALIZER;
 static int dolock(void) { return pthread_rwlock_rdlock(&locallock); }
 static void dounlock(void) { pthread_rwlock_unlock(&locallock); }
-# else
+#  else
 static pthread_mutex_t locallock = PTHREAD_MUTEX_INITIALIZER;
 static int dolock(void) { return pthread_mutex_lock(&locallock); }
 static void dounlock(void) { pthread_mutex_unlock(&locallock); }
-# endif
+#  endif
+
 /* Get a lock.  Return 0 on success, a positive errno value on failure,
    negative if known to be single-threaded so no lock is needed.  */
 static int
@@ -131,24 +140,11 @@ unlock(bool threaded)
   if (threaded)
     dounlock();
 }
-#else
+# else
 static int lock(void) { return -1; }
 static void unlock(ATTRIBUTE_MAYBE_UNUSED bool threaded) { }
+# endif
 #endif
-
-/* If THREADED, upgrade a read lock to a write lock.
-   Return 0 on success, a positive errno value otherwise.  */
-static int
-rd2wrlock(ATTRIBUTE_MAYBE_UNUSED bool threaded)
-{
-#if THREAD_RWLOCK
-  if (threaded) {
-    dounlock();
-    return pthread_rwlock_wrlock(&locallock);
-  }
-#endif
-  return 0;
-}
 
 #if THREAD_SAFE
 typedef pthread_once_t once_t;
@@ -186,36 +182,6 @@ tm_multi_key_init(void)
 }
 
 #endif
-
-/* Return TMP, or a thread-specific struct tm * selected by WHICH.  */
-static struct tm *
-tm_multi(struct tm *tmp, ATTRIBUTE_MAYBE_UNUSED enum tm_multi which)
-{
-#if THREAD_SAFE && THREAD_TM_MULTI
-  /* It is OK to check is_threaded() separately here; even if it
-     returns a different value in other places in the caller,
-     this function's behavior is still valid.  */
-  if (is_threaded()) {
-    /* Try to get a thread-specific struct tm *.
-       Fall back on TMP if this fails.  */
-    static pthread_once_t tm_multi_once = PTHREAD_ONCE_INIT;
-    pthread_once(&tm_multi_once, tm_multi_key_init);
-    if (!tm_multi_key_err) {
-      struct tm *p = pthread_getspecific(tm_multi_key);
-      if (!p) {
-	p = malloc(N_TM_MULTI * sizeof *p);
-	if (p && pthread_setspecific(tm_multi_key, p) != 0) {
-	  free(p);
-	  p = NULL;
-	}
-      }
-      if (p)
-	return &p[which];
-    }
-  }
-#endif
-  return tmp;
-}
 
 /* Unless intptr_t is missing, pacify gcc -Wcast-qual on char const * exprs.
    Use this carefully, as the casts disable type checking.
@@ -293,9 +259,6 @@ typedef time_t monotime_t;
    to a static function that returns the redefined time_t.
    It also tells us to define only data and code needed
    to support the offtime or mktime variant.  */
-#ifndef USE_TIMEX_T
-# define USE_TIMEX_T false
-#endif
 #if USE_TIMEX_T
 # undef TIME_T_MIN
 # undef TIME_T_MAX
@@ -446,7 +409,7 @@ static char const *utc = etc_utc + sizeof "Etc/" - 1;
 #endif
 
 /*
-** The DST rules to use if TZ has no rules and we can't load TZDEFRULES.
+** The DST rules to use if TZ has no rules.
 ** Default to US rules as of 2017-05-07.
 ** POSIX does not specify the default DST rules;
 ** for historical reasons, US rules are a common default.
@@ -496,8 +459,19 @@ typedef ptrdiff_t desigidx_type;
 # error "TZNAME_MAXIMUM too large"
 #endif
 
+/* A type that can represent any 32-bit two's complement integer,
+   i.e., any integer in the range -2**31 .. 2**31 - 1.
+   Ordinarily this is int_fast32_t, but on non-C23 hosts
+   that are not two's complement it is int_fast64_t.  */
+#if INT_FAST32_MIN < -TWO_31_MINUS_1
+typedef int_fast32_t int_fast32_2s;
+#else
+typedef int_fast64_t int_fast32_2s;
+#endif
+
 struct ttinfo {				/* time type information */
-	int_least32_t	tt_utoff;	/* UT offset in seconds */
+	int_least32_t	tt_utoff;	/* UT offset in seconds; in the range
+					   -2**31 + 1 .. 2**31 - 1  */
 	desigidx_type	tt_desigidx;	/* abbreviation list index */
 	bool		tt_isdst;	/* used to set tm_isdst */
 	bool		tt_ttisstd;	/* transition is std time */
@@ -505,8 +479,8 @@ struct ttinfo {				/* time type information */
 };
 
 struct lsinfo {				/* leap second information */
-	time_t		ls_trans;	/* transition time */
-	int_fast32_t	ls_corr;	/* correction to apply */
+	time_t		ls_trans;	/* transition time (positive) */
+	int_fast32_2s	ls_corr;	/* correction to apply */
 };
 
 /* This abbreviation means local time is unspecified.  */
@@ -524,7 +498,9 @@ enum { CHARS_EXTRA = max(sizeof UNSPEC, 2) - 1 };
    are put on the stack and stacks are relatively small on some platforms.
    See tzfile.h for more about the sizes.  */
 struct state {
+#if TZ_RUNTIME_LEAPS
 	int		leapcnt;
+#endif
 	int		timecnt;
 	int		typecnt;
 	int		charcnt;
@@ -535,8 +511,47 @@ struct state {
 	struct ttinfo	ttis[TZ_MAX_TYPES];
 	char chars[max(max(TZ_MAX_CHARS + CHARS_EXTRA, sizeof "UTC"),
 		       2 * (TZNAME_MAXIMUM + 1))];
+#if TZ_RUNTIME_LEAPS
 	struct lsinfo	lsis[TZ_MAX_LEAPS];
+#endif
 };
+
+static int
+leapcount(ATTRIBUTE_MAYBE_UNUSED struct state const *sp)
+{
+#if TZ_RUNTIME_LEAPS
+  return sp->leapcnt;
+#else
+  return 0;
+#endif
+}
+static void
+set_leapcount(ATTRIBUTE_MAYBE_UNUSED struct state *sp,
+	    ATTRIBUTE_MAYBE_UNUSED int leapcnt)
+{
+#if TZ_RUNTIME_LEAPS
+  sp->leapcnt = leapcnt;
+#endif
+}
+static struct lsinfo
+lsinfo(ATTRIBUTE_MAYBE_UNUSED struct state const *sp,
+       ATTRIBUTE_MAYBE_UNUSED int i)
+{
+#if TZ_RUNTIME_LEAPS
+  return sp->lsis[i];
+#else
+  unreachable();
+#endif
+}
+static void
+set_lsinfo(ATTRIBUTE_MAYBE_UNUSED struct state *sp,
+	   ATTRIBUTE_MAYBE_UNUSED int i,
+	   ATTRIBUTE_MAYBE_UNUSED struct lsinfo lsinfo)
+{
+#if TZ_RUNTIME_LEAPS
+  sp->lsis[i] = lsinfo;
+#endif
+}
 
 enum r_type {
   JULIAN_DAY,		/* Jn = Julian day */
@@ -555,8 +570,8 @@ struct rule {
 static struct tm *gmtsub(struct state const *, time_t const *, int_fast32_t,
 			 struct tm *);
 static bool increment_overflow(int *, int);
-static bool increment_overflow_time(time_t *, int_fast32_t);
-static int_fast32_t leapcorr(struct state const *, time_t);
+static bool increment_overflow_time(time_t *, int_fast32_2s);
+static int_fast32_2s leapcorr(struct state const *, time_t);
 static struct tm *timesub(time_t const *, int_fast32_t, struct state const *,
 			  struct tm *);
 static bool tzparse(char const *, struct state *, struct state const *);
@@ -638,15 +653,14 @@ ttunspecified(struct state const *sp, int i)
   return memcmp(abbr, UNSPEC, sizeof UNSPEC) == 0;
 }
 
-static int_fast32_t
+static int_fast32_2s
 detzcode(const char *const codep)
 {
-	register int_fast32_t	result;
 	register int		i;
-	int_fast32_t one = 1;
-	int_fast32_t halfmaxval = one << (32 - 2);
-	int_fast32_t maxval = halfmaxval - 1 + halfmaxval;
-	int_fast32_t minval = -1 - maxval;
+	int_fast32_2s
+	  maxval = TWO_31_MINUS_1,
+	  minval = -1 - maxval,
+	  result;
 
 	result = codep[0] & 0x7f;
 	for (i = 1; i < 4; ++i)
@@ -654,8 +668,7 @@ detzcode(const char *const codep)
 
 	if (codep[0] & 0x80) {
 	  /* Do two's-complement negation even on non-two's-complement machines.
-	     If the result would be minval - 1, return minval.  */
-	  result -= !TWOS_COMPLEMENT(int_fast32_t) && result != 0;
+	     This cannot overflow, as int_fast32_2s is wide enough.  */
 	  result += minval;
 	}
 	return result;
@@ -1033,24 +1046,24 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 	    char version = up->tzhead.tzh_version[0];
 	    bool skip_datablock = stored == 4 && version;
 	    int_fast32_t datablock_size;
-	    int_fast32_t ttisstdcnt = detzcode(up->tzhead.tzh_ttisstdcnt);
-	    int_fast32_t ttisutcnt = detzcode(up->tzhead.tzh_ttisutcnt);
-	    int_fast64_t prevtr = -1;
-	    int_fast32_t prevcorr;
-	    int_fast32_t leapcnt = detzcode(up->tzhead.tzh_leapcnt);
-	    int_fast32_t timecnt = detzcode(up->tzhead.tzh_timecnt);
-	    int_fast32_t typecnt = detzcode(up->tzhead.tzh_typecnt);
-	    int_fast32_t charcnt = detzcode(up->tzhead.tzh_charcnt);
+	    int_fast32_2s
+	      ttisstdcnt = detzcode(up->tzhead.tzh_ttisstdcnt),
+	      ttisutcnt = detzcode(up->tzhead.tzh_ttisutcnt),
+	      leapcnt = detzcode(up->tzhead.tzh_leapcnt),
+	      timecnt = detzcode(up->tzhead.tzh_timecnt),
+	      typecnt = detzcode(up->tzhead.tzh_typecnt),
+	      charcnt = detzcode(up->tzhead.tzh_charcnt);
 	    char const *p = up->buf + tzheadsize;
 	    /* Although tzfile(5) currently requires typecnt to be nonzero,
 	       support future formats that may allow zero typecnt
 	       in files that have a TZ string and no transitions.  */
-	    if (! (0 <= leapcnt && leapcnt < TZ_MAX_LEAPS
-		   && 0 <= typecnt && typecnt < TZ_MAX_TYPES
-		   && 0 <= timecnt && timecnt < TZ_MAX_TIMES
-		   && 0 <= charcnt && charcnt < TZ_MAX_CHARS
-		   && 0 <= ttisstdcnt && ttisstdcnt < TZ_MAX_TYPES
-		   && 0 <= ttisutcnt && ttisutcnt < TZ_MAX_TYPES))
+	    if (! (0 <= leapcnt
+		   && leapcnt <= (TZ_RUNTIME_LEAPS ? TZ_MAX_LEAPS : 0)
+		   && 0 <= typecnt && typecnt <= TZ_MAX_TYPES
+		   && 0 <= timecnt && timecnt <= TZ_MAX_TIMES
+		   && 0 <= charcnt && charcnt <= TZ_MAX_CHARS
+		   && 0 <= ttisstdcnt && ttisstdcnt <= TZ_MAX_TYPES
+		   && 0 <= ttisutcnt && ttisutcnt <= TZ_MAX_TYPES))
 	      return EINVAL;
 	    datablock_size
 		    = (timecnt * stored		/* ats */
@@ -1064,12 +1077,13 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 	      return EINVAL;
 	    if (skip_datablock)
 		p += datablock_size;
+	    else if (! ((ttisstdcnt == typecnt || ttisstdcnt == 0)
+			&& (ttisutcnt == typecnt || ttisutcnt == 0)))
+	      return EINVAL;
 	    else {
-		if (! ((ttisstdcnt == typecnt || ttisstdcnt == 0)
-		       && (ttisutcnt == typecnt || ttisutcnt == 0)))
-		  return EINVAL;
-
-		sp->leapcnt = leapcnt;
+		int_fast64_t prevtr = -1;
+		int_fast32_2s prevcorr;
+		set_leapcount(sp, leapcnt);
 		sp->timecnt = timecnt;
 		sp->typecnt = typecnt;
 		sp->charcnt = charcnt;
@@ -1109,9 +1123,16 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 		for (i = 0; i < sp->typecnt; ++i) {
 			register struct ttinfo *	ttisp;
 			unsigned char isdst, desigidx;
+			int_fast32_2s utoff = detzcode(p);
+
+			/* Reject a UT offset equal to -2**31, as it might
+			   cause trouble both in this file and in callers.
+			   Also, it violates RFC 9636 section 3.2.  */
+			if (utoff < -TWO_31_MINUS_1)
+			  return EINVAL;
 
 			ttisp = &sp->ttis[i];
-			ttisp->tt_utoff = detzcode(p);
+			ttisp->tt_utoff = utoff;
 			p += 4;
 			isdst = *p++;
 			if (! (isdst < 2))
@@ -1130,9 +1151,9 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 
 		/* Read leap seconds, discarding those out of time_t range.  */
 		leapcnt = 0;
-		for (i = 0; i < sp->leapcnt; ++i) {
+		for (i = 0; i < leapcount(sp); i++) {
 		  int_fast64_t tr = stored == 4 ? detzcode(p) : detzcode64(p);
-		  int_fast32_t corr = detzcode(p + stored);
+		  int_fast32_2s corr = detzcode(p + stored);
 		  p += stored + 4;
 
 		  /* Leap seconds cannot occur before the Epoch,
@@ -1155,12 +1176,14 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 		  prevcorr = corr;
 
 		  if (tr <= TIME_T_MAX) {
-		    sp->lsis[leapcnt].ls_trans = tr;
-		    sp->lsis[leapcnt].ls_corr = corr;
+		    struct lsinfo ls;
+		    ls.ls_trans = tr;
+		    ls.ls_corr = corr;
+		    set_lsinfo(sp, leapcnt, ls);
 		    leapcnt++;
 		  }
 		}
-		sp->leapcnt = leapcnt;
+		set_leapcount(sp, leapcnt);
 
 		for (i = 0; i < sp->typecnt; ++i) {
 			register struct ttinfo *	ttisp;
@@ -1204,8 +1227,8 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 			if (tzparse(&up->buf[1], ts, sp)) {
 
 			  /* Attempt to reuse existing abbreviations.
-			     Without this, America/Anchorage would be right on
-			     the edge after 2037 when TZ_MAX_CHARS is 50, as
+			     Without this, America/Anchorage would
+			     consume 50 bytes for abbreviations, as
 			     sp->charcnt equals 40 (for LMT AST AWT APT AHST
 			     AHDT YST AKDT AKST) and ts->charcnt equals 10
 			     (for AKST AKDT).  Reusing means sp->charcnt can
@@ -1600,7 +1623,6 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 	int_fast32_t			stdoffset;
 	int_fast32_t			dstoffset;
 	register char *			cp;
-	register bool			load_ok;
 	ptrdiff_t stdlen, dstlen, charcnt;
 	time_t atlo = TIME_T_MIN, leaplo = TIME_T_MIN;
 
@@ -1626,18 +1648,22 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 	if (basep) {
 	  if (0 < basep->timecnt)
 	    atlo = basep->ats[basep->timecnt - 1];
-	  load_ok = false;
-	  sp->leapcnt = basep->leapcnt;
-	  memcpy(sp->lsis, basep->lsis, sp->leapcnt * sizeof *sp->lsis);
-	} else {
-	  load_ok = tzload(TZDEFRULES, sp, 0) == 0;
-	  if (!load_ok)
-	    sp->leapcnt = 0;	/* So, we're off a little.  */
-	}
-	if (0 < sp->leapcnt)
-	  leaplo = sp->lsis[sp->leapcnt - 1].ls_trans;
+	  set_leapcount(sp, leapcount(basep));
+	  if (0 < leapcount(sp)) {
+	    int i;
+	    for (i = 0; i < leapcount(sp); i++)
+	      set_lsinfo(sp, i, lsinfo(basep, i));
+	    leaplo = lsinfo(sp, leapcount(sp) - 1).ls_trans;
+	  }
+	} else
+	  set_leapcount(sp, 0);	/* So, we're off a little.  */
 	sp->goback = sp->goahead = false;
 	if (*name != '\0') {
+		struct rule start, end;
+		int year, yearbeg, yearlim, timecnt;
+		time_t janfirst;
+		int_fast32_t janoffset = 0;
+
 		if (*name == '<') {
 			dstname = ++name;
 			name = getqzname(name, '>');
@@ -1658,194 +1684,102 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 			if (name == NULL)
 			  return false;
 		} else	dstoffset = stdoffset - SECSPERHOUR;
-		if (*name == '\0' && !load_ok)
+
+		if (*name == '\0')
 			name = TZDEFRULESTRING;
-		if (*name == ',' || *name == ';') {
-			struct rule	start;
-			struct rule	end;
-			register int	year;
-			register int	timecnt;
-			time_t		janfirst;
-			int_fast32_t janoffset = 0;
-			int yearbeg, yearlim;
+		if (! (*name == ',' || *name == ';'))
+		  return false;
 
-			++name;
-			if ((name = getrule(name, &start)) == NULL)
-			  return false;
-			if (*name++ != ',')
-			  return false;
-			if ((name = getrule(name, &end)) == NULL)
-			  return false;
-			if (*name != '\0')
-			  return false;
-			sp->typecnt = 2;	/* standard time and DST */
-			/*
-			** Two transitions per year, from EPOCH_YEAR forward.
-			*/
-			init_ttinfo(&sp->ttis[0], -stdoffset, false, 0);
-			init_ttinfo(&sp->ttis[1], -dstoffset, true, stdlen + 1);
-			timecnt = 0;
-			janfirst = 0;
-			yearbeg = EPOCH_YEAR;
+		name = getrule(name + 1, &start);
+		if (!name)
+		  return false;
+		if (*name++ != ',')
+		  return false;
+		name = getrule(name, &end);
+		if (!name || *name)
+		  return false;
+		sp->typecnt = 2;	/* standard time and DST */
+		/*
+		** Two transitions per year, from EPOCH_YEAR forward.
+		*/
+		init_ttinfo(&sp->ttis[0], -stdoffset, false, 0);
+		init_ttinfo(&sp->ttis[1], -dstoffset, true, stdlen + 1);
+		timecnt = 0;
+		janfirst = 0;
+		yearbeg = EPOCH_YEAR;
 
-			do {
-			  int_fast32_t yearsecs
-			    = year_lengths[isleap(yearbeg - 1)] * SECSPERDAY;
-			  time_t janfirst1 = janfirst;
-			  yearbeg--;
-			  if (increment_overflow_time(&janfirst1, -yearsecs)) {
-			    janoffset = -yearsecs;
-			    break;
-			  }
-			  janfirst = janfirst1;
-			} while (atlo < janfirst
-				 && EPOCH_YEAR - YEARSPERREPEAT / 2 < yearbeg);
+		do {
+		  int_fast32_t yearsecs
+		    = year_lengths[isleap(yearbeg - 1)] * SECSPERDAY;
+		  time_t janfirst1 = janfirst;
+		  yearbeg--;
+		  if (increment_overflow_time(&janfirst1, -yearsecs)) {
+		    janoffset = -yearsecs;
+		    break;
+		  }
+		  janfirst = janfirst1;
+		} while (atlo < janfirst
+			 && EPOCH_YEAR - YEARSPERREPEAT / 2 < yearbeg);
 
-			while (true) {
-			  int_fast32_t yearsecs
-			    = year_lengths[isleap(yearbeg)] * SECSPERDAY;
-			  int yearbeg1 = yearbeg;
-			  time_t janfirst1 = janfirst;
-			  if (increment_overflow_time(&janfirst1, yearsecs)
-			      || increment_overflow(&yearbeg1, 1)
-			      || atlo <= janfirst1)
-			    break;
-			  yearbeg = yearbeg1;
-			  janfirst = janfirst1;
-			}
-
-			yearlim = yearbeg;
-			if (increment_overflow(&yearlim, years_of_observations))
-			  yearlim = INT_MAX;
-			for (year = yearbeg; year < yearlim; year++) {
-				int_fast32_t
-				  starttime = transtime(year, &start, stdoffset),
-				  endtime = transtime(year, &end, dstoffset);
-				int_fast32_t
-				  yearsecs = (year_lengths[isleap(year)]
-					      * SECSPERDAY);
-				bool reversed = endtime < starttime;
-				if (reversed) {
-					int_fast32_t swap = starttime;
-					starttime = endtime;
-					endtime = swap;
-				}
-				if (reversed
-				    || (starttime < endtime
-					&& endtime - starttime < yearsecs)) {
-					if (TZ_MAX_TIMES - 2 < timecnt)
-						break;
-					sp->ats[timecnt] = janfirst;
-					if (! increment_overflow_time
-					    (&sp->ats[timecnt],
-					     janoffset + starttime)
-					    && atlo <= sp->ats[timecnt])
-					  sp->types[timecnt++] = !reversed;
-					sp->ats[timecnt] = janfirst;
-					if (! increment_overflow_time
-					    (&sp->ats[timecnt],
-					     janoffset + endtime)
-					    && atlo <= sp->ats[timecnt]) {
-					  sp->types[timecnt++] = reversed;
-					}
-				}
-				if (endtime < leaplo) {
-				  yearlim = year;
-				  if (increment_overflow(&yearlim,
-							 years_of_observations))
-				    yearlim = INT_MAX;
-				}
-				if (increment_overflow_time
-				    (&janfirst, janoffset + yearsecs))
-					break;
-				janoffset = 0;
-			}
-			sp->timecnt = timecnt;
-			if (! timecnt) {
-				sp->ttis[0] = sp->ttis[1];
-				sp->typecnt = 1;	/* Perpetual DST.  */
-			} else if (years_of_observations <= year - yearbeg)
-				sp->goback = sp->goahead = true;
-		} else {
-			register int_fast32_t	theirstdoffset;
-			register int_fast32_t	theirdstoffset;
-			register int_fast32_t	theiroffset;
-			register bool		isdst;
-			register int		i;
-			register int		j;
-
-			if (*name != '\0')
-			  return false;
-			/*
-			** Initial values of theirstdoffset and theirdstoffset.
-			*/
-			theirstdoffset = 0;
-			for (i = 0; i < sp->timecnt; ++i) {
-				j = sp->types[i];
-				if (!sp->ttis[j].tt_isdst) {
-					theirstdoffset =
-						- sp->ttis[j].tt_utoff;
-					break;
-				}
-			}
-			theirdstoffset = 0;
-			for (i = 0; i < sp->timecnt; ++i) {
-				j = sp->types[i];
-				if (sp->ttis[j].tt_isdst) {
-					theirdstoffset =
-						- sp->ttis[j].tt_utoff;
-					break;
-				}
-			}
-			/*
-			** Initially we're assumed to be in standard time.
-			*/
-			isdst = false;
-			/*
-			** Now juggle transition times and types
-			** tracking offsets as you do.
-			*/
-			for (i = 0; i < sp->timecnt; ++i) {
-				j = sp->types[i];
-				sp->types[i] = sp->ttis[j].tt_isdst;
-				if (sp->ttis[j].tt_ttisut) {
-					/* No adjustment to transition time */
-				} else {
-					/*
-					** If daylight saving time is in
-					** effect, and the transition time was
-					** not specified as standard time, add
-					** the daylight saving time offset to
-					** the transition time; otherwise, add
-					** the standard time offset to the
-					** transition time.
-					*/
-					/*
-					** Transitions from DST to DDST
-					** will effectively disappear since
-					** proleptic TZ strings have only one
-					** DST offset.
-					*/
-					if (isdst && !sp->ttis[j].tt_ttisstd) {
-						sp->ats[i] += dstoffset -
-							theirdstoffset;
-					} else {
-						sp->ats[i] += stdoffset -
-							theirstdoffset;
-					}
-				}
-				theiroffset = -sp->ttis[j].tt_utoff;
-				if (sp->ttis[j].tt_isdst)
-					theirdstoffset = theiroffset;
-				else	theirstdoffset = theiroffset;
-			}
-			/*
-			** Finally, fill in ttis.
-			*/
-			init_ttinfo(&sp->ttis[0], -stdoffset, false, 0);
-			init_ttinfo(&sp->ttis[1], -dstoffset, true, stdlen + 1);
-			sp->typecnt = 2;
+		while (true) {
+		  int_fast32_t yearsecs
+		    = year_lengths[isleap(yearbeg)] * SECSPERDAY;
+		  int yearbeg1 = yearbeg;
+		  time_t janfirst1 = janfirst;
+		  if (increment_overflow_time(&janfirst1, yearsecs)
+		      || increment_overflow(&yearbeg1, 1)
+		      || atlo <= janfirst1)
+		    break;
+		  yearbeg = yearbeg1;
+		  janfirst = janfirst1;
 		}
+
+		yearlim = yearbeg;
+		if (increment_overflow(&yearlim, years_of_observations))
+		  yearlim = INT_MAX;
+		for (year = yearbeg; year < yearlim; year++) {
+		  int_fast32_t
+		    starttime = transtime(year, &start, stdoffset),
+		    endtime = transtime(year, &end, dstoffset),
+		    yearsecs = year_lengths[isleap(year)] * SECSPERDAY;
+		  bool reversed = endtime < starttime;
+		  if (reversed) {
+		    int_fast32_t swap = starttime;
+		    starttime = endtime;
+		    endtime = swap;
+		  }
+		  if (reversed
+		      || (starttime < endtime
+			  && endtime - starttime < yearsecs)) {
+		    if (TZ_MAX_TIMES - 2 < timecnt)
+		      break;
+		    sp->ats[timecnt] = janfirst;
+		    if (! increment_overflow_time(&sp->ats[timecnt],
+						  janoffset + starttime)
+			&& atlo <= sp->ats[timecnt])
+		      sp->types[timecnt++] = !reversed;
+		    sp->ats[timecnt] = janfirst;
+		    if (! increment_overflow_time(&sp->ats[timecnt],
+						  janoffset + endtime)
+			&& atlo <= sp->ats[timecnt]) {
+		      sp->types[timecnt++] = reversed;
+		    }
+		  }
+		  if (endtime < leaplo) {
+		    yearlim = year;
+		    if (increment_overflow(&yearlim, years_of_observations))
+		      yearlim = INT_MAX;
+		  }
+		  if (increment_overflow_time(&janfirst, janoffset + yearsecs))
+		    break;
+		  janoffset = 0;
+		}
+		sp->timecnt = timecnt;
+		if (! timecnt) {
+		  sp->ttis[0] = sp->ttis[1];
+		  sp->typecnt = 1;	/* Perpetual DST.  */
+		} else if (years_of_observations <= year - yearbeg)
+		  sp->goback = sp->goahead = true;
 	} else {
 		dstlen = 0;
 		sp->typecnt = 1;		/* only standard time */
@@ -1866,7 +1800,7 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 static void
 gmtload(struct state *const sp)
 {
-	if (tzload(etc_utc, sp, TZLOAD_TZSTRING) != 0)
+	if (!TZ_RUNTIME_LEAPS || tzload(etc_utc, sp, TZLOAD_TZSTRING) != 0)
 	  tzparse("UTC0", sp, NULL);
 }
 
@@ -1898,7 +1832,7 @@ zoneinit(struct state *sp, char const *name, char tzloadflags)
     /*
     ** User wants it fast rather than right.
     */
-    sp->leapcnt = 0;		/* so, we're off a little */
+    set_leapcount(sp, 0);		/* so, we're off a little */
     sp->timecnt = 0;
     sp->typecnt = 0;
     sp->charcnt = 0;
@@ -1915,6 +1849,20 @@ zoneinit(struct state *sp, char const *name, char tzloadflags)
       err = scrub_abbrs(sp);
     return err;
   }
+}
+
+/* If THREADED, upgrade a read lock to a write lock.
+   Return 0 on success, a positive errno value otherwise.  */
+static int
+rd2wrlock(ATTRIBUTE_MAYBE_UNUSED bool threaded)
+{
+# if THREAD_RWLOCK
+  if (threaded) {
+    dounlock();
+    return pthread_rwlock_wrlock(&locallock);
+  }
+# endif
+  return 0;
 }
 
 /* Like tzset(), but in a critical section.
@@ -2191,7 +2139,7 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 	** To get (wrong) behavior that's compatible with System V Release 2.0
 	** you'd replace the statement below with
 	**	t += ttisp->tt_utoff;
-	**	timesub(&t, 0L, sp, tmp);
+	**	timesub(&t, 0, sp, tmp);
 	*/
 	result = timesub(&t, ttisp->tt_utoff, sp, tmp);
 	if (result) {
@@ -2207,6 +2155,36 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 #endif
 
 #if !USE_TIMEX_T
+
+/* Return TMP, or a thread-specific struct tm * selected by WHICH.  */
+static struct tm *
+tm_multi(struct tm *tmp, ATTRIBUTE_MAYBE_UNUSED enum tm_multi which)
+{
+# if THREAD_SAFE && THREAD_TM_MULTI
+  /* It is OK to check is_threaded() separately here; even if it
+     returns a different value in other places in the caller,
+     this function's behavior is still valid.  */
+  if (is_threaded()) {
+    /* Try to get a thread-specific struct tm *.
+       Fall back on TMP if this fails.  */
+    static pthread_once_t tm_multi_once = PTHREAD_ONCE_INIT;
+    pthread_once(&tm_multi_once, tm_multi_key_init);
+    if (!tm_multi_key_err) {
+      struct tm *p = pthread_getspecific(tm_multi_key);
+      if (!p) {
+	p = malloc(N_TM_MULTI * sizeof *p);
+	if (p && pthread_setspecific(tm_multi_key, p) != 0) {
+	  free(p);
+	  p = NULL;
+	}
+      }
+      if (p)
+	return &p[which];
+    }
+  }
+# endif
+  return tmp;
+}
 
 # if NETBSD_INSPIRED
 struct tm *
@@ -2341,10 +2319,9 @@ static struct tm *
 timesub(const time_t *timep, int_fast32_t offset,
 	const struct state *sp, struct tm *tmp)
 {
-	register const struct lsinfo *	lp;
 	register time_t			tdays;
 	register const int *		ip;
-	register int_fast32_t		corr;
+	int_fast32_2s corr;
 	register int			i;
 	int_fast32_t idays, rem, dayoff, dayrem;
 	time_t y;
@@ -2355,13 +2332,13 @@ timesub(const time_t *timep, int_fast32_t offset,
 	time_t secs_since_posleap = SECSPERMIN;
 
 	corr = 0;
-	i = (sp == NULL) ? 0 : sp->leapcnt;
+	i = sp ? leapcount(sp) : 0;
 	while (--i >= 0) {
-		lp = &sp->lsis[i];
-		if (*timep >= lp->ls_trans) {
-			corr = lp->ls_corr;
-			if ((i == 0 ? 0 : lp[-1].ls_corr) < corr)
-			  secs_since_posleap = *timep - lp->ls_trans;
+		struct lsinfo ls = lsinfo(sp, i);
+		if (ls.ls_trans <= *timep) {
+			corr = ls.ls_corr;
+			if ((i == 0 ? 0 : lsinfo(sp, i - 1).ls_corr) < corr)
+			  secs_since_posleap = *timep - ls.ls_trans;
 			break;
 		}
 	}
@@ -2491,6 +2468,19 @@ increment_overflow(int *ip, int j)
 }
 
 static bool
+increment_overflow_64(int *ip, int_fast64_t j)
+{
+#ifdef ckd_add
+  return ckd_add(ip, *ip, j);
+#else
+  if (j < 0 ? *ip < INT_MIN - j : INT_MAX - j < *ip)
+    return true;
+  *ip += j;
+  return false;
+#endif
+}
+
+static bool
 increment_overflow_time_iinntt(time_t *tp, iinntt j)
 {
 #ifdef ckd_add
@@ -2506,7 +2496,22 @@ increment_overflow_time_iinntt(time_t *tp, iinntt j)
 }
 
 static bool
-increment_overflow_time(time_t *tp, int_fast32_t j)
+increment_overflow_time_64(time_t *tp, int_fast64_t j)
+{
+#ifdef ckd_add
+  return ckd_add(tp, *tp, j);
+#else
+  if (j < 0
+      ? (TYPE_SIGNED(time_t) ? *tp < TIME_T_MIN - j : *tp <= -1 - j)
+      : TIME_T_MAX - j < *tp)
+    return true;
+  *tp += j;
+  return false;
+#endif
+}
+
+static bool
+increment_overflow_time(time_t *tp, int_fast32_2s j)
 {
 #ifdef ckd_add
 	return ckd_add(tp, *tp, j);
@@ -2523,6 +2528,15 @@ increment_overflow_time(time_t *tp, int_fast32_t j)
 	*tp += j;
 	return false;
 #endif
+}
+
+/* Return A - B, where both are in the range -2**31 + 1 .. 2**31 - 1.
+   The result cannot overflow.  */
+static int_fast64_t
+utoff_diff (int_fast32_t a, int_fast32_t b)
+{
+  int_fast64_t aa = a;
+  return aa - b;
 }
 
 static int
@@ -2721,8 +2735,18 @@ time2sub(struct tm *const tmp,
 		     It's OK if YOURTM.TM_GMTOFF contains uninitialized data,
 		     since the guess gets checked.  */
 		  time_t altt = t;
-		  int_fast32_t diff = mytm.TM_GMTOFF - yourtm.TM_GMTOFF;
-		  if (!increment_overflow_time(&altt, diff)) {
+		  int_fast64_t offdiff;
+		  bool v;
+# ifdef ckd_sub
+		  v = ckd_sub(&offdiff, mytm.TM_GMTOFF, yourtm.TM_GMTOFF);
+# else
+		  /* A ckd_sub approximation that is good enough here.  */
+		  v = !(-TWO_31_MINUS_1 <= yourtm.TM_GMTOFF
+			&& yourtm.TM_GMTOFF <= TWO_31_MINUS_1);
+		  if (!v)
+		    offdiff = utoff_diff(mytm.TM_GMTOFF, yourtm.TM_GMTOFF);
+# endif
+		  if (!v && !increment_overflow_time_64(&altt, offdiff)) {
 		    struct tm alttm;
 		    if (funcp(sp, &altt, offset, &alttm)
 			&& alttm.tm_isdst == mytm.tm_isdst
@@ -2752,8 +2776,12 @@ time2sub(struct tm *const tmp,
 					continue;
 				if (ttunspecified(sp, j))
 				  continue;
-				newt = (t + sp->ttis[j].tt_utoff
-					- sp->ttis[i].tt_utoff);
+				newt = t;
+				if (increment_overflow_time_64
+				    (&newt,
+				     utoff_diff(sp->ttis[j].tt_utoff,
+						sp->ttis[i].tt_utoff)))
+				  continue;
 				if (! funcp(sp, &newt, offset, &mytm))
 					continue;
 				if (tmcomp(&mytm, &yourtm) != 0)
@@ -2852,17 +2880,20 @@ time1(struct tm *const tmp,
 			continue;
 		for (otherind = 0; otherind < nseen; ++otherind) {
 			otheri = types[otherind];
-			if (sp->ttis[otheri].tt_isdst == tmp->tm_isdst)
-				continue;
-			tmp->tm_sec += (sp->ttis[otheri].tt_utoff
-					- sp->ttis[samei].tt_utoff);
-			tmp->tm_isdst = !tmp->tm_isdst;
-			t = time2(tmp, funcp, sp, offset, &okay);
-			if (okay)
-				return t;
-			tmp->tm_sec -= (sp->ttis[otheri].tt_utoff
-					- sp->ttis[samei].tt_utoff);
-			tmp->tm_isdst = !tmp->tm_isdst;
+			if (sp->ttis[otheri].tt_isdst != tmp->tm_isdst) {
+			  int sec = tmp->tm_sec;
+			  if (!increment_overflow_64
+			      (&tmp->tm_sec,
+			       utoff_diff(sp->ttis[otheri].tt_utoff,
+					  sp->ttis[samei].tt_utoff))) {
+			    tmp->tm_isdst = !tmp->tm_isdst;
+			    t = time2(tmp, funcp, sp, offset, &okay);
+			    if (okay)
+			      return t;
+			    tmp->tm_isdst = !tmp->tm_isdst;
+			  }
+			  tmp->tm_sec = sec;
+			}
 		}
 	}
 	return WRONG;
@@ -2958,17 +2989,16 @@ timegm(struct tm *tmp)
 }
 #endif
 
-static int_fast32_t
+static int_fast32_2s
 leapcorr(struct state const *sp, time_t t)
 {
-	register struct lsinfo const *	lp;
 	register int			i;
 
-	i = sp->leapcnt;
+	i = leapcount(sp);
 	while (--i >= 0) {
-		lp = &sp->lsis[i];
-		if (t >= lp->ls_trans)
-			return lp->ls_corr;
+	  struct lsinfo ls = lsinfo(sp, i);
+	  if (ls.ls_trans <= t)
+	    return ls.ls_corr;
 	}
 	return 0;
 }
@@ -2979,6 +3009,21 @@ leapcorr(struct state const *sp, time_t t)
 
 #if !USE_TIMEX_T
 # if STD_INSPIRED
+
+static bool
+decrement_overflow_time(time_t *tp, int_fast32_2s j)
+{
+#ifdef ckd_sub
+  return ckd_sub(tp, *tp, j);
+#else
+  if (! (j < 0
+	 ? *tp <= TIME_T_MAX + j
+	 : (TYPE_SIGNED(time_t) ? TIME_T_MIN + j <= *tp : j <= *tp)))
+    return true;
+  *tp -= j;
+  return false;
+#endif
+}
 
 /* NETBSD_INSPIRED_EXTERN functions are exported to callers if
    NETBSD_INSPIRED is defined, and are private otherwise.  */
@@ -2999,7 +3044,13 @@ leapcorr(struct state const *sp, time_t t)
 NETBSD_INSPIRED_EXTERN time_t
 time2posix_z(struct state *sp, time_t t)
 {
-  return t - leapcorr(sp, t);
+  if (decrement_overflow_time(&t, leapcorr(sp, t))) {
+    /* Overflow near maximum time_t value with negative correction.
+       This can happen with unrealistic-but-valid TZif files.  */
+    errno = EOVERFLOW;
+    return -1;
+  }
+  return t;
 }
 
 time_t
@@ -3022,30 +3073,27 @@ time2posix(time_t t)
 NETBSD_INSPIRED_EXTERN time_t
 posix2time_z(struct state *sp, time_t t)
 {
-	time_t	x;
-	time_t	y;
-	/*
-	** For a positive leap second hit, the result
-	** is not unique. For a negative leap second
-	** hit, the corresponding time doesn't exist,
-	** so we return an adjacent second.
-	*/
-	x = t + leapcorr(sp, t);
-	y = x - leapcorr(sp, x);
-	if (y < t) {
-		do {
-			x++;
-			y = x - leapcorr(sp, x);
-		} while (y < t);
-		x -= y != t;
-	} else if (y > t) {
-		do {
-			--x;
-			y = x - leapcorr(sp, x);
-		} while (y > t);
-		x += y != t;
-	}
-	return x;
+  int i;
+  for (i = leapcount(sp); 0 <= --i; ) {
+    struct lsinfo ls = lsinfo(sp, i);
+    time_t t_corr = t;
+
+    if (increment_overflow_time(&t_corr, ls.ls_corr)) {
+      if (0 <= ls.ls_corr) {
+	/* Overflow near maximum time_t value with positive correction.
+	   This can happen with ordinary TZif files with leap seconds.  */
+	errno = EOVERFLOW;
+	return -1;
+      } else {
+	/* A negative correction overflowed, so keep going.
+	   This can happen with unrealistic-but-valid TZif files.  */
+      }
+    } else if (ls.ls_trans <= t_corr)
+      return (t_corr
+	      - (ls.ls_trans == t_corr
+		 && (i == 0 ? 0 : lsinfo(sp, i - 1).ls_corr) < ls.ls_corr));
+  }
+  return t;
 }
 
 time_t
@@ -3087,7 +3135,7 @@ posix2time(time_t t)
 time_t
 time(time_t *p)
 {
-  time_t r = sys_time(0);
+  time_t r = sys_time(NULL);
   if (r != (time_t) -1) {
     iinntt offset = EPOCH_LOCAL ? timezone : 0;
     if (offset < IINNTT_MIN + EPOCH_OFFSET

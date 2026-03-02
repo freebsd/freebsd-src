@@ -277,7 +277,7 @@ is a placeholder.
 .TP
 .B <\-03>3<\-02>,M3.5.0/\-2,M10.5.0/\-1
 stands for time in western Greenland, 3 hours behind UT, where clocks
-follow the EU rules of
+follow the EU rule of
 springing forward on March's last Sunday at 01:00 UT (\-02:00 local
 time, i.e., 22:00 the previous day) and falling back on October's last
 Sunday at 01:00 UT (\-01:00 local time, i.e., 23:00 the previous day).
@@ -290,28 +290,13 @@ If
 .I TZ
 specifies daylight saving time but does not specify a
 .IR rule ,
-and the optional
-.BR tzfile (5)-format
-file
-.B posixrules
-is present in the system time conversion information directory, the
-rules in
-.B posixrules
-are used, with the
-.B posixrules
-standard and daylight saving time offsets from UT
-replaced by those specified by the
-.I offset
-values in
-.IR TZ .
-However, the
-.B posixrules
-file is obsolete: if it is present it is only for backward compatibility,
-and it does not work reliably.
+the rule typically defaults to the current US daylight-saving rule,
+although such a default is not guaranteed and
+is incorrect for many locations outside the US.
 Therefore, if a
 .I TZ
 string directly specifies a timezone with daylight saving time,
-it should specify the daylight saving rules explicitly.
+it should specify the daylight saving rule explicitly.
 .PP
 For compatibility with System V Release 3.1, a semicolon
 .RB ( ; )
@@ -403,12 +388,10 @@ for any of the errors specified for the routines
 and
 .BR read (2).
 .SH FILES
-.ta \w'/usr/share/zoneinfo/posixrules\0\0'u
+.ta \w'/usr/share/zoneinfo/GMT\0\0'u
 /etc/localtime	local timezone file
 .br
 /usr/share/zoneinfo	timezone directory
-.br
-/usr/share/zoneinfo/posixrules	default DST rules (obsolete)
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
 .PP

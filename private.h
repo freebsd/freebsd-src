@@ -193,6 +193,10 @@
 # define ctime_r _incompatible_ctime_r
 #endif /* HAVE_INCOMPATIBLE_CTIME_R */
 
+#ifndef TZ_RUNTIME_LEAPS
+# define TZ_RUNTIME_LEAPS 1
+#endif
+
 /*
 ** Nested includes
 */
@@ -410,15 +414,9 @@ typedef long long int_fast64_t;
 # endif
 
 # ifndef INT_FAST32_MAX
-#  if INT_MAX >> 31 == 0
 typedef long int_fast32_t;
-#   define INT_FAST32_MAX LONG_MAX
-#   define INT_FAST32_MIN LONG_MIN
-#  else
-typedef int int_fast32_t;
-#   define INT_FAST32_MAX INT_MAX
-#   define INT_FAST32_MIN INT_MIN
-#  endif
+#  define INT_FAST32_MAX LONG_MAX
+#  define INT_FAST32_MIN LONG_MIN
 # endif
 
 # ifndef INT_LEAST32_MAX
@@ -541,9 +539,12 @@ typedef unsigned long uintmax_t;
 # define HAVE___HAS_C_ATTRIBUTE false
 #endif
 
-#if 8 <= __GNUC__
-# define ATTRIBUTE_NONSTRING __attribute__((__nonstring__))
-#else
+#ifdef __has_attribute
+# if __has_attribute (nonstring)
+#  define ATTRIBUTE_NONSTRING __attribute__((__nonstring__))
+# endif
+#endif
+#ifndef ATTRIBUTE_NONSTRING
 # define ATTRIBUTE_NONSTRING
 #endif
 
@@ -619,11 +620,11 @@ typedef unsigned long uintmax_t;
 # define ATTRIBUTE_UNSEQUENCED /* empty */
 #endif
 
-/* GCC attributes that are useful in tzcode.
-   __attribute__((const)) is stricter than [[unsequenced]],
-   so the latter is an adequate substitute in non-GCC C23 platforms.
-   __attribute__((pure)) is stricter than [[reproducible]],
-   so the latter is an adequate substitute in non-GCC C23 platforms.  */
+/* GNU C attributes that are useful in tzcode.
+   Although neither __attribute__((const)) nor __attribute__((pure)) are
+   stricter than their C23 counterparts [[unsequenced]] and [[reproducible]],
+   the C23 attributes happen to work in each tzcode use of ATTRIBUTE_CONST
+   and ATTRIBUTE_PURE.  (This might not work outside of tzcode!)  */
 #if __GNUC__ < 3
 # define ATTRIBUTE_CONST ATTRIBUTE_UNSEQUENCED
 # define ATTRIBUTE_FORMAT(spec) /* empty */
@@ -642,6 +643,12 @@ typedef unsigned long uintmax_t;
 #else
 # define ATTRIBUTE_PURE_114833 /* empty */
 #endif
+/* GCC_LINT hack to pacify GCC bug 114833 even though the attribute is
+   not strictly correct, as the function might not return whereas pure
+   functions are supposed to return exactly once.  This hack is not
+   known to generate wrong code for tzcode on any platform.
+   Remove this macro and its uses when the bug is fixed in a GCC release.  */
+#define ATTRIBUTE_PURE_114833_HACK ATTRIBUTE_PURE_114833
 
 #if (__STDC_VERSION__ < 199901 && !defined restrict \
      && (PORT_TO_C89 || defined _MSC_VER))
@@ -922,11 +929,16 @@ time_t mktime_z(timezone_t restrict, struct tm *restrict);
 timezone_t tzalloc(char const *);
 void tzfree(timezone_t);
 # if STD_INSPIRED
+#  if TZ_RUNTIME_LEAPS
+#   define ATTRIBUTE_POSIX2TIME ATTRIBUTE_PURE
+#  else
+#   define ATTRIBUTE_POSIX2TIME ATTRIBUTE_CONST
+#  endif
 #  if TZ_TIME_T || !defined posix2time_z
-ATTRIBUTE_PURE time_t posix2time_z(timezone_t, time_t);
+ATTRIBUTE_POSIX2TIME time_t posix2time_z(timezone_t, time_t);
 #  endif
 #  if TZ_TIME_T || !defined time2posix_z
-ATTRIBUTE_PURE time_t time2posix_z(timezone_t, time_t);
+ATTRIBUTE_POSIX2TIME time_t time2posix_z(timezone_t, time_t);
 #  endif
 # endif
 #endif
@@ -937,7 +949,7 @@ ATTRIBUTE_PURE time_t time2posix_z(timezone_t, time_t);
 
 #define TYPE_BIT(type) (CHAR_BIT * (ptrdiff_t) sizeof(type))
 #define TYPE_SIGNED(type) (((type) -1) < 0)
-#define TWOS_COMPLEMENT(t) ((t) ~ (t) 0 < 0)
+#define TWOS_COMPLEMENT(type) (TYPE_SIGNED (type) && (! ~ (type) -1))
 
 /* Minimum and maximum of two values.  Use lower case to avoid
    naming clashes with standard include files.  */
@@ -1077,7 +1089,10 @@ char *asctime_r(struct tm const *restrict, char *restrict);
 char *ctime_r(time_t const *, char *);
 #endif /* HAVE_INCOMPATIBLE_CTIME_R */
 
-/* Handy macros that are independent of tzfile implementation.  */
+/* Handy constants that are independent of tzfile implementation.  */
+
+/* 2**31 - 1 as a signed integer, and usable in #if.  */
+#define TWO_31_MINUS_1 2147483647
 
 enum {
   SECSPERMIN = 60,

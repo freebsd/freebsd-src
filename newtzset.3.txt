@@ -158,22 +158,19 @@ DESCRIPTION
 
        <-03>3<-02>,M3.5.0/-2,M10.5.0/-1
               stands for time in western Greenland, 3 hours behind UT, where
-              clocks follow the EU rules of springing forward on March's last
+              clocks follow the EU rule of springing forward on March's last
               Sunday at 01:00 UT (-02:00 local time, i.e., 22:00 the previous
               day) and falling back on October's last Sunday at 01:00 UT
               (-01:00 local time, i.e., 23:00 the previous day).  The
               abbreviations for standard and daylight saving time are “-03”
               and “-02”.
 
-       If TZ specifies daylight saving time but does not specify a rule, and
-       the optional tzfile(5)-format file posixrules is present in the system
-       time conversion information directory, the rules in posixrules are
-       used, with the posixrules standard and daylight saving time offsets
-       from UT replaced by those specified by the offset values in TZ.
-       However, the posixrules file is obsolete: if it is present it is only
-       for backward compatibility, and it does not work reliably.  Therefore,
-       if a TZ string directly specifies a timezone with daylight saving time,
-       it should specify the daylight saving rules explicitly.
+       If TZ specifies daylight saving time but does not specify a rule, the
+       rule typically defaults to the current US daylight-saving rule,
+       although such a default is not guaranteed and is incorrect for many
+       locations outside the US.  Therefore, if a TZ string directly specifies
+       a timezone with daylight saving time, it should specify the daylight
+       saving rule explicitly.
 
        For compatibility with System V Release 3.1, a semicolon (;) may be
        used to separate the rule from the rest of the specification; this is
@@ -214,10 +211,9 @@ ERRORS
        read(2).
 
 FILES
-       /etc/localtime                  local timezone file
-       /usr/share/zoneinfo             timezone directory
-       /usr/share/zoneinfo/posixrules  default DST rules (obsolete)
-       /usr/share/zoneinfo/GMT         for UTC leap seconds
+       /etc/localtime           local timezone file
+       /usr/share/zoneinfo      timezone directory
+       /usr/share/zoneinfo/GMT  for UTC leap seconds
 
        If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
        /usr/share/zoneinfo/GMT0 if present.

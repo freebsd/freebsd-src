@@ -181,7 +181,7 @@ instead.
 .PP
 The
 .B ctime
-function is equivalent to calliing
+function is equivalent to calling
 .B localtime
 and then calling
 .B asctime
@@ -311,12 +311,10 @@ and
 functions might (or might not) also behave this way.
 This is for compatibility with older platforms, as required by POSIX.
 .SH FILES
-.ta \w'/usr/share/zoneinfo/posixrules\0\0'u
+.ta \w'/usr/share/zoneinfo/GMT\0\0'u
 /etc/localtime	local timezone file
 .br
 /usr/share/zoneinfo	timezone directory
-.br
-/usr/share/zoneinfo/posixrules	default DST rules (obsolete)
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
 .PP

@@ -31,8 +31,8 @@ typedef int_fast64_t	zic_t;
 static zic_t const
   ZIC_MIN = INT_FAST64_MIN,
   ZIC_MAX = INT_FAST64_MAX,
-  ZIC32_MIN = -1 - (zic_t) 0x7fffffff,
-  ZIC32_MAX = 0x7fffffff;
+  ZIC32_MIN = -1 - (zic_t) TWO_31_MINUS_1,
+  ZIC32_MAX = TWO_31_MINUS_1;
 #define SCNdZIC SCNdFAST64
 
 #ifndef ZIC_MAX_ABBR_LEN_WO_WARN
@@ -164,6 +164,11 @@ static uid_t output_owner = -1;
 # include <stdalign.h>
 #endif
 
+/* The name used for the file implementing the obsolete -p option.  */
+#ifndef TZDEFRULES
+# define TZDEFRULES "posixrules"
+#endif
+
 /* The maximum length of a text line, including the trailing newline.  */
 #ifndef _POSIX2_LINE_MAX
 # define _POSIX2_LINE_MAX 2048
@@ -271,6 +276,7 @@ static char	lowerit(char);
 static void	mkdirs(char const *, bool);
 static void	newabbr(const char * abbr);
 static zic_t	oadd(zic_t t1, zic_t t2);
+static zic_t	omul(zic_t, zic_t);
 static void	outzone(const struct zone * zp, ptrdiff_t ntzones);
 static zic_t	rpytime(const struct rule * rp, zic_t wantedy);
 static bool	rulesub(struct rule * rp,
@@ -293,7 +299,8 @@ static int		charcnt;
 static bool		errors;
 static bool		warnings;
 static int		filenum;
-static int		leapcnt;
+static ptrdiff_t	leapcnt;
+static ptrdiff_t	leap_alloc;
 static bool		leapseen;
 static zic_t		leapminyear;
 static zic_t		leapmaxyear;
@@ -534,9 +541,11 @@ static unsigned char	desigidx[TZ_MAX_TYPES];
 static bool		ttisstds[TZ_MAX_TYPES];
 static bool		ttisuts[TZ_MAX_TYPES];
 static char		chars[TZ_MAX_CHARS];
-static zic_t		trans[TZ_MAX_LEAPS];
-static zic_t		corr[TZ_MAX_LEAPS];
-static char		roll[TZ_MAX_LEAPS];
+static struct {
+  zic_t trans;
+  zic_t corr;
+  char roll;
+} *leap;
 
 /*
 ** Memory allocation.
@@ -555,7 +564,8 @@ size_overflow(void)
   memory_exhausted(_("size overflow"));
 }
 
-ATTRIBUTE_PURE_114833 static ptrdiff_t
+ATTRIBUTE_PURE_114833_HACK
+static ptrdiff_t
 size_sum(size_t a, size_t b)
 {
 #ifdef ckd_add
@@ -569,7 +579,8 @@ size_sum(size_t a, size_t b)
   size_overflow();
 }
 
-ATTRIBUTE_PURE_114833 static ptrdiff_t
+ATTRIBUTE_PURE_114833_HACK
+static ptrdiff_t
 size_product(ptrdiff_t nitems, ptrdiff_t itemsize)
 {
 #ifdef ckd_mul
@@ -584,7 +595,8 @@ size_product(ptrdiff_t nitems, ptrdiff_t itemsize)
   size_overflow();
 }
 
-ATTRIBUTE_PURE_114833 static ptrdiff_t
+ATTRIBUTE_PURE_114833_HACK
+static ptrdiff_t
 align_to(ptrdiff_t size, ptrdiff_t alignment)
 {
   ptrdiff_t lo_bits = alignment - 1, sum = size_sum(size, lo_bits);
@@ -814,8 +826,8 @@ close_file(FILE *stream, char const *dir, char const *name,
 	   char const *tempname)
 {
   char const *e = (ferror(stream) ? _("I/O error")
-		   : (fflush(stream) < 0
-		      || (tempname && chmetadata(stream) < 0)
+		   : ((tempname
+		       && (fflush(stream) < 0 || chmetadata(stream) < 0))
 		      || fclose(stream) < 0)
 		   ? strerror(errno) : NULL);
   if (e) {
@@ -1283,6 +1295,9 @@ main(int argc, char **argv)
 			case 'p':
 				if (psxrules)
 				  duplicate_options("-p");
+				if (strcmp(optarg, "-") != 0)
+				  warning(_("-p is obsolete"
+					    " and likely ineffective"));
 				psxrules = optarg;
 				break;
 			case 't':
@@ -1691,7 +1706,8 @@ relname(char const *target, char const *linkname)
 /* Return true if A and B must have the same parent dir if A and B exist.
    Return false if this is not necessarily true (though it might be true).
    Keep it simple, and do not inspect the file system.  */
-ATTRIBUTE_PURE_114833 static bool
+ATTRIBUTE_PURE_114833
+static bool
 same_parent_dirs(char const *a, char const *b)
 {
   for (; *a == *b; a++, b++)
@@ -2073,15 +2089,11 @@ gethms(char const *string, char const *errstring)
 			error("%s", errstring);
 			return 0;
 	}
-	if (ZIC_MAX / SECSPERHOUR < hh) {
-		error(_("time overflow"));
-		return 0;
-	}
 	ss += 5 + ((ss ^ 1) & (xr == '0')) <= tenths; /* Round to even.  */
 	if (noise && (hh > HOURSPERDAY ||
 		(hh == HOURSPERDAY && (mm != 0 || ss != 0))))
 warning(_("values over 24 hours not handled by pre-2007 versions of zic"));
-	return oadd(sign * hh * SECSPERHOUR,
+	return oadd(omul(hh, sign * SECSPERHOUR),
 		    sign * (mm * SECSPERMIN + ss));
 }
 
@@ -2241,10 +2253,6 @@ inzsub(char **fields, int nfields, bool iscont)
 		z.z_untiltime = rpytime(&z.z_untilrule,
 			z.z_untilrule.r_loyear);
 		if (iscont && nzones > 0 &&
-			z.z_untiltime > min_time &&
-			z.z_untiltime < max_time &&
-			zones[nzones - 1].z_untiltime > min_time &&
-			zones[nzones - 1].z_untiltime < max_time &&
 			zones[nzones - 1].z_untiltime >= z.z_untiltime) {
 		  error(_("Zone continuation line end time is"
 			  " not after end time of previous line"));
@@ -2326,15 +2334,7 @@ getleapdatetime(char **fields, bool expire_line)
 			return -1;
 	}
 	dayoff = oadd(dayoff, day - 1);
-	if (dayoff < min_time / SECSPERDAY) {
-		error(_("time too small"));
-		return -1;
-	}
-	if (dayoff > max_time / SECSPERDAY) {
-		error(_("time too large"));
-		return -1;
-	}
-	t = dayoff * SECSPERDAY;
+	t = omul(dayoff, SECSPERDAY);
 	tod = gethms(fields[LP_TIME], _("invalid time of day"));
 	t = tadd(t, tod);
 	if (t < 0)
@@ -2594,7 +2594,7 @@ atcomp(const void *avp, const void *bvp)
 struct timerange {
   int defaulttype;
   ptrdiff_t base, count;
-  int leapbase, leapcount;
+  ptrdiff_t leapbase, leapcount;
   bool leapexpiry;
 };
 
@@ -2614,13 +2614,13 @@ limitrange(struct timerange r, zic_t lo, zic_t hi,
      positive leap second if and only if it has a positive correction.
      This supports common TZif readers that assume that the first leap
      second is positive if and only if its correction is positive.  */
-  while (1 < r.leapcount && trans[r.leapbase + 1] <= lo) {
+  while (1 < r.leapcount && leap[r.leapbase + 1].trans <= lo) {
     r.leapcount--;
     r.leapbase++;
   }
   while (0 < r.leapbase
-	 && ((corr[r.leapbase - 1] < corr[r.leapbase])
-	     != (0 < corr[r.leapbase]))) {
+	 && ((leap[r.leapbase - 1].corr < leap[r.leapbase].corr)
+	     != (0 < leap[r.leapbase].corr))) {
     r.leapcount++;
     r.leapbase--;
   }
@@ -2630,7 +2630,7 @@ limitrange(struct timerange r, zic_t lo, zic_t hi,
   if (hi < max_time) {
     while (0 < r.count && hi + 1 < ats[r.base + r.count - 1])
       r.count--;
-    while (0 < r.leapcount && hi + 1 < trans[r.leapbase + r.leapcount - 1])
+    while (0 < r.leapcount && hi + 1 < leap[r.leapbase + r.leapcount - 1].trans)
       r.leapcount--;
   }
 
@@ -2666,7 +2666,7 @@ writezone(const char *const name, const char *const string, char version,
 	if (timecnt > 1)
 		qsort(attypes, timecnt, sizeof *attypes, atcomp);
 	/*
-	** Optimize.
+	** Optimize and skip unwanted transitions.
 	*/
 	{
 		ptrdiff_t fromi, toi;
@@ -2674,16 +2674,28 @@ writezone(const char *const name, const char *const string, char version,
 		toi = 0;
 		fromi = 0;
 		for ( ; fromi < timecnt; ++fromi) {
-			if (toi != 0
-			    && ((attypes[fromi].at
+			if (toi != 0) {
+			    /* Skip the previous transition if it is unwanted
+			       because its local time is not earlier.
+			       The UT offset additions can't overflow because
+			       of how the times were calculated.  */
+			    unsigned char type_2 =
+			      toi == 1 ? 0 : attypes[toi - 2].type;
+			    if ((attypes[fromi].at
 				 + utoffs[attypes[toi - 1].type])
-				<= (attypes[toi - 1].at
-				    + utoffs[toi == 1 ? 0
-					     : attypes[toi - 2].type]))) {
+				<= attypes[toi - 1].at + utoffs[type_2]) {
+				    if (attypes[fromi].type == type_2)
+					toi--;
+				    else
 					attypes[toi - 1].type =
 						attypes[fromi].type;
-					continue;
+				    continue;
+			    }
 			}
+
+			/* Use a transition if it is the first one,
+			   or if it cannot be merged for other reasons,
+			   or if it transitions to different timekeeping.  */
 			if (toi == 0
 			    || attypes[fromi].dontmerge
 			    || (utoffs[attypes[toi - 1].type]
@@ -2697,14 +2709,19 @@ writezone(const char *const name, const char *const string, char version,
 		timecnt = toi;
 	}
 
-	if (noise && timecnt > 1200) {
-	  if (timecnt > TZ_MAX_TIMES)
+	if (noise) {
+	  if (1200 < timecnt) {
+	    if (TZ_MAX_TIMES < timecnt)
 		warning(_("reference clients mishandle"
 			  " more than %d transition times"),
 			TZ_MAX_TIMES);
-	  else
+	    else
 		warning(_("pre-2014 clients may mishandle"
 			  " more than 1200 transition times"));
+	  }
+	  if (TZ_MAX_LEAPS < leapcnt)
+	    warning(_("reference clients mishandle more than %d leap seconds"),
+		    TZ_MAX_LEAPS);
 	}
 	/*
 	** Transfer.
@@ -2720,8 +2737,8 @@ writezone(const char *const name, const char *const string, char version,
 	for (i = 0; i < timecnt; ++i) {
 		j = leapcnt;
 		while (--j >= 0)
-			if (ats[i] > trans[j] - corr[j]) {
-				ats[i] = tadd(ats[i], corr[j]);
+			if (leap[j].trans - leap[j].corr < ats[i]) {
+				ats[i] = tadd(ats[i], leap[j].corr);
 				break;
 			}
 	}
@@ -2750,7 +2767,7 @@ writezone(const char *const name, const char *const string, char version,
 	    version = '4';
 	  }
 	  if (0 < r->leapcount
-	      && corr[r->leapbase] != 1 && corr[r->leapbase] != -1) {
+	      && leap[r->leapbase].corr != 1 && leap[r->leapbase].corr != -1) {
 	    if (noise)
 	      warning(_("%s: pre-2021b clients may mishandle"
 			" leap second table truncation"),
@@ -2765,7 +2782,7 @@ writezone(const char *const name, const char *const string, char version,
 
 	for (pass = 1; pass <= 2; ++pass) {
 		register ptrdiff_t thistimei, thistimecnt, thistimelim;
-		register int	thisleapi, thisleapcnt, thisleaplim;
+		register ptrdiff_t thisleapi, thisleapcnt, thisleaplim;
 		struct tzhead tzh;
 		int pretranstype = -1, thisdefaulttype;
 		bool locut, hicut, thisleapexpiry;
@@ -2970,6 +2987,11 @@ writezone(const char *const name, const char *const string, char version,
 		  continue;
 		}
 
+		if (pass == 2 && noise && 50 < thischarcnt)
+		  warning(_("%s: pre-2026 reference clients mishandle"
+			    " more than 50 bytes of abbreviations"),
+			  name);
+
 		/* Output a LO_TIME transition if needed; see limitrange.
 		   But do not go below the minimum representable value
 		   for this pass.  */
@@ -3005,8 +3027,8 @@ writezone(const char *const name, const char *const string, char version,
 		for (i = thisleapi; i < thisleaplim; ++i) {
 			register zic_t	todo;
 
-			if (roll[i]) {
-				if (timecnt == 0 || trans[i] < ats[0]) {
+			if (leap[i].roll) {
+				if (timecnt == 0 || leap[i].trans < ats[0]) {
 					j = 0;
 					while (isdsts[j])
 						if (++j >= typecnt) {
@@ -3016,14 +3038,14 @@ writezone(const char *const name, const char *const string, char version,
 				} else {
 					j = 1;
 					while (j < timecnt &&
-						trans[i] >= ats[j])
+						ats[j] <= leap[i].trans)
 							++j;
 					j = types[j - 1];
 				}
-				todo = tadd(trans[i], -utoffs[j]);
-			} else	todo = trans[i];
+				todo = tadd(leap[i].trans, -utoffs[j]);
+			} else	todo = leap[i].trans;
 			puttzcodepass(todo, fp, pass);
-			puttzcode(corr[i], fp);
+			puttzcode(leap[i].corr, fp);
 		}
 		if (thisleapexpiry) {
 		  /* Append a no-op leap correction indicating when the leap
@@ -3032,7 +3054,7 @@ writezone(const char *const name, const char *const string, char version,
 		     the plan is to amend the RFC to allow this in version 4
 		     TZif files.  */
 		  puttzcodepass(leapexpires, fp, pass);
-		  puttzcode(thisleaplim ? corr[thisleaplim - 1] : 0, fp);
+		  puttzcode(thisleaplim ? leap[thisleaplim - 1].corr : 0, fp);
 		}
 		if (stdcnt != 0)
 		  for (i = old0; i < typecnt; i++)
@@ -3092,11 +3114,10 @@ doabbr(char *abbr, struct zone const *zp, char const *letters,
        bool isdst, zic_t save, bool doquotes)
 {
 	register char *	cp;
-	register char *	slashp;
 	ptrdiff_t len;
 	char const *format = zp->z_format;
+	char const *slashp = strchr(format, '/');
 
-	slashp = strchr(format, '/');
 	if (slashp == NULL) {
 	  char letterbuf[PERCENT_Z_LEN_BOUND + 1];
 	  if (zp->z_format_specifier == 'z')
@@ -3570,9 +3591,6 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 					if (!r->r_todisstd)
 						offset = oadd(offset, save);
 					jtime = r->r_temp;
-					if (jtime == min_time ||
-						jtime == max_time)
-							continue;
 					jtime = tadd(jtime, -offset);
 					if (k < 0 || jtime < ktime) {
 						k = j;
@@ -3752,7 +3770,8 @@ addtype(zic_t utoff, char const *abbr, bool isdst, bool ttisstd, bool ttisut)
 {
 	register int	i, j;
 
-	if (! (-1L - 2147483647L <= utoff && utoff <= 2147483647L)) {
+	/* RFC 9636 section 3.2 specifies this range for utoff.  */
+	if (! (-TWO_31_MINUS_1 <= utoff && utoff <= TWO_31_MINUS_1)) {
 		error(_("UT offset out of range"));
 		exit(EXIT_FAILURE);
 	}
@@ -3791,32 +3810,27 @@ addtype(zic_t utoff, char const *abbr, bool isdst, bool ttisstd, bool ttisut)
 static void
 leapadd(zic_t t, int correction, int rolling)
 {
-	register int i;
+	register ptrdiff_t i;
 
-	if (TZ_MAX_LEAPS <= leapcnt) {
-		error(_("too many leap seconds"));
-		exit(EXIT_FAILURE);
-	}
 	if (rolling && (lo_time != min_time || hi_time != max_time)) {
 	  error(_("Rolling leap seconds not supported with -r"));
 	  exit(EXIT_FAILURE);
 	}
+	leap = growalloc(leap, sizeof *leap, leapcnt, &leap_alloc);
 	for (i = 0; i < leapcnt; ++i)
-		if (t <= trans[i])
+		if (t <= leap[i].trans)
 			break;
-	memmove(&trans[i + 1], &trans[i], (leapcnt - i) * sizeof *trans);
-	memmove(&corr[i + 1], &corr[i], (leapcnt - i) * sizeof *corr);
-	memmove(&roll[i + 1], &roll[i], (leapcnt - i) * sizeof *roll);
-	trans[i] = t;
-	corr[i] = correction;
-	roll[i] = rolling;
+	memmove(&leap[i + 1], &leap[i], (leapcnt - i) * sizeof *leap);
+	leap[i].trans = t;
+	leap[i].corr = correction;
+	leap[i].roll = rolling;
 	++leapcnt;
 }
 
 static void
 adjleap(void)
 {
-	register int	i;
+	register ptrdiff_t i;
 	register zic_t	last = 0;
 	register zic_t	prevtrans = 0;
 
@@ -3824,18 +3838,18 @@ adjleap(void)
 	** propagate leap seconds forward
 	*/
 	for (i = 0; i < leapcnt; ++i) {
-		if (trans[i] - prevtrans < 28 * SECSPERDAY) {
+		if (leap[i].trans - prevtrans < 28 * SECSPERDAY) {
 		  error(_("Leap seconds too close together"));
 		  exit(EXIT_FAILURE);
 		}
-		prevtrans = trans[i];
-		trans[i] = tadd(trans[i], last);
-		last = corr[i] += last;
+		prevtrans = leap[i].trans;
+		leap[i].trans = tadd(prevtrans, last);
+		last = leap[i].corr += last;
 	}
 
 	if (0 <= leapexpires) {
 	  leapexpires = oadd(leapexpires, last);
-	  if (! (leapcnt == 0 || (trans[leapcnt - 1] < leapexpires))) {
+	  if (! (leapcnt == 0 || (leap[leapcnt - 1].trans < leapexpires))) {
 	    error(_("last Leap time does not precede Expires time"));
 	    exit(EXIT_FAILURE);
 	  }
@@ -3893,7 +3907,8 @@ lowerit(char a)
 }
 
 /* case-insensitive equality */
-ATTRIBUTE_PURE_114833 static bool
+ATTRIBUTE_PURE_114833
+static bool
 ciequal(register const char *ap, register const char *bp)
 {
 	while (lowerit(*ap) == lowerit(*bp++))
@@ -3902,7 +3917,8 @@ ciequal(register const char *ap, register const char *bp)
 	return false;
 }
 
-ATTRIBUTE_PURE_114833 static bool
+ATTRIBUTE_PURE_114833
+static bool
 itsabbr(register const char *abbr, register const char *word)
 {
 	if (lowerit(*abbr) != lowerit(*word))
@@ -3918,7 +3934,8 @@ itsabbr(register const char *abbr, register const char *word)
 
 /* Return true if ABBR is an initial prefix of WORD, ignoring ASCII case.  */
 
-ATTRIBUTE_PURE_114833 static bool
+ATTRIBUTE_PURE_114833
+static bool
 ciprefix(char const *abbr, char const *word)
 {
   do
@@ -4028,7 +4045,9 @@ time_overflow(void)
   exit(EXIT_FAILURE);
 }
 
-ATTRIBUTE_PURE_114833 static zic_t
+/* Return T1 + T2, but diagnose any overflow and exit.  */
+ATTRIBUTE_PURE_114833_HACK
+static zic_t
 oadd(zic_t t1, zic_t t2)
 {
 #ifdef ckd_add
@@ -4042,25 +4061,41 @@ oadd(zic_t t1, zic_t t2)
   time_overflow();
 }
 
-ATTRIBUTE_PURE_114833 static zic_t
+/* Return T1 + T2, but diagnose any overflow and exit.
+   This is like oadd, except the result must fit in min_time..max_time range,
+   which on oddball machines can be a smaller range than ZIC_MIN..ZIC_MAX.  */
+ATTRIBUTE_PURE_114833_HACK
+static zic_t
 tadd(zic_t t1, zic_t t2)
 {
-#ifdef ckd_add
-  zic_t sum;
-  if (!ckd_add(&sum, t1, t2) && min_time <= sum && sum <= max_time)
+  zic_t sum = oadd(t1, t2);
+  if (min_time <= sum && sum <= max_time)
     return sum;
+  time_overflow();
+}
+
+/* Return T1 * T2, but diagnose any overflow and exit.  */
+ATTRIBUTE_PURE_114833_HACK
+static zic_t
+omul(zic_t t1, zic_t t2)
+{
+#ifdef ckd_mul
+  zic_t product;
+  if (!ckd_mul(&product, t1, t2))
+    return product;
 #else
-  if (t1 < 0 ? min_time - t1 <= t2 : t2 <= max_time - t1)
-    return t1 + t2;
+  if (t2 < 0
+      ? ZIC_MAX / t2 <= t1 && (t2 == -1 || t1 <= ZIC_MIN / t2)
+      : t2 == 0 || (ZIC_MIN / t2 <= t1 && t1 <= ZIC_MAX / t2))
+    return t1 * t2;
 #endif
-  if (t1 == min_time || t1 == max_time)
-    return t1;
   time_overflow();
 }
 
 /*
 ** Given a rule, and a year, compute the date (in seconds since January 1,
 ** 1970, 00:00 LOCAL time) in that year that the rule refers to.
+** Do not count leap seconds.  On error, diagnose and exit.
 */
 
 static zic_t
@@ -4071,10 +4106,6 @@ rpytime(const struct rule *rp, zic_t wantedy)
 	register zic_t	t, y;
 	int yrem;
 
-	if (wantedy == ZIC_MIN)
-		return min_time;
-	if (wantedy == ZIC_MAX)
-		return max_time;
 	m = TM_JANUARY;
 	y = EPOCH_YEAR;
 
@@ -4132,11 +4163,7 @@ rpytime(const struct rule *rp, zic_t wantedy)
 will not work with pre-2004 versions of zic"));
 		}
 	}
-	if (dayoff < min_time / SECSPERDAY)
-		return min_time;
-	if (dayoff > max_time / SECSPERDAY)
-		return max_time;
-	t = (zic_t) dayoff * SECSPERDAY;
+	t = omul(dayoff, SECSPERDAY);
 	return tadd(t, rp->r_tod);
 }
 
