@@ -3,14 +3,16 @@
 <head>
   <title>Theory and pragmatics of the tz code and data</title>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    pre {margin-left: 2em; white-space: pre-wrap;}
+    dd {margin-left: 1.3rem;}
+    pre {margin-left: 1.3rem; overflow: auto;}
+    ul {padding-left: 1.3rem;}
   </style>
 </head>
 
 <body>
 <h1>Theory and pragmatics of the <code><abbr>tz</abbr></code> code and data</h1>
-  <h3>Outline</h3>
   <nav>
     <ul>
       <li><a href="#scope">Scope of the <code><abbr>tz</abbr></code>
@@ -648,14 +650,14 @@ Errors in the <code><abbr>tz</abbr></code> database arise from many sources:
     should be observed.
     In her 2015 book
     <cite><a
-    href="https://www.hup.harvard.edu/catalog.php?isbn=9780674286146">The
+    href="https://www.hup.harvard.edu/books/9780674286146">The
     Global Transformation of Time, 1870–1950</a></cite>,
     Vanessa Ogle writes
     “Outside of Europe and North America there was no system of time
     zones at all, often not even a stable landscape of mean times,
     prior to the middle decades of the twentieth century”.
     See: Timothy Shenk, <a
-href="https://www.dissentmagazine.org/blog/booked-a-global-history-of-time-vanessa-ogle">Booked:
+href="https://dissentmagazine.org/blog/booked-a-global-history-of-time-vanessa-ogle/">Booked:
       A Global History of Time</a>. <cite>Dissent</cite> 2015-12-17.
   </li>
   <li>
@@ -789,7 +791,7 @@ href="https://www.dissentmagazine.org/blog/booked-a-global-history-of-time-vanes
     calendar with 24-hour days. These divergences range from
     relatively minor, such as Japanese bars giving times like 24:30 for the
     wee hours of the morning, to more-significant differences such as <a
-    href="https://theworld.org/stories/2015-01-30/if-you-have-meeting-ethiopia-you-better-double-check-time">the
+    href="https://theworld.org/stories/2015/01/30/ethiopian-time">the
     east African practice of starting the day at dawn</a>, renumbering
     the Western 06:00 to be 12:00. These practices are largely outside
     the scope of the <code><abbr>tz</abbr></code> code and data, which
@@ -1126,7 +1128,7 @@ However POSIX.1-2024, like earlier POSIX editions, has some limitations:
     the name of a file from which time-related information is read.
     The file’s format is <dfn><abbr>TZif</abbr></dfn>,
     a timezone information format that contains binary data; see
-    <a href="https://www.rfc-editor.org/rfc/9636">Internet
+    <a href="https://www.rfc-editor.org/rfc/rfc9636">Internet
     <abbr>RFC</abbr> 9636</a>.
     The daylight saving time rules to be used for a
     particular timezone are encoded in the
@@ -1438,7 +1440,7 @@ but they indicate the sort of problems that we would run into if we
 extended the time zone database further into the past.
 An excellent resource in this area is Edward M. Reingold
 and Nachum Dershowitz, <cite><a
-href="https://www.cambridge.org/fr/academic/subjects/computer-science/computing-general-interest/calendrical-calculations-ultimate-edition-4th-edition">Calendrical
+href="https://www.cambridge.org/fr/universitypress/subjects/computer-science/computing-general-interest/calendrical-calculations-ultimate-edition-4th-edition">Calendrical
 Calculations: The Ultimate Edition</a></cite>, Cambridge University Press (2018).
 Other information and sources are given in the file "<code>calendars</code>"
 in the <code><abbr>tz</abbr></code> distribution.
@@ -1450,13 +1452,13 @@ They sometimes disagree.
   <h2 id="planets">Time and time zones off Earth</h2>
 <p>
 The European Space Agency is <a
-href="https://www.esa.int/Applications/Navigation/Telling_time_on_the_Moon">considering</a>
+href="https://www.esa.int/Applications/Satellite_navigation/Telling_time_on_the_Moon">considering</a>
 the establishment of a reference timescale for the Moon, which has
 days roughly equivalent to 29.5 Earth days, and where relativistic
 effects cause clocks to tick slightly faster than on Earth.
 Also, <abbr title="National Aeronautics and Space Administration">NASA</abbr>
 has been <a
-href="https://www.whitehouse.gov/wp-content/uploads/2024/04/Celestial-Time-Standardization-Policy.pdf">ordered</a>
+href="https://bidenwhitehouse.archives.gov/wp-content/uploads/2024/04/Celestial-Time-Standardization-Policy.pdf">ordered</a>
 to consider the establishment of Coordinated Lunar Time (<abbr>LTC</abbr>).
 It is not yet known whether the US and European efforts will result in
 multiple timescales on the Moon.
@@ -1576,7 +1578,7 @@ Sources for time on other planets:
   </li>
   <li>
     Matt Williams,
-    “<a href="https://www.universetoday.com/37481/days-of-the-planets/">How
+    “<a href="https://www.universetoday.com/articles/days-of-the-planets">How
     long is a day on the other planets of the solar system?</a>”
     (2016-01-20).
   </li>

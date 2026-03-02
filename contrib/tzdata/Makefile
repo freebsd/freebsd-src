@@ -66,28 +66,6 @@ DATAFORM=		main
 
 LOCALTIME=	Factory
 
-# The POSIXRULES macro controls interpretation of POSIX-like TZ
-# settings like TZ='EET-2EEST' that lack DST transition rules.
-# If POSIXRULES is '-', no template is installed; this is the default.
-# Any other value for POSIXRULES is obsolete and should not be relied on, as:
-# * It does not work correctly in popular implementations such as GNU/Linux.
-# * It does not work even in tzcode, except for historical timestamps
-#   that precede the last explicit transition in the POSIXRULES file.
-#   Hence it typically does not work for current and future timestamps.
-# If, despite the above, you want a template for handling these settings,
-# you can change the line below (after finding the timezone you want in the
-# one of the $(TDATA) source files, or adding it to a source file).
-# Alternatively, if you discover you've got the wrong timezone, you can just
-# 'zic -p -' to remove it, or 'zic -p rightzone' to change it.
-# Use the command
-#	make zonenames
-# to get a list of the values you can use for POSIXRULES.
-
-POSIXRULES=	-
-
-# Also see TZDEFRULESTRING below, which takes effect only
-# if POSIXRULES is '-' or if the template file cannot be accessed.
-
 
 # Installation locations.
 #
@@ -170,7 +148,7 @@ TIME_T_ALTERNATIVES_TAIL = int_least32_t.ck uint_least32_t.ck \
 # applications that are not leap second aware, and is closer to unsmeared
 # "right" time than unsmeared POSIX time is (e.g., 0.5 vs 1.0 s max error).
 
-REDO=		posix_right
+REDO=		posix_only
 
 # Whether to put an "Expires" line in the leapseconds file.
 # Use EXPIRES_LINE=1 to put the line in, 0 to omit it.
@@ -284,7 +262,10 @@ LDLIBS=
 #  -DHAVE_STRDUP=0 if your system lacks the strdup function
 #  -DHAVE_STRNLEN=0 if your system lacks the strnlen function+
 #  -DHAVE_STRTOLL=0 if your system lacks the strtoll function+
-#  -DHAVE_STRUCT_STAT_ST_CTIM=0 if struct stat lacks a member st_ctim+
+#  -DHAVE_STRUCT_STAT_ST_CTIM=0 if struct stat lacks a status-change member
+#	of type struct timespec, so code should use st_ctime instead;
+#	but if the status-change member name is st_ctimespec,
+#	use -Dst_ctim=st_ctimespec instead (default is guessed)+
 #  -DHAVE_STRUCT_TIMESPEC=0 if your system lacks struct timespec+
 #  -DHAVE_SYMLINK=0 if your system lacks the symlink function
 #  -DHAVE_SYS_STAT_H=0 if <sys/stat.h> does not work*
@@ -322,13 +303,13 @@ LDLIBS=
 #		variable, 0 otherwise (default is guessed)
 #	      -DHAVE_SYS_SINGLE_THREADED_H=0 if <sys/single_threaded.h> works,
 #		0 otherwise (default is guessed)
-#	  -DTHREAD_RWLOCK to use read-write locks intead of mutexes.
-#	    This can improve paralellism and thus save real time
+#	  -DTHREAD_RWLOCK to use read-write locks instead of mutexes.
+#	    This can improve parallelism and thus save real time
 #	    if many threads call tzcode functions simultaneously.
 #	    It also costs CPU time and thus energy.
 #	  -DTHREAD_TM_MULTI to have gmtime, localtime, and offtime
 #	    return different struct tm * addresses in different threads.
-#	    This supports unportable programs that call
+#	    This supports nonportable programs that call
 #	    gmtime/localtime/offtime when they should call
 #	    gmtime_r/localtime_r/offtime_r to avoid races.
 #	    Because the corresponding storage is freed on thread exit,
@@ -347,10 +328,13 @@ LDLIBS=
 #  -DTZ_DOMAIN=\"foo\" to use "foo" for gettext domain name; default is "tz"
 #  -DTZ_DOMAINDIR=\"/path\" to use "/path" for gettext directory;
 #	the default is system-supplied, typically "/usr/lib/locale"
+#  -DTZ_RUNTIME_LEAPS=0 to disable runtime support for leap seconds.
+#	This conforms to POSIX, shrinks tzcode's attack surface,
+#	and is more efficient.  However, it fails to support Internet
+#	RFC 9636's leap seconds.
 #  -DTZDEFRULESTRING=\",date/time,date/time\" to default to the specified
-#	DST transitions for proleptic format TZ strings lacking them,
-#	in the usual case where POSIXRULES is '-'.  If not specified,
-#	TZDEFRULESTRING defaults to US rules for future DST transitions.
+#	DST transitions for proleptic format TZ strings lacking them.
+#	If not specified, it defaults to US rules for future DST transitions.
 #	This mishandles some past timestamps, as US DST rules have changed.
 #	It also mishandles settings like TZ='EET-2EEST' for eastern Europe,
 #	as Europe and US DST rules differ.
@@ -400,12 +384,13 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 \
   -Wold-style-definition -Woverlength-strings -Wpointer-arith \
   -Wshadow -Wshift-overflow=2 -Wstrict-overflow \
   -Wstrict-prototypes -Wstringop-overflow=4 \
-  -Wstringop-truncation -Wsuggest-attribute=cold \
+  -Wsuggest-attribute=cold \
   -Wsuggest-attribute=const -Wsuggest-attribute=format \
   -Wsuggest-attribute=malloc \
   -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure \
   -Wtrampolines -Wundef -Wunused-macros -Wuse-after-free=3 \
   -Wvariadic-macros -Wvla -Wwrite-strings \
+  -Wzero-as-null-pointer-constant \
   -Wno-format-nonliteral -Wno-sign-compare -Wno-type-limits
 #
 # If your system has a "GMT offset" field in its "struct tm"s
@@ -723,7 +708,6 @@ install:	all $(DATA) $(REDO) $(MANS)
 			'$(DESTDIR)$(MANDIR)/man3' '$(DESTDIR)$(MANDIR)/man5' \
 			'$(DESTDIR)$(MANDIR)/man8'
 		$(ZIC_INSTALL) -l $(LOCALTIME) \
-			-p $(POSIXRULES) \
 			-t '$(DESTDIR)$(TZDEFAULT)'
 		cp -f $(TABDATA) '$(DESTDIR)$(TZDIR)/.'
 		cp tzselect '$(DESTDIR)$(BINDIR)/.'
