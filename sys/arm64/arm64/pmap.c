@@ -9643,7 +9643,7 @@ bool
 pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 {
 
-	return (mode >= VM_MEMATTR_DEVICE && mode <= VM_MEMATTR_WRITE_THROUGH);
+	return (mode >= 0 && mode < VM_MEMATTR_END);
 }
 
 static void *
