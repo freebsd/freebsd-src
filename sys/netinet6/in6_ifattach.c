@@ -629,8 +629,8 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		/* Reference prefix */
 		ia->ia6_ndpr = pr;
 		pr->ndpr_addrcnt++;
-	} else
-		nd6_prefix_rele(pr);
+	}
+	nd6_prefix_rele(pr);
 
 	return 0;
 }
