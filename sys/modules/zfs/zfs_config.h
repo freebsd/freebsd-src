@@ -373,6 +373,9 @@
 /* inode_set_mtime_to_ts() exists in linux/fs.h */
 /* #undef HAVE_INODE_SET_MTIME_TO_TS */
 
+/* inode_state_read_once() exists */
+/* #undef HAVE_INODE_STATE_READ_ONCE */
+
 /* timestamp_truncate() exists */
 /* #undef HAVE_INODE_TIMESTAMP_TRUNCATE */
 
@@ -507,6 +510,9 @@
 
 /* Define to 1 if you have the 'mlockall' function. */
 #define HAVE_MLOCKALL 1
+
+/* 'flags' in 'struct page' is a struct */
+/* #undef HAVE_MM_PAGE_FLAGS_STRUCT */
 
 /* PG_error flag is available */
 /* #undef HAVE_MM_PAGE_FLAG_ERROR */
@@ -859,7 +865,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.0-1-FreeBSD_g743334913"
+#define ZFS_META_ALIAS "zfs-2.4.1-1-FreeBSD_g1c702dda3"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -868,7 +874,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.18"
+#define ZFS_META_KVER_MAX "6.19"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -889,10 +895,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "1-FreeBSD_g743334913"
+#define ZFS_META_RELEASE "1-FreeBSD_g1c702dda3"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.4.0"
+#define ZFS_META_VERSION "2.4.1"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
