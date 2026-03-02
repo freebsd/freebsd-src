@@ -202,7 +202,7 @@ strtoi(char *str, char **end)
 	if ((end != NULL && *end == str) ||
 	    num < 0 || num > INT_MAX ||
 	    errno == EINVAL || errno == ERANGE)
-		err(1, "error in diff output");
+		err(2, "error in diff output");
 	return (int)num;
 }
 
@@ -267,7 +267,7 @@ readin(int fd, struct diff **dd)
 		if (*p == ',')
 			d = strtoi(p + 1, &p);
 		if (*p != '\n')
-			errx(1, "error in diff output");
+			errx(2, "error in diff output");
 		if (kind == 'a')
 			a++;
 		else if (kind == 'c')
@@ -275,11 +275,11 @@ readin(int fd, struct diff **dd)
 		else if (kind == 'd')
 			c++;
 		else
-			errx(1, "error in diff output");
+			errx(2, "error in diff output");
 		b++;
 		d++;
 		if (b < a || d < c)
-			errx(1, "error in diff output");
+			errx(2, "error in diff output");
 		(*dd)[i].old.from = a;
 		(*dd)[i].old.to = b;
 		(*dd)[i].new.from = c;
@@ -287,7 +287,7 @@ readin(int fd, struct diff **dd)
 		if (i > 0) {
 			if ((*dd)[i].old.from < (*dd)[i - 1].old.to ||
 			    (*dd)[i].new.from < (*dd)[i - 1].new.to)
-				errx(1, "diff output out of order");
+				errx(2, "diff output out of order");
 		}
 	}
 	if (i > 0) {
@@ -564,7 +564,7 @@ skip(int i, int from, const char *pr)
 
 	for (n = 0; cline[i] < from - 1; n += j) {
 		if ((line = get_line(fp[i], &j)) == NULL)
-			errx(1, "logic error");
+			errx(2, "logic error");
 		if (pr != NULL)
 			printf("%s%s", Tflag == 1 ? "\t" : pr, line);
 		cline[i]++;
@@ -595,7 +595,7 @@ duplicate(struct range *r1, struct range *r2)
 			if (c == -1 && d == -1)
 				break;
 			if (c == -1 || d == -1)
-				errx(1, "logic error");
+				errx(2, "logic error");
 			nchar++;
 			if (c != d) {
 				repos(nchar);
@@ -652,7 +652,7 @@ printrange(FILE *p, struct range *r)
 		return;
 
 	if (r->from > r->to)
-		errx(1, "invalid print range");
+		errx(2, "invalid print range");
 
 	/*
 	 * XXX-THJ: We read through all of the file for each range printed.
@@ -900,27 +900,27 @@ increase(void)
 
 	p = reallocarray(d13, newsz, sizeof(*p));
 	if (p == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(p + szchanges, 0, incr * sizeof(*p));
 	d13 = p;
 	p = reallocarray(d23, newsz, sizeof(*p));
 	if (p == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(p + szchanges, 0, incr * sizeof(*p));
 	d23 = p;
 	p = reallocarray(de, newsz, sizeof(*p));
 	if (p == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(p + szchanges, 0, incr * sizeof(*p));
 	de = p;
 	q = reallocarray(overlap, newsz, 1);
 	if (q == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(q + szchanges, 0, incr * 1);
 	overlap = q;
 	s = reallocarray(de_delta, newsz, sizeof(*s));
 	if (s == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(s + szchanges, 0, incr * sizeof(*s));
 	de_delta = s;
 	szchanges = newsz;
