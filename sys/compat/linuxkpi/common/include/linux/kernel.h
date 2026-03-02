@@ -55,6 +55,7 @@
 #include <linux/jiffies.h>
 #include <linux/log2.h>
 #include <linux/kconfig.h>
+#include <linux/instruction_pointer.h>
 
 #include <asm/byteorder.h>
 #include <asm/cpufeature.h>
@@ -266,8 +267,6 @@ extern int linuxkpi_debug;
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
 #define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
-
-#define _RET_IP_		__builtin_return_address(0)
 
 #define offsetofend(t, m)	\
         (offsetof(t, m) + sizeof((((t *)0)->m)))
