@@ -303,6 +303,22 @@ memcpy_and_pad(void *dst, size_t dstlen, const void *src, size_t len, int ch)
 	}
 }
 
+#define strtomem(dst, src)	do {					\
+	size_t dstlen = ARRAY_SIZE(dst);				\
+	size_t srclen = __builtin_object_size(src, 1);			\
+	srclen = MIN(srclen, dstlen);					\
+	srclen = strnlen(src, srclen);					\
+	memcpy(dst, src, srclen);					\
+} while (0)
+
+#define strtomem_pad(dst, src, pad)	do {				\
+	size_t dstlen = ARRAY_SIZE(dst);				\
+	size_t srclen = __builtin_object_size(src, 1);			\
+	srclen = MIN(srclen, dstlen);					\
+	srclen = strnlen(src, srclen);					\
+	memcpy_and_pad(dst, dstlen, src, srclen, pad);			\
+} while (0)
+
 #define	memset_startat(ptr, bytepat, smember)				\
 ({									\
 	uint8_t *_ptr = (uint8_t *)(ptr);				\
