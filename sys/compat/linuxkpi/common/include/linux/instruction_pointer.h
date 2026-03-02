@@ -10,4 +10,6 @@
 
 #define	_RET_IP_		__builtin_return_address(0)
 
+#define	_THIS_IP_		((unsigned long)0) /* TODO: _THIS_IP_ not implemented. */
+
 #endif /* _LINUXKPI_LINUX_INSTRUCTION_POINTER_H_ */
