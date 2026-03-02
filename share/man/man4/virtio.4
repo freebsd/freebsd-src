@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 26, 2019
+.Dd March 2, 2026
 .Dt VIRTIO 4
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ The
 .Nm
 module provides a shared memory transport called a virtqueue.
 The
-.Xr virtio_pci
+.Sy virtio_pci
 device driver represents an emulated PCI device that the hypervisor makes
 available to the VM.
 This device provides the probing, configuration, and
@@ -91,6 +91,30 @@ device driver.
 An emulated SCSI HBA is provided by the
 .Xr virtio_scsi 4
 device driver.
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "hw.virtio.pci.transitional"
+.It Va hw.virtio.pci.disable_msix
+If set to 1, disables MSI-X.
+The default value is 0.
+.It Va hw.virtio.pci.transitional
+For a transitional
+.Nm
+device, this tunable specifies whether to negotiate
+modern mode and use the modern
+.Nm
+driver
+.Pq 1
+or to negotiate legacy mode and
+use the legacy
+.Nm
+driver
+.Pq 1 .
+The default value is 0.
 .El
 .Sh SEE ALSO
 .Xr virtio_balloon 4 ,
