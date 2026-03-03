@@ -483,6 +483,8 @@ pcm_unregister(device_t dev)
 		snd_unit = pcm_best_unit(-1);
 		if (snd_unit_auto == 0)
 			snd_unit_auto = 1;
+		if (snd_unit < 0)
+			devctl_notify("SND", "CONN", "NODEV", NULL);
 	}
 
 	return (0);
