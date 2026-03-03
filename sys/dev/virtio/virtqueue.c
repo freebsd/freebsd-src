@@ -35,6 +35,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sdt.h>
 #include <sys/sglist.h>
 #include <vm/vm.h>
@@ -55,6 +56,8 @@
 
 struct virtqueue {
 	device_t		 vq_dev;
+	struct mtx		 vq_ring_mtx;
+	struct mtx		 vq_indirect_mtx;
 	uint16_t		 vq_queue_index;
 	uint16_t		 vq_nentries;
 	uint32_t		 vq_flags;
@@ -83,15 +86,22 @@ struct virtqueue {
 	uint16_t		 vq_used_cons_idx;
 
 	void			*vq_ring_mem;
+	bus_dmamap_t		 vq_ring_mapp;
+	vm_paddr_t		 vq_ring_paddr;
+
 	int			 vq_indirect_mem_size;
 	int			 vq_alignment;
 	int			 vq_ring_size;
 	char			 vq_name[VIRTQUEUE_MAX_NAME_SZ];
 
+	bus_dma_tag_t		 vq_ring_dmat;
+	bus_dma_tag_t		 vq_indirect_dmat;
+
 	struct vq_desc_extra {
 		void		  *cookie;
 		struct vring_desc *indirect;
 		vm_paddr_t	   indirect_paddr;
+		bus_dmamap_t	   mapp;
 		uint16_t	   ndescs;
 	} vq_descx[0];
 };
@@ -148,6 +158,21 @@ SDT_PROBE_DEFINE1(virtqueue, , enqueue_segments, return, "uint16_t");
 #define vq_gtoh32(_vq, _val) 	virtio_gtoh32(vq_modern(_vq), _val)
 #define vq_gtoh64(_vq, _val) 	virtio_gtoh64(vq_modern(_vq), _val)
 
+static void
+virtqueue_ring_load_callback(void *arg, bus_dma_segment_t *segs,
+    int nsegs, int error)
+{
+	struct virtqueue *vq;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	vq = (struct virtqueue *)arg;
+	vq->vq_ring_paddr = segs[0].ds_addr;
+}
+
 int
 virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size,
     bus_size_t notify_offset, int align, vm_paddr_t highaddr,
@@ -199,19 +224,58 @@ virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size,
 	if (VIRTIO_BUS_WITH_FEATURE(dev, VIRTIO_RING_F_EVENT_IDX) != 0)
 		vq->vq_flags |= VIRTQUEUE_FLAG_EVENT_IDX;
 
+	vq->vq_ring_size = round_page(vring_size(size, align));
+
+	mtx_init(&vq->vq_ring_mtx, device_get_nameunit(dev),
+	    "VirtIO Queue Lock", MTX_DEF);
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),			/* parent */
+	    align,					/* alignment */
+	    0,						/* boundary */
+	    BUS_SPACE_MAXADDR,				/* lowaddr */
+	    BUS_SPACE_MAXADDR,				/* highaddr */
+	    NULL, NULL,					/* filter, filterarg */
+	    vq->vq_ring_size,				/* max request size */
+	    1,						/* max # segments */
+	    vq->vq_ring_size,				/* maxsegsize */
+	    BUS_DMA_COHERENT,				/* flags */
+	    busdma_lock_mutex,				/* lockfunc */
+	    &vq->vq_ring_mtx,				/* lockarg */
+	    &vq->vq_ring_dmat);
+	if (error) {
+		device_printf(dev, "cannot create bus_dma_tag\n");
+		goto fail;
+	}
+
+#ifdef __powerpc__
+	/*
+	 * Virtio uses physical addresses rather than bus addresses, so we
+	 * need to ask busdma to skip the iommu physical->bus mapping.  At
+	 * present, this is only a thing on the powerpc architectures.
+	 */
+	bus_dma_tag_set_iommu(vq->vq_ring_dmat, NULL, NULL);
+#endif
+
 	if (info->vqai_maxindirsz > 1) {
 		error = virtqueue_init_indirect(vq, info->vqai_maxindirsz);
 		if (error)
 			goto fail;
 	}
 
-	vq->vq_ring_size = round_page(vring_size(size, align));
-	vq->vq_ring_mem = contigmalloc(vq->vq_ring_size, M_DEVBUF,
-	    M_NOWAIT | M_ZERO, 0, highaddr, PAGE_SIZE, 0);
-	if (vq->vq_ring_mem == NULL) {
-		device_printf(dev,
-		    "cannot allocate memory for virtqueue ring\n");
-		error = ENOMEM;
+	error = bus_dmamem_alloc(vq->vq_ring_dmat, &vq->vq_ring_mem,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &vq->vq_ring_mapp);
+	if (error) {
+		device_printf(dev, "bus_dmamem_alloc failed\n");
+		goto fail;
+	}
+
+	error = bus_dmamap_load(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    vq->vq_ring_mem, vq->vq_ring_size, virtqueue_ring_load_callback,
+	    vq, BUS_DMA_NOWAIT);
+	if (error) {
+		device_printf(dev, "vq->vq_ring_mapp load failed\n");
 		goto fail;
 	}
 
@@ -227,12 +291,29 @@ fail:
 	return (error);
 }
 
+static void
+virtqueue_indirect_load_callback(void *arg, bus_dma_segment_t *segs,
+    int nsegs, int error)
+{
+	struct vq_desc_extra *dxp;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	dxp = (struct vq_desc_extra *)arg;
+	dxp->indirect_paddr = segs[0].ds_addr;
+}
+
 static int
 virtqueue_init_indirect(struct virtqueue *vq, int indirect_size)
 {
 	device_t dev;
 	struct vq_desc_extra *dxp;
 	int i, size;
+	int error;
+	int align;
 
 	dev = vq->vq_dev;
 
@@ -254,16 +335,61 @@ virtqueue_init_indirect(struct virtqueue *vq, int indirect_size)
 	vq->vq_indirect_mem_size = size;
 	vq->vq_flags |= VIRTQUEUE_FLAG_INDIRECT;
 
+	mtx_init(&vq->vq_indirect_mtx, device_get_nameunit(dev),
+	    "VirtIO Indirect Queue Lock", MTX_DEF);
+
+	align = size;
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),			/* parent */
+	    align,					/* alignment */
+	    0,						/* boundary */
+	    BUS_SPACE_MAXADDR,				/* lowaddr */
+	    BUS_SPACE_MAXADDR,				/* highaddr */
+	    NULL, NULL,					/* filter, filterarg */
+	    size,					/* max request size */
+	    1,						/* max # segments */
+	    size,					/* maxsegsize */
+	    BUS_DMA_COHERENT,				/* flags */
+	    busdma_lock_mutex,				/* lockfunc */
+	    &vq->vq_indirect_mtx,			/* lockarg */
+	    &vq->vq_indirect_dmat);
+	if (error) {
+		device_printf(dev, "cannot create indirect bus_dma_tag\n");
+		return (error);
+	}
+
+#ifdef __powerpc__
+	/*
+	 * Virtio uses physical addresses rather than bus addresses, so we
+	 * need to ask busdma to skip the iommu physical->bus mapping.  At
+	 * present, this is only a thing on the powerpc architectures.
+	 */
+	bus_dma_tag_set_iommu(vq->vq_indirect_dmat, NULL, NULL);
+#endif
+
 	for (i = 0; i < vq->vq_nentries; i++) {
 		dxp = &vq->vq_descx[i];
 
-		dxp->indirect = malloc(size, M_DEVBUF, M_NOWAIT);
-		if (dxp->indirect == NULL) {
-			device_printf(dev, "cannot allocate indirect list\n");
-			return (ENOMEM);
+		error = bus_dmamem_alloc(vq->vq_indirect_dmat,
+		    (void **)&dxp->indirect,
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+		    &dxp->mapp);
+		if (error) {
+			panic("dxp->mapp alloc failed\n");
+			return (error);
 		}
 
-		dxp->indirect_paddr = vtophys(dxp->indirect);
+		error = bus_dmamap_load(vq->vq_indirect_dmat, dxp->mapp,
+		    dxp->indirect, size, virtqueue_indirect_load_callback, dxp,
+		    BUS_DMA_NOWAIT);
+		if (error) {
+			panic("dxp->mapp load failed\n");
+			bus_dmamem_free(vq->vq_indirect_dmat, dxp->indirect,
+			    dxp->mapp);
+			dxp->indirect = NULL;
+			return (error);
+		}
+
 		virtqueue_init_indirect_list(vq, dxp->indirect);
 	}
 
@@ -282,7 +408,8 @@ virtqueue_free_indirect(struct virtqueue *vq)
 		if (dxp->indirect == NULL)
 			break;
 
-		free(dxp->indirect, M_DEVBUF);
+		bus_dmamap_unload(vq->vq_indirect_dmat, dxp->mapp);
+		bus_dmamem_free(vq->vq_indirect_dmat, dxp->indirect, dxp->mapp);
 		dxp->indirect = NULL;
 		dxp->indirect_paddr = 0;
 	}
@@ -360,9 +487,14 @@ virtqueue_free(struct virtqueue *vq)
 		virtqueue_free_indirect(vq);
 
 	if (vq->vq_ring_mem != NULL) {
-		free(vq->vq_ring_mem, M_DEVBUF);
+		bus_dmamap_unload(vq->vq_ring_dmat, vq->vq_ring_mapp);
+		bus_dmamem_free(vq->vq_ring_dmat, vq->vq_ring_mem,
+		    vq->vq_ring_mapp);
 		vq->vq_ring_size = 0;
-		vq->vq_ring_mem = NULL;
+	}
+
+	if (vq->vq_ring_dmat != NULL) {
+		bus_dma_tag_destroy(vq->vq_ring_dmat);
 	}
 
 	free(vq, M_DEVBUF);
@@ -371,29 +503,25 @@ virtqueue_free(struct virtqueue *vq)
 vm_paddr_t
 virtqueue_paddr(struct virtqueue *vq)
 {
-
-	return (vtophys(vq->vq_ring_mem));
+	return (vq->vq_ring_paddr);
 }
 
 vm_paddr_t
 virtqueue_desc_paddr(struct virtqueue *vq)
 {
-
-	return (vtophys(vq->vq_ring.desc));
+	return (vq->vq_ring.desc_paddr);
 }
 
 vm_paddr_t
 virtqueue_avail_paddr(struct virtqueue *vq)
 {
-
-	return (vtophys(vq->vq_ring.avail));
+	return (vq->vq_ring.avail_paddr);
 }
 
 vm_paddr_t
 virtqueue_used_paddr(struct virtqueue *vq)
 {
-
-	return (vtophys(vq->vq_ring.used));
+	return (vq->vq_ring.used_paddr);
 }
 
 uint16_t
@@ -434,9 +562,9 @@ virtqueue_full(struct virtqueue *vq)
 void
 virtqueue_notify(struct virtqueue *vq)
 {
-
 	/* Ensure updated avail->idx is visible to host. */
-	mb();
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
 
 	if (vq_ring_must_notify_host(vq))
 		vq_ring_notify_host(vq);
@@ -447,6 +575,9 @@ int
 virtqueue_nused(struct virtqueue *vq)
 {
 	uint16_t used_idx, nused;
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_POSTREAD);
 
 	used_idx = vq_htog16(vq, vq->vq_ring.used->idx);
 
@@ -459,6 +590,8 @@ virtqueue_nused(struct virtqueue *vq)
 int
 virtqueue_intr_filter(struct virtqueue *vq)
 {
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_POSTREAD);
 
 	if (vq->vq_used_cons_idx == vq_htog16(vq, vq->vq_ring.used->idx))
 		return (0);
@@ -486,6 +619,9 @@ int
 virtqueue_postpone_intr(struct virtqueue *vq, vq_postpone_t hint)
 {
 	uint16_t ndesc, avail_idx;
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_POSTREAD);
 
 	avail_idx = vq_htog16(vq, vq->vq_ring.avail->idx);
 	ndesc = (uint16_t)(avail_idx - vq->vq_used_cons_idx);
@@ -518,6 +654,9 @@ virtqueue_disable_intr(struct virtqueue *vq)
 	}
 
 	vq->vq_ring.avail->flags |= vq_gtoh16(vq, VRING_AVAIL_F_NO_INTERRUPT);
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
 }
 
 int
@@ -561,6 +700,9 @@ virtqueue_enqueue(struct virtqueue *vq, void *cookie, struct sglist *sg,
 	idx = vq_ring_enqueue_segments(vq, vq->vq_ring.desc, head_idx,
 	    sg, readable, writable);
 
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
+
 	vq->vq_desc_head_idx = idx;
 	vq->vq_free_cnt -= needed;
 	if (vq->vq_free_cnt == 0)
@@ -579,6 +721,9 @@ virtqueue_dequeue(struct virtqueue *vq, uint32_t *len)
 	struct vring_used_elem *uep;
 	void *cookie;
 	uint16_t used_idx, desc_idx;
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_POSTREAD);
 
 	if (vq->vq_used_cons_idx ==
 	    vq_htog16(vq, atomic_load_16(&vq->vq_ring.used->idx)))
@@ -666,11 +811,14 @@ vq_ring_init(struct virtqueue *vq)
 	size = vq->vq_nentries;
 	vr = &vq->vq_ring;
 
-	vring_init(vr, size, ring_mem, vq->vq_alignment);
+	vring_init(vr, size, ring_mem, vq->vq_ring_paddr, vq->vq_alignment);
 
 	for (i = 0; i < size - 1; i++)
 		vr->desc[i].next = vq_gtoh16(vq, i + 1);
 	vr->desc[i].next = vq_gtoh16(vq, VQ_RING_DESC_CHAIN_END);
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
 }
 
 static void
@@ -694,6 +842,9 @@ vq_ring_update_avail(struct virtqueue *vq, uint16_t desc_idx)
 
 	/* Keep pending count until virtqueue_notify(). */
 	vq->vq_queued_cnt++;
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
 }
 
 static uint16_t
@@ -777,6 +928,10 @@ vq_ring_enqueue_indirect(struct virtqueue *vq, void *cookie,
 	vq_ring_enqueue_segments(vq, dxp->indirect, 0,
 	    sg, readable, writable);
 
+	bus_dmamap_sync(vq->vq_indirect_dmat, dxp->mapp, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
+
 	vq->vq_desc_head_idx = vq_htog16(vq, dp->next);
 	vq->vq_free_cnt--;
 	if (vq->vq_free_cnt == 0)
@@ -803,7 +958,8 @@ vq_ring_enable_interrupt(struct virtqueue *vq, uint16_t ndesc)
 		    vq_gtoh16(vq, ~VRING_AVAIL_F_NO_INTERRUPT);
 	}
 
-	mb();
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * Enough items may have already been consumed to meet our threshold
@@ -820,6 +976,9 @@ static int
 vq_ring_must_notify_host(struct virtqueue *vq)
 {
 	uint16_t new_idx, prev_idx, event_idx, flags;
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_POSTREAD);
 
 	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX) {
 		new_idx = vq_htog16(vq, vq->vq_ring.avail->idx);
@@ -876,4 +1035,7 @@ vq_ring_free_chain(struct virtqueue *vq, uint16_t desc_idx)
 	 */
 	dp->next = vq_gtoh16(vq, vq->vq_desc_head_idx);
 	vq->vq_desc_head_idx = desc_idx;
+
+	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
+	    BUS_DMASYNC_PREWRITE);
 }
