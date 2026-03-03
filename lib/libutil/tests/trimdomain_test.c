@@ -78,11 +78,13 @@ int
 main(void)
 {
 
-	printf("1..5\n");
+	printf("1..6\n");
 
 	testit(TESTFQDN, -1, TESTHOST, "self");
 	testit("XXX" TESTDOMAIN, -1, "XXX", "different host, same domain");
 	testit("XXX" TESTDOMAIN, 1, NULL, "short hostsize");
+	testit("XXX" TESTDOMAIN, strlen(TESTDOMAIN) + 256, "XXX",
+	    "long hostsize");
 	testit("bogus.example.net", -1, NULL, "arbitrary host");
 	testit("XXX." TESTFQDN, -1, NULL, "domain is local hostname");
 

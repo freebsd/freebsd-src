@@ -73,6 +73,12 @@ trimdomain(char *fullhost, size_t hostsize)
 	if (domain[0] == '\0')
 		return;
 
+	/*
+	 * Clamp hostsize down if it's out-of-bounds of fullhost, to avoid any
+	 * kind of out-of-bounds read in the below memchr().
+	 */
+	hostsize = strnlen(fullhost, hostsize);
+
 	s = fullhost;
 	end = s + hostsize + 1;
 	if ((s = memchr(s, '.', (size_t)(end - s))) != NULL) {
