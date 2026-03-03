@@ -252,7 +252,7 @@ static const char * const clearopt_list[] = {
 };
 
 static const char * const showopt_list[] = {
-	"ether", "nat", "queue", "rules", "Anchors", "Sources", "states",
+	"ethernet", "nat", "queue", "rules", "Anchors", "Sources", "states",
 	"info", "Interfaces", "labels", "timeouts", "memory", "Tables",
 	"osfp", "Running", "all", "creatorids", NULL
 };
