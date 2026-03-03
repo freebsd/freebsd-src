@@ -322,11 +322,12 @@ acpi_spmc_get_constraints_spec(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 			return (ENOMEM);
 		}
 
+		detail = &constraint_obj->Package.Elements[2];
 		/*
 		 * The first element in the device constraint detail package is
 		 * the revision, and should always be zero.
 		 */
-		revision = constraint_obj->Package.Elements[0].Integer.Value;
+		revision = detail->Package.Elements[0].Integer.Value;
 		if (revision != 0) {
 			device_printf(sc->dev, "Unknown revision %d for "
 			    "device constraint detail package\n", revision);
@@ -334,7 +335,6 @@ acpi_spmc_get_constraints_spec(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 			continue;
 		}
 
-		detail = &constraint_obj->Package.Elements[2];
 		constraint_package = &detail->Package.Elements[1];
 
 		constraint->lpi_uid =
