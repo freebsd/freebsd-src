@@ -319,10 +319,12 @@ trap_check_intr_kernel(struct thread *td, struct trapframe *frame)
 /*
  * Table of handlers for various segment load faults.
  */
-static const struct {
+struct sfhandler {
 	uintptr_t	faddr;
 	uintptr_t	fhandler;
-} sfhandlers[] = {
+};
+
+static const struct sfhandler sfhandlers[] = {
 	{
 		.faddr = (uintptr_t)ld_ds,
 		.fhandler = (uintptr_t)ds_load_fault,
