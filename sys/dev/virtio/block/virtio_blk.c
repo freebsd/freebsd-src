@@ -59,10 +59,15 @@ struct vtblk_request {
 	struct vtblk_softc		*vbr_sc;
 	bus_dmamap_t			 vbr_mapp;
 
+	struct virtio_blk_outhdr	*vbr_hdr;
+	vm_paddr_t			 vbr_hdr_paddr;
+	bus_dmamap_t			 vbr_hdr_mapp;
+	uint8_t				*vbr_ack;
+	vm_paddr_t			 vbr_ack_paddr;
+	bus_dmamap_t			 vbr_ack_mapp;
+
 	/* Fields after this point are zeroed for each request. */
-	struct virtio_blk_outhdr	 vbr_hdr;
 	struct bio			*vbr_bp;
-	uint8_t				 vbr_ack;
 	uint8_t				 vbr_requeue_on_error;
 	uint8_t				 vbr_busdma_wait;
 	int				 vbr_error;
@@ -78,6 +83,8 @@ enum vtblk_cache_mode {
 struct vtblk_softc {
 	device_t		 vtblk_dev;
 	struct mtx		 vtblk_mtx;
+	struct mtx		 vtblk_hdr_mtx;
+	struct mtx		 vtblk_ack_mtx;
 	uint64_t		 vtblk_features;
 	uint32_t		 vtblk_flags;
 #define VTBLK_FLAG_INDIRECT	0x0001
@@ -91,6 +98,8 @@ struct vtblk_softc {
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
 	bus_dma_tag_t		 vtblk_dmat;
+	bus_dma_tag_t		 vtblk_hdr_dmat;
+	bus_dma_tag_t		 vtblk_ack_dmat;
 	struct disk		*vtblk_disk;
 
 	struct bio_queue_head	 vtblk_bioq;
@@ -385,12 +394,52 @@ vtblk_attach(device_t dev)
 	    maxphys,					/* max request size */
 	    sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS,	/* max # segments */
 	    maxphys,					/* maxsegsize */
-	    0,						/* flags */
+	    BUS_DMA_COHERENT,				/* flags */
 	    busdma_lock_mutex,				/* lockfunc */
 	    &sc->vtblk_mtx,				/* lockarg */
 	    &sc->vtblk_dmat);
 	if (error) {
 		device_printf(dev, "cannot create bus dma tag\n");
+		goto fail;
+	}
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),			/* parent */
+	    (sc->vtblk_flags & VTBLK_FLAG_BUSDMA_ALIGN) ? PAGE_SIZE :
+	        sizeof(struct virtio_blk_outhdr),	/* alignment */
+	    0,						/* boundary */
+	    BUS_SPACE_MAXADDR,				/* lowaddr */
+	    BUS_SPACE_MAXADDR,				/* highaddr */
+	    NULL, NULL,					/* filter, filterarg */
+	    sizeof(struct virtio_blk_outhdr),		/* max request size */
+	    1,						/* max # segments */
+	    sizeof(struct virtio_blk_outhdr),		/* maxsegsize */
+	    BUS_DMA_COHERENT,				/* flags */
+	    busdma_lock_mutex,				/* lockfunc */
+	    &sc->vtblk_hdr_mtx,				/* lockarg */
+	    &sc->vtblk_hdr_dmat);
+	if (error) {
+		device_printf(dev, "cannot create hdr bus dma tag\n");
+		goto fail;
+	}
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),			/* parent */
+	    (sc->vtblk_flags & VTBLK_FLAG_BUSDMA_ALIGN) ? PAGE_SIZE :
+	        sizeof(uint8_t),			/* alignment */
+	    0,						/* boundary */
+	    BUS_SPACE_MAXADDR,				/* lowaddr */
+	    BUS_SPACE_MAXADDR,				/* highaddr */
+	    NULL, NULL,					/* filter, filterarg */
+	    sizeof(uint8_t),				/* max request size */
+	    1,						/* max # segments */
+	    sizeof(uint8_t),				/* maxsegsize */
+	    BUS_DMA_COHERENT,				/* flags */
+	    busdma_lock_mutex,				/* lockfunc */
+	    &sc->vtblk_ack_mtx,				/* lockarg */
+	    &sc->vtblk_ack_dmat);
+	if (error) {
+		device_printf(dev, "cannot create ack bus dma tag\n");
 		goto fail;
 	}
 
@@ -401,6 +450,8 @@ vtblk_attach(device_t dev)
 	 * present, this is only a thing on the powerpc architectures.
 	 */
 	bus_dma_tag_set_iommu(sc->vtblk_dmat, NULL, NULL);
+	bus_dma_tag_set_iommu(sc->vtblk_hdr_dmat, NULL, NULL);
+	bus_dma_tag_set_iommu(sc->vtblk_ack_dmat, NULL, NULL);
 #endif
 
 	error = vtblk_alloc_virtqueue(sc);
@@ -450,6 +501,16 @@ vtblk_detach(device_t dev)
 	if (sc->vtblk_disk != NULL) {
 		disk_destroy(sc->vtblk_disk);
 		sc->vtblk_disk = NULL;
+	}
+
+	if (sc->vtblk_ack_dmat != NULL) {
+		bus_dma_tag_destroy(sc->vtblk_ack_dmat);
+		sc->vtblk_ack_dmat = NULL;
+	}
+
+	if (sc->vtblk_hdr_dmat != NULL) {
+		bus_dma_tag_destroy(sc->vtblk_hdr_dmat);
+		sc->vtblk_hdr_dmat = NULL;
 	}
 
 	if (sc->vtblk_dmat != NULL) {
@@ -839,6 +900,36 @@ vtblk_create_disk(struct vtblk_softc *sc)
 	disk_create(dp, DISK_VERSION);
 }
 
+static void
+vtblk_ack_load_callback(void *arg, bus_dma_segment_t *segs, int nsegs,
+    int error)
+{
+	struct vtblk_request *req;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	req = (struct vtblk_request *)arg;
+	req->vbr_ack_paddr = segs[0].ds_addr;
+}
+
+static void
+vtblk_hdr_load_callback(void *arg, bus_dma_segment_t *segs, int nsegs,
+    int error)
+{
+	struct vtblk_request *req;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	req = (struct vtblk_request *)arg;
+	req->vbr_hdr_paddr = segs[0].ds_addr;
+}
+
 static int
 vtblk_request_prealloc(struct vtblk_softc *sc)
 {
@@ -861,19 +952,51 @@ vtblk_request_prealloc(struct vtblk_softc *sc)
 			return (ENOMEM);
 
 		req->vbr_sc = sc;
-		if (bus_dmamap_create(sc->vtblk_dmat, 0, &req->vbr_mapp)) {
-			free(req, M_DEVBUF);
-			return (ENOMEM);
-		}
 
-		MPASS(sglist_count(&req->vbr_hdr, sizeof(req->vbr_hdr)) == 1);
-		MPASS(sglist_count(&req->vbr_ack, sizeof(req->vbr_ack)) == 1);
+		if (bus_dmamap_create(sc->vtblk_dmat, 0, &req->vbr_mapp))
+			goto error_free;
+
+		if (bus_dmamem_alloc(sc->vtblk_hdr_dmat, (void **)&req->vbr_hdr,
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+		    &req->vbr_hdr_mapp))
+			goto error_destroy;
+
+		if (bus_dmamem_alloc(sc->vtblk_ack_dmat, (void **)&req->vbr_ack,
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+		    &req->vbr_ack_mapp))
+			goto error_hdr_free;
+
+		MPASS(sglist_count(req->vbr_hdr, sizeof(*req->vbr_hdr)) == 1);
+		MPASS(sglist_count(req->vbr_ack, sizeof(*req->vbr_ack)) == 1);
+
+		if (bus_dmamap_load(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp,
+		    req->vbr_hdr, sizeof(struct virtio_blk_outhdr),
+		    vtblk_hdr_load_callback, req, BUS_DMA_NOWAIT))
+			goto error_ack_free;
+
+		if (bus_dmamap_load(sc->vtblk_ack_dmat, req->vbr_ack_mapp,
+		    req->vbr_ack, sizeof(uint8_t), vtblk_ack_load_callback,
+		    req, BUS_DMA_NOWAIT))
+			goto error_hdr_unload;
 
 		sc->vtblk_request_count++;
 		vtblk_request_enqueue(sc, req);
 	}
 
 	return (0);
+
+error_hdr_unload:
+	bus_dmamap_unload(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp);
+error_ack_free:
+	bus_dmamem_free(sc->vtblk_ack_dmat, req->vbr_ack, req->vbr_ack_mapp);
+error_hdr_free:
+	bus_dmamem_free(sc->vtblk_hdr_dmat, req->vbr_hdr, req->vbr_hdr_mapp);
+error_destroy:
+	bus_dmamap_destroy(sc->vtblk_dmat, req->vbr_mapp);
+error_free:
+	free(req, M_DEVBUF);
+
+	return (ENOMEM);
 }
 
 static void
@@ -885,8 +1008,13 @@ vtblk_request_free(struct vtblk_softc *sc)
 
 	while ((req = vtblk_request_dequeue(sc)) != NULL) {
 		sc->vtblk_request_count--;
+		bus_dmamap_unload(sc->vtblk_ack_dmat, req->vbr_ack_mapp);
+		bus_dmamem_free(sc->vtblk_ack_dmat, req->vbr_ack,
+		    req->vbr_ack_mapp);
+		bus_dmamap_unload(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp);
+		bus_dmamem_free(sc->vtblk_hdr_dmat, req->vbr_hdr,
+		    req->vbr_hdr_mapp);
 		bus_dmamap_destroy(sc->vtblk_dmat, req->vbr_mapp);
-		free(req, M_DEVBUF);
 	}
 
 	KASSERT(sc->vtblk_request_count == 0,
@@ -901,8 +1029,10 @@ vtblk_request_dequeue(struct vtblk_softc *sc)
 	req = TAILQ_FIRST(&sc->vtblk_req_free);
 	if (req != NULL) {
 		TAILQ_REMOVE(&sc->vtblk_req_free, req, vbr_link);
-		bzero(&req->vbr_hdr, sizeof(struct vtblk_request) -
-		    offsetof(struct vtblk_request, vbr_hdr));
+		bzero(req->vbr_hdr, sizeof(struct virtio_blk_outhdr));
+		*req->vbr_ack = 0;
+		bzero(&req->vbr_bp, sizeof(struct vtblk_request) -
+		    offsetof(struct vtblk_request, vbr_bp));
 	}
 
 	return (req);
@@ -965,32 +1095,35 @@ vtblk_request_bio(struct vtblk_softc *sc)
 
 	bp = bioq_takefirst(bioq);
 	req->vbr_bp = bp;
-	req->vbr_ack = -1;
-	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
+	*req->vbr_ack = -1;
+	req->vbr_hdr->ioprio = vtblk_gtoh32(sc, 1);
 
 	switch (bp->bio_cmd) {
 	case BIO_FLUSH:
-		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_FLUSH);
-		req->vbr_hdr.sector = 0;
+		req->vbr_hdr->type = vtblk_gtoh32(sc, VIRTIO_BLK_T_FLUSH);
+		req->vbr_hdr->sector = 0;
 		break;
 	case BIO_READ:
-		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_IN);
-		req->vbr_hdr.sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
+		req->vbr_hdr->type = vtblk_gtoh32(sc, VIRTIO_BLK_T_IN);
+		req->vbr_hdr->sector = vtblk_gtoh64(sc, bp->bio_offset /
+		    VTBLK_BSIZE);
 		break;
 	case BIO_WRITE:
-		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_OUT);
-		req->vbr_hdr.sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
+		req->vbr_hdr->type = vtblk_gtoh32(sc, VIRTIO_BLK_T_OUT);
+		req->vbr_hdr->sector = vtblk_gtoh64(sc, bp->bio_offset /
+		    VTBLK_BSIZE);
 		break;
 	case BIO_DELETE:
-		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_DISCARD);
-		req->vbr_hdr.sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
+		req->vbr_hdr->type = vtblk_gtoh32(sc, VIRTIO_BLK_T_DISCARD);
+		req->vbr_hdr->sector = vtblk_gtoh64(sc, bp->bio_offset /
+		    VTBLK_BSIZE);
 		break;
 	default:
 		panic("%s: bio with unhandled cmd: %d", __func__, bp->bio_cmd);
 	}
 
 	if (bp->bio_flags & BIO_ORDERED)
-		req->vbr_hdr.type |= vtblk_gtoh32(sc, VIRTIO_BLK_T_BARRIER);
+		req->vbr_hdr->type |= vtblk_gtoh32(sc, VIRTIO_BLK_T_BARRIER);
 
 	return (req);
 }
@@ -1072,13 +1205,17 @@ vtblk_request_execute_cb(void * callback_arg, bus_dma_segment_t * segs,
 				goto out;
 			}
 			ordered = 1;
-			req->vbr_hdr.type &= vtblk_gtoh32(sc,
+			req->vbr_hdr->type &= vtblk_gtoh32(sc,
 				~VIRTIO_BLK_T_BARRIER);
 		}
 	}
 
+	bus_dmamap_sync(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp,
+	    BUS_DMASYNC_PREWRITE);
+
 	sglist_reset(sg);
-	sglist_append(sg, &req->vbr_hdr, sizeof(struct virtio_blk_outhdr));
+	sglist_append_phys(sg, req->vbr_hdr_paddr,
+	    sizeof(struct virtio_blk_outhdr));
 
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		/*
@@ -1125,8 +1262,11 @@ vtblk_request_execute_cb(void * callback_arg, bus_dma_segment_t * segs,
 		}
 	}
 
+	bus_dmamap_sync(sc->vtblk_ack_dmat, req->vbr_ack_mapp,
+	    BUS_DMASYNC_PREREAD);
+
 	writable++;
-	sglist_append(sg, &req->vbr_ack, sizeof(uint8_t));
+	sglist_append_phys(sg, req->vbr_ack_paddr, sizeof(uint8_t));
 	readable = sg->sg_nseg - writable;
 
 	if (req->vbr_mapp != NULL) {
@@ -1168,7 +1308,10 @@ vtblk_request_error(struct vtblk_request *req)
 {
 	int error;
 
-	switch (req->vbr_ack) {
+	bus_dmamap_sync(req->vbr_sc->vtblk_ack_dmat, req->vbr_ack_mapp,
+	    BUS_DMASYNC_POSTREAD);
+
+	switch (*req->vbr_ack) {
 	case VIRTIO_BLK_S_OK:
 		error = 0;
 		break;
@@ -1409,10 +1552,10 @@ vtblk_ident(struct vtblk_softc *sc)
 	if (req == NULL)
 		return;
 
-	req->vbr_ack = -1;
-	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_GET_ID);
-	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
-	req->vbr_hdr.sector = 0;
+	*req->vbr_ack = -1;
+	req->vbr_hdr->type = vtblk_gtoh32(sc, VIRTIO_BLK_T_GET_ID);
+	req->vbr_hdr->ioprio = vtblk_gtoh32(sc, 1);
+	req->vbr_hdr->sector = 0;
 
 	req->vbr_bp = &buf;
 	g_reset_bio(&buf);
@@ -1547,10 +1690,10 @@ vtblk_dump_write(struct vtblk_softc *sc, void *virtual, off_t offset,
 
 	req = &sc->vtblk_dump_request;
 	req->vbr_sc = sc;
-	req->vbr_ack = -1;
-	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_OUT);
-	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
-	req->vbr_hdr.sector = vtblk_gtoh64(sc, offset / VTBLK_BSIZE);
+	*req->vbr_ack = -1;
+	req->vbr_hdr->type = vtblk_gtoh32(sc, VIRTIO_BLK_T_OUT);
+	req->vbr_hdr->ioprio = vtblk_gtoh32(sc, 1);
+	req->vbr_hdr->sector = vtblk_gtoh64(sc, offset / VTBLK_BSIZE);
 
 	req->vbr_bp = &buf;
 	g_reset_bio(&buf);
@@ -1570,10 +1713,10 @@ vtblk_dump_flush(struct vtblk_softc *sc)
 
 	req = &sc->vtblk_dump_request;
 	req->vbr_sc = sc;
-	req->vbr_ack = -1;
-	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_FLUSH);
-	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
-	req->vbr_hdr.sector = 0;
+	*req->vbr_ack = -1;
+	req->vbr_hdr->type = vtblk_gtoh32(sc, VIRTIO_BLK_T_FLUSH);
+	req->vbr_hdr->ioprio = vtblk_gtoh32(sc, 1);
+	req->vbr_hdr->sector = 0;
 
 	req->vbr_bp = &buf;
 	g_reset_bio(&buf);
