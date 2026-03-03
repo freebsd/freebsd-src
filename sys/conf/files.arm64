@@ -201,6 +201,7 @@ dev/acpica/acpi_pci.c				optional acpi pci
 dev/acpica/acpi_pci_link.c			optional acpi pci
 dev/acpica/acpi_pcib.c				optional acpi pci
 dev/acpica/acpi_pxm.c				optional acpi
+dev/acpi_support/acpi_wmi_if.m			optional acpi acpi_wmi
 dev/ahci/ahci_generic.c				optional ahci
 
 cddl/dev/dtrace/aarch64/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
