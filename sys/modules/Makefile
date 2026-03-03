@@ -356,7 +356,7 @@ SUBDIR=	\
 	${_rtw89} \
 	rtwn \
 	rtwn_pci \
-	rtwn_usb \
+	${_rtwn_usb} \
 	${_rtwnfw} \
 	${_s3} \
 	${_safe} \
@@ -411,7 +411,7 @@ SUBDIR=	\
 	${_ufshci} \
 	uinput \
 	unionfs \
-	usb \
+	${_usb} \
 	${_vesa} \
 	${_vf_i2c} \
 	virtio \
@@ -710,6 +710,14 @@ SUBDIR+=	ktest
 SUBDIR+=	tests
 .endif
 
+.if ${MK_USB} != "no" || defined(ALL_MODULES)
+_rtwn_usb=	rtwn_usb
+_usb=		usb
+. if ${MACHINE_CPUARCH} == "amd64"
+_thunderbolt=	thunderbolt
+. endif
+.endif
+
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	zfs
 .endif
@@ -936,10 +944,6 @@ _nvram+=	powermac_nvram
 _bcm283x_clkman=  bcm283x_clkman
 _bcm283x_pwm=	bcm283x_pwm
 _neta=		neta
-.endif
-
-.if ${MACHINE_CPUARCH} == "amd64"
-_thunderbolt=	thunderbolt
 .endif
 
 .if !(${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 110000)
