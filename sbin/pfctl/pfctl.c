@@ -305,7 +305,7 @@ struct pfctl_opt_id {
 };
 
 static const struct pfctl_opt_id showopt_list[] = {
-	{ "ether",		SHOWOPT_ETHER },
+	{ "ethernet",		SHOWOPT_ETHER },
 	{ "nat",		SHOWOPT_NAT },
 	{ "queue",		SHOWOPT_QUEUE },
 	{ "rules",		SHOWOPT_RULES },
