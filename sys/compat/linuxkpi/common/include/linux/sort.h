@@ -34,7 +34,7 @@
 #include <sys/libkern.h>
 
 #define	sort(base, num, size, cmp, swap)	do {	\
-	BUILD_BUG_ON_ZERO(swap);			\
+	BUILD_BUG_ON(swap);				\
 	qsort(base, num, size, cmp);			\
 } while (0)
 
