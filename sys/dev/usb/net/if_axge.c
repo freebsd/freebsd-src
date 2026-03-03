@@ -107,6 +107,7 @@ static usb_callback_t axge_bulk_write_callback;
 static miibus_readreg_t axge_miibus_readreg;
 static miibus_writereg_t axge_miibus_writereg;
 static miibus_statchg_t axge_miibus_statchg;
+static miibus_linkchg_t axge_miibus_linkchg;
 
 static uether_fn_t axge_attach_post;
 static uether_fn_t axge_init;
@@ -181,6 +182,7 @@ static device_method_t axge_methods[] = {
 	DEVMETHOD(miibus_readreg,	axge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	axge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	axge_miibus_statchg),
+	DEVMETHOD(miibus_linkchg,	axge_miibus_linkchg),
 
 	DEVMETHOD_END
 };
@@ -330,8 +332,9 @@ axge_miibus_statchg(device_t dev)
 	struct mii_data *mii;
 	if_t ifp;
 	uint8_t link_status, tmp[5];
-	uint16_t val;
+	uint16_t val, bmsr;
 	int locked;
+	int old_link, new_link;
 
 	sc = device_get_softc(dev);
 	mii = GET_MII(sc);
@@ -344,6 +347,7 @@ axge_miibus_statchg(device_t dev)
 	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		goto done;
 
+	old_link = (sc->sc_flags & AXGE_FLAG_LINK) ? 1 : 0;
 	sc->sc_flags &= ~AXGE_FLAG_LINK;
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
 	    (IFM_ACTIVE | IFM_AVALID)) {
@@ -356,6 +360,55 @@ axge_miibus_statchg(device_t dev)
 		default:
 			break;
 		}
+	}
+
+	new_link = (sc->sc_flags & AXGE_FLAG_LINK) ? 1 : 0;
+	if (old_link != new_link) {
+		if (!new_link) {
+			/*
+			 * MII layer reports link down.  Verify by
+			 * reading the PHY BMSR register directly.
+			 * BMSR link status is latched-low, so read
+			 * twice: first clears any stale latch,
+			 * second gives current state.
+			 */
+			(void)axge_read_cmd_2(sc, AXGE_ACCESS_PHY,
+			    MII_BMSR, AXGE_PHY_ADDR);
+			bmsr = axge_read_cmd_2(sc, AXGE_ACCESS_PHY,
+			    MII_BMSR, AXGE_PHY_ADDR);
+
+			if (bmsr & BMSR_LINK) {
+				/*
+				 * PHY still has link.  This is a
+				 * spurious link-down event from the
+				 * MII polling race (see PR 252165).
+				 * Override the status and kick TX.
+				 * Also restore IFM_ACTIVE so the
+				 * subsequent MIIBUS_LINKCHG check in
+				 * mii_phy_update sees no status
+				 * change and doesn't fire.
+				 */
+				device_printf(dev,
+				    "spurious link down (PHY "
+				    "BMSR=0x%04x link up), "
+				    "overriding\n", bmsr);
+				sc->sc_flags |= AXGE_FLAG_LINK;
+				mii->mii_media_status |= IFM_ACTIVE;
+				usbd_transfer_start(
+				    sc->sc_xfer[AXGE_BULK_DT_WR]);
+				goto done;
+			}
+
+			/* PHY confirms link is genuinely down. */
+			goto done;
+		}
+
+		/*
+		 * Link came up.  Restart the TX transfer
+		 * in case it went idle while link was down.
+		 */
+		usbd_transfer_start(
+		    sc->sc_xfer[AXGE_BULK_DT_WR]);
 	}
 
 	/* Lost link, do nothing. */
@@ -398,6 +451,40 @@ axge_miibus_statchg(device_t dev)
 	axge_write_mem(sc, AXGE_ACCESS_MAC, 5, AXGE_RX_BULKIN_QCTRL, tmp, 5);
 	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_MSR, val);
 done:
+	if (!locked)
+		AXGE_UNLOCK(sc);
+}
+
+static void
+axge_miibus_linkchg(device_t dev)
+{
+	struct axge_softc *sc;
+	struct mii_data *mii;
+	uint16_t bmsr;
+	int locked;
+
+	sc = device_get_softc(dev);
+	mii = GET_MII(sc);
+	locked = mtx_owned(&sc->sc_mtx);
+	if (!locked)
+		AXGE_LOCK(sc);
+
+	/*
+	 * This is called by the default miibus linkchg handler
+	 * before it calls if_link_state_change().  If the PHY
+	 * still has link but the MII layer lost IFM_ACTIVE due
+	 * to the polling race (see PR 252165), restore it so the
+	 * notification goes out as LINK_STATE_UP rather than DOWN.
+	 */
+	if (mii != NULL && !(mii->mii_media_status & IFM_ACTIVE)) {
+		(void)axge_read_cmd_2(sc, AXGE_ACCESS_PHY,
+		    MII_BMSR, AXGE_PHY_ADDR);
+		bmsr = axge_read_cmd_2(sc, AXGE_ACCESS_PHY,
+		    MII_BMSR, AXGE_PHY_ADDR);
+		if (bmsr & BMSR_LINK)
+			mii->mii_media_status |= IFM_ACTIVE;
+	}
+
 	if (!locked)
 		AXGE_UNLOCK(sc);
 }
