@@ -73,12 +73,14 @@ typedef enum {
 	NDA_FLAG_OPEN		= 0x0001,
 	NDA_FLAG_DIRTY		= 0x0002,
 	NDA_FLAG_SCTX_INIT	= 0x0004,
+	NDA_FLAG_RESCAN		= 0x0008,
 } nda_flags;
 #define NDA_FLAG_STRING		\
 	"\020"			\
 	"\001OPEN"		\
 	"\002DIRTY"		\
-	"\003SCTX_INIT"
+	"\003SCTX_INIT"		\
+	"\004RESCAN"
 
 typedef enum {
 	NDA_Q_4K   = 0x01,
@@ -318,11 +320,27 @@ ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
 	disk->d_flags |= flags;
 }
 
+static void
+ndaopen_rescan_done(struct cam_periph *periph, union ccb *ccb)
+{
+	struct nda_softc *softc;
+
+	softc = (struct nda_softc *)periph->softc;
+
+	cam_periph_assert(periph, MA_OWNED);
+
+	softc->flags &= ~NDA_FLAG_RESCAN;
+	xpt_release_ccb(ccb);
+	wakeup(&softc->disk->d_mediasize);
+}
+
+
 static int
 ndaopen(struct disk *dp)
 {
 	struct cam_periph *periph;
 	struct nda_softc *softc;
+	union ccb *ccb;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
@@ -337,10 +355,37 @@ ndaopen(struct disk *dp)
 		return (error);
 	}
 
+	softc = (struct nda_softc *)periph->softc;
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("ndaopen\n"));
 
-	softc = (struct nda_softc *)periph->softc;
+	/*
+	 * Rescan the lun in case the mediasize or sectorsize has changed since
+	 * we probed the device. Format and secure erase operations can do this,
+	 * but the nvme standard doesn't require a async notification of that
+	 * happening. da/ada do this by restarting their probe, but since
+	 * nvme_xpt gets the identify information we need, we just rescan here
+	 * since it's the easiest way to notice size changes.
+	 *
+	 * Not acquiring / releasing for the geom probe -- it's inline
+	 */
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+	ccb->ccb_h.func_code = XPT_SCAN_LUN;
+	ccb->ccb_h.cbfcnp = ndaopen_rescan_done;
+	ccb->ccb_h.ppriv_ptr0 = periph;
+	ccb->crcn.flags = 0;
+	xpt_action(ccb);
+
+	softc->flags |= NDA_FLAG_RESCAN;
+	error = 0;
+	while ((softc->flags & NDA_FLAG_RESCAN) != 0 && error == 0)
+		error = cam_periph_sleep(periph, &softc->disk->d_mediasize, PRIBIO,
+		    "ndareprobe", 0);
+	if (error != 0)
+		xpt_print(periph->path, "Unable to retrieve capacity data\n");
+	else
+		ndasetgeom(softc, periph);
+
 	softc->flags |= NDA_FLAG_OPEN;
 
 	cam_periph_unhold(periph);
