@@ -1876,6 +1876,12 @@ not
 .Pa /etc/src.conf .
 .It Va WITHOUT_USB
 Do not build USB-related programs and libraries.
+When set, it enforces these options:
+.Pp
+.Bl -item -compact
+.It
+.Va WITHOUT_USB_GADGET_EXAMPLES
+.El
 .It Va WITHOUT_USB_GADGET_EXAMPLES
 Do not build USB gadget kernel modules.
 .It Va WITHOUT_UTMPX
