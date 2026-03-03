@@ -103,9 +103,13 @@ LINUXKPI_GENSRCS+= \
 	pci_iov_if.h \
 	pcib_if.h \
 	vnode_if.h \
-	usb_if.h \
-	opt_usb.h \
 	opt_stack.h
+
+.if ${MK_USB} != "no"
+LINUXKPI_GENSRCS+= \
+	usb_if.h \
+	opt_usb.h
+.endif
 
 LINUXKPI_INCLUDES+= \
 	-I${SYSDIR}/compat/linuxkpi/common/include \
