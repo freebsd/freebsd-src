@@ -432,7 +432,7 @@ ndaclose(struct disk *dp)
 	    ("nda %d outstanding commands", softc->outstanding_cmds));
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
-	return (0);	
+	return (0);
 }
 
 static void
@@ -760,17 +760,23 @@ ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	}
 	case AC_GETDEV_CHANGED:
 	{
-		int error;
+		off_t mediasize;
+		u_int sectorsize;
 
 		softc = periph->softc;
+		mediasize = softc->disk->d_mediasize;
+		sectorsize = softc->disk->d_sectorsize;
 		ndasetgeom(softc, periph);
-		error = disk_resize(softc->disk, M_NOWAIT);
-		if (error != 0) {
-			xpt_print(periph->path, "disk_resize(9) failed, error = %d\n", error);
-			break;
-		}
+		/*
+		 * If the sectorsize changed, then it's new media. Otherwise if
+		 * the media size changed, resize the existing disk. Otherwise
+		 * do nothing.
+		 */
+		if (sectorsize != softc->disk->d_sectorsize)
+			disk_media_changed(softc->disk, M_WAITOK);
+		else if (mediasize != softc->disk->d_mediasize)
+			disk_resize(softc->disk, M_WAITOK);
 		break;
-
 	}
 	case AC_ADVINFO_CHANGED:
 	{
