@@ -782,11 +782,19 @@ ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	{
 		uintptr_t buftype;
 
+		/*
+		 * Note: In theory, we could send CDAI_TYPE_NVME_* events here,
+		 * but instead the rescan code only sends more specific
+		 * AC_GETDEV_CHANGED. There's no way to generically get
+		 * notifications of changes to these structures from the drive
+		 * (though we could notice with memcmp). The automation in NVME
+		 * is at a much more granular level, so we leverage that.
+		 */
 		softc = periph->softc;
 		buftype = (uintptr_t)arg;
 		if (buftype == CDAI_TYPE_PHYS_PATH) {
 			disk_attr_changed(softc->disk, "GEOM::physpath",
-			    M_NOWAIT);
+			    M_WAITOK);
 		}
 		break;
 	}
