@@ -285,6 +285,39 @@ nda_nvme_rw_bio(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	nvme_ns_rw_cmd(&nvmeio->cmd, rwcmd, softc->nsid, lba, count);
 }
 
+static void
+ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
+{
+	struct disk *disk = softc->disk;
+	const struct nvme_namespace_data *nsd;
+	const struct nvme_controller_data *cd;
+	uint8_t flbas_fmt, lbads, vwc_present;
+	u_int flags;
+
+	nsd = nvme_get_identify_ns(periph);
+        cd = nvme_get_identify_cntrl(periph);
+
+	/*
+	 * Preserve flags we can't infer that were set before. UNMAPPED comes
+	 * from the PIM, so won't change after we set it the first
+	 * time. Subsequent times, we have to preserve it.
+	 */
+	flags = disk->d_flags & DISKFLAG_UNMAPPED_BIO;	/* Need to preserve */
+
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
+	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
+	disk->d_sectorsize = 1 << lbads;
+	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
+	disk->d_delmaxsize = disk->d_mediasize;
+	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
+	if (nvme_ctrlr_has_dataset_mgmt(cd))
+		disk->d_flags |= DISKFLAG_CANDELETE;
+	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
+	if (vwc_present)
+		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	disk->d_flags |= flags;
+}
+
 static int
 ndaopen(struct disk *dp)
 {
@@ -642,30 +675,6 @@ ndacleanup(struct cam_periph *periph)
 	disk_destroy(softc->disk);
 	free(softc, M_DEVBUF);
 	cam_periph_lock(periph);
-}
-
-static void
-ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
-{
-	struct disk *disk = softc->disk;
-	const struct nvme_namespace_data *nsd;
-	const struct nvme_controller_data *cd;
-	uint8_t flbas_fmt, lbads, vwc_present;
-
-	nsd = nvme_get_identify_ns(periph);
-        cd = nvme_get_identify_cntrl(periph);
-
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
-	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
-	disk->d_sectorsize = 1 << lbads;
-	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
-	disk->d_delmaxsize = disk->d_mediasize;
-	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
-	if (nvme_ctrlr_has_dataset_mgmt(cd))
-		disk->d_flags |= DISKFLAG_CANDELETE;
-	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
-	if (vwc_present)
-		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 }
 
 static void
