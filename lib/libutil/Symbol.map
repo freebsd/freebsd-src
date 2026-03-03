@@ -115,7 +115,6 @@ FBSD_1.8 {
 	setclassenvironment;
 	setclassresources;
 	setusercontext;
-	trimdomain;
 	uu_lock_txfr;
 	uu_lock;
 	uu_lockerr;
@@ -128,6 +127,10 @@ FBSD_1.8 {
 	 * with libcrypt, whose crypt_set_format() will override the stub.
 	 */
 	crypt_set_format;
+};
+
+FBSD_1.9 {
+	trimdomain;
 };
 
 FBSDprivate_1.0 {

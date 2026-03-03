@@ -140,7 +140,7 @@ int	realhostname(char *_host, size_t _hsize, const struct in_addr *_ip);
 int	realhostname_sa(char *_host, size_t _hsize, struct sockaddr *_addr,
 	    int _addrlen);
 int	_secure_path(const char *_path, uid_t _uid, gid_t _gid);
-void	trimdomain(char *_fullhost, int _hostsize);
+void	trimdomain(char *_fullhost, size_t _hostsize);
 const char *
 	uu_lockerr(int _uu_lockresult);
 int	uu_lock(const char *_ttyname);
