@@ -114,7 +114,7 @@ typedef struct {
 	};
 	nvme_probe_action	action;
 	nvme_probe_flags	flags;
-	int		restart;
+	bool			restart;
 	struct cam_periph *periph;
 } nvme_probe_softc;
 
@@ -267,7 +267,7 @@ nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb)
 	lun = xpt_path_lun_id(periph->path);
 
 	if (softc->restart) {
-		softc->restart = 0;
+		softc->restart = false;
 		NVME_PROBE_SET_ACTION(softc, NVME_PROBE_IDENTIFY_CD);
 	}
 
@@ -473,7 +473,7 @@ device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 	}
 done:
 	if (softc->restart) {
-		softc->restart = 0;
+		softc->restart = false;
 		xpt_release_ccb(done_ccb);
 		nvme_probe_schedule(periph);
 		goto out;
@@ -562,7 +562,7 @@ nvme_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			softc = (nvme_probe_softc *)old_periph->softc;
 			TAILQ_INSERT_TAIL(&softc->request_ccbs,
 				&request_ccb->ccb_h, periph_links.tqe);
-			softc->restart = 1;
+			softc->restart = true;
 			CAM_DEBUG(path, CAM_DEBUG_TRACE,
 			    ("restarting nvme_probe device\n"));
 		} else {
