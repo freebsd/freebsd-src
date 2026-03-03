@@ -81,6 +81,7 @@ static int
 sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
+	char buf[32];
 	int error, unit;
 
 	unit = snd_unit;
@@ -95,6 +96,12 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 		snd_unit = unit;
 		snd_unit_auto = 0;
 		bus_topo_unlock();
+
+		snprintf(buf, sizeof(buf), "cdev=dsp%d", snd_unit);
+		if (d->reccount > 0)
+			devctl_notify("SND", "CONN", "IN", buf);
+		if (d->playcount > 0)
+			devctl_notify("SND", "CONN", "OUT", buf);
 	}
 	return (error);
 }
