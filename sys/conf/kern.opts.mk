@@ -51,6 +51,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_UCODE \
     SPLIT_KERNEL_DEBUG \
     TESTS \
+    USB \
     USB_GADGET_EXAMPLES \
     ZFS
 
@@ -208,6 +209,10 @@ MK_KERNEL_SYMBOLS:=	no
 
 .if ${MK_CDDL} == "no"
 MK_DTRACE:=	no
+.endif
+
+.if ${MK_USB} == "no"
+MK_USB_GADGET_EXAMPLES:= no
 .endif
 
 # Some modules only compile successfully if option FDT is set, due to #ifdef FDT
