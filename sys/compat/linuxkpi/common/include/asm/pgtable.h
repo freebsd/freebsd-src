@@ -53,6 +53,40 @@ typedef struct page *pgtable_t;
 #define	_PAGE_PWT	(((pteval_t) 1) << _PAGE_BIT_PWT)
 #define	_PAGE_PCD	(((pteval_t) 1) << _PAGE_BIT_PCD)
 #define	_PAGE_PAT	(((pteval_t) 1) << _PAGE_BIT_PAT)
+
+/*
+ * On Linux, the value of `PMD_SHIFT` is hard-coded to 21. This corresponds to
+ * the FreeBSD `PDRSHIFT` constant.
+ */
+#define	PMD_SHIFT	PDRSHIFT
+
+#elif defined(__aarch64__)
+
+/*
+ * On Linux, the value of `PMD_SHIFT` is computed from `CONFIG_PGTABLE_LEVELS`.
+ * The result corresponds to one of the FreeBSD `L*_SHIFT` constants. Here, we
+ * take the value 21 computed from `CONFIG_PGTABLE_LEVELS = 4`, the default on
+ * aarch64, which equals to `L2_SHIFT`.
+ */
+#define	PMD_SHIFT	L2_SHIFT
+
+#elif defined(__powerpc__)
+
+/*
+ * On Linux, the value of `PMD_SHIFT` is the addition of `PAGE_SHIFT` and
+ * `PTE_INDEX_SIZE` (hard-coded to 9). The result corresponds to the FreeBSD
+ * `L3_PAGE_SIZE_SHIFT` constant.
+ */
+#define	PMD_SHIFT	L3_PAGE_SIZE_SHIFT
+
+#elif defined(__riscv)
+
+/*
+ * On Linux, the value of `PMD_SHIFT` is hard-coded to 21. This corresponds to
+ * the FreeBSD `L2_SHIFT` constant.
+ */
+#define	PMD_SHIFT	L2_SHIFT
+
 #endif
 
 #endif	/* _LINUXKPI_ASM_PGTABLE_H_ */
