@@ -62,7 +62,6 @@ funopen(const void *cookie,
 	if ((fp = __sfp()) == NULL)
 		return (NULL);
 	fp->_flags = flags;
-	fp->_file = -1;
 	fp->_cookie = (void *)cookie;
 	fp->_read = readfn;
 	fp->_write = writefn;
