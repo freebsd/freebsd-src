@@ -91,7 +91,6 @@ static struct glue *
 moreglue(int n)
 {
 	struct glue *g;
-	static FILE empty = { ._fl_mutex = PTHREAD_MUTEX_INITIALIZER };
 	FILE *p;
 	size_t align;
 
@@ -104,7 +103,7 @@ moreglue(int n)
 	g->niobs = n;
 	g->iobs = p;
 	while (--n >= 0)
-		*p++ = empty;
+		*p++ = (FILE)FAKE_FILE;
 	return (g);
 }
 

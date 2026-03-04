@@ -54,8 +54,10 @@ cleanfile(FILE *fp, bool c)
 			r = EOF;
 	}
 
-	if (fp->_flags & __SMBF)
+	if (fp->_flags & __SMBF) {
 		free((char *)fp->_bf._base);
+		fp->_bf._base = NULL;
+	}
 	if (HASUB(fp))
 		FREEUB(fp);
 	if (HASLB(fp))

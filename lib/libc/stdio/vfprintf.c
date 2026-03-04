@@ -187,11 +187,11 @@ __sbprintf(FILE *fp, locale_t locale, int serrno, const char *fmt, va_list ap)
 	fake._write = fp->_write;
 	fake._orientation = fp->_orientation;
 	fake._mbstate = fp->_mbstate;
+	fake._flags2 = fp->_flags2;
 
 	/* set up the buffer */
 	fake._bf._base = fake._p = buf;
 	fake._bf._size = fake._w = sizeof(buf);
-	fake._lbfsize = 0;	/* not actually used, but Just In Case */
 
 	/* do the work, then copy any error status */
 	ret = __vfprintf(&fake, locale, serrno, fmt, ap);
