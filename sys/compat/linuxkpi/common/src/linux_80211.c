@@ -8574,6 +8574,43 @@ linuxkpi_ieee80211_wake_queue(struct ieee80211_hw *hw, int qnum)
 	spin_unlock_irqrestore(&lhw->txq_lock, flags);
 }
 
+void
+linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
+    struct ieee80211_txq *txq)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+
+	LKPI_80211_LHW_TXQ_LOCK(lhw);
+	ieee80211_txq_schedule_start(hw, txq->ac);
+	do {
+		struct lkpi_txq *ltxq;
+		struct ieee80211_txq *ntxq;
+		struct ieee80211_tx_control control;
+		struct sk_buff *skb;
+
+		ntxq = ieee80211_next_txq(hw, txq->ac);
+		if (ntxq == NULL)
+			break;
+		ltxq = TXQ_TO_LTXQ(ntxq);
+
+		memset(&control, 0, sizeof(control));
+		control.sta = ntxq->sta;
+		do {
+			skb = linuxkpi_ieee80211_tx_dequeue(hw, ntxq);
+			if (skb == NULL)
+				break;
+			ltxq->frms_tx++;
+			lkpi_80211_mo_tx(hw, &control, skb);
+		} while(1);
+
+		ieee80211_return_txq(hw, ntxq, false);
+	} while (1);
+	ieee80211_txq_schedule_end(hw, txq->ac);
+	LKPI_80211_LHW_TXQ_UNLOCK(lhw);
+}
+
 /* -------------------------------------------------------------------------- */
 
 /* This is just hardware queues. */
@@ -8671,45 +8708,6 @@ unlock:
 
 out:
 	return;
-}
-
-/* -------------------------------------------------------------------------- */
-
-void
-linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
-    struct ieee80211_txq *txq)
-{
-	struct lkpi_hw *lhw;
-
-	lhw = HW_TO_LHW(hw);
-
-	LKPI_80211_LHW_TXQ_LOCK(lhw);
-	ieee80211_txq_schedule_start(hw, txq->ac);
-	do {
-		struct lkpi_txq *ltxq;
-		struct ieee80211_txq *ntxq;
-		struct ieee80211_tx_control control;
-		struct sk_buff *skb;
-
-		ntxq = ieee80211_next_txq(hw, txq->ac);
-		if (ntxq == NULL)
-			break;
-		ltxq = TXQ_TO_LTXQ(ntxq);
-
-		memset(&control, 0, sizeof(control));
-		control.sta = ntxq->sta;
-		do {
-			skb = linuxkpi_ieee80211_tx_dequeue(hw, ntxq);
-			if (skb == NULL)
-				break;
-			ltxq->frms_tx++;
-			lkpi_80211_mo_tx(hw, &control, skb);
-		} while(1);
-
-		ieee80211_return_txq(hw, ntxq, false);
-	} while (1);
-	ieee80211_txq_schedule_end(hw, txq->ac);
-	LKPI_80211_LHW_TXQ_UNLOCK(lhw);
 }
 
 /* -------------------------------------------------------------------------- */
