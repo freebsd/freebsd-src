@@ -31,7 +31,7 @@
 
 /**
  * @defgroup BUS bus - KObj methods for drivers of devices with children
- * @brief A set of methods required device drivers that support
+ * @brief A set of methods required for device drivers that support
  * child devices.
  * @{
  */
