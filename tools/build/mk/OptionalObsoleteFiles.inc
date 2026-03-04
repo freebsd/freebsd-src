@@ -896,6 +896,7 @@ OLD_LIBS+=usr/lib/libprivatellvm.so.19
 .if ${MK_CLANG} == no && ${MK_LLVM_BINUTILS} == no
 OLD_FILES+=usr/bin/llvm-addr2line
 OLD_FILES+=usr/bin/llvm-ar
+OLD_FILES+=usr/bin/llvm-cxxfilt
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objcopy
 OLD_FILES+=usr/bin/llvm-objdump
@@ -908,6 +909,7 @@ OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/objdump
 OLD_FILES+=usr/share/man/man1/llvm-addr2line.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-cxxfilt.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-objcopy.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
@@ -1386,11 +1388,6 @@ OLD_FILES+=usr/share/man/man1/opt.1.gz
 
 .if ${MK_CLANG_EXTRAS} == no && ${MK_CLANG_FORMAT} == no
 OLD_FILES+=usr/bin/clang-format
-.endif
-
-.if ${MK_CLANG_EXTRAS} == no && ${MK_LLVM_CXXFILT} == no
-OLD_FILES+=usr/bin/llvm-cxxfilt
-OLD_FILES+=usr/share/man/man1/llvm-cxxfilt.1.gz
 .endif
 
 .if ${MK_CPP} == no
