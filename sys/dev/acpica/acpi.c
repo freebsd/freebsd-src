@@ -2131,44 +2131,64 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 	}
 }
 
+static int
+acpi_device_pwr_for_sleep_sxd(device_t dev, ACPI_HANDLE handle, int state,
+    int *dstate)
+{
+	ACPI_STATUS status;
+	char sxd[8];
+
+	/* Note illegal _S0D is evaluated because some systems expect this. */
+	snprintf(sxd, sizeof(sxd), "_S%dD", state);
+	status = acpi_GetInteger(handle, sxd, dstate);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+		device_printf(dev, "failed to get %s on %s: %s\n", sxd,
+		    acpi_name(handle), AcpiFormatException(status));
+		return (ENXIO);
+	}
+	return (0);
+}
+
+/*
+ * Get the D-state we need to set the device to for entry into the sleep type
+ * we are currently entering (sc->acpi_stype is set in acpi_EnterSleepState
+ * before the ACPI bus gets suspended, and thus before this function is called).
+ *
+ * If entering s2idle, we will try to enter whichever D-state we would've been
+ * transitioning to in S3. If we are entering an ACPI S-state, we evaluate the
+ * relevant _SxD state instead (ACPI 7.3.16 - 7.3.19).
+ */
 int
 acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
 {
-    struct acpi_softc *sc;
-    ACPI_HANDLE handle;
-    ACPI_STATUS status;
-    char sxd[8];
+	struct acpi_softc *sc = device_get_softc(bus);
+	ACPI_HANDLE handle = acpi_get_handle(dev);
+	int state;
 
-    handle = acpi_get_handle(dev);
+	if (dstate == NULL)
+		return (EINVAL);
 
-    /*
-     * XXX If we find these devices, don't try to power them down.
-     * The serial and IRDA ports on my T23 hang the system when
-     * set to D3 and it appears that such legacy devices may
-     * need special handling in their drivers.
-     */
-    if (dstate == NULL || handle == NULL ||
-	acpi_MatchHid(handle, "PNP0500") ||
-	acpi_MatchHid(handle, "PNP0501") ||
-	acpi_MatchHid(handle, "PNP0502") ||
-	acpi_MatchHid(handle, "PNP0510") ||
-	acpi_MatchHid(handle, "PNP0511"))
-	return (ENXIO);
+	/*
+	 * XXX If we find these devices, don't try to power them down.
+	 * The serial and IRDA ports on my T23 hang the system when
+	 * set to D3 and it appears that such legacy devices may
+	 * need special handling in their drivers.
+	 */
+	if (handle == NULL ||
+	    acpi_MatchHid(handle, "PNP0500") ||
+	    acpi_MatchHid(handle, "PNP0501") ||
+	    acpi_MatchHid(handle, "PNP0502") ||
+	    acpi_MatchHid(handle, "PNP0510") ||
+	    acpi_MatchHid(handle, "PNP0511"))
+		return (ENXIO);
 
-    /*
-     * Override next state with the value from _SxD, if present.
-     * Note illegal _S0D is evaluated because some systems expect this.
-     */
-    sc = device_get_softc(bus);
-    snprintf(sxd, sizeof(sxd), "_S%dD", acpi_stype_to_sstate(sc, sc->acpi_stype));
-    status = acpi_GetInteger(handle, sxd, dstate);
-    if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-	    device_printf(dev, "failed to get %s on %s: %s\n", sxd,
-		acpi_name(handle), AcpiFormatException(status));
-	    return (ENXIO);
-    }
-
-    return (0);
+	if (sc->acpi_stype == POWER_STYPE_SUSPEND_TO_IDLE)
+		state = ACPI_STATE_S3;
+	else
+		state = acpi_stype_to_sstate(sc, sc->acpi_stype);
+	if (state == ACPI_STATE_UNKNOWN)
+		return (ENOENT);
+	return (acpi_device_pwr_for_sleep_sxd(bus, handle, state, dstate));
 }
 
 /* Callback arg for our implementation of walking the namespace. */
