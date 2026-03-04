@@ -48,6 +48,11 @@ fdopen(int fd, const char *mode)
 	FILE *fp;
 	int flags, oflags, fdflags, rc, tmp;
 
+	if (fd < 0) {
+		errno = EBADF;
+		return (NULL);
+	}
+
 	/*
 	 * File descriptors are a full int, but _file is only a short.
 	 * If we get a valid file descriptor that is greater than

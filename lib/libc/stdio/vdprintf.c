@@ -49,6 +49,11 @@ vdprintf(int fd, const char * __restrict fmt, va_list ap)
 	int serrno = errno;
 	int ret;
 
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
+
 	if (fd > SHRT_MAX) {
 		errno = EMFILE;
 		return (EOF);
