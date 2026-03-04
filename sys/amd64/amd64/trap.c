@@ -182,15 +182,32 @@ trap_uprintf_signal(struct thread *td, struct trapframe *frame, register_t addr,
     int signo, int ucode)
 {
 	struct proc *p;
+	struct pcb *pcb;
+	register_t fsbase, gsbase, r;
 
 	if (!uprintf_signal)
 		return;
 	p = td->td_proc;
+	pcb = td->td_pcb;
+	if ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0) {
+		r = intr_disable();
+		if ((pcb->pcb_flags & PCB_FULL_IRET) == 0) {
+			fsbase = rdfsbase();
+			gsbase = rdmsr(MSR_KGSBASE);
+		} else {
+			fsbase = pcb->pcb_fsbase;
+			gsbase = pcb->pcb_gsbase;
+		}
+		intr_restore(r);
+	} else {
+		fsbase = pcb->pcb_fsbase;
+		gsbase = pcb->pcb_gsbase;
+	}
 	uprintf("pid %d comm %s: signal %d err %#lx code %d type %d "
-	    "addr %#lx rsp %#lx rip %#lx rax %#lx "
+	    "addr %#lx rsp %#lx rip %#lx rax %#lx fsb %#lx gsb %#lx "
 	    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
 	    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, frame->tf_trapno,
-	    addr, frame->tf_rsp, frame->tf_rip, frame->tf_rax,
+	    addr, frame->tf_rsp, frame->tf_rip, frame->tf_rax, fsbase, gsbase,
 	    fubyte((void *)(frame->tf_rip + 0)),
 	    fubyte((void *)(frame->tf_rip + 1)),
 	    fubyte((void *)(frame->tf_rip + 2)),
