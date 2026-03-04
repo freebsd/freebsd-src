@@ -186,18 +186,6 @@ static MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 
 static void tcp_hpts_thread(void *ctx);
 
-/*
- * When using the hpts, a TCP stack must make sure
- * that once a INP_DROPPED flag is applied to a INP
- * that it does not expect tcp_output() to ever be
- * called by the hpts. The hpts will *not* call
- * any output (or input) functions on a TCB that
- * is in the DROPPED state.
- *
- * This implies final ACK's and RST's that might
- * be sent when a TCB is still around must be
- * sent from a routine like tcp_respond().
- */
 #define LOWEST_SLEEP_ALLOWED 50
 #define DEFAULT_MIN_SLEEP 250	/* How many usec's is default for hpts sleep
 				 * this determines min granularity of the
