@@ -56,7 +56,7 @@ static const uint8_t	hpen_graphire_report_descr[] =
 static const uint8_t	hpen_graphire3_4x5_report_descr[] =
 			   { HID_GRAPHIRE3_4X5_REPORT_DESCR() };
 
-static hidmap_cb_t	hpen_battery_strenght_cb;
+static hidmap_cb_t	hpen_battery_strength_cb;
 static hidmap_cb_t	hpen_final_pen_cb;
 
 #define HPEN_MAP_BUT(usage, code)	\
@@ -77,7 +77,7 @@ static const struct hidmap_item hpen_map_pen[] = {
     { HPEN_MAP_ABS(   Y_TILT,		ABS_TILT_Y) },
     { HPEN_MAP_ABS(   CONTACTID,	0), 		  .forbidden = true },
     { HPEN_MAP_ABS(   CONTACTCOUNT,	0), 		  .forbidden = true },
-    { HPEN_MAP_ABS_CB(BATTERY_STRENGTH,	hpen_battery_strenght_cb) },
+    { HPEN_MAP_ABS_CB(BATTERY_STRENGTH,	hpen_battery_strength_cb) },
     { HPEN_MAP_BUT(   TOUCH,		BTN_TOUCH) },
     { HPEN_MAP_BUT(   TIP_SWITCH,	BTN_TOUCH) },
     { HPEN_MAP_BUT(   SEC_TIP_SWITCH,	BTN_TOUCH) },
@@ -109,7 +109,7 @@ static const struct hid_device_id hpen_devs_no_load[] = {
 };
 
 static int
-hpen_battery_strenght_cb(HIDMAP_CB_ARGS)
+hpen_battery_strength_cb(HIDMAP_CB_ARGS)
 {
 	struct evdev_dev *evdev = HIDMAP_CB_GET_EVDEV();
 
