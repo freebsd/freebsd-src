@@ -14,6 +14,7 @@ SUBDIR+=	clang-scan-deps
 # as the default binutils (ar,nm,addr2line, etc.).
 .if ${MK_CLANG} != "no" || ${MK_LLVM_BINUTILS} != "no"
 SUBDIR+=	llvm-ar
+SUBDIR+=	llvm-cxxfilt
 SUBDIR+=	llvm-nm
 SUBDIR+=	llvm-objcopy
 SUBDIR+=	llvm-objdump
@@ -21,10 +22,6 @@ SUBDIR+=	llvm-readobj
 SUBDIR+=	llvm-size
 SUBDIR+=	llvm-strings
 SUBDIR+=	llvm-symbolizer
-.endif
-
-.if ${MK_LLVM_BINUTILS} != "no" || ${MK_LLVM_CXXFILT} != "no"
-SUBDIR+=	llvm-cxxfilt
 .endif
 
 .if ${MK_CLANG_EXTRAS} != "no"
