@@ -12,6 +12,8 @@ SRCS=		audio_delay.c \
 		ring.c \
 		virtual_oss.c
 
+INCS=		${PROG}.h
+
 CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/samplerate
 
 LIBADD=		cuse m nv pthread samplerate
