@@ -505,6 +505,7 @@ struct in6_ifextra {
 	int		nd_recalc_timer;
 	u_int		nd_dad_failures;
 	uint8_t		nd_curhoplimit;
+	TAILQ_HEAD(, nd_queue)	nd_queue;
 
 	struct mld_ifsoftc {
 		/* Timers and invervals measured in seconds. */

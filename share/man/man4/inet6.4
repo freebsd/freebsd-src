@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 22, 2023
+.Dd January 31, 2026
 .Dt INET6 4
 .Os
 .Sh NAME
@@ -295,6 +295,17 @@ probe packets.
 The packets will be generated when
 .Tn IPv6
 interface addresses are configured.
+.It Dv IPV6CTL_GRAND_COUNT
+.Pq ip6.grand_count
+Integer: default number of
+.Tn IPv6
+GRAND
+.Pq gratuitous neighbor discovery
+unsolicited NA packets.
+The packets will be generated when
+.Tn IPv6
+interface addresses are configured or when there are changes to
+link-layer interface addresses.
 .It Dv IPV6CTL_AUTO_FLOWLABEL
 .Pq ip6.auto_flowlabel
 Boolean: enable/disable automatic filling of
