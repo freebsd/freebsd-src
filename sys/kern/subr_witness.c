@@ -2136,6 +2136,15 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 		n += witness_list_locks(&lock_list, printf);
 	} else
 		sched_unpin();
+
+	if (td->td_no_sleeping != 0 && (flags & WARN_SLEEPOK) != 0) {
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
+		va_end(ap);
+		printf(" with %d sleep inhibitors\n", td->td_no_sleeping);
+		n += td->td_no_sleeping;
+	}
+
 	if (flags & WARN_PANIC && n)
 		kassert_panic("%s", __func__);
 	else
