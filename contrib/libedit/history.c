@@ -1,4 +1,4 @@
-/*	$NetBSD: history.c,v 1.64 2024/07/11 05:41:24 kre Exp $	*/
+/*	$NetBSD: history.c,v 1.65 2026/03/03 15:06:35 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: history.c,v 1.64 2024/07/11 05:41:24 kre Exp $");
+__RCSID("$NetBSD: history.c,v 1.65 2026/03/03 15:06:35 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -800,7 +800,7 @@ history_load(TYPE(History) *h, const char *fname)
 	for (i = 0; (sz = getline(&line, &llen, fp)) != -1; i++) {
 		if (sz > 0 && line[sz - 1] == '\n')
 			line[--sz] = '\0';
-		if (max_size < (size_t)sz) {
+		if (max_size <= (size_t)sz) {
 			char *nptr;
 			max_size = ((size_t)sz + 1024) & (size_t)~1023;
 			nptr = h_realloc(ptr, max_size * sizeof(*ptr));
