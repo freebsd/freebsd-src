@@ -115,14 +115,8 @@ CFLAGS+=	${GCOV_CFLAGS}
 # the others.
 CFLAGS+=	${CONF_CFLAGS}
 
-.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mbuild-id}
 LDFLAGS+=	--build-id=sha1
-.endif
 
-.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == "" && \
-    !make(install)
-.error kernel requires linker ifunc support
-.endif
 .if ${MACHINE_CPUARCH} == "amd64"
 LDFLAGS+=	-z max-page-size=2097152
 .if ${LINKER_TYPE} != "lld"
