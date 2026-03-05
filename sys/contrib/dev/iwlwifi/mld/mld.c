@@ -2,6 +2,10 @@
 /*
  * Copyright (C) 2024-2025 Intel Corporation
  */
+#if defined(__FreeBSD__)
+#define	LINUXKPI_PARAM_PREFIX	iwlwifi_mld_
+#endif
+
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
 
