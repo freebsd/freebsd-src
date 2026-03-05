@@ -2004,7 +2004,7 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 	 * we set the BSS_CHANGED_BEACON_INFO on the non-teardown
 	 * path so make sure we only do run this check once we are
 	 * assoc. (*iv_recv_mgmt)() will be called before we enter
-	 * here so the ni will be updates with information from the
+	 * here so the ni will be updated with information from the
 	 * beacon via net80211::sta_recv_mgmt().  We also need to
 	 * make sure we do not do it on every beacon we still may
 	 * get so only do if something changed.  vif->bss_conf.dtim_period
