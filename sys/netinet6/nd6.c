@@ -435,11 +435,11 @@ nd6_option(union nd_opts *ndopts)
 	}
 
 	olen = nd_opt->nd_opt_len << 3;
+	/*
+	 * RFC 4861 section 6.1.2: All included options
+	 * must have a length that is greater than zero.
+	 */
 	if (olen == 0) {
-		/*
-		 * Message validation requires that all included
-		 * options have a length that is greater than zero.
-		 */
 		bzero(ndopts, sizeof(*ndopts));
 		return NULL;
 	}
