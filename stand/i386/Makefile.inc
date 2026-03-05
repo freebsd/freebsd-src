@@ -23,9 +23,7 @@ CFLAGS+=	-I${BTXLIB}
 LDSCRIPT=	${BOOTSRC}/i386/boot.ldscript
 LDFLAGS_ORG=	-Wl,--defsym,ORG=${ORG},-T,${LDSCRIPT}
 LDFLAGS_BIN=	-e start ${LDFLAGS_ORG} -Wl,-N,-S,--oformat,binary
-.if ${LINKER_FEATURES:Mbuild-id} != ""
 LDFLAGS_BIN+=	-Wl,--build-id=none
-.endif
 LD_FLAGS_BIN=	-static -N --gc-sections
 
 .if ${MACHINE_CPUARCH} == "amd64"
