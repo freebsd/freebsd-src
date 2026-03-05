@@ -35,6 +35,7 @@
 /* like alloc, but automatic automatic free in return */
 
 #include <machine/asm.h>
+
 ENTRY(alloca)
 	add	r0, r0, #0x00000007	/* round up to next 8 byte alignment */
 	bic	r0, r0, #0x00000007
@@ -42,5 +43,7 @@ ENTRY(alloca)
 	mov	r0, sp			/* r0 = base of new space */
 	RET
 END(alloca)
+
+	.symver alloca, alloca@FBSD_1.0
 
 	.section .note.GNU-stack,"",%progbits
