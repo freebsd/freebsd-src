@@ -48,6 +48,7 @@
 
 #include <machine/riscvreg.h>
 #include <machine/cpu.h>
+#include <machine/fpe.h>
 #include <machine/cpufunc.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
@@ -91,7 +92,13 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	if ((flags & RFPROC) == 0)
 		return;
 
-	/* RISCVTODO: save the FPU state here */
+	/* Ensure the floating-point state is saved before copying the pcb. */
+	if ((td1->td_pcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
+		MPASS(td1 == curthread);
+		critical_enter();
+		fpe_state_save(td1);
+		critical_exit();
+	}
 
 	cpu_set_pcb_frame(td2);
 
