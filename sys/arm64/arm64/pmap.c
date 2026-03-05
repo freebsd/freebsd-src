@@ -1926,17 +1926,13 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 	r = TLBI_VA(va);
 	if (pmap == kernel_pmap) {
 		pmap_s1_invalidate_kernel(r, final_only);
-		if (pmap_multiple_tlbi) {
-			dsb(ish);
-			pmap_s1_invalidate_kernel(r, final_only);
-		}
 	} else {
 		r |= ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		pmap_s1_invalidate_user(r, final_only);
-		if (pmap_multiple_tlbi) {
-			dsb(ish);
-			pmap_s1_invalidate_user(r, final_only);
-		}
+	}
+	if (pmap_multiple_tlbi) {
+		dsb(ish);
+		__asm __volatile("tlbi	vale1is, xzr" ::: "memory");
 	}
 	dsb(ish);
 	isb();
@@ -1978,24 +1974,16 @@ pmap_s1_invalidate_strided(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		end = TLBI_VA(eva);
 		for (r = start; r < end; r += TLBI_VA(stride))
 			pmap_s1_invalidate_kernel(r, final_only);
-
-		if (pmap_multiple_tlbi) {
-			dsb(ish);
-			for (r = start; r < end; r += TLBI_VA(stride))
-				pmap_s1_invalidate_kernel(r, final_only);
-		}
 	} else {
 		start = end = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		start |= TLBI_VA(sva);
 		end |= TLBI_VA(eva);
 		for (r = start; r < end; r += TLBI_VA(stride))
 			pmap_s1_invalidate_user(r, final_only);
-
-		if (pmap_multiple_tlbi) {
-			dsb(ish);
-			for (r = start; r < end; r += TLBI_VA(stride))
-				pmap_s1_invalidate_user(r, final_only);
-		}
+	}
+	if (pmap_multiple_tlbi) {
+		dsb(ish);
+		__asm __volatile("tlbi	vale1is, xzr" ::: "memory");
 	}
 	dsb(ish);
 	isb();
@@ -2036,11 +2024,11 @@ pmap_s1_invalidate_all_kernel(void)
 {
 	dsb(ishst);
 	__asm __volatile("tlbi vmalle1is");
-	dsb(ish);
 	if (pmap_multiple_tlbi) {
-		__asm __volatile("tlbi vmalle1is");
 		dsb(ish);
+		__asm __volatile("tlbi	vale1is, xzr" ::: "memory");
 	}
+	dsb(ish);
 	isb();
 }
 
@@ -2058,17 +2046,13 @@ pmap_s1_invalidate_all(pmap_t pmap)
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
 		__asm __volatile("tlbi vmalle1is");
-		if (pmap_multiple_tlbi) {
-			dsb(ish);
-			__asm __volatile("tlbi vmalle1is");
-		}
 	} else {
 		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		__asm __volatile("tlbi aside1is, %0" : : "r" (r));
-		if (pmap_multiple_tlbi) {
-			dsb(ish);
-			__asm __volatile("tlbi aside1is, %0" : : "r" (r));
-		}
+	}
+	if (pmap_multiple_tlbi) {
+		dsb(ish);
+		__asm __volatile("tlbi	vale1is, xzr" ::: "memory");
 	}
 	dsb(ish);
 	isb();
