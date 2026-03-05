@@ -220,6 +220,7 @@ finish:
 	 * open.
 	 */
 	if (f > SHRT_MAX) {
+		_close(f);
 		fp->_flags = 0;		/* set it free */
 		errno = EMFILE;
 		fp = NULL;
