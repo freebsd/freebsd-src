@@ -89,6 +89,7 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 
 long tcplro_stacks_wanting_mbufq;
 int	(*tcp_lro_flush_tcphpts)(struct lro_ctrl *lc, struct lro_entry *le);
+void	(*tcp_hpts_softclock)(void);
 
 counter_u64_t tcp_inp_lro_direct_queue;
 counter_u64_t tcp_inp_lro_wokeup_queue;
@@ -1257,7 +1258,8 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 done:
 	/* flush active streams */
 	tcp_lro_rx_done(lc);
-	tcp_hpts_softclock();
+	if (tcp_hpts_softclock != NULL)
+		tcp_hpts_softclock();
 	lc->lro_mbuf_count = 0;
 }
 
