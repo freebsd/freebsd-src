@@ -58,6 +58,7 @@ ENTRY(efi_rt_arch_call)
 	cmovbl	%eax, %ecx
 	shll	$3, %ecx
 	subq	%rcx, %rsp
+	andq	$~0xf, %rsp
 
 	cmpl	$0, %ebx
 	jz	1f
