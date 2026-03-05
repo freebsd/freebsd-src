@@ -155,6 +155,7 @@
 #include <sys/epoch.h>
 #include <sys/kdb.h>
 
+#include <machine/_inttypes.h>
 #include <machine/bus.h>
 #include <machine/endian.h>
 #include <machine/resource.h>
@@ -5775,15 +5776,21 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	desc->tbs[0].tb_len = htole16(IWX_FIRST_TB_SIZE);
 	paddr = htole64(data->cmd_paddr);
 	memcpy(&desc->tbs[0].addr, &paddr, sizeof(paddr));
-	if (data->cmd_paddr >> 32 != (data->cmd_paddr + le32toh(desc->tbs[0].tb_len)) >> 32)
+#if __SIZEOF_SIZE_T__ > 32
+	if (data->cmd_paddr >> 32 != (data->cmd_paddr +
+	    le32toh(desc->tbs[0].tb_len)) >> 32)
 		DPRINTF(("%s: TB0 crosses 32bit boundary\n", __func__));
+#endif
 	desc->tbs[1].tb_len = htole16(sizeof(struct iwx_cmd_header) +
 	    txcmd_size + hdrlen + pad - IWX_FIRST_TB_SIZE);
 	paddr = htole64(data->cmd_paddr + IWX_FIRST_TB_SIZE);
 	memcpy(&desc->tbs[1].addr, &paddr, sizeof(paddr));
 
-	if (data->cmd_paddr >> 32 != (data->cmd_paddr + le32toh(desc->tbs[1].tb_len)) >> 32)
+#if __SIZEOF_SIZE_T__ > 32
+	if (data->cmd_paddr >> 32 != (data->cmd_paddr +
+	    le32toh(desc->tbs[1].tb_len)) >> 32)
 		DPRINTF(("%s: TB1 crosses 32bit boundary\n", __func__));
+#endif
 
 	/* Other DMA segments are for data payload. */
 	for (i = 0; i < nsegs; i++) {
@@ -5791,8 +5798,12 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		desc->tbs[i + 2].tb_len = htole16(seg->ds_len);
 		paddr = htole64(seg->ds_addr);
 		memcpy(&desc->tbs[i + 2].addr, &paddr, sizeof(paddr));
-		if (data->cmd_paddr >> 32 != (data->cmd_paddr + le32toh(desc->tbs[i + 2].tb_len)) >> 32)
-			DPRINTF(("%s: TB%d crosses 32bit boundary\n", __func__, i + 2));
+#if __SIZEOF_SIZE_T__ > 32
+		if (data->cmd_paddr >> 32 != (data->cmd_paddr +
+		    le32toh(desc->tbs[i + 2].tb_len)) >> 32)
+			DPRINTF(("%s: TB%d crosses 32bit boundary\n", __func__,
+			    i + 2));
+#endif
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
@@ -10987,7 +10998,7 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	cmd.common.sta_id = IWX_STATION_ID;
 
 	cmd.transmit_seq_cnt = htole64(k->wk_keytsc);
-	DPRINTF(("%s: k->wk_keytsc=%lu\n", __func__, k->wk_keytsc));
+	DPRINTF(("%s: k->wk_keytsc=%" PRIu64 "\n", __func__, k->wk_keytsc));
 
 	status = IWX_ADD_STA_SUCCESS;
 	err = iwx_send_cmd_pdu_status(sc, IWX_ADD_STA_KEY, sizeof(cmd), &cmd,
