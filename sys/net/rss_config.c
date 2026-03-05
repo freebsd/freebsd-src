@@ -91,6 +91,7 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RDTUN, &rss_hashalgo, 0,
     "RSS hash algorithm");
 
 #ifdef RSS
+FEATURE(rss, "Receiver-side scaling");
 /*
  * Size of the indirection table; at most 128 entries per the RSS spec.  We
  * size it to at least 2 times the number of CPUs by default to allow useful
