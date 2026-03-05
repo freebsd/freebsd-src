@@ -28,9 +28,15 @@
 
 #include "iwl-nvm-parse.h"
 
+#if defined(__linux__)
 #define DRV_DESCRIPTION "Intel(R) MLD wireless driver for Linux"
+#elif defined(__FreeBSD__)
+#define DRV_DESCRIPTION "Intel(R) MLD wireless Linux-based driver for FreeBSD"
+#endif
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
+#if defined(__linux__)
 MODULE_LICENSE("GPL");
+#endif
 MODULE_IMPORT_NS("IWLWIFI");
 
 static const struct iwl_op_mode_ops iwl_mld_ops;
