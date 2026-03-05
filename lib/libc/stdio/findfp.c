@@ -182,17 +182,3 @@ f_prealloc(void)
 		STDIO_THREAD_UNLOCK();
 	}
 }
-
-/*
- * exit() calls _cleanup() through *__cleanup, set via a weak reference
- * at program initialisation.  This chicanery is done so that programs
- * that do not use stdio need not link it all in.
- *
- * The name `_cleanup' is, alas, fairly well known outside stdio.
- */
-void
-_cleanup(void)
-{
-	/* (void) _fwalk(fclose); */
-	(void) _fwalk(__sflush);		/* `cheating' */
-}
