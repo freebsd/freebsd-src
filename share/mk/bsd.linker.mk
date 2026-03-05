@@ -12,8 +12,11 @@
 # linker support for that feature:
 #
 # - build-id:   support for generating a Build-ID note
+# - ifunc:      support for indirect functions
+# - ifunc-noplt: support for indirect functions without PLT stubs
 # - retpoline:  support for generating PLT with retpoline speculative
 #               execution vulnerability mitigation
+# - riscv-relaxations: support for RISC-V relocation relaxations
 # - bti-report: support for specifying how to report the missing
 #               Branch Target Identification (BTI) property (AArch64)
 #
