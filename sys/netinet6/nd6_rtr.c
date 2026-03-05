@@ -79,7 +79,7 @@ MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
 
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
-    struct mbuf *, int);
+    bool, int);
 static int nd6_prefix_onlink(struct nd_prefix *);
 static int in6_get_tmp_ifid(struct in6_aliasreq *);
 
@@ -180,7 +180,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	if (!V_ip6_forwarding || ifp->if_inet6->nd_flags & ND6_IFF_ACCEPT_RTADV)
 		goto freeit;
 
-	/* RFC 6980: Nodes MUST silently ignore fragments */   
+	/* RFC 6980: Nodes MUST silently ignore fragments */
 	if(m->m_flags & M_FRAGMENTED)
 		goto freeit;
 
@@ -355,6 +355,127 @@ nd6_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
 #endif
 }
 
+static void
+nd6_ra_opt_pi(struct nd_opt_hdr *pt, struct ifnet *ifp,
+    struct nd_router_advert *nd_ra, struct nd_defrouter *dr,
+    bool auth, bool mcast)
+{
+	struct nd_opt_prefix_info *pi = NULL;
+	struct nd_prefixctl pr;
+	char ip6bufs[INET6_ADDRSTRLEN];
+
+	if (pt->nd_opt_type != ND_OPT_PREFIX_INFORMATION)
+		return;
+
+	pi = (struct nd_opt_prefix_info *)pt;
+	if (pi->nd_opt_pi_len != 4) {
+		nd6log((LOG_INFO,
+		    "%s: invalid option len %d for prefix "
+		    "information option, ignored\n", __func__,
+		    pi->nd_opt_pi_len));
+		return;
+	}
+
+	if (pi->nd_opt_pi_prefix_len > 128) {
+		nd6log((LOG_INFO,
+		    "%s: invalid prefix len %d for prefix "
+		    "information option, ignored\n", __func__,
+		    pi->nd_opt_pi_prefix_len));
+		return;
+	}
+
+	if (IN6_IS_ADDR_MULTICAST(&pi->nd_opt_pi_prefix)
+	    || IN6_IS_ADDR_LINKLOCAL(&pi->nd_opt_pi_prefix)) {
+		nd6log((LOG_INFO,
+		    "%s: invalid prefix %s, ignored\n",
+		    __func__, ip6_sprintf(ip6bufs,
+			&pi->nd_opt_pi_prefix)));
+		return;
+	}
+
+	bzero(&pr, sizeof(pr));
+	pr.ndpr_prefix.sin6_family = AF_INET6;
+	pr.ndpr_prefix.sin6_len = sizeof(pr.ndpr_prefix);
+	pr.ndpr_prefix.sin6_addr = pi->nd_opt_pi_prefix;
+	pr.ndpr_ifp = ifp;
+
+	pr.ndpr_raf_onlink = (pi->nd_opt_pi_flags_reserved &
+	    ND_OPT_PI_FLAG_ONLINK) ? 1 : 0;
+	pr.ndpr_raf_auto = (pi->nd_opt_pi_flags_reserved &
+	    ND_OPT_PI_FLAG_AUTO) ? 1 : 0;
+	pr.ndpr_plen = pi->nd_opt_pi_prefix_len;
+	pr.ndpr_vltime = ntohl(pi->nd_opt_pi_valid_time);
+	pr.ndpr_pltime = ntohl(pi->nd_opt_pi_preferred_time);
+	(void)prelist_update(&pr, dr, auth, mcast);
+}
+
+static void
+nd6_ra_opt_mtu(struct nd_opt_mtu *optmtu, struct ifnet *ifp,
+    struct in6_addr saddr6)
+{
+	struct in6_ifextra *ndi;
+	char ip6bufs[INET6_ADDRSTRLEN];
+	uint32_t mtu, maxmtu;
+
+	ndi = ifp->if_inet6;
+
+	if (optmtu->nd_opt_mtu_len != 1)
+		return;
+	mtu = (uint32_t)ntohl(optmtu->nd_opt_mtu_mtu);
+	/* lower bound */
+	if (mtu < IPV6_MMTU) {
+		nd6log((LOG_INFO, "%s: bogus mtu option mtu=%u sent from %s, "
+		    "ignoring\n", __func__, mtu, ip6_sprintf(ip6bufs, &saddr6)));
+		return;
+	}
+
+	/* upper bound */
+	maxmtu = (ndi->nd_maxmtu && ndi->nd_maxmtu < ifp->if_mtu)
+	    ? ndi->nd_maxmtu : ifp->if_mtu;
+	if (mtu <= maxmtu) {
+		if (ndi->nd_linkmtu != mtu) {
+			ndi->nd_linkmtu = mtu;
+			rt_updatemtu(ifp);
+		}
+	} else {
+		nd6log((LOG_INFO, "%s: bogus mtu=%u sent from %s; "
+		    "exceeds maxmtu %u, ignoring\n", __func__,
+		    mtu, ip6_sprintf(ip6bufs, &saddr6), maxmtu));
+	}
+}
+
+static int
+nd6_ra_opt_src_lladdr(struct nd_opt_hdr *opthdr, struct ifnet *ifp,
+    struct in6_addr saddr6)
+{
+	char ip6bufs[INET6_ADDRSTRLEN];
+	char *lladdr = NULL;
+	int lladdrlen = 0;
+
+	if (opthdr != NULL) {
+		lladdr = (char *)(opthdr + 1);
+		lladdrlen = opthdr->nd_opt_len << 3;
+	}
+
+	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+		nd6log((LOG_INFO,
+		    "%s: lladdrlen mismatch for %s (if %d, RA packet %d)\n",
+		    __func__, ip6_sprintf(ip6bufs, &saddr6),
+		    ifp->if_addrlen, lladdrlen - 2));
+		return (-1);
+	}
+
+	nd6_cache_lladdr(ifp, &saddr6, lladdr, lladdrlen, ND_ROUTER_ADVERT, 0);
+
+	/*
+	 * Installing a link-layer address might change the state of the
+	 * router's neighbor cache, which might also affect our on-link
+	 * detection of adveritsed prefixes.
+	 */
+	pfxlist_onlink_check();
+	return (0);
+}
+
 /*
  * Receive Router Advertisement Message.
  *
@@ -369,11 +490,13 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	struct in6_ifextra *ndi;
 	struct ip6_hdr *ip6;
 	struct nd_router_advert *nd_ra;
+	struct nd_opt_hdr *pt;
 	struct in6_addr saddr6;
-	struct nd_defrouter *dr;
+	struct nd_defrouter dr0, *dr;
 	union nd_opts ndopts;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
-	int mcast;
+	uint32_t advreachable;
+	bool mcast, auth;
 
 	/*
 	 * We only accept RAs only when the per-interface flag
@@ -389,6 +512,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		goto freeit;
 
 	ip6 = mtod(m, struct ip6_hdr *);
+	/* RFC 4861 section 6.1.2: hlim must be 255 */
 	if (__predict_false(ip6->ip6_hlim != 255)) {
 		ICMP6STAT_INC(icp6s_invlhlim);
 		nd6log((LOG_ERR,
@@ -399,6 +523,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	}
 
 	saddr6 = ip6->ip6_src;
+	/* RFC 4861 section 6.1.2: source address must be link-local */
 	if (!IN6_IS_ADDR_LINKLOCAL(&saddr6)) {
 		nd6log((LOG_ERR,
 		    "%s: src %s is not link-local\n", __func__,
@@ -413,7 +538,6 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 			return;
 		}
 	}
-	ip6 = mtod(m, struct ip6_hdr *);
 	nd_ra = (struct nd_router_advert *)((caddr_t)ip6 + off);
 
 	icmp6len -= sizeof(*nd_ra);
@@ -425,15 +549,11 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		goto freeit;
 	}
 
-	mcast = 0;
 	dr = NULL;
-    {
-	struct nd_defrouter dr0;
-	u_int32_t advreachable = nd_ra->nd_ra_reachable;
-
+	mcast = false;
 	/* remember if this is a multicasted advertisement */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))
-		mcast = 1;
+		mcast = true;
 
 	bzero(&dr0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
@@ -443,17 +563,20 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	 * ND6_IFF_NO_RADR enabled on the receiving interface or
 	 * (ip6.forwarding == 1 && ip6.rfc6204w3 != 1).
 	 */
-	if (ndi->nd_flags & ND6_IFF_NO_RADR)
-		dr0.rtlifetime = 0;
-	else if (V_ip6_forwarding && !V_ip6_rfc6204w3)
+	if ((ndi->nd_flags & ND6_IFF_NO_RADR) ||
+	    (V_ip6_forwarding && !V_ip6_rfc6204w3))
 		dr0.rtlifetime = 0;
 	else
 		dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);
 	dr0.expire = time_uptime + dr0.rtlifetime;
 	dr0.ifp = ifp;
-	/* unspecified or not? (RFC 2461 6.3.4) */
-	if (advreachable) {
-		advreachable = ntohl(advreachable);
+	/*
+	 * RFC 4861 6.3.4: RA fields such as Cur Hop Limit,
+	 * Reachable Time, and Retrans Timer may be unspecified.
+	 * In such cases, the parameter should be ignored.
+	 */
+	if (nd_ra->nd_ra_reachable) {
+		advreachable = ntohl(nd_ra->nd_ra_reachable);
 		if (advreachable <= MAX_REACHABLE_TIME &&
 		    ndi->nd_basereachable != advreachable) {
 			ndi->nd_basereachable = advreachable;
@@ -479,63 +602,18 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 #ifdef EXPERIMENTAL
 	defrtr_ipv6_only_ifp(ifp);
 #endif
-    }
-
-	/*
-	 * prefix
-	 */
-	if (ndopts.nd_opts_pi) {
-		struct nd_opt_hdr *pt;
-		struct nd_opt_prefix_info *pi = NULL;
-		struct nd_prefixctl pr;
-
+	/* Prefix Information */
+	if (ndopts.nd_opts_pi != NULL) {
+		/*
+		 * Authenticity for NA consists authentication for
+		 * both IP header and IP datagrams, doesn't it ?
+		 */
+		auth = ((m->m_flags & M_AUTHIPHDR) && (m->m_flags & M_AUTHIPDGM));
 		for (pt = (struct nd_opt_hdr *)ndopts.nd_opts_pi;
 		     pt <= (struct nd_opt_hdr *)ndopts.nd_opts_pi_end;
 		     pt = (struct nd_opt_hdr *)((caddr_t)pt +
 						(pt->nd_opt_len << 3))) {
-			if (pt->nd_opt_type != ND_OPT_PREFIX_INFORMATION)
-				continue;
-			pi = (struct nd_opt_prefix_info *)pt;
-
-			if (pi->nd_opt_pi_len != 4) {
-				nd6log((LOG_INFO,
-				    "%s: invalid option len %d for prefix "
-				    "information option, ignored\n", __func__,
-				    pi->nd_opt_pi_len));
-				continue;
-			}
-
-			if (128 < pi->nd_opt_pi_prefix_len) {
-				nd6log((LOG_INFO,
-				    "%s: invalid prefix len %d for prefix "
-				    "information option, ignored\n", __func__,
-				    pi->nd_opt_pi_prefix_len));
-				continue;
-			}
-
-			if (IN6_IS_ADDR_MULTICAST(&pi->nd_opt_pi_prefix)
-			 || IN6_IS_ADDR_LINKLOCAL(&pi->nd_opt_pi_prefix)) {
-				nd6log((LOG_INFO,
-				    "%s: invalid prefix %s, ignored\n",
-				    __func__, ip6_sprintf(ip6bufs,
-					&pi->nd_opt_pi_prefix)));
-				continue;
-			}
-
-			bzero(&pr, sizeof(pr));
-			pr.ndpr_prefix.sin6_family = AF_INET6;
-			pr.ndpr_prefix.sin6_len = sizeof(pr.ndpr_prefix);
-			pr.ndpr_prefix.sin6_addr = pi->nd_opt_pi_prefix;
-			pr.ndpr_ifp = (struct ifnet *)m->m_pkthdr.rcvif;
-
-			pr.ndpr_raf_onlink = (pi->nd_opt_pi_flags_reserved &
-			    ND_OPT_PI_FLAG_ONLINK) ? 1 : 0;
-			pr.ndpr_raf_auto = (pi->nd_opt_pi_flags_reserved &
-			    ND_OPT_PI_FLAG_AUTO) ? 1 : 0;
-			pr.ndpr_plen = pi->nd_opt_pi_prefix_len;
-			pr.ndpr_vltime = ntohl(pi->nd_opt_pi_valid_time);
-			pr.ndpr_pltime = ntohl(pi->nd_opt_pi_preferred_time);
-			(void)prelist_update(&pr, dr, m, mcast);
+			nd6_ra_opt_pi(pt, ifp, nd_ra, dr, auth, mcast);
 		}
 	}
 	if (dr != NULL) {
@@ -543,70 +621,13 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		dr = NULL;
 	}
 
-	/*
-	 * MTU
-	 */
-	if (ndopts.nd_opts_mtu && ndopts.nd_opts_mtu->nd_opt_mtu_len == 1) {
-		u_long mtu;
-		u_long maxmtu;
+	/* MTU */
+	if (ndopts.nd_opts_mtu != NULL)
+		nd6_ra_opt_mtu(ndopts.nd_opts_mtu, ifp, saddr6);
 
-		mtu = (u_long)ntohl(ndopts.nd_opts_mtu->nd_opt_mtu_mtu);
-
-		/* lower bound */
-		if (mtu < IPV6_MMTU) {
-			nd6log((LOG_INFO, "%s: bogus mtu option mtu=%lu sent "
-			    "from %s, ignoring\n", __func__,
-			    mtu, ip6_sprintf(ip6bufs, &ip6->ip6_src)));
-			goto skip;
-		}
-
-		/* upper bound */
-		maxmtu = (ndi->nd_maxmtu && ndi->nd_maxmtu < ifp->if_mtu)
-		    ? ndi->nd_maxmtu : ifp->if_mtu;
-		if (mtu <= maxmtu) {
-			if (ndi->nd_linkmtu != mtu) {
-				ndi->nd_linkmtu = mtu;
-				rt_updatemtu(ifp);
-			}
-		} else {
-			nd6log((LOG_INFO, "%s: bogus mtu=%lu sent from %s; "
-			    "exceeds maxmtu %lu, ignoring\n", __func__,
-			    mtu, ip6_sprintf(ip6bufs, &ip6->ip6_src), maxmtu));
-		}
-	}
-
- skip:
-
-	/*
-	 * Source link layer address
-	 */
-    {
-	char *lladdr = NULL;
-	int lladdrlen = 0;
-
-	if (ndopts.nd_opts_src_lladdr) {
-		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1);
-		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
-	}
-
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
-		nd6log((LOG_INFO,
-		    "%s: lladdrlen mismatch for %s (if %d, RA packet %d)\n",
-		    __func__, ip6_sprintf(ip6bufs, &saddr6),
-		    ifp->if_addrlen, lladdrlen - 2));
+	/* Source link layer address */
+	if (nd6_ra_opt_src_lladdr(ndopts.nd_opts_src_lladdr, ifp, saddr6) != 0)
 		goto bad;
-	}
-
-	nd6_cache_lladdr(ifp, &saddr6, lladdr,
-	    lladdrlen, ND_ROUTER_ADVERT, 0);
-
-	/*
-	 * Installing a link-layer address might change the state of the
-	 * router's neighbor cache, which might also affect our on-link
-	 * detection of adveritsed prefixes.
-	 */
-	pfxlist_onlink_check();
-    }
 
  freeit:
 	m_freem(m);
@@ -1478,31 +1499,18 @@ nd6_prefix_del(struct nd_prefix *pr)
 
 static int
 prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
-    struct mbuf *m, int mcast)
+    bool auth, int mcast)
 {
 	struct in6_ifaddr *ia6 = NULL, *ia6_match = NULL;
 	struct ifaddr *ifa;
 	struct ifnet *ifp = new->ndpr_ifp;
 	struct nd_prefix *pr;
 	int error = 0;
-	int auth;
 	struct in6_addrlifetime lt6_tmp;
 	char ip6buf[INET6_ADDRSTRLEN];
 	bool has_temporary = false;
 
 	NET_EPOCH_ASSERT();
-
-	auth = 0;
-	if (m) {
-		/*
-		 * Authenticity for NA consists authentication for
-		 * both IP header and IP datagrams, doesn't it ?
-		 */
-#if defined(M_AUTHIPHDR) && defined(M_AUTHIPDGM)
-		auth = ((m->m_flags & M_AUTHIPHDR) &&
-		    (m->m_flags & M_AUTHIPDGM));
-#endif
-	}
 
 	if ((pr = nd6_prefix_lookup(new)) != NULL) {
 		/*
