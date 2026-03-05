@@ -838,6 +838,14 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 				 */
 				unsigned int link_id =
 					ffs(vif->active_links) - 1;
+#if defined(__FreeBSD__)
+				/* link_id is gone in Linux v7.0.
+				 * For us it can become -1 if this is non-MLO
+				 * and dtim_period is still 0.
+				 */
+				if (link_id == -1)
+					link_id = 0;
+#endif
 
 				/* If we're not restarting and still haven't
 				 * heard a beacon (dtim period unknown) then
