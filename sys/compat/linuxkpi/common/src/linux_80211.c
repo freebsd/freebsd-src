@@ -3281,24 +3281,27 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	bss_changed = 0;
 	/*
-	 * Start updating bss info (bss_info_changed) (assoc, aid, ..).
+	 * Start updating bss info (*bss_info_changed) (assoc, aid, ..).
 	 *
-	 * One would expect this to happen when going off AUTHORIZED.
-	 * See comment there; removes the sta from fw if not careful
-	 * (bss_info_changed() change is executed right away).
+	 * One would expect this to happen when going off AUTHORIZED but
+	 * not so.
 	 *
-	 * We need to do this now, before sta changes to IEEE80211_STA_NOTEXIST
-	 * as otherwise drivers (iwlwifi at least) will silently not remove
-	 * the sta from the firmware and when we will add a new one trigger
-	 * a fw assert.
+	 * Immediately issuing the (*bss_info_changed) used to also remove the
+	 * sta from firmware for iwlwifi; or we have problems with the sta
+	 * silently not being removed and then crash upon the next sta add.
+	 * Neither seems to be the case or a problem still.
 	 *
-	 * The order which works best so far avoiding early removal or silent
-	 * non-removal seems to be (for iwlwifi::mld-mac80211.c cases;
-	 * the iwlwifi:mac80211.c case still to be tested):
-	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false (aid=0 side effect here)
-	 * 2) call the last sta_state update -> IEEE80211_STA_NOTEXIST
-	 *    (removes the sta given assoc is false)
-	 * 3) add the remaining BSS_CHANGED changes and call bss_info_changed()
+	 * Contrary for BE200 (iwlwifi/mld) if we do not issue the
+	 * (*vif_cfg_change) to tell FW that we are no longer assoc
+	 * it will crash now upon sta rm.  So the order now is as we once
+	 * expected it:
+	 *
+	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false and .aid=0
+	 * 2) add the remaining BSS_CHANGED changes and call (*bss_info_changed)
+	 *    (which may be split up into (*vif_cfg_change) and
+	 *    (*link_info_changed) for more modern drivers).
+	 * 3) call the last sta_state update -> IEEE80211_STA_NOTEXIST
+	 *    (removes the sta given assoc is false) and tidy up our lists.
 	 * 4) call unassign_vif_chanctx
 	 * 5) call lkpi_hw_conf_idle
 	 * 6) call remove_chanctx
@@ -3309,6 +3312,18 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= lkpi_disassoc(sta, vif, lhw);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	IMPROVE("Any bss_info changes to announce?");
+	vif->bss_conf.qos = false;
+	bss_changed |= BSS_CHANGED_QOS;
+	vif->cfg.ssid_len = 0;
+	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
+	bss_changed |= BSS_CHANGED_BSSID;
+	vif->bss_conf.use_short_preamble = false;
+	/* XXX BSS_CHANGED_???? */
+	vif->bss_conf.dtim_period = 0; /* go back to 0. */
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Adjust sta and change state (from NONE) to NOTEXIST. */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
@@ -3325,18 +3340,6 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_lsta_remove(lsta, lvif);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	IMPROVE("Any bss_info changes to announce?");
-	vif->bss_conf.qos = false;
-	bss_changed |= BSS_CHANGED_QOS;
-	vif->cfg.ssid_len = 0;
-	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
-	bss_changed |= BSS_CHANGED_BSSID;
-	vif->bss_conf.use_short_preamble = false;
-	/* XXX BSS_CHANGED_???? */
-	vif->bss_conf.dtim_period = 0; /* go back to 0. */
-	bss_changed |= BSS_CHANGED_BEACON_INFO;
-	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	LKPI_80211_LVIF_LOCK(lvif);
 	/* Remove ni reference for this cache of lsta. */
