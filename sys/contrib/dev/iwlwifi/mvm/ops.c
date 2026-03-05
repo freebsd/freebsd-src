@@ -39,9 +39,8 @@
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
 #elif defined(__FreeBSD__)
-#define DRV_DESCRIPTION	"The new Intel(R) wireless AGN/AC/AX based driver for FreeBSD"
+#define DRV_DESCRIPTION	"The new Intel(R) wireless AGN/AC/AX Linux-based driver for FreeBSD"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_LICENSE("BSD");
 #endif
 MODULE_IMPORT_NS("IWLWIFI");
 
