@@ -319,6 +319,7 @@ VNET_DECLARE(int, ip6_rfc6204w3);	/* Accept defroute from RA even when
 VNET_DECLARE(int, ip6_hdrnestlimit);	/* upper limit of # of extension
 					 * headers */
 VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
+VNET_DECLARE(int, ip6_grand_count);	/* Gratuitous ND Transmits */
 #define	V_ip6_sendredirects		VNET(ip6_sendredirects)
 #define	V_ip6_accept_rtadv		VNET(ip6_accept_rtadv)
 #define	V_ip6_no_radr			VNET(ip6_no_radr)
@@ -326,6 +327,7 @@ VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
 #define	V_ip6_rfc6204w3			VNET(ip6_rfc6204w3)
 #define	V_ip6_hdrnestlimit		VNET(ip6_hdrnestlimit)
 #define	V_ip6_dad_count			VNET(ip6_dad_count)
+#define	V_ip6_grand_count		VNET(ip6_grand_count)
 
 VNET_DECLARE(int, ip6_auto_flowlabel);
 VNET_DECLARE(int, ip6_auto_linklocal);

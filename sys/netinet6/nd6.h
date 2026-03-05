@@ -152,6 +152,10 @@ struct	in6_ndifreq {
 #define	ND6_NA_OPT_LLA		0x01
 #define	ND6_NA_CARP_MASTER	0x02
 
+/* ND6 queue flags */
+#define	ND6_QUEUE_FLAG_NEWGUA	0x01	/* new global unicast address event */
+#define	ND6_QUEUE_FLAG_LLADDR	0x02	/* link-layer address change event */
+
 /* protocol constants */
 #define MAX_RTR_SOLICITATION_DELAY	1	/* 1sec */
 #define RTR_SOLICITATION_INTERVAL	4	/* 4sec */
@@ -173,6 +177,7 @@ struct	in6_ndifreq {
 #define ND_COMPUTE_RTIME(x) \
 		(((MIN_RANDOM_FACTOR * (x >> 10)) + (arc4random() & \
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
+#define MAX_NEIGHBOR_ADVERTISEMENT	3	/* RFC4891 Section 10 */
 
 struct nd_defrouter {
 	TAILQ_ENTRY(nd_defrouter) dr_entry;
@@ -366,6 +371,8 @@ caddr_t nd6_ifptomac(struct ifnet *);
 void nd6_dad_init(void);
 void nd6_dad_start(struct ifaddr *, int);
 void nd6_dad_stop(struct ifaddr *);
+void nd6_grand_start(struct ifaddr *, uint32_t);
+void nd6_queue_stop(struct ifaddr *);
 
 /* nd6_rtr.c */
 void nd6_rs_input(struct mbuf *, int, int);
