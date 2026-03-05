@@ -143,6 +143,7 @@ rl_initialize
 rl_insert
 rl_insert_text
 rl_instream
+rl_kill_full_line
 rl_kill_text
 rl_library_version
 rl_line_buffer

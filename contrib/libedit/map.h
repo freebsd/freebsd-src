@@ -1,4 +1,4 @@
-/*	$NetBSD: map.h,v 1.13 2016/05/09 21:46:56 christos Exp $	*/
+/*	$NetBSD: map.h,v 1.16 2026/03/04 10:31:47 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -43,8 +43,8 @@
 typedef el_action_t (*el_func_t)(EditLine *, wint_t);
 
 typedef struct el_bindings_t {	/* for the "bind" shell command */
-	const wchar_t	*name;		/* function name for bind command */
 	int		 func;		/* function numeric value */
+	const wchar_t	*name;		/* function name for bind command */
 	const wchar_t	*description;	/* description of function */
 } el_bindings_t;
 
@@ -59,6 +59,7 @@ typedef struct el_map_t {
 	el_bindings_t	*help;		/* The help for the editor functions */
 	el_func_t	*func;		/* List of available functions	*/
 	size_t		 nfunc;		/* The number of functions/help items */
+	wchar_t		*wordchars;	/* The word character separators */
 } el_map_t;
 
 #define	MAP_EMACS	0
@@ -73,6 +74,8 @@ libedit_private void	map_init_vi(EditLine *);
 libedit_private void	map_init_emacs(EditLine *);
 libedit_private int	map_set_editor(EditLine *, wchar_t *);
 libedit_private int	map_get_editor(EditLine *, const wchar_t **);
+libedit_private int	map_set_wordchars(EditLine *, wchar_t *);
+libedit_private int	map_get_wordchars(EditLine *, const wchar_t **);
 libedit_private int	map_addfunc(EditLine *, const wchar_t *, const wchar_t *,
     el_func_t);
 

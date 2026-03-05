@@ -1,4 +1,4 @@
-/*	$NetBSD: vi.c,v 1.64 2021/08/28 17:17:47 christos Exp $	*/
+/*	$NetBSD: vi.c,v 1.66 2025/12/16 02:40:48 kre Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: vi.c,v 1.64 2021/08/28 17:17:47 christos Exp $");
+__RCSID("$NetBSD: vi.c,v 1.66 2025/12/16 02:40:48 kre Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -161,7 +161,7 @@ vi_prev_big_word(EditLine *el, wint_t c __attribute__((__unused__)))
 	if (el->el_line.cursor == el->el_line.buffer)
 		return CC_ERROR;
 
-	el->el_line.cursor = cv_prev_word(el->el_line.cursor,
+	el->el_line.cursor = cv_prev_word(el, el->el_line.cursor,
 	    el->el_line.buffer,
 	    el->el_state.argument,
 	    cv__isWord);
@@ -186,7 +186,7 @@ vi_prev_word(EditLine *el, wint_t c __attribute__((__unused__)))
 	if (el->el_line.cursor == el->el_line.buffer)
 		return CC_ERROR;
 
-	el->el_line.cursor = cv_prev_word(el->el_line.cursor,
+	el->el_line.cursor = cv_prev_word(el, el->el_line.cursor,
 	    el->el_line.buffer,
 	    el->el_state.argument,
 	    cv__isword);
@@ -478,7 +478,7 @@ vi_end_big_word(EditLine *el, wint_t c __attribute__((__unused__)))
 	if (el->el_line.cursor == el->el_line.lastchar)
 		return CC_ERROR;
 
-	el->el_line.cursor = cv__endword(el->el_line.cursor,
+	el->el_line.cursor = cv__endword(el, el->el_line.cursor,
 	    el->el_line.lastchar, el->el_state.argument, cv__isWord);
 
 	if (el->el_chared.c_vcmd.action != NOP) {
@@ -502,7 +502,7 @@ vi_end_word(EditLine *el, wint_t c __attribute__((__unused__)))
 	if (el->el_line.cursor == el->el_line.lastchar)
 		return CC_ERROR;
 
-	el->el_line.cursor = cv__endword(el->el_line.cursor,
+	el->el_line.cursor = cv__endword(el, el->el_line.cursor,
 	    el->el_line.lastchar, el->el_state.argument, cv__isword);
 
 	if (el->el_chared.c_vcmd.action != NOP) {
@@ -1015,7 +1015,7 @@ vi_histedit(EditLine *el, wint_t c __attribute__((__unused__)))
 			return CC_ERROR;
 	}
 
-	if ((editor = getenv("EDITOR")) == NULL)
+	if ((editor = (el->el_getenv)("EDITOR")) == NULL)
 		editor = "vi";
 	fd = mkstemp(tempfile);
 	if (fd < 0)
