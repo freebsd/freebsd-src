@@ -44,7 +44,11 @@ static int __init iwl_mld_init(void)
 
 	return ret;
 }
+#if defined(__linux__)
 module_init(iwl_mld_init);
+#elif defined(__FreeBSD__)
+module_init_order(iwl_mld_init, SI_ORDER_SECOND);
+#endif
 
 static void __exit iwl_mld_exit(void)
 {
