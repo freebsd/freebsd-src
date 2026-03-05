@@ -1,4 +1,4 @@
-/*	$NetBSD: hist.h,v 1.23 2017/09/01 10:19:10 christos Exp $	*/
+/*	$NetBSD: hist.h,v 1.24 2026/03/03 15:05:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -74,7 +74,7 @@ libedit_private void		hist_end(EditLine *);
 libedit_private el_action_t	hist_get(EditLine *);
 libedit_private int		hist_set(EditLine *, hist_fun_t, void *);
 libedit_private int		hist_command(EditLine *, int, const wchar_t **);
-libedit_private int		hist_enlargebuf(EditLine *, size_t, size_t);
+libedit_private int		hist_enlargebuf(EditLine *, size_t);
 libedit_private wchar_t	*hist_convert(EditLine *, int, void *);
 
 #endif /* _h_el_hist */

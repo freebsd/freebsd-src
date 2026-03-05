@@ -1,4 +1,4 @@
-/*	$NetBSD: hist.c,v 1.34 2019/07/23 10:19:35 christos Exp $	*/
+/*	$NetBSD: hist.c,v 1.35 2026/03/03 15:05:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: hist.c,v 1.34 2019/07/23 10:19:35 christos Exp $");
+__RCSID("$NetBSD: hist.c,v 1.35 2026/03/03 15:05:17 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -223,9 +223,13 @@ hist_command(EditLine *el, int argc, const wchar_t **argv)
  */
 libedit_private int
 /*ARGSUSED*/
-hist_enlargebuf(EditLine *el, size_t oldsz, size_t newsz)
+hist_enlargebuf(EditLine *el, size_t newsz)
 {
 	wchar_t *newbuf;
+	size_t oldsz = el->el_history.sz;
+
+	if (newsz <= oldsz)
+		return 1;
 
 	newbuf = el_realloc(el->el_history.buf, newsz * sizeof(*newbuf));
 	if (!newbuf)

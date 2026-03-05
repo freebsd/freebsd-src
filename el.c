@@ -1,4 +1,4 @@
-/*	$NetBSD: el.c,v 1.102 2025/01/03 00:40:08 rillig Exp $	*/
+/*	$NetBSD: el.c,v 1.104 2025/12/16 02:40:48 kre Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 #else
-__RCSID("$NetBSD: el.c,v 1.102 2025/01/03 00:40:08 rillig Exp $");
+__RCSID("$NetBSD: el.c,v 1.104 2025/12/16 02:40:48 kre Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -56,6 +56,8 @@ __RCSID("$NetBSD: el.c,v 1.102 2025/01/03 00:40:08 rillig Exp $");
 #include "el.h"
 #include "parse.h"
 #include "read.h"
+
+typedef char * (*func_t)(const char *);
 
 /* el_init():
  *	Initialize editline and set default parameters.
@@ -83,6 +85,8 @@ el_init_internal(const char *prog, FILE *fin, FILE *fout, FILE *ferr,
 	el->el_infd = fdin;
 	el->el_outfd = fdout;
 	el->el_errfd = fderr;
+
+	el->el_getenv = getenv;
 
 	el->el_prog = wcsdup(ct_decode_string(prog, &el->el_scratch));
 	if (el->el_prog == NULL) {
@@ -382,6 +386,14 @@ el_wset(EditLine *el, int op, ...)
 		terminal__flush(el);
 		break;
 
+	case EL_WORDCHARS:
+		rv = map_set_wordchars(el, va_arg(ap, wchar_t *));
+		break;
+
+	case EL_GETENV:
+		el->el_getenv = va_arg(ap, func_t);
+		break;
+
 	default:
 		rv = -1;
 		break;
@@ -496,6 +508,16 @@ el_wget(EditLine *el, int op, ...)
 		}
 		break;
 	}
+
+	case EL_WORDCHARS:
+		rv = map_get_wordchars(el, va_arg(ap, const wchar_t **));
+		break;
+
+	case EL_GETENV:
+		*va_arg(ap, func_t *) = el->el_getenv;
+		rv = 0;
+		break;
+
 	default:
 		rv = -1;
 		break;
@@ -537,11 +559,11 @@ el_source(EditLine *el, const char *fname)
 		if (issetugid())
 			return -1;
 
-		if ((fname = getenv("EDITRC")) == NULL) {
+		if ((fname = (el->el_getenv)("EDITRC")) == NULL) {
 			static const char elpath[] = "/.editrc";
 			size_t plen = sizeof(elpath);
 
-			if ((ptr = getenv("HOME")) == NULL)
+			if ((ptr = (el->el_getenv)("HOME")) == NULL)
 				return -1;
 			plen += strlen(ptr);
 			if ((path = el_calloc(plen, sizeof(*path))) == NULL)

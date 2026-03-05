@@ -1,4 +1,4 @@
-/*	$NetBSD: eln.c,v 1.38 2024/05/17 02:59:08 christos Exp $	*/
+/*	$NetBSD: eln.c,v 1.40 2026/03/03 23:04:02 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -27,7 +27,7 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: eln.c,v 1.38 2024/05/17 02:59:08 christos Exp $");
+__RCSID("$NetBSD: eln.c,v 1.40 2026/03/03 23:04:02 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <errno.h>
@@ -147,6 +147,7 @@ el_set(EditLine *el, int op, ...)
 		break;
 
 	case EL_EDITOR:		/* const wchar_t * */
+	case EL_WORDCHARS:	/* const wchar_t * */
 		ret = el_wset(el, op, ct_decode_string(va_arg(ap, char *),
 		    &el->el_lgcyconv));
 		break;
@@ -224,9 +225,7 @@ el_set(EditLine *el, int op, ...)
 		    ret = -1;
 		    goto out;
 		}
-		/* XXX: The two strdup's leak */
-		ret = map_addfunc(el, wcsdup(wargv[0]), wcsdup(wargv[1]),
-		    func);
+		ret = map_addfunc(el, wargv[0], wargv[1], func);
 		el_free(wargv);
 		break;
 	}
@@ -300,7 +299,8 @@ el_get(EditLine *el, int op, ...)
 		break;
 	}
 
-	case EL_EDITOR: {
+	case EL_EDITOR:
+	case EL_WORDCHARS: {
 		const char **p = va_arg(ap, const char **);
 		const wchar_t *pw;
 		ret = el_wget(el, op, &pw);
