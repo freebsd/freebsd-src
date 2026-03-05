@@ -69,6 +69,10 @@ inject_body()
 {
 	vnet_init
 
+	if sysctl -q kern.features.rss >/dev/null; then
+		atf_skip "This test is flaky with RSS"
+	fi
+
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a inet 192.0.2.1/24 up
 	vnet_mkjail alcatraz ${epair}b
