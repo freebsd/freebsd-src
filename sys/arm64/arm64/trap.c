@@ -262,6 +262,7 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 {
 	struct vm_map *map;
 	struct pcb *pcb;
+	vm_offset_t fault_va;
 	vm_prot_t ftype;
 	int error, sig, ucode;
 #ifdef KDB
@@ -282,8 +283,11 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	}
 #endif
 
+	fault_va = far;
 	if (lower) {
 		map = &td->td_proc->p_vmspace->vm_map;
+		if ((td->td_proc->p_md.md_tcr & TCR_TBI0) != 0)
+			fault_va = ADDR_MAKE_CANONICAL(far);
 	} else if (!ADDR_IS_CANONICAL(far)) {
 		/* We received a TBI/PAC/etc. fault from the kernel */
 		error = KERN_INVALID_ADDRESS;
@@ -338,7 +342,7 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	 * or pmap_fault() will recurse on that lock.
 	 */
 	if ((lower || map == kernel_map || pcb->pcb_onfault != 0) &&
-	    pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
+	    pmap_fault(map->pmap, esr, fault_va) == KERN_SUCCESS)
 		return;
 
 #ifdef INVARIANTS
@@ -379,7 +383,8 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	}
 
 	/* Fault in the page. */
-	error = vm_fault_trap(map, far, ftype, VM_FAULT_NORMAL, &sig, &ucode);
+	error = vm_fault_trap(map, fault_va, ftype, VM_FAULT_NORMAL, &sig,
+	    &ucode);
 	if (error != KERN_SUCCESS) {
 		if (lower) {
 			call_trapsignal(td, sig, ucode, (void *)far,
