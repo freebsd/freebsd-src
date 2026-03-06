@@ -7,7 +7,8 @@
 #
 
 # Based on code from https://syzkaller.appspot.com/text?tag=ReproC&x=15d9baada80000
-# No problems seen
+# "panic: Bad tailq NEXT" seen:
+# https://people.freebsd.org/~pho/stress/log/log0569.txt
 
 . ../default.cfg
 
