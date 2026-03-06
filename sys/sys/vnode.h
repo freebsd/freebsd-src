@@ -268,7 +268,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define	VI_DEFINACT	0x0010	/* deferred inactive */
 #define	VI_FOPENING	0x0020	/* In open, with opening process having the
 				   first right to advlock file */
-#define	VI_DELAYEDSSZ	0x0040	/* Delayed setsize */
+#define	VI_DELAYED_SETSIZE 0x0040	/* Delayed setsize */
 
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */
@@ -1262,17 +1262,17 @@ vn_get_state(struct vnode *vp)
 })
 
 static inline void
-vn_delay_setsize_locked(struct vnode *vp)
+vn_delayed_setsize_locked(struct vnode *vp)
 {
 	ASSERT_VI_LOCKED(vp, "delayed_setsize");
-	vp->v_iflag |= VI_DELAYEDSSZ;
+	vp->v_iflag |= VI_DELAYED_SETSIZE;
 }
 
 static inline void
-vn_delay_setsize(struct vnode *vp)
+vn_delayed_setsize(struct vnode *vp)
 {
 	VI_LOCK(vp);
-	vn_delay_setsize_locked(vp);
+	vn_delayed_setsize_locked(vp);
 	VI_UNLOCK(vp);
 }
 
@@ -1280,7 +1280,7 @@ static inline void
 vn_clear_delayed_setsize_locked(struct vnode *vp)
 {
 	ASSERT_VI_LOCKED(vp, "delayed_setsize");
-	vp->v_iflag &= ~VI_DELAYEDSSZ;
+	vp->v_iflag &= ~VI_DELAYED_SETSIZE;
 }
 
 static inline void
