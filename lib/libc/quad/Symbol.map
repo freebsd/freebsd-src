@@ -50,4 +50,5 @@ FBSD_1.0 {
 	__udivdi3;
 	__umoddi3;
 	__xordi3;
+#endif
 };
