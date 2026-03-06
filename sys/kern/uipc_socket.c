@@ -336,6 +336,33 @@ SYSCTL_BOOL(_kern_ipc_splice, OID_AUTO, receive_stream, CTLFLAG_RWTUN,
     &splice_receive_stream, 0,
     "Use soreceive_stream() for stream splices");
 
+static int splice_num_wq = -1;
+static int
+sysctl_splice_num_wq(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	new = splice_num_wq;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr && new != splice_num_wq) {
+		if (!cold)
+			sx_xlock(&splice_init_lock);
+		if (new < -1 || new > mp_ncpus ||
+		    (new <= 0 && splice_init_state != 0)) {
+			error = EINVAL;
+		} else {
+			splice_num_wq = new;
+		}
+		if (!cold)
+			sx_xunlock(&splice_init_lock);
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc_splice, OID_AUTO, num_wq,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+    &splice_num_wq, 0, sysctl_splice_num_wq, "IU",
+    "Number of splice worker queues");
+
 static uma_zone_t splice_zone;
 static struct proc *splice_proc;
 struct splice_wq {
@@ -447,24 +474,36 @@ splice_init(void)
 		return (0);
 	}
 
+	if (splice_num_wq == -1) {
+		/* if no user preference, use all cores */
+		splice_num_wq = mp_ncpus;
+	} else if (splice_num_wq == 0) {
+		/* allow user to disable */
+		splice_init_state = -1;
+		sx_xunlock(&splice_init_lock);
+		return (ENXIO);
+	} else if (splice_num_wq > mp_ncpus) {
+		splice_num_wq = mp_ncpus;
+	}
+
 	splice_zone = uma_zcreate("splice", sizeof(struct so_splice), NULL,
 	    NULL, splice_zinit, splice_zfini, UMA_ALIGN_CACHE, 0);
 
-	splice_wq = mallocarray(mp_maxid + 1, sizeof(*splice_wq), M_TEMP,
+	splice_wq = mallocarray(mp_ncpus, sizeof(*splice_wq), M_TEMP,
 	    M_WAITOK | M_ZERO);
 
 	/*
 	 * Initialize the workqueues to run the splice work.  We create a
 	 * work queue for each CPU.
 	 */
-	CPU_FOREACH(i) {
+	for (i = 0; i < mp_ncpus; i++) {
 		STAILQ_INIT(&splice_wq[i].head);
 		mtx_init(&splice_wq[i].mtx, "splice work queue", NULL, MTX_DEF);
 	}
 
 	/* Start kthreads for each workqueue. */
 	error = 0;
-	CPU_FOREACH(i) {
+	for (i = 0; i < mp_ncpus; i++) {
 		error = kproc_kthread_add(splice_work_thread, &splice_wq[i],
 		    &splice_proc, &td, 0, 0, "so_splice", "thr_%d", i);
 		if (error) {
@@ -1631,10 +1670,7 @@ so_splice_alloc(off_t max)
 	sp->src = NULL;
 	sp->dst = NULL;
 	sp->max = max > 0 ? max : -1;
-	do {
-		sp->wq_index = atomic_fetchadd_32(&splice_index, 1) %
-		    (mp_maxid + 1);
-	} while (CPU_ABSENT(sp->wq_index));
+	sp->wq_index = atomic_fetchadd_32(&splice_index, 1) % splice_num_wq;
 	sp->state = SPLICE_INIT;
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sp->timeout, 0, so_splice_timeout,
 	    sp);
