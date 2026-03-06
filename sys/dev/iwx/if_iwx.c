@@ -5776,7 +5776,7 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	desc->tbs[0].tb_len = htole16(IWX_FIRST_TB_SIZE);
 	paddr = htole64(data->cmd_paddr);
 	memcpy(&desc->tbs[0].addr, &paddr, sizeof(paddr));
-#if __SIZEOF_SIZE_T__ > 32
+#if __SIZEOF_SIZE_T__ > 4
 	if (data->cmd_paddr >> 32 != (data->cmd_paddr +
 	    le32toh(desc->tbs[0].tb_len)) >> 32)
 		DPRINTF(("%s: TB0 crosses 32bit boundary\n", __func__));
@@ -5786,7 +5786,7 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	paddr = htole64(data->cmd_paddr + IWX_FIRST_TB_SIZE);
 	memcpy(&desc->tbs[1].addr, &paddr, sizeof(paddr));
 
-#if __SIZEOF_SIZE_T__ > 32
+#if __SIZEOF_SIZE_T__ > 4
 	if (data->cmd_paddr >> 32 != (data->cmd_paddr +
 	    le32toh(desc->tbs[1].tb_len)) >> 32)
 		DPRINTF(("%s: TB1 crosses 32bit boundary\n", __func__));
@@ -5798,7 +5798,7 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		desc->tbs[i + 2].tb_len = htole16(seg->ds_len);
 		paddr = htole64(seg->ds_addr);
 		memcpy(&desc->tbs[i + 2].addr, &paddr, sizeof(paddr));
-#if __SIZEOF_SIZE_T__ > 32
+#if __SIZEOF_SIZE_T__ > 4
 		if (data->cmd_paddr >> 32 != (data->cmd_paddr +
 		    le32toh(desc->tbs[i + 2].tb_len)) >> 32)
 			DPRINTF(("%s: TB%d crosses 32bit boundary\n", __func__,
