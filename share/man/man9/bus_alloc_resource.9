@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 30, 2025
+.Dd March 6, 2026
 .Dt BUS_ALLOC_RESOURCE 9
 .Os
 .Sh NAME
@@ -142,12 +142,8 @@ is used, if it is bigger than the default value.
 .It
 .Fa flags
 sets the flags for the resource.
-You can set one or more of these flags:
-.Bl -tag -width RF_SHAREABLE
-.It Dv RF_ALLOCATED
-resource has been reserved.
-The resource still needs to be activated with
-.Xr bus_activate_resource 9 .
+You can set zero or more of these flags:
+.Bl -tag -width RF_PREFETCHABLE
 .It Dv RF_ACTIVE
 activate resource atomically.
 .It Dv RF_PREFETCHABLE
