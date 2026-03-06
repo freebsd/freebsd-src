@@ -338,7 +338,6 @@ CMD_VERSIONS(bt_coex_notif,
 CMD_VERSIONS(beacon_notification,
 	     CMD_VER_ENTRY(6, iwl_extended_beacon_notif))
 CMD_VERSIONS(emlsr_mode_notif,
-	     CMD_VER_ENTRY(1, iwl_esr_mode_notif_v1)
 	     CMD_VER_ENTRY(2, iwl_esr_mode_notif))
 CMD_VERSIONS(emlsr_trans_fail_notif,
 	     CMD_VER_ENTRY(1, iwl_esr_trans_fail_notif))
@@ -595,8 +594,8 @@ void iwl_mld_rx(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 	else if (unlikely(cmd_id == WIDE_ID(DATA_PATH_GROUP,
 					    RX_QUEUES_NOTIFICATION)))
 		iwl_mld_handle_rx_queues_sync_notif(mld, napi, pkt, 0);
-	else if (cmd_id == WIDE_ID(DATA_PATH_GROUP, RX_NO_DATA_NOTIF))
-		iwl_mld_rx_monitor_no_data(mld, napi, pkt, 0);
+	else if (cmd_id == WIDE_ID(DATA_PATH_GROUP, PHY_AIR_SNIFFER_NOTIF))
+		iwl_mld_handle_phy_air_sniffer_notif(mld, napi, pkt);
 	else
 		iwl_mld_rx_notif(mld, rxb, pkt);
 }
