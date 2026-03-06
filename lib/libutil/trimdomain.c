@@ -34,6 +34,7 @@
 #include <string.h>
 #include <unistd.h>
 
+void		freebsd15_trimdomain(char *, int);
 static int	isDISP(const char *);
 
 /*-
@@ -50,7 +51,7 @@ static int	isDISP(const char *);
  *     trimdomain("abcde.my.domain:0.0", 8)   ->   "abcde.my.domain:0.0"
  */
 void
-trimdomain(char *fullhost, int hostsize)
+trimdomain(char *fullhost, size_t hostsize)
 {
 	static size_t dlen;
 	static int first = 1;
@@ -72,6 +73,12 @@ trimdomain(char *fullhost, int hostsize)
 	if (domain[0] == '\0')
 		return;
 
+	/*
+	 * Clamp hostsize down if it's out-of-bounds of fullhost, to avoid any
+	 * kind of out-of-bounds read in the below memchr().
+	 */
+	hostsize = strnlen(fullhost, hostsize);
+
 	s = fullhost;
 	end = s + hostsize + 1;
 	if ((s = memchr(s, '.', (size_t)(end - s))) != NULL) {
@@ -88,6 +95,21 @@ trimdomain(char *fullhost, int hostsize)
 		}
 	}
 }
+
+void
+freebsd15_trimdomain(char *fullhost, int hostsize)
+{
+	/*
+	 * Note that we intentionally aren't doing anything here about a
+	 * negative `hostsize`, to preserve historical behavior.  Functionally,
+	 * it would have ended up as a very large size passing to the memchr(3),
+	 * thus either appearing to work or reading off the end of the buffer if
+	 * `fullhost` is actually malformed.
+	 */
+	trimdomain(fullhost, hostsize);
+}
+
+__sym_compat(trimdomain, freebsd15_trimdomain, FBSD_1.8);
 
 /*
  * Is the given string NN or NN.NN where ``NN'' is an all-numeric string ?

@@ -141,6 +141,7 @@ enum pmc_cputype {
 #define	__PMC_CLASSES()								\
     __PMC_CLASS(TSC,		0x00,	"CPU Timestamp counter")		\
     __PMC_CLASS(K8,		0x02,	"AMD K8 performance counters")		\
+    __PMC_CLASS(IBS,		0x03,	"AMD IBS performance counters")		\
     __PMC_CLASS(IAF,		0x06,	"Intel Core2/Atom, fixed function")	\
     __PMC_CLASS(IAP,		0x07,	"Intel Core...Atom, programmable")	\
     __PMC_CLASS(UCF,		0x08,	"Intel Uncore fixed function")		\
@@ -386,6 +387,7 @@ enum pmc_ops {
 #define	PMC_CALLCHAIN_DEPTH_MAX	512
 
 #define	PMC_CC_F_USERSPACE	0x01	   /*userspace callchain*/
+#define	PMC_CC_F_MULTIPART	0x02	   /*multipart data*/
 
 /*
  * Cookies used to denote allocated PMCs, and the values of PMCs.
@@ -960,6 +962,18 @@ struct pmc_samplebuffer {
 #define PMC_PROD_SAMPLE(psb)					\
 	(&(psb)->ps_samples[(psb)->ps_prodidx & pmc_sample_mask])
 
+
+/*
+ * struct pmc_multipart
+ *
+ * Multipart payload
+ */
+struct pmc_multipart {
+	char			pl_type;
+	char			pl_length;
+	uint64_t		pl_mpdata[10];
+};
+
 /*
  * struct pmc_cpustate
  *
@@ -1226,7 +1240,10 @@ MALLOC_DECLARE(M_PMC);
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 void	pmc_md_finalize(struct pmc_mdep *_md);	/* MD fini function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _ring, struct pmc *_pm, struct trapframe *_tf);
+int	pmc_process_interrupt_mp(int _ring, struct pmc *_pm,
+    struct trapframe *_tf, struct pmc_multipart *mp);
+int	pmc_process_interrupt(int _ring, struct pmc *_pm,
+    struct trapframe *_tf);
 int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,

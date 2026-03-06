@@ -39,22 +39,25 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 
-#include <unistd.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
-#include <syslog.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdckdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 #include "lp.h"
 #include "lp.local.h"
 #include "ctlinfo.h"
 #include "extern.h"
 #include "pathnames.h"
 
-#define ack()	(void) write(STDOUT_FILENO, sp, (size_t)1)
+#define digit(ch) ((ch) >= '0' && (ch) <= '9')
 
 /*
  * The buffer size to use when reading/writing spool files.
@@ -62,15 +65,16 @@
 #define	SPL_BUFSIZ	BUFSIZ
 
 static char	 dfname[NAME_MAX];	/* data files */
-static int	 minfree;       /* keep at least minfree blocks available */
-static const char	*sp = "";
+static size_t	 minfree;       /* keep at least minfree blocks available */
 static char	 tfname[NAME_MAX];	/* tmp copy of cf before linking */
 
-static int	 chksize(int _size);
+static void	 ack(struct printer *_pp);
+static void	 nak(struct printer *_pp);
+static int	 chksize(size_t _size);
 static void	 frecverr(const char *_msg, ...) __printf0like(1, 2);
 static int	 noresponse(void);
 static void	 rcleanup(int _signo);
-static int	 read_number(const char *_fn);
+static void	 read_minfree(void);
 static int	 readfile(struct printer *_pp, char *_file, size_t _size);
 static int	 readjob(struct printer *_pp);
 
@@ -118,7 +122,7 @@ recvjob(const char *printer)
 	} else if (stat(pp->spool_dir, &stb) < 0)
 		frecverr("%s: stat(%s): %s", pp->printer, pp->spool_dir,
 		    strerror(errno));
-	minfree = 2 * read_number("minfree");	/* scale KB to 512 blocks */
+	read_minfree();
 	signal(SIGTERM, rcleanup);
 	signal(SIGPIPE, rcleanup);
 
@@ -129,18 +133,35 @@ recvjob(const char *printer)
 /*
  * Read printer jobs sent by lpd and copy them to the spooling directory.
  * Return the number of jobs successfully transferred.
+ *
+ * In theory, the protocol allows any number of jobs to be transferred in
+ * a single connection, with control and data files in any order.  This
+ * would be very difficult to police effectively, so enforce a single job
+ * per connection.  The control file can be sent at any time (first, last,
+ * or between data files).  All files must bear the same job number, and
+ * the data files must be sent sequentially.  If any of these requirements
+ * is violated, we close the connection and delete everything.
+ *
+ * Note that RFC 1179 strongly implies only one data file per job; I
+ * assume this is a mistake in the RFC since it is supposed to describe
+ * this code, which predates it, but was written by a third party.
  */
 static int
 readjob(struct printer *pp)
 {
-	register int size;
-	int cfcnt, dfcnt;
-	char *cp, *clastp, *errmsg;
+	ssize_t rlen;
+	size_t len, size;
+	int cfcnt, dfcnt, curd0, curd2, curn, n;
+	char *cp, *clastp, *errmsg, *sep;
 	char givenid[32], givenhost[MAXHOSTNAMELEN];
 
-	ack();
+	tfname[0] = dfname[0] = '\0';
+	ack(pp);
 	cfcnt = 0;
 	dfcnt = 0;
+	curd0 = 'd';
+	curd2 = 'A';
+	curn = -1;
 	for (;;) {
 		/*
 		 * Read a command to tell us what to do
@@ -148,16 +169,16 @@ readjob(struct printer *pp)
 		cp = line;
 		clastp = line + sizeof(line) - 1;
 		do {
-			size = read(STDOUT_FILENO, cp, (size_t)1);
-			if (size != (ssize_t)1) {
-				if (size < (ssize_t)0) {
+			rlen = read(STDOUT_FILENO, cp, 1);
+			if (rlen != 1) {
+				if (rlen < 0) {
 					frecverr("%s: lost connection",
 					    pp->printer);
 					/*NOTREACHED*/
 				}
 				return (cfcnt);
 			}
-		} while ((*cp++ != '\n') && (cp <= clastp));
+		} while (*cp++ != '\n' && cp <= clastp);
 		if (cp > clastp) {
 			frecverr("%s: readjob overflow", pp->printer);
 			/*NOTREACHED*/
@@ -165,37 +186,47 @@ readjob(struct printer *pp)
 		*--cp = '\0';
 		cp = line;
 		switch (*cp++) {
-		case '\1':	/* cleanup because data sent was bad */
+		case '\1':	/* abort print job */
 			rcleanup(0);
 			continue;
 
-		case '\2':	/* read cf file */
-			size = 0;
-			dfcnt = 0;
-			while (*cp >= '0' && *cp <= '9')
-				size = size * 10 + (*cp++ - '0');
+		case '\2':	/* read control file */
+			if (tfname[0] != '\0') {
+				/* multiple control files */
+				break;
+			}
+			for (size = 0; digit(*cp); cp++) {
+				if (ckd_mul(&size, size, 10) ||
+				    ckd_add(&size, size, *cp - '0'))
+					break;
+			}
 			if (*cp++ != ' ')
 				break;
 			/*
-			 * host name has been authenticated, we use our
-			 * view of the host name since we may be passed
-			 * something different than what gethostbyaddr()
-			 * returns
+			 * The next six bytes must be "cfA" followed by a
+			 * three-digit job number.  The rest of the line
+			 * is the client host name, but we substitute the
+			 * host name we've already authenticated.
 			 */
-			strlcpy(cp + 6, from_host, sizeof(line)
-			    + (size_t)(line - cp - 6));
-			if (strchr(cp, '/')) {
-				frecverr("readjob: %s: illegal path name", cp);
-				/*NOTREACHED*/
-			}
-			strlcpy(tfname, cp, sizeof(tfname));
-			tfname[sizeof (tfname) - 1] = '\0';
+			if (cp[0] != 'c' || cp[1] != 'f' || cp[2] != 'A' ||
+			    !digit(cp[3]) || !digit(cp[4]) || !digit(cp[5]))
+				break;
+			n = (cp[3] - '0') * 100 + (cp[4] - '0') * 10 +
+			    cp[5] - '0';
+			if (curn == -1)
+				curn = n;
+			else if (curn != n)
+				break;
+			len = snprintf(tfname, sizeof(tfname), "%.6s%s", cp,
+			    from_host);
+			if (len >= sizeof(tfname))
+				break;
 			tfname[0] = 't';
 			if (!chksize(size)) {
-				(void) write(STDOUT_FILENO, "\2", (size_t)1);
+				nak(pp);
 				continue;
 			}
-			if (!readfile(pp, tfname, (size_t)size)) {
+			if (!readfile(pp, tfname, size)) {
 				rcleanup(0);
 				continue;
 			}
@@ -208,27 +239,62 @@ readjob(struct printer *pp)
 			cfcnt++;
 			continue;
 
-		case '\3':	/* read df file */
+		case '\3':	/* read data file */
+			if (curd0 > 'z') {
+				/* too many data files */
+				break;
+			}
 			*givenid = '\0';
 			*givenhost = '\0';
-			size = 0;
-			while (*cp >= '0' && *cp <= '9')
-				size = size * 10 + (*cp++ - '0');
+			for (size = 0; digit(*cp); cp++) {
+				if (ckd_mul(&size, size, 10) ||
+				    ckd_add(&size, size, *cp - '0'))
+					break;
+			}
 			if (*cp++ != ' ')
 				break;
-			if (strchr(cp, '/')) {
-				frecverr("readjob: %s: illegal path name", cp);
-				/*NOTREACHED*/
-			}
+			/*
+			 * The next six bytes must be curd0, 'f', curd2
+			 * followed by a three-digit job number, where
+			 * curd2 cycles through [A-Za-z] while curd0
+			 * starts at 'd' and increments when curd2 rolls
+			 * around.  The rest of the line is the client
+			 * host name, but we substitute the host name
+			 * we've already authenticated.
+			 */
+			if (cp[0] != curd0 || cp[1] != 'f' || cp[2] != curd2 ||
+			    !digit(cp[3]) || !digit(cp[4]) || !digit(cp[5]))
+				break;
+			n = (cp[3] - '0') * 100 + (cp[4] - '0') * 10 +
+			    cp[5] - '0';
+			if (curn == -1)
+				curn = n;
+			else if (curn != n)
+				break;
+			len = snprintf(dfname, sizeof(dfname), "%.6s%s", cp,
+			    from_host);
+			if (len >= sizeof(dfname))
+				break;
 			if (!chksize(size)) {
-				(void) write(STDOUT_FILENO, "\2", (size_t)1);
+				nak(pp);
 				continue;
 			}
-			strlcpy(dfname, cp, sizeof(dfname));
+			switch (curd2++) {
+			case 'Z':
+				curd2 = 'a';
+				break;
+			case 'z':
+				curd0++;
+				curd2 = 'A';
+				break;
+			}
 			dfcnt++;
 			trstat_init(pp, dfname, dfcnt);
-			(void) readfile(pp, dfname, (size_t)size);
-			trstat_write(pp, TR_RECVING, (size_t)size, givenid,
+			if (!readfile(pp, dfname, size)) {
+				rcleanup(0);
+				continue;
+			}
+			trstat_write(pp, TR_RECVING, size, givenid,
 			    from_host, givenhost);
 			continue;
 		}
@@ -243,52 +309,55 @@ readjob(struct printer *pp)
 static int
 readfile(struct printer *pp, char *file, size_t size)
 {
-	register char *cp;
 	char buf[SPL_BUFSIZ];
-	size_t amt, i;
-	int err, fd, j;
+	ssize_t rlen, wlen;
+	int err, f0, fd, j;
 
 	fd = open(file, O_CREAT|O_EXCL|O_WRONLY, FILMOD);
 	if (fd < 0) {
-		frecverr("%s: readfile: error on open(%s): %s",
-			 pp->printer, file, strerror(errno));
+		/*
+		 * We need to pass the file name to frecverr() so it can
+		 * log an error, but frecverr() will then call rcleanup()
+		 * which will delete the file if we don't zero out the
+		 * first character.
+		 */
+		f0 = file[0];
+		file[0] = '\0';
+		frecverr("%s: readfile: error on open(%c%s): %s",
+		    pp->printer, f0, file + 1, strerror(errno));
 		/*NOTREACHED*/
 	}
-	ack();
-	err = 0;
-	for (i = 0; i < size; i += SPL_BUFSIZ) {
-		amt = SPL_BUFSIZ;
-		cp = buf;
-		if (i + amt > size)
-			amt = size - i;
-		do {
-			j = read(STDOUT_FILENO, cp, amt);
-			if (j <= 0) {
-				frecverr("%s: lost connection", pp->printer);
+	ack(pp);
+	while (size > 0) {
+		rlen = read(STDOUT_FILENO, buf, MIN(SPL_BUFSIZ, size));
+		if (rlen < 0 && errno == EINTR)
+			continue;
+		if (rlen <= 0) {
+			frecverr("%s: lost connection", pp->printer);
+			/*NOTREACHED*/
+		}
+		size -= rlen;
+		while (rlen > 0) {
+			wlen = write(fd, buf, rlen);
+			if (wlen < 0 && errno == EINTR)
+				continue;
+			if (wlen <= 0) {
+				frecverr("%s: write error on write(%s)",
+				    pp->printer, file);
 				/*NOTREACHED*/
 			}
-			amt -= j;
-			cp += j;
-		} while (amt > 0);
-		amt = SPL_BUFSIZ;
-		if (i + amt > size)
-			amt = size - i;
-		if (write(fd, buf, amt) != (ssize_t)amt) {
-			err++;
-			break;
+			rlen -= wlen;
 		}
 	}
-	(void) close(fd);
-	if (err) {
+	if (close(fd) != 0) {
 		frecverr("%s: write error on close(%s)", pp->printer, file);
 		/*NOTREACHED*/
 	}
 	if (noresponse()) {		/* file sent had bad data in it */
-		if (strchr(file, '/') == NULL)
-			(void) unlink(file);
+		(void) unlink(file);
 		return (0);
 	}
-	ack();
+	ack(pp);
 	return (1);
 }
 
@@ -297,13 +366,13 @@ noresponse(void)
 {
 	char resp;
 
-	if (read(STDOUT_FILENO, &resp, (size_t)1) != 1) {
+	if (read(STDOUT_FILENO, &resp, 1) != 1) {
 		frecverr("lost connection in noresponse()");
 		/*NOTREACHED*/
 	}
 	if (resp == '\0')
-		return(0);
-	return(1);
+		return (0);
+	return (1);
 }
 
 /*
@@ -311,36 +380,42 @@ noresponse(void)
  * 1 == OK, 0 == Not OK.
  */
 static int
-chksize(int size)
+chksize(size_t size)
 {
-	int64_t spacefree;
 	struct statfs sfb;
+	size_t avail;
 
 	if (statfs(".", &sfb) < 0) {
 		syslog(LOG_ERR, "%s: %m", "statfs(\".\")");
 		return (1);
 	}
-	spacefree = sfb.f_bavail * (sfb.f_bsize / 512);
-	size = (size + 511) / 512;
-	if (minfree + size > spacefree)
-		return(0);
-	return(1);
+	/* more free space than we can count; possible on 32-bit */
+	if (ckd_mul(&avail, sfb.f_bavail, (sfb.f_bsize / 512)))
+		return (1);
+	/* already at or below minfree */
+	if (avail <= minfree)
+		return (0);
+	/* not enough space */
+	if (avail - minfree <= size / 512)
+		return (0);
+	return (1);
 }
 
-static int
-read_number(const char *fn)
+static void
+read_minfree(void)
 {
-	char lin[80];
-	register FILE *fp;
+	FILE *fp;
 
-	if ((fp = fopen(fn, "r")) == NULL)
-		return (0);
-	if (fgets(lin, sizeof(lin), fp) == NULL) {
+	minfree = 0;
+	/* read from disk */
+	if ((fp = fopen("minfree", "r")) != NULL) {
+		if (fscanf(fp, "%zu", &minfree) != 1)
+			minfree = 0;
 		fclose(fp);
-		return (0);
 	}
-	fclose(fp);
-	return (atoi(lin));
+	/* scale kB to 512-byte blocks */
+	if (ckd_mul(&minfree, minfree, 2))
+		minfree = SIZE_MAX;
 }
 
 /*
@@ -361,8 +436,6 @@ rcleanup(int signo __unused)
 	}
 	dfname[0] = '\0';
 }
-
-#include <stdarg.h>
 
 static void
 frecverr(const char *msg, ...)
@@ -390,4 +463,18 @@ frecverr(const char *msg, ...)
 	sleep(2);		/* a paranoid throttling measure */
 	putchar('\1');		/* return error code */
 	exit(1);
+}
+
+static void
+ack(struct printer *pp)
+{
+	if (write(STDOUT_FILENO, "\0", 1) != 1)
+		frecverr("%s: write error on ack", pp->printer);
+}
+
+static void
+nak(struct printer *pp)
+{
+	if (write(STDOUT_FILENO, "\2", 1) != 1)
+		frecverr("%s: write error on nak", pp->printer);
 }

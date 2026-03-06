@@ -147,6 +147,7 @@ struct vop_vector default_vnodeops = {
 	.vop_add_writecount =	vop_stdadd_writecount,
 	.vop_copy_file_range =	vop_stdcopy_file_range,
 	.vop_vput_pair =	vop_stdvput_pair,
+	.vop_delayed_setsize =	VOP_PANIC,
 };
 VFS_VOP_VECTOR_REGISTER(default_vnodeops);
 

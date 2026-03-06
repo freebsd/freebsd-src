@@ -1,4 +1,4 @@
-/*	$NetBSD: el.h,v 1.48 2025/01/03 00:40:08 rillig Exp $	*/
+/*	$NetBSD: el.h,v 1.49 2025/12/16 02:40:48 kre Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -141,6 +141,7 @@ struct editline {
 	ct_buffer_t       el_scratch;   /* Scratch conversion buffer    */
 	ct_buffer_t       el_lgcyconv;  /* Buffer for legacy wrappers   */
 	LineInfo          el_lgcylinfo; /* Legacy LineInfo buffer       */
+	char *		(*el_getenv)(const char *); /* getenv(3) or ... */
 };
 
 libedit_private int	el_editmode(EditLine *, int, const wchar_t **);

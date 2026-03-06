@@ -177,6 +177,47 @@ SYSCTL_INT(_machdep, OID_AUTO, nmi_flush_l1d_sw, CTLFLAG_RWTUN,
     &nmi_flush_l1d_sw, 0,
     "Flush L1 Data Cache on NMI exit, software bhyve L1TF mitigation assist");
 
+static void
+trap_uprintf_signal(struct thread *td, struct trapframe *frame, register_t addr,
+    int signo, int ucode)
+{
+	struct proc *p;
+	struct pcb *pcb;
+	register_t fsbase, gsbase, r;
+
+	if (!uprintf_signal)
+		return;
+	p = td->td_proc;
+	pcb = td->td_pcb;
+	if ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0) {
+		r = intr_disable();
+		if ((pcb->pcb_flags & PCB_FULL_IRET) == 0) {
+			fsbase = rdfsbase();
+			gsbase = rdmsr(MSR_KGSBASE);
+		} else {
+			fsbase = pcb->pcb_fsbase;
+			gsbase = pcb->pcb_gsbase;
+		}
+		intr_restore(r);
+	} else {
+		fsbase = pcb->pcb_fsbase;
+		gsbase = pcb->pcb_gsbase;
+	}
+	uprintf("pid %d comm %s: signal %d err %#lx code %d type %d "
+	    "addr %#lx rsp %#lx rip %#lx rax %#lx fsb %#lx gsb %#lx "
+	    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
+	    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, frame->tf_trapno,
+	    addr, frame->tf_rsp, frame->tf_rip, frame->tf_rax, fsbase, gsbase,
+	    fubyte((void *)(frame->tf_rip + 0)),
+	    fubyte((void *)(frame->tf_rip + 1)),
+	    fubyte((void *)(frame->tf_rip + 2)),
+	    fubyte((void *)(frame->tf_rip + 3)),
+	    fubyte((void *)(frame->tf_rip + 4)),
+	    fubyte((void *)(frame->tf_rip + 5)),
+	    fubyte((void *)(frame->tf_rip + 6)),
+	    fubyte((void *)(frame->tf_rip + 7)));
+}
+
 /*
  * Table of handlers for various segment load faults.
  */
@@ -626,21 +667,7 @@ trap(struct trapframe *frame)
 	ksi.ksi_code = ucode;
 	ksi.ksi_trapno = type;
 	ksi.ksi_addr = (void *)addr;
-	if (uprintf_signal) {
-		uprintf("pid %d comm %s: signal %d err %#lx code %d type %d "
-		    "addr %#lx rsp %#lx rip %#lx rax %#lx "
-		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
-		    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, type,
-		    addr, frame->tf_rsp, frame->tf_rip, frame->tf_rax,
-		    fubyte((void *)(frame->tf_rip + 0)),
-		    fubyte((void *)(frame->tf_rip + 1)),
-		    fubyte((void *)(frame->tf_rip + 2)),
-		    fubyte((void *)(frame->tf_rip + 3)),
-		    fubyte((void *)(frame->tf_rip + 4)),
-		    fubyte((void *)(frame->tf_rip + 5)),
-		    fubyte((void *)(frame->tf_rip + 6)),
-		    fubyte((void *)(frame->tf_rip + 7)));
-	}
+	trap_uprintf_signal(td, frame, addr, signo, ucode);
 	KASSERT((read_rflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 

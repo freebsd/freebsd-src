@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd October 24, 2025
+.Dd February 16, 2025
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -41,14 +41,6 @@ which renders as:
 Then run
 .Ql Nm make Cm install Cm clean .
 .Ed
-.It
-The
-.Sy \&Ql
-macro is the preferred macro for formatting literal inline fragments.
-Historically,
-.Sy \&Dq \&Li
-was the preferred way before the deprecation of
-.Sy \&Li .
 .El
 .Ss Copyright Header
 Refer to
@@ -160,73 +152,6 @@ Install the missing packages.
 \&.El
 .Ed
 .El
-.Ss Synopsis Formatting
-.Bl -dash -width ""
-.It
-Do not put whitespace between alternative parameters separated with a pipe
-.Pq Dq | ,
-e.g.:
-.Bd -literal -offset indent
-\&.Cm compression Cm on Ns | Ns Cm off
-\&.Cm install Fl -all Ns | Ns Ar portname Ar ...
-.Ed
-.Pp
-which in the SYNOPSIS section is rendered as:
-.Bd -unfilled -offset indent
-.Cm compression Cm on Ns | Ns Cm off
-.Cm install Fl -all Ns | Ns Ar portname Ar ...
-.Ed
-.It
-Use
-.Sy \&Cm
-to stylize characters that are command modifiers
-.Po e.g.,
-.Dq \&, ,
-.Dq @
-or
-.Dq "="
-.Pc .
-For example:
-.Bd -literal -offset indent
-\&.Sm off
-\&.Fl -meet Cm = Ar who Oo Cm \&, Ar who " " Ar "..." Oc Cm @ Ar where
-\&.Sm on
-.Ed
-.Pp
-which renders as:
-.Bd -filled -offset indent
-.Sm off
-.Fl -meet Cm = Ar who Oo Cm \&, Ar who " " Ar "..." Oc Cm @ Ar where
-.Sm on
-.Ed
-.Pp
-instead of:
-.Bd -literal -offset indent
-\&.Sm off
-\&.Fl -meet No = Ar who Oo , Ar who " " Ar "..." Oc @ Ar where
-\&.Sm on
-.Ed
-.Pp
-which would render as:
-.Bd -filled -offset indent
-.Sm off
-.Fl -meet No = Ar who Oo , Ar who " " Ar "..." Oc @ Ar where
-.Sm on
-.Ed
-.Pp
-It is important to realize that in the correct example,
-.Dq \&, ,
-.Dq @
-and
-.Dq =
-are stylized with
-.Sy \&Cm .
-At the same time, the square brackets
-.Pq Dq "[]"
-are not stylized as they do not belong to the syntax of the
-.Fl -meet
-flag.
-.El
 .Ss Quoting
 .Bl -dash -width ""
 .It
@@ -258,7 +183,7 @@ variables like
 .It
 Use the angle brackets
 .Sy \&Aq
-.Pq Dq "<>"
+.Pq Dq Ao Ac
 macro
 for arguments
 .Pq Sy \&Ar
@@ -285,6 +210,11 @@ that would be rendered as:
 .Bd -filled -offset indent
 .Va critical_filesystems_ Ns Ar type
 .Ed
+.El
+.Sh FILES
+.Bl -tag -width "/usr/share/examples/mdoc/tab"
+.It /usr/share/examples/mdoc/
+Examples for writing manual pages.
 .El
 .Sh SEE ALSO
 .Xr man 1 ,

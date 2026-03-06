@@ -298,13 +298,49 @@ put_tty_line(const char *s, int l, long n, int gflag)
 	int col = 0;
 	int lc = 0;
 	char *cp;
+	wchar_t wc;
+	mbstate_t mbs;
+	size_t clen;
+	int w;
 
 	if (gflag & GNP) {
 		printf("%ld\t", n);
 		col = 8;
 	}
-	for (; l--; s++) {
-		if ((gflag & GLS) && ++col > cols) {
+	for (; l > 0;) {
+		if (!(gflag & GLS)) {
+			putchar(*s++);
+			l--;
+			continue;
+		}
+		/* GLS mode: try to decode a multibyte character */
+		memset(&mbs, 0, sizeof(mbs));
+		clen = mbrtowc(&wc, s, l, &mbs);
+		if (clen != (size_t)-1 && clen != (size_t)-2 &&
+		    clen > 1 && iswprint(wc) && (w = wcwidth(wc)) >= 0) {
+			/* printable multibyte character */
+			if (col + w > cols) {
+				fputs("\\\n", stdout);
+				col = 0;
+#ifndef BACKWARDS
+				if (!scripted && !isglobal && ++lc > rows) {
+					lc = 0;
+					fputs("Press <RETURN> to continue... ",
+					    stdout);
+					fflush(stdout);
+					if (get_tty_line() < 0)
+						return ERR;
+				}
+#endif
+			}
+			col += w;
+			fwrite(s, 1, clen, stdout);
+			s += clen;
+			l -= clen;
+			continue;
+		}
+		/* single byte: ASCII printable, escape sequence, or octal */
+		if (++col > cols) {
 			fputs("\\\n", stdout);
 			col = 1;
 #ifndef BACKWARDS
@@ -317,24 +353,22 @@ put_tty_line(const char *s, int l, long n, int gflag)
 			}
 #endif
 		}
-		if (gflag & GLS) {
-			if (31 < *s && *s < 127 && *s != '\\')
-				putchar(*s);
-			else {
-				putchar('\\');
-				col++;
-				if (*s && (cp = strchr(ESCAPES, *s)) != NULL)
-					putchar(ESCCHARS[cp - ESCAPES]);
-				else {
-					putchar((((unsigned char) *s & 0300) >> 6) + '0');
-					putchar((((unsigned char) *s & 070) >> 3) + '0');
-					putchar(((unsigned char) *s & 07) + '0');
-					col += 2;
-				}
-			}
-
-		} else
+		if (31 < *s && *s < 127 && *s != '\\')
 			putchar(*s);
+		else {
+			putchar('\\');
+			col++;
+			if (*s && (cp = strchr(ESCAPES, *s)) != NULL)
+				putchar(ESCCHARS[cp - ESCAPES]);
+			else {
+				putchar((((unsigned char) *s & 0300) >> 6) + '0');
+				putchar((((unsigned char) *s & 070) >> 3) + '0');
+				putchar(((unsigned char) *s & 07) + '0');
+				col += 2;
+			}
+		}
+		s++;
+		l--;
 	}
 #ifndef BACKWARDS
 	if (gflag & GLS)

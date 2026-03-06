@@ -331,6 +331,17 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_carp, OID_AUTO, stats, struct carpstats,
         (((sc)->sc_advskew + V_carp_demotion < 0) ?		\
         0 : ((sc)->sc_advskew + V_carp_demotion)))
 
+/*
+ * VRRPv3 priority is the inverse of CARP advskew: higher is better.
+ * Subtract the global demotion counter and clamp to [0, 254].
+ * Priority 255 (IP address owner) is never demoted.
+ */
+#define	DEMOTE_VRRP_PRIO(sc)					\
+    ((sc)->sc_vrrp_prio == 255 ? 255 :				\
+    (((int)(sc)->sc_vrrp_prio - V_carp_demotion < 0) ? 0 :	\
+    (((int)(sc)->sc_vrrp_prio - V_carp_demotion > 254) ? 254 :	\
+    (int)(sc)->sc_vrrp_prio - V_carp_demotion)))
+
 static void	carp_input_c(struct mbuf *, struct carp_header *, sa_family_t, int);
 static void	vrrp_input_c(struct mbuf *, int, sa_family_t, int, int, uint16_t);
 static struct carp_softc
@@ -1009,7 +1020,7 @@ vrrp_input_c(struct mbuf *m, int off, sa_family_t af, int ttl,
 		 * Same if the peer has a higher priority than us.
 		 */
 		if (ntohs(vh->vrrp_max_adver_int) < sc->sc_vrrp_adv_inter ||
-		    vh->vrrp_priority > sc->sc_vrrp_prio) {
+		    vh->vrrp_priority > DEMOTE_VRRP_PRIO(sc)) {
 			callout_stop(&sc->sc_ad_tmo);
 			carp_set_state(sc, BACKUP,
 			    "more frequent advertisement received");
@@ -1023,7 +1034,7 @@ vrrp_input_c(struct mbuf *m, int off, sa_family_t af, int ttl,
 		 * and this one claims to be slower, treat him as down.
 		 */
 		if (V_carp_preempt && (ntohs(vh->vrrp_max_adver_int) > sc->sc_vrrp_adv_inter
-		    || vh->vrrp_priority < sc->sc_vrrp_prio)) {
+		    || vh->vrrp_priority < DEMOTE_VRRP_PRIO(sc))) {
 			carp_master_down_locked(sc,
 			    "preempting a slower master");
 			break;
@@ -1359,7 +1370,7 @@ vrrp_send_ad_locked(struct carp_softc *sc)
 	    .vrrp_version = CARP_VERSION_VRRPv3,
 	    .vrrp_type = VRRP_TYPE_ADVERTISEMENT,
 	    .vrrp_vrtid = sc->sc_vhid,
-	    .vrrp_priority = sc->sc_vrrp_prio,
+	    .vrrp_priority = DEMOTE_VRRP_PRIO(sc),
 	    .vrrp_count_addr = 0,
 	    .vrrp_max_adver_int = htons(sc->sc_vrrp_adv_inter),
 	    .vrrp_checksum = 0,

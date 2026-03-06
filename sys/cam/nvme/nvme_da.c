@@ -73,12 +73,14 @@ typedef enum {
 	NDA_FLAG_OPEN		= 0x0001,
 	NDA_FLAG_DIRTY		= 0x0002,
 	NDA_FLAG_SCTX_INIT	= 0x0004,
+	NDA_FLAG_RESCAN		= 0x0008,
 } nda_flags;
 #define NDA_FLAG_STRING		\
 	"\020"			\
 	"\001OPEN"		\
 	"\002DIRTY"		\
-	"\003SCTX_INIT"
+	"\003SCTX_INIT"		\
+	"\004RESCAN"
 
 typedef enum {
 	NDA_Q_4K   = 0x01,
@@ -285,11 +287,60 @@ nda_nvme_rw_bio(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	nvme_ns_rw_cmd(&nvmeio->cmd, rwcmd, softc->nsid, lba, count);
 }
 
+static void
+ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
+{
+	struct disk *disk = softc->disk;
+	const struct nvme_namespace_data *nsd;
+	const struct nvme_controller_data *cd;
+	uint8_t flbas_fmt, lbads, vwc_present;
+	u_int flags;
+
+	nsd = nvme_get_identify_ns(periph);
+        cd = nvme_get_identify_cntrl(periph);
+
+	/*
+	 * Preserve flags we can't infer that were set before. UNMAPPED comes
+	 * from the PIM, so won't change after we set it the first
+	 * time. Subsequent times, we have to preserve it.
+	 */
+	flags = disk->d_flags & DISKFLAG_UNMAPPED_BIO;	/* Need to preserve */
+
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
+	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
+	disk->d_sectorsize = 1 << lbads;
+	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
+	disk->d_delmaxsize = disk->d_mediasize;
+	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
+	if (nvme_ctrlr_has_dataset_mgmt(cd))
+		disk->d_flags |= DISKFLAG_CANDELETE;
+	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
+	if (vwc_present)
+		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	disk->d_flags |= flags;
+}
+
+static void
+ndaopen_rescan_done(struct cam_periph *periph, union ccb *ccb)
+{
+	struct nda_softc *softc;
+
+	softc = (struct nda_softc *)periph->softc;
+
+	cam_periph_assert(periph, MA_OWNED);
+
+	softc->flags &= ~NDA_FLAG_RESCAN;
+	xpt_release_ccb(ccb);
+	wakeup(&softc->disk->d_mediasize);
+}
+
+
 static int
 ndaopen(struct disk *dp)
 {
 	struct cam_periph *periph;
 	struct nda_softc *softc;
+	union ccb *ccb;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
@@ -304,10 +355,37 @@ ndaopen(struct disk *dp)
 		return (error);
 	}
 
+	softc = (struct nda_softc *)periph->softc;
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("ndaopen\n"));
 
-	softc = (struct nda_softc *)periph->softc;
+	/*
+	 * Rescan the lun in case the mediasize or sectorsize has changed since
+	 * we probed the device. Format and secure erase operations can do this,
+	 * but the nvme standard doesn't require a async notification of that
+	 * happening. da/ada do this by restarting their probe, but since
+	 * nvme_xpt gets the identify information we need, we just rescan here
+	 * since it's the easiest way to notice size changes.
+	 *
+	 * Not acquiring / releasing for the geom probe -- it's inline
+	 */
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+	ccb->ccb_h.func_code = XPT_SCAN_LUN;
+	ccb->ccb_h.cbfcnp = ndaopen_rescan_done;
+	ccb->ccb_h.ppriv_ptr0 = periph;
+	ccb->crcn.flags = 0;
+	xpt_action(ccb);
+
+	softc->flags |= NDA_FLAG_RESCAN;
+	error = 0;
+	while ((softc->flags & NDA_FLAG_RESCAN) != 0 && error == 0)
+		error = cam_periph_sleep(periph, &softc->disk->d_mediasize, PRIBIO,
+		    "ndareprobe", 0);
+	if (error != 0)
+		xpt_print(periph->path, "Unable to retrieve capacity data\n");
+	else
+		ndasetgeom(softc, periph);
+
 	softc->flags |= NDA_FLAG_OPEN;
 
 	cam_periph_unhold(periph);
@@ -354,7 +432,7 @@ ndaclose(struct disk *dp)
 	    ("nda %d outstanding commands", softc->outstanding_cmds));
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
-	return (0);	
+	return (0);
 }
 
 static void
@@ -645,30 +723,6 @@ ndacleanup(struct cam_periph *periph)
 }
 
 static void
-ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
-{
-	struct disk *disk = softc->disk;
-	const struct nvme_namespace_data *nsd;
-	const struct nvme_controller_data *cd;
-	uint8_t flbas_fmt, lbads, vwc_present;
-
-	nsd = nvme_get_identify_ns(periph);
-        cd = nvme_get_identify_cntrl(periph);
-
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
-	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
-	disk->d_sectorsize = 1 << lbads;
-	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
-	disk->d_delmaxsize = disk->d_mediasize;
-	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
-	if (nvme_ctrlr_has_dataset_mgmt(cd))
-		disk->d_flags |= DISKFLAG_CANDELETE;
-	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cd->vwc);
-	if (vwc_present)
-		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
-}
-
-static void
 ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph = callback_arg;
@@ -706,27 +760,41 @@ ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	}
 	case AC_GETDEV_CHANGED:
 	{
-		int error;
+		off_t mediasize;
+		u_int sectorsize;
 
 		softc = periph->softc;
+		mediasize = softc->disk->d_mediasize;
+		sectorsize = softc->disk->d_sectorsize;
 		ndasetgeom(softc, periph);
-		error = disk_resize(softc->disk, M_NOWAIT);
-		if (error != 0) {
-			xpt_print(periph->path, "disk_resize(9) failed, error = %d\n", error);
-			break;
-		}
+		/*
+		 * If the sectorsize changed, then it's new media. Otherwise if
+		 * the media size changed, resize the existing disk. Otherwise
+		 * do nothing.
+		 */
+		if (sectorsize != softc->disk->d_sectorsize)
+			disk_media_changed(softc->disk, M_WAITOK);
+		else if (mediasize != softc->disk->d_mediasize)
+			disk_resize(softc->disk, M_WAITOK);
 		break;
-
 	}
 	case AC_ADVINFO_CHANGED:
 	{
 		uintptr_t buftype;
 
+		/*
+		 * Note: In theory, we could send CDAI_TYPE_NVME_* events here,
+		 * but instead the rescan code only sends more specific
+		 * AC_GETDEV_CHANGED. There's no way to generically get
+		 * notifications of changes to these structures from the drive
+		 * (though we could notice with memcmp). The automation in NVME
+		 * is at a much more granular level, so we leverage that.
+		 */
 		softc = periph->softc;
 		buftype = (uintptr_t)arg;
 		if (buftype == CDAI_TYPE_PHYS_PATH) {
 			disk_attr_changed(softc->disk, "GEOM::physpath",
-			    M_NOWAIT);
+			    M_WAITOK);
 		}
 		break;
 	}

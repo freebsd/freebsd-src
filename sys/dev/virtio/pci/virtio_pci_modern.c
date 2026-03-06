@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/module.h>
 
 #include <machine/bus.h>
@@ -188,8 +189,12 @@ static void	vtpci_modern_write_device_8(struct vtpci_modern_softc *,
 		    bus_size_t, uint64_t);
 
 /* Tunables. */
+SYSCTL_DECL(_hw_virtio_pci);
+
 static int vtpci_modern_transitional = 0;
-TUNABLE_INT("hw.virtio.pci.transitional", &vtpci_modern_transitional);
+SYSCTL_INT(_hw_virtio_pci, OID_AUTO, transitional, CTLFLAG_RDTUN,
+    &vtpci_modern_transitional, 0,
+    "If 0, a transitional VirtIO device is used in legacy mode; otherwise, in modern mode.");
 
 static device_method_t vtpci_modern_methods[] = {
 	/* Device interface. */

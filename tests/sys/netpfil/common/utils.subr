@@ -52,6 +52,7 @@ firewall_config()
 
 	if [ ${fw} == "ipfw" ]; then
 		jexec ${jname} ipfw -q -f flush
+		jexec ${jname} ipfw -q -f table all destroy
 		jexec ${jname} /bin/sh $cwd/ipfw.rule
 	elif [ ${fw} == "pf" ]; then
 		jexec ${jname} sysctl net.pf.filter_local=1
@@ -86,6 +87,8 @@ firewall_init()
 	if [ ${firewall} == "ipfw" ]; then
 		if ! kldstat -q -m ipfw; then
 			atf_skip "This test requires ipfw"
+		elif [ $(sysctl -n net.inet.ip.fw.default_to_accept) -ne 1 ]; then
+			atf_fail "ipfw tests require net.inet.ip.fw.default_to_accept=1 tunable"
 		fi
 	elif [ ${firewall} == "pf" ]; then
 		if [ ! -c /dev/pf ]; then

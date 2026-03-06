@@ -497,6 +497,66 @@ negative_demotion_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "vrrp_preempt" "cleanup"
+vrrp_preempt_head()
+{
+	atf_set descr 'Test VRRP preemption'
+	atf_set require.user root
+}
+
+vrrp_preempt_body()
+{
+	carp_init
+
+	epair1=$(vnet_mkepair)
+	epair2=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair1}a ${epair2}a
+	jexec one sysctl net.inet.carp.preempt=1
+	jexec one ifconfig ${epair1}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair1}a add vhid 1 carpver 3 192.0.2.254/24 \
+	    vrrpprio 10 pass foobar1
+	jexec one ifconfig ${epair2}a 192.0.3.1/24 up
+	jexec one ifconfig ${epair2}a add vhid 2 carpver 3 192.0.3.254/24 \
+	    vrrpprio 10 pass foobar2
+
+	vnet_mkjail two ${epair1}b ${epair2}b
+	jexec two sysctl net.inet.carp.preempt=1
+	jexec two ifconfig ${epair1}b 192.0.2.2/24 up
+	jexec two ifconfig ${epair2}b 192.0.3.2/24 up
+	jexec two ifconfig ${epair1}b add vhid 1 carpver 3 192.0.2.254/24 \
+	    vrrpprio 1 pass foobar1
+	jexec two ifconfig ${epair2}b add vhid 2 carpver 3 192.0.3.254/24 \
+	    vrrpprio 1 pass foobar2
+
+	# Allow things to settle
+	wait_for_carp one ${epair1}a two ${epair1}b
+	wait_for_carp one ${epair2}a two ${epair2}b
+
+	# Bring down one interface; preemption should demote the second interface too
+	jexec one ifconfig ${epair1}a down
+	sleep 3
+
+	if is_master one ${epair2}a
+	then
+		atf_fail "preemption did not affect the second interface"
+	fi
+
+	# Bring interface back up; one should reclaim master
+	jexec one ifconfig ${epair1}a up
+	sleep 3
+
+	if ! is_master one ${epair2}a
+	then
+		atf_fail "Priority router did not take its master role back"
+	fi
+}
+
+vrrp_preempt_cleanup()
+{
+	vnet_cleanup
+}
+
 
 
 atf_test_case "nd6_ns_source_mac" "cleanup"
@@ -596,5 +656,6 @@ atf_init_test_cases()
 	atf_add_test_case "unicast_ll_v6"
 	atf_add_test_case "negative_demotion"
 	atf_add_test_case "nd6_ns_source_mac"
+	atf_add_test_case "vrrp_preempt"
 	atf_add_test_case "switch"
 }

@@ -110,4 +110,34 @@
  */
 #define __nothing	(/*LINTED*/(void)0)
 
+#define __negative_p(x) (!((x) > 0) && ((x) != 0))
+
+#define __type_min_s(t) ((t)((1ULL << (sizeof(t) * __CHAR_BIT__ - 1))))
+#define __type_max_s(t) ((t)~((1ULL << (sizeof(t) * __CHAR_BIT__ - 1))))
+#define __type_min_u(t) ((t)0ULL)
+#define __type_max_u(t) ((t)~0ULL)
+#define __type_is_signed(t) (/*LINTED*/__type_min_s(t) + (t)1 < (t)1)
+#define __type_min(t) (__type_is_signed(t) ? __type_min_s(t) : __type_min_u(t))
+#define __type_max(t) (__type_is_signed(t) ? __type_max_s(t) : __type_max_u(t))
+
+
+#define __type_fit_u(t, a)						      \
+	(/*LINTED*/!__negative_p(a) &&					      \
+	    ((__UINTMAX_TYPE__)((a) + __zeroull()) <=			      \
+		(__UINTMAX_TYPE__)__type_max_u(t)))
+
+#define __type_fit_s(t, a)						      \
+	(/*LINTED*/__negative_p(a)					      \
+	    ? ((__INTMAX_TYPE__)((a) + __zeroll()) >=			      \
+		(__INTMAX_TYPE__)__type_min_s(t))			      \
+	    : ((__INTMAX_TYPE__)((a) + __zeroll()) >= (__INTMAX_TYPE__)0 &&   \
+		((__INTMAX_TYPE__)((a) + __zeroll()) <=			      \
+		    (__INTMAX_TYPE__)__type_max_s(t))))
+
+/*
+ * return true if value 'a' fits in type 't'
+ */
+#define __type_fit(t, a) (__type_is_signed(t) ? \
+    __type_fit_s(t, a) : __type_fit_u(t, a))
+
 #endif /* _LIBNETBSD_SYS_CDEFS_H_ */

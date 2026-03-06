@@ -93,6 +93,9 @@ struct hpts_diag {
 
 #ifdef _KERNEL
 
+void _tcp_hpts_softclock(void);
+extern void (*tcp_hpts_softclock)(void);
+
 extern struct tcp_hptsi *tcp_hptsi_pace;
 
 /*

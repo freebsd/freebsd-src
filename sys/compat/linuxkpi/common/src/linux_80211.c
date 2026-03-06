@@ -2004,7 +2004,7 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 	 * we set the BSS_CHANGED_BEACON_INFO on the non-teardown
 	 * path so make sure we only do run this check once we are
 	 * assoc. (*iv_recv_mgmt)() will be called before we enter
-	 * here so the ni will be updates with information from the
+	 * here so the ni will be updated with information from the
 	 * beacon via net80211::sta_recv_mgmt().  We also need to
 	 * make sure we do not do it on every beacon we still may
 	 * get so only do if something changed.  vif->bss_conf.dtim_period
@@ -2242,6 +2242,53 @@ lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	free(lchanctx, M_LKPI80211);
 }
 
+/* -------------------------------------------------------------------------- */
+
+/* Any other options belong here? Check more drivers. */
+#define	BSS_CHANGED_VIF_CFG_BITS					\
+    (BSS_CHANGED_SSID | BSS_CHANGED_IDLE | BSS_CHANGED_PS | BSS_CHANGED_ASSOC | \
+    BSS_CHANGED_ARP_FILTER | BSS_CHANGED_MLD_VALID_LINKS | BSS_CHANGED_MLD_TTLM)
+
+static void
+lkpi_bss_info_change(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    enum ieee80211_bss_changed bss_changed)
+{
+	struct lkpi_vif *lvif;
+	enum ieee80211_bss_changed vif_cfg_bits, link_info_bits;
+
+	if (ieee80211_vif_is_mld(vif)) {
+		TODO("This likely needs a subset only; split up into 3 parts.");
+	}
+
+	/* Nothing to do? */
+	if (bss_changed == 0)
+		return;
+
+	/*
+	 * If the vif is not known to the driver there is nothing to notifiy for.
+	 * We MUST NOT check for !lvif_bss_synched here (the reasonable it seems)
+	 * as we need to execute the update(s) or we will have follow-up issues.
+	 */
+	lvif = VIF_TO_LVIF(vif);
+	if (!lvif->added_to_drv)
+		return;
+
+	/*
+	 * With the advent of MLO bss_conf got split up into vif and link
+	 * change notfications, while historically it was one.
+	 * We now need to support all possible models.
+	 */
+	vif_cfg_bits = bss_changed & BSS_CHANGED_VIF_CFG_BITS;
+	if (vif_cfg_bits != 0)
+		lkpi_80211_mo_vif_cfg_changed(hw, vif, vif_cfg_bits, false);
+
+	link_info_bits = bss_changed & ~(BSS_CHANGED_VIF_CFG_BITS);
+	if (link_info_bits != 0)
+		lkpi_80211_mo_link_info_changed(hw, vif, &vif->bss_conf,
+		    link_info_bits, 0, false);
+
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+}
 
 /* -------------------------------------------------------------------------- */
 
@@ -2457,7 +2504,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* RATES */
 	IMPROVE("bss info: not all needs to come now and rates are missing");
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/*
 	 * Given ni and lsta are 1:1 from alloc to free we can assert that
@@ -2502,7 +2549,9 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* Start mgd_prepare_tx. */
 	memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-	prep_tx_info.duration = PREP_TX_INFO_DURATION;
+	prep_tx_info.duration = PREP_TX_INFO_DURATION;		/* SAE */
+	prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+	prep_tx_info.link_id = 0;
 	lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 	lsta->in_mgd = true;
 
@@ -2638,6 +2687,7 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	/* End mgd_complete_tx. */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
 		prep_tx_info.success = true;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
@@ -2648,7 +2698,8 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	/* Start mgd_prepare_tx. */
 	if (nstate == IEEE80211_S_ASSOC && !lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
@@ -2787,7 +2838,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	}
 
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* - change_chanctx (if needed)
 	 * - event_callback
@@ -2796,7 +2847,9 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* End mgd_complete_tx. (we do not have to check ostate == IEEE80211_S_ASSOC). */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = true;
+		prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.success = true;	/* Needs vif->cfg.assoc set! */
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
@@ -2845,7 +2898,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	bss_changed = 0;
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Prepare_multicast && configure_filter. */
 	lkpi_update_mcast_filter(vap->iv_ic);
@@ -2860,6 +2913,9 @@ out:
  * DOWN1
  * "to assoc" means we are going back to State 2 from State 4[/3].
  * This means ni still is authenticated, so we keep sta, chanctx, ..
+ * We will send a (Re)Assoc Request in case net80211 handles roadming.
+ * Note: this can be called as part of a DEAUTH going to State 1 as well,
+ * so for RoC prep_tx_info we need to check nstate (see run_to_{auth,scan,init}).
  */
 static int
 lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
@@ -2910,15 +2966,33 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* flush, drop. */
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
 
-	IMPROVE("What are the proper conditions for DEAUTH_NEED_MGD_TX_PREP?");
-	if (ieee80211_hw_check(hw, DEAUTH_NEED_MGD_TX_PREP) &&
-	    !lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = true;
+	/* We should make this a KASSERT. */
+	if (lsta->in_mgd) {
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p lsta %p in_mgd\n",
+		    __func__, __LINE__, lvif, vap, lsta);
 	}
+	/*
+	 * Problem is that we should hook into the tx/rx flow and not
+	 * try to re-model the state machine parts.  We may miss a SME
+	 * triggered frame this way.
+	 */
+	memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+	if (nstate == IEEE80211_S_ASSOC) {
+		if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
+			if (arg)
+				prep_tx_info.subtype = IEEE80211_STYPE_REASSOC_REQ;
+			else
+				prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		} else {
+			/* wpa_supplicant upon RTM_IEEE80211_LEAVE. */
+			prep_tx_info.subtype = IEEE80211_STYPE_DISASSOC;
+		}
+	} else
+		prep_tx_info.subtype = IEEE80211_STYPE_DEAUTH;
+	prep_tx_info.was_assoc = true;
+	prep_tx_info.link_id = 0;
+	lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
+	lsta->in_mgd = true;
 
 	wiphy_unlock(hw->wiphy);
 	IEEE80211_LOCK(vap->iv_ic);
@@ -2957,13 +3031,13 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), false);
 
 	/* End mgd_complete_tx. */
-	if (lsta->in_mgd) {
-		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
-		prep_tx_info.was_assoc = true;
-		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
-		lsta->in_mgd = false;
+	/* We should make this a KASSERT. */
+	if (!lsta->in_mgd) {
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p lsta %p !in_mgd\n",
+		    __func__, __LINE__, lvif, vap, lsta);
 	}
+	lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
+	lsta->in_mgd = false;
 
 #if 0
 	/* sync_rx_queues */
@@ -3047,6 +3121,7 @@ lkpi_sta_assoc_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	struct ieee80211_vif *vif;
 	struct ieee80211_node *ni;
 	struct lkpi_sta *lsta;
+	struct ieee80211_prep_tx_info prep_tx_info;
 	int error;
 
 	lhw = vap->iv_ic->ic_softc;
@@ -3076,6 +3151,20 @@ lkpi_sta_assoc_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	ni = lsta->ni;		/* Reference held for lvif_bss. */
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	/* End mgd_complete_tx. */
+	if (lsta->in_mgd && vap->iv_state == IEEE80211_S_ASSOC) {
+		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
+		prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
+		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
+		lsta->in_mgd = false;
+	} else if (lsta->in_mgd) {
+		ic_printf(vap->iv_ic, "%s:%d: in_mgd %d (%s) -> %d (%s) %d\n",
+		    __func__, __LINE__,
+		    vap->iv_state, ieee80211_state_name[vap->iv_state],
+		    nstate, ieee80211_state_name[nstate], arg);
+	}
 
 	/* Take the station down. */
 	/* Update sta_state (AUTH to NONE). */
@@ -3158,7 +3247,8 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* End mgd_complete_tx. */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
+		prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
@@ -3191,24 +3281,27 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	bss_changed = 0;
 	/*
-	 * Start updating bss info (bss_info_changed) (assoc, aid, ..).
+	 * Start updating bss info (*bss_info_changed) (assoc, aid, ..).
 	 *
-	 * One would expect this to happen when going off AUTHORIZED.
-	 * See comment there; removes the sta from fw if not careful
-	 * (bss_info_changed() change is executed right away).
+	 * One would expect this to happen when going off AUTHORIZED but
+	 * not so.
 	 *
-	 * We need to do this now, before sta changes to IEEE80211_STA_NOTEXIST
-	 * as otherwise drivers (iwlwifi at least) will silently not remove
-	 * the sta from the firmware and when we will add a new one trigger
-	 * a fw assert.
+	 * Immediately issuing the (*bss_info_changed) used to also remove the
+	 * sta from firmware for iwlwifi; or we have problems with the sta
+	 * silently not being removed and then crash upon the next sta add.
+	 * Neither seems to be the case or a problem still.
 	 *
-	 * The order which works best so far avoiding early removal or silent
-	 * non-removal seems to be (for iwlwifi::mld-mac80211.c cases;
-	 * the iwlwifi:mac80211.c case still to be tested):
-	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false (aid=0 side effect here)
-	 * 2) call the last sta_state update -> IEEE80211_STA_NOTEXIST
-	 *    (removes the sta given assoc is false)
-	 * 3) add the remaining BSS_CHANGED changes and call bss_info_changed()
+	 * Contrary for BE200 (iwlwifi/mld) if we do not issue the
+	 * (*vif_cfg_change) to tell FW that we are no longer assoc
+	 * it will crash now upon sta rm.  So the order now is as we once
+	 * expected it:
+	 *
+	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false and .aid=0
+	 * 2) add the remaining BSS_CHANGED changes and call (*bss_info_changed)
+	 *    (which may be split up into (*vif_cfg_change) and
+	 *    (*link_info_changed) for more modern drivers).
+	 * 3) call the last sta_state update -> IEEE80211_STA_NOTEXIST
+	 *    (removes the sta given assoc is false) and tidy up our lists.
 	 * 4) call unassign_vif_chanctx
 	 * 5) call lkpi_hw_conf_idle
 	 * 6) call remove_chanctx
@@ -3219,6 +3312,18 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= lkpi_disassoc(sta, vif, lhw);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	IMPROVE("Any bss_info changes to announce?");
+	vif->bss_conf.qos = false;
+	bss_changed |= BSS_CHANGED_QOS;
+	vif->cfg.ssid_len = 0;
+	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
+	bss_changed |= BSS_CHANGED_BSSID;
+	vif->bss_conf.use_short_preamble = false;
+	/* XXX BSS_CHANGED_???? */
+	vif->bss_conf.dtim_period = 0; /* go back to 0. */
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Adjust sta and change state (from NONE) to NOTEXIST. */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
@@ -3235,18 +3340,6 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_lsta_remove(lsta, lvif);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	IMPROVE("Any bss_info changes to announce?");
-	vif->bss_conf.qos = false;
-	bss_changed |= BSS_CHANGED_QOS;
-	vif->cfg.ssid_len = 0;
-	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
-	bss_changed |= BSS_CHANGED_BSSID;
-	vif->bss_conf.use_short_preamble = false;
-	/* XXX BSS_CHANGED_???? */
-	vif->bss_conf.dtim_period = 0; /* go back to 0. */
-	bss_changed |= BSS_CHANGED_BEACON_INFO;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	LKPI_80211_LVIF_LOCK(lvif);
 	/* Remove ni reference for this cache of lsta. */
@@ -3342,17 +3435,25 @@ lkpi_sta_a_to_a(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	/* End mgd_complete_tx. */
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.success = false;
+		if (vap->iv_state == IEEE80211_S_AUTH)
+			prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+		else
+			prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
 
-	/* Now start assoc. */
+	/* Now start auth/assoc. */
 
 	/* Start mgd_prepare_tx. */
 	if (!lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
-		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		if (nstate == IEEE80211_S_AUTH)
+			prep_tx_info.subtype = IEEE80211_STYPE_AUTH;
+		else
+			prep_tx_info.subtype = IEEE80211_STYPE_ASSOC_REQ;
+		prep_tx_info.link_id = 0;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
@@ -3508,7 +3609,7 @@ lkpi_iv_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	} else {
 		ic_printf(vap->iv_ic, "%s: only station mode currently supported: "
-		    "cap %p iv_opmode %d\n", __func__, vap, vap->iv_opmode);
+		    "vap %p iv_opmode %d\n", __func__, vap, vap->iv_opmode);
 		return (ENOSYS);
 	}
 
@@ -3602,7 +3703,7 @@ lkpi_wme_update(struct lkpi_hw *lhw, struct ieee80211vap *vap, bool planned)
 	struct chanAccParams chp;
 	struct wmeParams wmeparr[WME_NUM_AC];
 	struct ieee80211_tx_queue_params txqp;
-	enum ieee80211_bss_changed changed;
+	enum ieee80211_bss_changed bss_changed;
 	int error;
 	uint16_t ac;
 
@@ -3653,11 +3754,11 @@ lkpi_wme_update(struct lkpi_hw *lhw, struct ieee80211vap *vap, bool planned)
 			ic_printf(ic, "%s: conf_tx ac %u failed %d\n",
 			    __func__, ac, error);
 	}
-	changed = BSS_CHANGED_QOS;
+	bss_changed = BSS_CHANGED_QOS;
 	if (!planned)
-		lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
+		lkpi_bss_info_change(hw, vif, bss_changed);
 
-	return (changed);
+	return (bss_changed);
 }
 #endif
 
@@ -3723,7 +3824,7 @@ lkpi_iv_sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	 * locking, see if queue_work() is fast enough.
 	 */
 	bss_changed = lkpi_update_dtim_tsf(vif, ni, ni->ni_vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 }
 
 /*
@@ -3769,7 +3870,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	struct ieee80211vap *vap;
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_queue_params txqp;
-	enum ieee80211_bss_changed changed;
+	enum ieee80211_bss_changed bss_changed;
 	struct sysctl_oid *node;
 	size_t len;
 	int error, i;
@@ -3886,8 +3987,8 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 
 	/* Set bss_info. */
-	changed = 0;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
+	bss_changed = 0;
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Configure tx queues (conf_tx), default WME & send BSS_CHANGED_QOS. */
 	IMPROVE("Hardcoded values; to fix see 802.11-2016, 9.4.2.29 EDCA Parameter Set element");
@@ -3905,8 +4006,8 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 			    __func__, ac, error);
 	}
 	wiphy_unlock(hw->wiphy);
-	changed = BSS_CHANGED_QOS;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
+	bss_changed = BSS_CHANGED_QOS;
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Force MC init. */
 	lkpi_update_mcast_filter(ic);
@@ -8574,6 +8675,43 @@ linuxkpi_ieee80211_wake_queue(struct ieee80211_hw *hw, int qnum)
 	spin_unlock_irqrestore(&lhw->txq_lock, flags);
 }
 
+void
+linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
+    struct ieee80211_txq *txq)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+
+	LKPI_80211_LHW_TXQ_LOCK(lhw);
+	ieee80211_txq_schedule_start(hw, txq->ac);
+	do {
+		struct lkpi_txq *ltxq;
+		struct ieee80211_txq *ntxq;
+		struct ieee80211_tx_control control;
+		struct sk_buff *skb;
+
+		ntxq = ieee80211_next_txq(hw, txq->ac);
+		if (ntxq == NULL)
+			break;
+		ltxq = TXQ_TO_LTXQ(ntxq);
+
+		memset(&control, 0, sizeof(control));
+		control.sta = ntxq->sta;
+		do {
+			skb = linuxkpi_ieee80211_tx_dequeue(hw, ntxq);
+			if (skb == NULL)
+				break;
+			ltxq->frms_tx++;
+			lkpi_80211_mo_tx(hw, &control, skb);
+		} while(1);
+
+		ieee80211_return_txq(hw, ntxq, false);
+	} while (1);
+	ieee80211_txq_schedule_end(hw, txq->ac);
+	LKPI_80211_LHW_TXQ_UNLOCK(lhw);
+}
+
 /* -------------------------------------------------------------------------- */
 
 /* This is just hardware queues. */
@@ -8671,45 +8809,6 @@ unlock:
 
 out:
 	return;
-}
-
-/* -------------------------------------------------------------------------- */
-
-void
-linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
-    struct ieee80211_txq *txq)
-{
-	struct lkpi_hw *lhw;
-
-	lhw = HW_TO_LHW(hw);
-
-	LKPI_80211_LHW_TXQ_LOCK(lhw);
-	ieee80211_txq_schedule_start(hw, txq->ac);
-	do {
-		struct lkpi_txq *ltxq;
-		struct ieee80211_txq *ntxq;
-		struct ieee80211_tx_control control;
-		struct sk_buff *skb;
-
-		ntxq = ieee80211_next_txq(hw, txq->ac);
-		if (ntxq == NULL)
-			break;
-		ltxq = TXQ_TO_LTXQ(ntxq);
-
-		memset(&control, 0, sizeof(control));
-		control.sta = ntxq->sta;
-		do {
-			skb = linuxkpi_ieee80211_tx_dequeue(hw, ntxq);
-			if (skb == NULL)
-				break;
-			ltxq->frms_tx++;
-			lkpi_80211_mo_tx(hw, &control, skb);
-		} while(1);
-
-		ieee80211_return_txq(hw, ntxq, false);
-	} while (1);
-	ieee80211_txq_schedule_end(hw, txq->ac);
-	LKPI_80211_LHW_TXQ_UNLOCK(lhw);
 }
 
 /* -------------------------------------------------------------------------- */

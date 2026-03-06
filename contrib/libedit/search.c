@@ -1,4 +1,4 @@
-/*	$NetBSD: search.c,v 1.52 2024/06/30 16:26:30 christos Exp $	*/
+/*	$NetBSD: search.c,v 1.53 2025/12/14 18:07:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)search.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: search.c,v 1.52 2024/06/30 16:26:30 christos Exp $");
+__RCSID("$NetBSD: search.c,v 1.53 2025/12/14 18:07:40 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -300,7 +300,8 @@ ce_inc_search(EditLine *el, int dir)
 						break;
 					el->el_line.cursor +=
 					    el->el_search.patlen - LEN - 1;
-					cp = c__next_word(el->el_line.cursor,
+					cp = c__next_word(el,
+					    el->el_line.cursor,
 					    el->el_line.lastchar, 1,
 					    ce__isword);
 					while (el->el_line.cursor < cp &&

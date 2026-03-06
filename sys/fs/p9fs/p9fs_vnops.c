@@ -2084,6 +2084,11 @@ p9fs_rename(struct vop_rename_args *ap)
 		goto out;
 	}
 
+	if (ap->a_flags != 0) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
 	/* warning  if you are renaming to the same name */
 	if (fvp == tvp)
 		error = 0;

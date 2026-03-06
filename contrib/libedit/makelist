@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$NetBSD: makelist,v 1.29 2016/05/09 21:46:56 christos Exp $
+#	$NetBSD: makelist,v 1.31 2026/03/04 10:31:46 christos Exp $
 #
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -102,7 +102,7 @@ case $FLAG in
 		    fname = fname s;
 		}
 
-		printf("    { %-30.30s %-30.30s\n","L\"" fname "\",", uname ",");
+		printf("    { %-30.30s %-30.30s\n", uname ",", "L\"" fname "\",");
 		ok = 1;
 	    }
 	}

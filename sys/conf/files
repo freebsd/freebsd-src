@@ -3578,6 +3578,7 @@ dev/xdma/xdma_mbuf.c		optional xdma
 dev/xdma/xdma_queue.c		optional xdma
 dev/xdma/xdma_sg.c		optional xdma
 dev/xdma/xdma_sglist.c		optional xdma
+dev/xen/acpi/xen-acpi.c		optional xenhvm
 dev/xen/balloon/balloon.c	optional xenhvm
 dev/xen/blkfront/blkfront.c	optional xenhvm
 dev/xen/blkback/blkback.c	optional xenhvm

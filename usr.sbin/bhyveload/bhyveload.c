@@ -169,11 +169,9 @@ cb_open(void *arg __unused, const char *filename, void **hp)
 {
 	struct cb_file *cf;
 	struct stat sb;
-	int fd, flags;
+	int fd;
 
 	cf = NULL;
-	fd = -1;
-	flags = O_RDONLY | O_RESOLVE_BENEATH;
 	if (hostbase_fd == -1)
 		return (ENOENT);
 
@@ -185,19 +183,20 @@ cb_open(void *arg __unused, const char *filename, void **hp)
 	if (filename[0] == '\0')
 		filename = ".";
 
-	if (fstatat(hostbase_fd, filename, &sb, AT_RESOLVE_BENEATH) < 0)
-		return (errno);
-
-	if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode))
-		return (EINVAL);
-
-	if (S_ISDIR(sb.st_mode))
-		flags |= O_DIRECTORY;
-
 	/* May be opening the root dir */
-	fd = openat(hostbase_fd, filename, flags);
+	fd = openat(hostbase_fd, filename, O_RDONLY | O_RESOLVE_BENEATH);
 	if (fd < 0)
 		return (errno);
+
+	if (fstat(fd, &sb) < 0) {
+		int serrno = errno;
+
+		close(fd);
+		return (serrno);
+	} else if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode)) {
+		close(fd);
+		return (EINVAL);
+	}
 
 	cf = malloc(sizeof(struct cb_file));
 	if (cf == NULL) {
@@ -217,7 +216,6 @@ cb_open(void *arg __unused, const char *filename, void **hp)
 			return (ENOMEM);
 		}
 	} else {
-		assert(S_ISREG(cf->cf_stat.st_mode));
 		cf->cf_isdir = 0;
 		cf->cf_u.fd = fd;
 	}

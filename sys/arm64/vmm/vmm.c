@@ -98,7 +98,7 @@ static const struct vmm_regs vmm_arch_regs_masks = {
 	    ID_AA64DFR0_CTX_CMPs_MASK |
 	    ID_AA64DFR0_WRPs_MASK |
 	    ID_AA64DFR0_BRPs_MASK |
-	    ID_AA64DFR0_PMUVer_3 |
+	    ID_AA64DFR0_PMUVer_3_9 |
 	    ID_AA64DFR0_DebugVer_8,
 	.id_aa64isar0 =
 	    ID_AA64ISAR0_TLB_TLBIOSR |

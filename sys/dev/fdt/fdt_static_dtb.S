@@ -28,6 +28,13 @@
 
 #include "fdt_static_dtb.h"
 
+#if defined(__aarch64__)
+#include <sys/elf_common.h>
+#include <machine/asm.h>
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
+#endif
+
 .data
 .ascii "Device Tree Blob STARTS here"
 .global fdt_static_dtb

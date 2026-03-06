@@ -1,6 +1,8 @@
 /*	$OpenBSD: diff3prog.c,v 1.11 2009/10/27 23:59:37 deraadt Exp $	*/
 
 /*
+ * SPDX-License-Identifier: Caldera-no-preamble AND BSD-3-Clause
+ *
  * Copyright (C) Caldera International Inc.  2001-2002.
  * All rights reserved.
  *
@@ -62,19 +64,20 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <sys/capsicum.h>
 #include <sys/procdesc.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <getopt.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
-#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -87,14 +90,15 @@ struct range {
 	int to;
 };
 
+enum difftype {
+	DIFF_NONE,
+	DIFF_TYPE1,
+	DIFF_TYPE2,
+	DIFF_TYPE3,
+};
+
 struct diff {
-#define DIFF_TYPE1 1
-#define DIFF_TYPE2 2
-#define DIFF_TYPE3 3
-	int type;
-#if DEBUG
-	char *line;
-#endif	/* DEBUG */
+	enum difftype type;
 
 	/* Ranges as lines */
 	struct range old;
@@ -137,7 +141,7 @@ static const char *newmark = ">>>>>>>";
 static const char *divider = "=======";
 
 static bool duplicate(struct range *, struct range *);
-static int edit(struct diff *, bool, int, int);
+static int edit(struct diff *, bool, int, enum difftype);
 static char *getchange(FILE *);
 static char *get_line(FILE *, size_t *);
 static int readin(int fd, struct diff **);
@@ -155,7 +159,7 @@ static void increase(void);
 static void usage(void);
 static void printrange(FILE *, struct range *);
 
-static const char diff3_version[] = "FreeBSD diff3 20240925";
+static const char diff3_version[] = "FreeBSD diff3 20260213";
 
 enum {
 	DIFFPROG_OPT,
@@ -200,7 +204,7 @@ strtoi(char *str, char **end)
 	if ((end != NULL && *end == str) ||
 	    num < 0 || num > INT_MAX ||
 	    errno == EINVAL || errno == ERANGE)
-		err(1, "error in diff output");
+		err(2, "error in diff output");
 	return (int)num;
 }
 
@@ -256,9 +260,6 @@ readin(int fd, struct diff **dd)
 	for (i = 0; (p = getchange(f)) != NULL; i++) {
 		if ((size_t)i >= szchanges - 1)
 			increase();
-#if DEBUG
-		(*dd)[i].line = strdup(p);
-#endif	/* DEBUG */
 
 		a = b = strtoi(p, &p);
 		if (*p == ',')
@@ -268,7 +269,7 @@ readin(int fd, struct diff **dd)
 		if (*p == ',')
 			d = strtoi(p + 1, &p);
 		if (*p != '\n')
-			errx(1, "error in diff output");
+			errx(2, "error in diff output");
 		if (kind == 'a')
 			a++;
 		else if (kind == 'c')
@@ -276,11 +277,11 @@ readin(int fd, struct diff **dd)
 		else if (kind == 'd')
 			c++;
 		else
-			errx(1, "error in diff output");
+			errx(2, "error in diff output");
 		b++;
 		d++;
 		if (b < a || d < c)
-			errx(1, "error in diff output");
+			errx(2, "error in diff output");
 		(*dd)[i].old.from = a;
 		(*dd)[i].old.to = b;
 		(*dd)[i].new.from = c;
@@ -288,7 +289,7 @@ readin(int fd, struct diff **dd)
 		if (i > 0) {
 			if ((*dd)[i].old.from < (*dd)[i - 1].old.to ||
 			    (*dd)[i].new.from < (*dd)[i - 1].new.to)
-				errx(1, "diff output out of order");
+				errx(2, "diff output out of order");
 		}
 	}
 	if (i > 0) {
@@ -565,7 +566,7 @@ skip(int i, int from, const char *pr)
 
 	for (n = 0; cline[i] < from - 1; n += j) {
 		if ((line = get_line(fp[i], &j)) == NULL)
-			errx(EXIT_FAILURE, "logic error");
+			errx(2, "logic error");
 		if (pr != NULL)
 			printf("%s%s", Tflag == 1 ? "\t" : pr, line);
 		cline[i]++;
@@ -596,7 +597,7 @@ duplicate(struct range *r1, struct range *r2)
 			if (c == -1 && d == -1)
 				break;
 			if (c == -1 || d == -1)
-				errx(EXIT_FAILURE, "logic error");
+				errx(2, "logic error");
 			nchar++;
 			if (c != d) {
 				repos(nchar);
@@ -621,7 +622,7 @@ repos(int nchar)
  * collect an editing script for later regurgitation
  */
 static int
-edit(struct diff *diff, bool dup, int j, int difftype)
+edit(struct diff *diff, bool dup, int j, enum difftype difftype)
 {
 	if (!(eflag == EFLAG_UNMERGED ||
 		(!dup && eflag == EFLAG_OVERLAP ) ||
@@ -634,10 +635,6 @@ edit(struct diff *diff, bool dup, int j, int difftype)
 		overlapcnt++;
 
 	de[j].type = difftype;
-#if DEBUG
-	de[j].line = strdup(diff->line);
-#endif	/* DEBUG */
-
 	de[j].old.from = diff->old.from;
 	de[j].old.to = diff->old.to;
 	de[j].new.from = diff->new.from;
@@ -657,7 +654,7 @@ printrange(FILE *p, struct range *r)
 		return;
 
 	if (r->from > r->to)
-		errx(EXIT_FAILURE, "invalid print range");
+		errx(2, "invalid print range");
 
 	/*
 	 * XXX-THJ: We read through all of the file for each range printed.
@@ -872,8 +869,7 @@ mergescript(int i, int f1f3delta)
 			}
 			break;
 		default:
-			printf("Error: Unhandled diff type - exiting\n");
-			exit(EXIT_FAILURE);
+			__assert_unreachable();
 		}
 
 		if (de[n].type == DIFF_TYPE2)
@@ -886,11 +882,7 @@ mergescript(int i, int f1f3delta)
 	 * Print from the final range to the end of 'myfile'. Any deletions or
 	 * additions to this file should have been handled by now.
 	 */
-	new = &de[n-1].new;
-	old = &de[n-1].old;
-
 	r.from -= f1f3delta;
-
 	r.to = INT_MAX;
 	printrange(fp[2], &r);
 	exit(overlapcnt > 0);
@@ -910,27 +902,27 @@ increase(void)
 
 	p = reallocarray(d13, newsz, sizeof(*p));
 	if (p == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(p + szchanges, 0, incr * sizeof(*p));
 	d13 = p;
 	p = reallocarray(d23, newsz, sizeof(*p));
 	if (p == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(p + szchanges, 0, incr * sizeof(*p));
 	d23 = p;
 	p = reallocarray(de, newsz, sizeof(*p));
 	if (p == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(p + szchanges, 0, incr * sizeof(*p));
 	de = p;
 	q = reallocarray(overlap, newsz, 1);
 	if (q == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(q + szchanges, 0, incr * 1);
 	overlap = q;
 	s = reallocarray(de_delta, newsz, sizeof(*s));
 	if (s == NULL)
-		err(1, NULL);
+		err(2, NULL);
 	memset(s + szchanges, 0, incr * sizeof(*s));
 	de_delta = s;
 	szchanges = newsz;
@@ -1109,5 +1101,5 @@ main(int argc, char **argv)
 
 	merge(m, n);
 
-	return (EXIT_SUCCESS);
+	exit(0);
 }

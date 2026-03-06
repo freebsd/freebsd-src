@@ -336,6 +336,7 @@ vop_rename {
 	IN WILLRELE struct vnode *tdvp;
 	IN WILLRELE struct vnode *tvp;
 	IN struct componentname *tcnp;
+	IN u_int flags;
 };
 
 
@@ -845,6 +846,14 @@ vop_inotify_add_watch {
 	OUT uint32_t *wdp;
 	IN struct thread *td;
 };
+
+
+%% delayed_setsize	vp	E E E
+
+vop_delayed_setsize {
+	IN struct vnode *vp;
+};
+
 
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should

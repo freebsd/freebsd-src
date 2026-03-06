@@ -632,7 +632,7 @@ static const struct mrs_field id_aa64dfr0_fields[] = {
 	MRS_FIELD(ID_AA64DFR0, PMSS, false, MRS_LOWER, 0, id_aa64dfr0_pmss),
 	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64dfr0_brps),
-	MRS_FIELD(ID_AA64DFR0, PMUVer, true, MRS_LOWER, 0, id_aa64dfr0_pmuver),
+	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_LOWER, 0, id_aa64dfr0_pmuver),
 	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_LOWER, 0,
 	    id_aa64dfr0_tracever),
 	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_LOWER | MRS_SAFE(0x6), 0,

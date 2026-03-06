@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 15, 2021
+.Dd February 19, 2026
 .Dt LPD 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl cdlpsFW46
+.Op Fl t Ar timeout
 .Op Ar port#
 .Sh DEPRECATION NOTICE
 This facility is scheduled for removal prior to the release of
@@ -108,6 +109,11 @@ This means that
 will not accept any connections from any remote
 hosts, although it will still accept print requests
 from all local users.
+.It Fl t Ar timeout
+Set the network receive timeout for client connections to
+.Ar timeout
+seconds.
+The default is 120.
 .It Fl F
 By default,
 .Nm

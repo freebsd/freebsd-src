@@ -185,19 +185,8 @@ const struct tcp_hptsi_funcs tcp_hptsi_default_funcs = {
 static MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 
 static void tcp_hpts_thread(void *ctx);
+static volatile uint32_t __read_frequently hpts_that_need_softclock;
 
-/*
- * When using the hpts, a TCP stack must make sure
- * that once a INP_DROPPED flag is applied to a INP
- * that it does not expect tcp_output() to ever be
- * called by the hpts. The hpts will *not* call
- * any output (or input) functions on a TCB that
- * is in the DROPPED state.
- *
- * This implies final ACK's and RST's that might
- * be sent when a TCB is still around must be
- * sent from a routine like tcp_respond().
- */
 #define LOWEST_SLEEP_ALLOWED 50
 #define DEFAULT_MIN_SLEEP 250	/* How many usec's is default for hpts sleep
 				 * this determines min granularity of the
@@ -1572,12 +1561,15 @@ tcp_choose_hpts_to_run(struct tcp_hptsi *pace)
 		return(pace->rp_ent[(curcpu % pace->rp_num_hptss)]);
 }
 
-static void
-__tcp_run_hpts(void)
+void
+_tcp_hpts_softclock(void)
 {
 	struct epoch_tracker et;
 	struct tcp_hpts_entry *hpts;
 	int slots_ran;
+
+	if (hpts_that_need_softclock == 0)
+		return;
 
 	hpts = tcp_choose_hpts_to_run(tcp_hptsi_pace);
 
@@ -1619,7 +1611,7 @@ __tcp_run_hpts(void)
 			}
 			/*
 			 * In this mode the timer is a backstop to
-			 * all the userret/lro_flushes so we use
+			 * all the lro_flushes so we use
 			 * the dynamic value and set the on_min_sleep
 			 * flag so we will not be awoken.
 			 */
@@ -1745,7 +1737,7 @@ tcp_hpts_thread(void *ctx)
 		}
 		/*
 		 * In this mode the timer is a backstop to
-		 * all the userret/lro_flushes so we use
+		 * all the lro_flushes so we use
 		 * the dynamic value and set the on_min_sleep
 		 * flag so we will not be awoken.
 		 */
@@ -2136,9 +2128,6 @@ tcp_hpts_mod_load(void)
 	/* Start the threads */
 	tcp_hptsi_start(tcp_hptsi_pace);
 
-	/* Enable the global HPTS softclock function */
-	tcp_hpts_softclock = __tcp_run_hpts;
-
 	/* Initialize LRO HPTS */
 	tcp_lro_hpts_init();
 
@@ -2165,9 +2154,6 @@ static void
 tcp_hpts_mod_unload(void)
 {
 	tcp_lro_hpts_uninit();
-
-	/* Disable the global HPTS softclock function */
-	atomic_store_ptr(&tcp_hpts_softclock, NULL);
 
 	tcp_hptsi_stop(tcp_hptsi_pace);
 	tcp_hptsi_destroy(tcp_hptsi_pace);
@@ -2197,8 +2183,7 @@ tcp_hpts_mod_event(module_t mod, int what, void *arg)
 		/*
 		 * Since we are a dependency of TCP stack modules, they should
 		 * already be unloaded, and the HPTS ring is empty.  However,
-		 * function pointer manipulations aren't 100% safe.  Although,
-		 * tcp_hpts_mod_unload() use atomic(9) the userret() doesn't.
+		 * function pointer manipulations aren't 100% safe.
 		 * Thus, allow only forced unload of HPTS.
 		 */
 		return (EBUSY);

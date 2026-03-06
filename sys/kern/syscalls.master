@@ -3420,5 +3420,13 @@
 		    _Out_opt_ _Contains_long_ptr_ struct __siginfo *info
 		);
 	}
-
+602	AUE_RENAMEAT	STD|CAPENABLED {
+		int renameat2(
+		    int oldfd,
+		    _In_z_ const char *old,
+		    int newfd,
+		    _In_z_ const char *new,
+		    int flags
+		);
+	}
 ; vim: syntax=off

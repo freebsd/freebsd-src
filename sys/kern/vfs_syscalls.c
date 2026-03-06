@@ -3720,7 +3720,7 @@ sys_rename(struct thread *td, struct rename_args *uap)
 {
 
 	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
-	    uap->to, UIO_USERSPACE));
+	    uap->to, UIO_USERSPACE, 0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -3736,7 +3736,15 @@ sys_renameat(struct thread *td, struct renameat_args *uap)
 {
 
 	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
-	    UIO_USERSPACE));
+	    UIO_USERSPACE, 0));
+}
+
+int
+sys_renameat2(struct thread *td, struct renameat2_args *uap)
+{
+
+	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
+	    UIO_USERSPACE, uap->flags));
 }
 
 #ifdef MAC
@@ -3766,7 +3774,7 @@ kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
 
 int
 kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
-    const char *new, enum uio_seg pathseg)
+    const char *new, enum uio_seg pathseg, u_int flags)
 {
 	struct mount *mp, *tmp;
 	struct vnode *tvp, *fvp, *tdvp;
@@ -3775,6 +3783,8 @@ kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 	int error;
 	short irflag;
 
+	if ((flags & ~(AT_RENAME_NOREPLACE)) != 0)
+		return (EINVAL);
 again:
 	tmp = mp = NULL;
 	bwillwrite();
@@ -3810,6 +3820,19 @@ again:
 	}
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
+	if (tvp != NULL && (flags & AT_RENAME_NOREPLACE) != 0) {
+		/*
+		 * Often filesystems need to relock the vnodes in
+		 * VOP_RENAME(), which opens a window for invalidation
+		 * of this check.  Then, not all filesystems might
+		 * implement AT_RENAME_NOREPLACE.  This leads to
+		 * situation where sometimes EOPNOTSUPP might be
+		 * returned from the VOP due to race, while most of
+		 * the time this check works.
+		 */
+		error = EEXIST;
+		goto out;
+	}
 	error = vn_start_write(fvp, &mp, V_NOWAIT);
 	if (error != 0) {
 again1:
@@ -3887,7 +3910,7 @@ again1:
 out:
 	if (error == 0) {
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
-		    tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
+		    tond.ni_dvp, tond.ni_vp, &tond.ni_cnd, flags);
 		NDFREE_PNBUF(&fromnd);
 		NDFREE_PNBUF(&tond);
 	} else {
@@ -3902,9 +3925,12 @@ out:
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
 	}
-	lockmgr(&tmp->mnt_renamelock, LK_RELEASE, 0);
-	vfs_rel(tmp);
-	vn_finished_write(mp);
+	if (tmp != NULL) {
+		lockmgr(&tmp->mnt_renamelock, LK_RELEASE, 0);
+		vfs_rel(tmp);
+	}
+	if (mp != NULL)
+		vn_finished_write(mp);
 out1:
 	if (error == ERESTART)
 		return (0);
