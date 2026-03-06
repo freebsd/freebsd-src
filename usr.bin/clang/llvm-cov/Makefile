@@ -1,7 +1,7 @@
 .include <src.opts.mk>
 
 PROG_CXX=	llvm-cov
-LINKS=		${BINDIR}/llvm-cov	${BINDIR}/gcov
+SYMLINKS=	llvm-cov	${BINDIR}/gcov
 MLINKS=		llvm-cov.1		gcov.1
 
 SRCDIR=		llvm/tools/llvm-cov
