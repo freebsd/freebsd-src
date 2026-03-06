@@ -22,9 +22,4 @@ DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
-.if ${MK_LLVM_BINUTILS} != "no"
-SYMLINKS=	llvm-cxxfilt ${BINDIR}/c++filt
-MLINKS=		llvm-cxxfilt.1 c++filt.1
-.endif
-
 .include "../llvm.prog.mk"
