@@ -9,6 +9,7 @@ SUBDIR=	\
 	acpi_panasonic \
 	acpi_sbl_wmi \
 	acpi_sony \
+	acpi_system76 \
 	acpi_toshiba \
 	acpi_video \
 	acpi_wmi \
