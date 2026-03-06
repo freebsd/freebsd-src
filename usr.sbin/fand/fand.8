@@ -56,7 +56,7 @@ daemon can be used to control a cooling fan connected to a
 based on the system temperature retrived from a
 .Xr sysctl 3
 .Ar temperature_sensor
-. Low and high termperature thresholds can be configured, each with separate
+. Low and high temperature thresholds can be configured, each with separate
 PWM parameters.
 .Pp
 .Ar temperature_sensor
@@ -79,7 +79,7 @@ The options are as follows:
 .Bl -tag -width "-t temperature"
 
 .It Fl c Ar profile
-The name of the cooling profile to use. Default to none. Conflict with the
+The name of the cooling profile to use. Defaults to none. Conflicts with the
 .Fl d ,
 .Fl D ,
 .Fl t ,
@@ -97,7 +97,7 @@ options.
 The duty cycle (in nanoseconds or percentage) of the PWM channel for the
 default (low) temperature threshold. Duty is the portion of the
 .Ar period
-during which the signal is asserted. Conflict with the
+during which the signal is asserted. Conflicts with the
 .Fl c
 option.
 
@@ -105,7 +105,7 @@ option.
 The duty cycle (in nanoseconds or percentage) of the PWM channel for the
 high temperature threshold. Duty is the portion of the
 .Ar period
-during which the signal is asserted. Conflict with the
+during which the signal is asserted. Conflicts with the
 .Fl c
 option.
 
@@ -121,7 +121,7 @@ The temperature polling interval, in seconds (Default: 60)
 Invert PWM signal polarity
 
 .It Fl K
-Converts the temperature sensor reading from degrees Kelvin. Conflict with the
+Converts the temperature sensor reading from Kelvin. Conflicts with the
 .Fl c
 option.
 
@@ -129,19 +129,19 @@ option.
 Multiplier applied to reading from temperature sensor (Default: 1.0)
 
 .It Fl o Ar temperature
-Temperature to deactivate fan, in °C. Default to 50°C. Conflict with the
+Temperature to deactivate fan, in degrees Celsius. Defaults to 50 °C. Conflicts with the
 .Fl c
 option.
 
 .It Fl p Ar period
 The period in nanoseconds of the PWM channel for the default (low) temperature
-threshold. Default to 0. Conflict with the
+threshold. Defaults to 0. Conflicts with the
 .Fl c
 option.
 
 .It Fl P Ar period
 The period in nanoseconds of the PWM channel for the high temperature threshold
-Default to 0. Conflict with the
+Defaults to 0. Conflicts with the
 .Fl c
 option.
 
@@ -153,12 +153,12 @@ The PID file path
 Show current temperature and PWM status, then exit.
 
 .It Fl t Ar temperature
-Default (low) temperature to enable the fan, in °C. Default to 50°C. Conflict with the
+Default (low) temperature to enable the fan, in degrees Celsius. Defaults to 50 °C. Conflicts with the
 .Fl c
 option.
 
 .It Fl T Ar temperature
-High temperature threshold, in °C. Default to none. Conflict with the
+High temperature threshold, in degrees Celsius. Defaults to none. Conflicts with the
 .Fl c
 option.
 
@@ -170,9 +170,9 @@ Print program version and exit
 .Bl -bullet
 .It
 Using the "hw.temp.CPU" sensor and the pwmc1.0 controller, run the fan
-at half duty cycle when the temperature reaches 45C and run at full when the
-temperature rises above 60C. Disable the fan if the temperature falls below
-35C. When reading from the sensor, assume value is in tenth degrees Kelvin.
+at half duty cycle when the temperature reaches 45 °C and run at full when the
+temperature rises above 60 °C. Disable the fan if the temperature falls below
+35 °C. When reading from the sensor, assume value is in tenth Kelvin.
 .Bd -literal
 fand -t 45 -p 50000 -d "50%" -T 60 -o 35 -K -m 0.1 hw.temp.CPU pwmc1.0
 .Ed
@@ -180,6 +180,7 @@ fand -t 45 -p 50000 -d "50%" -T 60 -o 35 -K -m 0.1 hw.temp.CPU pwmc1.0
 .Sh SEE ALSO
 .Xr sysctl 8 ,
 .Xr pwm 8
+.Xr rc.conf 5
 .Sh AUTHORS
 .An -nosplit
 The

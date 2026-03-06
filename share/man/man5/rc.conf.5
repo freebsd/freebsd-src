@@ -355,6 +355,120 @@ Use
 instead.
 A whitespace-separated list of kernel modules to be ignored by
 .Xr devmatch 8 .
+.It Va fand_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable the system fan control facility with the
+.Xr fand 8
+daemon.
+.It Va fand_list
+.Pq Vt str
+A whitespace-separated list of fand configuration names.
+See the
+.Pa fand_NAME_*
+variables.
+.It Va fand_*_device
+.Pq Vt str
+The pwmc fan controller device.
+E.g.,
+.Pa pwmc1.0 .
+This devices are found in
+.Pa /dev/pwm/ .
+.It Va fand_*_flags
+.Pq Vt str
+Additional command options to pass to fand.
+Unset by default.
+.It Va fand_*_hi_duty
+.Pq Vt str
+High duty cycle as a duration in nanoseconds or as a percentage.
+Unset by default.
+Conflicts with
+.Va fand_*_profile .
+.It Va fand_*_hi_period
+.Pq Vt int
+The period in nanoseconds of the high duty cycle
+.Pq Vt hi_duty
+is enabled.
+Unset by default.
+Conflicts with
+.Va fand_*_profile .
+.It Va fand_*_hi_temp
+.Pq Vt int
+Temperature at which the fan is enabled with the high duty cycle
+.Pq Vt hi_duty .
+Unset by default.
+Conflicts with
+.Va fand_*_profile .
+.It Va fand_*_invpol
+.Pq Vt bool
+Set to
+.Dq Li YES
+to invert PWM polarity.
+Defaults to
+.Dq Li NO .
+.It Va fand_*_kelvin
+.Pq Vt bool
+Set to
+.Dq Li YES
+if the temperature sensor is in Kelvin.
+Otherwise temperature is in degrees Celsius.
+Defaults to
+.Dq Li YES .
+.It Va fand_*_lo_duty
+.Pq Vt str
+Low duty cycle as a duration in nanoseconds or as a percentage.
+Defaults to 0.
+Conflicts with
+.Va fand_*_profile .
+.It Va fand_*_lo_period
+.Pq Vt int
+The period in nanoseconds of the low duty cycle
+.Pq Vt lo_duty
+is enabled.
+Defaults to 0.
+Conflicts with
+.Va fand_*_profile .
+.It Va fand_*_lo_temp
+.Pq Vt int
+Temperature at which the fan is enabled with the low duty cycle
+.Pq Vt lo_duty .
+Defaults to 50.
+Conflicts with
+.Va fand_*_profile .
+.It Va fand_*_multiplier
+.Pq Vt float
+A multiplier to apply to the reported temperatures.
+Defaults to 1.0.
+.It Va fand_*_off_temp
+.Pq Vt int
+Temperature at which the fan is disabled.
+Defaults to 35.
+Conflicts with
+.Va fand_*_profile .
+.It Va fand_*_pollint
+.Pq Vt int
+Temperature polling interval in seconds.
+Defaults to 60.
+.It Va fand_*_profile
+.Pq Vt str
+Cooling profile.
+Unset by default.
+Conflicts with:
+.Va fand_*_hi_duty ,
+.Va fand_*_hi_period ,
+.Va fand_*_hi_temp ,
+.Va fand_*_lo_duty ,
+.Va fand_*_lo_period ,
+.Va fand_*_lo_temp
+and
+.Va fand_*_off_temp .
+.It Va fand_*_sensor
+.Pq Vt str
+.Xr sysctl 8
+variable used to read temperature.
+E.g.,
+.Pa hw.temp.CPU .
 .It Va kld_list
 .Pq Vt str
 A whitespace-separated list of kernel modules to load right after

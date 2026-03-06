@@ -204,7 +204,7 @@ static void print_cprofile(void)
 	printf("    Low Duty: %u ns\n", cprofile.lo_duty);
 	printf("    Steps:\n");
 	for (; step < step_end; step++)
-		printf("        %.2f%s → %u ns\n", step->temp, temp_unit,
+		printf("        %.2f %s → %u ns\n", step->temp, temp_unit,
 		       step->duty);
 }
 
@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
 			     " use -h to display usage", optopt);
 		}
 	}
-	temp_unit = (offset == 0 ? "°C" : " K");
+	temp_unit = (offset == 0 ? "°C" : "K");
 	if (show_cprofile) {
 		print_cprofile();
 		exit(EX_OK);
@@ -424,7 +424,7 @@ int main(int argc, char *argv[])
 			    temp_name);
 
 		if (!daemonize)
-			warnx("Current Temperature: %.2f%s", temp, temp_unit);
+			warnx("Current Temperature: %.2f %s", temp, temp_unit);
 
 		if (use_cprofile) /* Apply the cooling profile */
 			apply_cprofile(temp, &current_state, &new_state);
