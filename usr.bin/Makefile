@@ -248,6 +248,7 @@ SUBDIR.${MK_TFTP}+=	tftp
 # Only build the elftoolchain tools if we aren't using the LLVM ones.
 SUBDIR.${MK_TOOLCHAIN}+=	addr2line
 SUBDIR.${MK_TOOLCHAIN}+=	ar
+SUBDIR.${MK_TOOLCHAIN}+=	cxxfilt
 SUBDIR.${MK_TOOLCHAIN}+=	nm
 SUBDIR.${MK_TOOLCHAIN}+=	readelf
 SUBDIR.${MK_TOOLCHAIN}+=	size
@@ -255,7 +256,6 @@ SUBDIR.${MK_TOOLCHAIN}+=	size
 SUBDIR.${MK_TOOLCHAIN}+=	c89
 SUBDIR.${MK_TOOLCHAIN}+=	c99
 SUBDIR.${MK_TOOLCHAIN}+=	ctags
-SUBDIR.${MK_TOOLCHAIN}+=	cxxfilt
 # ELF Tool Chain elfcopy required for EFI objects (PR280771)
 SUBDIR.${MK_TOOLCHAIN}+=	elfcopy
 SUBDIR.${MK_TOOLCHAIN}+=	file2c
