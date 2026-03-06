@@ -178,6 +178,9 @@ device		acpi_sbl_wmi
 # ACPI Sony extra (LCD brightness)
 device		acpi_sony
 
+# ACPI System76 extra (Keyboard brightness, Keyboard color)
+device		acpi_system76
+
 # ACPI Toshiba Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_toshiba
 
