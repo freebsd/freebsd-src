@@ -24,7 +24,7 @@ required_modules="cuse"
 
 configs=
 pidpath="/var/run/${name}"
-default_unit=$(sysctl -n hw.snd.default_unit)
+default_unit=$(sysctl -n hw.snd.default_unit 2> /dev/null)
 virtual_oss_default_args="\
 	-S \
 	-C 2 \
