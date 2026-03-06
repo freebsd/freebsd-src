@@ -1,6 +1,5 @@
 .include <src.opts.mk>
 
-PACKAGE=	toolchain
 PROG_CXX=	llvm-nm
 
 SRCDIR=		llvm/tools/llvm-nm
@@ -22,10 +21,5 @@ TGHDRS+=	${INCFILE}
 DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
-
-.if ${MK_LLVM_BINUTILS} != "no"
-SYMLINKS+=	llvm-nm ${BINDIR}/nm
-MLINKS+=	llvm-nm.1 nm.1
-.endif
 
 .include "../llvm.prog.mk"

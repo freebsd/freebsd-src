@@ -35,9 +35,4 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LINKS+=		${BINDIR}/llvm-readobj ${BINDIR}/llvm-readelf
 
-.if ${MK_LLVM_BINUTILS} != "no"
-SYMLINKS+=	llvm-readelf ${BINDIR}/readelf
-MLINKS+=		llvm-readelf.1 readelf.1
-.endif
-
 .include "../llvm.prog.mk"

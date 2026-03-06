@@ -3052,7 +3052,8 @@ _clang_libs=	lib/clang
 _llvm_binutils=	usr.bin/clang/llvm-ar \
 		usr.bin/clang/llvm-nm \
 		usr.bin/clang/llvm-objcopy \
-		usr.bin/clang/llvm-size
+		usr.bin/clang/llvm-size \
+		usr.bin/clang/toolchain
 .endif
 .if ${MK_USB} != "no"
 _usb_tools=	stand/usb/tools
