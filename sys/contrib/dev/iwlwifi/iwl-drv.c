@@ -195,9 +195,10 @@ static inline char iwl_drv_get_step(int step)
 	return 'a' + step;
 }
 
-static bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans)
+bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans)
 {
-	return CSR_HW_RFID_TYPE(trans->info.hw_rf_id) >= IWL_CFG_RF_TYPE_FM;
+	return trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ &&
+	       CSR_HW_RFID_TYPE(trans->info.hw_rf_id) >= IWL_CFG_RF_TYPE_FM;
 }
 
 const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
@@ -355,10 +356,18 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -EINVAL;
 	}
 
+	if (CSR_HW_RFID_TYPE(drv->trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_WH &&
+	    CSR_HW_RFID_STEP(drv->trans->info.hw_rf_id) == SILICON_A_STEP) {
+		IWL_ERR(drv, "WH A step is not supported\n");
+		return -EINVAL;
+	}
+
 	fw_name_pre = iwl_drv_get_fwname_pre(drv->trans, _fw_name_pre);
 
 	if (first)
 		drv->fw_index = ucode_api_max;
+	else if (drv->fw_index == ENCODE_CORE_AS_API(100))
+		drv->fw_index = 102; /* last API-scheme number below core 100 */
 	else
 		drv->fw_index--;
 
@@ -366,13 +375,15 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		IWL_ERR(drv, "no suitable firmware found!\n");
 
 		if (ucode_api_min == ucode_api_max) {
-			IWL_ERR(drv, "%s-%d is required\n", fw_name_pre,
-				ucode_api_max);
+			IWL_ERR(drv, "%s-" FW_API_FMT " is required\n",
+				fw_name_pre, FW_API_ARG(ucode_api_max));
 		} else {
-			IWL_ERR(drv, "minimum version required: %s-%d\n",
-				fw_name_pre, ucode_api_min);
-			IWL_ERR(drv, "maximum version supported: %s-%d\n",
-				fw_name_pre, ucode_api_max);
+			IWL_ERR(drv,
+				"minimum version required: %s-" FW_API_FMT "\n",
+				fw_name_pre, FW_API_ARG(ucode_api_min));
+			IWL_ERR(drv,
+				"maximum version supported: %s-" FW_API_FMT "\n",
+				fw_name_pre, FW_API_ARG(ucode_api_max));
 		}
 
 		IWL_ERR(drv,
@@ -383,8 +394,9 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -ENOENT;
 	}
 
-	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s-%d.ucode",
-		 fw_name_pre, drv->fw_index);
+	snprintf(drv->firmware_name, sizeof(drv->firmware_name),
+		 "%s-" FW_API_FMT ".ucode",
+		 fw_name_pre, FW_API_ARG(drv->fw_index));
 
 	IWL_DEBUG_FW_INFO(drv, "attempting to load firmware '%s'\n",
 			  drv->firmware_name);
@@ -437,7 +449,6 @@ struct iwl_firmware_pieces {
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv;
 	size_t n_mem_tlv;
-	u32 major;
 };
 
 static void alloc_sec_data(struct iwl_firmware_pieces *pieces,
@@ -1079,19 +1090,19 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			break;
 		case IWL_UCODE_TLV_FW_VERSION: {
 			const __le32 *ptr = (const void *)tlv_data;
-			u32 minor;
+			u32 major, minor;
 			u8 local_comp;
 
 			if (tlv_len != sizeof(u32) * 3)
 				goto invalid_tlv_len;
 
-			pieces->major = le32_to_cpup(ptr++);
+			major = le32_to_cpup(ptr++);
 			minor = le32_to_cpup(ptr++);
 			local_comp = le32_to_cpup(ptr);
 
 			snprintf(drv->fw.fw_version,
 				 sizeof(drv->fw.fw_version),
-				 "%u.%08x.%u %s", pieces->major, minor,
+				 "%u.%08x.%u %s", major, minor,
 				 local_comp, iwl_reduced_fw_name(drv));
 			break;
 			}
@@ -1611,8 +1622,6 @@ static void _iwl_op_mode_stop(struct iwl_drv *drv)
 	}
 }
 
-#define IWL_MLD_SUPPORTED_FW_VERSION 97
-
 /*
  * iwl_req_fw_callback - callback when firmware was loaded
  *
@@ -1621,6 +1630,7 @@ static void _iwl_op_mode_stop(struct iwl_drv *drv)
  */
 static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 {
+	int min_core, max_core, loaded_core;
 	struct iwl_drv *drv = context;
 	struct iwl_fw *fw = &drv->fw;
 	const struct iwl_ucode_header *ucode;
@@ -1683,11 +1693,24 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * firmware filename ... but we don't check for that and only rely
 	 * on the API version read from firmware header from here on forward
 	 */
-	if (api_ver < api_min || api_ver > api_max) {
+
+	/*
+	 * if -cN.ucode file was loaded, core version == file version,
+	 * otherwise core version == file version (API version) - 3
+	 */
+	if (iwl_api_is_core_number(drv->fw_index))
+		loaded_core = api_ver;
+	else
+		loaded_core = api_ver - API_TO_CORE_OFFS;
+
+	min_core = iwl_api_to_core(api_min);
+	max_core = iwl_api_to_core(api_max);
+
+	if (loaded_core < min_core || loaded_core > max_core) {
 		IWL_ERR(drv,
 			"Driver unable to support your firmware API. "
-			"Driver supports v%u, firmware is v%u.\n",
-			api_max, api_ver);
+			"Driver supports FW core %d..%d, firmware is %d.\n",
+			min_core, max_core, loaded_core);
 		goto try_again;
 	}
 
@@ -1867,17 +1890,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 #if IS_ENABLED(CONFIG_IWLMLD)
-	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION &&
-	    iwl_drv_is_wifi7_supported(drv->trans))
+	if (iwl_drv_is_wifi7_supported(drv->trans))
 		op = &iwlwifi_opmode_table[MLD_OP_MODE];
-#else
-	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION &&
-	    iwl_drv_is_wifi7_supported(drv->trans)) {
-		IWL_ERR(drv,
-			"IWLMLD needs to be compiled to support this firmware\n");
-		mutex_unlock(&iwlwifi_opmode_table_mtx);
-		goto out_unbind;
-	}
 #endif
 
 	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
