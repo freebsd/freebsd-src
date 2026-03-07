@@ -42,6 +42,18 @@
 #include "int.h"
 
 uint64_t
+virtual_oss_timestamp(void)
+{
+	struct timespec ts;
+	uint64_t nsec;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	nsec = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+	return (nsec);
+}
+
+uint64_t
 virtual_oss_delay_ns(void)
 {
 	uint64_t delay;
@@ -56,29 +68,14 @@ virtual_oss_delay_ns(void)
 void
 virtual_oss_wait(void)
 {
-	struct timespec ts;
 	uint64_t delay;
 	uint64_t nsec;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-
-	nsec = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+	nsec = virtual_oss_timestamp();
 
 	delay = virtual_oss_delay_ns();
 
 	usleep((delay - (nsec % delay)) / 1000);
-}
-
-uint64_t
-virtual_oss_timestamp(void)
-{
-	struct timespec ts;
-	uint64_t nsec;
-
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-
-	nsec = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-	return (nsec);
 }
 
 static size_t
