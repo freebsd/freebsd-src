@@ -3951,7 +3951,7 @@ acpi_wake_sysctl_walk(device_t dev)
     for (i = 0; i < numdevs; i++) {
 	child = devlist[i];
 	acpi_wake_sysctl_walk(child);
-	if (!device_is_attached(child))
+	if (!device_is_attached(child) || !acpi_has_flags(child))
 	    continue;
 	status = AcpiEvaluateObject(acpi_get_handle(child), "_PRW", NULL, NULL);
 	if (ACPI_SUCCESS(status)) {

@@ -811,7 +811,7 @@ linux_rename(struct thread *td, struct linux_rename_args *args)
 {
 
 	return (kern_renameat(td, AT_FDCWD, args->from, AT_FDCWD,
-	    args->to, UIO_USERSPACE));
+	    args->to, UIO_USERSPACE, 0));
 }
 #endif
 
@@ -833,23 +833,34 @@ int
 linux_renameat2(struct thread *td, struct linux_renameat2_args *args)
 {
 	int olddfd, newdfd;
+	u_int atflags;
+
+	atflags = 0;
+	if ((args->flags & ~(LINUX_RENAME_EXCHANGE |
+	    LINUX_RENAME_NOREPLACE | LINUX_RENAME_WHITEOUT)) != 0)
+		return (EINVAL);
+	if ((args->flags & LINUX_RENAME_EXCHANGE) != 0 &&
+	    (args->flags & (LINUX_RENAME_NOREPLACE |
+	    LINUX_RENAME_WHITEOUT)) != 0)
+		return (EINVAL);
+	if ((args->flags & LINUX_RENAME_NOREPLACE) != 0) {
+		if ((args->flags & (LINUX_RENAME_EXCHANGE |
+		    LINUX_RENAME_WHITEOUT)) != 0)
+			return (EINVAL);
+		args->flags &= ~LINUX_RENAME_NOREPLACE;
+		atflags |= AT_RENAME_NOREPLACE;
+	}
 
 	if (args->flags != 0) {
-		if (args->flags & ~(LINUX_RENAME_EXCHANGE |
-		    LINUX_RENAME_NOREPLACE | LINUX_RENAME_WHITEOUT))
-			return (EINVAL);
-		if (args->flags & LINUX_RENAME_EXCHANGE &&
-		    args->flags & (LINUX_RENAME_NOREPLACE |
-		    LINUX_RENAME_WHITEOUT))
-			return (EINVAL);
-#if 0
 		/*
 		 * This spams the console on Ubuntu Focal.
 		 *
-		 * What's needed here is a general mechanism to let users know
-		 * about missing features without hogging the system.
+		 * What's needed here is a general mechanism to let
+		 * users know about missing features without hogging
+		 * the system.
 		 */
-		linux_msg(td, "renameat2 unsupported flags 0x%x",
+#if 0
+		linux_msg(td, "renameat2 unsupported flags %#x",
 		    args->flags);
 #endif
 		return (EINVAL);
@@ -858,7 +869,7 @@ linux_renameat2(struct thread *td, struct linux_renameat2_args *args)
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
 	newdfd = (args->newdfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->newdfd;
 	return (kern_renameat(td, olddfd, args->oldname, newdfd,
-	    args->newname, UIO_USERSPACE));
+	    args->newname, UIO_USERSPACE, atflags));
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS

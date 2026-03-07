@@ -31,6 +31,7 @@
 #include <netinet/ip.h>
 #include <pcap/pcap.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -219,8 +220,11 @@ compare(int argc __unused, char *argv[])
 		if (p1->caplen != p2->caplen)
 			errx(1, "packet #%u capture length %u != %u",
 			    cnt, p1->caplen, p2->caplen);
-		if (memcmp(p1->data, p2->data, p1->caplen) != 0)
+		if (memcmp(p1->data, p2->data, p1->caplen) != 0) {
+			hexdump(p1->data, p1->caplen, argv[0], 0);
+			hexdump(p2->data, p2->caplen, argv[1], 0);
 			errx(1, "packet #%u payload different", cnt);
+		}
 	}
 	if (p1 != NULL || p2 != NULL)
 		errx(1, "packet count different");

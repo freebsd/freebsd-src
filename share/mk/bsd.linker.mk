@@ -11,11 +11,14 @@
 # LINKER_FEATURES may contain one or more of the following, based on
 # linker support for that feature:
 #
-# - build-id:   support for generating a Build-ID note
-# - retpoline:  support for generating PLT with retpoline speculative
-#               execution vulnerability mitigation
-# - bti-report: support for specifying how to report the missing
-#               Branch Target Identification (BTI) property (AArch64)
+# - bti-report:		support for specifying how to report the missing
+#			Branch Target Identification (BTI) property (AArch64)
+# - build-id:		support for generating a Build-ID note
+# - ifunc:		support for indirect functions
+# - ifunc-noplt:	support for indirect functions without PLT stubs
+# - retpoline:		support for generating PLT with retpoline speculative
+#			execution vulnerability mitigation
+# - riscv-relaxations:	support for RISC-V relocation relaxations
 #
 # LINKER_FREEBSD_VERSION is the linker's internal source version.
 #
@@ -101,11 +104,9 @@ ${X_}LINKER_VERSION!=	echo "${_v:M[1-9]*.[0-9]*}" | \
 .undef _ld_version
 .undef _v
 ${X_}LINKER_FEATURES=
-.if ${${X_}LINKER_TYPE} != "bfd" || ${${X_}LINKER_VERSION} > 21750
 ${X_}LINKER_FEATURES+=	build-id
 ${X_}LINKER_FEATURES+=	ifunc
-.endif
-.if ${${X_}LINKER_TYPE} == "bfd" && ${${X_}LINKER_VERSION} > 21750
+.if ${${X_}LINKER_TYPE} == "bfd"
 ${X_}LINKER_FEATURES+=	riscv-relaxations
 .endif
 .if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 60000

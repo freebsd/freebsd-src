@@ -443,4 +443,5 @@ MIASM =  \
 	jail_remove_jd.o \
 	kexec_load.o \
 	pdrfork.o \
-	pdwait.o
+	pdwait.o \
+	renameat2.o

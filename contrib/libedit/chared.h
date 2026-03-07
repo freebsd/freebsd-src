@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.h,v 1.30 2016/05/22 19:44:26 christos Exp $	*/
+/*	$NetBSD: chared.h,v 1.31 2025/12/14 18:07:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -125,18 +125,22 @@ typedef struct el_chared_t {
 #define	MODE_REPLACE_1	2
 
 
-libedit_private int	 cv__isword(wint_t);
-libedit_private int	 cv__isWord(wint_t);
+libedit_private int	 cv__isword(EditLine *, wint_t);
+libedit_private int	 cv__isWord(EditLine *, wint_t);
 libedit_private void	 cv_delfini(EditLine *);
-libedit_private wchar_t *cv__endword(wchar_t *, wchar_t *, int, int (*)(wint_t));
-libedit_private int	 ce__isword(wint_t);
+libedit_private wchar_t *cv__endword(EditLine *, wchar_t *, wchar_t *, int,
+    int (*)(EditLine *, wint_t));
+libedit_private int	 ce__isword(EditLine *, wint_t);
 libedit_private void	 cv_undo(EditLine *);
 libedit_private void	 cv_yank(EditLine *, const wchar_t *, int);
 libedit_private wchar_t *cv_next_word(EditLine*, wchar_t *, wchar_t *, int,
-			int (*)(wint_t));
-libedit_private wchar_t *cv_prev_word(wchar_t *, wchar_t *, int, int (*)(wint_t));
-libedit_private wchar_t *c__next_word(wchar_t *, wchar_t *, int, int (*)(wint_t));
-libedit_private wchar_t *c__prev_word(wchar_t *, wchar_t *, int, int (*)(wint_t));
+			int (*)(EditLine *, wint_t));
+libedit_private wchar_t *cv_prev_word(EditLine *, wchar_t *, wchar_t *, int,
+    int (*)(EditLine *, wint_t));
+libedit_private wchar_t *c__next_word(EditLine *, wchar_t *, wchar_t *, int,
+    int (*)(EditLine *, wint_t));
+libedit_private wchar_t *c__prev_word(EditLine *, wchar_t *, wchar_t *, int,
+    int (*)(EditLine *, wint_t));
 libedit_private void	 c_insert(EditLine *, int);
 libedit_private void	 c_delbefore(EditLine *, int);
 libedit_private void	 c_delbefore1(EditLine *);

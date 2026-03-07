@@ -80,6 +80,7 @@ static int cm_getprop_rai(struct ctrl_msg_pl *);
 static int cm_getprop_pfx(struct ctrl_msg_pl *);
 static int cm_getprop_rdnss(struct ctrl_msg_pl *);
 static int cm_getprop_dnssl(struct ctrl_msg_pl *);
+static int cm_getprop_pref64(struct ctrl_msg_pl *);
 static int cm_getprop_rti(struct ctrl_msg_pl *);
 
 static int cm_setprop_reload(struct ctrl_msg_pl *);
@@ -101,6 +102,7 @@ static struct dispatch_table {
 	DEF_PL_HANDLER(pfx),
 	DEF_PL_HANDLER(rdnss),
 	DEF_PL_HANDLER(dnssl),
+	DEF_PL_HANDLER(pref64),
 };
 
 static int
@@ -515,6 +517,60 @@ cm_getprop_dnssl(struct ctrl_msg_pl *cp)
 
 	return (0);
 }
+
+static int
+cm_getprop_pref64(struct ctrl_msg_pl *cp)
+{
+	struct ifinfo *ifi;
+	struct rainfo *rai;
+	struct pref64 *prf64;
+	char *p;
+	size_t len;
+	uint16_t *prf64_cnt;
+
+	syslog(LOG_DEBUG, "<%s> enter", __func__);
+
+	len = 0;
+	TAILQ_FOREACH(ifi, &ifilist, ifi_next) {
+		if (strcmp(cp->cp_ifname, ifi->ifi_ifname) == 0)
+			break;
+	}
+	if (ifi == NULL) {
+		syslog(LOG_ERR, "<%s> %s not found", __func__,
+		    cp->cp_ifname);
+		return (1);
+	}
+	if (ifi->ifi_rainfo == NULL) {
+		syslog(LOG_ERR, "<%s> %s has no rainfo", __func__,
+		    cp->cp_ifname);
+		return (1);
+	}
+	rai = ifi->ifi_rainfo;
+
+	len = sizeof(*prf64_cnt);
+	TAILQ_FOREACH(prf64, &rai->rai_pref64, p64_next)
+		len += sizeof(*prf64);
+
+	syslog(LOG_DEBUG, "<%s> len = %zu", __func__, len);
+
+	p = malloc(len);
+	if (p == NULL)
+		exit(1);
+	memset(p, 0, len);
+	cp->cp_val = p;
+
+	prf64_cnt = (uint16_t *)cp->cp_val;
+	p += sizeof(*prf64_cnt);
+	TAILQ_FOREACH(prf64, &rai->rai_pref64, p64_next) {
+		(*prf64_cnt)++;
+		memcpy(p, prf64, sizeof(*prf64));
+		p += sizeof(*prf64);
+	}
+	cp->cp_val_len = p - cp->cp_val;
+
+	return (0);
+}
+
 
 int
 cm_getprop(struct ctrl_msg_pl *cp)

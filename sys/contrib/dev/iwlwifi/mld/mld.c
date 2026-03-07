@@ -2,6 +2,10 @@
 /*
  * Copyright (C) 2024-2025 Intel Corporation
  */
+#if defined(__FreeBSD__)
+#define	LINUXKPI_PARAM_PREFIX	iwlwifi_mld_
+#endif
+
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
 
@@ -28,9 +32,15 @@
 
 #include "iwl-nvm-parse.h"
 
+#if defined(__linux__)
 #define DRV_DESCRIPTION "Intel(R) MLD wireless driver for Linux"
+#elif defined(__FreeBSD__)
+#define DRV_DESCRIPTION "Intel(R) MLD wireless Linux-based driver for FreeBSD"
+#endif
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
+#if defined(__linux__)
 MODULE_LICENSE("GPL");
+#endif
 MODULE_IMPORT_NS("IWLWIFI");
 
 static const struct iwl_op_mode_ops iwl_mld_ops;
@@ -44,7 +54,11 @@ static int __init iwl_mld_init(void)
 
 	return ret;
 }
+#if defined(__linux__)
 module_init(iwl_mld_init);
+#elif defined(__FreeBSD__)
+module_init_order(iwl_mld_init, SI_ORDER_SECOND);
+#endif
 
 static void __exit iwl_mld_exit(void)
 {
@@ -147,6 +161,7 @@ iwl_mld_construct_fw_runtime(struct iwl_mld *mld, struct iwl_trans *trans,
  */
 static const struct iwl_hcmd_names iwl_mld_legacy_names[] = {
 	HCMD_NAME(UCODE_ALIVE_NTFY),
+	HCMD_NAME(REPLY_ERROR),
 	HCMD_NAME(INIT_COMPLETE_NOTIF),
 	HCMD_NAME(PHY_CONTEXT_CMD),
 	HCMD_NAME(SCAN_CFG_CMD),
@@ -158,12 +173,14 @@ static const struct iwl_hcmd_names iwl_mld_legacy_names[] = {
 	HCMD_NAME(LEDS_CMD),
 	HCMD_NAME(WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION),
 	HCMD_NAME(WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION),
+	HCMD_NAME(PHY_CONFIGURATION_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_UPDATE_PROFILES_CMD),
 	HCMD_NAME(POWER_TABLE_CMD),
 	HCMD_NAME(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION),
 	HCMD_NAME(BEACON_NOTIFICATION),
 	HCMD_NAME(BEACON_TEMPLATE_CMD),
 	HCMD_NAME(TX_ANT_CONFIGURATION_CMD),
+	HCMD_NAME(BT_CONFIG),
 	HCMD_NAME(REDUCE_TX_POWER_CMD),
 	HCMD_NAME(MISSED_BEACONS_NOTIFICATION),
 	HCMD_NAME(MAC_PM_POWER_TABLE),
@@ -251,10 +268,12 @@ static const struct iwl_hcmd_names iwl_mld_data_path_names[] = {
 	HCMD_NAME(TLC_MNG_CONFIG_CMD),
 	HCMD_NAME(RX_BAID_ALLOCATION_CONFIG_CMD),
 	HCMD_NAME(SCD_QUEUE_CONFIG_CMD),
+	HCMD_NAME(SEC_KEY_CMD),
 	HCMD_NAME(ESR_MODE_NOTIF),
 	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(TLC_MNG_UPDATE_NOTIF),
 	HCMD_NAME(BEACON_FILTER_IN_NOTIF),
+	HCMD_NAME(PHY_AIR_SNIFFER_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 };
 

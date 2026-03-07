@@ -665,11 +665,13 @@ _tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 void
 tcp_lro_hpts_init(void)
 {
+	tcp_hpts_softclock = _tcp_hpts_softclock;
 	tcp_lro_flush_tcphpts = _tcp_lro_flush_tcphpts;
 }
 
 void
 tcp_lro_hpts_uninit(void)
 {
-	atomic_store_ptr(&tcp_lro_flush_tcphpts, NULL);
+	tcp_hpts_softclock = NULL;
+	tcp_lro_flush_tcphpts = NULL;
 }

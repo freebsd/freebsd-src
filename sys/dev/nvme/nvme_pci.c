@@ -151,23 +151,27 @@ nvme_pci_probe (device_t device)
 static int
 nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 {
+	int error;
+
 	ctrlr->resource_id = PCIR_BAR(0);
 	ctrlr->msix_table_resource_id = -1;
 	ctrlr->msix_table_resource = NULL;
 	ctrlr->msix_pba_resource_id = -1;
 	ctrlr->msix_pba_resource = NULL;
 
+	/*
+	 * Using RF_ACTIVE will set the Memory Space bit in the PCI command register.
+	 * The remaining BARs will get mapped in before they've been programmed with
+	 * an address.  To avoid this we'll not set this flag and instead call
+	 * bus_activate_resource() after all the BARs have been programmed.
+	 */
 	ctrlr->resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
-	    &ctrlr->resource_id, RF_ACTIVE);
+	    &ctrlr->resource_id, 0);
 
 	if (ctrlr->resource == NULL) {
 		nvme_printf(ctrlr, "unable to allocate pci resource\n");
 		return (ENOMEM);
 	}
-
-	ctrlr->bus_tag = rman_get_bustag(ctrlr->resource);
-	ctrlr->bus_handle = rman_get_bushandle(ctrlr->resource);
-	ctrlr->regs = (struct nvme_registers *)ctrlr->bus_handle;
 
 	/*
 	 * The NVMe spec allows for the MSI-X tables to be placed behind
@@ -180,7 +184,7 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	if (ctrlr->msix_table_resource_id >= 0 &&
 	    ctrlr->msix_table_resource_id != ctrlr->resource_id) {
 		ctrlr->msix_table_resource = bus_alloc_resource_any(ctrlr->dev,
-		    SYS_RES_MEMORY, &ctrlr->msix_table_resource_id, RF_ACTIVE);
+		    SYS_RES_MEMORY, &ctrlr->msix_table_resource_id, 0);
 		if (ctrlr->msix_table_resource == NULL) {
 			nvme_printf(ctrlr, "unable to allocate msi-x table resource\n");
 			return (ENOMEM);
@@ -190,12 +194,38 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	    ctrlr->msix_pba_resource_id != ctrlr->resource_id &&
 	    ctrlr->msix_pba_resource_id != ctrlr->msix_table_resource_id) {
 		ctrlr->msix_pba_resource = bus_alloc_resource_any(ctrlr->dev,
-		    SYS_RES_MEMORY, &ctrlr->msix_pba_resource_id, RF_ACTIVE);
+		    SYS_RES_MEMORY, &ctrlr->msix_pba_resource_id, 0);
 		if (ctrlr->msix_pba_resource == NULL) {
 			nvme_printf(ctrlr, "unable to allocate msi-x pba resource\n");
 			return (ENOMEM);
 		}
 	}
+
+	error = bus_activate_resource(ctrlr->dev, ctrlr->resource);
+	if (error) {
+		nvme_printf(ctrlr, "unable to activate pci resource: %d\n", error);
+		return (error);
+	}
+	if (ctrlr->msix_table_resource != NULL) {
+		error = bus_activate_resource(ctrlr->dev, ctrlr->msix_table_resource);
+		if (error) {
+			nvme_printf(ctrlr, "unable to activate msi-x table resource: %d\n",
+			    error);
+			return (error);
+		}
+	}
+	if (ctrlr->msix_pba_resource != NULL) {
+		error = bus_activate_resource(ctrlr->dev, ctrlr->msix_pba_resource);
+		if (error) {
+			nvme_printf(ctrlr, "unable to activate msi-x pba resource: %d\n",
+			    error);
+			return (error);
+		}
+	}
+
+	ctrlr->bus_tag = rman_get_bustag(ctrlr->resource);
+	ctrlr->bus_handle = rman_get_bushandle(ctrlr->resource);
+	ctrlr->regs = (struct nvme_registers *)ctrlr->bus_handle;
 
 	return (0);
 }

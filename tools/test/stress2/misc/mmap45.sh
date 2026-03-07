@@ -8,9 +8,10 @@
 
 # Demonstrate issue described in:
 # [Bug 276002] nfscl: data corruption using both copy_file_range and mmap'd I/O
+# Unfixed as of 20260306
 
 # Issue seen:
-# 
+#
 # 8994c8994
 # < 0431020    10  11  12  13  14  15  16  17  18  19  1a  1b  1c  1d  1e  1f
 # ---

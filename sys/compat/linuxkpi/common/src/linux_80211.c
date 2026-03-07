@@ -2004,7 +2004,7 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 	 * we set the BSS_CHANGED_BEACON_INFO on the non-teardown
 	 * path so make sure we only do run this check once we are
 	 * assoc. (*iv_recv_mgmt)() will be called before we enter
-	 * here so the ni will be updates with information from the
+	 * here so the ni will be updated with information from the
 	 * beacon via net80211::sta_recv_mgmt().  We also need to
 	 * make sure we do not do it on every beacon we still may
 	 * get so only do if something changed.  vif->bss_conf.dtim_period
@@ -2242,6 +2242,53 @@ lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	free(lchanctx, M_LKPI80211);
 }
 
+/* -------------------------------------------------------------------------- */
+
+/* Any other options belong here? Check more drivers. */
+#define	BSS_CHANGED_VIF_CFG_BITS					\
+    (BSS_CHANGED_SSID | BSS_CHANGED_IDLE | BSS_CHANGED_PS | BSS_CHANGED_ASSOC | \
+    BSS_CHANGED_ARP_FILTER | BSS_CHANGED_MLD_VALID_LINKS | BSS_CHANGED_MLD_TTLM)
+
+static void
+lkpi_bss_info_change(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    enum ieee80211_bss_changed bss_changed)
+{
+	struct lkpi_vif *lvif;
+	enum ieee80211_bss_changed vif_cfg_bits, link_info_bits;
+
+	if (ieee80211_vif_is_mld(vif)) {
+		TODO("This likely needs a subset only; split up into 3 parts.");
+	}
+
+	/* Nothing to do? */
+	if (bss_changed == 0)
+		return;
+
+	/*
+	 * If the vif is not known to the driver there is nothing to notifiy for.
+	 * We MUST NOT check for !lvif_bss_synched here (the reasonable it seems)
+	 * as we need to execute the update(s) or we will have follow-up issues.
+	 */
+	lvif = VIF_TO_LVIF(vif);
+	if (!lvif->added_to_drv)
+		return;
+
+	/*
+	 * With the advent of MLO bss_conf got split up into vif and link
+	 * change notfications, while historically it was one.
+	 * We now need to support all possible models.
+	 */
+	vif_cfg_bits = bss_changed & BSS_CHANGED_VIF_CFG_BITS;
+	if (vif_cfg_bits != 0)
+		lkpi_80211_mo_vif_cfg_changed(hw, vif, vif_cfg_bits, false);
+
+	link_info_bits = bss_changed & ~(BSS_CHANGED_VIF_CFG_BITS);
+	if (link_info_bits != 0)
+		lkpi_80211_mo_link_info_changed(hw, vif, &vif->bss_conf,
+		    link_info_bits, 0, false);
+
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+}
 
 /* -------------------------------------------------------------------------- */
 
@@ -2457,7 +2504,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* RATES */
 	IMPROVE("bss info: not all needs to come now and rates are missing");
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/*
 	 * Given ni and lsta are 1:1 from alloc to free we can assert that
@@ -2791,7 +2838,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	}
 
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* - change_chanctx (if needed)
 	 * - event_callback
@@ -2851,7 +2898,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	bss_changed = 0;
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Prepare_multicast && configure_filter. */
 	lkpi_update_mcast_filter(vap->iv_ic);
@@ -3234,24 +3281,27 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	bss_changed = 0;
 	/*
-	 * Start updating bss info (bss_info_changed) (assoc, aid, ..).
+	 * Start updating bss info (*bss_info_changed) (assoc, aid, ..).
 	 *
-	 * One would expect this to happen when going off AUTHORIZED.
-	 * See comment there; removes the sta from fw if not careful
-	 * (bss_info_changed() change is executed right away).
+	 * One would expect this to happen when going off AUTHORIZED but
+	 * not so.
 	 *
-	 * We need to do this now, before sta changes to IEEE80211_STA_NOTEXIST
-	 * as otherwise drivers (iwlwifi at least) will silently not remove
-	 * the sta from the firmware and when we will add a new one trigger
-	 * a fw assert.
+	 * Immediately issuing the (*bss_info_changed) used to also remove the
+	 * sta from firmware for iwlwifi; or we have problems with the sta
+	 * silently not being removed and then crash upon the next sta add.
+	 * Neither seems to be the case or a problem still.
 	 *
-	 * The order which works best so far avoiding early removal or silent
-	 * non-removal seems to be (for iwlwifi::mld-mac80211.c cases;
-	 * the iwlwifi:mac80211.c case still to be tested):
-	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false (aid=0 side effect here)
-	 * 2) call the last sta_state update -> IEEE80211_STA_NOTEXIST
-	 *    (removes the sta given assoc is false)
-	 * 3) add the remaining BSS_CHANGED changes and call bss_info_changed()
+	 * Contrary for BE200 (iwlwifi/mld) if we do not issue the
+	 * (*vif_cfg_change) to tell FW that we are no longer assoc
+	 * it will crash now upon sta rm.  So the order now is as we once
+	 * expected it:
+	 *
+	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false and .aid=0
+	 * 2) add the remaining BSS_CHANGED changes and call (*bss_info_changed)
+	 *    (which may be split up into (*vif_cfg_change) and
+	 *    (*link_info_changed) for more modern drivers).
+	 * 3) call the last sta_state update -> IEEE80211_STA_NOTEXIST
+	 *    (removes the sta given assoc is false) and tidy up our lists.
 	 * 4) call unassign_vif_chanctx
 	 * 5) call lkpi_hw_conf_idle
 	 * 6) call remove_chanctx
@@ -3262,6 +3312,18 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= lkpi_disassoc(sta, vif, lhw);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+
+	IMPROVE("Any bss_info changes to announce?");
+	vif->bss_conf.qos = false;
+	bss_changed |= BSS_CHANGED_QOS;
+	vif->cfg.ssid_len = 0;
+	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
+	bss_changed |= BSS_CHANGED_BSSID;
+	vif->bss_conf.use_short_preamble = false;
+	/* XXX BSS_CHANGED_???? */
+	vif->bss_conf.dtim_period = 0; /* go back to 0. */
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Adjust sta and change state (from NONE) to NOTEXIST. */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
@@ -3278,18 +3340,6 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_lsta_remove(lsta, lvif);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	IMPROVE("Any bss_info changes to announce?");
-	vif->bss_conf.qos = false;
-	bss_changed |= BSS_CHANGED_QOS;
-	vif->cfg.ssid_len = 0;
-	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
-	bss_changed |= BSS_CHANGED_BSSID;
-	vif->bss_conf.use_short_preamble = false;
-	/* XXX BSS_CHANGED_???? */
-	vif->bss_conf.dtim_period = 0; /* go back to 0. */
-	bss_changed |= BSS_CHANGED_BEACON_INFO;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	LKPI_80211_LVIF_LOCK(lvif);
 	/* Remove ni reference for this cache of lsta. */
@@ -3653,7 +3703,7 @@ lkpi_wme_update(struct lkpi_hw *lhw, struct ieee80211vap *vap, bool planned)
 	struct chanAccParams chp;
 	struct wmeParams wmeparr[WME_NUM_AC];
 	struct ieee80211_tx_queue_params txqp;
-	enum ieee80211_bss_changed changed;
+	enum ieee80211_bss_changed bss_changed;
 	int error;
 	uint16_t ac;
 
@@ -3704,11 +3754,11 @@ lkpi_wme_update(struct lkpi_hw *lhw, struct ieee80211vap *vap, bool planned)
 			ic_printf(ic, "%s: conf_tx ac %u failed %d\n",
 			    __func__, ac, error);
 	}
-	changed = BSS_CHANGED_QOS;
+	bss_changed = BSS_CHANGED_QOS;
 	if (!planned)
-		lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
+		lkpi_bss_info_change(hw, vif, bss_changed);
 
-	return (changed);
+	return (bss_changed);
 }
 #endif
 
@@ -3774,7 +3824,7 @@ lkpi_iv_sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	 * locking, see if queue_work() is fast enough.
 	 */
 	bss_changed = lkpi_update_dtim_tsf(vif, ni, ni->ni_vap, __func__, __LINE__);
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+	lkpi_bss_info_change(hw, vif, bss_changed);
 }
 
 /*
@@ -3820,7 +3870,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	struct ieee80211vap *vap;
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_queue_params txqp;
-	enum ieee80211_bss_changed changed;
+	enum ieee80211_bss_changed bss_changed;
 	struct sysctl_oid *node;
 	size_t len;
 	int error, i;
@@ -3937,8 +3987,8 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 
 	/* Set bss_info. */
-	changed = 0;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
+	bss_changed = 0;
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Configure tx queues (conf_tx), default WME & send BSS_CHANGED_QOS. */
 	IMPROVE("Hardcoded values; to fix see 802.11-2016, 9.4.2.29 EDCA Parameter Set element");
@@ -3956,8 +4006,8 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 			    __func__, ac, error);
 	}
 	wiphy_unlock(hw->wiphy);
-	changed = BSS_CHANGED_QOS;
-	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, changed);
+	bss_changed = BSS_CHANGED_QOS;
+	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Force MC init. */
 	lkpi_update_mcast_filter(ic);

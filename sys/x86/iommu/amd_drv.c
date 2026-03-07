@@ -494,7 +494,7 @@ amdiommu_attach(device_t dev)
 	}
 	sc->mmio_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mmio_rid,
 	    sc->mmio_base, sc->mmio_base + sc->mmio_sz - 1, sc->mmio_sz,
-	    RF_ALLOCATED | RF_ACTIVE | RF_SHAREABLE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->mmio_res == NULL) {
 		device_printf(dev,
 		    "bus_alloc_resource %#jx-%#jx failed\n",

@@ -1432,6 +1432,9 @@ in6_purgeaddr(struct ifaddr *ifa)
 			ia->ia_flags &= ~IFA_RTSELF;
 	}
 
+	/* make sure there are no queued ND6 */
+	nd6_queue_stop(ifa);
+
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 

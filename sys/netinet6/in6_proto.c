@@ -156,6 +156,7 @@ VNET_DEFINE(int, ip6_rfc6204w3) = 0;
 VNET_DEFINE(int, ip6_hdrnestlimit) = 15;/* How many header options will we
 					 * process? */
 VNET_DEFINE(int, ip6_dad_count) = 1;	/* DupAddrDetectionTransmits */
+VNET_DEFINE(int, ip6_grand_count) = MAX_NEIGHBOR_ADVERTISEMENT;
 VNET_DEFINE(int, ip6_auto_flowlabel) = 1;
 VNET_DEFINE(int, ip6_use_deprecated) = 1;/* allow deprecated addr
 					 * (RFC2462 5.5.4) */
@@ -291,6 +292,9 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_HDRNESTLIMIT, hdrnestlimit,
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_DAD_COUNT, dad_count,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_dad_count), 0,
 	"Number of ICMPv6 NS messages sent during duplicate address detection");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GRAND_COUNT, grand_count,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_grand_count), 0,
+	"Number of ICMPv6 NA messages sent by gratuitous ND per interface");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_AUTO_FLOWLABEL, auto_flowlabel,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_auto_flowlabel), 0,
 	"Provide an IPv6 flowlabel in outbound packets");

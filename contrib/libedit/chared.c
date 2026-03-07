@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.c,v 1.64 2024/06/29 14:13:14 christos Exp $	*/
+/*	$NetBSD: chared.c,v 1.66 2026/03/03 15:05:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)chared.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: chared.c,v 1.64 2024/06/29 14:13:14 christos Exp $");
+__RCSID("$NetBSD: chared.c,v 1.66 2026/03/03 15:05:17 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -202,9 +202,9 @@ c_delbefore1(EditLine *el)
  *	Return if p is part of a word according to emacs
  */
 libedit_private int
-ce__isword(wint_t p)
+ce__isword(EditLine *el, wint_t p)
 {
-	return iswalnum(p) || wcschr(L"*?_-.[]~=", p) != NULL;
+	return iswalnum(p) || wcschr(el->el_map.wordchars, p) != NULL;
 }
 
 
@@ -212,9 +212,9 @@ ce__isword(wint_t p)
  *	Return if p is part of a word according to vi
  */
 libedit_private int
-cv__isword(wint_t p)
+cv__isword(EditLine *el, wint_t p)
 {
-	if (iswalnum(p) || p == L'_')
+	if (iswalnum(p) || wcschr(el->el_map.wordchars, p) != NULL)
 		return 1;
 	if (iswgraph(p))
 		return 2;
@@ -226,7 +226,7 @@ cv__isword(wint_t p)
  *	Return if p is part of a big word according to vi
  */
 libedit_private int
-cv__isWord(wint_t p)
+cv__isWord(EditLine *el __attribute__((__unused__)), wint_t p)
 {
 	return !iswspace(p);
 }
@@ -236,14 +236,15 @@ cv__isWord(wint_t p)
  *	Find the previous word
  */
 libedit_private wchar_t *
-c__prev_word(wchar_t *p, wchar_t *low, int n, int (*wtest)(wint_t))
+c__prev_word(EditLine *el, wchar_t *p, wchar_t *low, int n,
+    int (*wtest)(EditLine *, wint_t))
 {
 	p--;
 
 	while (n--) {
-		while ((p >= low) && !(*wtest)(*p))
+		while ((p >= low) && !(*wtest)(el, *p))
 			p--;
-		while ((p >= low) && (*wtest)(*p))
+		while ((p >= low) && (*wtest)(el, *p))
 			p--;
 	}
 
@@ -260,12 +261,13 @@ c__prev_word(wchar_t *p, wchar_t *low, int n, int (*wtest)(wint_t))
  *	Find the next word
  */
 libedit_private wchar_t *
-c__next_word(wchar_t *p, wchar_t *high, int n, int (*wtest)(wint_t))
+c__next_word(EditLine *el, wchar_t *p, wchar_t *high, int n,
+    int (*wtest)(EditLine *, wint_t))
 {
 	while (n--) {
-		while ((p < high) && !(*wtest)(*p))
+		while ((p < high) && !(*wtest)(el, *p))
 			p++;
-		while ((p < high) && (*wtest)(*p))
+		while ((p < high) && (*wtest)(el, *p))
 			p++;
 	}
 	if (p > high)
@@ -279,13 +281,13 @@ c__next_word(wchar_t *p, wchar_t *high, int n, int (*wtest)(wint_t))
  */
 libedit_private wchar_t *
 cv_next_word(EditLine *el, wchar_t *p, wchar_t *high, int n,
-    int (*wtest)(wint_t))
+    int (*wtest)(EditLine *el, wint_t))
 {
 	int test;
 
 	while (n--) {
-		test = (*wtest)(*p);
-		while ((p < high) && (*wtest)(*p) == test)
+		test = (*wtest)(el, *p);
+		while ((p < high) && (*wtest)(el, *p) == test)
 			p++;
 		/*
 		 * vi historically deletes with cw only the word preserving the
@@ -308,7 +310,8 @@ cv_next_word(EditLine *el, wchar_t *p, wchar_t *high, int n,
  *	Find the previous word vi style
  */
 libedit_private wchar_t *
-cv_prev_word(wchar_t *p, wchar_t *low, int n, int (*wtest)(wint_t))
+cv_prev_word(EditLine *el, wchar_t *p, wchar_t *low, int n,
+    int (*wtest)(EditLine *el, wint_t))
 {
 	int test;
 
@@ -316,8 +319,8 @@ cv_prev_word(wchar_t *p, wchar_t *low, int n, int (*wtest)(wint_t))
 	while (n--) {
 		while ((p > low) && iswspace(*p))
 			p--;
-		test = (*wtest)(*p);
-		while ((p >= low) && (*wtest)(*p) == test)
+		test = (*wtest)(el, *p);
+		while ((p >= low) && (*wtest)(el, *p) == test)
 			p--;
 		if (p < low)
 			return low;
@@ -374,7 +377,8 @@ cv_delfini(EditLine *el)
  *	Go to the end of this word according to vi
  */
 libedit_private wchar_t *
-cv__endword(wchar_t *p, wchar_t *high, int n, int (*wtest)(wint_t))
+cv__endword(EditLine *el, wchar_t *p, wchar_t *high, int n,
+    int (*wtest)(EditLine *, wint_t))
 {
 	int test;
 
@@ -384,8 +388,8 @@ cv__endword(wchar_t *p, wchar_t *high, int n, int (*wtest)(wint_t))
 		while ((p < high) && iswspace(*p))
 			p++;
 
-		test = (*wtest)(*p);
-		while ((p < high) && (*wtest)(*p) == test)
+		test = (*wtest)(el, *p);
+		while ((p < high) && (*wtest)(el, *p) == test)
 			p++;
 	}
 	p--;
@@ -557,7 +561,7 @@ ch_enlargebufs(EditLine *el, size_t addlen)
 			(el->el_chared.c_redo.lim - el->el_chared.c_redo.buf);
 	el->el_chared.c_redo.buf = newbuffer;
 
-	if (!hist_enlargebuf(el, sz, newsz))
+	if (!hist_enlargebuf(el, newsz))
 		return 0;
 
 	/* Safe to set enlarged buffer size */
