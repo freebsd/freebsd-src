@@ -26,12 +26,14 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
 
 #include <dev/acpica/acpivar.h>
 #include <sys/sysctl.h>
