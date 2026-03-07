@@ -765,6 +765,9 @@ printval(void *bp, const VAR *v)
 	case CHAR:
 		(void)asprintf(&str, ofmt, *(char *)bp);
 		break;
+	case SCHAR:
+		(void)asprintf(&str, ofmt, *(signed char *)bp);
+		break;
 	case UCHAR:
 		(void)asprintf(&str, ofmt, *(u_char *)bp);
 		break;

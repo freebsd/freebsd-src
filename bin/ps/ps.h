@@ -35,7 +35,7 @@
 
 #define	UNLIMITED	0	/* unlimited terminal width */
 enum type { UNSPEC, /* For output routines that don't care and aliases. */
-	    CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
+	    CHAR, SCHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
 
 typedef struct kinfo_str {
 	STAILQ_ENTRY(kinfo_str) ks_next;
