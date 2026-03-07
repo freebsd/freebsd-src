@@ -62,10 +62,7 @@ virtual_oss_wait(void)
 
 	nsec = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 
-	/* TODO use virtual_oss_delay_ns() */
-	delay = voss_dsp_samples;
-	delay *= 1000000000ULL;
-	delay /= voss_dsp_sample_rate;
+	delay = virtual_oss_delay_ns();
 
 	usleep((delay - (nsec % delay)) / 1000);
 }
