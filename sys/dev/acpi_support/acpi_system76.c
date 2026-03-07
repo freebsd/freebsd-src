@@ -38,6 +38,9 @@
 #include <dev/acpica/acpivar.h>
 #include <sys/sysctl.h>
 
+#include <dev/backlight/backlight.h>
+#include "backlight_if.h"
+
 #define _COMPONENT ACPI_OEM
 ACPI_MODULE_NAME("system76")
 
@@ -60,11 +63,16 @@ struct acpi_system76_softc {
 
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
+	struct cdev	*kbb_bkl;
+	uint8_t		backlight_level;
 };
 
 static int	acpi_system76_probe(device_t);
 static int	acpi_system76_attach(device_t);
 static int	acpi_system76_detach(device_t);
+static int	acpi_system76_suspend(device_t);
+static int	acpi_system76_resume(device_t);
+static int	acpi_system76_shutdown(device_t);
 static void	acpi_system76_init(struct acpi_system76_softc *);
 static struct acpi_ctrl *
 		acpi_system76_ctrl_map(struct acpi_system76_softc *, int);
@@ -72,6 +80,12 @@ static int	acpi_system76_update(struct acpi_system76_softc *, int, bool);
 static int	acpi_system76_sysctl_handler(SYSCTL_HANDLER_ARGS);
 static void	acpi_system76_notify_handler(ACPI_HANDLE, uint32_t, void *);
 static void	acpi_system76_check(struct acpi_system76_softc *);
+static int	acpi_system76_backlight_update_status(device_t dev,
+		    struct backlight_props *props);
+static int	acpi_system76_backlight_get_status(device_t dev,
+		    struct backlight_props *props);
+static int	acpi_system76_backlight_get_info(device_t dev,
+		    struct backlight_info *info);
 
 /* methods */
 enum {
@@ -125,9 +139,18 @@ static const struct s76_ctrl_table s76_sysctl_table[] = {
 };
 
 static device_method_t acpi_system76_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_probe, acpi_system76_probe),
 	DEVMETHOD(device_attach, acpi_system76_attach),
 	DEVMETHOD(device_detach, acpi_system76_detach),
+	DEVMETHOD(device_suspend, acpi_system76_suspend),
+	DEVMETHOD(device_resume, acpi_system76_resume),
+	DEVMETHOD(device_shutdown, acpi_system76_shutdown),
+
+	/* Backlight interface */
+        DEVMETHOD(backlight_update_status, acpi_system76_backlight_update_status),
+        DEVMETHOD(backlight_get_status, acpi_system76_backlight_get_status),
+        DEVMETHOD(backlight_get_info, acpi_system76_backlight_get_info),
 
 	DEVMETHOD_END
 };
@@ -144,6 +167,33 @@ static driver_t acpi_system76_driver = {
 	acpi_system76_methods,
 	sizeof(struct acpi_system76_softc)
 };
+
+static const uint32_t acpi_system76_backlight_levels[] = {
+	0, 6, 12, 18, 24, 30, 36, 42,
+	48, 54, 60, 66, 72, 78, 84, 100
+};
+
+static inline uint32_t
+devstate_to_backlight(uint32_t val)
+{
+	return (acpi_system76_backlight_levels[val >> 4 & 0xf]);
+}
+
+static inline uint32_t
+backlight_to_devstate(uint32_t bkl)
+{
+	int i;
+	uint32_t val;
+
+	for (i = 0; i < nitems(acpi_system76_backlight_levels); i++) {
+		if (bkl < acpi_system76_backlight_levels[i])
+			break;
+	}
+	val = (i - 1) * 16;
+	if (val > 224)
+		val = 255;
+	return (val);
+}
 
 /*
  * Returns corresponding acpi_ctrl of softc from method
@@ -244,6 +294,9 @@ acpi_system76_notify_update(void *arg)
 		acpi_system76_update(sc, method, false);
 	}
 	ACPI_SERIAL_END(system76);
+
+	if (sc->kbb_bkl != NULL)
+		sc->backlight_level = devstate_to_backlight(sc->kbb.val);
 }
 
 static void
@@ -335,6 +388,8 @@ acpi_system76_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		case S76_CTRL_KBB:
 			if (val > UINT8_MAX || val < 0)
 				return (EINVAL);
+			if (sc->kbb_bkl != NULL)
+				sc->backlight_level = devstate_to_backlight(val);
 			break;
 		case S76_CTRL_KBC:
 			if (val >= (1 << 24) || val < 0)
@@ -386,11 +441,58 @@ acpi_system76_init(struct acpi_system76_softc *sc)
 		if (!ctrl->exists)
 			continue;
 
+		if (method == S76_CTRL_KBB) {
+			sc->kbb_bkl = backlight_register("system76_keyboard", sc->dev);
+			if (sc->kbb_bkl == NULL)
+				device_printf(sc->dev, "Can not register backlight\n");
+			else
+				sc->backlight_level = devstate_to_backlight(sc->kbb.val);
+		}
+
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, s76_sysctl_table[method].name,
 		    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 		    sc, method, acpi_system76_sysctl_handler, "IU", s76_sysctl_table[method].desc);
 	}
+}
+
+static int
+acpi_system76_backlight_update_status(device_t dev, struct backlight_props
+    *props)
+{
+	struct acpi_system76_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->kbb.val != backlight_to_devstate(props->brightness)) {
+		sc->kbb.val = backlight_to_devstate(props->brightness);
+		acpi_system76_update(sc, S76_CTRL_KBB, true);
+	}
+	sc->backlight_level = props->brightness;
+
+	return (0);
+}
+
+static int
+acpi_system76_backlight_get_status(device_t dev, struct backlight_props *props)
+{
+	struct acpi_system76_softc *sc;
+
+	sc = device_get_softc(dev);
+	props->brightness = sc->backlight_level;
+	props->nlevels = nitems(acpi_system76_backlight_levels);
+	memcpy(props->levels, acpi_system76_backlight_levels,
+	    sizeof(acpi_system76_backlight_levels));
+
+        return (0);
+}
+
+static int
+acpi_system76_backlight_get_info(device_t dev, struct backlight_info *info)
+{
+        info->type = BACKLIGHT_TYPE_KEYBOARD;
+        strlcpy(info->name, "System76 Keyboard", BACKLIGHTMAXNAMELENGTH);
+
+        return (0);
 }
 
 static int
@@ -423,7 +525,49 @@ acpi_system76_detach(device_t dev)
 	if (sysctl_ctx_free(&sc->sysctl_ctx) != 0)
 		return (EBUSY);
 
+	AcpiRemoveNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
+	    acpi_system76_notify_handler);
+
+	if (sc->kbb_bkl != NULL)
+		backlight_destroy(sc->kbb_bkl);
+
 	return (0);
+}
+
+static int
+acpi_system76_suspend(device_t dev)
+{
+	struct acpi_system76_softc *sc;
+	struct acpi_ctrl *ctrl;
+
+	sc = device_get_softc(dev);
+	if ((ctrl = acpi_system76_ctrl_map(sc, S76_CTRL_KBB)) != NULL) {
+		ctrl->val = 0;
+		acpi_system76_update(sc, S76_CTRL_KBB, true);
+	}
+
+	return (0);
+}
+
+static int
+acpi_system76_resume(device_t dev)
+{
+	struct acpi_system76_softc *sc;
+	struct acpi_ctrl *ctrl;
+
+	sc = device_get_softc(dev);
+	if ((ctrl = acpi_system76_ctrl_map(sc, S76_CTRL_KBB)) != NULL) {
+		ctrl->val = backlight_to_devstate(sc->backlight_level);
+		acpi_system76_update(sc, S76_CTRL_KBB, true);
+	}
+
+	return (0);
+}
+
+static int
+acpi_system76_shutdown(device_t dev)
+{
+	return (acpi_system76_detach(dev));
 }
 
 static int
@@ -444,3 +588,4 @@ acpi_system76_probe(device_t dev)
 DRIVER_MODULE(acpi_system76, acpi, acpi_system76_driver, 0, 0);
 MODULE_VERSION(acpi_system76, 1);
 MODULE_DEPEND(acpi_system76, acpi, 1, 1, 1);
+MODULE_DEPEND(acpi_system76, backlight, 1, 1, 1);
