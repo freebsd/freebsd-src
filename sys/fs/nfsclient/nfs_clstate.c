@@ -433,9 +433,11 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 {
 	struct nfscldeleg *tdp;
 	struct nfsmount *nmp;
+	bool trydelegret;
 
 	KASSERT(mp != NULL, ("nfscl_deleg: mp NULL"));
 	nmp = VFSTONFS(mp);
+	trydelegret = false;
 
 	/*
 	 * Since a delegation might be added to the mount,
@@ -467,6 +469,9 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 		 * Read delegation.  Otherwise, return the new delegation.
 		 */
 		if (dp != NULL) {
+			if (NFSBCMP(dp->nfsdl_stateid.other,
+			    tdp->nfsdl_stateid.other, NFSX_STATEIDOTHER))
+				trydelegret = true;
 			if ((dp->nfsdl_flags & NFSCLDL_WRITE) != 0 &&
 			    (tdp->nfsdl_flags & NFSCLDL_READ) != 0) {
 				TAILQ_REMOVE(&clp->nfsc_deleg, tdp, nfsdl_list);
@@ -485,7 +490,8 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 	}
 	NFSUNLOCKCLSTATE();
 	if (tdp != NULL) {
-		nfscl_trydelegreturn(tdp, cred, nmp, p);
+		if (trydelegret)
+			nfscl_trydelegreturn(tdp, cred, nmp, p);
 		free(tdp, M_NFSCLDELEG);
 	}
 	return (0);
