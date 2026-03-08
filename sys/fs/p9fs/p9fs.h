@@ -103,7 +103,7 @@ struct p9fs_node {
 	struct p9fs_inode inode;		/* in memory representation of ondisk information*/
 	struct p9fs_session *p9fs_ses;	/*  Session_ptr for this node */
 	STAILQ_ENTRY(p9fs_node) p9fs_node_next;
-	uint64_t flags;
+	u_int flags;
 };
 
 #define P9FS_VTON(vp) ((struct p9fs_node *)(vp)->v_data)
@@ -111,10 +111,13 @@ struct p9fs_node {
 #define	VFSTOP9(mp) ((struct p9fs_mount *)(mp)->mnt_data)
 #define QEMU_DIRENTRY_SZ	25
 #define P9FS_NODE_MODIFIED	0x1  /* indicating file change */
-#define P9FS_ROOT		0x2  /* indicating root p9fs node */
+#define P9FS_NODE_ROOT		0x2  /* indicating root p9fs node */
 #define P9FS_NODE_DELETED	0x4  /* indicating file or directory delete */
 #define P9FS_NODE_IN_SESSION	0x8  /* p9fs_node is in the session - virt_node_list */
-#define IS_ROOT(node)	(node->flags & P9FS_ROOT)
+#define IS_ROOT(node)	(((node)->flags & P9FS_NODE_ROOT) != 0)
+
+#define	P9FS_NODE_SETF(n, f)	atomic_set_int(&(n)->flags, (f))
+#define	P9FS_NODE_CLRF(n, f)	atomic_clear_int(&(n)->flags, (f))
 
 #define P9FS_SET_LINKS(inode) do {	\
 	(inode)->i_links_count = 1;	\
