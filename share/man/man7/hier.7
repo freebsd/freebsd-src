@@ -327,7 +327,7 @@ Explicitly distrusted certificates; see
 kernel state defaults; see
 .Xr sysctl.conf 5
 .It Pa syslog.conf
-system log configuration
+system message log configuration
 .It Pa ttys
 tty creation configuration; see
 .Xr getty 8
@@ -851,7 +851,7 @@ default log for system daemons
 .It Pa devd.log
 default log for device state change daemon
 .It Pa dmesg.today
-system message buffer log, rotates to
+kernel message buffer log, rotates to
 .Pa dmesg.yesterday
 .It Pa debug.log
 undiscarded debug syslog messages
@@ -862,7 +862,7 @@ logs for the line printer spooler daemon; see
 .Xr sendmail 8
 log, rotates and compresses to maillog.0.bz2
 .It Pa messages
-general system log; see
+general system message log; see
 .Xr syslogd 8
 .It Pa mount.today
 currently loaded
