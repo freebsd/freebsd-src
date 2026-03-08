@@ -34,6 +34,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/systm.h> 
 #include <sys/endian.h>
@@ -2036,11 +2037,11 @@ do {									\
 	}
 
 	/* CCFS1 > 0 and | CCFS1 - CCFS0 | = 8 */
-	if (ni->ni_vht_chan2 > 0 && (ni->ni_vht_chan2 - ni->ni_vht_chan1) == 8)
+	if (ni->ni_vht_chan2 > 0 && abs(ni->ni_vht_chan2 - ni->ni_vht_chan1) == 8)
 		can_vht160 = can_vht80 = true;
 
 	/* CCFS1 > 0 and | CCFS1 - CCFS0 | > 16 */
-	if (ni->ni_vht_chan2 > 0 && (ni->ni_vht_chan2 - ni->ni_vht_chan1) > 16)
+	if (ni->ni_vht_chan2 > 0 && abs(ni->ni_vht_chan2 - ni->ni_vht_chan1) > 16)
 		can_vht80p80 = can_vht80 = true;
 
 	/* CFFS1 == 0 */
