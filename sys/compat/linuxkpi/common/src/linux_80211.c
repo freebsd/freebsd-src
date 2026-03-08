@@ -3215,16 +3215,28 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	wiphy_lock(hw->wiphy);
 
 	LKPI_80211_LVIF_LOCK(lvif);
-#ifdef LINUXKPI_DEBUG_80211
-	/* XXX-BZ KASSERT later; state going down so no action. */
-	if (lvif->lvif_bss == NULL)
-		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
-		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
+	/*
+	 * XXX-BZ KASSERT later; state going down so no action in theory
+	 * but try to avoid a NULL-pointer derref for now and gracefully
+	 * fail for non-debug kernels.
+	 */
+	if (lvif->lvif_bss == NULL) {
+		ic_printf(vap->iv_ic, "%s:%d: ERROR: lvif %p vap %p iv_bss %p "
+		    "lvif_bss %p lvif_bss->ni %p synched %d; "
+		    "expect follow-up problems\n", __func__, __LINE__,
 		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
 		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
 		    lvif->lvif_bss_synched);
-#endif
-
+		LKPI_80211_LVIF_UNLOCK(lvif);
+		/*
+		 * This will likely lead to a firmware crash (if there
+		 * was not one before already) and need a
+		 * ieee80211_restart_hw() but still better than a panic
+		 * for users as they can at least recover.
+		 */
+		error = ENOTRECOVERABLE;
+		goto out;
+	}
 	lsta = lvif->lvif_bss;
 	LKPI_80211_LVIF_UNLOCK(lvif);
 	KASSERT(lsta != NULL && lsta->ni != NULL, ("%s: lsta %p ni %p "
