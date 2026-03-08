@@ -111,7 +111,7 @@ p9fs_cleanup(struct p9fs_node *np)
 
 	P9FS_LOCK(vses);
 	if ((np->flags & P9FS_NODE_IN_SESSION) != 0) {
-		np->flags &= ~P9FS_NODE_IN_SESSION;
+		P9FS_NODE_CLRF(np, P9FS_NODE_IN_SESSION);
 		STAILQ_REMOVE(&vses->virt_node_list, np, p9fs_node, p9fs_node_next);
 	} else {
 		P9FS_UNLOCK(vses);
@@ -675,7 +675,7 @@ p9fs_open(struct vop_open_args *ap)
 		error = vinvalbuf(vp, 0, 0, 0);
 		if (error != 0)
 			return (error);
-		np->flags &= ~P9FS_NODE_MODIFIED;
+		P9FS_NODE_CLRF(np, P9FS_NODE_MODIFIED);
 	}
 
 	vfid = p9fs_get_fid(vses->clnt, np, ap->a_cred, VFID, -1, &error);
@@ -1003,7 +1003,7 @@ p9fs_stat_vnode_dotl(struct p9_stat_dotl *stat, struct vnode *vp)
 
 	/* Setting a flag if file changes based on qid version */
 	if (np->vqid.qid_version != stat->qid.version)
-		np->flags |= P9FS_NODE_MODIFIED;
+		P9FS_NODE_SETF(np, P9FS_NODE_MODIFIED);
 	memcpy(&np->vqid, &stat->qid, sizeof(stat->qid));
 	if (!excl_locked)
 		VI_UNLOCK(vp);
@@ -1549,7 +1549,7 @@ remove_common(struct p9fs_node *dnp, struct p9fs_node *np, const char *name,
 	cache_purge(vp);
 	vfs_hash_remove(vp);
 
-	np->flags |= P9FS_NODE_DELETED;
+	P9FS_NODE_SETF(np, P9FS_NODE_DELETED);
 
 	return (error);
 }
