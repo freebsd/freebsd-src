@@ -5469,7 +5469,7 @@ csum_to_ctrl(struct adapter *sc, struct mbuf *m)
 	uint64_t ctrl;
 	int csum_type, l2hlen, l3hlen;
 	int x, y;
-	static const int csum_types[3][2] = {
+	static const uint8_t csum_types[3][2] = {
 		{TX_CSUM_TCPIP, TX_CSUM_TCPIP6},
 		{TX_CSUM_UDPIP, TX_CSUM_UDPIP6},
 		{TX_CSUM_IP, 0}
