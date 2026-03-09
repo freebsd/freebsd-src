@@ -52,6 +52,7 @@ Options:
                   (default: update.FreeBSD.org)
   -t address   -- Mail output of cron command, if any, to address
                   (default: root)
+  -v level     -- Set output verbosity to stats, nostats, or debug
   --not-running-from-cron
                -- Run without a tty, for use by automated tools
   --currently-running release
