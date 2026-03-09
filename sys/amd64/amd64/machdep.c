@@ -1850,7 +1850,7 @@ wrmsr_early_safe_end(void)
 	lidt(&wrmsr_early_safe_orig_efi_idt);
 
 	gpf_descr = &idt0[IDT_GP];
-	memset(gpf_descr, 0, sizeof(*gpf_descr));
+	memset_early(gpf_descr, 0, sizeof(*gpf_descr));
 }
 
 #ifdef KDB
