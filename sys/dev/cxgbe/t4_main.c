@@ -3760,10 +3760,17 @@ port_mword(struct port_info *pi, uint32_t speed)
 			return (IFM_NONE);
 		}
 		break;
-	case M_FW_PORT_CMD_PTYPE:	/* FW_PORT_TYPE_NONE for old firmware */
-		if (chip_id(pi->adapter) >= CHELSIO_T7)
-			return (IFM_UNKNOWN);
-		/* fall through */
+	case FW_PORT_TYPE_KR4_200G: {
+		/*
+		 * Pre-T7 firmware used M_FW_PORT_CMD_PTYPE for PORT_TYPE_NONE
+		 * and driver needs to deal with both.
+		 */
+		_Static_assert(M_FW_PORT_CMD_PTYPE == FW_PORT_TYPE_KR4_200G,
+		    "driver/firmware mismatch");
+		if (chip_id(pi->adapter) < CHELSIO_T7)
+			return (IFM_NONE);
+		return (IFM_200G_KR4_PAM4);
+	}
 	case FW_PORT_TYPE_NONE:
 		return (IFM_NONE);
 	}

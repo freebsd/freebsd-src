@@ -175,6 +175,11 @@
 					    # TPT error.
 						# Err2uP = 0
 
+	# ULP_TX_ACCELERATOR_CTL
+	reg[0x8f90] = 0x00000015/0x00000015 # Compression block clock gating
+					    # Dedupe clock gating
+					    # Erasure Coding clock gating
+
 	#ULP_RX_CTL1
 	reg[0x19330] = 0x000000f0/0x000000f0 # RDMA_Invld_Msg_Dis = 3
 	                                     # ROCE_Invld_Msg_Dis = 3
@@ -201,7 +206,7 @@
 				    # default gc enabled.
 
 	# HMA configuration (uncomment following lines to enable HMA)
-	hma_size = 128 			# Size (in MBs) of host memory expected
+	hma_size = 256 			# Size (in MBs) of host memory expected
 	hma_regions = 	iscsi,rrq,tls,ddp,pmrx,stag,pbl,rq	# What all regions to place in host memory
 
     #mc[0]=0
@@ -394,8 +399,7 @@
 	neq = 16		# niqflint + nethctrl Egress Queues
 	nexactf = 8		# number of exact MPSTCAM MAC filters
 	cmask = all		# access to all channels
-	#pmask = 0x4		# access to only one port
-	pmask = 0x1		# access to only one port
+	pmask = 0x4		# access to only one port
 
 [function "3"]
 	nvf = 16		# NVF on this function
@@ -407,7 +411,7 @@
 	neq = 16		# niqflint + nethctrl Egress Queues
 	nexactf = 8		# number of exact MPSTCAM MAC filters
 	cmask = all		# access to all channels
-	#pmask = 0x2		# access to only one port
+	pmask = 0x8		# access to only one port
 
 # Some OS Drivers manage all application functions for all ports via PF4.
 # Thus we need to provide a large number of resources here.  For Egress
@@ -421,7 +425,7 @@
 	r_caps = all		# read permissions for all commands
 	nvi = 28		# NVI_UNIFIED
 	niqflint = 170		# NFLIQ_UNIFIED + NLFIQ_WD
-	nethctrl = 224 		# NETHCTRL_UNIFIED + NETHCTRL_WD
+	nethctrl = 288 		# NETHCTRL_UNIFIED + NETHCTRL_WD
 	neq = 252		# NEQ_UNIFIED + NEQ_WD
 	nqpcq = 12288
 	nexactf = 40		# NMPSTCAM_UNIFIED
@@ -435,8 +439,7 @@
 	nserver = 480		# number of server region entries
 	nhash = 12288		# number of hash region entries
 	nhpfilter = 64		# number of high priority filter region entries
-	#protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline, rocev2, nic_hashfilter, ofld_sendpath
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline, rocev2, nic_hashfilter, nvme_tcp
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline, rocev2, nic_hashfilter, nvme_tcp, ofld_sendpath
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -643,7 +646,7 @@
 
 [fini]
 	version = 0x1425001d
-	checksum = 0x3671da3b
+	checksum = 0x2419f987
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
