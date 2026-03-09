@@ -253,7 +253,7 @@ function core.kernelList()
 		end
 
 		if ftype then
-			if ftype ~= lfs.DT_DIR then
+			if ftype ~= lfs.DT_DIR and ftype ~= (lfs.DT_LNK or 10) then
 				goto continue
 			end
 		elseif lfs.attributes(fname, "mode") ~= "directory" then
