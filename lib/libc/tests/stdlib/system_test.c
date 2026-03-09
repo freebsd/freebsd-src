@@ -128,7 +128,7 @@ ATF_TC_BODY(system_concurrent, tc)
 
 	/* Save the current signal dispositions */
 	ATF_REQUIRE_EQ(0, sigaction(SIGINT, NULL, &sigint));
-	ATF_REQUIRE_EQ(0, sigaction(SIGINT, NULL, &sigquit));
+	ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigquit));
 	ATF_REQUIRE_EQ(0, sigprocmask(0, NULL, &normset));
 
 	/* Spawn threads which block on these files */
@@ -149,9 +149,9 @@ ATF_TC_BODY(system_concurrent, tc)
 	/* Release the locks */
 	for (int i = 0; i < N; i++) {
 		/* Check the signal dispositions */
-		ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigact));
-		ATF_CHECK_EQ(SIG_IGN, sigact.sa_handler);
 		ATF_REQUIRE_EQ(0, sigaction(SIGINT, NULL, &sigact));
+		ATF_CHECK_EQ(SIG_IGN, sigact.sa_handler);
+		ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigact));
 		ATF_CHECK_EQ(SIG_IGN, sigact.sa_handler);
 #ifndef PROCMASK_IS_THREADMASK
 		ATF_REQUIRE_EQ(0, sigprocmask(0, NULL, &sigset));
@@ -167,14 +167,14 @@ ATF_TC_BODY(system_concurrent, tc)
 	}
 
 	/* Check the signal dispositions */
-	ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigact));
-	ATF_CHECK_EQ(sigquit.sa_handler, sigact.sa_handler);
-	ATF_CHECK_EQ(sigquit.sa_flags, sigact.sa_flags);
-	ATF_CHECK_EQ(0, sigcmpset(&sigquit.sa_mask, &sigact.sa_mask));
 	ATF_REQUIRE_EQ(0, sigaction(SIGINT, NULL, &sigact));
 	ATF_CHECK_EQ(sigint.sa_handler, sigact.sa_handler);
 	ATF_CHECK_EQ(sigint.sa_flags, sigact.sa_flags);
 	ATF_CHECK_EQ(0, sigcmpset(&sigint.sa_mask, &sigact.sa_mask));
+	ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigact));
+	ATF_CHECK_EQ(sigquit.sa_handler, sigact.sa_handler);
+	ATF_CHECK_EQ(sigquit.sa_flags, sigact.sa_flags);
+	ATF_CHECK_EQ(0, sigcmpset(&sigquit.sa_mask, &sigact.sa_mask));
 	ATF_REQUIRE_EQ(0, sigprocmask(0, NULL, &sigset));
 	ATF_CHECK_EQ(0, sigcmpset(&sigset, &normset));
 }
