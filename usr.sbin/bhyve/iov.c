@@ -110,16 +110,16 @@ check_iov_len(const struct iovec *iov, size_t niov, size_t len)
 	return (false);
 }
 
-ssize_t
+size_t
 iov_to_buf(const struct iovec *iov, size_t niov, void **buf)
 {
 	size_t ptr, total;
 	size_t i;
 
 	total = count_iov(iov, niov);
-	*buf = realloc(*buf, total);
+	*buf = reallocf(*buf, total);
 	if (*buf == NULL)
-		return (-1);
+		return (0);
 
 	for (i = 0, ptr = 0; i < niov; i++) {
 		memcpy((uint8_t *)*buf + ptr, iov[i].iov_base, iov[i].iov_len);
@@ -129,7 +129,7 @@ iov_to_buf(const struct iovec *iov, size_t niov, void **buf)
 	return (total);
 }
 
-ssize_t
+size_t
 buf_to_iov(const void *buf, size_t buflen, const struct iovec *iov, size_t niov)
 {
 	size_t off = 0, len;
@@ -141,5 +141,5 @@ buf_to_iov(const void *buf, size_t buflen, const struct iovec *iov, size_t niov)
 		off += len;
 	}
 
-	return ((ssize_t)off);
+	return (off);
 }
