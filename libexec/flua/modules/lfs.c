@@ -443,6 +443,10 @@ luaopen_lfs(lua_State *L)
 	/* Non-standard extension for loader, used with lfs.dir(). */
 	lua_pushinteger(L, DT_DIR);
 	lua_setfield(L, -2, "DT_DIR");
+	lua_pushinteger(L, DT_REG);
+	lua_setfield(L, -2, "DT_REG");
+	lua_pushinteger(L, DT_LNK);
+	lua_setfield(L, -2, "DT_LNK");
 #endif
 	return 1;
 }
