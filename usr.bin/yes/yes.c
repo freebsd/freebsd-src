@@ -35,40 +35,71 @@
 #include <string.h>
 #include <unistd.h>
 
+/*
+ * Default expletive
+ */
+#define EXP	"y\n"
+#define EXPLEN	strlen(EXP)
+
+/*
+ * Optimum and maximum buffer size.  The optimum is just a little less
+ * than the default value of kern.ipc.pipe_mindirect; writing more than
+ * that is significantly slower, but we want to get as close as possible
+ * to minimize the number of system calls.  The maximum is enough for a
+ * maximal command line plus a newline and terminating NUL.
+ */
+#define OPTBUF	8190
+#define MAXBUF	(ARG_MAX + 2)
+
 int
 main(int argc, char **argv)
 {
-	char buf[8192];
-	char y[2] = { 'y', '\n' };
-	char * exp = y;
-	size_t buflen = 0;
-	size_t explen = sizeof(y);
-	size_t more;
-	ssize_t ret;
+	static char buf[MAXBUF] = EXP;
+	char *end = buf + sizeof(buf), *exp, *pos = buf + EXPLEN;
+	size_t buflen, explen = EXPLEN;
+	ssize_t wlen = 0;
 
 	if (caph_limit_stdio() < 0 || caph_enter() < 0)
 		err(1, "capsicum");
 
-	if (argc > 1) {
-		exp = argv[1];
-		explen = strlen(exp) + 1;
-		exp[explen - 1] = '\n';
-	}
+	argc -= 1;
+	argv += 1;
 
-	if (explen <= sizeof(buf)) {
-		while (buflen < sizeof(buf) - explen) {
-			memcpy(buf + buflen, exp, explen);
-			buflen += explen;
+	/* Assemble the expletive */
+	if (argc > 0) {
+		/* Copy positional arguments into expletive buffer */
+		for (pos = buf, end = buf + sizeof(buf);
+		     argc > 0 && pos < end; argc--, argv++) {
+			/* Separate with spaces */
+			if (pos > buf)
+				*pos++ = ' ';
+			exp = *argv;
+			while (*exp != '\0' && pos < end)
+				*pos++ = *exp++;
 		}
-		exp = buf;
-		explen = buflen;
+		/* This should not be possible, but check anyway */
+		if (pos > end - 2)
+			pos = end - 2;
+		*pos++ = '\n';
+		explen = pos - buf;
 	}
 
-	more = explen;
-	while ((ret = write(STDOUT_FILENO, exp + (explen - more), more)) > 0)
-		if ((more -= ret) == 0)
-			more = explen;
+	/*
+	 * Double until we're past OPTBUF, then reduce buflen to exactly
+	 * OPTBUF.  It doesn't matter if that's not a multiple of explen;
+	 * the modulo operation in the write loop will take care of that.
+	 */
+	for (buflen = explen; buflen < OPTBUF; pos += buflen, buflen += buflen)
+		memcpy(pos, buf, buflen);
+	if (explen < OPTBUF && buflen > OPTBUF)
+		buflen = OPTBUF;
 
+	/* Dump it to stdout */
+	end = (pos = buf) + buflen;
+	do {
+		pos = buf + (pos - buf + wlen) % explen;
+		wlen = write(STDOUT_FILENO, pos, end - pos);
+	} while (wlen > 0);
 	err(1, "stdout");
 	/*NOTREACHED*/
 }
