@@ -71,7 +71,7 @@ static struct pcisel getsel(const char *str);
 static void list_bridge(int fd, struct pci_conf *p);
 static void list_bars(int fd, struct pci_conf *p);
 static void list_devs(const char *name, int verbose, int bars, int bridge,
-    int caps, int errors, int vpd, int listmode);
+    int caps, int errors, int vpd, int compact);
 static void list_verbose(struct pci_conf *p);
 static void list_vpd(int fd, struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
@@ -103,17 +103,17 @@ int
 main(int argc, char **argv)
 {
 	int c, width;
-	int listmode, readmode, writemode, attachedmode, dumpbarmode;
-	int bars, bridge, caps, errors, verbose, vpd;
+	enum { NONE, LIST, READ, WRITE, ATTACHED, DUMPBAR } mode;
+	int compact, bars, bridge, caps, errors, verbose, vpd;
 
-	listmode = readmode = writemode = attachedmode = dumpbarmode = 0;
-	bars = bridge = caps = errors = verbose = vpd= 0;
+	mode = NONE;
+	compact = bars = bridge = caps = errors = verbose = vpd = 0;
 	width = 4;
 
 	while ((c = getopt(argc, argv, "aBbcDehlrwVvx")) != -1) {
 		switch(c) {
 		case 'a':
-			attachedmode = 1;
+			mode = ATTACHED;
 			break;
 
 		case 'B':
@@ -130,7 +130,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'D':
-			dumpbarmode = 1;
+			mode = DUMPBAR;
 			break;
 
 		case 'e':
@@ -142,15 +142,17 @@ main(int argc, char **argv)
 			break;
 
 		case 'l':
-			listmode++;
+			if (mode == LIST)
+				compact = 1;
+			mode = LIST;
 			break;
 
 		case 'r':
-			readmode = 1;
+			mode = READ;
 			break;
 
 		case 'w':
-			writemode = 1;
+			mode = WRITE;
 			break;
 
 		case 'v':
@@ -170,30 +172,38 @@ main(int argc, char **argv)
 		}
 	}
 
-	if ((listmode && optind >= argc + 1)
-	    || (writemode && optind + 3 != argc)
-	    || (readmode && optind + 2 != argc)
-	    || (attachedmode && optind + 1 != argc)
-	    || (dumpbarmode && (optind + 2 > argc || optind + 4 < argc))
-	    || (width == 8 && !dumpbarmode))
-		usage();
-
-	if (listmode) {
+	switch (mode) {
+	case LIST:
+		if (optind >= argc + 1)
+			usage();
 		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
-		    bars, bridge, caps, errors, vpd, listmode);
-	} else if (attachedmode) {
+		    bars, bridge, caps, errors, vpd, compact);
+		break;
+	case ATTACHED:
+		if (optind + 1 != argc)
+			usage();
 		chkattached(argv[optind]);
-	} else if (readmode) {
+		break;
+	case READ:
+		if (optind + 2 != argc || width == 8)
+			usage();
 		readit(argv[optind], argv[optind + 1], width);
-	} else if (writemode) {
+		break;
+	case WRITE:
+		if (optind + 3 != argc || width == 8)
+			usage();
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
 		    width);
-	} else if (dumpbarmode) {
+		break;
+	case DUMPBAR:
+		if (optind + 2 > argc || optind + 4 < argc)
+			usage();
 		dump_bar(argv[optind], argv[optind + 1],
 		    optind + 2 < argc ? argv[optind + 2] : NULL, 
 		    optind + 3 < argc ? argv[optind + 3] : NULL, 
 		    width, verbose);
-	} else {
+		break;
+	default:
 		usage();
 	}
 
@@ -258,7 +268,7 @@ fetch_devs(int fd, const char *name, struct pci_conf **confp, size_t *countp)
 
 static void
 list_devs(const char *name, int verbose, int bars, int bridge, int caps,
-    int errors, int vpd, int listmode)
+    int errors, int vpd, int compact)
 {
 	int fd;
 	struct pci_conf *conf, *p;
@@ -279,11 +289,11 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 		return;
 	}
 
-	if (listmode == 2)
+	if (compact)
 		printf("drv\tselector\tclass    rev  hdr  "
 		    "vendor device subven subdev\n");
 	for (p = conf; p < conf + count; p++) {
-		if (listmode == 2)
+		if (compact)
 			printf("%s%d@pci%d:%d:%d:%d:"
 			    "\t%06x   %02x   %02x   "
 			    "%04x   %04x   %04x   %04x\n",
