@@ -339,13 +339,9 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 }
 
 static void
-print_bus_range(int fd, struct pci_conf *p, int secreg, int subreg)
+print_bus_range(struct pci_conf *p)
 {
-	uint8_t secbus, subbus;
-
-	secbus = read_config(fd, &p->pc_sel, secreg, 1);
-	subbus = read_config(fd, &p->pc_sel, subreg, 1);
-	printf("    bus range  = %u-%u\n", secbus, subbus);
+	printf("    bus range  = %u-%u\n", p->pc_secbus, p->pc_subbus);
 }
 
 static void
@@ -511,11 +507,11 @@ list_bridge(int fd, struct pci_conf *p)
 
 	switch (p->pc_hdr & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_BRIDGE:
-		print_bus_range(fd, p, PCIR_SECBUS_1, PCIR_SUBBUS_1);
+		print_bus_range(p);
 		print_bridge_windows(fd, p);
 		break;
 	case PCIM_HDRTYPE_CARDBUS:
-		print_bus_range(fd, p, PCIR_SECBUS_2, PCIR_SUBBUS_2);
+		print_bus_range(p);
 		print_cardbus_windows(fd, p);
 		break;
 	}
