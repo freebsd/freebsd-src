@@ -237,6 +237,7 @@ pthread_join(sp_pthread_t thread, void **value)
 
 
 static pam_handle_t *sshpam_handle = NULL;
+static char *sshpam_initial_user;
 static int sshpam_err = 0;
 static int sshpam_authenticated = 0;
 static int sshpam_session_open = 0;
@@ -485,10 +486,11 @@ check_pam_user(Authctxt *authctxt)
 		return PAM_USER_UNKNOWN;
 	}
 
-	if (strcmp(authctxt->pw->pw_name, pam_user) != 0) {
-		debug("PAM user \"%s\" does not match expected \"%s\"",
-		      pam_user, authctxt->pw->pw_name);
-		return PAM_USER_UNKNOWN;
+	if (sshpam_initial_user == NULL)
+		fatal_f("internal error: sshpam_initial_user NULL");
+	if (strcmp(sshpam_initial_user, pam_user) != 0) {
+		error_f("PAM user \"%s\" does not match previous \"%s\"",
+		      pam_user, sshpam_initial_user);
 	}
 	return PAM_SUCCESS;
 }
@@ -709,6 +711,8 @@ sshpam_cleanup(void)
 	sshpam_authenticated = 0;
 	pam_end(sshpam_handle, sshpam_err);
 	sshpam_handle = NULL;
+	free(sshpam_initial_user);
+	sshpam_initial_user = NULL;
 }
 
 static int
@@ -725,12 +729,8 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 		fatal("Username too long from %s port %d",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
 #endif
-	if (sshpam_handle == NULL) {
-		if (ssh == NULL) {
-			fatal("%s: called initially with no "
-			    "packet context", __func__);
-		}
-	}
+	if (sshpam_handle == NULL && ssh == NULL)
+		fatal("%s: called initially with no packet context", __func__);
 	if (sshpam_handle != NULL) {
 		/* We already have a PAM context; check if the user matches */
 		if ((sshpam_err = check_pam_user(authctxt)) != PAM_SUCCESS)
@@ -740,6 +740,7 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 	    options.pam_service_name);
 	sshpam_err = pam_start(options.pam_service_name, user,
 	    &store_conv, &sshpam_handle);
+	sshpam_initial_user = xstrdup(user);
 	sshpam_authctxt = authctxt;
 
 	if (sshpam_err != PAM_SUCCESS) {

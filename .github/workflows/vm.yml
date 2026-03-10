@@ -282,9 +282,12 @@ jobs:
         release: ${{ matrix.target }}
         usesh: true
         prepare: |
-          env PKG_PATH=https://ftp.openbsd.org/pub/OpenBSD/${{matrix.target}}/packages/amd64 pkg_add sudo--
           useradd -m builder
-          echo "builder ALL=(ALL:ALL) NOPASSWD: ALL" >>/etc/sudoers
+          echo "permit nopass keepenv root" >/etc/doas.conf
+          echo "permit nopass keepenv builder" >>/etc/doas.conf
+          ls -l /etc/doas.conf
+          chown root:wheel /etc/doas.conf
+          chmod 644 /etc/doas.conf
           mkdir -p /var/empty /usr/local/etc
           cp $GITHUB_WORKSPACE/moduli /usr/local/etc/moduli
 
@@ -293,18 +296,18 @@ jobs:
       run: cd $GITHUB_WORKSPACE && chown -R builder .
     - name: configure
       shell: openbsd {0}
-      run: cd $GITHUB_WORKSPACE && sudo -u builder ./configure
+      run: cd $GITHUB_WORKSPACE && doas -u builder ./configure
     - name: make clean
       shell: openbsd {0}
-      run: cd $GITHUB_WORKSPACE && sudo -u builder make clean
+      run: cd $GITHUB_WORKSPACE && doas -u builder make clean
     - name: make
       shell: openbsd {0}
-      run: cd $GITHUB_WORKSPACE && sudo -u builder make -j4
+      run: cd $GITHUB_WORKSPACE && doas -u builder make -j4
     - name: make tests
       shell: openbsd {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder env SUDO=sudo make tests
+        doas -u builder env SUDO=doas make tests
 
 
   solaris:

@@ -42,7 +42,7 @@ jobs:
       run: sshfs_mount
       working-directory: ${{ runner.temp }}
     - name: update source
-      run: vmrun "cd /usr/src && cvs -q up -dPA usr.bin/ssh regress/usr.bin/ssh usr.bin/nc"
+      run: vmrun "cd /usr/src && if [ -d .git ]; then git pull && git log -n1; else cvs -q up -dPA usr.bin/ssh regress/usr.bin/ssh usr.bin/nc; fi"
     - name: update netcat
       run: vmrun "cd /usr/src/usr.bin/nc && make clean all && sudo make install"
     - name: make clean
