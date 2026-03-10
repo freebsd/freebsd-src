@@ -244,6 +244,12 @@ structure.
 This should always be equivalent to the offset of the
 .Va pc_spare
 member.
+.It pc_secbus
+Secondary PCI bus number.
+.Pq Only valid for bridge devices
+.It pc_subbus
+Subordinate PCI bus number.
+.Pq Only valid for bridge devices
 .It pc_spare
 Reserved for future use.
 .El
