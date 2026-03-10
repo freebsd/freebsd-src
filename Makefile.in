@@ -158,7 +158,7 @@ SSHADD_OBJS=	ssh-add.o $(P11OBJS) $(SKOBJS)
 
 SSHAGENT_OBJS=	ssh-agent.o $(P11OBJS) $(SKOBJS)
 
-SSHKEYGEN_OBJS=	ssh-keygen.o sshsig.o $(P11OBJS) $(SKOBJS)
+SSHKEYGEN_OBJS=	ssh-keygen.o sshsig.o ssh-pkcs11.o $(SKOBJS)
 
 SSHKEYSIGN_OBJS=ssh-keysign.o readconf.o uidswap.o $(P11OBJS) $(SKOBJS)
 

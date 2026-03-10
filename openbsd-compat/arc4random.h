@@ -65,7 +65,7 @@ _rs_forkdetect(void)
 static inline int
 _rs_allocate(struct _rs **rsp, struct _rsx **rsxp)
 {
-#if defined(MAP_ANON) && defined(MAP_PRIVATE)
+#if defined(HAVE_MMAP) && defined(MAP_ANON) && defined(MAP_PRIVATE)
 	if ((*rsp = mmap(NULL, sizeof(**rsp), PROT_READ|PROT_WRITE,
 	    MAP_ANON|MAP_PRIVATE, -1, 0)) == MAP_FAILED)
 		return (-1);
@@ -84,7 +84,7 @@ _rs_allocate(struct _rs **rsp, struct _rsx **rsxp)
 		*rsp = NULL;
 		return (-1);
 	}
-#endif
+#endif /* HAVE_MMAP et al */
 
 	_ARC4_ATFORK(_rs_forkhandler);
 	return (0);

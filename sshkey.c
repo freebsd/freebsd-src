@@ -723,6 +723,7 @@ sshkey_sk_cleanup(struct sshkey *k)
 static int
 sshkey_prekey_alloc(u_char **prekeyp, size_t len)
 {
+#if defined(HAVE_MMAP) && defined(MAP_ANON) && defined(MAP_PRIVATE)
 	u_char *prekey;
 
 	*prekeyp = NULL;
@@ -733,15 +734,22 @@ sshkey_prekey_alloc(u_char **prekeyp, size_t len)
 	(void)madvise(prekey, len, MADV_DONTDUMP);
 #endif
 	*prekeyp = prekey;
+#else
+	*prekeyp = calloc(1, len);
+#endif /* HAVE_MMAP et al */
 	return 0;
 }
 
 static void
 sshkey_prekey_free(void *prekey, size_t len)
 {
+#if defined(HAVE_MMAP) && defined(MAP_ANON) && defined(MAP_PRIVATE)
 	if (prekey == NULL)
 		return;
 	munmap(prekey, len);
+#else
+	free(prekey);
+#endif /* HAVE_MMAP et al */
 }
 
 static void

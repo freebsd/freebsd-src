@@ -536,6 +536,7 @@ AC_CHECK_HEADERS([ \
     nlist.h \
     poll.h \
     stdint.h \
+    sys/mman.h \
     sys/stat.h \
     sys/time.h \
     sys/un.h \
@@ -2103,6 +2104,7 @@ AC_CHECK_FUNCS([ \
 	memmove \
 	memset_s \
 	mkdtemp \
+	mmap \
 	ngetaddrinfo \
 	nlist \
 	nsleep \
