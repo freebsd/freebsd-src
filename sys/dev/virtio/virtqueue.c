@@ -565,6 +565,9 @@ virtqueue_notify(struct virtqueue *vq)
 	/* Ensure updated avail->idx is visible to host. */
 	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
 	    BUS_DMASYNC_PREWRITE);
+#if defined(__i386__) || defined(__amd64__)
+	mb();
+#endif
 
 	if (vq_ring_must_notify_host(vq))
 		vq_ring_notify_host(vq);
@@ -960,6 +963,9 @@ vq_ring_enable_interrupt(struct virtqueue *vq, uint16_t ndesc)
 
 	bus_dmamap_sync(vq->vq_ring_dmat, vq->vq_ring_mapp,
 	    BUS_DMASYNC_PREWRITE);
+#if defined(__i386__) || defined(__amd64__)
+	mb();
+#endif
 
 	/*
 	 * Enough items may have already been consumed to meet our threshold
