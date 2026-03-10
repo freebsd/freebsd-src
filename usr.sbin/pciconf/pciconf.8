@@ -33,6 +33,8 @@
 .Nm
 .Fl l Oo Fl BbceVv Oc Op Ar device
 .Nm
+.Fl t Oo Fl v Oc
+.Nm
 .Fl a Ar device
 .Nm
 .Fl r Oo Fl b | h Oc Ar device addr Ns Op : Ns Ar addr2
@@ -285,6 +287,28 @@ argument is given with the
 flag,
 .Nm
 will only list details about a single device instead of all devices.
+.Ss Tree Mode
+With the
+.Fl t
+flag,
+.Nm
+lists PCI devices in a tree prefixing each device with indentation text showing
+the sibling and parent/child relationships.
+If the device has an attached driver, the device is identified by the driver
+name and unit number;
+otherwise, the device is identified by a PCI selector.
+.Pp
+Top-level entries in the tree identify top-level PCI buses.
+Each bus is named as a partial PCI selector:
+.Li pci Ns Va domain Ns \&: Ns Va bus Ns .
+.Pp
+If the
+.Fl v
+flag is specified,
+the device name or PCI selector is followed by the device's vendor and device
+strings from the vendor/device information database.
+If an identification string is not found in the database,
+the ID register values are output instead.
 .Ss Device Information Modes
 With the
 .Fl a
