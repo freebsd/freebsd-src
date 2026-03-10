@@ -2226,6 +2226,8 @@ parse_options(int narg, char **pparg, int is_main)
 			strncpy(profile.wav_name, optarg, sizeof(profile.wav_name));
 			break;
 		case 'd':
+		case 'L':
+		case 'l':
 			if (strlen(optarg) > VMAX_STRING - 1)
 				return ("Device name too long");
 			strncpy(profile.oss_name, optarg, sizeof(profile.oss_name));
@@ -2240,27 +2242,7 @@ parse_options(int narg, char **pparg, int is_main)
 				return ("-s option value is too big");
 
 			ptr = dup_profile(&profile, opt_amp, opt_pol,
-			    opt_mute[0], opt_mute[1], 0, 1);
-			if (ptr != NULL)
-				return (ptr);
-			break;
-		case 'L':
-		case 'l':
-			if (strlen(optarg) > VMAX_STRING - 1)
-				return ("Device name too long");
-			strncpy(profile.oss_name, optarg, sizeof(profile.oss_name));
-
-			if (profile.bits == 0 || voss_dsp_sample_rate == 0 ||
-			    profile.channels == 0 || voss_dsp_samples == 0)
-				return ("Missing -b, -r, -r or -s parameters");
-
-			val = (voss_dsp_samples *
-			    profile.bits * profile.channels) / 8;
-			if (val <= 0 || val >= (1024 * 1024))
-				return ("-s option value is too big");
-
-			ptr = dup_profile(&profile, opt_amp, opt_pol,
-			    opt_mute[0], opt_mute[1], c == 'L', 0);
+			    opt_mute[0], opt_mute[1], c == 'L', c == 'd');
 			if (ptr != NULL)
 				return (ptr);
 			break;
