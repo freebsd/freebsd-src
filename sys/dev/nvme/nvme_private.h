@@ -286,8 +286,6 @@ struct nvme_controller {
 	struct nvme_qpair	adminq;
 	struct nvme_qpair	*ioq;
 
-	struct nvme_registers		*regs;
-
 	struct nvme_controller_data	cdata;
 	struct nvme_namespace		ns[NVME_MAX_NAMESPACES];
 
