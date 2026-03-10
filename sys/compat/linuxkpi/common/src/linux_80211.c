@@ -181,6 +181,8 @@ static void lkpi_ieee80211_free_skb_mbuf(void *);
 #ifdef LKPI_80211_WME
 static int lkpi_wme_update(struct lkpi_hw *, struct ieee80211vap *, bool);
 #endif
+static int lkpi_80211_update_chandef(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *);
 static void lkpi_ieee80211_wake_queues_locked(struct ieee80211_hw *);
 
 static const char *
@@ -5218,7 +5220,7 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 
 		IMPROVE("max power for scanning; TODO in lkpi_80211_update_chandef");
 
-	} else if (lhw->ops->change_chanctx == ieee80211_emulate_change_chanctx) {
+	} else if (lhw->emulate_chanctx) {
 		/*
 		 * We do not set the channel here for normal chanctx operation.
 		 * That's just a setup to fail. scan_to_auth will setup all the
@@ -6593,6 +6595,53 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	struct lkpi_hw *lhw;
 	struct wiphy *wiphy;
 	int ac;
+	bool emuchanctx;
+
+	/*
+	 * Do certain checks before starting to allocate resources.
+	 * Store results in temporary variables.
+	 */
+
+	/* ac1d519c01ca introduced emulating chanctx changes. */
+	emuchanctx = false;
+	if (ops->add_chanctx == ieee80211_emulate_add_chanctx &&
+	    ops->change_chanctx == ieee80211_emulate_change_chanctx &&
+	    ops->remove_chanctx == ieee80211_emulate_remove_chanctx) {
+		/*
+		 * If we emulate the chanctx ops, we must not have
+		 * assign_vif_chanctx and unassign_vif_chanctx.
+		 */
+		if (ops->assign_vif_chanctx != NULL ||
+		    ops->unassign_vif_chanctx != NULL) {
+			/* Fail gracefully. */
+			printf("%s: emulate_chanctx but "
+			    "assign_vif_chanctx %p != NULL || "
+			    "unassign_vif_chanctx %p != NULL\n", __func__,
+			    ops->assign_vif_chanctx, ops->unassign_vif_chanctx);
+			return (NULL);
+		}
+		emuchanctx = true;
+	}
+	if (!emuchanctx && (ops->add_chanctx == ieee80211_emulate_add_chanctx ||
+	    ops->change_chanctx == ieee80211_emulate_change_chanctx ||
+	    ops->remove_chanctx == ieee80211_emulate_remove_chanctx)) {
+		printf("%s: not emulating chanctx changes but emulating "
+		    "function set: %d/%d/%d\n", __func__,
+		    ops->add_chanctx == ieee80211_emulate_add_chanctx,
+		    ops->change_chanctx == ieee80211_emulate_change_chanctx,
+		    ops->remove_chanctx == ieee80211_emulate_remove_chanctx);
+		return (NULL);
+	}
+	if (!emuchanctx && (ops->add_chanctx == NULL || ops->change_chanctx == NULL ||
+	    ops->remove_chanctx == NULL || ops->assign_vif_chanctx == NULL ||
+	    ops->unassign_vif_chanctx == NULL)) {
+		printf("%s: not all functions set for chanctx operations "
+		    "(emulating chanctx %d): %p/%p/%p %p/%p\n",
+		    __func__, emuchanctx,
+		    ops->add_chanctx, ops->change_chanctx, ops->remove_chanctx,
+		    ops->assign_vif_chanctx, ops->unassign_vif_chanctx);
+		return (NULL);
+	}
 
 	/* Get us and the driver data also allocated. */
 	wiphy = wiphy_new(&linuxkpi_mac80211cfgops, sizeof(*lhw) + priv_len);
@@ -6618,6 +6667,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	/* Chanctx_conf */
 	INIT_LIST_HEAD(&lhw->lchanctx_list);
 	INIT_LIST_HEAD(&lhw->lchanctx_list_reserved);
+	lhw->emulate_chanctx = emuchanctx;
 
 	/* Deferred RX path. */
 	LKPI_80211_LHW_RXQ_LOCK_INIT(lhw);
@@ -6637,6 +6687,8 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	/* BSD Specific. */
 	lhw->ic = lkpi_ieee80211_ifalloc();
 
+	if (lhw->emulate_chanctx)
+		ic_printf(lhw->ic, "Using chanctx emulation.\n");
 	IMPROVE();
 
 	return (hw);
@@ -9220,6 +9272,35 @@ linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
 
 /* -------------------------------------------------------------------------- */
 
+static bool
+cfg80211_chan_def_are_same(struct cfg80211_chan_def *cd1,
+    struct cfg80211_chan_def *cd2)
+{
+
+	if (cd1 == cd2)
+		return (true);
+
+	if (cd1 == NULL || cd2 == NULL)
+		return (false);
+
+	if (cd1->chan != cd2->chan)
+		return (false);
+
+	if (cd1->width != cd2->width)
+		return (false);
+
+	if (cd1->center_freq1 != cd2->center_freq1)
+		return (false);
+
+	if (cd1->center_freq2 != cd2->center_freq2)
+		return (false);
+
+	if (cd1->punctured != cd2->punctured)
+		return (false);
+
+	return (true);
+}
+
 /*
  * hw->conf get initialized/set in various places for us:
  * - linuxkpi_ieee80211_alloc_hw(): flags
@@ -9228,20 +9309,42 @@ linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
  * - lkpi_ic_set_channel(): chandef, flags
  */
 
-int lkpi_80211_update_chandef(struct ieee80211_hw *hw,
+static int
+lkpi_80211_update_chandef(struct ieee80211_hw *hw,
     struct ieee80211_chanctx_conf *new)
 {
+	struct lkpi_hw *lhw;
 	struct cfg80211_chan_def *cd;
 	uint32_t changed;
 	int error;
+	bool same;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (!lhw->emulate_chanctx)
+		return (0);
+
+	if (new == NULL || new->def.chan == NULL) {
+		/*
+		 * In case of remove "new" is NULL, we need to get us to some
+		 * basic channel width but we'd also need to set the channel
+		 * accordingly somewhere.
+		 * The same is true if we are scanning in which case the
+		 * scan_chandef should have a channel set.
+		 */
+		if (lhw->scan_chandef.chan != NULL) {
+			cd = &lhw->scan_chandef;
+		} else {
+			cd = &lhw->dflt_chandef;
+		}
+	} else {
+		cd = &new->def;
+	}
 
 	changed = 0;
-	if (new == NULL || new->def.chan == NULL)
-		cd = NULL;
-	else
-		cd = &new->def;
-
-	if (cd && cd->chan != hw->conf.chandef.chan) {
+	same = cfg80211_chan_def_are_same(cd, &hw->conf.chandef);
+	if (!same) {
 		/* Copy; the chan pointer is fine and will stay valid. */
 		hw->conf.chandef = *cd;
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
@@ -9252,6 +9355,97 @@ int lkpi_80211_update_chandef(struct ieee80211_hw *hw,
 		return (0);
 
 	error = lkpi_80211_mo_config(hw, changed);
+	return (error);
+}
+
+int
+ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf)
+{
+	int error;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+#ifdef LINUXKPI_DEBUG_80211
+	if ((linuxkpi_debug_80211 & D80211_TRACE) != 0) {
+		struct lkpi_hw *lhw;
+
+		lhw = HW_TO_LHW(hw);
+		ic_printf(lhw->ic, "%s:%d: chanctx_conf %p\n",
+		    __func__, __LINE__, chanctx_conf);
+	}
+#endif
+
+	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
+	error = lkpi_80211_update_chandef(hw, chanctx_conf);
+	return (error);
+}
+
+void
+ieee80211_emulate_remove_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf __unused)
+{
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+#ifdef LINUXKPI_DEBUG_80211
+	if ((linuxkpi_debug_80211 & D80211_TRACE) != 0) {
+		struct lkpi_hw *lhw;
+
+		lhw = HW_TO_LHW(hw);
+		ic_printf(lhw->ic, "%s:%d: chanctx_conf %p\n",
+		    __func__, __LINE__, chanctx_conf);
+	}
+#endif
+
+	hw->conf.radar_enabled = false;
+	lkpi_80211_update_chandef(hw, NULL);
+}
+
+void
+ieee80211_emulate_change_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf, uint32_t changed __unused)
+{
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+#ifdef LINUXKPI_DEBUG_80211
+	if ((linuxkpi_debug_80211 & D80211_TRACE) != 0) {
+		struct lkpi_hw *lhw;
+
+		lhw = HW_TO_LHW(hw);
+		ic_printf(lhw->ic, "%s:%d: chanctx_conf %p\n",
+		    __func__, __LINE__, chanctx_conf);
+	}
+#endif
+
+	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
+	lkpi_80211_update_chandef(hw, chanctx_conf);
+}
+
+int
+ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_vif_chanctx_switch *vifs, int n_vifs,
+    enum ieee80211_chanctx_switch_mode mode __unused)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	int error;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	/* Sanity check. */
+	if (n_vifs <= 0)
+		return (-EINVAL);
+	if (vifs == NULL || vifs[0].new_ctx == NULL)
+		return (-EINVAL);
+
+	/*
+	 * What to do if n_vifs > 1?
+	 * Does that make sense for drivers not supporting chanctx?
+	 */
+	hw->conf.radar_enabled = vifs[0].new_ctx->radar_enabled;
+	chanctx_conf = vifs[0].new_ctx;
+	error = lkpi_80211_update_chandef(hw, chanctx_conf);
 	return (error);
 }
 

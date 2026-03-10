@@ -1196,6 +1196,22 @@ void linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *,
 
 /* -------------------------------------------------------------------------- */
 
+/*
+ * Emulate chanctx operations.  We cannot rename/prefix the functions
+ * as we rely on the (function)pointers being the same everywhere.
+ */
+int ieee80211_emulate_add_chanctx(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *);
+void ieee80211_emulate_remove_chanctx(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *);
+void ieee80211_emulate_change_chanctx(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *, uint32_t);
+int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *,
+    struct ieee80211_vif_chanctx_switch *, int,
+    enum ieee80211_chanctx_switch_mode);
+
+/* -------------------------------------------------------------------------- */
+
 static __inline void
 _ieee80211_hw_set(struct ieee80211_hw *hw, enum ieee80211_hw_flags flag)
 {
@@ -2631,62 +2647,6 @@ ieee80211_cqm_beacon_loss_notify(struct ieee80211_vif *vif, gfp_t gfp __unused)
 
 #define	ieee80211_send_bar(_v, _r, _t, _s)				\
     linuxkpi_ieee80211_send_bar(_v, _r, _t, _s)
-
-/* -------------------------------------------------------------------------- */
-
-int lkpi_80211_update_chandef(struct ieee80211_hw *,
-    struct ieee80211_chanctx_conf *);
-
-static inline int
-ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_chanctx_conf *chanctx_conf)
-{
-	int error;
-
-	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
-	error = lkpi_80211_update_chandef(hw, chanctx_conf);
-	return (error);
-}
-
-static inline void
-ieee80211_emulate_remove_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_chanctx_conf *chanctx_conf __unused)
-{
-	hw->conf.radar_enabled = false;
-	lkpi_80211_update_chandef(hw, NULL);
-}
-
-static inline void
-ieee80211_emulate_change_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_chanctx_conf *chanctx_conf, uint32_t changed __unused)
-{
-	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
-	lkpi_80211_update_chandef(hw, chanctx_conf);
-}
-
-static inline int
-ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_vif_chanctx_switch *vifs, int n_vifs,
-    enum ieee80211_chanctx_switch_mode mode __unused)
-{
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	int error;
-
-	/* Sanity check. */
-	if (n_vifs <= 0)
-		return (-EINVAL);
-	if (vifs == NULL || vifs[0].new_ctx == NULL)
-		return (-EINVAL);
-
-	/*
-	 * What to do if n_vifs > 1?
-	 * Does that make sense for drivers not supporting chanctx?
-	 */
-	hw->conf.radar_enabled = vifs[0].new_ctx->radar_enabled;
-	chanctx_conf = vifs[0].new_ctx;
-	error = lkpi_80211_update_chandef(hw, chanctx_conf);
-	return (error);
-}
 
 /* -------------------------------------------------------------------------- */
 
