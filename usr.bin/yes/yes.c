@@ -31,6 +31,7 @@
 
 #include <capsicum_helpers.h>
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
