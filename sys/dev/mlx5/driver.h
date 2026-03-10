@@ -890,6 +890,7 @@ struct mlx5_cmd_work_ent {
 	u16			op;
 	u8			busy;
 	bool			polling;
+	struct work_struct	freew;
 };
 
 struct mlx5_pas {
