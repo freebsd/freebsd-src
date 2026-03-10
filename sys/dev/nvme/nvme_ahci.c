@@ -77,8 +77,6 @@ nvme_ahci_attach(device_t dev)
 		ret = ENOMEM;
 		goto bad;
 	}
-	ctrlr->bus_tag = rman_get_bustag(ctrlr->resource);
-	ctrlr->bus_handle = rman_get_bushandle(ctrlr->resource);
 
 	/* Allocate and setup IRQ */
 	ctrlr->rid = 0;
