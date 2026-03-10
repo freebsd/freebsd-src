@@ -225,7 +225,6 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 
 	ctrlr->bus_tag = rman_get_bustag(ctrlr->resource);
 	ctrlr->bus_handle = rman_get_bushandle(ctrlr->resource);
-	ctrlr->regs = (struct nvme_registers *)ctrlr->bus_handle;
 
 	return (0);
 }
