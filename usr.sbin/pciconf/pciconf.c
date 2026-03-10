@@ -200,23 +200,13 @@ main(int argc, char **argv)
 	return (exitstatus);
 }
 
-static void
-list_devs(const char *name, int verbose, int bars, int bridge, int caps,
-    int errors, int vpd, int listmode)
+static bool
+fetch_devs(int fd, const char *name, struct pci_conf **confp, size_t *countp)
 {
-	int fd;
 	struct pci_conf_io pc;
 	struct pci_conf conf[255], *p;
 	struct pci_match_conf patterns[1];
-	int none_count = 0;
-
-	if (verbose)
-		load_vendors();
-
-	fd = open(_PATH_DEVPCI, (bridge || caps || errors) ? O_RDWR : O_RDONLY,
-	    0);
-	if (fd < 0)
-		err(1, "%s", _PATH_DEVPCI);
+	size_t count;
 
 	bzero(&pc, sizeof(struct pci_conf_io));
 	pc.match_buf_len = sizeof(conf);
@@ -232,75 +222,109 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 		pc.patterns = patterns;
 	}
 
+	p = NULL;
+	count = 0;
 	do {
 		if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
 			err(1, "ioctl(PCIOCGETCONF)");
 
-		/*
-		 * 255 entries should be more than enough for most people,
-		 * but if someone has more devices, and then changes things
-		 * around between ioctls, we'll do the cheesy thing and
-		 * just bail.  The alternative would be to go back to the
-		 * beginning of the list, and print things twice, which may
-		 * not be desirable.
-		 */
 		if (pc.status == PCI_GETCONF_LIST_CHANGED) {
-			warnx("PCI device list changed, please try again");
-			exitstatus = 1;
-			close(fd);
-			return;
-		} else if (pc.status ==  PCI_GETCONF_ERROR) {
+			free(p);
+			p = NULL;
+			count = 0;
+			pc.offset = 0;
+			continue;
+		}
+
+		if (pc.status == PCI_GETCONF_ERROR) {
 			warnx("error returned from PCIOCGETCONF ioctl");
-			exitstatus = 1;
-			close(fd);
-			return;
+			return (false);
 		}
-		if (listmode == 2)
-			printf("drv\tselector\tclass    rev  hdr  "
-			    "vendor device subven subdev\n");
-		for (p = conf; p < &conf[pc.num_matches]; p++) {
-			if (listmode == 2)
-				printf("%s%d@pci%d:%d:%d:%d:"
-				    "\t%06x   %02x   %02x   "
-				    "%04x   %04x   %04x   %04x\n",
-				    *p->pd_name ? p->pd_name : "none",
-				    *p->pd_name ? (int)p->pd_unit :
-				    none_count++, p->pc_sel.pc_domain,
-				    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
-				    p->pc_sel.pc_func, (p->pc_class << 16) |
-				    (p->pc_subclass << 8) | p->pc_progif,
-				    p->pc_revid, p->pc_hdr,
-				    p->pc_vendor, p->pc_device,
-				    p->pc_subvendor, p->pc_subdevice);
-			else
-				printf("%s%d@pci%d:%d:%d:%d:"
-				    "\tclass=0x%06x rev=0x%02x hdr=0x%02x "
-				    "vendor=0x%04x device=0x%04x "
-				    "subvendor=0x%04x subdevice=0x%04x\n",
-				    *p->pd_name ? p->pd_name : "none",
-				    *p->pd_name ? (int)p->pd_unit :
-				    none_count++, p->pc_sel.pc_domain,
-				    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
-				    p->pc_sel.pc_func, (p->pc_class << 16) |
-				    (p->pc_subclass << 8) | p->pc_progif,
-				    p->pc_revid, p->pc_hdr,
-				    p->pc_vendor, p->pc_device,
-				    p->pc_subvendor, p->pc_subdevice);
-			if (verbose)
-				list_verbose(p);
-			if (bars)
-				list_bars(fd, p);
-			if (bridge)
-				list_bridge(fd, p);
-			if (caps)
-				list_caps(fd, p, caps);
-			if (errors)
-				list_errors(fd, p);
-			if (vpd)
-				list_vpd(fd, p);
+
+		p = reallocf(p, (count + pc.num_matches) * sizeof(*p));
+		if (p == NULL) {
+			warnx("failed to allocate buffer for PCIOCGETCONF results");
+			return (false);
 		}
+
+		memcpy(p + count, conf, pc.num_matches * sizeof(*p));
+		count += pc.num_matches;
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
+	*confp = p;
+	*countp = count;
+	return (true);
+}
+
+static void
+list_devs(const char *name, int verbose, int bars, int bridge, int caps,
+    int errors, int vpd, int listmode)
+{
+	int fd;
+	struct pci_conf *conf, *p;
+	size_t count;
+	int none_count = 0;
+
+	if (verbose)
+		load_vendors();
+
+	fd = open(_PATH_DEVPCI, (bridge || caps || errors) ? O_RDWR : O_RDONLY,
+	    0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (!fetch_devs(fd, name, &conf, &count)) {
+		exitstatus = 1;
+		close(fd);
+		return;
+	}
+
+	if (listmode == 2)
+		printf("drv\tselector\tclass    rev  hdr  "
+		    "vendor device subven subdev\n");
+	for (p = conf; p < conf + count; p++) {
+		if (listmode == 2)
+			printf("%s%d@pci%d:%d:%d:%d:"
+			    "\t%06x   %02x   %02x   "
+			    "%04x   %04x   %04x   %04x\n",
+			    *p->pd_name ? p->pd_name : "none",
+			    *p->pd_name ? (int)p->pd_unit :
+			    none_count++, p->pc_sel.pc_domain,
+			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
+			    p->pc_sel.pc_func, (p->pc_class << 16) |
+			    (p->pc_subclass << 8) | p->pc_progif,
+			    p->pc_revid, p->pc_hdr,
+			    p->pc_vendor, p->pc_device,
+			    p->pc_subvendor, p->pc_subdevice);
+		else
+			printf("%s%d@pci%d:%d:%d:%d:"
+			    "\tclass=0x%06x rev=0x%02x hdr=0x%02x "
+			    "vendor=0x%04x device=0x%04x "
+			    "subvendor=0x%04x subdevice=0x%04x\n",
+			    *p->pd_name ? p->pd_name : "none",
+			    *p->pd_name ? (int)p->pd_unit :
+			    none_count++, p->pc_sel.pc_domain,
+			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
+			    p->pc_sel.pc_func, (p->pc_class << 16) |
+			    (p->pc_subclass << 8) | p->pc_progif,
+			    p->pc_revid, p->pc_hdr,
+			    p->pc_vendor, p->pc_device,
+			    p->pc_subvendor, p->pc_subdevice);
+		if (verbose)
+			list_verbose(p);
+		if (bars)
+			list_bars(fd, p);
+		if (bridge)
+			list_bridge(fd, p);
+		if (caps)
+			list_caps(fd, p, caps);
+		if (errors)
+			list_errors(fd, p);
+		if (vpd)
+			list_vpd(fd, p);
+	}
+
+	free(conf);
 	close(fd);
 }
 
