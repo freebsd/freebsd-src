@@ -476,8 +476,8 @@ _nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	}
 
 	if (done) {
-		bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
-		    qpair->cq_hdbl_off, qpair->cq_head);
+		bus_write_4(qpair->ctrlr->resource, qpair->cq_hdbl_off,
+		    qpair->cq_head);
 	}
 
 	return (done);
@@ -1068,8 +1068,7 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	bus_space_write_4(ctrlr->bus_tag, ctrlr->bus_handle,
-	    qpair->sq_tdbl_off, qpair->sq_tail);
+	bus_write_4(ctrlr->resource, qpair->sq_tdbl_off, qpair->sq_tail);
 	qpair->num_cmds++;
 }
 
