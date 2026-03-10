@@ -29,6 +29,7 @@ SUBDIR=	apply \
 	ctlstat \
 	cut \
 	diff \
+	diff3 \
 	dirname \
 	dtc \
 	du \
@@ -206,7 +207,6 @@ SUBDIR.${MK_GAMES}+=	pom
 SUBDIR.${MK_GAMES}+=	primes
 SUBDIR.${MK_GAMES}+=	random
 SUBDIR+=		gh-bc
-SUBDIR+=		diff3
 SUBDIR.${MK_HESIOD}+=	hesinfo
 SUBDIR.${MK_ICONV}+=	iconv
 SUBDIR.${MK_ICONV}+=	mkcsmapper
