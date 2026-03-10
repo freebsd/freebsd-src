@@ -4191,7 +4191,6 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	if (hw->max_listen_interval == 0)
 		hw->max_listen_interval = 7 * (ic->ic_lintval / ic->ic_bintval);
 	hw->conf.listen_interval = hw->max_listen_interval;
-	ic->ic_set_channel(ic);
 
 	/* XXX-BZ do we need to be able to update these? */
 	hw->wiphy->frag_threshold = vap->iv_fragthreshold;
@@ -5073,6 +5072,9 @@ lkpi_ic_scan_end(struct ieee80211com *ic)
 	 */
 	lkpi_enable_hw_scan(lhw);
 
+	/* Clear the scanning chandef. */
+	memset(&lhw->scan_chandef, 0, sizeof(lhw->scan_chandef));
+
 	LKPI_80211_LHW_SCAN_LOCK(lhw);
 	wakeup(lhw);
 	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
@@ -5115,6 +5117,25 @@ lkpi_ic_scan_mindwell(struct ieee80211_scan_state *ss)
 		lhw->ic_scan_mindwell(ss);
 }
 
+struct lkpi_ic_set_channel_iter_arg {
+	struct linuxkpi_ieee80211_channel *chan;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+};
+
+static void
+lkpi_ic_set_channel_chanctx_iterf(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf, void *arg)
+{
+	struct lkpi_ic_set_channel_iter_arg *chanctx_iter_arg;
+
+	chanctx_iter_arg = arg;
+	if (chanctx_iter_arg->chanctx_conf != NULL)
+		return;
+
+	if (chanctx_iter_arg->chan == chanctx_conf->def.chan)
+		chanctx_iter_arg->chanctx_conf = chanctx_conf;
+}
+
 static void
 lkpi_ic_set_channel(struct ieee80211com *ic)
 {
@@ -5122,64 +5143,133 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *c;
 	struct linuxkpi_ieee80211_channel *chan;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	uint32_t changed;
 	int error;
-	bool hw_scan_running;
+	bool hw_scan, scan_running;
+
+	IEEE80211_UNLOCK_ASSERT(ic);
 
 	lhw = ic->ic_softc;
 
-	/* If we do not support (*config)() save us the work. */
-	if (lhw->ops->config == NULL)
-		return;
-
-	/* If we have a hw_scan running do not switch channels. */
-	LKPI_80211_LHW_SCAN_LOCK(lhw);
-	hw_scan_running =
-	    (lhw->scan_flags & (LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW)) ==
-		(LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW);
-	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
-	if (hw_scan_running)
-		return;
-
 	c = ic->ic_curchan;
 	if (c == NULL || c == IEEE80211_CHAN_ANYC) {
-		ic_printf(ic, "%s: c %p ops->config %p\n", __func__,
-		    c, lhw->ops->config);
+		ic_printf(ic, "%s: Unset channel: c %p, ignoring update\n",
+		    __func__, c);
 		return;
 	}
 
 	chan = lkpi_find_lkpi80211_chan(lhw, c);
 	if (chan == NULL) {
-		ic_printf(ic, "%s: c %p chan %p\n", __func__,
-		    c, chan);
+		ic_printf(ic, "%s: No channel found for c %p(%d) chan %p\n",
+		    __func__, c, c->ic_ieee, chan);
 		return;
 	}
 
-	/* XXX max power for scanning? */
-	IMPROVE();
+	/*
+	 * All net80211 callers call ieee80211_radiotap_chan_change().
+	 * That means we have nothing to do ourselves.
+	 */
+
+	/* If we have a hw_scan running do not switch channels. */
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	scan_running = (lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0;
+	hw_scan = (lhw->scan_flags & LKPI_LHW_SCAN_HW) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+	if (scan_running && hw_scan) {
+		TRACE_SCAN(ic, "scan_flags %b chan %d nothing to do.",
+		    lhw->scan_flags, LKPI_LHW_SCAN_BITS,
+		    c->ic_ieee);
+		/* Let us hope we set tx power levels elsewhere. */
+		return;
+	}
 
 	hw = LHW_TO_HW(lhw);
-	cfg80211_chandef_create(&hw->conf.chandef, chan,
-#ifdef LKPI_80211_HT
-	    (ic->ic_flags_ht & IEEE80211_FHT_HT) ? NL80211_CHAN_HT20 :
-#endif
-	    NL80211_CHAN_NO_HT);
+	wiphy_lock(hw->wiphy);
+	if (scan_running) {
+		struct ieee80211vap *vap;
+		struct lkpi_vif *lvif;
+		struct ieee80211_vif *vif;
 
-	error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
-	if (error != 0 && error != EOPNOTSUPP) {
-		ic_printf(ic, "ERROR: %s: config %#0x returned %d\n",
-		    __func__, IEEE80211_CONF_CHANGE_CHANNEL, error);
-		/* XXX should we unroll to the previous chandef? */
-		IMPROVE();
-	} else {
-		/* Update radiotap channels as well. */
-		lhw->rtap_tx.wt_chan_freq = htole16(c->ic_freq);
-		lhw->rtap_tx.wt_chan_flags = htole16(c->ic_flags);
-		lhw->rtap_rx.wr_chan_freq = htole16(c->ic_freq);
-		lhw->rtap_rx.wr_chan_flags = htole16(c->ic_flags);
+		/*
+		 * For now and for scanning just pick the first VIF.
+		 * net80211 will need to grow DBDC/link_id support
+		 * for us to find the vif/chanctx otherwise.
+		 */
+		vap = TAILQ_FIRST(&ic->ic_vaps);
+		lvif = VAP_TO_LVIF(vap);
+		vif = LVIF_TO_VIF(lvif);
+
+		/* We always set the chandef to no-HT for scanning. */
+		cfg80211_chandef_create(&lhw->scan_chandef, chan,
+		    NL80211_CHAN_NO_HT);
+
+		/*
+		 * This works for as long as we do not do BGSCANs; otherwise
+		 * it'll have to be offchan work.
+		 */
+		chanctx_conf = lkpi_get_chanctx_conf(hw, vif);
+		changed = lkpi_init_chanctx_conf(hw, &lhw->scan_chandef, chanctx_conf);
+		error = lkpi_set_chanctx_conf(hw, vif, chanctx_conf, changed, true);
+
+		TRACE_SCAN(ic, "scan_flags %b chan %d ???, error %d",
+		    lhw->scan_flags, LKPI_LHW_SCAN_BITS,
+		    c->ic_ieee, error);
+
+		IMPROVE("max power for scanning; TODO in lkpi_80211_update_chandef");
+
+	} else if (lhw->ops->change_chanctx == ieee80211_emulate_change_chanctx) {
+		/*
+		 * We do not set the channel here for normal chanctx operation.
+		 * That's just a setup to fail. scan_to_auth will setup all the
+		 * other neccessary options for this to work.
+		 */
+		struct lkpi_ic_set_channel_iter_arg chanctx_iter_arg = {
+			.chan		= chan,
+			.chanctx_conf	= NULL,
+		};
+		struct cfg80211_chan_def chandef;
+
+		lkpi_init_chandef(&chandef, chan, c, false);
+
+		ieee80211_iter_chan_contexts_mtx(hw,
+		    lkpi_ic_set_channel_chanctx_iterf, &chanctx_iter_arg);
+
+		if (chanctx_iter_arg.chanctx_conf == NULL) {
+			/* No chanctx found for this channel. */
+			struct ieee80211vap *vap;
+			struct lkpi_vif *lvif;
+			struct ieee80211_vif *vif;
+
+			/*
+			 * For now just pick the first VIF.
+			 * net80211 will need to grow DBDC/link_id support
+			 * for us to find the vif/chanctx otherwise.
+			 */
+			vap = TAILQ_FIRST(&ic->ic_vaps);
+			lvif = VAP_TO_LVIF(vap);
+			vif = LVIF_TO_VIF(lvif);
+
+			chanctx_conf = lkpi_get_chanctx_conf(hw, vif);
+			changed = lkpi_init_chanctx_conf(hw, &chandef, chanctx_conf);
+			IMPROVE("update HT, VHT, bw, ...");
+			error = lkpi_set_chanctx_conf(hw, vif, chanctx_conf, changed, true);
+
+		} else {
+			/*
+			 * We know we are on the same channel.
+			 * Do we really have to reset everything?
+			 */
+			IMPROVE("update HT, VHT, bw, ...");
+
+			chanctx_conf = chanctx_iter_arg.chanctx_conf;
+			changed = lkpi_init_chanctx_conf(hw, &chandef, chanctx_conf);
+			lkpi_80211_mo_change_chanctx(hw, chanctx_conf, changed);
+		}
 	}
 
 	/* Currently PS is hard coded off! Not sure it belongs here. */
-	IMPROVE();
+	IMPROVE("PS");
 	if (ieee80211_hw_check(hw, SUPPORTS_PS) &&
 	    (hw->conf.flags & IEEE80211_CONF_PS) != 0) {
 		hw->conf.flags &= ~IEEE80211_CONF_PS;
@@ -5189,6 +5279,8 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 			    "%d\n", __func__, IEEE80211_CONF_CHANGE_PS,
 			    error);
 	}
+
+	wiphy_unlock(hw->wiphy);
 }
 
 static struct ieee80211_node *
