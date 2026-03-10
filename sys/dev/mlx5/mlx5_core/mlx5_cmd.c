@@ -802,6 +802,15 @@ static void cb_timeout_handler(struct work_struct *work)
         mlx5_cmd_comp_handler(dev, 1UL << ent->idx, MLX5_CMD_MODE_EVENTS);
 }
 
+static void
+cmd_free_work(struct work_struct *work)
+{
+	struct mlx5_cmd_work_ent *ent = container_of(work,
+	    struct mlx5_cmd_work_ent, freew);
+
+	free_cmd(ent);
+}
+
 static void complete_command(struct mlx5_cmd_work_ent *ent)
 {
 	struct mlx5_cmd *cmd = ent->cmd;
@@ -856,7 +865,8 @@ static void complete_command(struct mlx5_cmd_work_ent *ent)
 		free_msg(dev, ent->in);
 
 		err = err ? err : ent->status;
-		free_cmd(ent);
+		INIT_WORK(&ent->freew, cmd_free_work);
+		schedule_work(&ent->freew);
 		callback(err, context);
 	} else {
 		complete(&ent->done);
