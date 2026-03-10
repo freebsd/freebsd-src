@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 19, 2025
+.Dd March 10, 2026
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -52,6 +52,31 @@ access to
 .Pa /dev/pci ,
 normally only the super-user.
 .Pp
+A
+.Ar device
+can be identified either by a device name if the device is
+attached to a driver or by a selector.
+Selectors identify a PCI device by its address in PCI config space and
+can take one of the following forms:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device Ns \&: \
+Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns
+.El
+.Pp
+In the case of an abridged form, omitted selector components are assumed to be 0.
+An optional leading device name followed by @ and an optional final colon
+will be ignored; this is so that the first column in the output of
+.Nm
+.Fl l
+can be used without modification.
+All numbers are base 10.
+.Ss List Mode
 With the
 .Fl l
 option,
@@ -260,36 +285,7 @@ argument is given with the
 flag,
 .Nm
 will only list details about a single device instead of all devices.
-.Pp
-All invocations of
-.Nm
-except for
-.Fl l
-require a
-.Ar device .
-The device can be identified either by a device name if the device is
-attached to a driver or by a selector.
-Selectors identify a PCI device by its address in PCI config space and
-can take one of the following forms:
-.Pp
-.Bl -bullet -offset indent -compact
-.It
-.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device Ns \&: \
-Ns Va function Ns
-.It
-.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns
-.It
-.Li pci Ns Va bus Ns \&: Ns Va device Ns
-.El
-.Pp
-In the case of an abridged form, omitted selector components are assumed to be 0.
-An optional leading device name followed by @ and an optional final colon
-will be ignored; this is so that the first column in the output of
-.Nm
-.Fl l
-can be used without modification.
-All numbers are base 10.
-.Pp
+.Ss Device Information Modes
 With the
 .Fl a
 flag,
