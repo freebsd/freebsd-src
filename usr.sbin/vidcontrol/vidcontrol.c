@@ -182,7 +182,7 @@ usage(void)
 	if (vt4_mode)
 		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-Cx] [-b color] [-c appearance] [-f [[size] file]]",
-"                  [-g geometry] [-h size] [-i active | adapter | mode]",
+"                  [-g geometry] [-h size] [-i active | adapter]",
 "                  [-M char] [-m on | off]",
 "                  [-r foreground background] [-S on | off] [-s number]",
 "                  [-T xterm | cons25] [-t N | off] [mode]",
@@ -1206,7 +1206,10 @@ show_info(char *arg)
 	} else if (!strcmp(arg, "adapter")) {
 		show_adapter_info();
 	} else if (!strcmp(arg, "mode")) {
-		show_mode_info();
+		if (vt4_mode)
+			warnx("-i mode is not supported by vt(4)");
+		else
+			show_mode_info();
 	} else {
 		revert();
 		errx(1, "argument to -i must be active, adapter, or mode");
