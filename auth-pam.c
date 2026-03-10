@@ -758,7 +758,7 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 		sshpam_laddr = get_local_ipaddr(
 		    ssh_packet_get_connection_in(ssh));
 	}
-	if (sshpam_rhost != NULL) {
+	if (sshpam_rhost != NULL && strcmp(sshpam_rhost, "UNKNOWN") != 0) {
 		debug("PAM: setting PAM_RHOST to \"%s\"", sshpam_rhost);
 		sshpam_err = pam_set_item(sshpam_handle, PAM_RHOST,
 		    sshpam_rhost);

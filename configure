@@ -11442,7 +11442,7 @@ fi
 # the equivalent file.  This avoids having to wrap those includes in
 # '#ifdef HAVE_FOO_H'.  If we create any such headers, add the path to includes.
 COMPATINCLUDES=""
-       for ac_header in endian.h ifaddrs.h libgen.h paths.h netgroup.h nlist.h poll.h stdint.h sys/stat.h sys/time.h sys/un.h time.h util.h
+       for ac_header in endian.h ifaddrs.h libgen.h paths.h netgroup.h nlist.h poll.h stdint.h sys/mman.h sys/stat.h sys/time.h sys/un.h time.h util.h
 do :
   as_ac_Header=`printf "%s\n" "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -16791,6 +16791,12 @@ ac_fn_c_check_func "$LINENO" "mkdtemp" "ac_cv_func_mkdtemp"
 if test "x$ac_cv_func_mkdtemp" = xyes
 then :
   printf "%s\n" "#define HAVE_MKDTEMP 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "mmap" "ac_cv_func_mmap"
+if test "x$ac_cv_func_mmap" = xyes
+then :
+  printf "%s\n" "#define HAVE_MMAP 1" >>confdefs.h
 
 fi
 ac_fn_c_check_func "$LINENO" "ngetaddrinfo" "ac_cv_func_ngetaddrinfo"

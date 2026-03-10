@@ -994,6 +994,9 @@
 /* Define to 1 if you have the `mkdtemp' function. */
 #undef HAVE_MKDTEMP
 
+/* Define to 1 if you have the `mmap' function. */
+#undef HAVE_MMAP
+
 /* define if you have mode_t data type */
 #undef HAVE_MODE_T
 

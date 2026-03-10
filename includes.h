@@ -34,6 +34,9 @@
 #ifdef HAVE_ENDIAN_H
 # include <endian.h>
 #endif
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
 #ifdef HAVE_TTYENT_H
 # include <ttyent.h>
 #endif

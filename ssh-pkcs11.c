@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.72 2025/10/03 00:08:02 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.73 2025/10/08 21:02:16 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -2029,8 +2029,10 @@ pkcs11_terminate(void)
 
 	debug3_f("called");
 
-	while ((k11 = TAILQ_FIRST(&pkcs11_keys)) != NULL)
+	while ((k11 = TAILQ_FIRST(&pkcs11_keys)) != NULL) {
+		TAILQ_REMOVE(&pkcs11_keys, k11, next);
 		pkcs11_k11_free(k11);
+	}
 	while ((p = TAILQ_FIRST(&pkcs11_providers)) != NULL) {
 		TAILQ_REMOVE(&pkcs11_providers, p, next);
 		pkcs11_provider_finalize(p);
@@ -2287,11 +2289,13 @@ out:
 
 #include "log.h"
 #include "sshkey.h"
+#include "ssherr.h"
+#include "ssh-pkcs11.h"
 
 int
 pkcs11_init(int interactive)
 {
-	error_f("dlopen() not supported");
+	error_f("PKCS#11 not supported");
 	return (-1);
 }
 
@@ -2299,13 +2303,30 @@ int
 pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp,
     char ***labelsp)
 {
-	error_f("dlopen() not supported");
+	error_f("PKCS#11 not supported");
 	return (-1);
+}
+
+void
+pkcs11_key_free(struct sshkey *key)
+{
+	error_f("PKCS#11 not supported");
+}
+
+int
+pkcs11_sign(struct sshkey *key,
+    u_char **sigp, size_t *lenp,
+    const u_char *data, size_t datalen,
+    const char *alg, const char *sk_provider,
+    const char *sk_pin, u_int compat)
+{
+	error_f("PKCS#11 not supported");
+	return SSH_ERR_FEATURE_UNSUPPORTED;
 }
 
 void
 pkcs11_terminate(void)
 {
-	error_f("dlopen() not supported");
+	error_f("PKCS#11 not supported");
 }
 #endif /* ENABLE_PKCS11 */

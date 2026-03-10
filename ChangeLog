@@ -1,3 +1,149 @@
+commit 2d8a388de215d9959d72bb11f03e07a6eb2e4614
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Oct 10 13:37:07 2025 +1100
+
+    depend
+
+commit 1d2676f4ffae35e2db37a35c385efaf2932cd639
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Oct 9 14:53:04 2025 +1100
+
+    update versions
+
+commit ecd65a492bd0ed3a44a1c07428107b2e148bfee4
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 8 00:32:52 2025 +0000
+
+    upstream: openssh-10.2
+    
+    The only change since 10.1 is the channels.c fix
+    
+    OpenBSD-Commit-ID: 5eebeb0db14c694efd4ee96b5f16112e3e5d5ba9
+
+commit ea9af2921cb6af8e65341531db3a7351917f0a92
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 8 21:02:16 2025 +0000
+
+    upstream: fix crash at exit (visible via ssh-keygen -D) when
+    
+    multiple keys loaded. ok markus deraadt dtucker
+    
+    OpenBSD-Commit-ID: baa9763ec69d162108dafd962792ec5610ff45c9
+
+commit e49013576074ccd2d7ae75fb824170c739ce97a1
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Oct 9 10:07:40 2025 +1100
+
+    link ssh-keygen directly against ssh-pkcs11.c
+    
+    Matches what OpenBSD does and fixes ssh-keygen regression in
+    certifying keys using a CA key hosted via ssh-agent (bz3877)
+
+commit 684f2ceff8c0eeb775e8653cf32609f8fbfe07b1
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Oct 9 13:10:27 2025 +1100
+
+    some fixes to p11_setup
+    
+    1. Use the ssh-keygen under test and not the one in $PATH
+    2. Include a test PKCS#11 operation to ensure that the P11 stack is
+       working correctly.
+    
+    Previously, it was possible for p11_setup to return success on
+    configurations with PKCS#11 support disabled.
+
+commit af17ae64a5cfee42334883d2802f40f779131740
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Oct 9 13:12:15 2025 +1100
+
+    complete PKCS#11 stubs and move to ssh-pkcs11.c
+    
+    Should unbreak --disable-pkcs11 builds
+
+commit bcf7c05a473f92a35f4f3b561fd7a1e339e0a30f
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed Oct 8 11:26:52 2025 +1100
+
+    Fix header name and move return outside of ifdef.
+    
+    Fixes from Mike Frysinger via Github PR#597.
+
+commit b937061fe4922caced7b91442b3233c0bd763492
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Oct 7 21:10:33 2025 +1100
+
+    Check HAVE_MMAP too now that configure sets it.
+
+commit 8d57083c062f03098c9f767ec8d6278dc549a2f6
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Oct 7 21:07:05 2025 +1100
+
+    Use calloc for sshkeys if mmap is not supported.
+    
+    Based on Github PR#597 from Mike Frysinger, any bugs added by me.
+
+commit c97b931bffa481c72ff4bfddd9d59a2110899289
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Oct 7 20:25:07 2025 +1100
+
+    Add fcntl.h to includes.
+    
+    From FreeBSD via bz#3874: "This was previously included due to nested
+    includes in Heimdal's headers.  Without this, the build fails with an
+    error due to redefining AT_FDCWD."
+
+commit 8aa13832315e52c4404c993a59c6139b44ac6114
+Author: Daan De Meyer <daan.j.demeyer@gmail.com>
+Date:   Mon Mar 20 20:22:14 2023 +0100
+
+    Only set PAM_RHOST if the remote host is not "UNKNOWN"
+    
+    When using sshd's -i option with stdio that is not a AF_INET/AF_INET6
+    socket, auth_get_canonical_hostname() returns "UNKNOWN" which is then
+    set as the value of PAM_RHOST, causing pam to try to do a reverse DNS
+    query of "UNKNOWN", which times out multiple times, causing a
+    substantial slowdown when logging in.
+    
+    To fix this, let's only set PAM_RHOST if the hostname is not "UNKNOWN".
+
+commit 0bd6649ea80ead0cd6404dbc25b64937421b556e
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Oct 7 20:10:56 2025 +1100
+
+    Don't copy native host keys for hostbased test.
+    
+    Some github runners (notably macos-14) seem to have host keys where
+    public and private do not match, so generate our own keys for testing
+    purposes.
+
+commit 33b63718d40ccc555b8c7a24331a3790b2efc6c5
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Oct 7 20:10:07 2025 +1100
+
+    Add 10.1 branch to ci-status page.
+
+commit 52411f15353257e9ec883fc044b7a56b6fca242d
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Oct 7 20:04:40 2025 +1100
+
+    Add clock_gettime compat shim.
+    
+    This fixes the build on macOS prior to 10.12 Sierra, since it does not
+    have it.  Found and tested by Sevan Janiyan.
+
+commit beae06f56e0d0a66ca535896149d5fb0b2e8a1b4
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Oct 7 08:02:32 2025 +0000
+
+    upstream: don't reuse c->isatty for signalling that the remote channel
+    
+    has a tty attached as this causes side effects, e.g. in channel_handle_rfd().
+    bz3872
+    
+    ok markus@
+    
+    OpenBSD-Commit-ID: 4cd8a9f641498ca6089442e59bad0fd3dcbe85f8
+
 commit 476bab6259d5a6ea0402ec79bc47ed61e2c15e86
 Author: Damien Miller <djm@mindrot.org>
 Date:   Mon Oct 6 12:52:25 2025 +1100
@@ -9292,40 +9438,3 @@ Date:   Tue Oct 10 03:57:45 2023 +0000
     OpenSSH promises not to use (comment change only)
     
     OpenBSD-Commit-ID: e61795b453d4892d2c99ce1039112c4a00250e03
-
-commit 90b0d73d63a706e85f6431f05a62d2ce1b476472
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Oct 6 03:32:15 2023 +0000
-
-    upstream: typo in error message
-    
-    OpenBSD-Regress-ID: 6a8edf0dc39941298e3780b147b10c0a600b4fee
-
-commit e84517f51532ec913d8fb01a8aab7307134774bb
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Oct 6 03:25:14 2023 +0000
-
-    upstream: Perform the softhsm2 setup as discrete steps rather than
-    
-    as a long shell pipeline. Makes it easier to figure out what has happened
-    when it breaks.
-    
-    OpenBSD-Regress-ID: b3f1292115fed65765d0a95414df16e27772d81c
-
-commit cb54becff4d776238e0e9072943ba0872260535d
-Author: claudio@openbsd.org <claudio@openbsd.org>
-Date:   Sun Sep 24 08:14:13 2023 +0000
-
-    upstream: REGRESS_FAIL_EARLY defaults to yes now. So no need to
-    
-    overload the value here anymore. OK tb@ bluhm@
-    
-    OpenBSD-Regress-ID: f063330f1bebbcd373100afccebc91a965b14496
-
-commit f01f5137ceba65baf34ceac5a298c12ac01b1fef
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Wed Oct 4 05:42:10 2023 +0000
-
-    upstream: spelling fix;
-    
-    OpenBSD-Commit-ID: 493f95121567e5ab0d9dd1150f873b5535ca0195
