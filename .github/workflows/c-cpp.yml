@@ -29,9 +29,9 @@ jobs:
           - ubuntu-latest
           - ubuntu-22.04-arm
           - ubuntu-24.04-arm
-          - macos-13
           - macos-14
           - macos-15
+          - macos-15-intel
           - windows-2022
           - windows-2025
         config: [default]
@@ -79,8 +79,9 @@ jobs:
           - { target: ubuntu-latest, config: libressl-3.7.3 }
           - { target: ubuntu-latest, config: libressl-3.8.4 }
           - { target: ubuntu-latest, config: libressl-3.9.2 }
-          - { target: ubuntu-latest, config: libressl-4.0.0 }
-          - { target: ubuntu-latest, config: libressl-4.1.0 }
+          - { target: ubuntu-latest, config: libressl-4.0.1 }
+          - { target: ubuntu-latest, config: libressl-4.1.1 }
+          - { target: ubuntu-latest, config: libressl-4.2.0 }
           - { target: ubuntu-latest, config: openssl-master }
           - { target: ubuntu-latest, config: openssl-noec }
           - { target: ubuntu-latest, config: openssl-1.1.1 }
@@ -111,7 +112,6 @@ jobs:
           - { target: ubuntu-latest, config: musl }
           - { target: ubuntu-22.04-arm, config: kitchensink }
           - { target: ubuntu-24.04-arm, config: kitchensink }
-          - { target: macos-13, config: pam }
           - { target: macos-14, config: pam }
           - { target: macos-15, config: pam }
     runs-on: ${{ matrix.target }}

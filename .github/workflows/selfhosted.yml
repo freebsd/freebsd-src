@@ -51,6 +51,7 @@ jobs:
           - obsd74
           - obsd76
           - obsd77
+          - obsd78
           - obsdsnap
           - obsdsnap-i386
           - omnios

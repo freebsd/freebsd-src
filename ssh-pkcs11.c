@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.73 2025/10/08 21:02:16 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.74 2025/10/09 23:25:23 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -1486,7 +1486,7 @@ pkcs11_fetch_certs(struct pkcs11_provider *p, CK_ULONG slotidx,
 		case CKC_X_509:
 			if (pkcs11_fetch_x509_pubkey(p, slotidx, &obj,
 			    &key, &label) != 0) {
-				error("failed to fetch key");
+				debug_f("failed to fetch key");
 				continue;
 			}
 			break;
@@ -1613,7 +1613,7 @@ pkcs11_fetch_keys(struct pkcs11_provider *p, CK_ULONG slotidx,
 		}
 
 		if (key == NULL) {
-			error("failed to fetch key");
+			debug_f("failed to fetch key");
 			continue;
 		}
 		note_key(p, slotidx, __func__, key);
