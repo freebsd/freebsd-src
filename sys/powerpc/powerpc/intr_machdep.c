@@ -238,6 +238,10 @@ intr_lookup_creat(u_register_t irq)
 	char intrname[16];
 	struct powerpc_intr *i, *iscan;
 	unsigned int vector = nvectors;
+	struct pic *pentr;
+	device_t pic;
+	u_register_t max;
+	unsigned int idx;
 
 	/* ensure nvectors is read before intr_lookup() */
 	rmb();
@@ -250,16 +254,31 @@ intr_lookup_creat(u_register_t irq)
 	if (__predict_false(vector >= num_io_irqs))
 		return (NULL);
 
+	idx = 0;
+	do {
+		pentr = piclist + idx;
+		if (++idx > npics) {
+			KASSERT(false, ("Failed to find PIC for IRQ %lu",
+			    (unsigned long)irq));
+			return (NULL);
+		}
+		max = pentr->base + pentr->irqs + pentr->ipis;
+	} while (irq < pentr->base || irq >= max);
+
+	pic = pentr->dev;
+	MPASS(pic != NULL);
+
 	i = malloc(sizeof(*i), M_INTR, M_WAITOK);
 	/* waiting always succeeds (unless panic()) */
 
 	i->event = NULL;
+	i->intline = irq - pentr->base;
 	i->cntp = NULL;
 	i->priv = NULL;
 	i->trig = INTR_TRIGGER_CONFORM;
 	i->pol = INTR_POLARITY_CONFORM;
 	i->irq = irq;
-	i->pic = NULL;
+	i->pic = pic;
 	i->vector = -1;
 	i->fwcode = 0;
 	i->ipi = 0;
@@ -301,32 +320,6 @@ intr_lookup_creat(u_register_t irq)
 	mtx_unlock(&intr_table_lock);
 
 	return (i);
-}
-
-static int
-powerpc_map_irq(struct powerpc_intr *i)
-{
-	struct pic *p;
-	u_int cnt;
-	int idx;
-
-	for (idx = 0; idx < npics; idx++) {
-		p = &piclist[idx];
-		cnt = p->irqs + p->ipis;
-		if (i->irq >= p->base && i->irq < p->base + cnt)
-			break;
-	}
-	if (idx == npics)
-		return (EINVAL);
-
-	i->intline = i->irq - p->base;
-	i->pic = p->dev;
-
-	/* Try a best guess if that failed */
-	if (i->pic == NULL)
-		i->pic = root_pic;
-
-	return (0);
 }
 
 static void
@@ -381,6 +374,8 @@ powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
 	struct pic *p;
 	u_int irq;
 	int idx;
+
+	MPASS(dev != NULL);
 
 	mtx_lock(&intr_table_lock);
 
@@ -499,10 +494,6 @@ powerpc_enable_intr(void)
 		i = powerpc_intrs[vector];
 		MPASS(i != NULL);
 
-		error = powerpc_map_irq(i);
-		if (error)
-			continue;
-
 		if (i->trig == INTR_TRIGGER_INVALID)
 			PIC_TRANSLATE_CODE(i->pic, i->intline, i->fwcode,
 			    &i->trig, &i->pol);
@@ -566,24 +557,20 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 	mtx_unlock(&intr_table_lock);
 
 	if (!cold) {
-		error = powerpc_map_irq(i);
+		if (i->trig == INTR_TRIGGER_INVALID)
+			PIC_TRANSLATE_CODE(i->pic, i->intline,
+			    i->fwcode, &i->trig, &i->pol);
 
-		if (!error) {
-			if (i->trig == INTR_TRIGGER_INVALID)
-				PIC_TRANSLATE_CODE(i->pic, i->intline,
-				    i->fwcode, &i->trig, &i->pol);
+		if (i->trig != INTR_TRIGGER_CONFORM ||
+		    i->pol != INTR_POLARITY_CONFORM)
+			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
-			if (i->trig != INTR_TRIGGER_CONFORM ||
-			    i->pol != INTR_POLARITY_CONFORM)
-				PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
+		if (i->pic == root_pic)
+			PIC_BIND(i->pic, i->intline, i->pi_cpuset, &i->priv);
 
-			if (i->pic == root_pic)
-				PIC_BIND(i->pic, i->intline, i->pi_cpuset, &i->priv);
-
-			if (enable)
-				PIC_ENABLE(i->pic, i->intline, i->vector,
-				    &i->priv);
-		}
+		if (enable)
+			PIC_ENABLE(i->pic, i->intline, i->vector,
+			    &i->priv);
 	}
 	return (error);
 }
