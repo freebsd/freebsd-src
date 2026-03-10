@@ -669,6 +669,7 @@ pci_vtscsi_queue_request(struct pci_vtscsi_softc *sc, struct vqueue_info *vq)
 	struct pci_vtscsi_queue *q = &sc->vss_queues[vq->vq_num - 2];
 	struct pci_vtscsi_request *req;
 	struct vi_req vireq;
+	size_t res __maybe_unused;
 	int n;
 
 	pthread_mutex_lock(&q->vsq_fmtx);
@@ -747,8 +748,9 @@ pci_vtscsi_queue_request(struct pci_vtscsi_softc *sc, struct vqueue_info *vq)
 	 * This will have to change if we begin allowing config space writes
 	 * to change sense size.
 	 */
-	assert(iov_to_buf(req->vsr_iov_in, req->vsr_niov_in,
-	    (void **)&req->vsr_cmd_rd) == VTSCSI_IN_HEADER_LEN(q->vsq_sc));
+	res = iov_to_buf(req->vsr_iov_in, req->vsr_niov_in,
+	    (void **)&req->vsr_cmd_rd);
+	assert(res == VTSCSI_IN_HEADER_LEN(q->vsq_sc));
 
 	/* Make sure this request addresses a valid LUN. */
 	if (pci_vtscsi_check_lun(req->vsr_cmd_rd->lun) == false) {
