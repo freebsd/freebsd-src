@@ -254,6 +254,8 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	unsigned int			mc_flags;
 	struct sx			mc_sx;
 
+	struct cfg80211_chan_def	dflt_chandef;
+
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
 	spinlock_t			txq_scheduled_lock[IEEE80211_NUM_ACS];
