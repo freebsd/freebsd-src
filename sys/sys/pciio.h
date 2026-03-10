@@ -79,7 +79,9 @@ struct pci_conf {
 	u_long		pd_unit;	/* device unit number */
 	int		pd_numa_domain;	/* device NUMA domain */
 	size_t		pc_reported_len;/* length of PCI data reported */
-	char		pc_spare[64];	/* space for future fields */
+	uint8_t		pc_secbus;	/* secondary bus number */
+	uint8_t		pc_subbus;	/* subordinate bus number */
+	char		pc_spare[62];	/* space for future fields */
 };
 
 struct pci_match_conf {

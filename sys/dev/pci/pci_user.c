@@ -81,7 +81,9 @@ struct pci_conf32 {
 	u_int32_t	pd_unit;	/* device unit number */
 	int		pd_numa_domain;	/* device NUMA domain */
 	u_int32_t	pc_reported_len;/* length of PCI data reported */
-	char		pc_spare[64];	/* space for future fields */
+	uint8_t		pc_secbus;	/* secondary bus number */
+	uint8_t		pc_subbus;	/* subordinate bus number */
+	char		pc_spare[62];	/* space for future fields */
 };
 
 struct pci_match_conf32 {
@@ -889,6 +891,8 @@ pci_conf_for_copyout(const struct pci_conf *pcp, union pci_conf_union *pcup,
 		pcup->pc32.pd_unit = (uint32_t)pcp->pd_unit;
 		if (cmd == PCIOCGETCONF32) {
 			pcup->pc32.pd_numa_domain = pcp->pd_numa_domain;
+			pcup->pc32.pc_secbus = pcp->pc_secbus;
+			pcup->pc32.pc_subbus = pcp->pc_subbus;
 			pcup->pc32.pc_reported_len =
 			    (uint32_t)offsetof(struct pci_conf32, pc_spare);
 		}
@@ -1314,6 +1318,32 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 				dinfo->conf.pd_numa_domain = domain;
 			else
 				dinfo->conf.pd_numa_domain = 0;
+
+			if (dinfo->cfg.dev != NULL) {
+				/*
+				 * Re-read the values in case a driver
+				 * changed them after the device was
+				 * initially scanned.
+				 */
+				switch (dinfo->conf.pc_hdr) {
+				case PCIM_HDRTYPE_BRIDGE:
+					dinfo->conf.pc_secbus =
+					    pci_read_config(dinfo->cfg.dev,
+						PCIR_SECBUS_1, 1);
+					dinfo->conf.pc_subbus =
+					    pci_read_config(dinfo->cfg.dev,
+						PCIR_SUBBUS_1, 1);
+					break;
+				case PCIM_HDRTYPE_CARDBUS:
+					dinfo->conf.pc_secbus =
+					    pci_read_config(dinfo->cfg.dev,
+						PCIR_SECBUS_2, 1);
+					dinfo->conf.pc_subbus =
+					    pci_read_config(dinfo->cfg.dev,
+						PCIR_SUBBUS_2, 1);
+					break;
+				}
+			}
 
 			if (pattern_buf == NULL ||
 			    pci_conf_match(cmd, pattern_buf, num_patterns,
