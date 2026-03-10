@@ -38,10 +38,12 @@
 #include <dev/pci/pcireg.h>
 
 #include <assert.h>
+#include <bitstring.h>
 #include <ctype.h>
 #include <err.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -65,6 +67,13 @@ struct pci_vendor_info
     char				*desc;
 };
 
+
+struct pci_tree_entry {
+	TAILQ_ENTRY(pci_tree_entry)	link;
+	TAILQ_HEAD(pci_tree_list, pci_tree_entry) children;
+	struct pci_conf			*p;
+};
+
 static TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
 static struct pcisel getsel(const char *str);
@@ -72,6 +81,7 @@ static void list_bridge(int fd, struct pci_conf *p);
 static void list_bars(int fd, struct pci_conf *p);
 static void list_devs(const char *name, int verbose, int bars, int bridge,
     int caps, int errors, int vpd, int compact);
+static void show_tree(int verbose);
 static void list_verbose(struct pci_conf *p);
 static void list_vpd(int fd, struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
@@ -91,6 +101,7 @@ usage(void)
 
 	fprintf(stderr, "%s",
 		"usage: pciconf -l [-BbcevV] [device]\n"
+		"       pciconf -t [-v]\n"
 		"       pciconf -a device\n"
 		"       pciconf -r [-b | -h] device addr[:addr2]\n"
 		"       pciconf -w [-b | -h] device addr value\n"
@@ -103,14 +114,14 @@ int
 main(int argc, char **argv)
 {
 	int c, width;
-	enum { NONE, LIST, READ, WRITE, ATTACHED, DUMPBAR } mode;
+	enum { NONE, LIST, TREE, READ, WRITE, ATTACHED, DUMPBAR } mode;
 	int compact, bars, bridge, caps, errors, verbose, vpd;
 
 	mode = NONE;
 	compact = bars = bridge = caps = errors = verbose = vpd = 0;
 	width = 4;
 
-	while ((c = getopt(argc, argv, "aBbcDehlrwVvx")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcDehlrtwVvx")) != -1) {
 		switch(c) {
 		case 'a':
 			mode = ATTACHED;
@@ -151,6 +162,9 @@ main(int argc, char **argv)
 			mode = READ;
 			break;
 
+		case 't':
+			mode = TREE;
+			break;
 		case 'w':
 			mode = WRITE;
 			break;
@@ -178,6 +192,11 @@ main(int argc, char **argv)
 			usage();
 		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
 		    bars, bridge, caps, errors, vpd, compact);
+		break;
+	case TREE:
+		if (optind != argc)
+			usage();
+		show_tree(verbose);
 		break;
 	case ATTACHED:
 		if (optind + 1 != argc)
@@ -335,6 +354,238 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 	}
 
 	free(conf);
+	close(fd);
+}
+
+static int
+pci_conf_compar(const void *lhs, const void *rhs)
+{
+	const struct pci_conf *l, *r;
+
+	l = lhs;
+	r = rhs;
+	if (l->pc_sel.pc_domain != r->pc_sel.pc_domain)
+		return (l->pc_sel.pc_domain - r->pc_sel.pc_domain);
+	if (l->pc_sel.pc_bus != r->pc_sel.pc_bus)
+		return (l->pc_sel.pc_bus - r->pc_sel.pc_bus);
+	if (l->pc_sel.pc_dev != r->pc_sel.pc_dev)
+		return (l->pc_sel.pc_dev - r->pc_sel.pc_dev);
+	return (l->pc_sel.pc_func - r->pc_sel.pc_func);
+}
+
+static void
+tree_add_device(struct pci_tree_list *head, struct pci_conf *p,
+    struct pci_conf *conf, size_t count, bitstr_t *added)
+{
+	struct pci_tree_entry *e;
+	struct pci_conf *child;
+	size_t i;
+
+	e = malloc(sizeof(*e));
+	TAILQ_INIT(&e->children);
+	e->p = p;
+	TAILQ_INSERT_TAIL(head, e, link);
+
+	switch (p->pc_hdr) {
+	case PCIM_HDRTYPE_BRIDGE:
+	case PCIM_HDRTYPE_CARDBUS:
+		break;
+	default:
+		return;
+	}
+	if (p->pc_secbus == 0)
+		return;
+
+	assert(p->pc_subbus >= p->pc_secbus);
+	for (i = 0; i < count; i++) {
+		child = conf + i;
+		if (child->pc_sel.pc_domain < p->pc_sel.pc_domain)
+			continue;
+		if (child->pc_sel.pc_domain > p->pc_sel.pc_domain)
+			break;
+		if (child->pc_sel.pc_bus < p->pc_secbus)
+			continue;
+		if (child->pc_sel.pc_bus > p->pc_subbus)
+			break;
+
+		if (child->pc_sel.pc_bus == p->pc_secbus) {
+			assert(bit_test(added, i) == 0);
+			bit_set(added, i);
+			tree_add_device(&e->children, conf + i, conf, count,
+			    added);
+			continue;
+		}
+
+		if (bit_test(added, i) == 0) {
+			/*
+			 * This really shouldn't happen, but if for
+			 * some reason a child bridge doesn't claim
+			 * this device, display it now rather than
+			 * later.
+			 */
+			bit_set(added, i);
+			tree_add_device(&e->children, conf + i, conf, count,
+			    added);
+			continue;
+		}
+	}
+}
+
+static bool
+build_tree(struct pci_tree_list *head, struct pci_conf *conf, size_t count)
+{
+	bitstr_t *added;
+	size_t i;
+
+	TAILQ_INIT(head);
+
+	/*
+	 * Allocate a bitstring to track which devices have already
+	 * been added to the tree.
+	 */
+	added = bit_alloc(count);
+	if (added == NULL)
+		return (false);
+
+	for (i = 0; i < count; i++) {
+		if (bit_test(added, i))
+			continue;
+
+		bit_set(added, i);
+		tree_add_device(head, conf + i, conf, count, added);
+	}
+
+	free(added);
+	return (true);
+}
+
+static void
+free_tree(struct pci_tree_list *head)
+{
+	struct pci_tree_entry *e, *n;
+
+	TAILQ_FOREACH_SAFE(e, head, link, n) {
+		free_tree(&e->children);
+		TAILQ_REMOVE(head, e, link);
+		free(e);
+	}
+}
+
+static void
+print_tree_entry(struct pci_tree_entry *e, const char *indent, bool last,
+    int verbose)
+{
+	struct pci_vendor_info *vi;
+	struct pci_device_info *di;
+	struct pci_tree_entry *child;
+	struct pci_conf *p = e->p;
+	char *indent_buf;
+
+	printf("%s%c--- ", indent, last ? '`' : '|');
+	if (p->pd_name[0] != '\0')
+		printf("%s%lu", p->pd_name, p->pd_unit);
+	else
+		printf("pci%d:%d:%d:%d", p->pc_sel.pc_domain, p->pc_sel.pc_bus,
+		    p->pc_sel.pc_dev, p->pc_sel.pc_func);
+
+	if (verbose) {
+		di = NULL;
+		TAILQ_FOREACH(vi, &pci_vendors, link) {
+			if (vi->id == p->pc_vendor) {
+				printf(" %s", vi->desc);
+				TAILQ_FOREACH(di, &vi->devs, link) {
+					if (di->id == p->pc_device) {
+						printf(" %s", di->desc);
+						break;
+					}
+				}
+				break;
+			}
+		}
+		if (vi == NULL)
+			printf(" vendor=0x%04x device=0x%04x", p->pc_vendor,
+			    p->pc_device);
+		else if (di == NULL)
+			printf(" device=0x%04x", p->pc_device);
+	}
+	printf("\n");
+
+	if (TAILQ_EMPTY(&e->children))
+		return;
+
+	asprintf(&indent_buf, "%s%c  ", indent, last ? ' ' : '|');
+	TAILQ_FOREACH(child, &e->children, link) {
+		print_tree_entry(child, indent_buf, TAILQ_NEXT(child, link) ==
+		    NULL, verbose);
+	}
+	free(indent_buf);
+}
+
+static void
+show_tree(int verbose)
+{
+	struct pci_tree_list head;
+	struct pci_tree_entry *e, *n;
+	struct pci_conf *conf;
+	size_t count;
+	int fd;
+	bool last, new_bus;
+
+	if (verbose)
+		load_vendors();
+
+	fd = open(_PATH_DEVPCI, O_RDONLY);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (!fetch_devs(fd, NULL, &conf, &count)) {
+		exitstatus = 1;
+		goto close_fd;
+	}
+
+	if (count == 0)
+		goto close_fd;
+
+	if (conf[0].pc_reported_len < offsetof(struct pci_conf, pc_subbus)) {
+		warnx("kernel too old");
+		exitstatus = 1;
+		goto free_conf;
+	}
+
+	/* First, sort devices by DBSF. */
+	qsort(conf, count, sizeof(*conf), pci_conf_compar);
+
+	if (!build_tree(&head, conf, count)) {
+		warnx("failed to build tree of PCI devices");
+		exitstatus = 1;
+		goto free_conf;
+	}
+
+	new_bus = true;
+	TAILQ_FOREACH(e, &head, link) {
+		if (new_bus) {
+			printf("--- pci%d:%d\n", e->p->pc_sel.pc_domain,
+			    e->p->pc_sel.pc_bus);
+			new_bus = false;
+		}
+
+		/* Is this the last entry for this bus? */
+		n = TAILQ_NEXT(e, link);
+		if (n == NULL ||
+		    n->p->pc_sel.pc_domain != e->p->pc_sel.pc_domain ||
+		    n->p->pc_sel.pc_bus != e->p->pc_sel.pc_bus) {
+			last = true;
+			new_bus = true;
+		} else
+			last = false;
+
+		print_tree_entry(e, "  ", last, verbose);
+	}
+
+	free_tree(&head);
+free_conf:
+	free(conf);
+close_fd:
 	close(fd);
 }
 
