@@ -285,6 +285,14 @@ SSL_read_b(SSL *ssl, void *buf, int size)
 	return (rv);
 }
 
+static void
+require_sbytes(struct ctx *c, ssize_t expect)
+{
+	ATF_REQUIRE(pthread_mutex_lock(&c->mtx) == 0);
+	ATF_REQUIRE(c->sbytes == expect);
+	ATF_REQUIRE(pthread_mutex_unlock(&c->mtx) == 0);
+}
+
 ATF_TC_WITHOUT_HEAD(basic);
 ATF_TC_BODY(basic, tc)
 {
@@ -302,7 +310,7 @@ ATF_TC_BODY(basic, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == FSIZE);
-	ATF_REQUIRE(c.sbytes == FSIZE);
+	require_sbytes(&c, FSIZE);
 
 	common_cleanup(&c);
 }
@@ -332,7 +340,7 @@ ATF_TC_BODY(random, tc)
 			nread += n;
 		}
 		ATF_REQUIRE(nread == expect);
-		ATF_REQUIRE(c.sbytes == (ssize_t)expect);
+		require_sbytes(&c, (ssize_t)expect);
 	}
 
         common_cleanup(&c);
@@ -367,9 +375,7 @@ ATF_TC_BODY(truncate, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == TRUNC);
-	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
-	ATF_REQUIRE(c.sbytes == TRUNC);
-	ATF_REQUIRE(pthread_mutex_unlock(&c.mtx) == 0);
+	require_sbytes(&c, TRUNC);
 
 	common_cleanup(&c);
 }
@@ -418,9 +424,7 @@ ATF_TC_BODY(grow, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == GROW);
-	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
-	ATF_REQUIRE(c.sbytes == FSIZE + GROW);
-	ATF_REQUIRE(pthread_mutex_unlock(&c.mtx) == 0);
+	require_sbytes(&c, FSIZE + GROW);
 
 	common_cleanup(&c);
 }
