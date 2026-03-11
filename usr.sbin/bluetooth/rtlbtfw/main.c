@@ -83,6 +83,7 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x13d3, .product_id = 0x3587 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3586 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3592 },
+	{ .vendor_id = 0x13d3, .product_id = 0x3612 },
 	{ .vendor_id = 0x0489, .product_id = 0xe122 },
 
 	/* Realtek 8852BE Bluetooth devices */
