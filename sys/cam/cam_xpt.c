@@ -1027,6 +1027,10 @@ xpt_add_periph(struct cam_periph *periph)
 	return (status);
 }
 
+/*
+ * Remove this peripheral from the list of peripherals the devices maintains.
+ * Bump generation numbers to note topology changes.
+ */
 void
 xpt_remove_periph(struct cam_periph *periph)
 {
