@@ -261,6 +261,62 @@ trap_clear_step(struct thread *td, struct trapframe *frame)
 }
 
 /*
+ * Warn with a message on the user's tty if application code has
+ * disabled interrupts and then trapped.
+ */
+static void
+trap_check_intr_user(struct thread *td, struct trapframe *frame)
+{
+	MPASS(TRAPF_USERMODE(frame));
+
+	if (__predict_true((frame->tf_rflags & PSL_I) != 0))
+		return;
+
+	uprintf("pid %ld (%s): trap %d (%s) with interrupts disabled\n",
+	    (long)td->td_proc->p_pid, td->td_name, frame->tf_trapno,
+	    trap_msg[frame->tf_trapno]);
+}
+
+/*
+ * Some exceptions can occur on kernel attempt to reload a corrupted
+ * user context, which is done with interrupts enabled.  Interrupts
+ * such as NMIs and debugging faults can be also taken in the kernel
+ * while interrupts are disabled.  Other traps shouldn't occur with
+ * interrupts disabled unless the kernel has a bug.  Re-enable
+ * interrupts in case this occurs, unless the interrupted thread holds
+ * a spin lock.
+ */
+static void
+trap_check_intr_kernel(struct thread *td, struct trapframe *frame)
+{
+	MPASS(!TRAPF_USERMODE(frame));
+
+	if (__predict_true((frame->tf_rflags & PSL_I) != 0))
+		return;
+
+	switch (frame->tf_trapno) {
+	case T_NMI:
+	case T_BPTFLT:
+	case T_TRCTRAP:
+	case T_PROTFLT:
+	case T_SEGNPFLT:
+	case T_STKFLT:
+		break;
+	default:
+		printf("kernel trap %d with interrupts disabled\n",
+		    frame->tf_trapno);
+
+		/*
+		 * We shouldn't enable interrupts while holding a
+		 * spin lock.
+		 */
+		if (td->td_md.md_spinlock_count == 0)
+			enable_intr();
+		break;
+	}
+}
+
+/*
  * Table of handlers for various segment load faults.
  */
 static const struct {
@@ -337,46 +393,9 @@ trap(struct trapframe *frame)
 		return;
 	}
 
-	if ((frame->tf_rflags & PSL_I) == 0) {
-		/*
-		 * Buggy application or kernel code has disabled
-		 * interrupts and then trapped.  Enabling interrupts
-		 * now is wrong, but it is better than running with
-		 * interrupts disabled until they are accidentally
-		 * enabled later.
-		 */
-		if (TRAPF_USERMODE(frame)) {
-			uprintf(
-			    "pid %ld (%s): trap %d (%s) "
-			    "with interrupts disabled\n",
-			    (long)curproc->p_pid, curthread->td_name, type,
-			    trap_msg[type]);
-		} else {
-			switch (type) {
-			case T_NMI:
-			case T_BPTFLT:
-			case T_TRCTRAP:
-			case T_PROTFLT:
-			case T_SEGNPFLT:
-			case T_STKFLT:
-				break;
-			default:
-				printf(
-				    "kernel trap %d with interrupts disabled\n",
-				    type);
-
-				/*
-				 * We shouldn't enable interrupts while holding a
-				 * spin lock.
-				 */
-				if (td->td_md.md_spinlock_count == 0)
-					enable_intr();
-			}
-		}
-	}
-
 	if (TRAPF_USERMODE(frame)) {
 		/* user trap */
+		trap_check_intr_user(td, frame);
 
 		td->td_pticks = 0;
 		td->td_frame = frame;
@@ -497,6 +516,7 @@ trap(struct trapframe *frame)
 		}
 	} else {
 		/* kernel trap */
+		trap_check_intr_kernel(td, frame);
 
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
