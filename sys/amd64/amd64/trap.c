@@ -218,6 +218,30 @@ trap_uprintf_signal(struct thread *td, struct trapframe *frame, register_t addr,
 	    fubyte((void *)(frame->tf_rip + 7)));
 }
 
+static bool
+trap_check_efirt(struct thread *td, struct trapframe *frame)
+{
+	/*
+	 * Most likely, EFI RT faulted.  This check prevents
+	 * kdb from handling breakpoints set on the BIOS text,
+	 * if such option is ever needed.
+	 */
+	if ((td->td_pflags & TDP_EFIRT) != 0 &&
+	    curpcb->pcb_onfault != NULL) {
+		u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
+
+		if ((print_efirt_faults == 1 && cnt == 0) ||
+		    print_efirt_faults == 2) {
+			printf("EFI RT fault %s\n",
+			    traptype_to_msg(frame->tf_trapno));
+			trap_diag(frame, 0);
+		}
+		frame->tf_rip = (long)curpcb->pcb_onfault;
+		return (true);
+	}
+	return (false);
+}
+
 /*
  * Table of handlers for various segment load faults.
  */
@@ -465,24 +489,8 @@ trap(struct trapframe *frame)
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 
-		/*
-		 * Most likely, EFI RT faulted.  This check prevents
-		 * kdb from handling breakpoints set on the BIOS text,
-		 * if such option is ever needed.
-		 */
-		if ((td->td_pflags & TDP_EFIRT) != 0 &&
-		    curpcb->pcb_onfault != NULL && type != T_PAGEFLT) {
-			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
-
-			if ((print_efirt_faults == 1 && cnt == 0) ||
-			    print_efirt_faults == 2) {
-				printf("EFI RT fault %s\n",
-				    traptype_to_msg(type));
-				trap_diag(frame, 0);
-			}
-			frame->tf_rip = (long)curpcb->pcb_onfault;
+		if (type != T_PAGEFLT && trap_check_efirt(td, frame))
 			return;
-		}
 
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
@@ -891,19 +899,8 @@ trap_pfault(struct trapframe *frame, bool usermode, int *signo, int *ucode)
 		return (1);
 after_vmfault:
 	if (td->td_intr_nesting_level == 0 &&
-	    curpcb->pcb_onfault != NULL) {
-		if ((td->td_pflags & TDP_EFIRT) != 0) {
-			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
-
-			if ((print_efirt_faults == 1 && cnt == 0) ||
-			    print_efirt_faults == 2) {
-				printf("EFI RT page fault\n");
-				trap_diag(frame, eva);
-			}
-		}
-		frame->tf_rip = (long)curpcb->pcb_onfault;
+	    trap_check_efirt(td, frame))
 		return (0);
-	}
 	trap_fatal(frame, eva);
 	return (-1);
 }
