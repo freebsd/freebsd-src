@@ -181,7 +181,7 @@ instead.
 .PP
 The
 .B ctime
-function is equivalent to calliing
+function is equivalent to calling
 .B localtime
 and then calling
 .B asctime
@@ -246,17 +246,17 @@ includes the following fields:
 .PP
 .nf
 .ta 2n +\w'long tm_gmtoff;nn'u
-	int tm_sec;	/\(** seconds (0\*(en60) \(**/
-	int tm_min;	/\(** minutes (0\*(en59) \(**/
-	int tm_hour;	/\(** hours (0\*(en23) \(**/
-	int tm_mday;	/\(** day of month (1\*(en31) \(**/
-	int tm_mon;	/\(** month of year (0\*(en11) \(**/
-	int tm_year;	/\(** year \- 1900 \(**/
-	int tm_wday;	/\(** day of week (Sunday = 0) \(**/
-	int tm_yday;	/\(** day of year (0\*(en365) \(**/
-	int tm_isdst;	/\(** is daylight saving time in effect? \(**/
-	char \(**tm_zone;	/\(** time zone abbreviation (optional) \(**/
-	long tm_gmtoff;	/\(** offset from UT in seconds (optional) \(**/
+	int tm_sec;	/* seconds (0\*(en60) */
+	int tm_min;	/* minutes (0\*(en59) */
+	int tm_hour;	/* hours (0\*(en23) */
+	int tm_mday;	/* day of month (1\*(en31) */
+	int tm_mon;	/* month of year (0\*(en11) */
+	int tm_year;	/* year \- 1900 */
+	int tm_wday;	/* day of week (Sunday = 0) */
+	int tm_yday;	/* day of year (0\*(en365) */
+	int tm_isdst;	/* is daylight saving time in effect? */
+	char *tm_zone;	/* time zone abbreviation (optional) */
+	long tm_gmtoff;	/* offset from UT in seconds (optional) */
 .fi
 .RE
 .PP
@@ -311,12 +311,10 @@ and
 functions might (or might not) also behave this way.
 This is for compatibility with older platforms, as required by POSIX.
 .SH FILES
-.ta \w'/usr/share/zoneinfo/posixrules\0\0'u
+.ta \w'/usr/share/zoneinfo/GMT\0\0'u
 /etc/localtime	local timezone file
 .br
 /usr/share/zoneinfo	timezone directory
-.br
-/usr/share/zoneinfo/posixrules	default DST rules (obsolete)
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
 .PP

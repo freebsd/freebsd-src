@@ -4,17 +4,35 @@
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
-if (type nroff && type perl) >/dev/null 2>&1; then
+manflags=
+while
+  case $1 in
+    -*) :;;
+    *) false;;
+  esac
+do
+  manflags="$manflags $1"
+  shift
+done
 
-  # Tell groff not to emit SGR escape sequences (ANSI color escapes).
-  export GROFF_NO_SGR=1
-
-  echo ".am TH
-.hy 0
+groff="groff -dAD=l -rHY=0 $manflags -mtty-char -man -ww -P-bcou"
+if ($groff) </dev/null >/dev/null 2>&1; then
+  $groff "$@"
+elif (type mandoc && type col) >/dev/null 2>&1; then
+  mandoc $manflags -man "$@" | col -bx
+elif (type nroff && type perl) >/dev/null 2>&1; then
+  printf '%s\n' '.
+.\" Left-adjust and do not hyphenate.
+.am TH
 .na
+.hy 0
 ..
+.\" Omit internal page headers and footers.
+.\" Unfortunately this also omits the starting header and ending footer,
+.\" but that is the best old nroff can easily do.
 .rm }H
-.rm }F" | nroff -man - ${1+"$@"} | perl -ne '
+.rm }F
+.' | nroff -man - "$@" | perl -ne '
 	binmode STDIN, '\'':encoding(utf8)'\'';
 	binmode STDOUT, '\'':encoding(utf8)'\'';
 	chomp;
@@ -32,9 +50,7 @@ if (type nroff && type perl) >/dev/null 2>&1; then
 		$didprint = 1;
 	}
   '
-elif (type mandoc && type col) >/dev/null 2>&1; then
-  mandoc -man -T ascii "$@" | col -bx
 else
-  echo >&2 "$0: please install nroff and perl, or mandoc and col"
+  printf >&2 '%s\n' "$0: please install groff, or mandoc and col"
   exit 1
 fi
