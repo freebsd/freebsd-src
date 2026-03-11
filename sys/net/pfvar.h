@@ -2853,6 +2853,7 @@ extern void			 pf_addrcpy(struct pf_addr *, const struct pf_addr *,
 				    sa_family_t);
 void				pf_free_rule(struct pf_krule *);
 
+struct inpcb;
 int	pf_test_eth(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 int	pf_scan_sctp(struct pf_pdesc *);
 #if defined(INET) || defined(INET6)

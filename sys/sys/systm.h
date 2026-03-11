@@ -127,12 +127,10 @@ extern int unmapped_buf_allowed;
  * General function declarations.
  */
 
-struct inpcb;
 struct lock_object;
 struct malloc_type;
 struct mtx;
 struct proc;
-struct socket;
 struct thread;
 struct tty;
 struct ucred;
