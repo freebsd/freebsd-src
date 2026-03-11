@@ -357,17 +357,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
 	return (0);
 }
 
-/*
- *   Transform old in6_pcbconnect() into an inner subroutine for new
- *   in6_pcbconnect(): Do some validity-checking on the remote
- *   address (in mbuf 'nam') and then determine local host address
- *   (i.e., which interface) to use to access that remote host.
- *
- *   This preserves definition of in6_pcbconnect(), while supporting a
- *   slightly different version for T/TCP.  (This is more than
- *   a bit of a kludge, but cleaning up the internal interfaces would
- *   have forced minor changes in every protocol).
- */
 static int
 in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
     struct in6_addr *plocal_addr6, bool sas_required)
