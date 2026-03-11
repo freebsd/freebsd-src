@@ -3,14 +3,15 @@
 <head>
 <title>How to Read the tz Database</title>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-pre {margin-left: 2em; white-space: pre-wrap;}
-pre.td {margin-left: 0;}
+pre {margin-left: 1.3rem; overflow: auto;}
 td {text-align: center;}
 table {border: 1px outset;}
 th, td {border: 1px inset;}
 table.rule {border: none; margin: auto;}
 td.footnote {text-align: left;}
+ul {padding-left: 1.3rem;}
 </style>
 </head>
 <body>
@@ -23,31 +24,22 @@ times of day from the <a href="tz-link.html">tz database</a>
 source files. It might be helpful, but not absolutely necessary,
 for the reader to have already downloaded the
 latest release of the database and become familiar with the basic layout
-of the data files. The format is explained in the &ldquo;man
-page&rdquo; for the zic compiler, <code>zic.8.txt</code>, in
+of the data files. The format is explained in the “man page”
+for the zic compiler, <code>zic.8.txt</code>, in
 the <code>code</code> subdirectory.
 Although this guide covers many of the common cases, it is not a
 complete summary of what zic accepts; the man page is the
 authoritative reference.</p>
 
-<p>We&rsquo;ll begin by talking about the rules for changing between standard
-and daylight saving time since we&rsquo;ll need that information when we talk
+<p>We’ll begin by talking about the rules for changing between standard
+and daylight saving time since we’ll need that information when we talk
 about the zones.</p>
 
-<p>First, let&rsquo;s consider the special daylight saving time rules
+<p>First, let’s consider the special daylight saving time rules
 for Chicago (from the <code>northamerica</code> file in
 the <code>data</code> subdirectory):</p>
 
-<table>
-<tr>
-  <th colspan="6">From the Source File</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
-#Rule NAME    FROM TO    -   IN  ON      AT   SAVE LETTER
+<pre>#Rule NAME    FROM TO    -   IN  ON      AT   SAVE LETTER
 Rule  Chicago 1920 only  -   Jun 13      2:00 1:00 D
 Rule  Chicago 1920 1921  -   Oct lastSun 2:00 0    S
 Rule  Chicago 1921 only  -   Mar lastSun 2:00 1:00 D
@@ -55,8 +47,7 @@ Rule  Chicago 1922 1966  -   Apr lastSun 2:00 1:00 D
 Rule  Chicago 1922 1954  -   Sep lastSun 2:00 0    S
 Rule  Chicago 1955 1966  -   Oct lastSun 2:00 0    S
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="6">Reformatted a Bit</th>
 </tr>
@@ -107,7 +98,7 @@ first and last calendar years defining a contiguous range over which a specific
 Rule line is to apply.  The keyword <code>only</code> can be used in the
 <code>TO</code> field to repeat the value of the <code>FROM</code> field in the
 event that a rule should only apply to a single year.  Often, the keyword
-<code>max</code> is used to extend a rule&rsquo;s application into the
+<code>max</code> is used to extend a rule’s application into the
 indefinite future; it is a platform-agnostic stand-in for the largest
 representable year.
 
@@ -117,28 +108,28 @@ Prior to the 2020b release, it was called the <code>TYPE</code> field, though
 it had not been used in the main data since the 2000e release.
 An obsolescent supplementary file used the
 field as a proof-of-concept to allow <code>zic</code> to apply a given Rule
-line only to certain &ldquo;types&rdquo; of years within the specified range as
+line only to certain “types” of years within the specified range as
 dictated by the output of a separate script, such as: only years which would
-have a US presidential election, or only years which wouldn&rsquo;t.
+have a US presidential election, or only years which wouldn’t.
 
 <p>The <code>SAVE</code> column contains the local (wall clock) offset from
 local standard time.
 This is usually either zero for standard time or one hour for daylight
-saving time; but there&rsquo;s no reason, in principle, why it can&rsquo;t
+saving time; but there’s no reason, in principle, why it can’t
 take on other values.
 
 <p>The <code>LETTER</code> (sometimes called <code>LETTER/S</code>)
 column can contain a variable
-part of the usual abbreviation of the time zone&rsquo;s name, or it can just
-be a hyphen if there&rsquo;s no variable part. For example, the abbreviation
-used in the central time zone will be either &ldquo;CST&rdquo; or
-&ldquo;CDT&rdquo;. The variable part is &lsquo;S&rsquo; or &lsquo;D&rsquo;;
-and, sure enough, that&rsquo;s just what we find in
+part of the usual abbreviation of the time zone’s name, or it can just
+be a hyphen if there’s no variable part. For example, the abbreviation
+used in the central time zone will be either “CST” or “CDT”.
+The variable part is ‘S’ or ‘D’;
+and, sure enough, that’s just what we find in
 the <code>LETTER</code> column
 in the <code>Chicago</code> rules. More about this when we talk about
-&ldquo;Zone&rdquo; lines.
+“Zone” lines.
 
-<p>One important thing to notice is that &ldquo;Rule&rdquo; lines
+<p>One important thing to notice is that “Rule” lines
 want at once to be both <i>transitions</i> and <i>steady states</i>:
 <ul>
 <li>On the one hand, they represent transitions between standard and
@@ -158,18 +149,9 @@ years. Similarly, the rule for changing to daylight saving time was
 the same from 1922 to 1966; but the rule for returning to standard
 time changed in 1955. Got it?</p>
 
-<p>OK, now for the somewhat more interesting &ldquo;US&rdquo; rules:</p>
+<p>OK, now for the somewhat more interesting “US” rules:</p>
 
-<table>
-<tr>
-  <th colspan="6">From the Source File</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
-#Rule NAME FROM TO    -   IN  ON        AT   SAVE LETTER/S
+<pre>#Rule NAME FROM TO    -   IN  ON        AT   SAVE LETTER/S
 Rule  US   1918 1919  -   Mar lastSun  2:00  1:00 D
 Rule  US   1918 1919  -   Oct lastSun  2:00  0    S
 Rule  US   1942 only  -   Feb 9        2:00  1:00 W # War
@@ -184,8 +166,7 @@ Rule  US   1987 2006  -   Apr Sun&gt;=1   2:00  1:00 D
 Rule  US   2007 max   -   Mar Sun&gt;=8   2:00  1:00 D
 Rule  US   2007 max   -   Nov Sun&gt;=1   2:00  0    S
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="6">Reformatted a Bit</th>
 </tr>
@@ -211,15 +192,15 @@ Rule  US   2007 max   -   Nov Sun&gt;=1   2:00  0    S
 <tr>
   <td colspan="2">1942 only</td>
   <td colspan="2">February 9<small><sup>th</sup></small></td>
-  <td>go to &ldquo;war time&rdquo;</td>
+  <td>go to “war time”</td>
 </tr>
 <tr>
   <td colspan="2" rowspan="2">1945 only</td>
   <td colspan="2">August 14<small><sup>th</sup></small></td>
   <td>23:00 <a href="https://en.wikipedia.org/wiki/Universal_Time">UT</a></td>
   <td>
-    rename &ldquo;war time&rdquo; to &ldquo;peace<br>time;&rdquo;
-    clocks don&rsquo;t change
+    rename “war time” to “peace<br>time;”
+    clocks don’t change
   </td>
 </tr>
 <tr>
@@ -272,33 +253,33 @@ Rule  US   2007 max   -   Nov Sun&gt;=1   2:00  0    S
 
 <p>First, the time that something happens (in the <code>AT</code>
 column) is not necessarily the local (wall clock) time. The time can be
-suffixed with &lsquo;s&rsquo; (for &ldquo;standard&rdquo;) to mean
+suffixed with ‘s’ (for “standard”) to mean
 local standard time, different from local (wall clock) time when observing
-daylight saving time; or it can be suffixed with &lsquo;g&rsquo;,
-&lsquo;u&rsquo;, or &lsquo;z&rsquo;, all three of which mean the
+daylight saving time; or it can be suffixed with ‘g’,
+‘u’, or ‘z’, all three of which mean the
 standard time at the
 <a href="https://en.wikipedia.org/wiki/Prime_Meridian">prime meridian</a>.
-&lsquo;g&rsquo; stands for &ldquo;<a
-href="https://en.wikipedia.org/wiki/Greenwich_Mean_Time">GMT</a>&rdquo;;
-&lsquo;u&rsquo; stands for &ldquo;<a
-href="https://en.wikipedia.org/wiki/Universal_Time">UT</a>&rdquo; or &ldquo;<a
-href="https://en.wikipedia.org/wiki/Coordinated_Universal_Time">UTC</a>&rdquo;
-(whichever was official at the time); &lsquo;z&rsquo; stands for the
+‘g’ stands for “<a
+href="https://en.wikipedia.org/wiki/Greenwich_Mean_Time">GMT</a>”;
+‘u’ stands for “<a
+href="https://en.wikipedia.org/wiki/Universal_Time">UT</a>” or “<a
+href="https://en.wikipedia.org/wiki/Coordinated_Universal_Time">UTC</a>”
+(whichever was official at the time); ‘z’ stands for the
 <a href="https://en.wikipedia.org/wiki/Nautical_time">nautical time zone</a>
-Z (a.k.a. &ldquo;Zulu&rdquo; which, in turn, stands for &lsquo;Z&rsquo;).
-The time can also be suffixed with &lsquo;w&rsquo; meaning local (wall
-clock) time; but it usually isn&rsquo;t because that&rsquo;s the
+Z (a.k.a. “Zulu” which, in turn, stands for ‘Z’).
+The time can also be suffixed with ‘w’ meaning local (wall
+clock) time; but it usually isn’t because that’s the
 default.</p>
 
 <p>Second, the day in the <code>ON</code> column, in addition to
-&ldquo;<code>lastSun</code>&rdquo; or a particular day of the month,
-can have the form, &ldquo;<code>Sun&gt;=</code><i>x</i>&rdquo; or
-&ldquo;<code>Sun&lt;=</code><i>x</i>,&rdquo; where <i>x</i> is a day
-of the month. For example, &ldquo;<code>Sun&gt;=8</code>&rdquo; means
-&ldquo;the first Sunday on or after the eighth of the month,&rdquo; in
+“<code>lastSun</code>” or a particular day of the month,
+can have the form, “<code>Sun&gt;=</code><i>x</i>” or
+“<code>Sun&lt;=</code><i>x</i>,” where <i>x</i> is a day
+of the month. For example, “<code>Sun&gt;=8</code>” means
+“the first Sunday on or after the eighth of the month,” in
 other words, the second Sunday of the month. Furthermore, although
-there are no examples above, the weekday needn&rsquo;t be
-&ldquo;<code>Sun</code>&rdquo; in either form, but can be the usual
+there are no examples above, the weekday needn’t be
+“<code>Sun</code>” in either form, but can be the usual
 three-character English abbreviation for any day of the week.</p>
 
 <p>And the US rules give us more examples of a couple of things
@@ -317,8 +298,8 @@ state or other more local rule).</li>
 
 <li>The <code>SAVE</code> and <code>LETTER</code> columns
 contain <i>steady state</i>, not transitions. Consider, for example,
-the transition from &ldquo;war time&rdquo; to &ldquo;peace time&rdquo;
-that happened on August 14, 1945. The &ldquo;1:00&rdquo; in
+the transition from “war time” to “peace time”
+that happened on August 14, 1945. The “1:00” in
 the <code>SAVE</code> column is <i>not</i> an instruction to advance
 the clock an hour. It means that clocks should <i>be</i> one hour
 ahead of standard time, which they already are because of the previous
@@ -326,17 +307,9 @@ rule, so there should be no change.</li>
 
 </ul>
 
-<p>OK, now let&rsquo;s look at a Zone record:</p>
+<p>OK, now let’s look at a Zone record:</p>
 
-<table>
-<tr>
-  <th colspan="5">From the Source File</th>
-</tr>
-<tr>
-  <td colspan="5">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
+<pre>
 #Zone       NAME      STDOFF   RULES FORMAT [UNTIL]
 Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
                       -6:00    US      C%sT 1920
@@ -347,8 +320,7 @@ Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
                       -6:00    Chicago C%sT 1967
                       -6:00    US      C%sT
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="5">Columns Renamed</th>
 </tr>
@@ -365,14 +337,14 @@ Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
   <th>Time</th>
 </tr>
 <tr>
-  <td>&minus;5:50:36</td>
+  <td>−5:50:36</td>
   <td>not observed</td>
   <td>LMT</td>
   <td>1883-11-18</td>
   <td>12:09:24</td>
 </tr>
 <tr>
-  <td rowspan="2">&minus;6:00:00</td>
+  <td rowspan="2">−6:00:00</td>
   <td>US rules</td>
   <td rowspan="2">CST or CDT</td>
   <td>1920-01-01</td>
@@ -384,13 +356,13 @@ Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
   <td rowspan="2">02:00:00</td>
 </tr>
 <tr>
-  <td>&minus;5:00:00</td>
+  <td>−5:00:00</td>
   <td>not observed</td>
   <td>EST</td>
   <td>1936-11-15</td>
 </tr>
 <tr>
-  <td rowspan="4">&minus;6:00:00</td>
+  <td rowspan="4">−6:00:00</td>
   <td>Chicago rules</td>
   <td>CST or CDT</td>
   <td>1942-01-01</td>
@@ -408,7 +380,7 @@ Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
 </tr>
 <tr>
   <td>US rules</td>
-  <td colspan="2">&mdash;</td>
+  <td colspan="2">–</td>
 </tr>
 </table>
 
@@ -417,24 +389,24 @@ Zone  America/Chicago -5:50:36 -       LMT  1883 Nov 18 12:09:24
 <p>First, and somewhat trivially, whereas Rules are considered to
 contain one or more records, a Zone is considered to be a single
 record with zero or more <i>continuation lines</i>. Thus, the keyword,
-&ldquo;<code>Zone</code>,&rdquo; and the zone name are not
+“<code>Zone</code>,” and the zone name are not
 repeated. The last line is the one without anything in
 the <code>[UNTIL]</code> column.</p>
 
 <p>Second, and more fundamentally, each line of a Zone represents a
 steady state, not a transition between states. The state exists from
-the date and time in the previous line&rsquo;s <code>[UNTIL]</code>
+the date and time in the previous line’s <code>[UNTIL]</code>
 column up to the date and time in the current
-line&rsquo;s <code>[UNTIL]</code> column. In other words, the date and
+line’s <code>[UNTIL]</code> column. In other words, the date and
 time in the <code>[UNTIL]</code> column is the instant that separates
 this state from the next. Where that would be ambiguous because
-we&rsquo;re setting our clocks back, the <code>[UNTIL]</code> column
+we’re setting our clocks back, the <code>[UNTIL]</code> column
 specifies the first occurrence of the instant. The state specified by
 the last line, the one without anything in the <code>[UNTIL]</code>
 column, continues to the present.</p>
 
 <p>The first line typically specifies the mean solar time observed
-before the introduction of standard time. Since there&rsquo;s no line before
+before the introduction of standard time. Since there’s no line before
 that, it has no beginning. <code>8-) </code> For some places near the <a
 href="https://en.wikipedia.org/wiki/International_Date_Line">International
 Date Line</a>, the first <i>two</i> lines will show solar times
@@ -453,16 +425,16 @@ Alaska was then 24 hours earlier than it had
 been. <code>&lt;aside&gt;</code>(6 October in the Julian calendar,
 which Russia was still using then for religious reasons, was followed
 by <i>a second instance of the same day with a different name</i>, 18
-October in the Gregorian calendar. Isn&rsquo;t civil time
+October in the Gregorian calendar. Isn’t civil time
 wonderful? <code>8-)</code>)<code>&lt;/aside&gt;</code></p>
 
-<p>The abbreviation, &ldquo;LMT&rdquo; stands for &ldquo;local mean
-time&rdquo;, which is an invention of
+<p>The abbreviation, “LMT” stands for “local mean
+time”, which is an invention of
 the <a href="https://en.wikipedia.org/wiki/Tz_database">tz
 database</a> and was probably never actually used during the
 period. Furthermore, the value is almost certainly wrong except in the
 archetypal place after which the zone is named. (The tz database
-usually doesn&rsquo;t provide a separate Zone record for places where
+usually doesn’t provide a separate Zone record for places where
 nothing significant happened after 1970.)</p>
 
 <p>The <code>RULES</code> column tells us whether daylight saving time is being observed:
@@ -470,7 +442,7 @@ nothing significant happened after 1970.)</p>
 <li>A hyphen, a kind of null value, means that we have not set our
 clocks ahead of standard time.</li>
 
-<li>An amount of time (usually but not necessarily &ldquo;1:00&rdquo;
+<li>An amount of time (usually but not necessarily “1:00”
 meaning one hour) means that we have set our clocks ahead by that
 amount.</li>
 
@@ -488,10 +460,10 @@ Zone Pacific/Honolulu ...                 1933 Apr 30  2:00
 </pre>
 
 <p>Hawaii tried daylight saving time for three weeks in 1933 and
-decided they didn&rsquo;t like it. <code>8-) </code>Note that
+decided they didn’t like it. <code>8-) </code>Note that
 the <code>STDOFF</code> column always contains the standard time
-offset, so the local (wall clock) time during this period was GMT &minus;
-10:30 + 1:00 = GMT &minus; 9:30.</p>
+offset, so the local (wall clock) time during this period was GMT −
+10:30 + 1:00 = GMT − 9:30.</p>
 
 <p>The <code>FORMAT</code> column specifies the usual abbreviation of
 the time zone name. It should have one of four forms:</p>
@@ -499,24 +471,24 @@ the time zone name. It should have one of four forms:</p>
 
 <li>a time zone abbreviation that is a string of three or more
 characters that are either ASCII alphanumerics,
-&ldquo;<code>+</code>&rdquo;, or &ldquo;<code>-</code>&rdquo;</li>
+“<code>+</code>”, or “<code>-</code>”</li>
 
-<li>the string &ldquo;%z&rdquo;, in which case the
-&ldquo;<code>%z</code>&rdquo; will be replaced by a numeric time zone
+<li>the string “%z”, in which case the
+“<code>%z</code>” will be replaced by a numeric time zone
 abbreviation</li>
 
 <li>a pair of time zone abbreviations separated by a slash
-(&lsquo;<code>/</code>&rsquo;), in which case the first string is the
+(‘<code>/</code>’), in which case the first string is the
 abbreviation for the standard time name and the second string is the
 abbreviation for the daylight saving time name</li>
 
-<li>a string containing &ldquo;<code>%s</code>&rdquo;, in which case
-the &ldquo;<code>%s</code>&rdquo; will be replaced by the text in the
-appropriate Rule&rsquo;s <code>LETTER</code> column, and the resulting
+<li>a string containing “<code>%s</code>”, in which case
+the “<code>%s</code>” will be replaced by the text in the
+appropriate Rule’s <code>LETTER</code> column, and the resulting
 string should be a time zone abbreviation</li>
 </ul>
 
-<p>The last two make sense only if there&rsquo;s a named rule in effect.</p>
+<p>The last two make sense only if there’s a named rule in effect.</p>
 
 <p>An example of a slash is:</p>
 <pre>
@@ -552,9 +524,9 @@ database</a> gives abbreviations for time zones
 in popular English-language usage. For
 example, the last line in
 <code>Zone</code> <code>Pacific/Honolulu</code> (shown below) gives
-&ldquo;HST&rdquo; for &ldquo;Hawaii standard time&rdquo; even though the
+“HST” for “Hawaii standard time” even though the
 <a href="https://www.law.cornell.edu/uscode/text/15/263">legal</a>
-name for that time zone is &ldquo;Hawaii-Aleutian standard time.&rdquo;
+name for that time zone is “Hawaii–Aleutian standard time”.
 This author has read that there are also some places in Australia where
 popular time zone names differ from the legal ones.
 
@@ -562,10 +534,10 @@ popular time zone names differ from the legal ones.
 href="https://en.wikipedia.org/wiki/Internationalization_and_localization">localize</a>
 the abbreviations. They are intended to be the values returned through the
 <code>"%Z"</code> format specifier to
-<a href="https://en.wikipedia.org/wiki/C_(programming_language)">C</a>&rsquo;s
-<a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/strftime.html"><code>strftime</code></a>
+<a href="https://en.wikipedia.org/wiki/C_(programming_language)">C</a>’s
+<a href="https://pubs.opengroup.org/onlinepubs/9799919799/functions/strftime.html"><code>strftime</code></a>
 function in the
-<a href="https://kirste.userpage.fu-berlin.de/chemnet/use/info/libc/libc_19.html#SEC324">&ldquo;C&rdquo; locale</a>.
+<a href="https://kirste.userpage.fu-berlin.de/chemnet/use/info/libc/libc_19.html#SEC324">“C” locale</a>.
 
 <li>If there is no generally accepted abbreviation for a time zone,
 a numeric offset is used instead, e.g., <code>+07</code> for 7 hours
@@ -574,33 +546,16 @@ zone while uninhabited, where the offset is zero but in some sense
 the true offset is undefined.
 </ul>
 
-<p>As a final example, here&rsquo;s the complete history for Hawaii:</p>
+<p>As a final example, here’s the complete history for Hawaii:</p>
 
-<table>
-<tr>
-  <th colspan="6">Relevant Excerpts from the US Rules</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
+<pre># Relevant Excerpts from the US Rules
 #Rule NAME FROM TO   -    IN  ON      AT     SAVE LETTER/S
 Rule  US   1918 1919 -    Oct lastSun  2:00  0    S
 Rule  US   1942 only -    Feb  9       2:00  1:00 W # War
 Rule  US   1945 only -    Aug 14      23:00u 1:00 P # Peace
 Rule  US   1945 only -    Sep lastSun  2:00  0    S
-</pre>
-  </td></tr></table></td>
-</tr>
-<tr>
-  <th colspan="6">The Zone Record</th>
-</tr>
-<tr>
-  <td colspan="6">
-    <table class="rule">
-      <tr><td style="border:none;text-align:left">
-<pre class="td">
+
+# The Zone Record
 #Zone NAME            STDOFF    RULES FORMAT [UNTIL]
 Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
                       -10:30    -     HST    1933 Apr 30  2:00
@@ -608,8 +563,7 @@ Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
                       -10:30    US    H%sT   1947 Jun  8  2:00
                       -10:00    -     HST
 </pre>
-  </td></tr></table></td>
-</tr>
+<table>
 <tr>
   <th colspan="6">What We Infer</th>
 </tr>
@@ -626,15 +580,15 @@ Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
   <th>Time</th>
 </tr>
 <tr>
-  <td>&minus;10:31:26</td>
-  <td>&mdash;</td>
+  <td>−10:31:26</td>
+  <td>–</td>
   <td>LMT</td>
   <td>local mean time</td>
   <td>1896-01-13</td>
   <td>12:00</td>
 </tr>
 <tr>
-  <td>&minus;10:30</td>
+  <td>−10:30</td>
   <td>+0:01:26</td>
   <td>HST</td>
   <td>Hawaii standard time</td>
@@ -642,7 +596,7 @@ Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
   <td>02:00</td>
 </tr>
 <tr>
-  <td>&minus;9:30</td>
+  <td>−9:30</td>
   <td>+1:00</td>
   <td>HDT</td>
   <td>Hawaii daylight time</td>
@@ -650,15 +604,15 @@ Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
   <td>12:00</td>
 </tr>
 <tr>
-  <td>&minus;10:30&sup1;</td>
-  <td>&minus;1:00&sup1;</td>
+  <td>−10:30&sup1;</td>
+  <td>−1:00&sup1;</td>
   <td>HST&sup1;</td>
   <td>Hawaii standard time</td>
   <td>1942-02-09</td>
   <td>02:00</td>
 </tr>
 <tr>
-  <td rowspan="2">&minus;9:30</td>
+  <td rowspan="2">−9:30</td>
   <td>+1:00</td>
   <td>HWT</td>
   <td>Hawaii war time</td>
@@ -673,34 +627,34 @@ Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
   <td rowspan="2">02:00</td>
 </tr>
 <tr>
-  <td>&minus;10:30</td>
-  <td>&minus;1:00</td>
+  <td>−10:30</td>
+  <td>−1:00</td>
   <td rowspan="2">HST</td>
   <td rowspan="2">Hawaii standard time</td>
   <td>1947-06-08</td>
 </tr>
 <tr>
-  <td>&minus;10:00&sup3;</td>
+  <td>−10:00&sup3;</td>
   <td>+0:30&sup3;</td>
-  <td colspan="2">&mdash;</td>
+  <td colspan="2">–</td>
 </tr>
 <tr>
   <td colspan="6" class="footnote">
-    &sup1;Switching to US rules&hellip;most recent transition (in 1919) was to standard time
+    &sup1;Switching to US rules...most recent transition (in 1919) was to standard time
   </td>
 </tr>
 <tr>
   <td colspan="6" class="footnote">
     &sup2;23:00 <a href="https://en.wikipedia.org/wiki/Universal_Time">UT</a>
-    + (&minus;9:30) = 13:30 local
+    + (−9:30) = 13:30 local
   </td>
 </tr>
 <tr>
   <td colspan="6" class="footnote">
-    &sup3;Since <a href="https://en.wikipedia.org/wiki/ISO_8601">1947&ndash;06&ndash;08T12:30Z</a>,
+    &sup3;Since <a href="https://en.wikipedia.org/wiki/ISO_8601">1947-06-08T12:30Z</a>,
     the civil time in Hawaii has been
     <a href="https://en.wikipedia.org/wiki/Universal_Time">UT</a>/<a href="https://en.wikipedia.org/wiki/Coordinated_Universal_Time">UTC</a>
-    &minus; 10:00 year-round.
+    −10:00 year-round.
   </td>
 </tr>
 </table>
