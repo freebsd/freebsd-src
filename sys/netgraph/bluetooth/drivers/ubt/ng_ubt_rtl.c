@@ -100,6 +100,7 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x13d3, 0x3587, 0) },
 	{ USB_VPI(0x13d3, 0x3586, 0) },
 	{ USB_VPI(0x13d3, 0x3592, 0) },
+	{ USB_VPI(0x13d3, 0x3612, 0) },
 	{ USB_VPI(0x0489, 0xe122, 0) },
 
 	/* Realtek 8852BE Bluetooth devices */
