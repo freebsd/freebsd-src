@@ -1263,6 +1263,8 @@
             yacc
             ..
         ..
+        yes
+        ..
     ..
     usr.sbin
         certctl
