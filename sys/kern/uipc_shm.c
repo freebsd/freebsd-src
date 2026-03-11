@@ -2157,7 +2157,7 @@ sysctl_posix_shm_list(SYSCTL_HANDLER_ARGS)
 {
 	struct shm_mapping *shmm;
 	struct sbuf sb;
-	struct kinfo_file kif;
+	struct kinfo_file kif = {};
 	u_long i;
 	int error, error2;
 
