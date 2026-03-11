@@ -49,8 +49,9 @@
    and account for the tm_year origin (1900) and time_t origin (1970).  */
 #define MKTIME_FITS_IN(min, max) \
   ((min) < 0 \
-   && ((min) + 0x7fffffff) / 366 / 24 / 60 / 60 / 2 + 1970 - 1900 < INT_MIN \
-   && INT_MAX < ((max) - 0x7fffffff) / 366 / 24 / 60 / 60 / 2 + 1970 - 1900)
+   && (((min) + TWO_31_MINUS_1) / 366 / 24 / 60 / 60 / 2 + 1970 - 1900 \
+       < INT_MIN)						\
+   && INT_MAX < ((max) - TWO_31_MINUS_1) / 366 / 24 / 60 / 60 / 2 + 1970 - 1900)
 
 /* MKTIME_MIGHT_OVERFLOW is true if mktime can fail due to time_t overflow
    or if it is not known whether mktime can fail,

@@ -13,45 +13,174 @@
 /*LINTLIBRARY*/
 
 #define LOCALTIME_IMPLEMENTATION
-#ifdef __FreeBSD__
-#include <pthread.h>
-#endif /* __FreeBSD__ */
-#ifdef DETECT_TZ_CHANGES
-# ifndef DETECT_TZ_CHANGES_INTERVAL
-#  define DETECT_TZ_CHANGES_INTERVAL 61
-# endif
-int __tz_change_interval = DETECT_TZ_CHANGES_INTERVAL;
-# include <sys/stat.h>
-#endif /* DETECT_TZ_CHANGES */
 #include "private.h"
 
 #include "tzdir.h"
 #include "tzfile.h"
 #include <fcntl.h>
-#ifdef __FreeBSD__
-#include "libc_private.h"
-#endif /* __FreeBSD__ */
 
 #if HAVE_SYS_STAT_H
 # include <sys/stat.h>
-#endif
-#if !defined S_ISREG && defined S_IFREG
-/* Ancient UNIX or recent MS-Windows.  */
-# define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
+# ifndef S_ISREG
+#  define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG) /* Ancient UNIX.  */
+# endif
+#else
+struct stat { char st_ctime, st_dev, st_ino; };
+# define dev_t char
+# define ino_t char
+# define fstat(fd, st) (memset(st, 0, sizeof *(st)), 0)
+# define stat(name, st) fstat(0, st)
+# define S_ISREG(mode) 1
 #endif
 
-#if defined THREAD_SAFE && THREAD_SAFE
+#ifndef HAVE_STRUCT_STAT_ST_CTIM
+# define HAVE_STRUCT_STAT_ST_CTIM 1
+#endif
+#if !defined st_ctim && defined __APPLE__ && defined __MACH__
+# define st_ctim st_ctimespec
+#endif
+
+#ifndef THREAD_SAFE
+# define THREAD_SAFE 0
+#endif
+
+#ifndef THREAD_RWLOCK
+# define THREAD_RWLOCK 0
+#endif
+
+#ifndef THREAD_TM_MULTI
+# define THREAD_TM_MULTI 0
+#endif
+
+#ifndef USE_TIMEX_T
+# define USE_TIMEX_T false
+#endif
+
+#if THREAD_SAFE
 # include <pthread.h>
-#ifdef __FreeBSD__
-# define pthread_mutex_lock(l) (__isthreaded ? pthread_mutex_lock(l) : 0)
-# define pthread_mutex_unlock(l) (__isthreaded ? pthread_mutex_unlock(l) : 0)
-#endif /* __FreeBSD__ */
+
+# ifndef THREAD_PREFER_SINGLE
+#  define THREAD_PREFER_SINGLE 0
+# endif
+# if THREAD_PREFER_SINGLE
+#  ifndef HAVE___ISTHREADED
+#   if defined __FreeBSD__ || defined __OpenBSD__
+#    define HAVE___ISTHREADED 1
+#   else
+#    define HAVE___ISTHREADED 0
+#   endif
+#  endif
+#  if HAVE___ISTHREADED
+extern int __isthreaded;
+#  else
+#   if !defined HAVE_SYS_SINGLE_THREADED_H && defined __has_include
+#    if __has_include(<sys/single_threaded.h>)
+#     define HAVE_SYS_SINGLE_THREADED_H 1
+#    else
+#     define HAVE_SYS_SINGLE_THREADED_H 0
+#    endif
+#   endif
+#   ifndef HAVE_SYS_SINGLE_THREADED_H
+#    if defined __GLIBC__ && 2 < __GLIBC__ + (32 <= __GLIBC_MINOR__)
+#     define HAVE_SYS_SINGLE_THREADED_H 1
+#    else
+#     define HAVE_SYS_SINGLE_THREADED_H 0
+#    endif
+#   endif
+#   if HAVE_SYS_SINGLE_THREADED_H
+#    include <sys/single_threaded.h>
+#   endif
+#  endif
+# endif
+#endif
+
+#if !defined TM_GMTOFF || !USE_TIMEX_T
+# if THREAD_SAFE
+
+/* True if the current process might be multi-threaded,
+   false if it is definitely single-threaded.
+   If false, it will be false the next time it is called
+   unless the caller creates a thread in the meantime.
+   If true, it might become false the next time it is called
+   if all other threads exit in the meantime.  */
+static bool
+is_threaded(void)
+{
+#  if THREAD_PREFER_SINGLE && HAVE___ISTHREADED
+  return !!__isthreaded;
+#  elif THREAD_PREFER_SINGLE && HAVE_SYS_SINGLE_THREADED_H
+  return !__libc_single_threaded;
+#  else
+  return true;
+#  endif
+}
+
+#  if THREAD_RWLOCK
+static pthread_rwlock_t locallock = PTHREAD_RWLOCK_INITIALIZER;
+static int dolock(void) { return pthread_rwlock_rdlock(&locallock); }
+static void dounlock(void) { pthread_rwlock_unlock(&locallock); }
+#  else
 static pthread_mutex_t locallock = PTHREAD_MUTEX_INITIALIZER;
-static int lock(void) { return pthread_mutex_lock(&locallock); }
-static void unlock(void) { pthread_mutex_unlock(&locallock); }
+static int dolock(void) { return pthread_mutex_lock(&locallock); }
+static void dounlock(void) { pthread_mutex_unlock(&locallock); }
+#  endif
+
+/* Get a lock.  Return 0 on success, a positive errno value on failure,
+   negative if known to be single-threaded so no lock is needed.  */
+static int
+lock(void)
+{
+  if (!is_threaded())
+    return -1;
+  return dolock();
+}
+static void
+unlock(bool threaded)
+{
+  if (threaded)
+    dounlock();
+}
+# else
+static int lock(void) { return -1; }
+static void unlock(ATTRIBUTE_MAYBE_UNUSED bool threaded) { }
+# endif
+#endif
+
+#if THREAD_SAFE
+typedef pthread_once_t once_t;
+# define ONCE_INIT PTHREAD_ONCE_INIT
 #else
-static int lock(void) { return 0; }
-static void unlock(void) { }
+typedef bool once_t;
+# define ONCE_INIT false
+#endif
+
+static void
+once(once_t *once_control, void init_routine(void))
+{
+#if THREAD_SAFE
+  pthread_once(once_control, init_routine);
+#else
+  if (!*once_control) {
+    *once_control = true;
+    init_routine();
+  }
+#endif
+}
+
+enum tm_multi { LOCALTIME_TM_MULTI, GMTIME_TM_MULTI, OFFTIME_TM_MULTI };
+
+#if THREAD_SAFE && THREAD_TM_MULTI
+
+enum { N_TM_MULTI = OFFTIME_TM_MULTI + 1 };
+static pthread_key_t tm_multi_key;
+static int tm_multi_key_err;
+
+static void
+tm_multi_key_init(void)
+{
+  tm_multi_key_err = pthread_key_create(&tm_multi_key, free);
+}
+
 #endif
 
 /* Unless intptr_t is missing, pacify gcc -Wcast-qual on char const * exprs.
@@ -81,6 +210,47 @@ typedef intmax_t iinntt;
 #endif
 static_assert(IINNTT_MIN < INT_MIN && INT_MAX < IINNTT_MAX);
 
+#ifndef HAVE_STRUCT_TIMESPEC
+# define HAVE_STRUCT_TIMESPEC 1
+#endif
+#if !HAVE_STRUCT_TIMESPEC
+struct timespec { time_t tv_sec; long tv_nsec; };
+#endif
+
+#if !defined CLOCK_MONOTONIC_COARSE && defined CLOCK_MONOTONIC
+# define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
+#endif
+#ifndef CLOCK_MONOTONIC_COARSE
+# undef clock_gettime
+# define clock_gettime(id, t) ((t)->tv_sec = time(NULL), (t)->tv_nsec = 0, 0)
+#endif
+
+/* How many seconds to wait before checking the default TZif file again.
+   Negative means no checking.  Default to 61 if DETECT_TZ_CHANGES
+   (as circa 2025 FreeBSD builds its localtime.c with -DDETECT_TZ_CHANGES),
+   and to -1 otherwise.  */
+#ifndef TZ_CHANGE_INTERVAL
+# ifdef DETECT_TZ_CHANGES
+#  define TZ_CHANGE_INTERVAL 61
+# else
+#  define TZ_CHANGE_INTERVAL (-1)
+# endif
+#endif
+static_assert(TZ_CHANGE_INTERVAL < 0 || HAVE_SYS_STAT_H);
+
+/* The change detection interval.  */
+#if TZ_CHANGE_INTERVAL < 0 || !defined __FreeBSD__
+enum { tz_change_interval = TZ_CHANGE_INTERVAL };
+#else
+/* FreeBSD uses this private-but-extern var in its internal test suite.  */
+int __tz_change_interval = TZ_CHANGE_INTERVAL;
+# define tz_change_interval __tz_change_interval
+#endif
+
+/* The type of monotonic times.
+   This is the system time_t, even if USE_TIMEX_T #defines time_t below.  */
+typedef time_t monotime_t;
+
 /* On platforms where offtime or mktime might overflow,
    strftime.c defines USE_TIMEX_T to be true and includes us.
    This tells us to #define time_t to an internal type timex_t that is
@@ -89,9 +259,6 @@ static_assert(IINNTT_MIN < INT_MIN && INT_MAX < IINNTT_MAX);
    to a static function that returns the redefined time_t.
    It also tells us to define only data and code needed
    to support the offtime or mktime variant.  */
-#ifndef USE_TIMEX_T
-# define USE_TIMEX_T false
-#endif
 #if USE_TIMEX_T
 # undef TIME_T_MIN
 # undef TIME_T_MAX
@@ -99,16 +266,16 @@ static_assert(IINNTT_MIN < INT_MIN && INT_MAX < IINNTT_MAX);
 # define time_t timex_t
 # if MKTIME_FITS_IN(LONG_MIN, LONG_MAX)
 typedef long timex_t;
-# define TIME_T_MIN LONG_MIN
-# define TIME_T_MAX LONG_MAX
+#  define TIME_T_MIN LONG_MIN
+#  define TIME_T_MAX LONG_MAX
 # elif MKTIME_FITS_IN(LLONG_MIN, LLONG_MAX)
 typedef long long timex_t;
-# define TIME_T_MIN LLONG_MIN
-# define TIME_T_MAX LLONG_MAX
+#  define TIME_T_MIN LLONG_MIN
+#  define TIME_T_MAX LLONG_MAX
 # else
 typedef intmax_t timex_t;
-# define TIME_T_MIN INTMAX_MIN
-# define TIME_T_MAX INTMAX_MAX
+#  define TIME_T_MIN INTMAX_MIN
+#  define TIME_T_MAX INTMAX_MAX
 # endif
 
 # ifdef TM_GMTOFF
@@ -121,14 +288,11 @@ typedef intmax_t timex_t;
 # endif
 #endif
 
-#ifndef TZ_ABBR_CHAR_SET
-# define TZ_ABBR_CHAR_SET \
-	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 :+-._"
-#endif /* !defined TZ_ABBR_CHAR_SET */
-
-#ifndef TZ_ABBR_ERR_CHAR
-# define TZ_ABBR_ERR_CHAR '_'
-#endif /* !defined TZ_ABBR_ERR_CHAR */
+/* Placeholders for platforms lacking openat.  */
+#ifndef AT_FDCWD
+# define AT_FDCWD (-1) /* any negative value will do */
+static int openat(int dd, char const *path, int oflag) { unreachable (); }
+#endif
 
 /* Port to platforms that lack some O_* flags.  Unless otherwise
    specified, the flags are standardized by POSIX.  */
@@ -142,11 +306,75 @@ typedef intmax_t timex_t;
 #ifndef O_CLOFORK
 # define O_CLOFORK 0
 #endif
+#ifndef O_DIRECTORY
+# define O_DIRECTORY 0
+#endif
 #ifndef O_IGNORE_CTTY
 # define O_IGNORE_CTTY 0 /* GNU/Hurd */
 #endif
 #ifndef O_NOCTTY
 # define O_NOCTTY 0
+#endif
+#ifndef O_PATH
+# define O_PATH 0
+#endif
+#ifndef O_REGULAR
+# define O_REGULAR 0
+#endif
+#ifndef O_RESOLVE_BENEATH
+# define O_RESOLVE_BENEATH 0
+#endif
+#ifndef O_SEARCH
+# define O_SEARCH 0
+#endif
+
+#if !HAVE_ISSETUGID
+
+# if !defined HAVE_SYS_AUXV_H && defined __has_include
+#  if __has_include(<sys/auxv.h>)
+#   define HAVE_SYS_AUXV_H 1
+#  endif
+# endif
+# ifndef HAVE_SYS_AUXV_H
+#  if defined __GLIBC__ && 2 < __GLIBC__ + (19 <= __GLIBC_MINOR__)
+#   define HAVE_SYS_AUXV_H 1
+#  else
+#   define HAVE_SYS_AUXV_H 0
+#  endif
+# endif
+# if HAVE_SYS_AUXV_H
+#  include <sys/auxv.h>
+# endif
+
+/* Return 1 if the process is privileged, 0 otherwise.  */
+static int
+issetugid(void)
+{
+# if HAVE_SYS_AUXV_H && defined AT_SECURE
+  unsigned long val;
+  errno = 0;
+  val = getauxval(AT_SECURE);
+  if (val || errno != ENOENT)
+    return !!val;
+# endif
+# if HAVE_GETRESUID
+  {
+    uid_t ruid, euid, suid;
+    gid_t rgid, egid, sgid;
+    if (0 <= getresuid (&ruid, &euid, &suid)) {
+      if ((ruid ^ euid) | (ruid ^ suid))
+	return 1;
+      if (0 <= getresgid (&rgid, &egid, &sgid))
+	return !!((rgid ^ egid) | (rgid ^ sgid));
+    }
+  }
+# endif
+# if HAVE_GETEUID
+  return geteuid() != getuid() || getegid() != getgid();
+# else
+  return 0;
+# endif
+}
 #endif
 
 #ifndef WILDABBR
@@ -181,13 +409,33 @@ static char const *utc = etc_utc + sizeof "Etc/" - 1;
 #endif
 
 /*
-** The DST rules to use if TZ has no rules and we can't load TZDEFRULES.
+** The DST rules to use if TZ has no rules.
 ** Default to US rules as of 2017-05-07.
 ** POSIX does not specify the default DST rules;
 ** for historical reasons, US rules are a common default.
 */
 #ifndef TZDEFRULESTRING
 # define TZDEFRULESTRING ",M3.2.0,M11.1.0"
+#endif
+
+/* If compiled with -DOPENAT_TZDIR, then when accessing a relative
+   name like "America/Los_Angeles", first open TZDIR (default
+   "/usr/share/zoneinfo") as a directory and then use the result in
+   openat with "America/Los_Angeles", rather than the traditional
+   approach of opening "/usr/share/zoneinfo/America/Los_Angeles".
+   Although the OPENAT_TZDIR approach is less efficient, suffers from
+   spurious EMFILE and ENFILE failures, and is no more secure in practice,
+   it is how bleeding edge FreeBSD did things from August 2025
+   through at least September 2025.  */
+#ifndef OPENAT_TZDIR
+# define OPENAT_TZDIR 0
+#endif
+
+/* If compiled with -DSUPPRESS_TZDIR, do not prepend TZDIR to relative TZ.
+   This is intended for specialized applications only, due to its
+   security implications.  */
+#ifndef SUPPRESS_TZDIR
+# define SUPPRESS_TZDIR 0
 #endif
 
 /* Limit to time zone abbreviation length in proleptic TZ strings.
@@ -211,8 +459,19 @@ typedef ptrdiff_t desigidx_type;
 # error "TZNAME_MAXIMUM too large"
 #endif
 
+/* A type that can represent any 32-bit two's complement integer,
+   i.e., any integer in the range -2**31 .. 2**31 - 1.
+   Ordinarily this is int_fast32_t, but on non-C23 hosts
+   that are not two's complement it is int_fast64_t.  */
+#if INT_FAST32_MIN < -TWO_31_MINUS_1
+typedef int_fast32_t int_fast32_2s;
+#else
+typedef int_fast64_t int_fast32_2s;
+#endif
+
 struct ttinfo {				/* time type information */
-	int_least32_t	tt_utoff;	/* UT offset in seconds */
+	int_least32_t	tt_utoff;	/* UT offset in seconds; in the range
+					   -2**31 + 1 .. 2**31 - 1  */
 	desigidx_type	tt_desigidx;	/* abbreviation list index */
 	bool		tt_isdst;	/* used to set tm_isdst */
 	bool		tt_ttisstd;	/* transition is std time */
@@ -220,8 +479,8 @@ struct ttinfo {				/* time type information */
 };
 
 struct lsinfo {				/* leap second information */
-	time_t		ls_trans;	/* transition time */
-	int_fast32_t	ls_corr;	/* correction to apply */
+	time_t		ls_trans;	/* transition time (positive) */
+	int_fast32_2s	ls_corr;	/* correction to apply */
 };
 
 /* This abbreviation means local time is unspecified.  */
@@ -239,7 +498,9 @@ enum { CHARS_EXTRA = max(sizeof UNSPEC, 2) - 1 };
    are put on the stack and stacks are relatively small on some platforms.
    See tzfile.h for more about the sizes.  */
 struct state {
+#if TZ_RUNTIME_LEAPS
 	int		leapcnt;
+#endif
 	int		timecnt;
 	int		typecnt;
 	int		charcnt;
@@ -250,8 +511,47 @@ struct state {
 	struct ttinfo	ttis[TZ_MAX_TYPES];
 	char chars[max(max(TZ_MAX_CHARS + CHARS_EXTRA, sizeof "UTC"),
 		       2 * (TZNAME_MAXIMUM + 1))];
+#if TZ_RUNTIME_LEAPS
 	struct lsinfo	lsis[TZ_MAX_LEAPS];
+#endif
 };
+
+static int
+leapcount(ATTRIBUTE_MAYBE_UNUSED struct state const *sp)
+{
+#if TZ_RUNTIME_LEAPS
+  return sp->leapcnt;
+#else
+  return 0;
+#endif
+}
+static void
+set_leapcount(ATTRIBUTE_MAYBE_UNUSED struct state *sp,
+	    ATTRIBUTE_MAYBE_UNUSED int leapcnt)
+{
+#if TZ_RUNTIME_LEAPS
+  sp->leapcnt = leapcnt;
+#endif
+}
+static struct lsinfo
+lsinfo(ATTRIBUTE_MAYBE_UNUSED struct state const *sp,
+       ATTRIBUTE_MAYBE_UNUSED int i)
+{
+#if TZ_RUNTIME_LEAPS
+  return sp->lsis[i];
+#else
+  unreachable();
+#endif
+}
+static void
+set_lsinfo(ATTRIBUTE_MAYBE_UNUSED struct state *sp,
+	   ATTRIBUTE_MAYBE_UNUSED int i,
+	   ATTRIBUTE_MAYBE_UNUSED struct lsinfo lsinfo)
+{
+#if TZ_RUNTIME_LEAPS
+  sp->lsis[i] = lsinfo;
+#endif
+}
 
 enum r_type {
   JULIAN_DAY,		/* Jn = Julian day */
@@ -267,30 +567,31 @@ struct rule {
 	int_fast32_t	r_time;		/* transition time of rule */
 };
 
-#ifdef __FreeBSD__
-static void tzset_unlocked_name(char const *);
-#endif /* __FreeBSD__ */
 static struct tm *gmtsub(struct state const *, time_t const *, int_fast32_t,
 			 struct tm *);
 static bool increment_overflow(int *, int);
-static bool increment_overflow_time(time_t *, int_fast32_t);
-static int_fast32_t leapcorr(struct state const *, time_t);
+static bool increment_overflow_time(time_t *, int_fast32_2s);
+static int_fast32_2s leapcorr(struct state const *, time_t);
 static struct tm *timesub(time_t const *, int_fast32_t, struct state const *,
 			  struct tm *);
 static bool tzparse(char const *, struct state *, struct state const *);
 
-#ifdef ALL_STATE
+#ifndef ALL_STATE
+# define ALL_STATE 0
+#endif
+
+#if ALL_STATE
 static struct state *	lclptr;
 static struct state *	gmtptr;
-#endif /* defined ALL_STATE */
-
-#ifndef ALL_STATE
+#else
 static struct state	lclmem;
 static struct state	gmtmem;
 static struct state *const lclptr = &lclmem;
 static struct state *const gmtptr = &gmtmem;
 #endif /* State Farm */
 
+/* Maximum number of bytes in an efficiently-handled TZ string.
+   Longer strings work, albeit less efficiently.  */
 #ifndef TZ_STRLEN_MAX
 # define TZ_STRLEN_MAX 255
 #endif /* !defined TZ_STRLEN_MAX */
@@ -299,18 +600,6 @@ static struct state *const gmtptr = &gmtmem;
 static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
 #endif
-#ifdef __FreeBSD__
-static pthread_once_t	gmt_once = PTHREAD_ONCE_INIT;
-static pthread_once_t	gmtime_once = PTHREAD_ONCE_INIT;
-static pthread_key_t	gmtime_key;
-static int		gmtime_key_error;
-static pthread_once_t	offtime_once = PTHREAD_ONCE_INIT;
-static pthread_key_t	offtime_key;
-static int		offtime_key_error;
-static pthread_once_t	localtime_once = PTHREAD_ONCE_INIT;
-static pthread_key_t	localtime_key;
-static int		localtime_key_error;
-#endif /* __FreeBSD__ */
 
 /*
 ** Section 4.12.3 of X3.159-1989 requires that
@@ -328,7 +617,7 @@ static int		localtime_key_error;
 
 # if SUPPORT_C89
 static struct tm	tm;
-#endif
+# endif
 
 # if 2 <= HAVE_TZNAME + TZ_TIME_T
 char *tzname[2] = { UNCONST(wildabbr), UNCONST(wildabbr) };
@@ -364,15 +653,14 @@ ttunspecified(struct state const *sp, int i)
   return memcmp(abbr, UNSPEC, sizeof UNSPEC) == 0;
 }
 
-static int_fast32_t
+static int_fast32_2s
 detzcode(const char *const codep)
 {
-	register int_fast32_t	result;
 	register int		i;
-	int_fast32_t one = 1;
-	int_fast32_t halfmaxval = one << (32 - 2);
-	int_fast32_t maxval = halfmaxval - 1 + halfmaxval;
-	int_fast32_t minval = -1 - maxval;
+	int_fast32_2s
+	  maxval = TWO_31_MINUS_1,
+	  minval = -1 - maxval,
+	  result;
 
 	result = codep[0] & 0x7f;
 	for (i = 1; i < 4; ++i)
@@ -380,8 +668,7 @@ detzcode(const char *const codep)
 
 	if (codep[0] & 0x80) {
 	  /* Do two's-complement negation even on non-two's-complement machines.
-	     If the result would be minval - 1, return minval.  */
-	  result -= !TWOS_COMPLEMENT(int_fast32_t) && result != 0;
+	     This cannot overflow, as int_fast32_2s is wide enough.  */
 	  result += minval;
 	}
 	return result;
@@ -492,7 +779,7 @@ scrub_abbrs(struct state *sp)
 
 	/* Reject overlong abbreviations.  */
 	for (i = 0; i < sp->charcnt - (TZNAME_MAXIMUM + 1); ) {
-	  int len = strlen(&sp->chars[i]);
+	  int len = strnlen(&sp->chars[i], TZNAME_MAXIMUM + 1);
 	  if (TZNAME_MAXIMUM < len)
 	    return EOVERFLOW;
 	  i += len + 1;
@@ -500,49 +787,74 @@ scrub_abbrs(struct state *sp)
 
 	/* Replace bogus characters.  */
 	for (i = 0; i < sp->charcnt; ++i)
-		if (strchr(TZ_ABBR_CHAR_SET, sp->chars[i]) == NULL)
-			sp->chars[i] = TZ_ABBR_ERR_CHAR;
+	  switch (sp->chars[i]) {
+	  case '\0':
+	  case '+': case '-': case '.':
+	  case '0': case '1': case '2': case '3': case '4':
+	  case '5': case '6': case '7': case '8': case '9':
+	  case ':':
+	  case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
+	  case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
+	  case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
+	  case 'V': case 'W': case 'X': case 'Y': case 'Z':
+	  case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
+	  case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
+	  case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
+	  case 'v': case 'w': case 'x': case 'y': case 'z':
+	    break;
+
+	  default:
+	    sp->chars[i] = '_';
+	    break;
+	  }
 
 	return 0;
 }
 
 #endif
 
-#ifdef DETECT_TZ_CHANGES
-/*
- * Check whether either the time zone name or the file it refers to has
- * changed since the last time we checked.
- * Returns: -1 on error
- * 	     0 if the time zone has not changed
- *	     1 if the time zone has changed
- */
-static int
-tzfile_changed(const char *name, int fd)
+/* Return true if the TZif file with descriptor FD changed,
+   or may have changed, since the last time we were called.
+   Return false if it did not change.
+   If *ST is valid it is the file's current status;
+   otherwise, update *ST to the status if possible.  */
+static bool
+tzfile_changed(int fd, struct stat *st)
 {
-	static char old_name[PATH_MAX];
-	static struct stat old_sb;
-	struct stat sb;
+  /* If old_ctim.tv_sec, these variables hold the corresponding part
+     of the file's metadata the last time this function was called.  */
+  static struct timespec old_ctim;
+  static dev_t old_dev;
+  static ino_t old_ino;
 
-	if (fstat(fd, &sb) != 0)
-		return -1;
+  if (!st->st_ctime && fstat(fd, st) < 0) {
+    /* We do not know the file's state, so reset.  */
+    old_ctim.tv_sec = 0;
+    return true;
+  } else {
+    /* Use the change time, as it changes more reliably; mod time can
+       be set back with futimens etc.  Use subsecond timestamp
+       resolution if available, as this can help distinguish files on
+       non-POSIX platforms where st_dev and st_ino are unreliable.  */
+    struct timespec ctim;
+#if HAVE_STRUCT_STAT_ST_CTIM
+    ctim = st->st_ctim;
+#else
+    ctim.tv_sec = st->st_ctime;
+    ctim.tv_nsec = 0;
+#endif
 
-	if (strcmp(name, old_name) != 0) {
-		strlcpy(old_name, name, sizeof(old_name));
-		old_sb = sb;
-		return 1;
-	}
+    if ((ctim.tv_sec ^ old_ctim.tv_sec) | (ctim.tv_nsec ^ old_ctim.tv_nsec)
+	| (st->st_dev ^ old_dev) | (st->st_ino ^ old_ino)) {
+      old_ctim = ctim;
+      old_dev = st->st_dev;
+      old_ino = st->st_ino;
+      return true;
+    }
 
-	if (sb.st_dev != old_sb.st_dev ||
-	    sb.st_ino != old_sb.st_ino ||
-	    sb.st_ctime != old_sb.st_ctime ||
-	    sb.st_mtime != old_sb.st_mtime) {
-		old_sb = sb;
-		return 1;
-	}
-
-	return 0;
+    return false;
+  }
 }
-#endif /* DETECT_TZ_CHANGES */
 
 /* Input buffer for data read from a compiled tz file.  */
 union input_buffer {
@@ -555,10 +867,15 @@ union input_buffer {
 	   + 4 * TZ_MAX_TIMES];
 };
 
-#ifndef __FreeBSD__
-/* TZDIR with a trailing '/' rather than a trailing '\0'.  */
-static char const tzdirslash[sizeof TZDIR] = TZDIR "/";
-#endif /* !__FreeBSD__ */
+/* TZDIR with a trailing '/'.  It is null-terminated if OPENAT_TZDIR.  */
+#if !OPENAT_TZDIR
+ATTRIBUTE_NONSTRING
+#endif
+static char const tzdirslash[sizeof TZDIR + OPENAT_TZDIR] = TZDIR "/";
+enum { tzdirslashlen = sizeof TZDIR };
+#ifdef PATH_MAX
+static_assert(tzdirslashlen <= PATH_MAX);  /* Sanity check; assumed below.  */
+#endif
 
 /* Local storage needed for 'tzloadbody'.  */
 union local_storage {
@@ -571,41 +888,38 @@ union local_storage {
     struct state st;
   } u;
 
-#ifndef __FreeBSD__
-  /* The name of the file to be opened.  Ideally this would have no
-     size limits, to support arbitrarily long Zone names.
-     Limiting Zone names to 1024 bytes should suffice for practical use.
-     However, there is no need for this to be smaller than struct
-     file_analysis as that struct is allocated anyway, as the other
-     union member.  */
-  char fullname[max(sizeof(struct file_analysis), sizeof tzdirslash + 1024)];
-#endif /* !__FreeBSD__ */
+#if defined PATH_MAX && !OPENAT_TZDIR && !SUPPRESS_TZDIR
+  /* The name of the file to be opened.  */
+  char fullname[PATH_MAX];
+#endif
 };
 
 /* These tzload flags can be ORed together, and fit into 'char'.  */
 enum { TZLOAD_FROMENV = 1 }; /* The TZ string came from the environment.  */
 enum { TZLOAD_TZSTRING = 2 }; /* Read any newline-surrounded TZ string.  */
+enum { TZLOAD_TZDIR_SUB = 4 }; /* TZ should be a file under TZDIR.  */
 
 /* Load tz data from the file named NAME into *SP.  Respect TZLOADFLAGS.
-   Use *LSP for temporary storage.  Return 0 on
+   Use **LSPP for temporary storage.  Return 0 on
    success, an errno value on failure.  */
 static int
 tzloadbody(char const *name, struct state *sp, char tzloadflags,
-	   union local_storage *lsp)
+	   union local_storage **lspp)
 {
 	register int			i;
 	register int			fid;
 	register int			stored;
 	register ssize_t		nread;
-#ifdef __FreeBSD__
-	struct stat sb;
-	const char *relname;
-	int dd, serrno;
-#else /* !__FreeBSD__ */
-	register bool doaccess;
-#endif /* !__FreeBSD__ */
-	register union input_buffer *up = &lsp->u.u;
+	char const *relname;
+	union local_storage *lsp = *lspp;
+	union input_buffer *up;
 	register int tzheadsize = sizeof(struct tzhead);
+	int dd = AT_FDCWD;
+	int oflags = (O_RDONLY | O_BINARY | O_CLOEXEC | O_CLOFORK
+		      | O_IGNORE_CTTY | O_NOCTTY | O_REGULAR);
+	int err;
+	struct stat st;
+	st.st_ctime = 0;
 
 	sp->goback = sp->goahead = false;
 
@@ -613,148 +927,149 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 		name = TZDEFAULT;
 		if (! name)
 		  return EINVAL;
+#ifdef __FreeBSD__
 		tzloadflags &= ~TZLOAD_FROMENV;
+#endif /* __FreeBSD__ */
 	}
 
 	if (name[0] == ':')
 		++name;
-#ifndef __FreeBSD__
-#ifdef SUPPRESS_TZDIR
-	/* Do not prepend TZDIR.  This is intended for specialized
-	   applications only, due to its security implications.  */
-	doaccess = true;
-#else
-	doaccess = name[0] == '/';
-#endif
-	if (!doaccess) {
-		char const *dot;
-		if (sizeof lsp->fullname - sizeof tzdirslash <= strlen(name))
-		  return ENAMETOOLONG;
 
-		/* Create a string "TZDIR/NAME".  Using sprintf here
-		   would pull in stdio (and would fail if the
-		   resulting string length exceeded INT_MAX!).  */
-		memcpy(lsp->fullname, tzdirslash, sizeof tzdirslash);
-		strcpy(lsp->fullname + sizeof tzdirslash, name);
+	relname = name;
 
-		/* Set doaccess if NAME contains a ".." file name
-		   component, as such a name could read a file outside
-		   the TZDIR virtual subtree.  */
-		for (dot = name; (dot = strchr(dot, '.')); dot++)
-		  if ((dot == name || dot[-1] == '/') && dot[1] == '.'
-		      && (dot[2] == '/' || !dot[2])) {
-		    doaccess = true;
-		    break;
-		  }
-
-		name = lsp->fullname;
-	}
-	if (doaccess && (tzloadflags & TZLOAD_FROMENV)) {
-	  /* Check for security violations and for devices whose mere
-	     opening could have unwanted side effects.  Although these
-	     checks are racy, they're better than nothing and there is
-	     no portable way to fix the races.  */
-	  if (access(name, R_OK) < 0)
-	    return errno;
-#ifdef S_ISREG
-	  {
-	    struct stat st;
+	/* If the program is privileged, NAME is TZDEFAULT or
+	   subsidiary to TZDIR.  Also, NAME is not a device.  */
+	if (name[0] == '/' && strcmp(name, TZDEFAULT) != 0) {
+	  if (!SUPPRESS_TZDIR
+	      && strncmp(relname, tzdirslash, tzdirslashlen) == 0)
+	    for (relname += tzdirslashlen; *relname == '/'; relname++)
+	      continue;
+	  else if (issetugid())
+	    return ENOTCAPABLE;
+	  else if (!O_REGULAR) {
+	    /* Check for devices, as their mere opening could have
+	       unwanted side effects.  Though racy, there is no
+	       portable way to fix the races.  This check is needed
+	       only for files not otherwise known to be non-devices.  */
 	    if (stat(name, &st) < 0)
 	      return errno;
 	    if (!S_ISREG(st.st_mode))
 	      return EINVAL;
 	  }
+	}
+
+	if (relname[0] != '/') {
+	  if (!OPENAT_TZDIR || !O_RESOLVE_BENEATH) {
+	    /* Fail if a relative name contains a non-terminal ".." component,
+	       as such a name could read a non-directory outside TZDIR
+	       when AT_FDCWD and O_RESOLVE_BENEATH are not available.  */
+	    char const *component;
+	    for (component = relname; component[0]; component++)
+	      if (component[0] == '.' && component[1] == '.'
+		  && component[2] == '/'
+		  && (component == relname || component[-1] == '/'))
+		return ENOTCAPABLE;
+	  }
+
+	  if (OPENAT_TZDIR && !SUPPRESS_TZDIR) {
+	    /* Prefer O_SEARCH or O_PATH if available;
+	       O_RDONLY should be OK too, as TZDIR is invariably readable.
+	       O_DIRECTORY should be redundant but might help
+	       on old platforms that mishandle trailing '/'.  */
+	    dd = open(tzdirslash,
+		      ((O_SEARCH ? O_SEARCH : O_PATH ? O_PATH : O_RDONLY)
+		       | O_BINARY | O_CLOEXEC | O_CLOFORK | O_DIRECTORY));
+	    if (dd < 0)
+	      return errno;
+#ifdef __FreeBSD__
+	    if (issetugid())
+#endif /* __FreeBSD__ */
+	    oflags |= O_RESOLVE_BENEATH;
+	  }
+	}
+
+	if (!OPENAT_TZDIR && !SUPPRESS_TZDIR && name[0] != '/') {
+		char *cp;
+		size_t fullnamesize;
+#ifdef PATH_MAX
+		size_t namesizemax = PATH_MAX - tzdirslashlen;
+		size_t namelen = strnlen (name, namesizemax);
+		if (namesizemax <= namelen)
+		  return ENAMETOOLONG;
+#else
+		size_t namelen = strlen (name);
+#endif
+		fullnamesize = tzdirslashlen + namelen + 1;
+
+		/* Create a string "TZDIR/NAME".  Using sprintf here
+		   would pull in stdio (and would fail if the
+		   resulting string length exceeded INT_MAX!).  */
+		if (ALL_STATE || sizeof *lsp < fullnamesize) {
+		  lsp = malloc(max(sizeof *lsp, fullnamesize));
+		  if (!lsp)
+		    return HAVE_MALLOC_ERRNO ? errno : ENOMEM;
+		  *lspp = lsp;
+		}
+		cp = mempcpy(lsp, tzdirslash, tzdirslashlen);
+		cp = mempcpy(cp, name, namelen);
+		*cp = '\0';
+#if defined PATH_MAX && !OPENAT_TZDIR && !SUPPRESS_TZDIR
+		name = lsp->fullname;
+#else
+		name = (char *) lsp;
 #endif
 	}
-	fid = open(name, (O_RDONLY | O_BINARY | O_CLOEXEC | O_CLOFORK
-			  | O_IGNORE_CTTY | O_NOCTTY));
-#else /* __FreeBSD__ */
-	if ((tzloadflags & TZLOAD_FROMENV) && strcmp(name, TZDEFAULT) == 0)
-          tzloadflags &= ~TZLOAD_FROMENV;
-	relname = name;
-	if (strncmp(relname, TZDIR "/", strlen(TZDIR) + 1) == 0) {
-	  relname += strlen(TZDIR) + 1;
-	  while (*relname == '/')
-	    relname++;
-	}
-	dd = open(TZDIR, O_DIRECTORY | O_SEARCH | O_CLOEXEC);
-	if ((tzloadflags & TZLOAD_FROMENV) && issetugid()) {
-	  if (dd < 0)
-	    return errno;
-	  if (fstatat(dd, relname, &sb, AT_RESOLVE_BENEATH) < 0) {
-	    fid = -1;
-	  } else if (!S_ISREG(sb.st_mode)) {
-	    fid = -1;
-	    errno = EINVAL;
-	  } else {
-	    fid = openat(dd, relname, O_RDONLY | O_CLOEXEC | O_RESOLVE_BENEATH);
-	  }
-	} else {
-	  if (dd < 0) {
-	    relname = name;
-	    dd = AT_FDCWD;
-	  }
-	  fid = openat(dd, relname, O_RDONLY | O_CLOEXEC);
-	}
-	if (dd != AT_FDCWD && dd >= 0) {
-	  serrno = errno;
-	  close(dd);
-	  errno = serrno;
-	}
-#endif /* __FreeBSD__ */
-	if (fid < 0)
-	  return errno;
 
-#ifdef DETECT_TZ_CHANGES
-	if (tzloadflags) {
-	  /*
-	   * Detect if the timezone file has changed.  Check tzloadflags
-	   * to ignore TZDEFRULES; the tzfile_changed() function can only
-	   * keep state for a single file.
-	   */
-	  switch (tzfile_changed(name, fid)) {
-	  case -1:
-	    serrno = errno;
-	    close(fid);
-	    return serrno;
-	  case 0:
-	    close(fid);
-	    return 0;
-	  case 1:
-	    break;
-	  }
-	}
-#endif /* DETECT_TZ_CHANGES */
-	nread = read(fid, up->buf, sizeof up->buf);
-	if (nread < tzheadsize) {
-	  int err = nread < 0 ? errno : EINVAL;
-	  close(fid);
+	fid = OPENAT_TZDIR ? openat(dd, relname, oflags) : open(name, oflags);
+	err = errno;
+	if (0 <= dd)
+	  close(dd);
+	if (fid < 0)
 	  return err;
+
+	/* If detecting changes to the the primary TZif file's state and
+	   the file's status is unchanged, save time by returning now.
+	   Otherwise read the file's contents.  Close the file either way.  */
+	if (0 <= tz_change_interval && (tzloadflags & TZLOAD_FROMENV)
+	    && !tzfile_changed(fid, &st))
+	  err = -1;
+	else {
+	  if (ALL_STATE && !lsp) {
+	    lsp = malloc(sizeof *lsp);
+	    if (!lsp)
+	      return HAVE_MALLOC_ERRNO ? errno : ENOMEM;
+	    *lspp = lsp;
+	  }
+	  up = &lsp->u.u;
+	  nread = read(fid, up->buf, sizeof up->buf);
+	  err = tzheadsize <= nread ? 0 : nread < 0 ? errno : EINVAL;
 	}
-	if (close(fid) < 0)
-	  return errno;
+	close(fid);
+	if (err)
+	  return err < 0 ? 0 : err;
+
 	for (stored = 4; stored <= 8; stored *= 2) {
 	    char version = up->tzhead.tzh_version[0];
 	    bool skip_datablock = stored == 4 && version;
 	    int_fast32_t datablock_size;
-	    int_fast32_t ttisstdcnt = detzcode(up->tzhead.tzh_ttisstdcnt);
-	    int_fast32_t ttisutcnt = detzcode(up->tzhead.tzh_ttisutcnt);
-	    int_fast64_t prevtr = -1;
-	    int_fast32_t prevcorr;
-	    int_fast32_t leapcnt = detzcode(up->tzhead.tzh_leapcnt);
-	    int_fast32_t timecnt = detzcode(up->tzhead.tzh_timecnt);
-	    int_fast32_t typecnt = detzcode(up->tzhead.tzh_typecnt);
-	    int_fast32_t charcnt = detzcode(up->tzhead.tzh_charcnt);
+	    int_fast32_2s
+	      ttisstdcnt = detzcode(up->tzhead.tzh_ttisstdcnt),
+	      ttisutcnt = detzcode(up->tzhead.tzh_ttisutcnt),
+	      leapcnt = detzcode(up->tzhead.tzh_leapcnt),
+	      timecnt = detzcode(up->tzhead.tzh_timecnt),
+	      typecnt = detzcode(up->tzhead.tzh_typecnt),
+	      charcnt = detzcode(up->tzhead.tzh_charcnt);
 	    char const *p = up->buf + tzheadsize;
 	    /* Although tzfile(5) currently requires typecnt to be nonzero,
 	       support future formats that may allow zero typecnt
 	       in files that have a TZ string and no transitions.  */
-	    if (! (0 <= leapcnt && leapcnt < TZ_MAX_LEAPS
-		   && 0 <= typecnt && typecnt < TZ_MAX_TYPES
-		   && 0 <= timecnt && timecnt < TZ_MAX_TIMES
-		   && 0 <= charcnt && charcnt < TZ_MAX_CHARS
-		   && 0 <= ttisstdcnt && ttisstdcnt < TZ_MAX_TYPES
-		   && 0 <= ttisutcnt && ttisutcnt < TZ_MAX_TYPES))
+	    if (! (0 <= leapcnt
+		   && leapcnt <= (TZ_RUNTIME_LEAPS ? TZ_MAX_LEAPS : 0)
+		   && 0 <= typecnt && typecnt <= TZ_MAX_TYPES
+		   && 0 <= timecnt && timecnt <= TZ_MAX_TIMES
+		   && 0 <= charcnt && charcnt <= TZ_MAX_CHARS
+		   && 0 <= ttisstdcnt && ttisstdcnt <= TZ_MAX_TYPES
+		   && 0 <= ttisutcnt && ttisutcnt <= TZ_MAX_TYPES))
 	      return EINVAL;
 	    datablock_size
 		    = (timecnt * stored		/* ats */
@@ -768,12 +1083,13 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 	      return EINVAL;
 	    if (skip_datablock)
 		p += datablock_size;
+	    else if (! ((ttisstdcnt == typecnt || ttisstdcnt == 0)
+			&& (ttisutcnt == typecnt || ttisutcnt == 0)))
+	      return EINVAL;
 	    else {
-		if (! ((ttisstdcnt == typecnt || ttisstdcnt == 0)
-		       && (ttisutcnt == typecnt || ttisutcnt == 0)))
-		  return EINVAL;
-
-		sp->leapcnt = leapcnt;
+		int_fast64_t prevtr = -1;
+		int_fast32_2s prevcorr;
+		set_leapcount(sp, leapcnt);
 		sp->timecnt = timecnt;
 		sp->typecnt = typecnt;
 		sp->charcnt = charcnt;
@@ -813,9 +1129,16 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 		for (i = 0; i < sp->typecnt; ++i) {
 			register struct ttinfo *	ttisp;
 			unsigned char isdst, desigidx;
+			int_fast32_2s utoff = detzcode(p);
+
+			/* Reject a UT offset equal to -2**31, as it might
+			   cause trouble both in this file and in callers.
+			   Also, it violates RFC 9636 section 3.2.  */
+			if (utoff < -TWO_31_MINUS_1)
+			  return EINVAL;
 
 			ttisp = &sp->ttis[i];
-			ttisp->tt_utoff = detzcode(p);
+			ttisp->tt_utoff = utoff;
 			p += 4;
 			isdst = *p++;
 			if (! (isdst < 2))
@@ -834,9 +1157,9 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 
 		/* Read leap seconds, discarding those out of time_t range.  */
 		leapcnt = 0;
-		for (i = 0; i < sp->leapcnt; ++i) {
+		for (i = 0; i < leapcount(sp); i++) {
 		  int_fast64_t tr = stored == 4 ? detzcode(p) : detzcode64(p);
-		  int_fast32_t corr = detzcode(p + stored);
+		  int_fast32_2s corr = detzcode(p + stored);
 		  p += stored + 4;
 
 		  /* Leap seconds cannot occur before the Epoch,
@@ -859,12 +1182,14 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 		  prevcorr = corr;
 
 		  if (tr <= TIME_T_MAX) {
-		    sp->lsis[leapcnt].ls_trans = tr;
-		    sp->lsis[leapcnt].ls_corr = corr;
+		    struct lsinfo ls;
+		    ls.ls_trans = tr;
+		    ls.ls_corr = corr;
+		    set_lsinfo(sp, leapcnt, ls);
 		    leapcnt++;
 		  }
 		}
-		sp->leapcnt = leapcnt;
+		set_leapcount(sp, leapcnt);
 
 		for (i = 0; i < sp->typecnt; ++i) {
 			register struct ttinfo *	ttisp;
@@ -908,8 +1233,8 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 			if (tzparse(&up->buf[1], ts, sp)) {
 
 			  /* Attempt to reuse existing abbreviations.
-			     Without this, America/Anchorage would be right on
-			     the edge after 2037 when TZ_MAX_CHARS is 50, as
+			     Without this, America/Anchorage would
+			     consume 50 bytes for abbreviations, as
 			     sp->charcnt equals 40 (for LMT AST AWT APT AHST
 			     AHDT YST AKDT AKST) and ts->charcnt equals 10
 			     (for AKST AKDT).  Reusing means sp->charcnt can
@@ -926,9 +1251,11 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 				break;
 			      }
 			    if (! (j < charcnt)) {
-			      int tsabbrlen = strlen(tsabbr);
+			      int tsabbrlen = strnlen(tsabbr, TZ_MAX_CHARS - j);
 			      if (j + tsabbrlen < TZ_MAX_CHARS) {
-				strcpy(sp->chars + j, tsabbr);
+				char *cp = sp->chars + j;
+				cp = mempcpy(cp, tsabbr, tsabbrlen);
+				*cp = '\0';
 				charcnt = j + tsabbrlen + 1;
 				ts->ttis[i].tt_desigidx = j;
 				gotabbr++;
@@ -979,19 +1306,20 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 static int
 tzload(char const *name, struct state *sp, char tzloadflags)
 {
-#ifdef ALL_STATE
-  union local_storage *lsp = malloc(sizeof *lsp);
-  if (!lsp) {
-    return HAVE_MALLOC_ERRNO ? errno : ENOMEM;
-  } else {
-    int err = tzloadbody(name, sp, tzloadflags, lsp);
-    free(lsp);
-    return err;
-  }
+  int r;
+  union local_storage *lsp0;
+  union local_storage *lsp;
+#if ALL_STATE
+  lsp = NULL;
 #else
   union local_storage ls;
-  return tzloadbody(name, sp, tzloadflags, &ls);
+  lsp = &ls;
 #endif
+  lsp0 = lsp;
+  r = tzloadbody(name, sp, tzloadflags, &lsp);
+  if (lsp != lsp0)
+    free(lsp);
+  return r;
 }
 
 static const int	mon_lengths[2][MONSPERYEAR] = {
@@ -1301,7 +1629,6 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 	int_fast32_t			stdoffset;
 	int_fast32_t			dstoffset;
 	register char *			cp;
-	register bool			load_ok;
 	ptrdiff_t stdlen, dstlen, charcnt;
 	time_t atlo = TIME_T_MIN, leaplo = TIME_T_MIN;
 
@@ -1327,18 +1654,22 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 	if (basep) {
 	  if (0 < basep->timecnt)
 	    atlo = basep->ats[basep->timecnt - 1];
-	  load_ok = false;
-	  sp->leapcnt = basep->leapcnt;
-	  memcpy(sp->lsis, basep->lsis, sp->leapcnt * sizeof *sp->lsis);
-	} else {
-	  load_ok = tzload(TZDEFRULES, sp, 0) == 0;
-	  if (!load_ok)
-	    sp->leapcnt = 0;	/* So, we're off a little.  */
-	}
-	if (0 < sp->leapcnt)
-	  leaplo = sp->lsis[sp->leapcnt - 1].ls_trans;
+	  set_leapcount(sp, leapcount(basep));
+	  if (0 < leapcount(sp)) {
+	    int i;
+	    for (i = 0; i < leapcount(sp); i++)
+	      set_lsinfo(sp, i, lsinfo(basep, i));
+	    leaplo = lsinfo(sp, leapcount(sp) - 1).ls_trans;
+	  }
+	} else
+	  set_leapcount(sp, 0);	/* So, we're off a little.  */
 	sp->goback = sp->goahead = false;
 	if (*name != '\0') {
+		struct rule start, end;
+		int year, yearbeg, yearlim, timecnt;
+		time_t janfirst;
+		int_fast32_t janoffset = 0;
+
 		if (*name == '<') {
 			dstname = ++name;
 			name = getqzname(name, '>');
@@ -1359,194 +1690,102 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 			if (name == NULL)
 			  return false;
 		} else	dstoffset = stdoffset - SECSPERHOUR;
-		if (*name == '\0' && !load_ok)
+
+		if (*name == '\0')
 			name = TZDEFRULESTRING;
-		if (*name == ',' || *name == ';') {
-			struct rule	start;
-			struct rule	end;
-			register int	year;
-			register int	timecnt;
-			time_t		janfirst;
-			int_fast32_t janoffset = 0;
-			int yearbeg, yearlim;
+		if (! (*name == ',' || *name == ';'))
+		  return false;
 
-			++name;
-			if ((name = getrule(name, &start)) == NULL)
-			  return false;
-			if (*name++ != ',')
-			  return false;
-			if ((name = getrule(name, &end)) == NULL)
-			  return false;
-			if (*name != '\0')
-			  return false;
-			sp->typecnt = 2;	/* standard time and DST */
-			/*
-			** Two transitions per year, from EPOCH_YEAR forward.
-			*/
-			init_ttinfo(&sp->ttis[0], -stdoffset, false, 0);
-			init_ttinfo(&sp->ttis[1], -dstoffset, true, stdlen + 1);
-			timecnt = 0;
-			janfirst = 0;
-			yearbeg = EPOCH_YEAR;
+		name = getrule(name + 1, &start);
+		if (!name)
+		  return false;
+		if (*name++ != ',')
+		  return false;
+		name = getrule(name, &end);
+		if (!name || *name)
+		  return false;
+		sp->typecnt = 2;	/* standard time and DST */
+		/*
+		** Two transitions per year, from EPOCH_YEAR forward.
+		*/
+		init_ttinfo(&sp->ttis[0], -stdoffset, false, 0);
+		init_ttinfo(&sp->ttis[1], -dstoffset, true, stdlen + 1);
+		timecnt = 0;
+		janfirst = 0;
+		yearbeg = EPOCH_YEAR;
 
-			do {
-			  int_fast32_t yearsecs
-			    = year_lengths[isleap(yearbeg - 1)] * SECSPERDAY;
-			  time_t janfirst1 = janfirst;
-			  yearbeg--;
-			  if (increment_overflow_time(&janfirst1, -yearsecs)) {
-			    janoffset = -yearsecs;
-			    break;
-			  }
-			  janfirst = janfirst1;
-			} while (atlo < janfirst
-				 && EPOCH_YEAR - YEARSPERREPEAT / 2 < yearbeg);
+		do {
+		  int_fast32_t yearsecs
+		    = year_lengths[isleap(yearbeg - 1)] * SECSPERDAY;
+		  time_t janfirst1 = janfirst;
+		  yearbeg--;
+		  if (increment_overflow_time(&janfirst1, -yearsecs)) {
+		    janoffset = -yearsecs;
+		    break;
+		  }
+		  janfirst = janfirst1;
+		} while (atlo < janfirst
+			 && EPOCH_YEAR - YEARSPERREPEAT / 2 < yearbeg);
 
-			while (true) {
-			  int_fast32_t yearsecs
-			    = year_lengths[isleap(yearbeg)] * SECSPERDAY;
-			  int yearbeg1 = yearbeg;
-			  time_t janfirst1 = janfirst;
-			  if (increment_overflow_time(&janfirst1, yearsecs)
-			      || increment_overflow(&yearbeg1, 1)
-			      || atlo <= janfirst1)
-			    break;
-			  yearbeg = yearbeg1;
-			  janfirst = janfirst1;
-			}
-
-			yearlim = yearbeg;
-			if (increment_overflow(&yearlim, years_of_observations))
-			  yearlim = INT_MAX;
-			for (year = yearbeg; year < yearlim; year++) {
-				int_fast32_t
-				  starttime = transtime(year, &start, stdoffset),
-				  endtime = transtime(year, &end, dstoffset);
-				int_fast32_t
-				  yearsecs = (year_lengths[isleap(year)]
-					      * SECSPERDAY);
-				bool reversed = endtime < starttime;
-				if (reversed) {
-					int_fast32_t swap = starttime;
-					starttime = endtime;
-					endtime = swap;
-				}
-				if (reversed
-				    || (starttime < endtime
-					&& endtime - starttime < yearsecs)) {
-					if (TZ_MAX_TIMES - 2 < timecnt)
-						break;
-					sp->ats[timecnt] = janfirst;
-					if (! increment_overflow_time
-					    (&sp->ats[timecnt],
-					     janoffset + starttime)
-					    && atlo <= sp->ats[timecnt])
-					  sp->types[timecnt++] = !reversed;
-					sp->ats[timecnt] = janfirst;
-					if (! increment_overflow_time
-					    (&sp->ats[timecnt],
-					     janoffset + endtime)
-					    && atlo <= sp->ats[timecnt]) {
-					  sp->types[timecnt++] = reversed;
-					}
-				}
-				if (endtime < leaplo) {
-				  yearlim = year;
-				  if (increment_overflow(&yearlim,
-							 years_of_observations))
-				    yearlim = INT_MAX;
-				}
-				if (increment_overflow_time
-				    (&janfirst, janoffset + yearsecs))
-					break;
-				janoffset = 0;
-			}
-			sp->timecnt = timecnt;
-			if (! timecnt) {
-				sp->ttis[0] = sp->ttis[1];
-				sp->typecnt = 1;	/* Perpetual DST.  */
-			} else if (years_of_observations <= year - yearbeg)
-				sp->goback = sp->goahead = true;
-		} else {
-			register int_fast32_t	theirstdoffset;
-			register int_fast32_t	theirdstoffset;
-			register int_fast32_t	theiroffset;
-			register bool		isdst;
-			register int		i;
-			register int		j;
-
-			if (*name != '\0')
-			  return false;
-			/*
-			** Initial values of theirstdoffset and theirdstoffset.
-			*/
-			theirstdoffset = 0;
-			for (i = 0; i < sp->timecnt; ++i) {
-				j = sp->types[i];
-				if (!sp->ttis[j].tt_isdst) {
-					theirstdoffset =
-						- sp->ttis[j].tt_utoff;
-					break;
-				}
-			}
-			theirdstoffset = 0;
-			for (i = 0; i < sp->timecnt; ++i) {
-				j = sp->types[i];
-				if (sp->ttis[j].tt_isdst) {
-					theirdstoffset =
-						- sp->ttis[j].tt_utoff;
-					break;
-				}
-			}
-			/*
-			** Initially we're assumed to be in standard time.
-			*/
-			isdst = false;
-			/*
-			** Now juggle transition times and types
-			** tracking offsets as you do.
-			*/
-			for (i = 0; i < sp->timecnt; ++i) {
-				j = sp->types[i];
-				sp->types[i] = sp->ttis[j].tt_isdst;
-				if (sp->ttis[j].tt_ttisut) {
-					/* No adjustment to transition time */
-				} else {
-					/*
-					** If daylight saving time is in
-					** effect, and the transition time was
-					** not specified as standard time, add
-					** the daylight saving time offset to
-					** the transition time; otherwise, add
-					** the standard time offset to the
-					** transition time.
-					*/
-					/*
-					** Transitions from DST to DDST
-					** will effectively disappear since
-					** proleptic TZ strings have only one
-					** DST offset.
-					*/
-					if (isdst && !sp->ttis[j].tt_ttisstd) {
-						sp->ats[i] += dstoffset -
-							theirdstoffset;
-					} else {
-						sp->ats[i] += stdoffset -
-							theirstdoffset;
-					}
-				}
-				theiroffset = -sp->ttis[j].tt_utoff;
-				if (sp->ttis[j].tt_isdst)
-					theirdstoffset = theiroffset;
-				else	theirstdoffset = theiroffset;
-			}
-			/*
-			** Finally, fill in ttis.
-			*/
-			init_ttinfo(&sp->ttis[0], -stdoffset, false, 0);
-			init_ttinfo(&sp->ttis[1], -dstoffset, true, stdlen + 1);
-			sp->typecnt = 2;
+		while (true) {
+		  int_fast32_t yearsecs
+		    = year_lengths[isleap(yearbeg)] * SECSPERDAY;
+		  int yearbeg1 = yearbeg;
+		  time_t janfirst1 = janfirst;
+		  if (increment_overflow_time(&janfirst1, yearsecs)
+		      || increment_overflow(&yearbeg1, 1)
+		      || atlo <= janfirst1)
+		    break;
+		  yearbeg = yearbeg1;
+		  janfirst = janfirst1;
 		}
+
+		yearlim = yearbeg;
+		if (increment_overflow(&yearlim, years_of_observations))
+		  yearlim = INT_MAX;
+		for (year = yearbeg; year < yearlim; year++) {
+		  int_fast32_t
+		    starttime = transtime(year, &start, stdoffset),
+		    endtime = transtime(year, &end, dstoffset),
+		    yearsecs = year_lengths[isleap(year)] * SECSPERDAY;
+		  bool reversed = endtime < starttime;
+		  if (reversed) {
+		    int_fast32_t swap = starttime;
+		    starttime = endtime;
+		    endtime = swap;
+		  }
+		  if (reversed
+		      || (starttime < endtime
+			  && endtime - starttime < yearsecs)) {
+		    if (TZ_MAX_TIMES - 2 < timecnt)
+		      break;
+		    sp->ats[timecnt] = janfirst;
+		    if (! increment_overflow_time(&sp->ats[timecnt],
+						  janoffset + starttime)
+			&& atlo <= sp->ats[timecnt])
+		      sp->types[timecnt++] = !reversed;
+		    sp->ats[timecnt] = janfirst;
+		    if (! increment_overflow_time(&sp->ats[timecnt],
+						  janoffset + endtime)
+			&& atlo <= sp->ats[timecnt]) {
+		      sp->types[timecnt++] = reversed;
+		    }
+		  }
+		  if (endtime < leaplo) {
+		    yearlim = year;
+		    if (increment_overflow(&yearlim, years_of_observations))
+		      yearlim = INT_MAX;
+		  }
+		  if (increment_overflow_time(&janfirst, janoffset + yearsecs))
+		    break;
+		  janoffset = 0;
+		}
+		sp->timecnt = timecnt;
+		if (! timecnt) {
+		  sp->ttis[0] = sp->ttis[1];
+		  sp->typecnt = 1;	/* Perpetual DST.  */
+		} else if (years_of_observations <= year - yearbeg)
+		  sp->goback = sp->goahead = true;
 	} else {
 		dstlen = 0;
 		sp->typecnt = 1;		/* only standard time */
@@ -1555,12 +1794,11 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 	}
 	sp->charcnt = charcnt;
 	cp = sp->chars;
-	memcpy(cp, stdname, stdlen);
-	cp += stdlen;
+	cp = mempcpy(cp, stdname, stdlen);
 	*cp++ = '\0';
 	if (dstlen != 0) {
-		memcpy(cp, dstname, dstlen);
-		*(cp + dstlen) = '\0';
+	  cp = mempcpy(cp, dstname, dstlen);
+	  *cp = '\0';
 	}
 	return true;
 }
@@ -1568,34 +1806,27 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 static void
 gmtload(struct state *const sp)
 {
-	if (tzload(etc_utc, sp, TZLOAD_TZSTRING) != 0)
+	if (!TZ_RUNTIME_LEAPS || tzload(etc_utc, sp, TZLOAD_TZSTRING) != 0)
 	  tzparse("UTC0", sp, NULL);
 }
 
-#ifdef DETECT_TZ_CHANGES
-/*
- * Check if the time zone data we have is still fresh.
- */
-static int
-tzdata_is_fresh(void)
-{
-	static time_t last_checked;
-	struct timespec now;
-
-	if (clock_gettime(CLOCK_MONOTONIC, &now) < 0)
-		return 1;
-
-	if (last_checked == 0 || last_checked > now.tv_sec ||
-	    now.tv_sec - last_checked >= __tz_change_interval) {
-		last_checked = now.tv_sec;
-		return 0;
-	}
-
-	return 1;
-}
-#endif /* DETECT_TZ_CHANGES */
-
 #if !USE_TIMEX_T || !defined TM_GMTOFF
+
+/* Return true if primary cached time zone data are fresh,
+   i.e., if this function is known to have recently returned false.
+   A call is recent if it occurred less than tz_change_interval seconds ago.
+   NOW should be the current time.  */
+static bool
+fresh_tzdata(monotime_t now)
+{
+  /* If nonzero, the time of the last false return.  */
+  static monotime_t last_checked;
+
+  if (last_checked && now - last_checked < tz_change_interval)
+    return true;
+  last_checked = now;
+  return false;
+}
 
 /* Initialize *SP to a value appropriate for the TZ setting NAME.
    Respect TZLOADFLAGS.
@@ -1607,7 +1838,7 @@ zoneinit(struct state *sp, char const *name, char tzloadflags)
     /*
     ** User wants it fast rather than right.
     */
-    sp->leapcnt = 0;		/* so, we're off a little */
+    set_leapcount(sp, 0);		/* so, we're off a little */
     sp->timecnt = 0;
     sp->typecnt = 0;
     sp->charcnt = 0;
@@ -1617,7 +1848,8 @@ zoneinit(struct state *sp, char const *name, char tzloadflags)
     return 0;
   } else {
     int err = tzload(name, sp, tzloadflags);
-    if (err != 0 && name && name[0] != ':' && tzparse(name, sp, NULL))
+    if (err != 0 && name && name[0] != ':' && !(tzloadflags & TZLOAD_TZDIR_SUB)
+	&& tzparse(name, sp, NULL))
       err = 0;
     if (err == 0)
       err = scrub_abbrs(sp);
@@ -1625,32 +1857,78 @@ zoneinit(struct state *sp, char const *name, char tzloadflags)
   }
 }
 
-static void
-tzset_unlocked(void)
+/* If THREADED, upgrade a read lock to a write lock.
+   Return 0 on success, a positive errno value otherwise.  */
+static int
+rd2wrlock(ATTRIBUTE_MAYBE_UNUSED bool threaded)
 {
-  char const *name = getenv("TZ");
-#ifdef __FreeBSD__
-  tzset_unlocked_name(name);
+# if THREAD_RWLOCK
+  if (threaded) {
+    dounlock();
+    return pthread_rwlock_wrlock(&locallock);
+  }
+# endif
+  return 0;
 }
+
+/* Like tzset(), but in a critical section.
+   If THREADED && THREAD_RWLOCK the caller has a read lock,
+   and this function might upgrade it to a write lock.
+   If WALL, act as if TZ is unset; although always false in this file,
+   a wrapper .c file's obsolete and ineffective tzsetwall function can use it.
+   If tz_change_interval is positive the time is NOW; otherwise ignore NOW.  */
 static void
-tzset_unlocked_name(char const *name)
+tzset_unlocked(bool threaded, bool wall, monotime_t now)
 {
-#endif
-  struct state *sp = lclptr;
-  int lcl = name ? strlen(name) < sizeof lcl_TZname : -1;
-  if (lcl < 0
-      ? lcl_is_set < 0
-      : 0 < lcl_is_set && strcmp(lcl_TZname, name) == 0)
-#ifdef DETECT_TZ_CHANGES
-    if (tzdata_is_fresh())
-#endif /* DETECT_TZ_CHANGES */
-    return;
-# ifdef ALL_STATE
+  char const *name;
+  struct state *sp;
+  char tzloadflags;
+  size_t namelen;
+  bool writing = false;
+
+  for (;;) {
+    name = wall ? NULL : getenv("TZ");
+    sp = lclptr;
+    tzloadflags = TZLOAD_FROMENV | TZLOAD_TZSTRING;
+    namelen = sizeof lcl_TZname + 1; /* placeholder for no name */
+
+    if (name) {
+      namelen = strnlen(name, sizeof lcl_TZname);
+
+      /* Abbreviate a string like "/usr/share/zoneinfo/America/Los_Angeles"
+	 to its shorter equivalent "America/Los_Angeles".  */
+      if (!SUPPRESS_TZDIR && tzdirslashlen < namelen
+	  && memcmp(name, tzdirslash, tzdirslashlen) == 0) {
+	char const *p = name + tzdirslashlen;
+	while (*p == '/')
+	  p++;
+	if (*p && *p != ':') {
+	  name = p;
+	  namelen = strnlen(name, sizeof lcl_TZname);
+	  tzloadflags |= TZLOAD_TZDIR_SUB;
+	}
+      }
+    }
+
+    if ((tz_change_interval <= 0 ? tz_change_interval < 0 : fresh_tzdata(now))
+	&& (name
+	    ? 0 < lcl_is_set && strcmp(lcl_TZname, name) == 0
+	    : lcl_is_set < 0))
+      return;
+
+    if (!THREAD_RWLOCK || writing)
+      break;
+    if (rd2wrlock(threaded) != 0)
+      return;
+    writing = true;
+  }
+
+# if ALL_STATE
   if (! sp)
     lclptr = sp = malloc(sizeof *lclptr);
 # endif
   if (sp) {
-    int err = zoneinit(sp, name, TZLOAD_FROMENV | TZLOAD_TZSTRING);
+    int err = zoneinit(sp, name, tzloadflags);
     if (err != 0) {
       zoneinit(sp, "", 0);
       /* Abbreviate with "-00" if there was an error.
@@ -1658,23 +1936,47 @@ tzset_unlocked_name(char const *name)
       if (name || err != ENOENT)
 	strcpy(sp->chars, UNSPEC);
     }
-    if (0 < lcl)
-      strcpy(lcl_TZname, name);
+    if (namelen < sizeof lcl_TZname) {
+      char *cp = lcl_TZname;
+      cp = mempcpy(cp, name, namelen);
+      *cp = '\0';
+    }
   }
   settzname();
-  lcl_is_set = lcl;
+  lcl_is_set = (sizeof lcl_TZname > namelen) - (sizeof lcl_TZname < namelen);
 }
 
 #endif
 
+#if !defined TM_GMTOFF || !USE_TIMEX_T
+
+/* If tz_change_interval is positive,
+   return the current time as a monotonically nondecreasing value.
+   Otherwise the return value does not matter.  */
+static monotime_t
+get_monotonic_time(void)
+{
+  struct timespec now;
+  now.tv_sec = 0;
+  if (0 < tz_change_interval)
+    clock_gettime(CLOCK_MONOTONIC_COARSE, &now);
+  return now.tv_sec;
+}
+#endif
+
 #if !USE_TIMEX_T
+
 void
 tzset(void)
 {
-  if (lock() != 0)
+  monotime_t now = get_monotonic_time();
+  int err = lock();
+  if (0 < err) {
+    errno = err;
     return;
-  tzset_unlocked();
-  unlock();
+  }
+  tzset_unlocked(!err, false, now);
+  unlock(!err);
 }
 #endif
 
@@ -1682,34 +1984,35 @@ tzset(void)
 void
 freebsd13_tzsetwall(void)
 {
-  if (lock() != 0)
+  monotime_t now = get_monotonic_time();
+  int err = lock();
+  if (0 < err) {
+    errno = err;
     return;
-  tzset_unlocked_name(NULL);
-  unlock();
+  }
+  tzset_unlocked(!err, true, now);
+  unlock(!err);
 }
 __sym_compat(tzsetwall, freebsd13_tzsetwall, FBSD_1.0);
 __warn_references(tzsetwall,
     "warning: tzsetwall() is deprecated, use tzset() instead.");
 #endif /* __FreeBSD__ */
 static void
+gmtcheck1(void)
+{
+#if ALL_STATE
+  gmtptr = malloc(sizeof *gmtptr);
+#endif
+  if (gmtptr)
+    gmtload(gmtptr);
+}
+
+static void
 gmtcheck(void)
 {
-  static bool gmt_is_set;
-  if (lock() != 0)
-    return;
-  if (! gmt_is_set) {
-#ifdef ALL_STATE
-    gmtptr = malloc(sizeof *gmtptr);
-#endif
-    if (gmtptr)
-      gmtload(gmtptr);
-    gmt_is_set = true;
-  }
-  unlock();
+  static once_t gmt_once = ONCE_INIT;
+  once(&gmt_once, gmtcheck1);
 }
-#ifdef __FreeBSD__
-#define gmtcheck() _once(&gmt_once, gmtcheck)
-#endif
 
 #if NETBSD_INSPIRED && !USE_TIMEX_T
 
@@ -1729,10 +2032,25 @@ tzalloc(char const *name)
   return sp;
 }
 
+#ifndef FREE_PRESERVES_ERRNO
+# if ((defined _POSIX_VERSION && 202405 <= _POSIX_VERSION) \
+      || (defined __GLIBC__ && 2 < __GLIBC__ + (33 <= __GLIBC_MINOR__)) \
+      || defined __OpenBSD__ || defined __sun)
+#  define FREE_PRESERVES_ERRNO 1
+# else
+#  define FREE_PRESERVES_ERRNO 0
+# endif
+#endif
+
 void
 tzfree(timezone_t sp)
 {
+  int err;
+  if (!FREE_PRESERVES_ERRNO)
+    err = errno;
   free(sp);
+  if (!FREE_PRESERVES_ERRNO)
+    errno = err;
 }
 
 /*
@@ -1844,7 +2162,7 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 	** To get (wrong) behavior that's compatible with System V Release 2.0
 	** you'd replace the statement below with
 	**	t += ttisp->tt_utoff;
-	**	timesub(&t, 0L, sp, tmp);
+	**	timesub(&t, 0, sp, tmp);
 	*/
 	result = timesub(&t, ttisp->tt_utoff, sp, tmp);
 	if (result) {
@@ -1861,6 +2179,36 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 
 #if !USE_TIMEX_T
 
+/* Return TMP, or a thread-specific struct tm * selected by WHICH.  */
+static struct tm *
+tm_multi(struct tm *tmp, ATTRIBUTE_MAYBE_UNUSED enum tm_multi which)
+{
+# if THREAD_SAFE && THREAD_TM_MULTI
+  /* It is OK to check is_threaded() separately here; even if it
+     returns a different value in other places in the caller,
+     this function's behavior is still valid.  */
+  if (is_threaded()) {
+    /* Try to get a thread-specific struct tm *.
+       Fall back on TMP if this fails.  */
+    static pthread_once_t tm_multi_once = PTHREAD_ONCE_INIT;
+    pthread_once(&tm_multi_once, tm_multi_key_init);
+    if (!tm_multi_key_err) {
+      struct tm *p = pthread_getspecific(tm_multi_key);
+      if (!p) {
+	p = malloc(N_TM_MULTI * sizeof *p);
+	if (p && pthread_setspecific(tm_multi_key, p) != 0) {
+	  free(p);
+	  p = NULL;
+	}
+      }
+      if (p)
+	return &p[which];
+    }
+  }
+# endif
+  return tmp;
+}
+
 # if NETBSD_INSPIRED
 struct tm *
 localtime_rz(struct state *restrict sp, time_t const *restrict timep,
@@ -1873,54 +2221,26 @@ localtime_rz(struct state *restrict sp, time_t const *restrict timep,
 static struct tm *
 localtime_tzset(time_t const *timep, struct tm *tmp, bool setname)
 {
+  monotime_t now = get_monotonic_time();
   int err = lock();
-  if (err) {
+  if (0 < err) {
     errno = err;
     return NULL;
   }
-#ifndef DETECT_TZ_CHANGES
-  if (setname || !lcl_is_set)
-#endif /* DETECT_TZ_CHANGES */
-    tzset_unlocked();
+  if (0 <= tz_change_interval || setname || !lcl_is_set)
+    tzset_unlocked(!err, false, now);
   tmp = localsub(lclptr, timep, setname, tmp);
-  unlock();
+  unlock(!err);
   return tmp;
 }
 
-#ifdef __FreeBSD__
-static void
-localtime_key_init(void)
-{
-  localtime_key_error = pthread_key_create(&localtime_key, free);
-}
-#endif /* __FreeBSD__ */
 struct tm *
 localtime(const time_t *timep)
 {
 # if !SUPPORT_C89
   static struct tm tm;
 # endif
-#ifdef __FreeBSD__
-  struct tm *p_tm = &tm;
-
-  if (__isthreaded != 0) {
-    pthread_once(&localtime_once, localtime_key_init);
-    if (localtime_key_error != 0) {
-      errno = localtime_key_error;
-      return (NULL);
-    }
-    if ((p_tm = pthread_getspecific(localtime_key)) == NULL) {
-      if ((p_tm = malloc(sizeof(*p_tm))) == NULL) {
-	return (NULL);
-      }
-      if (pthread_setspecific(localtime_key, p_tm) != 0) {
-	free(p_tm);
-	return (NULL);
-      }
-    }
-  }
-#endif /* __FreeBSD__ */
-  return localtime_tzset(timep, p_tm, true);
+  return localtime_tzset(timep, tm_multi(&tm, LOCALTIME_TM_MULTI), true);
 }
 
 struct tm *
@@ -1966,40 +2286,13 @@ gmtime_r(time_t const *restrict timep, struct tm *restrict tmp)
   return gmtsub(gmtptr, timep, 0, tmp);
 }
 
-#ifdef __FreeBSD__
-static void
-gmtime_key_init(void)
-{
-  gmtime_key_error = pthread_key_create(&gmtime_key, free);
-}
-#endif /* __FreeBSD__ */
 struct tm *
 gmtime(const time_t *timep)
 {
 # if !SUPPORT_C89
   static struct tm tm;
 # endif
-#ifdef __FreeBSD__
-  struct tm *p_tm = &tm;
-
-  if (__isthreaded != 0) {
-    pthread_once(&gmtime_once, gmtime_key_init);
-    if (gmtime_key_error != 0) {
-      errno = gmtime_key_error;
-      return (NULL);
-    }
-    if ((p_tm = pthread_getspecific(gmtime_key)) == NULL) {
-      if ((p_tm = malloc(sizeof(*p_tm))) == NULL) {
-	return (NULL);
-      }
-      if (pthread_setspecific(gmtime_key, p_tm) != 0) {
-	free(p_tm);
-	return (NULL);
-      }
-    }
-  }
-#endif /* __FreeBSD__ */
-  return gmtime_r(timep, p_tm);
+  return gmtime_r(timep, tm_multi(&tm, GMTIME_TM_MULTI));
 }
 
 # if STD_INSPIRED
@@ -2014,40 +2307,13 @@ offtime_r(time_t const *restrict timep, long offset, struct tm *restrict tmp)
   return gmtsub(gmtptr, timep, offset, tmp);
 }
 
-#ifdef __FreeBSD__
-static void
-offtime_key_init(void)
-{
-  offtime_key_error = pthread_key_create(&offtime_key, free);
-}
-#endif /* __FreeBSD__ */
 struct tm *
 offtime(time_t const *timep, long offset)
 {
 #  if !SUPPORT_C89
   static struct tm tm;
 #  endif
-#ifdef __FreeBSD__
-  struct tm *p_tm = &tm;
-
-  if (__isthreaded != 0) {
-    pthread_once(&offtime_once, offtime_key_init);
-    if (offtime_key_error != 0) {
-      errno = offtime_key_error;
-      return (NULL);
-    }
-    if ((p_tm = pthread_getspecific(offtime_key)) == NULL) {
-      if ((p_tm = malloc(sizeof(*p_tm))) == NULL) {
-	return (NULL);
-      }
-      if (pthread_setspecific(offtime_key, p_tm) != 0) {
-	free(p_tm);
-	return (NULL);
-      }
-    }
-  }
-#endif
-  return offtime_r(timep, offset, p_tm);
+  return offtime_r(timep, offset, tm_multi(&tm, OFFTIME_TM_MULTI));
 }
 
 # endif
@@ -2076,10 +2342,9 @@ static struct tm *
 timesub(const time_t *timep, int_fast32_t offset,
 	const struct state *sp, struct tm *tmp)
 {
-	register const struct lsinfo *	lp;
 	register time_t			tdays;
 	register const int *		ip;
-	register int_fast32_t		corr;
+	int_fast32_2s corr;
 	register int			i;
 	int_fast32_t idays, rem, dayoff, dayrem;
 	time_t y;
@@ -2090,13 +2355,13 @@ timesub(const time_t *timep, int_fast32_t offset,
 	time_t secs_since_posleap = SECSPERMIN;
 
 	corr = 0;
-	i = (sp == NULL) ? 0 : sp->leapcnt;
+	i = sp ? leapcount(sp) : 0;
 	while (--i >= 0) {
-		lp = &sp->lsis[i];
-		if (*timep >= lp->ls_trans) {
-			corr = lp->ls_corr;
-			if ((i == 0 ? 0 : lp[-1].ls_corr) < corr)
-			  secs_since_posleap = *timep - lp->ls_trans;
+		struct lsinfo ls = lsinfo(sp, i);
+		if (ls.ls_trans <= *timep) {
+			corr = ls.ls_corr;
+			if ((i == 0 ? 0 : lsinfo(sp, i - 1).ls_corr) < corr)
+			  secs_since_posleap = *timep - ls.ls_trans;
 			break;
 		}
 	}
@@ -2226,6 +2491,19 @@ increment_overflow(int *ip, int j)
 }
 
 static bool
+increment_overflow_64(int *ip, int_fast64_t j)
+{
+#ifdef ckd_add
+  return ckd_add(ip, *ip, j);
+#else
+  if (j < 0 ? *ip < INT_MIN - j : INT_MAX - j < *ip)
+    return true;
+  *ip += j;
+  return false;
+#endif
+}
+
+static bool
 increment_overflow_time_iinntt(time_t *tp, iinntt j)
 {
 #ifdef ckd_add
@@ -2241,7 +2519,22 @@ increment_overflow_time_iinntt(time_t *tp, iinntt j)
 }
 
 static bool
-increment_overflow_time(time_t *tp, int_fast32_t j)
+increment_overflow_time_64(time_t *tp, int_fast64_t j)
+{
+#ifdef ckd_add
+  return ckd_add(tp, *tp, j);
+#else
+  if (j < 0
+      ? (TYPE_SIGNED(time_t) ? *tp < TIME_T_MIN - j : *tp <= -1 - j)
+      : TIME_T_MAX - j < *tp)
+    return true;
+  *tp += j;
+  return false;
+#endif
+}
+
+static bool
+increment_overflow_time(time_t *tp, int_fast32_2s j)
 {
 #ifdef ckd_add
 	return ckd_add(tp, *tp, j);
@@ -2258,6 +2551,15 @@ increment_overflow_time(time_t *tp, int_fast32_t j)
 	*tp += j;
 	return false;
 #endif
+}
+
+/* Return A - B, where both are in the range -2**31 + 1 .. 2**31 - 1.
+   The result cannot overflow.  */
+static int_fast64_t
+utoff_diff (int_fast32_t a, int_fast32_t b)
+{
+  int_fast64_t aa = a;
+  return aa - b;
 }
 
 static int
@@ -2295,8 +2597,8 @@ mktmcpy(struct tm *dest, struct tm const *src)
 
 static time_t
 time2sub(struct tm *const tmp,
-	 struct tm *(*funcp)(struct state const *, time_t const *,
-			     int_fast32_t, struct tm *),
+	 struct tm *funcp(struct state const *, time_t const *,
+			  int_fast32_t, struct tm *),
 	 struct state const *sp,
 	 const int_fast32_t offset,
 	 bool *okayp,
@@ -2456,8 +2758,18 @@ time2sub(struct tm *const tmp,
 		     It's OK if YOURTM.TM_GMTOFF contains uninitialized data,
 		     since the guess gets checked.  */
 		  time_t altt = t;
-		  int_fast32_t diff = mytm.TM_GMTOFF - yourtm.TM_GMTOFF;
-		  if (!increment_overflow_time(&altt, diff)) {
+		  int_fast64_t offdiff;
+		  bool v;
+# ifdef ckd_sub
+		  v = ckd_sub(&offdiff, mytm.TM_GMTOFF, yourtm.TM_GMTOFF);
+# else
+		  /* A ckd_sub approximation that is good enough here.  */
+		  v = !(-TWO_31_MINUS_1 <= yourtm.TM_GMTOFF
+			&& yourtm.TM_GMTOFF <= TWO_31_MINUS_1);
+		  if (!v)
+		    offdiff = utoff_diff(mytm.TM_GMTOFF, yourtm.TM_GMTOFF);
+# endif
+		  if (!v && !increment_overflow_time_64(&altt, offdiff)) {
 		    struct tm alttm;
 		    if (funcp(sp, &altt, offset, &alttm)
 			&& alttm.tm_isdst == mytm.tm_isdst
@@ -2487,8 +2799,12 @@ time2sub(struct tm *const tmp,
 					continue;
 				if (ttunspecified(sp, j))
 				  continue;
-				newt = (t + sp->ttis[j].tt_utoff
-					- sp->ttis[i].tt_utoff);
+				newt = t;
+				if (increment_overflow_time_64
+				    (&newt,
+				     utoff_diff(sp->ttis[j].tt_utoff,
+						sp->ttis[i].tt_utoff)))
+				  continue;
 				if (! funcp(sp, &newt, offset, &mytm))
 					continue;
 				if (tmcomp(&mytm, &yourtm) != 0)
@@ -2514,8 +2830,8 @@ label:
 
 static time_t
 time2(struct tm * const	tmp,
-      struct tm *(*funcp)(struct state const *, time_t const *,
-			  int_fast32_t, struct tm *),
+      struct tm *funcp(struct state const *, time_t const *,
+		       int_fast32_t, struct tm *),
       struct state const *sp,
       const int_fast32_t offset,
       bool *okayp)
@@ -2533,8 +2849,8 @@ time2(struct tm * const	tmp,
 
 static time_t
 time1(struct tm *const tmp,
-      struct tm *(*funcp)(struct state const *, time_t const *,
-			  int_fast32_t, struct tm *),
+      struct tm *funcp(struct state const *, time_t const *,
+		       int_fast32_t, struct tm *),
       struct state const *sp,
       const int_fast32_t offset)
 {
@@ -2587,17 +2903,20 @@ time1(struct tm *const tmp,
 			continue;
 		for (otherind = 0; otherind < nseen; ++otherind) {
 			otheri = types[otherind];
-			if (sp->ttis[otheri].tt_isdst == tmp->tm_isdst)
-				continue;
-			tmp->tm_sec += (sp->ttis[otheri].tt_utoff
-					- sp->ttis[samei].tt_utoff);
-			tmp->tm_isdst = !tmp->tm_isdst;
-			t = time2(tmp, funcp, sp, offset, &okay);
-			if (okay)
-				return t;
-			tmp->tm_sec -= (sp->ttis[otheri].tt_utoff
-					- sp->ttis[samei].tt_utoff);
-			tmp->tm_isdst = !tmp->tm_isdst;
+			if (sp->ttis[otheri].tt_isdst != tmp->tm_isdst) {
+			  int sec = tmp->tm_sec;
+			  if (!increment_overflow_64
+			      (&tmp->tm_sec,
+			       utoff_diff(sp->ttis[otheri].tt_utoff,
+					  sp->ttis[samei].tt_utoff))) {
+			    tmp->tm_isdst = !tmp->tm_isdst;
+			    t = time2(tmp, funcp, sp, offset, &okay);
+			    if (okay)
+			      return t;
+			    tmp->tm_isdst = !tmp->tm_isdst;
+			  }
+			  tmp->tm_sec = sec;
+			}
 		}
 	}
 	return WRONG;
@@ -2622,15 +2941,16 @@ static
 time_t
 mktime(struct tm *tmp)
 {
+  monotime_t now = get_monotonic_time();
   time_t t;
   int err = lock();
-  if (err) {
+  if (0 < err) {
     errno = err;
     return -1;
   }
-  tzset_unlocked();
+  tzset_unlocked(!err, false, now);
   t = mktime_tzname(lclptr, tmp, true);
-  unlock();
+  unlock(!err);
   return t;
 }
 
@@ -2692,17 +3012,16 @@ timegm(struct tm *tmp)
 }
 #endif
 
-static int_fast32_t
+static int_fast32_2s
 leapcorr(struct state const *sp, time_t t)
 {
-	register struct lsinfo const *	lp;
 	register int			i;
 
-	i = sp->leapcnt;
+	i = leapcount(sp);
 	while (--i >= 0) {
-		lp = &sp->lsis[i];
-		if (t >= lp->ls_trans)
-			return lp->ls_corr;
+	  struct lsinfo ls = lsinfo(sp, i);
+	  if (ls.ls_trans <= t)
+	    return ls.ls_corr;
 	}
 	return 0;
 }
@@ -2713,6 +3032,21 @@ leapcorr(struct state const *sp, time_t t)
 
 #if !USE_TIMEX_T
 # if STD_INSPIRED
+
+static bool
+decrement_overflow_time(time_t *tp, int_fast32_2s j)
+{
+#ifdef ckd_sub
+  return ckd_sub(tp, *tp, j);
+#else
+  if (! (j < 0
+	 ? *tp <= TIME_T_MAX + j
+	 : (TYPE_SIGNED(time_t) ? TIME_T_MIN + j <= *tp : j <= *tp)))
+    return true;
+  *tp -= j;
+  return false;
+#endif
+}
 
 /* NETBSD_INSPIRED_EXTERN functions are exported to callers if
    NETBSD_INSPIRED is defined, and are private otherwise.  */
@@ -2733,71 +3067,72 @@ leapcorr(struct state const *sp, time_t t)
 NETBSD_INSPIRED_EXTERN time_t
 time2posix_z(struct state *sp, time_t t)
 {
-  return t - leapcorr(sp, t);
+  if (decrement_overflow_time(&t, leapcorr(sp, t))) {
+    /* Overflow near maximum time_t value with negative correction.
+       This can happen with unrealistic-but-valid TZif files.  */
+    errno = EOVERFLOW;
+    return -1;
+  }
+  return t;
 }
 
 time_t
 time2posix(time_t t)
 {
+  monotime_t now = get_monotonic_time();
   int err = lock();
-  if (err) {
+  if (0 < err) {
     errno = err;
     return -1;
   }
-#ifndef DETECT_TZ_CHANGES
-  if (!lcl_is_set)
-#endif /* DETECT_TZ_CHANGES */
-    tzset_unlocked();
+  if (0 <= tz_change_interval || !lcl_is_set)
+    tzset_unlocked(!err, false, now);
   if (lclptr)
     t = time2posix_z(lclptr, t);
-  unlock();
+  unlock(!err);
   return t;
 }
 
 NETBSD_INSPIRED_EXTERN time_t
 posix2time_z(struct state *sp, time_t t)
 {
-	time_t	x;
-	time_t	y;
-	/*
-	** For a positive leap second hit, the result
-	** is not unique. For a negative leap second
-	** hit, the corresponding time doesn't exist,
-	** so we return an adjacent second.
-	*/
-	x = t + leapcorr(sp, t);
-	y = x - leapcorr(sp, x);
-	if (y < t) {
-		do {
-			x++;
-			y = x - leapcorr(sp, x);
-		} while (y < t);
-		x -= y != t;
-	} else if (y > t) {
-		do {
-			--x;
-			y = x - leapcorr(sp, x);
-		} while (y > t);
-		x += y != t;
-	}
-	return x;
+  int i;
+  for (i = leapcount(sp); 0 <= --i; ) {
+    struct lsinfo ls = lsinfo(sp, i);
+    time_t t_corr = t;
+
+    if (increment_overflow_time(&t_corr, ls.ls_corr)) {
+      if (0 <= ls.ls_corr) {
+	/* Overflow near maximum time_t value with positive correction.
+	   This can happen with ordinary TZif files with leap seconds.  */
+	errno = EOVERFLOW;
+	return -1;
+      } else {
+	/* A negative correction overflowed, so keep going.
+	   This can happen with unrealistic-but-valid TZif files.  */
+      }
+    } else if (ls.ls_trans <= t_corr)
+      return (t_corr
+	      - (ls.ls_trans == t_corr
+		 && (i == 0 ? 0 : lsinfo(sp, i - 1).ls_corr) < ls.ls_corr));
+  }
+  return t;
 }
 
 time_t
 posix2time(time_t t)
 {
+  monotime_t now = get_monotonic_time();
   int err = lock();
-  if (err) {
+  if (0 < err) {
     errno = err;
     return -1;
   }
-#ifndef DETECT_TZ_CHANGES
-  if (!lcl_is_set)
-#endif /* DETECT_TZ_CHANGES */
-    tzset_unlocked();
+  if (0 <= tz_change_interval || !lcl_is_set)
+    tzset_unlocked(!err, false, now);
   if (lclptr)
     t = posix2time_z(lclptr, t);
-  unlock();
+  unlock(!err);
   return t;
 }
 
@@ -2823,7 +3158,7 @@ posix2time(time_t t)
 time_t
 time(time_t *p)
 {
-  time_t r = sys_time(0);
+  time_t r = sys_time(NULL);
   if (r != (time_t) -1) {
     iinntt offset = EPOCH_LOCAL ? timezone : 0;
     if (offset < IINNTT_MIN + EPOCH_OFFSET

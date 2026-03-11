@@ -82,8 +82,9 @@
 # include <stdbool.h>
 #endif
 
-#if __STDC_VERSION__ < 202311
-# undef static_assert
+/* For pre-C23 compilers, a substitute for static_assert.
+   Some of these compilers may warn if it is used outside the top level.  */
+#if __STDC_VERSION__ < 202311 && !defined static_assert
 # define static_assert(cond) extern int static_assert_check[(cond) ? 1 : -1]
 #endif
 
@@ -98,7 +99,9 @@
 #endif
 
 /* This string was in the Factory zone through version 2016f.  */
-#define GRANDPARENTED	"Local time zone must be set--use tzsetup"
+#ifndef GRANDPARENTED
+# define GRANDPARENTED	"Local time zone must be set--see zic manual page"
+#endif
 
 /*
 ** Defaults for preprocessor symbols.
@@ -116,6 +119,14 @@
 #endif
 #ifndef HAVE__GENERIC
 # define HAVE__GENERIC (201112 <= __STDC_VERSION__)
+#endif
+
+#ifndef HAVE_GETEUID
+# define HAVE_GETEUID 1
+#endif
+
+#ifndef HAVE_GETRESUID
+# define HAVE_GETRESUID 1
 #endif
 
 #if !defined HAVE_GETTEXT && defined __has_include
@@ -182,37 +193,44 @@
 # define ctime_r _incompatible_ctime_r
 #endif /* HAVE_INCOMPATIBLE_CTIME_R */
 
+#ifndef TZ_RUNTIME_LEAPS
+# define TZ_RUNTIME_LEAPS 1
+#endif
+
 /*
 ** Nested includes
 */
 
-/* Avoid clashes with NetBSD by renaming NetBSD's declarations.
-   If defining the 'timezone' variable, avoid a clash with FreeBSD's
-   'timezone' function by renaming its declaration.  */
-#define localtime_rz sys_localtime_rz
-#define mktime_z sys_mktime_z
-#define posix2time_z sys_posix2time_z
-#define time2posix_z sys_time2posix_z
-#if defined USG_COMPAT && USG_COMPAT == 2
-# define timezone sys_timezone
-#endif
-#define timezone_t sys_timezone_t
-#define tzalloc sys_tzalloc
-#define tzfree sys_tzfree
-#include <time.h>
-#undef localtime_rz
-#undef mktime_z
-#undef posix2time_z
-#undef time2posix_z
-#if defined USG_COMPAT && USG_COMPAT == 2
-# undef timezone
-#endif
-#undef timezone_t
-#undef tzalloc
-#undef tzfree
-
 #include <stddef.h>
+
+/* If defining the 'timezone' variable a la POSIX, avoid clashing with the old
+   'timezone' function of FreeBSD <= 14, by renaming the latter's declaration.
+   This hack can be removed after 2028-11-30, FreeBSD 14's expected EOL.  */
+#if (defined __FreeBSD__  && __FreeBSD__ < 15 && defined __BSD_VISIBLE \
+     && defined USG_COMPAT  && USG_COMPAT == 2)
+# define timezone sys_timezone
+# define timezone_defined
+#endif
+
+#include <time.h>
+
+#ifdef timezone_defined
+# undef timezone
+# undef timezone_defined
+#endif
+
 #include <string.h>
+#if defined HAVE_STRNLEN && !HAVE_STRNLEN
+static size_t
+strnlen (char const *s, size_t maxlen)
+{
+  size_t i;
+  for (i = 0; i < maxlen && s[i]; i++)
+    continue;
+  return i;
+}
+#endif
+
 #if !PORT_TO_C89
 # include <inttypes.h>
 #endif
@@ -234,6 +252,9 @@
 #ifndef ENOMEM
 # define ENOMEM EINVAL
 #endif
+#ifndef ENOTCAPABLE
+# define ENOTCAPABLE EINVAL
+#endif
 #ifndef ENOTSUP
 # define ENOTSUP EINVAL
 #endif
@@ -246,7 +267,12 @@
 #endif /* HAVE_GETTEXT */
 
 #if HAVE_UNISTD_H
-# include <unistd.h> /* for R_OK, and other POSIX goodness */
+# include <unistd.h>
+#else
+/* Assume getopt.o or equivalent is linked via Makefile configuration.  */
+int getopt(int, char *const[], char const *);
+extern char *optarg;
+extern int optind;
 #endif /* HAVE_UNISTD_H */
 
 /* SUPPORT_POSIX2008 means the tzcode library should support
@@ -271,6 +297,16 @@
 #  define HAVE_DECL_ASCTIME_R 1
 # else
 #  define HAVE_DECL_ASCTIME_R 0
+# endif
+#endif
+
+#ifndef HAVE_ISSETUGID
+# if (defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ \
+      || (defined __linux__ && !defined __GLIBC__) /* Android, musl, etc. */ \
+      || (defined __APPLE__ && defined __MACH__) || defined __sun)
+#  define HAVE_ISSETUGID 1
+# else
+#  define HAVE_ISSETUGID 0
 # endif
 #endif
 
@@ -310,10 +346,6 @@
 # endif
 #endif
 
-#ifndef R_OK
-# define R_OK 4
-#endif /* !defined R_OK */
-
 #if PORT_TO_C89
 
 /*
@@ -322,150 +354,144 @@
 ** previously included files.  glibc 2.1 and Solaris 10 and later have
 ** stdint.h, even with pre-C99 compilers.
 */
-#if !defined HAVE_STDINT_H && defined __has_include
-# define HAVE_STDINT_H 1 /* C23 __has_include implies C99 stdint.h.  */
-#endif
-#ifndef HAVE_STDINT_H
-# define HAVE_STDINT_H \
-   (199901 <= __STDC_VERSION__ \
-    || 2 < __GLIBC__ + (1 <= __GLIBC_MINOR__) \
-    || __CYGWIN__ || INTMAX_MAX)
-#endif /* !defined HAVE_STDINT_H */
+# if !defined HAVE_STDINT_H && defined __has_include
+#  define HAVE_STDINT_H 1 /* C23 __has_include implies C99 stdint.h.  */
+# endif
+# ifndef HAVE_STDINT_H
+#  define HAVE_STDINT_H \
+    (199901 <= __STDC_VERSION__ \
+     || 2 < __GLIBC__ + (1 <= __GLIBC_MINOR__) \
+     || __CYGWIN__ || INTMAX_MAX)
+# endif /* !defined HAVE_STDINT_H */
 
-#if HAVE_STDINT_H
-# include <stdint.h>
-#endif /* !HAVE_STDINT_H */
+# if HAVE_STDINT_H
+#  include <stdint.h>
+# endif /* !HAVE_STDINT_H */
 
-#ifndef HAVE_INTTYPES_H
-# define HAVE_INTTYPES_H HAVE_STDINT_H
-#endif
-#if HAVE_INTTYPES_H
-# include <inttypes.h>
-#endif
+# ifndef HAVE_INTTYPES_H
+#  define HAVE_INTTYPES_H HAVE_STDINT_H
+# endif
+# if HAVE_INTTYPES_H
+#  include <inttypes.h>
+# endif
 
 /* Pre-C99 GCC compilers define __LONG_LONG_MAX__ instead of LLONG_MAX.  */
-#if defined __LONG_LONG_MAX__ && !defined __STRICT_ANSI__
-# ifndef LLONG_MAX
-#  define LLONG_MAX __LONG_LONG_MAX__
+# if defined __LONG_LONG_MAX__ && !defined __STRICT_ANSI__
+#  ifndef LLONG_MAX
+#   define LLONG_MAX __LONG_LONG_MAX__
+#  endif
+#  ifndef LLONG_MIN
+#   define LLONG_MIN (-1 - LLONG_MAX)
+#  endif
+#  ifndef ULLONG_MAX
+#   define ULLONG_MAX (LLONG_MAX * 2ull + 1)
+#  endif
 # endif
-# ifndef LLONG_MIN
-#  define LLONG_MIN (-1 - LLONG_MAX)
-# endif
-# ifndef ULLONG_MAX
-#  define ULLONG_MAX (LLONG_MAX * 2ull + 1)
-# endif
-#endif
 
-#ifndef INT_FAST64_MAX
-# if 1 <= LONG_MAX >> 31 >> 31
+# ifndef INT_FAST64_MAX
+#  if 1 <= LONG_MAX >> 31 >> 31
 typedef long int_fast64_t;
-#  define INT_FAST64_MIN LONG_MIN
-#  define INT_FAST64_MAX LONG_MAX
-# else
+#   define INT_FAST64_MIN LONG_MIN
+#   define INT_FAST64_MAX LONG_MAX
+#  else
 /* If this fails, compile with -DHAVE_STDINT_H or with a better compiler.  */
 typedef long long int_fast64_t;
-#  define INT_FAST64_MIN LLONG_MIN
-#  define INT_FAST64_MAX LLONG_MAX
+#   define INT_FAST64_MIN LLONG_MIN
+#   define INT_FAST64_MAX LLONG_MAX
+#  endif
 # endif
-#endif
 
-#ifndef PRIdFAST64
-# if INT_FAST64_MAX == LONG_MAX
-#  define PRIdFAST64 "ld"
-# else
-#  define PRIdFAST64 "lld"
+# ifndef PRIdFAST64
+#  if INT_FAST64_MAX == LONG_MAX
+#   define PRIdFAST64 "ld"
+#  else
+#   define PRIdFAST64 "lld"
+#  endif
 # endif
-#endif
 
-#ifndef SCNdFAST64
-# define SCNdFAST64 PRIdFAST64
-#endif
+# ifndef SCNdFAST64
+#  define SCNdFAST64 PRIdFAST64
+# endif
 
-#ifndef INT_FAST32_MAX
-# if INT_MAX >> 31 == 0
+# ifndef INT_FAST32_MAX
 typedef long int_fast32_t;
 #  define INT_FAST32_MAX LONG_MAX
 #  define INT_FAST32_MIN LONG_MIN
-# else
-typedef int int_fast32_t;
-#  define INT_FAST32_MAX INT_MAX
-#  define INT_FAST32_MIN INT_MIN
 # endif
-#endif
 
-#ifndef INT_LEAST32_MAX
+# ifndef INT_LEAST32_MAX
 typedef int_fast32_t int_least32_t;
-#endif
+# endif
 
-#ifndef INTMAX_MAX
-# ifdef LLONG_MAX
+# ifndef INTMAX_MAX
+#  ifdef LLONG_MAX
 typedef long long intmax_t;
-#  ifndef HAVE_STRTOLL
-#   define HAVE_STRTOLL 1
-#  endif
-#  if HAVE_STRTOLL
-#   define strtoimax strtoll
-#  endif
-#  define INTMAX_MAX LLONG_MAX
-#  define INTMAX_MIN LLONG_MIN
-# else
+#   ifndef HAVE_STRTOLL
+#    define HAVE_STRTOLL 1
+#   endif
+#   if HAVE_STRTOLL
+#    define strtoimax strtoll
+#   endif
+#   define INTMAX_MAX LLONG_MAX
+#   define INTMAX_MIN LLONG_MIN
+#  else
 typedef long intmax_t;
-#  define INTMAX_MAX LONG_MAX
-#  define INTMAX_MIN LONG_MIN
+#   define INTMAX_MAX LONG_MAX
+#   define INTMAX_MIN LONG_MIN
+#  endif
+#  ifndef strtoimax
+#   define strtoimax strtol
+#  endif
 # endif
-# ifndef strtoimax
-#  define strtoimax strtol
+
+# ifndef PRIdMAX
+#  if INTMAX_MAX == LLONG_MAX
+#   define PRIdMAX "lld"
+#  else
+#   define PRIdMAX "ld"
+#  endif
 # endif
-#endif
 
-#ifndef PRIdMAX
-# if INTMAX_MAX == LLONG_MAX
-#  define PRIdMAX "lld"
-# else
-#  define PRIdMAX "ld"
+# ifndef PTRDIFF_MAX
+#  define PTRDIFF_MAX MAXVAL(ptrdiff_t, TYPE_BIT(ptrdiff_t))
 # endif
-#endif
 
-#ifndef PTRDIFF_MAX
-# define PTRDIFF_MAX MAXVAL(ptrdiff_t, TYPE_BIT(ptrdiff_t))
-#endif
-
-#ifndef UINT_FAST32_MAX
+# ifndef UINT_FAST32_MAX
 typedef unsigned long uint_fast32_t;
-#endif
+# endif
 
-#ifndef UINT_FAST64_MAX
-# if 3 <= ULONG_MAX >> 31 >> 31
+# ifndef UINT_FAST64_MAX
+#  if 3 <= ULONG_MAX >> 31 >> 31
 typedef unsigned long uint_fast64_t;
-#  define UINT_FAST64_MAX ULONG_MAX
-# else
+#   define UINT_FAST64_MAX ULONG_MAX
+#  else
 /* If this fails, compile with -DHAVE_STDINT_H or with a better compiler.  */
 typedef unsigned long long uint_fast64_t;
-#  define UINT_FAST64_MAX ULLONG_MAX
+#   define UINT_FAST64_MAX ULLONG_MAX
+#  endif
 # endif
-#endif
 
-#ifndef UINTMAX_MAX
-# ifdef ULLONG_MAX
+# ifndef UINTMAX_MAX
+#  ifdef ULLONG_MAX
 typedef unsigned long long uintmax_t;
-#  define UINTMAX_MAX ULLONG_MAX
-# else
+#   define UINTMAX_MAX ULLONG_MAX
+#  else
 typedef unsigned long uintmax_t;
-#  define UINTMAX_MAX ULONG_MAX
+#   define UINTMAX_MAX ULONG_MAX
+#  endif
 # endif
-#endif
 
-#ifndef PRIuMAX
-# ifdef ULLONG_MAX
-#  define PRIuMAX "llu"
-# else
-#  define PRIuMAX "lu"
+# ifndef PRIuMAX
+#  ifdef ULLONG_MAX
+#   define PRIuMAX "llu"
+#  else
+#   define PRIuMAX "lu"
+#  endif
 # endif
-#endif
 
-#ifndef SIZE_MAX
-# define SIZE_MAX ((size_t) -1)
-#endif
+# ifndef SIZE_MAX
+#  define SIZE_MAX ((size_t) -1)
+# endif
 
 #endif /* PORT_TO_C89 */
 
@@ -511,6 +537,15 @@ typedef unsigned long uintmax_t;
 # define HAVE___HAS_C_ATTRIBUTE true
 #else
 # define HAVE___HAS_C_ATTRIBUTE false
+#endif
+
+#ifdef __has_attribute
+# if __has_attribute (nonstring)
+#  define ATTRIBUTE_NONSTRING __attribute__((__nonstring__))
+# endif
+#endif
+#ifndef ATTRIBUTE_NONSTRING
+# define ATTRIBUTE_NONSTRING
 #endif
 
 #if HAVE___HAS_C_ATTRIBUTE
@@ -585,11 +620,11 @@ typedef unsigned long uintmax_t;
 # define ATTRIBUTE_UNSEQUENCED /* empty */
 #endif
 
-/* GCC attributes that are useful in tzcode.
-   __attribute__((const)) is stricter than [[unsequenced]],
-   so the latter is an adequate substitute in non-GCC C23 platforms.
-   __attribute__((pure)) is stricter than [[reproducible]],
-   so the latter is an adequate substitute in non-GCC C23 platforms.  */
+/* GNU C attributes that are useful in tzcode.
+   Although neither __attribute__((const)) nor __attribute__((pure)) are
+   stricter than their C23 counterparts [[unsequenced]] and [[reproducible]],
+   the C23 attributes happen to work in each tzcode use of ATTRIBUTE_CONST
+   and ATTRIBUTE_PURE.  (This might not work outside of tzcode!)  */
 #if __GNUC__ < 3
 # define ATTRIBUTE_CONST ATTRIBUTE_UNSEQUENCED
 # define ATTRIBUTE_FORMAT(spec) /* empty */
@@ -608,6 +643,12 @@ typedef unsigned long uintmax_t;
 #else
 # define ATTRIBUTE_PURE_114833 /* empty */
 #endif
+/* GCC_LINT hack to pacify GCC bug 114833 even though the attribute is
+   not strictly correct, as the function might not return whereas pure
+   functions are supposed to return exactly once.  This hack is not
+   known to generate wrong code for tzcode on any platform.
+   Remove this macro and its uses when the bug is fixed in a GCC release.  */
+#define ATTRIBUTE_PURE_114833_HACK ATTRIBUTE_PURE_114833
 
 #if (__STDC_VERSION__ < 199901 && !defined restrict \
      && (PORT_TO_C89 || defined _MSC_VER))
@@ -744,10 +785,10 @@ typedef time_tz tz_time_t;
 # endif
 DEPRECATED_IN_C23 char *asctime(struct tm const *);
 DEPRECATED_IN_C23 char *ctime(time_t const *);
-#if SUPPORT_POSIX2008
+# if SUPPORT_POSIX2008
 char *asctime_r(struct tm const *restrict, char *restrict);
 char *ctime_r(time_t const *, char *);
-#endif
+# endif
 ATTRIBUTE_CONST double difftime(time_t, time_t);
 size_t strftime(char *restrict, size_t, char const *restrict,
 		struct tm const *restrict);
@@ -793,6 +834,23 @@ extern char *asctime_r(struct tm const *restrict, char *restrict);
 
 #if !HAVE_DECL_ENVIRON
 extern char **environ;
+#endif
+
+#ifndef HAVE_MEMPCPY
+# if (defined mempcpy \
+      || defined __FreeBSD__ || defined __NetBSD__ || defined __linux__)
+#  define HAVE_MEMPCPY 1
+# else
+#  define HAVE_MEMPCPY 0
+# endif
+#endif
+#if !HAVE_MEMPCPY
+static void *
+mempcpy(void *restrict s1, void const *restrict s2, size_t n)
+{
+  char *p = memcpy(s1, s2, n);
+  return p + n;
+}
 #endif
 
 #if 2 <= HAVE_TZNAME + (TZ_TIME_T || !HAVE_POSIX_DECLS)
@@ -855,26 +913,32 @@ time_t posix2time(time_t);
 #endif
 
 /*
-** Define functions that are ABI compatible with NetBSD but have
-** better prototypes.  NetBSD 6.1.4 defines a pointer type timezone_t
-** and labors under the misconception that 'const timezone_t' is a
-** pointer to a constant.  This use of 'const' is ineffective, so it
-** is not done here.  What we call 'struct state' NetBSD calls
+** Define functions that are ABI compatible with NetBSD.
+** What we call 'struct state' NetBSD calls
 ** 'struct __state', but this is a private name so it doesn't matter.
 */
 #if NETBSD_INSPIRED
+# ifdef _NETBSD_SOURCE
+#  define state __state
+# else
 typedef struct state *timezone_t;
+# endif
 struct tm *localtime_rz(timezone_t restrict, time_t const *restrict,
 			struct tm *restrict);
 time_t mktime_z(timezone_t restrict, struct tm *restrict);
 timezone_t tzalloc(char const *);
 void tzfree(timezone_t);
 # if STD_INSPIRED
+#  if TZ_RUNTIME_LEAPS
+#   define ATTRIBUTE_POSIX2TIME ATTRIBUTE_PURE
+#  else
+#   define ATTRIBUTE_POSIX2TIME ATTRIBUTE_CONST
+#  endif
 #  if TZ_TIME_T || !defined posix2time_z
-ATTRIBUTE_PURE time_t posix2time_z(timezone_t, time_t);
+ATTRIBUTE_POSIX2TIME time_t posix2time_z(timezone_t, time_t);
 #  endif
 #  if TZ_TIME_T || !defined time2posix_z
-ATTRIBUTE_PURE time_t time2posix_z(timezone_t, time_t);
+ATTRIBUTE_POSIX2TIME time_t time2posix_z(timezone_t, time_t);
 #  endif
 # endif
 #endif
@@ -885,7 +949,7 @@ ATTRIBUTE_PURE time_t time2posix_z(timezone_t, time_t);
 
 #define TYPE_BIT(type) (CHAR_BIT * (ptrdiff_t) sizeof(type))
 #define TYPE_SIGNED(type) (((type) -1) < 0)
-#define TWOS_COMPLEMENT(t) ((t) ~ (t) 0 < 0)
+#define TWOS_COMPLEMENT(type) (TYPE_SIGNED (type) && (! ~ (type) -1))
 
 /* Minimum and maximum of two values.  Use lower case to avoid
    naming clashes with standard include files.  */
@@ -1008,23 +1072,27 @@ time_t timeoff(struct tm *, long);
 */
 
 #if HAVE_GETTEXT
-#define _(msgid) gettext(msgid)
+# define _(msgid) gettext(msgid)
 #else /* !HAVE_GETTEXT */
-#define _(msgid) msgid
+# define _(msgid) (msgid)
 #endif /* !HAVE_GETTEXT */
+#define N_(msgid) (msgid)
 
 #if !defined TZ_DOMAIN && defined HAVE_GETTEXT
 # define TZ_DOMAIN "tz"
 #endif
 
 #if HAVE_INCOMPATIBLE_CTIME_R
-#undef asctime_r
-#undef ctime_r
+# undef asctime_r
+# undef ctime_r
 char *asctime_r(struct tm const *restrict, char *restrict);
 char *ctime_r(time_t const *, char *);
 #endif /* HAVE_INCOMPATIBLE_CTIME_R */
 
-/* Handy macros that are independent of tzfile implementation.  */
+/* Handy constants that are independent of tzfile implementation.  */
+
+/* 2**31 - 1 as a signed integer, and usable in #if.  */
+#define TWO_31_MINUS_1 2147483647
 
 enum {
   SECSPERMIN = 60,
