@@ -1,6 +1,6 @@
 .\" This file is in the public domain, so clarified as of
 .\" 2009-05-17 by Arthur David Olson.
-.Dd January 21, 2023
+.Dd March 8, 2026
 .Dt ZIC 8
 .Os
 .Sh NAME
@@ -13,7 +13,6 @@
 .Op Fl Dsv
 .Op Fl b Ar slim | fat
 .Op Fl d Ar directory
-.Op Fl g Ar gid
 .Op Fl l Ar localtime
 .Op Fl L Ar leapseconds
 .Op Fl m Ar mode
@@ -25,7 +24,7 @@
 .Oc
 .Op Fl R @ Ns Ar hi
 .Op Fl t Ar localtime-link
-.Op Fl u Ar uid
+.Op Fl u Ar owner Ns Op Li : Ns Ar group
 .Op Ar filename ...
 .Sh DESCRIPTION
 The
@@ -54,7 +53,7 @@ is
 .Cm fat ,
 generate additional data entries that work around potential bugs or
 incompatibilities in older software, such as software that mishandles
-the 64-bit generated data.
+a TZif file's 64-bit data or proleptic TZ string.
 If
 .Ar bloat
 is
@@ -63,13 +62,18 @@ keep the output files small; this can help check for the bugs
 and incompatibilities.
 The default is
 .Cm slim ,
-as software that mishandles 64-bit data typically
-mishandles timestamps after the year 2038 anyway.
+as the
+.Cm fat
+workarounds are typically good only until the year 2038 anyway.
 Also see the
 .Fl r
 option for another way to alter output size.
 .It Fl D
-Do not create directories.
+Do not create ancestor directories of output files,
+For example, for a zone named America/Los_Angeles
+the directory America should already exist.
+By default, the directory and its ancestors are created
+if they do not already exist.
 .It Fl d Ar directory
 Create time conversion information files in the named directory rather than
 in the standard directory named below.
@@ -93,18 +97,10 @@ any already-existing link is removed.
 .It Fl L Ar filename
 Read leap second information from the file with the given name.
 If this option is not used,
-no leap second information appears in output files.
+no leap second information appears in output files;
+this is required by some TZif readers.
 .It Fl p Ar timezone
-Use
-.Ar timezone 's
-rules when handling nonstandard
-TZ strings like
-.Dq "EET\-2EEST"
-that lack transition rules.
-The
-.Nm
-utility
-will act as if the input contained a link line of the form
+Act as if the input contained a link line of the form
 .Bd -literal -offset indent
 Link	\fItimezone\fP		posixrules
 .Ed
@@ -119,13 +115,33 @@ Unless
 .Ar timezone
 is
 .Dq "\-" ,
-this option is obsolete and poorly supported.
+this option is obsolete and is no longer supported by most runtimes.
 Among other things it should not be used for timestamps after the year 2037,
 and it should not be combined with
 .Fl b Cm slim
 if
 .Ar timezone 's
 transitions are at standard time or Universal Time (UT) instead of local time.
+The option is present only to support obsolete runtimes that used
+.Ar timezone 's
+rules when handling obsolescent
+TZ strings like "AST4ADT" that lack transition rules;
+modern runtimes that support these TZ strings
+typically just use current US rules
+as the TZ strings were mainly used in the US.
+Similarly, any Zone or Link named "posixrules" is obsolete and problematic.
+.It Fl m Ar mode
+Create TZif files with the given file mode bits.
+By default the files are created with mode 644 as modified by the umask.
+With this option they are created with the given mode instead.
+For portability the mode should be an unsigned octal integer,
+typically 644 or 444;
+some platforms also support
+.Xr chmod 1 -style
+symbolic modes.
+This option does not affect created ancestor directories,
+which have mode 755 as modified by the umask.
+The option is ignored on platforms lacking the notion of file mode bits.
 .It Fl r Oo @ Ns Ar lo Oc Ns Oo /@ Ns Ar hi Oc
 Limit the applicability of output files
 to timestamps in the range from
@@ -177,6 +193,18 @@ it increases the size of the altered output files.
 .It Fl t Ar file
 When creating local time information, put the configuration link in
 the named file rather than in the standard location.
+.It Fl u Ar owner Ns Op Li : Ns Ar group
+Change the output regular files' owner and group to those specified.
+The
+.Ar owner
+is either a user name, or an unsigned decimal integer user ID,
+or an empty string meaning no change to the owner.
+The
+.Ar group
+is similar for group names and IDs.
+This option does not affect directories or hard or symbolic links.
+It typically needs special privileges to change ownership,
+and is ignored on platforms that lack the notions of owners and groups.
 .It Fl v
 Be more verbose, and complain about the following situations:
 .Bl -bullet
@@ -283,8 +311,10 @@ zero or more lines, each ending in a newline byte and containing at
 most 2048 bytes counting the newline, and without any NUL bytes.
 The input text's encoding
 is typically UTF-8 or ASCII; it should have a unibyte representation
-for the POSIX Portable Character Set (PPCS)
-\*<https://pubs\*:.opengroup\*:.org/\*:onlinepubs/\*:9699919799/\*:basedefs/\*:V1_chap06\*:.html\*>
+for the
+.UR https://\:pubs\:.opengroup\:.org/\:onlinepubs/\:9799919799/\:basedefs/\:V1_chap06\:.html
+POSIX Portable Character Set (PPCS)
+.UE
 and the encoding's non-unibyte characters should consist entirely of
 non-PPCS bytes.
 Non-PPCS characters typically occur only in comments:
@@ -319,12 +349,12 @@ A name can be abbreviated by omitting all but an initial prefix; any
 abbreviation must be unambiguous in context.
 .Pp
 A rule line has the form
-.Bd -literal -offset indent
+.Bd -literal
 Rule	NAME	FROM	TO	\-	IN	ON	AT	SAVE	LETTER/S
 .Ed
 .Pp
 For example:
-.Bd -literal -offset indent
+.Bd -literal
 Rule	US	1967	1973	\-	Apr	lastSun	2:00w	1:00d	D
 .Ed
 .Pp
@@ -663,11 +693,14 @@ Zone	America/Menominee	-5:00	-	EST	1973 Apr 29 2:00
 		-6:00	US	C%sT
 .Ed
 Here, an incorrect reading would be there were two clock changes on 1973-04-29,
-the first from 02:00 EST (\-05) to 01:00 CST (\-06),
-and the second an hour later from 02:00 CST (\-06) to 03:00 CDT (\-05).
+the first from 02:00 EST (\-05) to 01:00 CST (\-06) according to the
+.q "until"
+value in the zone line,
+and the second an hour later from 02:00 CST (\-06) to 03:00 CDT (\-05)
+according to the values in the April rule line.
 However,
 .Nm
-interprets this more sensibly as a single transition from 02:00 CST (\-05) to
+interprets this more sensibly as a single transition from 02:00 EST (\-05) to
 02:00 CDT (\-05).
 .Pp
 A link line has the form
