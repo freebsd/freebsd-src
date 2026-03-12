@@ -64,7 +64,6 @@ char    *namp;
 char    hostname[MAXHOSTNAMELEN];
 WINDOW  *wnd;
 int     CMDLINE;
-int     use_kvm = 1;
 
 static	WINDOW *wload;			/* one line window for load average */
 
@@ -166,6 +165,9 @@ main(int argc, char **argv)
 	}
 	kd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, errbuf);
 	if (kd != NULL) {
+		struct nlist namelist[] = { { .n_name = "allproc" },
+		    { .n_name = NULL } };
+
 		/*
 		 * Try to actually read something, we may be in a jail, and
 		 * have /dev/null opened as /dev/mem.
@@ -182,7 +184,6 @@ main(int argc, char **argv)
 		 * Maybe we are lacking permissions? Retry, this time with bogus
 		 * devices. We can now use sysctl only.
 		 */
-		use_kvm = 0;
 		kd = kvm_openfiles(_PATH_DEVNULL, _PATH_DEVNULL, _PATH_DEVNULL,
 		    O_RDONLY, errbuf);
 		if (kd == NULL) {

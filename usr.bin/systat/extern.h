@@ -69,8 +69,6 @@ extern int			num_selected;
 extern int			num_selections;
 extern long			select_generation;
 
-extern struct nlist		namelist[];
-
 int	 checkhost(struct in_conninfo *);
 int	 checkport(struct in_conninfo *);
 void	 closeicmp(WINDOW *);
