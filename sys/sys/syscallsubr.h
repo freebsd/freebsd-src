@@ -223,6 +223,7 @@ int	kern_extattr_set_fd(struct thread *td, int fd, int attrnamespace,
 int	kern_extattr_set_path(struct thread *td, const char *path,
 	    int attrnamespace, const char *attrname, void *data,
 	    size_t nbytes, int follow, enum uio_seg pathseg);
+int	kern_exterrctl(struct thread *td, u_int op, u_int flags, void *ptr);
 int	kern_fchmodat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, mode_t mode, int flag);
 int	kern_fchownat(struct thread *td, int fd, const char *path,

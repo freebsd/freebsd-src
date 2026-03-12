@@ -2378,24 +2378,30 @@ exterr_copyout(struct thread *td)
 int
 sys_exterrctl(struct thread *td, struct exterrctl_args *uap)
 {
+	return (kern_exterrctl(td, uap->op, uap->flags, uap->ptr));
+}
+
+int
+kern_exterrctl(struct thread *td, u_int op, u_int flags, void *ptr)
+{
 	uint32_t ver;
 	int error;
 
-	if ((uap->flags & ~(EXTERRCTLF_FORCE)) != 0)
+	if ((flags & ~(EXTERRCTLF_FORCE)) != 0)
 		return (EINVAL);
-	switch (uap->op) {
+	switch (op) {
 	case EXTERRCTL_ENABLE:
 		if ((td->td_pflags2 & TDP2_UEXTERR) != 0 &&
-		    (uap->flags & EXTERRCTLF_FORCE) == 0)
+		    (flags & EXTERRCTLF_FORCE) == 0)
 			return (EBUSY);
 		td->td_pflags2 &= ~TDP2_UEXTERR;
-		error = copyin(uap->ptr, &ver, sizeof(ver));
+		error = copyin(ptr, &ver, sizeof(ver));
 		if (error != 0)
 			return (error);
 		if (ver != UEXTERROR_VER)
 			return (EINVAL);
 		td->td_pflags2 |= TDP2_UEXTERR;
-		td->td_exterr_ptr = uap->ptr;
+		td->td_exterr_ptr = ptr;
 		return (0);
 	case EXTERRCTL_DISABLE:
 		if ((td->td_pflags2 & TDP2_UEXTERR) == 0)
