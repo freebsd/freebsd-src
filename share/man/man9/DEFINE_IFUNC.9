@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 18, 2019
+.Dd March 10, 2026
 .Dt DEFINE_IFUNC 9
 .Os
 .Sh NAME
@@ -134,8 +134,7 @@ function with an optimized implementation for CPUs that advertise support.
 .Sh SEE ALSO
 .Xr elf 5
 .Sh NOTES
-ifuncs are not supported on all architectures.
-They require both toolchain support, to emit function symbols of type
+ifuncs require both toolchain support, to emit function symbols of type
 .Dv STT_GNU_IFUNC ,
-and kernel linker support to invoke ifunc resolvers during boot or
+and kernel linker support, to invoke ifunc resolvers during boot or
 during module load.
