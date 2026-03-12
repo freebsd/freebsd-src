@@ -156,8 +156,13 @@ setcarp_callback(if_ctx *ctx, void *arg __unused)
 	if (carpr_vrrp_adv_inter != 0)
 		carpr.carpr_vrrp_adv_inter = carpr_vrrp_adv_inter;
 
-	if (ifconfig_carp_set_info(lifh, ctx->ifname, &carpr))
-		err(1, "SIOCSVH");
+	if (ifconfig_carp_set_info(lifh, ctx->ifname, &carpr)) {
+		if (ifconfig_err_errtype(lifh) == OTHER)
+			err(1, "%s: %s", __func__,
+			    strerror(ifconfig_err_errno(lifh)));
+		else
+			err(1, "%s: %d", __func__, ifconfig_err_errtype(lifh));
+	}
 }
 
 static void

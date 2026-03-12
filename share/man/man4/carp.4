@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 12, 2024
+.Dd March 11, 2026
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -71,10 +71,7 @@ and
 .Cm advskew
 are put inside CARP advertisements.
 These values can be configured using
-.Xr ifconfig 8 ,
-or through the
-.Dv SIOCSVH
-.Xr ioctl 2 .
+.Xr ifconfig 8 .
 .Pp
 CARP defaults to using multicast messages, but can be configured to unicast
 announcements to peers using the
@@ -88,10 +85,7 @@ and
 Note that TTL verification is disabled if the peer address is not a multicast
 address.
 These values can be configured using
-.Xr ifconfig 8 ,
-or through the
-.Dv SIOCSPEER
-.Xr ioctl 2 .
+.Xr ifconfig 8 .
 .Pp
 .Xr carp 4
 can be configured to use either the non-standard CARP protocol, or VRRPv3 (RFC 5798).
