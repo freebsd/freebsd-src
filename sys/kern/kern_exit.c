@@ -965,11 +965,8 @@ user_wait6(struct thread *td, idtype_t idtype, id_t id, int *statusp,
 int
 sys_pdwait(struct thread *td, struct pdwait_args *uap)
 {
-	struct __wrusage wru, *wrup;
 	siginfo_t si, *sip;
-	int error, status;
-
-	wrup = uap->wrusage != NULL ? &wru : NULL;
+	int error;
 
 	if (uap->info != NULL) {
 		sip = &si;
@@ -977,15 +974,28 @@ sys_pdwait(struct thread *td, struct pdwait_args *uap)
 	} else {
 		sip = NULL;
 	}
-
-	error = kern_pdwait(td, uap->fd, &status, uap->options, wrup, sip);
-
-	if (uap->status != NULL && error == 0)
-		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->wrusage != NULL && error == 0)
-		error = copyout(&wru, uap->wrusage, sizeof(wru));
+	error = user_pdwait(td, uap->fd, uap->status, uap->options,
+	    uap->wrusage, sip);
 	if (uap->info != NULL && error == 0)
 		error = copyout(&si, uap->info, sizeof(si));
+	return (error);
+}
+
+int
+user_pdwait(struct thread *td, int fd, int *statusp, int options,
+    struct __wrusage *wrusage, siginfo_t *sip)
+{
+	struct __wrusage wru, *wrup;
+	int error, status;
+
+	wrup = wrusage != NULL ? &wru : NULL;
+
+	error = kern_pdwait(td, fd, &status, options, wrup, sip);
+
+	if (statusp != NULL && error == 0)
+		error = copyout(&status, statusp, sizeof(status));
+	if (wrusage != NULL && error == 0)
+		error = copyout(&wru, wrusage, sizeof(wru));
 	return (error);
 }
 
