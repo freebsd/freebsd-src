@@ -24,28 +24,19 @@
  *
  */
 #include <sys/cdefs.h>
-#ifndef _KERNEL
-#define _WANT_TCPCB 1
-#endif
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netinet/tcp_seq.h>
+
 #ifdef _KERNEL
 #include <sys/mbuf.h>
 #include <sys/sockopt.h>
-#endif
-#include <netinet/in.h>
-#ifdef _KERNEL
 #include <netinet/in_pcb.h>
-#else
-struct inpcb {
-	uint32_t stuff;
-};
-#endif
-#include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_seq.h>
-#ifndef _KERNEL
+#else /* ! _KERNEL */
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -53,7 +44,17 @@ struct inpcb {
 #include <stdlib.h>
 #include <limits.h>
 #include <getopt.h>
+struct sackblk {
+	tcp_seq start;		/* start seq no. of sack block */
+	tcp_seq end;		/* end seq no. */
+};
+struct tcpcb {
+	tcp_seq snd_una;
+	tcp_seq snd_max;
+	uint32_t t_maxseg;
+};
 #endif
+
 #include "sack_filter.h"
 
 /*
