@@ -1350,6 +1350,7 @@ pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 				PF_MD5_UPD(pfr, addr.v.tblname);
 			break;
 		case PF_ADDR_ADDRMASK:
+		case PF_ADDR_RANGE:
 			/* XXX ignore af? */
 			PF_MD5_UPD(pfr, addr.v.a.addr.addr32);
 			PF_MD5_UPD(pfr, addr.v.a.mask.addr32);
