@@ -128,7 +128,7 @@ struct in_conninfo {
 #define	inc6_laddr	inc_ie.ie6_laddr
 #define	inc6_zoneid	inc_ie.ie6_zoneid
 
-#if defined(_KERNEL) || defined(_WANT_INPCB)
+#if defined(_KERNEL)
 /*
  * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4 and
  * IPv6 sockets.  In the case of TCP and UDP, further per-connection state is
