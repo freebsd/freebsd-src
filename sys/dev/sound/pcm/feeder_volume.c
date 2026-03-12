@@ -242,11 +242,14 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 {
 	int temp_vol[SND_CHN_T_VOL_MAX];
 	struct feed_volume_info *info;
+	struct snd_mixer *m;
+	struct snddev_info *d;
 	uint32_t j, align;
 	int i, *matrix;
 	uint8_t *dst;
 	const int16_t *vol;
 	const int8_t *muted;
+	bool master_muted = false;
 
 	/*
 	 * Fetch filter data operation.
@@ -278,8 +281,14 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		return (FEEDER_FEED(f->source, c, b, count, source));
 
 	/* Check if any controls are muted. */
+	d = (c != NULL) ? c->parentsnddev : NULL;
+	m = (d != NULL && d->mixer_dev != NULL) ? d->mixer_dev->si_drv1 : NULL;
+
+	if (m != NULL)
+		master_muted = (mix_getmutedevs(m) & (1 << SND_VOL_C_MASTER));
+
 	for (j = 0; j != SND_CHN_T_VOL_MAX; j++)
-		temp_vol[j] = muted[j] ? 0 : vol[j];
+		temp_vol[j] = (muted[j] || master_muted) ? 0 : vol[j];
 
 	dst = b;
 	align = info->bps * info->channels;
