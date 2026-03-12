@@ -601,7 +601,9 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 	} while (error == 0 && is_abs_real && td->td_rtcgen == 0);
 	td->td_rtcgen = 0;
 	if (error != EWOULDBLOCK) {
-		if (TIMESEL(&sbtt, tmp))
+		if (precise)
+			sbtt = sbinuptime();
+		else if (TIMESEL(&sbtt, tmp))
 			sbtt += tc_tick_sbt;
 		if (sbtt >= sbt)
 			return (0);
