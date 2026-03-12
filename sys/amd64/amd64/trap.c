@@ -249,6 +249,17 @@ trap_check_pcb_onfault(struct thread *td, struct trapframe *frame)
 	return (res);
 }
 
+static void
+trap_clear_step(struct thread *td, struct trapframe *frame)
+{
+	PROC_LOCK(td->td_proc);
+	if ((td->td_dbgflags & TDB_STEP) != 0) {
+		td->td_frame->tf_rflags &= ~PSL_T;
+		td->td_dbgflags &= ~TDB_STEP;
+	}
+	PROC_UNLOCK(td->td_proc);
+}
+
 /*
  * Table of handlers for various segment load faults.
  */
@@ -395,14 +406,8 @@ trap(struct trapframe *frame)
 			signo = SIGTRAP;
 			ucode = TRAP_TRACE;
 			dr6 = rdr6();
-			if ((dr6 & DBREG_DR6_BS) != 0) {
-				PROC_LOCK(td->td_proc);
-				if ((td->td_dbgflags & TDB_STEP) != 0) {
-					td->td_frame->tf_rflags &= ~PSL_T;
-					td->td_dbgflags &= ~TDB_STEP;
-				}
-				PROC_UNLOCK(td->td_proc);
-			}
+			if ((dr6 & DBREG_DR6_BS) != 0)
+				trap_clear_step(td, frame);
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
