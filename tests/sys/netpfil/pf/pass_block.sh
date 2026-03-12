@@ -255,6 +255,43 @@ urpf_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "addr_range" "cleanup"
+addr_range_head()
+{
+	atf_set descr 'Test rulesets with multiple address ranges'
+	atf_set require.user root
+}
+
+addr_range_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "block" \
+	    "pass inet from any to 10.100.100.1 - 10.100.100.20" \
+	    "pass inet from any to 192.0.2.1 - 192.0.2.10"
+
+jexec alcatraz pfctl -sr -vv
+
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+jexec alcatraz pfctl -sr -vv
+}
+
+addr_range_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -262,4 +299,5 @@ atf_init_test_cases()
 	atf_add_test_case "noalias"
 	atf_add_test_case "nested_inline"
 	atf_add_test_case "urpf"
+	atf_add_test_case "addr_range"
 }
