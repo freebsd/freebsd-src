@@ -2189,13 +2189,13 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 		}
 	}
 
-	if (pf->opts & PF_OPT_VERBOSE) {
+	if (pf->opts & PF_OPT_VERBOSE || was_present) {
 		INDENT(depth, !(pf->opts & PF_OPT_VERBOSE2));
 		print_rule(r, name,
 		    pf->opts & PF_OPT_VERBOSE2,
 		    pf->opts & PF_OPT_NUMERIC);
 		if (was_present)
-			printf(" -- rule was already present");
+			printf(" -- rule was already present\n");
 	}
 	path[len] = '\0';
 	pfctl_clear_pool(&r->rdr);
