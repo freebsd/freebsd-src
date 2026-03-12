@@ -318,6 +318,12 @@ sys_getegid(struct thread *td, struct getegid_args *uap)
 int
 freebsd14_getgroups(struct thread *td, struct freebsd14_getgroups_args *uap)
 {
+	return (kern_freebsd14_getgroups(td, uap->gidsetsize, uap->gidset));
+}
+
+int
+kern_freebsd14_getgroups(struct thread *td, int gidsetsize, gid_t *gidset)
+{
 	struct ucred *cred;
 	int ngrp, error;
 
@@ -328,16 +334,16 @@ freebsd14_getgroups(struct thread *td, struct freebsd14_getgroups_args *uap)
 	 * beginning of the group list prior to all supplementary groups.
 	 */
 	ngrp = cred->cr_ngroups + 1;
-	if (uap->gidsetsize == 0) {
+	if (gidsetsize == 0) {
 		error = 0;
 		goto out;
-	} else if (uap->gidsetsize < ngrp) {
+	} else if (gidsetsize < ngrp) {
 		return (EINVAL);
 	}
 
-	error = copyout(&cred->cr_gid, uap->gidset, sizeof(gid_t));
+	error = copyout(&cred->cr_gid, gidset, sizeof(gid_t));
 	if (error == 0)
-		error = copyout(cred->cr_groups, uap->gidset + 1,
+		error = copyout(cred->cr_groups, gidset + 1,
 		    (ngrp - 1) * sizeof(gid_t));
 
 out:
@@ -1219,15 +1225,22 @@ fail:
 int
 freebsd14_setgroups(struct thread *td, struct freebsd14_setgroups_args *uap)
 {
+	return (user_freebsd14_setgroups(td, uap->gidsetsize,
+	    uap->gidset));
+}
+
+int
+user_freebsd14_setgroups(struct thread *td, int gidsetsize,
+    const gid_t *gidset)
+{
 	gid_t smallgroups[CRED_SMALLGROUPS_NB];
 	gid_t *groups;
-	int gidsetsize, error;
+	int error;
 
 	/*
 	 * Before FreeBSD 15.0, we allow one more group to be supplied to
 	 * account for the egid appearing before the supplementary groups.
 	 */
-	gidsetsize = uap->gidsetsize;
 	if (gidsetsize > ngroups_max + 1 || gidsetsize < 0)
 		return (EINVAL);
 
@@ -1236,7 +1249,7 @@ freebsd14_setgroups(struct thread *td, struct freebsd14_setgroups_args *uap)
 	else
 		groups = smallgroups;
 
-	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
+	error = copyin(gidset, groups, gidsetsize * sizeof(gid_t));
 	if (error == 0)
 		error = kern_setgroups(td, &gidsetsize, groups, true);
 
