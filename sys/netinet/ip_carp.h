@@ -160,23 +160,10 @@ struct carpstats {
 	uint64_t	carps_preempt;		/* if enabled, preemptions */
 };
 
-/*
- * Configuration structure for SIOCSVH SIOCGVH
- */
-struct carpreq {
-	int		carpr_count;
-	int		carpr_vhid;
 #define	CARP_MAXVHID	255
-	int		carpr_state;
 #define	CARP_STATES	"INIT", "BACKUP", "MASTER"
 #define	CARP_MAXSTATE	2
-	int		carpr_advskew;
 #define	CARP_MAXSKEW	240
-	int		carpr_advbase;
-	unsigned char	carpr_key[CARP_KEY_LEN];
-};
-#define	SIOCSVH	_IOWR('i', 245, struct ifreq)
-#define	SIOCGVH	_IOWR('i', 246, struct ifreq)
 
 typedef enum carp_version {
 	CARP_VERSION_CARP	= 2,
@@ -184,7 +171,6 @@ typedef enum carp_version {
 } carp_version_t;
 
 #ifdef _KERNEL
-int		carp_ioctl(struct ifreq *, u_long, struct thread *);
 int		carp_attach(struct ifaddr *, int);
 void		carp_detach(struct ifaddr *, bool);
 void		carp_carpdev_state(struct ifnet *);
@@ -198,7 +184,6 @@ int		carp_forus(struct ifnet *, u_char *);
 
 /* These are external networking stack hooks for CARP */
 /* net/if.c */
-extern int (*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);
 extern int (*carp_attach_p)(struct ifaddr *, int);
 extern void (*carp_detach_p)(struct ifaddr *, bool);
 extern void (*carp_linkstate_p)(struct ifnet *);
