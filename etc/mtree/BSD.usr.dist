@@ -358,6 +358,12 @@
             ..
             printing
             ..
+            sbom
+                jsonld
+                ..
+                spdx
+                ..
+            ..
             scsi_target
             ..
             ses

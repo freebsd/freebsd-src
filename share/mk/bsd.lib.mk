@@ -512,3 +512,4 @@ TESTS_LD_LIBRARY_PATH+=	${.OBJDIR}
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include <bsd.sys.mk>
+.include <bsd.sbom.mk>
