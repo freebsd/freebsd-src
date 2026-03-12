@@ -110,6 +110,7 @@ smp_targeted_tlb_shootdown_t smp_targeted_tlb_shootdown =
  */
 
 static int start_ap(int apic_id, vm_paddr_t boot_address);
+static int start_all_aps(void);
 
 /*
  * Initialize the IPI handlers and start up the AP's.
@@ -317,7 +318,7 @@ amd64_mp_alloc_pcpu(void)
 /*
  * start each AP in our list
  */
-int
+static int
 start_all_aps(void)
 {
 	vm_page_t m_boottramp, m_pml4, m_pdp, m_pd[4];
