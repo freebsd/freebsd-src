@@ -38,7 +38,6 @@
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/callout.h>
-#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 
@@ -50,7 +49,6 @@
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif
-#define	_WANT_INPCB
 #include <netinet/in_pcb.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
@@ -60,7 +58,6 @@
 #include <netinet/tcp_seq.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
-#define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
@@ -74,11 +71,7 @@
 #include "systat.h"
 #include "extern.h"
 
-static struct netinfo *enter(struct in_conninfo *, uint8_t, int, const char *);
-static void enter_kvm(struct inpcb *, struct socket *, int, const char *);
-static void enter_sysctl(struct xinpcb *, struct xsocket *, int, const char *);
-static void fetchnetstat_kvm(void);
-static void fetchnetstat_sysctl(void);
+static void enter(struct xinpcb *, struct xsocket *so, int, const char *);
 static char *inetname(struct sockaddr *);
 static void inetprint(struct sockaddr *, const char *);
 
@@ -138,16 +131,6 @@ static const char *miblist[] = {
 	"net.inet.udp.pcblist"
 };
 
-static char tcb[] = "tcb", udb[] = "udb";
-
-struct nlist namelist[] = {
-#define	X_TCB	0
-	{ .n_name = tcb },
-#define	X_UDB	1
-	{ .n_name = udb },
-	{ .n_name = NULL },
-};
-
 int
 initnetstat(void)
 {
@@ -157,77 +140,6 @@ initnetstat(void)
 
 void
 fetchnetstat(void)
-{
-	if (use_kvm)
-		fetchnetstat_kvm();
-	else
-		fetchnetstat_sysctl();
-}
-
-static void
-fetchnetstat_kvm(void)
-{
-	struct netinfo *p;
-	struct inpcbhead head;
-	struct socket sockb;
-	struct tcpcb tcpcb;
-	struct inpcb *inpcb;
-	void *off;
-	int istcp;
-
-	if (namelist[X_TCB].n_value == 0)
-		return;
-	TAILQ_FOREACH(p, &netcb, chain)
-		p->ni_seen = 0;
-	if (protos&TCP) {
-		off = NPTR(X_TCB);
-		istcp = 1;
-	}
-	else if (protos&UDP) {
-		off = NPTR(X_UDB);
-		istcp = 0;
-	}
-	else {
-		error("No protocols to display");
-		return;
-	}
-again:
-	KREAD(off, &head, sizeof (struct inpcbhead));
-	LIST_FOREACH(inpcb, &head, inp_list) {
-		KREAD(inpcb, &tcpcb, istcp ? sizeof(tcpcb) : sizeof(inpcb));
-		inpcb = (struct inpcb *)&tcpcb;
-		if (!aflag) {
-			if (inpcb->inp_vflag & INP_IPV4) {
-				if (inpcb->inp_laddr.s_addr == INADDR_ANY)
-					continue;
-			}
-#ifdef INET6
-			else if (inpcb->inp_vflag & INP_IPV6) {
-				if (memcmp(&inpcb->in6p_laddr,
-				    &in6addr_any, sizeof(in6addr_any)) == 0)
-					continue;
-			}
-#endif
-		}
-		if (nhosts && !checkhost(&inpcb->inp_inc))
-			continue;
-		if (nports && !checkport(&inpcb->inp_inc))
-			continue;
-		if (istcp) {
-			KREAD(inpcb->inp_socket, &sockb, sizeof (sockb));
-			enter_kvm(inpcb, &sockb, tcpcb.t_state, "tcp");
-		} else
-			enter_kvm(inpcb, &sockb, 0, "udp");
-	}
-	if (istcp && (protos&UDP)) {
-		istcp = 0;
-		off = NPTR(X_UDB);
-		goto again;
-	}
-}
-
-static void
-fetchnetstat_sysctl(void)
 {
 	struct netinfo *p;
 	int idx;
@@ -303,41 +215,20 @@ fetchnetstat_sysctl(void)
 			if (nports && !checkport(&xip->inp_inc))
 				continue;
 			if (idx == 0)
-				enter_sysctl(xip, &xip->xi_socket,
-				    xtp->t_state, "tcp");
+				enter(xip, &xip->xi_socket, xtp->t_state,
+				    "tcp");
 			else
-				enter_sysctl(xip, &xip->xi_socket, 0, "udp");
+				enter(xip, &xip->xi_socket, 0, "udp");
 		}
 		free(inpg);
 	}
 }
 
 static void
-enter_kvm(struct inpcb *inp, struct socket *so, int state, const char *proto)
+enter(struct xinpcb *xip, struct xsocket *so, int state, const char *proto)
 {
-	struct netinfo *p;
-
-	if ((p = enter(&inp->inp_inc, inp->inp_vflag, state, proto)) != NULL) {
-		p->ni_rcvcc = so->so_rcv.sb_ccc;
-		p->ni_sndcc = so->so_snd.sb_ccc;
-	}
-}
-
-static void
-enter_sysctl(struct xinpcb *xip, struct xsocket *so, int state,
-    const char *proto)
-{
-	struct netinfo *p;
-
-	if ((p = enter(&xip->inp_inc, xip->inp_vflag, state, proto)) != NULL) {
-		p->ni_rcvcc = so->so_rcv.sb_cc;
-		p->ni_sndcc = so->so_snd.sb_cc;
-	}
-}
-
-static struct netinfo *
-enter(struct in_conninfo *inc, uint8_t vflag, int state, const char *proto)
-{
+	struct in_conninfo *inc = &xip->inp_inc;
+	uint8_t vflag = xip->inp_vflag;
 	struct netinfo *p;
 	struct sockaddr_storage lsa, fsa;
 	struct sockaddr_in *sa4;
@@ -378,7 +269,7 @@ enter(struct in_conninfo *inc, uint8_t vflag, int state, const char *proto)
 	}
 #endif
 	else
-		return NULL;
+		return;
 
 	/*
 	 * Only take exact matches, any sockets with
@@ -400,7 +291,7 @@ enter(struct in_conninfo *inc, uint8_t vflag, int state, const char *proto)
 	if (p == NULL) {
 		if ((p = malloc(sizeof(*p))) == NULL) {
 			error("Out of memory");
-			return NULL;
+			return;
 		}
 		TAILQ_INSERT_HEAD(&netcb, p, chain);
 		p->ni_line = -1;
@@ -411,7 +302,8 @@ enter(struct in_conninfo *inc, uint8_t vflag, int state, const char *proto)
 	}
 	p->ni_state = state;
 	p->ni_seen = 1;
-	return p;
+	p->ni_rcvcc = so->so_rcv.sb_cc;
+	p->ni_sndcc = so->so_snd.sb_cc;
 }
 
 /* column locations */
@@ -425,8 +317,6 @@ enter(struct in_conninfo *inc, uint8_t vflag, int state, const char *proto)
 void
 labelnetstat(void)
 {
-	if (use_kvm && namelist[X_TCB].n_type == 0)
-		return;
 	wmove(wnd, 0, 0); wclrtobot(wnd);
 	mvwaddstr(wnd, 0, LADDR, "Local Address");
 	mvwaddstr(wnd, 0, FADDR, "Foreign Address");
