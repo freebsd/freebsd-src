@@ -630,6 +630,8 @@ int	user_ioctl(struct thread *td, int fd, u_long ucom, void *udata,
 	    void *datap);
 int	user_kldload(struct thread *td, const char *file);
 int	user_pdgetpid(struct thread *td, int fd, pid_t *pidp);
+int	user_pdwait(struct thread *td, int fd, int *statusp, int options,
+	    struct __wrusage *wrusage, siginfo_t *sip);
 int	user_poll(struct thread *td, struct pollfd *fds, u_int nfds,
 	    int timeout);
 int	user_ppoll(struct thread *td, struct pollfd *fds, u_int nfds,
