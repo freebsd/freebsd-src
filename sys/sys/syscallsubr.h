@@ -244,6 +244,8 @@ int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
 int	kern_fpathconf(struct thread *td, int fd, int name, long *valuep);
 int	kern_freebsd11_getfsstat(struct thread *td,
 	    struct freebsd11_statfs *ubuf, long bufsize, int mode);
+int	kern_freebsd14_getgroups(struct thread *td, int gidsetsize,
+	    gid_t *gidset);
 int	kern_frmdirat(struct thread *td, int dfd, const char *path, int fd,
 	    enum uio_seg pathseg, int flag);
 int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
@@ -607,6 +609,8 @@ int	user_fhstat(struct thread *td, const struct fhandle *u_fhp,
 	    struct stat *usb);
 int	user_fhstatfs(struct thread *td, const struct fhandle *u_fhp,
 	    struct statfs *buf);
+int	user_freebsd14_setgroups(struct thread *td, int gidsetsize,
+	    const gid_t *gidset);
 int	user_fspacectl(struct thread *td, int fd, int cmd,
 	    const struct spacectl_range *rqsrp, int flags,
 	    struct spacectl_range *rmsrp);
