@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2016 - 2021 Intel Corporation
+ * Copyright (c) 2016 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -183,6 +183,8 @@
 #define IRDMA_UDA_CQPSQ_MAV_WQEVALID BIT_ULL(63)
 #define IRDMA_UDA_CQPSQ_MAV_OPCODE_S 32
 #define IRDMA_UDA_CQPSQ_MAV_OPCODE GENMASK_ULL(37, 32)
+#define IRDMA_UDA_CQPSQ_MAV_TYPE_S 53
+#define IRDMA_UDA_CQPSQ_MAV_TYPE GENMASK_ULL(54, 53)
 #define IRDMA_UDA_CQPSQ_MAV_DOLOOPBACKK_S 62
 #define IRDMA_UDA_CQPSQ_MAV_DOLOOPBACKK BIT_ULL(62)
 #define IRDMA_UDA_CQPSQ_MAV_IPV4VALID_S 59

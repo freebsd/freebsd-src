@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -66,7 +66,6 @@
 #define IRDMA_DSCP_NUM_VAL		64
 #define IRDMA_MAX_TRAFFIC_CLASS		8
 #define IRDMA_MAX_STATS_COUNT		128
-#define IRDMA_FIRST_NON_PF_STAT		4
 
 #define IRDMA_MIN_MTU_IPV4	576
 #define IRDMA_MIN_MTU_IPV6	1280
@@ -115,11 +114,31 @@
 #define IRDMA_BYTE_200		200
 #define IRDMA_BYTE_208		208
 #define IRDMA_BYTE_216		216
+#define IRDMA_BYTE_224		224
+#define IRDMA_BYTE_232		232
+#define IRDMA_BYTE_240		240
+#define IRDMA_BYTE_248		248
+#define IRDMA_BYTE_256		256
+#define IRDMA_BYTE_264		264
+#define IRDMA_BYTE_272		272
+#define IRDMA_BYTE_280		280
+#define IRDMA_BYTE_288		288
+#define IRDMA_BYTE_296		296
+#define IRDMA_BYTE_304		304
+#define IRDMA_BYTE_312		312
+#define IRDMA_BYTE_320		320
+#define IRDMA_BYTE_328		328
+#define IRDMA_BYTE_336		336
+#define IRDMA_BYTE_344		344
+#define IRDMA_BYTE_352		352
+#define IRDMA_BYTE_360		360
+#define IRDMA_BYTE_368		368
+#define IRDMA_BYTE_376		376
+#define IRDMA_BYTE_384		384
 
 #define IRDMA_CQP_WAIT_POLL_REGS	1
 #define IRDMA_CQP_WAIT_POLL_CQ		2
 #define IRDMA_CQP_WAIT_EVENT		3
-
 #define IRDMA_AE_SOURCE_RSVD		0x0
 #define IRDMA_AE_SOURCE_RQ		0x1
 #define IRDMA_AE_SOURCE_RQ_0011		0x3
@@ -157,8 +176,8 @@
 #define IRDMA_TCP_STATE_RESERVED_3	14
 #define IRDMA_TCP_STATE_RESERVED_4	15
 
-#define IRDMA_CQP_SW_SQSIZE_4		4
-#define IRDMA_CQP_SW_SQSIZE_2048	2048
+#define IRDMA_CQP_SW_SQSIZE_MIN		4
+#define IRDMA_CQP_SW_SQSIZE_MAX		2048
 
 #define IRDMA_CQ_TYPE_IWARP	1
 #define IRDMA_CQ_TYPE_ILQ	2
@@ -202,6 +221,8 @@
 #define IRDMA_MAX_RQ_WQE_SHIFT_GEN1 2
 #define IRDMA_MAX_RQ_WQE_SHIFT_GEN2 3
 
+#define IRDMA_DEFAULT_MAX_PUSH_LEN 8192
+
 #define IRDMA_SQ_RSVD	258
 #define IRDMA_RQ_RSVD	1
 
@@ -222,6 +243,7 @@
 #define IRDMAQP_OP_RDMA_READ_LOC_INV		0x0b
 #define IRDMAQP_OP_NOP				0x0c
 #define IRDMAQP_OP_RDMA_WRITE_SOL		0x0d
+
 #define IRDMAQP_OP_GEN_RTS_AE			0x30
 
 enum irdma_cqp_op_type {
@@ -272,9 +294,9 @@ enum irdma_cqp_op_type {
 	IRDMA_OP_ADD_LOCAL_MAC_ENTRY		= 46,
 	IRDMA_OP_DELETE_LOCAL_MAC_ENTRY		= 47,
 	IRDMA_OP_CQ_MODIFY			= 48,
-
+	IRDMA_OP_WS_MOVE			= 49,
 	/* Must be last entry */
-	IRDMA_MAX_CQP_OPS			= 49,
+	IRDMA_MAX_CQP_OPS			= 50,
 };
 
 /* CQP SQ WQES */
@@ -322,6 +344,7 @@ enum irdma_cqp_op_type {
 #define IRDMA_CQP_OP_MANAGE_STATS			0x2d
 #define IRDMA_CQP_OP_GATHER_STATS			0x2e
 #define IRDMA_CQP_OP_UP_MAP				0x2f
+#define IRDMA_CQP_OP_MOVE_WS_NODES			0x34
 
 #ifndef LS_64_1
 #define LS_64_1(val, bits)	((u64)(uintptr_t)(val) << (bits))
@@ -420,6 +443,7 @@ enum irdma_cqp_op_type {
 #define IRDMA_CQPSQ_WS_VMVFNUM GENMASK_ULL(51, 42)
 #define IRDMA_CQPSQ_WS_OP_S 32
 #define IRDMA_CQPSQ_WS_OP GENMASK_ULL(37, 32)
+#define IRDMA_CQPSQ_WS_MOVE_OP GENMASK_ULL(37, 32)
 #define IRDMA_CQPSQ_WS_PARENTID_S 16
 #define IRDMA_CQPSQ_WS_PARENTID GENMASK_ULL(25, 16)
 #define IRDMA_CQPSQ_WS_NODEID_S 0
@@ -493,6 +517,8 @@ enum irdma_cqp_op_type {
 #define IRDMA_CQPHC_EN_REM_ENDPOINT_TRK_S 3
 #define IRDMA_CQPHC_EN_REM_ENDPOINT_TRK BIT_ULL(3)
 
+#define IRDMA_CQPHC_TMR_SLOT_S 16
+#define IRDMA_CQPHC_TMR_SLOT GENMASK_ULL(19, 16)
 #define IRDMA_CQPHC_ENABLED_VFS_S 32
 #define IRDMA_CQPHC_ENABLED_VFS GENMASK_ULL(37, 32)
 
@@ -672,10 +698,10 @@ enum irdma_cqp_op_type {
 #define IRDMA_CQPSQ_QP_QPCTX IRDMA_CQPHC_QPCTX
 
 #define IRDMA_CQPSQ_QP_QPID_S 0
-#define IRDMA_CQPSQ_QP_QPID_M (0xFFFFFFUL)
+#define IRDMA_CQPSQ_QP_QPID GENMASK_ULL(23, 0)
 
 #define IRDMA_CQPSQ_QP_OP_S 32
-#define IRDMA_CQPSQ_QP_OP_M IRDMACQ_OP_M
+#define IRDMA_CQPSQ_QP_OP GENMASK_ULL(37, 32)
 #define IRDMA_CQPSQ_QP_ORDVALID_S 42
 #define IRDMA_CQPSQ_QP_ORDVALID BIT_ULL(42)
 #define IRDMA_CQPSQ_QP_TOECTXVALID_S 43
@@ -751,6 +777,8 @@ enum irdma_cqp_op_type {
 #define IRDMA_CQPSQ_STAG_MR BIT_ULL(43)
 #define IRDMA_CQPSQ_STAG_MWTYPE_S 42
 #define IRDMA_CQPSQ_STAG_MWTYPE BIT_ULL(42)
+#define IRDMA_CQPSQ_STAG_SKIPFLUSH_S 40
+#define IRDMA_CQPSQ_STAG_SKIPFLUSH BIT_ULL(40)
 #define IRDMA_CQPSQ_STAG_MW1_BIND_DONT_VLDT_KEY_S 58
 #define IRDMA_CQPSQ_STAG_MW1_BIND_DONT_VLDT_KEY BIT_ULL(58)
 
@@ -767,8 +795,6 @@ enum irdma_cqp_op_type {
 #define IRDMA_CQPSQ_STAG_VABASEDTO BIT_ULL(59)
 #define IRDMA_CQPSQ_STAG_USEHMCFNIDX_S 60
 #define IRDMA_CQPSQ_STAG_USEHMCFNIDX BIT_ULL(60)
-#define IRDMA_CQPSQ_STAG_USEPFRID_S 61
-#define IRDMA_CQPSQ_STAG_USEPFRID BIT_ULL(61)
 
 #define IRDMA_CQPSQ_STAG_PBA_S IRDMA_CQPHC_QPCTX_S
 #define IRDMA_CQPSQ_STAG_PBA IRDMA_CQPHC_QPCTX
@@ -882,11 +908,14 @@ enum irdma_cqp_op_type {
 #define IRDMA_CQPSQ_AEQ_FIRSTPMPBLIDX GENMASK_ULL(27, 0)
 
 #define IRDMA_COMMIT_FPM_QPCNT_S 0
-#define IRDMA_COMMIT_FPM_QPCNT GENMASK_ULL(18, 0)
+#define IRDMA_COMMIT_FPM_QPCNT GENMASK_ULL(20, 0)
 
 #define IRDMA_COMMIT_FPM_BASE_S 32
 #define IRDMA_CQPSQ_CFPM_HMCFNID_S 0
 #define IRDMA_CQPSQ_CFPM_HMCFNID GENMASK_ULL(5, 0)
+
+#define IRDMA_CQPSQ_CFPM_HW_FLUSH_TIMER_DISABLE_S 43
+#define IRDMA_CQPSQ_CFPM_HW_FLUSH_TIMER_DISABLE BIT_ULL(43)
 
 #define IRDMA_CQPSQ_FWQE_AECODE_S 0
 #define IRDMA_CQPSQ_FWQE_AECODE GENMASK_ULL(15, 0)
@@ -1123,9 +1152,9 @@ enum irdma_cqp_op_type {
 #define IRDMAQPC_RNRNAK_THRESH_S 54
 #define IRDMAQPC_RNRNAK_THRESH GENMASK_ULL(56, 54)
 #define IRDMAQPC_TXCQNUM_S 0
-#define IRDMAQPC_TXCQNUM GENMASK_ULL(18, 0)
+#define IRDMAQPC_TXCQNUM GENMASK_ULL(24, 0)
 #define IRDMAQPC_RXCQNUM_S 32
-#define IRDMAQPC_RXCQNUM GENMASK_ULL(50, 32)
+#define IRDMAQPC_RXCQNUM GENMASK_ULL(56, 32)
 #define IRDMAQPC_STAT_INDEX_S 0
 #define IRDMAQPC_STAT_INDEX GENMASK_ULL(6, 0)
 #define IRDMAQPC_Q2ADDR_S 8
@@ -1213,6 +1242,8 @@ enum irdma_cqp_op_type {
 #define IRDMA_FEATURE_TYPE GENMASK_ULL(63, 48)
 #define IRDMA_RSVD_S 41
 #define IRDMA_RSVD GENMASK_ULL(55, 41)
+#define IRDMA_FEATURE_RSRC_MAX_S 0
+#define IRDMA_FEATURE_RSRC_MAX GENMASK_ULL(31, 0)
 
 #define IRDMAQPSQ_OPCODE_S 32
 #define IRDMAQPSQ_OPCODE GENMASK_ULL(37, 32)
@@ -1258,7 +1289,7 @@ enum irdma_cqp_op_type {
 #define IRDMAQPSQ_DESTQPN_S 32
 #define IRDMAQPSQ_DESTQPN GENMASK_ULL(55, 32)
 #define IRDMAQPSQ_AHID_S 0
-#define IRDMAQPSQ_AHID GENMASK_ULL(16, 0)
+#define IRDMAQPSQ_AHID GENMASK_ULL(24, 0)
 #define IRDMAQPSQ_INLINEDATAFLAG_S 57
 #define IRDMAQPSQ_INLINEDATAFLAG BIT_ULL(57)
 
@@ -1347,7 +1378,7 @@ enum irdma_cqp_op_type {
 #define IRDMA_QUERY_FPM_FIRST_PE_SD_INDEX_S 0
 #define IRDMA_QUERY_FPM_FIRST_PE_SD_INDEX GENMASK_ULL(13, 0)
 #define IRDMA_QUERY_FPM_MAX_PE_SDS_S 32
-#define IRDMA_QUERY_FPM_MAX_PE_SDS GENMASK_ULL(45, 32)
+#define IRDMA_QUERY_FPM_MAX_PE_SDS GENMASK_ULL(44, 32)
 
 #define IRDMA_QUERY_FPM_MAX_CEQS_S 0
 #define IRDMA_QUERY_FPM_MAX_CEQS GENMASK_ULL(9, 0)
@@ -1422,9 +1453,9 @@ enum irdma_cqp_op_type {
 #define IRDMA_RING_MOVE_HEAD(_ring, _retcode) \
 	{ \
 		u32 size; \
-		size = (_ring).size;  \
+		size = IRDMA_RING_SIZE(_ring);  \
 		if (!IRDMA_RING_FULL_ERR(_ring)) { \
-			(_ring).head = ((_ring).head + 1) % size; \
+			IRDMA_RING_CURRENT_HEAD(_ring) = (IRDMA_RING_CURRENT_HEAD(_ring) + 1) % size; \
 			(_retcode) = 0; \
 		} else { \
 			(_retcode) = -ENOSPC; \
@@ -1433,79 +1464,40 @@ enum irdma_cqp_op_type {
 #define IRDMA_RING_MOVE_HEAD_BY_COUNT(_ring, _count, _retcode) \
 	{ \
 		u32 size; \
-		size = (_ring).size; \
+		size = IRDMA_RING_SIZE(_ring); \
 		if ((IRDMA_RING_USED_QUANTA(_ring) + (_count)) < size) { \
-			(_ring).head = ((_ring).head + (_count)) % size; \
+			IRDMA_RING_CURRENT_HEAD(_ring) = (IRDMA_RING_CURRENT_HEAD(_ring) + (_count)) % size; \
 			(_retcode) = 0; \
 		} else { \
 			(_retcode) = -ENOSPC; \
 		} \
 	}
-#define IRDMA_SQ_RING_MOVE_HEAD(_ring, _retcode) \
-	{ \
-		u32 size; \
-		size = (_ring).size;  \
-		if (!IRDMA_SQ_RING_FULL_ERR(_ring)) { \
-			(_ring).head = ((_ring).head + 1) % size; \
-			(_retcode) = 0; \
-		} else { \
-			(_retcode) = -ENOSPC; \
-		} \
-	}
-#define IRDMA_SQ_RING_MOVE_HEAD_BY_COUNT(_ring, _count, _retcode) \
-	{ \
-		u32 size; \
-		size = (_ring).size; \
-		if ((IRDMA_RING_USED_QUANTA(_ring) + (_count)) < (size - 256)) { \
-			(_ring).head = ((_ring).head + (_count)) % size; \
-			(_retcode) = 0; \
-		} else { \
-			(_retcode) = -ENOSPC; \
-		} \
-	}
-#define IRDMA_RING_MOVE_HEAD_BY_COUNT_NOCHECK(_ring, _count) \
-	(_ring).head = ((_ring).head + (_count)) % (_ring).size
 
-#define IRDMA_RING_MOVE_TAIL(_ring) \
-	(_ring).tail = ((_ring).tail + 1) % (_ring).size
+#define IRDMA_RING_MOVE_HEAD_BY_COUNT_NOCHECK(_ring, _count) \
+	(IRDMA_RING_CURRENT_HEAD(_ring) = (IRDMA_RING_CURRENT_HEAD(_ring) + (_count)) % IRDMA_RING_SIZE(_ring))
 
 #define IRDMA_RING_MOVE_HEAD_NOCHECK(_ring) \
-	(_ring).head = ((_ring).head + 1) % (_ring).size
+	IRDMA_RING_MOVE_HEAD_BY_COUNT_NOCHECK(_ring, 1)
 
 #define IRDMA_RING_MOVE_TAIL_BY_COUNT(_ring, _count) \
-	(_ring).tail = ((_ring).tail + (_count)) % (_ring).size
+	IRDMA_RING_CURRENT_TAIL(_ring) = (IRDMA_RING_CURRENT_TAIL(_ring) + (_count)) % IRDMA_RING_SIZE(_ring)
+
+#define IRDMA_RING_MOVE_TAIL(_ring) \
+	IRDMA_RING_MOVE_TAIL_BY_COUNT(_ring, 1)
 
 #define IRDMA_RING_SET_TAIL(_ring, _pos) \
-	(_ring).tail = (_pos) % (_ring).size
+	WRITE_ONCE(IRDMA_RING_CURRENT_TAIL(_ring), (_pos) % IRDMA_RING_SIZE(_ring))
 
 #define IRDMA_RING_FULL_ERR(_ring) \
 	( \
-		(IRDMA_RING_USED_QUANTA(_ring) == ((_ring).size - 1))  \
-	)
-
-#define IRDMA_ERR_RING_FULL2(_ring) \
-	( \
-		(IRDMA_RING_USED_QUANTA(_ring) == ((_ring).size - 2))  \
-	)
-
-#define IRDMA_ERR_RING_FULL3(_ring) \
-	( \
-		(IRDMA_RING_USED_QUANTA(_ring) == ((_ring).size - 3))  \
+		(IRDMA_RING_USED_QUANTA(_ring) == (IRDMA_RING_SIZE(_ring) - 1))  \
 	)
 
 #define IRDMA_SQ_RING_FULL_ERR(_ring) \
 	( \
-		(IRDMA_RING_USED_QUANTA(_ring) == ((_ring).size - 257))  \
+		(IRDMA_RING_USED_QUANTA(_ring) == (IRDMA_RING_SIZE(_ring) - 257))  \
 	)
 
-#define IRDMA_ERR_SQ_RING_FULL2(_ring) \
-	( \
-		(IRDMA_RING_USED_QUANTA(_ring) == ((_ring).size - 258))  \
-	)
-#define IRDMA_ERR_SQ_RING_FULL3(_ring) \
-	( \
-		(IRDMA_RING_USED_QUANTA(_ring) == ((_ring).size - 259))  \
-	)
 #define IRDMA_RING_MORE_WORK(_ring) \
 	( \
 		(IRDMA_RING_USED_QUANTA(_ring) != 0) \
@@ -1513,17 +1505,17 @@ enum irdma_cqp_op_type {
 
 #define IRDMA_RING_USED_QUANTA(_ring) \
 	( \
-		(((_ring).head + (_ring).size - (_ring).tail) % (_ring).size) \
+		((READ_ONCE(IRDMA_RING_CURRENT_HEAD(_ring)) + IRDMA_RING_SIZE(_ring) - READ_ONCE(IRDMA_RING_CURRENT_TAIL(_ring))) % IRDMA_RING_SIZE(_ring)) \
 	)
 
 #define IRDMA_RING_FREE_QUANTA(_ring) \
 	( \
-		((_ring).size - IRDMA_RING_USED_QUANTA(_ring) - 1) \
+		(IRDMA_RING_SIZE(_ring) - IRDMA_RING_USED_QUANTA(_ring) - 1) \
 	)
 
 #define IRDMA_SQ_RING_FREE_QUANTA(_ring) \
 	( \
-		((_ring).size - IRDMA_RING_USED_QUANTA(_ring) - 257) \
+		(IRDMA_RING_SIZE(_ring) - IRDMA_RING_USED_QUANTA(_ring) - 257) \
 	)
 
 #define IRDMA_ATOMIC_RING_MOVE_HEAD(_ring, index, _retcode) \

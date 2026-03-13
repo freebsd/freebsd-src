@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,6 +37,7 @@
 
 #define IRDMA_MAX_SAVED_PHY_PGADDR	4
 #define IRDMA_FLUSH_DELAY_MS		20
+#define IRDMA_PERIODIC_FLUSH_MS		2000
 
 #define IRDMA_PKEY_TBL_SZ		1
 #define IRDMA_DEFAULT_PKEY		0xFFFF
@@ -141,6 +142,7 @@ struct irdma_mr {
 	int access;
 	u8 is_hwreg;
 	u16 type;
+	bool dma_mr:1;
 	u32 page_cnt;
 	u64 page_size;
 	u64 page_msk;
@@ -154,21 +156,15 @@ struct irdma_mr {
 struct irdma_cq {
 	struct ib_cq ibcq;
 	struct irdma_sc_cq sc_cq;
-	u16 cq_head;
-	u16 cq_size;
-	u16 cq_num;
+	u32 cq_num;
 	bool user_mode;
 	atomic_t armed;
 	enum irdma_cmpl_notify last_notify;
-	u32 polled_cmpls;
-	u32 cq_mem_size;
 	struct irdma_dma_mem kmem;
 	struct irdma_dma_mem kmem_shadow;
 	struct completion free_cq;
 	atomic_t refcnt;
 	spinlock_t lock; /* for poll cq */
-	struct irdma_pbl *iwpbl;
-	struct irdma_pbl *iwpbl_shadow;
 	struct list_head resize_list;
 	struct irdma_cq_poll_info cur_cqe;
 	struct list_head cmpl_generated;
@@ -244,10 +240,12 @@ struct irdma_qp {
 	dma_addr_t pbl_pbase;
 	struct page *page;
 	u8 iwarp_state;
+	atomic_t flush_issued;
 	u16 term_sq_flush_code;
 	u16 term_rq_flush_code;
 	u8 hw_iwarp_state;
 	u8 hw_tcp_state;
+	u8 ae_src;
 	struct irdma_qp_kmode kqp;
 	struct irdma_dma_mem host_ctx;
 	struct timer_list terminate_timer;
@@ -262,7 +260,6 @@ struct irdma_qp {
 	bool active_conn:1;
 	bool user_mode:1;
 	bool hte_added:1;
-	bool flush_issued:1;
 	bool sig_all:1;
 	bool pau_mode:1;
 	bool suspend_pending:1;
@@ -385,6 +382,12 @@ static inline void irdma_mcast_mac_v6(u32 *ip_addr, u8 *mac)
 struct rdma_user_mmap_entry*
 irdma_user_mmap_entry_insert(struct irdma_ucontext *ucontext, u64 bar_offset,
 			     enum irdma_mmap_flag mmap_flag, u64 *mmap_offset);
+struct irdma_mr *irdma_alloc_iwmr(struct ib_umem *region,
+				  struct ib_pd *pd, u64 virt,
+				  enum irdma_memreg_type reg_type);
+void irdma_free_iwmr(struct irdma_mr *iwmr);
+int irdma_reg_user_mr_type_mem(struct irdma_mr *iwmr, int access,
+			       bool create_stag);
 int irdma_ib_register_device(struct irdma_device *iwdev);
 void irdma_ib_unregister_device(struct irdma_device *iwdev);
 void irdma_ib_qp_event(struct irdma_qp *iwqp, enum irdma_qp_event_type event);
@@ -392,5 +395,7 @@ void irdma_generate_flush_completions(struct irdma_qp *iwqp);
 void irdma_remove_cmpls_list(struct irdma_cq *iwcq);
 int irdma_generated_cmpls(struct irdma_cq *iwcq, struct irdma_cq_poll_info *cq_poll_info);
 void irdma_sched_qp_flush_work(struct irdma_qp *iwqp);
-void irdma_flush_worker(struct work_struct *work);
+void irdma_kern_flush_worker(struct work_struct *work);
+void irdma_user_flush_worker(struct work_struct *work);
+int irdma_hw_alloc_mw(struct irdma_device *iwdev, struct irdma_mr *iwmr);
 #endif /* IRDMA_VERBS_H */

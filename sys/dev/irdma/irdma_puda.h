@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -94,20 +94,22 @@ struct irdma_puda_buf {
 	u8 *iph;
 	u8 *tcph;
 	u8 *data;
+	u32 seqnum;
+	u32 ah_id;
+	u32 totallen; /* machlen+iphlen+tcphlen+datalen */
 	u16 datalen;
 	u16 vlan_id;
 	u8 tcphlen; /* tcp length in bytes */
 	u8 maclen; /* mac length in bytes */
-	u32 totallen; /* machlen+iphlen+tcphlen+datalen */
-	atomic_t refcount;
+	atomic_t pb_refcount;
 	u8 hdrlen;
 	bool virtdma:1;
 	bool ipv4:1;
 	bool vlan_valid:1;
 	bool do_lpb:1; /* Loopback buffer */
 	bool smac_valid:1;
-	u32 seqnum;
-	u32 ah_id;
+	bool queued:1;
+	struct irdma_sc_ah *ah;
 	u8 smac[ETHER_ADDR_LEN];
 	struct irdma_sc_vsi *vsi;
 };
@@ -184,7 +186,7 @@ struct irdma_puda_rsrc {
 struct irdma_puda_buf *irdma_puda_get_bufpool(struct irdma_puda_rsrc *rsrc);
 void irdma_puda_ret_bufpool(struct irdma_puda_rsrc *rsrc,
 			    struct irdma_puda_buf *buf);
-void irdma_puda_send_buf(struct irdma_puda_rsrc *rsrc,
+int irdma_puda_send_buf(struct irdma_puda_rsrc *rsrc,
 			 struct irdma_puda_buf *buf);
 int irdma_puda_send(struct irdma_sc_qp *qp, struct irdma_puda_send_info *info);
 int irdma_puda_create_rsrc(struct irdma_sc_vsi *vsi,

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2023 Intel Corporation
+ * Copyright (c) 2021 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -36,6 +36,7 @@
 #include "ice_rdma.h"
 #include "irdma_di_if.h"
 #include "irdma_main.h"
+#include "icrdma_hw.h"
 #include <sys/gsb_crc32.h>
 #include <netinet/in_fib.h>
 #include <netinet6/in6_fib.h>
@@ -44,6 +45,11 @@
 
 /* additional QP debuging option. Keep false unless needed */
 bool irdma_upload_context = false;
+u8 irdma_sysctl_max_ord = ICRDMA_MAX_ORD_SIZE;
+u8 irdma_sysctl_max_ird = ICRDMA_MAX_IRD_SIZE;
+u8 irdma_rdpu_bw_tun = 0;
+
+static void irdma_modify_rdpu_bw(struct irdma_pci_f *rf);
 
 inline u32
 irdma_rd32(struct irdma_dev_ctx *dev_ctx, u32 reg){
@@ -566,6 +572,9 @@ irdma_set_rf_user_cfg_params(struct irdma_pci_f *rf)
 	rf->rst_to = IRDMA_RST_TIMEOUT_HZ;
 	/* Enable DCQCN algorithm by default */
 	rf->dcqcn_ena = true;
+
+	if (irdma_fw_major_ver(&rf->sc_dev) == 2 && irdma_rdpu_bw_tun)
+		irdma_modify_rdpu_bw(rf);
 }
 
 /**
@@ -593,10 +602,85 @@ irdma_sysctl_dcqcn_update(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+static void
+irdma_modify_rdpu_bw(struct irdma_pci_f *rf)
+{
+	u32 val;
+#define GL_RDPU_CNTRL   0x00052054
+
+	val = rd32(&rf->hw, GL_RDPU_CNTRL);
+	printf("pf%d Read GL_RDPU_CNTRL[%x] = 0x%08X",
+	       if_getdunit(rf->peer_info->ifp), GL_RDPU_CNTRL, val);
+
+	/* Clear the load balancing bit */
+	val &= ~(0x1 << 2);
+	wr32(&rf->hw, GL_RDPU_CNTRL, val);
+	val = rd32(&rf->hw, GL_RDPU_CNTRL);
+	printf("pf%d Set GL_RDPU_CNTRL[%x] = 0x%08X",
+	       if_getdunit(rf->peer_info->ifp), GL_RDPU_CNTRL, val);
+}
+
+enum irdma_qos_info {
+	IRDMA_QOS_DSCP_MAP = 1,
+	IRDMA_QOS_DSCP_MODE,
+	IRDMA_QOS_PRIO_TYPE,
+	IRDMA_QOS_QS_HANDLE,
+	IRDMA_QOS_REL_BW,
+	IRDMA_QOS_TC,
+	IRDMA_QOS_UP2TC
+};
+
 enum irdma_cqp_stats_info {
 	IRDMA_CQP_REQ_CMDS = 28,
 	IRDMA_CQP_CMPL_CMDS = 29
 };
+
+static int
+irdma_sysctl_qos(SYSCTL_HANDLER_ARGS)
+{
+	struct irdma_sc_vsi *vsi = (struct irdma_sc_vsi *)arg1;
+	char rslt[192] = "no vsi available yet";
+	int rslt_size = sizeof(rslt) - 1;
+	int option = (int)arg2;
+	int a;
+
+	if (!vsi) {
+		return sysctl_handle_string(oidp, rslt, sizeof(rslt), req);
+
+	}
+
+	snprintf(rslt, sizeof(rslt), "");
+	switch (option) {
+	case IRDMA_QOS_PRIO_TYPE:
+		for (a = 0; a < IRDMA_MAX_USER_PRIORITY; a++)
+			snprintf(rslt, rslt_size, "%s %02x", rslt, vsi->qos[a].prio_type);
+		break;
+	case IRDMA_QOS_REL_BW:
+		for (a = 0; a < IRDMA_MAX_USER_PRIORITY; a++)
+			snprintf(rslt, rslt_size, "%s %d", rslt, vsi->qos[a].rel_bw);
+		break;
+	case IRDMA_QOS_QS_HANDLE:
+		for (a = 0; a < IRDMA_MAX_USER_PRIORITY; a++)
+			snprintf(rslt, rslt_size, "%s %d", rslt, vsi->qos[a].qs_handle);
+		break;
+	case IRDMA_QOS_TC:
+		for (a = 0; a < IRDMA_MAX_USER_PRIORITY; a++)
+			snprintf(rslt, rslt_size, "%s %d", rslt, vsi->qos[a].traffic_class);
+		break;
+	case IRDMA_QOS_UP2TC:
+		for (a = 0; a < IRDMA_MAX_USER_PRIORITY; a++)
+			snprintf(rslt, rslt_size, "%s %d", rslt, vsi->cfg_check[a].traffic_class);
+		break;
+	case IRDMA_QOS_DSCP_MAP:
+		for (a = 0; a < sizeof(vsi->dscp_map); a++)
+			snprintf(rslt, rslt_size, "%s%02x", rslt, vsi->dscp_map[a]);
+		break;
+	case IRDMA_QOS_DSCP_MODE:
+		snprintf(rslt, rslt_size, "%d", vsi->dscp_mode);
+	}
+
+	return sysctl_handle_string(oidp, rslt, sizeof(rslt), req);
+}
 
 static int
 irdma_sysctl_cqp_stats(SYSCTL_HANDLER_ARGS)
@@ -854,6 +938,7 @@ void
 irdma_sysctl_settings(struct irdma_pci_f *rf)
 {
 	struct sysctl_oid_list *irdma_sysctl_oid_list;
+	u8 ird_ord_limit;
 
 	irdma_sysctl_oid_list = SYSCTL_CHILDREN(rf->tun_info.irdma_sysctl_tree);
 
@@ -861,6 +946,79 @@ irdma_sysctl_settings(struct irdma_pci_f *rf)
 			OID_AUTO, "upload_context", CTLFLAG_RWTUN,
 			&irdma_upload_context, 0,
 			"allow for generating QP's upload context, default=0");
+
+	if (rf->protocol_used != IRDMA_IWARP_PROTOCOL_ONLY)
+		return;
+
+#define ICRDMA_HW_IRD_ORD_LIMIT 128
+	SYSCTL_ADD_U8(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
+		      OID_AUTO, "ord_max_value", CTLFLAG_RDTUN,
+		      &irdma_sysctl_max_ord, ICRDMA_MAX_ORD_SIZE,
+		      "Limit Outbound RDMA Read Queue Depth, dflt=32, max=128");
+
+	SYSCTL_ADD_U8(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
+		      OID_AUTO, "ird_max_value", CTLFLAG_RDTUN,
+		      &irdma_sysctl_max_ird, ICRDMA_MAX_IRD_SIZE,
+		      "Limit Inbound RDMA Read Queue Depth, dflt=32, max=128");
+	/*
+	 * Ensure the ird/ord is equal and not more than ICRDMA_HW_IRD_ORD_LIMIT
+	 */
+	ird_ord_limit = min(irdma_sysctl_max_ord, irdma_sysctl_max_ird);
+	if (ird_ord_limit > ICRDMA_HW_IRD_ORD_LIMIT)
+		ird_ord_limit = ICRDMA_HW_IRD_ORD_LIMIT;
+	irdma_sysctl_max_ird = ird_ord_limit;
+	irdma_sysctl_max_ord = ird_ord_limit;
+
+	SYSCTL_ADD_U8(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
+		      OID_AUTO, "mod_rdpu_bw", CTLFLAG_RDTUN,
+		      &irdma_rdpu_bw_tun, 0,
+		      "Turn off RDPU BW balance, default=0");
+}
+
+/**
+ * irdma_qos_info_tunables_init - init tunables to read qos settings
+ * @rf: RDMA PCI function
+ */
+void
+irdma_qos_info_tunables_init(struct irdma_pci_f *rf)
+{
+	struct irdma_sc_vsi *vsi = &rf->iwdev->vsi;
+	struct sysctl_oid_list *qos_oid_list;
+
+	qos_oid_list = SYSCTL_CHILDREN(rf->tun_info.qos_sysctl_tree);
+	SYSCTL_ADD_U8(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list,
+		      OID_AUTO, "vsi_rel_bw", CTLFLAG_RD,
+		      &vsi->qos_rel_bw, 0,
+		      "qos_rel_bw");
+	SYSCTL_ADD_U8(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list,
+		      OID_AUTO, "vsi_prio_type", CTLFLAG_RD,
+		      &vsi->qos_prio_type, 0, "vsi prio type");
+	SYSCTL_ADD_PROC(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list,
+			OID_AUTO, "dscp_mode", CTLFLAG_RD | CTLTYPE_STRING,
+			vsi, IRDMA_QOS_DSCP_MODE, irdma_sysctl_qos, "A",
+			"show dscp_mode");
+	SYSCTL_ADD_PROC(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list, OID_AUTO,
+			"dscp_map", CTLFLAG_RD | CTLTYPE_STRING, vsi,
+			IRDMA_QOS_DSCP_MAP, irdma_sysctl_qos, "A",
+			"show dscp map");
+	SYSCTL_ADD_PROC(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list, OID_AUTO,
+			"up2tc", CTLFLAG_RD | CTLTYPE_STRING, vsi,
+			IRDMA_QOS_UP2TC, irdma_sysctl_qos, "A",
+			"up to tc mapping");
+	SYSCTL_ADD_PROC(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list, OID_AUTO,
+			"qs", CTLFLAG_RD | CTLTYPE_STRING, vsi,
+			IRDMA_QOS_QS_HANDLE, irdma_sysctl_qos, "A",
+			"qs_handle");
+	SYSCTL_ADD_PROC(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list, OID_AUTO,
+			"tc", CTLFLAG_RD | CTLTYPE_STRING, vsi, IRDMA_QOS_TC,
+			irdma_sysctl_qos, "A", "tc list");
+	SYSCTL_ADD_PROC(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list, OID_AUTO,
+			"rel_bw", CTLFLAG_RD | CTLTYPE_STRING, vsi,
+			IRDMA_QOS_REL_BW, irdma_sysctl_qos, "A", "relative bw");
+	SYSCTL_ADD_PROC(&rf->tun_info.irdma_sysctl_ctx, qos_oid_list, OID_AUTO,
+			"prio_type", CTLFLAG_RD | CTLTYPE_STRING, vsi,
+			IRDMA_QOS_PRIO_TYPE, irdma_sysctl_qos, "A",
+			"prio_type");
 }
 
 void
