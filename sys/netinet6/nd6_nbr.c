@@ -1669,8 +1669,8 @@ nd6_queue_timer(void *arg)
 {
 	struct nd_queue *ndq = arg;
 	struct ifaddr *ifa = ndq->ndq_ifa;
-	struct ifnet *ifp = ifa->ifa_ifp;
-	struct in6_ifextra *ext = ifp->if_inet6;
+	struct ifnet *ifp;
+	struct in6_ifextra *ext;
 	struct in6_addr daddr;
 	struct epoch_tracker et;
 	int delay, tlladdr;
@@ -1678,6 +1678,8 @@ nd6_queue_timer(void *arg)
 
 	KASSERT(ifa != NULL, ("ND6 queue entry %p with no address", ndq));
 
+	ifp = ifa->ifa_ifp;
+	ext = ifp->if_inet6;
 	CURVNET_SET(ifp->if_vnet);
 	NET_EPOCH_ENTER(et);
 
