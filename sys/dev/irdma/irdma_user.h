@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -184,12 +184,10 @@ enum irdma_device_caps_const {
 	IRDMA_MIN_IW_QP_ID =			0,
 	IRDMA_QUERY_FPM_BUF_SIZE =		176,
 	IRDMA_COMMIT_FPM_BUF_SIZE =		176,
-	IRDMA_MAX_IW_QP_ID =			262143,
 	IRDMA_MIN_CEQID =			0,
 	IRDMA_MAX_CEQID =			1023,
 	IRDMA_CEQ_MAX_COUNT =			IRDMA_MAX_CEQID + 1,
 	IRDMA_MIN_CQID =			0,
-	IRDMA_MAX_CQID =			524287,
 	IRDMA_MIN_AEQ_ENTRIES =			1,
 	IRDMA_MAX_AEQ_ENTRIES =			524287,
 	IRDMA_MIN_CEQ_ENTRIES =			1,
@@ -284,7 +282,7 @@ struct irdma_cq_uk_init_info;
 
 struct irdma_ring {
 	volatile u32 head;
-	volatile u32 tail;	/* effective tail */
+	volatile u32 tail;
 	u32 size;
 };
 
@@ -385,12 +383,6 @@ struct irdma_cq_poll_info {
 	bool ud_smac_valid:1;
 	bool imm_valid:1;
 	bool signaled:1;
-	union {
-		u32 tcp_sqn;
-		u32 roce_psn;
-		u32 rtt;
-		u32 raw;
-	} stat;
 };
 
 struct qp_err_code {
@@ -426,6 +418,7 @@ struct irdma_wqe_uk_ops {
 				   struct irdma_bind_window *op_info);
 };
 
+bool irdma_uk_cq_empty(struct irdma_cq_uk *cq);
 int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 			  struct irdma_cq_poll_info *info);
 void irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
@@ -465,6 +458,8 @@ struct irdma_qp_uk {
 	__le64 *shadow_area;
 	__le32 *push_db;
 	__le64 *push_wqe;
+	void *push_db_map;
+	void *push_wqe_map;
 	struct irdma_ring sq_ring;
 	struct irdma_ring sq_sig_ring;
 	struct irdma_ring rq_ring;
@@ -494,12 +489,11 @@ struct irdma_qp_uk {
 	bool sq_flush_complete:1; /* Indicates flush was seen and SQ was empty after the flush */
 	bool rq_flush_complete:1; /* Indicates flush was seen and RQ was empty after the flush */
 	bool destroy_pending:1; /* Indicates the QP is being destroyed */
+	bool last_push_db:1; /* Indicates last DB was push DB */
 	void *back_qp;
 	spinlock_t *lock;
 	u8 dbg_rq_flushed;
 	u16 ord_cnt;
-	u8 sq_flush_seen;
-	u8 rq_flush_seen;
 	u8 rd_fence_rate;
 };
 
@@ -563,10 +557,12 @@ int irdma_fragcnt_to_quanta_sq(u32 frag_cnt, u16 *quanta);
 int irdma_fragcnt_to_wqesize_rq(u32 frag_cnt, u16 *wqe_size);
 void irdma_get_wqe_shift(struct irdma_uk_attrs *uk_attrs, u32 sge,
 			 u32 inline_data, u8 *shift);
-int irdma_get_sqdepth(struct irdma_uk_attrs *uk_attrs, u32 sq_size, u8 shift, u32 *sqdepth);
-int irdma_get_rqdepth(struct irdma_uk_attrs *uk_attrs, u32 rq_size, u8 shift, u32 *rqdepth);
+int irdma_get_sqdepth(struct irdma_uk_attrs *uk_attrs, u32 sq_size,
+		      u8 shift, u32 *sqdepth);
+int irdma_get_rqdepth(struct irdma_uk_attrs *uk_attrs, u32 rq_size,
+		      u8 shift, u32 *rqdepth);
 void irdma_qp_push_wqe(struct irdma_qp_uk *qp, __le64 *wqe, u16 quanta,
-		       u32 wqe_idx, bool post_sq);
+		       u32 wqe_idx, bool push_wqe);
 void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx);
 
 static inline struct qp_err_code irdma_ae_to_qp_err_code(u16 ae_id)
