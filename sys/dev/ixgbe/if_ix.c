@@ -1066,6 +1066,10 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 	/* Ensure SW/FW semaphore is free */
 	ixgbe_init_swfw_semaphore(hw);
 
+	/* Enable EEE power saving */
+	if (sc->feat_en & IXGBE_FEATURE_EEE)
+		hw->mac.ops.setup_eee(hw, true);
+
 	/* Set an initial default flow control value */
 	hw->fc.requested_mode = ixgbe_flow_control;
 
@@ -4591,6 +4595,20 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 				    "Link is up %s Full Duplex\n",
 				    ixgbe_link_speed_to_str(sc->link_speed));
 			sc->link_active = true;
+
+			/* If link speed is <= 1Gbps and EEE is enabled,
+			 * log info.
+			 */
+			if (sc->hw.mac.type == ixgbe_mac_E610 &&
+			    (sc->feat_en & IXGBE_FEATURE_EEE) &&
+			    sc->link_speed <= IXGBE_LINK_SPEED_1GB_FULL) {
+				device_printf(sc->dev,
+				    "Energy Efficient Ethernet (EEE) feature "
+				    "is not supported on link speeds equal to "
+				    "or below 1Gbps. EEE is supported on "
+				    "speeds above 1Gbps.\n");
+			}
+
 			/* Update any Flow Control changes */
 			ixgbe_fc_enable(&sc->hw);
 			/* Update DMA coalescing config */
@@ -5584,6 +5602,17 @@ ixgbe_sysctl_eee_state(SYSCTL_HANDLER_ARGS)
 	if ((new_eee < 0) || (new_eee > 1))
 		return (EINVAL);
 
+	/* If link speed is <= 1Gbps and EEE is being enabled, log info */
+	if (sc->hw.mac.type == ixgbe_mac_E610 &&
+	    new_eee &&
+	    sc->link_speed <= IXGBE_LINK_SPEED_1GB_FULL) {
+		device_printf(dev,
+		    "Energy Efficient Ethernet (EEE) feature is not "
+		    "supported on link speeds equal to or below 1Gbps. "
+		    "EEE is supported on speeds above 1Gbps.\n");
+		return (EINVAL);
+	}
+
 	retval = ixgbe_setup_eee(&sc->hw, new_eee);
 	if (retval) {
 		device_printf(dev, "Error in EEE setup: 0x%08X\n", retval);
@@ -5647,6 +5676,8 @@ ixgbe_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS)
 static void
 ixgbe_init_device_features(struct ixgbe_softc *sc)
 {
+	s32 error;
+
 	sc->feat_cap = IXGBE_FEATURE_NETMAP |
 	    IXGBE_FEATURE_RSS |
 	    IXGBE_FEATURE_MSI |
@@ -5702,6 +5733,9 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 	case ixgbe_mac_E610:
 		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
 		sc->feat_cap |= IXGBE_FEATURE_DBG_DUMP;
+		error = ixgbe_get_caps(&sc->hw);
+		if (error == 0 && sc->hw.func_caps.common_cap.eee_support != 0)
+			sc->feat_cap |= IXGBE_FEATURE_EEE;
 		break;
 	default:
 		break;
