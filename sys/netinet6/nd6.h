@@ -156,6 +156,7 @@ struct	in6_ndifreq {
 #define	ND6_QUEUE_FLAG_NEWGUA	0x01	/* new global unicast address event */
 #define	ND6_QUEUE_FLAG_LLADDR	0x02	/* link-layer address change event */
 #define	ND6_QUEUE_FLAG_ANYCAST	0x04	/* delay NA for anycast address */
+#define	ND6_QUEUE_FLAG_PROXY	0x08	/* delay NA for proxy address */
 
 /* GRAND specific flags */
 #define ND6_QUEUE_GRAND_MASK    (ND6_QUEUE_FLAG_NEWGUA|ND6_QUEUE_FLAG_LLADDR)
