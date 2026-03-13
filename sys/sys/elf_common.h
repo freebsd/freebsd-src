@@ -640,7 +640,10 @@ typedef struct {
 				   pre-initialization functions. */
 #define	DT_PREINIT_ARRAYSZ 33	/* Size in bytes of the array of
 				   pre-initialization functions. */
-#define	DT_MAXPOSTAGS	34	/* number of positive tags */
+#define	DT_SYMTAB_SHNDX	34	/* Address of the SHT_SYMTAB_SHNDX section
+				   associated with the symbol table referenced
+				   by the DT_SYMTAB element. */
+#define	DT_MAXPOSTAGS	34	/* (obsolete) number of positive tags */
 #define	DT_RELRSZ	35	/* Total size of ElfNN_Relr relocations. */
 #define	DT_RELR		36	/* Address of ElfNN_Relr relocations. */
 #define	DT_RELRENT	37	/* Size of each ElfNN_Relr relocation. */
