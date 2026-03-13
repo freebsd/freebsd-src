@@ -814,8 +814,8 @@ run_command(struct cfjail *j)
 	if (!injail) {
 		if (string_param(j->intparams[KP_JID]))
 			setenv("JID", string_param(j->intparams[KP_JID]), 1);
-		setenv("JNAME", string_param(j->intparams[KP_NAME]), 1);
-
+		if (string_param(j->intparams[KP_NAME]))
+			setenv("JNAME", string_param(j->intparams[KP_NAME]), 1);
 		path = string_param(j->intparams[KP_PATH]);
 		setenv("JPATH", path ? path : "", 1);
 	}
