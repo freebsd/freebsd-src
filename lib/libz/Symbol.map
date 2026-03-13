@@ -7,6 +7,19 @@ ZLIB_1.2.12 {
 	crc32_combine_op;
 };
 
+ZLIB_1.3.1.2 {
+	deflateUsed;
+};
+
+ZLIB_1.3.2 {
+	compressBound_z;
+	compress_z;
+	compress2_z;
+	deflateBound_z;
+	uncompress_z;
+	uncompress2_z;
+};
+
 ZLIB_1.2.9 {
 	inflateCodesUsed;
 	inflateValidate;
