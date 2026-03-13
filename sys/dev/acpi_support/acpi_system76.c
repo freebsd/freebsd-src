@@ -27,18 +27,19 @@
  */
 
 #include "opt_acpi.h"
+
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 
 #include <dev/acpica/acpivar.h>
-#include <sys/sysctl.h>
-
 #include <dev/backlight/backlight.h>
+
 #include "backlight_if.h"
 
 #define _COMPONENT ACPI_OEM
@@ -91,8 +92,8 @@ static int	acpi_system76_backlight_get_info(device_t dev,
 enum {
 	S76_CTRL_KBB	= 1,	/* Keyboard Brightness */
 	S76_CTRL_KBC	= 2,	/* Keyboard Color */
-	S76_CTRL_BCTL	= 3,	/* Battary Charging Start Thresholds */
-	S76_CTRL_BCTH	= 4,	/* Battary Charging End Thresholds */
+	S76_CTRL_BCTL	= 3,	/* Battery Charging Start Thresholds */
+	S76_CTRL_BCTH	= 4,	/* Battery Charging End Thresholds */
 };
 #define	S76_CTRL_MAX	5
 
@@ -125,16 +126,16 @@ static const struct s76_ctrl_table s76_sysctl_table[] = {
 		.desc = "Keyboard Color",
 	},
 	[S76_CTRL_BCTL] = {
-		.name = "battary_thresholds_low",
+		.name = "battery_charge_min",
 		.get_method = S76_CTRL_GBCT,
 		.set_method = S76_CTRL_SBCT,
-		.desc = "Battary charging start thresholds",
+		.desc = "Start charging the battery when this threshold is reached (percentage)",
 	},
 	[S76_CTRL_BCTH] = {
-		.name = "battary_thresholds_high",
+		.name = "battery_charge_max",
 		.get_method = S76_CTRL_GBCT,
 		.set_method = S76_CTRL_SBCT,
-		.desc = "Battary charging end thresholds",
+		.desc = "Stop charging the battery when this threshold is reached (percentage)",
 	},
 };
 
@@ -376,7 +377,7 @@ acpi_system76_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	if (req->newptr == NULL) {
 		/*
-		 * ACPI will not notify us if battary thresholds changes
+		 * ACPI will not notify us if battery thresholds changes
 		 * outside this module. Therefore, always fetch those values.
 		 */
 		if (method != S76_CTRL_BCTL && method != S76_CTRL_BCTH)
