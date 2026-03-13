@@ -44,8 +44,6 @@ void *_rtld_tlsdesc_static(void *);
 void *_rtld_tlsdesc_undef(void *);
 void *_rtld_tlsdesc_dynamic(void *);
 
-void _exit(int);
-
 bool
 arch_digest_dynamic(struct Struct_Obj_Entry *obj, const Elf_Dyn *dynp)
 {
