@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2019 - 2020 Intel Corporation
+ * Copyright (c) 2019 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -88,4 +88,28 @@
 #define ICE_DEV_ID_E822L_10G_BASE_T     0x1899
 /* Intel(R) Ethernet Connection E822-L 1GbE */
 #define ICE_DEV_ID_E822L_SGMII          0x189A
+/* Intel(R) Ethernet Controller E830-CC for backplane */
+#define ICE_DEV_ID_E830_BACKPLANE       0x12D1
+/* Intel(R) Ethernet Controller E830-CC for QSFP */
+#define ICE_DEV_ID_E830_QSFP56          0x12D2
+/* Intel(R) Ethernet Controller E830-CC for SFP */
+#define ICE_DEV_ID_E830_SFP             0x12D3
+/* Intel(R) Ethernet Controller E830-CC for SFP-DD */
+#define ICE_DEV_ID_E830_SFP_DD          0x12D4
+/* Intel(R) Ethernet Controller E830-C for backplane */
+#define ICE_DEV_ID_E830C_BACKPLANE      0x12D5
+/* Intel(R) Ethernet Controller E830-XXV for backplane */
+#define ICE_DEV_ID_E830_XXV_BACKPLANE   0x12DC
+/* Intel(R) Ethernet Controller E830-C for QSFP */
+#define ICE_DEV_ID_E830C_QSFP           0x12D8
+/* Intel(R) Ethernet Controller E830-XXV for QSFP */
+#define ICE_DEV_ID_E830_XXV_QSFP        0x12DD
+/* Intel(R) Ethernet Controller E830-C for SFP */
+#define ICE_DEV_ID_E830C_SFP            0x12DA
+/* Intel(R) Ethernet Controller E830-XXV for SFP */
+#define ICE_DEV_ID_E830_XXV_SFP         0x12DE
+/* Intel(R) Ethernet Controller E835-XXV for SFP */
+#define ICE_DEV_ID_E835_XXV_SFP         0x124A
+/* Intel(R) Ethernet Controller E835-CC for QSFP */
+#define ICE_DEV_ID_E835_QSFP            0x1249
 #endif /* ICE_DEVIDS_H */

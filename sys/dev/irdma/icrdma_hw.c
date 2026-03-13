@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2023 Intel Corporation
+ * Copyright (c) 2017 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,6 +35,7 @@
 #include "osdep.h"
 #include "irdma_type.h"
 #include "icrdma_hw.h"
+#include "irdma_main.h"
 
 void disable_prefetch(struct irdma_hw *hw);
 
@@ -244,11 +245,12 @@ icrdma_init_hw(struct irdma_sc_dev *dev)
 }
 
 void
-irdma_init_config_check(struct irdma_config_check *cc, u8 traffic_class, u16 qs_handle)
+irdma_init_config_check(struct irdma_config_check *cc, u8 traffic_class, u8 prio, u16 qs_handle)
 {
 	cc->config_ok = false;
 	cc->traffic_class = traffic_class;
 	cc->qs_handle = qs_handle;
+	cc->prio = prio;
 	cc->lfc_set = 0;
 	cc->pfc_set = 0;
 }
@@ -256,16 +258,27 @@ irdma_init_config_check(struct irdma_config_check *cc, u8 traffic_class, u16 qs_
 static bool
 irdma_is_lfc_set(struct irdma_config_check *cc, struct irdma_sc_vsi *vsi)
 {
+	u32 temp;
 	u32 lfc = 1;
+	u32 rx_pause_enable, tx_pause_enable;
 	u8 fn_id = vsi->dev->hmc_fn_id;
 
-	lfc &= (rd32(vsi->dev->hw,
-		     PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_0 + 4 * fn_id) >> 8);
-	lfc &= (rd32(vsi->dev->hw,
-		     PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_0 + 4 * fn_id) >> 8);
+	if (irdma_fw_major_ver(vsi->dev) == 1) {
+		rx_pause_enable = PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_0;
+		tx_pause_enable = PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_0;
+	} else {
+		rx_pause_enable = CNV_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_0;
+		tx_pause_enable = CNV_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_0;
+	}
+
+#define LFC_ENABLE BIT_ULL(8)
+#define LFC_ENABLE_S 8
+	temp = rd32(vsi->dev->hw, rx_pause_enable + 4 * fn_id);
+	lfc &= FIELD_GET(LFC_ENABLE, temp);
+	temp = rd32(vsi->dev->hw, tx_pause_enable + 4 * fn_id);
+	lfc &= FIELD_GET(LFC_ENABLE, temp);
 	lfc &= rd32(vsi->dev->hw,
 		    PRTMAC_HSEC_CTL_RX_ENABLE_GPP_0 + 4 * vsi->dev->hmc_fn_id);
-
 	if (lfc)
 		return true;
 	return false;
@@ -290,14 +303,21 @@ static bool
 irdma_is_pfc_set(struct irdma_config_check *cc, struct irdma_sc_vsi *vsi)
 {
 	u32 pause;
+	u32 rx_pause_enable, tx_pause_enable;
 	u8 fn_id = vsi->dev->hmc_fn_id;
 
-	pause = (rd32(vsi->dev->hw,
-		      PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_0 + 4 * fn_id) >>
-		 cc->traffic_class) & BIT(0);
-	pause &= (rd32(vsi->dev->hw,
-		       PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_0 + 4 * fn_id) >>
-		  cc->traffic_class) & BIT(0);
+	if (irdma_fw_major_ver(vsi->dev) == 1) {
+		rx_pause_enable = PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_0;
+		tx_pause_enable = PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_0;
+	} else {
+		rx_pause_enable = CNV_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_0;
+		tx_pause_enable = CNV_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_0;
+	}
+
+	pause = (rd32(vsi->dev->hw, rx_pause_enable + 4 * fn_id) >>
+		 cc->prio) & BIT(0);
+	pause &= (rd32(vsi->dev->hw, tx_pause_enable + 4 * fn_id) >>
+		  cc->prio) & BIT(0);
 
 	return irdma_check_tc_has_pfc(vsi, GLDCB_TC2PFC, cc->traffic_class) &&
 	    pause;
@@ -314,17 +334,18 @@ irdma_is_config_ok(struct irdma_config_check *cc, struct irdma_sc_vsi *vsi)
 	return cc->config_ok;
 }
 
-#define IRDMA_RCV_WND_NO_FC	65536
-#define IRDMA_RCV_WND_FC	65536
+#define IRDMA_RCV_WND_NO_FC	0x1FFFC
+#define IRDMA_RCV_WND_FC	0x3FFFC
 
-#define IRDMA_CWND_NO_FC	0x1
-#define IRDMA_CWND_FC		0x18
+#define IRDMA_CWND_NO_FC	0x20
+#define IRDMA_CWND_FC		0x400
+#define IRDMA_CWND_DCQCN_FC	0x80000
 
 #define IRDMA_RTOMIN_NO_FC	0x5
 #define IRDMA_RTOMIN_FC		0x32
 
 #define IRDMA_ACKCREDS_NO_FC	0x02
-#define IRDMA_ACKCREDS_FC	0x06
+#define IRDMA_ACKCREDS_FC	0x1E
 
 static void
 irdma_check_flow_ctrl(struct irdma_sc_vsi *vsi, u8 user_prio, u8 traffic_class)
@@ -372,7 +393,7 @@ irdma_check_fc_for_qp(struct irdma_sc_vsi *vsi, struct irdma_sc_qp *sc_qp)
 		struct irdma_config_check *cfg_chk = &vsi->cfg_check[i];
 
 		irdma_init_config_check(cfg_chk,
-					vsi->qos[i].traffic_class,
+					vsi->qos[i].traffic_class, i,
 					vsi->qos[i].qs_handle);
 		if (sc_qp->qs_handle == cfg_chk->qs_handle)
 			irdma_check_flow_ctrl(vsi, i, cfg_chk->traffic_class);

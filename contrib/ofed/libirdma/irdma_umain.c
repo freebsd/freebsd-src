@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2022 Intel Corporation
+ * Copyright (c) 2021 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -48,7 +48,7 @@
 /**
  *  Driver version
  */
-char libirdma_version[] = "1.2.36-k";
+char libirdma_version[] = "1.3.56-k";
 
 unsigned int irdma_dbg;
 
@@ -87,6 +87,18 @@ static const struct hca_info hca_table[] = {
 	INTEL_HCA(ICE_DEV_ID_E822L_SFP),
 	INTEL_HCA(ICE_DEV_ID_E822L_10G_BASE_T),
 	INTEL_HCA(ICE_DEV_ID_E822L_SGMII),
+	INTEL_HCA(ICE_DEV_ID_E830_BACKPLANE),
+	INTEL_HCA(ICE_DEV_ID_E830_QSFP56),
+	INTEL_HCA(ICE_DEV_ID_E830_SFP),
+	INTEL_HCA(ICE_DEV_ID_E830_SFP_DD),
+	INTEL_HCA(ICE_DEV_ID_E830C_BACKPLANE),
+	INTEL_HCA(ICE_DEV_ID_E830_XXV_BACKPLANE),
+	INTEL_HCA(ICE_DEV_ID_E830C_QSFP),
+	INTEL_HCA(ICE_DEV_ID_E830_XXV_QSFP),
+	INTEL_HCA(ICE_DEV_ID_E830C_SFP),
+	INTEL_HCA(ICE_DEV_ID_E830_XXV_SFP),
+	INTEL_HCA(ICE_DEV_ID_E835_XXV_SFP),
+	INTEL_HCA(ICE_DEV_ID_E835_QSFP),
 };
 
 static struct ibv_context_ops irdma_ctx_ops = {
@@ -239,7 +251,7 @@ irdma_driver_init(const char *uverbs_sys_path,
 
 	hca_size = sizeof(hca_table) / sizeof(struct hca_info);
 	while (i < hca_size && !device_found) {
-		if (device_id != hca_table[i].device)
+		if (device_id == hca_table[i].device)
 			device_found = 1;
 		++i;
 	}

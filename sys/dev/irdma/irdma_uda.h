@@ -44,6 +44,7 @@ struct irdma_sc_cqp;
 struct irdma_ah_info {
 	struct irdma_sc_vsi *vsi;
 	struct irdma_cqp_request *cqp_request;
+	atomic_t ah_refcnt;
 	u32 pd_idx;
 	u32 dst_arpindex;
 	u32 dest_ip_addr[4];
@@ -63,6 +64,7 @@ struct irdma_ah_info {
 struct irdma_sc_ah {
 	struct irdma_sc_dev *dev;
 	struct irdma_ah_info ah_info;
+	struct work_struct ah_free_work;
 };
 
 int irdma_sc_add_mcast_grp(struct irdma_mcast_grp_info *ctx,

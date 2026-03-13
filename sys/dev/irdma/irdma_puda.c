@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -435,6 +435,7 @@ irdma_puda_poll_cmpl(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq,
 		/* reusing so synch the buffer for CPU use */
 		dma_sync_single_for_cpu(hw_to_dev(dev->hw), buf->mem.pa, buf->mem.size, DMA_BIDIRECTIONAL);
 		IRDMA_RING_SET_TAIL(qp->sq_ring, info.wqe_idx);
+		buf->queued = false;
 		rsrc->xmit_complete(rsrc->vsi, buf);
 		spin_lock_irqsave(&rsrc->bufpool_lock, flags);
 		rsrc->tx_wqe_avail_cnt++;
@@ -536,7 +537,7 @@ irdma_puda_send(struct irdma_sc_qp *qp, struct irdma_puda_send_info *info)
  * @rsrc: resource to use for buffer
  * @buf: puda buffer to transmit
  */
-void
+int
 irdma_puda_send_buf(struct irdma_puda_rsrc *rsrc,
 		    struct irdma_puda_buf *buf)
 {
@@ -545,17 +546,28 @@ irdma_puda_send_buf(struct irdma_puda_rsrc *rsrc,
 	unsigned long flags;
 
 	spin_lock_irqsave(&rsrc->bufpool_lock, flags);
+	if (buf) {
+		if (buf->queued) {
+			irdma_debug(rsrc->dev, IRDMA_DEBUG_PUDA,
+				    "PUDA: Attempting to re-send queued buf %p\n",
+				    buf);
+			spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
+			return -EINVAL;
+		}
+
+		buf->queued = true;
+	}
 	/*
 	 * if no wqe available or not from a completion and we have pending buffers, we must queue new buffer
 	 */
 	if (!rsrc->tx_wqe_avail_cnt || (buf && !list_empty(&rsrc->txpend))) {
 		list_add_tail(&buf->list, &rsrc->txpend);
-		spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
 		rsrc->stats_sent_pkt_q++;
+		spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
 		if (rsrc->type == IRDMA_PUDA_RSRC_TYPE_ILQ)
 			irdma_debug(rsrc->dev, IRDMA_DEBUG_PUDA,
 				    "adding to txpend\n");
-		return;
+		return 0;
 	}
 	rsrc->tx_wqe_avail_cnt--;
 	/*
@@ -595,6 +607,7 @@ irdma_puda_send_buf(struct irdma_puda_rsrc *rsrc,
 	}
 done:
 	spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
+	return 0;
 }
 
 /**
@@ -737,11 +750,14 @@ irdma_puda_qp_create(struct irdma_puda_rsrc *rsrc)
 	irdma_qp_add_qos(qp);
 	irdma_puda_qp_setctx(rsrc);
 
+	qp->qp_state = IRDMA_QP_STATE_RTS;
+
 	if (rsrc->dev->ceq_valid)
 		ret = irdma_cqp_qp_create_cmd(rsrc->dev, qp);
 	else
 		ret = irdma_puda_qp_wqe(rsrc->dev, qp);
 	if (ret) {
+		qp->qp_state = IRDMA_QP_STATE_INVALID;
 		irdma_qp_rem_qos(qp);
 		rsrc->dev->ws_remove(qp->vsi, qp->user_pri);
 		irdma_free_dma_mem(rsrc->dev->hw, &rsrc->qpmem);
@@ -964,6 +980,7 @@ irdma_puda_dele_rsrc(struct irdma_sc_vsi *vsi, enum puda_rsrc_type type,
 		irdma_free_hash_desc(rsrc->hash_desc);
 		/* fallthrough */
 	case PUDA_QP_CREATED:
+		rsrc->qp.qp_state = IRDMA_QP_STATE_INVALID;
 		irdma_qp_rem_qos(&rsrc->qp);
 
 		if (!reset)
