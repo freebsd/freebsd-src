@@ -864,12 +864,12 @@ dt_type(unsigned int mach, unsigned int dtype)
 	case DT_FLAGS: return "FLAGS";
 	case DT_PREINIT_ARRAY: return "PREINIT_ARRAY";
 	case DT_PREINIT_ARRAYSZ: return "PREINIT_ARRAYSZ";
-	case DT_MAXPOSTAGS: return "MAXPOSTAGS";
 	case DT_SUNW_AUXILIARY: return "SUNW_AUXILIARY";
 	case DT_SUNW_RTLDINF: return "SUNW_RTLDINF";
 	case DT_SUNW_FILTER: return "SUNW_FILTER";
 	case DT_SUNW_CAP: return "SUNW_CAP";
 	case DT_SUNW_ASLR: return "SUNW_ASLR";
+	case DT_SYMTAB_SHNDX: return "SYMTAB_SHNDX";
 	case DT_CHECKSUM: return "CHECKSUM";
 	case DT_PLTPADSZ: return "PLTPADSZ";
 	case DT_MOVEENT: return "MOVEENT";
