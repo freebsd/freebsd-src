@@ -361,7 +361,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 * be delayed by a random time between 0 and MAX_ANYCAST_DELAY_TIME
 	 * to reduce the probability of network congestion.
 	 */
-	if (anycast == 0 && proxy == 0)
+	if (anycast == 0)
 		nd6_na_output_fib(ifp, &saddr6, &taddr6, rflag, tlladdr,
 		    proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
 	else
@@ -1652,16 +1652,16 @@ static void
 nd6_queue_rel(void *arg)
 {
 	struct nd_queue *ndq = arg;
-	struct ifnet *ifp = ndq->ndq_ifa->ifa_ifp;
+	struct ifaddr *ifa = ndq->ndq_ifa;
 
-	IF_ADDR_WLOCK_ASSERT(ifp);
+	IF_ADDR_WLOCK_ASSERT(ifa->ifa_ifp);
 
-	/* Remove ndq from the nd_queue and release its reference */
-	TAILQ_REMOVE(&ifp->if_inet6->nd_queue, ndq, ndq_list);
-	IF_ADDR_WUNLOCK(ifp);
-
-	ifa_free(ndq->ndq_ifa);
+	/* Remove ndq from the nd_queue and free it */
+	TAILQ_REMOVE(&ifa->ifa_ifp->if_inet6->nd_queue, ndq, ndq_list);
 	free(ndq, M_IP6NDP);
+	IF_ADDR_WUNLOCK(ifa->ifa_ifp);
+
+	ifa_free(ifa);
 }
 
 static void
@@ -1671,6 +1671,7 @@ nd6_queue_timer(void *arg)
 	struct ifaddr *ifa = ndq->ndq_ifa;
 	struct ifnet *ifp = ifa->ifa_ifp;
 	struct in6_ifextra *ext = ifp->if_inet6;
+	struct in6_addr daddr;
 	struct epoch_tracker et;
 	int delay, tlladdr;
 	u_long flags;
@@ -1680,6 +1681,7 @@ nd6_queue_timer(void *arg)
 	CURVNET_SET(ifp->if_vnet);
 	NET_EPOCH_ENTER(et);
 
+	daddr = ndq->ndq_daddr;
 	tlladdr = ND6_NA_OPT_LLA;
 	flags = (V_ip6_forwarding) ? ND_NA_FLAG_ROUTER : 0;
 	if ((ext->nd_flags & ND6_IFF_ACCEPT_RTADV) != 0 && V_ip6_norbit_raif)
@@ -1713,8 +1715,8 @@ nd6_queue_timer(void *arg)
 	callout_reset(&ndq->ndq_callout, delay, nd6_queue_rel, ndq);
 	IF_ADDR_WUNLOCK(ifp);
 
-	if (__predict_true(in6_setscope(&ndq->ndq_daddr, ifp, NULL) == 0))
-		nd6_na_output_fib(ifp, &ndq->ndq_daddr, IFA_IN6(ifa), flags, tlladdr,
+	if (__predict_true(in6_setscope(&daddr, ifp, NULL) == 0))
+		nd6_na_output_fib(ifp, &daddr, IFA_IN6(ifa), flags, tlladdr,
 		    NULL, ifp->if_fib);
 
 	NET_EPOCH_EXIT(et);
