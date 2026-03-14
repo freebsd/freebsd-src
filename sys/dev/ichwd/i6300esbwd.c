@@ -112,7 +112,6 @@ i6300esbwd_event(void *arg, unsigned int cmd, int *error)
 	cmd &= WD_INTERVAL;
 	if (cmd != 0 &&
 	    (cmd < WD_TO_1MS || (cmd - WD_TO_1MS) >= WDT_PRELOAD_BIT)) {
-		*error = EINVAL;
 		return;
 	}
 	timeout = 1 << (cmd - WD_TO_1MS);
@@ -148,6 +147,8 @@ i6300esbwd_event(void *arg, unsigned int cmd, int *error)
 		regval = i6300esbwd_lock_read(sc);
 		sc->locked = regval & WDT_LOCK;
 	}
+	/* Set error to 0 to indicate we did something. */
+	*error = 0;
 }
 
 static int

@@ -24,7 +24,7 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 .if ${MK_LLVM_BINUTILS} != "no"
-LINKS+=		${BINDIR}/llvm-size ${BINDIR}/size
+SYMLINKS+=	llvm-size ${BINDIR}/size
 MLINKS+=	llvm-size.1 size.1
 .endif
 

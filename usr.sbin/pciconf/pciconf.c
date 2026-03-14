@@ -38,6 +38,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <assert.h>
+#include <bitstring.h>
 #include <ctype.h>
 #include <err.h>
 #include <inttypes.h>
@@ -65,13 +66,21 @@ struct pci_vendor_info
     char				*desc;
 };
 
+
+struct pci_tree_entry {
+	TAILQ_ENTRY(pci_tree_entry)	link;
+	TAILQ_HEAD(pci_tree_list, pci_tree_entry) children;
+	struct pci_conf			*p;
+};
+
 static TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
 static struct pcisel getsel(const char *str);
 static void list_bridge(int fd, struct pci_conf *p);
 static void list_bars(int fd, struct pci_conf *p);
 static void list_devs(const char *name, int verbose, int bars, int bridge,
-    int caps, int errors, int vpd, int listmode);
+    int caps, int errors, int vpd, int compact);
+static void show_tree(int verbose);
 static void list_verbose(struct pci_conf *p);
 static void list_vpd(int fd, struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
@@ -91,6 +100,7 @@ usage(void)
 
 	fprintf(stderr, "%s",
 		"usage: pciconf -l [-BbcevV] [device]\n"
+		"       pciconf -t [-v]\n"
 		"       pciconf -a device\n"
 		"       pciconf -r [-b | -h] device addr[:addr2]\n"
 		"       pciconf -w [-b | -h] device addr value\n"
@@ -103,17 +113,17 @@ int
 main(int argc, char **argv)
 {
 	int c, width;
-	int listmode, readmode, writemode, attachedmode, dumpbarmode;
-	int bars, bridge, caps, errors, verbose, vpd;
+	enum { NONE, LIST, TREE, READ, WRITE, ATTACHED, DUMPBAR } mode;
+	int compact, bars, bridge, caps, errors, verbose, vpd;
 
-	listmode = readmode = writemode = attachedmode = dumpbarmode = 0;
-	bars = bridge = caps = errors = verbose = vpd= 0;
+	mode = NONE;
+	compact = bars = bridge = caps = errors = verbose = vpd = 0;
 	width = 4;
 
-	while ((c = getopt(argc, argv, "aBbcDehlrwVvx")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcDehlrtwVvx")) != -1) {
 		switch(c) {
 		case 'a':
-			attachedmode = 1;
+			mode = ATTACHED;
 			break;
 
 		case 'B':
@@ -130,7 +140,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'D':
-			dumpbarmode = 1;
+			mode = DUMPBAR;
 			break;
 
 		case 'e':
@@ -142,15 +152,20 @@ main(int argc, char **argv)
 			break;
 
 		case 'l':
-			listmode++;
+			if (mode == LIST)
+				compact = 1;
+			mode = LIST;
 			break;
 
 		case 'r':
-			readmode = 1;
+			mode = READ;
 			break;
 
+		case 't':
+			mode = TREE;
+			break;
 		case 'w':
-			writemode = 1;
+			mode = WRITE;
 			break;
 
 		case 'v':
@@ -170,53 +185,56 @@ main(int argc, char **argv)
 		}
 	}
 
-	if ((listmode && optind >= argc + 1)
-	    || (writemode && optind + 3 != argc)
-	    || (readmode && optind + 2 != argc)
-	    || (attachedmode && optind + 1 != argc)
-	    || (dumpbarmode && (optind + 2 > argc || optind + 4 < argc))
-	    || (width == 8 && !dumpbarmode))
-		usage();
-
-	if (listmode) {
+	switch (mode) {
+	case LIST:
+		if (optind >= argc + 1)
+			usage();
 		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
-		    bars, bridge, caps, errors, vpd, listmode);
-	} else if (attachedmode) {
+		    bars, bridge, caps, errors, vpd, compact);
+		break;
+	case TREE:
+		if (optind != argc)
+			usage();
+		show_tree(verbose);
+		break;
+	case ATTACHED:
+		if (optind + 1 != argc)
+			usage();
 		chkattached(argv[optind]);
-	} else if (readmode) {
+		break;
+	case READ:
+		if (optind + 2 != argc || width == 8)
+			usage();
 		readit(argv[optind], argv[optind + 1], width);
-	} else if (writemode) {
+		break;
+	case WRITE:
+		if (optind + 3 != argc || width == 8)
+			usage();
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
 		    width);
-	} else if (dumpbarmode) {
+		break;
+	case DUMPBAR:
+		if (optind + 2 > argc || optind + 4 < argc)
+			usage();
 		dump_bar(argv[optind], argv[optind + 1],
 		    optind + 2 < argc ? argv[optind + 2] : NULL, 
 		    optind + 3 < argc ? argv[optind + 3] : NULL, 
 		    width, verbose);
-	} else {
+		break;
+	default:
 		usage();
 	}
 
 	return (exitstatus);
 }
 
-static void
-list_devs(const char *name, int verbose, int bars, int bridge, int caps,
-    int errors, int vpd, int listmode)
+static bool
+fetch_devs(int fd, const char *name, struct pci_conf **confp, size_t *countp)
 {
-	int fd;
 	struct pci_conf_io pc;
 	struct pci_conf conf[255], *p;
 	struct pci_match_conf patterns[1];
-	int none_count = 0;
-
-	if (verbose)
-		load_vendors();
-
-	fd = open(_PATH_DEVPCI, (bridge || caps || errors) ? O_RDWR : O_RDONLY,
-	    0);
-	if (fd < 0)
-		err(1, "%s", _PATH_DEVPCI);
+	size_t count;
 
 	bzero(&pc, sizeof(struct pci_conf_io));
 	pc.match_buf_len = sizeof(conf);
@@ -232,86 +250,348 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 		pc.patterns = patterns;
 	}
 
+	p = NULL;
+	count = 0;
 	do {
 		if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
 			err(1, "ioctl(PCIOCGETCONF)");
 
-		/*
-		 * 255 entries should be more than enough for most people,
-		 * but if someone has more devices, and then changes things
-		 * around between ioctls, we'll do the cheesy thing and
-		 * just bail.  The alternative would be to go back to the
-		 * beginning of the list, and print things twice, which may
-		 * not be desirable.
-		 */
 		if (pc.status == PCI_GETCONF_LIST_CHANGED) {
-			warnx("PCI device list changed, please try again");
-			exitstatus = 1;
-			close(fd);
-			return;
-		} else if (pc.status ==  PCI_GETCONF_ERROR) {
+			free(p);
+			p = NULL;
+			count = 0;
+			pc.offset = 0;
+			continue;
+		}
+
+		if (pc.status == PCI_GETCONF_ERROR) {
 			warnx("error returned from PCIOCGETCONF ioctl");
-			exitstatus = 1;
-			close(fd);
-			return;
+			return (false);
 		}
-		if (listmode == 2)
-			printf("drv\tselector\tclass    rev  hdr  "
-			    "vendor device subven subdev\n");
-		for (p = conf; p < &conf[pc.num_matches]; p++) {
-			if (listmode == 2)
-				printf("%s%d@pci%d:%d:%d:%d:"
-				    "\t%06x   %02x   %02x   "
-				    "%04x   %04x   %04x   %04x\n",
-				    *p->pd_name ? p->pd_name : "none",
-				    *p->pd_name ? (int)p->pd_unit :
-				    none_count++, p->pc_sel.pc_domain,
-				    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
-				    p->pc_sel.pc_func, (p->pc_class << 16) |
-				    (p->pc_subclass << 8) | p->pc_progif,
-				    p->pc_revid, p->pc_hdr,
-				    p->pc_vendor, p->pc_device,
-				    p->pc_subvendor, p->pc_subdevice);
-			else
-				printf("%s%d@pci%d:%d:%d:%d:"
-				    "\tclass=0x%06x rev=0x%02x hdr=0x%02x "
-				    "vendor=0x%04x device=0x%04x "
-				    "subvendor=0x%04x subdevice=0x%04x\n",
-				    *p->pd_name ? p->pd_name : "none",
-				    *p->pd_name ? (int)p->pd_unit :
-				    none_count++, p->pc_sel.pc_domain,
-				    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
-				    p->pc_sel.pc_func, (p->pc_class << 16) |
-				    (p->pc_subclass << 8) | p->pc_progif,
-				    p->pc_revid, p->pc_hdr,
-				    p->pc_vendor, p->pc_device,
-				    p->pc_subvendor, p->pc_subdevice);
-			if (verbose)
-				list_verbose(p);
-			if (bars)
-				list_bars(fd, p);
-			if (bridge)
-				list_bridge(fd, p);
-			if (caps)
-				list_caps(fd, p, caps);
-			if (errors)
-				list_errors(fd, p);
-			if (vpd)
-				list_vpd(fd, p);
+
+		p = reallocf(p, (count + pc.num_matches) * sizeof(*p));
+		if (p == NULL) {
+			warnx("failed to allocate buffer for PCIOCGETCONF results");
+			return (false);
 		}
+
+		memcpy(p + count, conf, pc.num_matches * sizeof(*p));
+		count += pc.num_matches;
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
+	*confp = p;
+	*countp = count;
+	return (true);
+}
+
+static void
+list_devs(const char *name, int verbose, int bars, int bridge, int caps,
+    int errors, int vpd, int compact)
+{
+	int fd;
+	struct pci_conf *conf, *p;
+	size_t count;
+	int none_count = 0;
+
+	if (verbose)
+		load_vendors();
+
+	fd = open(_PATH_DEVPCI, (bridge || caps || errors) ? O_RDWR : O_RDONLY,
+	    0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (!fetch_devs(fd, name, &conf, &count)) {
+		exitstatus = 1;
+		close(fd);
+		return;
+	}
+
+	if (compact)
+		printf("drv\tselector\tclass    rev  hdr  "
+		    "vendor device subven subdev\n");
+	for (p = conf; p < conf + count; p++) {
+		if (compact)
+			printf("%s%d@pci%d:%d:%d:%d:"
+			    "\t%06x   %02x   %02x   "
+			    "%04x   %04x   %04x   %04x\n",
+			    *p->pd_name ? p->pd_name : "none",
+			    *p->pd_name ? (int)p->pd_unit :
+			    none_count++, p->pc_sel.pc_domain,
+			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
+			    p->pc_sel.pc_func, (p->pc_class << 16) |
+			    (p->pc_subclass << 8) | p->pc_progif,
+			    p->pc_revid, p->pc_hdr,
+			    p->pc_vendor, p->pc_device,
+			    p->pc_subvendor, p->pc_subdevice);
+		else
+			printf("%s%d@pci%d:%d:%d:%d:"
+			    "\tclass=0x%06x rev=0x%02x hdr=0x%02x "
+			    "vendor=0x%04x device=0x%04x "
+			    "subvendor=0x%04x subdevice=0x%04x\n",
+			    *p->pd_name ? p->pd_name : "none",
+			    *p->pd_name ? (int)p->pd_unit :
+			    none_count++, p->pc_sel.pc_domain,
+			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
+			    p->pc_sel.pc_func, (p->pc_class << 16) |
+			    (p->pc_subclass << 8) | p->pc_progif,
+			    p->pc_revid, p->pc_hdr,
+			    p->pc_vendor, p->pc_device,
+			    p->pc_subvendor, p->pc_subdevice);
+		if (verbose)
+			list_verbose(p);
+		if (bars)
+			list_bars(fd, p);
+		if (bridge)
+			list_bridge(fd, p);
+		if (caps)
+			list_caps(fd, p, caps);
+		if (errors)
+			list_errors(fd, p);
+		if (vpd)
+			list_vpd(fd, p);
+	}
+
+	free(conf);
+	close(fd);
+}
+
+static int
+pci_conf_compar(const void *lhs, const void *rhs)
+{
+	const struct pci_conf *l, *r;
+
+	l = lhs;
+	r = rhs;
+	if (l->pc_sel.pc_domain != r->pc_sel.pc_domain)
+		return (l->pc_sel.pc_domain - r->pc_sel.pc_domain);
+	if (l->pc_sel.pc_bus != r->pc_sel.pc_bus)
+		return (l->pc_sel.pc_bus - r->pc_sel.pc_bus);
+	if (l->pc_sel.pc_dev != r->pc_sel.pc_dev)
+		return (l->pc_sel.pc_dev - r->pc_sel.pc_dev);
+	return (l->pc_sel.pc_func - r->pc_sel.pc_func);
+}
+
+static void
+tree_add_device(struct pci_tree_list *head, struct pci_conf *p,
+    struct pci_conf *conf, size_t count, bitstr_t *added)
+{
+	struct pci_tree_entry *e;
+	struct pci_conf *child;
+	size_t i;
+
+	e = malloc(sizeof(*e));
+	TAILQ_INIT(&e->children);
+	e->p = p;
+	TAILQ_INSERT_TAIL(head, e, link);
+
+	switch (p->pc_hdr) {
+	case PCIM_HDRTYPE_BRIDGE:
+	case PCIM_HDRTYPE_CARDBUS:
+		break;
+	default:
+		return;
+	}
+	if (p->pc_secbus == 0)
+		return;
+
+	assert(p->pc_subbus >= p->pc_secbus);
+	for (i = 0; i < count; i++) {
+		child = conf + i;
+		if (child->pc_sel.pc_domain < p->pc_sel.pc_domain)
+			continue;
+		if (child->pc_sel.pc_domain > p->pc_sel.pc_domain)
+			break;
+		if (child->pc_sel.pc_bus < p->pc_secbus)
+			continue;
+		if (child->pc_sel.pc_bus > p->pc_subbus)
+			break;
+
+		if (child->pc_sel.pc_bus == p->pc_secbus) {
+			assert(bit_test(added, i) == 0);
+			bit_set(added, i);
+			tree_add_device(&e->children, conf + i, conf, count,
+			    added);
+			continue;
+		}
+
+		if (bit_test(added, i) == 0) {
+			/*
+			 * This really shouldn't happen, but if for
+			 * some reason a child bridge doesn't claim
+			 * this device, display it now rather than
+			 * later.
+			 */
+			bit_set(added, i);
+			tree_add_device(&e->children, conf + i, conf, count,
+			    added);
+			continue;
+		}
+	}
+}
+
+static bool
+build_tree(struct pci_tree_list *head, struct pci_conf *conf, size_t count)
+{
+	bitstr_t *added;
+	size_t i;
+
+	TAILQ_INIT(head);
+
+	/*
+	 * Allocate a bitstring to track which devices have already
+	 * been added to the tree.
+	 */
+	added = bit_alloc(count);
+	if (added == NULL)
+		return (false);
+
+	for (i = 0; i < count; i++) {
+		if (bit_test(added, i))
+			continue;
+
+		bit_set(added, i);
+		tree_add_device(head, conf + i, conf, count, added);
+	}
+
+	free(added);
+	return (true);
+}
+
+static void
+free_tree(struct pci_tree_list *head)
+{
+	struct pci_tree_entry *e, *n;
+
+	TAILQ_FOREACH_SAFE(e, head, link, n) {
+		free_tree(&e->children);
+		TAILQ_REMOVE(head, e, link);
+		free(e);
+	}
+}
+
+static void
+print_tree_entry(struct pci_tree_entry *e, const char *indent, bool last,
+    int verbose)
+{
+	struct pci_vendor_info *vi;
+	struct pci_device_info *di;
+	struct pci_tree_entry *child;
+	struct pci_conf *p = e->p;
+	char *indent_buf;
+
+	printf("%s%c--- ", indent, last ? '`' : '|');
+	if (p->pd_name[0] != '\0')
+		printf("%s%lu", p->pd_name, p->pd_unit);
+	else
+		printf("pci%d:%d:%d:%d", p->pc_sel.pc_domain, p->pc_sel.pc_bus,
+		    p->pc_sel.pc_dev, p->pc_sel.pc_func);
+
+	if (verbose) {
+		di = NULL;
+		TAILQ_FOREACH(vi, &pci_vendors, link) {
+			if (vi->id == p->pc_vendor) {
+				printf(" %s", vi->desc);
+				TAILQ_FOREACH(di, &vi->devs, link) {
+					if (di->id == p->pc_device) {
+						printf(" %s", di->desc);
+						break;
+					}
+				}
+				break;
+			}
+		}
+		if (vi == NULL)
+			printf(" vendor=0x%04x device=0x%04x", p->pc_vendor,
+			    p->pc_device);
+		else if (di == NULL)
+			printf(" device=0x%04x", p->pc_device);
+	}
+	printf("\n");
+
+	if (TAILQ_EMPTY(&e->children))
+		return;
+
+	asprintf(&indent_buf, "%s%c  ", indent, last ? ' ' : '|');
+	TAILQ_FOREACH(child, &e->children, link) {
+		print_tree_entry(child, indent_buf, TAILQ_NEXT(child, link) ==
+		    NULL, verbose);
+	}
+	free(indent_buf);
+}
+
+static void
+show_tree(int verbose)
+{
+	struct pci_tree_list head;
+	struct pci_tree_entry *e, *n;
+	struct pci_conf *conf;
+	size_t count;
+	int fd;
+	bool last, new_bus;
+
+	if (verbose)
+		load_vendors();
+
+	fd = open(_PATH_DEVPCI, O_RDONLY);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (!fetch_devs(fd, NULL, &conf, &count)) {
+		exitstatus = 1;
+		goto close_fd;
+	}
+
+	if (count == 0)
+		goto close_fd;
+
+	if (conf[0].pc_reported_len < offsetof(struct pci_conf, pc_subbus)) {
+		warnx("kernel too old");
+		exitstatus = 1;
+		goto free_conf;
+	}
+
+	/* First, sort devices by DBSF. */
+	qsort(conf, count, sizeof(*conf), pci_conf_compar);
+
+	if (!build_tree(&head, conf, count)) {
+		warnx("failed to build tree of PCI devices");
+		exitstatus = 1;
+		goto free_conf;
+	}
+
+	new_bus = true;
+	TAILQ_FOREACH(e, &head, link) {
+		if (new_bus) {
+			printf("--- pci%d:%d\n", e->p->pc_sel.pc_domain,
+			    e->p->pc_sel.pc_bus);
+			new_bus = false;
+		}
+
+		/* Is this the last entry for this bus? */
+		n = TAILQ_NEXT(e, link);
+		if (n == NULL ||
+		    n->p->pc_sel.pc_domain != e->p->pc_sel.pc_domain ||
+		    n->p->pc_sel.pc_bus != e->p->pc_sel.pc_bus) {
+			last = true;
+			new_bus = true;
+		} else
+			last = false;
+
+		print_tree_entry(e, "  ", last, verbose);
+	}
+
+	free_tree(&head);
+free_conf:
+	free(conf);
+close_fd:
 	close(fd);
 }
 
 static void
-print_bus_range(int fd, struct pci_conf *p, int secreg, int subreg)
+print_bus_range(struct pci_conf *p)
 {
-	uint8_t secbus, subbus;
-
-	secbus = read_config(fd, &p->pc_sel, secreg, 1);
-	subbus = read_config(fd, &p->pc_sel, subreg, 1);
-	printf("    bus range  = %u-%u\n", secbus, subbus);
+	printf("    bus range  = %u-%u\n", p->pc_secbus, p->pc_subbus);
 }
 
 static void
@@ -477,11 +757,11 @@ list_bridge(int fd, struct pci_conf *p)
 
 	switch (p->pc_hdr & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_BRIDGE:
-		print_bus_range(fd, p, PCIR_SECBUS_1, PCIR_SUBBUS_1);
+		print_bus_range(p);
 		print_bridge_windows(fd, p);
 		break;
 	case PCIM_HDRTYPE_CARDBUS:
-		print_bus_range(fd, p, PCIR_SECBUS_2, PCIR_SUBBUS_2);
+		print_bus_range(p);
 		print_cardbus_windows(fd, p);
 		break;
 	}

@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 19, 2025
+.Dd March 10, 2026
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -32,6 +32,8 @@
 .Sh SYNOPSIS
 .Nm
 .Fl l Oo Fl BbceVv Oc Op Ar device
+.Nm
+.Fl t Oo Fl v Oc
 .Nm
 .Fl a Ar device
 .Nm
@@ -52,6 +54,31 @@ access to
 .Pa /dev/pci ,
 normally only the super-user.
 .Pp
+A
+.Ar device
+can be identified either by a device name if the device is
+attached to a driver or by a selector.
+Selectors identify a PCI device by its address in PCI config space and
+can take one of the following forms:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device Ns \&: \
+Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns
+.El
+.Pp
+In the case of an abridged form, omitted selector components are assumed to be 0.
+An optional leading device name followed by @ and an optional final colon
+will be ignored; this is so that the first column in the output of
+.Nm
+.Fl l
+can be used without modification.
+All numbers are base 10.
+.Ss List Mode
 With the
 .Fl l
 option,
@@ -260,36 +287,29 @@ argument is given with the
 flag,
 .Nm
 will only list details about a single device instead of all devices.
-.Pp
-All invocations of
+.Ss Tree Mode
+With the
+.Fl t
+flag,
 .Nm
-except for
-.Fl l
-require a
-.Ar device .
-The device can be identified either by a device name if the device is
-attached to a driver or by a selector.
-Selectors identify a PCI device by its address in PCI config space and
-can take one of the following forms:
+lists PCI devices in a tree prefixing each device with indentation text showing
+the sibling and parent/child relationships.
+If the device has an attached driver, the device is identified by the driver
+name and unit number;
+otherwise, the device is identified by a PCI selector.
 .Pp
-.Bl -bullet -offset indent -compact
-.It
-.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device Ns \&: \
-Ns Va function Ns
-.It
-.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns
-.It
-.Li pci Ns Va bus Ns \&: Ns Va device Ns
-.El
+Top-level entries in the tree identify top-level PCI buses.
+Each bus is named as a partial PCI selector:
+.Li pci Ns Va domain Ns \&: Ns Va bus Ns .
 .Pp
-In the case of an abridged form, omitted selector components are assumed to be 0.
-An optional leading device name followed by @ and an optional final colon
-will be ignored; this is so that the first column in the output of
-.Nm
-.Fl l
-can be used without modification.
-All numbers are base 10.
-.Pp
+If the
+.Fl v
+flag is specified,
+the device name or PCI selector is followed by the device's vendor and device
+strings from the vendor/device information database.
+If an identification string is not found in the database,
+the ID register values are output instead.
+.Ss Device Information Modes
 With the
 .Fl a
 flag,

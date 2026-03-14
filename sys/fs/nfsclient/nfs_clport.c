@@ -646,7 +646,7 @@ ncl_pager_setsize(struct vnode *vp, u_quad_t *nsizep)
 		    (curthread->td_pflags2 & TDP2_SBPAGES) == 0)
 			setnsize = true;
 		else
-			vn_delay_setsize(vp);
+			vn_delayed_setsize(vp);
 	}
 	if (nsizep == NULL) {
 		NFSUNLOCKNODE(np);

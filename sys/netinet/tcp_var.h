@@ -85,7 +85,7 @@
 #define TCP_EI_BITS_RST_IN_FR	0x200	/* a front state reset */
 #define TCP_EI_BITS_2MS_TIMER	0x400	/* 2 MSL timer expired */
 
-#if defined(_KERNEL) || defined(_WANT_TCPCB)
+#if defined(_KERNEL)
 #include <sys/_callout.h>
 #include <sys/osd.h>
 
@@ -500,7 +500,7 @@ struct tcpcb {
 	uint64_t tcp_proc_time[TCP_NUM_CNT_COUNTERS];
 #endif
 };
-#endif	/* _KERNEL || _WANT_TCPCB */
+#endif	/* _KERNEL */
 
 #ifdef _KERNEL
 struct tcptemp {

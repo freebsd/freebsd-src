@@ -60,8 +60,8 @@ struct amd_descr {
 };
 
 static int amd_npmcs;
+static int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs;
 static struct amd_descr amd_pmcdesc[AMD_NPMCS_MAX];
-
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
 	uint16_t	pe_code; /* encoded event mask */
@@ -664,10 +664,41 @@ amd_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 static int
 amd_get_msr(int ri, uint32_t *msr)
 {
+	int df_idx;
+
 	KASSERT(ri >= 0 && ri < amd_npmcs,
 	    ("[amd,%d] ri %d out of range", __LINE__, ri));
 
-	*msr = amd_pmcdesc[ri].pm_perfctr - AMD_PMC_PERFCTR_0;
+	/*
+	 * Map counter row index to RDPMC ECX value.
+	 *
+	 * AMD BKDG 24594 rev 3.37, page 440,
+	 * "RDPMC Read Performance-Monitoring Counter":
+	 *   ECX 0-5:   Core counters 0-5
+	 *   ECX 6-9:   DF/Northbridge counters 0-3
+	 *   ECX 10-15: L3 Cache counters 0-5
+	 *   ECX 16-27: DF/Northbridge counters 4-15
+	 *
+	 * AMD PPR 57930-A0 section 2.1.9,
+	 * "Register Sharing" for DF counter details.
+	 */
+	if (ri < amd_core_npmcs) {
+		/* ECX 0-5: Core counters */
+		*msr = ri;
+	} else if (ri < amd_core_npmcs + amd_l3_npmcs) {
+		/* ECX 10-15: L3 Cache counters */
+		*msr = 10 + (ri - amd_core_npmcs);
+	} else {
+		/* ECX 6-9: DF counters 0-3
+		 * ECX 16-27: DF counters 4-15 */
+		df_idx = ri - amd_core_npmcs - amd_l3_npmcs;
+		if (df_idx < 4)
+			*msr = 6 + df_idx;
+		else if (df_idx < 16)
+			*msr = 16 + (df_idx - 4);
+		else
+			return (EINVAL);
+	}
 	return (0);
 }
 
@@ -767,7 +798,6 @@ pmc_amd_initialize(void)
 	enum pmc_cputype cputype;
 	int error, i, ncpus, nclasses;
 	int family, model, stepping;
-	int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs;
 	struct amd_descr *d;
 
 	/*

@@ -253,6 +253,14 @@ sendme_locked(struct ctx *c, off_t offset, size_t size, bool nb)
 }
 
 static void
+sendme_locked_wait(struct ctx *c, off_t offset, size_t size, bool nb)
+{
+	sendme_locked(c, offset, size, nb);
+	while (c->state != READY)
+		ATF_REQUIRE(pthread_cond_wait(&c->cv, &c->mtx) == 0);
+}
+
+static void
 sendme(struct ctx *c, off_t offset, size_t size, bool nb)
 {
 	ATF_REQUIRE(pthread_mutex_lock(&c->mtx) == 0);
@@ -277,6 +285,14 @@ SSL_read_b(SSL *ssl, void *buf, int size)
 	return (rv);
 }
 
+static void
+require_sbytes(struct ctx *c, ssize_t expect)
+{
+	ATF_REQUIRE(pthread_mutex_lock(&c->mtx) == 0);
+	ATF_REQUIRE(c->sbytes == expect);
+	ATF_REQUIRE(pthread_mutex_unlock(&c->mtx) == 0);
+}
+
 ATF_TC_WITHOUT_HEAD(basic);
 ATF_TC_BODY(basic, tc)
 {
@@ -294,7 +310,7 @@ ATF_TC_BODY(basic, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == FSIZE);
-	ATF_REQUIRE(c.sbytes == FSIZE);
+	require_sbytes(&c, FSIZE);
 
 	common_cleanup(&c);
 }
@@ -324,7 +340,7 @@ ATF_TC_BODY(random, tc)
 			nread += n;
 		}
 		ATF_REQUIRE(nread == expect);
-		ATF_REQUIRE(c.sbytes == (ssize_t)expect);
+		require_sbytes(&c, (ssize_t)expect);
 	}
 
         common_cleanup(&c);
@@ -359,9 +375,7 @@ ATF_TC_BODY(truncate, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == TRUNC);
-	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
-	ATF_REQUIRE(c.sbytes == TRUNC);
-	ATF_REQUIRE(pthread_mutex_unlock(&c.mtx) == 0);
+	require_sbytes(&c, TRUNC);
 
 	common_cleanup(&c);
 }
@@ -410,9 +424,7 @@ ATF_TC_BODY(grow, tc)
 		nread += n;
 	}
 	ATF_REQUIRE(nread == GROW);
-	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
-	ATF_REQUIRE(c.sbytes == FSIZE + GROW);
-	ATF_REQUIRE(pthread_mutex_unlock(&c.mtx) == 0);
+	require_sbytes(&c, FSIZE + GROW);
 
 	common_cleanup(&c);
 }
@@ -454,9 +466,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * socket.  Internall sendfile(2) returns -1 and errno == EAGAIN.
 	 */
 	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
-	sendme_locked(&c, 0, FSIZE, true);
-	while (c.state != READY)
-		ATF_REQUIRE(pthread_cond_wait(&c.cv, &c.mtx) == 0);
+	sendme_locked_wait(&c, 0, FSIZE, true);
 	ATF_REQUIRE(c.sbytes > 0);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == 0);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
@@ -466,9 +476,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	/*
 	 * Exercise second attempt on already full buffer.
 	 */
-	sendme_locked(&c, 0, FSIZE, true);
-	while (c.state != READY)
-		ATF_REQUIRE(pthread_cond_wait(&c.cv, &c.mtx) == 0);
+	sendme_locked_wait(&c, 0, FSIZE, true);
 	ATF_REQUIRE(c.sbytes == -1);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == SSL_ERROR_WANT_WRITE);
 	ATF_REQUIRE(BIO_should_retry(SSL_get_wbio(c.srv)));
@@ -489,9 +497,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * legitimate one.  This test just documents the existing behavior
 	 * rather than asserts that this is a correct behavior.
 	 */
-	sendme_locked(&c, FSIZE, 0, true);
-	while (c.state != READY)
-		ATF_REQUIRE(pthread_cond_wait(&c.cv, &c.mtx) == 0);
+	sendme_locked_wait(&c, FSIZE, 0, true);
 	ATF_REQUIRE(c.sbytes == 0);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == SSL_ERROR_SYSCALL);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
@@ -501,9 +507,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	/*
 	 * Exercise short write due to end of file.
 	 */
-	sendme_locked(&c, FSIZE - 100, 0, true);
-	while (c.state != READY)
-		ATF_REQUIRE(pthread_cond_wait(&c.cv, &c.mtx) == 0);
+	sendme_locked_wait(&c, FSIZE - 100, 0, true);
 	ATF_REQUIRE(c.sbytes == 100);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == 0);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */

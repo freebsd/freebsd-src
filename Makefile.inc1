@@ -808,6 +808,7 @@ XMAKE=		${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		MK_CLANG=${MK_CLANG_BOOTSTRAP} \
 		MK_LLDB=no \
+		MK_LLVM_BINUTILS=no \
 		MK_TESTS=no
 
 # kernel-tools stage

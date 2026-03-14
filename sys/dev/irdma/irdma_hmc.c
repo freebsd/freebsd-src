@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -271,12 +271,18 @@ irdma_sc_create_hmc_obj(struct irdma_sc_dev *dev,
 	bool pd_error = false;
 	int ret_code = 0;
 
-	if (info->start_idx >= info->hmc_info->hmc_obj[info->rsrc_type].cnt)
+	if (info->start_idx >= info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
+		irdma_debug(dev, IRDMA_DEBUG_ERR,
+			    "invalid hmc obj type %u, start = %u, req cnt %u, cnt = %u\n",
+			    info->rsrc_type, info->start_idx, info->count,
+			    info->hmc_info->hmc_obj[info->rsrc_type].cnt);
+
 		return -EINVAL;
+	}
 
 	if ((info->start_idx + info->count) >
 	    info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		irdma_debug(dev, IRDMA_DEBUG_HMC,
+		irdma_debug(dev, IRDMA_DEBUG_ERR,
 			    "error type %u, start = %u, req cnt %u, cnt = %u\n",
 			    info->rsrc_type, info->start_idx, info->count,
 			    info->hmc_info->hmc_obj[info->rsrc_type].cnt);

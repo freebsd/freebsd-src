@@ -92,6 +92,12 @@ system_thread(void *arg)
 	return ((void *)(intptr_t)system(cmd));
 }
 
+static inline int
+sigcmpset(const sigset_t *a, const sigset_t *b)
+{
+	return (memcmp(a, b, sizeof(sigset_t)));
+}
+
 ATF_TC(system_concurrent);
 ATF_TC_HEAD(system_concurrent, tc)
 {
@@ -99,7 +105,8 @@ ATF_TC_HEAD(system_concurrent, tc)
 }
 ATF_TC_BODY(system_concurrent, tc)
 {
-#define N 3
+	enum { N = 3 };
+	struct sigaction sigint, sigquit, sigact;
 	sigset_t normset, sigset;
 	pthread_t thr[N];
 	char fn[8];
@@ -119,8 +126,10 @@ ATF_TC_BODY(system_concurrent, tc)
 		ATF_REQUIRE_EQ(0, symlink(fn, fn));
 	}
 
-	/* Get the current and expected signal mask */
-	sigprocmask(0, NULL, &normset);
+	/* Save the current signal dispositions */
+	ATF_REQUIRE_EQ(0, sigaction(SIGINT, NULL, &sigint));
+	ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigquit));
+	ATF_REQUIRE_EQ(0, sigprocmask(0, NULL, &normset));
 
 	/* Spawn threads which block on these files */
 	for (int i = 0; i < N; i++) {
@@ -140,10 +149,12 @@ ATF_TC_BODY(system_concurrent, tc)
 	/* Release the locks */
 	for (int i = 0; i < N; i++) {
 		/* Check the signal dispositions */
-		ATF_CHECK_EQ(SIG_IGN, signal(SIGINT, SIG_IGN));
-		ATF_CHECK_EQ(SIG_IGN, signal(SIGQUIT, SIG_IGN));
+		ATF_REQUIRE_EQ(0, sigaction(SIGINT, NULL, &sigact));
+		ATF_CHECK_EQ(SIG_IGN, sigact.sa_handler);
+		ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigact));
+		ATF_CHECK_EQ(SIG_IGN, sigact.sa_handler);
 #ifndef PROCMASK_IS_THREADMASK
-		sigprocmask(0, NULL, &sigset);
+		ATF_REQUIRE_EQ(0, sigprocmask(0, NULL, &sigset));
 		ATF_CHECK(sigismember(&sigset, SIGCHLD));
 #endif
 
@@ -156,11 +167,16 @@ ATF_TC_BODY(system_concurrent, tc)
 	}
 
 	/* Check the signal dispositions */
-	ATF_CHECK_EQ(SIG_DFL, signal(SIGINT, SIG_DFL));
-	ATF_CHECK_EQ(SIG_DFL, signal(SIGQUIT, SIG_DFL));
-	sigprocmask(0, NULL, &sigset);
-	ATF_CHECK_EQ(0, memcmp(&sigset, &normset, sizeof(sigset_t)));
-#undef N
+	ATF_REQUIRE_EQ(0, sigaction(SIGINT, NULL, &sigact));
+	ATF_CHECK_EQ(sigint.sa_handler, sigact.sa_handler);
+	ATF_CHECK_EQ(sigint.sa_flags, sigact.sa_flags);
+	ATF_CHECK_EQ(0, sigcmpset(&sigint.sa_mask, &sigact.sa_mask));
+	ATF_REQUIRE_EQ(0, sigaction(SIGQUIT, NULL, &sigact));
+	ATF_CHECK_EQ(sigquit.sa_handler, sigact.sa_handler);
+	ATF_CHECK_EQ(sigquit.sa_flags, sigact.sa_flags);
+	ATF_CHECK_EQ(0, sigcmpset(&sigquit.sa_mask, &sigact.sa_mask));
+	ATF_REQUIRE_EQ(0, sigprocmask(0, NULL, &sigset));
+	ATF_CHECK_EQ(0, sigcmpset(&sigset, &normset));
 }
 
 ATF_TP_ADD_TCS(tp)

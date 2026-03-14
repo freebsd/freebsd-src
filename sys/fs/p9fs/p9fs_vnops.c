@@ -111,7 +111,7 @@ p9fs_cleanup(struct p9fs_node *np)
 
 	P9FS_LOCK(vses);
 	if ((np->flags & P9FS_NODE_IN_SESSION) != 0) {
-		np->flags &= ~P9FS_NODE_IN_SESSION;
+		P9FS_NODE_CLRF(np, P9FS_NODE_IN_SESSION);
 		STAILQ_REMOVE(&vses->virt_node_list, np, p9fs_node, p9fs_node_next);
 	} else {
 		P9FS_UNLOCK(vses);
@@ -675,7 +675,7 @@ p9fs_open(struct vop_open_args *ap)
 		error = vinvalbuf(vp, 0, 0, 0);
 		if (error != 0)
 			return (error);
-		np->flags &= ~P9FS_NODE_MODIFIED;
+		P9FS_NODE_CLRF(np, P9FS_NODE_MODIFIED);
 	}
 
 	vfid = p9fs_get_fid(vses->clnt, np, ap->a_cred, VFID, -1, &error);
@@ -896,6 +896,7 @@ p9fs_getattr_dotl(struct vop_getattr_args *ap)
 	/* Basic info */
 	VATTR_NULL(vap);
 
+	VI_LOCK(vp);
 	vap->va_atime.tv_sec = inode->i_atime;
 	vap->va_mtime.tv_sec = inode->i_mtime;
 	vap->va_ctime.tv_sec = inode->i_ctime;
@@ -916,6 +917,7 @@ p9fs_getattr_dotl(struct vop_getattr_args *ap)
 	vap->va_filerev = inode->data_version;
 	vap->va_vaflags = 0;
 	vap->va_bytes = inode->blocks * P9PROTO_TGETATTR_BLK;
+	VI_UNLOCK(vp);
 
 	return (0);
 }
@@ -951,16 +953,36 @@ p9fs_stat_vnode_dotl(struct p9_stat_dotl *stat, struct vnode *vp)
 {
 	struct p9fs_node *np;
 	struct p9fs_inode *inode;
+	bool excl_locked;
 
 	np = P9FS_VTON(vp);
 	inode = &np->inode;
 
+	/*
+	 * This function might be called with the vnode only shared
+	 * locked.  Then, interlock the vnode to ensure the exclusive
+	 * access to the inode fields: the thread either owns
+	 * exclusive vnode lock, or shared vnode lock plus interlock.
+	 *
+	 * If the vnode is locked exclusive, do not take the
+	 * interlock.  We directly call vnode_pager_setsize(), which
+	 * needs the vm_object lock, and that lock is before vnode
+	 * interlock in the lock order.
+	 */
 	ASSERT_VOP_LOCKED(vp, __func__);
+	excl_locked = VOP_ISLOCKED(vp) == LK_EXCLUSIVE;
+	if (!excl_locked)
+		VI_LOCK(vp);
+
 	/* Update the pager size if file size changes on host */
 	if (inode->i_size != stat->st_size) {
 		inode->i_size = stat->st_size;
-		if (vp->v_type == VREG)
-			vnode_pager_setsize(vp, inode->i_size);
+		if (vp->v_type == VREG) {
+			if (excl_locked)
+				vnode_pager_setsize(vp, inode->i_size);
+			else
+				vn_delayed_setsize_locked(vp);
+		}
 	}
 
 	inode->i_mtime = stat->st_mtime_sec;
@@ -979,11 +1001,12 @@ p9fs_stat_vnode_dotl(struct p9_stat_dotl *stat, struct vnode *vp)
 	inode->gen = stat->st_gen;
 	inode->data_version = stat->st_data_version;
 
-	ASSERT_VOP_LOCKED(vp, __func__);
 	/* Setting a flag if file changes based on qid version */
 	if (np->vqid.qid_version != stat->qid.version)
-		np->flags |= P9FS_NODE_MODIFIED;
+		P9FS_NODE_SETF(np, P9FS_NODE_MODIFIED);
 	memcpy(&np->vqid, &stat->qid, sizeof(stat->qid));
+	if (!excl_locked)
+		VI_UNLOCK(vp);
 
 	return (0);
 }
@@ -1526,7 +1549,7 @@ remove_common(struct p9fs_node *dnp, struct p9fs_node *np, const char *name,
 	cache_purge(vp);
 	vfs_hash_remove(vp);
 
-	np->flags |= P9FS_NODE_DELETED;
+	P9FS_NODE_SETF(np, P9FS_NODE_DELETED);
 
 	return (error);
 }
@@ -2213,12 +2236,25 @@ p9fs_putpages(struct vop_putpages_args *ap)
 	return (rtvals[0]);
 }
 
+static int
+p9fs_delayed_setsize(struct vop_delayed_setsize_args *ap)
+{
+	struct vnode *vp;
+	struct p9fs_node *np;
+
+	vp = ap->a_vp;
+	np = P9FS_VTON(vp);
+	vnode_pager_setsize(vp, np->inode.i_size);
+	return (0);
+}
+
 struct vop_vector p9fs_vnops = {
 	.vop_default =		&default_vnodeops,
 	.vop_lookup =		p9fs_lookup,
 	.vop_open =		p9fs_open,
 	.vop_close =		p9fs_close,
 	.vop_access =		p9fs_access,
+	.vop_delayed_setsize =	p9fs_delayed_setsize,
 	.vop_getattr =		p9fs_getattr_dotl,
 	.vop_setattr =		p9fs_setattr_dotl,
 	.vop_reclaim =		p9fs_reclaim,

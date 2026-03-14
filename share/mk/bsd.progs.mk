@@ -14,6 +14,7 @@
 # we really only use PROGS below...
 PROGS += ${PROGS_CXX}
 
+_save_srcs:=	${SRCS:U}
 .if defined(PROG)
 # just one of many
 PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE CSTD CXXSTD DPSRCS MAN \
@@ -91,8 +92,29 @@ $v =
 # Find common sources among the PROGS to depend on them before building
 # anything.  This allows parallelization without them each fighting over
 # the same objects.
-_PROGS_COMMON_SRCS= ${DPSRCS} ${SRCS}
-_PROGS_ALL_SRCS= ${SRCS}
+#
+# There are 3 cases to consider.
+# 1. No common sources.
+#         SRCS=
+#         SRCS.prog1= prog1.c
+#         SRCS.prog2= prog2.c
+# 2. Common sources in all SRCS.$prog.
+#         SRCS=
+#         SRCS.prog1= prog1.c common.c
+#         SRCS.prog2= prog2.c common.c
+# 3. Common sources in SRCS.
+#         SRCS= common.c
+#         SRCS.prog1= prog1.c
+#         SRCS.prog2= prog2.c
+# The intent is:
+# a. Only build common objects in the parent make before recursing.
+# b. When recursing only build non-common objects.
+# c. When recursing disable meta mode for common objects so they are not
+#    inspected.
+# _PROGS_COMMON_SRCS is expected to only contain common sources both
+# in the parent and when recursing.
+_PROGS_COMMON_SRCS:= ${DPSRCS} ${_save_srcs}
+_PROGS_ALL_SRCS:= ${_save_srcs}
 .for p in ${PROGS}
 .for s in ${SRCS.${p}}
 .if ${_PROGS_ALL_SRCS:M${s}} && !${_PROGS_COMMON_SRCS:M${s}}
@@ -115,6 +137,7 @@ _PROGS_COMMON_OBJS+=	${_PROGS_COMMON_SRCS:N*.[dhly]:${OBJS_SRCS_FILTER:ts:}:S/$/
 ${_PROGS_COMMON_OBJS}: .NOMETA
 .endif
 .endif
+.undef _save_srcs
 
 .if !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)
 # tell progs.mk we might want to install things

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,6 +37,7 @@
 LIST_HEAD(irdma_handlers);
 DEFINE_SPINLOCK(irdma_handler_lock);
 
+static const char *const irdma_cqp_cmd_names[IRDMA_MAX_CQP_OPS];
 static const struct ae_desc ae_desc_list[] = {
 	{IRDMA_AE_AMP_UNALLOCATED_STAG, "Unallocated memory key (L-Key/R-Key)"},
 	{IRDMA_AE_AMP_INVALID_STAG, "Invalid memory key (L-Key/R-Key)"},
@@ -206,7 +207,7 @@ irdma_get_ae_desc(u16 ae_id)
  * @rf: RDMA PCI function
  * @ip_addr: ip address for device
  * @mac_addr: mac address ptr
- * @action: modify, delete or add
+ * @action: modify, delete or add/update
  */
 int
 irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, const u8 *mac_addr,
@@ -220,22 +221,22 @@ irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, const u8 *mac_addr,
 
 	spin_lock_irqsave(&rf->arp_lock, flags);
 	for (arp_index = 0; (u32)arp_index < rf->arp_table_size; arp_index++) {
-		if (!memcmp(rf->arp_table[arp_index].ip_addr, ip, sizeof(ip)))
+		if (!memcmp(rf->arp_table[arp_index].ip_addr, ip, sizeof(ip)) &&
+		    !rf->arp_table[arp_index].delete_pending)
 			break;
 	}
 
 	switch (action) {
-	case IRDMA_ARP_ADD:
-		if (arp_index != rf->arp_table_size) {
-			arp_index = -1;
-			break;
-		}
-
-		arp_index = 0;
-		if (irdma_alloc_rsrc(rf, rf->allocated_arps, rf->arp_table_size,
-				     (u32 *)&arp_index, &rf->next_arp_index)) {
-			arp_index = -1;
-			break;
+	case IRDMA_ARP_ADD_UPDATE:	/* ARP Add or Update */
+		if (arp_index == rf->arp_table_size) {
+			if (irdma_alloc_rsrc(rf, rf->allocated_arps,
+					     rf->arp_table_size,
+					     (u32 *)&arp_index,
+					     &rf->next_arp_index)) {
+				arp_index = -1;
+				break;
+			}
+			atomic_set(&rf->arp_table[arp_index].refcnt, 0);
 		}
 
 		memcpy(rf->arp_table[arp_index].ip_addr, ip,
@@ -252,10 +253,16 @@ irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, const u8 *mac_addr,
 			break;
 		}
 
-		memset(rf->arp_table[arp_index].ip_addr, 0,
-		       sizeof(rf->arp_table[arp_index].ip_addr));
-		eth_zero_addr(rf->arp_table[arp_index].mac_addr);
-		irdma_free_rsrc(rf, rf->allocated_arps, arp_index);
+		if (!atomic_read(&rf->arp_table[arp_index].refcnt)) {
+			memset(rf->arp_table[arp_index].ip_addr, 0,
+			       sizeof(rf->arp_table[arp_index].ip_addr));
+			eth_zero_addr(rf->arp_table[arp_index].mac_addr);
+			irdma_free_rsrc(rf, rf->allocated_arps, arp_index);
+			rf->arp_table[arp_index].delete_pending = false;
+		} else {
+			rf->arp_table[arp_index].delete_pending = true;
+			arp_index = -1;	/* prevent immediate CQP ARP index deletion */
+		}
 		break;
 	default:
 		arp_index = -1;
@@ -266,8 +273,61 @@ irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, const u8 *mac_addr,
 	return arp_index;
 }
 
+static int
+irdma_get_arp(struct irdma_pci_f *rf, u16 arp_index)
+{
+	unsigned long flags;
+	u32 ip_zero[4] = {};
+
+	if (arp_index >= rf->arp_table_size)
+		return -EINVAL;
+
+	spin_lock_irqsave(&rf->arp_lock, flags);
+	if (!memcmp(rf->arp_table[arp_index].ip_addr, ip_zero, sizeof(ip_zero))) {
+		spin_unlock_irqrestore(&rf->arp_lock, flags);
+		return -EINVAL;
+	}
+	if (!atomic_read(&rf->arp_table[arp_index].refcnt))
+		atomic_set(&rf->arp_table[arp_index].refcnt, 1);
+	else
+		atomic_inc(&rf->arp_table[arp_index].refcnt);
+	spin_unlock_irqrestore(&rf->arp_lock, flags);
+
+	return 0;
+}
+
+static void
+irdma_put_arp(struct irdma_pci_f *rf, u16 arp_index)
+{
+	unsigned long flags;
+
+	if (arp_index >= rf->arp_table_size)
+		return;
+	spin_lock_irqsave(&rf->arp_lock, flags);
+	if (!atomic_dec_and_test(&rf->arp_table[arp_index].refcnt)) {
+		spin_unlock_irqrestore(&rf->arp_lock, flags);
+		return;
+	}
+
+	if (rf->arp_table[arp_index].delete_pending) {
+		u32 ip_addr[4];
+
+		memcpy(ip_addr, rf->arp_table[arp_index].ip_addr,
+		       sizeof(ip_addr));
+		memset(rf->arp_table[arp_index].ip_addr, 0,
+		       sizeof(rf->arp_table[arp_index].ip_addr));
+		eth_zero_addr(rf->arp_table[arp_index].mac_addr);
+		spin_unlock_irqrestore(&rf->arp_lock, flags);
+		irdma_arp_cqp_op(rf, arp_index, NULL, IRDMA_ARP_DELETE);
+		rf->arp_table[arp_index].delete_pending = false;
+		irdma_free_rsrc(rf, rf->allocated_arps, arp_index);
+	} else {
+		spin_unlock_irqrestore(&rf->arp_lock, flags);
+	}
+}
+
 /**
- * irdma_add_arp - add a new arp entry if needed
+ * irdma_add_arp - add a new arp entry if needed and resolve it
  * @rf: RDMA function
  * @ip: IP address
  * @mac: MAC address
@@ -275,18 +335,7 @@ irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, const u8 *mac_addr,
 int
 irdma_add_arp(struct irdma_pci_f *rf, u32 *ip, const u8 *mac)
 {
-	int arpidx;
-
-	arpidx = irdma_arp_table(rf, &ip[0], NULL, IRDMA_ARP_RESOLVE);
-	if (arpidx >= 0) {
-		if (ether_addr_equal(rf->arp_table[arpidx].mac_addr, mac))
-			return arpidx;
-
-		irdma_manage_arp_cache(rf, rf->arp_table[arpidx].mac_addr, ip,
-				       IRDMA_ARP_DELETE);
-	}
-
-	irdma_manage_arp_cache(rf, mac, ip, IRDMA_ARP_ADD);
+	irdma_manage_arp_cache(rf, mac, ip, IRDMA_ARP_ADD_UPDATE);
 
 	return irdma_arp_table(rf, ip, NULL, IRDMA_ARP_RESOLVE);
 }
@@ -377,6 +426,8 @@ irdma_alloc_and_get_cqp_request(struct irdma_cqp *cqp,
 	cqp_request->waiting = wait;
 	atomic_set(&cqp_request->refcnt, 1);
 	memset(&cqp_request->compl_info, 0, sizeof(cqp_request->compl_info));
+
+	memset(&cqp_request->info, 0, sizeof(cqp_request->info));
 
 	return cqp_request;
 }
@@ -503,6 +554,17 @@ irdma_wait_event(struct irdma_pci_f *rf,
 				       READ_ONCE(cqp_request->request_done),
 				       msecs_to_jiffies(wait_time_ms)))
 			break;
+		if (cqp_request->info.cqp_cmd_exec_status) {
+			irdma_debug(&rf->sc_dev, IRDMA_DEBUG_CQP,
+				    "%s (%d) cqp op error status reported: %d, %d %x %x\n",
+				    irdma_cqp_cmd_names[cqp_request->info.cqp_cmd],
+				    cqp_request->info.cqp_cmd,
+				    cqp_request->info.cqp_cmd_exec_status,
+				    cqp_request->compl_info.error,
+				    cqp_request->compl_info.maj_err_code,
+				    cqp_request->compl_info.min_err_code);
+			break;
+		}
 
 		irdma_check_cqp_progress(&cqp_timeout, &rf->sc_dev);
 
@@ -540,7 +602,7 @@ static const char *const irdma_cqp_cmd_names[IRDMA_MAX_CQP_OPS] = {
 	[IRDMA_OP_DELETE_ARP_CACHE_ENTRY] = "Delete ARP Cache Cmd",
 	[IRDMA_OP_MANAGE_APBVT_ENTRY] = "Manage APBV Table Entry Cmd",
 	[IRDMA_OP_CEQ_CREATE] = "CEQ Create Cmd",
-	[IRDMA_OP_AEQ_CREATE] = "AEQ Destroy Cmd",
+	[IRDMA_OP_AEQ_CREATE] = "AEQ Create Cmd",
 	[IRDMA_OP_MANAGE_QHASH_TABLE_ENTRY] = "Manage Quad Hash Table Entry Cmd",
 	[IRDMA_OP_QP_MODIFY] = "Modify QP Cmd",
 	[IRDMA_OP_QP_UPLOAD_CONTEXT] = "Upload Context Cmd",
@@ -635,7 +697,7 @@ irdma_handle_cqp_op(struct irdma_pci_f *rf,
 	bool put_cqp_request = true;
 
 	if (rf->reset)
-		return 0;
+		return (info->create ? -EBUSY : 0);
 
 	irdma_get_cqp_request(cqp_request);
 	status = irdma_process_cqp_cmd(dev, info);
@@ -654,13 +716,23 @@ irdma_handle_cqp_op(struct irdma_pci_f *rf,
 err:
 	if (irdma_cqp_crit_err(dev, info->cqp_cmd,
 			       cqp_request->compl_info.maj_err_code,
-			       cqp_request->compl_info.min_err_code))
+			       cqp_request->compl_info.min_err_code)) {
+		int qpn = -1;
+
+		if (info->cqp_cmd == IRDMA_OP_QP_CREATE)
+			qpn = cqp_request->info.in.u.qp_create.qp->qp_uk.qp_id;
+		else if (info->cqp_cmd == IRDMA_OP_QP_MODIFY)
+			qpn = cqp_request->info.in.u.qp_modify.qp->qp_uk.qp_id;
+		else if (info->cqp_cmd == IRDMA_OP_QP_DESTROY)
+			qpn = cqp_request->info.in.u.qp_destroy.qp->qp_uk.qp_id;
+
 		irdma_dev_err(&rf->iwdev->ibdev,
-			      "[%s Error][op_code=%d] status=%d waiting=%d completion_err=%d maj=0x%x min=0x%x\n",
-			      irdma_cqp_cmd_names[info->cqp_cmd], info->cqp_cmd, status,
+			      "[%s Error] status=%d waiting=%d completion_err=%d maj=0x%x min=0x%x qpn=%d\n",
+			      irdma_cqp_cmd_names[info->cqp_cmd], status,
 			      cqp_request->waiting, cqp_request->compl_info.error,
 			      cqp_request->compl_info.maj_err_code,
-			      cqp_request->compl_info.min_err_code);
+			      cqp_request->compl_info.min_err_code, qpn);
+	}
 
 	if (put_cqp_request)
 		irdma_put_cqp_request(&rf->cqp, cqp_request);
@@ -715,7 +787,7 @@ irdma_cq_rem_ref(struct ib_cq *ibcq)
 		return;
 	}
 
-	rf->cq_table[iwcq->cq_num] = NULL;
+	WRITE_ONCE(rf->cq_table[iwcq->cq_num], NULL);
 	spin_unlock_irqrestore(&rf->cqtable_lock, flags);
 	complete(&iwcq->free_cq);
 }
@@ -1009,6 +1081,7 @@ irdma_cqp_cq_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq)
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.cq_create.cq = cq;
 	cqp_info->in.u.cq_create.scratch = (uintptr_t)cqp_request;
+	cqp_info->create = true;
 
 	status = irdma_handle_cqp_op(rf, cqp_request);
 	irdma_put_cqp_request(iwcqp, cqp_request);
@@ -1037,13 +1110,13 @@ irdma_cqp_qp_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 
 	cqp_info = &cqp_request->info;
 	qp_info = &cqp_request->info.in.u.qp_create.info;
-	memset(qp_info, 0, sizeof(*qp_info));
 	qp_info->cq_num_valid = true;
 	qp_info->next_iwarp_state = IRDMA_QP_STATE_RTS;
 	cqp_info->cqp_cmd = IRDMA_OP_QP_CREATE;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.qp_create.qp = qp;
 	cqp_info->in.u.qp_create.scratch = (uintptr_t)cqp_request;
+	cqp_info->create = true;
 
 	status = irdma_handle_cqp_op(rf, cqp_request);
 	irdma_put_cqp_request(iwcqp, cqp_request);
@@ -1060,10 +1133,10 @@ void
 irdma_dealloc_push_page(struct irdma_pci_f *rf,
 			struct irdma_qp *iwqp)
 {
+	struct irdma_sc_qp *qp = &iwqp->sc_qp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	int status;
-	struct irdma_sc_qp *qp = &iwqp->sc_qp;
 
 	if (qp->push_idx == IRDMA_INVALID_PUSH_PAGE_INDEX)
 		return;
@@ -1081,6 +1154,7 @@ irdma_dealloc_push_page(struct irdma_pci_f *rf,
 	cqp_info->in.u.manage_push_page.info.push_page_type = 0;
 	cqp_info->in.u.manage_push_page.cqp = &rf->cqp.sc_cqp;
 	cqp_info->in.u.manage_push_page.scratch = (uintptr_t)cqp_request;
+
 	status = irdma_handle_cqp_op(rf, cqp_request);
 	if (!status)
 		qp->push_idx = IRDMA_INVALID_PUSH_PAGE_INDEX;
@@ -1160,6 +1234,7 @@ irdma_hw_modify_qp(struct irdma_device *iwdev, struct irdma_qp *iwqp,
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.qp_modify.qp = &iwqp->sc_qp;
 	cqp_info->in.u.qp_modify.scratch = (uintptr_t)cqp_request;
+	cqp_info->create = false;
 	status = irdma_handle_cqp_op(rf, cqp_request);
 	irdma_put_cqp_request(&rf->cqp, cqp_request);
 	if (status) {
@@ -1241,7 +1316,6 @@ irdma_cqp_qp_destroy_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
 	cqp_info->cqp_cmd = IRDMA_OP_QP_DESTROY;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.qp_destroy.qp = qp;
@@ -1306,7 +1380,7 @@ irdma_ieq_get_qp(struct irdma_sc_dev *dev,
 		return NULL;
 
 	iwqp = cm_node->iwqp;
-	irdma_rem_ref_cm_node(cm_node);
+	irdma_rem_ref_cmnode(cm_node);
 
 	return &iwqp->sc_qp;
 }
@@ -1598,7 +1672,6 @@ irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
 	cqp_info->cqp_cmd = IRDMA_OP_STATS_GATHER;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.stats_gather.info = pestat->gather_info;
@@ -1611,44 +1684,6 @@ irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
 	if (wait)
 		sc_vsi_update_stats(pestat->vsi);
 	irdma_put_cqp_request(&rf->cqp, cqp_request);
-
-	return status;
-}
-
-/**
- * irdma_cqp_stats_inst_cmd - Allocate/free stats instance
- * @vsi: pointer to vsi structure
- * @cmd: command to allocate or free
- * @stats_info: pointer to allocate stats info
- */
-int
-irdma_cqp_stats_inst_cmd(struct irdma_sc_vsi *vsi, u8 cmd,
-			 struct irdma_stats_inst_info *stats_info)
-{
-	struct irdma_pci_f *rf = dev_to_rf(vsi->dev);
-	struct irdma_cqp *iwcqp = &rf->cqp;
-	struct irdma_cqp_request *cqp_request;
-	struct cqp_cmds_info *cqp_info;
-	int status;
-	bool wait = false;
-
-	if (cmd == IRDMA_OP_STATS_ALLOCATE)
-		wait = true;
-	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, wait);
-	if (!cqp_request)
-		return -ENOMEM;
-
-	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
-	cqp_info->cqp_cmd = cmd;
-	cqp_info->post_sq = 1;
-	cqp_info->in.u.stats_manage.info = *stats_info;
-	cqp_info->in.u.stats_manage.scratch = (uintptr_t)cqp_request;
-	cqp_info->in.u.stats_manage.cqp = &rf->cqp.sc_cqp;
-	status = irdma_handle_cqp_op(rf, cqp_request);
-	if (wait)
-		stats_info->stats_idx = cqp_request->compl_info.op_ret_val;
-	irdma_put_cqp_request(iwcqp, cqp_request);
 
 	return status;
 }
@@ -1743,12 +1778,12 @@ irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
 	cqp_info->cqp_cmd = cmd;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.ws_node.info = *node_info;
 	cqp_info->in.u.ws_node.cqp = cqp;
 	cqp_info->in.u.ws_node.scratch = (uintptr_t)cqp_request;
+	cqp_info->create = true;
 	status = irdma_handle_cqp_op(rf, cqp_request);
 	if (status)
 		goto exit;
@@ -1773,7 +1808,7 @@ exit:
 }
 
 /**
- * irdma_ah_cqp_op - perform an AH cqp operation
+ * irdma_ah_do_cqp - perform an AH cqp operation
  * @rf: RDMA PCI function
  * @sc_ah: address handle
  * @cmd: AH operation
@@ -1783,8 +1818,8 @@ exit:
  *
  * returns errno
  */
-int
-irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
+static int
+irdma_ah_do_cqp(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		bool wait,
 		void (*callback_fcn) (struct irdma_cqp_request *),
 		void *cb_param)
@@ -1811,6 +1846,7 @@ irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		cqp_info->in.u.ah_create.info = sc_ah->ah_info;
 		cqp_info->in.u.ah_create.scratch = (uintptr_t)cqp_request;
 		cqp_info->in.u.ah_create.cqp = &rf->cqp.sc_cqp;
+		cqp_info->create = true;
 	} else if (cmd == IRDMA_OP_AH_DESTROY) {
 		cqp_info->in.u.ah_destroy.info = sc_ah->ah_info;
 		cqp_info->in.u.ah_destroy.scratch = (uintptr_t)cqp_request;
@@ -1833,6 +1869,36 @@ irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 	return 0;
 }
 
+int
+irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
+		bool wait,
+		void (*callback_fcn) (struct irdma_cqp_request *),
+		void *cb_param)
+{
+	int status;
+
+	if (cmd == IRDMA_OP_AH_CREATE) {
+		status = irdma_get_arp(rf, sc_ah->ah_info.dst_arpindex);
+		if (status) {
+			irdma_dev_err(&rf->iwdev->ibdev, "%s get_arp failed for index = %d\n",
+				      __func__, sc_ah->ah_info.dst_arpindex);
+
+			return -EINVAL;
+		}
+		status = irdma_ah_do_cqp(rf, sc_ah, cmd, wait, callback_fcn,
+					 cb_param);
+		if (status)
+			irdma_put_arp(rf, sc_ah->ah_info.dst_arpindex);
+	} else {
+		status = irdma_ah_do_cqp(rf, sc_ah, cmd, wait, callback_fcn,
+					 cb_param);
+		if (cmd == IRDMA_OP_AH_DESTROY)
+			irdma_put_arp(rf, sc_ah->ah_info.dst_arpindex);
+	}
+
+	return status;
+}
+
 /**
  * irdma_ieq_ah_cb - callback after creation of AH for IEQ
  * @cqp_request: pointer to cqp_request of create AH
@@ -1853,6 +1919,9 @@ irdma_ieq_ah_cb(struct irdma_cqp_request *cqp_request)
 		irdma_ieq_cleanup_qp(qp->vsi->ieq, qp);
 	}
 	spin_unlock_irqrestore(&qp->pfpdu.lock, flags);
+	if (!cqp_request->waiting)
+		irdma_put_cqp_request(sc_ah->dev->cqp->back_cqp,
+				      cqp_request);
 }
 
 /**
@@ -1867,6 +1936,9 @@ irdma_ilq_ah_cb(struct irdma_cqp_request *cqp_request)
 
 	sc_ah->ah_info.ah_valid = !cqp_request->compl_info.op_ret_val;
 	irdma_add_conn_est_qh(cm_node);
+	if (!cqp_request->waiting)
+		irdma_put_cqp_request(sc_ah->dev->cqp->back_cqp,
+				      cqp_request);
 }
 
 /**
@@ -2239,39 +2311,35 @@ clear_qp_ctx_addr(__le64 * ctx)
 
 /**
  * irdma_upload_qp_context - upload raw QP context
- * @iwqp: QP pointer
+ * @rf: RDMA PCI function
+ * @qpn: QP ID
+ * @qp_type: QP Type
  * @freeze: freeze QP
  * @raw: raw context flag
  */
 int
-irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw)
+irdma_upload_qp_context(struct irdma_pci_f *rf, u32 qpn,
+			u8 qp_type, bool freeze, bool raw)
 {
 	struct irdma_dma_mem dma_mem;
 	struct irdma_sc_dev *dev;
-	struct irdma_sc_qp *qp;
 	struct irdma_cqp *iwcqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_upload_context_info *info;
-	struct irdma_pci_f *rf;
 	int ret;
 	u32 *ctx;
 
-	rf = iwqp->iwdev->rf;
-	if (!rf)
-		return -EINVAL;
-
-	qp = &iwqp->sc_qp;
 	dev = &rf->sc_dev;
 	iwcqp = &rf->cqp;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, true);
-	if (!cqp_request)
+	if (!cqp_request) {
+		irdma_debug((dev), IRDMA_DEBUG_QP, "Could not get CQP req for QP [%u]\n", qpn);
 		return -EINVAL;
-
+	}
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.qp_upload_context.info;
-	memset(info, 0, sizeof(struct irdma_upload_context_info));
 	cqp_info->cqp_cmd = IRDMA_OP_QP_UPLOAD_CONTEXT;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.qp_upload_context.dev = dev;
@@ -2281,6 +2349,7 @@ irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw)
 	dma_mem.va = irdma_allocate_dma_mem(dev->hw, &dma_mem, dma_mem.size, PAGE_SIZE);
 	if (!dma_mem.va) {
 		irdma_put_cqp_request(&rf->cqp, cqp_request);
+		irdma_debug((dev), IRDMA_DEBUG_QP, "Could not allocate buffer for QP [%u]\n", qpn);
 		return -ENOMEM;
 	}
 
@@ -2288,20 +2357,21 @@ irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw)
 	info->buf_pa = dma_mem.pa;
 	info->raw_format = raw;
 	info->freeze_qp = freeze;
-	info->qp_type = qp->qp_uk.qp_type;	/* 1 is iWARP and 2 UDA */
-	info->qp_id = qp->qp_uk.qp_id;
+	info->qp_type = qp_type;	/* 1 is iWARP and 2 UDA */
+	info->qp_id = qpn;
 	ret = irdma_handle_cqp_op(rf, cqp_request);
 	if (ret)
 		goto error;
-	irdma_debug(dev, IRDMA_DEBUG_QP, "PRINT CONTXT QP [%d]\n", info->qp_id);
+	irdma_debug((dev), IRDMA_DEBUG_QP, "PRINT CONTXT QP [%u]\n", info->qp_id);
 	{
 		u32 i, j;
 
 		clear_qp_ctx_addr(dma_mem.va);
 		for (i = 0, j = 0; i < 32; i++, j += 4)
-			irdma_debug(dev, IRDMA_DEBUG_QP,
-				    "%d:\t [%08X %08x %08X %08X]\n", (j * 4),
-				    ctx[j], ctx[j + 1], ctx[j + 2], ctx[j + 3]);
+			irdma_debug((dev), IRDMA_DEBUG_QP,
+				    "[%u] %u:\t [%08X %08x %08X %08X]\n",
+				    info->qp_id, (j * 4), ctx[j], ctx[j + 1],
+				    ctx[j + 2], ctx[j + 3]);
 	}
 error:
 	irdma_put_cqp_request(iwcqp, cqp_request);
@@ -2310,20 +2380,41 @@ error:
 	return ret;
 }
 
-bool
-irdma_cq_empty(struct irdma_cq *iwcq)
+static bool
+qp_has_unpolled_cqes(struct irdma_qp *iwqp, struct irdma_cq *iwcq)
 {
-	struct irdma_cq_uk *ukcq;
-	u64 qword3;
+	struct irdma_cq_uk *cq = &iwcq->sc_cq.cq_uk;
+	struct irdma_qp_uk *qp = &iwqp->sc_qp.qp_uk;
+	u32 cq_head = IRDMA_RING_CURRENT_HEAD(cq->cq_ring);
+	u64 qword3, comp_ctx;
 	__le64 *cqe;
-	u8 polarity;
+	u8 polarity, cq_polarity;
 
-	ukcq = &iwcq->sc_cq.cq_uk;
-	cqe = IRDMA_GET_CURRENT_CQ_ELEM(ukcq);
-	get_64bit_val(cqe, 24, &qword3);
-	polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword3);
+	cq_polarity = cq->polarity;
+	do {
+		if (cq->avoid_mem_cflct)
+			cqe = ((struct irdma_extended_cqe *)(cq->cq_base))[cq_head].buf;
+		else
+			cqe = cq->cq_base[cq_head].buf;
+		get_64bit_val(cqe, IRDMA_BYTE_24, &qword3);
+		polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword3);
 
-	return polarity != ukcq->polarity;
+		if (polarity != cq_polarity)
+			break;
+
+		/* Ensure CQE contents are read after valid bit is checked */
+		rmb();
+
+		get_64bit_val(cqe, IRDMA_BYTE_8, &comp_ctx);
+		if ((struct irdma_qp_uk *)(irdma_uintptr) comp_ctx == qp)
+			return true;
+
+		cq_head = (cq_head + 1) % cq->cq_ring.size;
+		if (!cq_head)
+			cq_polarity ^= 1;
+	} while (true);
+
+	return false;
 }
 
 void
@@ -2380,11 +2471,18 @@ irdma_set_cpi_common_values(struct irdma_cq_poll_info *cpi,
 static inline void
 irdma_comp_handler(struct irdma_cq *cq)
 {
+	struct irdma_device *iwdev = to_iwdev(cq->ibcq.device);
+	struct irdma_ceq *ceq = &iwdev->rf->ceqlist[cq->sc_cq.ceq_id];
+	unsigned long flags;
+
 	if (!cq->ibcq.comp_handler)
 		return;
 
-	if (atomic_cmpxchg(&cq->armed, 1, 0))
+	if (atomic_read(&cq->armed)) {
+		spin_lock_irqsave(&ceq->ce_lock, flags);
 		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
+		spin_unlock_irqrestore(&ceq->ce_lock, flags);
+	}
 }
 
 /**
@@ -2405,7 +2503,7 @@ irdma_generate_flush_completions(struct irdma_qp *iwqp)
 	unsigned long flags1;
 
 	spin_lock_irqsave(&iwqp->iwscq->lock, flags1);
-	if (irdma_cq_empty(iwqp->iwscq)) {
+	if (!qp_has_unpolled_cqes(iwqp, iwqp->iwscq)) {
 		unsigned long flags2;
 
 		spin_lock_irqsave(&iwqp->lock, flags2);
@@ -2452,7 +2550,7 @@ irdma_generate_flush_completions(struct irdma_qp *iwqp)
 	}
 
 	spin_lock_irqsave(&iwqp->iwrcq->lock, flags1);
-	if (irdma_cq_empty(iwqp->iwrcq)) {
+	if (!qp_has_unpolled_cqes(iwqp, iwqp->iwrcq)) {
 		unsigned long flags2;
 
 		spin_lock_irqsave(&iwqp->lock, flags2);
@@ -2526,4 +2624,50 @@ irdma_udqp_qs_worker(struct work_struct *work)
 		irdma_cqp_qp_suspend_resume(&udqs_work->iwqp->sc_qp, IRDMA_OP_RESUME);
 	irdma_qp_rem_ref(&udqs_work->iwqp->ibqp);
 	kfree(udqs_work);
+}
+
+void
+irdma_chk_free_stag(struct irdma_pci_f *rf)
+{
+	struct irdma_cqp_request *cqp_request;
+	struct cqp_cmds_info *cqp_info;
+	struct irdma_dealloc_stag_info *info;
+
+	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	info = &cqp_info->in.u.dealloc_stag.info;
+	info->stag_idx = RS_64_1(rf->chk_stag, IRDMA_CQPSQ_STAG_IDX_S);
+	cqp_info->cqp_cmd = IRDMA_OP_DEALLOC_STAG;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.dealloc_stag.dev = &rf->sc_dev;
+	cqp_info->in.u.dealloc_stag.scratch = (uintptr_t)cqp_request;
+	irdma_handle_cqp_op(rf, cqp_request);
+	irdma_put_cqp_request(&rf->cqp, cqp_request);
+}
+
+void
+cqp_poll_worker(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct irdma_pci_f *rf = container_of(dwork, struct irdma_pci_f, dwork_cqp_poll);
+	struct irdma_mr iwmr = {};
+	struct irdma_pd *iwpd;
+
+	iwpd = kzalloc(sizeof(*iwpd), GFP_KERNEL);
+	if (!iwpd)
+		return;
+	iwmr.stag = rf->chk_stag;
+	iwmr.ibmw.type = IB_MW_TYPE_1;
+	iwmr.ibmr.pd = &iwpd->ibpd;
+	if (irdma_hw_alloc_mw(rf->iwdev, &iwmr))
+		goto exit;
+	irdma_chk_free_stag(rf);
+
+	mod_delayed_work(rf->iwdev->cleanup_wq, &rf->dwork_cqp_poll,
+			 msecs_to_jiffies(3000));
+exit:
+	kfree(iwpd);
 }

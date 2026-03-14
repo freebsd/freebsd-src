@@ -35,10 +35,9 @@
 #include "opt_rss.h"
 
 #include <sys/types.h>
+#include "ena.h"
 
 #include <net/rss_config.h>
-
-#include "ena.h"
 
 #define ENA_RX_RSS_MSG_RECORD_SZ 8
 

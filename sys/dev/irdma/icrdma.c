@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2025 Intel Corporation
+ * Copyright (c) 2021 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -52,7 +52,7 @@
 /**
  *  Driver version
  */
-char irdma_driver_version[] = "1.2.37-k";
+char irdma_driver_version[] = "1.3.56-k";
 
 /**
  * irdma_init_tunable - prepare tunables
@@ -76,6 +76,10 @@ irdma_init_tunable(struct irdma_pci_f *rf, uint8_t pf_id)
 
 	irdma_oid_list = SYSCTL_CHILDREN(t_info->irdma_sysctl_tree);
 
+	t_info->qos_sysctl_tree = SYSCTL_ADD_NODE(&t_info->irdma_sysctl_ctx,
+						  irdma_oid_list, OID_AUTO,
+						  "qos", CTLFLAG_RD,
+						  NULL, "");
 	t_info->sws_sysctl_tree = SYSCTL_ADD_NODE(&t_info->irdma_sysctl_ctx,
 						  irdma_oid_list, OID_AUTO,
 						  "sw_stats", CTLFLAG_RD,
@@ -418,6 +422,10 @@ irdma_finalize_task(void *context, int pending)
 			    "Starting deferred closing %d (%d)\n",
 			    rf->peer_info->pf_id, if_getdunit(peer->ifp));
 		atomic_dec(&rf->dev_ctx.event_rfcnt);
+		if (rf->rdma_ver == IRDMA_GEN_2 && !rf->ftype) {
+			cancel_delayed_work_sync(&iwdev->rf->dwork_cqp_poll);
+			irdma_free_stag(iwdev->rf->iwdev, iwdev->rf->chk_stag);
+		}
 		wait_event_timeout(iwdev->suspend_wq,
 				   !atomic_read(&rf->dev_ctx.event_rfcnt),
 				   IRDMA_MAX_TIMEOUT);
@@ -441,7 +449,10 @@ irdma_finalize_task(void *context, int pending)
 		if (iwdev->rf->protocol_used != IRDMA_IWARP_PROTOCOL_ONLY)
 			iwdev->dcb_vlan_mode = l2params.num_tc > 1 && !l2params.dscp_mode;
 
-		l2params.mtu = peer->mtu;
+#define IRDMA_MIN_MTU_HEADERS IB_GRH_BYTES + IB_BTH_BYTES + 28
+		l2params.mtu = (peer->mtu) ? peer->mtu :
+		    ib_mtu_enum_to_int(IB_MTU_256) +
+		    IRDMA_MIN_MTU_HEADERS;
 		status = irdma_rt_init_hw(iwdev, &l2params);
 		if (status) {
 			irdma_pr_err("RT init failed %d\n", status);
@@ -454,12 +465,21 @@ irdma_finalize_task(void *context, int pending)
 			irdma_rt_deinit_hw(iwdev);
 			ib_dealloc_device(&iwdev->ibdev);
 		}
+		irdma_qos_info_tunables_init(rf);
 		irdma_sw_stats_tunables_init(rf);
 		req.type = ICE_RDMA_EVENT_VSI_FILTER_UPDATE;
 		req.enable_filter = true;
 		IRDMA_DI_REQ_HANDLER(peer, &req);
 		irdma_reg_ipaddr_event_cb(rf);
 		atomic_inc(&rf->dev_ctx.event_rfcnt);
+		if (rf->rdma_ver == IRDMA_GEN_2 && !rf->ftype) {
+			INIT_DELAYED_WORK(&rf->dwork_cqp_poll, cqp_poll_worker);
+			rf->chk_stag = irdma_create_stag(rf->iwdev);
+			rf->used_mrs++;
+			mod_delayed_work(iwdev->cleanup_wq, &rf->dwork_cqp_poll,
+					 msecs_to_jiffies(5000));
+		}
+
 		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_INIT,
 			    "Deferred opening finished %d (%d)\n",
 			    rf->peer_info->pf_id, if_getdunit(peer->ifp));
@@ -562,8 +582,9 @@ irdma_probe(struct ice_rdma_peer *peer)
 	struct irdma_handler *hdl;
 	int err = 0;
 
-	irdma_pr_info("probe: irdma-%s peer=%p, peer->pf_id=%d, peer->ifp=%p, peer->ifp->if_dunit=%d, peer->pci_mem->r_bustag=%p\n",
-		      irdma_driver_version, peer, peer->pf_id, peer->ifp,
+	irdma_pr_info("probe: irdma-%s peer=%p, peer->pf_id=%d, peer->ifp=%p\n",
+		      irdma_driver_version, peer, peer->pf_id, peer->ifp);
+	irdma_pr_info("peer->ifp->if_dunit=%d, peer->pci_mem->r_bustag=%p\n",
 		      if_getdunit(peer->ifp), (void *)(uintptr_t)peer->pci_mem->r_bustag);
 
 	hdl = irdma_find_handler(peer);
@@ -664,6 +685,7 @@ irdma_remove(struct ice_rdma_peer *peer)
 
 	sysctl_ctx_free(&iwdev->rf->tun_info.irdma_sysctl_ctx);
 	hdl->iwdev->rf->tun_info.irdma_sysctl_tree = NULL;
+	hdl->iwdev->rf->tun_info.qos_sysctl_tree = NULL;
 	hdl->iwdev->rf->tun_info.sws_sysctl_tree = NULL;
 
 	irdma_ctrl_deinit_hw(iwdev->rf);

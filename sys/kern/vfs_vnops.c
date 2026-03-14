@@ -1960,25 +1960,25 @@ _vn_lock_fallback(struct vnode *vp, int flags, const char *file, int line,
 }
 
 static int
-vn_lock_delayed_setsize(struct vop_lock1_args *ap)
+vn_lock_delayed_setsize(struct vnode *vp, int flags, const char *file, int line)
 {
-	struct vnode *vp;
+	struct vop_lock1_args ap;
 	int error, lktype;
 	bool onfault;
 
-	vp = ap->a_vp;
-	lktype = ap->a_flags & LK_TYPE_MASK;
+	ASSERT_VOP_LOCKED(vp, "vn_lock_delayed_setsize");
+	lktype = flags & LK_TYPE_MASK;
 	if (vp->v_op == &dead_vnodeops)
 		return (0);
 	VI_LOCK(vp);
-	if ((vp->v_iflag & VI_DELAYEDSSZ) == 0 || (lktype != LK_SHARED &&
+	if ((vp->v_iflag & VI_DELAYED_SETSIZE) == 0 || (lktype != LK_SHARED &&
 	    lktype != LK_EXCLUSIVE && lktype != LK_UPGRADE &&
 	    lktype != LK_TRYUPGRADE)) {
 		VI_UNLOCK(vp);
 		return (0);
 	}
-	onfault = (ap->a_flags & LK_EATTR_MASK) == LK_NOWAIT &&
-	    (ap->a_flags & LK_INIT_MASK) == LK_CANRECURSE &&
+	onfault = (flags & LK_EATTR_MASK) == LK_NOWAIT &&
+	    (flags & LK_INIT_MASK) == LK_CANRECURSE &&
 	    (lktype == LK_SHARED || lktype == LK_EXCLUSIVE);
 	if (onfault && vp->v_vnlock->lk_recurse == 0) {
 		/*
@@ -1990,35 +1990,38 @@ vn_lock_delayed_setsize(struct vop_lock1_args *ap)
 		VOP_UNLOCK(vp);
 		return (EBUSY);
 	}
-	if ((ap->a_flags & LK_NOWAIT) != 0 ||
+	if ((flags & LK_NOWAIT) != 0 ||
 	    (lktype == LK_SHARED && vp->v_vnlock->lk_recurse > 0)) {
 		VI_UNLOCK(vp);
 		return (0);
 	}
 	if (lktype == LK_SHARED) {
 		VOP_UNLOCK(vp);
-		ap->a_flags &= ~LK_TYPE_MASK;
-		ap->a_flags |= LK_EXCLUSIVE | LK_INTERLOCK;
-		error = VOP_LOCK1_APV(&default_vnodeops, ap);
+		ap.a_gen.a_desc = &vop_lock1_desc;
+		ap.a_vp = vp;
+		ap.a_flags = (flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE |
+		    LK_INTERLOCK;
+		ap.a_file = file;
+		ap.a_line = line;
+		error = VOP_LOCK1_APV(&default_vnodeops, &ap);
 		if (error != 0 || vp->v_op == &dead_vnodeops)
 			return (error);
 		if (vp->v_data == NULL)
 			goto downgrade;
-		MPASS(vp->v_data != NULL);
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_DELAYEDSSZ) == 0) {
+		if ((vp->v_iflag & VI_DELAYED_SETSIZE) == 0) {
 			VI_UNLOCK(vp);
 			goto downgrade;
 		}
 	}
-	vp->v_iflag &= ~VI_DELAYEDSSZ;
+	vn_clear_delayed_setsize_locked(vp);
 	VI_UNLOCK(vp);
 	VOP_DELAYED_SETSIZE(vp);
 downgrade:
 	if (lktype == LK_SHARED) {
-		ap->a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
-		ap->a_flags |= LK_DOWNGRADE;
-		(void)VOP_LOCK1_APV(&default_vnodeops, ap);
+		ap.a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
+		ap.a_flags |= LK_DOWNGRADE;
+		(void)VOP_LOCK1_APV(&default_vnodeops, &ap);
 	}
 	return (0);
 }
@@ -2026,7 +2029,6 @@ downgrade:
 int
 _vn_lock(struct vnode *vp, int flags, const char *file, int line)
 {
-	struct vop_lock1_args ap;
 	int error;
 
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
@@ -2034,15 +2036,11 @@ _vn_lock(struct vnode *vp, int flags, const char *file, int line)
 	VNPASS(vp->v_holdcnt > 0, vp);
 	error = VOP_LOCK1(vp, flags, file, line);
 	if (__predict_false(error != 0 || VN_IS_DOOMED(vp)))
-		return (_vn_lock_fallback(vp, flags, file, line, error));
-	if (__predict_false((vp->v_iflag & VI_DELAYEDSSZ) == 0))
-		return (0);
-	ap.a_gen.a_desc = &vop_lock1_desc;
-	ap.a_vp = vp;
-	ap.a_flags = flags;
-	ap.a_file = file;
-	ap.a_line = line;
-	return (vn_lock_delayed_setsize(&ap));
+		error = _vn_lock_fallback(vp, flags, file, line, error);
+	if (error != 0 || __predict_true((atomic_load_short(&vp->v_iflag) &
+	    VI_DELAYED_SETSIZE) == 0))
+		return (error);
+	return (vn_lock_delayed_setsize(vp, flags, file, line));
 }
 
 /*

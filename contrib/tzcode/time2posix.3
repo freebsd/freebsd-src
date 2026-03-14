@@ -1,6 +1,6 @@
 .\" This file is in the public domain, so clarified as of
 .\" 1996-06-05 by Arthur David Olson.
-.Dd December 15, 2022
+.Dd March 8, 2026
 .Dt TIME2POSIX 3
 .Os
 .Sh NAME
@@ -17,10 +17,9 @@
 .Fn posix2time "time_t t"
 .Sh DESCRIPTION
 .St -p1003.1-88
-requires the time_t value 536457599 to stand for 1986-12-31 23:59:59 UTC.
-This effectively implies that POSIX
-.Vt time_t
-values cannot include leap
+says that
+.B time_t
+values cannot count leap
 seconds and,
 therefore,
 that the system time must be adjusted as each leap occurs.
@@ -37,28 +36,25 @@ value).
 This means that these values will differ from those required by POSIX
 by the net number of leap seconds inserted since the Epoch.
 .Pp
-Typically this is not a problem as the type
+For many C programs this is not a problem as the C standard says that
 .Vt time_t
-is intended
-to be
+is
 (mostly)
 opaque \(em
 .Vt time_t
-values should only be obtained-from and
-passed-to functions such as
-.Xr time 3 ,
+values should be obtained from and
+passed to functions such as
+.Xr time 2 ,
 .Xr localtime 3 ,
-.Xr mktime 3
+.Xr mktime 3 ,
 and
 .Xr difftime 3 .
 However,
-.St -p1003.1-88
-gives an arithmetic
-expression for directly computing a
+POSIX gives an arithmetic
+expression for computing a
 .Vt time_t
-value from a given date/time,
+value directly from a given Universal date and time,
 and the same relationship is assumed by some
-(usually older)
 applications.
 Any programs creating/dissecting
 .Vt time_t
@@ -70,38 +66,31 @@ The
 .Fn time2posix
 and
 .Fn posix2time
-functions are provided to address this
-.Vt time_t
-mismatch by converting
+functions address this mismatch by converting
 between local
 .Vt time_t
 values and their POSIX equivalents.
 This is done by accounting for the number of time-base changes that
 would have taken place on a POSIX system as leap seconds were inserted
 or deleted.
-These converted values can then be used in lieu of correcting the older
-applications,
-or when communicating with POSIX-compliant systems.
+These converted values can then be used
+when communicating with POSIX-compliant systems.
 .Pp
 The
 .Fn time2posix
-function
-is single-valued.
-That is,
-every local
+function converts a
 .Vt time_t
-corresponds to a single POSIX
-.Vt time_t .
+value to its POSIX counterpart, if one exists.
 The
 .Fn posix2time
-function
+function does the reverse but
 is less well-behaved:
 for a positive leap second hit the result is not unique,
 and for a negative leap second hit the corresponding
 POSIX
 .Vt time_t
-does not exist so an adjacent value is returned.
-Both of these are good indicators of the inferiority of the
+doesn't exist so an adjacent value is returned.
+Both of these are indicate problems with the
 POSIX representation.
 .Pp
 The following table summarizes the relationship between a time
@@ -109,23 +98,35 @@ T and its conversion to,
 and back from,
 the POSIX representation over the leap second inserted at the end of June,
 1993.
-.Bl -column "93/06/30" "23:59:59" "A+0" "X=time2posix(T)"
-.It Sy "DATE	TIME	T	X=time2posix(T)	posix2time(X)"
-.It "93/06/30	23:59:59	A+0	B+0	A+0"
-.It "93/06/30	23:59:60	A+1	B+1	A+1 or A+2"
-.It "93/07/01	00:00:00	A+2	B+1	A+1 or A+2"
-.It "93/07/01	00:00:01	A+3	B+2	A+3"
+In this table,
+.Li X=time2posix(T) ,
+.Li Y=posix2time(X) ,
+.Li A=741484816 ,
+and
+.Li B=A\-17
+because 17 positive leap seconds preceded this leap second.
+.Pp
+.Bl -column "1993-06-30" "23:59:59" "A+0" "B+0"
+.It DATE	TIME	T	X	Y
+.It 1993-06-30	23:59:59	A	B	A
+.It 1993-06-30	23:59:60	A+1	B+1	A+1 or A+2
+.It 1993-07-01	00:00:00	A+2	B+1	A+1 or A+2
+.It 1993-07-01	00:00:01	A+3	B+2	A+3
 .El
 .Pp
-A leap second deletion would look like...
-.Bl -column "??/06/30" "23:59:58" "A+0" "X=time2posix(T)"
-.It Sy "DATE	TIME	T	X=time2posix(T)	posix2time(X)"
-.It "??/06/30	23:59:58	A+0	B+0	A+0"
-.It "??/07/01	00:00:00	A+1	B+2	A+1"
-.It "??/07/01	00:00:01	A+2	B+3	A+2"
-.El
+A leap second deletion would look like the following, and
+.Li posix2time(B+1)
+would return either
+.Li A
+or
+.Li A+1 .
 .Pp
-.D1 No "[Note: posix2time(B+1) => A+0 or A+1]"
+.Bl -column "????-06-30" "23:59:58" "A+1" "B+2" "A+1"
+.It DATE	TIME	T	X	Y
+.It ????-06-30	23:59:58	A	B	A
+.It ????-07-01	00:00:00	A+1	B+2	A+1
+.It ????-07-01	00:00:01	A+2	B+3	A+2
+.El
 .Pp
 If leap-second support is not enabled,
 local
@@ -139,6 +140,31 @@ and both
 and
 .Fn posix2time
 degenerate to the identity function.
+.Sh RETURN VALUES
+If successful, these functions return the resulting timestamp without modifying
+.Va errno .
+Otherwise, they set
+.Va errno
+and return
+.Li "((time_t) -1)" .
+.Sh ERRORS
+These functions fail if:
+.Bl -tag -width Er
+.It Bq Er EOVERFLOW
+The resulting value cannot be represented.
+This can happen for
+.Fn posix2time
+if its argument is close to the maximum
+.Vt time_t
+value.
+In environments where the
+.Ev TZ
+environment variable names a TZif file,
+overflow can happen for either function for an argument sufficiently
+close to an extreme
+.Vt time_t
+value if the TZif file specifies unrealistic leap second corrections.
+.El
 .Sh "SEE ALSO"
 .Xr difftime 3 ,
 .Xr localtime 3 ,

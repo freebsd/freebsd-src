@@ -194,6 +194,8 @@ fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
 	int err = 0;
 	int op = FUSE_RELEASE;
 
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
 	if (fuse_isdeadfs(vp)) {
 		goto out;
 	}
@@ -381,7 +383,11 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	} else {
 		if ((foo->open_flags & FOPEN_KEEP_CACHE) == 0)
 			fuse_io_invalbuf(vp, td);
-	        VTOFUD(vp)->flag &= ~FN_DIRECTIO;
+		/*
+		 * XXX Update the flag without the lock for now.  See
+		 * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=293088
+		 */
+		VTOFUD(vp)->flag &= ~FN_DIRECTIO;
 	}
 
 }

@@ -37,36 +37,6 @@
 #ifndef _NETINET_IN_PCB_H_
 #define _NETINET_IN_PCB_H_
 
-#include <sys/queue.h>
-#include <sys/epoch.h>
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
-#include <sys/_rwlock.h>
-#include <sys/_smr.h>
-#include <net/route.h>
-
-#ifdef _KERNEL
-#include <sys/lock.h>
-#include <sys/proc.h>
-#include <sys/rwlock.h>
-#include <sys/sysctl.h>
-#include <net/vnet.h>
-#include <vm/uma.h>
-#endif
-#include <sys/ck.h>
-
-/*
- * struct inpcb is the common protocol control block structure used in most
- * IP transport protocols.
- *
- * Pointers to local and foreign host table entries, local and foreign socket
- * numbers, and pointers up (to a socket structure) and down (to a
- * protocol-specific control block) are stored here.
- */
-CK_LIST_HEAD(inpcbhead, inpcb);
-CK_LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
-typedef	uint64_t	inp_gen_t;
-
 /*
  * PCB with AF_INET6 null bind'ed laddr can receive AF_INET input packet.
  * So, AF_INET6 null laddr is also used as AF_INET null laddr, by utilizing
@@ -74,8 +44,8 @@ typedef	uint64_t	inp_gen_t;
  * which is done right after inpcb allocation and stays through its lifetime.
  */
 struct in_addr_4in6 {
-	u_int32_t	ia46_pad32[3];
-	struct	in_addr	ia46_addr4;
+	uint32_t	ia46_pad32[3];
+	struct in_addr	ia46_addr4;
 };
 
 union in_dependaddr {
@@ -90,8 +60,8 @@ union in_dependaddr {
  * lport, faddr to generate hash, so these fields shouldn't be moved.
  */
 struct in_endpoints {
-	u_int16_t	ie_fport;		/* foreign port */
-	u_int16_t	ie_lport;		/* local port */
+	uint16_t	ie_fport;		/* foreign port */
+	uint16_t	ie_lport;		/* local port */
 	/* protocol dependent part, local and foreign addr */
 	union in_dependaddr ie_dependfaddr;	/* foreign host table entry */
 	union in_dependaddr ie_dependladdr;	/* local host table entry */
@@ -99,7 +69,7 @@ struct in_endpoints {
 #define	ie_laddr	ie_dependladdr.id46_addr.ia46_addr4
 #define	ie6_faddr	ie_dependfaddr.id6_addr
 #define	ie6_laddr	ie_dependladdr.id6_addr
-	u_int32_t	ie6_zoneid;		/* scope zone id */
+	uint32_t	ie6_zoneid;		/* scope zone id */
 };
 
 /*
@@ -107,11 +77,11 @@ struct in_endpoints {
  * references.
  */
 struct in_conninfo {
-	u_int8_t	inc_flags;
-	u_int8_t	inc_len;
-	u_int16_t	inc_fibnum;	/* XXX was pad, 16 bits is plenty */
+	uint8_t		inc_flags;
+	uint8_t		inc_len;
+	uint16_t	inc_fibnum;	/* XXX was pad, 16 bits is plenty */
 	/* protocol dependent part */
-	struct	in_endpoints inc_ie;
+	struct in_endpoints inc_ie;
 };
 
 /*
@@ -128,7 +98,222 @@ struct in_conninfo {
 #define	inc6_laddr	inc_ie.ie6_laddr
 #define	inc6_zoneid	inc_ie.ie6_zoneid
 
-#if defined(_KERNEL) || defined(_WANT_INPCB)
+#define	inp_fport	inp_inc.inc_fport
+#define	inp_lport	inp_inc.inc_lport
+#define	inp_faddr	inp_inc.inc_faddr
+#define	inp_laddr	inp_inc.inc_laddr
+
+#define	in6p_faddr	inp_inc.inc6_faddr
+#define	in6p_laddr	inp_inc.inc6_laddr
+#define	in6p_zoneid	inp_inc.inc6_zoneid
+
+#ifdef _SYS_SOCKETVAR_H_	/* XXX: requires xsocket to be known */
+/*
+ * Interface exported to userland by various protocols which use inpcbs.  Hack
+ * alert -- only define if struct xsocket is in scope.
+ * Fields prefixed with "xi_" are unique to this structure, and the rest
+ * match fields in the struct inpcb, to ease coding and porting.
+ *
+ * Legend:
+ * (s) - used by userland utilities in src
+ * (p) - used by utilities in ports
+ * (3) - is known to be used by third party software not in ports
+ * (n) - no known usage
+ */
+typedef	uint64_t	inp_gen_t;		/* compat */
+struct xinpcb {
+	ksize_t		xi_len;			/* length of this structure */
+	struct xsocket	xi_socket;		/* (s,p) */
+	struct in_conninfo inp_inc;		/* (s,p) */
+	uint64_t	inp_gencnt;		/* (s,p) */
+	int64_t		inp_spare64[5];
+	uint32_t	inp_flow;		/* (s) */
+	uint32_t	inp_flowid;		/* (s) */
+	uint32_t	inp_flowtype;		/* (s) */
+	int32_t		inp_flags;		/* (s,p) */
+	int32_t		inp_flags2;		/* (s) */
+	uint32_t	inp_unused;
+	int32_t		in6p_cksum;		/* (n) */
+	int32_t		inp_spare32[4];
+	uint16_t	in6p_hops;		/* (n) */
+	uint8_t		inp_ip_tos;		/* (n) */
+	int8_t		pad8;
+	uint8_t		inp_vflag;		/* (s,p) */
+	uint8_t		inp_ip_ttl;		/* (n) */
+	uint8_t		inp_ip_p;		/* (n) */
+	uint8_t		inp_ip_minttl;		/* (n) */
+	int8_t		inp_spare8[4];
+} __aligned(8);
+
+struct xinpgen {
+	ksize_t	xig_len;	/* length of this structure */
+	u_int		xig_count;	/* number of PCBs at this time */
+	uint32_t	_xig_spare32;
+	uint64_t	xig_gen;	/* generation count at this time */
+	so_gen_t	xig_sogen;	/* socket generation count this time */
+	uint64_t	_xig_spare64[4];
+} __aligned(8);
+#endif /* _SYS_SOCKETVAR_H_ */
+
+/*
+ * Flags for inp_vflags -- historically version flags only
+ */
+#define	INP_IPV4	0x1
+#define	INP_IPV6	0x2
+#define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
+
+/* inp_vflags description for use with printf(9) %b identifier. */
+#define	INP_VFLAGS_BITS	"\20\1INP_IPV4\2INP_IPV6\3INP_IPV6PROTO"
+
+/*
+ * Flags for inp_flags.
+ */
+#define	INP_RECVOPTS		0x00000001 /* receive incoming IP options */
+#define	INP_RECVRETOPTS		0x00000002 /* receive IP options for reply */
+#define	INP_RECVDSTADDR		0x00000004 /* receive IP dst address */
+#define	INP_HDRINCL		0x00000008 /* user supplies entire IP header */
+#define	INP_HIGHPORT		0x00000010 /* user wants "high" port binding */
+#define	INP_LOWPORT		0x00000020 /* user wants "low" port binding */
+#define	INP_ANONPORT		0x00000040 /* read by netstat(1) */
+#define	INP_RECVIF		0x00000080 /* receive incoming interface */
+#define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
+/*	INP_FREED		0x00000200 private to in_pcb.c */
+#define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
+#define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
+#define	INP_BINDANY		0x00001000 /* allow bind to any address */
+#define	INP_INHASHLIST		0x00002000 /* in_pcbinshash() has been called */
+#define	INP_RECVTOS		0x00004000 /* receive incoming IP TOS */
+#define	IN6P_IPV6_V6ONLY	0x00008000 /* restrict AF_INET6 socket for v6 */
+#define	IN6P_PKTINFO		0x00010000 /* receive IP6 dst and I/F */
+#define	IN6P_HOPLIMIT		0x00020000 /* receive hoplimit */
+#define	IN6P_HOPOPTS		0x00040000 /* receive hop-by-hop options */
+#define	IN6P_DSTOPTS		0x00080000 /* receive dst options after rthdr */
+#define	IN6P_RTHDR		0x00100000 /* receive routing header */
+#define	IN6P_RTHDRDSTOPTS	0x00200000 /* receive dstoptions before rthdr */
+#define	IN6P_TCLASS		0x00400000 /* receive traffic class value */
+#define	IN6P_AUTOFLOWLABEL	0x00800000 /* attach flowlabel automatically */
+/*	INP_INLBGROUP		0x01000000 private to in_pcb.c */
+#define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
+#define	INP_DROPPED		0x04000000 /* protocol drop flag */
+#define	INP_SOCKREF		0x08000000 /* strong socket reference */
+#define	INP_RESERVED_0          0x10000000 /* reserved field */
+#define	INP_BOUNDFIB		0x20000000 /* Bound to a specific FIB. */
+#define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
+#define	IN6P_MTU		0x80000000 /* receive path MTU */
+
+#define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR|\
+				 INP_RECVIF|INP_RECVTTL|INP_RECVTOS|\
+				 IN6P_PKTINFO|IN6P_HOPLIMIT|IN6P_HOPOPTS|\
+				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
+				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL|IN6P_RFC2292|\
+				 IN6P_MTU)
+
+/* inp_flags description for use with printf(9) %b identifier. */
+#define	INP_FLAGS_BITS	"\20" \
+    "\1INP_RECVOPTS\2INP_RECVRETOPTS\3INP_RECVDSTADDR\4INP_HDRINCL" \
+    "\5INP_HIGHPORT\6INP_LOWPORT\7INP_ANONPORT\10INP_RECVIF" \
+    "\11INP_MTUDISC\12INP_FREED\13INP_RECVTTL\14INP_DONTFRAG" \
+    "\15INP_BINDANY\16INP_INHASHLIST\17INP_RECVTOS\20IN6P_IPV6_V6ONLY" \
+    "\21IN6P_PKTINFO\22IN6P_HOPLIMIT\23IN6P_HOPOPTS\24IN6P_DSTOPTS" \
+    "\25IN6P_RTHDR\26IN6P_RTHDRDSTOPTS\27IN6P_TCLASS\30IN6P_AUTOFLOWLABEL" \
+    "\31INP_INLBGROUP\32INP_ONESBCAST\33INP_DROPPED\34INP_SOCKREF" \
+    "\35INP_RESERVED_0\36INP_BOUNDFIB\37IN6P_RFC2292\40IN6P_MTU"
+
+/*
+ * Flags for inp_flags2.
+ */
+/*				0x00000001 */
+/*				0x00000002 */
+/*				0x00000004 */
+/*				0x00000008 */
+/*				0x00000010 */
+/*				0x00000020 */
+/*				0x00000040 */
+/*				0x00000080 */
+#define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
+#define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
+#define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */
+#define	INP_ORIGDSTADDR		0x00000800 /* receive IP dst address/port */
+/*				0x00001000 */
+/*				0x00002000 */
+/*				0x00004000 */
+/*				0x00008000 */
+/*				0x00010000 */
+#define INP_2PCP_SET		0x00020000 /* If the Eth PCP should be set explicitly */
+#define INP_2PCP_BIT0		0x00040000 /* Eth PCP Bit 0 */
+#define INP_2PCP_BIT1		0x00080000 /* Eth PCP Bit 1 */
+#define INP_2PCP_BIT2		0x00100000 /* Eth PCP Bit 2 */
+#define INP_2PCP_BASE	INP_2PCP_BIT0
+#define INP_2PCP_MASK	(INP_2PCP_BIT0 | INP_2PCP_BIT1 | INP_2PCP_BIT2)
+#define INP_2PCP_SHIFT		18         /* shift PCP field in/out of inp_flags2 */
+
+/* inp_flags2 description for use with printf(9) %b identifier. */
+#define	INP_FLAGS2_BITS	"\20" \
+    "\11INP_RECVFLOWID\12INP_RECVRSSBUCKETID" \
+    "\13INP_RATE_LIMIT_CHANGED\14INP_ORIGDSTADDR" \
+    "\22INP_2PCP_SET\23INP_2PCP_BIT0\24INP_2PCP_BIT1" \
+    "\25INP_2PCP_BIT2"
+
+struct sockopt_parameters {
+	struct in_conninfo sop_inc;
+	uint64_t sop_id;
+	int sop_level;
+	int sop_optname;
+	char sop_optval[];
+};
+
+#ifdef _SYS_KTLS_H_
+struct xktls_session {
+	uint32_t tsz;	/* total sz of elm, next elm is at this+tsz */
+	uint32_t fsz;	/* size of the struct up to keys */
+	uint64_t inp_gencnt;
+	kvaddr_t so_pcb;
+	struct in_conninfo coninf;
+	u_short rx_vlan_id;
+	struct xktls_session_onedir rcv;
+	struct xktls_session_onedir snd;
+/*
+ * Next are
+ * - keydata for rcv, first cipher of length rcv.cipher_key_len, then
+ *    authentication of length rcv.auth_key_len;
+ * - driver data (string) of length rcv.drv_st_len, if the rcv session is
+ *    offloaded to ifnet rcv.ifnet;
+ * - keydata for snd, first cipher of length snd.cipher_key_len, then
+ *    authentication of length snd.auth_key_len;
+ * - driver data (string) of length snd.drv_st_len, if the snd session is
+ *    offloaded to ifnet snd.ifnet;
+ */
+};
+#endif /* _SYS_KTLS_H_ */
+
+#ifdef _KERNEL
+/*
+ * No user visible declarations below.
+ */
+#include <sys/queue.h>
+#include <sys/epoch.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_rwlock.h>
+#include <sys/_smr.h>
+#include <net/route.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
+#include <net/vnet.h>
+#include <vm/uma.h>
+#include <sys/ck.h>
+
+/*
+ * struct inpcb is the common protocol control block structure used in most
+ * IP transport protocols.
+ *
+ * Pointers to local and foreign host table entries, local and foreign socket
+ * numbers, and pointers up (to a socket structure) and down (to a
+ * protocol-specific control block) are stored here.
+ */
+CK_LIST_HEAD(inpcbhead, inpcb);
+CK_LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
+
 /*
  * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4 and
  * IPv6 sockets.  In the case of TCP and UDP, further per-connection state is
@@ -220,7 +405,7 @@ struct inpcb {
 		short	in6p_hops;
 	};
 	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (r:e/w:h) port list */
-	inp_gen_t	inp_gencnt;	/* (c) generation count */
+	uint64_t	inp_gencnt;	/* (c) generation count */
 	void		*spare_ptr;	/* Spare pointer. */
 	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
 	union {				/* cached L3 information */
@@ -229,112 +414,9 @@ struct inpcb {
 	};
 	CK_LIST_ENTRY(inpcb) inp_list;	/* (r:e/w:p) all PCBs for proto */
 };
-#endif	/* _KERNEL */
-
-#define	inp_fport	inp_inc.inc_fport
-#define	inp_lport	inp_inc.inc_lport
-#define	inp_faddr	inp_inc.inc_faddr
-#define	inp_laddr	inp_inc.inc_laddr
-
-#define	in6p_faddr	inp_inc.inc6_faddr
-#define	in6p_laddr	inp_inc.inc6_laddr
-#define	in6p_zoneid	inp_inc.inc6_zoneid
 
 #define	inp_vnet	inp_pcbinfo->ipi_vnet
 
-/*
- * The range of the generation count, as used in this implementation, is 9e19.
- * We would have to create 300 billion connections per second for this number
- * to roll over in a year.  This seems sufficiently unlikely that we simply
- * don't concern ourselves with that possibility.
- */
-
-/*
- * Interface exported to userland by various protocols which use inpcbs.  Hack
- * alert -- only define if struct xsocket is in scope.
- * Fields prefixed with "xi_" are unique to this structure, and the rest
- * match fields in the struct inpcb, to ease coding and porting.
- *
- * Legend:
- * (s) - used by userland utilities in src
- * (p) - used by utilities in ports
- * (3) - is known to be used by third party software not in ports
- * (n) - no known usage
- */
-#ifdef _SYS_SOCKETVAR_H_
-struct xinpcb {
-	ksize_t		xi_len;			/* length of this structure */
-	struct xsocket	xi_socket;		/* (s,p) */
-	struct in_conninfo inp_inc;		/* (s,p) */
-	uint64_t	inp_gencnt;		/* (s,p) */
-	int64_t		inp_spare64[5];
-	uint32_t	inp_flow;		/* (s) */
-	uint32_t	inp_flowid;		/* (s) */
-	uint32_t	inp_flowtype;		/* (s) */
-	int32_t		inp_flags;		/* (s,p) */
-	int32_t		inp_flags2;		/* (s) */
-	uint32_t	inp_unused;
-	int32_t		in6p_cksum;		/* (n) */
-	int32_t		inp_spare32[4];
-	uint16_t	in6p_hops;		/* (n) */
-	uint8_t		inp_ip_tos;		/* (n) */
-	int8_t		pad8;
-	uint8_t		inp_vflag;		/* (s,p) */
-	uint8_t		inp_ip_ttl;		/* (n) */
-	uint8_t		inp_ip_p;		/* (n) */
-	uint8_t		inp_ip_minttl;		/* (n) */
-	int8_t		inp_spare8[4];
-} __aligned(8);
-
-struct xinpgen {
-	ksize_t	xig_len;	/* length of this structure */
-	u_int		xig_count;	/* number of PCBs at this time */
-	uint32_t	_xig_spare32;
-	inp_gen_t	xig_gen;	/* generation count at this time */
-	so_gen_t	xig_sogen;	/* socket generation count this time */
-	uint64_t	_xig_spare64[4];
-} __aligned(8);
-
-struct sockopt_parameters {
-	struct in_conninfo sop_inc;
-	uint64_t sop_id;
-	int sop_level;
-	int sop_optname;
-	char sop_optval[];
-};
-
-#ifdef _SYS_KTLS_H_
-struct xktls_session {
-	uint32_t tsz;	/* total sz of elm, next elm is at this+tsz */
-	uint32_t fsz;	/* size of the struct up to keys */
-	uint64_t inp_gencnt;
-	kvaddr_t so_pcb;
-	struct in_conninfo coninf;
-	u_short rx_vlan_id;
-	struct xktls_session_onedir rcv;
-	struct xktls_session_onedir snd;
-/*
- * Next are
- * - keydata for rcv, first cipher of length rcv.cipher_key_len, then
- *    authentication of length rcv.auth_key_len;
- * - driver data (string) of length rcv.drv_st_len, if the rcv session is
- *    offloaded to ifnet rcv.ifnet;
- * - keydata for snd, first cipher of length snd.cipher_key_len, then
- *    authentication of length snd.auth_key_len;
- * - driver data (string) of length snd.drv_st_len, if the snd session is
- *    offloaded to ifnet snd.ifnet;
- */
-};
-#endif /* _SYS_KTLS_H_ */
-
-#ifdef	_KERNEL
-int	sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
-	    int (*ctloutput_set)(struct inpcb *, struct sockopt *));
-void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
-#endif
-#endif /* _SYS_SOCKETVAR_H_ */
-
-#ifdef _KERNEL
 /*
  * Per-VNET pcb database for each high-level protocol (UDP, TCP, ...) in both
  * IPv4 and IPv6.
@@ -483,8 +565,6 @@ struct socket *
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
 
-#endif /* _KERNEL */
-
 #define INP_INFO_WLOCK(ipi)	mtx_lock(&(ipi)->ipi_lock)
 #define INP_INFO_WLOCKED(ipi)	mtx_owned(&(ipi)->ipi_lock)
 #define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_lock)
@@ -533,105 +613,6 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define INP_PCBPORTHASH(lport, mask)	(ntohs((lport)) & (mask))
 
 /*
- * Flags for inp_vflags -- historically version flags only
- */
-#define	INP_IPV4	0x1
-#define	INP_IPV6	0x2
-#define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
-
-/* inp_vflags description for use with printf(9) %b identifier. */
-#define	INP_VFLAGS_BITS	"\20\1INP_IPV4\2INP_IPV6\3INP_IPV6PROTO"
-
-/*
- * Flags for inp_flags.
- */
-#define	INP_RECVOPTS		0x00000001 /* receive incoming IP options */
-#define	INP_RECVRETOPTS		0x00000002 /* receive IP options for reply */
-#define	INP_RECVDSTADDR		0x00000004 /* receive IP dst address */
-#define	INP_HDRINCL		0x00000008 /* user supplies entire IP header */
-#define	INP_HIGHPORT		0x00000010 /* user wants "high" port binding */
-#define	INP_LOWPORT		0x00000020 /* user wants "low" port binding */
-#define	INP_ANONPORT		0x00000040 /* read by netstat(1) */
-#define	INP_RECVIF		0x00000080 /* receive incoming interface */
-#define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
-/*	INP_FREED		0x00000200 private to in_pcb.c */
-#define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
-#define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
-#define	INP_BINDANY		0x00001000 /* allow bind to any address */
-#define	INP_INHASHLIST		0x00002000 /* in_pcbinshash() has been called */
-#define	INP_RECVTOS		0x00004000 /* receive incoming IP TOS */
-#define	IN6P_IPV6_V6ONLY	0x00008000 /* restrict AF_INET6 socket for v6 */
-#define	IN6P_PKTINFO		0x00010000 /* receive IP6 dst and I/F */
-#define	IN6P_HOPLIMIT		0x00020000 /* receive hoplimit */
-#define	IN6P_HOPOPTS		0x00040000 /* receive hop-by-hop options */
-#define	IN6P_DSTOPTS		0x00080000 /* receive dst options after rthdr */
-#define	IN6P_RTHDR		0x00100000 /* receive routing header */
-#define	IN6P_RTHDRDSTOPTS	0x00200000 /* receive dstoptions before rthdr */
-#define	IN6P_TCLASS		0x00400000 /* receive traffic class value */
-#define	IN6P_AUTOFLOWLABEL	0x00800000 /* attach flowlabel automatically */
-/*	INP_INLBGROUP		0x01000000 private to in_pcb.c */
-#define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
-#define	INP_DROPPED		0x04000000 /* protocol drop flag */
-#define	INP_SOCKREF		0x08000000 /* strong socket reference */
-#define	INP_RESERVED_0          0x10000000 /* reserved field */
-#define	INP_BOUNDFIB		0x20000000 /* Bound to a specific FIB. */
-#define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
-#define	IN6P_MTU		0x80000000 /* receive path MTU */
-
-#define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR|\
-				 INP_RECVIF|INP_RECVTTL|INP_RECVTOS|\
-				 IN6P_PKTINFO|IN6P_HOPLIMIT|IN6P_HOPOPTS|\
-				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
-				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL|IN6P_RFC2292|\
-				 IN6P_MTU)
-
-/* inp_flags description for use with printf(9) %b identifier. */
-#define	INP_FLAGS_BITS	"\20" \
-    "\1INP_RECVOPTS\2INP_RECVRETOPTS\3INP_RECVDSTADDR\4INP_HDRINCL" \
-    "\5INP_HIGHPORT\6INP_LOWPORT\7INP_ANONPORT\10INP_RECVIF" \
-    "\11INP_MTUDISC\12INP_FREED\13INP_RECVTTL\14INP_DONTFRAG" \
-    "\15INP_BINDANY\16INP_INHASHLIST\17INP_RECVTOS\20IN6P_IPV6_V6ONLY" \
-    "\21IN6P_PKTINFO\22IN6P_HOPLIMIT\23IN6P_HOPOPTS\24IN6P_DSTOPTS" \
-    "\25IN6P_RTHDR\26IN6P_RTHDRDSTOPTS\27IN6P_TCLASS\30IN6P_AUTOFLOWLABEL" \
-    "\31INP_INLBGROUP\32INP_ONESBCAST\33INP_DROPPED\34INP_SOCKREF" \
-    "\35INP_RESERVED_0\36INP_BOUNDFIB\37IN6P_RFC2292\40IN6P_MTU"
-
-/*
- * Flags for inp_flags2.
- */
-/*				0x00000001 */
-/*				0x00000002 */
-/*				0x00000004 */
-/*				0x00000008 */
-/*				0x00000010 */
-/*				0x00000020 */
-/*				0x00000040 */
-/*				0x00000080 */
-#define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
-#define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
-#define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */
-#define	INP_ORIGDSTADDR		0x00000800 /* receive IP dst address/port */
-/*				0x00001000 */
-/*				0x00002000 */
-/*				0x00004000 */
-/*				0x00008000 */
-/*				0x00010000 */
-#define INP_2PCP_SET		0x00020000 /* If the Eth PCP should be set explicitly */
-#define INP_2PCP_BIT0		0x00040000 /* Eth PCP Bit 0 */
-#define INP_2PCP_BIT1		0x00080000 /* Eth PCP Bit 1 */
-#define INP_2PCP_BIT2		0x00100000 /* Eth PCP Bit 2 */
-#define INP_2PCP_BASE	INP_2PCP_BIT0
-#define INP_2PCP_MASK	(INP_2PCP_BIT0 | INP_2PCP_BIT1 | INP_2PCP_BIT2)
-#define INP_2PCP_SHIFT		18         /* shift PCP field in/out of inp_flags2 */
-
-/* inp_flags2 description for use with printf(9) %b identifier. */
-#define	INP_FLAGS2_BITS	"\20" \
-    "\11INP_RECVFLOWID\12INP_RECVRSSBUCKETID" \
-    "\13INP_RATE_LIMIT_CHANGED\14INP_ORIGDSTADDR" \
-    "\22INP_2PCP_SET\23INP_2PCP_BIT0\24INP_2PCP_BIT1" \
-    "\25INP_2PCP_BIT2"
-
-/*
  * Flags passed to in_pcblookup*(), inp_smr_lock() and inp_next().
  */
 typedef	enum {
@@ -651,7 +632,6 @@ typedef	enum {
 
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
 
-#ifdef _KERNEL
 VNET_DECLARE(int, ipport_reservedhigh);
 VNET_DECLARE(int, ipport_reservedlow);
 VNET_DECLARE(int, ipport_lowfirstauto);
@@ -703,6 +683,11 @@ bool	in_pcbrele(struct inpcb *, inp_lookup_t);
 bool	in_pcbrele_rlocked(struct inpcb *);
 bool	in_pcbrele_wlocked(struct inpcb *);
 bool	in_pcbrele_rlock(struct inpcb *inp);
+#ifdef _SYS_SOCKETVAR_H_
+void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
+int	sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
+	    int (*ctloutput_set)(struct inpcb *, struct sockopt *));
+#endif
 
 typedef bool inp_match_t(const struct inpcb *, void *);
 struct inpcb_iterator {

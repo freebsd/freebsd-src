@@ -776,6 +776,10 @@ ixgbe_parse_common_caps(struct ixgbe_hw *hw, struct ixgbe_hw_common_caps *caps,
 		DEBUGOUT2("%s: next_cluster_id_support = %d\n",
 			  prefix, caps->next_cluster_id_support);
 		break;
+	case IXGBE_ACI_CAPS_EEE:
+		caps->eee_support = (u8)number;
+		DEBUGOUT2("%s: eee_support = %x\n", prefix, caps->eee_support);
+		break;
 	default:
 		/* Not one of the recognized common capabilities */
 		found = false;
@@ -1332,6 +1336,7 @@ void ixgbe_copy_phy_caps_to_cfg(struct ixgbe_aci_cmd_get_phy_caps_data *caps,
 	cfg->link_fec_opt = caps->link_fec_options;
 	cfg->module_compliance_enforcement =
 		caps->module_compliance_enforcement;
+	cfg->eee_entry_delay = caps->eee_entry_delay;
 }
 
 /**
@@ -1351,10 +1356,12 @@ s32 ixgbe_aci_set_phy_cfg(struct ixgbe_hw *hw,
 			  struct ixgbe_aci_cmd_set_phy_cfg_data *cfg)
 {
 	struct ixgbe_aci_desc desc;
+	bool use_1p40_buff;
 	s32 status;
 
 	if (!cfg)
 		return IXGBE_ERR_PARAM;
+	use_1p40_buff =	hw->func_caps.common_cap.eee_support != 0;
 
 	/* Ensure that only valid bits of cfg->caps can be turned on. */
 	if (cfg->caps & ~IXGBE_ACI_PHY_ENA_VALID_MASK) {
@@ -1364,8 +1371,18 @@ s32 ixgbe_aci_set_phy_cfg(struct ixgbe_hw *hw,
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_set_phy_cfg);
 	desc.flags |= IXGBE_CPU_TO_LE16(IXGBE_ACI_FLAG_RD);
 
-	status = ixgbe_aci_send_cmd(hw, &desc, cfg, sizeof(*cfg));
+	if (use_1p40_buff) {
+		status = ixgbe_aci_send_cmd(hw, &desc, cfg, sizeof(*cfg));
+	} else {
+		struct ixgbe_aci_cmd_set_phy_cfg_data_pre_1_40 cfg_obsolete;
 
+		memcpy(&cfg_obsolete, cfg, sizeof(cfg_obsolete));
+
+		status = ixgbe_aci_send_cmd(hw, &desc, &cfg_obsolete,
+					    sizeof(cfg_obsolete));
+	}
+
+	/* even if the old buffer is used no need to worry about conversion */
 	if (!status)
 		hw->phy.curr_user_phy_cfg = *cfg;
 
@@ -1599,6 +1616,7 @@ s32 ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 	li->topo_media_conflict = link_data.topo_media_conflict;
 	li->pacing = link_data.cfg & (IXGBE_ACI_CFG_PACING_M |
 				      IXGBE_ACI_CFG_PACING_TYPE_M);
+	li->eee_status = link_data.eee_status;
 
 	/* update fc info */
 	tx_pause = !!(link_data.an_info & IXGBE_ACI_LINK_PAUSE_TX);
@@ -3883,9 +3901,14 @@ s32 ixgbe_init_ops_E610(struct ixgbe_hw *hw)
 	/* PHY */
 	phy->ops.init = ixgbe_init_phy_ops_E610;
 	phy->ops.identify = ixgbe_identify_phy_E610;
-	phy->eee_speeds_supported = IXGBE_LINK_SPEED_10_FULL |
-				    IXGBE_LINK_SPEED_100_FULL |
-				    IXGBE_LINK_SPEED_1GB_FULL;
+
+	if (hw->device_id == IXGBE_DEV_ID_E610_2_5G_T)
+		phy->eee_speeds_supported = IXGBE_LINK_SPEED_2_5GB_FULL;
+	else
+		phy->eee_speeds_supported = IXGBE_LINK_SPEED_2_5GB_FULL |
+					    IXGBE_LINK_SPEED_5GB_FULL |
+					    IXGBE_LINK_SPEED_10GB_FULL;
+
 	phy->eee_speeds_advertised = phy->eee_speeds_supported;
 
 	/* Additional ops overrides for e610 to go here */
@@ -4513,19 +4536,18 @@ s32 ixgbe_setup_eee_E610(struct ixgbe_hw *hw, bool enable_eee)
 	phy_cfg.caps |= IXGBE_ACI_PHY_ENA_LINK;
 	phy_cfg.caps |= IXGBE_ACI_PHY_ENA_AUTO_LINK_UPDT;
 
+	/* setup only speeds which are defined for [0x0601/0x0600].eee_cap */
 	if (enable_eee) {
-		if (phy_caps.phy_type_low & IXGBE_PHY_TYPE_LOW_100BASE_TX)
+		if (hw->phy.eee_speeds_advertised & IXGBE_LINK_SPEED_100_FULL)
 			eee_cap |= IXGBE_ACI_PHY_EEE_EN_100BASE_TX;
-		if (phy_caps.phy_type_low & IXGBE_PHY_TYPE_LOW_1000BASE_T)
+		if (hw->phy.eee_speeds_advertised & IXGBE_LINK_SPEED_1GB_FULL)
 			eee_cap |= IXGBE_ACI_PHY_EEE_EN_1000BASE_T;
-		if (phy_caps.phy_type_low & IXGBE_PHY_TYPE_LOW_1000BASE_KX)
-			eee_cap |= IXGBE_ACI_PHY_EEE_EN_1000BASE_KX;
-		if (phy_caps.phy_type_low & IXGBE_PHY_TYPE_LOW_10GBASE_T)
+		if (hw->phy.eee_speeds_advertised & IXGBE_LINK_SPEED_2_5GB_FULL)
+			eee_cap |= IXGBE_ACI_PHY_EEE_EN_2_5GBASE_T;
+		if (hw->phy.eee_speeds_advertised & IXGBE_LINK_SPEED_5GB_FULL)
+			eee_cap |= IXGBE_ACI_PHY_EEE_EN_5GBASE_T;
+		if (hw->phy.eee_speeds_advertised & IXGBE_LINK_SPEED_10GB_FULL)
 			eee_cap |= IXGBE_ACI_PHY_EEE_EN_10GBASE_T;
-		if (phy_caps.phy_type_low & IXGBE_PHY_TYPE_LOW_10GBASE_KR_CR1)
-			eee_cap |= IXGBE_ACI_PHY_EEE_EN_10GBASE_KR;
-		if (phy_caps.phy_type_high & IXGBE_PHY_TYPE_HIGH_10BASE_T)
-			eee_cap |= IXGBE_ACI_PHY_EEE_EN_10BASE_T;
 	}
 
 	/* Set EEE capability for particular PHY types */

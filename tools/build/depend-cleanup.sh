@@ -349,7 +349,7 @@ if [ ${MACHINE} = riscv ]; then
 	clean_dep   lib/libc memcpy c
 
 	# 20251031  5a52f0704435  libc: scalar strnlen() in RISC-V assembly
-	clean_dep   lib/libc strnlen c
+	#clean_dep   lib/libc strnlen c
 
 	# 20251031  08af0bbc9c7d  libc: scalar strchrnul() in RISC-V assembly
 	clean_dep   lib/libc strchrnul c
@@ -357,6 +357,9 @@ if [ ${MACHINE} = riscv ]; then
 	# 20251031  b5dbf3de5611  libc/riscv64: implement bcopy() and bzero() through memcpy() and memset()
 	clean_dep   lib/libc bcopy c "libc.string.bcopy.c"
 	clean_dep   lib/libc bzero c "libc.string.bzero.c"
+
+	# 20260307  2a4e3112c811   libc/riscv64: temporarily disable strnlen() implementation until a fix is developed
+	clean_dep   lib/libc strnlen S
 fi
 
 if [ ${MACHINE_ARCH} = "aarch64" ]; then

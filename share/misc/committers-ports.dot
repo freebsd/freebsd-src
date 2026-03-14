@@ -244,6 +244,7 @@ marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
+mce [label="Kousuke Kannagi\nmce@FreeBSD.org\n2026/02/18"]
 meta [label="Koichiro Iwao\nmeta@FreeBSD.org\n2018/03/19"]
 mfechner [label="Matthias Fechner\nmfechner@FreeBSD.org\n2018/03/01"]
 michaelo [label="Michael Osipov\nmichaelo@FreeBSD.org\n2023/10/16"]
@@ -493,6 +494,7 @@ flo -> jbeich
 flo -> grembo
 flo -> tiga
 
+fluffy -> mce
 fluffy -> vishwin
 
 flz -> garga
@@ -701,6 +703,7 @@ obrien -> gerald
 
 olivier -> pizzamig
 
+osa -> mce
 osa -> nxjoseph
 osa -> otis
 osa -> vg

@@ -806,7 +806,7 @@ static int validate_mem_range(struct adapter *, uint32_t, uint32_t);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, uint32_t,
     uint32_t *);
-static int fixup_devlog_params(struct adapter *);
+static int fixup_devlog_ncores_params(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, struct intrs_and_queues *);
 static int contact_firmware(struct adapter *);
 static int partition_resources(struct adapter *);
@@ -1425,7 +1425,7 @@ t4_attach(device_t dev)
 	 */
 	setup_memwin(sc);
 	if (t4_init_devlog_ncores_params(sc, 0) == 0)
-		fixup_devlog_params(sc);
+		fixup_devlog_ncores_params(sc);
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &t4_cdevsw;
 	mda.mda_uid = UID_ROOT;
@@ -4565,11 +4565,15 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, uint32_t len,
 }
 
 static int
-fixup_devlog_params(struct adapter *sc)
+fixup_devlog_ncores_params(struct adapter *sc)
 {
 	struct devlog_params *dparams = &sc->params.devlog;
 	int rc;
 
+#ifdef INVARIANTS
+	if (sc->params.ncores > 1)
+		MPASS(chip_id(sc) >= CHELSIO_T7);
+#endif
 	rc = validate_mt_off_len(sc, dparams->memtype, dparams->start,
 	    dparams->size, &dparams->addr);
 
@@ -5559,7 +5563,7 @@ get_params__pre_init(struct adapter *sc)
 	/* Read device log parameters. */
 	rc = -t4_init_devlog_ncores_params(sc, 1);
 	if (rc == 0)
-		fixup_devlog_params(sc);
+		fixup_devlog_ncores_params(sc);
 	else {
 		device_printf(sc->dev,
 		    "failed to get devlog parameters: %d.\n", rc);
@@ -5712,8 +5716,6 @@ get_params__post_init(struct adapter *sc)
 	}
 
 	if (sc->params.ncores > 1) {
-		MPASS(chip_id(sc) >= CHELSIO_T7);
-
 		param[0] = FW_PARAM_DEV(TID_QID_SEL_MASK);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
 		sc->params.tid_qid_sel_mask = rc == 0 ? val[0] : 0;

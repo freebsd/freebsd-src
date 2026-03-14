@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2023 Intel Corporation
+ * Copyright (c) 2021 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -85,13 +85,18 @@
 #define STATS_TIMER_DELAY 60000
 
 /* a couple of linux size defines */
-#define SZ_128          128
+#define SZ_128	        128
 #define SPEED_1000     1000
+#define SPEED_2500     2500
+#define SPEED_5000     5000
 #define SPEED_10000   10000
+#define SPEED_14000   14000
 #define SPEED_20000   20000
 #define SPEED_25000   25000
 #define SPEED_40000   40000
+#define SPEED_50000   50000
 #define SPEED_100000 100000
+#define SPEED_200000 200000
 
 #define irdma_mb()	mb()
 #define irdma_wmb()	wmb()

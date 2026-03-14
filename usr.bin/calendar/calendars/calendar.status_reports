@@ -1,0 +1,28 @@
+/*
+ * FreeBSD
+ */
+
+#ifndef _calendar_status_reports_
+#define _calendar_status_reports_
+
+03/01	Status Reports: First call for Q1
+03/15	Status Reports: 1 month left reminder for Q1
+03/31	Status Reports: 2 weeks left reminder for Q1
+04/14	Status Reports: Q1 deadline
+
+06/01	Status Reports: First call for Q2
+06/15	Status Reports: 1 month left reminder for Q2
+06/30	Status Reports: 2 weeks left reminder for Q2
+07/14	Status Reports: Q2 deadline
+
+09/01	Status Reports: First call for Q3
+09/15	Status Reports: 1 month left reminder for Q3
+09/30	Status Reports: 2 weeks left reminder for Q3
+10/14	Status Reports: Q3 deadline
+
+12/01	Status Reports: First call for Q4
+12/15	Status Reports: 1 month left reminder for Q4
+12/31	Status Reports: 2 weeks left reminder for Q4
+01/14	Status Reports: Q4 deadline
+
+#endif /* !_calendar_status_reports_ */

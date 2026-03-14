@@ -284,7 +284,7 @@ p9fs_vget_common(struct mount *mp, struct p9fs_node *np, int flags,
 			node = vp->v_data;
 			/* Remove stale vnode from hash list */
 			vfs_hash_remove(vp);
-			node->flags |= P9FS_NODE_DELETED;
+			P9FS_NODE_SETF(node, P9FS_NODE_DELETED);
 
 			vput(vp);
 			*vpp = NULL;
@@ -372,7 +372,7 @@ p9fs_vget_common(struct mount *mp, struct p9fs_node *np, int flags,
 	if (*vpp == NULL) {
 		P9FS_LOCK(vses);
 		STAILQ_INSERT_TAIL(&vses->virt_node_list, np, p9fs_node_next);
-		np->flags |= P9FS_NODE_IN_SESSION;
+		P9FS_NODE_SETF(np, P9FS_NODE_IN_SESSION);
 		P9FS_UNLOCK(vses);
 		vn_set_state(vp, VSTATE_CONSTRUCTED);
 		*vpp = vp;
@@ -448,7 +448,7 @@ p9_mount(struct mount *mp)
 	P9FS_VOFID_LOCK_INIT(p9fs_root);
 	STAILQ_INIT(&p9fs_root->vofid_list);
 	p9fs_root->parent = p9fs_root;
-	p9fs_root->flags |= P9FS_ROOT;
+	P9FS_NODE_SETF(p9fs_root, P9FS_NODE_ROOT);
 	p9fs_root->p9fs_ses = vses;
 	vfs_getnewfsid(mp);
 	strlcpy(mp->mnt_stat.f_mntfromname, from,
