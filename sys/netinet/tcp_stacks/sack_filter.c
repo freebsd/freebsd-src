@@ -29,14 +29,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>
 #include <sys/sockopt.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_seq.h>
 #else /* ! _KERNEL */
+#include <netinet/tcp_seq.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
