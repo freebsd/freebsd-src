@@ -82,7 +82,8 @@ tests = ['block_cloning_clone_mmap_cached',
     'block_cloning_copyfilerange_fallback_same_txg',
     'block_cloning_replay', 'block_cloning_replay_encrypted',
     'block_cloning_lwb_buffer_overflow', 'block_cloning_clone_mmap_write',
-    'block_cloning_rlimit_fsize', 'block_cloning_large_offset']
+    'block_cloning_rlimit_fsize', 'block_cloning_large_offset',
+    'block_cloning_after_device_removal']
 tags = ['functional', 'block_cloning']
 
 [tests/functional/bootfs]
@@ -196,7 +197,7 @@ tests = ['zfs_clone_001_neg', 'zfs_clone_002_pos', 'zfs_clone_003_pos',
     'zfs_clone_004_pos', 'zfs_clone_005_pos', 'zfs_clone_006_pos',
     'zfs_clone_007_pos', 'zfs_clone_008_neg', 'zfs_clone_009_neg',
     'zfs_clone_010_pos', 'zfs_clone_encrypted', 'zfs_clone_deeply_nested',
-    'zfs_clone_rm_nested']
+    'zfs_clone_rm_nested', 'zfs_clone_nomount']
 tags = ['functional', 'cli_root', 'zfs_clone']
 
 [tests/functional/cli_root/zfs_copies]
@@ -308,7 +309,8 @@ tests = ['zfs_reservation_001_pos', 'zfs_reservation_002_pos']
 tags = ['functional', 'cli_root', 'zfs_reservation']
 
 [tests/functional/cli_root/zfs_rewrite]
-tests = ['zfs_rewrite', 'zfs_rewrite_physical']
+tests = ['zfs_rewrite', 'zfs_rewrite_physical', 'zfs_rewrite_skip_clone',
+    'zfs_rewrite_skip_snapshot']
 tags = ['functional', 'cli_root', 'zfs_rewrite']
 
 [tests/functional/cli_root/zfs_rollback]
@@ -562,7 +564,7 @@ tags = ['functional', 'cli_root', 'zpool_scrub']
 tests = ['zpool_set_001_pos', 'zpool_set_002_neg', 'zpool_set_003_neg',
     'zpool_set_ashift', 'zpool_set_features', 'vdev_set_001_pos',
     'user_property_001_pos', 'user_property_002_neg',
-    'zpool_set_clear_userprop']
+    'zpool_set_clear_userprop','vdev_set_scheduler']
 tags = ['functional', 'cli_root', 'zpool_set']
 
 [tests/functional/cli_root/zpool_split]
@@ -996,6 +998,8 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send_freeobjects', 'send_realloc_files', 'send_realloc_encrypted_files',
     'send_spill_block', 'send_holds', 'send_hole_birth', 'send_mixed_raw',
     'send-wR_encrypted_zvol', 'send_partial_dataset', 'send_invalid',
+    'send_large_blocks_incremental', 'send_large_blocks_initial',
+    'send_large_microzap_incremental', 'send_large_microzap_transitive',
     'send_doall', 'send_raw_spill_block', 'send_raw_ashift',
     'send_raw_large_blocks', 'send_leak_keymaps']
 tags = ['functional', 'rsend']
@@ -1128,7 +1132,8 @@ tags = ['functional', 'log_spacemap']
 
 [tests/functional/l2arc]
 tests = ['l2arc_arcstats_pos', 'l2arc_mfuonly_pos', 'l2arc_l2miss_pos',
-    'persist_l2arc_001_pos', 'persist_l2arc_002_pos',
+    'l2arc_dwpd_ratelimit_pos', 'l2arc_dwpd_reimport_pos', 'l2arc_multidev_scaling_pos',
+    'l2arc_multidev_throughput_pos', 'persist_l2arc_001_pos', 'persist_l2arc_002_pos',
     'persist_l2arc_003_neg', 'persist_l2arc_004_pos', 'persist_l2arc_005_pos']
 tags = ['functional', 'l2arc']
 

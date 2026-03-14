@@ -3256,7 +3256,7 @@ nvs_xdr_nvp_##type(XDR *xdrs, void *ptr)	\
 	return (xdr_##type(xdrs, ptr));		\
 }
 
-#elif !defined(_KERNEL) && defined(XDR_CONTROL) /* tirpc */
+#elif !defined(_KERNEL) && defined(XDR_CONTROL) /* tirpc, FreeBSD < 16 */
 
 #define	NVS_BUILD_XDRPROC_T(type)		\
 static bool_t					\
@@ -3272,7 +3272,7 @@ nvs_xdr_nvp_##type(XDR *xdrs, ...)		\
 	return (xdr_##type(xdrs, ptr));		\
 }
 
-#else /* FreeBSD, sunrpc */
+#else /* FreeBSD kernel < 16, sunrpc */
 
 #define	NVS_BUILD_XDRPROC_T(type)		\
 static bool_t					\

@@ -10,6 +10,11 @@ on:
         required: false
         default: ""
         description: "(optional) Experimental kernel version to install on Fedora (like '6.14' or '6.13.3-0.rc3')"
+      specific_os:
+        type: string
+        required: false
+        default: ""
+        description: "(optional) Only run on this specific OS (like 'fedora42' or 'alpine3-23')"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -43,7 +48,7 @@ jobs:
             os_selection='["almalinux8", "almalinux9", "almalinux10", "debian12", "fedora42", "freebsd15-0s", "ubuntu24"]'
             ;;
           linux)
-            os_selection='["almalinux8", "almalinux9", "almalinux10", "centos-stream9", "centos-stream10", "debian11", "debian12", "debian13", "fedora41", "fedora42", "fedora43", "ubuntu22", "ubuntu24"]'
+            os_selection='["almalinux8", "almalinux9", "almalinux10", "centos-stream9", "centos-stream10", "debian11", "debian12", "debian13", "fedora42", "fedora43", "ubuntu22", "ubuntu24"]'
             ;;
           freebsd)
             os_selection='["freebsd13-5r", "freebsd14-3r", "freebsd13-5s", "freebsd14-3s", "freebsd15-0s", "freebsd16-0c"]'
@@ -58,6 +63,9 @@ jobs:
               # They specified a custom kernel version for Fedora.
               # Use only Fedora runners.
               os_json=$(echo ${os_selection} | jq -c '[.[] | select(startswith("fedora"))]')
+          elif ${{ github.event.inputs.specific_os != '' }}; then
+              # Use only the specified runner.
+              os_json=$(jq -cn --arg os "${{ github.event.inputs.specific_os }}" '[ $os ]')
           else
               # Normal case
               os_json=$(echo ${os_selection} | jq -c)
@@ -88,11 +96,7 @@ jobs:
 
     - name: Setup QEMU
       timeout-minutes: 60
-      run: |
-        # Add a timestamp to each line to debug timeouts
-        while IFS=$'\n' read -r line; do
-            echo "$(date +'%H:%M:%S') $line"
-        done < <(.github/workflows/scripts/qemu-1-setup.sh)
+      run: .github/workflows/scripts/qemu-1-setup.sh
 
     - name: Start build machine
       timeout-minutes: 10

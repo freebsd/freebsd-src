@@ -195,6 +195,9 @@
 /* backing_dev_info is available through queue gendisk */
 /* #undef HAVE_BLK_QUEUE_DISK_BDI */
 
+/* blk_queue_rot() is available */
+/* #undef HAVE_BLK_QUEUE_ROT */
+
 /* blk_queue_secure_erase() is available */
 /* #undef HAVE_BLK_QUEUE_SECURE_ERASE */
 
@@ -271,6 +274,9 @@
 /* fault_in_iov_iter_readable() is available */
 /* #undef HAVE_FAULT_IN_IOV_ITER_READABLE */
 
+/* linux/filelock.h exists */
+/* #undef HAVE_FILELOCK_HEADER */
+
 /* file->f_version exists */
 /* #undef HAVE_FILE_F_VERSION */
 
@@ -282,6 +288,9 @@
 
 /* fsync_bdev() is declared in include/blkdev.h */
 /* #undef HAVE_FSYNC_BDEV */
+
+/* fs_context exists */
+/* #undef HAVE_FS_CONTEXT */
 
 /* yes */
 /* #undef HAVE_GENERIC_FADVISE */
@@ -508,6 +517,9 @@
 /* Define to 1 if you have the 'mlockall' function. */
 #define HAVE_MLOCKALL 1
 
+/* 'flags' in 'struct page' is a struct */
+/* #undef HAVE_MM_PAGE_FLAGS_STRUCT */
+
 /* PG_error flag is available */
 /* #undef HAVE_MM_PAGE_FLAG_ERROR */
 
@@ -540,6 +552,9 @@
 
 /* pin_user_pages_unlocked() is available */
 /* #undef HAVE_PIN_USER_PAGES_UNLOCKED */
+
+/* posix_acl_to_xattr() allocates its result */
+/* #undef HAVE_POSIX_ACL_TO_XATTR_ALLOC */
 
 /* proc_handler ctl_table arg is const */
 /* #undef HAVE_PROC_HANDLER_CTL_TABLE_CONST */
@@ -597,6 +612,9 @@
 
 /* Define if set_default_d_op() is available */
 /* #undef HAVE_SET_DEFAULT_D_OP */
+
+/* Define if host toolchain supports SHA512 */
+#define HAVE_SHA512EXT 1
 
 /* shrinker_register exists */
 /* #undef HAVE_SHRINKER_REGISTER */
@@ -862,7 +880,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-292-FreeBSD_g962e68865"
+#define ZFS_META_ALIAS "zfs-2.4.99-402-FreeBSD_gf8e5af53e"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -871,7 +889,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.18"
+#define ZFS_META_KVER_MAX "6.19"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -892,7 +910,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "292-FreeBSD_g962e68865"
+#define ZFS_META_RELEASE "402-FreeBSD_gf8e5af53e"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"

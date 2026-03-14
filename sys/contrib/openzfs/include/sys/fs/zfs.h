@@ -203,6 +203,7 @@ typedef enum {
 	ZFS_PROP_DEFAULTUSEROBJQUOTA,
 	ZFS_PROP_DEFAULTGROUPOBJQUOTA,
 	ZFS_PROP_DEFAULTPROJECTOBJQUOTA,
+	ZFS_PROP_SNAPSHOTS_CHANGED_NSECS,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -272,6 +273,8 @@ typedef enum {
 	ZPOOL_PROP_DEDUP_TABLE_QUOTA,
 	ZPOOL_PROP_DEDUPCACHED,
 	ZPOOL_PROP_LAST_SCRUBBED_TXG,
+	ZPOOL_PROP_DEDUPUSED,
+	ZPOOL_PROP_DEDUPSAVED,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
@@ -388,8 +391,21 @@ typedef enum {
 	VDEV_PROP_SIT_OUT,
 	VDEV_PROP_AUTOSIT,
 	VDEV_PROP_SLOW_IO_EVENTS,
+	VDEV_PROP_SCHEDULER,
 	VDEV_NUM_PROPS
 } vdev_prop_t;
+
+/*
+ * Different scheduling behaviors for vdev scheduler property.
+ * VDEV_SCHEDULER_AUTO = Let ZFS decide - currently use scheduler on HDDs only.
+ * VDEV_SCHEDULER_ON = Always queue.
+ * VDEV_SCHEDULER_OFF = Never queue.
+ */
+typedef enum {
+	VDEV_SCHEDULER_AUTO,
+	VDEV_SCHEDULER_ON,
+	VDEV_SCHEDULER_OFF
+} vdev_scheduler_type_t;
 
 /*
  * Dataset property functions shared between libzfs and kernel.
@@ -872,6 +888,10 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_MMP_SEQ		"mmp_seq"	/* not stored on disk */
 #define	ZPOOL_CONFIG_MMP_HOSTNAME	"mmp_hostname"	/* not stored on disk */
 #define	ZPOOL_CONFIG_MMP_HOSTID		"mmp_hostid"	/* not stored on disk */
+#define	ZPOOL_CONFIG_MMP_RESULT		"mmp_result"	/* not stored on disk */
+#define	ZPOOL_CONFIG_MMP_TRYIMPORT_NS	"mmp_tryimport_ns"	/* not stored */
+#define	ZPOOL_CONFIG_MMP_IMPORT_NS	"mmp_import_ns"	/* not stored on disk */
+#define	ZPOOL_CONFIG_MMP_CLAIM_NS	"mmp_claim_ns"	/* not stored on disk */
 #define	ZPOOL_CONFIG_ALLOCATION_BIAS	"alloc_bias"	/* not stored on disk */
 #define	ZPOOL_CONFIG_EXPANSION_TIME	"expansion_time"	/* not stored */
 #define	ZPOOL_CONFIG_REBUILD_STATS	"org.openzfs:rebuild_stats"
@@ -1633,7 +1653,9 @@ typedef struct zfs_rewrite_args {
 } zfs_rewrite_args_t;
 
 /* zfs_rewrite_args flags */
-#define	ZFS_REWRITE_PHYSICAL	0x1	/* Preserve logical birth time. */
+#define	ZFS_REWRITE_PHYSICAL		0x1 /* Preserve logical birth time. */
+#define	ZFS_REWRITE_SKIP_SNAPSHOT	0x2 /* Skip snapshot-shared blocks. */
+#define	ZFS_REWRITE_SKIP_BRT		0x4 /* Skip BRT-cloned blocks. */
 
 #define	ZFS_IOC_REWRITE		_IOW(0x83, 3, zfs_rewrite_args_t)
 

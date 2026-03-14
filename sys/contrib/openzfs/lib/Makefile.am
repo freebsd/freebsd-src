@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: CDDL-1.0
 #
 # Shown below is a simplified dependency graph of the OpenZFS provided
 # libraries.  Administrative commands (`zfs`, `zpool`, etc) interface with
@@ -11,19 +12,19 @@
 #
 # CMDS:   zhack/ztest/                zfs/zpool/zed/
 #        raidz_{test,bench}          zinject/zstream
-#                |                          |
-# LIBS:          |                          |              libzfsbootenv*
-#                |--libzdb--zdb             |                    |
-#                |                          |                    |
-#             libzpool                   libzfs* ----------------+
-#             | | |  \                  / | | |\
-#    libicp --/ | |   \                /  | \ | \----- libshare
-#               | |    \              /   |  \ \
-#    libzstd ---/ |     \            /    |   \ \-------\
-#                 |      \          /     \    \         \
-#    libunicode --/       \        /       \    \-------\ \
-#                          \      /         \            \ |
-#                          libzutil        libzfs_core*  | |
+#                |         \_____          / |
+# LIBS:          |               \        /  |            libzfsbootenv*
+#                |--libzdb--zdb   \      /   |                  |
+#                |           |    |     /    |                  |
+#             libzpool-\     |    |    //-libzfs* --------------+
+#             | |    \  \    |    |   // / | \ \
+#    libicp --/ |     \  \   |    |  // /  |  \ \
+#               |      \ librange_tree /   |   \ \
+#    libzstd ---/       \  libbtree   /    |    \ \--------
+#                        \           /      \    \         \
+#                         \         /        \    \------  |
+#                          \       /          \          \ |
+#                           libzutil       libzfs_core*  | |
 #                            | | | \          |     |    | |
 #                            | | | |          |     |    | |
 #                            | | | |          |     |    | |
@@ -54,11 +55,11 @@ noinst_LTLIBRARIES =
 lib_LTLIBRARIES =
 pkgconfig_DATA =
 include $(srcdir)/%D%/libavl/Makefile.am
+include $(srcdir)/%D%/libbtree/Makefile.am
 include $(srcdir)/%D%/libicp/Makefile.am
 include $(srcdir)/%D%/libnvpair/Makefile.am
-include $(srcdir)/%D%/libshare/Makefile.am
+include $(srcdir)/%D%/librange_tree/Makefile.am
 include $(srcdir)/%D%/libspl/Makefile.am
-include $(srcdir)/%D%/libunicode/Makefile.am
 include $(srcdir)/%D%/libzdb/Makefile.am
 include $(srcdir)/%D%/libzfs_core/Makefile.am
 include $(srcdir)/%D%/libzfs/Makefile.am

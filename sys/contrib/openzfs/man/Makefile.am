@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: CDDL-1.0
 dist_noinst_man_MANS = \
 	%D%/man1/cstyle.1
 
@@ -111,6 +112,7 @@ endif
 
 if BUILD_LINUX
 dist_man_MANS += \
+	%D%/man8/pam_zfs_key.8 \
 	%D%/man8/zfs-unzone.8 \
 	%D%/man8/zfs-zone.8
 endif
