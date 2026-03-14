@@ -228,6 +228,7 @@ kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2020/02/14"]
 knu [label="Akinori Musha\nknu@FreeBSD.org\n2000/03/22"]
 krion [label="Kirill Ponomarew\nkrion@FreeBSD.org\n2003/07/20"]
 kwm [label="Koop Mast\nkwm@FreeBSD.org\n2004/09/14"]
+laurent [label="Laurent Chardon\nlaurent@FreeBSD.org\n2026/03/03"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbartoletti [label="Loïc Bartoletti\nlbartoletti@FreeBSD.org\n2020/01/02"]
 lcook [label="Lewis Cook\nlcook@FreeBSD.org\n2021/01/21"]
@@ -839,8 +840,9 @@ tcberner -> yuri
 tcberner -> zirias
 
 thierry -> jadawin
-thierry -> riggs
+thierry -> laurent
 thierry -> pfg
+thierry -> riggs
 
 timur -> kbowling
 
