@@ -219,15 +219,19 @@ trap_uprintf_signal(struct thread *td, struct trapframe *frame, register_t addr,
 }
 
 static bool
-trap_check_efirt(struct thread *td, struct trapframe *frame)
+trap_check_pcb_onfault(struct thread *td, struct trapframe *frame)
 {
-	/*
-	 * Most likely, EFI RT faulted.  This check prevents
-	 * kdb from handling breakpoints set on the BIOS text,
-	 * if such option is ever needed.
-	 */
-	if ((td->td_pflags & TDP_EFIRT) != 0 &&
-	    curpcb->pcb_onfault != NULL) {
+	bool res = false;
+
+	if (curpcb->pcb_onfault == NULL)
+		return (res);
+
+	if (__predict_false((td->td_pflags & TDP_EFIRT) != 0)) {
+		/*
+		 * Most likely, EFI RT faulted.  This check prevents
+		 * kdb from handling breakpoints set on the BIOS text,
+		 * if such option is ever needed.
+		 */
 		u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
 
 		if ((print_efirt_faults == 1 && cnt == 0) ||
@@ -236,10 +240,13 @@ trap_check_efirt(struct thread *td, struct trapframe *frame)
 			    traptype_to_msg(frame->tf_trapno));
 			trap_diag(frame, 0);
 		}
-		frame->tf_rip = (long)curpcb->pcb_onfault;
-		return (true);
+		res = true;
+	} else if (frame->tf_trapno == T_PAGEFLT) {
+		res = true;
 	}
-	return (false);
+	if (res)
+		frame->tf_rip = (register_t)curpcb->pcb_onfault;
+	return (res);
 }
 
 static void
@@ -494,7 +501,7 @@ trap(struct trapframe *frame)
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 
-		if (type != T_PAGEFLT && trap_check_efirt(td, frame))
+		if (type != T_PAGEFLT && trap_check_pcb_onfault(td, frame))
 			return;
 
 		switch (type) {
@@ -904,7 +911,7 @@ trap_pfault(struct trapframe *frame, bool usermode, int *signo, int *ucode)
 		return (1);
 after_vmfault:
 	if (td->td_intr_nesting_level == 0 &&
-	    trap_check_efirt(td, frame))
+	    trap_check_pcb_onfault(td, frame))
 		return (0);
 	trap_fatal(frame, eva);
 	return (-1);
