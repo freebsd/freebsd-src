@@ -21,6 +21,11 @@ arm/broadcom/bcm2835/bcm2838_pci.c		optional pci
 arm/broadcom/bcm2835/bcm2838_xhci.c		optional xhci
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt
 
+# CPRMAN clock controller (clkdev framework)
+dev/clk/broadcom/bcm_clk_periph.c		standard
+dev/clk/broadcom/bcm_cprman.c			standard
+dev/clk/broadcom/bcm2835_cprman_drv.c		standard
+
 dev/mbox/mbox_if.m				standard
 
 arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq \
