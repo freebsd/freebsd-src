@@ -355,7 +355,7 @@ tarfs_zread_zstd(struct tarfs_zio *zio, struct uio *uiop)
 	if (reset) {
 		zio->ipos = zio->idx[zio->curidx].i;
 		zio->opos = zio->idx[zio->curidx].o;
-		ZSTD_resetDStream(zstd->zds);
+		ZSTD_DCtx_reset(zstd->zds, ZSTD_reset_session_only);
 		TARFS_DPF(ZIDX, "%s: skipping to index %u = i %zu o %zu\n", __func__,
 		    zio->curidx, (size_t)zio->ipos, (size_t)zio->opos);
 	} else {
@@ -511,7 +511,7 @@ fail_unlocked:
 		zio->curidx = 0;
 		zio->ipos = zio->idx[0].i;
 		zio->opos = zio->idx[0].o;
-		ZSTD_resetDStream(zstd->zds);
+		ZSTD_DCtx_reset(zstd->zds, ZSTD_reset_session_only);
 	}
 	return (error);
 }
