@@ -223,9 +223,6 @@ contrib/openzfs/module/os/freebsd/zfs/zfs_znode_os.c		optional zfs compile-with 
 contrib/openzfs/module/os/freebsd/zfs/zio_crypt.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zvol_os.c		optional zfs compile-with "${ZFS_C}"
 
-#zfs unicode support
-contrib/openzfs/module/unicode/u8_textprep.c		optional zfs compile-with "${ZFS_C}"
-
 #zfs checksums / zcommon
 contrib/openzfs/module/zcommon/cityhash.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfeature_common.c		optional zfs compile-with "${ZFS_C}"
@@ -326,6 +323,7 @@ contrib/openzfs/module/zfs/spa_stats.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/space_map.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/space_reftree.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/txg.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/u8_textprep.c           optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/uberblock.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/unique.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev.c		optional zfs compile-with "${ZFS_C}"
@@ -744,7 +742,6 @@ dev/acpi_support/acpi_ibm.c	optional acpi_ibm acpi
 dev/acpi_support/acpi_panasonic.c optional acpi_panasonic acpi
 dev/acpi_support/acpi_sbl_wmi.c	optional acpi_sbl_wmi acpi
 dev/acpi_support/acpi_sony.c	optional acpi_sony acpi
-dev/acpi_support/acpi_system76.c	optional acpi_system76 acpi
 dev/acpi_support/acpi_toshiba.c	optional acpi_toshiba acpi
 dev/acpi_support/atk0110.c	optional aibs acpi
 dev/acpica/Osd/OsdDebug.c	optional acpi
@@ -1853,7 +1850,6 @@ dev/iicbus/rtc/ds1307.c		optional ds1307
 dev/iicbus/rtc/ds13rtc.c	optional ds13rtc | ds133x | ds1374
 dev/iicbus/rtc/ds1672.c		optional ds1672
 dev/iicbus/rtc/ds3231.c		optional ds3231
-dev/iicbus/rtc/hym8563.c	optional hym8563 iicbus fdt
 dev/iicbus/rtc/isl12xx.c	optional isl12xx
 dev/iicbus/rtc/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt
@@ -3579,7 +3575,6 @@ dev/xdma/xdma_mbuf.c		optional xdma
 dev/xdma/xdma_queue.c		optional xdma
 dev/xdma/xdma_sg.c		optional xdma
 dev/xdma/xdma_sglist.c		optional xdma
-dev/xen/acpi/xen-acpi.c		optional xenhvm
 dev/xen/balloon/balloon.c	optional xenhvm
 dev/xen/blkfront/blkfront.c	optional xenhvm
 dev/xen/blkback/blkback.c	optional xenhvm

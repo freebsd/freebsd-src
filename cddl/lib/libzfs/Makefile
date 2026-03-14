@@ -2,7 +2,6 @@
 .PATH: ${ZFSTOP}/module/zcommon
 .PATH: ${ZFSTOP}/lib/libzfs
 .PATH: ${ZFSTOP}/lib/libzfs/os/freebsd
-.PATH: ${ZFSTOP}/lib/libshare
 .PATH: ${ZFSTOP}/include
 .PATH: ${ZFSTOP}/module/zstd
 .PATH: ${ZFSTOP}/module/zstd/lib
@@ -29,30 +28,27 @@ LIBADD= \
 
 INCS=	libzfs.h
 USER_C = \
-        libzfs_changelist.c \
-        libzfs_config.c \
-        libzfs_crypto.c \
-        libzfs_dataset.c \
-        libzfs_diff.c \
-        libzfs_import.c \
-        libzfs_iter.c \
-        libzfs_mount.c \
-        libzfs_pool.c \
-        libzfs_sendrecv.c \
-        libzfs_status.c \
-        libzfs_util.c
+	libzfs_changelist.c \
+	libzfs_config.c \
+	libzfs_crypto.c \
+	libzfs_dataset.c \
+	libzfs_diff.c \
+	libzfs_import.c \
+	libzfs_iter.c \
+	libzfs_mount.c \
+	libzfs_pool.c \
+	libzfs_sendrecv.c \
+	libzfs_share.c \
+	libzfs_share_nfs.c \
+	libzfs_status.c \
+	libzfs_util.c \
+	os/freebsd/libzfs_share_nfs.c \
+	os/freebsd/libzfs_share_smb.c
 
 # FreeBSD
 USER_C += \
         libzfs_compat.c \
         libzfs_zmount.c
-
-# libshare
-USER_C += \
-	libshare.c \
-	nfs.c \
-	os/freebsd/nfs.c \
-	os/freebsd/smb.c
 
 KERNEL_C = \
         cityhash.c \

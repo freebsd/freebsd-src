@@ -12,10 +12,12 @@ ZFS_SRC+=	zfs_zstd.c
 ZFS_SRC+=	blake3.c blake3_generic.c blake3_impl.c
 ZSTD_SRC+=	entropy_common.c error_private.c
 ZSTD_SRC+=	fse_decompress.c hist.c
-ZSTD_SRC+=	huf_decompress.c pool.c xxhash.c
+ZSTD_SRC+=	huf_decompress.c pool.c
+ZSTD_SRC+=	xxhash.c
 ZSTD_SRC+=	zstd_common.c
 ZSTD_SRC+=	zstd_ddict.c zstd_decompress.c zstd_decompress_block.c
 ZSTD_SRC+=	zstd_double_fast.c zstd_fast.c zstd_lazy.c zstd_ldm.c
+ZSTD_SRC+=	zstd_preSplit.c
 
 SRCS+=		${ZFS_SRC} ${ZSTD_SRC} ${ZFS_SRC_AS}
 
@@ -44,6 +46,8 @@ ZFS_EARLY=	-I${SAZFSSRC}/spl				\
 CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h -Wformat -Wall -I${ZFSTOP}/include \
 	-DNEED_SOLARIS_BOOLEAN
 .endfor
+
+CFLAGS.xxhash.c+=	-I${ZFSTOP}/module/zstd/lib/common
 
 CFLAGS_EARLY.blake3.c+= ${ZFS_EARLY} -DOMIT_SIMD
 CFLAGS_EARLY.blake3_generic.c+= ${ZFS_EARLY} -DOMIT_SIMD

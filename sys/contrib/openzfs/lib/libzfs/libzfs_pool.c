@@ -380,6 +380,8 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 		case ZPOOL_PROP_BCLONESAVED:
 		case ZPOOL_PROP_BCLONEUSED:
 		case ZPOOL_PROP_DEDUP_TABLE_SIZE:
+		case ZPOOL_PROP_DEDUPUSED:
+		case ZPOOL_PROP_DEDUPSAVED:
 		case ZPOOL_PROP_DEDUPCACHED:
 			if (literal)
 				(void) snprintf(buf, len, "%llu",
@@ -1632,6 +1634,11 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 				    errbuf));
 			}
 
+		case ENXIO:
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "one or more devices could not be opened"));
+			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+
 		default:
 			return (zpool_standard_error(hdl, errno, errbuf));
 		}
@@ -2048,7 +2055,9 @@ zpool_explain_recover(libzfs_handle_t *hdl, const char *name, int reason,
 
 no_info:
 	(void) strlcat(buf, dgettext(TEXT_DOMAIN,
-	    "Destroy and re-create the pool from\n\ta backup source.\n"), size);
+	    "Ensure all pool devices are present and accessible, then "
+	    "retry the import.\n\tIf the problem persists, destroy and "
+	    "re-create the pool from a backup source.\n"), size);
 }
 
 /*
@@ -2208,6 +2217,11 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 	zcmd_free_nvlists(&zc);
 
 	zpool_get_load_policy(config, &policy);
+
+	if (getenv("ZFS_LOAD_INFO_DEBUG") && nv != NULL &&
+	    nvlist_lookup_nvlist(nv, ZPOOL_CONFIG_LOAD_INFO, &nvinfo) == 0) {
+		dump_nvlist(nvinfo, 4);
+	}
 
 	if (error) {
 		char desc[1024];

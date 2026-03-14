@@ -205,9 +205,6 @@ SRCS+=	abd_os.c \
 	zio_crypt.c \
 	zvol_os.c
 
-#unicode
-SRCS+=	u8_textprep.c
-
 #zcommon
 SRCS+=	zfeature_common.c \
 	zfs_comutil.c \
@@ -297,6 +294,7 @@ SRCS+=	abd.c \
 	space_map.c \
 	space_reftree.c \
 	txg.c \
+	u8_textprep.c \
 	uberblock.c \
 	unique.c \
 	vdev.c \
@@ -369,7 +367,6 @@ SRCS+=	zfs_zstd.c \
 	huf_compress.c \
 	huf_decompress.c \
 	pool.c \
-	xxhash.c \
 	zstd_common.c \
 	zstd_compress.c \
 	zstd_compress_literals.c \
@@ -382,7 +379,8 @@ SRCS+=	zfs_zstd.c \
 	zstd_fast.c \
 	zstd_lazy.c \
 	zstd_ldm.c \
-	zstd_opt.c
+	zstd_opt.c \
+	zstd_preSplit.c
 
 .include <bsd.kmod.mk>
 

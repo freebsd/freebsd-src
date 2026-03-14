@@ -3456,7 +3456,7 @@ show_import(nvlist_t *config, boolean_t report_error)
 
 	case ZPOOL_STATUS_CORRUPT_POOL:
 		(void) printf_color(ANSI_YELLOW, gettext("The pool metadata is "
-		    "corrupted.\n"));
+		    "incomplete or corrupted.\n"));
 		break;
 
 	case ZPOOL_STATUS_VERSION_OLDER:
@@ -3704,6 +3704,12 @@ show_import(nvlist_t *config, boolean_t report_error)
 			(void) printf(gettext("Set a unique system hostid with "
 			    "the zgenhostid(8) command.\n"));
 			break;
+		case ZPOOL_STATUS_CORRUPT_POOL:
+			(void) printf(gettext("The pool cannot be imported due "
+			    "to missing or damaged devices.  Ensure\n"
+			    "\t%sall devices are present and not in use by "
+			    "another subsystem.\n"), indent);
+			break;
 		default:
 			(void) printf(gettext("The pool cannot be imported due "
 			    "to damaged devices or data.\n"));
@@ -3878,6 +3884,9 @@ do_import(nvlist_t *config, const char *newname, const char *mntopts,
 			    "to import the pool.\n"), name, hostname,
 			    hostid, ctime(&timestamp));
 		}
+
+		if (getenv("ZFS_LOAD_INFO_DEBUG"))
+			dump_nvlist(nvinfo, 4);
 
 		return (1);
 	}
@@ -10613,7 +10622,8 @@ print_status_reason(zpool_handle_t *zhp, status_cbdata_t *cbp,
 
 	case ZPOOL_STATUS_CORRUPT_POOL:
 		(void) snprintf(status, ST_SIZE, gettext("The pool metadata is "
-		    "corrupted and the pool cannot be opened.\n"));
+		    "incomplete or corrupted and the pool cannot be "
+		    "opened.\n"));
 		zpool_explain_recover(zpool_get_handle(zhp),
 		    zpool_get_name(zhp), reason, zpool_get_config(zhp, NULL),
 		    action, AC_SIZE);
@@ -13779,7 +13789,7 @@ zpool_do_help(int argc, char **argv)
 
 	(void) execlp("man", "man", page, NULL);
 
-	fprintf(stderr, "couldn't run man program: %s", strerror(errno));
+	fprintf(stderr, "couldn't run man program: %s\n", strerror(errno));
 	return (-1);
 }
 

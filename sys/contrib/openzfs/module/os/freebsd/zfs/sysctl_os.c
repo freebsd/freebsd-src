@@ -171,6 +171,22 @@ warn_deprecated_sysctl(const char *old, const char *new)
 }
 
 int
+param_set_l2arc_dwpd_limit(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t old_val = l2arc_dwpd_limit;
+	int err;
+
+	err = sysctl_handle_64(oidp, arg1, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (l2arc_dwpd_limit != old_val)
+		l2arc_dwpd_bump_reset();
+
+	return (0);
+}
+
+int
 param_set_arc_max(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long val;
@@ -297,6 +313,7 @@ SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_no_grow_shift,
 	NULL, 1, param_set_arc_no_grow_shift, "I",
 	"log2(fraction of ARC which must be free to allow growing) (LEGACY)");
 
+#if 0
 extern uint64_t l2arc_write_max;
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_write_max,
@@ -350,6 +367,8 @@ extern int l2arc_norw;
 SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_norw,
 	CTLFLAG_RWTUN, &l2arc_norw, 0,
 	"No reads during writes (LEGACY)");
+
+#endif
 
 static int
 param_get_arc_state_size(SYSCTL_HANDLER_ARGS)
