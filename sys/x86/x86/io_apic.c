@@ -364,10 +364,20 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	/*
 	 * Set the destination.  Note that with Intel interrupt remapping,
 	 * the previously reserved bits 55:48 now have a purpose so ensure
-	 * these are zero.
+	 * these are zero.  If the CPU number (in fact, APIC ID) is too
+	 * large, mark the interrupt as invalid, and target CPU #0.
 	 */
-	low = IOART_DESTPHY;
-	high = intpin->io_cpu << APIC_ID_SHIFT;
+	if (intpin->io_cpu <= IOAPIC_MAX_ID) {
+		low = IOART_DESTPHY;
+		high = intpin->io_cpu << APIC_ID_SHIFT;
+		intpin->io_valid = 1;
+	} else {
+		printf("%s: unsupported destination APIC ID %u for pin %u\n",
+		    __func__, intpin->io_cpu, intpin->io_intpin);
+		low = IOART_DESTPHY;
+		high = 0 << APIC_ID_SHIFT;
+		intpin->io_valid = 0;
+	}
 
 	/* Program the rest of the low word. */
 	if (intpin->io_edgetrigger)
