@@ -461,10 +461,10 @@ TEST_F(AsyncReadNoAttrCache, read_sizechange)
 	uint64_t ino = 42;
 	mode_t mode = S_IFREG | 0644;
 	int fd;
-	ssize_t bufsize = strlen(CONTENTS);
+	size_t bufsize = strlen(CONTENTS);
 	uint8_t buf[bufsize];
-	ssize_t size1 = bufsize - 1;
-	ssize_t size2 = bufsize;
+	size_t size1 = bufsize - 1;
+	size_t size2 = bufsize;
 	Sequence seq;
 
 	expect_lookup(RELPATH, ino);
@@ -532,12 +532,12 @@ TEST_F(AsyncReadNoAttrCache, read_sizechange)
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
 
-	ASSERT_EQ(size1, read(fd, buf, bufsize)) << strerror(errno);
+	ASSERT_EQ(static_cast<ssize_t>(size1), read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, size1));
 
 	/* Read again, but this time the server has changed the file's size */
 	bzero(buf, size2);
-	ASSERT_EQ(size2, pread(fd, buf, bufsize, 0)) << strerror(errno);
+	ASSERT_EQ(static_cast<ssize_t>(size2), pread(fd, buf, bufsize, 0)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, size2));
 
 	leak(fd);
