@@ -1287,6 +1287,9 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 
 	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
 	    vector));
+	KASSERT(isrc != NULL,
+	    ("lapic_handle_intr: vector %d unrecognized at lapic %u",
+	    vector, PCPU_GET(apic_id)));
 	intr_execute_handlers(isrc, frame);
 }
 
