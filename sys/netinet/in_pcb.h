@@ -292,9 +292,9 @@ struct xktls_session {
  */
 #include <sys/queue.h>
 #include <sys/epoch.h>
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
-#include <sys/_rwlock.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/_smr.h>
 #include <net/route.h>
 #include <sys/proc.h>
