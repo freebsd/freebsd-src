@@ -291,10 +291,4 @@ TESTSBASE?= /usr/tests
 
 DEPENDFILE?=	.depend
 
-# Compat for the moment -- old bsd.own.mk only included this when _WITHOUT_SRCCONF
-# wasn't defined. bsd.ports.mk and friends depend on this behavior. Remove in 12.
-.if !defined(_WITHOUT_SRCCONF)
-.include <bsd.compiler.mk>
-.endif # !_WITHOUT_SRCCONF
-
 .endif	# !target(__<bsd.own.mk>__)
