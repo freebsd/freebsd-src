@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 23, 2022
+.Dd March 15, 2026
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -170,6 +170,38 @@ the allowed maximum is
 .Dv RES_MAXRETRY
 (see
 .In resolv.h ) .
+.It Sy edns0
+Sets
+.Dv RES_USE_EDNS0 .
+Attach an OPT pseudo-RR for the EDNS0 extension,
+as specified in RFC 2671.
+This allows the resolver to advertise a larger UDP receive buffer size,
+permitting responses larger than the original 512-byte limit.
+.It Sy inet6
+Sets
+.Dv RES_USE_INET6 .
+Causes
+.Xr gethostbyname 3
+to look up AAAA records before A records
+and to map IPv4 responses into IPv6 addresses.
+The use of this option is discouraged.
+.It Sy insecure1
+Sets
+.Dv RES_INSECURE1 .
+Disables the check that the response was received from the
+same server to which the query was sent.
+Use of this option is a security risk and is not recommended.
+.It Sy insecure2
+Sets
+.Dv RES_INSECURE2 .
+Disables the check that the response contains a query
+matching the one that was sent.
+Use of this option is a security risk and is not recommended.
+.It Sy no-check-names
+Sets
+.Dv RES_NOCHECKNAME .
+Disables the check of incoming host names for invalid characters
+such as underscore, non-ASCII, or control characters.
 .It Sy no_tld_query
 tells the resolver not to attempt to resolve a top level domain name, that
 is, a name that contains no dots.
@@ -179,6 +211,12 @@ the resolver from obeying the standard
 and
 .Sy search
 rules with the given name.
+.It Sy rotate
+Sets
+.Dv RES_ROTATE .
+Causes the resolver to round-robin among the configured name servers,
+distributing the query load instead of always trying the first
+listed server.
 .It Sy reload-period : Ns Ar n
 The resolver checks the modification time of
 .Pa /etc/resolv.conf
