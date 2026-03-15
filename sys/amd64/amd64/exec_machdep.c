@@ -95,6 +95,15 @@ _Static_assert(sizeof(ucontext_t) == 880, "ucontext_t size incorrect");
 _Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
 
 /*
+ * Check that the value r is 16bit, i.e. fits into a segment register.
+ */
+static bool
+is_seg_val(register_t r)
+{
+	return ((uint64_t)r <= 0xffff);
+}
+
+/*
  * Send an interrupt to process.
  *
  * Stack is set up to allow sigcode stored at top to call routine,
@@ -259,6 +268,14 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (!EFL_SECURE(rflags, regs->tf_rflags)) {
 		uprintf("pid %d (%s): sigreturn rflags = 0x%lx\n", p->p_pid,
 		    td->td_name, rflags);
+		return (EINVAL);
+	}
+
+	if (!is_seg_val(ucp->uc_mcontext.mc_ss) ||
+	    !is_seg_val(ucp->uc_mcontext.mc_cs)) {
+		uprintf("pid %d (%s): sigreturn cs = %#lx ss = %#lx\n",
+		    p->p_pid, td->td_name, ucp->uc_mcontext.mc_cs,
+		    ucp->uc_mcontext.mc_ss);
 		return (EINVAL);
 	}
 
@@ -658,6 +675,8 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	tp = td->td_frame;
 	if (mcp->mc_len != sizeof(*mcp) ||
 	    (mcp->mc_flags & ~_MC_FLAG_MASK) != 0)
+		return (EINVAL);
+	if (!is_seg_val(mcp->mc_ss) || !is_seg_val(mcp->mc_cs))
 		return (EINVAL);
 	rflags = (mcp->mc_rflags & PSL_USERCHANGE) |
 	    (tp->tf_rflags & ~PSL_USERCHANGE);
