@@ -89,6 +89,7 @@ SRC = @VALGRINDTEST_SRC@ \
 	reactivatetest.c \
 	selpolltest.c \
 	threadsignaltest.c \
+	versiontest.c \
 	writecaptest.c
 
 TESTS = $(SRC:.c=)
@@ -146,6 +147,10 @@ threadsignaltest: $(srcdir)/threadsignaltest.c ../libpcap.a
 
 valgrindtest: $(srcdir)/valgrindtest.c ../libpcap.a
 	$(CC) $(FULL_CFLAGS) -I. -L. -o valgrindtest $(srcdir)/valgrindtest.c \
+	    ../libpcap.a $(LIBS)
+
+versiontest: $(srcdir)/versiontest.c ../libpcap.a
+	$(CC) $(FULL_CFLAGS) -I. -L. -o $@ $(srcdir)/versiontest.c \
 	    ../libpcap.a $(LIBS)
 
 writecaptest: $(srcdir)/writecaptest.c ../libpcap.a
