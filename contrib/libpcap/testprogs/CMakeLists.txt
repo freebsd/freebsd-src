@@ -33,6 +33,7 @@ add_test_executable(findalldevstest)
 add_test_executable(findalldevstest-perf)
 add_test_executable(opentest)
 add_test_executable(reactivatetest)
+add_test_executable(versiontest)
 add_test_executable(writecaptest)
 
 if(NOT WIN32)
@@ -48,4 +49,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR
   add_test_executable(valgrindtest)
 endif()
 
-add_subdirectory(fuzz)
+if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR
+   CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR
+   CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  if(IS_DIRECTORY ${CMAKE_HOME_DIRECTORY}/.git)
+     add_subdirectory(fuzz)
+  endif(IS_DIRECTORY ${CMAKE_HOME_DIRECTORY}/.git)
+endif()
