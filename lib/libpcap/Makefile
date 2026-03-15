@@ -137,7 +137,6 @@ YFLAGS+=-p pcap_
 LFLAGS+=-Ppcap_ --header-file=${.OBJDIR}/scanner.h --nounput
 CFLAGS+=-DHAVE_CONFIG_H -I${.CURDIR} -I${.OBJDIR}
 CFLAGS+=-D_U_="__attribute__((unused))"
-CFLAGS+=-DHAVE_SNPRINTF -DHAVE_VSNPRINTF
 CFLAGS+=-DBUILDING_PCAP
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6

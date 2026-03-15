@@ -80,9 +80,7 @@
 #define lib_pcap_bpf_h
 
 #include <pcap/funcattrs.h>
-#if defined(__FreeBSD__)
 #include <pcap/dlt.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {

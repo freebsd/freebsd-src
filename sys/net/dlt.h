@@ -30,6 +30,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  */
 
 #ifndef _NET_DLT_H_
@@ -56,7 +58,12 @@
 /*
  * These are the types that are the same on all platforms, and that
  * have been defined by <net/bpf.h> for ages.
+ *
+ * DLT_LOW_MATCHING_MIN is the lowest such value; DLT_LOW_MATCHING_MAX
+ * is the highest such value.
  */
+#define DLT_LOW_MATCHING_MIN	0
+
 #define DLT_NULL	0	/* BSD loopback encapsulation */
 #define DLT_EN10MB	1	/* Ethernet (10Mb) */
 #define DLT_EN3MB	2	/* Experimental Ethernet (3Mb) */
@@ -70,13 +77,34 @@
 #define DLT_FDDI	10	/* FDDI */
 
 /*
+ * In case the code that includes this file (directly or indirectly)
+ * has also included OS files that happen to define DLT_LOW_MATCHING_MAX,
+ * with a different value (perhaps because that OS hasn't picked up
+ * the latest version of our DLT definitions), we undefine the
+ * previous value of DLT_LOW_MATCHING_MAX.
+ *
+ * (They shouldn't, because only those 10 values were assigned in
+ * the Good Old Days, before DLT_ code assignment became a bit of
+ * a free-for-all.  Perhaps 11 is DLT_ATM_RFC1483 everywhere 11
+ * is used at all, but 12 is DLT_RAW on some platforms but not
+ * OpenBSD, and the fun continues for several other values.)
+ */
+#ifdef DLT_LOW_MATCHING_MAX
+#undef DLT_LOW_MATCHING_MAX
+#endif
+
+#define DLT_LOW_MATCHING_MAX	DLT_FDDI	/* highest value in this "matching" range */
+
+/*
  * These are types that are different on some platforms, and that
  * have been defined by <net/bpf.h> for ages.  We use #ifdefs to
  * detect the BSDs that define them differently from the traditional
  * libpcap <net/bpf.h>
  *
  * XXX - DLT_ATM_RFC1483 is 13 in BSD/OS, and DLT_RAW is 14 in BSD/OS,
- * but I don't know what the right #define is for BSD/OS.
+ * but I don't know what the right #define is for BSD/OS.  The last
+ * release was in October 2003; if anybody cares about making this
+ * work on BSD/OS, give us a pull request for a change to make it work.
  */
 #define DLT_ATM_RFC1483	11	/* LLC-encapsulated ATM */
 
@@ -108,7 +136,7 @@
  * From a quick look at sys/net/if_hippi.h and sys/net/if_hippisubr.c
  * in an older version of NetBSD , the header appears to be:
  *
- * 	a 1-byte ULP field (ULP-id)?
+ *	a 1-byte ULP field (ULP-id)?
  *
  *	a 1-byte flags field;
  *
@@ -184,12 +212,10 @@
  * anything and doesn't appear to have ever used it for anything.)
  *
  * We define it as 18 on those platforms; it is, unfortunately, used
- * for DLT_CIP in Suse 6.3, so we don't define it as DLT_PFSYNC
- * in general.  As the packet format for it, like that for
- * DLT_PFLOG, is not only OS-dependent but OS-version-dependent,
- * we don't support printing it in tcpdump except on OSes that
- * have the relevant header files, so it's not that useful on
- * other platforms.
+ * for DLT_CIP in SUSE 6.3, so we don't define it as 18 on all
+ * platforms. We define it as 121 on FreeBSD and as the same
+ * value that we assigned to LINKTYPE_PFSYNC on all remaining
+ * platforms.
  */
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || defined(__APPLE__)
 #define DLT_PFSYNC	18
@@ -234,10 +260,10 @@
  * and the LINKTYPE_ value that appears in capture files, are the
  * same.
  *
- * DLT_MATCHING_MIN is the lowest such value; DLT_MATCHING_MAX is
+ * DLT_HIGH_MATCHING_MIN is the lowest such value; DLT_HIGH_MATCHING_MAX is
  * the highest such value.
  */
-#define DLT_MATCHING_MIN	104
+#define DLT_HIGH_MATCHING_MIN	104
 
 /*
  * This value was defined by libpcap 0.5; platforms that have defined
@@ -364,7 +390,7 @@
  * 121 was reserved for Siemens HiPath HDLC on 2002-01-25, as
  * requested by Tomas Kukosa.
  *
- * On 2004-02-25, a FreeBSD checkin to sys/net/bpf.h was made that
+ * On 2004-02-25, a FreeBSD check in to sys/net/bpf.h was made that
  * assigned 121 as DLT_PFSYNC.  In current versions, its libpcap
  * does DLT_ <-> LINKTYPE_ mapping, mapping DLT_PFSYNC to a
  * LINKTYPE_PFSYNC value of 246, so it should write out DLT_PFSYNC
@@ -1017,9 +1043,9 @@
 #define DLT_AOS                 222
 
 /*
- * Wireless HART (Highway Addressable Remote Transducer)
+ * WirelessHART (Highway Addressable Remote Transducer)
  * From the HART Communication Foundation
- * IES/PAS 62591
+ * IEC/PAS 62591
  *
  * Requested by Sam Roberts <vieuxtech@gmail.com>.
  */
@@ -1290,7 +1316,7 @@
  * which is stored with each packet:
  *
  *   EXP_PDU_TAG_DISSECTOR_NAME      the name of the Wireshark dissector
- * 				     that can make sense of the data stored.
+ *				     that can make sense of the data stored.
  *
  *   EXP_PDU_TAG_HEUR_DISSECTOR_NAME the name of the Wireshark heuristic
  *				     dissector that can make sense of the
@@ -1544,6 +1570,8 @@
 
 /*
  * USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
+ * Deprecated in favor of speed specific DLTs: DLT_USB_2_0_LOW_SPEED,
+ * DLT_USB_2_0_FULL_SPEED and DLT_USB_2_0_HIGH_SPEED.
  */
 #define DLT_USB_2_0		288
 
@@ -1553,34 +1581,111 @@
 #define DLT_ATSC_ALP		289
 
 /*
+ * Event Tracing for Windows messages.
+ */
+#define DLT_ETW			290
+
+/*
+ * Hilscher Gesellschaft fuer Systemautomation mbH
+ * netANALYZER NG hardware and software.
+ *
+ * The specification for this footer can be found at:
+ * https://kb.hilscher.com/x/brDJBw
+ *
+ * Requested by Jan Adam <jadam@hilscher.com>
+ */
+#define DLT_NETANALYZER_NG	291
+
+/*
+ * Serial NCP (Network Co-Processor) protocol for Zigbee stack ZBOSS
+ * by DSR, https://dsr-iot.com/downloads
+ */
+#define DLT_ZBOSS_NCP		292
+
+/*
+ * USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
+ */
+#define DLT_USB_2_0_LOW_SPEED	293
+#define DLT_USB_2_0_FULL_SPEED	294
+#define DLT_USB_2_0_HIGH_SPEED	295
+
+/*
+ * Auerswald Logger Protocol
+ * description is provided on
+ * https://github.com/Auerswald-GmbH/auerlog/blob/master/auerlog.txt
+ */
+#define DLT_AUERSWALD_LOG	296
+
+/*
+ * Z-Wave packets with a TAP meta-data header
+ * https://gitlab.com/exegin/zwave-g9959-tap
+ * requested on tcpdump-workers@
+ */
+#define DLT_ZWAVE_TAP		297
+
+/*
+ * Silicon Labs debug channel protocol:
+ */
+#define DLT_SILABS_DEBUG_CHANNEL 298
+
+/*
+ * Ultra-wideband (UWB) controller interface protocol (UCI).
+ * requested by Henri Chataing <henrichataing@google.com>
+ */
+#define DLT_FIRA_UCI		299
+
+/*
+ * MDB (Multi-Drop Bus) protocol between a vending machine controller and
+ * peripherals inside the vending machine. See
+ *
+ *	https://www.kaiser.cx/pcap-mdb.html
+ *
+ * for the specification.
+ *
+ * Requested by Martin Kaiser <martin@kaiser.cx>.
+ */
+#define DLT_MDB			300
+
+/*
+ * DECT-2020 New Radio (NR) - ETSI TS 103 636.
+ * Requested by Stig Bjorlykke <stig@bjorlykke.org>.
+ */
+#define DLT_DECT_NR		301
+
+/*
+ * Request serialization protocol used by edk2 firmware to communicate between
+ * normal mode and management mode ('MM' for short).
+ *
+ * The qemu uefi variable store implementation reuses the request serialization
+ * protocol for firmware <-> qemu communication.
+ */
+#define DLT_EDK2_MM		302
+
+/*
+ * Unstructured data for manual debugging only.  In other words, this DLT is
+ * suitable for expert interpretation of hex dumps, and that's it.  Do not use
+ * this DLT for any other purpose.  For any automated (identification, saving,
+ * loading, filtering, decoding) processing please either use another existing
+ * DLT that fits the use case or document, assign and implement a new, properly
+ * structured DLT.
+ *
+ * In this DLT do not assume any specification, any structure, any format, any
+ * version, any header, any payload, any byte order, any implementation, any
+ * software/firmware/hardware particulars, any source, any destination, any
+ * direction, any protocol or any data integrity/consistency whatsoever.
+ */
+#define DLT_DEBUG_ONLY		303
+
+/*
  * In case the code that includes this file (directly or indirectly)
- * has also included OS files that happen to define DLT_MATCHING_MAX,
+ * has also included OS files that happen to define DLT_HIGH_MATCHING_MAX,
  * with a different value (perhaps because that OS hasn't picked up
  * the latest version of our DLT definitions), we undefine the
- * previous value of DLT_MATCHING_MAX.
+ * previous value of DLT_HIGH_MATCHING_MAX.
  */
-#ifdef DLT_MATCHING_MAX
-#undef DLT_MATCHING_MAX
+#ifdef DLT_HIGH_MATCHING_MAX
+#undef DLT_HIGH_MATCHING_MAX
 #endif
-#define DLT_MATCHING_MAX	289	/* highest value in the "matching" range */
-
-/*
- * DLT and savefile link type values are split into a class and
- * a member of that class.  A class value of 0 indicates a regular
- * DLT_/LINKTYPE_ value.
- */
-#define DLT_CLASS(x)		((x) & 0x03ff0000)
-
-/*
- * NetBSD-specific generic "raw" link type.  The class value indicates
- * that this is the generic raw type, and the lower 16 bits are the
- * address family we're dealing with.  Those values are NetBSD-specific;
- * do not assume that they correspond to AF_ values for your operating
- * system.
- */
-#define	DLT_CLASS_NETBSD_RAWAF	0x02240000
-#define	DLT_NETBSD_RAWAF(af)	(DLT_CLASS_NETBSD_RAWAF | (af))
-#define	DLT_NETBSD_RAWAF_AF(x)	((x) & 0x0000ffff)
-#define	DLT_IS_NETBSD_RAWAF(x)	(DLT_CLASS(x) == DLT_CLASS_NETBSD_RAWAF)
+#define DLT_HIGH_MATCHING_MAX	303	/* highest value in the "matching" range */
 
 #endif /* !_NET_DLT_H_ */

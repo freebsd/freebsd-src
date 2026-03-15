@@ -5,6 +5,12 @@
 * Neither illumos lex nor illumos yacc are suitable.
 * Solaris m4 and illumos m4 are suitable.
 
+## OmniOS r151054/AMD64
+
+* flex 2.6.4 and GNU Bison 3.8.2 work.
+* CMake 4.0.3 works.
+* GCC 14.2.0 and Clang 19.1.7 work.
+
 ## OmniOS r151042/AMD64
 
 * flex 2.6.4 and GNU Bison 3.8.2 work.
@@ -30,15 +36,18 @@ developer/clang-90
 ENDOFTEXT
 ```
 
-## Solaris 11/AMD64
+## Solaris CBE 11.4.81.193.1/AMD64
+* flex 2.6.4 and GNU Bison 3.8.2 work.
+* CMake 3.24.0 works.
+* Clang 19.1.7 works, GCC 14.2.0 works.
+
+## Solaris CBE 11.4.42.111.0/AMD64
 
 * flex 2.6.4 and GNU Bison 3.7.3 work.
 * CMake 3.21.0 works.
 * Clang 11.0 works, GCC 11.2 works.
 
-For reference, the tests were done using Oracle Solaris 11.4.42.111.0.
-
-## Solaris 11/SPARC
+## Solaris 11.3/SPARC
 
 * flex 2.6.4 and GNU Bison 3.7.1 work.
 * CMake 3.14.3 works.
@@ -51,8 +60,7 @@ For reference, the tests were done using Oracle Solaris 11.4.42.111.0.
 * CMake 3.14.3 works.
 * Sun C 5.13 works, GCC 5.5.0 works.
 
-## Solaris 9/SPARC
+## Solaris 9
 
-* flex 2.5.35 and GNU Bison 3.0.2 work.
-* CMake 2.8.9 does not work.
-* Neither Sun C 5.8 nor Sun C 5.9 work, GCC 4.6.4 works.
+This version of this OS is not supported because the snprintf(3) implementation
+in its libc is not suitable.
