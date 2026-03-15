@@ -1125,7 +1125,7 @@ rge_init_locked(struct rge_softc *sc)
 		 * causing this to be initialised both from the ioctl
 		 * API and if_init() API.
 		 */
-//		RGE_PRINT_ERROR(sc, "%s: called whilst running?\n", __func__);
+/*		RGE_PRINT_ERROR(sc, "%s: called whilst running?\n", __func__); */
 		return;
 	}
 
@@ -2409,7 +2409,7 @@ rge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
 	uint32_t crc, *hashes = arg;
 
-	// XXX TODO: validate this does addrlo? */
+	/* XXX TODO: validate this does addrlo? */
 	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 26;
 	crc &= 0x3f;
 
