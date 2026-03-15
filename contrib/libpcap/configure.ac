@@ -112,6 +112,12 @@ if test "$ac_cv_prog_cc_c99" = "no"; then
 fi
 
 #
+# Try to arrange for large file support.
+#
+AC_SYS_LARGEFILE
+AC_FUNC_FSEEKO
+
+#
 # Get the size of a void *, to determine whether this is a 32-bit
 # or 64-bit build.
 #
@@ -127,12 +133,6 @@ AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 AC_LBL_SHLIBS_INIT
 AC_LBL_C_INLINE
 AC_PCAP_C___ATOMICS
-
-#
-# Try to arrange for large file support.
-#
-AC_SYS_LARGEFILE
-AC_FUNC_FSEEKO
 
 dnl
 dnl Even if <net/bpf.h> were, on all OSes that support BPF, fixed to
@@ -905,7 +905,7 @@ dlpi)
 	#
 	# Checks for some header files.
 	#
-	AC_CHECK_HEADERS(sys/bufmod.h sys/dlpi_ext.h)
+	AC_CHECK_HEADERS(sys/bufmod.h sys/dlpi_ext.h zone.h)
 
 	#
 	# Checks to see if Solaris has the public libdlpi(3LIB) library.
@@ -1002,16 +1002,6 @@ linux)
 	# Capture module
 	#
 	PLATFORM_C_SRC="pcap-linux.c"
-
-	#
-	# Do we have the wireless extensions?
-	#
-	AC_CHECK_HEADERS(linux/wireless.h, [], [],
-	[
-#include <sys/socket.h>
-#include <linux/if.h>
-#include <linux/types.h>
-	])
 
 	#
 	# Do we have libnl?
@@ -2682,7 +2672,7 @@ fi
 
 # Check for DPDK support.
 AC_ARG_WITH([dpdk],
-AS_HELP_STRING([--with-dpdk@<:@=DIR@:>@],[include DPDK support (located in directory DIR, if supplied).  @<:@default=yes, if present@:>@]),
+AS_HELP_STRING([--with-dpdk@<:@=DIR@:>@],[include DPDK support (located in directory DIR, if supplied).  @<:@default=no@:>@]),
 [
 	if test "$withval" = no
 	then
@@ -2709,9 +2699,12 @@ AS_HELP_STRING([--with-dpdk@<:@=DIR@:>@],[include DPDK support (located in direc
 		want_dpdk=no
 	else
 		#
-		# Use DPDK API if present, otherwise don't
+		# User didn't explicitly request DPDK; don't give it
+		# to them without their consent, as the code is
+		# immensely hard to keep compiling for every random
+		# API change the DPDK folks make.
 		#
-		want_dpdk=ifpresent
+		want_dpdk=no
 	fi
 ])
 
@@ -2951,9 +2944,9 @@ if test "x$enable_bluetooth" != "xno" ; then
 			# Bluetooth sniffing.
 			#
 			if test "x$enable_bluetooth" = "xyes" ; then
-				AC_MSG_ERROR(Bluetooth sniffing is not supported; install bluez-lib devel to enable it)
+				AC_MSG_ERROR(Bluetooth sniffing is not supported; install a Bluetooth devel library (libbluetooth-dev|bluez-libs-devel|bluez-dev|libbluetooth-devel|...) to enable it)
 			else
-				AC_MSG_NOTICE(Bluetooth sniffing is not supported; install bluez-lib devel to enable it)
+				AC_MSG_NOTICE(Bluetooth sniffing is not supported; install a Bluetooth devel library (libbluetooth-dev|bluez-libs-devel|bluez-dev|libbluetooth-devel|...) to enable it)
 			fi
 		    ])
 		;;
