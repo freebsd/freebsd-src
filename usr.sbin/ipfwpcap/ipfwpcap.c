@@ -41,11 +41,7 @@
 
 #include <net/bpf.h>
 
-/* XXX normally defined in config.h */
-#define HAVE_STRLCPY 1
-#define HAVE_SNPRINTF 1
-#define HAVE_VSNPRINTF 1
-#include <pcap-int.h>	/* see pcap(3) and /usr/src/contrib/libpcap/. */
+#include <pcap.h>
 
 #ifdef IP_MAXPACKET
 #define BUFMAX	IP_MAXPACKET
@@ -295,8 +291,7 @@ if (debug) fprintf(stderr, "  sendto(%d) = %d\n", sd, r);
 		(void) gettimeofday(&(phd.ts), NULL);
 		phd.caplen = phd.len = nr;
 		pcap_dump((u_char *)dp, &phd, buf);
-		if (ferror((FILE *)dp)) { perror(dumpf); quit(14); }
-		(void) fflush((FILE *)dp);
+		if (pcap_dump_flush(dp) == -1) { pcap_perror(p, dumpf); quit(14); }
 	}
 
 	quit(0);
