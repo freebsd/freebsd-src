@@ -51,7 +51,7 @@
 .Ft "struct cryptop *"
 .Fn crypto_getreq "crypto_session_t cses" "int how"
 .Ft void
-.Fn crypto_initreq "crypto_session_t cses" "int how"
+.Fn crypto_initreq "struct cryptop *crp" "crypto_session_t cses"
 .Ft void
 .Fn crypto_use_buf "struct cryptop *crp" "void *buf" "int len"
 .Ft void
