@@ -739,8 +739,11 @@ main(int argc, char **argv)
 
 			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
-			if ((caps & PMC_CAP_SYSWIDE) == PMC_CAP_SYSWIDE)
-				break;
+			if ((caps & PMC_CAP_SYSWIDE) == PMC_CAP_SYSWIDE) {
+				CPU_ZERO(&cpumask);
+				CPU_SET(0, &cpumask);
+				args.pa_flags |= FLAGS_HAS_CPUMASK;
+			}
 			if ((caps & PMC_CAP_DOMWIDE) == PMC_CAP_DOMWIDE) {
 				CPU_ZERO(&cpumask);
 				/*
