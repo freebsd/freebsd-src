@@ -2086,6 +2086,17 @@ apic_setup_local(void *dummy __unused)
 }
 SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local, NULL);
 
+/* Are we in a VM which supports the Extended Destination ID standard? */
+int apic_ext_dest_id = -1;
+SYSCTL_INT(_machdep, OID_AUTO, apic_ext_dest_id, CTLFLAG_RDTUN, &apic_ext_dest_id, 0,
+    "Use APIC Extended Destination IDs");
+
+/* Detect support for Extended Destination IDs. */
+static void
+detect_extended_dest_id(void)
+{
+}
+
 /*
  * Setup the I/O APICs.
  */
@@ -2096,6 +2107,10 @@ apic_setup_io(void *dummy __unused)
 
 	if (best_enum == NULL)
 		return;
+
+	/* Check hypervisor support for extended destination IDs. */
+	if (apic_ext_dest_id == -1)
+		detect_extended_dest_id();
 
 	/*
 	 * Local APIC must be registered before other PICs and pseudo PICs
