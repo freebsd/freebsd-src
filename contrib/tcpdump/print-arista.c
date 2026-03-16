@@ -8,6 +8,7 @@
 
 #include "netdissect.h"
 #include "extract.h"
+#include "timeval-operations.h"
 
 /*
 
@@ -86,17 +87,17 @@ static const struct tok hw_info_str[] = {
 };
 
 static inline void
-arista_print_date_hms_time(netdissect_options *ndo, uint32_t seconds,
-		uint32_t nanoseconds)
+arista_print_date_hms_time(netdissect_options *ndo, const uint32_t seconds,
+		const uint32_t nanoseconds)
 {
-	time_t ts;
+	const time_t ts = seconds;
 	char buf[sizeof("-yyyyyyyyyy-mm-dd hh:mm:ss")];
 
-	ts = seconds + (nanoseconds / 1000000000);
-	nanoseconds %= 1000000000;
 	ND_PRINT("%s.%09u",
 	    nd_format_time(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S",
 	       gmtime(&ts)), nanoseconds);
+	if (nanoseconds > ND_NANO_PER_SEC - 1)
+		ND_PRINT(" " ND_INVALID_NANO_SEC_STR);
 }
 
 int
@@ -117,7 +118,7 @@ arista_ethertype_print(netdissect_options *ndo, const u_char *bp, u_int len _U_)
 
 	// TapAgg Header Timestamping
 	if (subTypeId == ARISTA_SUBTYPE_TIMESTAMP) {
-		uint64_t seconds;
+		uint32_t seconds;
 		uint32_t nanoseconds;
 		uint8_t ts_timescale = GET_U_1(bp);
 		bp += 1;
@@ -147,9 +148,9 @@ arista_ethertype_print(netdissect_options *ndo, const u_char *bp, u_int len _U_)
 		case FORMAT_48BIT:
 			seconds = GET_BE_U_2(bp);
 			nanoseconds = GET_BE_U_4(bp + 2);
-			seconds += nanoseconds / 1000000000;
-			nanoseconds %= 1000000000;
-			ND_PRINT("%" PRIu64 ".%09u", seconds, nanoseconds);
+			ND_PRINT("%u.%09u", seconds, nanoseconds);
+			if (nanoseconds > ND_NANO_PER_SEC - 1)
+				ND_PRINT(" " ND_INVALID_NANO_SEC_STR);
 			bytesConsumed += 6;
 			break;
 		default:
