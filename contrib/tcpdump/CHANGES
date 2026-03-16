@@ -1,3 +1,76 @@
+Tuesday, December 30, 2025 / The Tcpdump Group
+  Summary for 4.99.6 tcpdump release
+    Remove protocol decoding for:
+      OTV (draft-hasmit-otv-04, this Internet-Draft is no longer active).
+    Refine protocol decoding for:
+      DNS: Use ND_TCHECK_LEN() instead of a custom bounds check.
+      IPv6: Add a missing comma and remove a colon in the output.
+      TCP: Note if the Urgent Pointer is non-zero while URG flag not set,
+           if the verbose level is > 1 (option -vv and more).
+      TCP: Note if the Acknowledgment Number is non-zero while ACK flag not set,
+           if the verbose level is > 1 (option -vv and more).
+      TCP: Fix Reset segment processing.
+      IP, IPv6: Fix setting the snapshot length for the payload.
+      IP: Use ND_TTEST_LEN() instead of a custom bounds check.
+      frag6: Add a bounds check in non-verbose mode.
+      PTP: Remove spaces before colons in output.
+      PTP: Fix management packet fields.
+      ISO: Avoid undefined behavior and integer overflow in the Fletcher
+           checksum calculation.
+      NFS: Delete dead code.
+      BOOTP: Use an uint16_t variable to get the result of a GET_BE_U_2().
+      ZEP: use the existing NTP time formatting code.
+      NTP: Fix p_ntp_time_fmt() using epoch 1/epoch 2 convention (RFC 4330).
+      NTP: Update a field name with the RFC 5905 name (Origin Timestamp).
+      IPv6 mobility: Modernize packet parsing and make fixes.
+      IP6OPTS: Modernize packet parsing and make fixes.
+      VXLAN: Add UDP port 8472 used by Linux as the default port.
+      EGP: Replace custom code with tok2str(); Modernize packet parsing and
+        fix printing with -v option.
+    User interface:
+      Add optional unit suffix on -C file size.
+      Improve the handling of size suffixes for -C.
+      Print errors for options -A, -x[x] and -X[X] (mutually exclusive).
+      Print errors about -C, -G and -z options usage.
+      For PCAP_ERROR_CAPTURE_NOTSUP, show the error message provided
+        by libpcap for that error if it's non-empty.
+      Update the -z option processing. Print "invalid option -- z" when it is.
+      Add the -g option, causing IPv4 output in verbose mode to be on one line.
+    Other:
+      Avoid race condition when receiving signal during shutdown.
+      Always show the interface name in error messages when the
+        interface can't be opened.
+      Clean up the message shown if a -i flag is specified with an
+        interface index that's too large.
+    Source code:
+      Fix '-tt' option printing when time > 2106-02-07T06:28:15Z.
+      Add sub-second packet timestamp checks for invalid micro/nano.
+      Remove unused missing/snprintf.c.
+      Fix incompatible pointer types with time functions calls on Windows.
+      Use C99 macros to define 64-bit constants and maximum 64-bit values.
+    Windows:
+      Fixed to find wpcap.dll if WinPcap isn't installed and Npcap was
+        installed without the WinPcap API compatibility option. (GitHub
+        issue #1226).
+    Building and testing:
+      Makefile.in: Use a local libpcap in the releasecheck target.
+      CMake: Fix build with CMake 3.31.
+      autotools, CMake: don't separately test whether snprintf(3) is
+        available and whether it's suitable - the test for whether it's
+        suitable also fails if it's unavailable.
+      CMake: Skip snprintf(3) tests when cross-compiling.
+      autotools, CMake: fix issues with snprintf test and sanitizers.
+      CMake: check whether check_c_source_runs() works, treat the build
+        as a cross-compile if it doesn't work.
+      Autoconf: Use AC_SYS_YEAR2038_RECOMMENDED when possible if the
+        environment variable BUILD_YEAR2038 = yes (via autogen.sh).
+      Autoconf: Avoid incorrectly include the libpcap's config.h.
+      Autoconf: Refine reporting of os-proto.h.
+      Require config.h to be from the tcpdump build.
+      AppVeyor: Update Npcap SDK to 1.15.
+      autogen.sh: Allow to configure Autoconf warnings.
+      autogen.sh: Delete all trailing blank lines at end of configure.
+
 Friday, August 30, 2024 / The Tcpdump Group
   Summary for 4.99.5 tcpdump release
     Refine protocol decoding for:
@@ -38,7 +111,7 @@ Friday, August 30, 2024 / The Tcpdump Group
       OSPF: Pad TLVs in LS_OPAQUE_TYPE_RI to multiples of 4 bytes.
       OSPF: Update LS-Ack printing not to run off the end of the packet.
       OSPF6: Fix an undefined behavior.
-      pflog: use nd_ types in struct pfloghdr.
+      pflog: Use nd_ types in struct pfloghdr.
       PPP: Check if there is some data to hexdump.
       PPP: Remove an extra colon before LCP Callback Operation.
       Use the buffer stack for de-escaping PPP; fixes CVE-2024-2397;
@@ -122,6 +195,7 @@ Friday, August 30, 2024 / The Tcpdump Group
       Make various improvements to the man page.
       Add initial README file for Haiku.
       Make various improvements to CONTRIBUTING.md.
+      man: Clarify the "any" pseudo-interface further.
 
 Friday, April 7, 2023 / The Tcpdump Group
   Summary for 4.99.4 tcpdump release
@@ -179,7 +253,7 @@ Saturday, December 31, 2022 / The Tcpdump Group
       802.11: Fetch the CF and TIM IEs a field at a time.
       802.15.4, BGP, LISP: fix some length checks, compiler warnings,
         and undefined behavior warnings.
-      PFLOG: handle LINKTYPE_PFLOG/DLT_PFLOG files from all OSes on all
+      PFLOG: Handle LINKTYPE_PFLOG/DLT_PFLOG files from all OSes on all
         OSes.
       RRCP: support more Realtek protocols than just RRCP.
       MPLS: show the EXP field as TC, as per RFC 5462.

@@ -32,6 +32,11 @@ AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 AC_LBL_C_INLINE
 
 AC_CHECK_HEADERS(rpc/rpc.h rpc/rpcent.h net/if.h)
+
+# On Linux, if Autoconf version >= 2.72 and GNU C Library version >= 2.34,
+# uncomment AC_SYS_YEAR2038_RECOMMENDED to ensure time_t is Y2038-safe.
+# (Can be done by autogen.sh)
+# AC_SYS_YEAR2038_RECOMMENDED
 #
 # Get the size of a void *, to know whether this is a 32-bit or 64-bit build.
 #
@@ -446,12 +451,6 @@ AC_CHECK_FUNCS(fork vfork)
 AC_CHECK_FUNCS(setlinebuf)
 
 #
-# Make sure we have snprintf(); we require it.
-#
-AC_CHECK_FUNC(snprintf,,
-    AC_MSG_ERROR([snprintf() is required but wasn't found]))
-
-#
 # It became apparent at some point that using a suitable C99 compiler does not
 # automatically mean snprintf(3) implementation in the libc supports all the
 # modifiers and specifiers used in the project, so let's test that before the
@@ -474,32 +473,50 @@ AC_RUN_IFELSE(
 #include <inttypes.h>
 #include <sys/types.h>
 
+#if defined(_WIN32) && !defined(_SSIZE_T_DEFINED)
+/*
+ * On UN*Xes, this is a signed integer type of the same size as size_t.
+ *
+ * It's not defined by Visual Studio; we assume that ptrdiff_t will
+ * be a type that is a signed integer type of the same size as size_t.
+ */
+typedef ptrdiff_t ssize_t;
+#endif
+
+/*
+ * Avoid trying to cast negative values to unsigned types, or doing
+ * shifts of signed types, in order not to have the test program fail
+ * if we're building with undefined-behavior sanitizers enabled.
+ */
 int main()
 {
   char buf[100];
-  uint64_t t = (uint64_t)1 << 32;
+  unsigned int ui = sizeof(buf);
+  int i = sizeof(buf);
+  int64_t i64 = INT64_C(0x100000000);
+  uint64_t ui64 = UINT64_C(0x100000000);
 
-  snprintf(buf, sizeof(buf), "%zu", sizeof(buf));
+  snprintf(buf, sizeof(buf), "%zu", (size_t)ui);
   if (strncmp(buf, "100", sizeof(buf)))
     return 1;
 
-  snprintf(buf, sizeof(buf), "%zd", -sizeof(buf));
+  snprintf(buf, sizeof(buf), "%zd", (ssize_t)(-i));
   if (strncmp(buf, "-100", sizeof(buf)))
     return 2;
 
-  snprintf(buf, sizeof(buf), "%" PRId64, -t);
+  snprintf(buf, sizeof(buf), "%" PRId64, -i64);
   if (strncmp(buf, "-4294967296", sizeof(buf)))
     return 3;
 
-  snprintf(buf, sizeof(buf), "0o%" PRIo64, t);
+  snprintf(buf, sizeof(buf), "0o%" PRIo64, ui64);
   if (strncmp(buf, "0o40000000000", sizeof(buf)))
     return 4;
 
-  snprintf(buf, sizeof(buf), "0x%" PRIx64, t);
+  snprintf(buf, sizeof(buf), "0x%" PRIx64, ui64);
   if (strncmp(buf, "0x100000000", sizeof(buf)))
     return 5;
 
-  snprintf(buf, sizeof(buf), "%" PRIu64, t);
+  snprintf(buf, sizeof(buf), "%" PRIu64, ui64);
   if (strncmp(buf, "4294967296", sizeof(buf)))
     return 6;
 
@@ -1276,6 +1293,13 @@ AC_SUBST(MAN_MISC_INFO)
 AC_PROG_INSTALL
 
 AC_CONFIG_HEADER(config.h)
+AH_TOP([
+#ifndef TCPDUMP_CONFIG_H_
+#define TCPDUMP_CONFIG_H_
+])
+AH_BOTTOM([
+#endif // TCPDUMP_CONFIG_H_
+])
 
 AC_CONFIG_COMMANDS([.devel],[[if test -f .devel; then
 	echo timestamp > stamp-h

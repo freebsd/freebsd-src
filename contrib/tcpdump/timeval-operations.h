@@ -32,6 +32,8 @@
 
 #define ND_MICRO_PER_SEC 1000000
 #define ND_NANO_PER_SEC 1000000000
+#define ND_INVALID_MICRO_SEC_STR "(invalid us)"
+#define ND_INVALID_NANO_SEC_STR "(invalid ns)"
 
 #define netdissect_timevalclear(tvp) ((tvp)->tv_sec = (tvp)->tv_usec = 0)
 

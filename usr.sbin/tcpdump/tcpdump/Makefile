@@ -116,7 +116,6 @@ SRCS=	addrtoname.c \
 	print-openflow-1.0.c \
 	print-ospf.c \
 	print-ospf6.c \
-	print-otv.c \
 	print-pgm.c \
 	print-pim.c \
 	print-pktap.c \

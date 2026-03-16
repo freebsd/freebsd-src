@@ -40,7 +40,7 @@ tcpdump compiles and works on at least the following platforms:
 * Windows (requires WinPcap or Npcap, and Visual Studio with CMake)
 
 ### Dependency on libpcap
-Tcpdump uses libpcap, a system-independent interface for user-level
+tcpdump uses libpcap, a system-independent interface for user-level
 packet capture.  Before building tcpdump, you must first retrieve and
 build libpcap.
 
