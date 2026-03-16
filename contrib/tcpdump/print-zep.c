@@ -30,6 +30,8 @@
 
 #include "extract.h"
 
+#include "ntp.h"
+
 /* From wireshark packet-zep.c:
  *
  ***********************************************************************
@@ -54,39 +56,6 @@
  * |2 bytes |1 byte |1 byte| 4 bytes |
  *------------------------------------------------------------
  */
-
-#define     JAN_1970        2208988800U
-
-/* Print timestamp */
-static void zep_print_ts(netdissect_options *ndo, const u_char *p)
-{
-	int32_t i;
-	uint32_t uf;
-	uint32_t f;
-	float ff;
-
-	i = GET_BE_U_4(p);
-	uf = GET_BE_U_4(p + 4);
-	ff = (float) uf;
-	if (ff < 0.0)           /* some compilers are buggy */
-		ff += FMAXINT;
-	ff = (float) (ff / FMAXINT); /* shift radix point by 32 bits */
-	f = (uint32_t) (ff * 1000000000.0);  /* treat fraction as parts per
-						billion */
-	ND_PRINT("%u.%09d", i, f);
-
-	/*
-	 * print the time in human-readable format.
-	 */
-	if (i) {
-		time_t seconds = i - JAN_1970;
-		char time_buf[128];
-
-		ND_PRINT(" (%s)",
-		    nd_format_time(time_buf, sizeof (time_buf), "%Y-%m-%d %H:%M:%S",
-		      localtime(&seconds)));
-	}
-}
 
 /*
  * Main function to print packets.
@@ -151,7 +120,12 @@ zep_print(netdissect_options *ndo,
 			else
 				ND_PRINT("LQI %u, ", GET_U_1(bp + 8));
 
-			zep_print_ts(ndo, bp + 9);
+			/*
+			 * XXX - why a space rather than a "T"
+			 * between the date and time?
+			 */
+			p_ntp_time_fmt(ndo, "%Y-%m-%d %H:%M:%S",
+			    (const struct l_fixedpt *)(bp + 9));
 			seq_no = GET_BE_U_4(bp + 17);
 			inner_len = GET_U_1(bp + 31);
 			ND_PRINT(", seq# = %u, inner len = %u",

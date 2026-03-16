@@ -208,6 +208,7 @@ struct netdissect_options {
   int ndo_bflag;		/* print 4 byte ASes in ASDOT notation */
   int ndo_eflag;		/* print ethernet header */
   int ndo_fflag;		/* don't translate "foreign" IP address */
+  int ndo_gflag;		/* don't split IP output into two lines in verbose mode */
   int ndo_Kflag;		/* don't check IP, TCP or UDP checksums */
   int ndo_nflag;		/* leave addresses as numbers */
   int ndo_Nflag;		/* remove domains from printed host names */
@@ -374,9 +375,15 @@ NORETURN void nd_trunc_longjmp(netdissect_options *ndo);
 
 /* Bail out if "l" bytes from "p" were not captured */
 #ifdef ND_LONGJMP_FROM_TCHECK
-#define ND_TCHECK_LEN(p, l) if (!ND_TTEST_LEN(p, l)) nd_trunc_longjmp(ndo)
+#define ND_TCHECK_LEN(p, l) \
+do { \
+if (!ND_TTEST_LEN(p, l)) nd_trunc_longjmp(ndo); \
+} while (0)
 #else
-#define ND_TCHECK_LEN(p, l) if (!ND_TTEST_LEN(p, l)) goto trunc
+#define ND_TCHECK_LEN(p, l) \
+do { \
+if (!ND_TTEST_LEN(p, l)) goto trunc; \
+} while (0)
 #endif
 
 /* Bail out if "*(p)" was not captured */
@@ -398,10 +405,12 @@ NORETURN void nd_trunc_longjmp(netdissect_options *ndo);
  * a custom message, format %u
  */
 #define ND_ICHECKMSG_U(message, expression_1, operator, expression_2) \
+do { \
 if ((expression_1) operator (expression_2)) { \
 ND_PRINT(" [%s %u %s %u]", (message), (expression_1), (#operator), (expression_2)); \
 goto invalid; \
-}
+} \
+} while (0)
 
 /*
  * Check (expression_1 operator expression_2) for invalid packet with
@@ -415,10 +424,12 @@ ND_ICHECKMSG_U((#expression_1), (expression_1), operator, (expression_2))
  * a custom message, format %zu
  */
 #define ND_ICHECKMSG_ZU(message, expression_1, operator, expression_2) \
+do { \
 if ((expression_1) operator (expression_2)) { \
 ND_PRINT(" [%s %u %s %zu]", (message), (expression_1), (#operator), (expression_2)); \
 goto invalid; \
-}
+} \
+} while (0)
 
 /*
  * Check (expression_1 operator expression_2) for invalid packet with
@@ -644,8 +655,8 @@ extern void geonet_print(netdissect_options *, const u_char *, u_int, const stru
 extern void gre_print(netdissect_options *, const u_char *, u_int);
 extern int hbhopt_process(netdissect_options *, const u_char *, int *, uint32_t *);
 extern void hex_and_ascii_print(netdissect_options *, const char *, const u_char *, u_int);
-extern void hex_print(netdissect_options *, const char *ident, const u_char *cp, u_int);
-extern void hex_print_with_offset(netdissect_options *, const char *ident, const u_char *cp, u_int, u_int);
+extern void hex_print(netdissect_options *, const char *indent, const u_char *cp, u_int);
+extern void hex_print_with_offset(netdissect_options *, const char *indent, const u_char *cp, u_int, u_int);
 extern void hncp_print(netdissect_options *, const u_char *, u_int);
 extern void hsrp_print(netdissect_options *, const u_char *, u_int);
 extern void http_print(netdissect_options *, const u_char *, u_int);
@@ -708,7 +719,6 @@ extern void ospf6_print(netdissect_options *, const u_char *, u_int);
 extern void ospf_print(netdissect_options *, const u_char *, u_int, const u_char *);
 extern int ospf_grace_lsa_print(netdissect_options *, const u_char *, u_int);
 extern int ospf_te_lsa_print(netdissect_options *, const u_char *, u_int);
-extern void otv_print(netdissect_options *, const u_char *, u_int);
 extern void pfsync_ip_print(netdissect_options *, const u_char *, u_int);
 extern void pfsync_if_print(netdissect_options *, const struct pcap_pkthdr *, const u_char *);
 extern void pgm_print(netdissect_options *, const u_char *, u_int, const u_char *);

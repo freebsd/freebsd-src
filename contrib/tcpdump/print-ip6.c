@@ -292,7 +292,7 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	    if (flow & 0x000fffff)
 	        ND_PRINT("flowlabel 0x%05x, ", flow & 0x000fffff);
 
-	    ND_PRINT("hlim %u, next-header %s (%u) payload length: %u) ",
+	    ND_PRINT("hlim %u, next-header %s (%u), payload length %u) ",
 	                 GET_U_1(ip6->ip6_hlim),
 	                 tok2str(ipproto_values,"unknown",nh),
 	                 nh,
@@ -301,9 +301,11 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	ND_TCHECK_SIZE(ip6);
 
 	/*
-	 * Cut off the snapshot length to the end of the IP payload.
+	 * Cut off the snapshot length to the end of the IP payload
+	 * or the end of the data in which it's contained, whichever
+	 * comes first.
 	 */
-	if (!nd_push_snaplen(ndo, bp, len)) {
+	if (!nd_push_snaplen(ndo, bp, ND_MIN(length, len))) {
 		(*ndo->ndo_error)(ndo, S_ERR_ND_MEM_ALLOC,
 			"%s: can't push snaplen on buffer stack", __func__);
 	}

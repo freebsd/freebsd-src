@@ -64,7 +64,7 @@
  * |                                                               |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                                                               |
- * |                   Originate Timestamp (64)                    |
+ * |                     Origin Timestamp (64)                     |
  * |                                                               |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                                                               |
@@ -284,7 +284,7 @@ ntp_time_print(netdissect_options *ndo,
 	p_ntp_time(ndo, &(bp->ref_timestamp));
 
 	ND_TCHECK_SIZE(&bp->org_timestamp);
-	ND_PRINT("\n\t  Originator Timestamp: ");
+	ND_PRINT("\n\t  Origin Timestamp:     ");
 	p_ntp_time(ndo, &(bp->org_timestamp));
 
 	ND_TCHECK_SIZE(&bp->rec_timestamp);

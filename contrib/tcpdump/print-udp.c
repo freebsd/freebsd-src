@@ -697,8 +697,8 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 			lwapp_data_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(SIP_PORT))
 			sip_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(OTV_PORT))
-			otv_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(VXLAN_LINUX_PORT))
+			vxlan_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(VXLAN_PORT))
 			vxlan_print(ndo, cp, length);
 		else if (dport == GENEVE_PORT)

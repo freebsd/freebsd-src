@@ -100,11 +100,8 @@ struct icmp6_hdr {
 
 #define ICMP6_ECHO_REQUEST		128	/* echo service */
 #define ICMP6_ECHO_REPLY		129	/* echo reply */
-#define ICMP6_MEMBERSHIP_QUERY		130	/* group membership query */
 #define MLD6_LISTENER_QUERY		130	/* multicast listener query */
-#define ICMP6_MEMBERSHIP_REPORT		131	/* group membership report */
 #define MLD6_LISTENER_REPORT		131	/* multicast listener report */
-#define ICMP6_MEMBERSHIP_REDUCTION	132	/* group membership termination */
 #define MLD6_LISTENER_DONE		132	/* multicast listener done */
 
 #define ND_ROUTER_SOLICIT		133	/* router solicitation */
@@ -115,11 +112,7 @@ struct icmp6_hdr {
 
 #define ICMP6_ROUTER_RENUMBERING	138	/* router renumbering */
 
-#define ICMP6_WRUREQUEST		139	/* who are you request */
-#define ICMP6_WRUREPLY			140	/* who are you reply */
-#define ICMP6_FQDN_QUERY		139	/* FQDN query */
-#define ICMP6_FQDN_REPLY		140	/* FQDN reply */
-#define ICMP6_NI_QUERY			139	/* node information request - RFC 4620 */
+#define ICMP6_NI_QUERY			139	/* node information query - RFC 4620 */
 #define ICMP6_NI_REPLY			140	/* node information reply - RFC 4620 */
 #define IND_SOLICIT			141	/* inverse neighbor solicitation */
 #define IND_ADVERT			142	/* inverse neighbor advertisement */
@@ -385,10 +378,9 @@ struct icmp6_nodeinfo {
 #define ni_qtype	icmp6_ni_hdr.icmp6_data16[0]
 #define ni_flags	icmp6_ni_hdr.icmp6_data16[1]
 
-#define NI_QTYPE_NOOP		0 /* NOOP  */
-#define NI_QTYPE_SUPTYPES	1 /* Supported Qtypes (drafts up to 09) */
-#define NI_QTYPE_FQDN		2 /* FQDN (draft 04) */
-#define NI_QTYPE_DNSNAME	2 /* DNS Name */
+#define NI_QTYPE_NOOP		0 /* NOOP */
+#define NI_QTYPE_SUPTYPES	1 /* Supported Qtypes (Obsolete) */
+#define NI_QTYPE_NODENAME	2 /* Node Name */
 #define NI_QTYPE_NODEADDR	3 /* Node Addresses */
 #define NI_QTYPE_IPV4ADDR	4 /* IPv4 Addresses */
 
@@ -398,7 +390,22 @@ struct icmp6_nodeinfo {
 #define NI_NODEADDR_FLAG_LINKLOCAL	0x0008
 #define NI_NODEADDR_FLAG_SITELOCAL	0x0010
 #define NI_NODEADDR_FLAG_GLOBAL		0x0020
-#define NI_NODEADDR_FLAG_ANYCAST	0x0040 /* just experimental. not in spec */
+
+static const struct tok ni_nodeaddr_flag_values[] = {
+        { NI_NODEADDR_FLAG_TRUNCATE, "T" },
+        { NI_NODEADDR_FLAG_ALL, "A" },
+        { NI_NODEADDR_FLAG_COMPAT, "C" },
+        { NI_NODEADDR_FLAG_LINKLOCAL, "L" },
+        { NI_NODEADDR_FLAG_SITELOCAL, "S" },
+        { NI_NODEADDR_FLAG_GLOBAL, "G" },
+        { 0, NULL }
+};
+
+static const struct tok ni_ipv4addr_flag_values[] = {
+        { NI_NODEADDR_FLAG_TRUNCATE, "T" },
+        { NI_NODEADDR_FLAG_ALL, "A" },
+        { 0, NULL }
+};
 
 struct ni_reply_fqdn {
 	nd_uint32_t ni_fqdn_ttl;	/* TTL */
@@ -421,6 +428,15 @@ struct icmp6_router_renum {	/* router renumbering header */
 #define ICMP6_RR_FLAGS_FORCEAPPLY	0x20
 #define ICMP6_RR_FLAGS_SPECSITE		0x10
 #define ICMP6_RR_FLAGS_PREVDONE		0x08
+
+static const struct tok router_renum_flag_values[] = {
+	{ ICMP6_RR_FLAGS_TEST, "T" },
+	{ ICMP6_RR_FLAGS_REQRESULT, "R" },
+	{ ICMP6_RR_FLAGS_FORCEAPPLY, "A" },
+	{ ICMP6_RR_FLAGS_SPECSITE, "S" },
+	{ ICMP6_RR_FLAGS_PREVDONE, "P" },
+	{ 0, NULL },
+};
 
 #define rr_type		rr_hdr.icmp6_type
 #define rr_code		rr_hdr.icmp6_code
@@ -659,8 +675,6 @@ static const struct tok icmp6_type_values[] = {
     { ICMP6_HADISCOV_REPLY, "ha discovery reply"},
     { ICMP6_MOBILEPREFIX_SOLICIT, "mobile router solicitation"},
     { ICMP6_MOBILEPREFIX_ADVERT, "mobile router advertisement"},
-    { ICMP6_WRUREQUEST, "who-are-you request"},
-    { ICMP6_WRUREPLY, "who-are-you reply"},
     { ICMP6_NI_QUERY, "node information query"},
     { ICMP6_NI_REPLY, "node information reply"},
     { MLD6_MTRACE, "mtrace message"},
@@ -1152,7 +1166,7 @@ icmp6_print(netdissect_options *ndo,
                 ND_PRINT(", id %u, seq %u", GET_BE_U_2(dp->icmp6_id),
 			 GET_BE_U_2(dp->icmp6_seq));
 		break;
-	case ICMP6_MEMBERSHIP_QUERY:
+	case MLD6_LISTENER_QUERY:
 		if (length == MLD_MINLEN) {
 			mld6_print(ndo, (const u_char *)dp);
 		} else if (length >= MLDV2_MINLEN) {
@@ -1162,10 +1176,10 @@ icmp6_print(netdissect_options *ndo,
                         ND_PRINT(" unknown-version (len %u) ", length);
 		}
 		break;
-	case ICMP6_MEMBERSHIP_REPORT:
+	case MLD6_LISTENER_REPORT:
 		mld6_print(ndo, (const u_char *)dp);
 		break;
-	case ICMP6_MEMBERSHIP_REDUCTION:
+	case MLD6_LISTENER_DONE:
 		mld6_print(ndo, (const u_char *)dp);
 		break;
 	case ND_ROUTER_SOLICIT:
@@ -1700,6 +1714,7 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 	const struct icmp6_hdr *dp;
 	const u_char *cp;
 	size_t siz, i;
+	uint16_t flags;
 	int needcomma;
 
 	if (ep < bp)
@@ -1715,7 +1730,6 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 			ND_PRINT(" who-are-you request");
 			break;
 		}
-		ND_PRINT(" node information query");
 
 		ND_TCHECK_LEN(dp, sizeof(*ni6));
 		ni6 = (const struct icmp6_nodeinfo *)dp;
@@ -1724,47 +1738,38 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 		case NI_QTYPE_NOOP:
 			ND_PRINT("noop");
 			break;
-		case NI_QTYPE_SUPTYPES:
-			ND_PRINT("supported qtypes");
-			i = GET_BE_U_2(ni6->ni_flags);
-			if (i)
-				ND_PRINT(" [%s]", (i & 0x01) ? "C" : "");
-			break;
-		case NI_QTYPE_FQDN:
-			ND_PRINT("DNS name");
+		case NI_QTYPE_NODENAME:
+			ND_PRINT("node name");
 			break;
 		case NI_QTYPE_NODEADDR:
 			ND_PRINT("node addresses");
-			i = GET_BE_U_2(ni6->ni_flags);
-			if (!i)
-				break;
-			/* NI_NODEADDR_FLAG_TRUNCATE undefined for query */
-			ND_PRINT(" [%s%s%s%s%s%s]",
-			    (i & NI_NODEADDR_FLAG_ANYCAST) ? "a" : "",
-			    (i & NI_NODEADDR_FLAG_GLOBAL) ? "G" : "",
-			    (i & NI_NODEADDR_FLAG_SITELOCAL) ? "S" : "",
-			    (i & NI_NODEADDR_FLAG_LINKLOCAL) ? "L" : "",
-			    (i & NI_NODEADDR_FLAG_COMPAT) ? "C" : "",
-			    (i & NI_NODEADDR_FLAG_ALL) ? "A" : "");
+			flags = GET_BE_U_2(ni6->ni_flags);
+			if (flags)
+				ND_PRINT(" [%s]",
+					 bittok2str_nosep(ni_nodeaddr_flag_values,
+					 "none", flags));
+			if (flags & NI_NODEADDR_FLAG_TRUNCATE)
+				ND_PRINT(" [invalid flag Truncate present]");
+			break;
+		case NI_QTYPE_IPV4ADDR:
+			ND_PRINT("ipv4 addresses");
+			flags = GET_BE_U_2(ni6->ni_flags);
+			if (flags)
+				ND_PRINT(" [%s]",
+					 bittok2str_nosep(ni_ipv4addr_flag_values,
+					 "none", flags));
+			if (flags & NI_NODEADDR_FLAG_TRUNCATE)
+				ND_PRINT(" [invalid flag Truncate present]");
 			break;
 		default:
 			ND_PRINT("unknown");
 			break;
 		}
 
-		if (GET_BE_U_2(ni6->ni_qtype) == NI_QTYPE_NOOP ||
-		    GET_BE_U_2(ni6->ni_qtype) == NI_QTYPE_SUPTYPES) {
+		if (GET_BE_U_2(ni6->ni_qtype) == NI_QTYPE_NOOP) {
 			if (siz != sizeof(*ni6))
 				if (ndo->ndo_vflag)
 					ND_PRINT(", invalid len");
-			/*(*/
-			ND_PRINT(")");
-			break;
-		}
-
-		/* XXX backward compat, icmp-name-lookup-03 */
-		if (siz == sizeof(*ni6)) {
-			ND_PRINT(", 03 draft");
 			/*(*/
 			ND_PRINT(")");
 			break;
@@ -1785,19 +1790,7 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 			break;
 		case ICMP6_NI_SUBJ_FQDN:
 			ND_PRINT(", subject=DNS name");
-			if (GET_U_1(cp) == ep - cp - 1) {
-				/* icmp-name-lookup-03, pascal string */
-				if (ndo->ndo_vflag)
-					ND_PRINT(", 03 draft");
-				cp++;
-				ND_PRINT(", \"");
-				while (cp < ep) {
-					fn_print_char(ndo, GET_U_1(cp));
-					cp++;
-				}
-				ND_PRINT("\"");
-			} else
-				dnsname_print(ndo, cp, ep);
+			dnsname_print(ndo, cp, ep);
 			break;
 		case ICMP6_NI_SUBJ_IPV4:
 			if (!ND_TTEST_LEN(dp, sizeof(*ni6) + sizeof(nd_ipv4)))
@@ -1827,7 +1820,6 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 
 		ND_TCHECK_LEN(dp, sizeof(*ni6));
 		ni6 = (const struct icmp6_nodeinfo *)dp;
-		ND_PRINT(" node information reply");
 		ND_PRINT(" (");	/*)*/
 		switch (GET_U_1(ni6->ni_code)) {
 		case ICMP6_NI_SUCCESS:
@@ -1867,32 +1859,12 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 				if (ndo->ndo_vflag)
 					ND_PRINT(", invalid length");
 			break;
-		case NI_QTYPE_SUPTYPES:
+		case NI_QTYPE_NODENAME:
 			if (needcomma)
 				ND_PRINT(", ");
-			ND_PRINT("supported qtypes");
-			i = GET_BE_U_2(ni6->ni_flags);
-			if (i)
-				ND_PRINT(" [%s]", (i & 0x01) ? "C" : "");
-			break;
-		case NI_QTYPE_FQDN:
-			if (needcomma)
-				ND_PRINT(", ");
-			ND_PRINT("DNS name");
+			ND_PRINT("node name");
 			cp = (const u_char *)(ni6 + 1) + 4;
-			if (GET_U_1(cp) == ep - cp - 1) {
-				/* icmp-name-lookup-03, pascal string */
-				if (ndo->ndo_vflag)
-					ND_PRINT(", 03 draft");
-				cp++;
-				ND_PRINT(", \"");
-				while (cp < ep) {
-					fn_print_char(ndo, GET_U_1(cp));
-					cp++;
-				}
-				ND_PRINT("\"");
-			} else
-				dnsname_print(ndo, cp, ep);
+			dnsname_print(ndo, cp, ep);
 			if ((GET_BE_U_2(ni6->ni_flags) & 0x01) != 0)
 				ND_PRINT(" [TTL=%u]", GET_BE_U_4(ni6 + 1));
 			break;
@@ -1900,6 +1872,11 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 			if (needcomma)
 				ND_PRINT(", ");
 			ND_PRINT("node addresses");
+			flags = GET_BE_U_2(ni6->ni_flags);
+			if (flags)
+				ND_PRINT(" [%s]",
+					 bittok2str_nosep(ni_nodeaddr_flag_values,
+					 "none", flags));
 			i = sizeof(*ni6);
 			while (i < siz) {
 				if (i + sizeof(uint32_t) + sizeof(nd_ipv6) > siz)
@@ -1909,17 +1886,25 @@ icmp6_nodeinfo_print(netdissect_options *ndo, u_int icmp6len, const u_char *bp, 
 				    GET_BE_U_4(bp + i));
 				i += sizeof(uint32_t) + sizeof(nd_ipv6);
 			}
-			i = GET_BE_U_2(ni6->ni_flags);
-			if (!i)
-				break;
-			ND_PRINT(" [%s%s%s%s%s%s%s]",
-                                  (i & NI_NODEADDR_FLAG_ANYCAST) ? "a" : "",
-                                  (i & NI_NODEADDR_FLAG_GLOBAL) ? "G" : "",
-                                  (i & NI_NODEADDR_FLAG_SITELOCAL) ? "S" : "",
-                                  (i & NI_NODEADDR_FLAG_LINKLOCAL) ? "L" : "",
-                                  (i & NI_NODEADDR_FLAG_COMPAT) ? "C" : "",
-                                  (i & NI_NODEADDR_FLAG_ALL) ? "A" : "",
-                                  (i & NI_NODEADDR_FLAG_TRUNCATE) ? "T" : "");
+			break;
+		case NI_QTYPE_IPV4ADDR:
+			if (needcomma)
+				ND_PRINT(", ");
+			ND_PRINT("ipv4 addresses");
+			flags = GET_BE_U_2(ni6->ni_flags);
+			if (flags)
+				ND_PRINT(" [%s]",
+					 bittok2str_nosep(ni_nodeaddr_flag_values,
+					 "none", flags));
+			cp = (const u_char *)(ni6 + 1);
+			while (cp < ep) {
+				uint32_t ttl;
+
+				ttl = GET_BE_U_4(cp);
+				cp += 4;
+				ND_PRINT(" %s(%u)", GET_IPADDR_STRING(cp), ttl);
+				cp += 4;
+			}
 			break;
 		default:
 			if (needcomma)
@@ -1973,14 +1958,11 @@ icmp6_rrenum_print(netdissect_options *ndo, const u_char *bp, const u_char *ep)
 
 	if (ndo->ndo_vflag) {
 		uint8_t rr_flags = GET_U_1(rr6->rr_flags);
-#define F(x, y)	(rr_flags & (x) ? (y) : "")
 		ND_PRINT("[");	/*]*/
 		if (rr_flags) {
-			ND_PRINT("%s%s%s%s%s,", F(ICMP6_RR_FLAGS_TEST, "T"),
-                                  F(ICMP6_RR_FLAGS_REQRESULT, "R"),
-                                  F(ICMP6_RR_FLAGS_FORCEAPPLY, "A"),
-                                  F(ICMP6_RR_FLAGS_SPECSITE, "S"),
-                                  F(ICMP6_RR_FLAGS_PREVDONE, "P"));
+			ND_PRINT("%s,",
+				 bittok2str_nosep(router_renum_flag_values,
+				 "none", rr_flags));
 		}
                 ND_PRINT("seg=%u,", GET_U_1(rr6->rr_segnum));
                 ND_PRINT("maxdelay=%u", GET_BE_U_2(rr6->rr_maxdelay));
@@ -1988,7 +1970,6 @@ icmp6_rrenum_print(netdissect_options *ndo, const u_char *bp, const u_char *ep)
 			ND_PRINT("rsvd=0x%x", GET_BE_U_4(rr6->rr_reserved));
 		/*[*/
 		ND_PRINT("]");
-#undef F
 	}
 
 	if (GET_U_1(rr6->rr_code) == ICMP6_ROUTER_RENUMBERING_COMMAND) {
