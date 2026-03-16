@@ -447,14 +447,14 @@ if_unlink_ifnet(struct ifnet *ifp, bool vmove)
 	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
 			CK_STAILQ_REMOVE(&V_ifnet, ifp, ifnet, if_link);
+#ifdef VIMAGE
+			curvnet->vnet_ifcnt--;
+#endif
 			if (!vmove)
 				ifp->if_flags |= IFF_DYING;
 			found = 1;
 			break;
 		}
-#ifdef VIMAGE
-	curvnet->vnet_ifcnt--;
-#endif
 	IFNET_WUNLOCK();
 
 	return (found);
