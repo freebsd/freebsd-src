@@ -239,7 +239,8 @@ nd6_iflladdr(void *arg __unused, struct ifnet *ifp)
 	 */
 	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family == AF_INET6)
+		if (ifa->ifa_addr->sa_family == AF_INET6 &&
+		    ! IN6_IS_ADDR_MULTICAST(IFA_IN6(ifa)))
 			nd6_grand_start(ifa, ND6_QUEUE_FLAG_LLADDR);
 	}
 	NET_EPOCH_EXIT(et);
