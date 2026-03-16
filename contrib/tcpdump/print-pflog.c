@@ -64,7 +64,7 @@ static const struct tok pf_actions[] = {
 	{ PF_PASS,		"pass" },
 	{ PF_DROP,		"block" },
 	{ PF_SCRUB,		"scrub" },
-	{ PF_NOSCRUB,		"scrub" },
+	{ PF_NOSCRUB,		"noscrub" },
 	{ PF_NAT,		"nat" },
 	{ PF_NONAT,		"nonat" },
 	{ PF_BINAT,		"binat" },

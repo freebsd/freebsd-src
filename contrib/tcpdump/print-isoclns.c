@@ -1794,7 +1794,7 @@ isis_print_metric_block(netdissect_options *ndo,
 
 static int
 isis_print_tlv_ip_reach(netdissect_options *ndo,
-                        const uint8_t *cp, const char *ident, u_int length)
+                        const uint8_t *cp, const char *indent, u_int length)
 {
 	int prefix_len;
 	const struct isis_tlv_ip_reach *tlv_ip_reach;
@@ -1815,12 +1815,12 @@ isis_print_tlv_ip_reach(netdissect_options *ndo,
 
 		if (prefix_len == -1)
 			ND_PRINT("%sIPv4 prefix: %s mask %s",
-                               ident,
+                               indent,
 			       GET_IPADDR_STRING(tlv_ip_reach->prefix),
 			       GET_IPADDR_STRING(tlv_ip_reach->mask));
 		else
 			ND_PRINT("%sIPv4 prefix: %15s/%u",
-                               ident,
+                               indent,
 			       GET_IPADDR_STRING(tlv_ip_reach->prefix),
 			       prefix_len);
 
@@ -1831,19 +1831,19 @@ isis_print_tlv_ip_reach(netdissect_options *ndo,
 
 		if (!ISIS_LSP_TLV_METRIC_SUPPORTED(tlv_ip_reach->isis_metric_block.metric_delay))
                     ND_PRINT("%s  Delay Metric: %u, %s",
-                           ident,
+                           indent,
                            ISIS_LSP_TLV_METRIC_VALUE(tlv_ip_reach->isis_metric_block.metric_delay),
                            ISIS_LSP_TLV_METRIC_IE(tlv_ip_reach->isis_metric_block.metric_delay) ? "External" : "Internal");
 
 		if (!ISIS_LSP_TLV_METRIC_SUPPORTED(tlv_ip_reach->isis_metric_block.metric_expense))
                     ND_PRINT("%s  Expense Metric: %u, %s",
-                           ident,
+                           indent,
                            ISIS_LSP_TLV_METRIC_VALUE(tlv_ip_reach->isis_metric_block.metric_expense),
                            ISIS_LSP_TLV_METRIC_IE(tlv_ip_reach->isis_metric_block.metric_expense) ? "External" : "Internal");
 
 		if (!ISIS_LSP_TLV_METRIC_SUPPORTED(tlv_ip_reach->isis_metric_block.metric_error))
                     ND_PRINT("%s  Error Metric: %u, %s",
-                           ident,
+                           indent,
                            ISIS_LSP_TLV_METRIC_VALUE(tlv_ip_reach->isis_metric_block.metric_error),
                            ISIS_LSP_TLV_METRIC_IE(tlv_ip_reach->isis_metric_block.metric_error) ? "External" : "Internal");
 
@@ -1863,11 +1863,11 @@ trunc:
 static int
 isis_print_ip_reach_subtlv(netdissect_options *ndo,
                            const uint8_t *tptr, u_int subt, u_int subl,
-                           const char *ident)
+                           const char *indent)
 {
     /* first lets see if we know the subTLVs name*/
     ND_PRINT("%s%s subTLV #%u, length: %u",
-              ident, tok2str(isis_ext_ip_reach_subtlv_values, "unknown", subt),
+              indent, tok2str(isis_ext_ip_reach_subtlv_values, "unknown", subt),
               subt, subl);
 
     ND_TCHECK_LEN(tptr, subl);
@@ -1940,10 +1940,10 @@ trunc:
 
 static int
 isis_print_ext_is_reach(netdissect_options *ndo,
-                        const uint8_t *tptr, const char *ident, u_int tlv_type,
+                        const uint8_t *tptr, const char *indent, u_int tlv_type,
                         u_int tlv_remaining)
 {
-    char ident_buffer[20];
+    char indent_buffer[20];
     u_int subtlv_type,subtlv_len,subtlv_sum_len;
     int proc_bytes = 0; /* how many bytes did we process ? */
     u_int te_class,priority_level,gmpls_switch_cap;
@@ -1956,7 +1956,7 @@ isis_print_ext_is_reach(netdissect_options *ndo,
     if (tlv_remaining < NODE_ID_LEN)
         return(0);
 
-    ND_PRINT("%sIS Neighbor: %s", ident, isis_print_id(ndo, tptr, NODE_ID_LEN));
+    ND_PRINT("%sIS Neighbor: %s", indent, isis_print_id(ndo, tptr, NODE_ID_LEN));
     tptr+=NODE_ID_LEN;
     tlv_remaining-=NODE_ID_LEN;
     proc_bytes+=NODE_ID_LEN;
@@ -1982,17 +1982,17 @@ isis_print_ext_is_reach(netdissect_options *ndo,
     if (subtlv_sum_len) {
         ND_PRINT(" (%u)", subtlv_sum_len);
         /* prepend the indent string */
-        snprintf(ident_buffer, sizeof(ident_buffer), "%s  ",ident);
-        ident = ident_buffer;
+        snprintf(indent_buffer, sizeof(indent_buffer), "%s  ", indent);
+        indent = indent_buffer;
         while (subtlv_sum_len != 0) {
             ND_TCHECK_2(tptr);
             if (tlv_remaining < 2) {
-                ND_PRINT("%sRemaining data in TLV shorter than a subTLV header",ident);
+                ND_PRINT("%sRemaining data in TLV shorter than a subTLV header", indent);
                 proc_bytes += tlv_remaining;
                 break;
             }
             if (subtlv_sum_len < 2) {
-                ND_PRINT("%sRemaining data in subTLVs shorter than a subTLV header",ident);
+                ND_PRINT("%sRemaining data in subTLVs shorter than a subTLV header", indent);
                 proc_bytes += subtlv_sum_len;
                 break;
             }
@@ -2003,7 +2003,7 @@ isis_print_ext_is_reach(netdissect_options *ndo,
             subtlv_sum_len -= 2;
             proc_bytes += 2;
             ND_PRINT("%s%s subTLV #%u, length: %u",
-                      ident, tok2str(isis_ext_is_reach_subtlv_values, "unknown", subtlv_type),
+                      indent, tok2str(isis_ext_is_reach_subtlv_values, "unknown", subtlv_type),
                       subtlv_type, subtlv_len);
 
             if (subtlv_sum_len < subtlv_len) {
@@ -2047,7 +2047,7 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                     for (te_class = 0; te_class < 8; te_class++) {
                         bw.i = GET_BE_U_4(tptr);
                         ND_PRINT("%s  TE-Class %u: %.3f Mbps",
-                                  ident,
+                                  indent,
                                   te_class,
                                   bw.f * 8 / 1000000);
                         tptr += 4;
@@ -2062,7 +2062,7 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                 if (subtlv_len == 0)
                     break;
                 ND_PRINT("%sBandwidth Constraints Model ID: %s (%u)",
-                          ident,
+                          indent,
                           tok2str(diffserv_te_bc_values, "unknown", GET_U_1(tptr)),
                           GET_U_1(tptr));
                 tptr++;
@@ -2075,7 +2075,7 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                         break;
                     bw.i = GET_BE_U_4(tptr);
                     ND_PRINT("%s  Bandwidth constraint CT%u: %.3f Mbps",
-                              ident,
+                              indent,
                               te_class,
                               bw.f * 8 / 1000000);
                     tptr += 4;
@@ -2123,7 +2123,7 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                 if (subtlv_len >= 36) {
                     gmpls_switch_cap = GET_U_1(tptr);
                     ND_PRINT("%s  Interface Switching Capability:%s",
-                              ident,
+                              indent,
                               tok2str(gmpls_switch_cap_values, "Unknown", gmpls_switch_cap));
                     ND_PRINT(", LSP Encoding: %s",
                               tok2str(gmpls_encoding_values, "Unknown", GET_U_1((tptr + 1))));
@@ -2131,11 +2131,11 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                     subtlv_len -= 4;
                     subtlv_sum_len -= 4;
                     proc_bytes += 4;
-                    ND_PRINT("%s  Max LSP Bandwidth:", ident);
+                    ND_PRINT("%s  Max LSP Bandwidth:", indent);
                     for (priority_level = 0; priority_level < 8; priority_level++) {
                         bw.i = GET_BE_U_4(tptr);
                         ND_PRINT("%s    priority level %u: %.3f Mbps",
-                                  ident,
+                                  indent,
                                   priority_level,
                                   bw.f * 8 / 1000000);
                         tptr += 4;
@@ -2151,16 +2151,16 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                         if (subtlv_len < 6)
                             break;
                         bw.i = GET_BE_U_4(tptr);
-                        ND_PRINT("%s  Min LSP Bandwidth: %.3f Mbps", ident, bw.f * 8 / 1000000);
-                        ND_PRINT("%s  Interface MTU: %u", ident,
+                        ND_PRINT("%s  Min LSP Bandwidth: %.3f Mbps", indent, bw.f * 8 / 1000000);
+                        ND_PRINT("%s  Interface MTU: %u", indent,
                                  GET_BE_U_2(tptr + 4));
                         break;
                     case GMPLS_TSC:
                         if (subtlv_len < 8)
                             break;
                         bw.i = GET_BE_U_4(tptr);
-                        ND_PRINT("%s  Min LSP Bandwidth: %.3f Mbps", ident, bw.f * 8 / 1000000);
-                        ND_PRINT("%s  Indication %s", ident,
+                        ND_PRINT("%s  Min LSP Bandwidth: %.3f Mbps", indent, bw.f * 8 / 1000000);
+                        ND_PRINT("%s  Indication %s", indent,
                                   tok2str(gmpls_switch_cap_tsc_indication_values, "Unknown (%u)", GET_U_1((tptr + 4))));
                         break;
                     default:
@@ -2175,7 +2175,7 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                 break;
             case ISIS_SUBTLV_EXT_IS_REACH_LAN_ADJ_SEGMENT_ID:
                 if (subtlv_len >= 8) {
-                    ND_PRINT("%s  Flags: [%s]", ident,
+                    ND_PRINT("%s  Flags: [%s]", indent,
                               bittok2str(isis_lan_adj_sid_flag_values,
                                          "none",
                                          GET_U_1(tptr)));
@@ -2185,14 +2185,14 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                     subtlv_len--;
                     subtlv_sum_len--;
                     proc_bytes++;
-                    ND_PRINT("%s  Weight: %u", ident, GET_U_1(tptr));
+                    ND_PRINT("%s  Weight: %u", indent, GET_U_1(tptr));
                     tptr++;
                     subtlv_len--;
                     subtlv_sum_len--;
                     proc_bytes++;
                     if(subtlv_len>=SYSTEM_ID_LEN) {
                         ND_TCHECK_LEN(tptr, SYSTEM_ID_LEN);
-                        ND_PRINT("%s  Neighbor System-ID: %s", ident,
+                        ND_PRINT("%s  Neighbor System-ID: %s", indent,
                             isis_print_id(ndo, tptr, SYSTEM_ID_LEN));
                     }
                     /* RFC 8667 section 2.2.2 */
@@ -2200,10 +2200,10 @@ isis_print_ext_is_reach(netdissect_options *ndo,
                     /* if V-flag is set to 0 and L-flag is set to 0 ==> 4 octet index */
                     if (vflag && lflag) {
                         ND_PRINT("%s  Label: %u",
-                                  ident, GET_BE_U_3(tptr+SYSTEM_ID_LEN));
+                                  indent, GET_BE_U_3(tptr+SYSTEM_ID_LEN));
                     } else if ((!vflag) && (!lflag)) {
                         ND_PRINT("%s  Index: %u",
-                                  ident, GET_BE_U_4(tptr+SYSTEM_ID_LEN));
+                                  indent, GET_BE_U_4(tptr+SYSTEM_ID_LEN));
                     } else
                         nd_print_invalid(ndo);
                 }
@@ -2233,13 +2233,13 @@ trunc:
 
 static uint8_t
 isis_print_mtid(netdissect_options *ndo,
-                const uint8_t *tptr, const char *ident, u_int tlv_remaining)
+                const uint8_t *tptr, const char *indent, u_int tlv_remaining)
 {
     if (tlv_remaining < 2)
         goto trunc;
 
     ND_PRINT("%s%s",
-           ident,
+           indent,
            tok2str(isis_mt_values,
                    "Reserved for IETF Consensus",
                    ISIS_MASK_MTID(GET_BE_U_2(tptr))));
@@ -2262,9 +2262,9 @@ trunc:
 
 static u_int
 isis_print_extd_ip_reach(netdissect_options *ndo,
-                         const uint8_t *tptr, const char *ident, uint16_t afi)
+                         const uint8_t *tptr, const char *indent, uint16_t afi)
 {
-    char ident_buffer[20];
+    char indent_buffer[20];
     uint8_t prefix[sizeof(nd_ipv6)]; /* shared copy buffer for IPv4 and IPv6 prefixes */
     u_int metric, status_byte, bit_length, byte_length, sublen, processed, subtlvtype, subtlvlen;
 
@@ -2278,7 +2278,7 @@ isis_print_extd_ip_reach(netdissect_options *ndo,
         bit_length = status_byte&0x3f;
         if (bit_length > 32) {
             ND_PRINT("%sIPv4 prefix: bad bit length %u",
-                   ident,
+                   indent,
                    bit_length);
             return (0);
         }
@@ -2288,7 +2288,7 @@ isis_print_extd_ip_reach(netdissect_options *ndo,
         bit_length=GET_U_1(tptr + 1);
         if (bit_length > 128) {
             ND_PRINT("%sIPv6 prefix: bad bit length %u",
-                   ident,
+                   indent,
                    bit_length);
             return (0);
         }
@@ -2306,12 +2306,12 @@ isis_print_extd_ip_reach(netdissect_options *ndo,
 
     if (afi == AF_INET)
         ND_PRINT("%sIPv4 prefix: %15s/%u",
-               ident,
+               indent,
                ipaddr_string(ndo, prefix), /* local buffer, not packet data; don't use GET_IPADDR_STRING() */
                bit_length);
     else if (afi == AF_INET6)
         ND_PRINT("%sIPv6 prefix: %s/%u",
-               ident,
+               indent,
                ip6addr_string(ndo, prefix), /* local buffer, not packet data; don't use GET_IP6ADDR_STRING() */
                bit_length);
 
@@ -2343,8 +2343,8 @@ isis_print_extd_ip_reach(netdissect_options *ndo,
             subtlvlen=GET_U_1(tptr + 1);
             tptr+=2;
             /* prepend the indent string */
-            snprintf(ident_buffer, sizeof(ident_buffer), "%s  ",ident);
-            if (!isis_print_ip_reach_subtlv(ndo, tptr, subtlvtype, subtlvlen, ident_buffer))
+            snprintf(indent_buffer, sizeof(indent_buffer), "%s  ", indent);
+            if (!isis_print_ip_reach_subtlv(ndo, tptr, subtlvtype, subtlvlen, indent_buffer))
                 return(0);
             tptr+=subtlvlen;
             sublen-=(subtlvlen+2);
