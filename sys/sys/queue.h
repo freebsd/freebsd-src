@@ -499,9 +499,10 @@ struct {								\
 
 #define STAILQ_INSERT_TAIL(head, elm, field) do {			\
 	QMD_STAILQ_CHECK_TAIL(head);					\
+	__typeof__((head)->stqh_last) prevlast = (head)->stqh_last;	\
 	STAILQ_NEXT((elm), field) = NULL;				\
-	*(head)->stqh_last = (elm);					\
 	(head)->stqh_last = &STAILQ_NEXT((elm), field);			\
+	*prevlast = (elm);						\
 } while (0)
 
 #define STAILQ_LAST(head, type, field)					\
