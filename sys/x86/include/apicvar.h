@@ -84,6 +84,7 @@
  * to use that ID.
  */
 #define	IOAPIC_MAX_ID		0xff
+#define	IOAPIC_MAX_EXT_ID	0x7fff
 
 /* I/O Interrupts are used for external devices such as ISA, PCI, etc. */
 #define	APIC_IO_INTS	(IDT_IO_INTS + 16)

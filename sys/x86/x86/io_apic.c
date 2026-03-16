@@ -371,6 +371,13 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 		low = IOART_DESTPHY;
 		high = intpin->io_cpu << APIC_ID_SHIFT;
 		intpin->io_valid = 1;
+	} else if (intpin->io_cpu <= IOAPIC_MAX_EXT_ID &&
+	    apic_ext_dest_id == 1) {
+		low = IOART_DESTPHY;
+		high = intpin->io_cpu << APIC_ID_SHIFT & APIC_ID_MASK;
+		high |= (intpin->io_cpu >> 8) << APIC_EXT_ID_SHIFT
+		    & APIC_EXT_ID_MASK;
+		intpin->io_valid = 1;
 	} else {
 		printf("%s: unsupported destination APIC ID %u for pin %u\n",
 		    __func__, intpin->io_cpu, intpin->io_intpin);
