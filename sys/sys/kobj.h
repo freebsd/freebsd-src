@@ -271,7 +271,21 @@ extern u_int kobj_lookup_misses;
  * Lookup the method in the cache and if it isn't there look it up the
  * slow way.
  */
-#define	KOBJ_LOOKUP_METHOD(OBJ, OP) __extension__ ({		\
+#define	KOBJ_LOOKUP_METHOD(OBJ, OP)	\
+	((OP##_t *)(__KOBJ_LOOKUP_METHOD(OBJ, OP)->func))
+
+/*
+ * Lookup the method.  If the method found is the default instead return
+ * NULL.  This is a handier interface for some callers.
+ */
+#define	KOBJ_LOOKUP_METHOD_NODEF(OBJ, OP) __extension__ ({	\
+	kobjop_desc_t _desc = &OP##_##desc;			\
+	kobj_method_t *_ce = __KOBJ_LOOKUP_METHOD(OBJ, OP);	\
+	(OP##_t *)(_ce != &_desc->deflt ? _ce->func : NULL);	\
+})
+
+/* Main body for the above macros. */
+#define	__KOBJ_LOOKUP_METHOD(OBJ, OP) __extension__ ({		\
 	kobjop_desc_t _desc = &OP##_##desc;			\
 	kobj_method_t **_cep =					\
 	    &(OBJ)->ops->cache[_desc->id & (KOBJ_CACHE_SIZE-1)];\
@@ -282,7 +296,7 @@ extern u_int kobj_lookup_misses;
 		KOBJ_LOOKUP_MISS();				\
 	} else							\
 		KOBJ_LOOKUP_HIT();				\
-	(OP##_t *)(_ce->func);					\
+	(_ce);							\
 })
 
 kobj_method_t* kobj_lookup_method(kobj_class_t cls,
