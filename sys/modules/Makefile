@@ -398,6 +398,7 @@ SUBDIR=	\
 	sysvipc \
 	tarfs \
 	tcp \
+	tcpstats \
 	${_thunderbolt} \
 	${_ti} \
 	tmpfs \

@@ -14,6 +14,7 @@ ATF_TESTS_C=	broadcast \
 		tcp_connect_port_test \
 		tcp_implied_connect \
 		tcp_md5_getsockopt \
+		tcpstats_filter_test \
 		udp_bindings \
 		udp_io
 
@@ -26,7 +27,8 @@ ATF_TESTS_SH=	arp \
 		lpm \
 		multicast \
 		output \
-		redirect
+		redirect \
+		tcpstats_test
 
 ATF_TESTS_PYTEST+=	carp.py
 ATF_TESTS_PYTEST+=	igmp.py
@@ -50,6 +52,10 @@ TEST_METADATA.multicast+= execenv="jail"		\
 			execenv_jail_params="vnet"
 TEST_METADATA.output+=	required_programs="python"
 TEST_METADATA.redirect+= required_programs="python"
+
+TEST_METADATA.tcpstats_test+=	required_user="root"
+SRCS.tcpstats_filter_test=	tcpstats_filter_test.c tcp_statsdev_filter.c
+CFLAGS.tcpstats_filter_test+=	-I${SRCTOP}/sys
 
 PROGS=	udp_dontroute tcp_user_cookie multicast-send multicast-receive
 

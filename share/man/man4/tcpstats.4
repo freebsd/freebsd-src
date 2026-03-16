@@ -1,0 +1,312 @@
+.\"
+.\" Copyright (c) 2026 The FreeBSD Foundation
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 14, 2026
+.Dt TCPSTATS 4
+.Os
+.Sh NAME
+.Nm tcpstats
+.Nd TCP connection statistics character device
+.Sh SYNOPSIS
+To load the driver as a module at run-time, run the following command as root:
+.Bd -literal -offset indent
+kldload tcpstats
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, add the following
+line into the
+.Xr loader.conf 5
+file:
+.Bd -literal -offset indent
+tcpstats_load="YES"
+.Ed
+.Pp
+To compile the driver into the kernel, add the following to the kernel
+configuration file:
+.Bd -literal -offset indent
+device tcpstats
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+kernel module creates a read-only character device
+.Pa /dev/tcpstats
+that, when read, iterates every TCP connection in the kernel in a single
+pass and streams fixed-size 320-byte records to userspace via
+.Xr uiomove 9 .
+.Pp
+Each record is a
+.Vt struct tcp_stats_record
+containing comprehensive per-connection metrics including TCP state,
+addresses, ports, congestion control parameters, RTT, sequence numbers,
+retransmit counters, ECN state, timer values, and buffer utilization.
+.Pp
+A second device
+.Pa /dev/tcpstats-full
+is also created, which populates all record fields by default (equivalent
+to setting
+.Va format=full ) .
+.Pp
+On systems with a large number of TCP connections, reading without a
+filter requires iterating every socket.
+Using the filtering interface described below under
+.Sx Filtering
+is strongly recommended to reduce the amount of data collected and
+minimize impact on the system.
+.Ss Security Model
+To minimize the potential impact on the system, multiple layers of
+security and resource controls are enforced:
+.Bl -enum
+.It
+File permissions:
+.Pa /dev/tcpstats
+is created with mode 0440, owned by root:network.
+.It
+Write rejection: opening the device for writing returns
+.Er EPERM .
+.It
+Credential visibility: each connection is checked with
+.Fn cr_canseeinpcb
+using the opener's credentials.
+Only connections visible to the reader are emitted.
+.It
+Concurrent FD limit: controlled by
+.Va dev.tcpstats.max_open_fds
+(default 16).
+Returns
+.Er EMFILE
+when exceeded.
+.It
+Concurrent reader limit: controlled by
+.Va dev.tcpstats.max_concurrent_readers
+(default 32).
+Returns
+.Er EBUSY
+when exceeded.
+.El
+.Ss Record Format
+Each record is exactly 320 bytes, packed and 8-byte aligned.
+The record layout is defined by
+.Vt struct tcp_stats_record
+in
+.In netinet/tcp_statsdev.h .
+The record is versioned
+.Pq Va tsr_version
+and includes 52 bytes of spare space for future expansion without
+breaking the ABI.
+.Pp
+Key field groups:
+.Bl -tag -width "Congestion" -compact
+.It Identity
+Address family, local/remote addresses and ports, socket metadata.
+.It State
+TCP state value, TCP flags, window scale, options (SACK, timestamps).
+.It RTT
+Smoothed RTT, RTT variance, retransmission timeout, minimum RTT.
+.It Congestion
+Congestion window, slow-start threshold, send/receive windows, MSS.
+.It Names
+Congestion control algorithm name, TCP stack name.
+.It Sequences
+Send next/unack/max, receive next/advertised.
+.It Counters
+Retransmit packets, out-of-order packets, zero-window probes, dupacks.
+.It ECN
+ECN negotiation state, delivered/received CE marks, DSACK, TLP.
+.It Timers
+Remaining time for retransmit, persist, keepalive, 2MSL, delayed ACK
+timers; time since last receive.
+.It Buffers
+Send/receive buffer current usage and high-water marks.
+.El
+.Ss Filtering
+Filters can be applied via the
+.Dv TCPSTATS_SET_FILTER
+.Xr ioctl 2
+or via sysctl-created named profiles.
+All filter conditions are ANDed together.
+.Pp
+Filter directives (used in profile strings):
+.Bl -tag -width "include_state=states"
+.It Va local_port=ports
+Match connections with local port in the comma-separated list
+(up to 8 ports).
+.It Va remote_port=ports
+Match connections with remote port in the comma-separated list.
+.It Va exclude=states
+Exclude connections in the given TCP states (comma-separated).
+State names:
+.Cm closed , listen , syn_sent , syn_received , established ,
+.Cm close_wait , fin_wait_1 , closing , last_ack , fin_wait_2 ,
+.Cm time_wait .
+.It Va include_state=states
+Include only connections in the given TCP states.
+Mutually exclusive with
+.Va exclude .
+.It Va local_addr=addr[/prefix]
+Match connections with local address matching the given IPv4 CIDR
+or IPv6 prefix.
+.It Va remote_addr=addr[/prefix]
+Match connections with remote address matching the given CIDR/prefix.
+.It Va ipv4_only
+Only emit IPv4 connections.
+.It Va ipv6_only
+Only emit IPv6 connections.
+.It Va format=compact|full
+Select compact (default) or full field output.
+.It Va fields=groups
+Comma-separated list of field groups to populate:
+.Cm identity , state , congestion , rtt , sequences , counters ,
+.Cm timers , buffers , ecn , names , all , default .
+.El
+.Ss Named Profiles
+Named filter profiles can be created via sysctl, each producing a
+per-profile device node under
+.Pa /dev/tcpstats/ .
+.Pp
+Create a profile:
+.Bd -literal -offset indent
+sysctl dev.tcpstats.profile_set="web local_port=80,443 exclude=listen"
+.Ed
+.Pp
+Read from the profile device:
+.Bd -literal -offset indent
+cat /dev/tcpstats/web | hexdump -C
+.Ed
+.Pp
+Delete a profile by writing just the name:
+.Bd -literal -offset indent
+sysctl dev.tcpstats.profile_set="web"
+.Ed
+.Sh MIB Variables
+The following
+.Xr sysctl 8
+variables are available:
+.Bl -tag -width "dev.tcpstats.max_concurrent_readers"
+.It Va dev.tcpstats.max_open_fds
+Maximum concurrent open file descriptors across all devices.
+Default: 16.
+.It Va dev.tcpstats.max_concurrent_readers
+Maximum concurrent
+.Fn read
+calls.
+Default: 32.
+.It Va dev.tcpstats.max_read_duration_ms
+Maximum
+.Fn read
+iteration time in milliseconds.
+0 means unlimited.
+Default: 5000.
+.It Va dev.tcpstats.min_read_interval_ms
+Minimum interval between reads per file descriptor in milliseconds.
+0 means unlimited.
+Default: 0.
+.It Va dev.tcpstats.reads_total
+Total number of
+.Fn read
+calls serviced (read-only).
+.It Va dev.tcpstats.active_fds
+Number of currently open file descriptors (read-only).
+.It Va dev.tcpstats.opens_total
+Total number of
+.Fn open
+calls (read-only).
+.It Va dev.tcpstats.last_error
+Last filter parse error message (read-only).
+.It Va dev.tcpstats.profile_set
+Create, update, or delete named filter profiles (read-write).
+.El
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+commands are supported:
+.Bl -tag -width "TCPSTATS_VERSION_CMD"
+.It Dv TCPSTATS_VERSION_CMD
+Returns a
+.Vt struct tcpstats_version
+containing the protocol version, record size, and an approximate
+count of TCP connections.
+.It Dv TCPSTATS_SET_FILTER
+Installs a
+.Vt struct tcpstats_filter
+to control which connections and fields are emitted on subsequent reads.
+.It Dv TCPSTATS_RESET
+Resets the read state, allowing the device to be read again.
+Without this, a second
+.Fn read
+returns EOF.
+.El
+.Sh EXAMPLES
+Read all TCP connections as raw records:
+.Bd -literal -offset indent
+dd if=/dev/tcpstats bs=320 count=10 | hexdump -C
+.Ed
+.Pp
+Create a named profile for HTTPS monitoring:
+.Bd -literal -offset indent
+sysctl dev.tcpstats.profile_set="https local_port=443 exclude=listen,timewait"
+cat /dev/tcpstats/https > /tmp/tcp_snapshot.bin
+.Ed
+.Pp
+Check module statistics:
+.Bd -literal -offset indent
+sysctl dev.tcpstats
+.Ed
+.Ss Userspace Client
+The
+.Lk https://github.com/randomizedcoder/bsd-xtcp bsd-xtcp
+project provides a Rust client that reads
+.Pa /dev/tcpstats
+and outputs JSON Lines.
+To build and run on
+.Fx :
+.Bd -literal -offset indent
+pkg install -y rust protobuf git-tiny
+git clone --depth 1 https://github.com/randomizedcoder/bsd-xtcp.git
+cd bsd-xtcp
+cargo build --release -p bsd-xtcp
+kldload tcpstats
+\&./target/release/bsd-xtcp --count 1 --pretty
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr ioctl 2 ,
+.Xr read 2 ,
+.Xr siftr 4 ,
+.Xr tcp 4 ,
+.Xr loader.conf 5 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 14.4
+and
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+module was written by
+.An Dave Seddon
+as part of the bsd-xtcp project.

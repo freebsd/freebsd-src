@@ -479,6 +479,7 @@ FIB_ALGO		opt_route.h
 RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 SIFTR
+TCPSTATS
 TCP_BLACKBOX		opt_global.h
 TCP_HHOOK		opt_global.h
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
