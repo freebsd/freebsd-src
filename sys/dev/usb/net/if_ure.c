@@ -128,6 +128,7 @@ static usb_callback_t ure_bulk_write_callback;
 static miibus_readreg_t ure_miibus_readreg;
 static miibus_writereg_t ure_miibus_writereg;
 static miibus_statchg_t ure_miibus_statchg;
+static miibus_linkchg_t ure_miibus_linkchg;
 
 static uether_fn_t ure_attach_post;
 static uether_fn_t ure_init;
@@ -184,6 +185,7 @@ static device_method_t ure_methods[] = {
 	DEVMETHOD(miibus_readreg, ure_miibus_readreg),
 	DEVMETHOD(miibus_writereg, ure_miibus_writereg),
 	DEVMETHOD(miibus_statchg, ure_miibus_statchg),
+	DEVMETHOD(miibus_linkchg, ure_miibus_linkchg),
 
 	DEVMETHOD_END
 };
@@ -443,6 +445,8 @@ ure_miibus_statchg(device_t dev)
 	struct mii_data *mii;
 	if_t ifp;
 	int locked;
+	uint16_t bmsr;
+	bool new_link, old_link;
 
 	sc = device_get_softc(dev);
 	mii = GET_MII(sc);
@@ -455,6 +459,7 @@ ure_miibus_statchg(device_t dev)
 	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		goto done;
 
+	old_link = (sc->sc_flags & URE_FLAG_LINK) ? true : false;
 	sc->sc_flags &= ~URE_FLAG_LINK;
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
 	    (IFM_ACTIVE | IFM_AVALID)) {
@@ -475,11 +480,69 @@ ure_miibus_statchg(device_t dev)
 		}
 	}
 
-	/* Lost link, do nothing. */
-	if ((sc->sc_flags & URE_FLAG_LINK) == 0)
-		goto done;
+	new_link = (sc->sc_flags & URE_FLAG_LINK) ? true : false;
+	if (old_link && !new_link) {
+		/*
+		 * MII layer reports link down.  Verify by reading
+		 * the PHY BMSR register directly.  BMSR link status
+		 * is latched-low, so read twice: first clears any
+		 * stale latch, second gives current state.
+		 */
+		(void)ure_ocp_reg_read(sc,
+		    URE_OCP_BASE_MII + MII_BMSR * 2);
+		bmsr = ure_ocp_reg_read(sc,
+		    URE_OCP_BASE_MII + MII_BMSR * 2);
+
+		if (bmsr & BMSR_LINK) {
+			/*
+			 * PHY still has link.  This is a spurious
+			 * link-down from the MII polling race (see
+			 * PR 252165).  Restore IFM_ACTIVE so the
+			 * subsequent MIIBUS_LINKCHG check in
+			 * mii_phy_update sees no change.
+			 */
+			device_printf(dev,
+			    "spurious link down (PHY link up), overriding\n");
+			sc->sc_flags |= URE_FLAG_LINK;
+			mii->mii_media_status |= IFM_ACTIVE;
+		}
+	}
 done:
 	if (!locked)
+		URE_UNLOCK(sc);
+}
+
+static void
+ure_miibus_linkchg(device_t dev)
+{
+	struct ure_softc *sc;
+	struct mii_data *mii;
+	int locked;
+	uint16_t bmsr;
+
+	sc = device_get_softc(dev);
+	mii = GET_MII(sc);
+	locked = mtx_owned(&sc->sc_mtx);
+	if (locked == 0)
+		URE_LOCK(sc);
+
+	/*
+	 * This is called by the default miibus linkchg handler
+	 * before it calls if_link_state_change().  If the PHY
+	 * still has link but the MII layer lost IFM_ACTIVE due
+	 * to the polling race (see PR 252165), restore it so the
+	 * notification goes out as LINK_STATE_UP rather than DOWN.
+	 */
+	if (mii != NULL && (mii->mii_media_status & IFM_ACTIVE) == 0) {
+		(void)ure_ocp_reg_read(sc,
+		    URE_OCP_BASE_MII + MII_BMSR * 2);
+		bmsr = ure_ocp_reg_read(sc,
+		    URE_OCP_BASE_MII + MII_BMSR * 2);
+		if (bmsr & BMSR_LINK)
+			mii->mii_media_status |= IFM_ACTIVE;
+	}
+
+	if (locked == 0)
 		URE_UNLOCK(sc);
 }
 
