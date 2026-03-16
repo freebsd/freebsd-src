@@ -769,7 +769,7 @@ static int json_events(const char *fn,
 				 * handling.
 				 */
 				json_copystr(map, field, buf, sizeof(buf));
-				fprintf(stderr, "Unknown field '%s'!\n", buf);
+				fprintf(stderr, "Unknown event field '%s' in %s\n", buf, fn);
 				_Exit(1);
 			}
 		}
