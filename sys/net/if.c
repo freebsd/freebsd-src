@@ -1188,7 +1188,6 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	struct prison *pr;
 	struct ifnet *difp;
 	bool found;
-	bool shutdown;
 
 	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
 
@@ -1218,14 +1217,6 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	}
 	sx_xlock(&ifnet_detach_sxlock);
 
-	/* Make sure the VNET is stable. */
-	shutdown = VNET_IS_SHUTTING_DOWN(ifp->if_vnet);
-	if (shutdown) {
-		sx_xunlock(&ifnet_detach_sxlock);
-		prison_free(pr);
-		return (EBUSY);
-	}
-
 	found = if_unlink_ifnet(ifp, true);
 	if (! found) {
 		sx_xunlock(&ifnet_detach_sxlock);
@@ -1252,7 +1243,6 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
 	int found __diagused;
- 	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1278,14 +1268,6 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (EEXIST);
-	}
-
-	/* Make sure the VNET is stable. */
-	shutdown = VNET_IS_SHUTTING_DOWN(ifp->if_vnet);
-	if (shutdown) {
-		CURVNET_RESTORE();
-		prison_free(pr);
-		return (EBUSY);
 	}
 
 	/* Get interface back from child jail/vnet. */
