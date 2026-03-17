@@ -49,6 +49,7 @@ seq_read(struct linux_file *f, char *ubuf, size_t size, off_t *ppos)
 
 	m = f->private_data;
 	sbuf = m->buf;
+	sbuf_clear(sbuf);
 
 	p = m->op->start(m, ppos);
 	rc = m->op->show(m, p);
