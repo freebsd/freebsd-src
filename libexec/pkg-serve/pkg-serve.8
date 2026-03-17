@@ -1,0 +1,107 @@
+.\" Copyright (c) 2026 Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd March 17, 2026
+.Dt PKG-SERVE 8
+.Os
+.Sh NAME
+.Nm pkg-serve
+.Nd serve pkg repositories over TCP via inetd
+.Sh SYNOPSIS
+.Nm
+.Ar basedir
+.Sh DESCRIPTION
+The
+.Nm
+utility serves
+.Xr pkg 8
+repositories using the pkg TCP protocol.
+It is designed to be invoked by
+.Xr inetd 8
+and communicates via standard input and output.
+.Pp
+The
+.Ar basedir
+argument specifies the root directory containing the package repositories.
+All file requests are resolved relative to this directory.
+.Pp
+On startup,
+.Nm
+enters a Capsicum sandbox, restricting filesystem access to
+.Ar basedir .
+.Sh PROTOCOL
+The protocol is line-oriented.
+Upon connection, the server sends a greeting:
+.Bd -literal -offset indent
+ok: pkg-serve <version>
+.Ed
+.Pp
+The client may then issue commands:
+.Bl -tag -width "get file age"
+.It Ic get Ar file age
+Request a file.
+If the file's modification time is newer than
+.Ar age
+(a Unix timestamp), the server responds with:
+.Bd -literal -offset indent
+ok: <size>
+.Ed
+.Pp
+followed by
+.Ar size
+bytes of file data.
+If the file has not been modified, the server responds with:
+.Bd -literal -offset indent
+ok: 0
+.Ed
+.Pp
+On error, the server responds with:
+.Bd -literal -offset indent
+ko: <error message>
+.Ed
+.It Ic quit
+Close the connection.
+.El
+.Sh INETD CONFIGURATION
+Add the following line to
+.Xr inetd.conf 5 :
+.Bd -literal -offset indent
+pkg  stream  tcp  nowait  nobody  /usr/libexec/pkg-serve  pkg-serve /usr/local/poudriere/data/packages
+.Ed
+.Pp
+And define the service in
+.Xr services 5 :
+.Bd -literal -offset indent
+pkg     62000/tcp
+.Ed
+.Sh REPOSITORY CONFIGURATION
+On the client side, configure a repository in
+.Pa /usr/local/etc/pkg/repos/myrepo.conf
+to use the
+.Ic tcp://
+scheme:
+.Bd -literal -offset indent
+myrepo: {
+    url: "tcp://pkgserver.example.com:62000/myrepo",
+}
+.Ed
+.Pp
+The path component of the URL is resolved relative to the
+.Ar basedir
+given to
+.Nm .
+For example, if
+.Nm
+is started with
+.Pa /usr/local/poudriere/data/packages
+as
+.Ar basedir ,
+the above configuration will serve files from
+.Pa /usr/local/poudriere/data/packages/myrepo/ .
+.Sh SEE ALSO
+.Xr inetd 8 ,
+.Xr inetd.conf 5 ,
+.Xr pkg 8
+.Sh AUTHORS
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org

@@ -477,6 +477,8 @@
         ..
         nuageinit
         ..
+        pkg-serve
+        ..
         rc
         ..
         rtld-elf
