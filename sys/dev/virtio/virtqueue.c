@@ -341,7 +341,7 @@ virtqueue_init_indirect(struct virtqueue *vq, int indirect_size)
 	align = size;
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),			/* parent */
-	    align,					/* alignment */
+	    roundup_pow_of_two(align),			/* alignment */
 	    0,						/* boundary */
 	    BUS_SPACE_MAXADDR,				/* lowaddr */
 	    BUS_SPACE_MAXADDR,				/* highaddr */
