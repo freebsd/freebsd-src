@@ -368,8 +368,8 @@ simple_read_from_buffer(void __user *dest, size_t read_size, loff_t *ppos,
 	size_t buf_remain = buf_size - *ppos;
 	ssize_t num_read;
 
-	if (buf_remain < 0 || buf_remain > buf_size)
-		return -EINVAL;
+	if (*ppos >= buf_size || read_size == 0)
+		return (0);
 
 	if (read_size > buf_remain)
 		read_size = buf_remain;
