@@ -60,15 +60,8 @@ seq_read(struct linux_file *f, char *ubuf, size_t size, off_t *ppos)
 	if (rc)
 		return (rc);
 
-	rc = sbuf_len(sbuf);
-	if (*ppos >= rc || size < 1)
-		return (-EINVAL);
-
-	size = min(rc - *ppos, size);
-	memcpy(ubuf, sbuf_data(sbuf) + *ppos, size);
-	*ppos += size;
-
-	return (size);
+	return (simple_read_from_buffer(ubuf, size, ppos, sbuf_data(sbuf),
+	    sbuf_len(sbuf)));
 }
 
 int

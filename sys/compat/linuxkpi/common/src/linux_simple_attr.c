@@ -119,18 +119,9 @@ simple_attr_read(struct file *filp, char *buf, size_t read_size, loff_t *ppos)
 
 	scnprintf(prebuf, sizeof(prebuf), sattr->fmt, data);
 
-	ret = strlen(prebuf) + 1;
-	if (*ppos >= ret || read_size < 1) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	read_size = min(ret - *ppos, read_size);
-	ret = strscpy(buf, prebuf + *ppos, read_size);
-
 	/* add 1 for null terminator */
-	if (ret > 0)
-		ret += 1;
+	ret = simple_read_from_buffer(buf, read_size, ppos, prebuf,
+	    strlen(prebuf) + 1);
 
 unlock:
 	mutex_unlock(&sattr->mutex);
