@@ -40,7 +40,7 @@
 MALLOC_DEFINE(M_LSEQ, "seq_file", "seq_file");
 
 ssize_t
-seq_read(struct linux_file *f, char *ubuf, size_t size, off_t *ppos)
+seq_read(struct linux_file *f, char __user *ubuf, size_t size, off_t *ppos)
 {
 	struct seq_file *m;
 	struct sbuf *sbuf;

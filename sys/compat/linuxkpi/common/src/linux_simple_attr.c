@@ -99,7 +99,8 @@ simple_attr_release(struct inode *inode, struct file *filp)
  * On failure, negative signed ERRNO
  */
 ssize_t
-simple_attr_read(struct file *filp, char *buf, size_t read_size, loff_t *ppos)
+simple_attr_read(struct file *filp, char __user *buf, size_t read_size,
+    loff_t *ppos)
 {
 	struct simple_attr *sattr;
 	uint64_t data;
@@ -146,29 +147,38 @@ unlock:
  * On failure, negative signed ERRNO
  */
 static ssize_t
-simple_attr_write_common(struct file *filp, const char *buf, size_t write_size,
-    loff_t *ppos, bool is_signed)
+simple_attr_write_common(struct file *filp, const char __user *ubuf,
+    size_t write_size, loff_t *ppos, bool is_signed)
 {
 	struct simple_attr *sattr;
 	unsigned long long data;
-	size_t bufsize;
+	char *buf;
 	ssize_t ret;
 
 	sattr = filp->private_data;
-	bufsize = strlen(buf) + 1;
 
 	if (sattr->set == NULL)
 		return (-EFAULT);
 
-	if (*ppos >= bufsize || write_size < 1)
+	if (*ppos != 0 || write_size < 1)
 		return (-EINVAL);
+
+	buf = malloc(write_size, M_LSATTR, M_WAITOK);
+	if (copy_from_user(buf, ubuf, write_size) != 0) {
+		free(buf, M_LSATTR);
+		return (-EFAULT);
+	}
+	if (strnlen(buf, write_size) == write_size) {
+		free(buf, M_LSATTR);
+		return (-EINVAL);
+	}
 
 	mutex_lock(&sattr->mutex);
 
 	if (is_signed)
-		ret = kstrtoll(buf + *ppos, 0, &data);
+		ret = kstrtoll(buf, 0, &data);
 	else
-		ret = kstrtoull(buf + *ppos, 0, &data);
+		ret = kstrtoull(buf, 0, &data);
 	if (ret)
 		goto unlock;
 
@@ -176,23 +186,24 @@ simple_attr_write_common(struct file *filp, const char *buf, size_t write_size,
 	if (ret)
 		goto unlock;
 
-	ret = bufsize - *ppos;
+	ret = write_size;
 
 unlock:
 	mutex_unlock(&sattr->mutex);
+	free(buf, M_LSATTR);
 	return (ret);
 }
 
 ssize_t
-simple_attr_write(struct file *filp, const char *buf, size_t write_size,
+simple_attr_write(struct file *filp, const char __user *buf, size_t write_size,
     loff_t *ppos)
 {
 	return (simple_attr_write_common(filp, buf,  write_size, ppos, false));
 }
 
 ssize_t
-simple_attr_write_signed(struct file *filp, const char *buf, size_t write_size,
-    loff_t *ppos)
+simple_attr_write_signed(struct file *filp, const char __user *buf,
+    size_t write_size, loff_t *ppos)
 {
 	return (simple_attr_write_common(filp, buf,  write_size, ppos, true));
 }
