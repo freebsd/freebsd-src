@@ -65,6 +65,10 @@ _dma=		dma
 _hyperv+=	hyperv
 .endif
 
+.if ${MK_PKGSERVE} != "no"
+_pkgserve=	pkg-serve
+.endif
+
 .if ${MK_NIS} != "no"
 _mknetid=	mknetid
 _ypxfr=		ypxfr
