@@ -85,7 +85,7 @@ struct seq_operations {
 	int (*show) (struct seq_file *m, void *v);
 };
 
-ssize_t seq_read(struct linux_file *, char *, size_t, off_t *);
+ssize_t seq_read(struct linux_file *, char __user *, size_t, off_t *);
 int seq_write(struct seq_file *seq, const void *data, size_t len);
 void seq_putc(struct seq_file *m, char c);
 void seq_puts(struct seq_file *m, const char *str);
