@@ -193,17 +193,19 @@ test_bs_fault(void *addr)
 	    addr == &generic_bs_poke_8f);
 }
 
-static void
+static bool
 svc_handler(struct thread *td, struct trapframe *frame)
 {
 
 	if ((frame->tf_esr & ESR_ELx_ISS_MASK) == 0) {
 		syscallenter(td);
 		syscallret(td);
+		/* Skip userret as syscallret already called it */
+		return (true);
 	} else {
 		call_trapsignal(td, SIGILL, ILL_ILLOPN, (void *)frame->tf_elr,
 		    ESR_ELx_EXCEPTION(frame->tf_esr));
-		userret(td, frame);
+		return (false);
 	}
 }
 
@@ -220,7 +222,6 @@ align_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 
 	call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr,
 	    ESR_ELx_EXCEPTION(frame->tf_esr));
-	userret(td, frame);
 }
 
 
@@ -231,7 +232,6 @@ external_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	if (lower) {
 		call_trapsignal(td, SIGBUS, BUS_OBJERR, (void *)far,
 		    ESR_ELx_EXCEPTION(frame->tf_esr));
-		userret(td, frame);
 		return;
 	}
 
@@ -411,9 +411,6 @@ bad_far:
 			    frame->tf_elr, error);
 		}
 	}
-
-	if (lower)
-		userret(td, frame);
 }
 
 static void
@@ -667,6 +664,7 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	uint32_t exception;
 	uint64_t esr, far;
 	int dfsc;
+	bool skip_userret;
 
 	/* Check we have a sane environment when entering from userland */
 	KASSERT((uintptr_t)get_pcpu() >= VM_MIN_KERNEL_ADDRESS,
@@ -694,6 +692,7 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	CTR4(KTR_TRAP, "%s: exception=%lu, elr=0x%lx, esr=0x%lx",
 	    __func__, exception, frame->tf_elr, esr);
 
+	skip_userret = false;
 	switch (exception) {
 	case EXCP_FP_SIMD:
 #ifdef VFP
@@ -705,7 +704,6 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	case EXCP_TRAP_FP:
 #ifdef VFP
 		fpe_trap(td, (void *)frame->tf_elr, esr);
-		userret(td, frame);
 #else
 		panic("VFP exception in userland");
 #endif
@@ -715,11 +713,10 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		if (!sve_restore_state(td))
 			call_trapsignal(td, SIGILL, ILL_ILLTRP,
 			    (void *)frame->tf_elr, exception);
-		userret(td, frame);
 		break;
 	case EXCP_SVC32:
 	case EXCP_SVC64:
-		svc_handler(td, frame);
+		skip_userret = svc_handler(td, frame);
 		break;
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
@@ -741,22 +738,18 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		if (!undef_insn(frame))
 			call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far,
 			    exception);
-		userret(td, frame);
 		break;
 	case EXCP_FPAC:
 		call_trapsignal(td, SIGILL, ILL_ILLOPN, (void *)frame->tf_elr,
 		    exception);
-		userret(td, frame);
 		break;
 	case EXCP_SP_ALIGN:
 		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_sp,
 		    exception);
-		userret(td, frame);
 		break;
 	case EXCP_PC_ALIGN:
 		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr,
 		    exception);
-		userret(td, frame);
 		break;
 	case EXCP_BRKPT_EL0:
 	case EXCP_BRK:
@@ -765,12 +758,10 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 #endif /* COMPAT_FREEBSD32 */
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr,
 		    exception);
-		userret(td, frame);
 		break;
 	case EXCP_WATCHPT_EL0:
 		call_trapsignal(td, SIGTRAP, TRAP_TRACE, (void *)far,
 		    exception);
-		userret(td, frame);
 		break;
 	case EXCP_MSR:
 		/*
@@ -781,7 +772,6 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		if (!undef_insn(frame))
 			call_trapsignal(td, SIGILL, ILL_PRVOPC,
 			    (void *)frame->tf_elr, exception);
-		userret(td, frame);
 		break;
 	case EXCP_SOFTSTP_EL0:
 		PROC_LOCK(td->td_proc);
@@ -794,24 +784,22 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		PROC_UNLOCK(td->td_proc);
 		call_trapsignal(td, SIGTRAP, TRAP_TRACE,
 		    (void *)frame->tf_elr, exception);
-		userret(td, frame);
 		break;
 	case EXCP_BTI:
 		call_trapsignal(td, SIGILL, ILL_ILLOPC, (void *)frame->tf_elr,
 		    exception);
-		userret(td, frame);
 		break;
 	case EXCP_MOE:
 		handle_moe(td, frame, esr);
-		userret(td, frame);
 		break;
 	default:
 		call_trapsignal(td, SIGBUS, BUS_OBJERR, (void *)frame->tf_elr,
 		    exception);
-		userret(td, frame);
 		break;
 	}
 
+	if (!skip_userret)
+		userret(td, frame);
 	KASSERT(
 	    (td->td_pcb->pcb_fpflags & ~(PCB_FP_USERMASK|PCB_FP_SVEVALID)) == 0,
 	    ("Kernel VFP flags set while entering userspace"));
