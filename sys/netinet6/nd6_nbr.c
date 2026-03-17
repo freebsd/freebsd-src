@@ -98,6 +98,7 @@ static void nd6_na_output_fib(struct ifnet *, const struct in6_addr *,
     const struct in6_addr *, u_long, int, struct sockaddr *, u_int);
 static void nd6_ns_output_fib(struct ifnet *, const struct in6_addr *,
     const struct in6_addr *, const struct in6_addr *, uint8_t *, u_int);
+static void nd6_queue_add(struct ifaddr *, struct in6_addr *, int, uint32_t);
 
 static struct ifaddr *nd6_proxy_fill_sdl(struct ifnet *,
     const struct in6_addr *, struct sockaddr_dl *);
@@ -365,7 +366,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		nd6_na_output_fib(ifp, &saddr6, &taddr6, rflag, tlladdr,
 		    proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
 	else
-		nd6_delayed_na_start(ifa, &saddr6, arc4random() %
+		nd6_queue_add(ifa, &saddr6, arc4random() %
 		    (MAX_ANYCAST_DELAY_TIME * hz), ND6_QUEUE_FLAG_ANYCAST);
  freeit:
 	if (ifa != NULL)
@@ -1652,15 +1653,16 @@ static void
 nd6_queue_rel(void *arg)
 {
 	struct nd_queue *ndq = arg;
-	struct ifaddr *ifa = ndq->ndq_ifa;
+	struct ifaddr *ifa;
 
+	ifa = ndq->ndq_ifa;
 	IF_ADDR_WLOCK_ASSERT(ifa->ifa_ifp);
 
-	/* Remove ndq from the nd_queue and free it */
+	/* Remove ndq from the nd_queue list and free it */
 	TAILQ_REMOVE(&ifa->ifa_ifp->if_inet6->nd_queue, ndq, ndq_list);
-	free(ndq, M_IP6NDP);
 	IF_ADDR_WUNLOCK(ifa->ifa_ifp);
 
+	free(ndq, M_IP6NDP);
 	ifa_free(ifa);
 }
 
@@ -1670,7 +1672,6 @@ nd6_queue_timer(void *arg)
 	struct nd_queue *ndq = arg;
 	struct ifaddr *ifa = ndq->ndq_ifa;
 	struct ifnet *ifp;
-	struct in6_ifextra *ext;
 	struct in6_addr daddr;
 	struct epoch_tracker et;
 	int delay, tlladdr;
@@ -1679,14 +1680,13 @@ nd6_queue_timer(void *arg)
 	KASSERT(ifa != NULL, ("ND6 queue entry %p with no address", ndq));
 
 	ifp = ifa->ifa_ifp;
-	ext = ifp->if_inet6;
 	CURVNET_SET(ifp->if_vnet);
 	NET_EPOCH_ENTER(et);
 
 	daddr = ndq->ndq_daddr;
 	tlladdr = ND6_NA_OPT_LLA;
 	flags = (V_ip6_forwarding) ? ND_NA_FLAG_ROUTER : 0;
-	if ((ext->nd_flags & ND6_IFF_ACCEPT_RTADV) != 0 && V_ip6_norbit_raif)
+	if ((ifp->if_inet6->nd_flags & ND6_IFF_ACCEPT_RTADV) != 0 && V_ip6_norbit_raif)
 		flags &= ~ND_NA_FLAG_ROUTER;
 
 	/*
@@ -1699,7 +1699,7 @@ nd6_queue_timer(void *arg)
 		 * then the Override flag MUST NOT be set.
 		 * We don't support RFC 4429 yet.
 		 */
-		if ((ext->nd_flags & ND6_IFF_PREFER_SOURCE) == 0)
+		if ((ifp->if_inet6->nd_flags & ND6_IFF_PREFER_SOURCE) == 0)
 			flags |= ND_NA_FLAG_OVERRIDE;
 	}
 	/*
@@ -1712,10 +1712,16 @@ nd6_queue_timer(void *arg)
 	if ((ndq->ndq_flags & ND6_QUEUE_FLAG_ANYCAST) != 0)
 		flags |= ND_NA_FLAG_SOLICITED;
 
-	/* Wait at least a RetransTimer before removing from queue */
-	delay = ext->nd_retrans * hz / 1000;
-	callout_reset(&ndq->ndq_callout, delay, nd6_queue_rel, ndq);
-	IF_ADDR_WUNLOCK(ifp);
+	/*
+	 * if it was GRAND, wait at least a RetransTimer
+	 * before removing from queue.
+	 */
+	if ((ndq->ndq_flags & ND6_QUEUE_GRAND_MASK) != 0) {
+		delay = ifp->if_inet6->nd_retrans * hz / 1000;
+		callout_reset(&ndq->ndq_callout, delay, nd6_queue_rel, ndq);
+		IF_ADDR_WUNLOCK(ifp);
+	} else
+		nd6_queue_rel(ndq);
 
 	if (__predict_true(in6_setscope(&daddr, ifp, NULL) == 0))
 		nd6_na_output_fib(ifp, &daddr, IFA_IN6(ifa), flags, tlladdr,
@@ -1729,37 +1735,52 @@ static void
 nd6_queue_add(struct ifaddr *ifa, struct in6_addr *daddr,
     int delay, uint32_t flags)
 {
-	struct nd_queue *ndq;
-	struct ifnet *ifp = ifa->ifa_ifp;
-	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
-	struct in6_ifextra *ext = ifp->if_inet6;
+	struct nd_queue *ndq = NULL;
+	struct ifnet *ifp;
+	struct in6_ifextra *ext;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	NET_EPOCH_ASSERT();
 
-	ndq = malloc(sizeof(*ndq), M_IP6NDP, M_NOWAIT | M_ZERO);
+	ifp = ifa->ifa_ifp;
+	ext = ifp->if_inet6;
+	IF_ADDR_WLOCK(ifp);
+	/*
+	 * if request comes from GRAND, check whether another delayed
+	 * GRAND NA exists in the queue.
+	 * If it exists, cancel previous one and reuse its ndq.
+	 */
+	if ((flags & ND6_QUEUE_GRAND_MASK) != 0) {
+		TAILQ_FOREACH(ndq, &ext->nd_queue, ndq_list) {
+			if (ndq->ndq_ifa == ifa &&
+			    (flags & ND6_QUEUE_GRAND_MASK) != 0)
+				break;
+		}
+	}
 	if (ndq == NULL) {
-		log(LOG_ERR, "nd6_queue_add: memory allocation failed for "
-			"%s(%s)\n",
-			ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
-			ifp ? if_name(ifp) : "???");
-		return;
+		ndq = malloc(sizeof(*ndq), M_IP6NDP, M_NOWAIT | M_ZERO);
+		if (ndq == NULL) {
+			log(LOG_ERR, "%s: memory allocation failed for %s(%s)\n",
+			    __func__, ip6_sprintf(ip6buf, IFA_IN6(ifa)),
+			    ifp ? if_name(ifp) : "???");
+			IF_ADDR_WUNLOCK(ifp);
+			return;
+		}
+
+		callout_init_mtx(&ndq->ndq_callout, &ifp->if_addr_lock,
+		    CALLOUT_TRYLOCK | CALLOUT_RETURNUNLOCKED);
+		ifa_ref(ifa);
+		ndq->ndq_ifa = ifa;
+		TAILQ_INSERT_TAIL(&ext->nd_queue, ndq, ndq_list);
 	}
 
-	IF_ADDR_WLOCK(ifa->ifa_ifp);
-	callout_init_mtx(&ndq->ndq_callout, &ifp->if_addr_lock,
-	    CALLOUT_TRYLOCK | CALLOUT_RETURNUNLOCKED);
-	nd6log((LOG_DEBUG, "%s: send delayed IPv6 ND for %s\n", if_name(ifp),
-	    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
-
-	ndq->ndq_ifa = ifa;
-	ifa_ref(ndq->ndq_ifa);
 	memcpy(&ndq->ndq_daddr, daddr, sizeof(struct in6_addr));
 	ndq->ndq_flags = flags;
 
-	TAILQ_INSERT_TAIL(&ext->nd_queue, ndq, ndq_list);
+	nd6log((LOG_DEBUG, "%s: delay IPv6 NA for %s\n", if_name(ifp),
+	    ip6_sprintf(ip6buf, IFA_IN6(ifa))));
 	callout_reset(&ndq->ndq_callout, delay, nd6_queue_timer, ndq);
-	IF_ADDR_WUNLOCK(ifa->ifa_ifp);
+	IF_ADDR_WUNLOCK(ifp);
 }
 
 /*
@@ -1795,7 +1816,12 @@ nd6_grand_start(struct ifaddr *ifa, uint32_t flags)
 		 * up to MAX_NEIGHBOR_ADVERTISEMENT Neighbor Advertisement messages.
 		 * Make sure we don't queue GRAND more than V_ip6_grand_count
 		 * per interface.
+		 * Since this limitation only applies to GRAND, don't
+		 * count non-GRAND ndq.
 		 */
+		if ((ndq->ndq_flags & ND6_QUEUE_GRAND_MASK) == 0)
+			continue;
+
 		count++;
 		if (count >= V_ip6_grand_count)
 			return;
@@ -1825,29 +1851,21 @@ nd6_grand_start(struct ifaddr *ifa, uint32_t flags)
 void
 nd6_queue_stop(struct ifaddr *ifa)
 {
-	struct nd_queue *ndq;
+	struct nd_queue *ndq, *dndq;
+	struct ifnet *ifp;
 
-	IF_ADDR_WLOCK(ifa->ifa_ifp);
-	TAILQ_FOREACH(ndq, &ifa->ifa_ifp->if_inet6->nd_queue, ndq_list) {
+	ifp = ifa->ifa_ifp;
+	IF_ADDR_WLOCK(ifp);
+	TAILQ_FOREACH_SAFE(ndq, &ifp->if_inet6->nd_queue, ndq_list, dndq) {
 		if (ndq->ndq_ifa != ifa)
 			continue;
 
 		callout_stop(&ndq->ndq_callout);
-		nd6_queue_rel(ndq);
-		return;
+
+		/* Remove ndq from the nd_queue list and free it */
+		TAILQ_REMOVE(&ifa->ifa_ifp->if_inet6->nd_queue, ndq, ndq_list);
+		free(ndq, M_IP6NDP);
+		ifa_free(ifa);
 	}
-	IF_ADDR_WUNLOCK(ifa->ifa_ifp);
-}
-
-/*
- * Send delayed NA for specified address.
- * Called by nd6_ns_input for anycast or proxy NA
- */
-void
-nd6_delayed_na_start(struct ifaddr *ifa, struct in6_addr *daddr,
-    u_int delay, uint32_t flags)
-{
-
-	NET_EPOCH_ASSERT();
-	nd6_queue_add(ifa, daddr, delay, flags);
+	IF_ADDR_WUNLOCK(ifp);
 }

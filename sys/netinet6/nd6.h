@@ -155,7 +155,10 @@ struct	in6_ndifreq {
 /* ND6 queue flags */
 #define	ND6_QUEUE_FLAG_NEWGUA	0x01	/* new global unicast address event */
 #define	ND6_QUEUE_FLAG_LLADDR	0x02	/* link-layer address change event */
-#define	ND6_QUEUE_FLAG_ANYCAST	0x04	/* delay NA for anycast or proxy address */
+#define	ND6_QUEUE_FLAG_ANYCAST	0x04	/* delay NA for anycast address */
+
+/* GRAND specific flags */
+#define ND6_QUEUE_GRAND_MASK    (ND6_QUEUE_FLAG_NEWGUA|ND6_QUEUE_FLAG_LLADDR)
 
 /* protocol constants */
 #define MAX_RTR_SOLICITATION_DELAY	1	/* 1sec */
@@ -375,7 +378,6 @@ void nd6_dad_start(struct ifaddr *, int);
 void nd6_dad_stop(struct ifaddr *);
 void nd6_grand_start(struct ifaddr *, uint32_t);
 void nd6_queue_stop(struct ifaddr *);
-void nd6_delayed_na_start(struct ifaddr *, struct in6_addr *, u_int, uint32_t);
 
 /* nd6_rtr.c */
 void nd6_rs_input(struct mbuf *, int, int);
