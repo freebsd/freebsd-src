@@ -291,9 +291,7 @@ ip_mfilter_count(struct ip_mfilter_head *head)
  * and kept if retransmissions are necessary.
  *
  * FUTURE: inm_link is now only used when groups are being purged
- * on a detaching ifnet. It could be demoted to a SLIST_ENTRY, but
- * because it is at the very start of the struct, we can't do this
- * w/o breaking the ABI for ifmcstat.
+ * on a detaching ifnet. It could be demoted to a SLIST_ENTRY.
  */
 struct in_multi {
 	LIST_ENTRY(in_multi) inm_link;	/* to-be-released by in_ifdetach */
@@ -339,7 +337,6 @@ struct in_multi {
  *  A source is only excluded if all listeners exclude it.
  *  A source is only included if no listeners exclude it,
  *  and at least one listener includes it.
- * May be used by ifmcstat(8).
  */
 static __inline uint8_t
 ims_get_mode(const struct in_multi *inm, const struct ip_msource *ims,
