@@ -989,6 +989,19 @@ and
 .Xr objdump 1 .
 .Xr strings 1
 is always provided by ELF Tool Chain.
+.It Va WITHOUT_LLVM_BINUTILS_BOOTSTRAP
+Do not build LLVM binary utilities during the bootstrap phase of
+the build.
+To be able to build the system alternate binary utilities must be provided via
+.Ev XAR ,
+.Ev XNM ,
+.Ev XOBJCOPY ,
+.Ev XRANLIB ,
+.Ev XSIZE ,
+.Ev XSTRINGS ,
+and
+.Ev XSTRIPBIN .
+
 .It Va WITHOUT_LLVM_COV
 Do not build the
 .Xr llvm-cov 1

@@ -239,6 +239,12 @@ X${BINUTIL}?=	${${BINUTIL}}
 MK_LLD_BOOTSTRAP=	no
 .endif
 
+# If full paths to all standard bintuils are given, don't build LLVM binutils.
+.if ${XAR:M/*} && ${XNM:M/*} && ${XOBJCOPY:M/*} && ${XRANLIB:M/*} && \
+    ${XSIZE:M/*} && ${XSTRINGS:M/*} && ${XSTRIPBIN:M/*}
+MK_LLVM_BINUTILS_BOOTSTRAP=	no
+.endif
+
 # We also want the X_LINKER* variables if we are using an external toolchain.
 _WANT_TOOLCHAIN_CROSS_VARS=	t
 .include "share/mk/bsd.linker.mk"
@@ -2701,7 +2707,8 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 # llvm-tblgen is also needed for various llvm binutils (e.g. objcopy).
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
     ${MK_LLD_BOOTSTRAP} != "no" || ${MK_LLD} != "no" || \
-    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
+    ${MK_LLDB} != "no" || \
+    ${MK_LLVM_BINUTILS_BOOTSTRAP} != "no" || ${MK_LLVM_BINUTILS} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
 	usr.bin/clang/llvm-min-tblgen \
@@ -3061,8 +3068,15 @@ _clang=		usr.bin/clang/clang
 .if ${MK_LLD_BOOTSTRAP} != "no"
 _lld=		usr.bin/clang/lld
 .endif
-.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no"
+.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no" || \
+    ${MK_LLVM_BINUTILS_BOOTSTRAP} != "no"
 _clang_libs=	lib/clang
+.endif
+.if ${MK_LLVM_BINUTILS_BOOTSTRAP}} != "no"
+_llvm_binutils=	usr.bin/clang/llvm-ar \
+		usr.bin/clang/llvm-nm \
+		usr.bin/clang/llvm-objcopy \
+		usr.bin/clang/llvm-size
 .endif
 .if ${MK_USB} != "no"
 _usb_tools=	stand/usb/tools
@@ -3079,6 +3093,7 @@ cross-tools: .MAKE .PHONY
     ${_clang_libs} \
     ${_clang} \
     ${_lld} \
+    ${_llvm_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \
     ${_btxld} \
