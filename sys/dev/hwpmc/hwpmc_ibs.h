@@ -67,6 +67,18 @@
 #define IBS_CTL_LVTOFFSETVALID		(1ULL << 8)
 #define IBS_CTL_LVTOFFSETMASK		0x0000000F
 
+/*
+ * The minimum sampling rate was selected to match the default used by other
+ * counters that was also found to be experimentally stable by providing enough
+ * time between consecutive NMIs.  The maximum sample rate is determined by
+ * setting all available counter bits, i.e., all available bits except the
+ * bottom four that are zero extended.
+ */
+#define IBS_FETCH_MIN_RATE		65536
+#define IBS_FETCH_MAX_RATE		1048560
+#define IBS_OP_MIN_RATE			65536
+#define IBS_OP_MAX_RATE			134217712
+
 /* IBS Fetch Control */
 #define IBS_FETCH_CTL			0xC0011030 /* IBS Fetch Control */
 #define IBS_FETCH_CTL_L3MISS		(1ULL << 61) /* L3 Cache Miss */
@@ -82,7 +94,8 @@
 #define IBS_FETCH_CTL_ENABLE		(1ULL << 48) /* Enable */
 #define IBS_FETCH_CTL_MAXCNTMASK	0x0000FFFFULL
 
-#define IBS_FETCH_CTL_TO_LAT(_c)	((_c >> 32) & 0x0000FFFF)
+#define IBS_FETCH_INTERVAL_TO_CTL(_c)	(((_c) >> 4) & 0x0000FFFF)
+#define IBS_FETCH_CTL_TO_LAT(_c)	(((_c) >> 32) & 0x0000FFFF)
 
 #define IBS_FETCH_LINADDR		0xC0011031 /* Fetch Linear Address */
 #define IBS_FETCH_PHYSADDR		0xC0011032 /* Fetch Physical Address */
@@ -95,11 +108,15 @@
 
 /* IBS Execution Control */
 #define IBS_OP_CTL			0xC0011033 /* IBS Execution Control */
+#define IBS_OP_CTL_LATFLTEN		(1ULL << 63) /* Load Latency Filtering */
 #define IBS_OP_CTL_COUNTERCONTROL	(1ULL << 19) /* Counter Control */
 #define IBS_OP_CTL_VALID		(1ULL << 18) /* Valid */
 #define IBS_OP_CTL_ENABLE		(1ULL << 17) /* Enable */
 #define IBS_OP_CTL_L3MISSONLY		(1ULL << 16) /* L3 Miss Filtering */
 #define IBS_OP_CTL_MAXCNTMASK		0x0000FFFFULL
+
+#define IBS_OP_CTL_LDLAT_TO_CTL(_c)	((((ldlat) >> 7) - 1) << 59)
+#define IBS_OP_INTERVAL_TO_CTL(_c)	((((_c) >> 4) & 0x0000FFFFULL) | ((_c) & 0x07F00000))
 
 #define IBS_OP_RIP			0xC0011034 /* IBS Op RIP */
 #define IBS_OP_DATA			0xC0011035 /* IBS Op Data */

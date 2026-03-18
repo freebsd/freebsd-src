@@ -224,6 +224,11 @@ performance measurement architecture version 2 and later.
 Programmable hardware counters present in CPUs conforming to the
 .Tn Intel
 performance measurement architecture version 1 and later.
+.It Li PMC_CLASS_IBS
+.Tn AMD
+Instruction Based Sampling (IBS) counters present in
+.Tn AMD
+Family 10h and above.
 .It Li PMC_CLASS_K8
 Programmable hardware counters present in
 .Tn "AMD Athlon64"
@@ -491,6 +496,7 @@ following manual pages:
 .It Em "PMC Class"      Ta Em "Manual Page"
 .It Li PMC_CLASS_IAF    Ta Xr pmc.iaf 3
 .It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
+.It Li PMC_CLASS_IBS    Ta Xr pmc.ibs 3
 .It Li PMC_CLASS_K8     Ta Xr pmc.amd 3
 .It Li PMC_CLASS_TSC    Ta Xr pmc.tsc 3
 .El
@@ -542,6 +548,7 @@ Doing otherwise is unsupported.
 .Xr pmc.haswelluc 3 ,
 .Xr pmc.haswellxeon 3 ,
 .Xr pmc.iaf 3 ,
+.Xr pmc.ibs 3 ,
 .Xr pmc.ivybridge 3 ,
 .Xr pmc.ivybridgexeon 3 ,
 .Xr pmc.sandybridge 3 ,
