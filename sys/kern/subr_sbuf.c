@@ -124,8 +124,8 @@ _assert_sbuf_state(const char *fun, struct sbuf *s, int state)
 {
 
 	KASSERT((s->s_flags & SBUF_FINISHED) == state,
-	    ("%s called with %sfinished or corrupt sbuf", fun,
-	    (state ? "un" : "")));
+	    ("%s called with %sfinished or corrupt sbuf %p { s_flags %#010x }, "
+		"state %#010x", fun, (state ? "un" : ""), s, s->s_flags, state));
 }
 
 #define	assert_sbuf_integrity(s) _assert_sbuf_integrity(__func__, (s))
