@@ -76,17 +76,6 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#ifdef KVM
-/*
- * Currently the KVM build is broken. To be fixed it requires uncovering
- * large amount of _KERNEL code in include files, and it is also very
- * tentative to internal kernel ABI changes. If anyone wishes to restore
- * it, please move it out of src/usr.sbin to src/tools/tools.
- */
-#include <kvm.h>
-#include <nlist.h>
-#endif
-
 /* XXX: This file currently assumes INET support in the base system. */
 #ifndef INET
 #define INET
@@ -109,9 +98,6 @@ typedef union sockunion sockunion_t;
 
 uint32_t	ifindex = 0;
 int		af = AF_UNSPEC;
-#ifdef WITH_KVM
-int		Kflag = 0;
-#endif
 int		vflag = 0;
 
 #define	sa_dl_equal(a1, a2)	\
@@ -120,41 +106,6 @@ int		vflag = 0;
 	 (bcmp(LLADDR((struct sockaddr_dl *)(a1)),			\
 	       LLADDR((struct sockaddr_dl *)(a2)),			\
 	       ((struct sockaddr_dl *)(a1))->sdl_alen) == 0))
-
-/*
- * Most of the code in this utility is to support the use of KVM for
- * post-mortem debugging of the multicast code.
- */
-#ifdef WITH_KVM
-
-#ifdef INET
-static void		if_addrlist(struct ifaddr *);
-static struct in_multi *
-			in_multientry(struct in_multi *);
-#endif /* INET */
-
-#ifdef INET6
-static void		if6_addrlist(struct ifaddr *);
-static struct in6_multi *
-			in6_multientry(struct in6_multi *);
-#endif /* INET6 */
-
-static void		kread(u_long, void *, int);
-static void		ll_addrlist(struct ifaddr *);
-
-static int		ifmcstat_kvm(const char *kernel, const char *core);
-
-#define	KREAD(addr, buf, type) \
-	kread((u_long)addr, (void *)buf, sizeof(type))
-
-kvm_t	*kvmd;
-struct	nlist nl[] = {
-	{ "_ifnet", 0, 0, 0, 0, },
-	{ "", 0, 0, 0, 0, },
-};
-#define	N_IFNET	0
-
-#endif /* WITH_KVM */
 
 static int		ifmcstat_getifmaddrs(void);
 #ifdef INET
@@ -172,29 +123,16 @@ usage()
 {
 
 	fprintf(stderr,
-	    "usage: ifmcstat [-i interface] [-f address family]"
-	    " [-v]"
-#ifdef WITH_KVM
-	    " [-K] [-M core] [-N system]"
-#endif
-	    "\n");
+	    "usage: ifmcstat [-i interface] [-f address family] [-v]\n");
 	exit(EX_USAGE);
 }
 
-static const char *options = "i:f:vM:N:"
-#ifdef WITH_KVM
-	"K"
-#endif
-	;
+static const char *options = "i:f:vM:N:";
 
 int
 main(int argc, char **argv)
 {
 	int c, error;
-#ifdef WITH_KVM
-	const char *kernel = NULL;
-	const char *core = NULL;
-#endif
 
 	while ((c = getopt(argc, argv, options)) != -1) {
 		switch (c) {
@@ -228,25 +166,9 @@ main(int argc, char **argv)
 			/*NOTREACHED*/
 			break;
 
-#ifdef WITH_KVM
-		case 'K':
-			++Kflag;
-			break;
-#endif
-
 		case 'v':
 			++vflag;
 			break;
-
-#ifdef WITH_KVM
-		case 'M':
-			core = strdup(optarg);
-			break;
-
-		case 'N':
-			kernel = strdup(optarg);
-			break;
-#endif
 
 		default:
 			usage();
@@ -258,15 +180,6 @@ main(int argc, char **argv)
 	if (af == AF_LINK && vflag)
 		usage();
 
-#ifdef WITH_KVM
-	if (Kflag)
-		error = ifmcstat_kvm(kernel, core);
-	/*
-	 * If KVM failed, and user did not explicitly specify a core file,
-	 * or force KVM backend to be disabled, try the sysctl backend.
-	 */
-	if (!Kflag || (error != 0 && (core == NULL && kernel == NULL)))
-#endif
 	error = ifmcstat_getifmaddrs();
 	if (error != 0)
 		exit(EX_OSERR);
@@ -321,417 +234,6 @@ inm_mode(u_int mode)
 }
 
 #endif /* INET */
-
-#ifdef WITH_KVM
-
-static int
-ifmcstat_kvm(const char *kernel, const char *core)
-{
-	char	buf[_POSIX2_LINE_MAX], ifname[IFNAMSIZ];
-	struct	ifnet	*ifp, *nifp, ifnet;
-
-	if ((kvmd = kvm_openfiles(kernel, core, NULL, O_RDONLY, buf)) ==
-	    NULL) {
-		perror("kvm_openfiles");
-		return (-1);
-	}
-	if (kvm_nlist(kvmd, nl) < 0) {
-		perror("kvm_nlist");
-		return (-1);
-	}
-	if (nl[N_IFNET].n_value == 0) {
-		printf("symbol %s not found\n", nl[N_IFNET].n_name);
-		return (-1);
-	}
-	KREAD(nl[N_IFNET].n_value, &ifp, struct ifnet *);
-	while (ifp) {
-		KREAD(ifp, &ifnet, struct ifnet);
-		nifp = ifnet.if_link.tqe_next;
-		if (ifindex && ifindex != ifnet.if_index)
-			goto next;
-	
-		printf("%s:\n", if_indextoname(ifnet.if_index, ifname));
-#ifdef INET
-		if_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-#endif
-#ifdef INET6
-		if6_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-#endif
-		if (vflag)
-			ll_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-	next:
-		ifp = nifp;
-	}
-
-	return (0);
-}
-
-static void
-kread(u_long addr, void *buf, int len)
-{
-
-	if (kvm_read(kvmd, addr, buf, len) != len) {
-		perror("kvm_read");
-		exit(EX_OSERR);
-	}
-}
-
-static void
-ll_addrlist(struct ifaddr *ifap)
-{
-	char addrbuf[NI_MAXHOST];
-	struct ifaddr ifa;
-	struct sockaddr sa;
-	struct sockaddr_dl sdl;
-	struct ifaddr *ifap0;
-
-	if (af && af != AF_LINK)
-		return;
-
-	ifap0 = ifap;
-	while (ifap) {
-		KREAD(ifap, &ifa, struct ifaddr);
-		if (ifa.ifa_addr == NULL)
-			goto nextifap;
-		KREAD(ifa.ifa_addr, &sa, struct sockaddr);
-		if (sa.sa_family != PF_LINK)
-			goto nextifap;
-		KREAD(ifa.ifa_addr, &sdl, struct sockaddr_dl);
-		if (sdl.sdl_alen == 0)
-			goto nextifap;
-		addrbuf[0] = '\0';
-		getnameinfo((struct sockaddr *)&sdl, sdl.sdl_len,
-		    addrbuf, sizeof(addrbuf), NULL, 0, NI_NUMERICHOST);
-		printf("\tlink %s\n", addrbuf);
-	nextifap:
-		ifap = ifa.ifa_link.tqe_next;
-	}
-	if (ifap0) {
-		struct ifnet ifnet;
-		struct ifmultiaddr ifm, *ifmp = 0;
-
-		KREAD(ifap0, &ifa, struct ifaddr);
-		KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
-		if (TAILQ_FIRST(&ifnet.if_multiaddrs))
-			ifmp = TAILQ_FIRST(&ifnet.if_multiaddrs);
-		while (ifmp) {
-			KREAD(ifmp, &ifm, struct ifmultiaddr);
-			if (ifm.ifma_addr == NULL)
-				goto nextmulti;
-			KREAD(ifm.ifma_addr, &sa, struct sockaddr);
-			if (sa.sa_family != AF_LINK)
-				goto nextmulti;
-			KREAD(ifm.ifma_addr, &sdl, struct sockaddr_dl);
-			addrbuf[0] = '\0';
-			getnameinfo((struct sockaddr *)&sdl,
-			    sdl.sdl_len, addrbuf, sizeof(addrbuf),
-			    NULL, 0, NI_NUMERICHOST);
-			printf("\t\tgroup %s refcnt %d\n",
-			    addrbuf, ifm.ifma_refcount);
-		nextmulti:
-			ifmp = TAILQ_NEXT(&ifm, ifma_link);
-		}
-	}
-}
-
-#ifdef INET6
-
-static void
-if6_addrlist(struct ifaddr *ifap)
-{
-	struct ifnet ifnet;
-	struct ifaddr ifa;
-	struct sockaddr sa;
-	struct in6_ifaddr if6a;
-	struct ifaddr *ifap0;
-
-	if (af && af != AF_INET6)
-		return;
-	ifap0 = ifap;
-	while (ifap) {
-		KREAD(ifap, &ifa, struct ifaddr);
-		if (ifa.ifa_addr == NULL)
-			goto nextifap;
-		KREAD(ifa.ifa_addr, &sa, struct sockaddr);
-		if (sa.sa_family != PF_INET6)
-			goto nextifap;
-		KREAD(ifap, &if6a, struct in6_ifaddr);
-		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr,
-		    if6a.ia_addr.sin6_scope_id));
-		/*
-		 * Print per-link MLD information, if available.
-		 */
-		if (ifa.ifa_ifp != NULL) {
-			struct in6_ifextra ie;
-			struct mld_ifinfo mli;
-
-			KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
-			KREAD(ifnet.if_afdata[AF_INET6], &ie,
-			    struct in6_ifextra);
-			if (ie.mld_ifinfo != NULL) {
-				KREAD(ie.mld_ifinfo, &mli, struct mld_ifinfo);
-				in6_ifinfo(&mli);
-			}
-		}
-	nextifap:
-		ifap = ifa.ifa_link.tqe_next;
-	}
-	if (ifap0) {
-		struct ifnet ifnet;
-		struct ifmultiaddr ifm, *ifmp = 0;
-		struct sockaddr_dl sdl;
-
-		KREAD(ifap0, &ifa, struct ifaddr);
-		KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
-		if (TAILQ_FIRST(&ifnet.if_multiaddrs))
-			ifmp = TAILQ_FIRST(&ifnet.if_multiaddrs);
-		while (ifmp) {
-			KREAD(ifmp, &ifm, struct ifmultiaddr);
-			if (ifm.ifma_addr == NULL)
-				goto nextmulti;
-			KREAD(ifm.ifma_addr, &sa, struct sockaddr);
-			if (sa.sa_family != AF_INET6)
-				goto nextmulti;
-			(void)in6_multientry((struct in6_multi *)
-					     ifm.ifma_protospec);
-			if (ifm.ifma_lladdr == 0)
-				goto nextmulti;
-			KREAD(ifm.ifma_lladdr, &sdl, struct sockaddr_dl);
-			printf("\t\t\tmcast-macaddr %s refcnt %d\n",
-			       ether_ntoa((struct ether_addr *)LLADDR(&sdl)),
-			       ifm.ifma_refcount);
-		    nextmulti:
-			ifmp = TAILQ_NEXT(&ifm, ifma_link);
-		}
-	}
-}
-
-static struct in6_multi *
-in6_multientry(struct in6_multi *mc)
-{
-	struct in6_multi multi;
-
-	KREAD(mc, &multi, struct in6_multi);
-	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr, 0));
-	printf(" refcnt %u\n", multi.in6m_refcount);
-
-	return (multi.in6m_entry.le_next);
-}
-
-#endif /* INET6 */
-
-#ifdef INET
-
-static void
-if_addrlist(struct ifaddr *ifap)
-{
-	struct ifaddr ifa;
-	struct ifnet ifnet;
-	struct sockaddr sa;
-	struct in_ifaddr ia;
-	struct ifaddr *ifap0;
-
-	if (af && af != AF_INET)
-		return;
-	ifap0 = ifap;
-	while (ifap) {
-		KREAD(ifap, &ifa, struct ifaddr);
-		if (ifa.ifa_addr == NULL)
-			goto nextifap;
-		KREAD(ifa.ifa_addr, &sa, struct sockaddr);
-		if (sa.sa_family != PF_INET)
-			goto nextifap;
-		KREAD(ifap, &ia, struct in_ifaddr);
-		printf("\tinet %s\n", inet_ntoa(ia.ia_addr.sin_addr));
-		/*
-		 * Print per-link IGMP information, if available.
-		 */
-		if (ifa.ifa_ifp != NULL) {
-			struct in_ifinfo ii;
-			struct igmp_ifinfo igi;
-
-			KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
-			KREAD(ifnet.if_afdata[AF_INET], &ii, struct in_ifinfo);
-			if (ii.ii_igmp != NULL) {
-				KREAD(ii.ii_igmp, &igi, struct igmp_ifinfo);
-				in_ifinfo(&igi);
-			}
-		}
-	nextifap:
-		ifap = ifa.ifa_link.tqe_next;
-	}
-	if (ifap0) {
-		struct ifmultiaddr ifm, *ifmp = 0;
-		struct sockaddr_dl sdl;
-
-		KREAD(ifap0, &ifa, struct ifaddr);
-		KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
-		if (TAILQ_FIRST(&ifnet.if_multiaddrs))
-			ifmp = TAILQ_FIRST(&ifnet.if_multiaddrs);
-		while (ifmp) {
-			KREAD(ifmp, &ifm, struct ifmultiaddr);
-			if (ifm.ifma_addr == NULL)
-				goto nextmulti;
-			KREAD(ifm.ifma_addr, &sa, struct sockaddr);
-			if (sa.sa_family != AF_INET)
-				goto nextmulti;
-			(void)in_multientry((struct in_multi *)
-					    ifm.ifma_protospec);
-			if (ifm.ifma_lladdr == 0)
-				goto nextmulti;
-			KREAD(ifm.ifma_lladdr, &sdl, struct sockaddr_dl);
-			printf("\t\t\tmcast-macaddr %s refcnt %d\n",
-			       ether_ntoa((struct ether_addr *)LLADDR(&sdl)),
-			       ifm.ifma_refcount);
-		    nextmulti:
-			ifmp = TAILQ_NEXT(&ifm, ifma_link);
-		}
-	}
-}
-
-static const char *inm_states[] = {
-	"not-member",
-	"silent",
-	"idle",
-	"lazy",
-	"sleeping",
-	"awakening",
-	"query-pending",
-	"sg-query-pending",
-	"leaving"
-};
-
-static const char *
-inm_state(u_int state)
-{
-
-	if (state >= IGMP_NOT_MEMBER && state <= IGMP_LEAVING_MEMBER)
-		return (inm_states[state]);
-	return (NULL);
-}
-
-#if 0
-static struct ip_msource *
-ims_min_kvm(struct in_multi *pinm)
-{
-	struct ip_msource ims0;
-	struct ip_msource *tmp, *parent;
-
-	parent = NULL;
-	tmp = RB_ROOT(&pinm->inm_srcs);
-	while (tmp) {
-		parent = tmp;
-		KREAD(tmp, &ims0, struct ip_msource);
-		tmp = RB_LEFT(&ims0, ims_link);
-	}
-	return (parent); /* kva */
-}
-
-/* XXX This routine is buggy. See RB_NEXT in sys/tree.h. */
-static struct ip_msource *
-ims_next_kvm(struct ip_msource *ims)
-{
-	struct ip_msource ims0, ims1;
-	struct ip_msource *tmp;
-
-	KREAD(ims, &ims0, struct ip_msource);
-	if (RB_RIGHT(&ims0, ims_link)) {
-		ims = RB_RIGHT(&ims0, ims_link);
-		KREAD(ims, &ims1, struct ip_msource);
-		while ((tmp = RB_LEFT(&ims1, ims_link))) {
-			KREAD(tmp, &ims0, struct ip_msource);
-			ims = RB_LEFT(&ims0, ims_link);
-		}
-	} else {
-		tmp = RB_PARENT(&ims0, ims_link);
-		if (tmp) {
-			KREAD(tmp, &ims1, struct ip_msource);
-			if (ims == RB_LEFT(&ims1, ims_link))
-				ims = tmp;
-		} else {
-			while ((tmp = RB_PARENT(&ims0, ims_link))) {
-				KREAD(tmp, &ims1, struct ip_msource);
-				if (ims == RB_RIGHT(&ims1, ims_link)) {
-					ims = tmp;
-					KREAD(ims, &ims0, struct ip_msource);
-				} else
-					break;
-			}
-			ims = RB_PARENT(&ims0, ims_link);
-		}
-	}
-	return (ims); /* kva */
-}
-
-static void
-inm_print_sources_kvm(struct in_multi *pinm)
-{
-	struct ip_msource ims0;
-	struct ip_msource *ims;
-	struct in_addr src;
-	int cnt;
-	uint8_t fmode;
-
-	cnt = 0;
-	fmode = pinm->inm_st[1].iss_fmode;
-	if (fmode == MCAST_UNDEFINED)
-		return;
-	for (ims = ims_min_kvm(pinm); ims != NULL; ims = ims_next_kvm(ims)) {
-		if (cnt == 0)
-			printf(" srcs ");
-		KREAD(ims, &ims0, struct ip_msource);
-		/* Only print sources in-mode at t1. */
-		if (fmode != ims_get_mode(pinm, ims, 1))
-			continue;
-		src.s_addr = htonl(ims0.ims_haddr);
-		printf("%s%s", (cnt++ == 0 ? "" : ","), inet_ntoa(src));
-	}
-}
-#endif
-
-static struct in_multi *
-in_multientry(struct in_multi *pinm)
-{
-	struct in_multi inm;
-	const char *state, *mode;
-
-	KREAD(pinm, &inm, struct in_multi);
-	printf("\t\tgroup %s", inet_ntoa(inm.inm_addr));
-	printf(" refcnt %u", inm.inm_refcount);
-
-	state = inm_state(inm.inm_state);
-	if (state)
-		printf(" state %s", state);
-	else
-		printf(" state (%d)", inm.inm_state);
-
-	mode = inm_mode(inm.inm_st[1].iss_fmode);
-	if (mode)
-		printf(" mode %s", mode);
-	else
-		printf(" mode (%d)", inm.inm_st[1].iss_fmode);
-
-	if (vflag >= 2) {
-		printf(" asm %u ex %u in %u rec %u",
-		    (u_int)inm.inm_st[1].iss_asm,
-		    (u_int)inm.inm_st[1].iss_ex,
-		    (u_int)inm.inm_st[1].iss_in,
-		    (u_int)inm.inm_st[1].iss_rec);
-	}
-
-#if 0
-	/* Buggy. */
-	if (vflag)
-		inm_print_sources_kvm(&inm);
-#endif
-
-	printf("\n");
-	return (NULL);
-}
-
-#endif /* INET */
-
-#endif /* WITH_KVM */
 
 #ifdef INET6
 
