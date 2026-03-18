@@ -1,0 +1,150 @@
+.\" Copyright (c) 2016 Ali Mashtizadeh.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 15, 2026
+.Dt PMC.IBS 3
+.Os
+.Sh NAME
+.Nm pmc.ibs
+.Nd Instruction Based Sampling for
+.Tn AMD
+CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+AMD Instruction Based Sampling (IBS) was introduced with the K10 family of
+CPUs.
+AMD IBS is an alternative approach that samples instructions or micro-ops and
+provides a per-instruction or micro-op breakdown of the sources of stalls.
+.Pp
+Unlike traditional counters, IBS can only be used in the sampling mode and
+provides extra data embedded in the callchain.
+IBS events set the PMC_F_MULTIPART flag to signify multiple payload types are
+contained in the callchain.
+The first 8 bytes of the callchain contain four tuples with a one byte type and
+a one byte length field.
+The regular PMC callchain can be found following the multipart payload.
+.Pp
+IBS only provides two events that analyze instruction fetches and instruction
+execution.
+The instruction fetch (ibs-fetch) event provides data on the processor
+front-end including reporting instruction cache and TLB events.
+The instruction execution (ibs-op) event provides data on the processor
+execution including reporting mispredictions, data cache and TLB events.
+You should use the AMD PMC counters documented in
+.Xr pmc.amd 3
+to analyze stalls relating instruction issue including reservation contention.
+.Pp
+A guide to analyzing IBS data is provided in Appendix G of the
+.Rs
+.%B "Software Optimization Guide for AMD Family 10h and 12h Processors"
+.%N "Publication No. 40546"
+.%D "February 2011"
+.%Q "Advanced Micro Devices, Inc."
+.Re
+A more recent document should be used for decoding all of the flags and fields
+in the IBS data.
+For example, see the AMD Zen 5 documentation
+.Rs
+.%B "Processor Programming Reference (PPR) for AMD Family 1Ah Model 02h"
+.%N "Publication No. 57238"
+.%D "March 6, 2026"
+.%Q "Advanced Micro Devices, Inc."
+.Re
+.Ss PMC Features
+AMD IBS supports the following capabilities.
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta \&No
+.It PMC_CAP_READ Ta \&No
+.It PMC_CAP_PRECISE Ta Yes
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta \&No
+.It PMC_CAP_USER Ta \&No
+.It PMC_CAP_WRITE Ta \&No
+.El
+.Pp
+By default AMD IBS enables the edge, interrupt, system and precise flags.
+.Ss Event Qualifiers
+Event specifiers for AMD IBS can have the following optional
+qualifiers:
+.Bl -tag -width "ldlat=value"
+.It Li l3miss
+Configure IBS to only sample if an l3miss occurred.
+.It Li ldlat= Ns Ar value
+Configure the counter to only sample events with load latencies above
+.Ar ldlat .
+IBS only supports filtering latencies that are a multiple of 128 and between
+128 and 2048.
+Load latency filtering can only be used with ibs-op events and imply the
+l3miss qualifier.
+.It Li randomize
+Randomize the sampling rate.
+.El
+.Ss AMD IBS Events Specifiers
+The IBS event class provides only two event specifiers:
+.Bl -tag -width indent
+.It Li ibs-fetch Xo
+.Op ,l3miss
+.Op ,randomize
+.Xc
+Collect performance samples during instruction fetch.
+The
+.Ar randomize
+qualifier randomly sets the bottom four bits of the sample rate.
+.It Li ibs-op Xo
+.Op ,l3miss
+.Op ,ldlat= Ns Ar ldlat
+.Op ,randomize
+.Xc
+Collect performance samples during instruction execution.
+The
+.Ar randomize
+qualifier, upon reaching the maximum count, restarts the count with a value
+between 1 and 127.
+.El
+.Pp
+You may collect both events at the same time.
+N.B. AMD discouraged doing so with certain older processors, stating that
+sampling both simultaneously perturbs the results.
+Please see the processor programming reference for your specific processor.
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.amd 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+AMD IBS support was first introduced in
+.Fx 16.0 .
+.Sh AUTHORS
+AMD IBS support and this manual page were written
+.An Ali Mashtizadeh Aq Mt ali@mashtizadeh.com
+and sponsored by Netflix, Inc.

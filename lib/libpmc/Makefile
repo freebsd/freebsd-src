@@ -74,6 +74,7 @@ MAN+=	pmc.haswell.3
 MAN+=	pmc.haswelluc.3
 MAN+=	pmc.haswellxeon.3
 MAN+=	pmc.iaf.3
+MAN+=	pmc.ibs.3
 MAN+=	pmc.ivybridge.3
 MAN+=	pmc.ivybridgexeon.3
 MAN+=	pmc.sandybridge.3
