@@ -696,7 +696,7 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
     struct pmc_op_pmcallocate *pmc_config)
 {
 	char *e, *p, *q;
-	uint64_t ctl;
+	uint64_t ctl, ldlat;
 
 	pmc_config->pm_caps |=
 	    (PMC_CAP_SYSTEM | PMC_CAP_EDGE | PMC_CAP_PRECISE);
@@ -714,22 +714,73 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
 		return (-1);
 	}
 
-	/* parse parameters */
-	while ((p = strsep(&ctrspec, ",")) != NULL) {
-		if (KWPREFIXMATCH(p, "ctl=")) {
-			q = strchr(p, '=');
-			if (*++q == '\0') /* skip '=' */
-				return (-1);
-
-			ctl = strtoull(q, &e, 0);
-			if (e == q || *e != '\0')
-				return (-1);
-
-			pmc_config->pm_md.pm_ibs.ibs_ctl |= ctl;
-		} else {
-			return (-1);
-		}
+	/* IBS only supports sampling mode */
+	if (!PMC_IS_SAMPLING_MODE(pmc_config->pm_mode)) {
+		return (-1);
 	}
+
+	/* parse parameters */
+	ctl = 0;
+	if (pe == PMC_EV_IBS_FETCH) {
+		while ((p = strsep(&ctrspec, ",")) != NULL) {
+			if (KWMATCH(p, "l3miss")) {
+				ctl |= IBS_FETCH_CTL_L3MISSONLY;
+			} else if (KWMATCH(p, "randomize")) {
+				ctl |= IBS_FETCH_CTL_RANDOMIZE;
+			} else {
+				return (-1);
+			}
+		}
+
+		if (pmc_config->pm_count < IBS_FETCH_MIN_RATE ||
+		    pmc_config->pm_count > IBS_FETCH_MAX_RATE)
+			return (-1);
+
+		ctl |= IBS_FETCH_INTERVAL_TO_CTL(pmc_config->pm_count);
+	} else {
+		while ((p = strsep(&ctrspec, ",")) != NULL) {
+			if (KWMATCH(p, "l3miss")) {
+				ctl |= IBS_OP_CTL_L3MISSONLY;
+			} else if (KWPREFIXMATCH(p, "ldlat=")) {
+				q = strchr(p, '=');
+				if (*++q == '\0') /* skip '=' */
+					return (-1);
+
+				ldlat = strtoull(q, &e, 0);
+				if (e == q || *e != '\0')
+					return (-1);
+
+				/*
+				 * IBS load latency filtering requires the
+				 * latency to be a multiple of 128 and between
+				 * 128 and 2048.  The latency is stored in the
+				 * IbsOpLatThrsh field, which only contains
+				 * four bits so the processor computes
+				 * (IbsOpLatThrsh+1)*128 as the value.
+				 *
+				 * AMD PPR Vol 1 for AMD Family 1Ah Model 02h
+				 * C1 (57238) 2026-03-06 Revision 0.49.
+				 */
+				if (ldlat < 128 || ldlat > 2048)
+					return (-1);
+				ctl |= IBS_OP_CTL_LDLAT_TO_CTL(ldlat);
+				ctl |= IBS_OP_CTL_L3MISSONLY | IBS_OP_CTL_LATFLTEN;
+			} else if (KWMATCH(p, "randomize")) {
+				ctl |= IBS_OP_CTL_COUNTERCONTROL;
+			} else {
+				return (-1);
+			}
+		}
+
+		if (pmc_config->pm_count < IBS_OP_MIN_RATE ||
+		    pmc_config->pm_count > IBS_OP_MAX_RATE)
+			return (-1);
+
+		ctl |= IBS_OP_INTERVAL_TO_CTL(pmc_config->pm_count);
+	}
+
+
+	pmc_config->pm_md.pm_ibs.ibs_ctl |= ctl;
 
 	return (0);
 }
