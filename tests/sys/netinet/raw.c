@@ -195,7 +195,7 @@ ATF_TC_BODY(input, tc)
 			    pkt.payload, sizeof(pkt.payload)) == 0) ||
 			    (tests[i].results[j] == false &&
 			    ss == -1 && errno == EAGAIN),
-			    "test #%u %s->%s %u unexpected receive of %jd "
+			    "test #%u %s->%s %u unexpected receive of %zd "
 			     "bytes errno %d on socket #%u %s->%s %u", i,
 			    inet_ntop(AF_INET, &tests[i].src, p[0],
 				INET_ADDRSTRLEN),
