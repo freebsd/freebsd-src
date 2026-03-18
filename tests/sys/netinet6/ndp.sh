@@ -365,6 +365,55 @@ ndp_prefix_lifetime_extend_body() {
 	fi
 }
 
+atf_test_case "ndp_grand_linklayer_event" "cleanup"
+ndp_grand_linklayer_event_head() {
+	atf_set descr 'Test ndp GRAND on link-layer change event'
+	atf_set require.user root
+}
+
+ndp_grand_linklayer_event_body() {
+	local epair0 jname address mac
+
+	vnet_init
+
+	jname="v6t-ndp_grand_linklayer_event"
+	prefix="2001:db8:ffff:1000::"
+	mac="90:10:00:01:02:03"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname}1 ${epair0}a
+	vnet_mkjail ${jname}2 ${epair0}b
+
+	ndp_if_up ${epair0}a ${jname}1
+	ndp_if_up ${epair0}b ${jname}2
+
+	# with no_dad, grand for new global address will NOT run
+	atf_check ifconfig -j ${jname}1 ${epair0}a inet6 ${prefix}1 no_dad
+	atf_check ifconfig -j ${jname}2 ${epair0}b inet6 ${prefix}2 no_dad
+	atf_check -s exit:1 -e ignore -o ignore \
+		jexec ${jname}2 ndp -n ${prefix}1
+
+	# Create the NCE in jail 2.
+	atf_check -o ignore jexec ${jname}2 ping -c1 -t1 ${prefix}1
+
+	# Check if current mac is received
+	atf_check -s exit:0 -o ignore jexec ${jname}2 ndp -n ${prefix}1
+
+	# change mac address to trigger grand.
+	atf_check ifconfig -j ${jname}1 ${epair0}a ether ${mac}
+
+	# link-local is the first address, thus our address should
+	# wait a second before sending its NA
+	atf_check -o not-match:"${prefix}1.*${mac}.*" \
+		jexec ${jname}2 ndp -n ${prefix}1
+
+	sleep 1.1
+	# Check if mac address automatically updated
+	atf_check -o match:"${prefix}1.*${mac}.*" \
+		jexec ${jname}2 ndp -n ${prefix}1
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "ndp_add_gu_success"
@@ -373,4 +422,5 @@ atf_init_test_cases()
 	atf_add_test_case "ndp_prefix_len_mismatch"
 	atf_add_test_case "ndp_prefix_lifetime"
 	atf_add_test_case "ndp_prefix_lifetime_extend"
+	atf_add_test_case "ndp_grand_linklayer_event"
 }
