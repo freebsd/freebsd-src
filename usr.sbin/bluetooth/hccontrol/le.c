@@ -182,7 +182,7 @@ parse_param(int argc, char *argv[], char *buf, int *len)
 	uint16_t value;
 	optreset = 1;
 	optind = 0;
-	while ((ch = getopt(argc, argv , "n:f:u:")) != -1) {
+	while ((ch = getopt(argc, argv , "n:f:u:b:")) != -1) {
 		switch(ch){
 		case 'n':
 			datalen = strlen(optarg);
@@ -218,7 +218,24 @@ parse_param(int argc, char *argv[], char *buf, int *len)
 				curbuf += 2;
 				*lenpos += 2;
 			}
-				
+			break;
+		case 'b':
+			datalen = 1;
+			token = optarg;
+			while ((token = strchr(token, ',')) != NULL) {
+				datalen++;
+				token++;
+			}
+			if ((curbuf + datalen + 1) >= buflast)
+				goto done;
+			curbuf[0] = datalen;
+			curbuf++;
+			token = optarg;			
+			while ((token = strsep(&optarg, ",")) != NULL) {
+				value = strtol(token, NULL, 16);
+				curbuf[0] = value &0xff;
+				curbuf++;
+			}
 		}
 	}
 done:
@@ -1297,7 +1314,7 @@ struct hci_command le_commands[] = {
   },
   {
 	  "le_set_advertising_data",
-	  "le_set_advertising_data -n $name -f $flag -u $uuid16,$uuid16 \n"
+	  "le_set_advertising_data -n $name -f $flag -u $uuid16,$uuid16 -b $byte,$byte,...,$byte\n"
 	  "set LE device advertising packed data",
 	  &le_set_advertising_data
   },
