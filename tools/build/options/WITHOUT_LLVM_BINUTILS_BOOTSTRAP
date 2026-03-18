@@ -4,7 +4,6 @@ To be able to build the system alternate binary utilities must be provided via
 .Ev XAR ,
 .Ev XNM ,
 .Ev XOBJCOPY ,
-.Ev XRANLIB ,
 .Ev XSIZE ,
 .Ev XSTRINGS ,
 and
