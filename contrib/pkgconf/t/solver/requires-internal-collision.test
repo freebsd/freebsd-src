@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: requires-internal-collision
+ExpectedStdout: -I/test/local/include/foo

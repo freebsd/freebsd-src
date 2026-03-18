@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: isystem
+ExpectedStdout: -isystem /opt/bad/include -isystem /opt/bad2/include

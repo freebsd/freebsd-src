@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: cflags libs
+Query: orphaned-requires-private
+ExpectedExitCode: 1
+

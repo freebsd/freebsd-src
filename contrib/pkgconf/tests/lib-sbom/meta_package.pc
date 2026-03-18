@@ -1,0 +1,12 @@
+Name: meta_package
+Description: Meta package to test  SBOM creation
+URL: https://github.com/pkgconf/pkgconf
+Version: 1.0.0
+Requires: test1 \
+  test2 \
+  test3 \
+  test4 \
+  test5 \
+  test6
+Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+License: BSD-2-Clause

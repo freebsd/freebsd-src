@@ -1,0 +1,75 @@
+pipeline:
+  debian-meson:
+    image: debian:testing
+    commands:
+      - apt-get update
+      - apt-get install -y kyua atf-sh build-essential meson
+      - meson _build -Dwerror=true
+      - meson compile -C _build
+      - meson test -v -C _build
+    when:
+      matrix:
+        IMAGE: debian
+        BUILD: meson
+
+  debian-meson-asan:
+    image: debian:testing
+    environment:
+      - ASAN_OPTIONS="exitcode=7"
+    commands:
+      - apt-get update
+      - apt-get install -y kyua atf-sh build-essential meson
+      - meson _build -Db_sanitize=address
+      - meson compile -C _build
+      - meson test -v -C _build
+    when:
+      matrix:
+        IMAGE: debian
+        BUILD: meson
+
+  debian-autotools:
+    image: debian:testing
+    commands:
+      - apt-get update
+      - apt-get install -y kyua atf-sh build-essential autoconf libtool
+      - ./autogen.sh
+      - ./configure
+      - make -j
+      - make distcheck
+    when:
+      matrix:
+        IMAGE: debian
+        BUILD: autotools
+
+  alpine-meson:
+    image: alpine
+    commands:
+      - apk add -U --no-cache kyua atf build-base meson
+      - meson _build -Dwerror=true
+      - meson compile -C _build
+      - meson test -v -C _build
+    when:
+      matrix:
+        IMAGE: alpine
+        BUILD: meson
+
+  alpine-autotools:
+    image: alpine
+    commands:
+      - apk add -U --no-cache kyua atf build-base autoconf automake libtool xz gzip
+      - ./autogen.sh
+      - ./configure
+      - make -j
+      - make distcheck
+    when:
+      matrix:
+        IMAGE: alpine
+        BUILD: autotools
+
+matrix:
+  IMAGE:
+    - debian
+    - alpine
+  BUILD:
+    - meson
+    - autotools

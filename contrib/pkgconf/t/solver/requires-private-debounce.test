@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags libs
+Query: metapackage
+ExpectedStdout: -I/metapackage-1 -I/metapackage-2 -lmetapackage-1 -lmetapackage-2

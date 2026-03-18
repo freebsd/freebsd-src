@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: empty-tuple
+ExpectedStdout: 
+MatchStdout: empty

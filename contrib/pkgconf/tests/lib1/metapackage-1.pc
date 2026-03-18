@@ -1,0 +1,6 @@
+Name: metapackage-1
+Version: 0.1
+Description: metapackage for testing purposes
+Requires.private: metapackage-2
+Libs: -lmetapackage-1
+Cflags: -I/metapackage-1

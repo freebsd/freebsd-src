@@ -30,6 +30,7 @@ _PRIVATELIBS=	\
 		kldelf \
 		ldns \
 		opencsd \
+		pkgconf \
 		samplerate \
 		sqlite3 \
 		ssh \
@@ -298,6 +299,11 @@ _LIBRARIES+= \
 
 LIBBEARSSL?=	${LIBBEARSSLDIR}/libbearssl.a
 LIBSECUREBOOT?=	${LIBSECUREBOOTDIR}/libsecureboot.a
+.endif
+
+.if ${MK_PKGCONF} != "no"
+_LIBRARIES+= \
+		pkgconf
 .endif
 
 .if ${MK_VERIEXEC} == "yes"

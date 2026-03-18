@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: argv-parse-2
+WantedFlags: static libs
+ExpectedStdout: -llib-1 -pthread /test/lib/lib2.so

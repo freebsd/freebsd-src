@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: flag-order-1, foo
+WantedFlags: libs
+ExpectedStdout: -L/test/lib -Bdynamic -lfoo -Bstatic -lbar -lfoo

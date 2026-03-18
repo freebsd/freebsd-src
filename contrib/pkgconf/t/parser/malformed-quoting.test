@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: validate
+Query: malformed-quoting
+ExpectedExitCode: 0

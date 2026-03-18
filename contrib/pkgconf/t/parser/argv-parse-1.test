@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: argv-parse
+WantedFlags: libs
+ExpectedStdout: -llib-3 -llib-1 -llib-2 -lpthread

@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: exists
+Query: multiline-bogus
+ExpectedExitCode: 0

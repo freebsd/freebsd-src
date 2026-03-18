@@ -1,0 +1,4 @@
+PackageSearchPath: lib1/child-prefix/pkgconfig
+WantedFlags: define-prefix cflags libs
+Query: child-prefix-1
+ExpectedStdout: -I%TEST_FIXTURES_DIR%/lib1/include/child-prefix-1 -L%TEST_FIXTURES_DIR%/lib1/lib64 -lchild-prefix-1

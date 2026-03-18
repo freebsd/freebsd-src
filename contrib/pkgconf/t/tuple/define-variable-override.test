@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+DefineVariable: prefix=/test
+WantVariable: prefix
+Query: typelibdir
+ExpectedStdout: /test

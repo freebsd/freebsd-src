@@ -1,0 +1,7 @@
+Name: test3
+Description: Test package 3
+URL: https://github.com/pkgconf/pkgconf/
+Version: 3.0.0
+License: BSD-4-Clause
+Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+

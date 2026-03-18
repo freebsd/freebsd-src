@@ -1,0 +1,4 @@
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1%DIR_SEP%%TEST_FIXTURES_DIR%/lib2
+WantedFlags: libs
+Query: bar
+ExpectedStdout: -L/test/lib -lbar -lfoo

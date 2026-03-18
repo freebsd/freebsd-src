@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+Query: foo
+WantVariable: includedir
+WantEnvPrefix: FOO
+ExpectedStdout: FOO_INCLUDEDIR='/test/include'

@@ -1,0 +1,4 @@
+Environment: PKG_CONFIG_SYSTEM_LIBRARY_PATH=/test/local/lib
+PackageSearchPath: lib1
+WantedFlags: libs-only-ldpath keep-system-libs
+Query: cflags-libs-only

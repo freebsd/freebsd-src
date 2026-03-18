@@ -1,0 +1,4 @@
+Name: escaped-backslash
+Version: 1
+Description: test package for backslash escape scenario
+Cflags: -IC:\\A

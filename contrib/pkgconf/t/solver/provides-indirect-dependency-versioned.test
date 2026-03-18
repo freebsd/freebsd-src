@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: provides-test-meow = 1.3.0
+WantedFlags: modversion
+ExpectedExitCode: 1

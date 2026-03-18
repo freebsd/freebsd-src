@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: foo
+WantVariable: includedir
+ExpectedStdout: /test/include

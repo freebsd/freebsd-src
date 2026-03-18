@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: dump-license-file
+Query: foo
+ExpectedStdout: foo: https://foo.bar/foo/COPYING

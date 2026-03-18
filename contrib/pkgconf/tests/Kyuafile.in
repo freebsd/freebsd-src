@@ -1,0 +1,10 @@
+syntax(2)
+
+test_suite('pkgconf')
+
+atf_test_program{name='requires'}
+atf_test_program{name='regress'}
+atf_test_program{name='parser'}
+atf_test_program{name='personality'}
+atf_test_program{name='spdxtool'}
+atf_test_program{name='symlink'}

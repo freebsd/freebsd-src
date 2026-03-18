@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: prefix-foo1 prefix-foo2
+ExpectedStdout: -I/test/bar/include/foo -DBAR -fPIC -DFOO

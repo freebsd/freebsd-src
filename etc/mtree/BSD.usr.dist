@@ -26,6 +26,8 @@
                     ..
                 ..
             ..
+            pkgconf           tags=package=libpkgconf-dev
+            ..
             samplerate        tags=package=sound-dev
             ..
             sqlite3           tags=package=libsqlite3-dev
@@ -353,6 +355,12 @@
             ppp
             ..
             printing		tags=package=lp
+            ..
+            sbom
+                jsonld
+                ..
+                spdx
+                ..
             ..
             scsi_target
             ..

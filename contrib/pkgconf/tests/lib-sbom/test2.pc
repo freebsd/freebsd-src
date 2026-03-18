@@ -1,0 +1,7 @@
+Name: test2
+Description: Test package 2
+URL: https://github.com/pkgconf/pkgconf/
+Version: 2.0.0
+Requires: test3
+License: BSD-2-Clause
+Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
