@@ -144,6 +144,7 @@ MAN=	accept_filter.9 \
 	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
+	ecn.9 \
 	efirt.9 \
 	epoch.9 \
 	ether_gen_addr.9 \
@@ -1108,6 +1109,10 @@ MLINKS+=drbr.9 drbr_free.9 \
 MLINKS+=DRIVER_MODULE.9 DRIVER_MODULE_ORDERED.9 \
 	DRIVER_MODULE.9 EARLY_DRIVER_MODULE.9 \
 	DRIVER_MODULE.9 EARLY_DRIVER_MODULE_ORDERED.9
+MLINKS+=ecn.9 ip_ecn_ingress.9 \
+	ecn.9 ip_ecn_egress.9 \
+	ecn.9 ip6_ecn_ingress.9 \
+	ecn.9 ip6_ecn_egress.9
 MLINKS+=epoch.9 epoch_context.9 \
 	epoch.9 epoch_alloc.9 \
 	epoch.9 epoch_free.9 \
