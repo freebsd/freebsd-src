@@ -143,6 +143,9 @@ fegetexcept(void)
 
 #endif /* __BSD_VISIBLE */
 
+int feclearexcept(int);
+#define	feclearexcept(a)	__feclearexcept_int(a)
+
 #ifdef __i386__
 
 /* After testing for SSE support once, we cache the result in __has_sse. */
@@ -164,7 +167,7 @@ int __test_sse(void);
 } while (0)
 
 __fenv_static inline int
-feclearexcept(int __excepts)
+__feclearexcept_int(int __excepts)
 {
 	fenv_t __env;
 	__uint32_t __mxcsr;
@@ -262,7 +265,7 @@ fesetenv(const fenv_t *__envp)
 #else /* __amd64__ */
 
 __fenv_static inline int
-feclearexcept(int __excepts)
+__feclearexcept_int(int __excepts)
 {
 	fenv_t __env;
 

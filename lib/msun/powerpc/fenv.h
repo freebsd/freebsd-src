@@ -130,8 +130,11 @@ union __fpscr {
 	} __bits;
 };
 
+int feclearexcept(int);
+#define	feclearexcept(a)	__feclearexcept_int(a)
+
 __fenv_static inline int
-feclearexcept(int __excepts)
+__feclearexcept_int(int __excepts)
 {
 	union __fpscr __r;
 
