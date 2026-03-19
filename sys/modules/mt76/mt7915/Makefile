@@ -1,30 +1,37 @@
-DEVDIR=	${SRCTOP}/sys/contrib/dev/mediatek/mt76/mt7915
+MT76_DRIVER_NAME=	mt7915
+
+.include <kmod.opts.mk>
 
 .PATH: ${DEVDIR}
 
-WITH_DEBUGFS=		0
-WITH_DEV_COREDUMP=	1
+MT7915_PCI=		1
 
-KMOD=	if_mt7915
+MT7915_WMAC=		0
+MT7915_DEBUGFS=		0
+MT7915_DEV_COREDUMP=	1
 
-# Common stuff.
-SRCS=	init.c main.c mac.c mcu.c mmio.c eeprom.c
+SRCS+=	init.c main.c mac.c mcu.c mmio.c eeprom.c
+
+# PCI only driver so it better be there (otherwise nothing will attach at least).
+.if defined(MT76_PCI) && ${MT76_PCI} > 0 && ${KERN_OPTS:MDEV_PCI} && \
+    defined(MT7915_PCI) && ${MT7915_PCI} > 0
 SRCS+=	pci.c dma.c
+.endif
 
 # SOC+6E stuff.
-#SRCS+=	soc.c
+.if defined(MT7915_WMAC) && ${MT7915_WMAC} > 0
+SRCS+=	soc.c
+CFLAGS+=	-DCONFIG_MT798X_WMAC
+.endif
 
-.if defined(WITH_DEBUGFS) && ${WITH_DEBUGFS} > 0
+.if defined(MT7915_DEBUGFS) && ${MT7915_DEBUGFS} > 0
 SRCS+=	debugfs.c
-CFLAGS+=	-DCONFIG_MT7915_DEBUGFS=${WITH_DEBUGFS}
+CFLAGS+=	-DCONFIG_MT7915_DEBUGFS
 .endif
 
-.if defined(WITH_DEV_COREDUMP) && ${WITH_DEV_COREDUMP} > 0
+.if defined(MT7915_DEV_COREDUMP) && ${MT7915_DEV_COREDUMP} > 0
 SRCS+=	coredump.c
-CFLAGS+=	-DCONFIG_DEV_COREDUMP=${WITH_DEV_COREDUMP}
+CFLAGS+=	-DCONFIG_DEV_COREDUMP
 .endif
-
-CFLAGS+=	-DKBUILD_MODNAME='"mt7915"'
-CFLAGS+=	-I${DEVDIR}
 
 .include <bsd.kmod.mk>
