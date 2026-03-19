@@ -31,10 +31,6 @@
  * SUCH DAMAGE.
  *
  */
-/*
- * ECN consideration on tunnel ingress/egress operation.
- * http://www.aciri.org/floyd/papers/draft-ipsec-ecn-00.txt
- */
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -58,7 +54,7 @@
 
 /*
  * ECN and TOS (or TCLASS) processing rules at tunnel encapsulation and
- * decapsulation from RFC3168:
+ * decapsulation from RFC6040:
  *
  *                      Outer Hdr at                 Inner Hdr at
  *                      Encapsulator                 Decapsulator
@@ -66,18 +62,42 @@
  *     DS Field         copied from inner hdr        no change
  *     ECN Field        constructed by (I)           constructed by (E)
  *
- * ECN_ALLOWED (full functionality):
- *    (I) if the ECN field in the inner header is set to CE, then set the
- *    ECN field in the outer header to ECT(0).
- *    otherwise, copy the ECN field to the outer header.
+ * ECN_ALLOWED (normal mode):
+ *    (I) copy the ECN field to the outer header.
  *
  *    (E) if the ECN field in the outer header is set to CE and the ECN
  *    field of the inner header is not-ECT, drop the packet.
- *    if the ECN field in the inner header is set to ECT(0) or ECT(1)
- *    and the ECN field in the outer header is set to CE, then copy CE to
- *    the inner header.  otherwise, make no change to the inner header.
+ *    If the ECN field in the inner header is set to ECT(0) and the ECN
+ *    field in the outer header is set to ECT(1), copy ECT(1) to
+ *    the inner header. If the ECN field in the inner header is set
+ *    to ECT(0) or ECT(1) and the ECN field in the outer header is set to
+ *    CE, copy CE to the inner header.
+ *    Otherwise, make no change to the inner header. This behaviour can be
+ *    summarized in the table below:
  *
- * ECN_FORBIDDEN (limited functionality):
+ *                      Outer Header at Decapsulator
+ *               +---------+------------+------------+------------+
+ *               | Not-ECT | ECT(0)     | ECT(1)     |     CE     |
+ *    Inner Hdr: +---------+------------+------------+------------+
+ *      Not-ECT  | Not-ECT |Not-ECT(!!!)|Not-ECT(!!!)| <drop>(!!!)|
+ *       ECT(0)  |  ECT(0) | ECT(0)     | ECT(1)     |     CE     |
+ *       ECT(1)  |  ECT(1) | ECT(1) (!) | ECT(1)     |     CE     |
+ *         CE    |      CE |     CE     |     CE(!!!)|     CE     |
+ *               +---------+------------+------------+------------+
+ *
+ * ECN_COMPLETE (normal mode with security log):
+ *    certain combinations indicated in table by '(!!!)' or '(!)',
+ *    where '(!!!)' means the combination always potentially dangerous which
+ *    returns 3, while '(!)' means possibly dangerous in which returns 2.
+ *    These combinations are unsed by previous ECN tunneling specifications
+ *    and could be logged. Also, in case of more dangerous ones, the
+ *    decapsulator SHOULD log the event and MAY also raise an alarm.
+ *
+ *    Note: Caller SHOULD use rate-limited alarms so that the anomalous
+ *    combinations will not amplify into a flood of alarm messages.
+ *    Also, it MUST be possible to suppress alarms or logging.
+ *
+ * ECN_FORBIDDEN (compatibility mode):
  *    (I) set the ECN field to not-ECT in the outer header.
  *
  *    (E) if the ECN field in the outer header is set to CE, drop the packet.
@@ -94,26 +114,22 @@ void
 ip_ecn_ingress(int mode, uint8_t *outer, const uint8_t *inner)
 {
 
-	if (!outer || !inner)
-		panic("NULL pointer passed to ip_ecn_ingress");
+	KASSERT(outer != NULL && inner != NULL,
+	    ("NULL pointer passed to %s", __func__));
 
 	*outer = *inner;
 	switch (mode) {
-	case ECN_ALLOWED:		/* ECN allowed */
-		/*
-		 * full-functionality: if the inner is CE, set ECT(0)
-		 * to the outer.  otherwise, copy the ECN field.
-		 */
-		if ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_CE)
-			*outer &= ~IPTOS_ECN_ECT1;
+	case ECN_COMPLETE:
+	case ECN_ALLOWED:
+		/* normal mode: always copy the ECN field. */
 		break;
-	case ECN_FORBIDDEN:		/* ECN forbidden */
-		/*
-		 * limited-functionality: set not-ECT to the outer
-		 */
+
+	case ECN_FORBIDDEN:
+		/* compatibility mode: set not-ECT to the outer */
 		*outer &= ~IPTOS_ECN_MASK;
 		break;
-	case ECN_NOCARE:	/* no consideration to ECN */
+
+	case ECN_NOCARE:
 		break;
 	}
 }
@@ -126,33 +142,57 @@ int
 ip_ecn_egress(int mode, const uint8_t *outer, uint8_t *inner)
 {
 
-	if (!outer || !inner)
-		panic("NULL pointer passed to ip_ecn_egress");
+	KASSERT(outer != NULL && inner != NULL,
+	    ("NULL pointer passed to %s", __func__));
 
 	switch (mode) {
-	case ECN_ALLOWED:
-		/*
-		 * full-functionality: if the outer is CE and the inner is
-		 * not-ECT, should drop it.  otherwise, copy CE.
-		 */
-		if ((*outer & IPTOS_ECN_MASK) == IPTOS_ECN_CE) {
+	case ECN_COMPLETE:
+		if ((*outer & IPTOS_ECN_MASK) == IPTOS_ECN_ECT0) {
+			/* if the outer is ECT(0) and inner is ECT(1) raise a warning */
+			if ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_ECT1)
+				return (ECN_WARN);
+			/* if the inner is not-ECT and outer is ECT(0) raise an alarm */
 			if ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_NOTECT)
-				return (0);
+				return (ECN_ALARM);
+			return (ECN_SUCCESS);
+		} else if ((*outer & IPTOS_ECN_MASK) == IPTOS_ECN_ECT1) {
+			/* if the outer is ECT(1) and inner is CE or ECT(1), raise an alarm */
+			if (((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_CE) ||
+			    ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_NOTECT))
+				return (ECN_ALARM);
+			/* if the outer is ECT(1) and inner is ECT(0), copy ECT(1) */
+			if ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_ECT0)
+				*inner = IPTOS_ECN_ECT1;
+			return (ECN_SUCCESS);
+		}
+		/* fallthrough */
+	case ECN_ALLOWED:
+		if ((*outer & IPTOS_ECN_MASK) == IPTOS_ECN_CE) {
+			/* if the outer is CE and the inner is not-ECT, drop it. */
+			if ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_NOTECT)
+				return (ECN_DROP);
+			/* otherwise, copy CE */
 			*inner |= IPTOS_ECN_CE;
+		} else if ((*outer & IPTOS_ECN_MASK) == IPTOS_ECN_ECT1) {
+			/* if the outer is ECT(1) and inner is ECT(0), copy ECT(1) */
+			if ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_ECT0)
+				*inner = IPTOS_ECN_ECT1;
 		}
 		break;
-	case ECN_FORBIDDEN:		/* ECN forbidden */
+
+	case ECN_FORBIDDEN:
 		/*
-		 * limited-functionality: if the outer is CE, should drop it.
+		 * compatibility mode: if the outer is CE, should drop it.
 		 * otherwise, leave the inner.
 		 */
 		if ((*outer & IPTOS_ECN_MASK) == IPTOS_ECN_CE)
-			return (0);
+			return (ECN_DROP);
 		break;
-	case ECN_NOCARE:	/* no consideration to ECN */
+
+	case ECN_NOCARE:
 		break;
 	}
-	return (1);
+	return (ECN_SUCCESS);
 }
 
 #ifdef INET6
@@ -161,31 +201,34 @@ ip6_ecn_ingress(int mode, uint32_t *outer, const uint32_t *inner)
 {
 	uint8_t outer8, inner8;
 
-	if (!outer || !inner)
-		panic("NULL pointer passed to ip6_ecn_ingress");
+	KASSERT(outer != NULL && inner != NULL,
+	    ("NULL pointer passed to %s", __func__));
 
-	inner8 = (ntohl(*inner) >> 20) & 0xff;
+	inner8 = (ntohl(*inner) >> IPV6_FLOWLABEL_LEN) & 0xff;
 	ip_ecn_ingress(mode, &outer8, &inner8);
-	*outer &= ~htonl(0xff << 20);
-	*outer |= htonl((uint32_t)outer8 << 20);
+	*outer &= ~htonl(0xff << IPV6_FLOWLABEL_LEN);
+	*outer |= htonl((uint32_t)outer8 << IPV6_FLOWLABEL_LEN);
 }
 
 int
 ip6_ecn_egress(int mode, const uint32_t *outer, uint32_t *inner)
 {
 	uint8_t outer8, inner8, oinner8;
+	int ret;
 
-	if (!outer || !inner)
-		panic("NULL pointer passed to ip6_ecn_egress");
+	KASSERT(outer != NULL && inner != NULL,
+	    ("NULL pointer passed to %s", __func__));
 
-	outer8 = (ntohl(*outer) >> 20) & 0xff;
-	inner8 = oinner8 = (ntohl(*inner) >> 20) & 0xff;
-	if (ip_ecn_egress(mode, &outer8, &inner8) == 0)
-		return (0);
+	outer8 = (ntohl(*outer) >> IPV6_FLOWLABEL_LEN) & 0xff;
+	inner8 = oinner8 = (ntohl(*inner) >> IPV6_FLOWLABEL_LEN) & 0xff;
+
+	ret = ip_ecn_egress(mode, &outer8, &inner8);
+	if (ret == ECN_DROP)
+		return (ECN_DROP);
 	if (inner8 != oinner8) {
-		*inner &= ~htonl(0xff << 20);
-		*inner |= htonl((uint32_t)inner8 << 20);
+		*inner &= ~htonl(0xff << IPV6_FLOWLABEL_LEN);
+		*inner |= htonl((uint32_t)inner8 << IPV6_FLOWLABEL_LEN);
 	}
-	return (1);
+	return (ret);
 }
 #endif

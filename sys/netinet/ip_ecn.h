@@ -31,19 +31,22 @@
  * SUCH DAMAGE.
  *
  */
-/*
- * ECN consideration on tunnel ingress/egress operation.
- * http://www.aciri.org/floyd/papers/draft-ipsec-ecn-00.txt
- */
 
 #ifndef _NETINET_IP_ECN_H_
 #define _NETINET_IP_ECN_H_
 
-#define ECN_ALLOWED	1	/* ECN allowed */
-#define ECN_FORBIDDEN	0	/* ECN forbidden */
+#ifdef _KERNEL
+#define ECN_COMPLETE	2	/* ECN normal mode with security log */
+#define ECN_ALLOWED	1	/* ECN normal mode */
+#define ECN_FORBIDDEN	0	/* ECN compatibility mode */
 #define ECN_NOCARE	(-1)	/* no consideration to ECN */
 
-#ifdef _KERNEL
+/* ip[6]_ecn_egress return values */
+#define ECN_DROP	0	/* caller MUST drop the packet */
+#define ECN_SUCCESS	1	/* success */
+#define ECN_WARN	2	/* caller MAY log */
+#define ECN_ALARM	3	/* caller SHOULD log and MAY raise alarm */
+
 extern void ip_ecn_ingress(int, uint8_t *, const uint8_t *);
 extern int ip_ecn_egress(int, const uint8_t *, uint8_t *);
 #endif
