@@ -81,8 +81,11 @@ extern const fenv_t	__fe_dfl_env;
 #define	__mrs_fpsr(__r)	__asm __volatile("mrs %0, fpsr" : "=r" (__r))
 #define	__msr_fpsr(__r)	__asm __volatile("msr fpsr, %0" : : "r" (__r))
 
-__fenv_static __inline int
-feclearexcept(int __excepts)
+int feclearexcept(int);
+#define	feclearexcept(a)	__feclearexcept_int(a)
+
+__fenv_static inline int
+__feclearexcept_int(int __excepts)
 {
 	fexcept_t __r;
 

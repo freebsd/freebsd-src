@@ -111,8 +111,11 @@ int fegetexcept(void);
 
 #define _FPU_MASK_SHIFT	8
 
+int feclearexcept(int);
+#define	feclearexcept(a)	__feclearexcept_int(a)
+
 __fenv_static inline int
-feclearexcept(int __excepts)
+__feclearexcept_int(int __excepts)
 {
 	fexcept_t __fpsr;
 

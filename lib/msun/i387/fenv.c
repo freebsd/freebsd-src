@@ -88,7 +88,12 @@ __test_sse(void)
 	return (0);
 }
 
-extern inline int feclearexcept(int __excepts);
+int
+(feclearexcept)(int excepts)
+{
+	return (__feclearexcept_int(excepts));
+}
+
 extern inline int fegetexceptflag(fexcept_t *__flagp, int __excepts);
 
 int
