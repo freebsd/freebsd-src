@@ -30,7 +30,7 @@
 .\"
 .\"     @(#)realpath.3	8.2 (Berkeley) 2/16/94
 .\"
-.Dd October 10, 2025
+.Dd March 18, 2026
 .Dt REALPATH 3
 .Os
 .Sh NAME
@@ -77,27 +77,24 @@ must exist when
 is called, and all but the last component must name either directories or
 symlinks pointing to the directories.
 .Sh "RETURN VALUES"
-The
+On success, the
 .Fn realpath
 function returns
 .Fa resolved_path
-on success.
-If the function was supplied
-.Dv NULL
-as
-.Fa resolved_path ,
-and operation did not cause errors, the returned value is
-a null-terminated string in a buffer allocated by a call to
-.Fn malloc 3 .
+if it was not
+.Dv NULL ,
+or a pointer to a null-terminated string which must be freed by the
+caller if it was.
 If an error occurs,
 .Fn realpath
 returns
 .Dv NULL ,
 and if
 .Fa resolved_path
-is not
+was not
 .Dv NULL ,
-the array that it points to contains the pathname which caused the problem.
+the array that it points to contains the pathname which caused the
+problem.
 .Sh ERRORS
 The function
 .Fn realpath
@@ -109,6 +106,9 @@ for any of the errors specified for the library functions
 and
 .Xr getcwd 3 .
 .Sh SEE ALSO
+.Xr basename 3 ,
+.Xr dirname 3 ,
+.Xr free 3 ,
 .Xr getcwd 3
 .Sh STANDARDS
 The
@@ -120,15 +120,3 @@ The
 .Fn realpath
 function first appeared in
 .Bx 4.4 .
-.Sh CAVEATS
-This implementation of
-.Fn realpath
-differs slightly from the Solaris implementation.
-The
-.Bx 4.4
-version always returns absolute pathnames,
-whereas the Solaris implementation will,
-under certain circumstances, return a relative
-.Fa resolved_path
-when given a relative
-.Fa pathname .
