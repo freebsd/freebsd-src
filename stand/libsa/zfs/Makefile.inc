@@ -43,7 +43,9 @@ ZFS_EARLY=	-I${SAZFSSRC}/spl				\
 # from FreeBSD.
 #
 .for i in ${ZFS_SRC} ${ZSTD_SRC}
-CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h -Wformat -Wall -I${ZFSTOP}/include \
+CFLAGS.$i+=	-include ${ZFSTOP}/include/sys/simd_config.h \
+	-include ${ZFSOSINC}/spl/sys/ccompile.h \
+	-Wformat -Wall -I${ZFSTOP}/include \
 	-DNEED_SOLARIS_BOOLEAN
 .endfor
 

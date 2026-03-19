@@ -34,14 +34,15 @@ CFLAGS+= -I${ZINCDIR}/os/freebsd/zfs
 CFLAGS+= -I${SRCDIR}/zstd/include
 CFLAGS+= -I${.CURDIR}
 
-CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS \
+CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS -D__BSD_VISIBLE=1 \
 	-DHAVE_UIO_ZEROCOPY -DWITHOUT_NETDUMP -D__KERNEL -D_SYS_CONDVAR_H_ \
 	-D_SYS_VMEM_H_
 
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+= -D__x86_64 -DHAVE_SSE2 -DHAVE_SSSE3 -DHAVE_SSE4_1 -DHAVE_SSE4_2 \
-	-DHAVE_AVX -DHAVE_AVX2 -DHAVE_AVX512F -DHAVE_AVX512VL -DHAVE_AVX512BW \
-	-DHAVE_VAES -DHAVE_VPCLMULQDQ
+CFLAGS+= -D__x86_64 -DHAVE_TOOLCHAIN_SSE2 -DHAVE_TOOLCHAIN_SSSE3 \
+	-DHAVE_TOOLCHAIN_SSE4_1 -DHAVE_TOOLCHAIN_AVX -DHAVE_TOOLCHAIN_AVX2 \
+	-DHAVE_TOOLCHAIN_AVX512F -DHAVE_TOOLCHAIN_AVX512VL \
+	-DHAVE_TOOLCHAIN_AVX512BW
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
@@ -53,17 +54,13 @@ CFLAGS+= -DBITS_PER_LONG=64
 
 SRCS=	vnode_if.h device_if.h bus_if.h
 
-# avl
+#avl
 SRCS+=	avl.c
-
-# icp
-SRCS+=	edonr.c
 
 #icp/algs/blake3
 SRCS+=	blake3.c \
 	blake3_generic.c \
 	blake3_impl.c
-
 
 .if ${MACHINE_ARCH} == "aarch64"
 #icp/asm-aarch64/blake3
@@ -88,9 +85,12 @@ SRCS+=	blake3_avx2.S \
 SRCS+=	aesni-gcm-avx2-vaes.S
 .endif
 
+#icp/algs/edonr
+SRCS+=	edonr.c
+
 #icp/algs/sha2
-SRCS+=	sha2_generic.c \
-	sha256_impl.c \
+SRCS+=	sha256_impl.c \
+	sha2_generic.c \
 	sha512_impl.c
 
 .if ${MACHINE_ARCH} == "armv7"
@@ -108,8 +108,8 @@ OBJS+=	zfs-sha256-armv8.o \
 .if ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc64le"
 #icp/asm-ppc64/sha2
 SRCS+=	sha256-p8.S \
-	sha512-p8.S \
 	sha256-ppc.S \
+	sha512-p8.S \
 	sha512-ppc.S
 .endif
 
@@ -146,10 +146,10 @@ SRCS+=	lapi.c \
 	lzio.c
 
 #nvpair
-SRCS+=	nvpair.c \
-	fnvpair.c \
-	nvpair_alloc_spl.c \
-	nvpair_alloc_fixed.c
+SRCS+=	fnvpair.c \
+	nvpair.c \
+	nvpair_alloc_fixed.c \
+	nvpair_alloc_spl.c
 
 #os/freebsd/spl
 SRCS+=	acl_common.c \
@@ -196,6 +196,7 @@ SRCS+=	abd_os.c \
 	zfs_crrd.c \
 	zfs_debug.c \
 	zfs_dir.c \
+	zfs_file_os.c \
 	zfs_ioctl_compat.c \
 	zfs_ioctl_os.c \
 	zfs_racct.c \
@@ -206,15 +207,16 @@ SRCS+=	abd_os.c \
 	zvol_os.c
 
 #zcommon
-SRCS+=	zfeature_common.c \
+SRCS+=	cityhash.c \
+	zfeature_common.c \
 	zfs_comutil.c \
 	zfs_deleg.c \
-	zfs_fletcher.c \
 	zfs_fletcher_avx512.c \
+	zfs_fletcher.c \
 	zfs_fletcher_intel.c \
 	zfs_fletcher_sse.c \
-	zfs_fletcher_superscalar.c \
 	zfs_fletcher_superscalar4.c \
+	zfs_fletcher_superscalar.c \
 	zfs_namecheck.c \
 	zfs_prop.c \
 	zfs_valstr.c \
@@ -229,14 +231,13 @@ SRCS+=	abd.c \
 	blkptr.c \
 	bplist.c \
 	bpobj.c \
-	brt.c \
-	btree.c \
-	cityhash.c \
-	dbuf.c \
-	dbuf_stats.c \
 	bptree.c \
 	bqueue.c \
+	brt.c \
+	btree.c \
 	dataset_kstats.c \
+	dbuf.c \
+	dbuf_stats.c \
 	ddt.c \
 	ddt_log.c \
 	ddt_stats.c \
@@ -254,13 +255,13 @@ SRCS+=	abd.c \
 	dmu_zfetch.c \
 	dnode.c \
 	dnode_sync.c \
+	dsl_bookmark.c \
+	dsl_crypt.c \
 	dsl_dataset.c \
 	dsl_deadlist.c \
 	dsl_deleg.c \
-	dsl_bookmark.c \
-	dsl_dir.c \
-	dsl_crypt.c \
 	dsl_destroy.c \
+	dsl_dir.c \
 	dsl_pool.c \
 	dsl_prop.c \
 	dsl_scan.c \
@@ -269,9 +270,9 @@ SRCS+=	abd.c \
 	edonr_zfs.c \
 	fm.c \
 	gzip.c \
-	lzjb.c \
 	lz4.c \
 	lz4_zfs.c \
+	lzjb.c \
 	metaslab.c \
 	mmp.c \
 	multilist.c \
@@ -284,6 +285,8 @@ SRCS+=	abd.c \
 	sha2_zfs.c \
 	skein_zfs.c \
 	spa.c \
+	space_map.c \
+	space_reftree.c \
 	spa_checkpoint.c \
 	spa_config.c \
 	spa_errlog.c \
@@ -291,8 +294,6 @@ SRCS+=	abd.c \
 	spa_log_spacemap.c \
 	spa_misc.c \
 	spa_stats.c \
-	space_map.c \
-	space_reftree.c \
 	txg.c \
 	u8_textprep.c \
 	uberblock.c \
@@ -301,8 +302,8 @@ SRCS+=	abd.c \
 	vdev_draid.c \
 	vdev_draid_rand.c \
 	vdev_file.c \
-	vdev_indirect.c \
 	vdev_indirect_births.c \
+	vdev_indirect.c \
 	vdev_indirect_mapping.c \
 	vdev_initialize.c \
 	vdev_label.c \
@@ -310,11 +311,11 @@ SRCS+=	abd.c \
 	vdev_missing.c \
 	vdev_queue.c \
 	vdev_raidz.c \
-	vdev_raidz_math.c \
-	vdev_raidz_math_scalar.c \
 	vdev_raidz_math_avx2.c \
 	vdev_raidz_math_avx512bw.c \
 	vdev_raidz_math_avx512f.c \
+	vdev_raidz_math.c \
+	vdev_raidz_math_scalar.c \
 	vdev_raidz_math_sse2.c \
 	vdev_raidz_math_ssse3.c \
 	vdev_rebuild.c \
@@ -333,7 +334,6 @@ SRCS+=	abd.c \
 	zfeature.c \
 	zfs_byteswap.c \
 	zfs_chksum.c \
-	zfs_file_os.c \
 	zfs_fm.c \
 	zfs_fuid.c \
 	zfs_impl.c \
@@ -358,23 +358,23 @@ SRCS+=	abd.c \
 	zvol.c
 
 #zstd
-SRCS+=	zfs_zstd.c \
-	entropy_common.c \
+SRCS+=	zfs_zstd.c
+
+#zstd/common
+SRCS+=	entropy_common.c \
 	error_private.c \
-	fse_compress.c \
 	fse_decompress.c \
+	pool.c \
+	zstd_common.c
+
+#zstd/compress
+SRCS+=	fse_compress.c \
 	hist.c \
 	huf_compress.c \
-	huf_decompress.c \
-	pool.c \
-	zstd_common.c \
 	zstd_compress.c \
 	zstd_compress_literals.c \
 	zstd_compress_sequences.c \
 	zstd_compress_superblock.c \
-	zstd_ddict.c \
-	zstd_decompress.c \
-	zstd_decompress_block.c \
 	zstd_double_fast.c \
 	zstd_fast.c \
 	zstd_lazy.c \
@@ -382,9 +382,16 @@ SRCS+=	zfs_zstd.c \
 	zstd_opt.c \
 	zstd_preSplit.c
 
+#zstd/decompress
+SRCS+=	huf_decompress.c \
+	zstd_ddict.c \
+	zstd_decompress_block.c \
+	zstd_decompress.c
+
 .include <bsd.kmod.mk>
 
 CFLAGS+= -include ${SRCTOP}/sys/cddl/compat/opensolaris/sys/debug_compat.h
+CFLAGS+= -include ${ZINCDIR}/sys/simd_config.h
 CFLAGS+= -include ${ZINCDIR}/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/static_ccompile.h
 

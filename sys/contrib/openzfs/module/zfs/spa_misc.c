@@ -1891,6 +1891,12 @@ spa_syncing_txg(spa_t *spa)
 	return (spa->spa_syncing_txg);
 }
 
+uint64_t
+spa_open_txg(spa_t *spa)
+{
+	return (spa->spa_dsl_pool->dp_tx.tx_open_txg);
+}
+
 /*
  * Return the last txg where data can be dirtied. The final txgs
  * will be used to just clear out any deferred frees that remain.
@@ -2616,11 +2622,8 @@ spa_name_compare(const void *a1, const void *a2)
 {
 	const spa_t *s1 = a1;
 	const spa_t *s2 = a2;
-	int s;
 
-	s = strcmp(s1->spa_name, s2->spa_name);
-
-	return (TREE_ISIGN(s));
+	return (TREE_ISIGN(strcmp(s1->spa_name, s2->spa_name)));
 }
 
 void

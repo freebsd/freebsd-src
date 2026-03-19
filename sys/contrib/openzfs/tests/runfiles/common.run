@@ -196,8 +196,8 @@ tags = ['functional', 'cli_root', 'zfs_change-key']
 tests = ['zfs_clone_001_neg', 'zfs_clone_002_pos', 'zfs_clone_003_pos',
     'zfs_clone_004_pos', 'zfs_clone_005_pos', 'zfs_clone_006_pos',
     'zfs_clone_007_pos', 'zfs_clone_008_neg', 'zfs_clone_009_neg',
-    'zfs_clone_010_pos', 'zfs_clone_encrypted', 'zfs_clone_deeply_nested',
-    'zfs_clone_rm_nested', 'zfs_clone_nomount']
+    'zfs_clone_010_pos', 'zfs_clone_011_pos', 'zfs_clone_encrypted',
+    'zfs_clone_deeply_nested', 'zfs_clone_rm_nested', 'zfs_clone_nomount']
 tags = ['functional', 'cli_root', 'zfs_clone']
 
 [tests/functional/cli_root/zfs_copies]
@@ -210,9 +210,9 @@ tests = ['zfs_create_001_pos', 'zfs_create_002_pos', 'zfs_create_003_pos',
     'zfs_create_004_pos', 'zfs_create_005_pos', 'zfs_create_006_pos',
     'zfs_create_007_pos', 'zfs_create_008_neg', 'zfs_create_009_neg',
     'zfs_create_010_neg', 'zfs_create_011_pos', 'zfs_create_012_pos',
-    'zfs_create_013_pos', 'zfs_create_014_pos', 'zfs_create_encrypted',
-    'zfs_create_crypt_combos', 'zfs_create_dryrun', 'zfs_create_nomount',
-    'zfs_create_verbose']
+    'zfs_create_013_pos', 'zfs_create_014_pos', 'zfs_create_015_pos',
+    'zfs_create_encrypted', 'zfs_create_crypt_combos', 'zfs_create_dryrun',
+    'zfs_create_nomount', 'zfs_create_verbose']
 tags = ['functional', 'cli_root', 'zfs_create']
 
 [tests/functional/cli_root/zpool_prefetch]
@@ -300,8 +300,9 @@ tests = ['zfs_rename_001_pos', 'zfs_rename_002_pos', 'zfs_rename_003_pos',
     'zfs_rename_004_neg', 'zfs_rename_005_neg', 'zfs_rename_006_pos',
     'zfs_rename_007_pos', 'zfs_rename_008_pos', 'zfs_rename_009_neg',
     'zfs_rename_010_neg', 'zfs_rename_011_pos', 'zfs_rename_012_neg',
-    'zfs_rename_013_pos', 'zfs_rename_014_neg', 'zfs_rename_encrypted_child',
-    'zfs_rename_to_encrypted', 'zfs_rename_mountpoint', 'zfs_rename_nounmount']
+    'zfs_rename_013_pos', 'zfs_rename_014_neg', 'zfs_rename_015_pos',
+    'zfs_rename_encrypted_child', 'zfs_rename_to_encrypted', 'zfs_rename_mountpoint',
+    'zfs_rename_nounmount']
 tags = ['functional', 'cli_root', 'zfs_rename']
 
 [tests/functional/cli_root/zfs_reservation]
@@ -420,7 +421,7 @@ tests = ['zpool_create_001_pos', 'zpool_create_002_pos',
     'zpool_create_017_neg', 'zpool_create_018_pos', 'zpool_create_019_pos',
     'zpool_create_020_pos', 'zpool_create_021_pos', 'zpool_create_022_pos',
     'zpool_create_023_neg', 'zpool_create_024_pos',
-    'zpool_create_encrypted', 'zpool_create_crypt_combos',
+    'zpool_create_encrypted', 'zpool_create_edom_neg', 'zpool_create_crypt_combos',
     'zpool_create_draid_001_pos', 'zpool_create_draid_002_pos',
     'zpool_create_draid_003_pos', 'zpool_create_draid_004_pos',
     'zpool_create_features_001_pos', 'zpool_create_features_002_pos',
@@ -456,8 +457,8 @@ tags = ['functional', 'cli_root', 'zpool_export']
 
 [tests/functional/cli_root/zpool_get]
 tests = ['zpool_get_001_pos', 'zpool_get_002_pos', 'zpool_get_003_pos',
-    'zpool_get_004_neg', 'zpool_get_005_pos', 'vdev_get_001_pos',
-    'vdev_get_all']
+    'zpool_get_004_neg', 'zpool_get_005_pos', 'zpool_get_006_pos',
+    'vdev_get_001_pos', 'vdev_get_all']
 tags = ['functional', 'cli_root', 'zpool_get']
 
 [tests/functional/cli_root/zpool_history]
@@ -947,7 +948,7 @@ tests = ['removal_all_vdev', 'removal_cancel', 'removal_check_space',
     'removal_with_write', 'removal_with_zdb', 'remove_expanded',
     'remove_mirror', 'remove_mirror_sanity', 'remove_raidz',
     'remove_indirect', 'remove_attach_mirror', 'removal_reservation',
-    'removal_with_hole']
+    'removal_with_hole', 'removal_with_missing_log']
 tags = ['functional', 'removal']
 
 [tests/functional/rename_dirs]
@@ -986,7 +987,8 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'rsend_014_pos', 'rsend_016_neg', 'rsend_019_pos', 'rsend_020_pos',
     'rsend_021_pos', 'rsend_022_pos', 'rsend_024_pos', 'rsend_025_pos',
     'rsend_026_neg', 'rsend_027_pos', 'rsend_028_neg', 'rsend_029_neg',
-    'rsend_030_pos', 'rsend_031_pos', 'send-c_verify_ratio',
+    'rsend_030_pos', 'rsend_031_pos', 'rsend-exclude_001_pos',
+    'rsend-exclude_002_pos', 'send-c_verify_ratio',
     'send-c_verify_contents', 'send-c_props', 'send-c_incremental',
     'send-c_volume', 'send-c_zstream_recompress', 'send-c_zstreamdump',
     'send-c_lz4_disabled', 'send-c_recv_lz4_disabled',
@@ -997,7 +999,8 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send_encrypted_props', 'send_encrypted_truncated_files',
     'send_freeobjects', 'send_realloc_files', 'send_realloc_encrypted_files',
     'send_spill_block', 'send_holds', 'send_hole_birth', 'send_mixed_raw',
-    'send-wR_encrypted_zvol', 'send_partial_dataset', 'send_invalid',
+    'send-wR_encrypted_zvol', 'send-zstream_drop_record',
+    'send_partial_dataset', 'send_invalid',
     'send_large_blocks_incremental', 'send_large_blocks_initial',
     'send_large_microzap_incremental', 'send_large_microzap_transitive',
     'send_doall', 'send_raw_spill_block', 'send_raw_ashift',

@@ -35,6 +35,7 @@ USER_C = \
 	libzfs_diff.c \
 	libzfs_import.c \
 	libzfs_iter.c \
+	libzfs_mnttab.c \
 	libzfs_mount.c \
 	libzfs_pool.c \
 	libzfs_sendrecv.c \
@@ -94,6 +95,7 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+= -I${ZFSTOP}/module/icp/include
+CFLAGS+= -include ${ZFSTOP}/include/sys/simd_config.h
 CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -DHAVE_EXECVPE

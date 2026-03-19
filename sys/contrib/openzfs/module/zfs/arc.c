@@ -957,6 +957,22 @@ int l2arc_exclude_special = 0;
 static int l2arc_mfuonly = 0;
 
 /*
+ * Depth cap as percentage of state size.  Each pass resets its markers
+ * to tail after scanning this fraction of the state.  Keeps markers
+ * focused on the tail zone where L2ARC adds the most value.
+ */
+static uint64_t l2arc_ext_headroom_pct = 25;
+
+/*
+ * Metadata monopolization limit.  When metadata fills the write budget
+ * for this many consecutive cycles while data gets nothing, skip metadata
+ * for one cycle to let data run, then reset the counter.
+ * With N=2, the steady-state pattern under sustained monopolization is
+ * 2 metadata cycles followed by 1 data cycle (67%/33% split).
+ */
+static uint64_t l2arc_meta_cycles = 2;
+
+/*
  * L2ARC TRIM
  * l2arc_trim_ahead : A ZFS module parameter that controls how much ahead of
  * 		the current write size (l2arc_write_max) we should TRIM if we
@@ -9073,6 +9089,8 @@ l2arc_pool_markers_init(spa_t *spa)
 		    arc_state_alloc_markers(num_sublists);
 		spa->spa_l2arc_info.l2arc_sublist_busy[pass] =
 		    kmem_zalloc(num_sublists * sizeof (boolean_t), KM_SLEEP);
+		spa->spa_l2arc_info.l2arc_sublist_reset[pass] =
+		    kmem_zalloc(num_sublists * sizeof (boolean_t), KM_SLEEP);
 
 		for (int i = 0; i < num_sublists; i++) {
 			multilist_sublist_t *mls =
@@ -9081,6 +9099,8 @@ l2arc_pool_markers_init(spa_t *spa)
 			    spa->spa_l2arc_info.l2arc_markers[pass][i]);
 			multilist_sublist_unlock(mls);
 		}
+
+		spa->spa_l2arc_info.l2arc_ext_scanned[pass] = 0;
 	}
 }
 
@@ -9117,12 +9137,18 @@ l2arc_pool_markers_fini(spa_t *spa)
 		    num_sublists);
 		spa->spa_l2arc_info.l2arc_markers[pass] = NULL;
 
-		/* Free sublist busy flags for this pass */
+		/* Free sublist busy and reset flags for this pass */
 		ASSERT3P(spa->spa_l2arc_info.l2arc_sublist_busy[pass], !=,
 		    NULL);
 		kmem_free(spa->spa_l2arc_info.l2arc_sublist_busy[pass],
 		    num_sublists * sizeof (boolean_t));
 		spa->spa_l2arc_info.l2arc_sublist_busy[pass] = NULL;
+
+		ASSERT3P(spa->spa_l2arc_info.l2arc_sublist_reset[pass], !=,
+		    NULL);
+		kmem_free(spa->spa_l2arc_info.l2arc_sublist_reset[pass],
+		    num_sublists * sizeof (boolean_t));
+		spa->spa_l2arc_info.l2arc_sublist_reset[pass] = NULL;
 	}
 
 	mutex_destroy(&spa->spa_l2arc_info.l2arc_sublist_lock);
@@ -9596,7 +9622,7 @@ l2arc_write_sublist(spa_t *spa, l2arc_dev_t *dev, int pass, int sublist_idx,
     uint64_t *consumed, uint64_t sublist_headroom, boolean_t save_position)
 {
 	multilist_sublist_t *mls;
-	arc_buf_hdr_t *hdr, *prev_hdr;
+	arc_buf_hdr_t *hdr;
 	arc_buf_hdr_t *persistent_marker, *local_marker;
 	boolean_t full = B_FALSE;
 	boolean_t scan_from_head = B_FALSE;
@@ -9607,6 +9633,19 @@ l2arc_write_sublist(spa_t *spa, l2arc_dev_t *dev, int pass, int sublist_idx,
 
 	persistent_marker = spa->spa_l2arc_info.
 	    l2arc_markers[pass][sublist_idx];
+
+	/*
+	 * Check if this sublist's marker was flagged for reset to tail.
+	 * This handles depth cap resets and global resets without needing
+	 * to coordinate with actively-scanning threads.
+	 */
+	if (save_position &&
+	    spa->spa_l2arc_info.l2arc_sublist_reset[pass][sublist_idx]) {
+		multilist_sublist_remove(mls, persistent_marker);
+		multilist_sublist_insert_tail(mls, persistent_marker);
+		spa->spa_l2arc_info.l2arc_sublist_reset[pass][sublist_idx] =
+		    B_FALSE;
+	}
 
 	if (save_position && persistent_marker == multilist_sublist_head(mls)) {
 		multilist_sublist_unlock(mls);
@@ -9630,12 +9669,9 @@ l2arc_write_sublist(spa_t *spa, l2arc_dev_t *dev, int pass, int sublist_idx,
 		ASSERT3P(hdr, !=, NULL);
 	}
 
-	prev_hdr = hdr;
-
 	while (hdr != NULL) {
 		kmutex_t *hash_lock;
 		abd_t *to_write = NULL;
-		prev_hdr = hdr;
 
 		hash_lock = HDR_LOCK(hdr);
 		if (!mutex_tryenter(hash_lock)) {
@@ -9797,32 +9833,25 @@ next:
 		multilist_sublist_remove(mls, local_marker);
 	}
 
-	/*
-	 * Position persistent marker for next iteration. In case of
-	 * save_position, validate that prev_hdr still belongs to the current
-	 * sublist. The sublist lock is dropped during L2ARC write I/O, allowing
-	 * ARC eviction to potentially free prev_hdr. If freed, we can't do much
-	 * except to reset the marker.
-	 */
+	/* Reposition persistent marker for next iteration. */
 	multilist_sublist_remove(mls, persistent_marker);
 	if (save_position &&
-	    multilist_link_active(&prev_hdr->b_l1hdr.b_arc_node)) {
-		if (hdr != NULL) {
-			/*
-			 * Break: prev_hdr not written, retry next time.
-			 * Scan is TAIL->HEAD, so insert_after = retry.
-			 */
-			multilist_sublist_insert_after(mls, prev_hdr,
-			    persistent_marker);
-		} else {
-			/*
-			 * List end: prev_hdr processed, move on.
-			 * insert_before = skip prev_hdr next scan.
-			 */
-			multilist_sublist_insert_before(mls, prev_hdr,
-			    persistent_marker);
-		}
+	    spa->spa_l2arc_info.l2arc_sublist_reset[pass][sublist_idx]) {
+		/* Reset flagged during scan, restart from tail. */
+		multilist_sublist_insert_tail(mls, persistent_marker);
+		spa->spa_l2arc_info.l2arc_sublist_reset[pass][sublist_idx] =
+		    B_FALSE;
+	} else if (save_position && hdr != NULL) {
+		/*
+		 * Write budget or sublist headroom exhausted, position
+		 * marker after hdr to retry it next time.
+		 */
+		multilist_sublist_insert_after(mls, hdr, persistent_marker);
+	} else if (save_position) {
+		/* End of sublist, position marker at head. */
+		multilist_sublist_insert_head(mls, persistent_marker);
 	} else {
+		/* Non-persistent, reset marker to tail. */
 		multilist_sublist_insert_tail(mls, persistent_marker);
 	}
 
@@ -9845,40 +9874,60 @@ l2arc_blk_fetch_done(zio_t *zio)
 }
 
 /*
- * Reset all L2ARC markers to tail position for the given spa.
+ * Return the total size of the ARC state corresponding to the given
+ * L2ARC pass number (0..3).
+ */
+static uint64_t
+l2arc_get_state_size(int pass)
+{
+	switch (pass) {
+	case L2ARC_MFU_META:
+		return (zfs_refcount_count(
+		    &arc_mfu->arcs_size[ARC_BUFC_METADATA]));
+	case L2ARC_MRU_META:
+		return (zfs_refcount_count(
+		    &arc_mru->arcs_size[ARC_BUFC_METADATA]));
+	case L2ARC_MFU_DATA:
+		return (zfs_refcount_count(
+		    &arc_mfu->arcs_size[ARC_BUFC_DATA]));
+	case L2ARC_MRU_DATA:
+		return (zfs_refcount_count(
+		    &arc_mru->arcs_size[ARC_BUFC_DATA]));
+	default:
+		return (0);
+	}
+}
+
+/*
+ * Flag all sublists for a single pass for lazy marker reset to tail.
+ * Each sublist's marker will be reset when next visited by a feed thread.
+ */
+static void
+l2arc_flag_pass_reset(spa_t *spa, int pass)
+{
+	ASSERT(MUTEX_HELD(&spa->spa_l2arc_info.l2arc_sublist_lock));
+
+	multilist_t *ml = l2arc_get_list(pass);
+	int num_sublists = multilist_get_num_sublists(ml);
+
+	for (int i = 0; i < num_sublists; i++) {
+		multilist_sublist_t *mls = multilist_sublist_lock_idx(ml, i);
+		spa->spa_l2arc_info.l2arc_sublist_reset[pass][i] = B_TRUE;
+		multilist_sublist_unlock(mls);
+	}
+
+	spa->spa_l2arc_info.l2arc_ext_scanned[pass] = 0;
+}
+
+/*
+ * Flag all L2ARC markers for lazy reset to tail for the given spa.
+ * Each sublist's marker will be reset when next visited by a feed thread.
  */
 static void
 l2arc_reset_all_markers(spa_t *spa)
 {
-	ASSERT(spa->spa_l2arc_info.l2arc_markers != NULL);
-	ASSERT(MUTEX_HELD(&spa->spa_l2arc_info.l2arc_sublist_lock));
-
-	for (int pass = 0; pass < L2ARC_FEED_TYPES; pass++) {
-		if (spa->spa_l2arc_info.l2arc_markers[pass] == NULL)
-			continue;
-
-		multilist_t *ml = l2arc_get_list(pass);
-		int num_sublists = multilist_get_num_sublists(ml);
-
-		for (int i = 0; i < num_sublists; i++) {
-			ASSERT3P(spa->spa_l2arc_info.l2arc_markers[pass][i],
-			    !=, NULL);
-			multilist_sublist_t *mls =
-			    multilist_sublist_lock_idx(ml, i);
-
-			/* Remove from current position */
-			ASSERT(multilist_link_active(&spa->spa_l2arc_info.
-			    l2arc_markers[pass][i]->b_l1hdr.b_arc_node));
-			multilist_sublist_remove(mls, spa->spa_l2arc_info.
-			    l2arc_markers[pass][i]);
-
-			/* Insert at tail (like initialization) */
-			multilist_sublist_insert_tail(mls,
-			    spa->spa_l2arc_info.l2arc_markers[pass][i]);
-
-			multilist_sublist_unlock(mls);
-		}
-	}
+	for (int pass = 0; pass < L2ARC_FEED_TYPES; pass++)
+		l2arc_flag_pass_reset(spa, pass);
 
 	/* Reset write counter */
 	spa->spa_l2arc_info.l2arc_total_writes = 0;
@@ -9938,6 +9987,12 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 	/*
 	 * Copy buffers for L2ARC writing.
 	 */
+	boolean_t skip_meta = (save_position &&
+	    l2arc_meta_cycles > 0 &&
+	    dev->l2ad_meta_cycles >= l2arc_meta_cycles);
+	if (skip_meta)
+		dev->l2ad_meta_cycles = 0;
+
 	for (int pass = 0; pass < L2ARC_FEED_TYPES; pass++) {
 		/*
 		 * pass == 0: MFU meta
@@ -9953,6 +10008,9 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 				continue;
 		}
 
+		if (skip_meta && pass <= L2ARC_MRU_META)
+			continue;
+
 		headroom = target_sz * l2arc_headroom;
 		if (zfs_compressed_arc_enabled)
 			headroom = (headroom * l2arc_headroom_boost) / 100;
@@ -9960,20 +10018,20 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 		multilist_t *ml = l2arc_get_list(pass);
 		ASSERT3P(ml, !=, NULL);
 		int num_sublists = multilist_get_num_sublists(ml);
-		int current_sublist = multilist_get_random_index(ml);
 		uint64_t consumed_headroom = 0;
 
+		/*
+		 * Equal per-sublist headroom prevents later
+		 * sublists from getting disproportionate shares
+		 * that would defeat the depth cap.
+		 */
+		uint64_t sublist_headroom = headroom / num_sublists;
+
+		int current_sublist = spa->spa_l2arc_info.
+		    l2arc_next_sublist[pass];
 		int processed_sublists = 0;
 		while (processed_sublists < num_sublists && !full) {
-			uint64_t sublist_headroom;
-
 			if (consumed_headroom >= headroom)
-				break;
-
-			sublist_headroom = (headroom - consumed_headroom) /
-			    (num_sublists - processed_sublists);
-
-			if (sublist_headroom == 0)
 				break;
 
 			/*
@@ -10016,9 +10074,53 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			processed_sublists++;
 		}
 
+		spa->spa_l2arc_info.l2arc_next_sublist[pass] =
+		    (spa->spa_l2arc_info.l2arc_next_sublist[pass] + 1) %
+		    num_sublists;
+
+		/*
+		 * Count consecutive metadata monopolization toward
+		 * l2arc_meta_cycles.  Only count when metadata actually
+		 * filled the write budget, starving data passes.
+		 */
+		if (save_position && pass <= L2ARC_MRU_META && full)
+			dev->l2ad_meta_cycles++;
+
+		/*
+		 * Depth cap: track cumulative bytes scanned per pass
+		 * and reset markers when the scan cap is reached.
+		 * Keeps the marker near the tail where L2ARC adds
+		 * the most value.
+		 */
+		if (save_position) {
+			mutex_enter(&spa->spa_l2arc_info.l2arc_sublist_lock);
+
+			spa->spa_l2arc_info.l2arc_ext_scanned[pass] +=
+			    consumed_headroom;
+
+			uint64_t state_sz = l2arc_get_state_size(pass);
+			uint64_t scan_cap =
+			    state_sz * l2arc_ext_headroom_pct / 100;
+
+			if (scan_cap > 0 &&
+			    spa->spa_l2arc_info.l2arc_ext_scanned[pass] >=
+			    scan_cap) {
+				l2arc_flag_pass_reset(spa, pass);
+			}
+
+			mutex_exit(&spa->spa_l2arc_info.l2arc_sublist_lock);
+		}
+
 		if (full == B_TRUE)
 			break;
 	}
+
+	/*
+	 * If nothing was written at all, reset monopolization counter.
+	 * No point skipping metadata if data has nothing either.
+	 */
+	if (write_asize == 0)
+		dev->l2ad_meta_cycles = 0;
 
 	/* No buffers selected for writing? */
 	if (pio == NULL) {
@@ -11662,6 +11764,12 @@ ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, mfuonly, INT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, exclude_special, INT, ZMOD_RW,
 	"Exclude dbufs on special vdevs from being cached to L2ARC if set.");
+
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, meta_cycles, U64, ZMOD_RW,
+	"Consecutive metadata cycles before skipping to let data run");
+
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, ext_headroom_pct, U64, ZMOD_RW,
+	"Depth cap as percentage of state size for marker reset");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, lotsfree_percent, param_set_arc_int,
 	param_get_uint, ZMOD_RW, "System free memory I/O throttle in bytes");

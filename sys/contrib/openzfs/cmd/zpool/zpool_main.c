@@ -458,7 +458,7 @@ get_usage(zpool_help_t idx)
 		return (gettext("\tattach [-fsw] [-o property=value] "
 		    "<pool> <vdev> <new-device>\n"));
 	case HELP_CLEAR:
-		return (gettext("\tclear [[--power]|[-nF]] <pool> [device]\n"));
+		return (gettext("\tclear [--power] <pool> [device]\n"));
 	case HELP_CREATE:
 		return (gettext("\tcreate [-fnd] [-o property=value] ... \n"
 		    "\t    [-O file-system-property=value] ... \n"
@@ -6960,7 +6960,19 @@ collect_vdev_prop(zpool_prop_t prop, uint64_t value, const char *str,
 
 	switch (prop) {
 	case ZPOOL_PROP_SIZE:
+	case ZPOOL_PROP_NORMAL_SIZE:
+	case ZPOOL_PROP_SPECIAL_SIZE:
+	case ZPOOL_PROP_DEDUP_SIZE:
+	case ZPOOL_PROP_LOG_SIZE:
+	case ZPOOL_PROP_ELOG_SIZE:
+	case ZPOOL_PROP_SELOG_SIZE:
 	case ZPOOL_PROP_EXPANDSZ:
+	case ZPOOL_PROP_NORMAL_EXPANDSZ:
+	case ZPOOL_PROP_SPECIAL_EXPANDSZ:
+	case ZPOOL_PROP_DEDUP_EXPANDSZ:
+	case ZPOOL_PROP_LOG_EXPANDSZ:
+	case ZPOOL_PROP_ELOG_EXPANDSZ:
+	case ZPOOL_PROP_SELOG_EXPANDSZ:
 	case ZPOOL_PROP_CHECKPOINT:
 	case ZPOOL_PROP_DEDUPRATIO:
 	case ZPOOL_PROP_DEDUPCACHED:
@@ -6971,6 +6983,12 @@ collect_vdev_prop(zpool_prop_t prop, uint64_t value, const char *str,
 			    format);
 		break;
 	case ZPOOL_PROP_FRAGMENTATION:
+	case ZPOOL_PROP_NORMAL_FRAGMENTATION:
+	case ZPOOL_PROP_SPECIAL_FRAGMENTATION:
+	case ZPOOL_PROP_DEDUP_FRAGMENTATION:
+	case ZPOOL_PROP_LOG_FRAGMENTATION:
+	case ZPOOL_PROP_ELOG_FRAGMENTATION:
+	case ZPOOL_PROP_SELOG_FRAGMENTATION:
 		if (value == ZFS_FRAG_INVALID) {
 			(void) strlcpy(propval, "-", sizeof (propval));
 		} else if (format == ZFS_NICENUM_RAW) {
@@ -6982,6 +7000,12 @@ collect_vdev_prop(zpool_prop_t prop, uint64_t value, const char *str,
 		}
 		break;
 	case ZPOOL_PROP_CAPACITY:
+	case ZPOOL_PROP_NORMAL_CAPACITY:
+	case ZPOOL_PROP_SPECIAL_CAPACITY:
+	case ZPOOL_PROP_DEDUP_CAPACITY:
+	case ZPOOL_PROP_LOG_CAPACITY:
+	case ZPOOL_PROP_ELOG_CAPACITY:
+	case ZPOOL_PROP_SELOG_CAPACITY:
 		/* capacity value is in parts-per-10,000 (aka permyriad) */
 		if (format == ZFS_NICENUM_RAW)
 			(void) snprintf(propval, sizeof (propval), "%llu",
@@ -8227,7 +8251,7 @@ zpool_do_offline(int argc, char **argv)
 }
 
 /*
- * zpool clear [-nF]|[--power] <pool> [device]
+ * zpool clear [--power] <pool> [device]
  *
  * Clear all errors associated with a pool or a particular device.
  */
@@ -8236,11 +8260,7 @@ zpool_do_clear(int argc, char **argv)
 {
 	int c;
 	int ret = 0;
-	boolean_t dryrun = B_FALSE;
-	boolean_t do_rewind = B_FALSE;
-	boolean_t xtreme_rewind = B_FALSE;
 	boolean_t is_power_on = B_FALSE;
-	uint32_t rewind_policy = ZPOOL_NO_REWIND;
 	nvlist_t *policy = NULL;
 	zpool_handle_t *zhp;
 	char *pool, *device;
@@ -8251,18 +8271,9 @@ zpool_do_clear(int argc, char **argv)
 	};
 
 	/* check options */
-	while ((c = getopt_long(argc, argv, "FnX", long_options,
+	while ((c = getopt_long(argc, argv, "", long_options,
 	    NULL)) != -1) {
 		switch (c) {
-		case 'F':
-			do_rewind = B_TRUE;
-			break;
-		case 'n':
-			dryrun = B_TRUE;
-			break;
-		case 'X':
-			xtreme_rewind = B_TRUE;
-			break;
 		case ZPOOL_OPTION_POWER:
 			is_power_on = B_TRUE;
 			break;
@@ -8289,24 +8300,8 @@ zpool_do_clear(int argc, char **argv)
 		usage(B_FALSE);
 	}
 
-	if ((dryrun || xtreme_rewind) && !do_rewind) {
-		(void) fprintf(stderr,
-		    gettext("-n or -X only meaningful with -F\n"));
-		usage(B_FALSE);
-	}
-	if (dryrun)
-		rewind_policy = ZPOOL_TRY_REWIND;
-	else if (do_rewind)
-		rewind_policy = ZPOOL_DO_REWIND;
-	if (xtreme_rewind)
-		rewind_policy |= ZPOOL_EXTREME_REWIND;
-
-	/* In future, further rewind policy choices can be passed along here */
-	if (nvlist_alloc(&policy, NV_UNIQUE_NAME, 0) != 0 ||
-	    nvlist_add_uint32(policy, ZPOOL_LOAD_REWIND_POLICY,
-	    rewind_policy) != 0) {
+	if (nvlist_alloc(&policy, NV_UNIQUE_NAME, 0) != 0)
 		return (1);
-	}
 
 	pool = argv[0];
 	device = argc == 2 ? argv[1] : NULL;
@@ -10500,7 +10495,7 @@ print_dedup_stats(zpool_handle_t *zhp, nvlist_t *config, boolean_t literal)
 	    (uint64_t **)&dds, &c) == 0);
 	verify(nvlist_lookup_uint64_array(config, ZPOOL_CONFIG_DDT_HISTOGRAM,
 	    (uint64_t **)&ddh, &c) == 0);
-	zpool_dump_ddt(dds, ddh);
+	zpool_dump_ddt(dds, ddh, literal);
 }
 
 #define	ST_SIZE	4096

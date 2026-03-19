@@ -20,6 +20,7 @@ CFLAGS+= -I${ZFSTOP}/lib/libzpool/include
 CFLAGS+= -I${ZFSTOP}/include/os/freebsd/zfs
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
+CFLAGS+= -include ${ZFSTOP}/include/sys/simd_config.h
 CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -I${ZFSTOP}/lib/libzutil
 CFLAGS+= -DHAVE_ISSETUGID -DIN_BASE
