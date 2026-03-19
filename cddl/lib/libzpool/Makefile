@@ -176,6 +176,7 @@ KERNEL_C = \
         zfs_chksum.c \
 	zfs_crrd.c \
 	zfs_debug_common.c \
+	zfs_file_os.c \
 	zfs_fm.c \
 	zfs_fuid.c \
 	zfs_impl.c \
@@ -265,6 +266,7 @@ CFLAGS+= \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
 	-I${SRCTOP}/compat/linuxkpi/common/include/linux \
+	-include ${ZFSTOP}/include/sys/simd_config.h \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
 	-DHAVE_ISSETUGID \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h \

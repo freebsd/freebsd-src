@@ -8,10 +8,13 @@ zstream_SOURCES = \
 	%D%/zstream.c \
 	%D%/zstream.h \
 	%D%/zstream_decompress.c \
+	%D%/zstream_drop_record.c \
 	%D%/zstream_dump.c \
 	%D%/zstream_recompress.c \
 	%D%/zstream_redup.c \
-	%D%/zstream_token.c
+	%D%/zstream_token.c \
+	%D%/zstream_util.c \
+	%D%/zstream_util.h
 
 zstream_LDADD = \
 	libzfs.la \

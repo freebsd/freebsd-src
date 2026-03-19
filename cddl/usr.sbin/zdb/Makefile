@@ -18,6 +18,7 @@ CFLAGS+= \
 	-I${ZFSTOP}/lib/libspl/include/os/freebsd/spl \
 	-I${ZFSTOP}/lib/libzpool/include \
 	-I${SRCTOP}/sys \
+	-include ${ZFSTOP}/include/sys/simd_config.h \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
 	-DHAVE_ISSETUGID
 

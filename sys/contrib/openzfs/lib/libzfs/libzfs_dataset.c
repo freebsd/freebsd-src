@@ -806,190 +806,6 @@ zfs_close(zfs_handle_t *zhp)
 	free(zhp);
 }
 
-typedef struct mnttab_node {
-	struct mnttab mtn_mt;
-	avl_node_t mtn_node;
-} mnttab_node_t;
-
-static int
-libzfs_mnttab_cache_compare(const void *arg1, const void *arg2)
-{
-	const mnttab_node_t *mtn1 = (const mnttab_node_t *)arg1;
-	const mnttab_node_t *mtn2 = (const mnttab_node_t *)arg2;
-	int rv;
-
-	rv = strcmp(mtn1->mtn_mt.mnt_special, mtn2->mtn_mt.mnt_special);
-
-	return (TREE_ISIGN(rv));
-}
-
-void
-libzfs_mnttab_init(libzfs_handle_t *hdl)
-{
-	pthread_mutex_init(&hdl->libzfs_mnttab_cache_lock, NULL);
-	assert(avl_numnodes(&hdl->libzfs_mnttab_cache) == 0);
-	avl_create(&hdl->libzfs_mnttab_cache, libzfs_mnttab_cache_compare,
-	    sizeof (mnttab_node_t), offsetof(mnttab_node_t, mtn_node));
-}
-
-static int
-libzfs_mnttab_update(libzfs_handle_t *hdl)
-{
-	FILE *mnttab;
-	struct mnttab entry;
-
-	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-		return (ENOENT);
-
-	while (getmntent(mnttab, &entry) == 0) {
-		mnttab_node_t *mtn;
-		avl_index_t where;
-
-		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-			continue;
-
-		mtn = zfs_alloc(hdl, sizeof (mnttab_node_t));
-		mtn->mtn_mt.mnt_special = zfs_strdup(hdl, entry.mnt_special);
-		mtn->mtn_mt.mnt_mountp = zfs_strdup(hdl, entry.mnt_mountp);
-		mtn->mtn_mt.mnt_fstype = zfs_strdup(hdl, entry.mnt_fstype);
-		mtn->mtn_mt.mnt_mntopts = zfs_strdup(hdl, entry.mnt_mntopts);
-
-		/* Exclude duplicate mounts */
-		if (avl_find(&hdl->libzfs_mnttab_cache, mtn, &where) != NULL) {
-			free(mtn->mtn_mt.mnt_special);
-			free(mtn->mtn_mt.mnt_mountp);
-			free(mtn->mtn_mt.mnt_fstype);
-			free(mtn->mtn_mt.mnt_mntopts);
-			free(mtn);
-			continue;
-		}
-
-		avl_add(&hdl->libzfs_mnttab_cache, mtn);
-	}
-
-	(void) fclose(mnttab);
-	return (0);
-}
-
-void
-libzfs_mnttab_fini(libzfs_handle_t *hdl)
-{
-	void *cookie = NULL;
-	mnttab_node_t *mtn;
-
-	while ((mtn = avl_destroy_nodes(&hdl->libzfs_mnttab_cache, &cookie))
-	    != NULL) {
-		free(mtn->mtn_mt.mnt_special);
-		free(mtn->mtn_mt.mnt_mountp);
-		free(mtn->mtn_mt.mnt_fstype);
-		free(mtn->mtn_mt.mnt_mntopts);
-		free(mtn);
-	}
-	avl_destroy(&hdl->libzfs_mnttab_cache);
-	(void) pthread_mutex_destroy(&hdl->libzfs_mnttab_cache_lock);
-}
-
-void
-libzfs_mnttab_cache(libzfs_handle_t *hdl, boolean_t enable)
-{
-	hdl->libzfs_mnttab_enable = enable;
-}
-
-int
-libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
-    struct mnttab *entry)
-{
-	FILE *mnttab;
-	mnttab_node_t find;
-	mnttab_node_t *mtn;
-	int ret = ENOENT;
-
-	if (!hdl->libzfs_mnttab_enable) {
-		struct mnttab srch = { 0 };
-
-		if (avl_numnodes(&hdl->libzfs_mnttab_cache))
-			libzfs_mnttab_fini(hdl);
-
-		if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-			return (ENOENT);
-
-		srch.mnt_special = (char *)fsname;
-		srch.mnt_fstype = (char *)MNTTYPE_ZFS;
-		ret = getmntany(mnttab, entry, &srch) ? ENOENT : 0;
-		(void) fclose(mnttab);
-		return (ret);
-	}
-
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
-	if (avl_numnodes(&hdl->libzfs_mnttab_cache) == 0) {
-		int error;
-
-		if ((error = libzfs_mnttab_update(hdl)) != 0) {
-			pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
-			return (error);
-		}
-	}
-
-	find.mtn_mt.mnt_special = (char *)fsname;
-	mtn = avl_find(&hdl->libzfs_mnttab_cache, &find, NULL);
-	if (mtn) {
-		*entry = mtn->mtn_mt;
-		ret = 0;
-	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
-	return (ret);
-}
-
-void
-libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
-    const char *mountp, const char *mntopts)
-{
-	mnttab_node_t *mtn;
-
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
-	if (avl_numnodes(&hdl->libzfs_mnttab_cache) != 0) {
-		mtn = zfs_alloc(hdl, sizeof (mnttab_node_t));
-		mtn->mtn_mt.mnt_special = zfs_strdup(hdl, special);
-		mtn->mtn_mt.mnt_mountp = zfs_strdup(hdl, mountp);
-		mtn->mtn_mt.mnt_fstype = zfs_strdup(hdl, MNTTYPE_ZFS);
-		mtn->mtn_mt.mnt_mntopts = zfs_strdup(hdl, mntopts);
-		/*
-		 * Another thread may have already added this entry
-		 * via libzfs_mnttab_update. If so we should skip it.
-		 */
-		if (avl_find(&hdl->libzfs_mnttab_cache, mtn, NULL) != NULL) {
-			free(mtn->mtn_mt.mnt_special);
-			free(mtn->mtn_mt.mnt_mountp);
-			free(mtn->mtn_mt.mnt_fstype);
-			free(mtn->mtn_mt.mnt_mntopts);
-			free(mtn);
-		} else {
-			avl_add(&hdl->libzfs_mnttab_cache, mtn);
-		}
-	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
-}
-
-void
-libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
-{
-	mnttab_node_t find;
-	mnttab_node_t *ret;
-
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
-	find.mtn_mt.mnt_special = (char *)fsname;
-	if ((ret = avl_find(&hdl->libzfs_mnttab_cache, (void *)&find, NULL))
-	    != NULL) {
-		avl_remove(&hdl->libzfs_mnttab_cache, ret);
-		free(ret->mtn_mt.mnt_special);
-		free(ret->mtn_mt.mnt_mountp);
-		free(ret->mtn_mt.mnt_fstype);
-		free(ret->mtn_mt.mnt_mntopts);
-		free(ret);
-	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
-}
-
 int
 zfs_spa_version(zfs_handle_t *zhp, int *spa_version)
 {
@@ -1701,26 +1517,6 @@ zfs_fix_auto_resv(zfs_handle_t *zhp, nvlist_t *nvl)
 	return (1);
 }
 
-static boolean_t
-zfs_is_namespace_prop(zfs_prop_t prop)
-{
-	switch (prop) {
-
-	case ZFS_PROP_ATIME:
-	case ZFS_PROP_RELATIME:
-	case ZFS_PROP_DEVICES:
-	case ZFS_PROP_EXEC:
-	case ZFS_PROP_SETUID:
-	case ZFS_PROP_READONLY:
-	case ZFS_PROP_XATTR:
-	case ZFS_PROP_NBMAND:
-		return (B_TRUE);
-
-	default:
-		return (B_FALSE);
-	}
-}
-
 /*
  * Given a property name and value, set the property for the given dataset.
  */
@@ -1778,7 +1574,7 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 	int nvl_len = 0;
 	int added_resv = 0;
 	zfs_prop_t prop;
-	boolean_t nsprop = B_FALSE;
+	uint32_t nspflags = 0;
 	nvpair_t *elem;
 
 	(void) snprintf(errbuf, sizeof (errbuf),
@@ -1825,7 +1621,7 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 	    elem = nvlist_next_nvpair(nvl, elem)) {
 
 		prop = zfs_name_to_prop(nvpair_name(elem));
-		nsprop |= zfs_is_namespace_prop(prop);
+		nspflags |= zfs_namespace_prop_flag(prop);
 
 		assert(cl_idx < nvl_len);
 		/*
@@ -1926,8 +1722,8 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 			 * if one of the options handled by the generic
 			 * Linux namespace layer has been modified.
 			 */
-			if (nsprop && zfs_is_mounted(zhp, NULL))
-				ret = zfs_mount(zhp, MNTOPT_REMOUNT, 0);
+			if (nspflags && zfs_is_mounted(zhp, NULL))
+				ret = zfs_mount_setattr(zhp, nspflags);
 		}
 	}
 
@@ -2049,7 +1845,8 @@ zfs_prop_inherit(zfs_handle_t *zhp, const char *propname, boolean_t received)
 		 */
 		if (zfs_is_namespace_prop(prop) &&
 		    zfs_is_mounted(zhp, NULL))
-			ret = zfs_mount(zhp, MNTOPT_REMOUNT, 0);
+			ret = zfs_mount_setattr(zhp,
+			    zfs_namespace_prop_flag(prop));
 	}
 
 error:
@@ -3600,7 +3397,8 @@ zfs_dataset_exists(libzfs_handle_t *hdl, const char *path, zfs_type_t types)
  * Fail if the initial prefixlen-ancestor does not already exist.
  */
 int
-create_parents(libzfs_handle_t *hdl, char *target, int prefixlen)
+create_parents(libzfs_handle_t *hdl, char *target, int prefixlen,
+    nvlist_t *props)
 {
 	zfs_handle_t *h;
 	char *cp;
@@ -3636,8 +3434,7 @@ create_parents(libzfs_handle_t *hdl, char *target, int prefixlen)
 			continue;
 		}
 
-		if (zfs_create(hdl, target, ZFS_TYPE_FILESYSTEM,
-		    NULL) != 0) {
+		if (zfs_create(hdl, target, ZFS_TYPE_FILESYSTEM, props) != 0) {
 			opname = dgettext(TEXT_DOMAIN, "create");
 			goto ancestorerr;
 		}
@@ -3676,6 +3473,17 @@ ancestorerr:
 int
 zfs_create_ancestors(libzfs_handle_t *hdl, const char *path)
 {
+	return (zfs_create_ancestors_props(hdl, path, NULL));
+}
+
+/*
+ * Creates non-existing ancestors of the given path, applying extra
+ * properties provided in an nvlist.
+ */
+int
+zfs_create_ancestors_props(libzfs_handle_t *hdl, const char *path,
+    nvlist_t *props)
+{
 	int prefix;
 	char *path_copy;
 	char errbuf[ERRBUFLEN];
@@ -3698,7 +3506,7 @@ zfs_create_ancestors(libzfs_handle_t *hdl, const char *path)
 		return (-1);
 
 	if ((path_copy = strdup(path)) != NULL) {
-		rc = create_parents(hdl, path_copy, prefix);
+		rc = create_parents(hdl, path_copy, prefix, props);
 		free(path_copy);
 	}
 	if (path_copy == NULL || rc != 0)

@@ -34,6 +34,7 @@
 #include <sys/nvpair.h>
 #include <sys/dmu.h>
 #include <sys/zfs_ioctl.h>
+#include <sys/mutex.h>
 #include <regex.h>
 
 #include <libzfs.h>
@@ -57,21 +58,14 @@ struct libzfs_handle {
 	char libzfs_action[1024];
 	char libzfs_desc[1024];
 	int libzfs_printerr;
-	boolean_t libzfs_mnttab_enable;
-	/*
-	 * We need a lock to handle the case where parallel mount
-	 * threads are populating the mnttab cache simultaneously. The
-	 * lock only protects the integrity of the avl tree, and does
-	 * not protect the contents of the mnttab entries themselves.
-	 */
-	pthread_mutex_t libzfs_mnttab_cache_lock;
-	avl_tree_t libzfs_mnttab_cache;
 	int libzfs_pool_iter;
 	boolean_t libzfs_prop_debug;
 	regex_t libzfs_urire;
 	uint64_t libzfs_max_nvlist;
 	void *libfetch;
 	char *libfetch_load_error;
+	kmutex_t zh_mnttab_lock;
+	avl_tree_t zh_mnttab;
 };
 
 struct zfs_handle {
@@ -88,6 +82,19 @@ struct zfs_handle {
 	char *zfs_mntopts;
 	uint8_t *zfs_props_table;
 };
+
+/*
+ * Internal namespace property flags for selective remount via
+ * mount_setattr(2).  Passed to zfs_mount_setattr().
+ */
+#define	ZFS_MNT_PROP_ATIME	(1U << 0)
+#define	ZFS_MNT_PROP_RELATIME	(1U << 1)
+#define	ZFS_MNT_PROP_DEVICES	(1U << 2)
+#define	ZFS_MNT_PROP_EXEC	(1U << 3)
+#define	ZFS_MNT_PROP_SETUID	(1U << 4)
+#define	ZFS_MNT_PROP_READONLY	(1U << 5)
+#define	ZFS_MNT_PROP_XATTR	(1U << 6)
+#define	ZFS_MNT_PROP_NBMAND	(1U << 7)
 
 /*
  * This is different from checking zfs_type, because it will also catch
@@ -181,8 +188,12 @@ extern prop_changelist_t *changelist_gather(zfs_handle_t *, zfs_prop_t, int,
 extern int changelist_unshare(prop_changelist_t *, const enum sa_protocol *);
 extern int changelist_haszonedchild(prop_changelist_t *);
 
+extern boolean_t zfs_is_namespace_prop(zfs_prop_t);
+extern uint32_t zfs_namespace_prop_flag(zfs_prop_t);
+extern boolean_t zfs_is_mountable_internal(zfs_handle_t *);
+extern int zfs_mount_setattr(zfs_handle_t *, uint32_t);
 extern void remove_mountpoint(zfs_handle_t *);
-extern int create_parents(libzfs_handle_t *, char *, int);
+extern int create_parents(libzfs_handle_t *, char *, int, nvlist_t *);
 
 extern zfs_handle_t *make_dataset_handle(libzfs_handle_t *, const char *);
 extern zfs_handle_t *make_bookmark_handle(zfs_handle_t *, const char *,

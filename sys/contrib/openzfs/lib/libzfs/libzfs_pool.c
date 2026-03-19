@@ -370,8 +370,47 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 			zfs_fallthrough;
 
 		case ZPOOL_PROP_SIZE:
+		case ZPOOL_PROP_NORMAL_SIZE:
+		case ZPOOL_PROP_SPECIAL_SIZE:
+		case ZPOOL_PROP_DEDUP_SIZE:
+		case ZPOOL_PROP_LOG_SIZE:
+		case ZPOOL_PROP_ELOG_SIZE:
+		case ZPOOL_PROP_SELOG_SIZE:
 		case ZPOOL_PROP_ALLOCATED:
+		case ZPOOL_PROP_NORMAL_ALLOCATED:
+		case ZPOOL_PROP_SPECIAL_ALLOCATED:
+		case ZPOOL_PROP_DEDUP_ALLOCATED:
+		case ZPOOL_PROP_LOG_ALLOCATED:
+		case ZPOOL_PROP_ELOG_ALLOCATED:
+		case ZPOOL_PROP_SELOG_ALLOCATED:
+		case ZPOOL_PROP_AVAILABLE:
+		case ZPOOL_PROP_NORMAL_AVAILABLE:
+		case ZPOOL_PROP_SPECIAL_AVAILABLE:
+		case ZPOOL_PROP_DEDUP_AVAILABLE:
+		case ZPOOL_PROP_LOG_AVAILABLE:
+		case ZPOOL_PROP_ELOG_AVAILABLE:
+		case ZPOOL_PROP_SELOG_AVAILABLE:
 		case ZPOOL_PROP_FREE:
+		case ZPOOL_PROP_NORMAL_FREE:
+		case ZPOOL_PROP_SPECIAL_FREE:
+		case ZPOOL_PROP_DEDUP_FREE:
+		case ZPOOL_PROP_LOG_FREE:
+		case ZPOOL_PROP_ELOG_FREE:
+		case ZPOOL_PROP_SELOG_FREE:
+		case ZPOOL_PROP_USABLE:
+		case ZPOOL_PROP_NORMAL_USABLE:
+		case ZPOOL_PROP_SPECIAL_USABLE:
+		case ZPOOL_PROP_DEDUP_USABLE:
+		case ZPOOL_PROP_LOG_USABLE:
+		case ZPOOL_PROP_ELOG_USABLE:
+		case ZPOOL_PROP_SELOG_USABLE:
+		case ZPOOL_PROP_USED:
+		case ZPOOL_PROP_NORMAL_USED:
+		case ZPOOL_PROP_SPECIAL_USED:
+		case ZPOOL_PROP_DEDUP_USED:
+		case ZPOOL_PROP_LOG_USED:
+		case ZPOOL_PROP_ELOG_USED:
+		case ZPOOL_PROP_SELOG_USED:
 		case ZPOOL_PROP_FREEING:
 		case ZPOOL_PROP_LEAKED:
 		case ZPOOL_PROP_ASHIFT:
@@ -391,6 +430,12 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 			break;
 
 		case ZPOOL_PROP_EXPANDSZ:
+		case ZPOOL_PROP_NORMAL_EXPANDSZ:
+		case ZPOOL_PROP_SPECIAL_EXPANDSZ:
+		case ZPOOL_PROP_DEDUP_EXPANDSZ:
+		case ZPOOL_PROP_LOG_EXPANDSZ:
+		case ZPOOL_PROP_ELOG_EXPANDSZ:
+		case ZPOOL_PROP_SELOG_EXPANDSZ:
 		case ZPOOL_PROP_CHECKPOINT:
 			if (intval == 0) {
 				(void) strlcpy(buf, "-", len);
@@ -403,6 +448,12 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 			break;
 
 		case ZPOOL_PROP_CAPACITY:
+		case ZPOOL_PROP_NORMAL_CAPACITY:
+		case ZPOOL_PROP_SPECIAL_CAPACITY:
+		case ZPOOL_PROP_DEDUP_CAPACITY:
+		case ZPOOL_PROP_LOG_CAPACITY:
+		case ZPOOL_PROP_ELOG_CAPACITY:
+		case ZPOOL_PROP_SELOG_CAPACITY:
 			if (literal) {
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
@@ -413,7 +464,13 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 			break;
 
 		case ZPOOL_PROP_FRAGMENTATION:
-			if (intval == UINT64_MAX) {
+		case ZPOOL_PROP_NORMAL_FRAGMENTATION:
+		case ZPOOL_PROP_SPECIAL_FRAGMENTATION:
+		case ZPOOL_PROP_DEDUP_FRAGMENTATION:
+		case ZPOOL_PROP_LOG_FRAGMENTATION:
+		case ZPOOL_PROP_ELOG_FRAGMENTATION:
+		case ZPOOL_PROP_SELOG_FRAGMENTATION:
+			if (intval == ZFS_FRAG_INVALID) {
 				(void) strlcpy(buf, "-", len);
 			} else if (literal) {
 				(void) snprintf(buf, len, "%llu",
@@ -1639,6 +1696,11 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 			    "one or more devices could not be opened"));
 			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
 
+		case EDOM:
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "block size out of range or does not match"));
+			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+
 		default:
 			return (zpool_standard_error(hdl, errno, errbuf));
 		}
@@ -2806,8 +2868,11 @@ zpool_scan_range(zpool_handle_t *zhp, pool_scan_func_t func,
 	nvlist_t *args = fnvlist_alloc();
 	fnvlist_add_uint64(args, "scan_type", (uint64_t)func);
 	fnvlist_add_uint64(args, "scan_command", (uint64_t)cmd);
-	fnvlist_add_uint64(args, "scan_date_start", (uint64_t)date_start);
-	fnvlist_add_uint64(args, "scan_date_end", (uint64_t)date_end);
+	if (date_start != 0 || date_end != 0) {
+		fnvlist_add_uint64(args, "scan_date_start",
+		    (uint64_t)date_start);
+		fnvlist_add_uint64(args, "scan_date_end", (uint64_t)date_end);
+	}
 
 	err = lzc_scrub(ZFS_IOC_POOL_SCRUB, zhp->zpool_name, args, NULL);
 	fnvlist_free(args);
@@ -4350,7 +4415,8 @@ zpool_clear(zpool_handle_t *zhp, const char *path, nvlist_t *rewindnvl)
 	zc.zc_cookie = policy.zlp_rewind;
 
 	zcmd_alloc_dst_nvlist(hdl, &zc, zhp->zpool_config_size * 2);
-	zcmd_write_src_nvlist(hdl, &zc, rewindnvl);
+	if (rewindnvl != NULL)
+		zcmd_write_src_nvlist(hdl, &zc, rewindnvl);
 
 	while ((error = zfs_ioctl(hdl, ZFS_IOC_CLEAR, &zc)) != 0 &&
 	    errno == ENOMEM)

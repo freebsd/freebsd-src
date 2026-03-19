@@ -16,6 +16,7 @@ CFLAGS+= \
 	-I${ZFSTOP}/lib/libzpool/include \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
+	-include ${ZFSTOP}/include/sys/simd_config.h \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
 	-DHAVE_ISSETUGID \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h
