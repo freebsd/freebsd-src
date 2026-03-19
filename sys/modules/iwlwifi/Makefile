@@ -4,10 +4,10 @@ DEVIWLWIFIDIR=	${SRCTOP}/sys/contrib/dev/iwlwifi
 
 .PATH: ${DEVIWLWIFIDIR}
 
-WITH_CONFIG_PM=	0
-WITH_DEBUGFS=	0
+IWLWIFI_CONFIG_PM=	0
+IWLWIFI_DEBUGFS=	0
 .if ${KERN_OPTS:MDEV_ACPI}
-WITH_CONFIG_ACPI=	1
+IWLWIFI_CONFIG_ACPI=	1
 .endif
 
 KMOD=	if_iwlwifi
@@ -49,21 +49,21 @@ SRCS+=	mld/regulatory.c mld/roc.c mld/rx.c mld/scan.c
 SRCS+=	mld/session-protect.c mld/sta.c mld/stats.c mld/thermal.c
 SRCS+=	mld/time_sync.c mld/tlc.c mld/tx.c
 
-.if defined(WITH_DEBUGFS) && ${WITH_DEBUGFS} > 0
+.if defined(IWLWIFI_DEBUGFS) && ${IWLWIFI_DEBUGFS} > 0
 SRCS+=	fw/debugfs.c
 SRCS+=	mvm/debugfs.c mvm/debugfs-vif.c
 SRCS+=	mld/debugfs.c
 CFLAGS+=	-DCONFIG_IWLWIFI_DEBUGFS
 CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS
 .endif
-.if defined(WITH_CONFIG_PM) && ${WITH_CONFIG_PM} > 0
+.if defined(IWLWIFI_CONFIG_PM) && ${IWLWIFI_CONFIG_PM} > 0
 SRCS+=	mvm/d3.c
 SRCS+=	mld/d3.c
 CFLAGS+=	-DCONFIG_PM
 CFLAGS+=	-DCONFIG_PM_SLEEP
 .endif
 
-.if defined(WITH_CONFIG_ACPI) && ${WITH_CONFIG_ACPI} > 0
+.if defined(IWLWIFI_CONFIG_ACPI) && ${IWLWIFI_CONFIG_ACPI} > 0
 SRCS.DEV_ACPI+=	fw/acpi.c
 CFLAGS+=	-DCONFIG_ACPI
 .endif
@@ -73,9 +73,6 @@ CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
 # Other
 SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
-
-CFLAGS+=	-DKBUILD_MODNAME='"iwlwifi"'
-CFLAGS+=	-DLINUXKPI_VERSION=61700
 
 CFLAGS+=	-I${DEVIWLWIFIDIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}
@@ -95,6 +92,9 @@ CFLAGS+=	-DCONFIG_IWLWIFI_DEVICE_TRACING=1
 #CFLAGS+=	-DCONFIG_NL80211_TESTMODE=1
 #CFLAGS+=	-DCONFIG_THERMAL=1
 #CFLAGS+=	-DCONFIG_EFI=1
+
+CFLAGS+=	-DKBUILD_MODNAME='"iwlwifi"'
+CFLAGS+=	-DLINUXKPI_VERSION=61900
 
 CWARNFLAGS.clang.drv.c+=	-Wno-initializer-overrides
 CWARNFLAGS.drv.c+=		-Wno-override-init ${CWARNFLAGS.${COMPILER_TYPE}.${.IMPSRC:T}}
