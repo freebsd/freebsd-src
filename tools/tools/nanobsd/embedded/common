@@ -37,7 +37,6 @@
 # Missing in base:
 # o mkimg setting active partition
 # o mkimg starting at arbitrary offset (needed for A10, et al)
-# o mtools still needed because we have no makefs -t msdos
 # o nanobsd doesn't record changes to WORLDTEMP in customization
 #   scripts yet, so we have kludge to pick up all files
 # o easy way for pkg to grab files from other repos and put that
@@ -49,7 +48,6 @@
 #
 # Missing here
 # o documentation for how to run the qemu images
-# o msdos mtools fallback
 # o special boot for !x86 !arm platforms
 # o qemu image for aarch64
 # o qemu image for armv7
@@ -218,8 +216,6 @@ create_diskimage_mbr() {
 	local extra i sz fat_scheme fat_size fat_type fmt fmtarg bootmbr \
 	    bootbsd skiparg
 	set -o xtrace
-	# Tell mtools not to be too picky
-	export MTOOLS_SKIP_CHECK=1
 
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmtarg="-f ${NANO_DISKIMAGE_FORMAT}"
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
@@ -251,12 +247,14 @@ create_diskimage_mbr() {
 			fat_scheme=fat16b
 		fi
 
-		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F "$fat_type" -L ${NANO_NAME} \
-			${NANO_LOG}/_.${NANO_SLICE_FAT}
 		if [ -d ${NANO_FAT_DIR} ]; then
-			# Need to copy files from ${NANO_FATDIR} with mtools, or use
-			# makefs -t msdos once that's supported
-			mcopy -s -i ${NANO_LOG}/_.${NANO_SLICE_FAT} ${NANO_FAT_DIR}/* ::
+			makefs -t msdos \
+			    -o fat_type="$fat_type" \
+			    -o sectors_per_cluster=1 \
+			    -o volume_label="$NANO_NAME" \
+			    -o OEM_string="" \
+			    -s "$NANO_SLICE_FAT_SIZE" \
+			    "${NANO_LOG}/_.${NANO_SLICE_FAT}" "$NANO_FAT_DIR"
 		fi
 	fi
 
@@ -502,10 +500,6 @@ if [ -n "$NANO_BOOT_PKG" ]; then
 	d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
 	if [ ! -d ${d} ]; then
 		echo ${NANO_BOOT_PKG} not installed. Sadly, it must be.
-		exit 1
-	fi
-	if [ ! -x /usr/local/bin/mcopy ]; then
-		echo mtools not installed. Sadly, we gotta have it.
 		exit 1
 	fi
 	customize_cmd dos_boot_part
