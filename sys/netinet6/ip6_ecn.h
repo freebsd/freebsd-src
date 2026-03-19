@@ -31,11 +31,6 @@
  *	$KAME: ip_ecn.h,v 1.5 2000/03/27 04:58:38 sumikawa Exp $
  */
 
-/*
- * ECN consideration on tunnel ingress/egress operation.
- * http://www.aciri.org/floyd/papers/draft-ipsec-ecn-00.txt
- */
-
 #ifdef _KERNEL
 extern void ip6_ecn_ingress(int, uint32_t *, const uint32_t *);
 extern int ip6_ecn_egress(int, const uint32_t *, uint32_t *);
