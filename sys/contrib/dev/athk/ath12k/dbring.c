@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "core.h"
@@ -117,7 +118,7 @@ int ath12k_dbring_wmi_cfg_setup(struct ath12k *ar,
 				struct ath12k_dbring *ring,
 				enum wmi_direct_buffer_module id)
 {
-	struct ath12k_wmi_pdev_dma_ring_cfg_arg arg = {0};
+	struct ath12k_wmi_pdev_dma_ring_cfg_arg arg = {};
 	int ret;
 
 	if (id >= WMI_DIRECT_BUF_MAX)

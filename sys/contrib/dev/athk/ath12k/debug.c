@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/vmalloc.h>
@@ -54,7 +54,7 @@ void ath12k_err(struct ath12k_base *ab, const char *fmt, ...)
 	va_end(args);
 }
 
-void ath12k_warn(struct ath12k_base *ab, const char *fmt, ...)
+void __ath12k_warn(struct device *dev, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
@@ -64,7 +64,7 @@ void ath12k_warn(struct ath12k_base *ab, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 #if defined(__linux__)
-	dev_warn_ratelimited(ab->dev, "%pV", &vaf);
+	dev_warn_ratelimited(dev, "%pV", &vaf);
 #elif defined(__FreeBSD__)
 	{
 		static linux_ratelimit_t __ratelimited;
@@ -72,7 +72,7 @@ void ath12k_warn(struct ath12k_base *ab, const char *fmt, ...)
 		if (linux_ratelimited(&__ratelimited)) {
 			char *str;
 			vasprintf(&str, M_KMALLOC, fmt, args);
-			dev_printk(KERN_WARN, ab->dev, "%s", str);
+			dev_printk(KERN_WARN, dev, "%s", str);
 			free(str, M_KMALLOC);
 		}
 	}
@@ -94,14 +94,19 @@ void __ath12k_dbg(struct ath12k_base *ab, enum ath12k_debug_mask mask,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (ath12k_debug_mask & mask)
 #if defined(__linux__)
-		dev_dbg(ab->dev, "%pV", &vaf);
+	if (likely(ab))
+		dev_printk(KERN_DEBUG, ab->dev, "%pV", &vaf);
+	else
+		printk(KERN_DEBUG "ath12k: %pV", &vaf);
 #elif defined(__FreeBSD__)
 	{
 		char *str;
 		vasprintf(&str, M_KMALLOC, fmt, args);
-		dev_printk(KERN_DEBUG, ab->dev, "%s", str);
+		if (likely(ab))
+			dev_printk(KERN_DEBUG, ab->dev, "%s", str);
+		else
+			printk(KERN_DEBUG "ath12k: %s", str);
 		free(str, M_KMALLOC);
 	}
 #endif
