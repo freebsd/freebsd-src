@@ -424,8 +424,8 @@ make_conf_install() {
 	echo "${CONF_WORLD}"
 	echo "${CONF_INSTALL}"
 	if [ -n "${NANO_NOPRIV_BUILD}" ]; then
-	    echo NO_ROOT=t
-	    echo METALOG=${NANO_METALOG}
+		echo NO_ROOT=true
+		echo METALOG=${NANO_METALOG}
 	fi
 	) >  ${NANO_MAKE_CONF_INSTALL}
 }
