@@ -35,18 +35,18 @@
 
 : ${PORTSDIR:=/usr/ports}
 
-usage () {
+usage() {
 	echo "Usage: $0 [-cv] package-dump-dir nano-package-dir port-dir-or-pkg ..." 1>&2
 	exit 2
 }
 
-msg () {
+msg() {
 	local l
 	l=$1 ; shift
 	[ "$l" -le "$VERBOSE" ] && echo $*
 }
 
-ports_recurse() (
+ports_recurse() {
 	local outputfile dumpdir type fullpath pkgname p
 	outputfile=$1 ; shift
 	dumpdir=$1    ; shift
@@ -100,9 +100,9 @@ ports_recurse() (
 		else
 			dir=`dirname "$p"` # Get directory from SPECIFIED path, not from full path
 			if [ "$dir" = "." ] ; then
-			  dir=""
+				dir=""
 			else
-			  dir=${dir}/
+				dir=${dir}/
 			fi
 			deps=`pkg info -dF "$fullpath" | grep -v "$pkgname:"`
 			for dep in $deps ; do
@@ -114,7 +114,7 @@ ports_recurse() (
 			echo "$pkgname" >> "$outputfile"
 		fi
 	done
-)
+}
 
 COPY="ln -s"
 VERBOSE=0
