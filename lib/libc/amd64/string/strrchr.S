@@ -41,103 +41,114 @@ ARCHFUNCS(strrchr)
 ENDARCHFUNCS(strrchr)
 
 ARCHENTRY(strrchr, scalar)
-	mov	%edi, %ecx
-	and	$~7, %rdi		# align to 8 byte
-	movzbl	%sil, %esi		# clear stray high bits
-	movabs	$0x0101010101010101, %r8
-	mov	(%rdi), %rax		# load first word
-	imul	%r8, %rsi		# replicate char 8 times
+	mov		%edi, %ecx
+	and		$~7, %rdi		# Align %rdi to 8-byte boundary
+	movzbl		%sil, %esi		# Clear high bits of search char
+	movabs		$0x0101010101010101, %r8 # Constant for SWAR arithmetic
+	movabs		$0x8080808080808080, %r9 # Constant for MSB bitmask
+	imul		%r8, %rsi		# Replicate search char into all 8 bytes
 
 	/*
-	 * Unaligned input: align to 8 bytes.  Then proceed the same
-	 * way as with aligned input, but prevent matches before the
-	 * beginning of the string.  This is achieved by oring 0x01
-	 * into each byte of the buffer before the string
+	 * UNALIGNED START HANDLING:
+	 * We read the first 8-byte word (which may contain bytes before the string).
+	 * We create a mask (%r10) where 0xFF indicates a "junk" byte before the start.
 	 */
-	shl	$3, %ecx
-	mov	%r8, %r10
-	shl	%cl, %r10		# 0x01 where the string is
-	xor	%r8, %r10		# 0x01 where it is not
-	neg	%r8			# negate 01..01 so we can use lea
-	movabs	$0x8080808080808080, %r9
+	and		$7, %ecx		# %ecx = alignment offset (0-7)
+	mov		(%rdi), %rax		# Load the first aligned 8-byte word
 
-	mov	%rsi, %rcx
-	xor	%rax, %rcx		# str ^ c
-	or	%r10, %rax		# ensure str != 0 before string
-	or	%r10, %rcx		# ensure str^c != 0 before string
-	bswap	%rcx			# in reverse order, to find last match
-	mov	%rdi, %r10		# location of initial mismatch (if any)
-	xor	%r11, %r11		# initial mismatch (none)
-	add	$8, %rdi		# advance to next iteration
-	lea	(%rax, %r8, 1), %rdx	# str - 0x01..01
-	not	%rax			# ~str
-	and	%rdx, %rax		# (str - 0x01..01) & ~str
-	and	%r9, %rax		# not including junk bits
-	jnz	1f			# end of string?
+	mov		$-1, %r11		# Start with all bits set (0xFF...FF)
+	shl		$3, %ecx		# Convert byte offset to bit offset
+	mov		%r11, %r10
+	xor		%r11, %r11
+	shl		%cl, %r10		# %r10 = 0xFF where the string IS
+	not		%r10			# %r10 = 0xFF where the string IS NOT (junk)
 
-	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
-	not	%rcx			# ~(str ^ c)
-	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	mov	%rcx, %r11		# remember mismatch in head
-	jmp	0f
+	xor		%r12, %r12		# %r12 = Pointer to the block with the last match
+	xor		%r13, %r13		# %r13 = Bitmask of the last match
 
-	/* main loop unrolled twice */
-	ALIGN_TEXT
-3:	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
-	not	%rcx			# ~(str ^ c)
-	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	lea	-8(%rdi), %rdx
-	cmovnz	%rdx, %r10		# remember location of current mismatch
-	cmovnz	%rcx, %r11
+	/*
+	 * Initial word processing:
+	 * We OR the junk bytes with 0x01 to prevent NUL detection,
+	 * and we will mask the match results later.
+	 */
+	jmp		.Lprocess_word
 
-0:	mov	(%rdi), %rax		# str
-	mov	%rsi, %rcx
-	xor	%rax, %rcx		# str ^ c
-	bswap	%rcx			# in reverse order, to find last match
-	lea	(%rax, %r8, 1), %rdx	# str - 0x01..01
-	not	%rax			# ~str
-	and	%rdx, %rax		# (str - 0x01..01) & ~str
-	and	%r9, %rax		# not including junk bits
-	jnz	2f			# end of string?
+	.p2align 4
+.Lloop:
+	add		$8, %rdi
+	mov		(%rdi), %rax		# Load next 8-byte chunk
+	xor		%r10, %r10		# No junk mask for subsequent words
 
-	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
-	not	%rcx			# ~(str ^ c)
-	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	cmovnz	%rdi, %r10		# remember location of current mismatch
-	cmovnz	%rcx, %r11
+.Lprocess_word:
+	/* NUL Detection
+	 * Detects 0x00 bytes: ((val - 0x01) & ~val & 0x80)
+	 */
+	mov		%rax, %rdx
+	or		%r10, %rdx		# Mask junk bytes so they don't look like NUL
+	mov		%rdx, %r11
+	sub		%r8, %r11
+	not		%rdx
+	and		%r11, %rdx
+	and		%r9, %rdx		# %rdx = mask where bytes are NUL (0x80)
 
-	mov	8(%rdi), %rax		# str
-	add	$16, %rdi
-	mov	%rsi, %rcx
-	xor	%rax, %rcx		# str ^ c
-	bswap	%rcx
-	lea	(%rax, %r8, 1), %rdx	# str - 0x01..01
-	not	%rax			# ~str
-	and	%rdx, %rax		# (str - 0x01..01) & ~str
-	and	%r9, %rax		# not including junk bits
-	jz	3b			# end of string?
+	/* Character Match Detection
+	 * Detects search char: XOR with replicated char, then find NULs in result
+	 */
+	mov		%rax, %rcx
+	xor		%rsi, %rcx		# Matching bytes become 0x00
+	not		%r10
+	and		%r10, %rcx		# Mask junk bytes so they don't look like matches
+	not		%r10			# Restore r10
+	mov		%rcx, %r11
+	sub		%r8, %r11
+	not		%rcx
+	and		%r11, %rcx
+	and		%r9, %rcx		# %rcx = mask where bytes match 'c' (0x80)
 
-	/* NUL found */
-1:	sub	$8, %rdi		# undo advance past buffer
-2:	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
-	not	%rcx			# ~(str ^ c)
-	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	lea	-1(%rax), %rdx
-	xor	%rdx, %rax		# mask of bytes in the string
-	bswap	%rdx			# in reverse order
-	and	%rdx, %rcx		# c found in the tail?
-	cmovnz	%rdi, %r10
-	cmovnz	%rcx, %r11
-	bswap	%r11			# unreverse byte order
-	bsr	%r11, %rcx		# last location of c in (R10)
-	shr	$3, %rcx		# as byte offset
-	lea	(%r10, %rcx, 1), %rax	# pointer to match
-	test	%r11, %r11		# was there actually a match?
-	cmovz	%r11, %rax		# if not, return null pointer
+	/*  Termination Check */
+	test		%rdx, %rdx
+	jnz		.Lfound_nul
+
+	/* Save Match and Continue */
+	test		%rcx, %rcx		# Did we find the character in this block?
+	jz		.Lloop
+	mov		%rdi, %r12		# Update last seen block pointer
+	mov		%rcx, %r13		# Update last seen match mask
+	jmp		.Lloop
+
+.Lfound_nul:
+	/*
+	 * End of string reached.
+	 * We must ignore any 'matches' found after the first NUL byte.
+	 */
+	mov		%rdx, %r11
+	neg		%r11
+	and		%rdx, %r11		# Isolate the lowest 0x80 bit (the first NUL)
+	lea		(%r11, %r11), %rax
+	sub		$1, %rax		# Create mask of 1s up to the first NUL
+
+	and		%rax, %rcx		# Truncate match mask at the NUL position
+
+	test		%rcx, %rcx		# Any valid matches in this final block?
+	jz		.Lfinalize
+	mov		%rdi, %r12
+	mov		%rcx, %r13
+
+.Lfinalize:
+	test		%r12, %r12		# Did we ever find a match?
+	jz		.Lnot_found
+
+	/*
+	 * Found the last match. Use BSR to find the highest bit in the mask.
+	 * In little-endian, the highest bit in the register is the latest byte in memory.
+	 */
+	bsr		%r13, %rax		# Bit Scan Reverse
+	shr		$3, %rax		# Convert bit index to byte index (0-7)
+	add		%r12, %rax		# Pointer = block_start + index
+	ret
+
+.Lnot_found:
+	xor		%rax, %rax		# Return NULL
 	ret
 ARCHEND(strrchr, scalar)
 
