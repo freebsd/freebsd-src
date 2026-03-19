@@ -427,7 +427,6 @@ typical_embedded() {
 	echo "ifconfig_DEFAULT=DHCP" >> $rc
 	echo "ntpdate_hosts='0.freebsd.pool.ntp.org 1.freebsd.pool.ntp.org'" >> $rc
 	# Make sure that firstboot scripts run so growfs works.
-	# Note: still some issues removing this XXX
 	touch ${NANO_WORLDDIR}/firstboot
 }
 customize_cmd typical_embedded
