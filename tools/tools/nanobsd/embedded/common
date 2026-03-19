@@ -171,6 +171,31 @@ WITHOUT_INSTALLLIB=true
 
 NANO_PACKAGE_ONLY=1
 
+# makefs(8)-size compatible
+# See NetBSD's strsuftoll(3)
+strsuftoll() {
+	local num result unit
+
+	num=${1%?}
+	unit=${1#"${num}"}
+
+	case "$unit" in
+	[bB]) result="${num}x512" ;;
+	[kK]) result="${num}x1024" ;;
+	[mM]) result="${num}x1024x1024" ;;
+	[gG]) result="${num}x1024x1024x1024" ;;
+	[tT]) result="${num}x1024x1024x1024x1024" ;;
+	[wW]) result="${num}x4" ;; # sizeof(int)
+	[0-9]) result="$1" ;;
+	*)
+		printf "%s\n" "'$1': illegal number"
+		exit 1
+		;;
+	esac
+
+	printf "%s" "$(echo "scale=0; $result" | tr 'x' '*' | bc)"
+}
+
 # Creates images for all the formats that use MBR / GPT
 # split later if the #ifdef soup gets too bad.
 create_diskimage_gpt() {
@@ -190,7 +215,8 @@ create_diskimage_mbr() {
 	pprint 3 "image in: ${NANO_DISKIMGDIR}/_.disk.image.${NANO_NAME}${fmt}"
 
 	(
-	local extra i sz fmt fmtarg bootmbr bootbsd skiparg
+	local extra i sz fat_scheme fat_size fat_type fmt fmtarg bootmbr \
+	    bootbsd skiparg
 	set -o xtrace
 	# Tell mtools not to be too picky
 	export MTOOLS_SKIP_CHECK=1
@@ -208,7 +234,24 @@ create_diskimage_mbr() {
 	# Populate the FAT partition, if needed
 	if [ -n "${NANO_SLICE_FAT}" ]; then
 		echo Creating MSDOS partition for kernel
-		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F 16 -L ${NANO_NAME} \
+
+		# Minimum size of FAT filesystems
+		FAT16MIN=2150400
+		FAT32MIN=34091008
+
+		fat_size=$(strsuftoll "$NANO_SLICE_FAT_SIZE")
+		if [ "$fat_size" -ge "$FAT32MIN" ]; then
+			fat_type=32
+			fat_scheme=fat32lba
+		elif [ "$fat_size" -ge "$FAT16MIN" ]; then
+			fat_type=16
+			fat_scheme=fat16b
+		else
+			fat_type=12
+			fat_scheme=fat16b
+		fi
+
+		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F "$fat_type" -L ${NANO_NAME} \
 			${NANO_LOG}/_.${NANO_SLICE_FAT}
 		if [ -d ${NANO_FAT_DIR} ]; then
 			# Need to copy files from ${NANO_FATDIR} with mtools, or use
@@ -256,7 +299,7 @@ create_diskimage_mbr() {
 
 	# Now shuffle all the slices together into the proper layout
 	if [ -n "$NANO_SLICE_FAT" ]; then
-		eval $NANO_SLICE_FAT=fat16b
+		eval $NANO_SLICE_FAT=$fat_scheme
 	fi
 
 	out=${NANO_DISKIMGDIR}/_.disk.image.${NANO_NAME}${fmt}
