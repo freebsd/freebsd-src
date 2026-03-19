@@ -116,11 +116,11 @@ add_etc_make_conf() {
 }
 customize_cmd add_etc_make_conf
 
-cust_install_machine_files() {
+cust_install_machine_files() (
 	echo "cd ${NANO_CFG_BASE}/Files"
 	cd ${NANO_CFG_BASE}/Files
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -dumpv ${NANO_WORLDDIR}
-}
+)
 customize_cmd cust_install_files
 customize_cmd cust_install_machine_files
 
@@ -431,7 +431,7 @@ typical_embedded() {
 }
 customize_cmd typical_embedded
 
-fix_pkg() {
+fix_pkg() (
 	chdir ${NANO_WORLDDIR}
 	mkdir -p pkg
 	mkdir -p pkg/db
@@ -450,7 +450,7 @@ fix_pkg() {
 	echo "./pkg/db type=dir uname=root gname=wheel mode=0755"
 	echo "./pkg/tmp type=dir uname=root gname=wheel mode=0755"
 	) >> ${NANO_METALOG}
-}
+)
 customize_cmd fix_pkg
 
 save_build() {
@@ -476,7 +476,7 @@ customize_cmd shrink_md_fbsize
 
 customize_cmd cust_comconsole
 
-dos_boot_part() {
+dos_boot_part() (
 	local d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
 	local f=${NANO_FAT_DIR}
 
@@ -493,7 +493,7 @@ dos_boot_part() {
 
 	# Now we need to copy over dtb files from the build.
 	cp ${NANO_WORLDDIR}/boot/dtb/*.dtb .
-}
+)
 
 if [ -n "$NANO_BOOT_PKG" ]; then
 	d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
