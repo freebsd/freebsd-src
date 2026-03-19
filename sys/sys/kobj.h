@@ -259,13 +259,18 @@ size_t		kobj_total_data_size(kobj_class_t cls);
 #ifdef KOBJ_STATS
 extern u_int kobj_lookup_hits;
 extern u_int kobj_lookup_misses;
+
+#define	KOBJ_LOOKUP_HIT()	(++kobj_lookup_hits)
+#define	KOBJ_LOOKUP_MISS()	(++kobj_lookup_misses)
+#else
+#define	KOBJ_LOOKUP_HIT()	((void)0)
+#define	KOBJ_LOOKUP_MISS()	((void)0)
 #endif
 
 /*
  * Lookup the method in the cache and if it isn't there look it up the
  * slow way.
  */
-#ifdef KOBJ_STATS
 #define KOBJOPLOOKUP(OPS,OP) do {				\
 	kobjop_desc_t _desc = &OP##_##desc;			\
 	kobj_method_t **_cep =					\
@@ -274,23 +279,11 @@ extern u_int kobj_lookup_misses;
 	if (_ce->desc != _desc) {				\
 		_ce = kobj_lookup_method(OPS->cls,		\
 					 _cep, _desc);		\
-		kobj_lookup_misses++;				\
+		KOBJ_LOOKUP_MISS();				\
 	} else							\
-		kobj_lookup_hits++;				\
+		KOBJ_LOOKUP_HIT();				\
 	_m = _ce->func;						\
 } while (0)
-#else
-#define KOBJOPLOOKUP(OPS,OP) do {				\
-	kobjop_desc_t _desc = &OP##_##desc;			\
-	kobj_method_t **_cep =					\
-	    &OPS->cache[_desc->id & (KOBJ_CACHE_SIZE-1)];	\
-	kobj_method_t *_ce = *_cep;				\
-	if (_ce->desc != _desc)					\
-		_ce = kobj_lookup_method(OPS->cls,		\
-					 _cep, _desc);		\
-	_m = _ce->func;						\
-} while (0)
-#endif
 
 kobj_method_t* kobj_lookup_method(kobj_class_t cls,
 				  kobj_method_t **cep,
