@@ -934,7 +934,6 @@ bridge_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct bridge_softc *sc = ifp->if_softc;
 	struct bridge_iflist *bif;
-	struct epoch_tracker et;
 
 	BRIDGE_LOCK(sc);
 
@@ -960,13 +959,9 @@ bridge_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 	BRIDGE_LIST_UNLOCK();
 
 	bstp_detach(&sc->sc_stp);
-
-	NET_EPOCH_ENTER(et);
 #ifdef ALTQ
 	IFQ_PURGE(&ifp->if_snd);
 #endif
-	NET_EPOCH_EXIT(et);
-
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
