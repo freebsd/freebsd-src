@@ -235,11 +235,15 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	 * pos.
 	 */
 	if (!SV_CURPROC_FLAG(SV_AOUT)) {
-		if ((len == 0 && p->p_osrel >= P_OSREL_MAP_ANON) ||
-		    ((flags & MAP_ANON) != 0 && (fd != -1 || pos != 0))) {
-			return (EXTERROR(EINVAL,
-			    "offset %#jd not zero/fd %#jd not -1 for MAP_ANON",
-			    fd, pos));
+		if (len == 0 && p->p_osrel >= P_OSREL_MAP_ANON)
+			return (EXTERROR(EINVAL, "mapping with zero length"));
+		if ((flags & MAP_ANON) != 0) {
+			if (fd != -1)
+				return (EXTERROR(EINVAL,
+				    "fd %#jd not -1 for MAP_ANON", fd));
+			if (pos != 0)
+				return (EXTERROR(EINVAL,
+				    "offset %#jd not zero for MAP_ANON", pos));
 		}
 	} else {
 		if ((flags & MAP_ANON) != 0)
@@ -293,10 +297,14 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 
 	/* Ensure alignment is at least a page and fits in a pointer. */
 	align = flags & MAP_ALIGNMENT_MASK;
-	if (align != 0 && align != MAP_ALIGNED_SUPER &&
-	    (align >> MAP_ALIGNMENT_SHIFT >= sizeof(void *) * NBBY ||
-	    align >> MAP_ALIGNMENT_SHIFT < PAGE_SHIFT)) {
-		return (EXTERROR(EINVAL, "bad alignment %#jx", align));
+	if (align != 0 && align != MAP_ALIGNED_SUPER) {
+		if (align >> MAP_ALIGNMENT_SHIFT >= sizeof(void *) * NBBY)
+			return (EXTERROR(EINVAL, "bad alignment %#jx >= %#jx",
+			    align >> MAP_ALIGNMENT_SHIFT,
+			    sizeof(void *) * NBBY));
+		else if (align >> MAP_ALIGNMENT_SHIFT < PAGE_SHIFT)
+			return (EXTERROR(EINVAL, "bad alignment %#jx < %#jx",
+			    align >> MAP_ALIGNMENT_SHIFT, PAGE_SHIFT));
 	}
 
 	/*
@@ -312,15 +320,17 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 		addr -= pageoff;
 		if ((addr & PAGE_MASK) != 0) {
 			return (EXTERROR(EINVAL,
-			    "fixed mapping at %#jx not aligned", addr));
+			    "fixed mapping at %#jx not page aligned %#jx", addr,
+			    PAGE_SIZE));
 		}
 
 		/* Address range must be all in user VM space. */
 		if (!vm_map_range_valid(&vms->vm_map, addr, addr + size)) {
-			EXTERROR(EINVAL, "mapping outside vm_map");
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+			    "mapping %#jx-%#jx outside vm_map", addr,
+			    addr + size));
 		}
-		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR) {
+		if ((flags & MAP_32BIT) && addr + size > MAP_32BIT_MAX_ADDR) {
 			return (EXTERROR(EINVAL,
 		    "fixed 32bit mapping of [%#jx %#jx] does not fit into 4G",
 			    addr, addr + size));
