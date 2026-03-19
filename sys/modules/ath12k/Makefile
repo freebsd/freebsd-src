@@ -2,8 +2,10 @@ DEVATH12KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath12k
 
 .PATH: ${DEVATH12KDIR}
 
-ATH12K_ACPI=		0
+ATH12K_PCI=		1
 ATH12K_AHB=		0
+
+ATH12K_ACPI=		0
 ATH12K_COREDUMP=	0
 ATH12K_DEBUGFS=		0
 ATH12K_PM=		0
@@ -16,7 +18,11 @@ SRCS+=	wmi.c mac.c reg.c htc.c qmi.c
 SRCS+=	dp.c dp_tx.c dp_rx.c dp_mon.c debug.c
 SRCS+=	ce.c peer.c dbring.c hw.c fw.c p2p.c
 
+.if defined(ATH12K_PCI) && ${ATH12K_PCI} > 0 && ${KERN_OPTS:MDEV_PCI}
 SRCS+=	mhi.c pci.c
+.else
+.error	ath12k requires PCI support compiled in at this point
+.endif
 
 .if defined(ATH12K_AHB) && ${ATH12K_AHB} > 0
 CFLAGS+=	-DCONFIG_ATH12K_AHB
