@@ -35,7 +35,12 @@
 
 const fenv_t __fe_dfl_env = 0x00000000;
 
-extern inline int feclearexcept(int __excepts);
+int
+(feclearexcept)(int excepts)
+{
+	return (__feclearexcept_int(excepts));
+}
+
 extern inline int fegetexceptflag(fexcept_t *__flagp, int __excepts);
 extern inline int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
 extern inline int feraiseexcept(int __excepts);
