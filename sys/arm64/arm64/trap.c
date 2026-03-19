@@ -129,6 +129,7 @@ call_trapsignal(struct thread *td, int sig, int code, void *addr, int trapno)
 	ksi.ksi_code = code;
 	ksi.ksi_addr = addr;
 	ksi.ksi_trapno = trapno;
+	ksi.ksi_flags |= KSI_EXCEPT;
 	trapsignal(td, &ksi);
 }
 
