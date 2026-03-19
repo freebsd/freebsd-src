@@ -45,6 +45,7 @@
 
 #include <linux/mm.h>
 #include <linux/page.h>
+#include <linux/hardirq.h>
 
 #define	PageHighMem(p)		(0)
 

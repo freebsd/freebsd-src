@@ -40,6 +40,7 @@
 #include <linux/rwlock.h>
 #include <linux/bottom_half.h>
 #include <linux/lockdep.h>
+#include <linux/preempt.h>
 
 typedef struct mtx spinlock_t;
 
