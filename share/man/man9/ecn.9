@@ -164,7 +164,7 @@ IPv6 interfaces
 .Fn ip6_ecn_ingress
 and
 .Fn ip6_ecn_egress
-extract the 8‑bit DSCP and ECN values from the 32‑bit
+extract the 8-bit DSCP and ECN values from the 32-bit
 .Vt ip6_flow
 and insert it to IPv4 equivalent interfaces.
 .Sh SEE ALSO
@@ -176,9 +176,9 @@ Historically
 .Fn ip_ecn_egress
 used a boolean-style return.
 The current API preserves numeric mapping for drop (ECN_DROP == 0)
-and success (ECN_SUCCESS == 1) but defines additional non‑zero
+and success (ECN_SUCCESS == 1) but defines additional non-zero
 status codes (ECN_WARN, ECN_ALARM).
-Callers that only test for non‑zero success will continue to
+Callers that only test for non-zero success will continue to
 treat WARN/ALARM as success.
 .Sh AUTHORS
 .An Pouria Mousavizadeh Tehrani Aq Mt pouria@FreeBSD.org
