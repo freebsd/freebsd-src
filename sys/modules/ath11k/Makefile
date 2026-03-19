@@ -2,61 +2,29 @@ DEVATH11KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath11k
 
 .PATH: ${DEVATH11KDIR}
 
-ATH11K_DEBUGFS=		0
-ATH11K_TRACE=		0
-ATH11K_THERMAL=		0
-ATH11K_SPECTRAL=	0
-ATH11K_PM=		0
-ATH11K_DEV_COREDUMP=	0
+WITH_DEBUGFS=	0		# Does not yet compile
+WITH_CONFIG_PM=	0
 
 KMOD=	if_ath11k
 
 SRCS+=	core.c hal.c hal_tx.c hal_rx.c
 SRCS+=	wmi.c mac.c reg.c htc.c qmi.c
 SRCS+=	dp.c dp_tx.c dp_rx.c debug.c
-SRCS+=	ce.c peer.c dbring.c hw.c pcic.c
-SRCS+=	fw.c p2p.c
+SRCS+=	ce.c peer.c dbring.c hw.c
+SRCS+=	coredump.c fw.c p2p.c
 
-# PCI
-SRCS+=	mhi.c pci.c
+SRCS+=	mhi.c pci.c pcic.c
 
-# AHB
-#SRCS+=	ahb.c
-
-.if defined(ATH11K_DEBUGFS) && ${ATH11K_DEBUGFS} > 0
-SRCS+=	debugfs.c debugfs_htt_stats.c debugfs_sta.c
-CFLAGS+=	-DCONFIG_ATH11K_DEBUGFS
-CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS
-.endif
-
-.if defined(ATH11K_TRACE) && ${ATH11K_TRACE} > 0
-SRCS+=	trace.c
-CFLAGS+=	-DCONFIG_ATH11K_TRACING
-.endif
-
-.if defined(ATH11K_THERMAL) && ${ATH11K_THERMAL} > 0
-SRCS+=	thermal.c
-CFLAGS+=	-DCONFIG_ATH11K_THERMAL
-.endif
-
-.if defined(ATH11K_SPECTRAL) && ${ATH11K_SPECTRAL} > 0
-SRCS+=	spectral.c
-CFLAGS+=	-DCONFIG_ATH11K_SPECTRAL
-.endif
-
-.if defined(ATH11K_PM) && ${ATH11K_PM} > 0
-CFLAGS+=	-DCONFIG_PM
+.if defined(WITH_CONFIG_PM) && ${WITH_CONFIG_PM} > 0
+CFLAGS+=	-DCONFIG_PM=${WITH_CONFIG_PM}
 SRCS+=	wow.c
-.endif
-
-.if defined(ATH11K_DEV_COREDUMP) && ${ATH11K_DEV_COREDUMP} > 0
-CFLAGS+=	-DCONFIG_DEV_COREDUMP
-SRCS+=	coredump.c
 .endif
 
 # Other
 SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
+
+CFLAGS+=	-DKBUILD_MODNAME='"ath11k"'
 
 CFLAGS+=	-I${DEVATH11KDIR}
 CFLAGS+=	-I${DEVATH11KDIR}/..
@@ -66,7 +34,16 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 
 CFLAGS+=	-DCONFIG_ATH11K_DEBUG
 
-CFLAGS+=	-DKBUILD_MODNAME='"ath11k"'
-CFLAGS+=	-DLINUXKPI_VERSION=61900
+.if defined(WITH_DEBUGFS) && ${WITH_DEBUGFS} > 0
+SRCS+=		debugfs.c debugfs_htt_stats.c debugfs_sta.c
+CFLAGS+=	-DCONFIG_ATH11K_DEBUGFS=${WITH_DEBUGFS}
+CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS=${WITH_DEBUGFS}
+.endif
+
+#CFLAGS+=	-DCONFIG_ATH11K_SPECTRAL
+#CFLAGS+=	-DCONFIG_ATH11K_TRACING
+#CFLAGS+=	-DCONFIG_NL80211_TESTMODE
+#CFLAGS+=	-DCONFIG_PM
+#CFLAGS+=	-DCONFIG_THERMAL
 
 .include <bsd.kmod.mk>
