@@ -271,10 +271,6 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 		return (EXTERROR(EINVAL,
 		    "both SHARED and PRIVATE set (flags %#jx)", flags));
 	}
-	if (prot != PROT_NONE &&
-	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0) {
-		return (EXTERROR(EINVAL, "invalid prot %#jx", prot));
-	}
 	if ((flags & MAP_GUARD) != 0 && (prot != PROT_NONE || fd != -1 ||
 	    pos != 0 || (flags & ~(MAP_FIXED | MAP_GUARD | MAP_EXCL |
 	    MAP_32BIT | MAP_ALIGNMENT_MASK)) != 0)) {
