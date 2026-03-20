@@ -13,7 +13,7 @@
 
 LIB=		k5crypto
 # SHLIB_MAJOR=	3
-LDFLAGS=-Wl,--no-undefined
+LDFLAGS+=-Wl,--no-undefined
 LIBADD=	com_err krb5support crypto
 VERSION_MAP=	${.CURDIR}/version.map
 

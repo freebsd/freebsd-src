@@ -14,7 +14,7 @@
 LIBDIR=		${PLUGINSDIR}/tls
 SHLIBDIR=	${LIBDIR}
 LIB=		k5tls
-LDFLAGS=-Wl,--no-undefined
+LDFLAGS+=-Wl,--no-undefined
 LIBADD=	krb5 krb5profile krb5support ssl crypto k5crypto com_err sys
 VERSION_MAP=	${.CURDIR}/version.map
 
