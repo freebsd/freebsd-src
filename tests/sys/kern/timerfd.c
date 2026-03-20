@@ -949,6 +949,34 @@ ATF_TC_BODY(timerfd__reset_to_very_long, tc)
 	ATF_REQUIRE(errno == EAGAIN);
 }
 
+ATF_TC_WITHOUT_HEAD(timerfd__missed_events);
+ATF_TC_BODY(timerfd__missed_events, tc)
+{
+	struct itimerspec its = { };
+	uint64_t timeouts;
+	int timerfd;
+
+	timerfd = timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC);
+	ATF_REQUIRE(timerfd >= 0);
+
+	ATF_REQUIRE(clock_gettime(CLOCK_REALTIME, &its.it_value) == 0);
+	its.it_value.tv_sec -= 1000;
+	its.it_interval.tv_sec = 1;
+
+	ATF_REQUIRE(timerfd_settime(timerfd, TFD_TIMER_ABSTIME, &its,
+	    NULL) == 0);
+
+	ATF_REQUIRE(read(timerfd, &timeouts, sizeof(timeouts)) ==
+	    sizeof(timeouts));
+	ATF_REQUIRE_MSG(timeouts == 1001, "%ld", (long)timeouts);
+
+	ATF_REQUIRE(read(timerfd, &timeouts, sizeof(timeouts)) ==
+	    sizeof(timeouts));
+	ATF_REQUIRE_MSG(timeouts == 1, "%ld", (long)timeouts);
+
+	ATF_REQUIRE(close(timerfd) == 0);
+}
+
 /*
  * Tests requiring root (clock_settime on CLOCK_REALTIME).
  * Tests gracefully skip if not running as root.
@@ -1306,6 +1334,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, timerfd__short_evfilt_timer_timeout);
 	ATF_TP_ADD_TC(tp, timerfd__unmodified_errno);
 	ATF_TP_ADD_TC(tp, timerfd__reset_to_very_long);
+	ATF_TP_ADD_TC(tp, timerfd__missed_events);
 
 	ATF_TP_ADD_TC(tp, timerfd_root__zero_read_on_abs_realtime);
 	ATF_TP_ADD_TC(tp, timerfd_root__read_on_abs_realtime_no_interval);
