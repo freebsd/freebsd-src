@@ -127,7 +127,7 @@ struct tpmcrb_sc {
 	size_t		rsp_buf_size;
 };
 
-int tpmcrb_transmit(device_t dev, size_t size);
+int tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t size);
 
 static int tpmcrb_acpi_probe(device_t dev);
 static int tpmcrb_attach(device_t dev);
@@ -257,7 +257,6 @@ tpmcrb_attach(device_t dev)
 	sc->dev = dev;
 
 	sx_init(&sc->dev_lock, "TPM driver lock");
-	sc->buf = malloc(TPM_BUFSIZE, M_TPM20, M_WAITOK);
 
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
@@ -480,7 +479,7 @@ tpmcrb_state_ready(struct tpmcrb_sc *crb_sc, bool wait)
 }
 
 int
-tpmcrb_transmit(device_t dev, size_t length)
+tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 {
 	struct tpmcrb_sc *crb_sc;
 	struct tpm_sc *sc;
@@ -531,12 +530,12 @@ tpmcrb_transmit(device_t dev, size_t length)
 	 * Calculate timeout for current command.
 	 * Command code is passed in bytes 6-10.
 	 */
-	curr_cmd = be32toh(*(uint32_t *) (&sc->buf[6]));
+	curr_cmd = be32toh(*(uint32_t *) (&priv->buf[6]));
 	timeout = tpm20_get_timeout(curr_cmd);
 
 	/* Send command and tell device to process it. */
 	bus_write_region_stream_1(sc->mem_res, crb_sc->cmd_off,
-	    sc->buf, length);
+	    priv->buf, length);
 	TPM_WRITE_BARRIER(dev, crb_sc->cmd_off, length);
 
 	TPM_WRITE_4(dev, TPM_CRB_CTRL_START, TPM_CRB_CTRL_START_CMD);
@@ -559,8 +558,8 @@ tpmcrb_transmit(device_t dev, size_t length)
 
 	/* Read response header. Length is passed in bytes 2 - 6. */
 	bus_read_region_stream_1(sc->mem_res, crb_sc->rsp_off,
-	    sc->buf, TPM_HEADER_SIZE);
-	bytes_available = be32toh(*(uint32_t *) (&sc->buf[2]));
+	    priv->buf, TPM_HEADER_SIZE);
+	bytes_available = be32toh(*(uint32_t *) (&priv->buf[2]));
 
 	if (bytes_available > TPM_BUFSIZE || bytes_available < TPM_HEADER_SIZE) {
 		device_printf(dev,
@@ -570,7 +569,7 @@ tpmcrb_transmit(device_t dev, size_t length)
 	}
 
 	bus_read_region_stream_1(sc->mem_res, crb_sc->rsp_off + TPM_HEADER_SIZE,
-	      &sc->buf[TPM_HEADER_SIZE], bytes_available - TPM_HEADER_SIZE);
+	      &priv->buf[TPM_HEADER_SIZE], bytes_available - TPM_HEADER_SIZE);
 
 	/*
 	 * No need to wait for the transition to idle on the way out, we can
@@ -583,8 +582,8 @@ tpmcrb_transmit(device_t dev, size_t length)
 	}
 
 	tpmcrb_relinquish_locality(sc);
-	sc->pending_data_length = bytes_available;
-	sc->total_length = bytes_available;
+	priv->offset = 0;
+	priv->len = bytes_available;
 
 	return (0);
 }
