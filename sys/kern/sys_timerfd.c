@@ -290,7 +290,7 @@ filt_timerfdread(struct knote *kn, long hint)
 
 	mtx_assert(&tfd->tfd_lock, MA_OWNED);
 	kn->kn_data = (int64_t)tfd->tfd_count;
-	return (tfd->tfd_count > 0);
+	return (tfd->tfd_count > 0 && tfd->tfd_jumped != TFD_READ);
 }
 
 static const struct filterops timerfd_rfiltops = {
