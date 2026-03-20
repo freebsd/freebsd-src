@@ -165,7 +165,7 @@ timerfd_jumped(void)
 				    &diff, &tfd->tfd_time.it_value);
 				if (callout_stop(&tfd->tfd_callout) == 1) {
 					callout_schedule_sbt(&tfd->tfd_callout,
-					    tstosbt(tfd->tfd_time.it_value),
+					    tstosbt_sat(tfd->tfd_time.it_value),
 					    0, C_ABSOLUTE);
 				}
 			}
@@ -398,10 +398,10 @@ timerfd_expire(void *arg)
 	++tfd->tfd_count;
 	tfd->tfd_expired = true;
 	if (timespecisset(&tfd->tfd_time.it_interval)) {
-		exp = tstosbt(tfd->tfd_time.it_value);
-		interval = tstosbt(tfd->tfd_time.it_interval);
+		exp = tstosbt_sat(tfd->tfd_time.it_value);
+		interval = tstosbt_sat(tfd->tfd_time.it_interval);
 		now = sbinuptime();
-		next = now + interval;
+		next = now > SBT_MAX - interval ? SBT_MAX : now + interval;
 
 		/* Count missed events. */
 		if (now > exp) {
@@ -553,7 +553,7 @@ kern_timerfd_settime(struct thread *td, int fd, int flags,
 			    &tfd->tfd_time.it_value);
 		}
 		callout_reset_sbt(&tfd->tfd_callout,
-		    tstosbt(tfd->tfd_time.it_value),
+		    tstosbt_sat(tfd->tfd_time.it_value),
 		    0, timerfd_expire, tfd, C_ABSOLUTE);
 	} else {
 		callout_stop(&tfd->tfd_callout);
