@@ -953,6 +953,50 @@ dummynet_mask_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "first_match" "cleanup"
+first_match_head()
+{
+	atf_set descr 'Test that NAT rules are first match'
+	atf_set require.user root
+}
+
+first_match_body()
+{
+	pft_init
+
+	epair_nat=$(vnet_mkepair)
+	epair_echo=$(vnet_mkepair)
+
+	vnet_mkjail nat ${epair_nat}b ${epair_echo}a
+	vnet_mkjail echo ${epair_echo}b
+
+	ifconfig ${epair_nat}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+
+	jexec nat ifconfig ${epair_nat}b 192.0.2.1/24 up
+	jexec nat ifconfig ${epair_echo}a 198.51.100.1/24 up
+	jexec nat sysctl net.inet.ip.forwarding=1
+
+	jexec echo ifconfig ${epair_echo}b 198.51.100.2/24 up
+
+	# Enable pf!
+	jexec nat pfctl -e
+	pft_set_rules nat \
+		"table <foo> { 192.0.2.0/24 }" \
+		"nat on ${epair_echo}a inet from <foo> to any -> 198.51.100.1" \
+		"nat on ${epair_echo}a inet from 192.0.2.0/24 to any -> 198.51.100.3"
+
+	atf_check -s exit:0 -o ignore ping -c 3 198.51.100.2
+	atf_check -s exit:0 -e ignore \
+	    -o match:"all icmp 198.51.100.1:.*(192.0.2.2:.*) -> 198.51.100.2:8.*" \
+		jexec nat pfctl -ss
+}
+
+first_match_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "exhaust"
@@ -975,4 +1019,5 @@ atf_init_test_cases()
 	atf_add_test_case "binat_match"
 	atf_add_test_case "empty_pool"
 	atf_add_test_case "dummynet_mask"
+	atf_add_test_case "first_match"
 }
