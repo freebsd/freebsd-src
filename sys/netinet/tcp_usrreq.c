@@ -2698,11 +2698,6 @@ tcp_usrclosed(struct tcpcb *tp)
 
 	switch (tp->t_state) {
 	case TCPS_LISTEN:
-#ifdef TCP_OFFLOAD
-		tcp_offload_listen_stop(tp);
-#endif
-		tcp_state_change(tp, TCPS_CLOSED);
-		/* FALLTHROUGH */
 	case TCPS_CLOSED:
 		tp = tcp_close(tp);
 		/*
