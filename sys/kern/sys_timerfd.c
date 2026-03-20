@@ -393,23 +393,25 @@ static void
 timerfd_expire(void *arg)
 {
 	struct timerfd *tfd = (struct timerfd *)arg;
-	struct timespec uptime;
+	sbintime_t exp, interval, now, next, diff;
 
 	++tfd->tfd_count;
 	tfd->tfd_expired = true;
 	if (timespecisset(&tfd->tfd_time.it_interval)) {
+		exp = tstosbt(tfd->tfd_time.it_value);
+		interval = tstosbt(tfd->tfd_time.it_interval);
+		now = sbinuptime();
+		next = now + interval;
+
 		/* Count missed events. */
-		nanouptime(&uptime);
-		if (timespeccmp(&uptime, &tfd->tfd_time.it_value, >)) {
-			timespecsub(&uptime, &tfd->tfd_time.it_value, &uptime);
-			tfd->tfd_count += tstosbt(uptime) /
-			    tstosbt(tfd->tfd_time.it_interval);
+		if (now > exp) {
+			diff = now - exp;
+			tfd->tfd_count += diff / interval;
+			next -= diff % interval;
 		}
-		timespecadd(&tfd->tfd_time.it_value,
-		    &tfd->tfd_time.it_interval, &tfd->tfd_time.it_value);
-		callout_schedule_sbt(&tfd->tfd_callout,
-		    tstosbt(tfd->tfd_time.it_value),
-		    0, C_ABSOLUTE);
+
+		callout_schedule_sbt(&tfd->tfd_callout, next, 0, C_ABSOLUTE);
+		tfd->tfd_time.it_value = sbttots(next);
 	} else {
 		/* Single shot timer. */
 		callout_deactivate(&tfd->tfd_callout);
