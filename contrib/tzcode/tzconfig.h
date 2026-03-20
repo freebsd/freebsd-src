@@ -8,7 +8,6 @@
 #define HAVE_GETTEXT			false
 #define HAVE_ISSETUGID			true
 #define HAVE___ISTHREADED		true
-#define HAVE_MEMPCPY			true
 #define HAVE_PWD_H			true
 #define HAVE_SETMODE			true
 #define HAVE_STRUCT_STAT_ST_CTIM	true
