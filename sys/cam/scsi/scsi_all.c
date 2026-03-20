@@ -2194,13 +2194,13 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x39, 0x00, SS_RDEF,
 	    "Saving parameters not supported") },
 	/* DTL WROM  BK   */
-	{ SST(0x3A, 0x00, SS_FATAL | ENXIO,
+	{ SST(0x3A, 0x00, SS_FAIL | ENXIO,
 	    "Medium not present") },
 	/* DT  WROM  BK   */
-	{ SST(0x3A, 0x01, SS_FATAL | ENXIO,
+	{ SST(0x3A, 0x01, SS_FAIL | ENXIO,
 	    "Medium not present - tray closed") },
 	/* DT  WROM  BK   */
-	{ SST(0x3A, 0x02, SS_FATAL | ENXIO,
+	{ SST(0x3A, 0x02, SS_FAIL | ENXIO,
 	    "Medium not present - tray open") },
 	/* DT  WROM  B    */
 	{ SST(0x3A, 0x03, SS_RDEF,	/* XXX TBD */
