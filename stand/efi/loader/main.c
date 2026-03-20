@@ -555,6 +555,15 @@ find_currdev(bool do_bootmgr, bool is_last,
 		} /* Nothing specified, try normal match */
 	}
 
+#ifdef MD_IMAGE_SIZE
+	/*
+	 * If there is an embedded MD, try to use that.
+	 */
+	printf("Trying MD\n");
+	if (probe_md_currdev())
+		return (0);
+#endif /* MD_IMAGE_SIZE */
+
 #ifdef EFI_ZFS_BOOT
 	/*
 	 * Did efi_zfs_probe() detect the boot pool? If so, use the zpool
@@ -569,15 +578,6 @@ find_currdev(bool do_bootmgr, bool is_last,
 			return (0);
 	}
 #endif /* EFI_ZFS_BOOT */
-
-#ifdef MD_IMAGE_SIZE
-	/*
-	 * If there is an embedded MD, try to use that.
-	 */
-	printf("Trying MD\n");
-	if (probe_md_currdev())
-		return (0);
-#endif /* MD_IMAGE_SIZE */
 
 	/*
 	 * Try to find the block device by its handle based on the
