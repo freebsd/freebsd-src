@@ -13,7 +13,7 @@
 
 LIB=	kadmin_common
 INTERNALLIB=
-LDFLAGS=-Wl,--no-undefined
+LDFLAGS+=-Wl,--no-undefined
 INCS=	
 
 SRCS=	kadmin.c \

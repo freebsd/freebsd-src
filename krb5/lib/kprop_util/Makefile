@@ -13,7 +13,7 @@
 
 LIB=	kprop_util
 INTERNALLIB=
-LDFLAGS=-Wl,--no-undefined
+LDFLAGS+=-Wl,--no-undefined
 INCS=	
 
 SRCS=	kprop_util.c

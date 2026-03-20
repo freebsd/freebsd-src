@@ -13,7 +13,7 @@
 .include "${KRB5_SRCTOP}/Makefile.pc"
 
 LIB=		gssrpc
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 LIBADD=		gssapi_krb5 krb5 k5crypto com_err krb5support
 VERSION_MAP=	${.CURDIR}/version.map
 PCFILES=	gssrpc.pc
