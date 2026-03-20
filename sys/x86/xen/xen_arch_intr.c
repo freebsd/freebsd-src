@@ -77,7 +77,6 @@ SYSINIT(xen_intrcnt_init, SI_SUB_INTR, SI_ORDER_MIDDLE, xen_intrcnt_init, NULL);
  * Transition from assembly language, called from
  * sys/{amd64/amd64|i386/i386}/apic_vector.S
  */
-extern void xen_arch_intr_handle_upcall(struct trapframe *);
 void
 xen_arch_intr_handle_upcall(struct trapframe *trap_frame)
 {

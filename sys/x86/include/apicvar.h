@@ -274,6 +274,8 @@ extern int x2apic_mode;
 extern int lapic_eoi_suppression;
 extern int apic_ext_dest_id;
 
+void xen_arch_intr_handle_upcall(struct trapframe *);
+
 #ifdef _SYS_SYSCTL_H_
 SYSCTL_DECL(_hw_apic);
 #endif
