@@ -73,7 +73,7 @@
 #define	TPM_STS_BURST_MASK		0xFFFF00
 #define	TPM_STS_BURST_OFFSET		0x8
 
-static int tpmtis_transmit(device_t dev, size_t length);
+static int tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length);
 
 static int tpmtis_detach(device_t dev);
 
@@ -104,7 +104,6 @@ tpmtis_attach(device_t dev)
 	sc->intr_type = -1;
 
 	sx_init(&sc->dev_lock, "TPM driver lock");
-	sc->buf = malloc(TPM_BUFSIZE, M_TPM20, M_WAITOK);
 
 	resource_int_value("tpm", device_get_unit(dev), "use_polling", &poll);
 	if (poll != 0) {
@@ -164,6 +163,7 @@ tpmtis_detach(device_t dev)
 static void
 tpmtis_test_intr(struct tpm_sc *sc)
 {
+	struct tpm_priv *priv;
 	uint8_t cmd[] = {
 		0x80, 0x01,		/* TPM_ST_NO_SESSIONS tag*/
 		0x00, 0x00, 0x00, 0x0c,	/* cmd length */
@@ -172,9 +172,9 @@ tpmtis_test_intr(struct tpm_sc *sc)
 	};
 
 	sx_xlock(&sc->dev_lock);
-	memcpy(sc->buf, cmd, sizeof(cmd));
-	tpmtis_transmit(sc->dev, sizeof(cmd));
-	sc->pending_data_length = 0;
+	priv = sc->internal_priv;
+	memcpy(priv->buf, cmd, sizeof(cmd));
+	tpmtis_transmit(sc->dev, priv, sizeof(cmd));
 	sx_xunlock(&sc->dev_lock);
 }
 
@@ -384,7 +384,7 @@ tpmtis_go_ready(struct tpm_sc *sc)
 }
 
 static int
-tpmtis_transmit(device_t dev, size_t length)
+tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 {
 	struct tpm_sc *sc;
 	size_t bytes_available;
@@ -404,7 +404,7 @@ tpmtis_transmit(device_t dev, size_t length)
 		    "Failed to switch to ready state\n");
 		return (EIO);
 	}
-	if (!tpmtis_write_bytes(sc, length, sc->buf)) {
+	if (!tpmtis_write_bytes(sc, length, priv->buf)) {
 		device_printf(dev,
 		    "Failed to write cmd to device\n");
 		return (EIO);
@@ -428,7 +428,7 @@ tpmtis_transmit(device_t dev, size_t length)
 	 * Calculate timeout for current command.
 	 * Command code is passed in bytes 6-10.
 	 */
-	curr_cmd = be32toh(*(uint32_t *) (&sc->buf[6]));
+	curr_cmd = be32toh(*(uint32_t *) (&priv->buf[6]));
 	timeout = tpm20_get_timeout(curr_cmd);
 
 	TPM_WRITE_4(dev, TPM_STS, TPM_STS_CMD_START);
@@ -455,12 +455,12 @@ tpmtis_transmit(device_t dev, size_t length)
 			return (EIO);
 	}
 	/* Read response header. Length is passed in bytes 2 - 6. */
-	if(!tpmtis_read_bytes(sc, TPM_HEADER_SIZE, sc->buf)) {
+	if (!tpmtis_read_bytes(sc, TPM_HEADER_SIZE, priv->buf)) {
 		device_printf(dev,
 		    "Failed to read response header\n");
 		return (EIO);
 	}
-	bytes_available = be32toh(*(uint32_t *) (&sc->buf[2]));
+	bytes_available = be32toh(*(uint32_t *) (&priv->buf[2]));
 
 	if (bytes_available > TPM_BUFSIZE || bytes_available < TPM_HEADER_SIZE) {
 		device_printf(dev,
@@ -468,15 +468,15 @@ tpmtis_transmit(device_t dev, size_t length)
 		    bytes_available);
 		return (EIO);
 	}
-	if(!tpmtis_read_bytes(sc, bytes_available - TPM_HEADER_SIZE,
-	    &sc->buf[TPM_HEADER_SIZE])) {
+	if (!tpmtis_read_bytes(sc, bytes_available - TPM_HEADER_SIZE,
+	    &priv->buf[TPM_HEADER_SIZE])) {
 		device_printf(dev,
 		    "Failed to read response\n");
 		return (EIO);
 	}
 	tpmtis_relinquish_locality(sc);
-	sc->pending_data_length = bytes_available;
-	sc->total_length = bytes_available;
+	priv->offset = 0;
+	priv->len = bytes_available;
 
 	return (0);
 }

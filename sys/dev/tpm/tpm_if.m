@@ -28,6 +28,10 @@
 #include <sys/bus.h>
 #include <dev/tpm/tpm20.h>
 
+HEADER {
+	struct tpm_priv;
+};
+
 INTERFACE tpm;
 
 #
@@ -35,6 +39,7 @@ INTERFACE tpm;
 #
 METHOD int transmit {
 	device_t dev;
+	struct tpm_priv *priv;
 	size_t length;
 };
 
