@@ -118,6 +118,14 @@ timerfd_getboottime(struct timespec *ts)
 	TIMEVAL_TO_TIMESPEC(&tv, ts);
 }
 
+static void
+timerfd_wakeup(struct timerfd *tfd)
+{
+	wakeup(&tfd->tfd_count);
+	selwakeup(&tfd->tfd_sel);
+	KNOTE_LOCKED(&tfd->tfd_sel.si_note, 0);
+}
+
 /*
  * Call when a discontinuous jump has occured in CLOCK_REALTIME and
  * update timerfd's cached boottime. A jump can be triggered using
@@ -172,6 +180,8 @@ timerfd_jumped(void)
 		}
 
 		tfd->tfd_boottim = boottime;
+		if ((tfd->tfd_jumped & TFD_JUMPED) != 0)
+			timerfd_wakeup(tfd);
 		mtx_unlock(&tfd->tfd_lock);
 	}
 	mtx_unlock(&timerfd_list_lock);
@@ -418,9 +428,7 @@ timerfd_expire(void *arg)
 		timespecclear(&tfd->tfd_time.it_value);
 	}
 
-	wakeup(&tfd->tfd_count);
-	selwakeup(&tfd->tfd_sel);
-	KNOTE_LOCKED(&tfd->tfd_sel.si_note, 0);
+	timerfd_wakeup(tfd);
 }
 
 int
