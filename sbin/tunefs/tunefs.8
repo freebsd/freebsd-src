@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 17, 2023
+.Dd March 20, 2026
 .Dt TUNEFS 8
 .Os
 .Sh NAME
@@ -92,6 +92,8 @@ this parameter should be set higher.
 Specify the expected average file size.
 .It Fl j Cm enable | disable
 Turn on/off soft updates journaling.
+Enabling soft updates journaling implies enabling soft updates and is
+incompatible with GEOM journaling.
 .Pp
 Enabling journaling reduces the time spent by
 .Xr fsck_ffs 8
@@ -128,7 +130,8 @@ is running.
 Running a full fsck on a UFS filesystem is the equivalent of
 running a scrub on a ZFS filesystem.
 .It Fl J Cm enable | disable
-Turn on/off gjournal flag.
+Turn on/off GEOM journaling.
+GEOM journaling is incompatible with soft updates.
 .It Fl k Ar held-for-metadata-blocks
 Set the amount of space to be held for metadata blocks.
 When set, the file system preference routines will try to save
@@ -171,6 +174,7 @@ been deleted to get under the higher threshold.
 Turn on/off the administrative NFSv4 ACL enable flag.
 .It Fl n Cm enable | disable
 Turn on/off soft updates.
+Soft updates are incompatible with GEOM journaling.
 .It Fl o Cm space | time
 The file system can either try to minimize the time spent
 allocating blocks, or it can attempt to minimize the space
