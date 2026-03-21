@@ -71,8 +71,11 @@ struct json_event {
 	char *perpkg;
 	char *aggr_mode;
 	char *metric_expr;
+	char *metric_threshold;
 	char *metric_name;
 	char *metric_group;
+	char *metric_group_nogroup;
+	char *default_metric_group;
 	char *deprecated;
 	char *metric_constraint;
 };
@@ -379,10 +382,16 @@ static int print_events_table_entry(void *data, struct json_event *je)
 		fprintf(outfp, "\t.aggr_mode = \"%d\",\n", convert(je->aggr_mode));
 	if (je->metric_expr)
 		fprintf(outfp, "\t.metric_expr = \"%s\",\n", je->metric_expr);
+	if (je->metric_threshold)
+		fprintf(outfp, "\t.metric_threshold = \"%s\",\n", je->metric_threshold);
 	if (je->metric_name)
 		fprintf(outfp, "\t.metric_name = \"%s\",\n", je->metric_name);
 	if (je->metric_group)
 		fprintf(outfp, "\t.metric_group = \"%s\",\n", je->metric_group);
+	if (je->metric_group_nogroup)
+		fprintf(outfp, "\t.metric_group_nogroup = \"%s\",\n", je->metric_group_nogroup);
+	if (je->default_metric_group)
+		fprintf(outfp, "\t.default_metric_group = \"%s\",\n", je->default_metric_group);
 	if (je->deprecated)
 		fprintf(outfp, "\t.deprecated = \"%s\",\n", je->deprecated);
 	if (je->metric_constraint)
@@ -404,8 +413,11 @@ struct event_struct {
 	char *perpkg;
 	char *aggr_mode;
 	char *metric_expr;
+	char *metric_threshold;
 	char *metric_name;
 	char *metric_group;
+	char *metric_group_nogroup;
+	char *default_metric_group;
 	char *deprecated;
 	char *metric_constraint;
 };
@@ -434,8 +446,11 @@ struct event_struct {
 	op(perpkg);						\
 	op(aggr_mode);						\
 	op(metric_expr);					\
+	op(metric_threshold);					\
 	op(metric_name);					\
 	op(metric_group);					\
+	op(metric_group_nogroup);				\
+	op(default_metric_group);				\
 	op(deprecated);						\
 } while (0)
 
@@ -711,10 +726,16 @@ static int json_events(const char *fn,
 				addfield(map, &je.metric_name, "", "", val);
 			} else if (json_streq(map, field, "MetricGroup")) {
 				addfield(map, &je.metric_group, "", "", val);
+			} else if (json_streq(map, field, "MetricgroupNoGroup")) {
+				addfield(map, &je.metric_group_nogroup, "", "", val);
+			} else if (json_streq(map, field, "DefaultMetricgroupName")) {
+				addfield(map, &je.default_metric_group, "", "", val);
 			} else if (json_streq(map, field, "MetricConstraint")) {
 				addfield(map, &je.metric_constraint, "", "", val);
 			} else if (json_streq(map, field, "MetricExpr")) {
 				addfield(map, &je.metric_expr, "", "", val);
+			} else if (json_streq(map, field, "MetricThreshold")) {
+				addfield(map, &je.metric_threshold, "", "", val);
 			} else if (json_streq(map, field, "ArchStdEvent")) {
 				addfield(map, &arch_std, "", "", val);
 				for (s = arch_std; *s; s++)
@@ -866,8 +887,11 @@ free_strings:
 		free(je.deprecated);
 		free(je.unit);
 		free(je.metric_expr);
+		free(je.metric_threshold);
 		free(je.metric_name);
 		free(je.metric_group);
+		free(je.metric_group_nogroup);
+		free(je.default_metric_group);
 		free(je.metric_constraint);
 		free(arch_std);
 
