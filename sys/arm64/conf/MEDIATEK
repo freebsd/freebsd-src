@@ -1,5 +1,5 @@
 #
-# GENERIC -- Generic kernel configuration file for FreeBSD/arm64
+# MEDIATEK -- Mediatek kernel configuration file for FreeBSD/arm64
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -17,31 +17,12 @@
 # in NOTES.
 #
 
-cpu		ARM64
-ident		GENERIC
+#NO_UNIVERSE
 
-include		"std.arm64"
-include		"std.dev"
+cpu ARM64
+ident MEDIATEK
 
 # Include SoC specific configuration
-include		"std.al"
-include		"std.allwinner"
-include		"std.altera"
-include		"std.amd"
-include		"std.apple"
-include		"std.arm"
-include		"std.azure"
-include		"std.broadcom"
-include		"std.cavium"
-include		"std.ec2"
-include		"std.hyperv"
-include		"std.hisilicon"
-include		"std.imx"
-include		"std.marvell"
-include		"std.mediatek"
-include		"std.nvidia"
-include		"std.nxp"
-include		"std.qcom"
-include		"std.rockchip"
-include		"std.virt"
-include		"std.xilinx"
+include "std.arm64"
+include "std.dev"
+include "std.mediatek"
