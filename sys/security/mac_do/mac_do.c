@@ -1153,13 +1153,14 @@ remove_rules(struct prison *const pr)
 
 	prison_lock(pr);
 	/*
-	 * We go to the burden of extracting rules first instead of just letting
-	 * osd_jail_del() calling dealloc_jail_osd() as we want to decrement
-	 * their use count, and possibly free them, outside of the prison lock.
+	 * We burden ourselves with extracting rules first instead of just
+	 * letting osd_jail_del() call dealloc_jail_osd() as we want to
+	 * decrement their use count, and possibly free them, outside of the
+	 * prison lock.
 	 */
 	old_rules = osd_jail_get(pr, osd_jail_slot);
 	error = osd_jail_set(pr, osd_jail_slot, NULL);
-	/* osd_set() never fails nor allocate memory when 'value' is NULL. */
+	/* osd_set() never allocates memory when 'value' is NULL, nor fails. */
 	MPASS(error == 0);
 	/*
 	 * This completely frees the OSD slot, but doesn't call the destructor
