@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\"
-.Dd January 7, 2026
+.Dd March 20, 2026
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -86,6 +86,8 @@ Enable journaling on the new file system via gjournal.
 See
 .Xr gjournal 8
 for details.
+This is incompatible with soft updates
+.Pq Fl U .
 .It Fl L Ar volname
 Add a volume label to the new file system.
 Legal characters are alphanumerics, dashes, and underscores.
@@ -100,12 +102,14 @@ The default format is UFS2.
 For backward compatibility.
 .It Fl U
 Enable soft updates on the new file system.
+This is incompatible with GEOM journaling
+.Pq Fl J .
 If neither
 .Fl U
 nor
 .Fl u
 is specified, soft updates are enabled by default for UFS2 format file
-systems and disabled otherwise.
+systems unless GEOM journaling was requested and disabled otherwise.
 .It Fl u
 Do not enable soft updates on the new file system.
 If neither
@@ -178,8 +182,10 @@ One inode is required for each distinct file, so this value effectively
 specifies the average file size on the file system.
 .It Fl j
 Enable soft updates journaling on the new file system.
-This implies
-.Fl U .
+This implies soft updates
+.Pq Fl U
+and is incompatible with GEOM journaling
+.Pq Fl J .
 This flag is implemented by running the
 .Xr tunefs 8
 utility found in the user's
