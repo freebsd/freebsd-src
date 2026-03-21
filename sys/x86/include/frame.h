@@ -152,6 +152,10 @@ struct trapframe {
 	uint16_t	tf_ss;
 	uint16_t	tf_fred_evinfo1;
 	uint32_t	tf_fred_evinfo2;
+};
+
+struct trapframe_fred {
+	struct trapframe tf_idt;
 	/* two long words added by FRED */
 	uint64_t	tf_fred_evdata;
 	uint64_t	tf_fred_zero1;
