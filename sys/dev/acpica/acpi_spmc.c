@@ -274,13 +274,9 @@ acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
 static void
 acpi_spmc_free_constraints(struct acpi_spmc_softc *sc)
 {
-	if (sc->constraints == NULL)
-		return;
-
-	for (size_t i = 0; i < sc->constraint_count; i++) {
-		if (sc->constraints[i].name != NULL)
-			free(sc->constraints[i].name, M_TEMP);
-	}
+	for (size_t i = 0; i < sc->constraint_count; i++)
+		free(sc->constraints[i].name, M_TEMP);
+	sc->constraint_count = 0;
 
 	free(sc->constraints, M_TEMP);
 	sc->constraints = NULL;
