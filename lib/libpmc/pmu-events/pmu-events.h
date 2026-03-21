@@ -24,8 +24,11 @@ struct pmu_event {
 	const char *perpkg;
 	const char *aggr_mode;
 	const char *metric_expr;
+	const char *metric_threshold;
 	const char *metric_name;
 	const char *metric_group;
+	const char *metric_group_nogroup;
+	const char *default_metric_group;
 	const char *deprecated;
 	const char *metric_constraint;
 };
