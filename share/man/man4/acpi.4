@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 15, 2024
+.Dd March 21, 2026
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -122,22 +122,21 @@ Use the ACPI Reset Register capability to reboot the system.
 Some newer systems require use of this register, while some only work
 with legacy rebooting support.
 .It Va hw.acpi.lid_switch_state
-Suspend state
-.Pq Li S1 Ns \[en] Ns Li S5
+Sleep type
+.Pq Li awake , Li standby , Li s2mem , Li s2idle , Li hibernate , Li poweroff
 to enter when the lid switch (i.e., a notebook screen) is closed, or
 .Dq Li NONE
 .Pq do nothing .
 Default is
 .Dq Li NONE .
 .It Va hw.acpi.power_button_state
-Suspend state
-.Pq Li S1 Ns \[en] Ns Li S5
+Sleep type
+.Pq Li awake , Li standby , Li s2mem , Li s2idle , Li hibernate , Li poweroff
 to enter when the power button is pressed, or
 .Dq Li NONE
 .Pq do nothing .
 Default is
-.Li S5
-(power-off nicely).
+.Li poweroff .
 .It Va hw.acpi.reset_video
 Reset the video adapter from real mode during the resume path.
 Some systems need this help, others have display problems if it is enabled.
@@ -152,19 +151,21 @@ Otherwise, the OS is responsible for suspending to disk
 Most current systems do not support
 .Li S4BIOS .
 .It Va hw.acpi.sleep_button_state
-Suspend state
-.Pq Li S1 Ns \[en] Ns Li S5
+Sleep type
+.Pq Li awake , Li standby , Li s2mem , Li s2idle , Li hibernate , Li poweroff
 to enter when the sleep button is pressed.
 This is usually a special function button on the keyboard.
-Default is
-.Li S3
-(suspend-to-RAM).
+Default is usually
+.Li s2mem
+if supported, and
+.Li s2idle
+if not.
 .It Va hw.acpi.sleep_delay
 Wait this number of seconds between preparing the system to suspend and
 actually entering the suspend state.
 Default is 1 second.
 .It Va hw.acpi.supported_sleep_state
-Suspend states
+ACPI S-states
 .Pq Li S1 Ns \[en] Ns Li S5
 supported by the BIOS.
 .Bl -tag -width indent
