@@ -273,7 +273,7 @@ struct nstat {
 #define	S_IFREG	 0100000		/* regular */
 #define	S_IFLNK	 0120000		/* symbolic link */
 #define	S_IFSOCK 0140000		/* socket */
-#define	S_ISVTX	 0001000		/* save swapped text even after use */
+#define	S_ISVTX	 0001000		/* sticky(7) bit is set */
 #endif
 #if __BSD_VISIBLE
 #define	S_IFWHT  0160000		/* whiteout */
