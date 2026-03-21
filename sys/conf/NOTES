@@ -2837,8 +2837,8 @@ options         IMGACT_BINMISC
 options 	GZIO
 
 # zstd support
-# This enables support for Zstd compressed core dumps, GEOM_UZIP images,
-# and is required by zfs if statically linked.
+# This enables support for Zstandard compression for core dumps,
+# kernel dumps, GEOM_UZIP images, and tarfs, and is required by zfs.
 options 	ZSTDIO
 
 # BHND(4) drivers
