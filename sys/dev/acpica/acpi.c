@@ -4608,9 +4608,9 @@ acpi_stype_sysctl(SYSCTL_HANDLER_ARGS)
 	    sstate = acpi_sname_to_sstate(name);
 	    if (sstate < 0)
 		return (EINVAL);
-	    printf("warning: this sysctl expects a sleep type, but an ACPI "
-	           "S-state has been passed to it. This functionality is "
-	           "deprecated; see acpi(4).\n");
+	    printf("warning: the 'hw.acpi.%s' sysctl expects a sleep type, but "
+	           "an ACPI S-state has been passed to it. This functionality "
+	           "is deprecated; see acpi(4).\n", oidp->oid_name);
 	    MPASS(sstate < ACPI_S_STATE_COUNT);
 	    if (acpi_supported_sstates[sstate] == false)
 		return (EOPNOTSUPP);
