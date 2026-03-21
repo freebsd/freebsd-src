@@ -396,7 +396,9 @@ main(int argc, char *argv[])
 	}
 	/* Use soft updates by default for UFS2 and above */
 	if (Uflag < 0)
-		Uflag = Oflag > 1;
+		Uflag = Oflag > 1 && !Jflag;
+	if (Uflag && Jflag)
+		errx(1, "Cannot enable both soft updates and GEOM journaling");
 	realsectorsize = sectorsize;
 	if (sectorsize != DEV_BSIZE) {		/* XXX */
 		int secperblk = sectorsize / DEV_BSIZE;
