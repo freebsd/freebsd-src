@@ -687,12 +687,6 @@ SUBDIR.${MK_TESTS}=	tests
 
 .include <bsd.lib.mk>
 
-.if ${MACHINE} == "powerpc"
-# Work around "relocation R_PPC_GOT16 out of range" errors
-PICFLAG=	-fPIC
-.endif
-PICFLAG+=	-DOPENSSL_PIC
-
 .if defined(ASM_${MACHINE_CPUARCH})
 .PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_CPUARCH}
 .if defined(ASM_amd64)
