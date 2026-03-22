@@ -2820,7 +2820,7 @@ prop_filter_compile(const char *cfilter)
 		pfilter.cmp_type = FILT_CMP_REGEX;
 	else if (strcasecmp(argv[1], "ereregex") == 0) {
 		pfilter.cmp_type = FILT_CMP_REGEX;
-		pfilter.cmp_flags |= REG_EXTENDED;
+		pfilter.cmp_flags |= FILT_FLAG_EXTENDED;
 	} else {
 		dprintf("unknown cmp function");
 		goto error;
