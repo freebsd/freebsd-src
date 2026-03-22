@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2023 The FreeBSD Foundation
+ * Copyright (c) 2026 Robert Clausecker <fuz@FreeBSD.org>
  *
  * This software was developed by Robert Clausecker <fuz@FreeBSD.org>
  * under sponsorship from the FreeBSD Foundation.
@@ -65,77 +66,50 @@ ARCHENTRY(strrchr, scalar)
 	xor	%rax, %rcx		# str ^ c
 	or	%r10, %rax		# ensure str != 0 before string
 	or	%r10, %rcx		# ensure str^c != 0 before string
-	bswap	%rcx			# in reverse order, to find last match
-	mov	%rdi, %r10		# location of initial mismatch (if any)
-	xor	%r11, %r11		# initial mismatch (none)
+	xor	%r11, %r11		# vector of last match (0 -> no match)
 	add	$8, %rdi		# advance to next iteration
 	lea	(%rax, %r8, 1), %rdx	# str - 0x01..01
 	not	%rax			# ~str
 	and	%rdx, %rax		# (str - 0x01..01) & ~str
-	and	%r9, %rax		# not including junk bits
-	jnz	1f			# end of string?
-
-	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
-	not	%rcx			# ~(str ^ c)
-	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	mov	%rcx, %r11		# remember mismatch in head
-	jmp	0f
-
-	/* main loop unrolled twice */
-	ALIGN_TEXT
-3:	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
-	not	%rcx			# ~(str ^ c)
-	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	lea	-8(%rdi), %rdx
-	cmovnz	%rdx, %r10		# remember location of current mismatch
-	cmovnz	%rcx, %r11
-
-0:	mov	(%rdi), %rax		# str
-	mov	%rsi, %rcx
-	xor	%rax, %rcx		# str ^ c
-	bswap	%rcx			# in reverse order, to find last match
-	lea	(%rax, %r8, 1), %rdx	# str - 0x01..01
-	not	%rax			# ~str
-	and	%rdx, %rax		# (str - 0x01..01) & ~str
-	and	%r9, %rax		# not including junk bits
+	and	%r9, %rax		# NUL bytes in str, not including junk bits
 	jnz	2f			# end of string?
 
+	/* main loop */
+	ALIGN_TEXT
+3:	mov	(%rdi), %rax		# str
+	bswap	%rcx			# (str ^ c) in reverse order, to find last match
 	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
 	not	%rcx			# ~(str ^ c)
 	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	cmovnz	%rdi, %r10		# remember location of current mismatch
-	cmovnz	%rcx, %r11
+	and	%r9, %rcx		# matches in str, not including junk bits
+	cmovnz	%rdi, %r11		# if match found, update match vector
+	cmovnz	%rcx, %r10		# ... and match pointer
 
-	mov	8(%rdi), %rax		# str
-	add	$16, %rdi
+	add	$8, %rdi		# advance to next iteration
 	mov	%rsi, %rcx
 	xor	%rax, %rcx		# str ^ c
-	bswap	%rcx
 	lea	(%rax, %r8, 1), %rdx	# str - 0x01..01
 	not	%rax			# ~str
 	and	%rdx, %rax		# (str - 0x01..01) & ~str
-	and	%r9, %rax		# not including junk bits
+	and	%r9, %rax		# NUL bytes in str, not including junk bits
 	jz	3b			# end of string?
 
-	/* NUL found */
-1:	sub	$8, %rdi		# undo advance past buffer
-2:	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
+	/* NUL found, check for match in tail */
+2:	mov	%rax, %rdx
+	neg	%rax
+	xor	%rdx, %rax		# all bytes behind the NUL byte
+	or	%rax, %rcx		# (str ^ c) without matches behind NUL byte
+	bswap	%rcx			# (src ^ c) in reverse order, to find last match
+	lea	(%rcx, %r8, 1), %rdx	# (str ^ c) - 0x01..01
 	not	%rcx			# ~(str ^ c)
 	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
-	and	%r9, %rcx		# not including junk bits
-	lea	-1(%rax), %rdx
-	xor	%rdx, %rax		# mask of bytes in the string
-	bswap	%rdx			# in reverse order
-	and	%rdx, %rcx		# c found in the tail?
-	cmovnz	%rdi, %r10
-	cmovnz	%rcx, %r11
-	bswap	%r11			# unreverse byte order
-	bsr	%r11, %rcx		# last location of c in (R10)
-	shr	$3, %rcx		# as byte offset
-	lea	(%r10, %rcx, 1), %rax	# pointer to match
+	and	%r9, %rcx		# matches in str, not including junk bits
+	cmovnz	%rdi, %r11		# if match found, update match vector
+	cmovnz	%rcx, %r10		# ... and match pointer
+	tzcnt	%r11, %rcx		# location of last match
+	lea	-1(%r10), %rax		# address of last character in vector
+	shr	$3, %ecx		# as byte offset
+	sub	%rcx, %rax		# subtract character offset
 	test	%r11, %r11		# was there actually a match?
 	cmovz	%r11, %rax		# if not, return null pointer
 	ret
