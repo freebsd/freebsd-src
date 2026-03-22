@@ -12,6 +12,9 @@ CFLAGS+=	-I${LCRYPTO_SRC}/providers/common/include
 CFLAGS+=	-I${LCRYPTO_SRC}/providers/fips/include
 CFLAGS+=	-I${LCRYPTO_SRC}/providers/implementations/include
 
+PICFLAG=	-fPIC
+PICFLAG+=	-DOPENSSL_PIC
+
 .SUFFIXES: .pc
 .PATH.pc:	${LCRYPTO_SRC}/exporters
 
