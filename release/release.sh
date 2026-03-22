@@ -44,6 +44,14 @@ load_chroot_env() { }
 load_target_env() { }
 buildenv_setup() { }
 
+# chroot_cleanup(): Clean up resources setup in chroot_setup() at exit.
+#
+# This function can be built upon. `_chroot_cleanup` must be added to the end of
+# the override function, if overridden.
+chroot_cleanup() {
+	_chroot_cleanup
+} # chroot_cleanup()
+
 usage() {
 	echo "Usage: $0 [-c release.conf]"
 	exit 1
@@ -427,6 +435,18 @@ chroot_arm_build_release() {
 	return 0
 } # chroot_arm_build_release()
 
+# chroot_cleanup(): Clean up resources setup in chroot_setup() at exit.
+#
+# This contains steps which must be executed at exit.
+#
+# Do not override this function: override `chroot_cleanup instead.
+_chroot_cleanup() {
+	if [ -c "${CHROOTDIR}/dev/null" ]; then
+		echo "Unmounting /dev in ${CHROOTDIR}"
+		umount -f "${CHROOTDIR}/dev"
+	fi
+}
+
 # main(): Start here.
 main() {
 	set -e # Everything must succeed
@@ -451,7 +471,7 @@ main() {
 		fi
 	fi
 	env_check
-	trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
+	trap chroot_cleanup INT EXIT TERM
 	chroot_setup
 	extra_chroot_setup
 	chroot_build_target
