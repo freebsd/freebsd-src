@@ -99,7 +99,8 @@ Development dependencies
 - There are some `Ruby <https://www.ruby-lang.org/en/>`_ scripts in ``misc``
 - `Valgrind <http://valgrind.org/>`_ (memory correctness & profiling)
 - `GCOV/LCOV <http://ltp.sourceforge.net/coverage/lcov.php>`_ (test coverage)
-- `clang-format`
+- `clang-format` (linter)
+- `cmakelang <https://cmake-format.readthedocs.io/en/latest/index.html>`_ (linter)
 
 
 Installing *sphinx*

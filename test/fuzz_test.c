@@ -18,7 +18,7 @@
 #endif
 
 #ifdef PRINT_FUZZ
-static void printmem(const unsigned char *ptr, size_t length) {
+static void printmem(const unsigned char* ptr, size_t length) {
   for (size_t i = 0; i < length; i++) printf("%02X", ptr[i]);
   printf("\n");
 }
@@ -26,7 +26,7 @@ static void printmem(const unsigned char *ptr, size_t length) {
 
 unsigned seed;
 
-void *mock_malloc(size_t size) {
+void* mock_malloc(size_t size) {
   if (size > (1 << 19))
     return NULL;
   else
@@ -34,11 +34,11 @@ void *mock_malloc(size_t size) {
 }
 
 static void run_round(void) {
-  cbor_item_t *item;
+  cbor_item_t* item;
   struct cbor_load_result res;
 
   size_t length = rand() % MAXLEN + 1;
-  unsigned char *data = malloc(length);
+  unsigned char* data = malloc(length);
   for (size_t i = 0; i < length; i++) {
     data[i] = rand() % 0xFF;
   }
@@ -55,7 +55,7 @@ static void run_round(void) {
   free(data);
 }
 
-static void fuzz(void **_CBOR_UNUSED(_state)) {
+static void fuzz(void** _state _CBOR_UNUSED) {
   cbor_set_allocs(mock_malloc, realloc, free);
   printf("Fuzzing %llu rounds of up to %llu bytes with seed %u\n", ROUNDS,
          MAXLEN, seed);
@@ -67,7 +67,7 @@ static void fuzz(void **_CBOR_UNUSED(_state)) {
          (ROUNDS * MAXLEN) / 1024);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (argc > 1)
     seed = (unsigned)strtoul(argv[1], NULL, 10);
   else

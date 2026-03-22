@@ -82,7 +82,7 @@ Generally speaking, data items consist of three parts:
 
     .. member:: unsigned char * data
 
-        Contains pointer to the actual data. Small, fixed size items (:doc:`api/type_0_1`, :doc:`api/type_6`, :doc:`api/type_7`) are allocated as a single memory block.
+        Contains pointer to the actual data. Small, fixed size items (:doc:`api/type_0_1_integers`, :doc:`api/type_6_tags`, :doc:`api/type_7_floats_ctrls`) are allocated as a single memory block.
 
         Consider the following snippet
 
@@ -103,7 +103,7 @@ Generally speaking, data items consist of three parts:
             |                                                                                |
             +--- item                                                                        +--- item->data
 
-        Dynamically sized types (:doc:`api/type_2`, :doc:`api/type_3`, :doc:`api/type_4`, :doc:`api/type_5`) may store handle and data in separate locations. This enables creating large items (e.g :doc:`byte strings <api/type_2>`) without :func:`realloc` or copying large blocks of memory. One simply attaches the correct pointer to the handle.
+        Dynamically sized types (:doc:`api/type_2_byte_strings`, :doc:`api/type_3_strings`, :doc:`api/type_4_arrays`, :doc:`api/type_5_maps`) may store handle and data in separate locations. This enables creating large items (e.g :doc:`byte strings <api/type_2_byte_strings>`) without :func:`realloc` or copying large blocks of memory. One simply attaches the correct pointer to the handle.
 
 
 .. type:: cbor_item_metadata
@@ -112,7 +112,7 @@ Generally speaking, data items consist of three parts:
 
     .. member:: struct _cbor_int_metadata int_metadata
 
-        Used both by both :doc:`api/type_0_1`
+        Used both by both :doc:`api/type_0_1_integers`
 
     .. member:: struct _cbor_bytestring_metadata bytestring_metadata
     .. member:: struct _cbor_string_metadata string_metadata

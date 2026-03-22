@@ -4,11 +4,28 @@ Template:
 Next
 ---------------------
 
+0.12.0 (2025-03-16)
+---------------------
+- BUILD BREAKING: [Respect `INTERPROCEDURAL_OPTIMIZATION` and use the default value](https://github.com/PJK/libcbor/issues/315) 
+- BREAKING: Changes to NaN encoding
+  - [Fix NaN encoding on Windows](https://github.com/PJK/libcbor/issues/271)
+  - [Fix NaN encoding on mips/mipsel](https://github.com/PJK/libcbor/issues/329)
+  - [Signaling NaNs will from now on be encoded as canonical quiet NaNs](https://github.com/PJK/libcbor/pull/335). This was already the existing behavior for half-precision floats
+  - Decoding is unchanged
+  - Please note that this is an intermediate state and likely to be revisited (https://github.com/PJK/libcbor/issues/336)
+- [Make build compatible with CMake FetchContent](https://github.com/PJK/libcbor/pull/341) (by [Jan200101](https://github.com/Jan200101))
+- [Support Bzlmod for Bazel builds](https://github.com/PJK/libcbor/pull/340)
+  - This should significantly simplify including libcbor as a dependency/module in Bazel projects, see https://bazel.build/external/migration
+- Code quality improvements
+  - [Fix compiler pragmas](https://github.com/PJK/libcbor/pull/347) (by [brooksdavis](https://github.com/brooksdavis))
+  - [Fix code style issues](https://github.com/PJK/libcbor/pull/321)
+- [Fixed bug in cbor2cjson example](https://github.com/PJK/libcbor/pull/338) (by [whitehse](https://github.com/whitehse))
+
 0.11.0 (2024-02-04)
 ---------------------
 - [Updated documentation to refer to RFC 8949](https://github.com/PJK/libcbor/issues/269)
 - Improvements to `cbor_describe`
-  - [Bytestring data will now be printed as well](https://github.com/PJK/libcbor/pull/281) by  [akallabeth](https://github.com/akallabeth)
+  - [Bytestring data will now be printed as well](https://github.com/PJK/libcbor/pull/281) by [akallabeth](https://github.com/akallabeth)
   - [Formatting consistency and clarity improvements](https://github.com/PJK/libcbor/pull/285)
 - [Fix `cbor_string_set_handle` not setting the codepoint count](https://github.com/PJK/libcbor/pull/286)
 - BREAKING: [`cbor_load` will no longer fail on input strings that are well-formed but not valid UTF-8](https://github.com/PJK/libcbor/pull/286)

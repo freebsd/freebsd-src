@@ -32,19 +32,19 @@ Headers to include
 The ``cbor.h`` header includes all the symbols. If, for any reason, you don't want to include all the exported symbols,
 feel free to use just some of the ``cbor/*.h`` headers:
 
- - ``cbor/arrays.h`` - :doc:`api/type_4`
- - ``cbor/bytestrings.h`` - :doc:`api/type_2`
+ - ``cbor/arrays.h`` - :doc:`api/type_4_arrays`
+ - ``cbor/bytestrings.h`` - :doc:`api/type_2_byte_strings`
  - ``cbor/callbacks.h`` - Callbacks used for :doc:`api/streaming_decoding`
  - ``cbor/common.h`` - Common utilities - always transitively included
  - ``cbor/data.h`` - Data types definitions - always transitively included
  - ``cbor/encoding.h`` - Streaming encoders for :doc:`api/streaming_encoding`
- - ``cbor/floats_ctrls.h`` - :doc:`api/type_7`
- - ``cbor/ints.h`` - :doc:`api/type_0_1`
- - ``cbor/maps.h`` - :doc:`api/type_5`
+ - ``cbor/floats_ctrls.h`` - :doc:`api/type_7_floats_ctrls`
+ - ``cbor/ints.h`` - :doc:`api/type_0_1_integers`
+ - ``cbor/maps.h`` - :doc:`api/type_5_maps`
  - ``cbor/serialization.h`` - High level serialization such as :func:`cbor_serialize`
  - ``cbor/streaming.h`` - Home of :func:`cbor_stream_decode`
- - ``cbor/strings.h`` - :doc:`api/type_3`
- - ``cbor/tags.h`` - :doc:`api/type_6`
+ - ``cbor/strings.h`` - :doc:`api/type_3_strings`
+ - ``cbor/tags.h`` - :doc:`api/type_6_tags`
 
 
 Using libcbor

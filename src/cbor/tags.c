@@ -7,8 +7,8 @@
 
 #include "tags.h"
 
-cbor_item_t *cbor_new_tag(uint64_t value) {
-  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
+cbor_item_t* cbor_new_tag(uint64_t value) {
+  cbor_item_t* item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){
@@ -20,24 +20,24 @@ cbor_item_t *cbor_new_tag(uint64_t value) {
   return item;
 }
 
-cbor_item_t *cbor_tag_item(const cbor_item_t *item) {
-  CBOR_ASSERT(cbor_isa_tag(item));
-  return cbor_incref(item->metadata.tag_metadata.tagged_item);
+cbor_item_t* cbor_tag_item(const cbor_item_t* tag) {
+  CBOR_ASSERT(cbor_isa_tag(tag));
+  return cbor_incref(tag->metadata.tag_metadata.tagged_item);
 }
 
-uint64_t cbor_tag_value(const cbor_item_t *item) {
-  CBOR_ASSERT(cbor_isa_tag(item));
-  return item->metadata.tag_metadata.value;
+uint64_t cbor_tag_value(const cbor_item_t* tag) {
+  CBOR_ASSERT(cbor_isa_tag(tag));
+  return tag->metadata.tag_metadata.value;
 }
 
-void cbor_tag_set_item(cbor_item_t *item, cbor_item_t *tagged_item) {
-  CBOR_ASSERT(cbor_isa_tag(item));
+void cbor_tag_set_item(cbor_item_t* tag, cbor_item_t* tagged_item) {
+  CBOR_ASSERT(cbor_isa_tag(tag));
   cbor_incref(tagged_item);
-  item->metadata.tag_metadata.tagged_item = tagged_item;
+  tag->metadata.tag_metadata.tagged_item = tagged_item;
 }
 
-cbor_item_t *cbor_build_tag(uint64_t value, cbor_item_t *item) {
-  cbor_item_t *res = cbor_new_tag(value);
+cbor_item_t* cbor_build_tag(uint64_t value, cbor_item_t* item) {
+  cbor_item_t* res = cbor_new_tag(value);
   if (res == NULL) {
     return NULL;
   }

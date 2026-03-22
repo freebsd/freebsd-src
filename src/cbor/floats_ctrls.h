@@ -27,7 +27,7 @@ extern "C" {
  * @return Is this a ctrl value?
  */
 _CBOR_NODISCARD CBOR_EXPORT bool cbor_float_ctrl_is_ctrl(
-    const cbor_item_t *item);
+    const cbor_item_t* item);
 
 /** Get the float width
  *
@@ -35,7 +35,7 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_float_ctrl_is_ctrl(
  * @return The width.
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_float_width
-cbor_float_get_width(const cbor_item_t *item);
+cbor_float_get_width(const cbor_item_t* item);
 
 /** Get a half precision float
  *
@@ -45,7 +45,7 @@ cbor_float_get_width(const cbor_item_t *item);
  * @return half precision value
  */
 _CBOR_NODISCARD CBOR_EXPORT float cbor_float_get_float2(
-    const cbor_item_t *item);
+    const cbor_item_t* item);
 
 /** Get a single precision float
  *
@@ -55,7 +55,7 @@ _CBOR_NODISCARD CBOR_EXPORT float cbor_float_get_float2(
  * @return single precision value
  */
 _CBOR_NODISCARD CBOR_EXPORT float cbor_float_get_float4(
-    const cbor_item_t *item);
+    const cbor_item_t* item);
 
 /** Get a double precision float
  *
@@ -65,7 +65,7 @@ _CBOR_NODISCARD CBOR_EXPORT float cbor_float_get_float4(
  * @return double precision value
  */
 _CBOR_NODISCARD CBOR_EXPORT double cbor_float_get_float8(
-    const cbor_item_t *item);
+    const cbor_item_t* item);
 
 /** Get the float value represented as double
  *
@@ -75,14 +75,14 @@ _CBOR_NODISCARD CBOR_EXPORT double cbor_float_get_float8(
  * @return double precision value
  */
 _CBOR_NODISCARD CBOR_EXPORT double cbor_float_get_float(
-    const cbor_item_t *item);
+    const cbor_item_t* item);
 
 /** Get value from a boolean ctrl item
  *
  * @param item A ctrl item
  * @return boolean value
  */
-_CBOR_NODISCARD CBOR_EXPORT bool cbor_get_bool(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT bool cbor_get_bool(const cbor_item_t* item);
 
 /** Constructs a new ctrl item
  *
@@ -92,7 +92,7 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_get_bool(const cbor_item_t *item);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_ctrl(void);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_ctrl(void);
 
 /** Constructs a new float item
  *
@@ -102,7 +102,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_ctrl(void);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_float2(void);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_float2(void);
 
 /** Constructs a new float item
  *
@@ -112,7 +112,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_float2(void);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_float4(void);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_float4(void);
 
 /** Constructs a new float item
  *
@@ -122,7 +122,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_float4(void);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_float8(void);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_float8(void);
 
 /** Constructs new null ctrl item
  *
@@ -130,7 +130,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_float8(void);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_null(void);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_null(void);
 
 /** Constructs new undef ctrl item
  *
@@ -138,7 +138,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_null(void);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_undef(void);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_undef(void);
 
 /** Constructs new boolean ctrl item
  *
@@ -147,7 +147,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_undef(void);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_bool(bool value);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_build_bool(bool value);
 
 /** Assign a control value
  *
@@ -160,42 +160,42 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_bool(bool value);
  * @param value The simple value to assign. Please consult the standard for
  * 	allowed values
  */
-CBOR_EXPORT void cbor_set_ctrl(cbor_item_t *item, uint8_t value);
+CBOR_EXPORT void cbor_set_ctrl(cbor_item_t* item, uint8_t value);
 
 /** Assign a boolean value to a boolean ctrl item
  *
  * @param item A ctrl item
  * @param value The simple value to assign.
  */
-CBOR_EXPORT void cbor_set_bool(cbor_item_t *item, bool value);
+CBOR_EXPORT void cbor_set_bool(cbor_item_t* item, bool value);
 
 /** Assigns a float value
  *
  * @param item A half precision float
  * @param value The value to assign
  */
-CBOR_EXPORT void cbor_set_float2(cbor_item_t *item, float value);
+CBOR_EXPORT void cbor_set_float2(cbor_item_t* item, float value);
 
 /** Assigns a float value
  *
  * @param item A single precision float
  * @param value The value to assign
  */
-CBOR_EXPORT void cbor_set_float4(cbor_item_t *item, float value);
+CBOR_EXPORT void cbor_set_float4(cbor_item_t* item, float value);
 
 /** Assigns a float value
  *
  * @param item A double precision float
  * @param value The value to assign
  */
-CBOR_EXPORT void cbor_set_float8(cbor_item_t *item, double value);
+CBOR_EXPORT void cbor_set_float8(cbor_item_t* item, double value);
 
 /** Reads the control value
  *
  * @param item A ctrl item
  * @return the simple value
  */
-_CBOR_NODISCARD CBOR_EXPORT uint8_t cbor_ctrl_value(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT uint8_t cbor_ctrl_value(const cbor_item_t* item);
 
 /** Constructs a new float
  *
@@ -204,7 +204,7 @@ _CBOR_NODISCARD CBOR_EXPORT uint8_t cbor_ctrl_value(const cbor_item_t *item);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_float2(float value);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_build_float2(float value);
 
 /** Constructs a new float
  *
@@ -213,7 +213,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_float2(float value);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_float4(float value);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_build_float4(float value);
 
 /** Constructs a new float
  *
@@ -222,7 +222,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_float4(float value);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_float8(double value);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_build_float8(double value);
 
 /** Constructs a ctrl item
  *
@@ -231,7 +231,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_float8(double value);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_ctrl(uint8_t value);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_build_ctrl(uint8_t value);
 
 #ifdef __cplusplus
 }

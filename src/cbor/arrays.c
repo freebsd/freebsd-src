@@ -9,21 +9,21 @@
 #include <string.h>
 #include "internal/memory_utils.h"
 
-size_t cbor_array_size(const cbor_item_t *item) {
+size_t cbor_array_size(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.end_ptr;
 }
 
-size_t cbor_array_allocated(const cbor_item_t *item) {
+size_t cbor_array_allocated(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.allocated;
 }
 
-cbor_item_t *cbor_array_get(const cbor_item_t *item, size_t index) {
-  return cbor_incref(((cbor_item_t **)item->data)[index]);
+cbor_item_t* cbor_array_get(const cbor_item_t* item, size_t index) {
+  return cbor_incref(((cbor_item_t**)item->data)[index]);
 }
 
-bool cbor_array_set(cbor_item_t *item, size_t index, cbor_item_t *value) {
+bool cbor_array_set(cbor_item_t* item, size_t index, cbor_item_t* value) {
   if (index == item->metadata.array_metadata.end_ptr) {
     return cbor_array_push(item, value);
   } else if (index < item->metadata.array_metadata.end_ptr) {
@@ -33,19 +33,19 @@ bool cbor_array_set(cbor_item_t *item, size_t index, cbor_item_t *value) {
   }
 }
 
-bool cbor_array_replace(cbor_item_t *item, size_t index, cbor_item_t *value) {
+bool cbor_array_replace(cbor_item_t* item, size_t index, cbor_item_t* value) {
   if (index >= item->metadata.array_metadata.end_ptr) return false;
   /* We cannot use cbor_array_get as that would increase the refcount */
-  cbor_intermediate_decref(((cbor_item_t **)item->data)[index]);
-  ((cbor_item_t **)item->data)[index] = cbor_incref(value);
+  cbor_intermediate_decref(((cbor_item_t**)item->data)[index]);
+  ((cbor_item_t**)item->data)[index] = cbor_incref(value);
   return true;
 }
 
-bool cbor_array_push(cbor_item_t *array, cbor_item_t *pushee) {
+bool cbor_array_push(cbor_item_t* array, cbor_item_t* pushee) {
   CBOR_ASSERT(cbor_isa_array(array));
-  struct _cbor_array_metadata *metadata =
-      (struct _cbor_array_metadata *)&array->metadata;
-  cbor_item_t **data = (cbor_item_t **)array->data;
+  struct _cbor_array_metadata* metadata =
+      (struct _cbor_array_metadata*)&array->metadata;
+  cbor_item_t** data = (cbor_item_t**)array->data;
   if (cbor_array_is_definite(array)) {
     /* Do not reallocate definite arrays */
     if (metadata->end_ptr >= metadata->allocated) {
@@ -64,8 +64,8 @@ bool cbor_array_push(cbor_item_t *array, cbor_item_t *pushee) {
                                   ? 1
                                   : CBOR_BUFFER_GROWTH * metadata->allocated;
 
-      unsigned char *new_data = _cbor_realloc_multiple(
-          array->data, sizeof(cbor_item_t *), new_allocation);
+      unsigned char* new_data = _cbor_realloc_multiple(
+          array->data, sizeof(cbor_item_t*), new_allocation);
       if (new_data == NULL) {
         return false;
       }
@@ -73,31 +73,31 @@ bool cbor_array_push(cbor_item_t *array, cbor_item_t *pushee) {
       array->data = new_data;
       metadata->allocated = new_allocation;
     }
-    ((cbor_item_t **)array->data)[metadata->end_ptr++] = pushee;
+    ((cbor_item_t**)array->data)[metadata->end_ptr++] = pushee;
   }
   cbor_incref(pushee);
   return true;
 }
 
-bool cbor_array_is_definite(const cbor_item_t *item) {
+bool cbor_array_is_definite(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.type == _CBOR_METADATA_DEFINITE;
 }
 
-bool cbor_array_is_indefinite(const cbor_item_t *item) {
+bool cbor_array_is_indefinite(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.type == _CBOR_METADATA_INDEFINITE;
 }
 
-cbor_item_t **cbor_array_handle(const cbor_item_t *item) {
+cbor_item_t** cbor_array_handle(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_array(item));
-  return (cbor_item_t **)item->data;
+  return (cbor_item_t**)item->data;
 }
 
-cbor_item_t *cbor_new_definite_array(size_t size) {
-  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
+cbor_item_t* cbor_new_definite_array(size_t size) {
+  cbor_item_t* item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
-  cbor_item_t **data = _cbor_alloc_multiple(sizeof(cbor_item_t *), size);
+  cbor_item_t** data = _cbor_alloc_multiple(sizeof(cbor_item_t*), size);
   _CBOR_DEPENDENT_NOTNULL(item, data);
 
   for (size_t i = 0; i < size; i++) {
@@ -110,13 +110,13 @@ cbor_item_t *cbor_new_definite_array(size_t size) {
       .metadata = {.array_metadata = {.type = _CBOR_METADATA_DEFINITE,
                                       .allocated = size,
                                       .end_ptr = 0}},
-      .data = (unsigned char *)data};
+      .data = (unsigned char*)data};
 
   return item;
 }
 
-cbor_item_t *cbor_new_indefinite_array(void) {
-  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
+cbor_item_t* cbor_new_indefinite_array(void) {
+  cbor_item_t* item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){

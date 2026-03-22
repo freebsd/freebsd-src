@@ -2,7 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 cc_library(
-    name = "src",
+    name = "hello_lib",
     srcs = [
         "hello.cc",
     ],
@@ -18,7 +18,7 @@ cc_library(
 )
 
 cc_test(
-    name = "tests",
+    name = "hello_test",
     size = "small",
     srcs = [
         "hello_test.cc",
@@ -27,8 +27,8 @@ cc_test(
         "//visibility:private",
     ],
     deps = [
-        ":src",
-        "@gtest//:gtest_main",
+        ":hello_lib",
+        "@googletest//:gtest_main",
         "@libcbor//:cbor",
     ],
 )
@@ -40,7 +40,7 @@ cc_binary(
         "main.cc",
     ],
     deps = [
-        ":src",
+        ":hello_lib",
     ],
 )
 

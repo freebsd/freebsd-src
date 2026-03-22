@@ -1,4 +1,3 @@
-build
 *~
 nbproject
 .idea
@@ -8,9 +7,11 @@ cmake-build-debug
 venv
 **.DS_Store
 .vscode
+doc/build
 # No top-level requirements, see doc/source
 requirements.txt
 examples/bazel/bazel-bazel
 examples/bazel/bazel-bin
 examples/bazel/bazel-out
 examples/bazel/bazel-testlogs
+**MODULE.bazel.lock

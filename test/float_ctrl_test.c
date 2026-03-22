@@ -17,14 +17,14 @@
 #include "cbor.h"
 #include "test_allocator.h"
 
-cbor_item_t *float_ctrl;
+cbor_item_t* float_ctrl;
 struct cbor_load_result res;
 
 static const float eps = 0.00001f;
 
 unsigned char float2_data[] = {0xF9, 0x7B, 0xFF};
 
-static void test_float2(void **_CBOR_UNUSED(_state)) {
+static void test_float2(void** _state _CBOR_UNUSED) {
   float_ctrl = cbor_load(float2_data, 3, &res);
   assert_true(cbor_isa_float_ctrl(float_ctrl));
   assert_true(cbor_is_float(float_ctrl));
@@ -37,7 +37,7 @@ static void test_float2(void **_CBOR_UNUSED(_state)) {
 
 unsigned char float4_data[] = {0xFA, 0x47, 0xC3, 0x50, 0x00};
 
-static void test_float4(void **_CBOR_UNUSED(_state)) {
+static void test_float4(void** _state _CBOR_UNUSED) {
   float_ctrl = cbor_load(float4_data, 5, &res);
   assert_true(cbor_isa_float_ctrl(float_ctrl));
   assert_true(cbor_is_float(float_ctrl));
@@ -51,7 +51,7 @@ static void test_float4(void **_CBOR_UNUSED(_state)) {
 unsigned char float8_data[] = {0xFB, 0x7E, 0x37, 0xE4, 0x3C,
                                0x88, 0x00, 0x75, 0x9C};
 
-static void test_float8(void **_CBOR_UNUSED(_state)) {
+static void test_float8(void** _state _CBOR_UNUSED) {
   float_ctrl = cbor_load(float8_data, 9, &res);
   assert_true(cbor_isa_float_ctrl(float_ctrl));
   assert_true(cbor_is_float(float_ctrl));
@@ -66,7 +66,7 @@ static void test_float8(void **_CBOR_UNUSED(_state)) {
 
 unsigned char null_data[] = {0xF6};
 
-static void test_null(void **_CBOR_UNUSED(_state)) {
+static void test_null(void** _state _CBOR_UNUSED) {
   float_ctrl = cbor_load(null_data, 1, &res);
   assert_true(cbor_isa_float_ctrl(float_ctrl));
   assert_true(cbor_is_null(float_ctrl));
@@ -76,7 +76,7 @@ static void test_null(void **_CBOR_UNUSED(_state)) {
 
 unsigned char undef_data[] = {0xF7};
 
-static void test_undef(void **_CBOR_UNUSED(_state)) {
+static void test_undef(void** _state _CBOR_UNUSED) {
   float_ctrl = cbor_load(undef_data, 1, &res);
   assert_true(cbor_isa_float_ctrl(float_ctrl));
   assert_true(cbor_is_undef(float_ctrl));
@@ -86,7 +86,7 @@ static void test_undef(void **_CBOR_UNUSED(_state)) {
 
 unsigned char bool_data[] = {0xF4, 0xF5};
 
-static void test_bool(void **_CBOR_UNUSED(_state)) {
+static void test_bool(void** _state _CBOR_UNUSED) {
   _CBOR_TEST_DISABLE_ASSERT({
     float_ctrl = cbor_load(bool_data, 1, &res);
     assert_true(cbor_isa_float_ctrl(float_ctrl));
@@ -110,7 +110,7 @@ static void test_bool(void **_CBOR_UNUSED(_state)) {
   });
 }
 
-static void test_float_ctrl_creation(void **_CBOR_UNUSED(_state)) {
+static void test_float_ctrl_creation(void** _state _CBOR_UNUSED) {
   WITH_FAILING_MALLOC({ assert_null(cbor_new_ctrl()); });
   WITH_FAILING_MALLOC({ assert_null(cbor_new_float2()); });
   WITH_FAILING_MALLOC({ assert_null(cbor_new_float4()); });
@@ -119,8 +119,8 @@ static void test_float_ctrl_creation(void **_CBOR_UNUSED(_state)) {
   WITH_FAILING_MALLOC({ assert_null(cbor_new_undef()); });
 
   WITH_FAILING_MALLOC({ assert_null(cbor_build_bool(false)); });
-  WITH_FAILING_MALLOC({ assert_null(cbor_build_float2(3.14)); });
-  WITH_FAILING_MALLOC({ assert_null(cbor_build_float4(3.14)); });
+  WITH_FAILING_MALLOC({ assert_null(cbor_build_float2(3.14f)); });
+  WITH_FAILING_MALLOC({ assert_null(cbor_build_float4(3.14f)); });
   WITH_FAILING_MALLOC({ assert_null(cbor_build_float8(3.14)); });
   WITH_FAILING_MALLOC({ assert_null(cbor_build_ctrl(0xAF)); });
 }
