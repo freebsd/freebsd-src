@@ -1959,8 +1959,9 @@ pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
 
 	}
 
-	if (pf->optimize && rs_num == PF_RULESET_FILTER)
-		pfctl_optimize_ruleset(pf, rs);
+	if (pf->optimize && rs_num == PF_RULESET_FILTER &&
+	    (error = pfctl_optimize_ruleset(pf, rs)) != 0)
+		goto error;
 
 	while ((r = TAILQ_FIRST(rs->rules[rs_num].active.ptr)) != NULL) {
 		TAILQ_REMOVE(rs->rules[rs_num].active.ptr, r, entries);
