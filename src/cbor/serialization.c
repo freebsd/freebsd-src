@@ -19,6 +19,7 @@
 
 size_t cbor_serialize(const cbor_item_t* item, unsigned char* buffer,
                       size_t buffer_size) {
+  CBOR_ASSERT_VALID_TYPE(cbor_typeof(item));
   switch (cbor_typeof(item)) {
     case CBOR_TYPE_UINT:
       return cbor_serialize_uint(item, buffer, buffer_size);
@@ -36,9 +37,9 @@ size_t cbor_serialize(const cbor_item_t* item, unsigned char* buffer,
       return cbor_serialize_tag(item, buffer, buffer_size);
     case CBOR_TYPE_FLOAT_CTRL:
       return cbor_serialize_float_ctrl(item, buffer, buffer_size);
-    default:
+    default:  // LCOV_EXCL_START
       _CBOR_UNREACHABLE;
-      return 0;
+      return 0;  // LCOV_EXCL_STOP
   }
 }
 
@@ -61,9 +62,12 @@ size_t _cbor_encoded_header_size(uint64_t size) {
 }
 
 size_t cbor_serialized_size(const cbor_item_t* item) {
+  CBOR_ASSERT_VALID_TYPE(cbor_typeof(item));
   switch (cbor_typeof(item)) {
     case CBOR_TYPE_UINT:
     case CBOR_TYPE_NEGINT:
+      CBOR_ASSERT(cbor_int_get_width(item) >= CBOR_INT_8 &&
+                  cbor_int_get_width(item) <= CBOR_INT_64);
       switch (cbor_int_get_width(item)) {
         case CBOR_INT_8:
           if (cbor_get_uint8(item) <= kMaxEmbeddedInt) return 1;
@@ -74,9 +78,9 @@ size_t cbor_serialized_size(const cbor_item_t* item) {
           return 5;
         case CBOR_INT_64:
           return 9;
-        default:
+        default:  // LCOV_EXCL_START
           _CBOR_UNREACHABLE;
-          return 0;
+          return 0;  // LCOV_EXCL_STOP
       }
     // Note: We do not _cbor_safe_signaling_add zero-length definite strings,
     // they would cause zeroes to propagate. All other items are at least one
@@ -142,6 +146,8 @@ size_t cbor_serialized_size(const cbor_item_t* item) {
           cbor_serialized_size(cbor_move(cbor_tag_item(item))));
     }
     case CBOR_TYPE_FLOAT_CTRL:
+      CBOR_ASSERT(cbor_float_get_width(item) >= CBOR_FLOAT_0 &&
+                  cbor_float_get_width(item) <= CBOR_FLOAT_64);
       switch (cbor_float_get_width(item)) {
         case CBOR_FLOAT_0:
           return _cbor_encoded_header_size(cbor_ctrl_value(item));
@@ -151,13 +157,13 @@ size_t cbor_serialized_size(const cbor_item_t* item) {
           return 5;
         case CBOR_FLOAT_64:
           return 9;
-        default:
+        default:  // LCOV_EXCL_START
           _CBOR_UNREACHABLE;
-          return 0;
+          return 0;  // LCOV_EXCL_STOP
       }
-    default:
+    default:  // LCOV_EXCL_START
       _CBOR_UNREACHABLE;
-      return 0;
+      return 0;  // LCOV_EXCL_STOP
   }
 }
 
@@ -184,6 +190,8 @@ size_t cbor_serialize_alloc(const cbor_item_t* item, unsigned char** buffer,
 size_t cbor_serialize_uint(const cbor_item_t* item, unsigned char* buffer,
                            size_t buffer_size) {
   CBOR_ASSERT(cbor_isa_uint(item));
+  CBOR_ASSERT(cbor_int_get_width(item) >= CBOR_INT_8 &&
+              cbor_int_get_width(item) <= CBOR_INT_64);
   // cppcheck-suppress missingReturn
   switch (cbor_int_get_width(item)) {
     case CBOR_INT_8:
@@ -194,15 +202,17 @@ size_t cbor_serialize_uint(const cbor_item_t* item, unsigned char* buffer,
       return cbor_encode_uint32(cbor_get_uint32(item), buffer, buffer_size);
     case CBOR_INT_64:
       return cbor_encode_uint64(cbor_get_uint64(item), buffer, buffer_size);
-    default:
+    default:  // LCOV_EXCL_START
       _CBOR_UNREACHABLE;
-      return 0;
+      return 0;  // LCOV_EXCL_STOP
   }
 }
 
 size_t cbor_serialize_negint(const cbor_item_t* item, unsigned char* buffer,
                              size_t buffer_size) {
   CBOR_ASSERT(cbor_isa_negint(item));
+  CBOR_ASSERT(cbor_int_get_width(item) >= CBOR_INT_8 &&
+              cbor_int_get_width(item) <= CBOR_INT_64);
   // cppcheck-suppress missingReturn
   switch (cbor_int_get_width(item)) {
     case CBOR_INT_8:
@@ -213,9 +223,9 @@ size_t cbor_serialize_negint(const cbor_item_t* item, unsigned char* buffer,
       return cbor_encode_negint32(cbor_get_uint32(item), buffer, buffer_size);
     case CBOR_INT_64:
       return cbor_encode_negint64(cbor_get_uint64(item), buffer, buffer_size);
-    default:
+    default:  // LCOV_EXCL_START
       _CBOR_UNREACHABLE;
-      return 0;
+      return 0;  // LCOV_EXCL_STOP
   }
 }
 
@@ -367,6 +377,8 @@ size_t cbor_serialize_tag(const cbor_item_t* item, unsigned char* buffer,
 size_t cbor_serialize_float_ctrl(const cbor_item_t* item, unsigned char* buffer,
                                  size_t buffer_size) {
   CBOR_ASSERT(cbor_isa_float_ctrl(item));
+  CBOR_ASSERT(cbor_float_get_width(item) >= CBOR_FLOAT_0 &&
+              cbor_float_get_width(item) <= CBOR_FLOAT_64);
   // cppcheck-suppress missingReturn
   switch (cbor_float_get_width(item)) {
     case CBOR_FLOAT_0:
@@ -380,8 +392,8 @@ size_t cbor_serialize_float_ctrl(const cbor_item_t* item, unsigned char* buffer,
     case CBOR_FLOAT_64:
       return cbor_encode_double(cbor_float_get_float8(item), buffer,
                                 buffer_size);
-    default:
+    default:  // LCOV_EXCL_START
       _CBOR_UNREACHABLE;
-      return 0;
+      return 0;  // LCOV_EXCL_STOP
   }
 }

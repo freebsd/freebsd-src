@@ -19,56 +19,62 @@
 bool _cbor_enable_assert = true;
 #endif
 
+cbor_type cbor_typeof(const cbor_item_t* item) {
+  CBOR_ASSERT(item != NULL);
+  CBOR_ASSERT_VALID_TYPE(item->type);
+  return item->type;
+}
+
 bool cbor_isa_uint(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_UINT;
+  return cbor_typeof(item) == CBOR_TYPE_UINT;
 }
 
 bool cbor_isa_negint(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_NEGINT;
+  return cbor_typeof(item) == CBOR_TYPE_NEGINT;
 }
 
 bool cbor_isa_bytestring(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_BYTESTRING;
+  return cbor_typeof(item) == CBOR_TYPE_BYTESTRING;
 }
 
 bool cbor_isa_string(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_STRING;
+  return cbor_typeof(item) == CBOR_TYPE_STRING;
 }
 
 bool cbor_isa_array(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_ARRAY;
+  return cbor_typeof(item) == CBOR_TYPE_ARRAY;
 }
 
 bool cbor_isa_map(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_MAP;
+  return cbor_typeof(item) == CBOR_TYPE_MAP;
 }
 
 bool cbor_isa_tag(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_TAG;
+  return cbor_typeof(item) == CBOR_TYPE_TAG;
 }
 
 bool cbor_isa_float_ctrl(const cbor_item_t* item) {
-  return item->type == CBOR_TYPE_FLOAT_CTRL;
+  return cbor_typeof(item) == CBOR_TYPE_FLOAT_CTRL;
 }
-
-cbor_type cbor_typeof(const cbor_item_t* item) { return item->type; }
 
 bool cbor_is_int(const cbor_item_t* item) {
   return cbor_isa_uint(item) || cbor_isa_negint(item);
 }
 
 bool cbor_is_bool(const cbor_item_t* item) {
-  return cbor_isa_float_ctrl(item) &&
+  return cbor_isa_float_ctrl(item) && cbor_float_ctrl_is_ctrl(item) &&
          (cbor_ctrl_value(item) == CBOR_CTRL_FALSE ||
           cbor_ctrl_value(item) == CBOR_CTRL_TRUE);
 }
 
 bool cbor_is_null(const cbor_item_t* item) {
-  return cbor_isa_float_ctrl(item) && cbor_ctrl_value(item) == CBOR_CTRL_NULL;
+  return cbor_isa_float_ctrl(item) && cbor_float_ctrl_is_ctrl(item) &&
+         cbor_ctrl_value(item) == CBOR_CTRL_NULL;
 }
 
 bool cbor_is_undef(const cbor_item_t* item) {
-  return cbor_isa_float_ctrl(item) && cbor_ctrl_value(item) == CBOR_CTRL_UNDEF;
+  return cbor_isa_float_ctrl(item) && cbor_float_ctrl_is_ctrl(item) &&
+         cbor_ctrl_value(item) == CBOR_CTRL_UNDEF;
 }
 
 bool cbor_is_float(const cbor_item_t* item) {

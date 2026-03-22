@@ -51,8 +51,9 @@ cbor_serialized_size(const cbor_item_t* item);
  * ignore the return value.
  *
  * \rst
- * .. warning:: It is the caller's responsibility to free the buffer using an
- *  appropriate ``free`` implementation.
+ * .. warning::
+ *   It is the caller's responsibility to free the buffer using an appropriate
+ *   ``free`` implementation.
  * \endrst
  *
  * @param item A data item

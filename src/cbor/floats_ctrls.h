@@ -152,8 +152,9 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_build_bool(bool value);
 /** Assign a control value
  *
  * \rst
- * .. warning:: It is possible to produce an invalid CBOR value by assigning a
- *  invalid value using this mechanism. Please consult the standard before use.
+ * .. warning::
+ *   It is possible to produce an invalid CBOR value by assigning an invalid
+ *   value using this mechanism. Please consult the standard before use.
  * \endrst
  *
  * @param item A ctrl item

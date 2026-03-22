@@ -1,21 +1,36 @@
 Template:
+
 - [Fix issue X in feature Y](https://github.com/PJK/libcbor/pull/XXX) (by [YYY](https://github.com/YYY))
 
 Next
 ---------------------
 
+0.13.0 (2025-08-30)
+---------------------
+
+- [Fix `cbor_is_null`, `cbor_is_undef`, `cbor_is_bool` assertion failing on non-ctrl floats in debug mode](https://github.com/PJK/libcbor/issues/352) (bug discovered by <https://github.com/psturm-swift>)
+- [Add an example for handling of CBOR Sequences](https://github.com/PJK/libcbor/pull/358)
+- [Use C23/c2x if available](https://github.com/PJK/libcbor/pull/361)
+  - libcbor remains C99 compatible
+  - When the compiler does not support new standard, C99 will be used, so the change should be backwards compatible
+- [Improved introduction documentation and examples](https://github.com/PJK/libcbor/pull/363)
+- [Add cbor_copy_definite to turn indefinite items into definite equivalents](https://github.com/PJK/libcbor/pull/364/files) (proposed by Jacob Teplitsky)
+- BUILD BREAKING: [Minimum CMake version set to 3.5](https://github.com/PJK/libcbor/pull/355) to [be compatible with CMake 4](https://github.com/eclipse-ecal/ecal/issues/2041) ([suggestion](https://github.com/PJK/libcbor/commit/1183292d4695300785b272532c1e02d68840e4b8#commitcomment-164507943) by <https://github.com/hnyman>)
+  - See <https://repology.org/project/cmake/versions> for support; the vast majority of users should not be affected.
+
 0.12.0 (2025-03-16)
 ---------------------
-- BUILD BREAKING: [Respect `INTERPROCEDURAL_OPTIMIZATION` and use the default value](https://github.com/PJK/libcbor/issues/315) 
+
+- BUILD BREAKING: [Respect `INTERPROCEDURAL_OPTIMIZATION` and use the default value](https://github.com/PJK/libcbor/issues/315)
 - BREAKING: Changes to NaN encoding
   - [Fix NaN encoding on Windows](https://github.com/PJK/libcbor/issues/271)
   - [Fix NaN encoding on mips/mipsel](https://github.com/PJK/libcbor/issues/329)
   - [Signaling NaNs will from now on be encoded as canonical quiet NaNs](https://github.com/PJK/libcbor/pull/335). This was already the existing behavior for half-precision floats
   - Decoding is unchanged
-  - Please note that this is an intermediate state and likely to be revisited (https://github.com/PJK/libcbor/issues/336)
+  - Please note that this is an intermediate state and likely to be revisited (<https://github.com/PJK/libcbor/issues/336>)
 - [Make build compatible with CMake FetchContent](https://github.com/PJK/libcbor/pull/341) (by [Jan200101](https://github.com/Jan200101))
 - [Support Bzlmod for Bazel builds](https://github.com/PJK/libcbor/pull/340)
-  - This should significantly simplify including libcbor as a dependency/module in Bazel projects, see https://bazel.build/external/migration
+  - This should significantly simplify including libcbor as a dependency/module in Bazel projects, see <https://bazel.build/external/migration>
 - Code quality improvements
   - [Fix compiler pragmas](https://github.com/PJK/libcbor/pull/347) (by [brooksdavis](https://github.com/brooksdavis))
   - [Fix code style issues](https://github.com/PJK/libcbor/pull/321)
@@ -23,35 +38,39 @@ Next
 
 0.11.0 (2024-02-04)
 ---------------------
+
 - [Updated documentation to refer to RFC 8949](https://github.com/PJK/libcbor/issues/269)
 - Improvements to `cbor_describe`
   - [Bytestring data will now be printed as well](https://github.com/PJK/libcbor/pull/281) by [akallabeth](https://github.com/akallabeth)
   - [Formatting consistency and clarity improvements](https://github.com/PJK/libcbor/pull/285)
 - [Fix `cbor_string_set_handle` not setting the codepoint count](https://github.com/PJK/libcbor/pull/286)
 - BREAKING: [`cbor_load` will no longer fail on input strings that are well-formed but not valid UTF-8](https://github.com/PJK/libcbor/pull/286)
-  - If you were relying on the validation, please check the result using `cbor_string_codepoint_count` instead 
+  - If you were relying on the validation, please check the result using `cbor_string_codepoint_count` instead
 - BREAKING: [All decoders like `cbor_load` and `cbor_stream_decode` will accept all well-formed tag values](https://github.com/PJK/libcbor/pull/308) (bug discovered by [dskern-github](https://github.com/dskern-github))
   - Previously, decoding of certain values would fail with `CBOR_ERR_MALFORMATED` or `CBOR_DECODER_ERROR`
   - This also makes decoding symmetrical with serialization, which already accepts all values
 
 0.10.2 (2023-01-31)
 ---------------------
+
 - [Fixed minor test bug causing failures for x86 Linux](https://github.com/PJK/libcbor/pull/266) (discovered by [trofi](https://github.com/PJK/libcbor/issues/263))
   - Actual libcbor functionality not affected, bug was in the test suite
 - [Made tests platform-independent](https://github.com/PJK/libcbor/pull/272)
 
 0.10.1 (2022-12-30)
 ---------------------
+
 - [Fix a regression in `cbor_serialize_alloc` that caused serialization of zero-length strings and bytestrings or byte/strings with zero-length chunks to fail](https://github.com/PJK/libcbor/pull/260) (discovered by [martelletto](https://github.com/martelletto))
 
 0.10.0 (2022-12-29)
 ---------------------
+
 - Make the buffer_size optional in `cbor_serialize_alloc` [[#205]](https://github.com/PJK/libcbor/pull/205) (by [hughsie](https://github.com/hughsie))
 - BREAKING: Improved half-float encoding for denormalized numbers. [[#208]](https://github.com/PJK/libcbor/pull/208) (by [ranvis](https://github.com/ranvis))
   - Denormalized half-floats will now preserve data in the mantissa
-  - Note: Half-float NaNs still lose data (https://github.com/PJK/libcbor/issues/215)
+  - Note: Half-float NaNs still lose data (<https://github.com/PJK/libcbor/issues/215>)
 - BUILD BREAKING: Minimum CMake version is 3.0 [[#201]](https://github.com/PJK/libcbor/pull/201) (by [thewtex@](https://github.com/thewtex))
-  - See https://repology.org/project/cmake/versions for support; the vast majority of users should not be affected.
+  - See <https://repology.org/project/cmake/versions> for support; the vast majority of users should not be affected.
 - Fix a potential memory leak when the allocator fails during array or map decoding [[#224]](https://github.com/PJK/libcbor/pull/224) (by [James-ZHANG](https://github.com/James-ZHANG))
 - [Fix a memory leak when the allocator fails when adding chunks to indefinite bytestrings.](https://github.com/PJK/libcbor/pull/242) ([discovered](https://github.com/PJK/libcbor/pull/228) by [James-ZHANG](https://github.com/James-ZHANG))
 - [Fix a memory leak when the allocator fails when adding chunks to indefinite strings](https://github.com/PJK/libcbor/pull/246)
@@ -70,57 +89,62 @@ Next
 
 0.9.0 (2021-11-14)
 ---------------------
+
 - Improved pkg-config paths handling [[#164]](https://github.com/PJK/libcbor/pull/164) (by [jtojnar@](https://github.com/jtojnar))
 - Use explicit math.h linkage [[#170]](https://github.com/PJK/libcbor/pull/170)
 - BREAKING: Fixed handling of items that exceed the host size_t range [[#186]](https://github.com/PJK/libcbor/pull/186hg)  
-    - Callbacks for bytestrings, strings, arrays, and maps use uint64_t instead of size_t to allow handling of large items that exceed size_t even if size_t < uint64_t
-    - cbor_decode explicitly checks size to avoid overflows (previously broken, potentially resulting in erroneous decoding on affected systems)
-    - The change should be a noop for 64b systems 
+  - Callbacks for bytestrings, strings, arrays, and maps use uint64_t instead of size_t to allow handling of large items that exceed size_t even if size_t < uint64_t
+  - cbor_decode explicitly checks size to avoid overflows (previously broken, potentially resulting in erroneous decoding on affected systems)
+  - The change should be a noop for 64b systems
 - Added a [Bazel](https://bazel.build/) build example [[#196]](https://github.com/PJK/libcbor/pull/196) (by [andyjgf@](https://github.com/andyjgf))
 
 0.8.0 (2020-09-20)
 ---------------------
+
 - BUILD BREAKING: Use BUILD_SHARED_LIBS to determine how to build libraries (fixed Windows linkage) [[#148]](https://github.com/PJK/libcbor/pull/148) (by [intelligide@](https://github.com/intelligide))
 - BREAKING: Fix `cbor_tag_item` not increasing the reference count on the tagged item reference it returns [[Fixes #109](https://github.com/PJK/libcbor/issues/109)] (discovered bt [JohnGilmour](https://github.com/JohnGilmour))
   - If you have previously relied on the broken behavior, you can use `cbor_move` to emulate as long as the returned handle is an "rvalue"
 - BREAKING: [`CBOR_DECODER_EBUFFER` removed from `cbor_decoder_status`](https://github.com/PJK/libcbor/pull/156)
-    - `cbor_stream_decode` will set `CBOR_DECODER_NEDATA` instead if the input buffer is empty
+  - `cbor_stream_decode` will set `CBOR_DECODER_NEDATA` instead if the input buffer is empty
 - [Fix `cbor_stream_decode`](https://github.com/PJK/libcbor/pull/156) to set `cbor_decoder_result.required` to the minimum number of input bytes necessary to receive the next callback (as long as at least one byte was passed) (discovered by [woefulwabbit](https://github.com/woefulwabbit))
 - Fixed several minor manpage issues [[#159]](https://github.com/PJK/libcbor/pull/159) (discovered by [kloczek@](https://github.com/kloczek))
 
 0.7.0 (2020-04-25)
 ---------------------
+
 - Fix bad encoding of NaN half-floats [[Fixes #53]](https://github.com/PJK/libcbor/issues/53) (discovered by [BSipos-RKF](https://github.com/BSipos-RKF))
-    - **Warning**: Previous versions encoded NaNs as `0xf9e700` instead of `0xf97e00`; if you rely on the broken behavior, this will be a breaking change
+  - **Warning**: Previous versions encoded NaNs as `0xf9e700` instead of `0xf97e00`; if you rely on the broken behavior, this will be a breaking change
 - Fix potentially bad encoding of negative half-float with exponent < -14 [[Fixes #112]](https://github.com/PJK/libcbor/issues/112) (discovered by [yami36](https://github.com/yami36))
 - BREAKING: Improved bool support [[Fixes #63]](https://github.com/PJK/libcbor/issues/63)
-    - Rename `cbor_ctrl_is_bool` to `cbor_get_bool` and fix the behavior
-    - Add `cbor_set_bool`
+  - Rename `cbor_ctrl_is_bool` to `cbor_get_bool` and fix the behavior
+  - Add `cbor_set_bool`
 - Fix memory_allocation_test breaking the build without CBOR_CUSTOM_ALLOC [[Fixes #128]](https://github.com/PJK/libcbor/issues/128) (by [panlinux](https://github.com/panlinux))
 - [Fix a potential build issue where cJSON includes may be misconfigured](https://github.com/PJK/libcbor/pull/132)
 - Breaking: [Add a limit on the size of the decoding context stack](https://github.com/PJK/libcbor/pull/138) (by [James-ZHANG](https://github.com/James-ZHANG))
-    - If your usecase requires parsing very deeply nested structures, you might need to increase the default 2k limit via `CBOR_MAX_STACK_SIZE` 
+  - If your usecase requires parsing very deeply nested structures, you might need to increase the default 2k limit via `CBOR_MAX_STACK_SIZE`
 - Enable LTO/IPO based on [CheckIPOSupported](https://cmake.org/cmake/help/latest/module/CheckIPOSupported.html#module:CheckIPOSupported) [[#143]](https://github.com/PJK/libcbor/pull/143) (by [xanderlent](https://github.com/xanderlent))
-    - If you rely on LTO being enabled and use CMake version older than 3.9, you will need to re-enable it manually or upgrade your CMake 
+  - If you rely on LTO being enabled and use CMake version older than 3.9, you will need to re-enable it manually or upgrade your CMake
 
 0.6.1 (2020-03-26)
 ---------------------
+
 - [Fix bad shared library version number](https://github.com/PJK/libcbor/pull/131)
-    - **Warning**: Shared library built from the 0.6.0 release is erroneously marked as version "0.6.0", which makes it incompatible with future releases *including the v0.6.X line* even though they may be compatible API/ABI-wise. Refer to the documentation for the new SO versioning scheme.
+  - **Warning**: Shared library built from the 0.6.0 release is erroneously marked as version "0.6.0", which makes it incompatible with future releases *including the v0.6.X line* even though they may be compatible API/ABI-wise. Refer to the documentation for the new SO versioning scheme.
 
 0.6.0 (2020-03-15)
 ---------------------
-- Correctly set .so version [[Fixes #52]](https://github.com/PJK/libcbor/issues/52). 
-    - **Warning**: All previous releases will be identified as 0.0 by the linker.
+
+- Correctly set .so version [[Fixes #52]](https://github.com/PJK/libcbor/issues/52).
+  - **Warning**: All previous releases will be identified as 0.0 by the linker.
 - Fix & prevent heap overflow error in example code [[#74]](https://github.com/PJK/libcbor/pull/74) [[#76]](https://github.com/PJK/libcbor/pull/76) (by @nevun)
 - Correctly set OSX dynamic library version [[Fixes #75]](https://github.com/PJK/libcbor/issues/75)
 - [Fix misplaced 0xFF bytes in maps possibly causing memory corruption](https://github.com/PJK/libcbor/pull/82)
 - BREAKING: Fix handling & cleanup of failed memory allocation in constructor
   and builder helper functions [[Fixes #84]](https://github.com/PJK/libcbor/issues/84)
-  - All cbor_new_* and cbor_build_* functions will now explicitly return NULL when memory allocation fails
+  - All cbor_new_*and cbor_build_* functions will now explicitly return NULL when memory allocation fails
   - It is up to the client to handle such cases
 - Globally enforced code style [[Fixes #83]](https://github.com/PJK/libcbor/issues/83)
-- Fix issue possible memory corruption bug on repeated 
+- Fix issue possible memory corruption bug on repeated
   cbor_(byte)string_add_chunk calls with intermittently failing realloc calls
 - Fix possibly misaligned reads and writes when endian.h is uses or when
   running on a big-endian machine [[Fixes #99](https://github.com/PJK/libcbor/issues/99), [#100](https://github.com/PJK/libcbor/issues/100)]
@@ -129,6 +153,7 @@ Next
 
 0.5.0 (2017-02-06)
 ---------------------
+
 - Remove cmocka from the subtree (always rely on system or user-provided version)
 - Windows CI
 - Only build tests if explicitly enabled (`-DWITH_TESTS=ON`)
@@ -144,6 +169,7 @@ Next
 
 0.4.0 (2015-12-25)
 ---------------------
+
 Breaks build & header compatibility due to:
 
 - Improved build configuration and feature check macros
@@ -154,6 +180,7 @@ Breaks build & header compatibility due to:
 
 0.3.1 (2015-05-21)
 ---------------------
+
 - documentation and comments improvements, mostly for the API reference
 
 0.3.0 (2015-05-21)
@@ -169,6 +196,7 @@ Breaks build & header compatibility due to:
 
 0.2.1 (2015-05-17)
 ---------------------
+
 - C99 support
 
 0.2.0 (2015-05-17)

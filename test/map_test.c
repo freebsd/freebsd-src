@@ -246,9 +246,22 @@ static void test_indef_map_decode(void** _state _CBOR_UNUSED) {
         map = cbor_load(test_indef_map, 6, &res);
 
         assert_null(map);
-        assert_size_equal(res.error.code, CBOR_ERR_MEMERROR);
+        assert_int_equal(res.error.code, CBOR_ERR_MEMERROR);
       },
       4, MALLOC, MALLOC, MALLOC, REALLOC_FAIL);
+}
+
+// The value in the third pair is missing, 0xFF instead.
+static unsigned char test_break_in_def_map[] = {0xA3, 0x30, 0x30, 0x30,
+                                                0x30, 0x00, 0xFF};
+static void test_break_in_def_map_decode(void** _state _CBOR_UNUSED) {
+  cbor_item_t* map;
+  struct cbor_load_result res;
+  map = cbor_load(test_break_in_def_map, 7, &res);
+
+  assert_null(map);
+  assert_int_equal(res.error.code, CBOR_ERR_SYNTAXERROR);
+  assert_size_equal(res.error.position, 7);
 }
 
 int main(void) {
@@ -265,6 +278,7 @@ int main(void) {
       cmocka_unit_test(test_map_creation),
       cmocka_unit_test(test_map_add),
       cmocka_unit_test(test_indef_map_decode),
+      cmocka_unit_test(test_break_in_def_map_decode),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

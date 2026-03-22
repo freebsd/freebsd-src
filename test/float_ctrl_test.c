@@ -69,6 +69,8 @@ unsigned char null_data[] = {0xF6};
 static void test_null(void** _state _CBOR_UNUSED) {
   float_ctrl = cbor_load(null_data, 1, &res);
   assert_true(cbor_isa_float_ctrl(float_ctrl));
+  assert_true(cbor_float_ctrl_is_ctrl(float_ctrl));
+  assert_true(cbor_float_get_width(float_ctrl) == CBOR_FLOAT_0);
   assert_true(cbor_is_null(float_ctrl));
   cbor_decref(&float_ctrl);
   assert_null(float_ctrl);
@@ -79,6 +81,8 @@ unsigned char undef_data[] = {0xF7};
 static void test_undef(void** _state _CBOR_UNUSED) {
   float_ctrl = cbor_load(undef_data, 1, &res);
   assert_true(cbor_isa_float_ctrl(float_ctrl));
+  assert_true(cbor_float_ctrl_is_ctrl(float_ctrl));
+  assert_true(cbor_float_get_width(float_ctrl) == CBOR_FLOAT_0);
   assert_true(cbor_is_undef(float_ctrl));
   cbor_decref(&float_ctrl);
   assert_null(float_ctrl);
@@ -90,6 +94,8 @@ static void test_bool(void** _state _CBOR_UNUSED) {
   _CBOR_TEST_DISABLE_ASSERT({
     float_ctrl = cbor_load(bool_data, 1, &res);
     assert_true(cbor_isa_float_ctrl(float_ctrl));
+    assert_true(cbor_float_ctrl_is_ctrl(float_ctrl));
+    assert_true(cbor_float_get_width(float_ctrl) == CBOR_FLOAT_0);
     assert_true(cbor_is_bool(float_ctrl));
     assert_false(cbor_get_bool(float_ctrl));
     cbor_set_bool(float_ctrl, true);
@@ -100,6 +106,8 @@ static void test_bool(void** _state _CBOR_UNUSED) {
 
     float_ctrl = cbor_load(bool_data + 1, 1, &res);
     assert_true(cbor_isa_float_ctrl(float_ctrl));
+    assert_true(cbor_float_ctrl_is_ctrl(float_ctrl));
+    assert_true(cbor_float_get_width(float_ctrl) == CBOR_FLOAT_0);
     assert_true(cbor_is_bool(float_ctrl));
     assert_true(cbor_get_bool(float_ctrl));
     cbor_set_bool(float_ctrl, false);
@@ -125,6 +133,18 @@ static void test_float_ctrl_creation(void** _state _CBOR_UNUSED) {
   WITH_FAILING_MALLOC({ assert_null(cbor_build_ctrl(0xAF)); });
 }
 
+static void test_ctrl_on_float(void** _state _CBOR_UNUSED) {
+  float_ctrl = cbor_build_float4(3.14f);
+  assert_non_null(float_ctrl);
+  assert_true(cbor_is_float(float_ctrl));
+  assert_false(cbor_float_ctrl_is_ctrl(float_ctrl));
+  assert_false(cbor_is_null(float_ctrl));
+  assert_false(cbor_is_undef(float_ctrl));
+  assert_false(cbor_is_bool(float_ctrl));
+  cbor_decref(&float_ctrl);
+  assert_null(float_ctrl);
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_float2),
@@ -134,6 +154,7 @@ int main(void) {
       cmocka_unit_test(test_undef),
       cmocka_unit_test(test_bool),
       cmocka_unit_test(test_float_ctrl_creation),
+      cmocka_unit_test(test_ctrl_on_float),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

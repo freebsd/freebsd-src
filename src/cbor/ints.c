@@ -38,7 +38,8 @@ uint64_t cbor_get_uint64(const cbor_item_t* item) {
 
 uint64_t cbor_get_int(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_is_int(item));
-  // cppcheck-suppress missingReturn
+  CBOR_ASSERT(cbor_int_get_width(item) >= CBOR_INT_8 &&
+              cbor_int_get_width(item) <= CBOR_INT_64);
   switch (cbor_int_get_width(item)) {
     case CBOR_INT_8:
       return cbor_get_uint8(item);
@@ -48,9 +49,9 @@ uint64_t cbor_get_int(const cbor_item_t* item) {
       return cbor_get_uint32(item);
     case CBOR_INT_64:
       return cbor_get_uint64(item);
-    default:
+    default:  // LCOV_EXCL_START
       _CBOR_UNREACHABLE;
-      return 0;
+      return 0;  // LCOV_EXCL_STOP
   }
 }
 

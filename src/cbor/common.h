@@ -77,14 +77,25 @@ extern bool _cbor_enable_assert;
   } while (0)
 #endif
 
+#define CBOR_ASSERT_VALID_TYPE(item_type) \
+  CBOR_ASSERT(item_type >= CBOR_TYPE_UINT && item_type <= CBOR_TYPE_FLOAT_CTRL);
+
 #define _CBOR_TO_STR_(x) #x
 #define _CBOR_TO_STR(x) _CBOR_TO_STR_(x) /* enables proper double expansion */
 
+#ifdef CBOR_HAS_NODISCARD_ATTRIBUTE
+#define CBOR_NODISCARD [[nodiscard]]
+#else
+#define CBOR_NODISCARD
+#endif
+
 #ifdef __GNUC__
 #define _CBOR_UNUSED __attribute__((__unused__))
-// TODO(https://github.com/PJK/libcbor/issues/247): Prefer [[nodiscard]] if
-// available
+// Fall back to __attribute__((warn_unused_result)) if we don't have
+// [[nodiscard]]
+#ifndef CBOR_HAS_NODISCARD_ATTRIBUTE
 #define _CBOR_NODISCARD __attribute__((warn_unused_result))
+#endif
 #elif defined(_MSC_VER)
 #define _CBOR_UNUSED __pragma(warning(suppress : 4100 4101))
 #define _CBOR_NODISCARD
@@ -115,7 +126,8 @@ CBOR_EXPORT extern _cbor_free_t _cbor_free;
     }                            \
   } while (0)
 
-// Macro to short-circuit builders when memory allocation of nested data fails
+// Macro to short-circuit builders when memory allocation of nested data
+// fails
 #define _CBOR_DEPENDENT_NOTNULL(cbor_item, pointer) \
   do {                                              \
     if (pointer == NULL) {                          \
@@ -126,18 +138,21 @@ CBOR_EXPORT extern _cbor_free_t _cbor_free;
 
 /** Sets the memory management routines to use.
  *
- * By default, libcbor will use the standard library `malloc`, `realloc`, and
- * `free`.
+ * By default, libcbor will use the standard library `malloc`, `realloc`,
+ * and `free`.
  *
  * \rst
- * .. warning:: This function modifies the global state and should therefore be
- *  used accordingly. Changing the memory handlers while allocated items exist
- *  will result in a ``free``/``malloc`` mismatch. This function is not thread
- *  safe with respect to both itself and all the other *libcbor* functions that
- *  work with the heap.
+ * .. warning::
+ *   This function modifies the global state and should
+ *   therefore be used accordingly. Changing the memory handlers while
+ *   allocated items exist will result in a ``free``/``malloc`` mismatch.
+ *   This function is not thread safe with respect to both itself and all
+ *   the other *libcbor* functions that work with the heap.
  *
- * .. note:: `realloc` implementation must correctly support `NULL` reallocation
- *  (see e.g. http://en.cppreference.com/w/c/memory/realloc)
+ * .. note::
+ *   `realloc` implementation must correctly support `NULL`
+ *   reallocation (see e.g. http://en.cppreference.com/w/c/memory/realloc)
+ *
  * \endrst
  *
  * @param custom_malloc malloc implementation
@@ -247,8 +262,9 @@ CBOR_EXPORT bool cbor_is_bool(const cbor_item_t* item);
 /** Does this item represent `null`
  *
  * \rst
- * .. warning:: This is in no way related to the value of the pointer. Passing a
- *  null pointer will most likely result in a crash.
+ * .. warning::
+ *   This is in no way related to the value of the pointer.
+ *   Passing a null pointer will most likely result in a crash.
  * \endrst
  *
  * @param item the item
@@ -260,8 +276,8 @@ CBOR_EXPORT bool cbor_is_null(const cbor_item_t* item);
 /** Does this item represent `undefined`
  *
  * \rst
- * .. warning:: Care must be taken to distinguish nulls and undefined values in
- *  C.
+ * .. warning::
+ *   Care must be taken to distinguish nulls and undefined values in C.
  * \endrst
  *
  * @param item the item
@@ -278,8 +294,8 @@ CBOR_EXPORT bool cbor_is_undef(const cbor_item_t* item);
 
 /** Increases the item's reference count by one
  *
- * Constant complexity; items referring to this one or items being referred to
- * are not updated.
+ * Constant complexity; items referring to this one or items being
+ * referred to are not updated.
  *
  * This function can be used to extend reference counting to client code.
  *
@@ -288,19 +304,21 @@ CBOR_EXPORT bool cbor_is_undef(const cbor_item_t* item);
  */
 CBOR_EXPORT cbor_item_t* cbor_incref(cbor_item_t* item);
 
-/** Decreases the item's reference count by one, deallocating the item if needed
+/** Decreases the item's reference count by one, deallocating the item if
+ * needed
  *
- * In case the item is deallocated, the reference count of all items this item
- * references will also be #cbor_decref 'ed recursively.
+ * In case the item is deallocated, the reference count of all items this
+ * item references will also be #cbor_decref 'ed recursively.
  *
  * @param item Reference to an item. Will be set to `NULL` if deallocated
  */
 CBOR_EXPORT void cbor_decref(cbor_item_t** item);
 
-/** Decreases the item's reference count by one, deallocating the item if needed
- *
- * Convenience wrapper for #cbor_decref when its set-to-null behavior is not
+/** Decreases the item's reference count by one, deallocating the item if
  * needed
+ *
+ * Convenience wrapper for #cbor_decref when its set-to-null behavior is
+ * not needed
  *
  * @param item Reference to an item
  */
@@ -309,7 +327,8 @@ CBOR_EXPORT void cbor_intermediate_decref(cbor_item_t* item);
 /** Get the item's reference count
  *
  * \rst
- * .. warning:: This does *not* account for transitive references.
+ * .. warning::
+ *   This does *not* account for transitive references.
  * \endrst
  *
  * @todo Add some inline examples for reference counting
@@ -322,14 +341,15 @@ CBOR_EXPORT size_t cbor_refcount(const cbor_item_t* item);
 
 /** Provides CPP-like move construct
  *
- * Decreases the reference count by one, but does not deallocate the item even
- * if its refcount reaches zero. This is useful for passing intermediate values
- * to functions that increase reference count. Should only be used with
- * functions that `incref` their arguments.
+ * Decreases the reference count by one, but does not deallocate the item
+ * even if its refcount reaches zero. This is useful for passing
+ * intermediate values to functions that increase reference count. Should
+ * only be used with functions that `incref` their arguments.
  *
  * \rst
- * .. warning:: If the item is moved without correctly increasing the reference
- *  count afterwards, the memory will be leaked.
+ * .. warning::
+ *   If the item is moved without correctly increasing the
+ *   reference count afterwards, the memory will be leaked.
  * \endrst
  *
  * @param item Reference to an item

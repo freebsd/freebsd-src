@@ -44,7 +44,9 @@ commands:
       - run: make -j 16 VERBOSE=1
   test:
     steps:
-      - run: ctest -VV
+      - run: ctest -VV --output-junit ctest_out.xml
+      - store_test_results:
+          path: ctest_out.xml
 
 orbs:
   codecov: codecov/codecov@3.2.2
@@ -238,6 +240,17 @@ jobs:
     docker:
       - image: dockcross/linux-mipsel-lts
 
+
+  build-and-test-riscv64: &dockcross-job
+    docker:
+      - image: dockcross/linux-riscv64
+    steps: 
+      - checkout
+      - attach_workspace:
+          at: /home/circleci/project
+      - build-with-cmocka-from-source
+      - test
+
 workflows:
   build-and-test:
     jobs:
@@ -250,6 +263,7 @@ workflows:
       - build-and-test-win
       - build-and-test-mips
       - build-and-test-mipsel
+      - build-and-test-riscv64
       - build-bazel
       - llvm-coverage
       # OSX builds are expensive, run only on master

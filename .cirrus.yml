@@ -5,7 +5,6 @@ freebsd_task:
     - mkdir build
     - cd build
     - cmake -GNinja -DWITH_TESTS=ON
-      -DCBOR_CUSTOM_ALLOC=ON
       -DCMAKE_BUILD_TYPE=Debug
       -DSANITIZE=OFF
       ..

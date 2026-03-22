@@ -5,8 +5,9 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#include <stdbool.h>
+
 #include "arrays.h"
-#include <string.h>
 #include "internal/memory_utils.h"
 
 size_t cbor_array_size(const cbor_item_t* item) {

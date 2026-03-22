@@ -102,6 +102,9 @@ The following configuration options will also be defined as macros [#]_ in ``<cb
 
 If you want to pass other custom configuration options, please refer to `<http://www.cmake.org/Wiki/CMake_Useful_Variables>`_.
 
+.. note::
+    When ``CMAKE_INTERPROCEDURAL_OPTIMIZATION`` is enabled, the generated static library (`libcbor.a`) should be used with an LTO-enabled linker downstream. On LLVM toolchains without bitcode embedding (`-fembed-bitcode`), the archive will contain LLVM IR only and linking without LTO  `will not work <https://github.com/PJK/libcbor/issues/372>`_. 
+
 .. warning::
     ``CBOR_CUSTOM_ALLOC`` has been `removed <https://github.com/PJK/libcbor/pull/237>`_. 
     Custom allocators (historically a controlled by a build flag) are always enabled.

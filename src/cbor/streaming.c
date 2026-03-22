@@ -593,9 +593,9 @@ struct cbor_decoder_result cbor_stream_decode(
       /* Break */
       callbacks->indef_break(context);
       return result;
-    default:
+    default:  // LCOV_EXCL_START
       // Never happens, the switch statement is exhaustive on the 1B range
       _CBOR_UNREACHABLE;
-      return result;
+      return result;  // LCOV_EXCL_STOP
   }
 }

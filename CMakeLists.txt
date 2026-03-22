@@ -1,13 +1,13 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
-project(libcbor)
+project(libcbor LANGUAGES C CXX)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
                       "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/")
 include(CTest)
 include(GNUInstallDirs) # Provides CMAKE_INSTALL_ variables
 
 set(CBOR_VERSION_MAJOR "0")
-set(CBOR_VERSION_MINOR "12")
+set(CBOR_VERSION_MINOR "13")
 set(CBOR_VERSION_PATCH "0")
 set(CBOR_VERSION
     ${CBOR_VERSION_MAJOR}.${CBOR_VERSION_MINOR}.${CBOR_VERSION_PATCH})
@@ -79,12 +79,43 @@ set(CPACK_PACKAGE_VERSION_PATCH ${CBOR_VERSION_PATCH})
 
 include(CPack)
 
+#
+# Configure compilation flags and language features
+#
+
+include(CheckCSourceCompiles)
+
+check_c_source_compiles("
+  #include <stdio.h>
+  [[nodiscard]] int f(void) { return 42; }
+  int main(void) { return f(); }
+" HAS_NODISCARD_ATTRIBUTE)
+
+if (HAS_NODISCARD_ATTRIBUTE)
+  message(STATUS "[[nodiscard]] is supported.")
+  add_definitions(-D_CBOR_HAS_NODISCARD_ATTRIBUTE)
+  # Assume that if we have [[nodiscard]], we have some C23 support. May fail.
+  if(NOT DEFINED CMAKE_C_STANDARD)
+    message(STATUS "Switching to C23-like mode. To prevent this, pass -DCMAKE_C_STANDARD explicitly.")
+    # On Clang 16, this is resolved to -std=c2x
+    set(CMAKE_C_STANDARD 23 CACHE STRING "C language standard")
+  endif()
+endif()
+
 if(MINGW)
   # https://github.com/PJK/libcbor/issues/13
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 elseif(NOT MSVC)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -pedantic")
+  # Default to C99
+  if(NOT DEFINED CMAKE_C_STANDARD)
+    set(CMAKE_C_STANDARD 99 CACHE STRING "C language standard")
+  endif()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic")
 endif()
+
+# CMAKE_C_STANDARD set above
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
 
 if(MSVC)
   # This just doesn't work right --
@@ -98,8 +129,8 @@ else()
   set(CBOR_RESTRICT_SPECIFIER "restrict")
 
   set(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} -O0 -pedantic -Wall -Wextra -g -ggdb -DDEBUG=true")
-  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -pedantic -Wall -Wextra -DNDEBUG")
+      "${CMAKE_C_FLAGS_DEBUG} -O0 -Wall -Wextra -g -ggdb -DDEBUG=true")
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wall -Wextra -DNDEBUG")
 
   if(SANITIZE)
     set(CMAKE_C_FLAGS_DEBUG
@@ -124,8 +155,6 @@ else()
   add_definitions(-DEIGHT_BYTE_SIZE_T)
 endif()
 
-include(CheckCSourceCompiles)
-
 check_c_source_compiles("
     int main() {
         __builtin_unreachable();
@@ -136,6 +165,36 @@ check_c_source_compiles("
 if (HAS_BUILTIN_UNREACHABLE)
   add_definitions(-D_CBOR_HAS_BUILTIN_UNREACHABLE)
 endif()
+
+# CMake >= 3.9.0 enables LTO for GCC and Clang with INTERPROCEDURAL_OPTIMIZATION
+# Policy CMP0069 enables this behavior when we set the minimum CMake version <
+# 3.9.0 Checking for LTO support before setting INTERPROCEDURAL_OPTIMIZATION is
+# mandatory with CMP0069 set to NEW.
+set(LTO_SUPPORTED FALSE)
+if(${CMAKE_VERSION} VERSION_GREATER "3.9.0" OR ${CMAKE_VERSION} VERSION_EQUAL
+                                               "3.9.0")
+  cmake_policy(SET CMP0069 NEW)
+  # Require LTO support to build libcbor with newer CMake versions
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT LTO_SUPPORTED)
+endif()
+
+if(NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+endif()
+
+if(LTO_SUPPORTED)
+  message(
+    STATUS
+      "LTO is supported and CMAKE_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION}"
+  )
+else()
+  message(STATUS "LTO is not supported")
+endif()
+
+#
+# Testing and validation
+#
 
 enable_testing()
 
@@ -180,8 +239,6 @@ add_custom_target(
   VERBATIM
   COMMENT "Generate coverage report using the LLVM toolchain")
 
-include_directories(src)
-
 option(COVERAGE "Enable code coverage instrumentation" OFF)
 if(COVERAGE)
   message("Configuring code coverage instrumentation")
@@ -205,6 +262,12 @@ if(COVERAGE)
   endif()
 endif()
 
+#
+# Configure build and targets
+#
+
+include_directories(src)
+
 # We want to generate configuration.h from the template and make it so that it
 # is accessible using the same path during both library build and installed
 # header use, without littering the source dir.
@@ -212,32 +275,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/cbor/configuration.h.in
                ${PROJECT_BINARY_DIR}/cbor/configuration.h)
 install(FILES ${PROJECT_BINARY_DIR}/cbor/configuration.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cbor)
-
-# CMake >= 3.9.0 enables LTO for GCC and Clang with INTERPROCEDURAL_OPTIMIZATION
-# Policy CMP0069 enables this behavior when we set the minimum CMake version <
-# 3.9.0 Checking for LTO support before setting INTERPROCEDURAL_OPTIMIZATION is
-# mandatory with CMP0069 set to NEW.
-set(LTO_SUPPORTED FALSE)
-if(${CMAKE_VERSION} VERSION_GREATER "3.9.0" OR ${CMAKE_VERSION} VERSION_EQUAL
-                                               "3.9.0")
-  cmake_policy(SET CMP0069 NEW)
-  # Require LTO support to build libcbor with newer CMake versions
-  include(CheckIPOSupported)
-  check_ipo_supported(RESULT LTO_SUPPORTED)
-endif()
-
-if(NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-endif()
-
-if(LTO_SUPPORTED)
-  message(
-    STATUS
-      "LTO is supported and CMAKE_INTERPROCEDURAL_OPTIMIZATION=${CMAKE_INTERPROCEDURAL_OPTIMIZATION}"
-  )
-else()
-  message(STATUS "LTO is not supported")
-endif()
 
 add_subdirectory(src)
 if(LTO_SUPPORTED)

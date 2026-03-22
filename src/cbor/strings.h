@@ -76,9 +76,10 @@ cbor_string_handle(const cbor_item_t* item);
  * and invalid, `cbor_string_codepoint_count` will return 0.
  *
  * \rst
- * .. warning:: Using a pointer to a stack allocated constant is a common
- *  mistake. Lifetime of the string will expire when it goes out of scope and
- *  the CBOR item will be left inconsistent.
+ * .. warning::
+ *   Using a pointer to a stack allocated constant is a common mistake.
+ *   Lifetime of the string will expire when it goes out of scope and the CBOR
+ *   item will be left inconsistent.
  * \endrst
  *
  * @param item A definite string

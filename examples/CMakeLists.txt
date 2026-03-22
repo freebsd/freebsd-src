@@ -16,6 +16,12 @@ target_link_libraries(sort cbor)
 add_executable(hello hello.c)
 target_link_libraries(hello cbor)
 
+add_executable(cbor_sequence cbor_sequence.c)
+target_link_libraries(cbor_sequence cbor)
+
+add_executable(crash_course crash_course.c)
+target_link_libraries(crash_course cbor)
+
 find_package(CJSON)
 
 if(CJSON_FOUND)

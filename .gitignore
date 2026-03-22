@@ -6,7 +6,8 @@ doxygen_docs
 cmake-build-debug
 venv
 **.DS_Store
-.vscode
+.vscode/tmp
+.vscode/c_cpp_properties.json
 doc/build
 # No top-level requirements, see doc/source
 requirements.txt
