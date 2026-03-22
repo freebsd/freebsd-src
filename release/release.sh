@@ -40,8 +40,17 @@ export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 VERSION=3
 
 # Prototypes that can be redefined per-chroot or per-target.
+
+# load_chroot_env(): Set up the build environment needed.
+#
+# Done as part of chroot_env().
 load_chroot_env() { }
+
+# load_target_env(): set up the build environment needed for the
+# chroot_build_target() and `${chroot_build_release}` steps.
 load_target_env() { }
+
+# buildenv_setup(): set up the build environment needed for post-chroot_setup()
 buildenv_setup() { }
 
 # chroot_cleanup(): Clean up resources setup in chroot_setup() at exit.
