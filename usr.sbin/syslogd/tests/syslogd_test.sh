@@ -238,6 +238,28 @@ prop_filter_body()
     syslogd_check_log_nomatch "prop1: FreeBSD"
     syslogd_check_log_nomatch "prop2: freebsd"
     syslogd_check_log "prop3: Solaris"
+
+    printf ":msg,ereregex,\"substring1|substring2\"\nuser.debug\t${SYSLOGD_LOGFILE}\n" \
+        > "${SYSLOGD_CONFIG}"
+    syslogd_reload
+
+    syslogd_log -p user.debug -t "prop1" -h "${SYSLOGD_LOCAL_SOCKET}" "substring1"
+    syslogd_check_log "prop1: substring1"
+    syslogd_log -p user.debug -t "prop2" -h "${SYSLOGD_LOCAL_SOCKET}" "substring2"
+    syslogd_check_log "prop2: substring2"
+    syslogd_log -p user.debug -t "prop3" -h "${SYSLOGD_LOCAL_SOCKET}" "substring3"
+    syslogd_check_log_nomatch "prop3: substring3"
+
+    printf ":msg,!ereregex,\"substring1|substring2\"\nuser.debug\t${SYSLOGD_LOGFILE}\n" \
+        > "${SYSLOGD_CONFIG}"
+    syslogd_reload
+
+    syslogd_log -p user.debug -t "prop1" -h "${SYSLOGD_LOCAL_SOCKET}" "substring1"
+    syslogd_check_log_nomatch "prop1: substring1"
+    syslogd_log -p user.debug -t "prop2" -h "${SYSLOGD_LOCAL_SOCKET}" "substring2"
+    syslogd_check_log_nomatch "prop2: substring2"
+    syslogd_log -p user.debug -t "prop3" -h "${SYSLOGD_LOCAL_SOCKET}" "substring3"
+    syslogd_check_log "prop3: substring3"
 }
 prop_filter_cleanup()
 {
