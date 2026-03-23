@@ -85,6 +85,15 @@
 #define TCP_EI_BITS_RST_IN_FR	0x200	/* a front state reset */
 #define TCP_EI_BITS_2MS_TIMER	0x400	/* 2 MSL timer expired */
 
+#define TCP_TRK_TRACK_FLG_EMPTY 0x00	/* Available */
+#define TCP_TRK_TRACK_FLG_USED  0x01	/* In use */
+#define TCP_TRK_TRACK_FLG_OPEN  0x02	/* End is not valid (open range request) */
+#define TCP_TRK_TRACK_FLG_SEQV  0x04	/* We had a sendfile that touched it  */
+#define TCP_TRK_TRACK_FLG_COMP  0x08	/* Sendfile as placed the last bits (range req only) */
+#define TCP_TRK_TRACK_FLG_FSND	0x10	/* First send has been done into the seq space */
+#define TCP_TRK_TRACK_FLG_LSND	0x20	/* We were able to set the Last Sent */
+#define MAX_TCP_TRK_REQ 5		/* Max we will have at once */
+
 #if defined(_KERNEL)
 #include <sys/_callout.h>
 #include <sys/osd.h>
@@ -135,15 +144,6 @@ struct sackhint {
 #define SEGQ_EMPTY(tp) TAILQ_EMPTY(&(tp)->t_segq)
 
 STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
-
-#define TCP_TRK_TRACK_FLG_EMPTY 0x00	/* Available */
-#define TCP_TRK_TRACK_FLG_USED  0x01	/* In use */
-#define TCP_TRK_TRACK_FLG_OPEN  0x02	/* End is not valid (open range request) */
-#define TCP_TRK_TRACK_FLG_SEQV  0x04	/* We had a sendfile that touched it  */
-#define TCP_TRK_TRACK_FLG_COMP  0x08	/* Sendfile as placed the last bits (range req only) */
-#define TCP_TRK_TRACK_FLG_FSND	0x10	/* First send has been done into the seq space */
-#define TCP_TRK_TRACK_FLG_LSND	0x20	/* We were able to set the Last Sent */
-#define MAX_TCP_TRK_REQ 5		/* Max we will have at once */
 
 struct tcp_sendfile_track {
 	uint64_t timestamp;	/* User sent timestamp */
