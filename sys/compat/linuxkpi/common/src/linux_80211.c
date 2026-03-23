@@ -2280,12 +2280,53 @@ lkpi_init_chanctx_conf(struct ieee80211_hw *hw,
 	return (changed);
 }
 
+static struct lkpi_chanctx *
+lkpi_alloc_lchanctx(struct ieee80211_hw *hw, struct lkpi_vif *lvif)
+{
+	struct lkpi_chanctx *lchanctx;
+
+	lchanctx = malloc(sizeof(*lchanctx) + hw->chanctx_data_size,
+	    M_LKPI80211, M_WAITOK | M_ZERO);
+	lchanctx->lvif = lvif;
+
+	return (lchanctx);
+}
+
+static struct lkpi_chanctx *
+lkpi_find_lchanctx_reserved(struct ieee80211_hw *hw, struct lkpi_vif *lvif)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_chanctx *lchanctx;
+	bool found;
+
+	lhw = HW_TO_LHW(hw);
+
+	found = false;
+	rcu_read_lock();
+	list_for_each_entry_rcu(lchanctx, &lhw->lchanctx_list_reserved, entry) {
+		if (lchanctx->lvif == lvif) {
+			found = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (!found) {
+		lchanctx = lkpi_alloc_lchanctx(hw, lvif);
+		list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
+	}
+
+	return (lchanctx);
+}
 
 static void
 lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
+	struct lkpi_hw *lhw;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct lkpi_chanctx *lchanctx;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	chanctx_conf = rcu_dereference_protected(vif->bss_conf.chanctx_conf,
 	    lockdep_is_held(&hw->wiphy->mtx));
@@ -2305,7 +2346,8 @@ lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
 	lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 	list_del(&lchanctx->entry);
-	free(lchanctx, M_LKPI80211);
+	lhw = HW_TO_LHW(hw);
+	list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2452,9 +2494,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		IMPROVE("diff changes for changed, working on live copy, rcu");
 	} else {
-		/* Keep separate alloc as in Linux this is rcu managed? */
-		lchanctx = malloc(sizeof(*lchanctx) + hw->chanctx_data_size,
-		    M_LKPI80211, M_WAITOK | M_ZERO);
+		lchanctx = lkpi_find_lchanctx_reserved(hw, lvif);
+		list_del(&lchanctx->entry);
 		chanctx_conf = &lchanctx->chanctx_conf;
 	}
 
@@ -2535,7 +2576,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
 			lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 			list_del(&lchanctx->entry);
-			free(lchanctx, M_LKPI80211);
+			list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
 			goto out;
 		}
 	}
@@ -3953,6 +3994,10 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	lvif->wdev.iftype = vif->type;
 	/* Need to fill in other fields as well. */
 	IMPROVE();
+
+	/* Create a chanctx to be used later. */
+	IMPROVE("lkpi_alloc_lchanctx reserved as many as can be");
+	(void) lkpi_find_lchanctx_reserved(hw, lvif);
 
 	/* XXX-BZ hardcoded for now! */
 #if 1
@@ -6444,6 +6489,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 
 	/* Chanctx_conf */
 	INIT_LIST_HEAD(&lhw->lchanctx_list);
+	INIT_LIST_HEAD(&lhw->lchanctx_list_reserved);
 
 	/* Deferred RX path. */
 	LKPI_80211_LHW_RXQ_LOCK_INIT(lhw);
@@ -6518,6 +6564,7 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 	    __func__, lhw, mbufq_len(&lhw->rxq)));
 	LKPI_80211_LHW_RXQ_LOCK_DESTROY(lhw);
 
+	wiphy_lock(hw->wiphy);
 	/* Chanctx_conf. */
 	if (!list_empty_careful(&lhw->lchanctx_list)) {
 		struct lkpi_chanctx *lchanctx, *next;
@@ -6530,9 +6577,21 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 				lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
 			}
 			list_del(&lchanctx->entry);
+			list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
+		}
+	}
+	if (!list_empty_careful(&lhw->lchanctx_list_reserved)) {
+		struct lkpi_chanctx *lchanctx, *next;
+
+		list_for_each_entry_safe(lchanctx, next, &lhw->lchanctx_list_reserved, entry) {
+			list_del(&lchanctx->entry);
+			if (lchanctx->added_to_drv)
+				panic("%s: lchanctx %p on reserved list still added_to_drv\n",
+				    __func__, lchanctx);
 			free(lchanctx, M_LKPI80211);
 		}
 	}
+	wiphy_unlock(hw->wiphy);
 
 	LKPI_80211_LHW_MC_LOCK(lhw);
 	lkpi_cleanup_mcast_list_locked(lhw);
