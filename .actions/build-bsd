@@ -60,6 +60,7 @@ q() {
 }
 
 submit_job() {
+	# shellcheck disable=SC3043
 	local manifest="$1"
 	jq \
 		--compact-output --null-input \
@@ -71,6 +72,7 @@ submit_job() {
 }
 
 job_status() {
+	# shellcheck disable=SC3043
 	local id="$1"
 	jq \
 		--compact-output --null-input \

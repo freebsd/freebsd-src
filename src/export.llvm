@@ -128,6 +128,7 @@ _fido_cred_clientdata_hash_len
 _fido_cred_clientdata_hash_ptr
 _fido_cred_display_name
 _fido_cred_empty_exclude_list
+_fido_cred_entattest
 _fido_cred_exclude
 _fido_cred_flags
 _fido_cred_largeblob_key_len
@@ -173,6 +174,7 @@ _fido_cred_set_authdata_raw
 _fido_cred_set_blob
 _fido_cred_set_clientdata
 _fido_cred_set_clientdata_hash
+_fido_cred_set_entattest
 _fido_cred_set_extensions
 _fido_cred_set_fmt
 _fido_cred_set_id

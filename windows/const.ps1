@@ -7,12 +7,13 @@
 New-Variable -Name 'LIBRESSL_URL' `
     -Value 'https://ftp.openbsd.org/pub/OpenBSD/LibreSSL' `
     -Option Constant
-New-Variable -Name 'LIBRESSL' -Value 'libressl-3.9.2' -Option Constant
-New-Variable -Name 'CRYPTO_LIBRARIES' -Value 'crypto' -Option Constant
+New-Variable -Name 'LIBRESSL' -Value 'libressl-4.0.0' -Option Constant
+New-Variable -Name 'CRYPTO_LIB' -Value 'crypto' -Option Constant
+New-Variable -Name 'CRYPTO_DLL' -Value 'crypto-55' -Option Constant
 
 # libcbor coordinates.
-New-Variable -Name 'LIBCBOR' -Value 'libcbor-0.11.0' -Option Constant
-New-Variable -Name 'LIBCBOR_BRANCH' -Value 'v0.11.0' -Option Constant
+New-Variable -Name 'LIBCBOR' -Value 'libcbor-0.12.0' -Option Constant
+New-Variable -Name 'LIBCBOR_BRANCH' -Value 'v0.12.0' -Option Constant
 New-Variable -Name 'LIBCBOR_GIT' -Value 'https://github.com/pjk/libcbor' `
     -Option Constant
 

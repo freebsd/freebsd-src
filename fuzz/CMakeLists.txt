@@ -18,6 +18,10 @@ set(FUZZ_LINKER_LANGUAGE "C" CACHE STRING "Linker language for fuzz harnesses")
 mark_as_advanced(FUZZ_LINKER_LANGUAGE)
 enable_language(${FUZZ_LINKER_LANGUAGE})
 
+if(NOT FUZZ_LDFLAGS)
+	message(FATAL_ERROR "Please define FUZZ_LDFLAGS")
+endif()
+
 # fuzz_cred
 add_executable(fuzz_cred fuzz_cred.c ${COMMON_SOURCES} ${COMPAT_SOURCES})
 set_target_properties(fuzz_cred PROPERTIES

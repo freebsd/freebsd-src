@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2024 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -39,6 +39,8 @@ parse_makecred_reply(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 		    &cred->authdata_ext));
 	case 3: /* attestation statement */
 		return (cbor_decode_attstmt(val, &cred->attstmt));
+	case 4: /* enterprise attestation */
+		return (cbor_decode_bool(val, &cred->ea.att));
 	case 5: /* large blob key */
 		return (fido_blob_decode(val, &cred->largeblob_key));
 	default: /* ignore */
@@ -55,7 +57,7 @@ fido_dev_make_cred_tx(fido_dev_t *dev, fido_cred_t *cred, const char *pin,
 	fido_blob_t	*ecdh = NULL;
 	fido_opt_t	 uv = cred->uv;
 	es256_pk_t	*pk = NULL;
-	cbor_item_t	*argv[9];
+	cbor_item_t	*argv[10];
 	const uint8_t	 cmd = CTAP_CBOR_MAKECRED;
 	int		 r;
 
@@ -114,6 +116,15 @@ fido_dev_make_cred_tx(fido_dev_t *dev, fido_cred_t *cred, const char *pin,
 	if (cred->rk != FIDO_OPT_OMIT || uv != FIDO_OPT_OMIT)
 		if ((argv[6] = cbor_encode_cred_opt(cred->rk, uv)) == NULL) {
 			fido_log_debug("%s: cbor_encode_cred_opt", __func__);
+			r = FIDO_ERR_INTERNAL;
+			goto fail;
+		}
+
+	/* enterprise attestation */
+	if (cred->ea.mode != 0)
+		if ((argv[9] = cbor_build_uint8((uint8_t)cred->ea.mode)) ==
+		    NULL) {
+			fido_log_debug("%s: cbor_build_uint8", __func__);
 			r = FIDO_ERR_INTERNAL;
 			goto fail;
 		}
@@ -586,6 +597,7 @@ fido_cred_reset_tx(fido_cred_t *cred)
 	cred->type = 0;
 	cred->rk = FIDO_OPT_OMIT;
 	cred->uv = FIDO_OPT_OMIT;
+	cred->ea.mode = 0;
 }
 
 void
@@ -593,6 +605,7 @@ fido_cred_reset_rx(fido_cred_t *cred)
 {
 	fido_cred_clean_attobj(cred);
 	fido_blob_reset(&cred->largeblob_key);
+	cred->ea.att = false;
 }
 
 void
@@ -982,6 +995,18 @@ fido_cred_set_uv(fido_cred_t *cred, fido_opt_t uv)
 }
 
 int
+fido_cred_set_entattest(fido_cred_t *cred, int ea)
+{
+	if (ea != 0 && ea != FIDO_ENTATTEST_VENDOR &&
+	    ea != FIDO_ENTATTEST_PLATFORM)
+		return (FIDO_ERR_INVALID_ARGUMENT);
+
+	cred->ea.mode = ea;
+
+	return (FIDO_OK);
+}
+
+int
 fido_cred_set_prot(fido_cred_t *cred, int prot)
 {
 	if (prot == 0) {
@@ -1313,4 +1338,10 @@ size_t
 fido_cred_largeblob_key_len(const fido_cred_t *cred)
 {
 	return (cred->largeblob_key.len);
+}
+
+bool
+fido_cred_entattest(const fido_cred_t *cred)
+{
+	return (cred->ea.att);
 }

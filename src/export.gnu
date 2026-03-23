@@ -130,6 +130,7 @@
 		fido_cred_clientdata_hash_ptr;
 		fido_cred_display_name;
 		fido_cred_empty_exclude_list;
+		fido_cred_entattest;
 		fido_cred_exclude;
 		fido_cred_flags;
 		fido_cred_largeblob_key_len;
@@ -175,6 +176,7 @@
 		fido_cred_set_blob;
 		fido_cred_set_clientdata;
 		fido_cred_set_clientdata_hash;
+		fido_cred_set_entattest;
 		fido_cred_set_extensions;
 		fido_cred_set_fmt;
 		fido_cred_set_id;

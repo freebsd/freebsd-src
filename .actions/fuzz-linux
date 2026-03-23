@@ -6,11 +6,11 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 LIBCBOR_URL="https://github.com/pjk/libcbor"
-LIBCBOR_TAG="v0.11.0"
+LIBCBOR_TAG="v0.12.0"
 LIBCBOR_ASAN="address alignment bounds"
 LIBCBOR_MSAN="memory"
 OPENSSL_URL="https://github.com/openssl/openssl"
-OPENSSL_TAG="openssl-3.0.14"
+OPENSSL_TAG="openssl-3.0.15"
 ZLIB_URL="https://github.com/madler/zlib"
 ZLIB_TAG="v1.3.1"
 ZLIB_ASAN="address alignment bounds undefined"

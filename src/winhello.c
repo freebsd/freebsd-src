@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2021-2024 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -735,6 +735,10 @@ translate_fido_cred(struct winhello_cred *ctx, const fido_cred_t *cred,
 	if (cred->rk == FIDO_OPT_TRUE) {
 		opt->bRequireResidentKey = true;
 	}
+	if (cred->ea.mode != 0) {
+		opt->dwVersion = WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS_VERSION_4;
+		opt->dwEnterpriseAttestation = (DWORD)cred->ea.mode;
+	}
 
 	return FIDO_OK;
 }
@@ -760,6 +764,8 @@ translate_winhello_cred(fido_cred_t *cred,
 		fido_log_debug("%s: cbor_decode_attobj", __func__);
 		goto fail;
 	}
+	if (att->dwVersion >= WEBAUTHN_CREDENTIAL_ATTESTATION_VERSION_4)
+		cred->ea.att = att->bEpAtt;
 
 	r = FIDO_OK;
 fail:

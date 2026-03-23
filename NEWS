@@ -1,3 +1,13 @@
+* Version 1.16.0 (2025-05-06)
+ ** Added support for enterprise attestation.
+ ** Improved handling of invalid key handles in U2F key lookup; gh#819.
+ ** Fixed issue where storing small CTAP 2.1 largeBlobs failed; gh#826.
+ ** Fixed APDU chaining issues for certain authenticators; gh#818, gh#855.
+ ** Improved documentation and examples.
+ ** New API calls:
+  - fido_cred_entattest;
+  - fido_cred_set_entattest.
+
 * Version 1.15.0 (2024-06-13)
  ** 1.15.0 will be the last release to support OpenSSL 1.1.
  ** bio, credman: improved CTAP 2.1 support.

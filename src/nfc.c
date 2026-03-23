@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2024 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -34,7 +34,10 @@ tx_short_apdu(fido_dev_t *d, const iso7816_header_t *h, const uint8_t *payload,
 	apdu[3] = h->p2;
 	apdu[4] = payload_len;
 	memcpy(&apdu[5], payload, payload_len);
-	apdu_len = (size_t)(5 + payload_len + 1);
+	apdu_len = (size_t)(5 + payload_len);
+
+	if (!(cla_flags & 0x10))
+		apdu_len += 1;
 
 	if (d->io.write(d->io_handle, apdu, apdu_len) < 0) {
 		fido_log_debug("%s: write", __func__);
@@ -144,51 +147,12 @@ fail:
 }
 
 static int
-rx_init(fido_dev_t *d, unsigned char *buf, size_t count, int ms)
-{
-	fido_ctap_info_t *attr = (fido_ctap_info_t *)buf;
-	uint8_t f[64];
-	int n;
-
-	if (count != sizeof(*attr)) {
-		fido_log_debug("%s: count=%zu", __func__, count);
-		return -1;
-	}
-
-	memset(attr, 0, sizeof(*attr));
-
-	if ((n = d->io.read(d->io_handle, f, sizeof(f), ms)) < 2 ||
-	    (f[n - 2] << 8 | f[n - 1]) != SW_NO_ERROR) {
-		fido_log_debug("%s: read", __func__);
-		return -1;
-	}
-
-	n -= 2;
-
-	if (n == sizeof(v_u2f) && memcmp(f, v_u2f, sizeof(v_u2f)) == 0)
-		attr->flags = FIDO_CAP_CBOR;
-	else if (n == sizeof(v_fido) && memcmp(f, v_fido, sizeof(v_fido)) == 0)
-		attr->flags = FIDO_CAP_CBOR | FIDO_CAP_NMSG;
-	else {
-		fido_log_debug("%s: unknown version string", __func__);
-#ifdef FIDO_FUZZ
-		attr->flags = FIDO_CAP_CBOR | FIDO_CAP_NMSG;
-#else
-		return -1;
-#endif
-	}
-
-	memcpy(&attr->nonce, &d->nonce, sizeof(attr->nonce)); /* XXX */
-
-	return (int)count;
-}
-
-static int
-tx_get_response(fido_dev_t *d, uint8_t count)
+tx_get_response(fido_dev_t *d, uint8_t count, bool cbor)
 {
 	uint8_t apdu[5];
 
 	memset(apdu, 0, sizeof(apdu));
+	apdu[0] = cbor ? 0x80 : 0x00;
 	apdu[1] = 0xc0; /* GET_RESPONSE */
 	apdu[4] = count;
 
@@ -233,7 +197,7 @@ fail:
 }
 
 static int
-rx_msg(fido_dev_t *d, unsigned char *buf, size_t count, int ms)
+rx_msg(fido_dev_t *d, unsigned char *buf, size_t count, int ms, bool cbor)
 {
 	uint8_t sw[2];
 	const size_t bufsiz = count;
@@ -244,7 +208,7 @@ rx_msg(fido_dev_t *d, unsigned char *buf, size_t count, int ms)
 	}
 
 	while (sw[0] == SW1_MORE_DATA)
-		if (tx_get_response(d, sw[1]) < 0 ||
+		if (tx_get_response(d, sw[1], cbor) < 0 ||
 		    rx_apdu(d, sw, &buf, &count, &ms) < 0) {
 			fido_log_debug("%s: chain", __func__);
 			return -1;
@@ -268,10 +232,50 @@ rx_cbor(fido_dev_t *d, unsigned char *buf, size_t count, int ms)
 {
 	int r;
 
-	if ((r = rx_msg(d, buf, count, ms)) < 2)
+	if ((r = rx_msg(d, buf, count, ms, true)) < 2)
 		return -1;
 
 	return r - 2;
+}
+
+static int
+rx_init(fido_dev_t *d, unsigned char *buf, size_t count, int ms)
+{
+	fido_ctap_info_t *attr = (fido_ctap_info_t *)buf;
+	uint8_t f[64];
+	int n;
+
+	if (count != sizeof(*attr)) {
+		fido_log_debug("%s: count=%zu", __func__, count);
+		return -1;
+	}
+
+	memset(attr, 0, sizeof(*attr));
+
+	if ((n = rx_msg(d, f, sizeof(f), ms, false)) < 2 ||
+	    (f[n - 2] << 8 | f[n - 1]) != SW_NO_ERROR) {
+		fido_log_debug("%s: read", __func__);
+		return -1;
+	}
+
+	n -= 2;
+
+	if (n == sizeof(v_u2f) && memcmp(f, v_u2f, sizeof(v_u2f)) == 0)
+		attr->flags = FIDO_CAP_CBOR;
+	else if (n == sizeof(v_fido) && memcmp(f, v_fido, sizeof(v_fido)) == 0)
+		attr->flags = FIDO_CAP_CBOR | FIDO_CAP_NMSG;
+	else {
+		fido_log_debug("%s: unknown version string", __func__);
+#ifdef FIDO_FUZZ
+		attr->flags = FIDO_CAP_CBOR | FIDO_CAP_NMSG;
+#else
+		return -1;
+#endif
+	}
+
+	memcpy(&attr->nonce, &d->nonce, sizeof(attr->nonce)); /* XXX */
+
+	return (int)count;
 }
 
 int
@@ -283,7 +287,7 @@ fido_nfc_rx(fido_dev_t *d, uint8_t cmd, unsigned char *buf, size_t count, int ms
 	case CTAP_CMD_CBOR:
 		return rx_cbor(d, buf, count, ms);
 	case CTAP_CMD_MSG:
-		return rx_msg(d, buf, count, ms);
+		return rx_msg(d, buf, count, ms, false);
 	default:
 		fido_log_debug("%s: cmd=%02x", __func__, cmd);
 		return -1;

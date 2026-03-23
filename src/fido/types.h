@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2024 Yubico AB. All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -166,6 +166,11 @@ typedef struct fido_cred_ext {
 	size_t minpinlen; /* minimum pin length */
 } fido_cred_ext_t;
 
+typedef struct fido_cred_ea {
+	int mode;
+	bool att;
+} fido_cred_ea_t;
+
 typedef struct fido_cred {
 	fido_blob_t       cd;            /* client data */
 	fido_blob_t       cdh;           /* client data hash */
@@ -185,6 +190,7 @@ typedef struct fido_cred {
 	fido_attstmt_t    attstmt;       /* attestation statement (x509 + sig) */
 	fido_blob_t       largeblob_key; /* decoded large blob key */
 	fido_blob_t       blob;          /* CTAP 2.1 credBlob */
+	fido_cred_ea_t    ea;            /* enterprise attestation */
 } fido_cred_t;
 
 typedef struct fido_assert_extattr {

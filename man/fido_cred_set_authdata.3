@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2024 Yubico AB. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are
@@ -40,6 +40,7 @@
 .Nm fido_cred_set_clientdata_hash ,
 .Nm fido_cred_set_rp ,
 .Nm fido_cred_set_user ,
+.Nm fido_cred_set_entattest ,
 .Nm fido_cred_set_extensions ,
 .Nm fido_cred_set_blob ,
 .Nm fido_cred_set_pin_minlen ,
@@ -80,6 +81,8 @@ typedef enum {
 .Fn fido_cred_set_rp "fido_cred_t *cred" "const char *id" "const char *name"
 .Ft int
 .Fn fido_cred_set_user "fido_cred_t *cred" "const unsigned char *user_id" "size_t user_id_len" "const char *name" "const char *display_name" "const char *icon"
+.Ft int
+.Fn fido_cred_set_entattest "fido_cred_t *cred" "int ea"
 .Ft int
 .Fn fido_cred_set_extensions "fido_cred_t *cred" "int flags"
 .Ft int
@@ -241,6 +244,21 @@ The
 and
 .Fa icon
 parameters may be NULL.
+.Pp
+The
+.Fn fido_cred_set_entattest
+function sets the enterprise attestation mode of
+.Fa cred
+to
+.Fa ea .
+At the moment, only the
+.Dv FIDO_ENTATTEST_VENDOR
+and
+.Dv FIDO_ENTATTEST_PLATFORM
+modes are supported.
+By default, or if
+.Fa ea
+is zero, no enterprise attestation is requested.
 .Pp
 The
 .Fn fido_cred_set_extensions

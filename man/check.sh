@@ -10,6 +10,7 @@ find . -maxdepth 1 -type f -name '*.3' -print0 > "$T/files"
 
 xargs -0 awk '/^.Sh NAME/,/^.Nd/' < "$T/files" | \
     awk '/^.Nm/ { print $2 }' | sort -u > "$T/Nm"
+# shellcheck disable=SC2016
 xargs -0 awk '/^.Fn/ { print $2 }' < "$T/files" | sort -u > "$T/Fn"
 (cd "$T" && diff -u Nm Fn)
 

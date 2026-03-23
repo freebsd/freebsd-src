@@ -63,6 +63,7 @@
 .Nm fido_cred_x5c_list_len ,
 .Nm fido_cred_x5c_len ,
 .Nm fido_cred_attstmt_len ,
+.Nm fido_cred_entattest ,
 .Nm fido_cred_type ,
 .Nm fido_cred_flags ,
 .Nm fido_cred_sigcount
@@ -137,6 +138,8 @@
 .Fn fido_cred_x5c_len "const fido_cred_t *cred"
 .Ft size_t
 .Fn fido_cred_attstmt_len "const fido_cred_t *cred"
+.Ft bool
+.Fn fido_cred_entattest "const fido_cred_t *cred"
 .Ft int
 .Fn fido_cred_type "const fido_cred_t *cred"
 .Ft uint8_t
@@ -307,6 +310,13 @@ returns 0.
 .Pp
 The authenticator data, x509 certificate, and signature parts of a
 credential are typically passed to a FIDO2 server for verification.
+.Pp
+The
+.Fn fido_cred_entattest
+function returns
+.Dv true
+if an enterprise attestation was returned for
+.Fa cred .
 .Pp
 The
 .Fn fido_cred_type

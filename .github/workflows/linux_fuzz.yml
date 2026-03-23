@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Copyright (c) 2022-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -20,8 +20,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04 ]
-        cc: [ clang-18 ]
+        os: [ ubuntu-24.04 ]
+        cc: [ clang-19 ]
         sanitizer: [ asan, msan ]
     steps:
     - uses: actions/checkout@v4
