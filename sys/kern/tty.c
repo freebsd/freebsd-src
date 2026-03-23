@@ -1261,6 +1261,10 @@ tty_drop_ctty(struct tty *tp, struct proc *p)
 	session->s_ttydp = NULL;
 	SESS_UNLOCK(session);
 
+	if (tp->t_session == session) {
+		tp->t_session = NULL;
+		tp->t_pgrp = NULL;
+	}
 	tp->t_sessioncnt--;
 	p->p_flag &= ~P_CONTROLT;
 	PROC_UNLOCK(p);
