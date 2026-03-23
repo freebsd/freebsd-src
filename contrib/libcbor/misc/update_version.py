@@ -35,16 +35,16 @@ replace('Doxyfile', DOXY_VERSION + '.*', DOXY_VERSION + version)
 
 # Update CMakeLists.txt
 replace('CMakeLists.txt',
-        '''SET\\(CBOR_VERSION_MAJOR "\d+"\\)
-SET\\(CBOR_VERSION_MINOR "\d+"\\)
-SET\\(CBOR_VERSION_PATCH "\d+"\\)''',
-        f'''SET(CBOR_VERSION_MAJOR "{major}")
-SET(CBOR_VERSION_MINOR "{minor}")
-SET(CBOR_VERSION_PATCH "{patch}")''')
+        r'''set\(CBOR_VERSION_MAJOR "\d+"\)
+set\(CBOR_VERSION_MINOR "\d+"\)
+set\(CBOR_VERSION_PATCH "\d+"\)''',
+        f'''set(CBOR_VERSION_MAJOR "{major}")
+set(CBOR_VERSION_MINOR "{minor}")
+set(CBOR_VERSION_PATCH "{patch}")''')
 
 # Update Basel build example
 replace('examples/bazel/third_party/libcbor/cbor/configuration.h',
-        '''#define CBOR_MAJOR_VERSION \d+
+        r'''#define CBOR_MAJOR_VERSION \d+
 #define CBOR_MINOR_VERSION \d+
 #define CBOR_PATCH_VERSION \d+''',
         f'''#define CBOR_MAJOR_VERSION {major}

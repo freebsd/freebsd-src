@@ -3,30 +3,50 @@ version: 2.1
 commands:
   linux-setup:
     steps:
-    - run: sudo apt-get update
-    # NEEDRESTART_MODE prevents automatic restarts which seem to hang.
-    - run: sudo NEEDRESTART_MODE=l apt-get install -y cmake ${TOOLCHAIN_PACKAGES}
-    - run: sudo NEEDRESTART_MODE=l apt-get install -y libcmocka-dev libcjson-dev
+      - run: sudo apt-get update
+      # NEEDRESTART_MODE prevents automatic restarts which seem to hang.
+      - run: sudo NEEDRESTART_MODE=l  apt-get install -y cmake ${TOOLCHAIN_PACKAGES}
+      - run: sudo NEEDRESTART_MODE=l apt-get install -y libcmocka-dev libcjson-dev
+  build-with-cmocka-from-source:
+    # For whatever reason, cmocka find stopped working on dockercross at some point.
+    steps:
+      - run: git clone https://git.cryptomilk.org/projects/cmocka.git ~/cmocka
+      - run: >
+          cd $(mktemp -d /tmp/build.XXXX) &&
+          cmake ~/cmocka &&
+          make &&
+          sudo make install
+      - run: >
+          cmake -DWITH_TESTS=ON \
+            -DWITH_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DSANITIZE=OFF \
+            -DCOVERAGE="${CMAKE_COVERAGE:='OFF'}" \
+            -DCMOCKA_INCLUDE_DIR=/usr/local/include \
+            -DCMOCKA_LIBRARIES=/usr/local/lib/libcmocka.so
+      - run: make -j 16 VERBOSE=1
   build:
     steps:
-    - run: >
-        cmake -DWITH_TESTS=ON \
-          -DWITH_EXAMPLES=ON \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DSANITIZE=OFF \
-          -DCOVERAGE="${CMAKE_COVERAGE:='OFF'}" \
-          .
-    - run: make -j 16 VERBOSE=1
+      - run: >
+          cmake -DWITH_TESTS=ON \
+            -DWITH_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DSANITIZE=OFF \
+            -DCOVERAGE="${CMAKE_COVERAGE:='OFF'}" \
+            .
+      - run: make -j 16 VERBOSE=1
   build-release:
     steps:
-    - run: >
-        cmake -DWITH_TESTS=ON \
-          -DCMAKE_BUILD_TYPE=Release \
-          .
-    - run: make -j 16 VERBOSE=1
+      - run: >
+          cmake -DWITH_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            .
+      - run: make -j 16 VERBOSE=1
   test:
     steps:
-    - run: ctest -VV
+      - run: ctest -VV --output-junit ctest_out.xml
+      - store_test_results:
+          path: ctest_out.xml
 
 orbs:
   codecov: codecov/codecov@3.2.2
@@ -34,7 +54,7 @@ orbs:
 jobs:
   static-test:
     machine: &default-machine
-      image: ubuntu-2204:2023.07.2
+      image: ubuntu-2204:current
     environment:
       TOOLCHAIN_PACKAGES: g++
     steps:
@@ -159,7 +179,7 @@ jobs:
 
   build-bazel:
     machine:
-      image: ubuntu-2204:2023.07.2
+      <<: *default-machine
     environment:
       TOOLCHAIN_PACKAGES: g++
     steps:
@@ -178,7 +198,7 @@ jobs:
 
   build-and-test-osx:
     macos:
-      xcode: 12.5.1
+      xcode: 16.0.0
     steps:
       - checkout
       - run: bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -203,7 +223,33 @@ jobs:
       - run: /c/Program\ Files/Cmake/bin/cmake --build libcbor_build
       - run: >
           export PATH="$(pwd)/cmocka_build/src/Debug/:$PATH" &&
-          /c/Program\ Files/Cmake/bin/ctest.exe --test-dir libcbor_build --output-on-failure
+          /c/Program\ Files/Cmake/bin/ctest.exe --test-dir libcbor_build -C Debug --output-on-failure
+
+  build-and-test-mips: &dockcross-job
+    docker:
+      - image: dockcross/linux-mips-lts
+    steps: 
+      - checkout
+      - attach_workspace:
+          at: /home/circleci/project
+      - build-with-cmocka-from-source
+      - test
+
+  build-and-test-mipsel:
+    <<: *dockcross-job
+    docker:
+      - image: dockcross/linux-mipsel-lts
+
+
+  build-and-test-riscv64: &dockcross-job
+    docker:
+      - image: dockcross/linux-riscv64
+    steps: 
+      - checkout
+      - attach_workspace:
+          at: /home/circleci/project
+      - build-with-cmocka-from-source
+      - test
 
 workflows:
   build-and-test:
@@ -215,6 +261,9 @@ workflows:
       - build-and-test-release-clang
       - build-and-test-arm
       - build-and-test-win
+      - build-and-test-mips
+      - build-and-test-mipsel
+      - build-and-test-riscv64
       - build-bazel
       - llvm-coverage
       # OSX builds are expensive, run only on master

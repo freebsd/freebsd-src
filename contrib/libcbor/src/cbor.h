@@ -61,6 +61,17 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_load(
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_copy(cbor_item_t* item);
 
+/** Copy the item with all items converted to definite length equivalents
+ *
+ * Deep copy semantics follow #cbor_copy
+ *
+ * @param item item to copy
+ * @return Reference to the new item. The item's reference count is initialized
+ * to one.
+ * @return `NULL` if memory allocation fails
+ */
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_copy_definite(cbor_item_t* item);
+
 #if CBOR_PRETTY_PRINTER
 #include <stdio.h>
 

@@ -9,7 +9,7 @@
 #include "cbor.h"
 #include "test_allocator.h"
 
-cbor_item_t *bs;
+cbor_item_t* bs;
 struct cbor_load_result res;
 
 unsigned char data1[] = {0x40, 0xFF};
@@ -133,7 +133,7 @@ unsigned char data8[] = {
     0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD,
     0xFE, 0xFF};
 
-static void test_empty_bs(void **_CBOR_UNUSED(_state)) {
+static void test_empty_bs(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data1, 2, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -144,7 +144,7 @@ static void test_empty_bs(void **_CBOR_UNUSED(_state)) {
   assert_null(bs);
 }
 
-static void test_embedded_bs(void **_CBOR_UNUSED(_state)) {
+static void test_embedded_bs(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data2, 2, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -157,13 +157,13 @@ static void test_embedded_bs(void **_CBOR_UNUSED(_state)) {
   assert_null(bs);
 }
 
-static void test_notenough_data(void **_CBOR_UNUSED(_state)) {
+static void test_notenough_data(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data3, 2, &res);
   assert_null(bs);
   assert_true(res.error.code == CBOR_ERR_NOTENOUGHDATA);
 }
 
-static void test_short_bs1(void **_CBOR_UNUSED(_state)) {
+static void test_short_bs1(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data3, 4, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -176,7 +176,7 @@ static void test_short_bs1(void **_CBOR_UNUSED(_state)) {
   assert_null(bs);
 }
 
-static void test_short_bs2(void **_CBOR_UNUSED(_state)) {
+static void test_short_bs2(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data4, 259, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -188,7 +188,7 @@ static void test_short_bs2(void **_CBOR_UNUSED(_state)) {
   assert_null(bs);
 }
 
-static void test_half_bs(void **_CBOR_UNUSED(_state)) {
+static void test_half_bs(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data5, 259, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -200,7 +200,7 @@ static void test_half_bs(void **_CBOR_UNUSED(_state)) {
   assert_null(bs);
 }
 
-static void test_int_bs(void **_CBOR_UNUSED(_state)) {
+static void test_int_bs(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data6, 261, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -212,7 +212,7 @@ static void test_int_bs(void **_CBOR_UNUSED(_state)) {
   assert_null(bs);
 }
 
-static void test_long_bs(void **_CBOR_UNUSED(_state)) {
+static void test_long_bs(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data7, 265, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -226,7 +226,7 @@ static void test_long_bs(void **_CBOR_UNUSED(_state)) {
 
 unsigned char data9[] = {0x5F, 0xFF};
 
-static void test_zero_indef(void **_CBOR_UNUSED(_state)) {
+static void test_zero_indef(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data9, 2, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -242,7 +242,7 @@ unsigned char data10[] = {0x5F, 0x58, 0x01, 0xA1, 0xFF, 0xFF};
 
 /*                          start |   bstring     | break| extra */
 
-static void test_short_indef(void **_CBOR_UNUSED(_state)) {
+static void test_short_indef(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data10, 6, &res);
   assert_non_null(bs);
   assert_true(cbor_typeof(bs) == CBOR_TYPE_BYTESTRING);
@@ -265,7 +265,7 @@ unsigned char data11[] = {0x5F, 0x58, 0x01, 0xA1, 0x58, 0x01, 0xA2, 0xFF, 0xFF};
 /*                          start |   bstring     |    bstring     | break|
  * extra */
 
-static void test_two_indef(void **_CBOR_UNUSED(_state)) {
+static void test_two_indef(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data11, 9, &res);
   assert_non_null(bs);
   assert_size_equal(1, cbor_refcount(bs));
@@ -293,23 +293,23 @@ unsigned char data12[] = {0x5F, 0x58, 0x01};
 
 /*                          start |   bstring - too short */
 
-static void test_missing_indef(void **_CBOR_UNUSED(_state)) {
+static void test_missing_indef(void** _state _CBOR_UNUSED) {
   bs = cbor_load(data12, 3, &res);
   assert_true(res.error.code == CBOR_ERR_NOTENOUGHDATA);
   assert_null(bs);
 }
 
-static void test_inline_creation(void **_CBOR_UNUSED(_state)) {
+static void test_inline_creation(void** _state _CBOR_UNUSED) {
   bs = cbor_build_bytestring((cbor_data) "Hello!", 6);
   assert_memory_equal(cbor_bytestring_handle(bs), "Hello!", 6);
   cbor_decref(&bs);
 }
 
-static void test_add_chunk_reallocation_overflow(void **_CBOR_UNUSED(_state)) {
+static void test_add_chunk_reallocation_overflow(void** _state _CBOR_UNUSED) {
   bs = cbor_new_indefinite_bytestring();
-  cbor_item_t *chunk = cbor_build_bytestring((cbor_data) "Hello!", 6);
-  struct cbor_indefinite_string_data *metadata =
-      (struct cbor_indefinite_string_data *)bs->data;
+  cbor_item_t* chunk = cbor_build_bytestring((cbor_data) "Hello!", 6);
+  struct cbor_indefinite_string_data* metadata =
+      (struct cbor_indefinite_string_data*)bs->data;
   // Pretend we already have many chunks allocated
   metadata->chunk_count = SIZE_MAX;
   metadata->chunk_capacity = SIZE_MAX;
@@ -323,7 +323,7 @@ static void test_add_chunk_reallocation_overflow(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&bs);
 }
 
-static void test_bytestring_creation(void **_CBOR_UNUSED(_state)) {
+static void test_bytestring_creation(void** _state _CBOR_UNUSED) {
   WITH_FAILING_MALLOC({ assert_null(cbor_new_definite_bytestring()); });
 
   WITH_FAILING_MALLOC({ assert_null(cbor_new_indefinite_bytestring()); });
@@ -337,18 +337,18 @@ static void test_bytestring_creation(void **_CBOR_UNUSED(_state)) {
                    MALLOC_FAIL);
 }
 
-static void test_bytestring_add_chunk(void **_CBOR_UNUSED(_state)) {
+static void test_bytestring_add_chunk(void** _state _CBOR_UNUSED) {
   unsigned char bytes[] = {0, 0, 0xFF, 0xAB};
   WITH_MOCK_MALLOC(
       {
-        cbor_item_t *bytestring = cbor_new_indefinite_bytestring();
-        cbor_item_t *chunk = cbor_build_bytestring(bytes, 4);
+        cbor_item_t* bytestring = cbor_new_indefinite_bytestring();
+        cbor_item_t* chunk = cbor_build_bytestring(bytes, 4);
 
         assert_false(cbor_bytestring_add_chunk(bytestring, chunk));
 
         assert_size_equal(cbor_bytestring_chunk_count(bytestring), 0);
         assert_size_equal(
-            ((struct cbor_indefinite_string_data *)bytestring->data)
+            ((struct cbor_indefinite_string_data*)bytestring->data)
                 ->chunk_capacity,
             0);
 

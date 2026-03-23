@@ -7,72 +7,72 @@
 
 #include "callbacks.h"
 
-void cbor_null_uint8_callback(void *_CBOR_UNUSED(_ctx),
-                              uint8_t _CBOR_UNUSED(_val)) {}
+void cbor_null_uint8_callback(void* _ctx _CBOR_UNUSED,
+                              uint8_t _CBOR_UNUSED _val) {}
 
-void cbor_null_uint16_callback(void *_CBOR_UNUSED(_ctx),
-                               uint16_t _CBOR_UNUSED(_val)) {}
+void cbor_null_uint16_callback(void* _ctx _CBOR_UNUSED,
+                               uint16_t _CBOR_UNUSED _val) {}
 
-void cbor_null_uint32_callback(void *_CBOR_UNUSED(_ctx),
-                               uint32_t _CBOR_UNUSED(_val)) {}
+void cbor_null_uint32_callback(void* _ctx _CBOR_UNUSED,
+                               uint32_t _CBOR_UNUSED _val) {}
 
-void cbor_null_uint64_callback(void *_CBOR_UNUSED(_ctx),
-                               uint64_t _CBOR_UNUSED(_val)) {}
+void cbor_null_uint64_callback(void* _ctx _CBOR_UNUSED,
+                               uint64_t _CBOR_UNUSED _val) {}
 
-void cbor_null_negint8_callback(void *_CBOR_UNUSED(_ctx),
-                                uint8_t _CBOR_UNUSED(_val)) {}
+void cbor_null_negint8_callback(void* _ctx _CBOR_UNUSED,
+                                uint8_t _CBOR_UNUSED _val) {}
 
-void cbor_null_negint16_callback(void *_CBOR_UNUSED(_ctx),
-                                 uint16_t _CBOR_UNUSED(_val)) {}
+void cbor_null_negint16_callback(void* _ctx _CBOR_UNUSED,
+                                 uint16_t _CBOR_UNUSED _val) {}
 
-void cbor_null_negint32_callback(void *_CBOR_UNUSED(_ctx),
-                                 uint32_t _CBOR_UNUSED(_val)) {}
+void cbor_null_negint32_callback(void* _ctx _CBOR_UNUSED,
+                                 uint32_t _CBOR_UNUSED _val) {}
 
-void cbor_null_negint64_callback(void *_CBOR_UNUSED(_ctx),
-                                 uint64_t _CBOR_UNUSED(_val)) {}
+void cbor_null_negint64_callback(void* _ctx _CBOR_UNUSED,
+                                 uint64_t _CBOR_UNUSED _val) {}
 
-void cbor_null_string_callback(void *_CBOR_UNUSED(_ctx),
-                               cbor_data _CBOR_UNUSED(_val),
-                               uint64_t _CBOR_UNUSED(_val2)) {}
+void cbor_null_string_callback(void* _ctx _CBOR_UNUSED,
+                               cbor_data _CBOR_UNUSED _val,
+                               uint64_t _CBOR_UNUSED _val2) {}
 
-void cbor_null_string_start_callback(void *_CBOR_UNUSED(_ctx)) {}
+void cbor_null_string_start_callback(void* _ctx _CBOR_UNUSED) {}
 
-void cbor_null_byte_string_callback(void *_CBOR_UNUSED(_ctx),
-                                    cbor_data _CBOR_UNUSED(_val),
-                                    uint64_t _CBOR_UNUSED(_val2)) {}
+void cbor_null_byte_string_callback(void* _ctx _CBOR_UNUSED,
+                                    cbor_data _CBOR_UNUSED _val,
+                                    uint64_t _CBOR_UNUSED _val2) {}
 
-void cbor_null_byte_string_start_callback(void *_CBOR_UNUSED(_ctx)) {}
+void cbor_null_byte_string_start_callback(void* _ctx _CBOR_UNUSED) {}
 
-void cbor_null_array_start_callback(void *_CBOR_UNUSED(_ctx),
-                                    uint64_t _CBOR_UNUSED(_val)) {}
+void cbor_null_array_start_callback(void* _ctx _CBOR_UNUSED,
+                                    uint64_t _CBOR_UNUSED _val) {}
 
-void cbor_null_indef_array_start_callback(void *_CBOR_UNUSED(_ctx)) {}
+void cbor_null_indef_array_start_callback(void* _ctx _CBOR_UNUSED) {}
 
-void cbor_null_map_start_callback(void *_CBOR_UNUSED(_ctx),
-                                  uint64_t _CBOR_UNUSED(_val)) {}
+void cbor_null_map_start_callback(void* _ctx _CBOR_UNUSED,
+                                  uint64_t _CBOR_UNUSED _val) {}
 
-void cbor_null_indef_map_start_callback(void *_CBOR_UNUSED(_ctx)) {}
+void cbor_null_indef_map_start_callback(void* _ctx _CBOR_UNUSED) {}
 
-void cbor_null_tag_callback(void *_CBOR_UNUSED(_ctx),
-                            uint64_t _CBOR_UNUSED(_val)) {}
+void cbor_null_tag_callback(void* _ctx _CBOR_UNUSED,
+                            uint64_t _CBOR_UNUSED _val) {}
 
-void cbor_null_float2_callback(void *_CBOR_UNUSED(_ctx),
-                               float _CBOR_UNUSED(_val)) {}
+void cbor_null_float2_callback(void* _ctx _CBOR_UNUSED,
+                               float _CBOR_UNUSED _val) {}
 
-void cbor_null_float4_callback(void *_CBOR_UNUSED(_ctx),
-                               float _CBOR_UNUSED(_val)) {}
+void cbor_null_float4_callback(void* _ctx _CBOR_UNUSED,
+                               float _CBOR_UNUSED _val) {}
 
-void cbor_null_float8_callback(void *_CBOR_UNUSED(_ctx),
-                               double _CBOR_UNUSED(_val)) {}
+void cbor_null_float8_callback(void* _ctx _CBOR_UNUSED,
+                               double _CBOR_UNUSED _val) {}
 
-void cbor_null_null_callback(void *_CBOR_UNUSED(_ctx)) {}
+void cbor_null_null_callback(void* _ctx _CBOR_UNUSED) {}
 
-void cbor_null_undefined_callback(void *_CBOR_UNUSED(_ctx)) {}
+void cbor_null_undefined_callback(void* _ctx _CBOR_UNUSED) {}
 
-void cbor_null_boolean_callback(void *_CBOR_UNUSED(_ctx),
-                                bool _CBOR_UNUSED(_val)) {}
+void cbor_null_boolean_callback(void* _ctx _CBOR_UNUSED,
+                                bool _CBOR_UNUSED _val) {}
 
-void cbor_null_indef_break_callback(void *_CBOR_UNUSED(_ctx)) {}
+void cbor_null_indef_break_callback(void* _ctx _CBOR_UNUSED) {}
 
 CBOR_EXPORT const struct cbor_callbacks cbor_empty_callbacks = {
     /* Type 0 - Unsigned integers */

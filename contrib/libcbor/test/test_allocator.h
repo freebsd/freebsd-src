@@ -7,9 +7,13 @@
 // Harness for mocking `malloc` and `realloc`
 
 typedef enum call_expectation {
+  // Call malloc and return a pointer
   MALLOC,
+  // Pretend call malloc, but return NULL (fail)
   MALLOC_FAIL,
+  // Call realloc and return a pointer
   REALLOC,
+  // Pretend call realloc, but return NULL (fail)
   REALLOC_FAIL
 } call_expectation;
 
@@ -17,9 +21,9 @@ void set_mock_malloc(int calls, ...);
 
 void finalize_mock_malloc(void);
 
-void *instrumented_malloc(size_t size);
+void* instrumented_malloc(size_t size);
 
-void *instrumented_realloc(void *ptr, size_t size);
+void* instrumented_realloc(void* ptr, size_t size);
 
 #define WITH_MOCK_MALLOC(block, malloc_calls, ...)                    \
   do {                                                                \

@@ -10,31 +10,31 @@
 
 unsigned char buffer[512];
 
-static void test_embedded_negint8(void **_CBOR_UNUSED(_state)) {
+static void test_embedded_negint8(void** _state _CBOR_UNUSED) {
   assert_size_equal(1, cbor_encode_negint8(14, buffer, 512));
   assert_memory_equal(buffer, (unsigned char[]){0x2E}, 1);
 }
 
-static void test_negint8(void **_CBOR_UNUSED(_state)) {
+static void test_negint8(void** _state _CBOR_UNUSED) {
   assert_size_equal(0, cbor_encode_negint8(180, buffer, 1));
   assert_size_equal(2, cbor_encode_negint8(255, buffer, 512));
   assert_memory_equal(buffer, ((unsigned char[]){0x38, 0xFF}), 2);
 }
 
-static void test_negint16(void **_CBOR_UNUSED(_state)) {
+static void test_negint16(void** _state _CBOR_UNUSED) {
   assert_size_equal(0, cbor_encode_negint16(1000, buffer, 2));
   assert_size_equal(3, cbor_encode_negint16(1000, buffer, 512));
   assert_memory_equal(buffer, ((unsigned char[]){0x39, 0x03, 0xE8}), 3);
 }
 
-static void test_negint32(void **_CBOR_UNUSED(_state)) {
+static void test_negint32(void** _state _CBOR_UNUSED) {
   assert_size_equal(0, cbor_encode_negint32(1000000, buffer, 4));
   assert_size_equal(5, cbor_encode_negint32(1000000, buffer, 512));
   assert_memory_equal(buffer, ((unsigned char[]){0x3A, 0x00, 0x0F, 0x42, 0x40}),
                       5);
 }
 
-static void test_negint64(void **_CBOR_UNUSED(_state)) {
+static void test_negint64(void** _state _CBOR_UNUSED) {
   assert_size_equal(0,
                     cbor_encode_negint64(18446744073709551615ULL, buffer, 8));
   assert_size_equal(9,
@@ -45,7 +45,7 @@ static void test_negint64(void **_CBOR_UNUSED(_state)) {
       9);
 }
 
-static void test_unspecified(void **_CBOR_UNUSED(_state)) {
+static void test_unspecified(void** _state _CBOR_UNUSED) {
   assert_size_equal(9,
                     cbor_encode_negint(18446744073709551615ULL, buffer, 512));
   assert_memory_equal(

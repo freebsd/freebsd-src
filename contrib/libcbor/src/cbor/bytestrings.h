@@ -29,7 +29,7 @@ extern "C" {
  * @return length of the binary data. Zero if no chunk has been attached yet
  */
 _CBOR_NODISCARD
-CBOR_EXPORT size_t cbor_bytestring_length(const cbor_item_t *item);
+CBOR_EXPORT size_t cbor_bytestring_length(const cbor_item_t* item);
 
 /** Is the byte string definite?
  *
@@ -37,7 +37,7 @@ CBOR_EXPORT size_t cbor_bytestring_length(const cbor_item_t *item);
  * @return Is the byte string definite?
  */
 _CBOR_NODISCARD
-CBOR_EXPORT bool cbor_bytestring_is_definite(const cbor_item_t *item);
+CBOR_EXPORT bool cbor_bytestring_is_definite(const cbor_item_t* item);
 
 /** Is the byte string indefinite?
  *
@@ -45,7 +45,7 @@ CBOR_EXPORT bool cbor_bytestring_is_definite(const cbor_item_t *item);
  * @return Is the byte string indefinite?
  */
 _CBOR_NODISCARD
-CBOR_EXPORT bool cbor_bytestring_is_indefinite(const cbor_item_t *item);
+CBOR_EXPORT bool cbor_bytestring_is_indefinite(const cbor_item_t* item);
 
 /** Get the handle to the binary data
  *
@@ -58,7 +58,7 @@ CBOR_EXPORT bool cbor_bytestring_is_indefinite(const cbor_item_t *item);
  * yet.
  */
 _CBOR_NODISCARD
-CBOR_EXPORT cbor_mutable_data cbor_bytestring_handle(const cbor_item_t *item);
+CBOR_EXPORT cbor_mutable_data cbor_bytestring_handle(const cbor_item_t* item);
 
 /** Set the handle to the binary data
  *
@@ -69,7 +69,7 @@ CBOR_EXPORT cbor_mutable_data cbor_bytestring_handle(const cbor_item_t *item);
  * @param length Length of the data block
  */
 CBOR_EXPORT void cbor_bytestring_set_handle(
-    cbor_item_t *item, cbor_mutable_data CBOR_RESTRICT_POINTER data,
+    cbor_item_t* item, cbor_mutable_data CBOR_RESTRICT_POINTER data,
     size_t length);
 
 /** Get the handle to the array of chunks
@@ -81,8 +81,8 @@ CBOR_EXPORT void cbor_bytestring_set_handle(
  * @return array of #cbor_bytestring_chunk_count definite bytestrings
  */
 _CBOR_NODISCARD
-CBOR_EXPORT cbor_item_t **cbor_bytestring_chunks_handle(
-    const cbor_item_t *item);
+CBOR_EXPORT cbor_item_t** cbor_bytestring_chunks_handle(
+    const cbor_item_t* item);
 
 /** Get the number of chunks this string consist of
  *
@@ -90,7 +90,7 @@ CBOR_EXPORT cbor_item_t **cbor_bytestring_chunks_handle(
  * @return The chunk count. 0 for freshly created items.
  */
 _CBOR_NODISCARD
-CBOR_EXPORT size_t cbor_bytestring_chunk_count(const cbor_item_t *item);
+CBOR_EXPORT size_t cbor_bytestring_chunk_count(const cbor_item_t* item);
 
 /** Appends a chunk to the bytestring
  *
@@ -105,8 +105,8 @@ CBOR_EXPORT size_t cbor_bytestring_chunk_count(const cbor_item_t *item);
  * of `chunk` is not increased and the `item` is left intact.
  */
 _CBOR_NODISCARD
-CBOR_EXPORT bool cbor_bytestring_add_chunk(cbor_item_t *item,
-                                           cbor_item_t *chunk);
+CBOR_EXPORT bool cbor_bytestring_add_chunk(cbor_item_t* item,
+                                           cbor_item_t* chunk);
 
 /** Creates a new definite byte string
  *
@@ -117,7 +117,7 @@ CBOR_EXPORT bool cbor_bytestring_add_chunk(cbor_item_t *item,
  * @return `NULL` if memory allocation fails
  */
 _CBOR_NODISCARD
-CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring(void);
+CBOR_EXPORT cbor_item_t* cbor_new_definite_bytestring(void);
 
 /** Creates a new indefinite byte string
  *
@@ -128,7 +128,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring(void);
  * @return `NULL` if memory allocation fails
  */
 _CBOR_NODISCARD
-CBOR_EXPORT cbor_item_t *cbor_new_indefinite_bytestring(void);
+CBOR_EXPORT cbor_item_t* cbor_new_indefinite_bytestring(void);
 
 /** Creates a new byte string and initializes it
  *
@@ -141,7 +141,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_indefinite_bytestring(void);
  * @return `NULL` if memory allocation fails
  */
 _CBOR_NODISCARD
-CBOR_EXPORT cbor_item_t *cbor_build_bytestring(cbor_data handle, size_t length);
+CBOR_EXPORT cbor_item_t* cbor_build_bytestring(cbor_data handle, size_t length);
 
 #ifdef __cplusplus
 }
