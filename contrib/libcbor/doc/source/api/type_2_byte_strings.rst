@@ -1,7 +1,7 @@
 Type 2 – Byte strings
 =============================
 
-CBOR byte strings are just (ordered) series of bytes without further interpretation (unless there is a :doc:`tag <type_6>`). Byte string's length may or may not be known during encoding. These two kinds of byte strings can be distinguished using :func:`cbor_bytestring_is_definite` and :func:`cbor_bytestring_is_indefinite` respectively.
+CBOR byte strings are just (ordered) series of bytes without further interpretation (unless there is a :doc:`tag <type_6_tags>`). Byte string's length may or may not be known during encoding. These two kinds of byte strings can be distinguished using :func:`cbor_bytestring_is_definite` and :func:`cbor_bytestring_is_indefinite` respectively.
 
 In case a byte string is indefinite, it is encoded as a series of definite byte strings. These are called "chunks". For example, the encoded item
 

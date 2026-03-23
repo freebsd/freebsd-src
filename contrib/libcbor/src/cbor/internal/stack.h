@@ -17,9 +17,9 @@ extern "C" {
 /** Simple stack record for the parser */
 struct _cbor_stack_record {
   /** Pointer to the parent stack frame */
-  struct _cbor_stack_record *lower;
+  struct _cbor_stack_record* lower;
   /** Item under construction */
-  cbor_item_t *item;
+  cbor_item_t* item;
   /**
    * How many outstanding subitems are expected.
    *
@@ -33,17 +33,17 @@ struct _cbor_stack_record {
 
 /** Stack handle - contents and size */
 struct _cbor_stack {
-  struct _cbor_stack_record *top;
+  struct _cbor_stack_record* top;
   size_t size;
 };
 
 _CBOR_NODISCARD
 struct _cbor_stack _cbor_stack_init(void);
 
-void _cbor_stack_pop(struct _cbor_stack *);
+void _cbor_stack_pop(struct _cbor_stack*);
 
 _CBOR_NODISCARD
-struct _cbor_stack_record *_cbor_stack_push(struct _cbor_stack *, cbor_item_t *,
+struct _cbor_stack_record* _cbor_stack_push(struct _cbor_stack*, cbor_item_t*,
                                             size_t);
 
 #ifdef __cplusplus

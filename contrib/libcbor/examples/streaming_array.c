@@ -30,7 +30,8 @@ void flush(size_t bytes) {
  */
 int main(int argc, char* argv[]) {
   if (argc != 2) usage();
-  long n = strtol(argv[1], NULL, 10);
+  size_t n;
+  scanf(argv[1], "%zu", &n);
   out = freopen(NULL, "wb", stdout);
   if (!out) exit(1);
 

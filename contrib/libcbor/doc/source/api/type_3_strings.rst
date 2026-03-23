@@ -1,7 +1,7 @@
 Type 3 – UTF-8 strings 
 =============================
 
-CBOR strings have the same structure as :doc:`type_2`.
+CBOR strings have the same structure as :doc:`type_2_byte_strings`.
 
 ==================================  ======================================================
 Corresponding :type:`cbor_type`     ``CBOR_TYPE_STRING``

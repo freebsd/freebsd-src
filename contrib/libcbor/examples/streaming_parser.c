@@ -9,12 +9,6 @@
 #include <string.h>
 #include "cbor.h"
 
-#ifdef __GNUC__
-#define UNUSED(x) __attribute__((__unused__)) x
-#else
-#define UNUSED(x) x
-#endif
-
 void usage(void) {
   printf("Usage: streaming_parser [input file]\n");
   exit(1);
@@ -30,7 +24,7 @@ void usage(void) {
 const char* key = "a secret key";
 bool key_found = false;
 
-void find_string(void* UNUSED(_ctx), cbor_data buffer, uint64_t len) {
+void find_string(void* _ctx _CBOR_UNUSED, cbor_data buffer, uint64_t len) {
   if (key_found) {
     printf("Found the value: %.*s\n", (int)len, buffer);
     key_found = false;

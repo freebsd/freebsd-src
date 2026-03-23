@@ -1,0 +1,6 @@
+{
+    "C_Cpp.clang_format_style": "file",
+    "editor.formatOnSave": true,
+    "cmake.configureOnOpen": true,
+    "cmake.buildDirectory": "${workspaceFolder}/.vscode/tmp/build_${buildType}",
+}

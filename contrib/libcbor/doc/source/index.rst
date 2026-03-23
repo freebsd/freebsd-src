@@ -3,6 +3,8 @@ libcbor
 
 Documentation for version |release|, updated on |today|.
 
+Git repo: https://github.com/PJK/libcbor
+
 Overview
 --------
 *libcbor* is a C library for parsing and generating CBOR_, the general-purpose schema-less binary data format.
@@ -28,7 +30,7 @@ Contents
 .. toctree::
 
    getting_started
-   using
+   tutorial
    api
    tests
    standard_conformance

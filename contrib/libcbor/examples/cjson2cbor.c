@@ -22,10 +22,10 @@
 #include "cbor/internal/builder_callbacks.h"
 #include "cbor/internal/loaders.h"
 
-typedef void (*cbor_load_callback_t)(cJSON *, const struct cbor_callbacks *,
-                                     void *);
+typedef void (*cbor_load_callback_t)(cJSON*, const struct cbor_callbacks*,
+                                     void*);
 
-cbor_item_t *cjson_cbor_load(void *source,
+cbor_item_t* cjson_cbor_load(void* source,
                              cbor_load_callback_t cbor_load_callback) {
   static struct cbor_callbacks callbacks = {
       .uint64 = &cbor_builder_uint64_callback,
@@ -51,9 +51,9 @@ cbor_item_t *cjson_cbor_load(void *source,
   return context.root;
 }
 
-void cjson_cbor_stream_decode(cJSON *source,
-                              const struct cbor_callbacks *callbacks,
-                              void *context) {
+void cjson_cbor_stream_decode(cJSON* source,
+                              const struct cbor_callbacks* callbacks,
+                              void* context) {
   switch (source->type) {
     case cJSON_False: {
       callbacks->boolean(context, false);
@@ -83,13 +83,13 @@ void cjson_cbor_stream_decode(cJSON *source,
     }
     case cJSON_String: {
       // XXX: Assume cJSON handled unicode correctly
-      callbacks->string(context, (unsigned char *)source->valuestring,
+      callbacks->string(context, (unsigned char*)source->valuestring,
                         strlen(source->valuestring));
       return;
     }
     case cJSON_Array: {
       callbacks->array_start(context, cJSON_GetArraySize(source));
-      cJSON *item = source->child;
+      cJSON* item = source->child;
       while (item != NULL) {
         cjson_cbor_stream_decode(item, callbacks, context);
         item = item->next;
@@ -98,9 +98,9 @@ void cjson_cbor_stream_decode(cJSON *source,
     }
     case cJSON_Object: {
       callbacks->map_start(context, cJSON_GetArraySize(source));
-      cJSON *item = source->child;
+      cJSON* item = source->child;
       while (item != NULL) {
-        callbacks->string(context, (unsigned char *)item->string,
+        callbacks->string(context, (unsigned char*)item->string,
                           strlen(item->string));
         cjson_cbor_stream_decode(item, callbacks, context);
         item = item->next;
@@ -115,24 +115,24 @@ void usage(void) {
   exit(1);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (argc != 2) usage();
-  FILE *f = fopen(argv[1], "rb");
+  FILE* f = fopen(argv[1], "rb");
   if (f == NULL) usage();
   /* Read input file into a buffer (cJSON doesn't work with streams) */
   fseek(f, 0, SEEK_END);
   size_t length = (size_t)ftell(f);
   fseek(f, 0, SEEK_SET);
-  char *json_buffer = malloc(length + 1);
+  char* json_buffer = malloc(length + 1);
   fread(json_buffer, length, 1, f);
   json_buffer[length] = '\0';
 
   /* Convert between JSON and CBOR */
-  cJSON *json = cJSON_Parse(json_buffer);
-  cbor_item_t *cbor = cjson_cbor_load(json, cjson_cbor_stream_decode);
+  cJSON* json = cJSON_Parse(json_buffer);
+  cbor_item_t* cbor = cjson_cbor_load(json, cjson_cbor_stream_decode);
 
   /* Print out CBOR bytes */
-  unsigned char *buffer;
+  unsigned char* buffer;
   size_t buffer_size;
   cbor_serialize_alloc(cbor, &buffer, &buffer_size);
 

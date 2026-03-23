@@ -9,12 +9,12 @@
 #include "cbor.h"
 #include "test_allocator.h"
 
-cbor_item_t *arr;
+cbor_item_t* arr;
 struct cbor_load_result res;
 
 unsigned char data1[] = {0x80, 0xFF};
 
-static void test_empty_array(void **_CBOR_UNUSED(_state)) {
+static void test_empty_array(void** _state _CBOR_UNUSED) {
   arr = cbor_load(data1, 2, &res);
   assert_non_null(arr);
   assert_true(cbor_typeof(arr) == CBOR_TYPE_ARRAY);
@@ -27,7 +27,7 @@ static void test_empty_array(void **_CBOR_UNUSED(_state)) {
 
 unsigned char data2[] = {0x81, 0x01, 0xFF};
 
-static void test_simple_array(void **_CBOR_UNUSED(_state)) {
+static void test_simple_array(void** _state _CBOR_UNUSED) {
   arr = cbor_load(data2, 3, &res);
   assert_non_null(arr);
   assert_true(cbor_typeof(arr) == CBOR_TYPE_ARRAY);
@@ -37,10 +37,10 @@ static void test_simple_array(void **_CBOR_UNUSED(_state)) {
   assert_size_equal(cbor_array_allocated(arr), 1);
   /* Check the values */
   assert_uint8(cbor_array_handle(arr)[0], 1);
-  cbor_item_t *intermediate = cbor_array_get(arr, 0);
+  cbor_item_t* intermediate = cbor_array_get(arr, 0);
   assert_uint8(intermediate, 1);
 
-  cbor_item_t *new_val = cbor_build_uint8(10);
+  cbor_item_t* new_val = cbor_build_uint8(10);
   assert_false(cbor_array_set(arr, 1, new_val));
   assert_false(cbor_array_set(arr, 3, new_val));
   cbor_decref(&new_val);
@@ -53,7 +53,7 @@ static void test_simple_array(void **_CBOR_UNUSED(_state)) {
 
 unsigned char data3[] = {0x82, 0x01, 0x81, 0x01, 0xFF};
 
-static void test_nested_arrays(void **_CBOR_UNUSED(_state)) {
+static void test_nested_arrays(void** _state _CBOR_UNUSED) {
   arr = cbor_load(data3, 5, &res);
   assert_non_null(arr);
   assert_true(cbor_typeof(arr) == CBOR_TYPE_ARRAY);
@@ -63,7 +63,7 @@ static void test_nested_arrays(void **_CBOR_UNUSED(_state)) {
   /* Check the values */
   assert_uint8(cbor_array_handle(arr)[0], 1);
 
-  cbor_item_t *nested = cbor_array_handle(arr)[1];
+  cbor_item_t* nested = cbor_array_handle(arr)[1];
   assert_true(cbor_isa_array(nested));
   assert_true(cbor_array_size(nested) == 1);
   assert_uint8(cbor_array_handle(nested)[0], 1);
@@ -74,7 +74,7 @@ static void test_nested_arrays(void **_CBOR_UNUSED(_state)) {
 
 unsigned char test_indef_arrays_data[] = {0x9f, 0x01, 0x02, 0xFF};
 
-static void test_indef_arrays(void **_CBOR_UNUSED(_state)) {
+static void test_indef_arrays(void** _state _CBOR_UNUSED) {
   arr = cbor_load(test_indef_arrays_data, 4, &res);
   assert_non_null(arr);
   assert_true(cbor_typeof(arr) == CBOR_TYPE_ARRAY);
@@ -94,7 +94,7 @@ static void test_indef_arrays(void **_CBOR_UNUSED(_state)) {
 unsigned char test_nested_indef_arrays_data[] = {0x9f, 0x01, 0x9f, 0x02,
                                                  0xFF, 0x03, 0xFF};
 
-static void test_nested_indef_arrays(void **_CBOR_UNUSED(_state)) {
+static void test_nested_indef_arrays(void** _state _CBOR_UNUSED) {
   arr = cbor_load(test_nested_indef_arrays_data, 7, &res);
   assert_non_null(arr);
   assert_true(cbor_typeof(arr) == CBOR_TYPE_ARRAY);
@@ -104,7 +104,7 @@ static void test_nested_indef_arrays(void **_CBOR_UNUSED(_state)) {
   /* Check the values */
   assert_uint8(cbor_array_handle(arr)[0], 1);
 
-  cbor_item_t *nested = cbor_array_handle(arr)[1];
+  cbor_item_t* nested = cbor_array_handle(arr)[1];
   assert_true(cbor_isa_array(nested));
   assert_true(cbor_array_size(nested) == 1);
   assert_uint8(cbor_array_handle(nested)[0], 2);
@@ -113,11 +113,11 @@ static void test_nested_indef_arrays(void **_CBOR_UNUSED(_state)) {
   assert_null(arr);
 }
 
-static void test_array_replace(void **_CBOR_UNUSED(_state)) {
-  cbor_item_t *array = cbor_new_definite_array(2);
+static void test_array_replace(void** _state _CBOR_UNUSED) {
+  cbor_item_t* array = cbor_new_definite_array(2);
   assert_size_equal(cbor_array_size(array), 0);
-  cbor_item_t *one = cbor_build_uint8(1);
-  cbor_item_t *three = cbor_build_uint8(3);
+  cbor_item_t* one = cbor_build_uint8(1);
+  cbor_item_t* three = cbor_build_uint8(3);
   assert_size_equal(cbor_refcount(one), 1);
   assert_size_equal(cbor_refcount(three), 1);
 
@@ -147,11 +147,11 @@ static void test_array_replace(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&array);
 }
 
-static void test_array_push_overflow(void **_CBOR_UNUSED(_state)) {
-  cbor_item_t *array = cbor_new_indefinite_array();
-  cbor_item_t *one = cbor_build_uint8(1);
-  struct _cbor_array_metadata *metadata =
-      (struct _cbor_array_metadata *)&array->metadata;
+static void test_array_push_overflow(void** _state _CBOR_UNUSED) {
+  cbor_item_t* array = cbor_new_indefinite_array();
+  cbor_item_t* one = cbor_build_uint8(1);
+  struct _cbor_array_metadata* metadata =
+      (struct _cbor_array_metadata*)&array->metadata;
   // Pretend we already have a huge block allocated
   metadata->allocated = SIZE_MAX;
   metadata->end_ptr = SIZE_MAX;
@@ -165,7 +165,7 @@ static void test_array_push_overflow(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&array);
 }
 
-static void test_array_creation(void **_CBOR_UNUSED(_state)) {
+static void test_array_creation(void** _state _CBOR_UNUSED) {
   WITH_FAILING_MALLOC({ assert_null(cbor_new_definite_array(42)); });
   WITH_MOCK_MALLOC({ assert_null(cbor_new_definite_array(42)); }, 2, MALLOC,
                    MALLOC_FAIL);
@@ -173,11 +173,11 @@ static void test_array_creation(void **_CBOR_UNUSED(_state)) {
   WITH_FAILING_MALLOC({ assert_null(cbor_new_indefinite_array()); });
 }
 
-static void test_array_push(void **_CBOR_UNUSED(_state)) {
+static void test_array_push(void** _state _CBOR_UNUSED) {
   WITH_MOCK_MALLOC(
       {
-        cbor_item_t *array = cbor_new_indefinite_array();
-        cbor_item_t *string = cbor_build_string("Hello!");
+        cbor_item_t* array = cbor_new_indefinite_array();
+        cbor_item_t* string = cbor_build_string("Hello!");
 
         assert_false(cbor_array_push(array, string));
         assert_size_equal(cbor_array_allocated(array), 0);
@@ -191,10 +191,10 @@ static void test_array_push(void **_CBOR_UNUSED(_state)) {
 }
 
 static unsigned char simple_indef_array[] = {0x9F, 0x01, 0x02, 0xFF};
-static void test_indef_array_decode(void **_CBOR_UNUSED(_state)) {
+static void test_indef_array_decode(void** _state _CBOR_UNUSED) {
   WITH_MOCK_MALLOC(
       {
-        cbor_item_t *array;
+        cbor_item_t* array;
         struct cbor_load_result res;
         array = cbor_load(simple_indef_array, 4, &res);
 

@@ -5,13 +5,15 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#include <stdbool.h>
+#include <string.h>
+
 #include "cbor.h"
 #include "cbor/internal/builder_callbacks.h"
 #include "cbor/internal/loaders.h"
 
-#pragma clang diagnostic push
-cbor_item_t *cbor_load(cbor_data source, size_t source_size,
-                       struct cbor_load_result *result) {
+cbor_item_t* cbor_load(cbor_data source, size_t source_size,
+                       struct cbor_load_result* result) {
   /* Context stack */
   static struct cbor_callbacks callbacks = {
       .uint8 = &cbor_builder_uint8_callback,
@@ -115,8 +117,11 @@ error:
   return NULL;
 }
 
-static cbor_item_t *_cbor_copy_int(cbor_item_t *item, bool negative) {
-  cbor_item_t *res;
+static cbor_item_t* _cbor_copy_int(cbor_item_t* item, bool negative) {
+  CBOR_ASSERT(cbor_isa_uint(item) || cbor_isa_negint(item));
+  CBOR_ASSERT(cbor_int_get_width(item) >= CBOR_INT_8 &&
+              cbor_int_get_width(item) <= CBOR_INT_64);
+  cbor_item_t* res = NULL;
   switch (cbor_int_get_width(item)) {
     case CBOR_INT_8:
       res = cbor_build_uint8(cbor_get_uint8(item));
@@ -137,8 +142,10 @@ static cbor_item_t *_cbor_copy_int(cbor_item_t *item, bool negative) {
   return res;
 }
 
-static cbor_item_t *_cbor_copy_float_ctrl(cbor_item_t *item) {
-  // cppcheck-suppress missingReturn
+static cbor_item_t* _cbor_copy_float_ctrl(cbor_item_t* item) {
+  CBOR_ASSERT(cbor_isa_float_ctrl(item));
+  CBOR_ASSERT(cbor_float_get_width(item) >= CBOR_FLOAT_0 &&
+              cbor_float_get_width(item) <= CBOR_FLOAT_64);
   switch (cbor_float_get_width(item)) {
     case CBOR_FLOAT_0:
       return cbor_build_ctrl(cbor_ctrl_value(item));
@@ -148,11 +155,14 @@ static cbor_item_t *_cbor_copy_float_ctrl(cbor_item_t *item) {
       return cbor_build_float4(cbor_float_get_float4(item));
     case CBOR_FLOAT_64:
       return cbor_build_float8(cbor_float_get_float8(item));
+    default:  // LCOV_EXCL_START
+      _CBOR_UNREACHABLE;
+      return NULL;  // LCOV_EXCL_START
   }
 }
 
-cbor_item_t *cbor_copy(cbor_item_t *item) {
-  // cppcheck-suppress missingReturn
+cbor_item_t* cbor_copy(cbor_item_t* item) {
+  CBOR_ASSERT_VALID_TYPE(cbor_typeof(item));
   switch (cbor_typeof(item)) {
     case CBOR_TYPE_UINT:
       return _cbor_copy_int(item, false);
@@ -163,13 +173,13 @@ cbor_item_t *cbor_copy(cbor_item_t *item) {
         return cbor_build_bytestring(cbor_bytestring_handle(item),
                                      cbor_bytestring_length(item));
       } else {
-        cbor_item_t *res = cbor_new_indefinite_bytestring();
+        cbor_item_t* res = cbor_new_indefinite_bytestring();
         if (res == NULL) {
           return NULL;
         }
 
         for (size_t i = 0; i < cbor_bytestring_chunk_count(item); i++) {
-          cbor_item_t *chunk_copy =
+          cbor_item_t* chunk_copy =
               cbor_copy(cbor_bytestring_chunks_handle(item)[i]);
           if (chunk_copy == NULL) {
             cbor_decref(&res);
@@ -186,16 +196,16 @@ cbor_item_t *cbor_copy(cbor_item_t *item) {
       }
     case CBOR_TYPE_STRING:
       if (cbor_string_is_definite(item)) {
-        return cbor_build_stringn((const char *)cbor_string_handle(item),
+        return cbor_build_stringn((const char*)cbor_string_handle(item),
                                   cbor_string_length(item));
       } else {
-        cbor_item_t *res = cbor_new_indefinite_string();
+        cbor_item_t* res = cbor_new_indefinite_string();
         if (res == NULL) {
           return NULL;
         }
 
         for (size_t i = 0; i < cbor_string_chunk_count(item); i++) {
-          cbor_item_t *chunk_copy =
+          cbor_item_t* chunk_copy =
               cbor_copy(cbor_string_chunks_handle(item)[i]);
           if (chunk_copy == NULL) {
             cbor_decref(&res);
@@ -211,7 +221,7 @@ cbor_item_t *cbor_copy(cbor_item_t *item) {
         return res;
       }
     case CBOR_TYPE_ARRAY: {
-      cbor_item_t *res;
+      cbor_item_t* res;
       if (cbor_array_is_definite(item)) {
         res = cbor_new_definite_array(cbor_array_size(item));
       } else {
@@ -222,7 +232,7 @@ cbor_item_t *cbor_copy(cbor_item_t *item) {
       }
 
       for (size_t i = 0; i < cbor_array_size(item); i++) {
-        cbor_item_t *entry_copy = cbor_copy(cbor_move(cbor_array_get(item, i)));
+        cbor_item_t* entry_copy = cbor_copy(cbor_move(cbor_array_get(item, i)));
         if (entry_copy == NULL) {
           cbor_decref(&res);
           return NULL;
@@ -237,7 +247,7 @@ cbor_item_t *cbor_copy(cbor_item_t *item) {
       return res;
     }
     case CBOR_TYPE_MAP: {
-      cbor_item_t *res;
+      cbor_item_t* res;
       if (cbor_map_is_definite(item)) {
         res = cbor_new_definite_map(cbor_map_size(item));
       } else {
@@ -247,14 +257,14 @@ cbor_item_t *cbor_copy(cbor_item_t *item) {
         return NULL;
       }
 
-      struct cbor_pair *it = cbor_map_handle(item);
+      struct cbor_pair* it = cbor_map_handle(item);
       for (size_t i = 0; i < cbor_map_size(item); i++) {
-        cbor_item_t *key_copy = cbor_copy(it[i].key);
+        cbor_item_t* key_copy = cbor_copy(it[i].key);
         if (key_copy == NULL) {
           cbor_decref(&res);
           return NULL;
         }
-        cbor_item_t *value_copy = cbor_copy(it[i].value);
+        cbor_item_t* value_copy = cbor_copy(it[i].value);
         if (value_copy == NULL) {
           cbor_decref(&res);
           cbor_decref(&key_copy);
@@ -273,16 +283,148 @@ cbor_item_t *cbor_copy(cbor_item_t *item) {
       return res;
     }
     case CBOR_TYPE_TAG: {
-      cbor_item_t *item_copy = cbor_copy(cbor_move(cbor_tag_item(item)));
+      cbor_item_t* item_copy = cbor_copy(cbor_move(cbor_tag_item(item)));
       if (item_copy == NULL) {
         return NULL;
       }
-      cbor_item_t *tag = cbor_build_tag(cbor_tag_value(item), item_copy);
+      cbor_item_t* tag = cbor_build_tag(cbor_tag_value(item), item_copy);
       cbor_decref(&item_copy);
       return tag;
     }
     case CBOR_TYPE_FLOAT_CTRL:
       return _cbor_copy_float_ctrl(item);
+    default:  // LCOV_EXCL_START
+      _CBOR_UNREACHABLE;
+      return NULL;  // LCOV_EXCL_STOP
+  }
+}
+
+cbor_item_t* cbor_copy_definite(cbor_item_t* item) {
+  CBOR_ASSERT_VALID_TYPE(cbor_typeof(item));
+  switch (cbor_typeof(item)) {
+    case CBOR_TYPE_UINT:
+    case CBOR_TYPE_NEGINT:
+      return cbor_copy(item);
+    case CBOR_TYPE_BYTESTRING:
+      if (cbor_bytestring_is_definite(item)) {
+        return cbor_copy(item);
+      } else {
+        size_t total_length = 0;
+        for (size_t i = 0; i < cbor_bytestring_chunk_count(item); i++) {
+          total_length +=
+              cbor_bytestring_length(cbor_bytestring_chunks_handle(item)[i]);
+        }
+
+        unsigned char* combined_data = _cbor_malloc(total_length);
+        if (combined_data == NULL) {
+          return NULL;
+        }
+
+        size_t offset = 0;
+        for (size_t i = 0; i < cbor_bytestring_chunk_count(item); i++) {
+          cbor_item_t* chunk = cbor_bytestring_chunks_handle(item)[i];
+          memcpy(combined_data + offset, cbor_bytestring_handle(chunk),
+                 cbor_bytestring_length(chunk));
+          offset += cbor_bytestring_length(chunk);
+        }
+
+        cbor_item_t* res = cbor_new_definite_bytestring();
+        cbor_bytestring_set_handle(res, combined_data, total_length);
+        return res;
+      }
+    case CBOR_TYPE_STRING:
+      if (cbor_string_is_definite(item)) {
+        return cbor_copy(item);
+      } else {
+        size_t total_length = 0;
+        for (size_t i = 0; i < cbor_string_chunk_count(item); i++) {
+          total_length +=
+              cbor_string_length(cbor_string_chunks_handle(item)[i]);
+        }
+
+        unsigned char* combined_data = _cbor_malloc(total_length);
+        if (combined_data == NULL) {
+          return NULL;
+        }
+
+        size_t offset = 0;
+        for (size_t i = 0; i < cbor_string_chunk_count(item); i++) {
+          cbor_item_t* chunk = cbor_string_chunks_handle(item)[i];
+          memcpy(combined_data + offset, cbor_string_handle(chunk),
+                 cbor_string_length(chunk));
+          offset += cbor_string_length(chunk);
+        }
+
+        cbor_item_t* res = cbor_new_definite_string();
+        cbor_string_set_handle(res, combined_data, total_length);
+        return res;
+      }
+    case CBOR_TYPE_ARRAY: {
+      cbor_item_t* res = cbor_new_definite_array(cbor_array_size(item));
+      if (res == NULL) {
+        return NULL;
+      }
+
+      for (size_t i = 0; i < cbor_array_size(item); i++) {
+        cbor_item_t* entry_copy =
+            cbor_copy_definite(cbor_array_handle(item)[i]);
+        if (entry_copy == NULL) {
+          cbor_decref(&res);
+          return NULL;
+        }
+        // Cannot fail since we have a definite array preallocated
+        // cppcheck-suppress syntaxError
+        const bool item_pushed _CBOR_UNUSED = cbor_array_push(res, entry_copy);
+        CBOR_ASSERT(item_pushed);
+        cbor_decref(&entry_copy);
+      }
+      return res;
+    }
+    case CBOR_TYPE_MAP: {
+      cbor_item_t* res;
+      res = cbor_new_definite_map(cbor_map_size(item));
+      if (res == NULL) {
+        return NULL;
+      }
+
+      struct cbor_pair* it = cbor_map_handle(item);
+      for (size_t i = 0; i < cbor_map_size(item); i++) {
+        cbor_item_t* key_copy = cbor_copy_definite(it[i].key);
+        if (key_copy == NULL) {
+          cbor_decref(&res);
+          return NULL;
+        }
+        cbor_item_t* value_copy = cbor_copy_definite(it[i].value);
+        if (value_copy == NULL) {
+          cbor_decref(&res);
+          cbor_decref(&key_copy);
+          return NULL;
+        }
+        // Cannot fail since we have a definite map preallocated
+        // cppcheck-suppress syntaxError
+        const bool item_added _CBOR_UNUSED = cbor_map_add(
+            res, (struct cbor_pair){.key = key_copy, .value = value_copy});
+        CBOR_ASSERT(item_added);
+        cbor_decref(&key_copy);
+        cbor_decref(&value_copy);
+      }
+      return res;
+    }
+    case CBOR_TYPE_TAG: {
+      cbor_item_t* item_copy =
+          cbor_copy_definite(cbor_move(cbor_tag_item(item)));
+      if (item_copy == NULL) {
+        return NULL;
+      }
+      cbor_item_t* tag = cbor_build_tag(cbor_tag_value(item), item_copy);
+      cbor_decref(&item_copy);
+      return tag;
+    }
+    case CBOR_TYPE_FLOAT_CTRL:
+      return cbor_copy(item);
+    default:  // LCOV_EXCL_START
+      _CBOR_UNREACHABLE;
+      return NULL;  // LCOV_EXCL_STOP
   }
 }
 
@@ -301,11 +443,13 @@ static int _pow(int b, int ex) {
   return res;
 }
 
-static void _cbor_type_marquee(FILE *out, char *label, int indent) {
+static void _cbor_type_marquee(FILE* out, char* label, int indent) {
   fprintf(out, "%*.*s[%s] ", indent, indent, " ", label);
 }
 
-static void _cbor_nested_describe(cbor_item_t *item, FILE *out, int indent) {
+static void _cbor_nested_describe(cbor_item_t* item, FILE* out, int indent) {
+  CBOR_ASSERT(cbor_typeof(item) >= CBOR_TYPE_UINT &&
+              cbor_typeof(item) <= CBOR_TYPE_FLOAT_CTRL);
   const int indent_offset = 4;
   switch (cbor_typeof(item)) {
     case CBOR_TYPE_UINT: {
@@ -329,7 +473,7 @@ static void _cbor_nested_describe(cbor_item_t *item, FILE *out, int indent) {
           _cbor_nested_describe(cbor_bytestring_chunks_handle(item)[i], out,
                                 indent + indent_offset);
       } else {
-        const unsigned char *data = cbor_bytestring_handle(item);
+        const unsigned char* data = cbor_bytestring_handle(item);
         fprintf(out, "Definite, Length: %zuB, Data:\n",
                 cbor_bytestring_length(item));
         fprintf(out, "%*s", indent + indent_offset, " ");
@@ -418,7 +562,7 @@ static void _cbor_nested_describe(cbor_item_t *item, FILE *out, int indent) {
   }
 }
 
-void cbor_describe(cbor_item_t *item, FILE *out) {
+void cbor_describe(cbor_item_t* item, FILE* out) {
   _cbor_nested_describe(item, out, 0);
 }
 

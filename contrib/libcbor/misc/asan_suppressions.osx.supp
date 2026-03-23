@@ -1,0 +1,3 @@
+leak:initializeNonMetaClass
+# via _cmocka_run_group_tests
+leak:tlv_get_addr

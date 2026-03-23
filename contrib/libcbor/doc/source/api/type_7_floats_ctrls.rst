@@ -60,9 +60,16 @@ Manipulating existing items
 .. doxygenfunction:: cbor_set_float8
 
 
-.. _api_type_7_hard_floats:
+.. _api_type_7_floats_ctrls_half_floats:
 
 Half floats
 ~~~~~~~~~~~~
 CBOR supports two `bytes wide ("half-precision") <https://en.wikipedia.org/wiki/Half-precision_floating-point_format>`_
 floats which are not supported by the C language. *libcbor* represents them using `float <https://en.cppreference.com/w/c/language/type>` values throughout the API. Encoding will be performed by :func:`cbor_encode_half`, which will handle any values that cannot be represented as a half-float.
+
+Signaling NaNs
+~~~~~~~~~~~~~~~~
+
+`Signaling NaNs <https://en.wikipedia.org/wiki/NaN#Signaling_NaN)>`_ are always encoded as a standard, "quiet" NaN.
+
+The reason for this simplification is that standard C does not offer a way to handle the signaling payload without assumptions about the host architecture. See https://github.com/PJK/libcbor/issues/336 for more context.

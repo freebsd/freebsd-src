@@ -1,7 +1,7 @@
 Type 4 – Arrays
 =============================
 
-CBOR arrays, just like :doc:`byte strings <type_2>` and :doc:`strings <type_3>`, can be encoded either as definite, or as indefinite.
+CBOR arrays, just like :doc:`byte strings <type_2_byte_strings>` and :doc:`strings <type_3_strings>`, can be encoded either as definite, or as indefinite.
 Definite arrays have a fixed size which is stored in the header, whereas indefinite arrays do not and are terminated by a special "break" byte instead.
 
 Arrays are explicitly created or decoded as definite or indefinite and will be encoded using the corresponding wire representation, regardless of whether the actual size is known at the time of encoding.
