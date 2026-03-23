@@ -250,6 +250,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	struct sx			lvif_sx;
 
 	struct list_head		lchanctx_list;
+	struct list_head		lchanctx_list_reserved;
 	struct netdev_hw_addr_list	mc_list;
 	unsigned int			mc_flags;
 	struct sx			mc_sx;
@@ -330,6 +331,7 @@ struct lkpi_chanctx {
 	struct list_head		entry;
 
 	bool				added_to_drv;	/* Managed by MO */
+	struct lkpi_vif			*lvif;		/* Backpointer. */
 
 	struct ieee80211_chanctx_conf	chanctx_conf __aligned(CACHE_LINE_SIZE);
 };
