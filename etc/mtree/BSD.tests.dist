@@ -85,6 +85,8 @@
     cddl
         lib
         ..
+        oclo
+        ..
         sbin
         ..
         usr.bin
@@ -460,6 +462,8 @@
             ..
         ..
         libutil
+        ..
+        libutil++
         ..
         libxo
         ..
