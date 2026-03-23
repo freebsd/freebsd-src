@@ -1,6 +1,6 @@
 #!/bin/sh -eux
 
-# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Copyright (c) 2022-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -12,8 +12,8 @@ FAKEROOT="$(mktemp -d)"
 # Check exports.
 (cd src && ./diff_exports.sh)
 
-# Build and install OpenSSL 3.0.12.
-git clone --branch openssl-3.0.12 \
+# Build and install OpenSSL 3.0.14.
+git clone --branch openssl-3.0.14 \
 	--depth=1 https://github.com/openssl/openssl
 cd openssl
 ./Configure linux-x86_64-clang --prefix="${FAKEROOT}" \

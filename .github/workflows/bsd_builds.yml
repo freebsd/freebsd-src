@@ -18,7 +18,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [freebsd/13.x, openbsd/7.2]
+        include:
+          - { image: freebsd/14.x }
+          - { image: openbsd/7.4, llvm_version: 16 }
     steps:
     - uses: actions/checkout@v4
     - name: dependencies
@@ -27,6 +29,7 @@ jobs:
         sudo apt install -q -y curl jq
     - name: build
       env:
+        LLVM_VERSION: ${{ matrix.llvm_version }}
         IMAGE: ${{ matrix.image }}
         SOURCEHUT_TOKEN: ${{ secrets.SOURCEHUT_TOKEN }}
       run: ./.actions/build-bsd

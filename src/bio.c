@@ -57,6 +57,15 @@ fail:
 	return (ok);
 }
 
+static uint8_t
+bio_get_cmd(const fido_dev_t *dev)
+{
+	if (dev->flags & (FIDO_DEV_BIO_SET|FIDO_DEV_BIO_UNSET))
+		return (CTAP_CBOR_BIO_ENROLL);
+
+	return (CTAP_CBOR_BIO_ENROLL_PRE);
+}
+
 static int
 bio_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **sub_argv, size_t sub_argc,
     const char *pin, const fido_blob_t *token, int *ms)
@@ -66,7 +75,7 @@ bio_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **sub_argv, size_t sub_argc,
 	fido_blob_t	*ecdh = NULL;
 	fido_blob_t	 f;
 	fido_blob_t	 hmac;
-	const uint8_t	 cmd = CTAP_CBOR_BIO_ENROLL_PRE;
+	const uint8_t	 cmd = bio_get_cmd(dev);
 	int		 r = FIDO_ERR_INTERNAL;
 
 	memset(&f, 0, sizeof(f));

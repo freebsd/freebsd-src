@@ -1,6 +1,6 @@
 #!/bin/sh -eux
 
-# Copyright (c) 2022-2023 Yubico AB. All rights reserved.
+# Copyright (c) 2022-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -23,7 +23,7 @@ SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 EOF
 
 # Build and install libcbor.
-git clone --depth=1 https://github.com/pjk/libcbor -b v0.10.1
+git clone --depth=1 https://github.com/pjk/libcbor -b v0.11.0
 cd libcbor
 mkdir build
 (cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/tmp/mingw.cmake \
@@ -32,8 +32,8 @@ make -j"$(nproc)" -C build
 sudo make -C build install
 cd ..
 
-# Build and install OpenSSL 3.0.11.
-git clone --branch openssl-3.0.12 \
+# Build and install OpenSSL 3.0.14.
+git clone --branch openssl-3.0.14 \
 	--depth=1 https://github.com/openssl/openssl
 cd openssl
 ./Configure mingw --prefix=/fakeroot --openssldir=/fakeroot/openssl \
@@ -43,7 +43,7 @@ sudo make install_sw
 cd ..
 
 # Build and install zlib.
-git clone --depth=1 https://github.com/madler/zlib -b v1.3
+git clone --depth=1 https://github.com/madler/zlib -b v1.3.1
 cd zlib
 make -fwin32/Makefile.gcc PREFIX=i686-w64-mingw32-
 sudo make -fwin32/Makefile.gcc PREFIX=i686-w64-mingw32- DESTDIR=/fakeroot \

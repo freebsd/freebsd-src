@@ -309,6 +309,11 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 	if (fmt)
 		fido_cred_set_fmt(cred, fmt);
 
+	/* XXX +1 on purpose */
+	for (size_t i = 0; i < fido_cred_x5c_list_count(cred) + 1; i++)
+		consume(fido_cred_x5c_list_ptr(cred, i),
+		    fido_cred_x5c_list_len(cred, i));
+
 	/* repeat memory operations to trigger reallocation paths */
 	if (fido_cred_set_authdata(cred, authdata_ptr, authdata_len) != FIDO_OK)
 		fido_cred_set_authdata_raw(cred, authdata_raw_ptr,

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023 Yubico AB. All rights reserved.
+# Copyright (c) 2019-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -80,3 +80,10 @@ set_target_properties(fuzz_pcsc PROPERTIES
 	LINK_FLAGS ${FUZZ_LDFLAGS}
 	LINKER_LANGUAGE ${FUZZ_LINKER_LANGUAGE})
 target_link_libraries(fuzz_pcsc fido2_shared)
+
+# fuzz_attobj
+add_executable(fuzz_attobj fuzz_attobj.c ${COMMON_SOURCES} ${COMPAT_SOURCES})
+set_target_properties(fuzz_attobj PROPERTIES
+	LINK_FLAGS ${FUZZ_LDFLAGS}
+	LINKER_LANGUAGE ${FUZZ_LINKER_LANGUAGE})
+target_link_libraries(fuzz_attobj fido2_shared)

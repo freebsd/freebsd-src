@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-22.04 ]
-        cc: [ clang-16 ]
+        cc: [ clang-18 ]
         sanitizer: [ asan, msan ]
     steps:
     - uses: actions/checkout@v4

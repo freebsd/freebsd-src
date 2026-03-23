@@ -15,7 +15,7 @@ cat > "${MANIFEST}" <<- EOF
 image: ${IMAGE}
 packages:
   - cmake
-  - llvm
+  - llvm${LLVM_VERSION:+%${LLVM_VERSION}}
   - pcsc-lite
 EOF
 
@@ -38,7 +38,7 @@ tasks:
       else
         SUDO=sudo
       fi
-      SCAN="/usr/local/bin/scan-build --use-cc=/usr/bin/cc --status-bugs"
+      SCAN="/usr/local/bin/scan-build${LLVM_VERSION:+-${LLVM_VERSION}} --use-cc=/usr/bin/cc --status-bugs"
       cd libfido2
       for T in Debug Release; do
         mkdir build-\$T

@@ -167,6 +167,7 @@ _fido_cred_pubkey_ptr
 _fido_cred_rp_id
 _fido_cred_rp_name
 _fido_cred_set_attstmt
+_fido_cred_set_attobj
 _fido_cred_set_authdata
 _fido_cred_set_authdata_raw
 _fido_cred_set_blob
@@ -194,6 +195,9 @@ _fido_cred_user_name
 _fido_cred_verify
 _fido_cred_verify_self
 _fido_cred_x5c_len
+_fido_cred_x5c_list_count
+_fido_cred_x5c_list_len
+_fido_cred_x5c_list_ptr
 _fido_cred_x5c_ptr
 _fido_dev_build
 _fido_dev_cancel

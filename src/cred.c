@@ -284,15 +284,21 @@ verify_attstmt(const fido_blob_t *dgst, const fido_attstmt_t *attstmt)
 	EVP_PKEY	*pkey = NULL;
 	int		 ok = -1;
 
-	/* openssl needs ints */
-	if (attstmt->x5c.len > INT_MAX) {
+	if (!attstmt->x5c.len) {
 		fido_log_debug("%s: x5c.len=%zu", __func__, attstmt->x5c.len);
 		return (-1);
 	}
 
+	/* openssl needs ints */
+	if (attstmt->x5c.ptr[0].len > INT_MAX) {
+		fido_log_debug("%s: x5c[0].len=%zu", __func__,
+		    attstmt->x5c.ptr[0].len);
+		return (-1);
+	}
+
 	/* fetch key from x509 */
-	if ((rawcert = BIO_new_mem_buf(attstmt->x5c.ptr,
-	    (int)attstmt->x5c.len)) == NULL ||
+	if ((rawcert = BIO_new_mem_buf(attstmt->x5c.ptr[0].ptr,
+	    (int)attstmt->x5c.ptr[0].len)) == NULL ||
 	    (cert = d2i_X509_bio(rawcert, NULL)) == NULL ||
 	    (pkey = X509_get_pubkey(cert)) == NULL) {
 		fido_log_debug("%s: x509 key", __func__);
@@ -543,10 +549,19 @@ fido_cred_clean_attstmt(fido_attstmt_t *attstmt)
 	fido_blob_reset(&attstmt->certinfo);
 	fido_blob_reset(&attstmt->pubarea);
 	fido_blob_reset(&attstmt->cbor);
-	fido_blob_reset(&attstmt->x5c);
+	fido_free_blob_array(&attstmt->x5c);
 	fido_blob_reset(&attstmt->sig);
 
 	memset(attstmt, 0, sizeof(*attstmt));
+}
+
+static void
+fido_cred_clean_attobj(fido_cred_t *cred)
+{
+	free(cred->fmt);
+	cred->fmt = NULL;
+	fido_cred_clean_authdata(cred);
+	fido_cred_clean_attstmt(&cred->attstmt);
 }
 
 void
@@ -576,10 +591,7 @@ fido_cred_reset_tx(fido_cred_t *cred)
 void
 fido_cred_reset_rx(fido_cred_t *cred)
 {
-	free(cred->fmt);
-	cred->fmt = NULL;
-	fido_cred_clean_authdata(cred);
-	fido_cred_clean_attstmt(&cred->attstmt);
+	fido_cred_clean_attobj(cred);
 	fido_blob_reset(&cred->largeblob_key);
 }
 
@@ -688,8 +700,29 @@ fido_cred_set_id(fido_cred_t *cred, const unsigned char *ptr, size_t len)
 int
 fido_cred_set_x509(fido_cred_t *cred, const unsigned char *ptr, size_t len)
 {
-	if (fido_blob_set(&cred->attstmt.x5c, ptr, len) < 0)
+	fido_blob_t x5c_blob;
+	fido_blob_t *list_ptr = NULL;
+
+	memset(&x5c_blob, 0, sizeof(x5c_blob));
+	fido_free_blob_array(&cred->attstmt.x5c);
+
+	if (fido_blob_set(&x5c_blob, ptr, len) < 0)
 		return (FIDO_ERR_INVALID_ARGUMENT);
+
+	if (cred->attstmt.x5c.len == SIZE_MAX) {
+		fido_blob_reset(&x5c_blob);
+		return (FIDO_ERR_INVALID_ARGUMENT);
+	}
+
+	if ((list_ptr = recallocarray(cred->attstmt.x5c.ptr,
+	    cred->attstmt.x5c.len, cred->attstmt.x5c.len + 1,
+	    sizeof(x5c_blob))) == NULL) {
+		fido_blob_reset(&x5c_blob);
+		return (FIDO_ERR_INTERNAL);
+	}
+
+	list_ptr[cred->attstmt.x5c.len++] = x5c_blob;
+	cred->attstmt.x5c.ptr = list_ptr;
 
 	return (FIDO_OK);
 }
@@ -732,6 +765,35 @@ fail:
 
 	if (r != FIDO_OK)
 		fido_cred_clean_attstmt(&cred->attstmt);
+
+	return (r);
+}
+
+int
+fido_cred_set_attobj(fido_cred_t *cred, const unsigned char *ptr, size_t len)
+{
+	cbor_item_t		*item = NULL;
+	struct cbor_load_result	 cbor;
+	int			 r = FIDO_ERR_INVALID_ARGUMENT;
+
+	fido_cred_clean_attobj(cred);
+
+	if (ptr == NULL || len == 0)
+		goto fail;
+
+	if ((item = cbor_load(ptr, len, &cbor)) == NULL) {
+		fido_log_debug("%s: cbor_load", __func__);
+		goto fail;
+	}
+	if (cbor_decode_attobj(item, cred) != 0) {
+		fido_log_debug("%s: cbor_decode_attobj", __func__);
+		goto fail;
+	}
+
+	r = FIDO_OK;
+fail:
+	if (item != NULL)
+		cbor_decref(&item);
 
 	return (r);
 }
@@ -1030,13 +1092,37 @@ fido_cred_clientdata_hash_len(const fido_cred_t *cred)
 const unsigned char *
 fido_cred_x5c_ptr(const fido_cred_t *cred)
 {
-	return (cred->attstmt.x5c.ptr);
+	return (fido_cred_x5c_list_ptr(cred, 0));
 }
 
 size_t
 fido_cred_x5c_len(const fido_cred_t *cred)
 {
+	return (fido_cred_x5c_list_len(cred, 0));
+}
+
+size_t
+fido_cred_x5c_list_count(const fido_cred_t *cred)
+{
 	return (cred->attstmt.x5c.len);
+}
+
+const unsigned char *
+fido_cred_x5c_list_ptr(const fido_cred_t *cred, size_t i)
+{
+	if (i >= cred->attstmt.x5c.len)
+		return (NULL);
+
+	return (cred->attstmt.x5c.ptr[i].ptr);
+}
+
+size_t
+fido_cred_x5c_list_len(const fido_cred_t *cred, size_t i)
+{
+	if (i >= cred->attstmt.x5c.len)
+		return (0);
+
+	return (cred->attstmt.x5c.ptr[i].len);
 }
 
 const unsigned char *

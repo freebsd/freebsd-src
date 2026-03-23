@@ -740,50 +740,6 @@ translate_fido_cred(struct winhello_cred *ctx, const fido_cred_t *cred,
 }
 
 static int
-decode_attobj(const cbor_item_t *key, const cbor_item_t *val, void *arg)
-{
-	fido_cred_t *cred = arg;
-	char *name = NULL;
-	int ok = -1;
-
-	if (cbor_string_copy(key, &name) < 0) {
-		fido_log_debug("%s: cbor type", __func__);
-		ok = 0; /* ignore */
-		goto fail;
-	}
-
-	if (!strcmp(name, "fmt")) {
-		if (cbor_decode_fmt(val, &cred->fmt) < 0) {
-			fido_log_debug("%s: cbor_decode_fmt", __func__);
-			goto fail;
-		}
-	} else if (!strcmp(name, "attStmt")) {
-		if (cbor_decode_attstmt(val, &cred->attstmt) < 0) {
-			fido_log_debug("%s: cbor_decode_attstmt", __func__);
-			goto fail;
-		}
-	} else if (!strcmp(name, "authData")) {
-		if (fido_blob_decode(val, &cred->authdata_raw) < 0) {
-			fido_log_debug("%s: fido_blob_decode", __func__);
-			goto fail;
-		}
-		if (cbor_decode_cred_authdata(val, cred->type,
-		    &cred->authdata_cbor, &cred->authdata, &cred->attcred,
-		    &cred->authdata_ext) < 0) {
-			fido_log_debug("%s: cbor_decode_cred_authdata",
-			    __func__);
-			goto fail;
-		}
-	}
-
-	ok = 0;
-fail:
-	free(name);
-
-	return (ok);
-}
-
-static int
 translate_winhello_cred(fido_cred_t *cred,
     const WEBAUTHN_CREDENTIAL_ATTESTATION *att)
 {
@@ -800,10 +756,8 @@ translate_winhello_cred(fido_cred_t *cred,
 		fido_log_debug("%s: cbor_load", __func__);
 		goto fail;
 	}
-	if (cbor_isa_map(item) == false ||
-	    cbor_map_is_definite(item) == false ||
-	    cbor_map_iter(item, cred, decode_attobj) < 0) {
-		fido_log_debug("%s: cbor type", __func__);
+	if (cbor_decode_attobj(item, cred) != 0) {
+		fido_log_debug("%s: cbor_decode_attobj", __func__);
 		goto fail;
 	}
 

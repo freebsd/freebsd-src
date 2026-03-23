@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022 Yubico AB. All rights reserved.
+# Copyright (c) 2021-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -60,14 +60,12 @@ Function Package-PDBs(${SRC}, ${DEST}) {
 }
 
 Function Package-StaticPDBs(${SRC}, ${DEST}) {
+	# NOTE: original file names must be preserved
 	Copy-Item "${SRC}\${LIBRESSL}\crypto\crypto_obj.dir\${Config}\crypto_obj.pdb" `
-	    "${DEST}\${CRYPTO_LIBRARIES}.pdb"
-	Copy-Item "${SRC}\${LIBCBOR}\src\${Config}\cbor.pdb" `
-	    "${DEST}\cbor.pdb"
-	Copy-Item "${SRC}\${ZLIB}\${Config}\zlibstatic.pdb" `
-	    "${DEST}\zlib1.pdb"
-	Copy-Item "${SRC}\src\${Config}\fido2_static.pdb" `
-	    "${DEST}\fido2.pdb"
+	    "${DEST}"
+	Copy-Item "${SRC}\${LIBCBOR}\src\${Config}\cbor.pdb" "${DEST}"
+	Copy-Item "${SRC}\${ZLIB}\${Config}\zlibstatic.pdb" "${DEST}"
+	Copy-Item "${SRC}\src\${Config}\fido2_static.pdb" "${DEST}"
 }
 
 Function Package-Tools(${SRC}, ${DEST}) {
