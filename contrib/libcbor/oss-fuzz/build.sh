@@ -15,10 +15,14 @@
 #
 ################################################################################
 
-mkdir build
-cd build
+mkdir oss_fuzz_build
+cd oss_fuzz_build
 # We disable libcbor's default sanitizers since we'll be configuring them ourselves via CFLAGS.
-cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_INSTALL_PREFIX="$WORK" -D SANITIZE=OFF ..
+cmake -D CMAKE_BUILD_TYPE=Debug \
+      -D CMAKE_INSTALL_PREFIX="$WORK" \
+      -D SANITIZE=OFF \
+      -D CMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+      ..
 make "-j$(nproc)"
 make install
 

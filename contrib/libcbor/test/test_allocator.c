@@ -8,8 +8,8 @@
 int alloc_calls_expected;
 // How many alloc calls we got
 int alloc_calls;
-// Array of booleans indicating whether to return a block or fail with NULL
-call_expectation *expectations;
+// Array of expected call and their behavior (success or failure)
+call_expectation* expectations;
 
 void set_mock_malloc(int calls, ...) {
   va_list args;
@@ -31,9 +31,9 @@ void finalize_mock_malloc(void) {
 
 void print_backtrace(void) {
 #if HAS_EXECINFO
-  void *buffer[128];
+  void* buffer[128];
   int frames = backtrace(buffer, 128);
-  char **symbols = backtrace_symbols(buffer, frames);
+  char** symbols = backtrace_symbols(buffer, frames);
   // Skip this function and the caller
   for (int i = 2; i < frames; ++i) {
     printf("%s\n", symbols[i]);
@@ -42,7 +42,7 @@ void print_backtrace(void) {
 #endif
 }
 
-void *instrumented_malloc(size_t size) {
+void* instrumented_malloc(size_t size) {
   if (alloc_calls >= alloc_calls_expected) {
     goto error;
   }
@@ -59,13 +59,13 @@ error:
   print_error(
       "Unexpected call to malloc(%zu) at position %d of %d; expected %d\n",
       size, alloc_calls, alloc_calls_expected,
-      alloc_calls < alloc_calls_expected ? expectations[alloc_calls] : -1);
+      alloc_calls < alloc_calls_expected ? (int)expectations[alloc_calls] : -1);
   print_backtrace();
   fail();
   return NULL;
 }
 
-void *instrumented_realloc(void *ptr, size_t size) {
+void* instrumented_realloc(void* ptr, size_t size) {
   if (alloc_calls >= alloc_calls_expected) {
     goto error;
   }
@@ -82,7 +82,7 @@ error:
   print_error(
       "Unexpected call to realloc(%zu) at position %d of %d; expected %d\n",
       size, alloc_calls, alloc_calls_expected,
-      alloc_calls < alloc_calls_expected ? expectations[alloc_calls] : -1);
+      alloc_calls < alloc_calls_expected ? (int)expectations[alloc_calls] : -1);
   print_backtrace();
   fail();
   return NULL;

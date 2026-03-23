@@ -78,7 +78,7 @@ struct test_assertion {
 struct cbor_decoder_result decode(cbor_data, size_t);
 
 /* Verify all assertions were applied and clean up */
-int clean_up_stream_assertions(void **);
+int clean_up_stream_assertions(void**);
 
 /* Assertions builders */
 void assert_uint8_eq(uint8_t);
@@ -116,37 +116,37 @@ void assert_undef(void);
 void assert_indef_break(void);
 
 /* Assertions verifying callbacks */
-void uint8_callback(void *, uint8_t);
-void uint16_callback(void *, uint16_t);
-void uint32_callback(void *, uint32_t);
-void uint64_callback(void *, uint64_t);
+void uint8_callback(void*, uint8_t);
+void uint16_callback(void*, uint16_t);
+void uint32_callback(void*, uint32_t);
+void uint64_callback(void*, uint64_t);
 
-void negint8_callback(void *, uint8_t);
-void negint16_callback(void *, uint16_t);
-void negint32_callback(void *, uint32_t);
-void negint64_callback(void *, uint64_t);
+void negint8_callback(void*, uint8_t);
+void negint16_callback(void*, uint16_t);
+void negint32_callback(void*, uint32_t);
+void negint64_callback(void*, uint64_t);
 
-void byte_string_callback(void *, cbor_data, uint64_t);
-void byte_string_start_callback(void *);
+void byte_string_callback(void*, cbor_data, uint64_t);
+void byte_string_start_callback(void*);
 
-void string_callback(void *, cbor_data, uint64_t);
-void string_start_callback(void *);
+void string_callback(void*, cbor_data, uint64_t);
+void string_start_callback(void*);
 
-void array_start_callback(void *, uint64_t);
-void indef_array_start_callback(void *);
+void array_start_callback(void*, uint64_t);
+void indef_array_start_callback(void*);
 
-void map_start_callback(void *, uint64_t);
-void indef_map_start_callback(void *);
+void map_start_callback(void*, uint64_t);
+void indef_map_start_callback(void*);
 
-void tag_callback(void *, uint64_t);
+void tag_callback(void*, uint64_t);
 
-void half_callback(void *, float);
-void float_callback(void *, float);
-void double_callback(void *, double);
-void indef_break_callback(void *);
+void half_callback(void*, float);
+void float_callback(void*, float);
+void double_callback(void*, double);
+void indef_break_callback(void*);
 
-void bool_callback(void *, bool);
-void null_callback(void *);
-void undef_callback(void *);
+void bool_callback(void*, bool);
+void null_callback(void*);
+void undef_callback(void*);
 
 #endif

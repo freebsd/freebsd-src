@@ -29,6 +29,23 @@ I work on libcbor on a best effort basis. The typical response time is a few day
 
 If you do not receive a response in a few weeks, feel free to ping the PR or issue.
 
+## Coding style
+
+C++ code: `./clang-format.sh`.
+
+Function Doxygen strings:
+```c
+/** An example short description 
+ *
+ * @param item The item to fooify. Describe any expectations on it (e.g."must
+ * be a valid array") and reference counting manipulation.
+ * Multi-line descriptions are OK where necessary. 
+ * @param target_item Short description, always with a full stop.
+ * @return Has fooification succeeded? List any special cases.
+ */
+ bool foo(cbor_item_t *item, cbor_item_t *target_item);
+```
+
 ## Resources
 
 - [Development documentation](https://libcbor.readthedocs.io/en/latest/development.html)

@@ -8,16 +8,35 @@
 **libcbor** is a C library for parsing and generating [CBOR](https://cbor.io/), the general-purpose schema-less binary data format.
 
 ## Main features
- - Complete [IETF RFC 8949 (STD 94)](https://www.rfc-editor.org/info/std94) conformance
- - Robust platform-independent C99 implementation
- - Layered architecture offers both control and convenience
- - Flexible memory management
- - No shared global state - threading friendly
- - Proper handling of UTF-8
- - Full support for streams & incremental processing
- - Extensive documentation and test suite
- - No runtime dependencies, small footprint
- 
+
+- Complete CBOR [IETF RFC 8949 (STD 94)](https://www.rfc-editor.org/info/std94) specification conformance (previously known as [RFC 7049](https://www.rfc-editor.org/info/rfc7049))
+- Supports CBOR Sequences ([RFC 8742](https://datatracker.ietf.org/doc/html/rfc8742))
+- Robust platform-independent C99 implementation, tested on
+  - Linux, OS X, Windows, BSD
+  - x86(_64), arm(64), mips(el), riscv64
+- Layered architecture offers both control and convenience
+- Flexible memory management
+- No shared global state - threading friendly
+- Proper handling of UTF-8
+- Full support for streams & incremental processing
+- Extensive documentation and test suite
+- No runtime dependencies, small footprint
+
+## References
+
+libcbor is most prominently used in:
+
+- Yubico's [libfido2](https://developers.yubico.com/libfido2/) 2FA security key implementation
+- Amazon's [AWS C SDK](https://github.com/awslabs/aws-c-common)
+- Gnome [fwdup](https://github.com/fwupd/fwupd/blob/main/meson.build#L339)
+- Alibaba's [Inclavare librats](https://github.com/inclavare-containers/librats)
+- [QEMU](https://wiki.qemu.org/ChangeLog/9.2)
+- [ITK](https://docs.itk.org/projects/wasm/en/latest/introduction/parts.html)
+
+It found its way into many open source an proprietary projects. If you run among others [OpenSSH](https://www.matbra.com/2020/02/17/using-fido2-with-ssh.html), [Microsoft PowerShell](https://github.com/PowerShell/libcbor), [SteamOS](https://github.com/randombk/steamos-teardown/blob/5a37d977fae55d9c41eaf1d07528fa965740bb26/docs/packages.md?plain=1#L461), or [MySQL](https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-34.html) -- you might be indirectly running libcbor too.
+
+Also, thank you for the shout out in <https://github.com/oz123/awesome-c?tab=readme-ov-file#others>!
+
 ## Getting started
 
 ### Compile from source
@@ -48,7 +67,15 @@ sudo apt-get install libcbor-dev
 yum install libcbor-devel
 ```
 
-### Others 
+### Include git repository using using CMake
+
+See e.g. <https://github.com/inclavare-containers/librats/blob/master/cmake/LibCBOR.cmake>.
+
+## Include git repository using Bazel
+
+See <https://github.com/PJK/libcbor/tree/master/examples/bazel>.
+
+### Others
 
 <details>
   <summary>Packaged libcbor is available from 15+ major repositories. Click here for more detail</summary>
@@ -89,6 +116,9 @@ int main(void) {
 ```
 
 ## Documentation
+
+Crash course: <https://libcbor.readthedocs.io/en/latest/tutorial.html#crash-course>
+
 Get the latest documentation at [libcbor.readthedocs.org](http://libcbor.readthedocs.org/)
 
 ## Contributions
@@ -98,6 +128,7 @@ Bug reports and contributions are welcome. Please see [CONTRIBUTING.md](https://
 Kudos to all the [contributors](https://github.com/PJK/libcbor/graphs/contributors)!
 
 ## License
+
 The MIT License (MIT)
 
 Copyright (c) Pavel Kalvoda, 2014-2020

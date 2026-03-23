@@ -99,7 +99,8 @@ Development dependencies
 - There are some `Ruby <https://www.ruby-lang.org/en/>`_ scripts in ``misc``
 - `Valgrind <http://valgrind.org/>`_ (memory correctness & profiling)
 - `GCOV/LCOV <http://ltp.sourceforge.net/coverage/lcov.php>`_ (test coverage)
-- `clang-format`
+- `clang-format` (linter)
+- `cmakelang <https://cmake-format.readthedocs.io/en/latest/index.html>`_ (linter)
 
 
 Installing *sphinx*
@@ -107,13 +108,16 @@ Installing *sphinx*
 
 .. code-block:: bash
 
-  pip install sphinx
-  pip install sphinx_rtd_theme
-  pip install breathe
-  pip install https://github.com/lepture/python-livereload/archive/master.zip
-  pip install sphinx-autobuild
+  pip install -r doc/source/requirements.txt
 
-Further instructions on configuring advanced features can be found at `<http://read-the-docs.readthedocs.org/en/latest/install.html>`_.
+
+To update the Python dependencies:
+
+.. code-block:: bash
+
+  pip-compile --upgrade doc/source/requirements.in
+
+Sphinx reference: `<http://read-the-docs.readthedocs.org/en/latest/install.html>`_.
 
 
 Live preview of docs

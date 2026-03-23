@@ -7,7 +7,7 @@ exposes a low-level encoding API to encode CBOR objects on the fly. Unlike
 strings, etc.) instead of :type:`cbor_item_t`. The client is responsible for
 constructing the compound types correctly (e.g. terminating arrays).
 
-Streaming encoding is typically used to create an streaming (indefinite length) CBOR :doc:`strings <type_2>`, :doc:`byte strings <type_3>`, :doc:`arrays <type_4>`, and :doc:`maps <type_5>`. Complete example: `examples/streaming_array.c <https://github.com/PJK/libcbor/blob/master/examples/streaming_array.c>`_
+Streaming encoding is typically used to create an streaming (indefinite length) CBOR :doc:`strings <type_2_byte_strings>`, :doc:`byte strings <type_3_strings>`, :doc:`arrays <type_4_arrays>`, and :doc:`maps <type_5_maps>`. Complete example: `examples/streaming_array.c <https://github.com/PJK/libcbor/blob/master/examples/streaming_array.c>`_
 
 .. doxygenfunction:: cbor_encode_uint8
 

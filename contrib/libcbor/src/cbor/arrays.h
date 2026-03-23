@@ -49,7 +49,8 @@ CBOR_EXPORT cbor_item_t* cbor_array_get(const cbor_item_t* item, size_t index);
  * returned. Creating arrays with holes is not possible.
  *
  * @param item An array
- * @param value The item to assign
+ * @param value The item to assign. Its reference count will be increased by
+ * one.
  * @param index The index (zero-based)
  * @return `true` on success, `false` on allocation failure.
  */
