@@ -49,6 +49,12 @@
                 ..
                 krb5
                     plugins
+                        kdb
+                        ..
+                        preauth
+                        ..
+                        tls
+                        ..
                     ..
                 ..
                 libxo
@@ -56,6 +62,8 @@
                     ..
                 ..
                 ossl-modules
+                ..
+                virtual_oss
                 ..
             ..
             libexec
