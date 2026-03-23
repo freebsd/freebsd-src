@@ -41,6 +41,7 @@ ATF_TESTS_C+=	subr_physmem_test
 PLAIN_TESTS_C+=	subr_unit_test
 ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
+PLAIN_TESTS_C+=	tiocnotty
 ATF_TESTS_C+=	tty_pts
 ATF_TESTS_C+=	unix_dgram
 ATF_TESTS_C+=	unix_passfd_dgram
