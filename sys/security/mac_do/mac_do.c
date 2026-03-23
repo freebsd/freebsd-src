@@ -47,10 +47,10 @@ SYSCTL_INT(_security_mac_do, OID_AUTO, print_parse_error, CTLFLAG_RWTUN,
 
 static MALLOC_DEFINE(M_MAC_DO, "mac_do", "mac_do(4) security module");
 
-#define EXEC_PATHS_MAXLEN 2048
-#define MAX_EXEC_PATHS 8
+#define MAX_EXEC_PATHS_SIZE	2048
+#define MAX_EXEC_PATHS		8
 
-#define MAC_RULE_STRING_LEN	1024
+#define MAX_RULE_STRING_SIZE	1024
 
 static unsigned		osd_jail_slot;
 static unsigned		osd_thread_slot;
@@ -157,7 +157,7 @@ struct id_spec {
 
 /*
  * This limits the number of target clauses per type to 65535.  With the current
- * value of MAC_RULE_STRING_LEN (1024), this is way more than enough anyway.
+ * value of MAX_RULE_STRING_SIZE (1024), this is way more than enough anyway.
  */
 typedef uint16_t	 id_nb_t;
 /* We only have a few IT_* types. */
@@ -178,12 +178,12 @@ struct rule {
 STAILQ_HEAD(rulehead, rule);
 
 struct rules {
-	char		string[MAC_RULE_STRING_LEN];
+	char		string[MAX_RULE_STRING_SIZE];
 	struct rulehead	head;
 };
 
 struct exec_paths {
-	char exec_paths_str[EXEC_PATHS_MAXLEN];
+	char exec_paths_str[MAX_EXEC_PATHS_SIZE];
 	char exec_paths[MAX_EXEC_PATHS][PATH_MAX];
 	int exec_path_count;
 };
@@ -353,14 +353,14 @@ toast_rules(struct rules *const rules)
 static void
 init_rules(struct rules *const rules)
 {
-	_Static_assert(MAC_RULE_STRING_LEN > 0, "MAC_RULE_STRING_LEN <= 0!");
+	_Static_assert(MAX_RULE_STRING_SIZE > 0, "MAX_RULE_STRING_SIZE <= 0!");
 	STAILQ_INIT(&rules->head);
 }
 
 static void
 init_exec_paths(struct exec_paths *const exec_paths)
 {
-	_Static_assert(EXEC_PATHS_MAXLEN > 0, "EXEC_PATHS_MAXLEN <= 0!");
+	_Static_assert(MAX_EXEC_PATHS_SIZE > 0, "MAX_EXEC_PATHS_SIZE <= 0!");
 	bzero(exec_paths, sizeof(*exec_paths));
 	exec_paths->exec_paths_str[0] = 0;
 }
@@ -1034,7 +1034,7 @@ einval:
  * Must be called with '*parse_error' set to NULL.  Returns 0 on success, with
  * '*rulesp' made to point to a 'struct rule' representing the rules.  On error,
  * the returned value is non-zero and '*rulesp' is unchanged.  If 'string' has
- * length greater or equal to MAC_RULE_STRING_LEN, ENAMETOOLONG is returned.  If
+ * length greater or equal to MAX_RULE_STRING_SIZE, ENAMETOOLONG is returned.  If
  * it is not in the expected format, EINVAL is returned.  If an error is
  * returned, '*parse_error' is set to point to a 'struct parse_error' giving an
  * error message for the problem.
@@ -1062,10 +1062,10 @@ parse_rules(const char *const string, struct rules *const rules,
 	char *copy, *p, *rule;
 	int error = 0;
 
-	if (len >= MAC_RULE_STRING_LEN) {
+	if (len >= MAX_RULE_STRING_SIZE) {
 		make_parse_error(parse_error, 0,
 		    "Rule specification string is too long (%zu, max %zu)",
-		    len, MAC_RULE_STRING_LEN - 1);
+		    len, MAX_RULE_STRING_SIZE - 1);
 		return (ENAMETOOLONG);
 	}
 
@@ -1108,10 +1108,10 @@ parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
 	char *copy, *p, *path;
 	int error = 0;
 
-	if (len >= EXEC_PATHS_MAXLEN) {
+	if (len >= MAX_EXEC_PATHS_SIZE) {
 		make_parse_error(parse_error, 0,
 		    "Exec path specification string is too long (%zu, max %u)",
-		    len, EXEC_PATHS_MAXLEN - 1);
+		    len, MAX_EXEC_PATHS_SIZE - 1);
 		return (ENAMETOOLONG);
 	}
 
@@ -1315,7 +1315,7 @@ set_default_conf(struct prison *const pr)
 	struct conf *const conf = alloc_conf();
 
 	strlcpy(conf->exec_paths.exec_paths_str, "/usr/bin/mdo",
-	    EXEC_PATHS_MAXLEN);
+	    MAX_EXEC_PATHS_SIZE);
 	strlcpy(conf->exec_paths.exec_paths[0], "/usr/bin/mdo", PATH_MAX);
 	conf->exec_paths.exec_path_count = 1;
 
@@ -1428,7 +1428,7 @@ error:
 static int
 mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
-	char *const buf = malloc(MAC_RULE_STRING_LEN, M_MAC_DO, M_WAITOK);
+	char *const buf = malloc(MAX_RULE_STRING_SIZE, M_MAC_DO, M_WAITOK);
 	struct prison *const td_pr = req->td->td_ucred->cr_prison;
 	struct prison *pr;
 	struct conf *conf;
@@ -1436,10 +1436,10 @@ mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	conf = find_conf(td_pr, &pr);
-	strlcpy(buf, conf->rules.string, MAC_RULE_STRING_LEN);
+	strlcpy(buf, conf->rules.string, MAX_RULE_STRING_SIZE);
 	prison_unlock(pr);
 
-	error = sysctl_handle_string(oidp, buf, MAC_RULE_STRING_LEN, req);
+	error = sysctl_handle_string(oidp, buf, MAX_RULE_STRING_SIZE, req);
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
@@ -1464,13 +1464,13 @@ SYSCTL_PROC(_security_mac_do, OID_AUTO, rules,
 
 
 SYSCTL_JAIL_PARAM_SYS_SUBNODE(mac, do, CTLFLAG_RW, "Jail MAC/do parameters");
-SYSCTL_JAIL_PARAM_STRING(_mac_do, rules, CTLFLAG_RW, MAC_RULE_STRING_LEN,
+SYSCTL_JAIL_PARAM_STRING(_mac_do, rules, CTLFLAG_RW, MAX_RULE_STRING_SIZE,
     "Jail MAC/do rules");
 
 static int
 mac_do_sysctl_exec_paths(SYSCTL_HANDLER_ARGS)
 {
-	char *const buf = malloc(EXEC_PATHS_MAXLEN, M_MAC_DO, M_WAITOK);
+	char *const buf = malloc(MAX_EXEC_PATHS_SIZE, M_MAC_DO, M_WAITOK);
 	struct prison *const td_pr = req->td->td_ucred->cr_prison;
 	struct prison *pr;
 	struct conf *conf;
@@ -1478,10 +1478,10 @@ mac_do_sysctl_exec_paths(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	conf = find_conf(td_pr, &pr);
-	strlcpy(buf, conf->exec_paths.exec_paths_str, EXEC_PATHS_MAXLEN);
+	strlcpy(buf, conf->exec_paths.exec_paths_str, MAX_EXEC_PATHS_SIZE);
 	prison_unlock(pr);
 
-	error = sysctl_handle_string(oidp, buf, EXEC_PATHS_MAXLEN, req);
+	error = sysctl_handle_string(oidp, buf, MAX_EXEC_PATHS_SIZE, req);
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
@@ -1503,7 +1503,7 @@ SYSCTL_PROC(_security_mac_do, OID_AUTO, exec_paths,
     0, 0, mac_do_sysctl_exec_paths, "A",
     "Colon-separated list of allowed executables");
 
-SYSCTL_JAIL_PARAM_STRING(_mac_do, exec_paths, CTLFLAG_RW, EXEC_PATHS_MAXLEN,
+SYSCTL_JAIL_PARAM_STRING(_mac_do, exec_paths, CTLFLAG_RW, MAX_EXEC_PATHS_SIZE,
     "Jail MAC/do executable paths");
 
 static int
@@ -1568,7 +1568,7 @@ mac_do_jail_check(void *obj, void *data)
 {
 	struct vfsoptlist *opts = data;
 	char *rules_string, *exec_paths_string;
-	int error, jsys, rules_len = 0, exec_paths_len = 0;
+	int error, jsys, rules_size = 0, exec_paths_size = 0;
 	bool has_rules, has_exec_paths;
 
 	error = vfs_copyopt(opts, "mac.do", &jsys, sizeof(jsys));
@@ -1587,26 +1587,26 @@ mac_do_jail_check(void *obj, void *data)
 	}
 
 	/*
-	 * We use vfs_getopt() below instead of vfs_getopts() to get the length.
-	 * We perform the additional checks done by the latter here, even if
-	 * jail_set() calls vfs_getopts() itself later (they becoming
-	 * inconsistent wouldn't cause any security problem).
+	 * We use vfs_getopt() below instead of vfs_getopts() to get the
+	 * string's buffer size.  We perform the additional checks done by the
+	 * latter here, even if jail_set() calls vfs_getopts() itself later
+	 * (they becoming inconsistent wouldn't cause any security problem).
 	 */
 
 	/* Rules. */
 	error = vfs_getopt(opts, "mac.do.rules", (void **)&rules_string,
-	    &rules_len);
+	    &rules_size);
 	if (error == ENOENT)
 		rules_string = NULL;
 	else {
 		if (error != 0)
 			return (error);
-		if (rules_len == 0 || rules_string[rules_len - 1] != '\0') {
+		if (rules_size == 0 || rules_string[rules_size - 1] != '\0') {
 			vfs_opterror(opts,
 			    "'mac.do.rules' not a proper string");
 			return (EINVAL);
 		}
-		if (rules_len > MAC_RULE_STRING_LEN) {
+		if (rules_size > MAX_RULE_STRING_SIZE) {
 			vfs_opterror(opts, "'mac.do.rules' too long");
 			return (ENAMETOOLONG);
 		}
@@ -1614,19 +1614,19 @@ mac_do_jail_check(void *obj, void *data)
 
 	/* Executable paths. */
 	error = vfs_getopt(opts, "mac.do.exec_paths",
-	    (void **)&exec_paths_string, &exec_paths_len);
+	    (void **)&exec_paths_string, &exec_paths_size);
 	if (error == ENOENT)
 		exec_paths_string = NULL;
 	else {
 		if (error != 0)
 			return (error);
-		if (exec_paths_len == 0 ||
-		    exec_paths_string[exec_paths_len - 1] != '\0') {
+		if (exec_paths_size == 0 ||
+		    exec_paths_string[exec_paths_size - 1] != '\0') {
 			vfs_opterror(opts,
 			    "'mac.do.exec_paths' not a proper string");
 			return (EINVAL);
 		}
-		if (exec_paths_len > EXEC_PATHS_MAXLEN) {
+		if (exec_paths_size > MAX_EXEC_PATHS_SIZE) {
 			vfs_opterror(opts, "'mac.do.exec_paths' too long");
 			return (ENAMETOOLONG);
 		}
