@@ -812,11 +812,9 @@ pmc_force_context_switch(void)
 uint64_t
 pmc_rdtsc(void)
 {
-#if defined(__i386__) || defined(__amd64__)
-	if (__predict_true(amd_feature & AMDID_RDTSCP))
-		return (rdtscp());
-	else
-		return (rdtsc());
+#if defined(__i386__)
+	/* Unfortunately get_cyclecount on i386 uses cpu_ticks. */
+	return (rdtsc());
 #else
 	return (get_cyclecount());
 #endif
