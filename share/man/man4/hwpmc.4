@@ -445,7 +445,8 @@ The default is 16.
 The size in kilobytes of each log buffer used by
 .Nm Ns 's
 logging function.
-The default buffer size is 4KB.
+The default buffer size is 256KB.
+The maximum value is 16MB.
 .It Va kern.hwpmc.mincount Pq integer, read-write
 The minimum sampling rate for sampling mode PMCs.
 The default count is 1000 events.
@@ -453,10 +454,15 @@ The default count is 1000 events.
 The size of the spin mutex pool used by the PMC driver.
 The default is 32.
 .It Va kern.hwpmc.nbuffers_pcpu Pq integer, read-only
-The number of log buffers used by
+The number of log buffers per CPU used by
 .Nm
 for logging.
-The default is 64.
+The default is 32.
+The product of
+.Va kern.hwpmc.nbuffers_pcpu
+and
+.Va kern.hwpmc.logbuffersize
+must not exceed 32MB per CPU.
 .It Va kern.hwpmc.nsamples Pq integer, read-only
 The number of entries in the per-CPU ring buffer used during sampling.
 The default is 512.
@@ -522,16 +528,23 @@ was not configured with the required configuration option
 .It "hwpmc: tunable hashsize=%d must be greater than zero."
 A negative value was supplied for tunable
 .Va kern.hwpmc.hashsize .
-.It "hwpmc: tunable logbuffersize=%d must be greater than zero."
+.It "hwpmc: logbuffersize=%d must be greater than zero and less than or equal to %d, resetting to %d."
 A negative value was supplied for tunable
 .Va kern.hwpmc.logbuffersize .
-.It "hwpmc: tunable nlogbuffers=%d must be greater than zero."
+.It "hwpmc: nbuffers_pcpu=%d must be greater than zero, resetting to %d."
 A negative value was supplied for tunable
-.Va kern.hwpmc.nlogbuffers .
+.Va kern.hwpmc.nbuffers_pcpu .
 .It "hwpmc: tunable nsamples=%d out of range."
 The value for tunable
 .Va kern.hwpmc.nsamples
 was negative or greater than 65535.
+.It "hwpmc: nbuffers_pcpu=%d * logbuffersize=%d exceeds %dMB per CPU limit, resetting to defaults (%d * %d)."
+The product of tunables
+.Va kern.hwpmc.nbuffers_pcpu
+and
+.Va kern.hwpmc.logbuffersize
+exceeds the maximum per-CPU memory limit.
+Both tunables are reset to their compiled defaults.
 .El
 .Sh DEBUGGING
 The
