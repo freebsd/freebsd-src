@@ -227,7 +227,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np, enum nvmf_trtype trtype,
 	if (ctrlr == NULL) {
 		mtx_unlock(&np->lock);
 		printf("NVMFT: Nonexistent controller %u for I/O queue %u from %.*s\n",
-		    ctrlr->cntlid, qid, (int)sizeof(data->hostnqn),
+		    cntlid, qid, (int)sizeof(data->hostnqn),
 		    data->hostnqn);
 		nvmft_connect_invalid_parameters(qp, cmd, true,
 		    offsetof(struct nvmf_fabric_connect_data, cntlid));
