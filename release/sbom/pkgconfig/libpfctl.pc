@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libpfctl
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libpfctl
+License: BSD-2-Clause
+License.file: LICENSES/BSD-2-Clause.8da18da8f.txt
+Copyright: 2021 Rubicon Communications, LLC (Netgate)

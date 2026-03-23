@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: chflags
+Description: Change file flags
+URL: https://man.freebsd.org/cgi/man.cgi?query=chflags(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/chflags
+License: BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.791687bc1.txt
+Copyright: 1992, 1993, 1994 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt

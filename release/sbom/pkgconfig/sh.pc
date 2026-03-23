@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: sh
+Description: Command interpreter (shell)
+URL: https://man.freebsd.org/cgi/man.cgi?query=sh(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/sh
+License: BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.791687bc1.txt, LICENSES/BSD-3-Clause.02451628c.txt
+Copyright: 1991, 1993 The Regents of the University of California, 1993 The Regents of the University of California, 2007 Herbert Xu <herbert@gondor.apana.org.au>, 1995 The Regents of the University of California, 2002 Herbert Xu, 1997-2005 Herbert Xu <herbert@gondor.apana.org.au>, 2010-2015 Jilles Tjoelker <jilles@stack.nl>, Copyright 1989 by Kenneth Almquist
+Requires: csu, libc, libcompiler_rt, libedit

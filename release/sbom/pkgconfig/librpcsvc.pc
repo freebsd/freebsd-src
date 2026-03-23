@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: librpcsvc
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/librpcsvc
+License: BSD-4-Clause AND LicenseRef-scancode-sun-rpc
+License.file: LICENSES/LicenseRef-scancode-sun-rpc.1f5c71b8f.txt, LICENSES/BSD-4-Clause.b74042443.txt, LICENSES/LicenseRef-scancode-sun-rpc.edac947f9.txt
+Copyright: 1985 by Sun Microsystems, Inc., 1995, 1996 Bill Paul <wpaul@ctr.columbia.edu>, 1986, Sun Microsystems, Inc.
+Requires: csu, libc, libcompiler_rt

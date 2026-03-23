@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: date
+Description: Display or set date and time
+URL: https://man.freebsd.org/cgi/man.cgi?query=date(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/date
+License: BSD-2-Clause AND BSD-3-Clause
+License.file: LICENSES/BSD-2-Clause.543b14921.txt, LICENSES/BSD-3-Clause.791687bc1.txt
+Copyright: 1997 Brian Somers <brian@Awfulhak.org>, 1985, 1987, 1988, 1993 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt

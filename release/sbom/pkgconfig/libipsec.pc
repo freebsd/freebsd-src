@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libipsec
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libipsec
+License: BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.328b29b33.txt
+Copyright: 1995, 1996, 1997, 1998, and 1999 WIDE Project, 1995, 1996, 1997, and 1998 WIDE Project
+Requires: csu, libc, libcompiler_rt

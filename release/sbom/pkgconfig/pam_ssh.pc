@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: pam_ssh
+Description: Authentication and session management with SSH private keys
+URL: https://man.freebsd.org/cgi/man.cgi?query=pam_ssh(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libpam/modules/pam_ssh
+License: BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.5bebe47ef.txt
+Copyright: 2003 Networks Associates Technology, Inc., 2004-2011 Dag-Erling Smorgrav
+Requires: csu, libc, libcompiler_rt, libpam

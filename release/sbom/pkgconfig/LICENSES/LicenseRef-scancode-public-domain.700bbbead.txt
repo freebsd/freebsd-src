@@ -1,0 +1,2 @@
+Written 25 August 1985 by John Gilmore (ihnp4!hoptoad!gnu) and placed
+in the Public Domain for your edification and enjoyment.

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libexecinfo
+Description: Library missing description
+Version: 15.0
+URL: https://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libexecinfo/
+Source: https://github.com/NetBSD/src/tree/1c512be1f7a3bda2d36a9790dcaa63d0161b1ed7/lib/libexecinfo
+License: BSD-2-Clause

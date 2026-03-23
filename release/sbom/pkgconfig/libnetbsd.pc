@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libnetbsd
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libnetbsd
+License: BSD-2-Clause AND BSD-3-Clause
+License.file: LICENSES/BSD-2-Clause.7aec3d10a.txt, LICENSES/BSD-2-Clause.543b14921.txt, LICENSES/BSD-3-Clause.791687bc1.txt, LICENSES/BSD-2-Clause.971850f7f.txt
+Copyright: 2006 The NetBSD Foundation, Inc., 2012 SRI International, 1995 The Regents of the University of California, 2001-2002,2004 The NetBSD Foundation, Inc., 1991, 1993, 1994 The Regents of the University of California, 1992, 1993 The Regents of the University of California, 2004, 2016 The NetBSD Foundation, Inc., 2017 Dell, Inc., 2026 Enji Cooper

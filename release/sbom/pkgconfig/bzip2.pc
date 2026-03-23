@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: bzip2
+Description: High-quality data compressor
+URL: https://sourceware.org/bzip2/
+Version: 1.0.8
+Source: https://sourceware.org/git/?p=bzip2.git;a=commit;h=6a8690fc8d26c815e798c588f796eabe9d684cf0
+License: bzip2-1.0.6

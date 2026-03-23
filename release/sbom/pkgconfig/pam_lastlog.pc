@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: pam_lastlog
+Description: Login accounting PAM module
+URL: https://man.freebsd.org/cgi/man.cgi?query=pam_lastlog(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libpam/modules/pam_lastlog
+License: NOASSERTION
+Copyright: 1980, 1987, 1988, 1991, 1993, 1994 The Regents of the University of California, 2001 Mark R V Murray, 2001 Networks Associates Technology, Inc., 2004 Joe R. Doupnik
+Requires: csu, libc, libcompiler_rt, libpam

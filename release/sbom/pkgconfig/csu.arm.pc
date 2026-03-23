@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: csu.arm
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/csu/arm
+License: NOASSERTION
+Copyright: Copyright 2001 David E. O'Brien, Copyright 1996-1998 John D. Polstra, 1997 Jason R. Thorpe, 1995 Christopher G. Demetriou

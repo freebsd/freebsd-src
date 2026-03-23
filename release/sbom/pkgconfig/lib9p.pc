@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: lib9p
+Description: BSD-licensed 9P2000.u/.L server library
+URL: https://github.com/conclusiveeng/lib9p
+Version: 9d5aee77b
+Source: https://github.com/conclusiveeng/lib9p/tree/9d5aee77bcc1bf0e79b0a3bfefff5fdf2146283c
+License: BSD-2-Clause AND MIT

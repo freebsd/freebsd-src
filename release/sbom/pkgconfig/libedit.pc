@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libedit
+Description: NetBSD Editline library (libedit)
+URL: https://www.NetBSD.org
+Version: 2025-01-03
+Source: https://github.com/NetBSD/src/commit/2cf0b469b9d048aeccdc6451da18d68a11366991
+License: BSD-3-Clause

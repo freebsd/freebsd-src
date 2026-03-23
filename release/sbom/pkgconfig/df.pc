@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: df
+Description: Display free disk space
+URL: https://man.freebsd.org/cgi/man.cgi?query=df(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/df
+License: BSD-3-Clause AND LicenseRef-scancode-unknown-license-reference
+License.file: LICENSES/LicenseRef-scancode-unknown-license-reference.39686feac.txt, LICENSES/BSD-3-Clause.791687bc1.txt
+Copyright: 1980, 1990, 1993, 1994 The Regents of the University of California, (c) UNIX System Laboratories, Inc.
+Requires: csu, libc, libcompiler_rt, libutil, libxo

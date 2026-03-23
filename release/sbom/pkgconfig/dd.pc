@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: dd
+Description: Convert and copy a file
+URL: https://man.freebsd.org/cgi/man.cgi?query=dd(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/dd
+License: BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.791687bc1.txt, LICENSES/LicenseRef-scancode-public-domain.121f252de.txt
+Copyright: 1991, 1993, 1994 The Regents of the University of California, 1991, 1993 The Regents of the University of California
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libutil

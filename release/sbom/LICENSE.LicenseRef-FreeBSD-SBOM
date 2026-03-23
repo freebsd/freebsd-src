@@ -1,0 +1,20 @@
+Disclaimer
+
+The FreeBSD software and this Software Bill of Materials (SBOM) are provided to
+users “AS IS” and without warranty of any kind, whether express or implied, and
+the FreeBSD Project and the FreeBSD Foundation specifically disclaim any
+implied warranties of merchantability or fitness for a particular purpose or
+noninfringement therefor.  Further, the FreeBSD Project and the FreeBSD
+Foundation do not warrant, guarantee, or make any representations regarding the
+use, or the results of the use, of the FreeBSD software, the SBOM or any other
+written materials in terms of correctness, accuracy, reliability, or otherwise.
+
+Limitation of Liability
+
+in addition, the FreeBSD Project and the FreeBSD Foundation shall not be
+responsible or liable with respect to any use of the FreeBSD software or SBOM
+or any documentation related thereto under any contract, negligence, strict
+liability or other theory for: (i) for loss or inaccuracy of data or cost of
+procurement of substitute goods, services or technology; (ii) any indirect,
+incidental or consequential damages including, but not limited to, loss of
+profits; or (iii) any matter beyond their reasonable control.

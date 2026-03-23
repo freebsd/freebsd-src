@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libsysdecode
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libsysdecode
+License: BSD-2-Clause AND BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.791687bc1.txt, LICENSES/BSD-2-Clause.543b14921.txt, LICENSES/BSD-2-Clause.df18d8a7f.txt
+Copyright: 1988, 1993 The Regents of the University of California, 2016 John H. Baldwin <jhb@FreeBSD.org>, 2015 John H. Baldwin <jhb@FreeBSD.org>, 2006 David Kirchner <dpk@dpk.net>, 2022 Dmitry Chagin <dchagin@FreeBSD.org>
+Requires: csu, libatf-c, lib80211, lib9p, libalias, libarchive, libbe, libbegemot, libblocklist, libblocksruntime, libbluetooth, libbsddialog, libbsdstat, libbsm, libbsnmp, bzip2, libc, libc++, libcalendar, libcam, libcapsicum, libcasper, libcasper.services.cap_dns, libcasper.services.cap_fileargs, libcasper.services.cap_grp, libcasper.services.cap_net, libcasper.services.cap_netdb, libcasper.services.cap_pwd, libcasper.services.cap_sysctl, libcasper.services.cap_syslog, libcom_err, libcompiler_rt, libcuse, libdevctl, libdevdctl, libdevinfo, libdevstat, libdpv, libdwarf, libedit, libedit.readline, libefivar, libelf, libevent1, libexecinfo, libexpat, libfetch, libfigpar, libgeom, libgpio, libjail, libkvm, liblzma, libmagic, libmd, libmemstat, libmilter, libmixer, libmp, libmt, libnetgraph, libpam, libpathconv, libpcap, libpmc, libproc, libprocstat, libradius, librss, librtld_db, libsdp, sqlite3, libstdthreads, libtacplus, libthread_db, libucl, libufs, libugidfw, libulog, libusb, libusbhid, libutil, libveriexec, libvgl, libvmmapi, libwrap, libxo, libypclnt, zlib, zstd, msun, ncurses.form, ncurses.menu, ncurses.panel, ncurses.tinfo

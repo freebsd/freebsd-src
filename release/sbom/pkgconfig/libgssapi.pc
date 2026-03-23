@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libgssapi
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libgssapi
+License: BSD-2-Clause AND BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.f12dfee1f.txt, LICENSES/BSD-2-Clause.543b14921.txt, LICENSES/BSD-3-Clause.7e504611f.txt, LICENSES/BSD-3-Clause.c3855ea36.txt
+Copyright: 2004, PADL Software Pty Ltd., 2008 Doug Rabson, 2005 Doug Rabson, 1998 - 2005 Kungliga Tekniska Hogskolan (Royal Institute of Technology, Stockholm, Sweden), 2008 Isilon Inc http://www.isilon.com, 2007 Kungliga Tekniska Hogskolan (Royal Institute of Technology, Stockholm, Sweden), 2006 Kungliga Tekniska Hogskolan (Royal Institute of Technology, Stockholm, Sweden), 2000 The Regents of the University of Michigan, 2000 Dug Song <dugsong@UMICH.EDU>
+Requires: csu, libc, libcompiler_rt

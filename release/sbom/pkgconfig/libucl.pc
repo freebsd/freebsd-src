@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libucl
+Description: Universal configuration library parser
+URL: https://github.com/vstakhov/libucl
+Version: 0.9.2
+Source: https://github.com/vstakhov/libucl
+License: BSD-2-Clause

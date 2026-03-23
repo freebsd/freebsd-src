@@ -1,0 +1,1 @@
+SHA512-based Unix crypt implementation. Released into the Public Domain by

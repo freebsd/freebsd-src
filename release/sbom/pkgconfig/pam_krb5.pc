@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: pam_krb5
+Description: Kerberos 5 PAM module
+URL: https://man.freebsd.org/cgi/man.cgi?query=pam_krb5(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libpam/modules/pam_krb5
+License: BSD-3-Clause OR GPL-1.0-or-later
+License.file: LICENSES/BSD-3-Clause OR GPL-1.0-or-later.babcb5fd9.txt
+Copyright: Derrick J. Brashear, 1996, Frank Cusack, 1999-2001, Jacques A. Vidrine, 2000-2001, Nicolas Williams, 2001, Perot Systems Corporation, 2001, Mark R V Murray, 2001, Networks Associates Technology, Inc., 2002-2005
+Requires: csu, libc, libcom_err, libcompiler_rt, libpam

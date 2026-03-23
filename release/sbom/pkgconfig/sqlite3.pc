@@ -1,0 +1,4 @@
+Name: SQLite
+Description: SQL database engine
+Version: 3.50.2
+Requires: libc

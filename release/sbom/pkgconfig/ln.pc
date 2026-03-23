@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: ln
+Description: Link files
+URL: https://man.freebsd.org/cgi/man.cgi?query=ln(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/ln
+License: BSD-3-Clause
+License.file: LICENSES/BSD-3-Clause.791687bc1.txt
+Copyright: 1987, 1993, 1994 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt

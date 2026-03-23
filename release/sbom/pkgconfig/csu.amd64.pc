@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: csu.amd64
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/csu/amd64
+License: BSD-1-Clause AND BSD-2-Clause
+License.file: LICENSES/BSD-1-Clause.88233025d.txt, LICENSES/BSD-2-Clause.543b14921.txt, LICENSES/BSD-2-Clause.33ad0b904.txt
+Copyright: Copyright 2018 Andrew Turner, 2023 Dmitry Chagin <dchagin@FreeBSD.org>, Copyright 1996, 1997, 1998, 2000 John D. Polstra, Copyright 1996-1998 John D. Polstra

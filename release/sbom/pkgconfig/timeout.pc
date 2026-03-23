@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: timeout
+Description: Run a command with a time limit
+URL: https://man.freebsd.org/cgi/man.cgi?query=timeout(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/timeout
+License: LicenseRef-scancode-bsd-unchanged
+License.file: LICENSES/LicenseRef-scancode-bsd-unchanged.b0945d8f7.txt
+Copyright: 2014 Baptiste Daroussin <bapt@FreeBSD.org>, 2014 Vsevolod Stakhov <vsevolod@FreeBSD.org>, 2025 Aaron LI <aly@aaronly.me>
+Requires: csu, libc, libcompiler_rt

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: csu.riscv
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/csu/riscv
+License: BSD-2-Clause
+License.file: LICENSES/BSD-2-Clause.33ad0b904.txt, LICENSES/BSD-2-Clause.543b14921.txt
+Copyright: Copyright 1996-1998 John D. Polstra, 2015-2017 Ruslan Bukin <br@bsdpad.com>, 2015 Ruslan Bukin <br@bsdpad.com>

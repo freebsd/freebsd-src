@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: nproc
+Description: Print the number of processors
+URL: https://man.freebsd.org/cgi/man.cgi?query=nproc(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/nproc
+License: NOASSERTION
+Copyright: 2023 Mateusz Guzik
+Requires: csu, libc, libcompiler_rt

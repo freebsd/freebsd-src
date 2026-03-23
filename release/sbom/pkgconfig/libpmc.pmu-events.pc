@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libpmc.pmu-events
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libpmc/pmu-events
+License: BSD-2-Clause AND LicenseRef-scancode-bsd-unmodified AND MIT
+License.file: LICENSES/BSD-2-Clause.971850f7f.txt, LICENSES/LicenseRef-scancode-bsd-unmodified.2c3260b81.txt, LICENSES/MIT.fe2a98179.txt
+Copyright: 2014, Intel Corporation, 2010 Isilon Systems, Inc., 2010 iX Systems, Inc., 2010 Panasas, Inc., 2013-2016 Mellanox Technologies, Ltd., 2010 Serge A. Zaitsev

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libmagic
+Description: Magic number recognition library
+URL: https://www.darwinsys.com/file/
+Version: 5.46
+Source: http://ftp.astron.com/pub/file/file-5.46.tar.gz
+License: BSD-2-Clause

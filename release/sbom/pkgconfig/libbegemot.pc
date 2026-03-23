@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libbegemot
+Description: Begemot utility function library. It is needed to build most of the begemot tools
+URL: https://people.freebsd.org/~harti/libbegemot/
+Version: 1.14
+License: BSD-2-Clause

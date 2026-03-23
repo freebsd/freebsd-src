@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: re_format
+Description: POSIX 1003.2 regular expressions
+URL: https://man.freebsd.org/cgi/man.cgi?query=re_format(7)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libc/regex
+License: BSD-3-Clause AND BSD-4-Clause-UC AND Spencer-94
+License.file: LICENSES/BSD-3-Clause.791687bc1.txt, LICENSES/Spencer-94.74d180f43.txt, LICENSES/BSD-4-Clause-UC.06c1e96aa.txt
+Copyright: 1992, 1993, 1994 Henry Spencer, 1992, 1993, 1994 The Regents of the University of California, 2011 The FreeBSD Foundation, Copyright 1992, 1993, 1994 Henry Spencer, 1994 The Regents of the University of California

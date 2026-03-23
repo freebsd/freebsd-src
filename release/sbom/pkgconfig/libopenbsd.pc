@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libopenbsd
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libopenbsd
+License: BSD-2-Clause AND ISC
+License.file: LICENSES/ISC.15824d08e.txt, LICENSES/BSD-2-Clause.543b14921.txt
+Copyright: 2003, 2004 Henning Brauer <henning@openbsd.org>, 1999, 2004 Marc Espie <espie@openbsd.org>, 2015 Craig Rodrigues, 2006, 2007 Pierre-Yves Ritschard <pyr@openbsd.org>, 2006, 2007, 2008 Reyk Floeter <reyk@openbsd.org>

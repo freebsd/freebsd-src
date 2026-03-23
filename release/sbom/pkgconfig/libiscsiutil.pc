@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libiscsiutil
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libiscsiutil
+License: BSD-2-Clause
+License.file: LICENSES/BSD-2-Clause.543b14921.txt
+Copyright: 2012 The FreeBSD Foundation, 2014 The FreeBSD Foundation
+Requires: libmd

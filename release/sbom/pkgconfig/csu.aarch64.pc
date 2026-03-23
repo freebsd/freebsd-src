@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: csu.aarch64
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/csu/aarch64
+License: BSD-2-Clause
+License.file: LICENSES/BSD-2-Clause.33ad0b904.txt
+Copyright: Copyright 1996-1998 John D. Polstra, Copyright 2014 Andrew Turner, Copyright 2014-2015 The FreeBSD Foundation, Copyright 2001 David E. O'Brien, Copyright 2014 The FreeBSD Foundation

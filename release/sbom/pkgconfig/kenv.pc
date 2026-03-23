@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: kenv
+Description: List or modify the kernel environment
+URL: https://man.freebsd.org/cgi/man.cgi?query=kenv(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/kenv
+License: BSD-2-Clause
+License.file: LICENSES/BSD-2-Clause.1d9b7f76f.txt
+Copyright: 2000 Peter Wemm <peter@freebsd.org>
+Requires: csu, libc, libcompiler_rt

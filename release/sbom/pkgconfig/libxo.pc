@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libxo
+Description: Library allows an application to generate text, XML, JSON, and HTML output using a common set of function calls.
+URL: https://github.com/Juniper/libxo
+Version: 1.4.0
+Source: https://github.com/Juniper/libxo/tree/1.4.0
+License: BSD-2-Clause

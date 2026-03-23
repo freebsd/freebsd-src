@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: uuidgen
+Description: Generate universally unique identifiers
+URL: https://man.freebsd.org/cgi/man.cgi?query=uuidgen(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/uuidgen
+License: BSD-2-Clause
+License.file: LICENSES/BSD-2-Clause.33ad0b904.txt
+Copyright: 2002 Marcel Moolenaar, 2022 Tobias C. Berner
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt

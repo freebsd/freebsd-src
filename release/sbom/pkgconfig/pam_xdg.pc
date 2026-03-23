@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: pam_xdg
+Description: XDG PAM module
+URL: https://man.freebsd.org/cgi/man.cgi?query=pam_xdg(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libpam/modules/pam_xdg
+License: BSD-2-Clause
+License.file: LICENSES/BSD-2-Clause.543b14921.txt
+Copyright: 2024 Beckhoff Automation GmbH & Co. KG
