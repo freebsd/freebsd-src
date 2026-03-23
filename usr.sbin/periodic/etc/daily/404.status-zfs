@@ -25,13 +25,15 @@ case "$daily_status_zfs_enable" in
 		;;
 	esac
 	sout=`zpool status -x`
-	echo "$sout"
 	# zpool status -x always exits with 0, so we have to interpret its
 	# output to see what's going on.
 	if [ "$sout" = "all pools are healthy" \
 	    -o "$sout" = "no pools available" ]; then
+		echo "$sout"
 		rc=0
 	else
+		# Show verbose status so we can see which files are affected
+		zpool status -v
 		rc=1
 	fi
 	;;
