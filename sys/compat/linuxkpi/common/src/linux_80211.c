@@ -2319,6 +2319,94 @@ lkpi_find_lchanctx_reserved(struct ieee80211_hw *hw, struct lkpi_vif *lvif)
 	return (lchanctx);
 }
 
+static struct ieee80211_chanctx_conf *
+lkpi_get_chanctx_conf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	chanctx_conf = rcu_dereference_protected(vif->bss_conf.chanctx_conf,
+	    lockdep_is_held(&hw->wiphy->mtx));
+	if (chanctx_conf == NULL) {
+		struct lkpi_chanctx *lchanctx;
+		struct lkpi_vif *lvif;
+
+		lvif = VIF_TO_LVIF(vif);
+		lchanctx = lkpi_find_lchanctx_reserved(hw, lvif);
+		KASSERT(lchanctx != NULL, ("%s: hw %p, vif %p no lchanctx\n",
+		    __func__, hw, vif));
+		list_del(&lchanctx->entry);
+		chanctx_conf = &lchanctx->chanctx_conf;
+	}
+	/* else { IMPROVE("diff changes for changed, working on live copy, rcu"); } */
+
+	return (chanctx_conf);
+}
+
+static int
+lkpi_set_chanctx_conf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_chanctx_conf *chanctx_conf,
+    uint32_t changed, bool changed_set)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_chanctx *lchanctx;
+	int error;
+
+	if (vif->bss_conf.chanctx_conf == chanctx_conf) {
+		if (!changed_set) {
+			IMPROVE("OBSOLETE?");
+			changed = IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
+			changed |= IEEE80211_CHANCTX_CHANGE_RADAR;
+			changed |= IEEE80211_CHANCTX_CHANGE_RX_CHAINS;
+			changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
+		}
+		lkpi_80211_mo_change_chanctx(hw, chanctx_conf, changed);
+
+		return (0);
+	}
+
+	lhw = HW_TO_LHW(hw);
+
+	/* The device is no longer idle. */
+	IMPROVE("Once we do multi-vif, only do for 1st chanctx");
+	lkpi_hw_conf_idle(hw, false);
+
+	error = lkpi_80211_mo_add_chanctx(hw, chanctx_conf);
+	if (error != 0 && error != EOPNOTSUPP) {
+		ic_printf(lhw->ic, "%s:%d: mo_add_chanctx "
+		    "failed: %d\n", __func__, __LINE__, error);
+		return (error);
+	}
+
+	vif->bss_conf.chanreq.oper.chan = chanctx_conf->def.chan;
+	vif->bss_conf.chanreq.oper.width = chanctx_conf->def.width;
+	vif->bss_conf.chanreq.oper.center_freq1 =
+	    chanctx_conf->def.center_freq1;
+	vif->bss_conf.chanreq.oper.center_freq2 =
+	    chanctx_conf->def.center_freq2;
+
+	lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+	list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list);
+	rcu_assign_pointer(vif->bss_conf.chanctx_conf, chanctx_conf);
+
+	/* Assign vif chanctx. */
+	if (error == 0)
+		error = lkpi_80211_mo_assign_vif_chanctx(hw, vif,
+		    &vif->bss_conf, chanctx_conf);
+	if (error == EOPNOTSUPP)
+		error = 0;
+	if (error != 0) {
+		ic_printf(lhw->ic, "%s:%d: mo_assign_vif_chanctx "
+		    "failed: %d\n", __func__, __LINE__, error);
+		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+		rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+		list_del(&lchanctx->entry);
+		list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
+	}
+
+	return (error);
+}
+
 static void
 lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
@@ -2419,7 +2507,6 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 {
 	struct linuxkpi_ieee80211_channel *chan;
 	struct cfg80211_chan_def chandef;
-	struct lkpi_chanctx *lchanctx;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
@@ -2488,16 +2575,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	wiphy_lock(hw->wiphy);
 
 	/* Add chanctx (or if exists, change it). */
-	chanctx_conf = rcu_dereference_protected(vif->bss_conf.chanctx_conf,
-	    lockdep_is_held(&hw->wiphy->mtx));
-	if (chanctx_conf != NULL) {
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
-		IMPROVE("diff changes for changed, working on live copy, rcu");
-	} else {
-		lchanctx = lkpi_find_lchanctx_reserved(hw, lvif);
-		list_del(&lchanctx->entry);
-		chanctx_conf = &lchanctx->chanctx_conf;
-	}
+	chanctx_conf = lkpi_get_chanctx_conf(hw, vif);
 
 	KASSERT(ni->ni_chan != NULL && ni->ni_chan != IEEE80211_CHAN_ANYC,
 	   ("%s:%d: ni %p ni_chan %p\n", __func__, __LINE__, ni, ni->ni_chan));
@@ -2534,52 +2612,10 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
 
-	error = 0;
-	if (vif->bss_conf.chanctx_conf == chanctx_conf) {
-		changed = IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
-		changed |= IEEE80211_CHANCTX_CHANGE_RADAR;
-		changed |= IEEE80211_CHANCTX_CHANGE_RX_CHAINS;
-		changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
-		lkpi_80211_mo_change_chanctx(hw, chanctx_conf, changed);
-	} else {
-		/* The device is no longer idle. */
-		IMPROVE("Once we do multi-vif, only do for 1st chanctx");
-		lkpi_hw_conf_idle(hw, false);
+	error = lkpi_set_chanctx_conf(hw, vif, chanctx_conf, changed, true);
+	if (error != 0)
+		goto out;
 
-		error = lkpi_80211_mo_add_chanctx(hw, chanctx_conf);
-		if (error == 0 || error == EOPNOTSUPP) {
-			vif->bss_conf.chanreq.oper.chan = chanctx_conf->def.chan;
-			vif->bss_conf.chanreq.oper.width = chanctx_conf->def.width;
-			vif->bss_conf.chanreq.oper.center_freq1 =
-			    chanctx_conf->def.center_freq1;
-			vif->bss_conf.chanreq.oper.center_freq2 =
-			    chanctx_conf->def.center_freq2;
-		} else {
-			ic_printf(vap->iv_ic, "%s:%d: mo_add_chanctx "
-			    "failed: %d\n", __func__, __LINE__, error);
-			goto out;
-		}
-
-		list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list);
-		rcu_assign_pointer(vif->bss_conf.chanctx_conf, chanctx_conf);
-
-		/* Assign vif chanctx. */
-		if (error == 0)
-			error = lkpi_80211_mo_assign_vif_chanctx(hw, vif,
-			    &vif->bss_conf, chanctx_conf);
-		if (error == EOPNOTSUPP)
-			error = 0;
-		if (error != 0) {
-			ic_printf(vap->iv_ic, "%s:%d: mo_assign_vif_chanctx "
-			    "failed: %d\n", __func__, __LINE__, error);
-			lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
-			rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
-			lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
-			list_del(&lchanctx->entry);
-			list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
-			goto out;
-		}
-	}
 	IMPROVE("update radiotap chan fields too");
 
 	/* RATES */
