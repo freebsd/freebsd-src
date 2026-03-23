@@ -183,6 +183,13 @@ SRCS+=	progname.c
 # Stub implementations of fflagstostr/strtofflags
 SRCS+=	fflags.c
 .endif
+
+.if ${.MAKE.OS} == "Darwin"
+# macOS currently lacks mempcpy
+.PATH: ${LIBC_SRCTOP}/string
+SRCS+=	mempcpy.c
+.endif # ${MAKE.OS} == "Darwin"
+
 # Provide the same arc4random implementation on Linux/macOS
 CFLAGS.arc4random.c+=	-I${SRCTOP}/sys/crypto/chacha20 -D__isthreaded=1
 SRCS+=	arc4random.c arc4random_uniform.c
