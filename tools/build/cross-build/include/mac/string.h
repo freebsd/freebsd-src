@@ -37,6 +37,8 @@
 
 #include_next <string.h>
 
+void	*(mempcpy)(void * __restrict, const void * __restrict, size_t);
+
 /*
  * strchrnul is provided by macOS 15.4 and later.  However, there is
  * no good way to detect the current host version at compile time, so

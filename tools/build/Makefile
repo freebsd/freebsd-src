@@ -253,6 +253,9 @@ SYSINCS+=	${SRCTOP}/sys/sys/linker_set.h
 .if ${.MAKE.OS} == "Darwin"
 # Standalone implementation of secure_getenv(), not available on MacOS.
 SRCS+=	secure_getenv.c
+# macOS currently lacks mempcpy
+.PATH: ${LIBC_SRCTOP}/string
+SRCS+=	mempcpy.c
 .endif # ${MAKE.OS} == "Darwin"
 
 # Provide the same arc4random implementation on Linux/macOS
