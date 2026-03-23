@@ -1203,8 +1203,8 @@ check_conf_use_count(const struct conf *const conf, u_int expected)
 	const u_int use_count = refcount_load(&conf->use_count);
 
 	if (use_count != expected)
-		panic("MAC/do: Conf at %p: Use count is %u, expected %u",
-		    conf, use_count, expected);
+		panic("MAC/do: Configuration at %p: Use count is %u, "
+		    "expected %u", conf, use_count, expected);
 }
 #else
 #define check_conf_use_count(...)
