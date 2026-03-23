@@ -649,7 +649,9 @@ struct pmc_op_getdyneventinfo {
 #define	PMC_HASH_SIZE				1024
 #define	PMC_MTXPOOL_SIZE			2048
 #define	PMC_LOG_BUFFER_SIZE			256
+#define	PMC_LOG_BUFFER_SIZE_MAX			(16 * 1024)
 #define	PMC_NLOGBUFFERS_PCPU			32
+#define	PMC_NLOGBUFFERS_PCPU_MEM_MAX		(32 * 1024)
 #define	PMC_NSAMPLES				256
 #define	PMC_CALLCHAIN_DEPTH			128
 #define	PMC_THREADLIST_MAX			128
