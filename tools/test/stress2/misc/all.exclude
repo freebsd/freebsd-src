@@ -22,6 +22,7 @@ gjournal3.sh		panic: Bio not on queue						20171225
 gjournal4.sh		CAM stuck in vmwait						20180517
 gnop10.sh		Waiting for fix							20230319
 gnop13.sh		https://people.freebsd.org/~pho/stress/log/log0386.txt		20221113
+gnop3.sh		CAM stuck in vmwait						20260219
 gnop7.sh		Waiting for patch commit					20190820
 gnop8.sh		Waiting for patch commit					20201214
 gnop9.sh		Waiting for patch commit					20201214
@@ -29,8 +30,6 @@ graid1_3.sh		Hang seen							20250915
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
 gunion.sh		CAM stuk in vmwait						20251226
-ifconfig.sh		https://people.freebsd.org/~pho/stress/log/log0626.txt		20251217
-ifconfig2.sh		Hang in ifnet_de, vlan_sx and sbwait				20250114
 lockf5.sh		Spinning threads seen						20160718
 maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
 memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
@@ -71,10 +70,18 @@ syzkaller16.sh		zonelimit issue							20210722
 syzkaller28.sh		panic: About to free ctl:0x... so:0x... and its in 1		20201120
 syzkaller55.sh		https://people.freebsd.org/~pho/stress/log/log0533.txt		20240702
 syzkaller59.sh		Page fault							20220625
+syzkaller68.sh		Can not unload zfs.ko after this test				20260206
 syzkaller80.sh		panic								20250711
 syzkaller82.sh		panic: m_apply, length > size of mbuf chain			20250724
 syzkaller85.sh		panic: Assertion uio->uio_resid < 0 failed			20250928
-syzkaller89.sh		panic: MNT_DEFERRED requires MNT_RECURSE | MNT_FORCE		20241224
+syzkaller90.sh		panic: general protection fault					20260318
+syzkaller91.sh		Kernel page fault with the following non-sleepable locks held	20260318
+syzkaller92.sh		Kernel page fault with the following non-sleepable locks held	20260318
+syzkaller93.sh		panic: _free(0): addr 0xfffff802f7e5a7b8 slab 0xfffffffffffffff	20260318
+syzkaller94.sh		panic: ata_action: ccb 0xfffff80347e777b8, func_code 0x1 should	20260318
+syzkaller95.sh		Kernel page fault with the following non-sleepable locks held	20260318
+syzkaller97.sh		panic: cam_periph_ccbwait: proceeding with incomplete ccb	20260318
+syzkaller98.sh		panic: dst_m 0xfffffe00130fd920 is not wired			20260318
 quota3.sh		https://people.freebsd.org/~pho/stress/log/log0604.txt		20250728
 quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
 truss3.sh		WiP								20200915
