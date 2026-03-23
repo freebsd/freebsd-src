@@ -344,7 +344,7 @@ toast_rules(struct rules *const rules)
 	}
 }
 
-/* Assuming storage is zeroed already */
+/* Assumes storage has been zeroed. */
 static void
 init_rules(struct rules *const rules)
 {
@@ -1148,12 +1148,13 @@ out:
 }
 
 /*
- * Find conf applicable to the passed prison.
+ * Find configuration applicable to the passed prison.
  *
- * Returns the applicable conf (and never NULL).  'pr' must be unlocked.
- * 'aprp' is set to the (ancestor) prison holding these, and it must be unlocked
- * once the caller is done accessing the conf.  '*aprp' is equal to 'pr' if and
- * only if the current jail has its own set of conf.
+ * Returns the applicable configuration (and never NULL).  'pr' must be
+ * unlocked.  'aprp' is set to the (ancestor) prison holding these, and it must
+ * be unlocked once the caller is done accessing the configuration.  '*aprp' is
+ * equal to 'pr' if and only if the current jail has its own specific
+ * configuration.
  */
 static struct conf *
 find_conf(struct prison *const pr, struct prison **const aprp)
@@ -1272,6 +1273,9 @@ remove_conf(struct prison *const pr)
 		drop_conf(old_conf);
 }
 
+/*
+ * Assign an already-built configuration to a jail.
+ */
 static void
 set_conf(struct prison *const pr, struct conf *const conf)
 {
@@ -1290,7 +1294,7 @@ set_conf(struct prison *const pr, struct conf *const conf)
 }
 
 /*
- * Assigns default conf to a jail.
+ * Assigns the default configuration to a jail.
  */
 static void
 set_default_conf(struct prison *const pr)
@@ -1553,9 +1557,12 @@ mac_do_jail_check(void *obj, void *data)
 	int error, jsys, rules_len = 0, exec_paths_len = 0;
 	bool has_rules, has_exec_paths;
 
-	/* Mark unspecified */
 	error = vfs_copyopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error == ENOENT)
+		/*
+		 * Mark unspecified.  Will fill it up below depending on the
+		 * other options.
+		 */
 		jsys = -1;
 	else {
 		if (error != 0)
@@ -1566,12 +1573,13 @@ mac_do_jail_check(void *obj, void *data)
 	}
 
 	/*
-	 * We use vfs_getopt() here instead of vfs_getopts() to get the length.
+	 * We use vfs_getopt() below instead of vfs_getopts() to get the length.
 	 * We perform the additional checks done by the latter here, even if
 	 * jail_set() calls vfs_getopts() itself later (they becoming
 	 * inconsistent wouldn't cause any security problem).
 	 */
 
+	/* Rules. */
 	error = vfs_getopt(opts, "mac.do.rules", (void **)&rules_string,
 	    &rules_len);
 	if (error == ENOENT)
@@ -1590,7 +1598,7 @@ mac_do_jail_check(void *obj, void *data)
 		}
 	}
 
-	/* Handle 'exec_paths' input */
+	/* Executable paths. */
 	error = vfs_getopt(opts, "mac.do.exec_paths",
 	    (void **)&exec_paths_string, &exec_paths_len);
 	if (error == ENOENT)
@@ -1611,7 +1619,7 @@ mac_do_jail_check(void *obj, void *data)
 	}
 
 	/*
-	 * Be liberal, considering that an empty rule or exec paths
+	 * Be liberal, considering that an empty rule or execution paths
 	 * specification is equivalent to no specification.  This affects the
 	 * JAIL_SYS_DISABLE and JAIL_SYS_INHERIT sanity checks below.
 	 */
@@ -1619,15 +1627,19 @@ mac_do_jail_check(void *obj, void *data)
 	has_exec_paths = exec_paths_string != NULL &&
 	    exec_paths_string[0] != '\0';
 
-	/* Infer 'jsys' if needed */
+	/* If not specified, infer 'jsys' from passed options. */
 	if (jsys == -1) {
+		/*
+		 * Default in absence of "mac.do.rules" and "mac.do.exec_paths"
+		 * is to disable (and, in particular, not inherit).
+		 */
 		if (has_rules || has_exec_paths)
 			jsys = JAIL_SYS_NEW;
 		else
 			jsys = JAIL_SYS_DISABLE;
 	}
 
-	/* Final checks based on resolved 'jsys' */
+	/* Final checks based on resolved 'jsys'. */
 	switch (jsys) {
 	case JAIL_SYS_DISABLE:
 	case JAIL_SYS_INHERIT:
@@ -1651,7 +1663,6 @@ mac_do_jail_check(void *obj, void *data)
 			    "rules nor executable paths specified");
 			return (EINVAL);
 		}
-		/* Allow: rules only, exec_paths only (though exec_paths only is discouraged), or both */
 		break;
 
 	default:
