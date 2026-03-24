@@ -89,8 +89,6 @@
 
 #define Z_RATE_DEFAULT		48000
 
-#define Z_PARANOID		1
-
 #ifdef _KERNEL
 #undef Z_USE_ALPHADRIFT
 #define Z_USE_ALPHADRIFT	1
@@ -703,7 +701,6 @@ z_resampler_reset(struct z_info *info)
 		info->quality = Z_QUALITY_MAX;
 }
 
-#ifdef Z_PARANOID
 static int32_t
 z_resampler_sinc_len(struct z_info *info)
 {
@@ -741,9 +738,6 @@ z_resampler_sinc_len(struct z_info *info)
 
 	return (len);
 }
-#else
-#define z_resampler_sinc_len(i)		(Z_IS_SINC(i) ? Z_SINC_LEN(i) : 1)
-#endif
 
 #define Z_POLYPHASE_COEFF_SHIFT		0
 
