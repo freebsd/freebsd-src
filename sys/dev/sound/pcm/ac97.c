@@ -1094,10 +1094,6 @@ ac97mix_uninit(struct snd_mixer *m)
 
 	if (codec == NULL)
 		return -1;
-	/*
-	if (ac97_uninitmixer(codec))
-		return -1;
-	*/
 	ac97_destroy(codec);
 	return 0;
 }
