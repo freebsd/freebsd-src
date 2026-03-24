@@ -13,7 +13,7 @@ ATF_TESTS_C=	broadcast \
 		so_reuseport_lb_test \
 		socket_afinet \
 		tcp_connect_port_test \
-		tcp_implied_connect \
+		tcp_socket \
 		tcp_md5_getsockopt \
 		udp_bindings \
 		udp_io

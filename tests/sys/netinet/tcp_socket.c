@@ -33,8 +33,8 @@
 
 #include <atf-c.h>
 
-ATF_TC_WITHOUT_HEAD(tcp_implied_connect);
-ATF_TC_BODY(tcp_implied_connect, tc)
+ATF_TC_WITHOUT_HEAD(implied_connect);
+ATF_TC_BODY(implied_connect, tc)
 {
 	struct sockaddr_in sin = {
 		.sin_family = AF_INET,
@@ -72,9 +72,42 @@ ATF_TC_BODY(tcp_implied_connect, tc)
 	ATF_REQUIRE(strcmp(buf, repl) == 0);
 }
 
+/*
+ * A disconnected TCP socket shall return the local address it used before
+ * it was disconnected.
+ */
+ATF_TC_WITHOUT_HEAD(getsockname_disconnected);
+ATF_TC_BODY(getsockname_disconnected, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+	};
+	socklen_t len;
+	int s, c, a;
+
+	ATF_REQUIRE(s = socket(PF_INET, SOCK_STREAM, 0));
+	ATF_REQUIRE(c = socket(PF_INET, SOCK_STREAM, 0));
+
+	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	len = sizeof(sin);
+	ATF_REQUIRE(getsockname(s, (struct sockaddr *)&sin, &len) == 0);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	ATF_REQUIRE(listen(s, -1) == 0);
+	ATF_REQUIRE(connect(c, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	ATF_REQUIRE((a = accept(s, NULL, NULL)) != 1);
+	ATF_REQUIRE(close(a) == 0);
+	ATF_REQUIRE(getsockname(c, (struct sockaddr *)&sin, &len) == 0);
+	ATF_REQUIRE(sin.sin_addr.s_addr == htonl(INADDR_LOOPBACK));
+
+	close(c);
+	close(s);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp, tcp_implied_connect);
+	ATF_TP_ADD_TC(tp, implied_connect);
+	ATF_TP_ADD_TC(tp, getsockname_disconnected);
 
 	return (atf_no_error());
 }
