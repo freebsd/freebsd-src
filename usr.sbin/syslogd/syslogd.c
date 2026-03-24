@@ -781,8 +781,8 @@ main(int argc, char *argv[])
 	    sizeof(consfile.fu_fname));
 	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
 	(void)signal(SIGTERM, dodie);
-	(void)signal(SIGINT, Debug ? dodie : SIG_IGN);
-	(void)signal(SIGQUIT, Debug ? dodie : SIG_IGN);
+	(void)signal(SIGINT, (Foreground || Debug) ? dodie : SIG_IGN);
+	(void)signal(SIGQUIT, (Foreground || Debug) ? dodie : SIG_IGN);
 	(void)signal(SIGHUP, sighandler);
 	(void)signal(SIGCHLD, sighandler);
 	(void)signal(SIGALRM, domark);
