@@ -556,7 +556,7 @@ static int	umidi_open(struct usb_fifo *, int);
 static int	umidi_ioctl(struct usb_fifo *, u_long cmd, void *, int);
 static void	umidi_close(struct usb_fifo *, int);
 static void	umidi_init(device_t dev);
-static int	umidi_probe(device_t dev);
+static int	umidi_attach(device_t dev);
 static int	umidi_detach(device_t dev);
 static int	uaudio_hid_probe(struct uaudio_softc *sc,
 		    struct usb_attach_arg *uaa);
@@ -1101,7 +1101,7 @@ uaudio_attach(device_t dev)
 	}
 
 	if (sc->sc_midi_chan.valid) {
-		if (umidi_probe(dev)) {
+		if (umidi_attach(dev)) {
 			goto detach;
 		}
 		device_printf(dev, "MIDI sequencer.\n");
@@ -5987,7 +5987,7 @@ static struct usb_fifo_methods umidi_fifo_methods = {
 };
 
 static int
-umidi_probe(device_t dev)
+umidi_attach(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
