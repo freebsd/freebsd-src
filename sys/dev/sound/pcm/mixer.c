@@ -1142,9 +1142,9 @@ mixer_ioctl_channel_proc:
 		center = (left + right) >> 1;
 		chn_setvolume_multi(c, SND_VOL_C_PCM, left, right, center);
 	} else if ((cmd & ~0xff) == MIXER_READ(0)) {
-		*(int *)arg = CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FL);
+		*(int *)arg = chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FL);
 		*(int *)arg |=
-		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
+		    chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
 	}
 
 	CHN_UNLOCK(c);
