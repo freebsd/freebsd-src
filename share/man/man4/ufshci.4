@@ -124,9 +124,41 @@ nodes are currently implemented:
 (R) Host controller minor version.
 .It Va dev.ufshci.0.major_version
 (R) Host controller major version.
+.It Va dev.ufshci.0.wb_enabled
+(R) WriteBooster enable/disable.
+.It Va dev.ufshci.0.wb_flush_enabled
+(R) WriteBooster flush enable/disable.
+.It Va dev.ufshci.0.wb_buffer_type
+(R) WriteBooster type.
+.It Va dev.ufshci.0.wb_buffer_size_mb
+(R) WriteBooster buffer size in MB.
+.It Va dev.ufshci.0.wb_user_space_config_option
+(R) WriteBooster preserve user space mode.
+.It Va dev.ufshci.0.auto_hibernation_supported
+(R) Device auto hibernation support.
+.It Va dev.ufshci.0.auto_hibernate_idle_timer_value
+(R) Auto-Hibernate Idle Timer Value (in microseconds).
+.It Va dev.ufshci.0.power_mode_supported
+(R) Device power mode support.
+.It Va dev.ufshci.0.power_mode
+(R) Current device power mode.
+.It Va dev.ufshci.0.tx_rx_power_mode
+(R) Current TX/RX PA_PWRMode value.
+.It Va dev.ufshci.0.max_tx_lanes
+(R) Maximum available TX data lanes.
+.It Va dev.ufshci.0.max_rx_lanes
+(R) Maximum available RX data lanes.
+.It Va dev.ufshci.0.tx_lanes
+(R) Active TX data lanes.
+.It Va dev.ufshci.0.rx_lanes
+(R) Active RX data lanes.
+.It Va dev.ufshci.0.max_rx_hs_gear
+(R) Maximum available RX HS gear.
+.It Va dev.ufshci.0.hs_gear
+(R) Active HS gear.
 .It Va dev.ufshci.0.utmrq.num_failures
 (R) Number of failed UTP task-management requests.
-.It Va dev.ufshci.0.utmrq.ioq.num_retries
+.It Va dev.ufshci.0.utmrq.num_retries
 (R) Number of retried UTP task-management requests.
 .It Va dev.ufshci.0.utmrq.num_intr_handler_calls
 (R) Number of interrupt handler calls caused by UTP task-management requests.
