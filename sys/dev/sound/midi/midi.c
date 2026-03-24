@@ -421,7 +421,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	int used;
 	char buf[MIDI_WSIZE];
 
-	retval = 0;
+	retval = EIO;
 	if (m == NULL)
 		goto err0;
 
