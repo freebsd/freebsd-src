@@ -125,12 +125,7 @@ static const struct ac97_vendorid ac97vendorid[] = {
 	{ 0x57454300, "Winbond" },
 	{ 0x574d4c00, "Wolfson" },
 	{ 0x594d4800, "Yamaha" },
-	/* 
-	 * XXX This is a fluke, really! The real vendor
-	 * should be SigmaTel, not this! This should be
-	 * removed someday!
-	 */
-	{ 0x01408300, "Creative" },
+	{ 0x01408300, "SigmaTel" },
 	{ 0x00000000, NULL }
 };
 
@@ -238,12 +233,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x594d4800, 0x00, 0, "YMF743",	0 },
 	{ 0x594d4802, 0x00, 0, "YMF752",	0 },
 	{ 0x594d4803, 0x00, 0, "YMF753",	0 },
-	/* 
-	 * XXX This is a fluke, really! The real codec
-	 * should be STAC9704, not this! This should be
-	 * removed someday!
-	 */
-	{ 0x01408384, 0x00, 0, "EV1938",	0 },
+	{ 0x01408384, 0x00, 0, "STAC9704",	0 },
 	{ 0, 0, 0, NULL, 0 }
 };
 
