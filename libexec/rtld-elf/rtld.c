@@ -187,6 +187,10 @@ static char *origin_subst_one(Obj_Entry *, char *, const char *, const char *,
 static char *origin_subst(Obj_Entry *, const char *);
 static bool obj_resolve_origin(Obj_Entry *obj);
 static void preinit_main(void);
+static void rtld_recalc_bind_not(const char *);
+static void rtld_recalc_dangerous_ld_env(void);
+static void rtld_recalc_debug(const char *);
+static void rtld_recalc_path_rpath(const char *);
 static int rtld_verify_versions(const Objlist *);
 static int rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
@@ -197,6 +201,17 @@ static void rtld_fill_dl_phdr_info(const Obj_Entry *obj,
 static uint32_t gnu_hash(const char *);
 static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
     const unsigned long);
+
+struct ld_env_var_desc;
+static void rtld_set_var_bind_not(struct ld_env_var_desc *lvd);
+static void rtld_set_var_bind_now(struct ld_env_var_desc *lvd);
+static void rtld_set_var_debug(struct ld_env_var_desc *lvd);
+static void rtld_set_var_dynamic_weak(struct ld_env_var_desc *lvd);
+static void rtld_set_var_libmap_disable(struct ld_env_var_desc *lvd);
+static void rtld_set_var_library_path(struct ld_env_var_desc *lvd);
+static void rtld_set_var_library_path_fds(struct ld_env_var_desc *lvd);
+static void rtld_set_var_library_path_rpath(struct ld_env_var_desc *lvd);
+static void rtld_set_var_loadfltr(struct ld_env_var_desc *lvd);
 
 void r_debug_state(struct r_debug *, struct link_map *) __noinline __exported;
 void _r_debug_postinit(struct link_map *) __noinline __exported;
@@ -215,7 +230,6 @@ static bool dangerous_ld_env;	    /* True if environment variables have been
 				       used to affect the libraries loaded */
 bool ld_bind_not;		    /* Disable PLT update */
 static const char *ld_bind_now; /* Environment variable for immediate binding */
-static const char *ld_debug;	/* Environment variable for debugging */
 static bool ld_dynamic_weak = true; /* True if non-weak definition overrides
 				       weak definition */
 static const char *ld_library_path; /* Environment variable for search path */
@@ -368,26 +382,35 @@ struct ld_env_var_desc {
 	const char *val;
 	const bool unsecure : 1;
 	const bool can_update : 1;
-	const bool debug : 1;
 	bool owned : 1;
+	void (*const on_update)(struct ld_env_var_desc *);
 };
 #define LD_ENV_DESC(var, unsec, ...) \
 	[LD_##var] = { .n = #var, .unsecure = unsec, __VA_ARGS__ }
 
 static struct ld_env_var_desc ld_env_vars[] = {
-	LD_ENV_DESC(BIND_NOW, false),
+	LD_ENV_DESC(BIND_NOW, false, .can_update = true,
+	    .on_update = rtld_set_var_bind_now),
 	LD_ENV_DESC(PRELOAD, true),
 	LD_ENV_DESC(LIBMAP, true),
-	LD_ENV_DESC(LIBRARY_PATH, true, .can_update = true),
-	LD_ENV_DESC(LIBRARY_PATH_FDS, true, .can_update = true),
-	LD_ENV_DESC(LIBMAP_DISABLE, true),
-	LD_ENV_DESC(BIND_NOT, true),
-	LD_ENV_DESC(DEBUG, true, .can_update = true, .debug = true),
+	LD_ENV_DESC(LIBRARY_PATH, true, .can_update = true,
+	    .on_update = rtld_set_var_library_path),
+	LD_ENV_DESC(LIBRARY_PATH_FDS, true, .can_update = true,
+	    .on_update = rtld_set_var_library_path_fds),
+	LD_ENV_DESC(LIBMAP_DISABLE, true, .can_update = true,
+	    .on_update = rtld_set_var_libmap_disable),
+	LD_ENV_DESC(BIND_NOT, true, .can_update = true,
+	    .on_update = rtld_set_var_bind_not),
+	LD_ENV_DESC(DEBUG, true, .can_update = true,
+	    .on_update = rtld_set_var_debug),
 	LD_ENV_DESC(ELF_HINTS_PATH, true),
-	LD_ENV_DESC(LOADFLTR, true),
-	LD_ENV_DESC(LIBRARY_PATH_RPATH, true, .can_update = true),
+	LD_ENV_DESC(LOADFLTR, true, .can_update = true,
+	    .on_update = rtld_set_var_loadfltr),
+	LD_ENV_DESC(LIBRARY_PATH_RPATH, true, .can_update = true,
+	    .on_update = rtld_set_var_library_path_rpath),
 	LD_ENV_DESC(PRELOAD_FDS, true),
-	LD_ENV_DESC(DYNAMIC_WEAK, true, .can_update = true),
+	LD_ENV_DESC(DYNAMIC_WEAK, true, .can_update = true,
+	    .on_update = rtld_set_var_dynamic_weak),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS, false),
 	LD_ENV_DESC(UTRACE, false, .can_update = true),
 	LD_ENV_DESC(DUMP_REL_PRE, false, .can_update = true),
@@ -516,7 +539,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	struct stat st;
 	Elf_Addr *argcp;
 	char **argv, **env, **envp, *kexecpath;
-	const char *argv0, *binpath, *library_path_rpath, *static_tls_extra;
+	const char *argv0, *binpath, *static_tls_extra;
 	struct ld_env_var_desc *lvd;
 	caddr_t imgentry;
 	char buf[MAXPATHLEN];
@@ -721,9 +744,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		}
 	}
 
-	ld_debug = ld_get_env_var(LD_DEBUG);
-	if (ld_bind_now == NULL)
-		ld_bind_not = ld_get_env_var(LD_BIND_NOT) != NULL;
+	rtld_recalc_debug(ld_get_env_var(LD_DEBUG));
+	rtld_recalc_bind_not(ld_get_env_var(LD_BIND_NOT));
 	ld_dynamic_weak = ld_get_env_var(LD_DYNAMIC_WEAK) == NULL;
 	libmap_disable = ld_get_env_var(LD_LIBMAP_DISABLE) != NULL;
 	libmap_override = ld_get_env_var(LD_LIBMAP);
@@ -733,31 +755,18 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	ld_preload_fds = ld_get_env_var(LD_PRELOAD_FDS);
 	ld_elf_hints_path = ld_get_env_var(LD_ELF_HINTS_PATH);
 	ld_loadfltr = ld_get_env_var(LD_LOADFLTR) != NULL;
-	library_path_rpath = ld_get_env_var(LD_LIBRARY_PATH_RPATH);
-	if (library_path_rpath != NULL) {
-		if (library_path_rpath[0] == 'y' ||
-		    library_path_rpath[0] == 'Y' ||
-		    library_path_rpath[0] == '1')
-			ld_library_path_rpath = true;
-		else
-			ld_library_path_rpath = false;
-	}
+	rtld_recalc_path_rpath(ld_get_env_var(LD_LIBRARY_PATH_RPATH));
 	static_tls_extra = ld_get_env_var(LD_STATIC_TLS_EXTRA);
 	if (static_tls_extra != NULL && static_tls_extra[0] != '\0') {
 		sz = parse_integer(static_tls_extra);
 		if (sz >= RTLD_STATIC_TLS_EXTRA && sz <= SIZE_T_MAX)
 			ld_static_tls_extra = sz;
 	}
-	dangerous_ld_env = libmap_disable || libmap_override != NULL ||
-	    ld_library_path != NULL || ld_preload != NULL ||
-	    ld_elf_hints_path != NULL || ld_loadfltr || !ld_dynamic_weak ||
-	    static_tls_extra != NULL;
+	rtld_recalc_dangerous_ld_env();
 	ld_tracing = ld_get_env_var(LD_TRACE_LOADED_OBJECTS);
 	ld_utrace = ld_get_env_var(LD_UTRACE);
 
 	set_ld_elf_hints_path();
-	if (ld_debug != NULL && *ld_debug != '\0')
-		debug = 1;
 	dbg("%s is initialized, base address = %p", __progname,
 	    (caddr_t)aux_info[AT_BASE]->a_un.a_ptr);
 	dbg("RTLD dynamic = %p", obj_rtld.dynamic);
@@ -6611,18 +6620,121 @@ rtld_get_var(const char *name)
 	return (NULL);
 }
 
+static void
+rtld_recalc_dangerous_ld_env(void)
+{
+	/*
+	 * Never reset dangerous_ld_env back to false if rtld was ever
+	 * contaminated with it set to true.
+	 */
+	dangerous_ld_env |= libmap_disable || libmap_override != NULL ||
+	    ld_library_path != NULL || ld_preload != NULL ||
+	    ld_elf_hints_path != NULL || ld_loadfltr || !ld_dynamic_weak ||
+	    ld_get_env_var(LD_STATIC_TLS_EXTRA) != NULL;
+}
+
+static void
+rtld_recalc_debug(const char *ld_debug)
+{
+	if (ld_debug != NULL && *ld_debug != '\0')
+		debug = 1;
+}
+
+static void
+rtld_set_var_debug(struct ld_env_var_desc *lvd)
+{
+	rtld_recalc_debug(lvd->val);
+}
+
+static void
+rtld_set_var_library_path(struct ld_env_var_desc *lvd)
+{
+	ld_library_path = lvd->val;
+}
+
+static void
+rtld_set_var_library_path_fds(struct ld_env_var_desc *lvd)
+{
+	ld_library_dirs = lvd->val;
+}
+
+static void
+rtld_recalc_path_rpath(const char *library_path_rpath)
+{
+	if (library_path_rpath != NULL) {
+		if (library_path_rpath[0] == 'y' ||
+		    library_path_rpath[0] == 'Y' ||
+		    library_path_rpath[0] == '1')
+			ld_library_path_rpath = true;
+		else
+			ld_library_path_rpath = false;
+	} else {
+		ld_library_path_rpath = false;
+	}
+}
+
+static void
+rtld_set_var_library_path_rpath(struct ld_env_var_desc *lvd)
+{
+	rtld_recalc_path_rpath(lvd->val);
+}
+
+static void
+rtld_recalc_bind_not(const char *bind_not_val)
+{
+	if (ld_bind_now == NULL)
+		ld_bind_not = bind_not_val != NULL;
+}
+
+static void
+rtld_set_var_bind_now(struct ld_env_var_desc *lvd)
+{
+	ld_bind_now = lvd->val;
+	rtld_recalc_bind_not(ld_get_env_var(LD_BIND_NOT));
+}
+
+static void
+rtld_set_var_bind_not(struct ld_env_var_desc *lvd)
+{
+	rtld_recalc_bind_not(lvd->val);
+}
+
+static void
+rtld_set_var_dynamic_weak(struct ld_env_var_desc *lvd)
+{
+	ld_dynamic_weak = lvd->val == NULL;
+}
+
+static void
+rtld_set_var_loadfltr(struct ld_env_var_desc *lvd)
+{
+	ld_loadfltr = lvd->val != NULL;
+}
+
+static void
+rtld_set_var_libmap_disable(struct ld_env_var_desc *lvd)
+{
+	libmap_disable = lvd->val != NULL;
+}
+
 int
 rtld_set_var(const char *name, const char *val)
 {
+	RtldLockState lockstate;
 	struct ld_env_var_desc *lvd;
 	u_int i;
+	int error;
 
+	error = ENOENT;
+	wlock_acquire(rtld_bind_lock, &lockstate);
 	for (i = 0; i < nitems(ld_env_vars); i++) {
 		lvd = &ld_env_vars[i];
 		if (strcmp(lvd->n, name) != 0)
 			continue;
-		if (!lvd->can_update || (lvd->unsecure && !trust))
-			return (EPERM);
+		if (!lvd->can_update || (lvd->unsecure && !trust)) {
+			error = EPERM;
+			break;
+		}
 		if (lvd->owned)
 			free(__DECONST(char *, lvd->val));
 		if (val != NULL)
@@ -6630,11 +6742,15 @@ rtld_set_var(const char *name, const char *val)
 		else
 			lvd->val = NULL;
 		lvd->owned = true;
-		if (lvd->debug)
-			debug = lvd->val != NULL && *lvd->val != '\0';
-		return (0);
+		if (lvd->on_update != NULL)
+			lvd->on_update(lvd);
+		error = 0;
+		break;
 	}
-	return (ENOENT);
+	if (error == 0)
+		rtld_recalc_dangerous_ld_env();
+	lock_release(rtld_bind_lock, &lockstate);
+	return (error);
 }
 
 /*
