@@ -29,10 +29,7 @@
 #ifndef _SND_MATRIX_H_
 #define _SND_MATRIX_H_
 
-#undef SND_MULTICHANNEL
-#ifndef SND_OLDSTEREO
 #define SND_MULTICHANNEL	1
-#endif
 
 /*
  * XXX = unused, but part of the definition (will be used someday, maybe).
