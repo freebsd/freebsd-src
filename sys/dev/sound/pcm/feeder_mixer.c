@@ -43,9 +43,6 @@
 #include "snd_fxdiv_gen.h"
 #endif
 
-#undef SND_FEEDER_MULTIFORMAT
-#define SND_FEEDER_MULTIFORMAT	1
-
 struct feed_mixer_info {
 	uint32_t format;
 	uint32_t channels;

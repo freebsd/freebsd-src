@@ -163,21 +163,3 @@ int feeder_matrix_oss_get_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
 int feeder_matrix_oss_set_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
-
-/*
- * By default, various feeders only deal with sign 16/32 bit native-endian
- * since it should provide the fastest processing path. Processing 8bit samples
- * is too noisy due to limited dynamic range, while 24bit is quite slow due to
- * unnatural per-byte read/write. However, for debugging purposes, ensuring
- * implementation correctness and torture test, the following can be defined:
- *
- *      SND_FEEDER_MULTIFORMAT - Compile all type of converters, but force
- *                               8bit samples to be converted to 16bit
- *                               native-endian for better dynamic range.
- *                               Process 24bit samples natively.
- * SND_FEEDER_FULL_MULTIFORMAT - Ditto, but process 8bit samples natively.
- */
-#ifdef SND_FEEDER_FULL_MULTIFORMAT
-#undef SND_FEEDER_MULTIFORMAT
-#define SND_FEEDER_MULTIFORMAT	1
-#endif
