@@ -155,7 +155,6 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
-#define	UAUDIO_MAX_CHAN(x) (x)
 #define	MIX(sc) ((sc)->sc_mixer_node)
 
 union uaudio_asid {
@@ -1993,7 +1992,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			uint16_t wFormat;
 
 			wFormat = UGETW(asid.v1->wFormatTag);
-			bChannels = UAUDIO_MAX_CHAN(asf1d.v1->bNrChannels);
+			bChannels = asf1d.v1->bNrChannels;
 			bBitResolution = asf1d.v1->bSubFrameSize * 8;
 
 			if (asf1d.v1->bSamFreqType == 0) {
@@ -2074,8 +2073,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		else
 			chan_alt->usb_cfg = uaudio_cfg_play;
 
-		chan_alt->sample_size = (UAUDIO_MAX_CHAN(channels) *
-		    p_fmt->bPrecision) / 8;
+		chan_alt->sample_size = (channels * p_fmt->bPrecision) / 8;
 		chan_alt->channels = channels;
 
 		if (ep_dir == UE_DIR_IN &&
