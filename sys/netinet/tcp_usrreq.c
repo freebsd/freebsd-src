@@ -396,10 +396,11 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	if (already_listening)
 		goto out;
 
-	if (error == 0)
+	if (error == 0) {
 		in_pcblisten(inp);
-	if (tp->t_flags & TF_FASTOPEN)
-		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
+		if (tp->t_flags & TF_FASTOPEN)
+			tp->t_tfo_pending = tcp_fastopen_alloc_counter();
+	}
 
 out:
 	tcp_bblog_pru(tp, PRU_LISTEN, error);
@@ -460,12 +461,11 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	if (already_listening)
 		goto out;
 
-	if (error == 0)
+	if (error == 0) {
 		in_pcblisten(inp);
-	if (tp->t_flags & TF_FASTOPEN)
-		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
-
-	if (error != 0)
+		if (tp->t_flags & TF_FASTOPEN)
+			tp->t_tfo_pending = tcp_fastopen_alloc_counter();
+	} else
 		inp->inp_vflag = vflagsav;
 
 out:
