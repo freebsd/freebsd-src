@@ -1640,6 +1640,11 @@
 >1112	lelong		x		pending inodes to free %d,
 >712	lequad		x		system-wide uuid %0llx,
 >60	lelong		x		minimum percentage of free blocks %d,
+>1312	lelong&0xa	0x2		soft updates,
+>1312	lelong&0xa	0xa		soft updates journaling,
+>1312	lelong&0x40	0x40		GEOM journaling,
+>1312	lelong&0x10	0x10		POSIX.1e ACLs,
+>1312	lelong&0x100	0x100		NFSv4 ACLs,
 >128	lelong		0		TIME optimization
 >128	lelong		1		SPACE optimization
 
