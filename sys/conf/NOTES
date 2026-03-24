@@ -2175,15 +2175,11 @@ envvar		hint.gusc.0.flags="0x13"
 #                              integer/arithmetic. Slight increase of dynamic
 #                              range at a cost of possible slowdown.
 #
-# SND_OLDSTEREO                Only 2 channels are allowed, effectively
-#                              disabling multichannel processing.
-#
 options 	SND_DIAGNOSTIC
 options 	SND_FEEDER_MULTIFORMAT
 options 	SND_FEEDER_FULL_MULTIFORMAT
 options 	SND_FEEDER_RATE_HP
 options 	SND_PCM_64
-options 	SND_OLDSTEREO
 
 #
 # Cardbus
