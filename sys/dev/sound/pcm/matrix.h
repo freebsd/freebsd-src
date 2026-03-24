@@ -176,8 +176,7 @@
 /*
  * Multichannel interleaved volume matrix. Each calculated value relative
  * to master and 0db will be stored in each CLASS + 1 as long as
- * chn_setvolume_matrix() or the equivalent CHN_SETVOLUME() macros is
- * used (see channel.c).
+ * chn_setvolume_matrix() is used (see channel.c).
  */
 #define SND_VOL_C_MASTER	0
 #define SND_VOL_C_PCM		1
