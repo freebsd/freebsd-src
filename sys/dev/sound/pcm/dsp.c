@@ -618,17 +618,17 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
 		case SOUND_MIXER_PCM:
 			if (ch->direction != PCMDIR_PLAY)
 				break;
-			*(int *)arg = CHN_GETVOLUME(ch,
+			*(int *)arg = chn_getvolume_matrix(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FL);
-			*(int *)arg |= CHN_GETVOLUME(ch,
+			*(int *)arg |= chn_getvolume_matrix(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
 			break;
 		case SOUND_MIXER_RECLEV:
 			if (ch->direction != PCMDIR_REC)
 				break;
-			*(int *)arg = CHN_GETVOLUME(ch,
+			*(int *)arg = chn_getvolume_matrix(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FL);
-			*(int *)arg |= CHN_GETVOLUME(ch,
+			*(int *)arg |= chn_getvolume_matrix(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
 			break;
 		case SOUND_MIXER_DEVMASK:

@@ -487,9 +487,9 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		    c->feedcount);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_XRUNS, c->xruns);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_LEFTVOL,
-		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FL));
+		    chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FL));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RIGHTVOL,
-		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR));
+		    chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FR));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FORMAT,
 		    c->bufhard->fmt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_RATE,
