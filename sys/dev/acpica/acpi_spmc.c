@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2024-2025 The FreeBSD Foundation
+ * Copyright (c) 2024-2026 The FreeBSD Foundation
  *
  * This software was developed by Aymeric Wibo <obiwac@freebsd.org>
  * under sponsorship from the FreeBSD Foundation.
@@ -86,8 +86,9 @@ static struct dsm_set intel_dsm_set = {
 		0xc4eb40a0, 0x6cd2, 0x11e2, 0xbc, 0xfd,
 		{0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66},
 	},
-	.dsms_expected = DSM_GET_DEVICE_CONSTRAINTS | DSM_DISPLAY_OFF_NOTIF |
-	    DSM_DISPLAY_ON_NOTIF | DSM_ENTRY_NOTIF | DSM_EXIT_NOTIF,
+	.dsms_expected = (1 << DSM_GET_DEVICE_CONSTRAINTS) |
+	    (1 << DSM_DISPLAY_OFF_NOTIF) | (1 << DSM_DISPLAY_ON_NOTIF) |
+	    (1 << DSM_ENTRY_NOTIF) | (1 << DSM_EXIT_NOTIF),
 };
 
 SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, intel_dsm_revision, CTLFLAG_RW,
@@ -102,9 +103,10 @@ static struct dsm_set ms_dsm_set = {
 		0x11e00d56, 0xce64, 0x47ce, 0x83, 0x7b,
 		{0x1f, 0x89, 0x8f, 0x9a, 0xa4, 0x61},
 	},
-	.dsms_expected = DSM_DISPLAY_OFF_NOTIF | DSM_DISPLAY_ON_NOTIF |
-	    DSM_ENTRY_NOTIF | DSM_EXIT_NOTIF | DSM_MODERN_ENTRY_NOTIF |
-	    DSM_MODERN_EXIT_NOTIF,
+	.dsms_expected = (1 << DSM_DISPLAY_OFF_NOTIF) |
+	    (1 << DSM_DISPLAY_ON_NOTIF) | (1 << DSM_ENTRY_NOTIF) |
+	    (1 << DSM_EXIT_NOTIF) | (1 << DSM_MODERN_ENTRY_NOTIF) |
+	    (1 << DSM_MODERN_EXIT_NOTIF),
 };
 
 static struct dsm_set amd_dsm_set = {
@@ -124,9 +126,9 @@ static struct dsm_set amd_dsm_set = {
 		0xe3f32452, 0xfebc, 0x43ce, 0x90, 0x39,
 		{0x93, 0x21, 0x22, 0xd3, 0x77, 0x21},
 	},
-	.dsms_expected = AMD_DSM_GET_DEVICE_CONSTRAINTS | AMD_DSM_ENTRY_NOTIF |
-	    AMD_DSM_EXIT_NOTIF | AMD_DSM_DISPLAY_OFF_NOTIF |
-	    AMD_DSM_DISPLAY_ON_NOTIF,
+	.dsms_expected = (1 << AMD_DSM_GET_DEVICE_CONSTRAINTS) |
+	    (1 << AMD_DSM_ENTRY_NOTIF) | (1 << AMD_DSM_EXIT_NOTIF) |
+	    (1 << AMD_DSM_DISPLAY_OFF_NOTIF) | (1 << AMD_DSM_DISPLAY_ON_NOTIF),
 };
 
 SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, amd_dsm_revision, CTLFLAG_RW,
@@ -252,7 +254,7 @@ static void
 acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
     struct dsm_set *dsm_set)
 {
-	const uint64_t dsms_supported = acpi_DSMQuery(handle,
+	uint64_t dsms_supported = acpi_DSMQuery(handle,
 	    (uint8_t *)&dsm_set->uuid, dsm_set->revision);
 
 	/*
@@ -261,6 +263,7 @@ acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
 	 */
 	if ((dsms_supported & 1) == 0)
 		return;
+	dsms_supported &= ~1;
 	if ((dsms_supported & dsm_set->dsms_expected)
 	    != dsm_set->dsms_expected) {
 		device_printf(sc->dev, "DSM set %s does not support expected "
