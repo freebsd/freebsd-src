@@ -2160,12 +2160,6 @@ envvar		hint.gusc.0.flags="0x13"
 # SND_DIAGNOSTIC               Similar in a spirit of INVARIANTS/DIAGNOSTIC,
 #                              zero tolerance against inconsistencies.
 #
-# SND_FEEDER_MULTIFORMAT       By default, only 16/32 bit feeders are compiled
-#                              in. This options enable most feeder converters
-#                              except for 8bit. WARNING: May bloat the kernel.
-#
-# SND_FEEDER_FULL_MULTIFORMAT  Ditto, but includes 8bit feeders as well.
-#
 # SND_FEEDER_RATE_HP           (feeder_rate) High precision 64bit arithmetic
 #                              as much as possible (the default trying to
 #                              avoid it). Possible slowdown.
@@ -2176,8 +2170,6 @@ envvar		hint.gusc.0.flags="0x13"
 #                              range at a cost of possible slowdown.
 #
 options 	SND_DIAGNOSTIC
-options 	SND_FEEDER_MULTIFORMAT
-options 	SND_FEEDER_FULL_MULTIFORMAT
 options 	SND_FEEDER_RATE_HP
 options 	SND_PCM_64
 
