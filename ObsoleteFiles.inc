@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260324: test file renamed
+OLD_FILES+=usr/tests/sys/netinet/tcp_implied_connect
+
 # 20260302: Remove obsolete le(4) ethernet driver
 OLD_FILES+=usr/share/man/man4/le.4.gz
 
