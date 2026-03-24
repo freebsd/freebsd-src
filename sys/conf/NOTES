@@ -2089,6 +2089,7 @@ device		sound
 # snd_cs4281:		Crystal Semiconductor CS4281 PCI.
 # snd_csa:		Crystal Semiconductor CS461x/428x PCI. (except
 #			4281)
+# snd_dummy:		Dummy testing driver.
 # snd_emu10k1:		Creative EMU10K1 PCI and EMU10K2 (Audigy) PCI.
 # snd_emu10kx:		Creative SoundBlaster Live! and Audigy
 # snd_envy24:		VIA Envy24 and compatible, needs snd_spicds.
@@ -2118,6 +2119,7 @@ device		snd_atiixp
 device		snd_cmi
 device		snd_cs4281
 device		snd_csa
+device		snd_dummy
 device		snd_emu10k1
 device		snd_emu10kx
 device		snd_envy24
