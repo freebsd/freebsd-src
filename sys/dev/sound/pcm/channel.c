@@ -1144,7 +1144,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
     int dir, void *devinfo)
 {
 	struct pcm_channel *c;
-	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char buf[CHN_NAMELEN];
 	int err, i, direction, *vchanrate, *vchanformat;
@@ -1216,17 +1215,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	CHN_LOCK(c);
 	chn_vpc_reset(c, SND_VOL_C_PCM, 1);
 	CHN_UNLOCK(c);
-
-	fc = feeder_getclass(FEEDER_ROOT);
-	if (fc == NULL) {
-		device_printf(d->dev, "%s(): failed to get feeder class\n",
-		    __func__);
-		goto fail;
-	}
-	if (feeder_add(c, fc, NULL)) {
-		device_printf(d->dev, "%s(): failed to add feeder\n", __func__);
-		goto fail;
-	}
 
 	b = sndbuf_create(c, "primary");
 	bs = sndbuf_create(c, "secondary");
