@@ -506,29 +506,11 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 	return 0;
 }
 
-#ifdef SND_DIAGNOSTIC
-static uint32_t snd_feeder_maxfeed = 0;
-SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxfeed, CTLFLAG_RD,
-    &snd_feeder_maxfeed, 0, "maximum feeder count request");
-
-static uint32_t snd_feeder_maxcycle = 0;
-SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxcycle, CTLFLAG_RD,
-    &snd_feeder_maxcycle, 0, "maximum feeder cycle");
-#endif
-
 /* count is number of bytes we want added to destination buffer */
 int
 sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count)
 {
 	unsigned int cnt, maxfeed;
-#ifdef SND_DIAGNOSTIC
-	unsigned int cycle;
-
-	if (count > snd_feeder_maxfeed)
-		snd_feeder_maxfeed = count;
-
-	cycle = 0;
-#endif
 
 	KASSERT(count > 0, ("can't feed 0 bytes"));
 
@@ -544,15 +526,7 @@ sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *chan
 			break;
 		sndbuf_acquire(to, to->tmpbuf, cnt);
 		count -= cnt;
-#ifdef SND_DIAGNOSTIC
-		cycle++;
-#endif
 	} while (count != 0);
-
-#ifdef SND_DIAGNOSTIC
-	if (cycle > snd_feeder_maxcycle)
-		snd_feeder_maxcycle = cycle;
-#endif
 
 	return (0);
 }
