@@ -255,7 +255,6 @@ struct pcm_channel {
 
 #include "channel_if.h"
 
-int chn_reinit(struct pcm_channel *c);
 int chn_write(struct pcm_channel *c, struct uio *buf);
 int chn_read(struct pcm_channel *c, struct uio *buf);
 u_int32_t chn_start(struct pcm_channel *c, int force);
