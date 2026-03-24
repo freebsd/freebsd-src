@@ -2156,10 +2156,6 @@ envvar		hint.gusc.0.flags="0x13"
 #
 # Following options are intended for debugging/testing purposes:
 #
-# SND_DEBUG                    Enable extra debugging code that includes
-#                              sanity checking and possible increase of
-#                              verbosity.
-#
 # SND_DIAGNOSTIC               Similar in a spirit of INVARIANTS/DIAGNOSTIC,
 #                              zero tolerance against inconsistencies.
 #
@@ -2181,7 +2177,6 @@ envvar		hint.gusc.0.flags="0x13"
 # SND_OLDSTEREO                Only 2 channels are allowed, effectively
 #                              disabling multichannel processing.
 #
-options 	SND_DEBUG
 options 	SND_DIAGNOSTIC
 options 	SND_FEEDER_MULTIFORMAT
 options 	SND_FEEDER_FULL_MULTIFORMAT
