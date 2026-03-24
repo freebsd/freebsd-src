@@ -558,7 +558,7 @@ static void	umidi_close(struct usb_fifo *, int);
 static void	umidi_init(device_t dev);
 static int	umidi_attach(device_t dev);
 static int	umidi_detach(device_t dev);
-static int	uaudio_hid_probe(struct uaudio_softc *sc,
+static int	uaudio_hid_attach(struct uaudio_softc *sc,
 		    struct usb_attach_arg *uaa);
 static void	uaudio_hid_detach(struct uaudio_softc *sc);
 
@@ -1138,7 +1138,7 @@ uaudio_attach(device_t dev)
 	bus_attach_children(dev);
 
 	if (uaudio_handle_hid) {
-		if (uaudio_hid_probe(sc, uaa) == 0) {
+		if (uaudio_hid_attach(sc, uaa) == 0) {
 			device_printf(dev, "HID volume keys found.\n");
 		} else {
 			device_printf(dev, "No HID volume keys found.\n");
@@ -6174,7 +6174,7 @@ tr_setup:
 }
 
 static int
-uaudio_hid_probe(struct uaudio_softc *sc,
+uaudio_hid_attach(struct uaudio_softc *sc,
     struct usb_attach_arg *uaa)
 {
 	void *d_ptr;
