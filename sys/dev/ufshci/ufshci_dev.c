@@ -325,7 +325,7 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 	 */
 	const uint32_t fast_mode = 1;
 	const uint32_t rx_bit_shift = 4;
-	uint32_t power_mode, peer_granularity;
+	uint32_t peer_granularity;
 
 	/* Update lanes with available TX/RX lanes */
 	if (ufshci_uic_send_dme_get(ctrlr, PA_AvailTxDataLanes,
@@ -352,9 +352,11 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 
 	if (ctrlr->quirks & UFSHCI_QUIRK_CHANGE_LANE_AND_GEAR_SEPARATELY) {
 		/* Before changing gears, first change the number of lanes. */
-		if (ufshci_uic_send_dme_get(ctrlr, PA_PWRMode, &power_mode))
+		if (ufshci_uic_send_dme_get(ctrlr, PA_PWRMode,
+			&ctrlr->tx_rx_power_mode))
 			return (ENXIO);
-		if (ufshci_uic_send_dme_set(ctrlr, PA_PWRMode, power_mode))
+		if (ufshci_uic_send_dme_set(ctrlr, PA_PWRMode,
+			ctrlr->tx_rx_power_mode))
 			return (ENXIO);
 
 		/* Wait for power mode changed. */
@@ -415,8 +417,8 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 		return (ENXIO);
 
 	/* Set TX/RX PWRMode */
-	power_mode = (fast_mode << rx_bit_shift) | fast_mode;
-	if (ufshci_uic_send_dme_set(ctrlr, PA_PWRMode, power_mode))
+	ctrlr->tx_rx_power_mode = (fast_mode << rx_bit_shift) | fast_mode;
+	if (ufshci_uic_send_dme_set(ctrlr, PA_PWRMode, ctrlr->tx_rx_power_mode))
 		return (ENXIO);
 
 	/* Wait for power mode changed. */

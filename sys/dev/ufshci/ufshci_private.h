@@ -396,7 +396,8 @@ struct ufshci_controller {
 
 	/* UFS Interconnect Layer (UIC) */
 	struct mtx uic_cmd_lock;
-	uint8_t hs_gear;
+	uint32_t tx_rx_power_mode;
+	uint32_t hs_gear;
 	uint32_t tx_lanes;
 	uint32_t rx_lanes;
 	uint32_t max_rx_hs_gear;
