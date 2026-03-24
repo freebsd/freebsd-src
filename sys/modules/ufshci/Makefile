@@ -3,6 +3,7 @@
 KMOD = ufshci
 
 SRCS =	ufshci.c	\
+	ufshci_acpi.c	\
 	ufshci_pci.c	\
 	ufshci_ctrlr.c	\
 	ufshci_dev.c	\
@@ -12,8 +13,10 @@ SRCS =	ufshci.c	\
 	ufshci_req_sdb.c	\
 	ufshci_sim.c		\
 	ufshci_sysctl.c		\
+	acpi_if.h		\
 	bus_if.h		\
 	device_if.h		\
+	opt_acpi.h		\
 	opt_cam.h		\
 	pci_if.h
 
