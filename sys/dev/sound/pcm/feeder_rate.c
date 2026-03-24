@@ -102,8 +102,6 @@
 
 #define Z_PARANOID		1
 
-#define Z_MULTIFORMAT		1
-
 #ifdef _KERNEL
 #undef Z_USE_ALPHADRIFT
 #define Z_USE_ALPHADRIFT	1
