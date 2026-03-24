@@ -374,34 +374,63 @@ ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue)
 {
 	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
+	int error = 0;
+
+	mtx_lock(&hwq->recovery_lock);
+	mtx_lock(&hwq->qlock);
 
 	if (req_queue->is_task_mgmt) {
 		uint32_t hcs, utmrldbr, utmrlrsr;
+		uint32_t utmrlba, utmrlbau;
+
+		/*
+		 * Some controllers require re-enabling. When a controller is
+		 * re-enabled, the utmrlba registers are initialized, and these
+		 * must be reconfigured upon re-enabling.
+		 */
+		utmrlba = hwq->req_queue_addr & 0xffffffff;
+		utmrlbau = hwq->req_queue_addr >> 32;
+		ufshci_mmio_write_4(ctrlr, utmrlba, utmrlba);
+		ufshci_mmio_write_4(ctrlr, utmrlbau, utmrlbau);
 
 		hcs = ufshci_mmio_read_4(ctrlr, hcs);
 		if (!(hcs & UFSHCIM(UFSHCI_HCS_REG_UTMRLRDY))) {
 			ufshci_printf(ctrlr,
 			    "UTP task management request list is not ready\n");
-			return (ENXIO);
+			error = ENXIO;
+			goto out;
 		}
 
 		utmrldbr = ufshci_mmio_read_4(ctrlr, utmrldbr);
 		if (utmrldbr != 0) {
 			ufshci_printf(ctrlr,
 			    "UTP task management request list door bell is not ready\n");
-			return (ENXIO);
+			error = ENXIO;
+			goto out;
 		}
 
 		utmrlrsr = UFSHCIM(UFSHCI_UTMRLRSR_REG_UTMRLRSR);
 		ufshci_mmio_write_4(ctrlr, utmrlrsr, utmrlrsr);
 	} else {
 		uint32_t hcs, utrldbr, utrlcnr, utrlrsr;
+		uint32_t utrlba, utrlbau;
+
+		/*
+		 * Some controllers require re-enabling. When a controller is
+		 * re-enabled, the utrlba registers are initialized, and these
+		 * must be reconfigured upon re-enabling.
+		 */
+		utrlba = hwq->req_queue_addr & 0xffffffff;
+		utrlbau = hwq->req_queue_addr >> 32;
+		ufshci_mmio_write_4(ctrlr, utrlba, utrlba);
+		ufshci_mmio_write_4(ctrlr, utrlbau, utrlbau);
 
 		hcs = ufshci_mmio_read_4(ctrlr, hcs);
 		if (!(hcs & UFSHCIM(UFSHCI_HCS_REG_UTRLRDY))) {
 			ufshci_printf(ctrlr,
 			    "UTP transfer request list is not ready\n");
-			return (ENXIO);
+			error = ENXIO;
+			goto out;
 		}
 
 		utrldbr = ufshci_mmio_read_4(ctrlr, utrldbr);
@@ -434,7 +463,10 @@ ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
 
 	hwq->recovery_state = RECOVERY_NONE;
 
-	return (0);
+out:
+	mtx_unlock(&hwq->qlock);
+	mtx_unlock(&hwq->recovery_lock);
+	return (error);
 }
 
 int
