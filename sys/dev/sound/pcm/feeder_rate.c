@@ -620,14 +620,10 @@ z_feed_sinc_polyphase_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)	\
 	Z_DECLARE_SINC(SIGN, BIT, ENDIAN)				\
 	Z_DECLARE_SINC_POLYPHASE(SIGN, BIT, ENDIAN)
 
-#if BYTE_ORDER == LITTLE_ENDIAN
 Z_DECLARE(S, 16, LE)
 Z_DECLARE(S, 32, LE)
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
 Z_DECLARE(S, 16, BE)
 Z_DECLARE(S, 32, BE)
-#endif
 Z_DECLARE(S,  8, NE)
 Z_DECLARE(S, 24, LE)
 Z_DECLARE(S, 24, BE)
@@ -668,14 +664,10 @@ static const struct {
 	uint32_t format;
 	z_resampler_t resampler[Z_RESAMPLER_LAST];
 } z_resampler_tab[] = {
-#if BYTE_ORDER == LITTLE_ENDIAN
 	Z_RESAMPLER_ENTRY(S, 16, LE),
 	Z_RESAMPLER_ENTRY(S, 32, LE),
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
 	Z_RESAMPLER_ENTRY(S, 16, BE),
 	Z_RESAMPLER_ENTRY(S, 32, BE),
-#endif
 	Z_RESAMPLER_ENTRY(S,  8, NE),
 	Z_RESAMPLER_ENTRY(S, 24, LE),
 	Z_RESAMPLER_ENTRY(S, 24, BE),

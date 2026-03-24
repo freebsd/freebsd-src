@@ -74,14 +74,10 @@ feed_volume_##SIGN##BIT##ENDIAN(int *vol, int *matrix,			\
 	} while (--count != 0);						\
 }
 
-#if BYTE_ORDER == LITTLE_ENDIAN
 FEEDVOLUME_DECLARE(S, 16, LE)
 FEEDVOLUME_DECLARE(S, 32, LE)
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
 FEEDVOLUME_DECLARE(S, 16, BE)
 FEEDVOLUME_DECLARE(S, 32, BE)
-#endif
 FEEDVOLUME_DECLARE(S,  8, NE)
 FEEDVOLUME_DECLARE(S, 24, LE)
 FEEDVOLUME_DECLARE(S, 24, BE)
@@ -113,14 +109,10 @@ static const struct {
 	uint32_t format;
 	feed_volume_t apply;
 } feed_volume_info_tab[] = {
-#if BYTE_ORDER == LITTLE_ENDIAN
 	FEEDVOLUME_ENTRY(S, 16, LE),
 	FEEDVOLUME_ENTRY(S, 32, LE),
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
 	FEEDVOLUME_ENTRY(S, 16, BE),
 	FEEDVOLUME_ENTRY(S, 32, BE),
-#endif
 	FEEDVOLUME_ENTRY(S,  8, NE),
 	FEEDVOLUME_ENTRY(S, 24, LE),
 	FEEDVOLUME_ENTRY(S, 24, BE),
