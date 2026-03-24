@@ -1107,6 +1107,15 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 	
 	memset(rpchdr, 0, sizeof(rpchdr));
 
+	oa = &msg->rm_call.cb_cred;
+
+	if (oa->oa_length > sizeof(rpchdr) - 8 * BYTES_PER_XDR_UNIT) {
+		rpc_gss_log_debug("auth length %d exceeds maximum",
+		    oa->oa_length);
+		client->cl_state = CLIENT_STALE;
+		return (FALSE);
+	}
+
 	/* Reconstruct RPC header for signing (from xdr_callmsg). */
 	buf = rpchdr;
 	IXDR_PUT_LONG(buf, msg->rm_xid);
@@ -1115,7 +1124,6 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 	IXDR_PUT_LONG(buf, msg->rm_call.cb_prog);
 	IXDR_PUT_LONG(buf, msg->rm_call.cb_vers);
 	IXDR_PUT_LONG(buf, msg->rm_call.cb_proc);
-	oa = &msg->rm_call.cb_cred;
 	IXDR_PUT_ENUM(buf, oa->oa_flavor);
 	IXDR_PUT_LONG(buf, oa->oa_length);
 	if (oa->oa_length) {
