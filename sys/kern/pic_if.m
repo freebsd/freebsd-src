@@ -86,12 +86,13 @@ CODE {
 	}
 
 	static void
-	null_pic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
+	null_pic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
+	    u_int ipi)
 	{
 	}
 
 	static int
-	dflt_pic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc *isrc)
+	dflt_pic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc **isrc)
 	{
 
 		return (EOPNOTSUPP);
