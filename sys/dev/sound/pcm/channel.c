@@ -143,7 +143,7 @@ chn_vpc_proc(int reset, int db)
 		PCM_ACQUIRE(d);
 		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_LOCK(c);
-			CHN_SETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_VOL_0DB, db);
+			chn_setvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_VOL_0DB, db);
 			if (reset != 0)
 				chn_vpc_reset(c, SND_VOL_C_PCM, 1);
 			CHN_UNLOCK(c);
@@ -1635,7 +1635,7 @@ chn_vpc_reset(struct pcm_channel *c, int vc, int force)
 		return;
 
 	for (i = SND_CHN_T_BEGIN; i <= SND_CHN_T_END; i += SND_CHN_T_STEP)
-		CHN_SETVOLUME(c, vc, i, c->volume[vc][SND_CHN_T_VOL_0DB]);
+		chn_setvolume_matrix(c, vc, i, c->volume[vc][SND_CHN_T_VOL_0DB]);
 }
 
 static u_int32_t

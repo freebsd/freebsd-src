@@ -306,8 +306,6 @@ int chn_notify(struct pcm_channel *c, u_int32_t flags);
 int chn_getrates(struct pcm_channel *c, int **rates);
 int chn_syncdestroy(struct pcm_channel *c);
 
-#define CHN_SETVOLUME(...)		chn_setvolume_matrix(__VA_ARGS__)
-
 #define CHN_GETMUTE(x, y, z)		((x)->muted[y][z])
 
 #ifdef OSSV4_EXPERIMENT
