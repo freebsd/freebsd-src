@@ -89,17 +89,6 @@
 
 #define Z_RATE_DEFAULT		48000
 
-#define Z_RATE_MIN		FEEDRATE_RATEMIN
-#define Z_RATE_MAX		FEEDRATE_RATEMAX
-#define Z_ROUNDHZ		FEEDRATE_ROUNDHZ
-#define Z_ROUNDHZ_MIN		FEEDRATE_ROUNDHZ_MIN
-#define Z_ROUNDHZ_MAX		FEEDRATE_ROUNDHZ_MAX
-
-#define Z_RATE_SRC		FEEDRATE_SRC
-#define Z_RATE_DST		FEEDRATE_DST
-#define Z_RATE_QUALITY		FEEDRATE_QUALITY
-#define Z_RATE_CHANNELS		FEEDRATE_CHANNELS
-
 #define Z_PARANOID		1
 
 #ifdef _KERNEL
@@ -149,9 +138,9 @@ struct z_info {
 	z_resampler_t z_resample;
 };
 
-int feeder_rate_min = Z_RATE_MIN;
-int feeder_rate_max = Z_RATE_MAX;
-int feeder_rate_round = Z_ROUNDHZ;
+int feeder_rate_min = FEEDRATE_RATEMIN;
+int feeder_rate_max = FEEDRATE_RATEMAX;
+int feeder_rate_round = FEEDRATE_ROUNDHZ;
 int feeder_rate_quality = Z_QUALITY_DEFAULT;
 
 static int feeder_rate_polyphase_max = Z_POLYPHASE_MAX;
@@ -220,10 +209,10 @@ sysctl_hw_snd_feeder_rate_round(SYSCTL_HANDLER_ARGS)
 	if (err != 0 || req->newptr == NULL || val == feeder_rate_round)
 		return (err);
 
-	if (val < Z_ROUNDHZ_MIN || val > Z_ROUNDHZ_MAX)
+	if (val < FEEDRATE_ROUNDHZ_MIN || val > FEEDRATE_ROUNDHZ_MAX)
 		return (EINVAL);
 
-	feeder_rate_round = val - (val % Z_ROUNDHZ);
+	feeder_rate_round = val - (val % FEEDRATE_ROUNDHZ);
 
 	return (0);
 }
@@ -1408,21 +1397,21 @@ z_resampler_set(struct pcm_feeder *f, int what, int32_t value)
 	info = f->data;
 
 	switch (what) {
-	case Z_RATE_SRC:
+	case FEEDRATE_SRC:
 		if (value < feeder_rate_min || value > feeder_rate_max)
 			return (E2BIG);
 		if (value == info->rsrc)
 			return (0);
 		info->rsrc = value;
 		break;
-	case Z_RATE_DST:
+	case FEEDRATE_DST:
 		if (value < feeder_rate_min || value > feeder_rate_max)
 			return (E2BIG);
 		if (value == info->rdst)
 			return (0);
 		info->rdst = value;
 		break;
-	case Z_RATE_QUALITY:
+	case FEEDRATE_QUALITY:
 		if (value < Z_QUALITY_MIN || value > Z_QUALITY_MAX)
 			return (EINVAL);
 		if (value == info->quality)
@@ -1439,7 +1428,7 @@ z_resampler_set(struct pcm_feeder *f, int what, int32_t value)
 			return (0);
 		info->quality = oquality;
 		break;
-	case Z_RATE_CHANNELS:
+	case FEEDRATE_CHANNELS:
 		if (value < SND_CHN_MIN || value > SND_CHN_MAX)
 			return (EINVAL);
 		if (value == info->channels)
@@ -1461,13 +1450,13 @@ z_resampler_get(struct pcm_feeder *f, int what)
 	info = f->data;
 
 	switch (what) {
-	case Z_RATE_SRC:
+	case FEEDRATE_SRC:
 		return (info->rsrc);
-	case Z_RATE_DST:
+	case FEEDRATE_DST:
 		return (info->rdst);
-	case Z_RATE_QUALITY:
+	case FEEDRATE_QUALITY:
 		return (info->quality);
-	case Z_RATE_CHANNELS:
+	case FEEDRATE_CHANNELS:
 		return (info->channels);
 	}
 
