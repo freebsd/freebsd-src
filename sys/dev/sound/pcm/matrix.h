@@ -29,8 +29,6 @@
 #ifndef _SND_MATRIX_H_
 #define _SND_MATRIX_H_
 
-#define SND_MULTICHANNEL	1
-
 /*
  * XXX = unused, but part of the definition (will be used someday, maybe).
  */
@@ -173,12 +171,7 @@
 #define SND_CHN_T_END		SND_CHN_T_TBR
 #define SND_CHN_T_STEP		1
 #define SND_CHN_MIN		1
-
-#ifdef SND_MULTICHANNEL
 #define SND_CHN_MAX		8
-#else
-#define SND_CHN_MAX		2
-#endif
 
 /*
  * Multichannel interleaved volume matrix. Each calculated value relative
