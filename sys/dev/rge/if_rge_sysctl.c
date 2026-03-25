@@ -232,6 +232,11 @@ rge_sysctl_attach(struct rge_softc *sc)
 	    "debug", CTLFLAG_RW, &sc->sc_debug, 0,
 	    "control debugging printfs");
 
+	sc->sc_rx_process_limit = 16;
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "rx_process_limit", CTLFLAG_RW, &sc->sc_rx_process_limit, 0,
+	    "max number of RX packets to process per interrupt");
+
 	/* Stats */
 	rge_sysctl_drv_stats_attach(sc);
 	rge_sysctl_mac_stats_attach(sc);
