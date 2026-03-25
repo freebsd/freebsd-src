@@ -127,7 +127,7 @@ setup_definition(struct macro_definition *d, const char *defn, const char *name)
 			d->defn = __DECONST(char *, null);
 		else
 			d->defn = xstrdup(defn);
-		d->type = MACRTYPE;
+		d->type = MACROTYPE;
 	}
 	if (STREQ(name, defn))
 		d->type |= RECDEF;
@@ -146,7 +146,7 @@ create_entry(const char *name)
 		n = ohash_create_entry(&macro_info, name, &end);
 		ohash_insert(&macros, i, n);
 		n->trace_flags = FLAG_NO_TRACE;
-		n->builtin_type = MACRTYPE;
+		n->builtin_type = MACROTYPE;
 		n->d = NULL;
 	}
 	return n;
@@ -271,7 +271,7 @@ macro_getbuiltin(const char *name)
 	ndptr p;
 
 	p = lookup(name);
-	if (p == NULL || p->builtin_type == MACRTYPE)
+	if (p == NULL || p->builtin_type == MACROTYPE)
 		return NULL;
 	else
 		return p;
