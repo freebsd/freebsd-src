@@ -32,7 +32,7 @@ int
 yyerror(const char *msg)
 {
 	fprintf(stderr, "m4: %s in expr %s\n", msg, copy_toeval);
-	return(0);
+	return 0;
 }
 
 int
