@@ -2099,9 +2099,10 @@ rge_rxeof(struct rge_queues *q, struct mbufq *mq)
 	uint32_t rxstat, extsts;
 	int i, mlen, rx = 0;
 	int cons, prod;
-	int maxpkt = 16; /* XXX TODO: make this a tunable */
+	int maxpkt;
 	bool check_hwcsum;
 
+	maxpkt = sc->sc_rx_process_limit;
 	check_hwcsum = ((if_getcapenable(sc->sc_ifp) & IFCAP_RXCSUM) != 0);
 
 	RGE_ASSERT_LOCKED(sc);

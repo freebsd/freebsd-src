@@ -147,6 +147,11 @@ tunables:
 .Bl -tag -width "xxxxxx"
 .It Va dev.rge.%d.debug
 Configure runtime debug output.  This is a 32 bit bitmask.
+.It Va dev.rge.%d.rx_process_limit
+Maximum number of RX packets to process per interrupt.
+The default value is 16.
+Increasing this value may improve throughput on high-speed links at the
+cost of increased interrupt latency.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
