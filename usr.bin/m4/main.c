@@ -86,7 +86,7 @@ int maxout;
 FILE *active;			/* active output file pointer  */
 int ilevel = 0;			/* input file stack pointer    */
 int oindex = 0;			/* diversion index..	       */
-const char *null = "";                /* as it says.. just a null..  */
+const char *null = "";		/* as it says.. just a null..  */
 char **m4wraps = NULL;		/* m4wraps array.	       */
 int maxwraps = 0;		/* size of m4wraps array       */
 int wrapindex = 0;		/* current offset in m4wraps   */
@@ -388,8 +388,7 @@ macro(void)
 							CHRSAVE(l);
 					}
 				}
-			}
-			while (nlpar != 0);
+			} while (nlpar != 0);
 		} else if (sp < 0 && LOOK_AHEAD(t, scommt)) {
 			reallyoutputstr(scommt);
 
