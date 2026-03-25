@@ -314,10 +314,8 @@ call_again:
 	 */
 	sx_xlock(&xprt->xp_lock);
 	error = sosend(xprt->xp_socket, NULL, NULL, mreq, NULL, 0, curthread);
-if (error != 0) printf("sosend=%d\n", error);
 	mreq = NULL;
 	if (error == EMSGSIZE) {
-printf("emsgsize\n");
 		SOCK_SENDBUF_LOCK(xprt->xp_socket);
 		sbwait(xprt->xp_socket, SO_SND);
 		SOCK_SENDBUF_UNLOCK(xprt->xp_socket);
