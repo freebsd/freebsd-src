@@ -36,6 +36,42 @@
 
 #include <atf-c.h>
 
+#define	PROT1		253 /* RFC3692 */
+#define	PROT2		254 /* RFC3692 */
+#define	ADDR1		{ htonl(0xc0000202) }	/* RFC5737 */
+#define	ADDR2		{ htonl(0xc0000203) }	/* RFC5737 */
+#define	WILD		{ htonl(INADDR_ANY) }
+#define	LOOP(x)		{ htonl(INADDR_LOOPBACK + (x)) }
+#define	MULT(x)		{ htonl(INADDR_UNSPEC_GROUP + (x)) }
+
+static int
+rawsender(bool mcast)
+{
+	int s;
+
+	ATF_REQUIRE((s = socket(PF_INET, SOCK_RAW, 0)) != -1);
+	ATF_REQUIRE(setsockopt(s, IPPROTO_IP, IP_HDRINCL, &(int){1},
+	    sizeof(int)) == 0);
+	/*
+	 * Make sending socket connected.  The socket API requires connected
+	 * status to use send(2), even with IP_HDRINCL.
+	 */
+	ATF_REQUIRE(connect(s,
+	    (struct sockaddr *)&(struct sockaddr_in){
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr = { htonl(INADDR_ANY) },
+	    }, sizeof(struct sockaddr_in)) == 0);
+
+	if (mcast)
+		ATF_REQUIRE(setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF,
+		    &(struct ip_mreqn){
+			.imr_ifindex = if_nametoindex("lo0"),
+		    }, sizeof(struct ip_mreqn)) == 0);
+
+	return (s);
+}
+
 /*
  * The 'input' test exercises logic of rip_input().  The best documentation
  * for raw socket input behavior is collected in Stevens's UNIX Network
@@ -46,65 +82,56 @@
  * The table tests[] describes our expectations.
  */
 ATF_TC_WITHOUT_HEAD(input);
-#define	PROT1	253 /* RFC3692 */
-#define	PROT2	254 /* RFC3692 */
-static const struct rcvr {
-	struct in_addr laddr, faddr, maddr;
-	uint8_t	proto;
-} rcvrs[] = {
-#define	WILD		{ htonl(INADDR_ANY) }
-#define	LOOP(x)		{ htonl(INADDR_LOOPBACK + (x)) }
-#define	MULT(x)		{ htonl(INADDR_UNSPEC_GROUP + (x)) }
-	{ WILD,	   WILD,    WILD,    0 },
-	{ WILD,    WILD,    WILD,    PROT1 },
-	{ LOOP(0), WILD,    WILD,    0 },
-	{ LOOP(0), WILD,    WILD,    PROT1 },
-	{ LOOP(1), WILD,    WILD,    0 },
-	{ LOOP(1), WILD,    WILD,    PROT1 },
-	{ LOOP(0), LOOP(2), WILD,    0 },
-	{ LOOP(0), LOOP(2), WILD,    PROT1 },
-	{ LOOP(0), LOOP(3), WILD,    0 },
-	{ LOOP(0), LOOP(3), WILD,    PROT1 },
-	{ LOOP(1), LOOP(3), WILD,    0 },
-	{ LOOP(1), LOOP(3), WILD,    PROT1 },
-	{ WILD,	   WILD,    MULT(1), 0 },
-};
-static const struct test {
-	struct in_addr src, dst;
-	uint8_t proto;
-	bool results[nitems(rcvrs)];
-} tests[] = {
-#define	x true
-#define	o false
-	{ LOOP(2), LOOP(0), PROT1,
-	  { x, x, x, x, o, o, x, x, o, o, o, o, x } },
-	{ LOOP(2), LOOP(0), PROT2,
-	  { x, o, x, o, o, o, x, o, o, o, o, o, x } },
-	{ LOOP(3), LOOP(0), PROT1,
-	  { x, x, x, x, o, o, o, o, x, x, o, o, x } },
-	{ LOOP(3), LOOP(0), PROT2,
-	  { x, o, x, o, o, o, o, o, x, o, o, o, x } },
-	{ LOOP(2), LOOP(1), PROT1,
-	  { x, x, o, o, x, x, o, o, o, o, o, o, x } },
-	{ LOOP(2), LOOP(1), PROT2,
-	  { x, o, o, o, x, o, o, o, o, o, o, o, x } },
-	{ LOOP(3), LOOP(1), PROT1,
-	  { x, x, o, o, x, x, o, o, o, o, x, x, x } },
-	{ LOOP(3), LOOP(1), PROT2,
-	  { x, o, o, o, x, o, o, o, o, o, x, o, x } },
-	{ LOOP(3), MULT(1), PROT1,
-	  { x, x, o, o, o, o, o, o, o, o, o, o, x } },
-	{ LOOP(3), MULT(2), PROT1,
-	  { x, x, o, o, o, o, o, o, o, o, o, o, o } },
-#undef WILD
-#undef LOOP
-#undef MULT
-#undef x
-#undef o
-};
-
 ATF_TC_BODY(input, tc)
 {
+	static const struct rcvr {
+		struct in_addr laddr, faddr, maddr;
+		uint8_t	proto;
+	} rcvrs[] = {
+		{ WILD,	   WILD,    WILD,    0 },
+		{ WILD,    WILD,    WILD,    PROT1 },
+		{ LOOP(0), WILD,    WILD,    0 },
+		{ LOOP(0), WILD,    WILD,    PROT1 },
+		{ LOOP(1), WILD,    WILD,    0 },
+		{ LOOP(1), WILD,    WILD,    PROT1 },
+		{ LOOP(0), LOOP(2), WILD,    0 },
+		{ LOOP(0), LOOP(2), WILD,    PROT1 },
+		{ LOOP(0), LOOP(3), WILD,    0 },
+		{ LOOP(0), LOOP(3), WILD,    PROT1 },
+		{ LOOP(1), LOOP(3), WILD,    0 },
+		{ LOOP(1), LOOP(3), WILD,    PROT1 },
+		{ WILD,	   WILD,    MULT(1), 0 },
+	};
+	static const struct test {
+		struct in_addr src, dst;
+		uint8_t proto;
+		bool results[nitems(rcvrs)];
+	} tests[] = {
+#define	x true
+#define	o false
+		{ LOOP(2), LOOP(0), PROT1,
+		  { x, x, x, x, o, o, x, x, o, o, o, o, x } },
+		{ LOOP(2), LOOP(0), PROT2,
+		  { x, o, x, o, o, o, x, o, o, o, o, o, x } },
+		{ LOOP(3), LOOP(0), PROT1,
+		  { x, x, x, x, o, o, o, o, x, x, o, o, x } },
+		{ LOOP(3), LOOP(0), PROT2,
+		  { x, o, x, o, o, o, o, o, x, o, o, o, x } },
+		{ LOOP(2), LOOP(1), PROT1,
+		  { x, x, o, o, x, x, o, o, o, o, o, o, x } },
+		{ LOOP(2), LOOP(1), PROT2,
+		  { x, o, o, o, x, o, o, o, o, o, o, o, x } },
+		{ LOOP(3), LOOP(1), PROT1,
+		  { x, x, o, o, x, x, o, o, o, o, x, x, x } },
+		{ LOOP(3), LOOP(1), PROT2,
+		  { x, o, o, o, x, o, o, o, o, o, x, o, x } },
+		{ LOOP(3), MULT(1), PROT1,
+		  { x, x, o, o, o, o, o, o, o, o, o, o, x } },
+		{ LOOP(3), MULT(2), PROT1,
+		  { x, x, o, o, o, o, o, o, o, o, o, o, o } },
+#undef x
+#undef o
+	};
 	struct pkt {
 		struct ip ip;
 		char payload[100];
@@ -158,24 +185,11 @@ ATF_TC_BODY(input, tc)
 		}
 	}
 
-	ATF_REQUIRE((s = socket(PF_INET, SOCK_RAW, 0)) != -1);
-	ATF_REQUIRE(setsockopt(s, IPPROTO_IP, IP_HDRINCL, &(int){1},
-	    sizeof(int)) == 0);
-	/*
-	 * Make sending socket connected.  The socket API requires connected
-	 * status to use send(2), even with IP_HDRINCL.  Another side effect
-	 * is that the sending socket won't receive own datagrams, which we
-	 * don't drain out in this program.
-	 */
-	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK + 100);
-	ATF_REQUIRE(connect(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	/*
 	 * Force multicast interface for the sending socket to be able to
 	 * send to MULT(x) destinations.
 	 */
-	mreqn.imr_multiaddr.s_addr = 0;
-	ATF_REQUIRE(setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &mreqn,
-	    sizeof(mreqn)) == 0);
+	s = rawsender(true);
 
 	for (u_int i = 0; i < nitems(tests); i++) {
 		arc4random_buf(&pkt.payload, sizeof(pkt.payload));
@@ -211,9 +225,94 @@ ATF_TC_BODY(input, tc)
 	}
 }
 
+/*
+ * Test input on the same socket that changes its connection status.  We send
+ * packets with different sources in each iteration and check results.
+ * Check that connect(INADDR_ANY) is effectively a disconnect and turns socket
+ * back to receive-all mode.
+ */
+ATF_TC_WITHOUT_HEAD(reconnect);
+ATF_TC_BODY(reconnect, tc)
+{
+	static const struct in_addr srcs[] = { ADDR1, ADDR2 };
+	static const struct test {
+		struct in_addr faddr;
+		bool results[nitems(srcs)];
+	} tests[] = {
+		{ ADDR1,	{ true, false } },
+		{ ADDR2,	{ false, true } },
+		{ {INADDR_ANY},	{ true, true } },
+	};
+	struct pkt {
+		struct ip ip;
+		char payload[100];
+	} __packed pkt = {
+		.ip.ip_v = IPVERSION,
+		.ip.ip_hl = sizeof(struct ip) >> 2,
+		.ip.ip_len = htons(sizeof(struct pkt)),
+		.ip.ip_ttl = 16,
+		.ip.ip_p = PROT1,
+		.ip.ip_dst = LOOP(0),
+	};
+	int r, s;
+
+	/* XXX */
+	system("/sbin/ifconfig lo0 127.0.0.1/32");
+
+	ATF_REQUIRE((r = socket(PF_INET, SOCK_RAW | SOCK_NONBLOCK, 0)) != -1);
+	s = rawsender(false);
+
+	for (u_int i = 0; i < nitems(tests); i++) {
+		ATF_REQUIRE(connect(r,
+		    (struct sockaddr *)&(struct sockaddr_in){
+			.sin_family = AF_INET,
+			.sin_len = sizeof(struct sockaddr_in),
+			.sin_addr = tests[i].faddr,
+		    }, sizeof(struct sockaddr_in)) == 0);
+
+		for (u_int j = 0; j < nitems(srcs); j++) {
+			char buf[sizeof(pkt)];
+			char p[2][INET_ADDRSTRLEN];
+			ssize_t ss;
+
+			arc4random_buf(&pkt.payload, sizeof(pkt.payload));
+			pkt.ip.ip_src = srcs[j];
+			ATF_REQUIRE(send(s, &pkt, sizeof(pkt), 0) ==
+			    sizeof(pkt));
+
+			/*
+			 * The sender is a blocking socket, so we first receive
+			 * from the sender and when this read returns we are
+			 * guaranteed that the test socket also received the
+			 * datagram.
+			 */
+			ss = recv(s, buf, sizeof(buf), 0);
+			ATF_REQUIRE(ss == sizeof(buf) &&
+			    memcmp(buf + sizeof(struct ip),
+			    pkt.payload, sizeof(pkt.payload)) == 0);
+
+			ss = recv(r, buf, sizeof(buf), 0);
+
+			ATF_REQUIRE_MSG((tests[i].results[j] == true &&
+			    ss == sizeof(buf) && memcmp(buf + sizeof(struct ip),
+			    pkt.payload, sizeof(pkt.payload)) == 0) ||
+			    (tests[i].results[j] == false && ss == -1 &&
+			    errno == EAGAIN),
+			    "test #%u src %s connect address %s unexpected "
+			    "receive of %zd bytes errno %d", i,
+			    inet_ntop(AF_INET, &srcs[j], p[0],
+				INET_ADDRSTRLEN),
+			    inet_ntop(AF_INET, &tests[i].faddr, p[1],
+				INET_ADDRSTRLEN),
+			    ss, errno);
+		}
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, input);
+	ATF_TP_ADD_TC(tp, reconnect);
 
 	return (atf_no_error());
 }
