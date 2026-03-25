@@ -46,6 +46,11 @@ capable of TCP large send (TCP segmentation offload).
 .Pp
 The RTL8125, RTL8126 and RTL8127 devices are single-chip solutions combining
 both a MAC and PHY.
+The
+.Nm
+driver manages the PHY directly rather than using the
+.Xr miibus 4
+interface.
 Standalone cards are available in 1x PCIe models.
 .Pp
 The RTL8125, RTL8126 and RTL8127 also support jumbo frames, which can be
@@ -121,8 +126,18 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports RealTek RTL8125, RTL8126, RTL8127 and Killer E3000 based
-PCIe 1GB to 1GB Ethernet devices.
+driver supports the following PCIe Ethernet adapters:
+.Pp
+.Bl -bullet -compact
+.It
+RealTek RTL8125 (up to 2.5 Gbps)
+.It
+RealTek RTL8126 (up to 5 Gbps)
+.It
+RealTek RTL8127 (up to 10 Gbps)
+.It
+Killer E3000 (up to 2.5 Gbps)
+.El
 .Sh SYSCTL VARIABLES
 The following variables are available as both
 .Xr sysctl 8
