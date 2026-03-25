@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260325:
+	15.0-RELEASE-p5	SA-26:06.tcp
+			SA-26:07.nvmf
+			SA-26:08.rpcsec_gss
+			SA-26:09.pf
+
+	TCP: remotely exploitable DoS vector (mbuf leak). [SA-26:06.tcp]
+
+	Remote denial of service via null pointer dereference. [SA-26:07.nvmf]
+
+	Remote code execution via RPCSEC_GSS packet validation. [SA-26:08.rpcsec_gss]
+
+	pf silently ignores certain rules. [SA-26:09.pf]
+
 20260224:
 	15.0-RELEASE-p4	SA-26:05.route
 
