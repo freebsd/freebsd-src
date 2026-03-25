@@ -128,8 +128,7 @@ virtdone:
 
 	/* Set up the stack */
 	adrp	x25, initstack_end
-	add	x25, x25, :lo12:initstack_end
-	sub	sp, x25, #PCB_SIZE
+	add	sp, x25, :lo12:initstack_end
 
 	/* Zero the BSS */
 	ldr	x15, .Lbss
