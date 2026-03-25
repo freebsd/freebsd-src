@@ -55,7 +55,6 @@ struct debug_monitor_state;
 
 #ifdef _KERNEL
 
-struct pcb;
 struct pcpu;
 
 static inline struct pcpu *
