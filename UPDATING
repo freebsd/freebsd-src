@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260325:
+	13.5-RELEASE-p11 SA-26:08.rpcsec_gss
+
+	Remote code execution via RPCSEC_GSS packet validation. [SA-26:08.rpcsec_gss]
+
 20260224:
 	13.5-RELEASE-p10 SA-26:04.jail
 			SA-26:05.route
