@@ -137,8 +137,8 @@ static ndptr
 create_entry(const char *name)
 {
 	const char *end = NULL;
-	unsigned int i;
 	ndptr n;
+	unsigned int i;
 
 	i = ohash_qlookupi(&macros, name, &end);
 	n = ohash_find(&macros, i);
@@ -156,6 +156,7 @@ void
 macro_define(const char *name, const char *defn)
 {
 	ndptr n = create_entry(name);
+
 	if (n->d != NULL) {
 		if (n->d->defn != null)
 			free_definition(n->d->defn);
@@ -183,6 +184,7 @@ void
 macro_undefine(const char *name)
 {
 	ndptr n = lookup(name);
+
 	if (n != NULL) {
 		struct macro_definition *r, *r2;
 
@@ -295,21 +297,21 @@ keep(char *ptr)
 			kept_capacity *= 2;
 		else
 			kept_capacity = 50;
-		kept = xreallocarray(kept, kept_capacity, 
-		    sizeof(char *), "Out of memory while saving %d strings\n", 
+		kept = xreallocarray(kept, kept_capacity,
+		    sizeof(char *), "Out of memory while saving %d strings\n",
 		    kept_capacity);
 	}
 	kept[kept_size++] = ptr;
 }
 
 static int
-string_in_use(const char *ptr) 
+string_in_use(const char *ptr)
 {
 	int i;
-	for (i = 0; i <= sp; i++) {
+
+	for (i = 0; i <= sp; i++)
 		if (sstack[i] == STORAGE_MACRO && mstack[i].sstr == ptr)
 			return 1;
-		}
 	return 0;
 }
 
@@ -324,7 +326,7 @@ free_definition(char *ptr)
 		if (!string_in_use(kept[i])) {
 			kept_size--;
 			free(kept[i]);
-			if (i != kept_size) 
+			if (i != kept_size)
 				kept[i] = kept[kept_size];
 			i--;
 		}
@@ -336,4 +338,3 @@ free_definition(char *ptr)
 	else
 		free(ptr);
 }
-
