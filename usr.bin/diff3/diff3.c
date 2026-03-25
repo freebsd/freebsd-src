@@ -73,14 +73,17 @@
 #include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+extern char **environ;
 /*
  * "from" is first in range of changed lines; "to" is last+1
  * from=to=line after point of insertion for added lines.
@@ -301,23 +304,30 @@ readin(int fd, struct diff **dd)
 }
 
 static int
-diffexec(const char *diffprog, char **diffargv, int fd[])
+diffexec(char **diffargv, int fd[])
 {
-	int pd;
+	posix_spawnattr_t sa;
+	posix_spawn_file_actions_t fa;
+	pid_t pid;
+	int pd, error;
 
-	switch (pdfork(&pd, PD_CLOEXEC)) {
-	case 0:
-		close(fd[0]);
-		if (dup2(fd[1], STDOUT_FILENO) == -1)
-			err(2, "child could not duplicate descriptor");
-		close(fd[1]);
-		execvp(diffprog, diffargv);
-		err(2, "could not execute diff: %s", diffprog);
-		break;
-	case -1:
-		err(2, "could not fork");
-		break;
-	}
+	if ((error = posix_spawnattr_init(&sa)) != 0)
+		errc(2, error, "posix_spawnattr_init");
+	if ((error = posix_spawn_file_actions_init(&fa)) != 0)
+		errc(2, error, "posix_spawn_file_actions_init");
+
+	posix_spawnattr_setprocdescp_np(&sa, &pd, 0);
+
+	posix_spawn_file_actions_addclose(&fa, fd[0]);
+	posix_spawn_file_actions_adddup2(&fa, fd[1], STDOUT_FILENO);
+	posix_spawn_file_actions_addclose(&fa, fd[1]);
+
+	error = posix_spawn(&pid, diffargv[0], &fa, &sa, diffargv, environ);
+	if (error != 0)
+		errc(2, error, "could not spawn diff");
+
+	posix_spawn_file_actions_destroy(&fa);
+	posix_spawnattr_destroy(&sa);
 	close(fd[1]);
 	return (pd);
 }
@@ -1004,7 +1014,7 @@ main(int argc, char **argv)
 			eflag = EFLAG_OVERLAP;
 			break;
 		case DIFFPROG_OPT:
-			diffprog = optarg;
+			diffargv[0] = optarg;
 			break;
 		case STRIPCR_OPT:
 			strip_cr = 1;
@@ -1079,13 +1089,14 @@ main(int argc, char **argv)
 	if (pipe(fd23))
 		err(2, "pipe");
 
+
 	diffargv[diffargc] = file1;
 	diffargv[diffargc + 1] = file3;
 	diffargv[diffargc + 2] = NULL;
-	pd13 = diffexec(diffprog, diffargv, fd13);
+	pd13 = diffexec(diffargv, fd13);
 
 	diffargv[diffargc] = file2;
-	pd23 = diffexec(diffprog, diffargv, fd23);
+	pd23 = diffexec(diffargv, fd23);
 
 	caph_cache_catpages();
 	if (caph_enter() < 0)
