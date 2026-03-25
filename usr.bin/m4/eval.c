@@ -60,17 +60,17 @@
 
 static void	dodefn(const char *);
 static void	dopushdef(const char *, const char *);
-static void	dodump(const char *[], int);
+static void	dodumpdef(const char *[], int);
 static void	dotrace(const char *[], int, int);
 static void	doifelse(const char *[], int);
-static int	doincl(const char *);
+static int	doinclude(const char *);
 static int	dopaste(const char *);
-static void	dochq(const char *[], int);
-static void	dochc(const char *[], int);
+static void	dochangequote(const char *[], int);
+static void	dochangecom(const char *[], int);
 static void	dom4wrap(const char *);
-static void	dodiv(int);
-static void	doundiv(const char *[], int);
-static void	dosub(const char *[], int);
+static void	dodivert(int);
+static void	doundivert(const char *[], int);
+static void	dosubstr(const char *[], int);
 static void	map(char *, const char *, const char *, const char *);
 static const char *handledash(char *, char *, const char *);
 static void	expand_builtin(const char *[], int, int);
@@ -108,7 +108,7 @@ eval(const char *argv[], int argc, int td, int is_traced)
 		m4errx(1, "expanding recursive definition for %s.", argv[1]);
 	if (is_traced)
 		mark = trace(argv, argc, infile+ilevel);
-	if (td == MACRTYPE)
+	if (td == MACROTYPE)
 		expand_macro(argv, argc);
 	else
 		expand_builtin(argv, argc, td);
@@ -149,18 +149,18 @@ expand_builtin(const char *argv[], int argc, int td)
 
 	switch (td & TYPEMASK) {
 
-	case DEFITYPE:
+	case DEFINETYPE:
 		if (argc > 2)
 			dodefine(argv[2], (argc > 3) ? argv[3] : null);
 		break;
 
-	case PUSDTYPE:
+	case PUSHDEFTYPE:
 		if (argc > 2)
 			dopushdef(argv[2], (argc > 3) ? argv[3] : null);
 		break;
 
-	case DUMPTYPE:
-		dodump(argv, argc);
+	case DUMPDEFTYPE:
+		dodumpdef(argv, argc);
 		break;
 
 	case TRACEONTYPE:
@@ -171,10 +171,9 @@ expand_builtin(const char *argv[], int argc, int td)
 		dotrace(argv, argc, 0);
 		break;
 
-	case EXPRTYPE:
+	case EVALTYPE:
 	/*
-	 * doexpr - evaluate arithmetic
-	 * expression
+	 * doeval - evaluate arithmetic expression
 	 */
 	{
 		int base = 10;
@@ -184,14 +183,14 @@ expand_builtin(const char *argv[], int argc, int td)
 		if (argc > 3 && *argv[3] != '\0') {
 			base = strtonum(argv[3], 2, 36, &errstr);
 			if (errstr) {
-				m4errx(1, "expr: base is %s: %s.",
+				m4errx(1, "eval: base is %s: %s.",
 				    errstr, argv[3]);
 			}
 		}
 		if (argc > 4) {
 			mindigits = strtonum(argv[4], 0, INT_MAX, &errstr);
 			if (errstr) {
-				m4errx(1, "expr: mindigits is %s: %s.",
+				m4errx(1, "eval: mindigits is %s: %s.",
 				    errstr, argv[4]);
 			}
 		}
@@ -200,15 +199,14 @@ expand_builtin(const char *argv[], int argc, int td)
 		break;
 	}
 
-	case IFELTYPE:
+	case IFELSETYPE:
 		doifelse(argv, argc);
 		break;
 
-	case IFDFTYPE:
+	case IFDEFTYPE:
 	/*
-	 * doifdef - select one of two
-	 * alternatives based on the existence of
-	 * another definition
+	 * doifdef - select one of two alternatives based
+	 * on the existence of another definition
 	 */
 		if (argc > 3) {
 			if (lookup_macro_definition(argv[2]) != NULL)
@@ -218,18 +216,16 @@ expand_builtin(const char *argv[], int argc, int td)
 		}
 		break;
 
-	case LENGTYPE:
+	case LENTYPE:
 	/*
-	 * dolen - find the length of the
-	 * argument
+	 * dolen - find the length of the argument
 	 */
 		pbnum((argc > 2) ? strlen(argv[2]) : 0);
 		break;
 
 	case INCRTYPE:
 	/*
-	 * doincr - increment the value of the
-	 * argument
+	 * doincr - increment the value of the argument
 	 */
 		if (argc > 2) {
 			n = strtonum(argv[2], INT_MIN, INT_MAX-1, &errstr);
@@ -242,8 +238,7 @@ expand_builtin(const char *argv[], int argc, int td)
 
 	case DECRTYPE:
 	/*
-	 * dodecr - decrement the value of the
-	 * argument
+	 * dodecr - decrement the value of the argument
 	 */
 		if (argc > 2) {
 			n = strtonum(argv[2], INT_MIN+1, INT_MAX, &errstr);
@@ -254,9 +249,9 @@ expand_builtin(const char *argv[], int argc, int td)
 		}
 		break;
 
-	case SYSCTYPE:
+	case SYSCMDTYPE:
 	/*
-	 * dosys - execute system command
+	 * dosyscmd - execute system command
 	 */
 		if (argc > 2) {
 			fflush(stdout);
@@ -264,10 +259,9 @@ expand_builtin(const char *argv[], int argc, int td)
 		}
 		break;
 
-	case SYSVTYPE:
+	case SYSVALTYPE:
 	/*
-	 * dosysval - return value of the last
-	 * system call.
+	 * dosysval - return value of the last system call.
 	 *
 	 */
 		pbnum(sysval);
@@ -277,9 +271,9 @@ expand_builtin(const char *argv[], int argc, int td)
 		if (argc > 2)
 			doesyscmd(argv[2]);
 		break;
-	case INCLTYPE:
+	case INCLUDETYPE:
 		if (argc > 2) {
-			if (!doincl(argv[2])) {
+			if (!doinclude(argv[2])) {
 				if (mimic_gnu) {
 					warn("%s at line %lu: include(%s)",
 					    CURRENT_NAME, CURRENT_LINE, argv[2]);
@@ -295,19 +289,20 @@ expand_builtin(const char *argv[], int argc, int td)
 		}
 		break;
 
-	case SINCTYPE:
+	case SINCLUDETYPE:
+	/* like include, but don't error out if file not found */
 		if (argc > 2)
-			(void) doincl(argv[2]);
+			(void) doinclude(argv[2]);
 		break;
 #ifdef EXTENDED
-	case PASTTYPE:
+	case PASTETYPE:
 		if (argc > 2)
 			if (!dopaste(argv[2]))
 				err(1, "%s at line %lu: paste(%s)", 
 				    CURRENT_NAME, CURRENT_LINE, argv[2]);
 		break;
 
-	case SPASTYPE:
+	case SPASTETYPE:
 		if (argc > 2)
 			(void) dopaste(argv[2]);
 		break;
@@ -315,28 +310,27 @@ expand_builtin(const char *argv[], int argc, int td)
 		doformat(argv, argc);
 		break;
 #endif
-	case CHNQTYPE:
-		dochq(argv, ac);
+	case CHANGEQUOTETYPE:
+		dochangequote(argv, ac);
 		break;
 
-	case CHNCTYPE:
-		dochc(argv, argc);
+	case CHANGECOMTYPE:
+		dochangecom(argv, argc);
 		break;
 
-	case SUBSTYPE:
+	case SUBSTRTYPE:
 	/*
-	 * dosub - select substring
+	 * dosubstr - select substring
 	 *
 	 */
 		if (argc > 3)
-			dosub(argv, argc);
+			dosubstr(argv, argc);
 		break;
 
-	case SHIFTYPE:
+	case SHIFTTYPE:
 	/*
-	 * doshift - push back all arguments
-	 * except the first one (i.e. skip
-	 * argv[2])
+	 * doshift - push back all arguments except the first one
+	 * (i.e. skip argv[2])
 	 */
 		if (argc > 3) {
 			for (n = argc - 1; n > 3; n--) {
@@ -351,14 +345,14 @@ expand_builtin(const char *argv[], int argc, int td)
 		}
 		break;
 
-	case DIVRTYPE:
+	case DIVERTTYPE:
 		if (argc > 2) {
 			n = strtonum(argv[2], INT_MIN, INT_MAX, &errstr);
 			if (errstr)
 				m4errx(1, "divert: argument is %s: %s.",
 				    errstr, argv[2]);
 			if (n != 0) {
-				dodiv(n);
+				dodivert(n);
 				 break;
 			}
 		}
@@ -366,42 +360,40 @@ expand_builtin(const char *argv[], int argc, int td)
 		oindex = 0;
 		break;
 
-	case UNDVTYPE:
-		doundiv(argv, argc);
+	case UNDIVERTTYPE:
+		doundivert(argv, argc);
 		break;
 
-	case DIVNTYPE:
+	case DIVNUMTYPE:
 	/*
-	 * dodivnum - return the number of
-	 * current output diversion
+	 * dodivnum - return the number of current output diversion
 	 */
 		pbnum(oindex);
 		break;
 
-	case UNDFTYPE:
+	case UNDEFINETYPE:
 	/*
-	 * doundefine - undefine a previously
-	 * defined macro(s) or m4 keyword(s).
+	 * doundefine - undefine a previously defined macro(s) or m4
+	 * keyword(s).
 	 */
 		if (argc > 2)
 			for (n = 2; n < argc; n++)
 				macro_undefine(argv[n]);
 		break;
 
-	case POPDTYPE:
+	case POPDEFTYPE:
 	/*
-	 * dopopdef - remove the topmost
-	 * definitions of macro(s) or m4
-	 * keyword(s).
+	 * dopopdef - remove the topmost definitions of macro(s)
+	 * or m4 keyword(s).
 	 */
 		if (argc > 2)
 			for (n = 2; n < argc; n++)
 				macro_popdef(argv[n]);
 		break;
 
-	case MKTMTYPE:
+	case MKSTEMPTYPE:
 	/*
-	 * dotemp - create a temporary file
+	 * domkstemp - safely create a temporary file
 	 */
 		if (argc > 2) {
 			int fd;
@@ -420,11 +412,10 @@ expand_builtin(const char *argv[], int argc, int td)
 		}
 		break;
 
-	case TRNLTYPE:
+	case TRANSLITTYPE:
 	/*
-	 * dotranslit - replace all characters in
-	 * the source string that appears in the
-	 * "from" string with the corresponding
+	 * dotranslit - replace all characters in the source string
+	 * that appear in the "from" string with the corresponding
 	 * characters in the "to" string.
 	 */
 		if (argc > 3) {
@@ -441,19 +432,17 @@ expand_builtin(const char *argv[], int argc, int td)
 			pbstr(argv[2]);
 		break;
 
-	case INDXTYPE:
+	case INDEXTYPE:
 	/*
-	 * doindex - find the index of the second
-	 * argument string in the first argument
-	 * string. -1 if not present.
+	 * doindex - find the index of the second argument string
+	 * in the first argument string. -1 if not present.
 	 */
-		pbnum((argc > 3) ? indx(argv[2], argv[3]) : -1);
+		pbnum((argc > 3) ? doindex(argv[2], argv[3]) : -1);
 		break;
 
-	case ERRPTYPE:
+	case ERRPRINTTYPE:
 	/*
-	 * doerrp - print the arguments to stderr
-	 * file
+	 * doerrprint - print the arguments to stderr
 	 */
 		if (argc > 2) {
 			for (n = 2; n < argc; n++)
@@ -462,16 +451,15 @@ expand_builtin(const char *argv[], int argc, int td)
 		}
 		break;
 
-	case DNLNTYPE:
+	case DNLTYPE:
 	/*
-	 * dodnl - eat-up-to and including
-	 * newline
+	 * dodnl - eat-up-to and including newline
 	 */
 		while ((c = gpbc()) != '\n' && c != EOF)
 			;
 		break;
 
-	case M4WRTYPE:
+	case M4WRAPTYPE:
 	/*
 	 * dom4wrap - set up for
 	 * wrap-up/wind-down activity
@@ -480,9 +468,9 @@ expand_builtin(const char *argv[], int argc, int td)
 			dom4wrap(argv[2]);
 		break;
 
-	case EXITTYPE:
+	case M4EXITTYPE:
 	/*
-	 * doexit - immediate exit from m4.
+	 * dom4exit - immediate exit from m4.
 	 */
 		killdiv();
 		exit((argc > 2) ? atoi(argv[2]) : 0);
@@ -504,7 +492,7 @@ expand_builtin(const char *argv[], int argc, int td)
 			dobuiltin(argv, argc);
 		break;
 
-	case PATSTYPE:
+	case PATSUBSTTYPE:
 		if (argc > 2)
 			dopatsubst(argv, argc);
 		break;
@@ -625,7 +613,7 @@ dodefn(const char *name)
 	struct macro_definition *p;
 
 	if ((p = lookup_macro_definition(name)) != NULL) {
-		if ((p->type & TYPEMASK) == MACRTYPE) {
+		if ((p->type & TYPEMASK) == MACROTYPE) {
 			pbstr(rquote);
 			pbstr(p->defn);
 			pbstr(lquote);
@@ -661,7 +649,7 @@ dump_one_def(const char *name, struct macro_definition *p)
 	if (!traceout)
 		traceout = stderr;
 	if (mimic_gnu) {
-		if ((p->type & TYPEMASK) == MACRTYPE)
+		if ((p->type & TYPEMASK) == MACROTYPE)
 			fprintf(traceout, "%s:\t%s\n", name, p->defn);
 		else {
 			fprintf(traceout, "%s:\t<%s>\n", name, p->defn);
@@ -676,7 +664,7 @@ dump_one_def(const char *name, struct macro_definition *p)
  *      hash table is dumped.
  */
 static void
-dodump(const char *argv[], int argc)
+dodumpdef(const char *argv[], int argc)
 {
 	int n;
 	struct macro_definition *p;
@@ -728,7 +716,7 @@ doifelse(const char *argv[], int argc)
  * doinclude - include a given file.
  */
 static int
-doincl(const char *ifile)
+doinclude(const char *ifile)
 {
 	if (ilevel + 1 == MAXINP)
 		m4errx(1, "too many include files.");
@@ -765,10 +753,10 @@ dopaste(const char *pfile)
 #endif
 
 /*
- * dochq - change quote characters
+ * dochangequote - change quote characters
  */
 static void
-dochq(const char *argv[], int ac)
+dochangequote(const char *argv[], int ac)
 {
 	if (ac == 2) {
 		lquote[0] = LQUOTE; lquote[1] = EOS;
@@ -784,10 +772,10 @@ dochq(const char *argv[], int ac)
 }
 
 /*
- * dochc - change comment characters
+ * dochangecom - change comment characters
  */
 static void
-dochc(const char *argv[], int argc)
+dochangecom(const char *argv[], int argc)
 {
 /* XXX Note that there is no difference between no argument and a single
  * empty argument.
@@ -826,7 +814,7 @@ dom4wrap(const char *text)
  * dodivert - divert the output to a temporary file
  */
 static void
-dodiv(int n)
+dodivert(int n)
 {
 	int fd;
 
@@ -856,7 +844,7 @@ dodiv(int n)
  *              other outputs, in numerical order.
  */
 static void
-doundiv(const char *argv[], int argc)
+doundivert(const char *argv[], int argc)
 {
 	int ind;
 	int n;
@@ -881,10 +869,10 @@ doundiv(const char *argv[], int argc)
 }
 
 /*
- * dosub - select substring
+ * dosubstr - select substring
  */
 static void
-dosub(const char *argv[], int argc)
+dosubstr(const char *argv[], int argc)
 {
 	const char *ap, *fc, *k;
 	int nc;
