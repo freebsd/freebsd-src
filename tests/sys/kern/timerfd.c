@@ -25,11 +25,11 @@
 #include <atf-c.h>
 
 #include <sys/types.h>
-
 #include <sys/event.h>
 #include <sys/param.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/timerfd.h>
 
 #include <errno.h>
 #include <signal.h>
@@ -43,8 +43,6 @@
 #include <pthread.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <sys/timerfd.h>
 
 /* Time in ns that sleeps are allowed to take longer for in unit tests. */
 #define TIMER_SLACK (90000000)
@@ -739,6 +737,7 @@ ATF_TC_BODY(timerfd__periodic_timer_performance, tc)
 	uint64_t timeouts;
 	ATF_REQUIRE(read(timerfd, &timeouts, sizeof(timeouts)) ==
 	    (ssize_t)sizeof(timeouts));
+	atf_tc_expect_fail("https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=294053");
 	ATF_REQUIRE_MSG(timeouts >= 400000000, "%ld", (long)timeouts);
 
 	ATF_REQUIRE(close(timerfd) == 0);
