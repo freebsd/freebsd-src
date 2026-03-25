@@ -204,7 +204,7 @@ struct input_file {
 		mstack[sp].sstr = macro_getdef(p)->defn;\
 		sstack[sp] = STORAGE_MACRO; \
 	} while (0)
-		
+
 
 /*
  *	    .				   .
