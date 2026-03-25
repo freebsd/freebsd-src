@@ -68,7 +68,7 @@ unsigned char *endpbb;			/* end of push-back buffer     */
  * find the index of second str in the first str.
  */
 ptrdiff_t
-indx(const char *s1, const char *s2)
+doindex(const char *s1, const char *s2)
 {
 	char *t;
 
