@@ -88,7 +88,7 @@ firewall_init()
 		if ! kldstat -q -m ipfw; then
 			atf_skip "This test requires ipfw"
 		elif [ $(sysctl -n net.inet.ip.fw.default_to_accept) -ne 1 ]; then
-			atf_fail "ipfw tests require net.inet.ip.fw.default_to_accept=1 tunable"
+			atf_skip "ipfw tests require net.inet.ip.fw.default_to_accept=1 tunable"
 		fi
 	elif [ ${firewall} == "pf" ]; then
 		if [ ! -c /dev/pf ]; then
