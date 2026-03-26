@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 3, 1999
+.Dd March 26, 2026
 .Dt KLDLOAD 2
 .Os
 .Sh NAME
@@ -39,7 +39,20 @@
 The
 .Fn kldload
 system call
-loads a kld file into the kernel using the kernel linker.
+loads a kld file specified by
+.Fa file
+into the kernel using the kernel linker (see
+.Xr kld 4 ) .
+The
+.Fa file
+can be specified as a full or relative path, or otherwise is searched
+within the module path as defined by the
+loader tunable and sysctl variable
+.Va kern.module_path .
+The .ko
+extension for
+.Fa file
+is not mandatory.
 .Sh RETURN VALUES
 The
 .Fn kldload
