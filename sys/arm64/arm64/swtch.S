@@ -75,7 +75,7 @@
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-	/* Of old == NULL skip disabling stepping */
+	/* If old == NULL skip disabling stepping */
 	cbz	x0, 1f
 
 	/* If we were single stepping, disable it */
