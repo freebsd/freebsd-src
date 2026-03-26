@@ -1521,7 +1521,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * We initialize the PCB pointer early so that exception
 	 * handlers will work.
 	 */
-	cpu_max_ext_state_size = sizeof(struct savefpu);
 	set_top_of_stack_td(&thread0);
 	thread0.td_pcb = get_pcb_td(&thread0);
 
