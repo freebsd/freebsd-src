@@ -339,7 +339,8 @@ uart_pci_attach(device_t dev)
 	 * suggests this is only reliable when one MSI vector is advertised.
 	 */
 	id = uart_pci_match(dev, pci_ns8250_ids);
-	if ((id == NULL || (id->rid & PCI_NO_MSI) == 0) &&
+	/* Always disable MSI for generic devices. */
+	if (id != NULL && (id->rid & PCI_NO_MSI) == 0 &&
 	    pci_msi_count(dev) == 1) {
 		count = 1;
 		if (pci_alloc_msi(dev, &count) == 0) {
