@@ -737,7 +737,8 @@ ATF_TC_BODY(timerfd__periodic_timer_performance, tc)
 	uint64_t timeouts;
 	ATF_REQUIRE(read(timerfd, &timeouts, sizeof(timeouts)) ==
 	    (ssize_t)sizeof(timeouts));
-	atf_tc_expect_fail("https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=294053");
+	if (timeouts < 400000000)
+		atf_tc_expect_fail("https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=294053");
 	ATF_REQUIRE_MSG(timeouts >= 400000000, "%ld", (long)timeouts);
 
 	ATF_REQUIRE(close(timerfd) == 0);
