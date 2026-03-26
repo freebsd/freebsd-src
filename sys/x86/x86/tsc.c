@@ -433,6 +433,8 @@ probe_tsc_freq_late(void)
 void
 start_TSC(void)
 {
+	uint64_t mperf, aperf;
+
 	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
 		return;
 
@@ -442,11 +444,12 @@ start_TSC(void)
 		/*
 		 * XXX Some emulators expose host CPUID without actual support
 		 * for these MSRs.  We must test whether they really work.
+		 * They may also be read-only, so test for increment.
 		 */
-		wrmsr(MSR_MPERF, 0);
-		wrmsr(MSR_APERF, 0);
+		mperf = rdmsr(MSR_MPERF);
+		aperf = rdmsr(MSR_APERF);
 		DELAY(10);
-		if (rdmsr(MSR_MPERF) > 0 && rdmsr(MSR_APERF) > 0)
+		if (rdmsr(MSR_MPERF) != mperf && rdmsr(MSR_APERF) != aperf)
 			tsc_perf_stat = 1;
 	}
 
