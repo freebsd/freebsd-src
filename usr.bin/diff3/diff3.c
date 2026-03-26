@@ -947,6 +947,7 @@ wait_and_check(int pd)
 		if (errno != EINTR)
 			err(2, "pdwait");
 	}
+	close(pd);
 
 	if (WIFEXITED(status) && WEXITSTATUS(status) >= 2)
 		errx(2, "diff exited abnormally");
