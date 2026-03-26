@@ -167,8 +167,6 @@ copy_thread(struct thread *td1, struct thread *td2)
 		clear_pcb_flags(pcb2, PCB_TLSBASE);
 	}
 
-	td2->td_frame = (struct trapframe *)td2->td_md.md_stack_base - 1;
-
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
@@ -240,9 +238,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		return;
 	}
 
-	/* Point the stack and pcb to the actual location */
-	set_top_of_stack_td(td2);
-	td2->td_pcb = pcb2 = get_pcb_td(td2);
+	pcb2 = td2->td_pcb;
 
 	copy_thread(td1, td2);
 

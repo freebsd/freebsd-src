@@ -232,9 +232,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		return;
 	}
 
-	/* Point the pcb to the top of the stack */
-	pcb2 = get_pcb_td(td2);
-	td2->td_pcb = pcb2;
+	pcb2 = td2->td_pcb;
 
 	copy_thread(td1, td2);
 
@@ -248,11 +246,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/*
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
-	 * The -VM86_STACK_SPACE (-16) is so we can expand the trapframe
-	 * if we go to vm86.
 	 */
-	td2->td_frame = (struct trapframe *)((caddr_t)td2->td_pcb -
-	    VM86_STACK_SPACE) - 1;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
 	/* Set child return values. */
@@ -381,6 +375,10 @@ cpu_thread_alloc(struct thread *td)
 	struct pcb *pcb;
 	struct xstate_hdr *xhdr;
 
+	/*
+	 * The -VM86_STACK_SPACE (-16) is so we can expand the trapframe
+	 * if we go to vm86.
+	 */
 	td->td_pcb = pcb = get_pcb_td(td);
 	td->td_frame = (struct trapframe *)((caddr_t)pcb -
 	    VM86_STACK_SPACE) - 1;

@@ -100,8 +100,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		critical_exit();
 	}
 
-	cpu_set_pcb_frame(td2);
-
 	pcb2 = td2->td_pcb;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 

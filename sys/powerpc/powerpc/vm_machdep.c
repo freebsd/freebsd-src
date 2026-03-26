@@ -123,9 +123,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	if (td1 == curthread)
 		cpu_update_pcb(td1);
 
-	pcb = (struct pcb *)__align_down(td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb), 0x40);
-	td2->td_pcb = pcb;
+	pcb = td2->td_pcb;
 
 	/* Copy the pcb */
 	bcopy(td1->td_pcb, pcb, sizeof(struct pcb));
@@ -135,15 +133,13 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	tf = (struct trapframe *)pcb - 1;
+	tf = td2->td_frame;
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 
 	/* Set up trap frame. */
 	tf->fixreg[FIRSTARG] = 0;
 	tf->fixreg[FIRSTARG + 1] = 0;
 	tf->cr &= ~0x10000000;
-
-	td2->td_frame = tf;
 
 	cf = (struct callframe *)tf - 1;
 	memset(cf, 0, sizeof(struct callframe));

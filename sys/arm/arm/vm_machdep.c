@@ -97,9 +97,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	if ((flags & RFPROC) == 0)
 		return;
 
-	/* Point the pcb to the top of the stack */
-	pcb2 = (struct pcb *)
-	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef VFP
 	/* Store actual state of VFP */
 	if (curthread == td1) {
@@ -107,7 +104,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 			vfp_save_state(td1, td1->td_pcb);
 	}
 #endif
-	td2->td_pcb = pcb2;
+	pcb2 = td2->td_pcb;
 
 	/* Clone td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -116,8 +113,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
 
-	/* Point the frame to the stack in front of pcb and copy td1's frame */
-	td2->td_frame = (struct trapframe *)pcb2 - 1;
+	/* Copy td1's frame */
 	*td2->td_frame = *td1->td_frame;
 
 	/*
