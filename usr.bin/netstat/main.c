@@ -552,6 +552,8 @@ main(int argc, char *argv[])
 
 
 	if (gflag) {
+		if (fib != -1 && setfib(fib) < 0)
+			xo_errx(EX_DATAERR, "setfib: %s", strerror(errno));
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
 		if (sflag) {
