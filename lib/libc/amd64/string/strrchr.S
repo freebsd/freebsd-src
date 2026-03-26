@@ -82,8 +82,8 @@ ARCHENTRY(strrchr, scalar)
 	not	%rcx			# ~(str ^ c)
 	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
 	and	%r9, %rcx		# matches in str, not including junk bits
-	cmovnz	%rdi, %r11		# if match found, update match vector
-	cmovnz	%rcx, %r10		# ... and match pointer
+	cmovnz	%rdi, %r10		# if match found, update match vector
+	cmovnz	%rcx, %r11		# ... and match pointer
 
 	add	$8, %rdi		# advance to next iteration
 	mov	%rsi, %rcx
@@ -104,8 +104,8 @@ ARCHENTRY(strrchr, scalar)
 	not	%rcx			# ~(str ^ c)
 	and	%rdx, %rcx		# ((str ^ c - 0x01..01) & ~(str ^ c)
 	and	%r9, %rcx		# matches in str, not including junk bits
-	cmovnz	%rdi, %r11		# if match found, update match vector
-	cmovnz	%rcx, %r10		# ... and match pointer
+	cmovnz	%rdi, %r10		# if match found, update match vector
+	cmovnz	%rcx, %r11		# ... and match pointer
 	tzcnt	%r11, %rcx		# location of last match
 	lea	-1(%r10), %rax		# address of last character in vector
 	shr	$3, %ecx		# as byte offset
