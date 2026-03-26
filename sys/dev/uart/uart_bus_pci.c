@@ -297,7 +297,7 @@ uart_pci_probe(device_t dev)
 	}
 	if (pci_get_class(dev) == PCIC_SIMPLECOMM &&
 	    pci_get_subclass(dev) == PCIS_SIMPLECOMM_UART &&
-	    pci_get_progif(dev) < PCIP_SIMPLECOMM_UART_16550A) {
+	    pci_get_progif(dev) <= PCIP_SIMPLECOMM_UART_16550A) {
 		/* XXX rclk what to do */
 		id = &cid;
 		sc->sc_class = &uart_ns8250_class;
