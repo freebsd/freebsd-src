@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -105,21 +104,19 @@ static void
 destroy_rtentry(struct rtentry *rt)
 {
 #ifdef VIMAGE
+	const struct weightened_nhop *wn;
 	struct nhop_object *nh = rt->rt_nhop;
+	uint32_t num_nhops;
 
 	/*
 	 * At this moment rnh, nh_control may be already freed.
 	 * nhop interface may have been migrated to a different vnet.
 	 * Use vnet stored in the nexthop to delete the entry.
 	 */
-#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		const struct weightened_nhop *wn;
-		uint32_t num_nhops;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 		nh = wn[0].nh;
 	}
-#endif
 	CURVNET_SET(nhop_get_vnet(nh));
 #endif
 

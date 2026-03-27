@@ -67,7 +67,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 
 #include <sys/hash.h>
@@ -449,8 +448,7 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	bzero(&laddr6, sizeof(laddr6));
 	laddr6.sin6_family = AF_INET6;
 
-#ifdef ROUTE_MPATH
-	if (CALC_FLOWID_OUTBOUND) {
+	if (V_fib_hash_outbound) {
 		uint32_t hash_type, hash_val;
 
 		hash_val = fib6_calc_software_hash(&inp->in6p_laddr,
@@ -459,7 +457,6 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 		inp->inp_flowid = hash_val;
 		inp->inp_flowtype = hash_type;
 	}
-#endif
 	/*
 	 * Call inner routine, to assign local interface address.
 	 * in6_pcbladdr() may automatically fill in sin6_scope_id.

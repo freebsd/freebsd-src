@@ -70,7 +70,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -940,7 +939,6 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	}
 
 	flags = 0;
-#if defined(ROUTE_MPATH) || defined(RSS)
 	if (CALC_FLOWID_OUTBOUND_SENDTO) {
 		uint32_t hash_type, hash_val;
 		uint8_t pr;
@@ -954,7 +952,6 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	}
 	/* do not use inp flowid */
 	flags |= IP_NODEFAULTFLOWID;
-#endif
 
 	UDPSTAT_INC(udps_opackets);
 	if (nxt == IPPROTO_UDPLITE)

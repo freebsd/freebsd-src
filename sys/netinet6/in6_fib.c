@@ -72,7 +72,6 @@ CHK_STRUCT_ROUTE_COMPAT(struct route_in6, ro_dst);
 VNET_DEFINE(struct fib_dp *, inet6_dp);
 #endif
 
-#ifdef ROUTE_MPATH
 struct _hash_5tuple_ipv6 {
 	struct in6_addr src;
 	struct in6_addr dst;
@@ -103,7 +102,6 @@ fib6_calc_software_hash(const struct in6_addr *src, const struct in6_addr *dst,
 	return (toeplitz_hash(MPATH_ENTROPY_KEY_LEN, mpath_entropy_key,
 	  sizeof(data), (uint8_t *)&data));
 }
-#endif
 
 /*
  * Looks up path in fib @fibnum specified by @dst.
@@ -201,19 +199,19 @@ static int
 check_urpf(struct nhop_object *nh, uint32_t flags,
     const struct ifnet *src_if)
 {
-#ifdef ROUTE_MPATH
+	const struct weightened_nhop *wn;
+	uint32_t num_nhops;
+
 	if (NH_IS_NHGRP(nh)) {
-		const struct weightened_nhop *wn;
-		uint32_t num_nhops;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 		for (int i = 0; i < num_nhops; i++) {
 			if (check_urpf_nhop(wn[i].nh, flags, src_if) != 0)
 				return (1);
 		}
 		return (0);
-	} else
-#endif
-		return (check_urpf_nhop(nh, flags, src_if));
+	}
+
+	return (check_urpf_nhop(nh, flags, src_if));
 }
 
 #ifndef FIB_ALGO

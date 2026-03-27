@@ -61,7 +61,6 @@
 
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -361,6 +360,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	int use_defzone = 0;
 	int hlim = 0;
 	struct in6_addr in6a;
+	uint32_t hash_type, hash_val;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_send: inp == NULL"));
@@ -452,16 +452,12 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
-#ifdef ROUTE_MPATH
-	if (CALC_FLOWID_OUTBOUND) {
-		uint32_t hash_type, hash_val;
-
+	if (V_fib_hash_outbound) {
 		hash_val = fib6_calc_software_hash(&inp->in6p_laddr,
 		    &dstsock->sin6_addr, 0, 0, inp->inp_ip_p, &hash_type);
 		inp->inp_flowid = hash_val;
 		inp->inp_flowtype = hash_type;
 	}
-#endif
 	/*
 	 * Source address selection.
 	 */

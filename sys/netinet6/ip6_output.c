@@ -65,7 +65,6 @@
 #include "opt_ipsec.h"
 #include "opt_kern_tls.h"
 #include "opt_ratelimit.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 #include "opt_sctp.h"
 

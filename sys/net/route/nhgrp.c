@@ -26,7 +26,6 @@
  */
 
 #include "opt_inet.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

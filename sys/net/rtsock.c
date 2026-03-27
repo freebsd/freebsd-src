@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 #include "opt_ddb.h"
-#include "opt_route.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -287,13 +286,12 @@ report_route_event(const struct rib_cmd_info *rc, void *_cbdata)
 static void
 rts_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 {
-#ifdef ROUTE_MPATH
+
 	if ((rc->rc_nh_new && NH_IS_NHGRP(rc->rc_nh_new)) ||
 	    (rc->rc_nh_old && NH_IS_NHGRP(rc->rc_nh_old))) {
 		rib_decompose_notification(rc, report_route_event,
 		    (void *)(uintptr_t)fibnum);
 	} else
-#endif
 		report_route_event(rc, (void *)(uintptr_t)fibnum);
 }
 static struct rtbridge rtsbridge = {
@@ -750,11 +748,12 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, struct linear_buffer *lb, u_int fi
 static struct nhop_object *
 select_nhop(struct nhop_object *nh, const struct sockaddr *gw)
 {
-	if (!NH_IS_NHGRP(nh))
-		return (nh);
-#ifdef ROUTE_MPATH
 	const struct weightened_nhop *wn;
 	uint32_t num_nhops;
+
+	if (!NH_IS_NHGRP(nh))
+		return (nh);
+
 	wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 	if (gw == NULL)
 		return (wn[0].nh);
@@ -762,7 +761,7 @@ select_nhop(struct nhop_object *nh, const struct sockaddr *gw)
 		if (match_nhop_gw(wn[i].nh, gw))
 			return (wn[i].nh);
 	}
-#endif
+
 	return (NULL);
 }
 
@@ -1029,7 +1028,6 @@ update_rtm_from_rc(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 	return (0);
 }
 
-#ifdef ROUTE_MPATH
 static void
 save_del_notification(const struct rib_cmd_info *rc, void *_cbdata)
 {
@@ -1047,7 +1045,6 @@ save_add_notification(const struct rib_cmd_info *rc, void *_cbdata)
 	if (rc->rc_cmd == RTM_ADD)
 		*rc_new = *rc;
 }
-#endif
 
 #if defined(INET6) || defined(INET)
 static struct sockaddr *
@@ -1171,7 +1168,6 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 		error = rib_action(fibnum, rtm->rtm_type, &info, &rc);
 		if (error == 0) {
 			rtsock_notify_event(fibnum, &rc);
-#ifdef ROUTE_MPATH
 			if (NH_IS_NHGRP(rc.rc_nh_new) ||
 			    (rc.rc_nh_old && NH_IS_NHGRP(rc.rc_nh_old))) {
 				struct rib_cmd_info rc_simple = {};
@@ -1179,7 +1175,7 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 				    save_add_notification, (void *)&rc_simple);
 				rc = rc_simple;
 			}
-#endif
+
 			/* nh MAY be empty if RTM_CHANGE request is no-op */
 			nh = rc.rc_nh_new;
 			if (nh != NULL) {
@@ -1193,7 +1189,6 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 		error = rib_action(fibnum, RTM_DELETE, &info, &rc);
 		if (error == 0) {
 			rtsock_notify_event(fibnum, &rc);
-#ifdef ROUTE_MPATH
 			if (NH_IS_NHGRP(rc.rc_nh_old) ||
 			    (rc.rc_nh_new && NH_IS_NHGRP(rc.rc_nh_new))) {
 				struct rib_cmd_info rc_simple = {};
@@ -1201,7 +1196,6 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 				    save_del_notification, (void *)&rc_simple);
 				rc = rc_simple;
 			}
-#endif
 			nh = rc.rc_nh_old;
 		}
 		break;
@@ -2249,8 +2243,11 @@ rt_dispatch(struct mbuf *m, sa_family_t saf)
 static int
 sysctl_dumpentry(struct rtentry *rt, void *vw)
 {
+	const struct weightened_nhop *wn;
 	struct walkarg *w = vw;
 	struct nhop_object *nh;
+	int error;
+	uint32_t num_nhops;
 
 	NET_EPOCH_ASSERT();
 
@@ -2259,11 +2256,7 @@ sysctl_dumpentry(struct rtentry *rt, void *vw)
 
 	export_rtaddrs(rt, w->dst, w->mask);
 	nh = rt_get_raw_nhop(rt);
-#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		const struct weightened_nhop *wn;
-		uint32_t num_nhops;
-		int error;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 		for (int i = 0; i < num_nhops; i++) {
 			error = sysctl_dumpnhop(rt, wn[i].nh, wn[i].weight, w);
@@ -2271,7 +2264,6 @@ sysctl_dumpentry(struct rtentry *rt, void *vw)
 				return (error);
 		}
 	} else
-#endif
 		sysctl_dumpnhop(rt, nh, rt->rt_weight, w);
 
 	return (0);
@@ -2701,11 +2693,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		if (w.w_op == NET_RT_NHOP)
 			error = nhops_dump_sysctl(rnh, w.w_req);
 		else
-#ifdef ROUTE_MPATH
 			error = nhgrp_dump_sysctl(rnh, w.w_req);
-#else
-			error = ENOTSUP;
-#endif
 		break;
 	case NET_RT_IFLIST:
 	case NET_RT_IFLISTL:
