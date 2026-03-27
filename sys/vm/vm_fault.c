@@ -645,6 +645,8 @@ vm_fault_populate(struct faultstate *fs)
 		pager_last = map_last;
 	}
 	for (pidx = pager_first; pidx <= pager_last; pidx += npages) {
+		bool writeable;
+
 		m = vm_page_lookup(fs->first_object, pidx);
 		vaddr = fs->entry->start + IDX_TO_OFF(pidx) - fs->entry->offset;
 		KASSERT(m != NULL && m->pindex == pidx,
@@ -655,14 +657,28 @@ vm_fault_populate(struct faultstate *fs)
 		    !pmap_ps_enabled(fs->map->pmap)))
 			psind--;
 
+		writeable = (fs->prot & VM_PROT_WRITE) != 0;
 		npages = atop(pagesizes[psind]);
 		for (i = 0; i < npages; i++) {
 			vm_fault_populate_check_page(&m[i]);
 			vm_fault_dirty(fs, &m[i]);
+
+			/*
+			 * If this is a writeable superpage mapping, all
+			 * constituent pages and the new mapping should be
+			 * dirty, otherwise the mapping should be read-only.
+			 */
+			if (writeable && psind > 0 &&
+			    (m[i].oflags & VPO_UNMANAGED) == 0 &&
+			    m[i].dirty != VM_PAGE_BITS_ALL)
+				writeable = false;
 		}
+		if (psind > 0 && writeable)
+			fs->fault_type |= VM_PROT_WRITE;
 		VM_OBJECT_WUNLOCK(fs->first_object);
-		rv = pmap_enter(fs->map->pmap, vaddr, m, fs->prot, fs->fault_type |
-		    (fs->wired ? PMAP_ENTER_WIRED : 0), psind);
+		rv = pmap_enter(fs->map->pmap, vaddr, m,
+		    fs->prot & ~(writeable ? 0 : VM_PROT_WRITE),
+		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0), psind);
 
 		/*
 		 * pmap_enter() may fail for a superpage mapping if additional
