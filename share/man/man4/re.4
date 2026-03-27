@@ -77,9 +77,12 @@ in both 32-bit PCI and 64-bit PCI models.
 The 8110S is designed for
 embedded LAN-on-motherboard applications.
 .Pp
-The 8169, 8169S and 8110S also support jumbo frames, which can be configured
-via the interface MTU setting.
-The MTU is limited to 7422, since the chip cannot transmit larger frames.
+The 8169, 8169S, 8110S, 8168 and 8111 also support jumbo frames,
+which can be configured via the interface MTU setting.
+The maximum MTU depends on the chip revision:
+the 8169, 8169S and 8110S support up to 7422 bytes;
+the 8168C/8111C and 8168E-VL/8111E-VL support up to approximately 6100 bytes;
+and the 8168D/8111D and later revisions support up to approximately 9200 bytes.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit jumbo frames.
