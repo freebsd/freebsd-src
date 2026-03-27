@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ktrace.h"
 #include "opt_kqueue.h"
 
@@ -1805,6 +1804,19 @@ findkn:
 			if (kn == NULL) {
 				KQ_UNLOCK(kq);
 				error = ENOMEM;
+				goto done;
+			}
+
+			/*
+			 * Now that the kqueue is locked, make sure the fd
+			 * didn't change out from under us.
+			 */
+			if (fops->f_isfd &&
+			    fget_noref_unlocked(td->td_proc->p_fd,
+			    kev->ident) != fp) {
+				KQ_UNLOCK(kq);
+				tkn = kn;
+				error = EBADF;
 				goto done;
 			}
 			kn->kn_fp = fp;
