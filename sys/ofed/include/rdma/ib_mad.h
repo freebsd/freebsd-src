@@ -558,7 +558,7 @@ struct ib_mad_send_wc {
  * ib_mad_recv_buf - received MAD buffer information.
  * @list: Reference to next data buffer for a received RMPP MAD.
  * @grh: References a data buffer containing the global route header.
- *   The data refereced by this buffer is only valid if the GRH is
+ *   The data referenced by this buffer is only valid if the GRH is
  *   valid.
  * @mad: References the start of the received MAD.
  */
