@@ -36,7 +36,7 @@
 .Op Fl -libxo
 .Op Fl Aclnx
 .Op Fl H | L | P
-.Op Fl g | h | k | m
+.Op Fl g | h | k | m | -si
 .Op Fl a | s | d Ar depth
 .Op Fl B Ar blocksize
 .Op Fl I Ar mask
@@ -108,6 +108,11 @@ Display block counts in 1073741824-byte (1 GiB) blocks.
 output.
 Use unit suffixes: Byte, Kilobyte, Megabyte,
 Gigabyte, Terabyte and Petabyte based on powers of 1024.
+.It Fl -si
+.Dq Human-readable
+output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte based on powers of 1000.
 .It Fl k
 Display block counts in 1024-byte (1 kiB) blocks.
 .It Fl l
