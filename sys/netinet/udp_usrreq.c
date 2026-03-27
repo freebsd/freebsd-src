@@ -39,7 +39,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -1127,7 +1126,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	u_char tos, vflagsav;
 	uint8_t pr;
 	uint16_t cscov = 0;
-	uint32_t flowid = 0;
+	uint32_t hash_val, hash_type, flowid = 0;
 	uint8_t flowtype = M_HASHTYPE_NONE;
 	bool use_cached_route;
 
@@ -1487,11 +1486,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	if (flowtype != M_HASHTYPE_NONE) {
 		m->m_pkthdr.flowid = flowid;
 		M_HASHTYPE_SET(m, flowtype);
-	}
-#if defined(ROUTE_MPATH) || defined(RSS)
-	else if (CALC_FLOWID_OUTBOUND_SENDTO) {
-		uint32_t hash_val, hash_type;
-
+	} else if (CALC_FLOWID_OUTBOUND_SENDTO) {
 		hash_val = fib4_calc_packet_hash(laddr, faddr,
 		    lport, fport, pr, &hash_type);
 		m->m_pkthdr.flowid = hash_val;
@@ -1510,7 +1505,6 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * hash value based on the packet contents.
 	 */
 	ipflags |= IP_NODEFAULTFLOWID;
-#endif	/* RSS */
 
 	if (pr == IPPROTO_UDPLITE)
 		UDPLITE_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);

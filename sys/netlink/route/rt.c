@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/rmlock.h>
@@ -67,20 +66,21 @@ get_rtm_type(const struct nhop_object *nh)
 static uint8_t
 nl_get_rtm_protocol(const struct nhop_object *nh)
 {
-#ifdef ROUTE_MPATH
+	const struct nhgrp_object *nhg = (const struct nhgrp_object *)nh;
+	int rt_flags;
+	uint8_t origin;
+
 	if (NH_IS_NHGRP(nh)) {
-		const struct nhgrp_object *nhg = (const struct nhgrp_object *)nh;
-		uint8_t origin = nhgrp_get_origin(nhg);
+		origin = nhgrp_get_origin(nhg);
 		if (origin != RTPROT_UNSPEC)
 			return (origin);
 		nh = nhg->nhops[0];
 	}
-#endif
-	uint8_t origin = nhop_get_origin(nh);
+	origin = nhop_get_origin(nh);
 	if (origin != RTPROT_UNSPEC)
 		return (origin);
 	/* TODO: remove guesswork once all kernel users fill in origin */
-	int rt_flags = nhop_get_rtflags(nh);
+	rt_flags = nhop_get_rtflags(nh);
 	if (rt_flags & RTF_PROTO1)
 		return (RTPROT_ZEBRA);
 	if (rt_flags & RTF_STATIC)
@@ -174,7 +174,6 @@ dump_rc_nhop_mtu(struct nl_writer *nw, const struct nhop_object *nh)
 	*((uint32_t *)(nla + 1)) = nh->nh_mtu;
 }
 
-#ifdef ROUTE_MPATH
 static void
 dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *rtm)
 {
@@ -218,20 +217,19 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 	}
 	nlattr_set_len(nw, off);
 }
-#endif
 
 static void
 dump_rc_nhop(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtmsg *rtm)
 {
-#ifdef ROUTE_MPATH
+	const struct nhop_object *nh = rnd->rnd_nhop;
+	uint32_t rtflags, uidx, nh_expire;
+
 	if (NH_IS_NHGRP(rnd->rnd_nhop)) {
 		dump_rc_nhg(nw, rnd->rnd_nhgrp, rtm);
 		return;
 	}
-#endif
-	const struct nhop_object *nh = rnd->rnd_nhop;
-	uint32_t rtflags = nhop_get_rtflags(nh);
 
+	rtflags = nhop_get_rtflags(nh);
 	/*
 	 * IPv4 over IPv6
 	 *    ('RTA_VIA', {'family': 10, 'addr': 'fe80::20c:29ff:fe67:2dd'}), ('RTA_OIF', 2),
@@ -243,7 +241,7 @@ dump_rc_nhop(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtm
 	if (nh->nh_flags & NHF_GATEWAY)
 		dump_rc_nhop_gw(nw, nh);
 
-	uint32_t uidx = nhop_get_uidx(nh);
+	uidx = nhop_get_uidx(nh);
 	if (uidx != 0)
 		nlattr_add_u32(nw, NL_RTA_NH_ID, uidx);
 	nlattr_add_u32(nw, NL_RTA_KNH_ID, nhop_get_idx(nh));
@@ -251,7 +249,7 @@ dump_rc_nhop(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtm
 
 	if (rtflags & RTF_FIXEDMTU)
 		dump_rc_nhop_mtu(nw, nh);
-	uint32_t nh_expire = nhop_get_expire(nh);
+	nh_expire = nhop_get_expire(nh);
 	if (nh_expire > 0)
 		nlattr_add_u32(nw, NL_RTA_EXPIRES, nh_expire - time_uptime);
 
@@ -818,7 +816,6 @@ get_op_flags(int nlm_flags)
 	return (op_flags);
 }
 
-#ifdef ROUTE_MPATH
 static int
 create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
     struct nl_pstate *npt, struct nhop_object **pnh)
@@ -848,7 +845,6 @@ create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
 
 	return (error);
 }
-#endif
 
 static struct nhop_object *
 create_nexthop_from_attrs(struct nl_parsed_route *attrs,
@@ -859,7 +855,6 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 	uint32_t nh_expire = 0;
 
 	if (attrs->rta_multipath != NULL) {
-#ifdef ROUTE_MPATH
 		/* Multipath w/o explicit nexthops */
 		int num_nhops = attrs->rta_multipath->num_nhops;
 		struct weightened_nhop *wn = npt_alloc(npt, sizeof(*wn) * num_nhops);
@@ -892,9 +887,6 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 				return ((struct nhop_object *)nhg);
 			error = *perror;
 		}
-#else
-		error = ENOTSUP;
-#endif
 		*perror = error;
 	} else {
 		nh = nhop_alloc(attrs->rta_table, attrs->rtm_family);

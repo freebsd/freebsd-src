@@ -65,7 +65,6 @@
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
 #include "opt_sctp.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>

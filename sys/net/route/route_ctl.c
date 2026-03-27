@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -82,11 +81,9 @@ static int change_route_byinfo(struct rib_head *rnh, struct rtentry *rt,
 
 static int add_route_flags(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd_add, int op_flags, struct rib_cmd_info *rc);
-#ifdef ROUTE_MPATH
 static int add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd_add, struct route_nhop_data *rnd_orig,
     int op_flags, struct rib_cmd_info *rc);
-#endif
 
 static int add_route(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd, struct rib_cmd_info *rc);
@@ -100,25 +97,15 @@ static bool fill_pxmask_family(int family, int plen, struct sockaddr *_dst,
 static int get_prio_from_info(const struct rt_addrinfo *info);
 static int nhop_get_prio(const struct nhop_object *nh);
 
-#ifdef ROUTE_MPATH
 static bool rib_can_multipath(struct rib_head *rh);
-#endif
 
 /* Per-vnet multipath routing configuration */
 SYSCTL_DECL(_net_route);
 #define	V_rib_route_multipath	VNET(rib_route_multipath)
-#ifdef ROUTE_MPATH
-#define _MP_FLAGS	CTLFLAG_RW
 VNET_DEFINE(u_int, rib_route_multipath) = 1;
-#else
-#define _MP_FLAGS	CTLFLAG_RD
-VNET_DEFINE(u_int, rib_route_multipath) = 0;
-#endif
-SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
+SYSCTL_UINT(_net_route, OID_AUTO, multipath, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(rib_route_multipath), 0, "Enable route multipath");
-#undef _MP_FLAGS
 
-#ifdef ROUTE_MPATH
 VNET_DEFINE(u_int, fib_hash_outbound) = 0;
 SYSCTL_UINT(_net_route, OID_AUTO, hash_outbound, CTLFLAG_RD | CTLFLAG_VNET,
     &VNET_NAME(fib_hash_outbound), 0,
@@ -132,7 +119,6 @@ uint8_t mpath_entropy_key[MPATH_ENTROPY_KEY_LEN] = {
 	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa,
 };
-#endif
 
 #if defined(INET) && defined(INET6)
 FEATURE(ipv4_rfc5549_support, "Route IPv4 packets via IPv6 nexthops");
@@ -167,7 +153,6 @@ rib_can_4o6_nhop(void)
 }
 #endif
 
-#ifdef ROUTE_MPATH
 static bool
 rib_can_multipath(struct rib_head *rh)
 {
@@ -200,7 +185,6 @@ nhop_can_multipath(const struct nhop_object *nh)
 
 	return (1);
 }
-#endif
 
 static int
 get_info_weight(const struct rt_addrinfo *info, uint32_t default_weight)
@@ -602,7 +586,6 @@ rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
 
 	if (rc->rc_cmd == RTM_DELETE)
 		rt_free(rc->rc_rt);
-#ifdef ROUTE_MPATH
 	else {
 		/*
 		 * Deleting 1 path may result in RTM_CHANGE to
@@ -611,7 +594,6 @@ rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
 		 */
 		nhop_free_any(rc->rc_nh_old);
 	}
-#endif
 
 	return (0);
 }
@@ -834,7 +816,6 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 
 	RIB_WUNLOCK(rnh);
 
-#ifdef ROUTE_MPATH
 	if ((op_flags & RTM_F_APPEND) && rib_can_multipath(rnh) &&
 	    nhop_can_multipath(rnd_add->rnd_nhop) &&
 	    nhop_can_multipath(rnd_orig.rnd_nhop)) {
@@ -857,7 +838,6 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 		}
 		return (error);
 	}
-#endif
 	/* Out of options - free state and return error */
 	error = EEXIST;
 out:
@@ -868,7 +848,6 @@ out:
 	return (error);
 }
 
-#ifdef ROUTE_MPATH
 static int
 add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd_add, struct route_nhop_data *rnd_orig,
@@ -912,7 +891,6 @@ add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
 
 	return (0);
 }
-#endif
 
 /*
  * Removes route defined by @info from the kernel table specified by @fibnum and
@@ -981,7 +959,6 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 
 	if (rc->rc_cmd == RTM_DELETE)
 		rt_free(rc->rc_rt);
-#ifdef ROUTE_MPATH
 	else {
 		/*
 		 * Deleting 1 path may result in RTM_CHANGE to
@@ -990,7 +967,6 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 		 */
 		nhop_free_any(rc->rc_nh_old);
 	}
-#endif
 
 	return (0);
 }
@@ -1008,7 +984,6 @@ rt_delete_conditional(struct rib_head *rnh, struct rtentry *rt,
 {
 	struct nhop_object *nh = rt->rt_nhop;
 
-#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
 		struct nhgrp_object *nhg = (struct nhgrp_object *)nh;
 		struct route_nhop_data rnd;
@@ -1027,7 +1002,6 @@ rt_delete_conditional(struct rib_head *rnh, struct rtentry *rt,
 		}
 		return (error);
 	}
-#endif
 	if (cb != NULL && !cb(rt, nh, cbdata))
 		return (ESRCH);
 
@@ -1129,7 +1103,6 @@ change_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
 	return (error);
 }
 
-#ifdef ROUTE_MPATH
 static int
 change_mpath_route(struct rib_head *rnh, struct rtentry *rt,
     struct rt_addrinfo *info, struct route_nhop_data *rnd_orig,
@@ -1180,7 +1153,6 @@ change_mpath_route(struct rib_head *rnh, struct rtentry *rt,
 
 	return (error);
 }
-#endif
 
 static int
 change_route_byinfo(struct rib_head *rnh, struct rtentry *rt,
@@ -1195,10 +1167,8 @@ change_route_byinfo(struct rib_head *rnh, struct rtentry *rt,
 	if (nh_orig == NULL)
 		return (ESRCH);
 
-#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh_orig))
 		return (change_mpath_route(rnh, rt, info, rnd_orig, rc));
-#endif
 
 	rnd_new.rnd_weight = get_info_weight(info, rnd_orig->rnd_weight);
 	error = change_nhop(rnh, info, nh_orig, &rnd_new.rnd_nhop);
@@ -1448,14 +1418,12 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 		/* Add to the list and return */
 		rt->rt_chain = di->head;
 		di->head = rt;
-#ifdef ROUTE_MPATH
 	} else {
 		/*
 		 * RTM_CHANGE to a different nexthop or nexthop group.
 		 * Free old multipath group.
 		 */
 		nhop_free_any(di->rc.rc_nh_old);
-#endif
 	}
 
 	return (0);
@@ -1510,7 +1478,6 @@ rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *filter_ar
 		rib_notify(rnh, RIB_NOTIFY_DELAYED, &di.rc);
 
 		if (report) {
-#ifdef ROUTE_MPATH
 			struct nhgrp_object *nhg;
 			const struct weightened_nhop *wn;
 			uint32_t num_nhops;
@@ -1520,8 +1487,7 @@ rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *filter_ar
 				for (int i = 0; i < num_nhops; i++)
 					rt_routemsg(RTM_DELETE, rt, wn[i].nh, fibnum);
 			} else
-#endif
-			rt_routemsg(RTM_DELETE, rt, nh, fibnum);
+				rt_routemsg(RTM_DELETE, rt, nh, fibnum);
 		}
 		rt_free(rt);
 	}

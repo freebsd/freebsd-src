@@ -1031,8 +1031,6 @@ device		dummymbuf
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
 # SOCKET_HHOOK enables the hhook(9) framework hooks for socket operations.
 #
-# ROUTE_MPATH provides support for multipath routing.
-#
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
@@ -1052,7 +1050,6 @@ options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
 options		SOCKET_HHOOK
-options 	ROUTE_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
 # various random failures / extreme cases related to mbuf

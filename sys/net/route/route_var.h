@@ -277,13 +277,12 @@ struct nhgrp_object {
 static inline struct nhop_object *
 nhop_select(struct nhop_object *nh, uint32_t flowid)
 {
+	struct nhgrp_object *nhg;
 
-#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		struct nhgrp_object *nhg = (struct nhgrp_object *)nh;
+		nhg = (struct nhgrp_object *)nh;
 		nh = nhg->nhops[flowid % nhg->nhg_size];
 	}
-#endif
 	return (nh);
 }
 

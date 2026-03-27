@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
@@ -257,7 +256,6 @@ rib_lookup(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 	return (nh);
 }
 
-#ifdef ROUTE_MPATH
 static void
 notify_add(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
     route_notification_t *cb, void *cbdata)
@@ -410,7 +408,6 @@ rib_decompose_notification(const struct rib_cmd_info *rc, route_notification_t *
 		break;
 	}
 }
-#endif
 
 union sockaddr_union {
 	struct sockaddr		sa;
