@@ -86,10 +86,11 @@ After the call to
 the data can no longer be considered accessible.
 The
 .Fn hdestroy
-function calls
-.Xr free 3
-for each comparison key in the search table
-but not the data item associated with the key.
+function disposes of the search table but does not free
+the comparison keys or data items stored in it.
+The caller is responsible for freeing any memory associated
+with table entries before calling
+.Fn hdestroy .
 .Pp
 The
 .Fn hsearch
