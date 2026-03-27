@@ -50,6 +50,10 @@
 .Ar register[=value]
 .Nm
 .Op Fl "f control file"
+.Cm atu
+.Ar command Op Ar parameter
+.Nm
+.Op Fl "f control file"
 .Cm vlangroup%d
 .Ar command parameter
 .Sh DESCRIPTION
@@ -165,6 +169,21 @@ Disable QinQ for the port.
 Enable the ingress filter on the port.
 .It Fl ingress
 Disable the ingress filter.
+.El
+.Ss atu
+The atu command provides access to the Address Translation Unit table
+of the switch, which maps MAC addresses to switch ports.
+It supports the following commands:
+.Pp
+.Bl -tag -width ".Cm flush port number" -compact
+.It Cm dump
+Display the current ATU table entries.
+Each entry shows the MAC address and a bitmask of ports associated with it.
+.It Cm flush all
+Remove all dynamic entries from the ATU table.
+.It Cm flush port Ar number
+Remove all dynamic ATU entries associated with port
+.Ar number .
 .El
 .Ss reg
 The reg command provides access to the registers of the switch controller.
