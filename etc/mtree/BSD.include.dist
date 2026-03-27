@@ -6,13 +6,13 @@
 .
     arpa
     ..
-    atf-c
+    atf-c               tags=package=atf-dev
     ..
-    atf-c++
+    atf-c++             tags=package=atf-dev
     ..
     bsm                 tags=package=audit-dev
     ..
-    bsnmp
+    bsnmp               tags=package=bsnmp-dev
     ..
     c++
         v1
@@ -278,9 +278,9 @@
     ..
     lib9p               tags=package=lib9p-dev
     ..
-    libipt
+    libipt              tags=package=libipt-dev
     ..
-    libmilter
+    libmilter           tags=package=libmilter-dev
     ..
     libxo               tags=package=runtime-dev
     ..
