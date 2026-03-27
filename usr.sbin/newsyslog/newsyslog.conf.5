@@ -155,10 +155,10 @@ When the size of the log file reaches
 .Ar size ,
 in kilobytes by default, or with suffixes like k, M, G, ... as supported by
 .Xr expand_number 3 ,
-the log file will be trimmed as described above.
+the log file will be rotated.
 If this field contains an asterisk
 .Pq Ql * ,
-the log file will not be trimmed based on size.
+the log file will not be rotated based on size.
 .It Ar when
 The
 .Ar when
@@ -183,10 +183,10 @@ Additionally, the format may also be constructed with a
 sign along with a rotation time specification of once
 a day, once a week, or once a month.
 .Pp
-Time based trimming happens only if
+Time based rotation happens only if
 .Xr newsyslog 8
 is run within one hour of the specified time.
-If an interval is specified, the log file will be trimmed if that many
+If an interval is specified, the log file will be rotated if that many
 hours have passed since the last rotation.
 When both a time and an interval are
 specified then both conditions must be satisfied for the rotation to
