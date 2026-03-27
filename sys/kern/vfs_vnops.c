@@ -2082,25 +2082,21 @@ vn_closefile(struct file *fp, struct thread *td)
  * suspension is over, and then proceed.
  */
 static int
-vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
+vn_start_write_refed(struct mount *mp, int flags)
 {
 	struct mount_pcpu *mpcpu;
 	int error, mflags;
 
-	if (__predict_true(!mplocked) && (flags & V_XSLEEP) == 0 &&
-	    vfs_op_thread_enter(mp, mpcpu)) {
+	if ((flags & V_XSLEEP) == 0 && vfs_op_thread_enter(mp, mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_SUSPEND) == 0);
 		vfs_mp_count_add_pcpu(mpcpu, writeopcount, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return (0);
 	}
 
-	if (mplocked)
-		mtx_assert(MNT_MTX(mp), MA_OWNED);
-	else
-		MNT_ILOCK(mp);
-
 	error = 0;
+
+	MNT_ILOCK(mp);
 
 	/*
 	 * Check on status of suspension.
@@ -2169,7 +2165,7 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	if (vp == NULL)
 		vfs_ref(mp);
 
-	error = vn_start_write_refed(mp, flags, false);
+	error = vn_start_write_refed(mp, flags);
 	if (error != 0 && (flags & V_NOWAIT) == 0)
 		*mpp = NULL;
 	return (error);
@@ -2377,10 +2373,12 @@ vfs_write_resume(struct mount *mp, int flags)
 		if ((flags & VR_NO_SUSPCLR) == 0)
 			VFS_SUSP_CLEAN(mp);
 		vfs_op_exit(mp);
-	} else if ((flags & VR_START_WRITE) != 0) {
-		MNT_REF(mp);
-		vn_start_write_refed(mp, 0, true);
 	} else {
+		if ((flags & VR_START_WRITE) != 0) {
+			MNT_REF(mp);
+			mp->mnt_writeopcount++;
+		}
+
 		MNT_IUNLOCK(mp);
 	}
 }
