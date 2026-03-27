@@ -213,6 +213,8 @@ struct filedesc_to_leader {
 
 #ifdef _KERNEL
 
+#include <machine/atomic.h>
+
 /* Operation types for kern_dup(). */
 enum {
 	FDDUP_NORMAL,		/* dup() behavior. */
@@ -302,6 +304,21 @@ int	fget_only_user(struct filedesc *fdp, int fd,
 	MPASS(FILEDESC_IS_ONLY_USER(fdp));				\
 	MPASS(refcount_load(&fp->f_count) > 0);				\
 })
+
+/*
+ * Look up a file description without requiring a lock.  In general the result
+ * may be immediately invalidated after the function returns, the caller must
+ * handle this.
+ */
+static inline struct file *
+fget_noref_unlocked(struct filedesc *fdp, int fd)
+{
+	if (__predict_false(
+	    (u_int)fd >= (u_int)atomic_load_int(&fdp->fd_nfiles)))
+		return (NULL);
+
+	return (atomic_load_ptr(&fdp->fd_ofiles[fd].fde_file));
+}
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
