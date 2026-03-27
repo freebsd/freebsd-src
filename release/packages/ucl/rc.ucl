@@ -19,6 +19,9 @@
 deps {
 	"runtime": {
 		version = "${VERSION}"
-	}
+	},
+	# /etc/rc.d/var_run depends on mtree.
+	"mtree": {
+		version = "${VERSION}"
+	},
 }
-
