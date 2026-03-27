@@ -114,10 +114,6 @@ options 	EFIRT
 device		asmc
 options		ASMC_DEBUG	# Enable asmc(4)-specific debug logic.
 
-# Apple System Management Controller (SMC)
-device		asmc
-options		ASMC_DEBUG	# Enable asmc(4)-specific debug logic.
-
 #
 # Intel QuickAssist driver with OpenCrypto support
 #
