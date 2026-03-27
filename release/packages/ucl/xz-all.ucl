@@ -25,5 +25,5 @@ applications to use this functionality programmatically.
 EOD
 
 annotations {
-	set = "optional,optional-jail"
+	set = "minimal,minimal-jail"
 }
