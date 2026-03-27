@@ -74,7 +74,7 @@ foo_identify(driver_t *driver, device_t parent)
 
 	retrieve_device_information;
 	if (devices matches one of your supported devices &&
-	    device_get_child(parent, "foo", -1) == NULL) {
+	    device_find_child(parent, "foo", -1) == NULL) {
 		child = BUS_ADD_CHILD(parent, 0, "foo", -1);
 		bus_set_resource(child, SYS_RES_IOPORT, 0, FOO_IOADDR, 1);
 	}
