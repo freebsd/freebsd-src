@@ -1955,9 +1955,9 @@ do_rotate(const struct conf_entry *ent)
 
 		if (noaction)
 			printf("\tmv %s %s\n", zfile1, zfile2);
-		else {
-			/* XXX - Ought to be checking for failure! */
-			(void)rename(zfile1, zfile2);
+		else if (rename(zfile1, zfile2) != 0) {
+			warn("can't mv %s to %s", zfile1, zfile2);
+			continue;
 		}
 		change_attrs(zfile2, ent);
 		if (ent->compress && strlen(logfile_suffix) == 0) {
