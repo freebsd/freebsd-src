@@ -179,10 +179,7 @@ can contain the following lines:
 where
 .Aq ROOT
 is the mount point on the server of the root partition.
-The script
-.Pa /usr/share/examples/diskless/clone_root
-can be used to create a shared read-only root partition,
-but in many cases you may decide to export
+In many cases you may decide to export
 (again as read-only) the root directory used by
 the server itself.
 .It
@@ -219,10 +216,6 @@ and
 have the obvious meanings.
 .It
 A properly initialized root partition.
-The script
-.Pa /usr/share/examples/diskless/clone_root
-can help in creating it, using the server's root partition
-as a reference.
 If you are just starting out, you should
 simply use the server's own root directory,
 .Pa / ,
