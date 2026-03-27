@@ -3071,7 +3071,7 @@ _lld=		usr.bin/clang/lld
     ${MK_LLVM_BINUTILS_BOOTSTRAP} != "no"
 _clang_libs=	lib/clang
 .endif
-.if ${MK_LLVM_BINUTILS_BOOTSTRAP}} != "no"
+.if ${MK_LLVM_BINUTILS_BOOTSTRAP} != "no"
 _llvm_binutils=	usr.bin/clang/llvm-ar \
 		usr.bin/clang/llvm-nm \
 		usr.bin/clang/llvm-objcopy \
