@@ -61,7 +61,7 @@ start_pr(char *file1, char *file2)
 	xasprintf(&header, "%s %s %s", diffargs, file1, file2);
 	signal(SIGPIPE, SIG_IGN);
 	fflush(stdout);
-	if (pipe(pfd) == -1)
+	if (pipe2(pfd, O_CLOEXEC) == -1)
 		err(2, "pipe");
 
 	if ((error = posix_spawnattr_init(&sa)) != 0)
@@ -71,11 +71,8 @@ start_pr(char *file1, char *file2)
 
 	posix_spawnattr_setprocdescp_np(&sa, &pr->procd, 0);
 
-	if (pfd[0] != STDIN_FILENO) {
+	if (pfd[0] != STDIN_FILENO)
 		posix_spawn_file_actions_adddup2(&fa, pfd[0], STDIN_FILENO);
-		posix_spawn_file_actions_addclose(&fa, pfd[0]);
-	}
-	posix_spawn_file_actions_addclose(&fa, pfd[1]);
 
 	char *argv[] = { __DECONST(char *, _PATH_PR),
 	    __DECONST(char *, "-h"), header, NULL };
