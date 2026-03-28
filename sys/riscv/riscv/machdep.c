@@ -105,6 +105,7 @@
 struct pcpu __pcpu[MAXCPU];
 
 static struct trapframe proc0_tf;
+static struct pcb pcb0;
 
 int early_boot = 1;
 int cold = 1;
@@ -296,7 +297,7 @@ init_proc0(void *kstack)
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
-	thread0.td_pcb = (struct pcb *)td_kstack_top(&thread0) - 1;
+	thread0.td_pcb = &pcb0;
 	thread0.td_pcb->pcb_fpflags = 0;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
