@@ -372,6 +372,11 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
+}
+
+void
+cpu_thread_new_kstack(struct thread *td)
+{
 	struct pcb *pcb;
 
 	/*

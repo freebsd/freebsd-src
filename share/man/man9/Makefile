@@ -943,6 +943,7 @@ MLINKS+=cpu_machdep.9 cpu_copy_thread.9 \
 	cpu_machdep.9 cpu_thread_clean.9 \
 	cpu_machdep.9 cpu_thread_exit.9 \
 	cpu_machdep.9 cpu_thread_free.9 \
+	cpu_machdep.9 cpu_thread_new_kstack.9 \
 	cpu_machdep.9 cpu_throw.9 \
 	cpu_machdep.9 cpu_update_pcb.9
 MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \

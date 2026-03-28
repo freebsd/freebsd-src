@@ -260,12 +260,16 @@ cpu_thread_exit(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
+	ptrauth_thread_alloc(td);
+}
 
+void
+cpu_thread_new_kstack(struct thread *td)
+{
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)STACKALIGN(
 	    (struct trapframe *)td->td_pcb - 1);
-	ptrauth_thread_alloc(td);
 }
 
 void

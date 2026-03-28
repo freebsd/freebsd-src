@@ -376,11 +376,16 @@ cpu_thread_alloc(struct thread *td)
 {
 	struct pcb *pcb;
 
-	set_top_of_stack_td(td);
 	td->td_pcb = pcb = get_pcb_td(td);
-	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
 	td->td_md.md_usr_fpu_save = fpu_save_area_alloc();
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
+}
+
+void
+cpu_thread_new_kstack(struct thread *td)
+{
+	set_top_of_stack_td(td);
+	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
 }
 
 void

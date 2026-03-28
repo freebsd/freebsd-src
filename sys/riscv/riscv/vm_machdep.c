@@ -58,8 +58,8 @@
 #define	TP_OFFSET	16	/* sizeof(struct tcb) */
 #endif
 
-static void
-cpu_set_pcb_frame(struct thread *td)
+void
+cpu_thread_new_kstack(struct thread *td)
 {
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
@@ -228,7 +228,6 @@ cpu_thread_exit(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
-	cpu_set_pcb_frame(td);
 }
 
 void
