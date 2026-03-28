@@ -81,7 +81,10 @@ object reference to the file must be obtained by issuing an
 additional
 .Xr open 2
 system call.
-The close-on-exec flag on the new file descriptor is unset.
+The close-on-exec and close-on-fork flags on the new file descriptor
+are unset.
+The resolve-beneath flag on the new file descriptor is set to the same
+state as on the old file descriptor.
 .Pp
 In
 .Fn dup2 ,
