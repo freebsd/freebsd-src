@@ -317,10 +317,7 @@ diffexec(char **diffargv, int fd[])
 		errc(2, error, "posix_spawn_file_actions_init");
 
 	posix_spawnattr_setprocdescp_np(&sa, &pd, 0);
-
-	posix_spawn_file_actions_addclose(&fa, fd[0]);
 	posix_spawn_file_actions_adddup2(&fa, fd[1], STDOUT_FILENO);
-	posix_spawn_file_actions_addclose(&fa, fd[1]);
 
 	error = posix_spawn(&pid, diffargv[0], &fa, &sa, diffargv, environ);
 	if (error != 0)
@@ -1085,11 +1082,10 @@ main(int argc, char **argv)
 	if (caph_rights_limit(fileno(fp[2]), &rights_ro) < 0)
 		err(2, "unable to limit rights on: %s", file3);
 
-	if (pipe(fd13))
+	if (pipe2(fd13, O_CLOEXEC))
 		err(2, "pipe");
-	if (pipe(fd23))
+	if (pipe2(fd23, O_CLOEXEC))
 		err(2, "pipe");
-
 
 	diffargv[diffargc] = file1;
 	diffargv[diffargc + 1] = file3;
