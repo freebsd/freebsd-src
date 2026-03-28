@@ -71,6 +71,9 @@ device		smartpqi
 # Broadcom MPT Fusion, version 4, is 64-bit only
 device		mpi3mr			# LSI-Logic MPT-Fusion 4
 
+# Universal Flash Storage Host Controller Interface support
+device 		ufshci			# UFS host controller
+
 #
 # Network interfaces:
 #
