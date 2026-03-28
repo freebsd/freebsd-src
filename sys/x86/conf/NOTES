@@ -390,6 +390,9 @@ device		vmd
 # PMC-Sierra SAS/SATA controller
 device		pmspcv
 
+device		ocs_fc			# Emulex FC adapters
+device		tws			# LSI 3ware 9750 SATA+SAS 6Gb/s RAID controller
+
 #
 # Standard floppy disk controllers and floppy tapes, supports
 # the Y-E DATA External FDD (PC Card)
@@ -442,6 +445,7 @@ device		cpufreq
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
+device		aq		# Aquantia / Marvell AQC1xx
 device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		gve		# Google Virtual NIC (gVNIC)
 device		igc		# Intel I225 2.5G Ethernet
@@ -455,6 +459,7 @@ device  	mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlx4en		# Mellanox ConnectX HCA Ethernet
 device		nfe		# nVidia nForce MCP on-board Ethernet
+device		vge		# VIA VT612x gigabit Ethernet
 device		vmx		# VMware VMXNET3 Ethernet
 device		wpi		# Intel 3945ABG wireless NICs.
 
