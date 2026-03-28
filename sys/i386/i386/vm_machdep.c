@@ -373,7 +373,6 @@ void
 cpu_thread_alloc(struct thread *td)
 {
 	struct pcb *pcb;
-	struct xstate_hdr *xhdr;
 
 	/*
 	 * The -VM86_STACK_SPACE (-16) is so we can expand the trapframe
@@ -384,11 +383,6 @@ cpu_thread_alloc(struct thread *td)
 	    VM86_STACK_SPACE) - 1;
 	pcb->pcb_ext = NULL; 
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
-	if (use_xsave) {
-		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
-		bzero(xhdr, sizeof(*xhdr));
-		xhdr->xstate_bv = xsave_mask;
-	}
 }
 
 void
