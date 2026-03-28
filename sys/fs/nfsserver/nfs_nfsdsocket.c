@@ -1272,7 +1272,8 @@ tryagain:
 			if (vp == NULL || savevp == NULL) {
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
 				break;
-			} else if (fsidcmp(&cur_fsid, &save_fsid) != 0) {
+			} else if (fsidcmp(&cur_fsid, &save_fsid) != 0 &&
+			    op != NFSV4OP_COPY && op != NFSV4OP_CLONE) {
 				nd->nd_repstat = NFSERR_XDEV;
 				break;
 			}
