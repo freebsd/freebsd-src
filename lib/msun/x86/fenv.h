@@ -108,7 +108,7 @@ int feraiseexcept(int __excepts);
 int feupdateenv(const fenv_t *__envp);
 
 __fenv_static inline int
-fegetround(void)
+__fegetround_int(void)
 {
 	__uint16_t __control;
 
@@ -144,7 +144,18 @@ fegetexcept(void)
 #endif /* __BSD_VISIBLE */
 
 int feclearexcept(int);
+int fegetexceptflag(fexcept_t *, int);
+int fetestexcept(int);
+int fesetround(int);
+int fegetround(void);
+int fesetenv(const fenv_t *);
+
 #define	feclearexcept(a)	__feclearexcept_int(a)
+#define	fegetexceptflag(e, a)	__fegetexceptflag_int(e, a)
+#define	fetestexcept(a)		__fetestexcept_int(a)
+#define	fesetround(a)		__fesetround_int(a)
+#define	fegetround()		__fegetround_int()
+#define	fesetenv(a)		__fesetenv_int(a)
 
 #ifdef __i386__
 
@@ -188,7 +199,7 @@ __feclearexcept_int(int __excepts)
 }
 
 __fenv_static inline int
-fegetexceptflag(fexcept_t *__flagp, int __excepts)
+__fegetexceptflag_int(fexcept_t *__flagp, int __excepts)
 {
 	__uint32_t __mxcsr;
 	__uint16_t __status;
@@ -203,7 +214,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 }
 
 __fenv_static inline int
-fetestexcept(int __excepts)
+__fetestexcept_int(int __excepts)
 {
 	__uint32_t __mxcsr;
 	__uint16_t __status;
@@ -217,7 +228,7 @@ fetestexcept(int __excepts)
 }
 
 __fenv_static inline int
-fesetround(int __round)
+__fesetround_int(int __round)
 {
 	__uint32_t __mxcsr;
 	__uint16_t __control;
@@ -241,7 +252,7 @@ fesetround(int __round)
 }
 
 __fenv_static inline int
-fesetenv(const fenv_t *__envp)
+__fesetenv_int(const fenv_t *__envp)
 {
 	fenv_t __env = *__envp;
 	__uint32_t __mxcsr;
@@ -283,7 +294,7 @@ __feclearexcept_int(int __excepts)
 }
 
 __fenv_static inline int
-fegetexceptflag(fexcept_t *__flagp, int __excepts)
+__fegetexceptflag_int(fexcept_t *__flagp, int __excepts)
 {
 	__uint32_t __mxcsr;
 	__uint16_t __status;
@@ -295,7 +306,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 }
 
 __fenv_static inline int
-fetestexcept(int __excepts)
+__fetestexcept_int(int __excepts)
 {
 	__uint32_t __mxcsr;
 	__uint16_t __status;
@@ -306,7 +317,7 @@ fetestexcept(int __excepts)
 }
 
 __fenv_static inline int
-fesetround(int __round)
+__fesetround_int(int __round)
 {
 	__uint32_t __mxcsr;
 	__uint16_t __control;
@@ -328,7 +339,7 @@ fesetround(int __round)
 }
 
 __fenv_static inline int
-fesetenv(const fenv_t *__envp)
+__fesetenv_int(const fenv_t *__envp)
 {
 
 	/*
