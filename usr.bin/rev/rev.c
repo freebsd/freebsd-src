@@ -30,15 +30,21 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <wchar.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 static void usage(void) __dead2;
 
@@ -48,8 +54,10 @@ main(int argc, char *argv[])
 	const char *filename;
 	wchar_t *p, *t;
 	FILE *fp;
+	fileargs_t *fa;
 	size_t len;
 	int ch, rval;
+	cap_rights_t rights;
 
 	setlocale(LC_ALL, "");
 
@@ -63,12 +71,22 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	fa = fileargs_init(argc, argv, O_RDONLY, 0,
+	    cap_rights_init(&rights, CAP_FSTAT, CAP_FCNTL, CAP_READ), FA_OPEN);
+	if (fa == NULL)
+		err(1, "unable to init casper");
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		err(1, "unable to limit stdio");
+	if (caph_enter_casper() < 0)
+		err(1, "unable to enter capability mode");
+
 	fp = stdin;
 	filename = "stdin";
 	rval = 0;
 	do {
 		if (*argv) {
-			if ((fp = fopen(*argv, "r")) == NULL) {
+			if ((fp = fileargs_fopen(fa, *argv, "r")) == NULL) {
 				warn("%s", *argv);
 				rval = 1;
 				++argv;
@@ -90,6 +108,7 @@ main(int argc, char *argv[])
 		}
 		(void)fclose(fp);
 	} while(*argv);
+	fileargs_free(fa);
 	exit(rval);
 }
 
