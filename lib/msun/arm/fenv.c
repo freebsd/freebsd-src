@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#define	__fenv_static
 #include "fenv.h"
 
 #include <machine/acle-compat.h>
@@ -64,10 +63,6 @@ const fenv_t __fe_dfl_env = 0;
 						& FE_ALL_EXCEPT)
 #define	__env_round(env)		(((env) >> 24) & _ROUND_MASK)
 #include "fenv-softfloat.h"
-#endif
-
-#ifdef __GNUC_GNU_INLINE__
-#error "This file must be compiled with C99 'inline' semantics"
 #endif
 
 int

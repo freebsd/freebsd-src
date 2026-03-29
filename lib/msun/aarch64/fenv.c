@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#define	__fenv_static
 #include "fenv.h"
 
 /*
@@ -33,10 +32,6 @@
  * this as a default environment.
  */
 const fenv_t __fe_dfl_env = 0;
-
-#ifdef __GNUC_GNU_INLINE__
-#error "This file must be compiled with C99 'inline' semantics"
-#endif
 
 int
 (feclearexcept)(int excepts)
