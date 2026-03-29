@@ -76,19 +76,83 @@ int
 	return (__feclearexcept_int(excepts));
 }
 
-extern inline int fegetexceptflag(fexcept_t *__flagp, int __excepts);
-extern inline int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
-extern inline int feraiseexcept(int __excepts);
-extern inline int fetestexcept(int __excepts);
-extern inline int fegetround(void);
-extern inline int fesetround(int __round);
-extern inline int fegetenv(fenv_t *__envp);
-extern inline int feholdexcept(fenv_t *__envp);
-extern inline int fesetenv(const fenv_t *__envp);
-extern inline int feupdateenv(const fenv_t *__envp);
-extern inline int feenableexcept(int __mask);
-extern inline int fedisableexcept(int __mask);
-extern inline int fegetexcept(void);
+int
+(fegetexceptflag)(fexcept_t *flagp, int excepts)
+{
+	return (__fegetexceptflag_int(flagp, excepts));
+}
+
+int
+(fesetexceptflag)(const fexcept_t *flagp, int excepts)
+{
+	return (__fesetexceptflag_int(flagp, excepts));
+}
+
+int
+(feraiseexcept)(int excepts)
+{
+	return (__feraiseexcept_int(excepts));
+}
+
+int
+(fetestexcept)(int excepts)
+{
+	return (__fetestexcept_int(excepts));
+}
+
+int
+(fegetround)(void)
+{
+	return (__fegetround_int());
+}
+
+int
+(fesetround)(int round)
+{
+	return (__fesetround_int(round));
+}
+
+int
+(fegetenv)(fenv_t *envp)
+{
+	return (__fegetenv_int(envp));
+}
+
+int
+(feholdexcept)(fenv_t *envp)
+{
+	return (__feholdexcept_int(envp));
+}
+
+int
+(fesetenv)(const fenv_t *envp)
+{
+	return (__fesetenv_int(envp));
+}
+
+int
+(feupdateenv)(const fenv_t *envp)
+{
+	return (__feupdateenv_int(envp));
+}
+
+int
+(feenableexcept)(int mask)
+{
+	return (__feenableexcept_int(mask));
+}
+
+int
+(fedisableexcept)(int mask)
+{
+	return (__fedisableexcept_int(mask));
+}
+
+int
+(fegetexcept)(void)
+{
+	return (__fegetexcept_int());
+}
 
 #else /* !FENV_MANGLE && SOFTFP_ABI */
 /* Set by libc when the VFP unit is enabled */
@@ -158,7 +222,8 @@ __softfp_round_from_vfp(int round)
 	}
 }
 
-int feclearexcept(int __excepts)
+int
+(feclearexcept)(int __excepts)
 {
 
 	if (_libc_arm_fpu_present)
@@ -168,7 +233,8 @@ int feclearexcept(int __excepts)
 	return (0);
 }
 
-int fegetexceptflag(fexcept_t *__flagp, int __excepts)
+int
+(fegetexceptflag)(fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __vfp_flagp;
 
@@ -182,7 +248,8 @@ int fegetexceptflag(fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-int fesetexceptflag(const fexcept_t *__flagp, int __excepts)
+int
+(fesetexceptflag)(const fexcept_t *__flagp, int __excepts)
 {
 
 	if (_libc_arm_fpu_present)
@@ -192,7 +259,8 @@ int fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-int feraiseexcept(int __excepts)
+int
+(feraiseexcept)(int __excepts)
 {
 
 	if (_libc_arm_fpu_present)
@@ -202,7 +270,8 @@ int feraiseexcept(int __excepts)
 	return (0);
 }
 
-int fetestexcept(int __excepts)
+int
+(fetestexcept)(int __excepts)
 {
 	int __got_excepts;
 
@@ -214,7 +283,8 @@ int fetestexcept(int __excepts)
 	return (__got_excepts);
 }
 
-int fegetround(void)
+int
+(fegetround)(void)
 {
 
 	if (_libc_arm_fpu_present)
@@ -222,7 +292,8 @@ int fegetround(void)
 	return __softfp_fegetround();
 }
 
-int fesetround(int __round)
+int
+(fesetround)(int __round)
 {
 
 	if (_libc_arm_fpu_present)
@@ -232,7 +303,8 @@ int fesetround(int __round)
 	return (0);
 }
 
-int fegetenv(fenv_t *__envp)
+int
+(fegetenv)(fenv_t *__envp)
 {
 	fenv_t __vfp_envp;
 
@@ -245,7 +317,8 @@ int fegetenv(fenv_t *__envp)
 	return (0);
 }
 
-int feholdexcept(fenv_t *__envp)
+int
+(feholdexcept)(fenv_t *__envp)
 {
 	fenv_t __vfp_envp;
 
@@ -258,7 +331,8 @@ int feholdexcept(fenv_t *__envp)
 	return (0);
 }
 
-int fesetenv(const fenv_t *__envp)
+int
+(fesetenv)(const fenv_t *__envp)
 {
 
 	if (_libc_arm_fpu_present)
@@ -268,7 +342,8 @@ int fesetenv(const fenv_t *__envp)
 	return (0);
 }
 
-int feupdateenv(const fenv_t *__envp)
+int
+(feupdateenv)(const fenv_t *__envp)
 {
 
 	if (_libc_arm_fpu_present)
@@ -278,7 +353,8 @@ int feupdateenv(const fenv_t *__envp)
 	return (0);
 }
 
-int feenableexcept(int __mask)
+int
+(feenableexcept)(int __mask)
 {
 	int __unmasked;
 
@@ -290,7 +366,8 @@ int feenableexcept(int __mask)
 	return (__unmasked);
 }
 
-int fedisableexcept(int __mask)
+int
+(fedisableexcept)(int __mask)
 {
 	int __unmasked;
 
@@ -302,7 +379,8 @@ int fedisableexcept(int __mask)
 	return (__unmasked);
 }
 
-int fegetexcept(void)
+int
+(fegetexcept)(void)
 {
 	int __unmasked;
 
@@ -315,4 +393,3 @@ int fegetexcept(void)
 }
 
 #endif
-
