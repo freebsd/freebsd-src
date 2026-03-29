@@ -74,21 +74,19 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
 	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
 
+	/*
+	 * Non-Realtek vendors using Realtek Bluetooth chipsets.
+	 * Devices with vendor 0x0bda are already matched by the
+	 * generic rule above.
+	 */
+
 	/* Realtek 8821CE Bluetooth devices */
 	{ USB_VPI(0x13d3, 0x3529, 0) },
-
-	/* Realtek 8822CE Bluetooth devices */
-	{ USB_VPI(0x0bda, 0xb00c, 0) },
-	{ USB_VPI(0x0bda, 0xc822, 0) },
 
 	/* Realtek 8851BE Bluetooth devices */
 	{ USB_VPI(0x13d3, 0x3600, 0) },
 
 	/* Realtek 8852AE Bluetooth devices */
-	{ USB_VPI(0x0bda, 0x2852, 0) },
-	{ USB_VPI(0x0bda, 0xc852, 0) },
-	{ USB_VPI(0x0bda, 0x385a, 0) },
-	{ USB_VPI(0x0bda, 0x4852, 0) },
 	{ USB_VPI(0x04c5, 0x165c, 0) },
 	{ USB_VPI(0x04ca, 0x4006, 0) },
 	{ USB_VPI(0x0cb8, 0xc549, 0) },
@@ -105,9 +103,6 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 
 	/* Realtek 8852BE Bluetooth devices */
 	{ USB_VPI(0x0cb8, 0xc559, 0) },
-	{ USB_VPI(0x0bda, 0x4853, 0) },
-	{ USB_VPI(0x0bda, 0x887b, 0) },
-	{ USB_VPI(0x0bda, 0xb85b, 0) },
 	{ USB_VPI(0x13d3, 0x3570, 0) },
 	{ USB_VPI(0x13d3, 0x3571, 0) },
 	{ USB_VPI(0x13d3, 0x3572, 0) },
@@ -115,11 +110,7 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x0489, 0xe123, 0) },
 	{ USB_VPI(0x0489, 0xe125, 0) },
 
-	/* Realtek 8852BT/8852BE-VT Bluetooth devices */
-	{ USB_VPI(0x0bda, 0x8520, 0) },
-
 	/* Realtek 8922AE Bluetooth devices */
-	{ USB_VPI(0x0bda, 0x8922, 0) },
 	{ USB_VPI(0x13d3, 0x3617, 0) },
 	{ USB_VPI(0x13d3, 0x3616, 0) },
 	{ USB_VPI(0x0489, 0xe130, 0) },
@@ -141,7 +132,6 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x7392, 0xa611, 0) },
 
 	/* Realtek 8723DE Bluetooth devices */
-	{ USB_VPI(0x0bda, 0xb009, 0) },
 	{ USB_VPI(0x2ff8, 0xb011, 0) },
 
 	/* Realtek 8761BUV Bluetooth devices */
@@ -149,7 +139,6 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x2357, 0x0604, 0) },
 	{ USB_VPI(0x0b05, 0x190e, 0) },
 	{ USB_VPI(0x2550, 0x8761, 0) },
-	{ USB_VPI(0x0bda, 0x8771, 0) },
 	{ USB_VPI(0x6655, 0x8771, 0) },
 	{ USB_VPI(0x7392, 0xc611, 0) },
 	{ USB_VPI(0x2b89, 0x8761, 0) },
@@ -175,7 +164,6 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x13d3, 0x3555, 0) },
 	{ USB_VPI(0x2ff8, 0x3051, 0) },
 	{ USB_VPI(0x1358, 0xc123, 0) },
-	{ USB_VPI(0x0bda, 0xc123, 0) },
 	{ USB_VPI(0x0cb5, 0xc547, 0) },
 };
 const size_t ubt_rtl_devs_sizeof = sizeof(ubt_rtl_devs);
