@@ -24,12 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#define	__fenv_static
 #include "fenv.h"
-
-#ifdef __GNUC_GNU_INLINE__
-#error "This file must be compiled with C99 'inline' semantics"
-#endif
 
 /*
  * Hopefully the system ID byte is immutable, so it's valid to use

@@ -26,15 +26,10 @@
  * SUCH DAMAGE.
  */
 
-#define	__fenv_static
 #include "fenv.h"
 #ifdef __SPE__
 #include <sys/types.h>
 #include <machine/spr.h>
-#endif
-
-#ifdef __GNUC_GNU_INLINE__
-#error "This file must be compiled with C99 'inline' semantics"
 #endif
 
 #ifdef __SPE__

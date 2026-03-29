@@ -29,12 +29,7 @@
 #include <sys/types.h>
 #include <machine/fpu.h>
 
-#define	__fenv_static
 #include "fenv.h"
-
-#ifdef __GNUC_GNU_INLINE__
-#error "This file must be compiled with C99 'inline' semantics"
-#endif
 
 const fenv_t __fe_dfl_env = {
 	{ 0xffff0000 | __INITIAL_FPUCW__,
