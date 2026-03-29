@@ -164,6 +164,20 @@ Symbols from the loaded library are put before global symbols when
 resolving symbolic references originated from the library.
 .El
 .Pp
+A special syntax for the
+.Fa path
+is supported, in the form of
+.Dl #number/name .
+The
+.Ql number
+should be a decimal number, which references an open file descriptor,
+and which must be also listed in the environment variable
+.Ev LD_LIBRARY_PATH_FDS .
+In this case, the linker tries to load an object that can be opened by
+.Ql openat(number, path, O_RDONLY) .
+This feature is only available to trusted processes, i.e.,
+the activated image must be not set-uid or set-gid.
+.Pp
 If
 .Fn dlopen
 fails, it returns a null pointer, and sets an error condition which may
