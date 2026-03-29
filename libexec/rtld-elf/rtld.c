@@ -6492,7 +6492,11 @@ parse_integer(const char *str)
 		if (c < '0' || c > '9')
 			return (-1);
 
+		if (n > INT_MAX / RADIX)
+			return (-1);
 		n *= RADIX;
+		if (n > INT_MAX - (c - '0'))
+			return (-1);
 		n += c - '0';
 	}
 
