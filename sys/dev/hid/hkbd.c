@@ -97,6 +97,7 @@
 static int hkbd_debug = 0;
 #endif
 static int hkbd_no_leds = 0;
+static int hkbd_apple_fn_mode = 0;
 
 static SYSCTL_NODE(_hw_hid, OID_AUTO, hkbd, CTLFLAG_RW, 0, "USB keyboard");
 #ifdef HID_DEBUG
@@ -105,6 +106,8 @@ SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, debug, CTLFLAG_RWTUN,
 #endif
 SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,
     &hkbd_no_leds, 0, "Disables setting of keyboard leds");
+SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, apple_fn_mode, CTLFLAG_RWTUN,
+    &hkbd_apple_fn_mode, 0, "0 = Fn + F1..12 -> media, 1 = F1..F12 -> media");
 
 #define	INPUT_EPOCH	global_epoch_preempt
 
@@ -125,6 +128,9 @@ SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,
 
 #define MOD_MIN     0xe0
 #define MOD_MAX     0xe7
+
+/* shows up as whatever is set to the last item in evdev_usb_scancodes[] */
+#define APPLE_FN_KEY 0xff
 
 struct hkbd_softc {
 	device_t sc_dev;
@@ -291,7 +297,7 @@ static const uint8_t hkbd_trtab[256] = {
 	29, 42, 56, 105, 90, 54, 93, 106,	/* E0 - E7 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* E8 - EF */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* F0 - F7 */
-	NN, NN, NN, NN, NN, NN, NN, NN,	/* F8 - FF */
+	NN, NN, NN, NN, NN, NN, NN, 255,	/* F8 - FF (last item is APPLE_FN_KEY) */
 };
 
 static const uint8_t hkbd_boot_desc[] = { HID_KBD_BOOTPROTO_DESCR() };
@@ -516,13 +522,14 @@ hkbd_interrupt(struct hkbd_softc *sc)
 			continue;
 		hkbd_put_key(sc, key | KEY_PRESS);
 
-		sc->sc_co_basetime = sbinuptime();
-		sc->sc_delay = sc->sc_kbd.kb_delay1;
-		hkbd_start_timer(sc);
-
-		/* set repeat time for last key */
-		sc->sc_repeat_time = now + sc->sc_kbd.kb_delay1;
-		sc->sc_repeat_key = key;
+		if (key != APPLE_FN_KEY) {
+			sc->sc_co_basetime = sbinuptime();
+			sc->sc_delay = sc->sc_kbd.kb_delay1;
+			hkbd_start_timer(sc);
+			/* set repeat time for last key */
+			sc->sc_repeat_time = now + sc->sc_kbd.kb_delay1;
+			sc->sc_repeat_key = key;
+		}
 	}
 
 	/* synchronize old data with new data */
@@ -623,6 +630,27 @@ hkbd_apple_fn(uint32_t keycode)
 	}
 }
 
+/* separate so the sysctl doesn't butcher non-fn keys */
+static uint32_t
+hkbd_apple_fn_media(uint32_t keycode)
+{
+	switch (keycode) {
+	case 0x3a: return 0xc0; /* F1 -> BRIGHTNESS DOWN */
+	case 0x3b: return 0xc1; /* F2 -> BRIGHTNESS UP */
+	case 0x3c: return 0xc2; /* F3 -> SCALE (MISSION CTRL)*/
+	case 0x3d: return 0xc3; /* F4 -> DASHBOARD (LAUNCHPAD) */
+	case 0x3e: return 0xc4; /* F5 -> KBD BACKLIGHT DOWN */
+	case 0x3f: return 0xc5; /* F6 -> KBD BACKLIGHT UP */
+	case 0x40: return 0xea; /* F7 -> MEDIA PREV */
+	case 0x41: return 0xe8; /* F8 -> PLAY/PAUSE */
+	case 0x42: return 0xeb; /* F9 -> MEDIA NEXT */
+	case 0x43: return 0xef; /* F10 -> MUTE */
+	case 0x44: return 0xee; /* F11 -> VOLUME DOWN */
+	case 0x45: return 0xed; /* F12 -> VOLUME UP */
+	default: return keycode;
+	}
+}
+
 static uint32_t
 hkbd_apple_swap(uint32_t keycode)
 {
@@ -683,9 +711,18 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 	}
 	if ((sc->sc_flags & HKBD_FLAG_APPLE_FN) &&
 	    (id == sc->sc_id_apple_fn)) {
-		if (hid_get_data(buf, len, &sc->sc_loc_apple_fn))
+		if (hid_get_data(buf, len, &sc->sc_loc_apple_fn)) {
+			/* don't hide the function key from userland */
+			bit_set(sc->sc_ndata, APPLE_FN_KEY);
 			modifiers |= MOD_FN;
+		} else {
+			bit_clear(sc->sc_ndata, APPLE_FN_KEY);
+		}
 	}
+
+	int apply_apple_fn_media = (modifiers & MOD_FN) ? 1 : 0;
+	if (hkbd_apple_fn_mode) /* toggle from sysctl value */
+		apply_apple_fn_media = !apply_apple_fn_media;
 
 	bit_foreach(sc->sc_loc_key_valid, HKBD_NKEYCODE, i) {
 		if (id != sc->sc_id_loc_key[i]) {
@@ -710,6 +747,8 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 				}
 				if (modifiers & MOD_FN)
 					key = hkbd_apple_fn(key);
+				if (apply_apple_fn_media)
+					key = hkbd_apple_fn_media(key);
 				if (sc->sc_flags & HKBD_FLAG_APPLE_SWAP)
 					key = hkbd_apple_swap(key);
 				if (key == KEY_NONE || key >= HKBD_NKEYCODE)
@@ -723,6 +762,8 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 
 			if (modifiers & MOD_FN)
 				key = hkbd_apple_fn(key);
+			if (apply_apple_fn_media)
+				key = hkbd_apple_fn_media(key);
 			if (sc->sc_flags & HKBD_FLAG_APPLE_SWAP)
 				key = hkbd_apple_swap(key);
 			if (key == KEY_NONE || key == KEY_ERROR || key >= HKBD_NKEYCODE)
@@ -793,13 +834,28 @@ hkbd_parse_hid(struct hkbd_softc *sc, const uint8_t *ptr, uint32_t len,
 			    HKBD_FLAG_APPLE_SWAP;
 		DPRINTFN(1, "Found Apple eject-key\n");
 	}
-	if (hidbus_locate(ptr, len,
-	    HID_USAGE2(0xFFFF, 0x0003),
-	    hid_input, tlc_index, 0, &sc->sc_loc_apple_fn, &flags,
-	    &sc->sc_id_apple_fn, NULL)) {
-		if (flags & HIO_VARIABLE)
-			sc->sc_flags |= HKBD_FLAG_APPLE_FN;
-		DPRINTFN(1, "Found Apple FN-key\n");
+	/*
+	 * check the same vendor pages that linux does to find the one apple
+	 * uses for the function key.
+	 */
+	static const uint16_t apple_pages[] = {
+		HUP_APPLE,     /* HID_UP_CUSTOM in linux */
+		HUP_MICROSOFT, /* HID_UP_MSVENDOR in linux */
+		HUP_HP,        /* HID_UP_HPVENDOR2 in linux */
+		0xFFFF         /* Original FreeBSD check (Remove?) */
+	};
+	for (int i = 0; i < (int)nitems(apple_pages); i++) {
+		if (hidbus_locate(ptr, len,
+				  HID_USAGE2(apple_pages[i], 0x0003),
+				  hid_input, tlc_index, 0,
+				  &sc->sc_loc_apple_fn, &flags,
+				  &sc->sc_id_apple_fn, NULL)) {
+			if (flags & HIO_VARIABLE)
+				sc->sc_flags |= HKBD_FLAG_APPLE_FN;
+			DPRINTFN(1, "Found Apple FN-key on page 0x%04x\n",
+				 apple_pages[i]);
+			break;
+		}
 	}
 
 	/* figure out event buffer */
