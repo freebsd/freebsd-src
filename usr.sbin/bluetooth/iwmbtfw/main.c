@@ -81,6 +81,8 @@ static struct iwmbt_devid iwmbt_list[] = {
     /* Intel Wireless 9260/9560 and successors */
     { .vendor_id = 0x8087, .product_id = 0x0032, .device = IWMBT_DEVICE_9260 },
     { .vendor_id = 0x8087, .product_id = 0x0033, .device = IWMBT_DEVICE_9260 },
+    { .vendor_id = 0x8087, .product_id = 0x0035, .device = IWMBT_DEVICE_9260 },
+    { .vendor_id = 0x8087, .product_id = 0x0036, .device = IWMBT_DEVICE_9260 },
 };
 
 static enum iwmbt_device
