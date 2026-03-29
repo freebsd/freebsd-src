@@ -143,7 +143,34 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_rdi, sizeof(*regs));
+	sf.sf_uc.uc_mcontext.mc_rdi = regs->tf_rdi;
+	sf.sf_uc.uc_mcontext.mc_rsi = regs->tf_rsi;
+	sf.sf_uc.uc_mcontext.mc_rdx = regs->tf_rdx;
+	sf.sf_uc.uc_mcontext.mc_rcx = regs->tf_rcx;
+	sf.sf_uc.uc_mcontext.mc_r8 = regs->tf_r8;
+	sf.sf_uc.uc_mcontext.mc_r9 = regs->tf_r9;
+	sf.sf_uc.uc_mcontext.mc_rax = regs->tf_rax;
+	sf.sf_uc.uc_mcontext.mc_rbx = regs->tf_rbx;
+	sf.sf_uc.uc_mcontext.mc_rbp = regs->tf_rbp;
+	sf.sf_uc.uc_mcontext.mc_r10 = regs->tf_r10;
+	sf.sf_uc.uc_mcontext.mc_r11 = regs->tf_r11;
+	sf.sf_uc.uc_mcontext.mc_r12 = regs->tf_r12;
+	sf.sf_uc.uc_mcontext.mc_r13 = regs->tf_r13;
+	sf.sf_uc.uc_mcontext.mc_r14 = regs->tf_r14;
+	sf.sf_uc.uc_mcontext.mc_r15 = regs->tf_r15;
+	sf.sf_uc.uc_mcontext.mc_trapno = regs->tf_trapno;
+	sf.sf_uc.uc_mcontext.mc_fs = regs->tf_fs;
+	sf.sf_uc.uc_mcontext.mc_gs = regs->tf_gs;
+	sf.sf_uc.uc_mcontext.mc_addr = regs->tf_addr;
+	sf.sf_uc.uc_mcontext.mc_flags = regs->tf_flags;
+	sf.sf_uc.uc_mcontext.mc_es = regs->tf_es;
+	sf.sf_uc.uc_mcontext.mc_ds = regs->tf_ds;
+	sf.sf_uc.uc_mcontext.mc_err = regs->tf_err;
+	sf.sf_uc.uc_mcontext.mc_rip = regs->tf_rip;
+	sf.sf_uc.uc_mcontext.mc_cs = regs->tf_cs;
+	sf.sf_uc.uc_mcontext.mc_rflags = regs->tf_rflags;
+	sf.sf_uc.uc_mcontext.mc_rsp = regs->tf_rsp;
+	sf.sf_uc.uc_mcontext.mc_ss = regs->tf_ss;
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext, &xfpusave, &xfpusave_len);
 	update_pcb_bases(pcb);
