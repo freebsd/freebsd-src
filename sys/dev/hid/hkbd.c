@@ -129,8 +129,9 @@ SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, apple_fn_mode, CTLFLAG_RWTUN,
 #define MOD_MIN     0xe0
 #define MOD_MAX     0xe7
 
-/* shows up as whatever is set to the last item in evdev_usb_scancodes[] */
+/* check evdev_usb_scancodes[] for names */
 #define APPLE_FN_KEY 0xff
+#define APPLE_EJECT_KEY 0xec
 
 struct hkbd_softc {
 	device_t sc_dev;
@@ -295,9 +296,9 @@ static const uint8_t hkbd_trtab[256] = {
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* D0 - D7 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* D8 - DF */
 	29, 42, 56, 105, 90, 54, 93, 106,	/* E0 - E7 */
-	NN, NN, NN, NN, NN, NN, NN, NN,	/* E8 - EF */
+	NN, NN, NN, NN, 254, NN, NN, NN,	/* E8 - EF */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* F0 - F7 */
-	NN, NN, NN, NN, NN, NN, NN, 255,	/* F8 - FF (last item is APPLE_FN_KEY) */
+	NN, NN, NN, NN, NN, NN, NN, 255,	/* F8 - FF */
 };
 
 static const uint8_t hkbd_boot_desc[] = { HID_KBD_BOOTPROTO_DESCR() };
@@ -703,16 +704,19 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 	/* clear modifiers */
 	modifiers = 0;
 
-	/* scan through HID data */
+	/* scan through HID data and expose magic apple keys */
 	if ((sc->sc_flags & HKBD_FLAG_APPLE_EJECT) &&
 	    (id == sc->sc_id_apple_eject)) {
-		if (hid_get_data(buf, len, &sc->sc_loc_apple_eject))
+		if (hid_get_data(buf, len, &sc->sc_loc_apple_eject)) {
+			bit_set(sc->sc_ndata, APPLE_EJECT_KEY);
 			modifiers |= MOD_EJECT;
+		} else {
+			bit_clear(sc->sc_ndata, APPLE_EJECT_KEY);
+		}
 	}
 	if ((sc->sc_flags & HKBD_FLAG_APPLE_FN) &&
 	    (id == sc->sc_id_apple_fn)) {
 		if (hid_get_data(buf, len, &sc->sc_loc_apple_fn)) {
-			/* don't hide the function key from userland */
 			bit_set(sc->sc_ndata, APPLE_FN_KEY);
 			modifiers |= MOD_FN;
 		} else {
