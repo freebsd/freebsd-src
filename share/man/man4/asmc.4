@@ -79,7 +79,9 @@ On
 systems, you can control the keyboard brightness by writing a value to
 the
 .Va dev.asmc.%d.light.control
-sysctl MIB.
+sysctl MIB or with
+.Xr backlight 8
+utility.
 .Pp
 The following sysctl MIBs contains the raw value returned by the left
 and right light sensors:
@@ -143,8 +145,15 @@ dramatically reduce your hard drive's life span.
 Do not rely solely on
 the SMS to protect your hard drive: good care and common sense can
 increase your hard drive's life.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/backlight/asmc0" -compact
+.It Pa /dev/backlight/asmc0
+Keyboard
+.Xr backlight 8
+device node.
 .Sh SEE ALSO
 .Xr ataidle 8 Pq Pa ports/sysutils/ataidle ,
+.Xr backlight 8 ,
 .Xr devd 8 ,
 .Xr sysctl 8
 .Sh HISTORY

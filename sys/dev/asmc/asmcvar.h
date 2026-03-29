@@ -51,6 +51,8 @@ struct asmc_softc {
 	struct taskqueue 	*sc_sms_tq;
 	struct task 		sc_sms_task;
 	uint8_t			sc_sms_intr_works;
+	struct cdev		*sc_kbd_bkl;
+	uint32_t		sc_kbd_bkl_level;
 };
 
 /*
