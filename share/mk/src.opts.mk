@@ -408,6 +408,14 @@ MK_BLOCKLIST:=	no
 MK_BLOCKLIST_SUPPORT:=	no
 .endif
 
+.if ${MK_BLOCKLIST} == "no"
+MK_BLACKLIST:=	no
+.endif
+
+.if ${MK_BLOCKLIST_SUPPORT} == "no"
+MK_BLACKLIST_SUPPORT:=	no
+.endif
+
 .if ${MK_CDDL} == "no"
 MK_CTF:=	no
 MK_DTRACE:=	no
