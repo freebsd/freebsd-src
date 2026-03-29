@@ -131,7 +131,28 @@ union __fpscr {
 };
 
 int feclearexcept(int);
+int fegetexceptflag(fexcept_t *, int);
+int fesetexceptflag(const fexcept_t *, int);
+int feraiseexcept(int);
+int fetestexcept(int);
+int fegetround(void);
+int fesetround(int);
+int fegetenv(fenv_t *);
+int feholdexcept(fenv_t *);
+int fesetenv(const fenv_t *);
+int feupdateenv(const fenv_t *);
+
 #define	feclearexcept(a)	__feclearexcept_int(a)
+#define	fegetexceptflag(e, a)	__fegetexceptflag_int(e, a)
+#define	fesetexceptflag(e, a)	__fesetexceptflag_int(e, a)
+#define	feraiseexcept(a)	__feraiseexcept_int(a)
+#define	fetestexcept(a)		__fetestexcept_int(a)
+#define	fegetround()		__fegetround_int()
+#define	fesetround(a)		__fesetround_int(a)
+#define	fegetenv(e)		__fegetenv_int(e)
+#define	feholdexcept(e)		__feholdexcept_int(e)
+#define	fesetenv(e)		__fesetenv_int(e)
+#define	feupdateenv(e)		__feupdateenv_int(e)
 
 __fenv_static inline int
 __feclearexcept_int(int __excepts)
@@ -147,7 +168,7 @@ __feclearexcept_int(int __excepts)
 }
 
 __fenv_static inline int
-fegetexceptflag(fexcept_t *__flagp, int __excepts)
+__fegetexceptflag_int(fexcept_t *__flagp, int __excepts)
 {
 	union __fpscr __r;
 
@@ -157,7 +178,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 }
 
 __fenv_static inline int
-fesetexceptflag(const fexcept_t *__flagp, int __excepts)
+__fesetexceptflag_int(const fexcept_t *__flagp, int __excepts)
 {
 	union __fpscr __r;
 
@@ -174,7 +195,7 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 extern int	feraiseexcept(int __excepts);
 #else
 __fenv_static inline int
-feraiseexcept(int __excepts)
+__feraiseexcept_int(int __excepts)
 {
 	union __fpscr __r;
 
@@ -188,7 +209,7 @@ feraiseexcept(int __excepts)
 #endif
 
 __fenv_static inline int
-fetestexcept(int __excepts)
+__fetestexcept_int(int __excepts)
 {
 	union __fpscr __r;
 
@@ -197,7 +218,7 @@ fetestexcept(int __excepts)
 }
 
 __fenv_static inline int
-fegetround(void)
+__fegetround_int(void)
 {
 	union __fpscr __r;
 
@@ -206,7 +227,7 @@ fegetround(void)
 }
 
 __fenv_static inline int
-fesetround(int __round)
+__fesetround_int(int __round)
 {
 	union __fpscr __r;
 
@@ -220,7 +241,7 @@ fesetround(int __round)
 }
 
 __fenv_static inline int
-fegetenv(fenv_t *__envp)
+__fegetenv_int(fenv_t *__envp)
 {
 	union __fpscr __r;
 
@@ -230,7 +251,7 @@ fegetenv(fenv_t *__envp)
 }
 
 __fenv_static inline int
-feholdexcept(fenv_t *__envp)
+__feholdexcept_int(fenv_t *__envp)
 {
 	union __fpscr __r;
 
@@ -242,7 +263,7 @@ feholdexcept(fenv_t *__envp)
 }
 
 __fenv_static inline int
-fesetenv(const fenv_t *__envp)
+__fesetenv_int(const fenv_t *__envp)
 {
 	union __fpscr __r;
 
@@ -252,7 +273,7 @@ fesetenv(const fenv_t *__envp)
 }
 
 __fenv_static inline int
-feupdateenv(const fenv_t *__envp)
+__feupdateenv_int(const fenv_t *__envp)
 {
 	union __fpscr __r;
 
@@ -265,8 +286,14 @@ feupdateenv(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
+int feenableexcept(int);
+int fedisableexcept(int);
+
+#define	feenableexcept(a)	__feenableexcept_int(a)
+#define	fedisableexcept(a)	__fedisableexcept_int(a)
+
 __fenv_static inline int
-feenableexcept(int __mask)
+__feenableexcept_int(int __mask)
 {
 	union __fpscr __r;
 	fenv_t __oldmask;
@@ -279,7 +306,7 @@ feenableexcept(int __mask)
 }
 
 __fenv_static inline int
-fedisableexcept(int __mask)
+__fedisableexcept_int(int __mask)
 {
 	union __fpscr __r;
 	fenv_t __oldmask;
