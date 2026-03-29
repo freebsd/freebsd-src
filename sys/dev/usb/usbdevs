@@ -786,6 +786,7 @@ vendor PERASO		0x2932	Peraso Technologies, Inc.
 vendor PLANEX		0x2c02	Planex Communications
 vendor MERCUSYS		0x2c4e	Mercusys, Inc.
 vendor QUECTEL		0x2c7c	Quectel Wireless Solutions
+vendor NUAND		0x2cf0	Nuand LLC
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor LINKINSTRUMENTS	0x3195	Link Instruments Inc.
 vendor AEI		0x3334	AEI
@@ -1695,6 +1696,7 @@ product CYBERTAN RT2870		0x1828	RT2870
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
+product CYPRESS FX3		0x00f3	EZ-USB FX3
 product CYPRESS WISPY1A		0x0bad	MetaGeek Wi-Spy
 product CYPRESS KBDHUB		0x0101	Keyboard/Hub
 product CYPRESS FMRADIO		0x1002	FM Radio
@@ -3555,6 +3557,11 @@ product NEWLINK USB2IDEBRIDGE	0x00ff	USB 2.0 Hard Drive Enclosure
 product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
 product NIKON D300		0x041a  Digital Camera D300
+
+/* Nuand LLC products */
+product NUAND BLADERF		0x5246	bladeRF Software Defined Radio
+product NUAND BLADERF_BL	0x5247	bladeRF Bootloader
+product NUAND BLADERF2		0x5250	bladeRF 2.0 Software Defined Radio
 
 /* NovaTech Products */
 product NOVATECH NV902		0x9020	NovaTech NV-902W
