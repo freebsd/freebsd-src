@@ -382,7 +382,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	int preat_ret = 1, postat_ret = 1, gcheck = 0, error = 0;
 	int gotproxystateid;
 	struct timespec guard = { 0, 0 };
-	nfsattrbit_t attrbits, retbits;
+	nfsattrbit_t atimeonly, attrbits, retbits;
 	nfsv4stateid_t stateid;
 	NFSACL_T *aclp = NULL;
 	struct thread *p = curthread;
@@ -450,9 +450,28 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	 */
 	if (!nd->nd_repstat) {
 		if (NFSVNO_NOTSETSIZE(&nva)) {
+			/*
+			 * For an NFSv4.2 Setattr of atime only that fails with
+			 * EROFS, pretend the operation succeeded.  This makes
+			 * the semantics of copying files from a ZFS snapshot
+			 * the same over NFSv4.2 as it is locally.
+			 * Without this "hack", the copy will fail
+			 * with EROFS unless the NFSv4.2 mount has the
+			 * "noatime" mount option.
+			 */
+			NFSZERO_ATTRBIT(&atimeonly);
+			NFSSETBIT_ATTRBIT(&atimeonly, NFSATTRBIT_TIMEACCESSSET);
 			if (NFSVNO_EXRDONLY(exp) ||
-			    (vp->v_mount->mnt_flag & MNT_RDONLY))
-				nd->nd_repstat = EROFS;
+			    (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+				if ((nd->nd_flag & ND_NFSV42) != 0 &&
+				    NFSEQUAL_ATTRBIT(&attrbits, &atimeonly)) {
+					NFSCLRBIT_ATTRBIT(&attrbits,
+					    NFSATTRBIT_TIMEACCESSSET);
+					NFSSETBIT_ATTRBIT(&retbits,
+					    NFSATTRBIT_TIMEACCESSSET);
+				} else
+					nd->nd_repstat = EROFS;
+			}
 		} else {
 			if (vp->v_type != VREG)
 				nd->nd_repstat = EINVAL;
