@@ -57,8 +57,10 @@
 #define	HUP_SCALE		0x008c
 #define	HUP_CAMERA_CONTROL	0x0090
 #define	HUP_ARCADE		0x0091
+#define	HUP_APPLE		0x00ff
 #define	HUP_FIDO		0xf1d0
 #define	HUP_MICROSOFT		0xff00
+#define	HUP_HP			0xff01
 
 /* Usages, generic desktop */
 #define	HUG_POINTER		0x0001
