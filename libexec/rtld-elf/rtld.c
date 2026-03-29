@@ -178,6 +178,7 @@ static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
 static void *tls_get_addr_slow(struct tcb *, int, size_t, bool) __noinline;
 static void trace_loaded_objects(Obj_Entry *, bool);
+static int try_fds_open(const char *name, const char *path);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *, RtldLockState *lockstate);
 static void unref_dag(Obj_Entry *);
@@ -2875,9 +2876,12 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 		 * using stat().
 		 */
 		if ((fd = open(path, O_RDONLY | O_CLOEXEC | O_VERIFY)) == -1) {
-			_rtld_error("Cannot open \"%s\"", path);
-			free(path);
-			return (NULL);
+			fd = try_fds_open(path, ld_library_dirs);
+			if (fd == -1) {
+				_rtld_error("Cannot open \"%s\"", path);
+				free(path);
+				return (NULL);
+			}
 		}
 	} else {
 		fd = fcntl(fd_u, F_DUPFD_CLOEXEC, 0);
@@ -3584,6 +3588,53 @@ rtld_exit(void)
 static void
 rtld_nop_exit(void)
 {
+}
+
+/*
+ * Parse string of the format '#number/name", where number must be a
+ * decimal number of the opened file descriptor listed in
+ * LD_LIBRARY_PATH_FDS.  If successful, tries to open dso name under
+ * dirfd number and returns resulting fd.
+ * On any error, returns -1.
+ */
+static int
+try_fds_open(const char *name, const char *path)
+{
+	const char *n;
+	char *envcopy, *fdstr, *last_token, *ncopy;
+	size_t len;
+	int fd, dirfd, dirfd_path;
+
+	if (!trust || name[0] != '#' || path == NULL)
+		return (-1);
+
+	name++;
+	n = strchr(name, '/');
+	if (n == NULL)
+		return (-1);
+	len = n - name;
+	ncopy = xmalloc(len + 1);
+	memcpy(ncopy, name, len);
+	ncopy[len] = '\0';
+	dirfd = parse_integer(ncopy);
+	free(ncopy);
+	if (dirfd == -1)
+		return (-1);
+
+	envcopy = xstrdup(path);
+	dirfd_path = -1;
+	for (fdstr = strtok_r(envcopy, ":", &last_token); fdstr != NULL;
+	    fdstr = strtok_r(NULL, ":", &last_token)) {
+		dirfd_path = parse_integer(fdstr);
+		if (dirfd_path == dirfd)
+			break;
+	}
+	free(envcopy);
+	if (dirfd_path != dirfd)
+		return (-1);
+
+	fd = __sys_openat(dirfd, n + 1, O_RDONLY | O_CLOEXEC | O_VERIFY);
+	return (fd);
 }
 
 /*
