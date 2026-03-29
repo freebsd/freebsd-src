@@ -535,6 +535,7 @@ static char *asmc_ids[] = { "APP0001", NULL };
 
 static unsigned int light_control = 0;
 
+ACPI_PNP_INFO(asmc_ids);
 DRIVER_MODULE(asmc, acpi, asmc_driver, NULL, NULL);
 MODULE_DEPEND(asmc, acpi, 1, 1, 1);
 
