@@ -58,6 +58,9 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/asmc/asmcvar.h>
 
+#include <dev/backlight/backlight.h>
+#include "backlight_if.h"
+
 /*
  * Device interface.
  */
@@ -65,6 +68,15 @@ static int 	asmc_probe(device_t dev);
 static int 	asmc_attach(device_t dev);
 static int 	asmc_detach(device_t dev);
 static int 	asmc_resume(device_t dev);
+
+/*
+ * Backlight interface.
+ */
+static int	asmc_backlight_update_status(device_t dev,
+    struct backlight_props *props);
+static int	asmc_backlight_get_status(device_t dev,
+    struct backlight_props *props);
+static int	asmc_backlight_get_info(device_t dev, struct backlight_info *info);
 
 /*
  * SMC functions.
@@ -581,6 +593,12 @@ static device_method_t	asmc_methods[] = {
 	DEVMETHOD(device_attach,	asmc_attach),
 	DEVMETHOD(device_detach,	asmc_detach),
 	DEVMETHOD(device_resume,	asmc_resume),
+
+	/* Backlight interface */
+	DEVMETHOD(backlight_update_status, asmc_backlight_update_status),
+	DEVMETHOD(backlight_get_status, asmc_backlight_get_status),
+	DEVMETHOD(backlight_get_info, asmc_backlight_get_info),
+
 	DEVMETHOD_END
 };
 
@@ -609,6 +627,7 @@ static unsigned int light_control = 0;
 ACPI_PNP_INFO(asmc_ids);
 DRIVER_MODULE(asmc, acpi, asmc_driver, NULL, NULL);
 MODULE_DEPEND(asmc, acpi, 1, 1, 1);
+MODULE_DEPEND(asmc, backlight, 1, 1, 1);
 
 static const struct asmc_model *
 asmc_match(device_t dev)
@@ -800,6 +819,13 @@ asmc_attach(device_t dev)
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 		    dev, 0, model->smc_light_control, "I",
 		    "Keyboard backlight brightness control");
+
+		sc->sc_kbd_bkl = backlight_register("asmc", dev);
+		if (sc->sc_kbd_bkl == NULL) {
+			device_printf(dev, "Can not register backlight\n");
+			ret = ENXIO;
+			goto err;
+		}
 	}
 
 	if (model->smc_sms_x == NULL)
@@ -881,6 +907,9 @@ static int
 asmc_detach(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
+
+	if (sc->sc_kbd_bkl != NULL)
+		backlight_destroy(sc->sc_kbd_bkl);
 
 	if (sc->sc_sms_tq) {
 		taskqueue_drain(sc->sc_sms_tq, &sc->sc_sms_task);
@@ -1739,6 +1768,7 @@ static int
 asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
+	struct asmc_softc *sc = device_get_softc(dev);
 	uint8_t buf[2];
 	int error;
 	int v;
@@ -1750,6 +1780,7 @@ asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 		if (v < 0 || v > 255)
 			return (EINVAL);
 		light_control = v;
+		sc->sc_kbd_bkl_level = v * 100 / 255;
 		buf[0] = light_control;
 		buf[1] = 0x00;
 		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
@@ -1814,6 +1845,41 @@ asmc_wol_sysctl(SYSCTL_HANDLER_ARGS)
 	/* Write AUPO */
 	if (asmc_key_write(dev, ASMC_KEY_AUPO, &aupo, 1) != 0)
 		return (EIO);
+
+	return (0);
+}
+
+static int
+asmc_backlight_update_status(device_t dev, struct backlight_props *props)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+	uint8_t buf[2];
+
+	sc->sc_kbd_bkl_level = props->brightness;
+	light_control = props->brightness * 255 / 100;
+	buf[0] = light_control;
+	buf[1] = 0x00;
+	asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
+
+	return (0);
+}
+
+static int
+asmc_backlight_get_status(device_t dev, struct backlight_props *props)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	props->brightness = sc->sc_kbd_bkl_level;
+	props->nlevels = 0;
+
+	return (0);
+}
+
+static int
+asmc_backlight_get_info(device_t dev, struct backlight_info *info)
+{
+	info->type = BACKLIGHT_TYPE_KEYBOARD;
+	strlcpy(info->name, "Apple MacBook Keyboard", BACKLIGHTMAXNAMELENGTH);
 
 	return (0);
 }
