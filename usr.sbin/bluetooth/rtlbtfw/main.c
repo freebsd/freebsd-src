@@ -57,21 +57,19 @@ struct rtlbt_devid {
 };
 
 static struct rtlbt_devid rtlbt_list[] = {
+	/*
+	 * Non-Realtek vendors using Realtek Bluetooth chipsets.
+	 * Devices with vendor 0x0bda are already matched by the
+	 * generic check in rtlbt_find_device().
+	 */
+
 	/* Realtek 8821CE Bluetooth devices */
 	{ .vendor_id = 0x13d3, .product_id = 0x3529 },
-
-	/* Realtek 8822CE Bluetooth devices */
-	{ .vendor_id = 0x0bda, .product_id = 0xb00c },
-	{ .vendor_id = 0x0bda, .product_id = 0xc822 },
 
 	/* Realtek 8851BE Bluetooth devices */
 	{ .vendor_id = 0x13d3, .product_id = 0x3600 },
 
 	/* Realtek 8852AE Bluetooth devices */
-	{ .vendor_id = 0x0bda, .product_id = 0x2852 },
-	{ .vendor_id = 0x0bda, .product_id = 0xc852 },
-	{ .vendor_id = 0x0bda, .product_id = 0x385a },
-	{ .vendor_id = 0x0bda, .product_id = 0x4852 },
 	{ .vendor_id = 0x04c5, .product_id = 0x165c },
 	{ .vendor_id = 0x04ca, .product_id = 0x4006 },
 	{ .vendor_id = 0x0cb8, .product_id = 0xc549 },
@@ -88,9 +86,6 @@ static struct rtlbt_devid rtlbt_list[] = {
 
 	/* Realtek 8852BE Bluetooth devices */
 	{ .vendor_id = 0x0cb8, .product_id = 0xc559 },
-	{ .vendor_id = 0x0bda, .product_id = 0x4853 },
-	{ .vendor_id = 0x0bda, .product_id = 0x887b },
-	{ .vendor_id = 0x0bda, .product_id = 0xb85b },
 	{ .vendor_id = 0x13d3, .product_id = 0x3570 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3571 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3572 },
@@ -98,11 +93,7 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x0489, .product_id = 0xe123 },
 	{ .vendor_id = 0x0489, .product_id = 0xe125 },
 
-	/* Realtek 8852BT/8852BE-VT Bluetooth devices */
-	{ .vendor_id = 0x0bda, .product_id = 0x8520 },
-
 	/* Realtek 8922AE Bluetooth devices */
-	{ .vendor_id = 0x0bda, .product_id = 0x8922 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3617 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3616 },
 	{ .vendor_id = 0x0489, .product_id = 0xe130 },
@@ -124,7 +115,6 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x7392, .product_id = 0xa611 },
 
 	/* Realtek 8723DE Bluetooth devices */
-	{ .vendor_id = 0x0bda, .product_id = 0xb009 },
 	{ .vendor_id = 0x2ff8, .product_id = 0xb011 },
 
 	/* Realtek 8761BUV Bluetooth devices */
@@ -132,7 +122,6 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x2357, .product_id = 0x0604 },
 	{ .vendor_id = 0x0b05, .product_id = 0x190e },
 	{ .vendor_id = 0x2550, .product_id = 0x8761 },
-	{ .vendor_id = 0x0bda, .product_id = 0x8771 },
 	{ .vendor_id = 0x6655, .product_id = 0x8771 },
 	{ .vendor_id = 0x7392, .product_id = 0xc611 },
 	{ .vendor_id = 0x2b89, .product_id = 0x8761 },
@@ -158,7 +147,6 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x13d3, .product_id = 0x3555 },
 	{ .vendor_id = 0x2ff8, .product_id = 0x3051 },
 	{ .vendor_id = 0x1358, .product_id = 0xc123 },
-	{ .vendor_id = 0x0bda, .product_id = 0xc123 },
 	{ .vendor_id = 0x0cb5, .product_id = 0xc547 },
 };
 
