@@ -3004,9 +3004,6 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 		goto err_unload;
 	}
 
-	bus_dmamap_sync(buf->dmat, buf->dmap, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sgt->dmat, sgt->dmap, BUS_DMASYNC_PREWRITE);
-
 	/* TODO: Enqueue several frames in a single command */
 	for (int i = 0; i < DPAA2_NI_ENQUEUE_RETRIES; i++) {
 		/* TODO: Return error codes instead of # of frames */
@@ -3015,6 +3012,9 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 			break;
 		}
 	}
+
+	bus_dmamap_sync(buf->dmat, buf->dmap, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sgt->dmat, sgt->dmap, BUS_DMASYNC_PREWRITE);
 
 	if (rc != 1) {
 		fq->chan->tx_dropped++;
