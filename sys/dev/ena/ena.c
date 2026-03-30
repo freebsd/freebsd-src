@@ -4115,8 +4115,11 @@ ena_detach(device_t pdev)
 
 	ena_free_pci_resources(adapter);
 
-	if (adapter->rss_indir != NULL)
+	if (adapter->rss_indir != NULL) {
+		free(adapter->rss_indir->table, M_DEVBUF);
+		free(adapter->rss_indir->sysctl_buf, M_DEVBUF);
 		free(adapter->rss_indir, M_DEVBUF);
+	}
 
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter)))
 		ena_com_rss_destroy(ena_dev);
