@@ -211,7 +211,7 @@ VNET_DEFINE_STATIC(struct mf6ctable *, mfctables);
 VNET_DEFINE_STATIC(uint32_t, nmfctables);
 #define	V_nmfctables		VNET(nmfctables)
 
-static eventhandler_tag rtnumfibs_change_tag;
+static eventhandler_tag ifdetach_tag, rtnumfibs_change_tag;
 
 static int
 sysctl_mfctable(SYSCTL_HANDLER_ARGS)
@@ -791,6 +791,20 @@ add_m6if(struct mf6ctable *mfct, int fibnum, struct mif6ctl *mifcp)
 	return (0);
 }
 
+static void
+expire_mf6c(struct mf6c *mfc)
+{
+	struct rtdetq *rte;
+
+	while ((rte = mfc->mf6c_stall) != NULL) {
+		mfc->mf6c_stall = rte->next;
+		m_freem(rte->m);
+		free(rte, M_MRTABLE6);
+	}
+
+	free(mfc, M_MRTABLE6);
+}
+
 /*
  * Delete a mif from the mif table
  */
@@ -810,9 +824,29 @@ del_m6if_locked(struct mf6ctable *mfct, mifi_t mifi)
 		return (EINVAL);
 
 	if (!(mifp->m6_flags & MIFF_REGISTER)) {
-		/* XXX: TODO: Maintain an ALLMULTI refcount in struct ifnet. */
 		ifp = mifp->m6_ifp;
 		if_allmulti(ifp, 0);
+
+		MFC6_LOCK();
+		for (int i = 0; i < MF6CTBLSIZ; i++) {
+			struct mf6c *mfc, **nmfc;
+
+			nmfc = &mfct->mfchashtbl[i];
+			while ((mfc = *nmfc) != NULL) {
+				if (mfc->mf6c_parent == mifi) {
+					*nmfc = mfc->mf6c_next;
+					if (mfc->mf6c_expire)
+						mfct->nexpire[i]--;
+					expire_mf6c(mfc);
+				} else {
+					/* Remove this mif from the ifset */
+					if (IF_ISSET(mifi, &mfc->mf6c_ifset))
+						IF_CLR(mifi, &mfc->mf6c_ifset);
+					nmfc = &mfc->mf6c_next;
+				}
+			}
+		}
+		MFC6_UNLOCK();
 	} else {
 		if (mfct->register_mif != (mifi_t)-1 &&
 		    mfct->register_if != NULL) {
@@ -1955,6 +1989,32 @@ pim6_input(struct mbuf *m, int off, int proto, void *arg __unused)
 }
 
 static void
+ip6_mrouter_ifdetach(void *arg __unused, struct ifnet *ifp)
+{
+	struct mf6ctable *mfct;
+
+	if (!V_ip6_mrouting_enabled)
+		return;
+	for (int i = 0; i < V_nmfctables; i++) {
+		mfct = &V_mfctables[i];
+
+		MIF6_LOCK();
+restart:
+		for (mifi_t mifi = 0; mifi < mfct->nummifs; mifi++) {
+			int error __diagused;
+
+			if (mfct->miftable[mifi].m6_ifp != ifp)
+				continue;
+			error = del_m6if_locked(mfct, mifi);
+			KASSERT(error == 0,
+			    ("del_m6if_locked(%s) %d", ifp->if_xname, error));
+			goto restart;
+		}
+		MIF6_UNLOCK();
+	}
+}
+
+static void
 ip6_mroute_rtnumfibs_change(void *arg __unused, uint32_t ntables)
 {
 	struct mf6ctable *mfctables, *omfctables;
@@ -2010,6 +2070,9 @@ ip6_mroute_modevent(module_t mod, int type, void *unused)
 		MFC6_LOCK_INIT();
 		MIF6_LOCK_INIT();
 
+		ifdetach_tag = EVENTHANDLER_REGISTER(
+		    ifnet_departure_event, ip6_mrouter_ifdetach,
+		    NULL, EVENTHANDLER_PRI_ANY);
 		rtnumfibs_change_tag = EVENTHANDLER_REGISTER(
 		    rtnumfibs_change, ip6_mroute_rtnumfibs_change,
 		    NULL, EVENTHANDLER_PRI_ANY);
@@ -2035,6 +2098,8 @@ ip6_mroute_modevent(module_t mod, int type, void *unused)
 		if (V_ip6_mrouting_enabled)
 			return (EBUSY);
 
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+		    ifdetach_tag);
 		EVENTHANDLER_DEREGISTER(rtnumfibs_change,
 		    rtnumfibs_change_tag);
 
