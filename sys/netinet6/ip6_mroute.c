@@ -351,8 +351,8 @@ static int ip6_mrouter_init(struct socket *, int, int);
 static int add_m6fc(struct mf6ctable *, struct mf6cctl *);
 static int add_m6if(struct mf6ctable *, int, struct mif6ctl *);
 static int del_m6fc(struct mf6ctable *, struct mf6cctl *);
-static int del_m6if(struct mf6ctable *, mifi_t *);
-static int del_m6if_locked(struct mf6ctable *, mifi_t *);
+static int del_m6if(struct mf6ctable *, mifi_t);
+static int del_m6if_locked(struct mf6ctable *, mifi_t);
 static int get_mif6_cnt(struct mf6ctable *, struct sioc_mif_req6 *);
 static int get_sg_cnt(struct mf6ctable *, struct sioc_sg_req6 *);
 
@@ -446,7 +446,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 		error = sooptcopyin(sopt, &mifi, sizeof(mifi), sizeof(mifi));
 		if (error)
 			break;
-		error = del_m6if(mfct, &mifi);
+		error = del_m6if(mfct, mifi);
 		break;
 	case MRT6_PIM:
 		error = sooptcopyin(sopt, &optval, sizeof(optval),
@@ -795,17 +795,17 @@ add_m6if(struct mf6ctable *mfct, int fibnum, struct mif6ctl *mifcp)
  * Delete a mif from the mif table
  */
 static int
-del_m6if_locked(struct mf6ctable *mfct, mifi_t *mifip)
+del_m6if_locked(struct mf6ctable *mfct, mifi_t mifi)
 {
 	struct mif6 *mifp;
-	mifi_t mifi;
+	mifi_t tmp;
 	struct ifnet *ifp;
 
 	MIF6_LOCK_ASSERT();
 
-	if (*mifip >= mfct->nummifs)
+	if (mifi >= mfct->nummifs)
 		return (EINVAL);
-	mifp = &mfct->miftable[*mifip];
+	mifp = &mfct->miftable[mifi];
 	if (mifp->m6_ifp == NULL)
 		return (EINVAL);
 
@@ -826,22 +826,22 @@ del_m6if_locked(struct mf6ctable *mfct, mifi_t *mifip)
 	bzero(mifp, sizeof(*mifp));
 
 	/* Adjust nummifs down */
-	for (mifi = mfct->nummifs; mifi > 0; mifi--)
-		if (mfct->miftable[mifi - 1].m6_ifp != NULL)
+	for (tmp = mfct->nummifs; tmp > 0; tmp--)
+		if (mfct->miftable[tmp - 1].m6_ifp != NULL)
 			break;
-	mfct->nummifs = mifi;
-	MRT6_DLOG(DEBUG_ANY, "mif %d, nummifs %d", *mifip, mfct->nummifs);
+	mfct->nummifs = tmp;
+	MRT6_DLOG(DEBUG_ANY, "mif %d, nummifs %d", mifi, mfct->nummifs);
 
 	return (0);
 }
 
 static int
-del_m6if(struct mf6ctable *mfct, mifi_t *mifip)
+del_m6if(struct mf6ctable *mfct, mifi_t mifi)
 {
 	int cc;
 
 	MIF6_LOCK();
-	cc = del_m6if_locked(mfct, mifip);
+	cc = del_m6if_locked(mfct, mifi);
 	MIF6_UNLOCK();
 
 	return (cc);
