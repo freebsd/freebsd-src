@@ -243,9 +243,9 @@ apmdtor(void *data)
 	/* Remove this clone's data from the list and free it. */
 	ACPI_LOCK(acpi);
 	STAILQ_REMOVE(&acpi_sc->apm_cdevs, clone, apm_clone_data, entries);
+	ACPI_UNLOCK(acpi);
 	seldrain(&clone->sel_read);
 	knlist_destroy(&clone->sel_read.si_note);
-	ACPI_UNLOCK(acpi);
 	free(clone, M_APMDEV);
 }
 
@@ -408,11 +408,9 @@ apmkqfilter(struct cdev *dev, struct knote *kn)
 	struct	apm_clone_data *clone;
 
 	devfs_get_cdevpriv((void **)&clone);
-	ACPI_LOCK(acpi);
 	kn->kn_hook = clone;
 	kn->kn_fop = &apm_readfiltops;
 	knlist_add(&clone->sel_read.si_note, kn, 0);
-	ACPI_UNLOCK(acpi);
 	return (0);
 }
 
@@ -421,10 +419,8 @@ apmreadfiltdetach(struct knote *kn)
 {
 	struct	apm_clone_data *clone;
 
-	ACPI_LOCK(acpi);
 	clone = kn->kn_hook;
 	knlist_remove(&clone->sel_read.si_note, kn, 0);
-	ACPI_UNLOCK(acpi);
 }
 
 static int
@@ -433,8 +429,8 @@ apmreadfilt(struct knote *kn, long hint)
 	struct	apm_clone_data *clone;
 	int	sleeping;
 
-	ACPI_LOCK(acpi);
 	clone = kn->kn_hook;
+	ACPI_LOCK(acpi);
 	sleeping = clone->acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE;
 	ACPI_UNLOCK(acpi);
 	return (sleeping);
