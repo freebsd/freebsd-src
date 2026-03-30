@@ -83,6 +83,7 @@
 #include <sys/param.h>
 #include <sys/callout.h>
 #include <sys/errno.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -207,6 +208,10 @@ struct mf6ctable {
 
 VNET_DEFINE_STATIC(struct mf6ctable *, mfctables);
 #define	V_mfctables		VNET(mfctables)
+VNET_DEFINE_STATIC(uint32_t, nmfctables);
+#define	V_nmfctables		VNET(nmfctables)
+
+static eventhandler_tag rtnumfibs_change_tag;
 
 static int
 sysctl_mfctable(SYSCTL_HANDLER_ARGS)
@@ -1927,10 +1932,35 @@ pim6_input(struct mbuf *m, int off, int proto, void *arg __unused)
 }
 
 static void
+ip6_mroute_rtnumfibs_change(void *arg __unused, uint32_t ntables)
+{
+	struct mf6ctable *mfctables, *omfctables;
+
+	KASSERT(ntables >= V_nmfctables,
+	    ("%s: ntables %u nmfctables %u", __func__, ntables, V_nmfctables));
+
+	mfctables = mallocarray(ntables, sizeof(*mfctables), M_MRTABLE6,
+	    M_WAITOK | M_ZERO);
+	omfctables = V_mfctables;
+
+	MROUTER6_LOCK();
+	MFC6_LOCK();
+	for (int i = 0; i < V_nmfctables; i++)
+		memcpy(&mfctables[i], &omfctables[i], sizeof(*mfctables));
+	atomic_store_rel_ptr((uintptr_t *)&V_mfctables, (uintptr_t)mfctables);
+	MFC6_UNLOCK();
+	MROUTER6_UNLOCK();
+
+	NET_EPOCH_WAIT();
+
+	V_nmfctables = ntables;
+	free(omfctables, M_MRTABLE6);
+}
+
+static void
 vnet_mroute_init(const void *unused __unused)
 {
-	V_mfctables = mallocarray(V_rt_numfibs, sizeof(*V_mfctables),
-	    M_MRTABLE6, M_WAITOK | M_ZERO);
+	ip6_mroute_rtnumfibs_change(NULL, V_rt_numfibs);
 
 	callout_init_mtx(&V_expire_upcalls_ch, MFC6_LOCKPTR(), 0);
 }
@@ -1957,6 +1987,10 @@ ip6_mroute_modevent(module_t mod, int type, void *unused)
 		MFC6_LOCK_INIT();
 		MIF6_LOCK_INIT();
 
+		rtnumfibs_change_tag = EVENTHANDLER_REGISTER(
+		    rtnumfibs_change, ip6_mroute_rtnumfibs_change,
+		    NULL, EVENTHANDLER_PRI_ANY);
+
 		pim6_encap_cookie = ip6_encap_attach(&ipv6_encap_cfg,
 		    NULL, M_WAITOK);
 		if (pim6_encap_cookie == NULL) {
@@ -1977,6 +2011,9 @@ ip6_mroute_modevent(module_t mod, int type, void *unused)
 	case MOD_UNLOAD:
 		if (V_ip6_mrouting_enabled)
 			return (EBUSY);
+
+		EVENTHANDLER_DEREGISTER(rtnumfibs_change,
+		    rtnumfibs_change_tag);
 
 		if (pim6_encap_cookie) {
 			ip6_encap_detach(pim6_encap_cookie);
@@ -2007,4 +2044,4 @@ static moduledata_t ip6_mroutemod = {
 	0
 };
 
-DECLARE_MODULE(ip6_mroute, ip6_mroutemod, SI_SUB_PROTO_MC, SI_ORDER_ANY);
+DECLARE_MODULE(ip6_mroute, ip6_mroutemod, SI_SUB_PROTO_MC, SI_ORDER_MIDDLE);
