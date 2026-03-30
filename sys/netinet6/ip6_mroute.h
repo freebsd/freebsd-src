@@ -48,6 +48,9 @@
 #ifndef _NETINET6_IP6_MROUTE_H_
 #define _NETINET6_IP6_MROUTE_H_
 
+#include <sys/_param.h>
+#include <sys/types.h>
+
 /*
  * Multicast Routing set/getsockopt commands.
  */
