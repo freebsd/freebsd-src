@@ -33,10 +33,10 @@
  * Which is the new name for an in kernel routing (next hop) table.	*
  ***********************************************************************/
 
-#include <sys/cdefs.h>
 #include "opt_route.h"
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -271,6 +271,8 @@ grow_rtables(uint32_t num_tables)
 	atomic_thread_fence_rel();
 	old_rt_tables = V_rt_tables;
 	V_rt_tables = new_rt_tables;
+
+	EVENTHANDLER_INVOKE(rtnumfibs_change, num_tables);
 
 	/* Wait till all cpus see new pointers */
 	atomic_thread_fence_rel();
