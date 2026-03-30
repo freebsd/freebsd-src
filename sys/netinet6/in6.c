@@ -280,17 +280,6 @@ in6_control_ioctl(u_long cmd, void *data,
 	}
 
 	switch (cmd) {
-	case SIOCGETSGCNT_IN6:
-	case SIOCGETMIFCNT_IN6:
-		/*
-		 * XXX mrt_ioctl has a 3rd, unused, FIB argument in route.c.
-		 * We cannot see how that would be needed, so do not adjust the
-		 * KPI blindly; more likely should clean up the IPv4 variant.
-		 */
-		return (mrt6_ioctl ? mrt6_ioctl(cmd, data) : EOPNOTSUPP);
-	}
-
-	switch (cmd) {
 	case SIOCAADDRCTL_POLICY:
 	case SIOCDADDRCTL_POLICY:
 		if (cred != NULL) {
@@ -615,6 +604,12 @@ int
 in6_control(struct socket *so, u_long cmd, void *data,
     struct ifnet *ifp, struct thread *td)
 {
+	switch (cmd) {
+	case SIOCGETSGCNT_IN6:
+	case SIOCGETMIFCNT_IN6:
+		return (mrt6_ioctl ?
+		    mrt6_ioctl(cmd, data, so->so_fibnum) : EOPNOTSUPP);
+	}
 	return (in6_control_ioctl(cmd, data, ifp, td ? td->td_ucred : NULL));
 }
 

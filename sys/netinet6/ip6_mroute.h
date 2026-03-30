@@ -288,7 +288,7 @@ extern int	(*ip6_mrouter_set)(struct socket *so, struct sockopt *sopt);
 extern int	(*ip6_mrouter_get)(struct socket *so, struct sockopt *sopt);
 extern void	(*ip6_mrouter_done)(struct socket *so);
 
-extern int	(*mrt6_ioctl)(u_long, caddr_t);
+extern int	(*mrt6_ioctl)(u_long, caddr_t, int);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IP6_MROUTE_H_ */
