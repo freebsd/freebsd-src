@@ -32,6 +32,9 @@
 #ifndef _NET_ROUTE_H_
 #define _NET_ROUTE_H_
 
+#ifdef _KERNEL
+#include <sys/_eventhandler.h>
+#endif
 #include <net/vnet.h>
 
 /*
@@ -123,6 +126,9 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 /* Calculate flowid for locally-originated packets */
 #define	V_fib_hash_outbound	VNET(fib_hash_outbound)
 VNET_DECLARE(u_int, fib_hash_outbound);
+
+typedef void (*rtnumfibs_change_t)(void *, uint32_t);
+EVENTHANDLER_DECLARE(rtnumfibs_change, rtnumfibs_change_t);
 
 /* Outbound flowid generation rules */
 #ifdef RSS
