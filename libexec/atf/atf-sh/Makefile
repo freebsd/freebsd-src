@@ -71,7 +71,6 @@ FILESGROUPS=	SUBR
 
 SUBRDIR=	${SHAREDIR}/atf
 SUBR=		libatf-sh.subr
-SUBRTAGS=	package=tests
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
