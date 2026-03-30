@@ -496,4 +496,4 @@ static driver_t nvme_sim_driver = {
 };
 
 DRIVER_MODULE(nvme_sim, nvme, nvme_sim_driver, NULL, NULL);
-MODULE_VERSION(nvme_shim, 1);
+MODULE_VERSION(nvme_sim, 1);
