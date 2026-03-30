@@ -54,6 +54,8 @@ static int ena_sysctl_metrics_interval(SYSCTL_HANDLER_ARGS);
 #ifndef RSS
 static int ena_sysctl_rss_key(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS);
+static int ena_sysctl_rss_indir_table_size(SYSCTL_HANDLER_ARGS);
+
 #endif
 
 /* Limit max ENA sample rate to be an hour. */
@@ -159,8 +161,6 @@ int ena_force_large_llq_header = ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT;
 SYSCTL_INT(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
     &ena_force_large_llq_header, 0,
     "Change default LLQ entry size received from the device");
-
-int ena_rss_table_size = ENA_RX_RSS_TABLE_SIZE;
 
 int ena_sysctl_allocate_customer_metrics_buffer(struct ena_adapter *adapter)
 {
@@ -632,9 +632,10 @@ ena_sysctl_add_rss(struct ena_adapter *adapter)
 	    ena_sysctl_rss_indir_table, "A", "RSS indirection table.");
 
 	/* RSS indirection table size */
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "indir_table_size",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, &ena_rss_table_size, 0,
-	    "RSS indirection table size.");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "indir_table_size",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    adapter, 0, ena_sysctl_rss_indir_table_size,
+	    "I", "RSS indirection table size.");
 }
 #endif /* RSS */
 
@@ -1166,7 +1167,8 @@ ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS)
 		goto unlock;
 	}
 
-	error = sysctl_handle_string(oidp, msg, sizeof(indir->sysctl_buf), req);
+	error = sysctl_handle_string(oidp, msg, indir->record_size
+	    * indir->table_size, req);
 	if (error != 0 || req->newptr == NULL)
 		goto unlock;
 
@@ -1186,7 +1188,7 @@ ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS)
 			break;
 		}
 
-		if (idx >= ENA_RX_RSS_TABLE_SIZE) {
+		if (idx >= indir->table_size) {
 			device_printf(adapter->pdev, "Index %d out of range\n",
 			    idx);
 			error = ERANGE;
@@ -1224,7 +1226,8 @@ ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS)
 		ena_rss_indir_get(adapter, indir->table);
 
 	/* At this point msg has been clobbered by sysctl_handle_string. */
-	ena_rss_copy_indir_buf(msg, indir->table);
+	ena_rss_copy_indir_buf(msg, indir->table, indir->table_size,
+	    indir->record_size);
 
 	if (error == 0)
 		error = ena_rss_indir_set(adapter, indir->table);
@@ -1233,5 +1236,18 @@ unlock:
 	ENA_LOCK_UNLOCK();
 
 	return (error);
+}
+
+static int
+ena_sysctl_rss_indir_table_size(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	int actual_size;
+
+	actual_size = ena_get_rss_indirection_table_size(adapter);
+	if (actual_size == 0)
+		return (EOPNOTSUPP);
+
+	return sysctl_handle_int(oidp, &actual_size, 0, req);
 }
 #endif /* RSS */
