@@ -24,13 +24,13 @@
 # SUCH DAMAGE.
 #
 
-ATF=	${SRCTOP}/contrib/atf
-.PATH: ${ATF} ${ATF}/doc
+ATFTOP=	${SRCTOP}/contrib/atf
+.PATH: ${ATFTOP} ${ATFTOP}/doc
 
-FILESGROUPS=	TOP
+FILESGROUPS=	ATF
 
-TOPDIR=		${SHAREDIR}/doc/atf
-TOP=		AUTHORS COPYING NEWS README
-TOPTAGS=	package=tests
+ATFDIR=		${SHAREDIR}/doc/atf
+ATF=		AUTHORS COPYING NEWS README
+ATFPACKAGE=	atf
 
 .include <bsd.prog.mk>

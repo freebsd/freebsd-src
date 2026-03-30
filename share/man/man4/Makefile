@@ -1048,11 +1048,11 @@ MAN+=		mlx5io.4
 .endif
 
 .if ${MK_TESTS} != "no"
-MANGROUPS+=	TESTS
-ATF=            ${SRCTOP}/contrib/atf
-.PATH:          ${ATF}/doc
-TESTS=		atf-test-case.4
-TESTSPACKAGE=	tests
+MANGROUPS+=	ATF
+ATFTOP=		${SRCTOP}/contrib/atf
+.PATH:          ${ATFTOP}/doc
+ATF=		atf-test-case.4
+ATFPACKAGE=	atf
 .endif
 
 .if ${MK_PF} != "no"
