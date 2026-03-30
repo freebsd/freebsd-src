@@ -30,6 +30,7 @@ ATF_TESTS_SH=	arp \
 
 ATF_TESTS_PYTEST+=	carp.py
 ATF_TESTS_PYTEST+=	igmp.py
+ATF_TESTS_PYTEST+=	ip_mroute.py
 
 LIBADD.so_reuseport_lb_test=	pthread
 LIBADD.udp_bindings=		pthread
@@ -50,7 +51,7 @@ TEST_METADATA.multicast+= execenv="jail"		\
 TEST_METADATA.output+=	required_programs="python"
 TEST_METADATA.redirect+= required_programs="python"
 
-PROGS=	udp_dontroute tcp_user_cookie sendto-IP_MULTICAST_IF
+PROGS=	ip6_mrouted udp_dontroute tcp_user_cookie sendto-IP_MULTICAST_IF
 
 ${PACKAGE}FILES+=		redirect.py
 
