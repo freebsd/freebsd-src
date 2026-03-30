@@ -1351,7 +1351,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
-	int found __diagused;
+	int found;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1364,16 +1364,16 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 
 	/* Make sure the named iface exists in the source prison/vnet. */
 	CURVNET_SET(pr->pr_vnet);
-	ifp = ifunit(ifname);		/* XXX Lock to avoid races. */
+	ifp = ifunit(ifname);
 	if (ifp == NULL) {
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (ENXIO);
 	}
 
-	/* Do not try to move the iface from and to the same prison. */
+	/* Do not try to move the iface from and to the same vnet. */
 	vnet_dst = TD_TO_VNET(td);
-	if (vnet_dst == ifp->if_vnet) {
+	if (vnet_dst == pr->pr_vnet) {
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (EEXIST);
@@ -1381,7 +1381,11 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 
 	/* Get interface back from child jail/vnet. */
 	found = if_unlink_ifnet(ifp, true);
-	MPASS(found);
+	if (! found) {
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (ENODEV);
+	}
 	sx_xlock(&ifnet_detach_sxlock);
 	if_vmove(ifp, vnet_dst);
 	sx_xunlock(&ifnet_detach_sxlock);
