@@ -563,12 +563,13 @@ again:
 		 * See if the caller provided any multicast options
 		 */
 		if (imo != NULL) {
+			int vif;
+
+			vif = imo->imo_multicast_vif;
 			ip->ip_ttl = imo->imo_multicast_ttl;
-			if (imo->imo_multicast_vif != -1)
-				ip->ip_src.s_addr =
-				    ip_mcast_src ?
-				    ip_mcast_src(imo->imo_multicast_vif) :
-				    INADDR_ANY;
+			if (vif != -1)
+				ip->ip_src.s_addr = ip_mcast_src ?
+				    ip_mcast_src(fibnum, vif) : INADDR_ANY;
 		} else
 			ip->ip_ttl = IP_DEFAULT_MULTICAST_TTL;
 		/*

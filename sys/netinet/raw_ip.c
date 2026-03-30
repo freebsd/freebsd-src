@@ -119,8 +119,8 @@ void (*ip_mrouter_done)(struct socket *);
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *);
 int (*mrt_ioctl)(u_long, caddr_t, int);
-int (*legal_vif_num)(int);
-u_long (*ip_mcast_src)(int);
+int (*legal_vif_num)(int, int);
+u_long (*ip_mcast_src)(int, int);
 
 int (*rsvp_input_p)(struct mbuf **, int *, int);
 int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
