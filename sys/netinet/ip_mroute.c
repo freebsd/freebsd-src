@@ -190,6 +190,8 @@ struct mfctable {
 
 VNET_DEFINE_STATIC(struct mfctable *, mfctables);
 #define	V_mfctables		VNET(mfctables)
+VNET_DEFINE_STATIC(uint32_t, nmfctables);
+#define	V_nmfctables		VNET(nmfctables)
 
 VNET_DEFINE_STATIC(u_long, mfchash);
 #define	V_mfchash		VNET(mfchash)
@@ -207,7 +209,8 @@ VNET_DEFINE_STATIC(struct taskqueue *, task_queue);
 VNET_DEFINE_STATIC(struct task, task);
 #define	V_task		VNET(task)
 
-static eventhandler_tag if_detach_event_tag = NULL;
+static eventhandler_tag if_detach_event_tag;
+static eventhandler_tag rtnumfibs_change_tag;
 
 VNET_DEFINE_STATIC(struct callout, expire_upcalls_ch);
 #define	V_expire_upcalls_ch	VNET(expire_upcalls_ch)
@@ -2809,7 +2812,6 @@ out_locked:
 	MRW_RUNLOCK();
 	return (error);
 }
-
 static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_mfctable,
     "IPv4 Multicast Forwarding Table "
@@ -2839,25 +2841,50 @@ sysctl_viflist(SYSCTL_HANDLER_ARGS)
 	MRW_RUNLOCK();
 	return (error);
 }
-
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, viftable,
     CTLTYPE_OPAQUE | CTLFLAG_VNET | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_viflist, "S,vif[MAXVIFS]",
     "IPv4 Multicast Interfaces (struct vif[MAXVIFS], netinet/ip_mroute.h)");
 
 static void
-vnet_mroute_init(const void *unused __unused)
+ip_mroute_rtnumfibs_change(void *arg __unused, uint32_t ntables)
 {
-	V_mfctables = mallocarray(V_rt_numfibs, sizeof(*V_mfctables), M_MRTABLE,
+	struct mfctable *mfctables, *omfctables;
+
+	KASSERT(ntables >= V_nmfctables,
+	    ("%s: ntables %u nmfctables %u", __func__, ntables, V_nmfctables));
+
+	mfctables = mallocarray(ntables, sizeof(*mfctables), M_MRTABLE,
 	    M_WAITOK | M_ZERO);
-	for (int i = 0; i < V_rt_numfibs; i++) {
+	omfctables = V_mfctables;
+
+	for (int i = V_nmfctables; i < ntables; i++) {
 		struct mfctable *mfct;
 
-		mfct = &V_mfctables[i];
+		mfct = &mfctables[i];
 		mfct->nexpire = malloc(mfchashsize, M_MRTABLE,
 		    M_WAITOK | M_ZERO);
 		mfct->register_vif = VIFI_INVALID;
 	}
+
+	MRW_TEARDOWN_WLOCK();
+	MRW_WLOCK();
+	for (int i = 0; i < V_nmfctables; i++)
+		memcpy(&mfctables[i], &omfctables[i], sizeof(*mfctables));
+	atomic_store_rel_ptr((uintptr_t *)&V_mfctables, (uintptr_t)mfctables);
+	MRW_WUNLOCK();
+	MRW_TEARDOWN_WUNLOCK();
+
+	NET_EPOCH_WAIT();
+
+	V_nmfctables = ntables;
+	free(omfctables, M_MRTABLE);
+}
+
+static void
+vnet_mroute_init(const void *unused __unused)
+{
+	ip_mroute_rtnumfibs_change(NULL, V_rt_numfibs);
 
 	callout_init_rw(&V_expire_upcalls_ch, &mrouter_lock, 0);
 	callout_init_rw(&V_bw_upcalls_ch, &mrouter_lock, 0);
@@ -2896,8 +2923,12 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		MRW_TEARDOWN_LOCK_INIT();
 		MRW_LOCK_INIT();
 
-		if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
-		    if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
+		if_detach_event_tag = EVENTHANDLER_REGISTER(
+		    ifnet_departure_event, if_detached_event, NULL,
+		    EVENTHANDLER_PRI_ANY);
+		rtnumfibs_change_tag = EVENTHANDLER_REGISTER(
+		    rtnumfibs_change, ip_mroute_rtnumfibs_change,
+		    NULL, EVENTHANDLER_PRI_ANY);
 
 		if (!powerof2(mfchashsize)) {
 			printf("WARNING: %s not a power of 2; using default\n",
@@ -2938,7 +2969,10 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		ip_mrouter_unloading = 1;
 		MRW_WUNLOCK();
 
-		EVENTHANDLER_DEREGISTER(ifnet_departure_event, if_detach_event_tag);
+		EVENTHANDLER_DEREGISTER(rtnumfibs_change,
+		    rtnumfibs_change_tag);
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+		    if_detach_event_tag);
 
 		if (pim_encap_cookie) {
 			ip_encap_detach(pim_encap_cookie);
