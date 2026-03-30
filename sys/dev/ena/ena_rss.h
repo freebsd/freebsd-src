@@ -39,12 +39,21 @@
 
 #include <net/rss_config.h>
 
-#define ENA_RX_RSS_MSG_RECORD_SZ 8
+/* Number of decimal digits needed to represent a value in range [0, n-1] */
+#define ENA_DECIMAL_DIGITS(n) (snprintf(NULL, 0, "%d", n))
+/*
+ * Per-record size in sysctl_buf: " <index>:<queue>\0"
+ * +1 for space/separator, +1 for ':', +1 for null terminator
+ */
+#define ENA_RSS_RECORD_SIZE(table_size, num_queues) \
+	(1 + ENA_DECIMAL_DIGITS(table_size) + 1 + ENA_DECIMAL_DIGITS(num_queues) + 1)
 
 struct ena_indir {
-	uint32_t table[ENA_RX_RSS_TABLE_SIZE];
+	uint32_t *table;
 	/* This is the buffer wired to `rss.indir_table` sysctl. */
-	char sysctl_buf[ENA_RX_RSS_TABLE_SIZE * ENA_RX_RSS_MSG_RECORD_SZ];
+	char *sysctl_buf;
+	u32 table_size;
+	u32 record_size;
 };
 
 int ena_rss_set_hash(struct ena_com_dev *ena_dev, const u8 *key);
@@ -55,14 +64,28 @@ int ena_rss_indir_set(struct ena_adapter *adapter, uint32_t *table);
 int ena_rss_indir_init(struct ena_adapter *adapter);
 
 static inline void
-ena_rss_copy_indir_buf(char *buf, uint32_t *table)
+ena_rss_copy_indir_buf(char *buf, uint32_t *table, u32 table_size,
+    u32 record_size)
 {
 	int i;
 
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; ++i) {
-		buf += snprintf(buf, ENA_RX_RSS_MSG_RECORD_SZ + 1, "%s%d:%d",
+	for (i = 0; i < table_size; ++i) {
+		buf += snprintf(buf, record_size, "%s%d:%d",
 		    i == 0 ? "" : " ", i, table[i]);
 	}
 }
 
+static inline u32
+ena_get_rss_indirection_table_size(struct ena_adapter *adapter)
+{
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+
+	if (!ena_com_indirection_table_config_supported(ena_dev)) {
+		device_printf(adapter->pdev,
+		    "RSS indirection table configuration not supported\n");
+		return (0);
+	}
+
+	return (1UL << ena_dev->rss.tbl_log_size);
+}
 #endif /* !(ENA_RSS_H) */
