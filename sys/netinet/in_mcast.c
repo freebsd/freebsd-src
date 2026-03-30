@@ -2702,7 +2702,8 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 		error = sooptcopyin(sopt, &vifi, sizeof(int), sizeof(int));
 		if (error)
 			break;
-		if (!legal_vif_num(vifi) && (vifi != -1)) {
+		if (!legal_vif_num(inp->inp_socket->so_fibnum, vifi) &&
+		    vifi != -1) {
 			error = EINVAL;
 			break;
 		}
