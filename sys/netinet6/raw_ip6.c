@@ -145,7 +145,7 @@ int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
 void (*ip6_mrouter_done)(struct socket *);
 int (*ip6_mforward)(struct ip6_hdr *, struct ifnet *, struct mbuf *);
-int (*mrt6_ioctl)(u_long, caddr_t);
+int (*mrt6_ioctl)(u_long, caddr_t, int);
 
 struct rip6_inp_match_ctx {
 	struct ip6_hdr *ip6;
