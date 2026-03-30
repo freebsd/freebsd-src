@@ -190,18 +190,7 @@ MIXER_DECLARE(ua_mixer);
 static int
 ua_probe(device_t dev)
 {
-	struct sndcard_func *func;
-
-	/* the parent device has already been probed */
-
-	func = device_get_ivars(dev);
-
-	if ((func == NULL) ||
-	    (func->func != SCF_PCM)) {
-		return (ENXIO);
-	}
-
-	return (BUS_PROBE_DEFAULT);
+	return (0);
 }
 
 static int
