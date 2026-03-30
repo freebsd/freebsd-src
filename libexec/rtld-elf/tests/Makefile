@@ -14,6 +14,7 @@ SRCS.$t=	$t.c common.c
 .endfor
 
 ATF_TESTS_C+=	dlopen_test
+ATF_TESTS_C+=	dlopen_hash_test
 
 WARNS?=		3
 
