@@ -465,11 +465,7 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server)
 		 */
 
 		lbn = newsize / iosize;
-		bp = getblk(vp, lbn, iosize, PCATCH, 0, 0);
-		if (!bp) {
-			err = EINTR;
-			goto out;
-		}
+		bp = getblk(vp, lbn, iosize, 0, 0, 0);
 		if (!(bp->b_flags & B_CACHE))
 			goto out;	/* Nothing to do */
 		MPASS(bp->b_flags & B_VMIO);
