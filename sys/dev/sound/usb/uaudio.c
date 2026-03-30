@@ -367,7 +367,6 @@ struct uaudio_softc_child {
 };
 
 struct uaudio_softc {
-	struct sndcard_func sc_sndcard_func;
 	struct uaudio_chan sc_rec_chan[UAUDIO_MAX_CHILD];
 	struct uaudio_chan sc_play_chan[UAUDIO_MAX_CHILD];
 	struct umidi_chan sc_midi_chan;
@@ -1112,8 +1111,6 @@ uaudio_attach(device_t dev)
 
 	/* attach the children */
 
-	sc->sc_sndcard_func.func = SCF_PCM;
-
 	/*
 	 * Only attach a PCM device if we have a playback, recording
 	 * or mixer device present:
@@ -1130,8 +1127,6 @@ uaudio_attach(device_t dev)
 			DPRINTF("out of memory\n");
 			goto detach;
 		}
-		device_set_ivars(sc->sc_child[i].pcm_device,
-		    &sc->sc_sndcard_func);
 	}
 
 	bus_attach_children(dev);
