@@ -348,6 +348,7 @@ struct bw_meter {
 	struct bw_data	bm_measured;		/* the measured bw	     */
 	struct timeval	bm_start_time;		/* abs. time		     */
 #ifdef _KERNEL
+	struct mfctable *bm_mfctable;		/* Routing table             */
 	struct callout	bm_meter_callout;	/* Periodic callout          */
 	void*		arg;			/* custom argument           */
 	struct mtx 	bm_mtx;			/* meter lock                */
@@ -366,7 +367,7 @@ struct mbuf;
 struct socket;
 struct sockopt;
 
-extern u_long	(*ip_mcast_src)(int);
+extern u_long	(*ip_mcast_src)(int, int);
 extern int	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		    struct ip_moptions *);
 extern void	(*ip_mrouter_done)(struct socket *);
@@ -376,7 +377,7 @@ extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
 extern void	(*ip_rsvp_force_done)(struct socket *);
 extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
 
-extern int	(*legal_vif_num)(int);
+extern int	(*legal_vif_num)(int, int);
 extern int	(*mrt_ioctl)(u_long, caddr_t, int);
 extern int	(*rsvp_input_p)(struct mbuf **, int *, int);
 #endif /* _KERNEL */
