@@ -63,7 +63,7 @@
         ..
         jail.conf.d     tags=package=jail
         ..
-        kyua            tags=package=tests
+        kyua            tags=package=kyua
         ..
         mail            tags=package=runtime
         ..
