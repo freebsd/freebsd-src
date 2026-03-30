@@ -84,6 +84,9 @@
 #define ICH_D0				0x05	/* host data 0 */
 #define ICH_D1				0x06	/* host data 1 */
 #define ICH_BLOCK_DB			0x07	/* block data byte */
+#define ICH_AUX_CNT			0x0d	/* auxiliary control */
+#define   ICH_AUX_CNT_E32B		0x02	/*   enable 32 byte buffer */
+#define   ICH_AUX_CNT_AAC		0x01	/*   automatically append crc */
 
 #endif /* _DEV_ICHSMB_ICHSMB_REG_H_ */
 
