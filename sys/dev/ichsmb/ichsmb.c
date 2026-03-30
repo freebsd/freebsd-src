@@ -395,6 +395,15 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	sc->block_write = true;
 
 	mtx_lock(&sc->mutex);
+	/*
+	 * We don't expect the block buffer to be enabled. However, BIOS code
+	 * might enable it and doesn't restore it at any time, so we should
+	 * ensure it's disabled before sending an SMBus command.
+	 */
+	if (sc->features & ICHSMB_FEATURE_BLOCK_BUFFER) {
+		bus_write_1(sc->io_res, ICH_AUX_CNT,
+		    bus_read_1(sc->io_res, ICH_AUX_CNT) & ~ICH_AUX_CNT_E32B);
+	}
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
 	    slave | ICH_XMIT_SLVA_WRITE);
@@ -424,6 +433,15 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	sc->block_write = false;
 
 	mtx_lock(&sc->mutex);
+	/*
+	 * We don't expect the block buffer to be enabled. However, BIOS code
+	 * might enable it and doesn't restore it at any time, so we should
+	 * ensure it's disabled before sending an SMBus command.
+	 */
+	if (sc->features & ICHSMB_FEATURE_BLOCK_BUFFER) {
+		bus_write_1(sc->io_res, ICH_AUX_CNT,
+		    bus_read_1(sc->io_res, ICH_AUX_CNT) & ~ICH_AUX_CNT_E32B);
+	}
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
 	    slave | ICH_XMIT_SLVA_READ);
