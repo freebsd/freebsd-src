@@ -327,7 +327,8 @@ fuse_fifo_close(struct vop_close_args *ap)
 
 /* Invalidate a range of cached data, whether dirty of not */
 static int
-fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
+fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end,
+	int slpflag)
 {
 	struct buf *bp;
 	daddr_t left_lbn, end_lbn, right_lbn;
@@ -339,7 +340,9 @@ fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
 	end_lbn = howmany(end, iosize);
 	left_on = start & (iosize - 1);
 	if (left_on != 0) {
-		bp = getblk(vp, left_lbn, iosize, PCATCH, 0, 0);
+		bp = getblk(vp, left_lbn, iosize, slpflag, 0, 0);
+		if (!bp)
+			return (EINTR);
 		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyend >= left_on) {
 			/*
 			 * Flush the dirty buffer, because we don't have a
@@ -358,7 +361,9 @@ fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
 		right_lbn = end / iosize;
 		new_filesize = MAX(filesize, end);
 		right_blksize = MIN(iosize, new_filesize - iosize * right_lbn);
-		bp = getblk(vp, right_lbn, right_blksize, PCATCH, 0, 0);
+		bp = getblk(vp, right_lbn, right_blksize, slpflag, 0, 0);
+		if (!bp)
+			return (EINTR);
 		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyoff < right_on) {
 			/*
 			 * Flush the dirty buffer, because we don't have a
@@ -726,7 +731,10 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 	err = fuse_vnode_size(vp, &filesize, cred, curthread);
 	if (err)
 		return (err);
-	fuse_inval_buf_range(vp, filesize, *offset, *offset + *len);
+	err = fuse_inval_buf_range(vp, filesize, *offset, *offset + *len,
+	    PCATCH);
+	if (err)
+		return (err);
 
 	fdisp_init(&fdi, sizeof(*ffi));
 	fdisp_make_vp(&fdi, FUSE_FALLOCATE, vp, curthread, cred);
@@ -1020,7 +1028,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 
 	vnode_pager_clean_sync(invp);
 	err = fuse_inval_buf_range(outvp, outfilesize, *ap->a_outoffp,
-		*ap->a_outoffp + io.uio_resid);
+		*ap->a_outoffp + io.uio_resid, PCATCH);
 	if (err)
 		goto unlock;
 
@@ -2672,7 +2680,7 @@ fuse_vnop_write(struct vop_write_args *ap)
 		end = start + uio->uio_resid;
 		if (!pages) {
 			err = fuse_inval_buf_range(vp, filesize, start,
-			    end);
+			    end, PCATCH);
 			if (err)
 				goto out;
 		}
@@ -3206,7 +3214,9 @@ fuse_vnop_deallocate(struct vop_deallocate_args *ap)
 	err = fuse_vnode_size(vp, &filesize, cred, curthread);
 	if (err)
 		goto out;
-	fuse_inval_buf_range(vp, filesize, *offset, *offset + *len);
+	err = fuse_inval_buf_range(vp, filesize, *offset, *offset + *len, 0);
+	if (err)
+		goto out;
 
 	fdisp_init(&fdi, sizeof(*ffi));
 	fdisp_make_vp(&fdi, FUSE_FALLOCATE, vp, curthread, cred);
