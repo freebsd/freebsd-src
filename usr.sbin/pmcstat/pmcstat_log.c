@@ -194,6 +194,7 @@ static struct pmc_plugins plugins[] = {
 };
 
 static int pmcstat_mergepmc;
+static uint64_t _pmcstat_current_tsc; /* TSC for PMCSTAT_PRINT_ENTRY */
 
 int pmcstat_pmcinfilter = 0; /* PMC filter for top mode. */
 float pmcstat_threshold = 0.5; /* Cost filter for top mode. */
@@ -471,6 +472,7 @@ pmcstat_print_log(void)
 
 	while (pmclog_read(args.pa_logparser, &ev) == 0) {
 		assert(ev.pl_state == PMCLOG_OK);
+		_pmcstat_current_tsc = ev.pl_tsc;
 		switch (ev.pl_type) {
 		case PMCLOG_TYPE_CALLCHAIN:
 			PMCSTAT_PRINT_ENTRY("callchain",
@@ -496,9 +498,11 @@ pmcstat_print_log(void)
 			PMCSTAT_PRINT_ENTRY("drop",);
 			break;
 		case PMCLOG_TYPE_INITIALIZE:
-			PMCSTAT_PRINT_ENTRY("initlog","0x%x \"%s\"",
+			PMCSTAT_PRINT_ENTRY("initlog",
+			    "0x%x \"%s\" tsc_freq=%" PRIu64,
 			    ev.pl_u.pl_i.pl_version,
-			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch));
+			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch),
+			    ev.pl_u.pl_i.pl_tsc_freq);
 			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
 			    PMC_VERSION_MAJOR << 24)
 				warnx(

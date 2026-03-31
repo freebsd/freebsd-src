@@ -220,6 +220,30 @@ specified in
 .It Fl R Ar logfilename
 Perform offline analysis using sampling data in file
 .Ar logfilename .
+Each decoded record is printed as a single line with the following fields:
+a record type (e.g.,
+.Dq callchain ,
+.Dq initlog ) ,
+type-specific data, and a trailing 20-digit raw TSC value recording the
+CPU cycle at which the event occurred.
+The
+.Dq initlog
+record additionally prints
+.Dq Li tsc_freq=<hz> ,
+the TSC tick rate in Hz measured by the kernel at boot.
+To convert a TSC delta to nanoseconds:
+.Pp
+.Dl elapsed_ns = (tsc_end - tsc_start) * 1e9 / tsc_freq
+.Pp
+TSC-based timestamps and
+.Dq Li tsc_freq
+are only meaningful on x86 architectures
+.Pq amd64 and i386 .
+On all other architectures
+.Pq including arm64 and powerpc
+the
+.Dq Li tsc_freq
+field will be zero.
 .It Fl S Ar event-spec
 Allocate a system mode sampling PMC measuring hardware events
 specified in
