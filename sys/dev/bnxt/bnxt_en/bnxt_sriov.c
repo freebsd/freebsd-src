@@ -7,7 +7,6 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_sriov.h"
 
-
 static int
 bnxt_set_vf_admin_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 		      const uint8_t *mac)
@@ -89,6 +88,9 @@ bnxt_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 				      vfnum, rc);
 	}
 
+	(void)bnxt_set_vf_trust(softc, vfnum, vf->trusted);
+	(void)bnxt_set_vf_spoofchk(softc, vfnum, vf->spoofchk);
+
 	return 0;
 }
 
@@ -157,6 +159,7 @@ void bnxt_iov_uninit(if_ctx_t ctx)
 	if (rc)
 		device_printf(softc->dev, "VF resource free HWRM failed: %d\n", rc);
 
+	bnxt_destroy_trusted_vf_sysctls(softc);
 	bnxt_free_vf_resources(softc);
 	BNXT_SRIOV_LOCK_DESTROY(softc);
 }
@@ -349,6 +352,75 @@ bnxt_is_trusted_vf(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 	return !!(vf->func_qcfg_flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_TRUSTED_VF);
 }
 
+bool bnxt_promisc_ok(struct bnxt_softc *softc)
+{
+	if (BNXT_VF(softc) && !bnxt_is_trusted_vf(softc, &softc->vf))
+		return false;
+	return true;
+}
+
+static int
+bnxt_hwrm_set_trusted_vf(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	if (!(softc->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
+		return (EOPNOTSUPP);
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
+
+	req.fid = htole16(vf->fw_fid);
+
+	if (vf->flags & BNXT_VF_TRUST)
+		req.flags = cpu_to_le32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE);
+	else
+		req.flags = cpu_to_le32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_DISABLE);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(softc);
+	if (rc)
+		device_printf(softc->dev, "bnxt_hwrm_set_trusted_vf failed. rc:%d\n", rc);
+
+	return rc;
+}
+
+int
+bnxt_set_vf_trust(struct bnxt_softc *softc, int vf_id, bool trusted)
+{
+	int rc;
+	struct bnxt_vf_info *vf = NULL;
+
+	BNXT_SRIOV_LOCK(softc);
+	if (softc->pf.num_vfs == 0 || vf_id >= softc->pf.num_vfs) {
+		BNXT_SRIOV_UNLOCK(softc);
+		return (ENOENT);
+	}
+	vf = &softc->pf.vf[vf_id];
+
+	if (trusted)
+		vf->flags |= BNXT_VF_TRUST;
+	else
+		vf->flags &= ~BNXT_VF_TRUST;
+
+	BNXT_SRIOV_UNLOCK(softc);
+
+	rc = bnxt_hwrm_set_trusted_vf(softc, vf);
+	if (rc == 0) {
+		BNXT_SRIOV_LOCK(softc);
+		if (softc->pf.num_vfs != 0 && vf_id < softc->pf.num_vfs) {
+			vf = &softc->pf.vf[vf_id];
+			if (trusted)
+				vf->flags |= BNXT_VF_TRUST;
+			else
+				vf->flags &= ~BNXT_VF_TRUST;
+		}
+		BNXT_SRIOV_UNLOCK(softc);
+	}
+	return rc;
+}
+
 static int
 bnxt_vf_configure_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 {
@@ -450,6 +522,186 @@ void bnxt_hwrm_exec_fwd_req(struct bnxt_softc *softc)
 		bnxt_vf_req_validate_snd(softc, &softc->pf.vf[vf_id]);
 		i = vf_id + 1;
 	}
+}
+
+/* destroy VF sysctls when VFs are removed / PF detaches. */
+void
+bnxt_destroy_trusted_vf_sysctls(struct bnxt_softc *softc)
+{
+	sysctl_ctx_free(&softc->pf.sysctl_ctx);
+}
+
+/* Handler for: dev.bnxt.<unit>.vf<N>.trusted  (0/1) */
+static int
+bnxt_sysctl_vf_trusted(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = (struct bnxt_softc *)arg1;
+	int vf_id = (int)arg2;
+	int val, rc;
+
+	BNXT_SRIOV_LOCK(softc);
+	if (softc->pf.num_vfs == 0 || vf_id < 0 || vf_id >= softc->pf.num_vfs) {
+		BNXT_SRIOV_UNLOCK(softc);
+		return (ENOENT);
+	}
+	val = (softc->pf.vf[vf_id].flags & BNXT_VF_TRUST) ? 1 : 0;
+	BNXT_SRIOV_UNLOCK(softc);
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc)
+		return rc;
+
+	/* If no new value supplied, it was a READ */
+	if (req->newptr == NULL)
+		return 0;
+
+	/* WRITE path: 'val' now holds the user's 0/1 */
+	rc = bnxt_set_vf_trust(softc, vf_id, (val != 0));
+
+	return rc;
+}
+
+/*
+ * Create per-VF sysctls:
+ *   dev.bnxt.<unit>.vf0.trusted
+ *   dev.bnxt.<unit>.vf1.trusted
+ *   ..
+ */
+int
+bnxt_create_trusted_vf_sysctls(struct bnxt_softc *softc, uint16_t num_vfs)
+{
+	struct sysctl_oid_list *root_list;
+	struct sysctl_oid *vf_node;
+	char node_name[16];
+
+	/* use the device's sysctl tree as root: dev.bnxt.<unit>. */
+	sysctl_ctx_init(&softc->pf.sysctl_ctx);
+	root_list = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));
+
+	for (int i = 0; i < num_vfs; i++) {
+		snprintf(node_name, sizeof(node_name), "vf%d", i);
+
+		/* dev.bnxt.<unit>.vfN */
+		vf_node = SYSCTL_ADD_NODE(&softc->pf.sysctl_ctx,
+					  root_list, OID_AUTO,
+					  node_name, CTLFLAG_RW, 0, "VF node");
+
+		/* dev.bnxt.<unit>.vfN.trusted */
+		SYSCTL_ADD_PROC(&softc->pf.sysctl_ctx,
+				SYSCTL_CHILDREN(vf_node),
+				OID_AUTO, "trusted",
+				CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+				softc, i, bnxt_sysctl_vf_trusted, "I",
+				"0=untrusted (default), 1=trusted");
+	}
+	return 0;
+}
+
+static int
+bnxt_hwrm_set_vf_spoofchk(struct bnxt_softc *sc, struct bnxt_vf_info *vf,
+			  bool enable)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc = 0;
+
+	bnxt_hwrm_cmd_hdr_init(sc, &req, HWRM_FUNC_CFG);
+
+	req.fid = htole16(vf->fw_fid);
+	req.flags = htole32(enable ?
+		    HWRM_FUNC_CFG_INPUT_FLAGS_SRC_MAC_ADDR_CHECK_ENABLE :
+		    HWRM_FUNC_CFG_INPUT_FLAGS_SRC_MAC_ADDR_CHECK_DISABLE);
+
+	BNXT_HWRM_LOCK(sc);
+	rc = _hwrm_send_message(sc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(sc);
+	if (rc)
+		device_printf(sc->dev, "bnxt_hwrm_set_vf_spoofchk failed. rc:%d\n", rc);
+
+	return rc;
+}
+
+int
+bnxt_set_vf_spoofchk(struct bnxt_softc *sc, int vf_id, bool enable)
+{
+	struct bnxt_vf_info *vf;
+	int rc;
+
+	BNXT_SRIOV_LOCK(sc);
+	if (sc->pf.num_vfs == 0 || vf_id >= sc->pf.num_vfs) {
+		BNXT_SRIOV_UNLOCK(sc);
+		return (ENOENT);
+	}
+	vf = &sc->pf.vf[vf_id];
+	BNXT_SRIOV_UNLOCK(sc);
+
+	rc = bnxt_hwrm_set_vf_spoofchk(sc, vf, enable);
+	if (rc == 0) {
+		BNXT_SRIOV_LOCK(sc);
+		if (sc->pf.num_vfs != 0 && vf_id < sc->pf.num_vfs) {
+			vf = &sc->pf.vf[vf_id];
+			if (enable)
+				vf->flags |= BNXT_VF_SPOOFCHK;
+			else
+				vf->flags &= ~BNXT_VF_SPOOFCHK;
+		}
+		BNXT_SRIOV_UNLOCK(sc);
+	}
+	return rc;
+}
+
+static int
+bnxt_sysctl_vf_spoofchk(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *sc = (struct bnxt_softc *)arg1;
+	int vf_id = (int)arg2;
+	int val, rc;
+
+	BNXT_SRIOV_LOCK(sc);
+	if (sc->pf.num_vfs == 0 || vf_id >= sc->pf.num_vfs) {
+		BNXT_SRIOV_UNLOCK(sc);
+		return (ENOENT);
+	}
+	val = (sc->pf.vf[vf_id].flags & BNXT_VF_SPOOFCHK) ? 1 : 0;
+	BNXT_SRIOV_UNLOCK(sc);
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || req->newptr == NULL)
+		return rc;
+
+	return bnxt_set_vf_spoofchk(sc, vf_id, val != 0);
+}
+
+/*
+ * Create per-VF spoofchk:
+ *   dev.bnxt.<unit>.vf0.spoofchk
+ *   dev.bnxt.<unit>.vf1.spoofchk
+ *   ..
+ */
+int
+bnxt_create_spoofchk_vf_sysctls(struct bnxt_softc *softc, uint16_t num_vfs)
+{
+	struct sysctl_oid_list *root_list;
+	struct sysctl_oid *vf_node;
+	char node_name[16];
+
+	/* Reuse the same ctx & root tree as trusted vf */
+	root_list = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));
+
+	for (int i = 0; i < num_vfs; i++) {
+		snprintf(node_name, sizeof(node_name), "vf%d", i);
+
+		vf_node = SYSCTL_ADD_NODE(&softc->pf.sysctl_ctx,
+					  root_list, OID_AUTO,
+					  node_name, CTLFLAG_RW, 0, "VF node");
+
+		SYSCTL_ADD_PROC(&softc->pf.sysctl_ctx,
+				SYSCTL_CHILDREN(vf_node),
+				OID_AUTO, "spoofchk",
+				CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+				softc, i, bnxt_sysctl_vf_spoofchk, "I",
+				"0=spoofchk off, 1=spoofchk on");
+	}
+	return 0;
 }
 
 static int
@@ -673,6 +925,17 @@ bnxt_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 	if (rc)
 		goto fail_free_vf_resc;
 
+	rc = bnxt_create_trusted_vf_sysctls(softc, num_vfs);
+	if (rc) {
+		device_printf(softc->dev, "trusted VF sysctl creation failed (error=%d)\n", rc);
+		goto fail_free_hwrm_vf_resc;
+	}
+
+	rc = bnxt_create_spoofchk_vf_sysctls(softc, num_vfs);
+	if (rc) {
+		device_printf(softc->dev, "spoof check VF sysctl creation failed (error=%d)\n", rc);
+		goto fail_free_hwrm_vf_resc;
+	}
 
 	BNXT_SRIOV_LOCK(softc);
 	softc->pf.num_vfs = num_vfs;
@@ -680,6 +943,8 @@ bnxt_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 
 	return 0;
 
+fail_free_hwrm_vf_resc:
+	bnxt_hwrm_func_vf_resource_free(softc, num_vfs);
 fail_free_vf_resc:
 	bnxt_free_vf_resources(softc);
 fail_lock:
