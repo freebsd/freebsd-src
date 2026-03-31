@@ -74,8 +74,8 @@ startentry(struct pmclog_ev *ev)
 {
 	char eventbuf[128];
 
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"tsc\": \"%jd\"",
-	    typenames[ev->pl_type], (uintmax_t)ev->pl_ts.tv_sec);
+	snprintf(eventbuf, sizeof(eventbuf), "%s, \"tsc\": \"%ju\"",
+	    typenames[ev->pl_type], (uintmax_t)ev->pl_tsc);
 	return (string(eventbuf));
 }
 
@@ -393,4 +393,3 @@ event_to_json(struct pmclog_ev *ev){
 		errx(EX_USAGE, "ERROR: unrecognized event type: %d\n", ev->pl_type);
 	}
 }
-
