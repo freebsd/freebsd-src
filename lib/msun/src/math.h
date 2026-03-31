@@ -520,6 +520,12 @@ long double 	sinpil(long double);
 double		tanpi(double);
 float		tanpif(float);
 long double	tanpil(long double);
+double		fmaximum(double, double);
+float		fmaximumf(float, float);
+long double	fmaximuml(long double, long double);
+double		fminimum(double, double);
+float		fminimumf(float, float);
+long double	fminimuml(long double, long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS
