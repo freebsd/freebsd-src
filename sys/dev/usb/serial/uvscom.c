@@ -551,6 +551,7 @@ uvscom_pre_param(struct ucom_softc *ucom, struct termios *t)
 		case B38400:
 		case B57600:
 		case B115200:
+		break;
 		default:
 		return (EINVAL);
 	}
