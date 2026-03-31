@@ -179,6 +179,9 @@ The supplied
 argument for
 .Fn x86_pkru_protect_range
 has reserved bits set.
+.It Bq Er EINVAL
+The range of the request partially covers a mapping of an object created by
+.Xr shm_create_largepage 3 .
 .It Bq Er EFAULT
 The supplied address range does not completely fit into the user-managed
 address range.

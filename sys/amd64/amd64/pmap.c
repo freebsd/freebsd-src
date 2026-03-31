@@ -11551,7 +11551,7 @@ pmap_pkru_update_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
     u_int keyidx)
 {
 	pml4_entry_t *pml4e;
-	pdp_entry_t *pdpe;
+	pdp_entry_t newpdpe, *pdpe;
 	pd_entry_t newpde, ptpaddr, *pde;
 	pt_entry_t newpte, *ptep, pte;
 	vm_offset_t va, va_next;
@@ -11575,6 +11575,22 @@ pmap_pkru_update_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 			va_next = (va + NBPDP) & ~PDPMASK;
 			if (va_next < va)
 				va_next = eva;
+			continue;
+		}
+		if ((*pdpe & PG_PS) != 0) {
+			va_next = (va + NBPDP) & ~PDPMASK;
+			if (va_next < va)
+				va_next = eva;
+			KASSERT(va_next <= eva,
+			    ("partial update of non-transparent 1G mapping "
+			    "pdpe %#lx va %#lx eva %#lx va_next %#lx",
+			    *pdpe, va, eva, va_next));
+			newpdpe = (*pdpe & ~X86_PG_PKU_MASK) |
+			    X86_PG_PKU(keyidx);
+			if (newpdpe != *pdpe) {
+				*pdpe = newpdpe;
+				changed = true;
+			}
 			continue;
 		}
 
@@ -11629,8 +11645,6 @@ pmap_pkru_check_uargs(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	if (pmap->pm_type != PT_X86 || keyidx > PMAP_MAX_PKRU_IDX ||
 	    (flags & ~(AMD64_PKRU_PERSIST | AMD64_PKRU_EXCL)) != 0)
 		return (EINVAL);
-	if (eva <= sva || eva > VM_MAXUSER_ADDRESS)
-		return (EFAULT);
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) == 0)
 		return (ENOTSUP);
 	return (0);
