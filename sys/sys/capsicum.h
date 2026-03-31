@@ -297,8 +297,12 @@
 /* Allows for timerfd_settime(2). */
 #define	CAP_TIMERFD_SETTIME	CAPRIGHT(1, 0x0000000004000000ULL)
 
+/* fcntl(2) operations. */
+/* Allows for fcntl(F_READAHEAD) and fcntl(F_RDAHEAD). */
+#define	CAP_FCNTL_READAHEAD	CAPRIGHT(1, 0x0000000040000000ULL)
+
 /* All used bits for index 1. */
-#define	CAP_ALL1		CAPRIGHT(1, 0x000000000FFFFFFFULL)
+#define	CAP_ALL1		CAPRIGHT(1, 0x000000004FFFFFFFULL)
 
 /* Available bits for index 1. */
 #define	CAP_UNUSED1_28		CAPRIGHT(1, 0x0000000010000000ULL)

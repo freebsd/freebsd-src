@@ -60,6 +60,8 @@ const cap_rights_t cap_fchmod_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHMOD);
 const cap_rights_t cap_fchown_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHOWN);
 const cap_rights_t cap_fchroot_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHROOT);
 const cap_rights_t cap_fcntl_rights = CAP_RIGHTS_INITIALIZER(CAP_FCNTL);
+const cap_rights_t cap_fcntl_readahead_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_FCNTL_READAHEAD);
 const cap_rights_t cap_fexecve_rights = CAP_RIGHTS_INITIALIZER(CAP_FEXECVE);
 const cap_rights_t cap_flock_rights = CAP_RIGHTS_INITIALIZER(CAP_FLOCK);
 const cap_rights_t cap_fpathconf_rights = CAP_RIGHTS_INITIALIZER(CAP_FPATHCONF);

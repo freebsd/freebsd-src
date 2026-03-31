@@ -225,6 +225,14 @@ commands require this capability right.
 Also note that the list of permitted commands can be further limited with the
 .Xr cap_fcntls_limit 2
 system call.
+.It Dv CAP_FCNTL_READAHEAD
+Permit
+.Xr fcntl 2
+with the
+.Dv F_READAHEAD
+or
+.Dv F_RDAHEAD
+command.
 .It Dv CAP_FEXECVE
 Permit
 .Xr fexecve 2
