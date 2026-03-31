@@ -212,6 +212,68 @@ static int bnxt_set_vf_params(struct bnxt_softc *softc, int vf_id)
 	return rc;
 }
 
+int bnxt_approve_mac(struct bnxt_softc *sc)
+{
+
+	struct hwrm_func_vf_cfg_input req = (struct hwrm_func_vf_cfg_input){0};
+	struct bnxt_vf_info *vf = &sc->vf;
+	u8 *mac = vf->mac_addr;
+	int rc = 0;
+
+	if (!BNXT_VF(sc))
+		return EOPNOTSUPP;
+
+	bnxt_hwrm_cmd_hdr_init(sc, &req, HWRM_FUNC_VF_CFG);
+	req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_DFLT_MAC_ADDR);
+	memcpy(req.dflt_mac_addr, mac, ETHER_ADDR_LEN);
+
+	BNXT_HWRM_LOCK(sc);
+	rc = _hwrm_send_message(sc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(sc);
+
+	if (rc) {
+		device_printf(sc->dev,
+		"VF MAC %02x:%02x:%02x:%02x:%02x:%02x not approved by PF (rc=%d)\n",
+		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], rc);
+		return EADDRNOTAVAIL;
+	}
+	return rc;
+}
+
+void
+bnxt_update_vf_mac(struct bnxt_softc *sc)
+{
+	int rc = 0;
+	struct hwrm_func_qcaps_input req = {0};
+	struct hwrm_func_qcaps_output *resp =
+	    (void *)sc->hwrm_cmd_resp.idi_vaddr;
+	bool inform_pf = false;
+
+	bnxt_hwrm_cmd_hdr_init(sc, &req, HWRM_FUNC_QCAPS);
+	req.fid = htole16(0xffff);
+
+	BNXT_HWRM_LOCK(sc);
+	rc = _hwrm_send_message(sc, &req, sizeof(req));
+	if (rc)
+		goto update_vf_mac_exit;
+
+	if (!ether_addr_equal(resp->mac_address, sc->vf.mac_addr)) {
+		memcpy(sc->vf.mac_addr, resp->mac_address, ETHER_ADDR_LEN);
+		if (!is_valid_ether_addr(sc->vf.mac_addr))
+			inform_pf = true;
+	}
+
+	if (is_valid_ether_addr(sc->vf.mac_addr)) {
+		iflib_set_mac(sc->ctx, sc->vf.mac_addr);
+		memcpy(sc->func.mac_addr, sc->vf.mac_addr, ETHER_ADDR_LEN);
+	}
+
+update_vf_mac_exit:
+	BNXT_HWRM_UNLOCK(sc);
+	if (inform_pf)
+		bnxt_approve_mac(sc);
+}
+
 static int
 bnxt_hwrm_func_vf_resc_cfg(struct bnxt_softc *softc, int num_vfs, bool reset)
 {
