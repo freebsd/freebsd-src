@@ -213,10 +213,10 @@ apple_aic_attach(device_t dev)
 	}
 
 #ifdef SMP
-	sc->sc_ipimasks = malloc(sizeof(*sc->sc_ipimasks) * mp_maxid + 1,
+	sc->sc_ipimasks = malloc(sizeof(*sc->sc_ipimasks) * (mp_maxid + 1),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 #endif
-	sc->sc_cpuids = malloc(sizeof(*sc->sc_cpuids) * mp_maxid + 1,
+	sc->sc_cpuids = malloc(sizeof(*sc->sc_cpuids) * (mp_maxid + 1),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	cpu = PCPU_GET(cpuid);
