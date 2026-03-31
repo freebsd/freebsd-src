@@ -3730,13 +3730,15 @@ bnxt_promisc_set(if_ctx_t ctx, int flags)
 		softc->vnic_info.rx_mask &=
 		    ~HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
 
-	if (if_getflags(ifp) & IFF_PROMISC)
+	if ((if_getflags(ifp) & IFF_PROMISC) &&
+	     bnxt_promisc_ok(softc))
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_PROMISCUOUS |
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN;
 	else
 		softc->vnic_info.rx_mask &=
-		    ~(HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_PROMISCUOUS);
+		    ~(HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_PROMISCUOUS |
+		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN);
 
 	rc = bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
 
