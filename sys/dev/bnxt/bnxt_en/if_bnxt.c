@@ -266,6 +266,11 @@ static device_method_t bnxt_methods[] = {
 	DEVMETHOD(device_shutdown, iflib_device_shutdown),
 	DEVMETHOD(device_suspend, iflib_device_suspend),
 	DEVMETHOD(device_resume, iflib_device_resume),
+#ifdef PCI_IOV
+	DEVMETHOD(pci_iov_init, iflib_device_iov_init),
+	DEVMETHOD(pci_iov_uninit, iflib_device_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf, iflib_device_iov_add_vf),
+#endif
 	DEVMETHOD_END
 };
 
@@ -344,7 +349,11 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_i2c_req, bnxt_i2c_req),
 
 	DEVMETHOD(ifdi_needs_restart, bnxt_if_needs_restart),
-
+#ifdef PCI_IOV
+	DEVMETHOD(ifdi_iov_init, bnxt_iov_init),
+	DEVMETHOD(ifdi_iov_uninit, bnxt_iov_uninit),
+	DEVMETHOD(ifdi_iov_vf_add, bnxt_iov_vf_add),
+#endif
 	DEVMETHOD_END
 };
 
@@ -2737,6 +2746,12 @@ bnxt_attach_post(if_ctx_t ctx)
 	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
 	bnxt_dcb_init(softc);
 	bnxt_rdma_aux_device_init(softc);
+
+#if PCI_IOV
+	/* SR-IOV attach */
+	if (BNXT_PF(softc) && BNXT_CHIP_P5_PLUS(softc))
+		bnxt_sriov_attach(softc);
+#endif
 
 failed:
 	return rc;
