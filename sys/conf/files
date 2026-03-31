@@ -4263,7 +4263,7 @@ net/route/route_temporal.c	standard
 net/rss_config.c		standard
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc
-net/toeplitz.c			optional inet | inet6
+net/toeplitz.c			standard
 net/vnet.c			optional vimage
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
