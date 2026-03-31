@@ -88,6 +88,7 @@ extern const cap_rights_t cap_jail_set_rights;
 extern const cap_rights_t cap_timerfd_gettime_rights;
 extern const cap_rights_t cap_timerfd_settime_rights;
 extern const cap_rights_t cap_fcntl_readahead_rights;
+extern const cap_rights_t cap_posix_fadvise_rights;
 extern const cap_rights_t cap_linkat_source_rights;
 extern const cap_rights_t cap_linkat_target_rights;
 extern const cap_rights_t cap_listen_rights;

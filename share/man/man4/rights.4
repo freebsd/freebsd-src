@@ -512,6 +512,9 @@ Permit
 .It Dv CAP_PEELOFF
 Permit
 .Xr sctp_peeloff 2 .
+.It Dv CAP_POSIX_FADVISE
+Permit
+.Xr posix_fadvise 2 .
 .It Dv CAP_PREAD
 An alias to
 .Dv CAP_READ
@@ -730,6 +733,7 @@ is also required.
 .Xr pdwait4 2 ,
 .Xr pipe 2 ,
 .Xr poll 2 ,
+.Xr posix_fadvise 2 ,
 .Xr pread 2 ,
 .Xr preadv 2 ,
 .Xr pwrite 2 ,

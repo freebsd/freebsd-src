@@ -4961,9 +4961,8 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	default:
 		return (EINVAL);
 	}
-	/* XXX: CAP_POSIX_FADVISE? */
 	AUDIT_ARG_FD(fd);
-	error = fget(td, fd, &cap_no_rights, &fp);
+	error = fget(td, fd, &cap_posix_fadvise_rights, &fp);
 	if (error != 0)
 		goto out;
 	AUDIT_ARG_FILE(td->td_proc, fp);
