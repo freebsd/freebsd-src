@@ -206,8 +206,8 @@ acpi_spmc_probe(device_t dev)
 	if (sc->dsm_sets == 0)
 		return (ENXIO);
 
-	device_set_descf(dev, "Low Power S0 Idle (DSM sets 0x%x)",
-	    sc->dsm_sets);
+	device_set_descf(dev, "System Power Management Controller "
+	    "(DSM sets 0x%x)", sc->dsm_sets);
 
 	return (0);
 }
