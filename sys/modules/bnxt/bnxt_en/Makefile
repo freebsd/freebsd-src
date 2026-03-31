@@ -9,6 +9,7 @@ SRCS	+= bnxt_sysctl.c
 SRCS	+= bnxt_mgmt.c
 SRCS	+= bnxt_dcb.c bnxt_dcb.h
 SRCS	+= bnxt_auxbus_compat.c bnxt_auxbus_compat.h
+SRCS	+= bnxt_sriov.c bnxt_sriov.h
 SRCS	+= bnxt_ulp.c bnxt_ulp.h
 SRCS	+= ${LINUXKPI_GENSRCS}
 
