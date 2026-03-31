@@ -1,0 +1,62 @@
+.\"
+.\" Copyright (c) 2026 Christos Longros <chris.longros@gmail.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd March 21, 2026
+.Dt VMGENC 4
+.Os
+.Sh NAME
+.Nm vmgenc
+.Nd ACPI virtual machine generation ID counter
+.Sh SYNOPSIS
+.Cd device vmgenc
+.Pp
+In
+.Xr loader.conf 5 :
+.Cd vmgenc_load="YES"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Virtual Machine Generation ID,
+a 128-bit unique identifier exposed by the hypervisor via ACPI.
+The hypervisor changes this identifier whenever the virtual machine
+is cloned, restored from a snapshot, or otherwise duplicated.
+.Pp
+When a generation ID change is detected, the
+.Nm
+driver feeds the new identifier into the kernel entropy pool via
+.Xr random 4 ,
+ensuring that duplicated virtual machines do not share
+cryptographic state.
+The driver also sends a
+.Xr devctl 4
+event and an internal kernel notification so that other subsystems
+can respond to the duplication.
+.Pp
+The Virtual Machine Generation ID specification is supported by
+QEMU, VMware ESXi, Microsoft Hyper-V, and Xen.
+.Sh SYSCTL VARIABLES
+The following variable is available:
+.Bl -tag -width indent
+.It Va dev.vmgenc.%d.guid
+The current cached VM generation counter as a 128-bit value.
+This value is updated each time the hypervisor signals a
+generation change.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr random 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Conrad Meyer Aq Mt cem@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Christos Longros Aq Mt chris.longros@gmail.com .
