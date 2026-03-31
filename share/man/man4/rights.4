@@ -601,6 +601,14 @@ Permit
 This right includes the
 .Dv CAP_LOOKUP
 right.
+.It Dv CAP_TIMERFD_GETTIME
+Permit
+.Xr timerfd_gettime 2
+on a timer file descriptor.
+.It Dv CAP_TIMERFD_SETTIME
+Permit
+.Xr timerfd_settime 2
+on a timer file descriptor.
 .It Dv CAP_TTYHOOK
 Allow configuration of TTY hooks, such as
 .Xr snp 4 ,

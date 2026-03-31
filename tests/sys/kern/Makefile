@@ -58,6 +58,7 @@ ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
 ATF_TESTS_C+=	timerfd
 LIBADD.timerfd+=	pthread
+ATF_TESTS_C+=	timerfd_cap_test
 ATF_TESTS_C+=	tty_pts
 ATF_TESTS_C+=	unix_dgram
 ATF_TESTS_C+=	unix_passfd_dgram

@@ -291,11 +291,17 @@
 /* Allows for jail_set(2) with JAIL_USE_DESC. */
 #define	CAP_JAIL_SET		CAPRIGHT(1, 0x0000000008000000ULL)
 
+/* Timer file descriptor operations. */
+/* Allows for timerfd_gettime(2). */
+#define	CAP_TIMERFD_GETTIME	CAPRIGHT(1, 0x0000000002000000ULL)
+/* Allows for timerfd_settime(2). */
+#define	CAP_TIMERFD_SETTIME	CAPRIGHT(1, 0x0000000004000000ULL)
+
 /* All used bits for index 1. */
-#define	CAP_ALL1		CAPRIGHT(1, 0x0000000009FFFFFFULL)
+#define	CAP_ALL1		CAPRIGHT(1, 0x000000000FFFFFFFULL)
 
 /* Available bits for index 1. */
-#define	CAP_UNUSED1_25		CAPRIGHT(1, 0x0000000002000000ULL)
+#define	CAP_UNUSED1_28		CAPRIGHT(1, 0x0000000010000000ULL)
 /* ... */
 #define	CAP_UNUSED1_57		CAPRIGHT(1, 0x0100000000000000ULL)
 

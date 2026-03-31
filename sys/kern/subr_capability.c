@@ -86,6 +86,10 @@ const cap_rights_t cap_jail_remove_rights =
 const cap_rights_t cap_jail_set_rights =
     CAP_RIGHTS_INITIALIZER(CAP_JAIL_SET);
 const cap_rights_t cap_listen_rights = CAP_RIGHTS_INITIALIZER(CAP_LISTEN);
+const cap_rights_t cap_timerfd_gettime_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_TIMERFD_GETTIME);
+const cap_rights_t cap_timerfd_settime_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_TIMERFD_SETTIME);
 const cap_rights_t cap_linkat_source_rights =
     CAP_RIGHTS_INITIALIZER(CAP_LINKAT_SOURCE);
 const cap_rights_t cap_linkat_target_rights =
