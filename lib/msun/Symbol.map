@@ -316,3 +316,14 @@ FBSD_1.7 {
 	tanpif;
 	tanpil;
 };
+
+/* First added in 16.0-CURRENT */
+
+FBSD_1.9 {
+	fmaximum;
+	fmaximumf;
+	fmaximuml;
+	fminimum;
+	fminimumf;
+	fminimuml;
+};
