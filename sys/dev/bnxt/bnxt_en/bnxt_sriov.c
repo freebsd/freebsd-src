@@ -275,6 +275,184 @@ update_vf_mac_exit:
 }
 
 static int
+bnxt_hwrm_fwd_err_resp(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
+		       u32 msg_size)
+{
+	struct hwrm_reject_fwd_resp_input req;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_REJECT_FWD_RESP);
+
+	if (msg_size > sizeof(req.encap_request))
+		msg_size = sizeof(req.encap_request);
+
+	req.target_id = cpu_to_le16(vf->fw_fid);
+	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
+	memcpy(&req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
+
+	BNXT_HWRM_LOCK(softc);
+	int rc = _hwrm_send_message(softc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(softc);
+	if (rc)
+		device_printf(softc->dev, "hwrm_fwd_err_resp failed (error=%d)\n", rc);
+
+	return rc;
+}
+
+static int
+bnxt_hwrm_exec_fwd_resp(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
+			u32 msg_size)
+{
+	struct hwrm_exec_fwd_resp_input req;
+
+	if (BNXT_EXEC_FWD_RESP_SIZE_ERR(msg_size))
+		return bnxt_hwrm_fwd_err_resp(softc, vf, msg_size);
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_EXEC_FWD_RESP);
+
+	req.target_id = cpu_to_le16(vf->fw_fid);
+	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
+	memcpy(&req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
+
+	BNXT_HWRM_LOCK(softc);
+	int rc = _hwrm_send_message(softc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(softc);
+	if (rc)
+		device_printf(softc->dev, "hwrm_exec_fw_resp failed (error=%d)\n", rc);
+
+	return rc;
+}
+
+static int
+bnxt_hwrm_func_qcfg_flags(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
+{
+	struct hwrm_func_qcfg_input req;
+	struct hwrm_func_qcfg_output *resp =
+		(void *)softc->hwrm_cmd_resp.idi_vaddr;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCFG);
+
+	req.fid = cpu_to_le16(BNXT_PF(softc) ? vf->fw_fid : 0xffff);
+
+	BNXT_HWRM_LOCK(softc);
+	int rc = _hwrm_send_message(softc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(softc);
+	if (!rc)
+		vf->func_qcfg_flags = cpu_to_le16(resp->flags);
+
+	return rc;
+}
+
+bool
+bnxt_is_trusted_vf(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
+{
+	bnxt_hwrm_func_qcfg_flags(softc, vf);
+	return !!(vf->func_qcfg_flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_TRUSTED_VF);
+}
+
+static int
+bnxt_vf_configure_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
+{
+	u32 msg_size = sizeof(struct hwrm_func_vf_cfg_input);
+	struct hwrm_func_vf_cfg_input *req =
+		(struct hwrm_func_vf_cfg_input *)vf->hwrm_cmd_req_addr;
+
+	/* Allow VF to set a valid MAC address, if trust is set to on or
+	 * if the PF assigned MAC address is zero
+	 */
+	if (req->enables &
+	    cpu_to_le32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_DFLT_MAC_ADDR)) {
+		bool trust = bnxt_is_trusted_vf(softc, vf);
+
+		if (is_valid_ether_addr(req->dflt_mac_addr) &&
+		    (trust || !is_valid_ether_addr(vf->mac_addr) ||
+		     ether_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
+			ether_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
+			return bnxt_hwrm_exec_fwd_resp(softc, vf, msg_size);
+		}
+		return bnxt_hwrm_fwd_err_resp(softc, vf, msg_size);
+	}
+	return bnxt_hwrm_exec_fwd_resp(softc, vf, msg_size);
+}
+
+static int bnxt_vf_validate_set_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
+{
+	u32 msg_size = sizeof(struct hwrm_cfa_l2_filter_alloc_input);
+	struct hwrm_cfa_l2_filter_alloc_input *req =
+		(struct hwrm_cfa_l2_filter_alloc_input *)vf->hwrm_cmd_req_addr;
+	bool mac_ok = false;
+
+	if (!is_valid_ether_addr((const u8 *)req->l2_addr))
+		return bnxt_hwrm_fwd_err_resp(softc, vf, msg_size);
+
+	/* Allow VF to set a valid MAC address, if trust is set to on.
+	 * Or VF MAC address must first match MAC address in PF's context.
+	 * Otherwise, it must match the VF MAC address if firmware spec >=
+	 * 1.2.2
+	 */
+	if (bnxt_is_trusted_vf(softc, vf)) {
+		mac_ok = true;
+	} else if (is_valid_ether_addr(vf->mac_addr)) {
+		if (ether_addr_equal((const u8 *)req->l2_addr, vf->mac_addr))
+			mac_ok = true;
+	} else if (is_valid_ether_addr(vf->vf_mac_addr)) {
+		if (ether_addr_equal((const u8 *)req->l2_addr, vf->vf_mac_addr))
+			mac_ok = true;
+	} else {
+		mac_ok = true;
+	}
+	if (mac_ok)
+		return bnxt_hwrm_exec_fwd_resp(softc, vf, msg_size);
+
+	return bnxt_hwrm_fwd_err_resp(softc, vf, msg_size);
+}
+
+static int bnxt_vf_req_validate_snd(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
+{
+	int rc = 0;
+	struct input *encap_req = vf->hwrm_cmd_req_addr;
+	u32 req_type = le16_to_cpu(encap_req->req_type);
+
+	switch (req_type) {
+	case HWRM_FUNC_VF_CFG:
+		rc = bnxt_vf_configure_mac(softc, vf);
+		break;
+	case HWRM_CFA_L2_FILTER_ALLOC:
+		rc = bnxt_vf_validate_set_mac(softc, vf);
+		break;
+	case HWRM_FUNC_CFG:
+		rc = bnxt_hwrm_exec_fwd_resp(
+			softc, vf, sizeof(struct hwrm_func_cfg_input));
+		break;
+	case HWRM_PORT_PHY_QCFG:
+		/* ckp todo: Disable set VF link command now, enable it later
+		 * Auto neg works as of now.
+		 * rc = bnxt_vf_set_link(softc, vf);
+		 */
+		break;
+	default:
+		rc = bnxt_hwrm_fwd_err_resp(softc, vf, softc->hwrm_max_req_len);
+		break;
+	}
+	return rc;
+}
+
+void bnxt_hwrm_exec_fwd_req(struct bnxt_softc *softc)
+{
+	u32 i = 0, active_vfs = softc->pf.active_vfs, vf_id;
+
+	/* Scan through VF's and process commands */
+	while (1) {
+		vf_id = find_next_bit(softc->pf.vf_event_bmap, active_vfs, i);
+		if (vf_id >= active_vfs)
+			break;
+
+		clear_bit(vf_id, softc->pf.vf_event_bmap);
+		bnxt_vf_req_validate_snd(softc, &softc->pf.vf[vf_id]);
+		i = vf_id + 1;
+	}
+}
+
+static int
 bnxt_hwrm_func_vf_resc_cfg(struct bnxt_softc *softc, int num_vfs, bool reset)
 {
 	struct hwrm_func_vf_resource_cfg_input req = {0};
