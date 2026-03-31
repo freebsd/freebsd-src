@@ -287,8 +287,8 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		return -1;
 	}
 
-	/* copy out the time stamp */
-	ev->pl_ts.tv_sec = ph->pl_tsc;
+	/* copy out the TSC from the event header */
+	ev->pl_tsc = ph->pl_tsc;
 	le += sizeof(*ph)/4;
 
 	evlen = PMCLOG_HEADER_TO_LENGTH(h);
