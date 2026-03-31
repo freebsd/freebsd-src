@@ -1740,9 +1740,11 @@ findkn:
 
 		KQ_LOCK(kq);
 		if (kev->ident < kq->kq_knlistsize) {
-			SLIST_FOREACH(kn, &kq->kq_knlist[kev->ident], kn_link)
+			SLIST_FOREACH(kn, &kq->kq_knlist[kev->ident], kn_link) {
+				MPASS(kn->kn_kq == kq);
 				if (kev->filter == kn->kn_filter)
 					break;
+			}
 		}
 	} else {
 		if ((kev->flags & EV_ADD) == EV_ADD) {
@@ -1768,10 +1770,12 @@ findkn:
 
 			list = &kq->kq_knhash[
 			    KN_HASH((u_long)kev->ident, kq->kq_knhashmask)];
-			SLIST_FOREACH(kn, list, kn_link)
+			SLIST_FOREACH(kn, list, kn_link) {
+				MPASS(kn->kn_kq == kq);
 				if (kev->ident == kn->kn_id &&
 				    kev->filter == kn->kn_filter)
 					break;
+			}
 		}
 	}
 
@@ -2862,6 +2866,7 @@ knote_attach(struct knote *kn, struct kqueue *kq)
 
 	KASSERT(kn_in_flux(kn), ("knote %p not marked influx", kn));
 	KQ_OWNED(kq);
+	MPASS(kn->kn_kq == kq);
 
 	if ((kq->kq_state & KQ_CLOSING) != 0)
 		return (EBADF);
@@ -2910,6 +2915,7 @@ knote_drop_detached(struct knote *kn, struct thread *td)
 		msleep(kq, &kq->kq_lock, PSOCK, "kqflxwt", 0);
 	}
 
+	MPASS(kn->kn_kq == kq);
 	if (kn->kn_fop->f_isfd)
 		list = &kq->kq_knlist[kn->kn_id];
 	else
@@ -3086,6 +3092,7 @@ kqueue_fork_copy_list(struct klist *knlist, struct knote *marker,
 	KQ_OWNED(kq);
 	kn = SLIST_FIRST(knlist);
 	while (kn != NULL) {
+		MPASS(kn->kn_kq == kq);
 		if ((kn->kn_status & KN_DETACHED) != 0 ||
 		    (kn_in_flux(kn) && (kn->kn_status & KN_SCAN) == 0)) {
 			kn = SLIST_NEXT(kn, kn_link);
@@ -3119,6 +3126,7 @@ kqueue_fork_copy(struct filedesc *fdp, struct file *fp, struct file *fp1,
 	kq = kq1->kq_forksrc;
 	marker = knote_alloc(M_WAITOK);
 	marker->kn_status = KN_MARKER;
+	marker->kn_kq = kq;
 
 	KQ_LOCK(kq);
 	for (i = 0; i < kq->kq_knlistsize; i++) {
@@ -3230,6 +3238,7 @@ kern_proc_kqueue_report(struct sbuf *s, struct proc *p, int kq_fd,
 	KQ_LOCK(kq);
 	for (i = 0; i < kq->kq_knlistsize; i++) {
 		SLIST_FOREACH(kn, &kq->kq_knlist[i], kn_link) {
+			MPASS(kn->kn_kq == kq);
 			error = kern_proc_kqueue_report_one(s, p, kq_fd,
 			    kq, kn, compat32);
 			if (error != 0)
@@ -3240,6 +3249,7 @@ kern_proc_kqueue_report(struct sbuf *s, struct proc *p, int kq_fd,
 		goto out;
 	for (i = 0; i <= kq->kq_knhashmask; i++) {
 		SLIST_FOREACH(kn, &kq->kq_knhash[i], kn_link) {
+			MPASS(kn->kn_kq == kq);
 			error = kern_proc_kqueue_report_one(s, p, kq_fd,
 			    kq, kn, compat32);
 			if (error != 0)
