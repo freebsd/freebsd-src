@@ -624,6 +624,7 @@ MAN=	aac.4 \
 	virtio_random.4 \
 	virtio_scsi.4 \
 	${_vmci.4} \
+	vmgenc.4 \
 	vkbd.4 \
 	vlan.4 \
 	vxlan.4 \
