@@ -2649,7 +2649,7 @@ freebsd11_freebsd32_nstat(struct thread *td,
 	if (error != 0)
 		return (error);
 	error = freebsd11_cvtnstat32(&sb, &nsb);
-	if (error != 0)
+	if (error == 0)
 		error = copyout(&nsb, uap->ub, sizeof (nsb));
 	return (error);
 }
