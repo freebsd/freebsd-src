@@ -472,7 +472,7 @@ static void
 print_nlmsg_route_nhop(struct nl_helper *h, struct snl_parsed_route *r,
     struct rta_mpath_nh *nh, bool first)
 {
-	// gw 10.0.0.1 ifp vtnet0 mtu 1500 table inet.0
+	// gw 10.0.0.1 iface vtnet0 weight 100 mtu 1500 expire 3600 table inet.0
 	if (nh->gw != NULL) {
 		char gwbuf[128];
 		print_prefix(h, gwbuf, sizeof(gwbuf), nh->gw, -1);
@@ -486,6 +486,7 @@ print_nlmsg_route_nhop(struct nl_helper *h, struct snl_parsed_route *r,
 		if (nh->rtax_mtu == 0)
 			nh->rtax_mtu = link.ifla_mtu;
 		printf("iface %s ", link.ifla_ifname);
+		printf("weight %d ", nh->rtnh_weight);
 		if (nh->rtax_mtu != 0)
 			printf("mtu %d ", nh->rtax_mtu);
 		if (nh->rta_expire > 0)
