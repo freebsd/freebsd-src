@@ -858,7 +858,10 @@ add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
 	struct route_nhop_data rnd_new;
 	int error = 0;
 
-	error = nhgrp_get_addition_group(rnh, rnd_orig, rnd_add, &rnd_new);
+	if (!NH_IS_NHGRP(rnd_add->rnd_nhop))
+		error = nhgrp_get_addition_group(rnh, rnd_orig, rnd_add, &rnd_new);
+	else
+		error = nhgrp_get_merge_group(rnh, rnd_orig, rnd_add, &rnd_new);
 	if (error != 0) {
 		if (error == EAGAIN) {
 			/*
