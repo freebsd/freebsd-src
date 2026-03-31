@@ -4988,6 +4988,10 @@ sysctl_jail_default_allow(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+/*
+ * Do not add more here. Use SYSCTL_JAIL_PARAM (allow flags for jails)
+ * instead.
+ */
 SYSCTL_PROC(_security_jail, OID_AUTO, set_hostname_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_SET_HOSTNAME, sysctl_jail_default_allow, "I",
@@ -5015,7 +5019,7 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
 SYSCTL_PROC(_security_jail, OID_AUTO, mlock_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MLOCK, sysctl_jail_default_allow, "I",
-    "Processes in jail can lock/unlock physical pages in memory");
+    "Processes in jail can lock/unlock physical pages in memory (deprecated)");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
