@@ -2411,6 +2411,11 @@ static void bnxt_sp_task(struct work_struct *work)
 		return;
 	}
 
+#ifdef PCI_IOV
+	if (test_and_clear_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &bp->sp_event))
+		bnxt_hwrm_exec_fwd_req(bp);
+#endif
+
 	if (test_and_clear_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event)) {
 		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) ||
 		    test_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state))
@@ -3868,6 +3873,10 @@ bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
 {
 	struct bnxt_softc *softc = cpr->ring.softc;
 	uint16_t type = cmpl->flags_type & TX_CMPL_TYPE_MASK;
+#ifdef PCI_IOV
+	struct hwrm_fwd_req_cmpl *fwd_req_cmpl = (struct hwrm_fwd_req_cmpl *)cmpl;
+	uint16_t vf_id;
+#endif
 
 	switch (type) {
 	case HWRM_CMPL_TYPE_HWRM_DONE:
@@ -3876,6 +3885,19 @@ bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
 	case HWRM_ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT:
 		bnxt_handle_async_event(softc, (cmpl_base_t *) cmpl);
 		break;
+#ifdef PCI_IOV
+	case CMPL_BASE_TYPE_HWRM_FWD_REQ:
+		vf_id = le16_to_cpu(fwd_req_cmpl->source_id);
+
+		if ((vf_id < softc->pf.first_vf_id) ||
+		    (vf_id >= softc->pf.first_vf_id + softc->pf.active_vfs))
+			return;
+
+		set_bit(vf_id - softc->pf.first_vf_id, softc->pf.vf_event_bmap);
+		set_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &softc->sp_event);
+		bnxt_queue_sp_work(softc);
+		break;
+#endif
 	default:
 		device_printf(softc->dev, "%s:%d Unhandled async message %x\n",
 				__FUNCTION__, __LINE__, type);
