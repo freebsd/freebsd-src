@@ -8861,7 +8861,7 @@ bce_sysctl_nvram_write(SYSCTL_HANDLER_ARGS)
 		bzero(sc->nvram_buf, sc->bce_flash_size);
 
 	error = SYSCTL_IN(req, sc->nvram_buf, sc->bce_flash_size);
-	if (error == 0)
+	if (error != 0)
 		return (error);
 
 	if (req->newlen == sc->bce_flash_size)
