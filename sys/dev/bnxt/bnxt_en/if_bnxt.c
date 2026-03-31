@@ -168,6 +168,20 @@ static const pci_vendor_info_t bnxt_vendor_info_array[] =
 	"Broadcom NetXtreme-E Ethernet Virtual Function"),
     PVID(BROADCOM_VENDOR_ID, NETXTREME_E_VF3,
 	"Broadcom NetXtreme-E Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_VF4,
+	"Broadcom NetXtreme-E Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_VF5,
+	"Broadcom NetXtreme-E Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_P5_VF1,
+	"Broadcom BCM5750X NetXtreme-E Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_P5_VF2,
+	"Broadcom BCM5750X NetXtreme-E Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_P5_VF_HV1,
+	"Broadcom NetXtreme-C Virtual Function for Hyper-V"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_P5_VF_HV2,
+	"Broadcom NetXtreme-C Virtual Function for Hyper-V"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_P7_VF,
+	"Broadcom BCM5760X Virtual Function"),
     /* required last entry */
 
     PVID_END
@@ -364,14 +378,19 @@ static driver_t bnxt_iflib_driver = {
 /*
  * iflib shared context
  */
-
 #define BNXT_DRIVER_VERSION	"230.0.133.0"
 const char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
+
+static char drv_version_msg[] =
+		"Broadcom NetXtreme-C/E Ethernet Driver if_bnxt" \
+		" v" BNXT_DRIVER_VERSION;
+
 extern struct if_txrx bnxt_txrx;
-static struct if_shared_ctx bnxt_sctx_init = {
+
+static struct if_shared_ctx bnxt_sctx_template = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_driver = &bnxt_iflib_driver,
-	.isc_nfl = 2,				// Number of Free Lists
+	.isc_nfl = 2,
 	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD,
 	.isc_q_align = PAGE_SIZE,
 	.isc_tx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
@@ -380,27 +399,116 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_tso_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
 	.isc_rx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
 	.isc_rx_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
-
-	// Only use a single segment to avoid page size constraints
 	.isc_rx_nsegments = 1,
 	.isc_ntxqs = 3,
 	.isc_nrxqs = 3,
 	.isc_nrxd_min = {16, 16, 16},
 	.isc_nrxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 8,
-	    PAGE_SIZE / sizeof(struct rx_prod_pkt_bd),
-	    PAGE_SIZE / sizeof(struct rx_prod_pkt_bd)},
+			     PAGE_SIZE / sizeof(struct rx_prod_pkt_bd),
+			     PAGE_SIZE / sizeof(struct rx_prod_pkt_bd)},
 	.isc_nrxd_max = {BNXT_MAX_RXD, BNXT_MAX_RXD, BNXT_MAX_RXD},
 	.isc_ntxd_min = {16, 16, 16},
 	.isc_ntxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 2,
-	    PAGE_SIZE / sizeof(struct tx_bd_short),
-	    /* NQ depth 4096 */
-	    PAGE_SIZE / sizeof(struct cmpl_base) * 16},
+			     PAGE_SIZE / sizeof(struct tx_bd_short),
+			     PAGE_SIZE / sizeof(struct cmpl_base) * 16},
 	.isc_ntxd_max = {BNXT_MAX_TXD, BNXT_MAX_TXD, BNXT_MAX_TXD},
-
-	.isc_admin_intrcnt = BNXT_ROCE_IRQ_COUNT,
 	.isc_vendor_info = bnxt_vendor_info_array,
 	.isc_driver_version = bnxt_driver_version,
 };
+
+static struct if_shared_ctx bnxt_sctx_template_p7 = {
+	.isc_magic = IFLIB_MAGIC,
+	.isc_driver = &bnxt_iflib_driver,
+	.isc_nfl = 2,
+	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD,
+	.isc_q_align = PAGE_SIZE,
+	.isc_tx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tx_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_rx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_rx_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_rx_nsegments = 1,
+	.isc_ntxqs = 3,
+	.isc_nrxqs = 3,
+	.isc_nrxd_min = {16, 16, 16},
+	.isc_nrxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 8,
+			     PAGE_SIZE / sizeof(struct rx_prod_pkt_bd),
+			     PAGE_SIZE / sizeof(struct rx_prod_pkt_bd)},
+	.isc_nrxd_max = {BNXT_MAX_RXD, BNXT_MAX_RXD, BNXT_MAX_RXD},
+	.isc_ntxd_min = {128, 128, 128},
+	.isc_ntxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 2,
+			     PAGE_SIZE / sizeof(struct tx_bd_short),
+			     PAGE_SIZE / sizeof(struct cmpl_base) * 16},
+	.isc_ntxd_max = {BNXT_MAX_TXD, BNXT_MAX_TXD, BNXT_MAX_TXD},
+	.isc_vendor_info = bnxt_vendor_info_array,
+	.isc_driver_version = bnxt_driver_version,
+};
+
+static struct if_shared_ctx bnxt_sctx_pf_init;
+static struct if_shared_ctx bnxt_sctx_vf_init;
+static bool sctx_initialized = false;
+
+static inline void
+bnxt_init_sctx_variants(uint16_t device_id)
+{
+    if (device_id == BCM57608)
+	bnxt_sctx_pf_init = bnxt_sctx_template_p7;
+    else
+	bnxt_sctx_pf_init = bnxt_sctx_template;
+
+    bnxt_sctx_pf_init.isc_admin_intrcnt = BNXT_ROCE_IRQ_COUNT;
+
+    bnxt_sctx_vf_init = bnxt_sctx_template;
+    bnxt_sctx_vf_init.isc_flags |= IFLIB_IS_VF;
+}
+
+static inline bool
+bnxt_is_vf_device(uint16_t device_id)
+{
+	switch (device_id) {
+	case NETXTREME_C_VF1:
+	case NETXTREME_C_VF2:
+	case NETXTREME_C_VF3:
+	case NETXTREME_E_VF1:
+	case NETXTREME_E_VF2:
+	case NETXTREME_E_VF3:
+	case NETXTREME_E_VF4:
+	case NETXTREME_E_VF5:
+	case NETXTREME_E_P5_VF1:
+	case NETXTREME_E_P5_VF2:
+	case NETXTREME_E_P5_VF_HV1:
+	case NETXTREME_E_P5_VF_HV2:
+	case NETXTREME_E_P7_VF:
+		return true;
+	default:
+		return false;
+	}
+}
+
+void
+bnxt_set_flags_by_devid(struct bnxt_softc *softc)
+{
+	uint16_t device_id = pci_get_device(softc->dev);
+
+	if (bnxt_is_vf_device(device_id))
+		softc->flags |= BNXT_FLAG_VF;
+
+	switch (device_id) {
+	case BCM57402_NPAR:
+	case BCM57404_NPAR:
+	case BCM57406_NPAR:
+	case BCM57407_NPAR:
+	case BCM57412_NPAR1:
+	case BCM57412_NPAR2:
+	case BCM57414_NPAR1:
+	case BCM57414_NPAR2:
+	case BCM57416_NPAR1:
+	case BCM57416_NPAR2:
+		softc->flags |= BNXT_FLAG_NPAR;
+		break;
+	}
+}
 
 #define PCI_SUBSYSTEM_ID	0x2e
 static struct workqueue_struct *bnxt_pf_wq;
@@ -414,7 +522,23 @@ extern void bnxt_destroy_irq(struct bnxt_softc *softc);
 static void *
 bnxt_register(device_t dev)
 {
-	return (&bnxt_sctx_init);
+	uint16_t vendor_id = pci_get_vendor(dev);
+	uint16_t device_id = pci_get_device(dev);
+
+	if (vendor_id != BROADCOM_VENDOR_ID)
+		return NULL;
+
+	if (!sctx_initialized) {
+		printf("if_bnxt: %s\n", drv_version_msg);
+		sctx_initialized = true;
+	}
+
+	bnxt_init_sctx_variants(device_id);
+
+	if (bnxt_is_vf_device(device_id))
+		return &bnxt_sctx_vf_init;
+
+	return &bnxt_sctx_pf_init;
 }
 
 static void
@@ -2317,37 +2441,13 @@ bnxt_attach_pre(if_ctx_t ctx)
 	softc->scctx = iflib_get_softc_ctx(ctx);
 	softc->sctx = iflib_get_sctx(ctx);
 	scctx = softc->scctx;
-
-	/* TODO: Better way of detecting NPAR/VF is needed */
-	switch (pci_get_device(softc->dev)) {
-	case BCM57402_NPAR:
-	case BCM57404_NPAR:
-	case BCM57406_NPAR:
-	case BCM57407_NPAR:
-	case BCM57412_NPAR1:
-	case BCM57412_NPAR2:
-	case BCM57414_NPAR1:
-	case BCM57414_NPAR2:
-	case BCM57416_NPAR1:
-	case BCM57416_NPAR2:
-	case BCM57504_NPAR:
-		softc->flags |= BNXT_FLAG_NPAR;
-		break;
-	case NETXTREME_C_VF1:
-	case NETXTREME_C_VF2:
-	case NETXTREME_C_VF3:
-	case NETXTREME_E_VF1:
-	case NETXTREME_E_VF2:
-	case NETXTREME_E_VF3:
-		softc->flags |= BNXT_FLAG_VF;
-		break;
-	}
-
 	softc->domain = pci_get_domain(softc->dev);
 	softc->bus = pci_get_bus(softc->dev);
 	softc->slot = pci_get_slot(softc->dev);
 	softc->function = pci_get_function(softc->dev);
 	softc->dev_fn = PCI_DEVFN(softc->slot, softc->function);
+
+	bnxt_set_flags_by_devid(softc);
 
 	if (bnxt_num_pfs == 0)
 		  SLIST_INIT(&pf_list);
@@ -2505,6 +2605,15 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto failed;
 
+	/* Inform PF to approve MAC as default VF MAC. */
+	if (BNXT_VF(softc)) {
+		rc = bnxt_approve_mac(softc);
+		if (rc) {
+			device_printf(softc->dev, "attach: bnxt_approve_mac failed\n");
+			goto failed;
+		}
+	}
+
 	/*
 	 * Register the driver with the FW
 	 * Register the async events with the FW
@@ -2530,8 +2639,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 		device_printf(softc->dev, "attach: hwrm func qcfg failed\n");
 		goto failed;
 	}
-
-	iflib_set_mac(ctx, softc->func.mac_addr);
 
 	scctx->isc_txrx = &bnxt_txrx;
 	scctx->isc_tx_csum_flags = (CSUM_IP | CSUM_TCP | CSUM_UDP |
@@ -3140,6 +3247,10 @@ skip_def_cp_ring:
 		if (rc)
 			goto fail;
 	}
+
+	/* Inform PF to approve MAC as default VF MAC. */
+	if (BNXT_VF(softc))
+		bnxt_update_vf_mac(softc);
 
 	/* And now set the default CP / NQ ring for the async */
 	rc = bnxt_cfg_async_cr(softc);
