@@ -2327,6 +2327,9 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bnxt_ulp_start(bp, 0);
 		clear_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
 		set_bit(BNXT_STATE_OPEN, &bp->state);
+#ifdef PCI_IOV
+		bnxt_reenable_sriov(bp);
+#endif
 		rtnl_unlock();
 	}
 	return;

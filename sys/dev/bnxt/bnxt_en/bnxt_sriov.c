@@ -972,3 +972,13 @@ void bnxt_sriov_attach(struct bnxt_softc *softc)
 		device_printf(dev, "Failed to initialize SR-IOV (error=%d)\n", rc);
 }
 
+void bnxt_reenable_sriov(struct bnxt_softc *bp)
+{
+	if (BNXT_PF(bp)) {
+		struct bnxt_pf_info *pf = &bp->pf;
+		uint16_t n = pf->active_vfs;
+
+		if (n)
+			bnxt_cfg_hw_sriov(bp, &n, true);
+	}
+}
