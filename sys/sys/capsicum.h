@@ -283,11 +283,19 @@
 #define	CAP_INOTIFY_ADD		CAPRIGHT(1, 0x0000000000200000ULL)
 #define	CAP_INOTIFY_RM		CAPRIGHT(1, 0x0000000000400000ULL)
 
+/* Jail management via jail descriptors. */
+/* Allows for jail_attach_jd(2). */
+#define	CAP_JAIL_ATTACH		CAPRIGHT(1, 0x0000000000800000ULL)
+/* Allows for jail_remove_jd(2). */
+#define	CAP_JAIL_REMOVE		CAPRIGHT(1, 0x0000000001000000ULL)
+/* Allows for jail_set(2) with JAIL_USE_DESC. */
+#define	CAP_JAIL_SET		CAPRIGHT(1, 0x0000000008000000ULL)
+
 /* All used bits for index 1. */
-#define	CAP_ALL1		CAPRIGHT(1, 0x00000000007FFFFFULL)
+#define	CAP_ALL1		CAPRIGHT(1, 0x0000000009FFFFFFULL)
 
 /* Available bits for index 1. */
-#define	CAP_UNUSED1_22		CAPRIGHT(1, 0x0000000000800000ULL)
+#define	CAP_UNUSED1_25		CAPRIGHT(1, 0x0000000002000000ULL)
 /* ... */
 #define	CAP_UNUSED1_57		CAPRIGHT(1, 0x0100000000000000ULL)
 

@@ -7,6 +7,8 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel
 
 TESTSDIR=	${TESTSBASE}/sys/kern
 
+CFLAGS+=	-I${SRCTOP}/tests
+
 ATF_TESTS_C+=	basic_signal
 ATF_TESTS_C+=	copy_file_range
 .if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH} != "powerpc"
@@ -22,6 +24,7 @@ ATF_TESTS_C+=	fdgrowtable_test
 ATF_TESTS_C+=	getdirentries_test
 ATF_TESTS_C+=	jail_lookup_root
 ATF_TESTS_C+=	inotify_test
+ATF_TESTS_C+=	jaildesc_cap_test
 ATF_TESTS_C+=	kill_zombie
 .if ${MK_OPENSSL} != "no"
 ATF_TESTS_C+=	ktls_test
@@ -97,6 +100,7 @@ LIBADD.sys_getrandom+=			pthread
 LIBADD.ptrace_test+=			pthread
 LIBADD.unix_seqpacket_test+=		pthread
 LIBADD.inotify_test+=			util
+LIBADD.jaildesc_cap_test+=		jail
 LIBADD.kcov+=				pthread
 CFLAGS.ktls_test+=			-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD.ktls_test+=			crypto util

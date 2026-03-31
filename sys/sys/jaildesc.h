@@ -40,6 +40,7 @@
 #include <sys/_mutex.h>
 #include <sys/_types.h>
 
+struct cap_rights;
 struct prison;
 
 /*-
@@ -75,8 +76,8 @@ struct jaildesc {
 #define	JDF_REMOVED	0x00000002	/* jail was removed */
 #define	JDF_OWNING	0x00000004	/* closing descriptor removes jail */
 
-int jaildesc_find(struct thread *td, int fd, struct prison **prp,
-    struct ucred **ucredp);
+int jaildesc_find(struct thread *td, int fd, const cap_rights_t *rightsp,
+    struct prison **prp, struct ucred **ucredp);
 int jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning);
 int jaildesc_get_prison(struct file *jd, struct prison **prp);
 void jaildesc_set_prison(struct file *jd, struct prison *pr);

@@ -336,6 +336,20 @@ global scope for some objects.
 The list of permitted ioctl commands can be further limited with the
 .Xr cap_ioctls_limit 2
 system call.
+.It Dv CAP_JAIL_ATTACH
+Permit
+.Xr jail_attach_jd 2
+on a jail descriptor.
+.It Dv CAP_JAIL_REMOVE
+Permit
+.Xr jail_remove_jd 2
+on a jail descriptor.
+.It Dv CAP_JAIL_SET
+Permit
+.Xr jail_set 2
+with
+.Dv JAIL_USE_DESC
+on a jail descriptor.
 .It Dv CAP_KQUEUE
 An alias to
 .Dv CAP_KQUEUE_CHANGE
@@ -685,6 +699,7 @@ is also required.
 .Xr getsockname 2 ,
 .Xr getsockopt 2 ,
 .Xr ioctl 2 ,
+.Xr jail 2 ,
 .Xr kevent 2 ,
 .Xr kqueue 2 ,
 .Xr linkat 2 ,

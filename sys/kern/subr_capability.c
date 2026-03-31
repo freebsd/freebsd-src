@@ -79,6 +79,12 @@ const cap_rights_t cap_inotify_add_rights =
 const cap_rights_t cap_inotify_rm_rights =
     CAP_RIGHTS_INITIALIZER(CAP_INOTIFY_RM);
 const cap_rights_t cap_ioctl_rights = CAP_RIGHTS_INITIALIZER(CAP_IOCTL);
+const cap_rights_t cap_jail_attach_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_JAIL_ATTACH);
+const cap_rights_t cap_jail_remove_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_JAIL_REMOVE);
+const cap_rights_t cap_jail_set_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_JAIL_SET);
 const cap_rights_t cap_listen_rights = CAP_RIGHTS_INITIALIZER(CAP_LISTEN);
 const cap_rights_t cap_linkat_source_rights =
     CAP_RIGHTS_INITIALIZER(CAP_LINKAT_SOURCE);
