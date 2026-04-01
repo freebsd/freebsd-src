@@ -61,6 +61,13 @@
 
 #define MAX_BPAGES MIN(8192, physmem/40)
 
+enum {
+	BF_COULD_BOUNCE		= 0x01,
+	BF_MIN_ALLOC_COMP	= 0x02,
+	BF_KMEM_ALLOC		= 0x04,
+	BF_COHERENT		= 0x10,
+};
+
 struct bus_dmamap {
 	STAILQ_HEAD(, bounce_page) bpages;
 	int		       pagesneeded;
@@ -127,9 +134,6 @@ must_bounce(bus_dma_tag_t dmat, bus_addr_t paddr)
 	return (false);
 }
 
-#define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
-#define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
-
 static int
 bounce_bus_dma_zone_setup(bus_dma_tag_t newtag)
 {
@@ -152,7 +156,7 @@ bounce_bus_dma_zone_setup(bus_dma_tag_t newtag)
 			error = ENOMEM;
 	}
 	/* Performed initial allocation */
-	newtag->common.flags |= BUS_DMA_MIN_ALLOC_COMP;
+	newtag->bounce_flags |= BF_MIN_ALLOC_COMP;
 
 	return (error);
 }
@@ -198,12 +202,12 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	}
 
 	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem) && newtag->iommu == NULL)
-		newtag->common.flags |= BUS_DMA_COULD_BOUNCE;
+		newtag->bounce_flags |= BF_COULD_BOUNCE;
 
 	if (newtag->common.alignment > 1)
-		newtag->common.flags |= BUS_DMA_COULD_BOUNCE;
+		newtag->bounce_flags |= BF_COULD_BOUNCE;
 
-	if (((newtag->common.flags & BUS_DMA_COULD_BOUNCE) != 0) &&
+	if (((newtag->bounce_flags & BF_COULD_BOUNCE) != 0) &&
 	    (flags & BUS_DMA_ALLOCNOW) != 0) {
 		/* Must bounce */
 		error = bounce_bus_dma_zone_setup(newtag);
@@ -272,7 +276,7 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * exclusion region, a data alignment that is stricter than 1, and/or
 	 * an active address boundary.
 	 */
-	if (dmat->common.flags & BUS_DMA_COULD_BOUNCE) {
+	if (dmat->bounce_flags & BF_COULD_BOUNCE) {
 		/* Must bounce */
 		struct bounce_zone *bz;
 		int maxpages;
@@ -291,7 +295,7 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 			maxpages = MAX_BPAGES;
 		else
 			maxpages = MIN(MAX_BPAGES, Maxmem -atop(dmat->common.lowaddr));
-		if ((dmat->common.flags & BUS_DMA_MIN_ALLOC_COMP) == 0
+		if ((dmat->bounce_flags & BF_MIN_ALLOC_COMP) == 0
 		 || (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 			int pages;
 
@@ -301,9 +305,9 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 			if (alloc_bounce_pages(dmat, pages) < pages)
 				error = ENOMEM;
 
-			if ((dmat->common.flags & BUS_DMA_MIN_ALLOC_COMP) == 0) {
+			if ((dmat->bounce_flags & BF_MIN_ALLOC_COMP) == 0) {
 				if (error == 0)
-					dmat->common.flags |= BUS_DMA_MIN_ALLOC_COMP;
+					dmat->bounce_flags |= BF_MIN_ALLOC_COMP;
 			} else {
 				error = 0;
 			}
@@ -335,7 +339,7 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 static int
 bounce_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	if (dmat->common.flags & BUS_DMA_COULD_BOUNCE) {
+	if (dmat->bounce_flags & BF_COULD_BOUNCE) {
 		if (STAILQ_FIRST(&map->bpages) != NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 			    __func__, dmat, EBUSY);
@@ -519,7 +523,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = map->segments;
 
-	if ((dmat->common.flags & BUS_DMA_COULD_BOUNCE) != 0) {
+	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -580,7 +584,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = map->segments;
 
-	if ((dmat->common.flags & BUS_DMA_COULD_BOUNCE) != 0) {
+	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -633,7 +637,7 @@ bounce_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    void *callback_arg)
 {
 
-	if (dmat->common.flags & BUS_DMA_COULD_BOUNCE) {
+	if (dmat->bounce_flags & BF_COULD_BOUNCE) {
 		map->dmat = dmat;
 		map->mem = *mem;
 		map->callback = callback;
