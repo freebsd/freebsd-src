@@ -594,8 +594,32 @@ linux_to_bsd_tcp_sockopt(int opt)
 		return (-2);
 	case LINUX_TCP_MD5SIG:
 		return (TCP_MD5SIG);
+	case LINUX_TCP_USER_TIMEOUT:
+		return (TCP_MAXUNACKTIME);
 	}
 	return (-1);
+}
+
+static u_int
+linux_to_bsd_tcp_user_timeout(l_uint linux_timeout)
+{
+
+	/*
+	 * Linux exposes TCP_USER_TIMEOUT in milliseconds while
+	 * TCP_MAXUNACKTIME uses whole seconds. Round up partial
+	 * seconds so a non-zero Linux timeout never becomes zero.
+	 */
+	return (howmany(linux_timeout, 1000U));
+}
+
+static l_uint
+bsd_to_linux_tcp_user_timeout(u_int bsd_timeout)
+{
+
+	if (bsd_timeout > UINT_MAX / 1000U)
+		return (UINT_MAX);
+
+	return (bsd_timeout * 1000U);
 }
 
 static int
@@ -2057,8 +2081,10 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	struct proc *p = td->td_proc;
 	struct linux_pemuldata *pem;
 	l_timeval linux_tv;
+	l_uint linux_timeout;
 	struct sockaddr *sa;
 	struct timeval tv;
+	u_int bsd_timeout;
 	socklen_t len;
 	int error, level, name, val;
 
@@ -2130,6 +2156,24 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		break;
 	case IPPROTO_TCP:
 		name = linux_to_bsd_tcp_sockopt(args->optname);
+		switch (name) {
+		case TCP_MAXUNACKTIME:
+			if (args->optlen < sizeof(linux_timeout))
+				return (EINVAL);
+
+			error = copyin(PTRIN(args->optval), &linux_timeout,
+			    sizeof(linux_timeout));
+			if (error != 0)
+				return (error);
+
+			bsd_timeout = linux_to_bsd_tcp_user_timeout(
+			    linux_timeout);
+			return (kern_setsockopt(td, args->s, level, name,
+			    &bsd_timeout, UIO_SYSSPACE,
+			    sizeof(bsd_timeout)));
+		default:
+			break;
+		}
 		break;
 	case SOL_NETLINK:
 		name = args->optname;
@@ -2279,10 +2323,12 @@ linux_getsockopt_so_linger(struct thread *td,
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 {
+	l_uint linux_timeout;
 	l_timeval linux_tv;
 	struct timeval tv;
 	socklen_t tv_len, xulen, len;
 	struct sockaddr *sa;
+	u_int bsd_timeout;
 	struct xucred xu;
 	struct l_ucred lxu;
 	int error, level, name, newval;
@@ -2373,6 +2419,21 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		break;
 	case IPPROTO_TCP:
 		name = linux_to_bsd_tcp_sockopt(args->optname);
+		switch (name) {
+		case TCP_MAXUNACKTIME:
+			len = sizeof(bsd_timeout);
+			error = kern_getsockopt(td, args->s, level, name,
+			    &bsd_timeout, UIO_SYSSPACE, &len);
+			if (error != 0)
+				return (error);
+
+			linux_timeout = bsd_to_linux_tcp_user_timeout(
+			    bsd_timeout);
+			return (linux_sockopt_copyout(td, &linux_timeout,
+			    sizeof(linux_timeout), args));
+		default:
+			break;
+		}
 		break;
 	default:
 		name = -1;
