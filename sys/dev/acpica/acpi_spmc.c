@@ -190,6 +190,11 @@ acpi_spmc_probe(device_t dev)
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, spmc_ids, &name) > 0)
 		return (ENXIO);
 
+	if (device_get_unit(dev) > 0) {
+		device_printf(dev, "shouldn't have more than one SPMC");
+		return (ENXIO);
+	}
+
 	handle = acpi_get_handle(dev);
 	if (handle == NULL)
 		return (ENXIO);
