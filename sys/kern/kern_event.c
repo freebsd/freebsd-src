@@ -3155,7 +3155,7 @@ kqueue_fork_copy(struct filedesc *fdp, struct file *fp, struct file *fp1,
 	}
 	kqueue_release(kq, 1);
 	kq1->kq_forksrc = NULL;
-	KQ_UNLOCK(kq);
+	KQ_UNLOCK_FLUX(kq);
 
 	knote_free(marker);
 	return (error);
