@@ -1347,7 +1347,7 @@ pmap_bootstrap(void)
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l0 = pagetable_l0_ttbr1;
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 	kernel_pmap->pm_l0_paddr =
 	    pmap_early_vtophys((vm_offset_t)kernel_pmap_store.pm_l0);
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);

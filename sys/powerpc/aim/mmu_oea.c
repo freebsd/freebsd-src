@@ -878,7 +878,7 @@ moea_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
 	CPU_FILL(&kernel_pmap->pm_active);

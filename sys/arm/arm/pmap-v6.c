@@ -1173,7 +1173,7 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 	kernel_l1pa = (vm_paddr_t)kern_pt1;  /* for libkvm */
 	kernel_pmap->pm_pt1 = kern_pt1;
 	kernel_pmap->pm_pt2tab = kern_pt2tab;
