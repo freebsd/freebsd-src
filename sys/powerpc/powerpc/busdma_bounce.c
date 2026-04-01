@@ -246,6 +246,25 @@ out:
 	return (error);
 }
 
+static bus_dmamap_t
+alloc_dmamap(bus_dma_tag_t dmat, int flags)
+{
+	u_long mapsize;
+	bus_dmamap_t map;
+
+	mapsize = sizeof(*map);
+	/* TODO: sync_list */
+	map = malloc_domainset(mapsize, M_DEVBUF,
+	    DOMAINSET_PREF(dmat->common.domain), flags | M_ZERO);
+	if (map == NULL)
+		return (NULL);
+
+	/* Initialize the new map */
+	STAILQ_INIT(&map->bpages);
+
+	return (map);
+}
+
 /*
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
@@ -257,16 +276,12 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 
 	error = 0;
 
-	*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
-				     M_NOWAIT | M_ZERO);
+	*mapp = alloc_dmamap(dmat, M_NOWAIT);
 	if (*mapp == NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 		    __func__, dmat, ENOMEM);
 		return (ENOMEM);
 	}
-
-	/* Initialize the new map */
-	STAILQ_INIT(&((*mapp)->bpages));
 
 	/*
 	 * Bouncing might be required if the driver asks for an active
@@ -319,11 +334,16 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	if ((*mapp)->segments == NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 		    __func__, dmat, ENOMEM);
-		return (ENOMEM);
+		error = ENOMEM;
 	}
 
-	if (error == 0)
+	if (error == 0) {
 		dmat->map_count++;
+	} else {
+		free((*mapp)->segments, M_DEVBUF);
+		free(*mapp, M_DEVBUF);
+		*mapp = NULL;
+	}
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->common.flags, error);
 	return (error);
@@ -369,7 +389,12 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	else
 		mflags = M_WAITOK;
 
-	bus_dmamap_create(dmat, flags, mapp);
+	bounce_bus_dmamap_create(dmat, mflags, mapp);
+	if (*mapp == NULL) {
+		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d\n",
+		    __func__, dmat, dmat->common.flags, ENOMEM);
+		return (ENOMEM);
+	}
 
 	if (flags & BUS_DMA_ZERO)
 		mflags |= M_ZERO;
@@ -406,6 +431,8 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->common.flags, ENOMEM);
+		bounce_bus_dmamap_destroy(dmat, *mapp);
+		*mapp = NULL;
 		return (ENOMEM);
 	} else if (!vm_addr_align_ok(vtophys(*vaddr), dmat->common.alignment)) {
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
@@ -427,8 +454,9 @@ bounce_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		free(vaddr, M_DEVBUF);
 	else
 		kmem_free(vaddr, dmat->common.maxsize);
-	bus_dmamap_destroy(dmat, map);
-	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->common.flags);
+	bounce_bus_dmamap_destroy(dmat, map);
+	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat,
+	    dmat->common.flags);
 }
 
 static void
