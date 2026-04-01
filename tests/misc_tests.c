@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -19,6 +19,7 @@
    Copyright (c) 2020      Tim Gates <tim.gates@iress.com>
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
+   Copyright (c) 2025      Berkay Eren Ürün <berkay.ueruen@siemens.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -211,7 +212,7 @@ START_TEST(test_misc_version) {
   if (! versions_equal(&read_version, &parsed_version))
     fail("Version mismatch");
 
-  if (xcstrcmp(version_text, XCS("expat_2.7.3"))
+  if (xcstrcmp(version_text, XCS("expat_2.7.5"))
       != 0) /* needs bump on releases */
     fail("XML_*_VERSION in expat.h out of sync?\n");
 }
@@ -771,6 +772,35 @@ START_TEST(test_misc_async_entity_rejected) {
 }
 END_TEST
 
+START_TEST(test_misc_no_infinite_loop_issue_1161) {
+  XML_Parser parser = XML_ParserCreate(NULL);
+
+  const char *text = "<!DOCTYPE d SYSTEM 'secondary.txt'>";
+
+  struct ExtOption options[] = {
+      {XCS("secondary.txt"),
+       "<!ENTITY % p SYSTEM 'tertiary.txt'><!ENTITY g '%p;'>"},
+      {XCS("tertiary.txt"), "<?xml version='1.0'?><a"},
+      {NULL, NULL},
+  };
+
+  XML_SetUserData(parser, options);
+  XML_SetParamEntityParsing(parser, XML_PARAM_ENTITY_PARSING_ALWAYS);
+  XML_SetExternalEntityRefHandler(parser, external_entity_optioner);
+
+  assert_true(_XML_Parse_SINGLE_BYTES(parser, text, (int)strlen(text), XML_TRUE)
+              == XML_STATUS_ERROR);
+
+#if defined(XML_DTD)
+  assert_true(XML_GetErrorCode(parser) == XML_ERROR_EXTERNAL_ENTITY_HANDLING);
+#else
+  assert_true(XML_GetErrorCode(parser) == XML_ERROR_NO_ELEMENTS);
+#endif
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
 void
 make_miscellaneous_test_case(Suite *s) {
   TCase *tc_misc = tcase_create("miscellaneous tests");
@@ -801,4 +831,5 @@ make_miscellaneous_test_case(Suite *s) {
   tcase_add_test(tc_misc, test_misc_expected_event_ptr_issue_980);
   tcase_add_test(tc_misc, test_misc_sync_entity_tolerated);
   tcase_add_test(tc_misc, test_misc_async_entity_rejected);
+  tcase_add_test(tc_misc, test_misc_no_infinite_loop_issue_1161);
 }

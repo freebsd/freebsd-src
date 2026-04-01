@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2024 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -158,6 +158,9 @@ extern int XMLCALL MiscEncodingHandler(void *data, const XML_Char *encoding,
 extern int XMLCALL long_encoding_handler(void *userData,
                                          const XML_Char *encoding,
                                          XML_Encoding *info);
+
+extern int XMLCALL user_data_checking_unknown_encoding_handler(
+    void *userData, const XML_Char *encoding, XML_Encoding *info);
 
 /* External Entity Handlers */
 
