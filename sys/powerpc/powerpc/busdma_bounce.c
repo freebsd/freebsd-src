@@ -32,9 +32,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domainset.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
-#include <sys/domainset.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -68,6 +68,18 @@ enum {
 	BF_COHERENT		= 0x10,
 };
 
+struct bounce_page;
+struct bounce_zone;
+
+struct bus_dma_tag {
+	struct bus_dma_tag_common common;
+	int		  map_count;
+	int		  bounce_flags;
+	struct bounce_zone *bounce_zone;
+	device_t	  iommu;
+	void		 *iommu_cookie;
+};
+
 struct bus_dmamap {
 	STAILQ_HEAD(, bounce_page) bpages;
 	int		       pagesneeded;
@@ -86,8 +98,7 @@ struct bus_dmamap {
 static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
 #define	dmat_alignment(dmat)	((dmat)->common.alignment)
-/* XXX TODO: bounce flags? */
-#define	dmat_bounce_flags(dmat)	(0)
+#define	dmat_bounce_flags(dmat)	((dmat)->bounce_flags)
 #define	dmat_boundary(dmat)	((dmat)->common.boundary)
 #define	dmat_domain(dmat)	((dmat)->common.domain)
 #define	dmat_flags(dmat)	((dmat)->common.flags)
@@ -97,20 +108,6 @@ static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 #define	dmat_lockfuncarg(dmat)	((dmat)->common.lockfuncarg)
 #define	dmat_maxsegsz(dmat)	((dmat)->common.maxsegsz)
 #define	dmat_nsegments(dmat)	((dmat)->common.nsegments)
-
-/*
- * Note: at this point the code requires a 'struct bus_dma_tag' to exist
- * or the included code will not function correctly.
- */
-
-struct bus_dma_tag {
-	struct bus_dma_tag_common common;
-	int		  map_count;
-	int		  bounce_flags;
-	struct bounce_zone *bounce_zone;
-	device_t	  iommu;
-	void		 *iommu_cookie;
-};
 
 static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Busdma parameters");
