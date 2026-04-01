@@ -1124,7 +1124,7 @@ moea64_mid_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	CPU_FILL(&kernel_pmap->pm_active);
 	RB_INIT(&kernel_pmap->pmap_pvo);
 
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 
 	/*
 	 * Now map in all the other buffers we allocated earlier
