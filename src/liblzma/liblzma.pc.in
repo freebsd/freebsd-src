@@ -8,6 +8,7 @@ includedir=@includedir@
 
 Name: liblzma
 Description: General purpose data compression library
+License: 0BSD
 URL: @PACKAGE_URL@
 Version: @PACKAGE_VERSION@
 Cflags: -I${includedir}

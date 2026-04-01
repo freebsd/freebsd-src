@@ -37,7 +37,7 @@ This is useful for programs that use main():
   * UTF-8 allows such programs to access files whose names contain
     characters that don't exist in the current legacy code page.
     However, filenames on Windows may contain unpaired surrogates
-    (invalid UTF-16). Such files cannot be accesses even with the
+    (invalid UTF-16). Such files cannot be accessed even with the
     UTF-8 code page.
 
   * UTF-8 avoids a security issue in command line argument handling:
