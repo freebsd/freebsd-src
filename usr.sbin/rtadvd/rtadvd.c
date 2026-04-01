@@ -138,6 +138,7 @@ union nd_opt {
 #define NDOPT_FLAG_RDNSS	(1 << 5)
 #define NDOPT_FLAG_DNSSL	(1 << 6)
 #define NDOPT_FLAG_PREF64	(1 << 7)
+#define NDOPT_FLAG_ROUTEINFO	(1 << 8)
 
 static uint32_t ndopt_flags[] = {
 	[ND_OPT_SOURCE_LINKADDR]	= NDOPT_FLAG_SRCLINKADDR,
@@ -148,6 +149,7 @@ static uint32_t ndopt_flags[] = {
 	[ND_OPT_RDNSS]			= NDOPT_FLAG_RDNSS,
 	[ND_OPT_DNSSL]			= NDOPT_FLAG_DNSSL,
 	[ND_OPT_PREF64]			= NDOPT_FLAG_PREF64,
+	[ND_OPT_ROUTE_INFO]		= NDOPT_FLAG_ROUTEINFO,
 };
 
 static void	rtadvd_shutdown(void);
@@ -372,6 +374,7 @@ rtadvd_shutdown(void)
 	struct rainfo *rai;
 	struct rdnss *rdn;
 	struct dnssl *dns;
+	struct rtinfo *rti;
 
 	if (wait_shutdown) {
 		syslog(LOG_INFO,
@@ -416,6 +419,8 @@ rtadvd_shutdown(void)
 			rdn->rd_ltime = 0;
 		TAILQ_FOREACH(dns, &rai->rai_dnssl, dn_next)
 			dns->dn_ltime = 0;
+		TAILQ_FOREACH(rti, &rai->rai_route, rti_next)
+			rti->rti_ltime = 0;
 	}
 	TAILQ_FOREACH(ifi, &ifilist, ifi_next) {
 		if (!ifi->ifi_persist)
@@ -1085,7 +1090,8 @@ ra_input(int len, struct nd_router_advert *nra,
 	error = nd6_options((struct nd_opt_hdr *)(nra + 1),
 	    len - sizeof(struct nd_router_advert), &ndopts,
 	    NDOPT_FLAG_SRCLINKADDR | NDOPT_FLAG_PREFIXINFO | NDOPT_FLAG_MTU |
-	    NDOPT_FLAG_RDNSS | NDOPT_FLAG_DNSSL | NDOPT_FLAG_PREF64);
+	    NDOPT_FLAG_RDNSS | NDOPT_FLAG_DNSSL | NDOPT_FLAG_PREF64 |
+	    NDOPT_FLAG_ROUTEINFO);
 	if (error) {
 		syslog(LOG_INFO,
 		    "<%s> ND option check failed for an RA from %s on %s",
@@ -1418,7 +1424,8 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		if (hdr->nd_opt_type > ND_OPT_MTU &&
 		    hdr->nd_opt_type != ND_OPT_RDNSS &&
 		    hdr->nd_opt_type != ND_OPT_DNSSL &&
-		    hdr->nd_opt_type != ND_OPT_PREF64) {
+		    hdr->nd_opt_type != ND_OPT_PREF64 &&
+		    hdr->nd_opt_type != ND_OPT_ROUTE_INFO) {
 			syslog(LOG_INFO, "<%s> unknown ND option(type %d)",
 			    __func__, hdr->nd_opt_type);
 			continue;
@@ -1452,6 +1459,11 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		case ND_OPT_PREFIX_INFORMATION:
 			if (optlen == sizeof(struct nd_opt_prefix_info))
 				break;
+			goto skip;
+		case ND_OPT_ROUTE_INFO:
+			if (optlen >= 8 && optlen <= 24 &&
+			    (optlen - sizeof(struct nd_opt_route_info)) % 8 == 0)
+				break;
 skip:
 			syslog(LOG_INFO, "<%s> invalid option length",
 			    __func__);
@@ -1464,6 +1476,7 @@ skip:
 		case ND_OPT_RDNSS:
 		case ND_OPT_DNSSL:
 		case ND_OPT_PREF64:
+		case ND_OPT_ROUTE_INFO:
 			break;	/* we don't care about these options */
 		case ND_OPT_SOURCE_LINKADDR:
 		case ND_OPT_MTU:
