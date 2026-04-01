@@ -45,6 +45,7 @@ enum intel_dsm_index {
 	/* Only for Microsoft DSM set. */
 	DSM_MODERN_ENTRY_NOTIF		= 7,
 	DSM_MODERN_EXIT_NOTIF		= 8,
+	DSM_MODERN_TURN_ON_DISPLAY	= 9,
 };
 
 enum amd_dsm_index {
@@ -67,7 +68,9 @@ struct dsm_set {
 	const char		*name;
 	int			revision;
 	struct uuid		uuid;
+	uint64_t		dsms_supported;
 	uint64_t		dsms_expected;
+	uint64_t		extra_dsms;
 };
 
 static struct dsm_set intel_dsm_set = {
@@ -107,6 +110,7 @@ static struct dsm_set ms_dsm_set = {
 	    (1 << DSM_DISPLAY_ON_NOTIF) | (1 << DSM_ENTRY_NOTIF) |
 	    (1 << DSM_EXIT_NOTIF) | (1 << DSM_MODERN_ENTRY_NOTIF) |
 	    (1 << DSM_MODERN_EXIT_NOTIF),
+	.extra_dsms = (1 << DSM_MODERN_TURN_ON_DISPLAY),
 };
 
 static struct dsm_set amd_dsm_set = {
@@ -261,6 +265,8 @@ acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
 {
 	uint64_t dsms_supported = acpi_DSMQuery(handle,
 	    (uint8_t *)&dsm_set->uuid, dsm_set->revision);
+	const uint64_t min_dsms = dsm_set->dsms_expected;
+	const uint64_t max_dsms = min_dsms | dsm_set->extra_dsms;
 
 	/*
 	 * Check if DSM set supported at all.  We do this by checking the
@@ -269,14 +275,19 @@ acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
 	if ((dsms_supported & 1) == 0)
 		return;
 	dsms_supported &= ~1;
-	if ((dsms_supported & dsm_set->dsms_expected)
-	    != dsm_set->dsms_expected) {
+	dsm_set->dsms_supported = dsms_supported;
+	sc->dsm_sets |= dsm_set->flag;
+
+	if ((dsms_supported & min_dsms) != min_dsms)
 		device_printf(sc->dev, "DSM set %s does not support expected "
 		    "DSMs (%#" PRIx64 " vs %#" PRIx64 "). "
 		    "Some methods may fail.\n",
-		    dsm_set->name, dsms_supported, dsm_set->dsms_expected);
-	}
-	sc->dsm_sets |= dsm_set->flag;
+		    dsm_set->name, dsms_supported, min_dsms);
+
+	if ((dsms_supported & ~max_dsms) != 0)
+		device_printf(sc->dev, "DSM set %s supports more DSMs than "
+		    "expected (%#" PRIx64 " vs %#" PRIx64 ").", dsm_set->name,
+		    dsms_supported, max_dsms);
 }
 
 static void
@@ -601,6 +612,10 @@ acpi_spmc_exit_notif(device_t dev)
 		acpi_spmc_run_dsm(dev, &amd_dsm_set, AMD_DSM_EXIT_NOTIF);
 	if ((sc->dsm_sets & DSM_SET_MS) != 0) {
 		acpi_spmc_run_dsm(dev, &ms_dsm_set, DSM_EXIT_NOTIF);
+		if (ms_dsm_set.dsms_supported &
+		    (1 << DSM_MODERN_TURN_ON_DISPLAY))
+			acpi_spmc_run_dsm(dev, &ms_dsm_set,
+			    DSM_MODERN_TURN_ON_DISPLAY);
 		acpi_spmc_run_dsm(dev, &ms_dsm_set, DSM_MODERN_EXIT_NOTIF);
 	}
 }
