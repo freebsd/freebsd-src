@@ -2617,6 +2617,8 @@ knlist_add(struct knlist *knl, struct knote *kn, int islocked)
 	KASSERT(kn_in_flux(kn), ("knote %p not in flux", kn));
 	KASSERT((kn->kn_status & KN_DETACHED) != 0,
 	    ("knote %p was not detached", kn));
+	KASSERT(kn->kn_knlist == NULL,
+	    ("knote %p was already on knlist %p", kn, kn->kn_knlist));
 	if (!islocked)
 		knl->kl_lock(knl->kl_lockarg);
 	SLIST_INSERT_HEAD(&knl->kl_list, kn, kn_selnext);
@@ -2639,6 +2641,8 @@ knlist_remove_kq(struct knlist *knl, struct knote *kn, int knlislocked,
 	KASSERT(kqislocked || kn_in_flux(kn), ("knote %p not in flux", kn));
 	KASSERT((kn->kn_status & KN_DETACHED) == 0,
 	    ("knote %p was already detached", kn));
+	KASSERT(kn->kn_knlist == knl,
+	    ("knote %p was not on knlist %p", kn, knl));
 	if (!knlislocked)
 		knl->kl_lock(knl->kl_lockarg);
 	SLIST_REMOVE(&knl->kl_list, kn, knote, kn_selnext);
