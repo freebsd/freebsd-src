@@ -2838,7 +2838,6 @@ knote_fdclose(struct thread *td, int fd)
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct kqueue *kq;
 	struct knote *kn;
-	int influx;
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
@@ -2848,22 +2847,25 @@ knote_fdclose(struct thread *td, int fd)
 	 */
 	TAILQ_FOREACH(kq, &fdp->fd_kqlist, kq_list) {
 		KQ_LOCK(kq);
+		if (kq->kq_knlistsize <= fd ||
+		    SLIST_EMPTY(&kq->kq_knlist[fd])) {
+			KQ_UNLOCK(kq);
+			continue;
+		}
 
-again:
-		influx = 0;
-		while (kq->kq_knlistsize > fd &&
-		    (kn = SLIST_FIRST(&kq->kq_knlist[fd])) != NULL) {
+		while ((kn = SLIST_FIRST(&kq->kq_knlist[fd])) != NULL) {
 			if (kn_in_flux(kn)) {
-				/* someone else might be waiting on our knote */
-				if (influx)
-					wakeup(kq);
+				/*
+				 * Wait for this knote to stabilize, it could be
+				 * the case that it's in the process of being
+				 * dropped anyways.
+				 */
 				kq->kq_state |= KQ_FLUXWAIT;
 				msleep(kq, &kq->kq_lock, PSOCK, "kqflxwt", 0);
-				goto again;
+				continue;
 			}
 			kn_enter_flux(kn);
 			KQ_UNLOCK(kq);
-			influx = 1;
 			knote_drop(kn, td);
 			KQ_LOCK(kq);
 		}
