@@ -220,7 +220,7 @@ sysctl_mfctable(SYSCTL_HANDLER_ARGS)
 
 	fibnum = curthread->td_proc->p_fibnum;
 	return (SYSCTL_OUT(req, &V_mfctables[fibnum].mfchashtbl,
-	    sizeof(struct mfc6c *) * MF6CTBLSIZ));
+	    sizeof(struct mf6c *) * MF6CTBLSIZ));
 }
 SYSCTL_PROC(_net_inet6_ip6, OID_AUTO, mf6ctable,
     CTLTYPE_OPAQUE | CTLFLAG_RD,
