@@ -2017,10 +2017,11 @@ kqueue_expand(struct kqueue *kq, const struct filterops *fops, uintptr_t ident,
 	to_free = NULL;
 	if (fops->f_isfd) {
 		fd = ident;
-		if (kq->kq_knlistsize <= fd) {
-			size = kq->kq_knlistsize;
-			while (size <= fd)
+		size = atomic_load_int(&kq->kq_knlistsize);
+		if (size <= fd) {
+			do {
 				size += KQEXTENT;
+			} while (size <= fd);
 			list = malloc(size * sizeof(*list), M_KQUEUE, mflag);
 			if (list == NULL)
 				return ENOMEM;
@@ -2028,7 +2029,7 @@ kqueue_expand(struct kqueue *kq, const struct filterops *fops, uintptr_t ident,
 			if ((kq->kq_state & KQ_CLOSING) != 0) {
 				to_free = list;
 				error = EBADF;
-			} else if (kq->kq_knlistsize > fd) {
+			} else if (kq->kq_knlistsize >= size) {
 				to_free = list;
 			} else {
 				if (kq->kq_knlist != NULL) {
@@ -2043,6 +2044,7 @@ kqueue_expand(struct kqueue *kq, const struct filterops *fops, uintptr_t ident,
 				kq->kq_knlistsize = size;
 				kq->kq_knlist = list;
 			}
+			MPASS(error != 0 || kq->kq_knlistsize > fd);
 			KQ_UNLOCK(kq);
 		}
 	} else {
