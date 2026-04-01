@@ -901,7 +901,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	/*******************************************************/
 	/* Initialize (statically allocated) kernel pmap. */
 	/*******************************************************/
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 
 	debugf("kernel_pmap = 0x%"PRI0ptrX"\n", (uintptr_t)kernel_pmap);
 	kernel_pte_alloc(virtual_avail, kernstart);

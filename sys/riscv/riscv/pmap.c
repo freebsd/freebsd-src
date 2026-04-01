@@ -921,7 +921,7 @@ pmap_bootstrap(vm_paddr_t kernstart, vm_size_t kernlen)
 
 	printf("pmap_bootstrap %lx %lx\n", kernstart, kernlen);
 
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	vm_radix_init(&kernel_pmap->pm_root);
 

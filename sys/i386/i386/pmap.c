@@ -630,7 +630,7 @@ __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 	 * Count bootstrap data as being resident in case any of this data is
 	 * later unmapped (using pmap_remove()) and freed.
 	 */
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 	kernel_pmap->pm_pdir = IdlePTD;
 #ifdef PMAP_PAE_COMP
 	kernel_pmap->pm_pdpt = IdlePDPT;

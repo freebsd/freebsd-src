@@ -2127,7 +2127,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * DMAP_TO_PHYS()/PHYS_TO_DMAP() are functional only after
 	 * kva_layout is fixed.
 	 */
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 	if (la57) {
 		kva_layout = kva_layout_la57;
 		vtoptem = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +

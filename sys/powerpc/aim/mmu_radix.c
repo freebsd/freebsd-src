@@ -1842,7 +1842,7 @@ mmu_radix_setup_pagetables(vm_size_t hwphyssz)
 	vm_paddr_t l1phys;
 
 	bzero(kernel_pmap, sizeof(struct pmap));
-	PMAP_LOCK_INIT(kernel_pmap);
+	mtx_init(&kernel_pmap->pm_mtx, "kernel pmap", NULL, MTX_DEF);
 	vm_radix_init(&kernel_pmap->pm_radix);
 
 	ptpages = allocpages(3);
