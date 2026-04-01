@@ -175,6 +175,8 @@ cd9660_rrip_slink(ISO_RRIP_SLINK *p, ISO_RRIP_ANALYZE *ana)
 			/* Inserting component */
 			wlen = isonum_711(pcomp->clen);
 			inbuf = pcomp->name;
+			if (inbuf + wlen > (char *)pcompe)
+				wlen = ana->maxlen + 1;
 			break;
 		default:
 			printf("RRIP with incorrect flags?");
@@ -246,6 +248,8 @@ cd9660_rrip_altname(ISO_RRIP_ALTNAME *p, ISO_RRIP_ANALYZE *ana)
 		/* Inserting component */
 		wlen = isonum_711(p->h.length) - 5;
 		inbuf = (char *)p + 5;
+		if (wlen < 0)
+			wlen = ana->maxlen + 1;
 		break;
 
 	default:
