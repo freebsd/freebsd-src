@@ -197,7 +197,7 @@ main(int argc, char *argv[])
 		if ((fm_fd = open("/dev/filemon", O_RDWR | O_CLOEXEC)) == -1)
 			err(1, "open(\"/dev/filemon\", O_RDWR)");
 		if ((fm_log = open(fmfname,
-		    O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+		    O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_CLOFORK,
 		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1)
 			err(1, "open(%s)", fmfname);
 		if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) < 0)

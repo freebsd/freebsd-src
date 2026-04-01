@@ -923,7 +923,7 @@ get_random_seed(const char *random_source)
 		goto out;
 	}
 
-	rsfd = open(random_source, O_RDONLY | O_CLOEXEC);
+	rsfd = open(random_source, O_RDONLY | O_CLOEXEC | O_CLOFORK);
 	if (rsfd < 0)
 		err(EX_NOINPUT, "open: %s", random_source);
 

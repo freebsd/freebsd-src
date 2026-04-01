@@ -223,7 +223,7 @@ main(int argc, char *argv[])
 	/*
 	 * Keep a reference to cwd, so we can always come back home.
 	 */
-	cwdfd = open(".", O_RDONLY | O_CLOEXEC);
+	cwdfd = open(".", O_RDONLY | O_CLOEXEC | O_CLOFORK);
 	if (cwdfd < 0) {
 		syswarn(0, errno, "Can't open current working directory.");
 		return(exit_val);
