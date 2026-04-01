@@ -613,7 +613,7 @@ getconfig_free_pfx:
 		get_prefix(rai);
 
 	MAYHAVE(val64, "mtu", 0);
-	if (val < 0 || val64 > 0xffffffff) {
+	if (val64 < 0 || val64 > 0xffffffff) {
 		syslog(LOG_ERR,
 		    "<%s> mtu (%" PRIu64 ") on %s out of range",
 		    __func__, val64, ifi->ifi_ifname);
