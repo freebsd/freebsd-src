@@ -414,7 +414,7 @@ tpm_crb_mem_handler(struct vcpu *vcpu __unused, const int dir,
 		    4:
 		case offsetof(struct tpm_crb_regs,
 		    data_buffer) ... offsetof(struct tpm_crb_regs, data_buffer) +
-		    TPM_CRB_DATA_BUFFER_SIZE / 4:
+		    sizeof(((struct tpm_crb_regs *)NULL)->data_buffer) - 1:
 			/*
 			 * Those fields are used to execute a TPM command. The
 			 * crb_thread will access them. For that reason, we have
