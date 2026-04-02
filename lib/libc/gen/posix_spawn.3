@@ -481,8 +481,10 @@ functions conform to
 .St -p1003.1-2001 ,
 except that they ignore all errors from
 .Fn close .
-A future update of the Standard is expected to require that these functions
-not fail because a file descriptor to be closed (via
+The
+.St -p1003.1-2024 ,
+version of the Standard no longer requires that these functions
+fail because a file descriptor to be closed (via
 .Fn posix_spawn_file_actions_addclose )
 is not open.
 .Sh HISTORY
