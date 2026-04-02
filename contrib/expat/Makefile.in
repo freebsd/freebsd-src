@@ -22,7 +22,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2025 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2018      KangLin <kl222@126.com>
 # Copyright (c) 2022      Johnny Jazeix <jazeix@gmail.com>
 # Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
@@ -395,6 +395,9 @@ SO_MINOR = @SO_MINOR@
 SO_PATCH = @SO_PATCH@
 STRIP = @STRIP@
 VERSION = @VERSION@
+VSCRIPT_LDFLAGS = @VSCRIPT_LDFLAGS@
+_EXPAT_COMMENT_ATTR_INFO = @_EXPAT_COMMENT_ATTR_INFO@
+_EXPAT_COMMENT_DTD_OR_GE = @_EXPAT_COMMENT_DTD_OR_GE@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -497,7 +500,6 @@ EXTRA_DIST = \
     $(_EXTRA_DIST_CMAKE) \
     $(_EXTRA_DIST_WINDOWS) \
     \
-    conftools/expat.m4 \
     conftools/get-version.sh \
     \
     fuzz/xml_lpm_fuzzer.cpp \
