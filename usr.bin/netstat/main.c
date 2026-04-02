@@ -389,8 +389,6 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			noutputs = atoi(optarg);
-			if (noutputs != 0)
-				noutputs++;
 			break;
 		case 'r':
 			rflag = true;
