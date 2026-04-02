@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260402: posix_spawn_file_actions_addchdir lost _np suffix
+OLD_FILES+=usr/share/man/man3/posix_spawn_file_actions_addchdir_np.3.gz
+OLD_FILES+=usr/share/man/man3/posix_spawn_file_actions_addfchdir_np.3.gz
+
 # 20260114: remove ncurses html documentation
 OLD_FILES+=usr/share/doc/ncurses/hackguide.html
 OLD_FILES+=usr/share/doc/ncurses/ncurses-intro.html
