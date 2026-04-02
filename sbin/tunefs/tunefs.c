@@ -855,7 +855,7 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 	int i;
 
 	bzero(indirbuf, sizeof(indirbuf));
-	bap1 = (ufs1_daddr_t *)indirbuf;
+	bap1 = (ufs1_daddr_t *)(uintptr_t)indirbuf;
 	bap2 = (void *)bap1;
 	cnt = 0;
 	for (i = 0; i < NINDIR(&sblock) && *resid != 0; i++) {
