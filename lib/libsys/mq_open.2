@@ -282,6 +282,24 @@ and either
 or
 .Va mq_msgsize
 was less than or equal to zero.
+.It Bq Er EINVAL
+.Dv O_CREAT
+was specified in
+.Fa oflag ,
+the value of
+.Fa attr
+is not
+.Dv NULL ,
+and either
+.Va mq_maxmsg
+exceeds the
+.Va kern.mqueue.maxmsg
+sysctl limit,
+or
+.Va mq_msgsize
+exceeds the
+.Va kern.mqueue.maxmsgsize
+sysctl limit.
 .It Bq Er EMFILE
 Too many message queue descriptors or file descriptors are currently in use
 by this process.
@@ -295,6 +313,9 @@ is longer than
 .Brq Dv NAME_MAX .
 .It Bq Er ENFILE
 Too many message queues are currently open in the system.
+The system limit is controlled by the
+.Va kern.mqueue.maxmq
+sysctl.
 .It Bq Er ENOENT
 .Dv O_CREAT
 is not set and the named message queue does not exist.
