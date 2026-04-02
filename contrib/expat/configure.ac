@@ -11,7 +11,7 @@ dnl   Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
 dnl   Copyright (c) 2000-2005 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
 dnl   Copyright (c) 2001-2003 Greg Stein <gstein@users.sourceforge.net>
 dnl   Copyright (c) 2006-2012 Karl Waclawek <karl@waclawek.net>
-dnl   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+dnl   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
 dnl   Copyright (c) 2017      S. P. Zeidler <spz@netbsd.org>
 dnl   Copyright (c) 2017      Stephen Groat <stephen@groat.us>
 dnl   Copyright (c) 2017-2020 Joe Orton <jorton@redhat.com>
@@ -25,6 +25,10 @@ dnl   Copyright (c) 2020      Jeffrey Walton <noloader@gmail.com>
 dnl   Copyright (c) 2024      Ferenc Géczi <ferenc.gm@gmail.com>
 dnl   Copyright (c) 2024      Dag-Erling Smørgrav <des@des.dev>
 dnl   Copyright (c) 2025      Matthew Fernandez <matthew.fernandez@gmail.com>
+dnl   Copyright (c) 2025      Alfonso Gregory <gfunni234@gmail.com>
+dnl   Copyright (c) 2026      Rosen Penev <rosenp@gmail.com>
+dnl   Copyright (c) 2026      Gordon Messmer <gordon.messmer@gmail.com>
+dnl   Copyright (c) 2026      Fabio Scaccabarozzi <fsvm88@gmail.com>
 dnl   Licensed under the MIT license:
 dnl
 dnl   Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -86,7 +90,7 @@ dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
 LIBCURRENT=12  # sync
-LIBREVISION=1  # with
+LIBREVISION=3  # with
 LIBAGE=11      # CMakeLists.txt!
 
 AC_CONFIG_HEADERS([expat_config.h])
@@ -117,10 +121,12 @@ AS_IF([test "$GCC" = yes],
    dnl GCC don't support it and it causes extra warnings that are only
    dnl distracting; avoid.
    AX_APPEND_COMPILE_FLAGS([-fexceptions], [AM_CFLAGS])
-   AX_APPEND_COMPILE_FLAGS([-fno-strict-aliasing -Wmissing-prototypes -Wstrict-prototypes], [AM_CFLAGS])
+   AX_APPEND_COMPILE_FLAGS([-Wstrict-aliasing=3 -Wmissing-prototypes -Wstrict-prototypes], [AM_CFLAGS])
    AX_APPEND_COMPILE_FLAGS([-pedantic -Wduplicated-cond -Wduplicated-branches -Wlogical-op], [AM_CFLAGS])
    AX_APPEND_COMPILE_FLAGS([-Wrestrict -Wnull-dereference -Wjump-misses-init -Wdouble-promotion], [AM_CFLAGS])
-   AX_APPEND_COMPILE_FLAGS([-Wshadow -Wformat=2 -Wno-pedantic-ms-format -Wmisleading-indentation], [AM_CFLAGS])])
+   AX_APPEND_COMPILE_FLAGS([-Wshadow -Wformat=2 -Wmisleading-indentation], [AM_CFLAGS])
+   AS_CASE(["${host_os}"], [mingw*], [AX_APPEND_COMPILE_FLAGS([-Wno-pedantic-ms-format], [AM_CFLAGS])])
+  ])
 
 AC_LANG_PUSH([C++])
 AC_PROG_CXX
@@ -131,11 +137,23 @@ AS_IF([test "$GCC" = yes],
    dnl GCC don't support it and it causes extra warnings that are only
    dnl distracting; avoid.
    AX_APPEND_COMPILE_FLAGS([-fexceptions], [AM_CXXFLAGS])
-   AX_APPEND_COMPILE_FLAGS([-fno-strict-aliasing], [AM_CXXFLAGS])])
+   AX_APPEND_COMPILE_FLAGS([-Wstrict-aliasing=3], [AM_CXXFLAGS])])
 AC_LANG_POP([C++])
 
 AS_IF([test "$GCC" = yes],
-  [AX_APPEND_LINK_FLAGS([-fno-strict-aliasing],[AM_LDFLAGS])])
+  [AX_APPEND_LINK_FLAGS([-Wstrict-aliasing=3],[AM_LDFLAGS])])
+
+AC_ARG_ENABLE([symbol-versioning],
+  [AS_HELP_STRING([--enable-symbol-versioning],
+    [provide symbol versioning for dependency generation @<:@default=no@:>@])],
+  [enable_symbol_versioning=$enableval],
+  [enable_symbol_versioning=no])
+AS_IF([test "x$enable_symbol_versioning" != xno],
+  [VSCRIPT_LDFLAGS="-Wl,--version-script"
+   AC_SUBST([VSCRIPT_LDFLAGS])
+  ])
+AM_CONDITIONAL([HAVE_VSCRIPT],
+  [test "x$enable_symbol_versioning" != xno])
 
 dnl patching ${archive_cmds} to affect generation of file "libtool" to fix linking with clang (issue #312)
 AS_CASE(["$LD"],[*clang*],
@@ -199,23 +217,9 @@ AM_CONDITIONAL([_INTERNAL_LARGE_SIZE], [echo -- "${CPPFLAGS}${CFLAGS}" | ${FGREP
 
 LT_LIB_M
 
-AC_ARG_WITH([libbsd],
-  [AS_HELP_STRING([--with-libbsd], [utilize libbsd (for arc4random_buf)])],
-  [],
-  [with_libbsd=no])
-AS_IF([test "x${with_libbsd}" != xno],
-  [AC_CHECK_LIB([bsd],
-     [arc4random_buf],
-     [],
-     [AS_IF([test "x${with_libbsd}" = xyes],
-        [AC_MSG_ERROR([Enforced use of libbsd cannot be satisfied.])])])])
-AC_MSG_CHECKING([for arc4random_buf (BSD, libbsd or glibc 2.36+)])
+AC_MSG_CHECKING([for arc4random_buf (BSD or glibc 2.36+)])
 AC_LINK_IFELSE([AC_LANG_SOURCE([
-    #if defined(HAVE_LIBBSD)
-    # include <bsd/stdlib.h>
-    #else
-    # include <stdlib.h>  /* for arc4random_buf on BSD */
-    #endif
+    #include <stdlib.h>
     int main(void) {
       char dummy[[123]];  // double brackets for m4
       arc4random_buf(dummy, 0U);
@@ -226,13 +230,9 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([
    AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])
 
-   AC_MSG_CHECKING([for arc4random (BSD, macOS, libbsd or glibc 2.36+)])
+   AC_MSG_CHECKING([for arc4random (BSD, macOS, or glibc 2.36+)])
    AC_LINK_IFELSE([AC_LANG_SOURCE([
-       #if defined(HAVE_LIBBSD)
-       # include <bsd/stdlib.h>
-       #else
-       # include <stdlib.h>
-       #endif
+       #include <stdlib.h>
        int main(void) {
           arc4random();
           return 0;
@@ -381,9 +381,14 @@ dnl NOTE: The *_TRUE variables read here are Automake conditionals
 dnl       that are either set to "" when enabled or to "#" when disabled
 dnl       (because they are used to dynamically comment out certain things)
 AS_IF([test "x${enable_xml_attr_info}" = xyes],
-  [EXPAT_ATTR_INFO=ON],
-  [EXPAT_ATTR_INFO=OFF])
+  [EXPAT_ATTR_INFO=ON
+   _EXPAT_COMMENT_ATTR_INFO=" "],
+  [EXPAT_ATTR_INFO=OFF
+   _EXPAT_COMMENT_ATTR_INFO="#"])
+AC_SUBST([_EXPAT_COMMENT_ATTR_INFO])
 EXPAT_DTD=ON
+_EXPAT_COMMENT_DTD_OR_GE=" "
+AC_SUBST([_EXPAT_COMMENT_DTD_OR_GE])
 AS_IF([test "x${_INTERNAL_LARGE_SIZE_TRUE}" = x],
   [EXPAT_LARGE_SIZE=ON],
   [EXPAT_LARGE_SIZE=OFF])
@@ -461,6 +466,7 @@ AC_CONFIG_FILES([Makefile]
   [doc/Makefile]
   [examples/Makefile]
   [lib/Makefile]
+  [lib/libexpat.map]
   [tests/Makefile]
   [tests/benchmark/Makefile]
   [xmlwf/Makefile])

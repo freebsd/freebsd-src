@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH XMLWF 1 "September 24, 2025" "" ""
+.TH XMLWF 1 "March 17, 2026" "" ""
 .SH NAME
 xmlwf \- Determines if an XML document is well-formed
 .SH SYNOPSIS
@@ -97,7 +97,7 @@ The amplification factor is calculated as ..
 
 .nf
 
-            amplification := (direct + indirect) / direct
+    amplification := (direct + indirect) / direct
           
 .fi
 
@@ -105,7 +105,7 @@ The amplification factor is calculated as ..
 
 .nf
 
-            amplification := allocated / direct
+    amplification := allocated / direct
           
 .fi
 
@@ -235,7 +235,7 @@ the operating system reporting memory in a strange way; there is
 not a leak in \fBxmlwf\fR.
 .TP 
 \*(T<\fB\-s\fR\*(T>
-Prints an error if the document is not standalone. 
+Prints an error if the document is not standalone.
 A document is standalone if it has no external subset and no
 references to parameter entities.
 .TP 
@@ -261,6 +261,7 @@ page. See also \*(T<\fB\-e\fR\*(T>.
 .TP 
 \*(T<\fB\-x\fR\*(T>
 Turns on parsing external entities.
+(CAREFUL! This makes xmlwf vulnerable to external entity attacks (XXE).)
 
 Non-validating parsers are not required to resolve external
 entities, or even expand entities at all.
@@ -275,6 +276,7 @@ This is an example of an internal entity:
 .nf
 
 <!ENTITY vers '1.0.2'>
+            
 .fi
 
 And here are some examples of external entities:
@@ -283,6 +285,7 @@ And here are some examples of external entities:
 
 <!ENTITY header SYSTEM "header\-&vers;.xml">  (parsed)
 <!ENTITY logo SYSTEM "logo.png" PNG>         (unparsed)
+            
 .fi
 .TP 
 \*(T<\fB\-\-\fR\*(T>
@@ -293,6 +296,7 @@ starts with a hyphen. For example:
 .nf
 
 xmlwf \-\- \-myfile.xml
+          
 .fi
 
 will run \fBxmlwf\fR on the file
@@ -307,7 +311,7 @@ input file cannot be opened, \fBxmlwf\fR prints a single
 line describing the problem to standard output.
 .PP
 If the \*(T<\fB\-k\fR\*(T> option is not provided, \fBxmlwf\fR
-halts upon encountering a well-formedness or output-file error. 
+halts upon encountering a well-formedness or output-file error.
 If \*(T<\fB\-k\fR\*(T> is provided, \fBxmlwf\fR continues
 processing the remaining input files, describing problems found with any of them.
 .SH "EXIT STATUS"
@@ -344,6 +348,7 @@ me, I'd like to add this information to this manpage.
 The Expat home page:                            https://libexpat.github.io/
 The W3 XML 1.0 specification (fourth edition):  https://www.w3.org/TR/2006/REC\-xml\-20060816/
 Billion laughs attack:                          https://en.wikipedia.org/wiki/Billion_laughs_attack
+      
 .fi
 .SH AUTHOR
 This manual page was originally written by Scott Bronson <\*(T<bronson@rinspin.com\*(T>>

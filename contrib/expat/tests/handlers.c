@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -45,6 +45,7 @@
 #  undef NDEBUG /* because test suite relies on assert(...) at the moment */
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -405,6 +406,15 @@ long_encoding_handler(void *userData, const XML_Char *encoding,
   info->convert = NULL;
   info->release = NULL;
   return XML_STATUS_OK;
+}
+
+int XMLCALL
+user_data_checking_unknown_encoding_handler(void *userData,
+                                            const XML_Char *encoding,
+                                            XML_Encoding *info) {
+  const intptr_t number = (intptr_t)userData;
+  assert_true(number == 0xC0FFEE);
+  return long_encoding_handler(userData, encoding, info);
 }
 
 /* External Entity Handlers */

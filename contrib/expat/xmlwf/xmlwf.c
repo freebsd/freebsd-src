@@ -11,7 +11,7 @@
    Copyright (c) 2001-2003 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2004-2009 Karl Waclawek <karl@waclawek.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
    Copyright (c) 2020      Joe Orton <jorton@redhat.com>
@@ -19,6 +19,7 @@
    Copyright (c) 2021      Tim Bray <tbray@textuality.com>
    Copyright (c) 2022      Martin Ettl <ettl.martin78@googlemail.com>
    Copyright (c) 2022      Sean McBride <sean@rogue-research.com>
+   Copyright (c) 2025      Alfonso Gregory <gfunni234@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -390,16 +391,13 @@ endDoctypeDecl(void *userData) {
     notationCount++;
   if (notationCount == 0) {
     /* Nothing to report */
-    free((void *)data->currentDoctypeName);
-    data->currentDoctypeName = NULL;
-    return;
+    goto cleanUp;
   }
 
   notations = malloc(notationCount * sizeof(NotationList *));
   if (notations == NULL) {
     fprintf(stderr, "Unable to sort notations");
-    freeNotations(data);
-    return;
+    goto cleanUp;
   }
 
   for (p = data->notationListHead, i = 0; i < notationCount; p = p->next, i++) {
@@ -439,6 +437,8 @@ endDoctypeDecl(void *userData) {
   fputts(T("]>\n"), data->fp);
 
   free(notations);
+
+cleanUp:
   freeNotations(data);
   free((void *)data->currentDoctypeName);
   data->currentDoctypeName = NULL;
@@ -900,6 +900,7 @@ usage(const XML_Char *prog, int rc) {
       T("  -n             enable [n]amespace processing\n")
       T("  -p             enable processing of external DTDs and [p]arameter entities\n")
       T("  -x             enable processing of e[x]ternal entities\n")
+      T("                 (CAREFUL! This makes xmlwf vulnerable to external entity attacks (XXE).)\n")
       T("  -e ENCODING    override any in-document [e]ncoding declaration\n")
       T("  -w             enable support for [W]indows code pages\n")
       T("  -r             disable memory-mapping and use [r]ead calls instead\n")

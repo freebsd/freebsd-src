@@ -11,11 +11,12 @@
    Copyright (c) 2002-2003 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2004-2006 Karl Waclawek <karl@waclawek.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2024      Hanno Böck <hanno@gentoo.org>
+   Copyright (c) 2025      Alfonso Gregory <gfunni234@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -225,7 +226,6 @@ processStream(const XML_Char *filename, XML_Parser parser) {
       if (filename != NULL)
         close(fd);
       break;
-      ;
     }
   }
   return 1;

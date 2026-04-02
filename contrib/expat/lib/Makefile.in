@@ -22,9 +22,10 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2024 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2017      Tomasz Kłoczko <kloczek@fedoraproject.org>
 # Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
+# Copyright (c) 2026      Gordon Messmer <gordon.messmer@gmail.com>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -124,6 +125,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@HAVE_VSCRIPT_TRUE@am__append_1 = $(VSCRIPT_LDFLAGS),@builddir@/libexpat.map
 subdir = lib
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -146,7 +148,7 @@ DIST_COMMON = $(srcdir)/Makefile.am $(include_HEADERS) \
 	$(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/expat_config.h
-CONFIG_CLEAN_FILES =
+CONFIG_CLEAN_FILES = libexpat.map
 CONFIG_CLEAN_VPATH_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -259,7 +261,7 @@ am__define_uniq_tagged_files = \
   unique=`for i in $$list; do \
     if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
   done | $(am__uniquify_input)`
-am__DIST_COMMON = $(srcdir)/Makefile.in \
+am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/libexpat.map.in \
 	$(top_srcdir)/conftools/depcomp
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
@@ -358,6 +360,9 @@ SO_MINOR = @SO_MINOR@
 SO_PATCH = @SO_PATCH@
 STRIP = @STRIP@
 VERSION = @VERSION@
+VSCRIPT_LDFLAGS = @VSCRIPT_LDFLAGS@
+_EXPAT_COMMENT_ATTR_INFO = @_EXPAT_COMMENT_ATTR_INFO@
+_EXPAT_COMMENT_DTD_OR_GE = @_EXPAT_COMMENT_DTD_OR_GE@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -421,12 +426,8 @@ include_HEADERS = \
 
 lib_LTLIBRARIES = libexpat.la
 @WITH_TESTS_TRUE@noinst_LTLIBRARIES = libtestpat.la
-libexpat_la_LDFLAGS = \
-    @AM_LDFLAGS@ \
-    @LIBM@ \
-    -no-undefined \
-    -version-info @LIBCURRENT@:@LIBREVISION@:@LIBAGE@
-
+libexpat_la_LDFLAGS = @AM_LDFLAGS@ @LIBM@ -no-undefined -version-info \
+	@LIBCURRENT@:@LIBREVISION@:@LIBAGE@ $(am__append_1)
 libexpat_la_SOURCES = \
     xmlparse.c \
     xmltok.c \
@@ -490,6 +491,8 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
+libexpat.map: $(top_builddir)/config.status $(srcdir)/libexpat.map.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 
 install-libLTLIBRARIES: $(lib_LTLIBRARIES)
 	@$(NORMAL_INSTALL)

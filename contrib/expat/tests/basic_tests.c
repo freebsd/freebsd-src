@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -3112,12 +3112,16 @@ START_TEST(test_buffer_can_grow_to_max) {
 #if defined(__MINGW32__) && ! defined(__MINGW64__)
   // workaround for mingw/wine32 on GitHub CI not being able to reach 1GiB
   // Can we make a big allocation?
-  void *big = malloc(maxbuf);
-  if (! big) {
+  for (int i = 1; i <= 2; i++) {
+    void *const big = malloc(maxbuf);
+    if (big != NULL) {
+      free(big);
+      break;
+    }
     // The big allocation failed. Let's be a little lenient.
     maxbuf = maxbuf / 2;
+    fprintf(stderr, "Reducing maxbuf to %d...\n", maxbuf);
   }
-  free(big);
 #endif
 
   for (int i = 0; i < num_prefixes; ++i) {
@@ -4570,6 +4574,46 @@ START_TEST(test_unknown_encoding_invalid_attr_value) {
 }
 END_TEST
 
+START_TEST(test_unknown_encoding_user_data_primary) {
+  // This test is based on ideas contributed by Artiphishell Inc.
+  const char *const text = "<?xml version='1.0' encoding='x-unk'?>\n"
+                           "<root />\n";
+  XML_Parser parser = XML_ParserCreate(NULL);
+  XML_SetUnknownEncodingHandler(parser,
+                                user_data_checking_unknown_encoding_handler,
+                                (void *)(intptr_t)0xC0FFEE);
+
+  assert_true(_XML_Parse_SINGLE_BYTES(parser, text, (int)strlen(text), XML_TRUE)
+              == XML_STATUS_OK);
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
+START_TEST(test_unknown_encoding_user_data_secondary) {
+  // This test is based on ideas contributed by Artiphishell Inc.
+  const char *const text_main = "<!DOCTYPE r [\n"
+                                "  <!ENTITY ext SYSTEM 'ext.ent'>\n"
+                                "]>\n"
+                                "<r>&ext;</r>\n";
+  const char *const text_external = "<?xml version='1.0' encoding='x-unk'?>\n"
+                                    "<e>data</e>";
+  ExtTest2 test_data = {text_external, (int)strlen(text_external), NULL, NULL};
+  XML_Parser parser = XML_ParserCreate(NULL);
+  XML_SetExternalEntityRefHandler(parser, external_entity_loader2);
+  XML_SetUnknownEncodingHandler(parser,
+                                user_data_checking_unknown_encoding_handler,
+                                (void *)(intptr_t)0xC0FFEE);
+  XML_SetUserData(parser, &test_data);
+
+  assert_true(_XML_Parse_SINGLE_BYTES(parser, text_main, (int)strlen(text_main),
+                                      XML_TRUE)
+              == XML_STATUS_OK);
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
 /* Test an external entity parser set to use latin-1 detects UTF-16
  * BOMs correctly.
  */
@@ -6001,6 +6045,7 @@ START_TEST(test_bypass_heuristic_when_close_to_bufsize) {
 
   const int document_length = 65536;
   char *const document = (char *)malloc(document_length);
+  assert_true(document != NULL);
 
   const XML_Memory_Handling_Suite memfuncs = {
       counting_malloc,
@@ -6213,6 +6258,24 @@ START_TEST(test_varying_buffer_fills) {
 }
 END_TEST
 
+START_TEST(test_empty_ext_param_entity_in_value) {
+  const char *text = "<!DOCTYPE r SYSTEM \"ext.dtd\"><r/>";
+  ExtOption options[] = {
+      {XCS("ext.dtd"), "<!ENTITY % pe SYSTEM \"empty\">"
+                       "<!ENTITY ge \"%pe;\">"},
+      {XCS("empty"), ""},
+      {NULL, NULL},
+  };
+
+  XML_SetParamEntityParsing(g_parser, XML_PARAM_ENTITY_PARSING_ALWAYS);
+  XML_SetExternalEntityRefHandler(g_parser, external_entity_optioner);
+  XML_SetUserData(g_parser, options);
+  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+      == XML_STATUS_ERROR)
+    xml_failure(g_parser);
+}
+END_TEST
+
 void
 make_basic_test_case(Suite *s) {
   TCase *tc_basic = tcase_create("basic tests");
@@ -6416,6 +6479,8 @@ make_basic_test_case(Suite *s) {
   tcase_add_test(tc_basic, test_unknown_encoding_invalid_surrogate);
   tcase_add_test(tc_basic, test_unknown_encoding_invalid_high);
   tcase_add_test(tc_basic, test_unknown_encoding_invalid_attr_value);
+  tcase_add_test(tc_basic, test_unknown_encoding_user_data_primary);
+  tcase_add_test(tc_basic, test_unknown_encoding_user_data_secondary);
   tcase_add_test__if_xml_ge(tc_basic, test_ext_entity_latin1_utf16le_bom);
   tcase_add_test__if_xml_ge(tc_basic, test_ext_entity_latin1_utf16be_bom);
   tcase_add_test__if_xml_ge(tc_basic, test_ext_entity_latin1_utf16le_bom2);
@@ -6458,6 +6523,7 @@ make_basic_test_case(Suite *s) {
   tcase_add_test(tc_basic, test_empty_element_abort);
   tcase_add_test__ifdef_xml_dtd(tc_basic,
                                 test_pool_integrity_with_unfinished_attr);
+  tcase_add_test__ifdef_xml_dtd(tc_basic, test_empty_ext_param_entity_in_value);
   tcase_add_test__if_xml_ge(tc_basic, test_entity_ref_no_elements);
   tcase_add_test__if_xml_ge(tc_basic, test_deep_nested_entity);
   tcase_add_test__if_xml_ge(tc_basic, test_deep_nested_attribute_entity);
