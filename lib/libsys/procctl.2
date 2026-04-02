@@ -56,7 +56,7 @@ to control as many of the selected processes as possible.
 An error is only returned if no selected processes successfully complete
 the request.
 The following identifier types are supported:
-.Bl -tag -width P_PGID
+.Bl -tag -width indent
 .It Dv P_PID
 Control the process with the process ID
 .Fa id .
@@ -79,7 +79,7 @@ All status query requests
 require the caller to have the right to observe the target.
 .Pp
 The following commands are supported:
-.Bl -tag -width PROC_LOGSIGEXIT_STATUS
+.Bl -tag -width indent
 .It Dv PROC_ASLR_CTL
 Controls Address Space Layout Randomization (ASLR) in program
 images created
@@ -91,7 +91,7 @@ The
 .Fa data
 parameter must point to an integer variable holding one of the following
 values:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_ASLR_FORCE_ENABLE
 Request that ASLR is enabled after execution, even if it is disabled
 system-wide.
@@ -117,7 +117,7 @@ The
 .Fa data
 parameter must point to an integer variable, where one of the
 following values is written:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_ASLR_FORCE_ENABLE
 .It Dv PROC_ASLR_FORCE_DISABLE
 .It Dv PROC_ASLR_NOFORCE
@@ -133,7 +133,7 @@ dump.
 The
 .Va arg
 parameter must point to an integer variable holding one of the following values:
-.Bl -tag -width PROC_LOGSIGEXIT_CTL_FORCE_DISABLE
+.Bl -tag -width indent
 .It Dv PROC_LOGSIGEXIT_CTL_FORCE_ENABLE
 Enables logging of exits due to signals that would normally cause a core dump.
 Logging is done via
@@ -155,7 +155,7 @@ The
 .Va arg
 parameter must point to an integer variable, where one of the following values
 is written:
-.Bl -tag -width PROC_LOGSIGEXIT_CTL_FORCE_DISABLE
+.Bl -tag -width indent
 .It Dv PROC_LOGSIGEXIT_CTL_FORCE_ENABLE
 .It Dv PROC_LOGSIGEXIT_CTL_FORCE_DISABLE
 .It Dv PROC_LOGSIGEXIT_CTL_NOFORCE
@@ -186,7 +186,7 @@ The
 .Fa data
 parameter must point to an integer variable holding one of the following
 values:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_PROTMAX_FORCE_ENABLE
 Use the permissions in
 .Fa prot
@@ -214,7 +214,7 @@ The
 .Fa data
 parameter must point to an integer variable, where one of the
 following values is written:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_PROTMAX_FORCE_ENABLE
 .It Dv PROC_PROTMAX_FORCE_DISABLE
 .It Dv PROC_PROTMAX_NOFORCE
@@ -233,7 +233,7 @@ The
 parameter must point to an integer containing an operation and zero or more
 optional flags.
 The following operations are supported:
-.Bl -tag -width Ds
+.Bl -tag -width indent 
 .It Dv PPROT_SET
 Mark the selected processes as protected.
 .It Dv PPROT_CLEAR
@@ -241,7 +241,7 @@ Clear the protected state of selected processes.
 .El
 .Pp
 The following optional flags are supported:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PPROT_DESCEND
 Apply the requested operation to all child processes of each selected process
 in addition to each selected process.
@@ -300,7 +300,7 @@ struct procctl_reaper_status {
 The
 .Fa rs_flags
 may have the following flags returned:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv REAPER_STATUS_OWNED
 The specified process is a reaper.
 When this flag is returned, the specified process
@@ -380,7 +380,7 @@ the (grand-)parent of the descendant process.
 The
 .Fa pi_flags
 field returns the following flags, further describing the descendant:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv REAPER_PIDINFO_VALID
 Set to indicate that the
 .Vt procctl_reaper_pidinfo
@@ -431,7 +431,7 @@ The
 .Fa rk_flags
 field further directs the operation.
 It is or-ed from the following flags:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv REAPER_KILL_CHILDREN
 Deliver the specified signal only to direct children of the reaper.
 .It Dv REAPER_KILL_SUBTREE
@@ -473,7 +473,7 @@ as well as dumping core.
 Possible values for the
 .Fa data
 argument are:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_TRACE_CTL_ENABLE
 Enable tracing, after it was disabled by
 .Dv PROC_TRACE_CTL_DISABLE .
@@ -524,7 +524,7 @@ system call.
 Possible values for the
 .Fa data
 argument are:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_TRAPCAP_CTL_ENABLE
 Enable
 .Dv SIGTRAP
@@ -634,7 +634,7 @@ The
 .Fa data
 argument must point to an integer variable containing flags.
 The following flags are allowed:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_STACKGAP_ENABLE
 This flag is only accepted for consistency with
 .Dv PROC_STACKGAP_STATUS .
@@ -667,7 +667,7 @@ Returns the current stack gap state for the specified process.
 .Fa data
 must point to an integer variable, which is used to return a bitmask
 consisting of the following flags:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_STACKGAP_ENABLE
 Stack gaps are enabled.
 .It Dv PROC_STACKGAP_DISABLE
@@ -699,7 +699,7 @@ The
 .Fa data
 parameter must point to an integer variable holding the following
 value:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_NO_NEW_PRIVS_ENABLE
 Request set-user-ID and set-group-ID bits to be ignored.
 .El
@@ -711,7 +711,7 @@ The
 .Fa data
 parameter must point to an integer variable, where one of the
 following values is written:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_NO_NEW_PRIVS_ENABLE
 .It Dv PROC_NO_NEW_PRIVS_DISABLE
 .El
@@ -722,7 +722,7 @@ The
 .Fa data
 parameter must point to an integer variable holding one of the
 following values:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_WX_MAPPINGS_PERMIT
 Enable creation of mappings that have both write and execute
 permissions in the specified process' current and future address spaces.
@@ -760,7 +760,7 @@ The
 .Dv data
 parameter must point to an integer variable, where one of the
 following values is written:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_WX_MAPPINGS_PERMIT
 Creation of simultaneously writable and executable mappings are permitted;
 otherwise, the process cannot create such mappings.
@@ -779,7 +779,7 @@ creation, the
 flag is set in the returned value.
 .El
 .Sh x86 MACHINE-SPECIFIC REQUESTS
-.Bl -tag -width PROC_KPTI_STATUS
+.Bl -tag -width indent
 .It Dv PROC_KPTI_CTL
 AMD64 only.
 Controls the Kernel Page Table Isolation (KPTI) option for the children
@@ -795,7 +795,7 @@ The
 .Fa data
 parameter must point to an integer variable containing one of the
 following commands:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_KPTI_CTL_ENABLE_ON_EXEC
 Enable KPTI after
 .Xr execve 2 .
@@ -811,7 +811,7 @@ Returns the current KPTI status for the specified process.
 .Fa data
 must point to an integer variable, where one of the
 following values is written:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Dv PROC_KPTI_CTL_ENABLE_ON_EXEC
 .It Dv PROC_KPTI_CTL_DISABLE_ON_EXEC
 .El
