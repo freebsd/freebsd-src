@@ -527,6 +527,8 @@
         ..
         sysctl
         ..
+        tunefs
+        ..
     ..
     secure
         lib
