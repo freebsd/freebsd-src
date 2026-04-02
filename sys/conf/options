@@ -104,7 +104,6 @@ COMPAT_LINUXKPI	opt_dontuse.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
-EXPERIMENTAL	opt_global.h
 DIRECTIO
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h

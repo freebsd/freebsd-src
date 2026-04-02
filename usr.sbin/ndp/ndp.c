@@ -1225,12 +1225,7 @@ rtrlist(void)
 			*pflags++ = 'O';
 			xo_emit("{el:%s}", "other");
 		}
-#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
-		if (p->flags & ND_RA_FLAG_IPV6_ONLY) {
-			*pflags++ = 'S';
-			xo_emit("{el:%s}", "ipv6only");
-		}
-#endif
+
 		xo_close_list("flags_pretty");
 		xo_emit(", flags={:flags/%s}", rflags);
 

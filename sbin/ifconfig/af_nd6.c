@@ -62,10 +62,6 @@ static const char *ND6BITS[] = {
 	[6]  = "NO_RADR",
 	[7]  = "NO_PREFER_IFACE",
 	[8]  = "NO_DAD",
-#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
-	[9]  = "IPV6_ONLY",
-	[10] = "IPV6_ONLY_MANUAL",
-#endif
 	[11]  = "STABLEADDR",
 	[15] = "DEFAULTIF",
 };
