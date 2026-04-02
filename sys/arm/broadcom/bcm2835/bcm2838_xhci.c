@@ -89,7 +89,8 @@ bcm_xhci_probe(device_t dev)
 	root = OF_finddevice("/");
 	if (root == -1)
 		return (ENXIO);
-	if (!ofw_bus_node_is_compatible(root, "raspberrypi,4-model-b"))
+	if (!ofw_bus_node_is_compatible(root, "raspberrypi,4-model-b") &&
+	    !ofw_bus_node_is_compatible(root, "raspberrypi,400"))
 		return (ENXIO);
 
 	/*
@@ -105,7 +106,7 @@ bcm_xhci_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev,
-	    "VL805 USB 3.0 controller (on the Raspberry Pi 4b)");
+	    "VL805 USB 3.0 controller (on the Raspberry Pi 4b/400)");
 
 	return (BUS_PROBE_SPECIFIC);
 }
