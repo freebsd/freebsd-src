@@ -356,23 +356,14 @@ See
 At intervals of
 .Ar wait
 seconds, display the information regarding packet traffic on all
-configured network interfaces or a single
-.Ar interface .
+configured network interfaces, or a single
+.Ar interface
+if
+.Fl I
+is specified.
 .Pp
-When
-.Nm
-is invoked with the
-.Fl w
-option and a
-.Ar wait
-interval argument, it displays a running count of statistics related to
-network interfaces.
 An obsolescent version of this option used a numeric parameter
 with no option, and is currently supported for backward compatibility.
-By default, this display summarizes information for all interfaces.
-Information for a specific interface may be displayed with the
-.Fl I Ar interface
-option.
 .Bl -tag -width indent
 .It Fl I Ar interface
 Only show information regarding
@@ -399,6 +390,7 @@ See
 Exit after
 .Ar howmany
 outputs.
+A value of zero indicates no limit, and is the default.
 .It Fl j Ar jail
 Run inside a jail.
 See
