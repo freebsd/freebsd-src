@@ -2197,7 +2197,8 @@ static int bnxt_open(struct bnxt_softc *bp)
 	}
 
 	if (BNXT_CHIP_P5_PLUS(bp))
-		bnxt_hwrm_reserve_pf_rings(bp);
+		bnxt_hwrm_reserve_rings(bp);
+	
 	/* Get the current configuration of this function */
 	rc = bnxt_hwrm_func_qcfg(bp);
 	if (rc) {
@@ -2435,6 +2436,16 @@ static void bnxt_sp_task(struct work_struct *work)
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 }
 
+int
+bnxt_hwrm_reserve_rings(struct bnxt_softc *softc)
+{
+	if (BNXT_PF(softc))
+		return bnxt_hwrm_reserve_pf_rings(softc);
+
+	else
+		return bnxt_hwrm_reserve_vf_rings(softc);
+}
+
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -2510,15 +2521,15 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto ver_fail;
 	}
 
-	/* Now perform a function reset */
-	rc = bnxt_hwrm_func_reset(softc);
-
 	if ((softc->flags & BNXT_FLAG_SHORT_CMD) ||
 	    softc->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
 		rc = bnxt_alloc_hwrm_short_cmd_req(softc);
 		if (rc)
 			goto hwrm_short_cmd_alloc_fail;
 	}
+	
+	/* Now perform a function reset */
+	rc = bnxt_hwrm_func_reset(softc);
 
 	if ((softc->ver_info->chip_num == BCM57508) ||
 	    (softc->ver_info->chip_num == BCM57504) ||
@@ -2670,8 +2681,10 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	/* Get the queue config */
 	bnxt_get_wol_settings(softc);
+
 	if (BNXT_CHIP_P5_PLUS(softc))
-		bnxt_hwrm_reserve_pf_rings(softc);
+		bnxt_hwrm_reserve_rings(softc);
+
 	rc = bnxt_hwrm_func_qcfg(softc);
 	if (rc) {
 		device_printf(softc->dev, "attach: hwrm func qcfg failed\n");

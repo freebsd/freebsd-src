@@ -1398,5 +1398,6 @@ int bnxt_dcb_ieee_delapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
 int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
     size_t nitems, int *num_inputs);
 void bnxt_set_flags_by_devid(struct bnxt_softc *softc);
+int bnxt_hwrm_reserve_rings(struct bnxt_softc *softc);
 
 #endif /* _BNXT_H */
