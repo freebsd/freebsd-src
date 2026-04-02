@@ -104,16 +104,6 @@ VNET_DEFINE(u_int32_t, ip6_temp_valid_lifetime) = DEF_TEMP_VALID_LIFETIME;
 
 VNET_DEFINE(int, ip6_temp_regen_advance) = TEMPADDR_REGEN_ADVANCE;
 
-#ifdef EXPERIMENTAL
-VNET_DEFINE_STATIC(int, nd6_ignore_ipv6_only_ra) = 1;
-#define	V_nd6_ignore_ipv6_only_ra	VNET(nd6_ignore_ipv6_only_ra)
-SYSCTL_INT(_net_inet6_icmp6, OID_AUTO,
-    nd6_ignore_ipv6_only_ra, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(nd6_ignore_ipv6_only_ra), 0,
-    "Ignore the 'IPv6-Only flag' in RA messages in compliance with "
-    "draft-ietf-6man-ipv6only-flag");
-#endif
-
 /* RTPREF_MEDIUM has to be 0! */
 #define RTPREF_HIGH	1
 #define RTPREF_MEDIUM	0
@@ -248,97 +238,6 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	m_freem(m);
 }
 
-#ifdef EXPERIMENTAL
-/*
- * An initial update routine for draft-ietf-6man-ipv6only-flag.
- * We need to iterate over all default routers for the given
- * interface to see whether they are all advertising the "S"
- * (IPv6-Only) flag.  If they do set, otherwise unset, the
- * interface flag we later use to filter on.
- *
- * XXXGL: The use of IF_ADDR_WLOCK (previously it was IF_AFDATA_LOCK) in this
- * function is quite strange.
- */
-static void
-defrtr_ipv6_only_ifp(struct ifnet *ifp)
-{
-	struct nd_defrouter *dr;
-	bool ipv6_only, ipv6_only_old;
-#ifdef INET
-	struct epoch_tracker et;
-	struct ifaddr *ifa;
-	bool has_ipv4_addr;
-#endif
-
-	if (V_nd6_ignore_ipv6_only_ra != 0)
-		return;
-
-	ipv6_only = true;
-	ND6_RLOCK();
-	TAILQ_FOREACH(dr, &V_nd6_defrouter, dr_entry)
-		if (dr->ifp == ifp &&
-		    (dr->raflags & ND_RA_FLAG_IPV6_ONLY) == 0)
-			ipv6_only = false;
-	ND6_RUNLOCK();
-
-	IF_ADDR_WLOCK(ifp);
-	ipv6_only_old = ifp->if_inet6->nd_flags & ND6_IFF_IPV6_ONLY;
-	IF_ADDR_WUNLOCK(ifp);
-
-	/* If nothing changed, we have an early exit. */
-	if (ipv6_only == ipv6_only_old)
-		return;
-
-#ifdef INET
-	/*
-	 * Should we want to set the IPV6-ONLY flag, check if the
-	 * interface has a non-0/0 and non-link-local IPv4 address
-	 * configured on it.  If it has we will assume working
-	 * IPv4 operations and will clear the interface flag.
-	 */
-	has_ipv4_addr = false;
-	if (ipv6_only) {
-		NET_EPOCH_ENTER(et);
-		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family != AF_INET)
-				continue;
-			if (in_canforward(
-			    satosin(ifa->ifa_addr)->sin_addr)) {
-				has_ipv4_addr = true;
-				break;
-			}
-		}
-		NET_EPOCH_EXIT(et);
-	}
-	if (ipv6_only && has_ipv4_addr) {
-		log(LOG_NOTICE, "%s rcvd RA w/ IPv6-Only flag set but has IPv4 "
-		    "configured, ignoring IPv6-Only flag.\n", ifp->if_xname);
-		ipv6_only = false;
-	}
-#endif
-
-	IF_ADDR_WLOCK(ifp);
-	if (ipv6_only)
-		ifp->if_inet6->nd_flags |= ND6_IFF_IPV6_ONLY;
-	else
-		ifp->if_inet6->nd_flags &= ~ND6_IFF_IPV6_ONLY;
-	IF_ADDR_WUNLOCK(ifp);
-
-#ifdef notyet
-	/* Send notification of flag change. */
-#endif
-}
-
-static void
-defrtr_ipv6_only_ipf_down(struct ifnet *ifp)
-{
-
-	IF_ADDR_WLOCK(ifp);
-	ifp->if_inet6->nd_flags &= ~ND6_IFF_IPV6_ONLY;
-	IF_ADDR_WUNLOCK(ifp);
-}
-#endif	/* EXPERIMENTAL */
-
 void
 nd6_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
 {
@@ -349,10 +248,6 @@ nd6_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
 	 * unreachable but a different interface might still have connectivity.
 	 */
 
-#ifdef EXPERIMENTAL
-	if (linkstate == LINK_STATE_DOWN)
-		defrtr_ipv6_only_ipf_down(ifp);
-#endif
 }
 
 static void
@@ -599,9 +494,6 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		}
 	}
 	dr = defrtrlist_update(&dr0);
-#ifdef EXPERIMENTAL
-	defrtr_ipv6_only_ifp(ifp);
-#endif
 	/* Prefix Information */
 	if (ndopts.nd_opts_pi != NULL) {
 		/*
@@ -778,10 +670,6 @@ defrouter_del(struct nd_defrouter *dr)
 	 */
 	if (dr->ifp->if_inet6->nd_flags & ND6_IFF_ACCEPT_RTADV)
 		rt6_flush(&dr->rtaddr, dr->ifp);
-
-#ifdef EXPERIMENTAL
-	defrtr_ipv6_only_ifp(dr->ifp);
-#endif
 
 	if (dr->installed) {
 		deldr = dr;

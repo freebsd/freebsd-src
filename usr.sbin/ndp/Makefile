@@ -23,11 +23,6 @@ LIBADD=	xo
 CFLAGS+= -I. -I${.CURDIR}
 CFLAGS+= -D_U_=""
 
-.if ${MK_EXPERIMENTAL} != "no"
-CFLAGS+=	-DEXPERIMENTAL
-CFLAGS+=	-DDRAFT_IETF_6MAN_IPV6ONLY_FLAG
-.endif
-
 .if ${MK_NETLINK_SUPPORT} != "no"
 SRCS+=	ndp_netlink.c
 .else
