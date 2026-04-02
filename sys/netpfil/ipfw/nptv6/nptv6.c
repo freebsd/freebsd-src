@@ -594,8 +594,8 @@ ifaddr_cb(struct namedobj_instance *ni, struct named_object *no,
 		if ((cfg->flags & NPTV6_READY) == 0)
 			return (0);
 		/* If address does not match the external prefix, ignore */
-		if (IN6_ARE_MASKED_ADDR_EQUAL(&cfg->external, args->addr,
-		    &cfg->mask) != 0)
+		if (!IN6_ARE_MASKED_ADDR_EQUAL(&cfg->external, args->addr,
+		    &cfg->mask))
 			return (0);
 		/* Otherwise clear READY flag */
 		cfg->flags &= ~NPTV6_READY;
