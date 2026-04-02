@@ -397,7 +397,12 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	/* Pad to a page boundary. */
 	addr = md_align(addr);
 
-	addr = build_splash_module(addr);
+	addr = build_splash_module(addr, SPLASH_STARTUP);
+
+	/* Pad to a page boundary. */
+	addr = md_align(addr);
+
+	addr = build_splash_module(addr, SPLASH_SHUTDOWN);
 
 	/* Pad to a page boundary. */
 	addr = md_align(addr);

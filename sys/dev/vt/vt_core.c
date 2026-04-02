@@ -1682,8 +1682,13 @@ vtterm_splash(struct vt_device *vd)
 	uintptr_t image;
 	vt_axis_t top, left;
 
-	si = MD_FETCH(preload_kmdp, MODINFOMD_SPLASH, struct splash_info *);
 	if (!(vd->vd_flags & VDF_TEXTMODE) && (boothowto & RB_MUTE)) {
+		if (rebooting == 1) {
+			si = MD_FETCH(preload_kmdp, MODINFOMD_SHTDWNSPLASH, struct splash_info *);
+			vd->vd_driver->vd_blank(vd, TC_BLACK);
+		} else {
+			si = MD_FETCH(preload_kmdp, MODINFOMD_SPLASH, struct splash_info *);
+		}
 		if (si == NULL) {
 			top = (vd->vd_height - vt_logo_height) / 2;
 			left = (vd->vd_width - vt_logo_width) / 2;
@@ -1829,6 +1834,15 @@ vt_init_font_static(void)
 	if (font != NULL)
 		vt_font_assigned = font;
 }
+
+#ifdef DEV_SPLASH
+static int
+vt_shutdown_splash(struct vt_window *vw)
+{
+	vtterm_splash(vw->vw_device);
+	return (0);
+}
+#endif
 
 static void
 vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
@@ -3175,6 +3189,10 @@ vt_upgrade(struct vt_device *vd)
 				/* For existing console window. */
 				EVENTHANDLER_REGISTER(shutdown_pre_sync,
 				    vt_window_switch, vw, SHUTDOWN_PRI_DEFAULT);
+#ifdef DEV_SPLASH
+				EVENTHANDLER_REGISTER(shutdown_pre_sync,
+				    vt_shutdown_splash, vw, SHUTDOWN_PRI_DEFAULT);
+#endif
 			}
 		}
 	}
