@@ -640,7 +640,7 @@ dir_search(ufs2_daddr_t blk, int bytes)
 		return (-1);
 	}
 	for (off = 0; off < bytes; off += dp->d_reclen) {
-		dp = (struct direct *)&block[off];
+		dp = (struct direct *)(uintptr_t)&block[off];
 		if (dp->d_reclen == 0)
 			break;
 		if (dp->d_ino == 0)
@@ -705,7 +705,7 @@ dir_clear_block(const char *block, off_t off)
 	struct direct *dp;
 
 	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
-		dp = (struct direct *)&block[off];
+		dp = (struct direct *)(uintptr_t)&block[off];
 		dp->d_ino = 0;
 		dp->d_reclen = DIRBLKSIZ;
 		dp->d_type = DT_UNKNOWN;
@@ -728,7 +728,7 @@ dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 		return (-1);
 	}
 	bzero(&block[off], sblock.fs_bsize - off);
-	dp = (struct direct *)&block[off];
+	dp = (struct direct *)(uintptr_t)&block[off];
 	dp->d_ino = ino;
 	dp->d_reclen = DIRBLKSIZ;
 	dp->d_type = DT_REG;
@@ -855,7 +855,7 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 	int i;
 
 	bzero(indirbuf, sizeof(indirbuf));
-	bap1 = (ufs1_daddr_t *)indirbuf;
+	bap1 = (ufs1_daddr_t *)(uintptr_t)indirbuf;
 	bap2 = (void *)bap1;
 	cnt = 0;
 	for (i = 0; i < NINDIR(&sblock) && *resid != 0; i++) {
