@@ -21,13 +21,24 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "ucl.h"
+#include "ucl_internal.h"
+
 #include <sys/types.h>
+
+#ifndef _WIN32
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/time.h>
+#endif
+
+#include <sys/stat.h>
 #include <stdio.h>
 #include <errno.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
 #include <fcntl.h>
 #include <time.h>
 
@@ -36,8 +47,6 @@
 #include <mach/mach_time.h>
 #endif
 #endif
-
-#include "ucl.h"
 
 static double
 get_ticks (void)
