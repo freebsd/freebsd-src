@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+ab9257599a5:
+	The src.conf(5) options WITHOUT_BZIP2 and WITHOUT_BZIP2_SUPPORT
+	have been removed.
+
 af099eaa5ec:
 	Users belonging to the new vmm group can now create bhyve VMs.  See the
 	vmm(4) man page for details.
