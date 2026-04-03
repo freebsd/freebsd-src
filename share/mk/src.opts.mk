@@ -73,7 +73,6 @@ __DEFAULT_YES_OPTIONS = \
     BOOTPD \
     BSDINSTALL \
     BSNMP \
-    BZIP2 \
     CALENDAR \
     CAROOT \
     CCD \
@@ -246,7 +245,6 @@ __LIBC_MALLOC_DEFAULT=	jemalloc
 .for var in \
     BLACKLIST \
     BLOCKLIST \
-    BZIP2 \
     INET \
     INET6 \
     KERBEROS \
