@@ -41,8 +41,11 @@
 #include <sys/mutex.h>
 #include <sys/queue.h>
 
+#include <sys/vmmeter.h>
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_extern.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -64,6 +67,9 @@ struct vtballoon_softc {
 
 	struct virtqueue	*vtballoon_inflate_vq;
 	struct virtqueue	*vtballoon_deflate_vq;
+	struct virtqueue	*vtballoon_stats_vq;
+
+	struct virtio_balloon_stat vtballoon_stats[VIRTIO_BALLOON_S_NR];
 
 	uint32_t		 vtballoon_desired_npages;
 	uint32_t		 vtballoon_current_npages;
@@ -95,6 +101,8 @@ static int	vtballoon_setup_features(struct vtballoon_softc *);
 static int	vtballoon_alloc_virtqueues(struct vtballoon_softc *);
 
 static void	vtballoon_vq_intr(void *);
+static void	vtballoon_stats_vq_intr(void *);
+static int	vtballoon_update_stats(struct vtballoon_softc *);
 
 static void	vtballoon_inflate(struct vtballoon_softc *, int);
 static void	vtballoon_deflate(struct vtballoon_softc *, int);
@@ -117,7 +125,8 @@ static void	vtballoon_setup_sysctl(struct vtballoon_softc *);
     (((_sc)->vtballoon_features & VIRTIO_F_VERSION_1) != 0)
 
 /* Features desired/implemented by this driver. */
-#define VTBALLOON_FEATURES		VIRTIO_BALLOON_F_MUST_TELL_HOST
+#define VTBALLOON_FEATURES		\
+    (VIRTIO_BALLOON_F_MUST_TELL_HOST | VIRTIO_BALLOON_F_STATS_VQ)
 
 /* Timeout between retries when the balloon needs inflating. */
 #define VTBALLOON_LOWMEM_TIMEOUT	hz
@@ -222,6 +231,30 @@ vtballoon_attach(device_t dev)
 	virtqueue_enable_intr(sc->vtballoon_inflate_vq);
 	virtqueue_enable_intr(sc->vtballoon_deflate_vq);
 
+	/*
+	 * Prime the stats virtqueue with one buffer so the hypervisor
+	 * can use it to request guest memory statistics.
+	 */
+	if (sc->vtballoon_stats_vq != NULL) {
+		struct sglist sg;
+		struct sglist_seg segs[1];
+		int nstats, error __diagused;
+
+		nstats = vtballoon_update_stats(sc);
+
+		sglist_init(&sg, 1, segs);
+		error = sglist_append(&sg, sc->vtballoon_stats,
+		    sizeof(struct virtio_balloon_stat) * nstats);
+		KASSERT(error == 0, ("error adding stats to sglist"));
+
+		error = virtqueue_enqueue(sc->vtballoon_stats_vq,
+		    sc, &sg, 1, 0);
+		KASSERT(error == 0,
+		    ("error enqueuing stats to virtqueue"));
+		virtqueue_notify(sc->vtballoon_stats_vq);
+		virtqueue_enable_intr(sc->vtballoon_stats_vq);
+	}
+
 fail:
 	if (error)
 		vtballoon_detach(dev);
@@ -304,7 +337,7 @@ static int
 vtballoon_alloc_virtqueues(struct vtballoon_softc *sc)
 {
 	device_t dev;
-	struct vq_alloc_info vq_info[2];
+	struct vq_alloc_info vq_info[3];
 	int nvqs;
 
 	dev = sc->vtballoon_dev;
@@ -315,6 +348,14 @@ vtballoon_alloc_virtqueues(struct vtballoon_softc *sc)
 
 	VQ_ALLOC_INFO_INIT(&vq_info[1], 0, vtballoon_vq_intr, sc,
 	    &sc->vtballoon_deflate_vq, "%s deflate", device_get_nameunit(dev));
+
+	if (virtio_with_feature(dev, VIRTIO_BALLOON_F_STATS_VQ)) {
+		VQ_ALLOC_INFO_INIT(&vq_info[2], 0,
+		    vtballoon_stats_vq_intr, sc,
+		    &sc->vtballoon_stats_vq, "%s stats",
+		    device_get_nameunit(dev));
+		nvqs = 3;
+	}
 
 	return (virtio_alloc_virtqueues(dev, nvqs, vq_info));
 }
@@ -449,6 +490,8 @@ vtballoon_stop(struct vtballoon_softc *sc)
 
 	virtqueue_disable_intr(sc->vtballoon_inflate_vq);
 	virtqueue_disable_intr(sc->vtballoon_deflate_vq);
+	if (sc->vtballoon_stats_vq != NULL)
+		virtqueue_disable_intr(sc->vtballoon_stats_vq);
 
 	virtio_stop(sc->vtballoon_dev);
 }
@@ -566,6 +609,87 @@ vtballoon_thread(void *xsc)
 	}
 
 	kthread_exit();
+}
+
+static int
+vtballoon_update_stats(struct vtballoon_softc *sc)
+{
+	struct virtio_balloon_stat *stat;
+	int idx;
+	bool modern;
+
+	idx = 0;
+	modern = vtballoon_modern(sc);
+	stat = sc->vtballoon_stats;
+
+#define VTBALLOON_SET_STAT(tag_, val_) do {			\
+	stat[idx].tag = modern ? htole16(tag_) : (tag_);	\
+	stat[idx].val = modern ? htole64(val_) : (val_);	\
+	idx++;							\
+} while (0)
+
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MEMTOT,
+	    (uint64_t)vm_cnt.v_page_count * PAGE_SIZE);
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MEMFREE,
+	    (uint64_t)vm_free_count() * PAGE_SIZE);
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_AVAIL,
+	    ((uint64_t)vm_free_count() + vm_inactive_count()) * PAGE_SIZE);
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_IN,
+	    VM_CNT_FETCH(v_swappgsin) * PAGE_SIZE);
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_OUT,
+	    VM_CNT_FETCH(v_swappgsout) * PAGE_SIZE);
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MINFLT,
+	    VM_CNT_FETCH(v_vm_faults));
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MAJFLT,
+	    VM_CNT_FETCH(v_io_faults));
+	/*
+	 * Map CACHES to the inactive page queue.  The virtio spec defines
+	 * this as "disk caches" (Linux: page cache + reclaimable slab).
+	 * FreeBSD's inactive queue is the closest approximation -- it
+	 * contains pages eligible for reclaim, both file-backed and
+	 * anonymous, similar in spirit to Linux's reclaimable memory.
+	 */
+	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_CACHES,
+	    (uint64_t)vm_inactive_count() * PAGE_SIZE);
+
+#undef VTBALLOON_SET_STAT
+
+	return (idx);
+}
+
+/*
+ * The stats virtqueue works in reverse: the host initiates a request by
+ * returning a buffer we previously placed in the virtqueue. We then
+ * refill the virtqueue with fresh statistics.
+ */
+static void
+vtballoon_stats_vq_intr(void *xsc)
+{
+	struct vtballoon_softc *sc;
+	struct virtqueue *vq;
+	struct sglist sg;
+	struct sglist_seg segs[1];
+	int nstats, error __diagused;
+
+	sc = xsc;
+	vq = sc->vtballoon_stats_vq;
+
+	/* Retrieve the buffer that the host returned to us. */
+	if (virtqueue_dequeue(vq, NULL) == NULL)
+		return;
+
+	/* Collect fresh statistics and re-enqueue. */
+	nstats = vtballoon_update_stats(sc);
+
+	sglist_init(&sg, 1, segs);
+	error = sglist_append(&sg, sc->vtballoon_stats,
+	    sizeof(struct virtio_balloon_stat) * nstats);
+	KASSERT(error == 0, ("error adding stats to sglist"));
+
+	error = virtqueue_enqueue(vq, sc, &sg, 1, 0);
+	KASSERT(error == 0, ("error enqueuing stats to virtqueue"));
+	virtqueue_notify(vq);
+	virtqueue_enable_intr(vq);
 }
 
 static void
