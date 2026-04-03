@@ -2219,7 +2219,8 @@ lkpi_80211_flush_tx(struct lkpi_hw *lhw, struct lkpi_sta *lsta)
 }
 
 static void
-lkpi_init_chandef(struct cfg80211_chan_def *chandef,
+lkpi_init_chandef(struct ieee80211com *ic __unused,
+    struct cfg80211_chan_def *chandef,
     struct linuxkpi_ieee80211_channel *chan, struct ieee80211_channel *c,
     bool can_ht)
 {
@@ -2247,6 +2248,17 @@ lkpi_init_chandef(struct cfg80211_chan_def *chandef,
 		else if (IEEE80211_IS_CHAN_VHT80(c))
 			chandef->width = NL80211_CHAN_WIDTH_80;
 	}
+#endif
+
+#ifdef LINUXKPI_DEBUG_80211
+	if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+		ic_printf(ic, "%s:%d: chandef %p { chan %p { %u }, "
+		    "width %d cfreq1 %u cfreq2 %u punctured %u }\n",
+		    __func__, __LINE__, chandef,
+		    chandef->chan, chandef->chan->center_freq,
+		    chandef->width,
+		    chandef->center_freq1, chandef->center_freq2,
+		    chandef->punctured);
 #endif
 }
 
@@ -2587,11 +2599,18 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 #else
 	can_ht = false;
 #endif
-	lkpi_init_chandef(&chandef, chan, ni->ni_chan, can_ht);
+	lkpi_init_chandef(vap->iv_ic, &chandef, chan, ni->ni_chan, can_ht);
 	hw->conf.radar_enabled =
 	    ((chan->flags & IEEE80211_CHAN_RADAR) != 0) ? true : false;
 	hw->conf.chandef = chandef;
 	vif->bss_conf.chanreq.oper = hw->conf.chandef;
+#ifdef LINUXKPI_DEBUG_80211
+	if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+		ic_printf(vap->iv_ic, "%s:%d: hw->conf.chandef %p = chandef %p = "
+		    "vif->bss_conf.chanreq.oper %p\n", __func__, __LINE__,
+		    &hw->conf.chandef, &chandef, &vif->bss_conf.chanreq.oper);
+#endif
+
 	changed = lkpi_init_chanctx_conf(hw, &chandef, chanctx_conf);
 
 	/* Responder ... */
@@ -5205,6 +5224,11 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 		/* We always set the chandef to no-HT for scanning. */
 		cfg80211_chandef_create(&lhw->scan_chandef, chan,
 		    NL80211_CHAN_NO_HT);
+#ifdef LINUXKPI_DEBUG_80211
+		if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+			ic_printf(ic, "%s:%d: initialized lhw->scan_chandef\n",
+			    __func__, __LINE__);
+#endif
 
 		/*
 		 * This works for as long as we do not do BGSCANs; otherwise
@@ -5232,7 +5256,7 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 		};
 		struct cfg80211_chan_def chandef;
 
-		lkpi_init_chandef(&chandef, chan, c, false);
+		lkpi_init_chandef(ic, &chandef, chan, c, false);
 
 		ieee80211_iter_chan_contexts_mtx(hw,
 		    lkpi_ic_set_channel_chanctx_iterf, &chanctx_iter_arg);
@@ -5252,6 +5276,11 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 			lvif = VAP_TO_LVIF(vap);
 			vif = LVIF_TO_VIF(lvif);
 
+#ifdef LINUXKPI_DEBUG_80211
+			if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+				ic_printf(ic, "%s:%d: using on stack chandef\n",
+				    __func__, __LINE__);
+#endif
 			chanctx_conf = lkpi_get_chanctx_conf(hw, vif);
 			changed = lkpi_init_chanctx_conf(hw, &chandef, chanctx_conf);
 			IMPROVE("update HT, VHT, bw, ...");
@@ -5263,6 +5292,12 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 			 * Do we really have to reset everything?
 			 */
 			IMPROVE("update HT, VHT, bw, ...");
+
+#ifdef LINUXKPI_DEBUG_80211
+			if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+				ic_printf(ic, "%s:%d: using on stack chandef\n",
+				    __func__, __LINE__);
+#endif
 
 			chanctx_conf = chanctx_iter_arg.chanctx_conf;
 			changed = lkpi_init_chanctx_conf(hw, &chandef, chanctx_conf);
@@ -7073,6 +7108,12 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 #endif
 			    NL80211_CHAN_NO_HT);
 			lhw->dflt_chandef = hw->conf.chandef;
+#ifdef LINUXKPI_DEBUG_80211
+			if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+				ic_printf(ic, "%s:%d: initialized "
+				    "hw->conf.chandef and dflt_chandef to %p\n",
+				    __func__, __LINE__, &lhw->dflt_chandef);
+#endif
 			break;
 		}
 	}
@@ -9334,11 +9375,26 @@ lkpi_80211_update_chandef(struct ieee80211_hw *hw,
 		 * scan_chandef should have a channel set.
 		 */
 		if (lhw->scan_chandef.chan != NULL) {
+#ifdef LINUXKPI_DEBUG_80211
+			if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+				ic_printf(lhw->ic, "%s:%d: using scan_chandef %p\n",
+				    __func__, __LINE__, &lhw->scan_chandef);
+#endif
 			cd = &lhw->scan_chandef;
 		} else {
+#ifdef LINUXKPI_DEBUG_80211
+			if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+				ic_printf(lhw->ic, "%s:%d: using dflt_chandef %p\n",
+				    __func__, __LINE__, &lhw->dflt_chandef);
+#endif
 			cd = &lhw->dflt_chandef;
 		}
 	} else {
+#ifdef LINUXKPI_DEBUG_80211
+		if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+			ic_printf(lhw->ic, "%s:%d: using chanctx %p chandef %p\n",
+			    __func__, __LINE__, new, &new->def);
+#endif
 		cd = &new->def;
 	}
 
@@ -9350,6 +9406,23 @@ lkpi_80211_update_chandef(struct ieee80211_hw *hw,
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
 	}
 	IMPROVE("IEEE80211_CONF_CHANGE_PS, IEEE80211_CONF_CHANGE_POWER");
+
+#ifdef LINUXKPI_DEBUG_80211
+	if ((linuxkpi_debug_80211 & D80211_CHANDEF) != 0)
+		ic_printf(lhw->ic, "%s:%d: chanctx %p { %u } cd %p { %u } "
+		    "hw->conf.chandef %p { %u %d %u %u %u }, "
+		    "changed %#04x same %d\n",
+		    __func__, __LINE__,
+		    new, (new != NULL && new->def.chan != NULL) ?
+			new->def.chan->center_freq : 0,
+		    cd, cd->chan->center_freq,
+		    &hw->conf.chandef, hw->conf.chandef.chan->center_freq,
+		    hw->conf.chandef.width,
+		    hw->conf.chandef.center_freq1,
+		    hw->conf.chandef.center_freq2,
+		    hw->conf.chandef.punctured,
+		    changed, same);
+#endif
 
 	if (changed == 0)
 		return (0);
