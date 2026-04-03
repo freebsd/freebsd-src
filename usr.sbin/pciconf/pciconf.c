@@ -185,7 +185,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'v':
-			verbose = 1;
+			verbose++;
 			break;
 
 		case 'V':
@@ -523,6 +523,13 @@ print_tree_entry(struct pci_tree_entry *e, const char *indent, bool last,
 				TAILQ_FOREACH(di, &vi->devs, link) {
 					if (di->id == p->pc_device) {
 						printf(" %s", di->desc);
+						if (verbose > 1)
+							printf(" [0x%04x:0x%04x "
+							    "0x%04x:0x%04x]",
+							    p->pc_vendor,
+							    p->pc_device,
+							    p->pc_subvendor,
+							    p->pc_subdevice);
 						break;
 					}
 				}
