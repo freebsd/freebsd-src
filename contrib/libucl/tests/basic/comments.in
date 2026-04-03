@@ -1,4 +1,8 @@
 # This test is intended to check various comments in ucl
+/***/
+/*
+ * ""
+ */
 
 obj {
 	

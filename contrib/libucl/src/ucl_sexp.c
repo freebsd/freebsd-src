@@ -31,33 +31,33 @@
 #include "ucl_internal.h"
 #include "utlist.h"
 
-#define NEXT_STATE do {            \
-if (p >= end) {                    \
-    if (state != read_ebrace) {    \
-      ucl_create_err (&parser->err,\
-                     "extra data");\
-      state = parse_err;           \
-    }                              \
-}                                  \
-else {                             \
-switch (*p) {                      \
-    case '(':                      \
-        state = read_obrace;       \
-        break;                     \
-    case ')':                      \
-        state = read_ebrace;       \
-        break;                     \
-    default:                       \
-        len = 0;                   \
-        mult = 1;                  \
-        state = read_length;       \
-        break;                     \
-    }                              \
-}                                  \
-} while(0)
+#define NEXT_STATE                            \
+	do {                                      \
+		if (p >= end) {                       \
+			if (state != read_ebrace) {       \
+				ucl_create_err(&parser->err,  \
+							   "extra data"); \
+				state = parse_err;            \
+			}                                 \
+		}                                     \
+		else {                                \
+			switch (*p) {                     \
+			case '(':                         \
+				state = read_obrace;          \
+				break;                        \
+			case ')':                         \
+				state = read_ebrace;          \
+				break;                        \
+			default:                          \
+				len = 0;                      \
+				mult = 1;                     \
+				state = read_length;          \
+				break;                        \
+			}                                 \
+		}                                     \
+	} while (0)
 
-bool
-ucl_parse_csexp (struct ucl_parser *parser)
+bool ucl_parse_csexp(struct ucl_parser *parser)
 {
 	const unsigned char *p, *end;
 	ucl_object_t *obj;
@@ -72,10 +72,10 @@ ucl_parse_csexp (struct ucl_parser *parser)
 		parse_err
 	} state = start_parse;
 
-	assert (parser != NULL);
-	assert (parser->chunks != NULL);
-	assert (parser->chunks->begin != NULL);
-	assert (parser->chunks->remain != 0);
+	assert(parser != NULL);
+	assert(parser->chunks != NULL);
+	assert(parser->chunks->begin != NULL);
+	assert(parser->chunks->remain != 0);
 
 	p = parser->chunks->begin;
 	end = p + parser->chunks->remain;
@@ -88,27 +88,28 @@ ucl_parse_csexp (struct ucl_parser *parser)
 				state = read_obrace;
 			}
 			else {
-				ucl_create_err (&parser->err, "bad starting character for "
-						"sexp block: %x", (int)*p);
+				ucl_create_err(&parser->err, "bad starting character for "
+											 "sexp block: %x",
+							   (int) *p);
 				state = parse_err;
 			}
 			break;
 
 		case read_obrace:
-			st = calloc (1, sizeof (*st));
+			st = calloc(1, sizeof(*st));
 
 			if (st == NULL) {
-				ucl_create_err (&parser->err, "no memory");
+				ucl_create_err(&parser->err, "no memory");
 				state = parse_err;
 				continue;
 			}
 
-			st->obj = ucl_object_typed_new (UCL_ARRAY);
+			st->obj = ucl_object_typed_new(UCL_ARRAY);
 
 			if (st->obj == NULL) {
-				ucl_create_err (&parser->err, "no memory");
+				ucl_create_err(&parser->err, "no memory");
 				state = parse_err;
-				free (st);
+				free(st);
 				continue;
 			}
 
@@ -122,10 +123,10 @@ ucl_parse_csexp (struct ucl_parser *parser)
 			}
 			else {
 				/* Prepend new element to the stack */
-				LL_PREPEND (parser->stack, st);
+				LL_PREPEND(parser->stack, st);
 			}
 
-			p ++;
+			p++;
 			NEXT_STATE;
 
 			break;
@@ -133,7 +134,7 @@ ucl_parse_csexp (struct ucl_parser *parser)
 		case read_length:
 			if (*p == ':') {
 				if (len == 0) {
-					ucl_create_err (&parser->err, "zero length element");
+					ucl_create_err(&parser->err, "zero length element");
 					state = parse_err;
 					continue;
 				}
@@ -145,40 +146,41 @@ ucl_parse_csexp (struct ucl_parser *parser)
 				mult *= 10;
 
 				if (len > UINT32_MAX) {
-					ucl_create_err (&parser->err, "too big length of an "
-									"element");
+					ucl_create_err(&parser->err, "too big length of an "
+												 "element");
 					state = parse_err;
 					continue;
 				}
 			}
 			else {
-				ucl_create_err (&parser->err, "bad length character: %x",
-						(int)*p);
+				ucl_create_err(&parser->err, "bad length character: %x",
+							   (int) *p);
 				state = parse_err;
 				continue;
 			}
 
-			p ++;
+			p++;
 			break;
 
 		case read_value:
-			if ((uint64_t)(end - p) > len || len == 0) {
-				ucl_create_err (&parser->err, "invalid length: %llu, %ld "
-						"remain", (long long unsigned)len, (long)(end - p));
+			if ((uint64_t) (end - p) > len || len == 0) {
+				ucl_create_err(&parser->err, "invalid length: %llu, %ld "
+											 "remain",
+							   (long long unsigned) len, (long) (end - p));
 				state = parse_err;
 				continue;
 			}
-			obj = ucl_object_typed_new (UCL_STRING);
+			obj = ucl_object_typed_new(UCL_STRING);
 
-			obj->value.sv = (const char*)p;
+			obj->value.sv = (const char *) p;
 			obj->len = len;
 			obj->flags |= UCL_OBJECT_BINARY;
 
 			if (!(parser->flags & UCL_PARSER_ZEROCOPY)) {
-				ucl_copy_value_trash (obj);
+				ucl_copy_value_trash(obj);
 			}
 
-			ucl_array_append (parser->stack->obj, obj);
+			ucl_array_append(parser->stack->obj, obj);
 			p += len;
 			NEXT_STATE;
 			break;
@@ -186,8 +188,9 @@ ucl_parse_csexp (struct ucl_parser *parser)
 		case read_ebrace:
 			if (parser->stack == NULL) {
 				/* We have an extra end brace */
-				ucl_create_err (&parser->err, "invalid length: %llu, %ld "
-						"remain", (long long unsigned)len, (long)(end - p));
+				ucl_create_err(&parser->err, "invalid length: %llu, %ld "
+											 "remain",
+							   (long long unsigned) len, (long) (end - p));
 				state = parse_err;
 				continue;
 			}
@@ -196,16 +199,16 @@ ucl_parse_csexp (struct ucl_parser *parser)
 			parser->stack = st->next;
 
 			if (parser->stack->obj->type == UCL_ARRAY) {
-				ucl_array_append (parser->stack->obj, st->obj);
+				ucl_array_append(parser->stack->obj, st->obj);
 			}
 			else {
-				ucl_create_err (&parser->err, "bad container object, array "
-						"expected");
+				ucl_create_err(&parser->err, "bad container object, array "
+											 "expected");
 				state = parse_err;
 				continue;
 			}
 
-			free (st);
+			free(st);
 			st = NULL;
 			p++;
 			NEXT_STATE;
@@ -218,7 +221,7 @@ ucl_parse_csexp (struct ucl_parser *parser)
 	}
 
 	if (state != read_ebrace) {
-		ucl_create_err (&parser->err, "invalid finishing state: %d", state);
+		ucl_create_err(&parser->err, "invalid finishing state: %d", state);
 		return false;
 	}
 
