@@ -34,7 +34,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	lib9p \
 	libalias \
 	libarchive \
-	libauditd \
 	libbegemot \
 	libblocksruntime \
 	libbsddialog \
@@ -173,6 +172,7 @@ SUBDIR+=	clang
 .endif
 .endif
 
+SUBDIR.${MK_AUDIT}+=	libauditd
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_TOOLCHAIN}+=libpe
 SUBDIR.${MK_DIALOG}+=	libdpv libfigpar
