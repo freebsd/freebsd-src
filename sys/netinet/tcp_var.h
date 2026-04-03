@@ -789,7 +789,7 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF_TSO		0x01000000	/* TSO enabled on this connection */
 #define	TF_TOE		0x02000000	/* this connection is offloaded */
 #define	TF_CLOSED	0x04000000	/* close(2) called on socket */
-#define TF_SENTSYN      0x08000000      /* At least one syn has been sent */
+#define	TF_UNUSED	0x08000000	/* was TF_SENTSYN */
 #define	TF_LRD		0x10000000	/* Lost Retransmission Detection */
 #define	TF_CONGRECOVERY	0x20000000	/* congestion recovery mode */
 #define	TF_WASCRECOVERY	0x40000000	/* was in congestion recovery */
@@ -803,7 +803,7 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
     "\15TF_NOPUSH\16TF_PREVVALID\17TF_WAKESOR\20TF_GPUTINPROG" \
     "\21TF_MORETOCOME\22TF_SONOTCONN\23TF_LASTIDLE\24TF_RXWIN0SENT" \
     "\25TF_FASTRECOVERY\26TF_WASFRECOVERY\27TF_SIGNATURE\30TF_FORCEDATA" \
-    "\31TF_TSO\32TF_TOE\33TF_CLOSED\34TF_SENTSYN" \
+    "\31TF_TSO\32TF_TOE\33TF_CLOSED\34TF_UNUSED" \
     "\35TF_LRD\36TF_CONGRECOVERY\37TF_WASCRECOVERY\40TF_FASTOPEN"
 
 #define	IN_FASTRECOVERY(t_flags)	(t_flags & TF_FASTRECOVERY)
