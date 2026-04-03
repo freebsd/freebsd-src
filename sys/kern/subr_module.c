@@ -444,6 +444,11 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 		sbuf_cat(sbp, "MODINFOMD_BOOT_HARTID");
 		break;
 #endif
+#ifdef MODINFOMD_EFI_ARCH
+	case MODINFOMD_EFI_ARCH:
+		sbuf_cat(sbp, "MODINFOMD_EFI_ARCH");
+		break;
+#endif
 	default:
 		sbuf_cat(sbp, "unrecognized metadata type");
 	}
@@ -465,6 +470,9 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 	case MODINFO_NAME:
 	case MODINFO_TYPE:
 	case MODINFO_ARGS:
+#ifdef MODINFOMD_EFI_ARCH
+	case MODINFO_METADATA | MODINFOMD_EFI_ARCH:
+#endif
 		sbuf_printf(sbp, "%s", (char *)bptr);
 		break;
 	case MODINFO_SIZE:
