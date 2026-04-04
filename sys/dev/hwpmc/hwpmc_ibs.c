@@ -270,7 +270,7 @@ ibs_stop_pmc(int cpu __diagused, int ri, struct pmc *pm)
 	 * Turn off the ENABLE bit, but unfortunately there are a few quirks
 	 * that generate excess NMIs.  Workaround #420 in the Revision Guide
 	 * for AMD Family 10h Processors 41322 Rev. 3.92 March 2012. requires
-	 * that we clear the count before clearing enable.
+	 * that we clear the max count before clearing enable.
 	 *
 	 * Even after clearing the counter spurious NMIs are still possible so
 	 * we use a per-CPU atomic variable to notify the interrupt handler we
@@ -290,7 +290,7 @@ ibs_stop_pmc(int cpu __diagused, int ri, struct pmc *pm)
 		wrmsr(IBS_FETCH_CTL, config);
 		break;
 	case IBS_PMC_OP:
-		wrmsr(IBS_FETCH_CTL, config & ~IBS_FETCH_CTL_MAXCNTMASK);
+		wrmsr(IBS_OP_CTL, config & ~IBS_OP_CTL_MAXCNTMASK);
 		DELAY(1);
 		config &= ~IBS_OP_CTL_ENABLE;
 		wrmsr(IBS_OP_CTL, config);
