@@ -85,6 +85,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
