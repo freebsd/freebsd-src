@@ -276,7 +276,7 @@ void scic_sds_remote_node_table_clear_group(
 }
 
 /**
- * THis method sets an entire remote node group in the remote node table.
+ * This method sets an entire remote node group in the remote node table.
  *
  * @param[in] remote_node_table
  * @param[in] group_index
@@ -471,7 +471,7 @@ U16 scic_sds_remote_node_table_allocate_single_remote_node(
  *
  * @param[in] remote_node_table This is the remote node table from which to
  *       allocate the remote node entries.
- * @param[in] group_table_index THis is the group table index which must equal
+ * @param[in] group_table_index This is the group table index which must equal
  *       two (2) for this operation.
  *
  * @return The remote node index that represents three consecutive remote node
