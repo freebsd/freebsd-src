@@ -2026,23 +2026,26 @@ linprocfs_doauxv(PFS_FILL_ARGS)
 	if (asb == NULL)
 		return (ENOMEM);
 	error = proc_getauxv(td, p, asb);
-	if (error == 0)
-		error = sbuf_finish(asb);
+	if (error != 0)
+		goto out;
+	error = sbuf_finish(asb);
+	if (error != 0)
+		goto out;
 
 	resid = sbuf_len(asb) - uio->uio_offset;
 	if (resid > uio->uio_resid)
 		buflen = uio->uio_resid;
 	else
 		buflen = resid;
-	if (buflen > IOSIZE_MAX)
-		return (EINVAL);
+	if (buflen > IOSIZE_MAX) {
+		error = EINVAL;
+		goto out;
+	}
 	if (buflen > maxphys)
 		buflen = maxphys;
-	if (resid <= 0)
-		return (0);
-
-	if (error == 0)
+	if (resid > 0)
 		error = uiomove(sbuf_data(asb) + uio->uio_offset, buflen, uio);
+out:
 	sbuf_delete(asb);
 	return (error);
 }
