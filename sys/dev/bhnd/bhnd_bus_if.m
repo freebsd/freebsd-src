@@ -533,7 +533,7 @@ METHOD int read_board_info {
 /**
  * Notify a bhnd bus that a child was added.
  *
- * This method must be called by concrete bhnd(4) driver impementations
+ * This method must be called by concrete bhnd(4) driver implementations
  * after @p child's bus state is fully initialized.
  *
  * @param dev The bhnd bus whose child is being added.
