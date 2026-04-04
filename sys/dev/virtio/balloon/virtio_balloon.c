@@ -67,6 +67,7 @@ struct vtballoon_softc {
 	uint32_t		 vtballoon_flags;
 #define VTBALLOON_FLAG_DETACH	 0x01
 #define VTBALLOON_FLAG_GUEST_LOWMEM	 0x02
+#define VTBALLOON_FLAG_WANTSIZE	 0x04
 
 	struct virtqueue	*vtballoon_inflate_vq;
 	struct virtqueue	*vtballoon_deflate_vq;
@@ -236,6 +237,13 @@ vtballoon_attach(device_t dev)
 		goto fail;
 	}
 
+	/*
+	 * Prime the resize flag so the thread evaluates the host's
+	 * desired balloon size on first wakeup.  This handles the
+	 * case where the host set num_pages before the guest booted.
+	 */
+	sc->vtballoon_flags |= VTBALLOON_FLAG_WANTSIZE;
+
 	virtqueue_enable_intr(sc->vtballoon_inflate_vq);
 	virtqueue_enable_intr(sc->vtballoon_deflate_vq);
 
@@ -327,6 +335,7 @@ vtballoon_config_change(device_t dev)
 	sc = device_get_softc(dev);
 
 	VTBALLOON_LOCK(sc);
+	sc->vtballoon_flags |= VTBALLOON_FLAG_WANTSIZE;
 	wakeup_one(sc);
 	VTBALLOON_UNLOCK(sc);
 
@@ -588,24 +597,42 @@ vtballoon_sleep(struct vtballoon_softc *sc)
 		if (sc->vtballoon_flags & VTBALLOON_FLAG_GUEST_LOWMEM)
 			break;
 
-		desired = vtballoon_desired_size(sc);
-		sc->vtballoon_desired_npages = desired;
-
 		/*
-		 * If given, use non-zero timeout on the first time through
-		 * the loop. On subsequent times, timeout will be zero so
-		 * we will reevaluate the desired size of the balloon and
-		 * break out to retry if needed.
+		 * Only evaluate the host's desired balloon size when a
+		 * config change interrupt has been received.  This
+		 * prevents the thread from re-inflating pages that were
+		 * just freed in response to a guest low-memory event.
 		 */
-		timeout = sc->vtballoon_timeout;
-		sc->vtballoon_timeout = 0;
+		if (sc->vtballoon_flags & VTBALLOON_FLAG_WANTSIZE) {
+			desired = vtballoon_desired_size(sc);
+			sc->vtballoon_desired_npages = desired;
 
-		if (current > desired)
-			break;
-		if (current < desired && timeout == 0)
-			break;
+			/*
+			 * If given, use non-zero timeout on the first
+			 * time through the loop.  On subsequent times,
+			 * timeout will be zero so we will reevaluate
+			 * the desired size of the balloon and break
+			 * out to retry if needed.
+			 */
+			timeout = sc->vtballoon_timeout;
+			sc->vtballoon_timeout = 0;
 
-		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbslp", timeout);
+			if (current > desired)
+				break;
+			if (current < desired && timeout == 0)
+				break;
+			if (current < desired) {
+				/* Retry after timeout. */
+				msleep(sc, VTBALLOON_MTX(sc), 0,
+				    "vtbslp", timeout);
+				continue;
+			}
+
+			/* Target reached; clear the flag. */
+			sc->vtballoon_flags &= ~VTBALLOON_FLAG_WANTSIZE;
+		}
+
+		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbslp", 0);
 	}
 	VTBALLOON_UNLOCK(sc);
 
@@ -632,11 +659,21 @@ vtballoon_thread(void *xsc)
 		if (vtballoon_sleep(sc) != 0)
 			break;
 
-		/* Check and clear the guest low-memory flag. */
+		/*
+		 * Check and clear the guest low-memory flag.  Also clear any
+		 * pending host resize request so that we do not
+		 * immediately re-inflate the pages just released to
+		 * the guest VM subsystem.  The host will send a new
+		 * config change interrupt if it still requires a
+		 * larger balloon.
+		 */
 		VTBALLOON_LOCK(sc);
 		guest_lowmem = sc->vtballoon_flags &
 		    VTBALLOON_FLAG_GUEST_LOWMEM;
-		sc->vtballoon_flags &= ~VTBALLOON_FLAG_GUEST_LOWMEM;
+		if (guest_lowmem)
+			sc->vtballoon_flags &=
+			    ~(VTBALLOON_FLAG_GUEST_LOWMEM |
+			    VTBALLOON_FLAG_WANTSIZE);
 		VTBALLOON_UNLOCK(sc);
 
 		if (guest_lowmem && sc->vtballoon_current_npages > 0) {
