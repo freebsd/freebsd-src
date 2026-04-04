@@ -299,7 +299,7 @@ extern counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
  * based on the time and possibly mark them
  * for retransmit. If we do and we are not already
  * in recovery we enter recovery. In doing
- * so we claer prr_delivered/holes_rxt and prr_sent_dur_rec.
+ * so we clear prr_delivered/holes_rxt and prr_sent_dur_rec.
  * We also setup rc_next/rc_snd_nxt/rc_send_end so
  * we will know where to send from. When not in
  * recovery rc_next will be NULL and rc_snd_nxt should
