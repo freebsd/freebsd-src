@@ -110,12 +110,8 @@ Each commit must:
 
 ### Quality Expectations
 
-Low quality submimssions will be rejected.  This includes submissions generated
-by AI tools that lack sufficient validation, testing, or understanding by the
-submitter.
-
-A pull request may be closed if there are too many obvious mistakes, or when a
-time-consuming rework is needed.
+Low quality submimssions will be rejected.  A pull request may be closed if
+there are too many obvious mistakes, or when a time-consuming rework is needed.
 
 Automated accounts or chatbots must not submit pull requests or use pull
 request interactions to train AI or LLM systems.
