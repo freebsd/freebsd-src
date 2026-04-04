@@ -492,6 +492,9 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	}
 	EXIT_RECOVERY(tp->t_flags);
 
+	/* RFC 9937 6.4: set cwnd = ssthresh on recovery exit */
+	tp->snd_cwnd = tp->snd_ssthresh;
+
 	tp->t_bytes_acked = 0;
 	tp->sackhint.delivered_data = 0;
 	tp->sackhint.prr_delivered = 0;
