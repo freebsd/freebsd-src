@@ -137,7 +137,7 @@ extern "C" {
 //*****************************************************************************
 
 /**
- * THis macro requests the SCU register write for the specified link layer
+ * This macro requests the SCU register write for the specified link layer
  * register.
  */
 #define scu_link_layer_register_read(phy, reg) \

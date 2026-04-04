@@ -240,7 +240,7 @@ SCI_REMOTE_DEVICE_HANDLE_T scif_remote_device_get_scic_handle(
 
 /**
  * @brief This method returns the maximum queue depth supported for the
- *        supplied target by this SCI Framework impementation.
+ *        supplied target by this SCI Framework implementation.
  *
  * @param[in]  remote_device This parameter specifies the framework
  *             device for which to return the maximum queue depth.
