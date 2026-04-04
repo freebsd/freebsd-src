@@ -295,26 +295,28 @@ struct l_statfs {
 #define	LINUX_ZFS_SUPER_MAGIC	0x2FC12FC1
 #define	LINUX_DEVFS_SUPER_MAGIC	0x1373L
 #define	LINUX_SHMFS_MAGIC	0x01021994
+#define	LINUX_SYSFS_MAGIC	0x62656572
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
 {
 	int i;
 	static struct {const char *bsd_name; long linux_type;} b2l_tbl[] = {
-		{"ufs",     LINUX_UFS_SUPER_MAGIC},
-		{"zfs",     LINUX_ZFS_SUPER_MAGIC},
-		{"cd9660",  LINUX_ISOFS_SUPER_MAGIC},
-		{"nfs",     LINUX_NFS_SUPER_MAGIC},
-		{"ext2fs",  LINUX_EXT2_SUPER_MAGIC},
-		{"procfs",  LINUX_PROC_SUPER_MAGIC},
-		{"msdosfs", LINUX_MSDOS_SUPER_MAGIC},
-		{"ntfs",    LINUX_NTFS_SUPER_MAGIC},
-		{"nwfs",    LINUX_NCP_SUPER_MAGIC},
-		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
-		{"coda",    LINUX_CODA_SUPER_MAGIC},
-		{"devfs",   LINUX_DEVFS_SUPER_MAGIC},
-		{"tmpfs",   LINUX_SHMFS_MAGIC},
-		{NULL,      0L}};
+		{"ufs",      LINUX_UFS_SUPER_MAGIC},
+		{"zfs",      LINUX_ZFS_SUPER_MAGIC},
+		{"cd9660",   LINUX_ISOFS_SUPER_MAGIC},
+		{"nfs",      LINUX_NFS_SUPER_MAGIC},
+		{"ext2fs",   LINUX_EXT2_SUPER_MAGIC},
+		{"procfs",   LINUX_PROC_SUPER_MAGIC},
+		{"msdosfs",  LINUX_MSDOS_SUPER_MAGIC},
+		{"ntfs",     LINUX_NTFS_SUPER_MAGIC},
+		{"nwfs",     LINUX_NCP_SUPER_MAGIC},
+		{"hpfs",     LINUX_HPFS_SUPER_MAGIC},
+		{"coda",     LINUX_CODA_SUPER_MAGIC},
+		{"devfs",    LINUX_DEVFS_SUPER_MAGIC},
+		{"tmpfs",    LINUX_SHMFS_MAGIC},
+		{"linsysfs", LINUX_SYSFS_MAGIC},
+		{NULL,       0L}};
 
 	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
 		if (strcmp(b2l_tbl[i].bsd_name, fstypename) == 0)
