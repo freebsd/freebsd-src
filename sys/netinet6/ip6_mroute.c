@@ -92,6 +92,7 @@
 #include <sys/module.h>
 #include <sys/domain.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
