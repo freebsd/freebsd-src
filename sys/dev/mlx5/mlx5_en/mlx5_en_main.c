@@ -3802,6 +3802,8 @@ out:
 		break;
 
 	case SIOCGI2C:
+		/* fallthru */
+	case SIOCGI2CPB:
 		ifr = (struct ifreq *)data;
 
 		/*
@@ -3811,6 +3813,9 @@ out:
 		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error)
 			break;
+		/* ensure page and bank are 0 for legacy SIOCGI2C ioctls */
+		if (command == SIOCGI2C)
+			i2c.page = i2c.bank = 0;
 
 		if (i2c.len > sizeof(i2c.data)) {
 			error = EINVAL;
@@ -3852,8 +3857,17 @@ out:
 			error = EINVAL;
 			goto err_i2c;
 		}
+
+		if (i2c.bank != 0) {
+			mlx5_en_err(ifp,
+			    "Query eeprom failed, Invalid Bank: %X\n",
+			    i2c.bank);
+			error = EINVAL;
+			goto err_i2c;
+		}
+
 		error = mlx5_query_eeprom(priv->mdev,
-		    read_addr, MLX5_EEPROM_LOW_PAGE,
+		    read_addr, i2c.page,
 		    (uint32_t)i2c.offset, (uint32_t)i2c.len, module_num,
 		    (uint32_t *)i2c.data, &size_read);
 		if (error) {
@@ -3865,7 +3879,7 @@ out:
 
 		if (i2c.len > MLX5_EEPROM_MAX_BYTES) {
 			error = mlx5_query_eeprom(priv->mdev,
-			    read_addr, MLX5_EEPROM_LOW_PAGE,
+			    read_addr, i2c.page,
 			    (uint32_t)(i2c.offset + size_read),
 			    (uint32_t)(i2c.len - size_read), module_num,
 			    (uint32_t *)(i2c.data + size_read), &size_read);
