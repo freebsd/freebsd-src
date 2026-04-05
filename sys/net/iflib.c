@@ -4468,8 +4468,11 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		err = ifmedia_ioctl(ifp, ifr, ctx->ifc_mediap, command);
 		break;
 	case SIOCGI2C:
+		/* FALLTHROUGH */
+	case SIOCGI2CPB:
 	{
 		struct ifi2creq i2c;
+		if_shared_ctx_t sctx = ctx->ifc_sctx;
 
 		err = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (err != 0)
@@ -4479,6 +4482,12 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			break;
 		}
 		if (i2c.len > sizeof(i2c.data)) {
+			err = EINVAL;
+			break;
+		}
+		if (command == SIOCGI2C) {
+			i2c.page = i2c.bank = 0;
+		} else if ((sctx->isc_flags & IFLIB_I2C_PAGE_BANK) == 0) {
 			err = EINVAL;
 			break;
 		}

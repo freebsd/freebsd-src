@@ -604,8 +604,9 @@ struct ifi2creq {
 	uint8_t dev_addr;	/* i2c address (0xA0, 0xA2) */
 	uint8_t offset;		/* read offset */
 	uint8_t len;		/* read length */
-	uint8_t spare0;
-	uint32_t spare1;
+	uint8_t page;		/* CMIS page number (0 for legacy) */
+	uint8_t bank;		/* CMIS bank number (0 for legacy) */
+	uint8_t spare[3];	/* reserved for future use */
 	uint8_t data[8];	/* read buffer */
 }; 
 
