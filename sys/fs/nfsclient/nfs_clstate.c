@@ -89,6 +89,8 @@ extern u_int32_t newnfs_false, newnfs_true;
 extern int nfscl_debuglevel;
 extern int nfscl_enablecallb;
 extern int nfs_numnfscbd;
+extern struct timeval nfsboottime;
+extern uint32_t nfs_exchangeboot;
 NFSREQSPINLOCK;
 NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
@@ -883,9 +885,11 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 	if (cred != NULL) {
 		getcredhostuuid(cred, uuid, sizeof uuid);
 		idlen = strlen(uuid);
-		if (idlen > 0)
+		if (idlen > 0) {
+			nfscl_uuidcheck(uuid);
+			idlen = strlen(uuid);
 			idlen += sizeof (u_int64_t);
-		else
+		} else
 			idlen += sizeof (u_int64_t) + 16; /* 16 random bytes */
 		newclp = malloc(
 		    sizeof (struct nfsclclient) + idlen - 1, M_NFSCLCLIENT,
@@ -996,6 +1000,15 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		 * such that the server throws away the clientid before
 		 * receiving the SetClientIDConfirm.
 		 */
+		/*
+		 * Must be done here while locked and before calling
+		 * nfsrpc_setclient().
+		 */
+		if (nfs_exchangeboot == 0) {
+			nfs_exchangeboot = nfsboottime.tv_sec;
+			if (nfs_exchangeboot == 0)
+				nfs_exchangeboot = arc4random();
+		}
 		if (clp->nfsc_renew > 0)
 			clidinusedelay = NFSCL_LEASE(clp->nfsc_renew) * 2;
 		else

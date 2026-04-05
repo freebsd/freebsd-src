@@ -567,7 +567,7 @@ nfs_mountdiskless(char *path,
     struct vnode **vpp, struct mount *mp)
 {
 	struct sockaddr *nam;
-	int dirlen, error;
+	int dirlen, error, minvers;
 	char *dirpath;
 
 	/*
@@ -580,9 +580,12 @@ nfs_mountdiskless(char *path,
 	else
 		dirlen = 0;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
+	minvers = 0;
+	if ((args->flags & NFSMNT_NFSV4) != 0)
+		minvers = -1;
 	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
 	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NAMETIMEO, 
-	    NFS_DEFAULT_NEGNAMETIMEO, 0, 0, NULL, 0)) != 0) {
+	    NFS_DEFAULT_NEGNAMETIMEO, minvers, 0, NULL, 0)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
