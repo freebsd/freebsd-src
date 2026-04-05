@@ -89,8 +89,7 @@ bcm_xhci_probe(device_t dev)
 	root = OF_finddevice("/");
 	if (root == -1)
 		return (ENXIO);
-	if (!ofw_bus_node_is_compatible(root, "raspberrypi,4-model-b") &&
-	    !ofw_bus_node_is_compatible(root, "raspberrypi,400"))
+	if (!ofw_bus_node_is_compatible(root, "brcm,bcm2711"))
 		return (ENXIO);
 
 	/*
