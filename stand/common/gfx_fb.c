@@ -3098,7 +3098,7 @@ build_font_module(vm_offset_t addr)
 }
 
 vm_offset_t
-build_splash_module(vm_offset_t addr)
+build_splash_module(vm_offset_t addr, int type)
 {
 	struct preloaded_file *fp;
 	struct splash_info si;
@@ -3118,7 +3118,11 @@ build_splash_module(vm_offset_t addr)
 	if (fp == NULL)
 		panic("can't find kernel file");
 
-	splash = getenv("splash");
+	if (type == SPLASH_STARTUP)
+		splash = getenv("splash");
+	if (type == SPLASH_SHUTDOWN)
+		splash = getenv("shutdown_splash");
+
 	if (splash == NULL)
 		return (addr);
 
@@ -3137,7 +3141,15 @@ build_splash_module(vm_offset_t addr)
 	/* Copy the bitmap. */
 	addr += archsw.arch_copyin(png.image, addr, png.png_datalen);
 
-	printf("Loading splash ok\n");
-	file_addmetadata(fp, MODINFOMD_SPLASH, sizeof(splashp), &splashp);
+	if (type == SPLASH_STARTUP) {
+		printf("Loading splash ok\n");
+		file_addmetadata(fp, MODINFOMD_SPLASH,
+		    sizeof(splashp), &splashp);
+	}
+	if (type == SPLASH_SHUTDOWN) {
+		printf("Loading shutdown splash ok\n");
+		file_addmetadata(fp, MODINFOMD_SHTDWNSPLASH,
+		    sizeof(splashp), &splashp);
+	}
 	return (addr);
 }

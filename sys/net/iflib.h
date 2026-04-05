@@ -348,7 +348,10 @@ typedef enum {
  * Driver needs frames padded to some minimum length
  */
 #define IFLIB_NEED_ETHER_PAD	0x100
-#define	IFLIB_SPARE7		0x200
+/*
+ * Driver understands page/bank i2c reads
+ */
+#define	IFLIB_I2C_PAGE_BANK	0x200
 #define	IFLIB_SPARE6		0x400
 #define	IFLIB_SPARE5		0x800
 #define	IFLIB_SPARE4		0x1000

@@ -21,10 +21,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "ucl.h"
+#include "ucl_internal.h"
+
 #include <stdio.h>
 #include <errno.h>
+
+#ifndef _WIN32
 #include <unistd.h>
-#include "ucl.h"
+#endif
 
 static int
 read_stdin (char **buf)

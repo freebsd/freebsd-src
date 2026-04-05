@@ -2,7 +2,7 @@
 
 LIB=	sysdecode
 
-SRCS=	errno.c flags.c ioctl.c signal.c syscallnames.c utrace.c support.c
+SRCS=	errno.c flags.c ioctl.c netlink.c signal.c syscallnames.c utrace.c support.c
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
 	${MACHINE_CPUARCH} == "i386"
 SRCS+= linux.c

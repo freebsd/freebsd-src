@@ -3080,6 +3080,7 @@ kqueue_fork_copy_knote(struct kqueue *kq1, struct knote *kn, struct proc *p1,
 	kn1->kn_status |= KN_DETACHED;
 	kn1->kn_status &= ~KN_QUEUED;
 	kn1->kn_kq = kq1;
+	kn1->kn_knlist = NULL;
 	error = fop->f_copy(kn1, p1);
 	if (error != 0) {
 		knote_free(kn1);

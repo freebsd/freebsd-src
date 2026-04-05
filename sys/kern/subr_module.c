@@ -307,6 +307,7 @@ preload_bootstrap_relocate(vm_offset_t offset)
 	    case MODINFO_ADDR:
 	    case MODINFO_METADATA|MODINFOMD_FONT:
 	    case MODINFO_METADATA|MODINFOMD_SPLASH:
+	    case MODINFO_METADATA|MODINFOMD_SHTDWNSPLASH:
 	    case MODINFO_METADATA|MODINFOMD_SSYM:
 	    case MODINFO_METADATA|MODINFOMD_ESYM:
 		ptr = (vm_offset_t *)(curp + (sizeof(uint32_t) * 2));
@@ -439,9 +440,17 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 	case MODINFOMD_SPLASH:
 		sbuf_cat(sbp, "MODINFOMD_SPLASH");
 		break;
+	case MODINFOMD_SHTDWNSPLASH:
+		sbuf_cat(sbp, "MODINFOMD_SHTDWNSPLASH");
+		break;
 #ifdef MODINFOMD_BOOT_HARTID
 	case MODINFOMD_BOOT_HARTID:
 		sbuf_cat(sbp, "MODINFOMD_BOOT_HARTID");
+		break;
+#endif
+#ifdef MODINFOMD_EFI_ARCH
+	case MODINFOMD_EFI_ARCH:
+		sbuf_cat(sbp, "MODINFOMD_EFI_ARCH");
 		break;
 #endif
 	default:
@@ -465,6 +474,9 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 	case MODINFO_NAME:
 	case MODINFO_TYPE:
 	case MODINFO_ARGS:
+#ifdef MODINFOMD_EFI_ARCH
+	case MODINFO_METADATA | MODINFOMD_EFI_ARCH:
+#endif
 		sbuf_printf(sbp, "%s", (char *)bptr);
 		break;
 	case MODINFO_SIZE:
@@ -495,6 +507,7 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 #endif
 	case MODINFO_METADATA | MODINFOMD_FONT:
 	case MODINFO_METADATA | MODINFOMD_SPLASH:
+	case MODINFO_METADATA | MODINFOMD_SHTDWNSPLASH:
 		sbuf_print_vmoffset(sbp, *(vm_offset_t *)bptr);
 		break;
 	case MODINFO_METADATA | MODINFOMD_HOWTO:

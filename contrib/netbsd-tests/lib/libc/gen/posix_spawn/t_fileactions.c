@@ -405,12 +405,12 @@ t_spawn_chdir_impl(bool chdir)
 	posix_spawn_file_actions_addopen(&fa, fileno(stdout),
 	    TESTFILE, O_WRONLY | O_CREAT, 0600);
 	if (chdir) {
-		ATF_REQUIRE(posix_spawn_file_actions_addchdir_np(&fa,
+		ATF_REQUIRE(posix_spawn_file_actions_addchdir(&fa,
 		    tmp_path) == 0);
 	} else {
 		tmpdir_fd = open(tmp_path, O_DIRECTORY | O_RDONLY);
 		ATF_REQUIRE(tmpdir_fd > 0);
-		ATF_REQUIRE(posix_spawn_file_actions_addfchdir_np(&fa,
+		ATF_REQUIRE(posix_spawn_file_actions_addfchdir(&fa,
 		    tmpdir_fd) == 0);
 	}
 	err = posix_spawn(&pid, bin_pwd, &fa, NULL, args, NULL);
