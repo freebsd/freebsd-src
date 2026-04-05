@@ -110,7 +110,7 @@ Each commit must:
 
 ### Quality Expectations
 
-Low quality submimssions will be rejected.  A pull request may be closed if
+Low quality submissions will be rejected.  A pull request may be closed if
 there are too many obvious mistakes, or when a time-consuming rework is needed.
 
 Automated accounts or chatbots must not submit pull requests or use pull
