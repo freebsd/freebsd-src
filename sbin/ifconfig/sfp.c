@@ -77,7 +77,9 @@ sfp_status(if_ctx *ctx)
 	printf("\tvendor: %s PN: %s SN: %s DATE: %s\n",
 	    vendor_info.name, vendor_info.pn, vendor_info.sn, vendor_info.date);
 
-	if (ifconfig_sfp_id_is_qsfp(info.sfp_id)) {
+	if (ifconfig_sfp_id_is_cmis(info.sfp_id)) {
+		/* CMIS: no legacy compliance info to show */
+	} else if (ifconfig_sfp_id_is_qsfp(info.sfp_id)) {
 		if (verbose > 1)
 			printf("\tcompliance level: %s\n", strings.sfp_rev);
 	} else {
@@ -113,7 +115,17 @@ sfp_status(if_ctx *ctx)
 		if (ifconfig_sfp_get_sfp_dump(lifh, ctx->ifname, &dump) == -1)
 			return;
 
-		if (ifconfig_sfp_id_is_qsfp(info.sfp_id)) {
+		if (ifconfig_sfp_id_is_cmis(info.sfp_id)) {
+			printf("\n\tCMIS DUMP (Lower Memory 0..127):\n");
+			hexdump(dump.data, 128,
+			    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);
+			printf("\n\tCMIS DUMP (Page 00h 128..255):\n");
+			hexdump(dump.data + 128, 128,
+			    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);
+			printf("\n\tCMIS DUMP (Page 11h 128..255):\n");
+			hexdump(dump.data + CMIS_DUMP_P11, 128,
+			    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);
+		} else if (ifconfig_sfp_id_is_qsfp(info.sfp_id)) {
 			printf("\n\tSFF8436 DUMP (0xA0 128..255 range):\n");
 			hexdump(dump.data + QSFP_DUMP1_START, QSFP_DUMP1_SIZE,
 			    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);

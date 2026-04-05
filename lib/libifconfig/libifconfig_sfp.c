@@ -32,6 +32,7 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/cmis.h>
 #include <net/sff8436.h>
 #include <net/sff8472.h>
 
@@ -100,6 +101,50 @@ read_i2c(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
 		l = MIN(sizeof(req.data), len);
 		req.len = l;
 		if (ifconfig_ioctlwrap(ii->h, AF_LOCAL, SIOCGI2C,
+		    &ii->ifr) != 0) {
+			ii->error = errno;
+			return (errno);
+		}
+
+		memcpy(&buf[i], req.data, l);
+		len -= l;
+		i += l;
+		req.offset += l;
+	}
+
+	return (0);
+}
+
+/*
+ * Reads i2c data with CMIS page/bank selection.
+ * For upper memory (offset >= 128), the page and bank fields select
+ * which CMIS register page is mapped into the 128-255 address range.
+ */
+static int
+read_i2c_page(struct i2c_info *ii, uint8_t addr, uint8_t page, uint8_t bank,
+    uint8_t off, uint8_t len, uint8_t *buf)
+{
+	struct ifi2creq req;
+	int i, l;
+
+	if (ii->error != 0)
+		return (ii->error);
+
+	ii->ifr.ifr_data = (caddr_t)&req;
+
+	i = 0;
+	l = 0;
+	memset(&req, 0, sizeof(req));
+	req.dev_addr = addr;
+	req.offset = off;
+	req.len = len;
+	req.page = page;
+	req.bank = bank;
+
+	while (len > 0) {
+		l = MIN(sizeof(req.data), len);
+		req.len = l;
+		if (ifconfig_ioctlwrap(ii->h, AF_LOCAL, SIOCGI2CPB,
 		    &ii->ifr) != 0) {
 			ii->error = errno;
 			return (errno);
@@ -193,6 +238,61 @@ get_qsfp_info(struct i2c_info *ii, struct ifconfig_sfp_info *sfp)
 	return (ii->error);
 }
 
+static int
+get_cmis_info(struct i2c_info *ii, struct ifconfig_sfp_info *sfp)
+{
+	uint8_t app_desc[CMIS_APP_DESC_SIZE];
+	uint8_t dpconfig, appsel;
+	uint8_t app_off;
+
+	/* Module ID from lower memory byte 0 */
+	read_i2c(ii, CMIS_BASE, CMIS_ID, 1, &sfp->sfp_id);
+
+	/* Connector type from Page 00h byte 203 */
+	read_i2c_page(ii, CMIS_BASE, 0x00, 0,
+	    CMIS_P0_CONNECTOR, 1, &sfp->sfp_conn);
+
+	/* Media type from lower memory byte 85 */
+	read_i2c(ii, CMIS_BASE, CMIS_MEDIA_TYPE, 1,
+	    &sfp->sfp_cmis_media_type);
+
+	/*
+	 * Read the active AppSel code from the Active Control Set
+	 * (Page 11h, byte 206, bits 7:4).  This tells us which
+	 * Application Descriptor is actually in use.
+	 * AppSel is 1-based; 0 means no application selected.
+	 */
+	dpconfig = 0;
+	read_i2c_page(ii, CMIS_BASE, 0x11, 0,
+	    CMIS_P11_ACS_DPCONFIG1, 1, &dpconfig);
+	appsel = (dpconfig & CMIS_ACS_APPSEL_MASK) >> CMIS_ACS_APPSEL_SHIFT;
+
+	/* Fall back to first descriptor if AppSel is 0 or out of range */
+	if (appsel == 0 || appsel > CMIS_MAX_APP_DESC)
+		appsel = 1;
+
+	/* Read the active Application Descriptor */
+	app_off = CMIS_APP_DESC_START + (appsel - 1) * CMIS_APP_DESC_SIZE;
+	read_i2c(ii, CMIS_BASE, app_off, CMIS_APP_DESC_SIZE, app_desc);
+	if (ii->error != 0)
+		return (ii->error);
+
+	/* Store MediaInterfaceID based on media type */
+	switch (sfp->sfp_cmis_media_type) {
+	case SFP_CMIS_MEDIA_TYPE_SMF:
+		sfp->sfp_cmis_smf = app_desc[CMIS_APP_MEDIA_IF_ID];
+		break;
+	case SFP_CMIS_MEDIA_TYPE_MMF:
+		sfp->sfp_cmis_mmf = app_desc[CMIS_APP_MEDIA_IF_ID];
+		break;
+	}
+
+	/* Extract media lane count from app descriptor byte 2, bits 3:0 */
+	sfp->sfp_cmis_lanes = app_desc[CMIS_APP_LANE_COUNT] & 0x0F;
+
+	return (ii->error);
+}
+
 int
 ifconfig_sfp_get_sfp_info(ifconfig_handle_t *h,
     const char *name, struct ifconfig_sfp_info *sfp)
@@ -204,6 +304,9 @@ ifconfig_sfp_get_sfp_info(ifconfig_handle_t *h,
 
 	if (i2c_info_init(&ii, h, name) != 0)
 		return (-1);
+
+	if (ifconfig_sfp_id_is_cmis(ii.id))
+		return (get_cmis_info(&ii, sfp));
 
 	/* Read bytes 3-10 at once */
 	read_i2c(&ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, buf);
@@ -246,6 +349,12 @@ channel_count(enum sfp_id id)
 size_t
 ifconfig_sfp_channel_count(const struct ifconfig_sfp_info *sfp)
 {
+	/* CMIS modules: use lane count from Application Descriptor */
+	if (ifconfig_sfp_id_is_cmis(sfp->sfp_id)) {
+		if (sfp->sfp_cmis_lanes > 0)
+			return (sfp->sfp_cmis_lanes);
+		return (0);
+	}
 	return (channel_count(sfp->sfp_id));
 }
 
@@ -291,6 +400,41 @@ get_qsfp_vendor_info(struct i2c_info *ii, struct ifconfig_sfp_vendor_info *vi)
 	return (ii->error);
 }
 
+/*
+ * Read CMIS vendor strings from Page 00h (upper memory).
+ * Vendor info uses the same ASCII format as SFF-8436 but at
+ * different offsets and requires page selection.
+ */
+static void
+get_cmis_string(struct i2c_info *ii, uint8_t off, char *dst)
+{
+	read_i2c_page(ii, CMIS_BASE, 0x00, 0, off,
+	    SFF_VENDOR_STRING_SIZE, dst);
+	dst += SFF_VENDOR_STRING_SIZE;
+	do { *dst-- = '\0'; } while (*dst == 0x20);
+}
+
+static void
+get_cmis_date(struct i2c_info *ii, uint8_t off, char *dst)
+{
+	char buf[SFF_VENDOR_DATE_SIZE];
+
+	read_i2c_page(ii, CMIS_BASE, 0x00, 0, off,
+	    SFF_VENDOR_DATE_SIZE, buf);
+	sprintf(dst, "20%c%c-%c%c-%c%c", buf[0], buf[1], buf[2], buf[3],
+	    buf[4], buf[5]);
+}
+
+static int
+get_cmis_vendor_info(struct i2c_info *ii, struct ifconfig_sfp_vendor_info *vi)
+{
+	get_cmis_string(ii, CMIS_P0_VENDOR_NAME, vi->name);
+	get_cmis_string(ii, CMIS_P0_VENDOR_PN, vi->pn);
+	get_cmis_string(ii, CMIS_P0_VENDOR_SN, vi->sn);
+	get_cmis_date(ii, CMIS_P0_DATE_CODE, vi->date);
+	return (ii->error);
+}
+
 int
 ifconfig_sfp_get_sfp_vendor_info(ifconfig_handle_t *h,
     const char *name, struct ifconfig_sfp_vendor_info *vi)
@@ -302,6 +446,8 @@ ifconfig_sfp_get_sfp_vendor_info(ifconfig_handle_t *h,
 	if (i2c_info_init(&ii, h, name) != 0)
 		return (-1);
 
+	if (ifconfig_sfp_id_is_cmis(ii.id))
+		return (get_cmis_vendor_info(&ii, vi));
 	if (ifconfig_sfp_id_is_qsfp(ii.id))
 		return (get_qsfp_vendor_info(&ii, vi));
 	return (get_sfp_vendor_info(&ii, vi));
@@ -457,6 +603,47 @@ get_qsfp_status(struct i2c_info *ii, struct ifconfig_sfp_status *ss)
 	return (ii->error);
 }
 
+/*
+ * Read CMIS module status: temperature and voltage from lower memory,
+ * per-lane TX power, TX bias, and RX power from Page 11h Bank 0.
+ */
+static int
+get_cmis_status(struct i2c_info *ii, struct ifconfig_sfp_status *ss,
+    size_t channels)
+{
+	/* Temperature and voltage are in lower memory (same format as SFF) */
+	ss->temp = get_sff_temp(ii, CMIS_BASE, CMIS_TEMP);
+	ss->voltage = get_sff_voltage(ii, CMIS_BASE, CMIS_VCC);
+
+	if (channels == 0)
+		return (ii->error);
+
+	ss->channel = calloc(channels, sizeof(*ss->channel));
+	if (ss->channel == NULL) {
+		ii->h->error.errtype = OTHER;
+		ii->h->error.errcode = ENOMEM;
+		return (-1);
+	}
+
+	/* Read per-lane monitors from Page 11h Bank 0 */
+	for (size_t chan = 0; chan < channels; ++chan) {
+		uint8_t off;
+		uint8_t buf[2];
+
+		/* RX optical power */
+		off = CMIS_P11_RX_PWR_1 + chan * CMIS_LANE_MON_SIZE;
+		read_i2c_page(ii, CMIS_BASE, 0x11, 0, off, 2, buf);
+		ss->channel[chan].rx = (buf[0] << 8) | buf[1];
+
+		/* TX bias current */
+		off = CMIS_P11_TX_BIAS_1 + chan * CMIS_LANE_MON_SIZE;
+		read_i2c_page(ii, CMIS_BASE, 0x11, 0, off, 2, buf);
+		ss->channel[chan].tx = (buf[0] << 8) | buf[1];
+	}
+
+	return (ii->error);
+}
+
 int
 ifconfig_sfp_get_sfp_status(ifconfig_handle_t *h, const char *name,
     struct ifconfig_sfp_status *ss)
@@ -467,6 +654,20 @@ ifconfig_sfp_get_sfp_status(ifconfig_handle_t *h, const char *name,
 
 	if (i2c_info_init(&ii, h, name) != 0)
 		return (-1);
+
+	if (ifconfig_sfp_id_is_cmis(ii.id)) {
+		/*
+		 * For CMIS, we need the lane count from the module info.
+		 * Read the first Application Descriptor to get it.
+		 */
+		uint8_t app_desc[CMIS_APP_DESC_SIZE];
+		size_t channels;
+
+		read_i2c(&ii, CMIS_BASE, CMIS_APP_DESC_START,
+		    CMIS_APP_DESC_SIZE, app_desc);
+		channels = app_desc[CMIS_APP_LANE_COUNT] & 0x0F;
+		return (get_cmis_status(&ii, ss, channels));
+	}
 
 	if (ifconfig_sfp_id_is_qsfp(ii.id))
 		return (get_qsfp_status(&ii, ss));
@@ -527,6 +728,21 @@ const char *
 ifconfig_sfp_physical_spec(const struct ifconfig_sfp_info *sfp,
     const struct ifconfig_sfp_info_strings *strings)
 {
+	/* CMIS modules: look up media interface ID based on media type */
+	if (ifconfig_sfp_id_is_cmis(sfp->sfp_id)) {
+		switch (sfp->sfp_cmis_media_type) {
+		case SFP_CMIS_MEDIA_TYPE_SMF:
+			if (strings->sfp_cmis_smf != NULL)
+				return (strings->sfp_cmis_smf);
+			break;
+		case SFP_CMIS_MEDIA_TYPE_MMF:
+			if (strings->sfp_cmis_mmf != NULL)
+				return (strings->sfp_cmis_mmf);
+			break;
+		}
+		return ("Unknown");
+	}
+
 	switch (sfp->sfp_id) {
 	case SFP_ID_UNKNOWN:
 		break;
@@ -562,7 +778,14 @@ ifconfig_sfp_get_sfp_dump(ifconfig_handle_t *h, const char *name,
 	if (i2c_info_init(&ii, h, name) != 0)
 		return (-1);
 
-	if (ifconfig_sfp_id_is_qsfp(ii.id)) {
+	if (ifconfig_sfp_id_is_cmis(ii.id)) {
+		/* Lower memory (0-127), Page 00h (128-255), Page 11h */
+		read_i2c(&ii, CMIS_BASE, 0, 128, buf);
+		read_i2c_page(&ii, CMIS_BASE, 0x00, 0, 128, 128,
+		    buf + 128);
+		read_i2c_page(&ii, CMIS_BASE, 0x11, 0, 128, 128,
+		    buf + CMIS_DUMP_P11);
+	} else if (ifconfig_sfp_id_is_qsfp(ii.id)) {
 		read_i2c(&ii, SFF_8436_BASE, QSFP_DUMP0_START, QSFP_DUMP0_SIZE,
 		    buf + QSFP_DUMP0_START);
 		read_i2c(&ii, SFF_8436_BASE, QSFP_DUMP1_START, QSFP_DUMP1_SIZE,
@@ -579,6 +802,9 @@ size_t
 ifconfig_sfp_dump_region_count(const struct ifconfig_sfp_dump *dp)
 {
 	uint8_t id_byte = dp->data[0];
+
+	if (ifconfig_sfp_id_is_cmis((enum sfp_id)id_byte))
+		return (3);
 
 	switch ((enum sfp_id)id_byte) {
 	case SFP_ID_UNKNOWN:
