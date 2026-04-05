@@ -119,6 +119,10 @@ nfs_parse_options(const char *envopts, struct nfs_args *nd)
 		else if (strcmp(o, "nfsv3") == 0) {
 			nd->flags &= ~NFSMNT_NFSV4;
 			nd->flags |= NFSMNT_NFSV3;
+		} else if (strcmp(o, "nfsv4") == 0) {
+			nd->flags &= ~NFSMNT_NFSV3;
+			nd->flags |= NFSMNT_NFSV4;
+			nd->sotype = SOCK_STREAM;
 		} else if (strcmp(o, "tcp") == 0)
 			nd->sotype = SOCK_STREAM;
 		else if (strcmp(o, "udp") == 0)
@@ -271,22 +275,31 @@ match_done:
 			return;
 		}
 		nd3->root_saddr.sin_port = htons(NFS_PORT);
-		fhlen = decode_nfshandle("boot.nfsroot.nfshandle",
-		    &nd3->root_fh[0], NFSX_V3FHMAX);
-		if (fhlen == 0) {
-			printf("nfs_diskless: no NFS handle\n");
-			return;
+		if ((cp = kern_getenv("boot.nfsroot.options")) != NULL) {
+			nfs_parse_options(cp, &nd3->root_args);
+			freeenv(cp);
 		}
-		if (fhlen != nd3->root_fhsize) {
-			printf("nfs_diskless: bad NFS handle len=%d\n", fhlen);
-			return;
+		if ((nd3->root_args.flags & NFSMNT_NFSV4) == 0) {
+			fhlen = decode_nfshandle("boot.nfsroot.nfshandle",
+			    &nd3->root_fh[0], NFSX_V3FHMAX);
+			if (fhlen == 0) {
+				printf("nfs_diskless: no NFS handle\n");
+				return;
+			}
+			if (fhlen != nd3->root_fhsize) {
+				printf("nfs_diskless: bad NFS handle len=%d\n",
+				    fhlen);
+				return;
+			}
+		} else {
+			/*
+			 * For NFSv4, the file handle is derived from the
+			 * boot.nfsroot.path during mounting by NFSv4.
+			 */
+			nd3->root_fhsize = 0;
 		}
 		if ((cp = kern_getenv("boot.nfsroot.path")) != NULL) {
 			strncpy(nd3->root_hostnam, cp, MNAMELEN - 1);
-			freeenv(cp);
-		}
-		if ((cp = kern_getenv("boot.nfsroot.options")) != NULL) {
-			nfs_parse_options(cp, &nd3->root_args);
 			freeenv(cp);
 		}
 
