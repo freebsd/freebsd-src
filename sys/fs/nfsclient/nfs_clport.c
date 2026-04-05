@@ -660,6 +660,37 @@ ncl_pager_setsize(struct vnode *vp, u_quad_t *nsizep)
 }
 
 /*
+ * If the uuid passed in is the DEFAULT_UUID, try and find an
+ * alternate to replace it with.
+ * If no alternate is available, set uuid to "" so that nfscl_fillclid()
+ * will use random bytes.
+ */
+void
+nfscl_uuidcheck(char *uuid)
+{
+	int ucplen, uuidlen;
+	char *ucp;
+
+	/*
+	 * If the uuid is the DEFAULT_UUID, try and get an alternative.
+	 */
+	uuidlen = strlen(uuid);
+	ucp = NULL;
+	if (uuidlen == strlen(DEFAULT_HOSTUUID) &&
+	    NFSBCMP(uuid, DEFAULT_HOSTUUID, uuidlen) == 0) {
+		*uuid = '\0';
+		/* Use smbios.system.uuid if it exists. */
+		if ((ucp = kern_getenv("smbios.system.uuid")) != NULL) {
+			ucplen = strlen(ucp);
+			if (ucplen < HOSTUUIDLEN && ucplen > 0)
+				strlcpy(uuid, ucp, HOSTUUIDLEN);
+		}
+	}
+	if (ucp != NULL)
+		freeenv(ucp);
+}
+
+/*
  * Fill in the client id name. For these bytes:
  * 1 - they must be unique
  * 2 - they should be persistent across client reboots

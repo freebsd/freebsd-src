@@ -609,6 +609,7 @@ int nfscl_relbytelock(vnode_t, u_int64_t, u_int64_t,
 int nfscl_checkwritelocked(vnode_t, struct flock *,
     struct ucred *, NFSPROC_T *, void *, int);
 void nfscl_lockrelease(struct nfscllockowner *, int, int);
+void nfscl_uuidcheck(char *);
 void nfscl_fillclid(u_int64_t, char *, u_int8_t *, u_int16_t);
 void nfscl_filllockowner(void *, u_int8_t *, int);
 void nfscl_freeopen(struct nfsclopen *, int, bool);

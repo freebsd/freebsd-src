@@ -67,6 +67,7 @@ SYSCTL_U64(_vfs_nfs, OID_AUTO, maxcopyrange, CTLFLAG_RW,
 /*
  * Global variables
  */
+uint32_t nfs_exchangeboot = 0;
 extern struct nfsstatsv1 nfsstatsv1;
 extern int nfs_numnfscbd;
 extern struct timeval nfsboottime;
@@ -5537,7 +5538,7 @@ nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
 	nfscl_reqstart(nd, NFSPROC_EXCHANGEID, nmp, NULL, 0, NULL, NULL,
 	    NFS_VER4, minorvers, NULL);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
-	*tl++ = txdr_unsigned(nfsboottime.tv_sec);	/* Client owner */
+	*tl++ = txdr_unsigned(nfs_exchangeboot);	/* Client owner */
 	*tl = txdr_unsigned(clp->nfsc_rev);
 	(void) nfsm_strtom(nd, clp->nfsc_id, clp->nfsc_idlen);
 
