@@ -105,7 +105,7 @@ bcm_xhci_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev,
-	    "VL805 USB 3.0 controller (on the Raspberry Pi 4b/400)");
+	    "VL805 USB 3.0 controller (on the Raspberry Pi 4 series)");
 
 	return (BUS_PROBE_SPECIFIC);
 }
