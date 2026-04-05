@@ -726,6 +726,25 @@ vtballoon_thread(void *xsc)
 	kthread_exit();
 }
 
+/*
+ * Estimate FreeBSD VM headroom without dipping below the page daemon's free
+ * and inactive targets.  Do not count active or laundry pages: active pages
+ * are the guest's working set, and laundry pages may require writeback or
+ * swap before reuse.
+ */
+static uint64_t
+vtballoon_mem_available(void)
+{
+	int64_t available;
+
+	available = (int64_t)vm_free_count() + vm_inactive_count();
+	available -= (int64_t)vm_cnt.v_free_target + vm_cnt.v_inactive_target;
+
+	if (available < 0)
+		available = 0;
+	return ((uint64_t)available * PAGE_SIZE);
+}
+
 static int
 vtballoon_update_stats(struct vtballoon_softc *sc)
 {
@@ -748,7 +767,7 @@ vtballoon_update_stats(struct vtballoon_softc *sc)
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MEMFREE,
 	    (uint64_t)vm_free_count() * PAGE_SIZE);
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_AVAIL,
-	    ((uint64_t)vm_free_count() + vm_inactive_count()) * PAGE_SIZE);
+	    vtballoon_mem_available());
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_IN,
 	    VM_CNT_FETCH(v_swappgsin) * PAGE_SIZE);
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_OUT,
