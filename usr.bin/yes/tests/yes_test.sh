@@ -52,6 +52,8 @@ argv_body()
 {
 	yes y >/dev/null &
 	local pid=$!
+	# Wait for yes(1) to exec before checking args
+	sleep 0.1
 	atf_check -o inline:"yes y\n" ps -o args= $pid
 	kill $pid
 	wait
