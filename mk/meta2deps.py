@@ -39,7 +39,7 @@ We only pay attention to a subset of the information in the
 SPDX-License-Identifier: BSD-2-Clause
 
 RCSid:
-	$Id: meta2deps.py,v 1.54 2025/07/24 16:05:48 sjg Exp $
+	$Id: meta2deps.py,v 1.55 2026/01/13 04:32:45 sjg Exp $
 
 	Copyright (c) 2011-2025, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -446,7 +446,7 @@ class MetaFile:
 
         version = 0                     # unknown
         if name:
-            self.name = name;
+            self.name = name
         if file:
             f = file
             cwd = self.last_dir = self.cwd
@@ -669,7 +669,7 @@ class MetaFile:
                 return
             if os.path.isdir(path):
                 if op in 'RW':
-                    self.last_dir = path;
+                    self.last_dir = path
                 if self.debug > 1:
                     print("ldir=", self.last_dir, file=self.debug_out)
                 return
@@ -703,7 +703,7 @@ class MetaFile:
                 self.seenit(dir)
 
 
-def main(argv, klass=MetaFile, xopts='', xoptf=None):
+def main(argv, klass=MetaFile, xopts='', xoptf=None, conf=None):
     """Simple driver for class MetaFile.
 
     Usage:
@@ -743,11 +743,12 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     except:
         pass
 
-    conf = {
-        'SRCTOPS': [],
-        'OBJROOTS': [],
-        'EXCLUDES': [],
-        }
+    if not conf:
+        conf = {}
+
+    for k in ['EXCLUDES', 'OBJROOTS', 'SRCTOPS']:
+        if k not in conf:
+            conf[k] = []
 
     conf['SB'] = os.getenv('SB', '')
 

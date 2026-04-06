@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.74 2025/11/19 17:44:15 sjg Exp $
+# $Id: meta.stage.mk,v 1.75 2025/12/08 17:44:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2025, Simon J. Gerraty
 #
@@ -31,12 +31,7 @@ CLEANFILES+= .dirdep
 	@echo '${_dirdep}' > $@
 .endif
 
-.ifndef MAKE_POSIX_SHELL
-MAKE_POSIX_SHELL != (echo $${PATH%:*}) > /dev/null 2>&1 && echo 1 || echo 0
-.export MAKE_POSIX_SHELL
-.endif
-
-.if ${MAKE_POSIX_SHELL}
+.if ${isPOSIX_SHELL:U:Nfalse}
 _stage_file_basename = $${f\#\#*/}
 _stage_file_dirname = $${f%/*}
 _stage_target_dirname = $${t%/*}

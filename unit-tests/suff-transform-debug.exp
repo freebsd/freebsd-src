@@ -20,6 +20,7 @@
 .MAKE.OS         = <details omitted>
 .MAKE.PID        = <details omitted>
 .MAKE.PPID       = <details omitted>
+.MAKE.SAVE_DOLLARS = <details omitted>
 .MAKE.UID        = <details omitted>
 .MAKEFLAGS       =  -r -k -d g1
 .MAKEOVERRIDES   = # (empty)

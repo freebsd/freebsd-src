@@ -1,14 +1,14 @@
 : undefined 
 make: Unclosed variable "UNCLOSED"
 	in command ": $@ ${UNCLOSED"
-	in target "unclosed-expression"
+	in target "unclosed-expression" from cmd-errors-lint.mk:19
 make: Unclosed expression, expecting "}"
 	while evaluating variable "UNCLOSED" with value ""
 	in command ": $@ ${UNCLOSED:"
-	in target "unclosed-modifier"
+	in target "unclosed-modifier" from cmd-errors-lint.mk:24
 make: Unknown modifier ":Z"
 	while evaluating variable "UNKNOWN" with value ""
 	in command ": $@ ${UNKNOWN:Z}"
-	in target "unknown-modifier"
+	in target "unknown-modifier" from cmd-errors-lint.mk:29
 : end
 exit status 2
