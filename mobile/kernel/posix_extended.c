@@ -183,12 +183,20 @@ int64_t sys_access(const char *path, int mode) {
 /* ==================== Memory Management ==================== */
 
 int64_t sys_mmap(void *addr, size_t len, int prot, int flags) {
-    /* Stub implementation */
+    (void)addr;
+    (void)prot;
+    (void)flags;
+
+    if (len == 0) {
+        return -1;
+    }
+
     void *ptr = mem_alloc(len);
-    return (int64_t)ptr;
+    return ptr ? (int64_t)(uintptr_t)ptr : -1;
 }
 
 int64_t sys_munmap(void *addr, size_t len) {
+    (void)len;
     mem_free(addr);
     return 0;
 }
@@ -196,12 +204,16 @@ int64_t sys_munmap(void *addr, size_t len) {
 int64_t sys_brk(uint64_t addr) {
     task_t *current = task_get_current();
     if (!current) return -1;
-    
-    if (addr > current->heap_current && addr <= current->heap_current + 0x1000) {
-        current->heap_current = addr;
-        return 0;
+
+    if (addr == 0) {
+        return (int64_t)current->heap_current;
     }
-    
+
+    if (addr >= current->heap_start && addr <= current->heap_limit) {
+        current->heap_current = addr;
+        return (int64_t)addr;
+    }
+
     return -1;
 }
 

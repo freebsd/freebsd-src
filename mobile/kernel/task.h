@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "vm.h"
 
 /* Task states */
 typedef enum {
@@ -49,8 +50,10 @@ typedef struct task_struct {
     uint64_t data_end;
     uint64_t heap_start;
     uint64_t heap_current;
+    uint64_t heap_limit;
     uint64_t stack_start;
     uint64_t stack_pointer;
+    vm_context_t *vm_ctx;
     
     /* File descriptors */
     int *fds;

@@ -44,6 +44,30 @@ static uint64_t vm_alloc_page(void) {
     return 0;
 }
 
+static inline void vm_write_satp(uint64_t value) {
+    asm volatile("csrw satp, %0" :: "r"(value));
+}
+
+static inline void vm_sfence(void) {
+    asm volatile("sfence.vma" ::: "memory");
+}
+
+int vm_alloc_and_map_page(vm_context_t *ctx, uint64_t vaddr, int flags) {
+    if (!ctx) return -1;
+
+    uint64_t paddr = vm_alloc_page();
+    if (!paddr) return -1;
+
+    return vm_map_page(ctx, vaddr, paddr, flags);
+}
+
+int vm_activate(vm_context_t *ctx) {
+    if (!ctx) return -1;
+    vm_write_satp(ctx->satp);
+    vm_sfence();
+    return 0;
+}
+
 /* Free a physical page */
 static void vm_free_page(uint64_t paddr) {
     uint64_t page_num = paddr / PAGE_SIZE;
@@ -119,23 +143,59 @@ int vm_set_pte(pte_t *root, uint64_t vaddr, uint64_t paddr, int flags) {
     return 0;
 }
 
+static int vm_map_range(vm_context_t *ctx, uint64_t start, uint64_t end, int flags) {
+    if (!ctx || start >= end) return -1;
+
+    uint64_t addr = start & ~(PAGE_SIZE - 1);
+    uint64_t limit = (end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+
+    while (addr < limit) {
+        if (vm_map_page(ctx, addr, addr, flags) < 0) {
+            return -1;
+        }
+        addr += PAGE_SIZE;
+    }
+
+    return 0;
+}
+
+#define KERNEL_VA_START 0x80200000UL
+#define KERNEL_VA_END   0x80600000UL
+
 /* Create a new VM context */
 vm_context_t *vm_create_context(uint32_t pid) {
     vm_context_t *ctx = (vm_context_t *)mem_alloc(sizeof(vm_context_t));
     if (!ctx) return NULL;
     
-    /* Allocate root page table */
-    ctx->root_page_table = (pte_t *)mem_alloc(PAGE_SIZE);
-    if (!ctx->root_page_table) {
+    /* Allocate root page table page aligned to PAGE_SIZE */
+    ctx->root_page_table_alloc = (pte_t *)mem_alloc(PAGE_SIZE * 2);
+    if (!ctx->root_page_table_alloc) {
         mem_free(ctx);
         return NULL;
     }
-    
+
+    uintptr_t alloc_addr = (uintptr_t)ctx->root_page_table_alloc;
+    uintptr_t aligned_root = (alloc_addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+    ctx->root_page_table = (pte_t *)aligned_root;
+
+    /* Clear the root page table page */
+    for (size_t i = 0; i < PAGE_SIZE; i++) {
+        ((uint8_t *)ctx->root_page_table)[i] = 0;
+    }
+
     ctx->owner_pid = pid;
     
-    /* Set SATP (SV39, PPN of root table, ASID) */
+    /* Set SATP (SV39, PPN of root table, ASID = 0) */
     uint64_t root_ppn = (uint64_t)ctx->root_page_table >> PAGE_SHIFT;
-    ctx->satp = (8UL << 60) | (0 << 44) | root_ppn;
+    ctx->satp = ((uint64_t)8 << 60) | root_ppn;
+
+    /* Identity-map kernel region so task page tables can execute kernel code */
+    if (vm_map_range(ctx, KERNEL_VA_START, KERNEL_VA_END,
+                     PTE_R | PTE_W | PTE_X | PTE_A | PTE_D) < 0) {
+        mem_free(ctx->root_page_table_alloc);
+        mem_free(ctx);
+        return NULL;
+    }
     
     return ctx;
 }
@@ -144,8 +204,8 @@ vm_context_t *vm_create_context(uint32_t pid) {
 void vm_destroy_context(vm_context_t *ctx) {
     if (!ctx) return;
     
-    if (ctx->root_page_table) {
-        mem_free(ctx->root_page_table);
+    if (ctx->root_page_table_alloc) {
+        mem_free(ctx->root_page_table_alloc);
     }
     mem_free(ctx);
 }

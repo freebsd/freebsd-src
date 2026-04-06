@@ -80,4 +80,8 @@ int vfs_write(int fd, uint8_t *buf, uint64_t len);
 int vfs_seek(int fd, uint64_t offset);
 int vfs_stat(const char *path, inode_t *stat);
 
+/* Inode cache management */
+inode_t *vfs_alloc_inode(void);
+void vfs_free_inode(inode_t *inode);
+
 #endif /* _VFS_H_ */

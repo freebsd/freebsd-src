@@ -48,6 +48,7 @@ typedef struct {
 typedef struct {
     uint64_t satp;          /* Supervisor Address Translation and Protection */
     pte_t *root_page_table;
+    pte_t *root_page_table_alloc;
     uint32_t owner_pid;
 } vm_context_t;
 
@@ -56,6 +57,8 @@ int vm_init(void);
 vm_context_t *vm_create_context(uint32_t pid);
 void vm_destroy_context(vm_context_t *ctx);
 int vm_map_page(vm_context_t *ctx, uint64_t vaddr, uint64_t paddr, int flags);
+int vm_alloc_and_map_page(vm_context_t *ctx, uint64_t vaddr, int flags);
+int vm_activate(vm_context_t *ctx);
 int vm_unmap_page(vm_context_t *ctx, uint64_t vaddr);
 pte_t *vm_translate(vm_context_t *ctx, uint64_t vaddr);
 uint64_t vm_get_physical_addr(vm_context_t *ctx, uint64_t vaddr);

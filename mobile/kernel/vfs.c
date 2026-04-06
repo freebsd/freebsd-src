@@ -5,6 +5,8 @@
 
 #include "vfs.h"
 #include "memory.h"
+#include "page_cache.h"
+#include "memory_utils.h"
 
 /* File descriptor table */
 #define MAX_OPEN_FILES 256
@@ -23,9 +25,42 @@ static int fs_count = 0;
 
 extern void uart_puts(const char *s);
 
+/* Writeback callback for page cache */
+static int vfs_writeback(uint32_t ino, uint32_t page_offset, uint8_t *data, uint32_t len) {
+    /* Find the inode */
+    inode_t *inode = NULL;
+    for (int i = 0; i < INODE_CACHE_SIZE; i++) {
+        if (inode_cache[i].ino == ino) {
+            inode = &inode_cache[i];
+            break;
+        }
+    }
+    
+    if (!inode) return -1;
+    
+    /* Write to filesystem */
+    uint64_t offset = page_offset * PAGE_SIZE;
+    for (int i = 0; i < fs_count; i++) {
+        if (fs_registry[i]->write) {
+            int bytes_written = fs_registry[i]->write(inode, offset, data, len);
+            if (bytes_written > 0) {
+                return bytes_written;
+            }
+        }
+    }
+    
+    return -1;
+}
+
 /* Initialize VFS */
 int vfs_init(void) {
     uart_puts("Virtual FileSystem initializing...\n");
+    
+    /* Initialize page cache */
+    if (page_cache_init() < 0) {
+        uart_puts("Page cache initialization failed\n");
+        return -1;
+    }
     
     /* Clear FD table */
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
@@ -115,6 +150,11 @@ int vfs_close(int fd) {
         fd_table[fd].refcount--;
         
         if (fd_table[fd].refcount == 0) {
+            /* Flush dirty pages for this inode */
+            if (fd_table[fd].inode) {
+                page_cache_flush_inode(fd_table[fd].inode->ino, vfs_writeback);
+            }
+            
             fd_table[fd].inode = NULL;
             fd_table[fd].offset = 0;
         }
@@ -132,18 +172,52 @@ int vfs_read(int fd, uint8_t *buf, uint64_t len) {
     file_desc_t *f = &fd_table[fd];
     if (!f->inode) return -1;
     
-    /* Find filesystem and call read */
-    for (int i = 0; i < fs_count; i++) {
-        if (fs_registry[i]->read) {
-            int bytes_read = fs_registry[i]->read(f->inode, f->offset, buf, len);
-            if (bytes_read > 0) {
-                f->offset += bytes_read;
-                return bytes_read;
-            }
+    uint64_t bytes_read = 0;
+    uint64_t remaining = len;
+    uint64_t file_offset = f->offset;
+    
+    while (remaining > 0 && file_offset < f->inode->size) {
+        uint32_t page_offset = file_offset / PAGE_SIZE;
+        uint32_t page_byte_offset = file_offset % PAGE_SIZE;
+        uint32_t bytes_in_page = PAGE_SIZE - page_byte_offset;
+        if (bytes_in_page > remaining) bytes_in_page = remaining;
+        if (file_offset + bytes_in_page > f->inode->size) {
+            bytes_in_page = f->inode->size - file_offset;
         }
+        
+        /* Get page from cache */
+        page_cache_entry_t *page = page_cache_get(f->inode->ino, page_offset);
+        if (!page) {
+            /* Page not in cache, need to load from filesystem */
+            /* For now, fall back to direct filesystem read */
+            for (int i = 0; i < fs_count; i++) {
+                if (fs_registry[i]->read) {
+                    uint8_t temp_buf[PAGE_SIZE];
+                    int fs_bytes = fs_registry[i]->read(f->inode, page_offset * PAGE_SIZE, temp_buf, PAGE_SIZE);
+                    if (fs_bytes > 0) {
+                        page = page_cache_get(f->inode->ino, page_offset);
+                        if (page) {
+                            memcpy(page->data, temp_buf, fs_bytes);
+                            page->valid = 1;
+                        }
+                        break;
+                    }
+                }
+            }
+            if (!page) return -1;
+        }
+        
+        /* Copy from page cache */
+        memcpy(buf + bytes_read, page->data + page_byte_offset, bytes_in_page);
+        page_cache_put(page);
+        
+        bytes_read += bytes_in_page;
+        remaining -= bytes_in_page;
+        file_offset += bytes_in_page;
     }
     
-    return -1;
+    f->offset = file_offset;
+    return bytes_read;
 }
 
 /* Write to file */
@@ -153,18 +227,55 @@ int vfs_write(int fd, uint8_t *buf, uint64_t len) {
     file_desc_t *f = &fd_table[fd];
     if (!f->inode) return -1;
     
-    /* Find filesystem and call write */
-    for (int i = 0; i < fs_count; i++) {
-        if (fs_registry[i]->write) {
-            int bytes_written = fs_registry[i]->write(f->inode, f->offset, buf, len);
-            if (bytes_written > 0) {
-                f->offset += bytes_written;
-                return bytes_written;
+    uint64_t bytes_written = 0;
+    uint64_t remaining = len;
+    uint64_t file_offset = f->offset;
+    
+    while (remaining > 0) {
+        uint32_t page_offset = file_offset / PAGE_SIZE;
+        uint32_t page_byte_offset = file_offset % PAGE_SIZE;
+        uint32_t bytes_in_page = PAGE_SIZE - page_byte_offset;
+        if (bytes_in_page > remaining) bytes_in_page = remaining;
+        
+        /* Get page from cache */
+        page_cache_entry_t *page = page_cache_get(f->inode->ino, page_offset);
+        if (!page) {
+            /* Page not in cache, need to allocate */
+            page = page_cache_get(f->inode->ino, page_offset);
+            if (!page) return -1;
+            
+            /* If writing beyond current file size, zero-fill */
+            if (file_offset >= f->inode->size) {
+                memset(page->data, 0, PAGE_SIZE);
+            } else {
+                /* Load existing data from filesystem */
+                for (int i = 0; i < fs_count; i++) {
+                    if (fs_registry[i]->read) {
+                        int fs_bytes = fs_registry[i]->read(f->inode, page_offset * PAGE_SIZE, page->data, PAGE_SIZE);
+                        if (fs_bytes > 0) break;
+                    }
+                }
             }
+            page->valid = 1;
+        }
+        
+        /* Copy to page cache */
+        memcpy(page->data + page_byte_offset, buf + bytes_written, bytes_in_page);
+        page_cache_dirty(page);
+        page_cache_put(page);
+        
+        bytes_written += bytes_in_page;
+        remaining -= bytes_in_page;
+        file_offset += bytes_in_page;
+        
+        /* Update file size if necessary */
+        if (file_offset > f->inode->size) {
+            f->inode->size = file_offset;
         }
     }
     
-    return -1;
+    f->offset = file_offset;
+    return bytes_written;
 }
 
 /* Seek in file */
