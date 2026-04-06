@@ -1,7 +1,7 @@
 .\" Written by Tom Rhodes
 .\" This file is in the public domain.
 .\"
-.Dd January 26, 2012
+.Dd April 6, 2026
 .Dt CISS 4
 .Os
 .Sh NAME
@@ -115,6 +115,18 @@ HP Smart Array E200
 .It
 HP Smart Array E200i
 .It
+HP Smart Array E500
+.It
+HP Smart Array H240
+.It
+HP Smart Array H240ar
+.It
+HP Smart Array H240nr
+.It
+HP Smart Array H241
+.It
+HP Smart Array H244br
+.It
 HP Smart Array P212
 .It
 HP Smart Array P220i
@@ -122,6 +134,12 @@ HP Smart Array P220i
 HP Smart Array P222
 .It
 HP Smart Array P230i
+.It
+HP Smart Array P240nr
+.It
+HP Smart Array P244br
+.It
+HP Smart Array P246br
 .It
 HP Smart Array P400
 .It
@@ -145,28 +163,56 @@ HP Smart Array P430i
 .It
 HP Smart Array P431
 .It
+HP Smart Array P440
+.It
+HP Smart Array P440ar
+.It
+HP Smart Array P441
+.It
 HP Smart Array P530
 .It
 HP Smart Array P531
 .It
+HP Smart Array P542d
+.It
 HP Smart Array P600
+.It
+HP Smart Array P700m
+.It
+HP Smart Array P712m
 .It
 HP Smart Array P721m
 .It
 HP Smart Array P731m
 .It
+HP Smart Array P741m
+.It
 HP Smart Array P800
 .It
 HP Smart Array P812
+.It
+HP Smart Array P822
 .It
 HP Smart Array P830
 .It
 HP Smart Array P830i
 .It
+HP Smart Array P840
+.It
+HP Smart Array P840ar
+.It
+HP Smart Array P841
+.It
 HP Modular Smart Array 20 (MSA20)
 .It
 HP Modular Smart Array 500 (MSA500)
 .El
+.Pp
+Additionally, several HP Smart Array controllers are supported by PCI
+subdevice ID only, as no model name is available for them:
+0x3220, 0x3222, 0x3230, 0x3231, 0x3232, 0x3233, 0x3236, 0x3238,
+0x3239, 0x323A, 0x323B, 0x323C, and 0x324B
+(all with PCI subvendor 0x103C).
 .Sh SEE ALSO
 .Xr cam 4 ,
 .Xr pass 4 ,
