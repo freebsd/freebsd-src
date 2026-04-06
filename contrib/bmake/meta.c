@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.219 2025/08/04 18:57:20 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.220 2026/02/10 18:53:34 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -312,62 +312,20 @@ meta_name(char *mname, size_t mnamelen,
     return mname;
 }
 
-/*
- * Return true if running ${.MAKE}
- * Bypassed if target is flagged .MAKE
- */
-static bool
-is_submake(const char *cmd, GNode *gn)
-{
-    static const char *p_make = NULL;
-    static size_t p_len;
-    char *mp = NULL;
-    const char *cp2;
-    bool rc = false;
-
-    if (p_make == NULL) {
-	p_make = Var_Value(gn, ".MAKE").str;
-	p_len = strlen(p_make);
-    }
-    if (strchr(cmd, '$') != NULL) {
-	mp = Var_Subst(cmd, gn, VARE_EVAL);
-	/* TODO: handle errors */
-	cmd = mp;
-    }
-    cp2 = strstr(cmd, p_make);
-    if (cp2 != NULL) {
-	switch (cp2[p_len]) {
-	case '\0':
-	case ' ':
-	case '\t':
-	case '\n':
-	    rc = true;
-	    break;
-	}
-	if (cp2 > cmd && rc) {
-	    switch (cp2[-1]) {
-	    case ' ':
-	    case '\t':
-	    case '\n':
-		break;
-	    default:
-		rc = false;		/* no match */
-		break;
-	    }
-	}
-    }
-    free(mp);
-    return rc;
-}
-
 static bool
 any_is_submake(GNode *gn)
 {
     StringListNode *ln;
+    char *cmd;
 
-    for (ln = gn->commands.first; ln != NULL; ln = ln->next)
-	if (is_submake(ln->datum, gn))
+    for (ln = gn->commands.first; ln != NULL; ln = ln->next) {
+	cmd = Var_Subst(ln->datum, gn, VARE_EVAL);
+	if (MaybeSubMake(cmd)) {
+	    free(cmd);
 	    return true;
+	}
+	free(cmd);
+    }
     return false;
 }
 
@@ -423,6 +381,7 @@ meta_needed(GNode *gn, const char *dname,
 	SKIP_META_TYPE(OP_PHONY, "PHONY");
 	SKIP_META_TYPE(OP_SPECIAL, "SPECIAL");
 	SKIP_META_TYPE(OP_MAKE, "MAKE");
+	SKIP_META_TYPE(OP_SUBMAKE, "SUBMAKE");
     }
 
     /* Check if there are no commands to execute. */
@@ -431,11 +390,19 @@ meta_needed(GNode *gn, const char *dname,
 	    debug_printf("Skipping meta for %s: no commands\n", gn->name);
 	return false;
     }
-    if ((gn->type & (OP_META|OP_SUBMAKE)) == OP_SUBMAKE) {
-	/* OP_SUBMAKE is a bit too aggressive */
+
+    /*
+     * If called from meta_oodate, gn->flags.doneSubmake will be false.
+     * While OP_SUBMAKE only matters in jobs mode,
+     * we normally skip .meta files for sub-makes, so we want to check
+     * even in compat mode.
+     */
+    if (gn->flags.doneSubmake == false
+	&& (gn->type & (OP_MAKE | OP_META)) == 0) {
+	    gn->flags.doneSubmake = true;
 	if (any_is_submake(gn)) {
-	    DEBUG1(META, "Skipping meta for %s: .SUBMAKE\n", gn->name);
-	    return false;
+	    gn->type |= OP_SUBMAKE;
+	    SKIP_META_TYPE(OP_SUBMAKE, "SUBMAKE");
 	}
     }
 

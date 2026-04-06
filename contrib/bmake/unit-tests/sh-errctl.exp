@@ -1,6 +1,7 @@
 job_pipe -1 -1, maxjobs 1, tokens 1, compat 0
 TokenPool_Take: pid <pid>, aborting NONE, running 0
 TokenPool_Take: pid <pid> took a token
+MaybeSubMake: Looking for "make"
 # echo off
 echo silent
 # echo on
