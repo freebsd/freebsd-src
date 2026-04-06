@@ -40,6 +40,7 @@
  * to this BSD variant.
  */
 #include <fs/nfs/nfsport.h>
+#include <fs/nfs/nfsid.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>

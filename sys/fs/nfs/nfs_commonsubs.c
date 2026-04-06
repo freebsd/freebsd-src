@@ -43,6 +43,7 @@
 #include "opt_inet6.h"
 
 #include <fs/nfs/nfsport.h>
+#include <fs/nfs/nfsid.h>
 #include <fs/nfsclient/nfsmount.h>
 
 #include <sys/extattr.h>
