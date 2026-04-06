@@ -17,7 +17,7 @@ DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
      executing commands on a remote machine.  It is intended to provide secure
      encrypted communications between two untrusted hosts over an insecure
-     network.  X11 connections, arbitrary TCP ports and UNIX-domain sockets
+     network.  X11 connections, arbitrary TCP ports and Unix-domain sockets
      can also be forwarded over the secure channel.
 
      ssh connects and logs into the specified destination, which may be
@@ -43,7 +43,7 @@ DESCRIPTION
 
              Agent forwarding should be enabled with caution.  Users with the
              ability to bypass file permissions on the remote host (for the
-             agent's UNIX-domain socket) can access the local agent through
+             agent's Unix-domain socket) can access the local agent through
              the forwarded connection.  An attacker cannot obtain key material
              from the agent, however they can perform operations on the keys
              that enable them to authenticate using the identities loaded into
@@ -63,7 +63,7 @@ DESCRIPTION
              address.
 
      -C      Requests compression of all data (including stdin, stdout,
-             stderr, and data for forwarded X11, TCP and UNIX-domain
+             stderr, and data for forwarded X11, TCP and Unix-domain
              connections).  The compression algorithm is the same used by
              gzip(1).  Compression is desirable on modem lines and other slow
              connections, but will only slow down things on fast networks.
@@ -232,12 +232,13 @@ DESCRIPTION
              Control an active connection multiplexing master process.  When
              the -O option is specified, the ctl_cmd argument is interpreted
              and passed to the master process.  Valid commands are: M-bM-^@M-^\checkM-bM-^@M-^]
-             (check that the master process is running), M-bM-^@M-^\forwardM-bM-^@M-^] (request
-             forwardings without command execution), M-bM-^@M-^\cancelM-bM-^@M-^] (cancel
-             forwardings), M-bM-^@M-^\proxyM-bM-^@M-^] (connect to a running multiplexing master
-             in proxy mode), M-bM-^@M-^\exitM-bM-^@M-^] (request the master to exit), and M-bM-^@M-^\stopM-bM-^@M-^]
-             (request the master to stop accepting further multiplexing
-             requests).
+             (check that the master process is running), M-bM-^@M-^\conninfoM-bM-^@M-^] (report
+             information about the master connection), M-bM-^@M-^\channelsM-bM-^@M-^] (report
+             information about open channels), M-bM-^@M-^\forwardM-bM-^@M-^] (request forwardings
+             without command execution), M-bM-^@M-^\cancelM-bM-^@M-^] (cancel forwardings),
+             M-bM-^@M-^\proxyM-bM-^@M-^] (connect to a running multiplexing master in proxy mode),
+             M-bM-^@M-^\exitM-bM-^@M-^] (request the master to exit), and M-bM-^@M-^\stopM-bM-^@M-^] (request the
+             master to stop accepting further multiplexing requests).
 
      -o option
              Can be used to give options in the format used in the
@@ -628,6 +629,8 @@ ESCAPE CHARACTERS
              PermitLocalCommand option is enabled in ssh_config(5).  Basic
              help is available, using the -h option.
 
+     ~I      Show information about the current SSH connection.
+
      ~R      Request rekeying of the connection (only useful if the peer
              supports it).
 
@@ -828,7 +831,7 @@ ENVIRONMENT
                            all passphrase input regardless of whether DISPLAY
                            is set.
 
-     SSH_AUTH_SOCK         Identifies the path of a UNIX-domain socket used to
+     SSH_AUTH_SOCK         Identifies the path of a Unix-domain socket used to
                            communicate with the agent.
 
      SSH_CONNECTION        Identifies the client and server ends of the
@@ -1027,4 +1030,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.7                    December 4, 2024                    OpenBSD 7.7
+OpenBSD 7.8                    December 22, 2025                        SSH(1)

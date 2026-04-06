@@ -63,6 +63,7 @@ jobs:
           - { target: ubuntu-22.04, config: valgrind-2 }
           - { target: ubuntu-22.04, config: valgrind-3 }
           - { target: ubuntu-22.04, config: valgrind-4 }
+          - { target: ubuntu-22.04, config: valgrind-pam-1 }
           - { target: ubuntu-22.04, config: valgrind-unit }
           - { target: ubuntu-22.04, config: without-openssl }
           - { target: ubuntu-latest, config: gcc-14 }

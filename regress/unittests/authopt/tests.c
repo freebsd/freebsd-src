@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.4 2025/04/15 04:00:42 djm Exp $ */
+/* 	$OpenBSD: tests.c,v 1.5 2025/11/20 05:07:57 dtucker Exp $ */
 
 /*
  * Regress test for keys options functions.
@@ -141,6 +141,7 @@ test_authkeys_parse(void)
 		opts = sshauthopt_parse(keywords, &errstr); \
 		ASSERT_PTR_EQ(opts, NULL); \
 		ASSERT_PTR_NE(errstr, NULL); \
+		sshauthopt_free(opts); \
 		TEST_DONE(); \
 	} while (0) 
 #define CHECK_SUCCESS_AND_CLEANUP() \

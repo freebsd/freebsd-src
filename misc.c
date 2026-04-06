@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.208 2025/09/25 06:33:19 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.213 2026/03/03 09:57:25 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -43,7 +43,6 @@
 #include <unistd.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -119,6 +118,34 @@ strprefix(const char *s, const char *prefix, int ignorecase)
 			return NULL;
 	}
 	return s + prefixlen;
+}
+
+/* Append string 's' to a NULL-terminated array of strings */
+void
+stringlist_append(char ***listp, const char *s)
+{
+	size_t i = 0;
+
+	if (*listp == NULL)
+		*listp = xcalloc(2, sizeof(**listp));
+	else {
+		for (i = 0; (*listp)[i] != NULL; i++)
+			; /* count */
+		*listp = xrecallocarray(*listp, i + 1, i + 2, sizeof(**listp));
+	}
+	(*listp)[i] = xstrdup(s);
+}
+
+void
+stringlist_free(char **list)
+{
+	size_t i = 0;
+
+	if (list == NULL)
+		return;
+	for (i = 0; list[i] != NULL; i++)
+		free(list[i]);
+	free(list);
 }
 
 /* set/unset filedescriptor to non-blocking */
@@ -594,24 +621,21 @@ a2tun(const char *s, int *remote)
 	return (tun);
 }
 
-#define SECONDS		1
+#define SECONDS		1.0
 #define MINUTES		(SECONDS * 60)
 #define HOURS		(MINUTES * 60)
 #define DAYS		(HOURS * 24)
 #define WEEKS		(DAYS * 7)
 
-static char *
-scandigits(char *s)
-{
-	while (isdigit((unsigned char)*s))
-		s++;
-	return s;
-}
-
 /*
- * Convert a time string into seconds; format is
- * a sequence of:
+ * Convert an interval/duration time string into seconds, which may include
+ * fractional seconds.
+ *
+ * The format is a sequence of:
  *      time[qualifier]
+ *
+ * This supports fractional values for the seconds value only. All other
+ * values must be integers.
  *
  * Valid time qualifiers are:
  *      <none>  seconds
@@ -622,44 +646,46 @@ scandigits(char *s)
  *      w|W     weeks
  *
  * Examples:
- *      90m     90 minutes
- *      1h30m   90 minutes
- *      2d      2 days
- *      1w      1 week
+ *      90m      90 minutes
+ *      1h30m    90 minutes
+ *      1.5s     1.5 seconds
+ *      2d       2 days
+ *      1w       1 week
  *
- * Return -1 if time string is invalid.
+ * Returns <0.0 if the time string is invalid.
  */
-int
-convtime(const char *s)
+double
+convtime_double(const char *s)
 {
-	int secs, total = 0, multiplier;
-	char *p, *os, *np, c = 0;
-	const char *errstr;
+	double val, total_sec = 0.0, multiplier;
+	const char *p, *start_p;
+	char *endp;
+	int seen_seconds = 0;
 
 	if (s == NULL || *s == '\0')
-		return -1;
-	p = os = strdup(s);	/* deal with const */
-	if (os == NULL)
-		return -1;
+		return -1.0;
 
-	while (*p) {
-		np = scandigits(p);
-		if (np) {
-			c = *np;
-			*np = '\0';
-		}
-		secs = (int)strtonum(p, 0, INT_MAX, &errstr);
-		if (errstr)
-			goto fail;
-		*np = c;
+	for (p = s; *p != '\0';) {
+		if (!isdigit((unsigned char)*p) && *p != '.')
+			return -1.0;
 
-		multiplier = 1;
-		switch (c) {
+		errno = 0;
+		if ((val = strtod(p, &endp)) < 0 || errno != 0 || p == endp)
+			return -1.0;
+		/* Allow only decimal forms */
+		if (p + strspn(p, "0123456789.") != endp)
+			return -1.0;
+		start_p = p;
+		p = endp;
+
+		switch (*p) {
 		case '\0':
-			np--;	/* back up */
-			break;
+			/* FALLTHROUGH */
 		case 's':
 		case 'S':
+			if (seen_seconds++)
+				return -1.0;
+			multiplier = SECONDS;
 			break;
 		case 'm':
 		case 'M':
@@ -678,23 +704,44 @@ convtime(const char *s)
 			multiplier = WEEKS;
 			break;
 		default:
-			goto fail;
+			return -1.0;
 		}
-		if (secs > INT_MAX / multiplier)
-			goto fail;
-		secs *= multiplier;
-		if  (total > INT_MAX - secs)
-			goto fail;
-		total += secs;
-		if (total < 0)
-			goto fail;
-		p = ++np;
+
+		/* Special handling if this was a decimal */
+		if (memchr(start_p, '.', endp - start_p) != NULL) {
+			/* Decimal point present */
+			if (multiplier > 1.0)
+				return -1.0; /* No fractionals for non-seconds */
+			/* For seconds, ensure digits follow */
+			if (!isdigit((unsigned char)*(endp - 1)))
+				return -1.0;
+		}
+
+		total_sec += val * multiplier;
+
+		if (*p != '\0')
+			p++;
 	}
-	free(os);
-	return total;
-fail:
-	free(os);
-	return -1;
+	return total_sec;
+}
+
+/*
+ * Same as convtime_double() above but fractional seconds are ignored.
+ * Return -1 if time string is invalid.
+ */
+int
+convtime(const char *s)
+{
+	double sec_val;
+
+	if ((sec_val = convtime_double(s)) < 0.0)
+		return -1;
+
+	/* Check for overflow into int */
+	if (sec_val < 0 || sec_val > INT_MAX)
+		return -1;
+
+	return (int)sec_val;
 }
 
 #define TF_BUFS	8
@@ -1613,66 +1660,66 @@ xextendf(char **sp, const char *sep, const char *fmt, ...)
 }
 
 
-u_int64_t
+uint64_t
 get_u64(const void *vp)
 {
 	const u_char *p = (const u_char *)vp;
-	u_int64_t v;
+	uint64_t v;
 
-	v  = (u_int64_t)p[0] << 56;
-	v |= (u_int64_t)p[1] << 48;
-	v |= (u_int64_t)p[2] << 40;
-	v |= (u_int64_t)p[3] << 32;
-	v |= (u_int64_t)p[4] << 24;
-	v |= (u_int64_t)p[5] << 16;
-	v |= (u_int64_t)p[6] << 8;
-	v |= (u_int64_t)p[7];
+	v  = (uint64_t)p[0] << 56;
+	v |= (uint64_t)p[1] << 48;
+	v |= (uint64_t)p[2] << 40;
+	v |= (uint64_t)p[3] << 32;
+	v |= (uint64_t)p[4] << 24;
+	v |= (uint64_t)p[5] << 16;
+	v |= (uint64_t)p[6] << 8;
+	v |= (uint64_t)p[7];
 
 	return (v);
 }
 
-u_int32_t
+uint32_t
 get_u32(const void *vp)
 {
 	const u_char *p = (const u_char *)vp;
-	u_int32_t v;
+	uint32_t v;
 
-	v  = (u_int32_t)p[0] << 24;
-	v |= (u_int32_t)p[1] << 16;
-	v |= (u_int32_t)p[2] << 8;
-	v |= (u_int32_t)p[3];
+	v  = (uint32_t)p[0] << 24;
+	v |= (uint32_t)p[1] << 16;
+	v |= (uint32_t)p[2] << 8;
+	v |= (uint32_t)p[3];
 
 	return (v);
 }
 
-u_int32_t
+uint32_t
 get_u32_le(const void *vp)
 {
 	const u_char *p = (const u_char *)vp;
-	u_int32_t v;
+	uint32_t v;
 
-	v  = (u_int32_t)p[0];
-	v |= (u_int32_t)p[1] << 8;
-	v |= (u_int32_t)p[2] << 16;
-	v |= (u_int32_t)p[3] << 24;
+	v  = (uint32_t)p[0];
+	v |= (uint32_t)p[1] << 8;
+	v |= (uint32_t)p[2] << 16;
+	v |= (uint32_t)p[3] << 24;
 
 	return (v);
 }
 
-u_int16_t
+uint16_t
 get_u16(const void *vp)
 {
 	const u_char *p = (const u_char *)vp;
-	u_int16_t v;
+	uint16_t v;
 
-	v  = (u_int16_t)p[0] << 8;
-	v |= (u_int16_t)p[1];
+	v  = (uint16_t)p[0] << 8;
+	v |= (uint16_t)p[1];
 
 	return (v);
 }
 
 void
-put_u64(void *vp, u_int64_t v)
+put_u64(void *vp, uint64_t v)
 {
 	u_char *p = (u_char *)vp;
 
@@ -1687,7 +1734,7 @@ put_u64(void *vp, u_int64_t v)
 }
 
 void
-put_u32(void *vp, u_int32_t v)
+put_u32(void *vp, uint32_t v)
 {
 	u_char *p = (u_char *)vp;
 
@@ -1698,7 +1745,7 @@ put_u32(void *vp, u_int32_t v)
 }
 
 void
-put_u32_le(void *vp, u_int32_t v)
+put_u32_le(void *vp, uint32_t v)
 {
 	u_char *p = (u_char *)vp;
 
@@ -1709,7 +1756,7 @@ put_u32_le(void *vp, u_int32_t v)
 }
 
 void
-put_u16(void *vp, u_int16_t v)
+put_u16(void *vp, uint16_t v)
 {
 	u_char *p = (u_char *)vp;
 
@@ -1783,7 +1830,7 @@ monotime(void)
 	struct timespec ts;
 
 	monotime_ts(&ts);
-	return ts.tv_sec;
+	return (ts.tv_sec);
 }
 
 double
@@ -1792,11 +1839,11 @@ monotime_double(void)
 	struct timespec ts;
 
 	monotime_ts(&ts);
-	return ts.tv_sec + ((double)ts.tv_nsec / 1000000000);
+	return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 }
 
 void
-bandwidth_limit_init(struct bwlimit *bw, u_int64_t kbps, size_t buflen)
+bandwidth_limit_init(struct bwlimit *bw, uint64_t kbps, size_t buflen)
 {
 	bw->buflen = buflen;
 	bw->rate = kbps;
@@ -1810,7 +1857,7 @@ bandwidth_limit_init(struct bwlimit *bw, u_int64_t kbps, size_t buflen)
 void
 bandwidth_limit(struct bwlimit *bw, size_t read_len)
 {
-	u_int64_t waitlen;
+	uint64_t waitlen;
 	struct timespec ts, rm;
 
 	bw->lamt += read_len;
@@ -1902,6 +1949,7 @@ static const struct {
 	{ "cs7", IPTOS_DSCP_CS7 },
 	{ "ef", IPTOS_DSCP_EF },
 	{ "le", IPTOS_DSCP_LE },
+	{ "va",	IPTOS_DSCP_VA },
 	{ "lowdelay", INT_MIN },	/* deprecated */
 	{ "throughput", INT_MIN },	/* deprecated */
 	{ "reliability", INT_MIN },	/* deprecated */

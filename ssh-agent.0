@@ -20,7 +20,7 @@ DESCRIPTION
      The options are as follows:
 
      -a bind_address
-             Bind the agent to the UNIX-domain socket bind_address.  The
+             Bind the agent to the Unix-domain socket bind_address.  The
              default is to create a socket at a random path matching
              $HOME/.ssh/agent/s.*.
 
@@ -75,7 +75,7 @@ DESCRIPTION
              and FIDO authenticator middleware shared libraries that may be
              used with the -S or -s options to ssh-add(1).  Libraries that do
              not match the pattern list will be refused.  The default list is
-             M-bM-^@M-^\usr/lib*/*,/usr/local/lib*/*M-bM-^@M-^].
+             M-bM-^@M-^\/usr/lib*/*,/usr/local/lib*/*M-bM-^@M-^].
 
              See PATTERNS in ssh_config(5) for a description of pattern-list
              syntax.
@@ -152,14 +152,14 @@ ENVIRONMENT
      SSH_AGENT_PID  When ssh-agent starts, it stores the name of the agent's
                     process ID (PID) in this variable.
 
-     SSH_AUTH_SOCK  When ssh-agent starts, it creates a UNIX-domain socket and
+     SSH_AUTH_SOCK  When ssh-agent starts, it creates a Unix-domain socket and
                     stores its pathname in this variable.  It is accessible
                     only to the current user, but is easily abused by root or
                     another instance of the same user.
 
 FILES
      $HOME/.ssh/agent/s.*
-             UNIX-domain sockets used to contain the connection to the
+             Unix-domain sockets used to contain the connection to the
              authentication agent.  These sockets should only be readable by
              the owner.  The sockets should get automatically removed when the
              agent exits.
@@ -174,4 +174,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7
+OpenBSD 7.8                     October 4, 2025                   SSH-AGENT(1)

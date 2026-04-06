@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.249 2025/09/25 06:45:50 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.255 2026/03/28 05:06:16 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -28,29 +28,29 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <sys/tree.h>
+#include <sys/queue.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <paths.h>
+#include <poll.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <stdio.h>
 #include <unistd.h>
-#include <poll.h>
 
 #ifdef WITH_OPENSSL
 #include <openssl/dh.h>
 #endif
 
-#include "openbsd-compat/sys-tree.h"
-#include "openbsd-compat/sys-queue.h"
 #include "openbsd-compat/openssl-compat.h"
 
 #include "atomicio.h"
@@ -106,6 +106,7 @@ static struct sshbuf *child_state;
 /* Functions on the monitor that answer unprivileged requests */
 
 int mm_answer_moduli(struct ssh *, int, struct sshbuf *);
+int mm_answer_setcompat(struct ssh *, int, struct sshbuf *);
 int mm_answer_sign(struct ssh *, int, struct sshbuf *);
 int mm_answer_pwnamallow(struct ssh *, int, struct sshbuf *);
 int mm_answer_auth2_read_banner(struct ssh *, int, struct sshbuf *);
@@ -155,7 +156,9 @@ static char *auth_submethod = NULL;
 static u_int session_id2_len = 0;
 static u_char *session_id2 = NULL;
 static pid_t monitor_child_pid;
-int auth_attempted = 0;
+static int auth_attempted = 0;
+static int invalid_user = 0;
+static int compat_set = 0;
 
 struct mon_table {
 	enum monitor_reqtype type;
@@ -181,6 +184,7 @@ struct mon_table mon_dispatch_proto20[] = {
 #ifdef WITH_OPENSSL
     {MONITOR_REQ_MODULI, MON_ONCE, mm_answer_moduli},
 #endif
+    {MONITOR_REQ_SETCOMPAT, MON_ONCE, mm_answer_setcompat},
     {MONITOR_REQ_SIGN, MON_ONCE, mm_answer_sign},
     {MONITOR_REQ_PWNAM, MON_ONCE, mm_answer_pwnamallow},
     {MONITOR_REQ_AUTHSERV, MON_ONCE, mm_answer_authserv},
@@ -282,6 +286,7 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 	/* Permit requests for state, moduli and signatures */
 	monitor_permit(mon_dispatch, MONITOR_REQ_STATE, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_MODULI, 1);
+	monitor_permit(mon_dispatch, MONITOR_REQ_SETCOMPAT, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_SIGN, 1);
 
 	/* The first few requests do not require asynchronous access */
@@ -684,7 +689,6 @@ mm_answer_moduli(struct ssh *ssh, int sock, struct sshbuf *m)
 	if (dh == NULL) {
 		if ((r = sshbuf_put_u8(m, 0)) != 0)
 			fatal_fr(r, "assemble empty");
-		return (0);
 	} else {
 		/* Send first bignum */
 		DH_get0_pqg(dh, &dh_p, NULL, &dh_g);
@@ -701,6 +705,20 @@ mm_answer_moduli(struct ssh *ssh, int sock, struct sshbuf *m)
 #endif
 
 int
+mm_answer_setcompat(struct ssh *ssh, int sock, struct sshbuf *m)
+{
+	int r;
+
+	debug3_f("entering");
+
+	if ((r = sshbuf_get_u32(m, &ssh->compat)) != 0)
+		fatal_fr(r, "parse");
+	compat_set = 1;
+
+	return (0);
+}
+
+int
 mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 {
 	extern int auth_sock;			/* XXX move to state struct? */
@@ -714,6 +732,10 @@ mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 	const char proof_req[] = "hostkeys-prove-00@openssh.com";
 
 	debug3_f("entering");
+
+	/* Make sure the unpriv process sent the compat bits already */
+	if (!compat_set)
+		fatal_f("state error: setcompat never called");
 
 	if ((r = sshkey_froms(m, &pubkey)) != 0 ||
 	    (r = sshbuf_get_string(m, &p, &datlen)) != 0 ||
@@ -821,7 +843,7 @@ mm_encode_server_options(struct sshbuf *m)
 		    (r = sshbuf_put_cstring(m, options.x)) != 0) \
 			fatal_fr(r, "assemble %s", #x); \
 	} while (0)
-#define M_CP_STRARRAYOPT(x, nx) do { \
+#define M_CP_STRARRAYOPT(x, nx, clobber) do { \
 		for (i = 0; i < options.nx; i++) { \
 			if ((r = sshbuf_put_cstring(m, options.x[i])) != 0) \
 				fatal_fr(r, "assemble %s", #x); \
@@ -842,6 +864,10 @@ mm_answer_pwnamallow(struct ssh *ssh, int sock, struct sshbuf *m)
 
 	debug3_f("entering");
 
+	/* Make sure the unpriv process sent the compat bits already */
+	if (!compat_set)
+		fatal_f("state error: setcompat never called");
+
 	if (authctxt->attempt++ != 0)
 		fatal_f("multiple attempts for getpwnam");
 
@@ -855,6 +881,7 @@ mm_answer_pwnamallow(struct ssh *ssh, int sock, struct sshbuf *m)
 	sshbuf_reset(m);
 
 	if (pwent == NULL) {
+		invalid_user = 1;
 		if ((r = sshbuf_put_u8(m, 0)) != 0)
 			fatal_fr(r, "assemble fakepw");
 		authctxt->pw = fakepw();
@@ -1177,7 +1204,7 @@ mm_answer_pam_query(struct ssh *ssh, int sock, struct sshbuf *m)
 		fatal_f("no context");
 	ret = (sshpam_device.query)(sshpam_ctxt, &name, &info,
 	    &num, &prompts, &echo_on);
-	if (ret == 0 && num == 0)
+	if (ret == 0 && num == 0 && sshpam_priv_kbdint_authdone(sshpam_ctxt))
 		sshpam_authok = sshpam_ctxt;
 	if (num > 1 || name == NULL || info == NULL)
 		fatal("sshpam_device.query failed");
@@ -1891,11 +1918,6 @@ mm_get_keystate(struct ssh *ssh, struct monitor *pmonitor)
 
 /* XXX */
 
-#define FD_CLOSEONEXEC(x) do { \
-	if (fcntl(x, F_SETFD, FD_CLOEXEC) == -1) \
-		fatal("fcntl(%d, F_SETFD)", x); \
-} while (0)
-
 static void
 monitor_openfds(struct monitor *mon, int do_logfds)
 {
@@ -1943,6 +1965,18 @@ void
 monitor_reinit(struct monitor *mon)
 {
 	monitor_openfds(mon, 0);
+}
+
+int
+monitor_auth_attempted(void)
+{
+	return auth_attempted;
+}
+
+int
+monitor_invalid_user(void)
+{
+	return invalid_user;
 }
 
 #ifdef GSSAPI

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ed25519-sk.c,v 1.15 2022/10/28 00:44:44 djm Exp $ */
+/* $OpenBSD: ssh-ed25519-sk.c,v 1.16 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -21,7 +21,6 @@
 
 #define SSHKEY_INTERNAL
 #include <sys/types.h>
-#include <limits.h>
 
 #include "crypto_api.h"
 
@@ -32,7 +31,6 @@
 #include "sshbuf.h"
 #include "sshkey.h"
 #include "ssherr.h"
-#include "ssh.h"
 #include "digest.h"
 
 /* Reuse some ED25519 internals */
