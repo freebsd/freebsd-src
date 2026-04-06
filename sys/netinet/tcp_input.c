@@ -2666,12 +2666,16 @@ enter_recovery:
 						tp->sackhint.prr_delivered =
 						    imin(tp->snd_max - th->th_ack,
 						    (tp->snd_limited + 1) * maxseg);
+						tp->sackhint.recover_fs = imax(1,
+							(tp->snd_nxt - tp->snd_una) - tp->sackhint.sacked_bytes 
+							+ tp->sackhint.delivered_data); // todo
 					} else {
 						tp->sackhint.prr_delivered =
 						    maxseg;
-					}
-					tp->sackhint.recover_fs = max(1,
+						tp->sackhint.recover_fs = max(1,
 					    tp->snd_nxt - tp->snd_una);
+						
+					}
 				}
 				tp->snd_limited = 0;
 				if (tcp_is_sack_recovery(tp, &to)) {
@@ -4013,6 +4017,7 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to,
 	     !IN_FASTRECOVERY(tp->t_flags))) {
 		del_data = tp->sackhint.delivered_data;
 		pipe = tcp_compute_pipe(tp);
+
 	} else {
 		if (tp->sackhint.prr_delivered < (tcprexmtthresh * maxseg +
 					     tp->snd_recover - tp->snd_una)) {
@@ -4021,6 +4026,10 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to,
 		pipe = imax(0, tp->snd_max - tp->snd_una -
 			    imin(INT_MAX / 65536, tp->t_dupacks) * maxseg);
 	}
+
+	if (del_data == 0)
+		return;
+
 	tp->sackhint.prr_delivered += del_data;
 	/*
 	 * Proportional Rate Reduction
@@ -4028,31 +4037,25 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to,
 	if (pipe >= tp->snd_ssthresh) {
 		if (tp->sackhint.recover_fs == 0)
 			tp->sackhint.recover_fs =
-			    imax(1, tp->snd_nxt - tp->snd_una);
+			    imax(1, tp->snd_nxt - tp->snd_una); // todo
 		snd_cnt = howmany((long)tp->sackhint.prr_delivered *
 			    tp->snd_ssthresh, tp->sackhint.recover_fs) -
 			    tp->sackhint.prr_out + maxseg - 1;
 	} else {
-		/*
-		 * PRR 6937bis heuristic:
-		 * - A partial ack without SACK block beneath snd_recover
-		 * indicates further loss.
-		 * - An SACK scoreboard update adding a new hole indicates
-		 * further loss, so be conservative and send at most one
-		 * segment.
-		 * - Prevent ACK splitting attacks, by being conservative
-		 * when no new data is acked.
-		 */
-		if ((sack_changed == SACK_NEWLOSS) || (del_data == 0)) {
-			limit = tp->sackhint.prr_delivered -
-				tp->sackhint.prr_out;
-		} else {
-			limit = imax(tp->sackhint.prr_delivered -
-				    tp->sackhint.prr_out, del_data) +
-				    maxseg;
+
+		bool safe_ack = SEQ_GT(th->th_ack, tp->snd_una) && (sack_changed != SACK_NEWLOSS);
+		snd_cnt = imax(tp->sackhint.prr_delivered - tp->sackhint.prr_out, del_data);
+		if (safe_ack) {
+			snd_cnt += maxseg;
 		}
-		snd_cnt = imin((tp->snd_ssthresh - pipe), limit);
+		snd_cnt = imin(tp->snd_ssthresh - pipe, snd_cnt);
+
 	}
+
+	if (tp->sackhint.prr_out == 0 && snd_cnt == 0) {
+		snd_cnt = maxseg;
+	}
+
 	snd_cnt = imax(snd_cnt, 0) / maxseg;
 	/*
 	 * Send snd_cnt new data into the network in response to this ack.
