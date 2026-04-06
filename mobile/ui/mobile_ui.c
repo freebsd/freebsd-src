@@ -217,8 +217,8 @@ void mobile_ui_demo_animations(void) {
     }
 
     if (settings_button) {
-        // Spring scale animation
-        animation_t *spring_anim = ui_anim_spring_scale(settings_button, 1.2f, 800);
+        // Spring scale animation (1.2x = 0x1333 in 16.16 fixed-point)
+        animation_t *spring_anim = ui_anim_spring_scale(settings_button, 0x13333, 800);
         ui_anim_start(spring_anim);
     }
 

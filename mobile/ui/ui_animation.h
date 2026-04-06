@@ -57,7 +57,7 @@ typedef enum {
 /* Animation value types */
 typedef union {
     int i;              /* Integer values */
-    float f;            /* Float values */
+    int32_t fixed;      /* Fixed-point values (16.16) */
     uint32_t color;     /* Color values */
 } anim_value_t;
 
@@ -84,16 +84,16 @@ typedef struct animation {
 
     /* Animation parameters */
     easing_type_t easing;
-    float spring_damping;   /* For spring animations */
-    float spring_stiffness; /* For spring animations */
+    int32_t spring_damping;   /* Fixed-point 16.16 for spring animations */
+    int32_t spring_stiffness; /* Fixed-point 16.16 for spring animations */
 
     /* State */
     animation_state_t state;
-    float progress;         /* 0.0 to 1.0 */
+    int32_t progress;         /* Fixed-point 16.16 progress 0..1 */
 
     /* Callbacks */
     void (*on_complete)(struct animation *anim);
-    void (*on_update)(struct animation *anim, float progress);
+    void (*on_update)(struct animation *anim, int32_t progress);
 
     /* Internal */
     anim_value_t current_value;
@@ -106,8 +106,8 @@ int ui_anim_init(void);
 /* Create animations */
 animation_t *ui_anim_create_position(widget_t *widget, int start_x, int start_y, int end_x, int end_y, uint64_t duration);
 animation_t *ui_anim_create_size(widget_t *widget, int start_w, int start_h, int end_w, int end_h, uint64_t duration);
-animation_t *ui_anim_create_opacity(widget_t *widget, float start_opacity, float end_opacity, uint64_t duration);
-animation_t *ui_anim_create_scale(widget_t *widget, float start_scale, float end_scale, uint64_t duration);
+animation_t *ui_anim_create_opacity(widget_t *widget, int32_t start_opacity, int32_t end_opacity, uint64_t duration);
+animation_t *ui_anim_create_scale(widget_t *widget, int32_t start_scale, int32_t end_scale, uint64_t duration);
 animation_t *ui_anim_create_color(widget_t *widget, uint32_t start_color, uint32_t end_color, uint64_t duration);
 
 /* Window animations */
@@ -120,7 +120,7 @@ void ui_anim_pause(animation_t *anim);
 void ui_anim_resume(animation_t *anim);
 void ui_anim_cancel(animation_t *anim);
 void ui_anim_set_easing(animation_t *anim, easing_type_t easing);
-void ui_anim_set_spring_params(animation_t *anim, float damping, float stiffness);
+void ui_anim_set_spring_params(animation_t *anim, int32_t damping, int32_t stiffness);
 
 /* Animation groups and sequences */
 typedef struct anim_group {
@@ -136,16 +136,13 @@ void ui_anim_start_group(anim_group_t *group);
 /* Main animation loop (call this regularly) */
 void ui_anim_update(void);
 
-/* Utility functions */
-float ui_anim_ease(easing_type_t type, float t);
-uint32_t ui_anim_lerp_color(uint32_t start, uint32_t end, float t);
-
 /* iOS-style preset animations */
+
 animation_t *ui_anim_fade_in(widget_t *widget, uint64_t duration);
 animation_t *ui_anim_fade_out(widget_t *widget, uint64_t duration);
 animation_t *ui_anim_slide_in_left(widget_t *widget, uint64_t duration);
 animation_t *ui_anim_slide_out_right(widget_t *widget, uint64_t duration);
 animation_t *ui_anim_bounce_in(widget_t *widget, uint64_t duration);
-animation_t *ui_anim_spring_scale(widget_t *widget, float target_scale, uint64_t duration);
+animation_t *ui_anim_spring_scale(widget_t *widget, int32_t target_scale, uint64_t duration);
 
 #endif /* _UI_ANIMATION_H_ */

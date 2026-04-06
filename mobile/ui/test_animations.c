@@ -69,7 +69,7 @@ void test_ios_style_animations(void) {
     ui_anim_start(bounce_anim);
 
     // Spring animation
-    animation_t *spring_anim = ui_anim_spring_scale(spring_button, 1.3f, 600);
+    animation_t *spring_anim = ui_anim_spring_scale(spring_button, 0x14CCCC, 600); // 1.3 in 16.16 fixed point
     ui_anim_start(spring_anim);
 
     // Fade animation
