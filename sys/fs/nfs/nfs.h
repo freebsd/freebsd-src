@@ -235,18 +235,6 @@ struct nfscbd_args {
 	u_short	port;		/* Port# for callbacks */
 };
 
-struct nfsd_idargs {
-	int		nid_flag;	/* Flags (see below) */
-	uid_t		nid_uid;	/* user/group id */
-	gid_t		nid_gid;
-	int		nid_usermax;	/* Upper bound on user name cache */
-	int		nid_usertimeout;/* User name timeout (minutes) */
-	u_char		*nid_name;	/* Name */
-	int		nid_namelen;	/* and its length */
-	gid_t		*nid_grps;	/* and the list */
-	int		nid_ngroup;	/* Size of groups list */
-};
-
 struct nfsd_oidargs {
 	int		nid_flag;	/* Flags (see below) */
 	uid_t		nid_uid;	/* user/group id */
@@ -390,17 +378,6 @@ struct nfsreferral {
 #define	NFSLCK_WANTNODELEG	0x40000000
 #define	NFSLCK_WANTBITS							\
     (NFSLCK_WANTWDELEG | NFSLCK_WANTRDELEG | NFSLCK_WANTNODELEG)
-
-/* And bits for nid_flag */
-#define	NFSID_INITIALIZE	0x0001
-#define	NFSID_ADDUID		0x0002
-#define	NFSID_DELUID		0x0004
-#define	NFSID_ADDUSERNAME	0x0008
-#define	NFSID_DELUSERNAME	0x0010
-#define	NFSID_ADDGID		0x0020
-#define	NFSID_DELGID		0x0040
-#define	NFSID_ADDGROUPNAME	0x0080
-#define	NFSID_DELGROUPNAME	0x0100
 
 /*
  * fs.nfs sysctl(3) identifiers
