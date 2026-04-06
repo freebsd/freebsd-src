@@ -38,6 +38,9 @@
 #include <sys/smp.h>
 #include <sys/systm.h>
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_HWPMC_IBS
+#include <sys/exterrvar.h>
+
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
@@ -185,16 +188,18 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 
 	/* check class match */
 	if (a->pm_class != PMC_CLASS_IBS)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "PMC class is not IBS"));
 	if (a->pm_md.pm_ibs.ibs_type != ri)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "IBS type %ju does not match PMC index %ju",
+		    (uint64_t)a->pm_md.pm_ibs.ibs_type, (uint64_t)ri));
 
 	caps = pm->pm_caps;
 
 	PMCDBG2(MDP, ALL, 1, "ibs-allocate ri=%d caps=0x%x", ri, caps);
 
 	if ((caps & PMC_CAP_SYSTEM) == 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "IBS requires SYSTEM capability"));
 
 	if (!PMC_IS_SAMPLING_MODE(a->pm_mode))
 		return (EINVAL);
