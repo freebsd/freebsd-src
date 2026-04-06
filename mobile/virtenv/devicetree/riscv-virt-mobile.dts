@@ -44,7 +44,7 @@
             riscv,isa = "rv64imac";
             mmu-type = "riscv,sv39";
             
-            interrupt-controller {
+            cpu0_intc: interrupt-controller {
                 #interrupt-cells = <1>;
                 interrupt-controller;
                 compatible = "riscv,cpu-intc";
@@ -61,7 +61,7 @@
             riscv,isa = "rv64imac";
             mmu-type = "riscv,sv39";
             
-            interrupt-controller {
+            cpu1_intc: interrupt-controller {
                 #interrupt-cells = <1>;
                 interrupt-controller;
                 compatible = "riscv,cpu-intc";
