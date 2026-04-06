@@ -16,7 +16,7 @@ substituted as UCL variables.
 local ucl = require("ucl")
 
 -- This parser is the output UCL we want to build.
-local parser = ucl.parser()
+local parser = ucl.parser(0)
 
 if #arg < 1 then
 	io.stderr:write(arg[0] .. ": missing template filename\n")

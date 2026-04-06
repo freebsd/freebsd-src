@@ -124,7 +124,7 @@ local pkgprefix = nil
 local pkgversion = nil
 
 -- This parser is the output UCL we want to build.
-local parser = ucl.parser()
+local parser = ucl.parser(0)
 
 -- Set any $VARIABLES from the command line in the parser.  This causes ucl to
 -- automatically replace them when we load the source ucl.
