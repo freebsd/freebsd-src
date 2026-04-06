@@ -21,13 +21,48 @@
    make buildworld MOBILE=yes
    ```
 
+## Building Mobile Components
+1. Build mobile drivers:
+   ```
+   cd mobile/drivers/touchscreen && make
+   cd mobile/drivers/sensors && make
+   ```
+
+2. Build UI framework:
+   ```
+   cd mobile/ui/compositor && make
+   cd mobile/ui/toolkit && make
+   ```
+
+3. Build app framework:
+   ```
+   cd mobile/frameworks/app && make
+   ```
+
 ## Installing
 1. Install to device (requires custom bootloader support)
 2. Flash kernel and userland to partitions
+3. Load mobile kernel modules:
+   ```
+   kldload mobile_touchscreen
+   kldload mobile_accel
+   kldload mobile_compositor
+   kldload mobile_ui
+   kldload mobile_app
+   ```
+
+## Testing
+- Use emulator for initial testing
+- Deploy to test devices for hardware validation
 
 ## Chipset Optimizations
-- MediaTek: Enable MTK-specific drivers in kernel config
-- Qualcomm: Enable QCOM-specific drivers and power management
+### MediaTek
+- Enable MTK-specific drivers in kernel config
+- Use std.mediatek for SoC support
+
+### Qualcomm
+- Enable QCOM-specific drivers
+- Use Snapdragon optimizations
 
 ## Testing
 - Use emulator for initial testing
