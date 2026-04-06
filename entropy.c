@@ -64,7 +64,8 @@ seed_rng(void)
 	unsigned char buf[RANDOM_SEED_SIZE];
 
 	/* Initialise libcrypto */
-	ssh_libcrypto_init();
+	if (ssh_libcrypto_init() != 1)
+		fatal("libcrypto failed to initialize.");
 
 	if (!ssh_compatible_openssl(OPENSSL_VERSION_NUMBER,
 	    OpenSSL_version_num()))
@@ -107,3 +108,24 @@ seed_rng(void)
 }
 
 #endif /* WITH_OPENSSL */
+
+void
+reseed_prngs(void)
+{
+	uint32_t rnd[256];
+
+#ifdef WITH_OPENSSL
+	RAND_poll();
+#endif
+	arc4random_stir(); /* noop on recent arc4random() implementations */
+	arc4random_buf(rnd, sizeof(rnd)); /* let arc4random notice PID change */
+
+#ifdef WITH_OPENSSL
+	RAND_seed(rnd, sizeof(rnd));
+	/* give libcrypto a chance to notice the PID change */
+	if ((RAND_bytes((u_char *)rnd, 1)) != 1)
+		fatal_f("RAND_bytes failed");
+#endif
+
+	explicit_bzero(rnd, sizeof(rnd));
+}

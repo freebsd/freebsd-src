@@ -1,3 +1,5 @@
+/* $OpenBSD: modpipe.c,v 1.9 2026/03/06 07:06:45 dtucker Exp $ */
+
 /*
  * Copyright (c) 2012 Damien Miller <djm@mindrot.org>
  *
@@ -13,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $OpenBSD: modpipe.c,v 1.7 2025/10/03 01:03:45 dtucker Exp $ */
 
 #include "includes.h"
 
@@ -44,7 +44,7 @@ usage(void)
 struct modification {
 	enum { MOD_XOR, MOD_AND_OR } what;
 	unsigned long long offset;
-	u_int8_t m1, m2;
+	uint8_t m1, m2;
 };
 
 static void

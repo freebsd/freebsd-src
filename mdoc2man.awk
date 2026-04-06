@@ -95,6 +95,8 @@ function add(str) {
     } else if(match(words[w],"^Ed$")) {
       skip=1
       literal=0
+    } else if(match(words[w],"^Dl$")) {
+      skip=1
     } else if(match(words[w],"^Ns$")) {
       skip=1
       if(!nospace)
@@ -280,6 +282,12 @@ function add(str) {
 	  w++
 	  add("[")
 	  words[nwords]=words[nwords] "]"
+	}
+	if(match(words[w],"^Ns$")) {
+	  w++
+	  if(!nospace)
+	    nospace=1
+	  sub(" $","",line)
 	}
 	if(match(words[w],"^Ar$")) {
 	  add("\\fI" words[++w] "\\fP")

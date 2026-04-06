@@ -550,12 +550,20 @@ CERTIFICATES
      certificates authenticate users to servers, whereas host certificates
      authenticate server hosts to users.  To generate a user certificate:
 
-           $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
+           $ ssh-keygen -s /path/to/ca_key -I id -n user \
+           M-BM- M-BM- M-BM- M-BM- M-BM- M-BM- /path/to/user_key.pub
 
      The resultant certificate will be placed in /path/to/user_key-cert.pub.
-     A host certificate requires the -h option:
+     The argument to -I is a key identifier that will be used in logs and may
+     be used to revoke keys.  The argument to -n is one or more (comma-
+     separated) principals, typically usernames, that the certificate
+     represents.  A host certificate requires the -h option:
 
-           $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
+           $ ssh-keygen -s /path/to/ca_key -I id -h -n foo.example.org \
+           M-BM- M-BM- M-BM- M-BM- M-BM- M-BM- /path/to/host_key.pub
+
+     For host certificates, the principals specified using the -n argument are
+     hostnames and may contain wildcard characters.
 
      The host certificate will be output to /path/to/host_key-cert.pub.
 
@@ -563,24 +571,23 @@ CERTIFICATES
      providing the token library using -D and identifying the CA key by
      providing its public half as an argument to -s:
 
-           $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id user_key.pub
+           $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I id -n user \
+           M-BM- M-BM- M-BM- M-BM- M-BM- M-BM- user_key.pub
 
      Similarly, it is possible for the CA key to be hosted in an ssh-agent(1).
      This is indicated by the -U flag and, again, the CA key must be
      identified by its public half.
 
-           $ ssh-keygen -Us ca_key.pub -I key_id user_key.pub
+           $ ssh-keygen -Us ca_key.pub -I id -n user user_key.pub
 
      In all cases, key_id is a "key identifier" that is logged by the server
      when the certificate is used for authentication.
 
-     Certificates may be limited to be valid for a set of principal
-     (user/host) names.  By default, generated certificates are valid for all
-     users or hosts.  To generate a certificate for a specified set of
-     principals:
+     Certificates are limited to be valid for a set of principal (user/host)
+     names.  To generate a certificate for a specified set of principals:
 
-           $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
-           $ ssh-keygen -s ca_key -I key_id -h -n host.domain host_key.pub
+           $ ssh-keygen -s ca_key -I id -n user1,user2 user_key.pub
+           $ ssh-keygen -s ca_key -I id -h -n host.domain host_key.pub
 
      Additional limitations on the validity and use of user certificates may
      be specified through certificate options.  A certificate option may
@@ -661,7 +668,7 @@ CERTIFICATES
      Finally, certificates may be defined with a validity lifetime.  The -V
      option allows specification of certificate start and end times.  A
      certificate that is presented at a time outside this range will not be
-     considered valid.  By default, certificates are valid from the UNIX Epoch
+     considered valid.  By default, certificates are valid from the Unix Epoch
      to the distant future.
 
      For certificates to be used for user or host authentication, the CA
@@ -901,4 +908,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7
+OpenBSD 7.8                    December 22, 2025                 SSH-KEYGEN(1)

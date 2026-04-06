@@ -1,12 +1,12 @@
-#	$OpenBSD: multiplex.sh,v 1.37 2024/07/19 04:33:36 djm Exp $
+#	$OpenBSD: multiplex.sh,v 1.41 2025/12/07 02:59:53 dtucker Exp $
 #	Placed in the Public Domain.
-
-make_tmpdir
-CTL=${SSH_REGRESS_TMP}/ctl-sock
 
 tid="connection multiplexing"
 
 trace "will use ProxyCommand $proxycmd"
+make_tmpdir
+CTL=${SSH_REGRESS_TMP}/ctl-sock
+
 if config_defined DISABLE_FD_PASSING ; then
 	skip "not supported on this platform (FD passing disabled)"
 fi
@@ -24,6 +24,7 @@ wait_for_mux_master_ready()
 }
 
 maybe_add_scp_path_to_sshd
+enable_all_kexes_in_sshd
 start_sshd
 
 start_mux_master()
@@ -180,6 +181,13 @@ N=$(echo "xyzzy" | $NC -U $OBJ/unix-1.fwd 2>&1 | grep "xyzzy" | wc -l)
 test ${N} -eq 0 || fail "remote forward path still listening"
 rm -f $OBJ/unix-1.fwd
 
+verbose "test $tid: cmd conninfo"
+conninfo=`${SSH} -F $OBJ/ssh_config -S $CTL -Oconninfo otherhost` \
+     || fail "request remote forward failed"
+if ! echo "$conninfo" | egrep -- "-> 127.0.0.1:$port" >/dev/null; then
+       fail "conninfo"
+fi
+
 verbose "test $tid: cmd exit"
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oexit otherhost >>$TEST_REGRESS_LOGFILE 2>&1 \
     || fail "send exit command failed" 
@@ -188,16 +196,45 @@ ${SSH} -F $OBJ/ssh_config -S $CTL -Oexit otherhost >>$TEST_REGRESS_LOGFILE 2>&1 
 wait $SSH_PID
 kill -0 $SSH_PID >/dev/null 2>&1 && fail "exit command failed"
 
+# Enable compression and alternative kex for next conninfo test.
+if $SSH -Q compression | grep zlib@openssh.com >/dev/null; then
+	compression=yes
+else
+	compression=no
+fi
+echo compression $compression >>$OBJ/ssh_config
+echo kexalgorithms curve25519-sha256 >>$OBJ/ssh_config
+echo ciphers aes128-ctr >>$OBJ/ssh_config
+
 # Restart master and test -O stop command with master using -N
 verbose "test $tid: cmd stop"
 trace "restart master, fork to background"
 start_mux_master
 
+verbose "test $tid: cmd conninfo algos"
+conninfo=`${SSH} -F $OBJ/ssh_config -S $CTL -Oconninfo otherhost` \
+     || fail "request remote forward failed"
+if echo "$conninfo" | grep "kexalgorithm curve25519-sha256" >/dev/null &&
+    echo "$conninfo" | grep "cipher aes128-ctr" >/dev/null; then
+	trace "ok conninfo algos"
+else
+	fail "conninfo algos"
+fi
+if [ "$compression" = "yes" ]; then
+	verbose "test $tid: cmd conninfo compression"
+	if echo "$conninfo" | grep "compression zlib" >/dev/null &&
+	    echo "$conninfo" | grep "compressed" >/dev/null; then
+		trace "ok conninfo compression"
+	else
+		fail "conninfo compression"
+	fi
+fi
+
 # start a long-running command then immediately request a stop
 ${SSH} -F $OBJ/ssh_config -S $CTL otherhost "sleep 10; exit 0" \
      >>$TEST_REGRESS_LOGFILE 2>&1 &
 SLEEP_PID=$!
-${SSH} -F $OBJ/ssh_config -S $CTL -Ostop otherhost >>$TEST_REGRESS_LOGFILE 2>&1 \
+${SSH} -F$OBJ/ssh_config -S$CTL -Ostop otherhost >>$TEST_REGRESS_LOGFILE 2>&1 \
     || fail "send stop command failed"
 
 # wait until both long-running command and master have exited.

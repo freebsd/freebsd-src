@@ -11,6 +11,8 @@
 
 #include "includes.h"
 
+#ifndef OPENSSL_HAS_ED25519
+
 #include <string.h>
 
 #include "crypto_api.h"
@@ -2028,3 +2030,5 @@ badsig:
   memset(m,0,smlen);
   return -1;
 }
+
+#endif /* OPENSSL_HAS_ED25519 */

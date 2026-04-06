@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_basic.c,v 1.5 2025/09/15 03:00:22 djm Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_basic.c,v 1.7 2026/03/06 06:57:33 dtucker Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -27,9 +27,9 @@ sshbuf_getput_basic_tests(void)
 	u_char *d, d2[32], x[] = {
 		0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x00, 0x99
 	};
-	u_int64_t v64;
-	u_int32_t v32;
-	u_int16_t v16;
+	uint64_t v64;
+	uint32_t v32;
+	uint16_t v16;
 	u_char v8;
 	size_t s;
 	char *s2;
@@ -711,5 +711,120 @@ sshbuf_getput_basic_tests(void)
 	ASSERT_STRING_EQ(s2, "00000000000000000000");
 	sshbuf_free(p1);
 	free(s2);
+	TEST_DONE();
+
+	TEST_START("sshbuf_get_nulterminated_string");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put(p1, "hello", 5), 0);
+	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0), 0); /* hello\0 */
+	ASSERT_INT_EQ(sshbuf_put(p1, "there", 5), 0); /* hello\0there */
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 11);
+	/* short maxlen */
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, 1, &s2, &s),
+	    SSH_ERR_INVALID_FORMAT);
+	ASSERT_PTR_EQ(s2, NULL);
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 11); /* Buffer should be unchanged */
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, 4, &s2, &s),
+	    SSH_ERR_INVALID_FORMAT);
+	ASSERT_PTR_EQ(s2, NULL);
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 11); /* Buffer should be unchanged */
+	/* minimum usable maxlen */
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, 5, &s2, &s), 0);
+	ASSERT_STRING_EQ(s2, "hello");
+	ASSERT_SIZE_T_EQ(s, 5);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 5); /* "there" remains */
+	free(s2);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_get_nulterminated_string un-terminated string");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put(p1, "there", 5), 0); /* "there" */
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 5);
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, 5, &s2, &s),
+	    SSH_ERR_INVALID_FORMAT);
+	ASSERT_PTR_EQ(s2, NULL);
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 5); /* Buffer should be unchanged */
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, 6, &s2, &s),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_PTR_EQ(s2, NULL);
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 5); /* Buffer should be unchanged */
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, SIZE_MAX, &s2, &s),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_PTR_EQ(s2, NULL);
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 5);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_get_nulterminated_string subsequent strings");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put(p1, "there", 5), 0);
+	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0), 0); /* "there\0" */
+	ASSERT_INT_EQ(sshbuf_put(p1, "it is", 5), 0);
+	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0), 0); /* "it is\0" */
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 12);
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, 6, &s2, &s), 0);
+	ASSERT_STRING_EQ(s2, "there");
+	ASSERT_SIZE_T_EQ(s, 5);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 6);
+	free(s2);
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, SIZE_MAX, &s2, &s), 0);
+	ASSERT_STRING_EQ(s2, "it is");
+	ASSERT_SIZE_T_EQ(s, 5);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 0);
+	free(s2);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_get_nulterminated_string empty buffer");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, SIZE_MAX, &s2, &s),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_PTR_EQ(s2, NULL);
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 0);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_get_nulterminated_string: single nul byte");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0), 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 1);
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, 0, &s2, &s), 0);
+	ASSERT_STRING_EQ(s2, "");
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 0);
+	free(s2);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_get_nulterminated_string starts with nul");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0), 0);
+	ASSERT_INT_EQ(sshbuf_put(p1, "hello", 5), 0);
+	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0), 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 7);
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, SIZE_MAX, &s2, &s), 0);
+	ASSERT_STRING_EQ(s2, "");
+	ASSERT_SIZE_T_EQ(s, 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 6);
+	free(s2);
+	ASSERT_INT_EQ(sshbuf_get_nulterminated_string(p1, SIZE_MAX, &s2, &s), 0);
+	ASSERT_STRING_EQ(s2, "hello");
+	ASSERT_SIZE_T_EQ(s, 5);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 0);
+	free(s2);
+	sshbuf_free(p1);
 	TEST_DONE();
 }

@@ -31,7 +31,7 @@
 #include <openssl/dh.h>
 
 int ssh_compatible_openssl(long, long);
-void ssh_libcrypto_init(void);
+int ssh_libcrypto_init(void);
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
 # error OpenSSL 1.1.0 or greater is required

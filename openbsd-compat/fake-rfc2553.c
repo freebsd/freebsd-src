@@ -94,13 +94,13 @@ gai_strerror(int err)
 	case EAI_NODATA:
 		return ("no address associated with name");
 	case EAI_MEMORY:
-		return ("memory allocation failure.");
+		return ("memory allocation failure");
 	case EAI_NONAME:
-		return ("nodename nor servname provided, or not known");
+		return ("name or service is not known");
 	case EAI_FAMILY:
 		return ("ai_family not supported");
 	default:
-		return ("unknown/invalid error.");
+		return ("unknown/invalid error");
 	}
 }
 #endif /* !HAVE_GAI_STRERROR */

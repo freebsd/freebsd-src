@@ -684,4 +684,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7
+OpenBSD 7.8                     October 4, 2025                        SSHD(8)

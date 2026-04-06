@@ -9,6 +9,7 @@ SYNOPSIS
      ssh-add -s pkcs11 [-Cv] [certificate ...]
      ssh-add -e pkcs11
      ssh-add -T pubkey ...
+     ssh-add -Q
 
 DESCRIPTION
      ssh-add adds private key identities to the authentication agent,
@@ -126,6 +127,9 @@ DESCRIPTION
              and does not specify a lifetime for certificates added to an
              agent.
 
+     -Q      Query the agent for the list of protocol extensions it supports.
+             Note: not all agents support this query.
+
      -q      Be quiet after a successful operation.
 
      -S provider
@@ -177,7 +181,7 @@ ENVIRONMENT
              input regardless of whether DISPLAY is set.
 
      SSH_AUTH_SOCK
-             Identifies the path of a UNIX-domain socket used to communicate
+             Identifies the path of a Unix-domain socket used to communicate
              with the agent.
 
      SSH_SK_PROVIDER
@@ -212,4 +216,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.7                   September 11, 2025                   OpenBSD 7.7
+OpenBSD 7.8                      March 5, 2026                      SSH-ADD(1)

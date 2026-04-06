@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.376 2025/09/25 06:23:19 jsg Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.382 2026/02/16 00:45:41 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -17,15 +17,12 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -44,7 +41,7 @@
 #include "xmalloc.h"
 #include "hostfile.h"
 #include "ssh.h"
-#include "sshbuf.h"
+#include "compat.h"
 #include "packet.h"
 #include "sshkey.h"
 #include "sshconnect.h"
@@ -52,11 +49,8 @@
 #include "match.h"
 #include "misc.h"
 #include "readconf.h"
-#include "atomicio.h"
 #include "dns.h"
 #include "monitor_fdpass.h"
-#include "ssh2.h"
-#include "version.h"
 #include "authfile.h"
 #include "ssherr.h"
 #include "authfd.h"
@@ -1084,7 +1078,7 @@ check_host_key(char *hostname, const struct ssh_conn_info *cinfo,
 		if (want_cert) {
 			if (sshkey_cert_check_host(host_key,
 			    options.host_key_alias == NULL ?
-			    hostname : options.host_key_alias, 0,
+			    hostname : options.host_key_alias,
 			    options.ca_sign_algorithms, &fail_reason) != 0) {
 				error("%s", fail_reason);
 				goto fail;
@@ -1507,22 +1501,23 @@ verify_host_key(char *host, struct sockaddr *hostaddr, struct sshkey *host_key,
 		goto out;
 	}
 
-	/* Check in RevokedHostKeys file if specified */
-	if (options.revoked_host_keys != NULL) {
-		r = sshkey_check_revoked(host_key, options.revoked_host_keys);
+	/* Check in RevokedHostKeys files if specified */
+	for (i = 0; i < options.num_revoked_host_keys; i++) {
+		r = sshkey_check_revoked(host_key,
+		    options.revoked_host_keys[i]);
 		switch (r) {
 		case 0:
 			break; /* not revoked */
 		case SSH_ERR_KEY_REVOKED:
 			error("Host key %s %s revoked by file %s",
 			    sshkey_type(host_key), fp,
-			    options.revoked_host_keys);
+			    options.revoked_host_keys[i]);
 			r = -1;
 			goto out;
 		default:
 			error_r(r, "Error checking host key %s %s in "
 			    "revoked keys file %s", sshkey_type(host_key),
-			    fp, options.revoked_host_keys);
+			    fp, options.revoked_host_keys[i]);
 			r = -1;
 			goto out;
 		}
@@ -1608,6 +1603,11 @@ ssh_login(struct ssh *ssh, Sensitive *sensitive, const char *orighost,
 	if ((r = kex_exchange_identification(ssh, timeout_ms,
 	    options.version_addendum)) != 0)
 		sshpkt_fatal(ssh, r, "banner exchange");
+
+	if ((ssh->compat & SSH_BUG_NOREKEY)) {
+		logit("Warning: this server does not support rekeying.");
+		logit("This session will eventually fail");
+	}
 
 	/* Put the connection into non-blocking mode. */
 	ssh_packet_set_nonblocking(ssh);

@@ -1,4 +1,4 @@
-#	$OpenBSD: percent.sh,v 1.22 2025/09/04 03:04:44 djm Exp $
+#	$OpenBSD: percent.sh,v 1.23 2026/04/02 07:52:15 djm Exp $
 #	Placed in the Public Domain.
 
 tid="percent expansions"
@@ -140,7 +140,7 @@ done
 FOO=bar
 export FOO
 for i in controlpath identityagent forwardagent localforward remoteforward \
-    user setenv userknownhostsfile; do
+    setenv userknownhostsfile; do
 	verbose $tid $i dollar
 	trial $i '${FOO}' $FOO
 done
@@ -175,7 +175,7 @@ ${SSH} -F $OBJ/ssh_proxy -G "${FOO}@somehost" && fail "user-at expanded env"
 
 # Literal control characters in config is acceptable
 verbose $tid user control-literal
-trial user "$FOO" "$FOO"
+#trial user "$FOO" "$FOO"
 
 # Control characters expanded from config aren't.
 ${SSH} -F $OBJ/ssh_proxy -G '-oUser=${FOO}' somehost && \

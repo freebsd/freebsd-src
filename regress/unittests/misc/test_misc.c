@@ -374,6 +374,44 @@ test_path_absolute(void)
 }
 
 static void
+test_stringlist(void)
+{
+	char **list = NULL;
+
+	TEST_START("stringlist_append initial");
+	stringlist_append(&list, "one");
+	ASSERT_PTR_NE(list, NULL);
+	ASSERT_STRING_EQ(list[0], "one");
+	ASSERT_PTR_EQ(list[1], NULL);
+	TEST_DONE();
+
+	TEST_START("stringlist_append second");
+	stringlist_append(&list, "two");
+	ASSERT_PTR_NE(list, NULL);
+	ASSERT_STRING_EQ(list[0], "one");
+	ASSERT_STRING_EQ(list[1], "two");
+	ASSERT_PTR_EQ(list[2], NULL);
+	TEST_DONE();
+
+	TEST_START("stringlist_append third");
+	stringlist_append(&list, "three");
+	ASSERT_PTR_NE(list, NULL);
+	ASSERT_STRING_EQ(list[0], "one");
+	ASSERT_STRING_EQ(list[1], "two");
+	ASSERT_STRING_EQ(list[2], "three");
+	ASSERT_PTR_EQ(list[3], NULL);
+	TEST_DONE();
+
+	TEST_START("stringlist_free");
+	stringlist_free(list);
+	TEST_DONE();
+
+	TEST_START("stringlist_free NULL");
+	stringlist_free(NULL);
+	TEST_DONE();
+}
+
+static void
 test_skip_space(void)
 {
 	char *s, *p;
@@ -432,5 +470,6 @@ test_misc(void)
 	test_tohex();
 	test_lowercase();
 	test_path_absolute();
+	test_stringlist();
 	test_skip_space();
 }

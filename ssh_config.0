@@ -586,12 +586,14 @@ DESCRIPTION
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
+                webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
                 rsa-sha2-512,rsa-sha2-256
 
              The -Q option of ssh(1) may be used to list supported signature
@@ -620,11 +622,13 @@ DESCRIPTION
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ecdsa-sha2-nistp256@openssh.com,
+                webauthn-sk-ecdsa-sha2-nistp256@openssh.com
                 sk-ssh-ed25519@openssh.com,
                 rsa-sha2-512,rsa-sha2-256
 
@@ -660,7 +664,7 @@ DESCRIPTION
              many different identities.
 
      IdentityAgent
-             Specifies the UNIX-domain socket used to communicate with the
+             Specifies the Unix-domain socket used to communicate with the
              authentication agent.
 
              This option overrides the SSH_AUTH_SOCK environment variable and
@@ -1016,12 +1020,14 @@ DESCRIPTION
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
+                webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
                 rsa-sha2-512,rsa-sha2-256
 
              The list of available signature algorithms may also be obtained
@@ -1404,7 +1410,11 @@ PATTERNS
 
 TOKENS
      Arguments to some keywords can make use of tokens, which are expanded at
-     runtime:
+     runtime.  Tokens are expanded without quoting or escaping of shell
+     characters.  It is the user's responsibility to ensure they are safe in
+     the context of their use.
+
+     The supported tokens in ssh_config are:
 
            %%    A literal M-bM-^@M-^X%M-bM-^@M-^Y.
            %C    Hash of %l%h%p%r%j.
@@ -1489,4 +1499,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.7                     October 4, 2025                    OpenBSD 7.7
+OpenBSD 7.8                     March 23, 2026                   SSH_CONFIG(5)

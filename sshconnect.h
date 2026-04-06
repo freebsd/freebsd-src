@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.h,v 1.49 2025/03/01 06:11:26 dtucker Exp $ */
+/* $OpenBSD: sshconnect.h,v 1.50 2026/02/13 01:04:47 jsg Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -50,7 +50,6 @@ struct ssh_conn_info {
 struct addrinfo;
 struct ssh;
 struct hostkeys;
-struct ssh_conn_info;
 
 /* default argument for client percent expansions, minus remote user */
 #define DEFAULT_CLIENT_PERCENT_EXPAND_ARGS_NOUSER(conn_info) \

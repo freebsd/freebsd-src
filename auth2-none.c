@@ -26,16 +26,9 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/uio.h>
-
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "atomicio.h"
 #include "xmalloc.h"
 #include "sshkey.h"
 #include "hostfile.h"
