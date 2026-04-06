@@ -1,4 +1,4 @@
-# $Id: sys.dirdeps.mk,v 1.16 2025/08/09 22:42:24 sjg Exp $
+# $Id: sys.dirdeps.mk,v 1.17 2026/02/15 17:04:27 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -96,10 +96,15 @@ TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
 
 .if ${TARGET_SPEC_VARS:[#]} > 1
 TARGET_SPEC_VARSr := ${TARGET_SPEC_VARS:[-1..1]}
-# alternatives might be
-# TARGET_OBJ_SPEC = ${TARGET_SPEC_VARSr:@v@${$v:U}@:ts/}
-# TARGET_OBJ_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts/}
-TARGET_OBJ_SPEC ?= ${TARGET_SPEC_VARS:@v@${$v:U}@:ts.}
+#
+# local.sys.*mk can control the format of TARGET_OBJ_SPEC
+# by setting eg.
+# TARGET_OBJ_SPEC_VARS = ${TARGET_SPEC_VARSr}
+# TARGET_OBJ_SPEC_SEP = /
+#
+TARGET_OBJ_SPEC_VARS ?= ${TARGET_SPEC_VARS}
+TARGET_OBJ_SPEC_SEP ?= .
+TARGET_OBJ_SPEC = ${TARGET_OBJ_SPEC_VARS:@v@${$v:U}@:ts${TARGET_OBJ_SPEC_SEP}}
 .else
 TARGET_OBJ_SPEC ?= ${MACHINE}
 .endif

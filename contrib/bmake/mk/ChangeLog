@@ -1,3 +1,41 @@
+2026-03-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20260313
+
+	* sys.vars.mk: use .MAKE.VERSION
+	M_type can simply use '$x'
+
+2026-02-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20260222
+
+	* dirdeps.mk, sys.mk: add dependent option
+	UPDATE_DIRDEPS_CACHE/DIRDEPS_CACHE.
+	It can be useful to use -DWITHOUT_UPDATE_DIRDEPS_CACHE to
+	temporarily treat dynamic DIRDEPS_CACHE as static.
+
+2026-01-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk (${_DEPENDFILE}): add .NOMETA
+
+2026-01-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* rust.mk: better accommodation for RUST_LIBS.
+	Set RUST_{LIBS,PROGS}_CARGO_BUILD_OUTPUT_LIST to
+	simplify staging.
+
+2025-12-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20251207
+
+	* sys.vars.mk: replace MAKE_POSIX_SHELL usage with isPOSIX_SHELL
+	Using ${isPOSIX_SHELL:U:Nfalse} provides a boolean for make
+	and ${isPOSIX_SHELL:Ufalse} does the same for target scripts.
+	Both will be false if isPOSIX_SHELL is not set or set to false.
+
+	This has the advantage that if only POSIX shells are expected
+	sys.mk (or something it includes) can simply do isPOSIX_SHELL?=:
+
 2025-11-18  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* sys.vars.mk: set MAKE_POSIX_SHELL to 1 if .SHELL is POSIX, 0 if not.

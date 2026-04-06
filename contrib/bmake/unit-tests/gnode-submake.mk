@@ -1,4 +1,4 @@
-# $NetBSD: gnode-submake.mk,v 1.1 2020/11/07 23:25:06 rillig Exp $
+# $NetBSD: gnode-submake.mk,v 1.2 2026/02/10 18:53:34 sjg Exp $
 #
 # Test whether OP_SUBMAKE is determined correctly.  If it is, this node's
 # shell commands are connected to the make process via pipes, to coordinate
@@ -8,7 +8,7 @@
 # parsed.  This information is only used in parallel mode, but the result
 # from parsing is available in compat mode as well.
 
-.MAKEFLAGS: -n -dg1
+.MAKEFLAGS: -dg2 -j1
 
 all: makeinfo make-index
 all: braces-dot braces-no-dot

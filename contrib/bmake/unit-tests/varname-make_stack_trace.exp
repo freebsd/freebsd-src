@@ -1,7 +1,7 @@
 make: Unknown modifier ":Z"
 	while evaluating "${:Z}" with value ""
 	in command "@echo ${:Z}"
-	in target "provoke-error"
+	in target "provoke-error" from varname-make_stack_trace.mk:42
 	in make[2] in directory "<curdir>"
 *** Error code 2 (continuing)
 
@@ -10,7 +10,7 @@ make: stopped making "disabled-compat" in unit-tests
 make: Unknown modifier ":Z"
 	while evaluating "${:Z}" with value ""
 	in command "@echo ${:Z}"
-	in target "provoke-error"
+	in target "provoke-error" from varname-make_stack_trace.mk:42
 	in make[2] in directory "<curdir>"
 *** [disabled-parallel] Error code 2
 
@@ -18,10 +18,10 @@ make: stopped making "disabled-parallel" in unit-tests
 make: Unknown modifier ":Z"
 	while evaluating "${:Z}" with value ""
 	in command "@echo ${:Z}"
-	in target "provoke-error"
+	in target "provoke-error" from varname-make_stack_trace.mk:42
 	in make[2] in directory "<curdir>"
 	in command "make -f varname-make_stack_trace.mk provoke-error"
-	in target "enabled-compat"
+	in target "enabled-compat" from varname-make_stack_trace.mk:35
 	in make[1] in directory "<curdir>"
 *** Error code 2 (continuing)
 
@@ -30,11 +30,21 @@ make: stopped making "enabled-compat" in unit-tests
 make: Unknown modifier ":Z"
 	while evaluating "${:Z}" with value ""
 	in command "@echo ${:Z}"
-	in target "provoke-error"
+	in target "provoke-error" from varname-make_stack_trace.mk:42
 	in make[2] in directory "<curdir>"
-	in target "enabled-parallel"
+	in target "enabled-parallel" from varname-make_stack_trace.mk:39
 	in make[1] in directory "<curdir>"
 *** [enabled-parallel] Error code 2
 
 make: stopped making "enabled-parallel" in unit-tests
+.make[5]: warning: Invalid internal option "-J" in "<curdir>"; see the manual page
+	in .make[5] in directory "<curdir>"
+	in target "multi-stage-4" from varname-make_stack_trace.mk:56
+	in make[4] in directory "<curdir>"
+	in target "multi-stage-3" from varname-make_stack_trace.mk:54
+	in make[3] in directory "<curdir>"
+	in target "multi-stage-2" from varname-make_stack_trace.mk:52
+	in make[2] in directory "<curdir>"
+	in target "multi-stage-1" from varname-make_stack_trace.mk:50
+	in make[1] in directory "<curdir>"
 exit status 0

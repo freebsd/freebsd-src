@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.273 2025/07/06 07:11:31 rillig Exp $	*/
+/*	$NetBSD: make.c,v 1.274 2026/02/10 18:53:34 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #endif
 
 /*	"@(#)make.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: make.c,v 1.273 2025/07/06 07:11:31 rillig Exp $");
+MAKE_RCSID("$NetBSD: make.c,v 1.274 2026/02/10 18:53:34 sjg Exp $");
 
 /* Sequence # to detect recursion. */
 static unsigned checked_seqno = 1;
@@ -187,6 +187,7 @@ GNodeFlags_ToString(GNodeFlags flags)
 	Buf_AddFlag(&buf, flags.doneOrder, "DONE_ORDER");
 	Buf_AddFlag(&buf, flags.fromDepend, "FROM_DEPEND");
 	Buf_AddFlag(&buf, flags.doneAllsrc, "DONE_ALLSRC");
+	Buf_AddFlag(&buf, flags.doneSubmake, "DONE_SUBMAKE");
 	Buf_AddFlag(&buf, flags.cycle, "CYCLE");
 	Buf_AddFlag(&buf, flags.doneCycle, "DONECYCLE");
 	if (buf.len == 0)

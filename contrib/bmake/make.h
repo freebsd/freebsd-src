@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.361 2025/07/06 07:11:31 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.365 2026/03/13 04:22:03 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -419,6 +419,8 @@ typedef struct GNodeFlags {
 	bool fromDepend:1;
 	/* We do it once only */
 	bool doneAllsrc:1;
+	/* Have we checked for submake? */
+	bool doneSubmake:1;
 	/* Used by MakePrintStatus */
 	bool cycle:1;
 	/* Used by MakePrintStatus */
@@ -909,7 +911,7 @@ void Parse_End(void);
 void PrintLocation(FILE *, bool, const GNode *);
 const char *GetParentStackTrace(void);
 char *GetStackTrace(bool);
-void PrintStackTrace(bool);
+void PrintStackTrace(FILE *, bool);
 void Parse_Error(ParseErrorLevel, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 bool Parse_VarAssign(const char *, bool, GNode *) MAKE_ATTR_USE;
 void Parse_File(const char *, int);
@@ -995,14 +997,16 @@ typedef enum VarEvalMode {
 	VARE_EVAL,
 
 	/*
-	 * Parse and evaluate the expression.  It is an error if a
-	 * subexpression evaluates to undefined.
+	 * Only for Var_Parse, not for Var_Subst or Var_Expand: Parse and
+	 * evaluate the expression.  It is an error if the expression
+	 * evaluates to undefined.  Subexpressions or indirect expressions
+	 * may evaluate to undefined, though.
 	 */
 	VARE_EVAL_DEFINED_LOUD,
 
 	/*
 	 * Parse and evaluate the expression.  It is a silent error if a
-	 * subexpression evaluates to undefined.
+	 * top-level expression evaluates to undefined.
 	 */
 	VARE_EVAL_DEFINED,
 
@@ -1051,6 +1055,8 @@ typedef enum VarExportMode {
 	/* .export-literal: Do not expand the variable value. */
 	VEM_LITERAL
 } VarExportMode;
+
+#define MAKE_SAVE_DOLLARS ".MAKE.SAVE_DOLLARS"
 
 void Var_Delete(GNode *, const char *);
 #ifdef CLEANUP

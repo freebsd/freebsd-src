@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.388 2025/11/12 22:14:07 sjg Exp $
+.\"	$NetBSD: make.1,v 1.390 2026/02/08 11:02:03 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd November 11, 2025
+.Dd February 8, 2026
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Op Fl T Ar file
 .Op Fl V Ar variable
 .Op Fl v Ar variable
-.Op Ar variable\| Ns Cm \&= Ns Ar value
+.Op Ar variable\| Ns Cm \&= Ns Ar value No ...
 .Op Ar target No ...
 .Sh DESCRIPTION
 .Nm
@@ -1655,33 +1655,22 @@ Causes the value to be treated as a list of words.
 See also
 .Sq Cm \&:[@] .
 .Sm off
-.It Cm \&:S\| No \&/ Ar old_string\| No \&/ Ar new_string\| No \&/ Op Cm 1gW
+.It Cm \&:S\| No \&/ Oo Cm \&^ Oc Ar old_string\| No Oo Cm \&$ Oc \&/ Ar new_string\| No \&/ Op Cm 1gW
 .Sm on
 Modifies the first occurrence of
 .Ar old_string
 in each word of the value, replacing it with
 .Ar new_string .
-If a
-.Ql g
-is appended to the last delimiter of the pattern,
-all occurrences in each word are replaced.
-If a
-.Ql 1
-is appended to the last delimiter of the pattern,
-only the first occurrence is affected.
-If a
-.Ql W
-is appended to the last delimiter of the pattern,
-the value is treated as a single word.
+.Pp
 If
 .Ar old_string
-begins with a caret
+is preceded by a caret
 .Pq Ql ^ ,
 .Ar old_string
 is anchored at the beginning of each word.
 If
 .Ar old_string
-ends with a dollar sign
+is followed by a dollar sign
 .Pq Ql \&$ ,
 it is anchored at the end of each word.
 Inside
@@ -1689,63 +1678,61 @@ Inside
 an ampersand
 .Pq Ql &
 is replaced by
-.Ar old_string
-(without the anchoring
-.Ql ^
-or
-.Ql \&$ ) .
-Any character may be used as the delimiter for the parts of the modifier
-string.
-The anchoring, ampersand and delimiter characters can be escaped with a
-backslash
-.Pq Ql \e .
-.Pp
+.Ar old_string .
 Both
 .Ar old_string
 and
 .Ar new_string
 may contain nested expressions.
-To prevent a dollar sign from starting a nested expression,
-escape it with a backslash.
+.Pp
+Further options:
+.Bl -tag
+.It Cm 1
+Only the word of the first occurrence is affected.
+.It Cm g
+All occurrences in each affected word are replaced.
+.It Cm W
+The expression value is treated as a single word.
+.El
+.Pp
+Any character may be used as the delimiter for the parts of the modifier
+string.
+The anchoring, ampersand, dollar and delimiter characters
+can be escaped with a backslash
+.Pq Ql \e .
 .Sm off
 .It Cm \&:C\| No \&/ Ar pattern\| No \&/ Ar replacement\| No \&/ Op Cm 1gW
 .Sm on
-The
-.Cm \&:C
-modifier works like the
-.Cm \&:S
-modifier except that the old and new strings, instead of being
-simple strings, are an extended regular expression
+Modifies the first occurrence of the extended regular expression
 .Ar pattern
 (see
 .Xr regex 3 )
-and an
+in each word of the value, replacing it with
+an
 .Xr ed 1 Ns \-style
 .Ar replacement .
-Normally, the first occurrence of the pattern
-.Ar pattern
-in each word of the value is substituted with
-.Ar replacement .
-The
-.Ql 1
-modifier causes the substitution to apply to at most one word; the
-.Ql g
-modifier causes the substitution to apply to as many instances of the
-search pattern
-.Ar pattern
-as occur in the word or words it is found in; the
-.Ql W
-modifier causes the value to be treated as a single word
-(possibly containing embedded whitespace).
 .Pp
-As for the
-.Cm \&:S
-modifier, the
+Both
 .Ar pattern
 and
 .Ar replacement
-are subjected to variable expansion before being parsed as
-regular expressions.
+may contain nested expressions.
+.Pp
+Further options:
+.Bl -tag
+.It Cm 1
+Only the word of the first occurrence is affected.
+.It Cm g
+All occurrences in each affected word are replaced.
+.It Cm W
+The expression value is treated as a single word.
+.El
+.Pp
+Any character may be used as the delimiter for the parts of the modifier
+string.
+The anchoring, ampersand, dollar and delimiter characters
+can be escaped with a backslash
+.Pq Ql \e .
 .It Cm \&:T
 Replaces each word with its last path component (basename).
 .It Cm \&:u
@@ -2494,7 +2481,7 @@ Any command lines attached to this target are executed after everything
 else is done successfully.
 .It Ic .ERROR
 Any command lines attached to this target are executed when another target fails.
-See 
+See
 .Va MAKE_PRINT_VAR_ON_ERROR
 for the variables that will be set.
 .It Ic .IGNORE

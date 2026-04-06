@@ -1,4 +1,4 @@
-# $NetBSD: cond-undef-lint.mk,v 1.8 2025/01/11 21:21:33 rillig Exp $
+# $NetBSD: cond-undef-lint.mk,v 1.9 2026/02/13 03:16:15 lukem Exp $
 #
 # Tests for defined and undefined variables in .if conditions, in lint mode.
 #
@@ -51,7 +51,7 @@ DEF=		defined
 
 # Variables that are referenced indirectly may be undefined in a condition.
 #
-# A practical example for this is CFLAGS, which consists of CWARNS, COPTS
+# A practical example for this is CFLAGS, which consists of CWARNFLAGS, COPTS
 # and a few others.  Just because these nested variables are not defined,
 # this does not make the condition invalid.
 #

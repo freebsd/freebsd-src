@@ -23,7 +23,7 @@ sub-exit status 1
 make: Variable VAR is recursive.
 	while evaluating variable "VAR" with value "${VAR}"
 	in command ": recursive-line-before <${VAR}> recursive-line-after"
-	in target "runtime"
+	in target "runtime" from var-recursive.mk:56
 	in make[1] in directory "<curdir>"
 sub-exit status 2
 exit status 0

@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-local.mk,v 1.11 2024/03/05 23:07:58 rillig Exp $
+# $NetBSD: var-scope-local.mk,v 1.12 2026/01/05 22:44:14 rillig Exp $
 #
 # Tests for target-local variables, such as ${.TARGET} or $@.  These variables
 # are relatively short-lived as they are created just before making the
@@ -138,7 +138,9 @@ dir/subdir/inference-rule-chain.ir-gen-from: .PHONY
 # Custom local variables
 #
 # Additional target-local variables may be defined in dependency lines.
+.if !make(pr-59703-mode)
 .MAKEFLAGS: -dv
+.endif
 # In the following line, the ':=' may either be interpreted as an assignment
 # operator or as the dependency operator ':', followed by an empty variable
 # name and the assignment operator '='.  It is the latter since in an
@@ -154,7 +156,9 @@ one two:=three
 # word.
 # expect: Global: one two = three
 ${:Uone two}:=three
+.if !make(pr-59703-mode)
 .MAKEFLAGS: -d0
+.endif
 
 
 .SUFFIXES: .c .o
@@ -268,3 +272,44 @@ a_use: .USE VAR=use
 
 all: var-scope-local-use.o
 var-scope-local-use.o: a_use
+
+
+# begin https://gnats.netbsd.org/59073
+# make(1) sets $* / $(.PREFIX) wrong in -j mode
+
+all: pr-59073
+
+# expect: begin pr-59073 compat
+# expect: $@ is pr-59073/file.o59703
+# expect: $< is pr-59073/file.c59703
+# expect: $* is pr-59073/file
+# expect: end pr-59073 compat
+# expect: begin pr-59073 parallel
+# expect: $@ is pr-59073/file.o59703
+# expect: $< is pr-59073/file.c59703
+# FIXME: The subdirectory is missing.
+# expect: $* is file
+# expect: end pr-59073 parallel
+
+pr-59073: .PHONY
+	# This has to be an actual file; using a memory-only target
+	# generates the correct value for "$*".
+	@mkdir -p pr-59073 && touch pr-59073/file.c59703
+	@echo begin pr-59073 compat
+	@MAKEFLAGS= ${MAKE} -r -f ${MAKEFILE} pr-59703-mode
+	@echo end pr-59073 compat
+	@echo begin pr-59073 parallel
+	@MAKEFLAGS= ${MAKE} -r -f ${MAKEFILE} -j1 pr-59703-mode
+	@echo end pr-59073 parallel
+	@rm -rf pr-59073
+
+pr-59703-mode: pr-59073/file.o59703
+
+.SUFFIXES: .c59703 .o59703
+
+.c59703.o59703:
+	@echo '$$@ is $@'
+	@echo '$$< is $<'
+	@echo '$$* is $*'
+
+# end https://gnats.netbsd.org/59073

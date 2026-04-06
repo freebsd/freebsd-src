@@ -59,7 +59,7 @@
 #       Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: install-mk,v 1.271 2025/11/11 18:08:02 sjg Exp $
+#	$Id: install-mk,v 1.274 2026/03/13 05:13:00 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2025 Simon J. Gerraty
 #
@@ -69,7 +69,7 @@
 #	sjg@crufty.net
 #
 
-MK_VERSION=20251111
+MK_VERSION=20260313
 OWNER=
 GROUP=
 MODE=444

@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.519 2025/08/04 15:40:39 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.528 2026/03/03 20:12:20 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -137,7 +137,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.519 2025/08/04 15:40:39 sjg Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.528 2026/03/03 20:12:20 sjg Exp $");
 
 
 #ifdef USE_SELECT
@@ -987,6 +987,54 @@ JobWriteSpecials(Job *job, ShellWriter *wr, const char *escCmd, bool run,
 		inout_cmdFlags->ignerr = false;
 }
 
+static bool
+find_make(const char *cmd, const char *make, size_t len)
+{
+	const char *p;
+
+	for (p = strstr(cmd, make); p != NULL; p = strstr(&p[1], make)) {
+		if (p == cmd || ch_isspace(p[-1])) {
+			if (p[len] == '\0' || ch_isspace(p[len])) {
+				DEBUG4(JOB, "find_make: matched \"%.*s\" in \"%.*s...\"\n",
+				    (int)len, p,
+				    (int)len + 32, cmd);
+
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/*
+ * See if the command possibly calls a sub-make by checking
+ * for expansion of ${.MAKE} and possibly ${.MAKE:T}.
+ */
+bool
+MaybeSubMake(const char *cmd)
+{
+	static char *make, *make_name;
+	static size_t make_len, make_name_len;
+
+	if (make == NULL) {
+		make = Var_Subst("${.MAKE}", SCOPE_GLOBAL, VARE_EVAL);
+		make_len = strlen(make);
+		make_name = strrchr(make, '/');
+		if (make_name != NULL) {
+			make_name++;
+			make_name_len = strlen(make_name);
+		} else
+			make_name_len = 0;
+		DEBUG1(JOB, "MaybeSubMake: Looking for \"%s\"\n", make);
+	}
+	cmd += strspn(cmd, "@ \t+-");
+	if (find_make(cmd, make, make_len))
+		return true;
+	if (make_name_len > 0 && find_make(cmd, make_name, make_name_len))
+		return true;
+	return false;
+}
+
 /*
  * Write a shell command to the job's commands file, to be run later.
  *
@@ -1019,6 +1067,12 @@ JobWriteCommand(Job *job, ShellWriter *wr, StringListNode *ln, const char *ucmd)
 	xcmd = Var_SubstInTarget(ucmd, job->node);
 	/* TODO: handle errors */
 	xcmdStart = xcmd;
+
+	if (job->node->flags.doneSubmake == false
+	    && (job->node->type & (OP_MAKE | OP_SUBMAKE)) == 0) {
+		if (MaybeSubMake(xcmd))
+			job->node->type |= OP_SUBMAKE;
+	}
 
 	cmdTemplate = "%s\n";
 
@@ -1122,6 +1176,7 @@ JobWriteCommands(Job *job)
 		JobWriteCommand(job, &wr, ln, ln->datum);
 		seen = true;
 	}
+	job->node->flags.doneSubmake = true;
 
 	return seen;
 }

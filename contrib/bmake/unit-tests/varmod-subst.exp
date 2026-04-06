@@ -43,12 +43,17 @@ mod-subst-delimiter:
 1 two 3 vertical line
 1 two 3 right curly bracket
 1 two 3 tilde
+123 two34 345 circumflex accent
+make: Regex compilation error: (details omitted)
+	while evaluating "${:U 123 234 345 :C^^2^two^:Q} circumflex accent" with value " 123 234 345 "
+	in command "@echo ${:U 123 234 345 :C^^2^two^:Q} circumflex accent"
+	in target "mod-subst-delimiter-circumflex" from varmod-subst.mk:250
 mod-subst-chain:
 A B c.
 make: Unknown modifier ":i"
 	while evaluating "${:Uvalue:S,a,x,i}." with value "vxlue"
 	in command "@echo ${:Uvalue:S,a,x,i}."
-	in target "mod-subst-chain"
+	in target "mod-subst-chain" from varmod-subst.mk:268
 mod-subst-dollar:$1:
 mod-subst-dollar:$2:
 mod-subst-dollar:$3:

@@ -67,5 +67,15 @@ Making var-scope-local-default.o with make 'global' and env 'global'.
 Making var-scope-local-subst.o with make 'global+local' and env 'global+local'.
 Making var-scope-local-shell.o with make 'output' and env 'output'.
 Making .USE var-scope-local-use.o with make 'global' and env 'global'.
+begin pr-59073 compat
+$@ is pr-59073/file.o59703
+$< is pr-59073/file.c59703
+$* is pr-59073/file
+end pr-59073 compat
+begin pr-59073 parallel
+$@ is pr-59073/file.o59703
+$< is pr-59073/file.c59703
+$* is file
+end pr-59073 parallel
 : all overwritten
 exit status 0

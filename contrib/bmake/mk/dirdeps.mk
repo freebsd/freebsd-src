@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.175 2025/01/05 01:16:19 sjg Exp $
+# $Id: dirdeps.mk,v 1.176 2026/02/23 21:37:10 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -584,6 +584,11 @@ BUILD_DIRDEPS_MAKEFILE ?= -f dirdeps.mk
 BUILD_DIRDEPS_MAKEFILE ?=
 BUILD_DIRDEPS_OVERRIDES ?=
 BUILD_DIRDEPS_TARGETS ?= ${.TARGETS}
+
+# sometimes we temporarily want to block updating of DIRDEPS_CACHE
+.if ${MK_UPDATE_DIRDEPS_CACHE:Uyes} == "no" && exists(${DIRDEPS_CACHE})
+STATIC_DIRDEPS_CACHE ?= ${DIRDEPS_CACHE}
+.endif
 
 .if ${DIRDEPS_CACHE} != ${STATIC_DIRDEPS_CACHE:Uno} && ${DIRDEPS_CACHE:M${SRCTOP}/*} == ""
 # export this for dirdeps-cache-update.mk
