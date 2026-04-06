@@ -1,0 +1,189 @@
+# RISC-V Build Configuration
+# Mobile OS Project
+
+# ============================================================================
+# RISC-V Target Architectures
+# ============================================================================
+
+# Base RISC-V ISA configurations
+RISCV_CONFIGS := rv32i rv64i rv64ima rv64imac rv64imafc
+
+# Default configuration for mobile platforms
+RISCV_DEFAULT := rv64imac
+
+# Mobile-optimized RISC-V targets
+RISCV_TARGETS := \
+    riscv-generic-rv64imac \
+    riscv-soc-standard \
+    riscv-mediatek-compatible \
+    riscv-qualcomm-compatible
+
+# ============================================================================
+# Compiler Flags
+# ============================================================================
+
+# Base RISC-V architecture flags
+RISCV_CFLAGS_BASE := -march=rv64imac -mtune=generic
+RISCV_CFLAGS_OPT := -O3 -fomit-frame-pointer -ffunction-sections -fdata-sections
+
+# Mobile-specific optimizations
+RISCV_CFLAGS_MOBILE := \
+    -mcmodel=medlow \
+    -fno-strict-aliasing \
+    -Wstrict-overflow \
+    -fno-common
+
+# Performance-critical sections
+RISCV_CFLAGS_PERF := \
+    -funroll-loops \
+    -fvectorize \
+    -ftree-vectorize \
+    -ffast-math
+
+# Combined flags per configuration
+RISCV_CFLAGS_rv32i := $(RISCV_CFLAGS_BASE:rv64=rv32) -misa-spec=2.2
+RISCV_CFLAGS_rv64i := $(RISCV_CFLAGS_BASE) -misa-spec=2.2
+RISCV_CFLAGS_rv64ima := $(RISCV_CFLAGS_BASE:imac=ima) -misa-spec=2.2
+RISCV_CFLAGS_rv64imac := $(RISCV_CFLAGS_BASE) -misa-spec=2.2
+RISCV_CFLAGS_rv64imafc := $(RISCV_CFLAGS_BASE:imac=imafc) -static
+
+# ============================================================================
+# Feature Configurations
+# ============================================================================
+
+# Default features for mobile
+RISCV_FEATURES_DEFAULT := \
+    CONFIG_RISCV_BASE=y \
+    CONFIG_RISCV_ISA_RV64=y \
+    CONFIG_RISCV_ISA_ATOMIC=y \
+    CONFIG_RISCV_ISA_COMPRESSED=y \
+    CONFIG_RISCV_VECTOR=n \
+    CONFIG_RISCV_CRYPTO=n
+
+# Full-featured configuration
+RISCV_FEATURES_FULL := \
+    CONFIG_RISCV_BASE=y \
+    CONFIG_RISCV_ISA_RV64=y \
+    CONFIG_RISCV_ISA_ATOMIC=y \
+    CONFIG_RISCV_ISA_COMPRESSED=y \
+    CONFIG_RISCV_VECTOR=y \
+    CONFIG_RISCV_CRYPTO=y
+
+# Mobile-optimized configuration
+RISCV_FEATURES_MOBILE := \
+    CONFIG_RISCV_BASE=y \
+    CONFIG_RISCV_ISA_RV64=y \
+    CONFIG_RISCV_ISA_ATOMIC=y \
+    CONFIG_RISCV_ISA_COMPRESSED=y \
+    CONFIG_RISCV_VECTOR=y \
+    CONFIG_RISCV_CRYPTO=n \
+    CONFIG_POWER_MANAGEMENT=y \
+    CONFIG_DVFS=y \
+    CONFIG_CACHE_OPTIMIZE=y
+
+# ============================================================================
+# Linker Flags
+# ============================================================================
+
+RISCV_LDFLAGS := \
+    --gc-sections \
+    -Wl,-Map=$(MAPFILE) \
+    -Wl,--cref \
+    --no-undefined
+
+# ============================================================================
+# Kernel Configuration Options
+# ============================================================================
+
+CONFIG_RISCV_BASE ?= y
+CONFIG_RISCV_ISA_RV64 ?= y
+CONFIG_RISCV_ISA_ATOMIC ?= y
+CONFIG_RISCV_ISA_COMPRESSED ?= y
+CONFIG_RISCV_ISA_DOUBLE ?= n
+CONFIG_RISCV_VECTOR ?= n
+CONFIG_RISCV_CRYPTO ?= n
+CONFIG_RISCV_BITMANIP ?= n
+
+# Memory configuration
+CONFIG_PAGE_SIZE ?= 4096
+CONFIG_VM_MODE ?= sv39  # Sv39 for 39-bit virtual addressing
+
+# Debug configuration
+CONFIG_RISCV_DEBUG ?= n
+CONFIG_RISCV_TRACE ?= n
+
+# Power management
+CONFIG_POWER_MANAGEMENT ?= y
+CONFIG_DVFS ?= y              # Dynamic Voltage and Frequency Scaling
+CONFIG_CPU_IDLE ?= y
+CONFIG_THERMAL_MANAGEMENT ?= y
+
+# Performance
+CONFIG_CACHE_OPTIMIZE ?= y
+CONFIG_BRANCH_PREDICTION ?= y
+CONFIG_SPECULATIVE_EXEC ?= y
+CONFIG_HARDWARE_PREFETCH ?= y
+
+# Hardware features
+CONFIG_PLIC ?= y              # Platform Level Interrupt Controller
+CONFIG_CLINT ?= y             # Core Level Interrupt Controller
+CONFIG_TIMER_SUPPORT ?= y
+
+# ============================================================================
+# Build Targets
+# ============================================================================
+
+# Kernel image
+KERNEL_IMAGE := vmlinux.riscv64
+KERNEL_BIN := vmlinux.bin
+
+# Device tree blob
+DEVICE_TREE := riscv-mobile.dtb
+
+# Bootloader
+BOOTLOADER := u-boot.riscv64
+
+# ============================================================================
+# Export Configuration
+# ============================================================================
+
+export RISCV_CFLAGS_$(RISCV_DEFAULT)
+export RISCV_LDFLAGS
+export CONFIG_RISCV_BASE
+export CONFIG_RISCV_ISA_RV64
+export CONFIG_RISCV_ISA_ATOMIC
+export CONFIG_RISCV_ISA_COMPRESSED
+export CONFIG_POWER_MANAGEMENT
+export CONFIG_DVFS
+export CONFIG_CACHE_OPTIMIZE
+
+# ============================================================================
+# Build Rules
+# ============================================================================
+
+.PHONY: riscv-build riscv-clean riscv-menuconfig
+
+riscv-build:
+	@echo "Building Mobile OS for RISC-V..."
+	@echo "Target: $(RISCV_DEFAULT)"
+	@$(MAKE) -C kernel ARCH=riscv $(RISCV_FEATURES_MOBILE)
+
+riscv-clean:
+	@echo "Cleaning RISC-V build..."
+	@$(MAKE) -C kernel clean
+
+riscv-menuconfig:
+	@echo "Configuring RISC-V build..."
+	@menuconfig
+
+riscv-check:
+	@echo "Checking RISC-V toolchain..."
+	@which riscv64-unknown-elf-gcc > /dev/null || \
+		(echo "Error: RISC-V toolchain not found"; exit 1)
+
+riscv-info:
+	@echo "=== RISC-V Configuration ==="
+	@echo "Supported targets: $(RISCV_TARGETS)"
+	@echo "Default target: $(RISCV_DEFAULT)"
+	@echo "Compiler: riscv64-unknown-elf-gcc"
+	@echo "Features: $(RISCV_FEATURES_MOBILE)"

@@ -1,0 +1,216 @@
+/*
+ * RISC-V Virtual Machine Device Tree
+ * Mobile OS - QEMU virt machine
+ *
+ * Describes the hardware configuration for QEMU RISC-V virt board
+ * This is automatically compiled from .dts to .dtb by device tree compiler
+ *
+ * Compile with:
+ *   dtc -I dts -O dtb -o riscv-virt-mobile.dtb riscv-virt-mobile.dts
+ */
+
+/dts-v1/;
+
+/ {
+    #address-cells = <2>;
+    #size-cells = <2>;
+    compatible = "riscv-virt", "riscv";
+    model = "Mobile OS RISC-V Virtual";
+
+    /* System properties */
+    chosen {
+        bootargs = "console=ttyS0 ro root=/dev/vda";
+        stdout-path = "/uart@10000000";
+    };
+
+    /* Aliases for easier reference */
+    aliases {
+        uart0 = "/uart@10000000";
+        rtc0 = "/rtc@101000";
+    };
+
+    /* CPU configuration */
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        timebase-frequency = <10000000>;
+
+        cpu@0 {
+            phandle = <1>;
+            device_type = "cpu";
+            reg = <0>;
+            status = "okay";
+            compatible = "riscv";
+            riscv,isa = "rv64imac";
+            mmu-type = "riscv,sv39";
+            
+            interrupt-controller {
+                #interrupt-cells = <1>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+                phandle = <2>;
+            };
+        };
+
+        cpu@1 {
+            phandle = <3>;
+            device_type = "cpu";
+            reg = <1>;
+            status = "okay";
+            compatible = "riscv";
+            riscv,isa = "rv64imac";
+            mmu-type = "riscv,sv39";
+            
+            interrupt-controller {
+                #interrupt-cells = <1>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+                phandle = <4>;
+            };
+        };
+    };
+
+    /* Memory configuration */
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x0 0x80000000 0x0 0x20000000>;
+        /* Default: 512MB starting at 0x80000000 */
+    };
+
+    /* Platform Level Interrupt Controller (PLIC) */
+    plic: interrupt-controller@c000000 {
+        compatible = "riscv,plic0";
+        #address-cells = <0>;
+        #interrupt-cells = <1>;
+        interrupt-controller;
+        reg = <0x0 0x0c000000 0x0 0x4000000>;
+        interrupts-extended = <
+            &cpu0_intc 11 &cpu0_intc 9
+            &cpu1_intc 11 &cpu1_intc 9
+        >;
+        riscv,ndev = <10>;
+    };
+
+    /* Core Local Interruptor (CLINT) - Timer and IPI */
+    clint: timer@2000000 {
+        compatible = "riscv,clint0";
+        interrupts-extended = <
+            &cpu0_intc 3 &cpu0_intc 7
+            &cpu1_intc 3 &cpu1_intc 7
+        >;
+        reg = <0x0 0x02000000 0x0 0x10000>;
+        clocks = <&cpu_clock>;
+    };
+
+    /* System clock */
+    cpu_clock: clock {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <1800000000>;  /* 1.8 GHz base */
+    };
+
+    /* UART0 - Serial console */
+    uart@10000000 {
+        compatible = "ns16550a";
+        reg = <0x0 0x10000000 0x0 0x100>;
+        clock-frequency = <3686400>;
+        current-speed = <115200>;
+        interrupt-parent = <&plic>;
+        interrupts = <10>;
+    };
+
+    /* RTC - Real Time Clock */
+    rtc@101000 {
+        compatible = "google,goldfish-rtc";
+        reg = <0x0 0x00101000 0x0 0x1000>;
+        interrupt-parent = <&plic>;
+        interrupts = <11>;
+    };
+
+    /* Virtio MMIO devices */
+    virtio_block@10001000 {
+        compatible = "virtio,mmio";
+        reg = <0x0 0x10001000 0x0 0x1000>;
+        interrupt-parent = <&plic>;
+        interrupts = <8>;
+    };
+
+    virtio_net@10002000 {
+        compatible = "virtio,mmio";
+        reg = <0x0 0x10002000 0x0 0x1000>;
+        interrupt-parent = <&plic>;
+        interrupts = <1>;
+    };
+
+    /* SOC bus */
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        compatible = "simple-bus";
+        ranges;
+
+        /* Debug controller for kernel development */
+        debug: debug-controller@0 {
+            compatible = "riscv,debug-013";
+            reg = <0x0 0x0 0x0 0x1000>;
+        };
+
+        /* Power management (custom) */
+        power {
+            compatible = "mobile-os,power-mgmt";
+            #address-cells = <2>;
+            #size-cells = <2>;
+            
+            /* DVFS - Dynamic Voltage Frequency Scaling */
+            dvfs {
+                compatible = "mobile-os,dvfs";
+                operating-points = <
+                    1800000 1050  /* 1.8 GHz, 1.05V */
+                    1200000 900   /* 1.2 GHz, 0.9V  */
+                    600000 750    /* 0.6 GHz, 0.75V */
+                >;
+            };
+
+            /* Thermal management */
+            thermal {
+                compatible = "mobile-os,thermal";
+                trips {
+                    critical {
+                        temperature = <90000>;  /* 90°C */
+                        type = "critical";
+                    };
+                    hot {
+                        temperature = <80000>;  /* 80°C */
+                        type = "hot";
+                    };
+                };
+            };
+        };
+
+        /* GPIO for simulated input */
+        gpio: gpio@20000000 {
+            compatible = "riscv,gpio-mock";
+            reg = <0x0 0x20000000 0x0 0x1000>;
+            #gpio-cells = <2>;
+            gpio-controller;
+        };
+
+        /* Simulated touch input */
+        touchscreen: touchscreen@21000000 {
+            compatible = "mobile-os,virtual-touch";
+            reg = <0x0 0x21000000 0x0 0x1000>;
+            interrupt-parent = <&plic>;
+            interrupts = <5>;
+            max-x = <1080>;
+            max-y = <2340>;
+        };
+
+        /* Simulated sensors */
+        sensors: sensors@22000000 {
+            compatible = "mobile-os,virtual-sensors";
+            reg = <0x0 0x22000000 0x0 0x1000>;
+            interrupt-parent = <&plic>;
+            interrupts = <6>;
+        };
+    };
+};
