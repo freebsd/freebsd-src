@@ -98,3 +98,21 @@ int
 {
 	return (__feupdateenv_int(envp));
 }
+
+int
+(feenableexcept)(int mask)
+{
+	return (__feenableexcept_int(mask));
+}
+
+int
+(fedisableexcept)(int mask)
+{
+	return (__fedisableexcept_int(mask));
+}
+
+int
+(fegetexcept)(void)
+{
+	return (__fegetexcept_int());
+}
