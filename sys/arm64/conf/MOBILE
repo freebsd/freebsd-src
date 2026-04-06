@@ -1,0 +1,134 @@
+#
+# MOBILE -- Mobile OS kernel configuration file for FreeBSD/arm64
+#
+# Based on GENERIC with mobile-specific optimizations and drivers
+# for MediaTek and Qualcomm chipsets.
+#
+
+cpu		ARM64
+ident		MOBILE
+
+include		"std.arm64"
+include		"std.dev"
+
+# Include SoC specific configuration
+include		"std.al"
+include		"std.allwinner"
+include		"std.altera"
+include		"std.amd"
+include		"std.apple"
+include		"std.arm"
+include		"std.azure"
+include		"std.broadcom"
+include		"std.cavium"
+include		"std.ec2"
+include		"std.hyperv"
+include		"std.hisilicon"
+include		"std.imx"
+include		"std.marvell"
+include		"std.nvidia"
+include		"std.nxp"
+include		"std.mediatek"
+include		"std.qcom"
+include		"std.rockchip"
+include		"std.virt"
+include		"std.xilinx"
+
+# Mobile-specific options
+options 	MOBILE_OS		# Enable mobile OS features
+options 	LOW_LATENCY		# Optimize for low latency
+options 	POWER_EFFICIENT		# Battery optimization
+options 	TOUCHSCREEN_SUPPORT	# Touch input support
+
+# HID and input devices for touch
+device		hidbus
+device		hidmap
+device		hidraw
+device		hconf			# Multitouch configuration
+device		hmt			# HID multitouch
+device		hpen			# Pen input
+device		usbhid			# HID over USB
+
+# USB touch devices
+device		uep			# eGalax USB touch screen
+device		atp			# USB touchpad
+device		wsp			# WSP USB touchpad
+
+# I2C for sensors
+device		iicbus
+device		iic
+device		iicbb			# GPIO bitbang I2C
+
+# GPIO for hardware control
+device		gpiobus
+device		gpio
+device		gpioc
+
+# MMC/SD for storage
+device		mmc
+device		mmcsd
+device		sdhci
+
+# Audio support
+device		sound
+device		snd_cmi
+device		snd_hda
+
+# Video/display support
+device		drm
+device		drm_kms_helper
+options 	DRM_FBDEV_EMULATION
+
+# Network for mobile
+device		wlan
+device		wlan_wep
+device		wlan_ccmp
+device		wlan_tkip
+device		ath
+device		ath_pci
+device		ath_hal
+device		if_ath
+
+# Bluetooth
+device		ubt
+device		ng_ubt
+
+# Camera support (V4L2)
+device		bktr
+device		cx23885
+device		saa7134
+
+# Power management
+device		cpufreq
+options 	CPUFREQ_DT
+
+# Thermal management
+device		coretemp
+device		amdtemp
+
+# Security
+options 	CAPABILITIES
+options 	MAC
+options 	AUDIT
+
+# Filesystems for mobile
+options 	UFS_ACL
+options 	UFS_DIRHASH
+options 	UFS_GJOURNAL
+options 	FFS
+options 	SOFTUPDATES
+options 	ZFS
+options 	TMPFS
+
+# Mobile optimizations
+options 	SCHED_ULE		# ULE scheduler for responsiveness
+options 	PREEMPTION		# Kernel preemption
+options 	HZ=1000			# Higher tick rate for smoothness
+options 	DEVICE_POLLING		# Polling for low latency
+
+# Debug and development
+makeoptions	WITH_CTF=1
+options 	KDB
+options 	DDB
+options 	INVARIANTS
+options 	WITNESS

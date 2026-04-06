@@ -1,0 +1,32 @@
+#
+# MediaTek SoC support
+#
+
+# MediaTek MTK drivers
+device		mtk_gpio		# MediaTek GPIO
+device		mtk_i2c		# MediaTek I2C
+device		mtk_spi		# MediaTek SPI
+device		mtk_timer		# MediaTek timer
+device		mtk_wdt		# MediaTek watchdog
+
+# Serial ports
+device		uart_ns8250
+
+# MMC/SD/SDIO
+device		sdhci
+device		mtk_mmc
+
+# Ethernet
+device		mtk_eth
+
+# USB
+device		dwc3			# DesignWare USB3
+device		xhci
+
+# GPU (PowerVR)
+device		pvrsrvkm		# PowerVR services
+
+options 	FDT
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/mediatek"
