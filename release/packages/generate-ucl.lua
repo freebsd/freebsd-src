@@ -16,7 +16,7 @@ if #arg < 2 or #arg % 2 ~= 0 then
 	os.exit(1)
 end
 
-local parser = ucl.parser()
+local parser = ucl.parser(0)
 for i = 2, #arg - 2, 2 do
 	parser:register_variable(arg[i - 1], arg[i])
 end
