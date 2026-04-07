@@ -94,7 +94,7 @@ u32  ixgbe_get_mrqc(int);
 #define ixgbe_align_all_queue_indices(_a)
 #define ixgbe_vf_que_index(_a, _b, _c) (_c)
 #define ixgbe_get_mtqc(_a) IXGBE_MTQC_64Q_1PB
-#define ixgbe_get_mrqc(_a) 0
+#define ixgbe_get_mrqc(_a) IXGBE_MRQC_RSSEN
 
 #endif /* PCI_IOV */
 
