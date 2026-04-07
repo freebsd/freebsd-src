@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Copyright (c) 2022-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -14,11 +14,13 @@ on:
 jobs:
   build:
     if: github.repository == 'Yubico/libfido2'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        image: [freebsd/13.x, openbsd/7.2]
+        include:
+          - { image: freebsd/14.x }
+          - { image: openbsd/7.6, llvm_version: 16 }
     steps:
     - uses: actions/checkout@v4
     - name: dependencies
@@ -27,6 +29,7 @@ jobs:
         sudo apt install -q -y curl jq
     - name: build
       env:
+        LLVM_VERSION: ${{ matrix.llvm_version }}
         IMAGE: ${{ matrix.image }}
         SOURCEHUT_TOKEN: ${{ secrets.SOURCEHUT_TOKEN }}
       run: ./.actions/build-bsd

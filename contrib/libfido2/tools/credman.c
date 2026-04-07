@@ -119,6 +119,7 @@ print_rk(const fido_credman_rk_t *rk, size_t idx)
 	char *user_id = NULL;
 	const char *type;
 	const char *prot;
+	int r = -1;
 
 	if ((cred = fido_credman_rk(rk, idx)) == NULL) {
 		warnx("fido_credman_rk");
@@ -128,7 +129,7 @@ print_rk(const fido_credman_rk_t *rk, size_t idx)
 	    &id) < 0 || base64_encode(fido_cred_user_id_ptr(cred),
 	    fido_cred_user_id_len(cred), &user_id) < 0) {
 		warnx("output error");
-		return -1;
+		goto out;
 	}
 
 	type = cose_string(fido_cred_type(cred));
@@ -137,10 +138,12 @@ print_rk(const fido_credman_rk_t *rk, size_t idx)
 	printf("%02u: %s %s %s %s %s\n", (unsigned)idx, id,
 	    fido_cred_display_name(cred), user_id, type, prot);
 
+	r = 0;
+out:
 	free(user_id);
 	free(id);
 
-	return 0;
+	return r;
 }
 
 int

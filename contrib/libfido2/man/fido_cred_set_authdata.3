@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2024 Yubico AB. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are
@@ -32,6 +32,7 @@
 .Nm fido_cred_set_authdata ,
 .Nm fido_cred_set_authdata_raw ,
 .Nm fido_cred_set_attstmt ,
+.Nm fido_cred_set_attobj ,
 .Nm fido_cred_set_x509 ,
 .Nm fido_cred_set_sig ,
 .Nm fido_cred_set_id ,
@@ -39,6 +40,7 @@
 .Nm fido_cred_set_clientdata_hash ,
 .Nm fido_cred_set_rp ,
 .Nm fido_cred_set_user ,
+.Nm fido_cred_set_entattest ,
 .Nm fido_cred_set_extensions ,
 .Nm fido_cred_set_blob ,
 .Nm fido_cred_set_pin_minlen ,
@@ -64,6 +66,8 @@ typedef enum {
 .Ft int
 .Fn fido_cred_set_attstmt "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
+.Fn fido_cred_set_attobj "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
+.Ft int
 .Fn fido_cred_set_x509 "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
 .Fn fido_cred_set_sig "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
@@ -77,6 +81,8 @@ typedef enum {
 .Fn fido_cred_set_rp "fido_cred_t *cred" "const char *id" "const char *name"
 .Ft int
 .Fn fido_cred_set_user "fido_cred_t *cred" "const unsigned char *user_id" "size_t user_id_len" "const char *name" "const char *display_name" "const char *icon"
+.Ft int
+.Fn fido_cred_set_entattest "fido_cred_t *cred" "int ea"
 .Ft int
 .Fn fido_cred_set_extensions "fido_cred_t *cred" "int flags"
 .Ft int
@@ -110,14 +116,15 @@ of its constituent parts, please refer to the Web Authentication
 The
 .Fn fido_cred_set_authdata ,
 .Fn fido_cred_set_attstmt ,
+.Fn fido_cred_set_attobj ,
 .Fn fido_cred_set_x509 ,
 .Fn fido_cred_set_sig ,
 .Fn fido_cred_set_id ,
 and
 .Fn fido_cred_set_clientdata_hash
 functions set the authenticator data, attestation statement,
-attestation certificate, attestation signature, id, and client
-data hash parts of
+attestation object, attestation certificate, attestation signature,
+id, and client data hash parts of
 .Fa cred
 to
 .Fa ptr ,
@@ -156,6 +163,26 @@ or
 The latter two are meant to be used in contexts where the
 credential's complete attestation statement is not available or
 required.
+.Pp
+The attestation object passed to
+.Fn fido_cred_set_attobj
+must be a CBOR-encoded map containing
+.Dq authData ,
+.Dq fmt ,
+and
+.Dq attStmt .
+An application calling
+.Fn fido_cred_set_attobj
+does not need to call
+.Fn fido_cred_set_fmt ,
+.Fn fido_cred_set_attstmt ,
+.Fn fido_cred_set_authdata ,
+or
+.Fn fido_cred_set_authdata_raw .
+.Fn fido_cred_set_attobj
+may be useful in applications interfacing with the WebAuthn API,
+removing the need to first parse the attestation object to verify the
+credential.
 .Pp
 The
 .Fn fido_cred_set_clientdata
@@ -217,6 +244,21 @@ The
 and
 .Fa icon
 parameters may be NULL.
+.Pp
+The
+.Fn fido_cred_set_entattest
+function sets the enterprise attestation mode of
+.Fa cred
+to
+.Fa ea .
+At the moment, only the
+.Dv FIDO_ENTATTEST_VENDOR
+and
+.Dv FIDO_ENTATTEST_PLATFORM
+modes are supported.
+By default, or if
+.Fa ea
+is zero, no enterprise attestation is requested.
 .Pp
 The
 .Fn fido_cred_set_extensions

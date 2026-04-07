@@ -38,7 +38,7 @@ is also available.
 
 === Releases
 
-The current release of *libfido2* is 1.14.0. Signed release tarballs are
+The current release of *libfido2* is 1.16.0. Signed release tarballs are
 available at Yubico's
 https://developers.yubico.com/libfido2/Releases[release page].
 
@@ -52,11 +52,11 @@ required.
 
 === Installation
 
-==== Fedora 35 and 34
+==== Fedora 34 and later
 
   $ sudo dnf install libfido2 libfido2-devel fido2-tools
 
-==== Ubuntu 22.04 (Jammy) and 20.04 (Focal)
+==== Ubuntu 20.04 (Focal) and later
 
   $ sudo apt install libfido2-1 libfido2-dev libfido2-doc fido2-tools
 

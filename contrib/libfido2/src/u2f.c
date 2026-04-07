@@ -260,6 +260,7 @@ key_lookup(fido_dev_t *dev, const char *rp_id, const fido_blob_t *key_id,
 		*found = 1; /* key exists */
 		break;
 	case SW_WRONG_DATA:
+	case SW_WRONG_LENGTH:
 		*found = 0; /* key does not exist */
 		break;
 	default:
