@@ -3756,7 +3756,7 @@ xhci_early_takeover(device_t self)
 	struct resource *res;
 	uint32_t cparams;
 	uint32_t eec;
-	uint8_t eecp;
+	uint32_t eecp;
 	uint8_t bios_sem;
 	uint8_t offs;
 	int rid;
