@@ -64,6 +64,7 @@ __DEFAULT_YES_OPTIONS = \
     NLS \
     OPENSSH \
     RELRO \
+    SBOM \
     SSP \
     TESTS \
     TOOLCHAIN \
@@ -81,7 +82,6 @@ __DEFAULT_NO_OPTIONS = \
     REPRODUCIBLE_BUILD \
     RETPOLINE \
     RUN_TESTS \
-    SBOM \
     STALE_STAGED \
     UBSAN \
     UNDEFINED_VERSION \
