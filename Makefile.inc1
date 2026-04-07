@@ -772,6 +772,7 @@ BSARGS= 	DESTDIR= \
 		MK_HTML=no \
 		MK_MAN=no \
 		MK_RETPOLINE=no \
+		MK_SBOM=no \
 		MK_SSP=no \
 		MK_TESTS=no \
 		MK_UBSAN=no \
@@ -801,6 +802,7 @@ TMAKE=		\
 		MK_CLANG_FULL=no \
 		MK_LLDB=no \
 		MK_RETPOLINE=no \
+		MK_SBOM=no \
 		MK_SSP=no \
 		MK_TESTS=no \
 		MK_UBSAN=no \
@@ -1205,7 +1207,7 @@ _includes:
 # Special handling for SUBDIR_OVERRIDE in buildworld as they most likely need
 # headers from default SUBDIR.  Do SUBDIR_OVERRIDE includes last.
 	${_+_}cd ${.CURDIR}; ${WMAKE} SUBDIR_OVERRIDE= SHARED=symlinks \
-	    MK_INCLUDES=yes includes
+	    MK_INCLUDES=yes MK_SBOM=no includes
 .if !empty(SUBDIR_OVERRIDE) && make(buildworld)
 	${_+_}cd ${.CURDIR}; ${WMAKE} MK_INCLUDES=yes SHARED=symlinks includes
 .endif
