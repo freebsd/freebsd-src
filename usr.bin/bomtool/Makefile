@@ -12,11 +12,7 @@ PROG=		bomtool
 
 SRCS=
 
-.if !make(build-tools)
 LIBADD=		pkgconf
-.else
-.include "../../lib/libpkgconf/Makefile"
-.endif
 
 SRCS+=		main.c
 SRCS+=		getopt_long.c

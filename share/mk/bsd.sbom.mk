@@ -10,11 +10,11 @@
 
 .if	${MK_SBOM} != "no"
 
-BOMTOOL?=	${BTOOLSPATH:U.}/bomtool
+BOMTOOL?=	bomtool
 JSONLDDIR?=	/usr/share/sbom/jsonld
 SBOMDIR?=	${SRCTOP}/release/sbom/pkgconfig
 SPDXDIR?=	/usr/share/sbom/spdx
-SPDXTOOL?=	${BTOOLSPATH:U.}/spdxtool
+SPDXTOOL?=	spdxtool
 
 .if defined(LIB)
 PCFILE?=	lib${LIB}.pc
@@ -24,7 +24,7 @@ PCFILE?=	lib${LIB}.pc
 PCFILE?=	${PROG}.pc
 .endif
 
-.if exists(${SBOMDIR}/${PCFILE})
+.if !empty(PCFILE) && exists(${SBOMDIR}/${PCFILE})
 
 ${PCFILE:R}.jsonld: ${SBOMDIR}/${PCFILE}
 	${SPDXTOOL} ${SBOMDIR}/${PCFILE} > ${.TARGET}

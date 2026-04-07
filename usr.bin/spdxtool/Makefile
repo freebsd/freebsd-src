@@ -11,11 +11,7 @@ PROG=		spdxtool
 
 SRCS=
 
-.if !make(build-tools)
 LIBADD=		pkgconf
-.else
-.include "../../lib/libpkgconf/Makefile"
-.endif
 
 SRCS+=		main.c core.c software.c serialize.c simplelicensing.c util.c
 SRCS+=		getopt_long.c

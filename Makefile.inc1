@@ -802,7 +802,6 @@ TMAKE=		\
 		MK_CLANG_FULL=no \
 		MK_LLDB=no \
 		MK_RETPOLINE=no \
-		MK_SBOM=no \
 		MK_SSP=no \
 		MK_TESTS=no \
 		MK_UBSAN=no \
@@ -1207,7 +1206,7 @@ _includes:
 # Special handling for SUBDIR_OVERRIDE in buildworld as they most likely need
 # headers from default SUBDIR.  Do SUBDIR_OVERRIDE includes last.
 	${_+_}cd ${.CURDIR}; ${WMAKE} SUBDIR_OVERRIDE= SHARED=symlinks \
-	    MK_INCLUDES=yes MK_SBOM=no includes
+	    MK_INCLUDES=yes includes
 .if !empty(SUBDIR_OVERRIDE) && make(buildworld)
 	${_+_}cd ${.CURDIR}; ${WMAKE} MK_INCLUDES=yes SHARED=symlinks includes
 .endif
@@ -2925,11 +2924,6 @@ _libmagic=lib/libmagic
 _jevents=lib/libpmc/pmu-events
 .endif
 
-.if ${MK_SBOM} != "no"
-_sbom=usr.bin/bomtool \
-      usr.bin/spdxtool
-.endif
-
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
 .if ${MK_CLEAN} == "yes" && make(kernel-toolchain)
@@ -2944,7 +2938,6 @@ _bt_clean=	${CLEANDIR}
     lib/ncurses/tinfo \
     ${_rescue} \
     ${_share} \
-    ${_sbom} \
     usr.bin/awk \
     ${_libmagic} \
     usr.bin/vi/catalog
@@ -3012,6 +3005,11 @@ _lld=		usr.bin/clang/lld
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no"
 _clang_libs=	lib/clang
 .endif
+.if ${MK_SBOM} != "no"
+_sbom=lib/libpkgconf \
+      usr.bin/bomtool \
+      usr.bin/spdxtool
+.endif
 .if ${MK_USB} != "no"
 _usb_tools=	stand/usb/tools
 .endif
@@ -3024,6 +3022,7 @@ cross-tools: .MAKE .PHONY
 .for _tool in \
     ${LOCAL_XTOOL_DIRS} \
     ${_ar} \
+    ${_sbom} \
     ${_clang_libs} \
     ${_clang} \
     ${_lld} \
