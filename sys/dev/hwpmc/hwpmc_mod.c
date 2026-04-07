@@ -198,7 +198,6 @@ static int	pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS);
 static int	pmc_debugflags_parse(char *newstr, char *fence);
 #endif
 
-static bool	pmc_is_multipart(struct pmc_sample *ps);
 static void	pmc_multipart_add(struct pmc_sample *ps, int type,
     int length);
 static void	pmc_multipart_copydata(struct pmc_sample *ps,
@@ -4634,12 +4633,6 @@ pmc_post_callchain_callback(void)
 	sched_pin();
 
 	return;
-}
-
-static bool
-pmc_is_multipart(struct pmc_sample *ps)
-{
-	return ((ps->ps_flags & PMC_CC_F_MULTIPART) != 0);
 }
 
 static void
