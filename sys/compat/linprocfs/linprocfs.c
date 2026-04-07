@@ -659,8 +659,7 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	int major, minor;
 
 	g_topology_lock();
-	sbuf_printf(sb, "major minor  #blocks  name rio rmerge rsect "
-	    "ruse wio wmerge wsect wuse running use aveq\n");
+	sbuf_printf(sb, "major minor  #blocks  name\n\n");
 
 	LIST_FOREACH(cp, &g_classes, class) {
 		if (strcmp(cp->name, "DISK") == 0 ||
@@ -672,13 +671,10 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 						major = 0;
 						minor = 0;
 					}
-					sbuf_printf(sb, "%d %d %lld %s "
-					    "%d %d %d %d %d "
-					     "%d %d %d %d %d %d\n",
-					     major, minor,
-					     (long long)pp->mediasize, pp->name,
-					     0, 0, 0, 0, 0,
-					     0, 0, 0, 0, 0, 0);
+					sbuf_printf(sb, "%4d  %7d %10lld %s\n",
+					    major, minor,
+					    B2K((long long)pp->mediasize),
+					    pp->name);
 				}
 			}
 	}
