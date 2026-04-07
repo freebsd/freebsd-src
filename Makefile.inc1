@@ -2610,17 +2610,11 @@ _bt_libkldelf_depend=${_bt}-lib/libkldelf
 _kldxref=	usr.sbin/kldxref
 ${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend} ${_bt_libkldelf_depend}
 
-# flua is required to regenerate syscall files.  It first appeared during the
-# 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
-# branches.
-.if ${BOOTSTRAPPING} < 1300059
+# flua is required to regenerate syscall files, and for the pkgbase build.
+# To protect us from changes in newer versions of flua or lua libraries
+# that might be installed on the host, always bootstrap it.
 ${_bt}-libexec/flua: ${_bt}-lib/liblua
-_flua= lib/liblua libexec/flua
-.if ${BOOTSTRAPPING} == 0
-_flua+= lib/libmd lib/libucl lib/libyaml
 ${_bt}-libexec/flua: ${_bt}-lib/libmd ${_bt}-lib/libucl ${_bt}-lib/libyaml
-.endif # BOOTSTRAPPING == 0
-.endif
 
 # r245440 mtree -N support added
 # r313404 requires sha384.h for libnetbsd, added to libmd in r292782
@@ -2906,7 +2900,11 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_elftoolchain_libs} \
     ${_libkldelf} \
     ${_kldxref} \
+    lib/liblua \
+    lib/libmd \
     lib/libopenbsd \
+    lib/libucl \
+    lib/libyaml \
     usr.bin/mandoc \
     usr.bin/rpcgen \
     ${_yacc} \
@@ -2916,7 +2914,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
-    ${_flua} \
+    libexec/flua \
     ${_crunchide} \
     ${_crunchgen} \
     ${_etdump} \
