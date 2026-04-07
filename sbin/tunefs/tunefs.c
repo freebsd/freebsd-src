@@ -44,6 +44,7 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/dir.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
@@ -51,6 +52,7 @@
 #include <libufs.h>
 #include <mntopts.h>
 #include <paths.h>
+#include <stdalign.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -71,6 +73,11 @@ static void printfs(void);
 static int journal_alloc(int64_t size);
 static void journal_clear(void);
 static void sbdirty(void);
+
+typedef union {
+	char buf[MAXBSIZE];
+	struct direct dir;
+} dirblock;
 
 int
 main(int argc, char *argv[])
@@ -631,16 +638,17 @@ journal_balloc(void)
 static ino_t
 dir_search(ufs2_daddr_t blk, int bytes)
 {
-	char block[MAXBSIZE];
+	dirblock block;
 	struct direct *dp;
 	int off;
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block, bytes) <= 0) {
+	if (bread(&disk, fsbtodb(&sblock, blk), &block, bytes) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
 	for (off = 0; off < bytes; off += dp->d_reclen) {
-		dp = (struct direct *)(uintptr_t)&block[off];
+		assert(off % alignof(struct direct) == 0);
+		dp = (struct direct *)(uintptr_t)(block.buf + off);
 		if (dp->d_reclen == 0)
 			break;
 		if (dp->d_ino == 0)
@@ -700,12 +708,13 @@ journal_findfile(void)
 }
 
 static void
-dir_clear_block(const char *block, off_t off)
+dir_clear_block(const dirblock *block, off_t off)
 {
 	struct direct *dp;
 
 	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
-		dp = (struct direct *)(uintptr_t)&block[off];
+		assert(off % alignof(struct direct) == 0);
+		dp = (struct direct *)(uintptr_t)(block + off);
 		dp->d_ino = 0;
 		dp->d_reclen = DIRBLKSIZ;
 		dp->d_type = DT_UNKNOWN;
@@ -721,21 +730,23 @@ static int
 dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 {
 	struct direct *dp;
-	char block[MAXBSIZE];
+	dirblock block;
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
+	assert((size_t)sblock.fs_bsize <= sizeof(block));
+	if (bread(&disk, fsbtodb(&sblock, blk), &block, sblock.fs_bsize) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
-	bzero(&block[off], sblock.fs_bsize - off);
-	dp = (struct direct *)(uintptr_t)&block[off];
+	assert(off % alignof(struct direct) == 0);
+	bzero(block.buf + off, sblock.fs_bsize - off);
+	dp = (struct direct *)(uintptr_t)(block.buf + off);
 	dp->d_ino = ino;
 	dp->d_reclen = DIRBLKSIZ;
 	dp->d_type = DT_REG;
 	dp->d_namlen = strlen(SUJ_FILE);
 	bcopy(SUJ_FILE, &dp->d_name, strlen(SUJ_FILE));
-	dir_clear_block(block, off + DIRBLKSIZ);
-	if (bwrite(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
+	dir_clear_block(&block, off + DIRBLKSIZ);
+	if (bwrite(&disk, fsbtodb(&sblock, blk), &block, sblock.fs_bsize) <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
 	}
@@ -749,15 +760,16 @@ dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 static int
 dir_extend(ufs2_daddr_t blk, ufs2_daddr_t nblk, off_t size, ino_t ino)
 {
-	char block[MAXBSIZE];
+	dirblock block;
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block,
+	assert((size_t)sblock.fs_bsize <= sizeof(block));
+	if (bread(&disk, fsbtodb(&sblock, blk), &block,
 	    roundup(size, sblock.fs_fsize)) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
-	dir_clear_block(block, size);
-	if (bwrite(&disk, fsbtodb(&sblock, nblk), block, sblock.fs_bsize)
+	dir_clear_block(&block, size);
+	if (bwrite(&disk, fsbtodb(&sblock, nblk), &block, sblock.fs_bsize)
 	    <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
@@ -846,19 +858,17 @@ journal_insertfile(ino_t ino)
 static int
 indir_fill(ufs2_daddr_t blk, int level, int *resid)
 {
-	char indirbuf[MAXBSIZE];
-	ufs1_daddr_t *bap1;
-	ufs2_daddr_t *bap2;
+	union {
+		char buf[MAXBSIZE];
+		ufs1_daddr_t ufs1;
+		ufs2_daddr_t ufs2;
+	} indir = { 0 };
+	ufs1_daddr_t *bap1 = &indir.ufs1;
+	ufs2_daddr_t *bap2 = &indir.ufs2;
 	ufs2_daddr_t nblk;
-	int ncnt;
-	int cnt;
-	int i;
+	int cnt = 0, ncnt;
 
-	bzero(indirbuf, sizeof(indirbuf));
-	bap1 = (ufs1_daddr_t *)(uintptr_t)indirbuf;
-	bap2 = (void *)bap1;
-	cnt = 0;
-	for (i = 0; i < NINDIR(&sblock) && *resid != 0; i++) {
+	for (int i = 0; i < NINDIR(&sblock) && *resid != 0; i++) {
 		nblk = journal_balloc();
 		if (nblk <= 0)
 			return (-1);
@@ -875,7 +885,7 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 		} else 
 			(*resid)--;
 	}
-	if (bwrite(&disk, fsbtodb(&sblock, blk), indirbuf,
+	if (bwrite(&disk, fsbtodb(&sblock, blk), indir.buf,
 	    sblock.fs_bsize) <= 0) {
 		warn("Failed to write indirect");
 		return (-1);
