@@ -2351,31 +2351,7 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	 */
 	run = (CHN_STARTED(c)) ? 1 : 0;
 	if (run)
-		flags &= CHN_N_VOLUME | CHN_N_TRIGGER;
-
-	if (flags & CHN_N_RATE) {
-		/*
-		 * XXX I'll make good use of this someday.
-		 *     However this is currently being superseded by
-		 *     the availability of CHN_F_VCHAN_DYNAMIC.
-		 */
-	}
-
-	if (flags & CHN_N_FORMAT) {
-		/*
-		 * XXX I'll make good use of this someday.
-		 *     However this is currently being superseded by
-		 *     the availability of CHN_F_VCHAN_DYNAMIC.
-		 */
-	}
-
-	if (flags & CHN_N_VOLUME) {
-		/*
-		 * XXX I'll make good use of this someday, though
-		 *     soft volume control is currently pretty much
-		 *     integrated.
-		 */
-	}
+		flags &= CHN_N_TRIGGER;
 
 	if (flags & CHN_N_BLOCKSIZE) {
 		/*
