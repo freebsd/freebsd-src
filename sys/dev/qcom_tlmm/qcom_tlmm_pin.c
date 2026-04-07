@@ -101,6 +101,7 @@ qcom_tlmm_pin_configure(struct qcom_tlmm_softc *sc,
 		pin->gp_flags |= GPIO_PIN_PULLUP;
 		sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc, pin->gp_pin,
 		    QCOM_TLMM_PIN_PUPD_CONFIG_PULL_UP);
+		/* XXX todo: i2c strong pull-up? */
 	} else if (flags & GPIO_PIN_PULLDOWN) {
 		pin->gp_flags |= GPIO_PIN_PULLDOWN;
 		sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc, pin->gp_pin,
@@ -195,6 +196,10 @@ qcom_tlmm_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 		*flags |= GPIO_PIN_PULLDOWN;
 		break;
 	case QCOM_TLMM_PIN_PUPD_CONFIG_PULL_UP:
+		*flags |= GPIO_PIN_PULLUP;
+		break;
+	case QCOM_TLMM_PIN_PUPD_CONFIG_STRONG_PULL_UP:
+		/* XXX flag i2c "strong" pull-up? */
 		*flags |= GPIO_PIN_PULLUP;
 		break;
 	case QCOM_TLMM_PIN_PUPD_CONFIG_BUS_HOLD:
