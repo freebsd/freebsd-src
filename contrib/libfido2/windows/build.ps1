@@ -74,11 +74,9 @@ if (-Not (Test-Path $GPG)) {
 	throw "Unable to find GPG at $GPG"
 }
 
-# Override CMAKE_SYSTEM_VERSION if $WinSDK is set.
-if (-Not ([string]::IsNullOrEmpty($WinSDK))) {
-	$CMAKE_SYSTEM_VERSION = "-DCMAKE_SYSTEM_VERSION='$WinSDK'"
-} else {
-	$CMAKE_SYSTEM_VERSION = ''
+# 10.0.261000.0 appear to have dropped ARM32 support, pin the SDK version
+if ($Arch -eq "ARM" -and [string]::IsNullOrEmpty($WinSDK)) {
+	$WinSDK = '10.0.22621.0'
 }
 
 Write-Host "WinSDK: $WinSDK"
@@ -98,10 +96,22 @@ New-Item -Type Directory "${STAGE}\${LIBRESSL}" -Force
 New-Item -Type Directory "${STAGE}\${LIBCBOR}" -Force
 New-Item -Type Directory "${STAGE}\${ZLIB}" -Force
 
+# Create GNUPGHOME with an empty common.conf to disable use-keyboxd.
+# Recent default is to enable keyboxd which in turn ignores --keyring
+# arguments.
+$GpgHome = "${BUILD}\.gnupg"
+New-Item -Type Directory "${GpgHome}" -Force
+New-Item -Type File "${GpgHome}\common.conf" -Force
+
 # Create output directories.
 New-Item -Type Directory "${OUTPUT}" -Force
 New-Item -Type Directory "${OUTPUT}\${Arch}" -Force
 New-Item -Type Directory "${OUTPUT}\${Arch}\${Type}" -force
+
+# Override Windows SDK version if $WinSDK is set.
+if (-Not ([string]::IsNullOrEmpty($WinSDK))) {
+	$Arch = "$Arch,version=$WinSDK"
+}
 
 # Fetch and verify dependencies.
 Push-Location ${BUILD}
@@ -117,8 +127,9 @@ try {
 		}
 
 		Copy-Item "$PSScriptRoot\libressl.gpg" -Destination "${BUILD}"
-		& $GPG --list-keys
-		& $GPG --quiet --no-default-keyring --keyring ./libressl.gpg `
+		& $GPG --homedir ${GpgHome} --list-keys
+		& $GPG --homedir ${GpgHome} --quiet --no-default-keyring `
+		    --keyring ./libressl.gpg `
 		    --verify .\${LIBRESSL}.tar.gz.asc .\${LIBRESSL}.tar.gz
 		if ($LastExitCode -ne 0) {
 			throw "GPG signature verification failed"
@@ -144,9 +155,10 @@ Push-Location ${STAGE}\${LIBRESSL}
 try {
 	& $CMake ..\..\..\${LIBRESSL} -A "${Arch}" `
 	    -DBUILD_SHARED_LIBS="${SHARED}" -DLIBRESSL_TESTS=OFF `
-	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG}" `
+	    -DLIBRESSL_APPS=OFF -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG}" `
 	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE}" `
-	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
+	    -DCMAKE_MSVC_RUNTIME_LIBRARY="${CMAKE_MSVC_RUNTIME_LIBRARY}" `
+	    -DCMAKE_INSTALL_PREFIX="${PREFIX}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
 	& $CMake --build . --config ${Config} --target install --verbose; `
@@ -165,7 +177,7 @@ try {
 	    -DBUILD_SHARED_LIBS="${SHARED}" `
 	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG} /wd4703" `
 	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE} /wd4703" `
-	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
+	    -DCMAKE_INSTALL_PREFIX="${PREFIX}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
 	& $CMake --build . --config ${Config} --target install --verbose; `
@@ -184,7 +196,7 @@ try {
 	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG}" `
 	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE}" `
 	    -DCMAKE_MSVC_RUNTIME_LIBRARY="${CMAKE_MSVC_RUNTIME_LIBRARY}" `
-	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
+	    -DCMAKE_INSTALL_PREFIX="${PREFIX}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
 	& $CMake --build . --config ${Config} --target install --verbose; `
@@ -220,10 +232,11 @@ try {
 	    -DCRYPTO_INCLUDE_DIRS="${PREFIX}\include" `
 	    -DCRYPTO_LIBRARY_DIRS="${PREFIX}\lib" `
 	    -DCRYPTO_BIN_DIRS="${PREFIX}\bin" `
-	    -DCRYPTO_LIBRARIES="${CRYPTO_LIBRARIES}" `
+	    -DCRYPTO_LIBRARIES="${CRYPTO_LIB}" `
+	    -DCRYPTO_DLL="${CRYPTO_DLL}" `
 	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG} ${Fido2Flags}" `
 	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE} ${Fido2Flags}" `
-	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
+	    -DCMAKE_INSTALL_PREFIX="${PREFIX}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
 	& $CMake --build . --config ${Config} --target regress --verbose; `
@@ -232,7 +245,7 @@ try {
 	    ExitOnError
 	# Copy DLLs.
 	if ("${SHARED}" -eq "ON") {
-		"cbor.dll", "${CRYPTO_LIBRARIES}.dll", "zlib1.dll" | `
+		"cbor.dll", "${CRYPTO_DLL}.dll", "zlib1.dll" | `
 		    %{ Copy-Item "${PREFIX}\bin\$_" `
 		    -Destination "examples\${Config}" }
 	}
