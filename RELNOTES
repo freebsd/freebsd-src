@@ -12,9 +12,14 @@ Changes to this file should not be MFCed.
 
 8b9775912cbc, 53b4ae3bf0f7:
 	Add support for an NFSv4 root file system.
-	Note that NFSv3 is still used for bootstrapping. See:
-	https://wiki.freebsd.org/MateuszPiotrowski/BootFreebsdFromNfs
-	for information on how to set it up.
+	Note that NFSv3 is still used for bootstrapping. See
+	"Diskless Operation with PXE" under "Advanced Networking" in the
+	FreeBSD Handbook.  To configure an NFSv4 root fs, you will need
+	a line in /boot/loader.conf like boot.nfsroot.options="nfsv4" and
+	either a line in /etc/sysctl.conf like vfs.nfs.enable_uidtostring=1
+	or an additional line in /boot/loader.conf like
+	boot.nfsroot.user_domain="<user-domain>",
+	if you are running nfsuserd(8).
 
 ab9257599a5:
 	The src.conf(5) options WITHOUT_BZIP2 and WITHOUT_BZIP2_SUPPORT
