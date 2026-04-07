@@ -2349,7 +2349,7 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	 * If the hwchan is running, we can't change its rate, format or
 	 * blocksize
 	 */
-	run = (CHN_STARTED(c)) ? 1 : 0;
+	run = CHN_STARTED(c);
 	if (run)
 		flags &= CHN_N_TRIGGER;
 
@@ -2360,16 +2360,17 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		chn_setlatency(c, chn_latency);
 	}
 
-	if ((flags & CHN_N_TRIGGER) && !(c->flags & CHN_F_VCHAN_DYNAMIC)) {
-		nrun = CHN_EMPTY(c, children.busy) ? 0 : 1;
-		if (nrun && !run)
-			err = chn_start(c, 1);
-		if (!nrun && run)
-			chn_abort(c);
-		flags &= ~CHN_N_TRIGGER;
-	}
-
 	if (flags & CHN_N_TRIGGER) {
+		if (!(c->flags & CHN_F_VCHAN_DYNAMIC)) {
+			nrun = !CHN_EMPTY(c, children.busy);
+			if (nrun && !run)
+				err = chn_start(c, 1);
+			if (!nrun && run)
+				chn_abort(c);
+
+			return (err);
+		}
+
 		if (c->direction == PCMDIR_PLAY) {
 			vchanformat = &c->parentsnddev->pvchanformat;
 			vchanrate = &c->parentsnddev->pvchanrate;
@@ -2378,7 +2379,6 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 			vchanrate = &c->parentsnddev->rvchanrate;
 		}
 
-		/* Dynamic Virtual Channel */
 		if (!(c->flags & CHN_F_VCHAN_ADAPTIVE)) {
 			bestformat = *vchanformat;
 			bestspeed = *vchanrate;
@@ -2394,6 +2394,7 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		vpflags = 0;
 
 		CHN_FOREACH(ch, c, children.busy) {
+			nrun++;
 			CHN_LOCK(ch);
 			if ((ch->format & AFMT_PASSTHROUGH) &&
 			    snd_fmtvalid(ch->format, caps->fmtlist)) {
@@ -2401,7 +2402,6 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 				bestspeed = ch->speed;
 				CHN_UNLOCK(ch);
 				vpflags = CHN_F_PASSTHROUGH;
-				nrun++;
 				break;
 			}
 			if ((ch->flags & CHN_F_EXCLUSIVE) && vpflags == 0) {
@@ -2416,13 +2416,11 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 				}
 				CHN_UNLOCK(ch);
 				vpflags = CHN_F_EXCLUSIVE;
-				nrun++;
 				continue;
 			}
 			if (!(c->flags & CHN_F_VCHAN_ADAPTIVE) ||
 			    vpflags != 0) {
 				CHN_UNLOCK(ch);
-				nrun++;
 				continue;
 			}
 			if (ch->speed > bestspeed) {
@@ -2433,7 +2431,6 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 			besthwformat = snd_fmtbest(ch->format, caps->fmtlist);
 			if (!(besthwformat & AFMT_VCHAN)) {
 				CHN_UNLOCK(ch);
-				nrun++;
 				continue;
 			}
 			if (AFMT_CHANNEL(besthwformat) >
@@ -2444,7 +2441,6 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 			    AFMT_BIT(besthwformat) > AFMT_BIT(bestformat))
 				bestformat = besthwformat;
 			CHN_UNLOCK(ch);
-			nrun++;
 		}
 
 		if (bestformat == 0)
@@ -2464,17 +2460,16 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 				    c->devinfo, bestspeed);
 				err = chn_reset(c, bestformat, bestspeed);
 			}
-			if (err == 0 && dirty) {
-				CHN_FOREACH(ch, c, children.busy) {
-					CHN_LOCK(ch);
-					if (VCHAN_SYNC_REQUIRED(ch))
-						vchan_sync(ch);
-					CHN_UNLOCK(ch);
-				}
-			}
 			if (err == 0) {
-				if (dirty)
+				if (dirty) {
+					CHN_FOREACH(ch, c, children.busy) {
+						CHN_LOCK(ch);
+						if (VCHAN_SYNC_REQUIRED(ch))
+							vchan_sync(ch);
+						CHN_UNLOCK(ch);
+					}
 					c->flags |= CHN_F_DIRTY;
+				}
 				err = chn_start(c, 1);
 			}
 		}
@@ -2491,8 +2486,6 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 						vchan_sync(ch);
 					CHN_UNLOCK(ch);
 				}
-			}
-			if (err == 0) {
 				c->flags |= CHN_F_DIRTY;
 				err = chn_start(c, 1);
 			}
