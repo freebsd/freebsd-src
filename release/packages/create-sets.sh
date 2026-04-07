@@ -57,7 +57,7 @@ for set in $(echo $SETS | tr ' ' '\n' | sort | uniq); do
 	setvar="$(echo "$set" | tr - _)"
 	eval deps=\"\$PKGS_${setvar}\"
 
-	"${srcdir}/release/packages/generate-set-ucl.lua" \
+	flua "${srcdir}/release/packages/generate-set-ucl.lua" \
 		"${srcdir}/release/packages/set-template.ucl" \
 		PKGNAME "$set" \
 		SET_DEPENDS "$deps" \
