@@ -131,12 +131,14 @@ encode_uv_permission(uint8_t cmd)
 	case CTAP_CBOR_ASSERT:
 		return (cbor_build_uint8(CTAP21_UV_TOKEN_PERM_ASSERT));
 	case CTAP_CBOR_BIO_ENROLL_PRE:
+	case CTAP_CBOR_BIO_ENROLL:
 		return (cbor_build_uint8(CTAP21_UV_TOKEN_PERM_BIO));
 	case CTAP_CBOR_CONFIG:
 		return (cbor_build_uint8(CTAP21_UV_TOKEN_PERM_CONFIG));
 	case CTAP_CBOR_MAKECRED:
 		return (cbor_build_uint8(CTAP21_UV_TOKEN_PERM_MAKECRED));
 	case CTAP_CBOR_CRED_MGMT_PRE:
+	case CTAP_CBOR_CRED_MGMT:
 		return (cbor_build_uint8(CTAP21_UV_TOKEN_PERM_CRED_MGMT));
 	case CTAP_CBOR_LARGEBLOB:
 		return (cbor_build_uint8(CTAP21_UV_TOKEN_PERM_LARGEBLOB));

@@ -111,6 +111,15 @@ fail:
 	return (ok);
 }
 
+static uint8_t
+credman_get_cmd(const fido_dev_t *dev)
+{
+	if (dev->flags & FIDO_DEV_CREDMAN)
+		return (CTAP_CBOR_CRED_MGMT);
+
+	return (CTAP_CBOR_CRED_MGMT_PRE);
+}
+
 static int
 credman_tx(fido_dev_t *dev, uint8_t subcmd, const void *param, const char *pin,
     const char *rp_id, fido_opt_t uv, int *ms)
@@ -120,7 +129,7 @@ credman_tx(fido_dev_t *dev, uint8_t subcmd, const void *param, const char *pin,
 	fido_blob_t	 hmac;
 	es256_pk_t	*pk = NULL;
 	cbor_item_t	*argv[4];
-	const uint8_t	 cmd = CTAP_CBOR_CRED_MGMT_PRE;
+	const uint8_t	 cmd = credman_get_cmd(dev);
 	int		 r = FIDO_ERR_INTERNAL;
 
 	memset(&f, 0, sizeof(f));

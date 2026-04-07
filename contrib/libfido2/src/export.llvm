@@ -128,6 +128,7 @@ _fido_cred_clientdata_hash_len
 _fido_cred_clientdata_hash_ptr
 _fido_cred_display_name
 _fido_cred_empty_exclude_list
+_fido_cred_entattest
 _fido_cred_exclude
 _fido_cred_flags
 _fido_cred_largeblob_key_len
@@ -167,11 +168,13 @@ _fido_cred_pubkey_ptr
 _fido_cred_rp_id
 _fido_cred_rp_name
 _fido_cred_set_attstmt
+_fido_cred_set_attobj
 _fido_cred_set_authdata
 _fido_cred_set_authdata_raw
 _fido_cred_set_blob
 _fido_cred_set_clientdata
 _fido_cred_set_clientdata_hash
+_fido_cred_set_entattest
 _fido_cred_set_extensions
 _fido_cred_set_fmt
 _fido_cred_set_id
@@ -194,6 +197,9 @@ _fido_cred_user_name
 _fido_cred_verify
 _fido_cred_verify_self
 _fido_cred_x5c_len
+_fido_cred_x5c_list_count
+_fido_cred_x5c_list_len
+_fido_cred_x5c_list_ptr
 _fido_cred_x5c_ptr
 _fido_dev_build
 _fido_dev_cancel

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023 Yubico AB. All rights reserved.
+# Copyright (c) 2019-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -17,6 +17,10 @@ list(APPEND COMMON_SOURCES
 set(FUZZ_LINKER_LANGUAGE "C" CACHE STRING "Linker language for fuzz harnesses")
 mark_as_advanced(FUZZ_LINKER_LANGUAGE)
 enable_language(${FUZZ_LINKER_LANGUAGE})
+
+if(NOT FUZZ_LDFLAGS)
+	message(FATAL_ERROR "Please define FUZZ_LDFLAGS")
+endif()
 
 # fuzz_cred
 add_executable(fuzz_cred fuzz_cred.c ${COMMON_SOURCES} ${COMPAT_SOURCES})
@@ -80,3 +84,10 @@ set_target_properties(fuzz_pcsc PROPERTIES
 	LINK_FLAGS ${FUZZ_LDFLAGS}
 	LINKER_LANGUAGE ${FUZZ_LINKER_LANGUAGE})
 target_link_libraries(fuzz_pcsc fido2_shared)
+
+# fuzz_attobj
+add_executable(fuzz_attobj fuzz_attobj.c ${COMMON_SOURCES} ${COMPAT_SOURCES})
+set_target_properties(fuzz_attobj PROPERTIES
+	LINK_FLAGS ${FUZZ_LDFLAGS}
+	LINKER_LANGUAGE ${FUZZ_LINKER_LANGUAGE})
+target_link_libraries(fuzz_attobj fido2_shared)

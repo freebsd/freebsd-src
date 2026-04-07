@@ -1,12 +1,12 @@
 #!/bin/sh -u
 
-# Copyright (c) 2020 Yubico AB. All rights reserved.
+# Copyright (c) 2020-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
 
 sort_by_id() {
-	awk '{ printf "%d\n", $3 }' | sort -Cnu
+	awk '{ printf "%s\n", $3 }' | xargs printf '%d\n' | sort -Cnu
 }
 
 if ! grep '^vendor' "$1" | sort_by_id; then

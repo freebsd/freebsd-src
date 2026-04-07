@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2024 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -248,6 +248,8 @@ make_cred(fido_cred_t *cred, uint8_t opt, int type, const struct blob *cdh,
 		fido_cred_set_uv(cred, FIDO_OPT_TRUE);
 	if (user_id->len)
 		fido_cred_set_prot(cred, user_id->body[0] & 0x03);
+	if (excl_cred->len)
+		fido_cred_set_entattest(cred, excl_cred->body[0] & 0x03);
 
 	/* repeat memory operations to trigger reallocation paths */
 	fido_cred_set_type(cred, type);
@@ -279,6 +281,7 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 	uint8_t flags;
 	uint32_t sigcount;
 	int r;
+	bool ea;
 
 	if ((cred = fido_cred_new()) == NULL)
 		return;
@@ -308,6 +311,11 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 		fido_cred_set_uv(cred, FIDO_OPT_TRUE);
 	if (fmt)
 		fido_cred_set_fmt(cred, fmt);
+
+	/* XXX +1 on purpose */
+	for (size_t i = 0; i < fido_cred_x5c_list_count(cred) + 1; i++)
+		consume(fido_cred_x5c_list_ptr(cred, i),
+		    fido_cred_x5c_list_len(cred, i));
 
 	/* repeat memory operations to trigger reallocation paths */
 	if (fido_cred_set_authdata(cred, authdata_ptr, authdata_len) != FIDO_OK)
@@ -342,6 +350,9 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 	consume(&type, sizeof(type));
 	minpinlen = fido_cred_pin_minlen(cred);
 	consume(&minpinlen, sizeof(minpinlen));
+
+	ea = fido_cred_entattest(cred);
+	consume(&ea, sizeof(ea));
 
 	fido_cred_free(&cred);
 }
