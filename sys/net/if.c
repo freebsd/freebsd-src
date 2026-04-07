@@ -428,8 +428,12 @@ VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
 static void
 if_link_ifnet(struct ifnet *ifp)
 {
-
 	IFNET_WLOCK();
+
+	MPASS(refcount_load(&ifp->if_refcount) > 0);
+	MPASS(ifp->if_vnet == curvnet);
+	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
+
 	CK_STAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
 #ifdef VIMAGE
 	curvnet->vnet_ifcnt++;
@@ -446,6 +450,10 @@ if_unlink_ifnet(struct ifnet *ifp, bool vmove)
 	IFNET_WLOCK();
 	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
+			MPASS(refcount_load(&ifp->if_refcount) > 0);
+			MPASS(ifp->if_vnet == curvnet);
+			MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
+
 			CK_STAILQ_REMOVE(&V_ifnet, ifp, ifnet, if_link);
 #ifdef VIMAGE
 			curvnet->vnet_ifcnt--;
@@ -1188,8 +1196,6 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	struct prison *pr;
 	struct ifnet *difp;
 	bool found;
-
-	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -2109,14 +2115,13 @@ ifunit_ref(const char *name)
 	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0 &&
-		    !(ifp->if_flags & IFF_DYING))
+		    !(ifp->if_flags & IFF_DYING)) {
+			MPASS(ifp->if_vnet == curvnet);
+			MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
+			if_ref(ifp);
 			break;
+		}
 	}
-	if (ifp != NULL) {
-		if_ref(ifp);
-		MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
-	}
-
 	NET_EPOCH_EXIT(et);
 	return (ifp);
 }
@@ -2129,8 +2134,12 @@ ifunit(const char *name)
 
 	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0)
+		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0) {
+			MPASS(refcount_load(&ifp->if_refcount) > 0);
+			MPASS(ifp->if_vnet == curvnet);
+			MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
 			break;
+		}
 	}
 	NET_EPOCH_EXIT(et);
 	return (ifp);
