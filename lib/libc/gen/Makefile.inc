@@ -552,6 +552,7 @@ MLINKS+=unvis.3 strunvis.3 \
 	unvis.3 strunvisx.3
 MLINKS+=vis.3 nvis.3 \
 	vis.3 snvis.3 \
+	vis.3 stravis.3 \
 	vis.3 strenvisx.3 \
 	vis.3 strnunvis.3 \
 	vis.3 strnunvisx.3 \
