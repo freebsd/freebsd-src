@@ -28,18 +28,28 @@ PCFILE?=	${PROG}.pc
 
 ${PCFILE:R}.jsonld: ${SBOMDIR}/${PCFILE}
 	${SPDXTOOL} ${SBOMDIR}/${PCFILE} > ${.TARGET}
-	${INSTALL} -m 0644 ${.TARGET} ${DESTDIR}${JSONLDDIR}/${.TARGET}
+
+jsonldinstall: .PHONY ${PCFILE:R}.jsonld
+	${INSTALL} -m 0644 ${PCFILE:R}.jsonld ${DESTDIR}${JSONLDDIR}/${PCFILE:R}.jsonld
 
 ${PCFILE:R}.spdx: ${SBOMDIR}/${PCFILE}
 	${BOMTOOL} ${SBOMDIR}/${PCFILE} > ${.TARGET}
-	${INSTALL} -m 0644 ${.TARGET} ${DESTDIR}${SPDXDIR}/${.TARGET}
+
+spdxinstall: .PHONY ${PCFILE:R}.spdx
+	${INSTALL} -m 0644 ${PCFILE:R}.spdx ${DESTDIR}${SPDXDIR}/${PCFILE:R}.spdx
 
 .if !defined(NO_JSONLD_SBOM)
 all: ${PCFILE:R}.jsonld
+
+realinstall: jsonldinstall
+.ORDER: beforeinstall jsonldinstall
 .endif
 
 .if !defined(NO_SPDX_SBOM)
 all: ${PCFILE:R}.spdx
+
+realinstall: spdxinstall
+.ORDER: beforeinstall spdxinstall
 .endif
 
 .endif	# exists(${SBOMDIR}/${PCFILE})
