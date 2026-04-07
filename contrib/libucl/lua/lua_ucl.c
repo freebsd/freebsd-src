@@ -656,7 +656,7 @@ lua_ucl_parser_init (lua_State *L)
 	 * files. Macros in the parser are very dangerous and should be used
 	 * for trusted data only.
 	 */
-	int flags = UCL_PARSER_NO_FILEVARS|UCL_PARSER_DISABLE_MACRO;
+	int flags = 0;
 
 	if (lua_gettop (L) >= 1) {
 		flags = lua_tonumber (L, 1);
