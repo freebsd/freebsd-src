@@ -342,6 +342,8 @@ pmc_ibs_process_fetch(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	}
 
 	pmc_process_interrupt_mp(PMC_HR, pm, tf, &mpd);
+
+	wrmsr(IBS_FETCH_CTL, pm->pm_md.pm_ibs.ibs_ctl | IBS_FETCH_CTL_ENABLE);
 }
 
 static void
