@@ -54,6 +54,7 @@
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfs/nfsdiskless.h>
+#include <fs/nfs/nfsid.h>
 
 #define	NFS_IFACE_TIMEOUT_SECS	10 /* Timeout for interface to appear. */
 
@@ -69,6 +70,9 @@ static int decode_nfshandle(char *ev, u_char *fh, int maxfh);
 struct nfs_diskless	nfs_diskless = { { { 0 } } };
 struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
 int			nfs_diskless_valid = 0;
+
+extern struct nfs_prime_userd nfs_prime_userd[];
+extern bool nfs_nfsv4root;
 
 /*
  * Validate/sanity check a rsize/wsize parameter.
@@ -292,11 +296,51 @@ match_done:
 				return;
 			}
 		} else {
+			struct nfsd_idargs nid;
+			int ret;
+
 			/*
 			 * For NFSv4, the file handle is derived from the
 			 * boot.nfsroot.path during mounting by NFSv4.
 			 */
 			nd3->root_fhsize = 0;
+			nfs_nfsv4root = true;
+
+			/*
+			 * Prime the id<-->name mappings just enough to
+			 * make things work until the nfsuserd(8) daemon
+			 * is started, if the nfsuserd_domain is set to a
+			 * non-empty string.
+			 */
+			if ((cp = kern_getenv("boot.nfsroot.user_domain")) !=
+			    NULL) {
+				for (cnt = 0; *cp != '\0' &&
+				    nfs_prime_userd[cnt].flag != 0; cnt++) {
+					nid.nid_flag =
+					    nfs_prime_userd[cnt].flag |
+					    NFSID_SYSSPACE;
+					if (nfs_prime_userd[cnt].flag ==
+					    NFSID_INITIALIZE) {
+						nid.nid_name = cp;
+						nid.nid_usermax = 10;
+					} else {
+						nid.nid_name =
+						    nfs_prime_userd[cnt].nam;
+						nid.nid_usertimeout = 3600;
+					}
+					nid.nid_namelen = strlen(nid.nid_name);
+					nid.nid_uid = nfs_prime_userd[cnt].uid;
+					nid.nid_gid = nfs_prime_userd[cnt].gid;
+					nid.nid_ngroup = 0;
+					nid.nid_grps = NULL;
+					ret = nfssvc_idname(&nid);
+					if (ret != 0)
+						printf("nfs_diskless: "
+						    "nfssvc_idname failed %d\n",
+						    ret);
+				}
+				freeenv(cp);
+			}
 		}
 		if ((cp = kern_getenv("boot.nfsroot.path")) != NULL) {
 			strncpy(nd3->root_hostnam, cp, MNAMELEN - 1);

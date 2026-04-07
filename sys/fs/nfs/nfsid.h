@@ -61,6 +61,19 @@ struct nfsd_idargs {
 #define	NFSID_SYSSPACE		0x0200
 
 #if defined(_KERNEL) || defined(KERNEL)
+/*
+ * Define just enough NFSv4 id<-->name mappings to make things work
+ * until the nfsuserd(8) is running.
+ * XXX These name/ids must be kept the same as what is in /etc/passwd
+ *     and /etc/group.
+ */
+struct nfs_prime_userd {
+	int	flag;
+	uid_t	uid;
+	gid_t	gid;
+	char	*nam;
+};
+
 int nfssvc_idname(struct nfsd_idargs *);
 #endif
 

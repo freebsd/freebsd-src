@@ -317,6 +317,7 @@ struct nfsusrgrp {
 	} lug_un;
 	struct ucred		*lug_cred;	/* Cred. with groups list */
 	int			lug_namelen;	/* Name length */
+	bool			lug_wired;	/* Wired into cache */
 	u_char			lug_name[1];	/* malloc'd correct length */
 };
 #define	lug_uid		lug_un.un_uid

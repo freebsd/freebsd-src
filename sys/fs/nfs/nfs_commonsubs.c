@@ -70,6 +70,7 @@ struct nfsreqhead nfsd_reqq;
 int nfsrv_lease = NFSRV_LEASE;
 int ncl_mbuf_mlen = MLEN;
 int nfsrv_doflexfile = 0;
+bool nfs_nfsv4root = false;
 NFSNAMEIDMUTEX;
 NFSSOCKMUTEX;
 extern int nfsrv_lughashsize;
@@ -79,6 +80,21 @@ extern int nfscl_debuglevel;
 extern struct nfsdevicehead nfsrv_devidhead;
 extern struct nfsstatsv1 nfsstatsv1;
 extern uint32_t nfs_srvmaxio;
+
+/*
+ * Define just enough NFSv4 id<-->name mappings to make things work
+ * until the nfsuserd(8) is running.
+ * XXX These name/ids must be kept the same as what is in /etc/passwd
+ *     and /etc/group.
+ */
+struct nfs_prime_userd nfs_prime_userd[] = {
+	{ NFSID_INITIALIZE,	UID_NOBODY,	GID_NOGROUP,	NULL },
+	{ NFSID_ADDUID,		UID_ROOT,	GID_NOGROUP,	"root" },
+	{ NFSID_ADDUID,		UID_BIN,	GID_NOGROUP,	"bin" },
+	{ NFSID_ADDGID,		UID_NOBODY,	GID_WHEEL,	"wheel" },
+	{ NFSID_ADDGID,		UID_NOBODY,	GID_OPERATOR,	"operator" },
+	{ 0,			0,		0,		NULL },
+};
 
 NFSD_VNET_DEFINE(int, nfsd_enable_stringtouid) = 0;
 NFSD_VNET_DEFINE(struct nfssockreq, nfsrv_nfsuserdsock);
@@ -233,6 +249,7 @@ static int nfsrv_skipace(struct nfsrv_descript *nd, acl_type_t, int *acesizep);
 static void nfsv4_wanted(struct nfsv4lock *lp);
 static uint32_t nfsv4_filesavail(struct statfs *, struct mount *);
 static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name);
+static bool nfs_in_prime(int flag, uid_t uid, gid_t gid);
 static void nfsrv_removeuser(struct nfsusrgrp *usrp, int isuser);
 static int nfsrv_getrefstr(struct nfsrv_descript *, u_char **, u_char **,
     int *, int *);
@@ -3667,7 +3684,8 @@ tryagain:
 		mtx_lock(&hp->mtx);
 		TAILQ_FOREACH(usrp, &hp->lughead, lug_numhash) {
 			if (usrp->lug_uid == uid) {
-				if (usrp->lug_expiry < NFSD_MONOSEC)
+				if (!usrp->lug_wired &&
+				    usrp->lug_expiry < NFSD_MONOSEC)
 					break;
 				/*
 				 * If the name doesn't already have an '@'
@@ -3759,7 +3777,8 @@ tryagain:
 		mtx_lock(&hp->mtx);
 		TAILQ_FOREACH(usrp, &hp->lughead, lug_numhash) {
 			if (usrp->lug_uid == uid) {
-				if (usrp->lug_expiry < NFSD_MONOSEC)
+				if (!usrp->lug_wired &&
+				    usrp->lug_expiry < NFSD_MONOSEC)
 					break;
 				if (usrp->lug_cred != NULL) {
 					newcred = crhold(usrp->lug_cred);
@@ -3859,7 +3878,8 @@ tryagain:
 		TAILQ_FOREACH(usrp, &hp->lughead, lug_namehash) {
 			if (usrp->lug_namelen == len &&
 			    !NFSBCMP(usrp->lug_name, str, len)) {
-				if (usrp->lug_expiry < NFSD_MONOSEC)
+				if (!usrp->lug_wired &&
+				    usrp->lug_expiry < NFSD_MONOSEC)
 					break;
 				hp2 = NFSUSERHASH(usrp->lug_uid);
 				mtx_lock(&hp2->mtx);
@@ -3936,7 +3956,8 @@ tryagain:
 		mtx_lock(&hp->mtx);
 		TAILQ_FOREACH(usrp, &hp->lughead, lug_numhash) {
 			if (usrp->lug_gid == gid) {
-				if (usrp->lug_expiry < NFSD_MONOSEC)
+				if (!usrp->lug_wired &&
+				    usrp->lug_expiry < NFSD_MONOSEC)
 					break;
 				/*
 				 * If the name doesn't already have an '@'
@@ -4081,7 +4102,8 @@ tryagain:
 		TAILQ_FOREACH(usrp, &hp->lughead, lug_namehash) {
 			if (usrp->lug_namelen == len &&
 			    !NFSBCMP(usrp->lug_name, str, len)) {
-				if (usrp->lug_expiry < NFSD_MONOSEC)
+				if (!usrp->lug_wired &&
+				    usrp->lug_expiry < NFSD_MONOSEC)
 					break;
 				hp2 = NFSGROUPHASH(usrp->lug_gid);
 				mtx_lock(&hp2->mtx);
@@ -4282,6 +4304,23 @@ out:
 	return (error);
 }
 
+/* Check to see if the uid/gid is in the nfs_prime_userd list. */
+static bool
+nfs_in_prime(int flag, uid_t uid, gid_t gid)
+{
+	int i;
+
+	for (i = 0; nfs_prime_userd[i].flag != 0; i++) {
+		if ((nfs_prime_userd[i].flag & flag) == NFSID_ADDUID &&
+		    nfs_prime_userd[i].uid == uid)
+			return (true);
+		if ((nfs_prime_userd[i].flag & flag) == NFSID_ADDGID &&
+		    nfs_prime_userd[i].gid == gid)
+			return (true);
+	}
+	return (false);
+}
+
 /*
  * This function is called from the nfssvc(2) system call, to update the
  * kernel user/group name list(s) for the V4 owner and ownergroup attributes.
@@ -4305,7 +4344,11 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 	}
 	if (nidp->nid_flag & NFSID_INITIALIZE) {
 		cp = malloc(nidp->nid_namelen + 1, M_NFSSTRING, M_WAITOK);
-		error = copyin(nidp->nid_name, cp, nidp->nid_namelen);
+		error = 0;
+		if ((nidp->nid_flag & NFSID_SYSSPACE) == 0)
+			error = copyin(nidp->nid_name, cp, nidp->nid_namelen);
+		else
+			NFSBCOPY(nidp->nid_name, cp, nidp->nid_namelen);
 		if (error != 0) {
 			free(cp, M_NFSSTRING);
 			goto out;
@@ -4403,8 +4446,12 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 	 */
 	newusrp = malloc(sizeof(struct nfsusrgrp) + nidp->nid_namelen,
 	    M_NFSUSERGROUP, M_WAITOK | M_ZERO);
-	error = copyin(nidp->nid_name, newusrp->lug_name,
-	    nidp->nid_namelen);
+	error = 0;
+	if ((nidp->nid_flag & NFSID_SYSSPACE) == 0)
+		error = copyin(nidp->nid_name, newusrp->lug_name,
+		    nidp->nid_namelen);
+	else
+		NFSBCOPY(nidp->nid_name, newusrp->lug_name, nidp->nid_namelen);
 	if (error == 0 && nidp->nid_ngroup > 0 &&
 	    (nidp->nid_flag & NFSID_ADDUID) != 0) {
 		grps = NULL;
@@ -4522,7 +4569,11 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 		newusrp->lug_expiry = NFSD_MONOSEC + nidp->nid_usertimeout;
 	else
 		newusrp->lug_expiry = NFSD_MONOSEC + 5;
+	newusrp->lug_wired = false;
 	if (nidp->nid_flag & (NFSID_ADDUID | NFSID_ADDUSERNAME)) {
+		if (nfs_nfsv4root && nfs_in_prime(NFSID_ADDUID, nidp->nid_uid,
+		    nidp->nid_gid))
+			newusrp->lug_wired = true;
 		newusrp->lug_uid = nidp->nid_uid;
 		thp = NFSUSERHASH(newusrp->lug_uid);
 		mtx_assert(&thp->mtx, MA_OWNED);
@@ -4532,6 +4583,9 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 		TAILQ_INSERT_TAIL(&thp->lughead, newusrp, lug_namehash);
 		atomic_add_int(&NFSD_VNET(nfsrv_usercnt), 1);
 	} else if (nidp->nid_flag & (NFSID_ADDGID | NFSID_ADDGROUPNAME)) {
+		if (nfs_nfsv4root && nfs_in_prime(NFSID_ADDGID, nidp->nid_uid,
+		    nidp->nid_gid))
+			newusrp->lug_wired = true;
 		newusrp->lug_gid = nidp->nid_gid;
 		thp = NFSGROUPHASH(newusrp->lug_gid);
 		mtx_assert(&thp->mtx, MA_OWNED);
@@ -4580,7 +4634,8 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 				TAILQ_FOREACH_SAFE(usrp,
 				    &NFSD_VNET(nfsuserhash)[i].lughead, lug_numhash,
 				    nusrp)
-					if (usrp->lug_expiry < NFSD_MONOSEC)
+					if (!usrp->lug_wired &&
+					    usrp->lug_expiry < NFSD_MONOSEC)
 						nfsrv_removeuser(usrp, 1);
 			}
 			for (i = 0; i < nfsrv_lughashsize; i++) {
@@ -4610,7 +4665,8 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 				TAILQ_FOREACH_SAFE(usrp,
 				    &NFSD_VNET(nfsgrouphash)[i].lughead, lug_numhash,
 				    nusrp)
-					if (usrp->lug_expiry < NFSD_MONOSEC)
+					if (!usrp->lug_wired &&
+					    usrp->lug_expiry < NFSD_MONOSEC)
 						nfsrv_removeuser(usrp, 0);
 			}
 			for (i = 0; i < nfsrv_lughashsize; i++) {
