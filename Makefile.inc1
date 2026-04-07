@@ -772,7 +772,6 @@ BSARGS= 	DESTDIR= \
 		MK_HTML=no \
 		MK_MAN=no \
 		MK_RETPOLINE=no \
-		MK_SBOM=no \
 		MK_SSP=no \
 		MK_TESTS=no \
 		MK_UBSAN=no \
@@ -2924,6 +2923,11 @@ _libmagic=lib/libmagic
 _jevents=lib/libpmc/pmu-events
 .endif
 
+.if ${MK_SBOM} != "no"
+_sbom=usr.bin/bomtool \
+      usr.bin/spdxtool
+.endif
+
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
 .if ${MK_CLEAN} == "yes" && make(kernel-toolchain)
@@ -2938,6 +2942,7 @@ _bt_clean=	${CLEANDIR}
     lib/ncurses/tinfo \
     ${_rescue} \
     ${_share} \
+    ${_sbom} \
     usr.bin/awk \
     ${_libmagic} \
     usr.bin/vi/catalog

@@ -168,6 +168,7 @@ __DEFAULT_YES_OPTIONS = \
     RBOOTD \
     RESCUE \
     ROUTED \
+    SBOM \
     SENDMAIL \
     SERVICESDB \
     SETUID_LOGIN \
@@ -459,6 +460,10 @@ MK_AUTHPF:=	no
 
 .if ${MK_OFED} == "no"
 MK_OFED_EXTRA:=	no
+.endif
+
+.if ${MK_PKGCONF} == "no"
+MK_SBOM:=	no
 .endif
 
 .if ${MK_TESTS} == "no"

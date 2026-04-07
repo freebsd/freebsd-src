@@ -20,4 +20,6 @@ CFLAGS+=	-I${SRCTOP}/lib/libpkgconf -I${PKGCONFDIR}
 
 .PATH:		${PKGCONFDIR}/libpkgconf
 
+.if !make(build-tools)
 .include <bsd.lib.mk>
+.endif
