@@ -4,6 +4,7 @@
 #
 # BOMTOOL	Tool converting pkg-config files into SPDX version 2 files
 # JSONLDDIR	Destination directory for the SPDX version 3 files
+# SBOMDIR	Source directory for the pkg-config files
 # SPDXDIR	Destination directory for the SPDX version 2 files
 # SPDXTOOL	Tool converting pkg-config files into SPDX version 3 files
 
@@ -11,6 +12,7 @@
 
 BOMTOOL?=	${BTOOLSPATH:U.}/bomtool
 JSONLDDIR?=	/usr/share/sbom/jsonld
+SBOMDIR?=	${SRCTOP}/release/sbom/pkgconfig
 SPDXDIR?=	/usr/share/sbom/spdx
 SPDXTOOL?=	${BTOOLSPATH:U.}/spdxtool
 
@@ -22,14 +24,14 @@ PCFILE?=	lib${LIB}.pc
 PCFILE?=	${PROG}.pc
 .endif
 
-.if exists(${.CURDIR}/${PCFILE})
+.if exists(${SBOMDIR}/${PCFILE})
 
-${PCFILE:R}.jsonld: ${.CURDIR}/${PCFILE}
-	${SPDXTOOL} ${.CURDIR}/${PCFILE} > ${.TARGET}
+${PCFILE:R}.jsonld: ${SBOMDIR}/${PCFILE}
+	${SPDXTOOL} ${SBOMDIR}/${PCFILE} > ${.TARGET}
 	${INSTALL} -m 0644 ${.TARGET} ${DESTDIR}${JSONLDDIR}/${.TARGET}
 
-${PCFILE:R}.spdx: ${.CURDIR}/${PCFILE}
-	${BOMTOOL} ${.CURDIR}/${PCFILE} > ${.TARGET}
+${PCFILE:R}.spdx: ${SBOMDIR}/${PCFILE}
+	${BOMTOOL} ${SBOMDIR}/${PCFILE} > ${.TARGET}
 	${INSTALL} -m 0644 ${.TARGET} ${DESTDIR}${SPDXDIR}/${.TARGET}
 
 .if !defined(NO_JSONLD_SBOM)
@@ -40,6 +42,6 @@ all: ${PCFILE:R}.jsonld
 all: ${PCFILE:R}.spdx
 .endif
 
-.endif	# exists(${.CURDIR}/${PCFILE})
+.endif	# exists(${SBOMDIR}/${PCFILE})
 
 .endif	# ${MK_SBOM}
