@@ -1748,19 +1748,6 @@ round_blksz(u_int32_t v, int round)
  * aggressively through possibly real time programming technique.
  *
  */
-#define CHN_LATENCY_PBLKCNT_REF				\
-	{{1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 1},		\
-	{1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 1}}
-#define CHN_LATENCY_PBUFSZ_REF				\
-	{{7, 9, 12, 13, 14, 15, 15, 15, 15, 15, 16},	\
-	{11, 12, 13, 14, 15, 16, 16, 16, 16, 16, 17}}
-
-#define CHN_LATENCY_RBLKCNT_REF				\
-	{{9, 8, 7, 6, 5, 5, 4, 3, 2, 1, 1},		\
-	{9, 8, 7, 6, 5, 5, 4, 3, 2, 1, 1}}
-#define CHN_LATENCY_RBUFSZ_REF				\
-	{{14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 16},	\
-	{15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 17}}
 
 #define CHN_LATENCY_DATA_REF	192000 /* 48khz stereo 16bit ~ 48000 x 2 x 2 */
 
@@ -1768,14 +1755,22 @@ static int
 chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 				u_int32_t max, int *rblksz, int *rblkcnt)
 {
-	static int pblkcnts[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
-	    CHN_LATENCY_PBLKCNT_REF;
-	static int  pbufszs[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
-	    CHN_LATENCY_PBUFSZ_REF;
-	static int rblkcnts[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
-	    CHN_LATENCY_RBLKCNT_REF;
-	static int  rbufszs[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
-	    CHN_LATENCY_RBUFSZ_REF;
+	static int pblkcnts[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] = {
+		{1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 1},
+		{1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 1}
+	};
+	static int  pbufszs[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] = {
+		{7, 9, 12, 13, 14, 15, 15, 15, 15, 15, 16},
+		{11, 12, 13, 14, 15, 16, 16, 16, 16, 16, 17}
+	};
+	static int rblkcnts[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] = {
+		{9, 8, 7, 6, 5, 5, 4, 3, 2, 1, 1},
+		{9, 8, 7, 6, 5, 5, 4, 3, 2, 1, 1}
+	};
+	static int  rbufszs[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] = {
+		{14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 16},
+		{15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 17}
+	};
 	u_int32_t bufsz;
 	int lprofile, blksz, blkcnt;
 
