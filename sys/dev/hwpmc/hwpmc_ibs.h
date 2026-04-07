@@ -92,9 +92,13 @@
 #define IBS_FETCH_CTL_VALID		(1ULL << 49) /* Valid */
 #define IBS_FETCH_CTL_ENABLE		(1ULL << 48) /* Enable */
 #define IBS_FETCH_CTL_MAXCNTMASK	0x0000FFFFULL
+#define IBS_FETCH_CTL_CURCNTMASK	0xFFFF0000ULL
 
 #define IBS_FETCH_INTERVAL_TO_CTL(_c)	(((_c) >> 4) & 0x0000FFFF)
+#define IBS_FETCH_CTL_TO_INTERVAL(_c)	(((_c) & IBS_FETCH_CTL_MAXCNTMASK) << 4)
 #define IBS_FETCH_CTL_TO_LAT(_c)	(((_c) >> 32) & 0x0000FFFF)
+#define IBS_FETCH_COUNT_TO_CTL(_c)	(((_c) << 12) & IBS_FETCH_CTL_CURCNTMASK)
+#define IBS_FETCH_CTL_TO_COUNT(_c)	(((_c) & IBS_FETCH_CTL_CURCNTMASK) >> 12)
 
 #define IBS_FETCH_LINADDR		0xC0011031 /* Fetch Linear Address */
 #define IBS_FETCH_PHYSADDR		0xC0011032 /* Fetch Physical Address */
@@ -113,9 +117,13 @@
 #define IBS_OP_CTL_ENABLE		(1ULL << 17) /* Enable */
 #define IBS_OP_CTL_L3MISSONLY		(1ULL << 16) /* L3 Miss Filtering */
 #define IBS_OP_CTL_MAXCNTMASK		0x07F0FFFFULL
+#define IBS_OP_CTL_CURCNTMASK		0x07FFFFFF00000000ULL
 
 #define IBS_OP_CTL_LDLAT_TO_CTL(_c)	((((ldlat) >> 7) - 1) << 59)
 #define IBS_OP_INTERVAL_TO_CTL(_c)	((((_c) >> 4) & 0x0000FFFFULL) | ((_c) & 0x07F00000))
+#define IBS_OP_CTL_TO_INTERVAL(_c)	((((_c) & 0x0000FFFFULL) << 4) | ((_c) & 0x07F00000))
+#define IBS_OP_COUNT_TO_CTL(_c)		(((_c) << 32) & IBS_OP_CTL_CURCNTMASK)
+#define IBS_OP_CTL_TO_COUNT(_c)		(((_c) & IBS_OP_CTL_CURCNTMASK) >> 32)
 
 #define IBS_OP_RIP			0xC0011034 /* IBS Op RIP */
 #define IBS_OP_DATA			0xC0011035 /* IBS Op Data */
