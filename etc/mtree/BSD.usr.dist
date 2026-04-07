@@ -358,12 +358,6 @@
             ..
             printing
             ..
-            sbom
-                jsonld
-                ..
-                spdx
-                ..
-            ..
             scsi_target
             ..
             ses
@@ -849,6 +843,12 @@
                 ..
                 man7
                 ..
+            ..
+        ..
+        sbom
+            jsonld
+            ..
+            spdx
             ..
         ..
         security
