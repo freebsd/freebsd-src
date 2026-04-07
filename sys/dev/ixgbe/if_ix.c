@@ -709,7 +709,7 @@ ixgbe_initialize_rss_mapping(struct ixgbe_softc *sc)
 		    RSS_HASHTYPE_RSS_TCP_IPV6_EX;
 	}
 
-	mrqc = IXGBE_MRQC_RSSEN;
+	mrqc = ixgbe_get_mrqc(sc->iov_mode);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4;
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
@@ -728,7 +728,7 @@ ixgbe_initialize_rss_mapping(struct ixgbe_softc *sc)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
-	mrqc |= ixgbe_get_mrqc(sc->iov_mode);
+
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 } /* ixgbe_initialize_rss_mapping */
 
