@@ -1059,7 +1059,7 @@ snd_afmt2str(uint32_t afmt, char *buf, size_t len)
 int
 chn_reset(struct pcm_channel *c, uint32_t fmt, uint32_t spd)
 {
-	int r;
+	int err;
 
 	CHN_LOCKASSERT(c);
 	c->feedcount = 0;
@@ -1071,23 +1071,26 @@ chn_reset(struct pcm_channel *c, uint32_t fmt, uint32_t spd)
 	c->flags |= (pcm_getflags(c->dev) & SD_F_BITPERFECT) ?
 	    CHN_F_BITPERFECT : 0;
 
-	r = CHANNEL_RESET(c->methods, c->devinfo);
-	if (r == 0 && fmt != 0 && spd != 0) {
-		r = chn_setparam(c, fmt, spd);
+	if ((err = CHANNEL_RESET(c->methods, c->devinfo)))
+		return (err);
+
+	if (fmt != 0 && spd != 0) {
+		if ((err = chn_setparam(c, fmt, spd)))
+			return (err);
 		fmt = 0;
 		spd = 0;
 	}
-	if (r == 0 && fmt != 0)
-		r = chn_setformat(c, fmt);
-	if (r == 0 && spd != 0)
-		r = chn_setspeed(c, spd);
-	if (r == 0)
-		r = chn_setlatency(c, chn_latency);
-	if (r == 0) {
-		chn_resetbuf(c);
-		r = CHANNEL_RESETDONE(c->methods, c->devinfo);
-	}
-	return r;
+	if (fmt != 0 && (err = chn_setformat(c, fmt)))
+		return (err);
+	if (spd != 0 && (err = chn_setspeed(c, spd)))
+		return (err);
+
+	if ((err = chn_setlatency(c, chn_latency)))
+		return (err);
+
+	chn_resetbuf(c);
+
+	return (CHANNEL_RESETDONE(c->methods, c->devinfo));
 }
 
 static struct unrhdr *
