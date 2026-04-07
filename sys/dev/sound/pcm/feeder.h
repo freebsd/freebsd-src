@@ -63,9 +63,6 @@ struct pcm_feeder {
 void feeder_register(void *p);
 struct feeder_class *feeder_getclass(u_int32_t type);
 
-u_int32_t snd_fmtscore(u_int32_t fmt);
-u_int32_t snd_fmtbestbit(u_int32_t fmt, u_int32_t *fmts);
-u_int32_t snd_fmtbestchannel(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t snd_fmtbest(u_int32_t fmt, u_int32_t *fmts);
 
 int feeder_add(struct pcm_channel *c, struct feeder_class *fc,
