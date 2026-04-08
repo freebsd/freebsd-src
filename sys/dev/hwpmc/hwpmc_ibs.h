@@ -45,11 +45,11 @@
 #define	CPUID_IBSID_BRNTRGT		0x00000020 /* Branch Target Address */
 #define	CPUID_IBSID_OPCNTEXT		0x00000040 /* Extend Counter */
 #define	CPUID_IBSID_RIPINVALIDCHK	0x00000080 /* Invalid RIP Indication */
-#define	CPUID_IBSID_OPFUSE		0x00000010 /* Fused Branch Operation */
-#define	CPUID_IBSID_IBSFETCHCTLEXTD	0x00000020 /* IBS Fetch Control Ext */
-#define	CPUID_IBSID_IBSOPDATA4		0x00000040 /* IBS OP DATA4 */
-#define	CPUID_IBSID_ZEN4IBSEXTENSIONS	0x00000080 /* IBS Zen 4 Extensions */
-#define	CPUID_IBSID_IBSLOADLATENCYFILT	0x00000100 /* Load Latency Filtering */
+#define	CPUID_IBSID_OPFUSE		0x00000100 /* Fused Branch Operation */
+#define	CPUID_IBSID_IBSFETCHCTLEXTD	0x00000200 /* IBS Fetch Control Ext */
+#define	CPUID_IBSID_IBSOPDATA4		0x00000400 /* IBS OP DATA4 */
+#define	CPUID_IBSID_ZEN4IBSEXTENSIONS	0x00000800 /* IBS Zen 4 Extensions */
+#define	CPUID_IBSID_IBSLOADLATENCYFILT	0x00001000 /* Load Latency Filtering */
 #define	CPUID_IBSID_IBSUPDTDDTLBSTATS	0x00080000 /* Simplified DTLB Stats */
 
 /*
@@ -77,6 +77,7 @@
 #define IBS_FETCH_MAX_RATE		1048560
 #define IBS_OP_MIN_RATE			65536
 #define IBS_OP_MAX_RATE			134217712
+#define IBS_OP_MAX_RATE_PREEXT		1048560
 
 /* IBS Fetch Control */
 #define IBS_FETCH_CTL			0xC0011030 /* IBS Fetch Control */
@@ -104,6 +105,7 @@
 #define PMC_MPIDX_FETCH_EXTCTL		1
 #define PMC_MPIDX_FETCH_LINADDR		2
 #define PMC_MPIDX_FETCH_PHYSADDR	3
+#define PMC_MPIDX_FETCH_MAX		(PMC_MPIDX_FETCH_PHYSADDR + 1)
 
 /* IBS Execution Control */
 #define IBS_OP_CTL			0xC0011033 /* IBS Execution Control */
@@ -143,7 +145,7 @@
 
 #define IBS_OP_DC_LINADDR		0xC0011038 /* IBS DC Linear Address */
 #define IBS_OP_DC_PHYSADDR		0xC0011039 /* IBS DC Physical Address */
-#define IBS_TGT_RIP			0xC001103B /* IBS Branch Target */
+#define IBS_OP_TGT_RIP			0xC001103B /* IBS Branch Target */
 #define IBS_OP_DATA4			0xC001103D /* IBS Op Data 4 */
 #define IBS_OP_DATA4_LDRESYNC		(1ULL << 0)  /* Load Resync */
 
@@ -156,6 +158,7 @@
 #define PMC_MPIDX_OP_DC_PHYSADDR	6
 #define PMC_MPIDX_OP_TGT_RIP		7
 #define PMC_MPIDX_OP_DATA4		8
+#define PMC_MPIDX_OP_MAX		(PMC_MPIDX_OP_DATA4 + 1)
 
 /*
  * IBS data is encoded as using the multipart flag in the existing callchain

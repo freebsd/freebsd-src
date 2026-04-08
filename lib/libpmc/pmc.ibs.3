@@ -107,6 +107,8 @@ IBS only supports filtering latencies that are a multiple of 128 and between
 128 and 2048.
 Load latency filtering can only be used with ibs-op events and imply the
 l3miss qualifier.
+.It Li opcount
+Count ops rather than cycles.
 .It Li randomize
 Randomize the sampling rate.
 .El
@@ -124,7 +126,7 @@ qualifier randomly sets the bottom four bits of the sample rate.
 .It Li ibs-op Xo
 .Op ,l3miss
 .Op ,ldlat= Ns Ar ldlat
-.Op ,randomize
+.Op ,opcount
 .Xc
 Collect performance samples during instruction execution.
 The

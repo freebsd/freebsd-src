@@ -329,9 +329,9 @@ pmc_ibs_process_fetch(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	memset(&mpd, 0, sizeof(mpd));
 
 	mpd.pl_type = PMC_CC_MULTIPART_IBS_FETCH;
-	mpd.pl_length = 4;
+	mpd.pl_length = PMC_MPIDX_FETCH_MAX;
 	mpd.pl_mpdata[PMC_MPIDX_FETCH_CTL] = config;
-	if (ibs_features) {
+	if ((ibs_features & CPUID_IBSID_IBSFETCHCTLEXTD) != 0) {
 		mpd.pl_mpdata[PMC_MPIDX_FETCH_EXTCTL] = rdmsr(IBS_FETCH_EXTCTL);
 	}
 	mpd.pl_mpdata[PMC_MPIDX_FETCH_CTL] = config;
@@ -358,7 +358,7 @@ pmc_ibs_process_op(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	memset(&mpd, 0, sizeof(mpd));
 
 	mpd.pl_type = PMC_CC_MULTIPART_IBS_OP;
-	mpd.pl_length = 8;
+	mpd.pl_length = PMC_MPIDX_OP_MAX;
 	mpd.pl_mpdata[PMC_MPIDX_OP_CTL] = config;
 	mpd.pl_mpdata[PMC_MPIDX_OP_RIP] = rdmsr(IBS_OP_RIP);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DATA] = rdmsr(IBS_OP_DATA);
@@ -366,6 +366,12 @@ pmc_ibs_process_op(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	mpd.pl_mpdata[PMC_MPIDX_OP_DATA3] = rdmsr(IBS_OP_DATA3);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_LINADDR] = rdmsr(IBS_OP_DC_LINADDR);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_PHYSADDR] = rdmsr(IBS_OP_DC_PHYSADDR);
+	if ((ibs_features & CPUID_IBSID_BRNTRGT) != 0) {
+		mpd.pl_mpdata[PMC_MPIDX_OP_TGT_RIP] = rdmsr(IBS_OP_TGT_RIP);
+	}
+	if ((ibs_features & CPUID_IBSID_IBSOPDATA4) != 0) {
+		mpd.pl_mpdata[PMC_MPIDX_OP_DATA4] = rdmsr(IBS_OP_DATA4);
+	}
 
 	pmc_process_interrupt_mp(PMC_HR, pm, tf, &mpd);
 
