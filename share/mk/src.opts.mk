@@ -157,6 +157,7 @@ __DEFAULT_YES_OPTIONS = \
     PAM \
     PF \
     PKGBOOTSTRAP \
+    PKGCONF \
     PKGSERVE \
     PMC \
     PPP \

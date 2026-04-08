@@ -30,6 +30,7 @@ _PRIVATELIBS=	\
 		kldelf \
 		ldns \
 		opencsd \
+		pkgconf \
 		samplerate \
 		sqlite3 \
 		ssh \

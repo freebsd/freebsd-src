@@ -188,6 +188,7 @@ SUBDIR.${MK_ICONV}+=	libiconv_modules
 SUBDIR.${MK_KERBEROS}+=	libcom_err
 .endif
 SUBDIR.${MK_LDNS}+=	libldns
+SUBDIR.${MK_PKGCONF}+=	libpkgconf
 SUBDIR.${MK_STATS}+=	libstats
 
 # The libraries under libclang_rt can only be built by clang.

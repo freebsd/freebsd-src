@@ -6911,6 +6911,24 @@ OLD_FILES+=usr/share/snmp/defs/pf_tree.def
 OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-PF-MIB.txt
 .endif
 
+.if ${MK_PKGCONF} == no
+OLD_FILES+=usr/bin/bomtool
+OLD_FILES+=usr/bin/pkgconf
+OLD_FILES+=usr/include/pkgconf/bsdstubs.h
+OLD_FILES+=usr/include/pkgconf/iter.h
+OLD_FILES+=usr/include/pkgconf/libpkgconf-api.h
+OLD_FILES+=usr/include/pkgconf/libpkgconf.h
+OLD_FILES+=usr/include/pkgconf/stdinc.h
+OLD_DIRS+=usr/include/pkgconf
+OLD_LIBS+=usr/lib/libprivatepkgconf.so
+OLD_LIBS+=usr/lib/libprivatepkgconf.so.5
+OLD_FILES+=usr/share/man/man1/bomtool.1.gz
+OLD_FILES+=usr/share/man/man1/pkgconf.1.gz
+OLD_FILES+=usr/share/man/man5/pc.5.gz
+OLD_FILES+=usr/share/man/man5/pkgconf-personality.5.gz
+OLD_FILES+=usr/share/man/man7/pkg.m4.7.gz
+.endif
+
 .if ${MK_PKGSERVE} == no
 OLD_FILES+=usr/libexec/pkg-serve
 OLD_FILES+=usr/share/man/man8/pkg-serve.8.gz

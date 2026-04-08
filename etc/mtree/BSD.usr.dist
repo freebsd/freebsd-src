@@ -26,6 +26,8 @@
                     ..
                 ..
             ..
+            pkgconf           tags=package=pkgconf-dev
+            ..
             samplerate        tags=package=sound-dev
             ..
             sqlite3           tags=package=libsqlite3-dev
