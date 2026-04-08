@@ -175,18 +175,36 @@ dump_rc_nhop_mtu(struct nl_writer *nw, const struct nhop_object *nh)
 }
 
 static void
-dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *rtm)
+dump_rc_nhg(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtmsg *rtm)
 {
-	uint32_t uidx = nhgrp_get_uidx(nhg);
-	uint32_t num_nhops, nh_expire;
-	const struct weightened_nhop *wn = nhgrp_get_nhops(nhg, &num_nhops);
-	uint32_t base_rtflags = nhop_get_rtflags(wn[0].nh);
+	const struct nhgrp_object *nhg = rnd->rnd_nhgrp;
+	const struct weightened_nhop *wn;
+	struct nhop_object *nh;
+	uint32_t uidx, num_nhops, nh_expire;
+	uint32_t base_rtflags, rtflags, nhop_weight;
 
+	MPASS((NH_IS_NHGRP(rnd->rnd_nhop)));
+
+	/* select a nhop from nhgrp to not confuse non-mpath consumers */
+	nhop_weight = RT_DEFAULT_WEIGHT;
+	nh = nhop_select_func(rnd->rnd_nhop, 0);
+	rtflags = nhop_get_rtflags(nh);
+	if (nh->nh_flags & NHF_GATEWAY)
+		dump_rc_nhop_gw(nw, nh);
+
+	wn = nhgrp_get_nhops(nhg, &num_nhops);
+	base_rtflags = nhop_get_rtflags(wn[0].nh);
+	uidx = nhgrp_get_uidx(nhg);
 	if (uidx != 0)
 		nlattr_add_u32(nw, NL_RTA_NH_ID, uidx);
 	nlattr_add_u32(nw, NL_RTA_KNH_ID, nhgrp_get_idx(nhg));
-
 	nlattr_add_u32(nw, NL_RTA_RTFLAGS, base_rtflags);
+
+	if (rtflags & RTF_FIXEDMTU)
+		dump_rc_nhop_mtu(nw, nh);
+	/* In any case, fill outgoing interface */
+	nlattr_add_u32(nw, NL_RTA_OIF, if_getindex(nh->nh_ifp));
+
 	int off = nlattr_add_nested(nw, NL_RTA_MULTIPATH);
 	if (off == 0)
 		return;
@@ -209,6 +227,9 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 		if (nh_expire > 0)
 			nlattr_add_u32(nw, NL_RTA_EXPIRES, nh_expire - time_uptime);
 		rtnh = nlattr_restore_offset(nw, nh_off, struct rtnexthop);
+
+		if (nh == wn[i].nh)
+			nhop_weight = wn[i].weight;
 		/*
 		 * nlattr_add() allocates 4-byte aligned storage, no need to aligh
 		 * length here
@@ -216,6 +237,7 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 		rtnh->rtnh_len = nlattr_save_offset(nw) - nh_off;
 	}
 	nlattr_set_len(nw, off);
+	nlattr_add_u32(nw, NL_RTA_WEIGHT, nhop_weight);
 }
 
 static void
@@ -225,7 +247,7 @@ dump_rc_nhop(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtm
 	uint32_t rtflags, uidx, nh_expire;
 
 	if (NH_IS_NHGRP(rnd->rnd_nhop)) {
-		dump_rc_nhg(nw, rnd->rnd_nhgrp, rtm);
+		dump_rc_nhg(nw, rnd, rtm);
 		return;
 	}
 
@@ -324,7 +346,10 @@ dump_px(uint32_t fibnum, const struct nlmsghdr *hdr,
 	rtm = nlattr_restore_offset(nw, rtm_off, struct rtmsg);
 	if (plen > 0)
 		rtm->rtm_dst_len = plen;
-	dump_rc_nhop(nw, rnd, rtm);
+	if (NH_IS_NHGRP(rnd->rnd_nhop))
+		dump_rc_nhg(nw, rnd, rtm);
+	else
+		dump_rc_nhop(nw, rnd, rtm);
 
 	if (nlmsg_end(nw))
 		return (0);
@@ -655,7 +680,6 @@ handle_rtm_getroute(struct nlpcb *nlp, struct nl_parsed_route *attrs,
 	}
 
 	rt_get_rnd(rt, &rnd);
-	rnd.rnd_nhop = nhop_select_func(rnd.rnd_nhop, 0);
 
 	RIB_RUNLOCK(rnh);
 
