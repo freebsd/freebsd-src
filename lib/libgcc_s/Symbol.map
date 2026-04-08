@@ -198,6 +198,7 @@ GCC_4.6.0 {
 	__divtf3;
 	__eqtf2;
 	__extenddftf2;
+	__extendhftf2;
 	__extendsftf2;
 	__fixtfdi;
 	__fixtfsi;
