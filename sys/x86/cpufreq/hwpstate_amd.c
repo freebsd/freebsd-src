@@ -179,6 +179,7 @@ struct hwpstate_softc {
 			uint64_t request;
 		} cppc;
 	};
+	u_int cpuid;
 };
 
 static void	hwpstate_identify(driver_t *driver, device_t parent);
@@ -337,8 +338,6 @@ static int
 sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 {
 	const struct hwpstate_softc *const sc = arg1;
-	const device_t dev = sc->dev;
-	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
 	struct sbuf *sb;
 	struct sbuf sbs;
 	struct get_cppc_regs_data data;
@@ -349,16 +348,16 @@ sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new_for_sysctl(&sbs, NULL, 0, req);
 
-	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier, get_cppc_regs_cb,
-	    smp_no_rendezvous_barrier, &data);
+	smp_rendezvous_cpu(sc->cpuid, smp_no_rendezvous_barrier,
+	    get_cppc_regs_cb, smp_no_rendezvous_barrier, &data);
 
 	if (hwp_has_error(data.res, HWP_ERROR_CPPC_ENABLE))
 		sbuf_printf(sb, "CPU%u: " MSR_AMD_CPPC_ENABLE_NAME ": "
-		    MSR_NOT_READ_MSG "\n", cpuid);
+		    MSR_NOT_READ_MSG "\n", sc->cpuid);
 	else
 		sbuf_printf(sb, "CPU%u: HWP %sabled (" MSR_AMD_CPPC_REQUEST_NAME
-		    ": %#" PRIx64 ")\n", cpuid, data.enable & 1 ? "En" : "Dis",
-		    data.enable);
+		    ": %#" PRIx64 ")\n", sc->cpuid, data.enable & 1 ?
+		    "En" : "Dis", data.enable);
 
 	if (hwp_has_error(data.res, HWP_ERROR_CPPC_CAPS))
 		print_cppc_no_caps_1(sb);
@@ -433,10 +432,8 @@ set_cppc_request_cb(void *args)
 static inline void
 set_cppc_request_send_one(struct set_cppc_request_cb *const data, device_t dev)
 {
-	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
-
 	data->sc = device_get_softc(dev);
-	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
+	smp_rendezvous_cpu(data->sc->cpuid, smp_no_rendezvous_barrier,
 	    set_cppc_request_cb, smp_no_rendezvous_barrier, data);
 }
 
@@ -505,9 +502,7 @@ sysctl_cppc_request_field_handler(SYSCTL_HANDLER_ARGS)
 	check_cppc_in_use(sc, __func__);
 
 	if ((sc->flags & HWPFL_CPPC_REQUEST_NOT_READ) != 0) {
-		const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
-
-		smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
+		smp_rendezvous_cpu(sc->cpuid, smp_no_rendezvous_barrier,
 		    get_cppc_request_cb, smp_no_rendezvous_barrier, sc);
 
 		if ((sc->flags & HWPFL_CPPC_REQUEST_NOT_READ) != 0)
@@ -576,8 +571,10 @@ hwpstate_goto_pstate(device_t dev, int id)
 	sbintime_t sbt;
 	uint64_t msr;
 	int cpu, j, limit;
+	struct hwpstate_softc *sc;
 
-	cpu = cpu_get_pcpu(dev)->pc_cpuid;
+	sc = device_get_softc(dev);
+	cpu = sc->cpuid;
 
 	if (hwpstate_pstate_limit) {
 		/* get the current pstate limit */
@@ -657,16 +654,14 @@ hwpstate_set(device_t dev, const struct cf_setting *cf)
 static int
 hwpstate_get_cppc(device_t dev, struct cf_setting *cf)
 {
-	struct pcpu *pc;
+	struct hwpstate_softc *sc;
 	uint64_t rate;
 	int ret;
 
-	pc = cpu_get_pcpu(dev);
-	if (pc == NULL)
-		return (ENXIO);
+	sc = device_get_softc(dev);
 	memset(cf, CPUFREQ_VAL_UNKNOWN, sizeof(*cf));
 	cf->dev = dev;
-	if ((ret = cpu_est_clockrate(pc->pc_cpuid, &rate)))
+	if ((ret = cpu_est_clockrate(sc->cpuid, &rate)))
 		return (ret);
 	cf->freq = rate / 1000000;
 	return (0);
@@ -681,7 +676,7 @@ hwpstate_get_pstate(device_t dev, struct cf_setting *cf)
 	int cpu;
 
 	sc = device_get_softc(dev);
-	cpu = cpu_get_pcpu(dev)->pc_cpuid;
+	cpu = sc->cpuid;
 	hwpstate_pstate_read_status(cpu, &msr);
 	if (msr >= sc->cfnum)
 		return (EINVAL);
@@ -894,7 +889,7 @@ static int
 enable_cppc(struct hwpstate_softc *sc)
 {
 	const device_t dev = sc->dev;
-	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
+	const u_int cpuid = sc->cpuid;
 	struct set_autonomous_hwp_data data;
 	struct sbuf sbs;
 	struct sbuf *sb;
@@ -964,7 +959,7 @@ hwpstate_probe_pstate(device_t dev)
 	int cpu;
 
 	sc = device_get_softc(dev);
-	cpu = cpu_get_pcpu(dev)->pc_cpuid;
+	cpu = sc->cpuid;
 	/*
 	 * Check if acpi_perf has INFO only flag.
 	 */
@@ -1042,6 +1037,7 @@ hwpstate_probe(device_t dev)
 		device_set_desc(dev, "Cool`n'Quiet 2.0");
 
 	sc->dev = dev;
+	sc->cpuid = cpu_get_pcpu(dev)->pc_cpuid;
 	if ((sc->flags & HWPFL_USE_CPPC) != 0) {
 		sc->cpufreq_methods = &cppc_methods;
 		return (0);
@@ -1133,14 +1129,11 @@ static int
 hwpstate_pstate_read_settings(struct hwpstate_softc *sc, uint64_t vals[])
 {
 	struct hwpstate_pstate_read_settings_cb req;
-	device_t dev;
 
 	req.sc = sc;
 	req.vals = vals;
-	dev = sc->dev;
-	smp_rendezvous_cpu(cpu_get_pcpu(dev)->pc_cpuid,
-	    smp_no_rendezvous_barrier, hwpstate_pstate_read_settings_cb,
-	    smp_no_rendezvous_barrier, &req);
+	smp_rendezvous_cpu(sc->cpuid, smp_no_rendezvous_barrier,
+	    hwpstate_pstate_read_settings_cb, smp_no_rendezvous_barrier, &req);
 	return (req.err);
 }
 
@@ -1155,7 +1148,7 @@ hwpstate_get_info_from_msr(device_t dev)
 	family = CPUID_TO_FAMILY(cpu_id);
 	sc = device_get_softc(dev);
 	/* Get pstate count */
-	hwpstate_pstate_read_limit(cpu_get_pcpu(dev)->pc_cpuid, &msr);
+	hwpstate_pstate_read_limit(sc->cpuid, &msr);
 	sc->cfnum = 1 + AMD_10H_11H_GET_PSTATE_MAX_VAL(msr);
 	hwpstate_set = sc->hwpstate_settings;
 	hwpstate_pstate_read_settings(sc, state_settings);
