@@ -563,6 +563,8 @@
         ..
         aio
         ..
+        arch
+        ..
         audit
         ..
         auditpipe
