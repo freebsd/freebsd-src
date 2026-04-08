@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 29, 2025
+.Dd April 8, 2026
 .Dt CORE.LUA 8
 .Os
 .Sh NAME
@@ -164,6 +164,17 @@ is set in
 kernels will be autodetected from the current system.
 .It Fn core.bootenvDefault
 Returns the default boot environment, nil if unset.
+.It Fn core.bootenvFilter func
+Installs a filter
+.Fa func
+into
+.Fn core.bootenvList .
+If the
+.Fa func
+returns true, then the boot environment is retained in the list.
+Otherwise, the boot environment is hidden.
+The old filter, if any, is returned to allow the caller to compose a filter on
+top of another filter.
 .It Fn core.bootenvList
 Returns a table of boot environments, or an empty table.
 These will be picked up using the
