@@ -33,7 +33,7 @@ basic_head()
 basic_body()
 {
 	atf_check ln -s foo bar
-	atf_check -o inline:'foo\n' readlink bar
+	atf_check -o inline:"foo\n" readlink bar
 }
 
 atf_test_case f_flag
@@ -44,6 +44,7 @@ f_flag_head()
 }
 f_flag_body()
 {
+	cd "$(realpath "$PWD")"
 	atf_check touch A.file
 	atf_check ln -s nonexistent A.link
 	atf_check -o inline:"nonexistent\n" \
@@ -55,13 +56,15 @@ f_flag_body()
 atf_test_case n_flag
 n_flag_head()
 {
+	atf_set "descr" "Verify that calling readlink with -n will not emit " \
+			"a newline character."
 }
 n_flag_body()
 {
 	atf_check ln -s nonexistent.A A
 	atf_check ln -s nonexistent.B B
-	atf_check -o 'inline:nonexistent.A\nnonexistent.B\n' readlink A B
-	atf_check -o 'inline:nonexistent.Anonexistent.B' readlink -n A B
+	atf_check -o inline:"nonexistent.A\nnonexistent.B\n" readlink A B
+	atf_check -o inline:"nonexistent.Anonexistent.B" readlink -n A B
 }
 
 atf_init_test_cases()
