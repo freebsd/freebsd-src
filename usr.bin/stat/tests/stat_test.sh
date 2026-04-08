@@ -54,6 +54,7 @@ h_flag_head()
 }
 h_flag_body()
 {
+	file=$(realpath $0)
 	# POSIX defines a hole as “[a] contiguous region of bytes
 	# within a file, all having the value of zero” and requires
 	# that “all seekable files shall have a virtual hole starting
@@ -82,27 +83,27 @@ h_flag_body()
 	atf_check -o inline:"$((ps)) .\n" stat -h .
 	atf_check -o inline:"$((ps)) ." stat -hn .
 
-	# For a file, prints a list of holes.
+	# For a file, prints a list of holes.  Some file systems don't
+	# like creating small holes, so we create large ones instead.
+	hs=$((16*1024*1024))
 	atf_check truncate -s 0 foo
 	atf_check -o inline:"0 foo" \
 	    stat -hn foo
-	atf_check truncate -s "$((ps))" foo
-	atf_check -o inline:"0-$((ps-1)) foo" \
+	atf_check truncate -s "$((hs))" foo
+	atf_check -o inline:"0-$((hs-1)) foo" \
 	    stat -hn foo
-	atf_check dd status=none if=/COPYRIGHT of=foo \
-	    oseek="$((ps))" bs=1 count=1
-	atf_check -o inline:"0-$((ps-1)),$((ps+1)) foo" \
+	atf_check dd status=none if="${file}" of=foo \
+	    oseek="$((hs))" bs=1 count=1
+	atf_check -o inline:"0-$((hs-1)),$((hs+1)) foo" \
 	    stat -hn foo
-	atf_check truncate -s "$((ps*3))" foo
-	atf_check -o inline:"0-$((ps-1)),$((ps*2))-$((ps*3-1)) foo" \
+	atf_check truncate -s "$((hs*3))" foo
+	atf_check -o inline:"0-$((hs-1)),$((hs+ps))-$((hs*3-1)) foo" \
 	    stat -hn foo
 
 	# Test multiple files.
-	atf_check dd status=none if=/COPYRIGHT of=bar
+	atf_check dd status=none if="${file}" of=bar
 	sz=$(stat -f%z bar)
-	atf_check -o inline:"0-$((ps-1)),$((ps*2))-$((ps*3-1)) foo
-$((sz)) bar
-" \
+	atf_check -o inline:"0-$((hs-1)),$((hs+ps))-$((hs*3-1)) foo\n$((sz)) bar\n" \
 	    stat -h foo bar
 
 	# For a device, fail.
