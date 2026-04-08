@@ -230,10 +230,10 @@ parse_param(int argc, char *argv[], char *buf, int *len)
 				goto done;
 			curbuf[0] = datalen;
 			curbuf++;
-			token = optarg;			
+			token = optarg;
 			while ((token = strsep(&optarg, ",")) != NULL) {
 				value = strtol(token, NULL, 16);
-				curbuf[0] = value &0xff;
+				curbuf[0] = value & 0xff;
 				curbuf++;
 			}
 		}
