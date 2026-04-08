@@ -160,12 +160,13 @@ static SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "PIM");
 
-static struct mrt6stat mrt6stat;
-SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
-    &mrt6stat, mrt6stat,
+VNET_DEFINE_STATIC(struct mrt6stat, mrt6stat);
+#define	V_mrt6stat	VNET(mrt6stat)
+SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(mrt6stat), mrt6stat,
     "Multicast Routing Statistics (struct mrt6stat, netinet6/ip6_mroute.h)");
 
-#define	MRT6STAT_INC(name)	mrt6stat.name += 1
+#define	MRT6STAT_INC(name)	V_mrt6stat.name += 1
 #define NO_RTE_FOUND	0x1
 #define RTE_FOUND	0x2
 
@@ -299,12 +300,13 @@ static void	expire_upcalls_all(void *);
 #define	EXPIRE_TIMEOUT	(hz / 4)	/* 4x / second */
 #define	UPCALL_EXPIRE	6		/* number of timeouts */
 
-static struct pim6stat pim6stat;
-SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RW,
-    &pim6stat, pim6stat,
+VNET_DEFINE_STATIC(struct pim6stat, pim6stat);
+#define	V_pim6stat	VNET(pim6stat)
+SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(pim6stat), pim6stat,
     "PIM Statistics (struct pim6stat, netinet6/pim6_var.h)");
 
-#define	PIM6STAT_INC(name)	pim6stat.name += 1
+#define	PIM6STAT_INC(name)	V_pim6stat.name += 1
 VNET_DEFINE_STATIC(int, pim6);
 #define	V_pim6		VNET(pim6)
 
