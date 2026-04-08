@@ -15,6 +15,7 @@ SRCS=	entropy_common.c \
 	zstd_compress_literals.c \
 	zstd_compress_sequences.c \
 	zstd_compress_superblock.c \
+	zstd_preSplit.c \
 	zstdmt_compress.c \
 	huf_decompress.c \
 	zstd_ddict.c \
@@ -53,6 +54,9 @@ ZSTDDIR=	${SRCTOP}/sys/contrib/zstd
 	${ZSTDDIR}/lib/dictBuilder ${ZSTDDIR}/lib
 
 .include <bsd.compiler.mk>
+
+# These symbols are needed by dll-linked CLI zstd(1).
+CFLAGS.pool.c+=		-fvisibility=default
 
 CFLAGS.huf_decompress.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 
