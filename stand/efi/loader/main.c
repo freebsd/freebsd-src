@@ -753,8 +753,8 @@ parse_uefi_con_out(void)
 		 * If we don't have any ConOut default to both. If we have GOP
 		 * make video primary, otherwise just make serial primary. In
 		 * either case, try to use both the 'efi' console which will use
-		 * the GOP, if present and serial. If there's an EFI BIOS that
-		 * omits this, but has a serial port redirect, we'll
+		 * the GOP, if present and serial. If there's an EFI firmware
+		 * that omits this, but has a serial port redirect, we'll
 		 * unavioidably get doubled characters (but we'll be right in
 		 * all the other more common cases).
 		 */
