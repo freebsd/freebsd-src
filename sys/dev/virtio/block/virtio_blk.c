@@ -931,10 +931,57 @@ vtblk_hdr_load_callback(void *arg, bus_dma_segment_t *segs, int nsegs,
 }
 
 static int
+vtblk_create_request(struct vtblk_softc *sc, struct vtblk_request *req)
+{
+	req->vbr_sc = sc;
+
+	if (bus_dmamap_create(sc->vtblk_dmat, 0, &req->vbr_mapp))
+		goto error_free;
+
+	if (bus_dmamem_alloc(sc->vtblk_hdr_dmat, (void **)&req->vbr_hdr,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &req->vbr_hdr_mapp))
+		goto error_destroy;
+
+	if (bus_dmamem_alloc(sc->vtblk_ack_dmat, (void **)&req->vbr_ack,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &req->vbr_ack_mapp))
+		goto error_hdr_free;
+
+	MPASS(sglist_count(req->vbr_hdr, sizeof(*req->vbr_hdr)) == 1);
+	MPASS(sglist_count(req->vbr_ack, sizeof(*req->vbr_ack)) == 1);
+
+	if (bus_dmamap_load(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp,
+	    req->vbr_hdr, sizeof(struct virtio_blk_outhdr),
+	    vtblk_hdr_load_callback, req, BUS_DMA_NOWAIT))
+		goto error_ack_free;
+
+	if (bus_dmamap_load(sc->vtblk_ack_dmat, req->vbr_ack_mapp,
+	    req->vbr_ack, sizeof(uint8_t), vtblk_ack_load_callback,
+	    req, BUS_DMA_NOWAIT))
+		goto error_hdr_unload;
+
+	return (0);
+
+error_hdr_unload:
+	bus_dmamap_unload(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp);
+error_ack_free:
+	bus_dmamem_free(sc->vtblk_ack_dmat, req->vbr_ack, req->vbr_ack_mapp);
+error_hdr_free:
+	bus_dmamem_free(sc->vtblk_hdr_dmat, req->vbr_hdr, req->vbr_hdr_mapp);
+error_destroy:
+	bus_dmamap_destroy(sc->vtblk_dmat, req->vbr_mapp);
+error_free:
+
+	return (ENOMEM);
+}
+
+static int
 vtblk_request_prealloc(struct vtblk_softc *sc)
 {
 	struct vtblk_request *req;
 	int i, nreqs;
+	int error;
 
 	nreqs = virtqueue_size(sc->vtblk_vq);
 
@@ -951,52 +998,19 @@ vtblk_request_prealloc(struct vtblk_softc *sc)
 		if (req == NULL)
 			return (ENOMEM);
 
-		req->vbr_sc = sc;
-
-		if (bus_dmamap_create(sc->vtblk_dmat, 0, &req->vbr_mapp))
-			goto error_free;
-
-		if (bus_dmamem_alloc(sc->vtblk_hdr_dmat, (void **)&req->vbr_hdr,
-		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
-		    &req->vbr_hdr_mapp))
-			goto error_destroy;
-
-		if (bus_dmamem_alloc(sc->vtblk_ack_dmat, (void **)&req->vbr_ack,
-		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
-		    &req->vbr_ack_mapp))
-			goto error_hdr_free;
-
-		MPASS(sglist_count(req->vbr_hdr, sizeof(*req->vbr_hdr)) == 1);
-		MPASS(sglist_count(req->vbr_ack, sizeof(*req->vbr_ack)) == 1);
-
-		if (bus_dmamap_load(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp,
-		    req->vbr_hdr, sizeof(struct virtio_blk_outhdr),
-		    vtblk_hdr_load_callback, req, BUS_DMA_NOWAIT))
-			goto error_ack_free;
-
-		if (bus_dmamap_load(sc->vtblk_ack_dmat, req->vbr_ack_mapp,
-		    req->vbr_ack, sizeof(uint8_t), vtblk_ack_load_callback,
-		    req, BUS_DMA_NOWAIT))
-			goto error_hdr_unload;
+		error = vtblk_create_request(sc, req);
+		if (error) {
+			free(req, M_DEVBUF);
+			return (error);
+		}
 
 		sc->vtblk_request_count++;
 		vtblk_request_enqueue(sc, req);
 	}
 
-	return (0);
+	error = vtblk_create_request(sc, &sc->vtblk_dump_request);
 
-error_hdr_unload:
-	bus_dmamap_unload(sc->vtblk_hdr_dmat, req->vbr_hdr_mapp);
-error_ack_free:
-	bus_dmamem_free(sc->vtblk_ack_dmat, req->vbr_ack, req->vbr_ack_mapp);
-error_hdr_free:
-	bus_dmamem_free(sc->vtblk_hdr_dmat, req->vbr_hdr, req->vbr_hdr_mapp);
-error_destroy:
-	bus_dmamap_destroy(sc->vtblk_dmat, req->vbr_mapp);
-error_free:
-	free(req, M_DEVBUF);
-
-	return (ENOMEM);
+	return (error);
 }
 
 static void
