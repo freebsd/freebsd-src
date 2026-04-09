@@ -1,0 +1,18 @@
+# SRCS for MediaTek arm64 subdirectory
+# All source files in sys/arm64/mediatek/
+
+.PATH: ${SRCTOP}/sys/arm64/mediatek
+
+# Shared clock framework (used by all MediaTek SoCs)
+SRCS+=	mdtk_clk.c
+
+# MT7622 (BananaPi R64 / R3 - router SoCs)
+SRCS+=	mt7622_clk_infracfg.c
+SRCS+=	mt7622_pinctrl.c
+
+# MT8395 / MT8195 (Genio 1200 / Radxa NIO 12L - mobile/embedded SoC)
+SRCS+=	mt8395_clk.c
+SRCS+=	mt8395_pinctrl.c
+
+# UART driver (shared across MediaTek SoCs)
+SRCS+=	mt_uart.c

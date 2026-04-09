@@ -1,0 +1,152 @@
+#
+# MEDIATEK -- Kernel configuration for MediaTek MT8395 / Radxa NIO 12L
+#             UOS Mobile OS (FreeBSD-based)
+#
+# Target hardware:
+#   SoC:    MediaTek MT8395 (Genio 1200) / MT8195
+#   Board:  Radxa NIO 12L
+#   RAM:    Up to 8 GB LPDDR4x
+#   Flash:  32 GB eMMC (HS400) + microSD
+#   Net:    Gigabit Ethernet (RGMII, RTL8211F PHY)
+#   USB:    USB 3.0 (DWC3/xHCI) x2
+#   Display: MIPI-DSI + HDMI (via DisplayPort alt mode)
+#
+
+cpu		ARM64
+ident		MEDIATEK_NIO12L
+
+# Debug symbols - remove for production builds
+makeoptions	DEBUG=-g
+makeoptions	WITH_KERNEL_BIN=1
+makeoptions	WITH_CTF=1
+
+# Include standard MediaTek SoC configuration
+include		"std.arm64"
+include		"std.dev"
+include		"std.mediatek"
+
+# ======================================================================
+# Mobile OS specific options (UOS)
+# ======================================================================
+options		MOBILE_OS		# UOS mobile OS feature set
+options		LOW_LATENCY		# Optimize scheduling for UI responsiveness
+options		POWER_EFFICIENT		# Battery/power optimization
+
+# ======================================================================
+# Scheduler & performance
+# ======================================================================
+options		SCHED_ULE		# ULE scheduler (best for SMP mobile)
+options		PREEMPTION		# Kernel preemption for UI smoothness
+options		HZ=250			# 250Hz - balance battery vs. latency
+options		SMP			# Enable SMP (MT8395 is 4+4 core)
+options		MAXCPU=8		# 4x Cortex-A78 + 4x Cortex-A55
+
+# ======================================================================
+# Memory
+# ======================================================================
+options		PHYSMEM_MAX_REGIONS=32
+options		VM_KMEM_SIZE_MAX=(1024*1024*1024)
+
+# ======================================================================
+# HID / Touchscreen / Input
+# ======================================================================
+device		hid
+device		hidbus
+device		hidmap
+device		hidraw
+device		hmt			# HID multitouch
+device		hpen			# Stylus/pen input
+device		usbhid			# HID over USB
+
+# ======================================================================
+# I2C Touchscreen support (common on mobile devices)
+# ======================================================================
+device		iicbus
+device		iic
+device		iicbb
+device		goodix_ts		# Goodix GT9xx touch (NIO 12L default)
+device		edt_ft5x06		# EDT FocalTech touch
+
+# ======================================================================
+# Display
+# ======================================================================
+device		drm			# DRM core
+device		vt			# Virtual terminal
+device		vt_efifb		# EFI framebuffer (for early console)
+options		KDB
+options		DDB
+
+# ======================================================================
+# Audio (MT8195 AFE)
+# ======================================================================
+device		sound
+device		mtk_afe			# MediaTek Audio Engine
+
+# ======================================================================
+# Wireless (MT7921 / MT7922 PCIe WiFi + BT combo)
+# ======================================================================
+device		pci
+device		wlan
+device		wlan_wep
+device		wlan_ccmp
+device		wlan_tkip
+device		mt76			# MediaTek mt76 WiFi driver
+
+# Bluetooth over USB
+device		usb
+device		ubt			# USB Bluetooth
+device		ng_ubt
+
+# ======================================================================
+# Storage
+# ======================================================================
+device		geom
+device		geom_part_gpt		# GPT partition table (eMMC/SD)
+device		geom_part_bsd		# BSD partition table
+device		mmc
+device		mmcsd
+device		sdhci
+
+# ======================================================================
+# Filesystems
+# ======================================================================
+options		FFS			# Fast filesystem
+options		SOFTUPDATES		# Soft updates for FFS
+options		UFS_ACL			# Access control lists
+options		UFS_DIRHASH		# Directory hash for performance
+options		UFS_GJOURNAL		# Journaling
+options		TMPFS			# Temporary filesystem (RAM-based)
+options		ZFS			# ZFS (optional, uses more RAM)
+options		NULLFS			# Null filesystem (bind mounts)
+options		FDESCFS			# File descriptor FS (/dev/fd)
+options		PROCFS			# Process filesystem
+options		LINPROCFS		# Linux /proc compatibility
+
+# ======================================================================
+# Bionic / Android app compatibility shim
+# (UOS-specific: allows running Android native binaries)
+# ======================================================================
+options		COMPAT_LINUX64		# Linux 64-bit syscall emulation
+options		COMPAT_LINUXKPI		# Linux KPI shim
+options		LINUXKPI_DUMMY_OPS	# Dummy ops for unmapped drivers
+
+# ======================================================================
+# Security
+# ======================================================================
+options		CAPABILITIES		# Capsicum capability framework
+options		MAC			# TrustedBSD MAC framework
+options		AUDIT			# Security event auditing
+options		RACCT			# Resource containers
+options		RCTL			# Resource limits
+
+# ======================================================================
+# Networking
+# ======================================================================
+options		INET			# IPv4
+options		INET6			# IPv6
+options		TCP_OFFLOAD		# TCP offload
+options		SCTP			# SCTP transport
+device		loop
+device		ether
+device		vlan
+device		if_bridge

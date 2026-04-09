@@ -1,32 +1,76 @@
 #
-# MediaTek SoC support
+# MediaTek SoC support - UOS Mobile OS
+#
+# Covers MT7622 (router SoCs) and MT8195/MT8395 (mobile/embedded SoCs)
+# Primary target: Radxa NIO 12L (MT8395 / Genio 1200)
 #
 
-# MediaTek MTK drivers
-device		mtk_gpio		# MediaTek GPIO
-device		mtk_i2c		# MediaTek I2C
-device		mtk_spi		# MediaTek SPI
-device		mtk_timer		# MediaTek timer
-device		mtk_wdt		# MediaTek watchdog
+# SoC identification options
+options		SOC_MEDIATEK			# Generic MediaTek SoC
+options		SOC_MEDIATEK_MT8395		# MT8395 / MT8195 Genio 1200
 
-# Serial ports
-device		uart_ns8250
+# Early serial console - MT8195 UART0 base address
+# Required before clock/pinctrl drivers attach
+options		EARLY_PRINTF=ns8250
+options		SOCDEV_PA=0x11002000		# UART0 base (MT8195 TRM)
+options		UART_NS8250_EARLY_REG_SHIFT=2
+options		UART_NS8250_EARLY_REG_IO_WIDTH=4
+options		BOOTVERBOSE
 
-# MMC/SD/SDIO
+# -------- Clock drivers --------
+device		mt8395_clk			# MT8395 topckgen + infracfg clocks
+# (MT7622 clock drivers included for router board support)
+device		mt7622_clk			# MT7622 infracfg/pericfg clocks
+
+# -------- GPIO / Pinctrl --------
+device		mt8395_pinctrl			# MT8395 GPIO (202 pins)
+device		mt7622_pinctrl			# MT7622 GPIO
+
+# -------- Serial ports --------
+device		uart
+device		uart_ns8250			# MediaTek UART (mt6577-uart)
+
+# -------- I2C --------
+device		iicbus
+device		iic
+device		mtk_i2c				# MediaTek I2C (used for PMIC, touch)
+
+# -------- SPI --------
+device		spibus
+device		mtk_spi				# MediaTek SPI
+
+# -------- MMC / eMMC / SD --------
+device		mmc
+device		mmcsd
 device		sdhci
-device		mtk_mmc
+device		sdhci_fdt			# FDT SDHCI for MSDC controller
 
-# Ethernet
-device		mtk_eth
+# -------- Ethernet (MT8195 RGMII) --------
+device		miibus				# PHY MII bus
+device		mtk_eth				# MediaTek Ethernet MAC
 
-# USB
-device		dwc3			# DesignWare USB3
-device		xhci
+# -------- USB 3.0 (xHCI + DWC3) --------
+device		usb
+device		xhci				# USB 3.0 host controller
+device		dwc3				# DesignWare USB3 wrapper
 
-# GPU (PowerVR)
-device		pvrsrvkm		# PowerVR services
+# -------- PCIe --------
+device		pci
+device		pcie_mt8195			# MT8195 PCIe controller
 
-options 	FDT
+# -------- GPU (ARM Mali-G57 on MT8395) --------
+# Note: Mali driver is loaded as a kernel module separately
+# device	mali				# ARM Mali-G57 MC5
 
-# DTBs
+# -------- Power Management / PMIC --------
+# MT6359 PMIC communicates over PWRAP (PMIC wrapper)
+device		mtk_pwrap			# PMIC wrapper bus
+
+# -------- Thermal --------
+device		mtk_thermal			# MediaTek thermal sensor
+
+# -------- FDT / Device Tree --------
+options		FDT
+
+# -------- DTB modules --------
 makeoptions	MODULES_EXTRA+="dtb/mediatek"

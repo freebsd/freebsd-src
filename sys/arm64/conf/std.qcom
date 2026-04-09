@@ -1,18 +1,100 @@
 #
-# Qualcomm SoC support
+# Qualcomm Snapdragon SoC support - UOS Mobile OS
+#
+# Based on OpenBSD arm64 Qualcomm support (SM8450/SM8550/SM8650, SC8280XP)
+# Targets: Modern Snapdragon flagship/mid-range mobile SoCs
 #
 
-# Qualcomm Snapdragon drivers
-device		qcom_gcc		# Global Clock Controller
-device		qcom_mdio		# MDIO support
+# -------- SoC identification --------
+options		SOC_QUALCOMM			# Generic Qualcomm Snapdragon
 
-# Serial (COM) ports
-device		uart_msm		# Qualcomm MSM UART driver
+# -------- Early serial console --------
+# Qualcomm GENI UART (console at default baud 115200)
+device		uart
+device		qcom_geni_uart			# GENI SE UART (all modern Snapdragon)
 
-# MMC/SD/SDIO Card slot support
+# -------- Global Clock Controller (GCC) --------
+device		qcom_gcc			# GCC clock controller (existing driver, expanded)
+
+# -------- GPIO / Pinctrl (TLMM) --------
+# Based on OpenBSD's qcgpio driver
+device		qcom_tlmm			# TLMM GPIO (SM8450/8550/8650: 211 pins)
+
+# -------- Secure Channel Manager (SCM/TEE) --------
+# Based on OpenBSD's qcscm driver - provides W^X, secure boot, QFPROM
+device		qcom_scm			# SCM Trustzone interface
+
+# -------- SPMI (System Power Management Interface) --------
+# For PMIC (PM8550) communication
+device		qcom_spmi			# SPMI bus
+device		qcom_pmic			# PM8550 PMIC (via SPMI)
+
+# -------- I2C (GENI SE I2C) --------
+device		iicbus
+device		iic
+device		qcom_geni_i2c			# GENI SE I2C controller
+
+# -------- SPI (GENI SE SPI) --------
+device		spibus
+device		qcom_geni_spi			# GENI SE SPI controller
+
+# -------- USB (DWC3/xHCI) --------
+device		usb
+device		xhci
+device		dwc3
+device		qcom_dwc3			# Qualcomm DWC3 wrapper
+
+# -------- PCIe --------
+device		pci
+device		qcom_pcie			# Qualcomm PCIe (SM8450/8550)
+
+# -------- MMC/UFS --------
+# Snapdragon uses UFS (Universal Flash Storage), not eMMC
+device		mmc
+device		mmcsd
 device		sdhci
+# UFS support (via sdhci or dedicated driver)
+device		ufshci				# UFS Host Controller Interface
 
-options 	FDT
+# -------- Ethernet (via USB or PCIe - no onboard RGMII) --------
+device		miibus
+device		ure				# USB Realtek (common USB-C dock)
+device		axen				# USB ASIX (USB-C hub)
 
-# DTBs
+# -------- GPU (Adreno) --------
+# Adreno 740 (SM8650) / 730 (SM8550) / 720 (SM8450)
+# Full DRM driver is a separate module
+# device	adreno_drm			# Adreno GPU DRM - WIP
+
+# -------- Display (DSI/DP) --------
+device		vt
+device		vt_efifb			# EFI framebuffer (early display)
+
+# -------- Wireless (WCN7850) --------
+# SM8650 has WCN7850 (WiFi 7 + BT 5.4)
+# SM8550 has WCN6855 (WiFi 6E + BT 5.3)
+device		wlan
+device		wlan_wep
+device		wlan_ccmp
+device		wlan_tkip
+
+# -------- Thermal --------
+device		qcom_tsens			# Thermal sensor (TSENS)
+
+# -------- Security --------
+# UOS OpenBSD-inspired security layer
+options		UOS_SECURITY			# UOS security framework
+options		UOS_WX_ENFORCE			# Enforce W^X globally
+options		UOS_UNVEIL			# Filesystem unveil(2) API
+options		UOS_PLEDGE			# pledge(2)-style restrictions via capsicum
+
+# ARM64 hardware security features
+options		ARM64_BTI			# Branch Target Identification
+options		ARM64_PAC			# Pointer Authentication
+# options	ARM64_MTE			# Memory Tagging Extension (Qualcomm only)
+
+# -------- FDT --------
+options		FDT
+
+# -------- DTBs --------
 makeoptions	MODULES_EXTRA+="dtb/qcom"
