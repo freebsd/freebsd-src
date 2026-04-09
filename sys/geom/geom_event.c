@@ -84,7 +84,7 @@ g_waitidle(struct thread *td)
 
 	mtx_lock(&g_eventlock);
 	TSWAIT("GEOM events");
-	while (!TAILQ_EMPTY(&g_events))
+	while (!TAILQ_EMPTY(&g_events) || !TAILQ_EMPTY(&g_doorstep))
 		msleep(&g_pending_events, &g_eventlock, PPAUSE,
 		    "g_waitidle", 0);
 	TSUNWAIT("GEOM events");
