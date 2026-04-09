@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (c) 2026 Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd April 9, 2026
+.Dt NLSYSEVENT 4
+.Os
+.Sh NAME
+.Nm nlsysevent
+.Nd Netlink-based kernel event notification module
+.Sh SYNOPSIS
+To load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nlsysevent_load="YES"
+.Ed
+.Pp
+Alternatively, to load the module at runtime:
+.Bd -literal -offset indent
+kldload nlsysevent
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+kernel module provides a
+.Xr netlink 4
+Generic Netlink interface for receiving kernel device events.
+It hooks into the
+.Xr devctl 4
+notification system and re-publishes all kernel events as Generic Netlink
+multicast messages under the
+.Dv NETLINK_GENERIC
+protocol family.
+.Pp
+This provides an alternative to reading events from
+.Pa /dev/devctl
+.Pq used by Xr devd 8 ,
+with the advantage that multiple consumers can subscribe to events
+simultaneously, and consumers can selectively subscribe to specific
+event groups.
+.Ss Generic Netlink Family
+The module registers a Generic Netlink family named
+.Dq Li nlsysevent .
+The dynamically-assigned family identifier can be resolved using the
+standard
+.Dv CTRL_CMD_GETFAMILY
+request as described in
+.Xr genetlink 4 .
+.Ss Commands
+The following command is defined:
+.Bl -tag -width indent
+.It Dv NLSE_CMD_NEWEVENT
+Sent when a kernel event occurs.
+This message is never solicited by userland; it is only delivered to
+sockets that have subscribed to one or more multicast groups.
+.El
+.Ss Attributes
+Each
+.Dv NLSE_CMD_NEWEVENT
+message contains the following TLV attributes:
+.Bl -tag -width indent
+.It Dv NLSE_ATTR_SYSTEM
+(string) The system name that generated the event
+.Pq e.g., Dq Li ACPI , Dq Li IFNET , Dq Li USB .
+.It Dv NLSE_ATTR_SUBSYSTEM
+(string) The subsystem name within the system.
+.It Dv NLSE_ATTR_TYPE
+(string) The type of the event.
+.It Dv NLSE_ATTR_DATA
+(string) Optional extra data associated with the event.
+This attribute may be absent if no extra data was provided.
+.El
+.Ss Multicast Groups
+The module creates one multicast group per system name.
+The following groups are pre-registered when the module is loaded:
+.Pp
+.Bl -column "HYPERV_NIC_VF" -offset indent -compact
+.It Li ACPI
+.It Li AEON
+.It Li CAM
+.It Li CARP
+.It Li coretemp
+.It Li DEVFS
+.It Li device
+.It Li ETHERNET
+.It Li GEOM
+.It Li HYPERV_NIC_VF
+.It Li IFNET
+.It Li INFINIBAND
+.It Li KERNEL
+.It Li nvme
+.It Li PMU
+.It Li RCTL
+.It Li USB
+.It Li VFS
+.It Li VT
+.It Li ZFS
+.El
+.Pp
+Additional groups are created dynamically as new system names appear in
+kernel events, up to a maximum of 64 groups.
+.Pp
+The group identifier for a given system name can be resolved via
+.Dv CTRL_CMD_GETFAMILY
+and then subscribed to using the
+.Dv NETLINK_ADD_MEMBERSHIP
+socket option.
+.Sh EXAMPLES
+The
+.Xr genl 1
+utility can be used to monitor events:
+.Bd -literal -offset indent
+genl monitor nlsysevent
+.Ed
+.Sh SEE ALSO
+.Xr genl 1 ,
+.Xr snl 3 ,
+.Xr devctl 4 ,
+.Xr genetlink 4 ,
+.Xr netlink 4 ,
+.Xr devd 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+kernel module and this manual page were written by
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org .
