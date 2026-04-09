@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -249,6 +249,12 @@ static int test_store_attach_unregistered_scheme(void)
     return ret;
 }
 
+static int test_store_delete_null_uri(void)
+{
+    /* Passing NULL uri must return 0, not crash */
+    return TEST_int_eq(OSSL_STORE_delete(NULL, NULL, NULL, NULL, NULL, NULL), 0);
+}
+
 const OPTIONS *test_get_options(void)
 {
     static const OPTIONS test_options[] = {
@@ -303,6 +309,7 @@ int setup_tests(void)
     ADD_TEST(test_store_open_winstore);
 #endif
     ADD_TEST(test_store_search_by_key_fingerprint_fail);
+    ADD_TEST(test_store_delete_null_uri);
     ADD_ALL_TESTS(test_store_get_params, 3);
     if (sm2file != NULL)
         ADD_TEST(test_store_attach_unregistered_scheme);
