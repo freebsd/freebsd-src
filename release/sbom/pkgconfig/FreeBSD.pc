@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: FreeBSD
+Description: Power to serve
+URL: https://www.freebsd.org/
+Version: 15.0
+Source: https://cgit.freebsd.org/src/
+License: NOASSERTION
+Requires: [, cat, chflags, chio, chmod, cp, cpuset, csh, csu, date, dd, df, domainname, echo, ed, expr, freebsd-version, getfacl, hostname, kenv, kill, libc, libcapsicum, libcasper, libcasper.services.cap_fileargs, libcasper.services.cap_net, libcompiler_rt, libedit, libelf, libjail, libkvm, libnv, libtinfo, libutil, libxo, link, ln, ls, mkdir, msun, mv, nproc, openssl, pax, pgrep, pkill, ps, pwait, pwd, realpath, red, rm, rmail, rmdir, setfacl, sh, sleep, stty, symlink, sync, tcsh, test, timeout, unlink, uuidgen
