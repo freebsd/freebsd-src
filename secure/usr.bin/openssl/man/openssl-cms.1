@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-CMS 1ossl"
-.TH OPENSSL-CMS 1ossl 2026-01-27 3.5.5 OpenSSL
+.TH OPENSSL-CMS 1ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -881,7 +881,9 @@ Use SHA256 KDF with an ECDH certificate:
 .PP
 Print CMS signed binary data in human\-readable form:
 .PP
-openssl cms \-in signed.cms \-binary \-inform DER \-cmsout \-print
+.Vb 1
+\& openssl cms \-in signed.cms \-binary \-inform DER \-cmsout \-print
+.Ve
 .SH BUGS
 .IX Header "BUGS"
 The MIME parser isn\*(Aqt very clever: it seems to handle most messages that I\*(Aqve

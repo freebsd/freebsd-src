@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CONF_CMD 3ossl"
-.TH SSL_CONF_CMD 3ossl 2026-01-27 3.5.5 OpenSSL
+.TH SSL_CONF_CMD 3ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -220,16 +220,14 @@ respectively:
 \&    $ openssl list \-tls1_3 \-tls\-groups
 .Ve
 .Sp
-The recommended groups (in order of decreasing performance) for TLS 1.3 are presently:
+The recommended groups for TLS 1.3 are presently documented in the default
+TLS group list in the OpenSSL code base. Starting with OpenSSL 3.5, the
+hybrid algorithm \fBX25519MLKEM768\fR is first in this default list.
+It mitigates against threats from future quantum computers while
+still providing state\-of\-the\-art classical key exchange protection.
 .Sp
-\&\fBx25519\fR,
-\&\fBsecp256r1\fR,
-\&\fBx448\fR,
-and
-\&\fBsecp384r1\fR.
-.Sp
-The stronger security margins of the last two, come at a significant
-performance penalty.
+Further details regarding post\-quantum algorithm considerations are documented
+in the HISTORY section below.
 .Sp
 An enriched alternative syntax, that enables clients to send multiple keyshares
 and allows servers to prioritise some groups over others, is described in
@@ -890,7 +888,7 @@ roughly 1200 bytes for the first two groups.
 As of OpenSSL 3.5 key exchange group names are case\-insensitive.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2012\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS5_PBE_KEYIVGEN 3ossl"
-.TH PKCS5_PBE_KEYIVGEN 3ossl 2026-01-27 3.5.5 OpenSSL
+.TH PKCS5_PBE_KEYIVGEN 3ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -172,6 +172,13 @@ equal to 1. RFC 2898 suggests an iteration count of at least 1000. Any
 .PP
 \&\fIdigest\fR is the message digest function used in the derivation.
 .PP
+\&\fIaiv\fR is the initialization vector (IV) to use for the encryption algorithm.
+If \fIaiv\fR is NULL, then a random IV will be generated.
+.PP
+\&\fIprf_nid\fR is the numeric identifier (NID) for the pseudo\-random function to
+use with PBKDF2. If \fIprf_nid\fR is not specified (for example, \fIprf_nid\fR is set to 0),
+a default PRF is used, which is currently set to SHA\-256 (NID_hmacWithSHA256).
+.PP
 Functions ending in \fB_ex()\fR take optional parameters \fIlibctx\fR and \fIpropq\fR which
 are used to select appropriate algorithm implementations.
 .SS "Algorithm Identifier Creation"
@@ -179,7 +186,9 @@ are used to select appropriate algorithm implementations.
 \&\fBPKCS5_pbe_set()\fR, \fBPKCS5_pbe_set_ex()\fR, \fBPKCS5_pbe2_set()\fR, \fBPKCS5_pbe2_set_iv()\fR,
 \&\fBPKCS5_pbe2_set_iv_ex()\fR and \fBPKCS5_pbe2_set_scrypt()\fR generate an \fBX509_ALGOR\fR
 object which represents an AlgorithmIdentifier containing the algorithm OID and
-associated parameters for the PBE algorithm.
+associated parameters for the PBE algorithm. These functions encode the
+key derivation parameters (such as salt and iteration count) and the
+encryption parameters (such as the IV) into the ASN.1 structure.
 .PP
 \&\fBPKCS5_pbkdf2_set()\fR and \fBPKCS5_pbkdf2_set_ex()\fR generate an \fBX509_ALGOR\fR
 object which represents an AlgorithmIdentifier containing the algorithm OID and
@@ -232,7 +241,7 @@ related functions such as \fBPKCS5_pbe2_set()\fR.
 This is required for PBKDF2 FIPS compliance.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
