@@ -2315,6 +2315,8 @@ dev/ixgbe/ixgbe_api.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_common.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_fw_logging.c	optional ix inet | ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_mbx.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_vf.c		optional ix inet | ixv inet \

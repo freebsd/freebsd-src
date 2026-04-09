@@ -253,4 +253,7 @@ ixgbe_free(struct ixgbe_hw __unused *hw, void *addr)
 	free(addr, M_DEVBUF);
 }
 
+void ixgbe_info_fwlog(struct ixgbe_hw *hw, uint32_t rowsize,
+	uint32_t groupsize, uint8_t *buf, size_t len);
+
 #endif /* _IXGBE_OSDEP_H_ */

@@ -3830,6 +3830,492 @@ s32 ixgbe_handle_nvm_access(struct ixgbe_hw *hw,
 }
 
 /**
+ * ixgbe_fwlog_cache_cfg - Cache FW logging config
+ * @hw: pointer to the HW structure
+ * @cfg: config to cache
+ *
+ * Cache FW logging config.
+ */
+static void ixgbe_fwlog_cache_cfg(struct ixgbe_hw *hw,
+				  struct ixgbe_fwlog_cfg *cfg)
+{
+	hw->fwlog_cfg = *cfg;
+}
+
+/**
+ * ixgbe_fwlog_valid_module_entries - validate all the module entry IDs and
+ * log levels
+ * @hw: pointer to the HW structure
+ * @entries: entries to validate
+ * @num_entries: number of entries to validate
+ *
+ * Checks if all the module entry IDs and log levels are valid.
+ *
+ * Return: true if all the module entry IDs and log levels are valid,
+ * otherwise false.
+ */
+static bool ixgbe_fwlog_valid_module_entries(struct ixgbe_hw *hw,
+			struct ixgbe_fwlog_module_entry *entries,
+			u16 num_entries)
+{
+	u16 i;
+
+	UNREFERENCED_1PARAMETER(hw);
+
+	if (!entries) {
+		return false;
+	}
+
+	if (!num_entries) {
+		return false;
+	}
+
+	for (i = 0; i < num_entries; i++) {
+		struct ixgbe_fwlog_module_entry *entry = &entries[i];
+
+		if (entry->module_id >= IXGBE_ACI_FW_LOG_ID_MAX) {
+			return false;
+		}
+
+		if (entry->log_level >= IXGBE_FWLOG_LEVEL_INVALID) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * ixgbe_fwlog_valid_cfg - validate configuration
+ * @hw: pointer to the HW structure
+ * @cfg: config to validate
+ *
+ * Validate the entire configuration.
+ *
+ * Return: true if the entire configuration is valid, otherwise false.
+ */
+static bool ixgbe_fwlog_valid_cfg(struct ixgbe_hw *hw,
+				  struct ixgbe_fwlog_cfg *cfg)
+{
+	if (!cfg) {
+		return false;
+	}
+
+	if (cfg->log_resolution < IXGBE_ACI_FW_LOG_MIN_RESOLUTION ||
+	    cfg->log_resolution > IXGBE_ACI_FW_LOG_MAX_RESOLUTION) {
+		return false;
+	}
+
+	if (!ixgbe_fwlog_valid_module_entries(hw, cfg->module_entries,
+				  IXGBE_ACI_FW_LOG_ID_MAX))
+		return false;
+
+	return true;
+}
+
+/**
+ * ixgbe_fwlog_init - Initialize cached structures for tracking FW logging
+ * @hw: pointer to the HW structure
+ * @cfg: config used to initialize the cached structures
+ *
+ * Initialize cached structures for tracking FW logging
+ * Called on driver initialization and before calling
+ * ixgbe_init_hw(). Firmware logging will be configured based on these settings
+ * and also the PF will be registered on init.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_fwlog_init(struct ixgbe_hw *hw, struct ixgbe_fwlog_cfg *cfg)
+{
+	if (!ixgbe_fwlog_valid_cfg(hw, cfg))
+		return IXGBE_ERR_PARAM;
+
+	ixgbe_fwlog_cache_cfg(hw, cfg);
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ * ixgbe_aci_fwlog_set - Set FW logging configuration
+ * @hw: pointer to the HW structure
+ * @entries: entries to configure
+ * @num_entries: number of @entries
+ * @options: options from ixgbe_fwlog_cfg->options structure
+ * @log_resolution: logging resolution
+ *
+ * Set FW logging configuration using ACI command (0xFF30).
+ *
+ * Return: the exit code of the operation.
+ */
+static s32 ixgbe_aci_fwlog_set(struct ixgbe_hw *hw,
+			       struct ixgbe_fwlog_module_entry *entries,
+			       u16 num_entries, u16 options, u16 log_resolution)
+{
+	struct ixgbe_aci_cmd_fw_log_cfg_resp fw_modules[IXGBE_ACI_FW_LOG_ID_MAX];
+	struct ixgbe_aci_cmd_fw_log *cmd;
+	struct ixgbe_aci_desc desc;
+	s32 status;
+	u16 i;
+
+	if (num_entries > IXGBE_ACI_FW_LOG_ID_MAX)
+		return IXGBE_ERR_PARAM;
+
+	for (i = 0; i < num_entries; i++) {
+		fw_modules[i].module_identifier =
+			IXGBE_CPU_TO_LE16(entries[i].module_id);
+		fw_modules[i].log_level = entries[i].log_level;
+	}
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_fw_logs_config);
+	desc.flags |= IXGBE_CPU_TO_LE16(IXGBE_ACI_FLAG_RD);
+
+	cmd = &desc.params.fw_log;
+
+	cmd->cmd_flags = IXGBE_ACI_FW_LOG_CONF_SET_VALID;
+	cmd->ops.cfg.log_resolution = IXGBE_CPU_TO_LE16(log_resolution);
+	cmd->ops.cfg.mdl_cnt = IXGBE_CPU_TO_LE16(num_entries);
+
+	if (options & IXGBE_FWLOG_OPTION_ARQ_ENA)
+		cmd->cmd_flags |= IXGBE_ACI_FW_LOG_CONF_AQ_EN;
+	if (options & IXGBE_FWLOG_OPTION_UART_ENA)
+		cmd->cmd_flags |= IXGBE_ACI_FW_LOG_CONF_UART_EN;
+
+	status = ixgbe_aci_send_cmd(hw, &desc, fw_modules,
+				 sizeof(*fw_modules) * num_entries);
+
+	return status;
+}
+
+/**
+ * ixgbe_fwlog_supported - Cached for whether FW supports FW logging or not
+ * @hw: pointer to the HW structure
+ *
+ * This will always return false if called before ixgbe_init_hw(), so it must be
+ * called after ixgbe_init_hw().
+ *
+ * Return: true if FW supports FW logging.
+ * If this function is called before ixgbe_init_hw(), return false.
+ */
+bool ixgbe_fwlog_supported(struct ixgbe_hw *hw)
+{
+	return hw->fwlog_support_ena;
+}
+
+/**
+ * ixgbe_fwlog_set - Set the firmware logging settings
+ * @hw: pointer to the HW structure
+ * @cfg: config used to set firmware logging
+ *
+ * Call this function whenever the driver needs to set the firmware
+ * logging configuration. It can be called on initialization, reset, or during
+ * runtime.
+ *
+ * If the PF wishes to receive FW logging then it must register via
+ * ixgbe_fwlog_register. Note, that ixgbe_fwlog_register does not need to
+ * be called for init.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_fwlog_set(struct ixgbe_hw *hw, struct ixgbe_fwlog_cfg *cfg)
+{
+	s32 status;
+
+	if (!ixgbe_fwlog_supported(hw))
+		return IXGBE_ERR_NOT_SUPPORTED;
+
+	if (!ixgbe_fwlog_valid_cfg(hw, cfg))
+		return IXGBE_ERR_PARAM;
+
+	status = ixgbe_aci_fwlog_set(hw, cfg->module_entries,
+				  IXGBE_ACI_FW_LOG_ID_MAX, cfg->options,
+				  cfg->log_resolution);
+	if (!status)
+		ixgbe_fwlog_cache_cfg(hw, cfg);
+
+	return status;
+}
+
+/**
+ * ixgbe_fwlog_update_cached_entries - Update module entries in cached
+ * FW logging config
+ * @hw: pointer to the HW structure
+ * @entries: entries to cache
+ * @num_entries: number of @entries
+ *
+ * Update module entries in cached FW logging config.
+ */
+static void ixgbe_fwlog_update_cached_entries(struct ixgbe_hw *hw,
+			struct ixgbe_fwlog_module_entry *entries,
+			u16 num_entries)
+{
+	u16 i;
+
+	for (i = 0; i < num_entries; i++) {
+		struct ixgbe_fwlog_module_entry *updated = &entries[i];
+		u16 j;
+
+		for (j = 0; j < IXGBE_ACI_FW_LOG_ID_MAX; j++) {
+			struct ixgbe_fwlog_module_entry *cached =
+				&hw->fwlog_cfg.module_entries[j];
+
+			if (cached->module_id == updated->module_id) {
+				cached->log_level = updated->log_level;
+				break;
+			}
+		}
+	}
+}
+
+/**
+ * ixgbe_fwlog_update_modules - Update the log level 1 or more
+ * FW logging modules
+ * @hw: pointer to the HW structure
+ * @entries: array of ixgbe_fwlog_module_entry(s)
+ * @num_entries: number of entries
+ *
+ * Update the log level of 1 or more FW logging modules via module ID.
+ *
+ * Only the entries passed in will be affected. All other firmware logging
+ * settings will be unaffected.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_fwlog_update_modules(struct ixgbe_hw *hw,
+			       struct ixgbe_fwlog_module_entry *entries,
+			       u16 num_entries)
+{
+	struct ixgbe_fwlog_cfg cfg;
+	s32 status;
+
+	if (!ixgbe_fwlog_supported(hw))
+		return IXGBE_ERR_NOT_SUPPORTED;
+
+	if (num_entries > IXGBE_ACI_FW_LOG_ID_MAX)
+		return IXGBE_ERR_PARAM;
+
+	if (!ixgbe_fwlog_valid_module_entries(hw, entries, num_entries))
+		return IXGBE_ERR_PARAM;
+
+	status = ixgbe_fwlog_get(hw, &cfg);
+	if (status)
+		goto status_out;
+
+	status = ixgbe_aci_fwlog_set(hw, entries, num_entries, cfg.options,
+				     cfg.log_resolution);
+	if (!status)
+		ixgbe_fwlog_update_cached_entries(hw, entries, num_entries);
+
+status_out:
+	return status;
+}
+
+/**
+ * ixgbe_aci_fwlog_register - Register PF for firmware logging events.
+ * @hw: pointer to the HW structure
+ * @reg: true to register and false to unregister
+ *
+ * Register a PF for firmware logging events using ACI command (0xFF31).
+ *
+ * Return: the exit code of the operation.
+ */
+static s32 ixgbe_aci_fwlog_register(struct ixgbe_hw *hw, bool reg)
+{
+	struct ixgbe_aci_desc desc;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_fw_logs_register);
+
+	if (reg)
+		desc.params.fw_log.cmd_flags = IXGBE_ACI_FW_LOG_AQ_REGISTER;
+
+	return ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
+}
+
+/**
+ * ixgbe_fwlog_register - Register the PF for firmware logging
+ * @hw: pointer to the HW structure
+ *
+ * After this call the PF will start to receive firmware logging based on the
+ * configuration set in ixgbe_fwlog_set.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_fwlog_register(struct ixgbe_hw *hw)
+{
+	s32 status;
+
+	if (!ixgbe_fwlog_supported(hw))
+		return IXGBE_ERR_NOT_SUPPORTED;
+
+	status = ixgbe_aci_fwlog_register(hw, true);
+
+	if (!status)
+		hw->fwlog_cfg.options |= IXGBE_FWLOG_OPTION_IS_REGISTERED;
+
+	return status;
+}
+
+/**
+ * ixgbe_fwlog_unregister - Unregister the PF from firmware logging
+ * @hw: pointer to the HW structure
+ *
+ * Make an attempt to unregister the PF from firmware logging.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_fwlog_unregister(struct ixgbe_hw *hw)
+{
+	s32 status;
+
+	if (!ixgbe_fwlog_supported(hw))
+		return IXGBE_ERR_NOT_SUPPORTED;
+
+	status = ixgbe_aci_fwlog_register(hw, false);
+	if (!status)
+		hw->fwlog_cfg.options &= ~IXGBE_FWLOG_OPTION_IS_REGISTERED;
+
+	return status;
+}
+
+/**
+ * ixgbe_aci_fwlog_get - Get the current firmware logging configuration
+ * @hw: pointer to the HW structure
+ * @cfg: firmware logging configuration to populate
+ *
+ * Make an attempt to get the current firmware logging
+ * configuration using ACI command (0xFF32).
+ *
+ * Return: the exit code of the operation.
+ */
+static s32 ixgbe_aci_fwlog_get(struct ixgbe_hw *hw, struct ixgbe_fwlog_cfg *cfg)
+{
+	struct ixgbe_aci_cmd_fw_log_cfg_resp *fw_modules;
+	struct ixgbe_aci_cmd_fw_log *cmd;
+	struct ixgbe_aci_desc desc;
+	u16 i, module_id_cnt;
+	u8 *buf = NULL;
+	s32 status;
+
+	memset(cfg, 0, sizeof(*cfg));
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_fw_logs_query);
+	cmd = &desc.params.fw_log;
+
+	cmd->cmd_flags = IXGBE_ACI_FW_LOG_AQ_QUERY;
+
+	buf = (u8 *)ixgbe_malloc(hw, IXGBE_ACI_MAX_BUFFER_SIZE);
+	if (!buf)
+		return IXGBE_ERR_OUT_OF_MEM;
+
+	status = ixgbe_aci_send_cmd(hw, &desc, buf, IXGBE_ACI_MAX_BUFFER_SIZE);
+	if (status) {
+		goto status_out;
+	}
+
+	module_id_cnt = IXGBE_LE16_TO_CPU(cmd->ops.cfg.mdl_cnt);
+	if (module_id_cnt > IXGBE_ACI_FW_LOG_ID_MAX) {
+		module_id_cnt = IXGBE_ACI_FW_LOG_ID_MAX;
+	}
+
+	cfg->log_resolution = (u8)IXGBE_LE16_TO_CPU(cmd->ops.cfg.log_resolution);
+	if (cmd->cmd_flags & IXGBE_ACI_FW_LOG_CONF_AQ_EN)
+		cfg->options |= IXGBE_FWLOG_OPTION_ARQ_ENA;
+	if (cmd->cmd_flags & IXGBE_ACI_FW_LOG_CONF_UART_EN)
+		cfg->options |= IXGBE_FWLOG_OPTION_UART_ENA;
+	if (cmd->cmd_flags & IXGBE_ACI_FW_LOG_QUERY_REGISTERED)
+		cfg->options |= IXGBE_FWLOG_OPTION_IS_REGISTERED;
+
+	fw_modules = (struct ixgbe_aci_cmd_fw_log_cfg_resp *)buf;
+
+	for (i = 0; i < module_id_cnt; i++) {
+		struct ixgbe_aci_cmd_fw_log_cfg_resp *fw_module = &fw_modules[i];
+
+		cfg->module_entries[i].module_id =
+			IXGBE_LE16_TO_CPU(fw_module->module_identifier);
+		cfg->module_entries[i].log_level = fw_module->log_level;
+	}
+
+status_out:
+	if (buf)
+		ixgbe_free(hw, buf);
+	return status;
+}
+
+/**
+ * ixgbe_fwlog_set_support_ena - Set if FW logging is supported by FW
+ * @hw: pointer to the HW struct
+ *
+ * If FW returns success to the ixgbe_aci_fwlog_get call then it supports FW
+ * logging, else it doesn't. Set the fwlog_support_ena flag accordingly.
+ *
+ * This function is only meant to be called during driver init to determine if
+ * the FW support FW logging.
+ *
+ * Return: the exit code of the operation.
+ */
+void ixgbe_fwlog_set_support_ena(struct ixgbe_hw *hw)
+{
+	struct ixgbe_fwlog_cfg cfg;
+	s32 status;
+
+	hw->fwlog_support_ena = false;
+
+	/* don't call ixgbe_fwlog_get() because that would overwrite the cached
+	 * configuration from the call to ixgbe_fwlog_init(), which is expected
+	 * to be called prior to this function
+	 */
+	status = ixgbe_aci_fwlog_get(hw, &cfg);
+	if (!status)
+		hw->fwlog_support_ena = true;
+}
+
+/**
+ * ixgbe_fwlog_get - Get the firmware logging settings
+ * @hw: pointer to the HW structure
+ * @cfg: config to populate based on current firmware logging settings
+ *
+ * Get the current firmware logging settings.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_fwlog_get(struct ixgbe_hw *hw, struct ixgbe_fwlog_cfg *cfg)
+{
+	s32 status;
+
+	if (!ixgbe_fwlog_supported(hw))
+		return IXGBE_ERR_NOT_SUPPORTED;
+
+	if (!cfg)
+		return IXGBE_ERR_PARAM;
+
+	status = ixgbe_aci_fwlog_get(hw, cfg);
+	if (status)
+		return status;
+
+	ixgbe_fwlog_cache_cfg(hw, cfg);
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ * ixgbe_fwlog_event_dump - Dump the event received over the Admin Receive Queue
+ * @hw: pointer to the HW structure
+ * @desc: Admin Receive Queue descriptor
+ * @buf: buffer that contains the FW log event data
+ *
+ * If the driver receives the ixgbe_aci_opc_fw_logs_event on the Admin Receive
+ * Queue, then it should call this function to dump the FW log data.
+ */
+void ixgbe_fwlog_event_dump(struct ixgbe_hw *hw,
+			    struct ixgbe_aci_desc *desc, void *buf)
+{
+	if (!ixgbe_fwlog_supported(hw))
+		return;
+
+	ixgbe_info_fwlog(hw, 32, 1, (u8 *)buf,
+			 IXGBE_LE16_TO_CPU(desc->datalen));
+}
+
+/**
  * ixgbe_aci_set_health_status_config - Configure FW health events
  * @hw: pointer to the HW struct
  * @event_source: type of diagnostic events to enable
