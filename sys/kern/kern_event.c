@@ -2788,31 +2788,39 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 		KNL_ASSERT_LOCKED(knl);
 	else {
 		KNL_ASSERT_UNLOCKED(knl);
-again:		/* need to reacquire lock since we have dropped it */
 		knl->kl_lock(knl->kl_lockarg);
 	}
 
-	SLIST_FOREACH_SAFE(kn, &knl->kl_list, kn_selnext, kn2) {
-		kq = kn->kn_kq;
-		KQ_LOCK(kq);
-		if (kn_in_flux(kn)) {
-			KQ_UNLOCK(kq);
-			continue;
+	for (;;) {
+		/*
+		 * Each pass removes as many knotes as we can before dropping
+		 * into FLUXWAIT.  Active knotes are simply detached and either
+		 * freed or converted to one-shot, as the attached subject is
+		 * essentially disappearing.
+		 */
+		SLIST_FOREACH_SAFE(kn, &knl->kl_list, kn_selnext, kn2) {
+			kq = kn->kn_kq;
+			KQ_LOCK(kq);
+			if (kn_in_flux(kn)) {
+				KQ_UNLOCK(kq);
+				continue;
+			}
+			knlist_remove_kq(knl, kn, 1, 1);
+			if (killkn) {
+				kn_enter_flux(kn);
+				KQ_UNLOCK(kq);
+				knote_drop_detached(kn, td);
+			} else {
+				/* Make sure cleared knotes disappear soon */
+				kn->kn_flags |= EV_EOF | EV_ONESHOT;
+				KQ_UNLOCK(kq);
+			}
+			kq = NULL;
 		}
-		knlist_remove_kq(knl, kn, 1, 1);
-		if (killkn) {
-			kn_enter_flux(kn);
-			KQ_UNLOCK(kq);
-			knote_drop_detached(kn, td);
-		} else {
-			/* Make sure cleared knotes disappear soon */
-			kn->kn_flags |= EV_EOF | EV_ONESHOT;
-			KQ_UNLOCK(kq);
-		}
-		kq = NULL;
-	}
 
-	if (!SLIST_EMPTY(&knl->kl_list)) {
+		if (SLIST_EMPTY(&knl->kl_list))
+			break;
+
 		/* there are still in flux knotes remaining */
 		kn = SLIST_FIRST(&knl->kl_list);
 		kq = kn->kn_kq;
@@ -2822,7 +2830,7 @@ again:		/* need to reacquire lock since we have dropped it */
 		kq->kq_state |= KQ_FLUXWAIT;
 		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqkclr", 0);
 		kq = NULL;
-		goto again;
+		knl->kl_lock(knl->kl_lockarg);
 	}
 
 	if (islocked)
