@@ -488,6 +488,47 @@ addr_range_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "auto_tables" "cleanup"
+auto_tables_head()
+{
+	atf_set descr 'Test rulesets with different automatic tables'
+	atf_set require.user root
+}
+
+auto_tables_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "set ruleset-optimization basic" \
+	    "test_a = \"203.0.113.1 203.0.113.2 203.0.113.3 203.0.113.4
+	        203.0.113.5 203.0.113.6 203.0.113.7 203.0.113.8 203.0.113.9
+	        203.0.113.10\"" \
+	    "test_b = \"192.0.2.1 192.0.2.2 192.0.2.3 192.0.2.4 192.0.2.5
+	        192.0.2.6 192.0.2.7 192.0.2.8 192.0.2.9 192.0.2.10\"" \
+	    "block" \
+	    "pass inet from any to { \$test_a }" \
+	    "pass inet from 198.51.100.1 to 198.51.100.2 no state" \
+	    "pass inet from any to { \$test_b }"
+
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+}
+
+auto_tables_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "enable_disable"
@@ -500,4 +541,5 @@ atf_init_test_cases()
 	atf_add_test_case "optimize_any"
 	atf_add_test_case "any_if"
 	atf_add_test_case "addr_range"
+	atf_add_test_case "auto_tables"
 }
