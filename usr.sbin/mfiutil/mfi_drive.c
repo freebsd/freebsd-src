@@ -41,6 +41,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <cam/cam.h>
 #include <cam/scsi/scsi_all.h>
 #include "mfiutil.h"
 
@@ -289,50 +290,14 @@ mfi_pd_get_info(int fd, uint16_t device_id, struct mfi_pd_info *info,
 	    sizeof(struct mfi_pd_info), mbox, 2, statusp));
 }
 
-static void
-cam_strvis(char *dst, const char *src, int srclen, int dstlen)
-{
-
-	/* Trim leading/trailing spaces, nulls. */
-	while (srclen > 0 && src[0] == ' ')
-		src++, srclen--;
-	while (srclen > 0
-	    && (src[srclen-1] == ' ' || src[srclen-1] == '\0'))
-		srclen--;
-
-	while (srclen > 0 && dstlen > 1) {
-		char *cur_pos = dst;
-
-		if (*src < 0x20) {
-			/* SCSI-II Specifies that these should never occur. */
-			/* non-printable character */
-			if (dstlen > 4) {
-				*cur_pos++ = '\\';
-				*cur_pos++ = ((*src & 0300) >> 6) + '0';
-				*cur_pos++ = ((*src & 0070) >> 3) + '0';
-				*cur_pos++ = ((*src & 0007) >> 0) + '0';
-			} else {
-				*cur_pos++ = '?';
-			}
-		} else {
-			/* normal character */
-			*cur_pos++ = *src;
-		}
-		src++;
-		srclen--;
-		dstlen -= cur_pos - dst;
-		dst = cur_pos;
-	}
-	*dst = '\0';
-}
-
 /* Borrowed heavily from scsi_all.c:scsi_print_inquiry(). */
 const char *
 mfi_pd_inq_string(struct mfi_pd_info *info)
 {
 	struct scsi_inquiry_data iqd, *inq_data = &iqd;
-	char vendor[16], product[48], revision[16], rstr[12], serial[SID_VENDOR_SPECIFIC_0_SIZE];
-	static char inq_string[64];
+	char vendor[SID_VENDOR_SIZE+1], product[SID_PRODUCT_SIZE+1],
+		 revision[SID_REVISION_SIZE+1], rstr[9], serial[SID_VENDOR_SPECIFIC_0_SIZE+1];
+	static char inq_string[80];
 
 	memcpy(inq_data, info->inquiry_data,
 	    (sizeof (iqd) <  sizeof (info->inquiry_data))?
@@ -344,14 +309,14 @@ mfi_pd_inq_string(struct mfi_pd_info *info)
 	if (SID_QUAL(inq_data) != SID_QUAL_LU_CONNECTED)
 		return (NULL);
 
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-	    sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-	    sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-	    sizeof(revision));
-	cam_strvis(serial, (char *)inq_data->vendor_specific0, sizeof(inq_data->vendor_specific0),
-	    sizeof(serial));
+	cam_strvis_flag(vendor, inq_data->vendor, sizeof(inq_data->vendor),
+	    sizeof(vendor), CAM_STRVIS_FLAG_NONASCII_TRIM);
+	cam_strvis_flag(product, inq_data->product, sizeof(inq_data->product),
+	    sizeof(product), CAM_STRVIS_FLAG_NONASCII_TRIM);
+	cam_strvis_flag(revision, inq_data->revision, sizeof(inq_data->revision),
+	    sizeof(revision), CAM_STRVIS_FLAG_NONASCII_TRIM);
+	cam_strvis_flag(serial, (char *)inq_data->vendor_specific0, sizeof(inq_data->vendor_specific0),
+	    sizeof(serial), CAM_STRVIS_FLAG_NONASCII_SPC);
 
 	/* Hack for SATA disks, no idea how to tell speed. */
 	if (strcmp(vendor, "ATA") == 0) {
