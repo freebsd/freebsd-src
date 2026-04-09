@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_HPKE_CTX_NEW 3ossl"
-.TH OSSL_HPKE_CTX_NEW 3ossl 2026-01-27 3.5.5 OpenSSL
+.TH OSSL_HPKE_CTX_NEW 3ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -478,12 +478,12 @@ a random value. The relevant sizes for buffers can be found using
 .PP
 \&\fBOSSL_HPKE_str2suite()\fR maps input \fIstr\fR strings to an \fBOSSL_HPKE_SUITE\fR object.
 The input \fIstr\fR should be a comma\-separated string with a KEM,
-KDF and AEAD name in that order, for example "x25519,hkdf\-sha256,aes128gcm".
+KDF and AEAD name in that order, for example "x25519,hkdf\-sha256,aes\-128\-gcm".
 This can be used by command line tools that accept string form names for HPKE
 codepoints. Valid (case\-insensitive) names are:
 "p\-256", "p\-384", "p\-521", "x25519" and "x448" for KEM,
 "hkdf\-sha256", "hkdf\-sha384" and "hkdf\-sha512" for KDF, and
-"aes\-gcm\-128", "aes\-gcm\-256", "chacha20\-poly1305" and "exporter" for AEAD.
+"aes\-128\-gcm", "aes\-256\-gcm", "chacha20\-poly1305" and "exporter" for AEAD.
 String variants of the numbers listed in "OSSL_HPKE_SUITE Identifiers"
 can also be used.
 .SH "RETURN VALUES"
@@ -589,7 +589,7 @@ The RFC9180 specification: https://datatracker.ietf.org/doc/rfc9180/
 This functionality described here was added in OpenSSL 3.2.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2022\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2022\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

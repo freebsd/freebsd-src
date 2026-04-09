@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-CMP 1ossl"
-.TH OPENSSL-CMP 1ossl 2026-01-27 3.5.5 OpenSSL
+.TH OPENSSL-CMP 1ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -743,8 +743,14 @@ appendix D.4 shows PKIConf message having protection
 .IP \fB\-no_cache_extracerts\fR 4
 .IX Item "-no_cache_extracerts"
 Do not cache certificates in the extraCerts field of CMP messages received.
-By default, they are kept as they may be helful for validating further messages.
+By default, they are kept as they may be helpful for validating further messages.
 This option applies to both CMP clients and the mock server.
+.Sp
+In any case, after successfully validating an incoming message, its protection
+certificate (if any) is cached for reuse with validation of subsequent messages.
+This is done not only for efficiency but also
+to eliminate the need for the sender to include its certificate and related chain
+in the extraCerts field of subsequent messages of the same transaction.
 .IP "\fB\-srvcertout\fR \fIfilename\fR" 4
 .IX Item "-srvcertout filename"
 The file where to save the successfully validated certificate, if any,
@@ -1487,7 +1493,7 @@ and \fB\-rsp_crl\fR options were added in OpenSSL 3.4.
 \&\fB\-rsp_keypass\fR were added in OpenSSL 3.5.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2007\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
