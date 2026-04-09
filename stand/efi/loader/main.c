@@ -977,10 +977,10 @@ parse_uefi_con_out(void)
 		 * If we don't have any Con* variable use both. If we have GOP
 		 * make video primary, otherwise set serial primary. In either
 		 * case, try to use both the 'efi' console which will use the
-		 * GOP, if present and serial. If there's an EFI BIOS that omits
-		 * this, but has a serial port redirect, we'll unavioidably get
-		 * doubled characters, but we'll be right in all the other more
-		 * common cases.
+		 * GOP, if present and serial. If there's a UEFI firmware that
+		 * omit this, but has a serial port redirect, we'll unavoidably
+		 * get doubled characters, but we'll be right in all the other
+		 * more common cases.
 		 */
 		if (efi_has_gop())
 			how |= RB_MULTIPLE;
