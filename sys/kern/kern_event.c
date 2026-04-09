@@ -1669,12 +1669,6 @@ findkn:
 			kn->kn_fp = fp;
 			kn->kn_kq = kq;
 			kn->kn_fop = fops;
-			/*
-			 * apply reference counts to knote structure, and
-			 * do not release it at the end of this routine.
-			 */
-			fops = NULL;
-			fp = NULL;
 
 			kn->kn_sfflags = kev->fflags;
 			kn->kn_sdata = kev->data;
@@ -1694,6 +1688,16 @@ findkn:
 				tkn = kn;
 				goto done;
 			}
+
+			/*
+			 * We transfer ownership of fops/fp to the knote
+			 * structure and avoid releasing them at the end of
+			 * this routine, now that all of the remaining exit
+			 * paths will knote_drop() to release the reference
+			 * counts we held on them above.
+			 */
+			fops = NULL;
+			fp = NULL;
 
 			if ((error = kn->kn_fop->f_attach(kn)) != 0) {
 				knote_drop_detached(kn, td);
