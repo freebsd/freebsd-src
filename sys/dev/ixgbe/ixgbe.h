@@ -607,6 +607,11 @@ int  ixgbe_setup_receive_structures(struct ixgbe_softc *);
 void ixgbe_free_receive_structures(struct ixgbe_softc *);
 int  ixgbe_get_regs(SYSCTL_HANDLER_ARGS);
 
+void ixgbe_add_fw_logging_tunables(struct ixgbe_softc *sc,
+	struct sysctl_oid *parent);
+
+#define IXGBE_STR_BUF_LEN 32
+
 #include "ixgbe_bypass.h"
 #include "ixgbe_fdir.h"
 #include "ixgbe_rss.h"
