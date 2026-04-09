@@ -122,6 +122,8 @@ exec_f	f_sparse;
 exec_f	f_type;
 exec_f	f_user;
 exec_f	f_writable;
+exec_f	f_xattr;
+exec_f	f_xattrname;
 
 extern int ftsoptions, ignore_readdir_race, isdepth, isoutput;
 extern int issort, isxargs;
