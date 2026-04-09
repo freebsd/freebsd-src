@@ -1,5 +1,7 @@
+TESTSDIR=	${TESTSBASE}/sys/arch
+
 .if exists(${.CURDIR}/${MACHINE_ARCH})
-SUBDIR+=	${MACHINE_ARCH}
+TESTS_SUBDIRS+=	${MACHINE_ARCH}
 .endif
 
-.include <bsd.subdir.mk>
+.include <bsd.test.mk>
