@@ -320,10 +320,12 @@ main(void)
 		else if (!auto_boot || !OPT_CHECK(RBX_QUIET))
 			putchar('\n');
 		auto_boot = 0;
-		if (parse_cmd())
+		if (parse_cmd()) {
 			putchar('\a');
-		else
+		} else {
+			putchar('\n');
 			load();
+		}
 	}
 }
 
