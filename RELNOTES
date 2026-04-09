@@ -10,6 +10,44 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+
+65f5dd42f11c:
+	sh(1) add -l option which makes sh act as a login shell and read the profile.
+
+beab8b1ddf86:
+	bintrans(1) now supports the RFC2047 variant of quoted print
+
+9dc96d8bc3f2:
+	libusb(3) hotplug event are now really hotplugged using either
+	nlsysevent or devd(9) if available.
+
+d64db8892f85:
+	sh(1) is the default shell in the release media.
+
+68ad2b0d7af2:
+	ncurses has been updated to 6.6
+
+52d19df19ed6:
+	nvi(1) has been update to 2.2.2
+
+4d5c434ed16e, 2cfca8e710f2:
+	diff3(1) has replaced GNU diff3 and is now fully compatible.
+
+625dc44832cd:
+	tr(1) is now UTF-8 compliant.
+
+62fba0054d9e:
+	ee(1) is now UTF-8 compliant.
+
+5df6aca10906:
+	ed(1) is now UTF-8 compliant.
+
+28ff4d35f8b9:
+	Update libedit to 2026-04-03.
+
+b42e852e89cb:
+	Add a new pkg-serve(8) to serve packages over TCP via inetd.
+
 8b9775912cbc, 53b4ae3bf0f7:
 	Add support for an NFSv4 root file system.
 	Note that NFSv3 is still used for bootstrapping. See
