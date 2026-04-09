@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: zzz
+Description: Suspend an ACPI or APM system
+URL: https://man.freebsd.org/cgi/man.cgi?query=zzz(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/zzz
+License: NOASSERTION

@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: diff
+Description: GNU diffutils are comprised of diff, diff3, sdiff, and cmp, utilities for showing differences between files
+URL: https://www.gnu.org/software/diffutils/
+Version: 2.8.7
+Source: https://cgit.git.savannah.gnu.org/cgit/diffutils.git/tag/?h=v2.8.7
+License: GPL-2.0

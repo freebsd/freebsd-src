@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: top
+Description: Display and update information about the top cpu processes
+URL: https://man.freebsd.org/cgi/man.cgi?query=top(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/top
+License: NOASSERTION
+Copyright: 1984, 1989, William LeFebvre, Rice University, 1989, 1990, 1992, William LeFebvre, Northwestern University, 2016, Randy Westlund, 1989 - 1994, William LeFebvre, Northwestern University, 1994, 1995, William LeFebvre, Argonne National Laboratory, 1996, William LeFebvre, Group, 1984 through 1996, William LeFebvre, 2018, Eitan Adler
+Requires: csu, libc, libcompiler_rt, libjail, libkvm, libsbuf, libutil, msun, libtinfo

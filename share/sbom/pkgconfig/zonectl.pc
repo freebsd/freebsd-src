@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: zonectl
+Description: Shingled Magnetic Recording Zone Control utility
+URL: https://man.freebsd.org/cgi/man.cgi?query=zonectl(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/zonectl
+License: LicenseRef-scancode-intel-bsd-2-clause
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-intel-bsd-2-clause.b794004b.txt
+Copyright: 2015, 2016 Spectra Logic Corporation
+Requires: csu, libc, libcam, libcompiler_rt, libsbuf, libutil

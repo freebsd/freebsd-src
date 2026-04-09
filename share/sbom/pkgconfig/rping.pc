@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: rping
+Description: RDMA CM datagram setup and simple ping-pong test
+URL: https://www.openfabrics.org/ofed-for-linux/
+Version: 1.5.3
+Source: https://downloads.openfabrics.org/OFED/archive/ofed-1.5.3/OFED-1.5.3.tgz
+License: GPL-2.0 OR BSD-2-Clause
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt

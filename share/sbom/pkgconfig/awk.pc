@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: awk
+Description: One true awk
+URL: https://github.com/onetrueawk/awk
+Version: 20250804
+Source: https://github.com/onetrueawk/awk/tree/d7f37646965ee26214da0e1d97f3c1d54349ae2d
+License: SMLNJ

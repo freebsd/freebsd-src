@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ld.ldd
+Description: ELF linker from the LLVM project
+URL: https://llvm.org
+Version: 19.x-llvmorg-19.1.4-0-gaadaa00de76e
+Source: https://cgit.freebsd.org/src/tree/contrib/llvm-project/clang
+License: Apache-2.0
+License.file: ${pcfiledir}/LICENSES/Apache-2.0_WITH_LLVM-exception.7f1007e4.txt
+Requires: csu, libllvm, libc, libc++, libcompiler_rt, libcxxrt, libthr, libz, msun, libncursesw

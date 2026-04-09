@@ -1,0 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: zdump
+Description: Time Zone Code
+URL: https://www.iana.org/time-zones
+Version: 2025b
+Source: https://data.iana.org/time-zones/releases/tzcode2025b.tar.gz

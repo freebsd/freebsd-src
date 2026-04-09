@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: pwdx
+Description: Get detailed process information
+URL: https://man.freebsd.org/cgi/man.cgi?query=procstat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/procstat
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2022 The FreeBSD Foundation, 2020 Juraj Lutter <juraj@lutter.sk>, 2007 Robert N. M. Watson, 2015 Allan Jude <allanjude@freebsd.org>, 2007-2011 Robert N. M. Watson, 2007, 2011 Robert N. M. Watson, 2017 Dell EMC, 2010 Konstantin Belousov, 2024 The FreeBSD Foundation, 2011 Mikolaj Golub, 2025 The FreeBSD Foundation, 2012 Hudson River Trading LLC, 2007-2008 Robert N. M. Watson
+Requires: csu, libc, libcompiler_rt, libprocstat, libsbuf, libutil, libxo

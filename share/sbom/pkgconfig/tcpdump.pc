@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: tcpdump
+Description: Powerful command-line packet analyzer
+URL: https://www.tcpdump.org
+Version: 4.99.5
+Source: https://fossies.org/linux/misc/tcpdump-4.99.5.tar.gz
+License: BSD-3-Clause
+Maintainer: cy@, emaste@, jrm@

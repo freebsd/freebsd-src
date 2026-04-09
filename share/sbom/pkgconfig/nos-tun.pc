@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: nos-tun
+Description: Implement ``nos'' or ``ka9q'' style IP over IP tunnel
+URL: https://man.freebsd.org/cgi/man.cgi?query=nos-tun(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/nos-tun
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unmodified.b0958790.txt
+Copyright: 1996, Nickolay Dudorov
+Requires: csu, libc, libcompiler_rt

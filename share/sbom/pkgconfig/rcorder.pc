@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: rcorder
+Description: Print a dependency ordering of interdependent files
+URL: https://man.freebsd.org/cgi/man.cgi?query=rcorder(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/rcorder
+License: BSD-4-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt, ${pcfiledir}/LICENSES/BSD-4-Clause.65fa7be0.txt
+Copyright: 1988, 1989, 1990, 1993 The Regents of the University of California, 1989 by Berkeley Softworks, 1998, 1999 Matthew R. Green, 1998 Perry E. Metzger, 2020 Boris N. Lytochkin, 1988, 1989, 1990 The Regents of the University of California, 1988, 1989 by Adam de Boor
+Requires: csu, libc, libcompiler_rt, libutil

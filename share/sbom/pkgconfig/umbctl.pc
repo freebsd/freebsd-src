@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: umbctl
+Description: Display or set MBIM cellular modem interface parameters (4G/LTE)
+URL: https://man.freebsd.org/cgi/man.cgi?query=umbctl(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/umbctl
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.3fce2f6f.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.a73a5a01.txt
+Copyright: copyright (c) 2018 Pierre Pronchery <khorben@defora.org>, 2022 ADISTA SAS

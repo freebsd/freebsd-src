@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ministat
+Description: Statistics utility
+URL: https://man.freebsd.org/cgi/man.cgi?query=ministat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/ministat
+License: Beerware
+License.file: ${pcfiledir}/LICENSES/Beerware.7543af4e.txt
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, msun

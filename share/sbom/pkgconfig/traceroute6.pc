@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: traceroute6
+Description: Print the route IPv6 packets will take to a network node
+URL: https://man.freebsd.org/cgi/man.cgi?query=traceroute6(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/traceroute6
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.328b29b3.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 1995, 1996, 1997, and 1998 WIDE Project, 1990, 1993 The Regents of the University of California
+Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_dns, libcompiler_rt, libipsec

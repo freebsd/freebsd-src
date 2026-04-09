@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: compress
+Description: Compress and expand data
+URL: https://man.freebsd.org/cgi/man.cgi?query=compress(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/compress
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.becf44a3.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 1996 FreeBSD Inc., 1985, 1986, 1992, 1993 The Regents of the University of California, 1992, 1993 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt

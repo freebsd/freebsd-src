@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: xzegrep
+Description: Grep compressed files
+URL: https://man.freebsd.org/cgi/man.cgi?query=xzegrep(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/grep
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 1999 James Howard and Dag-Erling Smorgrav, 2008-2009 Gabor Kovesdan <gabor@FreeBSD.org>, 2008-2010 Gabor Kovesdan <gabor@FreeBSD.org>, 2017 Kyle Evans <kevans@FreeBSD.org>, 2010 Dimitry Andric <dimitry@andric.com>, 2020 Kyle Evans <kevans@FreeBSD.org>
+Requires: csu, libbz2, libc, libcompiler_rt, libregex, libz

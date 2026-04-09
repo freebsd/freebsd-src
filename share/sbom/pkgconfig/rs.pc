@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: rs
+Description: Reshape a data array
+URL: https://man.freebsd.org/cgi/man.cgi?query=rs(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/rs
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 1993 The Regents of the University of California
+Requires: csu, libc, libc++, libcompiler_rt, libcxxrt, msun

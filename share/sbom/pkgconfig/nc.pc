@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: nc
+Description: Arbitrary TCP and UDP connections and listens
+URL: https://github.com/openbsd/src/tree/master/usr.bin/nc
+Version: 5.8
+Source: https://github.com/openbsd/src/tree/master/usr.bin/nc
+License: BSD-3-Clause AND BSD-2-Clause

@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: reset
+Description: clone of System V curses form library
+URL: https://invisible-island.net/ncurses
+Version: 6.5
+Source: https://invisible-island.net/archives/ncurses/ncurses-6.5.tar.gz
+License: X11
+Requires: csu, libc, libcompiler_rt, libncurses, libtinfo

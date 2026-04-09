@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: genl
+Description: Generic netlink
+URL: https://man.freebsd.org/cgi/man.cgi?query=genl(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/genl
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.3c0ceec3.txt
+Copyright: Copyright 2025 Gleb Smirnoff <glebius@FreeBSD.org>, Copyright 2023 Baptiste Daroussin <bapt@FreeBSD.org>

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: sort
+Description: Sort or merge records (lines) of text and binary files
+URL: https://man.freebsd.org/cgi/man.cgi?query=sort(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/sort
+License: BSD-2-Clause AND BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 2009 Gabor Kovesdan <gabor@FreeBSD.org>, 2012 Oleg Moskalenko <mom040267@gmail.com>, 2012 Gabor Kovesdan <gabor@FreeBSD.org>, 1991, 1993 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt, msun

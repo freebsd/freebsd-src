@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: k5srvutil
+Description: MIT implementation of Kerberos stack
+URL: https://web.mit.edu/kerberos/krb5-latest/doc/
+Version: 1.2.2
+Source: https://github.com/krb5/krb5/tree/krb5-1.22-final
+License: MIT

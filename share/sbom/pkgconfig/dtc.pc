@@ -1,0 +1,15 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: dtc
+Description: FreeBSD Device Tree Compiler
+URL: https://github.com/davidchisnall/dtc
+Version: 23387dd
+Source: https://github.com/davidchisnall/dtc/tree/23387dd5462d38bf2e7301e2811913d82e167efc
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2013 David Chisnall
+Maintainer: jrtc27@, kevans@, theraven@
+Requires: libcxxrt

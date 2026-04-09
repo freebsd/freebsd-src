@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: csh
+Description: C shell with file name completion and command line editing
+URL: https://man.freebsd.org/cgi/man.cgi?query=csh(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/bin/csh
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2006 Hajimu UMEMOTO <ume@FreeBSD.org>
+Requires: csu, libc, libcompiler_rt

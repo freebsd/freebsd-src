@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ipcs
+Description: Report System V interprocess communication facilities status
+URL: https://man.freebsd.org/cgi/man.cgi?query=ipcs(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/ipcs
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.67ec8400.txt
+Copyright: 1994 SigmaSoft, Th. Lockert <tholo@sigmasoft.com>
+Requires: csu, libc, libcompiler_rt, libkvm

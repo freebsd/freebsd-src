@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: indent
+Description: Indent and format C program source
+URL: https://man.freebsd.org/cgi/man.cgi?query=indent(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/indent
+License: BSD-4-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.a1a01172.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.73605b83.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.16ceb891.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.18b9a0c1.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt
+Copyright: 1985 Sun Microsystems, Inc., 1976 Board of Trustees of the University of Illinois, 1980, 1993 The Regents of the University of California, 2001 Jens Schweikhardt, 1976 by the Board of Trustees of the University of Illinois
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt

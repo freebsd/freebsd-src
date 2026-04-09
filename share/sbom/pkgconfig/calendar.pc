@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: calendar
+Description: Reminder service
+URL: https://man.freebsd.org/cgi/man.cgi?query=calendar(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/calendar
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.c570f536.txt
+Copyright: 1996 Wolfram Schneider <wosch@FreeBSD.org> Berlin, 1989, 1993 The Regents of the University of California, 1993-1996 by Andrey A. Chernov, Moscow, Russia, 1992-2009 Edwin Groothuis <edwin@FreeBSD.org>, 1989, 1993, 1994 The Regents of the University of California, 2009-2010 Edwin Groothuis <edwin@FreeBSD.org>
+Requires: csu, libc, libcompiler_rt, libutil, msun

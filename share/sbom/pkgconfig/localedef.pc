@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: localedef
+Description: Define locale environment
+URL: https://man.freebsd.org/cgi/man.cgi?query=localedef(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/localedef
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.24b7bfd9.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33975e2c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.9e847da2.txt
+Copyright: Copyright 2010 Nexenta Systems, Inc., Copyright 2015 John Marino <draco@marino.st>, Copyright 2018 Nexenta Systems, Inc., Copyright 2012 Garrett D'Amore <garrett@damore.org>, Copyright 2011 Nexenta Systems, Inc.
+Requires: csu, libc, libcompiler_rt

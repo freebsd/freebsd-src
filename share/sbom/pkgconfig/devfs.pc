@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: devfs
+Description: DEVFS control
+URL: https://man.freebsd.org/cgi/man.cgi?query=devfs(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/devfs
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.df18d8a7.txt
+Copyright: 2001, 2002 Dima Dorfman, 2002 Dima Dorfman, 2003 The FreeBSD Project
+Requires: csu, libc, libcompiler_rt

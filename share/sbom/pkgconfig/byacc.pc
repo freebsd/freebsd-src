@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: byacc
+Description: Parser generator designed to be compatible with Yacc
+URL: https://invisible-island.net/byacc/
+Version: 20240109
+Source: https://invisible-island.net/datafiles/release/byacc.tar.gz
+License: LicenseRef-scancode-public-domain

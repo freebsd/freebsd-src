@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: fdread
+Description: Read floppy disks
+URL: https://man.freebsd.org/cgi/man.cgi?query=fdread(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/fdread
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.3fce2f6f.txt
+Copyright: 2001 Joerg Wunsch
+Requires: csu, libc, libcompiler_rt

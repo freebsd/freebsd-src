@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: lex
+Description: Fast lexical analyzer generator
+URL: https://github.com/westes/flex
+Version: 2.6.4
+Source: https://github.com/westes/flex/tree/v2.6.4
+License: BSD-2-Clause

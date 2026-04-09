@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: gate-ftp
+Description: Enhanced FTP client for Unix-like operating systems
+URL: https://ftp.netbsd.org/pub/NetBSD/misc/tnftp/
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/contrib/tnftp/
+License: BSD-3-Clause AND BSD-2-Clause
+Requires: csu, libc, libcompiler_rt, libedit

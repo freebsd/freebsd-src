@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: bsdiff
+Description: Generate a patch between two binary files
+URL: https://man.freebsd.org/cgi/man.cgi?query=bsdiff(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/bsdiff/bsdiff
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/MIT.d52bc048.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.cb59cf40.txt
+Copyright: 2003-2008 Yuta Mori, Copyright 2003-2005 Colin Percival
+Requires: csu, bzip2, libc, libcompiler_rt

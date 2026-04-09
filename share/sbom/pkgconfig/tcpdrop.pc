@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: tcpdrop
+Description: Drop TCP connections
+URL: https://man.freebsd.org/cgi/man.cgi?query=tcpdrop(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/tcpdrop
+License: ISC
+License.file: ${pcfiledir}/LICENSES/ISC.a506e8a5.txt
+Copyright: 2009 Juli Mallett <jmallett@FreeBSD.org>, 2004 Markus Friedl <markus@openbsd.org>
+Requires: csu, libc, libcompiler_rt

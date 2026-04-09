@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libcxxrt
+Description: C++ ABI implementation providing low-level support for a standard C++ library
+URL: https://github.com/libcxxrt/libcxxrt
+Version: 6f2fdfebcd62
+Source: https://github.com/libcxxrt/libcxxrt/tree/6f2fdfebcd6291d763de8b17740d636f01761890
+License: BSD-2-Clause

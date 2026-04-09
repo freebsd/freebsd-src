@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: zcmp
+Description: Compare compressed files
+URL: https://man.freebsd.org/cgi/man.cgi?query=zcmp(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/gzip
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.2e42e2d8.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.88f437cf.txt, ${pcfiledir}/LICENSES/ISC.a506e8a5.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-sudo.e5838632.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/Zlib.83bd71d4.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.715ec2cd.txt
+Copyright: 2018 The NetBSD Foundation, Inc., 2013-2018 Antonio Diaz Diaz, 2009 Xin LI <delphij@FreeBSD.org>, 2011 The NetBSD Foundation, Inc., 2003 Otto Moerbeek <otto@drijf.net>, 2022 Klara, Inc., 1985, 1986, 1992, 1993 The Regents of the University of California, 2003 Todd C. Miller <Todd.Miller@courtesan.com>, 2010 Joerg Sonnenberger <joerg@NetBSD.org>, 2006 The NetBSD Foundation, Inc., 1997, 1998, 2003, 2004, 2006, 2008, 2009, 2010, 2011, 2015, 2017 Matthew R. Green, 1997, 1998, 2003, 2004, 2006 Matthew R. Green
+Requires: csu, libc, libcompiler_rt, liblzma, libz, libzstd

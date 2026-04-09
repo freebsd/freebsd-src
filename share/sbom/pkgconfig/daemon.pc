@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: daemon
+Description: Run detached from the controlling terminal
+URL: https://man.freebsd.org/cgi/man.cgi?query=daemon(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/daemon
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.dfb2e1d4.txt
+Copyright: 1999 Berkeley Software Design, Inc.
+Requires: csu, libc, libcompiler_rt, libutil

@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ntpq
+Description: Network Time Protocol (NTP)
+URL: https://www.ntp.org
+Version: 4.2.8p18
+Source: https://downloads.nwtime.org/ntp/4.2.8/ntp-4.2.8p18.tar.gz
+License: Beerware AND BSD-4-Clause AND BSD-4-Clause-UC AND BSD-3-Clause AND BSD-2-Clause AND BSD-3-Clause AND CC-PDDC AND BSD-4.3TAHOE AND curl AND FSFAP AND GPL-1.0-or-later AND GPL-3.0-or-later WITH Bison-exception-2.2 AND HPND AND ISC LicenseRef-scancode-public-domain AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND LGPL-3.0-or-later OR BSD-3-Clause AND LicenseRef-scancode-historical-ntp AND LicenseRef-scancode-nortel-dasa AND LicenseRef-scancode-other-permissive AND LicenseRef-scancode-philippe-de-muyter AND LicenseRef-scancode-takao-abe AND LicenseRef-scancode-warranty-disclaimer AND LicenseRef-scancode-other-permissive AND MIT AND MIT-CMU AND NTP NTP-0

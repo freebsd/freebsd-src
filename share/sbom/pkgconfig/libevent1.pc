@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: libevent1
+Description: Event library
+Version: 15.0
+URL: https://openbsd.org
+License: BSD-3-Clause
+Maintainer: kp@, ks@
+Requires: csu, libc, libcompiler_rt

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: usbhidctl
+Description: Manipulate USB HID devices
+URL: https://man.freebsd.org/cgi/man.cgi?query=usbhidctl(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/usbhidctl
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt
+Copyright: 1998 The NetBSD Foundation, Inc.
+Requires: csu, libc, libcompiler_rt, libusbhid

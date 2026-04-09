@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: diff3
+Description: 3-way differential file comparison
+URL: https://man.freebsd.org/cgi/man.cgi?query=diff3(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/diff3
+License: BSD-3-Clause AND Caldera-no-preamble
+License.file: ${pcfiledir}/LICENSES/Caldera-no-preamble.cecc855a.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: Caldera International Inc. 2001-2002, 1991, 1993 The Regents of the University of California

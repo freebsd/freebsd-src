@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: rfcomm_sppd
+Description: RFCOMM Serial Port Profile daemon
+URL: https://man.freebsd.org/cgi/man.cgi?query=rfcomm_sppd(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/bluetooth/rfcomm_sppd
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+Requires: csu, libbluetooth, libc, libcompiler_rt, libsdp, libutil

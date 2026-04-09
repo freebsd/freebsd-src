@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: hastd
+Description: Highly Available Storage daemon
+URL: https://man.freebsd.org/cgi/man.cgi?query=hastd(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/hastd
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-2-Clause_OR_GPL-2.0-or-later.08cabcb7.txt
+Copyright: 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>, 2009-2010 The FreeBSD Foundation, 2005 John Baldwin <jhb@FreeBSD.org>, 2010 The FreeBSD Foundation, 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>, 2011 Pawel Jakub Dawidek <pawel@dawidek.net>, 2000-2008 Marc Alexander Lehmann <schmorp@schmorp.de>, 2011 Pawel Jakub Dawidek <pjd@FreeBSD.org>, 2009 The FreeBSD Foundation
+Requires: csu, libc, libcompiler_rt, libgeom, libmd, libthr, libutil, zlib

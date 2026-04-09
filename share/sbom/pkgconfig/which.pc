@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: which
+Description: Locate a program file in the user's path
+URL: https://man.freebsd.org/cgi/man.cgi?query=which(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/which
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.b5add324.txt
+Copyright: 2000 Dan Papasian
+Requires: csu, libc, libcompiler_rt

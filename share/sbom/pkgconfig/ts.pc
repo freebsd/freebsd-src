@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ts
+Description: Utility prepends a timestamp to each line of standard input and writes it to standard output
+URL: https://github.com/openbsd/src/tree/master/usr.bin/ts
+Version: 7.2
+Source: https://github.com/openbsd/src/tree/master/usr.bin/ts
+License: BSD-3-Clause

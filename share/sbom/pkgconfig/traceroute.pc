@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: traceroute
+Description: Print the route packets take to network host
+URL: https://man.freebsd.org/cgi/man.cgi?query=traceroute(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/traceroute
+License: BSD-2-Clause AND BSD-4-Clause-Shortened AND BSD-4-Clause-UC
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.e776081c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/BSD-4-Clause-Shortened.ad320323.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 1997, 1998, 1999, 2000 The Regents of the University of California, 2000 The Regents of the University of California, 2001 The NetBSD Foundation, Inc., 1988, 1989, 1991, 1994, 1995, 1996, 1997, 1998, 1999, 2000 The Regents of the University of California, 2010 Bjoern A. Zeeb <bz@FreeBSD.org>, 1997 The Regents of the University of California
+Requires: csu, libc, libcapsicum, libcompiler_rt, libipsec

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ypset
+Description: Tell ypbind(8) which NIS server process to use
+URL: https://man.freebsd.org/cgi/man.cgi?query=ypset(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/ypset
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt
+Copyright: 1992, 1993 Theo de Raadt <deraadt@theos.com>
+Requires: csu, libc, libcompiler_rt

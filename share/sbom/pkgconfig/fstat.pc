@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: fstat
+Description: Identify active files
+URL: https://man.freebsd.org/cgi/man.cgi?query=fstat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/fstat
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.da76510e.txt
+Copyright: 2005-2009 Stanislav Sedov <stas@FreeBSD.org>, 2009 Stanislav Sedov <stas@FreeBSD.org>, 1988, 1993 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt, libprocstat

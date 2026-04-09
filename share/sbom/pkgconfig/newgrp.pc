@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: newgrp
+Description: Change to a new group
+URL: https://man.freebsd.org/cgi/man.cgi?query=newgrp(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/newgrp
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2002 Tim J. Robbins
+Requires: csu, libc, libcompiler_rt, libcrypt, libutil

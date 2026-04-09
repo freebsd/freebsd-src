@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: getopt
+Description: Parse command options
+URL: https://man.freebsd.org/cgi/man.cgi?query=getopt(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/getopt
+License: LicenseRef-scancode-public-domain
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.d873e449.txt
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt

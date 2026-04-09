@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ex
+Description: Multibyte fork of the nvi editor for BSD
+URL: https://github.com/lichray/nvi2
+Version: 2.2.2
+Source: https://github.com/lichray/nvi2/tree/v2.2.2
+License: BSD-3-Clause
+Requires: csu, libc, libutil, libncurses, libtinfo

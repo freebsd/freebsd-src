@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: libdwarf
+Description: BSD licensed ELF toolchain
+URL: https://sourceforge.net/projects/elftoolchain/
+Version: r4912
+Source: https://sourceforge.net/p/elftoolchain/code/
+License: BSD-2-Clause
+Maintainer: emaste@, jkoshy@, kaiw@
+Requires: csu, libc, libcompiler_rt, libelf, libz

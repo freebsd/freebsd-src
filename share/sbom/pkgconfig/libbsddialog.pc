@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: libbsddialog
+Description: Utility and a library to build scripts and tools with TUI dialogs and widgets
+URL: https://gitlab.com/alfix/bsddialog
+Version: 1.1
+Source: https://gitlab.com/alfix/bsddialog/-/tree/1.1
+License: BSD-2-Clause

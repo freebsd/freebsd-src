@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: libsysdecode
+Description: Library missing description
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/lib/libsysdecode
+License: BSD-2-Clause
+Requires: csu, libatf-c, lib80211, lib9p, libalias, libarchive, libbe, libbegemot, libblocklist, libblocksruntime, libbluetooth, libbsddialog, libbsdstat, libbsm, libbsnmp, bzip2, libc, libc++, libcalendar, libcam, libcapsicum, libcasper, libcasper.services.cap_dns, libcasper.services.cap_fileargs, libcasper.services.cap_grp, libcasper.services.cap_net, libcasper.services.cap_netdb, libcasper.services.cap_pwd, libcasper.services.cap_sysctl, libcasper.services.cap_syslog, libcom_err, libcompiler_rt, libcuse, libdevctl, libdevdctl, libdevinfo, libdevstat, libdpv, libdwarf, libedit, libedit.readline, libefivar, libelf, libevent1, libexecinfo, libexpat, libfetch, libfigpar, libgeom, libgpio, libjail, libkvm, liblzma, libmagic, libmd, libmemstat, libmilter, libmixer, libmp, libmt, libnetgraph, libpam, libpathconv, libpcap, libpmc, libproc, libprocstat, libradius, librss, librtld_db, libsdp, sqlite3, libstdthreads, libtacplus, libthread_db, libucl, libufs, libugidfw, libulog, libusb, libusbhid, libutil, libveriexec, libvgl, libvmmapi, libwrap, libxo, libypclnt, libz, libzstd, msun, libform, libmenu, libpanel, libtinfo

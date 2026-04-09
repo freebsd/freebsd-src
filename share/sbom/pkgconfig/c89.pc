@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: c89
+Description: POSIX.2 C language compiler
+URL: https://man.freebsd.org/cgi/man.cgi?query=c89(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/c89
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.0e4c86ca.txt
+Copyright: 2001 by Jens Schweikhardt
+Requires: csu, libc, libcompiler_rt

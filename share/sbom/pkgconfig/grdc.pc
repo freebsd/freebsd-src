@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: grdc
+Description: Grand digital clock (curses)
+URL: https://man.freebsd.org/cgi/man.cgi?query=grdc(6)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/grdc
+License: NOASSERTION
+Requires: csu, libc, libcompiler_rt, libncurses, libtinfo

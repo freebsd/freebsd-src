@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: last
+Description: Indicate last logins of users and ttys
+URL: https://man.freebsd.org/cgi/man.cgi?query=last(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/last
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 1987, 1993, 1994 The Regents of the University of California, 2018 Philip Paeps
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libxo

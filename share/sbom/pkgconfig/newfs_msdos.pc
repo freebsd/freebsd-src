@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: newfs_msdos
+Description: Construct a new MS-DOS (FAT) file system
+URL: https://man.freebsd.org/cgi/man.cgi?query=newfs_msdos(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/newfs_msdos
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.0bb055ab.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt
+Copyright: 1998 Robert Nordier, 2013 The NetBSD Foundation, Inc.
+Requires: csu, libc, libcompiler_rt

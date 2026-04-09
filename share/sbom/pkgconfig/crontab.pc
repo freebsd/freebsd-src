@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: crontab
+Description: Maintain crontab files for individual users (V3)
+URL: https://man.freebsd.org/cgi/man.cgi?query=crontab(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/cron/crontab
+License: ISC
+License.file: ${pcfiledir}/LICENSES/ISC.a9fefede.txt
+Copyright: Copyright 1988,1990,1993,1994 by Paul Vixie, 1997 by Internet Software Consortium
+Requires: csu, libc, libcompiler_rt, libmd, libutil

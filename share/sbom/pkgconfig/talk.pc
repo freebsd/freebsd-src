@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: talk
+Description: Talk to another user
+URL: https://man.freebsd.org/cgi/man.cgi?query=talk(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/talk
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-mit-license-1998.efd275e2.txt
+Copyright: 1983, 1993 The Regents of the University of California, Copyright 1994, 1995 Massachusetts Institute of Technology
+Requires: csu, libc, libcompiler_rt, libncurses, libtinfo

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: adjkerntz
+Description: Adjust real-time clock (rtc) and kernel timezone offset
+URL: https://man.freebsd.org/cgi/man.cgi?query=adjkerntz(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/adjkerntz
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.c570f536.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.c78f08b5.txt
+Copyright: 1993-1998 by Andrey A. Chernov, Moscow, Russia, 1993 by Andrew A. Chernov, Moscow, Russia
+Requires: csu, libc, libcompiler_rt

@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: libz
+Description: zlib compression library
+URL: https://zlib.net
+Version: 1.3.1
+Source: https://github.com/madler/zlib/tree/develop
+License: Zlib

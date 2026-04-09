@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: mailq
+Description: General purpose internetwork email routing application
+URL: https://ftp.sendmail.org
+Version: 8.18.1
+Source: https://ftp.sendmail.org/sendmail.8.18.1.tar.gz
+License: Sendmail
+Requires: openssl

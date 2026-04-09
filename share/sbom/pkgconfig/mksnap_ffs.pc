@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: mksnap_ffs
+Description: Take a file system snapshot
+URL: https://man.freebsd.org/cgi/man.cgi?query=mksnap_ffs(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/mksnap_ffs
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.9136516b.txt
+Copyright: 2003 Networks Associates Technology, Inc.
+Requires: csu, libc, libcompiler_rt

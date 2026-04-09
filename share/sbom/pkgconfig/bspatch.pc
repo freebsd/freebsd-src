@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: bspatch
+Description: Apply a patch built with bsdiff(1)
+URL: https://man.freebsd.org/cgi/man.cgi?query=bspatch(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/bsdiff/bspatch
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.cb59cf40.txt
+Copyright: Copyright 2003-2005 Colin Percival
+Requires: csu, bzip2, libc, libcompiler_rt

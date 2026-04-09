@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: lldb
+Description: LLDB Documentation
+URL: https://llvm.org
+Version: 19.x-llvmorg-19.1.4-0-gaadaa00de76e
+Source: https://cgit.freebsd.org/src/tree/contrib/llvm-project/clang
+License: Apache-2.0
+Requires: csu, libclang, liblldb, libllvm, libc, libc++, libcompiler_rt, libcxxrt, libedit, libexecinfo, libkvm, liblua, liblzma, libthr, libz, libzstd, msun, libncurses, libpanel, libtinfo

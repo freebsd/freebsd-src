@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: zstd
+Description: Zstandard is a fast compression algorithm
+URL: https://facebook.github.io/zstd/
+Version: 1.5.2
+Source: https://github.com/facebook/zstd
+License: BSD-3-Clause

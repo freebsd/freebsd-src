@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: truss
+Description: Trace system calls
+URL: https://man.freebsd.org/cgi/man.cgi?query=truss(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/truss
+License: BSD-4-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.1df4f35b.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: Copyright 1997 Sean Eric Fagan, Copyright 2001 Jamey Wood
+Requires: csu, libc, libcompiler_rt, libsysdecode

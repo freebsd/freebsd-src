@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: usbhidaction
+Description: Perform actions according to USB HID controls
+URL: https://man.freebsd.org/cgi/man.cgi?query=usbhidaction(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/usbhidaction
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt
+Copyright: 2000, 2002 The NetBSD Foundation, Inc.
+Requires: csu, libc, libcompiler_rt, libusbhid

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: killall
+Description: Kill processes by name
+URL: https://man.freebsd.org/cgi/man.cgi?query=killall(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/killall
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2000 Peter Wemm <peter@FreeBSD.org>, 2000 Paul Saab <ps@FreeBSD.org>
+Requires: csu, libc, libcompiler_rt, libjail

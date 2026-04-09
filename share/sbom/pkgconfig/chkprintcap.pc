@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: chkprintcap
+Description: Check validity of entries in the print spooler database
+URL: https://man.freebsd.org/cgi/man.cgi?query=chkprintcap(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/lpr/chkprintcap
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-mit-license-1998.efd275e2.txt, ${pcfiledir}/LICENSES/BSD-2-Clause-Views.fb8744a6.txt
+Copyright: Copyright 1997 Massachusetts Institute of Technology, 1997, Massachusetts Institute of Technology, 2001 - Garance Alistair Drosehn <gad@FreeBSD.org>
+Requires: csu, libc, libcompiler_rt

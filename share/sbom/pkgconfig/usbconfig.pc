@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: usbconfig
+Description: Configure the USB subsystem
+URL: https://man.freebsd.org/cgi/man.cgi?query=usbconfig(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/usbconfig
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2008-2009 Hans Petter Selasky, 2008 Hans Petter Selasky, 2024 Baptiste Daroussin <bapt@FreeBSD.org>, 2025 The FreeBSD Foundation
+Requires: csu, libc, libcompiler_rt, libusb

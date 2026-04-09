@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: libexpat
+Description: XML 1.0 parser written in C
+URL: https://github.com/libexpat/libexpat
+Version: 2.7.3
+Source: https://github.com/libexpat/libexpat/tree/R_2_7_3
+License: MIT

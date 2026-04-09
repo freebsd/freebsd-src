@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: sha512t224sum
+Description: Calculate a message- digest fingerprint (checksum) for a file
+URL: https://man.freebsd.org/cgi/man.cgi?query=sha512t224sum(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/md5
+License: LicenseRef-scancode-rsa-1990
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-rsa-1990.368f42f4.txt
+Copyright: 1990-2, RSA Data Security, Inc.
+Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_fileargs, libcompiler_rt, libmd
