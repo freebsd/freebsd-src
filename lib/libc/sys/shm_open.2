@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 30, 2023
+.Dd April 13, 2026
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
@@ -342,7 +342,25 @@ Allow adding seals to the resulting file descriptor using the
 .Xr fcntl 2
 command.
 .It Dv MFD_HUGETLB
-This flag is currently unsupported.
+Create a memfd backed by a
+.Dq largepage
+object.
+One of the
+.Dv MFD_HUGE_*
+flags defined in
+.In sys/mman.h
+may be included to specify a fixed size.
+If a specific size is not requested, the smallest supported large page size is
+selected.
+.Pp
+The behavior documented above for the
+.Fn shm_create_largepage
+.Fa psind
+argument also applies to largepage objects created by
+.Fn memfd_create ,
+and the
+.Dv SHM_LARGEPAGE_ALLOC_DEFAULT
+policy will always be used.
 .El
 .Sh RETURN VALUES
 If successful,
@@ -457,17 +475,22 @@ argument was too long.
 .Pp
 An invalid or unsupported flag was included in
 .Fa flags .
+.It Bq Er EINVAL
+A hugetlb mapping was requested, but
+.Dv MFD_HUGETLB
+was not specified in
+.Fa flags .
 .It Bq Er EMFILE
 The process has already reached its limit for open file descriptors.
 .It Bq Er ENFILE
 The system file table is full.
 .It Bq Er ENOSYS
-In
-.Fa memfd_create ,
 .Dv MFD_HUGETLB
 was specified in
 .Fa flags ,
 and this system does not support forced hugetlb mappings.
+.It Bq Er EOPNOTSUPP
+This system does not support the requested hugetlb page size.
 .El
 .Pp
 .Fn shm_open
