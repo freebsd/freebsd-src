@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -929,6 +929,32 @@ static EVP_PKEY *load_example_ec_key(void)
 #endif
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
+
+static EVP_PKEY *make_bad_rsa_pubkey(void)
+{
+    RSA *rsa = NULL;
+    BIGNUM *n = NULL, *e = NULL;
+    EVP_PKEY *pkey = NULL;
+
+    /* Deliberately invalid public key: n = 17, e = 17 */
+    if (!TEST_ptr(pkey = EVP_PKEY_new())
+        || !TEST_ptr(rsa = RSA_new())
+        || !TEST_ptr(n = BN_new())
+        || !TEST_ptr(e = BN_new())
+        || !TEST_true(BN_set_word(n, 17))
+        || !TEST_true(BN_set_word(e, 17))
+        || !TEST_true(RSA_set0_key(rsa, n, e, NULL))
+        || !EVP_PKEY_assign_RSA(pkey, rsa))
+        goto err;
+
+    return pkey;
+err:
+    BN_free(n);
+    BN_free(e);
+    RSA_free(rsa);
+    return NULL;
+}
+
 #ifndef OPENSSL_NO_DH
 static EVP_PKEY *load_example_dh_key(void)
 {
@@ -5898,6 +5924,46 @@ err:
     return testresult;
 }
 
+static int test_rsasve_kem_with_invalid_pub_key(void)
+{
+    RSA *rsa = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+    unsigned char *ct = NULL;
+    unsigned char *secret = NULL;
+    size_t ctlen = 0, secretlen = 0;
+    int testresult = 0;
+
+    if (nullprov != NULL) {
+        testresult = TEST_skip("Test does not support a non-default library context");
+        goto err;
+    }
+
+    if (!TEST_ptr(pkey = make_bad_rsa_pubkey()))
+        goto err;
+
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, NULL))
+        || !TEST_int_eq(EVP_PKEY_encapsulate_init(ctx, NULL), 1)
+        || !TEST_int_eq(EVP_PKEY_CTX_set_kem_op(ctx, "RSASVE"), 1)
+        || !TEST_int_eq(EVP_PKEY_encapsulate(ctx, NULL, &ctlen, NULL, &secretlen), 1)
+        || !TEST_ptr(ct = OPENSSL_malloc(ctlen))
+        || !TEST_ptr(secret = OPENSSL_malloc(secretlen)))
+        goto err;
+
+    if (!TEST_int_eq(EVP_PKEY_encapsulate(ctx, ct, &ctlen, secret, &secretlen), 0))
+        goto err;
+
+    testresult = 1;
+
+err:
+    OPENSSL_free(secret);
+    OPENSSL_free(ct);
+    EVP_PKEY_CTX_free(ctx);
+    RSA_free(rsa);
+    EVP_PKEY_free(pkey);
+    return testresult;
+}
+
 #ifndef OPENSSL_NO_DYNAMIC_ENGINE
 /* Test we can create a signature keys with an associated ENGINE */
 static int test_signatures_with_engine(int tst)
@@ -6481,6 +6547,45 @@ static int test_invalid_ctx_for_digest(void)
     return ret;
 }
 
+static int test_evp_cipher_negative_length(void)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_CIPHER *cipher = NULL;
+    unsigned char key[16] = { 0 };
+    unsigned char iv[16] = { 0 };
+    unsigned char buffer[32] = { 0 };
+    int outl = 0;
+    int ret = 0;
+
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new()))
+        goto end;
+
+    if (!TEST_ptr(cipher = EVP_CIPHER_fetch(testctx, "AES-128-CBC", testpropq)))
+        goto end;
+
+    /* Initialize encryption context */
+    if (!TEST_int_eq(EVP_EncryptInit_ex2(ctx, cipher, key, iv, NULL), 1))
+        goto end;
+
+    /* Test EVP_EncryptUpdate with negative length - should fail */
+    if (!TEST_int_eq(EVP_EncryptUpdate(ctx, buffer, &outl, (unsigned char *)"test", -1), 0))
+        goto end;
+
+    /* Reinitialize for decryption */
+    if (!TEST_int_eq(EVP_DecryptInit_ex2(ctx, cipher, key, iv, NULL), 1))
+        goto end;
+
+    /* Test EVP_DecryptUpdate with negative length - should fail */
+    if (!TEST_int_eq(EVP_DecryptUpdate(ctx, buffer, &outl, (unsigned char *)"test", -1), 0))
+        goto end;
+
+    ret = 1;
+end:
+    EVP_CIPHER_free(cipher);
+    EVP_CIPHER_CTX_free(ctx);
+    return ret;
+}
+
 static int test_evp_cipher_pipeline(void)
 {
     OSSL_PROVIDER *fake_pipeline = NULL;
@@ -6854,6 +6959,7 @@ int setup_tests(void)
     ADD_TEST(test_evp_md_cipher_meth);
     ADD_TEST(test_custom_md_meth);
     ADD_TEST(test_custom_ciph_meth);
+    ADD_TEST(test_rsasve_kem_with_invalid_pub_key);
 
 #ifndef OPENSSL_NO_DYNAMIC_ENGINE
     /* Tests only support the default libctx */
@@ -6882,6 +6988,8 @@ int setup_tests(void)
 #endif
 
     ADD_TEST(test_invalid_ctx_for_digest);
+
+    ADD_TEST(test_evp_cipher_negative_length);
 
     ADD_TEST(test_evp_cipher_pipeline);
 
