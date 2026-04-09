@@ -1122,10 +1122,13 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		break;
 	}
 
-	/* Check the FW API version */
-	if (hw->mac.type == ixgbe_mac_E610 && ixgbe_check_fw_api_version(sc)) {
-		error = EIO;
-		goto err_pci;
+	/* Check the FW API version and enable FW logging support for E610 */
+	if (hw->mac.type == ixgbe_mac_E610) {
+		if (ixgbe_check_fw_api_version(sc)) {
+			error = EIO;
+			goto err_pci;
+		}
+		ixgbe_fwlog_set_support_ena(hw);
 	}
 
 	/* Most of the iflib initialization... */
@@ -3401,6 +3404,9 @@ ixgbe_add_debug_sysctls(struct ixgbe_softc *sc)
 
 	if (sc->feat_en & IXGBE_FEATURE_DBG_DUMP)
 		ixgbe_add_debug_dump_sysctls(sc);
+
+	if (sc->feat_en & IXGBE_FEATURE_FW_LOGGING)
+		ixgbe_add_fw_logging_tunables(sc, sc->debug_sysctls);
 } /* ixgbe_add_debug_sysctls */
 
 /************************************************************************
@@ -4495,6 +4501,10 @@ ixgbe_handle_fw_event(void *context)
 		switch (le16toh(event.desc.opcode)) {
 		case ixgbe_aci_opc_get_link_status:
 			sc->task_requests |= IXGBE_REQUEST_TASK_LSC;
+			break;
+
+		case ixgbe_aci_opc_fw_logs_event:
+			ixgbe_fwlog_event_dump(&sc->hw, &event.desc, event.msg_buf);
 			break;
 
 		case ixgbe_aci_opc_temp_tca_event:
@@ -5733,6 +5743,7 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 	case ixgbe_mac_E610:
 		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
 		sc->feat_cap |= IXGBE_FEATURE_DBG_DUMP;
+		sc->feat_cap |= IXGBE_FEATURE_FW_LOGGING;
 		error = ixgbe_get_caps(&sc->hw);
 		if (error == 0 && sc->hw.func_caps.common_cap.eee_support != 0)
 			sc->feat_cap |= IXGBE_FEATURE_EEE;
@@ -5760,6 +5771,9 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 	/* FW Debug Dump */
 	if (sc->feat_cap & IXGBE_FEATURE_DBG_DUMP)
 		sc->feat_en |= IXGBE_FEATURE_DBG_DUMP;
+	/* FW Logging */
+	if (sc->feat_cap & IXGBE_FEATURE_FW_LOGGING)
+		sc->feat_en |= IXGBE_FEATURE_FW_LOGGING;
 
 	/* Enabled via global sysctl... */
 	/* Flow Director */
