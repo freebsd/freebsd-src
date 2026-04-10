@@ -1,8 +1,8 @@
 :
 # RCSid:
-#	$Id: safe_eval.sh,v 1.25 2025/08/07 22:13:03 sjg Exp $
+#	$Id: safe_eval.sh,v 1.26 2026/04/10 16:03:39 sjg Exp $
 #
-#	@(#) Copyright (c) 2023-2024 Simon J. Gerraty
+#	@(#) Copyright (c) 2023-2026 Simon J. Gerraty
 #
 #	SPDX-License-Identifier: BSD-2-Clause
 #
@@ -23,13 +23,16 @@ else
 fi
 
 ##
-# safe_set
+# safe_set [xtras]
 #
 # return a safe variable setting
-# any non-alphanumeric chars are replaced with '_'
+# any non-alphanumeric chars other than those in "xtras"
+# will be replaced with '_'
 #
+# "xtras" should be used with caution and cannot include ';'
+# 
 safe_set() {
-    ${SED:-sed} 's/[ 	]*#.*//;/^[A-Za-z_][A-Za-z0-9_]*=/!d;s;[^A-Za-z0-9_. 	"$,/=:+-];_;g'
+    ${SED:-sed} 's/[ 	]*#.*//;/^[A-Za-z_][A-Za-z0-9_]*=/!d;s;[^A-Za-z0-9_. 	"'"$1"'$,/=:+-];_;g'
 }
 
 ##
