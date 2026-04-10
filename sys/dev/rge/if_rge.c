@@ -103,12 +103,7 @@ static void	rge_tx_task(void *, int);
 static void	rge_txq_flush_mbufs(struct rge_softc *sc);
 static void	rge_tick(void *);
 static void	rge_link_state(struct rge_softc *);
-#if 0
-#ifndef SMALL_KERNEL
-int		rge_wol(struct ifnet *, int);
-void		rge_wol_power(struct rge_softc *);
-#endif
-#endif
+static void	rge_setwol(struct rge_softc *);
 
 struct rge_matchid {
 	uint16_t vendor;
@@ -161,7 +156,11 @@ rge_attach_if(struct rge_softc *sc, const char *eaddr)
 	if_setcapabilities(sc->sc_ifp, IFCAP_HWCSUM);
 	if_setcapenable(sc->sc_ifp, if_getcapabilities(sc->sc_ifp));
 
-	/* TODO: set WOL */
+	/* Enable WOL if PM is supported. */
+	if (pci_has_pm(sc->sc_dev)) {
+		if_setcapabilitiesbit(sc->sc_ifp, IFCAP_WOL_MAGIC, 0);
+		if_setcapenablebit(sc->sc_ifp, IFCAP_WOL_MAGIC, 0);
+	}
 
 	/* Attach interface */
 	ether_ifattach(sc->sc_ifp, eaddr);
@@ -654,26 +653,6 @@ rge_detach(device_t dev)
 	return (0);
 }
 
-#if 0
-
-int
-rge_activate(struct device *self, int act)
-{
-#ifndef SMALL_KERNEL
-	struct rge_softc *sc = (struct rge_softc *)self;
-#endif
-
-	switch (act) {
-	case DVACT_POWERDOWN:
-#ifndef SMALL_KERNEL
-		rge_wol_power(sc);
-#endif
-		break;
-	}
-	return (0);
-}
-#endif
-
 static void
 rge_intr_msi(void *arg)
 {
@@ -1014,7 +993,9 @@ rge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				reinit = 1;
 			}
 
-			/* TODO: WOL */
+			if ((mask & IFCAP_WOL_MAGIC) != 0 &&
+			    (if_getcapabilities(ifp) & IFCAP_WOL_MAGIC) != 0)
+				if_togglecapenable(ifp, IFCAP_WOL_MAGIC);
 
 			if ((mask & IFCAP_RXCSUM) != 0 &&
 			    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0) {
@@ -2620,6 +2601,22 @@ rge_link_state(struct rge_softc *sc)
 	}
 }
 
+static void
+rge_setwol(struct rge_softc *sc)
+{
+	if_t ifp = sc->sc_ifp;
+	int enable;
+
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
+
+	if (!pci_has_pm(sc->sc_dev))
+		return;
+
+	enable = (if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0;
+
+	rge_wol_config(sc, enable);
+}
+
 /**
  * @brief Suspend
  */
@@ -2630,7 +2627,7 @@ rge_suspend(device_t dev)
 
 	RGE_LOCK(sc);
 	rge_stop_locked(sc);
-	/* TODO: wake on lan */
+	rge_setwol(sc);
 	sc->sc_suspended = true;
 	RGE_UNLOCK(sc);
 
@@ -2646,7 +2643,6 @@ rge_resume(device_t dev)
 	struct rge_softc *sc = device_get_softc(dev);
 
 	RGE_LOCK(sc);
-	/* TODO: wake on lan */
 
 	/* reinit if required */
 	if (if_getflags(sc->sc_ifp) & IFF_UP)
@@ -2669,6 +2665,7 @@ rge_shutdown(device_t dev)
 
 	RGE_LOCK(sc);
 	rge_stop_locked(sc);
+	rge_setwol(sc);
 	RGE_UNLOCK(sc);
 
 	return (0);
