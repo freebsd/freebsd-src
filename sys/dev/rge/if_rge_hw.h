@@ -37,5 +37,6 @@ extern	uint16_t rge_read_phy(struct rge_softc *, uint16_t, uint16_t);
 extern	void rge_write_phy_ocp(struct rge_softc *, uint16_t, uint16_t);
 extern	uint16_t rge_read_phy_ocp(struct rge_softc *sc, uint16_t reg);
 extern	int rge_get_link_status(struct rge_softc *);
+extern	void rge_wol_config(struct rge_softc *, int);
 
 #endif	/* __IF_RGE_HW_H__ */
