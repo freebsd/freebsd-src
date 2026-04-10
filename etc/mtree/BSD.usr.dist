@@ -837,6 +837,12 @@
             triggers
             ..
         ..
+        sbom
+            spdx-2.2
+            ..
+            spdx-3.0.1
+            ..
+        ..
         security
         ..
         sendmail
