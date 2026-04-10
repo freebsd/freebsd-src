@@ -356,9 +356,7 @@ verify(char *name, int maxlen)
  * - Otherwise, return 0
  */
 static in_port_t
-sockaddr_get_port(const struct sockaddr *sa)
-{
-
+sockaddr_get_port(const struct sockaddr *sa) {
 	if (sa == NULL)
 		return (0);
 	if (sa->sa_family == AF_INET)
@@ -379,9 +377,7 @@ sockaddr_get_port(const struct sockaddr *sa)
  */
 static void
 sockaddr_ntop(const struct sockaddr *sa, socklen_t salen, char *host,
-    size_t hostlen)
-{
-
+    size_t hostlen) {
 	if (sa == NULL || host == NULL || hostlen == 0)
 		return;
 	if (getnameinfo(sa, salen, host, hostlen, NULL, 0, NI_NUMERICHOST) != 0)
