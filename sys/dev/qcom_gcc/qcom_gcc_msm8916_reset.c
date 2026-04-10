@@ -37,63 +37,35 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dev/hwreset/hwreset.h>
+
+#include "hwreset_if.h"
+
 #include "qcom_gcc_var.h"
+#include "qcom_gcc_msm8916.h"
 
-int
-qcom_gcc_clock_read(device_t dev, bus_addr_t addr, uint32_t *val)
+static int
+qcom_gcc_msm8916_hwreset_assert(device_t dev, intptr_t id, bool reset)
 {
-	struct qcom_gcc_softc *sc;
-
-	sc = device_get_softc(dev);
-	*val = bus_read_4(sc->reg, addr);
-	return (0);
+	device_printf(dev, "%s: invalid id (%d)\n", __func__, (uint32_t) id);
+	return (EINVAL);
 }
 
-int
-qcom_gcc_clock_write(device_t dev, bus_addr_t addr, uint32_t val)
+static int
+qcom_gcc_msm8916_hwreset_is_asserted(device_t dev, intptr_t id, bool *reset)
 {
-	struct qcom_gcc_softc *sc;
-
-	sc = device_get_softc(dev);
-	bus_write_4(sc->reg, addr, val);
-	return (0);
-}
-
-int
-qcom_gcc_clock_modify(device_t dev, bus_addr_t addr,
-     uint32_t clear_mask, uint32_t set_mask)
-{
-	struct qcom_gcc_softc *sc;
-	uint32_t reg;
-
-	sc = device_get_softc(dev);
-	reg = bus_read_4(sc->reg, addr);
-	reg &= clear_mask;
-	reg |= set_mask;
-	bus_write_4(sc->reg, addr, reg);
-	return (0);
+	device_printf(dev, "%s: invalid id (%d)\n", __func__, (uint32_t) id);
+	return (EINVAL);
 }
 
 void
-qcom_gcc_clock_lock(device_t dev)
+qcom_gcc_msm8916_hwreset_init(struct qcom_gcc_softc *sc)
 {
-	struct qcom_gcc_softc *sc;
-
-	sc = device_get_softc(dev);
-	mtx_lock(&sc->mtx);
-}
-
-void
-qcom_gcc_clock_unlock(device_t dev)
-{
-	struct qcom_gcc_softc *sc;
-
-	sc = device_get_softc(dev);
-	mtx_unlock(&sc->mtx);
+	sc->sc_cb.hw_reset_assert = qcom_gcc_msm8916_hwreset_assert;
+	sc->sc_cb.hw_reset_is_asserted = qcom_gcc_msm8916_hwreset_is_asserted;
 }
