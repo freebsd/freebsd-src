@@ -308,7 +308,7 @@ command_set(int argc, char *argv[])
 		ves = ve_status_get(-1);
 		if (ves == VE_UNVERIFIED_OK) {
 #ifdef LOADER_VERIEXEC_TESTING
-			printf("Checking: %s\n", var);
+			printf("Checking: %s\n", argv[1]);
 #endif
 			if (is_restricted_var(argv[1])) {
 				printf("Ignoring restricted variable: %s\n",

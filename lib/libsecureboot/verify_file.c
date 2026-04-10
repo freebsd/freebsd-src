@@ -271,7 +271,7 @@ find_manifest(const char *name)
 # define ACCEPT_NO_FP_DEFAULT	VE_MUST
 #endif
 
-static int
+int
 severity_guess(const char *filename)
 {
 	const char *cp;
@@ -285,6 +285,7 @@ severity_guess(const char *filename)
 	 */
 	if ((cp = strrchr(filename, '.'))) {
 		if (strcmp(cp, ".cookie") == 0 ||
+		    strcmp(cp, ".dof") == 0 ||
 		    strcmp(cp, ".hints") == 0 ||
 		    strcmp(cp, ".order") == 0 ||
 		    strcmp(cp, ".tgz") == 0)

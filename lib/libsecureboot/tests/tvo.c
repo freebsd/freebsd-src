@@ -170,8 +170,8 @@ main(int argc, char *argv[])
 				fstat(fd, &st);
 				lseek(fd, 0, SEEK_SET);
 				off = st.st_size % 512;
-				vp = vectx_open(fd, argv[optind], off,
-				    &st, &error, __func__);
+				vp = vectx_open(fd, argv[optind], VE_GUESS,
+				    off, &st, &error, __func__);
 				if (!vp) {
 					printf("vectx_open(%s) failed: %d %s\n",
 					    argv[optind], error,
@@ -190,7 +190,7 @@ main(int argc, char *argv[])
 					off = vectx_lseek(vp, 0, SEEK_END);
 					/* repeating that should be harmless */
 					off = vectx_lseek(vp, 0, SEEK_END);
-					error = vectx_close(vp, VE_MUST, __func__);
+					error = vectx_close(vp, __func__);
 					if (error) {
 						printf("vectx_close(%s) == %d %s\n",
 						    argv[optind], error,
