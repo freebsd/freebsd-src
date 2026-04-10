@@ -53,7 +53,7 @@
 #define GETENV(k)	kern_getenv(k)
 #define FREE(v)		freeenv(v)
 #else	/* Boot loader */
-#define SETENV(k, v)	setenv(k, v, 1)
+#define SETENV(k, v)	boot_setenv(k, v)
 #define GETENV(k)	getenv(k)
 #define	FREE(v)
 #endif

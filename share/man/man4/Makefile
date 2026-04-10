@@ -428,6 +428,7 @@ MAN=	aac.4 \
 	ng_vjc.4 \
 	ng_vlan.4 \
 	ng_vlan_rotate.4 \
+	nlsysevent.4 \
 	nmdm.4 \
 	${_ntb.4} \
 	${_ntb_hw_amd.4} \

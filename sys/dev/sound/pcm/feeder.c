@@ -181,7 +181,7 @@ feeder_find(struct pcm_channel *c, u_int32_t type)
 #define score_val(s1)		((s1) & 0x3f00)
 #define score_cse(s1)		((s1) & 0x7f)
 
-u_int32_t
+static u_int32_t
 snd_fmtscore(u_int32_t fmt)
 {
 	u_int32_t ret;
@@ -257,13 +257,13 @@ snd_fmtbestfunc(u_int32_t fmt, u_int32_t *fmts, int cheq)
 	return best;
 }
 
-u_int32_t
+static u_int32_t
 snd_fmtbestbit(u_int32_t fmt, u_int32_t *fmts)
 {
 	return snd_fmtbestfunc(fmt, fmts, 0);
 }
 
-u_int32_t
+static u_int32_t
 snd_fmtbestchannel(u_int32_t fmt, u_int32_t *fmts)
 {
 	return snd_fmtbestfunc(fmt, fmts, 1);

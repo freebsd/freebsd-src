@@ -112,7 +112,7 @@
 #define IBS_OP_CTL_VALID		(1ULL << 18) /* Valid */
 #define IBS_OP_CTL_ENABLE		(1ULL << 17) /* Enable */
 #define IBS_OP_CTL_L3MISSONLY		(1ULL << 16) /* L3 Miss Filtering */
-#define IBS_OP_CTL_MAXCNTMASK		0x0000FFFFULL
+#define IBS_OP_CTL_MAXCNTMASK		0x07F0FFFFULL
 
 #define IBS_OP_CTL_LDLAT_TO_CTL(_c)	((((ldlat) >> 7) - 1) << 59)
 #define IBS_OP_INTERVAL_TO_CTL(_c)	((((_c) >> 4) & 0x0000FFFFULL) | ((_c) & 0x07F00000))

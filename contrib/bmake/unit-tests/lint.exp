@@ -1,5 +1,5 @@
 make: In the :@ modifier, the variable name "${:Ubar:S,b,v,}" must not contain a dollar
 	while evaluating variable "VAR" with value "value"
 	in command "@echo ${VAR:Uvalue:@${:Ubar:S,b,v,}@x${var}y@:Q}"
-	in target "mod-loop-varname"
+	in target "mod-loop-varname" from lint.mk:22
 exit status 2

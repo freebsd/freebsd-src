@@ -2162,7 +2162,7 @@ _repodir: .PHONY
 
 create-packages-world:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 \
+		PATH="${TMPPATH}" ${MAKE} -f Makefile.inc1 \
 			DESTDIR=${WSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} create-world-packages
 
@@ -2171,13 +2171,13 @@ create-packages-world:	_pkgbootstrap _repodir .PHONY
 .ORDER: create-packages-source create-packages-sets
 create-packages-sets:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 \
+		PATH="${TMPPATH}" ${MAKE} -f Makefile.inc1 \
 			DESTDIR=${WSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} create-sets-packages
 
 create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 \
+		PATH="${TMPPATH}" ${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
@@ -2191,7 +2191,7 @@ create-packages-sets-repo: .PHONY create-packages-sets sign-packages
 
 create-packages-source:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 \
+		PATH="${TMPPATH}" ${MAKE} -f Makefile.inc1 \
 			DESTDIR=${SSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} \
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
@@ -2206,7 +2206,7 @@ create-source-src-package: _pkgbootstrap .PHONY
 		( echo "@override_prefix /usr/src" ;  \
 		${GIT_CMD} ls-files --recurse-submodules ":!:sys/" ) \
 		> ${SSTAGEDIR}/src.plist
-	${SRCDIR}/release/packages/generate-ucl.lua \
+	flua ${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src" \
 		PKGGENNAME "src" \
 		VERSION "${PKG_VERSION}" \
@@ -2232,7 +2232,7 @@ create-source-src-sys-package: _pkgbootstrap .PHONY
 		( echo "@override_prefix /usr/src" ; \
 		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
 		> ${SSTAGEDIR}/src-sys.plist
-	${SRCDIR}/release/packages/generate-ucl.lua \
+	flua ${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src-sys" \
 		PKGGENNAME "src-sys" \
 		VERSION "${PKG_VERSION}" \
@@ -2264,7 +2264,8 @@ create-world-packages:	_pkgbootstrap .PHONY
 	  echo "_PKGS+= $${pkgname}" ; \
 	done > ${WSTAGEDIR}/packages.mk
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
+		PATH="${TMPPATH}" ${MAKE} -f Makefile.inc1 \
+		create-world-packages-jobs \
 		SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 		.MAKE.JOB.PREFIX=
 
@@ -2324,7 +2325,7 @@ _debug=-dbg
 
 create-dtb-package:	.PHONY
 	@if [ -f ${KSTAGEDIR}/${DISTDIR}/dtb.plist ]; then \
-	${SRCDIR}/release/packages/generate-ucl.lua \
+		flua ${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "dtb" \
 		PKGGENNAME "dtb" \
 		VERSION "${PKG_VERSION}" \
@@ -2358,7 +2359,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
-	${SRCDIR}/release/packages/generate-ucl.lua \
+	flua ${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "kernel-${INSTALLKERNEL:tl}${flavor}" \
 		PKGGENNAME "kernel" \
 		VERSION "${PKG_VERSION}" \
@@ -2400,7 +2401,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.${_kernel}.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
-	${SRCDIR}/release/packages/generate-ucl.lua \
+	flua ${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "kernel-${_kernel:tl}${flavor}" \
 		PKGGENNAME "kernel" \
 		FORCEINCLUDE "kernel${flavor}" \
@@ -2614,17 +2615,11 @@ _bt_libkldelf_depend=${_bt}-lib/libkldelf
 _kldxref=	usr.sbin/kldxref
 ${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend} ${_bt_libkldelf_depend}
 
-# flua is required to regenerate syscall files.  It first appeared during the
-# 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
-# branches.
-.if ${BOOTSTRAPPING} < 1300059
+# flua is required to regenerate syscall files, and for the pkgbase build.
+# To protect us from changes in newer versions of flua or lua libraries
+# that might be installed on the host, always bootstrap it.
 ${_bt}-libexec/flua: ${_bt}-lib/liblua
-_flua= lib/liblua libexec/flua
-.if ${BOOTSTRAPPING} == 0
-_flua+= lib/libmd lib/libucl lib/libyaml
 ${_bt}-libexec/flua: ${_bt}-lib/libmd ${_bt}-lib/libucl ${_bt}-lib/libyaml
-.endif # BOOTSTRAPPING == 0
-.endif
 
 # r245440 mtree -N support added
 # r313404 requires sha384.h for libnetbsd, added to libmd in r292782
@@ -2911,7 +2906,11 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_elftoolchain_libs} \
     ${_libkldelf} \
     ${_kldxref} \
+    lib/liblua \
+    lib/libmd \
     lib/libopenbsd \
+    lib/libucl \
+    lib/libyaml \
     usr.bin/mandoc \
     usr.bin/rpcgen \
     ${_yacc} \
@@ -2921,7 +2920,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
-    ${_flua} \
+    libexec/flua \
     ${_crunchide} \
     ${_crunchgen} \
     ${_etdump} \

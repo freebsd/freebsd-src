@@ -1,3 +1,85 @@
+2026-03-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260313
+	Merge with NetBSD make, pick up
+	o make: ensure .MAKE.SAVE_DOLLARS is initialized so makefiles like
+	sys.vars.mk can test its value to know how to deal with macros
+	that need to save '$' during ':='.
+
+	* Makefile: default MAKE_SAVE_DOLLARS_DEFAULT to "no"
+	for traditional behavior.
+
+2026-03-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260310
+	Merge with NetBSD make, pick up
+	o unit-tests ensure TEST_MAKE is absolute path
+	and tests that make symlink for ${MAKE} can run in parallel.
+
+2026-03-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260303
+	Merge with NetBSD make, pick up
+	o job.c: MaybeSubMake: Look for expansion of ${.MAKE}
+	and if necessary its basename, and only match if at start of line
+	or preceded by space.
+
+2026-02-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Makefile: mark ${PROG} and ${OBJS} as .META
+	MaybeSubMake will otherwise mistake them for sub-makes
+
+	* VERSION (_MAKE_VERSION): 20260301
+	Merge with NetBSD make, pick up
+	o job.c: MaybeSubMake: skip control chars [@+-] at start of line
+	when checking for ${MAKE} 
+
+2026-02-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260222
+	o mk file update
+
+2026-02-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260216
+	Merge with NetBSD make, pick up
+	o minor cleanups
+
+2026-02-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260210
+	Merge with NetBSD make, pick up
+	o document that multiple variables can be set on command line.
+	o move MaybeSubMake to job.c so it can be called on expanded
+	commands for more accuracy and less overhead.
+	o main.c: set .MAKE.VERSION as read-only.
+
+	* unit-tests/opt-{chdir,where-am-i}.mk: use MAKEOBJDIRPREFIX=/
+	to avoid tripping over an unreadable /usr/obj
+
+2026-02-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/varname-make_stack_trace.mk: for
+	FreeBSD and similar set .MAKE.ALWAYS_PASS_JOB_QUEUE=no
+	to ensure we get the expected errors.
+
+	* VERSION (_MAKE_VERSION): 20260202
+	Merge with NetBSD make, pick up
+	o on error avoid duplicate stack trace to stderr
+
+2026-01-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260111
+	Merge with NetBSD make, pick up
+	o var.c: add explicit check for empty re as not all
+	regex libs throw an error as expected, in this case.
+
+2026-01-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260110
+	Merge with NetBSD make, pick up
+	o minor cleanups
+
 2025-11-15  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* boot-strap: unset more things from env and save a copy

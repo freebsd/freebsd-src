@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/acl.h>
+#include <sys/extattr.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
 
@@ -49,6 +50,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +58,8 @@
 #include <ctype.h>
 
 #include "find.h"
+
+static const char * const xattr_ns[] = EXTATTR_NAMESPACE_NAMES;
 
 static PLAN *palloc(OPTION *);
 static long long find_parsenum(PLAN *, const char *, char *, char *);
@@ -1750,6 +1754,96 @@ c_user(OPTION *option, char ***argvp)
 
 	new->u_data = uid;
 	return new;
+}
+
+/*
+ * -xattr functions --
+ *
+ *	True if the entry has any extended attribute in any namespace.
+ */
+int
+f_xattr(PLAN *plan __unused, FTSENT *entry)
+{
+	ssize_t asz;
+	bool deref_link;
+
+	deref_link = (ftsoptions & FTS_LOGICAL) != 0;
+	if (entry->fts_level == 0 && (ftsoptions & FTS_COMFOLLOW) != 0)
+		deref_link = true;
+
+	for (size_t ns = 0; ns < nitems(xattr_ns); ns++) {
+		if (ns == EXTATTR_NAMESPACE_EMPTY)
+			continue;
+
+		if (deref_link)
+			asz = extattr_list_file(entry->fts_accpath, ns, NULL, 0);
+		else
+			asz = extattr_list_link(entry->fts_accpath, ns, NULL, 0);
+		if (asz > 0)
+			return 1;
+	}
+
+	return 0;
+}
+
+static bool
+find_has_xattr(const char *path, int ns, const char *aname, bool deref_link)
+{
+	size_t asz;
+
+	if (deref_link)
+		asz = extattr_get_file(path, ns, aname, NULL, 0);
+	else
+		asz = extattr_get_link(path, ns, aname, NULL, 0);
+
+	return asz != (size_t)-1;
+}
+
+/*
+ * -xattrname xattr functions --
+ *
+ *	True if the entry has the given extended attribute xattr.  The xattr
+ *	may be prefixed with "user:" or "system:" to scope the search
+ *	explicitly, otherwise we assume the user namespace is requested.
+ */
+int
+f_xattrname(PLAN *plan, FTSENT *entry)
+{
+	const char *aname;
+	bool deref_link;
+
+	deref_link = (ftsoptions & FTS_LOGICAL) != 0;
+	if (entry->fts_level == 0 && (ftsoptions & FTS_COMFOLLOW) != 0)
+		deref_link = true;
+
+	aname = plan->c_data;
+	for (size_t ns = 0; ns < nitems(xattr_ns); ns++) {
+		const char *name;
+		size_t namelen;
+
+		if (ns == EXTATTR_NAMESPACE_EMPTY)
+			continue;
+
+		name = xattr_ns[ns];
+		namelen = strlen(xattr_ns[ns]);
+		if (strncmp(aname, name, namelen) == 0 &&
+		    aname[namelen] == ':') {
+			aname += namelen + 1;
+			return find_has_xattr(entry->fts_accpath, ns, aname,
+			    deref_link);
+		}
+	}
+
+	for (size_t ns = 0; ns < nitems(xattr_ns); ns++) {
+		if (ns == EXTATTR_NAMESPACE_EMPTY)
+			continue;
+
+		if (find_has_xattr(entry->fts_accpath, ns, aname,
+		    deref_link))
+			return 1;
+	}
+
+	return 0;
 }
 
 /*

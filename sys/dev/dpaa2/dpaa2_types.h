@@ -40,6 +40,11 @@
 #define DPAA2_MAX_CHANNELS	 16 /* CPU cores */
 #define DPAA2_MAX_TCS		 8  /* Traffic classes */
 
+#define DPAA2_TX_SEGLIMIT	(16u) /* for 64 KiB frames */
+#define DPAA2_TX_SEG_SZ		(PAGE_SIZE)
+#define DPAA2_TX_SEGS_MAXSZ	(DPAA2_TX_SEGLIMIT * DPAA2_TX_SEG_SZ)
+#define DPAA2_TX_SGT_SZ		(PAGE_SIZE) /* in bytes */
+
 /**
  * @brief Types of the DPAA2 devices.
  */

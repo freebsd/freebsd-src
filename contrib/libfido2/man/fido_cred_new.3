@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2024 Yubico AB. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are
@@ -47,6 +47,8 @@
 .Nm fido_cred_pubkey_ptr ,
 .Nm fido_cred_sig_ptr ,
 .Nm fido_cred_user_id_ptr ,
+.Nm fido_cred_x5c_list_count ,
+.Nm fido_cred_x5c_list_ptr ,
 .Nm fido_cred_x5c_ptr ,
 .Nm fido_cred_attstmt_ptr ,
 .Nm fido_cred_authdata_len ,
@@ -58,8 +60,10 @@
 .Nm fido_cred_pubkey_len ,
 .Nm fido_cred_sig_len ,
 .Nm fido_cred_user_id_len ,
+.Nm fido_cred_x5c_list_len ,
 .Nm fido_cred_x5c_len ,
 .Nm fido_cred_attstmt_len ,
+.Nm fido_cred_entattest ,
 .Nm fido_cred_type ,
 .Nm fido_cred_flags ,
 .Nm fido_cred_sigcount
@@ -102,6 +106,10 @@
 .Fn fido_cred_sig_ptr "const fido_cred_t *cred"
 .Ft const unsigned char *
 .Fn fido_cred_user_id_ptr "const fido_cred_t *cred"
+.Ft size_t
+.Fn fido_cred_x5c_list_count "const fido_cred_t *cred"
+.Ft const unsigned char *
+.Fn fido_cred_x5c_list_ptr "const fido_cred_t *cred" "size_t idx"
 .Ft const unsigned char *
 .Fn fido_cred_x5c_ptr "const fido_cred_t *cred"
 .Ft const unsigned char *
@@ -125,9 +133,13 @@
 .Ft size_t
 .Fn fido_cred_user_id_len "const fido_cred_t *cred"
 .Ft size_t
+.Fn fido_cred_x5c_list_len "const fido_cred_t *cred" "size_t idx"
+.Ft size_t
 .Fn fido_cred_x5c_len "const fido_cred_t *cred"
 .Ft size_t
 .Fn fido_cred_attstmt_len "const fido_cred_t *cred"
+.Ft bool
+.Fn fido_cred_entattest "const fido_cred_t *cred"
 .Ft int
 .Fn fido_cred_type "const fido_cred_t *cred"
 .Ft uint8_t
@@ -246,7 +258,7 @@ and
 functions return pointers to the CBOR-encoded and raw authenticator
 data, client data hash, ID, authenticator attestation GUID,
 .Dq largeBlobKey ,
-public key, signature, user ID, x509 certificate, and attestation
+public key, signature, user ID, x509 leaf certificate, and attestation
 statement parts of
 .Fa cred ,
 or NULL if the respective entry is not set.
@@ -265,8 +277,46 @@ The corresponding length can be obtained by
 and
 .Fn fido_cred_attstmt_len .
 .Pp
+The
+.Fn fido_cred_x5c_list_count
+function returns the length of the x509 certificate chain in
+.Fa cred
+and the
+.Fn fido_cred_x5c_list_ptr
+and
+.Fn fido_cred_x5c_list_len
+functions return a pointer to and length of the x509 certificate at index
+.Fa idx
+respectively.
+Please note that the leaf certificate has an
+.Fa idx
+(index) value of 0 and calling
+.Fn fido_cred_x5c_list_ptr cred 0
+and
+.Fn fido_cred_x5c_list_len cred 0
+is equivalent to
+.Fn fido_cred_x5c_ptr cred
+and
+.Fn fido_cred_x5c_len cred
+respectively.
+If
+.Fa idx
+exceeds the return value of
+.Fn fido_cred_x5c_list_count ,
+.Fn fido_cred_x5c_list_ptr
+returns NULL and
+.Fn fido_cred_x5c_list_len
+returns 0.
+.Pp
 The authenticator data, x509 certificate, and signature parts of a
 credential are typically passed to a FIDO2 server for verification.
+.Pp
+The
+.Fn fido_cred_entattest
+function returns
+.Dv true
+if an enterprise attestation was returned for
+.Fa cred .
 .Pp
 The
 .Fn fido_cred_type

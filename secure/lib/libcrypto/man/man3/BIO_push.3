@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_PUSH 3ossl"
-.TH BIO_PUSH 3ossl 2026-01-27 3.5.5 OpenSSL
+.TH BIO_PUSH 3ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -82,7 +82,7 @@ Otherwise it prepends \fIb\fR, which may be a single BIO or a chain of BIOs,
 to \fInext\fR (unless \fInext\fR is NULL).
 It then makes a control call on \fIb\fR and returns \fIb\fR.
 .PP
-\&\fBBIO_pop()\fR removes the BIO \fIb\fR from any chain is is part of.
+\&\fBBIO_pop()\fR removes the BIO \fIb\fR from any chain it is part of.
 If \fIb\fR is NULL the function does nothing and returns NULL.
 Otherwise it makes a control call on \fIb\fR and
 returns the next BIO in the chain, or NULL if there is no next BIO.
@@ -150,7 +150,7 @@ except that \fImd2\fR will no more be applied.
 The \fBBIO_set_next()\fR function was added in OpenSSL 1.1.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

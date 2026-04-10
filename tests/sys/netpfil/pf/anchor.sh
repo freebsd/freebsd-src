@@ -352,8 +352,20 @@ counter_body()
 	# Generate traffic
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
 	atf_check -s exit:0 -e ignore \
-	    -o match:'[ Evaluations: 1         Packets: 2         Bytes: 168         States: 1     ]' \
+	    -o match:'\[ Evaluations: 1         Packets: 2         Bytes: 168         States: 1     \]' \
 	    jexec alcatraz pfctl -sr -vv
+
+	# Zero counters outside of the anchor
+	jexec alcatraz pfctl -sr -vv -z
+	atf_check -s exit:0 -e ignore \
+	    -o match:'\[ Evaluations: 1         Packets: 2         Bytes: 168         States: 1     \]' \
+	    jexec alcatraz pfctl -sr -vv -a "foo"
+
+	# Zero the anchor's counters
+	jexec alcatraz pfctl -sr -vv -z -a "foo"
+	atf_check -s exit:0 -e ignore \
+	    -o match:'\[ Evaluations: 0         Packets: 0         Bytes: 0           States: 1     \]' \
+	    jexec alcatraz pfctl -sr -vv -a "foo"
 }
 
 counter_cleanup()

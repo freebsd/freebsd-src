@@ -1242,6 +1242,11 @@ main(int argc, CHAR16 *argv[])
 	/* Report the RSDP early. */
 	acpi_detect();
 
+#ifdef LOADER_VERIEXEC
+	/* tell boot_setenv to be careful */
+	set_check_restricted(true);
+#endif
+
 	/*
 	 * Chicken-and-egg problem; we want to have console output early, but
 	 * some console attributes may depend on reading from eg. the boot

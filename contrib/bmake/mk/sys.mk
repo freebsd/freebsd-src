@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.66 2025/11/19 03:38:20 sjg Exp $
+# $Id: sys.mk,v 1.67 2026/02/23 21:37:10 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2023, Simon J. Gerraty
 #
@@ -86,7 +86,7 @@ EGREP ?= egrep
 # some options we need to know early
 OPTIONS_DEFAULT_NO += \
 	DIRDEPS_BUILD \
-	DIRDEPS_CACHE
+	DIRDEPS_CACHE \
 
 OPTIONS_DEFAULT_DEPENDENT += \
 	AUTO_OBJ/DIRDEPS_BUILD \
@@ -95,6 +95,7 @@ OPTIONS_DEFAULT_DEPENDENT += \
 	STAGING/DIRDEPS_BUILD \
 	STATIC_DIRDEPS_CACHE/DIRDEPS_CACHE \
 	UPDATE_DEPENDFILE/DIRDEPS_BUILD \
+	UPDATE_DIRDEPS_CACHE/DIRDEPS_CACHE \
 
 .-include <options.mk>
 

@@ -7,7 +7,7 @@ SSYYNNOOPPSSIISS
      bbmmaakkee [--BBeeiikkNNnnqqrrSSssttWWwwXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
            [--ff _m_a_k_e_f_i_l_e] [--II _d_i_r_e_c_t_o_r_y] [--JJ _p_r_i_v_a_t_e] [--jj _m_a_x___j_o_b_s]
            [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [--vv _v_a_r_i_a_b_l_e]
-           [_v_a_r_i_a_b_l_e==_v_a_l_u_e] [_t_a_r_g_e_t ...]
+           [_v_a_r_i_a_b_l_e==_v_a_l_u_e ...] [_t_a_r_g_e_t ...]
 
 DDEESSCCRRIIPPTTIIOONN
      bbmmaakkee is a program designed to simplify the maintenance of other
@@ -1073,40 +1073,46 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::ttww  Causes the value to be treated as a list of words.  See also `::[[@@]]'.
 
-     ::SS/_o_l_d___s_t_r_i_n_g/_n_e_w___s_t_r_i_n_g/[11ggWW]
+     ::SS/[^^]_o_l_d___s_t_r_i_n_g[$$]/_n_e_w___s_t_r_i_n_g/[11ggWW]
           Modifies the first occurrence of _o_l_d___s_t_r_i_n_g in each word of the
-          value, replacing it with _n_e_w___s_t_r_i_n_g.  If a `g' is appended to the
-          last delimiter of the pattern, all occurrences in each word are
-          replaced.  If a `1' is appended to the last delimiter of the
-          pattern, only the first occurrence is affected.  If a `W' is
-          appended to the last delimiter of the pattern, the value is treated
-          as a single word.  If _o_l_d___s_t_r_i_n_g begins with a caret (`^'),
-          _o_l_d___s_t_r_i_n_g is anchored at the beginning of each word.  If _o_l_d___s_t_r_i_n_g
-          ends with a dollar sign (`$'), it is anchored at the end of each
-          word.  Inside _n_e_w___s_t_r_i_n_g, an ampersand (`&') is replaced by
-          _o_l_d___s_t_r_i_n_g (without the anchoring `^' or `$').  Any character may be
-          used as the delimiter for the parts of the modifier string.  The
-          anchoring, ampersand and delimiter characters can be escaped with a
-          backslash (`\').
+          value, replacing it with _n_e_w___s_t_r_i_n_g.
 
-          Both _o_l_d___s_t_r_i_n_g and _n_e_w___s_t_r_i_n_g may contain nested expressions.  To
-          prevent a dollar sign from starting a nested expression, escape it
-          with a backslash.
+          If _o_l_d___s_t_r_i_n_g is preceded by a caret (`^'), _o_l_d___s_t_r_i_n_g is anchored
+          at the beginning of each word.  If _o_l_d___s_t_r_i_n_g is followed by a
+          dollar sign (`$'), it is anchored at the end of each word.  Inside
+          _n_e_w___s_t_r_i_n_g, an ampersand (`&') is replaced by _o_l_d___s_t_r_i_n_g.  Both
+          _o_l_d___s_t_r_i_n_g and _n_e_w___s_t_r_i_n_g may contain nested expressions.
+
+          Further options:
+
+          11       Only the word of the first occurrence is affected.
+
+          gg       All occurrences in each affected word are replaced.
+
+          WW       The expression value is treated as a single word.
+
+          Any character may be used as the delimiter for the parts of the
+          modifier string.  The anchoring, ampersand, dollar and delimiter
+          characters can be escaped with a backslash (`\').
 
      ::CC/_p_a_t_t_e_r_n/_r_e_p_l_a_c_e_m_e_n_t/[11ggWW]
-          The ::CC modifier works like the ::SS modifier except that the old and
-          new strings, instead of being simple strings, are an extended
-          regular expression _p_a_t_t_e_r_n (see regex(3)) and an ed(1)-style
-          _r_e_p_l_a_c_e_m_e_n_t.  Normally, the first occurrence of the pattern _p_a_t_t_e_r_n
-          in each word of the value is substituted with _r_e_p_l_a_c_e_m_e_n_t.  The `1'
-          modifier causes the substitution to apply to at most one word; the
-          `g' modifier causes the substitution to apply to as many instances
-          of the search pattern _p_a_t_t_e_r_n as occur in the word or words it is
-          found in; the `W' modifier causes the value to be treated as a
-          single word (possibly containing embedded whitespace).
+          Modifies the first occurrence of the extended regular expression
+          _p_a_t_t_e_r_n (see regex(3)) in each word of the value, replacing it with
+          an ed(1)-style _r_e_p_l_a_c_e_m_e_n_t.
 
-          As for the ::SS modifier, the _p_a_t_t_e_r_n and _r_e_p_l_a_c_e_m_e_n_t are subjected to
-          variable expansion before being parsed as regular expressions.
+          Both _p_a_t_t_e_r_n and _r_e_p_l_a_c_e_m_e_n_t may contain nested expressions.
+
+          Further options:
+
+          11       Only the word of the first occurrence is affected.
+
+          gg       All occurrences in each affected word are replaced.
+
+          WW       The expression value is treated as a single word.
+
+          Any character may be used as the delimiter for the parts of the
+          modifier string.  The anchoring, ampersand, dollar and delimiter
+          characters can be escaped with a backslash (`\').
 
      ::TT   Replaces each word with its last path component (basename).
 
@@ -1874,4 +1880,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.3-RELEASE-p3        November 11, 2025       FreeBSD 14.3-RELEASE-p3
+FreeBSD 14.3-RELEASE-p9        February 8, 2026        FreeBSD 14.3-RELEASE-p9

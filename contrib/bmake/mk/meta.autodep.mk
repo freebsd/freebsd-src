@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.71 2025/08/09 22:42:24 sjg Exp $
+# $Id: meta.autodep.mk,v 1.72 2026/01/11 05:32:29 sjg Exp $
 #
 #	@(#) Copyright (c) 2010-2025, Simon J. Gerraty
 #
@@ -305,7 +305,7 @@ GENDIRDEPS_ENV += MAKESYSPATH=${_makesyspath}
 GENDIRDEPS_ENV += MAKESYSPATH=${.SYSPATH:ts:}
 .endif
 
-${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.META.CREATED}
+${_DEPENDFILE}: .NOMETA ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.META.CREATED}
 	@echo Checking $@: ${.OODATE:T:[1..8]}
 	@(cd . && ${GENDIRDEPS_ENV} \
 	SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS:O:u}' \

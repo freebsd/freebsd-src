@@ -2714,6 +2714,7 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 	int structsize;
 
 	p = arg;
+	structsize = sizeof(Elf_Auxinfo);
 	if (sb == NULL) {
 		size = 0;
 		sb = sbuf_new(NULL, NULL, AT_COUNT * sizeof(Elf_Auxinfo),
@@ -2727,7 +2728,6 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 		sbuf_delete(sb);
 		*sizep = size;
 	} else {
-		structsize = sizeof(Elf_Auxinfo);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PHOLD(p);
 		proc_getauxv(curthread, p, sb);

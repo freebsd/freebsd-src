@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8343,6 +8343,13 @@ static struct {
         NULL,
         "AES128-SHA",
         "AES128-SHA" },
+    { TLS1_2_VERSION,
+        "AES256-SHA",
+        NULL,
+        "AES128-SHA",
+        NULL,
+        "",
+        "" },
 #endif
 /*
  * This test combines TLSv1.3 and TLSv1.2 ciphersuites so they must both be
@@ -8367,6 +8374,13 @@ static struct {
         "TLS_AES_256_GCM_SHA384",
         "TLS_AES_256_GCM_SHA384",
         "TLS_AES_256_GCM_SHA384" },
+    { TLS1_3_VERSION,
+        "AES128-SHA",
+        "TLS_AES_128_GCM_SHA256",
+        "AES256-SHA",
+        "TLS_AES_256_GCM_SHA384",
+        "",
+        "" },
 #endif
 };
 
@@ -8377,6 +8391,9 @@ static int int_test_ssl_get_shared_ciphers(int tst, int clnt)
     int testresult = 0;
     char buf[1024];
     OSSL_LIB_CTX *tmplibctx = OSSL_LIB_CTX_new();
+    const char *expbuf = is_fips ? shared_ciphers_data[tst].fipsshared
+                                 : shared_ciphers_data[tst].shared;
+    int handshakeok = strcmp(expbuf, "") != 0;
 
     if (!TEST_ptr(tmplibctx))
         goto end;
@@ -8417,18 +8434,22 @@ static int int_test_ssl_get_shared_ciphers(int tst, int clnt)
                 shared_ciphers_data[tst].srvrtls13ciphers))))
         goto end;
 
-    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
-            NULL, NULL))
-        || !TEST_true(create_ssl_connection(serverssl, clientssl,
-            SSL_ERROR_NONE)))
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl, NULL,
+            NULL)))
         goto end;
 
+    if (handshakeok) {
+        if (!TEST_true(create_ssl_connection(serverssl, clientssl,
+                SSL_ERROR_NONE)))
+            goto end;
+    } else {
+        if (!TEST_false(create_ssl_connection(serverssl, clientssl,
+                SSL_ERROR_NONE)))
+            goto end;
+    }
+
     if (!TEST_ptr(SSL_get_shared_ciphers(serverssl, buf, sizeof(buf)))
-        || !TEST_int_eq(strcmp(buf,
-                            is_fips
-                                ? shared_ciphers_data[tst].fipsshared
-                                : shared_ciphers_data[tst].shared),
-            0)) {
+        || !TEST_int_eq(strcmp(buf, expbuf), 0)) {
         TEST_info("Shared ciphers are: %s\n", buf);
         goto end;
     }
@@ -9714,6 +9735,7 @@ static int test_session_cache_overflow(int idx)
     SSL *serverssl = NULL, *clientssl = NULL;
     int testresult = 0;
     SSL_SESSION *sess = NULL;
+    int references;
 
 #ifdef OSSL_NO_USABLE_TLS1_3
     /* If no TLSv1.3 available then do nothing in this case */
@@ -9786,6 +9808,15 @@ static int test_session_cache_overflow(int idx)
      */
     get_sess_val = SSL_get_session(serverssl);
     if (!TEST_ptr(get_sess_val))
+        goto end;
+    /*
+     * Normally the session is also stored in the cache, thus we have more than
+     * one reference, but due to an out-of-memory error it can happen that this
+     * is the only reference, and in that case the SSL_free(serverssl) below
+     * would free the get_sess_val, causing a use-after-free error.
+     */
+    if (!TEST_true(CRYPTO_GET_REF(&get_sess_val->references, &references))
+        || !TEST_int_ge(references, 2))
         goto end;
     sess = SSL_get1_session(clientssl);
     if (!TEST_ptr(sess))
@@ -13507,6 +13538,52 @@ end:
 #endif /* !defined(OPENSSL_NO_EC) || !defined(OPENSSL_NO_DH) */
 }
 
+/*
+ * Test that if we attempt to send HTTP to a TLS server that we get the expected
+ * failure reason code.
+ */
+static int test_http_verbs(int idx)
+{
+    SSL_CTX *sctx = NULL;
+    SSL *serverssl = NULL;
+    int testresult = 0;
+    const char *verbs[] = { "GET", "POST", "HEAD" };
+    const char *http_trailer = " / HTTP/1.0\r\n\r\n";
+    BIO *b = BIO_new(BIO_s_mem());
+
+    if (!TEST_true((unsigned int)idx < OSSL_NELEM(verbs)))
+        goto end;
+
+    if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
+            NULL, 0, 0, &sctx, NULL, cert, privkey)))
+        goto end;
+
+    serverssl = SSL_new(sctx);
+    if (!TEST_ptr(serverssl))
+        goto end;
+
+    if (!TEST_int_gt(BIO_write(b, verbs[idx], (int)strlen(verbs[idx])), 0))
+        goto end;
+    if (!TEST_int_gt(BIO_write(b, http_trailer, (int)strlen(http_trailer)), 0))
+        goto end;
+    SSL_set_bio(serverssl, b, b);
+    b = NULL;
+
+    ERR_clear_error();
+    if (!TEST_int_le(SSL_accept(serverssl), 0))
+        goto end;
+    if (!TEST_int_eq(ERR_GET_REASON(ERR_get_error()), SSL_R_HTTP_REQUEST))
+        goto end;
+
+    testresult = 1;
+end:
+    SSL_free(serverssl);
+    SSL_CTX_free(sctx);
+    BIO_free(b);
+
+    return testresult;
+}
+
 OPT_TEST_DECLARE_USAGE("certfile privkeyfile srpvfile tmpfile provider config dhfile\n")
 
 int setup_tests(void)
@@ -13840,6 +13917,7 @@ int setup_tests(void)
         ADD_TEST(test_ssl_trace);
 #endif
     ADD_ALL_TESTS(test_ssl_set_groups_unsupported_keyshare, 2);
+    ADD_ALL_TESTS(test_http_verbs, 3);
     return 1;
 
 err:

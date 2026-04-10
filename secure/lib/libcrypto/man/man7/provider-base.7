@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PROVIDER-BASE 7ossl"
-.TH PROVIDER-BASE 7ossl 2026-01-27 3.5.5 OpenSSL
+.TH PROVIDER-BASE 7ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -205,7 +205,8 @@ For example, the "function" \fBcore_gettable_params()\fR has these:
 \&     OSSL_FUNC_core_gettable_params(const OSSL_DISPATCH *opf);
 .Ve
 .PP
-\&\fBOSSL_DISPATCH\fR\|(3) arrays are indexed by numbers that are provided as
+\&\fBOSSL_DISPATCH\fR\|(3) array entries contain a \fIfunction_id\fR field that
+identifies the function. The \fIfunction_id\fR numbers are provided as
 macros in \fBopenssl\-core_dispatch.h\fR\|(7), as follows:
 .PP
 For \fIin\fR (the \fBOSSL_DISPATCH\fR\|(3) array passed from \fIlibcrypto\fR to the
@@ -1024,7 +1025,7 @@ and
 were added in OpenSSL 3.5.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
