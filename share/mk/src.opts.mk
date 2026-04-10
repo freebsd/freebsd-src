@@ -168,6 +168,7 @@ __DEFAULT_YES_OPTIONS = \
     RBOOTD \
     RESCUE \
     ROUTED \
+    SBOM \
     SENDMAIL \
     SERVICESDB \
     SETUID_LOGIN \
