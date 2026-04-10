@@ -774,6 +774,7 @@ BSARGS= 	DESTDIR= \
 		MK_HTML=no \
 		MK_MAN=no \
 		MK_RETPOLINE=no \
+		MK_SBOM=no \
 		MK_SSP=no \
 		MK_TESTS=no \
 		MK_UBSAN=no \
@@ -3063,10 +3064,16 @@ _usb_tools=	stand/usb/tools
 _ar=usr.bin/ar
 .endif
 
+.if ${MK_PKGCONF} != "no"
+_sbom= lib/libpkgconf \
+       usr.bin/bomtool
+.endif
+
 cross-tools: .MAKE .PHONY
 .for _tool in \
     ${LOCAL_XTOOL_DIRS} \
     ${_ar} \
+    ${_sbom} \
     ${_clang_libs} \
     ${_clang} \
     ${_lld} \
@@ -3955,7 +3962,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 
 NOFUN=-DNO_FSCHG MK_HTML=no \
 	MK_MAN=no MK_NLS=no \
-	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WERROR=no \
+	MK_KERBEROS=no MK_RESCUE=no MK_SBOM=no MK_TESTS=no MK_WERROR=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 
