@@ -370,7 +370,7 @@ qcom_clk_rcg2_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		device_printf(clknode_get_device(sc->clknode),
 		    "%s: no suitable freqtbl entry found for freq %llu\n",
 		    __func__,
-		    *fout);
+		    (unsigned long long) *fout);
 		return (ERANGE);
 	}
 
@@ -475,7 +475,7 @@ qcom_clk_rcg2_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	    *fout,
 	    f->parent,
 	    f->freq,
-	    p_freq);
+	    (unsigned long long) p_freq);
 
 	/*
 	 * To ensure glitch-free operation on some clocks, set it to
@@ -547,7 +547,7 @@ qcom_clk_rcg2_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 			    "%llu\n",
 			    __func__,
 			    f->parent,
-			    p_freq);
+			    (unsigned long long) p_freq);
 			return (ENXIO);
 		}
 
@@ -570,7 +570,7 @@ qcom_clk_rcg2_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	    *fout,
 	    f->freq,
 	    f->parent,
-	    p_freq);
+	    (unsigned long long) p_freq);
 
 	/*
 	 * Set the parent node, the parent programming and the divisor

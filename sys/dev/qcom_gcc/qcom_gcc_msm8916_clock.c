@@ -41,6 +41,9 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "qcom_gcc_var.h"
+#include "qcom_gcc_msm8916.h"
+
 #define	GCC_QDSS_BCR			0x29000
 #define	 GCC_QDSS_BCR_BLK_ARES		(1 << 0) /* Async software reset. */
 #define	GCC_QDSS_CFG_AHB_CBCR		0x29008
@@ -50,94 +53,32 @@
 #define	GCC_QDSS_DAP_CBCR		0x29084
 #define	 DAP_CBCR_CLK_ENABLE		(1 << 0) /* DAP clk branch ctrl */
 
-static struct ofw_compat_data compat_data[] = {
-	{ "qcom,gcc-msm8916",			1 },
-	{ NULL,					0 }
-};
-
-struct qcom_gcc_softc {
-	struct resource		*res;
-};
-
-static struct resource_spec qcom_gcc_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
-
 /*
  * Qualcomm Debug Subsystem (QDSS)
  * block enabling routine.
  */
 static void
-qcom_qdss_enable(struct qcom_gcc_softc *sc)
+qcom_msm8916_qdss_enable(struct qcom_gcc_softc *sc)
 {
 
 	/* Put QDSS block to reset */
-	bus_write_4(sc->res, GCC_QDSS_BCR, GCC_QDSS_BCR_BLK_ARES);
+	bus_write_4(sc->reg, GCC_QDSS_BCR, GCC_QDSS_BCR_BLK_ARES);
 
 	/* Enable AHB clock branch */
-	bus_write_4(sc->res, GCC_QDSS_CFG_AHB_CBCR, AHB_CBCR_CLK_ENABLE);
+	bus_write_4(sc->reg, GCC_QDSS_CFG_AHB_CBCR, AHB_CBCR_CLK_ENABLE);
 
 	/* Enable DAP clock branch */
-	bus_write_4(sc->res, GCC_QDSS_DAP_CBCR, DAP_CBCR_CLK_ENABLE);
+	bus_write_4(sc->reg, GCC_QDSS_DAP_CBCR, DAP_CBCR_CLK_ENABLE);
 
 	/* Enable ETR USB clock branch */
-	bus_write_4(sc->res, GCC_QDSS_ETR_USB_CBCR, ETR_USB_CBCR_CLK_ENABLE);
+	bus_write_4(sc->reg, GCC_QDSS_ETR_USB_CBCR, ETR_USB_CBCR_CLK_ENABLE);
 
 	/* Out of reset */
-	bus_write_4(sc->res, GCC_QDSS_BCR, 0);
+	bus_write_4(sc->reg, GCC_QDSS_BCR, 0);
 }
 
-static int
-qcom_gcc_probe(device_t dev)
+void
+qcom_gcc_msm8916_clock_setup(struct qcom_gcc_softc *sc)
 {
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
-
-	device_set_desc(dev, "Qualcomm Global Clock Controller");
-
-	return (BUS_PROBE_DEFAULT);
+	qcom_msm8916_qdss_enable(sc);
 }
-
-static int
-qcom_gcc_attach(device_t dev)
-{
-	struct qcom_gcc_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	if (bus_alloc_resources(dev, qcom_gcc_spec, &sc->res) != 0) {
-		device_printf(dev, "cannot allocate resources for device\n");
-		return (ENXIO);
-	}
-
-	/*
-	 * Enable debug unit.
-	 * This is required for Coresight operation.
-	 * This also enables USB clock branch.
-	 */
-	qcom_qdss_enable(sc);
-
-	return (0);
-}
-
-static device_method_t qcom_gcc_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		qcom_gcc_probe),
-	DEVMETHOD(device_attach,	qcom_gcc_attach),
-
-	DEVMETHOD_END
-};
-
-static driver_t qcom_gcc_driver = {
-	"qcom_gcc",
-	qcom_gcc_methods,
-	sizeof(struct qcom_gcc_softc),
-};
-
-EARLY_DRIVER_MODULE(qcom_gcc, simplebus, qcom_gcc_driver, 0, 0,
-    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-MODULE_VERSION(qcom_gcc, 1);
