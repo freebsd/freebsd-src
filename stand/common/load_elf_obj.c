@@ -104,7 +104,8 @@ __elfN(obj_loadfile)(char *filename, uint64_t dest,
 	{
 		int verror;
 
-		ef.vctx = vectx_open(ef.fd, filename, 0L, NULL, &verror, __func__);
+		ef.vctx = vectx_open(ef.fd, filename, VE_MUST,
+		    0L, NULL, &verror, __func__);
 		if (verror) {
 			printf("Unverified %s: %s\n", filename, ve_error_get());
 			close(ef.fd);
@@ -196,7 +197,7 @@ out:
 	if (!err && ef.vctx) {
 		int verror;
 
-		verror = vectx_close(ef.vctx, VE_MUST, __func__);
+		verror = vectx_close(ef.vctx, __func__);
 		if (verror) {
 			err = EAUTH;
 			file_discard(fp);
