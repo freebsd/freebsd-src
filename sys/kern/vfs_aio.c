@@ -2668,8 +2668,7 @@ filt_aiodetach(struct knote *kn)
 
 	knl = &kn->kn_ptr.p_aio->klist;
 	knl->kl_lock(knl->kl_lockarg);
-	if (!knlist_empty(knl))
-		knlist_remove(knl, kn, 1);
+	knlist_remove(knl, kn, 1);
 	knl->kl_unlock(knl->kl_lockarg);
 }
 
@@ -2718,8 +2717,7 @@ filt_liodetach(struct knote *kn)
 
 	knl = &kn->kn_ptr.p_lio->klist;
 	knl->kl_lock(knl->kl_lockarg);
-	if (!knlist_empty(knl))
-		knlist_remove(knl, kn, 1);
+	knlist_remove(knl, kn, 1);
 	knl->kl_unlock(knl->kl_lockarg);
 }
 
