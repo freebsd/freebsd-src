@@ -113,7 +113,7 @@ ip6_tryforward(struct mbuf *m)
 	    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) ||
-	    in6_localip(&ip6->ip6_dst))
+	    in6_localip_fib(&ip6->ip6_dst, M_GETFIB(m)))
 		return (m);
 	/*
 	 * Check that the amount of data in the buffers
