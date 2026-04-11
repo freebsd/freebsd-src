@@ -38,4 +38,9 @@
 	qsort(base, num, size, cmp);			\
 } while (0)
 
+#define	sort_r(base, num, size, cmp, swap, priv) do {	\
+	BUILD_BUG_ON(swap);				\
+	qsort_r(base, num, size, cmp, priv);		\
+} while (0)
+
 #endif	/* _LINUXKPI_LINUX_SORT_H_ */
