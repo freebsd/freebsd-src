@@ -526,6 +526,18 @@ long double	fmaximuml(long double, long double);
 double		fminimum(double, double);
 float		fminimumf(float, float);
 long double	fminimuml(long double, long double);
+double		fmaximum_mag(double, double);
+float		fmaximum_magf(float, float);
+long double	fmaximum_magl(long double, long double);
+double		fminimum_mag(double, double);
+float		fminimum_magf(float, float);
+long double	fminimum_magl(long double, long double);
+double		fmaximum_num(double, double);
+float		fmaximum_numf(float, float);
+long double	fmaximum_numl(long double, long double);
+double		fminimum_num(double, double);
+float		fminimum_numf(float, float);
+long double	fminimum_numl(long double, long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS
