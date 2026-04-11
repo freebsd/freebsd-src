@@ -267,6 +267,30 @@ show_class_attr_string(struct class *class,
 		dev_dbg(dev, __VA_ARGS__);	\
 } while (0)
 
+static inline int
+dev_err_probe(const struct device *dev, int err, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+
+	/*
+	 * On Linux, they look at the error code to determine if the message
+	 * should be logged (not logged if -ENOMEM) and at which log level.
+	 */
+	device_printf(dev->bsddev, fmt, args);
+
+	va_end(args);
+
+	return (err);
+}
+
+#define	dev_err_ptr_probe(dev, err, fmt, ...) \
+    ERR_PTR(dev_err_probe((dev), (err), fmt, ##__VA_ARGS__)
+
+#define	dev_err_cast_probe(dev, err, fmt, ...) \
+    ERR_PTR(dev_err_probe((dev), PTR_ERR(err), fmt, ##__VA_ARGS__)
+
 /* Public and LinuxKPI internal devres functions. */
 void *lkpi_devres_alloc(void(*release)(struct device *, void *), size_t, gfp_t);
 void lkpi_devres_add(struct device *, void *);
