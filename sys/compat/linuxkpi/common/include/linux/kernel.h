@@ -57,6 +57,7 @@
 #include <linux/kconfig.h>
 #include <linux/instruction_pointer.h>
 #include <linux/hex.h>
+#include <linux/wordpart.h>
 
 #include <asm/byteorder.h>
 #include <asm/cpufeature.h>
