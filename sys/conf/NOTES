@@ -880,6 +880,10 @@ device		vlan
 # frames in UDP packets according to RFC7348.
 device		vxlan
 
+# The `geneve' device implements the GENEVE encapsulation of virtual
+# overlays according to RFC8926.
+device		geneve
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.

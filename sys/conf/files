@@ -4238,6 +4238,7 @@ net/if_stf.c			optional stf inet inet6
 net/if_tuntap.c			optional tuntap
 net/if_vlan.c			optional vlan
 net/if_vxlan.c			optional vxlan inet | vxlan inet6
+net/if_geneve.c			optional geneve inet | geneve inet6
 net/ifdi_if.m			optional ether pci iflib
 net/iflib.c			optional ether pci iflib
 net/mp_ring.c			optional ether iflib

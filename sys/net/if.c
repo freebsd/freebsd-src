@@ -2273,6 +2273,8 @@ const struct ifcap_nv_bit_name ifcap2_nv_bit_names[] = {
 	CAP2NV(RXTLS4),
 	CAP2NV(RXTLS6),
 	CAP2NV(IPSEC_OFFLOAD),
+	CAP2NV(GENEVE_HWCSUM),
+	CAP2NV(GENEVE_HWTSO),
 	{0, NULL}
 };
 #undef CAPNV
