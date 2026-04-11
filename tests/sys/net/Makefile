@@ -15,6 +15,7 @@ ATF_TESTS_SH+=	if_stf
 ATF_TESTS_SH+=	if_tun_test
 ATF_TESTS_SH+=	if_vlan
 ATF_TESTS_SH+=	if_wg
+ATF_TESTS_SH+=	if_geneve
 
 TESTS_SUBDIRS+=	bpf
 TESTS_SUBDIRS+=	if_ovpn
