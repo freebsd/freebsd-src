@@ -351,4 +351,37 @@ mac_pton(const char *macin, uint8_t *macout)
 #define	DECLARE_FLEX_ARRAY(_t, _n)					\
     struct { struct { } __dummy_ ## _n; _t _n[0]; }
 
+/*
+ * The following functions/macros are debug/diagnostics tools. They default to
+ * no-ops, except `might_sleep()` which uses `WITNESS_WARN()` on FreeBSD.
+ */
+static inline void
+__might_resched(const char *file, int line, unsigned int offsets)
+{
+}
+
+static inline void
+__might_sleep(const char *file, int line)
+{
+}
+
+static inline void
+might_fault(void)
+{
+}
+
+#define	might_sleep()							\
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "might_sleep()")
+
+#define	might_sleep_if(cond) do { \
+	if (cond) { might_sleep(); } \
+} while (0)
+
+#define	might_resched()		do { } while (0)
+#define	cant_sleep()		do { } while (0)
+#define	cant_migrate()		do { } while (0)
+#define	sched_annotate_sleep()	do { } while (0)
+#define	non_block_start()	do { } while (0)
+#define	non_block_end()		do { } while (0)
+
 #endif	/* _LINUXKPI_LINUX_KERNEL_H_ */
