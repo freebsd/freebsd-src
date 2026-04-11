@@ -1,0 +1,92 @@
+: 'Making made-target.'
+false
+*** Error code 1 (continuing)
+false
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+#*** Begin input graph for pass 3 in <curdir>:
+# made-target, made, type OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_ALLSRC
+#
+# *** MAIN TARGET ***
+# No unmade children
+# last modified <timestamp>: made
+# parents: all
+made-target     :
+	(null)
+
+
+# error-target, error when made, type OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_ALLSRC
+#
+# No unmade children
+# nonexistent (maybe): error when made
+# parents: all
+error-target    :
+	(null)
+
+
+# aborted-target, aborted, type OP_DEPENDS|OP_PHONY|OP_DEPS_FOUND|OP_MARK, flags none
+# aborted-target-dependency, error when made, type OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_ALLSRC
+#
+# No unmade children
+# nonexistent (maybe): error when made
+# parents: aborted-target
+aborted-target-dependency:
+	(null)
+
+
+# all, aborted, type OP_DEPENDS|OP_DEPS_FOUND, flags CHILDMADE|FORCE
+#
+# 3 unmade children
+# nonexistent (maybe): aborted
+all             : made-target error-target aborted-target
+
+
+# .END, unmade, type OP_SPECIAL, flags none
+
+
+#
+#   Files that are only sources:
+#	.END [.END]
+#*** Global Variables:
+.ALLTARGETS      =  made-target error-target aborted-target aborted-target-dependency all .END
+.CURDIR          = <curdir>
+.INCLUDES        = # (empty)
+.LIBS            = # (empty)
+.MAKE            = <details omitted>
+.MAKE.DEPENDFILE = <details omitted>
+.MAKE.GID        = <details omitted>
+.MAKE.JOBS.C     = <details omitted>
+.MAKE.LEVEL      = <details omitted>
+.MAKE.LEVEL.ENV  = MAKELEVEL
+.MAKE.MAKEFILES  = <details omitted>
+.MAKE.MAKEFILE_PREFERENCE = <details omitted>
+.MAKE.OS         = <details omitted>
+.MAKE.PID        = <details omitted>
+.MAKE.PPID       = <details omitted>
+.MAKE.UID        = <details omitted>
+.MAKEFLAGS       =  -r -k -d g3
+.MAKEOVERRIDES   = # (empty)
+.OBJDIR          = <curdir>
+.PATH            = . <curdir>
+.TARGETS         =  all
+.newline         = 
+# (ends with space)
+MACHINE          = <details omitted>
+MACHINE_ARCH     = <details omitted>
+MAKE             = <details omitted>
+MFLAGS           =   -r -k -d g3
+#*** Command-line Variables:
+.SHELL           = <details omitted>
+
+#*** Directory Cache:
+# Stats: 0 hits 4 misses 0 near misses 0 losers (0%)
+#  refs  hits  directory
+#     1     0  <curdir>
+
+#*** Suffixes:
+#*** Transformations:
+#*** End input graph for pass 3 in <curdir>:
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1

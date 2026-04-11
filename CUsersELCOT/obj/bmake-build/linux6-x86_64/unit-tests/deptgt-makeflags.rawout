@@ -1,0 +1,9 @@
+Global: ignoring delete 'DOLLAR' as it is not found
+Command: DOLLAR = $$$$
+Global: .MAKEOVERRIDES =  VAR DOLLAR
+CondParser_Eval: ${DOLLAR} != "\$\$"
+Var_Parse: ${DOLLAR} != "\$\$" (eval-defined-loud)
+Comparing "$$" != "$$"
+Global: .MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d
+Global: .MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d 0
+bmake: Unterminated quoted string [/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake VAR=initial UNBALANCED=']

@@ -1,0 +1,3 @@
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/dep-duplicate.tmp:1: warning: duplicate script for target "all" ignored
+bmake[1]: dep-duplicate.main:3: warning: using previous script for "all" defined here
+main-output

@@ -1,0 +1,14 @@
+CondParser_Eval: !(${:UINF} > 1e100)
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-cmp-numeric.mk:15: Comparison with ">" requires both operands "INF" and "1e100" to be numeric
+CondParser_Eval: ${:UNaN} > NaN
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-cmp-numeric.mk:21: Comparison with ">" requires both operands "NaN" and "NaN" to be numeric
+CondParser_Eval: !(${:UNaN} == NaN)
+Comparing "NaN" == "NaN"
+CondParser_Eval: 123 ! 123
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-cmp-numeric.mk:38: Malformed conditional "123 ! 123"
+CondParser_Eval: ${:U 123} < 124
+Comparing 123.000000 < 124.000000
+CondParser_Eval: ${:U123 } < 124
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-cmp-numeric.mk:54: Comparison with "<" requires both operands "123 " and "124" to be numeric
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

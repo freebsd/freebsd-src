@@ -1,0 +1,71 @@
+Global: .ALLTARGETS =  all target-rule.ext dir/subdir/target-rule.ext target-rule.ir-gen-from dir/subdir/target-rule-dir.ir-gen-from inference-rule.ir-to dir/subdir/inference-rule.ir-to inference-rule.ir-from dir/subdir/inference-rule.ir-from inference-rule-chain.ir-to dir/subdir/inference-rule-chain.ir-to inference-rule-chain.ir-gen-from dir/subdir/inference-rule-chain.ir-gen-from one
+Global: .ALLTARGETS =  all target-rule.ext dir/subdir/target-rule.ext target-rule.ir-gen-from dir/subdir/target-rule-dir.ir-gen-from inference-rule.ir-to dir/subdir/inference-rule.ir-to inference-rule.ir-from dir/subdir/inference-rule.ir-from inference-rule-chain.ir-to dir/subdir/inference-rule-chain.ir-to inference-rule-chain.ir-gen-from dir/subdir/inference-rule-chain.ir-gen-from one two
+Var_Parse: ${.MAKE.TARGET_LOCAL_VARIABLES} (eval)
+one: ignoring ' = three' as the variable name '' expands to empty
+two: ignoring ' = three' as the variable name '' expands to empty
+Global: one two = # (empty)
+Global: one two = three
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+target-rule.ext: @ = <target-rule.ext>
+target-rule.ext: % = <undefined>
+target-rule.ext: ? = <>
+target-rule.ext: < = <undefined>
+target-rule.ext: * = <target-rule.ext>
+dir/subdir/target-rule.ext: @ = <dir/subdir/target-rule.ext>
+dir/subdir/target-rule.ext: % = <undefined>
+dir/subdir/target-rule.ext: ? = <>
+dir/subdir/target-rule.ext: < = <undefined>
+dir/subdir/target-rule.ext: * = <dir/subdir/target-rule.ext>
+target-rule.ir-gen-from: @ = <target-rule.ir-gen-from>
+target-rule.ir-gen-from: % = <undefined>
+target-rule.ir-gen-from: ? = <>
+target-rule.ir-gen-from: < = <undefined>
+target-rule.ir-gen-from: * = <target-rule>
+dir/subdir/target-rule-dir.ir-gen-from: @ = <dir/subdir/target-rule-dir.ir-gen-from>
+dir/subdir/target-rule-dir.ir-gen-from: % = <undefined>
+dir/subdir/target-rule-dir.ir-gen-from: ? = <>
+dir/subdir/target-rule-dir.ir-gen-from: < = <undefined>
+dir/subdir/target-rule-dir.ir-gen-from: * = <dir/subdir/target-rule-dir>
+inference-rule.ir-to: @ = <inference-rule.ir-to>
+inference-rule.ir-to: % = <undefined>
+inference-rule.ir-to: ? = <inference-rule.ir-from>
+inference-rule.ir-to: < = <inference-rule.ir-from>
+inference-rule.ir-to: * = <inference-rule>
+dir/subdir/inference-rule.ir-to: @ = <dir/subdir/inference-rule.ir-to>
+dir/subdir/inference-rule.ir-to: % = <undefined>
+dir/subdir/inference-rule.ir-to: ? = <dir/subdir/inference-rule.ir-from>
+dir/subdir/inference-rule.ir-to: < = <dir/subdir/inference-rule.ir-from>
+dir/subdir/inference-rule.ir-to: * = <dir/subdir/inference-rule>
+inference-rule-chain.ir-from: @ = <inference-rule-chain.ir-from>
+inference-rule-chain.ir-from: % = <undefined>
+inference-rule-chain.ir-from: ? = <inference-rule-chain.ir-gen-from>
+inference-rule-chain.ir-from: < = <inference-rule-chain.ir-gen-from>
+inference-rule-chain.ir-from: * = <inference-rule-chain>
+inference-rule-chain.ir-to: @ = <inference-rule-chain.ir-to>
+inference-rule-chain.ir-to: % = <undefined>
+inference-rule-chain.ir-to: ? = <inference-rule-chain.ir-from>
+inference-rule-chain.ir-to: < = <inference-rule-chain.ir-from>
+inference-rule-chain.ir-to: * = <inference-rule-chain>
+dir/subdir/inference-rule-chain.ir-from: @ = <dir/subdir/inference-rule-chain.ir-from>
+dir/subdir/inference-rule-chain.ir-from: % = <undefined>
+dir/subdir/inference-rule-chain.ir-from: ? = <dir/subdir/inference-rule-chain.ir-gen-from>
+dir/subdir/inference-rule-chain.ir-from: < = <dir/subdir/inference-rule-chain.ir-gen-from>
+dir/subdir/inference-rule-chain.ir-from: * = <dir/subdir/inference-rule-chain>
+dir/subdir/inference-rule-chain.ir-to: @ = <dir/subdir/inference-rule-chain.ir-to>
+dir/subdir/inference-rule-chain.ir-to: % = <undefined>
+dir/subdir/inference-rule-chain.ir-to: ? = <dir/subdir/inference-rule-chain.ir-from>
+dir/subdir/inference-rule-chain.ir-to: < = <dir/subdir/inference-rule-chain.ir-from>
+dir/subdir/inference-rule-chain.ir-to: * = <dir/subdir/inference-rule-chain>
+: Making var-scope-local.c out of nothing.
+: Making var-scope-local.o from var-scope-local.c.
+: Making basename "var-scope-local.o" in "." from "var-scope-local.c" in ".".
+Making var-scope-local-assign.o with make 'local' and env 'local'.
+Making var-scope-local-append.o with make 'local to var-scope-local-append.o' and env 'local to var-scope-local-append.o'.
+Making var-scope-local-append-global.o with make 'global+local' and env 'global+local'.
+Making var-scope-local-default.o with make 'global' and env 'global'.
+Making var-scope-local-subst.o with make 'global+local' and env 'global+local'.
+Making var-scope-local-shell.o with make 'output' and env 'output'.
+Making .USE var-scope-local-use.o with make 'global' and env 'global'.
+: all overwritten
+exit status 0

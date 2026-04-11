@@ -1,0 +1,10 @@
+DIFF=diff
+DIFF_FLAGS=-u
+EGREP=grep -E
+MAKELEVEL=1
+TMPDIR=/mnt/d/Github_Projects/freebsd-src/contrib/bmake/C:UsersELCOT/obj/bmake-build/linux6-x86_64/unit-tests/tmp
+UT_DOLLAR=This is $UT_FU
+UT_FOO=foobar is fubar
+UT_FU=fubar
+UT_TEST=export
+UT_ZOO=hoopie

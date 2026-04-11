@@ -1,0 +1,6 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-undef.mk:30: The .undef directive requires an argument
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-undef.mk:88: Unknown modifier ":Z"
+	while evaluating variable "VARNAMES" with value "VARNAMES"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-undef.mk:105: warning: UT_EXPORTED is still listed in .MAKE.EXPORTED even though spaceit is not exported anymore.
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

@@ -1,0 +1,11 @@
+#*** Begin input graph for pass 1 in <curdir>:
+# all, unmade, type OP_DEPENDS, flags none
+# makeinfo, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# make-index, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# braces-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# braces-no-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# braces-no-dot-modifier, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# parentheses-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# parentheses-no-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+
+exit status 0

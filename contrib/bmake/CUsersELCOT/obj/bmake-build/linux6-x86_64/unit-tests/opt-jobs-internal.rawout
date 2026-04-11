@@ -1,0 +1,14 @@
+direct: mode=parallel
+bmake[2]: error: invalid internal option "-J garbage" in "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[2]: warning: Invalid internal option "-J" in "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"; see the manual page
+	in bmake[2] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+direct-open: mode=compat
+bmake[2]: warning: Invalid internal option "-J" in "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"; see the manual page
+	in bmake[2] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+indirect-open: mode=compat
+indirect-expr: mode=parallel
+bmake[2]: warning: Invalid internal option "-J" in "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"; see the manual page
+	in bmake[2] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+indirect-comment: mode=compat
+indirect-silent-comment: mode=parallel
+indirect-expr-empty: mode=parallel

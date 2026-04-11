@@ -1,0 +1,15 @@
+make: directive-for-errors.mk:9: Unknown directive "fori"
+make: directive-for-errors.mk:11: warning: <>
+make: directive-for-errors.mk:13: for-less endfor
+make: directive-for-errors.mk:25: Unknown directive "for"
+make: directive-for-errors.mk:27: warning: <>
+make: directive-for-errors.mk:29: for-less endfor
+make: directive-for-errors.mk:44: Invalid character "$" in .for loop variable name
+make: directive-for-errors.mk:52: Missing iteration variables in .for loop
+make: directive-for-errors.mk:64: Wrong number of words (5) in .for substitution list with 3 variables
+make: directive-for-errors.mk:78: Missing "in" in .for loop
+make: directive-for-errors.mk:85: Unknown modifier ":Z"
+	while evaluating "${:U3:Z} 4" with value "3"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

@@ -1,0 +1,9 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-lines.mk:31: This is line 31.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-lines.mk:31: This is line 31.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-lines.mk:38: This is line 38.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-lines.mk:31: This is line 31.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-lines.mk:31: This is line 31.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-lines.mk:38: This is line 38.
+bmake: no target to make.
+
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

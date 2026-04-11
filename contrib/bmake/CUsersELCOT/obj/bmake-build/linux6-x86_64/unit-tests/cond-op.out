@@ -1,0 +1,21 @@
+make: cond-op.mk:51: Malformed conditional ""!word" == !word"
+make: cond-op.mk:72: Malformed conditional "0 ${ERR::=evaluated}"
+make: cond-op.mk:77: A misplaced expression after 0 is not evaluated.
+make: cond-op.mk:82: Malformed conditional "1 ${ERR::=evaluated}"
+make: cond-op.mk:87: A misplaced expression after 1 is not evaluated.
+make: cond-op.mk:93: A B C   =>   (A || B) && C   A || B && C   A || (B && C)
+make: cond-op.mk:108: 0 0 0   =>   0               0             0
+make: cond-op.mk:108: 0 0 1   =>   0               0             0
+make: cond-op.mk:108: 0 1 0   =>   0               0             0
+make: cond-op.mk:108: 0 1 1   =>   1               1             1
+make: cond-op.mk:108: 1 0 0   =>   0               1             1
+make: cond-op.mk:108: 1 0 1   =>   1               1             1
+make: cond-op.mk:108: 1 1 0   =>   0               1             1
+make: cond-op.mk:108: 1 1 1   =>   1               1             1
+make: cond-op.mk:120: Malformed conditional "1 &&"
+make: cond-op.mk:129: Malformed conditional "0 &&"
+make: cond-op.mk:138: Malformed conditional "1 ||"
+make: cond-op.mk:148: Malformed conditional "0 ||"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

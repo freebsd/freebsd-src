@@ -1,0 +1,5 @@
+bmake: Graph cycles through suff-self.suff
+`all' not remade because of errors.
+
+Stop.
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

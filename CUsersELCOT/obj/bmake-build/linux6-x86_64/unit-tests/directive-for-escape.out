@@ -1,0 +1,170 @@
+For: end for 1
+For: loop body with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
+.  info ${:U!"#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
+make: directive-for-escape.mk:21: Unclosed expression, expecting "}" for modifier "U!""
+	while evaluating "${:U!"" with value "!""
+	in .for loop from directive-for-escape.mk:20 with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
+make: directive-for-escape.mk:21: !"
+For: end for 1
+For: loop body with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
+.  info ${:U!"\\\\#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
+make: directive-for-escape.mk:33: Unclosed expression, expecting "}" for modifier "U!"\\\\"
+	while evaluating "${:U!"\\\\" with value "!"\\"
+	in .for loop from directive-for-escape.mk:32 with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
+make: directive-for-escape.mk:33: !"\\
+For: end for 1
+For: loop body with i = $:
+.  info ${:U\$}
+make: directive-for-escape.mk:57: $
+For: loop body with i = ${V}:
+.  info ${:U${V}}
+make: directive-for-escape.mk:57: value
+For: loop body with i = ${V:=-with-modifier}:
+.  info ${:U${V:=-with-modifier}}
+make: directive-for-escape.mk:57: value-with-modifier
+For: loop body with i = $(V):
+.  info ${:U$(V)}
+make: directive-for-escape.mk:57: value
+For: loop body with i = $(V:=-with-modifier):
+.  info ${:U$(V:=-with-modifier)}
+make: directive-for-escape.mk:57: value-with-modifier
+For: end for 1
+For: loop body with i = $:
+.  info ${:U\$}
+make: directive-for-escape.mk:69: $
+For: loop body with i = ${V}:
+.  info ${:U${V}}
+make: directive-for-escape.mk:69: value
+For: loop body with i = ${V:=-with-modifier}:
+.  info ${:U${V:=-with-modifier}}
+make: directive-for-escape.mk:69: value-with-modifier
+For: loop body with i = $(V):
+.  info ${:U$(V)}
+make: directive-for-escape.mk:69: value
+For: loop body with i = $(V:=-with-modifier):
+.  info ${:U$(V:=-with-modifier)}
+make: directive-for-escape.mk:69: value-with-modifier
+For: end for 1
+For: loop body with i = ${UNDEF:U\$\$:
+# ${:U\${UNDEF\:U\\$\\$}
+For: loop body with i = {{}}:
+# ${:U{{\}\}}
+For: loop body with i = end}:
+# ${:Uend\}}
+For: end for 1
+For: loop body with i = ${UNDEF:U\$\$:
+.  info ${:U\${UNDEF\:U\\$\\$}
+make: directive-for-escape.mk:120: ${UNDEF:U\backslash$
+For: loop body with i = {{}}:
+.  info ${:U{{\}\}}
+make: directive-for-escape.mk:120: {{}}
+For: loop body with i = end}:
+.  info ${:Uend\}}
+make: directive-for-escape.mk:120: end}
+For: end for 1
+For: loop body with i = begin<${UNDEF:Ufallback:N{{{}}}}>end:
+.  info ${:Ubegin<${UNDEF:Ufallback:N{{{}}}}>end}
+make: directive-for-escape.mk:138: begin<fallback>end
+For: end for 1
+For: loop body with i = $:
+.  info ${:U\$}
+make: directive-for-escape.mk:147: $
+make: directive-for-escape.mk:155: Invalid character ":" in .for loop variable name
+For: end for 1
+make: directive-for-escape.mk:165: Invalid character "}" in .for loop variable name
+For: end for 1
+For: end for 1
+For: loop body with i = inner:
+.  info ${:Uinner} ${:Uinner} ${:Uinner:M*} $(:Uinner) $(:Uinner:M*)
+make: directive-for-escape.mk:175: inner inner inner inner inner
+For: end for 1
+For: loop body with i = inner:
+.  info ${i${:U}}
+make: directive-for-escape.mk:179: outer
+For: end for 1
+For: loop body with i = inner:
+.  info ${:Uinner\}}	# XXX: unclear why ForLoop_SubstVarLong needs this
+make: directive-for-escape.mk:183: inner}
+For: end for 1
+For: loop body with i = inner:
+.  info ${i2} ${i,} ${:Uinner}${:Uinner}${:Uinner:M*}${:Uinner}
+make: directive-for-escape.mk:187: two comma innerinnerinnerinner
+make: directive-for-escape.mk:196: Invalid character "$" in .for loop variable name
+For: end for 1
+make: directive-for-escape.mk:208: eight  and no cents.
+For: end for 1
+make: directive-for-escape.mk:222: newline in .for value
+	in .for loop from directive-for-escape.mk:222 with i = "
+"
+make: directive-for-escape.mk:222: newline in .for value
+	in .for loop from directive-for-escape.mk:222 with i = "
+"
+For: loop body with i = "
+":
+.  info short: ${:U" "}, long: ${:U" "}
+make: directive-for-escape.mk:223: short: " ", long: " "
+For: end for 1
+For: loop body with i = "
+":
+Parsing directive-for-escape.mk:236: .for i in "${.newline}"
+For: end for 1
+Parse_PushInput: .for loop in directive-for-escape.mk:236
+make: directive-for-escape.mk:236: newline in .for value
+	in .for loop from directive-for-escape.mk:236 with i = "
+"
+For: loop body with i = "
+":
+: ${:U" "}
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `directive-for-escape.mk'
+Parsing directive-for-escape.mk:237: : ${:U" "}
+ParseDependency(: " ")
+ParseEOF: returning to directive-for-escape.mk:239
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `directive-for-escape.mk'
+Parsing directive-for-escape.mk:239: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+For: end for 1
+For: loop body with i = #:
+# ${:U#}
+For: loop body with i = \\#:
+# ${:U\\\\#}
+For: end for 1
+For: loop body with i = $:
+# ${:U\$}
+For: loop body with i = $i:
+# ${:U$i}
+For: loop body with i = $(i):
+# ${:U$(i)}
+For: loop body with i = ${i}:
+# ${:U${i}}
+For: loop body with i = $$:
+# ${:U$$}
+For: loop body with i = $$$$:
+# ${:U$$$$}
+For: loop body with i = ${:U\$\$}:
+# ${:U${:U\$\$}}
+For: end for 1
+For: loop body with i = ${.TARGET}:
+# ${:U${.TARGET}}
+For: loop body with i = ${.TARGET}:
+# ${:U${.TARGET}}
+For: loop body with i = $${.TARGET}:
+# ${:U$${.TARGET\}}
+For: loop body with i = $${.TARGET}:
+# ${:U$${.TARGET\}}
+For: end for 1
+For: loop body with i = (((:
+# ${:U(((}
+For: loop body with i = {{{:
+# ${:U{{{}
+For: loop body with i = ))):
+# ${:U)))}
+For: loop body with i = }}}:
+# ${:U\}\}\}}
+For: end for 1
+For: loop body with , = 1:
+# $$i $i
+# VAR= $$i $i ${a:S,from${:U1}to,}
+VAR= $$i $i ${a:S,from${:U1}to,}
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

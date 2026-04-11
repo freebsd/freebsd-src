@@ -1,0 +1,13 @@
+CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
+Comparing "directive-include.mk null" != "directive-include.mk null"
+CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
+Comparing "directive-include.mk null" != "directive-include.mk null"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include.mk:26: Could not find nonexistent.mk
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include.mk:49: Could not find "
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include.mk:56: Unknown modifier ":Z"
+	while evaluating "${:U123:Z}.mk" with value "123"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include.mk:56: Could not find nonexistent.mk
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include.mk:61: Cannot open /nonexistent
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include.mk:66: Invalid line "include"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

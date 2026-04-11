@@ -1,0 +1,7 @@
+: 'Making issue11.h out of nothing.'
+bmake: don't know how to make .first (continuing)
+: 'Making issue11.second out of nothing.'
+`all' not remade because of errors.
+
+Stop.
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

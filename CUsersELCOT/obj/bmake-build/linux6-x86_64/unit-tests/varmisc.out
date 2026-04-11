@@ -1,0 +1,81 @@
+
+:D expanded when var set
+true
+TRUE
+:U expanded when var undef
+true
+TRUE
+:D skipped if var undef
+
+:U skipped when var set
+is set
+:? only lhs when value true
+true
+TRUE
+:? only rhs when value false
+false
+FALSE
+do not evaluate or expand :? if discarding
+is set
+Version=123.456.789 == 123456789
+Literal=3.4.5 == 3004005
+We have target specific vars
+save-dollars: 0        = $
+save-dollars: 1        = $$
+save-dollars: 2        = $$
+save-dollars: False    = $
+save-dollars: True     = $$
+save-dollars: false    = $
+save-dollars: true     = $$
+save-dollars: Yes      = $$
+save-dollars: No       = $
+save-dollars: yes      = $$
+save-dollars: no       = $
+save-dollars: On       = $$
+save-dollars: Off      = $
+save-dollars: ON       = $$
+save-dollars: OFF      = $
+save-dollars: on       = $$
+save-dollars: off      = $
+export-appended: env
+export-appended: env
+export-appended: env mk
+parse-dynamic: parse-dynamic parse-dynamic before
+parse-dynamic: parse-dynamic parse-dynamic after
+parse-dynamic: parse-dynamic parse-dynamic after
+varerror-unclosed-1:begin
+make: Unclosed variable ""
+	in command "@echo $("
+	in target "varerror-unclosed-2"
+make: Unclosed variable "UNCLOSED"
+	in command "@echo $(UNCLOSED"
+	in target "varerror-unclosed-3"
+make: Unclosed variable "UNCLOSED"
+	in command "@echo ${UNCLOSED"
+	in target "varerror-unclosed-4"
+make: Unclosed variable "PATTERN"
+	while evaluating variable "UNCLOSED" with value ""
+	in command "@echo ${UNCLOSED:M${PATTERN"
+	in target "varerror-unclosed-5"
+make: Unclosed expression, expecting "}" for modifier "M${PATTERN"
+	while evaluating variable "UNCLOSED" with value ""
+	in command "@echo ${UNCLOSED:M${PATTERN"
+	in target "varerror-unclosed-5"
+make: Unclosed variable "param"
+	in command "@echo ${UNCLOSED.${param"
+	in target "varerror-unclosed-6"
+make: Unclosed variable "UNCLOSED."
+	in command "@echo ${UNCLOSED.${param"
+	in target "varerror-unclosed-6"
+
+make: Unclosed variable "UNCLOSED.1"
+	in command "@echo ${UNCLOSED.${:U1}"
+	in target "varerror-unclosed-7"
+make: Unclosed variable "UNCLOSED_ORIG"
+	while evaluating variable "UNCLOSED_INDIR_1" with value "${UNCLOSED_ORIG"
+	while evaluating variable "UNCLOSED_INDIR_2" with value "${UNCLOSED_INDIR_1}"
+	in command "@echo ${UNCLOSED_INDIR_2}"
+	in target "varerror-unclosed-8"
+target1-flags: we have: one two
+target2-flags: we have: one two three four
+exit status 2

@@ -1,0 +1,4 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-dinclude-error.inc:1: Invalid line "syntax error"
+	in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-dinclude.mk:21
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

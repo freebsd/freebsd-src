@@ -1,0 +1,31 @@
+direct compat
+false
+*** Error code 1 (continuing)
+
+Stop.
+bmake: stopped making "direct" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+exited 1
+
+direct jobs
+false
+*** [direct] Error code 1
+
+bmake: stopped making "direct" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+exited 1
+
+indirect compat
+false
+*** Error code 1 (continuing)
+`indirect' not remade because of errors.
+
+Stop.
+bmake: stopped making "indirect" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+exited 1
+
+indirect jobs
+false
+*** [direct] Error code 1
+
+bmake: stopped making "indirect" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+exited 1
+

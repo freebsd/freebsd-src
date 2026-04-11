@@ -1,0 +1,14 @@
+: undefined--eol
+make: Unclosed variable "UNCLOSED"
+	in command ": $@-${UNCLOSED"
+	in target "unclosed-expression"
+make: Unclosed expression, expecting "}"
+	while evaluating variable "UNCLOSED" with value ""
+	in command ": $@-${UNCLOSED:"
+	in target "unclosed-modifier"
+make: Unknown modifier ":Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in command ": $@-${UNKNOWN:Z}-eol"
+	in target "unknown-modifier"
+: end-eol
+exit status 2

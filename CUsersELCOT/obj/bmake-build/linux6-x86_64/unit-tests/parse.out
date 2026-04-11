@@ -1,0 +1,6 @@
+make: parse.mk:7: Invalid line "<<<<<< old"
+make: parse.mk:14: Invalid line ">>>>>> new"
+make: parse.mk:25: Invalid line "one-target ${:U }", expanded to "one-target  "
+make: Fatal errors encountered -- cannot continue
+make: stopped making "Try_to_crash_FreeBSD.xxxxxxxxxxxxxxxxxx" in unit-tests
+exit status 1

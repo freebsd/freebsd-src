@@ -1,0 +1,20 @@
+make: varmod-edge.mk:60: Unclosed expression, expecting "}" for modifier "U*)"
+	while evaluating "${:U*)" with value "*)"
+	while evaluating variable "INP" with value "(parentheses)"
+	while evaluating variable "MOD" with value "${INP:M${:U*)}}"
+make: varmod-edge.mk:88: Unfinished character list in pattern "[[" of modifier ":M"
+	while evaluating variable "INP" with value "[ [[ [[["
+	while evaluating variable "MOD" with value "${INP:M${:U[[}}"
+make: varmod-edge.mk:178: Unfinished modifier after "a\=b}", expecting "="
+	while evaluating variable "INP" with value "file.c file..."
+	while evaluating variable "MOD" with value "${INP:a\=b}"
+make: varmod-edge.mk:193: Unknown modifier "::"
+	while evaluating variable "INP" with value "value"
+	while evaluating variable "MOD" with value "${INP::::}"
+make: varmod-edge.mk:199: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+make: varmod-edge.mk:212: Unfinished modifier after "}", expecting ","
+	while evaluating "${:S,}" with value ""
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

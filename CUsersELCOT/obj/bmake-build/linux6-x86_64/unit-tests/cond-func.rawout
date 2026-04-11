@@ -1,0 +1,12 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:37: Missing ")" after argument "A" for "defined"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:53: Missing ")" after argument "A" for "defined"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:57: Missing ")" after argument "A" for "defined"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:91: Unknown operator "&"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:107: A plain function name is parsed as defined(...).
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:115: A plain function name is parsed as defined(...).
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:126: Symbols may start with a function name.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:132: Symbols may start with a function name.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:138: Missing ")" after argument "" for "defined"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func.mk:145: Missing ")" after argument "${:UVARNAME}.param" for "defined"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

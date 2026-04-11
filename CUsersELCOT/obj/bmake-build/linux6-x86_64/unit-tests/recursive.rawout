@@ -1,0 +1,4 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/recursive.mk:38: Unclosed variable "MISSING_PAREN"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/recursive.mk:40: Unclosed variable "MISSING_BRACE"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

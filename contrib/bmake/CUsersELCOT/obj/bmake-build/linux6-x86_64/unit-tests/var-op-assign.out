@@ -1,0 +1,6 @@
+this will be evaluated later
+make: var-op-assign.mk:60: Invalid line "VARIABLE NAME=	variable value"
+make: var-op-assign.mk:95: Parsing still continues until here.
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

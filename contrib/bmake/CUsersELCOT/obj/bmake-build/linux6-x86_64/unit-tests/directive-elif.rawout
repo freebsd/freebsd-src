@@ -1,0 +1,20 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:48: Unknown directive "elsif"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:54: This branch is taken.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:62: Unknown directive "elsif"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:66: This branch is taken.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:73: This branch is taken.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:94: Unknown directive "elsif"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:96: This misspelling is detected.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:98: This branch is taken because of the .else.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:117: What happens on misspelling in a skipped branch?
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:128: else
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:132: What happens on misspelling in a taken branch?
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:135: 1-then
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:137: Unknown directive "elsif"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:139: 1-elsif
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:141: Unknown directive "elsif"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:143: 2-elsif
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:149: if-less elif
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-elif.mk:154: warning: extra elif
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

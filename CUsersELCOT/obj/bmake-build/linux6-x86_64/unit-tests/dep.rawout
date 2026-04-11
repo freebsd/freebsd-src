@@ -1,0 +1,4 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/dep.mk:11: Inconsistent operator for only-colon
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/dep.mk:13: Inconsistent operator for only-colon
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

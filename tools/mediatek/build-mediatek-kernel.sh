@@ -44,6 +44,9 @@ info "ObjDir:  $MAKEOBJDIRPREFIX"
 info "Jobs:    $NCPU"
 info ""
 
+# ---- Ensure object directory exists ----
+mkdir -p "$MAKEOBJDIRPREFIX"
+
 [ -d "$FREEBSD_SRC" ] || error "FreeBSD source not found: $FREEBSD_SRC"
 
 # ---- Validate KERNCONF exists ----
@@ -56,9 +59,9 @@ MAKE_ARGS=(
     -j "$NCPU"
     TARGET="$TARGET"
     TARGET_ARCH="$TARGET_ARCH"
-    MAKEOBJDIRPREFIX="$MAKEOBJDIRPREFIX"
     KERNCONF="$KERNCONF"
     WITHOUT_CLEAN=yes      # Incremental builds (remove for clean build)
+    NO_CLEAN=yes           # Hard bypass of _cleanworldtmp
     WITH_FDT=yes           # Device Tree support
     WITHOUT_MODULES_OVERRIDE= # Build all modules
 )
@@ -68,13 +71,22 @@ MAKE_ARGS=(
 
 # ---- Optional LLVM override ----
 if command -v clang-17 &>/dev/null; then
-    MAKE_ARGS+=(CC=clang-17 CXX=clang++-17 CPP=clang-cpp-17)
-    MAKE_ARGS+=(LD=ld.lld-17 AR=llvm-ar-17 RANLIB=llvm-ranlib-17)
+    export XCC=clang-17 XCXX=clang++-17 XCPP=clang-cpp-17
+    export XLD=ld.lld-17 XAR=llvm-ar-17 XRANLIB=llvm-ranlib-17
     info "Using LLVM 17 toolchain"
 elif command -v clang &>/dev/null; then
+    export XCC=clang XCXX=clang++ XCPP=clang-cpp
+    export XLD=ld.lld XAR=llvm-ar XRANLIB=llvm-ranlib
     info "Using system clang"
 else
     error "No clang found. Run setup-wsl-toolchain.sh first."
+fi
+
+# ---- Provide clang-cpp if missing from host PATH ----
+if ! command -v clang-cpp &>/dev/null; then
+    mkdir -p "$HOME/.uos-bin"
+    ln -sf "$(command -v clang)" "$HOME/.uos-bin/clang-cpp"
+    export PATH="$HOME/.uos-bin:$PATH"
 fi
 
 # ---- Step 1: Build world (only if first time or explicitly requested) ----
@@ -82,7 +94,7 @@ BUILD_WORLD="${BUILD_WORLD:-no}"
 if [ "$BUILD_WORLD" = "yes" ]; then
     info "Step 1/2: Building world (this takes ~60-90 min)..."
     START=$(date +%s)
-    make -C "$FREEBSD_SRC" buildworld "${MAKE_ARGS[@]}"
+    python3 "$FREEBSD_SRC/tools/build/make.py" buildworld "${MAKE_ARGS[@]}"
     END=$(date +%s)
     success "World built in $(( (END - START) / 60 )) minutes"
 else
@@ -92,7 +104,7 @@ fi
 # ---- Step 2: Build kernel ----
 info "Step 2/2: Building kernel ($KERNCONF)..."
 START=$(date +%s)
-make -C "$FREEBSD_SRC" buildkernel "${MAKE_ARGS[@]}"
+    python3 "$FREEBSD_SRC/tools/build/make.py" buildkernel "${MAKE_ARGS[@]}"
 END=$(date +%s)
 success "Kernel built in $(( (END - START) / 60 )) minutes"
 
@@ -110,8 +122,8 @@ fi
 
 # ---- Build DTBs ----
 info "Building MediaTek DTBs..."
-make -C "$FREEBSD_SRC" "${MAKE_ARGS[@]}" -C "$FREEBSD_SRC/sys/modules/dtb/mediatek" || \
-    warn "DTB build failed (non-fatal - QEMU uses device tree from firmware)"
+python3 "$FREEBSD_SRC/tools/build/make.py" "${MAKE_ARGS[@]}" -C "$FREEBSD_SRC/sys/modules/dtb/mediatek" || \
+    echo -e "${YELLOW}[WARN]${NC}  DTB build failed (non-fatal - QEMU uses device tree from firmware)"
 
 echo ""
 success "Build complete! Next: bash create-disk-image.sh $KERNCONF"

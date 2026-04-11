@@ -1,0 +1,5 @@
+: 'Undefined variables are expanded directly in the dependency'
+: 'declaration.  They are not preserved and maybe expanded later.'
+: 'This is in contrast to local variables such as ${.TARGET}.'
+: Making .UNKNOWN from nothing.
+exit status 0

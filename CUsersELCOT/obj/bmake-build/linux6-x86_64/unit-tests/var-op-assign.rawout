@@ -1,0 +1,5 @@
+this will be evaluated later
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-op-assign.mk:60: Invalid line "VARIABLE NAME=	variable value"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-op-assign.mk:95: Parsing still continues until here.
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

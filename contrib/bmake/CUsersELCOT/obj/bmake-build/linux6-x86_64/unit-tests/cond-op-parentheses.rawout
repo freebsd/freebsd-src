@@ -1,0 +1,6 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-parentheses.mk:22: Comparison with ">" requires both operands "3" and "(2" to be numeric
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-parentheses.mk:25: Malformed conditional "(3) > 2"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-parentheses.mk:44: Malformed conditional "("
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-parentheses.mk:58: Malformed conditional ")"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

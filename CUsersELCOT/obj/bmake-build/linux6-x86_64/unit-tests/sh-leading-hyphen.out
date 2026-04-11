@@ -1,0 +1,11 @@
+true
+false
+*** Error code 1 (ignored)
+unknown-command 'needed for needshell in compat.c'
+unknown-command: not found
+*** Error code 127 (ignored)
+unknown-long-option 'needed for needshell in compat.c'
+unknown-long-option: not found
+*** Error code 127 (ignored)
+whitespace in leading part
+exit status 0

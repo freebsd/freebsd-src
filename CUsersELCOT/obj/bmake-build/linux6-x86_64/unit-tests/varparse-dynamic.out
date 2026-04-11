@@ -1,0 +1,5 @@
+make: varparse-dynamic.mk:9: Variable ".TARGEX" is undefined
+make: varparse-dynamic.mk:12: Variable ".TARGXX" is undefined
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

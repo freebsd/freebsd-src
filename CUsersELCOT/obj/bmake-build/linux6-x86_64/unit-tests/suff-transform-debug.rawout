@@ -1,0 +1,66 @@
+#*** Begin input graph for pass 1 in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests:
+# all, unmade, type OP_DEPENDS, flags none
+
+
+#
+#   Files that are only sources:
+#*** Global Variables:
+.ALLTARGETS      =  all
+.CURDIR          = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+.INCLUDES        = # (empty)
+.LIBS            = # (empty)
+.MAKE            = /mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake
+.MAKE.DEPENDFILE = .depend
+.MAKE.GID        = 1000
+.MAKE.JOBS.C     = yes
+.MAKE.LEVEL      = 0
+.MAKE.LEVEL.ENV  = MAKELEVEL
+.MAKE.MAKEFILES  = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-transform-debug.mk
+.MAKE.MAKEFILE_PREFERENCE = makefile Makefile
+.MAKE.OS         = Linux
+.MAKE.PID        = 40087
+.MAKE.PPID       = 40086
+.MAKE.UID        = 1000
+.MAKEFLAGS       =  -r -k -d g1
+.MAKEOVERRIDES   = # (empty)
+.OBJDIR          = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+.PATH            = . /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+.SYSPATH         = /mnt/d/Github_Projects/freebsd-src/share/mk
+.TARGETS         = # (empty)
+.newline         = 
+# (ends with space)
+MACHINE          = x86_64
+MACHINE_ARCH     = x86_64
+MAKE             = /mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake
+MAKE_VERSION     = 20251111
+MFLAGS           =   -r -k -d g1
+#*** Command-line Variables:
+
+#*** Directory Cache:
+# Stats: 0 hits 2 misses 0 near misses 0 losers (0%)
+#  refs  hits  directory
+#     1     0  /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+#     1     0  .
+#     2     0  /mnt/d/Github_Projects/freebsd-src/share/mk
+
+#*** Suffixes:
+# ".a" (num 1, ref 2)
+#	To: 
+#	From: .cpp 
+#	Search Path: 
+# ".c" (num 2, ref 2)
+#	To: .cpp 
+#	From: 
+#	Search Path: 
+# ".cpp" (num 3, ref 3)
+#	To: .a 
+#	From: .c 
+#	Search Path: 
+#*** Transformations:
+.c.cpp          :
+	: Making ${.TARGET} from impsrc ${.IMPSRC} allsrc ${.ALLSRC}.
+
+.cpp.a          :
+	: Making ${.TARGET} from impsrc ${.IMPSRC} allsrc ${.ALLSRC}.
+
+#*** End input graph for pass 1 in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests:

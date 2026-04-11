@@ -1,0 +1,8 @@
+> cmd-interrupt-ordinary
+bmake[1]: *** cmd-interrupt-ordinary removed
+interrupt-ordinary: ok
+> cmd-interrupt-phony
+interrupt-phony: ok
+> cmd-interrupt-precious
+interrupt-precious: ok
+interrupt-compat expected-fail

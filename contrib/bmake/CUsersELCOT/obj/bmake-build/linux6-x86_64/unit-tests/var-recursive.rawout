@@ -1,0 +1,28 @@
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:11: Variable DIRECT is recursive.
+	while evaluating variable "DIRECT" with value "${DIRECT}"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:11: <>
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:19: Variable INDIRECT1 is recursive.
+	while evaluating variable "INDIRECT2" with value "${INDIRECT1}"
+	while evaluating variable "INDIRECT1" with value "${INDIRECT2}"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:19: <>
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:26: <ok>
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:34: Variable MODIFIERS is recursive.
+	while evaluating variable "MODIFIERS" with value "${MODIFIERS:Mpattern}"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:34: <Mpattern}>
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:43: Variable V is recursive.
+	while evaluating variable "V" with value "$V"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-recursive.mk:43: <>
+bmake[1]: Fatal errors encountered -- cannot continue
+bmake[1]: stopped making "loadtime" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+sub-exit status 1
+: before-recursive
+bmake[1]: Variable VAR is recursive.
+	while evaluating variable "VAR" with value "${VAR}"
+	in command ": recursive-line-before <${VAR}> recursive-line-after"
+	in target "runtime"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+sub-exit status 2

@@ -1,0 +1,7 @@
+: normal
+-c : normal
+-c : hidden
+: always
+-c : always
+: ignore errors
+-c : ignore errors

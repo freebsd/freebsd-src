@@ -1,0 +1,13 @@
+make: varmod-shell.mk:25: warning: Command "echo word; (exit 13)" exited with status 13
+make: varmod-shell.mk:29: warning: Command "echo word; (exit 13)" exited with status 13
+Global: _ = # (empty)
+Var_Parse: ${:!echo word; ${:U(exit 13)}!} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${:!...} on value "" (eval-keep-dollar-and-undefined, undefined)
+Modifier part: "echo word; (exit 13)"
+Capturing the output of command "echo word; (exit 13)"
+make: varmod-shell.mk:36: warning: Command "echo word; (exit 13)" exited with status 13
+Result of ${:!echo word; ${:U(exit 13)}!} is "word" (eval-keep-dollar-and-undefined, defined)
+Global: _ = word
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+exit status 0

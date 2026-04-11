@@ -1,0 +1,11 @@
+make: varmod-loop-varname.mk:17: In the :@ modifier, the variable name "${:Ubar:S,b,v,}" must not contain a dollar
+	while evaluating "${:Uone two three:@${:Ubar:S,b,v,}@+${var}+@} != "+one+ +two+ +three+"" with value "one two three"
+make: varmod-loop-varname.mk:87: In the :@ modifier, the variable name "v$" must not contain a dollar
+	while evaluating variable "1 2 3" with value "1 2 3"
+make: varmod-loop-varname.mk:93: In the :@ modifier, the variable name "v$$" must not contain a dollar
+	while evaluating variable "1 2 3" with value "1 2 3"
+make: varmod-loop-varname.mk:99: In the :@ modifier, the variable name "v$$$" must not contain a dollar
+	while evaluating variable "1 2 3" with value "1 2 3"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

@@ -1,0 +1,5 @@
+make: cond-cmp-numeric-eq.mk:68: Malformed conditional "!(12345 = 12345)"
+make: cond-cmp-numeric-eq.mk:76: Malformed conditional "!(12345 === 12345)"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

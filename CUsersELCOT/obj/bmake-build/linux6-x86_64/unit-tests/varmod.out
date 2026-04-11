@@ -1,0 +1,54 @@
+make: varmod.mk:111: To escape a dollar, use \$, not $$, at "$$:L} != """
+make: varmod.mk:111: Invalid variable name ":", at "$:L} != """
+make: varmod.mk:117: Dollar followed by nothing
+	while evaluating "${:Uword:@word@${word}$@} != "word"" with value "word"
+make: varmod.mk:125: Missing delimiter ":" after modifier "P"
+	while evaluating variable "VAR" with value "VAR"
+make: varmod.mk:134: Invalid modifier ":[99333000222000111000]"
+	while evaluating variable "word" with value "word"
+make: varmod.mk:137: Invalid modifier ":[2147483648]"
+	while evaluating variable "word" with value "word"
+make: varmod.mk:143: Invalid number "99333000222000111000}" for modifier ":range"
+	while evaluating variable "word" with value "word"
+make: varmod.mk:150: Invalid time value "\"
+	while evaluating indirect modifiers "gmtime=\"
+	while evaluating "${:${:Ugmtime=\\}}" with value ""
+make: varmod.mk:165: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$"
+make: varmod.mk:171: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$"
+make: varmod.mk:171: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$ appended$"
+make: varmod.mk:181: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+make: varmod.mk:185: Invalid modifier ":[$]"
+	while evaluating variable "word" with value ""
+make: varmod.mk:202: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$ appended$"
+make: varmod.mk:202: Invalid variable name "}", at "$} != "set""
+	while evaluating variable "VAR" with value "value<space>appended"
+make: varmod.mk:206: Invalid variable name "}", at "$} != "fallback""
+	while evaluating "${:Ufallback$} != "fallback"" with value ""
+make: varmod.mk:210: Invalid time value "1000$"
+	while evaluating variable "%y" with value "%y"
+make: varmod.mk:216: Invalid time value "1000$"
+	while evaluating variable "%y" with value "%y"
+make: varmod.mk:222: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+make: varmod.mk:226: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+make: varmod.mk:230: Invalid argument "fallback$" for modifier ":mtime"
+	while evaluating variable "." with value "."
+make: varmod.mk:244: Missing delimiter ":" after modifier "L"
+	while evaluating variable "VAR" with value "VAR"
+make: varmod.mk:256: Invalid time value " : } \ $ ) \) ( "
+	while evaluating variable "%Y" with value "%Y"
+make: varmod.mk:263: Invalid time value " : \) \ $ "
+	while evaluating variable "%Y" with value "%Y"
+make: varmod.mk:268: Invalid time value " : } \ $ ) \) ( "
+	while evaluating variable "%Y" with value "%Y"
+make: varmod.mk:273: Invalid time value " : \) \ $ "
+	while evaluating variable "%Y" with value "%Y"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

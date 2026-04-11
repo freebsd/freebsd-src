@@ -1,0 +1,8 @@
+makeobjdir-direct:
+show-objdir: <tmpdir>/cmdline/6a8899d2-d227-4b55-9b6b-f3c8eeb83fd5
+makeobjdir-indirect:
+show-objdir: <tmpdir>/cmdline/a7b41170-53f8-4cc2-bc5c-e4c3dd93ec45/
+space-and-comment:
+value # no comment $
+value # no comment $
+exit status 0

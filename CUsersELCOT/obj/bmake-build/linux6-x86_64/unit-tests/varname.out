@@ -1,0 +1,30 @@
+Global: VAR{{{}}} = 3 braces
+Var_Parse: ${VAR{{{}}}}" != "3 braces" (eval)
+Global: VARNAME = VAR(((
+Var_Parse: ${VARNAME} (eval)
+Global: VAR((( = 3 open parentheses
+Var_Parse: ${VAR(((}}}}" != "3 open parentheses}}}" (eval)
+Global: .ALLTARGETS =  VAR(((=)
+make: varname.mk:31: Missing ")" in archive specification
+make: varname.mk:31: Error in archive specification: "VAR"
+Var_Parse: ${:UVAR\(\(\(}=	try2 (eval)
+Evaluating modifier ${:U...} on value "" (eval, undefined)
+Result of ${:UVAR\(\(\(} is "VAR\(\(\(" (eval, defined)
+Global: .ALLTARGETS =  VAR(((=) VAR\(\(\(=
+make: varname.mk:37: Invalid line "${:UVAR\(\(\(}=	try2", expanded to "VAR\(\(\(=	try2"
+Var_Parse: ${VARNAME} (eval)
+Global: VAR((( = try3
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+make: varname.mk:98: warning: Invalid character " " in variable name "if ,yes,no"
+make: varname.mk:113: warning: Invalid character " " in variable name "if ,yes,no"
+make: varname.mk:120: warning: Invalid character " " in variable name "if ,,"
+make: varname.mk:128: Unknown modifier ":yes,answer"
+	while evaluating variable "if ,answer" with value ""
+	while evaluating variable "GNU_MAKE_IF_MODIFIER" with value "$(if ${HAVE_STRLEN},answer:yes,answer:no)"
+make: varname.mk:138: warning: Invalid character "\x09" in variable name "a	b"
+make: varname.mk:138: Variable "a	b" is undefined
+make: varname.mk:144: Variable "ÄÖÜ" is undefined
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

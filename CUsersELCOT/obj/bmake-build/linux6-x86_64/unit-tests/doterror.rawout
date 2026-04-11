@@ -1,0 +1,8 @@
+At first, I am
+happy
+and now: sad
+*** Error code 1
+
+Stop.
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+.ERROR: Looks like 'sad' is upset.

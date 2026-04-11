@@ -1,0 +1,4 @@
+echo 'This is a loud command.'
+This is a loud command.
+This is not echoed because of the @.
+This is not echoed because of the .SILENT.

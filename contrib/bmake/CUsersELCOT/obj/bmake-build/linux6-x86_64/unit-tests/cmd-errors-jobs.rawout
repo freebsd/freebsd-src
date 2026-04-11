@@ -1,0 +1,78 @@
+begin undefined-direct
+: undefined-direct--eol
+end undefined-direct with status 0
+
+begin undefined-indirect
+: undefined-direct--eol
+end undefined-indirect with status 0
+
+begin parse-error-direct
+bmake[1]: Unclosed variable "UNCLOSED"
+	in command ": unexpected $@-${UNCLOSED"
+	in target "parse-error-unclosed-expression"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: Unclosed expression, expecting "}"
+	while evaluating variable "UNCLOSED" with value ""
+	in command ": unexpected $@-${UNCLOSED:"
+	in target "parse-error-unclosed-modifier"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: Unknown modifier ":Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in command ": unexpected $@-${UNKNOWN:Z}-eol"
+	in target "parse-error-unknown-modifier"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+end parse-error-direct with status 2
+
+begin parse-error-indirect
+bmake[1]: Unclosed variable "UNCLOSED"
+	in command ": unexpected $@-${UNCLOSED"
+	in target "parse-error-unclosed-expression"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: Unclosed expression, expecting "}"
+	while evaluating variable "UNCLOSED" with value ""
+	in command ": unexpected $@-${UNCLOSED:"
+	in target "parse-error-unclosed-modifier"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: Unknown modifier ":Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in command ": unexpected $@-${UNKNOWN:Z}-eol"
+	in target "parse-error-unknown-modifier"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+end parse-error-indirect with status 2
+
+begin begin-direct
+(exit 13) # .BEGIN
+*** Error code 13 (continuing)
+
+
+Stop.
+bmake[1]: stopped making "begin-direct" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+end begin-direct with status 1
+
+begin begin-indirect
+(exit 13) # before-begin
+*** Error code 13 (continuing)
+
+
+Stop.
+bmake[1]: stopped making "begin-indirect" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+end begin-indirect with status 1
+
+begin end-direct
+(exit 13) # .END
+*** Error code 13 (continuing)
+
+
+Stop.
+bmake[1]: stopped making "end-direct" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+end end-direct with status 1
+
+begin end-indirect
+(exit 13) # before-end
+*** Error code 13 (continuing)
+
+
+Stop.
+bmake[1]: stopped making "end-indirect" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+end end-indirect with status 1
+

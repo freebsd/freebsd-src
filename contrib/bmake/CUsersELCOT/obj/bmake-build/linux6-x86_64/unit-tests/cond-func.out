@@ -1,0 +1,13 @@
+make: cond-func.mk:37: Missing ")" after argument "A" for "defined"
+make: cond-func.mk:53: Missing ")" after argument "A" for "defined"
+make: cond-func.mk:57: Missing ")" after argument "A" for "defined"
+make: cond-func.mk:91: Unknown operator "&"
+make: cond-func.mk:107: A plain function name is parsed as defined(...).
+make: cond-func.mk:115: A plain function name is parsed as defined(...).
+make: cond-func.mk:126: Symbols may start with a function name.
+make: cond-func.mk:132: Symbols may start with a function name.
+make: cond-func.mk:138: Missing ")" after argument "" for "defined"
+make: cond-func.mk:145: Missing ")" after argument "${:UVARNAME}.param" for "defined"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

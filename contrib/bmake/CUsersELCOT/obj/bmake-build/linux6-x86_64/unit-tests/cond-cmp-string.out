@@ -1,0 +1,11 @@
+make: cond-cmp-string.mk:19: Malformed conditional "str != str"
+make: cond-cmp-string.mk:44: Malformed conditional ""string" != "str""ing""
+make: cond-cmp-string.mk:52: Malformed conditional "!("value" = "value")"
+make: cond-cmp-string.mk:60: Malformed conditional "!("value" === "value")"
+make: cond-cmp-string.mk:118: Comparison with "<" requires both operands "string" and "string" to be numeric
+make: cond-cmp-string.mk:126: Comparison with "<=" requires both operands "string" and "string" to be numeric
+make: cond-cmp-string.mk:134: Comparison with ">" requires both operands "string" and "string" to be numeric
+make: cond-cmp-string.mk:142: Comparison with ">=" requires both operands "string" and "string" to be numeric
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

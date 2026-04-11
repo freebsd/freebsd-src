@@ -1,0 +1,6 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-number.mk:16: Malformed conditional "-0"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-number.mk:27: Malformed conditional "+0"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-number.mk:38: Malformed conditional "!-1"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-number.mk:49: Malformed conditional "!+1"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

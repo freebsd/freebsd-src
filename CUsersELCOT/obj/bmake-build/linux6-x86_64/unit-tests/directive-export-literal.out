@@ -1,0 +1,5 @@
+value with ${UNEXPANDED} expression
+value literal
+value indirect
+value ${indirect:L}
+exit status 0

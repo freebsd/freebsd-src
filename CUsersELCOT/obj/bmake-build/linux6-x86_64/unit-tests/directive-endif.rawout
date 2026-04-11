@@ -1,0 +1,7 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-endif.mk:16: The .endif directive does not take arguments
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-endif.mk:21: The .endif directive does not take arguments
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-endif.mk:32: The .endif directive does not take arguments
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-endif.mk:39: The .endif directive does not take arguments
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-endif.mk:44: Unknown directive "endifx"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

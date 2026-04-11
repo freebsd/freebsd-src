@@ -1,0 +1,27 @@
+job_pipe -1 -1, maxjobs 1, tokens 1, compat 0
+TokenPool_Take: pid <pid>, aborting NONE, running 0
+TokenPool_Take: pid <pid> took a token
+# echo off
+echo silent
+# echo on
+# echo off
+# error checking off
+set +e
+# echo on
+echo ignerr; false
+# echo off
+# error checking on
+set -e
+# echo on
+echo always
+Running all
+	Command: <shell>
+JobExec: target all, pid <pid> added to jobs table
+job started, job table:
+job 0, status running, flags ---, pid <pid>
+silent
+ignerr
+always
+TokenPool_Take: pid <pid>, aborting NONE, running 0
+TokenPool_Take: pid <pid> took a token
+exit status 0

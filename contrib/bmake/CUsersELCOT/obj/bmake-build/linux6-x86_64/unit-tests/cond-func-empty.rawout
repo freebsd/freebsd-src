@@ -1,0 +1,4 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func-empty.mk:156: warning: Invalid character " " in variable name " WORD "
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func-empty.mk:168: Unclosed variable "WORD"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

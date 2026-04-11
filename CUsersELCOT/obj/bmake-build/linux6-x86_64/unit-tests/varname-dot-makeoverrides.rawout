@@ -1,0 +1,7 @@
+all: overrides=<>
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -f /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeoverrides.mk stage_1 VAR=value
+stage_1: overrides=< VAR>
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -f /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeoverrides.mk stage_2 .VAR=too
+stage_2: overrides=< VAR .VAR>
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -f /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeoverrides.mk stage_3
+stage_3: overrides=< .VAR VAR>

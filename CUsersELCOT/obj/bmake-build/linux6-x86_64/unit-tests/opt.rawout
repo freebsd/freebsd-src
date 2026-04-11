@@ -1,0 +1,25 @@
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -r -f /dev/null -V MAKEFLAGS
+ -r -k -d 0 
+
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -:
+usage: bmake [-BeikNnqrSstWwX]
+            [-C directory] [-D variable] [-d flags] [-f makefile]
+            [-I directory] [-J private] [-j max_jobs] [-m directory] [-T file]
+            [-V variable] [-v variable] [variable=value] [target ...]
+*** Error code 2 (ignored)
+
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -r -f /dev/null -- -VAR=value -f /dev/null
+bmake[1]: don't know how to make -f (continuing)
+`/dev/null' is up to date.
+
+Stop.
+bmake[1]: stopped making "-f /dev/null" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+*** Error code 1 (ignored)
+
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -?
+usage: bmake [-BeikNnqrSstWwX]
+            [-C directory] [-D variable] [-d flags] [-f makefile]
+            [-I directory] [-J private] [-j max_jobs] [-m directory] [-T file]
+            [-V variable] [-v variable] [variable=value] [target ...]
+*** Error code 2 (ignored)
+

@@ -1,0 +1,17 @@
+make: var-op-shell.mk:32: warning: Command "echo "failed"; (exit 13)" exited with status 13
+make: var-op-shell.mk:39: warning: Command "exit 13" exited with status 13
+make: var-op-shell.mk:62: warning: "kill $$" exited on a signal
+/bin/no/such/command: not found
+make: var-op-shell.mk:69: warning: Command "/bin/no/such/command" exited with status 127
+stderr
+Capturing the output of command "echo '$$$$'"
+Global: OUTPUT = $$$$
+Global: .MAKEFLAGS = -r -k -d v -d
+Global: .MAKEFLAGS = -r -k -d v -d 0
+Var_Parse: ${UNDEF}y (eval)
+Capturing the output of command "echo xy"
+Global: OUTPUT_OF_UNDEF = xy
+Var_Parse: ${OUTPUT_OF_UNDEF} != "xy" (eval-defined-loud)
+Global: .MAKEFLAGS = -r -k -d v -d 0 -d v -d
+Global: .MAKEFLAGS = -r -k -d v -d 0 -d v -d 0
+exit status 0

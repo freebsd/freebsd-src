@@ -1,0 +1,30 @@
+randomize compat mode:
+: Making a2
+: Making a1
+: Making a3
+: Making b3
+: Making b2
+: Making b1
+: Making c3
+: Making c1
+: Making c2
+randomize jobs mode (-j1):
+: Making a1
+: Making a3
+: Making a2
+: Making b3
+: Making b2
+: Making b1
+: Making c2
+: Making c1
+: Making c3
+randomize jobs mode (-j5):
+: Making a1
+: Making a2
+: Making a3
+: Making b2
+: Making b1
+: Making b3
+: Making c3
+: Making c1
+: Making c2

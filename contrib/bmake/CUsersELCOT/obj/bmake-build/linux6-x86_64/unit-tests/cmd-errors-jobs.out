@@ -1,0 +1,79 @@
+begin undefined-direct
+: undefined-direct--eol
+end undefined-direct with status 0
+
+begin undefined-indirect
+: undefined-direct--eol
+end undefined-indirect with status 0
+
+begin parse-error-direct
+make: Unclosed variable "UNCLOSED"
+	in command ": unexpected $@-${UNCLOSED"
+	in target "parse-error-unclosed-expression"
+	in make[1] in directory "<curdir>"
+make: Unclosed expression, expecting "}"
+	while evaluating variable "UNCLOSED" with value ""
+	in command ": unexpected $@-${UNCLOSED:"
+	in target "parse-error-unclosed-modifier"
+	in make[1] in directory "<curdir>"
+make: Unknown modifier ":Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in command ": unexpected $@-${UNKNOWN:Z}-eol"
+	in target "parse-error-unknown-modifier"
+	in make[1] in directory "<curdir>"
+end parse-error-direct with status 2
+
+begin parse-error-indirect
+make: Unclosed variable "UNCLOSED"
+	in command ": unexpected $@-${UNCLOSED"
+	in target "parse-error-unclosed-expression"
+	in make[1] in directory "<curdir>"
+make: Unclosed expression, expecting "}"
+	while evaluating variable "UNCLOSED" with value ""
+	in command ": unexpected $@-${UNCLOSED:"
+	in target "parse-error-unclosed-modifier"
+	in make[1] in directory "<curdir>"
+make: Unknown modifier ":Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in command ": unexpected $@-${UNKNOWN:Z}-eol"
+	in target "parse-error-unknown-modifier"
+	in make[1] in directory "<curdir>"
+end parse-error-indirect with status 2
+
+begin begin-direct
+(exit 13) # .BEGIN
+*** Error code 13 (continuing)
+
+
+Stop.
+make: stopped making "begin-direct" in unit-tests
+end begin-direct with status 1
+
+begin begin-indirect
+(exit 13) # before-begin
+*** Error code 13 (continuing)
+
+
+Stop.
+make: stopped making "begin-indirect" in unit-tests
+end begin-indirect with status 1
+
+begin end-direct
+(exit 13) # .END
+*** Error code 13 (continuing)
+
+
+Stop.
+make: stopped making "end-direct" in unit-tests
+end end-direct with status 1
+
+begin end-indirect
+(exit 13) # before-end
+*** Error code 13 (continuing)
+
+
+Stop.
+make: stopped making "end-indirect" in unit-tests
+end end-indirect with status 1
+
+exit status 0

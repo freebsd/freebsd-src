@@ -1,0 +1,60 @@
+Parsing directive-export-impl.mk:21: UT_VAR=		<${REF}>
+Global: UT_VAR = <${REF}>
+Parsing directive-export-impl.mk:28: .export UT_VAR
+Global: .MAKE.EXPORTED = UT_VAR
+Parsing directive-export-impl.mk:32: : ${UT_VAR:N*}
+Var_Parse: ${UT_VAR:N*} (eval)
+Var_Parse: ${REF}> (eval)
+Evaluating modifier ${UT_VAR:N...} on value "<>"
+Pattern for ':N' is "*"
+ModifyWords: split "<>" into 1 word
+Result of ${UT_VAR:N*} is ""
+ParseDependency(: )
+Parsing directive-export-impl.mk:42: .if ${:!echo "\$UT_VAR"!} != "<>"
+CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<>"
+Var_Parse: ${:!echo "\$UT_VAR"!} != "<>" (eval-defined-loud)
+Evaluating modifier ${:!...} on value "" (eval, undefined)
+Modifier part: "echo "$UT_VAR""
+Capturing the output of command "echo "$UT_VAR""
+Var_Parse: ${.MAKE.EXPORTED:O:u} (eval)
+Evaluating modifier ${.MAKE.EXPORTED:O} on value "UT_VAR"
+Result of ${.MAKE.EXPORTED:O} is "UT_VAR"
+Evaluating modifier ${.MAKE.EXPORTED:u} on value "UT_VAR"
+Result of ${.MAKE.EXPORTED:u} is "UT_VAR"
+Var_Parse: ${UT_VAR} (eval)
+Var_Parse: ${REF}> (eval)
+Result of ${:!echo "\$UT_VAR"!} is "<>" (eval, defined)
+Comparing "<>" != "<>"
+Parsing directive-export-impl.mk:50: : ${UT_VAR:N*}
+Var_Parse: ${UT_VAR:N*} (eval)
+Var_Parse: ${REF}> (eval)
+Evaluating modifier ${UT_VAR:N...} on value "<>"
+Pattern for ':N' is "*"
+ModifyWords: split "<>" into 1 word
+Result of ${UT_VAR:N*} is ""
+ParseDependency(: )
+Parsing directive-export-impl.mk:54: REF=		defined
+Global: REF = defined
+Parsing directive-export-impl.mk:58: .if ${:!echo "\$UT_VAR"!} != "<defined>"
+CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<defined>"
+Var_Parse: ${:!echo "\$UT_VAR"!} != "<defined>" (eval-defined-loud)
+Evaluating modifier ${:!...} on value "" (eval, undefined)
+Modifier part: "echo "$UT_VAR""
+Capturing the output of command "echo "$UT_VAR""
+Var_Parse: ${.MAKE.EXPORTED:O:u} (eval)
+Evaluating modifier ${.MAKE.EXPORTED:O} on value "UT_VAR"
+Result of ${.MAKE.EXPORTED:O} is "UT_VAR"
+Evaluating modifier ${.MAKE.EXPORTED:u} on value "UT_VAR"
+Result of ${.MAKE.EXPORTED:u} is "UT_VAR"
+Var_Parse: ${UT_VAR} (eval)
+Var_Parse: ${REF}> (eval)
+Result of ${:!echo "\$UT_VAR"!} is "<defined>" (eval, defined)
+Comparing "<defined>" != "<defined>"
+Parsing directive-export-impl.mk:62: all:
+ParseDependency(all:)
+Global: .ALLTARGETS =  all
+Parsing directive-export-impl.mk:63: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Global: .MAKEFLAGS =  -r -k -d cpv -d
+Global: .MAKEFLAGS =  -r -k -d cpv -d 0
+exit status 0

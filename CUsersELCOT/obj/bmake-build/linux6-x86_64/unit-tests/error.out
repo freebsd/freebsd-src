@@ -1,0 +1,6 @@
+make: error.mk:7: just FYI
+make: error.mk:9: warning: this could be serious
+make: error.mk:11: this is fatal
+
+make: stopped in unit-tests
+exit status 1

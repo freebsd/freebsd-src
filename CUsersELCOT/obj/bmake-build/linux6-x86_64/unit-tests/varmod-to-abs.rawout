@@ -1,0 +1,4 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-to-abs.mk:19: does-not-exist.c
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-to-abs.mk:21: does-not-exist.c
+cached_realpath: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-to-abs.mk -> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-to-abs.mk
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-to-abs.mk:26: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-to-abs.mk

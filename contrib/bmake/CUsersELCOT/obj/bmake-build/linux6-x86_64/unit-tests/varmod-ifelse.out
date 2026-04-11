@@ -1,0 +1,70 @@
+make: varmod-ifelse.mk:28: Bad condition
+	while evaluating condition "bare words == "literal""
+make: varmod-ifelse.mk:39: Bad condition
+	while evaluating condition " == """
+make: varmod-ifelse.mk:47: Bad condition
+	while evaluating condition " == """
+make: varmod-ifelse.mk:70: Bad condition
+	while evaluating condition "1 == == 2"
+CondParser_Eval: "${1 == == 2:?yes:no}" != ""
+CondParser_Eval: 1 == == 2
+Comparing 1.000000 == 0.000000
+make: varmod-ifelse.mk:94: Bad condition
+	while evaluating condition "1 == == 2"
+Comparing "" != ""
+CondParser_Eval: ${ ${:U\$}{VAR} == value:?ok:bad} != "ok"
+CondParser_Eval: ${VAR} == value
+Comparing "value" == "value"
+Comparing "ok" != "ok"
+make: varmod-ifelse.mk:159: no.
+make: varmod-ifelse.mk:162: Comparison with ">=" requires both operands "no" and "10" to be numeric
+	while evaluating condition "string == "literal" || no >= 10"
+make: varmod-ifelse.mk:162: .
+make: varmod-ifelse.mk:169: Bad condition
+	while evaluating condition "string == "literal" &&  >= 10"
+make: varmod-ifelse.mk:169: .
+make: varmod-ifelse.mk:172: Bad condition
+	while evaluating condition "string == "literal" ||  >= 10"
+make: varmod-ifelse.mk:172: .
+make: varmod-ifelse.mk:180: <true>
+make: varmod-ifelse.mk:183: <false>
+make: varmod-ifelse.mk:187: Bad condition
+	while evaluating condition "	"
+make: varmod-ifelse.mk:187: <>
+CondParser_Eval: 0 && ${1:?${:Uthen0:S,}},,}:${:Uelse0:S,}},,}} != "not evaluated"
+CondParser_Eval: 1 && ${0:?${:Uthen1:S,}},,}:${:Uelse1:S,}},,}} != "else1"
+CondParser_Eval: 0
+Comparing "else1" != "else1"
+CondParser_Eval: 2 && ${1:?${:Uthen2:S,}},,}:${:Uelse2:S,}},,}} != "then2"
+CondParser_Eval: 1
+Comparing "then2" != "then2"
+CondParser_Eval: ${DELAYED} == "one"
+Comparing "two" == "one"
+make: varmod-ifelse.mk:283: no
+CondParser_Eval: ${DELAYED} == "two"
+Comparing "two" == "two"
+make: varmod-ifelse.mk:285: yes
+CondParser_Eval: ${DELAYED} == "one"
+Comparing "two" == "one"
+make: varmod-ifelse.mk:288: no
+CondParser_Eval: ${DELAYED} == "two"
+Comparing "two" == "two"
+make: varmod-ifelse.mk:291: yes
+make: varmod-ifelse.mk:313: Unknown modifier ":X-then"
+	while evaluating "${:X-then}:${:X-else}}" with value ""
+	while evaluating then-branch of condition "1"
+make: varmod-ifelse.mk:313: Unknown modifier ":X-else"
+	while parsing "${:X-else}}"
+	while evaluating else-branch of condition "1"
+make: varmod-ifelse.mk:321: Bad condition
+	while evaluating condition " < 0 "
+make: varmod-ifelse.mk:321: Unknown modifier ":Z1"
+	while parsing "${:Z1}:${:Z2}}>"
+	while evaluating then-branch of condition " < 0 "
+make: varmod-ifelse.mk:321: Unknown modifier ":Z2"
+	while parsing "${:Z2}}>"
+	while evaluating else-branch of condition " < 0 "
+make: varmod-ifelse.mk:321: <>
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

@@ -1,0 +1,5 @@
+make: cond-func-empty.mk:156: warning: Invalid character " " in variable name " WORD "
+make: cond-func-empty.mk:168: Unclosed variable "WORD"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

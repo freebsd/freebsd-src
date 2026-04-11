@@ -1,0 +1,12 @@
+make: opt-debug-file.mk:54: This goes to stdout only, once.
+make: opt-debug-file.mk:57: This goes to stderr only, once.
+make: opt-debug-file.mk:60: This goes to stderr, and in addition to the debug log.
+CondParser_Eval: ${:!cat opt-debug-file.debuglog!:Maddition:[#]} != 1
+Comparing 1.000000 != 1.000000
+make: Unterminated quoted string [make 'This goes to stdout only, once.]
+make: Unterminated quoted string [make 'This goes to stderr only, once.]
+make: Unterminated quoted string [make 'This goes to stderr, and in addition to the debug log.]
+CondParser_Eval: ${:!cat opt-debug-file.debuglog!:MUnterminated:[#]} != 1
+Comparing 1.000000 != 1.000000
+Cannot open debug file "/nonexistent-6f21c672-a22d-4ef7/opt-debug-file.debuglog"
+exit status 2

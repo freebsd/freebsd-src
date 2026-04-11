@@ -1,0 +1,15 @@
+: Making success1 out of nothing.
+: Making fail1 out of nothing.
+false 'fail1' '${.TARGET}' '$${.TARGET}'
+*** Error code 1 (continuing)
+: Making success2 out of nothing.
+: Making fail2 out of nothing.
+false 'fail2' '${.TARGET}' '$${.TARGET}'
+*** Error code 1 (continuing)
+: Making success3 out of nothing.
+
+Stop.
+make: stopped making "success1 fail1 success2 fail2 success3" in unit-tests
+.ERROR target: <fail1>
+.ERROR command: <>
+exit status 1

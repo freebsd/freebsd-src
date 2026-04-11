@@ -1,0 +1,5 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-undef-lint.mk:24: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-undef-lint.mk:35: Variable "VAR." is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-undef-lint.mk:45: Variable "VAR.defined" is undefined
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

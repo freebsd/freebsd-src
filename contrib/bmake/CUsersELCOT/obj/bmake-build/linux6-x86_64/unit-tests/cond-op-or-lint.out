@@ -1,0 +1,4 @@
+make: cond-op-or-lint.mk:10: Unknown operator "|"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

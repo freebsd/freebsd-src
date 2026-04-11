@@ -1,0 +1,111 @@
+#
+# UOS-STARFIVE -- Kernel configuration for StarFive VisionFive 2
+#                 UOS Mobile OS (FreeBSD-based)
+#
+# Target hardware:
+#   SoC:    StarFive JH7110
+#   Cores:  4x U74 (RV64GC)
+#   RAM:    4/8GB
+#
+
+cpu		RISCV
+ident		UOS_STARFIVE
+
+makeoptions	DEBUG=-g
+makeoptions	WITH_KERNEL_BIN=1
+makeoptions	WITH_CTF=1Notice Period*
+
+What is your current notice period?
+
+# OpenBSD-style hardening compiler flags (Mapped to RISC-V equivalents)
+makeoptions	CFLAGS+="-fstack-protector-strong"
+makeoptions	CFLAGS+="-D_FORTIFY_SOURCE=2"
+
+# UOS Mobile Performance Tuning
+makeoptions	COPTFLAGS="-O3"
+
+include		"std.starfive"
+include		"std.dev"
+
+# ======================================================================
+# Mobile OS specific options (UOS)
+# ======================================================================
+options		MOBILE_OS
+options		LOW_LATENCY
+options		POWER_EFFICIENT
+
+# ======================================================================
+# Scheduler & performance
+# ======================================================================
+options		SCHED_ULE
+options		PREEMPTION
+options		HZ=250
+options		SMP
+options		MAXCPU=4
+
+# ======================================================================
+# Power and Thermal Management
+# ======================================================================
+options		CPUFREQ_DT
+device		hwpmc
+# ======================================================================
+# Display
+# ======================================================================
+device		vt
+device		vt_efifb
+options		KDB
+options		DDB
+
+# ======================================================================
+# Storage
+# ======================================================================
+device		geom
+device		geom_part_gpt
+device		geom_part_bsd
+device		mmc
+device		mmcsd
+device		sdhci
+
+# ======================================================================
+# Filesystems
+# ======================================================================
+options		FFS
+options		SOFTUPDATES
+options		UFS_DIRHASH
+options		TMPFS
+options		NULLFS
+options		FDESCFS
+options		PROCFS
+options		LINPROCFS
+
+# ======================================================================
+# Bionic / Android app compatibility
+# ======================================================================
+options		COMPAT_LINUX64
+options		COMPAT_LINUXKPI
+
+# ======================================================================
+# Security
+# ======================================================================
+options		UOS_SECURITY
+options		UOS_WX_ENFORCE
+options		UOS_UNVEIL
+options		UOS_PLEDGE
+options		CAPABILITIES
+options		MAC
+options		MAC_SEEOTHERUIDS
+options		MAC_PORTACL
+options		AUDIT
+options		RACCT
+options		RCTL
+
+# ======================================================================
+# Networking
+# ======================================================================
+options		INET
+options		INET6
+options		SCTP
+device		loop
+device		ether
+device		vlan
+device		if_bridge

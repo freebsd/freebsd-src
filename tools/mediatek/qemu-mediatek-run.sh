@@ -58,7 +58,11 @@ echo ""
 
 # ---- Pre-flight checks ----
 command -v qemu-system-aarch64 &>/dev/null || error "qemu-system-aarch64 not found. Run setup-wsl-toolchain.sh"
-[ -f "$DISK_IMG" ] || error "Disk image not found: $DISK_IMG\n       Run create-disk-image.sh first."
+if [ ! -f "$DISK_IMG" ]; then
+    warn "Disk image not found: $DISK_IMG. Generating a blank virtual drive for GUI testing..."
+    qemu-img create -f raw "$DISK_IMG" 8G >/dev/null 2>&1 || true
+fi
+[ -f "$DISK_IMG" ] || error "Failed to autogenerate disk image."
 
 info "Disk image: $DISK_IMG ($(du -h "$DISK_IMG" | cut -f1))"
 info "CPUs:       $NCPU x Cortex-A55"

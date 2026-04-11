@@ -1,0 +1,34 @@
+Command: ignoring ' = cmdline-u' as the variable name '${:U}' expands to empty
+Command: ignoring ' = cmdline-plain' as the variable name '' expands to empty
+Global: .CURDIR = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+Var_Parse: ${MAKE_OBJDIR_CHECK_WRITABLE} (eval)
+Global: .OBJDIR = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+Global: ignoring delete '.PATH' as it is not found
+Global: .PATH = .
+Global: .PATH = . /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+Global: .TARGETS = # (empty)
+Var_ReadOnly: .SYSPATH not found
+Global: ignoring delete '.SYSPATH' as it is not found
+Global: .SYSPATH = /mnt/d/Github_Projects/freebsd-src/share/mk
+Var_ReadOnly: .SYSPATH true
+Internal: MAKEFILE = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-empty.mk
+Global: .MAKE.MAKEFILES = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-empty.mk
+Global: .PARSEDIR = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+Global: .PARSEFILE = varname-empty.mk
+Global: ignoring delete '.INCLUDEDFROMDIR' as it is not found
+Global: ignoring delete '.INCLUDEDFROMFILE' as it is not found
+Global: ignoring ' = default' as the variable name '' expands to empty
+Global: ignoring ' = assigned' as the variable name '' expands to empty
+Global: ignoring ' = appended' as the variable name is empty
+Global: ignoring ' = ' as the variable name '' expands to empty
+Global: ignoring ' = subst' as the variable name '' expands to empty
+Capturing the output of command "echo 'shell-output'"
+Global: ignoring delete '.SHELL' as it is not found
+Command: .SHELL = /bin/sh
+Global: ignoring ' = shell-output' as the variable name '' expands to empty
+Global: ignoring ' = assigned indirectly' as the variable name '${:U}' expands to empty
+Global: ignoring ' += appended indirectly' as the variable name '${:U}' expands to empty
+Global: .MAKEFLAGS =  -r -d v -d
+Global: .MAKEFLAGS =  -r -d v -d 0
+out: fallback
+out: 1 2 3

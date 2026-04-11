@@ -27,6 +27,9 @@ makeoptions	CFLAGS+="-mbranch-protection=pac-ret+leaf+bti"
 makeoptions	CFLAGS+="-fstack-protector-strong"
 makeoptions	CFLAGS+="-D_FORTIFY_SOURCE=2"
 
+# UOS Mobile Performance Tuning
+makeoptions	COPTFLAGS="-O3"
+
 include		"std.arm64"
 include		"std.dev"
 include		"std.qcom"
@@ -51,6 +54,14 @@ options		PAN			# Privileged Access Never (always)
 # ================================================================
 options		SMP
 options		MAXCPU=8
+options		HZ=250			# Mobile tick rate for deep sleep
+
+# ================================================================
+# Power and Thermal Management
+# ================================================================
+options		CPUFREQ_DT
+device		coretemp
+device		hwpmc
 
 # ================================================================
 # OpenBSD-inspired kernel security options

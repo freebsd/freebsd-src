@@ -1,0 +1,9 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-generating-endif.mk:24: if-less endif
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-generating-endif.mk:20 with i = 3
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-generating-endif.mk:24: if-less endif
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-generating-endif.mk:20 with i = 2
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-generating-endif.mk:24: if-less endif
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-generating-endif.mk:20 with i = 1
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-generating-endif.mk:30: 3 open conditionals
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

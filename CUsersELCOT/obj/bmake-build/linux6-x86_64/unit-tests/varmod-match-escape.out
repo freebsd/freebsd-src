@@ -1,0 +1,50 @@
+Global: SPECIALS = \: : \\ * \*
+CondParser_Eval: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}}
+Var_Parse: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}} (eval-defined-loud)
+Evaluating modifier ${SPECIALS:M...} on value "\: : \\ * \*"
+Pattern for ':M' is "\:"
+ModifyWords: split "\: : \\ * \*" into 5 words
+Result of ${SPECIALS:M${:U}\:} is ":"
+Var_Parse: ${SPECIALS:M\:${:U}} (eval-defined-loud)
+Evaluating modifier ${SPECIALS:M...} on value "\: : \\ * \*"
+Pattern for ':M' is ":"
+ModifyWords: split "\: : \\ * \*" into 5 words
+Result of ${SPECIALS:M\:${:U}} is ":"
+Comparing ":" != ":"
+Global: VALUES = : :: :\:
+CondParser_Eval: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:}
+Var_Parse: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:} (eval-defined-loud)
+Evaluating modifier ${VALUES:M...} on value ": :: :\:"
+Var_Parse: ${:U:} (eval)
+Evaluating modifier ${:U} on value "" (eval, undefined)
+Result of ${:U} is "" (eval, defined)
+Pattern for ':M' is ":"
+ModifyWords: split ": :: :\:" into 3 words
+Result of ${VALUES:M\:${:U\:}} is ":"
+Var_Parse: ${VALUES:M${:U\:}\:} (eval-defined-loud)
+Evaluating modifier ${VALUES:M...} on value ": :: :\:"
+Var_Parse: ${:U\:}\: (eval)
+Evaluating modifier ${:U...} on value "" (eval, undefined)
+Result of ${:U\:} is ":" (eval, defined)
+Pattern for ':M' is ":\:"
+ModifyWords: split ": :: :\:" into 3 words
+Result of ${VALUES:M${:U\:}\:} is "::"
+Comparing ":" != "::"
+make: varmod-match-escape.mk:43: warning: XXX: Oops
+Global: .MAKEFLAGS =  -r -k -d cv -d
+Global: .MAKEFLAGS =  -r -k -d cv -d 0
+make: varmod-match-escape.mk:63: Unfinished backslash at the end in pattern "\" of modifier ":M"
+	while evaluating "${:U\$:M\$} != """ with value "$"
+make: varmod-match-escape.mk:71: Dollar followed by nothing
+	while evaluating "${:U\$:M\$} != """ with value "$"
+make: varmod-match-escape.mk:71: Unfinished backslash at the end in pattern "\" of modifier ":M"
+	while evaluating "${:U\$:M\$} != """ with value "$"
+make: varmod-match-escape.mk:112: Unfinished character list in pattern "[A-]" of modifier ":M"
+	while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]"
+	in .for loop from varmod-match-escape.mk:109 with pattern = [A-]
+make: varmod-match-escape.mk:112: Unfinished character list in pattern "[^A-]" of modifier ":M"
+	while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]"
+	in .for loop from varmod-match-escape.mk:109 with pattern = [^A-]
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

@@ -1,0 +1,3 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt-path-suffix.mk:8: Suffix ".c" not defined (yet)
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

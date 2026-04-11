@@ -1,0 +1,9 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeflags.mk:11: MAKEFLAGS=<undefined>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeflags.mk:13: .MAKEFLAGS=< -r -k>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeflags.mk:15: .MAKEOVERRIDES=<>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeflags.mk:21: MAKEFLAGS=<undefined>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeflags.mk:23: .MAKEFLAGS=< -r -k -D VARNAME -r>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-makeflags.mk:25: .MAKEOVERRIDES=< VAR>
+runtime: MAKEFLAGS=< -r -k -D VARNAME -r VAR=value>
+runtime: .MAKEFLAGS=< -r -k -D VARNAME -r>
+runtime: .MAKEOVERRIDES=< VAR>

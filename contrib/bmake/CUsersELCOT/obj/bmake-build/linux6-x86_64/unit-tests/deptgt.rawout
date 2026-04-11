@@ -1,0 +1,25 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:11: warning: Extra target ".PHONY" ignored
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:30: Unassociated shell command ": command3		# parse error, since targets == NULL"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:36: ${:U}: empty-source
+ParseDependency(: empty-source)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:37: 	: command for empty targets list
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:38: : empty-source
+ParseDependency(: empty-source)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:39: 	: command for empty targets list
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:40: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Var_Parse: ${UNDEF}: depsrc-${UNDEF} (eval)
+Var_Parse: ${UNDEF} (eval)
+Global: .ALLTARGETS =  target1 target2 sources empty-source deptgt-
+Global: .ALLTARGETS =  target1 target2 sources empty-source deptgt- depsrc-
+Global: .MAKEFLAGS =  -r -k -d p -d 0 -d v -d
+Global: .MAKEFLAGS =  -r -k -d p -d 0 -d v -d 0
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:51: Unknown modifier ":Z"
+	while evaluating "${:U:Z}:" with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:55: Unknown modifier ":Z"
+	while parsing "${:U:Z}:"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:58: warning: Extra target "ordinary" ignored
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:61: warning: Extra target "ordinary" ignored
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt.mk:64: warning: Special and mundane targets don't mix. Mundane ones ignored
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "target1" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

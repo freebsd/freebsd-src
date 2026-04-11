@@ -1,0 +1,16 @@
+The = assignment operator
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:41: From the command line: Undefined is .
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:42: From .MAKEFLAGS '=': Undefined is .
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:43: From .MAKEFLAGS ':=': Undefined is .
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:47: From the command line: Undefined is now defined.
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:48: From .MAKEFLAGS '=': Undefined is now defined.
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:49: From .MAKEFLAGS ':=': Undefined is now defined.
+
+The := assignment operator
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:41: From the command line: Undefined is .
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:42: From .MAKEFLAGS '=': Undefined is .
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:43: From .MAKEFLAGS ':=': Undefined is .
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:47: From the command line: Undefined is now defined.
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:48: From .MAKEFLAGS '=': Undefined is now defined.
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cmdline-undefined.mk:49: From .MAKEFLAGS ':=': Undefined is now defined.
+

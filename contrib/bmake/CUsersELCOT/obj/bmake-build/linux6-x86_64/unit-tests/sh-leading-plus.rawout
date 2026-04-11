@@ -1,0 +1,5 @@
+echo 'this command is not run'
+echo 'this command is run'
+this command is run
+echo 'whitespace in leading part'
+whitespace in leading part

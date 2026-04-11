@@ -1,0 +1,27 @@
+make: cond-token-var.mk:23: ok
+make: cond-token-var.mk:30: Variable "UNDEF" is undefined
+make: cond-token-var.mk:36: Variable "UNDEF" is undefined
+make: cond-token-var.mk:46: Variable "UNDEF" is undefined
+make: cond-token-var.mk:64: Variable "U" is undefined
+make: cond-token-var.mk:69: Variable "U" is undefined
+make: cond-token-var.mk:78: Variable "U" is undefined
+Var_Parse: ${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3} (eval)
+make: cond-token-var.mk:106: Malformed conditional "x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}"
+Var_Parse: ${DEF}y == "${UNDEF2}" || 0x${UNDEF3} (eval)
+make: cond-token-var.mk:111: Malformed conditional "x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}"
+Var_Parse: ${DEF}y == "${DEF}" || 0x${UNDEF3} (eval)
+make: cond-token-var.mk:116: Malformed conditional "x${DEF}y == "${DEF}" || 0x${UNDEF3}"
+Global: VAR.param = value of VAR.param
+Var_Parse: ${VAR.param$U} (eval-defined-loud)
+Var_Parse: $U} (eval)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+make: cond-token-var.mk:133: Variable "UNDEF" is undefined
+	while evaluating variable "UNDEF" with value ""
+make: cond-token-var.mk:142: Variable "UNDEF" is undefined
+	while evaluating variable "UNDEF" with value ""
+make: cond-token-var.mk:151: Variable "UNDEF" is undefined
+	while evaluating variable "UNDEF" with value ""
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

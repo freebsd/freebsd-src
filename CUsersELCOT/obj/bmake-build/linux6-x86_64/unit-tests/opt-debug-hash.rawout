@@ -1,0 +1,5 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-hash.mk:13: Missing argument for ".error"
+bmake: Fatal errors encountered -- cannot continue
+HashTable "targets": size=16 entries=0 maxchain=0
+HashTable "Global variables": size=16 entries=26 maxchain=4
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

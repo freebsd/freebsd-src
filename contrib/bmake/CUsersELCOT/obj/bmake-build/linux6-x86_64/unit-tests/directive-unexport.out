@@ -1,0 +1,5 @@
+make: directive-unexport.mk:19: UT_A=a UT_B=b UT_C=c
+make: directive-unexport.mk:21: UT_A UT_B UT_C
+make: directive-unexport.mk:30: UT_A=a UT_B=b UT_C=c
+make: directive-unexport.mk:32: 
+exit status 0

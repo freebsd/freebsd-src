@@ -1,0 +1,915 @@
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifndef.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef.tmp:1: .ifndef VARIABLE_IFNDEF
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef.tmp:2: VARIABLE_IFNDEF=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifndef}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifndef.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef.tmp' because 'VARIABLE_IFNDEF' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifndef-reuse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-reuse.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-reuse.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-reuse.tmp:1: .ifndef VARIABLE_IFNDEF
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifndef-reuse}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifndef-reuse.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-reuse.tmp' because 'VARIABLE_IFNDEF' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifndef-zero.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-zero.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-zero.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-zero.tmp:1: .ifndef 0e0
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifndef-zero}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifndef-zero.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-zero.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-zero.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-zero.tmp:1: .ifndef 0e0
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifndef-one.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-one.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-one.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-one.tmp:1: .ifndef 1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-one.tmp:2: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifndef-one}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifndef-one.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-one.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-one.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-one.tmp:1: .ifndef 1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-one.tmp:2: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Ucomments.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/comments.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `comments.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/comments.tmp:3: .ifndef COMMENTS
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/comments.tmp:5: COMMENTS=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/comments.tmp:6: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Ucomments}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Ucomments.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/comments.tmp' because 'COMMENTS' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-if.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if.tmp:1: .if !defined(VARIABLE_IF)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if.tmp:2: VARIABLE_IF=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-if}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-if.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if.tmp' because 'VARIABLE_IF' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-if-reuse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-reuse.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-reuse.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-reuse.tmp:1: .if !defined(VARIABLE_IF)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-if-reuse}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-if-reuse.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-reuse.tmp' because 'VARIABLE_IF' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-if-triple-negation.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-triple-negation.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-triple-negation.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-triple-negation.tmp:1: .if !!!defined(VARIABLE_IF_TRIPLE_NEGATION)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-triple-negation.tmp:2: VARIABLE_IF_TRIPLE_NEGATION=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-triple-negation.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-if-triple-negation}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-if-triple-negation.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-triple-negation.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-triple-negation.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-triple-negation.tmp:1: .if !!!defined(VARIABLE_IF_TRIPLE_NEGATION)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-if-spaced.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-spaced.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-spaced.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-spaced.tmp:1: .if !defined( VARIABLE_IF_SPACED )
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-spaced.tmp:2: VARIABLE_IF_SPACED=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-spaced.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-if-spaced}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-if-spaced.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-spaced.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-spaced.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-spaced.tmp:1: .if !defined( VARIABLE_IF_SPACED )
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-if-parenthesized.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-parenthesized.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-parenthesized.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-parenthesized.tmp:1: .if (!defined(VARIABLE_IF_PARENTHESIZED))
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-parenthesized.tmp:2: VARIABLE_IF_PARENTHESIZED=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-parenthesized.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-if-parenthesized}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-if-parenthesized.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-parenthesized.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-parenthesized.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-parenthesized.tmp:1: .if (!defined(VARIABLE_IF_PARENTHESIZED))
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifdef-negated.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifdef-negated.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifdef-negated.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifdef-negated.tmp:1: .ifdef !VARIABLE_IFDEF_NEGATED
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifdef-negated.tmp:2: VARIABLE_IFDEF_NEGATED=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifdef-negated.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifdef-negated}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifdef-negated.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifdef-negated.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifdef-negated.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifdef-negated.tmp:1: .ifdef !VARIABLE_IFDEF_NEGATED
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-name-mismatch.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-mismatch.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:1: .ifndef VARIABLE_NAME_MISMATCH
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:2: VARIABLE_NAME_DIFFERENT=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-name-mismatch}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-name-mismatch.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-mismatch.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:1: .ifndef VARIABLE_NAME_MISMATCH
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:2: VARIABLE_NAME_DIFFERENT=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-mismatch.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifndef-parenthesized.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-parenthesized.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-parenthesized.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-parenthesized.tmp:1: .ifndef (VARIABLE_IFNDEF_PARENTHESIZED)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-parenthesized.tmp:2: VARIABLE_IFNDEF_PARENTHESIZED=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-parenthesized.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifndef-parenthesized}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifndef-parenthesized.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-parenthesized.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-parenthesized.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-parenthesized.tmp:1: .ifndef (VARIABLE_IFNDEF_PARENTHESIZED)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-name-exclamation.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-exclamation.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation.tmp:1: .if !defined(!VARIABLE_NAME_EXCLAMATION)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation.tmp:2: !VARIABLE_NAME_EXCLAMATION=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-name-exclamation}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-name-exclamation.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-exclamation.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation.tmp:1: .if !defined(!VARIABLE_NAME_EXCLAMATION)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-name-exclamation-middle.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation-middle.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-exclamation-middle.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation-middle.tmp:1: .ifndef VARIABLE_NAME!MIDDLE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation-middle.tmp:2: VARIABLE_NAME!MIDDLE=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation-middle.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-name-exclamation-middle}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-name-exclamation-middle.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation-middle.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-exclamation-middle.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-exclamation-middle.tmp:1: .ifndef VARIABLE_NAME!MIDDLE
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-name-parentheses.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-parentheses.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-parentheses.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-parentheses.tmp:1: .ifndef VARIABLE_NAME(&)PARENTHESES
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-parentheses.tmp:2: VARIABLE_NAME(&)PARENTHESES=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-parentheses.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-name-parentheses}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-name-parentheses.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-parentheses.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-name-parentheses.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-name-parentheses.tmp:1: .ifndef VARIABLE_NAME(&)PARENTHESES
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifndef-plus.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-plus.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-plus.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-plus.tmp:1: .ifndef VARIABLE_IFNDEF_PLUS && VARIABLE_IFNDEF_SECOND
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-plus.tmp:2: VARIABLE_IFNDEF_PLUS=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-plus.tmp:3: VARIABLE_IFNDEF_SECOND=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-plus.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifndef-plus}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifndef-plus.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-plus.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-plus.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-plus.tmp:1: .ifndef VARIABLE_IFNDEF_PLUS && VARIABLE_IFNDEF_SECOND
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-if-plus.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-plus.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-plus.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-plus.tmp:1: .if !defined(VARIABLE_IF_PLUS) && !defined(VARIABLE_IF_SECOND)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-plus.tmp:2: VARIABLE_IF_PLUS=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-plus.tmp:3: VARIABLE_IF_SECOND=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-plus.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-if-plus}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-if-plus.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-plus.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-plus.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-plus.tmp:1: .if !defined(VARIABLE_IF_PLUS) && !defined(VARIABLE_IF_SECOND)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-ifndef-indirect.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-indirect.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-indirect.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-indirect.tmp:1: .ifndef ${VARIABLE_IFNDEF_INDIRECT:L}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-indirect.tmp:2: VARIABLE_IFNDEF_INDIRECT=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-indirect.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-ifndef-indirect}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-ifndef-indirect.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-indirect.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-ifndef-indirect.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-ifndef-indirect.tmp:1: .ifndef ${VARIABLE_IFNDEF_INDIRECT:L}
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-if-indirect.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-indirect.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-indirect.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-indirect.tmp:1: .if !defined(${VARIABLE_IF_INDIRECT:L})
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-indirect.tmp:2: VARIABLE_IF_INDIRECT=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-indirect.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-if-indirect}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-if-indirect.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-indirect.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-if-indirect.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-if-indirect.tmp:1: .if !defined(${VARIABLE_IF_INDIRECT:L})
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-assign-indirect.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-indirect.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-assign-indirect.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-indirect.tmp:1: .ifndef VARIABLE_ASSIGN_INDIRECT
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-indirect.tmp:2: ${VARIABLE_ASSIGN_INDIRECT:L}=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-indirect.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-assign-indirect}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-assign-indirect.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-indirect.tmp' because 'VARIABLE_ASSIGN_INDIRECT' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-assign-late.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-late.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-assign-late.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-late.tmp:1: .ifndef VARIABLE_ASSIGN_LATE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-late.tmp:2: VARIABLE_ASSIGN_LATE_OTHER=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-late.tmp:3: VARIABLE_ASSIGN_LATE=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-late.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-assign-late}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-assign-late.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-late.tmp' because 'VARIABLE_ASSIGN_LATE' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-assign-nested.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-assign-nested.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:1: .ifndef VARIABLE_ASSIGN_NESTED
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:2: .  if 1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:3: .    for i in once
+Parse_PushInput: .for loop in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:3
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-assign-nested.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:4: VARIABLE_ASSIGN_NESTED=
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:6
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-assign-nested.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:6: .  endif
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp:7: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-assign-nested}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-assign-nested.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-assign-nested.tmp' because 'VARIABLE_ASSIGN_NESTED' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-already-defined.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-already-defined.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-already-defined.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-already-defined.tmp:1: .ifndef VARIABLE_ALREADY_DEFINED
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-already-defined}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-already-defined.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-already-defined.tmp' because 'VARIABLE_ALREADY_DEFINED' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-defined-then-undefined.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-defined-then-undefined.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-defined-then-undefined.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-defined-then-undefined.tmp:1: .ifndef VARIABLE_DEFINED_THEN_UNDEFINED
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-defined-then-undefined}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-defined-then-undefined.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-defined-then-undefined.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-defined-then-undefined.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-defined-then-undefined.tmp:1: .ifndef VARIABLE_DEFINED_THEN_UNDEFINED
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-defined-then-undefined.tmp:2: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-two-times.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-two-times.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:1: .ifndef VARIABLE_TWO_TIMES_1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:2: VARIABLE_TWO_TIMES_1=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:3: .endif
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:4: .ifndef VARIABLE_TWO_TIMES_2
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:5: VARIABLE_TWO_TIMES_2=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:6: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-two-times}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-two-times.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-two-times.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:1: .ifndef VARIABLE_TWO_TIMES_1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-two-times.tmp:4: .ifndef VARIABLE_TWO_TIMES_2
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-clash.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-clash.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-clash.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-clash.tmp:1: .if !defined(VARIABLE_IF)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-clash}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-clash.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-clash.tmp' because 'VARIABLE_IF' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-swapped.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-swapped.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-swapped.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-swapped.tmp:1: SWAPPED=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-swapped.tmp:2: .ifndef SWAPPED
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-swapped}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-swapped.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-swapped.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-swapped.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-swapped.tmp:1: SWAPPED=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-swapped.tmp:2: .ifndef SWAPPED
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-undef-between.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-undef-between.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:1: .ifndef VARIABLE_UNDEF_BETWEEN
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:2: VARIABLE_UNDEF_BETWEEN=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-undef-between}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-undef-between.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-undef-between.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:1: .ifndef VARIABLE_UNDEF_BETWEEN
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:2: VARIABLE_UNDEF_BETWEEN=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-between.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-undef-inside.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-undef-inside.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:1: .ifndef VARIABLE_UNDEF_INSIDE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:2: VARIABLE_UNDEF_INSIDE=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:3: .undef VARIABLE_UNDEF_INSIDE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-undef-inside}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-undef-inside.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-undef-inside.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:1: .ifndef VARIABLE_UNDEF_INSIDE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:2: VARIABLE_UNDEF_INSIDE=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:3: .undef VARIABLE_UNDEF_INSIDE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-undef-inside.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uvariable-not-defined.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-not-defined.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-not-defined.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-not-defined.tmp:1: .ifndef VARIABLE_NOT_DEFINED
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-not-defined.tmp:2: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uvariable-not-defined}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uvariable-not-defined.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-not-defined.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `variable-not-defined.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-not-defined.tmp:1: .ifndef VARIABLE_NOT_DEFINED
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/variable-not-defined.tmp:2: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uelif.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `elif.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif.tmp:1: .ifndef ELIF
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif.tmp:2: ELIF=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif.tmp:3: .elif 1
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uelif}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uelif.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `elif.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif.tmp:1: .ifndef ELIF
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uelif-reuse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif-reuse.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `elif-reuse.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif-reuse.tmp:1: .ifndef ELIF
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif-reuse.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uelif-reuse}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uelif-reuse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif-reuse.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `elif-reuse.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif-reuse.tmp:1: .ifndef ELIF
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/elif-reuse.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uelse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `else.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else.tmp:1: .ifndef ELSE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else.tmp:2: ELSE=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else.tmp:3: .else
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uelse}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uelse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `else.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else.tmp:1: .ifndef ELSE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uelse-reuse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else-reuse.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `else-reuse.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else-reuse.tmp:1: .ifndef ELSE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else-reuse.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uelse-reuse}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uelse-reuse.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else-reuse.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `else-reuse.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else-reuse.tmp:1: .ifndef ELSE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/else-reuse.tmp:4: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Uinner-if-elif-else.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `inner-if-elif-else.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:1: .ifndef INNER_IF_ELIF_ELSE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:2: INNER_IF_ELIF_ELSE=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:3: .  if 0
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:6: .  endif
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:7: .  if 0
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:9: .  else
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:11: .  if 1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:12: .  elif 1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp:15: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Uinner-if-elif-else}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Uinner-if-elif-else.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/inner-if-elif-else.tmp' because 'INNER_IF_ELIF_ELSE' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target.tmp:1: .if !target(__target.tmp__)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target.tmp:2: __target.tmp__: .NOTMAIN
+ParseDependency(__target.tmp__: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target.tmp' because '__target.tmp__' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-sys.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-sys.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-sys.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-sys.tmp:1: .if !target(__<target-sys.tmp>__)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-sys.tmp:2: __<target-sys.tmp>__: .NOTMAIN
+ParseDependency(__<target-sys.tmp>__: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-sys.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-sys}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-sys.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-sys.tmp' because '__<target-sys.tmp>__' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-indirect.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-indirect.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect.tmp:1: .if !target(${target-indirect.tmp:L})
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect.tmp:2: target-indirect.tmp: .NOTMAIN
+ParseDependency(target-indirect.tmp: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-indirect}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-indirect.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect.tmp' because 'target-indirect.tmp' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-indirect-PARSEFILE.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-indirect-PARSEFILE.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE.tmp:1: .if !target(__${.PARSEFILE}__)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE.tmp:2: __${.PARSEFILE}__: .NOTMAIN
+ParseDependency(__target-indirect-PARSEFILE.tmp__: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-indirect-PARSEFILE}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-indirect-PARSEFILE.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-indirect-PARSEFILE2.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE2.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-indirect-PARSEFILE2.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE2.tmp:1: .if !target(__${.PARSEFILE}__)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE2.tmp:2: __${.PARSEFILE}__: .NOTMAIN
+ParseDependency(__target-indirect-PARSEFILE2.tmp__: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE2.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-indirect-PARSEFILE2}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-indirect-PARSEFILE2.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEFILE2.tmp' because '__target-indirect-PARSEFILE2.tmp__' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Usubdir/target-indirect-PARSEFILE.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEFILE.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir' ${.PARSEFILE} = `target-indirect-PARSEFILE.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEFILE.tmp:1: .if !target(__${.PARSEFILE}__)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Usubdir/target-indirect-PARSEFILE}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Usubdir/target-indirect-PARSEFILE.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-indirect-PARSEDIR-PARSEFILE.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEDIR-PARSEFILE.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-indirect-PARSEDIR-PARSEFILE.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEDIR-PARSEFILE.tmp:1: .if !target(__${.PARSEDIR}/${.PARSEFILE}__)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEDIR-PARSEFILE.tmp:2: __${.PARSEDIR}/${.PARSEFILE}__: .NOTMAIN
+ParseDependency(__/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEDIR-PARSEFILE.tmp__: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEDIR-PARSEFILE.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-indirect-PARSEDIR-PARSEFILE}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-indirect-PARSEDIR-PARSEFILE.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEDIR-PARSEFILE.tmp' because '__/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Usubdir/target-indirect-PARSEDIR-PARSEFILE.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEDIR-PARSEFILE.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir' ${.PARSEFILE} = `target-indirect-PARSEDIR-PARSEFILE.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEDIR-PARSEFILE.tmp:1: .if !target(__${.PARSEDIR}/${.PARSEFILE}__)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEDIR-PARSEFILE.tmp:2: __${.PARSEDIR}/${.PARSEFILE}__: .NOTMAIN
+ParseDependency(__/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEDIR-PARSEFILE.tmp__: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEDIR-PARSEFILE.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Usubdir/target-indirect-PARSEDIR-PARSEFILE}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Usubdir/target-indirect-PARSEDIR-PARSEFILE.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEDIR-PARSEFILE.tmp' because '__/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/subdir/target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-unguarded.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-unguarded.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-unguarded.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-unguarded.tmp:1: .if !target(target-unguarded)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-unguarded.tmp:2: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-unguarded}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-unguarded.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-unguarded.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-unguarded.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-unguarded.tmp:1: .if !target(target-unguarded)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-unguarded.tmp:2: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-plus.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-plus.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-plus.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-plus.tmp:1: .if !target(target-plus) && 1
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-plus.tmp:2: target-plus: .NOTMAIN
+ParseDependency(target-plus: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-plus.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-plus}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-plus.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-plus.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-plus.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-plus.tmp:1: .if !target(target-plus) && 1
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-already-defined.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-already-defined.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-already-defined.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-already-defined.tmp:1: .if !target(target-already-defined)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-already-defined}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-already-defined.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-already-defined.tmp' because 'target-already-defined' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-name-exclamation.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-name-exclamation.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:1: .if !target(!target-name-exclamation)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:2: \!target-name-exclamation: .NOTMAIN
+ParseDependency(\!target-name-exclamation: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-name-exclamation}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-name-exclamation.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-name-exclamation.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:1: .if !target(!target-name-exclamation)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:2: \!target-name-exclamation: .NOTMAIN
+ParseDependency(\!target-name-exclamation: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-exclamation.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-name-leading-space.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-leading-space.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-name-leading-space.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-leading-space.tmp:1: .if !target( target-name-leading-space)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-leading-space.tmp:2: target-name-leading-space: .NOTMAIN
+ParseDependency(target-name-leading-space: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-leading-space.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-name-leading-space}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-name-leading-space.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-leading-space.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-name-leading-space.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-leading-space.tmp:1: .if !target( target-name-leading-space)
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-name-trailing-space.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-trailing-space.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-name-trailing-space.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-trailing-space.tmp:1: .if !target(target-name-trailing-space )
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-trailing-space.tmp:2: target-name-trailing-space: .NOTMAIN
+ParseDependency(target-name-trailing-space: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-trailing-space.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-name-trailing-space}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-name-trailing-space.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-trailing-space.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-name-trailing-space.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-name-trailing-space.tmp:1: .if !target(target-name-trailing-space )
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Utarget-call-parenthesized.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-call-parenthesized.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-call-parenthesized.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-call-parenthesized.tmp:1: .if (!target(target-call-parenthesized))
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-call-parenthesized.tmp:2: target-call-parenthesized: .NOTMAIN
+ParseDependency(target-call-parenthesized: .NOTMAIN)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-call-parenthesized.tmp:3: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Utarget-call-parenthesized}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Utarget-call-parenthesized.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-call-parenthesized.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `target-call-parenthesized.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/target-call-parenthesized.tmp:1: .if (!target(target-call-parenthesized))
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:639: .include "${.OBJDIR}/${:Umultiline.tmp}"
+Parse_PushInput: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/multiline.tmp:1
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `multiline.tmp'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.INCLUDEDFROMFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/multiline.tmp:1: . ifndef  MULTILINE
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/multiline.tmp:4: MULTILINE=
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/multiline.tmp:5: .endif
+ParseEOF: returning to /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640
+SetFilenameVars: ${.PARSEDIR} = `/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests' ${.PARSEFILE} = `directive-include-guard.mk'
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:640: .undef ${UNDEF_BETWEEN.${:Umultiline}:U}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:641: .include "${.OBJDIR}/${:Umultiline.tmp}"
+Skipping '/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/multiline.tmp' because 'MULTILINE' is defined
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-include-guard.mk:642: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)

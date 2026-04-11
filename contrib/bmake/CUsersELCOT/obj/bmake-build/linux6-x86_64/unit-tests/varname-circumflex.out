@@ -1,0 +1,9 @@
+no_prerequisites:
+prerequisite: file1.o
+unique: file1.o file2.o file3.o
+duplicate: file1.o file2.o file3.o
+dir_part: /usr/include /usr/include .
+file_part: stdio.h unistd.h foo.h
+implicit.tout: implicit.tin
+wait: file1.o .WAIT_1 file2.o
+exit status 0

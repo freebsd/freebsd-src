@@ -1,0 +1,16 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-main.mk:15: main-before-ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-main.mk:23: main-before-for-ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-sub.inc:4: sub-before-ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-sub.inc:14: sub-before-for-ok
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-subsub.inc:5: .  info subsub-ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-subsub.inc:5: subsub-ok
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-sub.inc:31 with i = include
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-sub.inc:30 with i = nested
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-sub.inc:29 with i = deeply
+	in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-main.mk:29
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-subsub.inc:6: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-sub.inc:38: sub-after-ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-sub.inc:45: sub-after-for-ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-main.mk:33: main-after-ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/include-main.mk:41: main-after-for-ok

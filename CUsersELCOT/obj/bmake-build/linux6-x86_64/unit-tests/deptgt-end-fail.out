@@ -1,0 +1,163 @@
+Test case all=ok all-dep=ok end=ok end-dep=ok.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+: Making end-dep out of nothing.
+: Making .END from end-dep.
+exit status 0
+
+
+Test case all=ok all-dep=ok end=ok end-dep=ERR.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+: Making end-dep out of nothing.
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ok all-dep=ok end=ERR end-dep=ok.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+: Making end-dep out of nothing.
+: Making .END from end-dep.
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ok all-dep=ok end=ERR end-dep=ERR.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+: Making end-dep out of nothing.
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ok all-dep=ERR end=ok end-dep=ok.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ok all-dep=ERR end=ok end-dep=ERR.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ok all-dep=ERR end=ERR end-dep=ok.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ok all-dep=ERR end=ERR end-dep=ERR.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ok end=ok end-dep=ok.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ok end=ok end-dep=ERR.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ok end=ERR end-dep=ok.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ok end=ERR end-dep=ERR.
+: Making all-dep out of nothing.
+: Making all from all-dep.
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ERR end=ok end-dep=ok.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ERR end=ok end-dep=ERR.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ERR end=ERR end-dep=ok.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+Test case all=ERR all-dep=ERR end=ERR end-dep=ERR.
+: Making all-dep out of nothing.
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1
+
+
+exit status 0

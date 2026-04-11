@@ -1,0 +1,8 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-not.mk:30: Not empty evaluates to true.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-not.mk:39: Not space evaluates to false.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-not.mk:44: Not 0 evaluates to true.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-not.mk:53: Not 1 evaluates to false.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-not.mk:60: Not word evaluates to false.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-not.mk:65: Malformed conditional "!"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

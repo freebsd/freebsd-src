@@ -1,0 +1,145 @@
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:8: .1.2 .1.3 .1.4:
+ParseDependency(.1.2 .1.3 .1.4:)
+Setting main node to ".1.2"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:9: 	: Making ${.TARGET} from ${.IMPSRC}.
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:14: next-main:
+ParseDependency(next-main:)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:15: 	: Making ${.TARGET}
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:19: .SUFFIXES: .1 .2 .3 .4
+ParseDependency(.SUFFIXES: .1 .2 .3 .4)
+Adding suffix ".1"
+Adding suffix ".2"
+Setting main node from ".1.2" back to null
+defining transformation from `.1' to `.2'
+inserting ".1" (1) at end of list
+inserting ".2" (2) at end of list
+Setting main node to ".1.3"
+Adding suffix ".3"
+Setting main node from ".1.3" back to null
+defining transformation from `.1' to `.3'
+inserting ".1" (1) at end of list
+inserting ".3" (3) at end of list
+Setting main node to ".1.4"
+Adding suffix ".4"
+Setting main node from ".1.4" back to null
+defining transformation from `.1' to `.4'
+inserting ".1" (1) at end of list
+inserting ".4" (4) at end of list
+Setting main node to "next-main"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:24: .SUFFIXES:
+ParseDependency(.SUFFIXES:)
+Clearing all suffixes
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:32: .SUFFIXES: .4 .3 .2 .1
+ParseDependency(.SUFFIXES: .4 .3 .2 .1)
+Adding suffix ".4"
+Adding suffix ".3"
+Adding suffix ".2"
+Adding suffix ".1"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:33: .SUFFIXES:
+ParseDependency(.SUFFIXES:)
+Clearing all suffixes
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:34: .SUFFIXES: .1 .2 .3 .4
+ParseDependency(.SUFFIXES: .1 .2 .3 .4)
+Adding suffix ".1"
+Adding suffix ".2"
+Adding suffix ".3"
+Adding suffix ".4"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:35: .SUFFIXES:
+ParseDependency(.SUFFIXES:)
+Clearing all suffixes
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:36: .SUFFIXES: .4 .3 .2 .1
+ParseDependency(.SUFFIXES: .4 .3 .2 .1)
+Adding suffix ".4"
+Adding suffix ".3"
+Adding suffix ".2"
+Adding suffix ".1"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:38: suff-main-several.1:
+ParseDependency(suff-main-several.1:)
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:39: 	: Making ${.TARGET} out of nothing.
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:40: next-main: suff-main-several.{2,3,4}
+ParseDependency(next-main: suff-main-several.{2,3,4})
+Target "next-main" depends on "suff-main-several.{2,3,4}"
+# next-main, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# suff-main-several.{2,3,4}, unmade, type none, flags none
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk:42: .MAKEFLAGS: -d0 -dg1
+ParseDependency(.MAKEFLAGS: -d0 -dg1)
+#*** Begin input graph for pass 1 in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests:
+# .1.2, unmade, type OP_TRANSFORM, flags none
+# .1.3, unmade, type OP_TRANSFORM, flags none
+# .1.4, unmade, type OP_TRANSFORM, flags none
+# next-main, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# suff-main-several.1, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# suff-main-several.{2,3,4}, unmade, type none, flags none
+
+
+#
+#   Files that are only sources:
+#	.1.2 [.1.2]
+#	.1.3 [.1.3]
+#	.1.4 [.1.4]
+#	suff-main-several.{2,3,4} [suff-main-several.{2,3,4}]
+#*** Global Variables:
+.ALLTARGETS      =  .1.2 .1.3 .1.4 next-main suff-main-several.1 suff-main-several.{2,3,4}
+.CURDIR          = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+.INCLUDES        = # (empty)
+.LIBS            = # (empty)
+.MAKE            = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake
+.MAKE.DEPENDFILE = .depend
+.MAKE.GID        = 1000
+.MAKE.JOBS.C     = yes
+.MAKE.LEVEL      = 0
+.MAKE.LEVEL.ENV  = MAKELEVEL
+.MAKE.MAKEFILES  = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/suff-main-several.mk
+.MAKE.MAKEFILE_PREFERENCE = makefile Makefile
+.MAKE.OS         = Linux
+.MAKE.PID        = 19443
+.MAKE.PPID       = 19442
+.MAKE.UID        = 1000
+.MAKEFLAGS       =  -r -k -d mps -d 0 -d g1
+.MAKEOVERRIDES   = # (empty)
+.OBJDIR          = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+.PATH            = . /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+.SYSPATH         = /mnt/d/Github_Projects/freebsd-src/share/mk
+.TARGETS         = # (empty)
+.newline         = 
+# (ends with space)
+MACHINE          = x86_64
+MACHINE_ARCH     = x86_64
+MAKE             = /mnt/d/Github_Projects/freebsd-src/contrib/bmake/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake
+MAKE_VERSION     = 20251111
+MFLAGS           =   -r -k -d mps -d 0 -d g1
+#*** Command-line Variables:
+
+#*** Directory Cache:
+# Stats: 0 hits 2 misses 0 near misses 0 losers (0%)
+#  refs  hits  directory
+#     1     0  /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+#     1     0  .
+#     2     0  /mnt/d/Github_Projects/freebsd-src/share/mk
+
+#*** Suffixes:
+# ".4" (num 1, ref 1)
+#	To: 
+#	From: 
+#	Search Path: 
+# ".3" (num 2, ref 1)
+#	To: 
+#	From: 
+#	Search Path: 
+# ".2" (num 3, ref 1)
+#	To: 
+#	From: 
+#	Search Path: 
+# ".1" (num 4, ref 1)
+#	To: 
+#	From: 
+#	Search Path: 
+#*** Transformations:
+#*** End input graph for pass 1 in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests:
+bmake: don't know how to make suff-main-several.2 (continuing)
+bmake: don't know how to make suff-main-several.3 (continuing)
+bmake: don't know how to make suff-main-several.4 (continuing)
+`next-main' not remade because of errors.
+
+Stop.
+bmake: stopped making "next-main" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

@@ -1,0 +1,4 @@
+make: var-scope-cmdline.mk:72: global
+make: var-scope-cmdline.mk:82: makeflags
+makeflags
+exit status 0

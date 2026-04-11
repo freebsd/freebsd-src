@@ -1,0 +1,10 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:10: Unknown directive "warn"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:12: Unknown directive "warn"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:14: Unknown directive "warnin"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:16: Unknown directive "warnin"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:18: Missing argument for ".warning"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:20: warning: message
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:22: Unknown directive "warnings"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-warning.mk:24: Unknown directive "warnings"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

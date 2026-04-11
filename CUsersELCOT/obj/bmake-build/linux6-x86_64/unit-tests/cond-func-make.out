@@ -1,0 +1,4 @@
+make: cond-func-make.mk:24: warning: Unfinished character list in pattern argument "[" to function "make"
+: via-cmdline
+: via-dot-makeflags
+exit status 0

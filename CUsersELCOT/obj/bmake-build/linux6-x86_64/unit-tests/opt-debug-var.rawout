@@ -1,0 +1,12 @@
+Global: ASSIGNED = value
+Global: SUBST = # (empty)
+Global: SUBST = value
+Var_Parse: y(ASSIGNED) (eval)
+Var_Parse: $U (eval-defined-loud)
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-var.mk:34: Variable "U" is undefined
+Var_Parse: $< (eval-defined-loud)
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-var.mk:40: Variable "<" is undefined
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

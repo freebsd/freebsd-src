@@ -1,0 +1,11 @@
+error-failed before
+*** Error code 1 (continuing)
+error-ignored before
+*** Error code 1 (ignored)
+error-ignored after
+Making depends-on-ignored from error-ignored.
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1

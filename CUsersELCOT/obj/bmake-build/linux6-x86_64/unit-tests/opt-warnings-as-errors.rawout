@@ -1,0 +1,6 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-warnings-as-errors.mk:13: warning: message 1
+bmake: parsing warnings being treated as errors
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-warnings-as-errors.mk:15: warning: message 2
+parsing continues
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

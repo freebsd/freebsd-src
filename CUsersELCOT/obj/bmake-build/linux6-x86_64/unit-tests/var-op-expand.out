@@ -1,0 +1,21 @@
+make: var-op-expand.mk:274: Unknown modifier ":s,value,replaced,"
+	while evaluating variable "later" with value ""
+	while evaluating variable "indirect" with value "${later:s,value,replaced,} ok ${later:value=sysv}"
+make: var-op-expand.mk:282: Unknown modifier ":s,value,replaced,"
+	while evaluating variable "later" with value "lowercase-value"
+	while evaluating variable "indirect" with value "${later:s,value,replaced,} ok ${later:value=sysv}"
+make: var-op-expand.mk:295: Bad condition
+	while evaluating condition " < 0 "
+make: var-op-expand.mk:295: Unknown modifier ":Z1"
+	while parsing "${:Z1}:${:Z2}}"
+	while evaluating then-branch of condition " < 0 "
+make: var-op-expand.mk:295: Unknown modifier ":Z2"
+	while parsing "${:Z2}}"
+	while evaluating else-branch of condition " < 0 "
+make: var-op-expand.mk:295: Unknown modifier ":Z1"
+	while evaluating "${:Z1}:${:Z2}}" with value ""
+make: var-op-expand.mk:295: Unknown modifier ":Z2"
+	while evaluating "${:Z2}}" with value ""
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

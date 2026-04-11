@@ -1,0 +1,12 @@
+expected and
+expected and exists
+expected and empty
+expected U23 condition
+expected VAR23
+expected M pattern
+expected or
+expected or exists
+expected or empty
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-short.mk:231: Comparison with "<" requires both operands "" and "42" to be numeric
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

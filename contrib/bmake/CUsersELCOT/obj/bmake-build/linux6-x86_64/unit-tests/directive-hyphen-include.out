@@ -1,0 +1,5 @@
+make: directive-hyphen-include-error.inc:1: Invalid line "syntax error"
+	in directive-hyphen-include.mk:20
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

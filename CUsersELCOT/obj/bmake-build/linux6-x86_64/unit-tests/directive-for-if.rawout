@@ -1,0 +1,10 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-if.mk:51: if-less endif
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-if.mk:46 with directive = if
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-if.mk:51: if-less endif
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-if.mk:46 with directive = ifdef
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-if.mk:51: if-less endif
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for-if.mk:46 with directive = ifndef
+VAR1
+VAR3
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "." in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

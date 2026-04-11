@@ -1,0 +1,10 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:14: The .else directive does not take arguments
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:16: ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:21: ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:23: The .else directive does not take arguments
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:29: if-less else
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:36: ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:38: warning: extra else
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-else.mk:51: The .else directive does not take arguments
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

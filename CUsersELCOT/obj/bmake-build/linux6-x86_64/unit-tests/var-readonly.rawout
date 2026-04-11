@@ -1,0 +1,3 @@
+Global: ignoring delete 'N' as it is read-only
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0

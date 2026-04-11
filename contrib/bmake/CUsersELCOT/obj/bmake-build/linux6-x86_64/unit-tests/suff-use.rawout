@@ -1,0 +1,6 @@
+: 'Making demo.c out of nothing'
+bmake: don't know how to make demo.o (continuing)
+`all' not remade because of errors.
+
+Stop.
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

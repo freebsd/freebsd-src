@@ -1,0 +1,4 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dollar.mk:17: dollar is $.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dollar.mk:19: dollar in braces is .
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dollar.mk:28: dollar is $.
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dollar.mk:30: dollar in braces is dollar.

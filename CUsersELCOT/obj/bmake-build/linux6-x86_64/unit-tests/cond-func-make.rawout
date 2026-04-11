@@ -1,0 +1,3 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func-make.mk:24: warning: Unfinished character list in pattern argument "[" to function "make"
+: via-cmdline
+: via-dot-makeflags

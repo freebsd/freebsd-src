@@ -1,0 +1,134 @@
+#
+# UOS-RISCV-QEMU -- Kernel configuration for QEMU riscv64 virt machine
+#                   UOS RISC-V testing environment
+#
+
+cpu		RISCV
+ident		UOS_RISCV_QEMU
+
+makeoptions	DEBUG=-g
+makeoptions	WITH_CTF=1
+# Build optimizations
+makeoptions	COPTFLAGS="-O3 -pipe -fno-strict-aliasing"
+
+# Security hardening compiler flags
+makeoptions	CFLAGS+="-fstack-protector-strong"
+makeoptions	CFLAGS+="-D_FORTIFY_SOURCE=2"
+
+# Hardware support is provided by the RISC-V virt QEMU config
+include		"std.dev"
+include		"QEMU"
+
+# ======================================================================
+# UOS Mobile + Security options
+# ======================================================================
+options		MOBILE_OS
+options		LOW_LATENCY
+options		POWER_EFFICIENT
+
+# ======================================================================
+# VirtIO Devices (QEMU virt machine)
+# ======================================================================
+device		virtio
+device		virtio_pci
+device		virtio_mmio
+device		virtio_blk
+device		virtio_scsi
+device		vtnet
+device		virtio_gpu
+device		virtio_input
+device		virtio_console
+
+# ======================================================================
+# Display / Framebuffer (for GUI mode)
+# ======================================================================
+device		vt
+device		vt_vga
+device		vt_efifb
+options		TERMINAL_KERN_ATTR=(FG_WHITE|BG_BLACK)
+
+# ======================================================================
+# PCI/PCIe (QEMU virt uses PCIe)
+# ======================================================================
+device		pci
+device		pci_host_generic
+
+# ======================================================================
+# SCSI / Storage
+# ======================================================================
+device		scbus
+device		da
+
+# ======================================================================
+# Serial console (QEMU SiFive UART or 16550)
+# ======================================================================
+device		uart
+device		uart_ns8250
+
+# ======================================================================
+# Networking
+# ======================================================================
+options		INET
+options		INET6
+device		loop
+device		ether
+device		miibus
+
+# ======================================================================
+# Filesystems
+# ======================================================================
+options		FFS
+options		SOFTUPDATES
+options		UFS_DIRHASH
+options		TMPFS
+options		NULLFS
+options		FDESCFS
+options		PROCFS
+options		LINPROCFS
+options		CD9660
+
+# ======================================================================
+# Memory
+# ======================================================================
+options		SMP
+options		MAXCPU=8
+
+# ======================================================================
+# Scheduler for QEMU testing
+# ======================================================================
+options		SCHED_ULE
+options		PREEMPTION
+options		HZ=1000
+
+# ======================================================================
+# Linux compatibility (test Bionic shims in QEMU first)
+# ======================================================================
+options		COMPAT_LINUX64
+options		COMPAT_LINUXKPI
+
+# ======================================================================
+# OpenBSD-inspired kernel security options
+# ======================================================================
+options		UOS_SECURITY
+options		UOS_WX_ENFORCE
+options		UOS_UNVEIL
+options		UOS_PLEDGE
+options		CAPABILITIES
+options		MAC
+options		MAC_SEEOTHERUIDS
+options		MAC_PORTACL
+options		AUDIT
+options		RACCT
+options		RCTL
+
+# ======================================================================
+# Debug/development
+# ======================================================================
+options		KDB
+options		DDB
+options		GDB
+options		INVARIANTS
+options		INVARIANT_SUPPORT
+options		WITNESS
+options		WITNESS_SKIPSPIN
+options		MALLOC_DEBUG_MAXZONES=8

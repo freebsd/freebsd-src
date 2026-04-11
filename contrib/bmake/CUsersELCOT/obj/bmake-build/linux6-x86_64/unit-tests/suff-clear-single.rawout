@@ -1,0 +1,5 @@
+bmake: don't know how to make issue3 (continuing)
+`all' not remade because of errors.
+
+Stop.
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

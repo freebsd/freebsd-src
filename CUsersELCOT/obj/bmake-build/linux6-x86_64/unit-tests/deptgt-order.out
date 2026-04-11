@@ -1,0 +1,11 @@
+Parsing deptgt-order.mk:15: .ORDER: three one
+ParseDependency(.ORDER: three one)
+# .ORDER forces 'three' to be made before 'one'
+# three, unmade, type OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS, flags none
+# one, unmade, type OP_DEPENDS|OP_PHONY, flags none
+Parsing deptgt-order.mk:16: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+: 'Making two out of one.'
+: 'Making three out of two.'
+: 'Making all out of three.'
+exit status 0

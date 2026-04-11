@@ -1,0 +1,9 @@
+make: cond-op-not.mk:30: Not empty evaluates to true.
+make: cond-op-not.mk:39: Not space evaluates to false.
+make: cond-op-not.mk:44: Not 0 evaluates to true.
+make: cond-op-not.mk:53: Not 1 evaluates to false.
+make: cond-op-not.mk:60: Not word evaluates to false.
+make: cond-op-not.mk:65: Malformed conditional "!"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

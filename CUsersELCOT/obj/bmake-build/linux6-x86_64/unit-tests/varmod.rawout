@@ -1,0 +1,53 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:111: To escape a dollar, use \$, not $$, at "$$:L} != """
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:111: Invalid variable name ":", at "$:L} != """
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:117: Dollar followed by nothing
+	while evaluating "${:Uword:@word@${word}$@} != "word"" with value "word"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:125: Missing delimiter ":" after modifier "P"
+	while evaluating variable "VAR" with value "VAR"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:134: Invalid modifier ":[99333000222000111000]"
+	while evaluating variable "word" with value "word"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:137: Invalid modifier ":[2147483648]"
+	while evaluating variable "word" with value "word"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:143: Invalid number "99333000222000111000}" for modifier ":range"
+	while evaluating variable "word" with value "word"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:150: Invalid time value "\"
+	while evaluating indirect modifiers "gmtime=\"
+	while evaluating "${:${:Ugmtime=\\}}" with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:165: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:171: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:171: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$ appended$"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:181: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:185: Invalid modifier ":[$]"
+	while evaluating variable "word" with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:202: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$ appended$"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:202: Invalid variable name "}", at "$} != "set""
+	while evaluating variable "VAR" with value "value<space>appended"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:206: Invalid variable name "}", at "$} != "fallback""
+	while evaluating "${:Ufallback$} != "fallback"" with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:210: Invalid time value "1000$"
+	while evaluating variable "%y" with value "%y"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:216: Invalid time value "1000$"
+	while evaluating variable "%y" with value "%y"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:222: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:226: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:230: Invalid argument "fallback$" for modifier ":mtime"
+	while evaluating variable "." with value "."
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:244: Missing delimiter ":" after modifier "L"
+	while evaluating variable "VAR" with value "VAR"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:256: Invalid time value " : } \ $ ) \) ( "
+	while evaluating variable "%Y" with value "%Y"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:263: Invalid time value " : \) \ $ "
+	while evaluating variable "%Y" with value "%Y"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:268: Invalid time value " : } \ $ ) \) ( "
+	while evaluating variable "%Y" with value "%Y"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod.mk:273: Invalid time value " : \) \ $ "
+	while evaluating variable "%Y" with value "%Y"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

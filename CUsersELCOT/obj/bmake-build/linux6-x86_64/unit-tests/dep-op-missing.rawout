@@ -1,0 +1,4 @@
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/dep-op-missing.tmp:1: Invalid line "target"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: Fatal errors encountered -- cannot continue
+bmake[1]: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

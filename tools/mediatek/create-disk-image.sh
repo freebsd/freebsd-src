@@ -49,6 +49,8 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 info "Config:    $KERNCONF"
 info "Image:     $IMG_FILE ($IMG_SIZE)"
+mkdir -p "$MAKEOBJDIRPREFIX"
+
 
 # ---- Locate kernel ----
 KERNEL_DIR="$MAKEOBJDIRPREFIX/$FREEBSD_SRC/arm64.aarch64/sys/$KERNCONF"
@@ -91,17 +93,15 @@ sudo mount "$ESP_DEV" "$MNT_DIR/boot/efi"
 
 # ---- Install FreeBSD distribution ----
 info "Installing FreeBSD arm64 distribution..."
-make -C "$FREEBSD_SRC" installworld \
+python3 "$FREEBSD_SRC/tools/build/make.py" installworld \
     DESTDIR="$MNT_DIR" \
     TARGET="$TARGET" TARGET_ARCH="$TARGET_ARCH" \
-    MAKEOBJDIRPREFIX="$MAKEOBJDIRPREFIX" \
     WITHOUT_CLEAN=yes 2>/dev/null || warn "installworld failed (first-time build may need buildworld)"
 
 info "Installing kernel ($KERNCONF)..."
-make -C "$FREEBSD_SRC" installkernel \
+python3 "$FREEBSD_SRC/tools/build/make.py" installkernel \
     DESTDIR="$MNT_DIR" \
     TARGET="$TARGET" TARGET_ARCH="$TARGET_ARCH" \
-    MAKEOBJDIRPREFIX="$MAKEOBJDIRPREFIX" \
     KERNCONF="$KERNCONF" || warn "installkernel encountered errors"
 
 # ---- Basic system configuration ----

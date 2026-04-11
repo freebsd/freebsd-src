@@ -1,0 +1,64 @@
+mod-subst:
+:a b b c:
+:a b b c:
+: b c:
+:a c:
+:x__ 3 x__ 3:
+12345
+mod-subst-delimiter:
+1 two 3 horizontal tabulator
+1 two 3 space
+1 two 3 exclamation mark
+1 two 3 quotation mark
+1 two 3 number sign
+1 two 3 dollar sign
+1 two 3 percent sign
+1 two 3 ampersand
+1 two 3 apostrophe
+1 two 3 left parenthesis
+1 two 3 right parenthesis
+1 two 3 asterisk
+1 two 3 plus sign
+1 two 3 comma
+1 two 3 hyphen-minus
+1 two 3 full stop
+1 two 3 solidus
+1 two 3 digit
+1 two 3 colon
+1 two 3 semicolon
+1 two 3 less-than sign
+1 two 3 equals sign
+1 two 3 greater-than sign
+1 two 3 question mark
+1 two 3 commercial at
+1 two 3 capital letter
+1 two 3 left square bracket
+1 two 3 reverse solidus
+1 two 3 right square bracket
+1 two 3 circumflex accent
+1 two 3 low line
+1 two 3 grave accent
+1 two 3 small letter
+1 two 3 left curly bracket
+1 two 3 vertical line
+1 two 3 right curly bracket
+1 two 3 tilde
+mod-subst-chain:
+A B c.
+make: Unknown modifier ":i"
+	while evaluating "${:Uvalue:S,a,x,i}." with value "vxlue"
+	in command "@echo ${:Uvalue:S,a,x,i}."
+	in target "mod-subst-chain"
+mod-subst-dollar:$1:
+mod-subst-dollar:$2:
+mod-subst-dollar:$3:
+mod-subst-dollar:$4:
+mod-subst-dollar:$5:
+mod-subst-dollar:$6:
+mod-subst-dollar:$7:
+mod-subst-dollar:$8:
+mod-subst-dollar:$40:
+mod-subst-dollar:U8:
+mod-subst-dollar:$$$$:
+mod-subst-dollar:$$$good3
+exit status 2

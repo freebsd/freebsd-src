@@ -1,0 +1,7 @@
+false
+*** [indirect] Error code 1
+
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+bmake: 1 error
+
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

@@ -1,0 +1,18 @@
+make: directive-if.mk:14: 0 evaluates to false.
+make: directive-if.mk:19: 1 evaluates to true.
+make: directive-if.mk:43: Unknown directive "ifx"
+make: directive-if.mk:45: This is not conditional.
+make: directive-if.mk:47: if-less else
+make: directive-if.mk:49: This is not conditional.
+make: directive-if.mk:51: if-less endif
+make: directive-if.mk:55: Malformed conditional ""
+make: directive-if.mk:66: Quotes in plain words are probably a mistake.
+make: directive-if.mk:76: Don't do this, always put a space after a directive.
+make: directive-if.mk:81: Don't do this, always put a space after a directive.
+make: directive-if.mk:88: Don't do this, always put a space around comparison operators.
+make: directive-if.mk:95: Don't do this, always put a space after a directive.
+make: directive-if.mk:100: Don't do this, always put a space after a directive.
+make: directive-if.mk:108: Unknown directive "ifn"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

@@ -1,0 +1,4 @@
+make: dep-duplicate.tmp:1: warning: duplicate script for target "all" ignored
+make: dep-duplicate.main:3: warning: using previous script for "all" defined here
+main-output
+exit status 0

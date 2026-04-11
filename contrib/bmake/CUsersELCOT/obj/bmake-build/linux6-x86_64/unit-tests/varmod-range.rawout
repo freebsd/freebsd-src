@@ -1,0 +1,14 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-range.mk:43: Variable "" is undefined
+	while evaluating "${:range=5} != """ with value "1 2 3 4 5"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-range.mk:66: Invalid number "x}Rest" != "Rest"" for modifier ":range"
+	while evaluating "${:U:range=x}Rest" != "Rest"" with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-range.mk:76: Unknown modifier ":x0"
+	while evaluating "${:U:range=0x0}Rest" != "Rest"" with value "1"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-range.mk:93: Unknown modifier ":rang"
+	while evaluating variable "a b c" with value "a b c"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-range.mk:101: Unknown modifier ":rango"
+	while evaluating variable "a b c" with value "a b c"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-range.mk:109: Unknown modifier ":ranger"
+	while evaluating variable "a b c" with value "a b c"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

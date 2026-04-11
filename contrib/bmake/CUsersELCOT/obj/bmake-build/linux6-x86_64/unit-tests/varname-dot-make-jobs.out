@@ -1,0 +1,17 @@
+/bin/sh: 1: bc: not found
+/bin/sh: 1: test: =: argument expected
+8 != 
+/bin/sh: 1: bc: not found
+/bin/sh: 1: test: =: argument expected
+9 != 
+/bin/sh: 1: bc: not found
+/bin/sh: 1: test: =: argument expected
+16 != 
+undefined
+1
+--- echo ---
+5
+--- echo ---
+20
+1
+exit status 0

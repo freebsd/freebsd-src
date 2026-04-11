@@ -1,0 +1,44 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:13: Unknown directive "dinclud"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:16: Unknown directive "dincludx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:18: .include filename must be delimited by "" or <>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:21: Unknown directive "erro"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:23: Unknown directive "errox"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:28: Unknown directive "expor"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:31: Unknown directive "exporx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:33: Unknown directive "exports"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:36: Unknown directive "export-en"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:40: Unknown directive "export-environment"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:43: Unknown directive "export-litera"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:46: Unknown directive "export-literax"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:48: Unknown directive "export-literally"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:51: Unknown directive "-includ"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:54: Unknown directive "-includx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:56: .include filename must be delimited by "" or <>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:59: Unknown directive "includ"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:61: Could not find file
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:63: Unknown directive "includx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:65: .include filename must be delimited by "" or <>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:68: Unknown directive "inf"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:70: msg
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:72: Unknown directive "infx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:74: Unknown directive "infos"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:77: Unknown directive "sinclud"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:80: Unknown directive "sincludx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:82: .include filename must be delimited by "" or <>
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:85: Unknown directive "unde"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:88: Unknown directive "undex"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:90: Unknown directive "undefs"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:93: Unknown directive "unexpor"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:96: Unknown directive "unexporx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:98: Unknown directive "unexports"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:101: Unknown directive "unexport-en"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:104: The directive .unexport-env does not take arguments
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:106: Unknown directive "unexport-enx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:108: Unknown directive "unexport-envs"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:111: Unknown directive "warn"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:113: Unknown directive "warnin"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:115: warning: msg
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:117: Unknown directive "warninx"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-misspellings.mk:119: Unknown directive "warnings"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

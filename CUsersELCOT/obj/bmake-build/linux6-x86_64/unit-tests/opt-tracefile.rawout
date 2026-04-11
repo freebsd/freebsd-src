@@ -1,0 +1,11 @@
+Making dependency1 from <nothing>.
+Making dependency2 from <nothing>.
+Making trace from dependency1 dependency2.
+<timestamp> 0 BEG <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+<timestamp> 1 JOB <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests dependency1 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 DON <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests dependency1 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 JOB <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests dependency2 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 DON <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests dependency2 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 JOB <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests trace <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND
+<timestamp> 1 DON <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests trace <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND
+<timestamp> 0 END <make-pid> /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

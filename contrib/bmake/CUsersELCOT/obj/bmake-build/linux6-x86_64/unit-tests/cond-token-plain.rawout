@@ -1,0 +1,72 @@
+CondParser_Eval: ${:Uvalue} != value
+Comparing "value" != "value"
+CondParser_Eval: ${:U} != "
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:19: Unfinished string literal """
+Comparing "" != ""
+CondParser_Eval: ${:U#hash} != "#hash"
+Comparing "#hash" != "#hash"
+CondParser_Eval: ${:U\\} != "\\
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:43: Unfinished string literal ""\\"
+Comparing "\" != "\"
+CondParser_Eval: ${:U#hash} != #hash
+Comparing "#hash" != "#hash"
+CondParser_Eval: 0 # This is treated as a comment, but why?
+CondParser_Eval: ${0 # comment:?yes:no} != no
+CondParser_Eval: 0 # comment
+Comparing "no" != "no"
+CondParser_Eval: ${1 # comment:?yes:no} != yes
+CondParser_Eval: 1 # comment
+Comparing "yes" != "yes"
+CondParser_Eval: ${UNDEF:Uundefined}!=undefined
+Comparing "undefined" != "undefined"
+CondParser_Eval: ${UNDEF:U12345}>12345
+Comparing 12345.000000 > 12345.000000
+CondParser_Eval: ${UNDEF:U12345}<12345
+Comparing 12345.000000 < 12345.000000
+CondParser_Eval: (${UNDEF:U0})||0
+CondParser_Eval: ${:Uvar}&&name != "var&&name"
+Comparing "var&&name" != "var&&name"
+CondParser_Eval: ${:Uvar}||name != "var||name"
+Comparing "var||name" != "var||name"
+CondParser_Eval: bare
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:106: A bare word is treated like defined(...), and the variable 'bare' is not defined.
+CondParser_Eval: VAR
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:113: A bare word is treated like defined(...).
+CondParser_Eval: V${:UA}R
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:121: ok
+CondParser_Eval: V${UNDEF}AR
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:130: Undefined variables in bare words expand to an empty string.
+CondParser_Eval: 0${:Ux00}
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:139: Numbers can be composed from literals and expressions.
+CondParser_Eval: 0${:Ux01}
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:144: Numbers can be composed from literals and expressions.
+CondParser_Eval: "" ==
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:151: Missing right-hand side of operator "=="
+CondParser_Eval: == ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:160: Malformed conditional "== """
+CondParser_Eval: \\
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:176: The variable '\\' is not defined.
+CondParser_Eval: \\
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:182: Now the variable '\\' is defined.
+CondParser_Eval: "unquoted\"quoted" != unquoted"quoted
+Comparing "unquoted"quoted" != "unquoted"quoted"
+CondParser_Eval: $$$$$$$$ != ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:197: Malformed conditional "$$$$$$$$ != """
+CondParser_Eval: left == right
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:206: Malformed conditional "left == right"
+CondParser_Eval: ${0:?:} || left == right
+CondParser_Eval: 0
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:212: Malformed conditional "${0:?:} || left == right"
+CondParser_Eval: left == right || ${0:?:}
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:217: Malformed conditional "left == right || ${0:?:}"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:236: Malformed conditional "VAR.${IF_COUNT::+=1} != """
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:272: Unfinished backslash escape sequence
+	while evaluating condition " str == str\"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:282: Unfinished backslash escape sequence
+	while evaluating condition " str == "str\"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:282: Unfinished string literal ""str\"
+	while evaluating condition " str == "str\"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-plain.mk:289: Unfinished string literal ""str"
+	while evaluating condition " str == "str"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

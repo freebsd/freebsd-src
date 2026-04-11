@@ -1,0 +1,39 @@
+--- a ---
+echo a
+a
+--- b1 ---
+echo b1
+b1
+--- b ---
+echo b
+b
+--- x ---
+echo x
+x
+--- 3a2 ---
+--- 3a1 ---
+--- 3a3 ---
+--- 3a2 ---
+: Making 3a2
+--- 3a1 ---
+: Making 3a1
+--- 3a3 ---
+: Making 3a3
+--- 3b1 ---
+--- 3b3 ---
+--- 3b2 ---
+--- 3b1 ---
+: Making 3b1
+--- 3b3 ---
+: Making 3b3
+--- 3b2 ---
+: Making 3b2
+--- 3c3 ---
+--- 3c1 ---
+--- 3c2 ---
+--- 3c3 ---
+: Making 3c3
+--- 3c1 ---
+: Making 3c1
+--- 3c2 ---
+: Making 3c2

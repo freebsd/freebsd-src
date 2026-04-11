@@ -1,0 +1,8 @@
+dependency 1
+*** Error code 1 (continuing)
+other 1
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

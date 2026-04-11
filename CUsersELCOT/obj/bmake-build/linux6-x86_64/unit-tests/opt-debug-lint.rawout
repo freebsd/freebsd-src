@@ -1,0 +1,10 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-lint.mk:20: Variable "X" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-lint.mk:43: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-lint.mk:65: Missing delimiter ":" after modifier "L"
+	while evaluating variable "value" with value "value"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-lint.mk:65: Missing delimiter ":" after modifier "P"
+	while evaluating variable "value" with value "value"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/opt-debug-lint.mk:74: Unknown modifier ":${"
+	while evaluating variable "value" with value ""
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

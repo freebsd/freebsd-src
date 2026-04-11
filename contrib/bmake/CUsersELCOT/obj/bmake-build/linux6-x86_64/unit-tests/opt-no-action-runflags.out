@@ -1,0 +1,34 @@
+begin combined
+
+silent=no always=no ignerr=no
+echo running
+
+silent=no always=no ignerr=yes
+echo running; false
+
+silent=no always=yes ignerr=no
+echo running
+running
+
+silent=no always=yes ignerr=yes
+echo running; false
+running
+*** Error code 1 (ignored)
+
+silent=yes always=no ignerr=no
+echo running
+
+silent=yes always=no ignerr=yes
+echo running; false
+
+silent=yes always=yes ignerr=no
+echo running
+running
+
+silent=yes always=yes ignerr=yes
+echo running; false
+running
+*** Error code 1 (ignored)
+
+end combined
+exit status 0

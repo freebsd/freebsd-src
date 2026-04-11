@@ -1,0 +1,14 @@
+/mnt/d/Github_Projects/freebsd-src/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -f /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/jobs-error-nested.mk nested
+false
+*** [nested] Error code 1
+
+bmake[1]: stopped making "nested" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+bmake[1]: 1 error
+
+bmake[1]: stopped making "nested" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+*** [all] Error code 2
+
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+bmake: 1 error
+
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

@@ -1,0 +1,24 @@
+Command: ignoring ' = cmdline-u' as the variable name '${:U}' expands to empty
+Command: ignoring ' = cmdline-plain' as the variable name '' expands to empty
+Global: .CURDIR = <curdir>
+Var_Parse: ${MAKE_OBJDIR_CHECK_WRITABLE} (eval)
+Global: .TARGETS = # (empty)
+Internal: MAKEFILE = varname-empty.mk
+Global: .MAKE.MAKEFILES = varname-empty.mk
+Global: .PARSEFILE = varname-empty.mk
+Global: ignoring delete '.INCLUDEDFROMDIR' as it is not found
+Global: ignoring delete '.INCLUDEDFROMFILE' as it is not found
+Global: ignoring ' = default' as the variable name '' expands to empty
+Global: ignoring ' = assigned' as the variable name '' expands to empty
+Global: ignoring ' = appended' as the variable name is empty
+Global: ignoring ' = ' as the variable name '' expands to empty
+Global: ignoring ' = subst' as the variable name '' expands to empty
+Capturing the output of command "echo 'shell-output'"
+Global: ignoring ' = shell-output' as the variable name '' expands to empty
+Global: ignoring ' = assigned indirectly' as the variable name '${:U}' expands to empty
+Global: ignoring ' += appended indirectly' as the variable name '${:U}' expands to empty
+Global: .MAKEFLAGS =  -r -d v -d
+Global: .MAKEFLAGS =  -r -d v -d 0
+out: fallback
+out: 1 2 3
+exit status 0

@@ -1,0 +1,8 @@
+false fail1
+*** Error code 1 (continuing)
+false fail2
+*** Error code 1 (continuing)
+true succeed
+
+Stop.
+bmake: stopped making "fail1 fail2 succeed" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

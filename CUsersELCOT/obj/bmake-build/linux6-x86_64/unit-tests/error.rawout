@@ -1,0 +1,5 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/error.mk:7: just FYI
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/error.mk:9: warning: this could be serious
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/error.mk:11: this is fatal
+
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

@@ -1,0 +1,26 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:23: ok
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:30: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:36: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:46: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:64: Variable "U" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:69: Variable "U" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:78: Variable "U" is undefined
+Var_Parse: ${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3} (eval)
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:106: Malformed conditional "x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}"
+Var_Parse: ${DEF}y == "${UNDEF2}" || 0x${UNDEF3} (eval)
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:111: Malformed conditional "x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}"
+Var_Parse: ${DEF}y == "${DEF}" || 0x${UNDEF3} (eval)
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:116: Malformed conditional "x${DEF}y == "${DEF}" || 0x${UNDEF3}"
+Global: VAR.param = value of VAR.param
+Var_Parse: ${VAR.param$U} (eval-defined-loud)
+Var_Parse: $U} (eval)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:133: Variable "UNDEF" is undefined
+	while evaluating variable "UNDEF" with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:142: Variable "UNDEF" is undefined
+	while evaluating variable "UNDEF" with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-token-var.mk:151: Variable "UNDEF" is undefined
+	while evaluating variable "UNDEF" with value ""
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

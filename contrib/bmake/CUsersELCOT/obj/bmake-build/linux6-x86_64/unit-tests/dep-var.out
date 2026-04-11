@@ -1,0 +1,30 @@
+Var_Parse: ${UNDEF1} (eval)
+Global: .ALLTARGETS =  all
+Global: .ALLTARGETS =  all ${DEF2}
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3}
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1
+Global: INDIRECT_1 = 2-$${INDIRECT_2}-2
+Global: INDIRECT_2 = 3-$${INDIRECT_3}-3
+Global: INDIRECT_3 = indirect
+Global: UNDEF1 = undef1
+Global: DEF2 = def2
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$)
+Var_Parse: ${:U\$)}: (eval)
+Evaluating modifier ${:U...} on value "" (eval, undefined)
+Result of ${:U\$)} is "$)" (eval, defined)
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2 a-def2-b
+Var_Parse: $INDIRECT_2-2-1 $): (parse)
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2 a-def2-b 1-2-$INDIRECT_2-2-1
+Var_Parse: $): (parse)
+Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2 a-def2-b 1-2-$INDIRECT_2-2-1 $)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+make: Malformed expression at "$)"
+def2
+a-def2-b
+1-2-NDIRECT_2-2-1
+)
+exit status 2

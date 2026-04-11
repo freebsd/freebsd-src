@@ -1,0 +1,34 @@
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:10: ORIG_SHELL:=	${.SHELL}
+Global: ORIG_SHELL = # (empty)
+Var_Parse: ${.SHELL} (eval-keep-dollar-and-undefined)
+Global: ignoring delete '.SHELL' as it is not found
+Command: .SHELL = /bin/sh
+Global: ORIG_SHELL = /bin/sh
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:12: .SHELL=		overwritten
+Global: ignoring '.SHELL = overwritten' due to a command line variable of the same name
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:13: .if ${.SHELL} != ${ORIG_SHELL}
+CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
+Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined-loud)
+Var_Parse: ${ORIG_SHELL} (eval-defined-loud)
+Comparing "/bin/sh" != "/bin/sh"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:19: .MAKEFLAGS: .SHELL+=appended
+ParseDependency(.MAKEFLAGS: .SHELL+=appended)
+Command: ignoring '.SHELL += appended' as it is read-only
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:20: .if ${.SHELL} != ${ORIG_SHELL}
+CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
+Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined-loud)
+Var_Parse: ${ORIG_SHELL} (eval-defined-loud)
+Comparing "/bin/sh" != "/bin/sh"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:27: .undef .SHELL
+Global: ignoring delete '.SHELL' as it is not found
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:28: .SHELL=		newly overwritten
+Global: ignoring '.SHELL = newly overwritten' due to a command line variable of the same name
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:29: .if ${.SHELL} != ${ORIG_SHELL}
+CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
+Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined-loud)
+Var_Parse: ${ORIG_SHELL} (eval-defined-loud)
+Comparing "/bin/sh" != "/bin/sh"
+Parsing /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-dot-shell.mk:33: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Global: .MAKEFLAGS =  -r -k -d cpv -d
+Global: .MAKEFLAGS =  -r -k -d cpv -d 0

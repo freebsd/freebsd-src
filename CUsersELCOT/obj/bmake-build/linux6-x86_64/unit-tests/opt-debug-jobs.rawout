@@ -1,0 +1,26 @@
+job_pipe -1 -1, maxjobs 1, tokens 1, compat 0
+TokenPool_Take: pid 36842, aborting NONE, running 0
+TokenPool_Take: pid 36842 took a token
+echo ": expanded expression"
+{ : expanded expression 
+} || exit $?
+echo ":  variable"
+{ :  variable 
+} || exit $?
+echo ": 'single' and \"double\" quotes"
+{ : 'single' and "double" quotes 
+} || exit $?
+{ sleep 1 
+} || exit $?
+Running all
+	Command: sh
+JobExec: target all, pid 36843 added to jobs table
+job started, job table:
+job 0, status running, flags ---, pid 36843
+: expanded expression
+:  variable
+: 'single' and "double" quotes
+Process with pid 36843 exited/stopped with status 0.
+JobFinish: target all, pid 36843, status 0
+TokenPool_Take: pid 36842, aborting NONE, running 0
+TokenPool_Take: pid 36842 took a token

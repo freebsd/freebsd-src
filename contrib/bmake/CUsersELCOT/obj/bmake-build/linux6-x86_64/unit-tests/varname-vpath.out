@@ -1,0 +1,12 @@
+CondParser_Eval: !defined(TEST_MAIN)
+CondParser_Eval: exists(file-in-subdirectory)
+"file-in-subdirectory" does not exist
+CondParser_Eval: exists(file2-in-subdirectory)
+"file2-in-subdirectory" does not exist
+CondParser_Eval: exists(file-in-subdirectory)
+"file-in-subdirectory" exists in "varname-vpath.dir/file-in-subdirectory"
+: yes 1
+CondParser_Eval: exists(file2-in-subdirectory)
+"file2-in-subdirectory" exists in "varname-vpath.dir2/file2-in-subdirectory"
+: yes 2
+exit status 0

@@ -20,6 +20,14 @@ makeoptions	DEBUG=-g
 makeoptions	WITH_KERNEL_BIN=1
 makeoptions	WITH_CTF=1
 
+# OpenBSD-style hardening compiler flags
+makeoptions	CFLAGS+="-mbranch-protection=pac-ret+leaf+bti"
+makeoptions	CFLAGS+="-fstack-protector-strong"
+makeoptions	CFLAGS+="-D_FORTIFY_SOURCE=2"
+
+# UOS Mobile Performance Tuning
+makeoptions	COPTFLAGS="-O3"
+
 # Include standard MediaTek SoC configuration
 include		"std.arm64"
 include		"std.dev"
@@ -40,6 +48,13 @@ options		PREEMPTION		# Kernel preemption for UI smoothness
 options		HZ=250			# 250Hz - balance battery vs. latency
 options		SMP			# Enable SMP (MT8395 is 4+4 core)
 options		MAXCPU=8		# 4x Cortex-A78 + 4x Cortex-A55
+
+# ======================================================================
+# Power and Thermal Management
+# ======================================================================
+options		CPUFREQ_DT
+options		ARMV8_PMU
+device		hwpmc
 
 # ======================================================================
 # Memory
@@ -131,10 +146,21 @@ options		COMPAT_LINUXKPI		# Linux KPI shim
 options		LINUXKPI_DUMMY_OPS	# Dummy ops for unmapped drivers
 
 # ======================================================================
-# Security
+# Security (OpenBSD inspired baseline)
 # ======================================================================
+options		UOS_SECURITY
+options		UOS_WX_ENFORCE		# W^X: no page can be W and X
+options		UOS_UNVEIL		# Filesystem restriction API
+options		UOS_PLEDGE		# Syscall restriction via capsicum
+options		ARM64_BTI		# BTI: Block ROP/JOP
+options		ARM64_PAC		# PAC: Pointer authentication
+options		ARM64_UAO		# User Access Only (kernel)
+options		PAN			# Privileged Access Never (always)
+
 options		CAPABILITIES		# Capsicum capability framework
 options		MAC			# TrustedBSD MAC framework
+options		MAC_SEEOTHERUIDS
+options		MAC_PORTACL
 options		AUDIT			# Security event auditing
 options		RACCT			# Resource containers
 options		RCTL			# Resource limits

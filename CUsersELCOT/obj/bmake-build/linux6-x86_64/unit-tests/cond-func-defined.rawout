@@ -1,0 +1,4 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func-defined.mk:24: Missing ")" after argument "A" for "defined"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-func-defined.mk:34: Missing ")" after argument "DEF" for "defined"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

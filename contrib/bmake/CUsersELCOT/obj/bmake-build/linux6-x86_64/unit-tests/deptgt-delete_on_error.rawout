@@ -1,0 +1,48 @@
+Compatibility mode
+> deptgt-delete_on_error-regular; false
+*** Error code 1 (continuing)
+bmake[1]: *** deptgt-delete_on_error-regular removed
+> deptgt-delete_on_error-regular-delete; false
+*** Error code 1 (continuing)
+bmake[1]: *** deptgt-delete_on_error-regular-delete removed
+> deptgt-delete_on_error-phony; false
+*** Error code 1 (continuing)
+> deptgt-delete_on_error-phony-delete; false
+*** Error code 1 (continuing)
+> deptgt-delete_on_error-precious; false
+*** Error code 1 (continuing)
+> deptgt-delete_on_error-precious-delete; false
+*** Error code 1 (continuing)
+
+Stop.
+bmake[1]: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+*** Error code 1 (ignored)
+
+Parallel mode
+> deptgt-delete_on_error-regular; false
+*** [deptgt-delete_on_error-regular] Error code 1
+bmake[1]: *** deptgt-delete_on_error-regular removed
+
+bmake[1]: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+> deptgt-delete_on_error-regular-delete; false
+*** [deptgt-delete_on_error-regular-delete] Error code 1
+bmake[1]: *** deptgt-delete_on_error-regular-delete removed
+
+bmake[1]: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+> deptgt-delete_on_error-phony; false
+*** [deptgt-delete_on_error-phony] Error code 1
+
+bmake[1]: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+> deptgt-delete_on_error-phony-delete; false
+*** [deptgt-delete_on_error-phony-delete] Error code 1
+
+bmake[1]: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+> deptgt-delete_on_error-precious; false
+*** [deptgt-delete_on_error-precious] Error code 1
+
+bmake[1]: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+> deptgt-delete_on_error-precious-delete; false
+*** [deptgt-delete_on_error-precious-delete] Error code 1
+
+bmake[1]: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+*** Error code 1 (ignored)

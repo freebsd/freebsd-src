@@ -1,0 +1,28 @@
+job_pipe -1 -1, maxjobs 1, tokens 1, compat 0
+TokenPool_Take: pid 37607, aborting NONE, running 0
+TokenPool_Take: pid 37607 took a token
+# echo off
+echo silent
+# echo on
+# echo off
+# error checking off
+set +e
+# echo on
+echo ignerr; false
+# echo off
+# error checking on
+set -e
+# echo on
+echo always
+Running all
+	Command: sh
+JobExec: target all, pid 37608 added to jobs table
+job started, job table:
+job 0, status running, flags ---, pid 37608
+silent
+ignerr
+always
+Process with pid 37608 exited/stopped with status 0.
+JobFinish: target all, pid 37608, status 0
+TokenPool_Take: pid 37607, aborting NONE, running 0
+TokenPool_Take: pid 37607 took a token

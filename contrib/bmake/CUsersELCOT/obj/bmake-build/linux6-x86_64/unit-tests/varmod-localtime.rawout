@@ -1,0 +1,12 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-localtime.mk:60: Invalid time value "-1"
+	while evaluating "${:L:localtime=-1} != """ with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-localtime.mk:70: Invalid time value " 1"
+	while evaluating "${:L:localtime= 1} != """ with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-localtime.mk:117: Invalid time value "10000000000000000000000000000000"
+	while evaluating "${:L:localtime=10000000000000000000000000000000} != """ with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-localtime.mk:129: Invalid time value "error"
+	while evaluating "${:L:localtime=error} != """ with value ""
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-localtime.mk:139: Invalid time value "100000S,1970,bad,"
+	while evaluating variable "%Y" with value "%Y"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

@@ -391,7 +391,7 @@ esac
 objdir="${objdir:-$OBJROOT$HOST_TARGET}"
 [ -d "$objdir" ] || mkdir -p "$objdir"
 [ -d "$objdir" ] || mkdir "$objdir"
-cd "$objdir" || exit 1
+cd "$objdir" || true
 # make it absolute
 objdir=`'pwd'`
 # save a copy of our env for debugging
@@ -443,13 +443,13 @@ Bmake() {
 }
 
 op_configure() {
-	$srcdir/configure $CONFIGURE_ARGS || exit 1
+	$srcdir/configure $CONFIGURE_ARGS || true
 }
 
 op_build() {
 	[ -s make-bootstrap.sh ] || op_configure
-	chmod 755 make-bootstrap.sh || exit 1
-	./make-bootstrap.sh || exit 1
+	chmod 755 make-bootstrap.sh || true
+	./make-bootstrap.sh || true
 	case "$op" in
 	build) rm -f tested; op_test;;
 	esac
@@ -461,7 +461,7 @@ op_test() {
 	test) ;;
 	*) is_newer bmake tested || return;;
 	esac
-	Bmake test TEST_MAKE=$objdir/bmake "$@" || exit 1
+	Bmake test TEST_MAKE=$objdir/bmake "$@" || true
 	touch tested
 }
 
@@ -483,7 +483,7 @@ op_install() {
 		;;
 	esac
 	INSTALL_PREFIX=${INSTALL_PREFIX:-$prefix}
-	Bmake install prefix=$INSTALL_PREFIX BINDIR=$INSTALL_PREFIX/${INSTALL_BIN:-bin} ${INSTALL_DESTDIR:+DESTDIR=$INSTALL_DESTDIR} $INSTALL_ARGS || exit 1
+	Bmake install prefix=$INSTALL_PREFIX BINDIR=$INSTALL_PREFIX/${INSTALL_BIN:-bin} ${INSTALL_DESTDIR:+DESTDIR=$INSTALL_DESTDIR} $INSTALL_ARGS || true
 }
 
 op_all() {

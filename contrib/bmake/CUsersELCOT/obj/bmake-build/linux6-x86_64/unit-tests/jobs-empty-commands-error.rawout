@@ -1,0 +1,4 @@
+: 'Making existing-target out of nothing.'
+bmake: don't know how to make nonexistent-target (continuing)
+
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

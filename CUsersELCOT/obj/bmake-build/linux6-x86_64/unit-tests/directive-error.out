@@ -1,0 +1,4 @@
+make: directive-error.mk:14: message
+
+make: stopped in unit-tests
+exit status 1

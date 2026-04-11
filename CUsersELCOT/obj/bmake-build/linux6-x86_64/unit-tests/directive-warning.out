@@ -1,0 +1,11 @@
+make: directive-warning.mk:10: Unknown directive "warn"
+make: directive-warning.mk:12: Unknown directive "warn"
+make: directive-warning.mk:14: Unknown directive "warnin"
+make: directive-warning.mk:16: Unknown directive "warnin"
+make: directive-warning.mk:18: Missing argument for ".warning"
+make: directive-warning.mk:20: warning: message
+make: directive-warning.mk:22: Unknown directive "warnings"
+make: directive-warning.mk:24: Unknown directive "warnings"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

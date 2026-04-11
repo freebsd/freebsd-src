@@ -1,0 +1,23 @@
+make: varmod-match.mk:293: Unfinished character list in pattern "a[" of modifier ":M"
+	while evaluating variable "WORDS" with value "a a["
+make: varmod-match.mk:301: Unfinished character list in pattern "a[^" of modifier ":M"
+	while evaluating variable "WORDS" with value "a a[ aX"
+make: varmod-match.mk:309: Unfinished character list in pattern "[-x1-3" of modifier ":M"
+	while evaluating variable "WORDS" with value "- + x xx 0 1 2 3 4 [x1-3"
+make: varmod-match.mk:317: Unfinished character list in pattern "*[-x1-3" of modifier ":M"
+	while evaluating variable "WORDS" with value "- + x xx 0 1 2 3 4 00 01 10 11 000 001 010 011 100 101 110 111 [x1-3"
+make: varmod-match.mk:326: Unfinished character list in pattern "[^-x1-3" of modifier ":M"
+	while evaluating variable "WORDS" with value "- + x xx 0 1 2 3 4 [x1-3"
+make: varmod-match.mk:340: Unfinished character list in pattern "?[\" of modifier ":M"
+	while evaluating variable "WORDS" with value "\\ \a x\"
+make: varmod-match.mk:348: Unfinished character range in pattern "[x-" of modifier ":M"
+	while evaluating variable "WORDS" with value "[x- x x- y"
+make: varmod-match.mk:360: Unfinished character range in pattern "[^x-" of modifier ":M"
+	while evaluating variable "WORDS" with value "[x- x x- y yyyyy"
+make: varmod-match.mk:367: Unfinished character list in pattern "[" of modifier ":M"
+	while evaluating variable " : :: " with value " : :: "
+make: varmod-match.mk:367: Unknown modifier ":]"
+	while evaluating variable " : :: " with value ""
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

@@ -1,0 +1,10 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-loop-varname.mk:17: In the :@ modifier, the variable name "${:Ubar:S,b,v,}" must not contain a dollar
+	while evaluating "${:Uone two three:@${:Ubar:S,b,v,}@+${var}+@} != "+one+ +two+ +three+"" with value "one two three"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-loop-varname.mk:87: In the :@ modifier, the variable name "v$" must not contain a dollar
+	while evaluating variable "1 2 3" with value "1 2 3"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-loop-varname.mk:93: In the :@ modifier, the variable name "v$$" must not contain a dollar
+	while evaluating variable "1 2 3" with value "1 2 3"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-loop-varname.mk:99: In the :@ modifier, the variable name "v$$$" must not contain a dollar
+	while evaluating variable "1 2 3" with value "1 2 3"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

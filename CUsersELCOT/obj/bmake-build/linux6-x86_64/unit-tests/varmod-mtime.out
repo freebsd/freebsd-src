@@ -1,0 +1,15 @@
+make: varmod-mtime.mk:46: Invalid argument "123x" for modifier ":mtime"
+	while evaluating variable "no/such/file" with value "no/such/file"
+make: varmod-mtime.mk:68: Cannot determine mtime for "no/such/file1": <ENOENT>
+	while evaluating variable "no/such/file1 no/such/file2" with value "no/such/file1 no/such/file2"
+make: varmod-mtime.mk:68: Cannot determine mtime for "no/such/file2": <ENOENT>
+	while evaluating variable "no/such/file1 no/such/file2" with value "no/such/file1 no/such/file2"
+make: varmod-mtime.mk:78: Invalid argument "errorhandler-no" for modifier ":mtime"
+	while evaluating variable "MAKEFILE" with value "varmod-mtime.mk"
+make: varmod-mtime.mk:86: Invalid argument "warn" for modifier ":mtime"
+	while evaluating variable "MAKEFILE" with value "varmod-mtime.mk"
+make: varmod-mtime.mk:110: Unknown modifier ":mtim"
+	while evaluating variable "anything" with value "anything"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

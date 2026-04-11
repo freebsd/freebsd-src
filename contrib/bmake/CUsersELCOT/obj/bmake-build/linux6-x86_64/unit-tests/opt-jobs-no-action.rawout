@@ -1,0 +1,82 @@
+echo hide-from-output 'begin explain'
+hide-from-output begin explain
+# .echoOff
+# .echoTmpl
+echo "false regular"
+# .runChkTmpl
+{ false regular 
+} || exit $?
+# .echoOn
+# .runChkTmpl
+{ : silent 
+} || exit $?
+# .echoOn
+false ignore-errors
+echo run despite the -n option
+run despite the -n option
+echo hide-from-output 'end explain'
+hide-from-output end explain
+echo hide-from-output
+hide-from-output
+echo hide-from-output 'begin combined'
+hide-from-output begin combined
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=no always=no ignerr=no
+hide-from-output silent=no always=no ignerr=no
+# .echoOff
+# .echoTmpl
+echo "echo running"
+# .runChkTmpl
+{ echo running 
+} || exit $?
+# .echoOn
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=no always=no ignerr=yes
+hide-from-output silent=no always=no ignerr=yes
+echo running; false
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=no always=yes ignerr=no
+hide-from-output silent=no always=yes ignerr=no
+echo running
+running
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=no always=yes ignerr=yes
+hide-from-output silent=no always=yes ignerr=yes
+echo running; false
+running
+*** Error code 1 (ignored)
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=yes always=no ignerr=no
+hide-from-output silent=yes always=no ignerr=no
+# .runChkTmpl
+{ echo running 
+} || exit $?
+# .echoOn
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=yes always=no ignerr=yes
+hide-from-output silent=yes always=no ignerr=yes
+echo running; false
+# .echoOn
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=yes always=yes ignerr=no
+hide-from-output silent=yes always=yes ignerr=no
+echo running
+running
+echo hide-from-output
+hide-from-output
+echo hide-from-output silent=yes always=yes ignerr=yes
+hide-from-output silent=yes always=yes ignerr=yes
+echo running; false
+running
+*** Error code 1 (ignored)
+echo hide-from-output
+hide-from-output
+echo hide-from-output 'end combined'
+hide-from-output end combined

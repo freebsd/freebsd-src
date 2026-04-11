@@ -1,0 +1,17 @@
+The = assignment operator
+make: cmdline-undefined.mk:41: From the command line: Undefined is .
+make: cmdline-undefined.mk:42: From .MAKEFLAGS '=': Undefined is .
+make: cmdline-undefined.mk:43: From .MAKEFLAGS ':=': Undefined is .
+make: cmdline-undefined.mk:47: From the command line: Undefined is now defined.
+make: cmdline-undefined.mk:48: From .MAKEFLAGS '=': Undefined is now defined.
+make: cmdline-undefined.mk:49: From .MAKEFLAGS ':=': Undefined is now defined.
+
+The := assignment operator
+make: cmdline-undefined.mk:41: From the command line: Undefined is .
+make: cmdline-undefined.mk:42: From .MAKEFLAGS '=': Undefined is .
+make: cmdline-undefined.mk:43: From .MAKEFLAGS ':=': Undefined is .
+make: cmdline-undefined.mk:47: From the command line: Undefined is now defined.
+make: cmdline-undefined.mk:48: From .MAKEFLAGS '=': Undefined is now defined.
+make: cmdline-undefined.mk:49: From .MAKEFLAGS ':=': Undefined is now defined.
+
+exit status 0

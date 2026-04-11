@@ -1,0 +1,6 @@
+comment-with-followup-line: This is printed.
+no-comment: This is printed.
+*** [no-comment] Error code 1
+
+make: stopped making "all" in unit-tests
+exit status 1

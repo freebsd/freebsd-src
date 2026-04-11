@@ -1,0 +1,21 @@
+make: cond-token-string.mk:14: Unknown modifier ":Z"
+	while evaluating "${:Uvalue:Z}"" with value "value"
+make: cond-token-string.mk:24: xvalue is not defined.
+make: cond-token-string.mk:31: Malformed conditional "x${:Uvalue} == """
+make: cond-token-string.mk:41: Expected.
+CondParser_Eval: "UNDEF"
+make: cond-token-string.mk:51: The string literal "UNDEF" is not empty.
+CondParser_Eval: " "
+make: cond-token-string.mk:60: The string literal " " is not empty, even though it consists of whitespace only.
+CondParser_Eval: "${UNDEF}"
+make: cond-token-string.mk:70: An undefined variable in quotes expands to an empty string, which then evaluates to false.
+CondParser_Eval: "${:Uvalue}"
+make: cond-token-string.mk:76: A nonempty expression evaluates to true.
+CondParser_Eval: "${:U}"
+make: cond-token-string.mk:85: An empty variable evaluates to false.
+CondParser_Eval: ("${VAR}")
+CondParser_Eval: "quoted" == quoted
+Comparing "quoted" == "quoted"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

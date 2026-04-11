@@ -1,0 +1,14 @@
+make: directive.mk:10: Unknown directive "indented"
+make: directive.mk:12: Unknown directive "indented"
+make: directive.mk:14: Unknown directive "indented"
+make: directive.mk:19: Unknown directive ""
+Global: .info = # (empty)
+Global: .info = value
+make: directive.mk:31: :=	value
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+make: directive.mk:40: Invalid line "target-without-colon"
+make: directive.mk:43: Invalid line "target-without-colon another-target"
+make: Fatal errors encountered -- cannot continue
+make: stopped making ".target" in unit-tests
+exit status 1

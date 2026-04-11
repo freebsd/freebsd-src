@@ -1,0 +1,10 @@
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:38: This is line 38.
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:38: This is line 38.
+make: no target to make.
+
+make: stopped in unit-tests
+exit status 2

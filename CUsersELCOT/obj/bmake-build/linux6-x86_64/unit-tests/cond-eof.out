@@ -1,0 +1,6 @@
+make: cond-eof.mk:17: Malformed conditional "0 ${SIDE_EFFECT} ${SIDE_EFFECT2}"
+make: cond-eof.mk:20: Malformed conditional "1 ${SIDE_EFFECT} ${SIDE_EFFECT2}"
+make: cond-eof.mk:23: Malformed conditional "(0) ${SIDE_EFFECT} ${SIDE_EFFECT2}"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

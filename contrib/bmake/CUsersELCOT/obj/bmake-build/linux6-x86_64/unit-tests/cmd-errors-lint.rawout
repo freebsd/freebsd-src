@@ -1,0 +1,13 @@
+: undefined 
+bmake: Unclosed variable "UNCLOSED"
+	in command ": $@ ${UNCLOSED"
+	in target "unclosed-expression"
+bmake: Unclosed expression, expecting "}"
+	while evaluating variable "UNCLOSED" with value ""
+	in command ": $@ ${UNCLOSED:"
+	in target "unclosed-modifier"
+bmake: Unknown modifier ":Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in command ": $@ ${UNKNOWN:Z}"
+	in target "unknown-modifier"
+: end

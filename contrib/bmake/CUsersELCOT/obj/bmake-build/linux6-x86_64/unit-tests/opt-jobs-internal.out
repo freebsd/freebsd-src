@@ -1,0 +1,15 @@
+direct: mode=parallel
+make: error: invalid internal option "-J garbage" in "<curdir>"
+make: warning: Invalid internal option "-J" in "<curdir>"; see the manual page
+	in make[2] in directory "<curdir>"
+direct-open: mode=compat
+make: warning: Invalid internal option "-J" in "<curdir>"; see the manual page
+	in make[2] in directory "<curdir>"
+indirect-open: mode=compat
+indirect-expr: mode=parallel
+make: warning: Invalid internal option "-J" in "<curdir>"; see the manual page
+	in make[2] in directory "<curdir>"
+indirect-comment: mode=compat
+indirect-silent-comment: mode=parallel
+indirect-expr-empty: mode=parallel
+exit status 0

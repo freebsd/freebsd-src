@@ -1,0 +1,10 @@
+Test -B output
+test1:   Done
+test2:   Done
+test3:   Done
+
+Test -j1 output
+test1:   Done
+test2:   Done
+test3:   Done
+

@@ -1,0 +1,6 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt-begin.mk:19: warning: duplicate script for target ".BEGIN" ignored
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/deptgt-begin.mk:8: warning: using previous script for ".BEGIN" defined here
+: parse time
+: Making before-begin before .BEGIN.
+: .BEGIN
+: all

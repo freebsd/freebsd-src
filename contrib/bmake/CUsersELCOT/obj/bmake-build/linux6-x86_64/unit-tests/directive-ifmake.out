@@ -1,0 +1,15 @@
+make: directive-ifmake.mk:14: ok: positive condition works
+make: directive-ifmake.mk:26: ok: negation works
+make: directive-ifmake.mk:36: ok: double negation works
+make: directive-ifmake.mk:44: ok: both mentioned
+make: directive-ifmake.mk:52: ok: only those mentioned
+make: directive-ifmake.mk:63: Targets can even be added at parse time.
+make: directive-ifmake.mk:82: ok
+: first
+: second
+: late-target
+make: don't know how to make !edge (continuing)
+
+Stop.
+make: stopped making "first second late-target !edge" in unit-tests
+exit status 1

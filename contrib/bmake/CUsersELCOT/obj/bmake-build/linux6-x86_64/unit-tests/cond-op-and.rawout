@@ -1,0 +1,10 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:36: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:41: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:44: Variable "UNDEF" is undefined
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:60: Unknown operator "&"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:66: Unknown operator "&"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:72: Unknown operator "&"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:78: Unknown operator "&"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-op-and.mk:87: Unknown operator "&"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

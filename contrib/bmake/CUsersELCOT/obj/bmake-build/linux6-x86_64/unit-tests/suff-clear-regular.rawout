@@ -1,0 +1,7 @@
+bmake: don't know how to make .a (continuing)
+bmake: don't know how to make .a.b (continuing)
+bmake: don't know how to make .b.a (continuing)
+`all' not remade because of errors.
+
+Stop.
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

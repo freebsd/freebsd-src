@@ -1,0 +1,13 @@
+make: char-005c-reverse-solidus.mk:57: Unclosed expression, expecting "}" for modifier "Mx\}"
+	while evaluating variable "BACKSLASH" with value ""
+make: char-005c-reverse-solidus.mk:64: Unclosed expression, expecting "}" for modifier "Mx\\}"
+	while evaluating variable "BACKSLASH" with value ""
+make: char-005c-reverse-solidus.mk:71: Unclosed expression, expecting "}" for modifier "Mx\\\\\\\\}"
+	while evaluating variable "BACKSLASH" with value ""
+make: char-005c-reverse-solidus.mk:100: Unfinished backslash at the end in pattern "\" of modifier ":M"
+	while evaluating variable "BACKSLASH" with value "\"
+make: char-005c-reverse-solidus.mk:111: Unclosed expression, expecting "}" for modifier "M${:U\\\\}} != "\\""
+	while evaluating variable "BACKSLASH" with value ""
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

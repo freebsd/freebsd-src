@@ -1,0 +1,14 @@
+: undefined 
+make: Unclosed variable "UNCLOSED"
+	in command ": $@ ${UNCLOSED"
+	in target "unclosed-expression"
+make: Unclosed expression, expecting "}"
+	while evaluating variable "UNCLOSED" with value ""
+	in command ": $@ ${UNCLOSED:"
+	in target "unclosed-modifier"
+make: Unknown modifier ":Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in command ": $@ ${UNKNOWN:Z}"
+	in target "unknown-modifier"
+: end
+exit status 2

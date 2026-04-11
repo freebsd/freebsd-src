@@ -1,0 +1,26 @@
+make: deptgt.mk:11: warning: Extra target ".PHONY" ignored
+make: deptgt.mk:30: Unassociated shell command ": command3		# parse error, since targets == NULL"
+Parsing deptgt.mk:36: ${:U}: empty-source
+ParseDependency(: empty-source)
+Parsing deptgt.mk:37: 	: command for empty targets list
+Parsing deptgt.mk:38: : empty-source
+ParseDependency(: empty-source)
+Parsing deptgt.mk:39: 	: command for empty targets list
+Parsing deptgt.mk:40: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Var_Parse: ${UNDEF}: depsrc-${UNDEF} (eval)
+Var_Parse: ${UNDEF} (eval)
+Global: .ALLTARGETS =  target1 target2 sources empty-source deptgt-
+Global: .ALLTARGETS =  target1 target2 sources empty-source deptgt- depsrc-
+Global: .MAKEFLAGS =  -r -k -d p -d 0 -d v -d
+Global: .MAKEFLAGS =  -r -k -d p -d 0 -d v -d 0
+make: deptgt.mk:51: Unknown modifier ":Z"
+	while evaluating "${:U:Z}:" with value ""
+make: deptgt.mk:55: Unknown modifier ":Z"
+	while parsing "${:U:Z}:"
+make: deptgt.mk:58: warning: Extra target "ordinary" ignored
+make: deptgt.mk:61: warning: Extra target "ordinary" ignored
+make: deptgt.mk:64: warning: Special and mundane targets don't mix. Mundane ones ignored
+make: Fatal errors encountered -- cannot continue
+make: stopped making "target1" in unit-tests
+exit status 1

@@ -1,0 +1,5 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/parse.mk:7: Invalid line "<<<<<< old"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/parse.mk:14: Invalid line ">>>>>> new"
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/parse.mk:25: Invalid line "one-target ${:U }", expanded to "one-target  "
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "Try_to_crash_FreeBSD.xxxxxxxxxxxxxxxxxx" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

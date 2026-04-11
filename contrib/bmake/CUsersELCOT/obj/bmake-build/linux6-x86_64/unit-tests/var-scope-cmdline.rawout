@@ -1,0 +1,3 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-scope-cmdline.mk:72: global
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/var-scope-cmdline.mk:82: makeflags
+makeflags

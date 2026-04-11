@@ -1,0 +1,39 @@
+bmake[2]: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in bmake[2] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+*** Error code 2 (continuing)
+
+Stop.
+bmake[1]: stopped making "disabled-compat" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+bmake[2]: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in bmake[2] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+*** [disabled-parallel] Error code 2
+
+bmake[1]: stopped making "disabled-parallel" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+bmake[2]: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in bmake[2] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+	in command "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/C:UsersELCOT/obj/bmake-build/linux6-x86_64/bmake -f /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varname-make_stack_trace.mk provoke-error"
+	in target "enabled-compat"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+*** Error code 2 (continuing)
+
+Stop.
+bmake[1]: stopped making "enabled-compat" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+bmake[2]: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in bmake[2] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+	in target "enabled-parallel"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+*** [enabled-parallel] Error code 2
+
+bmake[1]: stopped making "enabled-parallel" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

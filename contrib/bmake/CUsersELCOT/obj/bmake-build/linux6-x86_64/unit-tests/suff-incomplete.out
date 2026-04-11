@@ -1,0 +1,42 @@
+Parsing suff-incomplete.mk:9: .SUFFIXES:
+ParseDependency(.SUFFIXES:)
+Clearing all suffixes
+Parsing suff-incomplete.mk:11: .SUFFIXES: .a .b .c
+ParseDependency(.SUFFIXES: .a .b .c)
+Adding suffix ".a"
+Adding suffix ".b"
+Adding suffix ".c"
+Parsing suff-incomplete.mk:17: .a.b:
+ParseDependency(.a.b:)
+defining transformation from `.a' to `.b'
+inserting ".a" (1) at end of list
+inserting ".b" (2) at end of list
+Parsing suff-incomplete.mk:21: .a.c: ${.PREFIX}.dependency
+deleting incomplete transformation from `.a' to `.b'
+ParseDependency(.a.c: ${.PREFIX}.dependency)
+defining transformation from `.a' to `.c'
+inserting ".a" (1) at end of list
+inserting ".c" (3) at end of list
+Target ".a.c" depends on "${.PREFIX}.dependency"
+# .a.c, unmade, type OP_DEPENDS|OP_TRANSFORM, flags none
+# ${.PREFIX}.dependency, unmade, type none, flags none
+Parsing suff-incomplete.mk:23: .DEFAULT:
+transformation .a.c complete
+ParseDependency(.DEFAULT:)
+Parsing suff-incomplete.mk:24: 	: Making ${.TARGET} from ${.IMPSRC} all ${.ALLSRC} by default.
+transformation .DEFAULT complete
+Wildcard expanding "all"...
+SuffFindDeps "all"
+	No known suffix on all. Using .NULL suffix
+adding suffix rules
+Wildcard expanding "suff-incomplete.c"...suffix is ".c"...
+SuffFindDeps "suff-incomplete.c"
+	trying suff-incomplete.a...not there
+Wildcard expanding "suff-incomplete.c"...suffix is ".c"...
+: Making suff-incomplete.c from suff-incomplete.c all  by default.
+Wildcard expanding "all"...
+SuffFindDeps ".END"
+	No known suffix on .END. Using .NULL suffix
+adding suffix rules
+Wildcard expanding ".END"...
+exit status 0

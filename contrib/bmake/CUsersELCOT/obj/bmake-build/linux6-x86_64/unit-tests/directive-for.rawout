@@ -1,0 +1,39 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:117: outer
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:138: a:\ a:\file.txt
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:138: d:\\
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:138: d:\\file.txt
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: ( ( (
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: [ [ [
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: { { {
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: ) ) )
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: ] ] ]
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: } } }
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: (()) (()) (())
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: [[]] [[]] [[]]
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: {{}} {{}} {{}}
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: )( )( )(
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: ][ ][ ][
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:158: }{ }{ }{
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:166: Invalid character ":" in .for loop variable name
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:173: Invalid character "$" in .for loop variable name
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:185: Invalid character "$" in .for loop variable name
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:208: Missing iteration variables in .for loop
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:234: 1 open conditional
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:232 with var = value
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:252: for-less endfor
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:254: if-less endif
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:263: if-less endif
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:261 with var = value
+For: new loop 2
+For: end for 2
+For: end for 1
+For: loop body with outer = o:
+.\
+   for inner in i
+.\
+   endfor
+For: end for 1
+For: loop body with inner = i:
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-for.mk:312: newline-item=(a)
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

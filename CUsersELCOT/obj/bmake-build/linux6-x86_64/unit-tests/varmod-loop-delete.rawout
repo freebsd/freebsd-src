@@ -1,0 +1,5 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/varmod-loop-delete.mk:20: Cannot delete variable "VAR" while it is used
+	while evaluating "${:U:@VAR@@} rest of the value" with value ""
+	while evaluating variable "VAR" with value "${:U:@VAR@@} rest of the value"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped making "all" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests

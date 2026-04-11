@@ -1,0 +1,34 @@
+#*** Suffixes:
+# ".custom-null" (num 1, ref 1) (SUFF_NULL)
+#	To: 
+#	From: 
+#	Search Path: . .. 
+# ".src-left" (num 2, ref 2)
+#	To: .tgt-right 
+#	From: 
+#	Search Path: 
+# ".tgt-right" (num 3, ref 2)
+#	To: 
+#	From: .src-left 
+#	Search Path: 
+# ".tgt-left" (num 4, ref 2)
+#	To: 
+#	From: .src-right 
+#	Search Path: 
+# ".src-right" (num 5, ref 2)
+#	To: .tgt-left 
+#	From: 
+#	Search Path: 
+#*** Transformations:
+.src-left.tgt-right:
+	: Making ${.TARGET} from ${.IMPSRC}.
+
+.src-right.tgt-left:
+	: Making ${.TARGET} from ${.IMPSRC}.
+
+#*** End input graph for pass 1 in <curdir>:
+: Making deptgt-suffixes.src-left out of nothing.
+: Making deptgt-suffixes.tgt-right from deptgt-suffixes.src-left.
+: Making deptgt-suffixes.src-right out of nothing.
+: Making deptgt-suffixes.tgt-left from deptgt-suffixes.src-right.
+exit status 0

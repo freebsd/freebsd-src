@@ -1,0 +1,11 @@
+level 1: variable 0, env 1
+level 2: variable 1, env 2
+level 3: variable 2, env 3
+: set-env-same
+ok
+: set-env-different
+bmake[1]: Cannot override read-only global variable ".MAKE.LEVEL.ENV" with a command line variable
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: Fatal errors encountered -- cannot continue
+bmake[1]: stopped making "ok" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+set-env-different: exit 1

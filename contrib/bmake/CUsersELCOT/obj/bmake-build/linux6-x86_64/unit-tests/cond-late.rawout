@@ -1,0 +1,8 @@
+bmake[1]: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/cond-late.mk:29: Bad condition
+	while evaluating condition " != "no""
+	while evaluating variable "VAR" with value "${${UNDEF} != "no":?:}"
+	in bmake[1] in directory "/mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests"
+bmake[1]: Fatal errors encountered -- cannot continue
+bmake[1]: stopped making "do-parse-time" in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
+yes
+no

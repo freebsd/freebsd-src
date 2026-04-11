@@ -1,0 +1,6 @@
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-export-gmake.mk:71: Invalid line "export VAR=${:U1}", expanded to "export VAR=1"
+	in .for loop from /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-export-gmake.mk:67 with value = 1
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-export-gmake.mk:85: 16:00:00
+bmake: /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests/directive-export-gmake.mk:92: Variable/Value missing from "export"
+bmake: Fatal errors encountered -- cannot continue
+bmake: stopped in /mnt/d/Github_Projects/freebsd-src/contrib/bmake/unit-tests
