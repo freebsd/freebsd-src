@@ -545,6 +545,24 @@ struct asmc_softc {
 				  "Pbus", "Ambient Light", "Leftside", "Rightside", "CPU Package Core", \
 				  "CPU Package GPU", "CPU Package Total", "System Total", "DC In" }
 
+#define ASMC_MBP131_TEMPS	{ "TB0T", "TB1T", "TB2T", "TC0F", \
+				  "TC0P", "TC1C", "TC2C", "TCGC", \
+				  "TCSA", "TCXC", "Th1H", "TM0P", \
+				  "TPCD", "Ts0P", "Ts0S", "TaLC", \
+				  "Ts1P", NULL }
+
+#define ASMC_MBP131_TEMPNAMES	{ "battery", "battery_1", "battery_2", "cpu_die_peci", \
+				  "cpu_proximity", "cpu_core_1", "cpu_core_2", "intel_gpu", \
+				  "cpu_sys_agent", "cpu_core_peci", "right_fin_stack", "memory_proximity", \
+				  "platform_ctrl_hub", "trackpad", "bottom_skin", "air_flow", \
+				  "trackpad_act" }
+
+#define ASMC_MBP131_TEMPDESCS	{ "Battery", "Battery Sensor 1", "Battery Sensor 2", "CPU Die (PECI)", \
+				  "CPU Proximity", "CPU Core 1", "CPU Core 2", "Intel GPU", \
+				  "CPU System Agent Core (PECI)", "CPU Core (PECI)", "Right Fin Stack", "DDR3 Proximity", \
+				  "Platform Controller Hub Die", "Trackpad", "Bottom Skin", "Air Flow", \
+				  "Trackpad Actuator" }
+
 #define ASMC_MM_TEMPS		{ "TN0P", "TN1P", NULL }
 #define ASMC_MM_TEMPNAMES	{ "northbridge1", "northbridge2" }
 #define ASMC_MM_TEMPDESCS	{ "Northbridge Point 1", \
