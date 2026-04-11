@@ -58,7 +58,8 @@
 #define	__GFP_WAIT	M_WAITOK
 #define	__GFP_DMA32	(1U << 24) /* LinuxKPI only */
 #define	__GFP_NORETRY	(1U << 25) /* LinuxKPI only */
-#define	__GFP_BITS_SHIFT 26
+#define	__GFP_THISNODE	(1U << 26) /* Unimplemented */
+#define	__GFP_BITS_SHIFT	27
 #define	__GFP_BITS_MASK	((1 << __GFP_BITS_SHIFT) - 1)
 #define	__GFP_NOFAIL	M_WAITOK
 
