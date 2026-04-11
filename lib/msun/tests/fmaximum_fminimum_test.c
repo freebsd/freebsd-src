@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 David Schultz <das@FreeBSD.org>
+ * Copyright (c) 2026 Jesús Blázquez <jesuscblazquez@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,8 @@
  */
 
 /*
- * Tests for fmaximum{,f,l}() and fminimum{,f,l}()
+ * Tests for fmaximum{,f,l}(), fminimum{,f,l}(), fmaximum_mag{,f,l},
+ * fminimum_mag{,f,l}, fmaximum_num{,f,l}, fminimum_num{,f,l}
  */
 
 #include <sys/cdefs.h>
@@ -58,7 +60,7 @@ testall_r(long double big, long double small, int rmode)
 {
 	long double expected_max, expected_min;
 	if (isnan(big) || isnan(small)) {
-		expected_max = big + small;
+		expected_max = NAN;
 		expected_min = expected_max;
 	} else {
 		expected_max = big;
@@ -79,6 +81,55 @@ testall_r(long double big, long double small, int rmode)
 	TEST(fminimuml, long double, small, big, expected_min, rmode);
 }
 
+static void
+testall_mag_r(long double big, long double small, int rmode) {
+	long double expected_max_mag, expected_min_mag;
+	if (isnan(big) || isnan(small)) {
+		expected_max_mag = NAN;
+		expected_min_mag = expected_max_mag;
+	} else {
+		if (fabsl(small) > fabsl(big)) {
+			expected_max_mag = small;
+			expected_min_mag = big;
+		} else {
+			expected_max_mag = big;
+			expected_min_mag = small;
+		}
+	}
+
+	TEST(fmaximum_magf, float, big, small, expected_max_mag, rmode);
+	TEST(fmaximum_magf, float, small, big, expected_max_mag, rmode);
+	TEST(fmaximum_mag, double, big, small, expected_max_mag, rmode);
+	TEST(fmaximum_mag, double, small, big, expected_max_mag, rmode);
+	TEST(fmaximum_magl, long double, big, small, expected_max_mag, rmode);
+	TEST(fmaximum_magl, long double, small, big, expected_max_mag, rmode);
+	TEST(fminimum_magf, float, big, small, expected_min_mag, rmode);
+	TEST(fminimum_magf, float, small, big, expected_min_mag, rmode);
+	TEST(fminimum_mag, double, big, small, expected_min_mag, rmode);
+	TEST(fminimum_mag, double, small, big, expected_min_mag, rmode);
+	TEST(fminimum_magl, long double, big, small, expected_min_mag, rmode);
+	TEST(fminimum_magl, long double, small, big, expected_min_mag, rmode);
+}
+
+static void
+testall_num_r(long double big, long double small, int rmode) {
+	long double expected_max_num = isnan(big) ? small : big;
+	long double expected_min_num = isnan(small) ? big : small;
+
+	TEST(fmaximum_numf, float, big, small, expected_max_num, rmode);
+	TEST(fmaximum_numf, float, small, big, expected_max_num, rmode);
+	TEST(fmaximum_num, double, big, small, expected_max_num, rmode);
+	TEST(fmaximum_num, double, small, big, expected_max_num, rmode);
+	TEST(fmaximum_numl, long double, big, small, expected_max_num, rmode);
+	TEST(fmaximum_numl, long double, small, big, expected_max_num, rmode);
+	TEST(fminimum_numf, float, big, small, expected_min_num, rmode);
+	TEST(fminimum_numf, float, small, big, expected_min_num, rmode);
+	TEST(fminimum_num, double, big, small, expected_min_num, rmode);
+	TEST(fminimum_num, double, small, big, expected_min_num, rmode);
+	TEST(fminimum_numl, long double, big, small, expected_min_num, rmode);
+	TEST(fminimum_numl, long double, small, big, expected_min_num, rmode);
+}
+
 /*
  * Test all the functions: fmaximumf, fmaximum, fmaximuml, fminimumf, fminimum, fminimuml
  * in all rounding modes and with the arguments in different orders.
@@ -95,6 +146,8 @@ testall(long double big, long double small)
 	for (i = 0; i < 4; i++) {
 		fesetround(rmodes[i]);
 		testall_r(big, small, rmodes[i]);
+		testall_mag_r(big, small, rmodes[i]);
+		testall_num_r(big, small, rmodes[i]);
 	}
 }
 
@@ -169,6 +222,24 @@ ATF_TC_BODY(test12, tc)
 }
 
 
+ATF_TC_WITHOUT_HEAD(test13);
+ATF_TC_BODY(test13, tc)
+{
+        testall(2.0, -2.0);
+}
+
+ATF_TC_WITHOUT_HEAD(test14);
+ATF_TC_BODY(test14, tc)
+{
+        testall(-0.0, -0.0);
+}
+
+ATF_TC_WITHOUT_HEAD(test15);
+ATF_TC_BODY(test15, tc)
+{
+        testall(0.0, 0.0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, test1);
@@ -183,6 +254,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, test10);
 	ATF_TP_ADD_TC(tp, test11);
 	ATF_TP_ADD_TC(tp, test12);
+	ATF_TP_ADD_TC(tp, test13);
+	ATF_TP_ADD_TC(tp, test14);
+	ATF_TP_ADD_TC(tp, test15);
 
 	return (atf_no_error());
 }

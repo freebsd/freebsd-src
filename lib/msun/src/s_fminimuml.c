@@ -41,7 +41,7 @@ fminimuml(long double x, long double y)
 	u[1].e = y;
 	mask_nbit_l(u[1]);
 
-	/* Check for NaNs to avoid raising spurious exceptions. */
+	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
 	if (u[0].bits.exp == 32767 && (u[0].bits.manh | u[0].bits.manl) != 0 || 
 	    u[1].bits.exp == 32767 && (u[1].bits.manh | u[1].bits.manl) != 0)
 		return (NAN);

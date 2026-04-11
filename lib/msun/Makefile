@@ -76,7 +76,9 @@ COMMON_SRCS= b_tgamma.c \
 	s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_fma.c s_fmaf.c \
 	s_fmax.c s_fmaxf.c s_fmaximum.c s_fmaximumf.c \
+	s_fmaximum_mag.c s_fmaximum_magf.c s_fmaximum_num.c s_fmaximum_numf.c \
 	s_fmin.c s_fminf.c s_fminimum.c s_fminimumf.c \
+	s_fminimum_mag.c s_fminimum_magf.c s_fminimum_num.c s_fminimum_numf.c \
 	s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c \
 	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c s_llroundl.c \
@@ -133,7 +135,8 @@ COMMON_SRCS+=	b_tgammal.c catrigl.c \
 	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cexpl.c \
 	s_clogl.c s_cosl.c s_cospil.c s_cprojl.c \
 	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
-	s_fmaxl.c s_fmaximuml.c s_fminl.c s_fminimuml.c \
+	s_fmaxl.c s_fmaximuml.c s_fmaximum_magl.c s_fmaximum_numl.c \
+	s_fminl.c s_fminimuml.c s_fminimum_magl.c s_fminimum_numl.c \
 	s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
 	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
 	s_scalbnl.c s_sinl.c s_sincosl.c s_sinpil.c \
@@ -179,7 +182,8 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 fma.3 \
-	fmax.3 fmaximum.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
+	fmax.3 fmaximum.3 fmaximum_mag.3 fmaximum_num.3 fmod.3 \
+	hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
 	lgamma.3 log.3 lrint.3 lround.3 math.3 nan.3 \
 	nextafter.3 remainder.3 rint.3 \
 	round.3 scalbn.3 signbit.3 sin.3 sincos.3 \
@@ -232,9 +236,15 @@ MLINKS+=floor.3 floorf.3 floor.3 floorl.3
 MLINKS+=fma.3 fmaf.3 fma.3 fmal.3
 MLINKS+=fmax.3 fmaxf.3 fmax.3 fmaxl.3 \
 	fmax.3 fmin.3 fmax.3 fminf.3 fmax.3 fminl.3
-MLINKS+=fmaximum.3 fmaximuml.3 fmaximum.3 fmaximumf.3 \
+MLINKS+=fmaximum.3 fmaximumf.3 fmaximum.3 fmaximuml.3 \
 	fmaximum.3 fminimum.3 fmaximum.3 fminimumf.3 \
 	fmaximum.3 fminimuml.3
+MLINKS+=fmaximum_mag.3 fmaximum_magf.3 fmaximum_mag.3 fmaximum_magl.3 \
+	fmaximum_mag.3 fminimum_mag.3 fmaximum_mag.3 fminimum_magf.3 \
+	fmaximum_mag.3 fminimum_magl.3
+MLINKS+=fmaximum_num.3 fmaximum_numf.3 fmaximum_num.3 fmaximum_numl.3 \
+	fmaximum_num.3 fminimum_num.3 fmaximum_num.3 fminimum_numf.3 \
+	fmaximum_num.3 fminimum_numl.3
 MLINKS+=fmod.3 fmodf.3 fmod.3 fmodl.3
 MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 cabsl.3 \
 	hypot.3 hypotf.3 hypot.3 hypotl.3
