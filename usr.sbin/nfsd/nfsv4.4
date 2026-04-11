@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 8, 2024
+.Dd April, 8, 2026
 .Dt NFSV4 4
 .Os
 .Sh NAME
@@ -106,16 +106,23 @@ The
 allows a limited subset of operations to be performed on non-exported subtrees
 of the local file system, so that traversal of the tree to the exported
 subtrees is possible.
-As such, the ``<rootdir>'' can be in a non-exported file system.
+As such, the
+.Ql <rootdir>
+can be in a non-exported file system.
 The exception is ZFS, which checks exports and, as such, all ZFS file systems
-below the ``<rootdir>'' must be exported.
+below the
+.Ql <rootdir>
+must be exported.
 However,
 the entire tree that is rooted at that point must be in local file systems
 that are of types that can be NFS exported.
 Since the
 .Nm
-file system is rooted at ``<rootdir>'', setting this to anything other
-than ``/'' will result in clients being required to use different mount
+file system is rooted at
+.Ql <rootdir> ,
+setting this to anything other than
+.Ql /
+will result in clients being required to use different mount
 paths for
 .Nm
 than for NFS Version 2 or 3.
@@ -132,9 +139,12 @@ take the form:
 <user>@<dns.domain>
 .Ed
 .sp
-where ``<dns.domain>'' is not the same as the DNS domain used
+where
+.Ql <dns.domain>
+is not the same as the DNS domain used
 for host name lookups, but is usually set to the same string.
-Most systems set this ``<dns.domain>''
+Most systems set this
+.Ql <dns.domain>
 to the domain name part of the machine's
 .Xr hostname 1
 by default.
@@ -154,26 +164,32 @@ either client or server, this daemon must be running.
 The form where the numbers are in the strings can only be used for AUTH_SYS.
 To configure your systems this way, the
 .Xr nfsuserd 8
-daemon does not need to be running on the server, but the following sysctls
-need to be set to 1 on the server.
+daemon should not be running on the NFS systems,
+but the following sysctls
+need to be set to 1 on the NFS server.
 .sp
 .Bd -literal -offset indent -compact
 vfs.nfs.enable_uidtostring
 vfs.nfsd.enable_stringtouid
 .Ed
 .sp
-On the client, the sysctl
+However, on the NFS client
+only the sysctl
 .sp
 .Bd -literal -offset indent -compact
 vfs.nfs.enable_uidtostring
 .Ed
 .sp
-must be set to 1 and the
-.Xr nfsuserd 8
-daemon does not need to be running.
+needs to be set to 1.
 .Pp
-If these strings are not configured correctly, ``ls -l'' will typically
-report a lot of ``nobody'' and ``nogroup'' ownerships.
+If these strings are not configured correctly,
+.Ql ls -l
+will typically
+report a lot of
+.Ql nobody
+and
+.Ql nogroup
+ownerships.
 .Pp
 Although uid/gid numbers are no longer used in the
 .Nm
@@ -204,8 +220,12 @@ plus
 nfsuserd_enable="YES"
 .Ed
 .sp
-if the server is using the ``<user>@<domain>'' form of user/group strings or
-is using the ``-manage-gids'' option for
+if the server is using the
+.Ql <user>@<domain>
+form of user/group strings or
+is using the
+.Ql -manage-gids
+option for
 .Xr nfsuserd 8 .
 .Pp
 In addition, you can set:
@@ -216,7 +236,9 @@ nfsv4_server_only="YES"
 .sp
 to disable support for NFSv2 and NFSv3.
 .Pp
-You will also need to add at least one ``V4:'' line to the
+You will also need to add at least one
+.Ql V4:
+line to the
 .Xr exports 5
 file for
 .Nm
@@ -246,7 +268,9 @@ Disabling local locking can only be done if neither local accesses
 to the exported file systems nor the NLM is operating on them.
 .El
 .sp
-Note that Samba server access would be considered ``local access'' for the above
+Note that Samba server access would be considered
+.Ql local access
+for the above
 discussion.
 .Pp
 To build a kernel with the NFS server that supports
@@ -263,12 +287,16 @@ file.
 .Sh CLIENT MOUNTS
 To do an
 .Nm
-mount, specify the ``nfsv4'' option on the
+mount, specify the
+.Ql nfsv4
+option on the
 .Xr mount_nfs 8
 command line.
 This will force use of the client that supports
 .Nm
-plus set ``tcp'' and
+plus set
+.Ql tcp
+and
 .Nm .
 .Pp
 The
@@ -326,8 +354,8 @@ where the first 4 Ns are the host IP address and the last two are the
 port# in network byte order (all decimal #s in the range 0-255).
 .Pp
 For NFSv4.1 and NFSv4.2, the callback path (called a backchannel) uses the
-same TCP connection as the mount, so none of the above applies and should
-work through gateways without any issues.
+same TCP connection as the mount and, as such, no additional
+configuration is needed for the callback path.
 .Pp
 To build a kernel with the client that supports
 .Nm
@@ -345,7 +373,10 @@ Options can be specified for the
 .Xr nfsuserd 8
 and
 .Xr nfscbd 8
-daemons at boot time via the ``nfsuserd_flags'' and ``nfscbd_flags''
+daemons at boot time via the
+.Ql nfsuserd_flags
+and
+.Ql nfscbd_flags
 .Xr rc.conf 5
 variables.
 .Pp
@@ -356,6 +387,105 @@ It occurs when an nfsd thread tries to do an NFSv4
 / Close RPC as part of acquiring a new vnode.
 If all other nfsd threads are blocked waiting for lock(s) held by this nfsd
 thread, then there is no nfsd thread to service the Close RPC.
+.Sh NFSv4 ROOT FILE SYSTEM
+.Pp
+For an
+.Nm
+root file system, there are a few things that need
+to be done beyond what is needed for an NFSv3 root file system.
+The NFS server must be configured with the
+.Ql <rootdir>
+as
+.Pa /
+so that
+the mount path is the same for
+.Nm
+as NFSv3.
+This is required because the bootstrap code still uses NFSv3.
+.Pp
+The following additional changes are required in the exported
+root file system.
+.sp
+In
+.Xr fstab 5 ,
+the
+.Ql nfsv4
+mount option must be specified in
+the line for the root mount.
+.sp
+In
+.Pa /boot/loader.conf
+the line
+.sp
+.Bd -literal -offset indent -compact
+boot.nfsroot.options="nfsv4"
+.Ed
+.sp
+is needed to tell the kernel to use
+.Nm
+for the root mount.
+Additional mount options may be specified.
+.sp
+If your
+.Nm
+setup is using the form where the uid/gid numbers are in strings,
+the sysctl
+.Ql vfs.nfs.enable_uidtostring
+must be set to one before any NFSv4 read/write mounts are done.
+The recommended way to do this is to put
+.sp
+.Bd -literal -offset indent -compact
+vfs.nfs.enable_uidtostring=1
+.Ed
+.sp
+in
+.Pa /etc/sysctl.conf
+in the FS exported root file system.
+Alternately, if your
+.Nm
+setup is using
+.Ql <user>@<dns.domain>
+via
+.Xr nfsuserd 8
+for uids/gids, then you need the following additional line in
+.Pa /boot/loader.conf
+.sp
+.Bd -literal -offset indent -compact
+boot.nfsroot.user_domain="<dns.domain>"
+.Ed
+.sp
+which tells the booting kernel that you are going to be
+doing mapping via
+.Xr nfsuserd 8
+and what your
+.Ql <dns.domain>
+is.
+The booting kernel will set a few critical mappings to allow
+the boot to proceed until the
+.Xr nfsuserd 8
+daemon is started.
+Then in
+.Pa /etc/rc.conf
+you need the lines
+.sp
+.Bd -literal -offset indent -compact
+nfsuserd_enable="YES"
+nfsuserd_flags="-domain <dns.domain>"
+.Ed
+.sp
+to start the daemon.
+.Pp
+Beyond this, the setup should be the same as would be used
+for an NFSv3 root file system.
+See section
+.Ql Diskless Operation with PXE
+in the
+.Ql Advanced Networking
+chapter of the
+.Ql FreeBSD Handbook ,
+although configuring hosts as fixed addresses in your
+.Ql dhcpd.conf
+might be preferable.
 .Sh FILES
 .Bl -tag -width /var/db/nfs-stablerestart.bak -compact
 .It Pa /var/db/nfs-stablerestart
