@@ -28,34 +28,43 @@
  */
 
 #include <math.h>
+#include <stdbool.h>
 
 #include "fpmath.h"
 
-#ifdef USE_BUILTIN_FMINIMUMF
+#ifdef USE_BUILTIN_FMAXIMUM_NUMF
 float
-fminimumf(float x, float y)
+fmaximum_numf(float x, float y)
 {
-	return (__builtin_fminimumf(x, y));
+	return (__builtin_fmaximum_numf(x, y));
 }
 #else
 float
-fminimumf(float x, float y)
+fmaximum_numf(float x, float y)
 {
 	union IEEEf2bits u[2];
+	bool nan_x, nan_y;
 
 	u[0].f = x;
 	u[1].f = y;
 
-	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
-	if (u[0].bits.exp == 255 && u[0].bits.man != 0 || 
-	    u[1].bits.exp == 255 && u[1].bits.man != 0)
-		return (NAN);
+	nan_x = u[0].bits.exp == 255 && u[0].bits.man != 0;
+	nan_y = u[1].bits.exp == 255 && u[1].bits.man != 0;
+
+	if (nan_x || nan_y) {
+		/* These ternary conditionals force (x+y), so that sNaN's raise exceptions */
+		if (nan_x && nan_y)
+			return (x + y);
+		if (nan_x)
+			return ((x + y) != 0.0 ? y : y);
+		return ((x + y) != 0.0 ? x : x);
+	}
 
 	/* Handle comparisons of signed zeroes. */
 	if (u[0].bits.sign != u[1].bits.sign)
-		return (u[u[1].bits.sign].f);
+		return (u[u[0].bits.sign].f);
 
-	return (x < y ? x : y);
+	return (x > y ? x : y);
 }
 #endif
 

@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
- * Copyright (c) 2026 Jesús Blázquez <jesuscblazquez@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,35 +26,48 @@
  * SUCH DAMAGE.
  */
 
+#include <float.h>
 #include <math.h>
 
 #include "fpmath.h"
 
-#ifdef USE_BUILTIN_FMINIMUMF
-float
-fminimumf(float x, float y)
+#ifdef USE_BUILTIN_FMAXIMUM_MAG
+double
+fmaximum_mag(double x, double y)
 {
-	return (__builtin_fminimumf(x, y));
+	return (__builtin_fmaximum_mag(x, y));
 }
 #else
-float
-fminimumf(float x, float y)
+double
+fmaximum_mag(double x, double y)
 {
-	union IEEEf2bits u[2];
+	union IEEEd2bits u[2];
 
-	u[0].f = x;
-	u[1].f = y;
+	u[0].d = x;
+	u[1].d = y;
 
 	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
-	if (u[0].bits.exp == 255 && u[0].bits.man != 0 || 
-	    u[1].bits.exp == 255 && u[1].bits.man != 0)
+	if ((u[0].bits.exp == 2047 && (u[0].bits.manh | u[0].bits.manl) != 0) ||
+	    (u[1].bits.exp == 2047 && (u[1].bits.manh | u[1].bits.manl) != 0))
 		return (NAN);
 
-	/* Handle comparisons of signed zeroes. */
-	if (u[0].bits.sign != u[1].bits.sign)
-		return (u[u[1].bits.sign].f);
+	double ax = fabs(x);
+	double ay = fabs(y);
 
-	return (x < y ? x : y);
+	if (ay > ax)
+		return (y);
+	if (ax > ay)
+		return (x);
+
+	/* If magnitudes are equal, we break the tie with the sign */
+	if (u[0].bits.sign != u[1].bits.sign)
+		return (u[u[0].bits.sign].d);
+
+	return (x);
 }
+#endif
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(fmaximum_mag, fmaximum_magl);
 #endif
 

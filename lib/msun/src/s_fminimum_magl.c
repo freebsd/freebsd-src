@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
- * Copyright (c) 2026 Jesús Blázquez <jesuscblazquez@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,31 +30,34 @@
 
 #include "fpmath.h"
 
-#ifdef USE_BUILTIN_FMINIMUMF
-float
-fminimumf(float x, float y)
+long double
+fminimum_magl(long double x, long double y)
 {
-	return (__builtin_fminimumf(x, y));
-}
-#else
-float
-fminimumf(float x, float y)
-{
-	union IEEEf2bits u[2];
+	union IEEEl2bits u[2];
 
-	u[0].f = x;
-	u[1].f = y;
+	u[0].e = x;
+	mask_nbit_l(u[0]);
+	u[1].e = y;
+	mask_nbit_l(u[1]);
 
 	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
-	if (u[0].bits.exp == 255 && u[0].bits.man != 0 || 
-	    u[1].bits.exp == 255 && u[1].bits.man != 0)
+	if (u[0].bits.exp == 32767 && (u[0].bits.manh | u[0].bits.manl) != 0 ||
+	    u[1].bits.exp == 32767 && (u[1].bits.manh | u[1].bits.manl) != 0)
 		return (NAN);
 
-	/* Handle comparisons of signed zeroes. */
-	if (u[0].bits.sign != u[1].bits.sign)
-		return (u[u[1].bits.sign].f);
+	long double ax = fabsl(x);
+	long double ay = fabsl(y);
 
-	return (x < y ? x : y);
+	if (ay < ax)
+		return (y);
+	if (ax < ay)
+		return (x);
+
+	/* If magnitudes are equal, we break the tie with the sign */
+	if (u[0].bits.sign != u[1].bits.sign)
+		return (u[1].bits.sign ? y : x);
+
+	return (x);
 }
-#endif
+
 

@@ -326,4 +326,16 @@ FBSD_1.9 {
 	fminimum;
 	fminimumf;
 	fminimuml;
+	fmaximum_mag;
+	fmaximum_magf;
+	fmaximum_magl;
+	fminimum_mag;
+	fminimum_magf;
+	fminimum_magl;
+	fmaximum_num;
+	fmaximum_numf;
+	fmaximum_numl;
+	fminimum_num;
+	fminimum_numf;
+	fminimum_numl;
 };

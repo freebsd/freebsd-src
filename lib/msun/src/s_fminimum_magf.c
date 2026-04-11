@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
- * Copyright (c) 2026 Jesús Blázquez <jesuscblazquez@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,15 +30,15 @@
 
 #include "fpmath.h"
 
-#ifdef USE_BUILTIN_FMINIMUMF
+#ifdef USE_BUILTIN_FMINIMUM_MAGF
 float
-fminimumf(float x, float y)
+fminimum_magf(float x, float y)
 {
-	return (__builtin_fminimumf(x, y));
+	return (__builtin_fminimum_magf(x, y));
 }
 #else
 float
-fminimumf(float x, float y)
+fminimum_magf(float x, float y)
 {
 	union IEEEf2bits u[2];
 
@@ -47,15 +46,24 @@ fminimumf(float x, float y)
 	u[1].f = y;
 
 	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
-	if (u[0].bits.exp == 255 && u[0].bits.man != 0 || 
+	if (u[0].bits.exp == 255 && u[0].bits.man != 0 ||
 	    u[1].bits.exp == 255 && u[1].bits.man != 0)
 		return (NAN);
 
-	/* Handle comparisons of signed zeroes. */
+	float ax = fabsf(x);
+	float ay = fabsf(y);
+
+	if (ay < ax)
+		return (y);
+	if (ax < ay)
+		return (x);
+
+	/* If magnitudes are equal, we break the tie with the sign */
 	if (u[0].bits.sign != u[1].bits.sign)
 		return (u[u[1].bits.sign].f);
 
-	return (x < y ? x : y);
+	return (x);
 }
 #endif
+
 
