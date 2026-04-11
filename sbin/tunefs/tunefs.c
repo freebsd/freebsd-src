@@ -708,13 +708,13 @@ journal_findfile(void)
 }
 
 static void
-dir_clear_block(const dirblock *block, off_t off)
+dir_clear_block(dirblock *block, off_t off)
 {
 	struct direct *dp;
 
 	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
 		assert(off % alignof(struct direct) == 0);
-		dp = (struct direct *)(uintptr_t)(block + off);
+		dp = (struct direct *)(uintptr_t)(block->buf + off);
 		dp->d_ino = 0;
 		dp->d_reclen = DIRBLKSIZ;
 		dp->d_type = DT_UNKNOWN;
