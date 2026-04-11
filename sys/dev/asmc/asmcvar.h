@@ -109,7 +109,7 @@ struct asmc_softc {
 #define ASMC_KEY_FANMANUAL	"FS! "	/* RW; 2 bytes */
 #define ASMC_KEY_FANID		"F%dID"	/* RO; 16 bytes */
 #define ASMC_KEY_FANSPEED	"F%dAc"	/* RO; 2 bytes */
-#define ASMC_KEY_FANMINSPEED	"F%dMn"	/* RO; 2 bytes */
+#define ASMC_KEY_FANMINSPEED	"F%dMn"	/* RW; 2 bytes */
 #define ASMC_KEY_FANMAXSPEED	"F%dMx"	/* RO; 2 bytes */
 #define ASMC_KEY_FANSAFESPEED	"F%dSf"	/* RO; 2 bytes */
 #define ASMC_KEY_FANTARGETSPEED	"F%dTg"	/* RW; 2 bytes */
