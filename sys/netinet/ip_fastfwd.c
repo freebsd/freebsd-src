@@ -294,7 +294,7 @@ ip_tryforward(struct mbuf *m)
 	/*
 	 * Is it for a local address on this host?
 	 */
-	if (in_localip(ip->ip_dst))
+	if (in_localip_fib(ip->ip_dst, M_GETFIB(m)))
 		return m;
 
 	IPSTAT_INC(ips_total);
@@ -329,7 +329,7 @@ ip_tryforward(struct mbuf *m)
 		/*
 		 * Is it now for a local address on this host?
 		 */
-		if (in_localip(dest))
+		if (in_localip_fib(dest, M_GETFIB(m)))
 			goto forwardlocal;
 		/*
 		 * Go on with new destination address
