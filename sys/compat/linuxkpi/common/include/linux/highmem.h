@@ -100,6 +100,19 @@ kmap_local_page(struct page *page)
 }
 
 static inline void *
+kmap_local_folio(struct folio *folio, size_t offset)
+{
+	struct page *page;
+	char *vaddr;
+
+	page = &folio->page;
+	vaddr = kmap_local_page(page);
+	vaddr += offset;
+
+	return (vaddr);
+}
+
+static inline void *
 kmap_local_page_prot(struct page *page, pgprot_t prot)
 {
 
@@ -166,6 +179,15 @@ memcpy_to_page(struct page *page, size_t offset, const char *from, size_t len)
 	to = kmap_local_page(page);
 	memcpy(to + offset, from, len);
 	kunmap_local(to);
+}
+
+static inline void
+memcpy_to_folio(struct folio *folio, size_t offset, const char *from, size_t len)
+{
+	struct page *page;
+
+	page = &folio->page;
+	memcpy_to_page(page, offset, from, len);
 }
 
 #endif	/* _LINUXKPI_LINUX_HIGHMEM_H_ */
