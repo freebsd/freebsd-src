@@ -52,6 +52,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #ifdef INET6
+#include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
@@ -621,6 +622,19 @@ bsd_to_linux_tcp_user_timeout(u_int bsd_timeout)
 
 	return (bsd_timeout * 1000U);
 }
+
+#ifdef INET6
+static int
+linux_to_bsd_icmp6_sockopt(int opt)
+{
+
+	switch (opt) {
+	case LINUX_ICMP6_FILTER:
+		return (ICMP6_FILTER);
+	}
+	return (-1);
+}
+#endif
 
 static int
 linux_to_bsd_msg_flags(int flags)
@@ -2175,6 +2189,29 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 			break;
 		}
 		break;
+#ifdef INET6
+	case IPPROTO_ICMPV6: {
+		struct icmp6_filter f;
+		int i;
+
+		name = linux_to_bsd_icmp6_sockopt(args->optname);
+		if (name != ICMP6_FILTER)
+			break;
+
+		if (args->optlen != sizeof(f))
+			return (EINVAL);
+
+		error = copyin(PTRIN(args->optval), &f, sizeof(f));
+		if (error)
+			return (error);
+
+		/* Linux uses opposite values for pass/block in ICMPv6 */
+		for (i = 0; i < nitems(f.icmp6_filt); i++)
+			f.icmp6_filt[i] = ~f.icmp6_filt[i];
+		return (kern_setsockopt(td, args->s, IPPROTO_ICMPV6,
+		    ICMP6_FILTER, &f, UIO_SYSSPACE, sizeof(f)));
+	}
+#endif
 	case SOL_NETLINK:
 		name = args->optname;
 		break;
@@ -2435,6 +2472,36 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			break;
 		}
 		break;
+#ifdef INET6
+	case IPPROTO_ICMPV6: {
+		struct icmp6_filter f;
+		int i;
+
+		name = linux_to_bsd_icmp6_sockopt(args->optname);
+		if (name != ICMP6_FILTER)
+			break;
+
+		error = copyin(PTRIN(args->optlen), &len, sizeof(len));
+		if (error)
+			return (error);
+		if (len != sizeof(f))
+			return (EINVAL);
+
+		error = kern_getsockopt(td, args->s, IPPROTO_ICMPV6,
+		    ICMP6_FILTER, &f, UIO_SYSSPACE, &len);
+		if (error)
+			return (error);
+
+		/* Linux uses opposite values for pass/block in ICMPv6 */
+		for (i = 0; i < nitems(f.icmp6_filt); i++)
+			f.icmp6_filt[i] = ~f.icmp6_filt[i];
+		error = copyout(&f, PTRIN(args->optval), len);
+		if (error)
+			return (error);
+
+		return (copyout(&len, PTRIN(args->optlen), sizeof(socklen_t)));
+	}
+#endif
 	default:
 		name = -1;
 		break;
