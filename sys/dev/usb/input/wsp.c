@@ -1068,6 +1068,10 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) {
 			evdev_push_key(sc->sc_evdev, BTN_LEFT, ibt);
 			evdev_sync(sc->sc_evdev);
+			if ((sc->sc_fflags & FREAD) == 0 ||
+			     usb_fifo_put_bytes_max(
+			      sc->sc_fifo.fp[USB_FIFO_RX]) == 0)
+				goto tr_setup;
 		}
 #endif
 		sc->sc_status.flags &= ~MOUSE_POSCHANGED;
@@ -1357,7 +1361,12 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		/* check if we can put more data into the FIFO */
-		if (usb_fifo_put_bytes_max(
+		if (
+#ifdef EVDEV_SUPPORT
+		    ((evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) != 0 &&
+		     (sc->sc_state & WSP_EVDEV_OPENED) != 0) ||
+#endif
+		    usb_fifo_put_bytes_max(
 		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
 			usbd_xfer_set_frame_len(xfer, 0,
 			    sc->tp_datalen);
