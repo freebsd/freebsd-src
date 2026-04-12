@@ -165,9 +165,9 @@ VNET_PCPUSTAT_SYSUNINIT(udpstat);
 static void	udp_detach(struct socket *so);
 #endif
 
-INPCBSTORAGE_DEFINE(udpcbstor, udpcb, "udpinp", "udp_inpcb", "udp", "udphash");
+INPCBSTORAGE_DEFINE(udpcbstor, udpcb, "udpinp", "udp_inpcb", "udphash");
 INPCBSTORAGE_DEFINE(udplitecbstor, udpcb, "udpliteinp", "udplite_inpcb",
-    "udplite", "udplitehash");
+    "udplitehash");
 
 static void
 udp_vnet_init(void *arg __unused)

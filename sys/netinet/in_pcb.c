@@ -558,7 +558,6 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
 		.head = HASH_HEAD_CK_LIST,
 	};
 
-	mtx_init(&pcbinfo->ipi_lock, pcbstor->ips_infolock_name, NULL, MTX_DEF);
 	mtx_init(&pcbinfo->ipi_hash_lock, pcbstor->ips_hashlock_name,
 	    NULL, MTX_DEF);
 #ifdef VIMAGE
@@ -602,7 +601,6 @@ in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 	hashfree(pcbinfo->ipi_porthashbase, &ha);
 	hashfree(pcbinfo->ipi_lbgrouphashbase, &ha);
 	mtx_destroy(&pcbinfo->ipi_hash_lock);
-	mtx_destroy(&pcbinfo->ipi_lock);
 }
 
 /*
@@ -697,11 +695,11 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	inp->inp_route.ro_flags = RT_LLE_CACHE;
 	refcount_init(&inp->inp_refcount, 1);   /* Reference from socket. */
 	INP_WLOCK(inp);
-	INP_INFO_WLOCK(pcbinfo);
+	INP_HASH_WLOCK(pcbinfo);
 	pcbinfo->ipi_count++;
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	CK_LIST_INSERT_HEAD(&pcbinfo->ipi_listhead, inp, inp_list);
-	INP_INFO_WUNLOCK(pcbinfo);
+	INP_HASH_WUNLOCK(pcbinfo);
 	so->so_pcb = inp;
 
 	return (0);
@@ -1799,13 +1797,13 @@ in_pcbfree(struct inpcb *inp)
 	 * from the hash without acquiring inpcb lock, they rely on the hash
 	 * lock, thus in_pcbremhash() should be the first action.
 	 */
+	INP_HASH_WLOCK(pcbinfo);
 	if (inp->inp_flags & INP_INHASHLIST)
-		in_pcbremhash(inp);
-	INP_INFO_WLOCK(pcbinfo);
+		in_pcbremhash_locked(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	pcbinfo->ipi_count--;
 	CK_LIST_REMOVE(inp, inp_list);
-	INP_INFO_WUNLOCK(pcbinfo);
+	INP_HASH_WUNLOCK(pcbinfo);
 
 #ifdef RATELIMIT
 	if (inp->inp_snd_tag != NULL)

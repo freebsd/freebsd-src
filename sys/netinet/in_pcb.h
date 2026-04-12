@@ -422,30 +422,23 @@ struct inpcb {
  * IPv4 and IPv6.
  *
  * The pcbs are protected with SMR section and thus all lists in inpcbinfo
- * are CK-lists.  Locking is required to insert a pcb into database. Two
- * locks are provided: one for the hash and one for the global list of pcbs,
- * as well as overall count and generation count.
+ * are CK-lists.  Locking is required to insert a pcb into database.
  *
  * Locking key:
  *
  * (c) Constant or nearly constant after initialisation
  * (e) Protected by SMR section
- * (g) Locked by ipi_lock
  * (h) Locked by ipi_hash_lock
  */
 struct inpcbinfo {
-	/*
-	 * Global lock protecting inpcb list modification
-	 */
-	struct mtx		 ipi_lock;
-	struct inpcbhead	 ipi_listhead;		/* (r:e/w:g) */
-	u_int			 ipi_count;		/* (g) */
+	struct inpcbhead	 ipi_listhead;		/* (r:e/w:h) */
+	u_int			 ipi_count;		/* (h) */
 
 	/*
 	 * Generation count -- incremented each time a connection is allocated
 	 * or freed.
 	 */
-	u_quad_t		 ipi_gencnt;		/* (g) */
+	u_quad_t		 ipi_gencnt;		/* (h) */
 
 	/*
 	 * Fields associated with port lookup and allocation.
@@ -498,11 +491,10 @@ struct inpcbstorage {
 	uma_init	ips_pcbinit;
 	size_t		ips_size;
 	const char *	ips_zone_name;
-	const char *	ips_infolock_name;
 	const char *	ips_hashlock_name;
 };
 
-#define INPCBSTORAGE_DEFINE(prot, ppcb, lname, zname, iname, hname)	\
+#define INPCBSTORAGE_DEFINE(prot, ppcb, lname, zname, hname)		\
 static int								\
 prot##_inpcb_init(void *mem, int size __unused, int flags __unused)	\
 {									\
@@ -515,7 +507,6 @@ static struct inpcbstorage prot = {					\
 	.ips_size = sizeof(struct ppcb),				\
 	.ips_pcbinit = prot##_inpcb_init,				\
 	.ips_zone_name = zname,						\
-	.ips_infolock_name = iname,					\
 	.ips_hashlock_name = hname,					\
 };									\
 SYSINIT(prot##_inpcbstorage_init, SI_SUB_PROTO_DOMAIN,			\
@@ -563,15 +554,6 @@ struct socket *
 	inp_inpcbtosocket(struct inpcb *inp);
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
-
-#define INP_INFO_WLOCK(ipi)	mtx_lock(&(ipi)->ipi_lock)
-#define INP_INFO_WLOCKED(ipi)	mtx_owned(&(ipi)->ipi_lock)
-#define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_lock)
-#define	INP_INFO_LOCK_ASSERT(ipi)	MPASS(SMR_ENTERED((ipi)->ipi_smr) || \
-					mtx_owned(&(ipi)->ipi_lock))
-#define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_lock, MA_OWNED)
-#define INP_INFO_WUNLOCK_ASSERT(ipi)	\
-				mtx_assert(&(ipi)->ipi_lock, MA_NOTOWNED)
 
 #define	INP_HASH_WLOCK(ipi)		mtx_lock(&(ipi)->ipi_hash_lock)
 #define	INP_HASH_WUNLOCK(ipi)		mtx_unlock(&(ipi)->ipi_hash_lock)
