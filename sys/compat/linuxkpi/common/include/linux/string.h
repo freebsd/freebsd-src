@@ -198,6 +198,12 @@ memchr_inv(const void *start, int c, size_t length)
 	return (NULL);
 }
 
+static inline bool
+mem_is_zero(const void *start, size_t length)
+{
+	return (memchr_inv(start, 0, length) == NULL);
+}
+
 static inline size_t
 str_has_prefix(const char *str, const char *prefix)
 {
