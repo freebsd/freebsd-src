@@ -305,7 +305,7 @@ in_pcblbgroup_find(struct inpcb *inp)
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
-	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask)];
+	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
 	CK_LIST_FOREACH(grp, hdr, il_list) {
 		struct inpcb *inp1;
 
@@ -413,7 +413,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 	}
 #endif
 
-	idx = INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask);
+	idx = INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask);
 	hdr = &pcbinfo->ipi_lbgrouphashbase[idx];
 	CK_LIST_FOREACH(grp, hdr, il_list) {
 		if (grp->il_cred->cr_prison == inp->inp_cred->cr_prison &&
@@ -474,7 +474,7 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
-	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask)];
+	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
 	CK_LIST_FOREACH(grp, hdr, il_list) {
 		for (i = 0; i < grp->il_inpcnt; ++i) {
 			if (grp->il_inp[i] != inp)
@@ -545,9 +545,6 @@ in_pcblbgroup_numa(struct inpcb *inp, int arg)
 	return (error);
 }
 
-/* Make sure it is safe to use hashinit(9) on CK_LIST. */
-CTASSERT(sizeof(struct inpcbhead) == sizeof(LIST_HEAD(, inpcb)));
-
 /*
  * Initialize an inpcbinfo - a per-VNET instance of connections db.
  */
@@ -555,6 +552,11 @@ void
 in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
     u_int hash_nelements, u_int porthash_nelements)
 {
+	struct hashalloc_args ha = {
+		.mtype = M_PCB,
+		.mflags = M_WAITOK,
+		.head = HASH_HEAD_CK_LIST,
+	};
 
 	mtx_init(&pcbinfo->ipi_lock, pcbstor->ips_infolock_name, NULL, MTX_DEF);
 	mtx_init(&pcbinfo->ipi_hash_lock, pcbstor->ips_hashlock_name,
@@ -564,15 +566,17 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
 #endif
 	CK_LIST_INIT(&pcbinfo->ipi_listhead);
 	pcbinfo->ipi_count = 0;
-	pcbinfo->ipi_hash_exact = hashinit(hash_nelements, M_PCB,
-	    &pcbinfo->ipi_hashmask);
-	pcbinfo->ipi_hash_wild = hashinit(hash_nelements, M_PCB,
-	    &pcbinfo->ipi_hashmask);
-	porthash_nelements = imin(porthash_nelements, IPPORT_MAX + 1);
-	pcbinfo->ipi_porthashbase = hashinit(porthash_nelements, M_PCB,
-	    &pcbinfo->ipi_porthashmask);
-	pcbinfo->ipi_lbgrouphashbase = hashinit(porthash_nelements, M_PCB,
-	    &pcbinfo->ipi_lbgrouphashmask);
+
+	ha.size = hash_nelements;
+	pcbinfo->ipi_hash_exact = hashalloc(&ha);
+	pcbinfo->ipi_hash_wild = hashalloc(&ha);
+	pcbinfo->ipi_hashmask = ha.size - 1;
+
+	ha.size = imin(porthash_nelements, IPPORT_MAX + 1);
+	pcbinfo->ipi_porthashbase = hashalloc(&ha);
+	pcbinfo->ipi_lbgrouphashbase = hashalloc(&ha);
+	pcbinfo->ipi_porthashmask = ha.size - 1;
+
 	pcbinfo->ipi_zone = pcbstor->ips_zone;
 	pcbinfo->ipi_smr = uma_zone_get_smr(pcbinfo->ipi_zone);
 }
@@ -583,16 +587,20 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
 void
 in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 {
+	struct hashalloc_args ha = {
+		.mtype = M_PCB,
+		.head = HASH_HEAD_CK_LIST,
+	};
 
 	KASSERT(pcbinfo->ipi_count == 0,
 	    ("%s: ipi_count = %u", __func__, pcbinfo->ipi_count));
 
-	hashdestroy(pcbinfo->ipi_hash_exact, M_PCB, pcbinfo->ipi_hashmask);
-	hashdestroy(pcbinfo->ipi_hash_wild, M_PCB, pcbinfo->ipi_hashmask);
-	hashdestroy(pcbinfo->ipi_porthashbase, M_PCB,
-	    pcbinfo->ipi_porthashmask);
-	hashdestroy(pcbinfo->ipi_lbgrouphashbase, M_PCB,
-	    pcbinfo->ipi_lbgrouphashmask);
+	ha.size = pcbinfo->ipi_hashmask + 1;
+	hashfree(pcbinfo->ipi_hash_exact, &ha);
+	hashfree(pcbinfo->ipi_hash_wild, &ha);
+	ha.size = pcbinfo->ipi_porthashmask + 1;
+	hashfree(pcbinfo->ipi_porthashbase, &ha);
+	hashfree(pcbinfo->ipi_lbgrouphashbase, &ha);
 	mtx_destroy(&pcbinfo->ipi_hash_lock);
 	mtx_destroy(&pcbinfo->ipi_lock);
 }
@@ -2107,7 +2115,7 @@ in_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	NET_EPOCH_ASSERT();
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
-	    INP_PCBPORTHASH(lport, pcbinfo->ipi_lbgrouphashmask)];
+	    INP_PCBPORTHASH(lport, pcbinfo->ipi_porthashmask)];
 
 	/*
 	 * Search for an LB group match based on the following criteria:
