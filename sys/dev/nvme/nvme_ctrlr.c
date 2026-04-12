@@ -1518,8 +1518,8 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 		}
 		if (is_user) {
 			ret = nvme_user_ioctl_req(npc->addr, npc->data_len,
-			    npc->opcode & 0x1, &upages, nitems(upages), &npages,
-			    &req, nvme_npc_done, npc);
+			    npc->opcode & 0x1, &upages, nitems(upages_small),
+			    &npages, &req, nvme_npc_done, npc);
 			if (ret != 0)
 				return (ret);
 		} else
