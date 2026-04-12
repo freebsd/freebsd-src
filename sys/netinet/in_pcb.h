@@ -470,19 +470,18 @@ struct inpcbinfo {
 	struct inpcbhead 	*ipi_hash_exact;	/* (r:e/w:h) */
 	struct inpcbhead 	*ipi_hash_wild;		/* (r:e/w:h) */
 	u_long			 ipi_hashmask;		/* (c) */
+	u_long			 ipi_porthashmask;	/* (h) */
 
 	/*
 	 * Global hash of inpcbs, hashed by only local port number.
 	 */
 	struct inpcbhead	*ipi_porthashbase;	/* (h) */
-	u_long			 ipi_porthashmask;	/* (h) */
 
 	/*
 	 * Load balance groups used for the SO_REUSEPORT_LB option,
 	 * hashed by local port.
 	 */
 	struct	inpcblbgrouphead *ipi_lbgrouphashbase;	/* (r:e/w:h) */
-	u_long			 ipi_lbgrouphashmask;	/* (h) */
 
 	/*
 	 * Pointer to network stack instance
