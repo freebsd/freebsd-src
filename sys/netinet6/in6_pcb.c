@@ -112,18 +112,16 @@
 #include <netinet6/in6_fib.h>
 #include <netinet6/scope6_var.h>
 
-int
-in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
+static int
+in6_pcbsetport_locked(struct in6_addr *laddr, struct inpcb *inp,
+    struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0;
 	int error, lookupflags = 0;
-#ifdef INVARIANTS
-	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-#endif
 
 	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK_ASSERT(pcbinfo);
+	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	error = prison_local_ip6(cred, laddr,
 	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0));
@@ -148,6 +146,18 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 	}
 
 	return (0);
+}
+
+int
+in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
+{
+	int error;
+
+	INP_HASH_WLOCK(inp->inp_pcbinfo);
+	error = in6_pcbsetport_locked(laddr, inp, cred);
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+
+	return (error);
 }
 
 /*
@@ -341,7 +351,8 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
 	if ((flags & INPBIND_FIB) != 0)
 		inp->inp_flags |= INP_BOUNDFIB;
 	if (lport == 0) {
-		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0) {
+		error = in6_pcbsetport_locked(&inp->in6p_laddr, inp, cred);
+		if (__predict_false(error != 0)) {
 			INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 			/* Undo an address bind that may have occurred. */
 			inp->inp_flags &= ~INP_BOUNDFIB;
