@@ -1168,12 +1168,15 @@ openflags(int *flagsp)
 {
 	int flags;
 
+	flags = *flagsp;
+	if ((flags & ~FUSERALLOWED) != 0)
+		return (EINVAL);
+
 	/*
 	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
 	 * may be specified.  On the other hand, for O_PATH any mode
 	 * except O_EXEC is ignored.
 	 */
-	flags = *flagsp;
 	if ((flags & O_PATH) != 0) {
 		flags &= ~O_ACCMODE;
 	} else if ((flags & O_EXEC) != 0) {
