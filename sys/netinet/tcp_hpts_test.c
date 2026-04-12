@@ -175,7 +175,6 @@ dump_tcpcb(struct tcpcb *tp)
 
 	/* Input PCB fields that HPTS uses */
 	KTEST_LOG(ctx, "  inp_flags: 0x%x", inp->inp_flags);
-	KTEST_LOG(ctx, "    INP_DROPPED: %s", (inp->inp_flags & INP_DROPPED) ? "YES" : "NO");
 	KTEST_LOG(ctx, "  inp_flowid: 0x%x", inp->inp_flowid);
 	KTEST_LOG(ctx, "  inp_flowtype: %u", inp->inp_flowtype);
 	KTEST_LOG(ctx, "  inp_numa_domain: %d", inp->inp_numa_domain);
@@ -585,7 +584,7 @@ KTEST_FUNC(tcpcb_initialization)
 	KTEST_EQUAL(tp->t_lro_cpu, 0);
 	KTEST_VERIFY(tp->t_hpts_cpu < pace->rp_num_hptss);
 	KTEST_EQUAL(tp->t_inpcb.inp_refcount, 1);
-	KTEST_VERIFY(!(tp->t_inpcb.inp_flags & INP_DROPPED));
+	KTEST_VERIFY(!(tp->t_flags & TF_DISCONNECTED));
 
 	test_hpts_free_tcpcb(tp);
 	tcp_hptsi_stop(pace);

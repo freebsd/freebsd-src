@@ -517,12 +517,12 @@ tcp_log_remove_id_node(struct inpcb *inp, struct tcpcb *tp,
 }
 
 #define	RECHECK_INP_CLEAN(cleanup)	do {			\
-	if (inp->inp_flags & INP_DROPPED) {			\
+	tp = intotcpcb(inp);					\
+	if (tp->t_flags & TF_DISCONNECTED) {			\
 		rv = ECONNRESET;				\
 		cleanup;					\
 		goto done;					\
 	}							\
-	tp = intotcpcb(inp);					\
 } while (0)
 
 #define	RECHECK_INP()	RECHECK_INP_CLEAN(/* noop */)
@@ -2254,10 +2254,9 @@ tcp_log_getlogbuf(struct sockopt *sopt, struct tcpcb *tp)
 
 	if (error) {
 		/* Restore list */
+		tp = intotcpcb(inp);
 		INP_WLOCK(inp);
-		if ((inp->inp_flags & INP_DROPPED) == 0) {
-			tp = intotcpcb(inp);
-
+		if ((tp->t_flags & TF_DISCONNECTED) == 0) {
 			/* Merge the two lists. */
 			STAILQ_CONCAT(&log_tailq, &tp->t_logs);
 			tp->t_logs = log_tailq;
@@ -2428,14 +2427,14 @@ tcp_log_dump_tp_logbuf(struct tcpcb *tp, char *reason, int how, bool force)
 		 * may end up dropping some entries. That seems like a
 		 * small price to pay for safety.
 		 */
-		if (inp->inp_flags & INP_DROPPED) {
+		tp = intotcpcb(inp);
+		if (tp->t_flags & TF_DISCONNECTED) {
 			free(entry, M_TCPLOGDEV);
 #ifdef TCPLOG_DEBUG_COUNTERS
 			counter_u64_add(tcp_log_que_fail2, 1);
 #endif
 			return (ECONNRESET);
 		}
-		tp = intotcpcb(inp);
 		if (tp->t_lognum == 0) {
 			free(entry, M_TCPLOGDEV);
 			return (0);
@@ -2871,14 +2870,14 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 
 	/* quick check to see if logging is enabled for this connection */
 	tp = intotcpcb(inp);
-	if ((inp->inp_flags & INP_DROPPED) ||
+	if ((tp->t_flags & TF_DISCONNECTED) ||
 	    (tp->_t_logstate == TCP_LOG_STATE_OFF)) {
 		return;
 	}
 
 	INP_WLOCK(inp);
 	/* double check log state now that we have the lock */
-	if (inp->inp_flags & INP_DROPPED)
+	if (tp->t_flags & TF_DISCONNECTED)
 		goto done;
 	if (tcp_bblogging_on(tp)) {
 		struct timeval tv;

@@ -2551,10 +2551,11 @@ tcp_close(struct tcpcb *tp)
 	tcp_timer_stop(tp);
 	if (tp->t_fb->tfb_tcp_timer_stop_all != NULL)
 		tp->t_fb->tfb_tcp_timer_stop_all(tp);
-	in_pcbdrop(inp);
+	in_pcbdisconnect(inp);
 	TCPSTAT_INC(tcps_closed);
 	if (tp->t_state != TCPS_CLOSED)
 		tcp_state_change(tp, TCPS_CLOSED);
+	tp->t_flags |= TF_DISCONNECTED;
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	tcp_free_sackholes(tp);
 	soisdisconnected(so);

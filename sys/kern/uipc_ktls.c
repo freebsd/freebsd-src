@@ -870,21 +870,15 @@ ktls_clone_session(struct ktls_session *tls, int direction)
 static int
 ktls_try_toe(struct socket *so, struct ktls_session *tls, int direction)
 {
-	struct inpcb *inp;
-	struct tcpcb *tp;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 	int error;
 
-	inp = so->so_pcb;
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}
-	if (inp->inp_socket == NULL) {
-		INP_WUNLOCK(inp);
-		return (ECONNRESET);
-	}
-	tp = intotcpcb(inp);
 	if (!(tp->t_flags & TF_TOE)) {
 		INP_WUNLOCK(inp);
 		return (EOPNOTSUPP);
@@ -923,19 +917,14 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	union if_snd_tag_alloc_params params;
 	struct ifnet *ifp;
 	struct nhop_object *nh;
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 	int error;
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
-	if (inp->inp_socket == NULL) {
-		INP_RUNLOCK(inp);
-		return (ECONNRESET);
-	}
-	tp = intotcpcb(inp);
 
 	/*
 	 * Check administrative controls on ifnet TLS to determine if
@@ -1027,11 +1016,7 @@ ktls_alloc_rcv_tag(struct inpcb *inp, struct ktls_session *tls,
 		return (ENXIO);
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		INP_RUNLOCK(inp);
-		return (ECONNRESET);
-	}
-	if (inp->inp_socket == NULL) {
+	if (intotcpcb(inp)->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -1506,22 +1491,14 @@ ktls_get_rx_mode(struct socket *so, int *modep)
 int
 ktls_get_rx_sequence(struct inpcb *inp, uint32_t *tcpseq, uint64_t *tlsseq)
 {
-	struct socket *so;
-	struct tcpcb *tp;
+	struct socket *so = inp->inp_socket;
+	struct tcpcb *tp = intotcpcb(inp);
 
 	INP_RLOCK(inp);
-	so = inp->inp_socket;
-	if (__predict_false(so == NULL)) {
-		INP_RUNLOCK(inp);
-		return (EINVAL);
-	}
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
-
-	tp = intotcpcb(inp);
-	MPASS(tp != NULL);
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	*tcpseq = tp->rcv_nxt - so->so_rcv.sb_tlscc;
@@ -1697,7 +1674,7 @@ ktls_reset_receive_tag(void *context, int pending)
 	ifp = NULL;
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (intotcpcb(inp)->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		goto out;
 	}
@@ -1818,8 +1795,8 @@ ktls_reset_send_tag(void *context, int pending)
 	} else {
 		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
-		if (!(inp->inp_flags & INP_DROPPED)) {
-			tp = intotcpcb(inp);
+		tp = intotcpcb(inp);
+		if (!(tp->t_flags & TF_DISCONNECTED)) {
 			CURVNET_SET(inp->inp_vnet);
 			tp = tcp_drop(tp, ECONNABORTED);
 			CURVNET_RESTORE();
@@ -2461,25 +2438,18 @@ ktls_resync_ifnet(struct socket *so, uint32_t tls_len, uint64_t tls_rcd_num)
 {
 	union if_snd_tag_modify_params params;
 	struct m_snd_tag *mst;
-	struct inpcb *inp;
-	struct tcpcb *tp;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 
 	mst = so->so_rcv.sb_tls_info->snd_tag;
 	if (__predict_false(mst == NULL))
 		return (EINVAL);
 
-	inp = sotoinpcb(so);
-	if (__predict_false(inp == NULL))
-		return (EINVAL);
-
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
-
-	tp = intotcpcb(inp);
-	MPASS(tp != NULL);
 
 	/* Get the TCP sequence number of the next valid TLS header. */
 	SOCKBUF_LOCK(&so->so_rcv);
@@ -2500,12 +2470,11 @@ ktls_drop(struct socket *so, int error)
 {
 	struct epoch_tracker et;
 	struct inpcb *inp = sotoinpcb(so);
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 
 	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
-	if (!(inp->inp_flags & INP_DROPPED)) {
-		tp = intotcpcb(inp);
+	if (!(tp->t_flags & TF_DISCONNECTED)) {
 		CURVNET_SET(inp->inp_vnet);
 		tp = tcp_drop(tp, error);
 		CURVNET_RESTORE();
@@ -3372,7 +3341,8 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	INP_WLOCK(inp);
 	so = inp->inp_socket;
 	MPASS(so != NULL);
-	if (inp->inp_flags & INP_DROPPED) {
+	tp = intotcpcb(inp);
+	if (tp->t_flags & TF_DISCONNECTED) {
 		goto out;
 	}
 
@@ -3383,8 +3353,7 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	if (err == 0) {
 		counter_u64_add(ktls_ifnet_disable_ok, 1);
 		/* ktls_set_tx_mode() drops inp wlock, so recheck flags */
-		if ((inp->inp_flags & INP_DROPPED) == 0 &&
-		    (tp = intotcpcb(inp)) != NULL &&
+		if ((tp->t_flags & TF_DISCONNECTED) == 0 &&
 		    tp->t_fb->tfb_hwtls_change != NULL)
 			(*tp->t_fb->tfb_hwtls_change)(tp, 0);
 	} else {

@@ -789,7 +789,7 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF_TSO		0x01000000	/* TSO enabled on this connection */
 #define	TF_TOE		0x02000000	/* this connection is offloaded */
 #define	TF_CLOSED	0x04000000	/* close(2) called on socket */
-#define	TF_UNUSED	0x08000000	/* was TF_SENTSYN */
+#define	TF_DISCONNECTED	0x08000000	/* went through tcp_close() */
 #define	TF_LRD		0x10000000	/* Lost Retransmission Detection */
 #define	TF_CONGRECOVERY	0x20000000	/* congestion recovery mode */
 #define	TF_WASCRECOVERY	0x40000000	/* was in congestion recovery */

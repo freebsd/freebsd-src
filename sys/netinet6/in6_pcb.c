@@ -489,12 +489,11 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 
-	if ((inp->inp_flags & INP_INHASHLIST) != 0) {
-		in_pcbrehash(inp);
-	} else {
+	if (inp->inp_flags & INP_UNCONNECTED) {
 		error = in_pcbinshash(inp);
 		MPASS(error == 0);
-	}
+	} else
+		in_pcbrehash(inp);
 
 	return (0);
 }
@@ -509,6 +508,7 @@ in6_pcbdisconnect(struct inpcb *inp)
 
 	INP_HASH_WLOCK(inp->inp_pcbinfo);
 	in_pcbremhash(inp);
+	inp->inp_flags |= INP_UNCONNECTED;
 	CK_LIST_INSERT_HEAD(&inp->inp_pcbinfo->ipi_list_unconn, inp,
 	    inp_unconn_list);
 	INP_HASH_WUNLOCK(inp->inp_pcbinfo);

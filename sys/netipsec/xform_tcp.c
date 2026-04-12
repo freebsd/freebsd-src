@@ -76,7 +76,7 @@
 static int
 tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 {
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 	int error, optval;
 
 	if (sopt->sopt_name != TCP_MD5SIG) {
@@ -85,11 +85,10 @@ tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 
 	if (sopt->sopt_dir == SOPT_GET) {
 		INP_RLOCK(inp);
-		if (inp->inp_flags & INP_DROPPED) {
+		if (tp->t_flags & TF_DISCONNECTED) {
 			INP_RUNLOCK(inp);
 			return (ECONNRESET);
 		}
-		tp = intotcpcb(inp);
 		optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
 		INP_RUNLOCK(inp);
 
@@ -103,11 +102,10 @@ tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 
 	/* INP_WLOCK_RECHECK */
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}
-	tp = intotcpcb(inp);
 	if (optval > 0)
 		tp->t_flags |= TF_SIGNATURE;
 	else
