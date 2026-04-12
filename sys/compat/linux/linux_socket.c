@@ -707,6 +707,20 @@ bsd_to_linux_ip_cmsg_type(int cmsg_type)
 	return (-1);
 }
 
+#ifdef INET6
+static int
+bsd_to_linux_ip6_cmsg_type(int cmsg_type)
+{
+	switch (cmsg_type) {
+	case IPV6_2292HOPLIMIT:
+		return (LINUX_IPV6_2292HOPLIMIT);
+	case IPV6_HOPLIMIT:
+		return (LINUX_IPV6_HOPLIMIT);
+	}
+	return (-1);
+}
+#endif
+
 static int
 bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type, int cmsg_level)
 {
@@ -714,6 +728,10 @@ bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type, int cmsg_level)
 
 	if (cmsg_level == IPPROTO_IP)
 		return (bsd_to_linux_ip_cmsg_type(cmsg_type));
+#ifdef INET6
+	if (cmsg_level == IPPROTO_IPV6)
+		return (bsd_to_linux_ip6_cmsg_type(cmsg_type));
+#endif
 	if (cmsg_level != SOL_SOCKET)
 		return (-1);
 
