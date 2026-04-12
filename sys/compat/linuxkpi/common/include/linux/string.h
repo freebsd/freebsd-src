@@ -98,6 +98,12 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 	return (dst);
 }
 
+static inline void *
+kmemdup_array(const void *src, size_t count, size_t element_size, gfp_t gfp)
+{
+	return (kmemdup(src, size_mul(count, element_size), gfp));
+}
+
 /* See slab.h for kvmalloc/kvfree(). */
 static inline void *
 kvmemdup(const void *src, size_t len, gfp_t gfp)
