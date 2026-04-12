@@ -171,6 +171,12 @@ typedef	__pid_t		pid_t;
 #define	FOPENFAILED	O_TTY_INIT
 /* Only for O_PATH files which passed ACCESS FREAD check on open */
 #define	FKQALLOWED	O_RESOLVE_BENEATH
+/* Flags userspace is allowed to pass to openat() */
+#define	FUSERALLOWED	(O_ACCMODE | O_NONBLOCK | O_APPEND | O_SHLOCK | \
+    O_EXLOCK | O_ASYNC | O_SYNC | O_NOFOLLOW | O_CREAT | O_TRUNC | \
+    O_EXCL | O_NOCTTY | O_DIRECT | O_DIRECTORY | O_EXEC | O_TTY_INIT | \
+    O_CLOEXEC | O_VERIFY | O_PATH | O_RESOLVE_BENEATH | O_DSYNC | \
+    O_EMPTY_PATH | O_NAMEDATTR | O_CLOFORK)
 
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)
