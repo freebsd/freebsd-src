@@ -727,22 +727,27 @@ in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, int flags,
 	KASSERT(sin == NULL || sin->sin_len == sizeof(struct sockaddr_in),
 	    ("%s: invalid address length for %p", __func__, sin));
 	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
 	anonport = sin == NULL || sin->sin_port == 0;
+
+	INP_HASH_WLOCK(inp->inp_pcbinfo);
 	error = in_pcbbind_setup(inp, sin, &inp->inp_laddr.s_addr,
 	    &inp->inp_lport, flags, cred);
-	if (error)
+	if (error) {
+		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 		return (error);
+	}
 	if (__predict_false((error = in_pcbinshash(inp)) != 0)) {
+		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 		MPASS(inp->inp_socket->so_options & SO_REUSEPORT_LB);
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
 		inp->inp_flags &= ~INP_BOUNDFIB;
 		return (error);
 	}
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
