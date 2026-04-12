@@ -832,14 +832,9 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 		laddr = &in6a;
 
 		if (inp->inp_lport == 0) {
-			struct inpcbinfo *pcbinfo;
-
 			INP_WLOCK_ASSERT(inp);
 
-			pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
-			INP_HASH_WLOCK(pcbinfo);
 			error = in6_pcbsetport(laddr, inp, td->td_ucred);
-			INP_HASH_WUNLOCK(pcbinfo);
 			if (error != 0) {
 				/* Undo an address bind that may have occurred. */
 				inp->in6p_laddr = in6addr_any;
