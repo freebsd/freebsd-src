@@ -499,10 +499,11 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		toep->ofld_rxq->rx_iscsi_ddp_octets += ip->ip_data_len;
 	}
 
+	tp = intotcpcb(inp);
 	INP_WLOCK(inp);
-	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, pdu_len, inp->inp_flags);
+	if (__predict_false(tp->t_flags & TF_DISCONNECTED)) {
+		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), t_flags 0x%x",
+		    __func__, tid, pdu_len, tp->t_flags);
 		INP_WUNLOCK(inp);
 		icl_cxgbei_conn_pdu_free(NULL, ip);
 		toep->ulpcb2 = NULL;
@@ -513,7 +514,6 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	 * T6+ does not report data PDUs received via DDP without F
 	 * set.  This can result in gaps in the TCP sequence space.
 	 */
-	tp = intotcpcb(inp);
 	MPASS(chip_id(sc) >= CHELSIO_T6 || icp->icp_seq == tp->rcv_nxt);
 	tp->rcv_nxt = icp->icp_seq + pdu_len;
 	tp->t_rcvtime = ticks;
@@ -652,18 +652,17 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		toep->ofld_rxq->rx_iscsi_data_digest_errors++;
 	}
 
+	tp = intotcpcb(inp);
 	INP_WLOCK(inp);
-	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, pdu_len, inp->inp_flags);
+	if (__predict_false(tp->t_flags & TF_DISCONNECTED)) {
+		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), t_flags 0x%x",
+		    __func__, tid, pdu_len, tp->t_flags);
 		INP_WUNLOCK(inp);
 		icl_cxgbei_conn_pdu_free(NULL, ip);
 		toep->ulpcb2 = NULL;
 		m_freem(m);
 		return (0);
 	}
-
-	tp = intotcpcb(inp);
 
 	/*
 	 * If icc is NULL, the connection is being closed in

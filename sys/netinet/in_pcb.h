@@ -181,7 +181,7 @@ struct xinpgen {
 #define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
 #define	INP_BINDANY		0x00001000 /* allow bind to any address */
-#define	INP_INHASHLIST		0x00002000 /* in_pcbinshash() has been called */
+/* 	available		0x00002000 */
 #define	INP_RECVTOS		0x00004000 /* receive incoming IP TOS */
 #define	IN6P_IPV6_V6ONLY	0x00008000 /* restrict AF_INET6 socket for v6 */
 #define	IN6P_PKTINFO		0x00010000 /* receive IP6 dst and I/F */
@@ -194,7 +194,7 @@ struct xinpgen {
 #define	IN6P_AUTOFLOWLABEL	0x00800000 /* attach flowlabel automatically */
 /*	INP_INLBGROUP		0x01000000 private to in_pcb.c */
 #define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
-#define	INP_DROPPED		0x04000000 /* protocol drop flag */
+/*	INP_UNCONNECTED		0x04000000 private to in_pcb.c/in6_pcb.c */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */
 #define	INP_RESERVED_0          0x10000000 /* reserved field */
 #define	INP_BOUNDFIB		0x20000000 /* Bound to a specific FIB. */
@@ -213,10 +213,10 @@ struct xinpgen {
     "\1INP_RECVOPTS\2INP_RECVRETOPTS\3INP_RECVDSTADDR\4INP_HDRINCL" \
     "\5INP_HIGHPORT\6INP_LOWPORT\7INP_ANONPORT\10INP_RECVIF" \
     "\11INP_MTUDISC\12INP_FREED\13INP_RECVTTL\14INP_DONTFRAG" \
-    "\15INP_BINDANY\16INP_INHASHLIST\17INP_RECVTOS\20IN6P_IPV6_V6ONLY" \
+    "\15INP_BINDANY\17INP_RECVTOS\20IN6P_IPV6_V6ONLY" \
     "\21IN6P_PKTINFO\22IN6P_HOPLIMIT\23IN6P_HOPOPTS\24IN6P_DSTOPTS" \
     "\25IN6P_RTHDR\26IN6P_RTHDRDSTOPTS\27IN6P_TCLASS\30IN6P_AUTOFLOWLABEL" \
-    "\31INP_INLBGROUP\32INP_ONESBCAST\33INP_DROPPED\34INP_SOCKREF" \
+    "\31INP_INLBGROUP\32INP_ONESBCAST\33INP_UNCONNECTED\34INP_SOCKREF" \
     "\35INP_RESERVED_0\36INP_BOUNDFIB\37IN6P_RFC2292\40IN6P_MTU"
 
 /*
@@ -650,7 +650,6 @@ int	in_pcbbind_setup(struct inpcb *, struct sockaddr_in *, in_addr_t *,
 	    u_short *, int, struct ucred *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr_in *, struct ucred *);
 void	in_pcbdisconnect(struct inpcb *);
-void	in_pcbdrop(struct inpcb *);
 void	in_pcbfree(struct inpcb *);
 int	in_pcbladdr(const struct inpcb *, struct in_addr *, struct in_addr *,
 	    struct ucred *);

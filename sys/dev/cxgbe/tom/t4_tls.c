@@ -762,7 +762,7 @@ do_tls_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	unsigned int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
 	struct inpcb *inp = toep->inp;
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 	int len;
 
 	/* XXX: Should this match do_rx_data instead? */
@@ -781,9 +781,9 @@ do_tls_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: payload length mismatch", __func__));
 
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, len, inp->inp_flags);
+	if (tp->t_flags & TF_DISCONNECTED) {
+		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), t_flags 0x%x",
+		    __func__, tid, len, tp->t_flags);
 		INP_WUNLOCK(inp);
 		m_freem(m);
 		return (0);
@@ -803,7 +803,6 @@ do_tls_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 #endif
 	}
 
-	tp = intotcpcb(inp);
 	tp->t_rcvtime = ticks;
 
 #ifdef VERBOSE_TRACES
@@ -824,7 +823,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	unsigned int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
 	struct inpcb *inp = toep->inp;
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so;
 	struct sockbuf *sb;
 	struct mbuf *tls_data;
@@ -851,9 +850,9 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: payload length mismatch", __func__));
 
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, len, inp->inp_flags);
+	if (tp->t_flags & TF_DISCONNECTED) {
+		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), t_flags 0x%x",
+		    __func__, tid, len, tp->t_flags);
 		INP_WUNLOCK(inp);
 		m_freem(m);
 		return (0);
@@ -862,7 +861,6 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	pdu_length = G_CPL_RX_TLS_CMP_PDULENGTH(be32toh(cpl->pdulength_length));
 
 	so = inp_inpcbtosocket(inp);
-	tp = intotcpcb(inp);
 
 #ifdef VERBOSE_TRACES
 	CTR6(KTR_CXGBE, "%s: tid %u PDU len %d len %d seq %u, rcv_nxt %u",

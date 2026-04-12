@@ -246,7 +246,7 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 
 	inp = params->tls.inp;
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (intotcpcb(inp)->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		error = ECONNRESET;
 		goto failed;

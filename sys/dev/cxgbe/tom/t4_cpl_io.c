@@ -245,13 +245,13 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	struct cpl_abort_req *req;
 	int tid = toep->tid;
 	struct inpcb *inp = toep->inp;
-	struct tcpcb *tp = intotcpcb(inp);	/* don't use if INP_DROPPED */
+	struct tcpcb *tp = intotcpcb(inp);
 
 	INP_WLOCK_ASSERT(inp);
 
 	CTR6(KTR_CXGBE, "%s: tid %d (%s), toep_flags 0x%x, inp_flags 0x%x%s",
 	    __func__, toep->tid,
-	    inp->inp_flags & INP_DROPPED ? "inp dropped" :
+	    tp->t_flags & TF_DISCONNECTED ? "TCP disconnected" :
 	    tcpstates[tp->t_state],
 	    toep->flags, inp->inp_flags,
 	    toep->flags & TPF_ABORT_SHUTDOWN ?
@@ -273,7 +273,7 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	req = wrtod(wr);
 
 	INIT_TP_WR_MIT_CPL(req, CPL_ABORT_REQ, tid);
-	if (inp->inp_flags & INP_DROPPED)
+	if (tp->t_flags & TF_DISCONNECTED)
 		req->rsvd0 = htobe32(snd_nxt);
 	else
 		req->rsvd0 = htobe32(tp->snd_nxt);
@@ -284,7 +284,7 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	 * XXX: What's the correct way to tell that the inp hasn't been detached
 	 * from its socket?  Should I even be flushing the snd buffer here?
 	 */
-	if ((inp->inp_flags & INP_DROPPED) == 0) {
+	if ((tp->t_flags & TF_DISCONNECTED) == 0) {
 		struct socket *so = inp->inp_socket;
 
 		if (so != NULL)	/* because I'm not sure.  See comment above */
@@ -1588,8 +1588,8 @@ t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 	struct toepcb *toep = tp->t_toe;
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT((inp->inp_flags & INP_DROPPED) == 0,
-	    ("%s: inp %p dropped.", __func__, inp));
+	KASSERT((tp->t_flags & TF_DISCONNECTED) == 0,
+	    ("%s: tcpcb %p disconnected", __func__, tp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
 	t4_push_data(sc, toep, 0);
@@ -1607,8 +1607,8 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 	struct toepcb *toep = tp->t_toe;
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT((inp->inp_flags & INP_DROPPED) == 0,
-	    ("%s: inp %p dropped.", __func__, inp));
+	KASSERT((tp->t_flags & TF_DISCONNECTED) == 0,
+	    ("%s: tcpcb %p disconnected", __func__, tp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
 	toep->flags |= TPF_SEND_FIN;
@@ -1628,8 +1628,8 @@ t4_send_rst(struct toedev *tod, struct tcpcb *tp)
 	struct toepcb *toep = tp->t_toe;
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT((inp->inp_flags & INP_DROPPED) == 0,
-	    ("%s: inp %p dropped.", __func__, inp));
+	KASSERT((tp->t_flags & TF_DISCONNECTED) == 0,
+	    ("%s: tcpcb %p disconnected", __func__, tp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
 	/* hmmmm */
@@ -1921,7 +1921,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	if ((inp->inp_flags & INP_DROPPED) == 0) {
+	if ((tp->t_flags & TF_DISCONNECTED) == 0) {
 		struct socket *so = inp->inp_socket;
 
 		if (so != NULL)
@@ -2010,16 +2010,15 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	m_adj(m, sizeof(*cpl));
 	len = m->m_pkthdr.len;
 
+	tp = intotcpcb(inp);
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, len, inp->inp_flags);
+	if (tp->t_flags & TF_DISCONNECTED) {
+		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), t_flags 0x%x",
+		    __func__, tid, len, tp->t_flags);
 		INP_WUNLOCK(inp);
 		m_freem(m);
 		return (0);
 	}
-
-	tp = intotcpcb(inp);
 
 	if (__predict_false(ulp_mode(toep) == ULP_MODE_TLS &&
 	   toep->flags & TPF_TLS_RECEIVE)) {
@@ -2170,6 +2169,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	inp = toep->inp;
+	tp = intotcpcb(inp);
 
 	KASSERT(opcode == CPL_FW4_ACK,
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
@@ -2183,10 +2183,8 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		return (0);
 	}
 
-	KASSERT((inp->inp_flags & INP_DROPPED) == 0,
-	    ("%s: inp_flags 0x%x", __func__, inp->inp_flags));
-
-	tp = intotcpcb(inp);
+	KASSERT((tp->t_flags & TF_DISCONNECTED) == 0,
+	    ("%s: t_flags 0x%x", __func__, tp->t_flags));
 
 	if (cpl->flags & CPL_FW4_ACK_FLAGS_SEQVAL) {
 		tcp_seq snd_una = be32toh(cpl->snd_una);
@@ -2627,8 +2625,9 @@ sendanother:
 	/* Inlined tcp_usr_send(). */
 
 	inp = toep->inp;
+	tp = intotcpcb(inp);
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_WUNLOCK(inp);
 		SOCK_IO_SEND_UNLOCK(so);
 		error = ECONNRESET;
@@ -2642,8 +2641,7 @@ sendanother:
 	sbappendstream(sb, m, 0);
 	m = NULL;
 
-	if (!(inp->inp_flags & INP_DROPPED)) {
-		tp = intotcpcb(inp);
+	if (!(tp->t_flags & TF_DISCONNECTED)) {
 		if (moretocome)
 			tp->t_flags |= TF_MORETOCOME;
 		error = tcp_output(tp);

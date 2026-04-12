@@ -41,6 +41,8 @@
  * Definitions shared between netinet/in_pcb.c and netinet6/in6_pcb.c
  */
 
+#define	INP_UNCONNECTED	0x04000000	/* Not inserted into hashes. */
+
 VNET_DECLARE(uint32_t, in_pcbhashseed);
 #define	V_in_pcbhashseed	VNET(in_pcbhashseed)
 

@@ -692,6 +692,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	 */
 	inp->inp_route.ro_flags = RT_LLE_CACHE;
 	refcount_init(&inp->inp_refcount, 1);   /* Reference from socket. */
+	inp->inp_flags |= INP_UNCONNECTED;
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(pcbinfo);
 	pcbinfo->ipi_count++;
@@ -1158,14 +1159,14 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 		lport = inp->inp_lport;
 
 	MPASS(!in_nullhost(inp->inp_laddr) || inp->inp_lport != 0 ||
-	    !(inp->inp_flags & INP_INHASHLIST));
+	    (inp->inp_flags & INP_UNCONNECTED));
 
 	inp->inp_faddr = faddr;
 	inp->inp_fport = sin->sin_port;
 	inp->inp_laddr = laddr;
 	inp->inp_lport = lport;
 
-	if ((inp->inp_flags & INP_INHASHLIST) == 0) {
+	if (inp->inp_flags & INP_UNCONNECTED) {
 		error = in_pcbinshash(inp);
 		MPASS(error == 0);
 	} else
@@ -1426,11 +1427,15 @@ in_pcbdisconnect(struct inpcb *inp)
 	KASSERT(inp->inp_smr == SMR_SEQ_INVALID,
 	    ("%s: inp %p was already disconnected", __func__, inp));
 
+	if (inp->inp_flags & INP_UNCONNECTED)
+		return;
+
 	INP_HASH_WLOCK(inp->inp_pcbinfo);
 	in_pcbremhash(inp);
 	CK_LIST_INSERT_HEAD(&inp->inp_pcbinfo->ipi_list_unconn, inp,
 	    inp_unconn_list);
 	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+	inp->inp_flags |= INP_UNCONNECTED;
 
 	if ((inp->inp_socket->so_proto->pr_flags & PR_CONNREQUIRED) == 0) {
 		/* See the comment in in_pcbinshash(). */
@@ -1538,11 +1543,11 @@ inp_smr_lock(struct inpcb *inp, const inp_lookup_t lock)
 {
 
 	/*
-	 * in_pcblookup() family of functions ignore not only freed entries,
-	 * that may be found due to lockless access to the hash, but dropped
-	 * entries, too.
+	 * in_pcblookup() family of functions shall ignore not onlu pcbs that
+	 * had been freed that may be found due to lockless access to the hash,
+	 * but also pcbs that were removed from the hash, but are still around.
 	 */
-	return (_inp_smr_lock(inp, lock, INP_FREED | INP_DROPPED));
+	return (_inp_smr_lock(inp, lock, INP_FREED | INP_UNCONNECTED));
 }
 
 /*
@@ -1837,10 +1842,10 @@ in_pcbfree(struct inpcb *inp)
 	 * lock, thus in_pcbremhash() should be the first action.
 	 */
 	INP_HASH_WLOCK(pcbinfo);
-	if (inp->inp_flags & INP_INHASHLIST)
-		in_pcbremhash(inp);
-	else
+	if (inp->inp_flags & INP_UNCONNECTED)
 		CK_LIST_REMOVE(inp, inp_unconn_list);
+	else
+		in_pcbremhash(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	pcbinfo->ipi_count--;
 	INP_HASH_WUNLOCK(pcbinfo);
@@ -1899,36 +1904,6 @@ inpcb_fini(void *mem, int size)
 	struct inpcb *inp = mem;
 
 	INP_LOCK_DESTROY(inp);
-}
-
-/*
- * in_pcbdrop() removes an inpcb from hashed lists, releasing its address and
- * port reservation, and preventing it from being returned by inpcb lookups.
- *
- * It is used by TCP to mark an inpcb as unused and avoid future packet
- * delivery or event notification when a socket remains open but TCP has
- * closed.  This might occur as a result of a shutdown()-initiated TCP close
- * or a RST on the wire, and allows the port binding to be reused while still
- * maintaining the invariant that so_pcb always points to a valid inpcb until
- * in_pcbdetach().
- *
- * XXXRW: Possibly in_pcbdrop() should also prevent future notifications by
- * in_pcbpurgeif0()?
- */
-void
-in_pcbdrop(struct inpcb *inp)
-{
-
-	INP_WLOCK_ASSERT(inp);
-
-	inp->inp_flags |= INP_DROPPED;
-	if (inp->inp_flags & INP_INHASHLIST) {
-		INP_HASH_WLOCK(inp->inp_pcbinfo);
-		in_pcbremhash(inp);
-		CK_LIST_INSERT_HEAD(&inp->inp_pcbinfo->ipi_list_unconn, inp,
-		    inp_unconn_list);
-		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
-	}
 }
 
 #ifdef INET
@@ -2691,8 +2666,7 @@ in_pcbinshash(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
-	KASSERT((inp->inp_flags & INP_INHASHLIST) == 0,
-	    ("in_pcbinshash: INP_INHASHLIST"));
+	MPASS(inp->inp_flags & INP_UNCONNECTED);
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
@@ -2751,7 +2725,7 @@ in_pcbinshash(struct inpcb *inp)
 			_in_pcbinshash_wild(pcbhash, inp);
 	}
 	CK_LIST_INSERT_HEAD(pcbporthash, inp, inp_portlist);
-	inp->inp_flags |= INP_INHASHLIST;
+	inp->inp_flags &= ~INP_UNCONNECTED;
 
 	return (0);
 }
@@ -2762,7 +2736,7 @@ in_pcbremhash(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
-	MPASS(inp->inp_flags & INP_INHASHLIST);
+	MPASS(!(inp->inp_flags & INP_UNCONNECTED));
 
 	if ((inp->inp_flags & INP_INLBGROUP) != 0)
 		in_pcbremlbgrouphash(inp);
@@ -2781,7 +2755,6 @@ in_pcbremhash(struct inpcb *inp)
 			CK_LIST_REMOVE(inp, inp_hash_exact);
 	}
 	CK_LIST_REMOVE(inp, inp_portlist);
-	inp->inp_flags &= ~INP_INHASHLIST;
 }
 
 /*
@@ -2800,8 +2773,7 @@ in_pcbrehash(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
-	KASSERT(inp->inp_flags & INP_INHASHLIST,
-	    ("%s: !INP_INHASHLIST", __func__));
+	MPASS(!(inp->inp_flags & INP_UNCONNECTED));
 	KASSERT(inp->inp_smr == SMR_SEQ_INVALID,
 	    ("%s: inp was disconnected", __func__));
 
@@ -3040,7 +3012,13 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 	}
 	while ((inp = inp_next(&inpi)) != NULL)
 		if (inp->inp_gencnt == params->sop_id) {
-			if (inp->inp_flags & INP_DROPPED) {
+			/*
+			 * XXXGL
+			 * 1) the inp_next() that ignores INP_UNCONNECTED needs
+			 * to be generally supported.
+			 * 2) Why do we ECONNRESET instead of continueing?
+			 */
+			if (inp->inp_flags & INP_UNCONNECTED) {
 				INP_WUNLOCK(inp);
 				return (ECONNRESET);
 			}
@@ -3269,7 +3247,7 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 	 * down, allocating a new send tag is not allowed. Else send
 	 * tags may leak.
 	 */
-	if (*st != NULL || (inp->inp_flags & INP_DROPPED) != 0)
+	if (*st != NULL || (inp->inp_flags & INP_UNCONNECTED))
 		return (EINVAL);
 
 	error = m_snd_tag_alloc(ifp, &params, st);
