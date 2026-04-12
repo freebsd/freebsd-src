@@ -565,6 +565,9 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_HASH_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_hash_lock, \
 					MA_OWNED)
 
+VNET_DECLARE(uint32_t, in_pcbhashseed);
+#define	V_in_pcbhashseed	VNET(in_pcbhashseed)
+
 /*
  * Wildcard matching hash is not just a microoptimisation!  The hash for
  * wildcard IPv4 and wildcard IPv6 must be the same, otherwise AF_INET6
@@ -595,6 +598,10 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 	(IN6_ADDR_JHASH32(faddr) ^ ntohs((lport) ^ (fport)))
 
 #define INP_PCBPORTHASH(lport, mask)	(ntohs((lport)) & (mask))
+
+#define	RIPCB_HASH(inp)	(((inp)->inp_vflag & INP_IPV6) ?		\
+	IN6_ADDR_JHASH32(&(inp)->in6p_faddr) :				\
+	IN_ADDR_JHASH32(&(inp)->inp_faddr))
 
 /*
  * Flags passed to in_pcblookup*(), inp_smr_lock() and inp_next().
@@ -666,6 +673,9 @@ bool	in_pcbrele(struct inpcb *, inp_lookup_t);
 bool	in_pcbrele_rlocked(struct inpcb *);
 bool	in_pcbrele_wlocked(struct inpcb *);
 bool	in_pcbrele_rlock(struct inpcb *inp);
+void	ripcb_connect(struct inpcb *);
+void	ripcb_disconnect(struct inpcb *);
+
 #ifdef _SYS_SOCKETVAR_H_
 void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
 int	sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,

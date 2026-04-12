@@ -43,9 +43,6 @@
 
 #define	INP_UNCONNECTED	0x04000000	/* Not inserted into hashes. */
 
-VNET_DECLARE(uint32_t, in_pcbhashseed);
-#define	V_in_pcbhashseed	VNET(in_pcbhashseed)
-
 void	inp_lock(struct inpcb *inp, const inp_lookup_t lock);
 void	inp_unlock(struct inpcb *inp, const inp_lookup_t lock);
 int	inp_trylock(struct inpcb *inp, const inp_lookup_t lock);
