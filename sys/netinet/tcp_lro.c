@@ -44,6 +44,7 @@
 #include <sys/socketvar.h>
 #include <sys/sockbuf.h>
 #include <sys/sysctl.h>
+#include <sys/hash.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -190,13 +191,19 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	LIST_INIT(&lc->lro_free);
 	LIST_INIT(&lc->lro_active);
 
-	/* create hash table to accelerate entry lookup */
-	lc->lro_hash = phashinit_flags(lro_entries, M_LRO, &lc->lro_hashsz,
-	    HASH_NOWAIT);
+	/* Create hash table to accelerate entry lookup. */
+	struct hashalloc_args ha = {
+		.size = lro_entries,
+		.mtype = M_LRO,
+		.mflags = M_NOWAIT,
+		.type = HASH_TYPE_PRIME,
+	};
+	lc->lro_hash = hashalloc(&ha);
 	if (lc->lro_hash == NULL) {
 		memset(lc, 0, sizeof(*lc));
 		return (ENOMEM);
 	}
+	lc->lro_hashsz = ha.size;
 
 	/* compute size to allocate */
 	size = (lro_mbufs * sizeof(struct lro_mbuf_sort)) +
@@ -206,7 +213,11 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 
 	/* check for out of memory */
 	if (lc->lro_mbuf_data == NULL) {
-		free(lc->lro_hash, M_LRO);
+		struct hashalloc_args ha = {
+			.size = lc->lro_hashsz,
+			.mtype = M_LRO,
+		};
+		hashfree(lc->lro_hash, &ha);
 		memset(lc, 0, sizeof(*lc));
 		return (ENOMEM);
 	}
@@ -503,8 +514,11 @@ tcp_lro_free(struct lro_ctrl *lc)
 		lro_free_mbuf_chain(le->m_head);
 	}
 
-	/* free hash table */
-	free(lc->lro_hash, M_LRO);
+	struct hashalloc_args ha = {
+		.size = lc->lro_hashsz,
+		.mtype = M_LRO,
+	};
+	hashfree(lc->lro_hash, &ha);
 	lc->lro_hash = NULL;
 	lc->lro_hashsz = 0;
 
