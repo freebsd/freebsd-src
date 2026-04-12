@@ -181,7 +181,7 @@ rip_delhash(struct inpcb *inp)
 }
 #endif /* INET */
 
-INPCBSTORAGE_DEFINE(ripcbstor, inpcb, "rawinp", "ripcb", "rip", "riphash");
+INPCBSTORAGE_DEFINE(ripcbstor, inpcb, "rawinp", "ripcb", "riphash");
 
 static void
 rip_init(void *arg __unused)
