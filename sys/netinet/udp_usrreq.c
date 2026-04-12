@@ -1528,6 +1528,7 @@ udp_abort(struct socket *so)
 	INP_WLOCK(inp);
 	if (inp->inp_faddr.s_addr != INADDR_ANY) {
 		in_pcbdisconnect(inp);
+		inp->inp_laddr.s_addr = INADDR_ANY;
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1630,6 +1631,7 @@ udp_close(struct socket *so)
 	INP_WLOCK(inp);
 	if (inp->inp_faddr.s_addr != INADDR_ANY) {
 		in_pcbdisconnect(inp);
+		inp->inp_laddr.s_addr = INADDR_ANY;
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1697,6 +1699,7 @@ udp_disconnect(struct socket *so)
 		return (ENOTCONN);
 	}
 	in_pcbdisconnect(inp);
+	inp->inp_laddr.s_addr = INADDR_ANY;
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
 	SOCK_UNLOCK(so);

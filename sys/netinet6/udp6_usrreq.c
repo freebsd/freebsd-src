@@ -996,6 +996,7 @@ udp6_abort(struct socket *so)
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		in6_pcbdisconnect(inp);
+		memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1105,6 +1106,7 @@ udp6_close(struct socket *so)
 #endif
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		in6_pcbdisconnect(inp);
+		memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1239,6 +1241,7 @@ udp6_disconnect(struct socket *so)
 	}
 
 	in6_pcbdisconnect(inp);
+	memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
 	SOCK_UNLOCK(so);

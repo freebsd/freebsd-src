@@ -542,7 +542,6 @@ in6_pcbdisconnect(struct inpcb *inp)
 		/* See the comment in in_pcbinshash(). */
 		inp->inp_smr = smr_advance(inp->inp_pcbinfo->ipi_smr);
 		/* XXX-MJ torn writes are visible to SMR lookup */
-		memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 		memset(&inp->in6p_faddr, 0, sizeof(inp->in6p_faddr));
 		inp->inp_fport = 0;
 	}
