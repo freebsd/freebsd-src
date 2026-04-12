@@ -162,7 +162,7 @@ hashalloc(struct hashalloc_args *args)
 		size >>= 1;
 		break;
 	case HASH_TYPE_PRIME:
-		for (i = nitems(primes); args->size < primes[i]; i--)
+		for (i = nitems(primes) - 1; args->size < primes[i]; i--)
 			;
 		size = primes[i];
 		break;
