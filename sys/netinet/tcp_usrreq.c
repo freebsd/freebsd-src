@@ -2586,11 +2586,10 @@ unhold:
 static void
 tcp_disconnect(struct tcpcb *tp)
 {
-	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so = tptosocket(tp);
 
 	NET_EPOCH_ASSERT();
-	INP_WLOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	/*
 	 * Neither tcp_close() nor tcp_drop() should return NULL, as the
