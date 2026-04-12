@@ -2621,9 +2621,8 @@ struct pf_ifspeed_v1 {
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
-LIST_HEAD(pf_ksrc_node_list, pf_ksrc_node);
 struct pf_srchash {
-	struct pf_ksrc_node_list		nodes;
+	LIST_HEAD(pf_ksrc_node_list, pf_ksrc_node) nodes;
 	struct mtx			lock;
 };
 

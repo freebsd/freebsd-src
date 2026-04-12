@@ -798,11 +798,11 @@ SYSCTL_NODE(_net, OID_AUTO, pf, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 VNET_DEFINE(u_long, pf_hashmask);
 VNET_DEFINE(u_long, pf_srchashmask);
 VNET_DEFINE(u_long, pf_udpendpointhashmask);
-VNET_DEFINE_STATIC(u_long, pf_hashsize);
+VNET_DEFINE_STATIC(u_long, pf_hashsize) = PF_HASHSIZ;
 #define V_pf_hashsize	VNET(pf_hashsize)
-VNET_DEFINE_STATIC(u_long, pf_srchashsize);
+VNET_DEFINE_STATIC(u_long, pf_srchashsize) = PF_SRCHASHSIZ;
 #define V_pf_srchashsize	VNET(pf_srchashsize)
-VNET_DEFINE_STATIC(u_long, pf_udpendpointhashsize);
+VNET_DEFINE_STATIC(u_long, pf_udpendpointhashsize) = PF_UDPENDHASHSIZ;
 #define V_pf_udpendpointhashsize	VNET(pf_udpendpointhashsize)
 u_long	pf_ioctl_maxcount = 65535;
 
@@ -1429,18 +1429,13 @@ pf_mtag_initialize(void)
 void
 pf_initialize(void)
 {
-	struct pf_keyhash	*kh;
-	struct pf_idhash	*ih;
-	struct pf_srchash	*sh;
-	struct pf_udpendpointhash	*uh;
-	u_int i;
-
-	if (V_pf_hashsize == 0 || !powerof2(V_pf_hashsize))
-		V_pf_hashsize = PF_HASHSIZ;
-	if (V_pf_srchashsize == 0 || !powerof2(V_pf_srchashsize))
-		V_pf_srchashsize = PF_SRCHASHSIZ;
-	if (V_pf_udpendpointhashsize == 0 || !powerof2(V_pf_udpendpointhashsize))
-		V_pf_udpendpointhashsize = PF_UDPENDHASHSIZ;
+	struct hashalloc_args ha = {
+		.mflags = M_NOWAIT,	/* see bf56a3fe47ef4 and bug 209475  */
+		.mtype = M_PFHASH,
+		.type = HASH_TYPE_POWER2,
+		.head = HASH_HEAD_LIST,
+		.lock = HASH_LOCK_MTX,
+	};
 
 	V_pf_hashseed = arc4random();
 
@@ -1450,35 +1445,28 @@ pf_initialize(void)
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
 	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
 	uma_zone_set_warning(V_pf_state_z, "PF states limit reached");
-
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-
-	V_pf_keyhash = mallocarray(V_pf_hashsize, sizeof(struct pf_keyhash),
-	    M_PFHASH, M_NOWAIT | M_ZERO);
-	V_pf_idhash = mallocarray(V_pf_hashsize, sizeof(struct pf_idhash),
-	    M_PFHASH, M_NOWAIT | M_ZERO);
+retry_waitok:
+	ha.size = V_pf_hashsize;
+	ha.lname = "pf_keyhash";
+	ha.lopts = MTX_DEF | MTX_DUPOK;
+	V_pf_keyhash = hashalloc(&ha);
+	ha.lname = "pf_idhash";
+	ha.lopts = MTX_DEF;
+	V_pf_idhash = hashalloc(&ha);
 	if (V_pf_keyhash == NULL || V_pf_idhash == NULL) {
 		printf("pf: Unable to allocate memory for "
 		    "state_hashsize %lu.\n", V_pf_hashsize);
-
-		free(V_pf_keyhash, M_PFHASH);
-		free(V_pf_idhash, M_PFHASH);
-
+		hashfree(V_pf_keyhash, &ha);
+		hashfree(V_pf_idhash, &ha);
 		V_pf_hashsize = PF_HASHSIZ;
-		V_pf_keyhash = mallocarray(V_pf_hashsize,
-		    sizeof(struct pf_keyhash), M_PFHASH, M_WAITOK | M_ZERO);
-		V_pf_idhash = mallocarray(V_pf_hashsize,
-		    sizeof(struct pf_idhash), M_PFHASH, M_WAITOK | M_ZERO);
+		ha.mflags = M_WAITOK;
+		goto retry_waitok;
 	}
-
+	V_pf_hashsize = ha.size;
 	V_pf_hashmask = V_pf_hashsize - 1;
-	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= V_pf_hashmask;
-	    i++, kh++, ih++) {
-		mtx_init(&kh->lock, "pf_keyhash", NULL, MTX_DEF | MTX_DUPOK);
-		mtx_init(&ih->lock, "pf_idhash", NULL, MTX_DEF);
-	}
 
 	/* Source nodes. */
 	V_pf_sources_z = uma_zcreate("pf source nodes",
@@ -1487,45 +1475,40 @@ pf_initialize(void)
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
 	uma_zone_set_warning(V_pf_sources_z, "PF source nodes limit reached");
-
-	V_pf_srchash = mallocarray(V_pf_srchashsize,
-	    sizeof(struct pf_srchash), M_PFHASH, M_NOWAIT | M_ZERO);
+	ha.size = V_pf_srchashsize;
+	ha.lname = "pf_srchash";
+	ha.lopts = MTX_DEF;
+	ha.mflags = M_NOWAIT;
+retry_waitok2:
+	V_pf_srchash = hashalloc(&ha);
 	if (V_pf_srchash == NULL) {
 		printf("pf: Unable to allocate memory for "
 		    "source_hashsize %lu.\n", V_pf_srchashsize);
-
-		V_pf_srchashsize = PF_SRCHASHSIZ;
-		V_pf_srchash = mallocarray(V_pf_srchashsize,
-		    sizeof(struct pf_srchash), M_PFHASH, M_WAITOK | M_ZERO);
+		ha.size = PF_SRCHASHSIZ;
+		ha.mflags = M_WAITOK;
+		goto retry_waitok2;
 	}
-
+	V_pf_srchashmask = ha.size;
 	V_pf_srchashmask = V_pf_srchashsize - 1;
-	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++)
-		mtx_init(&sh->lock, "pf_srchash", NULL, MTX_DEF);
-
 
 	/* UDP endpoint mappings. */
 	V_pf_udp_mapping_z = uma_zcreate("pf UDP mappings",
 	    sizeof(struct pf_udp_mapping), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	V_pf_udpendpointhash = mallocarray(V_pf_udpendpointhashsize,
-	    sizeof(struct pf_udpendpointhash), M_PFHASH, M_NOWAIT | M_ZERO);
+	ha.size = V_pf_udpendpointhashsize;
+	ha.lname = "pf_udpendpointhash";
+	ha.mflags = M_NOWAIT;
+retry_waitok3:
+	V_pf_udpendpointhash = hashalloc(&ha);
 	if (V_pf_udpendpointhash == NULL) {
 		printf("pf: Unable to allocate memory for "
 		    "udpendpoint_hashsize %lu.\n", V_pf_udpendpointhashsize);
-
-		V_pf_udpendpointhashsize = PF_UDPENDHASHSIZ;
-		V_pf_udpendpointhash = mallocarray(V_pf_udpendpointhashsize,
-		    sizeof(struct pf_udpendpointhash), M_PFHASH, M_WAITOK | M_ZERO);
+		ha.size = PF_UDPENDHASHSIZ;
+		ha.mflags = M_WAITOK;
+		goto retry_waitok3;
 	}
-
+	V_pf_udpendpointhashsize = ha.size;
 	V_pf_udpendpointhashmask = V_pf_udpendpointhashsize - 1;
-	for (i = 0, uh = V_pf_udpendpointhash;
-	    i <= V_pf_udpendpointhashmask;
-	    i++, uh++) {
-		mtx_init(&uh->lock, "pf_udpendpointhash", NULL,
-		    MTX_DEF | MTX_DUPOK);
-	}
 
 	/* Anchors */
 	V_pf_anchor_z = uma_zcreate("pf anchors",
@@ -1590,41 +1573,20 @@ pf_mtag_cleanup(void)
 void
 pf_cleanup(void)
 {
-	struct pf_keyhash	*kh;
-	struct pf_idhash	*ih;
-	struct pf_srchash	*sh;
-	struct pf_udpendpointhash	*uh;
+	struct hashalloc_args ha = {
+		.size = V_pf_hashsize,
+		.mtype = M_PFHASH,
+		.head = HASH_HEAD_LIST,
+		.lock = HASH_LOCK_MTX,
+	};
 	struct pf_send_entry	*pfse, *next;
-	u_int i;
 
-	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash;
-	    i <= V_pf_hashmask;
-	    i++, kh++, ih++) {
-		KASSERT(LIST_EMPTY(&kh->keys), ("%s: key hash not empty",
-		    __func__));
-		KASSERT(LIST_EMPTY(&ih->states), ("%s: id hash not empty",
-		    __func__));
-		mtx_destroy(&kh->lock);
-		mtx_destroy(&ih->lock);
-	}
-	free(V_pf_keyhash, M_PFHASH);
-	free(V_pf_idhash, M_PFHASH);
-
-	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
-		KASSERT(LIST_EMPTY(&sh->nodes),
-		    ("%s: source node hash not empty", __func__));
-		mtx_destroy(&sh->lock);
-	}
-	free(V_pf_srchash, M_PFHASH);
-
-	for (i = 0, uh = V_pf_udpendpointhash;
-	    i <= V_pf_udpendpointhashmask;
-	    i++, uh++) {
-		KASSERT(LIST_EMPTY(&uh->endpoints),
-		    ("%s: udp endpoint hash not empty", __func__));
-		mtx_destroy(&uh->lock);
-	}
-	free(V_pf_udpendpointhash, M_PFHASH);
+	hashfree(V_pf_keyhash, &ha);
+	hashfree(V_pf_idhash, &ha);
+	ha.size = V_pf_srchashsize;
+	hashfree(V_pf_srchash, &ha);
+	ha.size = V_pf_udpendpointhashsize;
+	hashfree(V_pf_udpendpointhash, &ha);
 
 	STAILQ_FOREACH_SAFE(pfse, &V_pf_sendqueue, pfse_next, next) {
 		m_freem(pfse->pfse_m);
