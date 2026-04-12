@@ -384,4 +384,7 @@ struct uexterror;
 int __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz);
 int __libc_uexterr_gettext(char *buf, size_t bufsz);
 
+int __impl_openat(int fd, const char *path, int flags, ...);
+int __openat_symlink(int fd, const char *path, int flags, int interposed);
+
 #endif /* _LIBC_PRIVATE_H_ */

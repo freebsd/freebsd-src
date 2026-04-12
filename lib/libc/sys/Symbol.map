@@ -75,3 +75,7 @@ FBSD_1.7 {
 FBSD_1.9 {
 	pdwait;
 };
+
+FBSDprivate_1.0 {
+	__openat_symlink;
+};

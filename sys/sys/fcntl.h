@@ -145,10 +145,10 @@ typedef	__pid_t		pid_t;
 
 /*
  * Emulate MacOSX compatibility flag without consuming a flags bit.
- * It is not fully correct since reads over regular files opened with
- * this definition fail.
+ * Selected bits set does not define a useful open request and is
+ * unlikely to be specified by reasonable code.
  */
-#define	O_SYMLINK	(O_PATH | O_NOFOLLOW)
+#define	O_SYMLINK	(O_PATH | O_DSYNC | O_DIRECT)
 #endif
 
 #if __POSIX_VISIBLE >= 202405
