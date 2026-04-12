@@ -1433,11 +1433,13 @@ in_pcbdisconnect(struct inpcb *inp)
 
 	in_pcbremhash_locked(inp);
 
-	/* See the comment in in_pcbinshash(). */
-	inp->inp_smr = smr_advance(inp->inp_pcbinfo->ipi_smr);
-	inp->inp_laddr.s_addr = INADDR_ANY;
-	inp->inp_faddr.s_addr = INADDR_ANY;
-	inp->inp_fport = 0;
+	if ((inp->inp_socket->so_proto->pr_flags & PR_CONNREQUIRED) == 0) {
+		/* See the comment in in_pcbinshash(). */
+		inp->inp_smr = smr_advance(inp->inp_pcbinfo->ipi_smr);
+		inp->inp_laddr.s_addr = INADDR_ANY;
+		inp->inp_faddr.s_addr = INADDR_ANY;
+		inp->inp_fport = 0;
+	}
 }
 #endif /* INET */
 
