@@ -504,13 +504,14 @@ in6_pcbdisconnect(struct inpcb *inp)
 {
 
 	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 	KASSERT(inp->inp_smr == SMR_SEQ_INVALID,
 	    ("%s: inp %p was already disconnected", __func__, inp));
 
+	INP_HASH_WLOCK(inp->inp_pcbinfo);
 	in_pcbremhash(inp);
 	CK_LIST_INSERT_HEAD(&inp->inp_pcbinfo->ipi_list_unconn, inp,
 	    inp_unconn_list);
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 
 	if ((inp->inp_socket->so_proto->pr_flags & PR_CONNREQUIRED) == 0) {
 		/* See the comment in in_pcbinshash(). */
