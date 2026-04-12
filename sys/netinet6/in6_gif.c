@@ -47,6 +47,7 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/hash.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -86,15 +87,17 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim,
  */
 VNET_DEFINE_STATIC(struct gif_list *, ipv6_hashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list *, ipv6_srchashtbl) = NULL;
+VNET_DEFINE_STATIC(u_int, ipv6_hashmask);
 VNET_DEFINE_STATIC(struct gif_list, ipv6_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
 #define	V_ipv6_srchashtbl	VNET(ipv6_srchashtbl)
+#define	V_ipv6_hashmask		VNET(ipv6_hashmask)
 #define	V_ipv6_list		VNET(ipv6_list)
 
 #define	GIF_HASH(src, dst)	(V_ipv6_hashtbl[\
-    in6_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
+    in6_gif_hashval((src), (dst)) & (V_ipv6_hashmask - 1)])
 #define	GIF_SRCHASH(src)	(V_ipv6_srchashtbl[\
-    fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & (GIF_HASH_SIZE - 1)])
+    fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & (V_ipv6_hashmask - 1)])
 #define	GIF_HASH_SC(sc)		GIF_HASH(&(sc)->gif_ip6hdr->ip6_src,\
     &(sc)->gif_ip6hdr->ip6_dst)
 static uint32_t
@@ -237,8 +240,15 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 			break;
 
 		if (V_ipv6_hashtbl == NULL) {
-			V_ipv6_hashtbl = gif_hashinit();
-			V_ipv6_srchashtbl = gif_hashinit();
+			struct hashalloc_args ha = {
+				.size = GIF_HASH_SIZE,
+				.mtype = M_GIF,
+				.mflags = M_WAITOK,
+				.head = HASH_HEAD_CK_LIST,
+			};
+			V_ipv6_hashtbl = hashalloc(&ha);
+			V_ipv6_srchashtbl = hashalloc(&ha);
+			V_ipv6_hashmask = ha.size - 1;
 		}
 		error = in6_gif_checkdup(sc, &src->sin6_addr,
 		    &dst->sin6_addr);
@@ -469,9 +479,14 @@ in6_gif_uninit(void)
 		ip6_encap_unregister_srcaddr(ipv6_srcaddrtab);
 	}
 	if (V_ipv6_hashtbl != NULL) {
-		gif_hashdestroy(V_ipv6_hashtbl);
+		struct hashalloc_args ha = {
+			.size = V_ipv6_hashmask + 1,
+			.mtype = M_GIF,
+			.head = HASH_HEAD_CK_LIST,
+		};
+		hashfree(V_ipv6_hashtbl, &ha);
 		V_ipv6_hashtbl = NULL;
 		GIF_WAIT();
-		gif_hashdestroy(V_ipv6_srchashtbl);
+		hashfree(V_ipv6_srchashtbl, &ha);
 	}
 }
