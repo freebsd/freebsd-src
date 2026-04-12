@@ -120,6 +120,7 @@ enum tp_type {
 /* list of device capability bits */
 #define	HAS_INTEGRATED_BUTTON	1
 #define	USES_COMPACT_REPORT	2
+#define	SUPPORTS_FORCETOUCH	4
 
 struct tp_type_params {
 	uint8_t	caps;		/* device capability bitmask */
@@ -146,13 +147,13 @@ struct tp_type_params {
 		.delta = 0,
 	},
 	[TYPE4] = {
-		.caps = HAS_INTEGRATED_BUTTON,
+		.caps = HAS_INTEGRATED_BUTTON | SUPPORTS_FORCETOUCH,
 		.button = 31,
 		.offset = 23 * 2,
 		.delta = 2,
 	},
 	[TYPE_MT2U] = {
-		.caps = HAS_INTEGRATED_BUTTON | USES_COMPACT_REPORT,
+		.caps = HAS_INTEGRATED_BUTTON | USES_COMPACT_REPORT | SUPPORTS_FORCETOUCH,
 		.button = 1,
 		.offset = 12,
 		.delta = 0,
@@ -752,7 +753,8 @@ bcm5974_attach(device_t dev)
 	BCM5974_ABS(sc->sc_evdev, ABS_MT_POSITION_X, sc->sc_params->x);
 	BCM5974_ABS(sc->sc_evdev, ABS_MT_POSITION_Y, sc->sc_params->y);
 	/* finger pressure */
-	BCM5974_ABS(sc->sc_evdev, ABS_MT_PRESSURE, sc->sc_params->p);
+	if ((sc->sc_params->tp->caps & SUPPORTS_FORCETOUCH) != 0)
+		BCM5974_ABS(sc->sc_evdev, ABS_MT_PRESSURE, sc->sc_params->p);
 	/* finger touch area */
 	BCM5974_ABS(sc->sc_evdev, ABS_MT_TOUCH_MAJOR, sc->sc_params->w);
 	BCM5974_ABS(sc->sc_evdev, ABS_MT_TOUCH_MINOR, sc->sc_params->w);
