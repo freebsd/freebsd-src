@@ -96,10 +96,6 @@ struct etherip_header {
 
 #define	GIF_WAIT()	epoch_wait_preempt(net_epoch_preempt)
 
-/* Prototypes */
-struct gif_list *gif_hashinit(void);
-void gif_hashdestroy(struct gif_list *);
-
 void gif_input(struct mbuf *, struct ifnet *, int, uint8_t);
 int gif_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	       struct route *);
