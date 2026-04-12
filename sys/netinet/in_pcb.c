@@ -714,46 +714,6 @@ out:
 #endif
 }
 
-#ifdef INET
-int
-in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, int flags,
-    struct ucred *cred)
-{
-	int error;
-	bool anonport;
-
-	KASSERT(sin == NULL || sin->sin_family == AF_INET,
-	    ("%s: invalid address family for %p", __func__, sin));
-	KASSERT(sin == NULL || sin->sin_len == sizeof(struct sockaddr_in),
-	    ("%s: invalid address length for %p", __func__, sin));
-	INP_WLOCK_ASSERT(inp);
-
-	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
-		return (EINVAL);
-	anonport = sin == NULL || sin->sin_port == 0;
-
-	INP_HASH_WLOCK(inp->inp_pcbinfo);
-	error = in_pcbbind_setup(inp, sin, &inp->inp_laddr.s_addr,
-	    &inp->inp_lport, flags, cred);
-	if (error) {
-		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
-		return (error);
-	}
-	if (__predict_false((error = in_pcbinshash(inp)) != 0)) {
-		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
-		MPASS(inp->inp_socket->so_options & SO_REUSEPORT_LB);
-		inp->inp_laddr.s_addr = INADDR_ANY;
-		inp->inp_lport = 0;
-		inp->inp_flags &= ~INP_BOUNDFIB;
-		return (error);
-	}
-	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
-	if (anonport)
-		inp->inp_flags |= INP_ANONPORT;
-	return (0);
-}
-#endif
-
 #if defined(INET) || defined(INET6)
 /*
  * Assign a local port like in_pcb_lport(), but also used with connect()
@@ -1016,9 +976,9 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
  *
  * On error, the values of *laddrp and *lportp are not changed.
  */
-int
-in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
-    u_short *lportp, int flags, struct ucred *cred)
+static int
+in_pcbbind_setup_locked(struct inpcb *inp, struct sockaddr_in *sin,
+    in_addr_t *laddrp, u_short *lportp, int flags, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	struct in_addr laddr;
@@ -1081,6 +1041,59 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 		inp->inp_flags |= INP_BOUNDFIB;
 	return (0);
 }
+
+int
+in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
+    u_short *lportp, int flags, struct ucred *cred)
+{
+	int error;
+
+	INP_HASH_WLOCK(inp->inp_pcbinfo);
+	error = in_pcbbind_setup_locked(inp, sin, laddrp, lportp, flags, cred);
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+
+	return (error);
+}
+
+#ifdef INET
+int
+in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, int flags,
+    struct ucred *cred)
+{
+	int error;
+	bool anonport;
+
+	KASSERT(sin == NULL || sin->sin_family == AF_INET,
+	    ("%s: invalid address family for %p", __func__, sin));
+	KASSERT(sin == NULL || sin->sin_len == sizeof(struct sockaddr_in),
+	    ("%s: invalid address length for %p", __func__, sin));
+	INP_WLOCK_ASSERT(inp);
+
+	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
+		return (EINVAL);
+	anonport = sin == NULL || sin->sin_port == 0;
+
+	INP_HASH_WLOCK(inp->inp_pcbinfo);
+	error = in_pcbbind_setup_locked(inp, sin, &inp->inp_laddr.s_addr,
+	    &inp->inp_lport, flags, cred);
+	if (error) {
+		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+		return (error);
+	}
+	if (__predict_false((error = in_pcbinshash(inp)) != 0)) {
+		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+		MPASS(inp->inp_socket->so_options & SO_REUSEPORT_LB);
+		inp->inp_laddr.s_addr = INADDR_ANY;
+		inp->inp_lport = 0;
+		inp->inp_flags &= ~INP_BOUNDFIB;
+		return (error);
+	}
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+	if (anonport)
+		inp->inp_flags |= INP_ANONPORT;
+	return (0);
+}
+#endif
 
 /*
  * Connect from a socket to a specified address.
