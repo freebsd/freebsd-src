@@ -52,6 +52,7 @@
 #include <sys/sdt.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/hash.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -174,9 +175,6 @@ ipproto_ctlinput_t	*ip_ctlprotox[IPPROTO_MAX] = {
 VNET_DEFINE(struct in_ifaddrhead, in_ifaddrhead);  /* first inet address */
 VNET_DEFINE(struct in_ifaddrhashhead *, in_ifaddrhashtbl); /* inet addr hash table  */
 VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
-
-/* Make sure it is safe to use hashinit(9) on CK_LIST. */
-CTASSERT(sizeof(struct in_ifaddrhashhead) == sizeof(LIST_HEAD(, in_addr)));
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -309,24 +307,32 @@ SYSCTL_PROC(_net_inet_ip, IPCTL_INTRDQDROPS, intr_direct_queue_drops,
 static void
 ip_vnet_init(void *arg __unused)
 {
-	struct pfil_head_args args;
-
 	CK_STAILQ_INIT(&V_in_ifaddrhead);
-	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
+
+	struct hashalloc_args ha = {
+		.size = INADDR_NHASH,
+		.mtype = M_IFADDR,
+		.mflags = M_WAITOK,
+		.head = HASH_HEAD_CK_LIST,
+	};
+	V_in_ifaddrhashtbl = hashalloc(&ha);
+	V_in_ifaddrhmask = ha.size - 1;
 
 	/* Initialize IP reassembly queue. */
 	ipreass_vnet_init();
 
 	/* Initialize packet filter hooks. */
-	args.pa_version = PFIL_VERSION;
-	args.pa_flags = PFIL_IN | PFIL_OUT;
-	args.pa_type = PFIL_TYPE_IP4;
-	args.pa_headname = PFIL_INET_NAME;
-	V_inet_pfil_head = pfil_head_register(&args);
+	struct pfil_head_args pa = {
+		.pa_version = PFIL_VERSION,
+		.pa_flags = PFIL_IN | PFIL_OUT,
+		.pa_type = PFIL_TYPE_IP4,
+		.pa_headname = PFIL_INET_NAME,
+	};
+	V_inet_pfil_head = pfil_head_register(&pa);
 
-	args.pa_flags = PFIL_OUT;
-	args.pa_headname = PFIL_INET_LOCAL_NAME;
-	V_inet_local_pfil_head = pfil_head_register(&args);
+	pa.pa_flags = PFIL_OUT;
+	pa.pa_headname = PFIL_INET_LOCAL_NAME;
+	V_inet_local_pfil_head = pfil_head_register(&pa);
 
 	if (hhook_head_register(HHOOK_TYPE_IPSEC_IN, AF_INET,
 	    &V_ipsec_hhh_in[HHOOK_IPSEC_INET],
@@ -423,7 +429,12 @@ ip_destroy(void *unused __unused)
 	ipreass_destroy();
 
 	/* Cleanup in_ifaddr hash table; should be empty. */
-	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
+	struct hashalloc_args ha = {
+		.mtype = M_IFADDR,
+		.head = HASH_HEAD_CK_LIST,
+		.size = V_in_ifaddrhmask + 1,
+	};
+	hashfree(V_in_ifaddrhashtbl, &ha);
 }
 
 VNET_SYSUNINIT(ip, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip_destroy, NULL);
