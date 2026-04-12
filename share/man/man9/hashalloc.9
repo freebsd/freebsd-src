@@ -1,0 +1,314 @@
+.\"
+.\" Copyright (c) 2026 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 12, 2026
+.Dt HASHALLOC 9
+.Os
+.Sh NAME
+.Nm hashalloc ,
+.Nm hashfree
+.Nd allocate and free kernel hash tables
+.Sh SYNOPSIS
+.In sys/malloc.h
+.In sys/hash.h
+.Ft void *
+.Fn hashalloc "struct hashalloc_args *args"
+.Ft void
+.Fn hashfree "void *table" "struct hashalloc_args *args"
+.Sh DESCRIPTION
+The
+.Fn hashalloc
+and
+.Fn hashfree
+functions provide a flexible kernel programming interface (KPI) for allocating
+and freeing hash tables with configurable bucket headers.
+.Pp
+.Pp
+.Fn hashalloc
+allocates memory for a hash table according to the parameters
+specified in the
+.Fa args
+structure.
+It computes an appropriate number of buckets (adjusting
+.Fa args->size
+as needed based on the requested
+.Fa type ) ,
+allocates memory using
+.Xr malloc 9 ,
+initializes each bucket's queue header (e.g.,
+.Vt LIST_HEAD ,
+.Vt TAILQ_HEAD ,
+etc.), and, if requested, initializes per-bucket locks.
+The returned memory allocation can be used as an array of header structures
+that start with initialized list header of the requested type followed by
+initialized lock of requested type.
+.Pp
+.Fn hashfree
+frees a hash table previously allocated by
+.Fn hashalloc .
+.Pp
+Both functions require the caller to pass the same (or equivalent)
+.Fa struct hashalloc_args
+that specifies the desired configuration of the hash table and has the
+following members:
+.Bd -literal -offset indent
+struct hashalloc_args {
+    /* Required arguments */
+    size_t  size;          /* in: desired buckets, out: allocated */
+    int     mflags;            /* malloc(9) flags */
+    struct malloc_type *mtype; /* malloc(9) type */
+    /* Optional arguments */
+    size_t  hdrsize;            /* bucket header size; 0 = auto */
+    enum {
+        HASH_TYPE_POWER2,
+        HASH_TYPE_PRIME,
+    }       type;               /* default HASH_TYPE_POWER2 */
+    enum {
+        HASH_HEAD_LIST,
+        HASH_HEAD_CK_LIST,
+        HASH_HEAD_SLIST,
+        HASH_HEAD_CK_SLIST,
+        HASH_HEAD_STAILQ,
+        HASH_HEAD_CK_STAILQ,
+        HASH_HEAD_TAILQ,
+    }       head;               /* default HASH_HEAD_LIST */
+    enum {
+        HASH_LOCK_NONE,
+        HASH_LOCK_MTX,
+        HASH_LOCK_RWLOCK,
+        HASH_LOCK_SX,
+        HASH_LOCK_RMLOCK,
+        HASH_LOCK_RMSLOCK,
+    }       lock;               /* default HASH_LOCK_NONE */
+    int     lopts;              /* lock init options */
+    const char *lname;          /* lock name */
+    int  (*ctor)(void *);	/* bucket constructor */
+    void (*dtor)(void *);	/* bucket destructor */
+    /* Returned arguments */
+    int error;                  /* error code in case of failure */
+};
+.Ed
+.Pp
+Argument members
+.Fa size ,
+.Fa mflags
+and
+.Fa mtype
+are required for the
+.Fn hashalloc .
+The argument
+.Fa size ,
+as filled by earlier call to
+.Fn hashalloc ,
+and
+.Fa mtype
+are required for the
+.Fn hashfree .
+The rest of arguments are optional and have reasonable defaults.
+A hash table that was allocated with a non-default allocation arguments shall
+pass the same arguments to
+.Fn hashfree .
+The structure shall be initialized with sparse C99 initializer as it may
+contain opaque extension members.
+The structure may be allocated on the stack of a caller.
+.Bl -tag -width ".Fa hdrsize"
+.It Fa size
+Desired number of buckets for
+.Fn hashalloc .
+Upon a successful return
+.Fn hashalloc
+sets this member to the actual number allocated
+(may be rounded up to power-of-2 or nearest prime).
+The value returned by
+.Fn hashalloc
+shall be later supplied to the
+.Fn hashfree .
+.It Fa mflags , Fa mtype
+Passed directly to
+.Xr malloc 9 .
+.It Fa hdrsize
+Optional member that allows the caller to set a different (increased) size
+of a bucket header.
+.It Fa type
+Bucket count policy:
+.Bl -tag -width ".Dv HASH_TYPE_POWER2"
+.It Dv HASH_TYPE_POWER2
+Rounded up to largest power of two less than or equal to argument
+.Fa size .
+.It Dv HASH_TYPE_PRIME
+Sized to the largest prime number less than or equal to argument
+.Fa size .
+.El
+.Pp
+Default is
+.Dv HASH_TYPE_POWER2 .
+.It Fa head
+Queue header type for each bucket, a
+.Xr queue 3
+or
+Concurrency-kit (CK) type.
+.Bl -tag -width ".Dv HASH_HEAD_CK_STAILQ"
+.It Dv HASH_HEAD_LIST
+.Xr queue 3
+.Fd LIST_HEAD
+.It Dv HASH_HEAD_CK_LIST
+Concurrency-kit
+.Fd CK_LIST_HEAD
+.It Dv HASH_HEAD_SLIST
+.Xr queue 3
+.Fd SLIST_HEAD
+.It Dv HASH_HEAD_CK_SLIST
+Concurrency-kit
+.Fd CK_SLIST_HEAD
+.It Dv HASH_HEAD_STAILQ
+.Xr queue 3
+.Fd STAILQ_HEAD
+.It Dv HASH_HEAD_CK_STAILQ
+Concurrency-kit
+.Fd CK_STAILQ_HEAD
+.It Dv HASH_HEAD_TAILQ
+.Xr queue 3
+.Fd TAILQ_HEAD
+.El
+.Pp
+Default is
+.Dv HASH_HEAD_LIST .
+.It Fa lock
+Synchronization:
+.Bl -tag -width ".Dv HASH_LOCK_RWLOCK"
+.It Dv HASH_LOCK_NONE
+No per-bucket lock.
+.It Dv HASH_LOCK_MTX
+Per-bucket
+.Xr mutex 9 .
+.It Dv HASH_LOCK_RWLOCK
+Per-bucket
+.Xr rwlock 9 .
+.It Dv HASH_LOCK_SX
+Per-bucket
+.Xr sx 9 .
+.It Dv HASH_LOCK_RMLOCK
+Per-bucket
+.Xr rmlock 9 .
+.It Dv HASH_LOCK_RMSLOCK
+Per-bucket sleepable (rms)
+.Xr rmlock 9 .
+.El
+.Pp
+Default is
+.Dv HASH_LOCK_NONE .
+.It Fa lopts
+Options passed to
+.Xr mtx_init 9 ,
+.Xr rw_init 9 ,
+.Xr sx_init 9 ,
+.Xr rm_init 9
+or
+.Xr rms_init 9
+(if locking is enabled).
+.It Fa lname
+Lock name.
+This member is required unless
+.Fa lock
+is
+.Dv HASH_LOCK_NONE .
+.It Fa ctor
+Optional constructor to be called by
+.Fn hashalloc
+for each bucket after list header and lock initialization.
+May fail with error code, yielding in a failure of
+.Fn hashalloc .
+.It Fa dtor
+Optional destructor to be called by
+.Fn hashfree
+for each bucket before lock destructors and list emptyness checks.
+.El
+.Sh RETURN VALUES
+.Fn hashalloc
+returns a pointer to the allocated and initialized hash table on success, or
+.Dv NULL
+on memory allocation failure or constructor failure.
+The
+.Fa error
+member of
+.Fa args
+is set to appropriate error code.
+When
+.Fa mflags
+in
+.Fa args
+contain the
+.Va M_WAITOK
+flag and the
+.Fa ctor
+is either NULL or never fails, then
+.Fn hashalloc
+never fails.
+.Sh EXAMPLES
+A simple mutex-protected hash table using TAILQ buckets:
+.Bd -literal -offset indent
+struct bucket {
+    TAILQ_HEAD(, foo)   head;
+    struct mtx          lock;
+} *table;
+
+struct hashalloc_args args = {
+    .size    = 9000,
+    .mflags  = M_WAITOK,
+    .mtype   = M_FOO,
+    .head    = HASH_HEAD_TAILQ,
+    .lock    = HASH_LOCK_MTX,
+    .lopts   = MTX_DEF,
+    .lname   = "bucket of foo",
+};
+
+table = hashalloc(&args);
+/* Use table as array of struct bucket ... */
+mtx_lock(&table[hash].lock);
+TAILQ_INSERT_HEAD(&table[hash].head, foo, next);
+
+/* Later */
+hashfree(table, &args);
+.Ed
+.Sh SEE ALSO
+.Xr malloc 9 ,
+.Xr mutex 9 ,
+.Xr rmlock 9 ,
+.Xr rwlock 9 ,
+.Xr sx 9 ,
+.Xr queue 3
+.Sh HISTORY
+The
+.Nm
+KPI first appeared in
+.Fx 16.0 .
+It supersedes older interface
+.Fn hashinit ,
+that was available since
+.Bx 4.4 ,
+by offering greater control over the hash table structure and locking
+strategy.
+.Sh AUTHORS
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org
