@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/domain.h>
 #include <sys/filedesc.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -2190,6 +2191,26 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		}
 		break;
 #ifdef INET6
+	case IPPROTO_RAW: {
+		struct file *fp;
+		struct socket *so;
+		int family;
+
+		error = getsock(td, args->s, &cap_setsockopt_rights, &fp);
+		if (error != 0)
+			return (error);
+		so = fp->f_data;
+		family = so->so_proto->pr_domain->dom_family;
+		fdrop(fp, td);
+
+		name = -1;
+		if (family == AF_INET6) {
+			name = linux_to_bsd_ip6_sockopt(args->optname);
+			if (name >= 0)
+				level = IPPROTO_IPV6;
+		}
+		break;
+	}
 	case IPPROTO_ICMPV6: {
 		struct icmp6_filter f;
 		int i;
@@ -2473,6 +2494,26 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		}
 		break;
 #ifdef INET6
+	case IPPROTO_RAW: {
+		struct file *fp;
+		struct socket *so;
+		int family;
+
+		error = getsock(td, args->s, &cap_getsockopt_rights, &fp);
+		if (error != 0)
+			return (error);
+		so = fp->f_data;
+		family = so->so_proto->pr_domain->dom_family;
+		fdrop(fp, td);
+
+		name = -1;
+		if (family == AF_INET6) {
+			name = linux_to_bsd_ip6_sockopt(args->optname);
+			if (name >= 0)
+				level = IPPROTO_IPV6;
+		}
+		break;
+	}
 	case IPPROTO_ICMPV6: {
 		struct icmp6_filter f;
 		int i;
