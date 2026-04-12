@@ -182,6 +182,7 @@ main(int argc, char *argv[])
 
 	/*
 	 * Supervision mode is enabled if one of the following options are used:
+	 * --output-file -o
 	 * --child-pidfile -p
 	 * --supervisor-pidfile -P
 	 * --restart -r / --restart-delay -R
