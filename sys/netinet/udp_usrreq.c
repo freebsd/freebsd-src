@@ -1356,10 +1356,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 				.sin_len = sizeof(struct sockaddr_in),
 			};
 
-			INP_HASH_WLOCK(pcbinfo);
 			error = in_pcbbind(inp, &wild, V_udp_bind_all_fibs ?
 			    0 : INPBIND_FIB, td->td_ucred);
-			INP_HASH_WUNLOCK(pcbinfo);
 			if (error)
 				goto release;
 			lport = inp->inp_lport;
@@ -1599,11 +1597,9 @@ static int
 udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sinp;
 	int error;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_bind: inp == NULL"));
 
@@ -1622,10 +1618,8 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EINVAL);
 
 	INP_WLOCK(inp);
-	INP_HASH_WLOCK(pcbinfo);
 	error = in_pcbbind(inp, sinp, V_udp_bind_all_fibs ? 0 : INPBIND_FIB,
 	    td->td_ucred);
-	INP_HASH_WUNLOCK(pcbinfo);
 	INP_WUNLOCK(inp);
 	return (error);
 }

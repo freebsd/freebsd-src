@@ -297,7 +297,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
 	int error, fib, lookupflags, sooptions;
 
 	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
@@ -310,6 +309,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
 		if ((error = prison_local_ip6(cred, &inp->in6p_laddr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (error);
+		INP_HASH_WLOCK(inp->inp_pcbinfo);
 	} else {
 		KASSERT(sin6->sin6_family == AF_INET6,
 		    ("%s: invalid address family for %p", __func__, sin6));
@@ -326,11 +326,14 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
 		fib = (flags & INPBIND_FIB) != 0 ? inp->inp_inc.inc_fibnum :
 		    RT_ALL_FIBS;
 
+		INP_HASH_WLOCK(inp->inp_pcbinfo);
 		/* See if this address/port combo is available. */
-		error = in6_pcbbind_avail(inp, sin6, fib, sooptions, lookupflags,
-		    cred);
-		if (error != 0)
+		error = in6_pcbbind_avail(inp, sin6, fib, sooptions,
+		    lookupflags, cred);
+		if (error != 0) {
+			INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 			return (error);
+		}
 
 		lport = sin6->sin6_port;
 		inp->in6p_laddr = sin6->sin6_addr;
@@ -339,6 +342,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
 		inp->inp_flags |= INP_BOUNDFIB;
 	if (lport == 0) {
 		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0) {
+			INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 			/* Undo an address bind that may have occurred. */
 			inp->inp_flags &= ~INP_BOUNDFIB;
 			inp->in6p_laddr = in6addr_any;
@@ -347,12 +351,15 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
 	} else {
 		inp->inp_lport = lport;
 		if (in_pcbinshash(inp) != 0) {
+			INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 			inp->inp_flags &= ~INP_BOUNDFIB;
 			inp->in6p_laddr = in6addr_any;
 			inp->inp_lport = 0;
 			return (EAGAIN);
 		}
 	}
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+
 	return (0);
 }
 

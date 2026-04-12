@@ -256,10 +256,8 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = EAFNOSUPPORT;
 		goto out;
 	}
-	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in_pcbbind(inp, sinp, V_tcp_bind_all_fibs ? 0 : INPBIND_FIB,
 	    td->td_ucred);
-	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	tcp_bblog_pru(tp, PRU_BIND, error);
 	TCP_PROBE2(debug__user, tp, PRU_BIND);
@@ -305,7 +303,6 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 	}
 
-	INP_HASH_WLOCK(&V_tcbinfo);
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 #ifdef INET
@@ -318,20 +315,17 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			in6_sin6_2_sin(&sin, sin6);
 			if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 				error = EAFNOSUPPORT;
-				INP_HASH_WUNLOCK(&V_tcbinfo);
 				goto out;
 			}
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
 			error = in_pcbbind(inp, &sin, 0, td->td_ucred);
-			INP_HASH_WUNLOCK(&V_tcbinfo);
 			goto out;
 		}
 	}
 #endif
 	error = in6_pcbbind(inp, sin6, V_tcp_bind_all_fibs ? 0 : INPBIND_FIB,
 	    td->td_ucred);
-	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	if (error != 0)
 		inp->inp_vflag = vflagsav;
@@ -368,10 +362,8 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 		goto out;
 	}
 	if (inp->inp_lport == 0) {
-		INP_HASH_WLOCK(&V_tcbinfo);
 		error = in_pcbbind(inp, NULL,
 		    V_tcp_bind_all_fibs ? 0 : INPBIND_FIB, td->td_ucred);
-		INP_HASH_WUNLOCK(&V_tcbinfo);
 	}
 	if (error == 0) {
 		tcp_state_change(tp, TCPS_LISTEN);
@@ -426,7 +418,6 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 		SOCK_UNLOCK(so);
 		goto out;
 	}
-	INP_HASH_WLOCK(&V_tcbinfo);
 	if (inp->inp_lport == 0) {
 		inp->inp_vflag &= ~INP_IPV4;
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
@@ -434,7 +425,6 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 		error = in6_pcbbind(inp, NULL,
 		    V_tcp_bind_all_fibs ? 0 : INPBIND_FIB, td->td_ucred);
 	}
-	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {
 		tcp_state_change(tp, TCPS_LISTEN);
 		solisten_proto(so, backlog);
