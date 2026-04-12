@@ -871,7 +871,7 @@ rip_detach(struct socket *so)
 }
 
 static void
-rip_dodisconnect(struct socket *so, struct inpcb *inp)
+rip_dodisconnect(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo;
 
@@ -882,9 +882,9 @@ rip_dodisconnect(struct socket *so, struct inpcb *inp)
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	rip_inshash(inp);
 	INP_HASH_WUNLOCK(pcbinfo);
-	SOCK_LOCK(so);
-	so->so_state &= ~SS_ISCONNECTED;
-	SOCK_UNLOCK(so);
+	SOCK_LOCK(inp->inp_socket);
+	inp->inp_socket->so_state &= ~SS_ISCONNECTED;
+	SOCK_UNLOCK(inp->inp_socket);
 	INP_WUNLOCK(inp);
 }
 
@@ -896,7 +896,7 @@ rip_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_abort: inp == NULL"));
 
-	rip_dodisconnect(so, inp);
+	rip_dodisconnect(inp);
 }
 
 static void
@@ -907,7 +907,7 @@ rip_close(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_close: inp == NULL"));
 
-	rip_dodisconnect(so, inp);
+	rip_dodisconnect(inp);
 }
 
 static int
@@ -921,7 +921,7 @@ rip_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_disconnect: inp == NULL"));
 
-	rip_dodisconnect(so, inp);
+	rip_dodisconnect(inp);
 	return (0);
 }
 
