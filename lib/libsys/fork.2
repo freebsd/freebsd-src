@@ -138,6 +138,7 @@ services (
 or
 .Xr rtld 1 )
 are available in the child if forked from multi-threaded parent.
+.Pp
 In particular, if using dynamic linking, all dynamic symbols used by the
 child after
 .Fn _Fork
@@ -151,6 +152,7 @@ option to the static linker
 or by using each symbol before the
 .Fn _Fork
 call to force the binding.
+Either of the methods subtly changes the ABI of the resulting binary.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn fork
