@@ -1644,11 +1644,9 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct epoch_tracker et;
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sin;
 	int error;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_connect: inp == NULL"));
 
@@ -1669,9 +1667,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 	}
 	NET_EPOCH_ENTER(et);
-	INP_HASH_WLOCK(pcbinfo);
 	error = in_pcbconnect(inp, sin, td->td_ucred);
-	INP_HASH_WUNLOCK(pcbinfo);
 	NET_EPOCH_EXIT(et);
 	if (error == 0)
 		soisconnected(so);

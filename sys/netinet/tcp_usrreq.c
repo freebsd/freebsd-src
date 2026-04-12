@@ -1424,9 +1424,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 	if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
 		return (EOPNOTSUPP);
 
-	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in_pcbconnect(inp, sin, td->td_ucred);
-	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error != 0)
 		return (error);
 
@@ -1473,9 +1471,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 	if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
 		return (EOPNOTSUPP);
 
-	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
-	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error != 0)
 		return (error);
 

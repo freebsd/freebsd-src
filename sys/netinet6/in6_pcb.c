@@ -444,7 +444,6 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK_ASSERT(pcbinfo);
 	KASSERT(sin6->sin6_family == AF_INET6,
 	    ("%s: invalid address family for %p", __func__, sin6));
 	KASSERT(sin6->sin6_len == sizeof(*sin6),
@@ -468,23 +467,30 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	 * Call inner routine, to assign local interface address.
 	 * in6_pcbladdr() may automatically fill in sin6_scope_id.
 	 */
+	INP_HASH_WLOCK(pcbinfo);
 	if ((error = in6_pcbladdr(inp, sin6, &laddr6.sin6_addr,
-	    sas_required)) != 0)
+	    sas_required)) != 0) {
+		INP_HASH_WUNLOCK(pcbinfo);
 		return (error);
+	}
 
 	if (in6_pcblookup_hash_locked(pcbinfo, &sin6->sin6_addr,
 	    sin6->sin6_port, IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) ?
 	    &laddr6.sin6_addr : &inp->in6p_laddr, inp->inp_lport, 0,
-	    M_NODOM, RT_ALL_FIBS) != NULL)
+	    M_NODOM, RT_ALL_FIBS) != NULL) {
+		INP_HASH_WUNLOCK(pcbinfo);
 		return (EADDRINUSE);
+	}
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
 		if (inp->inp_lport == 0) {
 			error = in_pcb_lport_dest(inp,
 			    (struct sockaddr *) &laddr6, &inp->inp_lport,
 			    (struct sockaddr *) sin6, sin6->sin6_port, cred,
 			    INPLOOKUP_WILDCARD);
-			if (error)
+			if (__predict_false(error)) {
+				INP_HASH_WUNLOCK(pcbinfo);
 				return (error);
+			}
 		}
 		inp->in6p_laddr = laddr6.sin6_addr;
 	}
@@ -501,6 +507,7 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 		MPASS(error == 0);
 	} else
 		in_pcbrehash(inp);
+	INP_HASH_WUNLOCK(pcbinfo);
 
 	return (0);
 }

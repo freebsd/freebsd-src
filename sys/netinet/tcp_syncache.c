@@ -846,9 +846,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin6.sin6_addr = sc->sc_inc.inc6_faddr;
 		sin6.sin6_port = sc->sc_inc.inc_fport;
 		sin6.sin6_flowinfo = sin6.sin6_scope_id = 0;
-		INP_HASH_WLOCK(&V_tcbinfo);
 		error = in6_pcbconnect(inp, &sin6, thread0.td_ucred, false);
-		INP_HASH_WUNLOCK(&V_tcbinfo);
 		if (error != 0)
 			goto abort;
 		/* Override flowlabel from in6_pcbconnect. */
@@ -875,9 +873,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin.sin_addr = sc->sc_inc.inc_faddr;
 		sin.sin_port = sc->sc_inc.inc_fport;
 		bzero((caddr_t)sin.sin_zero, sizeof(sin.sin_zero));
-		INP_HASH_WLOCK(&V_tcbinfo);
 		error = in_pcbconnect(inp, &sin, thread0.td_ucred);
-		INP_HASH_WUNLOCK(&V_tcbinfo);
 		if (error != 0)
 			goto abort;
 	}
