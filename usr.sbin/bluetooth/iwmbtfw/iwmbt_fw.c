@@ -31,6 +31,7 @@
 #include <sys/endian.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -191,4 +192,108 @@ iwmbt_get_fwname_tlv(struct iwmbt_version_tlv *ver, const char *prefix,
 	    suffix);
 
 	return (fwname);
+}
+
+int
+iwmbt_parse_tlv(uint8_t *data, uint8_t datalen,
+    struct iwmbt_version_tlv *version)
+{
+	uint8_t status, type, len;
+
+	status = *data++;
+	if (status != 0)
+		return (-1);
+	datalen--;
+
+	while (datalen >= 2) {
+		type = *data++;
+		len = *data++;
+		datalen -= 2;
+
+		if (datalen < len)
+			return (-1);
+
+		switch (type) {
+		case IWMBT_TLV_CNVI_TOP:
+			assert(len == 4);
+			version->cnvi_top = le32dec(data);
+			break;
+		case IWMBT_TLV_CNVR_TOP:
+			assert(len == 4);
+			version->cnvr_top = le32dec(data);
+			break;
+		case IWMBT_TLV_CNVI_BT:
+			assert(len == 4);
+			version->cnvi_bt = le32dec(data);
+			break;
+		case IWMBT_TLV_CNVR_BT:
+			assert(len == 4);
+			version->cnvr_bt = le32dec(data);
+			break;
+		case IWMBT_TLV_DEV_REV_ID:
+			assert(len == 2);
+			version->dev_rev_id = le16dec(data);
+			break;
+		case IWMBT_TLV_IMAGE_TYPE:
+			assert(len == 1);
+			version->img_type = *data;
+			break;
+		case IWMBT_TLV_TIME_STAMP:
+			assert(len == 2);
+			version->min_fw_build_cw = data[0];
+			version->min_fw_build_yy = data[1];
+			version->timestamp = le16dec(data);
+			break;
+		case IWMBT_TLV_BUILD_TYPE:
+			assert(len == 1);
+			version->build_type = *data;
+			break;
+		case IWMBT_TLV_BUILD_NUM:
+			assert(len == 4);
+			version->min_fw_build_nn = *data;
+			version->build_num = le32dec(data);
+			break;
+		case IWMBT_TLV_SECURE_BOOT:
+			assert(len == 1);
+			version->secure_boot = *data;
+			break;
+		case IWMBT_TLV_OTP_LOCK:
+			assert(len == 1);
+			version->otp_lock = *data;
+			break;
+		case IWMBT_TLV_API_LOCK:
+			assert(len == 1);
+			version->api_lock = *data;
+			break;
+		case IWMBT_TLV_DEBUG_LOCK:
+			assert(len == 1);
+			version->debug_lock = *data;
+			break;
+		case IWMBT_TLV_MIN_FW:
+			assert(len == 3);
+			version->min_fw_build_nn = data[0];
+			version->min_fw_build_cw = data[1];
+			version->min_fw_build_yy = data[2];
+			break;
+		case IWMBT_TLV_LIMITED_CCE:
+			assert(len == 1);
+			version->limited_cce = *data;
+			break;
+		case IWMBT_TLV_SBE_TYPE:
+			assert(len == 1);
+			version->sbe_type = *data;
+			break;
+		case IWMBT_TLV_OTP_BDADDR:
+			memcpy(&version->otp_bd_addr, data, sizeof(bdaddr_t));
+			break;
+		default:
+			/* Ignore other types */
+			break;
+		}
+
+		datalen -= len;
+		data += len;
+	}
+
+	return (0);
 }
