@@ -57,7 +57,7 @@ struct inpcb *in_pcblookup_local(struct inpcbinfo *, struct in_addr, u_short,
 	    int, int, struct ucred *);
 int     in_pcbinshash(struct inpcb *);
 void    in_pcbrehash(struct inpcb *);
-void    in_pcbremhash_locked(struct inpcb *);
+void    in_pcbremhash(struct inpcb *);
 
 /*
  * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group

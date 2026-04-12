@@ -2841,8 +2841,11 @@ db_print_bblog_state(int state)
 
 static void
 db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog,
-    bool show_inpcb)
+    bool show_inpcb, bool only_locked)
 {
+
+	if (only_locked && tp->t_inpcb.inp_lock.rw_lock == RW_UNLOCKED)
+		return;
 
 	db_print_indent(indent);
 	db_printf("%s at %p\n", name, tp);
@@ -2987,14 +2990,13 @@ DB_SHOW_COMMAND(tcpcb, db_show_tcpcb)
 	show_bblog = strchr(modif, 'b') != NULL;
 	show_inpcb = strchr(modif, 'i') != NULL;
 	tp = (struct tcpcb *)addr;
-	db_print_tcpcb(tp, "tcpcb", 0, show_bblog, show_inpcb);
+	db_print_tcpcb(tp, "tcpcb", 0, show_bblog, show_inpcb, false);
 }
 
 DB_SHOW_ALL_COMMAND(tcpcbs, db_show_all_tcpcbs)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct inpcb *inp;
-	struct tcpcb *tp;
 	bool only_locked, show_bblog, show_inpcb;
 
 	only_locked = strchr(modif, 'l') != NULL;
@@ -3002,18 +3004,23 @@ DB_SHOW_ALL_COMMAND(tcpcbs, db_show_all_tcpcbs)
 	show_inpcb = strchr(modif, 'i') != NULL;
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_listhead, inp_list) {
-			if (only_locked &&
-			    inp->inp_lock.rw_lock == RW_UNLOCKED)
-				continue;
-			tp = intotcpcb(inp);
-			db_print_tcpcb(tp, "tcpcb", 0, show_bblog, show_inpcb);
+		for (u_int i = 0; i <= V_tcbinfo.ipi_porthashmask; i++)
+			CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_porthashbase[i],
+			    inp_portlist) {
+				db_print_tcpcb(intotcpcb(inp), "tcpcb", 0,
+				    show_bblog, show_inpcb, only_locked);
+				if (db_pager_quit)
+					goto break_hash;
+			}
+break_hash:
+		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_list_unconn,
+		    inp_unconn_list) {
+			db_print_tcpcb(intotcpcb(inp), "tcpcb", 0,
+			    show_bblog, show_inpcb, only_locked);
 			if (db_pager_quit)
 				break;
 		}
 		CURVNET_RESTORE();
-		if (db_pager_quit)
-			break;
 	}
 }
 #endif
