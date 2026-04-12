@@ -2833,6 +2833,42 @@ in_pcbrehash(struct inpcb *inp)
 	}
 }
 
+void
+ripcb_connect(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+	uint32_t hash;
+
+	INP_WLOCK_ASSERT(inp);
+	MPASS(inp->inp_flags & INP_UNCONNECTED);
+
+	hash = RIPCB_HASH(inp) & pcbinfo->ipi_hashmask;
+
+	INP_HASH_WLOCK(pcbinfo);
+	CK_LIST_REMOVE(inp, inp_unconn_list);
+	CK_LIST_INSERT_HEAD(&pcbinfo->ipi_hash_exact[hash], inp,
+	    inp_hash_exact);
+	INP_HASH_WUNLOCK(pcbinfo);
+	inp->inp_flags &= ~INP_UNCONNECTED;
+}
+
+void
+ripcb_disconnect(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+
+	INP_WLOCK_ASSERT(inp);
+
+	if (inp->inp_flags & INP_UNCONNECTED)
+		return;
+
+	INP_HASH_WLOCK(pcbinfo);
+	CK_LIST_REMOVE(inp, inp_hash_exact);
+	CK_LIST_INSERT_HEAD(&pcbinfo->ipi_list_unconn, inp, inp_unconn_list);
+	INP_HASH_WUNLOCK(pcbinfo);
+	inp->inp_flags |= INP_UNCONNECTED;
+}
+
 /*
  * Check for alternatives when higher level complains
  * about service problems.  For now, invalidate cached
