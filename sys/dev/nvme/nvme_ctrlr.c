@@ -1364,7 +1364,7 @@ nvme_user_ioctl_req(vm_offset_t addr, size_t len, bool is_read,
 	npages = nvme_page_count(addr, len);
 	if (npages > atop(maxphys))
 		return (EINVAL);
-	if (npages > NVME_MAX_PAGES)
+	if (npages > max_pages)
 		upages_us = malloc(npages * sizeof(vm_page_t), M_NVME,
 		    M_ZERO | M_WAITOK);
 
