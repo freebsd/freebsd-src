@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_CTX_NEW 3ossl"
-.TH EVP_PKEY_CTX_NEW 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH EVP_PKEY_CTX_NEW 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -111,8 +111,11 @@ used when no \fBEVP_PKEY\fR structure is associated with the operations,
 for example during parameter generation or key generation for some
 algorithms.
 .PP
-\&\fBEVP_PKEY_CTX_dup()\fR duplicates the context \fIctx\fR. It is not supported for a
-keygen operation.
+\&\fBEVP_PKEY_CTX_dup()\fR duplicates the context \fIctx\fR.
+It is not supported for a keygen operation.
+It is however possible to duplicate a context freshly created via any of the
+above \f(CW\*(C`new\*(C'\fR functions, provided \fBEVP_PKEY_keygen_init\fR\|(3) has not yet been
+called on the source context, and then use the copy for key generation.
 .PP
 \&\fBEVP_PKEY_CTX_free()\fR frees up the context \fIctx\fR.
 If \fIctx\fR is NULL, nothing is done.
@@ -172,7 +175,7 @@ The \fBEVP_PKEY_CTX_new_from_name()\fR and \fBEVP_PKEY_CTX_new_from_pkey()\fR fu
 added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

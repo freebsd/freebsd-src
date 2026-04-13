@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_ENCODER_CTX 3ossl"
-.TH OSSL_ENCODER_CTX 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH OSSL_ENCODER_CTX 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -190,6 +190,13 @@ passed to the constructor every time it\*(Aqs called.
 .PP
 \&\fBOSSL_ENCODER_CTX_set_cleanup()\fR sets the constructor data \fIcleanup\fR
 function.  This is called by \fBOSSL_ENCODER_CTX_free\fR\|(3).
+.PP
+Note that functions \fBOSSL_ENCODER_CTX_set_selection()\fR,
+\&\fBOSSL_ENCODER_CTX_set_output_type()\fR, \fBOSSL_ENCODER_CTX_set_output_structure()\fR,
+\&\fBOSSL_ENCODER_CTX_add_encoder()\fR, \fBOSSL_ENCODER_CTX_add_extra()\fR,
+\&\fBOSSL_ENCODER_CTX_set_construct()\fR, \fBOSSL_ENCODER_CTX_set_construct_data()\fR, and
+\&\fBOSSL_ENCODER_CTX_set_cleanup()\fR shouldn\*(Aqt be used after the context is finalised,
+in particular after calling the function \fBOSSL_ENCODER_CTX_new_for_pkey()\fR.
 .SS Constructor
 .IX Subsection "Constructor"
 A \fBOSSL_ENCODER_CONSTRUCT\fR gets the following arguments:
@@ -254,6 +261,11 @@ output type.
 .PP
 \&\fBOSSL_ENCODER_INSTANCE_get_output_structure()\fR returns a string with the name
 of the output structure.
+.SH "NOTES AND BUGS"
+.IX Header "NOTES AND BUGS"
+The chain mechanism in ENCODE is not yet completely implemented.
+It affects functions such as OSSL_ENCODER_CTX_add_extra and the
+inner processing loop.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBprovider\fR\|(7), \fBOSSL_ENCODER\fR\|(3)

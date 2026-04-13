@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_MIN_PROTO_VERSION 3ossl"
-.TH SSL_CTX_SET_MIN_PROTO_VERSION 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH SSL_CTX_SET_MIN_PROTO_VERSION 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -93,9 +93,10 @@ This works in combination with the options set via
 specific protocol versions.
 Use these functions instead of disabling specific protocol versions.
 .PP
-Setting the minimum or maximum version to 0, will enable protocol
+Setting the minimum or maximum version to 0 (default), will enable protocol
 versions down to the lowest version, or up to the highest version
-supported by the library, respectively.
+supported by the library, respectively. The supported versions might be
+controlled by system configuration.
 .PP
 Getters return 0 in case \fBctx\fR or \fBssl\fR have been configured to
 automatically use the lowest or highest version supported by the library.
@@ -121,7 +122,7 @@ The setter functions were added in OpenSSL 1.1.0. The getter functions
 were added in OpenSSL 1.1.1.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2016\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

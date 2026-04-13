@@ -98,7 +98,7 @@ PROFESSION_INFO_set0_registrationNumber
 The B<PROFESSION_INFOS>, B<ADMISSION_SYNTAX>, B<ADMISSIONS>, and
 B<PROFESSION_INFO> types are opaque structures representing the
 analogous types defined in the Common PKI Specification published
-by L<https://www.t7ev.org>.
+by L<T7 & TELETRUST|https://www.bundesnetzagentur.de/EVD/DE/SharedDocuments/Downloads/Anbieter_Infothek/Common_PKI_v2.0_02.pdf?__blob=publicationFile&v=1>.
 Knowledge of those structures and their semantics is assumed.
 
 The conventional routines to convert between DER and the local format
@@ -169,7 +169,7 @@ L<d2i_X509(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

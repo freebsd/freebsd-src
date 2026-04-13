@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_ENCODER_CTX_NEW_FOR_PKEY 3ossl"
-.TH OSSL_ENCODER_CTX_NEW_FOR_PKEY 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH OSSL_ENCODER_CTX_NEW_FOR_PKEY 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -121,6 +121,10 @@ with no associated encoder (\fBOSSL_ENCODER_CTX_get_num_encoders\fR\|(3) returns
 zero).  This helps the caller to distinguish between an error when creating
 the \fBOSSL_ENCODER_CTX\fR and missing encoder implementation, and allows it to
 act accordingly.
+.PP
+Note that \fBOSSL_ENCODER_CTX_new_for_pkey()\fR finalises the OSSL_ENCODER_CTX;
+after that the OSSL_ENCODER_CTX_set_* and OSSL_ENCODER_CTX_add_* functions
+described in \fBOSSL_ENCODER_CTX\fR\|(3) shouldn\*(Aqt be called.
 .PP
 \&\fBOSSL_ENCODER_CTX_set_cipher()\fR tells the implementation what cipher
 should be used to encrypt encoded keys.  The cipher is given by

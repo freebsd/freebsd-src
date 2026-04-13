@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_KEY_UPDATE 3ossl"
-.TH SSL_KEY_UPDATE 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH SSL_KEY_UPDATE 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -115,7 +115,9 @@ such as \fBSSL_read_ex()\fR or \fBSSL_write_ex()\fR takes place on the connectio
 will be performed to confirm that it is a suitable time to start a
 renegotiation. If so, then it will be initiated immediately. OpenSSL will not
 attempt to resume any session associated with the connection in the new
-handshake.
+handshake. Note that some servers will respond to reneogitation attempts with
+a "no_renegotiation" alert. An OpenSSL will immediately fail the connection in
+this case.
 .PP
 When called from the client side, \fBSSL_renegotiate_abbreviated()\fR works in the
 same was as \fBSSL_renegotiate()\fR except that OpenSSL will attempt to resume the
@@ -159,7 +161,7 @@ The \fBSSL_key_update()\fR and \fBSSL_get_key_update_type()\fR functions were ad
 OpenSSL 1.1.1.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2017\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

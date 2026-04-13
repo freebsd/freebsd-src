@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_ENCRYPTINIT 3ossl"
-.TH EVP_ENCRYPTINIT 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH EVP_ENCRYPTINIT 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -123,8 +123,6 @@ EVP_CIPHER_CTX_get_block_size,
 EVP_CIPHER_CTX_get_key_length,
 EVP_CIPHER_CTX_get_iv_length,
 EVP_CIPHER_CTX_get_tag_length,
-EVP_CIPHER_CTX_get_app_data,
-EVP_CIPHER_CTX_set_app_data,
 EVP_CIPHER_CTX_flags,
 EVP_CIPHER_CTX_set_flags,
 EVP_CIPHER_CTX_clear_flags,
@@ -256,8 +254,6 @@ EVP_CIPHER_CTX_mode
 \& int EVP_CIPHER_CTX_get_key_length(const EVP_CIPHER_CTX *ctx);
 \& int EVP_CIPHER_CTX_get_iv_length(const EVP_CIPHER_CTX *ctx);
 \& int EVP_CIPHER_CTX_get_tag_length(const EVP_CIPHER_CTX *ctx);
-\& void *EVP_CIPHER_CTX_get_app_data(const EVP_CIPHER_CTX *ctx);
-\& void EVP_CIPHER_CTX_set_app_data(const EVP_CIPHER_CTX *ctx, void *data);
 \& int EVP_CIPHER_CTX_get_type(const EVP_CIPHER_CTX *ctx);
 \& int EVP_CIPHER_CTX_get_mode(const EVP_CIPHER_CTX *ctx);
 \& int EVP_CIPHER_CTX_get_num(const EVP_CIPHER_CTX *ctx);
@@ -734,7 +730,7 @@ See also \fBEVP_CIPHER_CTX_get_key_length()\fR and \fBEVP_CIPHER_CTX_set_key_len
 .IP """tag"" (\fBOSSL_CIPHER_PARAM_AEAD_TAG\fR) <octet string>" 4
 .IX Item """tag"" (OSSL_CIPHER_PARAM_AEAD_TAG) <octet string>"
 Gets or sets the AEAD tag for the associated cipher context \fIctx\fR.
-See "AEAD Interface" in \fBEVP_EncryptInit\fR\|(3).
+See "AEAD INTERFACE" in \fBEVP_EncryptInit\fR\|(3).
 .IP """keybits"" (\fBOSSL_CIPHER_PARAM_RC2_KEYBITS\fR) <unsigned integer>" 4
 .IX Item """keybits"" (OSSL_CIPHER_PARAM_RC2_KEYBITS) <unsigned integer>"
 Gets or sets the effective keybits used for a RC2 cipher.
@@ -1156,6 +1152,9 @@ for failure.
 .PP
 \&\fBEVP_CIPHER_names_do_all()\fR returns 1 if the callback was called for all names.
 A return value of 0 means that the callback was not called for any names.
+.PP
+\&\fBEVP_CIPHER_get_params()\fR, \fBEVP_CIPHER_CTX_get_params()\fR and
+\&\fBEVP_CIPHER_CTX_set_params()\fR return 1 for success and 0 for failure.
 .SH "CIPHER LISTING"
 .IX Header "CIPHER LISTING"
 All algorithms have a fixed key length unless otherwise stated.
@@ -1173,8 +1172,13 @@ depending on the mode specified.
 .PP
 To specify additional authenticated data (AAD), a call to \fBEVP_CipherUpdate()\fR,
 \&\fBEVP_EncryptUpdate()\fR or \fBEVP_DecryptUpdate()\fR should be made with the output
-parameter \fIout\fR set to \fBNULL\fR. In this case, on success, the parameter
-\&\fIoutl\fR is set to the number of bytes authenticated.
+parameter \fIout\fR set to NULL. In this case, on success, the parameter
+\&\fIoutl\fR is set to the number of AAD bytes processed in that call
+(that is, the value of \fIinl\fR), and does not include any plaintext
+or ciphertext bytes processed by other calls.
+.PP
+If no AAD is used, this call can be omitted. See the mode\-specific notes
+below for any exceptions.
 .PP
 When decrypting, the return value of \fBEVP_DecryptFinal()\fR or \fBEVP_CipherFinal()\fR
 indicates whether the operation was successful. If it does not indicate success,
@@ -1614,7 +1618,7 @@ non\-deprecated alias macro.
 The \fBEVP_CIPHER_CTX_flags()\fR macro was deprecated in OpenSSL 1.1.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-VERIFICATION-OPTIONS 1ossl"
-.TH OPENSSL-VERIFICATION-OPTIONS 1ossl 2026-02-03 3.0.16 OpenSSL
+.TH OPENSSL-VERIFICATION-OPTIONS 1ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -180,6 +180,12 @@ equals the public key algorithm of the candidate issuer certificate.
 The lookup first searches for issuer certificates in the trust store.
 If it does not find a match there it consults
 the list of untrusted ("intermediate" CA) certificates, if provided.
+If one issuer certificate was found in the trust store, the list of
+untrusted certificates will not be consulted anymore to find further
+issuer certificates. Therefore, either only the root certificate or an
+uninterrupted chain to the root certificate must be provided in the trust
+store for a successful verification, if \fBX509_V_FLAG_PARTIAL_CHAIN\fR
+is not enabled.
 .SS "Certification Path Validation"
 .IX Subsection "Certification Path Validation"
 When the certificate chain building process was successful
@@ -542,7 +548,7 @@ keyCertSign bit set if the keyUsage extension is present.
 .PP
 The extKeyUsage (EKU) extension places additional restrictions on
 certificate use. If this extension is present (whether critical or not)
-in an end\-entity certficiate, the key is allowed only for the uses specified,
+in an end\-entity certificate, the key is allowed only for the uses specified,
 while the special EKU \fBanyExtendedKeyUsage\fR allows for all uses.
 .PP
 Note that according to RFC 5280 section 4.2.1.12,
@@ -599,7 +605,7 @@ This is used as a workaround if the basicConstraints extension is absent.
 .el .IP "\fBNetscape SSL Server\fR (\f(CWnssslserver\fR)" 4
 .IX Item "Netscape SSL Server (nssslserver)"
 In addition to what has been described for \fBsslserver\fR, for a Netscape
-SSL client to connect to an SSL server, its EE certficate must have the
+SSL client to connect to an SSL server, its EE certificate must have the
 \&\fBkeyEncipherment\fR bit set if the keyUsage extension is present. This isn\*(Aqt
 always valid because some cipher suites use the key for digital signing.
 Otherwise it is the same as a normal SSL server.
@@ -619,19 +625,19 @@ This is used as a workaround if the basicConstraints extension is absent.
 .ie n .IP "\fBS/MIME Signing\fR (""smimesign"")" 4
 .el .IP "\fBS/MIME Signing\fR (\f(CWsmimesign\fR)" 4
 .IX Item "S/MIME Signing (smimesign)"
-In addition to the common S/MIME checks, for target certficiates
+In addition to the common S/MIME checks, for target certificates
 the key usage must allow for \f(CW\*(C`digitalSignature\*(C'\fR and/or \fBnonRepudiation\fR.
 .ie n .IP "\fBS/MIME Encryption\fR (""smimeencrypt"")" 4
 .el .IP "\fBS/MIME Encryption\fR (\f(CWsmimeencrypt\fR)" 4
 .IX Item "S/MIME Encryption (smimeencrypt)"
-In addition to the common S/MIME checks, for target certficiates
+In addition to the common S/MIME checks, for target certificates
 the key usage must allow for \f(CW\*(C`keyEncipherment\*(C'\fR.
 .ie n .IP "\fBCRL Signing\fR (""crlsign"")" 4
 .el .IP "\fBCRL Signing\fR (\f(CWcrlsign\fR)" 4
 .IX Item "CRL Signing (crlsign)"
 For target certificates, the key usage must allow for \f(CW\*(C`cRLSign\*(C'\fR.
 .Sp
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 Except in this case the basicConstraints extension must be present.
 .ie n .IP "\fBOCSP Helper\fR (""ocsphelper"")" 4
 .el .IP "\fBOCSP Helper\fR (\f(CWocsphelper\fR)" 4
@@ -639,7 +645,7 @@ Except in this case the basicConstraints extension must be present.
 For target certificates, no checks are performed at this stage,
 but special checks apply; see \fBOCSP_basic_verify\fR\|(3).
 .Sp
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 .ie n .IP "\fBTimestamp Signing\fR (""timestampsign"")" 4
 .el .IP "\fBTimestamp Signing\fR (\f(CWtimestampsign\fR)" 4
 .IX Item "Timestamp Signing (timestampsign)"
@@ -648,7 +654,7 @@ For target certificates, if the key usage extension is present, it must include
 The EKU extension must be present and contain \f(CW\*(C`timeStamping\*(C'\fR only.
 Moreover, it must be marked as critical.
 .Sp
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 .SH BUGS
 .IX Header "BUGS"
 The issuer checks still suffer from limitations in the underlying X509_LOOKUP
@@ -675,7 +681,7 @@ only the first one (in the mentioned order of locations) is recognised.
 The checks enabled by \fB\-x509_strict\fR have been extended in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

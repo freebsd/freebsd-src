@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-S_CLIENT 1ossl"
-.TH OPENSSL-S_CLIENT 1ossl 2026-02-03 3.0.16 OpenSSL
+.TH OPENSSL-S_CLIENT 1ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -581,11 +581,11 @@ by some servers.
 .IP \fB\-ign_eof\fR 4
 .IX Item "-ign_eof"
 Inhibit shutting down the connection when end of file is reached in the
-input.
+input. This implicitly turns on \fB\-nocommands\fR as well.
 .IP \fB\-quiet\fR 4
 .IX Item "-quiet"
 Inhibit printing of session and certificate information.  This implicitly
-turns on \fB\-ign_eof\fR as well.
+turns on \fB\-ign_eof\fR and \fB\-nocommands\fR as well.
 .IP \fB\-no_ign_eof\fR 4
 .IX Item "-no_ign_eof"
 Shut down the connection when end of file is reached in the input.
@@ -1023,7 +1023,7 @@ The \fB\-certform\fR option has become obsolete in OpenSSL 3.0.0 and has no effe
 The \fB\-engine\fR option was deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

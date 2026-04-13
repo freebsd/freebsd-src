@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_CLIENT_HELLO_CB 3ossl"
-.TH SSL_CTX_SET_CLIENT_HELLO_CB 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH SSL_CTX_SET_CLIENT_HELLO_CB 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -129,6 +129,9 @@ holding the numerical value of the TLS extension types in the order they appear
 in the ClientHello.  \fB*outlen\fR contains the number of elements in the array.
 In situations when the ClientHello has no extensions, the function will return
 success with \fB*out\fR set to NULL and \fB*outlen\fR set to 0.
+Note that \fBSSL_client_hello_get1_extensions_present()\fR returns only recognised
+extensions; therefore, unrecognised (including GREASE) extensions will not
+appear in the output.
 .SH NOTES
 .IX Header "NOTES"
 The ClientHello callback provides a vast window of possibilities for application
@@ -146,8 +149,12 @@ not use a servername callback, in order to avoid unexpected behavior that
 occurs due to the relative order of processing between things like session
 resumption and the historical servername callback.
 .PP
-The SSL_client_hello_* family of functions may only be called from code executing
-within a ClientHello callback.
+The SSL_client_hello_* family of functions may only be called from code
+executing within a ClientHello callback.
+.PP
+The SSL_client_hello_get0_*() functions return raw ClientHello data, whereas
+\&\fBSSL_client_hello_get1_extensions_present()\fR returns only recognized extensions
+(so unknown/GREASE\-extensions are not included).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The application\*(Aqs supplied ClientHello callback returns

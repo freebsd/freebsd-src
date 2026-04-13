@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS7_SIGN 3ossl"
-.TH PKCS7_SIGN 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH PKCS7_SIGN 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,7 +142,7 @@ can be performed by obtaining the streaming ASN1 \fBBIO\fR directly using
 \&\fBBIO_new_PKCS7()\fR.
 .PP
 If a signer is specified it will use the default digest for the signing
-algorithm. This is \fBSHA1\fR for both RSA and DSA keys.
+algorithm. This is \fBSHA256\fR for both RSA and DSA keys.
 .PP
 The \fIcerts\fR, \fIsigncert\fR and \fIpkey\fR parameters can all be
 NULL if the \fBPKCS7_PARTIAL\fR flag is set. One or more signers can be added
@@ -179,7 +179,7 @@ and \fIpkey\fR parameters to be NULL were added in OpenSSL 1.0.0.
 The \fBPKCS7_STREAM\fR flag was added in OpenSSL 1.0.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2002\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

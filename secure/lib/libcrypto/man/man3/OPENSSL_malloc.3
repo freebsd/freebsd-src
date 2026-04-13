@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_MALLOC 3ossl"
-.TH OPENSSL_MALLOC 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH OPENSSL_MALLOC 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -163,10 +163,14 @@ C \fBmalloc()\fR, \fBrealloc()\fR, and \fBfree()\fR functions.
 \&\fBOPENSSL_clear_realloc()\fR and \fBOPENSSL_clear_free()\fR should be used
 when the buffer at \fBaddr\fR holds sensitive information.
 The old buffer is filled with zero\*(Aqs by calling \fBOPENSSL_cleanse()\fR
-before ultimately calling \fBOPENSSL_free()\fR. If the argument to \fBOPENSSL_free()\fR is
-NULL, nothing is done.
+before ultimately calling \fBOPENSSL_free()\fR. If the argument to
+\&\fBOPENSSL_clear_free()\fR is NULL, nothing is done.
 .PP
 \&\fBOPENSSL_cleanse()\fR fills \fBptr\fR of size \fBlen\fR with a string of 0\*(Aqs.
+It is useful in cases when it is needed to ensure that memory (that contains
+sensitive information) is overwritten (for example, before it is reclaimed,
+or when it is stored on stack), and such operation is not optimised out
+by compiler optimisations such as dead store elimination (as \fBmemset\fR\|(3) may be).
 Use \fBOPENSSL_cleanse()\fR with care if the memory is a mapping of a file.
 If the storage controller uses write compression, then it\*(Aqs possible
 that sensitive tail bytes will survive zeroization because the block of
@@ -261,7 +265,7 @@ The memory\-leak checking has been deprecated in OpenSSL 3.0 in favor of
 clang\*(Aqs memory and leak sanitizer.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2016\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
