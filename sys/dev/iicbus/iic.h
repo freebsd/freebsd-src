@@ -31,6 +31,14 @@
 
 #include <sys/ioccom.h>
 
+#ifdef _KERNEL
+struct file;
+struct iic_rdwr_data;
+struct thread;
+typedef int iic_linux_rdwr_t(struct file *fp, struct iic_rdwr_data *d,
+    int flags, struct thread *td);
+#endif
+
 /* Designed to be compatible with linux's struct i2c_msg */
 struct iic_msg
 {
