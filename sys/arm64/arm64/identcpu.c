@@ -3086,10 +3086,10 @@ print_cpu_cache(struct cpu_desc *desc, struct sbuf *sb, uint64_t ccs,
 	 * register.
 	 */
 	if ((desc->id_aa64mmfr2 & ID_AA64MMFR2_CCIDX_64))
-		cache_size = (CCSIDR_NSETS_64(ccs) + 1) *
-		    (CCSIDR_ASSOC_64(ccs) + 1);
+		cache_size = (CCSIDR_NumSets64(ccs) + 1) *
+		    (CCSIDR_Assoc64(ccs) + 1);
 	else
-		cache_size = (CCSIDR_NSETS(ccs) + 1) * (CCSIDR_ASSOC(ccs) + 1);
+		cache_size = (CCSIDR_NumSets(ccs) + 1) * (CCSIDR_Assoc(ccs) + 1);
 
 	cache_size *= line_size;
 	sbuf_printf(sb, "%zuKB (%s)", cache_size / 1024,
@@ -3377,7 +3377,7 @@ identify_cpu(u_int cpu)
 		int j = 0;
 		if ((clidr & CLIDR_CTYPE_IO)) {
 			WRITE_SPECIALREG(csselr_el1,
-			    CSSELR_Level(i) | CSSELR_InD);
+			    CSSELR_Level(i) | CSSELR_InD_IC);
 			desc->ccsidr[i][j++] =
 			    READ_SPECIALREG(ccsidr_el1);
 		}
