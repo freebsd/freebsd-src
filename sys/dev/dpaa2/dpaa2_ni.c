@@ -1,8 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2023 Dmitry Salychev
- * Copyright © 2022 Mathew McBride
+ * Copyright (c) 2021-2026 Dmitry Salychev
+ * Copyright (c) 2022 Mathew McBride
+ * Copyright (c) 2026 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -415,6 +416,7 @@ static int dpaa2_ni_set_dist_key(device_t, enum dpaa2_ni_dist_mode, uint64_t);
 /* Various subroutines */
 static int dpaa2_ni_cmp_api_version(struct dpaa2_ni_softc *, uint16_t, uint16_t);
 static int dpaa2_ni_prepare_key_cfg(struct dpkg_profile_cfg *, uint8_t *);
+static int dpaa2_ni_update_csum_flags(struct dpaa2_fd *, struct mbuf *);
 
 /* Network interface routines */
 static void dpaa2_ni_init(void *);
@@ -494,6 +496,7 @@ dpaa2_ni_attach(device_t dev)
 	sc->rx_sg_buf_frames = 0;
 	sc->rx_enq_rej_frames = 0;
 	sc->rx_ieoi_err_frames = 0;
+	sc->rx_other_err_frames = 0;
 	sc->tx_single_buf_frames = 0;
 	sc->tx_sg_frames = 0;
 
@@ -1741,6 +1744,9 @@ dpaa2_ni_setup_sysctls(struct dpaa2_ni_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, parent, OID_AUTO, "rx_ieoi_err_frames",
 	    CTLFLAG_RD, &sc->rx_ieoi_err_frames,
 	    "QMan IEOI error");
+	SYSCTL_ADD_UQUAD(ctx, parent, OID_AUTO, "rx_other_err_frames",
+	    CTLFLAG_RD, &sc->rx_other_err_frames,
+	    "Other Rx frames with errors");
 	SYSCTL_ADD_UQUAD(ctx, parent, OID_AUTO, "tx_single_buf_frames",
 	    CTLFLAG_RD, &sc->tx_single_buf_frames,
 	    "Tx single buffer frames");
@@ -3124,6 +3130,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	bus_addr_t released[DPAA2_SWP_BUFS_PER_CMD];
 	void *buf_data;
 	int buf_len, error, released_n = 0;
+	bool update_csum_flags;
 
 	error = dpaa2_fa_get_swa(fd, &swa);
 	if (__predict_false(error != 0))
@@ -3134,6 +3141,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	buf = swa->buf;
 	bch = (struct dpaa2_channel *)buf->opt;
 	sc = device_get_softc(bch->ni_dev);
+	update_csum_flags = true;
 
 	KASSERT(swa->magic == DPAA2_MAGIC, ("%s: wrong magic", __func__));
 	/*
@@ -3148,6 +3156,14 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	}
 
 	switch (dpaa2_fd_err(fd)) {
+	case 0:
+		/*
+		 * FD[ERR] = 0 value is reserved to indicate that there is no
+		 * error encoded in this field. See 3.4.5 Error handling,
+		 * LX2160A DPAA2 Low-Level Hardware Reference Manual, Rev. 0,
+		 * 06/2020.
+		 */
+		break;
 	case 1: /* Enqueue rejected by QMan */
 		sc->rx_enq_rej_frames++;
 		break;
@@ -3155,8 +3171,10 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 		sc->rx_ieoi_err_frames++;
 		break;
 	default:
+		sc->rx_other_err_frames++;
 		break;
 	}
+
 	switch (dpaa2_fd_format(fd)) {
 	case DPAA2_FD_SINGLE:
 		sc->rx_single_buf_frames++;
@@ -3165,6 +3183,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 		sc->rx_sg_buf_frames++;
 		break;
 	default:
+		update_csum_flags = false;
 		break;
 	}
 
@@ -3196,6 +3215,14 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	m->m_pkthdr.flowid = fq->fqid;
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
+
+	if (update_csum_flags && ((if_getcapenable(sc->ifp) & (IFCAP_RXCSUM |
+	    IFCAP_RXCSUM_IPV6)) != 0)) {
+		error = dpaa2_ni_update_csum_flags(fd, m);
+		if (error != 0)
+			device_printf(sc->dev, "%s: failed to update checksum "
+			    "flags: error=%d\n", __func__, error);
+	}
 
 	if (ctx->head == NULL) {
 		KASSERT(ctx->tail == NULL, ("%s: tail already given?", __func__));
@@ -3636,6 +3663,51 @@ dpaa2_ni_prepare_key_cfg(struct dpkg_profile_cfg *cfg, uint8_t *key_cfg_buf)
 	}
 
 	return (0);
+}
+
+static int
+dpaa2_ni_update_csum_flags(struct dpaa2_fd *fd, struct mbuf *m)
+{
+	struct dpaa2_hwa_fas fas;
+	uint32_t status;
+	int rc;
+
+	if (__predict_false((dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV)) == 0u)
+		return (EINVAL);
+
+	/*
+	 * XXX-DSL: Frame context of the frame descriptor (FD[FRC]) contains
+	 *          an Accelerator ID in the MSbits on some SoCs (e.g. LS1088A),
+	 *          but a frame ParseSummary on the others (e.g. LX2160A).
+	 *          However, frame annotation valid bits seem to be at the
+	 *          same offsets. This is the reason why different accelerators
+	 *          are treated the same here. It isn't clear whether this is
+	 *          a hardware limitation of the SoCs, version of the firmware
+	 *          or DPL configuration.
+	 */
+
+	rc = dpaa2_fa_get_fas(fd, &fas);
+	if (rc != 0)
+		return (rc);
+
+	status = le32toh(fas.status);
+	rc = 0;
+
+	/* L3 */
+	if ((status & DPAA2_FAS_L3CV) != 0) {
+		m->m_pkthdr.csum_flags |= CSUM_L3_CALC;
+		if ((status & DPAA2_FAS_L3CE) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_L3_VALID;
+	}
+	/* L4 */
+	if ((status & DPAA2_FAS_L4CV) != 0) {
+		m->m_pkthdr.csum_flags |= CSUM_L4_CALC;
+		m->m_pkthdr.csum_data = 0xffff;
+		if ((status & DPAA2_FAS_L4CE) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_L4_VALID;
+	}
+
+	return (rc);
 }
 
 static device_method_t dpaa2_ni_methods[] = {
