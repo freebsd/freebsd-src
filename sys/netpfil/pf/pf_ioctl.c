@@ -3113,8 +3113,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCIGETIFACES:
 		case DIOCGIFSPEEDV0:
 		case DIOCGIFSPEEDV1:
-		case DIOCSETIFFLAG:
-		case DIOCCLRIFFLAG:
 		case DIOCGETETHRULES:
 		case DIOCGETETHRULE:
 		case DIOCGETETHRULESETS:
