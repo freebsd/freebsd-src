@@ -508,6 +508,7 @@ vtballoon_send_page_frames(struct vtballoon_softc *sc, struct virtqueue *vq,
 	VTBALLOON_LOCK(sc);
 	while ((c = virtqueue_dequeue(vq, NULL)) == NULL)
 		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbspf", 0);
+	virtqueue_enable_intr(vq);
 	VTBALLOON_UNLOCK(sc);
 
 	KASSERT(c == vq, ("unexpected balloon operation response"));
