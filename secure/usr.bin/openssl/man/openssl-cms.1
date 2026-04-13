@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-CMS 1ossl"
-.TH OPENSSL-CMS 1ossl 2026-02-03 3.0.16 OpenSSL
+.TH OPENSSL-CMS 1ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -457,7 +457,7 @@ Currently the AES variants with GCM mode are the only supported AEAD
 algorithms.
 .Sp
 If not specified triple DES is used. Only used with \fB\-encrypt\fR and
-\&\fB\-EncryptedData_create\fR commands.
+\&\fB\-EncryptedData_encrypt\fR commands.
 .IP "\fB\-wrap\fR \fIcipher\fR" 4
 .IX Item "-wrap cipher"
 Cipher algorithm to use for key wrap when encrypting the message using Key
@@ -476,7 +476,7 @@ with caution: see the notes section below.
 .IP "\fB\-md\fR \fIdigest\fR" 4
 .IX Item "-md digest"
 Digest algorithm to use when signing or resigning. If not present then the
-default digest algorithm for the signing key will be used (usually SHA1).
+default digest algorithm for the signing key will be used (usually SHA\-256).
 .IP "\fB\-signer\fR \fIfile\fR" 4
 .IX Item "-signer file"
 A signing certificate.  When signing or resigning a message, this option can be
@@ -732,7 +732,7 @@ The use of PSS with \fB\-sign\fR.
 .PP
 The use of OAEP or non\-RSA keys with \fB\-encrypt\fR.
 .PP
-Additionally the \fB\-EncryptedData_create\fR and \fB\-data_create\fR type cannot
+Additionally the \fB\-EncryptedData_encrypt\fR and \fB\-data_create\fR type cannot
 be processed by the older \fBopenssl\-smime\fR\|(1) command.
 .SH EXAMPLES
 .IX Header "EXAMPLES"
@@ -862,7 +862,9 @@ Use SHA256 KDF with an ECDH certificate:
 .PP
 Print CMS signed binary data in human\-readable form:
 .PP
-openssl cms \-in signed.cms \-binary \-inform DER \-cmsout \-print
+.Vb 1
+\& openssl cms \-in signed.cms \-binary \-inform DER \-cmsout \-print
+.Ve
 .SH BUGS
 .IX Header "BUGS"
 The MIME parser isn\*(Aqt very clever: it seems to handle most messages that I\*(Aqve
@@ -904,7 +906,7 @@ The \fB\-nameopt\fR option was added in OpenSSL 3.0.0.
 The \fB\-engine\fR option was deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2008\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

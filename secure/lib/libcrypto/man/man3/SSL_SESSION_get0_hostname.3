@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_SESSION_GET0_HOSTNAME 3ossl"
-.TH SSL_SESSION_GET0_HOSTNAME 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH SSL_SESSION_GET0_HOSTNAME 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -85,11 +85,10 @@ SSL_SESSION_set1_alpn_selected
 .Ve
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
-\&\fBSSL_SESSION_get0_hostname()\fR retrieves the SNI value that was sent by the
-client when the session was created if it was accepted by the server and TLSv1.2
-or below was negotiated. Otherwise NULL is returned. Note that in TLSv1.3 the
-SNI hostname is negotiated with each handshake including resumption handshakes
-and is therefore never associated with the session.
+\&\fBSSL_SESSION_get0_hostname()\fR retrieves the Server Name Indication (SNI) value
+that was sent by the client when the session was created if the server
+acknowledged the client\*(Aqs SNI extension by including an empty SNI extension
+in response. Otherwise NULL is returned.
 .PP
 The value returned is a pointer to memory maintained within \fBs\fR and
 should not be free\*(Aqd.
@@ -107,8 +106,7 @@ value is made, and the caller retains ownership of the memory pointed to by
 \&\fBalpn\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBSSL_SESSION_get0_hostname()\fR returns either a string or NULL based on if there
-is the SNI value sent by client.
+\&\fBSSL_SESSION_get0_hostname()\fR returns the SNI string if available, or NULL if not.
 .PP
 \&\fBSSL_SESSION_set1_hostname()\fR returns 1 on success or 0 on error.
 .PP
@@ -125,7 +123,7 @@ The \fBSSL_SESSION_set1_hostname()\fR, \fBSSL_SESSION_get0_alpn_selected()\fR an
 \&\fBSSL_SESSION_set1_alpn_selected()\fR functions were added in OpenSSL 1.1.1.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

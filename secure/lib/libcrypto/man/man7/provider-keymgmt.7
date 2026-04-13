@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PROVIDER-KEYMGMT 7ossl"
-.TH PROVIDER-KEYMGMT 7ossl 2026-02-03 3.0.16 OpenSSL
+.TH PROVIDER-KEYMGMT 7ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -91,7 +91,7 @@ provider\-keymgmt \- The KEYMGMT library <\-> provider functions
 \& void OSSL_FUNC_keymgmt_gen_cleanup(void *genctx);
 \&
 \& /* Key loading by object reference, also a constructor */
-\& void *OSSL_FUNC_keymgmt_load(const void *reference, size_t *reference_sz);
+\& void *OSSL_FUNC_keymgmt_load(const void *reference, size_t reference_sz);
 \&
 \& /* Key object information */
 \& int OSSL_FUNC_keymgmt_get_params(void *keydata, OSSL_PARAM params[]);
@@ -468,7 +468,7 @@ always return a constant \fBOSSL_PARAM\fR\|(3) array.
 The KEYMGMT interface was introduced in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

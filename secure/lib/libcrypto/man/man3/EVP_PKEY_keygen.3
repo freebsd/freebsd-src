@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_KEYGEN 3ossl"
-.TH EVP_PKEY_KEYGEN 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH EVP_PKEY_KEYGEN 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,10 +148,12 @@ If the callback returns 0 then the key generation operation is aborted and an
 error occurs. This might occur during a time consuming operation where
 a user clicks on a "cancel" button.
 .PP
-The functions \fBEVP_PKEY_CTX_set_app_data()\fR and \fBEVP_PKEY_CTX_get_app_data()\fR set
-and retrieve an opaque pointer. This can be used to set some application
-defined value which can be retrieved in the callback: for example a handle
-which is used to update a "progress dialog".
+The functions \fBEVP_PKEY_CTX_set_app_data()\fR and \fBEVP_PKEY_CTX_get_app_data()\fR
+associate an opaque, application\-defined pointer with an EVP_PKEY_CTX object.
+.PP
+This pointer is not interpreted by the library and is reserved entirely for use
+by the application. It may be used to store arbitrary context or state that
+needs to be accessible wherever the corresponding EVP_PKEY_CTX is available.
 .PP
 \&\fBEVP_PKEY_Q_keygen()\fR abstracts from the explicit use of \fBEVP_PKEY_CTX\fR while
 providing a \*(Aqquick\*(Aq but limited way of generating a new asymmetric key pair.
@@ -288,7 +290,7 @@ OpenSSL 1.0.0.
 \&\fBEVP_PKEY_Q_keygen()\fR and \fBEVP_PKEY_generate()\fR were added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

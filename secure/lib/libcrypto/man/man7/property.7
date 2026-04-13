@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PROPERTY 7ossl"
-.TH PROPERTY 7ossl 2024-06-29 3.0.16 OpenSSL
+.TH PROPERTY 7ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -181,6 +181,31 @@ clause "\-fips".
 Note that the local property query could not use "fips=no" because that would
 disallow any implementations with "fips=yes" rather than not caring about the
 setting.
+.SH "PREDEFINED NAMES"
+.IX Header "PREDEFINED NAMES"
+Currently known predefined names are:
+.ie n .IP """provider""" 4
+.el .IP \f(CWprovider\fR 4
+.IX Item "provider"
+The conventional property value is the provider\*(Aqs name.  This may be different from the name returned by \fBOSSL_PROVIDER_get0_name\fR\|(3).
+.Sp
+It is a convention among OpenSSL provider implementations to define a property with this name.  It is not mandatory to do this.
+.ie n .IP """version""" 4
+.el .IP \f(CWversion\fR 4
+.IX Item "version"
+The conventional property value is the provider\*(Aqs version.
+.Sp
+OpenSSL provider implementations do not define a property with this name.
+.ie n .IP """fips""" 4
+.el .IP \f(CWfips\fR 4
+.IX Item "fips"
+The conventional property value is boolean (\f(CW"yes"\fR or \f(CW"no"\fR), indication whether the implementation conforms to FIPS standards or not.
+.Sp
+It is a convention among OpenSSL provider implementations to define a property with this name where applicable.  It is not mandatory to do this, but is strongly recommended.
+.ie n .IP """output"", ""input"", ""structure""" 4
+.el .IP "\f(CWoutput\fR, \f(CWinput\fR, \f(CWstructure\fR" 4
+.IX Item "output, input, structure"
+Properties with these names are used by encoders (see \fBprovider\-encoder\fR\|(7)) and decoders (see \fBprovider\-decoder\fR\|(7)).
 .SH SYNTAX
 .IX Header "SYNTAX"
 The lexical syntax in EBNF is given by:
@@ -206,7 +231,7 @@ The flavour of EBNF being used is defined by:
 Properties were added in OpenSSL 3.0
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-ENC 1ossl"
-.TH OPENSSL-ENC 1ossl 2026-02-03 3.0.16 OpenSSL
+.TH OPENSSL-ENC 1ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -216,9 +216,12 @@ Print out the key and IV used.
 .IX Item "-P"
 Print out the key and IV used then immediately exit: don\*(Aqt do any encryption
 or decryption.
-.IP "\fB\-bufsize\fR \fInumber\fR" 4
-.IX Item "-bufsize number"
+.IP "\fB\-bufsize\fR \fInumber\fR[\fBk\fR]" 4
+.IX Item "-bufsize number[k]"
 Set the buffer size for I/O.
+The maximum size that can be specified is \fB2^31\-1\fR (2147483647) bytes.
+The \fBk\fR suffix can be specified to indicate that \fInumber\fR is provided
+in kibibytes (multiples of 1024 bytes).
 .IP \fB\-nopad\fR 4
 .IX Item "-nopad"
 Disable standard block padding.
@@ -289,7 +292,7 @@ Some of the ciphers do not have large keys and others have security
 implications if not used correctly. A beginner is advised to just use
 a strong block cipher, such as AES, in CBC mode.
 .PP
-All the block ciphers normally use PKCS#5 padding, also known as standard
+All the block ciphers normally use PKCS#7 padding, also known as standard
 block padding. This allows a rudimentary integrity or password check to
 be performed. However, since the chance of random data passing the test
 is better than 1 in 256 it isn\*(Aqt a very good test.
@@ -504,7 +507,7 @@ The \fB\-list\fR option was added in OpenSSL 1.1.1e.
 The \fB\-ciphers\fR and \fB\-engine\fR options were deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

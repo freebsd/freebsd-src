@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,7 +41,7 @@ static const char delimiter = '-';
  */
 
 static int adapt(unsigned int delta, unsigned int numpoints,
-                 unsigned int firsttime)
+    unsigned int firsttime)
 {
     unsigned int k = 0;
 
@@ -116,7 +116,7 @@ static ossl_inline int digit_decoded(const unsigned char a)
  */
 
 int ossl_punycode_decode(const char *pEncoded, const size_t enc_len,
-                         unsigned int *pDecoded, unsigned int *pout_length)
+    unsigned int *pDecoded, unsigned int *pout_length)
 {
     unsigned int n = initial_n;
     unsigned int i = 0;
@@ -164,7 +164,8 @@ int ossl_punycode_decode(const char *pEncoded, const size_t enc_len,
                 return 0;
 
             i = i + digit * w;
-            t = (k <= bias) ? tmin : (k >= bias + tmax) ? tmax : k - bias;
+            t = (k <= bias) ? tmin : (k >= bias + tmax) ? tmax
+                                                        : k - bias;
 
             if ((unsigned int)digit < t)
                 break;
@@ -184,7 +185,7 @@ int ossl_punycode_decode(const char *pEncoded, const size_t enc_len,
             return 0;
 
         memmove(pDecoded + i + 1, pDecoded + i,
-                (written_out - i) * sizeof(*pDecoded));
+            (written_out - i) * sizeof(*pDecoded));
         pDecoded[i] = n;
         i++;
         written_out++;
@@ -257,7 +258,7 @@ int ossl_a2ulabel(const char *in, char *out, size_t *outlen)
     size_t size = 0, maxsize;
     int result = 1;
     unsigned int i, j;
-    unsigned int buf[LABEL_BUF_SIZE];      /* It's a hostname */
+    unsigned int buf[LABEL_BUF_SIZE]; /* It's a hostname */
 
     if (out == NULL) {
         result = 0;
@@ -266,16 +267,16 @@ int ossl_a2ulabel(const char *in, char *out, size_t *outlen)
         maxsize = *outlen;
     }
 
-#define PUSHC(c)                    \
-    do                              \
-        if (size++ < maxsize)       \
-            *outptr++ = c;          \
-        else                        \
-            result = 0;             \
+#define PUSHC(c)              \
+    do                        \
+        if (size++ < maxsize) \
+            *outptr++ = c;    \
+        else                  \
+            result = 0;       \
     while (0)
 
     while (1) {
-        char *tmpptr = strchr(inptr, '.');
+        const char *tmpptr = strchr(inptr, '.');
         size_t delta = tmpptr != NULL ? (size_t)(tmpptr - inptr) : strlen(inptr);
 
         if (strncmp(inptr, "xn--", 4) != 0) {

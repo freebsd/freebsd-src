@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_PSK_CLIENT_CALLBACK 3ossl"
-.TH SSL_CTX_SET_PSK_CLIENT_CALLBACK 3ossl 2024-06-29 3.0.16 OpenSSL
+.TH SSL_CTX_SET_PSK_CLIENT_CALLBACK 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -147,6 +147,14 @@ be used as the basis for a PSK.
 Ownership of the SSL_SESSION object is passed to the OpenSSL library and so it
 should not be freed by the application.
 .PP
+Note that as described above, the callback may be called a second time during a
+handshake. Since ownership of the SSL_SESSION is transferred to OpenSSL on each
+call, if the callback wishes to return the same SSL_SESSION pointer on a
+subsequent invocation, it must first call \fBSSL_SESSION_up_ref\fR\|(3) to increment
+the reference count. Failure to do so will result in a use\-after\-free error.
+Alternatively, the callback may return a different SSL_SESSION object on each
+call (e.g., by calling \fBSSL_SESSION_dup\fR\|(3)).
+.PP
 It is also possible for the callback to succeed but not supply a PSK. In this
 case no PSK will be sent to the server but the handshake will continue. To do
 this the callback should return successfully and ensure that \fB*sess\fR is
@@ -218,7 +226,7 @@ failure. In the event of failure the connection setup fails.
 were added in OpenSSL 1.1.1.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

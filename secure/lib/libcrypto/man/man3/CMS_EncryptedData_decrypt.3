@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_ENCRYPTEDDATA_DECRYPT 3ossl"
-.TH CMS_ENCRYPTEDDATA_DECRYPT 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH CMS_ENCRYPTEDDATA_DECRYPT 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -78,10 +78,10 @@ CMS_EncryptedData_decrypt
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
 \&\fBCMS_EncryptedData_decrypt()\fR decrypts a \fIcms\fR EncryptedData object using the
-symmetric \fIkey\fR of size \fIkeylen\fR bytes. \fIout\fR is a BIO to write the content
-to and \fIflags\fR is an optional set of flags.
-\&\fIdcont\fR is used in the rare case where the encrypted content is detached. It
-will normally be set to NULL.
+symmetric \fIkey\fR of size \fIkeylen\fR bytes. AEAD cipher algorithms are not
+supported. \fIout\fR is a BIO to write the content to and \fIflags\fR is an optional
+set of flags. \fIdcont\fR is used in the rare case where the encrypted content is
+detached. It will normally be set to NULL.
 .PP
 The following flags can be passed in the \fIflags\fR parameter.
 .PP

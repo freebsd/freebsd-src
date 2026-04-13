@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_GET_DATA 3ossl"
-.TH BIO_GET_DATA 3ossl 2024-06-29 3.0.16 OpenSSL
+.TH BIO_GET_DATA 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -80,7 +80,7 @@ BIO_get_shutdown \- functions for managing BIO state information
 .Ve
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
-These functions are mainly useful when implementing a custom BIO.
+These functions can be used when implementing a custom BIO.
 .PP
 The \fBBIO_set_data()\fR function associates the custom data pointed to by \fBptr\fR with
 the BIO. This data can subsequently be retrieved via a call to \fBBIO_get_data()\fR.
@@ -97,6 +97,12 @@ function returns the value of the "init" flag.
 The \fBBIO_set_shutdown()\fR and \fBBIO_get_shutdown()\fR functions set and get the state of
 this BIO\*(Aqs shutdown (i.e. BIO_CLOSE) flag. If set then the underlying resource
 is also closed when the BIO is freed.
+.SH WARNINGS
+.IX Header "WARNINGS"
+Do not use \fBBIO_set_data()\fR, \fBBIO_get_data()\fR, \fBBIO_set_init()\fR, \fBBIO_get_init()\fR, outside
+the implementation of a custom BIO.
+Calling \fBBIO_set_data()\fR on an existing BIO implementation with data that it does
+not expect will lead to unexpected results.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBBIO_get_data()\fR returns a pointer to the implementation specific custom data
@@ -113,7 +119,7 @@ associated with this BIO, or NULL if none has been set.
 The functions described here were added in OpenSSL 1.1.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

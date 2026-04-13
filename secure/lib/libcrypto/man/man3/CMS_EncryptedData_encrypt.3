@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_ENCRYPTEDDATA_ENCRYPT 3ossl"
-.TH CMS_ENCRYPTEDDATA_ENCRYPT 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH CMS_ENCRYPTEDDATA_ENCRYPT 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -96,7 +96,7 @@ The \fIflags\fR field supports the options \fBCMS_DETACHED\fR, \fBCMS_STREAM\fR 
 \&\fBCMS_PARTIAL\fR is specified.
 .PP
 The algorithm passed in the \fIcipher\fR parameter must support ASN1 encoding of
-its parameters.
+its parameters. AEAD cipher algorithms are not supported.
 .PP
 The \fBCMS_ContentInfo\fR structure can be freed using \fBCMS_ContentInfo_free\fR\|(3).
 .PP

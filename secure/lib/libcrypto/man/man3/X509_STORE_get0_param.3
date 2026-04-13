@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_GET0_PARAM 3ossl"
-.TH X509_STORE_GET0_PARAM 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH X509_STORE_GET0_PARAM 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -91,7 +91,8 @@ X509 object cache. The cache contains \fBX509\fR and \fBX509_CRL\fR objects. The
 returned pointer must not be freed by the calling application.
 .PP
 \&\fBX509_STORE_get1_all_certs()\fR returns a list of all certificates in the store.
-The caller is responsible for freeing the returned list.
+The caller is responsible for freeing the returned list
+with sk_X509_pop_free(sk, X509_free).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBX509_STORE_get0_param()\fR returns a pointer to an
@@ -105,6 +106,7 @@ The caller is responsible for freeing the returned list.
 certificates on success, else NULL.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBDEFINE_STACK_OF\fR\|(3),
 \&\fBX509_STORE_new\fR\|(3)
 .SH HISTORY
 .IX Header "HISTORY"

@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_PARAM_INT 3ossl"
-.TH OSSL_PARAM_INT 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH OSSL_PARAM_INT 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -427,6 +427,32 @@ could fill in the parameters like this:
 \&    if ((p = OSSL_PARAM_locate(params, "cookie")) != NULL)
 \&        OSSL_PARAM_set_utf8_ptr(p, "cookie value");
 .Ve
+.SS "Example 3"
+.IX Subsection "Example 3"
+This example shows a special case where
+\&\fI\-Wincompatible\-pointer\-types\-discards\-qualifiers\fR may be set during
+compilation. The value for \fIbuf\fR cannot be a \fIconst char *\fR type string. An
+alternative in this case would be to use \fBOSSL_PARAM\fR macro abbreviated calls
+rather than the specific callers which allows you to define the sha1 argument
+as a standard character array (\fIchar[]\fR).
+.PP
+For example, this code:
+.PP
+.Vb 3
+\&    OSSL_PARAM params[2];
+\&    params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA1", 0);
+\&    params[1] = OSSL_PARAM_construct_end();
+.Ve
+.PP
+Can be made compatible with the following version:
+.PP
+.Vb 2
+\&    char sha1[] = "SHA1"; /* sha1 is defined as char[] in this case */
+\&    OSSL_PARAM params[2];
+\&
+\&    params[0] = OSSL_PARAM_construct_utf8_string("digest", sha1, 0);
+\&    params[1] = OSSL_PARAM_construct_end();
+.Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBopenssl\-core.h\fR\|(7), \fBOSSL_PARAM\fR\|(3)
@@ -435,7 +461,7 @@ could fill in the parameters like this:
 These APIs were introduced in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

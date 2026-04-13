@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_PROVIDER-FIPS 7ossl"
-.TH OSSL_PROVIDER-FIPS 7ossl 2026-02-03 3.0.16 OpenSSL
+.TH OSSL_PROVIDER-FIPS 7ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -437,6 +437,19 @@ it is possible to utilize a FIPS provider constructed from one of the
 validated versions alongside \fIlibcrypto\fR and \fIlibssl\fR compiled from any
 release within the same major release series.  This flexibility enables
 you to address bug fixes and CVEs that fall outside the FIPS boundary.
+.PP
+You can load the FIPS provider into multiple library contexts as any other
+provider. However the following restriction applies. The FIPS provider cannot
+be used by multiple copies of OpenSSL libcrypto in a single process.
+.PP
+As the provider saves core callbacks to the libcrypto obtained in the
+\&\fBOSSL_provider_init()\fR call to global data it will fail if subsequent
+invocations of its \fBOSSL_provider_init()\fR function yield different addresses
+of these callbacks than in the initial call. This happens when different
+copies of libcrypto are present in the memory of the process and both try
+to load the same FIPS provider. A workaround is to have a different copy
+of the FIPS provider loaded for each of the libcrypto instances in the
+process.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBopenssl\-fipsinstall\fR\|(1),
@@ -453,7 +466,7 @@ you to address bug fixes and CVEs that fall outside the FIPS boundary.
 This functionality was added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_SET_METHOD 3ossl"
-.TH RSA_SET_METHOD 3ossl 2024-06-29 3.0.16 OpenSSL
+.TH RSA_SET_METHOD 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -212,13 +212,7 @@ and \fBRSA_get_method()\fR return pointers to the respective RSA_METHODs.
 .PP
 \&\fBRSA_set_default_method()\fR returns no value.
 .PP
-\&\fBRSA_set_method()\fR returns a pointer to the old RSA_METHOD implementation
-that was replaced. However, this return value should probably be ignored
-because if it was supplied by an ENGINE, the pointer could be invalidated
-at any time if the ENGINE is unloaded (in fact it could be unloaded as a
-result of the \fBRSA_set_method()\fR function releasing its handle to the
-ENGINE). For this reason, the return type may be replaced with a \fBvoid\fR
-declaration in a future release.
+\&\fBRSA_set_method()\fR returns 1 for success. It always succeeds.
 .PP
 \&\fBRSA_new_method()\fR returns NULL and sets an error code that can be obtained
 by \fBERR_get_error\fR\|(3) if the allocation fails. Otherwise
@@ -245,7 +239,7 @@ The \fBRSA_null_method()\fR, which was a partial attempt to avoid patent issues,
 was replaced to always return NULL in OpenSSL 1.1.1.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

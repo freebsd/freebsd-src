@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_NEW 3ossl"
-.TH X509_STORE_CTX_NEW 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH X509_STORE_CTX_NEW 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -139,7 +139,7 @@ If \fIctx\fR is NULL nothing is done.
 \&\fBX509_STORE_CTX_init()\fR sets up \fIctx\fR for a subsequent verification operation.
 .PP
 \&\fBX509_STORE_CTX_init()\fR initializes the internal state and resources of the
-given \fIctx\fR. Among others, it sets the verification parameters associcated
+given \fIctx\fR. Among others, it sets the verification parameters associated
 with the method name \f(CW\*(C`default\*(C'\fR, which includes the \f(CW\*(C`any\*(C'\fR purpose,
 and takes over callback function pointers from \fItrust_store\fR (unless NULL).
 It must be called before each call to \fBX509_verify_cert\fR\|(3) or
@@ -338,7 +338,7 @@ The \fBX509_STORE_CTX_new_ex()\fR function was added in OpenSSL 3.0.
 There is no need to call \fBX509_STORE_CTX_cleanup()\fR explicitly since OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2009\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

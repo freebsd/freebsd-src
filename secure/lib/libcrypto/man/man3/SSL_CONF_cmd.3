@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CONF_CMD 3ossl"
-.TH SSL_CONF_CMD 3ossl 2026-02-03 3.0.16 OpenSSL
+.TH SSL_CONF_CMD 3ossl 2026-04-07 3.0.20 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -122,7 +122,7 @@ Permits the use of unsafe legacy renegotiation. Equivalent to setting
 \&\fBSSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\fR.
 .IP \fB\-no_renegotiation\fR 4
 .IX Item "-no_renegotiation"
-Disables all attempts at renegotiation in TLSv1.2 and earlier, same as setting
+Disables all attempts at renegotiation in (D)TLSv1.2 and earlier, same as setting
 \&\fBSSL_OP_NO_RENEGOTIATION\fR.
 .IP \fB\-no_resumption_on_reneg\fR 4
 .IX Item "-no_resumption_on_reneg"
@@ -740,7 +740,7 @@ The \fBUnsafeLegacyServerConnect\fR option is no longer set by default from
 OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2012\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012\-2025 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
