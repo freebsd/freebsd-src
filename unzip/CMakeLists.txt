@@ -13,11 +13,11 @@ IF(ENABLE_UNZIP)
     bsdunzip.h
     bsdunzip_platform.h
     cmdline.c
-    la_getline.c
-    la_getline.h
     la_queue.h
     ../libarchive_fe/lafe_err.c
     ../libarchive_fe/lafe_err.h
+    ../libarchive_fe/lafe_getline.c
+    ../libarchive_fe/lafe_getline.h
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/passphrase.c
     ../libarchive_fe/passphrase.h

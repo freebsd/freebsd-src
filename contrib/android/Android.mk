@@ -159,6 +159,7 @@ libarchive_host_src_files :=
 endif
 
 libarchive_fe_src_files :=  libarchive_fe/lafe_err.c \
+							libarchive_fe/lafe_getline.c \
 							libarchive_fe/line_reader.c \
 							libarchive_fe/passphrase.c
 

@@ -13,6 +13,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_basic.c
     test_doubledash.c
     test_glob.c
+    test_not_exist.c
     test_singlefile.c
     test_C.c
     test_p.c

@@ -114,6 +114,8 @@ IF(ENABLE_TEST)
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c
+    test_read_format_cab_lzx_oob.c
+    test_read_format_cab_skip_malformed.c
     test_read_format_cpio_afio.c
     test_read_format_cpio_bin.c
     test_read_format_cpio_bin_Z.c
@@ -151,10 +153,12 @@ IF(ENABLE_TEST)
     test_read_format_isorr_new_bz2.c
     test_read_format_isorr_rr_moved.c
     test_read_format_isozisofs_bz2.c
+    test_read_format_iso_zisofs_overflow.c
     test_read_format_lha.c
     test_read_format_lha_bugfix_0.c
     test_read_format_lha_filename.c
     test_read_format_lha_filename_utf16.c
+    test_read_format_lha_oversize_header.c
     test_read_format_mtree.c
     test_read_format_mtree_crash747.c
     test_read_format_pax_bz2.c
@@ -167,6 +171,7 @@ IF(ENABLE_TEST)
     test_read_format_rar_filter.c
     test_read_format_rar_overflow.c
     test_read_format_rar5.c
+    test_read_format_rar5_loop_bug.c
     test_read_format_raw.c
     test_read_format_tar.c
     test_read_format_tar_V_negative_size.c
@@ -227,6 +232,7 @@ IF(ENABLE_TEST)
     test_tar_large.c
     test_ustar_filename_encoding.c
     test_ustar_filenames.c
+    test_v7tar_filename_encoding.c
     test_warn_missing_hardlink_target.c
     test_write_disk.c
     test_write_disk_appledouble.c

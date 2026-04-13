@@ -76,14 +76,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
     // This is the main function we want to fuzz (zero coverage)
     archive_entry_linkify(resolver, &entry, &spare);
 
-    // entry and spare may be modified by linkify
-    // We still need to free the original entries we allocated
+    // Update entries[i] to reflect ownership changes from linkify.
+    // If linkify cached the entry internally, entry is now NULL and the
+    // resolver owns the object. If linkify swapped it with a previously
+    // cached entry, entry points to that other object.
+    entries[i] = entry;
+
+    // Free any entry returned via spare (complete hardlink pair)
     if (spare != NULL) {
       archive_entry_free(spare);
     }
   }
 
-  // Free remaining entries from the resolver
+  // Free remaining entries from the resolver (drain loop)
   struct archive_entry *entry = NULL;
   struct archive_entry *spare = NULL;
   while (1) {
@@ -98,7 +103,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
     }
   }
 
-  // Free all our created entries
+  // Free all our created entries that were NOT consumed by the resolver
   for (int i = 0; i < num_entries; i++) {
     if (entries[i] != NULL) {
       archive_entry_free(entries[i]);
