@@ -2904,11 +2904,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	case SIOCIFDESTROY:
 		error = priv_check(td, PRIV_NET_IFDESTROY);
 
-		if (error == 0) {
-			sx_xlock(&ifnet_detach_sxlock);
+		if (error == 0)
 			error = if_clone_destroy(ifr->ifr_name);
-			sx_xunlock(&ifnet_detach_sxlock);
-		}
 		goto out_noref;
 
 	case SIOCIFGCLONERS:
