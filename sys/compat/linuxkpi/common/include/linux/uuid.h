@@ -33,6 +33,7 @@
 
 #include <linux/random.h>
 
+#define	UUID_SIZE	16
 #define	UUID_STRING_LEN	36
 
 #define	GUID_INIT(x0_3, x4_5, x6_7, x8, x9, x10, x11, x12, x13, x14, x15) \
@@ -59,6 +60,8 @@ typedef struct {
 	char	x[16];
 } guid_t;
 
+extern const guid_t guid_null;
+
 static inline void
 guid_gen(guid_t *g)
 {
@@ -68,10 +71,34 @@ guid_gen(guid_t *g)
 	g->x[8] = (g->x[8] & 0x3f) | 0x80;
 }
 
+static inline bool
+guid_equal(const guid_t *u1, const guid_t *u2)
+{
+	return (memcmp(u1, u2, sizeof(guid_t)) == 0);
+}
+
 static inline void
 guid_copy(guid_t *dst, const guid_t *src)
 {
 	memcpy(dst, src, sizeof(*dst));
+}
+
+static inline void
+import_guid(guid_t *dst, const uint8_t *src)
+{
+	memcpy(dst, src, sizeof(guid_t));
+}
+
+static inline void
+export_guid(uint8_t *dst, const guid_t *src)
+{
+	memcpy(dst, src, sizeof(guid_t));
+}
+
+static inline bool
+guid_is_null(const guid_t *guid)
+{
+	return (guid_equal(guid, &guid_null));
 }
 
 #endif	/* _LINUXKPI_LINUX_UUID_H */
