@@ -239,7 +239,7 @@ lkpi___kmalloc(size_t size, gfp_t flags)
 }
 
 void *
-lkpi_krealloc(void *ptr, size_t size, gfp_t flags)
+lkpi_krealloc(const void *ptr, size_t size, gfp_t flags)
 {
 	void *nptr;
 	size_t osize;
@@ -252,7 +252,7 @@ lkpi_krealloc(void *ptr, size_t size, gfp_t flags)
 
 	osize = ksize(ptr);
 	if (size <= osize)
-		return (ptr);
+		return (__DECONST(void *, ptr));
 
 	/*
 	 * We know the new size > original size.  realloc(9) does not (and cannot)
@@ -262,7 +262,7 @@ lkpi_krealloc(void *ptr, size_t size, gfp_t flags)
 	 * backing.
 	 */
 	if (size <= PAGE_SIZE)
-		return (realloc(ptr, size, M_KMALLOC, linux_check_m_flags(flags)));
+		return (realloc(__DECONST(void *, ptr), size, M_KMALLOC, linux_check_m_flags(flags)));
 
 	nptr = kmalloc(size, flags);
 	if (nptr == NULL)
