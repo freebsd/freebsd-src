@@ -35,7 +35,7 @@
 .Nd get information about disk device
 .Sh SYNOPSIS
 .Nm
-.Op Fl citSvw
+.Op Fl ciStvw
 .Ar disk ...
 .Nm
 .Op Fl l
@@ -52,9 +52,7 @@ utility prints out information about a disk device,
 and optionally runs a naive performance test on the device.
 .Pp
 The following options are available:
-.Bl -tag -width ".Fl v"
-.It Fl v
-Print fields one per line with a descriptive comment.
+.Bl -tag -width "-c"
 .It Fl c
 Perform a simple measurement of the I/O read command overhead.
 .It Fl i
@@ -70,16 +68,18 @@ character as a separator.
 Return the physical path of the disk.
 This is a string that identifies the physical path to the disk in the
 storage enclosure.
-.It Fl s
-Return the disk ident, usually the serial number.
 .It Fl S
 Perform synchronous random write test (ZFS SLOG test),
 measuring time required to write data blocks of different size and
 flush disk cache.
 Blocks of more then 128KB are written with multiple parallel operations.
+.It Fl s
+Return the disk ident, usually the serial number.
 .It Fl t
 Perform a simple and rather naive benchmark of the disks seek
 and transfer performance.
+.It Fl v
+Print fields one per line with a descriptive comment.
 .It Fl w
 Allow disruptive write tests.
 .El
