@@ -54,7 +54,9 @@
 #define CPU_AMD_UNKNOWN		0xffffffff
 
 #ifdef _KERNEL
+#ifndef LOCORE
 u_int	ident_zen_cpu(void);
+#endif
 #endif
 
 #endif /* !_X86_CPUTYPES_H_ */
