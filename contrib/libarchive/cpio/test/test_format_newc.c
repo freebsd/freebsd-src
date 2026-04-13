@@ -6,6 +6,13 @@
  */
 #include "test.h"
 
+#ifdef HAVE_GETEUID
+#define getuid() geteuid()
+#endif
+#ifdef HAVE_GETEGID
+#define getgid() getegid()
+#endif
+
 /* Number of bytes needed to pad 'n' to multiple of 'block', assuming
  * that 'block' is a power of two. This trick can be more easily
  * remembered as -n & (block - 1), but many compilers quite reasonably
