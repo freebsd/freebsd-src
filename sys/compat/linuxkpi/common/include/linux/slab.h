@@ -120,7 +120,7 @@ void *lkpi_kmalloc(size_t, gfp_t);
 void *lkpi_kvmalloc(size_t, gfp_t);
 void *lkpi___kmalloc(size_t, gfp_t);
 void *lkpi___kmalloc_node(size_t, gfp_t, int);
-void *lkpi_krealloc(void *, size_t, gfp_t);
+void *lkpi_krealloc(const void *, size_t, gfp_t);
 void lkpi_kfree(const void *);
 
 static inline gfp_t
@@ -166,7 +166,7 @@ kmalloc_node(size_t size, gfp_t flags, int node)
     kmalloc(size_mul((_n) * sizeof(typeof(_p))), default_gfp(__VA_ARGS__))
 
 static inline void *
-krealloc(void *ptr, size_t size, gfp_t flags)
+krealloc(const void *ptr, size_t size, gfp_t flags)
 {
 	return (lkpi_krealloc(ptr, size, flags));
 }
