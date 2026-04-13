@@ -398,7 +398,7 @@ LENTRY(enter_kernel_el)
 	 */
 
 	/* Configure the Hypervisor */
-	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
+	ldr	x2, =(HCR_RW | HCR_APK | HCR_API | HCR_ATA)
 	msr	hcr_el2, x2
 
 	/* Stash value of HCR_EL2 for later */
@@ -1063,6 +1063,21 @@ LENTRY(start_mmu)
 	isb
 
 	ldr	x2, mair
+
+	/*
+	 * If MTE is supported, configure GCR_EL1 and clear the TFSR registers of
+	 * any pending tag check faults
+	 */
+	CHECK_CPU_FEAT(x3, ID_AA64PFR1, MTE, MTE, 1f)
+
+	/* Set GCR_EL1, non-zero tags excluded by default */
+	mov	x3, #(GCR_Exclude_MASK | GCR_RRND)
+	msr	GCR_EL1_REG, x3
+
+	/* Clear any pending tag check faults */
+	msr TFSR_EL1_REG, xzr
+	msr TFSRE0_EL1_REG, xzr
+1:
 	msr	mair_el1, x2
 
 	/*
