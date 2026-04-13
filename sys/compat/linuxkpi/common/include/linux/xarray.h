@@ -54,6 +54,18 @@ struct xarray {
 	uint32_t xa_flags;	/* see XA_FLAGS_XXX */
 };
 
+#define	DEFINE_XARRAY_FLAGS(name, flags) \
+	struct xarray name = { \
+		.xa_head.gfp_mask = GFP_NOWAIT, \
+		.xa_flags = flags, \
+	}; \
+	MTX_SYSINIT(name ## _mtx, &name.xa_lock, \
+	    "linuxkpi_DEFINE_XARRAY(" #name ")", \
+	    MTX_DEF | MTX_RECURSE)
+
+#define	DEFINE_XARRAY(name)		DEFINE_XARRAY_FLAGS(name, 0)
+#define	DEFINE_XARRAY_ALLOC(name)	DEFINE_XARRAY_FLAGS(name, XA_FLAGS_ALLOC)
+
 struct xa_limit {
 	uint32_t max;
 	uint32_t min;
