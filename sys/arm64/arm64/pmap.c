@@ -290,6 +290,10 @@ VM_PAGE_TO_PV_LIST_LOCK(vm_page_t m)
 #define PTE_TO_VM_PAGE(pte) PHYS_TO_VM_PAGE(PTE_TO_PHYS(pte))
 #define VM_PAGE_TO_PTE(m) PHYS_TO_PTE(VM_PAGE_TO_PHYS(m))
 
+static struct mtx cmap_lock;
+static void *cmap1_addr;
+static pt_entry_t *cmap1_pte;
+
 /*
  * The presence of this flag indicates that the mapping is writeable.
  * If the ATTR_S1_AP_RO bit is also set, then the mapping is clean, otherwise
@@ -1363,7 +1367,7 @@ pmap_bootstrap(void)
 
 	virtual_avail = preinit_map_va + PMAP_PREINIT_MAPPING_SIZE;
 	virtual_avail = roundup2(virtual_avail, L1_SIZE);
-	virtual_end = VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE;
+	virtual_end = VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE - L2_SIZE;
 	kernel_vm_end = virtual_avail;
 
 	/*
@@ -1418,6 +1422,19 @@ pmap_bootstrap(void)
 	/* Allocate memory for the msgbuf, e.g. for /sbin/dmesg */
 	alloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 	msgbufp = (void *)msgbufpv;
+
+	/* Allocate space for the CPU0 CMAP */
+	bs_state.va = virtual_end;
+	pmap_bootstrap_l2_table(&bs_state);
+	pmap_store(&bs_state.l3[pmap_l3_index(bs_state.va)],
+	    PHYS_TO_PTE(pmap_early_vtophys((vm_offset_t)bs_state.l3)) |
+	    ATTR_AF | pmap_sh_attr | ATTR_S1_XN | ATTR_KERN_GP |
+	    ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | L3_PAGE);
+	dsb(ishst);
+
+	mtx_init(&cmap_lock, "SYSMAPS", NULL, MTX_DEF);
+	cmap1_addr = (void *)(virtual_end + L3_SIZE);
+	cmap1_pte = &bs_state.l3[pmap_l3_index((vm_offset_t)cmap1_addr)];
 
 	pa = pmap_early_vtophys(bs_state.freemempos);
 
