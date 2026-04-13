@@ -1305,27 +1305,6 @@ tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, bool use_h
 	int error;
 	uint16_t tcp_data_sum;
 
-#ifdef INET
-	/* Quickly decide if packet cannot be LRO'ed */
-	if (__predict_false(V_ipforwarding != 0))
-		return (TCP_LRO_CANNOT);
-#endif
-#ifdef INET6
-	/* Quickly decide if packet cannot be LRO'ed */
-	if (__predict_false(V_ip6_forwarding != 0))
-		return (TCP_LRO_CANNOT);
-#endif
-	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
-	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
-	    (m->m_pkthdr.csum_data != 0xffff)) {
-		/*
-		 * The checksum either did not have hardware offload
-		 * or it was a bad checksum. We can't LRO such
-		 * a packet.
-		 */
-		counter_u64_add(tcp_bad_csums, 1);
-		return (TCP_LRO_CANNOT);
-	}
 	/* We expect a contiguous header [eh, ip, tcp]. */
 	pa = tcp_lro_parser(m, &po, &pi, true);
 	if (__predict_false(pa == NULL))
@@ -1443,6 +1422,29 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 {
 	int error;
 
+#ifdef INET
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ipforwarding != 0))
+		return (TCP_LRO_CANNOT);
+#endif
+#ifdef INET6
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ip6_forwarding != 0))
+		return (TCP_LRO_CANNOT);
+#endif
+
+	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
+	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
+	    (m->m_pkthdr.csum_data != 0xffff)) {
+		/*
+		 * The checksum either did not have hardware offload
+		 * or it was a bad checksum. We can't LRO such
+		 * a packet.
+		 */
+		counter_u64_add(tcp_bad_csums, 1);
+		return (TCP_LRO_CANNOT);
+	}
+
 	/* get current time */
 	binuptime(&lc->lro_last_queue_time);
 	CURVNET_SET(lc->ifp->if_vnet);
@@ -1472,9 +1474,38 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 		return;
 	}
 
+#ifdef INET
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ipforwarding != 0)) {
+		/* input packet to network layer */
+		(*lc->ifp->if_input) (lc->ifp, mb);
+		return;
+	}
+#endif
+#ifdef INET6
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ip6_forwarding != 0)) {
+		/* input packet to network layer */
+		(*lc->ifp->if_input) (lc->ifp, mb);
+		return;
+	}
+#endif
 	/* check if packet is not LRO capable */
 	if (__predict_false((lc->ifp->if_capenable & IFCAP_LRO) == 0)) {
 		/* input packet to network layer */
+		(*lc->ifp->if_input) (lc->ifp, mb);
+		return;
+	}
+
+	if (((mb->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
+	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
+	    (mb->m_pkthdr.csum_data != 0xffff)) {
+		/*
+		 * The checksum either did not have hardware offload
+		 * or it was a bad checksum. We can't LRO such
+		 * a packet.
+		 */
+		counter_u64_add(tcp_bad_csums, 1);
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}
