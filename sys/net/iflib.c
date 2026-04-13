@@ -5292,16 +5292,33 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	return (0);
 
 fail_detach:
+	CTX_UNLOCK(ctx);
+	taskqueue_drain(ctx->ifc_tq, &ctx->ifc_admin_task);
 	ether_ifdetach(ctx->ifc_ifp);
+	CTX_LOCK(ctx);
 fail_queues:
 	sysctl_ctx_free(&ctx->ifc_sysctl_ctx);
 	ctx->ifc_sysctl_node = NULL;
-	taskqueue_free(ctx->ifc_tq);
+	/*
+	 * Drain without holding CTX_LOCK so _task_fn_admin can run to
+	 * completion if it needs the context lock.  On fail_detach we already
+	 * drained above; a second drain is a no-op when the queue is empty.
+	 */
+	CTX_UNLOCK(ctx);
+	taskqueue_drain(ctx->ifc_tq, &ctx->ifc_admin_task);
+	CTX_LOCK(ctx);
 	iflib_tqg_detach(ctx);
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
+	/*
+	 * Match iflib_device_deregister: IFDI_DETACH before taskqueue_free.
+	 * Avoid IFNET_WLOCK across driver detach (LinuxKPI workqueue drain).
+	 */
+	IFNET_WUNLOCK();
 	IFDI_DETACH(ctx);
 	IFDI_QUEUES_FREE(ctx);
+	IFNET_WLOCK();
+	taskqueue_free(ctx->ifc_tq);
 fail_intr_free:
 	iflib_free_intr_mem(ctx);
 fail_unlock:
