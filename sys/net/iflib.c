@@ -190,6 +190,7 @@ struct iflib_ctx {
 	struct ifmedia	ifc_media;
 	struct ifmedia	*ifc_mediap;
 
+	struct sysctl_ctx_list ifc_sysctl_ctx;
 	struct sysctl_oid *ifc_sysctl_node;
 	uint16_t ifc_sysctl_ntxqs;
 	uint16_t ifc_sysctl_nrxqs;
@@ -5293,6 +5294,8 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 fail_detach:
 	ether_ifdetach(ctx->ifc_ifp);
 fail_queues:
+	sysctl_ctx_free(&ctx->ifc_sysctl_ctx);
+	ctx->ifc_sysctl_node = NULL;
 	taskqueue_free(ctx->ifc_tq);
 	iflib_tqg_detach(ctx);
 	iflib_tx_structures_free(ctx);
@@ -5331,6 +5334,9 @@ iflib_device_deregister(if_ctx_t ctx)
 {
 	if_t ifp = ctx->ifc_ifp;
 	device_t dev = ctx->ifc_dev;
+
+	sysctl_ctx_free(&ctx->ifc_sysctl_ctx);
+	ctx->ifc_sysctl_node = NULL;
 
 	/* Make sure VLANS are not using driver */
 	if (if_vlantrunkinuse(ifp)) {
@@ -6787,62 +6793,61 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 {
 	device_t dev = iflib_get_dev(ctx);
 	struct sysctl_oid_list *child, *oid_list;
-	struct sysctl_ctx_list *ctx_list;
 	struct sysctl_oid *node;
 
-	ctx_list = device_get_sysctl_ctx(dev);
+	sysctl_ctx_init(&ctx->ifc_sysctl_ctx);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-	ctx->ifc_sysctl_node = node = SYSCTL_ADD_NODE(ctx_list, child,
+	ctx->ifc_sysctl_node = node = SYSCTL_ADD_NODE(&ctx->ifc_sysctl_ctx, child,
 	    OID_AUTO, "iflib", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 	    "IFLIB fields");
 	oid_list = SYSCTL_CHILDREN(node);
 
-	SYSCTL_ADD_CONST_STRING(ctx_list, oid_list, OID_AUTO, "driver_version",
+	SYSCTL_ADD_CONST_STRING(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "driver_version",
 	    CTLFLAG_RD, ctx->ifc_sctx->isc_driver_version, "driver version");
 
-	SYSCTL_ADD_BOOL(ctx_list, oid_list, OID_AUTO, "simple_tx",
+	SYSCTL_ADD_BOOL(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "simple_tx",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_simple_tx, 0,
 	    "use simple tx ring");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_ntxqs",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_ntxqs",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_ntxqs, 0,
 	    "# of txqs to use, 0 => use default #");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_nrxqs",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_nrxqs",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_nrxqs, 0,
 	    "# of rxqs to use, 0 => use default #");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_qs_enable",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_qs_enable",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
 	    "permit #txq != #rxq");
-	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
+	SYSCTL_ADD_INT(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "disable_msix",
 	    CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
 	    "disable MSI-X (default 0)");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "rx_budget",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "rx_budget",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0, "set the RX budget");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "tx_abdicate",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "tx_abdicate",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_tx_abdicate, 0,
 	    "cause TX to abdicate instead of running to completion");
 	ctx->ifc_sysctl_core_offset = CORE_OFFSET_UNSPECIFIED;
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "core_offset",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "core_offset",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_core_offset, 0,
 	    "offset to start using cores at");
-	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "separate_txrx",
+	SYSCTL_ADD_U8(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "separate_txrx",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_separate_txrx, 0,
 	    "use separate cores for TX and RX");
-	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "use_logical_cores",
+	SYSCTL_ADD_U8(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "use_logical_cores",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_use_logical_cores, 0,
 	    "try to make use of logical cores for TX and RX");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "use_extra_msix_vectors",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "use_extra_msix_vectors",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_extra_msix_vectors, 0,
 	    "attempt to reserve the given number of extra MSI-X vectors during driver load for the creation of additional interfaces later");
-	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "allocated_msix_vectors",
+	SYSCTL_ADD_INT(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "allocated_msix_vectors",
 	    CTLFLAG_RDTUN, &ctx->ifc_softc_ctx.isc_vectors, 0,
 	    "total # of MSI-X vectors allocated by driver");
 
 	/* XXX change for per-queue sizes */
-	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
+	SYSCTL_ADD_PROC(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_ntxds",
 	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, ctx,
 	    IFLIB_NTXD_HANDLER, mp_ndesc_handler, "A",
 	    "list of # of TX descriptors to use, 0 = use default #");
-	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_nrxds",
+	SYSCTL_ADD_PROC(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_nrxds",
 	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, ctx,
 	    IFLIB_NRXD_HANDLER, mp_ndesc_handler, "A",
 	    "list of # of RX descriptors to use, 0 = use default #");
@@ -6853,9 +6858,8 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 {
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
-	device_t dev = iflib_get_dev(ctx);
 	struct sysctl_oid_list *child;
-	struct sysctl_ctx_list *ctx_list;
+	struct sysctl_ctx_list *ctx_list = &ctx->ifc_sysctl_ctx;
 	iflib_fl_t fl;
 	iflib_txq_t txq;
 	iflib_rxq_t rxq;
@@ -6864,7 +6868,6 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 	char *qfmt;
 	struct sysctl_oid *queue_node, *fl_node, *node;
 	struct sysctl_oid_list *queue_list, *fl_list;
-	ctx_list = device_get_sysctl_ctx(dev);
 
 	node = ctx->ifc_sysctl_node;
 	child = SYSCTL_CHILDREN(node);
