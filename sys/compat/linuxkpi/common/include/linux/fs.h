@@ -133,8 +133,11 @@ do {									\
 
 typedef int (*filldir_t)(void *, const char *, int, off_t, u64, unsigned);
 
+typedef unsigned int fop_flags_t;
+
 struct file_operations {
 	struct module *owner;
+	fop_flags_t fop_flags; /* Unused on FreeBSD. */
 	ssize_t (*read)(struct linux_file *, char __user *, size_t, off_t *);
 	ssize_t (*write)(struct linux_file *, const char __user *, size_t, off_t *);
 	unsigned int (*poll) (struct linux_file *, struct poll_table_struct *);
@@ -182,6 +185,14 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **);
 #endif
 };
+
+#define	FOP_BUFFER_RASYNC	(1 << 0)
+#define	FOP_BUFFER_WASYNC	(1 << 1)
+#define	FOP_MMAP_SYNC		(1 << 2)
+#define	FOP_DIO_PARALLEL_WRITE	(1 << 3)
+#define	FOP_HUGE_PAGES		(1 << 4)
+#define	FOP_UNSIGNED_OFFSET	(1 << 5)
+
 #define	fops_get(fops)		(fops)
 #define	replace_fops(f, fops)	((f)->f_op = (fops))
 
