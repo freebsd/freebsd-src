@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 12, 2025
+.Dd December 11, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -3255,6 +3255,117 @@ The forwarding table is not populated by received packets.
 .It Cm vxlanflush
 Delete all dynamically-learned addresses from the forwarding table.
 .It Cm vxlanflushall
+Delete all addresses, including static addresses, from the forwarding table.
+.El
+.Ss Generic Network Virtualization Encapsulation Parameters
+The following parameters are used to configure
+.Xr geneve 4
+interfaces.
+.Bl -tag -width indent
+.It Cm geneveid Ar identifier
+This value is a 24-bit Virtual Network Identifier (VNI) that identifies the
+virtual network identifier of the interface.
+.It Cm genevemode Ar mode
+Set the
+.Nm
+protocol operating
+.Ar mode
+value.
+Supported modes are currently:
+.Bl -tag -width indent
+.It Cm l2
+Default.
+.It Cm l3
+.El
+.It Cm genevelocal Ar address
+The source address used in the encapsulating IPv4/IPv6 header.
+The address should already be assigned to an existing interface.
+When the interface is configured in unicast mode, the listening socket
+is bound to this address.
+.It Cm geneveremote Ar address
+The interface can be configured in a unicast, or point-to-point, mode
+to create a tunnel between two hosts.
+This is the IP address of the remote end of the tunnel.
+.It Cm genevegroup Ar address
+The interface can be configured in a multicast mode
+to create a virtual network of hosts.
+This is the IP multicast group address the interface will join.
+.It Cm genevelocalport Ar port
+The port number the interface will listen on.
+The default port number is 6081.
+.It Cm geneveremoteport Ar port
+The destination port number used in the encapsulating IPv4/IPv6 header.
+The remote host should be listening on this port.
+The default port number is 6081.
+.It Cm geneveportrange Ar low high
+The range of source ports used in the encapsulating IPv4/IPv6 header.
+The port selected within the range is based on a hash of the inner frame.
+A range is useful to provide entropy within the outer IP header
+for more effective load balancing.
+The default range is between the
+.Xr sysctl 8
+variables
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last
+.It Cm genevetimeout Ar timeout
+The maximum time, in seconds, before an entry in the forwarding table
+is pruned.
+The default is 1200 seconds (20 minutes).
+.It Cm genevemaxaddr Ar max
+The maximum number of entries in the forwarding table.
+The default is 2000.
+.It Cm genevedev Ar dev
+When the interface is configured in multicast mode, the
+.Cm dev
+interface is used to transmit IP multicast packets.
+.It Cm genevedf Ar df
+Set the Do not fragment (DF) bit in the encapsulating header.
+Supported
+.Ar df
+values are currently:
+.Bl -tag -width indent
+.It Cm set
+Do not allow fragmentation on the output IPv4/IPv6 packets and
+set the Do not fragment (DF) bit in the encapsulating IPv4 header.
+.It Cm unset
+Default.
+.It Cm inherit
+The Do not fragment (DF) bit copied from inner IPv4 header to the
+outer IPv4 header.
+.El
+.It Cm genevettl Ar ttl
+The TTL used in the encapsulating IPv4/IPv6 header.
+.Bl -tag -width indent
+.It Cm 0-255
+The default is 64.
+.It Cm inherit
+The TTL copied from inner encapsulated header to the outer header.
+.El
+.It Cm genevedscpinherit
+Inherit DSCP or Traffic Class value from the inner IPv4/IPv6 header.
+.It Fl genevedscpinherit
+Unconfigure DSCP or Traffic Class inheritence from the inner IPv4/IPv6 header.
+This is the default.
+.It Cm genevelearn
+When in L2 unicast mode, The source IP address and inner source Ethernet
+MAC address of received packets are used to dynamically populate the
+forwarding table.
+When in L2 multicast mode, an entry in the forwarding table allows the
+interface to send the frame directly to the remote host instead of
+broadcasting the frame to the multicast group.
+This is the default.
+.It Fl genevelearn
+In L2 mode, geneve forwarding table is not populated by received packets.
+.It Cm geneveexternal
+make this tunnel externally controlled.
+.It Fl geneveexternal
+enable manual configuration for this tunnel.
+This is the default
+.It Cm geneveflush
+Delete all dynamically-learned addresses from the forwarding table when in L2
+mode.
+.It Cm geneveflushall
 Delete all addresses, including static addresses, from the forwarding table.
 .El
 .Ss CARP Parameters
