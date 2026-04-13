@@ -1,7 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2026 Dmitry Salychev
+ * Copyright (c) 2026 Dmitry Salychev
+ * Copyright (c) 2026 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,8 +57,13 @@
 #define DPAA2_FD_SL_SHIFT	(14)
 #define DPAA2_FD_LEN_MASK	(0x3FFFFu)
 #define DPAA2_FD_OFFSET_MASK	(0x0FFFu)
+#define DPAA2_FD_PTAC_PTV2_MASK	(0x1u)
+#define DPAA2_FD_PTAC_PTV1_MASK	(0x2u)
+#define DPAA2_FD_PTAC_PTA_MASK	(0x4u)
 #define DPAA2_FD_PTAC_MASK	(0x7u)
 #define DPAA2_FD_PTAC_SHIFT	(21)
+#define DPAA2_FD_ASAL_MASK	(0xFu)
+#define DPAA2_FD_ASAL_SHIFT	(16)
 
 /*
  * DPAA2 frame annotation sizes
@@ -73,6 +79,31 @@
 #define DPAA2_FA_SWA_SIZE		64u	/* SW frame annotation */
 #define DPAA2_FA_HWA_SIZE		128u	/* HW frame annotation */
 #define DPAA2_FA_WRIOP_SIZE		128u	/* WRIOP HW annotation */
+#define DPAA2_FA_HWA_FAS_SIZE		8u	/* Frame annotation status */
+
+/*
+ * DPAA2 annotation valid bits in FD[FRC].
+ *
+ * See 7.31.2 WRIOP FD frame context (FRC),
+ * LX2160A DPAA2 Low-Level Hardware Reference Manual, Rev. 0, 06/2020
+ */
+#define DPAA2_FD_FRC_FASV		(1 << 15)
+#define DPAA2_FD_FRC_FAEADV		(1 << 14)
+#define DPAA2_FD_FRC_FAPRV		(1 << 13)
+#define DPAA2_FD_FRC_FAIADV		(1 << 12)
+#define DPAA2_FD_FRC_FASWOV		(1 << 11)
+#define DPAA2_FD_FRC_FAICFDV		(1 << 10)
+
+/*
+ * DPAA2 Frame annotation status word.
+ *
+ * See 7.34.3 Frame annotation status word (FAS),
+ * LX2160A DPAA2 Low-Level Hardware Reference Manual, Rev. 0, 06/2020
+ */
+#define DPAA2_FAS_L3CV			(1 << 3) /* L3 csum validated */
+#define DPAA2_FAS_L3CE			(1 << 2) /* L3 csum error */
+#define DPAA2_FAS_L4CV			(1 << 1) /* L4 csum validated*/
+#define DPAA2_FAS_L4CE			(1 << 0) /* L4 csum error */
 
 /**
  * @brief DPAA2 frame descriptor.
@@ -126,13 +157,18 @@ struct dpaa2_hwa_wriop {
 CTASSERT(sizeof(struct dpaa2_hwa_wriop) == DPAA2_FA_WRIOP_SIZE);
 
 /**
- * @brief DPAA2 hardware frame annotation (accelerator-specific annotation).
+ * @brief DPAA2 hardware frame annotation.
  *
  * See 3.4.1.2 Accelerator-specific annotation,
  * LX2160A DPAA2 Low-Level Hardware Reference Manual, Rev. 0, 06/2020 
  */
 struct dpaa2_hwa {
 	union {
+		/* Keep fields common to all accelerators at the top. */
+		struct {
+			uint64_t fas;
+		} __packed;
+		/* Keep accelerator-specific annotations below. */
 		struct dpaa2_hwa_wriop wriop;
 	};
 } __packed;
@@ -159,6 +195,20 @@ struct dpaa2_swa {
 } __packed;
 CTASSERT(sizeof(struct dpaa2_swa) == DPAA2_FA_SWA_SIZE);
 
+/**
+ * @brief Frame annotation status word.
+ *
+ * See 7.34.3 Frame annotation status word (FAS),
+ * LX2160A DPAA2 Low-Level Hardware Reference Manual, Rev. 0, 06/2020
+ */
+struct dpaa2_hwa_fas {
+	uint8_t  _reserved1;
+	uint8_t  ppid;
+	uint16_t ifpid;
+	uint32_t status;
+} __packed;
+CTASSERT(sizeof(struct dpaa2_hwa_fas) == DPAA2_FA_HWA_FAS_SIZE);
+
 int  dpaa2_fd_build(device_t, const uint16_t, struct dpaa2_buf *,
     bus_dma_segment_t *, const int, struct dpaa2_fd *);
 
@@ -168,7 +218,16 @@ int  dpaa2_fd_format(struct dpaa2_fd *);
 bool dpaa2_fd_short_len(struct dpaa2_fd *);
 int  dpaa2_fd_offset(struct dpaa2_fd *);
 
+uint32_t dpaa2_fd_get_frc(struct dpaa2_fd *);
+#ifdef _not_yet_
+void dpaa2_fd_set_frc(struct dpaa2_fd *, uint32_t);
+#endif
+
 int  dpaa2_fa_get_swa(struct dpaa2_fd *, struct dpaa2_swa **);
 int  dpaa2_fa_get_hwa(struct dpaa2_fd *, struct dpaa2_hwa **);
+int  dpaa2_fa_get_fas(struct dpaa2_fd *, struct dpaa2_hwa_fas *);
+#ifdef _not_yet_
+int  dpaa2_fa_set_fas(struct dpaa2_fd *, struct dpaa2_hwa_fas *);
+#endif
 
 #endif /* _DPAA2_FRAME_H */
