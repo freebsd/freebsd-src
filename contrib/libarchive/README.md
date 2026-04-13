@@ -37,10 +37,13 @@ The top-level directory contains the following information files:
 * **CMakeLists.txt** - input for "cmake" build tool, see INSTALL
 * **configure** - configuration script, see INSTALL for details.  If your copy of the source lacks a `configure` script, you can try to construct it by running the script in `build/autogen.sh` (or use `cmake`).
 
-The following files in the top-level directory are used by the 'configure' script:
+The following files in the top-level directory are related to the 'configure' script and are only needed by maintainers:
 
-* `Makefile.am`, `aclocal.m4`, `configure.ac` - used to build this distribution, only needed by maintainers
-* `Makefile.in`, `config.h.in` - templates used by configure script
+* `configure.ac` - used (by autoconf) to build the configure script and related files
+* `Makefile.am` - used (by automake) to generate Makefile.in
+* `aclocal.m4` - auto-generated file (created by aclocal) used to build the configure script
+* `Makefile.in` - auto-generated template (created by automake) used by the configure script to create Makefile
+* `config.h.in` - auto-generated template (created by autoheader) used by the configure script to create config.h
 
 ## Documentation
 

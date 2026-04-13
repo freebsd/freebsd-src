@@ -11,6 +11,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
@@ -347,9 +350,10 @@ owner_parse(const char *spec, struct cpio_owner *owner, const char **errmsg)
 				owner->gid = pwent->pw_gid;
 		} else {
 			char *end;
+			unsigned long val;
 			errno = 0;
-			owner->uid = (int)strtoul(user, &end, 10);
-			if (errno || *end != '\0') {
+			val = strtoul(user, &end, 10);
+			if (errno || *end != '\0' || val > (unsigned)INT_MAX) {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup user ``%s''", user);
 				errbuff[sizeof(errbuff) - 1] = '\0';
@@ -357,6 +361,7 @@ owner_parse(const char *spec, struct cpio_owner *owner, const char **errmsg)
 				*errmsg = errbuff;
 				return (-1);
 			}
+			owner->uid = (int)val;
 		}
 		free(user);
 	}
@@ -373,15 +378,17 @@ owner_parse(const char *spec, struct cpio_owner *owner, const char **errmsg)
 			}
 		} else {
 			char *end;
+			unsigned long val;
 			errno = 0;
-			owner->gid = (int)strtoul(g, &end, 10);
-			if (errno || *end != '\0') {
+			val = strtoul(g, &end, 10);
+			if (errno || *end != '\0' || val > (unsigned)INT_MAX) {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup group ``%s''", g);
 				errbuff[sizeof(errbuff) - 1] = '\0';
 				*errmsg = errbuff;
 				return (-1);
 			}
+			owner->gid = (int)val;
 		}
 	}
 	return (0);

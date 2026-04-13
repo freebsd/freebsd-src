@@ -149,6 +149,8 @@ archive_read_support_filter_program_signature(struct archive *_a,
 	if (signature != NULL && signature_len > 0) {
 		state->signature_len = signature_len;
 		state->signature = malloc(signature_len);
+		if (state->signature == NULL)
+			goto memerr;
 		memcpy(state->signature, signature, signature_len);
 	}
 

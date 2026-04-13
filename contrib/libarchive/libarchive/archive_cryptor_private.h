@@ -109,6 +109,10 @@ typedef struct {
 #include <nettle/version.h>
 #define	ARCHIVE_CRYPTOR_USE_NETTLE 1
 
+#ifndef AES_MAX_KEY_SIZE
+#define AES_MAX_KEY_SIZE AES256_KEY_SIZE
+#endif
+
 typedef struct {
 #if NETTLE_VERSION_MAJOR < 3
 	struct aes_ctx	ctx;

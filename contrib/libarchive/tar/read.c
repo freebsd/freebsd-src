@@ -255,7 +255,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			break;
 		p = archive_entry_pathname(entry);
 		if (p == NULL || p[0] == '\0') {
-			lafe_warnc(0, "Archive entry has empty or unreadable filename ... skipping.");
+			lafe_warnc(0, "Archive entry has empty or unreadable filename ... skipping");
 			bsdtar->return_value = 1;
 			continue;
 		}
