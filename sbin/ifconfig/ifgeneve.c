@@ -403,10 +403,10 @@ geneve_status_nl(if_ctx *ctx)
 			    geneve_data.ifla_ftable_nospace);
 		}
 
-		printf("\n\t\tstats: tso %lu, txcsum %lu, rxcsum %lu",
-		    geneve_data.ifla_stats_tso,
-		    geneve_data.ifla_stats_txcsum,
-		    geneve_data.ifla_stats_rxcsum);
+		printf("\n\t\tstats: tso %ju, txcsum %ju, rxcsum %ju",
+		    (uintmax_t)geneve_data.ifla_stats_tso,
+		    (uintmax_t)geneve_data.ifla_stats_txcsum,
+		    (uintmax_t)geneve_data.ifla_stats_rxcsum);
 	}
 
 	putchar('\n');
