@@ -177,6 +177,40 @@ DEFINE_TEST(test_read_append_wrong_filter)
   assertEqualInt(ARCHIVE_OK,archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_append_lzop_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_LZOP);
+  if (archive_liblzo2_version() != NULL) {
+    assertEqualIntA(a, ARCHIVE_OK, r);
+  } else if (canLzop()) {
+    // We're using an external program
+    assertEqualIntA(a, ARCHIVE_WARN, r);
+  }
+
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_grzip_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_GRZIP);
+  // Grzip currently always uses an external program.
+  if (canGrzip()) {
+    assertEqualIntA(a, ARCHIVE_WARN, r);
+  }
+
+  archive_read_free(a);
+}
+
 DEFINE_TEST(test_read_append_filter_program)
 {
   struct archive_entry *ae;
