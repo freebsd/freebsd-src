@@ -31,11 +31,13 @@
 #include <sys/abi_compat.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -96,7 +98,10 @@ static void iic_identify(driver_t *driver, device_t parent);
 static void iicdtor(void *data);
 static int iicuio_move(struct iic_cdevpriv *priv, struct uio *uio, int last);
 static int iicuio(struct cdev *dev, struct uio *uio, int ioflag);
-static int iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags, bool compat32);
+static int iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d,
+    int flags, bool compat32, bool kernel_msgs);
+static int iic_linux_rdwr(struct file *fp, struct iic_rdwr_data *d,
+    int flags, struct thread *td);
 
 static device_method_t iic_methods[] = {
 	/* device interface */
@@ -163,6 +168,7 @@ iic_attach(device_t dev)
 		return (ENXIO);
 	}
 	sc->sc_devnode->si_drv1 = sc;
+	sc->sc_devnode->si_drv2 = (void *)iic_linux_rdwr;
 
 	return (0);
 }
@@ -341,7 +347,7 @@ iic_copyinmsgs32(struct iic_rdwr_data *d, struct iic_msg *buf)
 
 static int
 iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags,
-    bool compat32 __unused)
+    bool compat32 __unused, bool kernel_msgs)
 {
 #ifdef COMPAT_FREEBSD32
 	struct iic_rdwr_data dswab;
@@ -375,7 +381,11 @@ iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags,
 		error = iic_copyinmsgs32(d, buf);
 	else
 #endif
-	error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
+	if (kernel_msgs)
+		memcpy(buf, d->msgs, sizeof(*d->msgs) * d->nmsgs);
+	else
+		error = copyin(d->msgs, buf,
+		    sizeof(*d->msgs) * d->nmsgs);
 	if (error != 0) {
 		free(buf, M_IIC);
 		return (error);
@@ -421,6 +431,27 @@ iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags,
 
 	free(usrbufs, M_IIC);
 	free(buf, M_IIC);
+	return (error);
+}
+
+static int
+iic_linux_rdwr(struct file *fp, struct iic_rdwr_data *d, int flags,
+    struct thread *td)
+{
+	struct file *saved_fp;
+	struct iic_cdevpriv *priv;
+	int error;
+
+	saved_fp = td->td_fpop;
+	td->td_fpop = fp;
+	error = devfs_get_cdevpriv((void **)&priv);
+	td->td_fpop = saved_fp;
+	if (error != 0)
+		return (error);
+
+	IIC_LOCK(priv);
+	error = iicrdwr(priv, d, flags, false, true);
+	IIC_UNLOCK(priv);
 	return (error);
 }
 
@@ -582,7 +613,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		compat32 = false;
 #endif
 		error = iicrdwr(priv, (struct iic_rdwr_data *)data, flags,
-		    compat32);
+		    compat32, false);
 
 		break;
 
