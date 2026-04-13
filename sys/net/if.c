@@ -491,6 +491,8 @@ vnet_if_return(const void *unused __unused)
 
 	i = 0;
 
+	/* The lock has already been aquired in vnet_destroy() */
+	sx_assert(&ifnet_detach_sxlock, SX_XLOCKED);
 	/*
 	 * We need to protect our access to the V_ifnet tailq. Ordinarily we'd
 	 * enter NET_EPOCH, but that's not possible, because if_vmove() calls
@@ -519,9 +521,7 @@ vnet_if_return(const void *unused __unused)
 	IFNET_WUNLOCK();
 
 	for (int j = 0; j < i; j++) {
-		sx_xlock(&ifnet_detach_sxlock);
 		if_vmove(pending[j], pending[j]->if_home_vnet);
-		sx_xunlock(&ifnet_detach_sxlock);
 	}
 
 	free(pending, M_IFNET);
