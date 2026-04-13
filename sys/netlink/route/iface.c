@@ -550,10 +550,7 @@ rtnl_handle_dellink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 	}
 	NLP_LOG(LOG_DEBUG3, nlp, "mapped ifindex %u to %s", attrs.ifi_index, if_name(ifp));
 
-	sx_xlock(&ifnet_detach_sxlock);
 	error = if_clone_destroy(if_name(ifp));
-	sx_xunlock(&ifnet_detach_sxlock);
-
 	NLP_LOG(LOG_DEBUG2, nlp, "deleting interface %s returned %d", if_name(ifp), error);
 
 	if_rele(ifp);
