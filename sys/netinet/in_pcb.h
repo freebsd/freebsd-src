@@ -591,9 +591,17 @@ VNET_DECLARE(uint32_t, in_pcbhashseed);
 
 #define INP_PCBPORTHASH(lport, mask)	(ntohs((lport)) & (mask))
 
+#if defined(INET) && defined(INET6)
 #define	RIPCB_HASH(inp)	(((inp)->inp_vflag & INP_IPV6) ?		\
 	IN6_ADDR_JHASH32(&(inp)->in6p_faddr) :				\
 	IN_ADDR_JHASH32(&(inp)->inp_faddr))
+#elif defined(INET6)
+#define	RIPCB_HASH(inp)							\
+	IN6_ADDR_JHASH32(&(inp)->in6p_faddr)
+#else
+#define	RIPCB_HASH(inp)							\
+	IN_ADDR_JHASH32(&(inp)->inp_faddr)
+#endif
 
 /*
  * Flags passed to in_pcblookup*(), inp_smr_lock() and inp_next().
