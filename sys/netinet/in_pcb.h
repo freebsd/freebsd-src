@@ -437,7 +437,7 @@ struct inpcbinfo {
 	 * Generation count -- incremented each time a connection is allocated
 	 * or freed.
 	 */
-	u_quad_t		 ipi_gencnt;		/* (h) */
+	uint64_t		 ipi_gencnt;		/* (h) */
 
 	/*
 	 * Fields associated with port lookup and allocation.
