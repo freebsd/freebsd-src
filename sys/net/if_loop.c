@@ -350,9 +350,13 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
-	netisr_queue(isr, m);	/* mbuf is free'd on failure. */
+	if (netisr_queue(isr, m) == 0) {
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
+	} else {
+		/* mbuf is free'd on failure. */
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+	}
 	return (0);
 }
 
