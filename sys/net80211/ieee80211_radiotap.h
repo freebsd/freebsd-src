@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 2003, 2004 David Young.  All rights reserved.
+ * Copyright (c) 2021-2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -377,7 +381,19 @@ enum ieee80211_radiotap_type {
 
 /* https://www.radiotap.org/fields/VHT.html */
 #define	IEEE80211_RADIOTAP_VHT_KNOWN_STBC			0x0001	/* net80211::IEEE80211_RADIOTAP_VHT_HAVE_STBC */
+#define	IEEE80211_RADIOTAP_VHT_KNOWN_GI				0x0004
+#define	IEEE80211_RADIOTAP_VHT_KNOWN_SGI_NSYM_DIS		0x0008
+#define	IEEE80211_RADIOTAP_VHT_KNOWN_LDPC_EXTRA_OFDM_SYM	0x0010
 #define	IEEE80211_RADIOTAP_VHT_KNOWN_BEAMFORMED			0x0020	/* net80211::IEEE80211_RADIOTAP_VHT_HAVE_BF */
+#define	IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH			0x0040
+#define	IEEE80211_RADIOTAP_VHT_KNOWN_GROUP_ID			0x0080
+#define	IEEE80211_RADIOTAP_VHT_KNOWN_PARTIAL_AID		0x0100
+
+#define	IEEE80211_RADIOTAP_VHT_FLAG_STBC			0x01
+#define	IEEE80211_RADIOTAP_VHT_FLAG_SGI				0x04
+#define	IEEE80211_RADIOTAP_VHT_FLAG_SGI_NSYM_M10_9		0x08
+#define	IEEE80211_RADIOTAP_VHT_FLAG_LDPC_EXTRA_OFDM_SYM		0x10
+#define	IEEE80211_RADIOTAP_VHT_FLAG_BEAMFORMED			0x20
 
 /* https://www.radiotap.org/fields/0-length-PSDU.html */
 #define	IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING		0x00
@@ -397,6 +413,17 @@ struct ieee80211_radiotap_vendor_content {
 	uint16_t	vendor_type;
 	uint16_t	__padding;
 	uint8_t		data[];
+} __packed;
+
+/* https://www.radiotap.org/fields/VHT.html */
+struct ieee80211_radiotap_vht {
+	uint16_t	known;
+	uint8_t		flags;
+	uint8_t		bandwidth;
+	uint8_t		mcs_nss[4];
+	uint8_t		coding;
+	uint8_t		group_id;
+	uint16_t	partial_aid;
 } __packed;
 
 /* https://www.radiotap.org/fields/HE.html */
