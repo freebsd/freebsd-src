@@ -492,17 +492,17 @@ finalize_nhop(struct nh_control *ctl, struct nhop_object *nh, bool link)
 	/* Allocate per-cpu packet counter */
 	nh->nh_pksent = counter_u64_alloc(M_NOWAIT);
 	if (nh->nh_pksent == NULL) {
+		FIB_NH_LOG(LOG_WARNING, nh, "counter_u64_alloc() failed");
 		nhop_free(nh);
 		RTSTAT_INC(rts_nh_alloc_failure);
-		FIB_NH_LOG(LOG_WARNING, nh, "counter_u64_alloc() failed");
 		return (ENOMEM);
 	}
 
 	if (!reference_nhop_deps(nh)) {
+		FIB_NH_LOG(LOG_WARNING, nh, "interface reference failed");
 		counter_u64_free(nh->nh_pksent);
 		nhop_free(nh);
 		RTSTAT_INC(rts_nh_alloc_failure);
-		FIB_NH_LOG(LOG_WARNING, nh, "interface reference failed");
 		return (EAGAIN);
 	}
 
