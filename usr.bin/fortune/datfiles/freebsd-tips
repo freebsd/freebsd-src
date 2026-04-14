@@ -180,7 +180,7 @@ directory sizes.
 nc(1) (or netcat) is useful not only for redirecting input/output to
 TCP or UDP connections, but also for proxying them with inetd(8).
 %
-sh (the default Bourne shell in FreeBSD) supports command-line editing.  Just
+sh (the default POSIX shell in FreeBSD) supports command-line editing.  Just
 ``set -o emacs'' or ``set -o vi'' to enable it. Use "<TAB>" key to complete
 paths.
 %
@@ -415,7 +415,7 @@ if you leave the shell idle for more than 30 minutes.
 %
 You can use aliases to decrease the amount of typing you need to do to get
 commands you commonly use.  Examples of fairly popular aliases include (in
-Bourne shell style, as in /bin/sh, bash, ksh, and zsh):
+POSIX shell style, as in /bin/sh, bash, ksh, and zsh):
 
 	alias lf="ls -FA"
 	alias ll="ls -lA"
