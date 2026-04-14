@@ -1797,7 +1797,7 @@ ktls_reset_send_tag(void *context, int pending)
 		INP_WLOCK(inp);
 		tp = intotcpcb(inp);
 		if (!(tp->t_flags & TF_DISCONNECTED)) {
-			CURVNET_SET(inp->inp_vnet);
+			CURVNET_SET(inp->inp_socket->so_vnet);
 			tp = tcp_drop(tp, ECONNABORTED);
 			CURVNET_RESTORE();
 			if (tp != NULL) {
@@ -2475,7 +2475,7 @@ ktls_drop(struct socket *so, int error)
 	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	if (!(tp->t_flags & TF_DISCONNECTED)) {
-		CURVNET_SET(inp->inp_vnet);
+		CURVNET_SET(inp->inp_socket->so_vnet);
 		tp = tcp_drop(tp, error);
 		CURVNET_RESTORE();
 		if (tp != NULL)

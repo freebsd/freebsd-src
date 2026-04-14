@@ -1359,7 +1359,7 @@ again:
 				 */
 				__tcp_set_hpts(pace, tp);
 			}
-			CURVNET_SET(inp->inp_vnet);
+			CURVNET_SET(inp->inp_socket->so_vnet);
 			/* Lets do any logging that we might want to */
 			tcp_hpts_log(hpts, tp, &tv, slots_to_run, i, from_callout);
 

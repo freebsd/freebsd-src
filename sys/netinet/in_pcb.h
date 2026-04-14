@@ -299,7 +299,6 @@ struct xktls_session {
 #include <net/route.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <net/vnet.h>
 #include <vm/uma.h>
 #include <sys/ck.h>
 
@@ -418,8 +417,6 @@ struct inpcb {
 	};
 };
 
-#define	inp_vnet	inp_pcbinfo->ipi_vnet
-
 /*
  * Per-VNET pcb database for each high-level protocol (UDP, TCP, ...) in both
  * IPv4 and IPv6.
@@ -478,11 +475,6 @@ struct inpcbinfo {
 	 * hashed by local port.
 	 */
 	struct	inpcblbgrouphead *ipi_lbgrouphashbase;	/* (r:e/w:h) */
-
-	/*
-	 * Pointer to network stack instance
-	 */
-	struct vnet		*ipi_vnet;		/* (c) */
 };
 
 /*
