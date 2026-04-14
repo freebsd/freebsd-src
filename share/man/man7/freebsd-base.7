@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd December 4, 2025
+.Dd February 26, 2026
 .Dt FREEBSD-BASE 7
 .Os
 .Sh NAME
@@ -183,13 +183,14 @@ The system test suite, installed in
 All available system kernels.
 .El
 .Sh EXAMPLES
+.Ss Install a single piece of userland
 Install the
 .Xr vi 1
 text editor on the running system:
 .Bd -literal -offset indent
 pkg install FreeBSD-vi
 .Ed
-.Pp
+.Ss Install userland to a jail
 Install a new
 .Xr jail 8
 system using the
@@ -198,17 +199,17 @@ package set:
 .Bd -literal -offset indent
 pkg -r /jails/myjail install FreeBSD-set-minimal-jail
 .Ed
-.Pp
+.Ss Install native compilers
 Install C/C++ compilers on the running system:
 .Bd -literal -offset indent
 pkg install FreeBSD-set-devel
 .Ed
-.Pp
+.Ss Update the currently running system
 Apply available updates to the running system:
 .Bd -literal -offset indent
 pkg upgrade -r FreeBSD-base
 .Ed
-.Pp
+.Ss Install cross compilers
 Install the development toolchain for FreeBSD/powerpc64le in an
 alternate root (for example, to support cross-compiling software
 for a different target than the host system):
