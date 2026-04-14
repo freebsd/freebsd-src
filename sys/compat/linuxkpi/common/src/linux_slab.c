@@ -250,6 +250,11 @@ lkpi_krealloc(const void *ptr, size_t size, gfp_t flags)
 	if (ptr == NULL)
 		return (kmalloc(size, flags));
 
+	if (size == 0) {
+		kfree(ptr);
+		return (ZERO_SIZE_PTR);
+	}
+
 	osize = ksize(ptr);
 	if (size <= osize)
 		return (__DECONST(void *, ptr));
