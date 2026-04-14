@@ -2771,8 +2771,8 @@ SC|screen|VT 100/ANSI X3.64 virtual terminal:\
 	:k;=\E[21~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kd=\EOB:\
 	:ke=\E[?1l\E>:kh=\E[1~:kl=\EOD:kr=\EOC:ks=\E[?1h\E=:\
 	:ku=\EOA:le=^H:mb=\E[5m:md=\E[1m:me=\E[m:mr=\E[7m:nd=\E[C:\
-	:nw=\EE:op=\E[39;49m:rc=\E8:rs=\Ec:sc=\E7:se=\E[23m:sf=\n:\
-	:so=\E[3m:sr=\EM:st=\EH:ta=^I:te=\E[?1049l:ti=\E[?1049h:\
+	:nw=\EE:op=\E[39;49m:rc=\E8:rs=\Ec:sc=\E7:se=\E[27m:sf=\n:\
+	:so=\E[7m:sr=\EM:st=\EH:ta=^I:te=\E[?1049l:ti=\E[?1049h:\
 	:ue=\E[24m:up=\EM:us=\E[4m:vb=\Eg:ve=\E[34h\E[?25h:\
 	:vi=\E[?25l:vs=\E[34l:
 SB|screen-bce|VT 100/ANSI X3.64 virtual terminal with bce:\
