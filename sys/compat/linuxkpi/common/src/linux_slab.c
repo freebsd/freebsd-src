@@ -278,6 +278,44 @@ lkpi_krealloc(const void *ptr, size_t size, gfp_t flags)
 	return (nptr);
 }
 
+void *
+lkpi_kvrealloc(const void *ptr, size_t oldsize, size_t newsize, gfp_t flags)
+{
+	void *newptr;
+
+	/*
+	 * We replicate the behaviour of krealloc() instead of calling it
+	 * because we don't need to allocate physically contiguous memory.
+	 */
+
+	if (newsize == 0) {
+		kfree(ptr);
+		return (ZERO_SIZE_PTR);
+	}
+
+	if (ptr == NULL) {
+		newptr = kvmalloc(newsize, flags);
+		return (newptr);
+	}
+
+	newptr = realloc(
+	    __DECONST(void *, ptr), newsize, M_KMALLOC,
+	    linux_check_m_flags(flags));
+
+	if (newptr == NULL) {
+		newptr = kvmalloc(newsize, flags);
+		if (newptr == NULL)
+			return (NULL);
+
+		if (ptr != NULL) {
+			memcpy(newptr, ptr, oldsize);
+			kfree(ptr);
+		}
+	}
+
+	return (newptr);
+}
+
 struct lkpi_kmalloc_ctx {
 	size_t size;
 	gfp_t flags;
