@@ -531,6 +531,9 @@ in6_pcbdisconnect(struct inpcb *inp)
 	KASSERT(inp->inp_smr == SMR_SEQ_INVALID,
 	    ("%s: inp %p was already disconnected", __func__, inp));
 
+	if (inp->inp_flags & INP_UNCONNECTED)
+		return;
+
 	INP_HASH_WLOCK(inp->inp_pcbinfo);
 	in_pcbremhash(inp);
 	inp->inp_flags |= INP_UNCONNECTED;
