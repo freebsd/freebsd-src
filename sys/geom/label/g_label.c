@@ -251,8 +251,8 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		if ((pp2->flags & G_PF_ORPHAN) != 0)
 			continue;
 		if (strcmp(pp2->name, name) == 0) {
-			G_LABEL_DEBUG(1, "Label %s(%s) already exists (%s).",
-			    label, name, pp->name);
+			G_LABEL_DEBUG(1, "Label %s (%s) already exists.",
+			    label, name);
 			if (req != NULL) {
 				gctl_error(req, "Provider %s already exists.",
 				    name);
