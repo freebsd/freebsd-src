@@ -80,6 +80,9 @@
 CTASSERT((__GFP_DMA32 & GFP_NATIVE_MASK) == 0);
 CTASSERT((__GFP_BITS_MASK & GFP_NATIVE_MASK) == GFP_NATIVE_MASK);
 
+#define	__default_gfp(_discard, _arg_or_default, ...)	_arg_or_default
+#define	default_gfp(...)	__default_gfp(, ##__VA_ARGS__, GFP_KERNEL)
+
 struct page_frag_cache {
 	void *va;
 	int pagecnt_bias;
