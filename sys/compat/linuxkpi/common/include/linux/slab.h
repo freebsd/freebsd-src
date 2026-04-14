@@ -141,6 +141,13 @@ linux_check_m_flags(gfp_t flags)
 /*
  * Base functions with a native implementation.
  */
+
+static inline size_t
+ksize(const void *ptr)
+{
+	return (malloc_usable_size(ptr));
+}
+
 static inline void *
 kmalloc(size_t size, gfp_t flags)
 {
@@ -264,22 +271,28 @@ kvmalloc_array(size_t n, size_t size, gfp_t flags)
 	return (kvmalloc(size * n, flags));
 }
 
+void * lkpi_kvrealloc(const void *ptr, size_t oldsize, size_t newsize, gfp_t flags);
+
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION < 61200
 static inline void *
 kvrealloc(const void *ptr, size_t oldsize, size_t newsize, gfp_t flags)
 {
-	void *newptr;
-
-	if (newsize <= oldsize)
-		return (__DECONST(void *, ptr));
-
-	newptr = kvmalloc(newsize, flags);
-	if (newptr != NULL) {
-		memcpy(newptr, ptr, oldsize);
-		kvfree(ptr);
-	}
-
-	return (newptr);
+	return (lkpi_kvrealloc(ptr, oldsize, newsize, flags));
 }
+#else
+static inline void *
+kvrealloc(const void *ptr, size_t newsize, gfp_t flags)
+{
+	size_t oldsize;
+
+	if (!ZERO_OR_NULL_PTR(ptr))
+		oldsize = ksize(ptr);
+	else
+		oldsize = 0;
+
+	return (lkpi_kvrealloc(ptr, oldsize, newsize, flags));
+}
+#endif
 
 /*
  * Misc.
@@ -292,12 +305,6 @@ kfree_sensitive(const void *ptr)
 		return;
 
 	zfree(__DECONST(void *, ptr), M_KMALLOC);
-}
-
-static inline size_t
-ksize(const void *ptr)
-{
-	return (malloc_usable_size(ptr));
 }
 
 static inline size_t
