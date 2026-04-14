@@ -429,9 +429,7 @@ apmreadfilt(struct knote *kn, long hint)
 	int	sleeping;
 
 	clone = kn->kn_hook;
-	ACPI_LOCK(acpi);
 	sleeping = clone->acpi_sc->acpi_next_sstate ? 1 : 0;
-	ACPI_UNLOCK(acpi);
 	return (sleeping);
 }
 
