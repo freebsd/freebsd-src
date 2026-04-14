@@ -558,9 +558,6 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
 
 	mtx_init(&pcbinfo->ipi_hash_lock, pcbstor->ips_hashlock_name,
 	    NULL, MTX_DEF);
-#ifdef VIMAGE
-	pcbinfo->ipi_vnet = curvnet;
-#endif
 	CK_LIST_INIT(&pcbinfo->ipi_list_unconn);
 	pcbinfo->ipi_count = 0;
 
