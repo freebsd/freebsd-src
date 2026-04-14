@@ -603,7 +603,7 @@ enum ieee80211_rx_status_flags {
 	RX_FLAG_AMPDU_IS_LAST		= BIT(21),
 	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(22),
 	RX_FLAG_AMSDU_MORE		= BIT(23),
-				/*	= BIT(24), */
+	RX_FLAG_RADIOTAP_VHT		= BIT(24),
 	RX_FLAG_ONLY_MONITOR		= BIT(25),
 	RX_FLAG_SKIP_MONITOR		= BIT(26),
 	RX_FLAG_8023			= BIT(27),
@@ -1578,6 +1578,16 @@ ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
    void (*iterfunc)(void *, struct ieee80211_sta *), void *arg)
 {
 
+	linuxkpi_ieee80211_iterate_stations_atomic(hw, iterfunc, arg);
+}
+
+static inline void
+ieee80211_iterate_stations_mtx(struct ieee80211_hw *hw,
+   void (*iterfunc)(void *, struct ieee80211_sta *), void *arg)
+{
+
+	lockdep_assert_wiphy(hw->wiphy);
+	IMPROVE("we could simplify this if we had a sta list on the lhw");
 	linuxkpi_ieee80211_iterate_stations_atomic(hw, iterfunc, arg);
 }
 

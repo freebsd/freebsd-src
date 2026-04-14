@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -165,7 +165,9 @@ struct cfg80211_bitrate_mask {
 		uint16_t			eht_mcs[NL80211_EHT_NSS_MAX];
 		enum nl80211_txrate_gi		gi;
 		enum nl80211_he_gi		he_gi;
-		uint8_t				he_ltf;		/* XXX enum? */
+		enum nl80211_he_ltf		he_ltf;
+		enum nl80211_eht_gi		eht_gi;
+		uint8_t				eht_ltf;	/* XXX enum? */
 	} control[NUM_NL80211_BANDS];
 };
 
@@ -1359,8 +1361,11 @@ wiphy_dev(struct wiphy *wiphy)
 	return (wiphy->dev);
 }
 
-#define	wiphy_dereference(_w, p)					\
-    rcu_dereference_check(p, lockdep_is_held(&(_w)->mtx))
+#define	wiphy_dereference(_w, _p)					\
+    rcu_dereference_protected(_p, lockdep_is_held(&(_w)->mtx))
+
+#define	rcu_dereference_wiphy(_w, _p)					\
+    rcu_dereference_check(_p, lockdep_is_held(&(_w)->mtx))
 
 #define	wiphy_lock(_w)		mutex_lock(&(_w)->mtx)
 #define	wiphy_unlock(_w)	mutex_unlock(&(_w)->mtx)
