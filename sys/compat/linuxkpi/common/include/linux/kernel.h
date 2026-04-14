@@ -56,6 +56,7 @@
 #include <linux/log2.h>
 #include <linux/kconfig.h>
 #include <linux/instruction_pointer.h>
+#include <linux/hex.h>
 
 #include <asm/byteorder.h>
 #include <asm/cpufeature.h>
@@ -304,37 +305,6 @@ linux_ratelimited(linux_ratelimit_t *rl)
 #define	test_taint(x)	(0)
 #define	add_taint(x,y)	do {	\
 	} while (0)
-
-static inline int
-_h2b(const char c)
-{
-
-	if (c >= '0' && c <= '9')
-		return (c - '0');
-	if (c >= 'a' && c <= 'f')
-		return (10 + c - 'a');
-	if (c >= 'A' && c <= 'F')
-		return (10 + c - 'A');
-	return (-EINVAL);
-}
-
-static inline int
-hex2bin(uint8_t *bindst, const char *hexsrc, size_t binlen)
-{
-	int hi4, lo4;
-
-	while (binlen > 0) {
-		hi4 = _h2b(*hexsrc++);
-		lo4 = _h2b(*hexsrc++);
-		if (hi4 < 0 || lo4 < 0)
-			return (-EINVAL);
-
-		*bindst++ = (hi4 << 4) | lo4;
-		binlen--;
-	}
-
-	return (0);
-}
 
 static inline bool
 mac_pton(const char *macin, uint8_t *macout)
