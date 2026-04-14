@@ -701,6 +701,13 @@ devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp)
 	return (dst);
 }
 
+static inline void *
+devm_kmemdup_array(struct device *dev, const void *src, size_t n, size_t len,
+    gfp_t gfp)
+{
+	return (devm_kmemdup(dev, src, size_mul(n, len), gfp));
+}
+
 #define	devm_kzalloc(_dev, _size, _gfp)				\
     devm_kmalloc((_dev), (_size), (_gfp) | __GFP_ZERO)
 
