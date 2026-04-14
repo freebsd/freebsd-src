@@ -429,10 +429,14 @@ static void	geneve_encap_header(struct geneve_softc *, struct mbuf *,
 static uint16_t	geneve_get_ethertype(struct mbuf *);
 static int	geneve_inherit_l3_hdr(struct mbuf *, struct geneve_softc *,
 		    uint16_t, uint8_t *, uint8_t *, u_short *);
+#ifdef INET
 static int	geneve_encap4(struct geneve_softc *,
 		    const union sockaddr_union *, struct mbuf *);
+#endif
+#ifdef INET6
 static int	geneve_encap6(struct geneve_softc *,
 		    const union sockaddr_union *, struct mbuf *);
+#endif
 static int	geneve_transmit(struct ifnet *, struct mbuf *);
 static void	geneve_qflush(struct ifnet *);
 static int	geneve_output(struct ifnet *, struct mbuf *,
@@ -696,11 +700,13 @@ geneve_ftable_learn(struct geneve_softc *sc, const struct sockaddr *sa,
 	geneve_sockaddr_copy(&unsa, sa);
 	unsa.sin.sin_port = sc->gnv_dst_addr.sin.sin_port;
 
+#ifdef INET6
 	if (unsa.sa.sa_family == AF_INET6) {
 		error = sa6_embedscope(&unsa.sin6, V_ip6_use_defzone);
 		if (error)
 			return (error);
 	}
+#endif
 
 	GENEVE_RLOCK(sc, &tracker);
 	error = geneve_ftable_update_locked(sc, &unsa, mac, &tracker);
@@ -936,10 +942,20 @@ geneve_socket_create(struct ifnet *ifp, int multicast,
 	 * must be specified when binding.
 	 */
 	if (multicast != 0) {
-		if (laddr.sa.sa_family == AF_INET)
+		switch (laddr.sa.sa_family) {
+#ifdef INET
+		case AF_INET:
 			laddr.sin.sin_addr.s_addr = INADDR_ANY;
-		else
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
 			laddr.sin6.sin6_addr = in6addr_any;
+			break;
+#endif
+		default:
+			return (EAFNOSUPPORT);
+		}
 	}
 	gnvso = geneve_socket_alloc(&laddr);
 	if (gnvso == NULL)
@@ -978,10 +994,20 @@ geneve_socket_mc_lookup(const union sockaddr_union *unsa)
 
 	laddr = *unsa;
 
-	if (laddr.sa.sa_family == AF_INET)
+	switch (laddr.sa.sa_family) {
+#ifdef INET
+	case AF_INET:
 		laddr.sin.sin_addr.s_addr = INADDR_ANY;
-	else
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 		laddr.sin6.sin6_addr = in6addr_any;
+		break;
+#endif
+	default:
+		return (NULL);
+	}
 
 	return (geneve_socket_lookup(&laddr));
 }
@@ -1818,11 +1844,13 @@ geneve_set_local_addr_nl(struct geneve_softc *sc, struct nl_pstate *npt,
 	if (error != 0)
 		goto ret;
 
+#ifdef INET6
 	if (unsa->sa.sa_family == AF_INET6) {
 		error = sa6_embedscope(&unsa->sin6, V_ip6_use_defzone);
 		if (error != 0)
 			goto ret;
 	}
+#endif
 
 	GENEVE_WLOCK(sc);
 	if (geneve_can_change_config(sc)) {
@@ -1856,11 +1884,13 @@ geneve_set_remote_addr_nl(struct geneve_softc *sc, struct nl_pstate *npt,
 	if (error != 0)
 		goto ret;
 
+#ifdef INET6
 	if (unsa->sa.sa_family == AF_INET6) {
 		error = sa6_embedscope(&unsa->sin6, V_ip6_use_defzone);
 		if (error != 0)
 			goto ret;
 	}
+#endif
 
 	GENEVE_WLOCK(sc);
 	if (geneve_can_change_config(sc)) {
@@ -2486,6 +2516,7 @@ geneve_inherit_l3_hdr(struct mbuf *m, struct geneve_softc *sc, uint16_t proto,
 	return (0);
 }
 
+#ifdef INET
 static int
 geneve_encap4(struct geneve_softc *sc, const union sockaddr_union *funsa,
     struct mbuf *m)
@@ -2604,7 +2635,9 @@ geneve_encap4(struct geneve_softc *sc, const union sockaddr_union *funsa,
 
 	return (error);
 }
+#endif
 
+#ifdef INET6
 static int
 geneve_encap6(struct geneve_softc *sc, const union sockaddr_union *funsa,
     struct mbuf *m)
@@ -2744,6 +2777,7 @@ geneve_encap6(struct geneve_softc *sc, const union sockaddr_union *funsa,
 
 	return (error);
 }
+#endif
 
 static int
 geneve_transmit(struct ifnet *ifp, struct mbuf *m)
@@ -2795,12 +2829,20 @@ geneve_transmit(struct ifnet *ifp, struct mbuf *m)
 	GENEVE_ACQUIRE(sc);
 	GENEVE_RUNLOCK(sc, &tracker);
 
-	if (af == AF_INET)
+	switch (af) {
+#ifdef INET
+	case AF_INET:
 		error = geneve_encap4(sc, &unsa, m);
-	else if (af == AF_INET6)
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 		error = geneve_encap6(sc, &unsa, m);
-	else
+		break;
+#endif
+	default:
 		error = EAFNOSUPPORT;
+	}
 
 	geneve_release(sc);
 	if (mcifp != NULL)
