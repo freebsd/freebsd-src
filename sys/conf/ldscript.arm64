@@ -15,6 +15,12 @@ SECTIONS
     *(.gnu.warning)
     *(.gnu.linkonce.t*)
   } =0x9090
+  .plt       :
+  {
+    *(.plt)
+    *(.iplt)
+  }
+
   /*
    * Align to the the largest page size the kernel could be built for.
    * If we don't then building page tables in locore.S could fail as it
@@ -66,7 +72,6 @@ SECTIONS
   .rel.plt       : { *(.rel.plt)		}
   .rela.plt      : { *(.rela.plt)		}
   .init          : { *(.init)	} =0x9090
-  .plt      : { *(.plt)	}
 
   . = ALIGN(4);
   _extab_start = .;
