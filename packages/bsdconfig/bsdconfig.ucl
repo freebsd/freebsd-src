@@ -21,7 +21,4 @@ comment = "System configuration utility"
 desc = <<EOD
 bsdconfig(8) provides a simple full-screen interface to manage system
 configuration, including services, networking and disks.
-
-This package also provides sysrc(8), a command-line utility for managing
-the rc.conf(5) configuration.
 EOD
