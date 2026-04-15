@@ -1386,8 +1386,10 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	 * BEGIN: MCAST ROUTING HOT PATH
 	 */
 	MRW_RLOCK();
-	if (__predict_false(mfct->router == NULL))
+	if (__predict_false(mfct->router == NULL)) {
+		MRW_RUNLOCK();
 		return (EADDRNOTAVAIL);
+	}
 
 	if (imo && ((vifi = imo->imo_multicast_vif) < mfct->numvifs)) {
 		if (ip->ip_ttl < MAXTTL)

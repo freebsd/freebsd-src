@@ -1192,6 +1192,10 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 
 	mfct = &V_mfctables[M_GETFIB(m)];
 	MFC6_LOCK();
+	if (__predict_false(mfct->router == NULL)) {
+		MFC6_UNLOCK();
+		return (EADDRNOTAVAIL);
+	}
 
 	/*
 	 * Determine forwarding mifs from the forwarding cache table
