@@ -263,7 +263,7 @@ struct ukbd_softc {
  * 0x68: F13
  * 0x69: F14
  * 0x6a: F15
- *
+ * 
  * USB Apple Keyboard JIS generates:
  * 0x90: Kana
  * 0x91: Eisu
@@ -730,7 +730,7 @@ static uint32_t
 ukbd_apple_doswap_cmd_ctl(uint32_t keycode)
 {
 	switch (keycode) {
-	case 0xe3: return 0xe0; /* LCMD -> RCTL */
+	case 0xe3: return 0xe0; /* LCMD -> LCTL */
 	case 0xe7: return 0xe4; /* RCMD -> RCTL */
 	case 0xe0: return 0xe3; /* LCTL -> LCMD */
 	case 0xe4: return 0xe7; /* RCTL -> RCMD */
@@ -1344,7 +1344,7 @@ ukbd_attach(device_t dev)
 	    (err != 0) || ukbd_any_key_valid(sc) == false) {
 		DPRINTF("Forcing boot protocol\n");
 
-		err = usbd_req_set_protocol(sc->sc_udev, NULL,
+		err = usbd_req_set_protocol(sc->sc_udev, NULL, 
 			sc->sc_iface_index, 0);
 
 		if (err != 0) {

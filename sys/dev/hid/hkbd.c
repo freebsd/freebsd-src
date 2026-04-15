@@ -269,7 +269,7 @@ struct hkbd_softc {
  * 0x68: F13
  * 0x69: F14
  * 0x6a: F15
- *
+ * 
  * USB Apple Keyboard JIS generates:
  * 0x90: Kana
  * 0x91: Eisu
@@ -674,7 +674,7 @@ static uint32_t
 hkbd_apple_doswap_cmd_ctl(uint32_t keycode)
 {
 	switch (keycode) {
-	case 0xe3: return 0xe0; /* LCMD -> RCTL */
+	case 0xe3: return 0xe0; /* LCMD -> LCTL */
 	case 0xe7: return 0xe4; /* RCMD -> RCTL */
 	case 0xe0: return 0xe3; /* LCTL -> LCMD */
 	case 0xe4: return 0xe7; /* RCTL -> RCMD */
@@ -914,7 +914,7 @@ hkbd_parse_hid(struct hkbd_softc *sc, const uint8_t *ptr, uint32_t len,
 			}
 		}
 	}
-
+	
 	/* figure out event buffer */
 	if (hidbus_locate(ptr, len,
 	    HID_USAGE2(HUP_KEYBOARD, 0x00),
