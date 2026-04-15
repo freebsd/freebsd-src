@@ -596,13 +596,20 @@ mlx5e_tls_rx_work(struct work_struct *work)
 		if (ptag->flow_rule != NULL)
 			mlx5e_accel_fs_del_inpcb(ptag->flow_rule);
 
+		/*
+		 * Destroy TIR before DEK.  DESTROY_TIR for a TLS-
+		 * enabled TIR issues a TRA RX fence that drains all
+		 * in-flight packets from the crypto pipeline.  If the
+		 * DEK were destroyed first, packets still in flight
+		 * would hit a TPT encryption error (vendor syndrome
+		 * 0x55) because the key they reference is already gone.
+		 */
+		if (ptag->tirn != 0)
+			mlx5_tls_close_tir(priv->mdev, ptag->tirn);
+
 		/* try to destroy DEK context by ID */
 		if (ptag->dek_index_ok)
 			mlx5_encryption_key_destroy(priv->mdev, ptag->dek_index);
-
-		/* try to destroy TIR context by ID */
-		if (ptag->tirn != 0)
-			mlx5_tls_close_tir(priv->mdev, ptag->tirn);
 
 		/* free tag */
 		mlx5e_tls_rx_tag_zfree(ptag);
