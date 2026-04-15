@@ -295,6 +295,23 @@ t_flag_body()
 	    sort du.out
 }
 
+atf_test_case stdout
+stdout_head()
+{
+	atf_set "descr" "Failure to write to stdout"
+}
+stdout_body()
+{
+	(
+		trap "" PIPE
+		sleep 1
+		du 2>stderr
+		echo $? >result
+	) | true
+	atf_check -o inline:"1\n" cat result
+	atf_check -o match:"stdout" cat stderr
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case A_flag
@@ -314,4 +331,5 @@ atf_init_test_cases()
 	atf_add_test_case s_flag
 	atf_add_test_case si_flag
 	atf_add_test_case t_flag
+	atf_add_test_case stdout
 }

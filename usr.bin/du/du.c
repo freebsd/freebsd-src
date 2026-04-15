@@ -35,7 +35,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <err.h>
+
 #include <errno.h>
 #include <fnmatch.h>
 #include <fts.h>
@@ -67,8 +67,8 @@ struct ignentry {
 static bool	check_threshold(FTSENT *);
 static void	ignoreadd(const char *);
 static void	ignoreclean(void);
-static int	ignorep(FTSENT *);
-static int	linkchk(FTSENT *);
+static bool	ignorep(FTSENT *);
+static bool	linkchk(FTSENT *);
 static void	print_file_size(FTSENT *);
 static void	prthumanval(const char *, int64_t);
 static void	record_file_size(FTSENT *);
@@ -91,6 +91,7 @@ main(int argc, char *argv[])
 {
 	FTS		*fts;
 	FTSENT		*p;
+	int64_t		num;
 	off_t		savednumber;
 	int		ftsoptions;
 	int		depth;
@@ -189,11 +190,12 @@ main(int argc, char *argv[])
 		case 'r':		 /* Compatibility. */
 			break;
 		case 't':
-			if (expand_number(optarg, &threshold) != 0 ||
-			    threshold == 0) {
+			if (expand_number(optarg, &num) != 0 || num == 0) {
 				xo_warnx("invalid threshold: %s", optarg);
 				usage();
-			} else if (threshold < 0)
+			}
+			threshold = num;
+			if (threshold < 0)
 				threshold_sign = -1;
 			break;
 		case 'x':
@@ -239,7 +241,7 @@ main(int argc, char *argv[])
 	if (sflag)
 		depth = 0;
 
-	if (!*argv) {
+	if (argc == 0) {
 		argv = save;
 		argv[0] = dot;
 		argv[1] = NULL;
@@ -262,13 +264,12 @@ main(int argc, char *argv[])
 	(void)signal(SIGINFO, siginfo);
 
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)
-		err(1, "fts_open");
-
+		xo_err(1, "fts_open");
 
 	xo_set_version(DU_XO_VERSION);
 	xo_open_container("disk-usage-information");
 	xo_open_list("paths");
-	while (errno = 0, (p = fts_read(fts)) != NULL) {
+	for (errno = 0; (p = fts_read(fts)) != NULL; errno = 0) {
 		switch (p->fts_info) {
 		case FTS_D:			/* Ignore. */
 			if (ignorep(p))
@@ -313,7 +314,7 @@ main(int argc, char *argv[])
 	}
 	xo_close_list("paths");
 
-	if (errno)
+	if (errno != 0)
 		xo_err(1, "fts_read");
 
 	if (cflag) {
@@ -334,7 +335,7 @@ main(int argc, char *argv[])
 	exit(rval);
 }
 
-static int
+static bool
 linkchk(FTSENT *p)
 {
 	struct links_entry {
@@ -362,7 +363,7 @@ linkchk(FTSENT *p)
 		number_buckets = links_hash_initial_size;
 		buckets = malloc(number_buckets * sizeof(buckets[0]));
 		if (buckets == NULL)
-			errx(1, "No memory for hardlink detection");
+			xo_errx(1, "No memory for hardlink detection");
 		for (i = 0; i < number_buckets; i++)
 			buckets[i] = NULL;
 	}
@@ -433,12 +434,12 @@ linkchk(FTSENT *p)
 					free_list = le;
 				}
 			}
-			return (1);
+			return (true);
 		}
 	}
 
 	if (stop_allocating)
-		return (0);
+		return (false);
 
 	/* Add this entry to the links cache. */
 	if (free_list != NULL) {
@@ -451,7 +452,7 @@ linkchk(FTSENT *p)
 	if (le == NULL) {
 		stop_allocating = 1;
 		xo_warnx("No more memory for tracking hard links");
-		return (0);
+		return (false);
 	}
 	le->dev = st->st_dev;
 	le->ino = st->st_ino;
@@ -462,7 +463,7 @@ linkchk(FTSENT *p)
 	if (buckets[hash] != NULL)
 		buckets[hash]->previous = le;
 	buckets[hash] = le;
-	return (0);
+	return (false);
 }
 
 static void
@@ -500,10 +501,10 @@ ignoreadd(const char *mask)
 
 	ign = calloc(1, sizeof(*ign));
 	if (ign == NULL)
-		errx(1, "cannot allocate memory");
+		xo_errx(1, "cannot allocate memory");
 	ign->mask = strdup(mask);
 	if (ign->mask == NULL)
-		errx(1, "cannot allocate memory");
+		xo_errx(1, "cannot allocate memory");
 	SLIST_INSERT_HEAD(&ignores, ign, next);
 }
 
@@ -520,17 +521,18 @@ ignoreclean(void)
 	}
 }
 
-static int
+static bool
 ignorep(FTSENT *ent)
 {
 	struct ignentry *ign;
 
 	if (nodumpflag && (ent->fts_statp->st_flags & UF_NODUMP))
-		return (1);
-	SLIST_FOREACH(ign, &ignores, next)
+		return (true);
+	SLIST_FOREACH(ign, &ignores, next) {
 		if (fnmatch(ign->mask, ent->fts_name, 0) != FNM_NOMATCH)
-			return (1);
-	return (0);
+			return (true);
+	}
+	return (false);
 }
 
 static void
