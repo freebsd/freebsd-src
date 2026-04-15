@@ -25,11 +25,13 @@ typedef struct {
 #endif
 } freebsd32_uint64_t;
 
+#if !defined(IN_BASE) && !defined(__OPENZFS__)
 #if defined(__amd64__) || defined(__i386__)
 typedef	__int32_t	time32_t;
 #else
 typedef	__int64_t	time32_t;
 #endif
 #define	__HAVE_TIME32_T
+#endif
 
 #endif
