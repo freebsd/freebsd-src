@@ -355,10 +355,12 @@ tstosbt(struct timespec _ts)
 static __inline sbintime_t
 tstosbt_sat(struct timespec _ts)
 {
+#ifndef __i386__
 	if (_ts.tv_sec > SBT_MAX >> 32)
 		return (SBT_MAX);
 	if (_ts.tv_sec < -(SBT_MAX >> 32) - 1)
 		return (-SBT_MAX - 1);
+#endif
 	return (tstosbt(_ts));
 }
 
@@ -382,10 +384,12 @@ tvtosbt(struct timeval _tv)
 static __inline sbintime_t
 tvtosbt_sat(struct timeval _tv)
 {
+#ifndef __i386__
 	if (_tv.tv_sec > SBT_MAX >> 32)
 		return (SBT_MAX);
 	if (_tv.tv_sec < -(SBT_MAX >> 32) - 1)
 		return (-SBT_MAX - 1);
+#endif
 	return (tvtosbt(_tv));
 }
 
