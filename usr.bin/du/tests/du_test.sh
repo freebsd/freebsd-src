@@ -276,7 +276,7 @@ si_flag_body()
 	atf_check -o inline:'1.5M\tA\n1.6M\tB\n' du -A --si A B
 }
 
-atf_add_test_case t_flag
+atf_test_case t_flag
 t_flag_head()
 {
 	atf_set "descr" "Verify -t output"
