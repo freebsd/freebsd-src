@@ -28,6 +28,9 @@
  */
 
 #define ASMC_MAXFANS	6
+#define ASMC_MAXVAL	32	/* Maximum SMC value size */
+#define ASMC_KEYLEN	4	/* SMC key name length */
+#define ASMC_TYPELEN	4	/* SMC type string length */
 
 struct asmc_softc {
 	device_t 		sc_dev;
@@ -53,6 +56,14 @@ struct asmc_softc {
 	uint8_t			sc_sms_intr_works;
 	struct cdev		*sc_kbd_bkl;
 	uint32_t		sc_kbd_bkl_level;
+#ifdef ASMC_DEBUG
+	/* Raw key access */
+	struct sysctl_oid	*sc_raw_tree;
+	char			sc_rawkey[ASMC_KEYLEN + 1];
+	uint8_t			sc_rawval[ASMC_MAXVAL];
+	uint8_t			sc_rawlen;
+	char			sc_rawtype[ASMC_TYPELEN + 1];
+#endif
 };
 
 /*
@@ -71,6 +82,14 @@ struct asmc_softc {
 	bus_write_1(sc->sc_ioport, 0x04, val)
 #define ASMC_CMDREAD		0x10
 #define ASMC_CMDWRITE		0x11
+#define ASMC_CMDGETBYINDEX	0x12
+#define ASMC_CMDGETINFO		0x13
+
+#define ASMC_STATUS_AWAIT_DATA	0x04
+#define ASMC_STATUS_DATA_READY	0x05
+
+#define ASMC_KEYINFO_RESPLEN	6	/* getinfo: 1 len + 4 type + 1 attr */
+#define ASMC_MAXRETRIES		10
 
 /*
  * Interrupt port.

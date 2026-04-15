@@ -112,6 +112,35 @@ minimum fan speed, the minimum speed and the maximum speed
 respectively.
 .Pp
 All values are in RPM.
+.Sh RAW SMC KEY ACCESS
+When the kernel is compiled with the
+.Dv ASMC_DEBUG
+option, a set of sysctl nodes is provided under
+.Va dev.asmc.%d.raw
+for reading and writing arbitrary SMC keys by name.
+.Pp
+.Bl -tag -width "dev.asmc.%d.raw.value" -compact
+.It Va dev.asmc.%d.raw.key
+Set the 4-character SMC key name to access (e.g.,\&
+.Dq AUPO ) .
+Setting this automatically queries the key's length and type.
+.It Va dev.asmc.%d.raw.value
+Read or write the key's value as a hex string.
+.It Va dev.asmc.%d.raw.len
+The auto-detected value length in bytes (read-only).
+.It Va dev.asmc.%d.raw.type
+The 4-character SMC type string (e.g.,\&
+.Dq ui8 ,
+.Dq flt )
+(read-only).
+.El
+.Pp
+Example usage:
+.Bd -literal -offset indent
+sysctl dev.asmc.0.raw.key=AUPO
+sysctl dev.asmc.0.raw.value
+sysctl dev.asmc.0.raw.value=01
+.Ed
 .Sh SUDDEN MOTION SENSOR
 The Sudden Motion Sensor (SMS for short) is a device that detects
 laptop movement and notifies the operating system via an interrupt.
