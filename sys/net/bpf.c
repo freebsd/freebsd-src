@@ -1437,7 +1437,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case BIOCGDLTLIST32:
 	case BIOCGRTIMEOUT32:
 	case BIOCSRTIMEOUT32:
-		if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+		if (SV_CURPROC_FLAG(SV_ILP32)) {
 			BPFD_LOCK(d);
 			d->bd_compat32 = 1;
 			BPFD_UNLOCK(d);
@@ -1445,6 +1445,19 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	}
 #endif
 
+#if defined(COMPAT_FREEBSD32)
+	if (SV_CURPROC_FLAG(SV_ILP32)) {
+		/*
+		 * On platforms other than amd64, BIOC[GS]RTIMEOUT32 is equal to
+		 * BIOC[GS]RTIMEOUT. Since this is difficult to handle in the
+		 * switch command, map them.
+		 */
+		if (cmd == BIOCSRTIMEOUT32)
+			cmd = BIOCSRTIMEOUT;
+		if (cmd == BIOCGRTIMEOUT32)
+			cmd = BIOCGRTIMEOUT;
+	}
+#endif
 	CURVNET_SET(TD_TO_VNET(td));
 	switch (cmd) {
 	default:
@@ -1639,23 +1652,19 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set read timeout.
 	 */
 	case BIOCSRTIMEOUT:
-#if defined(COMPAT_FREEBSD32) && defined(__amd64__)
-	case BIOCSRTIMEOUT32:
-#endif
 		{
 			struct timeval *tv = (struct timeval *)addr;
-#if defined(COMPAT_FREEBSD32)
+#ifdef COMPAT_FREEBSD32
 			struct timeval32 *tv32;
 			struct timeval tv64;
 
-			if (cmd == BIOCSRTIMEOUT32) {
+			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				tv32 = (struct timeval32 *)addr;
 				tv = &tv64;
 				tv->tv_sec = tv32->tv_sec;
 				tv->tv_usec = tv32->tv_usec;
-			} else
+			}
 #endif
-				tv = (struct timeval *)addr;
 
 			/*
 			 * Subtract 1 tick from tvtohz() since this isn't
@@ -1670,31 +1679,24 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get read timeout.
 	 */
 	case BIOCGRTIMEOUT:
-#if defined(COMPAT_FREEBSD32) && defined(__amd64__)
-	case BIOCGRTIMEOUT32:
-#endif
 		{
-			struct timeval *tv;
-#if defined(COMPAT_FREEBSD32) && defined(__amd64__)
+			struct timeval *tv = (struct timeval *)addr;
+#ifdef COMPAT_FREEBSD32
 			struct timeval32 *tv32;
 			struct timeval tv64;
 
-			if (cmd == BIOCGRTIMEOUT32)
+			if (SV_CURPROC_FLAG(SV_ILP32))
 				tv = &tv64;
-			else
 #endif
-				tv = (struct timeval *)addr;
-
 			tv->tv_sec = d->bd_rtout / hz;
 			tv->tv_usec = (d->bd_rtout % hz) * tick;
-#if defined(COMPAT_FREEBSD32) && defined(__amd64__)
-			if (cmd == BIOCGRTIMEOUT32) {
+#ifdef COMPAT_FREEBSD32
+			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				tv32 = (struct timeval32 *)addr;
 				tv32->tv_sec = tv->tv_sec;
 				tv32->tv_usec = tv->tv_usec;
 			}
 #endif
-
 			break;
 		}
 
