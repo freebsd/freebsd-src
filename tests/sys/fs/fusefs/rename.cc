@@ -239,8 +239,8 @@ TEST_F(Rename, erelookup)
 		_)
 	).WillRepeatedly(Invoke(ReturnErrno(EIO)));
 
-	ASSERT_EQ(0, pthread_create(&th0, NULL, setattr_th, (void*)FULLSRC))
-		<< strerror(errno);
+	ASSERT_EQ(0, pthread_create(&th0, NULL, setattr_th,
+		const_cast<char *>(FULLSRC))) << strerror(errno);
 
 	ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &timeout));
 	timeout.tv_nsec += NAP_NS;
