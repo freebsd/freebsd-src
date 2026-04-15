@@ -1422,15 +1422,20 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 {
 	int error;
 
+	CURVNET_SET(lc->ifp->if_vnet);
 #ifdef INET
 	/* Quickly decide if packet cannot be LRO'ed */
-	if (__predict_false(V_ipforwarding != 0))
+	if (__predict_false(V_ipforwarding != 0)) {
+		CURVNET_RESTORE();
 		return (TCP_LRO_CANNOT);
+	}
 #endif
 #ifdef INET6
 	/* Quickly decide if packet cannot be LRO'ed */
-	if (__predict_false(V_ip6_forwarding != 0))
+	if (__predict_false(V_ip6_forwarding != 0)) {
+		CURVNET_RESTORE();
 		return (TCP_LRO_CANNOT);
+	}
 #endif
 
 	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
@@ -1442,12 +1447,12 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		 * a packet.
 		 */
 		counter_u64_add(tcp_bad_csums, 1);
+		CURVNET_RESTORE();
 		return (TCP_LRO_CANNOT);
 	}
 
 	/* get current time */
 	binuptime(&lc->lro_last_queue_time);
-	CURVNET_SET(lc->ifp->if_vnet);
 	error = tcp_lro_rx_common(lc, m, csum, true);
 	if (__predict_false(error != 0)) {
 		/*
@@ -1474,10 +1479,12 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 		return;
 	}
 
+	CURVNET_SET(lc->ifp->if_vnet);
 #ifdef INET
 	/* Quickly decide if packet cannot be LRO'ed */
 	if (__predict_false(V_ipforwarding != 0)) {
 		/* input packet to network layer */
+		CURVNET_RESTORE();
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}
@@ -1486,10 +1493,12 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	/* Quickly decide if packet cannot be LRO'ed */
 	if (__predict_false(V_ip6_forwarding != 0)) {
 		/* input packet to network layer */
+		CURVNET_RESTORE();
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}
 #endif
+	CURVNET_RESTORE();
 	/* check if packet is not LRO capable */
 	if (__predict_false((lc->ifp->if_capenable & IFCAP_LRO) == 0)) {
 		/* input packet to network layer */
