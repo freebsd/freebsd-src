@@ -71,7 +71,7 @@
 		(_kf)->head[(_kf)->last] = (_e);			\
 		(_kf)->count++;						\
 		(_kf)->last++;						\
-		if ((_kf)->last > (_kf)->total)				\
+		if ((_kf)->last >= (_kf)->total)			\
 			(_kf)->last = 0;				\
 		_rc = true;						\
 	}								\
@@ -89,7 +89,7 @@
 		*(_e) = (_kf)->head[(_kf)->first];			\
 		(_kf)->count--;						\
 		(_kf)->first++;						\
-		if ((_kf)->first > (_kf)->total)			\
+		if ((_kf)->first >= (_kf)->total)			\
 			(_kf)->first = 0;				\
 		_rc = true;						\
 	}								\
