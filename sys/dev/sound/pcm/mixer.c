@@ -37,8 +37,6 @@
 #include "feeder_if.h"
 #include "mixer_if.h"
 
-static MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
-
 static int mixer_bypass = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, vpc_mixer_bypass, CTLFLAG_RWTUN,
     &mixer_bypass, 0,
@@ -638,7 +636,7 @@ mixer_obj_create(device_t dev, kobj_class_t cls, void *devinfo,
 	KASSERT(type == MIXER_TYPE_PRIMARY || type == MIXER_TYPE_SECONDARY,
 	    ("invalid mixer type=%d", type));
 
-	m = (struct snd_mixer *)kobj_create(cls, M_MIXER, M_WAITOK | M_ZERO);
+	m = (struct snd_mixer *)kobj_create(cls, M_DEVBUF, M_WAITOK | M_ZERO);
 	snprintf(m->name, sizeof(m->name), "%s:mixer",
 	    device_get_nameunit(dev));
 	if (desc != NULL) {
@@ -659,7 +657,7 @@ mixer_obj_create(device_t dev, kobj_class_t cls, void *devinfo,
 	if (MIXER_INIT(m)) {
 		mtx_lock(&m->lock);
 		mtx_destroy(&m->lock);
-		kobj_delete((kobj_t)m, M_MIXER);
+		kobj_delete((kobj_t)m, M_DEVBUF);
 		return (NULL);
 	}
 
@@ -678,7 +676,7 @@ mixer_delete(struct snd_mixer *m)
 	MIXER_UNINIT(m);
 
 	mtx_destroy(&m->lock);
-	kobj_delete((kobj_t)m, M_MIXER);
+	kobj_delete((kobj_t)m, M_DEVBUF);
 
 	return (0);
 }
@@ -793,7 +791,7 @@ mixer_uninit(device_t dev)
 	MIXER_UNINIT(m);
 
 	mtx_destroy(&m->lock);
-	kobj_delete((kobj_t)m, M_MIXER);
+	kobj_delete((kobj_t)m, M_DEVBUF);
 
 	d->mixer_dev = NULL;
 
