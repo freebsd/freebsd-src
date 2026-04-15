@@ -84,11 +84,6 @@ MALLOC_DEFINE(M_NHI, "nhi", "nhi driver memory");
 #define NHI_DEBUG_LEVEL 0
 #endif
 
-/* 0 = default, 1 = force-on, 2 = force-off */
-#ifndef NHI_FORCE_HCM
-#define NHI_FORCE_HCM 0
-#endif
-
 void
 nhi_get_tunables(struct nhi_softc *sc)
 {
@@ -100,7 +95,6 @@ nhi_get_tunables(struct nhi_softc *sc)
 	/* Set local defaults */
 	sc->debug = NHI_DEBUG_LEVEL;
 	sc->max_ring_count = NHI_DEFAULT_NUM_RINGS;
-	sc->force_hcm = NHI_FORCE_HCM;
 
 	/* Inherit setting from the upstream thunderbolt switch node */
 	val = TB_GET_DEBUG(sc->dev, &sc->debug);
@@ -128,8 +122,6 @@ nhi_get_tunables(struct nhi_softc *sc)
 		val = min(val, NHI_MAX_NUM_RINGS);
 		sc->max_ring_count = max(val, 1);
 	}
-	if (TUNABLE_INT_FETCH("hw.nhi.force_hcm", &val) != 0)
-		sc->force_hcm = val;
 
 	/* Grab instance variables */
 	bzero(oid, 80);
@@ -143,22 +135,8 @@ nhi_get_tunables(struct nhi_softc *sc)
 		val = min(val, NHI_MAX_NUM_RINGS);
 		sc->max_ring_count = max(val, 1);
 	}
-	snprintf(tmpstr, sizeof(tmpstr), "dev, nhi.%d.force_hcm",
-	    device_get_unit(sc->dev));
-	if (TUNABLE_INT_FETCH(tmpstr, &val) != 0)
-		sc->force_hcm = val;
 
 	return;
-}
-
-static void
-nhi_configure_caps(struct nhi_softc *sc)
-{
-
-	if (NHI_IS_USB4(sc) || (sc->force_hcm == NHI_FORCE_HCM_ON))
-		sc->caps |= NHI_CAP_HCM;
-	if (sc->force_hcm == NHI_FORCE_HCM_OFF)
-		sc->caps &= ~NHI_CAP_HCM;
 }
 
 struct nhi_cmd_frame *
@@ -268,16 +246,14 @@ nhi_attach(struct nhi_softc *sc)
 
 	mtx_init(&sc->nhi_mtx, "nhimtx", "NHI Control Mutex", MTX_DEF);
 
-	nhi_configure_caps(sc);
-
 	/*
 	 * Get the number of TX/RX paths.  This sizes some of the register
 	 * arrays during allocation and initialization.  USB4 spec says that
-	 * the max is 21.  Alpine Ridge appears to default to 12.
+	 * the max is 21.
 	 */
 	val = GET_HOST_CAPS_PATHS(nhi_read_reg(sc, NHI_HOST_CAPS));
 	tb_debug(sc, DBG_INIT|DBG_NOISY, "Total Paths= %d\n", val);
-	if ((val == 0) || (val > 21) || ((NHI_IS_AR(sc) && val != 12))) {
+	if (val == 0 || val > 21) {
 		tb_printf(sc, "WARN: unexpected number of paths: %d\n", val);
 		/* return (ENXIO); */
 	}
@@ -297,10 +273,6 @@ nhi_attach(struct nhi_softc *sc)
 	if (error == 0)
 		error = tbdev_add_interface(sc);
 
-	if ((error == 0) && (NHI_USE_ICM(sc)))
-		tb_printf(sc, "WARN: device uses an internal connection manager\n");
-	if ((error == 0) && (NHI_USE_HCM(sc)))
-		;
 	error = hcm_attach(sc);
 
 	if (error == 0)
@@ -312,9 +284,7 @@ nhi_attach(struct nhi_softc *sc)
 int
 nhi_detach(struct nhi_softc *sc)
 {
-
-	if (NHI_USE_HCM(sc))
-		hcm_detach(sc);
+	hcm_detach(sc);
 
 	if (sc->root_rsc != NULL)
 		tb_router_detach(sc->root_rsc);
@@ -705,16 +675,6 @@ nhi_init(struct nhi_softc *sc)
 	val |= DMA_MISC_INT_AUTOCLEAR;
 	tb_debug(sc, DBG_INIT, "Setting interrupt auto-ACK, 0x%08x\n", val);
 	nhi_write_reg(sc, NHI_DMA_MISC, val);
-
-	if (NHI_IS_AR(sc) || NHI_IS_TR(sc) || NHI_IS_ICL(sc))
-		tb_printf(sc, "WARN: device uses an internal connection manager\n");
-
-	/*
-	 * Populate the controller (local) UUID, necessary for cross-domain
-	 * communications.
-	if (NHI_IS_ICL(sc))
-		nhi_pci_get_uuid(sc);
-	 */
 
 	/*
 	 * Attach the router to the root thunderbolt bridge now that the DMA
@@ -1163,9 +1123,6 @@ nhi_setup_sysctl(struct nhi_softc *sc)
 	SYSCTL_ADD_U16(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "max_rings", CTLFLAG_RD, &sc->max_ring_count, 0,
 	    "Max number of rings available");
-	SYSCTL_ADD_U8(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "force_hcm", CTLFLAG_RD, &sc->force_hcm, 0,
-	    "Force on/off the function of the host connection manager");
 
 	return (0);
 }
