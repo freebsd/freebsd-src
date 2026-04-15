@@ -417,6 +417,8 @@ struct ena_hw_stats {
 
 	counter_u64_t rx_drops;
 	counter_u64_t tx_drops;
+
+	counter_u64_t rx_overruns;
 };
 
 /* Board specific private data structure */
