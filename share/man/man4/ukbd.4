@@ -156,6 +156,18 @@ tunables:
 Debug output level, where 0 is debugging disabled and larger values increase
 debug message verbosity.
 Default is 0.
+.It Va hw.usb.ukbd.apple_swap_cmd_opt
+Swap the Command & Option keys on Apple keyboards if set to 1.
+Default is 0.
+.It Va hw.usb.ukbd.apple_swap_cmd_ctl
+Swap the Command & Control keys on Apple keyboards if set to 1.
+Default is 0.
+.It Va hw.usb.ukbd.apple_fn_mode
+Direct access to media keys without holding Fn if set to 1.
+Default is 0.
+.It Va hw.usb.ukbd.no_leds
+Disables setting of keyboard LEDs if set to 1.
+Default is 0.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/kbd*" -compact
