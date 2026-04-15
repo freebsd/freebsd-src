@@ -123,6 +123,15 @@ static int 	asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS);
 static int	asmc_wol_sysctl(SYSCTL_HANDLER_ARGS);
 
+#ifdef ASMC_DEBUG
+/* Raw key access */
+static int	asmc_key_getinfo(device_t, const char *, uint8_t *, char *);
+static int	asmc_raw_key_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_raw_value_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_raw_len_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_raw_type_sysctl(SYSCTL_HANDLER_ARGS);
+#endif
+
 struct asmc_model {
 	const char *smc_model; /* smbios.system.product env var. */
 	const char *smc_desc;  /* driver description */
@@ -828,6 +837,43 @@ asmc_attach(device_t dev)
 		}
 	}
 
+#ifdef ASMC_DEBUG
+	/*
+	 * Raw SMC key access for debugging.
+	 */
+	sc->sc_raw_tree = SYSCTL_ADD_NODE(sysctlctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "raw", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Raw SMC key access");
+
+	SYSCTL_ADD_PROC(sysctlctx,
+	    SYSCTL_CHILDREN(sc->sc_raw_tree),
+	    OID_AUTO, "key",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    dev, 0, asmc_raw_key_sysctl, "A",
+	    "SMC key name (4 chars)");
+
+	SYSCTL_ADD_PROC(sysctlctx,
+	    SYSCTL_CHILDREN(sc->sc_raw_tree),
+	    OID_AUTO, "value",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    dev, 0, asmc_raw_value_sysctl, "A",
+	    "SMC key value (hex string)");
+
+	SYSCTL_ADD_PROC(sysctlctx,
+	    SYSCTL_CHILDREN(sc->sc_raw_tree),
+	    OID_AUTO, "len",
+	    CTLTYPE_U8 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    dev, 0, asmc_raw_len_sysctl, "CU",
+	    "SMC key value length");
+
+	SYSCTL_ADD_PROC(sysctlctx,
+	    SYSCTL_CHILDREN(sc->sc_raw_tree),
+	    OID_AUTO, "type",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    dev, 0, asmc_raw_type_sysctl, "A",
+	    "SMC key type (4 chars)");
+#endif
+
 	if (model->smc_sms_x == NULL)
 		goto nosms;
 
@@ -1202,10 +1248,10 @@ static int
 asmc_key_dump(device_t dev, int number)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	char key[5] = { 0 };
-	char type[7] = { 0 };
+	char key[ASMC_KEYLEN + 1] = { 0 };
+	char type[ASMC_KEYINFO_RESPLEN + 1] = { 0 };
 	uint8_t index[4];
-	uint8_t v[32];
+	uint8_t v[ASMC_MAXVAL];
 	uint8_t maxlen;
 	int i, error = 1, try = 0;
 
@@ -1214,40 +1260,40 @@ asmc_key_dump(device_t dev, int number)
 	index[0] = (number >> 24) & 0xff;
 	index[1] = (number >> 16) & 0xff;
 	index[2] = (number >> 8) & 0xff;
-	index[3] = (number) & 0xff;
+	index[3] = number & 0xff;
 
 begin:
-	if (asmc_command(dev, 0x12))
+	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
 		goto out;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ASMC_KEYLEN; i++) {
 		ASMC_DATAPORT_WRITE(sc, index[i]);
-		if (asmc_wait(dev, 0x04))
+		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
 			goto out;
 	}
 
-	ASMC_DATAPORT_WRITE(sc, 4);
+	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
 
-	for (i = 0; i < 4; i++) {
-		if (asmc_wait(dev, 0x05))
+	for (i = 0; i < ASMC_KEYLEN; i++) {
+		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
 			goto out;
 		key[i] = ASMC_DATAPORT_READ(sc);
 	}
 
-	/* get type */
-	if (asmc_command(dev, 0x13))
+	/* Get key info (length + type). */
+	if (asmc_command(dev, ASMC_CMDGETINFO))
 		goto out;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ASMC_KEYLEN; i++) {
 		ASMC_DATAPORT_WRITE(sc, key[i]);
-		if (asmc_wait(dev, 0x04))
+		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
 			goto out;
 	}
 
-	ASMC_DATAPORT_WRITE(sc, 6);
+	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
 
-	for (i = 0; i < 6; i++) {
-		if (asmc_wait(dev, 0x05))
+	for (i = 0; i < ASMC_KEYINFO_RESPLEN; i++) {
+		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
 			goto out;
 		type[i] = ASMC_DATAPORT_READ(sc);
 	}
@@ -1255,40 +1301,187 @@ begin:
 	error = 0;
 out:
 	if (error) {
-		if (++try < 10)
+		if (++try < ASMC_MAXRETRIES)
 			goto begin;
-		device_printf(dev, "%s for key %s failed %d times, giving up\n",
-		    __func__, key, try);
-		mtx_unlock_spin(&sc->sc_mtx);
-	} else {
-		char buf[1024];
-		char buf2[8];
-		mtx_unlock_spin(&sc->sc_mtx);
-		maxlen = type[0];
-		type[0] = ' ';
-		type[5] = 0;
-		if (maxlen > sizeof(v)) {
-			device_printf(dev,
-			    "WARNING: cropping maxlen from %d to %zu\n", maxlen,
-			    sizeof(v));
-			maxlen = sizeof(v);
-		}
-		for (i = 0; i < sizeof(v); i++) {
-			v[i] = 0;
-		}
-		asmc_key_read(dev, key, v, maxlen);
-		snprintf(buf, sizeof(buf),
-		    "key %d is: %s, type %s (len %d), data",
-		    number, key, type, maxlen);
-		for (i = 0; i < maxlen; i++) {
-			snprintf(buf2, sizeof(buf2), " %02x", v[i]);
-			strlcat(buf, buf2, sizeof(buf));
-		}
-		strlcat(buf, " \n", sizeof(buf));
-		device_printf(dev, "%s", buf);
+		device_printf(dev,
+		    "%s for key %d failed %d times, giving up\n",
+		    __func__, number, try);
+	}
+	mtx_unlock_spin(&sc->sc_mtx);
+
+	if (error)
+		return (error);
+
+	maxlen = type[0];
+	type[0] = ' ';
+	type[5] = '\0';
+	if (maxlen > sizeof(v))
+		maxlen = sizeof(v);
+
+	memset(v, 0, sizeof(v));
+	error = asmc_key_read(dev, key, v, maxlen);
+	if (error)
+		return (error);
+
+	device_printf(dev, "key %d: %s, type%s (len %d), data",
+	    number, key, type, maxlen);
+	for (i = 0; i < maxlen; i++)
+		printf(" %02x", v[i]);
+	printf("\n");
+
+	return (0);
+}
+
+/*
+ * Get key info (length and type) from SMC using command 0x13.
+ * Returns 0 on success, -1 on failure.
+ * If len is non-NULL, stores the key's value length.
+ * If type is non-NULL, stores the 4-char type string (must be at least 5 bytes).
+ */
+static int
+asmc_key_getinfo(device_t dev, const char *key, uint8_t *len, char *type)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+	uint8_t info[ASMC_KEYINFO_RESPLEN];
+	int i, error = -1, try = 0;
+
+	mtx_lock_spin(&sc->sc_mtx);
+
+begin:
+	if (asmc_command(dev, ASMC_CMDGETINFO))
+		goto out;
+
+	for (i = 0; i < ASMC_KEYLEN; i++) {
+		ASMC_DATAPORT_WRITE(sc, key[i]);
+		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
+			goto out;
 	}
 
+	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
+
+	for (i = 0; i < ASMC_KEYINFO_RESPLEN; i++) {
+		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
+			goto out;
+		info[i] = ASMC_DATAPORT_READ(sc);
+	}
+
+	error = 0;
+out:
+	if (error && ++try < ASMC_MAXRETRIES)
+		goto begin;
+	mtx_unlock_spin(&sc->sc_mtx);
+
+	if (error == 0) {
+		if (len != NULL)
+			*len = info[0];
+		if (type != NULL) {
+			for (i = 0; i < ASMC_TYPELEN; i++)
+				type[i] = info[i + 1];
+			type[ASMC_TYPELEN] = '\0';
+		}
+	}
 	return (error);
+}
+
+/*
+ * Raw SMC key access sysctls - enables reading/writing any SMC key by name
+ * Usage:
+ *   sysctl dev.asmc.0.raw.key=AUPO   # Set key, auto-detects length
+ *   sysctl dev.asmc.0.raw.value      # Read current value (hex bytes)
+ *   sysctl dev.asmc.0.raw.value=01   # Write new value
+ */
+static int
+asmc_raw_key_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t) arg1;
+	struct asmc_softc *sc = device_get_softc(dev);
+	char newkey[ASMC_KEYLEN + 1];
+	uint8_t keylen;
+	int error;
+
+	strlcpy(newkey, sc->sc_rawkey, sizeof(newkey));
+	error = sysctl_handle_string(oidp, newkey, sizeof(newkey), req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	if (strlen(newkey) != ASMC_KEYLEN)
+		return (EINVAL);
+
+	/* Get key info to auto-detect length and type */
+	if (asmc_key_getinfo(dev, newkey, &keylen, sc->sc_rawtype) != 0)
+		return (ENOENT);
+
+	if (keylen > ASMC_MAXVAL)
+		keylen = ASMC_MAXVAL;
+
+	strlcpy(sc->sc_rawkey, newkey, sizeof(sc->sc_rawkey));
+	sc->sc_rawlen = keylen;
+	memset(sc->sc_rawval, 0, sizeof(sc->sc_rawval));
+
+	/* Read the key value */
+	asmc_key_read(dev, sc->sc_rawkey, sc->sc_rawval, sc->sc_rawlen);
+
+	return (0);
+}
+
+static int
+asmc_raw_value_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t) arg1;
+	struct asmc_softc *sc = device_get_softc(dev);
+	char hexbuf[ASMC_MAXVAL * 2 + 1];
+	int error, i;
+
+	/* Refresh from SMC if a key has been selected. */
+	if (sc->sc_rawkey[0] != '\0') {
+		asmc_key_read(dev, sc->sc_rawkey, sc->sc_rawval,
+		    sc->sc_rawlen > 0 ? sc->sc_rawlen : ASMC_MAXVAL);
+	}
+
+	/* Format as hex string */
+	for (i = 0; i < sc->sc_rawlen && i < ASMC_MAXVAL; i++)
+		snprintf(hexbuf + i * 2, 3, "%02x", sc->sc_rawval[i]);
+	hexbuf[i * 2] = '\0';
+
+	error = sysctl_handle_string(oidp, hexbuf, sizeof(hexbuf), req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	/* Reject writes until a key is selected via raw.key. */
+	if (sc->sc_rawkey[0] == '\0')
+		return (EINVAL);
+
+	memset(sc->sc_rawval, 0, sizeof(sc->sc_rawval));
+	for (i = 0; i < sc->sc_rawlen && hexbuf[i*2] && hexbuf[i*2+1]; i++) {
+		unsigned int val;
+		char tmp[3] = { hexbuf[i*2], hexbuf[i*2+1], 0 };
+		if (sscanf(tmp, "%02x", &val) == 1)
+			sc->sc_rawval[i] = (uint8_t)val;
+	}
+
+	if (asmc_key_write(dev, sc->sc_rawkey, sc->sc_rawval, sc->sc_rawlen) != 0)
+		return (EIO);
+
+	return (0);
+}
+
+static int
+asmc_raw_len_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t) arg1;
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	return (sysctl_handle_8(oidp, &sc->sc_rawlen, 0, req));
+}
+
+static int
+asmc_raw_type_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t) arg1;
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	return (sysctl_handle_string(oidp, sc->sc_rawtype,
+	    sizeof(sc->sc_rawtype), req));
 }
 #endif
 
