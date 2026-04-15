@@ -222,13 +222,11 @@ vm_swapout_map_deactivate_pages(vm_map_t map, long desired)
 {
 	vm_map_entry_t tmpe;
 	vm_object_t obj, bigobj;
-	int nothingwired;
 
 	if (!vm_map_trylock_read(map))
 		return;
 
 	bigobj = NULL;
-	nothingwired = TRUE;
 
 	/*
 	 * first, search out the biggest object, and try to free pages from
@@ -249,8 +247,6 @@ vm_swapout_map_deactivate_pages(vm_map_t map, long desired)
 					VM_OBJECT_RUNLOCK(obj);
 			}
 		}
-		if (tmpe->wired_count > 0)
-			nothingwired = FALSE;
 	}
 
 	if (bigobj != NULL) {
@@ -273,15 +269,6 @@ vm_swapout_map_deactivate_pages(vm_map_t map, long desired)
 				VM_OBJECT_RUNLOCK(obj);
 			}
 		}
-	}
-
-	/*
-	 * Remove all mappings if a process is swapped out, this will free page
-	 * table pages.
-	 */
-	if (desired == 0 && nothingwired) {
-		pmap_remove(vm_map_pmap(map), vm_map_min(map),
-		    vm_map_max(map));
 	}
 
 	vm_map_unlock_read(map);
