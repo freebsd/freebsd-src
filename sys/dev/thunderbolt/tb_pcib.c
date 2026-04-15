@@ -90,18 +90,6 @@ struct tb_pcib_ident {
 	uint32_t	flags;		/* This follows the tb_softc flags */
 	const char	*desc;
 } tb_pcib_identifiers[] = {
-	{ VENDOR_INTEL, TB_DEV_AR_2C, 0xffff, 0xffff, TB_GEN_TB3|TB_HWIF_AR,
-	    "Thunderbolt 3 PCI-PCI Bridge (Alpine Ridge 2C)" },
-	{ VENDOR_INTEL, TB_DEV_AR_LP, 0xffff, 0xffff, TB_GEN_TB3|TB_HWIF_AR,
-	    "Thunderbolt 3 PCI-PCI Bridge (Alpine Ridge LP)" },
-	{ VENDOR_INTEL, TB_DEV_AR_C_4C, 0xffff, 0xffff, TB_GEN_TB3|TB_HWIF_AR,
-	    "Thunderbolt 3 PCI-PCI Bridge (Alpine Ridge C 4C)" },
-	{ VENDOR_INTEL, TB_DEV_AR_C_2C, 0xffff, 0xffff, TB_GEN_TB3|TB_HWIF_AR,
-	    "Thunderbolt 3 PCI-PCI Bridge C (Alpine Ridge C 2C)" },
-	{ VENDOR_INTEL, TB_DEV_ICL_0, 0xffff, 0xffff, TB_GEN_TB3|TB_HWIF_ICL,
-	    "Thunderbolt 3 PCI-PCI Bridge (IceLake)" },
-	{ VENDOR_INTEL, TB_DEV_ICL_1, 0xffff, 0xffff, TB_GEN_TB3|TB_HWIF_ICL,
-	    "Thunderbolt 3 PCI-PCI Bridge (IceLake)" },
 	{ 0, 0, 0, 0, 0, NULL }
 };
 

@@ -142,19 +142,9 @@ struct nhi_softc {
 	u_int			debug;
 	u_int			hwflags;
 #define NHI_TYPE_UNKNOWN	0x00
-#define NHI_TYPE_AR		0x01		/* Alpine Ridge */
-#define NHI_TYPE_TR		0x02		/* Titan Ridge */
-#define NHI_TYPE_ICL		0x03		/* IceLake */
-#define NHI_TYPE_MR		0x04		/* Maple Ridge */
-#define NHI_TYPE_ADL		0x05		/* AlderLake */
 #define NHI_TYPE_USB4		0x0f
 #define NHI_TYPE_MASK		0x0f
 #define NHI_MBOX_BUSY		0x10
-	u_int			caps;
-#define NHI_CAP_ICM		0x01
-#define NHI_CAP_HCM		0x02
-#define NHI_USE_ICM(sc)		((sc)->caps & NHI_CAP_ICM)
-#define NHI_USE_HCM(sc)		((sc)->caps & NHI_CAP_HCM)
 	struct hcm_softc	*hcm;
 	struct router_softc	*root_rsc;
 
@@ -194,11 +184,6 @@ struct nhi_softc {
 
 	struct intr_config_hook	ich;
 
-	uint8_t			force_hcm;
-#define NHI_FORCE_HCM_DEFAULT	0x00
-#define NHI_FORCE_HCM_ON	0x01
-#define NHI_FORCE_HCM_OFF	0x02
-
 	uint8_t			uuid[16];
 	uint8_t			lc_uuid[16];
 };
@@ -209,9 +194,6 @@ struct nhi_dispatch {
 	void			*context;
 };
 
-#define NHI_IS_AR(sc)	(((sc)->hwflags & NHI_TYPE_MASK) == NHI_TYPE_AR)
-#define NHI_IS_TR(sc)	(((sc)->hwflags & NHI_TYPE_MASK) == NHI_TYPE_TR)
-#define NHI_IS_ICL(sc)	(((sc)->hwflags & NHI_TYPE_MASK) == NHI_TYPE_ICL)
 #define NHI_IS_USB4(sc)	(((sc)->hwflags & NHI_TYPE_MASK) == NHI_TYPE_USB4)
 
 int nhi_pci_configure_interrupts(struct nhi_softc *sc);
