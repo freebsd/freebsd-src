@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: mount_msdosfs
+Description: Mount an MS-DOS (FAT) file system
+URL: https://man.freebsd.org/cgi/man.cgi?query=mount_msdosfs(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/mount_msdosfs
+License: BSD-4-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.d2579bcb.txt
+Copyright: 1994 Christopher G. Demetriou
+Requires: csu, libc, libcompiler_rt, libkiconv, libutil

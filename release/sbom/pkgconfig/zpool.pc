@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: zpool
+Description: Manage ZFS boot environments
+URL: https://man.freebsd.org/cgi/man.cgi?query=bectl(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/bectl
+License: Beerware AND BSD-2-Clause
+Copyright: 2017 Kyle J. Kneitinger <kyle@kneit.in>, 2018 Kyle Evans <kevans@FreeBSD.org>
+Requires: csu, libbe, libc, libcompiler_rt, libjail, libutil
