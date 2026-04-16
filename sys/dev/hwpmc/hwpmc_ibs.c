@@ -369,6 +369,11 @@ pmc_ibs_process_op(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_LINADDR] = rdmsr(IBS_OP_DC_LINADDR);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_PHYSADDR] = rdmsr(IBS_OP_DC_PHYSADDR);
 
+	/* Zero invalid RIP samples while preserving the RIPINVALID bit. */
+	if ((ibs_features & CPUID_IBSID_RIPINVALIDCHK) != 0 &&
+	    (mpd.pl_mpdata[PMC_MPIDX_OP_DATA] & IBS_OP_DATA_RIPINVALID) != 0)
+		mpd.pl_mpdata[PMC_MPIDX_OP_RIP] = 0;
+
 	pmc_process_interrupt_mp(PMC_HR, pm, tf, &mpd);
 
 	wrmsr(IBS_OP_CTL, pm->pm_md.pm_ibs.ibs_ctl | IBS_OP_CTL_ENABLE);
