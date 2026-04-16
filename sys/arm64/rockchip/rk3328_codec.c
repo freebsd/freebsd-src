@@ -416,18 +416,8 @@ static int
 rkcodec_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct rkcodec_softc *sc;
-	struct mtx *mixer_lock;
-	uint8_t do_unlock;
 
 	sc = device_get_softc(mix_getdevinfo(m));
-	mixer_lock = mixer_get_lock(m);
-
-	if (mtx_owned(mixer_lock)) {
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		mtx_lock(mixer_lock);
-	}
 
 	right = left;
 
@@ -442,10 +432,6 @@ rkcodec_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned rig
 		break;
 	}
 	RKCODEC_UNLOCK(sc);
-
-	if (do_unlock) {
-		mtx_unlock(mixer_lock);
-	}
 
 	return (left | (right << 8));
 }

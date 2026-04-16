@@ -268,37 +268,20 @@ static int
 onyx_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct onyx_softc *sc;
-	struct mtx *mixer_lock;
-	int locked;
 	uint8_t l, r;
 
 	sc = device_get_softc(mix_getdevinfo(m));
-	mixer_lock = mixer_get_lock(m);
-	locked = mtx_owned(mixer_lock);
 
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
-
-		/*
-		 * We need to unlock the mixer lock because iicbus_transfer()
-		 * may sleep. The mixer lock itself is unnecessary here
-		 * because it is meant to serialize hardware access, which
-		 * is taken care of by the I2C layer, so this is safe.
-		 */
 		if (left > 100 || right > 100)
 			return (0);
 
 		l = left + 128;
 		r = right + 128;
 
-		if (locked)
-			mtx_unlock(mixer_lock);
-
 		onyx_write(sc, PCM3052_REG_LEFT_ATTN, l);
 		onyx_write(sc, PCM3052_REG_RIGHT_ATTN, r);
-
-		if (locked)
-			mtx_lock(mixer_lock);
 
 		return (left | (right << 8));
 	}
