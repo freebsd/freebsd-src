@@ -2606,6 +2606,11 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list,
 			initlist_add_neededs(obj->needed_aux_filtees,
 			    NULL, iflist);
 		objlist_push_tail(iflist, obj);
+
+		/* Recursively process the successor objects. */
+		nobj = globallist_next(obj);
+		if (nobj != NULL && obj != tail)
+			initlist_add_objects(nobj, tail, list, iflist);
 	} else {
 		if (obj->init_scanned)
 			return;
