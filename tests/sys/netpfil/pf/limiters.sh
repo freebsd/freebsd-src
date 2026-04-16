@@ -185,6 +185,56 @@ state_block_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "state_multiple" "cleanup"
+state_multiple_head()
+{
+	atf_set descr 'Create multiple state limiters'
+	atf_set require.user root
+}
+
+state_multiple_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	# Allow up to one ICMP state.
+	pft_set_rules alcatraz \
+	    "set timeout icmp.error 120" \
+	    "state limiter \"server\" id 1 limit 1" \
+	    "state limiter \"client\" id 2 limit 1" \
+	    "block in proto icmp" \
+	    "pass in proto icmp state limiter \"server\" (no-match)"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 2 192.0.2.1
+
+	# This should now fail
+	atf_check -s exit:2 -o ignore \
+	    ping -c 2 192.0.2.1
+
+	jexec alcatraz pfctl -sLimiterStates
+	hardlim=$(jexec alcatraz pfctl -sLimiterStates | awk 'NR>1 { print $5; }')
+	if [ $hardlim -eq 0 ]; then
+		atf_fail "Hard limit not incremented"
+	fi
+}
+
+state_multiple_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "source_basic" "cleanup"
 source_basic_head()
 {
@@ -261,5 +311,6 @@ atf_init_test_cases()
 	atf_add_test_case "state_basic"
 	atf_add_test_case "state_rate"
 	atf_add_test_case "state_block"
+	atf_add_test_case "state_multiple"
 	atf_add_test_case "source_basic"
 }
