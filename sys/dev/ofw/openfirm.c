@@ -381,11 +381,11 @@ OF_getproplen(phandle_t package, const char *propname)
 }
 
 /* Check existence of a property of a package. */
-int
+bool
 OF_hasprop(phandle_t package, const char *propname)
 {
 
-	return (OF_getproplen(package, propname) >= 0 ? 1 : 0);
+	return (OF_getproplen(package, propname) >= 0);
 }
 
 /* Get the value of a property of a package. */
