@@ -1736,7 +1736,7 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 		return (error);
 	}
 	SOCK_SENDBUF_LOCK(so2);
-	if (so->so_snd.sb_tls_info != NULL) {
+	if (so2->so_snd.sb_tls_info != NULL) {
 		SOCK_SENDBUF_UNLOCK(so2);
 		SOCK_UNLOCK(so2);
 		mtx_lock(&sp->mtx);
