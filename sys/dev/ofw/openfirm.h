@@ -108,7 +108,7 @@ ssize_t		OF_getprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
 ssize_t		OF_getencprop(phandle_t node, const char *prop, pcell_t *buf,
 		    size_t len); /* Same as getprop, but maintains endianness */
-int		OF_hasprop(phandle_t node, const char *propname);
+bool		OF_hasprop(phandle_t node, const char *propname);
 ssize_t		OF_searchprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
 ssize_t		OF_searchencprop(phandle_t node, const char *propname,
