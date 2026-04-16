@@ -895,7 +895,8 @@ fsl_msi_intr_filter(void *priv)
 static int
 fsl_msi_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "fsl,mpic-msi"))
+	if (!ofw_bus_is_compatible(dev, "fsl,mpic-msi") &&
+	    !ofw_bus_is_compatible(dev, "fsl,mpic-msi-v4.3"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale MSI");
