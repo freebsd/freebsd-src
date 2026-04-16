@@ -2423,7 +2423,7 @@ _next_block:
 
 _next_entry:
 		/* we need to increase the counter past the nested block */
-		pfr_prepare_network(&umask, AF_INET, ke2->pfrke_net);
+		pfr_prepare_network(&umask, af, ke2->pfrke_net);
 		pfr_sockaddr_to_pf_addr(&umask, &umask_addr);
 		pf_poolmask(addr, addr, &umask_addr, &pfr_ffaddr, af);
 		pf_addr_inc(addr, af);
