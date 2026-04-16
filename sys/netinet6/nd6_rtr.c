@@ -89,7 +89,7 @@ struct nd_routectl {
 };
 
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
-static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
+static void prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
     bool, int);
 static int nd6_routelist_update(struct nd_routectl *);
 static int nd6_prefix_onlink(struct nd_prefix *);
@@ -313,7 +313,7 @@ nd6_ra_opt_pi(struct nd_opt_hdr *pt, struct ifnet *ifp,
 	pr.ndpr_plen = pi->nd_opt_pi_prefix_len;
 	pr.ndpr_vltime = ntohl(pi->nd_opt_pi_valid_time);
 	pr.ndpr_pltime = ntohl(pi->nd_opt_pi_preferred_time);
-	(void)prelist_update(&pr, dr, auth, mcast);
+	prelist_update(&pr, dr, auth, mcast);
 }
 
 static void
@@ -1552,7 +1552,7 @@ nd6_prefix_update(struct nd_prefixctl *new, struct nd_prefix *pr)
 	}
 }
 
-static int
+static void
 prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
     bool auth, int mcast)
 {
@@ -1572,9 +1572,9 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		nd6_prefix_update(new, pr);
 	else {
 		if (new->ndpr_vltime == 0)
-			goto end;
+			return;
 		if (new->ndpr_raf_onlink == 0 && new->ndpr_raf_auto == 0)
-			goto end;
+			return;
 
 		error = nd6_prelist_add(new, &pr);
 		if (error != 0) {
@@ -1582,7 +1582,8 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			    "the prefix %s/%d on %s (errno=%d)\n", __func__,
 			    ip6_sprintf(ip6buf, &new->ndpr_prefix.sin6_addr),
 			    new->ndpr_plen, if_name(new->ndpr_ifp), error));
-			goto end; /* we should just give up in this case. */
+			/* we should just give up in this case. */
+			return;
 		}
 
 		/*
@@ -1602,24 +1603,16 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		pfxrtr_add(pr, dr);
 
 	/*
-	 * Address autoconfiguration based on Section 5.5.3 of RFC 2462.
+	 * Address autoconfiguration based on Section 5.5.3 of RFC 4862.
 	 * Note that pr must be non NULL at this point.
+	 *
+	 * 5.5.3 (a). Ignore the prefix without the A bit set.
+	 * 5.5.3 (b). the link-local prefix should have been ignored in nd6_ra_input.
+	 * 5.5.3 (c). Consistency check on lifetimes: pltime <= vltime.
 	 */
-
-	/* 5.5.3 (a). Ignore the prefix without the A bit set. */
-	if (!new->ndpr_raf_auto)
+	if (new->ndpr_raf_auto == 0 ||
+	    new->ndpr_pltime > new->ndpr_vltime)
 		goto end;
-
-	/*
-	 * 5.5.3 (b). the link-local prefix should have been ignored in
-	 * nd6_ra_input.
-	 */
-
-	/* 5.5.3 (c). Consistency check on lifetimes: pltime <= vltime. */
-	if (new->ndpr_pltime > new->ndpr_vltime) {
-		error = EINVAL;	/* XXX: won't be used */
-		goto end;
-	}
 
 	/*
 	 * 5.5.3 (d).  If the prefix advertised is not equal to the prefix of
@@ -1628,12 +1621,12 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	 * Lifetime is not 0, form an address.  We first check if we have
 	 * a matching prefix.
 	 * Note: we apply a clarification in rfc2462bis-02 here.  We only
-	 * consider autoconfigured addresses while RFC2462 simply said
+	 * consider autoconfigured addresses while RFC 4862 simply said
 	 * "address".
 	 */
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *ifa6;
-		u_int32_t remaininglifetime;
+		uint32_t remaininglifetime;
 
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1844,16 +1837,12 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			 * XXX: what if address duplication happens?
 			 */
 			pfxlist_onlink_check();
-		} else {
-			/* just set an error. do not bark here. */
-			error = EADDRNOTAVAIL; /* XXX: might be unused. */
 		}
 	}
 
 end:
-	if (pr != NULL)
-		nd6_prefix_rele(pr);
-	return (error);
+	nd6_prefix_rele(pr);
+	return;
 }
 
 /*
