@@ -37,11 +37,6 @@
 #include "feeder_if.h"
 #include "mixer_if.h"
 
-static int mixer_bypass = 1;
-SYSCTL_INT(_hw_snd, OID_AUTO, vpc_mixer_bypass, CTLFLAG_RWTUN,
-    &mixer_bypass, 0,
-    "control channel pcm/rec volume, bypassing real mixer device");
-
 #define MIXER_NAMELEN	16
 struct snd_mixer {
 	KOBJ_FIELDS;

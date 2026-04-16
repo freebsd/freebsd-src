@@ -407,15 +407,6 @@ When a channel is closed the channel volume will be reset to 0db.
 This means that any changes to the volume will be lost.
 Enabling this will preserve the volume, at the cost of possible confusion
 when applications tries to re-open the same device.
-.It Va hw.snd.vpc_mixer_bypass
-The recommended way to use the VPC feature is to teach applications to use the
-correct
-.Fn ioctl :
-.Dv SNDCTL_DSP_GETPLAYVOL , SNDCTL_DSP_SETPLAYVOL ,
-.Dv SNDCTL_DSP_SETRECVOL , SNDCTL_DSP_SETRECVOL .
-This is however not always possible.
-Enable this to allow applications to use their own existing mixer logic
-to control their own channel volume.
 .It Va hw.snd.vpc_reset
 Enable to restore all channel volumes back to the default value of 0db.
 .It Va dev.pcm.%d.bitperfect
