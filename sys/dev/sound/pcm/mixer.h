@@ -61,7 +61,6 @@ void mix_setparentchild(struct snd_mixer *m, u_int32_t parent, u_int32_t childs)
 void mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev);
 u_int32_t mix_getparent(struct snd_mixer *m, u_int32_t dev);
 void *mix_getdevinfo(struct snd_mixer *m);
-struct mtx *mixer_get_lock(struct snd_mixer *m);
 
 #define MIXER_TYPE_PRIMARY	0	/* mixer_init()   */
 #define MIXER_TYPE_SECONDARY	1	/* mixer_create() */
