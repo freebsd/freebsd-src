@@ -304,7 +304,7 @@ mixer_set(struct snd_mixer *m, u_int dev, u_int32_t muted, u_int lev)
 		if (dev == SOUND_MIXER_PCM && (d->flags & SD_F_SOFTPCMVOL))
 			(void)mixer_set_softpcmvol(m, d, l, r);
 		else if ((dev == SOUND_MIXER_TREBLE ||
-		    dev == SOUND_MIXER_BASS) && (d->flags & SD_F_EQ))
+		    dev == SOUND_MIXER_BASS) && (d->flags & SD_F_EQ_ENABLED))
 			(void)mixer_set_eq(m, d, dev, (l + r) >> 1);
 		else if (realdev != SOUND_MIXER_NONE &&
 		    MIXER_SET(m, realdev, l, r) < 0) {
@@ -484,8 +484,7 @@ mix_setdevs(struct snd_mixer *m, u_int32_t v)
 	d = device_get_softc(m->dev);
 	if (d != NULL && (d->flags & SD_F_SOFTPCMVOL))
 		v |= SOUND_MASK_PCM;
-	if (d != NULL && (d->flags & SD_F_EQ))
-		v |= SOUND_MASK_TREBLE | SOUND_MASK_BASS;
+	v |= SOUND_MASK_TREBLE | SOUND_MASK_BASS;
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (m->parent[i] < SOUND_MIXER_NRDEVICES)
 			v |= 1 << m->parent[i];
@@ -706,15 +705,6 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 
 	name = device_get_name(dev);
 	unit = device_get_unit(dev);
-	if (resource_int_value(name, unit, "eq", &val) == 0 &&
-	    val != 0) {
-		snddev->flags |= SD_F_EQ;
-		if ((val & SD_F_EQ_MASK) == val)
-			snddev->flags |= val;
-		else
-			snddev->flags |= SD_F_EQ_DEFAULT;
-		snddev->eqpreamp = 0;
-	}
 
 	m = mixer_obj_create(dev, cls, devinfo, MIXER_TYPE_PRIMARY, NULL);
 	if (m == NULL)
@@ -762,8 +752,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 		}
 		if (snddev->flags & SD_F_SOFTPCMVOL)
 			device_printf(dev, "Soft PCM mixer ENABLED\n");
-		if (snddev->flags & SD_F_EQ)
-			device_printf(dev, "EQ Treble/Bass ENABLED\n");
+		device_printf(dev, "EQ Treble/Bass ENABLED\n");
 	}
 
 	return (0);

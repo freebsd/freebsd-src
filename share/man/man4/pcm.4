@@ -197,9 +197,6 @@ The Parametric Software Equalizer (EQ) enables the use of
 controls (bass and treble).
 Commonly used for ear-candy or frequency compensation due to the vast
 difference in hardware quality.
-EQ is disabled by default, but can be enabled with the
-.Va hint.pcm.%d.eq
-tunable.
 .Ss VCHANs
 Each device can optionally support more playback and recording channels
 than physical hardware provides by using
@@ -230,12 +227,6 @@ driver.
 The following tunables can not be changed during runtime using
 .Xr sysctl 8 .
 .Bl -tag -width indent
-.It Va hint.pcm.%d.eq
-Set to 1 or 0 to explicitly enable (1) or disable (0) the equalizer.
-Requires a driver reload if changed.
-Enabling this will make bass and treble controls appear in mixer applications.
-This tunable is undefined by default.
-Equalizing is disabled by default.
 .It Va hint.pcm.%d.vpc
 Set to 1 or 0 to explicitly enable (1) or disable (0) the VPC feature.
 This tunable is undefined by default.
