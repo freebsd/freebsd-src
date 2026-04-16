@@ -1400,8 +1400,7 @@ nd6_prefix_rele(struct nd_prefix *pr)
 }
 
 int
-nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
-    struct nd_prefix **newp)
+nd6_prelist_add(struct nd_prefixctl *pr, struct nd_prefix **newp)
 {
 	struct nd_prefix *new;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1448,8 +1447,6 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 		ND6_ONLINK_UNLOCK();
 	}
 
-	if (dr != NULL)
-		pfxrtr_add(new, dr);
 	if (newp != NULL)
 		*newp = new;
 	return (0);
@@ -1571,17 +1568,15 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	NET_EPOCH_ASSERT();
 
 	/* check if prefix already exists on the same interface */
-	if ((pr = nd6_prefix_lookup(new)) != NULL) {
+	if ((pr = nd6_prefix_lookup(new)) != NULL)
 		nd6_prefix_update(new, pr);
-		if (dr != NULL)
-			pfxrtr_add(pr, dr);
-	} else {
+	else {
 		if (new->ndpr_vltime == 0)
 			goto end;
 		if (new->ndpr_raf_onlink == 0 && new->ndpr_raf_auto == 0)
 			goto end;
 
-		error = nd6_prelist_add(new, dr, &pr);
+		error = nd6_prelist_add(new, &pr);
 		if (error != 0) {
 			nd6log((LOG_NOTICE, "%s: nd6_prelist_add() failed for "
 			    "the prefix %s/%d on %s (errno=%d)\n", __func__,
@@ -1603,6 +1598,8 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			in6_init_prefix_ltimes(pr);
 		}
 	}
+	if (dr != NULL)
+		pfxrtr_add(pr, dr);
 
 	/*
 	 * Address autoconfiguration based on Section 5.5.3 of RFC 2462.

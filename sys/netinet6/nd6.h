@@ -402,8 +402,7 @@ void nd6_defrouter_flush_all(void);
 void nd6_defrouter_purge(struct ifnet *);
 void nd6_defrouter_timer(void);
 void nd6_defrouter_init(void);
-int nd6_prelist_add(struct nd_prefixctl *, struct nd_defrouter *,
-    struct nd_prefix **);
+int nd6_prelist_add(struct nd_prefixctl *, struct nd_prefix **);
 void nd6_prefix_unlink(struct nd_prefix *, struct nd_prhead *);
 void nd6_prefix_del(struct nd_prefix *);
 void nd6_prefix_ref(struct nd_prefix *);
