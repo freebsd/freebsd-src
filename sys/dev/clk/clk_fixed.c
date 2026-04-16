@@ -158,8 +158,10 @@ clk_fixed_probe(device_t dev)
 	switch (clk_type) {
 	case CLK_TYPE_FIXED:
 		if (!OF_hasprop(ofw_bus_get_node(dev), "clock-frequency")) {
-			device_printf(dev,
-			    "clock-fixed has no clock-frequency\n");
+			if (bootverbose) {
+				device_printf(dev,
+				    "clock-fixed has no clock-frequency\n");
+			}
 			return (ENXIO);
 		}
 		device_set_desc(dev, "Fixed clock");
