@@ -650,7 +650,6 @@ mixer_obj_create(device_t dev, kobj_class_t cls, void *devinfo,
 	}
 
 	if (MIXER_INIT(m)) {
-		mtx_lock(&m->lock);
 		mtx_destroy(&m->lock);
 		kobj_delete((kobj_t)m, M_DEVBUF);
 		return (NULL);
