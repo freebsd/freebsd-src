@@ -507,6 +507,8 @@ acpi_d_state_to_str(int state)
     const char *strs[ACPI_D_STATE_COUNT] = {"D0", "D1", "D2", "D3hot",
 	"D3cold"};
 
+    if (state == ACPI_STATE_UNKNOWN)
+	return ("unknown D-state");
     MPASS(state >= ACPI_STATE_D0 && state <= ACPI_D_STATES_MAX);
     return (strs[state]);
 }
