@@ -1585,7 +1585,7 @@ smsc_bootargs_get_mac_addr(device_t dev, struct usb_ether *ue)
 	node = OF_finddevice("/chosen");
 	if (node == -1)
 		return (false);
-	if (OF_hasprop(node, "bootargs") == 0) {
+	if (!OF_hasprop(node, "bootargs")) {
 		smsc_dbg_printf((struct smsc_softc *)ue->ue_sc,
 				"bootargs not found");
 		return (false);
