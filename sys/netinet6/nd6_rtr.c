@@ -1516,6 +1516,45 @@ nd6_prefix_del(struct nd_prefix *pr)
 	pfxlist_onlink_check();
 }
 
+static void
+nd6_prefix_update(struct nd_prefixctl *new, struct nd_prefix *pr)
+{
+	int error;
+	char ip6buf[INET6_ADDRSTRLEN];
+
+	/*
+	 * Update prefix information.  Note that the on-link (L) bit
+	 * and the autonomous (A) bit should NOT be changed from 1
+	 * to 0.
+	 */
+	if (new->ndpr_raf_onlink == 1)
+		pr->ndpr_raf_onlink = 1;
+	if (new->ndpr_raf_auto == 1)
+		pr->ndpr_raf_auto = 1;
+	if (new->ndpr_raf_onlink != 0) {
+		pr->ndpr_vltime = new->ndpr_vltime;
+		pr->ndpr_pltime = new->ndpr_pltime;
+		in6_init_prefix_ltimes(pr);
+		pr->ndpr_lastupdate = time_uptime;
+	}
+
+	if (new->ndpr_raf_onlink != 0 &&
+	    (pr->ndpr_stateflags & NDPRF_ONLINK) == 0) {
+		ND6_ONLINK_LOCK();
+		if ((error = nd6_prefix_onlink(pr)) != 0) {
+			nd6log((LOG_ERR,
+			    "%s: failed to make the prefix %s/%d "
+			    "on-link on %s (errno=%d)\n", __func__,
+			    ip6_sprintf(ip6buf,
+			        &pr->ndpr_prefix.sin6_addr),
+			    pr->ndpr_plen, if_name(pr->ndpr_ifp),
+			    error));
+			/* proceed anyway. XXX: is it correct? */
+		}
+		ND6_ONLINK_UNLOCK();
+	}
+}
+
 static int
 prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
     bool auth, int mcast)
@@ -1531,44 +1570,9 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 
 	NET_EPOCH_ASSERT();
 
+	/* check if prefix already exists on the same interface */
 	if ((pr = nd6_prefix_lookup(new)) != NULL) {
-		/*
-		 * nd6_prefix_lookup() ensures that pr and new have the same
-		 * prefix on a same interface.
-		 */
-
-		/*
-		 * Update prefix information.  Note that the on-link (L) bit
-		 * and the autonomous (A) bit should NOT be changed from 1
-		 * to 0.
-		 */
-		if (new->ndpr_raf_onlink == 1)
-			pr->ndpr_raf_onlink = 1;
-		if (new->ndpr_raf_auto == 1)
-			pr->ndpr_raf_auto = 1;
-		if (new->ndpr_raf_onlink) {
-			pr->ndpr_vltime = new->ndpr_vltime;
-			pr->ndpr_pltime = new->ndpr_pltime;
-			in6_init_prefix_ltimes(pr);
-			pr->ndpr_lastupdate = time_uptime;
-		}
-
-		if (new->ndpr_raf_onlink &&
-		    (pr->ndpr_stateflags & NDPRF_ONLINK) == 0) {
-			ND6_ONLINK_LOCK();
-			if ((error = nd6_prefix_onlink(pr)) != 0) {
-				nd6log((LOG_ERR,
-				    "%s: failed to make the prefix %s/%d "
-				    "on-link on %s (errno=%d)\n", __func__,
-				    ip6_sprintf(ip6buf,
-				        &pr->ndpr_prefix.sin6_addr),
-				    pr->ndpr_plen, if_name(pr->ndpr_ifp),
-				    error));
-				/* proceed anyway. XXX: is it correct? */
-			}
-			ND6_ONLINK_UNLOCK();
-		}
-
+		nd6_prefix_update(new, pr);
 		if (dr != NULL)
 			pfxrtr_add(pr, dr);
 	} else {
