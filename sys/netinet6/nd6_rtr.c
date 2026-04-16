@@ -60,6 +60,7 @@
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
+#include <net/route/route_var.h>
 #include <net/radix.h>
 #include <net/vnet.h>
 
@@ -77,9 +78,20 @@
 
 MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
 
+struct nd_routectl {
+	struct ifnet		*ndrt_ifp;	/* nexthop interface */
+	struct sockaddr_in6	ndrt_gateway;	/* gateway address */
+	struct sockaddr_in6	ndrt_prefix;	/* route prefix */
+	struct sockaddr_in6	ndrt_mask;	/* route prefix mask */
+	uint8_t			ndrt_plen;	/* route prefix len */
+	uint8_t			ndrt_flags;	/* route info flags */
+	uint32_t		ndrt_lifetime;	/* route info lifetime (sec) */
+};
+
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
     bool, int);
+static int nd6_routelist_update(struct nd_routectl *);
 static int nd6_prefix_onlink(struct nd_prefix *);
 static int in6_get_tmp_ifid(struct in6_aliasreq *);
 
@@ -305,6 +317,116 @@ nd6_ra_opt_pi(struct nd_opt_hdr *pt, struct ifnet *ifp,
 }
 
 static void
+nd6_ra_opt_rti(struct nd_opt_hdr *hdr, struct ifnet *ifp,
+    struct in6_addr saddr6, struct nd_defrouter *dr)
+{
+	struct nd_opt_route_info *rti = NULL;
+	struct nd_routectl rt;
+	struct in6_addr prefix, netmask;
+	char ip6bufs[INET6_ADDRSTRLEN];
+	int olen;
+	uint8_t	pref;
+
+	if (hdr->nd_opt_type != ND_OPT_ROUTE_INFO)
+		return;
+
+	/* RFC 4191 section 2.3, Field validation */
+	rti = (struct nd_opt_route_info *)hdr;
+	if (rti->nd_opt_rti_len == 0 || rti->nd_opt_rti_len > 3) {
+		nd6log((LOG_INFO,
+		    "%s: invalid option len %d for route "
+		    "information option, ignored\n", __func__,
+		    rti->nd_opt_rti_len));
+		return;
+	}
+	if (rti->nd_opt_rti_prefixlen > 128 ||
+	    (rti->nd_opt_rti_prefixlen > 64 && rti->nd_opt_rti_len != 3) ||
+	    (rti->nd_opt_rti_prefixlen > 0 && rti->nd_opt_rti_len < 2)) {
+		nd6log((LOG_INFO,
+		    "%s: invalid prefix len %d with option len %d for route "
+		    "information option, ignored\n", __func__,
+		    rti->nd_opt_rti_prefixlen, rti->nd_opt_rti_len));
+		return;
+	}
+	pref = rti->nd_opt_rti_flags & ND_OPT_RTI_FLAG_PRF_MASK;
+	if ((pref & ND_RA_FLAG_RTPREF_RSV) != 0) {
+		nd6log((LOG_INFO,
+		    "%s: reserved preference %d for route "
+		    "information option, ignored\n", __func__,
+		    pref));
+		return;
+	}
+
+	/*
+	 * RFC 4191 section 2.3: The bits in the prefix after
+	 * the prefix length (if any) are reserved and MUST be
+	 * initialized to zero by the sender and ignored by the receiver.
+	 */
+	memset(&prefix, 0, sizeof(prefix));
+	/*
+	 * Calculate the variable length of the option and copy the remaining
+	 * length into the prefix.
+	 * The resulting value cannot exceed the size of struct in6_addr
+	 * since the option length is limited to 3 (24 bytes).
+	 */
+	olen = (rti->nd_opt_rti_len << 3) - sizeof(struct nd_opt_route_info);
+	memcpy(&prefix, (char *)rti + sizeof(struct nd_opt_route_info), olen);
+	in6_prefixlen2mask(&netmask, rti->nd_opt_rti_prefixlen);
+	IN6_MASK_ADDR(&prefix, &netmask);
+	if (IN6_IS_ADDR_MULTICAST(&prefix) || IN6_IS_ADDR_LINKLOCAL(&prefix)) {
+		nd6log((LOG_INFO, "%s: invalid prefix %s, ignored\n",
+		    __func__, ip6_sprintf(ip6bufs, &prefix)));
+		return;
+	}
+
+	/*
+	 * RFC 4191 section 3.1: The Router Preference and Lifetime
+	 * values in a ::/0 Route Information Option override the
+	 * preference and lifetime values in the Router Advertisement header.
+	 */
+	if (rti->nd_opt_rti_prefixlen == 0 && dr != NULL) {
+		/*
+		 * We may disable routes from RA messages when
+		 * ND6_IFF_NO_RADR enabled on the receiving interface or
+		 * (ip6.forwarding == 1 && ip6.rfc6204w3 != 1).
+		 * Therefore, don't overwrite it.
+		 */
+		if (dr->rtlifetime == 0)
+			return;
+		/*
+		 * XXXPO: ignore rti lifetime bigger than uint16_max until
+		 * we update the dr structure size to uint32_t.
+		 */
+		if (ntohl(rti->nd_opt_rti_lifetime) > UINT16_MAX)
+			return;
+		dr->rtlifetime = ntohl(rti->nd_opt_rti_lifetime);
+		dr->expire = time_uptime + dr->rtlifetime;
+		dr->raflags &= ~ND_OPT_RTI_FLAG_PRF_MASK;
+		dr->raflags |= pref;
+		nd6log((LOG_INFO,
+		    "%s: override default route with route information option\n",
+		    __func__));
+		return;
+	}
+
+	memset(&rt, 0, sizeof(rt));
+	rt.ndrt_ifp = ifp;
+	rt.ndrt_prefix.sin6_len = sizeof(struct sockaddr_in6);
+	rt.ndrt_prefix.sin6_family = AF_INET6;
+	rt.ndrt_prefix.sin6_addr = prefix;
+	rt.ndrt_gateway.sin6_len = sizeof(struct sockaddr_in6);
+	rt.ndrt_gateway.sin6_family = AF_INET6;
+	rt.ndrt_gateway.sin6_addr = saddr6;
+	rt.ndrt_mask.sin6_len = sizeof(struct sockaddr_in6);
+	rt.ndrt_mask.sin6_family = AF_INET6;
+	rt.ndrt_mask.sin6_addr = netmask;
+	rt.ndrt_plen = rti->nd_opt_rti_prefixlen;
+	rt.ndrt_flags = rti->nd_opt_rti_flags;
+	rt.ndrt_lifetime = ntohl(rti->nd_opt_rti_lifetime);
+	(void)nd6_routelist_update(&rt);
+}
+
+static void
 nd6_ra_opt_mtu(struct nd_opt_mtu *optmtu, struct ifnet *ifp,
     struct in6_addr saddr6)
 {
@@ -385,7 +507,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	struct in6_ifextra *ndi;
 	struct ip6_hdr *ip6;
 	struct nd_router_advert *nd_ra;
-	struct nd_opt_hdr *pt;
+	struct nd_opt_hdr *pt, *rti;
 	struct in6_addr saddr6;
 	struct nd_defrouter dr0, *dr;
 	union nd_opts ndopts;
@@ -491,6 +613,15 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 			    "Ignored.\n", ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    if_name(ifp), ndi->nd_curhoplimit,
 			    nd_ra->nd_ra_curhoplimit);
+		}
+	}
+	/* Route Information */
+	if (ndopts.nd_opts_rti != NULL) {
+		for (rti = (struct nd_opt_hdr *)ndopts.nd_opts_rti;
+		     rti <= (struct nd_opt_hdr *)ndopts.nd_opts_rti_end;
+		     rti = (struct nd_opt_hdr *)((char *)rti +
+						(rti->nd_opt_len << 3))) {
+			nd6_ra_opt_rti(rti, ifp, saddr6, &dr0);
 		}
 	}
 	dr = defrtrlist_update(&dr0);
@@ -2163,6 +2294,210 @@ restart:
 		lltable_prefix_free(AF_INET6,
 		    (struct sockaddr *)&pr->ndpr_prefix,
 		    (struct sockaddr *)&mask6, LLE_STATIC);
+
+	return (error);
+}
+
+/*
+ * Install advertised route via default router.
+ */
+static int
+nd6_route_rtrequest(struct nd_routectl *key)
+{
+	struct rib_cmd_info rc;
+	struct rib_head *rnh;
+	struct nhop_object *nh;
+	struct ifaddr *ifa;
+	struct ifnet *ifp;
+	struct sockaddr *dst, *gw, *mask;
+	int flags, error;
+	time_t expire;
+
+	NET_EPOCH_ASSERT();
+
+	ifp = key->ndrt_ifp;
+	dst = (struct sockaddr *)&key->ndrt_prefix;
+	gw = (struct sockaddr *)&key->ndrt_gateway;
+	mask = (struct sockaddr *)&key->ndrt_mask;
+	flags = RTF_DYNAMIC | RTF_GATEWAY;
+	if (key->ndrt_plen == 128) {
+		flags |= RTF_HOST;
+		mask = NULL;
+	}
+
+	rnh = rt_tables_get_rnh_safe(key->ndrt_ifp->if_fib, AF_INET6);
+	if (rnh == NULL)
+		return (EINVAL);
+
+	/* Get the best ifa for the given interface and gateway. */
+	if ((ifa = ifaof_ifpforaddr(gw, ifp)) == NULL)
+		return (ENETUNREACH);
+
+	expire = time_second + key->ndrt_lifetime;
+	struct rt_metrics rmx = {
+		.rmx_expire = expire,
+	};
+	struct rt_addrinfo info = {
+		.rti_flags = flags,
+		.rti_info = {
+			[RTAX_DST] = dst,
+			[RTAX_GATEWAY] = gw,
+			[RTAX_NETMASK] = mask,
+			[RTAX_AUTHOR] = gw,
+		},
+		.rti_ifa = ifa,
+		.rti_ifp = ifp,
+		.rti_mflags = RTV_EXPIRE,
+		.rti_rmx = &rmx,
+	};
+	/* XXX: route preference */
+	struct route_nhop_data rnd = {
+		.rnd_weight = RT_DEFAULT_WEIGHT,
+	};
+
+	error = nhop_create_from_info(rnh, &info, &nh);
+	if (error == 0) {
+		nhop_set_origin(nh, NH_ORIGIN_REDIRECT);
+		rnd.rnd_nhop = nh;
+		error = rib_add_route_px(ifp->if_fib, dst, key->ndrt_plen, &rnd,
+		    RTM_F_CREATE, &rc);
+	}
+	if (error != 0)
+		return (error);
+	RTSTAT_INC(rts_dynamic);
+
+	/* Send notification of a route addition to userland. */
+	rt_missmsg_fib(RTM_REDIRECT, &info, flags | RTF_UP, error, ifp->if_fib);
+
+	return (error);
+}
+
+/*
+ * Update lifetime of advertised route.
+ */
+static int
+nd6_route_rtupdate(struct nd_routectl *key)
+{
+	struct rib_cmd_info rc;
+	time_t expire;
+
+	expire = time_second + key->ndrt_lifetime;
+	struct rt_metrics rmx = {
+		.rmx_expire = expire,
+	};
+	struct rt_addrinfo info = {
+		.rti_info[RTAX_DST] = (struct sockaddr *)&key->ndrt_prefix,
+		.rti_mflags = RTV_EXPIRE,
+		.rti_rmx = &rmx,
+	};
+	if (key->ndrt_plen != 128)
+		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&key->ndrt_mask;
+	return (rib_change_route(key->ndrt_ifp->if_fib, &info, &rc));
+}
+
+/*
+ * Delete advertised route.
+ */
+static int
+nd6_route_rtdelete(struct nd_routectl *key)
+{
+	struct sockaddr *dst, *gw;
+	struct rib_cmd_info rc;
+	struct nhop_object *nh;
+	struct ifnet *ifp;
+	int error;
+
+	ifp = key->ndrt_ifp;
+	dst = (struct sockaddr *)&key->ndrt_prefix;
+	gw = (struct sockaddr *)&key->ndrt_gateway;
+	error = rib_del_route_px(ifp->if_fib, dst, key->ndrt_plen,
+	    rib_match_gw, gw, 0, &rc);
+	if (error == 0) {
+		nh = nhop_select_func(rc.rc_nh_old, 0);
+		rt_routemsg(RTM_DELETE, rc.rc_rt, nh, ifp->if_fib);
+	}
+
+	return (error);
+}
+
+/*
+ * Lookup for exact match of advertised route with gateway
+ * as its nexthop address.
+ */
+static bool
+nd6_route_rtlookup(struct nd_routectl *key)
+{
+	RIB_RLOCK_TRACKER;
+	struct rib_head *rnh;
+	struct route_nhop_data rnd;
+	struct sockaddr *dst, *gw;
+
+	dst = (struct sockaddr *)&key->ndrt_prefix;
+	gw = (struct sockaddr *)&key->ndrt_gateway;
+	rnh = rt_tables_get_rnh_safe(key->ndrt_ifp->if_fib, AF_INET6);
+	if (rnh == NULL)
+		return (false);
+
+	RIB_RLOCK(rnh);
+	rib_lookup_prefix_plen(rnh, dst, key->ndrt_plen, &rnd);
+	RIB_RUNLOCK(rnh);
+	if (rnd.rnd_nhop == NULL)
+		return (false);
+
+	return (match_nhop_gw(rnd.rnd_nhop, gw));
+}
+
+static int
+nd6_routelist_update(struct nd_routectl *new)
+{
+	char ip6buf[INET6_ADDRSTRLEN];
+	int error = 0;
+
+	NET_EPOCH_ASSERT();
+
+	/*
+	 * RFC 4191 section 3.1: If the received route's
+	 * lifetime is zero, the route is removed from the Routing
+	 * Table if present.
+	 */
+	if (new->ndrt_lifetime == 0) {
+		error = nd6_route_rtdelete(new);
+		if (error != 0) {
+			nd6log((LOG_DEBUG,
+			    "%s: failed to delete the route %s/%d on %s (errno=%d)\n",
+			    __func__, ip6_sprintf(ip6buf, &new->ndrt_prefix.sin6_addr),
+			    new->ndrt_plen, if_name(new->ndrt_ifp), error));
+		}
+		return (error);
+	}
+
+	if (nd6_route_rtlookup(new)) {
+		/*
+		 * RFC 4191 section 3.1: the route's lifetime and
+		 * preference is updated if the route is already present.
+		 * XXX: preference on routing table? (ndrt_flags)
+		 */
+		error = nd6_route_rtupdate(new);
+		if (error != 0) {
+			nd6log((LOG_DEBUG,
+			    "%s: failed to update route lifetime of "
+			    "%s/%d from RA on %s (errno=%d)\n",
+			    __func__, ip6_sprintf(ip6buf, &new->ndrt_prefix.sin6_addr),
+			    new->ndrt_plen, if_name(new->ndrt_ifp), error));
+		}
+	} else {
+		/*
+		 * RFC 4191 section 3.1: If a route's lifetime is non-zero,
+		 * the route is added to the Routing Table if not present.
+		 */
+		error = nd6_route_rtrequest(new);
+		if (error != 0) {
+			nd6log((LOG_NOTICE,
+			    "%s: failed to add route %s/%d from RA on %s (errno=%d)\n",
+			    __func__, ip6_sprintf(ip6buf, &new->ndrt_prefix.sin6_addr),
+			    new->ndrt_plen, if_name(new->ndrt_ifp), error));
+		}
+	}
 
 	return (error);
 }
