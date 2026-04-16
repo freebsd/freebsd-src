@@ -152,13 +152,13 @@ int	 pfctl_call_cleartables(int, int, struct pfr_anchoritem *);
 int	 pfctl_call_clearanchors(int, int, struct pfr_anchoritem *);
 int	 pfctl_call_showtables(int, int, struct pfr_anchoritem *);
 
-RB_PROTOTYPE(pfctl_statelim_ids, pfctl_statelim, entry,
+RB_PROTOTYPE(pfctl_statelim_ids, pfctl_statelim, id_entry,
     pfctl_statelim_id_cmp);
-RB_PROTOTYPE(pfctl_statelim_nms, pfctl_statelim, entry,
+RB_PROTOTYPE(pfctl_statelim_nms, pfctl_statelim, nm_entry,
     pfctl_statelim_nm_cmp);
-RB_PROTOTYPE(pfctl_sourcelim_ids, pfctl_sourcelim, entry,
+RB_PROTOTYPE(pfctl_sourcelim_ids, pfctl_sourcelim, id_entry,
     pfctl_sourcelim_id_cmp);
-RB_PROTOTYPE(pfctl_sourcelim_nms, pfctl_sourcelim, entry,
+RB_PROTOTYPE(pfctl_sourcelim_nms, pfctl_sourcelim, nm_entry,
     pfctl_sourcelim_nm_cmp);
 
 enum showopt_id {
@@ -4187,7 +4187,8 @@ pfctl_statelim_id_cmp(const struct pfctl_statelim *a,
 	return (0);
 }
 
-RB_GENERATE(pfctl_statelim_ids, pfctl_statelim, entry, pfctl_statelim_id_cmp);
+RB_GENERATE(pfctl_statelim_ids, pfctl_statelim, id_entry,
+    pfctl_statelim_id_cmp);
 
 static inline int
 pfctl_statelim_nm_cmp(const struct pfctl_statelim *a,
@@ -4196,7 +4197,8 @@ pfctl_statelim_nm_cmp(const struct pfctl_statelim *a,
 	return (strcmp(a->ioc.name, b->ioc.name));
 }
 
-RB_GENERATE(pfctl_statelim_nms, pfctl_statelim, entry, pfctl_statelim_nm_cmp);
+RB_GENERATE(pfctl_statelim_nms, pfctl_statelim, nm_entry,
+    pfctl_statelim_nm_cmp);
 
 int
 pfctl_add_statelim(struct pfctl *pf, struct pfctl_statelim *stlim)
@@ -4253,7 +4255,7 @@ pfctl_sourcelim_id_cmp(const struct pfctl_sourcelim *a,
 	return (0);
 }
 
-RB_GENERATE(pfctl_sourcelim_ids, pfctl_sourcelim, entry,
+RB_GENERATE(pfctl_sourcelim_ids, pfctl_sourcelim, id_entry,
     pfctl_sourcelim_id_cmp);
 
 static inline int
@@ -4263,7 +4265,7 @@ pfctl_sourcelim_nm_cmp(const struct pfctl_sourcelim *a,
 	return (strcmp(a->ioc.name, b->ioc.name));
 }
 
-RB_GENERATE(pfctl_sourcelim_nms, pfctl_sourcelim, entry,
+RB_GENERATE(pfctl_sourcelim_nms, pfctl_sourcelim, nm_entry,
     pfctl_sourcelim_nm_cmp);
 
 int
@@ -4272,8 +4274,9 @@ pfctl_add_sourcelim(struct pfctl *pf, struct pfctl_sourcelim *srlim)
 	struct pfctl_sourcelim *osrlim;
 
 	osrlim = RB_INSERT(pfctl_sourcelim_ids, &pf->sourcelim_ids, srlim);
-	if (osrlim != NULL)
+	if (osrlim != NULL) {
 		return (-1);
+	}
 
 	osrlim = RB_INSERT(pfctl_sourcelim_nms, &pf->sourcelim_nms, srlim);
 	if (osrlim != NULL) {
