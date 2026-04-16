@@ -434,6 +434,7 @@ icl_cxgbei_tx_main(void *arg)
 	struct toepcb *toep = icc->toep;
 	struct socket *so = ic->ic_socket;
 	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 	struct icl_pdu *ip;
 	struct mbuf *m;
 	struct mbufq mq;
@@ -476,7 +477,7 @@ icl_cxgbei_tx_main(void *arg)
 		INP_WLOCK(inp);
 
 		ICL_CONN_UNLOCK(ic);
-		if (__predict_false(inp->inp_flags & INP_DROPPED) ||
+		if (__predict_false(tp->t_flags & TF_DISCONNECTED) ||
 		    __predict_false((toep->flags & TPF_ATTACHED) == 0)) {
 			mbufq_drain(&mq);
 		} else {
@@ -1080,7 +1081,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_WUNLOCK(inp);
 		error = ENOTCONN;
 		goto out;
@@ -1334,6 +1335,7 @@ icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
 	struct cxgbei_ddp_state *ddp;
 	struct ppod_reservation *prsv;
 	struct inpcb *inp;
+	struct tcpcb *tp;
 	struct mbufq mq;
 	uint32_t itt;
 	int rc = 0;
@@ -1421,8 +1423,9 @@ no_ddp:
 	 * detached already.
 	 */
 	inp = sotoinpcb(ic->ic_socket);
+	tp = intotcpcb(inp);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & INP_DROPPED) != 0) {
+	if ((tp->t_flags & TF_DISCONNECTED) != 0) {
 		INP_WUNLOCK(inp);
 		mbufq_drain(&mq);
 		t4_free_page_pods(prsv);
@@ -1497,6 +1500,7 @@ icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, struct icl_pdu *ip,
 	struct ppod_reservation *prsv;
 	struct ctl_sg_entry *sgl, sg_entry;
 	struct inpcb *inp;
+	struct tcpcb *tp;
 	struct mbufq mq;
 	int sg_entries = ctsio->kern_sg_entries;
 	uint32_t ttt;
@@ -1597,9 +1601,10 @@ no_ddp:
 			return (ECONNRESET);
 		}
 		inp = sotoinpcb(ic->ic_socket);
+		tp = intotcpcb(inp);
 		INP_WLOCK(inp);
 		ICL_CONN_UNLOCK(ic);
-		if ((inp->inp_flags & INP_DROPPED) != 0) {
+		if ((tp->t_flags & TF_DISCONNECTED) != 0) {
 			INP_WUNLOCK(inp);
 			mbufq_drain(&mq);
 			t4_free_page_pods(prsv);

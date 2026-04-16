@@ -46,6 +46,7 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/hash.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -81,15 +82,17 @@ SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
  */
 VNET_DEFINE_STATIC(struct gif_list *, ipv4_hashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list *, ipv4_srchashtbl) = NULL;
+VNET_DEFINE_STATIC(u_int, ipv4_hashmask);
 VNET_DEFINE_STATIC(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
 #define	V_ipv4_srchashtbl	VNET(ipv4_srchashtbl)
+#define	V_ipv4_hashmask		VNET(ipv4_hashmask)
 #define	V_ipv4_list		VNET(ipv4_list)
 
 #define	GIF_HASH(src, dst)	(V_ipv4_hashtbl[\
-    in_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
+    in_gif_hashval((src), (dst)) & (V_ipv4_hashmask - 1)])
 #define	GIF_SRCHASH(src)	(V_ipv4_srchashtbl[\
-    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (GIF_HASH_SIZE - 1)])
+    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (V_ipv4_hashmask - 1)])
 #define	GIF_HASH_SC(sc)		GIF_HASH((sc)->gif_iphdr->ip_src.s_addr,\
     (sc)->gif_iphdr->ip_dst.s_addr)
 static uint32_t
@@ -218,8 +221,15 @@ in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 			break;
 		}
 		if (V_ipv4_hashtbl == NULL) {
-			V_ipv4_hashtbl = gif_hashinit();
-			V_ipv4_srchashtbl = gif_hashinit();
+			struct hashalloc_args ha = {
+				.size = GIF_HASH_SIZE,
+				.mtype = M_GIF,
+				.mflags = M_WAITOK,
+				.head = HASH_HEAD_CK_LIST,
+			};
+			V_ipv4_hashtbl = hashalloc(&ha);
+			V_ipv4_srchashtbl = hashalloc(&ha);
+			V_ipv4_hashmask = ha.size - 1;
 		}
 		error = in_gif_checkdup(sc, src->sin_addr.s_addr,
 		    dst->sin_addr.s_addr);
@@ -438,9 +448,14 @@ in_gif_uninit(void)
 		ip_encap_unregister_srcaddr(ipv4_srcaddrtab);
 	}
 	if (V_ipv4_hashtbl != NULL) {
-		gif_hashdestroy(V_ipv4_hashtbl);
+		struct hashalloc_args ha = {
+			.size = V_ipv4_hashmask + 1,
+			.mtype = M_GIF,
+			.head = HASH_HEAD_CK_LIST,
+		};
+		hashfree(V_ipv4_hashtbl, &ha);
 		V_ipv4_hashtbl = NULL;
 		GIF_WAIT();
-		gif_hashdestroy(V_ipv4_srchashtbl);
+		hashfree(V_ipv4_srchashtbl, &ha);
 	}
 }

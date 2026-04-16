@@ -510,7 +510,7 @@ tcp_hpts_insert_internal(struct tcpcb *tp, struct tcp_hpts_entry *hpts)
 	INP_WLOCK_ASSERT(inp);
 	HPTS_MTX_ASSERT(hpts);
 	MPASS(hpts->p_cpu == tp->t_hpts_cpu);
-	MPASS(!(inp->inp_flags & INP_DROPPED));
+	MPASS(!(tp->t_flags & TF_DISCONNECTED));
 
 	hptsh = &hpts->p_hptss[tp->t_hpts_slot];
 
@@ -615,8 +615,10 @@ __tcp_hpts_remove(struct tcp_hptsi *pace, struct tcpcb *tp)
 		 * tcp_hptsi() moves inpcb to detached tailq
 		 * tcp_hpts_remove() marks as IHPTS_MOVING, slot = -1
 		 * tcp_hpts_insert() sets slot to a meaningful value
-		 * tcp_hpts_remove() again (we are here!), then in_pcbdrop()
-		 * tcp_hptsi() finds pcb with meaningful slot and INP_DROPPED
+		 * The connection is terminated with the final call to
+		   tcp_hpts_remove() again (we are here!) and we fail to call
+		   tcp_hpts_release() since it is IHPTS_MOVING.  Set slot to -1
+		   to delegate the release to the owner of the detached tailq.
 		 */
 		tp->t_hpts_slot = -1;
 	}
@@ -828,7 +830,7 @@ __tcp_hpts_insert(struct tcp_hptsi *pace, struct tcpcb *tp, uint32_t usecs,
 	bool need_wakeup = false;
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
-	MPASS(!(tptoinpcb(tp)->inp_flags & INP_DROPPED));
+	MPASS(!(tp->t_flags & TF_DISCONNECTED));
 	MPASS(!(tp->t_in_hpts == IHPTS_ONQUEUE));
 
 	/*
@@ -1292,7 +1294,7 @@ again:
 			}
 
 			MPASS(tp->t_in_hpts == IHPTS_ONQUEUE);
-			MPASS(!(inp->inp_flags & INP_DROPPED));
+			MPASS(!(tp->t_flags & TF_DISCONNECTED));
 			KASSERT(runningslot == tp->t_hpts_slot,
 				("Hpts:%p inp:%p slot mis-aligned %u vs %u",
 				 hpts, inp, runningslot, tp->t_hpts_slot));
@@ -1357,7 +1359,7 @@ again:
 				 */
 				__tcp_set_hpts(pace, tp);
 			}
-			CURVNET_SET(inp->inp_vnet);
+			CURVNET_SET(inp->inp_socket->so_vnet);
 			/* Lets do any logging that we might want to */
 			tcp_hpts_log(hpts, tp, &tv, slots_to_run, i, from_callout);
 

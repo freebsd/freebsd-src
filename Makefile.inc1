@@ -2285,6 +2285,8 @@ create-world-package-${pkgname}: .PHONY
 			/^version/ { print $$2; next } \
 			' ${WSTAGEDIR}/${pkgname}.ucl && \
 		${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
+			-o SHLIB_PROVIDE_PATHS_NATIVE=/lib,/usr/lib \
+			${_ALL_LIBCOMPATS:range:@i@-o SHLIB_PROVIDE_PATHS_COMPAT_${_ALL_LIBCOMPATS:[$i]}=/usr/lib${_ALL_libcompats:[$i]}@} \
 			-o OSVERSION="${SRCRELDATE}" \
 			create -f ${PKG_FORMAT} ${PKG_CLEVEL} -T${PKG_CTHREADS} \
 			-M ${WSTAGEDIR}/${pkgname}.ucl \

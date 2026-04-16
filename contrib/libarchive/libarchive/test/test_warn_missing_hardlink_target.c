@@ -37,7 +37,7 @@ DEFINE_TEST(test_warn_missing_hardlink_target)
 
 	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
 	assertEqualInt(ENOENT, archive_errno(a));
-	assertEqualString("Hard-link target 'hardlink-target' does not exist.",
+	assertEqualString("Hard-link target 'hardlink-target' does not exist",
 	    archive_error_string(a));
 
 	archive_entry_free(ae);

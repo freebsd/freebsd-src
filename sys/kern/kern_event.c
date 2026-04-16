@@ -2953,8 +2953,7 @@ knote_drop_detached(struct knote *kn, struct thread *td)
 	else
 		list = &kq->kq_knhash[KN_HASH(kn->kn_id, kq->kq_knhashmask)];
 
-	if (!SLIST_EMPTY(list))
-		SLIST_REMOVE(list, kn, knote, kn_link);
+	SLIST_REMOVE(list, kn, knote, kn_link);
 	if (kn->kn_status & KN_QUEUED)
 		knote_dequeue(kn);
 	KQ_UNLOCK_FLUX(kq);

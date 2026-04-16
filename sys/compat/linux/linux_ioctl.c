@@ -43,6 +43,7 @@
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
+#include <sys/vnode.h>
 #include <sys/sbuf.h>
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
@@ -59,6 +60,7 @@
 
 #include <dev/evdev/input.h>
 #include <dev/hid/hidraw.h>
+#include <dev/iicbus/iic.h>
 #include <dev/usb/usb_ioctl.h>
 
 #ifdef COMPAT_LINUX32
@@ -100,6 +102,7 @@ DEFINE_LINUX_IOCTL_SET(vfat, VFAT);
 DEFINE_LINUX_IOCTL_SET(console, CONSOLE);
 DEFINE_LINUX_IOCTL_SET(hdio, HDIO);
 DEFINE_LINUX_IOCTL_SET(disk, DISK);
+DEFINE_LINUX_IOCTL_SET(i2c, I2C);
 DEFINE_LINUX_IOCTL_SET(socket, SOCKET);
 DEFINE_LINUX_IOCTL_SET(sound, SOUND);
 DEFINE_LINUX_IOCTL_SET(termio, TERMIO);
@@ -158,6 +161,18 @@ struct linux_hd_big_geometry {
 	uint8_t		sectors;
 	uint32_t	cylinders;
 	uint32_t	start;
+};
+
+struct linux_i2c_msg {
+	uint16_t	addr;
+	uint16_t	flags;
+	uint16_t	len;
+	l_uintptr_t	buf;
+};
+
+struct linux_i2c_rdwr_data {
+	l_uintptr_t	msgs;
+	l_uint		nmsgs;
 };
 
 static int
@@ -3638,6 +3653,106 @@ linux_ioctl_nvme(struct thread *td, struct linux_ioctl_args *args)
 	return (sys_ioctl(td, (struct ioctl_args *)args));
 }
 #endif
+
+static int
+linux_ioctl_i2c(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct linux_i2c_rdwr_data lrdwr;
+	struct linux_i2c_msg *lmsgs = NULL;
+	struct iic_rdwr_data rdwr;
+	struct iic_msg *msgs = NULL;
+	struct file *fp;
+	iic_linux_rdwr_t *linux_rdwr;
+	l_ulong funcs;
+	uint16_t lflags;
+	uint8_t addr;
+	int error;
+	l_uint i;
+
+	error = fget(td, args->fd, &cap_ioctl_rights, &fp);
+	if (error != 0)
+		return (error);
+
+	linux_rdwr = NULL;
+	if (fp->f_type == DTYPE_VNODE && fp->f_vnode != NULL &&
+	    fp->f_vnode->v_rdev != NULL)
+		linux_rdwr = (iic_linux_rdwr_t *)fp->f_vnode->v_rdev->si_drv2;
+
+	switch (args->cmd & 0xffff) {
+	case LINUX_I2C_RETRIES:
+	case LINUX_I2C_TIMEOUT:
+	case LINUX_I2C_PEC:
+		error = 0;
+		break;
+	case LINUX_I2C_TENBIT:
+		error = (args->arg == 0) ? 0 : ENOTSUP;
+		break;
+	case LINUX_I2C_FUNCS:
+		funcs = LINUX_I2C_FUNC_I2C | LINUX_I2C_FUNC_NOSTART;
+		error = copyout(&funcs, (void *)args->arg, sizeof(funcs));
+		break;
+	case LINUX_I2C_SLAVE:
+	case LINUX_I2C_SLAVE_FORCE:
+		if (args->arg > 0x7f) {
+			error = EINVAL;
+			break;
+		}
+		addr = (uint8_t)(args->arg << 1);
+		error = fo_ioctl(fp, I2CSADDR, (caddr_t)&addr, td->td_ucred, td);
+		break;
+	case LINUX_I2C_RDWR:
+		error = copyin((void *)args->arg, &lrdwr, sizeof(lrdwr));
+		if (error != 0)
+			break;
+		if (lrdwr.nmsgs > IIC_RDRW_MAX_MSGS) {
+			error = EINVAL;
+			break;
+		}
+		lmsgs = malloc(sizeof(*lmsgs) * lrdwr.nmsgs, M_TEMP, M_WAITOK);
+		msgs = malloc(sizeof(*msgs) * lrdwr.nmsgs, M_TEMP, M_WAITOK);
+		error = copyin((void *)(uintptr_t)lrdwr.msgs, lmsgs,
+		    sizeof(*lmsgs) * lrdwr.nmsgs);
+		if (error != 0)
+			break;
+		for (i = 0; i < lrdwr.nmsgs; i++) {
+			lflags = lmsgs[i].flags;
+			if (lmsgs[i].addr > 0x7f || (lflags & LINUX_I2C_M_TEN) != 0) {
+				error = ENOTSUP;
+				break;
+			}
+			if ((lflags & ~(LINUX_I2C_M_RD | LINUX_I2C_M_NOSTART)) != 0) {
+				error = ENOTSUP;
+				break;
+			}
+			msgs[i].slave = lmsgs[i].addr << 1;
+			msgs[i].flags = (lflags & LINUX_I2C_M_RD) ? IIC_M_RD : IIC_M_WR;
+			if ((lflags & LINUX_I2C_M_NOSTART) != 0)
+				msgs[i].flags |= IIC_M_NOSTART;
+			msgs[i].len = lmsgs[i].len;
+			msgs[i].buf = (uint8_t *)(uintptr_t)lmsgs[i].buf;
+		}
+		if (error == 0) {
+			if (linux_rdwr == NULL) {
+				error = ENOTTY;
+			} else {
+				rdwr.msgs = msgs;
+				rdwr.nmsgs = lrdwr.nmsgs;
+				error = linux_rdwr(fp, &rdwr, fp->f_flag, td);
+				if (error == 0)
+					td->td_retval[0] = lrdwr.nmsgs;
+			}
+		}
+		break;
+	case LINUX_I2C_SMBUS:
+	default:
+		error = ENOTSUP;
+		break;
+	}
+	free(msgs, M_TEMP);
+	free(lmsgs, M_TEMP);
+	fdrop(fp, td);
+	return (error);
+}
 
 static int
 linux_ioctl_hidraw(struct thread *td, struct linux_ioctl_args *args)

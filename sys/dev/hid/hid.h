@@ -57,10 +57,14 @@
 #define	HUP_SCALE		0x008c
 #define	HUP_CAMERA_CONTROL	0x0090
 #define	HUP_ARCADE		0x0091
-#define	HUP_APPLE		0x00ff
+#define	HUP_RESERVED_FF		0x00ff
 #define	HUP_FIDO		0xf1d0
-#define	HUP_MICROSOFT		0xff00
-#define	HUP_HP			0xff01
+#define	HUP_VENDOR_00		0xff00
+#define	HUP_VENDOR_01		0xff01
+/* XXX compat */
+#define	HUP_APPLE		HUP_RESERVED_FF
+#define	HUP_MICROSOFT		HUP_VENDOR_00
+#define	HUP_HP			HUP_VENDOR_01
 
 /* Usages, generic desktop */
 #define	HUG_POINTER		0x0001

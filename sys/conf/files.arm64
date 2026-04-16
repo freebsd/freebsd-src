@@ -768,7 +768,20 @@ dev/ahci/ahci_fsl_fdt.c				optional soc_nxp_ls ahci fdt
 dev/flash/flexspi/flex_spi.c    		optional clk flex_spi soc_nxp_ls fdt
 
 # Qualcomm
-arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_main.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_clock.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_reset.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_ipq4018_reset.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_ipq4018_clock.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_msm8916_reset.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_msm8916_clock.c		optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_fepll.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_fdiv.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_apssdiv.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_freqtbl.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_rcg2.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_branch2.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_ro_div.c			optional qcom_gcc fdt
 dev/qcom_mdio/qcom_mdio_ipq4018.c		optional qcom_mdio fdt mdio mii
 
 # RockChip Drivers

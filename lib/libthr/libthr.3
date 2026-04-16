@@ -52,6 +52,12 @@ The library is tightly integrated with the run-time link editor
 and
 .Lb libc ;
 all three components must be built from the same source tree.
+Together, they constitute the base C runtime environment of
+.Fx ,
+running on top of the
+.Fx
+kernel.
+.Pp
 Mixing
 .Li libc
 and
@@ -263,6 +269,25 @@ the critical section.
 This should be taken into account when interpreting
 .Xr ktrace 1
 logs.
+.Pp
+The
+.Nm
+library uses the
+.Va SIGTHR
+signal for internal operations, in particular,
+for cancellation requests.
+This signal's masking and disposition is controlled by the library,
+and user programs should not try to modify them.
+The library interposes functions controlling signals to prevent
+inadvertent modifications and to guard portable code against
+exposure to
+.Va SIGTHR .
+.Pp
+Note: similarly, the
+.Va SIGLIBRT
+signal is reserved for use by
+.Lb librt ,
+and should be not modified by users.
 .Sh PROCESS-SHARED SYNCHRONIZATION OBJECTS
 In the
 .Li libthr

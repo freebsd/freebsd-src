@@ -121,6 +121,43 @@ hash32_strne(const void *buf, size_t len, int end, const char **ep,
 }
 
 #ifdef _KERNEL
+struct hashalloc_args {
+	u_int	version;		/* for extendability, now 0 */
+	int	error;			/* out: error on failure */
+	size_t	size;			/* in: wanted, out: allocated */
+	size_t	hdrsize;		/* size of bucket header, 0 = auto */
+	enum {
+		HASH_TYPE_POWER2 = 0,
+		HASH_TYPE_PRIME,
+	}	type;
+	enum {
+		HASH_HEAD_LIST = 0,
+		HASH_HEAD_CK_LIST,
+		HASH_HEAD_SLIST,
+		HASH_HEAD_CK_SLIST,
+		HASH_HEAD_STAILQ,
+		HASH_HEAD_CK_STAILQ,
+		HASH_HEAD_TAILQ,
+	}	head;
+	enum {
+		HASH_LOCK_NONE = 0,
+		HASH_LOCK_MTX,
+		HASH_LOCK_RWLOCK,
+		HASH_LOCK_SX,
+		HASH_LOCK_RMLOCK,
+		HASH_LOCK_RMSLOCK,
+	}	lock;
+	int	mflags;			/* malloc(9) flags */
+	int	lopts;			/* lock opts */
+	struct malloc_type	*mtype;	/* malloc(9) type */
+	const char		*lname; /* lock name */
+	int  (*ctor)(void *);		/* bucket constructor */
+	void (*dtor)(void *);		/* bucket destructor */
+};
+
+void	*hashalloc(struct hashalloc_args *);
+void	hashfree(void *, struct hashalloc_args *);
+
 /*
  * Hashing function from Bob Jenkins. Implementation in libkern/jenkins_hash.c.
  */

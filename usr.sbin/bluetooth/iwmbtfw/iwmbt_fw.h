@@ -152,5 +152,7 @@ extern	char *iwmbt_get_fwname(struct iwmbt_version *ver,
 	const char *suffix);
 extern	char *iwmbt_get_fwname_tlv(struct iwmbt_version_tlv *ver,
 	const char *prefix, const char *suffix);
+extern	int iwmbt_parse_tlv(uint8_t *data, uint8_t datalen,
+	struct iwmbt_version_tlv *ver);
 
 #endif

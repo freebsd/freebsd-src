@@ -1775,6 +1775,7 @@ dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
 dev/gpio/gpiopps.c		optional gpiopps fdt
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
+dev/hid/appleir.c		optional appleir
 dev/hid/bcm5974.c		optional bcm5974
 dev/hid/hconf.c			optional hconf
 dev/hid/hcons.c			optional hcons
@@ -4238,6 +4239,7 @@ net/if_stf.c			optional stf inet inet6
 net/if_tuntap.c			optional tuntap
 net/if_vlan.c			optional vlan
 net/if_vxlan.c			optional vxlan inet | vxlan inet6
+net/if_geneve.c			optional geneve inet | geneve inet6
 net/ifdi_if.m			optional ether pci iflib
 net/iflib.c			optional ether pci iflib
 net/mp_ring.c			optional ether iflib

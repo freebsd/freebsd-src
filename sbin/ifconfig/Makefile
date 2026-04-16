@@ -30,6 +30,7 @@ SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	iffib.c			# non-default FIB support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
 SRCS+=	ifvxlan.c		# VXLAN support
+SRCS+=	ifgeneve.c		# GENEVE support
 SRCS+=	ifgre.c			# GRE keys etc
 SRCS+=	ifgif.c			# GIF reversed header workaround
 SRCS+=	ifipsec.c		# IPsec VTI
@@ -52,10 +53,6 @@ SRCS+=	ifpfsync.c		# pfsync(4) support
 SRCS+=	ifbridge.c		# bridge support
 SRCS+=	iflagg.c		# lagg support
 
-.if ${MK_EXPERIMENTAL} != "no"
-CFLAGS+= -DDRAFT_IETF_6MAN_IPV6ONLY_FLAG
-CFLAGS+= -DEXPERIMENTAL
-.endif
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif

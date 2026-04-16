@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 3, 2024
+.Dd April 11, 2026
 .Dt LOADER.EFI 8
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ process.
 .Xr boot1.efi 8
 is deprecated for new installations.
 .Ss Console Considerations
-The EFI BIOS provides a generic console.
+The UEFI firmware provides a generic console.
 In
 .Nm
 this is selected by specifying
@@ -114,8 +114,8 @@ primary if a UEFI graphics device is detected, or the serial console
 as primary if not.
 .Pp
 On x86 platforms, if you wish to redirect the loader's output to a serial port
-when the EFI BIOS doesn't support it, or to a serial port that isn't the one the
-EFI BIOS redirects its output to, set
+when the UEFI firmware doesn't support it, or to a serial port that isn't the
+one the UEFI firmware redirects its output to, set
 .Dv console
 to
 .Dq comconsole .
@@ -135,9 +135,9 @@ If this causes a doubling of characters, set
 .Dv console
 to
 .Dq efi ,
-since your EFI BIOS is redirecting to the serial port already.
+since your UEFI firmware is redirecting to the serial port already.
 .Pp
-If your EFI BIOS redirects the serial port, you may need to tell the kernel
+If your UEFI firmware redirects the serial port, you may need to tell the kernel
 which address to use.
 EFI uses ACPI's UID to identify the serial port, but
 .Nm

@@ -555,6 +555,7 @@ che_write_adapter_mem(struct nvmf_che_qpair *qp, uint32_t addr, uint32_t len,
 	struct toepcb *toep = qp->toep;
 	struct socket *so = qp->so;
 	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 	struct mbufq mq;
 	int error;
 
@@ -568,7 +569,7 @@ che_write_adapter_mem(struct nvmf_che_qpair *qp, uint32_t addr, uint32_t len,
 		goto error;
 
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & INP_DROPPED) != 0) {
+	if ((tp->t_flags & TF_DISCONNECTED) != 0) {
 		INP_WUNLOCK(inp);
 		error = ECONNRESET;
 		goto error;
@@ -862,12 +863,13 @@ nvmf_che_write_pdu(struct nvmf_che_qpair *qp, struct mbuf *m)
 	struct epoch_tracker et;
 	struct socket *so = qp->so;
 	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 	struct toepcb *toep = qp->toep;
 
 	CURVNET_SET(so->so_vnet);
 	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
-	if (__predict_false(inp->inp_flags & INP_DROPPED) ||
+	if (__predict_false(tp->t_flags & TF_DISCONNECTED) ||
 	    __predict_false((toep->flags & TPF_ATTACHED) == 0)) {
 		m_freem(m);
 	} else {
@@ -2052,10 +2054,11 @@ do_nvmt_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: payload length mismatch", __func__));
 
 	inp = toep->inp;
+	tp = intotcpcb(inp);
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		CTR(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, len, inp->inp_flags);
+	if (tp->t_flags & TF_DISCONNECTED) {
+		CTR(KTR_CXGBE, "%s: tid %u, rx (%d bytes), t_flags 0x%x",
+		    __func__, tid, len, tp->t_flags);
 		INP_WUNLOCK(inp);
 		m_freem(m);
 		return (0);
@@ -2070,7 +2073,6 @@ do_nvmt_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	mbufq_enqueue(&qp->rx_data, m);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
-	tp = intotcpcb(inp);
 	tp->t_rcvtime = ticks;
 
 #ifdef VERBOSE_TRACES
@@ -2092,6 +2094,7 @@ do_nvmt_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct nvmf_che_qpair *qp = toep->ulpcb;
 	struct socket *so = qp->so;
 	struct inpcb *inp = toep->inp;
+	struct tcpcb *tp = intotcpcb(inp);
 	u_int hlen __diagused;
 	bool empty;
 
@@ -2107,9 +2110,9 @@ do_nvmt_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: payload length mismatch", __func__));
 
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		CTR(KTR_CXGBE, "%s: tid %u, rx (hlen %u), inp_flags 0x%x",
-		    __func__, tid, hlen, inp->inp_flags);
+	if (tp->t_flags & TF_DISCONNECTED) {
+		CTR(KTR_CXGBE, "%s: tid %u, rx (hlen %u), t_flags 0x%x",
+		    __func__, tid, hlen, tp->t_flags);
 		INP_WUNLOCK(inp);
 		m_freem(m);
 		return (0);
@@ -2505,7 +2508,7 @@ che_allocate_qpair(bool controller, const nvlist_t *nvl)
 	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_WUNLOCK(inp);
 		free(qp->fl_cid_set, M_NVMF_CHE);
 		free(qp->fl_cids, M_NVMF_CHE);

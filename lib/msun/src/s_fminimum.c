@@ -47,7 +47,7 @@ fminimum(double x, double y)
 	u[0].d = x;
 	u[1].d = y;
 
-	/* Check for NaNs to avoid raising spurious exceptions. */
+	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
 	if (u[0].bits.exp == 2047 && (u[0].bits.manh | u[0].bits.manl) != 0 || 
 	    u[1].bits.exp == 2047 && (u[1].bits.manh | u[1].bits.manl) != 0)
 		return (NAN);

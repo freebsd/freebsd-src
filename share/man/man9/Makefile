@@ -174,6 +174,7 @@ MAN=	accept_filter.9 \
 	gone_in.9 \
 	hardclock.9 \
 	hash.9 \
+	hashalloc.9 \
 	hashinit.9 \
 	hexdump.9 \
 	hhook.9 \
@@ -1216,6 +1217,7 @@ MLINKS+=hash.9 hash32.9 \
 	hash.9 hash32_strne.9 \
 	hash.9 jenkins_hash.9 \
 	hash.9 jenkins_hash32.9
+MLINKS+=hashalloc.9 hashfree.9
 MLINKS+=hashinit.9 hashdestroy.9 \
 	hashinit.9 hashinit_flags.9 \
 	hashinit.9 phashinit.9

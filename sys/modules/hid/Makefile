@@ -6,6 +6,7 @@ SUBDIR = \
 	hidraw
 
 SUBDIR += \
+	appleir \
 	bcm5974 \
 	hconf \
 	hcons \

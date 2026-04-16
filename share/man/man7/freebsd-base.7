@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd December 4, 2025
+.Dd April 1, 2026
 .Dt FREEBSD-BASE 7
 .Os
 .Sh NAME
@@ -183,13 +183,14 @@ The system test suite, installed in
 All available system kernels.
 .El
 .Sh EXAMPLES
+.Ss Install a single piece of userland
 Install the
 .Xr vi 1
 text editor on the running system:
 .Bd -literal -offset indent
 pkg install FreeBSD-vi
 .Ed
-.Pp
+.Ss Install userland to a jail
 Install a new
 .Xr jail 8
 system using the
@@ -198,17 +199,17 @@ package set:
 .Bd -literal -offset indent
 pkg -r /jails/myjail install FreeBSD-set-minimal-jail
 .Ed
-.Pp
+.Ss Install native compilers
 Install C/C++ compilers on the running system:
 .Bd -literal -offset indent
 pkg install FreeBSD-set-devel
 .Ed
-.Pp
+.Ss Update the currently running system
 Apply available updates to the running system:
 .Bd -literal -offset indent
 pkg upgrade -r FreeBSD-base
 .Ed
-.Pp
+.Ss Install cross compilers
 Install the development toolchain for FreeBSD/powerpc64le in an
 alternate root (for example, to support cross-compiling software
 for a different target than the host system):
@@ -216,6 +217,39 @@ for a different target than the host system):
 pkg -r /ppcdev -oABI=FreeBSD:16:powerpc64le \e
     install FreeBSD-set-devel
 .Ed
+.Ss Unregister a currently running system
+Systems managed through
+.Xr pkg 8
+can be unregistered from the package manager \(em
+for example to upgrade in-place via
+.Dq make installworld .
+See
+.Xr build 7 .
+.Pp
+To unregister the base system from the package manager:
+.Bd -literal -offset indent
+pkg unregister -fg 'FreeBSD-\e*'
+.Ed
+.Pp
+Then, disable the base system package repository.
+If a configuration file was created in
+.Pa /usr/local/etc/pkg/repos/
+to enable base system packages, remove it:
+.Bd -literal -offset indent
+rm /usr/local/etc/pkg/repos/FreeBSD-base.conf
+.Ed
+.Pp
+Alternatively, if it is desired to keep it,
+edit the file and change
+.Dq Li enabled:
+to
+.Dq Li no
+to disable the entry.
+.Pp
+.Sy Warning :
+This is a destructive action
+which will prevent updating the base system via
+.Xr pkg 8 .
 .Sh SEE ALSO
 .Xr build 7 ,
 .Xr pkg 8 ,
@@ -224,3 +258,4 @@ pkg -r /ppcdev -oABI=FreeBSD:16:powerpc64le \e
 Support for installing the base system as packages was introduced in
 .Fx 15.0 .
 Earlier releases supported a subset of this functionality.
+Support for unregistering an existing installation appeared in pkg 2.5.

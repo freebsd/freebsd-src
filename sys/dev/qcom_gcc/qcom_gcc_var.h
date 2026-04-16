@@ -31,6 +31,7 @@
 typedef enum {
 	QCOM_GCC_CHIPSET_NONE = 0,
 	QCOM_GCC_CHIPSET_IPQ4018 = 1,
+	QCOM_GCC_CHIPSET_MSM8916 = 2,
 } qcom_gcc_chipset_t;
 
 struct qcom_gcc_reset_entry {

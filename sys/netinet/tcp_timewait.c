@@ -126,10 +126,7 @@ tcp_twstart(struct tcpcb *tp)
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
-
-	/* A dropped inp should never transition to TIME_WAIT state. */
-	KASSERT((inp->inp_flags & INP_DROPPED) == 0, ("tcp_twstart: "
-	    "(inp->inp_flags & INP_DROPPED) != 0"));
+	MPASS(!(tp->t_flags & TF_DISCONNECTED));
 
 	tcp_state_change(tp, TCPS_TIME_WAIT);
 	tcp_free_sackholes(tp);

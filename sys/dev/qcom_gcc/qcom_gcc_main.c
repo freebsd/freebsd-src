@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2025, Adrian Chadd <adrian@FreeBSD.org>
+ * Copyright (c) 2026 Adrian Chadd <adrian@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +39,7 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -51,6 +52,7 @@
 
 #include "qcom_gcc_var.h"
 #include "qcom_gcc_ipq4018.h"
+#include "qcom_gcc_msm8916.h"
 
 static int	qcom_gcc_modevent(module_t, int, void *);
 
@@ -67,6 +69,8 @@ struct qcom_gcc_chipset_list_entry {
 static struct qcom_gcc_chipset_list_entry qcom_gcc_chipset_list[] = {
 	{ "qcom,gcc-ipq4019", "Qualcomm IPQ4018 Clock/Reset Controller",
 	    QCOM_GCC_CHIPSET_IPQ4018 },
+	{ "qcom,gcc-msm8916", "Qualcomm MSM8916 Clock/Reset Controller",
+	    QCOM_GCC_CHIPSET_MSM8916 },
 	{ NULL, NULL, 0 },
 };
 
@@ -135,6 +139,10 @@ qcom_gcc_attach(device_t dev)
 		qcom_gcc_ipq4018_hwreset_init(sc);
 		mem_sz = 0x60000;
 		break;
+	case QCOM_GCC_CHIPSET_MSM8916:
+		qcom_gcc_msm8916_hwreset_init(sc);
+		mem_sz = 0x0;
+		break;
 	case QCOM_GCC_CHIPSET_NONE:
 		device_printf(dev, "Invalid chipset (%d)\n", sc->sc_chipset);
 		return (ENXIO);
@@ -142,8 +150,13 @@ qcom_gcc_attach(device_t dev)
 
 	sc->reg_rid = 0;
 
-	sc->reg = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
-	    &sc->reg_rid, mem_sz, RF_ACTIVE);
+	if (mem_sz != 0)
+		sc->reg = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
+		    &sc->reg_rid, mem_sz, RF_ACTIVE);
+	else
+		sc->reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &sc->reg_rid, RF_ACTIVE);
+
 	if (sc->reg == NULL) {
 		device_printf(dev, "Couldn't allocate memory resource!\n");
 		return (ENXIO);
@@ -162,6 +175,9 @@ qcom_gcc_attach(device_t dev)
 	switch (sc->sc_chipset) {
 	case QCOM_GCC_CHIPSET_IPQ4018:
 		qcom_gcc_ipq4018_clock_setup(sc);
+		break;
+	case QCOM_GCC_CHIPSET_MSM8916:
+		qcom_gcc_msm8916_clock_setup(sc);
 		break;
 	case QCOM_GCC_CHIPSET_NONE:
 		device_printf(dev, "Invalid chipset (%d)\n", sc->sc_chipset);

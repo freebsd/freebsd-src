@@ -1315,7 +1315,7 @@ ReadFirstDefaultMakefile(void)
 }
 
 #ifndef MAKE_SAVE_DOLLARS_DEFAULT
-# define MAKE_SAVE_DOLLARS_DEFAULT "yes"
+# define MAKE_SAVE_DOLLARS_DEFAULT "no"
 #endif
 
 /*

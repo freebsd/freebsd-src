@@ -2006,6 +2006,21 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	NDSLOTTYPE *nmap, *omap;
 
 	KASSERT(fdp->fd_nfiles > 0, ("zero-length file table"));
+	KASSERT(fdp->fd_nfiles >= NDFILE, ("file table of length %d shorter "
+	    "than NDFILE (%d)", fdp->fd_nfiles, NDFILE));
+	KASSERT(fdp->fd_nfiles == NDFILE || fdp->fd_nfiles % NDENTRIES == 0,
+	    ("file table of length %d should be multiple of NDENTRIES (%lu)",
+	    fdp->fd_nfiles, NDENTRIES));
+	KASSERT((fdp->fd_nfiles == NDFILE) == ((intptr_t)fdp->fd_files -
+	    offsetof(struct filedesc0, fd_dfiles) == (intptr_t)fdp -
+	    offsetof(struct filedesc0, fd_fd)), ("file table of length %d "
+	    "should have %s table", fdp->fd_nfiles, fdp->fd_nfiles == NDFILE ?
+	    "initial" : "dynamic"));
+	KASSERT((NDSLOTS(fdp->fd_nfiles) <= NDSLOTS(NDFILE)) == ((intptr_t)
+	    fdp->fd_map - offsetof(struct filedesc0, fd_dmap) == (intptr_t)fdp -
+	    offsetof(struct filedesc0, fd_fd)), ("file table of length %d "
+	    "should have %s map", fdp->fd_nfiles, NDSLOTS(fdp->fd_nfiles) <=
+	    NDSLOTS(NDFILE) ? "initial" : "dynamic"));
 
 	/* save old values */
 	onfiles = fdp->fd_nfiles;
@@ -2035,9 +2050,19 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	    onfiles * sizeof(ntable->fdt_ofiles[0]));
 
 	/*
-	 * Allocate a new map only if the old is not large enough.  It will
-	 * grow at a slower rate than the table as it can map more
-	 * entries than the table can hold.
+	 * Allocate a new map only if the old one is not large enough.
+	 *
+	 * The initial struct filedesc0 object contains a table and map sized
+	 * for NDFILE (20) entries which means the initial map can accomodate
+	 * up to NDENTRIES (32 or 64) before requiring reallocation.
+	 *
+	 * As the new table size (nnfiles) is always rounded up to a multiple
+	 * of NDENTRIES, the map will be fully utilised following the first
+	 * enlargement, whether it is still the initial map (which will be the
+	 * case if nnfiles == NDENTRIES) or if a new one that has has been
+	 * allocated (which will be the case if nnfiles == X*NDENTRIES for some
+	 * X > 1). In either case, subsequent enlargements will always allocate
+	 * a new map to go along with the new table.
 	 */
 	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles)) {
 		nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
@@ -2045,6 +2070,8 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		/* copy over the old data and update the pointer */
 		memcpy(nmap, omap, NDSLOTS(onfiles) * sizeof(*omap));
 		fdp->fd_map = nmap;
+	} else {
+		nmap = NULL;
 	}
 
 	/*
@@ -2085,9 +2112,10 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	/*
 	 * The map does not have the same possibility of threads still
 	 * holding references to it.  So always free it as long as it
-	 * does not reference the original static allocation.
+	 * does not reference the original static allocation and a new
+	 * map was allocated.
 	 */
-	if (NDSLOTS(onfiles) > NDSLOTS(NDFILE))
+	if (nmap != NULL && NDSLOTS(onfiles) > NDSLOTS(NDFILE))
 		free(omap, M_FILEDESC);
 }
 

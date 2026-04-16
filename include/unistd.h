@@ -453,6 +453,10 @@ int	unlinkat(int, const char *, int);
 int	 symlink(const char * __restrict, const char * __restrict);
 #endif
 
+#if __POSIX_VISIBLE >= 202405
+pid_t	 _Fork(void);
+#endif
+
 /* X/Open System Interfaces */
 #if __XSI_VISIBLE
 char	*crypt(const char *, const char *);
@@ -594,7 +598,6 @@ int	 undelete(const char *);
 int	 unwhiteout(const char *);
 void	*valloc(size_t);			/* obsoleted by malloc() */
 int	 funlinkat(int, const char *, int, int);
-pid_t	 _Fork(void);
 
 #ifndef _OPTRESET_DECLARED
 #define	_OPTRESET_DECLARED

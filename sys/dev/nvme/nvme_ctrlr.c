@@ -1364,7 +1364,7 @@ nvme_user_ioctl_req(vm_offset_t addr, size_t len, bool is_read,
 	npages = nvme_page_count(addr, len);
 	if (npages > atop(maxphys))
 		return (EINVAL);
-	if (npages > NVME_MAX_PAGES)
+	if (npages > max_pages)
 		upages_us = malloc(npages * sizeof(vm_page_t), M_NVME,
 		    M_ZERO | M_WAITOK);
 
@@ -1518,8 +1518,8 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 		}
 		if (is_user) {
 			ret = nvme_user_ioctl_req(npc->addr, npc->data_len,
-			    npc->opcode & 0x1, &upages, nitems(upages), &npages,
-			    &req, nvme_npc_done, npc);
+			    npc->opcode & 0x1, &upages, nitems(upages_small),
+			    &npages, &req, nvme_npc_done, npc);
 			if (ret != 0)
 				return (ret);
 		} else

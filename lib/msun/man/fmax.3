@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 6, 2026
+.Dd April 11, 2026
 .Dt FMAX 3
 .Os
 .Sh NAME
@@ -93,6 +93,13 @@ as being larger than
 .Li -0.0 .
 This behavior is not specified by the C standard, is not portable,
 and may not occur in light of compiler optimizations.
+Applications requiring specific handling of signed zeroes or
+.No \*(Na
+values are recommended to use
+.Xr fmaximum_num 3
+and
+.Xr fminimum_num 3
+instead, which have strictly defined behavior for these cases.
 .Sh HISTORY
 These routines first appeared in
 .Fx 5.3 .

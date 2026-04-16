@@ -3,8 +3,10 @@ PACKAGE=	tests
 TESTSDIR=	${TESTSBASE}/sys/cam/ctl
 BINDIR=${TESTSDIR}
 
+${PACKAGE}FILES+=	all-supported-opcodes.txt
 ${PACKAGE}FILES+=	ctl.subr
 
+ATF_TESTS_SH+=	opcodes
 ATF_TESTS_SH+=	persist
 ATF_TESTS_SH+=	prevent
 ATF_TESTS_SH+=	read_buffer

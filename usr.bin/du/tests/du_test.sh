@@ -276,7 +276,7 @@ si_flag_body()
 	atf_check -o inline:'1.5M\tA\n1.6M\tB\n' du -A --si A B
 }
 
-atf_add_test_case t_flag
+atf_test_case t_flag
 t_flag_head()
 {
 	atf_set "descr" "Verify -t output"
@@ -293,6 +293,23 @@ t_flag_body()
 	atf_check -o save:du.out du -Aat -9216 testdir1
 	atf_check -o inline:'8\ttestdir1/A\n8\ttestdir1/testdir2/B\n' \
 	    sort du.out
+}
+
+atf_test_case stdout
+stdout_head()
+{
+	atf_set "descr" "Failure to write to stdout"
+}
+stdout_body()
+{
+	(
+		trap "" PIPE
+		sleep 1
+		du 2>stderr
+		echo $? >result
+	) | true
+	atf_check -o inline:"1\n" cat result
+	atf_check -o match:"stdout" cat stderr
 }
 
 atf_init_test_cases()
@@ -314,4 +331,5 @@ atf_init_test_cases()
 	atf_add_test_case s_flag
 	atf_add_test_case si_flag
 	atf_add_test_case t_flag
+	atf_add_test_case stdout
 }

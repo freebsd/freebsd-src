@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +51,7 @@
 
 int	iwmbt_do_debug = 0;
 int	iwmbt_do_info = 0;
+static bool	iwmbt_do_pidvid = false;
 
 enum iwmbt_device {
 	IWMBT_DEVICE_UNKNOWN,
@@ -228,6 +230,65 @@ iwmbt_dump_version_tlv(struct iwmbt_version_tlv *ver)
 		    ver->build_num);
 }
 
+static enum iwmbt_device
+iwmbt_identify(libusb_device_handle *hdl, enum iwmbt_device device)
+{
+	uint8_t data[255];
+	uint8_t datalen, hw_platform, hw_variant;
+	struct iwmbt_version *ver = (struct iwmbt_version *)data;
+	struct iwmbt_version_tlv ver_tlv;
+	int r;
+
+	if (device == IWMBT_DEVICE_7260) {
+		r = iwmbt_bt_reset(hdl);
+		if (r < 0) {
+			iwmbt_debug("iwmbt_bt_reset() failed!");
+			return (IWMBT_DEVICE_UNKNOWN);
+		}
+	}
+
+	memset(data, 0, sizeof(data));
+	r = iwmbt_read_version_tlv(hdl, data, &datalen);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_read_version_tlv() failed");
+		return (IWMBT_DEVICE_UNKNOWN);
+	}
+
+	if (datalen == sizeof(*ver) && ver->hw_platform == 0x37) {
+		switch (ver->hw_variant) {
+		case 0x07:
+		case 0x08:
+			return (IWMBT_DEVICE_7260);
+		case 0x0b:
+		case 0x0c:
+		case 0x11:
+		case 0x12:
+		case 0x13:
+		case 0x14:
+			return (IWMBT_DEVICE_8260);
+		default:
+			iwmbt_debug("Unsupported hw_variant (0x%2x)",
+			    ver->hw_variant);
+			return (IWMBT_DEVICE_UNKNOWN);
+		}
+	}
+
+	r = iwmbt_parse_tlv(data, datalen, &ver_tlv);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_parse_tlv() failed");
+		return (IWMBT_DEVICE_UNKNOWN);
+	}
+
+	hw_platform = (ver_tlv.cnvi_bt >> 8) & 0xff;
+	hw_variant = (ver_tlv.cnvi_bt >> 16) & 0x3f;
+
+	if (hw_platform != 0x37) {
+		iwmbt_debug("Unsupported hw_platform (0x%2x)", hw_platform);
+		return (IWMBT_DEVICE_UNKNOWN);
+	}
+
+	return (hw_variant < 0x17 ? IWMBT_DEVICE_8260 : IWMBT_DEVICE_9260);
+}
 
 static int
 iwmbt_init_firmware(libusb_device_handle *hdl, const char *firmware_path,
@@ -377,10 +438,9 @@ usage(void)
 	fprintf(stderr, "    -f: firmware path (defaults to %s)\n",
 	    _DEFAULT_IWMBT_FIRMWARE_PATH);
 	fprintf(stderr, "    -I: enable informational output\n");
+	fprintf(stderr, "    -p: use PID/VID for model identification\n");
 	exit(127);
 }
-
-
 
 /*
  * Returns 0 on success.
@@ -558,7 +618,6 @@ handle_9260(libusb_device_handle *hdl, char *firmware_dir)
 {
 	int r;
 	uint32_t boot_param;
-	struct iwmbt_version vl;
 	struct iwmbt_version_tlv vt;
 	char *firmware_path = NULL;
 
@@ -618,9 +677,9 @@ handle_9260(libusb_device_handle *hdl, char *firmware_dir)
 
 	/* Once device is running in operational mode we can ignore failures */
 
-	r = iwmbt_get_version(hdl, &vl);
+	r = iwmbt_get_version_tlv(hdl, &vt);
 	if (r == 0)
-		iwmbt_dump_version(&vl);
+		iwmbt_dump_version_tlv(&vt);
 
 	/* Apply the device configuration (DDC) parameters */
 	firmware_path = iwmbt_get_fwname_tlv(&vt, firmware_dir, "ddc");
@@ -672,6 +731,9 @@ main(int argc, char *argv[])
 			break;
 		case 'I':
 			iwmbt_do_info = 1;
+			break;
+		case 'p':
+			iwmbt_do_pidvid = true;
 			break;
 		case 'h':
 		default:
@@ -728,6 +790,14 @@ main(int argc, char *argv[])
 		iwmbt_info("Firmware has already been downloaded");
 		retcode = 0;
 		goto shutdown;
+	}
+
+	if (!iwmbt_do_pidvid) {
+		iwmbt_device = iwmbt_identify(hdl, iwmbt_device);
+		if (iwmbt_device == IWMBT_DEVICE_UNKNOWN) {
+			iwmbt_err("Failed to identify device");
+			goto shutdown;
+		}
 	}
 
 	switch(iwmbt_device) {
