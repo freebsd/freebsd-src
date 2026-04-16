@@ -45,6 +45,7 @@ struct atu_opt {
 #define	MV88E6341	0x3410
 #define	MV88E6352	0x3520
 #define	MV88E6172	0x1720
+#define	MV88E6171	0x1710
 #define	MV88E6176	0x1760
 #define	MV88E6190	0x1900
 #define	MV88E6190X	0x0a00

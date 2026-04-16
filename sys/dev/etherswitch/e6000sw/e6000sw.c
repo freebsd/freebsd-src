@@ -302,6 +302,10 @@ e6000sw_probe(device_t dev)
 		description = "Marvell 88E6352";
 		sc->num_ports = 7;
 		break;
+	case MV88E6171:
+		description = "Marvell 88E6171";
+		sc->num_ports = 7;
+		break;
 	case MV88E6172:
 		description = "Marvell 88E6172";
 		sc->num_ports = 7;
