@@ -39,7 +39,6 @@
 
 #define	noinline_for_stack		__noinline
 
-#define	__maybe_unused			__unused
 #define	__always_unused			__unused
 
 #define	__must_check			__result_use_check
