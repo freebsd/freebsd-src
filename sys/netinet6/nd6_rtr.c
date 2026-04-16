@@ -1567,6 +1567,16 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 
 	NET_EPOCH_ASSERT();
 
+	/*
+	 * Address autoconfiguration based on Section 5.5.3 of RFC 4862.
+	 * 5.5.3 (a). Ignore the prefix without the A bit set.
+	 * 5.5.3 (b). the link-local prefix should have been ignored in nd6_ra_input.
+	 * 5.5.3 (c). Consistency check on lifetimes: pltime <= vltime.
+	 */
+	if (new->ndpr_raf_auto == 0 ||
+	    new->ndpr_pltime > new->ndpr_vltime)
+		return;
+
 	/* check if prefix already exists on the same interface */
 	if ((pr = nd6_prefix_lookup(new)) != NULL)
 		nd6_prefix_update(new, pr);
@@ -1601,18 +1611,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	}
 	if (dr != NULL)
 		pfxrtr_add(pr, dr);
-
-	/*
-	 * Address autoconfiguration based on Section 5.5.3 of RFC 4862.
-	 * Note that pr must be non NULL at this point.
-	 *
-	 * 5.5.3 (a). Ignore the prefix without the A bit set.
-	 * 5.5.3 (b). the link-local prefix should have been ignored in nd6_ra_input.
-	 * 5.5.3 (c). Consistency check on lifetimes: pltime <= vltime.
-	 */
-	if (new->ndpr_raf_auto == 0 ||
-	    new->ndpr_pltime > new->ndpr_vltime)
-		goto end;
 
 	/*
 	 * 5.5.3 (d).  If the prefix advertised is not equal to the prefix of
