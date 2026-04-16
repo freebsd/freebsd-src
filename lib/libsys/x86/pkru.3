@@ -71,13 +71,16 @@ Only one key may apply to a given range at a time.
 The default protection key index is zero, it is used even if no key
 was explicitly assigned to the address, or if the key was removed.
 .Pp
-The protection prevents the system from accessing user addresses as well
-as the user applications.
-When a system call was unable to read or write user memory due to key
-protection, it returns the
-.Er EFAULT
-error code.
-Note that some side effects may have occurred if this error is reported.
+If the user application attempts a memory access which is prohibited by the
+PKRU register, the offending thread receives a synchronous
+.Dv SIGSEGV
+signal with
+.Va si_code
+set to
+.Dv SEGV_PKUERR .
+PKRU protections might prevent the kernel from accessing protected
+user addresses when handling system calls, but this is not guaranteed and
+must not be relied upon.
 .Pp
 Both 64-bit and 32-bit applications can use protection keys.
 More information about the hardware feature is provided in the IA32 Software
