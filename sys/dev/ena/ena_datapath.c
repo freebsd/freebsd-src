@@ -576,6 +576,8 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	unsigned int qid;
 	int rc, i;
 	int budget = (ENA_RX_DESC_BUDGET == -1) ? INT_MAX : ENA_RX_DESC_BUDGET;
+	uint64_t total_pkts = 0;
+	uint64_t total_bytes = 0;
 #ifdef DEV_NETMAP
 	int done;
 #endif /* DEV_NETMAP */
@@ -618,7 +620,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 				reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
 			}
 			ena_trigger_reset(adapter, reset_reason);
-			return (0);
+			goto update_stats;
 		}
 
 		if (unlikely(ena_rx_ctx.descs == 0))
@@ -650,12 +652,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 			ena_rx_checksum(rx_ring, &ena_rx_ctx, mbuf);
 		}
 
-		counter_enter();
-		counter_u64_add_protected(rx_ring->rx_stats.bytes,
-		    mbuf->m_pkthdr.len);
-		counter_u64_add_protected(adapter->hw_stats.rx_bytes,
-		    mbuf->m_pkthdr.len);
-		counter_exit();
+		total_bytes += mbuf->m_pkthdr.len;
 		/*
 		 * LRO is only for IP/TCP packets and TCP checksum of the packet
 		 * should be computed by hardware.
@@ -680,10 +677,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 			if_input(ifp, mbuf);
 		}
 
-		counter_enter();
-		counter_u64_add_protected(rx_ring->rx_stats.cnt, 1);
-		counter_u64_add_protected(adapter->hw_stats.rx_packets, 1);
-		counter_exit();
+		total_pkts++;
 
 		/*
 		 * Adjust our budget; note that we count descriptors, not
@@ -706,6 +700,13 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 	tcp_lro_flush_all(&rx_ring->lro);
 
+update_stats:
+	counter_enter();
+	counter_u64_add_protected(rx_ring->rx_stats.cnt, total_pkts);
+	counter_u64_add_protected(rx_ring->rx_stats.bytes, total_bytes);
+	counter_u64_add_protected(adapter->hw_stats.rx_packets, total_pkts);
+	counter_u64_add_protected(adapter->hw_stats.rx_bytes, total_bytes);
+	counter_exit();
 	return (budget <= 0);
 }
 
