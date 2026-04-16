@@ -415,8 +415,7 @@ pcm_register(device_t dev, char *str)
 	    "mode (1=mixer, 2=play, 4=rec. The values are OR'ed if more than "
 	    "one mode is supported)");
 	vchan_initsys(dev);
-	if (d->flags & SD_F_EQ)
-		feeder_eq_initsys(dev);
+	feeder_eq_initsys(dev);
 
 	if (snd_unit_auto < 0)
 		snd_unit_auto = (snd_unit < 0) ? 1 : 0;
