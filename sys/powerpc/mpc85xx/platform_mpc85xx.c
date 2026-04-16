@@ -581,9 +581,19 @@ dummy_freeze(device_t dev, bool freeze)
 
 /* QorIQ Run control/power management timebase management. */
 
-#define	RCPM_CTBENR	0x00000084
+#define	RCPM_CTBENR_1_0	0x00000084
+#define	RCPM_CTBENR_2_0	0x000001a0
+
 struct mpc85xx_rcpm_softc {
 	struct resource *sc_mem;
+	bus_addr_t sc_ctbenr;
+	uint32_t sc_saved_tbenr;
+};
+
+struct ofw_compat_data compats[] = {
+	{ "fsl,qoriq-rcpm-1.0", RCPM_CTBENR_1_0 },
+	{ "fsl,qoriq-rcpm-2.0", RCPM_CTBENR_2_0 },
+	{ NULL, 0 }
 };
 
 static void
@@ -593,16 +603,17 @@ mpc85xx_rcpm_freeze_timebase(device_t dev, bool freeze)
 
 	sc = device_get_softc(dev);
 
-	if (freeze)
-		bus_write_4(sc->sc_mem, RCPM_CTBENR, 0);
-	else
-		bus_write_4(sc->sc_mem, RCPM_CTBENR, (1 << maxcpu) - 1);
+	if (freeze) {
+		sc->sc_saved_tbenr = bus_read_4(sc->sc_mem, sc->sc_ctbenr);
+		bus_write_4(sc->sc_mem, sc->sc_ctbenr, 0);
+	} else
+		bus_write_4(sc->sc_mem, sc->sc_ctbenr, sc->sc_saved_tbenr);
 }
 
 static int
 mpc85xx_rcpm_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "fsl,qoriq-rcpm-1.0"))
+	if (ofw_bus_search_compatible(dev, compats)->ocd_str == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, "QorIQ Run control and power management");
@@ -622,6 +633,7 @@ mpc85xx_rcpm_attach(device_t dev)
 	rid = 0;
 	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_ctbenr = ofw_bus_search_compatible(dev, compats)->ocd_data;
 
 	return (0);
 }
