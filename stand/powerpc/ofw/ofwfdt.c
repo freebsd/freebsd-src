@@ -32,12 +32,6 @@
 
 extern int command_fdt_internal(int argc, char *argv[]);
 
-static int
-OF_hasprop(phandle_t node, const char *prop)
-{
-	return (OF_getproplen(node, (char *)prop) > 0);
-}
-
 static void
 add_node_to_fdt(void *buffer, phandle_t node, int fdt_offset)
 {

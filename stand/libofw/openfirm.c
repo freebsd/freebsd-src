@@ -288,6 +288,13 @@ OF_getencprop(phandle_t package, const char *propname, cell_t *buf, int buflen)
 	return (retval);
 }
 
+/* Check existence of a property of a package. */
+bool
+OF_hasprop(phandle_t node, const char *prop)
+{
+	return (OF_getproplen(node, prop) >= 0);
+}
+
 /* Get the next property of a package. */
 int
 OF_nextprop(phandle_t package, const char *previous, char *buf)
