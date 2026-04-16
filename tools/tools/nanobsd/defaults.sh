@@ -672,8 +672,7 @@ w
 q
 EOF
 	then
-		echo "Regular expression pattern not found"
-		exit 2
+		err "Regular expression pattern not found"
 	fi
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
 
@@ -818,6 +817,11 @@ last_orders() {
 #
 #######################################################################
 
+err() {
+	echo "$@" >&2
+	exit 2
+}
+
 #######################################################################
 # Common Flash device geometries
 #
@@ -865,8 +869,7 @@ UsbDevice() {
 		NANO_MEDIASIZE=$(( $2 * 1000 * 1000 / 512 ))
 		;;
 	*)
-		echo "Unknown USB flash device"
-		exit 2
+		err "Unknown USB flash device"
 		;;
 	esac
 }
@@ -935,8 +938,7 @@ cust_pkgng() {
 		_NANO_PKG_PACKAGE=`basename "$x"`
 	done
 	if [ -z "${_NANO_PKG_PACKAGE}" -o ! -f "${NANO_PACKAGE_DIR}/${_NANO_PKG_PACKAGE}" ]; then
-		echo "FAILED: need a pkg/ package for bootstrapping"
-		exit 2
+		err "FAILED: need a pkg/ package for bootstrapping"
 	fi
 
 	# Mount packages into chroot
