@@ -4084,7 +4084,7 @@ pfctl_state_limiter_add(struct pfctl_handle *h, struct pfctl_state_lim *lim)
 		return (ENXIO);
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
-		if (! snl_parse_nlmsg(&h->ss, hdr, &statelim_parser, &lim))
+		if (! snl_parse_nlmsg(&h->ss, hdr, &statelim_parser, lim))
 			continue;
 	}
 
@@ -4153,7 +4153,7 @@ pfctl_source_limiter_add(struct pfctl_handle *h, struct pfctl_source_lim *lim)
 		return (ENXIO);
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
-		if (! snl_parse_nlmsg(&h->ss, hdr, &sourcelim_parser, &lim))
+		if (! snl_parse_nlmsg(&h->ss, hdr, &sourcelim_parser, lim))
 			continue;
 	}
 
