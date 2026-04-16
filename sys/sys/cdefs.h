@@ -152,6 +152,7 @@
 #define	__weak_symbol	__attribute__((__weak__))
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
+#define	__maybe_unused	__attribute__((__unused__))
 #define	__unused	__attribute__((__unused__))
 #define	__used		__attribute__((__used__))
 #define __deprecated	__attribute__((__deprecated__))
