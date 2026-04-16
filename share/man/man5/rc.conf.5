@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 14, 2025
+.Dd April 2, 2026
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -4950,6 +4950,60 @@ For instance, the file
 is created to prevent
 .Xr shutdown 8
 targeted at the wrong machine.
+.It Va virtual_oss_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run one
+.Xr virtual_oss 8
+instance for each configuration defined in
+.Pa virtual_oss_configs .
+.It Va virtual_oss_configs
+.Pq Vt str
+Space-separated list of
+.Xr virtual_oss 8
+configurations.
+For example:
+.Bd -literal
+virtual_oss_configs="foo bar"
+.Ed
+.Pp
+Configurations need to be defined in
+.Pa virtual_oss_ Ns Aq Ar config_name .
+By default, there is a
+.Pa dsp
+configuration which replaces the
+.Pa /dev/dsp
+device created by
+.Xr sound 4
+with a
+.Xr virtual_oss 8
+one.
+It can be redefined by setting the
+.Pa virtual_oss_dsp
+variable.
+.It Va virtual_oss_ Ns Aq Ar config_name
+.Pq Vt str
+.Xr virtual_oss 8
+argument list for configuration
+.Aq Ar config_name .
+.It Va virtual_oss_default_control_device
+.Pq Vt str
+The
+.Xr virtual_oss 8
+control device's name corresponding to the default configuration,
+.Pa virtual_oss_dsp .
+This is set by default to
+.Pa vdsp.ctl .
+When
+.Pa virtual_oss_dsp
+is set, it is strongly encouraged to set this variable as well, and use it as
+the
+.Fl t
+option's argument in
+.Pa virtual_oss_dsp ,
+because it is used by other programs and scripts, such as
+.Pa /etc/devd/snd.conf .
 .El
 .Sh SERVICE JAILS
 The service jails part of the rc system automatically puts a service
@@ -5170,6 +5224,7 @@ to
 .Xr unbound 8 ,
 .Xr usbconfig 8 ,
 .Xr utx 8 ,
+.Xr virtual_oss 8 ,
 .Xr wlandebug 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
