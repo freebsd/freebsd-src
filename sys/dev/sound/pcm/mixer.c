@@ -1382,13 +1382,3 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 
 	return (EINVAL);
 }
-
-/*
- * Allow the sound driver to use the mixer lock to protect its mixer
- * data:
- */
-struct mtx *
-mixer_get_lock(struct snd_mixer *m)
-{
-	return (&m->lock);
-}
