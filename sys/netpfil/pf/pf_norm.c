@@ -236,10 +236,10 @@ pf_frnode_compare(struct pf_frnode *a, struct pf_frnode *b)
 static __inline int
 pf_frag_compare(struct pf_fragment *a, struct pf_fragment *b)
 {
-	int	diff;
-
-	if ((diff = a->fr_id - b->fr_id) != 0)
-		return (diff);
+	if (a->fr_id > b->fr_id)
+		return (1);
+	if (a->fr_id < b->fr_id)
+		return (-1);
 
 	return (0);
 }
