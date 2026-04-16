@@ -30,7 +30,6 @@ SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	iffib.c			# non-default FIB support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
 SRCS+=	ifvxlan.c		# VXLAN support
-SRCS+=	ifgeneve.c		# GENEVE support
 SRCS+=	ifgre.c			# GRE keys etc
 SRCS+=	ifgif.c			# GIF reversed header workaround
 SRCS+=	ifipsec.c		# IPsec VTI
@@ -67,6 +66,7 @@ LIBADD+=	nv
 
 .if ${MK_NETLINK_SUPPORT} != "no"
 SRCS+=	ifconfig_netlink.c
+SRCS+=	ifgeneve.c		# GENEVE support
 .else
 CFLAGS+=-DWITHOUT_NETLINK
 .endif
