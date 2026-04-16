@@ -1033,113 +1033,6 @@ mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 }
 
 static int
-mixer_ioctl_channel(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
-    struct thread *td, int from)
-{
-	struct snddev_info *d;
-	struct snd_mixer *m;
-	struct pcm_channel *c, *rdch, *wrch;
-	pid_t pid;
-	int j, ret;
-
-	if (td == NULL || td->td_proc == NULL)
-		return (-1);
-
-	m = dev->si_drv1;
-	d = device_get_softc(m->dev);
-	j = cmd & 0xff;
-
-	switch (j) {
-	case SOUND_MIXER_PCM:
-	case SOUND_MIXER_RECLEV:
-	case SOUND_MIXER_DEVMASK:
-	case SOUND_MIXER_CAPS:
-	case SOUND_MIXER_STEREODEVS:
-		break;
-	default:
-		return (-1);
-	}
-
-	pid = td->td_proc->p_pid;
-	rdch = NULL;
-	wrch = NULL;
-	c = NULL;
-	ret = -1;
-
-	/*
-	 * This is unfair. Imagine single proc opening multiple
-	 * instances of same direction. What we do right now
-	 * is looking for the first matching proc/pid, and just
-	 * that. Nothing more. Consider it done.
-	 *
-	 * The better approach of controlling specific channel
-	 * pcm or rec volume is by doing mixer ioctl
-	 * (SNDCTL_DSP_[SET|GET][PLAY|REC]VOL / SOUND_MIXER_[PCM|RECLEV]
-	 * on its open fd, rather than cracky mixer bypassing here.
-	 */
-	CHN_FOREACH(c, d, channels.pcm.opened) {
-		CHN_LOCK(c);
-		if (c->pid != pid ||
-		    !(c->feederflags & (1 << FEEDER_VOLUME))) {
-			CHN_UNLOCK(c);
-			continue;
-		}
-		if (rdch == NULL && c->direction == PCMDIR_REC) {
-			rdch = c;
-			if (j == SOUND_MIXER_RECLEV)
-				goto mixer_ioctl_channel_proc;
-		} else if (wrch == NULL && c->direction == PCMDIR_PLAY) {
-			wrch = c;
-			if (j == SOUND_MIXER_PCM)
-				goto mixer_ioctl_channel_proc;
-		}
-		CHN_UNLOCK(c);
-		if (rdch != NULL && wrch != NULL)
-			break;
-	}
-
-	if (rdch == NULL && wrch == NULL)
-		return (-1);
-
-	if ((j == SOUND_MIXER_DEVMASK || j == SOUND_MIXER_CAPS ||
-	    j == SOUND_MIXER_STEREODEVS) &&
-	    (cmd & ~0xff) == MIXER_READ(0)) {
-		mtx_lock(&m->lock);
-		*(int *)arg = mix_getdevs(m);
-		mtx_unlock(&m->lock);
-		if (rdch != NULL)
-			*(int *)arg |= SOUND_MASK_RECLEV;
-		if (wrch != NULL)
-			*(int *)arg |= SOUND_MASK_PCM;
-		ret = 0;
-	}
-
-	return (ret);
-
-mixer_ioctl_channel_proc:
-
-	KASSERT(c != NULL, ("%s(): NULL channel", __func__));
-	CHN_LOCKASSERT(c);
-
-	if ((cmd & ~0xff) == MIXER_WRITE(0)) {
-		int left, right, center;
-
-		left = *(int *)arg & 0x7f;
-		right = (*(int *)arg >> 8) & 0x7f;
-		center = (left + right) >> 1;
-		chn_setvolume_multi(c, SND_VOL_C_PCM, left, right, center);
-	} else if ((cmd & ~0xff) == MIXER_READ(0)) {
-		*(int *)arg = chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FL);
-		*(int *)arg |=
-		    chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
-	}
-
-	CHN_UNLOCK(c);
-
-	return (0);
-}
-
-static int
 mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
@@ -1156,15 +1049,7 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	PCM_GIANT_ENTER(d);
 	PCM_ACQUIRE_QUICK(d);
 
-	ret = -1;
-
-	if (mixer_bypass != 0 && (d->flags & SD_F_VPC))
-		ret = mixer_ioctl_channel(i_dev, cmd, arg, mode, td,
-		    MIXER_CMD_CDEV);
-
-	if (ret == -1)
-		ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td,
-		    MIXER_CMD_CDEV);
+	ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td, MIXER_CMD_CDEV);
 
 	PCM_RELEASE_QUICK(d);
 	PCM_GIANT_LEAVE(d);
