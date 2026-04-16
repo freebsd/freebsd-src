@@ -10015,6 +10015,9 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 	case ATTR_S1_IDX(VM_MEMATTR_WRITE_THROUGH):
 		mode = "WT";
 		break;
+	case ATTR_S1_IDX(VM_MEMATTR_TAGGED):
+		mode = "TAGGED";
+		break;
 	default:
 		printf(
 		    "%s: unknown memory type %x for range 0x%016lx-0x%016lx\n",
