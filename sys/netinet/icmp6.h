@@ -356,6 +356,8 @@ struct nd_opt_route_info {	/* route info */
 	/* prefix follows */
 } __packed;
 
+#define ND_OPT_RTI_FLAG_PRF_MASK	0x18	/* 00011000 */
+
 struct nd_opt_rdnss {		/* RDNSS option (RFC 6106) */
 	u_int8_t	nd_opt_rdnss_type;
 	u_int8_t	nd_opt_rdnss_len;
