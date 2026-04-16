@@ -1613,14 +1613,13 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		pfxrtr_add(pr, dr);
 
 	/*
-	 * 5.5.3 (d).  If the prefix advertised is not equal to the prefix of
+	 * 5.5.3 (d). If the prefix advertised is not equal to the prefix of
 	 * an address configured by stateless autoconfiguration already in the
-	 * list of addresses associated with the interface, and the Valid
-	 * Lifetime is not 0, form an address.  We first check if we have
-	 * a matching prefix.
-	 * Note: we apply a clarification in rfc2462bis-02 here.  We only
-	 * consider autoconfigured addresses while RFC 4862 simply said
-	 * "address".
+	 * list of addresses associated with the interface (where "equal"
+	 * means the two prefix lengths are the same and the first prefix-length
+	 * bits of the prefixes are identical),
+	 * and if the Valid Lifetime is not 0, form an address (and
+	 * add it to the list). We first check if we have a matching prefix.
 	 */
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *ifa6;
@@ -1630,19 +1629,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			continue;
 
 		ifa6 = (struct in6_ifaddr *)ifa;
-
-		/*
-		 * We only consider autoconfigured addresses as per rfc2462bis.
-		 */
 		if (!(ifa6->ia6_flags & IN6_IFF_AUTOCONF))
-			continue;
-
-		/*
-		 * Spec is not clear here, but I believe we should concentrate
-		 * on unicast (i.e. not anycast) addresses.
-		 * XXX: other ia6_flags? detached or duplicated?
-		 */
-		if ((ifa6->ia6_flags & IN6_IFF_ANYCAST) != 0)
 			continue;
 
 		/*
