@@ -36,7 +36,7 @@ int mixer_delete(struct snd_mixer *m);
 int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
 int mixer_uninit(device_t dev);
 int mixer_reinit(device_t dev);
-int mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td, int from);
+int mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td);
 int mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi);
 
 int mixer_hwvol_init(device_t dev);
@@ -62,9 +62,6 @@ void mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev);
 u_int32_t mix_getparent(struct snd_mixer *m, u_int32_t dev);
 void *mix_getdevinfo(struct snd_mixer *m);
 struct mtx *mixer_get_lock(struct snd_mixer *m);
-
-#define MIXER_CMD_DIRECT	0	/* send command within driver   */
-#define MIXER_CMD_CDEV		1	/* send command from cdev/ioctl */
 
 #define MIXER_TYPE_PRIMARY	0	/* mixer_init()   */
 #define MIXER_TYPE_SECONDARY	1	/* mixer_create() */

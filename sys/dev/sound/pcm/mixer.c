@@ -1044,7 +1044,7 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	PCM_GIANT_ENTER(d);
 	PCM_ACQUIRE_QUICK(d);
 
-	ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td, MIXER_CMD_CDEV);
+	ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td);
 
 	PCM_RELEASE_QUICK(d);
 	PCM_GIANT_LEAVE(d);
@@ -1067,7 +1067,7 @@ mixer_mixerinfo(struct snd_mixer *m, mixer_info *mi)
  */
 int
 mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
-    struct thread *td, int from)
+    struct thread *td)
 {
 	struct snd_mixer *m;
 	int ret = EINVAL, *arg_i = (int *)arg;

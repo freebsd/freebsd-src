@@ -728,8 +728,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 		if (d->mixer_dev != NULL) {
 			PCM_ACQUIRE_QUICK(d);
-			ret = mixer_ioctl_cmd(d->mixer_dev, cmd, arg, -1, td,
-			    MIXER_CMD_DIRECT);
+			ret = mixer_ioctl_cmd(d->mixer_dev, cmd, arg, -1, td);
 			PCM_RELEASE_QUICK(d);
 		} else
 			ret = EBADF;
@@ -1526,8 +1525,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 		if (d->mixer_dev != NULL) {
 			PCM_ACQUIRE_QUICK(d);
-			ret = mixer_ioctl_cmd(d->mixer_dev, xcmd, arg, -1, td,
-			    MIXER_CMD_DIRECT);
+			ret = mixer_ioctl_cmd(d->mixer_dev, xcmd, arg, -1, td);
 			PCM_RELEASE_QUICK(d);
 		} else
 			ret = ENOTSUP;
@@ -1539,8 +1537,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	case SNDCTL_DSP_SET_RECSRC:
 		if (d->mixer_dev != NULL) {
 			PCM_ACQUIRE_QUICK(d);
-			ret = mixer_ioctl_cmd(d->mixer_dev, cmd, arg, -1, td,
-			    MIXER_CMD_DIRECT);
+			ret = mixer_ioctl_cmd(d->mixer_dev, cmd, arg, -1, td);
 			PCM_RELEASE_QUICK(d);
 		} else
 			ret = ENOTSUP;
