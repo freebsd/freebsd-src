@@ -1319,7 +1319,7 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 		 * nd6_prelist_add will install the corresponding
 		 * interface route.
 		 */
-		if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0) {
+		if ((error = nd6_prelist_add(&pr0, &pr)) != 0) {
 			if (carp_attached)
 				(*carp_detach_p)(&ia->ia_ifa, false);
 			goto out;
