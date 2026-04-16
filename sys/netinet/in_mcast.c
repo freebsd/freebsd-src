@@ -2582,6 +2582,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		error = copyin(msfr.msfr_srcs, kss,
 		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
 		if (error) {
+			IN_MULTI_UNLOCK();
 			free(kss, M_TEMP);
 			return (error);
 		}
