@@ -261,12 +261,17 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * If a new connection request is received
 	 * while in TIME_WAIT, drop the old connection
-	 * and start over if the sequence numbers
-	 * are above the previous ones.
+	 * and start over if allowed by RFC 6191.
 	 * Allow UDP port number changes in this case.
 	 */
 	if (((thflags & (TH_SYN | TH_ACK)) == TH_SYN) &&
-	    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
+	    ((((tp->t_flags & TF_RCVD_TSTMP) != 0) &&
+	      ((to->to_flags & TOF_TS) != 0) &&
+	      TSTMP_LT(tp->ts_recent, to->to_tsval)) ||
+	     (((tp->t_flags & TF_RCVD_TSTMP) == 0) &&
+	      ((to->to_flags & TOF_TS) != 0) &&
+	      (V_tcp_tolerate_missing_ts == 0)) ||
+	     SEQ_GT(th->th_seq, tp->rcv_nxt))) {
 		/*
 		 * In case we can't upgrade our lock just pretend we have
 		 * lost this packet.
