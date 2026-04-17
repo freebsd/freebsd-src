@@ -3809,7 +3809,7 @@ main(int argc, char *argv[])
 	}
 
 	if ((opts & PF_OPT_NODNS) && (opts & PF_OPT_USEDNS))
-		errx(1, "-N and -r are mutually exclusive");
+		errx(1, "-S and -r are mutually exclusive");
 
 	if ((tblcmdopt == NULL) ^ (tableopt == NULL) &&
 	    (tblcmdopt == NULL || *tblcmdopt != 'l'))
