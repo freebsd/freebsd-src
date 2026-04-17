@@ -1552,6 +1552,80 @@ nd6_prefix_update(struct nd_prefixctl *new, struct nd_prefix *pr)
 	}
 }
 
+/*
+ * RFC 4862 5.5.3 (e): update the lifetimes according to the "two hours" rule
+ * and the privacy extension.
+ * We apply some clarifications in rfc2462bis:
+ * - use remaininglifetime instead of storedlifetime as a variable name
+ * - remove the dead code in the "two-hour" rule
+ */
+static void
+nd6_prefix_lifetime_update(struct nd_prefixctl *new, struct nd_prefix *pr,
+    struct in6_ifaddr *ia6, bool auth)
+{
+	struct in6_addrlifetime lt6_tmp;
+	uint32_t remaininglifetime;
+
+	NET_EPOCH_ASSERT();
+
+#define TWOHOUR	(120*60)
+	lt6_tmp = ia6->ia6_lifetime;
+	if (lt6_tmp.ia6t_vltime == ND6_INFINITE_LIFETIME)
+		remaininglifetime = ND6_INFINITE_LIFETIME;
+	else if (time_uptime - ia6->ia6_updatetime > lt6_tmp.ia6t_vltime)
+		/* The case of "invalid" address. We should usually not see this case. */
+		remaininglifetime = 0;
+	else
+		remaininglifetime = lt6_tmp.ia6t_vltime - (time_uptime - ia6->ia6_updatetime);
+
+	/* when not updating, keep the current stored lifetime. */
+	lt6_tmp.ia6t_vltime = remaininglifetime;
+
+	if (TWOHOUR < new->ndpr_vltime || remaininglifetime < new->ndpr_vltime) {
+		lt6_tmp.ia6t_vltime = new->ndpr_vltime;
+	} else if (remaininglifetime <= TWOHOUR) {
+		if (auth)
+			lt6_tmp.ia6t_vltime = new->ndpr_vltime;
+	} else {
+		/* new->ndpr_vltime <= TWOHOUR && TWOHOUR < remaininglifetime */
+		lt6_tmp.ia6t_vltime = TWOHOUR;
+	}
+
+	/* The 2 hour rule is not imposed for preferred lifetime. */
+	lt6_tmp.ia6t_pltime = new->ndpr_pltime;
+
+	in6_init_address_ltimes(pr, &lt6_tmp);
+
+	/*
+	 * We need to treat lifetimes for temporary addresses differently, according
+	 * to draft-ietf-ipv6-privacy-addrs-v2-01.txt 3.3 (1);
+	 * we only update the lifetimes when they are in the maximum intervals.
+	 */
+	if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) != 0) {
+		uint32_t maxvltime, maxpltime, vltime;
+
+		vltime = time_uptime - ia6->ia6_createtime + V_ip6_desync_factor;
+		if (V_ip6_temp_valid_lifetime > vltime)
+			maxvltime = V_ip6_temp_valid_lifetime - vltime;
+		else
+			maxvltime = 0;
+		if (V_ip6_temp_preferred_lifetime > vltime)
+			maxpltime = V_ip6_temp_preferred_lifetime - vltime;
+		else
+			maxpltime = 0;
+
+		if (lt6_tmp.ia6t_vltime == ND6_INFINITE_LIFETIME ||
+		    lt6_tmp.ia6t_vltime > maxvltime)
+			lt6_tmp.ia6t_vltime = maxvltime;
+
+		if (lt6_tmp.ia6t_pltime == ND6_INFINITE_LIFETIME ||
+		    lt6_tmp.ia6t_pltime > maxpltime)
+			lt6_tmp.ia6t_pltime = maxpltime;
+	}
+	ia6->ia6_lifetime = lt6_tmp;
+	ia6->ia6_updatetime = time_uptime;
+}
+
 static void
 prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
     bool auth, int mcast)
@@ -1561,7 +1635,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	struct ifnet *ifp = new->ndpr_ifp;
 	struct nd_prefix *pr;
 	int error = 0;
-	struct in6_addrlifetime lt6_tmp;
 	char ip6buf[INET6_ADDRSTRLEN];
 	bool has_temporary = false;
 
@@ -1622,14 +1695,13 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	 * add it to the list). We first check if we have a matching prefix.
 	 */
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		struct in6_ifaddr *ifa6;
-		uint32_t remaininglifetime;
+		struct in6_ifaddr *ia6;
 
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
-		ifa6 = (struct in6_ifaddr *)ifa;
-		if (!(ifa6->ia6_flags & IN6_IFF_AUTOCONF))
+		ia6 = (struct in6_ifaddr *)ifa;
+		if ((ia6->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 			continue;
 
 		/*
@@ -1637,122 +1709,43 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		 * or is associated with a prefix that is different from this
 		 * one.  (pr is never NULL here)
 		 */
-		if (ifa6->ia6_ndpr != pr)
+		if (ia6->ia6_ndpr != pr)
 			continue;
 
 		/*
-		 * An already autoconfigured address matched.  Now that we
-		 * are sure there is at least one matched address, we can
-		 * proceed to 5.5.3. (e): update the lifetimes according to the
-		 * "two hours" rule and the privacy extension.
-		 * We apply some clarifications in rfc2462bis:
-		 * - use remaininglifetime instead of storedlifetime as a
-		 *   variable name
-		 * - remove the dead code in the "two-hour" rule
+		 * An already autoconfigured address matched.
+		 * Now that we are sure there is at least one matched address.
 		 */
-#define TWOHOUR		(120*60)
-		lt6_tmp = ifa6->ia6_lifetime;
+		nd6_prefix_lifetime_update(new, pr, ia6, auth);
 
-		if (lt6_tmp.ia6t_vltime == ND6_INFINITE_LIFETIME)
-			remaininglifetime = ND6_INFINITE_LIFETIME;
-		else if (time_uptime - ifa6->ia6_updatetime >
-			 lt6_tmp.ia6t_vltime) {
+		if ((ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR) != 0) {
 			/*
-			 * The case of "invalid" address.  We should usually
-			 * not see this case.
+			 * if stable addresses (RFC 7217) are enabled, mark that
+			 * a temporary address has been found to avoid generating
+			 * uneeded extra ones.
 			 */
-			remaininglifetime = 0;
-		} else
-			remaininglifetime = lt6_tmp.ia6t_vltime -
-			    (time_uptime - ifa6->ia6_updatetime);
-
-		/* when not updating, keep the current stored lifetime. */
-		lt6_tmp.ia6t_vltime = remaininglifetime;
-
-		if (TWOHOUR < new->ndpr_vltime ||
-		    remaininglifetime < new->ndpr_vltime) {
-			lt6_tmp.ia6t_vltime = new->ndpr_vltime;
-		} else if (remaininglifetime <= TWOHOUR) {
-			if (auth) {
-				lt6_tmp.ia6t_vltime = new->ndpr_vltime;
-			}
-		} else {
-			/*
-			 * new->ndpr_vltime <= TWOHOUR &&
-			 * TWOHOUR < remaininglifetime
-			 */
-			lt6_tmp.ia6t_vltime = TWOHOUR;
-		}
-
-		/* The 2 hour rule is not imposed for preferred lifetime. */
-		lt6_tmp.ia6t_pltime = new->ndpr_pltime;
-
-		in6_init_address_ltimes(pr, &lt6_tmp);
-
-		/*
-		 * We need to treat lifetimes for temporary addresses
-		 * differently, according to
-		 * draft-ietf-ipv6-privacy-addrs-v2-01.txt 3.3 (1);
-		 * we only update the lifetimes when they are in the maximum
-		 * intervals.
-		 */
-		if ((ifa6->ia6_flags & IN6_IFF_TEMPORARY) != 0) {
-			u_int32_t maxvltime, maxpltime;
-
-			/*
-			 * if stable addresses (RFC 7217) are enabled, mark that a temporary address has been found
-			 * to avoid generating uneeded extra ones.
-			 */
-			if (ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR)
+			if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) != 0)
 				has_temporary = true;
 
-			if (V_ip6_temp_valid_lifetime >
-			    (u_int32_t)((time_uptime - ifa6->ia6_createtime) +
-			    V_ip6_desync_factor)) {
-				maxvltime = V_ip6_temp_valid_lifetime -
-				    (time_uptime - ifa6->ia6_createtime) -
-				    V_ip6_desync_factor;
-			} else
-				maxvltime = 0;
-			if (V_ip6_temp_preferred_lifetime >
-			    (u_int32_t)((time_uptime - ifa6->ia6_createtime) +
-			    V_ip6_desync_factor)) {
-				maxpltime = V_ip6_temp_preferred_lifetime -
-				    (time_uptime - ifa6->ia6_createtime) -
-				    V_ip6_desync_factor;
-			} else
-				maxpltime = 0;
-
-			if (lt6_tmp.ia6t_vltime == ND6_INFINITE_LIFETIME ||
-			    lt6_tmp.ia6t_vltime > maxvltime) {
-				lt6_tmp.ia6t_vltime = maxvltime;
-			}
-			if (lt6_tmp.ia6t_pltime == ND6_INFINITE_LIFETIME ||
-			    lt6_tmp.ia6t_pltime > maxpltime) {
-				lt6_tmp.ia6t_pltime = maxpltime;
-			}
+			/*
+			 * If using stable addresses (RFC 7217) and we still have retries
+			 * to perform, ignore addresses already marked as duplicated, since
+			 * a new one will be generated. Also ignore addresses marked as
+			 * temporary, since their generation is orthogonal to opaque stable ones.
+			 *
+			 * There is a small race condition, in that the dad_counter could be
+			 * incremented between here and when a new address is generated, but this
+			 * will cause that generation to fail and no further retries should happen.
+			 */
+			if (atomic_load_int(&DAD_FAILURES(ifp)) <= V_ip6_stableaddr_maxretries &&
+			    (ia6->ia6_flags & (IN6_IFF_DUPLICATED | IN6_IFF_TEMPORARY)) != 0)
+				continue;
 		}
-		ifa6->ia6_lifetime = lt6_tmp;
-		ifa6->ia6_updatetime = time_uptime;
-
-		/*
-		 * If using stable addresses (RFC 7217) and we still have retries to perform, ignore
-		 * addresses already marked as duplicated, since a new one will be generated.
-		 * Also ignore addresses marked as temporary, since their generation is orthogonal to
-		 * opaque stable ones.
-		 *
-		 * There is a small race condition, in that the dad_counter could be incremented
-		 * between here and when a new address is generated, but this will cause that generation
-		 * to fail and no further retries should happen.
-		 */
-		if (ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR &&
-		    atomic_load_int(&DAD_FAILURES(ifp)) <= V_ip6_stableaddr_maxretries &&
-		    ifa6->ia6_flags & (IN6_IFF_DUPLICATED | IN6_IFF_TEMPORARY))
-			continue;
 
 		if (ia6_match == NULL) /* remember the first one */
-			ia6_match = ifa6;
+			ia6_match = ia6;
 	}
+
 	if (ia6_match == NULL && new->ndpr_vltime) {
 		int ifidlen;
 
