@@ -783,6 +783,72 @@ ndp_slaac_switch_onlink_prefix_cleanup() {
 	vnet_cleanup
 }
 
+atf_test_case "ndp_routeinfo_option" "cleanup"
+ndp_routeinfo_option_head() {
+	atf_set descr 'Test RFC 4191: Add route based on received RTI in RA'
+	atf_set require.user root
+	atf_set require.progs jq python3 scapy
+}
+
+ndp_routeinfo_option_body() {
+	local epair0 jname prefix lladdr route1 route2
+
+	vnet_init
+
+	jname="v6t-ndp_routeinfo_option"
+	prefix="2001:db8:ffff:1000::"
+	route1="3fff:1000::"
+	route2="3fff:2000::"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
+
+	# Make sure that NAs from us are flagged as coming from a router.
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+
+	lladdr="$(ndp_if_lladdr ${epair0}b)"
+	# Send an RA with high preference with 3 routes.
+	# The last rti should overwrite the default route rtiltime to 100 seconds
+	# and its preference to medium.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ${lladdr} \
+	    --rtrpref 1 --rtrltime 1800 --prefix ${prefix} \
+	    --route ${route1} --routelen 32 \
+	    --rtipref 1 --rtiltime 1800 \
+	    --route ${route2} --routelen 48 \
+	    --rtipref 4 --rtiltime 600 \
+	    --route :: --routelen 0 \
+	    --rtipref 4 --rtiltime 100
+
+	# Wait for a default router to appear.
+	while [ -z "$(jexec ${jname} ndp -r)" ]; do
+		sleep 0.1
+	done
+
+	# Make sure routes from rti option are being installed
+	atf_check -s exit:0 \
+		-o match:"^${route1}/32[[:space:]]+${lladdr}.*1800" \
+		-o match:"^${route2}/48[[:space:]]+${lladdr}.*600" \
+		-o match:"^default[[:space:]]+${lladdr}" \
+		jexec ${jname} netstat -rn6
+
+	# Verify the default route lifetime and its preference is overwrited
+	atf_check -s exit:0 \
+		-o match:"^${lladdr}%${epair0}a if=${epair0}a, flags=, pref=medium, expire=1m.*" \
+		jexec ${jname} ndp -r
+}
+
+ndp_routeinfo_option_cleanup() {
+	vnet_cleanup
+}
+
 
 atf_init_test_cases()
 {
@@ -798,4 +864,5 @@ atf_init_test_cases()
 	atf_add_test_case "ndp_input_validation_hlim"
 	atf_add_test_case "ndp_input_validation_src_linklocal"
 	atf_add_test_case "ndp_multirouter_pref"
+	atf_add_test_case "ndp_routeinfo_option"
 }
