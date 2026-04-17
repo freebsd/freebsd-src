@@ -156,3 +156,5 @@ CNAME(bios16_jmp):
 	pushl	%ecx			/* return address */
 	movl	$KCSEL,4(%esp)
 	lret				/* reload %cs on the way out */
+
+	.section .note.GNU-stack,"",%progbits
