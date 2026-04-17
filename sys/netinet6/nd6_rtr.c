@@ -1746,38 +1746,26 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			ia6_match = ia6;
 	}
 
-	if (ia6_match == NULL && new->ndpr_vltime) {
+	/*
+	 * 5.5.3 (d) (continued)
+	 * If no address matched and the valid lifetime is non-zero,
+	 * create a new address.
+	 */
+	if (ia6_match == NULL && new->ndpr_vltime != 0) {
 		int ifidlen;
-
-		/*
-		 * 5.5.3 (d) (continued)
-		 * No address matched and the valid lifetime is non-zero.
-		 * Create a new address.
-		 */
 
 		/*
 		 * Prefix Length check:
 		 * If the sum of the prefix length and interface identifier
 		 * length does not equal 128 bits, the Prefix Information
 		 * option MUST be ignored.  The length of the interface
-		 * identifier is defined in a separate link-type specific
-		 * document.
+		 * identifier is defined in a separate link-type specific document.
 		 */
 		ifidlen = in6_if2idlen(ifp);
-		if (ifidlen < 0) {
-			/* this should not happen, so we always log it. */
-			log(LOG_ERR, "prelist_update: IFID undefined (%s)\n",
-			    if_name(ifp));
-			goto end;
-		}
 		if (ifidlen + pr->ndpr_plen != 128) {
-			nd6log((LOG_INFO,
-			    "%s: invalid prefixlen %d for %s, ignored\n",
+			nd6log((LOG_INFO, "%s: invalid prefixlen %d for %s, ignored\n",
 			    __func__, pr->ndpr_plen, if_name(ifp)));
-			goto end;
-		}
-
-		if ((ia6 = in6_ifadd(new, mcast)) != NULL) {
+		} else if ((ia6 = in6_ifadd(new, mcast)) != NULL) {
 			/*
 			 * note that we should use pr (not new) for reference.
 			 */
@@ -1789,8 +1777,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			 * When a new public address is created as described
 			 * in RFC2462, also create a new temporary address.
 			 *
-			 * RFC 3041 3.5.
-			 * When an interface connects to a new link, a new
+			 * 3.5: When an interface connects to a new link, a new
 			 * randomized interface identifier should be generated
 			 * immediately together with a new set of temporary
 			 * addresses.  Thus, we specifiy 1 as the 2nd arg of
@@ -1802,9 +1789,9 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			if (V_ip6_use_tempaddr && !has_temporary) {
 				int e;
 				if ((e = in6_tmpifadd(ia6, 1, 1)) != 0) {
-					nd6log((LOG_NOTICE, "%s: failed to "
-					    "create a temporary address "
-					    "(errno=%d)\n", __func__, e));
+					nd6log((LOG_NOTICE,
+					    "%s: failed to create a temporary address (errno=%d)\n",
+					    __func__, e));
 				}
 			}
 			ifa_free(&ia6->ia_ifa);
@@ -1818,9 +1805,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		}
 	}
 
-end:
 	nd6_prefix_rele(pr);
-	return;
 }
 
 /*
