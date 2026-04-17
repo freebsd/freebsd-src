@@ -175,6 +175,8 @@ device		glc		# Sony Playstation 3 Ethernet
 device		llan		# IBM pSeries Virtual Ethernet
 device		cxgbe		# Chelsio 10/25G NIC
 
+device		mdio		# MDIO bus
+
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
