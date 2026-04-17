@@ -3,6 +3,7 @@
 .PATH:	${.CURDIR}
 
 PACKAGE=tests
+DISTRIBUTION=	tests
 FILES=	__init__.py
 SUBDIR=	net netlink netpfil
 
