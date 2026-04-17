@@ -2871,6 +2871,11 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
+	retval = sysctl_wire_old_buffer(req,
+	    sizeof(uint32_t) + (in_mcast_maxgrpsrc * sizeof(struct in_addr)));
+	if (retval)
+		return (retval);
+
 	ifindex = name[0];
 	NET_EPOCH_ENTER(et);
 	ifp = ifnet_byindex(ifindex);
@@ -2879,13 +2884,6 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 		CTR2(KTR_IGMPV3, "%s: no ifp for ifindex %u",
 		    __func__, ifindex);
 		return (ENOENT);
-	}
-
-	retval = sysctl_wire_old_buffer(req,
-	    sizeof(uint32_t) + (in_mcast_maxgrpsrc * sizeof(struct in_addr)));
-	if (retval) {
-		NET_EPOCH_EXIT(et);
-		return (retval);
 	}
 
 	IN_MULTI_LIST_LOCK();
