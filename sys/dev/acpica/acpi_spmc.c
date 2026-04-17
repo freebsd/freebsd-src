@@ -227,8 +227,6 @@ acpi_spmc_attach(device_t dev)
 {
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
-	sc->dev = dev;
-
 	sc->handle = acpi_get_handle(dev);
 	if (sc->handle == NULL)
 		return (ENXIO);
