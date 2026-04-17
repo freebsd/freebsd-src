@@ -35,21 +35,21 @@ vcmn_err(int ce, const char *fmt, va_list adx)
 	prefix = NULL; /* silence unwitty compilers */
 	switch (ce) {
 	case CE_CONT:
-		prefix = "Solaris(cont): ";
+		prefix = "dtrace(cont): ";
 		break;
 	case CE_NOTE:
-		prefix = "Solaris: NOTICE: ";
+		prefix = "dtrace: NOTICE: ";
 		break;
 	case CE_WARN:
-		prefix = "Solaris: WARNING: ";
+		prefix = "dtrace: WARNING: ";
 		break;
 	case CE_PANIC:
-		prefix = "Solaris(panic): ";
+		prefix = "dtrace(panic): ";
 		break;
 	case CE_IGNORE:
 		break;
 	default:
-		panic("Solaris: unknown severity level");
+		panic("dtrace: unknown severity level");
 	}
 	if (ce == CE_PANIC) {
 		vsnprintf(buf, sizeof(buf), fmt, adx);
@@ -76,7 +76,7 @@ int
 assfail(const char *a, const char *f, int l)
 {
 
-	panic("solaris assert: %s, file: %s, line: %d", a, f, l);
+	panic("dtrace assert: %s, file: %s, line: %d", a, f, l);
 
 	return (0);
 }
@@ -86,6 +86,6 @@ assfail3(const char *a, uintmax_t lv, const char *op, uintmax_t rv,
     const char *f, int l)
 {
 
-	panic("solaris assert: %s (0x%jx %s 0x%jx), file: %s, line: %d",
+	panic("dtrace assert: %s (0x%jx %s 0x%jx), file: %s, line: %d",
 	    a, lv, op, rv, f, l);
 }
