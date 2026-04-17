@@ -9,6 +9,7 @@ FILES=	INDEX.keymaps \
 	bg.phonetic.kbd \
 	br.kbd \
 	br.noacc.kbd \
+	br.lenovo.kbd \
 	by.kbd \
 	ca.kbd \
 	ca-fr.kbd \
