@@ -229,6 +229,9 @@ device		ppi			# Parallel port interface device
 
 device		puc			# Multi I/O cards and multi-channel UARTs
 
+# MDIO bus for Ethernet NICs that directly expose the MDIO bus
+device		mdio
+
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
 device		iflib
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
