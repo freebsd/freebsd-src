@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd September 3, 2024
+.Dd April 17, 2026
 .Dt VIRTUAL_OSS 8
 .Os
 .Sh NAME
@@ -324,17 +324,6 @@ server:
 .Bd -literal -offset indent
 virtual_oss -S -b 16 -C 2 -c 2 -r 48000 -s 4ms \\
 	-f /dev/sndio/default -d dsp
-.Ed
-.Pp
-How to set intel based CPUs in performance mode:
-.Bd -literal -offset indent
-sysctl -aN | fgrep dev.hwpstate | fgrep epp | \
-while read OID
-do
-sysctl ${OID}=0
-done
-
-sysctl kern.sched.preempt_thresh=224
 .Ed
 .Sh NOTES
 All character devices are created using the 0666 mode which gives
