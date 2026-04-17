@@ -99,8 +99,8 @@
  *  of TCP retransmissions.
  */
 #define ENA_TX_BUDGET	128
-/* RX cleanup budget. -1 stands for infinity. */
-#define ENA_RX_BUDGET	256
+/* RX cleanup budget, in descriptors. -1 stands for infinity. */
+#define ENA_RX_DESC_BUDGET	256
 /*
  * How many times we can repeat cleanup in the io irq handling routine if the
  * RX or TX budget was depleted.
