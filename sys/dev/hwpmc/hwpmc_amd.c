@@ -329,7 +329,8 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	const struct pmc_descr *pd;
-	uint64_t allowed_unitmask, caps, config, unitmask;
+	uint64_t allowed_unitmask, config, unitmask;
+	uint32_t caps;
 	enum pmc_event pe;
 	int i;
 
