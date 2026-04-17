@@ -68,108 +68,6 @@ struct amd_event_code_map {
 	uint8_t		pe_mask; /* bits allowed in unit mask */
 };
 
-const struct amd_event_code_map amd_event_codes[] = {
-	{ PMC_EV_K8_FP_DISPATCHED_FPU_OPS,		0x00, 0x3F },
-	{ PMC_EV_K8_FP_CYCLES_WITH_NO_FPU_OPS_RETIRED,	0x01, 0x00 },
-	{ PMC_EV_K8_FP_DISPATCHED_FPU_FAST_FLAG_OPS,	0x02, 0x00 },
-
-	{ PMC_EV_K8_LS_SEGMENT_REGISTER_LOAD, 		0x20, 0x7F },
-	{ PMC_EV_K8_LS_MICROARCHITECTURAL_RESYNC_BY_SELF_MODIFYING_CODE,
-	  						0x21, 0x00 },
-	{ PMC_EV_K8_LS_MICROARCHITECTURAL_RESYNC_BY_SNOOP, 0x22, 0x00 },
-	{ PMC_EV_K8_LS_BUFFER2_FULL,			0x23, 0x00 },
-	{ PMC_EV_K8_LS_LOCKED_OPERATION,		0x24, 0x07 },
-	{ PMC_EV_K8_LS_MICROARCHITECTURAL_LATE_CANCEL,	0x25, 0x00 },
-	{ PMC_EV_K8_LS_RETIRED_CFLUSH_INSTRUCTIONS,	0x26, 0x00 },
-	{ PMC_EV_K8_LS_RETIRED_CPUID_INSTRUCTIONS,	0x27, 0x00 },
-
-	{ PMC_EV_K8_DC_ACCESS,				0x40, 0x00 },
-	{ PMC_EV_K8_DC_MISS,				0x41, 0x00 },
-	{ PMC_EV_K8_DC_REFILL_FROM_L2,			0x42, 0x1F },
-	{ PMC_EV_K8_DC_REFILL_FROM_SYSTEM,		0x43, 0x1F },
-	{ PMC_EV_K8_DC_COPYBACK,			0x44, 0x1F },
-	{ PMC_EV_K8_DC_L1_DTLB_MISS_AND_L2_DTLB_HIT,	0x45, 0x00 },
-	{ PMC_EV_K8_DC_L1_DTLB_MISS_AND_L2_DTLB_MISS,	0x46, 0x00 },
-	{ PMC_EV_K8_DC_MISALIGNED_DATA_REFERENCE,	0x47, 0x00 },
-	{ PMC_EV_K8_DC_MICROARCHITECTURAL_LATE_CANCEL,	0x48, 0x00 },
-	{ PMC_EV_K8_DC_MICROARCHITECTURAL_EARLY_CANCEL, 0x49, 0x00 },
-	{ PMC_EV_K8_DC_ONE_BIT_ECC_ERROR,		0x4A, 0x03 },
-	{ PMC_EV_K8_DC_DISPATCHED_PREFETCH_INSTRUCTIONS, 0x4B, 0x07 },
-	{ PMC_EV_K8_DC_DCACHE_ACCESSES_BY_LOCKS,	0x4C, 0x03 },
-
-	{ PMC_EV_K8_BU_CPU_CLK_UNHALTED,		0x76, 0x00 },
-	{ PMC_EV_K8_BU_INTERNAL_L2_REQUEST,		0x7D, 0x1F },
-	{ PMC_EV_K8_BU_FILL_REQUEST_L2_MISS,		0x7E, 0x07 },
-	{ PMC_EV_K8_BU_FILL_INTO_L2,			0x7F, 0x03 },
-
-	{ PMC_EV_K8_IC_FETCH,				0x80, 0x00 },
-	{ PMC_EV_K8_IC_MISS,				0x81, 0x00 },
-	{ PMC_EV_K8_IC_REFILL_FROM_L2,			0x82, 0x00 },
-	{ PMC_EV_K8_IC_REFILL_FROM_SYSTEM,		0x83, 0x00 },
-	{ PMC_EV_K8_IC_L1_ITLB_MISS_AND_L2_ITLB_HIT,	0x84, 0x00 },
-	{ PMC_EV_K8_IC_L1_ITLB_MISS_AND_L2_ITLB_MISS,	0x85, 0x00 },
-	{ PMC_EV_K8_IC_MICROARCHITECTURAL_RESYNC_BY_SNOOP, 0x86, 0x00 },
-	{ PMC_EV_K8_IC_INSTRUCTION_FETCH_STALL,		0x87, 0x00 },
-	{ PMC_EV_K8_IC_RETURN_STACK_HIT,		0x88, 0x00 },
-	{ PMC_EV_K8_IC_RETURN_STACK_OVERFLOW,		0x89, 0x00 },
-
-	{ PMC_EV_K8_FR_RETIRED_X86_INSTRUCTIONS,	0xC0, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_UOPS,			0xC1, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_BRANCHES,		0xC2, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_BRANCHES_MISPREDICTED,	0xC3, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_TAKEN_BRANCHES,		0xC4, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_TAKEN_BRANCHES_MISPREDICTED, 0xC5, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_FAR_CONTROL_TRANSFERS,	0xC6, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_RESYNCS,			0xC7, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_NEAR_RETURNS,		0xC8, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_NEAR_RETURNS_MISPREDICTED, 0xC9, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_TAKEN_BRANCHES_MISPREDICTED_BY_ADDR_MISCOMPARE,
-							0xCA, 0x00 },
-	{ PMC_EV_K8_FR_RETIRED_FPU_INSTRUCTIONS,	0xCB, 0x0F },
-	{ PMC_EV_K8_FR_RETIRED_FASTPATH_DOUBLE_OP_INSTRUCTIONS,
-							0xCC, 0x07 },
-	{ PMC_EV_K8_FR_INTERRUPTS_MASKED_CYCLES,	0xCD, 0x00 },
-	{ PMC_EV_K8_FR_INTERRUPTS_MASKED_WHILE_PENDING_CYCLES, 0xCE, 0x00 },
-	{ PMC_EV_K8_FR_TAKEN_HARDWARE_INTERRUPTS,	0xCF, 0x00 },
-
-	{ PMC_EV_K8_FR_DECODER_EMPTY,			0xD0, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALLS,			0xD1, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_FROM_BRANCH_ABORT_TO_RETIRE,
-							0xD2, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_FOR_SERIALIZATION, 0xD3, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_FOR_SEGMENT_LOAD,	0xD4, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_WHEN_REORDER_BUFFER_IS_FULL,
-							0xD5, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_WHEN_RESERVATION_STATIONS_ARE_FULL,
-							0xD6, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_WHEN_FPU_IS_FULL,	0xD7, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_WHEN_LS_IS_FULL,	0xD8, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_WHEN_WAITING_FOR_ALL_TO_BE_QUIET,
-							0xD9, 0x00 },
-	{ PMC_EV_K8_FR_DISPATCH_STALL_WHEN_FAR_XFER_OR_RESYNC_BRANCH_PENDING,
-							0xDA, 0x00 },
-	{ PMC_EV_K8_FR_FPU_EXCEPTIONS,			0xDB, 0x0F },
-	{ PMC_EV_K8_FR_NUMBER_OF_BREAKPOINTS_FOR_DR0,	0xDC, 0x00 },
-	{ PMC_EV_K8_FR_NUMBER_OF_BREAKPOINTS_FOR_DR1,	0xDD, 0x00 },
-	{ PMC_EV_K8_FR_NUMBER_OF_BREAKPOINTS_FOR_DR2,	0xDE, 0x00 },
-	{ PMC_EV_K8_FR_NUMBER_OF_BREAKPOINTS_FOR_DR3,	0xDF, 0x00 },
-
-	{ PMC_EV_K8_NB_MEMORY_CONTROLLER_PAGE_ACCESS_EVENT, 0xE0, 0x7 },
-	{ PMC_EV_K8_NB_MEMORY_CONTROLLER_PAGE_TABLE_OVERFLOW, 0xE1, 0x00 },
-	{ PMC_EV_K8_NB_MEMORY_CONTROLLER_DRAM_COMMAND_SLOTS_MISSED,
-							0xE2, 0x00 },
-	{ PMC_EV_K8_NB_MEMORY_CONTROLLER_TURNAROUND,	0xE3, 0x07 },
-	{ PMC_EV_K8_NB_MEMORY_CONTROLLER_BYPASS_SATURATION, 0xE4, 0x0F },
-	{ PMC_EV_K8_NB_SIZED_COMMANDS,			0xEB, 0x7F },
-	{ PMC_EV_K8_NB_PROBE_RESULT,			0xEC, 0x0F },
-	{ PMC_EV_K8_NB_HT_BUS0_BANDWIDTH,		0xF6, 0x0F },
-	{ PMC_EV_K8_NB_HT_BUS1_BANDWIDTH,		0xF7, 0x0F },
-	{ PMC_EV_K8_NB_HT_BUS2_BANDWIDTH,		0xF8, 0x0F }
-
-};
-
-const int amd_event_codes_size = nitems(amd_event_codes);
-
 /*
  * Per-processor information
  */
@@ -329,10 +227,7 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	const struct pmc_descr *pd;
-	uint64_t allowed_unitmask, config, unitmask;
 	uint32_t caps;
-	enum pmc_event pe;
-	int i;
 
 	KASSERT(ri >= 0 && ri < amd_npmcs,
 	    ("[amd,%d] illegal row index %d", __LINE__, ri));
@@ -358,60 +253,10 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 	if (amd_pmcdesc[ri].pm_subclass != a->pm_md.pm_amd.pm_amd_sub_class)
 		return (EINVAL);
 
-	if (strlen(pmc_cpuid) != 0) {
-		pm->pm_md.pm_amd.pm_amd_evsel = a->pm_md.pm_amd.pm_amd_config;
-		PMCDBG2(MDP, ALL, 2,"amd-allocate ri=%d -> config=0x%x", ri,
-		    a->pm_md.pm_amd.pm_amd_config);
-		return (0);
-	}
-
-	/*
-	 * Everything below this is for supporting older processors.
-	 */
-	pe = a->pm_ev;
-
-	/* map ev to the correct event mask code */
-	config = allowed_unitmask = 0;
-	for (i = 0; i < amd_event_codes_size; i++) {
-		if (amd_event_codes[i].pe_ev == pe) {
-			config =
-			    AMD_PMC_TO_EVENTMASK(amd_event_codes[i].pe_code);
-			allowed_unitmask =
-			    AMD_PMC_TO_UNITMASK(amd_event_codes[i].pe_mask);
-			break;
-		}
-	}
-	if (i == amd_event_codes_size)
-		return (EINVAL);
-
-	unitmask = a->pm_md.pm_amd.pm_amd_config & AMD_PMC_UNITMASK;
-	if ((unitmask & ~allowed_unitmask) != 0) /* disallow reserved bits */
-		return (EINVAL);
-
-	if (unitmask && (caps & PMC_CAP_QUALIFIER) != 0)
-		config |= unitmask;
-
-	if ((caps & PMC_CAP_THRESHOLD) != 0)
-		config |= a->pm_md.pm_amd.pm_amd_config & AMD_PMC_COUNTERMASK;
-
-	/* Set at least one of the 'usr' or 'os' caps. */
-	if ((caps & PMC_CAP_USER) != 0)
-		config |= AMD_PMC_USR;
-	if ((caps & PMC_CAP_SYSTEM) != 0)
-		config |= AMD_PMC_OS;
-	if ((caps & (PMC_CAP_USER | PMC_CAP_SYSTEM)) == 0)
-		config |= (AMD_PMC_USR|AMD_PMC_OS);
-
-	if ((caps & PMC_CAP_EDGE) != 0)
-		config |= AMD_PMC_EDGE;
-	if ((caps & PMC_CAP_INVERT) != 0)
-		config |= AMD_PMC_INVERT;
-	if ((caps & PMC_CAP_INTERRUPT) != 0)
-		config |= AMD_PMC_INT;
-
-	pm->pm_md.pm_amd.pm_amd_evsel = config; /* save config value */
-
-	PMCDBG2(MDP, ALL, 2, "amd-allocate ri=%d -> config=0x%x", ri, config);
+	/* Full configuration was provided by userspace. */
+	pm->pm_md.pm_amd.pm_amd_evsel = a->pm_md.pm_amd.pm_amd_config;
+	PMCDBG2(MDP, ALL, 2,"amd-allocate ri=%d -> config=0x%x", ri,
+	    a->pm_md.pm_amd.pm_amd_config);
 
 	return (0);
 }
