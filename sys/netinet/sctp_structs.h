@@ -898,7 +898,7 @@ struct sctp_association {
 	uint32_t str_reset_seq_in;
 
 	/* various verification tag information */
-	uint32_t my_vtag;	/* The tag to be used. if assoc is re-initited
+	uint32_t my_vtag;	/* The tag to be used. if assoc is re-initiated
 				 * by remote end, and I have unlocked this
 				 * will be regenerated to a new random value. */
 	uint32_t peer_vtag;	/* The peers last tag */
