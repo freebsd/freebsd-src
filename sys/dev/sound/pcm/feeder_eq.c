@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2008-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
- * Copyright (c) 2024-2025 The FreeBSD Foundation
+ * Copyright (c) 2024-2026 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
