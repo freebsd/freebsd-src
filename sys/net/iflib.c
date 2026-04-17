@@ -769,6 +769,7 @@ static struct mbuf *iflib_fixup_rx(struct mbuf *m);
 #endif
 static __inline int iflib_completed_tx_reclaim(iflib_txq_t txq,
     struct mbuf **m_defer);
+static __inline void iflib_completed_tx_reclaim_force(iflib_txq_t txq);
 
 static SLIST_HEAD(cpu_offset_list, cpu_offset) cpu_offsets =
     SLIST_HEAD_INITIALIZER(cpu_offsets);
@@ -3739,7 +3740,7 @@ defrag:
 	 *        cxgb
 	 */
 	if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
-		(void)iflib_completed_tx_reclaim(txq, NULL);
+		iflib_completed_tx_reclaim_force(txq);
 		if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
 			txq->ift_no_desc_avail++;
 			bus_dmamap_unload(buf_tag, map);
@@ -3926,6 +3927,20 @@ iflib_completed_tx_reclaim(iflib_txq_t txq, struct mbuf **m_defer)
 		return (0);
 	_iflib_completed_tx_reclaim(txq, m_defer, reclaim);
 	return (reclaim);
+}
+
+/*
+ * Reclaim any transmit descriptors possible, ignoring coalescing
+ */
+static __inline void
+iflib_completed_tx_reclaim_force(iflib_txq_t txq)
+{
+	int reclaim;
+
+	iflib_tx_credits_update(txq->ift_ctx, txq);
+	reclaim = DESC_RECLAIMABLE(txq);
+	if (reclaim != 0)
+		_iflib_completed_tx_reclaim(txq, NULL, reclaim);
 }
 
 static struct mbuf **
