@@ -97,6 +97,8 @@ struct snd_dev {
 	int bitperfect;
 	int realtime;
 	int autoconv;
+	int eq;
+	char eq_preamp[BUFSIZ];
 	struct {
 		char format[FMTSTR_LEN];
 		int rate;
@@ -130,6 +132,8 @@ struct map {
 static int mod_bitperfect(struct snd_dev *, void *);
 static int mod_autoconv(struct snd_dev *, void *);
 static int mod_realtime(struct snd_dev *, void *);
+static int mod_eq(struct snd_dev *, void *);
+static int mod_eq_preamp(struct snd_dev *, void *);
 static int mod_play_vchans(struct snd_dev *, void *);
 static int mod_play_rate(struct snd_dev *, void *);
 static int mod_play_format(struct snd_dev *, void *);
@@ -149,6 +153,8 @@ static struct snd_ctl dev_ctls[] = {
 	{ "bitperfect",		F(bitperfect),		NUM,	mod_bitperfect },
 	{ "autoconv",		F(autoconv),		NUM,	mod_autoconv },
 	{ "realtime",		F(realtime),		NUM,	mod_realtime },
+	{ "eq",			F(eq),			NUM,	mod_eq },
+	{ "eq_preamp",		F(eq_preamp),		STR,	mod_eq_preamp },
 	{ "play",		F(play),		GRP,	NULL },
 	{ "play.format",	F(play.format),		STR,	mod_play_format },
 	{ "play.rate",		F(play.rate),		NUM,	mod_play_rate },
@@ -436,6 +442,7 @@ read_dev(char *path)
 	struct sndstioc_nv_arg arg;
 	struct snd_dev *dp = NULL;
 	struct snd_chan *ch;
+	char buf[64];
 	size_t nitems, nchans, i, j;
 	int fd, caps, unit, t1, t2, t3;
 
@@ -556,6 +563,14 @@ read_dev(char *path)
 		xo_err(1, "%s: sysctl", dp->name);
 	if (t1 == 0 && t2 == 0 && t3 == 0)
 		dp->realtime = 1;
+
+	snprintf(buf, sizeof(buf), "dev.pcm.%d.eq", dp->unit);
+	if (sysctl_int(buf, NULL, &dp->eq))
+		xo_err(1, "%s: sysctl", dp->name);
+
+	snprintf(buf, sizeof(buf), "dev.pcm.%d.eq_preamp", dp->unit);
+	if (sysctl_str(buf, NULL, dp->eq_preamp, sizeof(dp->eq_preamp)))
+		xo_err(1, "%s: sysctl", dp->name);
 
 	if (!nvlist_exists(nvlist_get_nvlist(di[i],
 	    SNDST_DSPS_PROVIDER_INFO), SNDST_DSPS_SOUND4_CHAN_INFO))
@@ -840,6 +855,32 @@ mod_realtime(struct snd_dev *dp, void *arg)
 	}
 
 	return (rc);
+}
+
+static int
+mod_eq(struct snd_dev *dp, void *arg)
+{
+	char buf[64];
+
+	if (dp->from_user)
+		return (-1);
+
+	snprintf(buf, sizeof(buf), "dev.pcm.%d.eq", dp->unit);
+
+	return (sysctl_int(buf, arg, &dp->eq));
+}
+
+static int
+mod_eq_preamp(struct snd_dev *dp, void *arg)
+{
+	char buf[64];
+
+	if (dp->from_user)
+		return (-1);
+
+	snprintf(buf, sizeof(buf), "dev.pcm.%d.eq_preamp", dp->unit);
+
+	return (sysctl_str(buf, arg, dp->eq_preamp, sizeof(dp->eq_preamp)));
 }
 
 static int
