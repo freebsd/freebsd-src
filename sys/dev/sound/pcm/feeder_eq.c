@@ -334,8 +334,7 @@ feed_eq_set(struct pcm_feeder *f, int what, int value)
 		info->preamp = FEEDEQ_PREAMP2IDX(value);
 		break;
 	case FEEDEQ_STATE:
-		if (!(value == FEEDEQ_BYPASS || value == FEEDEQ_ENABLE ||
-		    value == FEEDEQ_DISABLE))
+		if (!(value == FEEDEQ_ENABLE || value == FEEDEQ_DISABLE))
 			return (EINVAL);
 		info->state = value;
 		feed_eq_reset(info);
@@ -370,13 +369,7 @@ feed_eq_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 
 	info = f->data;
 
-	/*
-	 * 3 major states:
-	 * 	FEEDEQ_BYPASS  - Bypass entirely, nothing happened.
-	 *      FEEDEQ_ENABLE  - Preamp+biquad filtering.
-	 *      FEEDEQ_DISABLE - Preamp only.
-	 */
-	if (info->state == FEEDEQ_BYPASS)
+	if (info->state == FEEDEQ_DISABLE)
 		return (FEEDER_FEED(f->source, c, b, count, source));
 
 	dst = b;
@@ -482,9 +475,7 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
-	if (d->flags & SD_F_EQ_BYPASSED)
-		val = 2;
-	else if (d->flags & SD_F_EQ_ENABLED)
+	if (d->flags & SD_F_EQ_ENABLED)
 		val = 1;
 	else
 		val = 0;
@@ -495,18 +486,15 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err == 0 && req->newptr != NULL && val != oval) {
-		if (!(val == 0 || val == 1 || val == 2)) {
+		if (!(val == 0 || val == 1)) {
 			PCM_RELEASE_QUICK(d);
 			return (EINVAL);
 		}
 
 		PCM_LOCK(d);
 
-		d->flags &= ~(SD_F_EQ_ENABLED | SD_F_EQ_BYPASSED);
-		if (val == 2) {
-			val = FEEDEQ_BYPASS;
-			d->flags |= SD_F_EQ_BYPASSED;
-		} else if (val == 1) {
+		d->flags &= ~(SD_F_EQ_ENABLED);
+		if (val == 1) {
 			val = FEEDEQ_ENABLE;
 			d->flags |= SD_F_EQ_ENABLED;
 		} else
@@ -612,7 +600,7 @@ feeder_eq_initsys(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "eq", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, d,
 	    sizeof(d), sysctl_dev_pcm_eq, "I",
-	    "Bass/Treble Equalizer (0=disable, 1=enable, 2=bypass)");
+	    "Bass/Treble Equalizer (0=disable, 1=enable)");
 
 	(void)snprintf(buf, sizeof(buf), "Bass/Treble Equalizer Preamp "
 	    "(-/+ %d.0dB , %d.%ddB step)",

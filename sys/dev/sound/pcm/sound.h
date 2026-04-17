@@ -107,7 +107,7 @@ struct snd_mixer;
 #define SD_F_VPC		0x00000080	/* volume-per-channel */
 /* unused			0x00000100 */
 #define SD_F_EQ_ENABLED		0x00000200	/* EQ enabled */
-#define SD_F_EQ_BYPASSED	0x00000400	/* EQ bypassed */
+/* unused			0x00000400 */
 #define SD_F_EQ_PC		0x00000800	/* EQ per-channel */
 #define SD_F_PVCHANS		0x00001000	/* Playback vchans enabled */
 #define SD_F_RVCHANS		0x00002000	/* Recording vchans enabled */
@@ -123,7 +123,7 @@ struct snd_mixer;
 				"\010VPC"				\
 				/* "\011 */				\
 				"\012EQ_ENABLED"			\
-				"\013EQ_BYPASSED"			\
+				/* "\013 */				\
 				"\014EQ_PC"				\
 				"\015PVCHANS"				\
 				"\016RVCHANS"
