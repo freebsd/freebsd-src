@@ -58,9 +58,6 @@ __elfN(exec)(struct preloaded_file *fp)
 
 	efi_time_fini();
 
-	entry = efi_translate(e->e_entry);
-
-	printf("Kernel entry at %p...\n", entry);
 	printf("Kernel args: %s\n", fp->f_args);
 
 	if ((error = bi_load(fp->f_args, &modulep, &kernend, true)) != 0) {
@@ -73,6 +70,8 @@ __elfN(exec)(struct preloaded_file *fp)
 	 * printf or any other function that uses Boot Services
 	 */
 	dev_cleanup();
+
+	entry = efi_translate(e->e_entry);
 
 	(*entry)((void *)modulep);
 	panic("exec returned");
