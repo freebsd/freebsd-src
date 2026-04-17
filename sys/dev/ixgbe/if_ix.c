@@ -36,10 +36,14 @@
 #include "opt_rss.h"
 
 #include "ixgbe.h"
+#include "mdio_if.h"
 #include "ixgbe_sriov.h"
 #include "ifdi_if.h"
+#include "if_ix_mdio_hw.h"
+#include "if_ix_mdio.h"
 
 #include <net/netmap.h>
+#include <dev/mdio/mdio.h>
 #include <dev/netmap/netmap_kern.h>
 
 /************************************************************************
@@ -298,6 +302,10 @@ static device_method_t ix_methods[] = {
 	DEVMETHOD(pci_iov_uninit, iflib_device_iov_uninit),
 	DEVMETHOD(pci_iov_add_vf, iflib_device_iov_add_vf),
 #endif /* PCI_IOV */
+	DEVMETHOD(bus_add_child, device_add_child_ordered),
+	DEVMETHOD(mdio_readreg, ixgbe_mdio_readreg_c22),
+	DEVMETHOD(mdio_writereg, ixgbe_mdio_writereg_c22),
+
 	DEVMETHOD_END
 };
 
@@ -305,11 +313,13 @@ static driver_t ix_driver = {
 	"ix", ix_methods, sizeof(struct ixgbe_softc),
 };
 
-DRIVER_MODULE(ix, pci, ix_driver, 0, 0);
+DRIVER_MODULE(mdio, ix, mdio_driver, 0, 0); /* needs to happen before ix */
+DRIVER_MODULE_ORDERED(ix, pci, ix_driver, NULL, NULL, SI_ORDER_ANY); /* needs to be last */
 IFLIB_PNP_INFO(pci, ix_driver, ixgbe_vendor_info_array);
 MODULE_DEPEND(ix, pci, 1, 1, 1);
 MODULE_DEPEND(ix, ether, 1, 1, 1);
 MODULE_DEPEND(ix, iflib, 1, 1, 1);
+MODULE_DEPEND(ix, mdio, 1, 1, 1);
 
 static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_attach_pre, ixgbe_if_attach_pre),
@@ -1273,6 +1283,9 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 
 	/* Add sysctls */
 	ixgbe_add_device_sysctls(ctx);
+
+	/* Add MDIO bus if required / supported */
+	ixgbe_mdio_attach(sc);
 
 	/* Init recovery mode timer and state variable */
 	if (sc->feat_en & IXGBE_FEATURE_RECOVERY_MODE) {

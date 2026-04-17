@@ -2300,6 +2300,10 @@ dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/if_ixv.c		optional ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
+dev/ixgbe/if_ix_mdio.c		optional ix inet mdio \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/if_ix_mdio_hw.c	optional ix inet mdio \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/if_bypass.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/if_fdir.c		optional ix inet | ixv inet \
