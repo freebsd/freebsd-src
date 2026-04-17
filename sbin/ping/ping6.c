@@ -1119,21 +1119,21 @@ ping6(int argc, char *argv[])
 #ifdef IPV6_RECVPKTINFO
 	if (setsockopt(srecv, IPPROTO_IPV6, IPV6_RECVPKTINFO, &optval,
 	    sizeof(optval)) < 0)
-		warn("setsockopt(IPV6_RECVPKTINFO)"); /* XXX err? */
+		err(1, "setsockopt(IPV6_RECVPKTINFO)");
 #else  /* old adv. API */
 	if (setsockopt(srecv, IPPROTO_IPV6, IPV6_PKTINFO, &optval,
 	    sizeof(optval)) < 0)
-		warn("setsockopt(IPV6_PKTINFO)"); /* XXX err? */
+		err(1, "setsockopt(IPV6_PKTINFO)");
 #endif
 #endif /* USE_SIN6_SCOPE_ID */
 #ifdef IPV6_RECVHOPLIMIT
 	if (setsockopt(srecv, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &optval,
 	    sizeof(optval)) < 0)
-		warn("setsockopt(IPV6_RECVHOPLIMIT)"); /* XXX err? */
+		err(1, "setsockopt(IPV6_RECVHOPLIMIT)");
 #else  /* old adv. API */
 	if (setsockopt(srecv, IPPROTO_IPV6, IPV6_HOPLIMIT, &optval,
 	    sizeof(optval)) < 0)
-		warn("setsockopt(IPV6_HOPLIMIT)"); /* XXX err? */
+		err(1, "setsockopt(IPV6_HOPLIMIT)");
 #endif
 
 	cap_rights_clear(&rights_srecv, CAP_SETSOCKOPT);
