@@ -2209,9 +2209,6 @@ chn_syncstate(struct pcm_channel *c)
 				device_printf(c->dev,
 				    "EQ: Failed to set preamp -- %d\n",
 				    d->eqpreamp);
-			if (d->flags & SD_F_EQ_ENABLED &&
-			    FEEDER_SET(f, FEEDEQ_STATE, FEEDEQ_ENABLE) != 0)
-				device_printf(c->dev, "EQ: Failed to enable\n");
 		}
 	}
 }
