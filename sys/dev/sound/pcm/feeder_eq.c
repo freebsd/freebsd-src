@@ -148,19 +148,6 @@ feed_eq_biquad(struct feed_eq_info *info, uint8_t *dst, uint32_t count,
 	pmul = feed_eq_preamp[info->preamp].mul;
 	pshift = feed_eq_preamp[info->preamp].shift;
 
-	if (info->state == FEEDEQ_DISABLE) {
-		j = count * info->channels;
-		dst += j * AFMT_BPS(fmt);
-		do {
-			dst -= AFMT_BPS(fmt);
-			v = pcm_sample_read(dst, fmt);
-			v = ((intpcm64_t)pmul * v) >> pshift;
-			pcm_sample_write(dst, v, fmt);
-		} while (--j != 0);
-
-		return;
-	}
-
 	treble = &(info->coeff[info->treble.gain].treble);
 	bass   = &(info->coeff[info->bass.gain].bass);
 
@@ -368,9 +355,6 @@ feed_eq_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	uint8_t *dst;
 
 	info = f->data;
-
-	if (info->state == FEEDEQ_DISABLE)
-		return (FEEDER_FEED(f->source, c, b, count, source));
 
 	dst = b;
 	count = SND_FXROUND(count, info->align);
