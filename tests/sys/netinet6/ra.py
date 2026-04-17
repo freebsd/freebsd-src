@@ -21,9 +21,19 @@ def main():
                         help='The source IP address')
     parser.add_argument('--dst', nargs=1, required=True,
                         help='The destination IP address')
-    parser.add_argument('--prefix', nargs=1, required=True,
+    parser.add_argument('--hoplimit', nargs=1, required=False,
+                        type=int, default=255,
+                        help='The hop limit of IPv6 packet')
+    parser.add_argument('--rtrpref', nargs=1, required=False,
+                        type=int, default=1,
+                        help='The router preference advertised')
+    parser.add_argument('--rtrltime', nargs=1, required=False,
+                        type=int, default=1800,
+                        help='The router preference advertised')
+    parser.add_argument('--prefix', nargs=1, required=False,
                         help='The prefix to be advertised')
-    parser.add_argument('--prefixlen', nargs=1, required=True, type=int,
+    parser.add_argument('--prefixlen', nargs=1, required=False,
+                        type=int, default=64,
                         help='The prefix length to be advertised')
     parser.add_argument('--validlifetime', nargs=1, required=False,
                         type=int, default=4294967295,
@@ -34,8 +44,11 @@ def main():
 
     args = parser.parse_args()
     pkt = sp.Ether() / \
-        sp.IPv6(src=args.src, dst=args.dst) / \
-        sp.ICMPv6ND_RA(chlim=64) / \
+        sp.IPv6(src=args.src, dst=args.dst, hlim=args.hoplimit) / \
+        sp.ICMPv6ND_RA(chlim=64, prf=args.rtrpref, routerlifetime=args.rtrltime)
+
+    if (args.prefix):
+        pkt = pkt / \
         sp.ICMPv6NDOptPrefixInfo(prefix=args.prefix,
                                  prefixlen=args.prefixlen,
                                  validlifetime=args.validlifetime,
