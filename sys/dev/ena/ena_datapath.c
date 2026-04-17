@@ -571,7 +571,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	uint32_t do_if_input = 0;
 	unsigned int qid;
 	int rc, i;
-	int budget = ENA_RX_BUDGET;
+	int budget = (ENA_RX_DESC_BUDGET == -1) ? INT_MAX : ENA_RX_DESC_BUDGET;
 #ifdef DEV_NETMAP
 	int done;
 #endif /* DEV_NETMAP */
@@ -680,7 +680,14 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 		counter_u64_add_protected(rx_ring->rx_stats.cnt, 1);
 		counter_u64_add_protected(adapter->hw_stats.rx_packets, 1);
 		counter_exit();
-	} while (--budget);
+
+		/*
+		 * Adjust our budget; note that we count descriptors, not
+		 * packets, since we need to ensure we don't run out of rx
+		 * buffers when receiving jumbos.
+		 */
+		budget -= ena_rx_ctx.descs;
+	} while (budget > 0);
 
 	rx_ring->next_to_clean = next_to_clean;
 
@@ -695,7 +702,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 	tcp_lro_flush_all(&rx_ring->lro);
 
-	return (budget == 0);
+	return (budget <= 0);
 }
 
 static void
