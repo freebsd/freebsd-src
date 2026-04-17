@@ -205,6 +205,7 @@ struct rge_softc {
 	uint32_t		sc_debug;
 
 	int			sc_rx_process_limit;
+	int			sc_disable_aspm;
 
 	struct rge_drv_stats	sc_drv_stats;
 
