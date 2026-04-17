@@ -542,17 +542,11 @@ void
 feeder_eq_initsys(device_t dev)
 {
 	struct snddev_info *d;
-	const char *preamp;
 	char buf[64];
 
 	d = device_get_softc(dev);
 
-	if (!(resource_string_value(device_get_name(dev), device_get_unit(dev),
-	    "eq_preamp", &preamp) == 0 &&
-	    (d->eqpreamp = feed_eq_scan_preamp_arg(preamp)) !=
-	    FEEDEQ_PREAMP_INVALID))
-		d->eqpreamp = FEEDEQ_PREAMP_DEFAULT;
-
+	d->eqpreamp = FEEDEQ_PREAMP_DEFAULT;
 	if (d->eqpreamp < FEEDEQ_PREAMP_MIN)
 		d->eqpreamp = FEEDEQ_PREAMP_MIN;
 	else if (d->eqpreamp > FEEDEQ_PREAMP_MAX)
