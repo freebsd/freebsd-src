@@ -321,7 +321,7 @@ feed_eq_set(struct pcm_feeder *f, int what, int value)
 		info->preamp = FEEDEQ_PREAMP2IDX(value);
 		break;
 	case FEEDEQ_STATE:
-		if (!(value == FEEDEQ_ENABLE || value == FEEDEQ_DISABLE))
+		if (value != FEEDEQ_ENABLE)
 			return (EINVAL);
 		info->state = value;
 		feed_eq_reset(info);
@@ -477,12 +477,11 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 
 		PCM_LOCK(d);
 
-		d->flags &= ~(SD_F_EQ_ENABLED);
 		if (val == 1) {
 			val = FEEDEQ_ENABLE;
 			d->flags |= SD_F_EQ_ENABLED;
 		} else
-			val = FEEDEQ_DISABLE;
+			d->flags &= ~SD_F_EQ_ENABLED;
 
 		CHN_FOREACH(c, d, channels.pcm.busy) {
 			CHN_LOCK(c);

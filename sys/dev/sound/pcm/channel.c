@@ -2177,7 +2177,7 @@ chn_syncstate(struct pcm_channel *c)
 
 	if (c->feederflags & (1 << FEEDER_EQ)) {
 		struct pcm_feeder *f;
-		int treble, bass, state;
+		int treble, bass;
 
 		/* CHN_UNLOCK(c); */
 		treble = mix_get(m, SOUND_MIXER_TREBLE);
@@ -2209,13 +2209,9 @@ chn_syncstate(struct pcm_channel *c)
 				device_printf(c->dev,
 				    "EQ: Failed to set preamp -- %d\n",
 				    d->eqpreamp);
-			if (d->flags & SD_F_EQ_ENABLED)
-				state = FEEDEQ_ENABLE;
-			else
-				state = FEEDEQ_DISABLE;
-			if (FEEDER_SET(f, FEEDEQ_STATE, state) != 0)
-				device_printf(c->dev,
-				    "EQ: Failed to set state -- %d\n", state);
+			if (d->flags & SD_F_EQ_ENABLED &&
+			    FEEDER_SET(f, FEEDEQ_STATE, FEEDEQ_ENABLE) != 0)
+				device_printf(c->dev, "EQ: Failed to enable\n");
 		}
 	}
 }
