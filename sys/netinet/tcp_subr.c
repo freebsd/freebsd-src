@@ -1133,6 +1133,9 @@ tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged)
 
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
 MALLOC_DEFINE(M_TCPFUNCTIONS, "tcpfunc", "TCP function set memory");
+#ifdef TCP_REQUEST_TRK
+MALLOC_DEFINE(M_TCPREQTRK, "tcpreqtrk", "TCP request tracking");
+#endif
 
 static struct mtx isn_mtx;
 
@@ -2444,6 +2447,12 @@ tcp_discardcb(struct tcpcb *tp)
 #endif
 #ifdef STATS
 	stats_blob_destroy(tp->t_stats);
+#endif
+#ifdef TCP_REQUEST_TRK
+	if (tp->t_tcpreq_info != NULL) {
+		free(tp->t_tcpreq_info, M_TCPREQTRK);
+		tp->t_tcpreq_info = NULL;
+	}
 #endif
 
 	CC_ALGO(tp) = NULL;
@@ -4890,6 +4899,14 @@ tcp_req_alloc_req_full(struct tcpcb *tp, struct tcp_snd_req *req, uint64_t ts, i
 	struct tcp_sendfile_track *fil;
 	int i, allocated;
 
+	/* Allocate the request tracking array on demand */
+	if (tp->t_tcpreq_info == NULL) {
+		tp->t_tcpreq_info = malloc(
+		    sizeof(*tp->t_tcpreq_info) * MAX_TCP_TRK_REQ,
+		    M_TCPREQTRK, M_NOWAIT | M_ZERO);
+		if (tp->t_tcpreq_info == NULL)
+			return (NULL);
+	}
 	/* In case the stack does not check for completions do so now */
 	tcp_req_check_for_comp(tp, tp->snd_una);
 	/* Check for stale entries */

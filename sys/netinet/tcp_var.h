@@ -493,7 +493,7 @@ struct tcpcb {
 	uint32_t tcp_hybrid_start;	/* Num of times we started hybrid pacing */
 	uint32_t tcp_hybrid_stop;	/* Num of times we stopped hybrid pacing */
 	uint32_t tcp_hybrid_error;	/* Num of times we failed to start hybrid pacing */
-	struct tcp_sendfile_track t_tcpreq_info[MAX_TCP_TRK_REQ];
+	struct tcp_sendfile_track *t_tcpreq_info;
 #endif
 #ifdef TCP_ACCOUNTING
 	uint64_t tcp_cnt_counters[TCP_NUM_CNT_COUNTERS];
