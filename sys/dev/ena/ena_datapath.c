@@ -44,8 +44,8 @@
  *  Static functions prototypes
  *********************************************************************/
 
-static int ena_tx_cleanup(struct ena_ring *);
-static int ena_rx_cleanup(struct ena_ring *);
+static bool ena_tx_cleanup(struct ena_ring *);
+static bool ena_rx_cleanup(struct ena_ring *);
 static inline int ena_get_tx_req_id(struct ena_ring *tx_ring,
     struct ena_com_io_cq *io_cq, uint16_t *req_id);
 static void ena_rx_hash_mbuf(struct ena_ring *, struct ena_com_rx_ctx *,
@@ -75,7 +75,8 @@ ena_cleanup(void *arg, int pending)
 	struct ena_com_io_cq *io_cq;
 	struct ena_eth_io_intr_reg intr_reg;
 	int qid, ena_qid;
-	int txc, rxc, i;
+	int i;
+	bool rx_again, tx_again;
 
 	tx_ring = que->tx_ring;
 	rx_ring = que->rx_ring;
@@ -99,14 +100,14 @@ ena_cleanup(void *arg, int pending)
 	atomic_store_8(&rx_ring->first_interrupt, 1);
 
 	for (i = 0; i < ENA_CLEAN_BUDGET; ++i) {
-		rxc = ena_rx_cleanup(rx_ring);
-		txc = ena_tx_cleanup(tx_ring);
+		rx_again = ena_rx_cleanup(rx_ring);
+		tx_again = ena_tx_cleanup(tx_ring);
 
 		if (unlikely(((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) ||
 		    (ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))))
 			return;
 
-		if ((txc != ENA_TX_BUDGET) && (rxc != ENA_RX_BUDGET))
+		if (!rx_again && !tx_again)
 			break;
 	}
 
@@ -238,7 +239,7 @@ ena_get_tx_req_id(struct ena_ring *tx_ring, struct ena_com_io_cq *io_cq,
  * TX_COMMIT. The first check of free descriptor is performed before the actual
  * loop, then repeated at the loop end.
  **/
-static int
+static bool
 ena_tx_cleanup(struct ena_ring *tx_ring)
 {
 	struct ena_adapter *adapter;
@@ -250,7 +251,6 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 	int rc;
 	int commit = ENA_TX_COMMIT;
 	int budget = ENA_TX_BUDGET;
-	int work_done;
 	bool above_thresh;
 
 	adapter = tx_ring->que->adapter;
@@ -304,10 +304,8 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		}
 	} while (likely(--budget));
 
-	work_done = ENA_TX_BUDGET - budget;
-
 	ena_log_io(adapter->pdev, DBG, "tx: q %d done. total pkts: %d\n",
-	    tx_ring->qid, work_done);
+	    tx_ring->qid, ENA_TX_BUDGET - budget);
 
 	/* If there is still something to commit update ring state */
 	if (likely(commit != ENA_TX_COMMIT)) {
@@ -339,7 +337,7 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 
 	tx_ring->tx_last_cleanup_ticks = ticks;
 
-	return (work_done);
+	return (budget == 0);
 }
 
 static void
@@ -559,7 +557,7 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
  * ena_rx_cleanup - handle rx irq
  * @arg: ring for which irq is being handled
  **/
-static int
+static bool
 ena_rx_cleanup(struct ena_ring *rx_ring)
 {
 	struct ena_adapter *adapter;
@@ -701,7 +699,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 	tcp_lro_flush_all(&rx_ring->lro);
 
-	return (ENA_RX_BUDGET - budget);
+	return (budget == 0);
 }
 
 static void
