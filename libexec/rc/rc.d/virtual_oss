@@ -39,6 +39,7 @@ virtual_oss_default_args="\
 	-i 8 \
 	-f /dev/dsp${default_unit} \
 	-d dsp \
+	-l dsp.loop \
 	-t ${virtual_oss_default_control_device}"
 
 # Set to NO by default. Set it to "YES" to enable virtual_oss.
