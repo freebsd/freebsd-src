@@ -48,8 +48,6 @@
 
 /* Function prototypes */
 #if defined(__amd64__) || defined(__i386__)
-static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
-    struct pmc_op_pmcallocate *_pmc_config);
 static int ibs_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
@@ -131,7 +129,6 @@ struct pmc_class_descr {
 	}
 
 PMC_CLASSDEP_TABLE(iaf, IAF);
-PMC_CLASSDEP_TABLE(k8, K8);
 PMC_CLASSDEP_TABLE(ibs, IBS);
 PMC_CLASSDEP_TABLE(armv7, ARMV7);
 PMC_CLASSDEP_TABLE(armv8, ARMV8);
@@ -201,7 +198,6 @@ static const struct pmc_class_descr NAME##_class_table_descr =	\
 	}
 
 #if	defined(__i386__) || defined(__amd64__)
-PMC_CLASS_TABLE_DESC(k8, K8, k8, k8);
 PMC_CLASS_TABLE_DESC(ibs, IBS, ibs, ibs);
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #endif
@@ -336,360 +332,6 @@ pmc_parse_mask(const struct pmc_masks *pmask, char *p, uint64_t *evmask)
 #define	EV_ALIAS(N,S)		{ .pm_alias = N, .pm_spec = S }
 
 #if defined(__amd64__) || defined(__i386__)
-/*
- * AMD K8 PMCs.
- *
- */
-
-static struct pmc_event_alias k8_aliases[] = {
-	EV_ALIAS("branches",		"k8-fr-retired-taken-branches"),
-	EV_ALIAS("branch-mispredicts",
-	    "k8-fr-retired-taken-branches-mispredicted"),
-	EV_ALIAS("cycles",		"tsc"),
-	EV_ALIAS("dc-misses",		"k8-dc-miss"),
-	EV_ALIAS("ic-misses",		"k8-ic-miss"),
-	EV_ALIAS("instructions",	"k8-fr-retired-x86-instructions"),
-	EV_ALIAS("interrupts",		"k8-fr-taken-hardware-interrupts"),
-	EV_ALIAS("unhalted-cycles",	"k8-bu-cpu-clk-unhalted"),
-	EV_ALIAS(NULL, NULL)
-};
-
-#define	__K8MASK(N,V) PMCMASK(N,(1 << (V)))
-
-/*
- * Parsing tables
- */
-
-/* fp dispatched fpu ops */
-static const struct pmc_masks k8_mask_fdfo[] = {
-	__K8MASK(add-pipe-excluding-junk-ops,	0),
-	__K8MASK(multiply-pipe-excluding-junk-ops,	1),
-	__K8MASK(store-pipe-excluding-junk-ops,	2),
-	__K8MASK(add-pipe-junk-ops,		3),
-	__K8MASK(multiply-pipe-junk-ops,	4),
-	__K8MASK(store-pipe-junk-ops,		5),
-	NULLMASK
-};
-
-/* ls segment register loads */
-static const struct pmc_masks k8_mask_lsrl[] = {
-	__K8MASK(es,	0),
-	__K8MASK(cs,	1),
-	__K8MASK(ss,	2),
-	__K8MASK(ds,	3),
-	__K8MASK(fs,	4),
-	__K8MASK(gs,	5),
-	__K8MASK(hs,	6),
-	NULLMASK
-};
-
-/* ls locked operation */
-static const struct pmc_masks k8_mask_llo[] = {
-	__K8MASK(locked-instructions,	0),
-	__K8MASK(cycles-in-request,	1),
-	__K8MASK(cycles-to-complete,	2),
-	NULLMASK
-};
-
-/* dc refill from {l2,system} and dc copyback */
-static const struct pmc_masks k8_mask_dc[] = {
-	__K8MASK(invalid,	0),
-	__K8MASK(shared,	1),
-	__K8MASK(exclusive,	2),
-	__K8MASK(owner,		3),
-	__K8MASK(modified,	4),
-	NULLMASK
-};
-
-/* dc one bit ecc error */
-static const struct pmc_masks k8_mask_dobee[] = {
-	__K8MASK(scrubber,	0),
-	__K8MASK(piggyback,	1),
-	NULLMASK
-};
-
-/* dc dispatched prefetch instructions */
-static const struct pmc_masks k8_mask_ddpi[] = {
-	__K8MASK(load,	0),
-	__K8MASK(store,	1),
-	__K8MASK(nta,	2),
-	NULLMASK
-};
-
-/* dc dcache accesses by locks */
-static const struct pmc_masks k8_mask_dabl[] = {
-	__K8MASK(accesses,	0),
-	__K8MASK(misses,	1),
-	NULLMASK
-};
-
-/* bu internal l2 request */
-static const struct pmc_masks k8_mask_bilr[] = {
-	__K8MASK(ic-fill,	0),
-	__K8MASK(dc-fill,	1),
-	__K8MASK(tlb-reload,	2),
-	__K8MASK(tag-snoop,	3),
-	__K8MASK(cancelled,	4),
-	NULLMASK
-};
-
-/* bu fill request l2 miss */
-static const struct pmc_masks k8_mask_bfrlm[] = {
-	__K8MASK(ic-fill,	0),
-	__K8MASK(dc-fill,	1),
-	__K8MASK(tlb-reload,	2),
-	NULLMASK
-};
-
-/* bu fill into l2 */
-static const struct pmc_masks k8_mask_bfil[] = {
-	__K8MASK(dirty-l2-victim,	0),
-	__K8MASK(victim-from-l2,	1),
-	NULLMASK
-};
-
-/* fr retired fpu instructions */
-static const struct pmc_masks k8_mask_frfi[] = {
-	__K8MASK(x87,			0),
-	__K8MASK(mmx-3dnow,		1),
-	__K8MASK(packed-sse-sse2,	2),
-	__K8MASK(scalar-sse-sse2,	3),
-	NULLMASK
-};
-
-/* fr retired fastpath double op instructions */
-static const struct pmc_masks k8_mask_frfdoi[] = {
-	__K8MASK(low-op-pos-0,		0),
-	__K8MASK(low-op-pos-1,		1),
-	__K8MASK(low-op-pos-2,		2),
-	NULLMASK
-};
-
-/* fr fpu exceptions */
-static const struct pmc_masks k8_mask_ffe[] = {
-	__K8MASK(x87-reclass-microfaults,	0),
-	__K8MASK(sse-retype-microfaults,	1),
-	__K8MASK(sse-reclass-microfaults,	2),
-	__K8MASK(sse-and-x87-microtraps,	3),
-	NULLMASK
-};
-
-/* nb memory controller page access event */
-static const struct pmc_masks k8_mask_nmcpae[] = {
-	__K8MASK(page-hit,	0),
-	__K8MASK(page-miss,	1),
-	__K8MASK(page-conflict,	2),
-	NULLMASK
-};
-
-/* nb memory controller turnaround */
-static const struct pmc_masks k8_mask_nmct[] = {
-	__K8MASK(dimm-turnaround,		0),
-	__K8MASK(read-to-write-turnaround,	1),
-	__K8MASK(write-to-read-turnaround,	2),
-	NULLMASK
-};
-
-/* nb memory controller bypass saturation */
-static const struct pmc_masks k8_mask_nmcbs[] = {
-	__K8MASK(memory-controller-hi-pri-bypass,	0),
-	__K8MASK(memory-controller-lo-pri-bypass,	1),
-	__K8MASK(dram-controller-interface-bypass,	2),
-	__K8MASK(dram-controller-queue-bypass,		3),
-	NULLMASK
-};
-
-/* nb sized commands */
-static const struct pmc_masks k8_mask_nsc[] = {
-	__K8MASK(nonpostwrszbyte,	0),
-	__K8MASK(nonpostwrszdword,	1),
-	__K8MASK(postwrszbyte,		2),
-	__K8MASK(postwrszdword,		3),
-	__K8MASK(rdszbyte,		4),
-	__K8MASK(rdszdword,		5),
-	__K8MASK(rdmodwr,		6),
-	NULLMASK
-};
-
-/* nb probe result */
-static const struct pmc_masks k8_mask_npr[] = {
-	__K8MASK(probe-miss,		0),
-	__K8MASK(probe-hit,		1),
-	__K8MASK(probe-hit-dirty-no-memory-cancel, 2),
-	__K8MASK(probe-hit-dirty-with-memory-cancel, 3),
-	NULLMASK
-};
-
-/* nb hypertransport bus bandwidth */
-static const struct pmc_masks k8_mask_nhbb[] = { /* HT bus bandwidth */
-	__K8MASK(command,	0),
-	__K8MASK(data,	1),
-	__K8MASK(buffer-release, 2),
-	__K8MASK(nop,	3),
-	NULLMASK
-};
-
-#undef	__K8MASK
-
-#define	K8_KW_COUNT	"count"
-#define	K8_KW_EDGE	"edge"
-#define	K8_KW_INV	"inv"
-#define	K8_KW_MASK	"mask"
-#define	K8_KW_OS	"os"
-#define	K8_KW_USR	"usr"
-
-static int
-k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
-    struct pmc_op_pmcallocate *pmc_config)
-{
-	char		*e, *p, *q;
-	int		n;
-	uint32_t	count;
-	uint64_t	evmask;
-	const struct pmc_masks	*pm, *pmask;
-
-	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
-	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
-
-	pmask = NULL;
-	evmask = 0;
-
-#define	__K8SETMASK(M) pmask = k8_mask_##M
-
-	/* setup parsing tables */
-	switch (pe) {
-	case PMC_EV_K8_FP_DISPATCHED_FPU_OPS:
-		__K8SETMASK(fdfo);
-		break;
-	case PMC_EV_K8_LS_SEGMENT_REGISTER_LOAD:
-		__K8SETMASK(lsrl);
-		break;
-	case PMC_EV_K8_LS_LOCKED_OPERATION:
-		__K8SETMASK(llo);
-		break;
-	case PMC_EV_K8_DC_REFILL_FROM_L2:
-	case PMC_EV_K8_DC_REFILL_FROM_SYSTEM:
-	case PMC_EV_K8_DC_COPYBACK:
-		__K8SETMASK(dc);
-		break;
-	case PMC_EV_K8_DC_ONE_BIT_ECC_ERROR:
-		__K8SETMASK(dobee);
-		break;
-	case PMC_EV_K8_DC_DISPATCHED_PREFETCH_INSTRUCTIONS:
-		__K8SETMASK(ddpi);
-		break;
-	case PMC_EV_K8_DC_DCACHE_ACCESSES_BY_LOCKS:
-		__K8SETMASK(dabl);
-		break;
-	case PMC_EV_K8_BU_INTERNAL_L2_REQUEST:
-		__K8SETMASK(bilr);
-		break;
-	case PMC_EV_K8_BU_FILL_REQUEST_L2_MISS:
-		__K8SETMASK(bfrlm);
-		break;
-	case PMC_EV_K8_BU_FILL_INTO_L2:
-		__K8SETMASK(bfil);
-		break;
-	case PMC_EV_K8_FR_RETIRED_FPU_INSTRUCTIONS:
-		__K8SETMASK(frfi);
-		break;
-	case PMC_EV_K8_FR_RETIRED_FASTPATH_DOUBLE_OP_INSTRUCTIONS:
-		__K8SETMASK(frfdoi);
-		break;
-	case PMC_EV_K8_FR_FPU_EXCEPTIONS:
-		__K8SETMASK(ffe);
-		break;
-	case PMC_EV_K8_NB_MEMORY_CONTROLLER_PAGE_ACCESS_EVENT:
-		__K8SETMASK(nmcpae);
-		break;
-	case PMC_EV_K8_NB_MEMORY_CONTROLLER_TURNAROUND:
-		__K8SETMASK(nmct);
-		break;
-	case PMC_EV_K8_NB_MEMORY_CONTROLLER_BYPASS_SATURATION:
-		__K8SETMASK(nmcbs);
-		break;
-	case PMC_EV_K8_NB_SIZED_COMMANDS:
-		__K8SETMASK(nsc);
-		break;
-	case PMC_EV_K8_NB_PROBE_RESULT:
-		__K8SETMASK(npr);
-		break;
-	case PMC_EV_K8_NB_HT_BUS0_BANDWIDTH:
-	case PMC_EV_K8_NB_HT_BUS1_BANDWIDTH:
-	case PMC_EV_K8_NB_HT_BUS2_BANDWIDTH:
-		__K8SETMASK(nhbb);
-		break;
-
-	default:
-		break;		/* no options defined */
-	}
-
-	while ((p = strsep(&ctrspec, ",")) != NULL) {
-		if (KWPREFIXMATCH(p, K8_KW_COUNT "=")) {
-			q = strchr(p, '=');
-			if (*++q == '\0') /* skip '=' */
-				return (-1);
-
-			count = strtol(q, &e, 0);
-			if (e == q || *e != '\0')
-				return (-1);
-
-			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
-			pmc_config->pm_md.pm_amd.pm_amd_config |=
-			    AMD_PMC_TO_COUNTER(count);
-
-		} else if (KWMATCH(p, K8_KW_EDGE)) {
-			pmc_config->pm_caps |= PMC_CAP_EDGE;
-		} else if (KWMATCH(p, K8_KW_INV)) {
-			pmc_config->pm_caps |= PMC_CAP_INVERT;
-		} else if (KWPREFIXMATCH(p, K8_KW_MASK "=")) {
-			if ((n = pmc_parse_mask(pmask, p, &evmask)) < 0)
-				return (-1);
-			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
-		} else if (KWMATCH(p, K8_KW_OS)) {
-			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
-		} else if (KWMATCH(p, K8_KW_USR)) {
-			pmc_config->pm_caps |= PMC_CAP_USER;
-		} else
-			return (-1);
-	}
-
-	/* other post processing */
-	switch (pe) {
-	case PMC_EV_K8_FP_DISPATCHED_FPU_OPS:
-	case PMC_EV_K8_FP_CYCLES_WITH_NO_FPU_OPS_RETIRED:
-	case PMC_EV_K8_FP_DISPATCHED_FPU_FAST_FLAG_OPS:
-	case PMC_EV_K8_FR_RETIRED_FASTPATH_DOUBLE_OP_INSTRUCTIONS:
-	case PMC_EV_K8_FR_RETIRED_FPU_INSTRUCTIONS:
-	case PMC_EV_K8_FR_FPU_EXCEPTIONS:
-		/* XXX only available in rev B and later */
-		break;
-	case PMC_EV_K8_DC_DCACHE_ACCESSES_BY_LOCKS:
-		/* XXX only available in rev C and later */
-		break;
-	case PMC_EV_K8_LS_LOCKED_OPERATION:
-		/* XXX CPU Rev A,B evmask is to be zero */
-		if (evmask & (evmask - 1)) /* > 1 bit set */
-			return (-1);
-		if (evmask == 0) {
-			evmask = 0x01; /* Rev C and later: #instrs */
-			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
-		}
-		break;
-	default:
-		if (evmask == 0 && pmask != NULL) {
-			for (pm = pmask; pm->pm_name; pm++)
-				evmask |= pm->pm_value;
-			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
-		}
-	}
-
-	if (pmc_config->pm_caps & PMC_CAP_QUALIFIER)
-		pmc_config->pm_md.pm_amd.pm_amd_config =
-		    AMD_PMC_TO_UNITMASK(evmask);
-
-	return (0);
-}
 
 static int
 ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
@@ -801,7 +443,7 @@ tsc_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	return (0);
 }
-#endif
+#endif /* defined(__amd64__) || defined(__i386__) */
 
 static struct pmc_event_alias generic_aliases[] = {
 	EV_ALIAS("instructions",		"SOFT-CLOCK.HARD"),
@@ -1357,10 +999,6 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = tsc_event_table;
 		count = PMC_EVENT_TABLE_SIZE(tsc);
 		break;
-	case PMC_CLASS_K8:
-		ev = k8_event_table;
-		count = PMC_EVENT_TABLE_SIZE(k8);
-		break;
 	case PMC_CLASS_IBS:
 		ev = ibs_event_table;
 		count = PMC_EVENT_TABLE_SIZE(ibs);
@@ -1565,10 +1203,6 @@ pmc_init(void)
 			pmc_class_table[n++] = &tsc_class_table_descr;
 			break;
 
-		case PMC_CLASS_K8:
-			pmc_class_table[n++] = &k8_class_table_descr;
-			break;
-
 		case PMC_CLASS_IBS:
 			pmc_class_table[n++] = &ibs_class_table_descr;
 			break;
@@ -1658,11 +1292,6 @@ pmc_init(void)
 
 	/* Configure the event name parser. */
 	switch (cpu_info.pm_cputype) {
-#if defined(__amd64__) || defined(__i386__)
-	case PMC_CPU_AMD_K8:
-		PMC_MDEP_INIT(k8);
-		break;
-#endif
 	case PMC_CPU_GENERIC:
 		PMC_MDEP_INIT(generic);
 		break;
@@ -1774,10 +1403,7 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	const struct pmc_event_descr *ev, *evfence;
 
 	ev = evfence = NULL;
-	if (pe >= PMC_EV_K8_FIRST && pe <= PMC_EV_K8_LAST) {
-		ev = k8_event_table;
-		evfence = k8_event_table + PMC_EVENT_TABLE_SIZE(k8);
-	} else if (pe >= PMC_EV_IBS_FIRST && pe <= PMC_EV_IBS_LAST) {
+	if (pe >= PMC_EV_IBS_FIRST && pe <= PMC_EV_IBS_LAST) {
 		ev = ibs_event_table;
 		evfence = ibs_event_table + PMC_EVENT_TABLE_SIZE(ibs);
 	} else if (pe >= PMC_EV_ARMV7_FIRST && pe <= PMC_EV_ARMV7_LAST) {
