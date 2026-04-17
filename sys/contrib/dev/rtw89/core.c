@@ -2838,6 +2838,10 @@ static void rtw89_core_bcn_track_assoc(struct rtw89_dev *rtwdev,
 	dtim = bss_conf->dtim_period;
 	rcu_read_unlock();
 
+#if defined(__FreeBSD__)
+	WARN(beacon_int == 0 || dtim == 0, "period %u / beacon_int %u / dtim %u\n",
+	    period, beacon_int, dtim);
+#endif
 	beacons_in_period = period / beacon_int / dtim;
 	bcn_intvl_us = ieee80211_tu_to_usec(beacon_int);
 
