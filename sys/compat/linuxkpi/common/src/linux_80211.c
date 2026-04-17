@@ -2013,12 +2013,23 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 	 * make sure we do not do it on every beacon we still may
 	 * get so only do if something changed.  vif->bss_conf.dtim_period
 	 * should be 0 as we start up (we also reset it on teardown).
+	 *
+	 * If we are assoc we need to make sure dtim_period is non-0.
+	 * 0 is a reserved value and drivers assume they can DIV by it.
+	 * In theory this means we need to wait for the first beacon
+	 * before we finalize the vif being assoc.  In practise that
+	 * is harder until net80211 learns how to.  Work around like
+	 * this for the moment.
 	 */
-	if (vif->cfg.assoc &&
-	    vif->bss_conf.dtim_period != ni->ni_dtim_period &&
-	    ni->ni_dtim_period > 0) {
-		vif->bss_conf.dtim_period = ni->ni_dtim_period;
-		bss_changed |= BSS_CHANGED_BEACON_INFO;
+	if (vif->cfg.assoc) {
+		if (vif->bss_conf.dtim_period != ni->ni_dtim_period &&
+	            ni->ni_dtim_period > 0) {
+			vif->bss_conf.dtim_period = ni->ni_dtim_period;
+			bss_changed |= BSS_CHANGED_BEACON_INFO;
+		} else if (vif->bss_conf.dtim_period == 0) {
+			vif->bss_conf.dtim_period = 1;
+			bss_changed |= BSS_CHANGED_BEACON_INFO;
+		}
 	}
 
 	vif->bss_conf.sync_dtim_count = ni->ni_dtim_count;
