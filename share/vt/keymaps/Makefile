@@ -81,6 +81,7 @@ FILES=	INDEX.keymaps \
 	uk.kbd \
 	uk.macbook.kbd \
 	us.acc.kbd \
+	us.intl.acc.kbd \
 	us.ctrl.kbd \
 	us.dvorak.kbd \
 	us.dvorakl.kbd \
