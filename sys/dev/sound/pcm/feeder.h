@@ -119,9 +119,6 @@ enum {
 	FEEDEQ_TREBLE,
 	FEEDEQ_BASS,
 	FEEDEQ_PREAMP,
-	FEEDEQ_STATE,
-	FEEDEQ_ENABLE,
-	FEEDEQ_UNKNOWN
 };
 
 int feeder_eq_validrate(uint32_t);

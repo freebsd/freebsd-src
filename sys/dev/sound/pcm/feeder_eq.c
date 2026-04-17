@@ -122,7 +122,6 @@ struct feed_eq_info {
 	uint32_t rate;
 	uint32_t align;
 	int32_t preamp;
-	int state;
 };
 
 #if !defined(_KERNEL) && defined(FEEDEQ_ERR_CLIP)
@@ -277,7 +276,6 @@ feed_eq_init(struct pcm_feeder *f)
 	info->treble.gain = FEEDEQ_L2GAIN(50);
 	info->bass.gain = FEEDEQ_L2GAIN(50);
 	info->preamp = FEEDEQ_PREAMP2IDX(FEEDEQ_PREAMP_DEFAULT);
-	info->state = FEEDEQ_UNKNOWN;
 
 	f->data = info;
 
@@ -303,8 +301,6 @@ feed_eq_set(struct pcm_feeder *f, int what, int value)
 		if (feeder_eq_validrate(value) == 0)
 			return (EINVAL);
 		info->rate = (uint32_t)value;
-		if (info->state == FEEDEQ_UNKNOWN)
-			info->state = FEEDEQ_ENABLE;
 		return (feed_eq_setup(info));
 	case FEEDEQ_TREBLE:
 	case FEEDEQ_BASS:
@@ -319,12 +315,6 @@ feed_eq_set(struct pcm_feeder *f, int what, int value)
 		if (value < FEEDEQ_PREAMP_MIN || value > FEEDEQ_PREAMP_MAX)
 			return (EINVAL);
 		info->preamp = FEEDEQ_PREAMP2IDX(value);
-		break;
-	case FEEDEQ_STATE:
-		if (value != FEEDEQ_ENABLE)
-			return (EINVAL);
-		info->state = value;
-		feed_eq_reset(info);
 		break;
 	default:
 		return (EINVAL);
@@ -449,8 +439,6 @@ static int
 sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
-	struct pcm_channel *c;
-	struct pcm_feeder *f;
 	int err, val, oval;
 
 	d = oidp->oid_arg1;
@@ -477,19 +465,10 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 
 		PCM_LOCK(d);
 
-		if (val == 1) {
-			val = FEEDEQ_ENABLE;
+		if (val == 1)
 			d->flags |= SD_F_EQ_ENABLED;
-		} else
+		else
 			d->flags &= ~SD_F_EQ_ENABLED;
-
-		CHN_FOREACH(c, d, channels.pcm.busy) {
-			CHN_LOCK(c);
-			f = feeder_find(c, FEEDER_EQ);
-			if (f != NULL)
-				(void)FEEDER_SET(f, FEEDEQ_STATE, val);
-			CHN_UNLOCK(c);
-		}
 
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
