@@ -92,13 +92,60 @@ ATF_TC_BODY(shared_table_filt_sig, tc)
 #define	RECV_VNODE	0x02
 #define	RECV_CLOREAD	0x04
 #define	RECV_ERROR	0x80
-#define	RECV_ALL	(RECV_TIMER | RECV_VNODE)
+
+static const struct cponfork_recv {
+	const char	*recv_error_desc;
+	unsigned int	 recv_bit;
+	bool		 recv_parent_only;
+} cponfork_recv[] = {
+	{ "EVFILT_TIMER did not fire", RECV_TIMER, false },
+	{ "EVFILT_VNODE expected with creation of canary", RECV_VNODE, false },
+	{ "EVFILT_READ received for fd closed on fork", RECV_CLOREAD, true },
+};
+
+static void
+cponfork_notes_mask_check(unsigned int mask, bool childmask)
+{
+	const struct cponfork_recv *rcv;
+	unsigned int expect;
+
+	ATF_REQUIRE(mask != RECV_ERROR);
+	for (size_t i = 0; i < nitems(cponfork_recv); i++) {
+		rcv = &cponfork_recv[i];
+
+		expect = childmask && rcv->recv_parent_only ? 0 : rcv->recv_bit;
+		ATF_REQUIRE_EQ_MSG(expect, mask & rcv->recv_bit,
+		    "%s (%s, mask %x)", rcv->recv_error_desc,
+		    childmask ? "child" : "parent",
+		    mask);
+	}
+}
+
+static unsigned int
+cponfork_notes_mask(bool inchild)
+{
+	const struct cponfork_recv *rcv;
+	unsigned int mask = 0;
+
+	for (size_t i = 0; i < nitems(cponfork_recv); i++) {
+		rcv = &cponfork_recv[i];
+
+		if (!inchild || !rcv->recv_parent_only)
+			mask |= rcv->recv_bit;
+	}
+
+	ATF_REQUIRE(mask != 0);
+	return (mask);
+}
 
 static int
 cponfork_notes_check(int kq, int clofd)
 {
 	struct kevent ev;
+	unsigned int mask;
 	int error, received = 0;
+
+	mask = cponfork_notes_mask(true);
 
 	EV_SET(&ev, TIMER_TIMEOUT, EVFILT_TIMER,
 	    EV_ADD | EV_ENABLE | EV_ONESHOT, NOTE_SECONDS, 4, NULL);
@@ -106,7 +153,7 @@ cponfork_notes_check(int kq, int clofd)
 	if (error == -1)
 		return (RECV_ERROR);
 
-	while ((received & RECV_ALL) != RECV_ALL) {
+	while ((received & mask) != mask) {
 		error = kevent(kq, NULL, 0, &ev, 1, NULL);
 		if (error < 0)
 			return (RECV_ERROR);
@@ -138,7 +185,8 @@ ATF_TC_WITHOUT_HEAD(cponfork_notes);
 ATF_TC_BODY(cponfork_notes, tc)
 {
 	struct kevent ev[3];
-	int clofd, dfd, error, kq, pdfd, pmask, status;
+	siginfo_t info;
+	int clofd, dfd, error, kq, pdfd, pmask;
 	pid_t pid;
 
 	kq = kqueuex(KQUEUE_CPONFORK);
@@ -164,8 +212,8 @@ ATF_TC_BODY(cponfork_notes, tc)
 	/*
 	 * Every event we setup here we should expect to observe in both the
 	 * child and the parent, with exception to the EVFILT_READ of clofd.  We
-	 * except that one to be dropped in the child when the kqueue it's
-	 * attached to goes away, thus its exclusion from the RECV_ALL mask.
+	 * expect that one to be dropped in the child when the kqueue it's
+	 * attached to goes away, thus its exclusion from the child mask.
 	 */
 	EV_SET(&ev[0], dfd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
 	    NOTE_WRITE, 0, NULL);
@@ -195,6 +243,9 @@ ATF_TC_BODY(cponfork_notes, tc)
 		else if (kf.kf_type != KF_TYPE_KQUEUE)
 			_exit(RECV_ERROR);
 
+		if (fcntl(clofd, F_KINFO, &kf) != -1 || errno != EBADF)
+			_exit(RECV_ERROR);
+
 		_exit(cponfork_notes_check(kq, clofd));
 	}
 
@@ -209,15 +260,13 @@ ATF_TC_BODY(cponfork_notes, tc)
 	 * still fire twice (once in parent, once in child).
 	 */
 	pmask = cponfork_notes_check(kq, clofd);
-	ATF_REQUIRE_EQ(pmask, RECV_ALL | RECV_CLOREAD);
+	cponfork_notes_mask_check(pmask, false);
 
 	/* Wait for the child to timeout or observe the timer. */
-	_Static_assert(RECV_ALL <= UCHAR_MAX,
-	    "Too many events to observe -- switch from waitpid -> waitid");
-	error = waitpid(pid, &status, 0);
+	error = waitid(P_PID, pid, &info, WEXITED);
 	ATF_REQUIRE(error != -1);
-	ATF_REQUIRE(WIFEXITED(status));
-	ATF_REQUIRE_EQ(WEXITSTATUS(status), RECV_ALL);
+	ATF_REQUIRE_EQ(CLD_EXITED, info.si_code);
+	cponfork_notes_mask_check(info.si_status, true);
 }
 
 ATF_TP_ADD_TCS(tp)
