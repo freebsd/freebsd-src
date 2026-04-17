@@ -430,6 +430,17 @@ the definitive format/rate target.
 The recommended way to use bitperfect mode is to disable VCHANs and enable this
 sysctl.
 Default is disabled.
+.It Va dev.pcm.%d.eq
+Set to 1 or 0 to enable (1) or disable (0) the equalizer.
+Default is disabled.
+When enabled, the mixer bass and treble controls can be used, as well as the
+.Va dev.pcm.%d.eq_preamp
+tunable.
+.It Va dev.pcm.%d.eq_preamp
+Equalizer preamp (in dB).
+.Va dev.pcm.%d.eq
+has to be enabled, in order for this tunable to take effect.
+Read the tunable's description to see the available range of values.
 .It Va dev.pcm.%d.[play|rec].vchans
 Enable (1) or disable (0) VCHANs.
 Default is enabled.
