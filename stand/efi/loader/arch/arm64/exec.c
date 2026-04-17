@@ -67,7 +67,6 @@ elf64_exec(struct preloaded_file *fp)
         	return(EFTYPE);
 
 	ehdr = (Elf_Ehdr *)&(md->md_data);
-	entry = efi_translate(ehdr->e_entry);
 
 	/*
 	 * we have to cleanup here because net_cleanup() doesn't work after
@@ -81,6 +80,8 @@ elf64_exec(struct preloaded_file *fp)
 		efi_time_init();
 		return (err);
 	}
+
+	entry = efi_translate(ehdr->e_entry);
 
 	/* Clean D-cache under kernel area and invalidate whole I-cache */
 	clean_addr = (vm_offset_t)efi_translate(fp->f_addr);
