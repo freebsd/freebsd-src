@@ -12599,6 +12599,7 @@ sctp_lower_sosend(struct socket *so,
 	error = 0;
 	net = NULL;
 	stcb = NULL;
+	inp = NULL;
 
 	if ((uio == NULL) && (top == NULL)) {
 		error = EINVAL;
