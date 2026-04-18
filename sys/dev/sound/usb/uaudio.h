@@ -33,9 +33,7 @@
 
 struct uaudio_chan;
 struct uaudio_softc;
-struct snd_dbuf;
 struct snd_mixer;
-struct pcm_channel;
 
 extern int	uaudio_attach_sub(device_t dev, kobj_class_t mixer_class,
 		    kobj_class_t chan_class);
