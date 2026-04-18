@@ -35,6 +35,7 @@
 #include <sys/imgact.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/membarrier.h>
 #include <sys/msgbuf.h>
 #include <sys/mqueue.h>
 #include <sys/mutex.h>
@@ -3113,6 +3114,69 @@ linux_kcmp(struct thread *td, struct linux_kcmp_args *args)
 
 	return (kern_kcmp(td, args->pid1, args->pid2, type, args->idx1,
 	    args->idx));
+}
+
+int
+linux_membarrier(struct thread *td, struct linux_membarrier_args *args)
+{
+	static const struct {
+		int linux_cmd;
+		int freebsd_cmd;
+	} cmds[] = {
+		{ LINUX_MEMBARRIER_CMD_QUERY,
+		    MEMBARRIER_CMD_QUERY },
+		{ LINUX_MEMBARRIER_CMD_GLOBAL,
+		    MEMBARRIER_CMD_GLOBAL },
+		{ LINUX_MEMBARRIER_CMD_GLOBAL_EXPEDITED,
+		    MEMBARRIER_CMD_GLOBAL_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED,
+		    MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ },
+		{ LINUX_MEMBARRIER_CMD_GET_REGISTRATIONS,
+		    MEMBARRIER_CMD_GET_REGISTRATIONS },
+	};
+	int cmd, error, flags, i, mask;
+
+	cmd = -1;
+	for (i = 0; i < nitems(cmds); i++) {
+		if (args->cmd == cmds[i].linux_cmd) {
+			cmd = cmds[i].freebsd_cmd;
+			break;
+		}
+	}
+
+	if (cmd == -1 || (args->flags & ~LINUX_MEMBARRIER_CMD_FLAG_CPU) != 0)
+		return (EINVAL);
+
+	flags = 0;
+	if ((args->flags & LINUX_MEMBARRIER_CMD_FLAG_CPU) != 0)
+		flags |= MEMBARRIER_CMD_FLAG_CPU;
+
+	error = kern_membarrier(td, cmd, flags, args->cpu_id);
+	if (error != 0)
+		return (error);
+
+	if (args->cmd == LINUX_MEMBARRIER_CMD_QUERY ||
+	    args->cmd == LINUX_MEMBARRIER_CMD_GET_REGISTRATIONS) {
+		mask = td->td_retval[0];
+		td->td_retval[0] = 0;
+		for (i = 0; i < nitems(cmds); i++)
+			if ((mask & cmds[i].freebsd_cmd) != 0)
+				td->td_retval[0] |= cmds[i].linux_cmd;
+	}
+
+	return (0);
 }
 
 MODULE_DEPEND(linux, mqueuefs, 1, 1, 1);
