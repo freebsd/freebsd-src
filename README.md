@@ -22,25 +22,26 @@ Source Roadmap:
 | Directory | Description |
 | --------- | ----------- |
 | bin | System/user commands. |
-| cddl | Various commands and libraries under the Common Development and Distribution License. |
-| contrib | Packages contributed by 3rd parties. |
-| crypto | Cryptography stuff (see [crypto/README](crypto/README)). |
+| cddl | Source code for third-party software under the Common Development and Distribution License. |
+| contrib | Source code for third-party software. |
+| crypto | Source code for cryptographic libraries and commands (see [crypto/README](crypto/README)). |
 | etc | Template files for /etc. |
-| gnu | Commands and libraries under the GNU General Public License (GPL) or Lesser General Public License (LGPL). Please see [gnu/COPYING](gnu/COPYING) and [gnu/COPYING.LIB](gnu/COPYING.LIB) for more information. |
+| gnu | Source code for third-party software under the GNU General Public License (GPL) or Lesser General Public License (LGPL). Please see [gnu/COPYING](gnu/COPYING) and [gnu/COPYING.LIB](gnu/COPYING.LIB) for more information. |
 | include | System include files. |
-| kerberos5 | Kerberos5 (Heimdal) package. |
+| kerberos5 | Build system for Kerberos 5 (Heimdal). |
+| krb5 | Build system for Kerberos 5 (MIT). |
 | lib | System libraries. |
-| libexec | System daemons. |
-| release | Release building Makefile & associated tools. |
-| rescue | Build system for statically linked /rescue utilities. |
+| libexec | System commands intended to be executed by other commands or daemons. |
+| release | Makefiles and scripts used for building releases and VM images. |
+| rescue | Build system for statically linked /rescue commands. |
 | sbin | System commands. |
-| secure | Cryptographic libraries and commands. |
+| secure | Build system for cryptographic libraries and commands (excluding Kerberos). |
 | share | Shared resources. |
 | stand | Boot loader sources. |
 | sys | Kernel sources (see [sys/README.md](sys/README.md)). |
 | targets | Support for experimental `DIRDEPS_BUILD` |
-| tests | Regression tests which can be run by Kyua.  See [tests/README](tests/README) for additional information. |
-| tools | Utilities for regression testing and miscellaneous tasks. |
+| tests | Tests which can be run by Kyua.  See [tests/README](tests/README) for additional information. |
+| tools | Ancillary utilities and tests (not included in the build). |
 | usr.bin | User commands. |
 | usr.sbin | System administration commands. |
 
