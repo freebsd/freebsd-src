@@ -835,8 +835,7 @@ void
 ac97_destroy(struct ac97_info *codec)
 {
 	mtx_lock(&codec->lock);
-	if (codec->methods != NULL)
-		kobj_delete(codec->methods, M_AC97);
+	kobj_delete(codec->methods, M_AC97);
 	mtx_destroy(&codec->lock);
 	free(codec, M_AC97);
 }
