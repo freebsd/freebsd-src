@@ -2539,8 +2539,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 324: {
 		struct linux_membarrier_args *p = params;
 		iarg[a++] = p->cmd; /* l_int */
-		iarg[a++] = p->flags; /* l_int */
-		*n_args = 2;
+		iarg[a++] = p->flags; /* l_uint */
+		iarg[a++] = p->cpu_id; /* l_int */
+		*n_args = 3;
 		break;
 	}
 	/* linux_mlock2 */
@@ -6948,6 +6949,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 1:
+			p = "l_uint";
+			break;
+		case 2:
 			p = "l_int";
 			break;
 		default:
