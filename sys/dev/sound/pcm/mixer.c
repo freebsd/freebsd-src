@@ -37,28 +37,6 @@
 #include "feeder_if.h"
 #include "mixer_if.h"
 
-#define MIXER_NAMELEN	16
-struct snd_mixer {
-	KOBJ_FIELDS;
-	void *devinfo;
-	int hwvol_mixer;
-	int hwvol_step;
-	int type;
-	device_t dev;
-	u_int32_t devs;
-	u_int32_t mutedevs;
-	u_int32_t recdevs;
-	u_int32_t recsrc;
-	u_int16_t level[32];
-	u_int16_t level_muted[32];
-	u_int8_t parent[32];
-	u_int32_t child[32];
-	u_int8_t realdev[32];
-	char name[MIXER_NAMELEN];
-	struct mtx lock;
-	int modify_counter;
-};
-
 static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_VOLUME]	= 75,
 	[SOUND_MIXER_BASS]	= 50,

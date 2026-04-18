@@ -30,6 +30,28 @@
 #ifndef _PCM_MIXER_H_
 #define	_PCM_MIXER_H_
 
+#define MIXER_NAMELEN	16
+struct snd_mixer {
+	KOBJ_FIELDS;
+	void *devinfo;
+	int hwvol_mixer;
+	int hwvol_step;
+	int type;
+	device_t dev;
+	u_int32_t devs;
+	u_int32_t mutedevs;
+	u_int32_t recdevs;
+	u_int32_t recsrc;
+	u_int16_t level[32];
+	u_int16_t level_muted[32];
+	u_int8_t parent[32];
+	u_int32_t child[32];
+	u_int8_t realdev[32];
+	char name[MIXER_NAMELEN];
+	struct mtx lock;
+	int modify_counter;
+};
+
 struct snd_mixer *mixer_create(device_t dev, kobj_class_t cls, void *devinfo,
     const char *desc);
 int mixer_delete(struct snd_mixer *m);
@@ -65,13 +87,7 @@ void *mix_getdevinfo(struct snd_mixer *m);
 #define MIXER_TYPE_PRIMARY	0	/* mixer_init()   */
 #define MIXER_TYPE_SECONDARY	1	/* mixer_create() */
 
-/*
- * this is a kludge to allow hiding of the struct snd_mixer definition
- * 512 should be enough for all architectures
- */
-#define MIXER_SIZE	(512 + sizeof(struct kobj) +		\
-			    sizeof(oss_mixer_enuminfo))
-
-#define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
+#define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, \
+    sizeof(struct snd_mixer))
 
 #endif				/* _PCM_MIXER_H_ */
