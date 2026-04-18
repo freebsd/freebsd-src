@@ -187,10 +187,10 @@ const char *testprog;
 
 #ifdef RUN_TEST_UNPRIV
 /* Unprivileged user to run as */
-const char *tuser = "nobody";
+static const char *tuser = "nobody";
 /* Original and test credentials */
-uid_t ouid, tuid;
-uid_t ogid, tgid;
+static uid_t ouid, tuid;
+static uid_t ogid, tgid;
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
