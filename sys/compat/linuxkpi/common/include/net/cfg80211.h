@@ -328,6 +328,53 @@ struct cfg80211_chan_def {
 	uint16_t			punctured;
 };
 
+struct cfg80211_nan_band_config {
+		/* XXX TODO */
+	struct linuxkpi_ieee80211_channel	*chan;
+	uint8_t				rssi_middle;
+	uint8_t				rssi_close;
+	uint8_t				awake_dw_interval;
+};
+
+struct cfg80211_nan_conf {
+	uint8_t				bands;
+	uint8_t				discovery_beacon_interval;
+	uint8_t				master_pref;
+	bool				enable_dw_notification;
+
+	uint16_t			scan_dwell_time;
+	uint16_t			scan_period;
+	uint16_t			extra_nan_attrs_len;
+	uint16_t			vendor_elems_len;
+
+	uint8_t				*cluster_id;
+	struct cfg80211_nan_band_config	band_cfgs[NUM_NL80211_BANDS];
+	uint8_t				*extra_nan_attrs;
+	uint8_t				*vendor_elems;
+};
+
+enum wiphy_nan_flags {
+	WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC	= BIT(0),
+	WIPHY_NAN_FLAGS_USERSPACE_DE		= BIT(1),
+};
+
+/* Wi-Fi Aware (TM) specification, 9.5.15 Device Capability attribute. */
+/* Misplaced here for the moment. */
+#define	NAN_OP_MODE_PHY_MODE_MASK	0x11	/* b0 0=HT, 1=VHT, b4=1 HE supported */
+#define	NAN_OP_MODE_80P80MHZ		0x2	/* b1 */
+#define	NAN_OP_MODE_160MHZ		0x4	/* b2 */
+
+#define	NAN_DEV_CAPA_EXT_KEY_ID_SUPPORTED	0x2	/* b1 */
+#define	NAN_DEV_CAPA_NDPE_SUPPORTED		0x8	/* b3 */
+
+struct wiphy_nan_capa {
+	uint32_t			flags;				/* enum wiphy_nan_flags */
+	uint8_t				op_mode;
+	uint8_t				dev_capabilities;
+	uint8_t				n_antennas;			/* Tx/Rx bitmask, e.g., 0x22 */
+	uint16_t			max_channel_switch_time;
+};
+
 struct cfg80211_ftm_responder_stats {
 		/* XXX TODO */
 	int	asap_num, failed_num, filled, non_asap_num, out_of_window_triggers_num, partial_num, reschedule_requests_num, success_num, total_duration_ms, unknown_triggers_num;
@@ -1151,6 +1198,9 @@ struct wiphy {
 	const struct wiphy_radio		*radio;
 
 	uint32_t				bss_param_support;	/* enum wiphy_bss_param_flags */
+
+	uint8_t					nan_supported_bands;
+	struct wiphy_nan_capa			nan_capa;
 
 	int	features, hw_version;
 	int	interface_modes, max_match_sets, max_remain_on_channel_duration, max_scan_ssids, max_sched_scan_ie_len, max_sched_scan_plan_interval, max_sched_scan_plan_iterations, max_sched_scan_plans, max_sched_scan_reqs, max_sched_scan_ssids;
@@ -2203,6 +2253,22 @@ cfg80211_cqm_rssi_notify(struct net_device *dev,
     enum nl80211_cqm_rssi_threshold_event rssi_te, int32_t rssi, gfp_t gfp)
 {
 	TODO();
+}
+
+/* -------------------------------------------------------------------------- */
+
+static inline void
+cfg80211_nan_cluster_joined(struct wireless_dev *wdev, const uint8_t *cluster_id,
+    bool new_cluster, gfp_t gfp)
+{
+	TODO("NAN");
+}
+
+static inline void
+cfg80211_next_nan_dw_notif(struct wireless_dev *wdev,
+    struct linuxkpi_ieee80211_channel *chan, gfp_t gfp)
+{
+	TODO("NAN");
 }
 
 /* -------------------------------------------------------------------------- */
