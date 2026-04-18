@@ -4100,14 +4100,18 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 #endif
 	u_char *addr;
 	int error = 0, cantparse = 0;
+#ifdef INET
 	union {
 		in_addr_t ival;
 		u_char cval[4];
 	} ip;
+#endif
+#if defined(INET6) || defined(INET)
 	union {
 		in_port_t sval;
 		u_char cval[2];
 	} port;
+#endif
 
 	/* 8 is the maximum length of the port# string. */
 	addr = malloc(INET6_ADDRSTRLEN + 8, M_TEMP, M_WAITOK);
@@ -4243,9 +4247,15 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 			j = nfsrv_getipnumber(cp);
 			if (j >= 0) {
 				if (i < 4)
+#ifdef INET
 					ip.cval[3 - i] = j;
+#else
+					;
+#endif
+#if defined(INET6) || defined(INET)
 				else
 					port.cval[5 - i] = j;
+#endif
 			} else {
 				cantparse = 1;
 				break;
