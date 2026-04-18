@@ -104,7 +104,8 @@ tags = ['functional', 'cli_root', 'zfs_bookmark']
 [tests/functional/cli_root/zfs_change-key]
 tests = ['zfs_change-key', 'zfs_change-key_child', 'zfs_change-key_format',
     'zfs_change-key_inherit', 'zfs_change-key_load', 'zfs_change-key_location',
-    'zfs_change-key_pbkdf2iters', 'zfs_change-key_clones']
+    'zfs_change-key_pbkdf2iters', 'zfs_change-key_clones',
+    'zfs_change-key_userprop']
 tags = ['functional', 'cli_root', 'zfs_change-key']
 
 [tests/functional/cli_root/zfs_clone]
@@ -323,7 +324,8 @@ pre =
 tags = ['functional', 'cli_root', 'zpool_initialize']
 
 [tests/functional/cli_root/zpool_offline]
-tests = ['zpool_offline_001_pos', 'zpool_offline_002_neg']
+tests = ['zpool_offline_001_pos', 'zpool_offline_002_neg',
+    'zpool_offline_spare']
 tags = ['functional', 'cli_root', 'zpool_offline']
 
 [tests/functional/cli_root/zpool_online]

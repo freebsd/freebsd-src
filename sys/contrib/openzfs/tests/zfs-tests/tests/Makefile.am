@@ -393,6 +393,8 @@ nobase_dist_datadir_zfs_tests_tests_DATA += \
 	functional/vdev_zaps/vdev_zaps.kshlib \
 	functional/xattr/xattr.cfg \
 	functional/xattr/xattr_common.kshlib \
+	functional/zoned_uid/zoned_uid.cfg \
+	functional/zoned_uid/zoned_uid_common.kshlib \
 	functional/zvol/zvol.cfg \
 	functional/zvol/zvol_cli/zvol_cli.cfg \
 	functional/zvol/zvol_common.shlib \
@@ -493,6 +495,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/block_cloning/block_cloning_rlimit_fsize.ksh \
 	functional/block_cloning/block_cloning_large_offset.ksh \
 	functional/block_cloning/block_cloning_after_device_removal.ksh \
+	functional/block_cloning/block_cloning_after_trunc.ksh \
 	functional/bootfs/bootfs_001_pos.ksh \
 	functional/bootfs/bootfs_002_neg.ksh \
 	functional/bootfs/bootfs_003_pos.ksh \
@@ -664,6 +667,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zfs_change-key/zfs_change-key_load.ksh \
 	functional/cli_root/zfs_change-key/zfs_change-key_location.ksh \
 	functional/cli_root/zfs_change-key/zfs_change-key_pbkdf2iters.ksh \
+	functional/cli_root/zfs_change-key/zfs_change-key_userprop.ksh \
 	functional/cli_root/zfs/cleanup.ksh \
 	functional/cli_root/zfs_clone/cleanup.ksh \
 	functional/cli_root/zfs_clone/setup.ksh \
@@ -1083,6 +1087,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_create/zpool_create_draid_002_pos.ksh \
 	functional/cli_root/zpool_create/zpool_create_draid_003_pos.ksh \
 	functional/cli_root/zpool_create/zpool_create_draid_004_pos.ksh \
+	functional/cli_root/zpool_create/zpool_create_draid_005_pos.ksh \
 	functional/cli_root/zpool_create/zpool_create_dryrun_output.ksh \
 	functional/cli_root/zpool_create/zpool_create_encrypted.ksh \
 	functional/cli_root/zpool_create/zpool_create_edom_neg.ksh \
@@ -1096,6 +1101,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_create/zpool_create_features_008_pos.ksh \
 	functional/cli_root/zpool_create/zpool_create_features_009_pos.ksh \
 	functional/cli_root/zpool_create/zpool_create_tempname.ksh \
+	functional/cli_root/zpool_create/zpool_create_errinfo_001_neg.ksh \
 	functional/cli_root/zpool_destroy/zpool_destroy_001_pos.ksh \
 	functional/cli_root/zpool_destroy/zpool_destroy_002_pos.ksh \
 	functional/cli_root/zpool_destroy/zpool_destroy_003_neg.ksh \
@@ -1220,6 +1226,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_offline/zpool_offline_001_pos.ksh \
 	functional/cli_root/zpool_offline/zpool_offline_002_neg.ksh \
 	functional/cli_root/zpool_offline/zpool_offline_003_pos.ksh \
+	functional/cli_root/zpool_offline/zpool_offline_spare.ksh \
 	functional/cli_root/zpool_online/cleanup.ksh \
 	functional/cli_root/zpool_online/setup.ksh \
 	functional/cli_root/zpool_online/zpool_online_001_pos.ksh \
@@ -1570,6 +1577,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/exec/exec_002_neg.ksh \
 	functional/exec/setup.ksh \
 	functional/fadvise/cleanup.ksh \
+	functional/fadvise/fadvise_dontneed.ksh \
 	functional/fadvise/fadvise_willneed.ksh \
 	functional/fadvise/setup.ksh \
 	functional/failmode/cleanup.ksh \
@@ -1607,6 +1615,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/fault/scrub_after_resilver.ksh \
 	functional/fault/suspend_on_probe_errors.ksh \
 	functional/fault/suspend_resume_single.ksh \
+	functional/fault/suspend_draid_fgroups.ksh \
 	functional/fault/setup.ksh \
 	functional/fault/zpool_status_-s.ksh \
 	functional/features/async_destroy/async_destroy_001_pos.ksh \
@@ -1900,12 +1909,16 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/redundancy/redundancy_draid1.ksh \
 	functional/redundancy/redundancy_draid2.ksh \
 	functional/redundancy/redundancy_draid3.ksh \
+	functional/redundancy/redundancy_draid_width.ksh \
 	functional/redundancy/redundancy_draid_damaged1.ksh \
 	functional/redundancy/redundancy_draid_damaged2.ksh \
+	functional/redundancy/redundancy_draid_degraded1.ksh \
+	functional/redundancy/redundancy_draid_degraded2.ksh \
 	functional/redundancy/redundancy_draid.ksh \
 	functional/redundancy/redundancy_draid_spare1.ksh \
 	functional/redundancy/redundancy_draid_spare2.ksh \
 	functional/redundancy/redundancy_draid_spare3.ksh \
+	functional/redundancy/redundancy_draid_spare4.ksh \
 	functional/redundancy/redundancy_mirror.ksh \
 	functional/redundancy/redundancy_raidz1.ksh \
 	functional/redundancy/redundancy_raidz2.ksh \
@@ -2266,6 +2279,39 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/xattr/xattr_013_pos.ksh \
 	functional/xattr/xattr_014_pos.ksh \
 	functional/xattr/xattr_compat.ksh \
+	functional/zoned_uid/cleanup.ksh \
+	functional/zoned_uid/setup.ksh \
+	functional/zoned_uid/zoned_uid_001_pos.ksh \
+	functional/zoned_uid/zoned_uid_002_pos.ksh \
+	functional/zoned_uid/zoned_uid_003_pos.ksh \
+	functional/zoned_uid/zoned_uid_004_pos.ksh \
+	functional/zoned_uid/zoned_uid_005_neg.ksh \
+	functional/zoned_uid/zoned_uid_006_pos.ksh \
+	functional/zoned_uid/zoned_uid_007_pos.ksh \
+	functional/zoned_uid/zoned_uid_008_pos.ksh \
+	functional/zoned_uid/zoned_uid_009_pos.ksh \
+	functional/zoned_uid/zoned_uid_010_pos.ksh \
+	functional/zoned_uid/zoned_uid_011_neg.ksh \
+	functional/zoned_uid/zoned_uid_012_pos.ksh \
+	functional/zoned_uid/zoned_uid_013_pos.ksh \
+	functional/zoned_uid/zoned_uid_014_pos.ksh \
+	functional/zoned_uid/zoned_uid_015_pos.ksh \
+	functional/zoned_uid/zoned_uid_016_pos.ksh \
+	functional/zoned_uid/zoned_uid_017_neg.ksh \
+	functional/zoned_uid/zoned_uid_018_pos.ksh \
+	functional/zoned_uid/zoned_uid_019_neg.ksh \
+	functional/zoned_uid/zoned_uid_020_neg.ksh \
+	functional/zoned_uid/zoned_uid_021_neg.ksh \
+	functional/zoned_uid/zoned_uid_022_neg.ksh \
+	functional/zoned_uid/zoned_uid_023_pos.ksh \
+	functional/zoned_uid/zoned_uid_024_neg.ksh \
+	functional/zoned_uid/zoned_uid_025_pos.ksh \
+	functional/zoned_uid/zoned_uid_026_pos.ksh \
+	functional/zoned_uid/zoned_uid_027_pos.ksh \
+	functional/zoned_uid/zoned_uid_028_neg.ksh \
+	functional/zoned_uid/zoned_uid_029_neg.ksh \
+	functional/zoned_uid/zoned_uid_030_pos.ksh \
+	functional/zoned_uid/zoned_uid_031_pos.ksh \
 	functional/zap_shrink/cleanup.ksh \
 	functional/zap_shrink/zap_shrink_001_pos.ksh \
 	functional/zap_shrink/setup.ksh \

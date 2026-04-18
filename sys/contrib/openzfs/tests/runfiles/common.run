@@ -50,7 +50,8 @@ tests = ['dbufstats_001_pos', 'dbufstats_002_pos', 'dbufstats_003_pos',
 tags = ['functional', 'arc']
 
 [tests/functional/atime]
-tests = ['atime_001_pos', 'atime_002_neg', 'root_atime_off', 'root_atime_on']
+tests = ['atime_001_pos', 'atime_002_neg', 'atime_003_pos', 'root_atime_off',
+    'root_atime_on', 'root_relatime_on']
 tags = ['functional', 'atime']
 
 [tests/functional/bclone]
@@ -83,7 +84,8 @@ tests = ['block_cloning_clone_mmap_cached',
     'block_cloning_replay', 'block_cloning_replay_encrypted',
     'block_cloning_lwb_buffer_overflow', 'block_cloning_clone_mmap_write',
     'block_cloning_rlimit_fsize', 'block_cloning_large_offset',
-    'block_cloning_after_device_removal']
+    'block_cloning_after_device_removal',
+    'block_cloning_after_trunc']
 tags = ['functional', 'block_cloning']
 
 [tests/functional/bootfs]
@@ -189,7 +191,8 @@ tags = ['functional', 'cli_root', 'zfs_bookmark']
 [tests/functional/cli_root/zfs_change-key]
 tests = ['zfs_change-key', 'zfs_change-key_child', 'zfs_change-key_format',
     'zfs_change-key_inherit', 'zfs_change-key_load', 'zfs_change-key_location',
-    'zfs_change-key_pbkdf2iters', 'zfs_change-key_clones']
+    'zfs_change-key_pbkdf2iters', 'zfs_change-key_clones',
+    'zfs_change-key_userprop']
 tags = ['functional', 'cli_root', 'zfs_change-key']
 
 [tests/functional/cli_root/zfs_clone]
@@ -424,12 +427,13 @@ tests = ['zpool_create_001_pos', 'zpool_create_002_pos',
     'zpool_create_encrypted', 'zpool_create_edom_neg', 'zpool_create_crypt_combos',
     'zpool_create_draid_001_pos', 'zpool_create_draid_002_pos',
     'zpool_create_draid_003_pos', 'zpool_create_draid_004_pos',
+    'zpool_create_draid_005_pos',
     'zpool_create_features_001_pos', 'zpool_create_features_002_pos',
     'zpool_create_features_003_pos', 'zpool_create_features_004_neg',
     'zpool_create_features_005_pos', 'zpool_create_features_006_pos',
     'zpool_create_features_007_pos', 'zpool_create_features_008_pos',
     'zpool_create_features_009_pos', 'create-o_ashift',
-    'zpool_create_tempname', 'zpool_create_dryrun_output']
+    'zpool_create_tempname', 'zpool_create_errinfo_001_neg', 'zpool_create_dryrun_output']
 tags = ['functional', 'cli_root', 'zpool_create']
 
 [tests/functional/cli_root/zpool_destroy]
@@ -525,7 +529,7 @@ tags = ['functional', 'cli_root', 'zpool_initialize']
 
 [tests/functional/cli_root/zpool_offline]
 tests = ['zpool_offline_001_pos', 'zpool_offline_002_neg',
-    'zpool_offline_003_pos']
+    'zpool_offline_003_pos', 'zpool_offline_spare']
 tags = ['functional', 'cli_root', 'zpool_offline']
 
 [tests/functional/cli_root/zpool_online]
@@ -738,7 +742,7 @@ tests = ['exec_001_pos', 'exec_002_neg']
 tags = ['functional', 'exec']
 
 [tests/functional/fadvise]
-tests = ['fadvise_willneed']
+tests = ['fadvise_dontneed', 'fadvise_willneed']
 tags = ['functional', 'fadvise']
 
 [tests/functional/failmode]
@@ -914,9 +918,11 @@ timeout = 1200
 
 [tests/functional/redundancy]
 tests = ['redundancy_draid', 'redundancy_draid1', 'redundancy_draid2',
-    'redundancy_draid3', 'redundancy_draid_damaged1',
-    'redundancy_draid_damaged2', 'redundancy_draid_spare1',
-    'redundancy_draid_spare2', 'redundancy_draid_spare3', 'redundancy_mirror',
+    'redundancy_draid3', 'redundancy_draid_width', 'redundancy_draid_damaged1',
+    'redundancy_draid_damaged2', 'redundancy_draid_degraded1',
+    'redundancy_draid_degraded2',
+    'redundancy_draid_spare1', 'redundancy_draid_spare2',
+    'redundancy_draid_spare3', 'redundancy_draid_spare4', 'redundancy_mirror',
     'redundancy_raidz', 'redundancy_raidz1', 'redundancy_raidz2',
     'redundancy_raidz3', 'redundancy_stripe']
 tags = ['functional', 'redundancy']
@@ -1101,6 +1107,22 @@ tests = ['xattr_001_pos', 'xattr_002_neg', 'xattr_003_neg', 'xattr_004_pos',
     'xattr_011_pos', 'xattr_012_pos', 'xattr_013_pos', 'xattr_014_pos',
     'xattr_compat']
 tags = ['functional', 'xattr']
+
+[tests/functional/zoned_uid:Linux]
+tests = ['zoned_uid_001_pos', 'zoned_uid_002_pos', 'zoned_uid_003_pos',
+    'zoned_uid_004_pos', 'zoned_uid_005_neg', 'zoned_uid_006_pos',
+    'zoned_uid_007_pos', 'zoned_uid_008_pos', 'zoned_uid_009_pos',
+    'zoned_uid_010_pos', 'zoned_uid_011_neg', 'zoned_uid_012_pos',
+    'zoned_uid_013_pos', 'zoned_uid_014_pos',
+    'zoned_uid_015_pos', 'zoned_uid_016_pos', 'zoned_uid_017_neg',
+    'zoned_uid_018_pos', 'zoned_uid_019_neg', 'zoned_uid_020_neg',
+    'zoned_uid_021_neg', 'zoned_uid_022_neg',
+    'zoned_uid_030_pos',
+    'zoned_uid_023_pos', 'zoned_uid_024_neg',
+    'zoned_uid_025_pos', 'zoned_uid_026_pos',
+    'zoned_uid_027_pos', 'zoned_uid_028_neg',
+    'zoned_uid_029_neg', 'zoned_uid_031_pos']
+tags = ['functional', 'zoned_uid']
 
 [tests/functional/zvol/zvol_ENOSPC]
 tests = ['zvol_ENOSPC_001_pos']
