@@ -1104,6 +1104,10 @@ struct ieee80211_ops {
 
 	int (*net_fill_forward_path)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct net_device_path_ctx *, struct net_device_path *);
 
+	int (*start_nan)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_nan_conf *);
+	int (*stop_nan)(struct ieee80211_hw *, struct ieee80211_vif *);
+	int (*nan_change_conf)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_nan_conf *, uint32_t changes);
+
 /* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change depending on compile-time option. */
 	void (*sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct dentry *);
 	void (*vif_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *);
@@ -2649,5 +2653,12 @@ ieee80211_cqm_beacon_loss_notify(struct ieee80211_vif *vif, gfp_t gfp __unused)
     linuxkpi_ieee80211_send_bar(_v, _r, _t, _s)
 
 /* -------------------------------------------------------------------------- */
+
+static inline bool
+ieee80211_vif_nan_started(struct ieee80211_vif *vif)
+{
+	IMPROVE("NAN");
+	return (false);
+}
 
 #endif	/* _LINUXKPI_NET_MAC80211_H */
