@@ -21,7 +21,7 @@ CFLAGS+=-I${LDRSRC}
 # boot1.elf defined in the HFS template, but sometimes boot1.elf is written
 # directly to the PReP partition.
 #
-LDFLAGS=-nostdlib -static -Wl,-N -Wl,-Ttext=0x38000
+LDFLAGS=-nostdlib -static -Wl,-N -Wl,-Ttext=0x38000 -Wl,--image-base=0x38000
 
 .PATH:  ${SYSDIR}/libkern ${SRCTOP}/lib/libc/powerpc/gen ${.CURDIR}
 
