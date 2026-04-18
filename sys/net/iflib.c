@@ -3866,7 +3866,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	if_ctx_t ctx = txq->ift_ctx;
 	if_t ifp = ctx->ifc_ifp;
 	struct mbuf *m, **mp;
-	int avail, bytes_sent, skipped, count, err, i;
+	int avail, bytes_sent, consumed, count, err, i;
 	int mcast_sent, pkt_sent, reclaimed;
 	bool do_prefetch, rang, ring;
 
@@ -3906,7 +3906,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	 */
 	if (reclaimed)
 		txq->ift_qstatus = IFLIB_QUEUE_IDLE;
-	skipped = mcast_sent = bytes_sent = pkt_sent = 0;
+	consumed = mcast_sent = bytes_sent = pkt_sent = 0;
 	count = MIN(avail, TX_BATCH_SIZE);
 #ifdef INVARIANTS
 	if (iflib_verbose_debug)
@@ -3929,7 +3929,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		 * and skip them.
 		 */
 		if (__predict_false(*mp == (struct mbuf *)txq)) {
-			skipped++;
+			consumed++;
 			continue;
 		}
 		err = iflib_encap(txq, mp, &bytes_sent, &pkt_sent);
@@ -3937,10 +3937,11 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 			/* no room - bail out */
 			if (err == ENOBUFS)
 				break;
-			skipped++;
+			consumed++;
 			/* we can't send this packet - skip it */
 			continue;
 		}
+		consumed++;
 		m = *mp;
 		DBG_COUNTER_INC(tx_sent);
 		mcast_sent += !!(m->m_flags & M_MCAST);
@@ -3960,9 +3961,9 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		if_inc_counter(ifp, IFCOUNTER_OMCASTS, mcast_sent);
 #ifdef INVARIANTS
 	if (iflib_verbose_debug)
-		printf("consumed=%d\n", skipped + pkt_sent);
+		printf("consumed=%d\n", consumed);
 #endif
-	return (skipped + pkt_sent);
+	return (consumed);
 }
 
 static uint32_t
