@@ -8,6 +8,8 @@ import importlib
 import os
 import sys
 
+gdb.set_parameter("python print-stack", "full")
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "gdb"))
 
 modules = [
