@@ -35,13 +35,11 @@
 
 #define	BASEPATH "/dev/mixer"
 
-static int _mixer_readvol(struct mix_dev *);
-
 /*
  * Fetch volume from the device.
  */
 static int
-_mixer_readvol(struct mix_dev *dev)
+mixer_readvol(struct mix_dev *dev)
 {
 	int v;
 
@@ -120,7 +118,7 @@ dunit:
 		dp->parent_mixer = m;
 		dp->devno = i;
 		dp->nctl = 0;
-		if (MIX_ISDEV(m, i) && _mixer_readvol(dp) < 0)
+		if (MIX_ISDEV(m, i) && mixer_readvol(dp) < 0)
 			goto fail;
 		(void)strlcpy(dp->name, names[i], sizeof(dp->name));
 		TAILQ_INIT(&dp->ctls);
@@ -334,7 +332,7 @@ mixer_set_vol(struct mixer *m, mix_volume_t vol)
 	v = MIX_VOLDENORM(vol.left) | MIX_VOLDENORM(vol.right) << 8;
 	if (ioctl(m->fd, MIXER_WRITE(m->dev->devno), &v) < 0)
 		return (-1);
-	if (_mixer_readvol(m->dev) < 0)
+	if (mixer_readvol(m->dev) < 0)
 		return (-1);
 
 	return (0);
