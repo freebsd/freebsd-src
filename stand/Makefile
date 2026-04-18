@@ -39,6 +39,7 @@ INTERP_DEPENDS+=	lua
 S.${MK_EFI}+=		efi
 S.${MK_LOADER_KBOOT}+=	kboot
 S.${MK_LOADER_UBOOT}+=	uboot
+S.${MK_LOADER_USB}+=	usb
 
 .if defined(LIB32LIST)
 LIB32DEPENDS=	${LIB32LIST:S/$/32/}
