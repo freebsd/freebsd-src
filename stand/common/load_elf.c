@@ -1282,10 +1282,11 @@ __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
 	int error;
 
 	/*
-	 * The kernel is already relocated, but we still want to apply
-	 * offset adjustments.
+	 * On most platforms, the kernel is already relocated, but we still
+	 * want to apply offset adjustments.  For PowerPC, the kernel is
+	 * ET_DYN rather than ET_EXEC and we still need to relocate here.
 	 */
-	if (ef->kernel)
+	if (ef->kernel && ef->ehdr->e_type != ET_DYN)
 		return (EOPNOTSUPP);
 
 	for (n = 0; n < ef->relsz / sizeof(r); n++) {
