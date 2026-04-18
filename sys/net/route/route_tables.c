@@ -83,7 +83,7 @@ VNET_DEFINE_STATIC(struct sx, rtables_lock);
 VNET_DEFINE_STATIC(struct rib_head **, rt_tables);
 #define	V_rt_tables	VNET(rt_tables)
 
-VNET_DEFINE(uint32_t, _rt_numfibs) = RT_NUMFIBS;
+VNET_DEFINE(uint32_t, _rt_numfibs) = 1;
 
 /*
  * Handler for net.my_fibnum.
@@ -290,17 +290,25 @@ grow_rtables(uint32_t num_tables)
 }
 
 static void
-vnet_rtables_init(const void *unused __unused)
+rtnumfibs_init(const void *unused __unused)
 {
 	int num_rtables_base;
 
-	if (IS_DEFAULT_VNET(curvnet)) {
-		num_rtables_base = RT_NUMFIBS;
-		TUNABLE_INT_FETCH("net.fibs", &num_rtables_base);
-		V_rt_numfibs = normalize_num_rtables(num_rtables_base);
-	} else
-		V_rt_numfibs = 1;
+	/*
+	 * Set the number of FIBs based on compile-time and boot-time settings.
+	 * For some reason, VNET jails do not inherit this parameter, so they
+	 * must set net.fibs manually.
+	 */
+	num_rtables_base = RT_NUMFIBS;
+	TUNABLE_INT_FETCH("net.fibs", &num_rtables_base);
+	V_rt_numfibs = normalize_num_rtables(num_rtables_base);
+}
+SYSINIT(rtnumfibs_init, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, rtnumfibs_init,
+    NULL);
 
+static void
+vnet_rtables_init(const void *unused __unused)
+{
 	vnet_rtzone_init();
 #ifdef FIB_ALGO
 	vnet_fib_init();
