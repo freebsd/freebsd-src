@@ -23,6 +23,10 @@
 # SUCH DAMAGE.
 #
 
+# This is the default in a FreeBSD login session, but may be unset if
+# run under sudo or in a different environment.
+export BLOCKSIZE=K
+
 require_sparse_file_support()
 {
 	if ! getconf MIN_HOLE_SIZE "$(pwd)"; then
