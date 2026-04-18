@@ -106,8 +106,6 @@ DUMMY(bpf);
 DUMMY(execveat);
 /* Linux 4.2: */
 DUMMY(userfaultfd);
-/* Linux 4.3: */
-DUMMY(membarrier);
 /* Linux 4.4: */
 DUMMY(mlock2);
 /* Linux 4.6: */
