@@ -473,6 +473,9 @@ iwl_mld_scan_get_cmd_gen_flags(struct iwl_mld *mld,
 	    params->flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_TRIGGER_UHB_SCAN;
 
+	if (scan_status == IWL_MLD_SCAN_INT_MLO)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_NTF_START;
+
 	if (params->enable_6ghz_passive)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN;
 
@@ -1063,14 +1066,15 @@ static int
 iwl_mld_scan_cmd_set_6ghz_chan_params(struct iwl_mld *mld,
 				      struct iwl_mld_scan_params *params,
 				      struct ieee80211_vif *vif,
-				      struct iwl_scan_req_params_v17 *scan_p,
-				      enum iwl_mld_scan_status scan_status)
+				      struct iwl_scan_req_params_v17 *scan_p)
 {
 	struct iwl_scan_channel_params_v7 *chan_p = &scan_p->channel_params;
 	struct iwl_scan_probe_params_v4 *probe_p = &scan_p->probe_params;
 
-	chan_p->flags = iwl_mld_scan_get_cmd_gen_flags(mld, params, vif,
-						       scan_status);
+	/* Explicitly clear the flags since most of them are not
+	 * relevant for 6 GHz scan.
+	 */
+	chan_p->flags = 0;
 	chan_p->count = iwl_mld_scan_cfg_channels_6g(mld, params,
 						     params->n_channels,
 						     probe_p, chan_p,
@@ -1106,8 +1110,7 @@ iwl_mld_scan_cmd_set_chan_params(struct iwl_mld *mld,
 
 	if (params->scan_6ghz)
 		return iwl_mld_scan_cmd_set_6ghz_chan_params(mld, params,
-							     vif, scan_p,
-							     scan_status);
+							     vif, scan_p);
 
 	/* relevant only for 2.4 GHz/5 GHz scan */
 	cp->flags = iwl_mld_scan_cmd_set_chan_flags(mld, params, vif,
@@ -1817,9 +1820,6 @@ static void iwl_mld_int_mlo_scan_start(struct iwl_mld *mld,
 	ret = _iwl_mld_single_scan_start(mld, vif, req, &ies,
 					 IWL_MLD_SCAN_INT_MLO);
 
-	if (!ret)
-		mld->scan.last_mlo_scan_time = ktime_get_boottime_ns();
-
 	IWL_DEBUG_SCAN(mld, "Internal MLO scan: ret=%d\n", ret);
 }
 
@@ -1902,6 +1902,30 @@ void iwl_mld_handle_match_found_notif(struct iwl_mld *mld,
 {
 	IWL_DEBUG_SCAN(mld, "Scheduled scan results\n");
 	ieee80211_sched_scan_results(mld->hw);
+}
+
+void iwl_mld_handle_scan_start_notif(struct iwl_mld *mld,
+				     struct iwl_rx_packet *pkt)
+{
+	struct iwl_umac_scan_complete *notif = (void *)pkt->data;
+	u32 uid = le32_to_cpu(notif->uid);
+
+	if (IWL_FW_CHECK(mld, uid >= ARRAY_SIZE(mld->scan.uid_status),
+			 "FW reports out-of-range scan UID %d\n", uid))
+		return;
+
+	if (IWL_FW_CHECK(mld, !(mld->scan.uid_status[uid] & mld->scan.status),
+			 "FW reports scan UID %d we didn't trigger\n", uid))
+		return;
+
+	IWL_DEBUG_SCAN(mld, "Scan started: uid=%u type=%u\n", uid,
+		       mld->scan.uid_status[uid]);
+	if (IWL_FW_CHECK(mld, mld->scan.uid_status[uid] != IWL_MLD_SCAN_INT_MLO,
+			 "FW reports scan start notification %d we didn't trigger\n",
+			 mld->scan.uid_status[uid]))
+		return;
+
+	mld->scan.last_mlo_scan_start_time = ktime_get_boottime_ns();
 }
 
 void iwl_mld_handle_scan_complete_notif(struct iwl_mld *mld,
@@ -2083,9 +2107,8 @@ void iwl_mld_handle_channel_survey_notif(struct iwl_mld *mld,
 			n_channels += mld->wiphy->bands[band]->n_channels;
 		}
 
-		mld->channel_survey = kzalloc(struct_size(mld->channel_survey,
-							  channels, n_channels),
-							  GFP_KERNEL);
+		mld->channel_survey = kzalloc_flex(*mld->channel_survey,
+						   channels, n_channels);
 
 		if (!mld->channel_survey)
 			return;
