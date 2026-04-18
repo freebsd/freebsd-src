@@ -132,7 +132,7 @@ sysctl_fibs(SYSCTL_HANDLER_ARGS)
 		new_fibs = normalize_num_rtables(new_fibs);
 
 		if (new_fibs < V_rt_numfibs)
-			error = ENOTCAPABLE;
+			error = EINVAL;
 		if (new_fibs > V_rt_numfibs)
 			grow_rtables(new_fibs);
 	}
