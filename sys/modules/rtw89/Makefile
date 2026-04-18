@@ -83,6 +83,6 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 #CFLAGS+=	-ferror-limit=0 -fmacro-backtrace-limit=0
 
 CFLAGS+=	-DKBUILD_MODNAME='"rtw89"'
-CFLAGS+=	-DLINUXKPI_VERSION=61900
+CFLAGS+=	-DLINUXKPI_VERSION=70000
 
 .include <bsd.kmod.mk>
