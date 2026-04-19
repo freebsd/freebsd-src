@@ -84,11 +84,11 @@ userland_version() {
 }
 
 #
-# Print the hardcoded userland version of a jail.
+# Print the hardcoded userland version(s) of jail(s).
 #
 jail_version() {
-	for i in $jail; do
-		jexec -- "$i" freebsd-version
+	for j in $jail; do
+		jexec -- "$j" freebsd-version
 	done
 }
 
