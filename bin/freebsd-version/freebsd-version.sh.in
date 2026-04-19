@@ -118,6 +118,10 @@ main() {
 			opt_u=1
 			;;
 		j)
+			if [ -z "$OPTARG" ] ; then
+				echo "No arg for -j option" >&2
+				usage
+			fi
 			if [ $opt_j ] ; then
 				jail="$jail $OPTARG"
 			else
