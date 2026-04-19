@@ -1183,6 +1183,26 @@ change_route_byinfo(struct rib_head *rnh, struct rtentry *rt,
 	return (error);
 }
 
+static void
+update_tmproutes_mpath(struct rib_head *rnh, struct rtentry *rt,
+    struct route_nhop_data *rnd)
+{
+	const struct weightened_nhop *wn;
+	uint32_t i, nhops;
+
+	if (NH_IS_NHGRP(rnd->rnd_nhop)) {
+		wn = nhgrp_get_nhops(rnd->rnd_nhgrp, &nhops);
+
+		for (i = 0; i < nhops; i++) {
+			if (nhop_get_expire(wn[i].nh) == 0)
+				continue;
+
+			tmproutes_update(rnh, rt, wn[i].nh);
+		}
+	} else if (nhop_get_expire(rnd->rnd_nhop) != 0)
+		tmproutes_update(rnh, rt, rnd->rnd_nhop);
+}
+
 /*
  * Insert @rt with nhop data from @rnd_new to @rnh.
  * Returns 0 on success and stores operation results in @rc.
@@ -1200,9 +1220,7 @@ add_route(struct rib_head *rnh, struct rtentry *rt,
 	rn = rnh->rnh_addaddr(rt_key(rt), rt_mask_const(rt), &rnh->head, rt->rt_nodes);
 
 	if (rn != NULL) {
-		if (!NH_IS_NHGRP(rnd->rnd_nhop) && nhop_get_expire(rnd->rnd_nhop))
-			tmproutes_update(rnh, rt, rnd->rnd_nhop);
-
+		update_tmproutes_mpath(rnh, rt, rnd);
 		/* Finalize notification */
 		rib_bump_gen(rnh);
 		rnh->rnh_prefixes++;
@@ -1272,8 +1290,7 @@ change_route(struct rib_head *rnh, struct rtentry *rt,
 	/* Changing nexthop & weight to a new one */
 	rt->rt_nhop = rnd->rnd_nhop;
 	rt->rt_weight = rnd->rnd_weight;
-	if (!NH_IS_NHGRP(rnd->rnd_nhop) && nhop_get_expire(rnd->rnd_nhop))
-		tmproutes_update(rnh, rt, rnd->rnd_nhop);
+	update_tmproutes_mpath(rnh, rt, rnd);
 
 	/* Finalize notification */
 	rib_bump_gen(rnh);
