@@ -1804,6 +1804,18 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 
 		return (kern_procctl(td, P_PID, 0, PROC_REAP_ACQUIRE,
 		    NULL));
+	case LINUX_PR_GET_CHILD_SUBREAPER: {
+		struct procctl_reaper_status rs;
+		l_int val;
+
+		error = kern_procctl(td, P_PID, 0, PROC_REAP_STATUS, &rs);
+		if (error != 0)
+			return (error);
+		val = rs.rs_reaper == p->p_pid ? 1 : 0;
+		error = copyout(&val, (void *)(register_t)args->arg2,
+		    sizeof(val));
+		break;
+	}
 	case LINUX_PR_SET_NO_NEW_PRIVS:
 		arg = args->arg2 == 1 ?
 		    PROC_NO_NEW_PRIVS_ENABLE : PROC_NO_NEW_PRIVS_DISABLE;
