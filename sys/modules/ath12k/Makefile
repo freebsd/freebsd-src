@@ -13,13 +13,21 @@ ATH12K_TRACING=		0
 
 KMOD=	if_ath12k
 
-SRCS+=	core.c hal.c hal_tx.c hal_rx.c
+SRCS+=	core.c hal.c
 SRCS+=	wmi.c mac.c reg.c htc.c qmi.c
 SRCS+=	dp.c dp_tx.c dp_rx.c dp_mon.c debug.c
-SRCS+=	ce.c peer.c dbring.c hw.c fw.c p2p.c
+SRCS+=	ce.c peer.c dbring.c fw.c p2p.c
+SRCS+=	dp_htt.c dp_peer.c
+
+SRCS+=	wifi7/ce.c wifi7/core.c
+SRCS+=	wifi7/dp.c wifi7/dp_mon.c wifi7/dp_rx.c wifi7/dp_tx.c
+SRCS+=	wifif/hal.c wifi7/hal_tx.c wifi7/hal_rx.c
+SRCS+=	wifi7/hal_qcc2072.c wifi7/hal_qcn9274.c wifi7/hal_wcn7850.c
+SRCS+=	wifi7/hw.c wifi7/wmi.c
 
 .if defined(ATH12K_PCI) && ${ATH12K_PCI} > 0 && ${KERN_OPTS:MDEV_PCI}
 SRCS+=	mhi.c pci.c
+SRCS+=	wifi7/mhi.c wifi7/pci.c
 .else
 .error	ath12k requires PCI support compiled in at this point
 .endif
@@ -27,6 +35,7 @@ SRCS+=	mhi.c pci.c
 .if defined(ATH12K_AHB) && ${ATH12K_AHB} > 0
 CFLAGS+=	-DCONFIG_ATH12K_AHB
 SRCS+=	ahb.c
+SRCS+=	wifi7/ahb.c
 .endif
 .if defined(ATH12K_DEBUGFS) && ${ATH12K_DEBUGFS} > 0
 CFLAGS+=	-DCONFIG_ATH12K_DEBUGFS
@@ -62,6 +71,6 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-DCONFIG_ATH12K_DEBUG
 
 CFLAGS+=	-DKBUILD_MODNAME='"ath12k"'
-CFLAGS+=	-DLINUXKPI_VERSION=61900
+CFLAGS+=	-DLINUXKPI_VERSION=70000
 
 .include <bsd.kmod.mk>
