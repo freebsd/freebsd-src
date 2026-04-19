@@ -11,7 +11,7 @@ SRCS=		boot1.c ashldi3.c syncicache.c
 CFLAGS+=-I${LDRSRC}
 # Load boot1.elf below kernel.
 #
-# Due to limitiations in the way we load stuff, we have to avoid reusing
+# Due to limitations in the way we load stuff, we have to avoid reusing
 # memory until the kernel MMU code has taken over.
 #
 # 0x38000 is high enough to not interfere with the trap area, but low
