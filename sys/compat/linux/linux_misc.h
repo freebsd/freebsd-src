@@ -59,7 +59,8 @@
 #define	LINUX_PR_CAPBSET_READ	23
 #define	LINUX_PR_SET_CHILD_SUBREAPER	36 /* Get child subreaper status */
 #define	LINUX_PR_GET_CHILD_SUBREAPER	37 /* Set child subreaper status */
-#define	LINUX_PR_SET_NO_NEW_PRIVS	38
+#define	LINUX_PR_SET_NO_NEW_PRIVS	38 /* Set no_new_privs attribute */
+#define	LINUX_PR_GET_NO_NEW_PRIVS	39 /* Get no_new_privs attribute */
 #define	LINUX_PR_SET_PTRACER	1499557217
 
 #define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
