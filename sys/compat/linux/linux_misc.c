@@ -1822,6 +1822,14 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		error = kern_procctl(td, P_PID, p->p_pid,
 		    PROC_NO_NEW_PRIVS_CTL, &arg);
 		break;
+	case LINUX_PR_GET_NO_NEW_PRIVS:
+		error = kern_procctl(td, P_PID, p->p_pid,
+		    PROC_NO_NEW_PRIVS_STATUS, &arg);
+		if (error != 0)
+			return (error);
+		/* Linux returns the value as the syscall return */
+		td->td_retval[0] = arg == PROC_NO_NEW_PRIVS_ENABLE ? 1 : 0;
+		break;
 	case LINUX_PR_SET_PTRACER:
 		linux_msg(td, "unsupported prctl PR_SET_PTRACER");
 		error = EINVAL;
