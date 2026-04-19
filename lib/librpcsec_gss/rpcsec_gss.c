@@ -100,7 +100,7 @@ struct rpc_gss_data {
 	rpc_gss_options_req_t	gd_options;	/* GSS context options */
 	enum rpcsec_gss_state	gd_state;	/* connection state */
 	gss_buffer_desc		gd_verf;	/* save GSS_S_COMPLETE
-						 * NULL RPC verfier to
+						 * NULL RPC verifier to
 						 * process at end of
 						 * context negotiation */
 	CLIENT			*gd_clnt;	/* client handle */
