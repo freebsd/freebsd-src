@@ -81,7 +81,7 @@ static struct keytab {
 	{0, 0}
 };
 
-int	verbose, debugonly;
+int	verbose, debugonly, nexthop;
 #ifdef JAIL
 char * jail_name;
 #endif
@@ -166,7 +166,7 @@ usage(const char *cp)
 {
 	if (cp != NULL)
 		warnx("bad keyword: %s", cp);
-	errx(EX_USAGE, "usage: route [-j jail] [-46dnqtv] command [[modifiers] args]");
+	errx(EX_USAGE, "usage: route [-j jail] [-46dnqtvo] command [[modifiers] args]");
 	/* NOTREACHED */
 }
 
@@ -182,7 +182,7 @@ main(int argc, char **argv)
 	if (argc < 2)
 		usage(NULL);
 
-	while ((ch = getopt(argc, argv, "46nqdtvj:")) != -1)
+	while ((ch = getopt(argc, argv, "46nqdtvoj:")) != -1)
 		switch(ch) {
 		case '4':
 #ifdef INET
@@ -214,6 +214,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			debugonly = 1;
+			break;
+		case 'o':
+			nexthop = 1;
 			break;
 		case 'j':
 #ifdef JAIL
