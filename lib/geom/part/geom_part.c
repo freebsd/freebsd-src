@@ -653,7 +653,7 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 	secsz = pp->lg_sectorsize;
 	xo_open_instance("part");
 	xo_emit("=>{t:start/%*jd}  {t:sectors/%*jd}  "
-	    "{t:name/%*s}  {:scheme}  ({h:size/%jd})"
+	    "{t:name/%*s}  {:scheme}  ({h,hn-decimal:size/%jd})"
 	    "{t:state}\n",
 	    wblocks, (intmax_t)first, wblocks, (intmax_t)(last - first + 1),
 	    wname, gp->lg_name, scheme, (intmax_t)pp->lg_mediasize,
@@ -675,7 +675,7 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 			xo_emit("  {t:start/%*jd}  "
 			    "{t:sectors/%*jd}  "
 			    "{P:/%*s}  "
-			    "{ne:free}- free -  ({h:size/%jd})\n",
+			    "{ne:free}- free -  ({h,hn-decimal:size/%jd})\n",
 			    wblocks, (intmax_t)first,
 			    wblocks, (intmax_t)(sector - first),
 			    wname, "",
@@ -723,7 +723,7 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 		}
 		if (idx)
 			xo_emit("]");
-		xo_emit("  ({h:size/%jd})\n", (intmax_t)pp->lg_mediasize);
+		xo_emit("  ({h,hn-decimal:size/%jd})\n", (intmax_t)pp->lg_mediasize);
 		xo_close_instance(s);
 		first = end + 1;
 	}
@@ -732,7 +732,7 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 		xo_open_instance("unallocated");
 		length = last - first + 1;
 		xo_emit("  {t:start/%*jd}  {t:sectors/%*jd}  "
-		    "{P:/%*s}  {ne:free}- free -  ({h:size/%jd})\n",
+		    "{P:/%*s}  {ne:free}- free -  ({h,hn-decimal:size/%jd})\n",
 		    wblocks, (intmax_t)first, wblocks, (intmax_t)length,
 		    wname, "", "true", (intmax_t)length * secsz);
 		xo_close_instance("unallocated");
