@@ -142,6 +142,13 @@ typedef	__pid_t		pid_t;
 #define	O_EMPTY_PATH	0x02000000
 #define	O_NAMEDATTR	0x04000000	/* NFSv4 named attributes */
 #define	O_XATTR		O_NAMEDATTR	/* Solaris compatibility */
+
+/*
+ * Emulate MacOSX compatibility flag without consuming a flags bit.
+ * It is not fully correct since reads over regular files opened with
+ * this definition fail.
+ */
+#define	O_SYMLINK	(O_PATH | O_NOFOLLOW)
 #endif
 
 #if __POSIX_VISIBLE >= 202405
