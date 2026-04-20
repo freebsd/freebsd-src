@@ -231,7 +231,7 @@ dev/sound/macio/snapper.c	optional	snd_ai2s iicbus powermac
 dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
-dev/tsec/if_tsec_fdt.c		optional	tsec 
+dev/tsec/if_tsec_fdt.c		optional	tsec
 dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
@@ -327,19 +327,19 @@ powerpc/powermac/fcu.c		optional	powermac fcu
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/kiic.c		optional	powermac kiic
-powerpc/powermac/macgpio.c	optional	powermac pci 
+powerpc/powermac/macgpio.c	optional	powermac pci
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/nvbl.c		optional	powermac nvbl
 powerpc/powermac/platform_powermac.c optional	powermac
 powerpc/powermac/powermac_thermal.c optional	powermac
 powerpc/powermac/pswitch.c	optional	powermac pswitch
-powerpc/powermac/pmu.c		optional	powermac pmu 
-powerpc/powermac/smu.c		optional	powermac smu 
+powerpc/powermac/pmu.c		optional	powermac pmu
+powerpc/powermac/smu.c		optional	powermac smu
 powerpc/powermac/smusat.c	optional	powermac smu
 powerpc/powermac/tbgpio.c	optional	powermac pci smp
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
-powerpc/powermac/vcoregpio.c	optional	powermac 
+powerpc/powermac/vcoregpio.c	optional	powermac
 powerpc/powernv/opal.c		optional	powernv
 powerpc/powernv/opal_async.c	optional	powernv
 powerpc/powernv/opal_console.c	optional	powernv
