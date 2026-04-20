@@ -249,7 +249,7 @@ Additional options include:
 .It Fl a Ar aalgo
 Enable data integrity verification (authentication) using the given algorithm.
 This will reduce the size of storage available and also reduce speed.
-For example, when using 4096 bytes sector and
+For example, when using 4096\~bytes sector and
 .Nm HMAC/SHA256
 algorithm, 89% of the original provider storage will be available for use.
 Currently supported algorithms are:
@@ -883,8 +883,8 @@ The crypto card and the driver have to support this feature.
 .It Va kern.geom.eli.key_cache_limit : No 8192
 Specifies how many Data Keys to cache.
 The default limit
-(8192 keys) will allow caching of all keys for a 4TB provider with 512 byte
-sectors and will take around 1MB of memory.
+(8192 keys) will allow caching of all keys for a 4\~TiB provider with 512\~byte
+sectors and will take around 1\~MiB of memory.
 .It Va kern.geom.eli.key_cache_hits
 Reports how many times we were looking up a Data Key and it was already in
 cache.
@@ -936,7 +936,7 @@ Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 Initialize a provider which is going to be encrypted with a
 passphrase and random data from a file on the user's pen drive.
-Use 4kB sector size.
+Use 4\~KiB sector size.
 Attach the provider, create a filesystem, and mount it.
 Do the work.
 Unmount the provider and detach it:
