@@ -31,6 +31,7 @@
 
 #include <sys/ctype.h>
 
+#include <linux/array_size.h>
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>

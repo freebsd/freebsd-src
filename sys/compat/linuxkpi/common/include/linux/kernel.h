@@ -40,6 +40,7 @@
 #include <sys/syslog.h>
 #include <sys/time.h>
 
+#include <linux/array_size.h>
 #include <linux/bitops.h>
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
@@ -265,8 +266,6 @@ extern int linuxkpi_debug;
 	unlikely(__ret_warn_on);		\
 })
 #endif
-
-#define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
 #define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
 

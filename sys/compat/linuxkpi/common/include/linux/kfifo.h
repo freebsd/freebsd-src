@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 
+#include <linux/array_size.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
 
