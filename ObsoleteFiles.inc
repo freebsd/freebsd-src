@@ -51,6 +51,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260420: remove perfmon
+OLD_FILES+=boot/kernel/perfmon.ko
+OLD_FILES+=usr/share/man/man4/perfmon.4.gz
+OLD_FILES+=usr/share/examples/perfmon/Makefile
+OLD_FILES+=usr/share/examples/perfmon/README
+OLD_FILES+=usr/share/examples/perfmon/perfmon.c
+OLD_DIRS+=usr/share/examples/perfmon
+
 # 20260402: posix_spawn_file_actions_addchdir lost _np suffix
 OLD_FILES+=usr/share/man/man3/posix_spawn_file_actions_addchdir_np.3.gz
 OLD_FILES+=usr/share/man/man3/posix_spawn_file_actions_addfchdir_np.3.gz

@@ -50,7 +50,6 @@
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
-#include "opt_perfmon.h"
 #include "opt_platform.h"
 
 #include <sys/param.h>
@@ -133,9 +132,6 @@
 #include <x86/ucode.h>
 #include <machine/vm86.h>
 #include <x86/init.h>
-#ifdef PERFMON
-#include <machine/perfmon.h>
-#endif
 #ifdef SMP
 #include <machine/smp.h>
 #endif
@@ -245,9 +241,6 @@ cpu_startup(void *dummy)
 	startrtclock();
 	printcpuinfo();
 	panicifcpuunsupported();
-#ifdef PERFMON
-	perfmon_init();
-#endif
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.

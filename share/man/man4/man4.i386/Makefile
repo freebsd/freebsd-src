@@ -6,7 +6,6 @@ MAN=	apm.4 \
 	npx.4 \
 	pae.4 \
 	pbio.4 \
-	perfmon.4 \
 	pnp.4 \
 	pnpbios.4 \
 	sbni.4 \
