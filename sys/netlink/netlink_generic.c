@@ -150,6 +150,13 @@ genl_handle_message(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (EPERM);
 	}
 
+	if (cmd->cmd_securelevel > 0 &&
+	    securelevel_ge(nlp_get_cred(nlp), cmd->cmd_securelevel)) {
+		NLP_LOG(LOG_DEBUG, nlp, "family %s: cmd %d securelevel_gt() failed",
+		    gf->family_name, ghdr->cmd);
+		return (EPERM);
+	}
+
 	NLP_LOG(LOG_DEBUG2, nlp, "received family %s cmd %s(%d) len %d",
 	    gf->family_name, cmd->cmd_name, ghdr->cmd, hdr->nlmsg_len);
 
