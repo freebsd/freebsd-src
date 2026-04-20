@@ -1082,9 +1082,9 @@ kports::has_port(std::string_view name)
 }
 
 struct pport *
-kports::find_port(std::string_view name)
+kports::find_port(const std::string &name)
 {
-	auto it = pports.find(std::string(name));
+	auto it = pports.find(name);
 	if (it == pports.end())
 		return (nullptr);
 	return (&it->second);
@@ -1383,14 +1383,16 @@ target::set_auth_type(const char *type)
 }
 
 bool
-target::set_physical_port(std::string_view pport)
+target::add_physical_port(std::string_view pport)
 {
-	if (!t_pport.empty()) {
-		log_warnx("cannot set multiple physical ports for target "
-		    "\"%s\"", name());
-		return (false);
+	for (const auto &s : t_pports) {
+		if (s == pport) {
+			log_warnx("duplicate physical port \"%s\" for target "
+			    "\"%s\"", s.c_str(), name());
+			return (false);
+		}
 	}
-	t_pport = pport;
+	t_pports.emplace_back(pport);
 	return (true);
 }
 
@@ -2619,36 +2621,36 @@ conf::add_pports(struct kports &kports)
 	for (auto &kv : conf_targets) {
 		struct target *targ = kv.second.get();
 
-		if (!targ->has_pport())
-			continue;
+		for (const auto &pport : targ->pports()) {
+			ret = sscanf(pport.c_str(), "ioctl/%d/%d", &i_pp,
+			    &i_vp);
+			if (ret > 0) {
+				if (!add_port(kports, targ, i_pp, i_vp)) {
+					log_warnx("can't create new ioctl port "
+					    "for %s", targ->label());
+					return (false);
+				}
 
-		ret = sscanf(targ->pport(), "ioctl/%d/%d", &i_pp, &i_vp);
-		if (ret > 0) {
-			if (!add_port(kports, targ, i_pp, i_vp)) {
-				log_warnx("can't create new ioctl port "
-				    "for %s", targ->label());
-				return (false);
+				continue;
 			}
 
-			continue;
-		}
-
-		pp = kports.find_port(targ->pport());
-		if (pp == NULL) {
-			log_warnx("unknown port \"%s\" for %s",
-			    targ->pport(), targ->label());
-			return (false);
-		}
-		if (pp->linked()) {
-			log_warnx("can't link port \"%s\" to %s, "
-			    "port already linked to some target",
-			    targ->pport(), targ->label());
-			return (false);
-		}
-		if (!add_port(targ, pp)) {
-			log_warnx("can't link port \"%s\" to %s",
-			    targ->pport(), targ->label());
-			return (false);
+			pp = kports.find_port(pport);
+			if (pp == NULL) {
+				log_warnx("unknown port \"%s\" for %s",
+				    pport.c_str(), targ->label());
+				return (false);
+			}
+			if (pp->linked()) {
+				log_warnx("can't link port \"%s\" to %s, "
+				    "port already linked to some target",
+				    pport.c_str(), targ->label());
+				return (false);
+			}
+			if (!add_port(targ, pp)) {
+				log_warnx("can't link port \"%s\" to %s",
+				    pport.c_str(), targ->label());
+				return (false);
+			}
 		}
 	}
 	return (true);

@@ -381,17 +381,16 @@ struct target {
 	virtual ~target() = default;
 
 	bool has_alias() const { return !t_alias.empty(); }
-	bool has_pport() const { return !t_pport.empty(); }
 	bool has_redirection() const { return !t_redirection.empty(); }
 	const char *alias() const { return t_alias.c_str(); }
 	const char *name() const { return t_name.c_str(); }
 	const char *label() const { return t_label.c_str(); }
-	const char *pport() const { return t_pport.c_str(); }
 	bool private_auth() const { return t_private_auth; }
 	const char *redirection() const { return t_redirection.c_str(); }
 
 	struct auth_group *auth_group() const { return t_auth_group.get(); }
 	const std::list<port *> &ports() const { return t_ports; }
+	const std::list<std::string> &pports() const { return t_pports; }
 	const struct lun *lun(int idx) const { return t_luns[idx]; }
 
 	bool add_chap(const char *user, const char *secret);
@@ -403,12 +402,12 @@ struct target {
 	virtual bool add_initiator_portal(const char *) { return false; }
 	virtual bool add_lun(u_int, const char *) { return false; }
 	virtual bool add_namespace(u_int, const char *) { return false; }
+	bool add_physical_port(std::string_view pport);
 	virtual bool add_portal_group(const char *pg_name,
 	    const char *ag_name) = 0;
 	bool set_alias(std::string_view alias);
 	bool set_auth_group(const char *ag_name);
 	bool set_auth_type(const char *type);
-	bool set_physical_port(std::string_view pport);
 	bool set_redirection(const char *addr);
 	virtual struct lun *start_lun(u_int) { return nullptr; }
 	virtual struct lun *start_namespace(u_int) { return nullptr; }
@@ -433,8 +432,8 @@ protected:
 	std::string			t_label;
 	std::string			t_alias;
 	std::string			t_redirection;
-	/* Name of this target's physical port, if any, i.e. "isp0" */
-	std::string			t_pport;
+	/* Names of this target's physical ports, e.g. "isp0" */
+	std::list<std::string>		t_pports;
 	bool				t_private_auth = false;
 };
 
@@ -582,7 +581,7 @@ private:
 struct kports {
 	bool add_port(std::string &name, uint32_t ctl_port);
 	bool has_port(std::string_view name);
-	struct pport *find_port(std::string_view name);
+	struct pport *find_port(const std::string &name);
 
 private:
 	std::unordered_map<std::string, struct pport> pports;
