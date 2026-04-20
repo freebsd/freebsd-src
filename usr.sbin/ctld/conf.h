@@ -83,11 +83,11 @@ bool	target_add_chap_mutual(const char *user, const char *secret,
 bool	target_add_initiator_name(const char *name);
 bool	target_add_initiator_portal(const char *addr);
 bool	target_add_lun(u_int id, const char *name);
+bool	target_add_physical_port(const char *pport);
 bool	target_add_portal_group(const char *pg_name, const char *ag_name);
 bool	target_set_alias(const char *alias);
 bool	target_set_auth_group(const char *name);
 bool	target_set_auth_type(const char *type);
-bool	target_set_physical_port(const char *pport);
 bool	target_set_redirection(const char *addr);
 bool	target_start_lun(u_int id);
 

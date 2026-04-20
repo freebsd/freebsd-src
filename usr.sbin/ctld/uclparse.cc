@@ -1255,7 +1255,7 @@ uclparse_target(const char *name, const ucl::Ucl &top)
 				return false;
 			}
 
-			if (!target_set_physical_port(obj.string_value().c_str()))
+			if (!target_add_physical_port(obj.string_value().c_str()))
 				return false;
 		}
 
