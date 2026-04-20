@@ -2295,18 +2295,17 @@ start_timer(int timeout, bool fatal)
 		log_err(1, "setitimer");
 }
 
-static int
+static void
 wait_for_children(bool block)
 {
 	pid_t pid;
 	int status;
-	int num = 0;
 
-	for (;;) {
-		/*
-		 * If "block" is true, wait for at least one process.
-		 */
-		if (block && num == 0)
+	/*
+	 * If "block" is true, wait for at least one process.
+	 */
+	while (nchildren > 0) {
+		if (block)
 			pid = wait4(-1, &status, 0, NULL);
 		else
 			pid = wait4(-1, &status, WNOHANG, NULL);
@@ -2321,10 +2320,10 @@ wait_for_children(bool block)
 		} else {
 			log_debugx("child process %d terminated gracefully", pid);
 		}
-		num++;
-	}
+		nchildren--;
 
-	return (num);
+		block = false;
+	}
 }
 
 static void
@@ -2343,15 +2342,13 @@ handle_connection(struct portal *portal, freebsd::fd_up fd,
 	if (dont_fork) {
 		log_debugx("incoming connection; not forking due to -d flag");
 	} else {
-		nchildren -= wait_for_children(false);
-		assert(nchildren >= 0);
+		wait_for_children(false);
 
 		while (conf->maxproc() > 0 && nchildren >= conf->maxproc()) {
 			log_debugx("maxproc limit of %d child processes hit; "
 			    "waiting for child process to exit",
 			    conf->maxproc());
-			nchildren -= wait_for_children(true);
-			assert(nchildren >= 0);
+			wait_for_children(true);
 		}
 		log_debugx("incoming connection; forking child process #%d",
 		    nchildren);
@@ -2791,8 +2788,7 @@ main(int argc, char **argv)
 			log_warnx("exiting on signal");
 			return (0);
 		} else {
-			nchildren -= wait_for_children(false);
-			assert(nchildren >= 0);
+			wait_for_children(false);
 			if (timed_out()) {
 				newconf->isns_update();
 			}
