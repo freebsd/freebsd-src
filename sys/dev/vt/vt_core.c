@@ -1684,32 +1684,41 @@ vtterm_splash(struct vt_device *vd)
 	uintptr_t image;
 	vt_axis_t top, left;
 
-	if (!(vd->vd_flags & VDF_TEXTMODE) && (boothowto & RB_MUTE)) {
-		if (rebooting == 1) {
-			si = MD_FETCH(preload_kmdp, MODINFOMD_SHTDWNSPLASH, struct splash_info *);
-			vd->vd_driver->vd_blank(vd, TC_BLACK);
-		} else {
-			si = MD_FETCH(preload_kmdp, MODINFOMD_SPLASH, struct splash_info *);
-		}
-		if (si == NULL) {
-			top = (vd->vd_height - vt_logo_height) / 2;
-			left = (vd->vd_width - vt_logo_width) / 2;
-			vd->vd_driver->vd_bitblt_bmp(vd, vd->vd_curwindow,
-			    vt_logo_image, NULL, vt_logo_width, vt_logo_height,
-			    left, top, TC_WHITE, TC_BLACK);
-		} else {
-			if (si->si_depth != 4)
-				return;
-			image = (uintptr_t)si + sizeof(struct splash_info);
-			image = roundup2(image, 8);
-			top = (vd->vd_height - si->si_height) / 2;
-			left = (vd->vd_width - si->si_width) / 2;
-			vd->vd_driver->vd_bitblt_argb(vd, vd->vd_curwindow,
-			    (unsigned char *)image, si->si_width, si->si_height,
-			    left, top);
-		}
-		vd->vd_flags |= VDF_SPLASH;
+	if ((vd->vd_flags & VDF_TEXTMODE) != 0 || (boothowto & RB_MUTE) == 0)
+		return;
+
+	si = MD_FETCH(preload_kmdp, rebooting == 1 ? MODINFOMD_SHTDWNSPLASH :
+	    MODINFOMD_SPLASH, struct splash_info *);
+	if (si == NULL) {
+		if (vd->vd_driver->vd_bitblt_bmp == NULL)
+			return;
+	} else if (vd->vd_driver->vd_bitblt_argb == NULL)
+		return;
+
+	if (rebooting == 1) {
+		if (vd->vd_driver->vd_blank == NULL)
+			return;
+		vd->vd_driver->vd_blank(vd, TC_BLACK);
 	}
+
+	if (si == NULL) {
+		top = (vd->vd_height - vt_logo_height) / 2;
+		left = (vd->vd_width - vt_logo_width) / 2;
+		vd->vd_driver->vd_bitblt_bmp(vd,
+		    vd->vd_curwindow, vt_logo_image, NULL, vt_logo_width,
+		    vt_logo_height, left, top, TC_WHITE, TC_BLACK);
+	} else {
+		if (si->si_depth != 4)
+			return;
+		image = (uintptr_t)si + sizeof(struct splash_info);
+		image = roundup2(image, 8);
+		top = (vd->vd_height - si->si_height) / 2;
+		left = (vd->vd_width - si->si_width) / 2;
+		vd->vd_driver->vd_bitblt_argb(vd, vd->vd_curwindow,
+		    (unsigned char *)image, si->si_width, si->si_height,
+		    left, top);
+	}
+	vd->vd_flags |= VDF_SPLASH;
 }
 #endif
 
