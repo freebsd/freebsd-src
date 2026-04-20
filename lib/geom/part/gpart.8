@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 4, 2025
+.Dd April 20, 2026
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -168,7 +168,9 @@ to be multiple of
 value.
 .It Fl b Ar start
 The logical block address where the partition will begin.
-An SI unit suffix is allowed.
+A single-character suffix
+.Pq k, m, g, etc.
+is allowed to specify binary byte sizes.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
@@ -187,7 +189,9 @@ partition labels.
 .It Fl s Ar size
 Create a partition of size
 .Ar size .
-An SI unit suffix is allowed.
+A single-character suffix
+.Pq k, m, g, etc.
+is allowed to specify binary byte sizes.
 .It Fl t Ar type
 Create a partition of type
 .Ar type .
@@ -422,8 +426,10 @@ about its use.
 .It Fl i Ar index
 Specifies the index of the partition to be resized.
 .It Fl s Ar size
-Specifies the new size of the partition, in logical blocks.
-An SI unit suffix is allowed.
+Specifies the new size of the partition, in logical blocks,
+or binary byte sizes if a single-character suffix
+.Pq k, m, g, etc.
+is provided.
 .El
 .\" ==== RESTORE ====
 .It Cm restore
@@ -1134,7 +1140,7 @@ with type
 (see the
 .Sx "PARTITION TYPES"
 section).
-It uses 8 KB size bootstrap code image
+It uses 8\~KiB size bootstrap code image
 .Pa /boot/boot ,
 embedded into the partition table's metadata area.
 .Pp
@@ -1149,7 +1155,7 @@ partition (see the
 section) and runs the next bootstrap stage from it.
 The
 .Cm freebsd-boot
-partition should be smaller than 545 KB.
+partition should be smaller than 545\~KiB.
 It can be located either before or after other
 .Fx
 partitions on the disk.
@@ -1190,13 +1196,13 @@ After all pools are detected,
 is started from the first one found set as bootable.
 .Pp
 The APM scheme also does not support embedding bootstrap code.
-Instead, the 800 KBytes bootstrap code image
+Instead, the 800\~KiB bootstrap code image
 .Pa /boot/boot1.hfs
 should be written with the
 .Cm gpart bootcode
 command to a partition of type
 .Cm apple-boot ,
-which should also be 800 KB in size.
+which should also be 800\~KiB in size.
 .Sh OPERATIONAL FLAGS
 Actions other than the
 .Cm commit
@@ -1351,8 +1357,8 @@ naming scheme.
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
-The examples below assume that the disk's logical block size is 512
-bytes, regardless of its physical block size.
+The examples below assume that the disk's logical block size is 512\~bytes,
+regardless of its physical block size.
 .Ss GPT
 In this example, we will format
 .Pa ada0
@@ -1384,31 +1390,31 @@ for UFS or
 .Pa /boot/gptzfsboot
 for ZFS
 .Pc ,
-but smaller than 545 kB since the first-stage loader will load the
+but smaller than 545\~KiB since the first-stage loader will load the
 entire partition into memory during boot, regardless of how much data
 it actually contains.
-We create a 472-block (236 kB) boot partition at offset 40, which is
-the size of the partition table (34 blocks or 17 kB) rounded up to the
-nearest 4 kB boundary.
+We create a 472-block (236\~KiB) boot partition at offset 40, which is
+the size of the partition table (34\~blocks or 17\~KiB) rounded up to the
+nearest 4\~KiB boundary.
 .Bd -literal -offset indent
 /sbin/gpart add -b 40 -s 472 -t freebsd-boot ada0
 /sbin/gpart bootcode -p /boot/gptboot -i 1 ada0
 .Ed
 .Pp
-We now create a 4 GB swap partition at the first available offset,
-which is 40 + 472 = 512 blocks (256 kB).
+We now create a 4\~GiB swap partition at the first available offset,
+which is 40 + 472 = 512 blocks (256\~KiB).
 .Bd -literal -offset indent
 /sbin/gpart add -s 4G -t freebsd-swap ada0
 .Ed
 .Pp
-Aligning the swap partition and all subsequent partitions on a 256 kB
+Aligning the swap partition and all subsequent partitions on a 256\~KiB
 boundary ensures optimal performance on a wide range of media, from
 plain old disks with 512-byte blocks, through modern
 .Dq advanced format
 disks with 4096-byte physical blocks, to RAID volumes with stripe
-sizes of up to 256 kB.
+sizes of up to 256\~KiB.
 .Pp
-Finally, we create and format an 8 GB
+Finally, we create and format an 8\~GiB
 .Cm freebsd-ufs
 partition for the root filesystem, leaving the rest of the device free
 for additional filesystems:
@@ -1424,8 +1430,8 @@ using a traditional
 .Bx
 disklabel.
 .Pp
-First, we create the partition table as well as a single partition 64 GB in
-size and an alignment of 4 kB, then we mark that partition active (bootable)
+First, we create the partition table as well as a single partition 64\~GiB in
+size and an alignment of 4\~KiB, then we mark that partition active (bootable)
 and install the first-stage boot loader:
 .Bd -literal -offset indent
 /sbin/gpart create -s MBR ada0
@@ -1444,7 +1450,7 @@ with room for up to 20 partitions:
 /sbin/gpart create -s BSD -n 20 ada0s1
 .Ed
 .Pp
-We then create an 8 GB root partition and a 4 GB swap partition:
+We then create an 8\~GiB root partition and a 4\~GiB swap partition:
 .Bd -literal -offset indent
 /sbin/gpart add -t freebsd-ufs -s 8G ada0s1
 /sbin/gpart add -t freebsd-swap -s 4G ada0s1
