@@ -195,9 +195,6 @@ cpu_startup(void *dummy)
 	 */
 	cpu_setup(PCPU_GET(cpuid));
 
-#ifdef PERFMON
-	perfmon_init();
-#endif
 	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)physmem),
 	    ptoa((uintmax_t)physmem) / 1048576);
 	realmem = physmem;
