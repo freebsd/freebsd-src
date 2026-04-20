@@ -344,8 +344,6 @@
             ..
             netgraph
             ..
-            perfmon
-            ..
             pf
             ..
             ppi
