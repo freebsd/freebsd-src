@@ -498,8 +498,15 @@ pfi_attach_ifnet(struct ifnet *ifp, struct pfi_kkif *kif)
 
 	V_pfi_update++;
 	kif = pfi_kkif_attach(kif, ifp->if_xname);
+	if (kif->pfik_ifp != NULL && kif->pfik_ifp != ifp) {
+		/* Try to not panic later. */
+		printf("WARNING: pf: duplicate interface name detected: %s\n",
+		    if_name(ifp));
+		return;
+	}
 	if_ref(ifp);
 	kif->pfik_ifp = ifp;
+	MPASS(ifp->if_pf_kif == NULL);
 	ifp->if_pf_kif = kif;
 	pfi_kkif_update(kif);
 }
