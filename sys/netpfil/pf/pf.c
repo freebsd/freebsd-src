@@ -1497,6 +1497,7 @@ retry_waitok2:
 	    UMA_ALIGN_PTR, 0);
 	ha.size = V_pf_udpendpointhashsize;
 	ha.lname = "pf_udpendpointhash";
+	ha.lopts = MTX_DEF | MTX_DUPOK;
 	ha.mflags = M_NOWAIT;
 retry_waitok3:
 	V_pf_udpendpointhash = hashalloc(&ha);
