@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2026 Hans Rosenfeld
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -408,6 +409,12 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	vcpu = vm_vcpu_open(ctx, vcpuid);
+	if (vcpu == NULL) {
+		fprintf(stderr,
+		    "vm_vcpu_open: %s vcpu %d could not be opened: %s\n",
+		    vmname, vcpuid, strerror(errno));
+		exit(1);
+	}
 
 	error = 0;
 	if (!error && memsize)
