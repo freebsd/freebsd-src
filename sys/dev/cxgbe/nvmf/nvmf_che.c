@@ -2605,6 +2605,7 @@ che_allocate_qpair(bool controller, const nvlist_t *nvl)
 		free(qp->fl_cids, M_NVMF_CHE);
 		free(qp->open_fl_ttags, M_NVMF_CHE);
 		free(qp, M_NVMF_CHE);
+		soclose(so);
 		return (NULL);
 	}
 
