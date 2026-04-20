@@ -3193,7 +3193,7 @@ vt_upgrade(struct vt_device *vd)
 				    vt_window_switch, vw, SHUTDOWN_PRI_DEFAULT);
 #ifdef DEV_SPLASH
 				EVENTHANDLER_REGISTER(shutdown_pre_sync,
-				    vt_shutdown_splash, vw, SHUTDOWN_PRI_DEFAULT);
+				    vt_shutdown_splash, vw, SHUTDOWN_PRI_DEFAULT + 1);
 #endif
 			}
 		}
