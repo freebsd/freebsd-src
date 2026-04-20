@@ -178,12 +178,6 @@ options 	CYRIX_CACHE_REALLY_WORKS
 options 	NPX_DEBUG	# enable npx debugging
 
 #
-# PERFMON causes the driver for Pentium/Pentium Pro performance counters
-# to be compiled.  See perfmon(4) for more information.
-#
-options 	PERFMON
-
-#
 # Hints for the non-optional Numeric Processing eXtension driver.
 envvar		hint.npx.0.flags="0x0"
 envvar		hint.npx.0.irq="13"
