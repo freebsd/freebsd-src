@@ -392,8 +392,10 @@ struct kinfo_proc32 {
 	char	ki_emul[KI_EMULNAMELEN+1];
 	char	ki_loginclass[LOGINCLASSLEN+1];
 	char	ki_moretdname[MAXCOMLEN-TDNAMLEN+1];
-	char	ki_sparestrings[46];
+	char	ki_sparestrings[38];
 	int	ki_spareints[KI_NSPARE_INT];
+	pid_t	ki_reaper;
+	pid_t	ki_reapsubtree;
 	freebsd32_uint64_t ki_tdev;
 	int	ki_oncpu;
 	int	ki_lastcpu;

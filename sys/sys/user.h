@@ -186,8 +186,10 @@ struct kinfo_proc {
 	 * front of ki_sparestrings, and ints from the end of ki_spareints.
 	 * That way the spare room from both arrays will remain contiguous.
 	 */
-	char	ki_sparestrings[46];	/* spare string space */
+	char	ki_sparestrings[38];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	pid_t	ki_reaper;		/* pid of reaper process */
+	pid_t	ki_reapsubtree;		/* reaper subtree id */
 	uint64_t ki_tdev;		/* controlling tty dev */
 	int	ki_oncpu;		/* Which cpu we are on */
 	int	ki_lastcpu;		/* Last cpu we were on */
