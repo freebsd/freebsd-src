@@ -29,7 +29,9 @@
 
 #include <asm/atomic.h>
 #include <asm/atomic64.h>
+#include <linux/atomic/atomic-arch-fallback.h>
 #include <asm/atomic-long.h>
+#include <linux/atomic/atomic-instrumented.h>
 #include <asm/barrier.h>
 
 #endif /* _LINUXKPI_LINUX_ATOMIC_H_ */
