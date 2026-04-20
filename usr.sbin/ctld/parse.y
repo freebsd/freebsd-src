@@ -774,7 +774,7 @@ target_port:	PORT STR
 	{
 		bool ok;
 
-		ok = target_set_physical_port($2);
+		ok = target_add_physical_port($2);
 		free($2);
 		if (!ok)
 			return (1);
