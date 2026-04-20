@@ -542,6 +542,11 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 			UPATH1_TOKENS;
 		}
+		if (ARG_IS_VALID(kar, ARG_SADDRINET6)) {
+			tok = au_to_sock_inet128((struct sockaddr_in6 *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_BIND:
@@ -571,7 +576,11 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 			UPATH1_TOKENS;
 		}
-		/* XXX Need to handle ARG_SADDRINET6 */
+		if (ARG_IS_VALID(kar, ARG_SADDRINET6)) {
+			tok = au_to_sock_inet128((struct sockaddr_in6 *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_BINDAT:
@@ -602,7 +611,11 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 			UPATH1_TOKENS;
 		}
-		/* XXX Need to handle ARG_SADDRINET6 */
+		if (ARG_IS_VALID(kar, ARG_SADDRINET6)) {
+			tok = au_to_sock_inet128((struct sockaddr_in6 *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_SOCKET:
