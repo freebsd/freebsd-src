@@ -2954,8 +2954,10 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		ri.iri_frags = rxq->ifr_frags;
 		err = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
 
-		if (err)
+		if (err) {
+			CURVNET_RESTORE();
 			goto err;
+		}
 		rx_pkts += 1;
 		rx_bytes += ri.iri_len;
 		if (sctx->isc_flags & IFLIB_HAS_RXCQ) {
