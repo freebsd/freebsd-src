@@ -513,6 +513,7 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
 	struct sockaddr *sinp;
+	socklen_t slen;
 	int error, sd[3], tmp;
 	bool res;
 
@@ -553,16 +554,15 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
 		sin6.sin6_addr = in6addr_loopback;
 	error = connect(sd[1], sinp, sinp->sa_len);
 	ATF_REQUIRE_MSG(error == 0, "connect failed: %s", strerror(errno));
-	tmp = accept(sd[0], NULL, NULL);
+	slen = sinp->sa_len;
+	tmp = accept(sd[0], sinp, &slen);
 	ATF_REQUIRE_MSG(tmp >= 0, "accept failed: %s", strerror(errno));
-	ATF_REQUIRE(close(sd[0]) == 0);
-	sd[0] = tmp;
 
 	/* bind() should succeed even from an unprivileged user. */
-	res = child_bind(tc, SOCK_STREAM, sinp, 0, false);
-	ATF_REQUIRE(!res);
-	res = child_bind(tc, SOCK_STREAM, sinp, 0, true);
-	ATF_REQUIRE(!res);
+	res = child_bind_priv(tc, SOCK_STREAM, sinp, SO_REUSEADDR);
+	ATF_REQUIRE(res);
+	res = child_bind_unpriv(tc, SOCK_STREAM, sinp, SO_REUSEADDR);
+	ATF_REQUIRE(res);
 }
 
 /*
