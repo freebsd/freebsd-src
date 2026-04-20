@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260421:
+	14.3-RELEASE-p11 SA-26:10.tty
+			SA-26:11.amd64
+			EN-26:05.vm
+			EN-26:06.timerfd
+
+	Kernel use-after-free bug in the TIOCNOTTY handler. [SA-26:10.tty]
+
+	Missing large page handling in pmap_pkru_update_range(). [SA-26:11.amd64]
+
+	The page fault handler fails to zero memory. [EN-26:05.vm]
+
+	Periodic timerfd(2) timers may produce incorrect results. [EN-26:06.timerfd]
+
 20260325:
 	14.3-RELEASE-p10 SA-26:06.tcp
 			 SA-26:08.rpcsec_gss
