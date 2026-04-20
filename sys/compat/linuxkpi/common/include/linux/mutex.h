@@ -174,4 +174,6 @@ linux_mutex_destroy(mutex_t *m)
 
 extern int linux_mutex_lock_interruptible(mutex_t *m);
 
+DEFINE_GUARD(mutex, struct mutex *, mutex_lock(_T), mutex_unlock(_T))
+
 #endif					/* _LINUXKPI_LINUX_MUTEX_H_ */
