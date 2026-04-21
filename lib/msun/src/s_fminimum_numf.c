@@ -48,8 +48,8 @@ fminimum_numf(float x, float y)
 	u[0].f = x;
 	u[1].f = y;
 
-	nan_x = u[0].bits.exp == 255 && u[0].bits.man != 0;
-	nan_y = u[1].bits.exp == 255 && u[1].bits.man != 0;
+	nan_x = isnan(x);
+	nan_y = isnan(y);
 
 	if (nan_x || nan_y) {
 		/* These ternary conditionals force (x+y), so that sNaN's raise exceptions */
