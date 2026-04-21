@@ -27,7 +27,8 @@
 
 /*
  * Tests for fmaximum{,f,l}(), fminimum{,f,l}(), fmaximum_mag{,f,l},
- * fminimum_mag{,f,l}, fmaximum_num{,f,l}, fminimum_num{,f,l}
+ * fminimum_mag{,f,l}, fmaximum_num{,f,l}, fminimum_num{,f,l}, 
+ * fmaximum_mag_num{,f,l} and fminimum_mag_num{,f,l}
  */
 
 #include <sys/cdefs.h>
@@ -130,6 +131,30 @@ testall_num_r(long double big, long double small, int rmode) {
 	TEST(fminimum_numl, long double, small, big, expected_min_num, rmode);
 }
 
+static void
+testall_mag_num_r(long double big, long double small, int rmode) {
+	long double expected_max_mag_num = isnan(big) ? small : big;
+	long double expected_min_mag_num = isnan(small) ? big : small;
+
+	if (fabsl(small) > fabsl(big)) {
+		expected_max_mag_num = small;
+		expected_min_mag_num = big;
+	}
+
+	TEST(fmaximum_mag_numf, float, big, small, expected_max_mag_num, rmode);
+	TEST(fmaximum_mag_numf, float, small, big, expected_max_mag_num, rmode);
+	TEST(fmaximum_mag_num, double, big, small, expected_max_mag_num, rmode);
+	TEST(fmaximum_mag_num, double, small, big, expected_max_mag_num, rmode);
+	TEST(fmaximum_mag_numl, long double, big, small, expected_max_mag_num, rmode);
+	TEST(fmaximum_mag_numl, long double, small, big, expected_max_mag_num, rmode);
+	TEST(fminimum_mag_numf, float, big, small, expected_min_mag_num, rmode);
+	TEST(fminimum_mag_numf, float, small, big, expected_min_mag_num, rmode);
+	TEST(fminimum_mag_num, double, big, small, expected_min_mag_num, rmode);
+	TEST(fminimum_mag_num, double, small, big, expected_min_mag_num, rmode);
+	TEST(fminimum_mag_numl, long double, big, small, expected_min_mag_num, rmode);
+	TEST(fminimum_mag_numl, long double, small, big, expected_min_mag_num, rmode);
+}
+
 /*
  * Test all the functions: fmaximumf, fmaximum, fmaximuml, fminimumf, fminimum, fminimuml
  * in all rounding modes and with the arguments in different orders.
@@ -148,6 +173,7 @@ testall(long double big, long double small)
 		testall_r(big, small, rmodes[i]);
 		testall_mag_r(big, small, rmodes[i]);
 		testall_num_r(big, small, rmodes[i]);
+		testall_mag_num_r(big, small, rmodes[i]);
 	}
 }
 

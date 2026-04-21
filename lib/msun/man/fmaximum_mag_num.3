@@ -22,81 +22,88 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\"
 .Dd April 3, 2026
-.Dt FMAXIMUM_MAG 3
+.Dt FMAXIMUM_MAG_NUM 3
 .Os
 .Sh NAME
-.Nm fmaximum_mag ,
-.Nm fmaximum_magf ,
-.Nm fmaximum_magl ,
-.Nm fminimum_mag ,
-.Nm fminimum_magf ,
-.Nm fminimum_magl
-.Nd floating-point maximum and minimum magnitude functions
+.Nm fmaximum_mag_num ,
+.Nm fmaximum_mag_numf ,
+.Nm fmaximum_mag_numl ,
+.Nm fminimum_mag_num ,
+.Nm fminimum_mag_numf ,
+.Nm fminimum_mag_numl
+.Nd floating-point maximum and minimum magnitude number functions
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
 .In math.h
 .Ft double
-.Fn fmaximum_mag "double x" "double y"
+.Fn fmaximum_mag_num "double x" "double y"
 .Ft float
-.Fn fmaximum_magf "float x" "float y"
+.Fn fmaximum_mag_numf "float x" "float y"
 .Ft "long double"
-.Fn fmaximum_magl "long double x" "long double y"
+.Fn fmaximum_mag_numl "long double x" "long double y"
 .Ft double
-.Fn fminimum_mag "double x" "double y"
+.Fn fminimum_mag_num "double x" "double y"
 .Ft float
-.Fn fminimum_magf "float x" "float y"
+.Fn fminimum_mag_numf "float x" "float y"
 .Ft "long double"
-.Fn fminimum_magl "long double x" "long double y"
+.Fn fminimum_mag_numl "long double x" "long double y"
 .Sh DESCRIPTION
 The
-.Fn fmaximum_mag ,
-.Fn fmaximum_magf ,
+.Fn fmaximum_mag_num ,
+.Fn fmaximum_mag_numf ,
 and
-.Fn fmaximum_magl
+.Fn fmaximum_mag_numl
 functions determine the larger of the absolute values of
 .Fa x
 and
 .Fa y ,
-and return the argument with the larger absolute value.
+and return the argument with the larger absolute value,
+preferring a numeric value over an \*(Na.
+If one argument is a numeric value and the other is an \*(Na,
+the numeric value is returned.
 If the absolute values are equal, the behavior is equivalent to calling the corresponding
-.Fn fmaximum
+.Fn fmaximum_num
 function on the arguments.
 .Pp
 Likewise, the
-.Fn fminimum_mag ,
-.Fn fminimum_magf ,
+.Fn fminimum_mag_num ,
+.Fn fminimum_mag_numf ,
 and
-.Fn fminimum_magl
+.Fn fminimum_mag_numl
 functions determine the smaller of the absolute values of
 .Fa x
 and
 .Fa y ,
-and return the argument with the smaller absolute value.
+and return the argument with the smaller absolute value,
+preferring a numeric value over an \*(Na.
+If one argument is a numeric value and the other is an \*(Na,
+the numeric value is returned.
 If the absolute values are equal, the behavior is equivalent to calling the corresponding
-.Fn fminimum
+.Fn fminimum_num
 function on the arguments.
 .Pp
-If either argument is an \*(Na, then the result is an \*(Na.
-These routines do not raise any floating-point exceptions.
+If both arguments are \*(Nas, a quiet \*(Na is returned.
+If either argument is a signaling \*(Na, an invalid exception is raised.
+Otherwise, these routines do not raise any floating-point exceptions.
 .Sh SEE ALSO
 .Xr fmax 3 ,
 .Xr fmaximum 3 ,
-.Xr fmaximum_mag_num 3 ,
+.Xr fmaximum_mag 3 ,
+.Xr fmaximum_num 3 ,
 .Xr math 3
 .Sh STANDARDS
 The
-.Fn fmaximum_mag ,
-.Fn fmaximum_magf ,
-.Fn fmaximum_magl ,
-.Fn fminimum_mag ,
-.Fn fminimum_magf ,
+.Fn fmaximum_mag_num ,
+.Fn fmaximum_mag_numf ,
+.Fn fmaximum_mag_numl ,
+.Fn fminimum_mag_num ,
+.Fn fminimum_mag_numf ,
 and
-.Fn fminimum_magl
+.Fn fminimum_mag_numl
 functions conform to
 .St -isoC-2023 .
 .Sh HISTORY
 These routines first appeared in
-.Fx 16.0 .
+.Fx 16.0 ..\"
