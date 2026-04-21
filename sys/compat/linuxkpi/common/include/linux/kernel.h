@@ -384,4 +384,15 @@ might_fault(void)
 #define	non_block_start()	do { } while (0)
 #define	non_block_end()		do { } while (0)
 
+extern enum system_states {
+	SYSTEM_BOOTING,
+	SYSTEM_SCHEDULING,
+	SYSTEM_FREEING_INITMEM,
+	SYSTEM_RUNNING,
+	SYSTEM_HALT,
+	SYSTEM_POWER_OFF,
+	SYSTEM_RESTART,
+	SYSTEM_SUSPEND,
+} system_state;
+
 #endif	/* _LINUXKPI_LINUX_KERNEL_H_ */
