@@ -286,7 +286,7 @@ geneve_status_nl(if_ctx *ctx)
 	struct snl_writer nw;
 	struct nlmsghdr *hdr;
 	struct snl_errmsg_data errmsg;
-	struct nla_geneve_link geneve_link;
+	struct nla_geneve_link geneve_link = {0};
 	char src[INET6_ADDRSTRLEN], dst[INET6_ADDRSTRLEN];
 	struct sockaddr *lsa, *rsa;
 	int mc;
