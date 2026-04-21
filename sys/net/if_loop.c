@@ -276,6 +276,7 @@ int
 if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 {
 	int isr;
+	int32_t len;
 
 	M_ASSERTPKTHDR(m);
 	m_tag_delete_nonpersistent(m);
@@ -350,9 +351,10 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
+	len = m->m_pkthdr.len;
 	if (netisr_queue(isr, m) == 0) {
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, len);
 	} else {
 		/* mbuf is free'd on failure. */
 		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
