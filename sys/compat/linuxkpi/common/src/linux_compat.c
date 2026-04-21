@@ -167,6 +167,8 @@ wait_queue_head_t linux_var_waitq;
 
 const guid_t guid_null;
 
+enum system_states system_state = SYSTEM_RUNNING;
+
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
 {
