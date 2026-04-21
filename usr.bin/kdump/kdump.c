@@ -40,6 +40,7 @@
 #include <sys/_bitset.h>
 #include <sys/bitset.h>
 #include <sys/errno.h>
+#include <sys/exterr_cat.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/event.h>
@@ -2442,15 +2443,31 @@ bad_size:
 	return;
 }
 
+static const char * const cat_to_filenames[] = {
+#include <exterr_cat_filenames.h>
+};
+
+static const char *
+cat_to_filename(int category)
+{
+	if (category < 0 || (unsigned)category >= nitems(cat_to_filenames) ||
+	    cat_to_filenames[category] == NULL)
+		return ("unknown");
+	return (cat_to_filenames[category]);
+}
+
 static void
 ktrexterr(struct ktr_exterr *ke)
 {
+	char *msg;
 	struct uexterror *ue;
 
 	ue = &ke->ue;
-	printf("{ errno %d category %u (src line %u) p1 %#jx p2 %#jx %s }\n",
-	    ue->error, ue->cat, ue->src_line,
-	    (uintmax_t)ue->p1, (uintmax_t)ue->p2, ue->msg);
+	asprintf(&msg, ue->msg, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
+	printf("{ errno %d %s:%u \"%s\" (category %u p1 %#jx p2 %#jx) }\n",
+	    ue->error, cat_to_filename(ue->cat), ue->src_line, msg,
+	    ue->cat, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
+	free(msg);
 }
 
 static void
