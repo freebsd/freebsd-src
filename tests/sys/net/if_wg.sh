@@ -96,6 +96,7 @@ wg_basic_crossaf_head()
 {
 	atf_set descr 'Create a wg(4) tunnel and pass IPv4 traffic over an IPv6 nexthop'
 	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_basic_crossaf_body()
@@ -103,8 +104,6 @@ wg_basic_crossaf_body()
 	local epair pri1 pri2 pub1 pub2 wg1 wg2
 	local endpoint1 endpoint2 tunnel1 tunnel2
 	local testnet testlocal testremote
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
@@ -425,14 +424,13 @@ wg_allowedip_incremental_head()
 {
 	atf_set descr "Add/remove allowed-ips from a peer with the +/- incremental syntax"
 	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_allowedip_incremental_body()
 {
 	local pri1 pri2 pub1 pub2 wg1
 	local tunnel1 tunnel2 tunnel3
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
@@ -503,14 +501,13 @@ wg_allowedip_incremental_inet6_head()
 {
 	atf_set descr "Add/remove IPv6 allowed-ips from a peer with the +/- incremental syntax"
 	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_allowedip_incremental_inet6_body()
 {
 	local pri1 pri2 pub1 pub2 wg1
 	local tunnel1 tunnel2
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
@@ -557,6 +554,7 @@ wg_allowedip_incremental_stealing_head()
 {
 	atf_set descr "Add/remove allowed-ips from a peer with the +/- incremental syntax to steal"
 	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_allowedip_incremental_stealing_body()
@@ -564,8 +562,6 @@ wg_allowedip_incremental_stealing_body()
 	local pri1 pri2 pri3 pub1 pub2 pub3 wg1
 	local regex2 regex3
 	local tunnel1 tunnel2
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
