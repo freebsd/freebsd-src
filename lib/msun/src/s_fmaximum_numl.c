@@ -43,8 +43,8 @@ fmaximum_numl(long double x, long double y)
 	u[1].e = y;
 	mask_nbit_l(u[1]);
 
-	nan_x = u[0].bits.exp == 32767 && (u[0].bits.manh | u[0].bits.manl) != 0;
-	nan_y = u[1].bits.exp == 32767 && (u[1].bits.manh | u[1].bits.manl) != 0;
+	nan_x = isnan(x);
+	nan_y = isnan(y);
 
 	if (nan_x || nan_y) {
 		/* These ternary conditionals force (x+y), so that sNaN's raise exceptions */

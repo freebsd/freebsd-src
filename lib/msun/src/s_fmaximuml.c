@@ -42,8 +42,7 @@ fmaximuml(long double x, long double y)
 	mask_nbit_l(u[1]);
 
 	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
-	if ((u[0].bits.exp == 32767 && (u[0].bits.manh | u[0].bits.manl) != 0) ||
-	    (u[1].bits.exp == 32767 && (u[1].bits.manh | u[1].bits.manl) != 0))
+	if (isnan(x) || isnan(y))
 		return (NAN);
 
 	/* Handle comparisons of signed zeroes. */

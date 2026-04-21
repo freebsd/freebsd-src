@@ -46,9 +46,9 @@ fminf(float x, float y)
 	u[1].f = y;
 
 	/* Check for NaNs to avoid raising spurious exceptions. */
-	if (u[0].bits.exp == 255 && u[0].bits.man != 0)
+	if (isnan(x))
 		return (y);
-	if (u[1].bits.exp == 255 && u[1].bits.man != 0)
+	if (isnan(y))
 		return (x);
 
 	/* Handle comparisons of signed zeroes. */
