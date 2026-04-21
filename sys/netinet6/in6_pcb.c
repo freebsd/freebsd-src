@@ -753,8 +753,7 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, const struct in6_addr *laddr,
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
-			if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
-			    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
+			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
 			    inp->inp_lport == lport && (fib == RT_ALL_FIBS ||
 			    inp->inp_inc.inc_fibnum == fib)) {
 				/* Found. */
