@@ -89,6 +89,17 @@ memdup_user_nul(const void *ptr, size_t len)
 }
 
 static inline void *
+memdup_array_user(const void *src, size_t n, size_t size)
+{
+	size_t len;
+
+	if (check_mul_overflow(n, size, &len))
+		return (ERR_PTR(-EOVERFLOW));
+
+	return (memdup_user(src, len));
+}
+
+static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)
 {
 	void *dst;
