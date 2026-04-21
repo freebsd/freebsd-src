@@ -21,7 +21,7 @@ changes where the contributor already has a GitHub account.
 A change should be submitted by only one method.  For example, please do not
 open a GitHub pull request and create a Phabricator review for the same change
 (unless explicitly requested to do so by a FreeBSD committer). If asked to move
-from Github to Phabricator, please close the Github pull request adding the URL
+from GitHub to Phabricator, please close the GitHub pull request adding the URL
 of the Phabricator review as a comment.
 
 ## GitHub Pull Requests
@@ -76,7 +76,7 @@ Before submitting, ensure:
 * Each commit is suitable for direct inclusion in the FreeBSD's repository.
 * Pull Request scope must remain stable during review.  If feedback expands
   scope, create a new Pull Request.
-* Rebase your chages (and update with a forced push) when incorporating review
+* Rebase your changes (and update with a forced push) when incorporating review
   feedback, rather than using a merge commit.
 
 #### Commit Messages
@@ -84,7 +84,7 @@ Before submitting, ensure:
 Each commit must:
 
 * Follow the [commit log message guide](https://docs.freebsd.org/en/articles/committers-guide/#commit-log-message).
-* Include one ore more `Signed-off-by:` trailers certifying [Developer Certificate of Origin](https://developercertificate.org/).
+* Include one or more `Signed-off-by:` trailers certifying [Developer Certificate of Origin](https://developercertificate.org/).
 * Include `PR: \<bugnumber\>` if fixing a Bugzilla Problem Report.
 * Include the URL of a related code review, if applicable.
   (Avoid opening both Phabricator/Differential reviews and GitHub Pull Requests
@@ -103,7 +103,7 @@ Each commit must:
 
 ### Additional Requirements for FreeBSD Committers
 
-* Committers submitting Pull Requests are for pushing their changes to the tree
+* Committers submitting Pull Requests are responsible for pushing their changes to the tree
   (including obtaining any required approvals).
 * Pull Requests opened by FreeBSD committers may be closed after one month
   unless there is a strong reason to keep them open.
