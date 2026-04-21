@@ -31,17 +31,12 @@ atf_test_case "6to4" "cleanup"
 {
 	atf_set descr 'Test 6to4'
 	atf_set require.user root
+	atf_set require.kmods if_gif if_stf
 }
 
 6to4_body()
 {
 	vnet_init
-	if ! kldstat -q -m if_stf; then
-		atf_skip "This test requires if_stf"
-	fi
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 
@@ -83,18 +78,12 @@ atf_test_case "6rd" "cleanup"
 {
 	atf_set descr '6RD test'
 	atf_set require.user root
+	atf_set require.kmods if_gif if_stf
 }
 
 6rd_body()
 {
 	vnet_init
-
-	if ! kldstat -q -m if_stf; then
-		atf_skip "This test requires if_stf"
-	fi
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail br ${epair}a
@@ -136,15 +125,12 @@ atf_test_case "6rd_peer" "cleanup"
 {
 	atf_set descr '6RD peer test'
 	atf_set require.user root
+	atf_set require.kmods if_stf
 }
 
 6rd_peer_body()
 {
 	vnet_init
-
-	if ! kldstat -q -m if_stf; then
-		atf_skip "This test requires if_stf"
-	fi
 
 	epair=$(vnet_mkepair)
 

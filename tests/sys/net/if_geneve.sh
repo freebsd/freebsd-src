@@ -31,6 +31,7 @@ ether_ipv4_head()
 {
 	atf_set descr 'Create a geneve(4) l2 tunnel over an ipv4 underlay using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve
 }
 
 ether_ipv4_body()
@@ -45,10 +46,6 @@ ether_ipv4_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -90,6 +87,7 @@ ether_ipv6_head()
 {
 	atf_set descr 'Create a geneve(4) l2 tunnel over an ipv6 underlay using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve
 }
 
 ether_ipv6_body()
@@ -104,10 +102,6 @@ ether_ipv6_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -149,6 +143,7 @@ inherit_ipv4_head()
 {
 	atf_set descr 'Create a geneve(4) l3 tunnel over an ipv4 underlay using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve
 }
 
 inherit_ipv4_body()
@@ -163,10 +158,6 @@ inherit_ipv4_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=2
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -208,6 +199,7 @@ inherit_ipv6_head()
 {
 	atf_set descr 'Create a geneve(4) l3 tunnel over an ipv6 underlay using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve
 }
 
 inherit_ipv6_body()
@@ -222,10 +214,6 @@ inherit_ipv6_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -267,6 +255,7 @@ ether_ipv6_blind_options_head()
 {
 	atf_set descr 'Create a geneve(4) l2 ipv6 tunnel and test geneve options'
 	atf_set require.user root
+	atf_set require.kmods if_geneve
 }
 
 ether_ipv6_blind_options_body()
@@ -279,10 +268,6 @@ ether_ipv6_blind_options_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -351,6 +336,7 @@ ether_ipv6_external_head()
 {
 	atf_set descr 'Create a geneve(4) l2 ipv6 tunnel and test geneve collect metadata'
 	atf_set require.user root
+	atf_set require.kmods if_geneve
 }
 
 ether_ipv6_external_body()
@@ -363,10 +349,6 @@ ether_ipv6_external_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -407,6 +389,7 @@ ether_ipv4_multicast_head()
 {
 	atf_set descr 'Create a geneve(4) l2 ipv4 multicast tunnel using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip_mroute
 }
 
 ether_ipv4_multicast_body()
@@ -422,13 +405,6 @@ ether_ipv4_multicast_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip_mroute; then
-		atf_skip "This test requires ip_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -467,7 +443,6 @@ ether_ipv4_multicast_body()
 	atf_check -s exit:0 -o ignore jexec genevetest1 ping -nc 1 -t 1 $v6tunnel2
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v4tunnel1
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v6tunnel1
-
 }
 
 ether_ipv4_multicast_cleanup()
@@ -480,6 +455,7 @@ ether_ipv6_multicast_head()
 {
 	atf_set descr 'Create a geneve(4) l2 ipv6 multicast tunnel using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip6_mroute
 }
 
 ether_ipv6_multicast_body()
@@ -495,13 +471,6 @@ ether_ipv6_multicast_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip6_mroute; then
-		atf_skip "This test requires ip6_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -537,7 +506,6 @@ ether_ipv6_multicast_body()
 	atf_check -s exit:0 -o ignore jexec genevetest1 ping -nc 1 -t 1 $v6tunnel2
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v4tunnel1
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v6tunnel1
-
 }
 
 ether_ipv6_multicast_cleanup()
@@ -550,6 +518,7 @@ ether_ipv4_multicast_without_dev_head()
 {
 	atf_set descr 'Create a geneve(4) l2 ipv4 multicast tunnel without specifying genevedev using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip_mroute
 }
 
 ether_ipv4_multicast_without_dev_body()
@@ -565,13 +534,6 @@ ether_ipv4_multicast_without_dev_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip_mroute; then
-		atf_skip "This test requires ip_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -622,6 +584,7 @@ ether_ipv6_multicast_without_dev_head()
 {
 	atf_set descr 'Create a geneve(4) l2 ipv6 multicast tunnel without specifying genevedev using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip6_mroute
 }
 
 ether_ipv6_multicast_without_dev_body()
@@ -637,13 +600,6 @@ ether_ipv6_multicast_without_dev_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip6_mroute; then
-		atf_skip "This test requires ip6_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -690,6 +646,7 @@ inherit_ipv4_multicast_head()
 {
 	atf_set descr 'Create a geneve(4) l3 ipv4 multicast tunnel using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip_mroute
 }
 
 inherit_ipv4_multicast_body()
@@ -705,13 +662,6 @@ inherit_ipv4_multicast_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip_mroute; then
-		atf_skip "This test requires ip_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -753,7 +703,6 @@ inherit_ipv4_multicast_body()
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v4tunnel1
 	atf_check -s exit:0 -o ignore jexec genevetest1 ping -nc 1 -t 1 $v6tunnel2
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v6tunnel1
-
 }
 
 inherit_ipv4_multicast_cleanup()
@@ -766,6 +715,7 @@ inherit_ipv6_multicast_head()
 {
 	atf_set descr 'Create a geneve(4) l3 ipv6 multicast tunnel using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip6_mroute
 }
 
 inherit_ipv6_multicast_body()
@@ -781,13 +731,6 @@ inherit_ipv6_multicast_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip6_mroute; then
-		atf_skip "This test requires ip6_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -826,7 +769,6 @@ inherit_ipv6_multicast_body()
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v6tunnel1
 	atf_check -s exit:0 -o ignore jexec genevetest1 ping -nc 1 -t 1 $v4tunnel2
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v4tunnel1
-
 }
 
 inherit_ipv6_multicast_cleanup()
@@ -839,6 +781,7 @@ inherit_ipv4_multicast_without_dev_head()
 {
 	atf_set descr 'Create a geneve(4) l3 ipv4 multicast tunnel without specifying genevedev using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip_mroute
 }
 
 inherit_ipv4_multicast_without_dev_body()
@@ -854,13 +797,6 @@ inherit_ipv4_multicast_without_dev_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip_mroute; then
-		atf_skip "This test requires ip_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -914,6 +850,7 @@ inherit_ipv6_multicast_without_dev_head()
 {
 	atf_set descr 'Create a geneve(4) l3 ipv6 multicast tunnel without specifying genevedev using epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_geneve ip6_mroute
 }
 
 inherit_ipv6_multicast_without_dev_body()
@@ -929,13 +866,6 @@ inherit_ipv6_multicast_without_dev_body()
 	v6tunnel1=2001:db8::1
 	v6tunnel2=2001:db8::2
 	vni1=1
-
-	if ! kldstat -q -m if_geneve; then
-		atf_skip "This test requires if_geneve"
-	fi
-	if ! kldstat -q -m ip6_mroute; then
-		atf_skip "This test requires ip6_mroute"
-	fi
 
 	vnet_init
 	epair=$(vnet_mkepair)
@@ -972,7 +902,6 @@ inherit_ipv6_multicast_without_dev_body()
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v6tunnel1
 	atf_check -s exit:0 -o ignore jexec genevetest1 ping -nc 1 -t 1 $v4tunnel2
 	atf_check -s exit:0 -o ignore jexec genevetest2 ping -nc 1 -t 1 $v4tunnel1
-
 }
 
 inherit_ipv6_multicast_without_dev_cleanup()
