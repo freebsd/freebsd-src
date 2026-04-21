@@ -52,6 +52,9 @@
 #define	CPUID_IBSID_IBSLOADLATENCYFILT	0x00001000 /* Load Latency Filtering */
 #define	CPUID_IBSID_IBSUPDTDDTLBSTATS	0x00080000 /* Simplified DTLB Stats */
 
+#define CPUID_IBSID_MINIMUM		(CPUID_IBSID_IBSFFV | CPUID_IBSID_FETCHSAM | \
+					    CPUID_IBSID_OPSAM | CPUID_IBSID_RDWROPCNT)
+
 /*
  * All of these definitions here come from AMD64 Architecture Programmer's
  * Manual Volume 2: System Programming (24593) 2025-07-02 Version 3.43. with

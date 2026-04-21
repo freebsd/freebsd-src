@@ -332,6 +332,7 @@ ibs_release_pmc(int cpu, int ri, struct pmc *pmc __unused)
 static int
 ibs_start_pmc(int cpu __diagused, int ri, struct pmc *pm)
 {
+	int status;
 	uint64_t config;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -355,16 +356,16 @@ ibs_start_pmc(int cpu __diagused, int ri, struct pmc *pm)
 	case IBS_PMC_FETCH:
 		wrmsr(IBS_FETCH_CTL, 0);
 		config = pm->pm_md.pm_ibs.ibs_ctl | IBS_FETCH_CTL_ENABLE;
-		wrmsr(IBS_FETCH_CTL, config);
+		status = wrmsr_safe(IBS_FETCH_CTL, config);
 		break;
 	case IBS_PMC_OP:
 		wrmsr(IBS_OP_CTL, 0);
 		config = pm->pm_md.pm_ibs.ibs_ctl | IBS_OP_CTL_ENABLE;
-		wrmsr(IBS_OP_CTL, config);
+		status = wrmsr_safe(IBS_OP_CTL, config);
 		break;
 	}
 
-	return (0);
+	return (status);
 }
 
 /*
@@ -678,6 +679,25 @@ pmc_ibs_initialize(struct pmc_mdep *pmc_mdep, int ncpus)
 	u_int regs[4];
 	struct pmc_classdep *pcd;
 
+	if (cpu_exthigh >= CPUID_IBSID) {
+		do_cpuid(CPUID_IBSID, regs);
+		ibs_features = regs[0];
+	} else {
+		ibs_features = 0;
+	}
+
+	if ((ibs_features & CPUID_IBSID_MINIMUM) != CPUID_IBSID_MINIMUM) {
+		/*
+		 * From Family 10h we should have these four feature bits set 
+		 * confirming the basic features of IBS that we assume.  I 
+		 * searched all the BKDG and PPRs for desktop and server chips 
+		 * and don't see any missing these features.
+		 */
+		return (ENODEV);
+	}
+
+	ibs_init_policy();
+
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for
 	 * the MDEP structure used by MI code.
@@ -707,17 +727,6 @@ pmc_ibs_initialize(struct pmc_mdep *pmc_mdep, int ncpus)
 	pcd->pcd_write_pmc	= ibs_write_pmc;
 
 	pmc_mdep->pmd_npmc	+= IBS_NPMCS;
-
-	if (cpu_exthigh >= CPUID_IBSID) {
-		do_cpuid(CPUID_IBSID, regs);
-		ibs_features = regs[0];
-		if ((ibs_features & CPUID_IBSID_IBSFFV) == 0)
-			ibs_features = 0;
-	} else {
-		ibs_features = 0;
-	}
-
-	ibs_init_policy();
 
 	PMCDBG0(MDP, INI, 0, "ibs-initialize");
 
