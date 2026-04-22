@@ -1,0 +1,32 @@
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+ *     pkgconf authors (see AUTHORS file in source directory).
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * This software is provided 'as is' and without any warranty, express or
+ * implied.  In no event shall the authors be liable for any damages arising
+ * from the use of this software.
+ */
+
+comment = "Package compiler and linker metadata toolkit"
+
+desc = <<EOD
+pkgconf(1) is a program which helps to configure compiler and linker flags for
+development libraries.  It is a superset of the functionality provided by
+pkg-config from freedesktop.org, but does not provide bug-compatibility with
+the original pkg-config.
+
+Also provided is bomtool(1), a program which generates a textual SPDX 2.0
+software bill of materials (SBOM) for a given set of pkg-config modules.  The
+output of this tool can then be translated into other SBOM formats as
+necessary.
+EOD
+
+annotations {
+	set = "devel"
+}
