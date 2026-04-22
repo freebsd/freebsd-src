@@ -55,6 +55,7 @@
 #define	__GFP_IO	0
 #define	__GFP_NO_KSWAPD	0
 #define	__GFP_KSWAPD_RECLAIM	0
+#define	__GFP_ACCOUNT	0
 #define	__GFP_WAIT	M_WAITOK
 #define	__GFP_DMA32	(1U << 24) /* LinuxKPI only */
 #define	__GFP_NORETRY	(1U << 25) /* LinuxKPI only */
@@ -66,6 +67,7 @@
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
 #define	GFP_KERNEL	M_WAITOK
+#define	GFP_KERNEL_ACCOUNT	(GFP_KERNEL | __GFP_ACCOUNT)
 #define	GFP_USER	M_WAITOK
 #define	GFP_HIGHUSER	M_WAITOK
 #define	GFP_HIGHUSER_MOVABLE	M_WAITOK
