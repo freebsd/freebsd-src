@@ -42,5 +42,5 @@
 int
 flsll(long long mask)
 {
-	return (mask == 0 ? 0 : CHAR_BIT * sizeof(mask) - __builtin_clzll(mask));
+	return (mask == 0 ? 0 : LLONG_WIDTH - __builtin_clzll(mask));
 }
