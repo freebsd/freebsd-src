@@ -46,7 +46,7 @@ all_opcodes_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES can report all supported opcodes"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 all_opcodes_body()
 {
@@ -66,7 +66,7 @@ basic_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES can report a single supported opcode"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 basic_body()
 {
@@ -84,7 +84,7 @@ invalid_rep_opts_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES will fail gracefully if the REPORTING OPTIONS field is set to an invalid value"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 invalid_rep_opts_body()
 {
@@ -105,7 +105,7 @@ missing_service_action_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES fails gracefully if the service action is omitted"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 missing_service_action_body()
 {
@@ -124,7 +124,7 @@ out_of_bounds_service_action_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES fails gracefully if the requested service action is out of bounds"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 out_of_bounds_service_action_body()
 {
@@ -152,7 +152,7 @@ service_action_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES can query an opcode that needs a service action"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 service_action_body()
 {
@@ -172,7 +172,7 @@ unexpected_service_action_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES fails gracefully if an extraneous service action is provided"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 unexpected_service_action_body()
 {
@@ -194,7 +194,7 @@ unexpected_service_action_ro3_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES fails gracefully if an extraneous service action is provided, using REPORTING OPTIONS 3"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 unexpected_service_action_ro3_body()
 {
@@ -213,7 +213,7 @@ unsupported_opcode_head()
 {
 	atf_set "descr" "REPORT SUPPORTED OPCODES can report a single unsupported opcode"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_opcodes
+	atf_set "require.progs" sg_opcodes ctladm
 }
 unsupported_opcode_body()
 {
