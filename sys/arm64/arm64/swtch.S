@@ -276,6 +276,8 @@ ENTRY(fork_trampoline)
 	ldp	x26, x27, [sp, #TF_X + 26 * 8]
 	ldp	x28, x29, [sp, #TF_X + 28 * 8]
 
+	add	sp, sp, #(TF_SIZE)
+
 	/*
 	 * No need for interrupts reenabling since PSR
 	 * will be set to the desired value anyway.
