@@ -1,0 +1,38 @@
+/*
+ * SPDX-License-Identifier: ISC
+ *
+ * Copyright (c) 2026 Pierre Pronchery <khorben@FreeBSD.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ */
+
+comment = "Package compiler and linker metadata toolkit"
+
+desc = <<EOD
+pkgconf(1) is a program which helps to configure compiler and linker flags for
+development libraries.  It is a superset of the functionality provided by
+pkg-config from freedesktop.org, but does not provide bug-compatibility with
+the original pkg-config.
+
+Also provided is bomtool(1), a program which generates a textual SPDX 2.0
+software bill of materials (SBOM) for a given set of pkg-config modules.  The
+output of this tool can then be translated into other SBOM formats as
+necessary.
+EOD
+
+licenses = [ "pkgconf" ]
+
+annotations {
+	set = "devel"
+}
