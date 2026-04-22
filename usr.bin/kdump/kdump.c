@@ -2464,7 +2464,7 @@ ktrexterr(struct ktr_exterr *ke)
 
 	ue = &ke->ue;
 	asprintf(&msg, ue->msg, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
-	printf("{ errno %d %s:%u \"%s\" (category %u p1 %#jx p2 %#jx) }\n",
+	printf("{ errno %d sys/%s:%u \"%s\" (category %u p1 %#jx p2 %#jx) }\n",
 	    ue->error, cat_to_filename(ue->cat), ue->src_line, msg,
 	    ue->cat, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
 	free(msg);
