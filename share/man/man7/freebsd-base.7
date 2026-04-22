@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd April 1, 2026
+.Dd April 14, 2026
 .Dt FREEBSD-BASE 7
 .Os
 .Sh NAME
@@ -259,3 +259,6 @@ Support for installing the base system as packages was introduced in
 .Fx 15.0 .
 Earlier releases supported a subset of this functionality.
 Support for unregistering an existing installation appeared in pkg 2.5.
+.Sh CAVEATS
+Upgrading from a RELEASE to a STABLE or CURRENT branch requires
+.Dq Li pkg upgrade -f .
