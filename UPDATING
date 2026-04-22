@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260422:
+	Bump __FreeBSD_version to 1500508 for LinuxKPI after merges of
+	changes to eventfd and changes for DRM 6.11, as well as
+	LinuxKPI 802.11 based on Linux v7.0.
+
 20260407:
 	OpenPAM (including libpam and the PAM modules) has moved to the new
 	"pam" package.  The pam-lib subpackage, which includes libpam, will
