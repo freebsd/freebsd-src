@@ -1333,6 +1333,13 @@ pci_dev_present(const struct pci_device_id *cur)
 	return (0);
 }
 
+static inline bool
+pci_dev_is_disconnected(const struct pci_dev *pdev)
+{
+	pr_debug("TODO: %s\n", __func__);
+	return (false);
+}
+
 static inline const struct pci_device_id *
 pci_match_id(const struct pci_device_id *ids, struct pci_dev *pdev)
 {
