@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: netstat
+Description: Show network status and statistics
+URL: https://man.freebsd.org/cgi/man.cgi?query=netstat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/netstat
+License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.328b29b3.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.cd8b5ddb.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-whistle.3e694e2c.txt
+Copyright: 2005 Christian S.J. Peron, 1989 Stephen Deering, 1992, 1993 The Regents of the University of California, 1983, 1988, 1993 The Regents of the University of California, 1992, 1993 Regents of the University of California, 1995, 1996, 1997, 1998, and 1999 WIDE Project, 1983, 1988, 1993, 1995 The Regents of the University of California, 2005 Robert N. M. Watson, 2001-2007, by Weongyo Jeong, 2011, by Michael Tuexen, 1996-1999 Whistle Communications, Inc., 2005 NTT Multimedia Communications Laboratories, Inc., 1998 WIDE Project, 2013 Gleb Smirnoff <glebius@FreeBSD.org>, 2010-2011 Juniper Networks, Inc., 1983, 1988, 1993 Regents of the University of California, 2020 Alexander V. Chernikov
+Requires: csu, libc, libcompiler_rt, libkvm, libmemstat, libutil, libxo

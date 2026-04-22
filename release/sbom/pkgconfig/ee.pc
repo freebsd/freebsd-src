@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ee
+Description: Arbitrary TCP and UDP connections and listens
+URL: https://github.com/NetBSD/pkgsrc/tree/trunk/editors/ee/
+Version: 1.5.2
+Source: https://archive.netbsd.org/pub/pkgsrc-archive/distfiles/2023Q2/ee-1.5.2/ee-1.5.2.src.tgz
+License: BSD-2-Clause

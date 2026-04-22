@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: telnet
+Description: User interface to the TELNET protoco
+URL: https://man.freebsd.org/cgi/man.cgi?query=telnet(1)
+Version: 4.2
+Source: https://github.com/freebsd/freebsd-src/tree/main/contrib/telnet
+License: BSD-3-Clause and BSD-2-Clause

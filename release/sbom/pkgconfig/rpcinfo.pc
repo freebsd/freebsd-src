@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: rpcinfo
+Description: Report RPC information
+URL: https://man.freebsd.org/cgi/man.cgi?query=rpcinfo(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/rpcinfo
+License: LicenseRef-scancode-sun-rpc
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-sun-rpc.edac947f.txt
+Copyright: 1986 - 1991 by Sun Microsystems, Inc.
+Requires: csu, libc, libcompiler_rt

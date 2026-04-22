@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: tcopy
+Description: Read, write, copy and verify tapes
+URL: https://man.freebsd.org/cgi/man.cgi?query=tcopy(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/tcopy
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.da76510e.txt
+Copyright: 2025 Poul-Henning Kamp, <phk@FreeBSD.org>, 1985, 1987, 1993 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt

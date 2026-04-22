@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: make
+Description: Program designed to simplify the maintenance of other programs
+URL: https://www.NetBSD.org
+Version: 20250804
+Source: https://cvsweb.netbsd.org/bsdweb.cgi/src/usr.bin/make/
+License: BSD-3-Clause

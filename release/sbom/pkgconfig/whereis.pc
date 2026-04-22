@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: whereis
+Description: Locate programs
+URL: https://man.freebsd.org/cgi/man.cgi?query=whereis(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/whereis
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.0bb055ab.txt
+Copyright: 2002, Jorg Wunsch
+Requires: csu, libc, libcompiler_rt

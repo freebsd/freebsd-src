@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: mkuzip
+Description: Compress disk image for use with geom_uzip(4) class
+URL: https://www.FreeBSD.org
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/mkuzip
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.67612e5f.txt
+Copyright: 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>, 2011 Aleksandr Rybalko <ray@ddteam.net>, 2016 Maxim Sobolev <sobomax@FreeBSD.org>, 2019 Conrad Meyer <cem@FreeBSD.org>

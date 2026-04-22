@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: file2c
+Description: Convert file to c-source
+URL: https://man.freebsd.org/cgi/man.cgi?query=file2c(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/file2c
+License: Beerware
+License.file: ${pcfiledir}/LICENSES/Beerware.6aa5c23c.txt
+Requires: csu, libc, libcompiler_rt

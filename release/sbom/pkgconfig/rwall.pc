@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: rwall
+Description: Send a message to users logged on a host
+URL: https://man.freebsd.org/cgi/man.cgi?query=rwall(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/rwall
+License: BSD-4-Clause-UC
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt
+Copyright: 1993 Christopher G. Demetriou, 1988, 1990 Regents of the University of California
+Requires: csu, libc, libcompiler_rt

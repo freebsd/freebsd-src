@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: file
+Description: Open source implementation of the file(1) command
+URL: https://www.darwinsys.com/file/
+Version: 5.46
+Source: https://github.com/file/file/tree/FILE5_46
+License: BSD-2-Clause

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ulimit
+Description: Set or display process resource limits
+URL: https://man.freebsd.org/cgi/man.cgi?query=limits(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/limits
+License: LicenseRef-scancode-other-permissive
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.403fe0bf.txt
+Copyright: 1997 by David L. Nugent <davidn@blaze.net.au>
+Requires: csu, libc, libcompiler_rt, libutil

@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: sqlite3
+Description: SQLite3 database engine
+URL: https://sqlite.org/src
+Version: 3.50.2
+Source: https://github.com/sqlite/sqlite/tree/version-3.50.2
+License: LicenseRef-scancode-public-domain

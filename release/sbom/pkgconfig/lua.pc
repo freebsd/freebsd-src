@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: lua
+Description: Embeddable scripting language
+URL: https://www.lua.org
+Version: 5.4.8
+Source: https://github.com/lua/lua/tree/v5.4.8
+License: MIT

@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: pagesize
+Description: Print system page size
+URL: https://man.freebsd.org/cgi/man.cgi?query=pagesize(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/pagesize
+License: BSD-3-Clause

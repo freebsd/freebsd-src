@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ctfconvert
+Description: Utility dumps the contents of the CTF data section present in an ELF binary file.
+URL: https://github.com/openbsd/src/tree/master/usr.bin/ts
+Version: r178481
+Source: https://cgit.freebsd.org/src/tree/cddl/contrib/opensolaris/tools/ctf/cvt
+License: CDDL-1.1
