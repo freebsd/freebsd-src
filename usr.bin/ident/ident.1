@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 25, 2015
+.Dd April 18, 2026
 .Dt IDENT 1
 .Os
 .Sh NAME
@@ -52,15 +52,18 @@ and a space.
 .Pp
 These options are supported:
 .Bl -tag -width "XXX"
-.It Fl q
+.It Fl q , Fl -quiet
 Quiet mode: suppress warnings if no pattern found.
-.It Fl V
+.It Fl V , Fl -version
 Do nothing, added for compatibility with GNU ident.
 .El
 .Sh EXIT STATUS
 .Ex -std ident
 .Sh AUTHORS
+.An -nosplit
 This version of the
 .Nm
 utility was written by
-.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org .
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
+and
+.An Dag-Erling Sm\(/orrgav Aq Mt des@FreeBSD.org .
