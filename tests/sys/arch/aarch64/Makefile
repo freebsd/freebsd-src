@@ -1,4 +1,4 @@
-PACKAGE=	tests
+TESTSDIR=	${TESTSBASE}/sys/arch/aarch64
 
 ATF_TESTS_C+=	sve
 
