@@ -1737,6 +1737,23 @@ linprocfs_dotainted(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/kernel/threads-max
+ */
+static int
+linprocfs_dothreads_max(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.maxproc",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
  * Filler function for proc/sys/vm/min_free_kbytes
  *
  * This mirrors the approach in illumos to return zero for reads. Effectively,
@@ -2615,6 +2632,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, PFS_RD);
 	pfs_create_file(dir, NULL, "tainted", &linprocfs_dotainted, NULL, NULL,
 	    NULL, PFS_RD);
+	pfs_create_file(dir, NULL, "threads-max", &linprocfs_dothreads_max,
+	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/sys/kernel/random/... */
 	pfs_create_dir(dir, &dir, "random", NULL, NULL, NULL, 0);
