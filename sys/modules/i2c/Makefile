@@ -28,6 +28,7 @@ SUBDIR = \
 
 .if !empty(OPT_FDT)
 SUBDIR += hym8563 \
+	  rs5c372a \
 	  rv3032 \
 	  rx8803 \
 	  tca64xx \
