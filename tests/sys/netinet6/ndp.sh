@@ -695,6 +695,7 @@ atf_test_case "ndp_slaac_switch_onlink_prefix" "cleanup"
 ndp_slaac_switch_onlink_prefix_head() {
 	atf_set descr 'Test SLAAC onlink prefix switching when prefix received via multiple interfaces'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 ndp_slaac_switch_onlink_prefix_body() {
