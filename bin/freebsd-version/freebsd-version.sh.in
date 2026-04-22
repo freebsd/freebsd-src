@@ -26,7 +26,7 @@
 #
 #
 
-set -e
+set -ef
 
 USERLAND_VERSION="@@REVISION@@-@@BRANCH@@"
 
@@ -88,7 +88,7 @@ userland_version() {
 #
 jail_version() {
 	for i in $jail; do
-		jexec -- $i freebsd-version
+		jexec -- "$i" freebsd-version
 	done
 }
 
