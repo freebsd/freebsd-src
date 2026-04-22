@@ -1,0 +1,4 @@
+Name: fragment-comment
+Description: Test case for issue #215
+Version: 1.0
+Cflags: kuku=\#ttt

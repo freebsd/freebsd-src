@@ -1,0 +1,5 @@
+Name: malformed-version
+Version: 3.922 2018-03-17
+Description: None.
+Cflags: -Ifoo
+Libs: -lbar

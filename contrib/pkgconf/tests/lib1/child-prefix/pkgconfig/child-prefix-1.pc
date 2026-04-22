@@ -1,0 +1,11 @@
+prefix=/usr
+exec_prefix=/usr
+libdir=${prefix}/lib64
+includedir=${prefix}/include
+
+Name: child-prefix-1
+Description: child prefix 1 test data
+Requires:
+Version: 1.0
+Libs: -L${libdir} -lchild-prefix-1
+Cflags: -I${includedir}/child-prefix-1

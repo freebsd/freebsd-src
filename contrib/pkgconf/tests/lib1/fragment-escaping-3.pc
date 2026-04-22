@@ -1,0 +1,4 @@
+Name: fragment-escaping-3
+Version: 0
+Description: fragment escaping test
+Cflags: -IC:\\D\ E

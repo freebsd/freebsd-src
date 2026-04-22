@@ -1,0 +1,4 @@
+Name: Bad
+Description: Demonstrates problems with -idirafter in both old pkg-config and current pkgconf; see also https://bugs.freedesktop.org/show_bug.cgi?id=97337
+Version: 1
+Cflags: -idirafter /opt/bad/include -idirafter /opt/bad2/include

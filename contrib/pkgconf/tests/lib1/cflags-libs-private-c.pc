@@ -1,0 +1,6 @@
+Name: cflags-libs-private-c
+Version: 1
+Description: test case for issue #370
+Cflags:
+Libs: -lc
+

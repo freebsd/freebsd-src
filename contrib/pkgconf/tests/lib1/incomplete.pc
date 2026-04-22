@@ -1,0 +1,4 @@
+Name: incomplete
+Description: incomplete package without CFLAGS/LIBS entries (freedesktop #54271)
+Version: 1.2.3
+

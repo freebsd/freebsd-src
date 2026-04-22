@@ -1,0 +1,178 @@
+.\" Copyright (c) 2017 pkgconf authors (see AUTHORS).
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" This software is provided 'as is' and without any warranty, express or
+.\" implied.  In no event shall the authors be liable for any damages arising
+.\" from the use of this software.
+.Dd December 15, 2017
+.Dt PC 5
+.Os
+.Sh NAME
+.Nm file.pc
+.Nd pkg-config file format
+.Sh DESCRIPTION
+pkg-config files provide a useful mechanism for storing various information
+about libraries and packages on a given system.
+Information stored by
+.Nm .pc
+files include compiler and linker flags necessary to use a given library, as
+well as any other relevant metadata.
+.Pp
+These
+.Nm .pc
+files are processed by a utility called
+.Nm pkg-config ,
+of which
+.Nm pkgconf
+is an implementation.
+.\"
+.Ss FILE SYNTAX
+The
+.Nm .pc
+file follows a format inspired by RFC822.
+Comments are prefixed by a pound sign, hash sign or octothorpe (#), and variable
+assignment is similar to POSIX shell.
+Properties are defined using RFC822-style stanzas.
+.\"
+.Ss VARIABLES
+.\"
+Variable definitions start with an alphanumeric string, followed by an equal sign,
+and then the value the variable should contain.
+.Pp
+Variable references are always written as "${variable}".
+It is possible to escape literal "${" as "$${".
+.\"
+.Ss PROPERTIES
+.\"
+Properties are set using RFC822-style stanzas which consist of a keyword, followed
+by a colon (:) and then the value the property should be set to.
+Variable substitution is always performed regardless of property type.
+.Pp
+There are three types of property:
+.\"
+.Bl -tag -width indent
+.\"
+.It Literal
+The property will be set to the text of the value.
+.\"
+.It Dependency List
+The property will be set to a list of dependencies parsed from the
+text.
+Dependency lists are defined by this ABNF syntax:
+.Bd -literal
+package-list = *WSP *( package-spec *( package-sep ) )
+package-sep  = WSP / ","
+.\"
+package-spec = package-key [ ver-op package-version ]
+ver-op       = "<" / "<=" / "=" / "!=" / ">=" / ">"
+.Ed
+.\"
+.It Fragment List
+The property will be set to a list of fragments parsed from the text.
+The input text must be in a format that is suitable for passing to a POSIX
+shell without any shell expansions after variable substitution has been done.
+.\"
+.El
+.Ss PROPERTY KEYWORDS
+.Bl -tag -width indent
+.\"
+.It Name
+The displayed name of the package.
+(mandatory; literal)
+.It Version
+The version of the package.
+(mandatory; literal)
+.It Description
+A description of the package.
+(mandatory; literal)
+.It URL
+A URL to a webpage for the package.
+This is used to recommend where newer versions of the package can be acquired.
+(mandatory; literal)
+.It Cflags
+Required compiler flags.
+These flags are always used, regardless of whether static compilation is requested.
+(optional; fragment list)
+.It Cflags.private
+Required compiler flags for static compilation.
+(optional; fragment list; pkgconf extension)
+.It Copyright
+A copyright attestation statement.
+(optional; literal; pkgconf extension)
+.It Libs
+Required linking flags for this package.
+Libraries this package depends on for linking against it, which are not
+described as dependencies should be specified here.
+(optional; fragment list)
+.It Libs.private
+Required linking flags for this package that are only required when linking
+statically.
+Libraries this package depends on for linking against it statically, which are
+not described as dependencies should be specified here.
+(optional; fragment list)
+.It License
+The asserted SPDX license tag that should be applied to the given package.
+(optional; literal; pkgconf extension)
+.It Maintainer
+The preferred contact for the maintainer.  This should be in the format of a
+name followed by an e-mail address or website.
+(optional; literal; pkgconf extension)
+.It Requires
+Required dependencies that must be met for the package to be usable.
+All dependencies must be satisfied or the pkg-config implementation must not use
+the package.
+(optional; dependency list)
+.It Requires.private
+Required dependencies that must be met for the package to be usable for header
+inclusion and static linking.
+All dependencies must be satisfied or the pkg-config implementation must not use
+the package for header inclusion and static linking.
+(optional; dependency list)
+.It Conflicts
+Dependencies that must not be met for the package to be usable.
+If any package in the proposed dependency solution match any dependency in the
+Conflicts list, the package being considered is not usable.
+(optional; dependency list)
+.It Provides
+Dependencies that may be provided by an alternate package.
+If a package cannot be found, the entire package collection is scanned for
+providers which can match the requested dependency.
+(optional; dependency list; pkgconf extension)
+.El
+.Ss EXTENSIONS
+Features that have been marked as a pkgconf extension are only guaranteed to work
+with the pkgconf implementation of pkg-config.
+Other implementations may or may not support the extensions.
+.Pp
+Accordingly, it is suggested that
+.Nm .pc
+files which absolutely depend on these extensions declare a requirement on the
+pkgconf virtual.
+.Sh EXAMPLES
+An example .pc file:
+.Bd -literal
+# This is a comment
+prefix=/home/kaniini/pkg   # this defines a variable
+exec_prefix=${prefix}      # defining another variable with a substitution
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libfoo                                  # human-readable name
+Description: an example library called libfoo # human-readable description
+Copyright: Copyright (c) 2022 pkgconf project authors
+License: Apache-2.0
+Maintainer: the pkgconf project <http://www.pkgconf.org>
+Version: 1.0
+URL: http://www.pkgconf.org
+Requires: libbar > 2.0.0
+Conflicts: libbaz <= 3.0.0
+Libs: -L${libdir} -lfoo
+Libs.private: -lm
+Cflags: -I${includedir}/libfoo
+.Ed
+.Sh SEE ALSO
+.Xr pkgconf 1 ,
+.Xr pkg.m4 7

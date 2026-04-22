@@ -1,0 +1,4 @@
+Name: fragment-collision-2
+Version: 0
+Description: fragment collision test package
+CFlags: -D_FOO

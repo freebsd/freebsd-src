@@ -1,0 +1,11 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: bar
+Description: Another pkg-config test (with private Requires, ha!)
+Version: 1.3
+Libs: -L${libdir} -lbaz
+Libs.private: -L${libdir} -lzee
+Requires.private: foo

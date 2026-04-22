@@ -1,0 +1,6 @@
+xcflags=
+
+Name: empty-tuple
+Description: testing file
+Version: 1
+CFlags: ${xcflags}
