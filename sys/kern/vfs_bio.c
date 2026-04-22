@@ -727,7 +727,8 @@ bufspace_wait(struct bufdomain *bd, struct vnode *vp, int gbflags,
 	BD_LOCK(bd);
 	while (bd->bd_wanted) {
 		if (vp != NULL && vp->v_type != VCHR &&
-		    (td->td_pflags & TDP_BUFNEED) == 0) {
+		    (td->td_pflags & TDP_BUFNEED) == 0 &&
+		    vp->v_bufobj.bo_dirty.bv_cnt > 0) {
 			BD_UNLOCK(bd);
 			/*
 			 * getblk() is called with a vnode locked, and
