@@ -62,7 +62,7 @@ iicmux_callback(device_t dev, int index, caddr_t data)
 
 	/* If it's not one of the operations we know about, bail early. */
 	if (index != IIC_REQUEST_BUS && index != IIC_RELEASE_BUS)
-		return (iic2errno(EOPNOTSUPP));
+		return (errno2iic(EOPNOTSUPP));
 
 	/*
 	 * Ensure that the data passed to us includes the device_t of the child
@@ -72,12 +72,12 @@ iicmux_callback(device_t dev, int index, caddr_t data)
 	 */
 	rd = (struct iic_reqbus_data *)data;
 	if (!(rd->flags & IIC_REQBUS_DEV))
-		return (iic2errno(EINVAL));
+		return (errno2iic(EINVAL));
 
 	for (i = 0; i <= sc->maxbus && sc->childdevs[i] != rd->bus; ++i)
 		continue;
 	if (i > sc->maxbus)
-		return (iic2errno(ENOENT));
+		return (errno2iic(ENOENT));
 
 	/*
 	 * If the operation is a release it "cannot fail".  Idle the downstream
