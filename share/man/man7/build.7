@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 6, 2026
+.Dd April 13, 2026
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -1018,7 +1018,7 @@ After testing the new system and verifying that your applications do not
 depend on them, delete the old libraries:
 .Pp
 .Dl make delete-old-libs
-.Ss Example 2: Build and upgrade a custom kernel in place
+.Ss Example 2: Build and upgrade a custom kernel
 Create a custom kernel configuration,
 .Va MYKERNEL ,
 by including an existing configuration and using
@@ -1036,7 +1036,7 @@ EOF
 .Ed
 .Pp
 After creating the new kernel configuration, build a fresh toolchain,
-build the kernel, and install it, moving the old kernel to
+build the kernel, and install it directly, moving the old kernel to
 .Pa /boot/kernel.old/ :
 .Bd -literal -offset indent
 make kernel-toolchain
@@ -1045,7 +1045,18 @@ make -DALWAYS_CHECK_MAKE installkernel KERNCONF=MYKERNEL
 shutdown -r now
 .Ed
 .Pp
-To build the kernel to an alternate location, use the
+To package the kernel into a
+.Xr freebsd-base 7
+package instead of installing it directly, use
+.Cm update-packages
+instead of
+.Cm installkernel :
+.Bd -literal -offset indent
+make buildworld buildkernel KERNCONF=MYKERNEL
+make update-packages KERNCONF=MYKERNEL
+.Ed
+.Pp
+To install the kernel directly to an alternate location, use the
 .Va INSTKERNNAME
 variable and boot it once to test via
 .Xr nextboot 8 :
