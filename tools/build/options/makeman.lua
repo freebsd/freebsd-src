@@ -309,7 +309,7 @@ end
 
 local function required_options()
 	local output = run_make({"-f", "share/mk/src.opts.mk", "-V",
-	    "__REQUIRED_OPTIONS"})
+	    "REQUIRED_OPTIONS"})
 	local options = {}
 
 	for opt in output:gmatch("[^%s]+") do
