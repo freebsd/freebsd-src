@@ -1,0 +1,5 @@
+Name: fragment-escaping-1
+Version: 0
+Description: fragment escaping test
+Cflags: "-IC:\\D E"
+Libs: "-LC:\\D E" -lE

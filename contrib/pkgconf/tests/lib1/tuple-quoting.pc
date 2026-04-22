@@ -1,0 +1,7 @@
+prefix="/test"
+libdir=${prefix}/lib
+
+Name: tuple-quoting
+Description: Another pkg-config test
+Version: 1.3
+Libs: -L${libdir} -lfoo

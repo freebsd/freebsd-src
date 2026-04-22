@@ -1,0 +1,17 @@
+/*
+   This is a C-style comment, which technically isn't allowed, but
+   some pkg-config files use them.
+ */
+
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: c-comment
+Description: A testing pkg-config file
+Version: 1.2.3
+Libs: -L${libdir} -lfoo
+Cflags: -fPIC -I${includedir}/foo
+Cflags.private: -DFOO_STATIC
+License: ISC

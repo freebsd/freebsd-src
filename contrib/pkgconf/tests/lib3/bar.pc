@@ -1,0 +1,10 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: bar
+Description: Another pkg-config test
+Version: 1.3
+Libs: -L${libdir} -lbar
+Requires: foo

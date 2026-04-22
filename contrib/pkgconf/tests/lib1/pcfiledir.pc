@@ -1,0 +1,8 @@
+prefix=${pcfiledir}
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: foo
+Description: A testing pkg-config file with a ${pcfiledir}
+Version: 1.2.3

@@ -1,0 +1,6 @@
+Name: provides-request-simple
+Description: A testing pkg-config file
+Version: 1.2.3
+Libs: -lfoo
+Cflags: -I/usr/include/foo
+Requires: provides-test-foo
