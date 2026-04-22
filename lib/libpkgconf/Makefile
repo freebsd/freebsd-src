@@ -12,9 +12,8 @@ SRCS+=		argvsplit.c fileio.c tuple.c dependency.c queue.c
 SRCS+=		path.c personality.c parser.c
 INCS=		bsdstubs.h iter.h libpkgconf-api.h libpkgconf.h stdinc.h
 
-CFLAGS+=	-Wno-error=cast-align
-CFLAGS+=	-Wno-error=cast-qual
-CFLAGS+=	-Wno-error=incompatible-pointer-types-discards-qualifiers
+WARNS?=		3
+
 CFLAGS+=	-DPERSONALITY_PATH=\"/usr/share/pkgconfig/personality.d:/etc/pkgconfig/personality.d:${LOCALBASE:U}/etc/pkgconfig/personality.d\"
 CFLAGS+=	-DPKG_DEFAULT_PATH=\"${LOCALBASE:U}/libdata/pkgconfig:/usr/libdata/pkgconfig:${LOCALBASE:U}/share/pkgconfig\"
 CFLAGS+=	-DSYSTEM_INCLUDEDIR=\"/usr/include\"
