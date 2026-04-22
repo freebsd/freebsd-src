@@ -1,0 +1,12 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: foobar
+Description: A testing pkg-config file
+Version: 3.2.1
+Libs: -L${libdir} -lfoobar
+Cflags: -fPIC -I${includedir}/foobar
+Cflags.private: -DFOOBAR_STATIC
+License: ISC

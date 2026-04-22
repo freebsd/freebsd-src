@@ -1,0 +1,8 @@
+Name: orphaned-requires-private
+Version: 1
+Description: A testing module for pkgconf
+URL: http://www.pkgconf.org/
+Requires: foo
+Requires.private: orphaned-foo
+Cflags: -DUNREACHABLE
+Libs:
