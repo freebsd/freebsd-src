@@ -8,9 +8,8 @@ LIBADD=		pkgconf
 
 PKGCONFDIR=	${SRCTOP}/contrib/pkgconf
 
-CFLAGS+=	-Wno-error=missing-variable-declarations
-CFLAGS+=	-Wno-error=incompatible-pointer-types-discards-qualifiers
-CFLAGS+=	-Wno-error=cast-qual
+WARNS?=		3
+
 CFLAGS+=	-I${SRCTOP}/lib/libpkgconf -I${PKGCONFDIR} -I${PKGCONFDIR}/cli
 
 .PATH:		${PKGCONFDIR}/cli/bomtool

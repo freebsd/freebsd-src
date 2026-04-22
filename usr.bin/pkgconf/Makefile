@@ -11,9 +11,8 @@ SYMLINKS=	pkgconf ${BINDIR}/pkg-config
 
 PKGCONFDIR=	${SRCTOP}/contrib/pkgconf
 
-CFLAGS+=	-Wno-error=missing-variable-declarations
-CFLAGS+=	-Wno-error=incompatible-pointer-types-discards-qualifiers
-CFLAGS+=	-Wno-error=cast-qual
+WARNS?=		3
+
 CFLAGS+=	-DSYSTEM_INCLUDEDIR=\"/usr/include\" -DSYSTEM_LIBDIR=\"/usr/lib\"
 CFLAGS+=	-I${SRCTOP}/lib/libpkgconf -I${PKGCONFDIR}
 
