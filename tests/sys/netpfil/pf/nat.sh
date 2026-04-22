@@ -162,20 +162,26 @@ endpoint_independent_common()
 	pft_set_rules nat "${1}"
 
 	jexec server1 tcpdump -i ${epair_server1}a -w ${PWD}/server1.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server1tcppid="$!"
 	jexec server2 tcpdump -i ${epair_server2}a -w ${PWD}/server2.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server2tcppid="$!"
 
-	# send out multiple packets
-	for i in $(seq 1 10); do
-		echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242 -w 0
-		echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242 -w 0
+	# wait for tcpdumps to fully attach and block in bpfread()
+	for p in ${server1tcppid} ${server2tcppid}; do
+		while [ $(ps -o wchan ${p} | tr "\n" " " | cut -w -f 2) != "bpf" ]; do
+			sleep 0.01;
+		done
 	done
 
-	kill $server1tcppid
-	kill $server2tcppid
+	echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242
+	echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242
+
+	for p in ${server1tcppid} ${server2tcppid}; do
+		wait ${p}
+		atf_check_equal 0 $?
+	done
 
 	tuple_server1=$(tcpdump -r ${PWD}/server1.pcap | awk '{addr=$3} END {print addr}')
 	tuple_server2=$(tcpdump -r ${PWD}/server2.pcap | awk '{addr=$3} END {print addr}')
@@ -201,20 +207,26 @@ endpoint_independent_common()
 	pft_set_rules nat "${2}"
 
 	jexec server1 tcpdump -i ${epair_server1}a -w ${PWD}/server1.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server1tcppid="$!"
 	jexec server2 tcpdump -i ${epair_server2}a -w ${PWD}/server2.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server2tcppid="$!"
 
-	# send out multiple packets,  sometimes one fails to go through
-	for i in $(seq 1 10); do
-		echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242 -w 0
-		echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242 -w 0
+	# wait for tcpdumps to fully attach and block in bpfread()
+	for p in ${server1tcppid} ${server2tcppid}; do
+		while [ $(ps -o wchan ${p} | tr "\n" " " | cut -w -f 2) != "bpf" ]; do
+			sleep 0.01;
+		done
 	done
 
-	kill $server1tcppid
-	kill $server2tcppid
+	echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242
+	echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242
+
+	for p in ${server1tcppid} ${server2tcppid}; do
+		wait ${p}
+		atf_check_equal 0 $?
+	done
 
 	tuple_server1=$(tcpdump -r ${PWD}/server1.pcap | awk '{addr=$3} END {print addr}')
 	tuple_server2=$(tcpdump -r ${PWD}/server2.pcap | awk '{addr=$3} END {print addr}')
