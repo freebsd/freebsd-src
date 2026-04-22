@@ -34,6 +34,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sx.h>
 
