@@ -1669,7 +1669,7 @@ exec_args_adjust_args(struct image_args *args, size_t consume, ssize_t extend)
 	if (args->stringspace < offset)
 		return (E2BIG);
 	memmove(args->begin_argv + extend, args->begin_argv + consume,
-	    args->endp - args->begin_argv + consume);
+	    args->endp - (args->begin_argv + consume));
 	if (args->envc > 0)
 		args->begin_envv += offset;
 	args->endp += offset;
