@@ -275,3 +275,5 @@ def INPUT : Option<[], "<input>", KIND_INPUT>;
 def UNKNOWN : Option<[], "<unknown>", KIND_UNKNOWN>;
 
 #endif // LLVM_OPTION_OPTPARSER_TD
+
+// FreeBSD customization: touch this file so dependent files get rebuilt.
