@@ -70,7 +70,7 @@ kmap(struct page *page)
 			sched_unpin();
 			return (NULL);
 		}
-		return ((void *)sf_buf_kva(sf));
+		return (sf_buf_kva(sf));
 	}
 }
 

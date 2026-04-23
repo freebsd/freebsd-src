@@ -173,7 +173,7 @@ iommu_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
 		VM_OBJECT_WLOCK(obj);
 	else if ((flags & (IOMMU_PGF_WAITOK | IOMMU_PGF_OBJL)) == 0)
 		VM_OBJECT_WUNLOCK(obj);
-	return ((void *)sf_buf_kva(*sf));
+	return (sf_buf_kva(*sf));
 }
 
 void

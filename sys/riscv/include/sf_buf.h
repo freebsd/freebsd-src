@@ -33,11 +33,11 @@
  * That pointer references the vm_page that is "mapped" by the sf_buf.  The
  * actual mapping is provided by the direct virtual-to-physical mapping.  
  */
-static inline vm_offset_t
+static inline void *
 sf_buf_kva(struct sf_buf *sf)
 {
 
-	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
+	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
 }
 
 static inline vm_page_t
