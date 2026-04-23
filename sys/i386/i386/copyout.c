@@ -89,11 +89,11 @@ copyout_init_tramp(void)
 
 int
 cp_slow0(vm_offset_t uva, size_t len, bool write,
-    void (*f)(vm_offset_t, void *), void *arg)
+    void (*f)(void *, void *), void *arg)
 {
 	struct pcpu *pc;
 	vm_page_t m[2];
-	vm_offset_t kaddr;
+	char *kaddr;
 	int error, i, plen;
 	bool sleepable;
 
@@ -117,7 +117,7 @@ cp_slow0(vm_offset_t uva, size_t len, bool write,
 		sx_xlock(&pc->pc_copyout_slock);
 		kaddr = pc->pc_copyout_saddr;
 	}
-	pmap_cp_slow0_map(kaddr, plen, m);
+	pmap_cp_slow0_map((vm_offset_t)kaddr, plen, m);
 	kaddr += uva - trunc_page(uva);
 	f(kaddr, arg);
 	sched_unpin();
@@ -130,23 +130,25 @@ cp_slow0(vm_offset_t uva, size_t len, bool write,
 }
 
 struct copyinstr_arg0 {
-	vm_offset_t kc;
+	char *kc;
 	size_t len;
 	size_t alen;
 	bool end;
 };
 
 static void
-copyinstr_slow0(vm_offset_t kva, void *arg)
+copyinstr_slow0(void *kva, void *arg)
 {
 	struct copyinstr_arg0 *ca;
+	char *src;
 	char c;
 
 	ca = arg;
+	src = kva;
 	MPASS(ca->alen == 0 && ca->len > 0 && !ca->end);
 	while (ca->alen < ca->len && !ca->end) {
-		c = *(char *)(kva + ca->alen);
-		*(char *)ca->kc = c;
+		c = *(src + ca->alen);
+		*ca->kc = c;
 		ca->alen++;
 		ca->kc++;
 		if (c == '\0')
@@ -164,7 +166,7 @@ copyinstr(const void *udaddr, void *kaddr, size_t maxlen, size_t *lencopied)
 
 	error = 0;
 	ca.end = false;
-	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = (vm_offset_t)kaddr;
+	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = kaddr;
 	    plen < maxlen && !ca.end; uc += ca.alen, plen += ca.alen) {
 		ca.len = round_page(uc) - uc;
 		if (ca.len == 0)
@@ -185,17 +187,17 @@ copyinstr(const void *udaddr, void *kaddr, size_t maxlen, size_t *lencopied)
 }
 
 struct copyin_arg0 {
-	vm_offset_t kc;
+	char *kc;
 	size_t len;
 };
 
 static void
-copyin_slow0(vm_offset_t kva, void *arg)
+copyin_slow0(void *kva, void *arg)
 {
 	struct copyin_arg0 *ca;
 
 	ca = arg;
-	bcopy((void *)kva, (void *)ca->kc, ca->len);
+	bcopy(kva, ca->kc, ca->len);
 }
 
 int
@@ -211,7 +213,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	if (len == 0 || (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
 	    copyin_fast_tramp(udaddr, kaddr, len, pmap_get_kcr3()) == 0))
 		return (0);
-	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = (vm_offset_t)kaddr;
+	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = kaddr;
 	    plen < len; uc += ca.len, ca.kc += ca.len, plen += ca.len) {
 		ca.len = round_page(uc) - uc;
 		if (ca.len == 0)
@@ -225,12 +227,12 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 }
 
 static void
-copyout_slow0(vm_offset_t kva, void *arg)
+copyout_slow0(void *kva, void *arg)
 {
 	struct copyin_arg0 *ca;
 
 	ca = arg;
-	bcopy((void *)ca->kc, (void *)kva, ca->len);
+	bcopy(ca->kc, kva, ca->len);
 }
 
 int
@@ -246,7 +248,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	if (len == 0 || (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
 	    copyout_fast_tramp(kaddr, udaddr, len, pmap_get_kcr3()) == 0))
 		return (0);
-	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = (vm_offset_t)kaddr;
+	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = __DECONST(void *, kaddr);
 	    plen < len; uc += ca.len, ca.kc += ca.len, plen += ca.len) {
 		ca.len = round_page(uc) - uc;
 		if (ca.len == 0)
@@ -265,7 +267,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
  */
 
 static void
-fubyte_slow0(vm_offset_t kva, void *arg)
+fubyte_slow0(void *kva, void *arg)
 {
 
 	*(int *)arg = *(u_char *)kva;
@@ -291,7 +293,7 @@ fubyte(volatile const void *base)
 }
 
 static void
-fuword16_slow0(vm_offset_t kva, void *arg)
+fuword16_slow0(void *kva, void *arg)
 {
 
 	*(int *)arg = *(uint16_t *)kva;
@@ -317,7 +319,7 @@ fuword16(volatile const void *base)
 }
 
 static void
-fueword_slow0(vm_offset_t kva, void *arg)
+fueword_slow0(void *kva, void *arg)
 {
 
 	*(uint32_t *)arg = *(uint32_t *)kva;
@@ -354,7 +356,7 @@ fueword32(volatile const void *base, int32_t *val)
  */
 
 static void
-subyte_slow0(vm_offset_t kva, void *arg)
+subyte_slow0(void *kva, void *arg)
 {
 
 	*(u_char *)kva = *(int *)arg;
@@ -374,7 +376,7 @@ subyte(volatile void *base, int byte)
 }
 
 static void
-suword16_slow0(vm_offset_t kva, void *arg)
+suword16_slow0(void *kva, void *arg)
 {
 
 	*(int *)kva = *(uint16_t *)arg;
@@ -395,7 +397,7 @@ suword16(volatile void *base, int word)
 }
 
 static void
-suword_slow0(vm_offset_t kva, void *arg)
+suword_slow0(void *kva, void *arg)
 {
 
 	*(int *)kva = *(uint32_t *)arg;
@@ -428,7 +430,7 @@ struct casueword_arg0 {
 };
 
 static void
-casueword_slow0(vm_offset_t kva, void *arg)
+casueword_slow0(void *kva, void *arg)
 {
 	struct casueword_arg0 *ca;
 

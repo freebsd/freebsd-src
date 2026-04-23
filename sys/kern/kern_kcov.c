@@ -373,7 +373,7 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 	info->bufsize = roundup2(entries * KCOV_ELEMENT_SIZE, PAGE_SIZE);
 	pages = info->bufsize / PAGE_SIZE;
 
-	if ((info->kvaddr = (void *)kva_alloc(info->bufsize)) == 0)
+	if ((info->kvaddr = kva_alloc(info->bufsize)) == 0)
 		return (ENOMEM);
 
 	info->bufobj = vm_pager_allocate(OBJT_PHYS, 0, info->bufsize,
@@ -402,7 +402,7 @@ kcov_free(struct kcov_info *info)
 
 	if (info->kvaddr != NULL) {
 		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
-		kva_free((vm_offset_t)info->kvaddr, info->bufsize);
+		kva_free(info->kvaddr, info->bufsize);
 	}
 	if (info->bufobj != NULL) {
 		vm_page_iter_limit_init(&pages, info->bufobj,

@@ -1512,7 +1512,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 		goto bad;
 	}
 
-	sc->s_vnode.kva = (char *)kva_alloc(maxphys + PAGE_SIZE);
+	sc->s_vnode.kva = kva_alloc(maxphys + PAGE_SIZE);
 	return (0);
 bad:
 	VOP_UNLOCK(nd.ni_vp);
@@ -1567,7 +1567,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 			    sc->cred, td);
 		}
 		if (sc->s_vnode.kva != NULL)
-			kva_free((vm_offset_t)sc->s_vnode.kva, maxphys + PAGE_SIZE);
+			kva_free(sc->s_vnode.kva, maxphys + PAGE_SIZE);
 		break;
 	case MD_SWAP:
 		if (sc->s_swap.object != NULL)

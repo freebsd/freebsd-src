@@ -150,10 +150,10 @@ extern void     uma_startup2(void);
  *	its use, typically with pmap_qenter().  Any attempt to create
  *	a mapping on demand through vm_fault() will result in a panic. 
  */
-vm_offset_t
+void *
 kva_alloc(vm_size_t size)
 {
-	vm_offset_t addr;
+	vmem_addr_t addr;
 
 	TSENTER();
 	size = round_page(size);
@@ -162,7 +162,7 @@ kva_alloc(vm_size_t size)
 		return (0);
 	TSEXIT();
 
-	return (addr);
+	return ((void *)addr);
 }
 
 /*
@@ -171,10 +171,10 @@ kva_alloc(vm_size_t size)
  *	Allocate a virtual address range as in kva_alloc where the base
  *	address is aligned to align.
  */
-vm_offset_t
+void *
 kva_alloc_aligned(vm_size_t size, vm_size_t align)
 {
-	vm_offset_t addr;
+	vmem_addr_t addr;
 
 	TSENTER();
 	size = round_page(size);
@@ -183,7 +183,7 @@ kva_alloc_aligned(vm_size_t size, vm_size_t align)
 		return (0);
 	TSEXIT();
 
-	return (addr);
+	return ((void *)addr);
 }
 
 /*
@@ -196,11 +196,11 @@ kva_alloc_aligned(vm_size_t size, vm_size_t align)
  *	This routine may not block on kernel maps.
  */
 void
-kva_free(vm_offset_t addr, vm_size_t size)
+kva_free(void *addr, vm_size_t size)
 {
 
 	size = round_page(size);
-	vmem_xfree(kernel_arena, addr, size);
+	vmem_xfree(kernel_arena, (uintptr_t)addr, size);
 }
 
 /*
@@ -769,7 +769,8 @@ kmap_free_wakeup(vm_map_t map, vm_offset_t addr, vm_size_t size)
 void
 kmem_init_zero_region(void)
 {
-	vm_offset_t addr, i;
+	char *addr;
+	vm_offset_t i;
 	vm_page_t m;
 
 	/*
@@ -781,8 +782,9 @@ kmem_init_zero_region(void)
 	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_NOFREE);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
-		pmap_qenter((char *)addr + i, &m, 1);
-	pmap_protect(kernel_pmap, addr, addr + ZERO_REGION_SIZE, VM_PROT_READ);
+		pmap_qenter(addr + i, &m, 1);
+	pmap_protect(kernel_pmap, (vm_offset_t)addr,
+	    (vm_offset_t)addr + ZERO_REGION_SIZE, VM_PROT_READ);
 
 	zero_region = (const void *)addr;
 }

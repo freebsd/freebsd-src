@@ -2415,7 +2415,7 @@ pmap_init_pv_table(void)
 	pv_npg = howmany(pmap_last_pa, NBPDR);
 	s = (vm_size_t)pv_npg * sizeof(struct pmap_large_md_page);
 	s = round_page(s);
-	pv_table = (struct pmap_large_md_page *)kva_alloc(s);
+	pv_table = kva_alloc(s);
 	if (pv_table == NULL)
 		panic("%s: kva_alloc failed\n", __func__);
 
@@ -9448,7 +9448,7 @@ pmap_mapdev_internal(vm_paddr_t pa, vm_size_t size, int mode, int flags)
 			if (!i)
 				return ((void *)(va + offset));
 		}
-		va = kva_alloc(size);
+		va = (vm_offset_t)kva_alloc(size);
 		if (va == 0)
 			panic("%s: Couldn't allocate KVA", __func__);
 	}
@@ -9522,7 +9522,7 @@ pmap_unmapdev(void *p, vm_size_t size)
 	}
 	if (pmap_initialized) {
 		pmap_qremove((void *)va, atop(size));
-		kva_free(va, size);
+		kva_free((void *)va, size);
 	}
 }
 

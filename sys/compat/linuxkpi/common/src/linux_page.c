@@ -428,7 +428,7 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 	size_t size;
 
 	size = count * PAGE_SIZE;
-	off = (void *)kva_alloc(size);
+	off = kva_alloc(size);
 	if (off == NULL)
 		return (NULL);
 	vmmap_add(off, size);
@@ -451,7 +451,7 @@ linuxkpi_vmap_pfn(unsigned long *pfns, unsigned int count, int prot)
 	unsigned int i, c, chunk;
 
 	size = ptoa(count);
-	off = (void *)kva_alloc(size);
+	off = kva_alloc(size);
 	if (off == NULL)
 		return (NULL);
 	vmmap_add(off, size);
@@ -502,7 +502,7 @@ vunmap(void *addr)
 	if (vmmap == NULL)
 		return;
 	pmap_qremove(addr, vmmap->vm_size / PAGE_SIZE);
-	kva_free((vm_offset_t)addr, vmmap->vm_size);
+	kva_free(addr, vmmap->vm_size);
 	kfree(vmmap);
 }
 

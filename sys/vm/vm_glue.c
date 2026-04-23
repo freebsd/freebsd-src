@@ -330,7 +330,7 @@ vm_thread_alloc_kstack_kva(vm_size_t size, int domain)
 
 	return (addr);
 #else
-	return (kva_alloc(size));
+	return ((vm_offset_t)kva_alloc(size));
 #endif
 }
 

@@ -2695,7 +2695,8 @@ moea_mapdev(vm_paddr_t pa, vm_size_t size)
 void *
 moea_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
-	vm_offset_t va, tmpva, ppa, offset;
+	char *va;
+	vm_offset_t tmpva, ppa, offset;
 	int i;
 
 	ppa = trunc_page(pa);
@@ -2713,10 +2714,10 @@ moea_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	}
 
 	va = kva_alloc(size);
-	if (!va)
+	if (va == NULL)
 		panic("moea_mapdev: Couldn't alloc kernel virtual memory");
 
-	for (tmpva = va; size > 0;) {
+	for (tmpva = (vm_offset_t)va; size > 0;) {
 		moea_kenter_attr(tmpva, ppa, ma);
 		tlbie(tmpva);
 		size -= PAGE_SIZE;
@@ -2724,13 +2725,14 @@ moea_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 		ppa += PAGE_SIZE;
 	}
 
-	return ((void *)(va + offset));
+	return (va + offset);
 }
 
 void
 moea_unmapdev(void *p, vm_size_t size)
 {
-	vm_offset_t base, offset, va;
+	void *base;
+	vm_offset_t offset, va;
 
 	/*
 	 * If this is outside kernel virtual space, then it's a
@@ -2738,10 +2740,10 @@ moea_unmapdev(void *p, vm_size_t size)
 	 */
 	va = (vm_offset_t)p;
 	if ((va >= VM_MIN_KERNEL_ADDRESS) && (va <= virtual_end)) {
-		base = trunc_page(va);
+		base = trunc_page(p);
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
-		moea_qremove(base, atop(size));
+		moea_qremove((vm_offset_t)base, atop(size));
 		kva_free(base, size);
 	}
 }

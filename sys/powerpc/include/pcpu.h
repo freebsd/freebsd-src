@@ -53,7 +53,7 @@ struct pvo_entry;
 	register_t	pc_disisave[CPUSAVE_LEN];			\
 	register_t	pc_dbsave[CPUSAVE_LEN];				\
 	void		*pc_restore;					\
-	vm_offset_t	pc_qmap_addr;
+	void		*pc_qmap_addr;
 
 #define PCPU_MD_AIM32_FIELDS						\
 	struct pvo_entry *qmap_pvo;					\

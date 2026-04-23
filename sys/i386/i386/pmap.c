@@ -665,7 +665,7 @@ __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 	mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 	SYSMAP(caddr_t, pc->pc_cmap_pte1, pc->pc_cmap_addr1, 1)
 	SYSMAP(caddr_t, pc->pc_cmap_pte2, pc->pc_cmap_addr2, 1)
-	SYSMAP(vm_offset_t, pte, pc->pc_qmap_addr, 1)
+	SYSMAP(caddr_t, pte, pc->pc_qmap_addr, 1)
 
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1);
 
@@ -723,7 +723,7 @@ static void
 pmap_init_reserved_pages(void *dummy __unused)
 {
 	struct pcpu *pc;
-	vm_offset_t pages;
+	char *pages;
 	int i;
 
 #ifdef PMAP_PAE_COMP
@@ -738,13 +738,13 @@ pmap_init_reserved_pages(void *dummy __unused)
 		mtx_init(&pc->pc_copyout_mlock, "cpmlk", NULL, MTX_DEF |
 		    MTX_NEW);
 		pc->pc_copyout_maddr = kva_alloc(ptoa(2));
-		if (pc->pc_copyout_maddr == 0)
+		if (pc->pc_copyout_maddr == NULL)
 			panic("unable to allocate non-sleepable copyout KVA");
 		sx_init(&pc->pc_copyout_slock, "cpslk");
 		pc->pc_copyout_saddr = kva_alloc(ptoa(2));
-		if (pc->pc_copyout_saddr == 0)
+		if (pc->pc_copyout_saddr == NULL)
 			panic("unable to allocate sleepable copyout KVA");
-		pc->pc_pmap_eh_va = kva_alloc(ptoa(1));
+		pc->pc_pmap_eh_va = (vm_offset_t)kva_alloc(ptoa(1));
 		if (pc->pc_pmap_eh_va == 0)
 			panic("unable to allocate pmap_extract_and_hold KVA");
 		pc->pc_pmap_eh_ptep = (char *)vtopte(pc->pc_pmap_eh_va);
@@ -758,12 +758,12 @@ pmap_init_reserved_pages(void *dummy __unused)
 
 		mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 		pages = kva_alloc(PAGE_SIZE * 3);
-		if (pages == 0)
+		if (pages == NULL)
 			panic("unable to allocate CMAP KVA");
-		pc->pc_cmap_pte1 = vtopte(pages);
-		pc->pc_cmap_pte2 = vtopte(pages + PAGE_SIZE);
-		pc->pc_cmap_addr1 = (caddr_t)pages;
-		pc->pc_cmap_addr2 = (caddr_t)(pages + PAGE_SIZE);
+		pc->pc_cmap_pte1 = vtopte((vm_offset_t)pages);
+		pc->pc_cmap_pte2 = vtopte((vm_offset_t)pages + PAGE_SIZE);
+		pc->pc_cmap_addr1 = pages;
+		pc->pc_cmap_addr2 = pages + PAGE_SIZE;
 		pc->pc_qmap_addr = pages + ptoa(2);
 	}
 }
@@ -1038,7 +1038,7 @@ __CONCAT(PMTYPE, init)(void)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = kva_alloc(PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
 	pmap_ptelist_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
@@ -2060,7 +2060,7 @@ __CONCAT(PMTYPE, pinit)(pmap_t pmap)
 	 * page directory table.
 	 */
 	if (pmap->pm_pdir == NULL) {
-		pmap->pm_pdir = (pd_entry_t *)kva_alloc(NBPTD);
+		pmap->pm_pdir = kva_alloc(NBPTD);
 		if (pmap->pm_pdir == NULL)
 			return (0);
 #ifdef PMAP_PAE_COMP
@@ -5562,7 +5562,7 @@ __CONCAT(PMTYPE, mapdev_attr)(vm_paddr_t pa, vm_size_t size, int mode,
 			    (flags & MAPDEV_SETATTR) == 0))
 				return ((void *)(ppim->va + offset));
 		}
-		va = kva_alloc(size);
+		va = (vm_offset_t)kva_alloc(size);
 		if (va == 0)
 			panic("%s: Couldn't allocate KVA", __func__);
 	}
@@ -5611,7 +5611,7 @@ __CONCAT(PMTYPE, unmapdev)(void *p, vm_size_t size)
 	}
 	if (pmap_initialized) {
 		pmap_qremove((void *)va, atop(size));
-		kva_free(va, size);
+		kva_free((void *)va, size);
 	}
 }
 
@@ -5934,33 +5934,33 @@ __CONCAT(PMTYPE, align_superpage)(vm_object_t object, vm_ooffset_t offset,
 static void *
 __CONCAT(PMTYPE, quick_enter_page)(vm_page_t m)
 {
-	vm_offset_t qaddr;
+	void *qaddr;
 	pt_entry_t *pte;
 
 	critical_enter();
 	qaddr = PCPU_GET(qmap_addr);
-	pte = vtopte(qaddr);
+	pte = vtopte((vm_offset_t)qaddr);
 
 	KASSERT(*pte == 0,
 	    ("pmap_quick_enter_page: PTE busy %#jx", (uintmax_t)*pte));
 	*pte = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
 	    pmap_cache_bits(kernel_pmap, pmap_page_get_memattr(m), false);
-	invlpg(qaddr);
+	invlpg((vm_offset_t)qaddr);
 
-	return ((void *)qaddr);
+	return (qaddr);
 }
 
 static void
 __CONCAT(PMTYPE, quick_remove_page)(void *addr)
 {
-	vm_offset_t qaddr;
+	void *qaddr;
 	pt_entry_t *pte;
 
 	qaddr = PCPU_GET(qmap_addr);
-	pte = vtopte(qaddr);
+	pte = vtopte((vm_offset_t)qaddr);
 
 	KASSERT(*pte != 0, ("pmap_quick_remove_page: PTE not in use"));
-	KASSERT(addr == (void *)qaddr,
+	KASSERT(addr == qaddr,
 	    ("pmap_quick_remove_page: invalid address"));
 
 	*pte = 0;

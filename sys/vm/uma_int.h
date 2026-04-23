@@ -347,7 +347,7 @@ struct uma_keg {
 	uma_free	uk_freef;	/* Free routine */
 
 	u_long		uk_offset;	/* Next free offset from base KVA */
-	vm_offset_t	uk_kva;		/* Zone base KVA */
+	void		*uk_kva;	/* Zone base KVA */
 
 	uint32_t	uk_pgoff;	/* Offset to uma_slab struct */
 	uint16_t	uk_ppera;	/* pages per allocation from backend */
