@@ -871,7 +871,7 @@ mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 	mtx_unlock(&copy_page_mutex);
 }
 
-static vm_offset_t
+static void *
 mmu_booke_quick_enter_page(vm_page_t m)
 {
 	vm_paddr_t paddr;
@@ -906,17 +906,17 @@ mmu_booke_quick_enter_page(vm_page_t m)
 	if ((flags & (PTE_I | PTE_G)) == 0)
 		__syncicache((void *)qaddr, PAGE_SIZE);
 
-	return (qaddr);
+	return ((void *)qaddr);
 }
 
 static void
-mmu_booke_quick_remove_page(vm_offset_t addr)
+mmu_booke_quick_remove_page(void *addr)
 {
 	pte_t *pte;
 
-	pte = pte_find(kernel_pmap, addr);
+	pte = pte_find(kernel_pmap, (vm_offset_t)addr);
 
-	KASSERT(PCPU_GET(qmap_addr) == addr,
+	KASSERT(PCPU_GET(qmap_addr) == (vm_offset_t)addr,
 	    ("mmu_booke_quick_remove_page: invalid address"));
 	KASSERT(*pte != 0,
 	    ("mmu_booke_quick_remove_page: PTE not in use"));

@@ -404,9 +404,9 @@ static void moea64_sync_icache(pmap_t, vm_offset_t, vm_size_t);
 void moea64_dumpsys_map(vm_paddr_t pa, size_t sz,
     void **va);
 void moea64_scan_init(void);
-vm_offset_t moea64_quick_enter_page(vm_page_t m);
-vm_offset_t moea64_quick_enter_page_dmap(vm_page_t m);
-void moea64_quick_remove_page(vm_offset_t addr);
+void *moea64_quick_enter_page(vm_page_t m);
+void *moea64_quick_enter_page_dmap(vm_page_t m);
+void moea64_quick_remove_page(void *addr);
 bool moea64_page_is_mapped(vm_page_t m);
 static int moea64_map_user_ptr(pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
@@ -1554,7 +1554,7 @@ moea64_zero_page_dmap(vm_page_t m)
 	bzero((void *)va, PAGE_SIZE);
 }
 
-vm_offset_t
+void *
 moea64_quick_enter_page(vm_page_t m)
 {
 	struct pvo_entry *pvo;
@@ -1577,22 +1577,22 @@ moea64_quick_enter_page(vm_page_t m)
 	moea64_pte_replace(pvo, MOEA64_PTE_INVALIDATE);
 	isync();
 
-	return (PCPU_GET(qmap_addr));
+	return ((void *)PCPU_GET(qmap_addr));
 }
 
-vm_offset_t
+void *
 moea64_quick_enter_page_dmap(vm_page_t m)
 {
 
-	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
 }
 
 void
-moea64_quick_remove_page(vm_offset_t addr)
+moea64_quick_remove_page(void *addr)
 {
 
 	mtx_assert(PCPU_PTR(aim.qmap_lock), MA_OWNED);
-	KASSERT(PCPU_GET(qmap_addr) == addr,
+	KASSERT((void *)PCPU_GET(qmap_addr) == addr,
 	    ("moea64_quick_remove_page: invalid address"));
 	mtx_unlock(PCPU_PTR(aim.qmap_lock));
 	sched_unpin();	

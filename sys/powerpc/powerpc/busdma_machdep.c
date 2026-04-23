@@ -719,7 +719,7 @@ void
 bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
-	vm_offset_t datavaddr, tempvaddr;
+	char *datavaddr, *tempvaddr;
 
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
 		/*
@@ -732,19 +732,19 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
-				tempvaddr = 0;
-				datavaddr = bpage->datavaddr;
-				if (datavaddr == 0) {
+				tempvaddr = NULL;
+				datavaddr = (void *)bpage->datavaddr;
+				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
-					datavaddr = tempvaddr |
+					datavaddr = tempvaddr +
 					    bpage->dataoffs;
 				}
 
-				bcopy((void *)datavaddr,
+				bcopy(datavaddr,
 				    (void *)bpage->vaddr, bpage->datacount);
 
-				if (tempvaddr != 0)
+				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -753,19 +753,19 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
-				tempvaddr = 0;
-				datavaddr = bpage->datavaddr;
-				if (datavaddr == 0) {
+				tempvaddr = NULL;
+				datavaddr = (void *)bpage->datavaddr;
+				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
-					datavaddr = tempvaddr |
+					datavaddr = tempvaddr +
 					    bpage->dataoffs;
 				}
 
 				bcopy((void *)bpage->vaddr,
-				    (void *)datavaddr, bpage->datacount);
+				    datavaddr, bpage->datacount);
 
-				if (tempvaddr != 0)
+				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
 				bpage = STAILQ_NEXT(bpage, links);
 			}

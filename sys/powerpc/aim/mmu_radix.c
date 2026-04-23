@@ -454,8 +454,8 @@ void mmu_radix_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
 bool mmu_radix_ps_enabled(pmap_t);
 void mmu_radix_qenter(vm_offset_t, vm_page_t *, int);
 void mmu_radix_qremove(vm_offset_t, int);
-vm_offset_t mmu_radix_quick_enter_page(vm_page_t);
-void mmu_radix_quick_remove_page(vm_offset_t);
+void *mmu_radix_quick_enter_page(vm_page_t);
+void mmu_radix_quick_remove_page(void *);
 int mmu_radix_ts_referenced(vm_page_t);
 void mmu_radix_release(pmap_t);
 void mmu_radix_remove(pmap_t, vm_offset_t, vm_offset_t);
@@ -6178,21 +6178,21 @@ mmu_radix_dumpsys_map(vm_paddr_t pa, size_t sz,
 	UNIMPLEMENTED();
 }
 
-vm_offset_t
+void *
 mmu_radix_quick_enter_page(vm_page_t m)
 {
 	vm_paddr_t paddr;
 
 	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 	paddr = VM_PAGE_TO_PHYS(m);
-	return (PHYS_TO_DMAP(paddr));
+	return ((void *)PHYS_TO_DMAP(paddr));
 }
 
 void
-mmu_radix_quick_remove_page(vm_offset_t addr __unused)
+mmu_radix_quick_remove_page(void *addr __unused)
 {
 	/* no work to do here */
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
+	CTR2(KTR_PMAP, "%s(%p)", __func__, addr);
 }
 
 static void

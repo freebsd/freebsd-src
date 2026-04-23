@@ -6006,7 +6006,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	mtx_unlock(&pc->pc_cmap_lock);
 }
 
-vm_offset_t
+void *
 pmap_quick_enter_page(vm_page_t m)
 {
 	struct pcpu *pc;
@@ -6020,11 +6020,11 @@ pmap_quick_enter_page(vm_page_t m)
 
 	pte2_store(pte2p, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
 	    vm_page_pte2_attr(m)));
-	return (pc->pc_qmap_addr);
+	return ((void *)pc->pc_qmap_addr);
 }
 
 void
-pmap_quick_remove_page(vm_offset_t addr)
+pmap_quick_remove_page(void *addr)
 {
 	struct pcpu *pc;
 	pt2_entry_t *pte2p;
@@ -6032,7 +6032,8 @@ pmap_quick_remove_page(vm_offset_t addr)
 	pc = get_pcpu();
 	pte2p = pc->pc_qmap_pte2p;
 
-	KASSERT(addr == pc->pc_qmap_addr, ("%s: invalid address", __func__));
+	KASSERT(addr == (void *)pc->pc_qmap_addr,
+	    ("%s: invalid address", __func__));
 	KASSERT(pte2_load(pte2p) != 0, ("%s: PTE2 not in use", __func__));
 
 	pte2_clear(pte2p);

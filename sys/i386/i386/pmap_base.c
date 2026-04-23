@@ -432,7 +432,7 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 	    addr, size));
 }
 
-vm_offset_t
+void *
 pmap_quick_enter_page(vm_page_t m)
 {
 
@@ -440,7 +440,7 @@ pmap_quick_enter_page(vm_page_t m)
 }
 
 void
-pmap_quick_remove_page(vm_offset_t addr)
+pmap_quick_remove_page(void *addr)
 {
 
 	return (pmap_methods_ptr->pm_quick_remove_page(addr));

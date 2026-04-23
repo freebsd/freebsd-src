@@ -40,8 +40,8 @@ struct pmap_methods {
 	void (*pm_remap_lowptdi)(bool);
 	void (*pm_align_superpage)(vm_object_t object, vm_ooffset_t offset,
 	    vm_offset_t *addr, vm_size_t size);
-	vm_offset_t (*pm_quick_enter_page)(vm_page_t m);
-	void (*pm_quick_remove_page)(vm_offset_t addr);
+	void *(*pm_quick_enter_page)(vm_page_t m);
+	void (*pm_quick_remove_page)(void *addr);
 	void *(*pm_trm_alloc)(size_t size, int flags);
 	void (*pm_trm_free)(void *addr, size_t size);
 	vm_offset_t (*pm_get_map_low)(void);
