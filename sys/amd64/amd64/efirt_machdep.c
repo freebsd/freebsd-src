@@ -197,7 +197,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_pmltop_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
-	pml = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_pmltop_page));
+	pml = VM_PAGE_TO_DMAP(efi_pmltop_page);
 	if (la57) {
 		efi_pml5 = pml;
 		pmap_pinit_pml5(efi_pmltop_page);

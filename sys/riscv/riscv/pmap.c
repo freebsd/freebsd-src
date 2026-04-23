@@ -2194,7 +2194,7 @@ retry:
 	PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
 	dump_add_page(m->phys_addr);
-	pc = PHYS_TO_DMAP(m->phys_addr);
+	pc = VM_PAGE_TO_DMAP(m);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREEN & ~1ul;	/* preallocated bit 0 */
 	pc->pc_map[1] = PC_FREEN;
@@ -2257,7 +2257,7 @@ retry:
 		PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 		PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
 		dump_add_page(m->phys_addr);
-		pc = PHYS_TO_DMAP(m->phys_addr);
+		pc = VM_PAGE_TO_DMAP(m);
 		pc->pc_pmap = pmap;
 		pc->pc_map[0] = PC_FREEN;
 		pc->pc_map[1] = PC_FREEN;
@@ -3585,7 +3585,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		return (KERN_RESOURCE_SHORTAGE);
 	}
 
-	l2 = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(l2pg));
+	l2 = VM_PAGE_TO_DMAP(l2pg);
 	l2 = &l2[pmap_l2_index(va)];
 	if ((oldl2 = pmap_load(l2)) != 0) {
 		KASSERT(l2pg->ref_count > 1,
@@ -3827,7 +3827,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 					return (mpte);
 			}
 		}
-		l3 = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mpte));
+		l3 = VM_PAGE_TO_DMAP(mpte);
 		l3 = &l3[pmap_l3_index(va)];
 	} else {
 		mpte = NULL;
@@ -4032,9 +4032,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 void
 pmap_zero_page(vm_page_t m)
 {
-	void *va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-
-	pagezero(va);
+	pagezero(VM_PAGE_TO_DMAP(m));
 }
 
 /*
@@ -4046,7 +4044,7 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	void *va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+	void *va = VM_PAGE_TO_DMAP(m);
 
 	if (off == 0 && size == PAGE_SIZE)
 		pagezero(va);
@@ -4063,8 +4061,8 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 void
 pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	void *src = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(msrc));
-	void *dst = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mdst));
+	void *src = VM_PAGE_TO_DMAP(msrc);
+	void *dst = VM_PAGE_TO_DMAP(mdst);
 
 	pagecopy(src, dst);
 }
@@ -4111,7 +4109,7 @@ void *
 pmap_quick_enter_page(vm_page_t m)
 {
 
-	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	return (VM_PAGE_TO_DMAP(m));
 }
 
 void
@@ -4928,7 +4926,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * required for data coherence.
 	 */
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
-	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	    pmap_change_attr(VM_PAGE_TO_DMAP(m), PAGE_SIZE,
 	    m->md.pv_memattr) != 0)
 		panic("memory attribute change on the direct map failed");
 }

@@ -162,7 +162,7 @@ cvm_page_apply(vm_page_t *pages, int off, int len,
 	processed = 0;
 	CVM_PAGE_SKIP();
 	while (len > 0) {
-		char *kaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages));
+		char *kaddr = VM_PAGE_TO_DMAP(*pages);
 		count = min(PAGE_SIZE - off, len);
 		rval = (*f)(arg, kaddr + off, count);
 		if (rval)
@@ -183,7 +183,7 @@ cvm_page_contiguous_segment(vm_page_t *pages, size_t skip, int len)
 
 	pages += (skip / PAGE_SIZE);
 	skip -= rounddown(skip, PAGE_SIZE);
-	return (((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages))) + skip);
+	return ((char *)VM_PAGE_TO_DMAP(*pages) + skip);
 }
 
 /*
@@ -200,8 +200,7 @@ cvm_page_copyback(vm_page_t *pages, int off, int len, c_caddr_t cp)
 	CVM_PAGE_SKIP();
 	while (len > 0) {
 		count = min(PAGE_SIZE - off, len);
-		bcopy(cp, (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages)) + off,
-		    count);
+		bcopy(cp, (char *)VM_PAGE_TO_DMAP(*pages) + off, count);
 		len -= count;
 		cp += count;
 		processed += count;
@@ -225,8 +224,7 @@ cvm_page_copydata(vm_page_t *pages, int off, int len, caddr_t cp)
 	CVM_PAGE_SKIP();
 	while (len > 0) {
 		count = min(PAGE_SIZE - off, len);
-		bcopy(((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages)) + off), cp,
-		    count);
+		bcopy((char *)VM_PAGE_TO_DMAP(*pages) + off, cp, count);
 		len -= count;
 		cp += count;
 		processed += count;
@@ -439,8 +437,8 @@ crypto_cursor_segment(struct crypto_buffer_cursor *cc, size_t *len)
 		return (mtod(cc->cc_mbuf, char *) + cc->cc_offset);
 	case CRYPTO_BUF_VMPAGE:
 		*len = PAGE_SIZE - cc->cc_offset;
-		return ((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
-		    *cc->cc_vmpage)) + cc->cc_offset);
+		return ((char *)VM_PAGE_TO_DMAP(*cc->cc_vmpage) +
+		    cc->cc_offset);
 	case CRYPTO_BUF_UIO:
 		*len = cc->cc_iov->iov_len - cc->cc_offset;
 		return ((char *)cc->cc_iov->iov_base + cc->cc_offset);
@@ -494,8 +492,8 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
-			dst = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
-			    *cc->cc_vmpage)) + cc->cc_offset;
+			dst = (char *)VM_PAGE_TO_DMAP(*cc->cc_vmpage) +
+			    cc->cc_offset;
 			remain = MIN(PAGE_SIZE - cc->cc_offset, cc->cc_buf_len);
 			todo = MIN(remain, size);
 			memcpy(dst, src, todo);
@@ -583,8 +581,8 @@ crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
-			src = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
-			    *cc->cc_vmpage)) + cc->cc_offset;
+			src = (char *)VM_PAGE_TO_DMAP(*cc->cc_vmpage) +
+			    cc->cc_offset;
 			remain = MIN(PAGE_SIZE - cc->cc_offset, cc->cc_buf_len);
 			todo = MIN(remain, size);
 			memcpy(dst, src, todo);

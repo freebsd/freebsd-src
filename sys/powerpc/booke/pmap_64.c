@@ -167,7 +167,7 @@ mmu_booke_alloc_page(pmap_t pmap, unsigned int idx, bool nosleep)
 	}
 	m->pindex = idx;
 
-	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	return (VM_PAGE_TO_DMAP(m));
 }
 
 /* Initialize pool of kva ptbl buffers. */
@@ -669,7 +669,7 @@ mmu_booke_zero_page_area(vm_page_t m, int off, int size)
 
 	/* XXX KASSERT off and size are within a single page? */
 
-	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+	va = VM_PAGE_TO_DMAP(m);
 	bzero(va + off, size);
 }
 
@@ -679,11 +679,7 @@ mmu_booke_zero_page_area(vm_page_t m, int off, int size)
 static void
 mmu_booke_zero_page(vm_page_t m)
 {
-	void *va;
-
-	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-
-	bzero(va, PAGE_SIZE);
+	bzero(VM_PAGE_TO_DMAP(m), PAGE_SIZE);
 }
 
 /*
@@ -696,8 +692,8 @@ mmu_booke_copy_page(vm_page_t sm, vm_page_t dm)
 {
 	void *sva, *dva;
 
-	sva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(sm));
-	dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
+	sva = VM_PAGE_TO_DMAP(sm);
+	dva = VM_PAGE_TO_DMAP(dm);
 	memcpy(dva, sva, PAGE_SIZE);
 }
 
@@ -718,8 +714,8 @@ mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 		pb = mb[b_offset >> PAGE_SHIFT];
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		a_cp = (caddr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pa)) + a_pg_offset;
-		b_cp = (caddr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pb)) + b_pg_offset;
+		a_cp = (caddr_t)VM_PAGE_TO_DMAP(pa) + a_pg_offset;
+		b_cp = (caddr_t)VM_PAGE_TO_DMAP(pb) + b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
 		a_offset += cnt;
 		b_offset += cnt;
@@ -730,7 +726,7 @@ mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 static void *
 mmu_booke_quick_enter_page(vm_page_t m)
 {
-	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	return (VM_PAGE_TO_DMAP(m));
 }
 
 static void

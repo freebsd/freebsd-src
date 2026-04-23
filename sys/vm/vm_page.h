@@ -462,6 +462,7 @@ extern long first_page;			/* first physical page number */
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 #define	DMAP_TO_VM_PAGE(va)	PHYS_TO_VM_PAGE(DMAP_TO_PHYS(va))
+#define	VM_PAGE_TO_DMAP(entry)	PHYS_TO_DMAP(VM_PAGE_TO_PHYS(entry))
 
 /*
  * vm_page allocation arguments for the functions vm_page_alloc(),

@@ -355,29 +355,29 @@ start_all_aps(void)
 	/* Create a transient 1:1 mapping of low 4G */
 	if (la57) {
 		m_pml4 = pmap_page_alloc_below_4g(true);
-		v_pml4 = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pml4));
+		v_pml4 = VM_PAGE_TO_DMAP(m_pml4);
 	} else {
 		v_pml4 = &kernel_pmap->pm_pmltop[0];
 	}
 	m_pdp = pmap_page_alloc_below_4g(true);
-	v_pdp = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pdp));
+	v_pdp = VM_PAGE_TO_DMAP(m_pdp);
 	m_pd[0] = pmap_page_alloc_below_4g(false);
-	v_pd = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[0]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[0]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (i << PDRSHIFT) | X86_PG_V | X86_PG_RW | X86_PG_A |
 		    X86_PG_M | PG_PS;
 	m_pd[1] = pmap_page_alloc_below_4g(false);
-	v_pd = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[1]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[1]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (NBPDP + (i << PDRSHIFT)) | X86_PG_V | X86_PG_RW |
 		    X86_PG_A | X86_PG_M | PG_PS;
 	m_pd[2] = pmap_page_alloc_below_4g(false);
-	v_pd = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[2]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[2]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (2UL * NBPDP + (i << PDRSHIFT)) | X86_PG_V |
 		    X86_PG_RW | X86_PG_A | X86_PG_M | PG_PS;
 	m_pd[3] = pmap_page_alloc_below_4g(false);
-	v_pd = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[3]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[3]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (3UL * NBPDP + (i << PDRSHIFT)) | X86_PG_V |
 		    X86_PG_RW | X86_PG_A | X86_PG_M | PG_PS;

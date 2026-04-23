@@ -1446,13 +1446,7 @@ moea64_copy_page(vm_page_t msrc, vm_page_t mdst)
 void
 moea64_copy_page_dmap(vm_page_t msrc, vm_page_t mdst)
 {
-	vm_paddr_t dst;
-	vm_paddr_t src;
-
-	dst = VM_PAGE_TO_PHYS(mdst);
-	src = VM_PAGE_TO_PHYS(msrc);
-
-	bcopy(PHYS_TO_DMAP(src), PHYS_TO_DMAP(dst), PAGE_SIZE);
+	bcopy(VM_PAGE_TO_DMAP(msrc), VM_PAGE_TO_DMAP(mdst), PAGE_SIZE);
 }
 
 inline void
@@ -1466,13 +1460,11 @@ moea64_copy_pages_dmap(vm_page_t *ma, vm_offset_t a_offset,
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-		a_cp = (char *)PHYS_TO_DMAP(
-		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT])) +
+		a_cp = (char *)VM_PAGE_TO_DMAP(ma[a_offset >> PAGE_SHIFT]) +
 		    a_pg_offset;
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		b_cp = (char *)PHYS_TO_DMAP(
-		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT])) +
+		b_cp = (char *)VM_PAGE_TO_DMAP(mb[b_offset >> PAGE_SHIFT]) +
 		    b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
 		a_offset += cnt;
@@ -1549,11 +1541,7 @@ moea64_zero_page(vm_page_t m)
 void
 moea64_zero_page_dmap(vm_page_t m)
 {
-	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
-	void *va;
-
-	va = PHYS_TO_DMAP(pa);
-	bzero(va, PAGE_SIZE);
+	bzero(VM_PAGE_TO_DMAP(m), PAGE_SIZE);
 }
 
 void *
@@ -1586,7 +1574,7 @@ void *
 moea64_quick_enter_page_dmap(vm_page_t m)
 {
 
-	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	return (VM_PAGE_TO_DMAP(m));
 }
 
 void
