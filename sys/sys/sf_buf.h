@@ -114,7 +114,7 @@ static inline void *
 sf_buf_kva(struct sf_buf *sf)
 {
 	if (PMAP_HAS_DMAP)
-		return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
+		return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
 
         return ((void *)sf->kva);
 }

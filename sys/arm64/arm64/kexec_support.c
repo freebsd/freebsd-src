@@ -140,7 +140,7 @@ kexec_reboot_md(struct kexec_image *image)
 
 	for (int i = 0; i < KEXEC_SEGMENT_MAX; i++) {
 		if (image->segments[i].size > 0)
-			cpu_dcache_inv_range((void *)PHYS_TO_DMAP(image->segments[i].target),
+			cpu_dcache_inv_range(PHYS_TO_DMAP(image->segments[i].target),
 			    image->segments[i].size);
 	}
 	ptr = pmap_kextract((vm_offset_t)kexec_reboot_bottom);

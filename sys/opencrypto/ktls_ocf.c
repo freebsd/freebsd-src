@@ -326,8 +326,7 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_ocf_encrypt_state *state,
 	iov[0].iov_len = sizeof(*ad);
 	pgoff = m->m_epg_1st_off;
 	for (i = 0; i < m->m_epg_npgs; i++, pgoff = 0) {
-		iov[i + 1].iov_base = (void *)PHYS_TO_DMAP(m->m_epg_pa[i] +
-		    pgoff);
+		iov[i + 1].iov_base = PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff);
 		iov[i + 1].iov_len = m_epg_pagelen(m, i, pgoff);
 	}
 	iov[m->m_epg_npgs + 1].iov_base = m->m_epg_trail;

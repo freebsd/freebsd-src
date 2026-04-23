@@ -649,7 +649,7 @@ amdvi_decode_evt(struct amdvi_event *evt)
 	case AMDVI_EVENT_CMD_HW_ERROR:
 		printf("\t[%s EVT]\n", (evt->opcode == AMDVI_EVENT_ILLEGAL_CMD) ?
 		    "ILLEGAL CMD" : "CMD HW ERR");
-		cmd = (struct amdvi_cmd *)PHYS_TO_DMAP(evt->addr);
+		cmd = PHYS_TO_DMAP(evt->addr);
 		printf("\tCMD opcode= 0x%x 0x%x 0x%x 0x%lx\n",
 		    cmd->opcode, cmd->word0, cmd->word1, cmd->addr);
 		break;
@@ -1036,8 +1036,7 @@ amdvi_free_ptp(uint64_t *ptp, int level)
 			continue;
 #endif
 
-		amdvi_free_ptp((uint64_t *)PHYS_TO_DMAP(ptp[i]
-		    & AMDVI_PT_MASK), level - 1);
+		amdvi_free_ptp(PHYS_TO_DMAP(ptp[i] & AMDVI_PT_MASK), level - 1);
 	}
 
 	free(ptp, M_AMDVI);
@@ -1098,7 +1097,7 @@ amdvi_set_pt(uint64_t *pt, int level, vm_paddr_t gpa,
 #endif
 #define PTE2PA(x)	((uint64_t)(x) & AMDVI_PT_MASK)
 		pa = PTE2PA(pt[index]);
-		pt = (uint64_t *)PHYS_TO_DMAP(pa);
+		pt = PHYS_TO_DMAP(pa);
 		shift -= PT_SHIFT;
 		level--;
 	}

@@ -110,7 +110,7 @@ hwt_vm_alloc_pages(struct hwt_vm *vm, int kva_req)
 	vm_paddr_t low, high, boundary;
 	vm_memattr_t memattr;
 #ifdef  __aarch64__
-	uintptr_t va;
+	void *va;
 #endif
 	int alignment;
 	vm_page_t m;
@@ -160,7 +160,7 @@ retry:
 
 #ifdef __aarch64__
 		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-		cpu_dcache_wb_range((void *)va, PAGE_SIZE);
+		cpu_dcache_wb_range(va, PAGE_SIZE);
 #endif
 
 		m->valid = VM_PAGE_BITS_ALL;

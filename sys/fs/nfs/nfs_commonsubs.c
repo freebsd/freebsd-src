@@ -913,8 +913,7 @@ nfsm_strtom(struct nfsrv_descript *nd, const char *cp, int siz)
 			if ((nd->nd_flag & ND_EXTPG) != 0) {
 				m2 = nfsm_add_ext_pgs(m2,
 				    nd->nd_maxextsiz, &nd->nd_bextpg);
-				cp2 = (char *)(void *)PHYS_TO_DMAP(
-				    m2->m_epg_pa[nd->nd_bextpg]);
+				cp2 = PHYS_TO_DMAP(m2->m_epg_pa[nd->nd_bextpg]);
 				nd->nd_bextpgsiz = left = PAGE_SIZE;
 			} else {
 				if (siz > ncl_mbuf_mlen)
@@ -5051,8 +5050,7 @@ nfsrvd_rephead(struct nfsrv_descript *nd)
 	if ((nd->nd_flag & ND_EXTPG) != 0) {
 		mreq = mb_alloc_ext_plus_pages(PAGE_SIZE, M_WAITOK);
 		nd->nd_mreq = nd->nd_mb = mreq;
-		nd->nd_bpos = (char *)(void *)
-		    PHYS_TO_DMAP(mreq->m_epg_pa[0]);
+		nd->nd_bpos = PHYS_TO_DMAP(mreq->m_epg_pa[0]);
 		nd->nd_bextpg = 0;
 		nd->nd_bextpgsiz = PAGE_SIZE;
 	} else {
@@ -5534,8 +5532,7 @@ nfsm_set(struct nfsrv_descript *nd, u_int offs)
 				break;
 			}
 		}
-		nd->nd_bpos = (char *)(void *)
-		    PHYS_TO_DMAP(m->m_epg_pa[nd->nd_bextpg]);
+		nd->nd_bpos = PHYS_TO_DMAP(m->m_epg_pa[nd->nd_bextpg]);
 		if (nd->nd_bextpg == 0)
 			nd->nd_bpos += m->m_epg_1st_off;
 		if (offs > 0) {

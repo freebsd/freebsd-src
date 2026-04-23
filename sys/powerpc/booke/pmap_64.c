@@ -148,7 +148,7 @@ static void kernel_pte_alloc(vm_offset_t, vm_offset_t);
 /**************************************************************************/
 
 /* Allocate a page, to be used in a page table. */
-static vm_offset_t
+static void *
 mmu_booke_alloc_page(pmap_t pmap, unsigned int idx, bool nosleep)
 {
 	vm_page_t	m;
@@ -254,19 +254,19 @@ unhold_free_page(pmap_t pmap, vm_page_t m)
 	return (false);
 }
 
-static vm_offset_t
-get_pgtbl_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
+static void *
+get_pgtbl_page(pmap_t pmap, void **ptr_tbl, uint32_t index,
     bool nosleep, bool hold_parent, bool *isnew)
 {
-	vm_offset_t	page;
+	void		*page;
 	vm_page_t	m;
 
 	page = ptr_tbl[index];
 	KASSERT(page != 0 || pmap != kernel_pmap,
 	    ("NULL page table page found in kernel pmap!"));
-	if (page == 0) {
+	if (page == NULL) {
 		page = mmu_booke_alloc_page(pmap, index, nosleep);
-		if (ptr_tbl[index] == 0) {
+		if (ptr_tbl[index] == NULL) {
 			*isnew = true;
 			ptr_tbl[index] = page;
 			if (hold_parent) {
@@ -293,18 +293,18 @@ ptbl_alloc(pmap_t pmap, vm_offset_t va, bool nosleep, bool *is_new)
 	unsigned int	pg_root_idx = PG_ROOT_IDX(va);
 	unsigned int	pdir_l1_idx = PDIR_L1_IDX(va);
 	unsigned int	pdir_idx = PDIR_IDX(va);
-	vm_offset_t	pdir_l1, pdir, ptbl;
+	void		*pdir_l1, *pdir, *ptbl;
 
 	/* When holding a parent, no need to hold the root index pages. */
-	pdir_l1 = get_pgtbl_page(pmap, (vm_offset_t *)pmap->pm_root,
+	pdir_l1 = get_pgtbl_page(pmap, (void **)pmap->pm_root,
 	    pg_root_idx, nosleep, false, is_new);
-	if (pdir_l1 == 0)
+	if (pdir_l1 == NULL)
 		return (NULL);
-	pdir = get_pgtbl_page(pmap, (vm_offset_t *)pdir_l1, pdir_l1_idx,
+	pdir = get_pgtbl_page(pmap, pdir_l1, pdir_l1_idx,
 	    nosleep, !*is_new, is_new);
-	if (pdir == 0)
+	if (pdir == NULL)
 		return (NULL);
-	ptbl = get_pgtbl_page(pmap, (vm_offset_t *)pdir, pdir_idx,
+	ptbl = get_pgtbl_page(pmap, pdir, pdir_idx,
 	    nosleep, !*is_new, is_new);
 
 	return ((pte_t *)ptbl);
@@ -648,7 +648,7 @@ mmu_booke_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 		sync_sz = min(sync_sz, sz);
 		if (valid) {
 			pa += (va & PAGE_MASK);
-			__syncicache((void *)PHYS_TO_DMAP(pa), sync_sz);
+			__syncicache(PHYS_TO_DMAP(pa), sync_sz);
 		}
 		va += sync_sz;
 		sz -= sync_sz;
@@ -665,12 +665,12 @@ mmu_booke_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 static void
 mmu_booke_zero_page_area(vm_page_t m, int off, int size)
 {
-	vm_offset_t va;
+	char *va;
 
 	/* XXX KASSERT off and size are within a single page? */
 
 	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	bzero((caddr_t)va + off, size);
+	bzero(va + off, size);
 }
 
 /*
@@ -679,11 +679,11 @@ mmu_booke_zero_page_area(vm_page_t m, int off, int size)
 static void
 mmu_booke_zero_page(vm_page_t m)
 {
-	vm_offset_t va;
+	void *va;
 
 	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
-	bzero((void *)va, PAGE_SIZE);
+	bzero(va, PAGE_SIZE);
 }
 
 /*
@@ -694,11 +694,11 @@ mmu_booke_zero_page(vm_page_t m)
 static void
 mmu_booke_copy_page(vm_page_t sm, vm_page_t dm)
 {
-	vm_offset_t sva, dva;
+	void *sva, *dva;
 
 	sva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(sm));
 	dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
-	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
+	memcpy(dva, sva, PAGE_SIZE);
 }
 
 static inline void
@@ -718,10 +718,8 @@ mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 		pb = mb[b_offset >> PAGE_SHIFT];
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pa)) +
-		    a_pg_offset);
-		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pb)) +
-		    b_pg_offset);
+		a_cp = (caddr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pa)) + a_pg_offset;
+		b_cp = (caddr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pb)) + b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
 		a_offset += cnt;
 		b_offset += cnt;
@@ -732,7 +730,7 @@ mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 static void *
 mmu_booke_quick_enter_page(vm_page_t m)
 {
-	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
 }
 
 static void

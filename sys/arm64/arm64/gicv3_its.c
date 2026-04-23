@@ -735,7 +735,6 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 	device_t gicv3;
 	uint32_t ctlr;
 	vm_paddr_t conf_pa;
-	vm_offset_t conf_va;
 
 	/*
 	 * The PROPBASER is a singleton in our parent. We only set it up the
@@ -767,15 +766,14 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 		if (!physmem_excluded(conf_pa, LPI_CONFTAB_SIZE))
 			panic("gicv3 PROPBASER needs to reuse %#lx, but not reserved",
 			    conf_pa);
-		conf_va = PHYS_TO_DMAP(conf_pa);
-		if (!pmap_klookup(conf_va, NULL))
+		conf_table = PHYS_TO_DMAP(conf_pa);
+		if (!pmap_klookup((vm_offset_t)conf_table, NULL))
 			panic("Cannot map prior LPI mapping into KVA");
-		conf_table = (void *)conf_va;
 		extra_flags = ITS_FLAGS_LPI_PREALLOC | ITS_FLAGS_LPI_CONF_FLUSH;
 		if (bootverbose)
 			device_printf(sc->dev,
-			    "LPI enabled, conf table using pa %#lx va %lx\n",
-			    conf_pa, conf_va);
+			    "LPI enabled, conf table using pa %#lx va %p\n",
+			    conf_pa, conf_table);
 	} else {
 		/*
 		 * Otherwise just allocate contiguous pages. We'll configure the
@@ -918,7 +916,7 @@ its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 		if (!physmem_excluded(tmp, LPI_PENDTAB_SIZE))
 			panic("gicv3 PENDBASER on cpu %d needs to reuse 0x%#lx, but not reserved\n",
 			    cpuid, tmp);
-		sc->sc_pend_base[cpuid] = (void *)PHYS_TO_DMAP(tmp);
+		sc->sc_pend_base[cpuid] = PHYS_TO_DMAP(tmp);
 	}
 
 
