@@ -100,6 +100,8 @@ static int hkbd_debug = 0;
 #endif
 static int hkbd_no_leds = 0;
 static int hkbd_apple_fn_mode = 0;
+static int hkbd_apple_swap_cmd_ctl = 0;
+static int hkbd_apple_swap_cmd_opt = 0;
 
 static SYSCTL_NODE(_hw_hid, OID_AUTO, hkbd, CTLFLAG_RW, 0, "USB keyboard");
 #ifdef HID_DEBUG
@@ -110,6 +112,10 @@ SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,
     &hkbd_no_leds, 0, "Disables setting of keyboard leds");
 SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, apple_fn_mode, CTLFLAG_RWTUN,
     &hkbd_apple_fn_mode, 0, "0 = Fn + F1..12 -> media, 1 = F1..F12 -> media");
+SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, apple_swap_cmd_ctl, CTLFLAG_RWTUN,
+    &hkbd_apple_swap_cmd_ctl, 0, "Swap Command & Control keys");
+SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, apple_swap_cmd_opt, CTLFLAG_RWTUN,
+    &hkbd_apple_swap_cmd_opt, 0, "Swap Command & Option keys");
 
 #define	INPUT_EPOCH	global_epoch_preempt
 
@@ -665,6 +671,30 @@ hkbd_apple_fn_media(uint32_t keycode)
 }
 
 static uint32_t
+hkbd_apple_doswap_cmd_ctl(uint32_t keycode)
+{
+	switch (keycode) {
+	case 0xe3: return 0xe0; /* LCMD -> LCTL */
+	case 0xe7: return 0xe4; /* RCMD -> RCTL */
+	case 0xe0: return 0xe3; /* LCTL -> LCMD */
+	case 0xe4: return 0xe7; /* RCTL -> RCMD */
+	default: return keycode;
+	}
+}
+
+static uint32_t
+hkbd_apple_doswap_cmd_opt(uint32_t keycode)
+{
+	switch (keycode) {
+	case 0xe3: return 0xe2; /* LCMD -> ROPT */
+	case 0xe7: return 0xe6; /* RCMD -> ROPT */
+	case 0xe2: return 0xe3; /* LOPT -> LCMD */
+	case 0xe6: return 0xe7; /* ROPT -> RCMD */
+	default: return keycode;
+	}
+}
+
+static uint32_t
 hkbd_apple_swap(uint32_t keycode)
 {
 	switch (keycode) {
@@ -765,6 +795,10 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 					key = hkbd_apple_fn(key);
 				if (apply_apple_fn_media)
 					key = hkbd_apple_fn_media(key);
+				if (hkbd_apple_swap_cmd_ctl)
+					key = hkbd_apple_doswap_cmd_ctl(key);
+				if (hkbd_apple_swap_cmd_opt)
+					key = hkbd_apple_doswap_cmd_opt(key);
 				if (sc->sc_flags & HKBD_FLAG_APPLE_SWAP)
 					key = hkbd_apple_swap(key);
 				if (key == KEY_NONE || key >= HKBD_NKEYCODE)
@@ -780,6 +814,10 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 				key = hkbd_apple_fn(key);
 			if (apply_apple_fn_media)
 				key = hkbd_apple_fn_media(key);
+			if (hkbd_apple_swap_cmd_ctl)
+				key = hkbd_apple_doswap_cmd_ctl(key);
+			if (hkbd_apple_swap_cmd_opt)
+				key = hkbd_apple_doswap_cmd_opt(key);
 			if (sc->sc_flags & HKBD_FLAG_APPLE_SWAP)
 				key = hkbd_apple_swap(key);
 			if (key == KEY_NONE || key == KEY_ERROR || key >= HKBD_NKEYCODE)
