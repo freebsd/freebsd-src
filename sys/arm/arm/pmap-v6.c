@@ -1819,8 +1819,9 @@ pmap_init(void)
  *  Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+pmap_qenter(void *va, vm_page_t *ma, int count)
 {
+	vm_offset_t sva = (vm_offset_t)va;
 	u_int anychanged;
 	pt2_entry_t *epte2p, *pte2p, pte2;
 	vm_page_t m;
@@ -1851,16 +1852,16 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
  *  Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qremove(vm_offset_t sva, int count)
+pmap_qremove(void *sva, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	tlb_flush_range(sva, va - sva);
+	tlb_flush_range((vm_offset_t)sva, va - (vm_offset_t)sva);
 }
 
 /*
@@ -2946,7 +2947,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 			PV_STAT(pc_chunk_frees++);
 			/* Entire chunk is free; return it. */
 			m_pc = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-			pmap_qremove((vm_offset_t)pc, 1);
+			pmap_qremove(pc, 1);
 			pmap_pte2list_free(&pv_vafree, (vm_offset_t)pc);
 			break;
 		}
@@ -2979,7 +2980,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-	pmap_qremove((vm_offset_t)pc, 1);
+	pmap_qremove(pc, 1);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
 	pmap_pte2list_free(&pv_vafree, (vm_offset_t)pc);
@@ -3088,7 +3089,7 @@ retry:
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
 	pc = (struct pv_chunk *)pmap_pte2list_alloc(&pv_vafree);
-	pmap_qenter((vm_offset_t)pc, &m, 1);
+	pmap_qenter(pc, &m, 1);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = pc_freemask[0] & ~1ul;	/* preallocated bit 0 */
 	for (field = 1; field < _NPCM; field++)

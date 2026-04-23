@@ -1649,7 +1649,7 @@ pmap_init_pv_table(void)
 			    VM_ALLOC_ZERO);
 			if (m == NULL)
 				panic("failed to allocate PV table page");
-			pmap_qenter((vm_offset_t)pvd + j, &m, 1);
+			pmap_qenter((char *)pvd + j, &m, 1);
 		}
 
 		for (j = 0; j < s / sizeof(*pvd); j++) {
@@ -2575,7 +2575,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
  * Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+pmap_qenter(void *sva, vm_page_t *ma, int count)
 {
 	pd_entry_t *pde;
 	pt_entry_t attr, old_l3e, *pte;
@@ -2584,7 +2584,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	int i, lvl;
 
 	old_l3e = 0;
-	va = sva;
+	va = (vm_offset_t)sva;
 	for (i = 0; i < count; i++) {
 		pde = pmap_pde(kernel_pmap, va, &lvl);
 		KASSERT(pde != NULL,
@@ -2602,7 +2602,8 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		va += L3_SIZE;
 	}
 	if ((old_l3e & ATTR_DESCR_VALID) != 0)
-		pmap_s1_invalidate_range(kernel_pmap, sva, va, true);
+		pmap_s1_invalidate_range(kernel_pmap, (vm_offset_t)sva, va,
+		    true);
 	else {
 		/*
 		 * Because the old entries were invalid and the new mappings
@@ -2617,16 +2618,17 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
  * kernel -- it is meant only for temporary mappings.
  */
 void
-pmap_qremove(vm_offset_t sva, int count)
+pmap_qremove(void *sva, int count)
 {
 	pt_entry_t *pte;
 	vm_offset_t va;
 
-	KASSERT(ADDR_IS_CANONICAL(sva),
-	    ("%s: Address not in canonical form: %lx", __func__, sva));
-	KASSERT(ADDR_IS_KERNEL(sva), ("usermode va %lx", sva));
+	va = (vm_offset_t)sva;
 
-	va = sva;
+	KASSERT(ADDR_IS_CANONICAL(va),
+	    ("%s: Address not in canonical form: %p", __func__, sva));
+	KASSERT(ADDR_IS_KERNEL(va), ("usermode va %p", sva));
+
 	while (count-- > 0) {
 		pte = pmap_pte_exists(kernel_pmap, va, 3, NULL);
 		if (pte != NULL) {
@@ -2635,7 +2637,7 @@ pmap_qremove(vm_offset_t sva, int count)
 
 		va += PAGE_SIZE;
 	}
-	pmap_s1_invalidate_range(kernel_pmap, sva, va, true);
+	pmap_s1_invalidate_range(kernel_pmap, (vm_offset_t)sva, va, true);
 }
 
 /***************************************************

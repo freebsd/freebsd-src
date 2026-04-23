@@ -46,7 +46,7 @@ gve_free_qpl(struct gve_priv *priv, struct gve_queue_page_list *qpl)
 	}
 
 	if (qpl->kva) {
-		pmap_qremove(qpl->kva, qpl->num_pages);
+		pmap_qremove((void *)qpl->kva, qpl->num_pages);
 		kva_free(qpl->kva, PAGE_SIZE * qpl->num_pages);
 	}
 
@@ -59,7 +59,7 @@ gve_free_qpl(struct gve_priv *priv, struct gve_queue_page_list *qpl)
 		 */
 		if (vm_page_unwire_noq(qpl->pages[i])) {
 			if (!qpl->kva) {
-				pmap_qremove((vm_offset_t)qpl->dmas[i].cpu_addr, 1);
+				pmap_qremove(qpl->dmas[i].cpu_addr, 1);
 				kva_free((vm_offset_t)qpl->dmas[i].cpu_addr, PAGE_SIZE);
 			}
 			vm_page_free(qpl->pages[i]);
@@ -126,7 +126,7 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 				err = ENOMEM;
 				goto abort;
 			}
-			pmap_qenter((vm_offset_t)qpl->dmas[i].cpu_addr, &(qpl->pages[i]), 1);
+			pmap_qenter(qpl->dmas[i].cpu_addr, &(qpl->pages[i]), 1);
 		} else
 			qpl->dmas[i].cpu_addr = (void *)(qpl->kva + (PAGE_SIZE * i));
 
@@ -135,7 +135,7 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 	}
 
 	if (single_kva)
-		pmap_qenter(qpl->kva, qpl->pages, npages);
+		pmap_qenter((void *)qpl->kva, qpl->pages, npages);
 
 	for (i = 0; i < npages; i++) {
 		err = gve_dmamap_create(priv, /*size=*/PAGE_SIZE, /*align=*/PAGE_SIZE,
@@ -244,7 +244,7 @@ void
 gve_mextadd_free(struct mbuf *mbuf)
 {
 	vm_page_t page = (vm_page_t)mbuf->m_ext.ext_arg1;
-	vm_offset_t va = (vm_offset_t)mbuf->m_ext.ext_arg2;
+	void *va = mbuf->m_ext.ext_arg2;
 
 	/*
 	 * Free the page only if this is the last ref.
@@ -253,7 +253,7 @@ gve_mextadd_free(struct mbuf *mbuf)
 	 */
 	if (__predict_false(vm_page_unwire_noq(page))) {
 		pmap_qremove(va, 1);
-		kva_free(va, PAGE_SIZE);
+		kva_free((vm_offset_t)va, PAGE_SIZE);
 		vm_page_free(page);
 	}
 }

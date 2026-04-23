@@ -1385,7 +1385,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
  * Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+pmap_qenter(void *sva, vm_page_t *ma, int count)
 {
 	pt_entry_t *l3;
 	vm_paddr_t pa;
@@ -1395,7 +1395,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	pn_t pn;
 	int i;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	for (i = 0; i < count; i++) {
 		m = ma[i];
 		pa = VM_PAGE_TO_PHYS(m);
@@ -1409,7 +1409,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 
 		va += L3_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, (vm_offset_t)sva, va);
 }
 
 /*
@@ -1418,19 +1418,20 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
  * Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qremove(vm_offset_t sva, int count)
+pmap_qremove(void *sva, int count)
 {
 	pt_entry_t *l3;
 	vm_offset_t va;
 
-	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", sva));
+	va = (vm_offset_t)sva;
+	KASSERT(va >= VM_MIN_KERNEL_ADDRESS, ("usermode va %p", sva));
 
-	for (va = sva; count-- > 0; va += PAGE_SIZE) {
+	for (; count-- > 0; va += PAGE_SIZE) {
 		l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
 		pmap_clear(l3);
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, (vm_offset_t)sva, va);
 }
 
 bool

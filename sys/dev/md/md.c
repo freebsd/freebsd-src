@@ -286,7 +286,7 @@ struct md_s {
 		struct {
 			struct vnode *vnode;
 			char file[PATH_MAX];
-			vm_offset_t kva;
+			char *kva;
 		} s_vnode;
 
 		/* MD_SWAP related fields */
@@ -983,8 +983,7 @@ unmapped_step:
 		    ("npages %d too large", npages));
 		pmap_qenter(sc->s_vnode.kva, &bp->bio_ma[atop(ma_offs)],
 		    npages);
-		aiov.iov_base = (void *)(sc->s_vnode.kva + (ma_offs &
-		    PAGE_MASK));
+		aiov.iov_base = sc->s_vnode.kva + (ma_offs & PAGE_MASK);
 		aiov.iov_len = iolen;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
@@ -1513,7 +1512,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 		goto bad;
 	}
 
-	sc->s_vnode.kva = kva_alloc(maxphys + PAGE_SIZE);
+	sc->s_vnode.kva = (char *)kva_alloc(maxphys + PAGE_SIZE);
 	return (0);
 bad:
 	VOP_UNLOCK(nd.ni_vp);
@@ -1567,8 +1566,8 @@ mddestroy(struct md_s *sc, struct thread *td)
 			    sc->flags & MD_READONLY ?  FREAD : (FREAD|FWRITE),
 			    sc->cred, td);
 		}
-		if (sc->s_vnode.kva != 0)
-			kva_free(sc->s_vnode.kva, maxphys + PAGE_SIZE);
+		if (sc->s_vnode.kva != NULL)
+			kva_free((vm_offset_t)sc->s_vnode.kva, maxphys + PAGE_SIZE);
 		break;
 	case MD_SWAP:
 		if (sc->s_swap.object != NULL)

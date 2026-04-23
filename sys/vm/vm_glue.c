@@ -472,12 +472,12 @@ vm_thread_stack_create(struct domainset *ds, int pages, int flags)
 			continue;
 		}
 		if (KSTACK_GUARD_PAGES != 0) {
-			pmap_qremove(ks - ptoa(KSTACK_GUARD_PAGES),
+			pmap_qremove((char *)ks - ptoa(KSTACK_GUARD_PAGES),
 			    KSTACK_GUARD_PAGES);
 		}
 		for (i = 0; i < pages; i++)
 			vm_page_valid(ma[i]);
-		pmap_qenter(ks, ma, pages);
+		pmap_qenter((char *)ks, ma, pages);
 		return (ks);
 	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
@@ -494,7 +494,7 @@ vm_thread_stack_dispose(vm_offset_t ks, int pages)
 
 	pindex = vm_kstack_pindex(ks, pages);
 	domain = vm_phys_domain(vtophys(ks));
-	pmap_qremove(ks, pages);
+	pmap_qremove((void *)ks, pages);
 	VM_OBJECT_WLOCK(obj);
 	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(obj, pindex + i);

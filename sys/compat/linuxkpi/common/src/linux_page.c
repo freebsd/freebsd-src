@@ -424,17 +424,17 @@ iounmap(void *addr)
 void *
 vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 {
-	vm_offset_t off;
+	void *off;
 	size_t size;
 
 	size = count * PAGE_SIZE;
-	off = kva_alloc(size);
-	if (off == 0)
+	off = (void *)kva_alloc(size);
+	if (off == NULL)
 		return (NULL);
-	vmmap_add((void *)off, size);
+	vmmap_add(off, size);
 	pmap_qenter(off, pages, count);
 
-	return ((void *)off);
+	return (off);
 }
 
 #define	VMAP_MAX_CHUNK_SIZE (65536U / sizeof(struct vm_page)) /* KMEM_ZMAX */
@@ -443,17 +443,18 @@ void *
 linuxkpi_vmap_pfn(unsigned long *pfns, unsigned int count, int prot)
 {
 	vm_page_t m, *ma, fma;
-	vm_offset_t off, coff;
+	void *off;
+	char *coff;
 	vm_paddr_t pa;
 	vm_memattr_t attr;
 	size_t size;
 	unsigned int i, c, chunk;
 
 	size = ptoa(count);
-	off = kva_alloc(size);
-	if (off == 0)
+	off = (void *)kva_alloc(size);
+	if (off == NULL)
 		return (NULL);
-	vmmap_add((void *)off, size);
+	vmmap_add(off, size);
 
 	chunk = MIN(count, VMAP_MAX_CHUNK_SIZE);
 	attr = pgprot2cachemode(prot);
@@ -489,7 +490,7 @@ linuxkpi_vmap_pfn(unsigned long *pfns, unsigned int count, int prot)
 	free(fma, M_TEMP);
 	free(ma, M_TEMP);
 
-	return ((void *)off);
+	return (off);
 }
 
 void
@@ -500,7 +501,7 @@ vunmap(void *addr)
 	vmmap = vmmap_remove(addr);
 	if (vmmap == NULL)
 		return;
-	pmap_qremove((vm_offset_t)addr, vmmap->vm_size / PAGE_SIZE);
+	pmap_qremove(addr, vmmap->vm_size / PAGE_SIZE);
 	kva_free((vm_offset_t)addr, vmmap->vm_size);
 	kfree(vmmap);
 }

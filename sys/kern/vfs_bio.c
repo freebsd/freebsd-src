@@ -1536,10 +1536,9 @@ bpmap_qenter(struct buf *bp)
 	 * bp->b_data is relative to bp->b_offset, but
 	 * bp->b_offset may be offset into the first page.
 	 */
-	bp->b_data = (caddr_t)trunc_page((vm_offset_t)bp->b_data);
-	pmap_qenter((vm_offset_t)bp->b_data, bp->b_pages, bp->b_npages);
-	bp->b_data = (caddr_t)((vm_offset_t)bp->b_data |
-	    (vm_offset_t)(bp->b_offset & PAGE_MASK));
+	bp->b_data = trunc_page(bp->b_data);
+	pmap_qenter(bp->b_data, bp->b_pages, bp->b_npages);
+	bp->b_data += (bp->b_offset & PAGE_MASK);
 }
 
 static inline struct bufdomain *
@@ -3018,8 +3017,7 @@ vfs_vmio_iodone(struct buf *bp)
 	vm_object_pip_wakeupn(obj, bp->b_npages);
 	if (bogus && buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
-		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
-		    bp->b_pages, bp->b_npages);
+		pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 	}
 }
 
@@ -3036,7 +3034,7 @@ vfs_vmio_invalidate(struct buf *bp)
 
 	if (buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
-		pmap_qremove(trunc_page((vm_offset_t)bp->b_data), bp->b_npages);
+		pmap_qremove(trunc_page((char *)bp->b_data), bp->b_npages);
 	} else
 		BUF_CHECK_UNMAPPED(bp);
 	/*
@@ -3092,7 +3090,7 @@ vfs_vmio_truncate(struct buf *bp, int desiredpages)
 
 	if (buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
-		pmap_qremove((vm_offset_t)trunc_page((vm_offset_t)bp->b_data) +
+		pmap_qremove(trunc_page(bp->b_data) +
 		    (desiredpages << PAGE_SHIFT), bp->b_npages - desiredpages);
 	} else
 		BUF_CHECK_UNMAPPED(bp);
@@ -4490,7 +4488,7 @@ biodone(struct bio *bp)
 		start = trunc_page((vm_offset_t)bp->bio_data);
 		end = round_page((vm_offset_t)bp->bio_data + bp->bio_length);
 		bp->bio_data = unmapped_buf;
-		pmap_qremove(start, atop(end - start));
+		pmap_qremove((void *)start, atop(end - start));
 		vmem_free(transient_arena, start, end - start);
 		atomic_add_int(&inflight_transient_maps, -1);
 	}
@@ -4687,7 +4685,7 @@ vfs_unbusy_pages(struct buf *bp)
 			bp->b_pages[i] = m;
 			if (buf_mapped(bp)) {
 				BUF_CHECK_MAPPED(bp);
-				pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
+				pmap_qenter(trunc_page(bp->b_data),
 				    bp->b_pages, bp->b_npages);
 			} else
 				BUF_CHECK_UNMAPPED(bp);
@@ -4850,8 +4848,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	}
 	if (bogus && buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
-		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
-		    bp->b_pages, bp->b_npages);
+		pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 	}
 }
 
@@ -5051,7 +5048,7 @@ vm_hold_load_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 		 */
 		p = vm_page_alloc_noobj(VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
 		    VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT) | VM_ALLOC_WAITOK);
-		pmap_qenter(pg, &p, 1);
+		pmap_qenter((void *)pg, &p, 1);
 		bp->b_pages[index] = p;
 	}
 	bp->b_npages = index;
@@ -5061,14 +5058,14 @@ vm_hold_load_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 static void
 vm_hold_free_pages(struct buf *bp, int newbsize)
 {
-	vm_offset_t from;
+	char *from;
 	vm_page_t p;
 	int index, newnpages;
 
 	BUF_CHECK_MAPPED(bp);
 
-	from = round_page((vm_offset_t)bp->b_data + newbsize);
-	newnpages = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
+	from = round_page(bp->b_data + newbsize);
+	newnpages = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
 	if (bp->b_npages > newnpages)
 		pmap_qremove(from, bp->b_npages - newnpages);
 	for (index = newnpages; index < bp->b_npages; index++) {
@@ -5112,7 +5109,7 @@ vmapbuf(struct buf *bp, void *uaddr, size_t len, int mapbuf)
 	bp->b_npages = pidx;
 	bp->b_offset = ((vm_offset_t)uaddr) & PAGE_MASK;
 	if (mapbuf || !unmapped_buf_allowed) {
-		pmap_qenter((vm_offset_t)bp->b_kvabase, bp->b_pages, pidx);
+		pmap_qenter(bp->b_kvabase, bp->b_pages, pidx);
 		bp->b_data = bp->b_kvabase + bp->b_offset;
 	} else
 		bp->b_data = unmapped_buf;
@@ -5132,7 +5129,7 @@ vunmapbuf(struct buf *bp)
 
 	npages = bp->b_npages;
 	if (buf_mapped(bp))
-		pmap_qremove(trunc_page((vm_offset_t)bp->b_data), npages);
+		pmap_qremove(trunc_page(bp->b_data), npages);
 	vm_page_unhold_pages(bp->b_pages, npages);
 
 	bp->b_data = unmapped_buf;

@@ -517,7 +517,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 				pmap_page_set_memattr(ttm->pages[start_page +
 				    i], prot);
 			}
-			pmap_qenter((vm_offset_t)map->virtual,
+			pmap_qenter(map->virtual,
 			    &ttm->pages[start_page], num_pages);
 		}
 	}
@@ -571,7 +571,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 		pmap_unmapdev(map->virtual, map->size);
 		break;
 	case ttm_bo_map_vmap:
-		pmap_qremove((vm_offset_t)(map->virtual), map->num_pages);
+		pmap_qremove(map->virtual, map->num_pages);
 		kva_free((vm_offset_t)map->virtual,
 		    map->num_pages * PAGE_SIZE);
 		break;

@@ -203,7 +203,7 @@ amdiommu_free_dev_tbl(struct amdiommu_unit *sc)
 	u_int devtbl_sz;
 
 	devtbl_sz = amdiommu_devtbl_sz(sc);
-	pmap_qremove((vm_offset_t)sc->dev_tbl, atop(devtbl_sz));
+	pmap_qremove(sc->dev_tbl, atop(devtbl_sz));
 	kva_free((vm_offset_t)sc->dev_tbl, devtbl_sz);
 	sc->dev_tbl = NULL;
 	vm_object_deallocate(sc->devtbl_obj);
@@ -280,7 +280,7 @@ amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 		for (u_int j = 0; j < atop(seg_sz);
 		     j++, seg_vaddr += PAGE_SIZE, m++) {
 			pmap_zero_page(m);
-			pmap_qenter(seg_vaddr, &m, 1);
+			pmap_qenter((void *)seg_vaddr, &m, 1);
 		}
 		amdiommu_write8(sc, devtab_base_regs[i], rval);
 	}

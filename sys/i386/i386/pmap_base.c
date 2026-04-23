@@ -844,14 +844,14 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 }
 
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+pmap_qenter(void *sva, vm_page_t *ma, int count)
 {
 
 	pmap_methods_ptr->pm_qenter(sva, ma, count);
 }
 
 void
-pmap_qremove(vm_offset_t sva, int count)
+pmap_qremove(void *sva, int count)
 {
 
 	pmap_methods_ptr->pm_qremove(sva, count);

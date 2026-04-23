@@ -324,7 +324,7 @@ amd64_mp_alloc_pcpu(void)
 			m = vm_page_alloc_noobj(VM_ALLOC_ZERO);
 		if (m == NULL)
 			panic("cannot alloc pcpu page for cpu %d", cpu);
-		pmap_qenter((vm_offset_t)&__pcpu[cpu], &m, 1);
+		pmap_qenter(&__pcpu[cpu], &m, 1);
 	}
 }
 

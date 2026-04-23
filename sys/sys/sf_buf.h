@@ -135,7 +135,7 @@ static inline void
 sf_buf_map(struct sf_buf *sf, int flags)
 {
 
-	pmap_qenter(sf->kva, &sf->m, 1);
+	pmap_qenter((void *)sf->kva, &sf->m, 1);
 }
 
 static inline int

@@ -782,7 +782,7 @@ retry:
 		}
 	}
 	atomic_add_int(&inflight_transient_maps, 1);
-	pmap_qenter((vm_offset_t)addr, bp->bio_ma, OFF_TO_IDX(size));
+	pmap_qenter((void *)addr, bp->bio_ma, OFF_TO_IDX(size));
 	bp->bio_data = (caddr_t)addr + bp->bio_ma_offset;
 	bp->bio_flags |= BIO_TRANSIENT_MAPPING;
 	bp->bio_flags &= ~BIO_UNMAPPED;

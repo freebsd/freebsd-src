@@ -2442,7 +2442,7 @@ pmap_init_pv_table(void)
 			vm_page_t m = vm_page_alloc_noobj_domain(domain, 0);
 			if (m == NULL)
 				panic("failed to allocate PV table page");
-			pmap_qenter((vm_offset_t)pvd + j, &m, 1);
+			pmap_qenter((char *)pvd + j, &m, 1);
 		}
 
 		for (j = 0; j < s / sizeof(*pvd); j++) {
@@ -3939,9 +3939,10 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
  * Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+pmap_qenter(void *va, vm_page_t *ma, int count)
 {
 	pt_entry_t *endpte, oldpte, pa, *pte;
+	vm_offset_t sva = (vm_offset_t)va;
 	vm_page_t m;
 	int cache_bits;
 
@@ -3970,11 +3971,11 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
  * Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qremove(vm_offset_t sva, int count)
+pmap_qremove(void *sva, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		/*
 		 * pmap_enter() calls within the kernel virtual
@@ -3992,7 +3993,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, (vm_offset_t)sva, va);
 }
 
 /***************************************************
@@ -9520,7 +9521,7 @@ pmap_unmapdev(void *p, vm_size_t size)
 		}
 	}
 	if (pmap_initialized) {
-		pmap_qremove(va, atop(size));
+		pmap_qremove((void *)va, atop(size));
 		kva_free(va, size);
 	}
 }
@@ -10545,7 +10546,7 @@ pmap_map_io_transient(vm_page_t page[], void *vaddr[], int count,
 				 * thread to the CPU and instead add a global
 				 * mapping visible to all CPUs.
 				 */
-				pmap_qenter((vm_offset_t)vaddr[i], &page[i], 1);
+				pmap_qenter(vaddr[i], &page[i], 1);
 			} else {
 				pmap_kenter_attr((vm_offset_t)vaddr[i], paddr,
 				    page[i]->md.pat_mode);
@@ -10570,7 +10571,7 @@ pmap_unmap_io_transient(vm_page_t page[], void *vaddr[], int count,
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (paddr >= dmaplimit) {
 			if (can_fault)
-				pmap_qremove((vm_offset_t)vaddr[i], 1);
+				pmap_qremove(vaddr[i], 1);
 			vmem_free(kernel_arena, (vm_offset_t)vaddr[i],
 			    PAGE_SIZE);
 		}

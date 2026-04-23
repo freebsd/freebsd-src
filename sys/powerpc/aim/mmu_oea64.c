@@ -379,8 +379,8 @@ int moea64_page_wired_mappings(vm_page_t);
 int moea64_pinit(pmap_t);
 void moea64_pinit0(pmap_t);
 void moea64_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
-void moea64_qenter(vm_offset_t, vm_page_t *, int);
-void moea64_qremove(vm_offset_t, int);
+void moea64_qenter(void *, vm_page_t *, int);
+void moea64_qremove(void *, int);
 void moea64_release(pmap_t);
 void moea64_remove(pmap_t, vm_offset_t, vm_offset_t);
 void moea64_remove_pages(pmap_t);
@@ -2603,8 +2603,11 @@ moea64_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva,
  * references recorded.  Existing mappings in the region are overwritten.
  */
 void
-moea64_qenter(vm_offset_t va, vm_page_t *m, int count)
+moea64_qenter(void *sva, vm_page_t *m, int count)
 {
+	vm_offset_t va;
+
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		moea64_kenter(va, VM_PAGE_TO_PHYS(*m));
 		va += PAGE_SIZE;
@@ -2617,8 +2620,11 @@ moea64_qenter(vm_offset_t va, vm_page_t *m, int count)
  * temporary mappings entered by moea64_qenter.
  */
 void
-moea64_qremove(vm_offset_t va, int count)
+moea64_qremove(void *sva, int count)
 {
+	vm_offset_t va;
+
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		moea64_kremove(va);
 		va += PAGE_SIZE;
@@ -3180,15 +3186,16 @@ moea64_mapdev(vm_paddr_t pa, vm_size_t size)
 void
 moea64_unmapdev(void *p, vm_size_t size)
 {
-	vm_offset_t base, offset, va;
+	void *base;
+	vm_offset_t offset, va;
 
 	va = (vm_offset_t)p;
-	base = trunc_page(va);
+	base = trunc_page(p);
 	offset = va & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
 	moea64_qremove(base, atop(size));
-	kva_free(base, size);
+	kva_free((vm_offset_t)base, size);
 }
 
 void
