@@ -36,6 +36,7 @@
 #include <sys/pmckern.h>
 #include <sys/pmclog.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
@@ -56,6 +57,19 @@ struct ibs_descr {
 static uint64_t ibs_features;
 static uint64_t ibs_fetch_allowed_mask;
 static uint64_t ibs_op_allowed_mask;
+
+static uint64_t ibs_fetch_extra_mask;
+static uint64_t ibs_op_extra_mask;
+
+SYSCTL_DECL(_kern_hwpmc);
+
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, ibs_fetch_extra_mask, CTLFLAG_RDTUN,
+    &ibs_fetch_extra_mask, 0,
+    "Extra allowed bits in the IBS fetch control MSR (override; default 0)");
+
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, ibs_op_extra_mask, CTLFLAG_RDTUN,
+    &ibs_op_extra_mask, 0,
+    "Extra allowed bits in the IBS op control MSR (override; default 0)");
 
 /*
  * Per-processor information
@@ -95,7 +109,7 @@ static int
 ibs_validate_fetch_config(uint64_t config)
 {
 
-	if ((config & ~ibs_fetch_allowed_mask) != 0)
+	if ((config & ~(ibs_fetch_allowed_mask | ibs_fetch_extra_mask)) != 0)
 		return (EINVAL);
 
 	return (0);
@@ -116,6 +130,8 @@ ibs_validate_op_config(uint64_t config)
 
 		allowed_mask |= IBS_OP_CTL_LDLATMASK | IBS_OP_CTL_L3MISSONLY;
 	}
+
+	allowed_mask |= ibs_op_extra_mask;
 
 	if ((config & ~allowed_mask) != 0)
 		return (EINVAL);
