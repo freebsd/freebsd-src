@@ -8193,7 +8193,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * required for data coherence.
 	 */
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
-	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	    pmap_change_attr((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
 	    m->md.pv_memattr) != 0)
 		panic("memory attribute change on the direct map failed");
 }
@@ -8218,12 +8218,13 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
  * virtual address range or the direct map.
  */
 int
-pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
+pmap_change_attr(void *va, vm_size_t size, int mode)
 {
 	int error;
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_props_locked(va, size, PROT_NONE, mode, false);
+	error = pmap_change_props_locked((vm_offset_t)va, size, PROT_NONE, mode,
+	    false);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
 }

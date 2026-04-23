@@ -2612,7 +2612,7 @@ pmap_init(void)
 			continue;
 		/* Make the direct map consistent */
 		if (ppim->pa < dmaplimit && ppim->pa + ppim->sz <= dmaplimit) {
-			(void)pmap_change_attr(PHYS_TO_DMAP(ppim->pa),
+			(void)pmap_change_attr((void *)PHYS_TO_DMAP(ppim->pa),
 			    ppim->sz, ppim->mode);
 		}
 		if (!bootverbose)
@@ -9609,7 +9609,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * required for data coherence.
 	 */
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
-	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	    pmap_change_attr((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
 	    m->md.pat_mode))
 		panic("memory attribute change on the direct map failed");
 }
@@ -9654,12 +9654,12 @@ pmap_page_set_memattr_noflush(vm_page_t m, vm_memattr_t ma)
  * virtual address range or the direct map.
  */
 int
-pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
+pmap_change_attr(void *va, vm_size_t size, int mode)
 {
 	int error;
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_props_locked(va, size, PROT_NONE, mode,
+	error = pmap_change_props_locked((vm_offset_t)va, size, PROT_NONE, mode,
 	    MAPDEV_FLUSHCACHE);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
@@ -10777,7 +10777,7 @@ pmap_large_map(vm_paddr_t spa, vm_size_t len, void **addr,
 	if (spa + len <= dmaplimit) {
 		va = PHYS_TO_DMAP(spa);
 		*addr = (void *)va;
-		return (pmap_change_attr(va, len, mattr));
+		return (pmap_change_attr((void *)va, len, mattr));
 	}
 
 	/*

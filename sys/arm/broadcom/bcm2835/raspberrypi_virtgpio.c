@@ -275,8 +275,7 @@ rpi_virt_gpio_attach(device_t dev)
 	}
 	sc->paddr = vtophys(sc->vaddr);
 	/* Mark it uncacheable. */
-	pmap_change_attr((vm_offset_t)sc->vaddr, PAGE_SIZE,
-	    VM_MEMATTR_UNCACHEABLE);
+	pmap_change_attr(sc->vaddr, PAGE_SIZE, VM_MEMATTR_UNCACHEABLE);
 
 	if (bootverbose)
 		device_printf(dev,

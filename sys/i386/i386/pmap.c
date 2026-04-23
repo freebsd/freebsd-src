@@ -5708,14 +5708,15 @@ __CONCAT(PMTYPE, flush_page)(vm_page_t m)
  * there was insufficient memory available to complete the change.
  */
 static int
-__CONCAT(PMTYPE, change_attr)(vm_offset_t va, vm_size_t size, int mode)
+__CONCAT(PMTYPE, change_attr)(void *addr, vm_size_t size, int mode)
 {
-	vm_offset_t base, offset, tmpva;
+	vm_offset_t base, offset, tmpva, va;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
 	int cache_bits_pte, cache_bits_pde;
 	bool changed;
 
+	va = (vm_offset_t)addr;
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = round_page(offset + size);

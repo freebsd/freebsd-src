@@ -185,7 +185,7 @@ DEFINE_PMAP_IFUNC(int, map_user_ptr,
 DEFINE_PMAP_IFUNC(int, decode_kernel_ptr, (vm_offset_t, int *, vm_offset_t *));
 DEFINE_PMAP_IFUNC(int, dev_direct_mapped, (vm_paddr_t, vm_size_t));
 DEFINE_PMAP_IFUNC(void, sync_icache, (pmap_t, vm_offset_t, vm_size_t));
-DEFINE_PMAP_IFUNC(int, change_attr, (vm_offset_t, vm_size_t, vm_memattr_t));
+DEFINE_PMAP_IFUNC(int, change_attr, (void *, vm_size_t, vm_memattr_t));
 DEFINE_PMAP_IFUNC(void, page_array_startup, (long));
 DEFINE_PMAP_IFUNC(void, tlbie_all, (void));
 
