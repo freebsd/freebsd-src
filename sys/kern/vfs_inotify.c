@@ -672,6 +672,9 @@ inotify_log(struct vnode *vp, const char *name, size_t namelen, int event,
 	KASSERT((event & ~(IN_ALL_EVENTS | IN_ISDIR | IN_UNMOUNT)) == 0,
 	    ("inotify_log: invalid event %#x", event));
 
+	if (__predict_false(vp->v_pollinfo == NULL))
+		return;
+
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	TAILQ_FOREACH_SAFE(watch, &vp->v_pollinfo->vpi_inotify, vlink, tmp) {
 		KASSERT(watch->vp == vp,

@@ -627,6 +627,12 @@ null_access(struct vop_access_args *ap)
 }
 
 static int
+null_inotify(struct vop_inotify_args *ap)
+{
+	return (null_bypass(&ap->a_gen));
+}
+
+static int
 null_accessx(struct vop_accessx_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
@@ -1235,6 +1241,7 @@ struct vop_vector null_vnodeops = {
 	.vop_getattr =		null_getattr,
 	.vop_getlowvnode =	null_getlowvnode,
 	.vop_getwritemount =	null_getwritemount,
+	.vop_inotify =		null_inotify,
 	.vop_inactive =		null_inactive,
 	.vop_need_inactive =	null_need_inactive,
 	.vop_islocked =		vop_stdislocked,
