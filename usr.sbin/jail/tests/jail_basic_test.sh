@@ -186,11 +186,12 @@ find_unused_jid()
 			atf_skip "System has too many jail, cannot find free slot"
 		fi
 
-		jid=$((jid + 1))
+		: $(( jid += 1 ))
 	done
 
 	echo "$jid" | tee -a jails.lst
 }
+
 clean_jails()
 {
 	if [ ! -s jails.lst ]; then
