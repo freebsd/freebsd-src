@@ -1471,7 +1471,7 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 	 * next available virtual address is returned by reference.
 	 */
 	new_end = end - round_page(size);
-	vm_reserv_array = (void *)(uintptr_t)pmap_map(vaddr, new_end, end,
+	vm_reserv_array = pmap_map(vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
 	bzero(vm_reserv_array, size);
 

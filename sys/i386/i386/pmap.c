@@ -1790,7 +1790,7 @@ __CONCAT(PMTYPE, kremove)(vm_offset_t va)
  *	update '*virt' with the first usable address after the mapped
  *	region.
  */
-static vm_offset_t
+static void *
 __CONCAT(PMTYPE, map)(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
     int prot)
 {
@@ -1832,7 +1832,7 @@ __CONCAT(PMTYPE, map)(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
 	}
 	pmap_invalidate_range_int(kernel_pmap, sva, va);
 	*virt = va;
-	return (sva);
+	return ((void *)sva);
 }
 
 /*

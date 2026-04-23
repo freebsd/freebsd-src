@@ -2131,7 +2131,7 @@ g_md_init(struct g_class *mp __unused)
 			(long *) &paddr) != 0 ||
 		    resource_int_value("md", i, "len", &len) != 0)
 		        break;
-		ptr = (char *)pmap_map(NULL, paddr, paddr + len, VM_PROT_READ);
+		ptr = pmap_map(NULL, paddr, paddr + len, VM_PROT_READ);
 		if (ptr != NULL && len != 0) {
 			sprintf(scratch, "preload%d 0x%016jx", i,
 			    (uintmax_t)paddr);

@@ -1152,7 +1152,7 @@ pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
  *
  *  void pmap_kenter(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode);
  *  void pmap_kremove(vm_offset_t va);
- *  vm_offset_t pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
+ *  void *pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
  *      int prot);
  *
  *  NOTE: This is not SMP coherent stage. And physical page allocation is not
@@ -1402,7 +1402,7 @@ pmap_kenter_pte1(vm_offset_t va, pt1_entry_t npte1)
  *  NOTE: Read the comments above pmap_kenter_prot_attr() as
  *        the function is used herein!
  */
-vm_offset_t
+void *
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 	vm_offset_t va, sva;
@@ -1455,7 +1455,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	}
 	tlb_flush_range(sva, va - sva);
 	*virt = va;
-	return (sva);
+	return ((void *)sva);
 }
 
 /*

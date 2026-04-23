@@ -483,7 +483,7 @@ static void mmu_radix_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 static int mmu_radix_growkernel(vm_offset_t);
 static void mmu_radix_init(void);
 static int mmu_radix_mincore(pmap_t, vm_offset_t, vm_paddr_t *);
-static vm_offset_t mmu_radix_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+static void *mmu_radix_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 static void mmu_radix_pinit0(pmap_t);
 
 static void *mmu_radix_mapdev(vm_paddr_t, vm_size_t);
@@ -4030,14 +4030,14 @@ out:
 	return (cleared + not_cleared);
 }
 
-static vm_offset_t
+static void *
 mmu_radix_map(vm_offset_t *virt __unused, vm_paddr_t start,
     vm_paddr_t end, int prot __unused)
 {
 
 	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %#x)", __func__, virt, start, end,
 		 prot);
-	return (PHYS_TO_DMAP(start));
+	return ((void *)PHYS_TO_DMAP(start));
 }
 
 void
@@ -6447,7 +6447,8 @@ mmu_radix_page_array_startup(long pages)
 
 	pa = vm_phys_early_alloc(-1, end - start);
 
-	start = mmu_radix_map(&start, pa, end - start, VM_MEMATTR_DEFAULT);
+	start = (vm_offset_t)mmu_radix_map(&start, pa, end - start,
+	    VM_MEMATTR_DEFAULT);
 #ifdef notyet
 	/* TODO: NUMA vm_page_array.  Blocked out until then (copied from amd64). */
 	for (va = start; va < end; va += L3_PAGE_SIZE) {

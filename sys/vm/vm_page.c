@@ -580,7 +580,7 @@ vm_page_startup(vm_offset_t vaddr)
 #endif
 	int biggestone, i, segind;
 #ifdef WITNESS
-	vm_offset_t mapped;
+	void *mapped;
 	int witness_size;
 #endif
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
@@ -610,8 +610,8 @@ vm_page_startup(vm_offset_t vaddr)
 	new_end -= witness_size;
 	mapped = pmap_map(&vaddr, new_end, new_end + witness_size,
 	    VM_PROT_READ | VM_PROT_WRITE);
-	bzero((void *)mapped, witness_size);
-	witness_startup((void *)mapped);
+	bzero(mapped, witness_size);
+	witness_startup(mapped);
 #endif
 
 #if MINIDUMP_PAGE_TRACKING
@@ -636,7 +636,7 @@ vm_page_startup(vm_offset_t vaddr)
 	}
 	vm_page_dump_size = round_page(BITSET_SIZE(vm_page_dump_pages));
 	new_end -= vm_page_dump_size;
-	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
+	vm_page_dump = pmap_map(&vaddr, new_end,
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
 #if MINIDUMP_STARTUP_PAGE_TRACKING

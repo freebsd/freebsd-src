@@ -291,7 +291,7 @@ bool moea_is_modified(vm_page_t);
 bool moea_is_prefaultable(pmap_t, vm_offset_t);
 bool moea_is_referenced(vm_page_t);
 int moea_ts_referenced(vm_page_t);
-vm_offset_t moea_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+void *moea_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 static int moea_mincore(pmap_t, vm_offset_t, vm_paddr_t *);
 bool moea_page_exists_quick(pmap_t, vm_page_t);
 void moea_page_init(vm_page_t);
@@ -1642,7 +1642,7 @@ moea_decode_kernel_ptr(vm_offset_t addr, int *is_user,
  * unchanged.  We cannot and therefore do not; *virt is updated with the
  * first usable address after the mapped region.
  */
-vm_offset_t
+void *
 moea_map(vm_offset_t *virt, vm_paddr_t pa_start,
     vm_paddr_t pa_end, int prot)
 {
@@ -1653,7 +1653,7 @@ moea_map(vm_offset_t *virt, vm_paddr_t pa_start,
 	for (; pa_start < pa_end; pa_start += PAGE_SIZE, va += PAGE_SIZE)
 		moea_kenter(va, pa_start);
 	*virt = va;
-	return (sva);
+	return ((void *)sva);
 }
 
 /*
