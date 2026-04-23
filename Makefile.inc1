@@ -1573,8 +1573,15 @@ packageworld: .PHONY
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 .endfor
 
+# We can't assume here that ${TMPPATH} will include ${PATH} or /usr/libexec
+# because we may be building with a STRICTTMPPATH, so we explicitly include
+# /usr/libexec here for flua.  ${TMPPATH} still usefully includes anything else
+# we may need to function.
+_flua_PATH=	${TMPPATH}:/usr/libexec
+
 makeman: .PHONY
-	${_+_}cd ${.CURDIR}/tools/build/options; sh makeman > \
+	${_+_}@cd ${.CURDIR}/tools/build/options; \
+	    PATH=${_flua_PATH:Q} flua makeman.lua > \
 	    ${.CURDIR}/share/man/man5/src.conf.5
 
 # Ensure no regressions in self-includeability of sys/*.h and net*/*.h
@@ -1583,11 +1590,6 @@ test-includes: .PHONY
 	    ${WMAKEENV} ${MAKE} ${WORLD_FLAGS} obj; \
 	    ${WMAKEENV} ${MAKE} ${WORLD_FLAGS} DESTDIR=${WORLDTMP} test-includes
 
-# We can't assume here that ${TMPPATH} will include ${PATH} or /usr/libexec
-# because we may be building with a STRICTTMPPATH, so we explicitly include
-# /usr/libexec here for flua.  ${TMPPATH} still usefully includes anything else
-# we may need to function.
-_sysent_PATH=	${TMPPATH}:/usr/libexec
 _sysent_dirs=	sys/kern
 _sysent_dirs+=	sys/compat/freebsd32
 _sysent_dirs+=	sys/amd64/linux		\
@@ -1600,7 +1602,7 @@ sysent: .PHONY
 .for _dir in ${_sysent_dirs}
 sysent-${_dir}: .PHONY
 	@echo "${MAKE} -C ${.CURDIR}/${_dir} sysent"
-	${_+_}@env PATH=${_sysent_PATH:Q} ${MAKE} -C ${.CURDIR}/${_dir} sysent
+	${_+_}@env PATH=${_flua_PATH:Q} ${MAKE} -C ${.CURDIR}/${_dir} sysent
 
 sysent: sysent-${_dir}
 .endfor
