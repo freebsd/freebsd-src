@@ -449,7 +449,7 @@ ktls_buffer_import(void *arg, void **store, int count, int domain, int flags)
 		    VM_MEMATTR_DEFAULT);
 		if (m == NULL)
 			break;
-		store[i] = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+		store[i] = VM_PAGE_TO_DMAP(m);
 	}
 	return (i);
 }

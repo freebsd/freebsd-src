@@ -1196,7 +1196,7 @@ icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
 
 	while (len > 0) {
 		todo = MIN(len, PAGE_SIZE - page_offset);
-		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
+		vaddr = VM_PAGE_TO_DMAP(bp->bio_ma[i]);
 
 		do {
 			mtodo = min(todo, M_SIZE(m) - m->m_len);
@@ -1287,7 +1287,7 @@ icl_soft_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
 	while (len > 0) {
 		todo = MIN(len, PAGE_SIZE - page_offset);
 
-		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
+		vaddr = VM_PAGE_TO_DMAP(bp->bio_ma[i]);
 		m_copydata(ip->ip_data_mbuf, pdu_off, todo, vaddr +
 		    page_offset);
 

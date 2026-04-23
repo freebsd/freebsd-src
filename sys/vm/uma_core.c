@@ -2083,19 +2083,15 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
     int wait)
 {
 	vm_page_t m;
-	vm_paddr_t pa;
-	void *va;
 
 	*flags = UMA_SLAB_PRIV;
 	m = vm_page_alloc_noobj_domain(domain,
 	    malloc2vm_flags(wait) | VM_ALLOC_WIRED);
 	if (m == NULL)
 		return (NULL);
-	pa = m->phys_addr;
 	if ((wait & M_NODUMP) == 0)
-		dump_add_page(pa);
-	va = PHYS_TO_DMAP(pa);
-	return (va);
+		dump_add_page(VM_PAGE_TO_PHYS(m));
+	return (VM_PAGE_TO_DMAP(m));
 }
 #endif
 

@@ -179,7 +179,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_l0_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
-	efi_l0 = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_l0_page));
+	efi_l0 = VM_PAGE_TO_DMAP(efi_l0_page);
 	efi_ttbr0 = ASID_TO_OPERAND(ASID_RESERVED_FOR_EFI) |
 	    VM_PAGE_TO_PHYS(efi_l0_page);
 
