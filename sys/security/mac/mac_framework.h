@@ -86,6 +86,7 @@ struct thread;
 struct timespec;
 struct ucred;
 struct vattr;
+struct vfsconf;
 struct vfsoptlist;
 struct vnode;
 struct vop_setlabel_args;
@@ -248,6 +249,12 @@ int	mac_mount_check_stat(struct ucred *cred, struct mount *mp);
 void	mac_mount_create(struct ucred *cred, struct mount *mp);
 void	mac_mount_destroy(struct mount *);
 void	mac_mount_init(struct mount *);
+int	mac_mount_check_mount(struct ucred *cred, struct vnode *vp,
+	    struct vfsconf *, struct vfsoptlist **optlist, uint64_t fsflags);
+int	mac_mount_check_update(struct ucred *cred, struct mount *mp,
+	    struct vfsoptlist **optlist, uint64_t fsflags);
+int	mac_mount_check_unmount(struct ucred *cred, struct mount *mp,
+	    uint64_t flags);
 
 void	mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m);
 void	mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend);

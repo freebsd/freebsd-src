@@ -101,6 +101,7 @@ struct sysctl_req;
 struct thread;
 struct ucred;
 struct vattr;
+struct vfsconf;
 struct vfsoptlist;
 struct vnode;
 
@@ -295,6 +296,14 @@ typedef void	(*mpo_mount_create_t)(struct ucred *cred, struct mount *mp,
 		    struct label *mplabel);
 typedef void	(*mpo_mount_destroy_label_t)(struct label *label);
 typedef void	(*mpo_mount_init_label_t)(struct label *label);
+typedef int	(*mpo_mount_check_mount_t)(struct ucred *cred, struct vnode *vp,
+		    struct label *vplabel, struct vfsconf *vfsp,
+		    struct vfsoptlist **optlist, uint64_t fsflags);
+typedef int	(*mpo_mount_check_update_t)(struct ucred *cred,
+		    struct mount *mp, struct label *mplabel,
+		    struct vfsoptlist **optlist, uint64_t fsflags);
+typedef int	(*mpo_mount_check_unmount_t)(struct ucred *cred,
+		    struct mount *mp, struct label *mplabel, uint64_t flags);
 
 typedef void	(*mpo_netinet_arp_send_t)(struct ifnet *ifp,
 		    struct label *ifplabel, struct mbuf *m,
@@ -846,6 +855,9 @@ struct mac_policy_ops {
 	mpo_mount_create_t			mpo_mount_create;
 	mpo_mount_destroy_label_t		mpo_mount_destroy_label;
 	mpo_mount_init_label_t			mpo_mount_init_label;
+	mpo_mount_check_mount_t			mpo_mount_check_mount;
+	mpo_mount_check_update_t		mpo_mount_check_update;
+	mpo_mount_check_unmount_t		mpo_mount_check_unmount;
 
 	mpo_netinet_arp_send_t			mpo_netinet_arp_send;
 	mpo_netinet_firewall_reply_t		mpo_netinet_firewall_reply;
