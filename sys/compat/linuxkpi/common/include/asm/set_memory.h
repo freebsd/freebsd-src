@@ -37,7 +37,7 @@ set_memory_uc(unsigned long addr, int numpages)
 	vm_size_t len;
 
 	len = (vm_size_t)numpages << PAGE_SHIFT;
-	return (-pmap_change_attr(addr, len, VM_MEMATTR_UNCACHEABLE));
+	return (-pmap_change_attr((void *)addr, len, VM_MEMATTR_UNCACHEABLE));
 }
 
 static inline int
@@ -47,7 +47,7 @@ set_memory_wc(unsigned long addr, int numpages)
 	vm_size_t len;
 
 	len = (vm_size_t)numpages << PAGE_SHIFT;
-	return (-pmap_change_attr(addr, len, VM_MEMATTR_WRITE_COMBINING));
+	return (-pmap_change_attr((void *)addr, len, VM_MEMATTR_WRITE_COMBINING));
 #else
 	return (set_memory_uc(addr, numpages));
 #endif
@@ -59,7 +59,7 @@ set_memory_wb(unsigned long addr, int numpages)
 	vm_size_t len;
 
 	len = (vm_size_t)numpages << PAGE_SHIFT;
-	return (-pmap_change_attr(addr, len, VM_MEMATTR_WRITE_BACK));
+	return (-pmap_change_attr((void *)addr, len, VM_MEMATTR_WRITE_BACK));
 }
 
 static inline int

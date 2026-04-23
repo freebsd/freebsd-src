@@ -4047,7 +4047,7 @@ t4_map_bar_2(struct adapter *sc)
 			 * request with an implicit doorbell.
 			 */
 
-			rc = pmap_change_attr((vm_offset_t)sc->udbs_base,
+			rc = pmap_change_attr(__DEVOLATILE(void *, sc->udbs_base),
 			    rman_get_size(sc->udbs_res), PAT_WRITE_COMBINING);
 			if (rc == 0) {
 				clrbit(&sc->doorbells, DOORBELL_UDB);

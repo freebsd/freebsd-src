@@ -1056,7 +1056,7 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 	if (mapmode == bar->map_mode)
 		return (0);
 
-	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mapmode);
+	rc = pmap_change_attr(bar->vbase, bar->size, mapmode);
 	if (rc == 0) {
 		bar->map_mode = mapmode;
 		device_printf(ntb->device,
@@ -3730,7 +3730,7 @@ intel_ntb_mw_set_wc_internal(struct ntb_softc *ntb, unsigned idx, vm_memattr_t m
 	if (bar->map_mode == mode)
 		return (0);
 
-	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mode);
+	rc = pmap_change_attr(bar->vbase, bar->size, mode);
 	if (rc == 0)
 		bar->map_mode = mode;
 

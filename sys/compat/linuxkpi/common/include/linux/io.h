@@ -545,7 +545,7 @@ arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
 	vm_offset_t va;
 
 	va = PHYS_TO_DMAP(start);
-	return (-pmap_change_attr(va, size, VM_MEMATTR_WRITE_COMBINING));
+	return (-pmap_change_attr((void *)va, size, VM_MEMATTR_WRITE_COMBINING));
 #else
 	return (0);
 #endif
@@ -559,7 +559,7 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 
 	va = PHYS_TO_DMAP(start);
 
-	pmap_change_attr(va, size, VM_MEMATTR_WRITE_BACK);
+	pmap_change_attr((void *)va, size, VM_MEMATTR_WRITE_BACK);
 #endif
 }
 

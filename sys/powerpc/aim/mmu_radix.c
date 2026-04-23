@@ -466,7 +466,7 @@ void mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz);
 void mmu_radix_unwire(pmap_t, vm_offset_t, vm_offset_t);
 void mmu_radix_zero_page(vm_page_t);
 void mmu_radix_zero_page_area(vm_page_t, int, int);
-int mmu_radix_change_attr(vm_offset_t, vm_size_t, vm_memattr_t);
+int mmu_radix_change_attr(void *, vm_size_t, vm_memattr_t);
 void mmu_radix_page_array_startup(long pages);
 
 #include "mmu_oea64.h"
@@ -606,7 +606,7 @@ static bool pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spg
 
 static void pmap_invalidate_page(pmap_t pmap, vm_offset_t start);
 static void pmap_invalidate_all(pmap_t pmap);
-static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush);
+static int pmap_change_attr_locked(void *va, vm_size_t size, int mode, bool flush);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 
 /*
@@ -5948,7 +5948,7 @@ mmu_radix_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * required for data coherence.
 	 */
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
-	    mmu_radix_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)),
+	    mmu_radix_change_attr((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)),
 	    PAGE_SIZE, m->md.mdpg_cache_attrs))
 		panic("memory attribute change on the direct map failed");
 }
@@ -6202,12 +6202,11 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 }
 
 int
-mmu_radix_change_attr(vm_offset_t va, vm_size_t size,
-    vm_memattr_t mode)
+mmu_radix_change_attr(void *va, vm_size_t size, vm_memattr_t mode)
 {
 	int error;
 
-	CTR4(KTR_PMAP, "%s(%#x, %#zx, %d)", __func__, va, size, mode);
+	CTR4(KTR_PMAP, "%s(%p, %#zx, %d)", __func__, va, size, mode);
 	PMAP_LOCK(kernel_pmap);
 	error = pmap_change_attr_locked(va, size, mode, true);
 	PMAP_UNLOCK(kernel_pmap);
@@ -6215,9 +6214,9 @@ mmu_radix_change_attr(vm_offset_t va, vm_size_t size,
 }
 
 static int
-pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush)
+pmap_change_attr_locked(void *addr, vm_size_t size, int mode, bool flush)
 {
-	vm_offset_t base, offset, tmpva;
+	vm_offset_t base, offset, tmpva, va;
 	vm_paddr_t pa_start, pa_end, pa_end1;
 	pml2_entry_t *l2e;
 	pml3_entry_t *l3e;
@@ -6226,6 +6225,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush)
 	bool changed;
 
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
+	va = (vm_offset_t)addr;
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = round_page(offset + size);
@@ -6332,7 +6332,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush)
 				else {
 					/* Run ended, update direct map. */
 					error = pmap_change_attr_locked(
-					    PHYS_TO_DMAP(pa_start),
+					    (void *)PHYS_TO_DMAP(pa_start),
 					    pa_end - pa_start, mode, flush);
 					if (error != 0)
 						break;
@@ -6362,7 +6362,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush)
 				else {
 					/* Run ended, update direct map. */
 					error = pmap_change_attr_locked(
-					    PHYS_TO_DMAP(pa_start),
+					    (void *)PHYS_TO_DMAP(pa_start),
 					    pa_end - pa_start, mode, flush);
 					if (error != 0)
 						break;
@@ -6390,7 +6390,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush)
 				else {
 					/* Run ended, update direct map. */
 					error = pmap_change_attr_locked(
-					    PHYS_TO_DMAP(pa_start),
+					    (void *)PHYS_TO_DMAP(pa_start),
 					    pa_end - pa_start, mode, flush);
 					if (error != 0)
 						break;
@@ -6405,7 +6405,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush)
 	if (error == 0 && pa_start != pa_end && pa_start < dmaplimit) {
 		pa_end1 = MIN(pa_end, dmaplimit);
 		if (pa_start != pa_end1)
-			error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
+			error = pmap_change_attr_locked((void *)PHYS_TO_DMAP(pa_start),
 			    pa_end1 - pa_start, mode, flush);
 	}
 

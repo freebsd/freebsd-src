@@ -627,7 +627,7 @@ pmap_clear_modify(vm_page_t m)
 }
 
 int
-pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
+pmap_change_attr(void *va, vm_size_t size, int mode)
 {
 
 	return (pmap_methods_ptr->pm_change_attr(va, size, mode));

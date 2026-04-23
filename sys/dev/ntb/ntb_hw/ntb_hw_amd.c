@@ -465,7 +465,7 @@ amd_ntb_mw_set_wc(device_t dev, unsigned int mw_idx, vm_memattr_t mode)
 	if (mode == bar_info->map_mode)
 		return (0);
 
-	rc = pmap_change_attr((vm_offset_t)bar_info->vbase, bar_info->size, mode);
+	rc = pmap_change_attr(bar_info->vbase, bar_info->size, mode);
 	if (rc == 0)
 		bar_info->map_mode = mode;
 

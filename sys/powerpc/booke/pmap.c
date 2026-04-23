@@ -349,7 +349,7 @@ static void		mmu_booke_dumpsys_unmap(vm_paddr_t pa, size_t,
 static void		mmu_booke_scan_init(void);
 static void		*mmu_booke_quick_enter_page(vm_page_t m);
 static void		mmu_booke_quick_remove_page(void *addr);
-static int		mmu_booke_change_attr(vm_offset_t addr,
+static int		mmu_booke_change_attr(void *addr,
     vm_size_t sz, vm_memattr_t mode);
 static int		mmu_booke_decode_kernel_ptr(vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
@@ -2372,13 +2372,14 @@ mmu_booke_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 }
 
 static int
-mmu_booke_change_attr(vm_offset_t addr, vm_size_t sz, vm_memattr_t mode)
+mmu_booke_change_attr(void *sva, vm_size_t sz, vm_memattr_t mode)
 {
-	vm_offset_t va;
+	vm_offset_t addr, va;
 	pte_t *pte;
 	int i, j;
 	tlb_entry_t e;
 
+	addr = (vm_offset_t)sva;
 	addr = trunc_page(addr);
 
 	/* Only allow changes to mapped kernel addresses.  This includes:

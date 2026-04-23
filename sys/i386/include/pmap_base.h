@@ -67,7 +67,7 @@ struct pmap_methods {
 	void (*pm_activate_boot)(pmap_t);
 	void (*pm_advise)(pmap_t, vm_offset_t, vm_offset_t, int);
 	void (*pm_clear_modify)(vm_page_t);
-	int (*pm_change_attr)(vm_offset_t, vm_size_t, int);
+	int (*pm_change_attr)(void *, vm_size_t, int);
 	int (*pm_mincore)(pmap_t, vm_offset_t, vm_paddr_t *);
 	void (*pm_copy)(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 	void (*pm_copy_page)(vm_page_t, vm_page_t);

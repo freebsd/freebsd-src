@@ -310,7 +310,7 @@ void		*pmap_mapdev(vm_paddr_t, vm_size_t);
 void		*pmap_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
 void		pmap_unmapdev(void *, vm_size_t);
 void		pmap_page_set_memattr(vm_page_t, vm_memattr_t);
-int		pmap_change_attr(vm_offset_t, vm_size_t, vm_memattr_t);
+int		pmap_change_attr(void *, vm_size_t, vm_memattr_t);
 int		pmap_map_user_ptr(pmap_t pm, volatile const void *uaddr,
 		    void **kaddr, size_t ulen, size_t *klen);
 int		pmap_decode_kernel_ptr(vm_offset_t addr, int *is_user,
