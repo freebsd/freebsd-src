@@ -56,7 +56,7 @@ phys_copyback(vm_paddr_t pa, int off, int size, const void *src)
 	page_off = pa & PAGE_MASK;
 	while (size > 0) {
 		todo = min(PAGE_SIZE - page_off, size);
-		p = (void *)PHYS_TO_DMAP(pa);
+		p = PHYS_TO_DMAP(pa);
 		memcpy(p, cp, todo);
 		size -= todo;
 		cp += todo;
@@ -204,7 +204,7 @@ phys_copydata(vm_paddr_t pa, int off, int size, void *dst)
 	page_off = pa & PAGE_MASK;
 	while (size > 0) {
 		todo = min(PAGE_SIZE - page_off, size);
-		p = (const void *)PHYS_TO_DMAP(pa);
+		p = PHYS_TO_DMAP(pa);
 		memcpy(cp, p, todo);
 		size -= todo;
 		cp += todo;

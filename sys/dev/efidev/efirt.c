@@ -192,7 +192,7 @@ efi_init(void)
 		return (0);
 	}
 
-	efi_systbl = (struct efi_systbl *)efi_phys_to_kva(efi_systbl_phys);
+	efi_systbl = efi_phys_to_kva(efi_systbl_phys);
 	if (efi_systbl == NULL || efi_systbl->st_hdr.th_sig != EFI_SYSTBL_SIG) {
 		efi_systbl = NULL;
 		if (bootverbose)
@@ -243,7 +243,7 @@ efi_init(void)
 	 * with an old loader.efi, check if the RS->GetTime function is within
 	 * the EFI map, and fail to attach if not.
 	 */
-	rtdm = (struct efi_rt *)efi_phys_to_kva((uintptr_t)efi_runtime);
+	rtdm = efi_phys_to_kva((uintptr_t)efi_runtime);
 	if (rtdm == NULL || !efi_is_in_map(map, ndesc, efihdr->descriptor_size,
 	    (vm_offset_t)rtdm->rt_gettime)) {
 		if (bootverbose)

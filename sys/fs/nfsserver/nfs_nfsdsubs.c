@@ -1347,7 +1347,7 @@ nfsrv_adj(struct mbuf *mp, int len, int nul)
 			m->m_epg_last_len = plen;
 			m->m_len = lastlen;
 		}
-		cp = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[pgno]);
+		cp = PHYS_TO_DMAP(m->m_epg_pa[pgno]);
 		cp += off + plen - nul;
 	} else {
 		m->m_len = lastlen;

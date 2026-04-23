@@ -1601,7 +1601,7 @@ ccp_do_blkcipher(struct ccp_queue *qp, struct ccp_session *s,
 		return (error);
 
 	INSECURE_DEBUG(dev, "%s: Contents: %16D\n", __func__,
-	    (void *)PHYS_TO_DMAP(qp->cq_sg_ulptx->sg_segs[0].ss_paddr), " ");
+	    PHYS_TO_DMAP(qp->cq_sg_ulptx->sg_segs[0].ss_paddr), " ");
 
 	DPRINTF(dev, "%s: starting AES ops @ %u\n", __func__, qp->cq_tail);
 

@@ -449,7 +449,7 @@ _vm_gpa_hold(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
 
 	if (count == 1) {
 		*cookie = m;
-		return ((void *)(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)) + pageoff));
+		return ((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)) + pageoff);
 	} else {
 		*cookie = NULL;
 		return (NULL);

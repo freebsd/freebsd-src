@@ -162,7 +162,7 @@ cvm_page_apply(vm_page_t *pages, int off, int len,
 	processed = 0;
 	CVM_PAGE_SKIP();
 	while (len > 0) {
-		char *kaddr = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages));
+		char *kaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages));
 		count = min(PAGE_SIZE - off, len);
 		rval = (*f)(arg, kaddr + off, count);
 		if (rval)
@@ -272,7 +272,7 @@ m_epg_segment(struct mbuf *m, size_t offset, size_t *len)
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (offset < pglen) {
 			*len = m_epg_pages_extent(m, i, pglen) - offset;
-			return ((void *)PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff +
+			return (PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff +
 			    offset));
 		}
 		offset -= pglen;

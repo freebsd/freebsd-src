@@ -179,13 +179,14 @@
 })
 
 #define	PMAP_HAS_DMAP	1
-#define	PHYS_TO_DMAP(pa)						\
+#define	PHYS_TO_DMAP_ADDR(pa)						\
 ({									\
 	KASSERT(PHYS_IN_DMAP(pa),					\
 	    ("%s: PA out of range, PA: 0x%lx", __func__,		\
 	    (vm_paddr_t)(pa)));						\
 	((pa) - dmap_phys_base) + DMAP_MIN_ADDRESS;			\
 })
+#define	PHYS_TO_DMAP(x)		((void *)PHYS_TO_DMAP_ADDR(x))
 
 #define	DMAP_TO_PHYS(va)						\
 ({									\

@@ -1132,7 +1132,7 @@ do_next:
 	phys_avail[pa_indx] -= round_page(msgbufsize);
 
 	/* Map the message buffer. */
-	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
+	msgbufp = PHYS_TO_DMAP(phys_avail[pa_indx]);
 	TSEXIT();
 }
 

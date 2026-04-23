@@ -143,8 +143,7 @@ ept_dump(uint64_t *ptp, int nlevels)
 		printf("%3d 0x%016lx\n", i, ptpval);
 
 		if (nlevels != 0 && (ptpval & EPT_PG_SUPERPAGE) == 0) {
-			ptpnext = (uint64_t *)
-				  PHYS_TO_DMAP(ptpval & EPT_ADDR_MASK);
+			ptpnext = PHYS_TO_DMAP(ptpval & EPT_ADDR_MASK);
 			ept_dump(ptpnext, nlevels);
 		}
 	}

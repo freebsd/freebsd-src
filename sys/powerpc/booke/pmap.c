@@ -1580,7 +1580,7 @@ mmu_booke_map(vm_offset_t *virt, vm_paddr_t pa_start,
 #ifdef __powerpc64__
 	/* XXX: Handle memory not starting at 0x0. */
 	if (pa_end < ctob(Maxmem))
-		return ((void *)PHYS_TO_DMAP(pa_start));
+		return (PHYS_TO_DMAP(pa_start));
 #endif
 
 	while (pa_start < pa_end) {

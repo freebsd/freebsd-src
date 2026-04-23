@@ -562,7 +562,7 @@ load_external_symtab(void) {
 	if (!(end - start > 0))
 		return;
 
-	kernelimg_final = (u_char *) PHYS_TO_DMAP(start);
+	kernelimg_final = PHYS_TO_DMAP(start);
 #ifdef	AIM
 	kernelimg = kernelimg_final;
 #else	/* BOOKE */

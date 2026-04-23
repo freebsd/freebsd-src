@@ -9834,11 +9834,11 @@ nfsm_split(struct mbuf *mp, uint64_t xfer)
 
 		/* Copy the data after left to the new page. */
 		trim = plen - left;
-		cp = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[pgno]);
+		cp = PHYS_TO_DMAP(m->m_epg_pa[pgno]);
 		if (pgno == 0)
 			cp += m->m_epg_1st_off;
 		cp += left;
-		cp2 = (char *)(void *)PHYS_TO_DMAP(m2->m_epg_pa[0]);
+		cp2 = PHYS_TO_DMAP(m2->m_epg_pa[0]);
 		if (pgno == m->m_epg_npgs - 1)
 			m2->m_epg_last_len = trim;
 		else {

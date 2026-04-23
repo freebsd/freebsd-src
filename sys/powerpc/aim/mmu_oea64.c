@@ -704,7 +704,7 @@ moea64_add_ofw_mappings(phandle_t mmu, size_t sz)
 		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
 			/* If this address is direct-mapped, skip remapping */
 			if (hw_direct_map &&
-			    translations[i].om_va == PHYS_TO_DMAP(pa_base) &&
+			    translations[i].om_va == PHYS_TO_DMAP_ADDR(pa_base) &&
 			    moea64_calc_wimg(pa_base + off, VM_MEMATTR_DEFAULT)
  			    == LPTE_M)
 				continue;
@@ -825,7 +825,7 @@ moea64_setup_direct_map(vm_offset_t kernelstart,
 			    pregions[i].mr_start + pregions[i].mr_size)
 				pte_lo |= LPTE_G;
 
-			moea64_kenter_large(PHYS_TO_DMAP(pa), pa, pte_lo, 1);
+			moea64_kenter_large(PHYS_TO_DMAP_ADDR(pa), pa, pte_lo, 1);
 		  }
 		}
 		PMAP_UNLOCK(kernel_pmap);
@@ -1061,7 +1061,7 @@ moea64_mid_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	/* Place at address usable through the direct map */
 	if (hw_direct_map)
-		moea64_bpvo_pool = (struct pvo_entry *)PHYS_TO_DMAP(pa);
+		moea64_bpvo_pool = PHYS_TO_DMAP(pa);
 	else
 		moea64_bpvo_pool = (struct pvo_entry *)pa;
 
@@ -1446,14 +1446,13 @@ moea64_copy_page(vm_page_t msrc, vm_page_t mdst)
 void
 moea64_copy_page_dmap(vm_page_t msrc, vm_page_t mdst)
 {
-	vm_offset_t	dst;
-	vm_offset_t	src;
+	vm_paddr_t dst;
+	vm_paddr_t src;
 
 	dst = VM_PAGE_TO_PHYS(mdst);
 	src = VM_PAGE_TO_PHYS(msrc);
 
-	bcopy((void *)PHYS_TO_DMAP(src), (void *)PHYS_TO_DMAP(dst),
-	    PAGE_SIZE);
+	bcopy(PHYS_TO_DMAP(src), PHYS_TO_DMAP(dst), PAGE_SIZE);
 }
 
 inline void
@@ -1467,12 +1466,12 @@ moea64_copy_pages_dmap(vm_page_t *ma, vm_offset_t a_offset,
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-		a_cp = (char *)(uintptr_t)PHYS_TO_DMAP(
+		a_cp = (char *)PHYS_TO_DMAP(
 		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT])) +
 		    a_pg_offset;
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		b_cp = (char *)(uintptr_t)PHYS_TO_DMAP(
+		b_cp = (char *)PHYS_TO_DMAP(
 		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT])) +
 		    b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
@@ -1519,7 +1518,7 @@ moea64_zero_page_area(vm_page_t m, int off, int size)
 		panic("moea64_zero_page: size + off > PAGE_SIZE");
 
 	if (hw_direct_map) {
-		bzero((caddr_t)(uintptr_t)PHYS_TO_DMAP(pa) + off, size);
+		bzero((caddr_t)PHYS_TO_DMAP(pa) + off, size);
 	} else {
 		mtx_lock(&moea64_scratchpage_mtx);
 		moea64_set_scratchpage_pa(0, pa);
@@ -1551,10 +1550,10 @@ void
 moea64_zero_page_dmap(vm_page_t m)
 {
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
-	vm_offset_t va;
+	void *va;
 
 	va = PHYS_TO_DMAP(pa);
-	bzero((void *)va, PAGE_SIZE);
+	bzero(va, PAGE_SIZE);
 }
 
 void *
@@ -1587,7 +1586,7 @@ void *
 moea64_quick_enter_page_dmap(vm_page_t m)
 {
 
-	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
 }
 
 void
@@ -1766,7 +1765,7 @@ moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	} else if (pmap == kernel_pmap) {
 		__syncicache((void *)va, sz);
 	} else if (hw_direct_map) {
-		__syncicache((void *)(uintptr_t)PHYS_TO_DMAP(pa), sz);
+		__syncicache(PHYS_TO_DMAP(pa), sz);
 	} else {
 		/* Use the scratch page to set up a temp mapping */
 
@@ -2334,7 +2333,7 @@ moea64_map(vm_offset_t *virt, vm_paddr_t pa_start,
 			if (moea64_calc_wimg(va, VM_MEMATTR_DEFAULT) != LPTE_M)
 				break;
 		if (va == pa_end)
-			return ((void *)PHYS_TO_DMAP(pa_start));
+			return (PHYS_TO_DMAP(pa_start));
 	}
 	sva = *virt;
 	va = sva;

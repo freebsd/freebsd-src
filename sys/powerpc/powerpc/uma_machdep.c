@@ -67,7 +67,7 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 		pmap_kenter(pa, pa);
 		va = (void *)(vm_offset_t)pa;
 	} else {
-		va = (void *)(vm_offset_t)PHYS_TO_DMAP(pa);
+		va = PHYS_TO_DMAP(pa);
 	}
 	atomic_add_int(&hw_uma_mdpages, 1);
 
