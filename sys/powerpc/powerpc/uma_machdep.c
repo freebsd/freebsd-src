@@ -80,7 +80,7 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 	vm_page_t m;
 
 	if (hw_direct_map)
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(mem));
+		m = DMAP_TO_VM_PAGE(mem);
 	else {
 		m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)mem));
 		pmap_kremove((vm_offset_t)mem);

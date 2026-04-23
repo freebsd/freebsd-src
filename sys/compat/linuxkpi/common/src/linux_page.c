@@ -241,7 +241,7 @@ linux_free_kmem(vm_offset_t addr, unsigned int order)
 	} else {
 		vm_page_t page;
 
-		page = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(addr));
+		page = DMAP_TO_VM_PAGE(addr);
 		linux_free_pages(page, order);
 	}
 }

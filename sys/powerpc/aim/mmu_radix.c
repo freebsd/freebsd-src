@@ -1497,7 +1497,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 			PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 			/* Entire chunk is free; return it. */
-			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
+			m_pc = DMAP_TO_VM_PAGE(pc);
 			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pv_chunks_mutex);
 			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
@@ -1587,7 +1587,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
+	m = DMAP_TO_VM_PAGE(pc);
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
@@ -3649,7 +3649,7 @@ radix_pgd_release(void *arg __unused, void **store, int count)
 		 * XXX selectively remove dmap and KVA entries so we don't
 		 * need to bzero
 		 */
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(store[i]));
+		m = DMAP_TO_VM_PAGE(store[i]);
 		for (int j = page_count-1; j >= 0; j--) {
 			vm_page_unwire_noq(&m[j]);
 			SLIST_INSERT_HEAD(&free, &m[j], plinks.s.ss);
