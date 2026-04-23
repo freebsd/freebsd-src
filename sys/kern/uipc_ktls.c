@@ -461,7 +461,7 @@ ktls_buffer_release(void *arg __unused, void **store, int count)
 	int i, j;
 
 	for (i = 0; i < count; i++) {
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(store[i]));
+		m = DMAP_TO_VM_PAGE(store[i]);
 		for (j = 0; j < atop(ktls_maxlen); j++) {
 			(void)vm_page_unwire_noq(m + j);
 			vm_page_free(m + j);

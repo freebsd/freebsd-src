@@ -3459,7 +3459,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 			PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 			PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 			/* Entire chunk is free; return it. */
-			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
+			m_pc = DMAP_TO_VM_PAGE(pc);
 			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pvc->pvc_lock);
 			TAILQ_REMOVE(&pvc->pvc_list, pc, pc_lru);
@@ -3561,7 +3561,7 @@ free_pv_chunk_dequeued(struct pv_chunk *pc)
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
+	m = DMAP_TO_VM_PAGE(pc);
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
