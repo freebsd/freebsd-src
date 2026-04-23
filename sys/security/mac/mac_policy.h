@@ -1104,8 +1104,9 @@ struct mac_policy_conf {
  *   4                       8.x
  *   5                       14.x
  *   6                       15.x
+ *   7                       16.x
  */
-#define	MAC_VERSION	6
+#define	MAC_VERSION	7
 
 #define	MAC_POLICY_SET(mpops, mpname, mpfullname, mpflags, privdata_wanted) \
 	static struct mac_policy_conf mpname##_mac_policy_conf = {	\
