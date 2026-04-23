@@ -156,6 +156,7 @@ void	*pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma);
 bool	pmap_page_is_mapped(vm_page_t m);
 int	pmap_pinit_stage(pmap_t, enum pmap_stage, int);
 bool	pmap_ps_enabled(pmap_t pmap);
+bool	pmap_vs_enabled(void);
 uint64_t pmap_to_ttbr0(pmap_t pmap);
 void	pmap_disable_promotion(vm_offset_t sva, vm_size_t size);
 void	pmap_map_delete(pmap_t, vm_offset_t, vm_offset_t);

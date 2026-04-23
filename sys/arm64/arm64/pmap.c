@@ -802,6 +802,17 @@ pmap_ps_enabled(pmap_t pmap)
 }
 
 bool
+pmap_vs_enabled(void)
+{
+	/*
+	 * 8 and 16 are the only values hardware can support, but allow for the
+	 * possibility of artificially restricting the bits, e.g. for testing.
+	 */
+	KASSERT(vmids.asid_bits <= 16, ("VMID bits %d > 16", vmids.asid_bits));
+	return (vmids.asid_bits > 8);
+}
+
+bool
 pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l0, pd_entry_t **l1,
     pd_entry_t **l2, pt_entry_t **l3)
 {
