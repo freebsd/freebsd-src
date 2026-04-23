@@ -8237,16 +8237,16 @@ pmap_change_attr(void *va, vm_size_t size, int mode)
  * map are never executable.
  */
 int
-pmap_change_prot(vm_offset_t va, vm_size_t size, vm_prot_t prot)
+pmap_change_prot(void *va, vm_size_t size, vm_prot_t prot)
 {
 	int error;
 
 	/* Only supported within the kernel map. */
-	if (va < VM_MIN_KERNEL_ADDRESS)
+	if ((vm_offset_t)va < VM_MIN_KERNEL_ADDRESS)
 		return (EINVAL);
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_props_locked(va, size, prot, -1, false);
+	error = pmap_change_props_locked((vm_offset_t)va, size, prot, -1, false);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
 }
