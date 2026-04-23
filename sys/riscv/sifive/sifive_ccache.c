@@ -79,7 +79,7 @@ static struct resource_spec ccache_spec[] = {
  * Non-standard EIC7700 cache-flushing routine.
  */
 static void
-ccache_flush_range(vm_offset_t start, size_t len)
+ccache_flush_range(void *start, size_t len)
 {
 	vm_offset_t paddr;
 	vm_offset_t sva;
@@ -91,7 +91,7 @@ ccache_flush_range(vm_offset_t start, size_t len)
 
 	mb();
 
-	for (sva = start; len > 0;) {
+	for (sva = (vm_offset_t)start; len > 0;) {
 		paddr = pmap_kextract(sva);
 		step = min(PAGE_SIZE - (paddr & PAGE_MASK), len);
 		for (line = rounddown2(paddr, SIFIVE_CCACHE_LINE_SIZE);
