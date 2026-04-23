@@ -608,17 +608,16 @@ moea64_bootstrap_native(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * its own size. Pick the larger of the two, which works on all
 	 * systems.
 	 */
-	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, 
-	    MAX(256*1024, size));
+	pa = moea64_bootstrap_alloc(size, MAX(256*1024, size));
 	if (hw_direct_map)
-		moea64_pteg_table =
-		    (struct lpte *)PHYS_TO_DMAP((vm_offset_t)moea64_pteg_table);
+		moea64_pteg_table = (struct lpte *)PHYS_TO_DMAP(pa);
+	else
+		moea64_pteg_table = (struct lpte *)pa;
+
 	/* Allocate partition table (ISA 3.0). */
 	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
-		moea64_part_table =
-		    (struct pate *)moea64_bootstrap_alloc(PART_SIZE, PART_SIZE);
-		moea64_part_table =
-		    (struct pate *)PHYS_TO_DMAP((vm_offset_t)moea64_part_table);
+		pa = moea64_bootstrap_alloc(PART_SIZE, PART_SIZE);
+		moea64_part_table = (struct pate *)PHYS_TO_DMAP(pa);
 	}
 	DISABLE_TRANS(msr);
 	bzero(__DEVOLATILE(void *, moea64_pteg_table), moea64_pteg_count *

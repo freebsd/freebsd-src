@@ -893,7 +893,7 @@ pagezero(vm_offset_t va)
 static uint64_t
 allocpages(int n)
 {
-	u_int64_t ret;
+	vm_paddr_t ret;
 
 	ret = moea64_bootstrap_alloc(n * PAGE_SIZE, PAGE_SIZE);
 	for (int i = 0; i < n; i++)
