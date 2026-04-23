@@ -1,47 +1,10 @@
 News for the tz database
 
-Release 2026a - 2026-04-22 23:06:43 -0700
-
-  Briefly:
-    British Columbia moved to permanent -07 on 2026-03-09.
-    Some more overflow bugs have been fixed in zic.
-
-  Changes to future timestamps
-
-    British Columbia’s 2026-03-08 spring forward was its last
-    foreseeable clock change, as it moved to permanent -07 thereafter.
-    (Thanks to Arthur David Olson.)  Although the change to permanent
-    -07 legally took place on 2026-03-09, temporarily model the change
-    to occur on 2026-11-01 at 02:00 instead.  This works around a
-    limitation in CLDR v48.2 (2026-03-17).  This temporary hack is
-    planned to be removed after CLDR is fixed.
-
-  Changes to code
-
-    zic no longer mishandles a last transition to a new time type.
-
-    zic no longer overflows a buffer when generating a TZ string like
-    "PST-167:59:58PDT-167:59:59,M11.5.6/-167:59:59,M12.5.6/-167:59:59",
-    which can occur with adversarial input.  (Thanks to Naveed Khan.)
-
-    zic no longer generates a longer TZif file than necessary when
-    an earlier time zone abbreviation is a suffix of a later one.
-    As a nice side effect, zic no longer overflows a buffer when given
-    a long series of abbreviations, each a suffix of the next.
-    (Buffer overflow reported by Arthur Chan.)
-
-    zic no longer overflows an int when processing input like ‘Zone
-    Ouch 2147483648:00:00 - LMT’.  The int overflow can lead to buffer
-    overflow in adversarial cases.  (Thanks to Naveed Khan.)
-
-    zic now checks for signals more often.
-
-
 Release 2026a - 2026-03-01 22:59:49 -0800
 
   Briefly:
     Moldova has used EU transition times since 2022.
-    The “right” TZif files are no longer installed by default.
+    The "right" TZif files are no longer installed by default.
     -DTZ_RUNTIME_LEAPS=0 disables runtime support for leap seconds.
     TZif files are no longer limited to 50 bytes of abbreviations.
     zic is no longer limited to 50 leap seconds.
@@ -62,23 +25,23 @@ Release 2026a - 2026-03-01 22:59:49 -0800
 
     The Makefile no longer by default installs an alternate set
     of TZif files for system clocks that count leap seconds.
-    Install with ‘make REDO=posix_right’ to get the old default,
+    Install with 'make REDO=posix_right' to get the old default,
     which is rarely used in major downstream distributions.
     If your system clock counts leap seconds (contrary to POSIX),
-    it is better to install with ‘make REDO=right_only’.
+    it is better to install with 'make REDO=right_only'.
     This change does not affect the leapseconds file, which is still
     installed as before.
 
-    The Makefile’s POSIXRULES option, which was declared obsolete in
-    release 2019b, has been removed.  The Makefile’s build procedure
+    The Makefile's POSIXRULES option, which was declared obsolete in
+    release 2019b, has been removed.  The Makefile's build procedure
     thus no longer optionally installs the obsolete posixrules file.
 
   Changes to code
 
     Compiling with the new option -DTZ_RUNTIME_LEAPS=0 disables
     runtime support for leap seconds.  Although this conforms to
-    POSIX, shrinks tzcode’s attack surface, and is more efficient,
-    it fails to support Internet RFC 9636’s leap seconds.
+    POSIX, shrinks tzcode's attack surface, and is more efficient,
+    it fails to support Internet RFC 9636's leap seconds.
 
     zic now can generate, and localtime.c can now use, TZif files that
     hold up to 256 bytes of abbreviations, counting trailing NULs.
@@ -88,7 +51,7 @@ Release 2026a - 2026-03-01 22:59:49 -0800
 
     zic -L can now generate TZif files with more than 50 leap seconds.
     This helps test TZif readers not limited to 50 leap seconds, as
-    tzcode’s localtime.c is; it has little immediate need for
+    tzcode's localtime.c is; it has little immediate need for
     practical timekeeping as there have been only 27 leap seconds and
     possibly there will be no more, due to planned changes to UTC.
     zic -v warns if its output exceeds the old 50-second limit.
