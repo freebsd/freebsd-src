@@ -269,7 +269,7 @@ struct port {
 	virtual struct auth_group *auth_group() const { return nullptr; }
 	virtual struct portal_group *portal_group() const { return nullptr; }
 
-	virtual bool is_dummy() const { return true; }
+	virtual bool is_dummy() const { return false; }
 
 	virtual void clear_references();
 
