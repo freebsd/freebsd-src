@@ -1030,7 +1030,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 			}
 
 			m0 = m_get(M_WAITOK, MT_DATA);
-			m0->m_ext.ext_buf = (char *)sf_buf_kva(sf);
+			m0->m_ext.ext_buf = sf_buf_kva(sf);
 			m0->m_ext.ext_size = PAGE_SIZE;
 			m0->m_ext.ext_arg1 = sf;
 			m0->m_ext.ext_type = EXT_SFBUF;

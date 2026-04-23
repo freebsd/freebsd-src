@@ -786,7 +786,7 @@ vnode_pager_input_old(vm_object_t object, vm_page_t m)
 		 */
 		sf = sf_buf_alloc(m, 0);
 
-		aiov.iov_base = (caddr_t)sf_buf_kva(sf);
+		aiov.iov_base = sf_buf_kva(sf);
 		aiov.iov_len = size;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;

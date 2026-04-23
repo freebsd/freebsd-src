@@ -1097,7 +1097,7 @@ exec_map_first_page(struct image_params *imgp)
 	if (error != VM_PAGER_OK)
 		return (EIO);
 	imgp->firstpage = sf_buf_alloc(m, 0);
-	imgp->image_header = (char *)sf_buf_kva(imgp->firstpage);
+	imgp->image_header = sf_buf_kva(imgp->firstpage);
 
 	return (0);
 }

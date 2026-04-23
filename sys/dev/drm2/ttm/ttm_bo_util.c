@@ -500,7 +500,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		map->bo_kmap_type = ttm_bo_map_kmap;
 		map->page = ttm->pages[start_page];
 		map->sf = sf_buf_alloc(map->page, 0);
-		map->virtual = (void *)sf_buf_kva(map->sf);
+		map->virtual = sf_buf_kva(map->sf);
 	} else {
 		/*
 		 * We need to use vmap to get the desired page protection

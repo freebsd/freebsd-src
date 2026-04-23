@@ -220,8 +220,7 @@ zbuf_setup(struct thread *td, vm_offset_t uaddr, size_t len,
 			goto error;
 		}
 	}
-	zb->zb_header =
-	    (struct bpf_zbuf_header *)sf_buf_kva(zb->zb_pages[0]);
+	zb->zb_header = sf_buf_kva(zb->zb_pages[0]);
 	bzero(zb->zb_header, sizeof(*zb->zb_header));
 	*zbp = zb;
 	return (0);

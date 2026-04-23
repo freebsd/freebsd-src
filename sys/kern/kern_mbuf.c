@@ -1019,7 +1019,7 @@ _mb_unmapped_to_ext(struct mbuf *m, struct mbuf **mres)
 			goto fail;
 
 		ref_inc++;
-		m_extadd(m_new, (char *)sf_buf_kva(sf), PAGE_SIZE,
+		m_extadd(m_new, sf_buf_kva(sf), PAGE_SIZE,
 		    mb_unmapped_free_mext, sf, mref, m->m_flags & M_RDONLY,
 		    EXT_SFBUF);
 		m_new->m_data += segoff;
