@@ -75,9 +75,9 @@ xchan_bufs_free_reserved(xdma_channel_t *xchan)
 		xr = &xchan->xr_mem[i];
 		size = xr->buf.size;
 		if (xr->buf.vaddr) {
-			pmap_kremove_device(xr->buf.vaddr, size);
+			pmap_kremove_device((vm_offset_t)xr->buf.vaddr, size);
 			kva_free(xr->buf.vaddr, size);
-			xr->buf.vaddr = 0;
+			xr->buf.vaddr = NULL;
 		}
 		if (xr->buf.paddr) {
 			vmem_free(xchan->vmem, xr->buf.paddr, size);
@@ -115,13 +115,13 @@ xchan_bufs_alloc_reserved(xdma_channel_t *xchan)
 		xr->buf.size = size;
 		xr->buf.paddr = addr;
 		xr->buf.vaddr = kva_alloc(size);
-		if (xr->buf.vaddr == 0) {
+		if (xr->buf.vaddr == NULL) {
 			device_printf(xdma->dev,
 			    "%s: Can't allocate KVA\n", __func__);
 			xchan_bufs_free_reserved(xchan);
 			return (ENOMEM);
 		}
-		pmap_kenter_device(xr->buf.vaddr, size, addr);
+		pmap_kenter_device((vm_offset_t)xr->buf.vaddr, size, addr);
 	}
 
 	return (0);
@@ -346,7 +346,7 @@ xchan_seg_done(xdma_channel_t *xchan,
 			if (xr->req_type == XR_TYPE_MBUF &&
 			    xr->direction == XDMA_DEV_TO_MEM)
 				m_copyback(xr->m, 0, st->transferred,
-				    (void *)xr->buf.vaddr);
+				    xr->buf.vaddr);
 		} else if (xchan->caps & XCHAN_CAP_IOMMU) {
 			if (xr->direction == XDMA_MEM_TO_DEV)
 				addr = xr->src_addr;
@@ -500,7 +500,7 @@ _xdma_load_data(xdma_channel_t *xchan, struct xdma_request *xr,
 		if (xchan->caps & XCHAN_CAP_BOUNCE) {
 			if (xr->direction == XDMA_MEM_TO_DEV)
 				m_copydata(m, 0, m->m_pkthdr.len,
-				    (void *)xr->buf.vaddr);
+				    xr->buf.vaddr);
 			seg[0].ds_addr = (bus_addr_t)xr->buf.paddr;
 		} else if (xchan->caps & XCHAN_CAP_IOMMU) {
 			addr = mtod(m, bus_addr_t);

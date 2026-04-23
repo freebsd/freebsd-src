@@ -510,7 +510,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 			VM_MEMATTR_DEFAULT : ttm_io_prot(mem->placement);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->num_pages = num_pages;
-		map->virtual = (void *)kva_alloc(num_pages * PAGE_SIZE);
+		map->virtual = kva_alloc(num_pages * PAGE_SIZE);
 		if (map->virtual != NULL) {
 			for (i = 0; i < num_pages; i++) {
 				/* XXXKIB hack */
@@ -572,8 +572,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 		break;
 	case ttm_bo_map_vmap:
 		pmap_qremove(map->virtual, map->num_pages);
-		kva_free((vm_offset_t)map->virtual,
-		    map->num_pages * PAGE_SIZE);
+		kva_free(map->virtual, map->num_pages * PAGE_SIZE);
 		break;
 	case ttm_bo_map_kmap:
 		sf_buf_free(map->sf);

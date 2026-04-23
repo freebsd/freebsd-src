@@ -1213,7 +1213,7 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 	SYSMAP(caddr_t, pc->pc_cmap1_pte2p, pc->pc_cmap1_addr, 1);
 	SYSMAP(caddr_t, pc->pc_cmap2_pte2p, pc->pc_cmap2_addr, 1);
-	SYSMAP(vm_offset_t, pc->pc_qmap_pte2p, pc->pc_qmap_addr, 1);
+	SYSMAP(caddr_t, pc->pc_qmap_pte2p, pc->pc_qmap_addr, 1);
 
 	/*
 	 * Crashdump maps.
@@ -1249,7 +1249,7 @@ static void
 pmap_init_reserved_pages(void *dummy __unused)
 {
 	struct pcpu *pc;
-	vm_offset_t pages;
+	char *pages;
 	int i;
 
 	CPU_FOREACH(i) {
@@ -1262,13 +1262,13 @@ pmap_init_reserved_pages(void *dummy __unused)
 			continue;
 		mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 		pages = kva_alloc(PAGE_SIZE * 3);
-		if (pages == 0)
+		if (pages == NULL)
 			panic("%s: unable to allocate KVA", __func__);
-		pc->pc_cmap1_pte2p = pt2map_entry(pages);
-		pc->pc_cmap2_pte2p = pt2map_entry(pages + PAGE_SIZE);
-		pc->pc_qmap_pte2p = pt2map_entry(pages + (PAGE_SIZE * 2));
-		pc->pc_cmap1_addr = (caddr_t)pages;
-		pc->pc_cmap2_addr = (caddr_t)(pages + PAGE_SIZE);
+		pc->pc_cmap1_pte2p = pt2map_entry((vm_offset_t)pages);
+		pc->pc_cmap2_pte2p = pt2map_entry((vm_offset_t)pages + PAGE_SIZE);
+		pc->pc_qmap_pte2p = pt2map_entry((vm_offset_t)pages + (PAGE_SIZE * 2));
+		pc->pc_cmap1_addr = pages;
+		pc->pc_cmap2_addr = pages + PAGE_SIZE;
 		pc->pc_qmap_addr = pages + (PAGE_SIZE * 2);
 	}
 }
@@ -1803,7 +1803,7 @@ pmap_init(void)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = kva_alloc(PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("%s: not enough kvm for pv chunks", __func__);
 	pmap_pte2list_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
@@ -6021,7 +6021,7 @@ pmap_quick_enter_page(vm_page_t m)
 
 	pte2_store(pte2p, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
 	    vm_page_pte2_attr(m)));
-	return ((void *)pc->pc_qmap_addr);
+	return (pc->pc_qmap_addr);
 }
 
 void
@@ -6033,12 +6033,12 @@ pmap_quick_remove_page(void *addr)
 	pc = get_pcpu();
 	pte2p = pc->pc_qmap_pte2p;
 
-	KASSERT(addr == (void *)pc->pc_qmap_addr,
+	KASSERT(addr == pc->pc_qmap_addr,
 	    ("%s: invalid address", __func__));
 	KASSERT(pte2_load(pte2p) != 0, ("%s: PTE2 not in use", __func__));
 
 	pte2_clear(pte2p);
-	tlb_flush(pc->pc_qmap_addr);
+	tlb_flush((vm_offset_t)pc->pc_qmap_addr);
 	critical_exit();
 }
 

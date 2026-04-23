@@ -53,7 +53,7 @@ struct	segment_descriptor;
 union savefpu;
 
 int	cp_slow0(vm_offset_t uva, size_t len, bool write,
-	    void (*f)(vm_offset_t, void *), void *arg);
+	    void (*f)(void *, void *), void *arg);
 void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));
 void	copyout_init_tramp(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));

@@ -204,7 +204,7 @@ amdiommu_free_dev_tbl(struct amdiommu_unit *sc)
 
 	devtbl_sz = amdiommu_devtbl_sz(sc);
 	pmap_qremove(sc->dev_tbl, atop(devtbl_sz));
-	kva_free((vm_offset_t)sc->dev_tbl, devtbl_sz);
+	kva_free(sc->dev_tbl, devtbl_sz);
 	sc->dev_tbl = NULL;
 	vm_object_deallocate(sc->devtbl_obj);
 	sc->devtbl_obj = NULL;
@@ -213,7 +213,7 @@ amdiommu_free_dev_tbl(struct amdiommu_unit *sc)
 static int
 amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 {
-	vm_offset_t seg_vaddr;
+	char *seg_vaddr;
 	u_int devtbl_sz, dom, i, reclaimno, segnum_log, segnum, seg_sz;
 	int error;
 
@@ -247,10 +247,10 @@ amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 	sc->hw_ctrl |= AMDIOMMU_CTRL_COHERENT;
 	amdiommu_write8(sc, AMDIOMMU_CTRL, sc->hw_ctrl);
 
-	seg_vaddr = kva_alloc(devtbl_sz);
-	if (seg_vaddr == 0)
+	sc->dev_tbl = kva_alloc(devtbl_sz);
+	if (sc->dev_tbl == NULL)
 		return (ENOMEM);
-	sc->dev_tbl = (void *)seg_vaddr;
+	seg_vaddr = (char *)sc->dev_tbl;
 
 	for (i = 0; i < segnum; i++) {
 		vm_page_t m;
@@ -280,7 +280,7 @@ amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 		for (u_int j = 0; j < atop(seg_sz);
 		     j++, seg_vaddr += PAGE_SIZE, m++) {
 			pmap_zero_page(m);
-			pmap_qenter((void *)seg_vaddr, &m, 1);
+			pmap_qenter(seg_vaddr, &m, 1);
 		}
 		amdiommu_write8(sc, devtab_base_regs[i], rval);
 	}

@@ -1225,7 +1225,7 @@ bufinit(void)
 	mtx_init(&bdlock, "buffer daemon lock", NULL, MTX_DEF);
 	mtx_init(&bdirtylock, "dirty buf lock", NULL, MTX_DEF);
 
-	unmapped_buf = (caddr_t)kva_alloc(maxphys);
+	unmapped_buf = kva_alloc(maxphys);
 #ifdef INVARIANTS
 	poisoned_buf = unmapped_buf;
 #endif

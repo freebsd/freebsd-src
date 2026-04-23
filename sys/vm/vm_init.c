@@ -238,7 +238,7 @@ again:
 	 * Allocate the clean map to hold all of I/O virtual memory.
 	 */
 	size = (long)nbuf * BKVASIZE + (long)bio_transient_maxcnt * maxphys;
-	kmi->clean_sva = kva_alloc(size);
+	kmi->clean_sva = (vm_offset_t)kva_alloc(size);
 	kmi->clean_eva = kmi->clean_sva + size;
 
 	/*

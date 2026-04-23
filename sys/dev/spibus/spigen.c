@@ -285,7 +285,7 @@ spigen_mmap_cleanup(void *arg)
 
 	if (mmap->kvaddr != NULL) {
 		pmap_qremove(mmap->kvaddr, mmap->bufsize / PAGE_SIZE);
-		kva_free((vm_offset_t)mmap->kvaddr, mmap->bufsize);
+		kva_free(mmap->kvaddr, mmap->bufsize);
 	}
 	if (mmap->bufobj != NULL)
 		vm_object_deallocate(mmap->bufobj);
@@ -312,7 +312,7 @@ spigen_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 		return (EBUSY);
 
 	mmap = malloc(sizeof(*mmap), M_DEVBUF, M_ZERO | M_WAITOK);
-	if ((mmap->kvaddr = (void *)kva_alloc(size)) == 0) {
+	if ((mmap->kvaddr = kva_alloc(size)) == 0) {
 		spigen_mmap_cleanup(mmap);
 		return (ENOMEM);
 	}

@@ -875,7 +875,7 @@ static void *
 mmu_booke_quick_enter_page(vm_page_t m)
 {
 	vm_paddr_t paddr;
-	vm_offset_t qaddr;
+	void *qaddr;
 	uint32_t flags;
 	pte_t *pte;
 
@@ -888,7 +888,7 @@ mmu_booke_quick_enter_page(vm_page_t m)
 	critical_enter();
 	qaddr = PCPU_GET(qmap_addr);
 
-	pte = pte_find(kernel_pmap, qaddr);
+	pte = pte_find(kernel_pmap, (vm_offset_t)qaddr);
 
 	KASSERT(*pte == 0, ("mmu_booke_quick_enter_page: PTE busy"));
 
@@ -897,16 +897,17 @@ mmu_booke_quick_enter_page(vm_page_t m)
  	 * not be present in other TLBs.  Is there a better instruction
 	 * sequence to use? Or just forget it & use mmu_booke_kenter()... 
 	 */
-	__asm __volatile("tlbivax 0, %0" :: "r"(qaddr & MAS2_EPN_MASK));
+	__asm __volatile("tlbivax 0, %0" ::
+			 "r" ((vm_offset_t)qaddr & MAS2_EPN_MASK));
 	__asm __volatile("isync; msync");
 
 	*pte = PTE_RPN_FROM_PA(paddr) | flags;
 
 	/* Flush the real memory from the instruction cache. */
 	if ((flags & (PTE_I | PTE_G)) == 0)
-		__syncicache((void *)qaddr, PAGE_SIZE);
+		__syncicache(qaddr, PAGE_SIZE);
 
-	return ((void *)qaddr);
+	return (qaddr);
 }
 
 static void
@@ -916,7 +917,7 @@ mmu_booke_quick_remove_page(void *addr)
 
 	pte = pte_find(kernel_pmap, (vm_offset_t)addr);
 
-	KASSERT(PCPU_GET(qmap_addr) == (vm_offset_t)addr,
+	KASSERT(PCPU_GET(qmap_addr) == addr,
 	    ("mmu_booke_quick_remove_page: invalid address"));
 	KASSERT(*pte != 0,
 	    ("mmu_booke_quick_remove_page: PTE not in use"));

@@ -1260,11 +1260,11 @@ moea64_pmap_init_qpages(void *dummy __unused)
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
-		if (pc->pc_qmap_addr == 0)
+		if (pc->pc_qmap_addr == NULL)
 			panic("pmap_init_qpages: unable to allocate KVA");
 		PMAP_LOCK(kernel_pmap);
-		pc->pc_aim.qmap_pvo =
-		    moea64_pvo_find_va(kernel_pmap, pc->pc_qmap_addr);
+		pc->pc_aim.qmap_pvo = moea64_pvo_find_va(kernel_pmap,
+		    (vm_offset_t)pc->pc_qmap_addr);
 		PMAP_UNLOCK(kernel_pmap);
 		mtx_init(&pc->pc_aim.qmap_lock, "qmap lock", NULL, MTX_DEF);
 	}
@@ -1577,7 +1577,7 @@ moea64_quick_enter_page(vm_page_t m)
 	moea64_pte_replace(pvo, MOEA64_PTE_INVALIDATE);
 	isync();
 
-	return ((void *)PCPU_GET(qmap_addr));
+	return (PCPU_GET(qmap_addr));
 }
 
 void *
@@ -1592,7 +1592,7 @@ moea64_quick_remove_page(void *addr)
 {
 
 	mtx_assert(PCPU_PTR(aim.qmap_lock), MA_OWNED);
-	KASSERT((void *)PCPU_GET(qmap_addr) == addr,
+	KASSERT(PCPU_GET(qmap_addr) == addr,
 	    ("moea64_quick_remove_page: invalid address"));
 	mtx_unlock(PCPU_PTR(aim.qmap_lock));
 	sched_unpin();	
@@ -3155,7 +3155,8 @@ moea64_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 void *
 moea64_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
-	vm_offset_t va, tmpva, ppa, offset;
+	char *va;
+	vm_offset_t tmpva, ppa, offset;
 
 	ppa = trunc_page(pa);
 	offset = pa & PAGE_MASK;
@@ -3163,17 +3164,17 @@ moea64_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 
 	va = kva_alloc(size);
 
-	if (!va)
+	if (va == NULL)
 		panic("moea64_mapdev: Couldn't alloc kernel virtual memory");
 
-	for (tmpva = va; size > 0;) {
+	for (tmpva = (vm_offset_t)va; size > 0;) {
 		moea64_kenter_attr(tmpva, ppa, ma);
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		ppa += PAGE_SIZE;
 	}
 
-	return ((void *)(va + offset));
+	return (va + offset);
 }
 
 void *
@@ -3184,18 +3185,17 @@ moea64_mapdev(vm_paddr_t pa, vm_size_t size)
 }
 
 void
-moea64_unmapdev(void *p, vm_size_t size)
+moea64_unmapdev(void *va, vm_size_t size)
 {
 	void *base;
-	vm_offset_t offset, va;
+	vm_offset_t offset;
 
-	va = (vm_offset_t)p;
-	base = trunc_page(p);
-	offset = va & PAGE_MASK;
+	base = trunc_page(va);
+	offset = (vm_offset_t)va & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
 	moea64_qremove(base, atop(size));
-	kva_free((vm_offset_t)base, size);
+	kva_free(base, size);
 }
 
 void

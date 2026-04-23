@@ -1627,7 +1627,7 @@ pmap_init_pv_table(void)
 		    pmap_l2_pindex(seg->start);
 		s += round_page(pages * sizeof(*pvd));
 	}
-	pv_table = (struct pmap_large_md_page *)kva_alloc(s);
+	pv_table = kva_alloc(s);
 	if (pv_table == NULL)
 		panic("%s: kva_alloc failed\n", __func__);
 
@@ -8086,7 +8086,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 		offset = pa & PAGE_MASK;
 		size = round_page(offset + size);
 
-		va = kva_alloc(size);
+		va = (vm_offset_t)kva_alloc(size);
 		if (va == 0)
 			panic("%s: Couldn't allocate KVA", __func__);
 
@@ -8174,7 +8174,7 @@ pmap_unmapbios(void *p, vm_size_t size)
 		/* Unmap and invalidate the pages */
 		pmap_kremove_device(va, size);
 
-		kva_free(va, size);
+		kva_free((void *)va, size);
 	}
 }
 
@@ -8475,7 +8475,7 @@ static pt_entry_t *
 pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 {
 	pt_entry_t *l2, newl2, oldl1;
-	vm_offset_t tmpl1;
+	char *tmpl1;
 	vm_paddr_t l2phys, phys;
 	vm_page_t ml2;
 	int i;
@@ -8492,10 +8492,10 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 	KASSERT((oldl1 & ATTR_SW_NO_PROMOTE) == 0,
 	    ("pmap_demote_l1: Demoting entry with no-demote flag set"));
 
-	tmpl1 = 0;
+	tmpl1 = NULL;
 	if (va <= (vm_offset_t)l1 && va + L1_SIZE > (vm_offset_t)l1) {
 		tmpl1 = kva_alloc(PAGE_SIZE);
-		if (tmpl1 == 0)
+		if (tmpl1 == NULL)
 			return (NULL);
 	}
 
@@ -8525,8 +8525,8 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 	    L2_BLOCK), ("Invalid l2 page (%lx != %lx)", l2[0],
 	    ATTR_CONTIGUOUS | (oldl1 & ~ATTR_DESCR_MASK) | L2_BLOCK));
 
-	if (tmpl1 != 0) {
-		pmap_kenter(tmpl1, PAGE_SIZE,
+	if (tmpl1 != NULL) {
+		pmap_kenter((vm_offset_t)tmpl1, PAGE_SIZE,
 		    DMAP_TO_PHYS((vm_offset_t)l1) & ~L3_OFFSET,
 		    VM_MEMATTR_WRITE_BACK);
 		l1 = (pt_entry_t *)(tmpl1 + ((vm_offset_t)l1 & PAGE_MASK));
@@ -8536,8 +8536,8 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 
 	counter_u64_add(pmap_l1_demotions, 1);
 fail:
-	if (tmpl1 != 0) {
-		pmap_kremove(tmpl1);
+	if (tmpl1 != NULL) {
+		pmap_kremove((vm_offset_t)tmpl1);
 		kva_free(tmpl1, PAGE_SIZE);
 	}
 
@@ -8605,7 +8605,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
     struct rwlock **lockp)
 {
 	pt_entry_t *l3, newl3, oldl2;
-	vm_offset_t tmpl2;
+	char *tmpl2;
 	vm_paddr_t l3phys;
 	vm_page_t ml3;
 
@@ -8622,10 +8622,10 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	    ("pmap_demote_l2: Demoting entry with no-demote flag set"));
 	va &= ~L2_OFFSET;
 
-	tmpl2 = 0;
+	tmpl2 = NULL;
 	if (va <= (vm_offset_t)l2 && va + L2_SIZE > (vm_offset_t)l2) {
 		tmpl2 = kva_alloc(PAGE_SIZE);
-		if (tmpl2 == 0)
+		if (tmpl2 == NULL)
 			return (NULL);
 	}
 
@@ -8720,8 +8720,8 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	/*
 	 * Map the temporary page so we don't lose access to the l2 table.
 	 */
-	if (tmpl2 != 0) {
-		pmap_kenter(tmpl2, PAGE_SIZE,
+	if (tmpl2 != NULL) {
+		pmap_kenter((vm_offset_t)tmpl2, PAGE_SIZE,
 		    DMAP_TO_PHYS((vm_offset_t)l2) & ~L3_OFFSET,
 		    VM_MEMATTR_WRITE_BACK);
 		l2 = (pt_entry_t *)(tmpl2 + ((vm_offset_t)l2 & PAGE_MASK));
@@ -8755,8 +8755,8 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	    " in pmap %p %lx", va, pmap, l3[0]);
 
 fail:
-	if (tmpl2 != 0) {
-		pmap_kremove(tmpl2);
+	if (tmpl2 != NULL) {
+		pmap_kremove((vm_offset_t)tmpl2);
 		kva_free(tmpl2, PAGE_SIZE);
 	}
 
@@ -8784,7 +8784,7 @@ static bool
 pmap_demote_l2c(pmap_t pmap, pt_entry_t *l2p, vm_offset_t va)
 {
 	pd_entry_t *l2c_end, *l2c_start, l2e, mask, nbits, *tl2p;
-	vm_offset_t tmpl3;
+	char *tmpl3;
 	register_t intr;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -8792,13 +8792,13 @@ pmap_demote_l2c(pmap_t pmap, pt_entry_t *l2p, vm_offset_t va)
 	l2c_start = (pd_entry_t *)((uintptr_t)l2p & ~((L2C_ENTRIES *
 	    sizeof(pd_entry_t)) - 1));
 	l2c_end = l2c_start + L2C_ENTRIES;
-	tmpl3 = 0;
+	tmpl3 = NULL;
 	if ((va & ~L2C_OFFSET) < (vm_offset_t)l2c_end &&
 	    (vm_offset_t)l2c_start < (va & ~L2C_OFFSET) + L2C_SIZE) {
 		tmpl3 = kva_alloc(PAGE_SIZE);
-		if (tmpl3 == 0)
+		if (tmpl3 == NULL)
 			return (false);
-		pmap_kenter(tmpl3, PAGE_SIZE,
+		pmap_kenter((vm_offset_t)tmpl3, PAGE_SIZE,
 		    DMAP_TO_PHYS((vm_offset_t)l2c_start) & ~L3_OFFSET,
 		    VM_MEMATTR_WRITE_BACK);
 		l2c_start = (pd_entry_t *)(tmpl3 +
@@ -8857,8 +8857,8 @@ pmap_demote_l2c(pmap_t pmap, pt_entry_t *l2p, vm_offset_t va)
 	dsb(ishst);
 
 	intr_restore(intr);
-	if (tmpl3 != 0) {
-		pmap_kremove(tmpl3);
+	if (tmpl3 != NULL) {
+		pmap_kremove((vm_offset_t)tmpl3);
 		kva_free(tmpl3, PAGE_SIZE);
 	}
 	counter_u64_add(pmap_l2c_demotions, 1);
@@ -8874,20 +8874,20 @@ static bool
 pmap_demote_l3c(pmap_t pmap, pt_entry_t *l3p, vm_offset_t va)
 {
 	pt_entry_t *l3c_end, *l3c_start, l3e, mask, nbits, *tl3p;
-	vm_offset_t tmpl3;
+	char *tmpl3;
 	register_t intr;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	l3c_start = (pt_entry_t *)((uintptr_t)l3p & ~((L3C_ENTRIES *
 	    sizeof(pt_entry_t)) - 1));
 	l3c_end = l3c_start + L3C_ENTRIES;
-	tmpl3 = 0;
+	tmpl3 = NULL;
 	if ((va & ~L3C_OFFSET) < (vm_offset_t)l3c_end &&
 	    (vm_offset_t)l3c_start < (va & ~L3C_OFFSET) + L3C_SIZE) {
 		tmpl3 = kva_alloc(PAGE_SIZE);
-		if (tmpl3 == 0)
+		if (tmpl3 == NULL)
 			return (false);
-		pmap_kenter(tmpl3, PAGE_SIZE,
+		pmap_kenter((vm_offset_t)tmpl3, PAGE_SIZE,
 		    DMAP_TO_PHYS((vm_offset_t)l3c_start) & ~L3_OFFSET,
 		    VM_MEMATTR_WRITE_BACK);
 		l3c_start = (pt_entry_t *)(tmpl3 +
@@ -8946,8 +8946,8 @@ pmap_demote_l3c(pmap_t pmap, pt_entry_t *l3p, vm_offset_t va)
 	dsb(ishst);
 
 	intr_restore(intr);
-	if (tmpl3 != 0) {
-		pmap_kremove(tmpl3);
+	if (tmpl3 != NULL) {
+		pmap_kremove((vm_offset_t)tmpl3);
 		kva_free(tmpl3, PAGE_SIZE);
 	}
 	counter_u64_add(pmap_l3c_demotions, 1);

@@ -69,7 +69,7 @@ __elfN(linux_shared_page_init)(char **mapping, vm_size_t size)
 
 	pages = size / PAGE_SIZE;
 
-	addr = (char *)kva_alloc(size);
+	addr = kva_alloc(size);
 	obj = vm_pager_allocate(OBJT_PHYS, 0, size,
 	    VM_PROT_DEFAULT, 0, NULL);
 	VM_OBJECT_WLOCK(obj);
@@ -89,11 +89,8 @@ void
 __elfN(linux_shared_page_fini)(vm_object_t obj, void *mapping,
     vm_size_t size)
 {
-	vm_offset_t va;
-
-	va = (vm_offset_t)mapping;
 	pmap_qremove(mapping, size / PAGE_SIZE);
-	kva_free(va, size);
+	kva_free(mapping, size);
 	vm_object_deallocate(obj);
 }
 

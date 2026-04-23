@@ -1002,7 +1002,7 @@ booke_pmap_init_qpages(void)
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
-		if (pc->pc_qmap_addr == 0)
+		if (pc->pc_qmap_addr == NULL)
 			panic("pmap_init_qpages: unable to allocate KVA");
 	}
 }

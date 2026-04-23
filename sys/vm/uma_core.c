@@ -1989,7 +1989,7 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 			goto fail;
 		TAILQ_INSERT_TAIL(&alloctail, p, plinks.q);
 	}
-	if ((addr = (void *)kva_alloc(bytes)) == NULL)
+	if ((addr = kva_alloc(bytes)) == NULL)
 		goto fail;
 	zkva = addr;
 	TAILQ_FOREACH(p, &alloctail, plinks.q) {
@@ -2158,7 +2158,7 @@ pcpu_page_free(void *mem, vm_size_t size, uint8_t flags)
 		vm_page_free(m);
 	}
 	pmap_qremove(mem, size >> PAGE_SHIFT);
-	kva_free(sva, size);
+	kva_free(mem, size);
 }
 
 #if defined(UMA_USE_DMAP) && !defined(UMA_MD_SMALL_ALLOC)
@@ -5187,7 +5187,7 @@ int
 uma_zone_reserve_kva(uma_zone_t zone, int count)
 {
 	uma_keg_t keg;
-	vm_offset_t kva;
+	void *kva;
 	u_int pages;
 
 	KEG_GET(zone, keg);
@@ -5202,12 +5202,12 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 	if (1) {
 #endif
 		kva = kva_alloc((vm_size_t)pages * PAGE_SIZE);
-		if (kva == 0)
+		if (kva == NULL)
 			return (0);
 	} else
-		kva = 0;
+		kva = NULL;
 
-	MPASS(keg->uk_kva == 0);
+	MPASS(keg->uk_kva == NULL);
 	keg->uk_kva = kva;
 	keg->uk_offset = 0;
 	zone->uz_max_items = pages * keg->uk_ipers;

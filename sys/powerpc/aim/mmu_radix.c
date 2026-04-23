@@ -5894,7 +5894,8 @@ mmu_radix_align_superpage(vm_object_t object, vm_ooffset_t offset,
 static void *
 mmu_radix_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t attr)
 {
-	vm_offset_t va, tmpva, ppa, offset;
+	char *va;
+	vm_offset_t tmpva, ppa, offset;
 
 	ppa = trunc_page(pa);
 	offset = pa & PAGE_MASK;
@@ -5907,10 +5908,10 @@ mmu_radix_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t attr)
 		printf("%s(%#lx, %lu, %d)\n", __func__, pa, size, attr);
 	KASSERT(size > 0, ("%s(%#lx, %lu, %d)", __func__, pa, size, attr));
 
-	if (!va)
+	if (va == NULL)
 		panic("%s: Couldn't alloc kernel virtual memory", __func__);
 
-	for (tmpva = va; size > 0;) {
+	for (tmpva = (vm_offset_t)va; size > 0;) {
 		mmu_radix_kenter_attr(tmpva, ppa, attr);
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
@@ -5918,7 +5919,7 @@ mmu_radix_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t attr)
 	}
 	ptesync();
 
-	return ((void *)(va + offset));
+	return (va + offset);
 }
 
 static void *
@@ -5953,23 +5954,23 @@ mmu_radix_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 }
 
 static void
-mmu_radix_unmapdev(void *p, vm_size_t size)
+mmu_radix_unmapdev(void *va, vm_size_t size)
 {
-	vm_offset_t offset, va;
+	vm_offset_t offset;
 
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, p, size);
+	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, va, size);
 
 	/* If we gave a direct map region in pmap_mapdev, do nothing */
-	va = (vm_offset_t)p;
-	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS)
+	if ((vm_offset_t)va >= DMAP_MIN_ADDRESS &&
+	    (vm_offset_t)va < DMAP_MAX_ADDRESS)
 		return;
 
-	offset = va & PAGE_MASK;
+	offset = (vm_offset_t)va & PAGE_MASK;
 	size = round_page(offset + size);
 	va = trunc_page(va);
 
 	if (pmap_initialized) {
-		mmu_radix_qremove((void *)va, atop(size));
+		mmu_radix_qremove(va, atop(size));
 		kva_free(va, size);
 	}
 }

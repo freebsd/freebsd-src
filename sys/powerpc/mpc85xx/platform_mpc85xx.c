@@ -342,7 +342,8 @@ mpc85xx_smp_start_cpu_epapr(platform_t plat, struct pcpu *pc)
 {
 	vm_paddr_t rel_pa, bptr;
 	volatile struct cpu_release *rel;
-	vm_offset_t rel_va, rel_page;
+	char *rel_page;
+	void *rel_va;
 	phandle_t node;
 	int i;
 
@@ -357,13 +358,13 @@ mpc85xx_smp_start_cpu_epapr(platform_t plat, struct pcpu *pc)
 	}
 
 	rel_page = kva_alloc(PAGE_SIZE);
-	if (rel_page == 0)
+	if (rel_page == NULL)
 		return (ENOMEM);
 
 	critical_enter();
 	rel_va = rel_page + (rel_pa & PAGE_MASK);
-	pmap_kenter(rel_page, rel_pa & ~PAGE_MASK);
-	rel = (struct cpu_release *)rel_va;
+	pmap_kenter((vm_offset_t)rel_page, rel_pa & ~PAGE_MASK);
+	rel = rel_va;
 	bptr = pmap_kextract((uintptr_t)__boot_page);
 
 	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
@@ -376,7 +377,7 @@ mpc85xx_smp_start_cpu_epapr(platform_t plat, struct pcpu *pc)
 		printf("Waking up CPU %d via CPU release page %p\n",
 		    pc->pc_cpuid, rel);
 	critical_exit();
-	pmap_kremove(rel_page);
+	pmap_kremove((vm_offset_t)rel_page);
 	kva_free(rel_page, PAGE_SIZE);
 
 	return (0);
