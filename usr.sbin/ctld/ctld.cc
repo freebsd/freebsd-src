@@ -1461,7 +1461,7 @@ target::verify()
 		t_auth_group = t_conf->find_auth_group("default");
 		assert(t_auth_group != nullptr);
 	}
-	if (t_ports.empty()) {
+	if (t_ports.empty() && t_pports.empty()) {
 		struct portal_group *pg = default_portal_group();
 		assert(pg != NULL);
 		t_conf->add_port(this, pg, nullptr);
