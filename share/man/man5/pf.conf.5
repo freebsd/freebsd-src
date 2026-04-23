@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 16, 2026
+.Dd April 22, 2026
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2431,6 +2431,50 @@ option creates a duplicate of the packet and routes it like
 .Ar route-to .
 The original packet gets routed as it normally would.
 .El
+.Pp
+Unlike the kernel's normal forwarding path, the route option forwarding
+path does not drop broadcast or multicast traffic when the output
+interface has been overridden by a route option.
+If a
+.Ar route-to ,
+.Ar reply-to ,
+or
+.Ar dup-to
+rule matches traffic destined to a broadcast address (either the
+limited broadcast or a subnet-directed broadcast) or to an IPv4/IPv6
+multicast address, the packet is forwarded out the specified interface,
+which may cross broadcast domains.
+.Pp
+Rulesets that use
+.Ar route-to ,
+.Ar reply-to ,
+or
+.Ar dup-to
+with a permissive destination
+.Po e.g.\&
+.Li from any to any
+.Pc
+can plug this leak with explicit
+.Ar block out
+rules on the route option's target interface.
+To avoid blocking the router's own broadcast or multicast traffic,
+scope the block rules to forwarded packets with the
+.Ar received-on any
+qualifier.
+For example, assuming
+.Li $wan
+is the
+.Ar route-to
+target interface:
+.Bd -literal -offset indent
+block out quick on $wan inet  from any to 255.255.255.255  received-on any
+block out quick on $wan inet  from any to ($wan:broadcast) received-on any
+block out quick on $wan inet  from any to 224.0.0.0/4      received-on any
+block out quick on $wan inet6 from any to ff00::/8         received-on any
+.Ed
+.Pp
+One block-out rule set is needed per interface that may be used as
+a route option target.
 .Sh POOL OPTIONS
 For
 .Ar nat
