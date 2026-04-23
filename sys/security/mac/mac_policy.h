@@ -1070,9 +1070,9 @@ struct mac_policy_ops {
  * structure, as its layout is statically compiled into all policies.
  */
 struct mac_policy_conf {
-	char				*mpc_name;	/* policy name */
-	char				*mpc_fullname;	/* policy full name */
-	struct mac_policy_ops		*mpc_ops;	/* policy operations */
+	const char			*mpc_name;	/* policy name */
+	const char			*mpc_fullname;	/* policy full name */
+	const struct mac_policy_ops	*mpc_ops;	/* policy operations */
 	int				 mpc_loadtime_flags;	/* flags */
 	int				*mpc_field_off; /* security field */
 	int				 mpc_runtime_flags; /* flags */
