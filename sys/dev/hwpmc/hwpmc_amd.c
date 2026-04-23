@@ -40,6 +40,7 @@
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
@@ -183,6 +184,24 @@ static uint64_t amd_core_allowed_mask;
 static uint64_t amd_l3_allowed_mask;
 static uint64_t amd_df_allowed_mask;
 
+static uint64_t amd_core_extra_mask;
+static uint64_t amd_l3_extra_mask;
+static uint64_t amd_df_extra_mask;
+
+SYSCTL_DECL(_kern_hwpmc);
+
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, amd_core_extra_mask, CTLFLAG_RDTUN,
+    &amd_core_extra_mask, 0,
+    "Extra allowed bits in AMD core PMU PERFEVTSEL (override; default 0)");
+
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, amd_l3_extra_mask, CTLFLAG_RDTUN,
+    &amd_l3_extra_mask, 0,
+    "Extra allowed bits in AMD L3 PMU control (override; default 0)");
+
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, amd_df_extra_mask, CTLFLAG_RDTUN,
+    &amd_df_extra_mask, 0,
+    "Extra allowed bits in AMD DF PMU control (override; default 0)");
+
 static void
 amd_init_policy(void)
 {
@@ -205,13 +224,13 @@ amd_config_mask(enum sub_class subclass, uint64_t caps)
 
 	switch (subclass) {
 	case PMC_AMD_SUB_CLASS_CORE:
-		return (amd_core_allowed_mask |
+		return (amd_core_allowed_mask | amd_core_extra_mask |
 		    (((caps & PMC_CAP_PRECISE) != 0) ?
 		    AMD_PMC_PRECISERETIRE : 0));
 	case PMC_AMD_SUB_CLASS_L3_CACHE:
-		return (amd_l3_allowed_mask);
+		return (amd_l3_allowed_mask | amd_l3_extra_mask);
 	case PMC_AMD_SUB_CLASS_DATA_FABRIC:
-		return (amd_df_allowed_mask);
+		return (amd_df_allowed_mask | amd_df_extra_mask);
 	default:
 		return (0);
 	}
