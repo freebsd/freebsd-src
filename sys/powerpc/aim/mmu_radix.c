@@ -1497,7 +1497,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 			PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 			/* Entire chunk is free; return it. */
-			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
 			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pv_chunks_mutex);
 			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
@@ -1587,7 +1587,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
@@ -2158,7 +2158,7 @@ mmu_radix_parttab_init(void)
 	uint64_t pagetab;
 
 	mmu_parttab_init();
-	pagetab = RTS_SIZE | DMAP_TO_PHYS((vm_offset_t)kernel_pmap->pm_pml1) | \
+	pagetab = RTS_SIZE | DMAP_TO_PHYS(kernel_pmap->pm_pml1) | \
 		         RADIX_PGD_INDEX_SHIFT | PARTTAB_HR;
 	mmu_parttab_update(0, pagetab, 0);
 }
@@ -2181,7 +2181,7 @@ mmu_radix_proctab_init(void)
 
 	isa3_proctab = (void*)PHYS_TO_DMAP(proctab0pa);
 	isa3_proctab->proctab0 =
-	    htobe64(RTS_SIZE | DMAP_TO_PHYS((vm_offset_t)kernel_pmap->pm_pml1) |
+	    htobe64(RTS_SIZE | DMAP_TO_PHYS(kernel_pmap->pm_pml1) |
 		RADIX_PGD_INDEX_SHIFT);
 
 	if (powernv_enabled) {
@@ -3651,7 +3651,7 @@ radix_pgd_release(void *arg __unused, void **store, int count)
 		 * XXX selectively remove dmap and KVA entries so we don't
 		 * need to bzero
 		 */
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)store[i]));
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(store[i]));
 		for (int j = page_count-1; j >= 0; j--) {
 			vm_page_unwire_noq(&m[j]);
 			SLIST_INSERT_HEAD(&free, &m[j], plinks.s.ss);
@@ -4264,7 +4264,7 @@ mmu_radix_pinit(pmap_t pmap)
 	vmem_alloc(asid_arena, 1, M_FIRSTFIT|M_WAITOK, &pid);
 
 	pmap->pm_pid = pid;
-	l1pa = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml1);
+	l1pa = DMAP_TO_PHYS(pmap->pm_pml1);
 	mmu_radix_update_proctab(pid, l1pa);
 	__asm __volatile("ptesync;isync" : : : "memory");
 

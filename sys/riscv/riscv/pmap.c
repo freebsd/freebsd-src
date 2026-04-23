@@ -1924,7 +1924,7 @@ pmap_release(pmap_t pmap)
 
 finish:
 	npages = pmap->pm_stage == PM_STAGE2 ? 4 : 1;
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_top));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pmap->pm_top));
 	for (i = 0; i < npages; i++) {
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
@@ -2132,7 +2132,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);

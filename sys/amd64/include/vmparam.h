@@ -246,8 +246,11 @@
  * vt fb startup needs to be reworked.
  */
 #define	PHYS_IN_DMAP(pa)	(dmaplimit == 0 || (pa) < dmaplimit)
-#define	VIRT_IN_DMAP(va)	\
-    ((va) >= kva_layout.dmap_low && (va) < kva_layout.dmap_low + dmaplimit)
+#define	VIRT_IN_DMAP(va) __extension__ ({				\
+	uintptr_t _va = (uintptr_t)(va);				\
+									\
+	(_va >= kva_layout.dmap_low &&					\
+	    _va < kva_layout.dmap_low + dmaplimit); })
 
 #define	PMAP_HAS_DMAP	1
 #define	PHYS_TO_DMAP(x)	__extension__ ({				\
@@ -257,10 +260,11 @@
 	(x) + kva_layout.dmap_low; })
 
 #define	DMAP_TO_PHYS(x)	__extension__ ({				\
-	KASSERT(VIRT_IN_DMAP(x),					\
-	    ("virtual address %#jx not covered by the DMAP",		\
-	    (uintmax_t)x));						\
-	(x) - kva_layout.dmap_low; })
+	uintptr_t _x = (uintptr_t)(x);					\
+									\
+	KASSERT(VIRT_IN_DMAP(_x),					\
+	    ("virtual address %p not covered by the DMAP", (void *)_x));\
+	_x - kva_layout.dmap_low; })
 
 /*
  * amd64 maps the page array into KVA so that it can be more easily
