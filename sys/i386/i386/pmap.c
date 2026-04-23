@@ -5928,7 +5928,7 @@ __CONCAT(PMTYPE, align_superpage)(vm_object_t object, vm_ooffset_t offset,
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
-static vm_offset_t
+static void *
 __CONCAT(PMTYPE, quick_enter_page)(vm_page_t m)
 {
 	vm_offset_t qaddr;
@@ -5944,11 +5944,11 @@ __CONCAT(PMTYPE, quick_enter_page)(vm_page_t m)
 	    pmap_cache_bits(kernel_pmap, pmap_page_get_memattr(m), false);
 	invlpg(qaddr);
 
-	return (qaddr);
+	return ((void *)qaddr);
 }
 
 static void
-__CONCAT(PMTYPE, quick_remove_page)(vm_offset_t addr)
+__CONCAT(PMTYPE, quick_remove_page)(void *addr)
 {
 	vm_offset_t qaddr;
 	pt_entry_t *pte;
@@ -5957,7 +5957,8 @@ __CONCAT(PMTYPE, quick_remove_page)(vm_offset_t addr)
 	pte = vtopte(qaddr);
 
 	KASSERT(*pte != 0, ("pmap_quick_remove_page: PTE not in use"));
-	KASSERT(addr == qaddr, ("pmap_quick_remove_page: invalid address"));
+	KASSERT(addr == (void *)qaddr,
+	    ("pmap_quick_remove_page: invalid address"));
 
 	*pte = 0;
 	critical_exit();

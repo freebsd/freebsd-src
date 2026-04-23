@@ -137,12 +137,12 @@ invalidate_cachelines_in_range_of_ppage(
 )
 {
 	if(offset + count > PAGE_SIZE){ return EINVAL; }
-        uint8_t *dst = (uint8_t*)pmap_quick_enter_page(p);
+        uint8_t *dst = pmap_quick_enter_page(p);
         if (!dst){
                 return ENOMEM;
 	}
-	cpu_dcache_inv_range((void *)((vm_offset_t)dst + offset), count);
-	pmap_quick_remove_page((vm_offset_t)dst);
+	cpu_dcache_inv_range(dst + offset, count);
+	pmap_quick_remove_page(dst);
 	return 0;
 }
 
@@ -181,13 +181,13 @@ copyout_page(vm_page_t p, size_t offset, void *kaddr, size_t size)
 {
         uint8_t *dst;
 
-        dst = (uint8_t*)pmap_quick_enter_page(p);
+        dst = pmap_quick_enter_page(p);
         if (!dst)
                 return ENOMEM;
 
         memcpy(dst + offset, kaddr, size);
 
-        pmap_quick_remove_page((vm_offset_t)dst);
+        pmap_quick_remove_page(dst);
 
         return 0;
 }

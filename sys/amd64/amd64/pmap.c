@@ -10573,14 +10573,14 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	}
 }
 
-vm_offset_t
+void *
 pmap_quick_enter_page(vm_page_t m)
 {
 	vm_paddr_t paddr;
 
 	paddr = VM_PAGE_TO_PHYS(m);
 	if (paddr < dmaplimit)
-		return (PHYS_TO_DMAP(paddr));
+		return ((void *)PHYS_TO_DMAP(paddr));
 	mtx_lock_spin(&qframe_mtx);
 	KASSERT(*vtopte(qframe) == 0, ("qframe busy"));
 
@@ -10592,14 +10592,14 @@ pmap_quick_enter_page(vm_page_t m)
 
 	pte_store(vtopte(qframe), paddr | X86_PG_RW | X86_PG_V | X86_PG_A |
 	    X86_PG_M | pmap_cache_bits(kernel_pmap, m->md.pat_mode, false));
-	return (qframe);
+	return ((void *)qframe);
 }
 
 void
-pmap_quick_remove_page(vm_offset_t addr)
+pmap_quick_remove_page(void *addr)
 {
 
-	if (addr != qframe)
+	if ((vm_offset_t)addr != qframe)
 		return;
 	pte_store(vtopte(qframe), 0);
 	mtx_unlock_spin(&qframe_mtx);

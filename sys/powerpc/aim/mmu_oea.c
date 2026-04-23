@@ -323,8 +323,8 @@ int moea_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void moea_sync_icache(pmap_t, vm_offset_t, vm_size_t);
 void moea_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
 void moea_scan_init(void);
-vm_offset_t moea_quick_enter_page(vm_page_t m);
-void moea_quick_remove_page(vm_offset_t addr);
+void *moea_quick_enter_page(vm_page_t m);
+void moea_quick_remove_page(void *addr);
 bool moea_page_is_mapped(vm_page_t m);
 bool moea_ps_enabled(pmap_t pmap);
 static int moea_map_user_ptr(pmap_t pm,
@@ -1104,15 +1104,15 @@ moea_zero_page_area(vm_page_t m, int off, int size)
 	bzero(va, size);
 }
 
-vm_offset_t
+void *
 moea_quick_enter_page(vm_page_t m)
 {
 
-	return (VM_PAGE_TO_PHYS(m));
+	return ((void *)VM_PAGE_TO_PHYS(m));
 }
 
 void
-moea_quick_remove_page(vm_offset_t addr)
+moea_quick_remove_page(void *addr)
 {
 }
 

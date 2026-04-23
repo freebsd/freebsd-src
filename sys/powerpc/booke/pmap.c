@@ -347,8 +347,8 @@ static void		mmu_booke_dumpsys_map(vm_paddr_t pa, size_t,
 static void		mmu_booke_dumpsys_unmap(vm_paddr_t pa, size_t,
     void *);
 static void		mmu_booke_scan_init(void);
-static vm_offset_t	mmu_booke_quick_enter_page(vm_page_t m);
-static void		mmu_booke_quick_remove_page(vm_offset_t addr);
+static void		*mmu_booke_quick_enter_page(vm_page_t m);
+static void		mmu_booke_quick_remove_page(void *addr);
 static int		mmu_booke_change_attr(vm_offset_t addr,
     vm_size_t sz, vm_memattr_t mode);
 static int		mmu_booke_decode_kernel_ptr(vm_offset_t addr,

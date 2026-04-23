@@ -92,7 +92,7 @@ struct bus_dma_tag {
 };
 
 struct sync_list {
-	vm_offset_t	vaddr;		/* kva of client data */
+	char		*vaddr;		/* kva of client data */
 	bus_addr_t	paddr;		/* physical address */
 	vm_page_t	pages;		/* starting page of client data */
 	bus_size_t	datacount;	/* client data count */
@@ -897,7 +897,7 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 				if (++map->sync_count > dmat->nsegments)
 					break;
 				sl++;
-				sl->vaddr = 0;
+				sl->vaddr = NULL;
 				sl->paddr = curaddr;
 				sl->datacount = sgsize;
 				sl->pages = PHYS_TO_VM_PAGE(curaddr);
@@ -946,7 +946,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	bus_size_t sgsize;
 	bus_addr_t curaddr;
 	bus_addr_t sl_pend = 0;
-	vm_offset_t kvaddr, vaddr, sl_vend = 0;
+	char *kvaddr, *vaddr, *sl_vend = NULL;
 	struct sync_list *sl;
 	int error;
 
@@ -981,18 +981,18 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	}
 
 	sl = map->slist + map->sync_count - 1;
-	vaddr = (vm_offset_t)buf;
+	vaddr = buf;
 
 	while (buflen > 0) {
 		/*
 		 * Get the physical address for this segment.
 		 */
 		if (__predict_true(pmap == kernel_pmap)) {
-			curaddr = pmap_kextract(vaddr);
+			curaddr = pmap_kextract((vm_offset_t)vaddr);
 			kvaddr = vaddr;
 		} else {
-			curaddr = pmap_extract(pmap, vaddr);
-			kvaddr = 0;
+			curaddr = pmap_extract(pmap, (vm_offset_t)vaddr);
+			kvaddr = NULL;
 		}
 
 		/*
@@ -1002,12 +1002,12 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 		if (map->pagesneeded != 0 && must_bounce(dmat, map, curaddr,
 		    sgsize)) {
-			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
+			curaddr = add_bounce_page(dmat, map, (vm_offset_t)kvaddr, curaddr,
 			    sgsize);
 		} else if ((dmat->flags & BUS_DMA_COHERENT) == 0) {
 			if (map->sync_count > 0) {
 				sl_pend = sl->paddr + sl->datacount;
-				sl_vend = sl->vaddr + sl->datacount;
+				sl_vend = (char *)sl->vaddr + sl->datacount;
 			}
 
 			if (map->sync_count == 0 ||
@@ -1018,7 +1018,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 				sl++;
 				sl->vaddr = kvaddr;
 				sl->paddr = curaddr;
-				if (kvaddr != 0) {
+				if (kvaddr != NULL) {
 					sl->pages = NULL;
 				} else {
 					sl->pages = PHYS_TO_VM_PAGE(curaddr);
@@ -1118,7 +1118,7 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 	uint32_t len, offset;
 	vm_page_t m;
 	vm_paddr_t pa;
-	vm_offset_t va, tempva;
+	char *va, *tempva;
 	bus_size_t size;
 
 	offset = sl->paddr & PAGE_MASK;
@@ -1127,11 +1127,11 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 	pa = sl->paddr;
 
 	for ( ; size != 0; size -= len, pa += len, offset = 0, ++m) {
-		tempva = 0;
-		if (sl->vaddr == 0) {
+		tempva = NULL;
+		if (sl->vaddr == NULL) {
 			len = min(PAGE_SIZE - offset, size);
 			tempva = pmap_quick_enter_page(m);
-			va = tempva | offset;
+			va = tempva + offset;
 			KASSERT(pa == (VM_PAGE_TO_PHYS(m) | offset),
 			    ("unexpected vm_page_t phys: 0x%08x != 0x%08x",
 			    VM_PAGE_TO_PHYS(m) | offset, pa));
@@ -1143,7 +1143,7 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 		switch (op) {
 		case BUS_DMASYNC_PREWRITE:
 		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
-			dcache_wb_poc(va, pa, len);
+			dcache_wb_poc((vm_offset_t)va, pa, len);
 			break;
 		case BUS_DMASYNC_PREREAD:
 			/*
@@ -1156,18 +1156,18 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 			 * misalignment.  Buffers which are not mbufs bounce if
 			 * they are not aligned to a cacheline.
 			 */
-			dma_preread_safe(va, pa, len);
+			dma_preread_safe((vm_offset_t)va, pa, len);
 			break;
 		case BUS_DMASYNC_POSTREAD:
 		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
-			dcache_inv_poc(va, pa, len);
+			dcache_inv_poc((vm_offset_t)va, pa, len);
 			break;
 		default:
 			panic("unsupported combination of sync operations: "
                               "0x%08x\n", op);
 		}
 
-		if (tempva != 0)
+		if (tempva != NULL)
 			pmap_quick_remove_page(tempva);
 	}
 }
@@ -1177,7 +1177,7 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
 	struct sync_list *sl, *end;
-	vm_offset_t datavaddr, tempvaddr;
+	char *datavaddr, *tempvaddr;
 
 	if (op == BUS_DMASYNC_POSTWRITE)
 		return;
@@ -1198,16 +1198,16 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		 */
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
-				tempvaddr = 0;
-				datavaddr = bpage->datavaddr;
-				if (datavaddr == 0) {
+				tempvaddr = NULL;
+				datavaddr = (void *)bpage->datavaddr;
+				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
-					datavaddr = tempvaddr | bpage->dataoffs;
+					datavaddr = tempvaddr + bpage->dataoffs;
 				}
-				bcopy((void *)datavaddr, (void *)bpage->vaddr,
+				bcopy(datavaddr, (void *)bpage->vaddr,
 				    bpage->datacount);
-				if (tempvaddr != 0)
+				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
 				if ((dmat->flags & BUS_DMA_COHERENT) == 0)
 					dcache_wb_poc(bpage->vaddr,
@@ -1252,16 +1252,16 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				if ((dmat->flags & BUS_DMA_COHERENT) == 0)
 					dcache_inv_poc(bpage->vaddr,
 					    bpage->busaddr, bpage->datacount);
-				tempvaddr = 0;
-				datavaddr = bpage->datavaddr;
-				if (datavaddr == 0) {
+				tempvaddr = NULL;
+				datavaddr = (void *)bpage->datavaddr;
+				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
-					datavaddr = tempvaddr | bpage->dataoffs;
+					datavaddr = tempvaddr + bpage->dataoffs;
 				}
-				bcopy((void *)bpage->vaddr, (void *)datavaddr,
+				bcopy((void *)bpage->vaddr, datavaddr,
 				    bpage->datacount);
-				if (tempvaddr != 0)
+				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
