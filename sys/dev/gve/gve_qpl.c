@@ -46,8 +46,8 @@ gve_free_qpl(struct gve_priv *priv, struct gve_queue_page_list *qpl)
 	}
 
 	if (qpl->kva) {
-		pmap_qremove((void *)qpl->kva, qpl->num_pages);
-		kva_free(qpl->kva, PAGE_SIZE * qpl->num_pages);
+		pmap_qremove(qpl->kva, qpl->num_pages);
+		kva_free((vm_offset_t)qpl->kva, PAGE_SIZE * qpl->num_pages);
 	}
 
 	for (i = 0; i < qpl->num_pages; i++) {
@@ -104,9 +104,9 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 	qpl->pages = malloc(npages * sizeof(*qpl->pages), M_GVE_QPL,
 	    M_WAITOK | M_ZERO);
 
-	qpl->kva = 0;
+	qpl->kva = NULL;
 	if (single_kva) {
-		qpl->kva = kva_alloc(PAGE_SIZE * npages);
+		qpl->kva = (char *)kva_alloc(PAGE_SIZE * npages);
 		if (!qpl->kva) {
 			device_printf(priv->dev, "Failed to create the single kva for QPL %d\n", id);
 			err = ENOMEM;
@@ -128,14 +128,14 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 			}
 			pmap_qenter(qpl->dmas[i].cpu_addr, &(qpl->pages[i]), 1);
 		} else
-			qpl->dmas[i].cpu_addr = (void *)(qpl->kva + (PAGE_SIZE * i));
+			qpl->dmas[i].cpu_addr = qpl->kva + (PAGE_SIZE * i);
 
 
 		qpl->num_pages++;
 	}
 
 	if (single_kva)
-		pmap_qenter((void *)qpl->kva, qpl->pages, npages);
+		pmap_qenter(qpl->kva, qpl->pages, npages);
 
 	for (i = 0; i < npages; i++) {
 		err = gve_dmamap_create(priv, /*size=*/PAGE_SIZE, /*align=*/PAGE_SIZE,
