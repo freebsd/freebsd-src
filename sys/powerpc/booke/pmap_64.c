@@ -339,19 +339,19 @@ ptbl_unhold(pmap_t pmap, vm_offset_t va)
 	ptbl = pdir[pdir_idx];
 
 	/* decrement hold count */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(ptbl));
 
 	if (!unhold_free_page(pmap, m))
 		return (0);
 
 	pdir[pdir_idx] = NULL;
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) pdir));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pdir));
 
 	if (!unhold_free_page(pmap, m))
 		return (1);
 
 	pdir_l1[pdir_l1_idx] = NULL;
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) pdir_l1));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pdir_l1));
 
 	if (!unhold_free_page(pmap, m))
 		return (1);
@@ -372,7 +372,7 @@ ptbl_hold(pmap_t pmap, pte_t *ptbl)
 	KASSERT((pmap != kernel_pmap),
 		("ptbl_hold: holding kernel ptbl!"));
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(ptbl));
 	m->ref_count++;
 }
 

@@ -256,8 +256,12 @@
 #define	PHYS_IN_DMAP(pa)	(PHYS_IN_DMAP_RANGE(pa) && \
     pmap_klookup(PHYS_TO_DMAP(pa), NULL))
 /* True if va is in the dmap range */
-#define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
-    (va) < (dmap_max_addr))
+#define	VIRT_IN_DMAP(va)						\
+({									\
+	uintptr_t __va = (uintptr_t)(va);				\
+									\
+	__va >= DMAP_MIN_ADDRESS && __va < (dmap_max_addr);		\
+})
 
 #define	PMAP_HAS_DMAP	1
 #define	PHYS_TO_DMAP(pa)						\
@@ -270,10 +274,11 @@
 
 #define	DMAP_TO_PHYS(va)						\
 ({									\
-	KASSERT(VIRT_IN_DMAP(va),					\
-	    ("%s: VA out of range, VA: 0x%lx", __func__,		\
-	    (vm_offset_t)(va)));					\
-	((va) - DMAP_MIN_ADDRESS) + dmap_phys_base;			\
+	uintptr_t _va = (uintptr_t)(va);				\
+									\
+	KASSERT(VIRT_IN_DMAP(_va),					\
+	    ("%s: VA out of range, VA: %p", __func__, (void *)_va));	\
+	(_va - DMAP_MIN_ADDRESS) + dmap_phys_base;			\
 })
 
 #define	VM_MIN_USER_ADDRESS	(0x0000000000000000UL)

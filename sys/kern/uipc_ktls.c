@@ -461,7 +461,7 @@ ktls_buffer_release(void *arg __unused, void **store, int count)
 	int i, j;
 
 	for (i = 0; i < count; i++) {
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)store[i]));
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(store[i]));
 		for (j = 0; j < atop(ktls_maxlen); j++) {
 			(void)vm_page_unwire_noq(m + j);
 			vm_page_free(m + j);
@@ -2816,7 +2816,7 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 		state->dst_iov[0].iov_base = (char *)state->cbuf +
 		    m->m_epg_1st_off;
 		state->dst_iov[0].iov_len = len;
-		state->parray[0] = DMAP_TO_PHYS((vm_offset_t)state->cbuf);
+		state->parray[0] = DMAP_TO_PHYS(state->cbuf);
 		i = 1;
 	} else {
 		off = m->m_epg_1st_off;

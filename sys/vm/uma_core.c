@@ -2168,7 +2168,7 @@ uma_small_free(void *mem, vm_size_t size, uint8_t flags)
 	vm_page_t m;
 	vm_paddr_t pa;
 
-	pa = DMAP_TO_PHYS((vm_offset_t)mem);
+	pa = DMAP_TO_PHYS(mem);
 	dump_drop_page(pa);
 	m = PHYS_TO_VM_PAGE(pa);
 	vm_page_unwire_noq(m);

@@ -545,7 +545,7 @@ static __inline int
 pc_to_domain(struct pv_chunk *pc)
 {
 
-	return (vm_phys_domain(DMAP_TO_PHYS((vm_offset_t)pc)));
+	return (vm_phys_domain(DMAP_TO_PHYS(pc)));
 }
 #else
 static __inline int
@@ -4834,7 +4834,7 @@ pmap_release(pmap_t pmap)
 	KASSERT(CPU_EMPTY(&pmap->pm_active),
 	    ("releasing active pmap %p", pmap));
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pmltop));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pmap->pm_pmltop));
 
 	if (pmap_is_la57(pmap)) {
 		for (i = NPML5EPG / 2; i < NPML5EPG; i++)
@@ -4863,8 +4863,7 @@ pmap_release(pmap_t pmap)
 	pmap_pt_page_count_pinit(pmap, -1);
 
 	if (pmap->pm_pmltopu != NULL) {
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->
-		    pm_pmltopu));
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pmap->pm_pmltopu));
 		pmap_free_pt_page(NULL, m, false);
 		pmap_pt_page_count_pinit(pmap, -1);
 	}
@@ -5349,7 +5348,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 			PV_STAT(counter_u64_add(pc_chunk_count, -1));
 			PV_STAT(counter_u64_add(pc_chunk_frees, 1));
 			/* Entire chunk is free; return it. */
-			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
 			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pvc->pvc_lock);
 			TAILQ_REMOVE(&pvc->pvc_list, pc, pc_lru);
@@ -5450,7 +5449,7 @@ free_pv_chunk_dequeued(struct pv_chunk *pc)
 	PV_STAT(counter_u64_add(pc_chunk_frees, 1));
 	counter_u64_add(pv_page_count, -1);
 	/* entire chunk is free, return it */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pc));
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
@@ -10708,7 +10707,7 @@ retry:
 			goto retry;
 		mphys = VM_PAGE_TO_PHYS(m);
 		*pde = mphys | X86_PG_A | X86_PG_RW | X86_PG_V | pg_nx;
-		PHYS_TO_VM_PAGE(DMAP_TO_PHYS((uintptr_t)pde))->ref_count++;
+		PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pde))->ref_count++;
 	} else {
 		MPASS((*pde & X86_PG_PS) == 0);
 		mphys = *pde & PG_FRAME;
@@ -10827,8 +10826,7 @@ pmap_large_map(vm_paddr_t spa, vm_size_t len, void **addr,
 			*pde = pa | pg_g | X86_PG_PS | X86_PG_RW |
 			    X86_PG_V | X86_PG_A | pg_nx |
 			    pmap_cache_bits(kernel_pmap, mattr, true);
-			PHYS_TO_VM_PAGE(DMAP_TO_PHYS((uintptr_t)pde))->
-			    ref_count++;
+			PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pde))->ref_count++;
 			inc = NBPDR;
 		} else {
 			pte = pmap_large_map_pte(va);
@@ -10836,8 +10834,7 @@ pmap_large_map(vm_paddr_t spa, vm_size_t len, void **addr,
 			*pte = pa | pg_g | X86_PG_RW | X86_PG_V |
 			    X86_PG_A | pg_nx | pmap_cache_bits(kernel_pmap,
 			    mattr, false);
-			PHYS_TO_VM_PAGE(DMAP_TO_PHYS((uintptr_t)pte))->
-			    ref_count++;
+			PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pte))->ref_count++;
 			inc = PAGE_SIZE;
 		}
 	}
@@ -10905,7 +10902,7 @@ pmap_large_unmap(void *svaa, vm_size_t len)
 			    pd, len));
 			pde_store(pde, 0);
 			inc = NBPDR;
-			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pde));
+			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pde));
 			m->ref_count--;
 			if (m->ref_count == 0) {
 				*pdpe = 0;
@@ -10919,12 +10916,12 @@ pmap_large_unmap(void *svaa, vm_size_t len)
 		    (u_long)pte, *pte));
 		pte_clear(pte);
 		inc = PAGE_SIZE;
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pte));
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pte));
 		m->ref_count--;
 		if (m->ref_count == 0) {
 			*pde = 0;
 			SLIST_INSERT_HEAD(&spgf, m, plinks.s.ss);
-			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pde));
+			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pde));
 			m->ref_count--;
 			if (m->ref_count == 0) {
 				*pdpe = 0;
@@ -11227,7 +11224,7 @@ pmap_pti_wire_pte(void *pte)
 	vm_page_t m;
 
 	VM_OBJECT_ASSERT_WLOCKED(pti_obj);
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((uintptr_t)pte));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pte));
 	m->ref_count++;
 }
 
@@ -11237,7 +11234,7 @@ pmap_pti_unwire_pde(void *pde, bool only_ref)
 	vm_page_t m;
 
 	VM_OBJECT_ASSERT_WLOCKED(pti_obj);
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((uintptr_t)pde));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pde));
 	MPASS(only_ref || m->ref_count > 1);
 	pmap_pti_free_page(m);
 }
@@ -11249,7 +11246,7 @@ pmap_pti_unwire_pte(void *pte, vm_offset_t va)
 	pd_entry_t *pde;
 
 	VM_OBJECT_ASSERT_WLOCKED(pti_obj);
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((uintptr_t)pte));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(pte));
 	if (pmap_pti_free_page(m)) {
 		pde = pmap_pti_pde(va);
 		MPASS((*pde & (X86_PG_PS | X86_PG_V)) == X86_PG_V);
@@ -12344,7 +12341,7 @@ DB_SHOW_COMMAND(ptpages, pmap_ptpages)
 		}
 	} else {
 		ptpages_show_pml4(PHYS_TO_VM_PAGE(DMAP_TO_PHYS(
-		    (vm_offset_t)pmap->pm_pmltop)), NUP4ML4E, PG_V);
+		    pmap->pm_pmltop)), NUP4ML4E, PG_V);
 	}
 }
 #endif

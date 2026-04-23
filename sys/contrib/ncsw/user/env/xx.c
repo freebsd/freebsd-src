@@ -658,7 +658,7 @@ XX_VirtToPhys(void *addr)
 
 	if (PMAP_HAS_DMAP && (vm_offset_t)addr >= DMAP_BASE_ADDRESS &&
 	    (vm_offset_t)addr <= DMAP_MAX_ADDRESS)
-		return (DMAP_TO_PHYS((vm_offset_t)addr));
+		return (DMAP_TO_PHYS(addr));
 	else
 		paddr = pmap_kextract((vm_offset_t)addr);
 
