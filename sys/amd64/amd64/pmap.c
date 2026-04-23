@@ -530,7 +530,7 @@ struct kva_layout_s	kva_layout_la57 = {
 #define	PMAP_PREINIT_MAPPING_COUNT	8
 static struct pmap_preinit_mapping {
 	vm_paddr_t	pa;
-	vm_offset_t	va;
+	void		*va;
 	vm_size_t	sz;
 	int		mode;
 } pmap_preinit_mapping[PMAP_PREINIT_MAPPING_COUNT];
@@ -2608,7 +2608,7 @@ pmap_init(void)
 	pmap_initialized = 1;
 	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
 		ppim = pmap_preinit_mapping + i;
-		if (ppim->va == 0)
+		if (ppim->va == NULL)
 			continue;
 		/* Make the direct map consistent */
 		if (ppim->pa < dmaplimit && ppim->pa + ppim->sz <= dmaplimit) {
@@ -2617,7 +2617,7 @@ pmap_init(void)
 		}
 		if (!bootverbose)
 			continue;
-		printf("PPIM %u: PA=%#lx, VA=%#lx, size=%#lx, mode=%#x\n", i,
+		printf("PPIM %u: PA=%#lx, VA=%p, size=%#lx, mode=%#x\n", i,
 		    ppim->pa, ppim->va, ppim->sz, ppim->mode);
 	}
 
@@ -9407,13 +9407,13 @@ pmap_mapdev_internal(vm_paddr_t pa, vm_size_t size, int mode, int flags)
 		va = NULL;
 		for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
 			ppim = pmap_preinit_mapping + i;
-			if (ppim->va == 0) {
+			if (ppim->va == NULL) {
 				ppim->pa = pa;
 				ppim->sz = size;
 				ppim->mode = mode;
-				ppim->va = virtual_avail;
+				ppim->va = (void *)virtual_avail;
 				virtual_avail += size;
-				va = (void *)ppim->va;
+				va = ppim->va;
 				break;
 			}
 		}
@@ -9495,15 +9495,17 @@ void
 pmap_unmapdev(void *p, vm_size_t size)
 {
 	struct pmap_preinit_mapping *ppim;
-	vm_offset_t offset, va;
+	char *va;
+	vm_offset_t offset;
 	int i;
 
-	va = (vm_offset_t)p;
+	va = p;
 
 	/* If we gave a direct map region in pmap_mapdev, do nothing */
-	if (va >= kva_layout.dmap_low && va < kva_layout.dmap_high)
+	if ((vm_offset_t)va >= kva_layout.dmap_low &&
+	    (vm_offset_t)va < kva_layout.dmap_high)
 		return;
-	offset = va & PAGE_MASK;
+	offset = (vm_offset_t)va & PAGE_MASK;
 	size = round_page(offset + size);
 	va = trunc_page(va);
 	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
@@ -9512,17 +9514,17 @@ pmap_unmapdev(void *p, vm_size_t size)
 			if (pmap_initialized)
 				return;
 			ppim->pa = 0;
-			ppim->va = 0;
+			ppim->va = NULL;
 			ppim->sz = 0;
 			ppim->mode = 0;
-			if (va + size == virtual_avail)
-				virtual_avail = va;
+			if (va + size == (void *)virtual_avail)
+				virtual_avail = (vm_offset_t)va;
 			return;
 		}
 	}
 	if (pmap_initialized) {
-		pmap_qremove((void *)va, atop(size));
-		kva_free((void *)va, size);
+		pmap_qremove(va, atop(size));
+		kva_free(va, size);
 	}
 }
 

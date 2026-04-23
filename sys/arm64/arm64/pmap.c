@@ -319,7 +319,7 @@ static int vm_initialized = 0;		/* No need to use pre-init maps when set */
  */
 static struct pmap_preinit_mapping {
 	vm_paddr_t	pa;
-	vm_offset_t	va;
+	void		*va;
 	vm_size_t	size;
 } pmap_preinit_mapping[PMAP_PREINIT_MAPPING_COUNT];
 
@@ -8042,7 +8042,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 			/* Mark entries as allocated */
 			ppim = pmap_preinit_mapping + i;
 			ppim->pa = pa;
-			ppim->va = va + offset;
+			ppim->va = (char *)va + offset;
 			ppim->size = size;
 		}
 
@@ -8104,20 +8104,21 @@ void
 pmap_unmapbios(void *p, vm_size_t size)
 {
 	struct pmap_preinit_mapping *ppim;
-	vm_offset_t offset, va, va_trunc;
+	char *va;
+	vm_offset_t offset, va_trunc;
 	pd_entry_t *pde;
 	pt_entry_t *l2;
 	int error __diagused, i, lvl, l2_blocks, block;
 	bool preinit_map;
 
-	va = (vm_offset_t)p;
+	va = p;
 	if (VIRT_IN_DMAP(va)) {
 		KASSERT(VIRT_IN_DMAP(va + size - 1),
-		    ("%s: End address not in DMAP region: %lx", __func__,
+		    ("%s: End address not in DMAP region: %p", __func__,
 		    va + size - 1));
 		/* Ensure the attributes are as expected for the DMAP region */
 		PMAP_LOCK(kernel_pmap);
-		error = pmap_change_props_locked(p, size,
+		error = pmap_change_props_locked(va, size,
 		    PROT_READ | PROT_WRITE, VM_MEMATTR_DEFAULT, false);
 		PMAP_UNLOCK(kernel_pmap);
 		KASSERT(error == 0, ("%s: Failed to reset DMAP attributes: %d",
@@ -8138,12 +8139,13 @@ pmap_unmapbios(void *p, vm_size_t size)
 		if (ppim->va == va) {
 			KASSERT(ppim->size == size,
 			    ("pmap_unmapbios: size mismatch"));
-			ppim->va = 0;
+			ppim->va = NULL;
 			ppim->pa = 0;
 			ppim->size = 0;
 			preinit_map = true;
 			offset = block * L2_SIZE;
-			va_trunc = rounddown2(va, L2_SIZE) + offset;
+			va_trunc = rounddown2((vm_offset_t)va, L2_SIZE) +
+			    offset;
 
 			/* Remove L2_BLOCK */
 			pde = pmap_pde(kernel_pmap, va_trunc, &lvl);
@@ -8165,14 +8167,14 @@ pmap_unmapbios(void *p, vm_size_t size)
 
 	/* Unmap the pages reserved with kva_alloc. */
 	if (vm_initialized) {
-		offset = va & PAGE_MASK;
+		offset = (vm_offset_t)va & PAGE_MASK;
 		size = round_page(offset + size);
 		va = trunc_page(va);
 
 		/* Unmap and invalidate the pages */
-		pmap_kremove_device(va, size);
+		pmap_kremove_device((vm_offset_t)va, size);
 
-		kva_free((void *)va, size);
+		kva_free(va, size);
 	}
 }
 
