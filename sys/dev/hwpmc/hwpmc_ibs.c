@@ -57,6 +57,8 @@ struct ibs_descr {
  * Globals
  */
 static uint64_t ibs_features;
+static uint64_t ibs_fetch_allowed_mask;
+static uint64_t ibs_op_allowed_mask;
 
 /*
  * Per-processor information
@@ -70,6 +72,73 @@ struct ibs_cpu {
 	struct pmc_hw	pc_ibspmcs[IBS_NPMCS];
 };
 static struct ibs_cpu **ibs_pcpu;
+
+static void
+ibs_init_policy(void)
+{
+
+	ibs_fetch_allowed_mask = IBS_FETCH_ALLOWED_MASK_BASE;
+
+	ibs_op_allowed_mask = IBS_OP_CTL_MAXCNTBASEMASK;
+
+	if ((ibs_features & CPUID_IBSID_ZEN4IBSEXTENSIONS) != 0)
+		ibs_fetch_allowed_mask |= IBS_FETCH_CTL_L3MISSONLY;
+
+	if ((ibs_features & CPUID_IBSID_OPCNT) != 0)
+		ibs_op_allowed_mask |= IBS_OP_CTL_COUNTERCONTROL;
+
+	if ((ibs_features & CPUID_IBSID_OPCNTEXT) != 0)
+		ibs_op_allowed_mask |= IBS_OP_CTL_MAXCNTEXTMASK;
+
+	if ((ibs_features & CPUID_IBSID_ZEN4IBSEXTENSIONS) != 0)
+		ibs_op_allowed_mask |= IBS_OP_CTL_L3MISSONLY;
+}
+
+static int
+ibs_validate_fetch_config(uint64_t config)
+{
+
+	if ((config & ~ibs_fetch_allowed_mask) != 0)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+ibs_validate_op_config(uint64_t config)
+{
+	uint64_t allowed_mask;
+
+	allowed_mask = ibs_op_allowed_mask;
+
+	if ((config & IBS_OP_CTL_LATFLTEN) != 0) {
+		if ((ibs_features & CPUID_IBSID_IBSLOADLATENCYFILT) == 0)
+			return (EINVAL);
+		if ((config & IBS_OP_CTL_L3MISSONLY) == 0)
+			return (EINVAL);
+
+		allowed_mask |= IBS_OP_CTL_LDLATMASK | IBS_OP_CTL_L3MISSONLY;
+	}
+
+	if ((config & ~allowed_mask) != 0)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+ibs_validate_pmc_config(int ri, uint64_t config)
+{
+
+	switch (ri) {
+	case IBS_PMC_FETCH:
+		return (ibs_validate_fetch_config(config));
+	case IBS_PMC_OP:
+		return (ibs_validate_op_config(config));
+	default:
+		return (EINVAL);
+	}
+}
 
 /*
  * Read a PMC value from the MSR.
@@ -182,6 +251,7 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	uint64_t caps, config;
+	int error;
 
 	KASSERT(ri >= 0 && ri < IBS_NPMCS,
 	    ("[ibs,%d] illegal row index %d", __LINE__, ri));
@@ -205,9 +275,13 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 		return (EINVAL);
 
 	config = a->pm_md.pm_ibs.ibs_ctl;
+	error = ibs_validate_pmc_config(ri, config);
+	if (error != 0)
+		return (error);
 	pm->pm_md.pm_ibs.ibs_ctl = config;
 
-	PMCDBG2(MDP, ALL, 2, "ibs-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP, ALL, 2, "ibs-allocate ri=%d -> config=0x%jx", ri,
+	    config);
 
 	return (0);
 }
@@ -361,7 +435,6 @@ pmc_ibs_process_fetch(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	if ((ibs_features & CPUID_IBSID_IBSFETCHCTLEXTD) != 0) {
 		mpd.pl_mpdata[PMC_MPIDX_FETCH_EXTCTL] = rdmsr(IBS_FETCH_EXTCTL);
 	}
-	mpd.pl_mpdata[PMC_MPIDX_FETCH_CTL] = config;
 	mpd.pl_mpdata[PMC_MPIDX_FETCH_LINADDR] = rdmsr(IBS_FETCH_LINADDR);
 	if ((config & IBS_FETCH_CTL_PHYSADDRVALID) != 0) {
 		mpd.pl_mpdata[PMC_MPIDX_FETCH_PHYSADDR] =
@@ -622,9 +695,13 @@ pmc_ibs_initialize(struct pmc_mdep *pmc_mdep, int ncpus)
 	if (cpu_exthigh >= CPUID_IBSID) {
 		do_cpuid(CPUID_IBSID, regs);
 		ibs_features = regs[0];
+		if ((ibs_features & CPUID_IBSID_IBSFFV) == 0)
+			ibs_features = 0;
 	} else {
 		ibs_features = 0;
 	}
+
+	ibs_init_policy();
 
 	PMCDBG0(MDP, INI, 0, "ibs-initialize");
 
