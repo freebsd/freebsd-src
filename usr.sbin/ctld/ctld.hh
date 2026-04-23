@@ -459,6 +459,7 @@ struct conf {
 	int maxproc() const { return conf_maxproc; }
 	int timeout() const { return conf_timeout; }
 	uint32_t genctr() const { return conf_genctr; }
+	const char *pidfile_path() const { return conf_pidfile_path.c_str(); }
 
 	bool default_auth_group_defined() const
 	{ return conf_default_ag_defined; }
@@ -504,10 +505,6 @@ struct conf {
 	bool set_pidfile_path(std::string_view path);
 	void set_timeout(int timeout);
 
-	void open_pidfile();
-	void write_pidfile();
-	void close_pidfile();
-
 	bool add_isns(const char *addr);
 	void isns_register_targets(struct isns *isns, struct conf *oldconf);
 	void isns_deregister_targets(struct isns *isns);
@@ -541,8 +538,6 @@ private:
 	int				conf_timeout = 60;
 	int				conf_maxproc = 30;
 	uint32_t			conf_genctr = 0;
-
-	freebsd::pidfile		conf_pidfile;
 
 	bool				conf_default_pg_defined = false;
 	bool				conf_default_tg_defined = false;
