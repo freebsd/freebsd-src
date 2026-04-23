@@ -2642,7 +2642,7 @@ conf::add_pports(struct kports &kports)
 {
 	std::unordered_map<struct pport *, struct target *> linked_ports;
 	struct pport *pp;
-	int ret, i_pp, i_vp;
+	int ret;
 
 	for (auto &kv : conf_targets) {
 		struct target *targ = kv.second.get();
@@ -2677,6 +2677,7 @@ conf::add_pports(struct kports &kports)
 			 * If this port is an ioctl port, create a new
 			 * port.
 			 */
+			int i_pp{}, i_vp{};
 			ret = sscanf(pport.c_str(), "ioctl/%d/%d", &i_pp,
 			    &i_vp);
 			if (ret == 2) {
