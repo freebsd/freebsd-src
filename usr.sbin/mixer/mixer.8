@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2021 Christos Margiolis <christos@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Christos Margiolis <christos@FreeBSD.org>
 .\"
 .\" Permission is hereby granted, free of charge, to any person obtaining a copy
 .\" of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-.Dd February 26, 2026
+.Dd April 4, 2026
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -113,9 +113,7 @@ with one of the available devices):
 .Oo Cm \&+ | Cm \&- Oc Ar lvol Oo % Oc
 .Oo Cm \&: Oo Cm \&+ | Cm \&- Oc Ar rvol Oo % Oc Oc
 .Xc
-.It Ar dev Cm .mute Ta Cm 0 | 1 | ^
 .It Ar dev Cm .mute Ta Cm off | on | toggle
-.It Ar dev Cm .recsrc Ta Cm ^ | + | - | =
 .It Ar dev Cm .recsrc Ta Cm toggle | add | remove | set
 .El
 .Sm on
@@ -153,13 +151,13 @@ The
 control (un)mutes a device.
 The following values are available:
 .Bl -tag -width "xxxxxxxxxx" -offset indent
-.It Cm 0 | off
+.It Cm off
 unmutes
 .Ar dev
-.It Cm 1 | on
+.It Cm on
 mutes
 .Ar dev
-.It Cm ^ | toggle
+.It Cm toggle
 toggles the mute of
 .Ar dev
 .El
@@ -177,19 +175,19 @@ on a
 .Sy rec
 device:
 .Bl -tag -width "xxxxxxxxxx" -offset indent
-.It Cm ^ | toggle
+.It Cm toggle
 toggles
 .Ar dev
 of possible recording devices
-.It Cm + | add
+.It Cm add
 adds
 .Ar dev
 to possible recording devices
-.It Cm - | remove
+.It Cm remove
 removes
 .Ar dev
 from possible recording devices
-.It Cm = | set
+.It Cm set
 makes
 .Ar dev
 the only recording device.
