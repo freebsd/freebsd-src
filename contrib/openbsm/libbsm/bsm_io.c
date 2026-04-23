@@ -1867,6 +1867,15 @@ fetch_execarg_tok(tokenstr_t *tok, u_char *buf, int len)
 		return (-1);
 
 	for (i = 0; i < tok->tt.execarg.count; i++) {
+		/*
+		 * Make sure that tok->len has not reached the end of the
+		 * buffer. If the previous string's nul byte was the last byte
+		 * in the buffer, the nul accounting below will have set
+		 * tok->len == len, leaving no room for another string.
+		 */
+		if (tok->len >= (u_int32_t)len) {
+			return (-1);
+		}
 		bptr = buf + tok->len;
 		if (i < AUDIT_MAX_ARGS)
 			tok->tt.execarg.text[i] = (char*)bptr;
@@ -1925,6 +1934,15 @@ fetch_execenv_tok(tokenstr_t *tok, u_char *buf, int len)
 		return (-1);
 
 	for (i = 0; i < tok->tt.execenv.count; i++) {
+		/*
+		 * Make sure that tok->len has not reached the end of the
+		 * buffer. If the previous string's nul byte was the last byte
+		 * in the buffer, the nul accounting below will have set
+		 * tok->len == len, leaving no room for another string.
+		 */
+		if (tok->len >= (u_int32_t)len) {
+			return (-1);
+		}
 		bptr = buf + tok->len;
 		if (i < AUDIT_MAX_ENV)
 			tok->tt.execenv.text[i] = (char*)bptr;
@@ -2037,6 +2055,17 @@ fetch_newgroups_tok(tokenstr_t *tok, u_char *buf, int len)
 	if (err)
 		return (-1);
 
+	/*
+	 * grps.list[] is statically sized and set to AUDIT_MAX_GROUPS. If the
+	 * group count specified in the record is greater than this value just
+	 * clamp/truncate it. Silently truncating a malformed record changes
+	 * what was recorded and could mask tampering. However, a precedent
+	 * has been set in fetch_execarg_tok and fetch_execenv_tok which
+	 * truncate the count under similar circumstances.
+	 */
+	if (tok->tt.grps.no > AUDIT_MAX_GROUPS) {
+		tok->tt.grps.no = AUDIT_MAX_GROUPS;
+	}
 	for (i = 0; i<tok->tt.grps.no; i++) {
 		READ_TOKEN_U_INT32(buf, len, tok->tt.grps.list[i], tok->len,
 		    err);
@@ -3197,27 +3226,36 @@ print_sock_inet128_tok(FILE *fp, tokenstr_t *tok, char *del, int oflags)
 
 /*
  * socket family           2 bytes
- * path                    (up to) 104 bytes + NULL (NULL terminated string).
+ * path                    (up to) AU_UNIX_PATH_MAX bytes (NUL terminated)
  */
 static int
 fetch_sock_unix_tok(tokenstr_t *tok, u_char *buf, int len)
 {
+	size_t remaining, search, pathmax;
 	int err = 0;
 	u_char *p;
 	int slen;
-
 
 	READ_TOKEN_U_INT16(buf, len, tok->tt.sockunix.family, tok->len, err);
 	if (err)
 		return (-1);
 
-	/* slen = strnlen((buf + tok->len), 104) + 1; */
-	p = (u_char *)memchr((const void *)(buf + tok->len), '\0', 104);
-	slen = (p ? (int)(p - (buf + tok->len))  : 104) + 1;
+	/*
+	 * Clamp the search to the bytes remaining in the token and the path
+	 * storage size.  Using sizeof(tok->tt.sockunix.path) rather than a
+	 * literal keeps the bound in sync with au_socketunix_t automatically.
+	 */
+	pathmax = sizeof(tok->tt.sockunix.path);
+	remaining = (size_t)(len - (int)tok->len);
+	search = remaining < pathmax ? remaining : pathmax;
+	p = (u_char *)memchr((const void *)(buf + tok->len), '\0', search);
+	slen = (p ? (int)(p - (buf + tok->len)) + 1 : (int)search);
 
 	READ_TOKEN_BYTES(buf, len, tok->tt.sockunix.path, slen, tok->len, err);
 	if (err)
 		return (-1);
+	/* guarantee NUL termination when no NUL was found in the token data */
+	tok->tt.sockunix.path[pathmax - 1] = '\0';
 
 	return (0);
 }
@@ -3278,7 +3316,7 @@ fetch_socket_tok(tokenstr_t *tok, u_char *buf, int len)
 	if (err)
 		return (-1);
 
-	READ_TOKEN_BYTES(buf, len, &tok->tt.socket.l_addr,
+	READ_TOKEN_BYTES(buf, len, &tok->tt.socket.r_addr,
 	    sizeof(tok->tt.socket.r_addr), tok->len, err);
 	if (err)
 		return (-1);
