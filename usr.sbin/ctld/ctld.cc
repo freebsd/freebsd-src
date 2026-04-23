@@ -59,6 +59,8 @@
 #include "ctld.hh"
 #include "isns.hh"
 
+static freebsd::pidfile pidfile;
+
 bool proxy_mode = false;
 
 static volatile bool sighup_received = false;
@@ -125,34 +127,19 @@ conf::set_pidfile_path(std::string_view path)
 	return (true);
 }
 
-void
-conf::open_pidfile()
+static void
+open_pidfile(const char *path)
 {
-	const char *path;
 	pid_t otherpid;
 
-	assert(!conf_pidfile_path.empty());
-	path = conf_pidfile_path.c_str();
 	log_debugx("opening pidfile %s", path);
-	conf_pidfile = pidfile_open(path, 0600, &otherpid);
-	if (!conf_pidfile) {
+	pidfile = pidfile_open(path, 0600, &otherpid);
+	if (!pidfile) {
 		if (errno == EEXIST)
 			log_errx(1, "daemon already running, pid: %jd.",
 			    (intmax_t)otherpid);
 		log_err(1, "cannot open or create pidfile \"%s\"", path);
 	}
-}
-
-void
-conf::write_pidfile()
-{
-	conf_pidfile.write();
-}
-
-void
-conf::close_pidfile()
-{
-	conf_pidfile.close();
 }
 
 #ifdef ICL_KERNEL_PROXY
@@ -1972,12 +1959,10 @@ conf::apply(struct conf *oldconf)
 	}
 
 	/*
-	 * On startup, oldconf created via conf_new_from_kernel will
-	 * not contain a valid pidfile_path, and the current
-	 * conf_pidfile will already own the pidfile.  On shutdown,
-	 * the temporary newconf will not contain a valid
-	 * pidfile_path, and the pidfile will be cleaned up when the
-	 * oldconf is deleted.
+	 * Rename the pidfile if the pathname changes.  On startup,
+	 * oldconf created via conf_new_from_kernel will not contain a
+	 * valid pidfile_path.  On shutdown, the temporary newconf
+	 * will not contain a valid pidfile_path.
 	 */
 	if (!oldconf->conf_pidfile_path.empty() &&
 	    !conf_pidfile_path.empty()) {
@@ -1992,7 +1977,6 @@ conf::apply(struct conf *oldconf)
 				    conf_pidfile_path.c_str());
 			}
 		}
-		conf_pidfile = std::move(oldconf->conf_pidfile);
 	}
 
 	/*
@@ -2358,7 +2342,7 @@ handle_connection(struct portal *portal, freebsd::fd_up fd,
 			log_err(1, "fork");
 		if (pid > 0)
 			return;
-		conf->close_pidfile();
+		pidfile.close();
 	}
 
 	error = getnameinfo(client_sa, client_sa->sa_len,
@@ -2705,7 +2689,7 @@ main(int argc, char **argv)
 	if (test_config)
 		return (0);
 
-	newconf->open_pidfile();
+	open_pidfile(newconf->pidfile_path());
 
 	register_signals();
 
@@ -2739,7 +2723,7 @@ main(int argc, char **argv)
 
 	oldconf.reset();
 
-	newconf->write_pidfile();
+	pidfile.write();
 
 	newconf->isns_schedule_update();
 
