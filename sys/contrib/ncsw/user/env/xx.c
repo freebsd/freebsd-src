@@ -656,11 +656,7 @@ XX_VirtToPhys(void *addr)
 		return (XX_PInfo.portal_ci_pa[QM_PORTAL][cpu] +
 		    (vm_offset_t)addr - XX_PInfo.portal_ci_va[QM_PORTAL]);
 
-	if (PMAP_HAS_DMAP && (vm_offset_t)addr >= DMAP_BASE_ADDRESS &&
-	    (vm_offset_t)addr <= DMAP_MAX_ADDRESS)
-		return (DMAP_TO_PHYS(addr));
-	else
-		paddr = pmap_kextract((vm_offset_t)addr);
+	paddr = pmap_kextract((vm_offset_t)addr);
 
 	if (paddr == 0)
 		printf("NetCommSW: "
