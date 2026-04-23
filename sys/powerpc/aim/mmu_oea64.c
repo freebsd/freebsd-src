@@ -1022,6 +1022,7 @@ moea64_early_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 void
 moea64_mid_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 {
+	vm_paddr_t	pa;
 	int		i;
 
 	/*
@@ -1054,14 +1055,15 @@ moea64_mid_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		    moea64_bpvo_pool_size*sizeof(struct pvo_entry) / 1048576);
 	}
 
-	moea64_bpvo_pool = (struct pvo_entry *)moea64_bootstrap_alloc(
-		moea64_bpvo_pool_size*sizeof(struct pvo_entry), PAGE_SIZE);
+	pa = moea64_bootstrap_alloc(
+	    moea64_bpvo_pool_size * sizeof(struct pvo_entry), PAGE_SIZE);
 	moea64_bpvo_pool_index = 0;
 
 	/* Place at address usable through the direct map */
 	if (hw_direct_map)
-		moea64_bpvo_pool = (struct pvo_entry *)
-		    PHYS_TO_DMAP((uintptr_t)moea64_bpvo_pool);
+		moea64_bpvo_pool = (struct pvo_entry *)PHYS_TO_DMAP(pa);
+	else
+		moea64_bpvo_pool = (struct pvo_entry *)pa;
 
 	/*
 	 * Make sure kernel vsid is allocated as well as VSID 0.
@@ -1106,7 +1108,8 @@ moea64_late_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	phandle_t	mmu;
 	ssize_t		sz;
 	int		i;
-	vm_offset_t	pa, va;
+	vm_paddr_t	pa;
+	vm_offset_t	va;
 	void		*dpcpu;
 
 	/*
@@ -2805,10 +2808,10 @@ moea64_remove_all(vm_page_t m)
  * Can only be called from moea64_bootstrap before avail start and end are
  * calculated.
  */
-vm_offset_t
+vm_paddr_t
 moea64_bootstrap_alloc(vm_size_t size, vm_size_t align)
 {
-	vm_offset_t	s, e;
+	vm_paddr_t	s, e;
 	int		i, j;
 
 	size = round_page(size);
