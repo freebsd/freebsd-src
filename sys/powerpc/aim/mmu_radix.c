@@ -2083,7 +2083,7 @@ mmu_radix_late_bootstrap(vm_offset_t start, vm_offset_t end)
 	va = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
 	virtual_avail = va + kstack_pages * PAGE_SIZE;
 	CTR2(KTR_PMAP, "moea64_bootstrap: kstack0 at %#x (%#x)", pa, va);
-	thread0.td_kstack = va;
+	thread0.td_kstack = (char *)va;
 	for (i = 0; i < kstack_pages; i++) {
 		mmu_radix_kenter(va, pa);
 		pa += PAGE_SIZE;

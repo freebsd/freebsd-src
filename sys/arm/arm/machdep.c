@@ -205,7 +205,7 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
+	pcb->pcb_regs.sf_sp = (uintptr_t)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	pmap_set_pcb_pagedir(kernel_pmap, pcb);
 }
@@ -373,7 +373,7 @@ pcpu0_init(void)
  * Initialize proc0
  */
 static void
-init_proc0(vm_offset_t kstack)
+init_proc0(void *kstack)
 {
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kstack;
@@ -622,7 +622,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	/* Set stack for exception handlers */
 	undefined_init();
-	init_proc0(kernelstack);
+	init_proc0((void *)kernelstack);
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	enable_interrupts(PSR_A);
 	pmap_bootstrap(0);

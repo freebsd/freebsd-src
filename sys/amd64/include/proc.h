@@ -75,7 +75,7 @@ struct mdthread {
 	register_t md_efirt_tmp;	/* (k) */
 	int	md_efirt_dis_pf;	/* (k) */
 	struct pcb md_pcb;
-	vm_offset_t md_stack_base;
+	void *md_stack_base;
 	void *md_usr_fpu_save;
 };
 

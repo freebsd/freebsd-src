@@ -930,7 +930,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 
 	/* Enter kstack0 into kernel map, provide guard page */
 	kstack0 = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
-	thread0.td_kstack = kstack0;
+	thread0.td_kstack = (char *)kstack0;
 	thread0.td_kstack_pages = kstack_pages;
 
 	debugf("kstack_sz = 0x%08jx\n", (uintmax_t)kstack0_sz);
