@@ -1955,7 +1955,8 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
     int wait)
 {
 	struct pglist alloctail;
-	vm_offset_t addr, zkva;
+	void *addr;
+	char *zkva;
 	int cpu, flags;
 	vm_page_t p, p_next;
 #ifdef NUMA
@@ -1988,14 +1989,14 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 			goto fail;
 		TAILQ_INSERT_TAIL(&alloctail, p, plinks.q);
 	}
-	if ((addr = kva_alloc(bytes)) == 0)
+	if ((addr = (void *)kva_alloc(bytes)) == NULL)
 		goto fail;
 	zkva = addr;
 	TAILQ_FOREACH(p, &alloctail, plinks.q) {
 		pmap_qenter(zkva, &p, 1);
 		zkva += PAGE_SIZE;
 	}
-	return ((void*)addr);
+	return (addr);
 fail:
 	TAILQ_FOREACH_SAFE(p, &alloctail, plinks.q, p_next) {
 		vm_page_unwire_noq(p);
@@ -2021,7 +2022,8 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 {
 	TAILQ_HEAD(, vm_page) alloctail;
 	u_long npages;
-	vm_offset_t retkva, zkva;
+	void *retkva;
+	char *zkva;
 	vm_page_t p, p_next;
 	uma_keg_t keg;
 	int req;
@@ -2051,7 +2053,7 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 		return (NULL);
 	}
 	*flags = UMA_SLAB_PRIV;
-	zkva = keg->uk_kva +
+	zkva = (char *)keg->uk_kva +
 	    atomic_fetchadd_long(&keg->uk_offset, round_page(bytes));
 	retkva = zkva;
 	TAILQ_FOREACH(p, &alloctail, plinks.q) {
@@ -2059,7 +2061,7 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 		zkva += PAGE_SIZE;
 	}
 
-	return ((void *)retkva);
+	return (retkva);
 }
 
 /*
@@ -2155,7 +2157,7 @@ pcpu_page_free(void *mem, vm_size_t size, uint8_t flags)
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}
-	pmap_qremove(sva, size >> PAGE_SHIFT);
+	pmap_qremove(mem, size >> PAGE_SHIFT);
 	kva_free(sva, size);
 }
 

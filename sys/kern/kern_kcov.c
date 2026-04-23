@@ -124,7 +124,7 @@ typedef enum {
 struct kcov_info {
 	struct thread	*thread;	/* (l) */
 	vm_object_t	bufobj;		/* (o) */
-	vm_offset_t	kvaddr;		/* (o) */
+	void		*kvaddr;	/* (o) */
 	size_t		entries;	/* (o) */
 	size_t		bufsize;	/* (o) */
 	kcov_state_t	state;		/* (s) */
@@ -206,9 +206,9 @@ trace_pc(uintptr_t ret)
 	if (info->mode != KCOV_MODE_TRACE_PC)
 		return;
 
-	KASSERT(info->kvaddr != 0, ("%s: NULL buf while running", __func__));
+	KASSERT(info->kvaddr != NULL, ("%s: NULL buf while running", __func__));
 
-	buf = (uint64_t *)info->kvaddr;
+	buf = info->kvaddr;
 
 	/* The first entry of the buffer holds the index */
 	index = buf[0];
@@ -237,9 +237,9 @@ trace_cmp(uint64_t type, uint64_t arg1, uint64_t arg2, uint64_t ret)
 	if (info->mode != KCOV_MODE_TRACE_CMP)
 		return (false);
 
-	KASSERT(info->kvaddr != 0, ("%s: NULL buf while running", __func__));
+	KASSERT(info->kvaddr != NULL, ("%s: NULL buf while running", __func__));
 
-	buf = (uint64_t *)info->kvaddr;
+	buf = info->kvaddr;
 
 	/* The first entry of the buffer holds the index */
 	index = buf[0];
@@ -347,7 +347,7 @@ kcov_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
 	if ((error = devfs_get_cdevpriv((void **)&info)) != 0)
 		return (error);
 
-	if (info->kvaddr == 0 || size / KCOV_ELEMENT_SIZE != info->entries)
+	if (info->kvaddr == NULL || size / KCOV_ELEMENT_SIZE != info->entries)
 		return (EINVAL);
 
 	vm_object_reference(info->bufobj);
@@ -362,7 +362,7 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 	size_t n, pages;
 	vm_page_t m;
 
-	KASSERT(info->kvaddr == 0, ("kcov_alloc: Already have a buffer"));
+	KASSERT(info->kvaddr == NULL, ("kcov_alloc: Already have a buffer"));
 	KASSERT(info->state == KCOV_STATE_OPEN,
 	    ("kcov_alloc: Not in open state (%x)", info->state));
 
@@ -373,7 +373,7 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 	info->bufsize = roundup2(entries * KCOV_ELEMENT_SIZE, PAGE_SIZE);
 	pages = info->bufsize / PAGE_SIZE;
 
-	if ((info->kvaddr = kva_alloc(info->bufsize)) == 0)
+	if ((info->kvaddr = (void *)kva_alloc(info->bufsize)) == 0)
 		return (ENOMEM);
 
 	info->bufobj = vm_pager_allocate(OBJT_PHYS, 0, info->bufsize,
@@ -385,7 +385,7 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 		    VM_ALLOC_ZERO | VM_ALLOC_WIRED);
 		vm_page_valid(m);
 		vm_page_xunbusy(m);
-		pmap_qenter(info->kvaddr + n * PAGE_SIZE, &m, 1);
+		pmap_qenter((char *)info->kvaddr + n * PAGE_SIZE, &m, 1);
 	}
 	VM_OBJECT_WUNLOCK(info->bufobj);
 
@@ -400,9 +400,9 @@ kcov_free(struct kcov_info *info)
 	struct pctrie_iter pages;
 	vm_page_t m;
 
-	if (info->kvaddr != 0) {
+	if (info->kvaddr != NULL) {
 		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
-		kva_free(info->kvaddr, info->bufsize);
+		kva_free((vm_offset_t)info->kvaddr, info->bufsize);
 	}
 	if (info->bufobj != NULL) {
 		vm_page_iter_limit_init(&pages, info->bufobj,

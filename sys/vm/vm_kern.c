@@ -781,7 +781,7 @@ kmem_init_zero_region(void)
 	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_NOFREE);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
-		pmap_qenter(addr + i, &m, 1);
+		pmap_qenter((char *)addr + i, &m, 1);
 	pmap_protect(kernel_pmap, addr, addr + ZERO_REGION_SIZE, VM_PROT_READ);
 
 	zero_region = (const void *)addr;

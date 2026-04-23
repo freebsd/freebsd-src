@@ -995,8 +995,8 @@ swp_pager_strategy(struct buf *bp)
 				bp->b_data = unmapped_buf;
 				bp->b_offset = 0;
 			} else {
-				pmap_qenter((vm_offset_t)bp->b_data,
-				    &bp->b_pages[0], bp->b_bcount / PAGE_SIZE);
+				pmap_qenter(bp->b_data, bp->b_pages,
+				    bp->b_bcount / PAGE_SIZE);
 			}
 			sp->sw_strategy(bp, sp);
 			return;
@@ -1728,7 +1728,7 @@ swp_pager_async_iodone(struct buf *bp)
 	 * remove the mapping for kernel virtual
 	 */
 	if (buf_mapped(bp))
-		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
+		pmap_qremove(bp->b_data, bp->b_npages);
 	else
 		bp->b_data = bp->b_kvabase;
 

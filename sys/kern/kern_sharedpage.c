@@ -115,7 +115,7 @@ static void
 shared_page_init(void *dummy __unused)
 {
 	vm_page_t m;
-	vm_offset_t addr;
+	void *addr;
 
 	sx_init(&shared_page_alloc_sx, "shpsx");
 	shared_page_obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
@@ -125,9 +125,9 @@ shared_page_init(void *dummy __unused)
 	VM_OBJECT_WUNLOCK(shared_page_obj);
 	vm_page_valid(m);
 	vm_page_xunbusy(m);
-	addr = kva_alloc(PAGE_SIZE);
+	addr = (void *)kva_alloc(PAGE_SIZE);
 	pmap_qenter(addr, &m, 1);
-	shared_page_mapping = (char *)addr;
+	shared_page_mapping = addr;
 }
 
 SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, shared_page_init, NULL);

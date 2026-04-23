@@ -99,8 +99,8 @@ struct pmap_methods {
 	vm_paddr_t (*pm_extract)(pmap_t, vm_offset_t);
 	vm_page_t (*pm_extract_and_hold)(pmap_t, vm_offset_t, vm_prot_t);
 	vm_offset_t (*pm_map)(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
-	void (*pm_qenter)(vm_offset_t sva, vm_page_t *, int);
-	void (*pm_qremove)(vm_offset_t, int);
+	void (*pm_qenter)(void *sva, vm_page_t *, int);
+	void (*pm_qremove)(void *, int);
 	void (*pm_release)(pmap_t);
 	void (*pm_protect)(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
 	void (*pm_remove)(pmap_t, vm_offset_t, vm_offset_t);

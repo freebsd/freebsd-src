@@ -158,8 +158,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				}
 				poff = (vm_offset_t)base & PAGE_MASK;
 				if (pbuf && sa) {
-					pmap_qenter((vm_offset_t)sa,
-					    pages, npages);
+					pmap_qenter(sa, pages, npages);
 					bp->bio_data = sa + poff;
 				} else {
 					bp->bio_ma = pages;
@@ -179,7 +178,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 			if (pages) {
 				if (pbuf)
-					pmap_qremove((vm_offset_t)sa, npages);
+					pmap_qremove(sa, npages);
 				vm_page_unhold_pages(pages, npages);
 			}
 

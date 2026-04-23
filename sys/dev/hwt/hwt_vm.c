@@ -171,7 +171,7 @@ retry:
 		VM_OBJECT_WLOCK(vm->obj);
 		vm_page_insert(m, vm->obj, i);
 		if (kva_req)
-			pmap_qenter(vm->kvaddr + i * PAGE_SIZE, &m, 1);
+			pmap_qenter((char *)vm->kvaddr + i * PAGE_SIZE, &m, 1);
 		VM_OBJECT_WUNLOCK(vm->obj);
 	}
 
@@ -442,7 +442,7 @@ hwt_vm_destroy_buffers(struct hwt_vm *vm)
 	int i;
 
 	if (vm->ctx->hwt_backend->kva_req && vm->kvaddr != 0) {
-		pmap_qremove(vm->kvaddr, vm->npages);
+		pmap_qremove((void *)vm->kvaddr, vm->npages);
 		kva_free(vm->kvaddr, vm->npages * PAGE_SIZE);
 	}
 	VM_OBJECT_WLOCK(vm->obj);

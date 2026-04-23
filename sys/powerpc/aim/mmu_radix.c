@@ -452,8 +452,8 @@ int mmu_radix_page_wired_mappings(vm_page_t);
 int mmu_radix_pinit(pmap_t);
 void mmu_radix_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
 bool mmu_radix_ps_enabled(pmap_t);
-void mmu_radix_qenter(vm_offset_t, vm_page_t *, int);
-void mmu_radix_qremove(vm_offset_t, int);
+void mmu_radix_qenter(void *, vm_page_t *, int);
+void mmu_radix_qremove(void *, int);
 void *mmu_radix_quick_enter_page(vm_page_t);
 void mmu_radix_quick_remove_page(void *);
 int mmu_radix_ts_referenced(vm_page_t);
@@ -4665,20 +4665,19 @@ retry:
 }
 
 void
-mmu_radix_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+mmu_radix_qenter(void *sva, vm_page_t *ma, int count)
 {
-
-	CTR4(KTR_PMAP, "%s(%#x, %p, %d)", __func__, sva, ma, count);
 	pt_entry_t oldpte, pa, *pte;
 	vm_page_t m;
 	uint64_t cache_bits, attr_bits;
 	vm_offset_t va;
 
+	CTR4(KTR_PMAP, "%s(%p, %p, %d)", __func__, sva, ma, count);
 	oldpte = 0;
 	attr_bits = RPTE_EAA_R | RPTE_EAA_W | RPTE_EAA_P | PG_M | PG_A;
-	va = sva;
+	va = (vm_offset_t)sva;
 	pte = kvtopte(va);
-	while (va < sva + PAGE_SIZE * count) {
+	while (va < (vm_offset_t)sva + PAGE_SIZE * count) {
 		if (__predict_false((va & L3_PAGE_MASK) == 0))
 			pte = kvtopte(va);
 		MPASS(pte == pmap_pte(kernel_pmap, va));
@@ -4700,31 +4699,31 @@ mmu_radix_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pte++;
 	}
 	if (__predict_false((oldpte & RPTE_VALID) != 0))
-		pmap_invalidate_range(kernel_pmap, sva, sva + count *
-		    PAGE_SIZE);
+		pmap_invalidate_range(kernel_pmap, (vm_offset_t)sva,
+		    (vm_offset_t)sva + count * PAGE_SIZE);
 	else
 		ptesync();
 }
 
 void
-mmu_radix_qremove(vm_offset_t sva, int count)
+mmu_radix_qremove(void *sva, int count)
 {
 	vm_offset_t va;
 	pt_entry_t *pte;
 
-	CTR3(KTR_PMAP, "%s(%#x, %d)", __func__, sva, count);
-	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS, ("usermode or dmap va %lx", sva));
+	va = (vm_offset_t)sva;
+	CTR3(KTR_PMAP, "%s(%p, %d)", __func__, sva, count);
+	KASSERT(va >= VM_MIN_KERNEL_ADDRESS, ("usermode or dmap va %p", sva));
 
-	va = sva;
 	pte = kvtopte(va);
-	while (va < sva + PAGE_SIZE * count) {
+	while (va < (vm_offset_t)sva + PAGE_SIZE * count) {
 		if (__predict_false((va & L3_PAGE_MASK) == 0))
 			pte = kvtopte(va);
 		pte_clear(pte);
 		pte++;
 		va += PAGE_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	pmap_invalidate_range(kernel_pmap, (vm_offset_t)sva, va);
 }
 
 /***************************************************
@@ -5970,7 +5969,7 @@ mmu_radix_unmapdev(void *p, vm_size_t size)
 	va = trunc_page(va);
 
 	if (pmap_initialized) {
-		mmu_radix_qremove(va, atop(size));
+		mmu_radix_qremove((void *)va, atop(size));
 		kva_free(va, size);
 	}
 }

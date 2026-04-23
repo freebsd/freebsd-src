@@ -2179,7 +2179,7 @@ p9fs_putpages(struct vop_putpages_args *ap)
 	struct ucred *cred;
 	struct p9fs_node *np;
 	vm_page_t *pages;
-	vm_offset_t kva;
+	void *kva;
 	struct buf *bp;
 
 	vp = ap->a_vp;
@@ -2205,13 +2205,13 @@ p9fs_putpages(struct vop_putpages_args *ap)
 		rtvals[i] = VM_PAGER_ERROR;
 
 	bp = uma_zalloc(p9fs_pbuf_zone, M_WAITOK);
-	kva = (vm_offset_t) bp->b_data;
+	kva = bp->b_data;
 	pmap_qenter(kva, pages, npages);
 
 	VM_CNT_INC(v_vnodeout);
 	VM_CNT_ADD(v_vnodepgsout, count);
 
-	iov.iov_base = (caddr_t) kva;
+	iov.iov_base = kva;
 	iov.iov_len = count;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;

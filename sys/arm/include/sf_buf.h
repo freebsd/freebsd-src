@@ -33,14 +33,14 @@ static inline void
 sf_buf_map(struct sf_buf *sf, int flags)
 {
 
-	pmap_qenter(sf->kva, &(sf->m), 1);
+	pmap_qenter((void *)sf->kva, &(sf->m), 1);
 }
 
 static inline int
 sf_buf_unmap(struct sf_buf *sf)
 {
 
-	pmap_qremove(sf->kva, 1);
+	pmap_qremove((void *)sf->kva, 1);
 	return (1);
 }
 #endif /* !_MACHINE_SF_BUF_H_ */

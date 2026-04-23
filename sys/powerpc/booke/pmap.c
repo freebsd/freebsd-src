@@ -320,8 +320,8 @@ static int		mmu_booke_pinit(pmap_t);
 static void		mmu_booke_pinit0(pmap_t);
 static void		mmu_booke_protect(pmap_t, vm_offset_t, vm_offset_t,
     vm_prot_t);
-static void		mmu_booke_qenter(vm_offset_t, vm_page_t *, int);
-static void		mmu_booke_qremove(vm_offset_t, int);
+static void		mmu_booke_qenter(void *, vm_page_t *, int);
+static void		mmu_booke_qremove(void *, int);
 static void		mmu_booke_release(pmap_t);
 static void		mmu_booke_remove(pmap_t, vm_offset_t, vm_offset_t);
 static void		mmu_booke_remove_all(vm_page_t);
@@ -1101,11 +1101,11 @@ mmu_booke_init(void)
  * references recorded.  Existing mappings in the region are overwritten.
  */
 static void
-mmu_booke_qenter(vm_offset_t sva, vm_page_t *m, int count)
+mmu_booke_qenter(void *sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		mmu_booke_kenter(va, VM_PAGE_TO_PHYS(*m));
 		va += PAGE_SIZE;
@@ -1118,11 +1118,11 @@ mmu_booke_qenter(vm_offset_t sva, vm_page_t *m, int count)
  * temporary mappings entered by mmu_booke_qenter.
  */
 static void
-mmu_booke_qremove(vm_offset_t sva, int count)
+mmu_booke_qremove(void *sva, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		mmu_booke_kremove(va);
 		va += PAGE_SIZE;
@@ -2329,7 +2329,8 @@ static void
 mmu_booke_unmapdev(void *p, vm_size_t size)
 {
 #ifdef SUPPORTS_SHRINKING_TLB1
-	vm_offset_t base, offset, va;
+	void *base;
+	vm_offset_t offset, va;
 
 	/*
 	 * Unmap only if this is inside kernel virtual space.
@@ -2340,7 +2341,7 @@ mmu_booke_unmapdev(void *p, vm_size_t size)
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
 		mmu_booke_qremove(base, atop(size));
-		kva_free(base, size);
+		kva_free((vm_offset_t)base, size);
 	}
 #endif
 }
