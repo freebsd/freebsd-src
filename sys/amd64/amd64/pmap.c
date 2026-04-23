@@ -8303,7 +8303,8 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 {
 	void *a_cp, *b_cp;
 	vm_page_t pages[2];
-	vm_offset_t vaddr[2], a_pg_offset, b_pg_offset;
+	void *vaddr[2];
+	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
 	bool mapped;
 
@@ -10494,10 +10495,11 @@ done:
  *
  */
 bool
-pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
+pmap_map_io_transient(vm_page_t page[], void *vaddr[], int count,
     bool can_fault)
 {
 	vm_paddr_t paddr;
+	vmem_addr_t addr;
 	bool needs_mapping;
 	int error __unused, i;
 
@@ -10510,11 +10512,12 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (__predict_false(paddr >= dmaplimit)) {
 			error = vmem_alloc(kernel_arena, PAGE_SIZE,
-			    M_BESTFIT | M_WAITOK, &vaddr[i]);
+			    M_BESTFIT | M_WAITOK, &addr);
 			KASSERT(error == 0, ("vmem_alloc failed: %d", error));
+			vaddr[i] = (void *)addr;
 			needs_mapping = true;
 		} else {
-			vaddr[i] = PHYS_TO_DMAP(paddr);
+			vaddr[i] = (void *)PHYS_TO_DMAP(paddr);
 		}
 	}
 
@@ -10542,11 +10545,11 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 				 * thread to the CPU and instead add a global
 				 * mapping visible to all CPUs.
 				 */
-				pmap_qenter(vaddr[i], &page[i], 1);
+				pmap_qenter((vm_offset_t)vaddr[i], &page[i], 1);
 			} else {
-				pmap_kenter_attr(vaddr[i], paddr,
+				pmap_kenter_attr((vm_offset_t)vaddr[i], paddr,
 				    page[i]->md.pat_mode);
-				pmap_invlpg(kernel_pmap, vaddr[i]);
+				pmap_invlpg(kernel_pmap, (vm_offset_t)vaddr[i]);
 			}
 		}
 	}
@@ -10555,7 +10558,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 }
 
 void
-pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
+pmap_unmap_io_transient(vm_page_t page[], void *vaddr[], int count,
     bool can_fault)
 {
 	vm_paddr_t paddr;
@@ -10567,8 +10570,9 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (paddr >= dmaplimit) {
 			if (can_fault)
-				pmap_qremove(vaddr[i], 1);
-			vmem_free(kernel_arena, vaddr[i], PAGE_SIZE);
+				pmap_qremove((vm_offset_t)vaddr[i], 1);
+			vmem_free(kernel_arena, (vm_offset_t)vaddr[i],
+			    PAGE_SIZE);
 		}
 	}
 }

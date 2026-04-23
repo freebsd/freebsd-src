@@ -5300,10 +5300,11 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
  *
  */
 bool
-pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
+pmap_map_io_transient(vm_page_t page[], void *vaddr[], int count,
     bool can_fault)
 {
 	vm_paddr_t paddr;
+	vmem_addr_t addr;
 	bool needs_mapping;
 	int error __diagused, i;
 
@@ -5316,11 +5317,12 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (__predict_false(paddr >= DMAP_MAX_PHYSADDR)) {
 			error = vmem_alloc(kernel_arena, PAGE_SIZE,
-			    M_BESTFIT | M_WAITOK, &vaddr[i]);
+			    M_BESTFIT | M_WAITOK, &addr);
 			KASSERT(error == 0, ("vmem_alloc failed: %d", error));
+			vaddr[i] = (void *)addr;
 			needs_mapping = true;
 		} else {
-			vaddr[i] = PHYS_TO_DMAP(paddr);
+			vaddr[i] = (void *)PHYS_TO_DMAP(paddr);
 		}
 	}
 
@@ -5342,7 +5344,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 }
 
 void
-pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
+pmap_unmap_io_transient(vm_page_t page[], void *vaddr[], int count,
     bool can_fault)
 {
 	vm_paddr_t paddr;
