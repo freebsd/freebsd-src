@@ -66,7 +66,7 @@ typedef	bool	(*pmap_is_modified_t)(vm_page_t);
 typedef	bool	(*pmap_is_prefaultable_t)(pmap_t, vm_offset_t);
 typedef	bool	(*pmap_is_referenced_t)(vm_page_t);
 typedef	int	(*pmap_ts_referenced_t)(vm_page_t);
-typedef	vm_offset_t	(*pmap_map_t)(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+typedef	void	*(*pmap_map_t)(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 typedef	void	(*pmap_object_init_pt_t)(pmap_t, vm_offset_t, vm_object_t,
 		    vm_pindex_t, vm_size_t);
 typedef	bool	(*pmap_page_exists_quick_t)(pmap_t, vm_page_t);

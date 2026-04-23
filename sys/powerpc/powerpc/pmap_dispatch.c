@@ -169,7 +169,7 @@ DEFINE_PMAP_IFUNC(void, copy_pages,
     vm_offset_t b_offset, int xfersize));
 DEFINE_PMAP_IFUNC(int, growkernel_nopanic, (vm_offset_t));
 DEFINE_PMAP_IFUNC(void, init, (void));
-DEFINE_PMAP_IFUNC(vm_offset_t, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
+DEFINE_PMAP_IFUNC(void *, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
 DEFINE_PMAP_IFUNC(int, pinit, (pmap_t));
 DEFINE_PMAP_IFUNC(void, pinit0, (pmap_t));
 DEFINE_PMAP_IFUNC(int, mincore, (pmap_t, vm_offset_t, vm_paddr_t *));

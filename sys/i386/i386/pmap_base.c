@@ -836,7 +836,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return (pmap_methods_ptr->pm_extract_and_hold(pmap, va, prot));
 }
 
-vm_offset_t
+void *
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 

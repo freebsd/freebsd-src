@@ -372,7 +372,7 @@ bool moea64_is_modified(vm_page_t);
 bool moea64_is_prefaultable(pmap_t, vm_offset_t);
 bool moea64_is_referenced(vm_page_t);
 int moea64_ts_referenced(vm_page_t);
-vm_offset_t moea64_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+void *moea64_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 bool moea64_page_exists_quick(pmap_t, vm_page_t);
 void moea64_page_init(vm_page_t);
 int moea64_page_wired_mappings(vm_page_t);
@@ -2314,7 +2314,7 @@ moea64_decode_kernel_ptr(vm_offset_t addr, int *is_user,
  * unchanged.  Other architectures should map the pages starting at '*virt' and
  * update '*virt' with the first usable address after the mapped region.
  */
-vm_offset_t
+void *
 moea64_map(vm_offset_t *virt, vm_paddr_t pa_start,
     vm_paddr_t pa_end, int prot)
 {
@@ -2331,7 +2331,7 @@ moea64_map(vm_offset_t *virt, vm_paddr_t pa_start,
 			if (moea64_calc_wimg(va, VM_MEMATTR_DEFAULT) != LPTE_M)
 				break;
 		if (va == pa_end)
-			return (PHYS_TO_DMAP(pa_start));
+			return ((void *)PHYS_TO_DMAP(pa_start));
 	}
 	sva = *virt;
 	va = sva;
@@ -2340,7 +2340,7 @@ moea64_map(vm_offset_t *virt, vm_paddr_t pa_start,
 		moea64_kenter(va, pa_start);
 	*virt = va;
 
-	return (sva);
+	return ((void *)sva);
 }
 
 /*
@@ -3419,10 +3419,9 @@ moea64_page_array_startup(long pages)
 	if (vm_ndomains == 1) {
 		size = round_page(pages * sizeof(struct vm_page));
 		pa = vm_phys_early_alloc(0, size);
-		vm_page_base = moea64_map(&vm_page_base,
+		vm_page_array = moea64_map(&vm_page_base,
 		    pa, pa + size, VM_PROT_READ | VM_PROT_WRITE);
 		vm_page_array_size = pages;
-		vm_page_array = (vm_page_t)vm_page_base;
 		return;
 	}
 

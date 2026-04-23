@@ -1899,7 +1899,7 @@ startup_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	}
 
 	/* Allocate KVA and indirectly advance bootmem. */
-	return ((void *)pmap_map(&bootmem, m->phys_addr,
+	return (pmap_map(&bootmem, m->phys_addr,
 	    m->phys_addr + (pages * PAGE_SIZE), VM_PROT_READ | VM_PROT_WRITE));
 }
 

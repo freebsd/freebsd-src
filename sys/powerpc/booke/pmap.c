@@ -307,7 +307,7 @@ static bool		mmu_booke_is_modified(vm_page_t);
 static bool		mmu_booke_is_prefaultable(pmap_t, vm_offset_t);
 static bool		mmu_booke_is_referenced(vm_page_t);
 static int		mmu_booke_ts_referenced(vm_page_t);
-static vm_offset_t	mmu_booke_map(vm_offset_t *, vm_paddr_t, vm_paddr_t,
+static void		*mmu_booke_map(vm_offset_t *, vm_paddr_t, vm_paddr_t,
     int);
 static int		mmu_booke_mincore(pmap_t, vm_offset_t,
     vm_paddr_t *);
@@ -1570,7 +1570,7 @@ mmu_booke_remove_all(vm_page_t m)
 /*
  * Map a range of physical addresses into kernel virtual address space.
  */
-static vm_offset_t
+static void *
 mmu_booke_map(vm_offset_t *virt, vm_paddr_t pa_start,
     vm_paddr_t pa_end, int prot)
 {
@@ -1580,7 +1580,7 @@ mmu_booke_map(vm_offset_t *virt, vm_paddr_t pa_start,
 #ifdef __powerpc64__
 	/* XXX: Handle memory not starting at 0x0. */
 	if (pa_end < ctob(Maxmem))
-		return (PHYS_TO_DMAP(pa_start));
+		return ((void *)PHYS_TO_DMAP(pa_start));
 #endif
 
 	while (pa_start < pa_end) {
@@ -1590,7 +1590,7 @@ mmu_booke_map(vm_offset_t *virt, vm_paddr_t pa_start,
 	}
 	*virt = va;
 
-	return (sva);
+	return ((void *)sva);
 }
 
 /*
