@@ -735,7 +735,7 @@ gve_xmit(struct gve_tx_ring *tx, struct mbuf *mbuf)
 	    pkt_len);
 
 	m_copydata(mbuf, 0, first_seg_len,
-	    (char *)tx->fifo.base + info->iov[hdr_nfrags - 1].iov_offset);
+	    tx->fifo.base + info->iov[hdr_nfrags - 1].iov_offset);
 	gve_dma_sync_for_device(tx->com.qpl,
 	    info->iov[hdr_nfrags - 1].iov_offset,
 	    info->iov[hdr_nfrags - 1].iov_len);
@@ -755,7 +755,7 @@ gve_xmit(struct gve_tx_ring *tx, struct mbuf *mbuf)
 		    info->iov[i].iov_offset, is_ipv6, l3_off, tso_mss);
 
 		m_copydata(mbuf, copy_offset, info->iov[i].iov_len,
-		    (char *)tx->fifo.base + info->iov[i].iov_offset);
+		    tx->fifo.base + info->iov[i].iov_offset);
 		gve_dma_sync_for_device(tx->com.qpl,
 		    info->iov[i].iov_offset, info->iov[i].iov_len);
 		copy_offset += info->iov[i].iov_len;
