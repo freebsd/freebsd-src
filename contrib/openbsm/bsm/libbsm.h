@@ -586,12 +586,18 @@ typedef struct {
 } au_socketinet32_t;
 
 /*
+ * Largest sun_path across all supported platforms (Linux and Solaris use 108,
+ * macOS and FreeBSD use 104).
+ */
+#define	AU_UNIX_PATH_MAX	108
+
+/*
  * socket family           2 bytes
- * path                    104 bytes
+ * path                    up to AU_UNIX_PATH_MAX bytes (NUL terminated)
  */
 typedef struct {
 	u_int16_t	family;
-	char		path[104];
+	char		path[AU_UNIX_PATH_MAX];
 } au_socketunix_t;
 
 /*
