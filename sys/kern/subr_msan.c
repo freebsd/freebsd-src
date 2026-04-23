@@ -461,8 +461,8 @@ kmsan_thread_alloc(struct thread *td)
 	__builtin_memset(mtd, 0, sizeof(*mtd));
 	mtd->ctx = 0;
 
-	if (td->td_kstack != 0)
-		kmsan_mark((void *)td->td_kstack, ptoa(td->td_kstack_pages),
+	if (td->td_kstack != NULL)
+		kmsan_mark(td->td_kstack, ptoa(td->td_kstack_pages),
 		    KMSAN_STATE_UNINIT);
 
 	td->td_kmsan = mtd;

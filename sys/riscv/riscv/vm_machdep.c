@@ -61,7 +61,7 @@
 static void
 cpu_set_pcb_frame(struct thread *td)
 {
-	td->td_pcb = (struct pcb *)((char *)td->td_kstack +
+	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 
 	/*

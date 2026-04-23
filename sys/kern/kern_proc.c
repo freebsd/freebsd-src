@@ -1327,7 +1327,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_tid = td->td_tid;
 	kp->ki_numthreads = p->p_numthreads;
 	kp->ki_pcb = td->td_pcb;
-	kp->ki_kstack = (void *)td->td_kstack;
+	kp->ki_kstack = td->td_kstack;
 	kp->ki_slptime = (ticks - td->td_slptick) / hz;
 	kp->ki_pri.pri_class = td->td_pri_class;
 	kp->ki_pri.pri_user = td->td_user_pri;

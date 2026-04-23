@@ -540,7 +540,7 @@ vm_thread_new(struct thread *td, int pages)
 	ks_domain = vm_phys_domain(vtophys(ks));
 	KASSERT(ks_domain >= 0 && ks_domain < vm_ndomains,
 	    ("%s: invalid domain for kstack %p", __func__, (void *)ks));
-	td->td_kstack = (vm_offset_t)ks;
+	td->td_kstack = ks;
 	td->td_kstack_pages = pages;
 	td->td_kstack_domain = ks_domain;
 	return (1);
@@ -556,8 +556,8 @@ vm_thread_dispose(struct thread *td)
 	int pages;
 
 	pages = td->td_kstack_pages;
-	ks = (void *)td->td_kstack;
-	td->td_kstack = 0;
+	ks = td->td_kstack;
+	td->td_kstack = NULL;
 	td->td_kstack_pages = 0;
 	td->td_kstack_domain = MAXMEMDOM;
 	if (pages == kstack_pages) {
@@ -727,8 +727,8 @@ SYSCTL_INT(_debug, OID_AUTO, max_kstack_used, CTLFLAG_RD,
 void
 intr_prof_stack_use(struct thread *td, struct trapframe *frame)
 {
-	vm_offset_t stack_top;
-	vm_offset_t current;
+	char *stack_top;
+	char *current;
 	int used, prev_used;
 
 	/*
@@ -740,7 +740,7 @@ intr_prof_stack_use(struct thread *td, struct trapframe *frame)
 		return;
 
 	stack_top = td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
-	current = (vm_offset_t)(uintptr_t)&stack_top;
+	current = (char *)&stack_top;
 
 	/*
 	 * Try to detect if interrupt is using kernel thread stack.

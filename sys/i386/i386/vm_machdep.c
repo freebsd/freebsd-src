@@ -87,7 +87,7 @@ _Static_assert(__OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
 union savefpu *
 get_pcb_user_save_td(struct thread *td)
 {
-	vm_offset_t p;
+	char *p;
 
 	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
 	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN);
@@ -108,7 +108,7 @@ get_pcb_user_save_pcb(struct pcb *pcb)
 struct pcb *
 get_pcb_td(struct thread *td)
 {
-	vm_offset_t p;
+	char *p;
 
 	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
 	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN) -
