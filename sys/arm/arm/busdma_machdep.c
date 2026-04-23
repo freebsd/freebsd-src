@@ -1002,7 +1002,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 		if (map->pagesneeded != 0 && must_bounce(dmat, map, curaddr,
 		    sgsize)) {
-			curaddr = add_bounce_page(dmat, map, (vm_offset_t)kvaddr, curaddr,
+			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
 		} else if ((dmat->flags & BUS_DMA_COHERENT) == 0) {
 			if (map->sync_count > 0) {
@@ -1199,18 +1199,17 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
 				tempvaddr = NULL;
-				datavaddr = (void *)bpage->datavaddr;
+				datavaddr = bpage->datavaddr;
 				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
 					datavaddr = tempvaddr + bpage->dataoffs;
 				}
-				bcopy(datavaddr, (void *)bpage->vaddr,
-				    bpage->datacount);
+				bcopy(datavaddr, bpage->vaddr, bpage->datacount);
 				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
 				if ((dmat->flags & BUS_DMA_COHERENT) == 0)
-					dcache_wb_poc(bpage->vaddr,
+					dcache_wb_poc((vm_offset_t)bpage->vaddr,
 					    bpage->busaddr, bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1232,7 +1231,7 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			bpage = STAILQ_FIRST(&map->bpages);
 			while (bpage != NULL) {
 				if ((dmat->flags & BUS_DMA_COHERENT) == 0)
-					dcache_inv_poc_dma(bpage->vaddr,
+					dcache_inv_poc_dma((vm_offset_t)bpage->vaddr,
 					    bpage->busaddr, bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1250,17 +1249,16 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
 				if ((dmat->flags & BUS_DMA_COHERENT) == 0)
-					dcache_inv_poc(bpage->vaddr,
+					dcache_inv_poc((vm_offset_t)bpage->vaddr,
 					    bpage->busaddr, bpage->datacount);
 				tempvaddr = NULL;
-				datavaddr = (void *)bpage->datavaddr;
+				datavaddr = bpage->datavaddr;
 				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
 					datavaddr = tempvaddr + bpage->dataoffs;
 				}
-				bcopy((void *)bpage->vaddr, datavaddr,
-				    bpage->datacount);
+				bcopy(bpage->vaddr, datavaddr, bpage->datacount);
 				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
 				bpage = STAILQ_NEXT(bpage, links);

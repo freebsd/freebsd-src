@@ -613,7 +613,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr;
-	vm_offset_t kvaddr, vaddr;
+	char *kvaddr, *vaddr;
 	int error;
 
 	if (segs == NULL)
@@ -628,18 +628,18 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		}
 	}
 
-	vaddr = (vm_offset_t)buf;
+	vaddr = buf;
 
 	while (buflen > 0) {
 		/*
 		 * Get the physical address for this segment.
 		 */
 		if (pmap == kernel_pmap) {
-			curaddr = pmap_kextract(vaddr);
+			curaddr = pmap_kextract((vm_offset_t)vaddr);
 			kvaddr = vaddr;
 		} else {
-			curaddr = pmap_extract(pmap, vaddr);
-			kvaddr = 0;
+			curaddr = pmap_extract(pmap, (vm_offset_t)vaddr);
+			kvaddr = NULL;
 		}
 
 		/*
@@ -733,7 +733,7 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
 				tempvaddr = NULL;
-				datavaddr = (void *)bpage->datavaddr;
+				datavaddr = bpage->datavaddr;
 				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
@@ -741,8 +741,7 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					    bpage->dataoffs;
 				}
 
-				bcopy(datavaddr,
-				    (void *)bpage->vaddr, bpage->datacount);
+				bcopy(datavaddr, bpage->vaddr, bpage->datacount);
 
 				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
@@ -754,7 +753,7 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
 				tempvaddr = NULL;
-				datavaddr = (void *)bpage->datavaddr;
+				datavaddr = bpage->datavaddr;
 				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
@@ -762,8 +761,7 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					    bpage->dataoffs;
 				}
 
-				bcopy((void *)bpage->vaddr,
-				    datavaddr, bpage->datacount);
+				bcopy(bpage->vaddr, datavaddr, bpage->datacount);
 
 				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);

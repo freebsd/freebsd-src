@@ -868,7 +868,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			KASSERT(dmat->common.alignment <= PAGE_SIZE,
 			    ("bounced buffer cannot have alignment bigger "
 			    "than PAGE_SIZE: %lu", dmat->common.alignment));
-			curaddr = add_bounce_page(dmat, map, (vm_offset_t)kvaddr, curaddr,
+			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
 		} else if ((map->flags & DMAMAP_COHERENT) == 0) {
 			if (map->sync_count > 0) {
@@ -1047,19 +1047,18 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		if ((op & BUS_DMASYNC_PREWRITE) != 0) {
 			while (bpage != NULL) {
 				tempvaddr = NULL;
-				datavaddr = (void *)bpage->datavaddr;
+				datavaddr = bpage->datavaddr;
 				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
 					datavaddr = tempvaddr + bpage->dataoffs;
 				}
 
-				bcopy(datavaddr,
-				    (void *)bpage->vaddr, bpage->datacount);
+				bcopy(datavaddr, bpage->vaddr, bpage->datacount);
 				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_wb_range((void *)bpage->vaddr,
+					cpu_dcache_wb_range(bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1067,7 +1066,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		} else if ((op & BUS_DMASYNC_PREREAD) != 0) {
 			while (bpage != NULL) {
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_wbinv_range((void *)bpage->vaddr,
+					cpu_dcache_wbinv_range(bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1076,18 +1075,17 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 			while (bpage != NULL) {
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_inv_range((void *)bpage->vaddr,
+					cpu_dcache_inv_range(bpage->vaddr,
 					    bpage->datacount);
 				tempvaddr = NULL;
-				datavaddr = (void *)bpage->datavaddr;
+				datavaddr = bpage->datavaddr;
 				if (datavaddr == NULL) {
 					tempvaddr = pmap_quick_enter_page(
 					    bpage->datapage);
 					datavaddr = tempvaddr + bpage->dataoffs;
 				}
 
-				bcopy((void *)bpage->vaddr,
-				    datavaddr, bpage->datacount);
+				bcopy(bpage->vaddr, datavaddr, bpage->datacount);
 
 				if (tempvaddr != NULL)
 					pmap_quick_remove_page(tempvaddr);
