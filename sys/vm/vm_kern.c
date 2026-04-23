@@ -714,14 +714,14 @@ kmem_free(void *addr, vm_size_t size)
  *
  *	This routine may block.
  */
-vm_offset_t
+void *
 kmap_alloc_wait(vm_map_t map, vm_size_t size)
 {
 	vm_offset_t addr;
 
 	size = round_page(size);
 	if (!swap_reserve(size))
-		return (0);
+		return (NULL);
 
 	for (;;) {
 		/*
@@ -744,7 +744,7 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
 	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_RW, VM_PROT_RW,
 	    MAP_ACC_CHARGED);
 	vm_map_unlock(map);
-	return (addr);
+	return ((void *)addr);
 }
 
 /*
@@ -754,9 +754,11 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
  *	waiting for memory in that map.
  */
 void
-kmap_free_wakeup(vm_map_t map, vm_offset_t addr, vm_size_t size)
+kmap_free_wakeup(vm_map_t map, void *va, vm_size_t size)
 {
+	vm_offset_t addr;
 
+	addr = (vm_offset_t)va;
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
 	if ((map->flags & MAP_NEEDS_WAKEUP) != 0) {
