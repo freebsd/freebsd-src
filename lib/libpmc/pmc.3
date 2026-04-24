@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 23, 2023
+.Dd November 17, 2026
 .Dt PMC 3
 .Os
 .Sh NAME
@@ -229,9 +229,9 @@ performance measurement architecture version 1 and later.
 Instruction Based Sampling (IBS) counters present in
 .Tn AMD
 Family 10h and above.
-.It Li PMC_CLASS_K8
+.It Li PMC_CLASS_AMD
 Programmable hardware counters present in
-.Tn "AMD Athlon64"
+.Tn "AMD"
 CPUs.
 .It Li PMC_CLASS_PERF
 MPERF and APERF counters present in
@@ -509,7 +509,7 @@ following manual pages:
 .It Li PMC_CLASS_IAF    Ta Xr pmc.iaf 3
 .It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
 .It Li PMC_CLASS_IBS    Ta Xr pmc.ibs 3
-.It Li PMC_CLASS_K8     Ta Xr pmc.amd 3
+.It Li PMC_CLASS_AMD    Ta Xr pmc.amd 3
 .It Li PMC_CLASS_RAPL   Ta Xr pmc.rapl 3
 .It Li PMC_CLASS_PERF   Ta Xr pmc.perf 3
 .It Li PMC_CLASS_TSC    Ta Xr pmc.tsc 3
