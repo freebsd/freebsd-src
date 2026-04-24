@@ -30,7 +30,8 @@
 .Dt SECURITY 7
 .Os
 .Sh NAME
-.Nm security
+.Nm security ,
+.Nm securelevel
 .Nd introduction to security under FreeBSD
 .Sh DESCRIPTION
 See
@@ -543,7 +544,7 @@ may not be loaded or unloaded.
 The kernel debugger may not be entered using the
 .Va debug.kdb.enter
 sysctl unless a
-.Xr MAC 9
+.Xr mac 9
 policy grants access, for example using
 .Xr mac_ddb 4 .
 A panic or trap cannot be forced using the
