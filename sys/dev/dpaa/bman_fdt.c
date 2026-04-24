@@ -40,6 +40,7 @@
 #include <dev/ofw/ofw_subr.h>
 
 #include "bman.h"
+#include "bman_var.h"
 #include "portals.h"
 
 #define	FBMAN_DEVSTR	"Freescale Buffer Manager"
@@ -59,12 +60,7 @@ static device_method_t bman_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bman_driver = {
-	"bman",
-	bman_methods,
-	sizeof(struct bman_softc),
-};
-
+DEFINE_CLASS_0(bman, bman_driver, bman_methods, sizeof(struct bman_softc));
 EARLY_DRIVER_MODULE(bman, simplebus, bman_driver, 0, 0, BUS_PASS_SUPPORTDEV);
 
 static int
@@ -82,144 +78,46 @@ bman_fdt_probe(device_t dev)
 /*
  * BMAN Portals
  */
-#define	BMAN_PORT_DEVSTR	"Freescale Buffer Manager - Portals"
+#define	BMAN_PORT_DEVSTR	"Freescale Buffer Manager - Portal"
 
-static device_probe_t bman_portals_fdt_probe;
-static device_attach_t bman_portals_fdt_attach;
+static int portal_ncpus;
+static device_probe_t bman_portal_fdt_probe;
+static device_attach_t bman_portal_fdt_attach;
 
-static device_method_t bm_portals_methods[] = {
+static device_method_t bman_portal_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bman_portals_fdt_probe),
-	DEVMETHOD(device_attach,	bman_portals_fdt_attach),
-	DEVMETHOD(device_detach,	bman_portals_detach),
+	DEVMETHOD(device_probe,		bman_portal_fdt_probe),
+	DEVMETHOD(device_attach,	bman_portal_fdt_attach),
+	DEVMETHOD(device_detach,	bman_portal_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t bm_portals_driver = {
-	"bman-portals",
-	bm_portals_methods,
-	sizeof(struct dpaa_portals_softc),
-};
-
-EARLY_DRIVER_MODULE(bman_portals, ofwbus, bm_portals_driver, 0, 0,
-    BUS_PASS_BUS);
-
-static void
-get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep)
-{
-
-	*addrp = 2;
-	*sizep = 1;
-	OF_getencprop(node, "#address-cells", addrp, sizeof(*addrp));
-	OF_getencprop(node, "#size-cells", sizep, sizeof(*sizep));
-}
+DEFINE_CLASS_0(bman_portal, bman_portal_driver, bman_portal_methods,
+    sizeof(struct bman_portal_softc));
+EARLY_DRIVER_MODULE(bman_portal, simplebus, bman_portal_driver, 0, 0,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 
 static int
-bman_portals_fdt_probe(device_t dev)
+bman_portal_fdt_probe(device_t dev)
 {
-	phandle_t node;
-
-	if (ofw_bus_is_compatible(dev, "simple-bus")) {
-		node = ofw_bus_get_node(dev);
-		for (node = OF_child(node); node > 0; node = OF_peer(node)) {
-			if (ofw_bus_node_is_compatible(node, "fsl,bman-portal"))
-				break;
-		}
-		if (node <= 0)
-			return (ENXIO);
-	} else if (!ofw_bus_is_compatible(dev, "fsl,bman-portals"))
+	if (!ofw_bus_is_compatible(dev, "fsl,bman-portal"))
 		return (ENXIO);
 
 	device_set_desc(dev, BMAN_PORT_DEVSTR);
-
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-bman_portals_fdt_attach(device_t dev)
+bman_portal_fdt_attach(device_t dev)
 {
-	struct dpaa_portals_softc *sc;
-	struct resource_list_entry *rle;
-	phandle_t node, child, cpu_node;
-	vm_paddr_t portal_pa;
-	vm_size_t portal_size;
-	uint32_t addr, size;
-	ihandle_t cpu;
-	int cpu_num, cpus, intr_rid;
-	struct dpaa_portals_devinfo di;
-	struct ofw_bus_devinfo ofw_di = {};
+	int portal_cpu = portal_ncpus;
 
-	cpus = 0;
-	sc = device_get_softc(dev);
-	sc->sc_dev = dev;
+	/* Don't attach to more portals than we have CPUs */
+	if (mp_ncpus == portal_ncpus)
+		return (ENXIO);
 
-	node = ofw_bus_get_node(dev);
-	get_addr_props(node, &addr, &size);
+	portal_ncpus++;
 
-	/* Find portals tied to CPUs */
-	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (cpus >= mp_ncpus)
-			break;
-		if (!ofw_bus_node_is_compatible(child, "fsl,bman-portal")) {
-			continue;
-		}
-		/* Checkout related cpu */
-		if (OF_getprop(child, "cpu-handle", (void *)&cpu,
-		    sizeof(cpu)) > 0) {
-			cpu_node = OF_instance_to_package(cpu);
-			/* Acquire cpu number */
-			if (OF_getencprop(cpu_node, "reg", &cpu_num, sizeof(cpu_num)) <= 0) {
-				device_printf(dev, "Could not retrieve CPU number.\n");
-				return (ENXIO);
-			}
-		} else
-			cpu_num = cpus;
-
-		cpus++;
-
-		if (ofw_bus_gen_setup_devinfo(&ofw_di, child) != 0) {
-			device_printf(dev, "could not set up devinfo\n");
-			continue;
-		}
-
-		resource_list_init(&di.di_res);
-		if (ofw_bus_reg_to_rl(dev, child, addr, size, &di.di_res)) {
-			device_printf(dev, "%s: could not process 'reg' "
-			    "property\n", ofw_di.obd_name);
-			ofw_bus_gen_destroy_devinfo(&ofw_di);
-			continue;
-		}
-		if (ofw_bus_intr_to_rl(dev, child, &di.di_res, &intr_rid)) {
-			device_printf(dev, "%s: could not process "
-			    "'interrupts' property\n", ofw_di.obd_name);
-			resource_list_free(&di.di_res);
-			ofw_bus_gen_destroy_devinfo(&ofw_di);
-			continue;
-		}
-		di.di_intr_rid = intr_rid;
-		
-		ofw_reg_to_paddr(child, 0, &portal_pa, &portal_size, NULL);
-		rle = resource_list_find(&di.di_res, SYS_RES_MEMORY, 0);
-
-		if (sc->sc_dp_pa == 0)
-			sc->sc_dp_pa = portal_pa - rle->start;
-
-		portal_size = rle->end + 1;
-		rle = resource_list_find(&di.di_res, SYS_RES_MEMORY, 1);
-		portal_size = ulmax(rle->end + 1, portal_size);
-		sc->sc_dp_size = ulmax(sc->sc_dp_size, portal_size);
-
-		if (dpaa_portal_alloc_res(dev, &di, cpu_num))
-			goto err;
-	}
-
-	ofw_bus_gen_destroy_devinfo(&ofw_di);
-
-	return (bman_portals_attach(dev));
-err:
-	resource_list_free(&di.di_res);
-	ofw_bus_gen_destroy_devinfo(&ofw_di);
-	bman_portals_detach(dev);
-	return (ENXIO);
+	return (bman_portal_attach(dev, portal_cpu));
 }

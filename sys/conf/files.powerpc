@@ -89,6 +89,27 @@ dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
+dev/dpaa/bman_portals.c		optional	dpaa fdt
+dev/dpaa/bman.c			optional	dpaa
+dev/dpaa/bman_fdt.c		optional	dpaa fdt
+dev/dpaa/dpaa_eth.c		optional	dpaa
+dev/dpaa/fman.c			optional	dpaa fdt
+dev/dpaa/fman_fdt.c		optional	dpaa fdt
+dev/dpaa/fman_if.m		optional	dpaa
+dev/dpaa/fman_mdio.c		optional	dpaa fdt
+dev/dpaa/fman_port_if.m		optional	dpaa
+dev/dpaa/fman_port.c		optional	dpaa
+dev/dpaa/fman_xmdio.c		optional	dpaa fdt mdio miibus
+dev/dpaa/dpaa_common.c		optional	dpaa
+dev/dpaa/if_dtsec.c		optional	dpaa
+dev/dpaa/if_dtsec_fdt.c		optional	dpaa fdt
+dev/dpaa/if_memac.c		optional	dpaa
+dev/dpaa/if_memac_fdt.c		optional	dpaa
+dev/dpaa/portals_common.c	optional	dpaa
+dev/dpaa/qman_portal_if.m	optional	dpaa
+dev/dpaa/qman_portals.c		optional	dpaa fdt
+dev/dpaa/qman.c			optional	dpaa
+dev/dpaa/qman_fdt.c		optional	dpaa fdt
 dev/fb/fb.c			optional	sc
 dev/gpio/qoriq_gpio.c		optional	mpc85xx gpio
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc

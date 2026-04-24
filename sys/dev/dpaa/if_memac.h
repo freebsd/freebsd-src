@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Semihalf.
+ * Copyright (c) 2011-2012 Semihalf.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,28 +24,46 @@
  * SUCH DAMAGE.
  */
 
-#ifndef IF_DTSEC_RM_H_
-#define IF_DTSEC_RM_H_
+#ifndef IF_MEMAC_H_
+#define IF_MEMAC_H_
 
 /**
- * @group dTSEC Regular Mode API.
+ * @group dTSEC common API.
  * @{
  */
-int	dtsec_rm_fm_port_rx_init(struct dtsec_softc *sc, int unit);
-int	dtsec_rm_fm_port_tx_init(struct dtsec_softc *sc, int unit);
+#define MEMAC_MODE_REGULAR		0
 
-void	dtsec_rm_if_start_locked(struct dtsec_softc *sc);
+#define MEMAC_LOCK(sc)			mtx_lock(&(sc)->sc_base.sc_lock)
+#define MEMAC_UNLOCK(sc)		mtx_unlock(&(sc)->sc_base.sc_lock)
+#define MEMAC_LOCK_ASSERT(sc)		mtx_assert(&(sc)->sc_base.sc_lock, MA_OWNED)
+#define MEMAC_MII_LOCK(sc)		mtx_lock(&(sc)->sc_base.sc_mii_lock)
+#define MEMAC_MII_UNLOCK(sc)		mtx_unlock(&(sc)->sc_base.sc_mii_lock)
 
-int	dtsec_rm_pool_rx_init(struct dtsec_softc *sc);
-void	dtsec_rm_pool_rx_free(struct dtsec_softc *sc);
+enum eth_dev_type {
+	ETH_MEMAC = 0x1,
+	ETH_10GSEC = 0x2
+};
 
-int	dtsec_rm_fi_pool_init(struct dtsec_softc *sc);
-void	dtsec_rm_fi_pool_free(struct dtsec_softc *sc);
-
-int	dtsec_rm_fqr_rx_init(struct dtsec_softc *sc);
-int	dtsec_rm_fqr_tx_init(struct dtsec_softc *sc);
-void	dtsec_rm_fqr_rx_free(struct dtsec_softc *sc);
-void	dtsec_rm_fqr_tx_free(struct dtsec_softc *sc);
+struct memac_softc {
+	struct dpaa_eth_softc	sc_base;
+	bool			sc_fixed_link;
+};
 /** @} */
 
-#endif /* IF_DTSEC_RM_H_ */
+
+/**
+ * @group dTSEC bus interface.
+ * @{
+ */
+int		memac_attach(device_t dev);
+int		memac_detach(device_t dev);
+int		memac_suspend(device_t dev);
+int		memac_resume(device_t dev);
+int		memac_shutdown(device_t dev);
+int		memac_miibus_readreg(device_t dev, int phy, int reg);
+int		memac_miibus_writereg(device_t dev, int phy, int reg,
+		    int value);
+void		memac_miibus_statchg(device_t dev);
+/** @} */
+
+#endif /* IF_MEMAC_H_ */

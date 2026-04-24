@@ -10,7 +10,6 @@ ident		QORIQ64
 
 machine		powerpc	powerpc64
 
-include 	"dpaa/config.dpaa"
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1
 #makeoptions	WERROR="-Werror -Wno-format"
@@ -22,6 +21,7 @@ options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	ALT_BREAK_TO_DEBUGGER
 options 	BREAK_TO_DEBUGGER
 options 	BOOTP
+#options 	BOOTP_WIRED_TO=memac0
 options 	BOOTP_NFSROOT
 #options 	BOOTP_NFSV3
 options 	CD9660
@@ -134,3 +134,5 @@ device		uinput			# install /dev/uinput cdev
 options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support
 device		hidbus		# Generic HID bus
+
+options		BOOTVERBOSE
