@@ -39,6 +39,8 @@
 #include <sys/wait.h>
 
 #ifdef __amd64__
+#include <machine/cpufunc.h>
+#include <machine/specialreg.h>
 #include <machine/sysarch.h>
 #endif
 
@@ -1966,6 +1968,14 @@ ATF_TC_BODY(largepage_pkru, tc)
 	struct sigaction sa;
 	char *addr, *addr1;
 	int error, fd, pscnt;
+	u_int regs[4];
+
+	do_cpuid(0, regs);
+	if (regs[0] < 7)
+		atf_tc_skip("PKU not supported");
+	cpuid_count(7, 0, regs);
+	if ((regs[2] & CPUID_STDEXT2_PKU) == 0)
+		atf_tc_skip("PKU not supported");
 
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_sigaction = sigsegv;
