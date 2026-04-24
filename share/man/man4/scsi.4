@@ -94,6 +94,10 @@ and earlier set this to 60s.
 Timeout, in ms, for the initial REPORTLUNS command we send to the devices
 during their initial probing.
 Defaults to 50s.
+.It Va kern.cam.max_high_power
+The maximum number high power commands, like START UNIT, to issue at the same
+time.
+Defaults to 4.
 .It Va kern.cam.modesense_timeout
 Timeout, in ms, for the initial MODESENSE command we send to the devices
 during their initial probing.
