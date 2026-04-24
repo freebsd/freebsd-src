@@ -441,7 +441,7 @@ transition in the <code><abbr>tz</abbr></code> database.</li>
 Database Parser</a> is a
 <a href="https://en.wikipedia.org/wiki/C++">C++</a> parser and
 runtime library with a <a
-href="https://en.cppreference.com/w/cpp/chrono.html"><code>std::chrono</code> API</a>
+href="https://en.cppreference.com/cpp/chrono"><code>std::chrono</code> API</a>
 that is a standard part of C++.
 It is freely available under the
 <abbr title="Massachusetts Institute of Technology">MIT</abbr> license.</li>
@@ -1135,8 +1135,7 @@ Network Time Protocol Best Current Practices</a>
 applications requiring accurate <abbr>UTC</abbr> or civil time,
 and is intended for use only in single, well-controlled environments.</li>
 <li>The <a
-href="https://pairlist6.pair.net/mailman/listinfo/leapsecs">Leap
-Second Discussion List</a> covers <a
+href="https://groups.io/g/LEAPSECS">LEAPSECS List</a> covers <a
 href="https://gge.ext.unb.ca/Resources/gpsworld.november99.pdf">McCarthy
 and Klepczynski’s 1999 proposal to discontinue leap seconds</a>,
 discussed further in
@@ -1146,21 +1145,30 @@ leap second: its history and possible future</a>.
 might be redefined
 without Leap Seconds</a> gives pointers on this
 contentious issue.
-The General Conference on Weights and Measures
+The General Conference on Weights and Measures (CGPM)
 <a href="https://www.bipm.org/en/cgpm-2022/resolution-4">decided in 2022</a>
 to discontinue the use of leap seconds by 2035, and requested that no
 discontinuous adjustments be made to UTC for at least a century.
 The World Radiocommunication Conference <a
 href="https://www.itu.int/dms_pub/itu-r/opb/act/R-ACT-WRC.15-2023-PDF-E.pdf">resolved
-in 2023</a> to cooperate with this process. One proposal to implement this
+in 2023</a> to cooperate with this process. A draft <a
+href="https://www.bipm.org/documents/d/guest/cgpm-2026-draft-resolutions">Resolution
+C to make continuous UTC effective on 2027-05-20</a>,
+and thereby discontinue leap seconds,
+has been scheduled for the 28th CGPM starting 2026-10-13 in Paris.
+One proposal to implement this
 would replace leap seconds with seven 13-second leap smears occurring once per
 decade until 2100, with leap smears after that gradually increasing in size.
 See:
 <ul>
-<li>Levine J. <a href="https://www.preprints.org/manuscript/202406.0043">A
+<li>Levine J. <a href="https://tf.nist.gov/general/pdf/3242.pdf">A
 proposal to change the leap-second adjustments to
 coordinated universal time</a>. <em>Metrologia.</em> 2024;61(5):055002. doi:<a
-href="https://doi.org/10.1088/1681-7575/ad6266">10.1088/1681-7575/ad6266</a>.</li>
+href="https://doi.org/10.1088/1681-7575/ad6266">10.1088/1681-7575/ad6266</a>
+with followups in doi:<a
+href="https://doi.org/10.1088/1681-7575/ade314">10.1088/1681-7575/ade314</a>
+and doi:<a
+href="https://doi.org/10.1088/1681-7575/ade315">10.1088/1681-7575/ade315</a>.</li>
 </ul>
 However, there is still no consensus on whether this is the best way
 to replace leap seconds.

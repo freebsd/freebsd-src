@@ -253,11 +253,13 @@ symlink(char const *target, char const *linkname)
    (errno = ENOTSUP, -1)
 #endif
 
+static int	addabbr(char[TZ_MAX_CHARS], int *, char const *);
 static void	addtt(zic_t starttime, int type);
 static int	addtype(zic_t, char const *, bool, bool, bool);
-static void	leapadd(zic_t, int, int);
 static void	adjleap(void);
 static void	associate(void);
+static void	checkabbr(char const *);
+static void	check_for_signal(void);
 static void	dolink(const char *, const char *, bool);
 static int	getfields(char *, char **, int);
 static zic_t	gethms(const char * string, const char * errstring);
@@ -270,11 +272,11 @@ static void	inrule(char ** fields, int nfields);
 static bool	inzcont(char ** fields, int nfields);
 static bool	inzone(char ** fields, int nfields);
 static bool	inzsub(char **, int, bool);
-static int	itssymlink(char const *, int *);
 static bool	is_alpha(char a);
+static int	itssymlink(char const *, int *);
+static void	leapadd(zic_t, int, int);
 static char	lowerit(char);
 static void	mkdirs(char const *, bool);
-static void	newabbr(const char * abbr);
 static zic_t	oadd(zic_t t1, zic_t t2);
 static zic_t	omul(zic_t, zic_t);
 static void	outzone(const struct zone * zp, ptrdiff_t ntzones);
@@ -704,6 +706,7 @@ eat(int fnum, lineno num)
 ATTRIBUTE_FORMAT((printf, 1, 0)) static void
 verror(const char *const string, va_list args)
 {
+	check_for_signal();
 	/*
 	** Match the format of "cc" to allow sh users to
 	**	zic ... 2>&1 | error -t "*" -v
@@ -1074,6 +1077,7 @@ make_links(void)
 	warning(_("link %s targeting link %s"),
 		links[i].l_linkname, links[i].l_target);
     }
+    check_for_signal();
   }
 }
 
@@ -1391,6 +1395,7 @@ main(int argc, char **argv)
 		for (j = i + 1; j < nzones && zones[j].z_name == NULL; ++j)
 			continue;
 		outzone(&zones[i], j - i);
+		check_for_signal();
 	}
 	make_links();
 	if (lcltime != NULL) {
@@ -1486,9 +1491,11 @@ get_rand_u64(void)
   static int nwords;
   if (!nwords) {
     ssize_t s;
-    do
+    for (;; check_for_signal()) {
       s = getrandom(entropy_buffer, sizeof entropy_buffer, 0);
-    while (s < 0 && errno == EINTR);
+      if (! (s < 0 && errno == EINTR))
+	break;
+    }
 
     if (s < 0)
       nwords = -1;
@@ -1519,7 +1526,7 @@ get_rand_u64(void)
       rmod = INT_MAX < UINT_FAST64_MAX ? 0 : UINT_FAST64_MAX / nrand + 1,
       r = 0, rmax = 0;
 
-    do {
+    for (;; check_for_signal()) {
       uint_fast64_t rmax1 = rmax;
       if (rmod) {
 	/* Avoid signed integer overflow on theoretical platforms
@@ -1530,7 +1537,9 @@ get_rand_u64(void)
       rmax1 = nrand * rmax1 + rand_max;
       r = nrand * r + rand();
       rmax = rmax < rmax1 ? rmax1 : UINT_FAST64_MAX;
-    } while (rmax < UINT_FAST64_MAX);
+      if (UINT_FAST64_MAX <= rmax)
+	break;
+    }
 
     return r;
   }
@@ -1577,9 +1586,11 @@ random_dirent(char const **name, char **namealloc)
     *name = *namealloc = dst;
   }
 
-  do
+  for (;; check_for_signal()) {
     r = get_rand_u64();
-  while (unfair_min <= r);
+    if (r < unfair_min)
+      break;
+  }
 
   for (i = 0; i < suffixlen; i++) {
     dst[dirlen + prefixlen + i] = alphabet[r % alphabetlen];
@@ -1622,7 +1633,7 @@ open_outfile(char const **outname, char **tempname)
     exit(EXIT_FAILURE);
   }
 
-  while (true) {
+  for (;; check_for_signal()) {
     int oflags = O_WRONLY | O_BINARY | O_CREAT | O_EXCL;
     int fd = open(*outname, oflags, creat_perms);
     int err;
@@ -1736,8 +1747,6 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	char const *outname = linkname;
 	int targetissym = -2, linknameissym = -2;
 
-	check_for_signal();
-
 	if (strcmp(target, "-") == 0) {
 	  if (remove(linkname) == 0 || errno == ENOENT || errno == ENOTDIR)
 	    return;
@@ -1750,7 +1759,7 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	  }
 	}
 
-	while (true) {
+	for (;; check_for_signal()) {
 	  if (linkat(AT_FDCWD, target, AT_FDCWD, outname, AT_SYMLINK_FOLLOW)
 	      == 0) {
 	    link_errno = 0;
@@ -1802,7 +1811,7 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	  int symlink_errno = -1;
 
 	  if (contents) {
-	    while (true) {
+	    for (;; check_for_signal()) {
 	      if (symlink(contents, outname) == 0) {
 		symlink_errno = 0;
 		break;
@@ -1833,7 +1842,7 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	      exit(EXIT_FAILURE);
 	    }
 	    tp = open_outfile(&outname, &tempname);
-	    while ((c = getc(fp)) != EOF)
+	    for (; (c = getc(fp)) != EOF; check_for_signal())
 	      putc(c, tp);
 	    close_file(tp, directory, linkname, tempname);
 	    close_file(fp, directory, target, NULL);
@@ -1957,7 +1966,7 @@ static bool
 inputline(FILE *fp, char *buf, ptrdiff_t bufsize)
 {
   ptrdiff_t linelen = 0, ch;
-  while ((ch = getc(fp)) != '\n') {
+  for (; (ch = getc(fp)) != '\n'; check_for_signal()) {
     if (ch < 0) {
       if (ferror(fp)) {
 	error(_("input error"));
@@ -2044,6 +2053,7 @@ infile(int fnum, char const *name)
 				default: unreachable();
 			}
 		}
+		check_for_signal();
 	}
 	close_file(fp, NULL, filename(fnum), NULL);
 	if (wantcont)
@@ -2657,7 +2667,6 @@ writezone(const char *const name, const char *const string, char version,
 {
 	register FILE *			fp;
 	register ptrdiff_t		i, j;
-	register size_t			u;
 	register int			pass;
 	char *tempname = NULL;
 	char const *outname = name;
@@ -2939,30 +2948,27 @@ writezone(const char *const name, const char *const string, char version,
 			    : i == thisdefaulttype ? old0 : i]
 		      = thistypecnt++;
 
-		for (u = 0; u < sizeof indmap / sizeof indmap[0]; ++u)
-			indmap[u] = -1;
 		thischarcnt = stdcnt = utcnt = 0;
 		for (i = old0; i < typecnt; i++) {
-			register char *	thisabbr;
-
 			if (omittype[i])
 				continue;
 			if (ttisstds[i])
 			  stdcnt = thistypecnt;
 			if (ttisuts[i])
 			  utcnt = thistypecnt;
-			if (indmap[desigidx[i]] >= 0)
-				continue;
-			thisabbr = &chars[desigidx[i]];
-			for (j = 0; j < thischarcnt; ++j)
-				if (strcmp(&thischars[j], thisabbr) == 0)
-					break;
-			if (j == thischarcnt) {
-				strcpy(&thischars[thischarcnt], thisabbr);
-				thischarcnt += strlen(thisabbr) + 1;
-			}
-			indmap[desigidx[i]] = j;
+			addabbr(thischars, &thischarcnt, &chars[desigidx[i]]);
 		}
+
+		/* Now that all abbrevs have been added to THISCHARS,
+		   it is safe to set INDMAP without worrying about
+		   whether the abbrevs might move later.  */
+		for (i = 0; i < TZ_MAX_CHARS; i++)
+		  indmap[i] = -1;
+		for (i = old0; i < typecnt; i++)
+		  if (!omittype[i] && indmap[desigidx[i]] < 0)
+		    indmap[desigidx[i]] = addabbr(thischars, &thischarcnt,
+						  &chars[desigidx[i]]);
+
 		if (pass == 1 && !want_bloat()) {
 		  hicut = thisleapexpiry = false;
 		  pretranstype = -1;
@@ -3185,11 +3191,11 @@ stringoffset(char *result, zic_t offset)
 	offset /= SECSPERMIN;
 	minutes = offset % MINSPERHOUR;
 	offset /= MINSPERHOUR;
-	hours = offset;
-	if (hours >= HOURSPERDAY * DAYSPERWEEK) {
+	if (offset >= HOURSPERDAY * DAYSPERWEEK) {
 		result[0] = '\0';
 		return 0;
 	}
+	hours = offset;
 	len += sprintf(result + len, "%d", hours);
 	if (minutes != 0 || seconds != 0) {
 		len += sprintf(result + len, ":%02d", minutes);
@@ -3428,12 +3434,16 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 	int nonTZlimtype = -1;
 	zic_t max_year0;
 	int defaulttype = -1;
+	int max_stringoffset_len = sizeof "-167:59:59" - 1;
+	int max_comma_stringrule_len = (sizeof ",M12.5.6/" - 1
+					+ max_stringoffset_len);
 
 	check_for_signal();
 
 	/* This cannot overflow; see FORMAT_LEN_GROWTH_BOUND.  */
 	max_abbr_len = 2 + max_format_len + max_abbrvar_len;
-	max_envvar_len = 2 * max_abbr_len + 5 * 9;
+	max_envvar_len = 2 * (max_abbr_len + max_stringoffset_len
+			      + max_comma_stringrule_len);
 
 	startbuf = xmalloc(max_abbr_len + 1);
 	ab = xmalloc(max_abbr_len + 1);
@@ -3534,7 +3544,7 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 				startttisut);
 			if (usestart) {
 				addtt(starttime, type);
-				if (useuntil && nonTZlimtime < starttime) {
+				if (nonTZlimtime < starttime) {
 				  nonTZlimtime = starttime;
 				  nonTZlimtype = type;
 				}
@@ -3781,6 +3791,7 @@ static int
 addtype(zic_t utoff, char const *abbr, bool isdst, bool ttisstd, bool ttisut)
 {
 	register int	i, j;
+	int charcnt0;
 
 	/* RFC 9636 section 3.2 specifies this range for utoff.  */
 	if (! (-TWO_31_MINUS_1 <= utoff && utoff <= TWO_31_MINUS_1)) {
@@ -3790,12 +3801,18 @@ addtype(zic_t utoff, char const *abbr, bool isdst, bool ttisstd, bool ttisut)
 	if (!want_bloat())
 	  ttisstd = ttisut = false;
 
-	for (j = 0; j < charcnt; ++j)
-		if (strcmp(&chars[j], abbr) == 0)
-			break;
-	if (j == charcnt)
-		newabbr(abbr);
-	else {
+	checkabbr(abbr);
+
+	charcnt0 = charcnt;
+	j = addabbr(chars, &charcnt, abbr);
+	if (charcnt0 < charcnt) {
+	  /* If an abbreviation was inserted, increment indexes no
+	     earlier than the insert by the size of the insertion,
+	     so that they continue to point to the same contents.  */
+	  for (i = 0; i < typecnt; i++)
+	    if (j <= desigidx[i])
+	      desigidx[i] += charcnt - charcnt0;
+	} else {
 	  /* If there's already an entry, return its index.  */
 	  for (i = 0; i < typecnt; i++)
 	    if (utoff == utoffs[i] && isdst == isdsts[i] && j == desigidx[i]
@@ -4180,10 +4197,8 @@ will not work with pre-2004 versions of zic"));
 }
 
 static void
-newabbr(const char *string)
+checkabbr(char const *string)
 {
-	register int	i;
-
 	if (strcmp(string, GRANDPARENTED) != 0) {
 		register const char *	cp;
 		const char *		mp;
@@ -4202,13 +4217,50 @@ mp = _("time zone abbreviation differs from POSIX standard");
 		if (mp != NULL)
 			warning("%s (%s)", mp, string);
 	}
-	i = strnlen(string, TZ_MAX_CHARS - charcnt) + 1;
-	if (charcnt + i > TZ_MAX_CHARS) {
-		error(_("too many, or too long, time zone abbreviations"));
-		exit(EXIT_FAILURE);
-	}
-	strcpy(&chars[charcnt], string);
-	charcnt += i;
+}
+
+/* Put into CHS, which currently contains *PNCHS bytes containing
+   NUL-terminated abbreviations none of which are suffixes of another,
+   the abbreviation ABBR including its trailing NUL.
+   If ABBR does not already appear in CHS,
+   possibly as a suffix of an existing abbreviation,
+   add ABBR to CHS, remove from CHS any abbreviation
+   that is a suffix of ABBR, and increment *PNCHS accordingly.
+   Return the index of ABBR after any modifications to CHS are made.
+
+   If all abbreviations have already been added, this function
+   lets the caller look up the index of an existing abbreviation.  */
+static int
+addabbr(char chs[TZ_MAX_CHARS], int *pnchs, char const *abbr)
+{
+  int nchs = *pnchs;
+  int alen = strlen(abbr), nchs_incr = alen + 1;
+  int i;
+  for (i = 0; i < nchs; ) {
+    int clen = strlen(&chs[i]);
+    if (alen <= clen) {
+      /* If ABBR is a suffix of an abbreviation in CHS,
+	 return the index of ABBR in CHS.  */
+      int isuff = i + (clen - alen);
+      if (memcmp(&chs[isuff], abbr, alen) == 0)
+	return isuff;
+    } else if (memcmp(&chs[i], &abbr[alen - clen], clen) == 0) {
+      /* An abbreviation in CHS is a substring of ABBR.
+	 Replace it with ABBR, instead of the more-common
+	 actions of appending ABBR or doing nothing.  */
+      nchs_incr = alen - clen;
+      break;
+    }
+    i += clen + 1;
+  }
+  if (TZ_MAX_CHARS < nchs + nchs_incr) {
+    error(_("too many, or too long, time zone abbreviations"));
+    exit(EXIT_FAILURE);
+  }
+  memmove(&chs[i + nchs_incr], &chs[i], nchs - i);
+  memcpy(&chs[i], abbr, nchs_incr);
+  *pnchs = nchs + nchs_incr;
+  return i;
 }
 
 /* Ensure that the directories of ARGNAME exist, by making any missing
