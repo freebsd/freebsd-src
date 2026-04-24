@@ -2460,13 +2460,14 @@ pim_register_send_upcall(struct mfctable *mfct, struct ip *ip, struct vif *vifp,
 
 	/* Send message to routing daemon */
 	im = mtod(mb_first, struct igmpmsg *);
-	im->im_msgtype	= IGMPMSG_WHOLEPKT;
-	im->im_mbz		= 0;
-	im->im_vif		= vifp - mfct->viftable;
-	im->im_src		= ip->ip_src;
-	im->im_dst		= ip->ip_dst;
+	memset(im, 0, sizeof(*im));
+	im->im_msgtype = IGMPMSG_WHOLEPKT;
+	im->im_mbz = 0;
+	im->im_vif = vifp - mfct->viftable;
+	im->im_src = ip->ip_src;
+	im->im_dst = ip->ip_dst;
 
-	k_igmpsrc.sin_addr	= ip->ip_src;
+	k_igmpsrc.sin_addr = ip->ip_src;
 
 	MRTSTAT_INC(mrts_upcalls);
 
