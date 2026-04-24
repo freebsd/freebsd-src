@@ -99,6 +99,7 @@
 #define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
 #define	SIOCGI2C	_IOWR('i', 61, struct ifreq)	/* get I2C data  */
 #define	SIOCGHWADDR	_IOWR('i', 62, struct ifreq)	/* get hardware lladdr */
+#define	SIOCGI2CPB	_IOWR('i', 64, struct ifreq)	/* get I2C data*/
 
 #define	SIOCSIFPHYADDR	 _IOW('i', 70, struct ifaliasreq) /* set gif address */
 #define	SIOCGIFPSRCADDR	_IOWR('i', 71, struct ifreq)	/* get gif psrc addr */
@@ -150,6 +151,5 @@
 #define	SIOCGUMBINFO	_IOWR('i', 157, struct ifreq)	/* get MBIM info */
 #define	SIOCSUMBPARAM	 _IOW('i', 158, struct ifreq)	/* set MBIM param */
 #define	SIOCGUMBPARAM	_IOWR('i', 159, struct ifreq)	/* get MBIM param */
-#define	SIOCGI2CPB	_IOWR('i', 160, struct ifreq)	/* get I2C data   */
 
 #endif /* !_SYS_SOCKIO_H_ */
