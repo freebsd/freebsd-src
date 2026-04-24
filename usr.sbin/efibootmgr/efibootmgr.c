@@ -50,7 +50,6 @@
 #include <geom/geom_int.h>
 
 #include <efivar.h>
-#include <efiutil.h>
 #include <efichar.h>
 #include <efivar-dp.h>
 
