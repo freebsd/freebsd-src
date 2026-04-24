@@ -2779,6 +2779,7 @@ call_sim:
 		device = path->device;
 		periph_head = &device->periphs;
 		cgdl = &start_ccb->cgdl;
+		start_ccb->ccb_h.status = CAM_REQ_CMP;
 
 		/*
 		 * Check and see if the list has changed since the user
@@ -2820,7 +2821,6 @@ call_sim:
 		cgdl->index++;
 		cgdl->generation = device->generation;
 
-		cgdl->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 	case XPT_DEV_MATCH:
