@@ -222,7 +222,6 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 
 #define	bo2vnode(bo)	__containerof((bo), struct vnode, v_bufobj)
 
-/* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
 
 #define VN_KNOTE(vp, b, a)              				\
