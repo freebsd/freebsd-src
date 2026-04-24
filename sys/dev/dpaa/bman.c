@@ -1,27 +1,7 @@
-/*-
- * Copyright (c) 2011-2012 Semihalf.
- * All rights reserved.
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * Copyright (c) 2026 Justin Hibbits
  */
 
 #include <sys/param.h>
@@ -29,6 +9,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -36,63 +17,161 @@
 #include <sys/rman.h>
 #include <sys/sched.h>
 
+#include <machine/bus.h>
 #include <machine/tlb.h>
 
 #include "bman.h"
+#include "dpaa_common.h"
+#include "bman_var.h"
+
+#define	BMAN_POOL_SWDET(n)	(0x000 + 4 * (n))
+#define	BMAN_POOL_HWDET(n)	(0x100 + 4 * (n))
+#define	BMAN_POOL_SWDXT(n)	(0x200 + 4 * (n))
+#define	BMAN_POOL_HWDXT(n)	(0x300 + 4 * (n))
+#define	FBPR_FP_LWIT	0x804
+#define	BMAN_IP_REV_1	0x0bf8
+#define	  IP_MAJ_S	  8
+#define	  IP_MAJ_M	  0x0000ff00
+#define	  IP_MIN_M	  0x000000ff
+#define	BMAN_IP_REV_2	0x0bfc
+#define	BMAN_FBPR_BARE	0x0c00
+#define	BMAN_FBPR_BAR	0x0c04
+#define	BMAN_FBPR_AR	0x0c10
+#define	BMAN_LIODNR	0x0d08
+
+#define	BMAN_POOL_CONTENT(n)	(0x0600 + 4 * (n))
+#define	BMAN_ECSR	0x0a00
+#define	BMAN_ECIR	0x0a04
+#define	  ECIR_PORTAL(r)  (((r) >> 24) & 0x0f)
+#define	  ECIR_VERB(r)	  (((r) >> 16) & 0x07)
+#define	  ECIR_R	  0x00080000
+#define	  ECIR_POOL(r)	  ((r) & 0x3f)
+#define	BMAN_CECR	0x0a34	/* Corruption Error Capture Register */
+#define	BMAN_CEAR	0x0a38	/* Corruption Error Address Register */
+#define	BMAN_AECR	0x0a34	/* Acces Error Capture Register */
+#define	BMAN_AEAR	0x0a38	/* Acces Error Address Register */
+#define	BMAN_ERR_ISR	0x0e00
+#define	BMAN_ERR_IER	0x0e04
+#define	BMAN_ERR_ISDR	0x0e08
+#define	  ERR_EMAI	  0x00000040
+#define	  ERR_EMCI	  0x00000020
+#define	  ERR_IVCI	  0x00000010
+#define	  ERR_FLWI	  0x00000008
+#define	  ERR_MBEI	  0x00000004
+#define	  ERR_SBEI	  0x00000002
+#define	  ERR_BSCN	  0x00000001
+
+static MALLOC_DEFINE(M_BMAN, "bman", "DPAA Buffer Manager structures");
 
 static struct bman_softc *bman_sc;
 
-extern t_Handle bman_portal_setup(struct bman_softc *bsc);
-
 static void
-bman_exception(t_Handle h_App, e_BmExceptions exception)
+bman_isr(void *arg)
 {
-	struct bman_softc *sc;
-	const char *message;
+	struct bman_softc *sc = arg;
+	uint32_t ier, isr, isr_bit;
+	uint32_t reg;
 
-	sc = h_App;
+	ier = bus_read_4(sc->sc_rres, BMAN_ERR_IER);
+	isr = bus_read_4(sc->sc_rres, BMAN_ERR_ISR);
 
-	switch (exception) {
-    	case e_BM_EX_INVALID_COMMAND:
-		message = "Invalid Command Verb";
-		break;
-	case e_BM_EX_FBPR_THRESHOLD:
-		message = "FBPR pool exhaused. Consider increasing "
-		    "BMAN_MAX_BUFFERS";
-		break;
-	case e_BM_EX_SINGLE_ECC:
-		message = "Single bit ECC error";
-		break;
-	case e_BM_EX_MULTI_ECC:
-		message = "Multi bit ECC error";
-		break;
-	default:
-		message = "Unknown error";
+	isr_bit = (isr & ier);
+	if (isr_bit == 0)
+		goto end;
+
+	if (isr_bit & ERR_EMAI) {
+		device_printf(sc->sc_dev, "External memory access error\n");
+		reg = bus_read_4(sc->sc_rres, BMAN_AECR);
+		if (reg <= 63)
+			device_printf(sc->sc_dev, "  pool %d\n", reg);
+		else
+			device_printf(sc->sc_dev, "  FBPR free list\n");
+		reg = bus_read_4(sc->sc_rres, BMAN_AEAR);
+		device_printf(sc->sc_dev, "  offset: %#x\n", reg);
 	}
 
-	device_printf(sc->sc_dev, "BMAN Exception: %s.\n", message);
+	if (isr_bit & ERR_EMCI) {
+		device_printf(sc->sc_dev, "External memory corruption error\n");
+		reg = bus_read_4(sc->sc_rres, BMAN_CECR);
+		if (reg <= 63)
+			device_printf(sc->sc_dev, "  pool %d\n", reg);
+		else
+			device_printf(sc->sc_dev, "  FBPR free list\n");
+		reg = bus_read_4(sc->sc_rres, BMAN_CEAR);
+		device_printf(sc->sc_dev, "  offset: %#x\n", reg);
+	}
+	if (isr_bit & ERR_IVCI) {
+		reg = bus_read_4(sc->sc_rres, BMAN_ECIR);
+		device_printf(sc->sc_dev, "Invalid verb command\n");
+		device_printf(sc->sc_dev, "Portal: %d, ring: %s\n",
+		    ECIR_POOL(reg), (reg & ECIR_R) ? "RCR" : "Command");
+		device_printf(sc->sc_dev, "verb: 0x%02x, pool: %d\n",
+		    ECIR_VERB(reg), ECIR_POOL(reg));
+	}
+	if (isr_bit & (ERR_MBEI | ERR_SBEI)) {
+		if (isr_bit & ERR_MBEI)
+			device_printf(sc->sc_dev, "Multi-bit ECC error\n");
+		if (isr_bit & ERR_MBEI)
+			device_printf(sc->sc_dev, "Single-bit ECC error\n");
+		/* TODO: Add more error details for ECC errors. */
+	}
+
+end:
+	bus_write_4(sc->sc_rres, BMAN_ERR_ISR, isr);
+}
+
+static void
+bman_get_version(struct bman_softc *sc)
+{
+	uint32_t reg = bus_read_4(sc->sc_rres, BMAN_IP_REV_1);
+
+	sc->sc_major = (reg & IP_MAJ_M) >> IP_MAJ_S;
+	sc->sc_minor = (reg & IP_MIN_M);
+}
+
+static int
+bman_set_memory(struct bman_softc *sc, vm_paddr_t pa, vm_size_t size)
+{
+	vm_paddr_t bar_pa;
+	if ((pa & (size - 1)) != 0 || (size & (size - 1)) != 0) {
+		device_printf(sc->sc_dev,
+		    "invalid memory configuration: pa: %#jx, size: %#jx\n",
+		    (uintmax_t)pa, (uintmax_t)size);
+		return (ENXIO);
+	}
+	bar_pa = bus_read_4(sc->sc_rres, BMAN_FBPR_BARE);
+	bar_pa <<= 32;
+	bar_pa |= bus_read_4(sc->sc_rres, BMAN_FBPR_BAR);
+	if (bar_pa != 0 && bar_pa != pa) {
+		device_printf(sc->sc_dev,
+		    "attempted to reinitialize BMan with different BAR\n");
+		return (ENOMEM);
+	} else if (bar_pa == pa)
+		return (0);
+
+	bus_write_4(sc->sc_rres, BMAN_FBPR_BARE, pa >> 32);
+	bus_write_4(sc->sc_rres, BMAN_FBPR_BAR, pa & 0xffffffff);
+	bus_write_4(sc->sc_rres, BMAN_FBPR_AR, ilog2(size) - 1);
+
+	return (0);
 }
 
 int
 bman_attach(device_t dev)
 {
 	struct bman_softc *sc;
-	t_BmRevisionInfo rev;
-	t_Error error;
-	t_BmParam bp;
+	vm_paddr_t bp_pa;
+	size_t bp_size;
+	int bp_count;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	bman_sc = sc;
 
-	/* Check if MallocSmart allocator is ready */
-	if (XX_MallocSmartInit() != E_OK)
-		return (ENXIO);
-
 	/* Allocate resources */
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
-	    &sc->sc_rrid, BMAN_CCSR_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    sc->sc_rrid, RF_ACTIVE);
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
 
@@ -102,36 +181,33 @@ bman_attach(device_t dev)
 	if (sc->sc_ires == NULL)
 		goto err;
 
-	/* Initialize BMAN */
-	memset(&bp, 0, sizeof(bp));
-	bp.guestId = NCSW_MASTER_ID;
-	bp.baseAddress = rman_get_bushandle(sc->sc_rres);
-	bp.totalNumOfBuffers = BMAN_MAX_BUFFERS;
-	bp.f_Exception = bman_exception;
-	bp.h_App = sc;
-	bp.errIrq = (uintptr_t)sc->sc_ires;
-	bp.partBpidBase = 0;
-	bp.partNumOfPools = BM_MAX_NUM_OF_POOLS;
+	bman_get_version(sc);
+	if (sc->sc_major == 2 && sc->sc_minor == 0)
+		bp_count = BMAN_MAX_POOLS_1023;
+	else
+		bp_count = BMAN_MAX_POOLS;
 
-	sc->sc_bh = BM_Config(&bp);
-	if (sc->sc_bh == NULL)
+	/* TODO: LIODN */
+	bus_write_4(sc->sc_rres, BMAN_LIODNR, 0);
+
+	sc->sc_vmem = vmem_create("BMan Pools", 0, bp_count, 1, 0, M_WAITOK);
+
+	/* Pool is reserved memory, so no need to track it ourselves. */
+	dpaa_map_private_memory(dev, 0, "fsl,bman-fbpr", &bp_pa, &bp_size);
+	bman_set_memory(sc, bp_pa, bp_size);
+
+	/* Warn if FBPR drops below 5% total. */
+	bus_write_4(sc->sc_rres, FBPR_FP_LWIT, (bp_size / 8) / 20);
+
+	/* Clear interrupt status, and enable all interrupts. */
+	bus_write_4(sc->sc_rres, BMAN_ERR_ISR, 0xffffffff);
+	bus_write_4(sc->sc_rres, BMAN_ERR_IER, 0xffffffff);
+	bus_write_4(sc->sc_rres, BMAN_ERR_ISDR, 0);
+
+	/* Enable the IRQ line now. */
+	if (bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_NET, NULL, bman_isr,
+	    sc, &sc->sc_icookie) != 0)
 		goto err;
-
-	/* Warn if there is less than 5% free FPBR's in pool */
-	error = BM_ConfigFbprThreshold(sc->sc_bh, (BMAN_MAX_BUFFERS / 8) / 20);
-	if (error != E_OK)
-		goto err;
-
-	error = BM_Init(sc->sc_bh);
-	if (error != E_OK)
-		goto err;
-
-	error = BM_GetRevision(sc->sc_bh, &rev);
-	if (error != E_OK)
-		goto err;
-
-	device_printf(dev, "Hardware version: %d.%d.\n",
-	    rev.majorRev, rev.minorRev);
 
 	return (0);
 
@@ -147,9 +223,10 @@ bman_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->sc_bh != NULL)
-		BM_Free(sc->sc_bh);
-
+	if (sc->sc_vmem != NULL)
+		vmem_destroy(sc->sc_vmem);
+	if (sc->sc_icookie != NULL)
+		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);
 	if (sc->sc_ires != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->sc_irid, sc->sc_ires);
@@ -186,179 +263,105 @@ bman_shutdown(device_t dev)
  * BMAN API
  */
 
-t_Handle
-bman_pool_create(uint8_t *bpid, uint16_t bufferSize, uint16_t maxBuffers,
-    uint16_t minBuffers, uint16_t allocBuffers, t_GetBufFunction *f_GetBuf,
-    t_PutBufFunction *f_PutBuf, uint32_t dep_sw_entry, uint32_t dep_sw_exit,
-    uint32_t dep_hw_entry, uint32_t dep_hw_exit,
-    t_BmDepletionCallback *f_Depletion, t_Handle h_BufferPool,
-    t_PhysToVirt *f_PhysToVirt, t_VirtToPhys *f_VirtToPhys)
+struct bman_pool *
+bman_new_pool(void)
 {
-	uint32_t thresholds[MAX_DEPLETION_THRESHOLDS];
 	struct bman_softc *sc;
-	t_Handle pool, portal;
-	t_BmPoolParam bpp;
-	int error;
+	vmem_addr_t bpid;
+	struct bman_pool *pool;
 
 	sc = bman_sc;
 	pool = NULL;
 
-	sched_pin();
+	if (vmem_alloc(sc->sc_vmem, 1, M_FIRSTFIT | M_NOWAIT, &bpid) != 0)
+		return (NULL);
 
-	portal = bman_portal_setup(sc);
-	if (portal == NULL)
-		goto err;
+	pool = malloc(sizeof(*pool), M_BMAN, M_WAITOK | M_ZERO);
 
-	memset(&bpp, 0, sizeof(bpp));
-	bpp.h_Bm = sc->sc_bh;
-	bpp.h_BmPortal = portal;
-	bpp.h_App = h_BufferPool;
-	bpp.numOfBuffers = allocBuffers;
-
-	bpp.bufferPoolInfo.h_BufferPool = h_BufferPool;
-	bpp.bufferPoolInfo.f_GetBuf = f_GetBuf;
-	bpp.bufferPoolInfo.f_PutBuf = f_PutBuf;
-	bpp.bufferPoolInfo.f_PhysToVirt = f_PhysToVirt;
-	bpp.bufferPoolInfo.f_VirtToPhys = f_VirtToPhys;
-	bpp.bufferPoolInfo.bufferSize = bufferSize;
-
-	pool = BM_POOL_Config(&bpp);
-	if (pool == NULL)
-		goto err;
-
-	/*
-	 * Buffer context must be disabled on FreeBSD
-	 * as it could cause memory corruption.
-	 */
-	BM_POOL_ConfigBuffContextMode(pool, 0);
-
-	if (minBuffers != 0 || maxBuffers != 0) {
-		error = BM_POOL_ConfigStockpile(pool, maxBuffers, minBuffers);
-		if (error != E_OK)
-			goto err;
-	}
-
-	if (f_Depletion != NULL) {
-		thresholds[BM_POOL_DEP_THRESH_SW_ENTRY] = dep_sw_entry;
-		thresholds[BM_POOL_DEP_THRESH_SW_EXIT] = dep_sw_exit;
-		thresholds[BM_POOL_DEP_THRESH_HW_ENTRY] = dep_hw_entry;
-		thresholds[BM_POOL_DEP_THRESH_HW_EXIT] = dep_hw_exit;
-		error = BM_POOL_ConfigDepletion(pool, f_Depletion, thresholds);
-		if (error != E_OK)
-			goto err;
-	}
-
-	error = BM_POOL_Init(pool);
-	if (error != E_OK)
-		goto err;
-
-	*bpid = BM_POOL_GetId(pool);
-	sc->sc_bpool_cpu[*bpid] = PCPU_GET(cpuid);
-
-	sched_unpin();
+	pool->bpid = bpid;
 
 	return (pool);
+}
 
-err:
-	if (pool != NULL)
-		BM_POOL_Free(pool);
+struct bman_pool *
+bman_pool_create(uint8_t *bpid, uint16_t buffer_size, uint16_t max_buffers,
+    uint32_t dep_sw_entry, uint32_t dep_sw_exit,
+    uint32_t dep_hw_entry, uint32_t dep_hw_exit,
+    bm_depletion_handler dep_cb, void *arg)
+{
+	struct bman_softc *sc;
+	struct bman_pool *bp;
 
-	sched_unpin();
+	sc = bman_sc;
+	bp = bman_new_pool();
+	if (bpid != NULL)
+		*bpid = bp->bpid;
 
-	return (NULL);
+	if (dep_cb) {
+		bp->dep_cb = dep_cb;
+		bus_write_4(sc->sc_rres, BMAN_POOL_SWDET(bp->bpid),
+		    dep_sw_entry);
+		bus_write_4(sc->sc_rres, BMAN_POOL_SWDXT(bp->bpid),
+		    dep_sw_exit);
+		bus_write_4(sc->sc_rres, BMAN_POOL_HWDET(bp->bpid),
+		    dep_hw_entry);
+		bus_write_4(sc->sc_rres, BMAN_POOL_HWDXT(bp->bpid),
+		    dep_hw_exit);
+		bp->arg = arg;
+		bman_portal_enable_scn(DPCPU_GET(bman_affine_portal), bp);
+	}
+
+	return (bp);
 }
 
 int
-bman_pool_destroy(t_Handle pool)
+bman_pool_destroy(struct bman_pool *pool)
 {
-	struct bman_softc *sc;
-
-	sc = bman_sc;
-	thread_lock(curthread);
-	sched_bind(curthread, sc->sc_bpool_cpu[BM_POOL_GetId(pool)]);
-	thread_unlock(curthread);
-
-	BM_POOL_Free(pool);
-
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	/* Need to error, or print a warning, if the pool isn't empty */
+	if (bman_count(pool) != 0)
+		return (EBUSY);
+	vmem_free(bman_sc->sc_vmem, pool->bpid, 1);
+	free(pool, M_BMAN);
 
 	return (0);
 }
 
 int
-bman_pool_fill(t_Handle pool, uint16_t nbufs)
+bman_put_buffers(struct bman_pool *pool, struct bman_buffer *buffers, int count)
 {
-	struct bman_softc *sc;
-	t_Handle portal;
+	struct bman_portal_softc *portal;
 	int error;
 
-	sc = bman_sc;
-	sched_pin();
+	critical_enter();
 
-	portal = bman_portal_setup(sc);
+	portal = DPCPU_GET(bman_affine_portal);
 	if (portal == NULL) {
-		sched_unpin();
+		critical_exit();
 		return (EIO);
 	}
 
-	error = BM_POOL_FillBufs(pool, portal, nbufs);
-
-	sched_unpin();
-
-	return ((error == E_OK) ? 0 : EIO);
-}
-
-void *
-bman_get_buffer(t_Handle pool)
-{
-	struct bman_softc *sc;
-	t_Handle portal;
-	void *buffer;
-
-	sc = bman_sc;
-	sched_pin();
-
-	portal = bman_portal_setup(sc);
-	if (portal == NULL) {
-		sched_unpin();
-		return (NULL);
+	while (count > 0) {
+		int c = min(count, 8);
+		error = bman_release(pool, buffers, c);
+		buffers += c;
+		count -= c;
 	}
 
-	buffer = BM_POOL_GetBuf(pool, portal);
+	critical_exit();
 
-	sched_unpin();
-
-	return (buffer);
-}
-
-int
-bman_put_buffer(t_Handle pool, void *buffer)
-{
-	struct bman_softc *sc;
-	t_Handle portal;
-	int error;
-
-	sc = bman_sc;
-	sched_pin();
-
-	portal = bman_portal_setup(sc);
-	if (portal == NULL) {
-		sched_unpin();
-		return (EIO);
-	}
-
-	error = BM_POOL_PutBuf(pool, portal, buffer);
-
-	sched_unpin();
-
-	return ((error == E_OK) ? 0 : EIO);
+	return (error);
 }
 
 uint32_t
-bman_count(t_Handle pool)
+bman_get_bpid(struct bman_pool *pool)
+{
+	return (pool->bpid);
+}
+
+uint32_t
+bman_count(struct bman_pool *pool)
 {
 
-	return (BM_POOL_GetCounter(pool, e_BM_POOL_COUNTERS_CONTENT));
+	return (bus_read_4(bman_sc->sc_rres, BMAN_POOL_CONTENT(pool->bpid)));
 }
+

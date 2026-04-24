@@ -54,267 +54,56 @@
 
 #include "miibus_if.h"
 
-#include <contrib/ncsw/inc/integrations/dpaa_integration_ext.h>
-#include <contrib/ncsw/inc/Peripherals/fm_mac_ext.h>
-#include <contrib/ncsw/inc/Peripherals/fm_port_ext.h>
-#include <contrib/ncsw/inc/flib/fsl_fman_dtsec.h>
-#include <contrib/ncsw/inc/xx_ext.h>
-
+#include "dpaa_eth.h"
 #include "fman.h"
+#include "fman_port.h"
 #include "if_dtsec.h"
-#include "if_dtsec_im.h"
-#include "if_dtsec_rm.h"
+
+#include "fman_if.h"
+#include "fman_port_if.h"
 
 #define	DTSEC_MIN_FRAME_SIZE	64
 #define	DTSEC_MAX_FRAME_SIZE	9600
 
 #define	DTSEC_REG_MAXFRM	0x110
-#define	DTSEC_REG_GADDR(i)	(0x0a0 + 4*(i))
+#define	DTSEC_REG_IGADDR(i)	(0x080 + 4 * (i))
+#define	DTSEC_REG_GADDR(i)	(0x0a0 + 4 * (i))
 
-/**
- * @group dTSEC private defines.
- * @{
- */
-/**
- * dTSEC FMan MAC exceptions info struct.
- */
-struct dtsec_fm_mac_ex_str {
-	const int num;
-	const char *str;
-};
-/** @} */
+#define	DTSEC_ECNTRL		0x014
+#define	  ECNTRL_R100M		  0x00000008
+#define	DTSEC_TCTRL		0x040
+#define	  TCTRL_GTS		  0x00000020
+#define	DTSEC_RCTRL		0x050
+#define	  RCTRL_CFA		  0x00008000
+#define	  RCTRL_GHTX		  0x00000400
+#define	  RCTRL_GRS		  0x00000020
+#define	  RCTRL_MPROM		  0x00000008
+#define	DTSEC_MACCFG1		0x100
+#define	DTSEC_MACCFG2		0x104
+#define	  MACCFG_IF_M		  0x00000300
+#define	  MACCFG_IF_10_100	  0x00000100
+#define	  MACCFG_IF_1G		  0x00000200
+#define	  MACCFG_FULLDUPLEX	  0x00000001
+#define	DTSEC_MACSTNADDR1	0x140
+#define	DTSEC_MACSTNADDR2	0x144
 
+static void dtsec_if_init_locked(struct dtsec_softc *sc);
 
 /**
  * @group FMan MAC routines.
  * @{
  */
-#define	DTSEC_MAC_EXCEPTIONS_END	(-1)
-
-/**
- * FMan MAC exceptions.
- */
-static const struct dtsec_fm_mac_ex_str dtsec_fm_mac_exceptions[] = {
-	{ e_FM_MAC_EX_10G_MDIO_SCAN_EVENTMDIO, "MDIO scan event" },
-	{ e_FM_MAC_EX_10G_MDIO_CMD_CMPL, "MDIO command completion" },
-	{ e_FM_MAC_EX_10G_REM_FAULT, "Remote fault" },
-	{ e_FM_MAC_EX_10G_LOC_FAULT, "Local fault" },
-	{ e_FM_MAC_EX_10G_1TX_ECC_ER, "Transmit frame ECC error" },
-	{ e_FM_MAC_EX_10G_TX_FIFO_UNFL, "Transmit FIFO underflow" },
-	{ e_FM_MAC_EX_10G_TX_FIFO_OVFL, "Receive FIFO overflow" },
-	{ e_FM_MAC_EX_10G_TX_ER, "Transmit frame error" },
-	{ e_FM_MAC_EX_10G_RX_FIFO_OVFL, "Receive FIFO overflow" },
-	{ e_FM_MAC_EX_10G_RX_ECC_ER, "Receive frame ECC error" },
-	{ e_FM_MAC_EX_10G_RX_JAB_FRM, "Receive jabber frame" },
-	{ e_FM_MAC_EX_10G_RX_OVRSZ_FRM, "Receive oversized frame" },
-	{ e_FM_MAC_EX_10G_RX_RUNT_FRM, "Receive runt frame" },
-	{ e_FM_MAC_EX_10G_RX_FRAG_FRM, "Receive fragment frame" },
-	{ e_FM_MAC_EX_10G_RX_LEN_ER, "Receive payload length error" },
-	{ e_FM_MAC_EX_10G_RX_CRC_ER, "Receive CRC error" },
-	{ e_FM_MAC_EX_10G_RX_ALIGN_ER, "Receive alignment error" },
-	{ e_FM_MAC_EX_1G_BAB_RX, "Babbling receive error" },
-	{ e_FM_MAC_EX_1G_RX_CTL, "Receive control (pause frame) interrupt" },
-	{ e_FM_MAC_EX_1G_GRATEFUL_TX_STP_COMPLET, "Graceful transmit stop "
-	    "complete" },
-	{ e_FM_MAC_EX_1G_BAB_TX, "Babbling transmit error" },
-	{ e_FM_MAC_EX_1G_TX_CTL, "Transmit control (pause frame) interrupt" },
-	{ e_FM_MAC_EX_1G_TX_ERR, "Transmit error" },
-	{ e_FM_MAC_EX_1G_LATE_COL, "Late collision" },
-	{ e_FM_MAC_EX_1G_COL_RET_LMT, "Collision retry limit" },
-	{ e_FM_MAC_EX_1G_TX_FIFO_UNDRN, "Transmit FIFO underrun" },
-	{ e_FM_MAC_EX_1G_MAG_PCKT, "Magic Packet detected when dTSEC is in "
-	    "Magic Packet detection mode" },
-	{ e_FM_MAC_EX_1G_MII_MNG_RD_COMPLET, "MII management read completion" },
-	{ e_FM_MAC_EX_1G_MII_MNG_WR_COMPLET, "MII management write completion" },
-	{ e_FM_MAC_EX_1G_GRATEFUL_RX_STP_COMPLET, "Graceful receive stop "
-	    "complete" },
-	{ e_FM_MAC_EX_1G_TX_DATA_ERR, "Internal data error on transmit" },
-	{ e_FM_MAC_EX_1G_RX_DATA_ERR, "Internal data error on receive" },
-	{ e_FM_MAC_EX_1G_1588_TS_RX_ERR, "Time-Stamp Receive Error" },
-	{ e_FM_MAC_EX_1G_RX_MIB_CNT_OVFL, "MIB counter overflow" },
-	{ DTSEC_MAC_EXCEPTIONS_END, "" }
-};
-
-static const char *
-dtsec_fm_mac_ex_to_str(e_FmMacExceptions exception)
-{
-	int i;
-
-	for (i = 0; dtsec_fm_mac_exceptions[i].num != exception &&
-	    dtsec_fm_mac_exceptions[i].num != DTSEC_MAC_EXCEPTIONS_END; ++i)
-		;
-
-	if (dtsec_fm_mac_exceptions[i].num == DTSEC_MAC_EXCEPTIONS_END)
-		return ("<Unknown Exception>");
-
-	return (dtsec_fm_mac_exceptions[i].str);
-}
-
-static void
-dtsec_fm_mac_mdio_event_callback(t_Handle h_App,
-    e_FmMacExceptions exception)
-{
-	struct dtsec_softc *sc;
-
-	sc = h_App;
-	device_printf(sc->sc_dev, "MDIO event %i: %s.\n", exception,
-	    dtsec_fm_mac_ex_to_str(exception));
-}
-
-static void
-dtsec_fm_mac_exception_callback(t_Handle app, e_FmMacExceptions exception)
-{
-	struct dtsec_softc *sc;
-
-	sc = app;
-	device_printf(sc->sc_dev, "MAC exception %i: %s.\n", exception,
-	    dtsec_fm_mac_ex_to_str(exception));
-}
-
-static void
-dtsec_fm_mac_free(struct dtsec_softc *sc)
-{
-	if (sc->sc_mach == NULL)
-		return;
-
-	FM_MAC_Disable(sc->sc_mach, e_COMM_MODE_RX_AND_TX);
-	FM_MAC_Free(sc->sc_mach);
-	sc->sc_mach = NULL;
-}
 
 static int
 dtsec_fm_mac_init(struct dtsec_softc *sc, uint8_t *mac)
 {
-	t_FmMacParams params;
-	t_Error error;
+	FMAN_GET_REVISION(device_get_parent(sc->sc_base.sc_dev), &sc->sc_base.sc_rev_major,
+	    &sc->sc_base.sc_rev_minor);
 
-	memset(&params, 0, sizeof(params));
-	memcpy(&params.addr, mac, sizeof(params.addr));
-
-	params.baseAddr = rman_get_bushandle(sc->sc_mem);
-	params.enetMode = sc->sc_mac_enet_mode;
-	params.macId = sc->sc_eth_id;
-	params.mdioIrq = sc->sc_mac_mdio_irq;
-	params.f_Event = dtsec_fm_mac_mdio_event_callback;
-	params.f_Exception = dtsec_fm_mac_exception_callback;
-	params.h_App = sc;
-	params.h_Fm = sc->sc_fmh;
-
-	sc->sc_mach = FM_MAC_Config(&params);
-	if (sc->sc_mach == NULL) {
-		device_printf(sc->sc_dev, "couldn't configure FM_MAC module.\n"
-		    );
+	if (FMAN_RESET_MAC(device_get_parent(sc->sc_base.sc_dev), sc->sc_base.sc_eth_id) != 0)
 		return (ENXIO);
-	}
-
-	error = FM_MAC_ConfigResetOnInit(sc->sc_mach, TRUE);
-	if (error != E_OK) {
-		device_printf(sc->sc_dev, "couldn't enable reset on init "
-		    "feature.\n");
-		dtsec_fm_mac_free(sc);
-		return (ENXIO);
-	}
-
-	/* Do not inform about pause frames */
-	error = FM_MAC_ConfigException(sc->sc_mach, e_FM_MAC_EX_1G_RX_CTL,
-	    FALSE);
-	if (error != E_OK) {
-		device_printf(sc->sc_dev, "couldn't disable pause frames "
-			"exception.\n");
-		dtsec_fm_mac_free(sc);
-		return (ENXIO);
-	}
-
-	error = FM_MAC_Init(sc->sc_mach);
-	if (error != E_OK) {
-		device_printf(sc->sc_dev, "couldn't initialize FM_MAC module."
-		    "\n");
-		dtsec_fm_mac_free(sc);
-		return (ENXIO);
-	}
 
 	return (0);
-}
-/** @} */
-
-
-/**
- * @group FMan PORT routines.
- * @{
- */
-static const char *
-dtsec_fm_port_ex_to_str(e_FmPortExceptions exception)
-{
-
-	switch (exception) {
-	case e_FM_PORT_EXCEPTION_IM_BUSY:
-		return ("IM: RX busy");
-	default:
-		return ("<Unknown Exception>");
-	}
-}
-
-void
-dtsec_fm_port_rx_exception_callback(t_Handle app,
-    e_FmPortExceptions exception)
-{
-	struct dtsec_softc *sc;
-
-	sc = app;
-	device_printf(sc->sc_dev, "RX exception: %i: %s.\n", exception,
-	    dtsec_fm_port_ex_to_str(exception));
-}
-
-void
-dtsec_fm_port_tx_exception_callback(t_Handle app,
-    e_FmPortExceptions exception)
-{
-	struct dtsec_softc *sc;
-
-	sc = app;
-	device_printf(sc->sc_dev, "TX exception: %i: %s.\n", exception,
-	    dtsec_fm_port_ex_to_str(exception));
-}
-
-e_FmPortType
-dtsec_fm_port_rx_type(enum eth_dev_type type)
-{
-	switch (type) {
-	case ETH_DTSEC:
-		return (e_FM_PORT_TYPE_RX);
-	case ETH_10GSEC:
-		return (e_FM_PORT_TYPE_RX_10G);
-	default:
-		return (e_FM_PORT_TYPE_DUMMY);
-	}
-}
-
-e_FmPortType
-dtsec_fm_port_tx_type(enum eth_dev_type type)
-{
-
-	switch (type) {
-	case ETH_DTSEC:
-		return (e_FM_PORT_TYPE_TX);
-	case ETH_10GSEC:
-		return (e_FM_PORT_TYPE_TX_10G);
-	default:
-		return (e_FM_PORT_TYPE_DUMMY);
-	}
-}
-
-static void
-dtsec_fm_port_free_both(struct dtsec_softc *sc)
-{
-	if (sc->sc_rxph) {
-		FM_PORT_Free(sc->sc_rxph);
-		sc->sc_rxph = NULL;
-	}
-
-	if (sc->sc_txph) {
-		FM_PORT_Free(sc->sc_txph);
-		sc->sc_txph = NULL;
-	}
 }
 /** @} */
 
@@ -332,7 +121,7 @@ dtsec_set_mtu(struct dtsec_softc *sc, unsigned int mtu)
 	DTSEC_LOCK_ASSERT(sc);
 
 	if (mtu >= DTSEC_MIN_FRAME_SIZE && mtu <= DTSEC_MAX_FRAME_SIZE) {
-		bus_write_4(sc->sc_mem, DTSEC_REG_MAXFRM, mtu);
+		bus_write_4(sc->sc_base.sc_mem, DTSEC_REG_MAXFRM, mtu);
 		return (mtu);
 	}
 
@@ -342,9 +131,10 @@ dtsec_set_mtu(struct dtsec_softc *sc, unsigned int mtu)
 static u_int
 dtsec_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
-	struct dtsec_softc *sc = arg;
+	uint32_t h, *hashtable = arg;
 
-	FM_MAC_AddHashMacAddr(sc->sc_mach, (t_EnetAddr *)LLADDR(sdl));
+	h = (ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN) >> 24) & 0xFF;
+	hashtable[(h >> 5)] |= 1 << (0x1F - (h & 0x1F));
 
 	return (1);
 }
@@ -352,18 +142,52 @@ dtsec_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 dtsec_setup_multicast(struct dtsec_softc *sc)
 {
+	uint32_t hashtable[8] = {};
 	int i;
 
-	if (if_getflags(sc->sc_ifnet) & IFF_ALLMULTI) {
+	if (if_getflags(sc->sc_base.sc_ifnet) & IFF_ALLMULTI) {
 		for (i = 0; i < 8; i++)
-			bus_write_4(sc->sc_mem, DTSEC_REG_GADDR(i), 0xFFFFFFFF);
+			bus_write_4(sc->sc_base.sc_mem, DTSEC_REG_GADDR(i), 0xFFFFFFFF);
+		bus_write_4(sc->sc_base.sc_mem, DTSEC_RCTRL,
+		    bus_read_4(sc->sc_base.sc_mem, DTSEC_RCTRL) | RCTRL_MPROM);
 
 		return;
 	}
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_RCTRL,
+	    bus_read_4(sc->sc_base.sc_mem, DTSEC_RCTRL) & ~RCTRL_MPROM);
 
-	fman_dtsec_reset_filter_table(rman_get_virtual(sc->sc_mem),
-	    true, false);
-	if_foreach_llmaddr(sc->sc_ifnet, dtsec_hash_maddr, sc);
+	if_foreach_llmaddr(sc->sc_base.sc_ifnet, dtsec_hash_maddr, hashtable);
+	for (i = 0; i < 8; i++)
+		bus_write_4(sc->sc_base.sc_mem, DTSEC_REG_GADDR(i),
+		    hashtable[i]);
+}
+
+static void
+dtsec_if_graceful_stop(struct dtsec_softc *sc)
+{
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_RCTRL,
+	    bus_read_4(sc->sc_base.sc_mem, DTSEC_RCTRL) | RCTRL_GRS);
+	if (sc->sc_base.sc_rev_major == 2)
+		DELAY(100);
+	else
+		DELAY(10);
+
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_TCTRL,
+	    bus_read_4(sc->sc_base.sc_mem, DTSEC_TCTRL) | TCTRL_GTS);
+}
+
+static void
+dtsec_if_graceful_start(struct dtsec_softc *sc)
+{
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_RCTRL,
+	    bus_read_4(sc->sc_base.sc_mem, DTSEC_RCTRL) & ~RCTRL_GRS);
+	if (sc->sc_base.sc_rev_major == 2)
+		DELAY(100);
+	else
+		DELAY(10);
+
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_TCTRL,
+	    bus_read_4(sc->sc_base.sc_mem, DTSEC_TCTRL) & ~TCTRL_GTS);
 }
 
 static int
@@ -373,24 +197,22 @@ dtsec_if_enable_locked(struct dtsec_softc *sc)
 
 	DTSEC_LOCK_ASSERT(sc);
 
-	error = FM_MAC_Enable(sc->sc_mach, e_COMM_MODE_RX_AND_TX);
-	if (error != E_OK)
+	dtsec_if_graceful_start(sc);
+
+	error = FMAN_PORT_ENABLE(sc->sc_base.sc_rx_port);
+	if (error != 0)
 		return (EIO);
 
-	error = FM_PORT_Enable(sc->sc_rxph);
-	if (error != E_OK)
-		return (EIO);
-
-	error = FM_PORT_Enable(sc->sc_txph);
-	if (error != E_OK)
+	error = FMAN_PORT_ENABLE(sc->sc_base.sc_tx_port);
+	if (error != 0)
 		return (EIO);
 
 	dtsec_setup_multicast(sc);
 
-	if_setdrvflagbits(sc->sc_ifnet, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(sc->sc_base.sc_ifnet, IFF_DRV_RUNNING, 0);
 
 	/* Refresh link state */
-	dtsec_miibus_statchg(sc->sc_dev);
+	dtsec_miibus_statchg(sc->sc_base.sc_dev);
 
 	return (0);
 }
@@ -402,19 +224,17 @@ dtsec_if_disable_locked(struct dtsec_softc *sc)
 
 	DTSEC_LOCK_ASSERT(sc);
 
-	error = FM_MAC_Disable(sc->sc_mach, e_COMM_MODE_RX_AND_TX);
-	if (error != E_OK)
+	dtsec_if_graceful_stop(sc);
+
+	error = FMAN_PORT_DISABLE(sc->sc_base.sc_rx_port);
+	if (error != 0)
 		return (EIO);
 
-	error = FM_PORT_Disable(sc->sc_rxph);
-	if (error != E_OK)
+	error = FMAN_PORT_DISABLE(sc->sc_base.sc_tx_port);
+	if (error != 0)
 		return (EIO);
 
-	error = FM_PORT_Disable(sc->sc_txph);
-	if (error != E_OK)
-		return (EIO);
-
-	if_setdrvflagbits(sc->sc_ifnet, 0, IFF_DRV_RUNNING);
+	if_setdrvflagbits(sc->sc_base.sc_ifnet, 0, IFF_DRV_RUNNING);
 
 	return (0);
 }
@@ -443,9 +263,10 @@ dtsec_if_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		DTSEC_LOCK(sc);
 
-		if (if_getflags(sc->sc_ifnet) & IFF_UP)
-			error = dtsec_if_enable_locked(sc);
-		else
+		if (if_getflags(ifp) & IFF_UP) {
+			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
+				dtsec_if_init_locked(sc);
+		} else
 			error = dtsec_if_disable_locked(sc);
 
 		DTSEC_UNLOCK(sc);
@@ -453,7 +274,7 @@ dtsec_if_ioctl(if_t ifp, u_long command, caddr_t data)
 
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->sc_mii->mii_media,
+		error = ifmedia_ioctl(ifp, ifr, &sc->sc_base.sc_mii->mii_media,
 		    command);
 		break;
 
@@ -474,8 +295,8 @@ dtsec_if_tick(void *arg)
 	/* TODO */
 	DTSEC_LOCK(sc);
 
-	mii_tick(sc->sc_mii);
-	callout_reset(&sc->sc_tick_callout, hz, dtsec_if_tick, sc);
+	mii_tick(sc->sc_base.sc_mii);
+	callout_reset(&sc->sc_base.sc_tick_callout, hz, dtsec_if_tick, sc);
 
 	DTSEC_UNLOCK(sc);
 }
@@ -487,30 +308,38 @@ dtsec_if_deinit_locked(struct dtsec_softc *sc)
 	DTSEC_LOCK_ASSERT(sc);
 
 	DTSEC_UNLOCK(sc);
-	callout_drain(&sc->sc_tick_callout);
+	callout_drain(&sc->sc_base.sc_tick_callout);
 	DTSEC_LOCK(sc);
+}
+
+static void
+dtsec_if_set_macaddr(struct dtsec_softc *sc, const char *addr)
+{
+	uint32_t reg;
+
+	reg = (addr[5] << 24) | (addr[4] << 16) | (addr[3] << 8) | addr[2];
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_MACSTNADDR1, reg);
+	reg = (addr[1] << 24) | (addr[0] << 16);
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_MACSTNADDR2, reg);
 }
 
 static void
 dtsec_if_init_locked(struct dtsec_softc *sc)
 {
 	int error;
+	const char *macaddr;
 
 	DTSEC_LOCK_ASSERT(sc);
 
-	/* Set MAC address */
-	error = FM_MAC_ModifyMacAddr(sc->sc_mach,
-	    (t_EnetAddr *)if_getlladdr(sc->sc_ifnet));
-	if (error != E_OK) {
-		device_printf(sc->sc_dev, "couldn't set MAC address.\n");
-		goto err;
-	}
+	macaddr = if_getlladdr(sc->sc_base.sc_ifnet);
+	dtsec_if_set_macaddr(sc, macaddr);
 
 	/* Start MII polling */
-	if (sc->sc_mii)
-		callout_reset(&sc->sc_tick_callout, hz, dtsec_if_tick, sc);
+	if (sc->sc_base.sc_mii)
+		callout_reset(&sc->sc_base.sc_tick_callout, hz,
+		    dtsec_if_tick, sc);
 
-	if (if_getflags(sc->sc_ifnet) & IFF_UP) {
+	if (if_getflags(sc->sc_base.sc_ifnet) & IFF_UP) {
 		error = dtsec_if_enable_locked(sc);
 		if (error != 0)
 			goto err;
@@ -524,7 +353,7 @@ dtsec_if_init_locked(struct dtsec_softc *sc)
 
 err:
 	dtsec_if_deinit_locked(sc);
-	device_printf(sc->sc_dev, "initialization error.\n");
+	device_printf(sc->sc_base.sc_dev, "initialization error.\n");
 	return;
 }
 
@@ -547,7 +376,7 @@ dtsec_if_start(if_t ifp)
 
 	sc = if_getsoftc(ifp);
 	DTSEC_LOCK(sc);
-	sc->sc_start_locked(sc);
+	dpaa_eth_if_start_locked(&sc->sc_base);
 	DTSEC_UNLOCK(sc);
 }
 
@@ -569,7 +398,7 @@ dtsec_ifmedia_upd(if_t ifp)
 	struct dtsec_softc *sc = if_getsoftc(ifp);
 
 	DTSEC_LOCK(sc);
-	mii_mediachg(sc->sc_mii);
+	mii_mediachg(sc->sc_base.sc_mii);
 	DTSEC_UNLOCK(sc);
 
 	return (0);
@@ -582,10 +411,10 @@ dtsec_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 
 	DTSEC_LOCK(sc);
 
-	mii_pollstat(sc->sc_mii);
+	mii_pollstat(sc->sc_base.sc_mii);
 
-	ifmr->ifm_active = sc->sc_mii->mii_media_active;
-	ifmr->ifm_status = sc->sc_mii->mii_media_status;
+	ifmr->ifm_active = sc->sc_base.sc_mii->mii_media_active;
+	ifmr->ifm_status = sc->sc_base.sc_mii->mii_media_status;
 
 	DTSEC_UNLOCK(sc);
 }
@@ -596,118 +425,75 @@ dtsec_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
  * @group dTSEC bus interface.
  * @{
  */
-static void
-dtsec_configure_mode(struct dtsec_softc *sc)
-{
-	char tunable[64];
-
-	snprintf(tunable, sizeof(tunable), "%s.independent_mode",
-	    device_get_nameunit(sc->sc_dev));
-
-	sc->sc_mode = DTSEC_MODE_REGULAR;
-	TUNABLE_INT_FETCH(tunable, &sc->sc_mode);
-
-	if (sc->sc_mode == DTSEC_MODE_REGULAR) {
-		sc->sc_port_rx_init = dtsec_rm_fm_port_rx_init;
-		sc->sc_port_tx_init = dtsec_rm_fm_port_tx_init;
-		sc->sc_start_locked = dtsec_rm_if_start_locked;
-	} else {
-		sc->sc_port_rx_init = dtsec_im_fm_port_rx_init;
-		sc->sc_port_tx_init = dtsec_im_fm_port_tx_init;
-		sc->sc_start_locked = dtsec_im_if_start_locked;
-	}
-
-	device_printf(sc->sc_dev, "Configured for %s mode.\n",
-	    (sc->sc_mode == DTSEC_MODE_REGULAR) ? "regular" : "independent");
-}
 
 int
 dtsec_attach(device_t dev)
 {
 	struct dtsec_softc *sc;
-	device_t parent;
+	cell_t ports[2];
+	phandle_t node;
 	int error;
 	if_t ifp;
 
 	sc = device_get_softc(dev);
 
-	parent = device_get_parent(dev);
-	sc->sc_dev = dev;
-	sc->sc_mac_mdio_irq = NO_IRQ;
-
-	/* Check if MallocSmart allocator is ready */
-	if (XX_MallocSmartInit() != E_OK)
-		return (ENXIO);
+	sc->sc_base.sc_dev = dev;
+	node = ofw_bus_get_node(dev);
 
 	/* Init locks */
-	mtx_init(&sc->sc_lock, device_get_nameunit(dev),
+	mtx_init(&sc->sc_base.sc_lock, device_get_nameunit(dev),
 	    "DTSEC Global Lock", MTX_DEF);
 
-	mtx_init(&sc->sc_mii_lock, device_get_nameunit(dev),
+	mtx_init(&sc->sc_base.sc_mii_lock, device_get_nameunit(dev),
 	    "DTSEC MII Lock", MTX_DEF);
 
 	/* Init callouts */
-	callout_init(&sc->sc_tick_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_base.sc_tick_callout, CALLOUT_MPSAFE);
 
-	/* Read configuraton */
-	if ((error = fman_get_handle(parent, &sc->sc_fmh)) != 0)
-		return (error);
+	/* Create RX buffer pool */
+	error = dpaa_eth_pool_rx_init(&sc->sc_base);
+	if (error != 0)
+		return (EIO);
 
-	if ((error = fman_get_muram_handle(parent, &sc->sc_muramh)) != 0)
-		return (error);
+	/* Create RX frame queue range */
+	error = dpaa_eth_fq_rx_init(&sc->sc_base);
+	if (error != 0)
+		return (EIO);
 
-	if ((error = fman_get_bushandle(parent, &sc->sc_fm_base)) != 0)
-		return (error);
+	/* Create frame info pool */
+	error = dpaa_eth_fi_pool_init(&sc->sc_base);
+	if (error != 0)
+		return (EIO);
 
-	/* Configure working mode */
-	dtsec_configure_mode(sc);
+	/* Create TX frame queue range */
+	error = dpaa_eth_fq_tx_init(&sc->sc_base);
+	if (error != 0)
+		return (EIO);
 
-	/* If we are working in regular mode configure BMAN and QMAN */
-	if (sc->sc_mode == DTSEC_MODE_REGULAR) {
-		/* Create RX buffer pool */
-		error = dtsec_rm_pool_rx_init(sc);
-		if (error != 0)
-			return (EIO);
-
-		/* Create RX frame queue range */
-		error = dtsec_rm_fqr_rx_init(sc);
-		if (error != 0)
-			return (EIO);
-
-		/* Create frame info pool */
-		error = dtsec_rm_fi_pool_init(sc);
-		if (error != 0)
-			return (EIO);
-
-		/* Create TX frame queue range */
-		error = dtsec_rm_fqr_tx_init(sc);
-		if (error != 0)
-			return (EIO);
+	if (OF_getencprop(node, "fsl,fman-ports", ports, sizeof(ports)) < 0) {
+		device_printf(dev, "missing ports in device tree\n");
+		return (ENXIO);
 	}
-
 	/* Init FMan MAC module. */
-	error = dtsec_fm_mac_init(sc, sc->sc_mac_addr);
+	error = dtsec_fm_mac_init(sc, sc->sc_base.sc_mac_addr);
 	if (error != 0) {
 		dtsec_detach(dev);
 		return (ENXIO);
 	}
 
-	/* Init FMan TX port */
-	error = sc->sc_port_tx_init(sc, device_get_unit(sc->sc_dev));
-	if (error != 0) {
-		dtsec_detach(dev);
-		return (ENXIO);
-	}
+	sc->sc_base.sc_rx_port = OF_device_from_xref(ports[0]);
+	sc->sc_base.sc_tx_port = OF_device_from_xref(ports[1]);
+	dpaa_eth_fm_port_rx_init(&sc->sc_base);
+	dpaa_eth_fm_port_tx_init(&sc->sc_base);
 
-	/* Init FMan RX port */
-	error = sc->sc_port_rx_init(sc, device_get_unit(sc->sc_dev));
-	if (error != 0) {
+	if (sc->sc_base.sc_rx_port == NULL || sc->sc_base.sc_tx_port == NULL) {
+		device_printf(dev, "invalid ports");
 		dtsec_detach(dev);
 		return (ENXIO);
 	}
 
 	/* Create network interface for upper layers */
-	ifp = sc->sc_ifnet = if_alloc(IFT_ETHER);
+	ifp = sc->sc_base.sc_ifnet = if_alloc(IFT_ETHER);
 	if_setsoftc(ifp, sc);
 
 	if_setflags(ifp, IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
@@ -716,11 +502,12 @@ dtsec_attach(device_t dev)
 	if_setioctlfn(ifp, dtsec_if_ioctl);
 	if_setsendqlen(ifp, IFQ_MAXLEN);
 
-	if (sc->sc_phy_addr >= 0)
-		if_initname(ifp, device_get_name(sc->sc_dev),
-		    device_get_unit(sc->sc_dev));
+	if (sc->sc_base.sc_phy_addr >= 0)
+		if_initname(ifp, device_get_name(sc->sc_base.sc_dev),
+		    device_get_unit(sc->sc_base.sc_dev));
 	else
-		if_initname(ifp, "dtsec_phy", device_get_unit(sc->sc_dev));
+		if_initname(ifp, "dtsec_phy",
+		    device_get_unit(sc->sc_base.sc_dev));
 
 	/* TODO */
 #if 0
@@ -732,18 +519,18 @@ dtsec_attach(device_t dev)
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	/* Attach PHY(s) */
-	error = mii_attach(sc->sc_dev, &sc->sc_mii_dev, ifp, dtsec_ifmedia_upd,
-	    dtsec_ifmedia_sts, BMSR_DEFCAPMASK, sc->sc_phy_addr,
-	    MII_OFFSET_ANY, 0);
+	error = mii_attach(sc->sc_base.sc_dev, &sc->sc_base.sc_mii_dev,
+	    ifp, dtsec_ifmedia_upd, dtsec_ifmedia_sts, BMSR_DEFCAPMASK,
+	    sc->sc_base.sc_phy_addr, MII_OFFSET_ANY, 0);
 	if (error) {
-		device_printf(sc->sc_dev, "attaching PHYs failed: %d\n", error);
-		dtsec_detach(sc->sc_dev);
+		device_printf(sc->sc_base.sc_dev,
+		    "attaching PHYs failed: %d\n", error);
+		dtsec_detach(sc->sc_base.sc_dev);
 		return (error);
 	}
-	sc->sc_mii = device_get_softc(sc->sc_mii_dev);
 
 	/* Attach to stack */
-	ether_ifattach(ifp, sc->sc_mac_addr);
+	ether_ifattach(ifp, sc->sc_base.sc_mac_addr);
 
 	return (0);
 }
@@ -755,7 +542,7 @@ dtsec_detach(device_t dev)
 	if_t ifp;
 
 	sc = device_get_softc(dev);
-	ifp = sc->sc_ifnet;
+	ifp = sc->sc_base.sc_ifnet;
 
 	if (device_is_attached(dev)) {
 		ether_ifdetach(ifp);
@@ -765,28 +552,23 @@ dtsec_detach(device_t dev)
 		DTSEC_UNLOCK(sc);
 	}
 
-	if (sc->sc_ifnet) {
-		if_free(sc->sc_ifnet);
-		sc->sc_ifnet = NULL;
+	if (sc->sc_base.sc_ifnet) {
+		if_free(sc->sc_base.sc_ifnet);
+		sc->sc_base.sc_ifnet = NULL;
 	}
 
-	if (sc->sc_mode == DTSEC_MODE_REGULAR) {
-		/* Free RX/TX FQRs */
-		dtsec_rm_fqr_rx_free(sc);
-		dtsec_rm_fqr_tx_free(sc);
+	/* Free RX/TX FQRs */
+	dpaa_eth_fq_rx_free(&sc->sc_base);
+	dpaa_eth_fq_tx_free(&sc->sc_base);
 
-		/* Free frame info pool */
-		dtsec_rm_fi_pool_free(sc);
+	/* Free frame info pool */
+	dpaa_eth_fi_pool_free(&sc->sc_base);
 
-		/* Free RX buffer pool */
-		dtsec_rm_pool_rx_free(sc);
-	}
-
-	dtsec_fm_mac_free(sc);
-	dtsec_fm_port_free_both(sc);
+	/* Free RX buffer pool */
+	dpaa_eth_pool_rx_free(&sc->sc_base);
 
 	/* Destroy lock */
-	mtx_destroy(&sc->sc_lock);
+	mtx_destroy(&sc->sc_base.sc_lock);
 
 	return (0);
 }
@@ -825,7 +607,7 @@ dtsec_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	return (MIIBUS_READREG(sc->sc_mdio, phy, reg));
+	return (MIIBUS_READREG(sc->sc_base.sc_mdio, phy, reg));
 }
 
 int
@@ -836,43 +618,49 @@ dtsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	sc = device_get_softc(dev);
 
-	return (MIIBUS_WRITEREG(sc->sc_mdio, phy, reg, value));
+	return (MIIBUS_WRITEREG(sc->sc_base.sc_mdio, phy, reg, value));
 }
 
 void
 dtsec_miibus_statchg(device_t dev)
 {
 	struct dtsec_softc *sc;
-	e_EnetSpeed speed;
+	uint32_t reg;
 	bool duplex;
-	int error;
+	int speed;
 
 	sc = device_get_softc(dev);
 
 	DTSEC_LOCK_ASSERT(sc);
 
-	duplex = ((sc->sc_mii->mii_media_active & IFM_GMASK) == IFM_FDX);
+	duplex = ((sc->sc_base.sc_mii->mii_media_active & IFM_GMASK) == IFM_FDX);
 
-	switch (IFM_SUBTYPE(sc->sc_mii->mii_media_active)) {
+	switch (IFM_SUBTYPE(sc->sc_base.sc_mii->mii_media_active)) {
 	case IFM_1000_T:
 	case IFM_1000_SX:
-		speed = e_ENET_SPEED_1000;
-		break;
-
-        case IFM_100_TX:
-		speed = e_ENET_SPEED_100;
-		break;
-
-        case IFM_10_T:
-		speed = e_ENET_SPEED_10;
+		if (!duplex) {
+			device_printf(sc->sc_base.sc_dev,
+			    "Only full-duplex supported for 1Gbps speeds");
+			return;
+		}
+		speed = MACCFG_IF_1G;
 		break;
 
 	default:
-		speed = e_ENET_SPEED_10;
+		speed = MACCFG_IF_10_100;
 	}
 
-	error = FM_MAC_AdjustLink(sc->sc_mach, speed, duplex);
-	if (error != E_OK)
-		device_printf(sc->sc_dev, "error while adjusting MAC speed.\n");
+	reg = bus_read_4(sc->sc_base.sc_mem, DTSEC_MACCFG2);
+	reg &= ~(MACCFG_IF_M | MACCFG_FULLDUPLEX);
+
+	if (duplex)
+		reg |= MACCFG_FULLDUPLEX;
+	reg |= speed;
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_MACCFG2, reg);
+
+	reg = bus_read_4(sc->sc_base.sc_mem, DTSEC_ECNTRL) & ~ECNTRL_R100M;
+	if (IFM_SUBTYPE(sc->sc_base.sc_mii->mii_media_active) == IFM_100_TX)
+		reg |= ECNTRL_R100M;
+	bus_write_4(sc->sc_base.sc_mem, DTSEC_ECNTRL, reg);
 }
 /** @} */

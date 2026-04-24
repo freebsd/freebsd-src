@@ -27,10 +27,13 @@
 #ifndef _QMAN_H
 #define _QMAN_H
 
+#include <sys/vmem.h>
 #include <machine/vmparam.h>
 
-#include <contrib/ncsw/inc/Peripherals/qm_ext.h>
-
+struct qman_fq;
+struct qman_fq;
+struct dpaa_fd;
+struct qman_portal;
 
 /**
  * @group QMan private defines/declarations
@@ -44,13 +47,15 @@
 /**
  * Pool channel common to all software portals.
  * @note Value of 0 reflects the e_QM_FQ_CHANNEL_POOL1 from e_QmFQChannel
- *       type used in qman_fqr_create().
+ *       type used in qman_fq_create().
  */
 #define		QMAN_COMMON_POOL_CHANNEL	0
 
 #define		QMAN_FQID_BASE			1
 
-#define		QMAN_CCSR_SIZE			0x1000
+/* Counters */
+#define	QMAN_COUNTER_FRAME	0
+#define	QMAN_COUNTER_BYTES	1
 
 /*
  * Portal defines
@@ -69,18 +74,103 @@ struct qman_softc {
 	struct resource	*sc_rres;		/* register resource */
 	int		sc_irid;		/* interrupt rid */
 	struct resource	*sc_ires;		/* interrupt resource */
+	vmem_t		*sc_fqalloc;
+	vmem_t		*sc_qpalloc;
+	vmem_t		*sc_cgalloc;
+	void		*sc_intr_cookie;
+	int		sc_qman_base_channel;
+	int		sc_qman_major;
 
-	bool		sc_regs_mapped[MAXCPU];
-
-	t_Handle	sc_qh;			/* QMAN handle */
-	t_Handle	sc_qph[MAXCPU];		/* QMAN portal handles */
 	vm_paddr_t	sc_qp_pa;		/* QMAN portal PA */
 
-	int		sc_fqr_cpu[QMAN_MAX_FQIDS];
+	int		sc_fq_cpu[QMAN_MAX_FQIDS];
 };
+
+struct qman_fd {
+	uint64_t dd:2;
+	uint64_t liodn_off:6;
+	uint64_t bpid:8;
+	uint64_t eliodn_off:4;
+	uint64_t _rsvd0:4;
+	uint64_t addr:40;
+	union {
+		struct {
+			uint32_t format:3;
+			uint32_t offset:9;
+			uint32_t length:20;
+		};
+		struct {
+			uint32_t format2:3;
+			uint32_t wlength:29;
+		};
+	};
+	uint32_t cmd_stat;
+};
+
+_Static_assert(sizeof(struct qman_fd) == 16, "qman_fd size mismatch");
+
+struct qman_dqrr_entry {
+	uint8_t verb;
+	uint8_t stat;
+	uint16_t seqnum;
+	uint8_t tok;
+	uint8_t _rsvd0[3];
+	uint32_t fqid;
+	uint32_t ctxb;
+	struct qman_fd fd;
+	uint8_t _rsvd1[32];
+};
+
+/* Bits for qman_dqrr_entry fields */
+#define	QMAN_DQRR_STAT_FQ_EMPTY		0x80
+#define	QMAN_DQRR_STAT_FQ_HELD_ACTIVE	0x40
+#define	QMAN_DQRR_STAT_FQ_FORCED	0x20
+#define	QMAN_DQRR_STAT_HAS_FRAME	0x10
+#define	QMAN_DQRR_STAT_VDQCR		0x02
+#define	QMAN_DQRR_STAT_EXPIRED		0x01
+
+struct qman_mr_entry {
+	union {
+		struct {
+			uint8_t verb;
+			uint8_t data[63];
+		};
+		struct {
+			uint8_t verb;
+			uint8_t dca;
+			uint16_t seqnum;
+			uint32_t rc:8;
+			uint32_t orp:24;
+			uint32_t fqid;
+			uint32_t tag;
+			struct qman_fd fd;
+			uint8_t _rsvd[32];
+		} ern;
+		struct {
+			uint8_t verb;
+			uint8_t fqs;
+			uint8_t _rsvd0[6];
+			uint32_t fqid;
+			uint32_t ctxb;
+			uint8_t _rsvd1[48];
+		} fqscn;
+	};
+};
+
+_Static_assert(sizeof(struct qman_mr_entry) == 64, "bad sizeof qman_mr");
 /** @> */
 
+typedef int (*qman_cb_dqrr)(device_t, struct qman_fq *,
+    struct qman_fd *, void *);
+typedef void (*qman_cb_mr)(device_t, struct qman_fq *,
+    struct qman_mr_entry *);
 
+struct qman_cb {
+	qman_cb_dqrr dqrr;
+	qman_cb_mr ern;
+	qman_cb_mr fqscn;
+	void *ctx;
+};
 /**
  * @group QMan bus interface
  * @{
@@ -91,6 +181,8 @@ int qman_suspend(device_t dev);
 int qman_resume(device_t dev);
 int qman_shutdown(device_t dev);
 /** @> */
+int qman_create_affine_portal(device_t, vm_offset_t, vm_offset_t, int);
+void qman_set_sdest(uint16_t, int);
 
 
 /**
@@ -149,69 +241,77 @@ int qman_shutdown(device_t dev);
  *
  * @return				A handle to newly created FQR object.
  */
-t_Handle qman_fqr_create(uint32_t fqids_num, e_QmFQChannel channel, uint8_t wq,
-    bool force_fqid, uint32_t fqid_or_align, bool init_parked,
+struct qman_fq *qman_fq_create(uint32_t fqids_num, int channel,
+    uint8_t wq, bool force_fqid, uint32_t fqid_or_align, bool init_parked,
     bool hold_active, bool prefer_in_cache, bool congst_avoid_ena,
-    t_Handle congst_group, int8_t overhead_accounting_len,
+    void *congst_group, int8_t overhead_accounting_len,
     uint32_t tail_drop_threshold);
 
 /**
  * Free Frame Queue Range.
  *
- * @param fqr	A handle to FQR to be freed.
+ * @param fq	A handle to FQR to be freed.
  * @return	E_OK on success; error code otherwise.
  */
-t_Error qman_fqr_free(t_Handle fqr);
+int qman_fq_free(struct qman_fq *fq);
 
 /**
  * Register the callback function.
  * The callback function will be called when a frame comes from this FQR.
  *
- * @param fqr		A handle to FQR.
+ * @param fq		A handle to FQR.
  * @param callback	A pointer to the callback function.
  * @param app		A pointer to the user's data.
  * @return		E_OK on success; error code otherwise.
  */
-t_Error	qman_fqr_register_cb(t_Handle fqr, t_QmReceivedFrameCallback *callback,
-    t_Handle app);
+int	qman_fq_register_cb(struct qman_fq *fq, qman_cb_dqrr callback,
+    void *ctx);
 
 /**
- * Enqueue a frame on a given FQR.
+ * Enqueue a frame on a given FQ.
  *
- * @param fqr		A handle to FQR.
- * @param fqid_off	FQID offset wihin the FQR.
+ * @param fq		A handle to FQ.
  * @param frame		A frame to be enqueued to the transmission.
  * @return		E_OK on success; error code otherwise.
  */
-t_Error qman_fqr_enqueue(t_Handle fqr, uint32_t fqid_off, t_DpaaFD *frame);
+int qman_fq_enqueue(struct qman_fq *fq, struct dpaa_fd *frame);
 
 /**
- * Get one of the FQR counter's value.
+ * Get one of the FQ counter's value.
  *
- * @param fqr		A handle to FQR.
- * @param fqid_off	FQID offset within the FQR.
+ * @param fq		A handle to FQ.
  * @param counter	The requested counter.
  * @return		Counter's current value.
  */
-uint32_t qman_fqr_get_counter(t_Handle fqr, uint32_t fqid_off,
-    e_QmFqrCounters counter);
+uint32_t qman_fq_get_counter(struct qman_fq *fq, int counter);
 
 /**
- * Pull frame from FQR.
+ * Pull frame from FQ.
  *
- * @param fqr		A handle to FQR.
- * @param fqid_off	FQID offset within the FQR.
+ * @param fq		A handle to FQ.
  * @param frame		The received frame.
  * @return		E_OK on success; error code otherwise.
  */
-t_Error qman_fqr_pull_frame(t_Handle fqr, uint32_t fqid_off, t_DpaaFD *frame);
+int qman_fq_pull_frame(struct qman_fq *fq, struct dpaa_fd *frame);
 
 /**
- * Get base FQID of the FQR.
- * @param fqr	A handle to FQR.
- * @return	Base FQID of the FQR.
+ * Get FQID of the FQ.
+ * @param fq	A handle to FQ.
+ * @return	FQID of the FQ.
  */
-uint32_t qman_fqr_get_base_fqid(t_Handle fqr);
+uint32_t qman_fq_get_fqid(struct qman_fq *fq);
+
+/*
+ * Allocate a QMan channel to be used with an FQ.
+ * @return	Channel ID
+ */
+int qman_alloc_channel(void);
+
+/*
+ * Free a channel
+ * @param chan	Channel ID returned from qman_alloc_channel().
+ */
+void qman_free_channel(int);
 
 /**
  * Poll frames from QMan.
@@ -220,24 +320,24 @@ uint32_t qman_fqr_get_base_fqid(t_Handle fqr);
  * @param source	Type of frames to be polled.
  * @return		E_OK on success; error otherwise.
  */
-t_Error qman_poll(e_QmPortalPollSource source);
+int qman_poll(int source);
 
 /**
  * General received frame callback.
  * This is called, when user did not register his own callback for a given
- * frame queue range (fqr).
+ * frame queue range (fq).
  */
-e_RxStoreResponse qman_received_frame_callback(t_Handle app, t_Handle qm_fqr,
-    t_Handle qm_portal, uint32_t fqid_offset, t_DpaaFD *frame);
+int qman_received_frame_callback(void *ctx, struct qman_fq *fq,
+    void *qm_portal, uint32_t fqid_offset, struct dpaa_fd *frame);
 
 /**
  * General rejected frame callback.
  * This is called, when user did not register his own callback for a given
- * frame queue range (fqr).
+ * frame queue range (fq).
  */
-e_RxStoreResponse qman_rejected_frame_callback(t_Handle app, t_Handle qm_fqr,
-    t_Handle qm_portal, uint32_t fqid_offset, t_DpaaFD *frame,
-    t_QmRejectedFrameInfo *qm_rejected_frame_info);
+int qman_rejected_frame_callback(void *ctx, struct qman_fq *fq,
+    void *qm_portal, uint32_t fqid_offset, struct dpaa_fd *frame,
+    void *qm_rejected_frame_info);
 
 /** @} */
 

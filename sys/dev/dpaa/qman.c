@@ -1,3 +1,8 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 Justin Hibbits
+ */
 /*-
  * Copyright (c) 2011-2012 Semihalf.
  * All rights reserved.
@@ -29,6 +34,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -41,139 +47,276 @@
 #include <machine/resource.h>
 #include <machine/tlb.h>
 
-#include "qman.h"
+#include "dpaa_common.h"
 #include "portals.h"
+#include "qman.h"
+#include "qman_var.h"
+#include "qman_portal_if.h"
 
-extern struct dpaa_portals_softc *qp_sc;
+/* Registers */
+#define	QCSP_IO_CFG(n)		(0x004 + (n) * 16)
+#define	  IO_CFG_SDEST_M	  0x00ff0000
+#define	  IO_CFG_SDEST_S	  16
+#define	QMAN_DCP_CFG(n)		(0x300 + (n) * 0x10)
+#define	  DCP_CFG_ED		  0x00000100
+#define	  DCP_CFG_ED_3		  0x00001000
+#define	QMAN_PFDR_FP_LWIT	0x410
+#define	QMAN_PFDR_CFG		0x414
+#define	QMAN_SFDR_CFG		0x500
+#define	QMAN_MCR		0xb00
+#define	  MCR_INIT_PFDR		  0x01000000
+#define	  MCR_READ_PFDR		  0x02000000
+#define	  MCR_READ_SFDR		  0x03000000
+#define	  MCR_QUERY_FQD_FILL	  0x10000000
+#define	  MCR_QUERY_FQD_TAGS	  0x11000000
+#define	  MCR_QUERY_FQD_CACHE	  0x12000000
+#define	  MCR_QUERY_WQ		  0x20000000
+#define	  MCR_RSLT_OK		  0xf0000000
+#define	  MCR_RSLT_OK_DATA	  0xf1000000
+#define	  MCR_RSLT_ABRT_INV	  0xf4000000
+#define	  MCR_RSLT_ABRT_DIS	  0xf8000000
+#define	  MCR_RSLT_ABRT_IDX	  0xff000000
+#define	  MCR_RSLT_ABRT_MASK	  0xff000000
+#define	QMAN_MCP0		0xb04
+#define	QMAN_MCP1		0xb08
+#define	QMAN_IP_REV_1		0xbf8
+#define	  IP_MJ_M		  0x0000ff00
+#define	  IP_MJ_S		  8
+#define	  IP_MN_M		  0x000000ff
+#define	QMAN_FQD_BARE		0xc00
+#define	QMAN_FQD_BAR		0xc04
+#define	QMAN_FQD_AR		0xc10
+#define	  AR_EN			0x80000000
+#define	QMAN_PFDR_BARE		0xc20
+#define	QMAN_PFDR_BAR		0xc24
+#define	QMAN_PFDR_AR		0xc30
+#define	QMAN_QCSP_BARE		0xc80
+#define	QMAN_QCSP_BAR		0xc84
+#define	QMAN_QCSP_AR		0xc90
+#define	QMAN_CI_SCHED_CFG	0xd00
+#define	  CI_SCHED_CFG_SW	  0x80000000
+#define	  CI_SCHED_CFG_SRCCIV	  0x04000000	/* Recommended */
+#define	  CI_SCHED_CFG_SRQ_W_M	  0x00000700
+#define	  CI_SCHED_CFG_SRQ_W_S	  8
+#define	  CI_SCHED_CFG_RW_W_M	  0x00000070
+#define	  CI_SCHED_CFG_RW_W_S	  4
+#define	  CI_SCHED_CFG_BMAN_W_M	  0x00000007
+#define	QMAN_ERR_ISR		0xe00
+#define	QMAN_ERR_IER		0xe04
+#define	QCSP_IO_CFG_3(n)	(0x1004 + (n) * 16)
+
+/* Software portals.  Cache-inhibited registers */
+
+#define	QCSP_DQRR_PDQCR		0x05c
+
+/* Software portals.  Cache-enabled registers */
+
+#define	QCSP_VERB_INIT_FQ_PARK		0x40
+#define	QCSP_VERB_INIT_FQ_SCHED		0x41
+#define	QCSP_VERB_QUERY_FQ		0x44
+#define	QCSP_VERB_QUERY_FQ_NP		0x45
+#define	QCSP_VERB_ALTER_FQ_SCHED	0x48
+#define	QCSP_VERB_ALTER_FQ_FE		0x49
+#define	QCSP_VERB_ALTER_FQ_RETIRE	0x4a
+#define	QCSP_VERB_ALTER_FQ_TAKE_OUT	0x4b
+#define	QCSP_VERB_ALTER_FQ_RETIRE_CTXB	0x4c
+#define	QCSP_VERB_ALTER_FQ_XON		0x4d
+#define	QCSP_VERB_ALTER_FQ_XOFF		0x4e
+
+/* Init FQ */
+#define	QCSP_INIT_FQ_WE_OAC		0x0100
+#define	QCSP_INIT_FQ_WE_ORPC		0x0080
+#define	QCSP_INIT_FQ_WE_CGID		0x0040
+#define	QCSP_INIT_FQ_WE_FQ_CTRL		0x0020
+#define	QCSP_INIT_FQ_WE_DEST_WQ		0x0010
+#define	QCSP_INIT_FQ_WE_ICS_CRED	0x0008
+#define	QCSP_INIT_FQ_WE_TD_THRESH	0x0004
+#define	QCSP_INIT_FQ_WE_CONTEXT_B	0x0002
+#define	QCSP_INIT_FQ_WE_CONTEXT_A	0x0001
+
+#define	QMAN_MC_RES_OK			0xf0
+
+#define	QMAN_MC_AFQS_NE			0x01
+
+/* Init FQ options */
+#define	QM_FQCTRL_CGE			0x0400
+#define	QM_FQCTRL_TDE			0x0200
+#define	QM_FQCTRL_ORP			0x0100
+#define	QM_FQCTRL_CTXASTASH		0x0080
+#define	QM_FQCTRL_CPCSTASH		0x0040
+#define	QM_FQCTRL_FORCESFDR		0x0008
+#define	QM_FQCTRL_AVOIDBLOCK		0x0004
+#define	QM_FQCTRL_HOLDACTIVE		0x0002
+#define	QM_FQCTRL_LIC			0x0001
+
+#define	QMAN_CHANNEL_POOL1_REV1		0x21
+#define	QMAN_CHANNEL_POOL1_REV3		0x401
+
+#define	QMAN_PFDR_MAX			0xfffeff
+
+/* P1023 has only 3 pool channels, but we don't support that SoC. */
+#define	QMAN_POOL_CHANNELS		15
+
+/* P1023 only supports 64 congestion groups... */
+#define	QMAN_CGRS			256
+
 static struct qman_softc *qman_sc;
 
-extern t_Handle qman_portal_setup(struct qman_softc *qsc);
+static MALLOC_DEFINE(M_QMAN, "qman", "DPAA Queue Manager structures");
+
+int qman_channel_base;
+int qman_total_fqids;
+struct qman_fq **qman_fq_list;
+
+/* Entries sorted right-to-left in bit order of the ISR */
+static const char * const qman_errors[] = {
+	"Invalid enqueue queue",
+	"Invalid enqueue channel!",
+	"Invalid enqueue state",
+	"Invalid enqueue overflow",
+	"Invalid enqueue configuration",
+	NULL,
+	NULL,
+	NULL,
+	"Invalid dequeue queue",
+	"Invalid dequeue source",
+	"Invalid dequeue FQ",
+	"Invalid dequeue direct connect portal",
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	"Invalid command verb",
+	"Invalid FQ flow control state",
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	"Insufficient free PFDRs",
+	"Single-bit ECC error",
+	"Multi-bit ECC error",
+	"PFDR low watermark",
+	"Invalid target transaction",
+	"Initiator data error",
+	NULL,
+	NULL
+};
 
 static void
-qman_exception(t_Handle app, e_QmExceptions exception)
+qman_isr(void *arg)
 {
-	struct qman_softc *sc;
-	const char *message;
+	struct qman_softc *sc = arg;
+	uint32_t ier, isr, isr_bit;
+	int i;
 
-	sc = app;
+	ier = bus_read_4(sc->sc_rres, QMAN_ERR_IER);
+	isr = bus_read_4(sc->sc_rres, QMAN_ERR_ISR);
 
-	switch (exception) {
-	case e_QM_EX_CORENET_INITIATOR_DATA:
-		message = "Initiator Data Error";
-		break;
-	case e_QM_EX_CORENET_TARGET_DATA:
-		message = "CoreNet Target Data Error";
-		break;
-	case e_QM_EX_CORENET_INVALID_TARGET_TRANSACTION:
-		message = "Invalid Target Transaction";
-		break;
-	case e_QM_EX_PFDR_THRESHOLD:
-		message = "PFDR Low Watermark Interrupt";
-		break;
-	case e_QM_EX_PFDR_ENQUEUE_BLOCKED:
-		message = "PFDR Enqueues Blocked Interrupt";
-		break;
-	case e_QM_EX_SINGLE_ECC:
-		message = "Single Bit ECC Error Interrupt";
-		break;
-	case e_QM_EX_MULTI_ECC:
-		message = "Multi Bit ECC Error Interrupt";
-		break;
-	case e_QM_EX_INVALID_COMMAND:
-		message = "Invalid Command Verb Interrupt";
-		break;
-	case e_QM_EX_DEQUEUE_DCP:
-		message = "Invalid Dequeue Direct Connect Portal Interrupt";
-		break;
-	case e_QM_EX_DEQUEUE_FQ:
-		message = "Invalid Dequeue FQ Interrupt";
-		break;
-	case e_QM_EX_DEQUEUE_SOURCE:
-		message = "Invalid Dequeue Source Interrupt";
-		break;
-	case e_QM_EX_DEQUEUE_QUEUE:
-		message = "Invalid Dequeue Queue Interrupt";
-		break;
-	case e_QM_EX_ENQUEUE_OVERFLOW:
-		message = "Invalid Enqueue Overflow Interrupt";
-		break;
-	case e_QM_EX_ENQUEUE_STATE:
-		message = "Invalid Enqueue State Interrupt";
-		break;
-	case e_QM_EX_ENQUEUE_CHANNEL:
-		message = "Invalid Enqueue Channel Interrupt";
-		break;
-	case e_QM_EX_ENQUEUE_QUEUE:
-		message = "Invalid Enqueue Queue Interrupt";
-		break;
-	case e_QM_EX_CG_STATE_CHANGE:
-		message = "CG change state notification";
-		break;
-	default:
-		message = "Unknown error";
+	if ((ier & isr) == 0)
+		return;
+
+	isr_bit = (isr & ier);
+	for (i = 0; isr_bit != 0; i++, isr_bit >>= 1) {
+		if (isr_bit & 1)
+			device_printf(sc->sc_dev, "%s", qman_errors[i]);
 	}
 
-	device_printf(sc->sc_dev, "QMan Exception: %s.\n", message);
+	bus_write_4(sc->sc_rres, QMAN_ERR_ISR, isr);
 }
 
-/**
- * General received frame callback.
- * This is called, when user did not register his own callback for a given
- * frame queue range (fqr).
- */
-e_RxStoreResponse
-qman_received_frame_callback(t_Handle app, t_Handle qm_fqr, t_Handle qm_portal,
-    uint32_t fqid_offset, t_DpaaFD *frame)
+
+/* Set up reserved memory configuration for PFDR and FQD, per `off`. */
+static int
+qman_set_memory(struct qman_softc *sc, vm_paddr_t pa,
+    vm_size_t size, bus_size_t off)
 {
-	struct qman_softc *sc;
+	uint32_t bar, bare;
+	vm_paddr_t old_bar;
 
-	sc = app;
+	/*
+	 * Register offsets:
+	 * 0 - BARE
+	 * 4 - BAR
+	 * 0x10 - AR
+	 */
+	bare = bus_read_4(sc->sc_rres, off);
+	bar = bus_read_4(sc->sc_rres, off + 4);
+	old_bar = (vm_paddr_t)bare << 32 | bar;
 
-	device_printf(sc->sc_dev, "dummy callback for received frame.\n");
-	return (e_RX_STORE_RESPONSE_CONTINUE);
+	if (old_bar != 0 && old_bar != pa) {
+		device_printf(sc->sc_dev, "QMan BAR already initialized!\n");
+		return (ENOMEM);
+	} else if (old_bar == pa)
+		return (EEXIST);
+
+	/*
+	 * Zero the memory and flush cache through DMAP. QMan accesses the
+	 * memory as non-coherent.
+	 */
+	memset((void *)PHYS_TO_DMAP(pa), 0, size);
+	cpu_flush_dcache((void *)PHYS_TO_DMAP(pa), size);
+
+	bus_write_4(sc->sc_rres, off, pa >> 32);
+	bus_write_4(sc->sc_rres, off + 4, (uint32_t)pa);
+	bus_write_4(sc->sc_rres, off + 0x10, AR_EN | (ilog2(size) - 1));
+
+	return (0);
 }
 
-/**
- * General rejected frame callback.
- * This is called, when user did not register his own callback for a given
- * frame queue range (fqr).
+/*
+ * Set up PFDR structures.  Some things to keep in mind:
+ * - npfdr is the total number of PFDRs in the private memory.  PFDRs are 64
+ *   bytes in size, so npfdr is (pfdr_sz/64).
+ * - PFDR 0-7 are reserved, so the base starts at 8, not 0, so we adjust
+ *   internally.
+ * - The second parameter is the last PFDR, not the number of PFDRs, so needs to
+ *   be adjusted down one more, so subtract 9.
  */
-e_RxStoreResponse
-qman_rejected_frame_callback(t_Handle app, t_Handle qm_fqr, t_Handle qm_portal,
-    uint32_t fqid_offset, t_DpaaFD *frame,
-    t_QmRejectedFrameInfo *qm_rejected_frame_info)
+static int
+qman_setup_pfdr(struct qman_softc *sc, int npfdr)
 {
-	struct qman_softc *sc;
+	uint32_t res;
 
-	sc = app;
+	npfdr = min(npfdr, QMAN_PFDR_MAX);
+	bus_write_4(sc->sc_rres, QMAN_MCP0, 8);
+	bus_write_4(sc->sc_rres, QMAN_MCP1, npfdr - 9);
+	bus_write_4(sc->sc_rres, QMAN_MCR, MCR_INIT_PFDR);
 
-	device_printf(sc->sc_dev, "dummy callback for rejected frame.\n");
-	return (e_RX_STORE_RESPONSE_CONTINUE);
+	for (int timeout = 100000; timeout > 0; timeout--) {
+		DELAY(1);
+		res = bus_read_4(sc->sc_rres, QMAN_MCR);
+		if (res >= MCR_RSLT_OK)
+			break;
+	}
+
+	if (res < MCR_RSLT_OK)
+		return (EBUSY);
+	if (res == MCR_RSLT_OK)
+		return (0);
+
+	return (ENXIO);
 }
 
 int
 qman_attach(device_t dev)
 {
 	struct qman_softc *sc;
-	t_QmParam qp;
-	t_Error error;
-	t_QmRevisionInfo rev;
+	int error;
+	vm_paddr_t fqd_pa, pfdr_pa;
+	vm_size_t fqd_sz, pfdr_sz;
+	int qman_channel_pool1 = QMAN_CHANNEL_POOL1_REV1;
+	uint32_t ver;
+	uint32_t nfqd;
+	bool qman3 = false;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	qman_sc = sc;
 
-	if (XX_MallocSmartInit() != E_OK) {
-		device_printf(dev, "could not initialize smart allocator.\n");
-		return (ENXIO);
-	}
-
-	sched_pin();
-
 	/* Allocate resources */
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->sc_rrid, 0, ~0, QMAN_CCSR_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 0, RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
 		device_printf(dev, "could not allocate memory.\n");
 		goto err;
@@ -186,57 +329,79 @@ qman_attach(device_t dev)
 		device_printf(dev, "could not allocate error interrupt.\n");
 		goto err;
 	}
+	error = dpaa_map_private_memory(dev, 0, "fsl,qman-fqd",
+	    &fqd_pa, &fqd_sz);
+	error = dpaa_map_private_memory(dev, 1, "fsl,qman-pfdr",
+	    &pfdr_pa, &pfdr_sz);
 
-	if (qp_sc == NULL)
+	bzero((void *)PHYS_TO_DMAP(fqd_pa), fqd_sz);
+	cpu_flush_dcache((void *)PHYS_TO_DMAP(fqd_pa), fqd_sz);
+	/*
+	 * FQDs are 64 bytes in size, with 24 bit pointers, so FQIDs are 24
+	 * bits, fits fine in a uint32_t.
+	 */
+	nfqd = fqd_sz / 64;
+	qman_total_fqids = nfqd;
+	qman_channel_base = qman_channel_pool1;
+	qman_fq_list = malloc(nfqd * sizeof(struct qman_fq *), M_QMAN,
+	    M_WAITOK);
+
+	error = qman_set_memory(sc, fqd_pa, fqd_sz, QMAN_FQD_BARE);
+	if (error != 0 && error != EEXIST)
 		goto err;
-
-	dpaa_portal_map_registers(qp_sc);
-
-	/* Initialize QMan */
-	qp.guestId = NCSW_MASTER_ID;
-	qp.baseAddress = rman_get_bushandle(sc->sc_rres);
-	qp.swPortalsBaseAddress = rman_get_bushandle(qp_sc->sc_rres[0]);
-	qp.liodn = 0;
-	qp.totalNumOfFqids = QMAN_MAX_FQIDS;
-	qp.fqdMemPartitionId = NCSW_MASTER_ID;
-	qp.pfdrMemPartitionId = NCSW_MASTER_ID;
-	qp.f_Exception = qman_exception;
-	qp.h_App = sc;
-	qp.errIrq = (uintptr_t)sc->sc_ires;
-	qp.partFqidBase = QMAN_FQID_BASE;
-	qp.partNumOfFqids = QMAN_MAX_FQIDS;
-	qp.partCgsBase = 0;
-	qp.partNumOfCgs = 0;
-
-	sc->sc_qh = QM_Config(&qp);
-	if (sc->sc_qh == NULL) {
-		device_printf(dev, "could not be configured\n");
+	error = qman_set_memory(sc, pfdr_pa, pfdr_sz, QMAN_PFDR_BARE);
+	if (error != 0 && error != EEXIST)
 		goto err;
+	if (error == 0) {
+		/* Initialize PFDRs if it hasn't been initialized before */
+		error = qman_setup_pfdr(sc, pfdr_sz / 64);
+		if (error != 0)
+			goto err;
+		/* Magic constant from documentation */
+		bus_write_4(sc->sc_rres, QMAN_PFDR_CFG, 64);
 	}
 
-	error = QM_Init(sc->sc_qh);
-	if (error != E_OK) {
+	bus_write_4(sc->sc_rres, QMAN_ERR_ISR, 0xffffffff);
+	bus_write_4(sc->sc_rres, QMAN_ERR_IER, 0xffffffff);
+
+	ver = bus_read_4(sc->sc_rres, QMAN_IP_REV_1);
+	sc->sc_qman_major = ((ver & IP_MJ_M) >> IP_MJ_S);
+	if (sc->sc_qman_major >= 3)
+		qman3 = true;
+
+	if (qman3)
+		qman_channel_pool1 = QMAN_CHANNEL_POOL1_REV3;
+
+	sc->sc_qman_base_channel = qman_channel_pool1;
+
+	sc->sc_fqalloc =
+	    vmem_create("qman-fqalloc", 1, nfqd - 1, 1, 0, M_WAITOK);
+	sc->sc_qpalloc =
+	    vmem_create("qman-fqalloc", qman_channel_pool1,
+	    QMAN_POOL_CHANNELS, 1, 0, M_WAITOK);
+	sc->sc_cgalloc = vmem_create("qman->cgalloc", 0, QMAN_CGRS,
+	    1, 0, M_WAITOK);
+
+	if (bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_NET, NULL, qman_isr,
+	    sc, &sc->sc_intr_cookie) != 0)
+		goto err;
+
+	if (error != 0) {
 		device_printf(dev, "could not be initialized\n");
 		goto err;
 	}
+	bus_write_4(sc->sc_rres, QMAN_DCP_CFG(0),
+	    qman3 ? DCP_CFG_ED_3 : DCP_CFG_ED);
+	bus_write_4(sc->sc_rres, QMAN_DCP_CFG(1),
+	    qman3 ? DCP_CFG_ED_3 : DCP_CFG_ED);
 
-	error = QM_GetRevision(sc->sc_qh, &rev);
-	if (error != E_OK) {
-		device_printf(dev, "could not get QMan revision\n");
-		goto err;
-	}
+	bus_write_4(sc->sc_rres, 0xd00, 0x80000322);
 
-	device_printf(dev, "Hardware version: %d.%d.\n",
-	    rev.majorRev, rev.minorRev);
-
-	sched_unpin();
-
-	qman_portal_setup(sc);
+	/* TODO: DO we need a taskqueue?  Allocate here if so */
 
 	return (0);
 
 err:
-	sched_unpin();
 	qman_detach(dev);
 	return (ENXIO);
 }
@@ -248,11 +413,15 @@ qman_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->sc_qh)
-		QM_Free(sc->sc_qh);
+	if (sc->sc_fqalloc != NULL)
+		vmem_destroy(sc->sc_fqalloc);
+	if (sc->sc_qpalloc != NULL)
+		vmem_destroy(sc->sc_qpalloc);
+	if (sc->sc_cgalloc != NULL)
+		vmem_destroy(sc->sc_cgalloc);
 
-	if (sc->sc_ires != NULL)
-		XX_DeallocIntr((uintptr_t)sc->sc_ires);
+	if (sc->sc_intr_cookie != NULL)
+		bus_teardown_intr(dev, sc->sc_ires, sc->sc_intr_cookie);
 
 	if (sc->sc_ires != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ,
@@ -261,6 +430,9 @@ qman_detach(device_t dev)
 	if (sc->sc_rres != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->sc_rrid, sc->sc_rres);
+
+	free(qman_fq_list, M_QMAN);
+	qman_fq_list = NULL;
 
 	return (0);
 }
@@ -286,261 +458,233 @@ qman_shutdown(device_t dev)
 	return (0);
 }
 
+int
+qman_alloc_channel(void)
+{
+	struct qman_softc *sc = qman_sc;
+	vmem_addr_t channel;
+
+	vmem_alloc(sc->sc_qpalloc, 1, M_BESTFIT | M_WAITOK, &channel);
+
+	return (channel);
+}
+
+void
+qman_free_channel(int channel)
+{
+	struct qman_softc *sc = qman_sc;
+
+	vmem_free(sc->sc_qpalloc, channel, 1);
+}
 
 /**
  * @group QMan API functions implementation.
  * @{
  */
 
-t_Handle
-qman_fqr_create(uint32_t fqids_num, e_QmFQChannel channel, uint8_t wq,
+struct qman_fq *
+qman_fq_from_index(uint32_t fqid)
+{
+	if (fqid > qman_total_fqids)
+		return (NULL);
+	return (qman_fq_list[fqid]);
+}
+
+/* Allocate and initialize an FQ Range */
+struct qman_fq *
+qman_fq_create(uint32_t fqids_num, int channel, uint8_t wq,
     bool force_fqid, uint32_t fqid_or_align, bool init_parked,
     bool hold_active, bool prefer_in_cache, bool congst_avoid_ena,
-    t_Handle congst_group, int8_t overhead_accounting_len,
+    void *congst_group, int8_t overhead_accounting_len,
     uint32_t tail_drop_threshold)
 {
+	union qman_mc_command cmd;
 	struct qman_softc *sc;
-	t_QmFqrParams fqr;
-	t_Handle fqrh, portal;
+	union qman_mc_result *res;
+	struct qman_fq *fqh;
+	device_t portal;
+	vmem_addr_t fqid_base;
+	uint8_t rslt;
 
 	sc = qman_sc;
 
-	sched_pin();
+	if (fqids_num != 1) {
+		device_printf(sc->sc_dev,
+		    "Only one fq allocation allowed currently\n");
+		return (NULL);
+	}
+
+	bzero(&cmd, sizeof(cmd));
+	vmem_alloc(sc->sc_fqalloc, fqids_num, M_BESTFIT | M_WAITOK, &fqid_base);
+	cmd.init_fq.fqid = fqid_base;
+	cmd.init_fq.count = fqids_num - 1;
+	cmd.init_fq.dest_chan = channel;
+	cmd.init_fq.dest_wq = wq;
+	cmd.init_fq.we_mask = QCSP_INIT_FQ_WE_DEST_WQ | QCSP_INIT_FQ_WE_FQ_CTRL;
+	if (init_parked)
+		cmd.init_fq.verb = QCSP_VERB_INIT_FQ_PARK;
+	else
+		cmd.init_fq.verb = QCSP_VERB_INIT_FQ_SCHED;
+	cmd.init_fq.fq_ctrl = (prefer_in_cache ? QM_FQCTRL_LIC : 0) |
+	    (hold_active ? QM_FQCTRL_HOLDACTIVE : 0) |
+	    (congst_avoid_ena ? QM_FQCTRL_AVOIDBLOCK : 0);
+
+	critical_enter();
 
 	/* Ensure we have got QMan port initialized */
-	portal = qman_portal_setup(sc);
-	if (portal == NULL) {
-		device_printf(sc->sc_dev, "could not setup QMan portal\n");
+	portal = DPCPU_GET(qman_affine_portal);
+	res = QMAN_PORTAL_MC_SEND_RAW(portal, &cmd);
+
+	rslt = 0;
+	if (res != NULL)
+		rslt = res->init_fq.rslt;
+
+	critical_exit();
+	if (res == NULL || rslt != QMAN_MC_RES_OK) {
+		vmem_free(sc->sc_fqalloc, fqid_base, fqids_num);
 		goto err;
 	}
 
-	fqr.h_Qm = sc->sc_qh;
-	fqr.h_QmPortal = portal;
-	fqr.initParked = init_parked;
-	fqr.holdActive = hold_active;
-	fqr.preferInCache = prefer_in_cache;
+	fqh = malloc(sizeof(*fqh), M_QMAN, M_WAITOK | M_ZERO);
+	fqh->fqid = fqid_base;
 
-	/* We do not support stashing */
-	fqr.useContextAForStash = FALSE;
-	fqr.p_ContextA = 0;
-	fqr.p_ContextB = 0;
+	qman_fq_list[fqid_base] = fqh;
 
-	fqr.channel = channel;
-	fqr.wq = wq;
-	fqr.shadowMode = FALSE;
-	fqr.numOfFqids = fqids_num;
-
-	/* FQID */
-	fqr.useForce = force_fqid;
-	if (force_fqid) {
-		fqr.qs.frcQ.fqid = fqid_or_align;
-	} else {
-		fqr.qs.nonFrcQs.align = fqid_or_align;
-	}
-
-	/* Congestion Avoidance */
-	fqr.congestionAvoidanceEnable = congst_avoid_ena;
-	if (congst_avoid_ena) {
-		fqr.congestionAvoidanceParams.h_QmCg = congst_group;
-		fqr.congestionAvoidanceParams.overheadAccountingLength =
-		    overhead_accounting_len;
-		fqr.congestionAvoidanceParams.fqTailDropThreshold =
-		    tail_drop_threshold;
-	} else {
-		fqr.congestionAvoidanceParams.h_QmCg = 0;
-		fqr.congestionAvoidanceParams.overheadAccountingLength = 0;
-		fqr.congestionAvoidanceParams.fqTailDropThreshold = 0;
-	}
-
-	fqrh = QM_FQR_Create(&fqr);
-	if (fqrh == NULL) {
-		device_printf(sc->sc_dev, "could not create Frame Queue Range"
-		    "\n");
-		goto err;
-	}
-
-	sc->sc_fqr_cpu[QM_FQR_GetFqid(fqrh)] = PCPU_GET(cpuid);
-
-	sched_unpin();
-
-	return (fqrh);
+	return (fqh);
 
 err:
-	sched_unpin();
 
 	return (NULL);
 }
 
-t_Error
-qman_fqr_free(t_Handle fqr)
+static int
+qman_fq_retire(device_t portal, struct qman_fq *fq)
 {
-	struct qman_softc *sc;
-	t_Error error;
+	union qman_mc_command cmd;
+	union qman_mc_result *rr;
 
-	sc = qman_sc;
-	thread_lock(curthread);
-	sched_bind(curthread, sc->sc_fqr_cpu[QM_FQR_GetFqid(fqr)]);
-	thread_unlock(curthread);
+	bzero(&cmd, sizeof(cmd));
 
-	error = QM_FQR_Free(fqr);
+	cmd.alter_fqs.verb = QCSP_VERB_ALTER_FQ_RETIRE;
+	cmd.alter_fqs.fqid = fq->fqid;
+	rr = QMAN_PORTAL_MC_SEND_RAW(portal, &cmd);
+	if (rr == NULL)
+		return (ETIMEDOUT);
 
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
-	return (error);
-}
-
-t_Error
-qman_fqr_register_cb(t_Handle fqr, t_QmReceivedFrameCallback *callback,
-    t_Handle app)
-{
-	struct qman_softc *sc;
-	t_Error error;
-	t_Handle portal;
-
-	sc = qman_sc;
-	sched_pin();
-
-	/* Ensure we have got QMan port initialized */
-	portal = qman_portal_setup(sc);
-	if (portal == NULL) {
-		device_printf(sc->sc_dev, "could not setup QMan portal\n");
-		sched_unpin();
-		return (E_NOT_SUPPORTED);
+	if (rr->alter_fqs.rslt == QMAN_MC_RES_OK) {
+		if (rr->alter_fqs.fqs & QMAN_MC_AFQS_NE) {
+			/* TODO: Drain.... */
+		}
+		return (0);
 	}
 
-	error = QM_FQR_RegisterCB(fqr, callback, app);
-
-	sched_unpin();
-
-	return (error);
+	return (0);
 }
 
-t_Error
-qman_fqr_enqueue(t_Handle fqr, uint32_t fqid_off, t_DpaaFD *frame)
+int
+qman_fq_free(struct qman_fq *fq)
 {
 	struct qman_softc *sc;
-	t_Error error;
-	t_Handle portal;
+	int error;
 
 	sc = qman_sc;
-	sched_pin();
+
+	critical_enter();
+	error = qman_fq_retire(DPCPU_GET(qman_affine_portal), fq);
+	/* TODO: Take FQ out of service. */
+	critical_exit();
+	if (error != 0)
+		return (error);
+	vmem_free(sc->sc_fqalloc, fq->fqid, 1);
+	qman_fq_list[fq->fqid] = NULL;
+	free(fq, M_QMAN);
+
+	return (0);
+}
+
+int
+qman_fq_register_cb(struct qman_fq *fq, qman_cb_dqrr callback,
+    void *ctx)
+{
+	fq->cb.dqrr = callback;
+	fq->cb.ctx = ctx;
+
+	return (0);
+}
+
+int
+qman_fq_enqueue(struct qman_fq *fq, struct dpaa_fd *frame)
+{
+	struct qman_softc *sc;
+	int error;
+	void *portal;
+
+	sc = qman_sc;
+	critical_enter();
 
 	/* Ensure we have got QMan port initialized */
-	portal = qman_portal_setup(sc);
+	portal = DPCPU_GET(qman_affine_portal);
 	if (portal == NULL) {
 		device_printf(sc->sc_dev, "could not setup QMan portal\n");
-		sched_unpin();
-		return (E_NOT_SUPPORTED);
+		critical_exit();
+		return (ENXIO);
 	}
 
-	error = QM_FQR_Enqueue(fqr, portal, fqid_off, frame);
+	error = QMAN_PORTAL_ENQUEUE(portal, fq, frame);
 
-	sched_unpin();
+	critical_exit();
 
 	return (error);
 }
 
 uint32_t
-qman_fqr_get_counter(t_Handle fqr, uint32_t fqid_off,
-    e_QmFqrCounters counter)
+qman_fq_get_fqid(struct qman_fq *fq)
 {
-	struct qman_softc *sc;
-	uint32_t val;
-	t_Handle portal;
-
-	sc = qman_sc;
-	sched_pin();
-
-	/* Ensure we have got QMan port initialized */
-	portal = qman_portal_setup(sc);
-	if (portal == NULL) {
-		device_printf(sc->sc_dev, "could not setup QMan portal\n");
-		sched_unpin();
-		return (0);
-	}
-
-	val = QM_FQR_GetCounter(fqr, portal, fqid_off, counter);
-
-	sched_unpin();
-
-	return (val);
+	return (fq->fqid);
 }
 
-t_Error
-qman_fqr_pull_frame(t_Handle fqr, uint32_t fqid_off, t_DpaaFD *frame)
-{
-	struct qman_softc *sc;
-	t_Error error;
-	t_Handle portal;
-
-	sc = qman_sc;
-	sched_pin();
-
-	/* Ensure we have got QMan port initialized */
-	portal = qman_portal_setup(sc);
-	if (portal == NULL) {
-		device_printf(sc->sc_dev, "could not setup QMan portal\n");
-		sched_unpin();
-		return (E_NOT_SUPPORTED);
-	}
-
-	error = QM_FQR_PullFrame(fqr, portal, fqid_off, frame);
-
-	sched_unpin();
-
-	return (error);
-}
 
 uint32_t
-qman_fqr_get_base_fqid(t_Handle fqr)
+qman_fq_get_counter(struct qman_fq *fq, int counter)
 {
-	struct qman_softc *sc;
-	uint32_t val;
-	t_Handle portal;
+	union qman_mc_result *cmd_res;
+	union qman_mc_command command;
+	device_t portal;
+	u_int ret = 0;
 
-	sc = qman_sc;
-	sched_pin();
+	bzero(&command, sizeof(command));
+	command.query_fq_np.verb = QCSP_VERB_QUERY_FQ_NP;
+	command.query_fq_np.fqid = fq->fqid;
+	critical_enter();
+	portal = DPCPU_GET(qman_affine_portal);
+	cmd_res = QMAN_PORTAL_MC_SEND_RAW(portal, &command);
+	if (counter == QMAN_COUNTER_FRAME)
+		ret = cmd_res->query_fq_np.frm_cnt;
+	else if (counter == QMAN_COUNTER_BYTES)
+		ret = cmd_res->query_fq_np.byte_cnt;
 
-	/* Ensure we have got QMan port initialized */
-	portal = qman_portal_setup(sc);
-	if (portal == NULL) {
-		device_printf(sc->sc_dev, "could not setup QMan portal\n");
-		sched_unpin();
-		return (0);
-	}
+	critical_exit();
 
-	val = QM_FQR_GetFqid(fqr);
-
-	sched_unpin();
-
-	return (val);
+	return (ret);
 }
 
-t_Error
-qman_poll(e_QmPortalPollSource source)
+void
+qman_set_sdest(uint16_t channel, int cpu)
 {
-	struct qman_softc *sc;
-	t_Error error;
-	t_Handle portal;
+	struct qman_softc *sc = qman_sc;
+	uint32_t reg;
 
-	sc = qman_sc;
-	sched_pin();
-
-	/* Ensure we have got QMan port initialized */
-	portal = qman_portal_setup(sc);
-	if (portal == NULL) {
-		device_printf(sc->sc_dev, "could not setup QMan portal\n");
-		sched_unpin();
-		return (E_NOT_SUPPORTED);
+	if (sc->sc_qman_major >= 3) {
+		reg = bus_read_4(sc->sc_rres, QCSP_IO_CFG_3(channel));
+		reg &= IO_CFG_SDEST_M;
+		reg |= (cpu << IO_CFG_SDEST_S);
+		bus_write_4(sc->sc_rres, QCSP_IO_CFG_3(channel), reg);
+	} else {
+		reg = bus_read_4(sc->sc_rres, QCSP_IO_CFG(channel));
+		reg &= IO_CFG_SDEST_M;
+		reg |= (cpu << IO_CFG_SDEST_S);
+		bus_write_4(sc->sc_rres, QCSP_IO_CFG(channel), reg);
 	}
-
-	error = QM_Poll(sc->sc_qh, source);
-
-	sched_unpin();
-
-	return (error);
 }
 
 /*

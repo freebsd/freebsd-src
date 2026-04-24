@@ -1,27 +1,7 @@
 /*-
- * Copyright (c) 2011-2012 Semihalf.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * Copyright (c) 2026 Justin Hibbits
  */
 
 #include <sys/param.h>
@@ -33,6 +13,7 @@
 #include <sys/malloc.h>
 
 #include <dev/fdt/simplebus.h>
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -40,50 +21,140 @@
 
 #include "opt_platform.h"
 
-#include <contrib/ncsw/inc/Peripherals/fm_ext.h>
-#include <contrib/ncsw/inc/Peripherals/fm_muram_ext.h>
-#include <contrib/ncsw/inc/ncsw_ext.h>
-#include <contrib/ncsw/integrations/fman_ucode.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
 
 #include "fman.h"
 
+#define	FMAN_BMI_OFFSET		0x80000
+#define	FMAN_QMI_OFFSET		0x80400
+#define	FMAN_KG_OFFSET		0xc1000
+#define	FMAN_DMA_OFFSET		0xc2000
+#define	FMAN_FPM_OFFSET		0xc3000
+#define	FMAN_IMEM_OFFSET	0xc4000
+#define	FMAN_HWP_OFFSET		0xc7000
+#define	FMAN_CGP_OFFSET		0xdb000
+
+#define	FM_IP_REV_1		(FMAN_FPM_OFFSET + 0x0c4)
+#define	  IP_REV_1_MAJ_M	  0x0000ff00
+#define	  IP_REV_1_MAJ_S	  8
+#define	  IP_REV_1_MIN_M	  0x000000ff
+#define	FM_RSTC			(FMAN_FPM_OFFSET + 0x0cc)
+#define	  FM_RSTC_FM_RESET	  0x80000000
+
+#define	FMBM_INIT	(FMAN_BMI_OFFSET + 0x000)
+#define	  INIT_STR	  0x80000000
+#define	FMBM_CFG1	(FMAN_BMI_OFFSET + 0x0004)
+#define	  FBPS_M	  0x07ff0000
+#define	  FBPS_S	  16
+#define	  FBPO_M	  0x000007ff
+#define	FMBM_CFG2	(FMAN_BMI_OFFSET + 0x0008)
+#define	  TNTSKS_M	  0x007f0000
+#define	  TNTSKS_S	  16
+#define	FMBM_IEVR	(FMAN_BMI_OFFSET + 0x0020)
+#define	  IEVR_SPEC	  0x80000000
+#define	  IEVR_LEC	  0x40000000
+#define	  IEVR_STEC	  0x20000000
+#define	  IEVR_DEC	  0x10000000
+#define	FMBM_IER	(FMAN_BMI_OFFSET + 0x0024)
+#define	  IER_SPECE	  0x80000000
+#define	  IER_LECE	  0x40000000
+#define	  IER_STECE	  0x20000000
+#define	  IER_DECE	  0x10000000
+#define	FMBM_PP(n)	(FMAN_BMI_OFFSET + 0x104 + ((n - 1) * 4))
+#define	  PP_MXT_M	  0x3f000000
+#define	  PP_MXT_S	  24
+#define	  PP_EXT_M	  0x000f0000
+#define	  PP_EXT_S	  16
+#define	  PP_MXD_M	  0x00000f00
+#define	  PP_MXD_S	  8
+#define	  PP_EXD_M	  0x0000000f
+#define	FMBM_PFS(n)	(FMAN_BMI_OFFSET + 0x204 + ((n - 1) * 4))
+#define	  PFS_EXBS_M	  0x03ff0000
+#define	  PFS_EXBS_S	  16
+#define	  PFS_IFSZ_M	  0x000003ff
+#define	FMQM_GC		(FMAN_QMI_OFFSET + 0x000)
+#define	  GC_STEN	  0x10000000
+#define	  GC_ENQ_THR_S	  8
+#define	  GC_ENQ_THR_M	  0x00003f00
+#define	  GC_DEQ_THR_M	  0x0000003f
+#define	FMQM_EIE	(FMAN_QMI_OFFSET + 0x008)
+#define	  EIE_DEE	  0x80000000
+#define	  EIE_DFUPE	  0x40000000
+#define	FMQM_EIEN	(FMAN_QMI_OFFSET + 0x00c)
+#define	  EIEN_DEE	  0x80000000
+#define	  EIEN_DFUPE	  0x40000000
+#define FMQM_IE
+#define	IRAM_ADDR	(FMAN_IMEM_OFFSET + 0x000)
+#define	  IADD_AIE	  0x80000000
+#define	IRAM_DATA	(FMAN_IMEM_OFFSET + 0x004)
+#define	IRAM_READY	(FMAN_IMEM_OFFSET + 0x0c)
+#define	  IREADY_READY	  0x80000000
+
+#define	FMPR_RPIMAC	(FMAN_HWP_OFFSET + 0x844)
+#define	  HWP_RPIMAC_PEN	  0x00000001
+
+#define	FMDM_SR		(FMAN_DMA_OFFSET + 0x000)
+#define	  SR_CMDQNE	  0x10000000
+#define	  SR_BER	  0x08000000
+#define	  SR_RDB_ECC	  0x04000000
+#define	  SR_WRB_SECC	  0x02000000
+#define	FMDM_MR		(FMAN_DMA_OFFSET + 0x004)
+#define	  MR_CEN_M	  0x0000e000
+#define	  MR_CEN_S	  13
+#define	FMDM_SETR	(FMAN_DMA_OFFSET + 0x010)
+#define	FMDM_EBCR	(FMAN_DMA_OFFSET + 0x2c)
+#define	FMDM_PLRn(n)	(FMAN_DMA_OFFSET + 0x060 + (4 * (n / 2)))
+#define	PLRN_LIODN_M(n)	  (0xfff << PLRN_LIODN_S(n))
+#define	PLRN_LIODN_S(n)	  ((n & 1) ? 0 : 16)
+
+#define	FMFP_TSC1	(FMAN_FPM_OFFSET + 0x060)
+#define	  TSC1_TEN	  0x80000000
+#define	FMFP_TSC2	(FMAN_FPM_OFFSET + 0x064)
+#define	  TSC2_TSIV_INT_S	  16
+#define	FM_RCR		(FMAN_FPM_OFFSET + 0x070)
+#define	  RCR_FEE	  0x80000000
+#define	  RCR_IEE	  0x40000000
+#define	  RCR_MET	  0x20000000
+#define	  RCR_IET	  0x10000000
+#define	  RCR_SFE	  0x08000000
+#define	FMFP_EE		(FMAN_FPM_OFFSET + 0x0dc)
+#define	  EE_DECC	  0x80000000
+#define	  EE_STL	  0x40000000
+#define	  EE_SECC	  0x20000000
+#define	  EE_RFM	  0x00010000
+#define	  EE_DECC_EN	  0x00008000
+#define	  EE_STL_EN	  0x00004000
+#define	  EE_SECC_EN	  0x00002000
+#define	  EE_EHM	  0x00000008
+#define	  EE_CER	  0x00000002
+#define	  EE_DER	  0x00000001
+#define	FMFP_CEV0	(FMAN_FPM_OFFSET + 0x0e0)
+#define	FMFP_CEV1	(FMAN_FPM_OFFSET + 0x0e4)
+#define	FMFP_CEV2	(FMAN_FPM_OFFSET + 0x0e8)
+#define	FMFP_CEV3	(FMAN_FPM_OFFSET + 0x0ec)
+
+/* DMA constants */
+#define	DMA_CAM_UNITS	8
+#define	DMA_CAM_SIZE	64
+#define	DMA_CAM_ALIGN	64
+
+
+/* Timestamp counter */
+#define	FM_TIMESTAMP_1US_BIT	8
 
 static MALLOC_DEFINE(M_FMAN, "fman", "fman devices information");
+
+static void fman_intr(void *arg);
 
 /**
  * @group FMan private defines.
  * @{
  */
-enum fman_irq_enum {
-	FMAN_IRQ_NUM		= 0,
-	FMAN_ERR_IRQ_NUM	= 1
-};
-
-enum fman_mu_ram_map {
-	FMAN_MURAM_OFF		= 0x0,
-	FMAN_MURAM_SIZE		= 0x28000
-};
-
-struct fman_config {
-	device_t fman_device;
-	uintptr_t mem_base_addr;
-	uintptr_t irq_num;
-	uintptr_t err_irq_num;
-	uint8_t fm_id;
-	t_FmExceptionsCallback *exception_callback;
-	t_FmBusErrorCallback *bus_error_callback;
-};
 
 /**
  * @group FMan private methods/members.
  * @{
  */
-/**
- * Frame Manager firmware.
- * We use the same firmware for both P3041 and P2041 devices.
- */
-const uint32_t fman_firmware[] = FMAN_UC_IMG;
-const uint32_t fman_firmware_size = sizeof(fman_firmware);
 
 int
 fman_activate_resource(device_t bus, device_t child, struct resource *res)
@@ -125,7 +196,7 @@ fman_release_resource(device_t bus, device_t child, struct resource *res)
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	if (rman_get_type(res) != SYS_RES_IRQ) {
-		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
+		if ((rman_get_flags(res) & RF_ACTIVE) != 0) {
 			rv = bus_deactivate_resource(child, res);
 			if (rv != 0)
 				return (rv);
@@ -209,202 +280,400 @@ fman_alloc_resource(device_t bus, device_t child, int type, int rid,
 	return (NULL);
 }
 
+
 static int
-fman_fill_ranges(phandle_t node, struct simplebus_softc *sc)
+fman_get_revision_major(struct fman_softc *sc)
 {
-	int host_address_cells;
-	cell_t *base_ranges;
-	ssize_t nbase_ranges;
-	int err;
-	int i, j, k;
+	uint32_t reg;
 
-	err = OF_searchencprop(OF_parent(node), "#address-cells",
-	    &host_address_cells, sizeof(host_address_cells));
-	if (err <= 0)
-		return (-1);
+	reg = bus_read_4(sc->mem_res, FM_IP_REV_1);
 
-	nbase_ranges = OF_getproplen(node, "ranges");
-	if (nbase_ranges < 0)
-		return (-1);
-	sc->nranges = nbase_ranges / sizeof(cell_t) /
-	    (sc->acells + host_address_cells + sc->scells);
-	if (sc->nranges == 0)
+	return ((reg & IP_REV_1_MAJ_M) >> IP_REV_1_MAJ_S);
+}
+
+static int
+fman_get_revision_minor(struct fman_softc *sc)
+{
+	uint32_t reg;
+
+	reg = bus_read_4(sc->mem_res, FM_IP_REV_1);
+
+	return ((reg & IP_REV_1_MIN_M));
+}
+
+static void
+fman_fill_soc_params(struct fman_softc *sc)
+{
+
+	switch (sc->sc_revision_major) {
+	case 2:
+		sc->bmi_max_fifo_size = 160 * 1024;
+		sc->iram_size = 64 * 1024;
+		sc->dma_thresh_max_commq = 31;
+		sc->dma_thresh_max_buf = 127;
+		sc->qmi_max_tnums = 64;
+		sc->qmi_def_tnums_thresh = 48;
+		sc->bmi_max_tasks = 128;
+		sc->max_open_dmas = 32;
+		sc->dma_cam_num_entries = 32;
+		sc->port_cgs = 256;
+		sc->rx_ports = 5;
+		sc->total_fifo_size = 100 * 1024;
+		break;
+	case 3:
+		sc->bmi_max_fifo_size = 160 * 1024;
+		sc->iram_size = 64 * 1024;
+		sc->dma_thresh_max_commq = 31;
+		sc->dma_thresh_max_buf = 127;
+		sc->qmi_max_tnums = 64;
+		sc->qmi_def_tnums_thresh = 48;
+		sc->bmi_max_tasks = 128;
+		sc->max_open_dmas = 32;
+		sc->dma_cam_num_entries = 32;
+		sc->port_cgs = 256;
+		sc->rx_ports = 6;
+		sc->total_fifo_size = 136 * 1024;
+		break;
+	case 6:
+		sc->dma_thresh_max_commq = 31;
+		sc->dma_thresh_max_buf = 127;
+		sc->qmi_max_tnums = 64;
+		sc->qmi_def_tnums_thresh = 48;
+		sc->dma_cam_num_entries = 64;
+		sc->port_cgs = 256;
+		switch (sc->sc_revision_minor) {
+		case 1:
+		case 4:
+			sc->bmi_max_fifo_size = 192 * 1024;
+			sc->bmi_max_tasks = 64;
+			sc->max_open_dmas = 32;
+			sc->rx_ports = 5;
+			sc->total_fifo_size = 156 * 1024;
+			if (sc->sc_revision_minor == 1)
+				sc->iram_size = 32 * 1024;
+			else
+				sc->iram_size = 64 * 1024;
+			break;
+		case 0:
+		case 2:
+		case 3:
+			sc->bmi_max_fifo_size = 384 * 1024;
+			sc->bmi_max_tasks = 128;
+			sc->max_open_dmas = 84;
+			sc->rx_ports = 8;
+			sc->iram_size = 64 * 1024;
+			sc->total_fifo_size = 295 * 1024;
+			break;
+		default:
+			device_printf(sc->sc_base.dev,
+			    "Unsupported FManv3 revision: %d\n",
+			    sc->sc_revision_minor);
+			break;
+		}
+		break;
+	default:
+		device_printf(sc->sc_base.dev,
+		    "Unsupported FMan version: %d\n", sc->sc_revision_major);
+		break;
+	}
+}
+
+static int
+fman_reset(struct fman_softc *sc)
+{
+	unsigned int count;
+
+	if (sc->sc_revision_major < 6) {
+		bus_write_4(sc->mem_res, FM_RSTC, FM_RSTC_FM_RESET);
+		count = 100;
+		do {
+			DELAY(1);
+		} while ((bus_read_4(sc->mem_res, FM_RSTC) & FM_RSTC_FM_RESET) &&
+		    --count);
+		if (count == 0)
+			return (EBUSY);
 		return (0);
+	} else {
+#ifdef __powerpc__
+		phandle_t node;
+		u_long base, size;
+		uint32_t devdisr2;
+#define	GUTS_DEVDISR2	0x0074
+#define	DEVDISR2_FMAN1	0xfcc00000
+#define	DEVDISR2_FMAN2	0x000fcc00
 
-	sc->ranges = malloc(sc->nranges * sizeof(sc->ranges[0]),
-	    M_DEVBUF, M_WAITOK);
-	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
-	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
+		node = ofw_bus_get_node(device_get_parent(sc->sc_base.dev));
+		node = fdt_find_compatible(node, "fsl,qoriq-device-config-2.0",
+		    false);
 
-	for (i = 0, j = 0; i < sc->nranges; i++) {
-		sc->ranges[i].bus = 0;
-		for (k = 0; k < sc->acells; k++) {
-			sc->ranges[i].bus <<= 32;
-			sc->ranges[i].bus |= base_ranges[j++];
+		if (node == 0) {
+			device_printf(sc->sc_base.dev,
+			    "missing device-config node in FDT.  Cannot reset FMAN");
+			return (0);
 		}
-		sc->ranges[i].host = 0;
-		for (k = 0; k < host_address_cells; k++) {
-			sc->ranges[i].host <<= 32;
-			sc->ranges[i].host |= base_ranges[j++];
-		}
-		sc->ranges[i].size = 0;
-		for (k = 0; k < sc->scells; k++) {
-			sc->ranges[i].size <<= 32;
-			sc->ranges[i].size |= base_ranges[j++];
-		}
+		fdt_regsize(node, &base, &size);
+
+		devdisr2 = ccsr_read4(ccsrbar_va + base + GUTS_DEVDISR2);
+		if (sc->fm_id == 0)
+			ccsr_write4(ccsrbar_va + base + GUTS_DEVDISR2,
+			    devdisr2 & ~DEVDISR2_FMAN1);
+		else
+			ccsr_write4(ccsrbar_va + base + GUTS_DEVDISR2,
+			    devdisr2 & ~DEVDISR2_FMAN2);
+#endif
+		bus_write_4(sc->mem_res, FM_RSTC, FM_RSTC_FM_RESET);
+		count = 100;
+		do {
+			DELAY(1);
+		} while ((bus_read_4(sc->mem_res, FM_RSTC) & FM_RSTC_FM_RESET) &&
+		    --count);
+#ifdef __powerpc__
+		ccsr_write4(ccsrbar_va + base + GUTS_DEVDISR2, devdisr2);
+#endif
+		if (count == 0)
+			return (EBUSY);
+		return (0);
 	}
-
-	free(base_ranges, M_DEVBUF);
-	return (sc->nranges);
 }
 
-static t_Handle
-fman_init(struct fman_softc *sc, struct fman_config *cfg)
+static int
+fman_clear_iram(struct fman_softc *sc)
 {
-	phandle_t node;
-	t_FmParams fm_params;
-	t_Handle muram_handle, fm_handle;
-	t_Error error;
-	t_FmRevisionInfo revision_info;
-	uint16_t clock;
-	uint32_t tmp, mod;
+#ifdef notyet
+	int i;
 
-	/* MURAM configuration */
-	muram_handle = FM_MURAM_ConfigAndInit(cfg->mem_base_addr +
-	    FMAN_MURAM_OFF, FMAN_MURAM_SIZE);
-	if (muram_handle == NULL) {
-		device_printf(cfg->fman_device, "couldn't init FM MURAM module"
-		    "\n");
-		return (NULL);
-	}
-	sc->muram_handle = muram_handle;
+	/*
+	 * TODO: Allow clearing the IRAM and loading new firmware.  Currently
+	 * this is not supported, so assume that there's already firmware
+	 * loaded, and don't clear it just yet.
+	 */
+	bus_write_4(sc->mem_res, IRAM_ADDR, IADD_AIE);
+	for (i = 0; i < 100 && bus_read_4(sc->mem_res, IRAM_ADDR) != IADD_AIE; i++)
+		DELAY(1);
 
-	/* Fill in FM configuration */
-	fm_params.fmId = cfg->fm_id;
-	/* XXX we support only one partition thus each fman has master id */
-	fm_params.guestId = NCSW_MASTER_ID;
+	if (i == 100)
+		return (EBUSY);
 
-	fm_params.baseAddr = cfg->mem_base_addr;
-	fm_params.h_FmMuram = muram_handle;
+	for (i = 0; i < sc->iram_size / 4; i++)
+		bus_write_4(sc->mem_res, IRAM_DATA, 0xffffffff);
 
-	/* Get FMan clock in Hz */
-	if ((tmp = fman_get_clock(sc)) == 0)
-		return (NULL);
+	bus_write_4(sc->mem_res, IRAM_ADDR, sc->iram_size - 4);
+	for (i = 0; i < 100 &&
+	    bus_read_4(sc->mem_res, IRAM_DATA) != 0xffffffff; i++)
+		DELAY(1);
 
-	/* Convert FMan clock to MHz */
-	clock = (uint16_t)(tmp / 1000000);
-	mod = tmp % 1000000;
+	if (i == 100)
+		return (EBUSY);
+#endif
 
-	if (mod >= 500000)
-		++clock;
+	return (0);
+}
 
-	fm_params.fmClkFreq = clock;
-	fm_params.f_Exception = cfg->exception_callback;
-	fm_params.f_BusError = cfg->bus_error_callback;
-	fm_params.h_App = cfg->fman_device;
-	fm_params.irq = cfg->irq_num;
-	fm_params.errIrq = cfg->err_irq_num;
+static int
+fman_dma_init(struct fman_softc *sc)
+{
+	vmem_addr_t addr;
+	uint32_t reg;
+	int err;
 
-	fm_params.firmware.size = fman_firmware_size;
-	fm_params.firmware.p_Code = (uint32_t*)fman_firmware;
+	reg = bus_read_4(sc->mem_res, FMDM_SR);
+	bus_write_4(sc->mem_res, FMDM_SR, reg | SR_BER);
+	reg = bus_read_4(sc->mem_res, FMDM_MR) & ~MR_CEN_M;
+	reg |= ((sc->dma_cam_num_entries / DMA_CAM_UNITS) - 1) << MR_CEN_S;
+	bus_write_4(sc->mem_res, FMDM_MR, reg);
 
-	fm_handle = FM_Config(&fm_params);
-	if (fm_handle == NULL) {
-		device_printf(cfg->fman_device, "couldn't configure FM "
-		    "module\n");
+	err = vmem_xalloc(sc->muram_vmem,
+	    sc->dma_cam_num_entries * DMA_CAM_SIZE, DMA_CAM_ALIGN, 0, 0,
+	    VMEM_ADDR_MIN, VMEM_ADDR_MAX, M_BESTFIT | M_WAITOK, &addr);
+	if (err != 0)
+		device_printf(sc->sc_base.dev,
+		    "failed to allocate DMA buffer\n");
+	reg = addr;
+	bus_write_4(sc->mem_res, FMDM_EBCR, reg);
+	return (0);
+}
+
+static int
+fman_bmi_init(struct fman_softc *sc)
+{
+	uint32_t reg;
+
+	reg = sc->bmi_fifo_base / FMAN_BMI_FIFO_ALIGN;
+	reg |= (sc->total_fifo_size / FMAN_BMI_FIFO_UNITS - 1) << FBPS_S;
+	bus_write_4(sc->mem_res, FMBM_CFG1, reg);
+
+	reg = ((sc->bmi_max_tasks - 1) << TNTSKS_S) & TNTSKS_M;
+	//bus_write_4(sc->mem_res, FMBM_CFG2, reg);
+
+	bus_write_4(sc->mem_res, FMBM_IEVR,
+	    IEVR_SPEC | IEVR_LEC | IEVR_STEC | IEVR_DEC);
+
+	bus_write_4(sc->mem_res, FMBM_IER,
+	    IER_SPECE | IER_LECE | IER_STECE | IER_DECE);
+
+	return (0);
+}
+
+static int
+fman_qmi_init(struct fman_softc *sc)
+{
+	bus_write_4(sc->mem_res, FMQM_EIE, EIE_DEE | EIE_DFUPE);
+	bus_write_4(sc->mem_res, FMQM_EIEN, EIEN_DEE | EIEN_DFUPE);
+	return (0);
+}
+
+static void
+fman_hwp_init(struct fman_softc *sc)
+{
+	/* Start up the parser */
+	bus_write_4(sc->mem_res, FMPR_RPIMAC, HWP_RPIMAC_PEN);
+}
+
+static int
+fman_enable(struct fman_softc *sc)
+{
+	bus_write_4(sc->mem_res, FMBM_INIT, INIT_STR);
+	bus_write_4(sc->mem_res, FMQM_GC, 0xc0000000 |
+	    GC_STEN | (sc->qmi_def_tnums_thresh << GC_ENQ_THR_S) |
+	    sc->qmi_def_tnums_thresh);
+
+	return (0);
+}
+
+/*
+ * Enable timestamp counting.  Matching Freescale's reference code, generate the
+ * timestamp incrementer to be roughly 256MHz, such that bit 23 would update
+ * every microsecond.
+ */
+static int
+fman_enable_timestamp(struct fman_softc *sc)
+{
+	uint64_t frac;
+	uint32_t clock = fman_get_clock(sc) / 1000000;
+	uint32_t intgr, tmp;
+	uint32_t ts_freq = 1 << FM_TIMESTAMP_1US_BIT;
+
+	intgr = ts_freq / clock;
+
+	frac = ((uint64_t)ts_freq << 16) - ((uint64_t)intgr << 16) * clock;
+	frac = (frac % clock ? 1 : 0) + (frac / clock);
+
+	tmp = (intgr << TSC2_TSIV_INT_S) | (uint32_t)frac;
+
+	bus_write_4(sc->mem_res, FMFP_TSC2, tmp);
+	bus_write_4(sc->mem_res, FMFP_TSC1, TSC1_TEN);
+
+	return (0);
+}
+
+static int
+fman_keygen_init(struct fman_softc *sc)
+{
+	/* TODO: keygen */
+	return (0);
+}
+
+static int
+fman_fpm_init(struct fman_softc *sc)
+{
+	/* Clear all events, and enable interrupts. */
+	bus_write_4(sc->mem_res, FMFP_EE,
+	    EE_DECC | EE_STL | EE_SECC | EE_EHM |
+	    EE_DECC_EN | EE_STL_EN | EE_SECC_EN);
+
+	bus_write_4(sc->mem_res, FMFP_CEV0, 0xffffffff);
+	bus_write_4(sc->mem_res, FMFP_CEV1, 0xffffffff);
+	bus_write_4(sc->mem_res, FMFP_CEV2, 0xffffffff);
+	bus_write_4(sc->mem_res, FMFP_CEV3, 0xffffffff);
+
+	bus_write_4(sc->mem_res, FM_RCR, RCR_FEE | RCR_IEE);
+
+	return (0);
+}
+
+static int
+fman_init(struct fman_softc *sc)
+{
+	vmem_addr_t base_addr;
+	sc->sc_revision_major = fman_get_revision_major(sc);
+	sc->sc_revision_minor = fman_get_revision_minor(sc);
+
+	if (bootverbose)
+		device_printf(sc->sc_base.dev, "Hardware version: %d.%d.\n",
+		    sc->sc_revision_major, sc->sc_revision_minor);
+
+	fman_fill_soc_params(sc);
+	bus_set_region_4(sc->mem_res, FMAN_CGP_OFFSET, 0, sc->port_cgs / 4);
+
+	if (fman_reset(sc) != 0)
 		goto err;
-	}
 
-	FM_ConfigResetOnInit(fm_handle, TRUE);
+	if (fman_clear_iram(sc) != 0)
+		goto err;
 
-	error = FM_Init(fm_handle);
-	if (error != E_OK) {
-		device_printf(cfg->fman_device, "couldn't init FM module\n");
-		goto err2;
-	}
+	if (fman_dma_init(sc) != 0)
+		goto err;
 
-	error = FM_GetRevision(fm_handle, &revision_info);
-	if (error != E_OK) {
-		device_printf(cfg->fman_device, "couldn't get FM revision\n");
-		goto err2;
-	}
+	fman_fpm_init(sc);
 
-	device_printf(cfg->fman_device, "Hardware version: %d.%d.\n",
-	    revision_info.majorRev, revision_info.minorRev);
+	vmem_alloc(sc->muram_vmem, sc->total_fifo_size, M_BESTFIT | M_WAITOK,
+	    &base_addr);
+	sc->bmi_fifo_base = base_addr;
 
-	/* Initialize the simplebus part of things */
-	simplebus_init(sc->sc_base.dev, 0);
+	fman_bmi_init(sc);
+	fman_qmi_init(sc);
+	fman_hwp_init(sc);
+	if (fman_keygen_init(sc) != 0)
+		goto err;
 
-	node = ofw_bus_get_node(sc->sc_base.dev);
-	fman_fill_ranges(node, &sc->sc_base);
-	sc->rman.rm_type = RMAN_ARRAY;
-	sc->rman.rm_descr = "FMan range";
-	rman_init_from_resource(&sc->rman, sc->mem_res);
-	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
-		simplebus_add_device(sc->sc_base.dev, node, 0, NULL, -1, NULL);
-	}
+	if (fman_enable(sc) != 0)
+		goto err;
 
-	return (fm_handle);
+	fman_enable_timestamp(sc);
 
-err2:
-	FM_Free(fm_handle);
+	return (0);
 err:
-	FM_MURAM_Free(muram_handle);
-	return (NULL);
+	return (ENXIO);
 }
 
-static void
-fman_exception_callback(t_Handle app_handle, e_FmExceptions exception)
+void
+fman_get_revision(device_t dev, int *major, int *minor)
 {
-	struct fman_softc *sc;
+	struct fman_softc *sc = device_get_softc(dev);
 
-	sc = app_handle;
-	device_printf(sc->sc_base.dev, "FMan exception occurred.\n");
+	if (major)
+		*major = sc->sc_revision_major;
+	if (minor)
+		*minor = sc->sc_revision_minor;
 }
 
-static void
-fman_error_callback(t_Handle app_handle, e_FmPortType port_type,
-    uint8_t port_id, uint64_t addr, uint8_t tnum, uint16_t liodn)
-{
-	struct fman_softc *sc;
-
-	sc = app_handle;
-	device_printf(sc->sc_base.dev, "FMan error occurred.\n");
-}
 /** @} */
 
-
-/**
- * @group FMan driver interface.
- * @{
- */
-
-int
-fman_get_handle(device_t dev, t_Handle *fmh)
+static int
+fman_init_muram(struct fman_softc *sc)
 {
-	struct fman_softc *sc = device_get_softc(dev);
+	u_long base, size;
+	phandle_t node;
 
-	*fmh = sc->fm_handle;
+	node = ofw_bus_get_node(sc->sc_base.dev);
+	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
+		char compat[255];
 
-	return (0);
-}
-
-int
-fman_get_muram_handle(device_t dev, t_Handle *muramh)
-{
-	struct fman_softc *sc = device_get_softc(dev);
-
-	*muramh = sc->muram_handle;
-
-	return (0);
-}
-
-int
-fman_get_bushandle(device_t dev, vm_offset_t *fm_base)
-{
-	struct fman_softc *sc = device_get_softc(dev);
-
-	*fm_base = rman_get_bushandle(sc->mem_res);
+		if (OF_getprop(node, "compatible", compat, sizeof(compat)) < 0)
+			continue;
+		if (strcmp(compat, "fsl,fman-muram") == 0)
+			break;
+	}
+	if (node == 0) {
+		device_printf(sc->sc_base.dev, "no muram node\n");
+		return (ENXIO);
+	}
+	if (fdt_regsize(node, &base, &size) != 0) {
+		device_printf(sc->sc_base.dev, "failed to get muram reg\n");
+		return (ENXIO);
+	}
+	sc->muram_vmem = vmem_create("MURAM",
+	    base, size, 1, 0, M_WAITOK);
 
 	return (0);
 }
@@ -413,20 +682,18 @@ int
 fman_attach(device_t dev)
 {
 	struct fman_softc *sc;
-	struct fman_config cfg;
 	pcell_t qchan_range[2];
+	pcell_t cell;
 	phandle_t node;
 
 	sc = device_get_softc(dev);
 	sc->sc_base.dev = dev;
 
-	/* Check if MallocSmart allocator is ready */
-	if (XX_MallocSmartInit() != E_OK) {
-		device_printf(dev, "could not initialize smart allocator.\n");
-		return (ENXIO);
-	}
-
+	cell = 0;
 	node = ofw_bus_get_node(dev);
+	OF_getencprop(node, "cell-index", &cell, sizeof(cell));
+	sc->fm_id = cell;
+
 	if (OF_getencprop(node, "fsl,qman-channel-range", qchan_range,
 	    sizeof(qchan_range)) <= 0) {
 		device_printf(dev, "Missing QMan channel range property!\n");
@@ -450,6 +717,12 @@ fman_attach(device_t dev)
 		goto err;
 	}
 
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, fman_intr, sc, &sc->irq_cookie) != 0) {
+		device_printf(dev, "error setting up interrupt handler.\n");
+		goto err;
+	}
+
 	sc->err_irq_rid = 1;
 	sc->err_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &sc->err_irq_rid, RF_ACTIVE | RF_SHAREABLE);
@@ -458,20 +731,19 @@ fman_attach(device_t dev)
 		goto err;
 	}
 
-	/* Set FMan configuration */
-	cfg.fman_device = dev;
-	cfg.fm_id = device_get_unit(dev);
-	cfg.mem_base_addr = rman_get_bushandle(sc->mem_res);
-	cfg.irq_num = (uintptr_t)sc->irq_res;
-	cfg.err_irq_num = (uintptr_t)sc->err_irq_res;
-	cfg.exception_callback = fman_exception_callback;
-	cfg.bus_error_callback = fman_error_callback;
+	/* Initialize the simplebus part of things */
+	sc->rman.rm_type = RMAN_ARRAY;
+	sc->rman.rm_descr = "FMan range";
+	rman_init_from_resource(&sc->rman, sc->mem_res);
+	simplebus_attach_impl(sc->sc_base.dev);
 
-	sc->fm_handle = fman_init(sc, &cfg);
-	if (sc->fm_handle == NULL) {
-		device_printf(dev, "could not be configured\n");
+	if (fman_init_muram(sc) != 0)
 		goto err;
-	}
+
+	/* TODO: Interrupts... */
+
+	if (fman_init(sc) != 0)
+		goto err;
 
 	bus_attach_children(dev);
 	return (0);
@@ -485,16 +757,14 @@ int
 fman_detach(device_t dev)
 {
 	struct fman_softc *sc;
+	int rv;
+
+	rv = simplebus_detach(dev);
+
+	if (rv != 0)
+		return (rv);
 
 	sc = device_get_softc(dev);
-
-	if (sc->muram_handle) {
-		FM_MURAM_Free(sc->muram_handle);
-	}
-
-	if (sc->fm_handle) {
-		FM_Free(sc->fm_handle);
-	}
 
 	if (sc->mem_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid,
@@ -510,6 +780,9 @@ fman_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->err_irq_rid,
 		    sc->err_irq_res);
 	}
+
+	if (sc->muram_vmem != NULL)
+		vmem_destroy(sc->muram_vmem);
 
 	return (0);
 }
@@ -535,19 +808,150 @@ fman_shutdown(device_t dev)
 	return (0);
 }
 
+static void
+fman_intr(void *arg)
+{
+	/* TODO: All FMAN interrupts */
+}
+
 int
 fman_qman_channel_id(device_t dev, int port)
 {
 	struct fman_softc *sc;
-	int qman_port_id[] = {0x31, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
-	    0x2f, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
 	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->qman_chan_count; i++) {
-		if (qman_port_id[i] == port)
-			return (sc->qman_chan_base + i);
+	if (sc->sc_revision_major >= 6) {
+		static const int qman_port_id[] = {
+		    0x30, 0x31, 0x28, 0x29, 0x2a, 0x2b,
+		    0x2c, 0x2d, 0x02, 0x03, 0x04, 0x05, 0x07, 0x07
+		};
+		for (i = 0; i < sc->qman_chan_count; i++) {
+			if (qman_port_id[i] == port)
+				return (sc->qman_chan_base + i);
+		}
+	} else {
+		static const int qman_port_id[] = {
+		    0x31, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x01,
+		    0x02, 0x03, 0x04, 0x05, 0x07, 0x07
+		};
+		for (i = 0; i < sc->qman_chan_count; i++) {
+			if (qman_port_id[i] == port)
+				return (sc->qman_chan_base + i);
+		}
 	}
+
+	return (0);
+}
+
+size_t
+fman_get_bmi_max_fifo_size(device_t dev)
+{
+	struct fman_softc *sc = device_get_softc(dev);
+
+	return (sc->bmi_max_fifo_size);
+}
+
+int
+fman_reset_mac(device_t dev, int mac_id)
+{
+	struct fman_softc *sc = device_get_softc(dev);
+	int timeout = 100;
+	uint32_t mask;
+
+	if (mac_id < 0 || mac_id > 9)
+		return (EINVAL);
+
+	/* MAC bits start at bit 1 for MAC0, and go down */
+	mask = (1 << (30 - mac_id));
+	bus_write_4(sc->mem_res, FM_RSTC, mask);
+	while ((bus_read_4(sc->mem_res, FM_RSTC) & mask) && --timeout)
+		DELAY(10);
+
+	if (timeout == 0)
+		return (EIO);
+
+	return (0);
+}
+
+static int
+fman_set_port_tasks(struct fman_softc *sc, int port_id,
+    uint8_t tasks, uint8_t extra)
+{
+	uint32_t reg;
+
+	reg = bus_read_4(sc->mem_res, FMBM_PP(port_id));
+
+	reg &= ~(PP_MXT_M | PP_EXT_M);
+	reg |= ((uint32_t)(tasks - 1) << PP_MXT_S) |
+	    ((uint32_t)extra << PP_EXT_S);
+	bus_write_4(sc->mem_res, FMBM_PP(port_id), reg);
+
+	return (0);
+}
+
+static int
+fman_set_port_fifo_size(struct fman_softc *sc, int port_id,
+    uint32_t fifo_size, uint32_t extra)
+{
+	uint32_t reg;
+
+	reg = (fifo_size / FMAN_BMI_FIFO_UNITS - 1) |
+	    ((extra / FMAN_BMI_FIFO_UNITS) << PFS_EXBS_S);
+
+	/* TODO: Make sure fifo size doesn't overrun */
+	/* See Linux driver, fman set_size_of_fifo */
+
+	bus_write_4(sc->mem_res, FMBM_PFS(port_id), reg);
+	return (0);
+}
+
+static int
+fman_set_port_dmas(struct fman_softc *sc, int port_id,
+    int open_dmas, int extra_dmas)
+{
+	/* TODO: set port DMAs */
+	return (0);
+}
+
+static void
+fman_set_port_liodn(struct fman_softc *sc, int port_id, uint32_t liodn)
+{
+	uint32_t reg;
+
+	reg = bus_read_4(sc->mem_res, FMDM_PLRn(port_id));
+	reg &= ~PLRN_LIODN_M(port_id);
+	reg |= liodn << PLRN_LIODN_S(port_id);
+	bus_write_4(sc->mem_res, FMDM_PLRn(port_id), reg);
+}
+
+int
+fman_set_port_params(device_t dev, struct fman_port_init_params *params)
+{
+	struct fman_softc *sc = device_get_softc(dev);
+	int error;
+
+	error = fman_set_port_tasks(sc, params->port_id,
+	    params->num_tasks, params->extra_tasks);
+
+	if (error != 0)
+		return (error);
+
+	if (!params->is_rx_port) {
+	}
+	error = fman_set_port_fifo_size(sc, params->port_id, params->fifo_size,
+	    params->extra_fifo_size);
+
+	if (error != 0)
+		return (error);
+
+	error = fman_set_port_dmas(sc, params->port_id,
+	    params->open_dmas, params->extra_dmas);
+
+	if (error != 0)
+		return (error);
+
+	fman_set_port_liodn(sc, params->port_id, params->liodn);
 
 	return (0);
 }
