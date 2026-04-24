@@ -6083,7 +6083,7 @@ vop_create_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (!rc) {
+	if (rc == 0) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
 	}
@@ -6237,7 +6237,7 @@ vop_mknod_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (!rc) {
+	if (rc == 0) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
 	}
@@ -6505,7 +6505,7 @@ vop_read_pgcache_post(void *ap, int rc)
 {
 	struct vop_read_pgcache_args *a = ap;
 
-	if (!rc)
+	if (rc == 0)
 		VFS_KNOTE_UNLOCKED(a->a_vp, NOTE_READ);
 }
 
@@ -6652,6 +6652,8 @@ vfs_knlunlock(void *arg)
 {
 	struct vnode *vp = arg;
 
+	if (KNLIST_EMPTY(&vp->v_pollinfo->vpi_selinfo.si_note))
+		vn_irflag_unset(vp, VIRF_KNOTE);
 	VOP_UNLOCK(vp);
 }
 
@@ -6699,7 +6701,11 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 		return (ENOMEM);
 	knl = &vp->v_pollinfo->vpi_selinfo.si_note;
 	vhold(vp);
-	knlist_add(knl, kn, 0);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	knlist_add(knl, kn, 1);
+	if ((vn_irflag_read(vp) & VIRF_KNOTE) == 0)
+		vn_irflag_set(vp, VIRF_KNOTE);
+	VOP_UNLOCK(vp);
 
 	return (0);
 }
