@@ -54,11 +54,27 @@
 #include <efivar-dp.h>
 
 #ifndef LOAD_OPTION_ACTIVE
-#define LOAD_OPTION_ACTIVE 0x00000001
+#define LOAD_OPTION_ACTIVE                0x00000001
+#endif
+
+#ifndef LOAD_OPTION_FORCE_RECONNECT
+#define LOAD_OPTION_FORCE_RECONNECT       0x00000002
+#endif
+
+#ifndef LOAD_OPTION_HIDDEN
+#define LOAD_OPTION_HIDDEN                0x00000008
+#endif
+
+#ifndef LOAD_OPTION_CATEGORY
+#define LOAD_OPTION_CATEGORY              0x00001F00
 #endif
 
 #ifndef LOAD_OPTION_CATEGORY_BOOT
-#define LOAD_OPTION_CATEGORY_BOOT 0x00000000
+#define LOAD_OPTION_CATEGORY_BOOT         0x00000000
+#endif
+
+#ifndef LOAD_OPTION_CATEGORY_APP
+#define LOAD_OPTION_CATEGORY_APP          0x00000100
 #endif
 
 #define BAD_LENGTH	((size_t)-1)
@@ -744,14 +760,14 @@ static void
 print_loadopt_str(uint8_t *data, size_t datalen)
 {
 	char *dev, *relpath, *abspath;
-	uint32_t attr;
+	uint32_t attr, categ;
 	uint16_t fplen;
 	efi_char *descr;
 	uint8_t *ep = data + datalen;
-	uint8_t *walker = data;
+	uint8_t *walker = data, *opt;
 	efidp dp, edp;
 	char buf[1024];
-	int len;
+	int len, optlen;
 	int rv;
 	int indent;
 
@@ -775,11 +791,13 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 	if (walker > ep)
 		return;
 	edp = (efidp)walker;
-	/*
-	 * Everything left is the binary option args
-	 * opt = walker;
-	 * optlen = ep - walker;
-	 */
+
+	/* Everything left is the binary option args */
+	opt = walker;
+	optlen = ep - walker;
+
+	printf("\n");
+	printf("       dp:");
 	indent = 1;
 	while (dp < edp) {
 		if (efidp_size(dp) == 0)
@@ -787,7 +805,7 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 		efidp_format_device_path(buf, sizeof(buf), dp,
 		    (intptr_t)(void *)edp - (intptr_t)(void *)dp);
 		printf("%*s%s\n", indent, "", buf);
-		indent = 10 + len + 1;
+		indent = 11;
 		rv = efivar_device_path_to_unix_path(dp, &dev, &relpath, &abspath);
 		if (rv == 0) {
 			printf("%*s%s:%s %s\n", indent + 4, "", dev, relpath, abspath);
@@ -797,6 +815,37 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 		}
 		dp = (efidp)((char *)dp + efidp_size(dp));
 	}
+
+	/* Optional Data */
+	if (optlen > 0) {
+		printf("    opt/x: ");
+		efi_hexdump(opt, optlen, 11);
+		printf("    opt/a: ");
+		efi_asciidump(opt, optlen, 11);
+	}
+
+	/* Attributes */
+	printf("     attr: %#x<", attr);
+	if (attr & LOAD_OPTION_ACTIVE)
+		printf("ACTIVE,");
+	if (attr & LOAD_OPTION_FORCE_RECONNECT)
+		printf("FORCE_RECONNECT,");
+	if (attr & LOAD_OPTION_HIDDEN)
+		printf("HIDDEN,");
+	printf(">\n");
+
+	/* Category */
+	categ = (attr & LOAD_OPTION_CATEGORY);
+	printf("    categ: %#x<", categ);
+	switch (categ) {
+	case LOAD_OPTION_CATEGORY_APP:
+		printf("APP");
+		break;
+	case LOAD_OPTION_CATEGORY_BOOT:
+		printf("BOOT");
+		break;
+	}
+	printf(">\n");
 }
 
 static char *
