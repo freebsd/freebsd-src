@@ -35,16 +35,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "efiutil.h"
 #include "efichar.h"
 #include <efivar-dp.h>
 
 /*
  * Dump the data as ASCII data, which is a pretty
- * printed form 
+ * printed form.
  */
 void
-asciidump(uint8_t *data, size_t datalen)
+efi_asciidump(uint8_t *data, size_t datalen, int indent)
 {
 	size_t i;
 	int len;
@@ -55,14 +54,14 @@ asciidump(uint8_t *data, size_t datalen)
 			len++;
 			if (len > 80) {
 				len = 0;
-				printf("\n");
+				printf("\n%*s", indent, "");
 			}
 			printf("%c", data[i]);
 		} else {
 			len +=3;
 			if (len > 80) {
 				len = 0;
-				printf("\n");
+				printf("\n%*s", indent, "");
 			}
 			printf("%%%02x", data[i]);
 		}
@@ -71,7 +70,7 @@ asciidump(uint8_t *data, size_t datalen)
 }
 
 void
-utf8dump(uint8_t *data, size_t datalen)
+efi_utf8dump(uint8_t *data, size_t datalen, int indent)
 {
 	char *utf8 = NULL;
 	efi_char *ucs2;
@@ -84,21 +83,25 @@ utf8dump(uint8_t *data, size_t datalen)
 	memcpy(ucs2, data, datalen);
 	ucs2[datalen / sizeof(efi_char)] = 0;
 	ucs2_to_utf8(ucs2, &utf8);
-	printf("%s\n", utf8);
+	printf("%*s%s\n", indent, "", utf8);
 	free(utf8);
 	free(ucs2);
 }
 
 void
-hexdump(uint8_t *data, size_t datalen)
+efi_hexdump(uint8_t *data, size_t datalen, int indent)
 {
 	size_t i;
 
-	for (i = 0; i < datalen; i++) {
+	if (datalen == 0)
+		return;
+
+	printf("0000: %02x ", data[0]);
+	for (i = 1; i < datalen; i++) {
 		if (i % 16 == 0) {
 			if (i != 0)
 				printf("\n");
-			printf("%04x: ", (int)i);
+			printf("%*s%04x: ", indent, "", (int)i);
 		}
 		printf("%02x ", data[i]);
 	}
@@ -106,7 +109,7 @@ hexdump(uint8_t *data, size_t datalen)
 }
 
 void
-bindump(uint8_t *data, size_t datalen)
+efi_bindump(uint8_t *data, size_t datalen)
 {
 	write(1, data, datalen);
 }
@@ -180,11 +183,11 @@ efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int u
 		return;
 	printf("Option:\n");
 	if (Aflag)
-		asciidump(opt, optlen);
+		efi_asciidump(opt, optlen, 0);
 	else if (bflag)
-		bindump(opt, optlen);
+		efi_bindump(opt, optlen);
 	else if (uflag)
-		utf8dump(opt, optlen);
+		efi_utf8dump(opt, optlen, 0);
 	else
-		hexdump(opt, optlen);
+		efi_hexdump(opt, optlen, 0);
 }
