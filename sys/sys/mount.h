@@ -952,14 +952,22 @@ vfs_statfs_t	__vfs_statfs;
 	}								\
 } while (0)
 
+#include <sys/vnode.h>
+
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
-	VN_KNOTE((vp), (hint), KNF_LISTLOCKED);				\
+	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {			\
+		KNOTE_LOCKED(&vp->v_pollinfo->vpi_selinfo.si_note,	\
+		    hint);						\
+	}								\
 } while (0)
 
 #define VFS_KNOTE_UNLOCKED(vp, hint) do					\
 {									\
-	VN_KNOTE((vp), (hint), 0);					\
+	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {			\
+		KNOTE_UNLOCKED(&vp->v_pollinfo->vpi_selinfo.si_note,	\
+		    hint);						\
+	}								\
 } while (0)
 
 #include <sys/module.h>
