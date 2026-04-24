@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 9, 2025
+.Dd April 17, 2026
 .Dt NANOBSD 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd create an embedded FreeBSD system image
 .Sh SYNOPSIS
 .Nm
-.Op Fl BbfhIiKknpqvWwX
+.Op Fl BbfhIiKknPpqvWwX
 .Op Fl c Ar config-file
 .Sh DESCRIPTION
 The
@@ -77,6 +77,19 @@ This suppresses the normal cleanup work done before the
 .Cm buildworld
 stage and adds -DNO_CLEAN to the make command line
 used for each build stage (world and kernel).
+.It Fl P
+Use pre-compiled binaries,
+using
+.Xr freebsd-base 7
+by default.
+Setting
+.Va NANO_NOPKGBASE
+will use distributions defined in
+.Va NANO_DISTRIBUTIONS .
+See:
+.Xr bsdinstall 8
+.Ev DISTRIBUTIONS
+as a reference.
 .It Fl p
 Don't prepare the image.
 Skip running of the customization and early customization scripts for
@@ -350,6 +363,8 @@ customize_cmd cust_etc_size
 .Ed
 .Sh SEE ALSO
 .Xr make.conf 5 ,
+.Xr freebsd-base 7 ,
+.Xr bsdinstall 8
 .Xr boot 8 ,
 .Xr boot0cfg 8
 .Sh HISTORY
