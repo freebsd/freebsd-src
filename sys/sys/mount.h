@@ -36,8 +36,10 @@
 #include <sys/ucred.h>
 #include <sys/queue.h>
 #ifdef _KERNEL
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
+#include <sys/proc.h>
 #include <sys/tslog.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
@@ -1138,47 +1140,64 @@ void resume_all_fs(void);
  */
 #define	vfs_mount_pcpu(mp)		zpcpu_get(mp->mnt_pcpu)
 #define	vfs_mount_pcpu_remote(mp, cpu)	zpcpu_get_cpu(mp->mnt_pcpu, cpu)
+static void vfs_op_thread_exit_crit(struct mount *mp, struct mount_pcpu *mpcpu);
 
-#define vfs_op_thread_entered(mp) ({				\
-	MPASS(curthread->td_critnest > 0);			\
-	struct mount_pcpu *_mpcpu = vfs_mount_pcpu(mp);		\
-	_mpcpu->mntp_thread_in_ops == 1;			\
-})
+static inline bool
+vfs_op_thread_entered(struct mount *mp)
+{
+	struct mount_pcpu *mpcpu = vfs_mount_pcpu(mp);
 
-#define vfs_op_thread_enter_crit(mp, _mpcpu) ({			\
-	bool _retval_crit = true;				\
-	MPASS(curthread->td_critnest > 0);			\
-	_mpcpu = vfs_mount_pcpu(mp);				\
-	MPASS(mpcpu->mntp_thread_in_ops == 0);			\
-	_mpcpu->mntp_thread_in_ops = 1;				\
-	atomic_interrupt_fence();					\
-	if (__predict_false(mp->mnt_vfs_ops > 0)) {		\
-		vfs_op_thread_exit_crit(mp, _mpcpu);		\
-		_retval_crit = false;				\
-	}							\
-	_retval_crit;						\
-})
+	MPASS(curthread->td_critnest > 0);
+	return (mpcpu->mntp_thread_in_ops == 1);
+}
 
-#define vfs_op_thread_enter(mp, _mpcpu) ({			\
-	bool _retval;						\
-	critical_enter();					\
-	_retval = vfs_op_thread_enter_crit(mp, _mpcpu);		\
-	if (__predict_false(!_retval))				\
-		critical_exit();				\
-	_retval;						\
-})
+static inline bool
+vfs_op_thread_enter_crit(struct mount *mp, struct mount_pcpu **mpcpup)
+{
+	struct mount_pcpu *mpcpu;
+	bool retval_crit = true;
 
-#define vfs_op_thread_exit_crit(mp, _mpcpu) do {		\
-	MPASS(_mpcpu == vfs_mount_pcpu(mp));			\
-	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\
-	atomic_interrupt_fence();					\
-	_mpcpu->mntp_thread_in_ops = 0;				\
-} while (0)
+	MPASS(curthread->td_critnest > 0);
+	mpcpu = vfs_mount_pcpu(mp);
+	MPASS(mpcpu->mntp_thread_in_ops == 0);
+	mpcpu->mntp_thread_in_ops = 1;
+	atomic_interrupt_fence();
+	if (__predict_false(mp->mnt_vfs_ops > 0)) {
+		vfs_op_thread_exit_crit(mp, mpcpu);
+		retval_crit = false;
+	}
+	*mpcpup = mpcpu;
+	return (retval_crit);
+}
 
-#define vfs_op_thread_exit(mp, _mpcpu) do {			\
-	vfs_op_thread_exit_crit(mp, _mpcpu);			\
-	critical_exit();					\
-} while (0)
+static inline bool
+vfs_op_thread_enter(struct mount *mp, struct mount_pcpu **mpcpup)
+{
+	bool retval;
+
+	critical_enter();
+	retval = vfs_op_thread_enter_crit(mp, mpcpup);
+	if (__predict_false(!retval))
+		critical_exit();
+	return (retval);
+}
+
+static inline void
+vfs_op_thread_exit_crit(struct mount *mp, struct mount_pcpu *mpcpu)
+{
+	MPASS(mpcpu == vfs_mount_pcpu(mp));
+	MPASS(mpcpu->mntp_thread_in_ops == 1);
+
+	atomic_interrupt_fence();
+	mpcpu->mntp_thread_in_ops = 0;
+}
+
+static inline void
+vfs_op_thread_exit(struct mount *mp, struct mount_pcpu *mpcpu)
+{
+	vfs_op_thread_exit_crit(mp, mpcpu);
+	critical_exit();
+}
 
 #define vfs_mp_count_add_pcpu(_mpcpu, count, val) do {		\
 	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\
