@@ -225,18 +225,15 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 /* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
 
-/* We don't need to lock the knlist */
-#define	VN_KNLIST_EMPTY(vp) ((vp)->v_pollinfo == NULL ||	\
-	    KNLIST_EMPTY(&(vp)->v_pollinfo->vpi_selinfo.si_note))
-
-#define VN_KNOTE(vp, b, a)					\
-	do {							\
-		if (!VN_KNLIST_EMPTY(vp))			\
-			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), \
-			    (a) | KNF_NOKQLOCK);		\
-	} while (0)
-#define	VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, KNF_LISTLOCKED)
-#define	VN_KNOTE_UNLOCKED(vp, b)	VN_KNOTE(vp, b, 0)
+#define VN_KNOTE(vp, b, a)              				\
+do {                    						\
+	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {			\
+		KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b),	\
+		    (a) | KNF_NOKQLOCK);				\
+	}								\
+} while (0)
+#define   VN_KNOTE_LOCKED(vp, b)     VN_KNOTE(vp, b, KNF_LISTLOCKED)
+#define   VN_KNOTE_UNLOCKED(vp, b)   VN_KNOTE(vp, b, 0)
 
 /*
  * Vnode flags.
@@ -261,6 +258,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define	VIRF_INOTIFY	0x0080	/* This vnode is being watched */
 #define	VIRF_INOTIFY_PARENT 0x0100 /* A parent of this vnode may be being
 				      watched */
+#define	VIRF_KNOTE	0x0200	/* Has knlist */
 
 #define	VI_UNUSED0	0x0001	/* unused */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
@@ -1053,7 +1051,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 	off_t osize, ooffset, noffset;					\
 									\
 	osize = ooffset = noffset = 0;					\
-	if (!VN_KNLIST_EMPTY((ap)->a_vp)) {				\
+	if ((vn_irflag_read((ap)->a_vp) & VIRF_KNOTE) != 0) {		\
 		error = VOP_GETATTR((ap)->a_vp, &va, (ap)->a_cred);	\
 		if (error)						\
 			return (error);					\
@@ -1064,7 +1062,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 #define vop_write_post(ap, ret)						\
 	noffset = (ap)->a_uio->uio_offset;				\
 	if (noffset > ooffset) {					\
-		if (!VN_KNLIST_EMPTY((ap)->a_vp)) {			\
+		if ((vn_irflag_read((ap)->a_vp) & VIRF_KNOTE) != 0) {	\
 			VFS_KNOTE_LOCKED((ap)->a_vp, NOTE_WRITE |	\
 			    (noffset > osize ? NOTE_EXTEND : 0));	\
 		}							\
