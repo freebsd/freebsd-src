@@ -49,6 +49,7 @@
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_disk.h>
+#include <dev/pci/pcireg.h>
 #endif /* _KERNEL */
 
 #ifndef _KERNEL
@@ -731,6 +732,7 @@ ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	switch (code) {
 	case AC_FOUND_DEVICE:
 	{
+		struct ccb_pathinq cpi;
 		struct ccb_getdev *cgd;
 		cam_status status;
 
@@ -739,6 +741,18 @@ ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			break;
 
 		if (cgd->protocol != PROTO_NVME)
+			break;
+
+		/*
+		 * For PCIe cards, filter all the cards whose programming
+		 * interface doesn't conform to the NVMe storage spec. This
+		 * allows the nvme controller to attach to more than just
+		 * storage cards that use the nvme model.
+		 */
+		xpt_path_inq(&cpi, cgd->ccb_h.path);
+		if (cpi.transport == XPORT_NVME &&
+		    cpi.xport_specific.nvme.progif !=
+		    PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0)
 			break;
 
 		/*
