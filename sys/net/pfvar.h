@@ -1499,7 +1499,7 @@ struct pfsync_state_1301 {
 	u_int8_t	 state_flags;
 	u_int8_t	 timeout;
 	u_int8_t	 sync_flags;
-	u_int8_t	 updates;	/* unused */
+	u_int8_t	 __spare2;
 } __packed;
 
 struct pfsync_state_1400 {
