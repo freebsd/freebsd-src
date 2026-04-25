@@ -2712,16 +2712,13 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 	struct proc *p;
 	size_t size;
 	int structsize;
-#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-	structsize = sizeof(Elf32_Auxinfo);
-#else
-	structsize = sizeof(Elf_Auxinfo);
-#endif
+
 	p = arg;
 	structsize = sizeof(Elf_Auxinfo);
 	if (sb == NULL) {
 		size = 0;
-		sb = sbuf_new(NULL, NULL, AT_COUNT * structsize, SBUF_FIXEDLEN);
+		sb = sbuf_new(NULL, NULL, AT_COUNT * sizeof(Elf_Auxinfo),
+		    SBUF_FIXEDLEN);
 		sbuf_set_drain(sb, sbuf_count_drain, &size);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PHOLD(p);
