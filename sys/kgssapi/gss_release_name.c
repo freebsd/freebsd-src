@@ -28,7 +28,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/lock.h>
@@ -50,13 +49,6 @@ gss_release_name(OM_uint32 *minor_status, gss_name_t *input_name)
 	CLIENT *cl;
 
 	*minor_status = 0;
-
-	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
-	if (!VNET(kgss_gssd_handle)) {
-		CURVNET_RESTORE();
-		return (GSS_S_FAILURE);
-	}
-	CURVNET_RESTORE();
 
 	if (*input_name) {
 		name = *input_name;
