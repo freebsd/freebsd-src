@@ -17,6 +17,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <glob.h>
 #include <limits.h>
 #include <mntopts.h>
 #include <stdio.h>
@@ -390,6 +391,264 @@ ATF_TC_CLEANUP(inotify_nullfs, tc)
 		perror("unmount");
 		exit(1);
 	}
+}
+
+/*
+ * Regression test for bug 292495: nullfs vnode missing v_pollinfo when used
+ * with inotify — rename-to-new-name (tvp == NULL) path.
+ *
+ * Exercises VOP_INOTIFY(fvp, ..., IN_MOVED_FROM) in vop_rename_post via the
+ * INOTIFY_MOVE macro.  On kernels without the null_inotify fix and without
+ * the vfs_vector_op_register Phase-3 bypass fill, this path also panics via
+ * vop_stdinotify -> inotify_log -> NULL v_pollinfo deref; see also
+ * inotify_nullfs_rename_clobber for the tvp != NULL crash path.
+ */
+ATF_TC_WITH_CLEANUP(inotify_nullfs_rename);
+ATF_TC_HEAD(inotify_nullfs_rename, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(inotify_nullfs_rename, tc)
+{
+	char lower[PATH_MAX], lower_file[PATH_MAX], mnt[PATH_MAX],
+	    upper_src[PATH_MAX], upper_dst[PATH_MAX];
+	int error, fd, ifd, wd;
+
+	ifd = inotify(IN_NONBLOCK);
+
+	/* Create a lower directory with a file inside it. */
+	strlcpy(lower, "./lower.XXXXXX", sizeof(lower));
+	ATF_REQUIRE(mkdtemp(lower) != NULL);
+	snprintf(lower_file, sizeof(lower_file), "%s/file", lower);
+	fd = open(lower_file, O_RDWR | O_CREAT, 0644);
+	ATF_REQUIRE(fd != -1);
+	close_checked(fd);
+
+	/* Mount nullfs on a unique directory backed by the lower directory. */
+	strlcpy(mnt, "./nullfs_rename.XXXXXX", sizeof(mnt));
+	ATF_REQUIRE(mkdtemp(mnt) != NULL);
+	mount_nullfs(mnt, lower);
+
+	/*
+	 * Watch the file via the LOWER path.  This initializes v_pollinfo
+	 * and sets VIRF_INOTIFY only on the lower vnode; the upper (nullfs)
+	 * vnode still has v_pollinfo == NULL.
+	 */
+	wd = inotify_add_watch(ifd, lower_file, IN_MOVE_SELF);
+	ATF_REQUIRE(wd != -1);
+
+	/*
+	 * Open the file via the nullfs (upper) path.  This triggers
+	 * null_bypass for VOP_OPEN, whose post-op cleanup calls
+	 * null_copy_inotify(), which copies VIRF_INOTIFY from the lower vnode
+	 * to the upper vnode without calling v_addpollinfo().  The upper vnode
+	 * now has VIRF_INOTIFY set but v_pollinfo == NULL.
+	 *
+	 * The fd must remain open across the rename below.  If it is closed
+	 * first, null_inactive() recycles the upper vnode (nullfs caching is
+	 * not guaranteed), and the rename lookup allocates a fresh upper vnode
+	 * without VIRF_INOTIFY — preventing the crash on unpatched kernels.
+	 */
+	snprintf(upper_src, sizeof(upper_src), "%s/file", mnt);
+	fd = open(upper_src, O_RDONLY);
+	ATF_REQUIRE(fd != -1);
+
+	/*
+	 * Rename via the nullfs path while the upper vnode is still
+	 * referenced by fd.  vop_rename_post() calls VOP_INOTIFY on the
+	 * upper vnode.  On affected kernels the missing vop_inotify
+	 * ops-table entry causes vop_stdinotify -> vn_inotify -> inotify_log
+	 * to dereference upper->v_pollinfo (NULL), panicking the kernel.
+	 * On a patched kernel null_inotify -> null_bypass routes the call to
+	 * the lower vnode, delivering the event normally.
+	 */
+	snprintf(upper_dst, sizeof(upper_dst), "%s/file.moved", mnt);
+	error = rename(upper_src, upper_dst);
+	ATF_REQUIRE(error == 0);
+	close_checked(fd);
+
+	/* Fixed kernel delivers the IN_MOVE_SELF event on the lower watch. */
+	consume_event(ifd, wd, IN_MOVE_SELF, 0, NULL);
+
+	close_inotify(ifd);
+}
+ATF_TC_CLEANUP(inotify_nullfs_rename, tc)
+{
+	char lower[PATH_MAX], mnt[PATH_MAX];
+	glob_t g;
+
+	/* Clean up whichever mkdtemp-generated mount point was created. */
+	if (glob("./nullfs_rename.??????", GLOB_NOSORT, NULL, &g) == 0 &&
+	    g.gl_pathc > 0)
+		strlcpy(mnt, g.gl_pathv[0], sizeof(mnt));
+	else
+		strlcpy(mnt, "./nullfs_rename.XXXXXX", sizeof(mnt));
+	globfree(&g);
+	(void)unmount(mnt, MNT_FORCE);
+	(void)rmdir(mnt);
+
+	/* Also clean up the lower directory and any file inside it. */
+	if (glob("./lower.??????", GLOB_NOSORT, NULL, &g) == 0 &&
+	    g.gl_pathc > 0) {
+		char tmp[PATH_MAX];
+		strlcpy(lower, g.gl_pathv[0], sizeof(lower));
+		snprintf(tmp, sizeof(tmp), "%s/file", lower);
+		(void)unlink(tmp);
+		snprintf(tmp, sizeof(tmp), "%s/file.moved", lower);
+		(void)unlink(tmp);
+	} else {
+		strlcpy(lower, "./lower.XXXXXX", sizeof(lower));
+	}
+	globfree(&g);
+	(void)rmdir(lower);
+}
+
+/*
+ * Regression test for the _IN_MOVE_DELETE crash path of bug 292495.
+ *
+ * When a rename(2) via nullfs overwrites an existing watched file (tvp !=
+ * NULL), vop_rename_post fires INOTIFY_NAME_LOCK(tvp, ..., _IN_MOVE_DELETE).
+ * On unpatched kernels the nullfs vop_inotify slot is NULL, so the generic
+ * vop_stdinotify is used; it calls inotify_log(tvp) and dereferences
+ * tvp->v_pollinfo — which null_copy_inotify left as NULL — causing a panic.
+ *
+ * This is the "git pattern": git atomically publishes updates by renaming a
+ * lock file (e.g. main.lock) over the existing target (e.g. main).
+ *
+ * On a patched kernel null_inotify / null_bypass safely forwards VOP_INOTIFY
+ * to the lower vnode and the rename completes normally with IN_MOVE_SELF
+ * delivered on the source watch.
+ */
+ATF_TC_WITH_CLEANUP(inotify_nullfs_rename_clobber);
+ATF_TC_HEAD(inotify_nullfs_rename_clobber, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(inotify_nullfs_rename_clobber, tc)
+{
+	char lower[PATH_MAX], lower_src[PATH_MAX], lower_dst[PATH_MAX];
+	char mnt[PATH_MAX], upper_src[PATH_MAX], upper_dst[PATH_MAX];
+	int error, fd_src, fd_dst, ifd, wd_src, wd_dst;
+
+	ifd = inotify(IN_NONBLOCK);
+
+	/* Create a lower directory with two files. */
+	strlcpy(lower, "./lower_clobber.XXXXXX", sizeof(lower));
+	ATF_REQUIRE(mkdtemp(lower) != NULL);
+	snprintf(lower_src, sizeof(lower_src), "%s/src", lower);
+	snprintf(lower_dst, sizeof(lower_dst), "%s/dst", lower);
+
+	fd_src = open(lower_src, O_RDWR | O_CREAT, 0644);
+	ATF_REQUIRE(fd_src != -1);
+	close_checked(fd_src);
+
+	fd_dst = open(lower_dst, O_RDWR | O_CREAT, 0644);
+	ATF_REQUIRE(fd_dst != -1);
+	close_checked(fd_dst);
+
+	/* Mount nullfs on a unique directory backed by the lower directory. */
+	strlcpy(mnt, "./nullfs_clobber.XXXXXX", sizeof(mnt));
+	ATF_REQUIRE(mkdtemp(mnt) != NULL);
+	mount_nullfs(mnt, lower);
+
+	/*
+	 * Watch the SOURCE file via the lower path.  This initialises
+	 * v_pollinfo and sets VIRF_INOTIFY on the lower source vnode.
+	 *
+	 * Also add a watch on the DESTINATION file via the lower path so
+	 * that null_copy_inotify will copy VIRF_INOTIFY to the upper
+	 * destination vnode (the tvp in the crash path) when we later open
+	 * it via the nullfs mount.
+	 */
+	wd_src = inotify_add_watch(ifd, lower_src, IN_MOVE_SELF);
+	ATF_REQUIRE(wd_src != -1);
+	wd_dst = inotify_add_watch(ifd, lower_dst, IN_DELETE_SELF);
+	ATF_REQUIRE(wd_dst != -1);
+
+	/*
+	 * Open both files via the nullfs (upper) path.  Each open triggers
+	 * null_bypass for VOP_OPEN whose post-op cleanup calls
+	 * null_copy_inotify(), which copies VIRF_INOTIFY from the lower
+	 * vnode to the corresponding upper nullfs vnode without calling
+	 * v_addpollinfo().  Both upper vnodes now carry VIRF_INOTIFY but
+	 * have v_pollinfo == NULL.
+	 *
+	 * fd_src is held open across the rename to keep the upper source
+	 * vnode in cache with VIRF_INOTIFY set.  fd_dst is closed
+	 * immediately; the upper destination vnode (the tvp) remains cached
+	 * with VIRF_INOTIFY set but v_pollinfo == NULL.
+	 */
+	snprintf(upper_src, sizeof(upper_src), "%s/src", mnt);
+	snprintf(upper_dst, sizeof(upper_dst), "%s/dst", mnt);
+	fd_src = open(upper_src, O_RDONLY);
+	ATF_REQUIRE(fd_src != -1);
+	fd_dst = open(upper_dst, O_RDONLY);
+	ATF_REQUIRE(fd_dst != -1);
+	close_checked(fd_dst);
+
+	/*
+	 * Rename upper/src over the existing upper/dst (tvp != NULL).
+	 *
+	 * vop_rename_post fires INOTIFY_MOVE(..., tvp=upper_dst).  Because
+	 * tvp is non-NULL it calls:
+	 *   INOTIFY_NAME_LOCK(tvp=upper_dst, ..., _IN_MOVE_DELETE)
+	 *   -> VOP_INOTIFY(upper_dst, ..., _IN_MOVE_DELETE)
+	 *
+	 * Unpatched kernel: vop_stdinotify -> inotify_log(upper_dst) ->
+	 *   upper_dst->v_pollinfo->vpi_lock  [v_pollinfo == NULL -> PANIC]
+	 *
+	 * Patched kernel: null_inotify/null_bypass -> lower_dst ->
+	 *   inotify_log(lower_dst, ..., IN_DELETE_SELF) -> event delivered.
+	 */
+	error = rename(upper_src, upper_dst);
+	ATF_REQUIRE(error == 0);
+	close_checked(fd_src);
+
+	/*
+	 * vop_rename_post fires twice: once for the lower-fs rename (lower
+	 * vnodes) and once for the outer nullfs rename (upper vnodes, which
+	 * null_bypass forwards back to the same lower vnodes).
+	 *
+	 * Events in arrival order:
+	 *  1. wd_src IN_MOVE_SELF  — lower path: VOP_INOTIFY(lower_fvp, IN_MOVED_FROM)
+	 *  2. wd_dst IN_DELETE_SELF — lower path: VOP_INOTIFY(lower_tvp, _IN_MOVE_DELETE)
+	 *  3. wd_dst IN_IGNORED    — watch auto-removed after IN_DELETE_SELF
+	 *  4. wd_src IN_MOVE_SELF  — nullfs path: VOP_INOTIFY(upper_fvp) forwarded to lower_fvp
+	 */
+	consume_event(ifd, wd_src, IN_MOVE_SELF, 0, NULL);
+	consume_event(ifd, wd_dst, IN_DELETE_SELF, 0, NULL);
+	consume_event(ifd, wd_dst, 0, IN_IGNORED, NULL);
+	consume_event(ifd, wd_src, IN_MOVE_SELF, 0, NULL);
+
+	close_inotify(ifd);
+}
+ATF_TC_CLEANUP(inotify_nullfs_rename_clobber, tc)
+{
+	char lower[PATH_MAX], mnt[PATH_MAX];
+	glob_t g;
+
+	if (glob("./nullfs_clobber.??????", GLOB_NOSORT, NULL, &g) == 0 &&
+	    g.gl_pathc > 0)
+		strlcpy(mnt, g.gl_pathv[0], sizeof(mnt));
+	else
+		strlcpy(mnt, "./nullfs_clobber.XXXXXX", sizeof(mnt));
+	globfree(&g);
+	(void)unmount(mnt, MNT_FORCE);
+	(void)rmdir(mnt);
+
+	if (glob("./lower_clobber.??????", GLOB_NOSORT, NULL, &g) == 0 &&
+	    g.gl_pathc > 0) {
+		char tmp[PATH_MAX];
+		strlcpy(lower, g.gl_pathv[0], sizeof(lower));
+		snprintf(tmp, sizeof(tmp), "%s/src", lower);
+		(void)unlink(tmp);
+		snprintf(tmp, sizeof(tmp), "%s/dst", lower);
+		(void)unlink(tmp);
+	} else {
+		strlcpy(lower, "./lower_clobber.XXXXXX", sizeof(lower));
+	}
+	globfree(&g);
+	(void)rmdir(lower);
 }
 
 /*
@@ -878,6 +1137,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, inotify_coalesce);
 	ATF_TP_ADD_TC(tp, inotify_mask_create);
 	ATF_TP_ADD_TC(tp, inotify_nullfs);
+	ATF_TP_ADD_TC(tp, inotify_nullfs_rename);
+	ATF_TP_ADD_TC(tp, inotify_nullfs_rename_clobber);
 	ATF_TP_ADD_TC(tp, inotify_queue_overflow);
 	/* Tests for the various inotify event types. */
 	ATF_TP_ADD_TC(tp, inotify_event_access_file);
