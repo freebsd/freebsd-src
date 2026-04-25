@@ -187,7 +187,7 @@ ia32_fetch_syscall_args(struct thread *td)
   	else
  		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	if (params != NULL && sa->callp->sy_narg != 0)
+	if (sa->callp->sy_narg != 0)
 		error = copyin(params, (caddr_t)args,
 		    (u_int)(sa->callp->sy_narg * sizeof(int)));
 	else
