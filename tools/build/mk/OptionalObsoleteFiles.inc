@@ -1505,6 +1505,7 @@ OLD_LIBS+=lib/libdtrace.so.2
 OLD_FILES+=usr/bin/ctfconvert
 OLD_FILES+=usr/bin/ctfdump
 OLD_FILES+=usr/bin/ctfmerge
+OLD_FILES+=usr/lib/dtrace/cam.d
 OLD_FILES+=usr/lib/dtrace/drti.o
 OLD_FILES+=usr/lib/dtrace/errno.d
 OLD_FILES+=usr/lib/dtrace/io.d
