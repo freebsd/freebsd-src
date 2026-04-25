@@ -331,15 +331,15 @@ open_config(const char *cfname, pid_t *const pid)
 	int read_fd, write_fd, exec_fd, pipes[2];
 	FILE *file;
 
-	/* Invalidate the child PID. */
+	// Invalidate the child PID.
 	*pid = -1;
 
-	/* The configuration must be readable. */
+	// The configuration must be readable.
 	read_fd = open(cfname, O_RDONLY);
 	if (read_fd < 0)
 		err(1, "open(): %s", cfname);
 
-	/* Try to open the configuration for execution (to parse its standard output config instead). */
+	// Try to open the configuration for execution (to parse its standard output config instead).
 	exec_fd = open(cfname, O_RDONLY | O_EXEC);
 	if (exec_fd < 0) {
 		if (errno != EACCES)
@@ -353,7 +353,7 @@ open_config(const char *cfname, pid_t *const pid)
 			err(1, "open_config(): %s", cfname);
 		}
 		
-		/* Set the argument list: <jail_conf> <jail_conf> <jail_dir> <jail_base> <jail_name>. */
+		// Set the argument list: <jail_conf> <jail_conf> <jail_dir> <jail_base> <jail_name>.
 		const struct cfjail *const current_jail = TAILQ_LAST(&cfjails, cfjails);
 		char *const jail_conf = __DECONST(char *, cfname);
 		char *const jail_dir  = dirname(memcpy(dir_buf, cfname, cfname_size));
@@ -361,24 +361,24 @@ open_config(const char *cfname, pid_t *const pid)
 		char *const jail_name = current_jail && current_jail->name ? current_jail->name : __DECONST(char *, "");
 		char *argv[] = { jail_conf, jail_conf, jail_dir, jail_base, jail_name, NULL };
 
-		/* Read from the pipe instead of the configuration. */
+		// Read from the pipe instead of the configuration.
 		close(read_fd);
 		if (pipe(pipes))
 			err(1, "pipe(): %s", cfname);
 		read_fd = pipes[0];
 		write_fd = pipes[1];
 
-		/* Run the configuration as child process. */
+		// Run the configuration as child process.
 		switch ((*pid = fork())) {
 
-		/* Failed to fork(). */
+		// Failed to fork().
 		case -1:
 			err(1, "fork(): %s", cfname);
 			break;
 
-		/* After successful fork() inside the child process. */
+		// After successful fork() inside the child process.
 		case 0:
-			/* Export the arguments to the executable configuration. */
+			// Export the arguments to the executable configuration.
 			if (setenv("JAIL_CONF", cfname, 1))
 				err(1, "setenv(\"JAIL_CONF\", \"%s\"): %s", cfname, cfname);
 			if (setenv("JAIL_DIR", jail_dir, 1))
@@ -388,28 +388,28 @@ open_config(const char *cfname, pid_t *const pid)
 			if (setenv("JAIL_NAME", jail_name, 1))
 				err(1, "setenv(\"JAIL_NAME\", \"%s\"): %s", jail_name, cfname);
 
-			/* Redirect the child's standard output into the pipe. */
+			// Redirect the child's standard output into the pipe.
 			if (write_fd != STDOUT_FILENO) {
 				if (dup2(write_fd, STDOUT_FILENO) != STDOUT_FILENO)
 					err(1, "dup2(): %s", cfname);
 				close(write_fd);
 			}
 
-			/* Replace the forked child with the configuration command. */
+			// Replace the forked child with the configuration command.
 			execve(argv[0], argv, environ);
 			err(1, "execve(): %s", cfname);
 			break;
 
-		/* After successful fork() inside the parent process. */
+		// After successful fork() inside the parent process.
 		default:
-			/* Close the write end of the pipe and the executable file descriptor in the parent. */
+			// Close the write end of the pipe and the executable file descriptor in the parent.
 			close(write_fd); write_fd = -1;
 			close(exec_fd); exec_fd = -1;
 			break;
 		}
 	}
 
-	/* Wrap a FILE handle around the read-only file descriptor. */
+	// Wrap a FILE handle around the read-only file descriptor.
 	file = fdopen(read_fd, "r");
 	if (file == NULL)
 		err(1, "fdopen(): %s", cfname);
