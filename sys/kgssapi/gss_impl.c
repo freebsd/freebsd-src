@@ -52,7 +52,7 @@ MALLOC_DEFINE(M_GSSAPI, "GSS-API", "GSS-API");
 struct kgss_mech_list kgss_mechs;
 struct mtx kgss_gssd_lock;
 
-KGSS_VNET_DEFINE(CLIENT *, kgss_gssd_handle) = NULL;
+VNET_DEFINE(CLIENT *, kgss_gssd_handle) = NULL;
 
 static int
 kgss_load(void)
@@ -79,11 +79,11 @@ kgss_load(void)
 	 */
 	clnt_control(cl, CLSET_WAITCHAN, "gssd");
 
-	KGSS_CURVNET_SET_QUIET(KGSS_TD_TO_VNET(curthread));
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	mtx_lock(&kgss_gssd_lock);
-	KGSS_VNET(kgss_gssd_handle) = cl;
+	VNET(kgss_gssd_handle) = cl;
 	mtx_unlock(&kgss_gssd_lock);
-	KGSS_CURVNET_RESTORE();
+	CURVNET_RESTORE();
 
 	return (0);
 }
@@ -93,9 +93,9 @@ static void
 kgss_unload(void)
 {
 
-	KGSS_CURVNET_SET_QUIET(KGSS_TD_TO_VNET(curthread));
-	clnt_destroy(KGSS_VNET(kgss_gssd_handle));
-	KGSS_CURVNET_RESTORE();
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
+	clnt_destroy(VNET(kgss_gssd_handle));
+	CURVNET_RESTORE();
 }
 #endif
 
@@ -207,16 +207,16 @@ kgss_transfer_context(gss_ctx_id_t ctx, void *lctx)
 		return (maj_stat);
 	}
 
-	KGSS_CURVNET_SET_QUIET(KGSS_TD_TO_VNET(curthread));
-	if (!KGSS_VNET(kgss_gssd_handle)) {
-		KGSS_CURVNET_RESTORE();
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
+	if (!VNET(kgss_gssd_handle)) {
+		CURVNET_RESTORE();
 		return (GSS_S_FAILURE);
 	}
 
 	args.ctx = ctx->handle;
 	bzero(&res, sizeof(res));
-	stat = gssd_export_sec_context_1(&args, &res, KGSS_VNET(kgss_gssd_handle));
-	KGSS_CURVNET_RESTORE();
+	stat = gssd_export_sec_context_1(&args, &res, VNET(kgss_gssd_handle));
+	CURVNET_RESTORE();
 	if (stat != RPC_SUCCESS) {
 		return (GSS_S_FAILURE);
 	}
@@ -250,13 +250,13 @@ kgss_gssd_client(void)
 {
 	CLIENT *cl;
 
-	KGSS_CURVNET_SET_QUIET(KGSS_TD_TO_VNET(curthread));
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	mtx_lock(&kgss_gssd_lock);
-	cl = KGSS_VNET(kgss_gssd_handle);
+	cl = VNET(kgss_gssd_handle);
 	if (cl != NULL)
 		CLNT_ACQUIRE(cl);
 	mtx_unlock(&kgss_gssd_lock);
-	KGSS_CURVNET_RESTORE();
+	CURVNET_RESTORE();
 	return (cl);
 }
 
