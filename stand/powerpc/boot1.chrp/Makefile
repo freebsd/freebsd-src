@@ -23,12 +23,6 @@ CFLAGS+=-I${LDRSRC}
 #
 LDFLAGS=-nostdlib -static -Wl,-N -Wl,-Ttext=0x38000 -Wl,--image-base=0x38000
 
-.include <bsd.linker.mk>
-.if (${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 24400) || \
-    ${LINKER_TYPE} == "lld"
-LDFLAGS+=-Wl,--image-base=0
-.endif
-
 .PATH:  ${SYSDIR}/libkern ${SRCTOP}/lib/libc/powerpc/gen ${.CURDIR}
 
 # The following inserts out objects into a template HFS 
