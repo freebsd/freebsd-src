@@ -89,6 +89,7 @@
 
 #define	DEFAULT_PAUSE_QUANTA	0xf000
 
+#define	DPAA_CSUM_TX_OFFLOAD	(CSUM_IP | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)
 
 
 /**
@@ -308,6 +309,7 @@ memac_if_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct memac_softc *sc;
 	struct ifreq *ifr;
+	uint32_t changed;
 	int error;
 
 	sc = if_getsoftc(ifp);
@@ -341,6 +343,18 @@ memac_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			MEMAC_LOCK(sc);
 			memac_setup_multicast(sc);
 			MEMAC_UNLOCK(sc);
+		}
+		break;
+
+	case SIOCSIFCAP:
+		changed = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
+		if ((changed & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) != 0)
+			if_togglecapenable(ifp,
+			    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		if ((changed & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) != 0) {
+			if_togglecapenable(ifp,
+			    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			if_togglehwassist(ifp, DPAA_CSUM_TX_OFFLOAD);
 		}
 		break;
 
@@ -603,8 +617,11 @@ memac_attach(device_t dev)
 		    device_get_unit(sc->sc_base.sc_dev));
 
 
-	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |
+	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 |
+	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_sethwassist(ifp, DPAA_CSUM_TX_OFFLOAD);
 
 	/* Attach PHY(s) */
 	if (!sc->sc_fixed_link) {

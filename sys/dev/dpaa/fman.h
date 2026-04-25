@@ -105,6 +105,36 @@ struct fman_port_init_params {
 	uint16_t liodn;
 };
 
+struct fman_parse_result {
+	uint8_t lpid;
+	uint8_t shimr;
+	uint16_t l2r;
+	uint16_t l3r;
+	uint8_t l4r;
+	uint8_t cpid;
+	uint16_t nxthdr;
+	uint16_t cksum;
+	uint32_t lcv;
+	uint8_t shim_off[2];
+	uint8_t ip_pid_off;
+	uint8_t eth_off;
+	uint8_t llc_snap_off;
+	uint8_t vlan_tic_off[2];
+	uint8_t last_e_type_off;
+	uint8_t pppoe_off;
+	uint8_t mpls_off[2];
+	uint8_t ip_off[2];
+	uint8_t gre_off;
+	uint8_t l4_off;
+	uint8_t nxthdr_off;
+};
+
+struct fman_internal_context {
+	struct fman_parse_result prs;
+	uint64_t timestamp;
+	uint64_t hash;
+};
+
 /**
  * @group FMan bus interface.
  * @{

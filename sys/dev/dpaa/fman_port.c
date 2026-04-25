@@ -11,6 +11,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #include <machine/bus.h>
 #include "fman.h"
+#include "fman_parser.h"
 #include "fman_port.h"
 #include "fman_if.h"
 #include "fman_port_if.h"
@@ -73,9 +74,17 @@ struct fman_port_softc {
 #define	FMBM_RFP		0x00c
 #define	FMBM_RFED		0x010
 #define	  BMI_RX_FRAME_END_CUT_SHIFT	16
-#define	FMBM_RICP		0x014
+#define	FMBM_RICP		0x014	/* Counts are units of 16 bytes */
+#define	  RICP_ICEOF_M		  0x001f0000
+#define	  RICP_ICEOF_S		  16
+#define	  RICP_ICIOF_M		  0x00000f00
+#define	  RICP_ICIOF_S		  8
+#define	  RICP_ICSZ_S		  0x0000001f
 #define	FMBM_RIM		0x018
 #define	FMBM_REBM		0x01c
+#define	  REBM_BSM_M		  0x01ff0000
+#define	  REBM_BSM_S		  16
+#define	  REBM_BEM_M		  0x000001ff
 #define	FMBM_RFNE		0x020
 #define	FMBM_RFCA		0x024
 #define	  RFCA_OR		  0x80000000
@@ -105,6 +114,12 @@ struct fman_port_softc {
 #define	FMBM_TFP		0x00c
 #define	  BMI_FIFO_PIPELINE_DEPTH_SHIFT	12
 #define	FMBM_TFED	0x010
+#define	FMBM_TICP	0x014
+#define	  TICP_ICEOF_M		  0x001f0000
+#define	  TICP_ICEOF_S		  16
+#define	  TICP_ICIOF_M		  0x00000f00
+#define	  TICP_ICIOF_S		  8
+#define	  TICP_ICSZ_S		  0x0000001f
 #define	FMBM_TFDNE	0x018
 #define	FMBM_TFCA	0x01c
 #define	  TFCA_MR_DEF	  0
@@ -385,6 +400,7 @@ fman_port_config(device_t dev, struct fman_port_params *params)
 static int
 fman_port_init_bmi_rx(struct fman_port_softc *sc)
 {
+	uint32_t reg;
 
 	/* TODO: Sort the buffer pool list.  */
 	/* TODO: Backup pools */
@@ -407,7 +423,7 @@ fman_port_init_bmi_rx(struct fman_port_softc *sc)
 	    RFCA_OR | RFCA_SYNC_REQ | RFCA_MR_DEF);
 
 	bus_write_4(sc->sc_mem, FMBM_RFPNE,
-	    NIA_ENG_HWK);
+	    NIA_ENG_BMI | NIA_BMI_AC_ENQ_FRAME);
 	bus_write_4(sc->sc_mem, FMBM_RFENE,
 	    NIA_ENG_QMI_ENQ | NIA_ORDER_RESTORE);
 
@@ -424,11 +440,14 @@ fman_port_init_bmi_rx(struct fman_port_softc *sc)
 		bus_write_4(sc->sc_mem, FMBM_RFED,
 		    DEFAULT_RX_CUT_END_BYTES << BMI_RX_FRAME_END_CUT_SHIFT);
 
-	/* No internal context */
-	bus_write_4(sc->sc_mem, FMBM_RICP, 0);
+	/* Insert internal context ahead of the frame */
+	reg = sizeof(struct fman_internal_context) << REBM_BSM_S;
+	bus_write_4(sc->sc_mem, FMBM_REBM, reg);
+	reg = howmany(FMAN_PARSE_RESULT_OFF, 0x10) << RICP_ICIOF_S;
+	reg |= howmany(sizeof(struct fman_internal_context), 0x10);
+	bus_write_4(sc->sc_mem, FMBM_RICP, reg);
 
-	/* TODO: Enable HW Parser. */
-	bus_write_4(sc->sc_mem, FMBM_RFNE, NIA_ENG_BMI | NIA_BMI_AC_ENQ_FRAME);
+	bus_write_4(sc->sc_mem, FMBM_RFNE, NIA_ENG_HWP);
 	bus_write_4(sc->sc_mem, FMBM_RFSDM, FM_FD_ERR_DIS);
 	bus_write_4(sc->sc_mem, FMBM_RFSEM, BMI_RX_ERR & ~FM_FD_ERR_DIS);
 
@@ -462,6 +481,11 @@ fman_port_init_bmi_tx(struct fman_port_softc *sc)
 	bus_write_4(sc->sc_mem, FMBM_TFENE,
 	    NIA_ENG_QMI_ENQ | NIA_ORDER_RESTORE);
 
+	/* Insert internal context ahead of the frame */
+	reg = howmany(FMAN_PARSE_RESULT_OFF, 0x10) << TICP_ICIOF_S;
+	reg |= howmany(sizeof(struct fman_internal_context), 0x10);
+	bus_write_4(sc->sc_mem, FMBM_TICP, reg);
+
 	if (sc->sc_revision_major >= 6)
 		bus_write_4(sc->sc_mem, FMBM_TFNE,
 		    (sc->sc_default_fqid == 0 ? TFNE_EBD : 0) |
@@ -477,7 +501,7 @@ fman_port_init_hwp(struct fman_port_softc *sc)
 {
 	int i;
 
-	/* TODO: fman_port_init_hwp */
+	/* Stop the parser so we can initialize it for our uses */
 	bus_write_4(sc->sc_mem, HWP_PCAC, HWP_PCAC_PSTOP);
 
 	for (i = 0; i < 100 &&
@@ -497,16 +521,9 @@ fman_port_init_hwp(struct fman_port_softc *sc)
 	bus_write_4(sc->sc_mem, HWP_HXS_SSA(HWP_HXS_TCP), HXS_SH_PAD_REM);
 	bus_write_4(sc->sc_mem, HWP_HXS_SSA(HWP_HXS_UDP), HXS_SH_PAD_REM);
 
+	/* Re-enable the parser */
 	bus_write_4(sc->sc_mem, HWP_PCAC, 0);
 
-	for (i = 100; i > 0 &&
-	    (bus_read_4(sc->sc_mem, HWP_PCAC) & HWP_HXS_PCAC_PSTAT) == 0; i--) {
-		DELAY(10);
-	}
-	if (i == 0) {
-		device_printf(sc->sc_dev, "Timeout starting HW parser\n");
-		return (ENXIO);
-	}
 	return (0);
 }
 
