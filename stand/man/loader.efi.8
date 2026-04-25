@@ -217,14 +217,47 @@ functionality where we use the video console if a keyboard is connected and a
 serial console otherwise.
 .Ss Additional Environment Variables
 .Nm
-loads some extra variables early in startup from
-.Pa /efi/freebsd/loader.env
-from the EFI partition.
-Only simple variables can be set here.
+can set variables early in startup from a file on the EFI partition.
+By default, that file is
+.Pa /efi/freebsd/loader.env .
+It can be changed by setting the FreeBSD EFI variable
+.Va LoaderEnv ,
+as in:
+.Bd -literal -offset indent
+echo -n /efi/freebsd/alt.env | efivar -w -t 7 \\
+    -n cfee69ad-a0de-47a9-93a8-f63106f8ae99-LoaderEnv
+.Ed
+.Pp
+After that is executed, the file
+.Pa /efi/freebsd/alt.env
+is used instead of
+.Pa /efi/freebsd/loader.env .
+See
+.Xr efivar 8
+for more information on setting EFI variables.
+.Pp
+The EFI variable
+.Va NextLoaderEnv
+can be set to the pathname of a second startup file.
+That variable is deleted immediately after its value is retrieved,
+so setting it will affect only the next boot attempt.
+For either variable, a missing file is silently ignored.
+.Pp
+Only simple variables can be set in the startup file.
 It can be useful to specify the root filesystem:
 .Bd -literal -offset indent
 rootdev=disk0s1a
 .Ed
+.Pp
+The startup file contains a series of assignments separated by spaces,
+tabs, or newlines.
+Quotes are not given any special treatment.
+If no
+.Li =value
+is given, the value
+.Li 1
+is used.
+Invalid syntax and the like are silently ignored.
 .Ss Staging Slop
 The kernel must parse the firmware memory map tables to know what memory
 it can use.
