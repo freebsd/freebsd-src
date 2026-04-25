@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2026 Justin Hibbits
  * Copyright (c) 2012 Semihalf.
  * All rights reserved.
  *
@@ -43,6 +44,8 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_arp.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -56,6 +59,7 @@
 #include "dpaa_common.h"
 #include "dpaa_eth.h"
 #include "fman.h"
+#include "fman_parser.h"
 #include "fman_port.h"
 #include "fman_if.h"
 #include "fman_port_if.h"
@@ -78,6 +82,7 @@
 
 struct dpaa_eth_frame_info {
 	struct mbuf			*fi_mbuf;
+	struct fman_internal_context	fi_ic;
 	struct dpaa_sgte		fi_sgt[DPAA_NUM_OF_SG_TABLE_ENTRY];
 };
 
@@ -132,7 +137,7 @@ dpaa_eth_fi_alloc(struct dpaa_eth_softc *sc)
 {
 	struct dpaa_eth_frame_info *fi;
 
-	fi = uma_zalloc(sc->sc_fi_zone, M_NOWAIT);
+	fi = uma_zalloc(sc->sc_fi_zone, M_NOWAIT | M_ZERO);
 
 	return (fi);
 }
@@ -319,25 +324,47 @@ dpaa_eth_fq_mext_free(struct mbuf *m)
 }
 
 static int
+dpaa_eth_update_csum_flags(struct qman_fd *frame,
+    struct fman_parse_result *prs, struct mbuf *m)
+{
+	uint16_t l3r = be16toh(prs->l3r);
+
+	/* TODO: nested protocols? */
+	if ((l3r & L3R_FIRST_IP_M) != 0) {
+		m->m_pkthdr.csum_flags |= CSUM_L3_CALC;
+		if ((l3r & L3R_FIRST_ERROR) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_L3_VALID;
+	}
+	if (frame->cmd_stat & DPAA_FD_RX_STATUS_L4CV) {
+		m->m_pkthdr.csum_flags |= CSUM_L4_CALC;
+		m->m_pkthdr.csum_data = 0xffff;
+		if ((prs->l4r & L4R_TYPE_M) != 0 &&
+		    (prs->l4r & L4R_ERR) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_L4_VALID;
+	}
+
+	return (0);
+}
+
+static int
 dpaa_eth_fq_rx_callback(device_t portal, struct qman_fq *fq,
     struct qman_fd *frame, void *app)
 {
 	struct dpaa_eth_softc *sc;
 	struct mbuf *m;
+	struct fman_internal_context *frame_ic;
 	void *frame_va;
 
 	m = NULL;
 	sc = app;
 
 	frame_va = DPAA_FD_GET_ADDR(frame);
+	frame_ic = frame_va;	/* internal context at head of the frame */
 	KASSERT(frame->format == 0,
 	    ("%s(): Got unsupported frame format 0x%02X!", __func__,
 	    frame->format));
 
-	KASSERT(frame->offset == 0,
-	    ("%s(): Only offset 0 is supported!", __func__));
-
-	if (frame->cmd_stat != 0) {
+	if ((frame->cmd_stat & DPAA_FD_CMD_STAT_ERR_M) != 0) {
 		device_printf(sc->sc_dev, "RX error: 0x%08X\n",
 		    frame->cmd_stat);
 		goto err;
@@ -347,8 +374,11 @@ dpaa_eth_fq_rx_callback(device_t portal, struct qman_fq *fq,
 	if (m == NULL)
 		goto err;
 
-	m_extadd(m, frame_va, MCLBYTES, dpaa_eth_fq_mext_free, frame_va, sc, 0,
-	    EXT_NET_DRV);
+	m_extadd(m, (char *)frame_va + frame->offset, frame->length,
+	    dpaa_eth_fq_mext_free, frame_va, sc, 0, EXT_NET_DRV);
+
+	if (if_getcapenable(sc->sc_ifnet) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+		dpaa_eth_update_csum_flags(frame, &frame_ic->prs, m);
 
 	m->m_pkthdr.rcvif = sc->sc_ifnet;
 	m->m_len = frame->length;
@@ -377,7 +407,7 @@ dpaa_eth_fq_tx_confirm_callback(device_t portal, struct qman_fq *fq,
 
 	sc = app;
 
-	if (frame->cmd_stat != 0)
+	if ((frame->cmd_stat & DPAA_FD_TX_STAT_ERR_M) != 0)
 		device_printf(sc->sc_dev, "TX error: 0x%08X\n",
 		    frame->cmd_stat);
 
@@ -385,7 +415,7 @@ dpaa_eth_fq_tx_confirm_callback(device_t portal, struct qman_fq *fq,
 	 * We are storing struct dpaa_eth_frame_info in first entry
 	 * of scatter-gather table.
 	 */
-	sgt0 = (struct dpaa_sgte *)PHYS_TO_DMAP(frame->addr);
+	sgt0 = (struct dpaa_sgte *)PHYS_TO_DMAP(frame->addr + frame->offset);
 	fi = (struct dpaa_eth_frame_info *)PHYS_TO_DMAP(sgt0->addr);
 
 	/* Free transmitted frame */
@@ -517,6 +547,42 @@ dpaa_eth_fq_tx_init(struct dpaa_eth_softc *sc)
 }
 /** @} */
 
+/* Returns the cmd_stat field for the frame descriptor */
+static uint32_t
+dpaa_eth_tx_add_csum(struct dpaa_eth_frame_info *fi)
+{
+	struct mbuf *m = fi->fi_mbuf;
+	struct fman_parse_result *prs = &fi->fi_ic.prs;
+	uint32_t csum_flags = m->m_pkthdr.csum_flags;
+	uint8_t ether_size = ETHER_HDR_LEN;
+
+	if ((csum_flags & CSUM_FLAGS_TX) == 0)
+		return (0);
+
+	if (m->m_flags & M_VLANTAG)
+		ether_size += ETHER_VLAN_ENCAP_LEN;
+	if (csum_flags & CSUM_IP)
+		prs->l3r = L3R_FIRST_IPV4;
+	if (csum_flags & CSUM_IP_UDP) {
+		prs->l4r = L4R_TYPE_UDP;
+		prs->l4_off = ether_size + sizeof(struct ip);
+	} else if (csum_flags & CSUM_IP_TCP) {
+		prs->l4r = L4R_TYPE_TCP;
+		prs->l4_off = ether_size + sizeof(struct ip);
+	} else if (csum_flags & CSUM_IP6_UDP) {
+		prs->l3r = L3R_FIRST_IPV6;
+		prs->l4r = L4R_TYPE_UDP;
+		prs->l4_off = ether_size + sizeof(struct ip6_hdr);
+	} else if (csum_flags & CSUM_IP6_TCP) {
+		prs->l3r = L3R_FIRST_IPV6;
+		prs->l4r = L4R_TYPE_TCP;
+		prs->l4_off = ether_size + sizeof(struct ip6_hdr);
+	}
+
+	prs->ip_off[0] = ether_size;
+
+	return (DPAA_FD_TX_CMD_RPD | DPAA_FD_TX_CMD_DTC);
+}
 
 /**
  * @group dTSEC IFnet routines.
@@ -573,7 +639,6 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 			 * First entry in scatter-gather table is used to keep
 			 * pointer to frame info structure.
 			 */
-			memset(&fi->fi_sgt[i], 0, sizeof(fi->fi_sgt[i]));
 			fi->fi_sgt[i].addr = pmap_kextract((vm_offset_t)fi);
 			i++;
 
@@ -613,15 +678,16 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 
 		fi->fi_sgt[i - 1].final = 1;
 
-		fd.addr = pmap_kextract((vm_offset_t)fi->fi_sgt);
+		fd.addr = pmap_kextract((vm_offset_t)&fi->fi_ic);
 		fd.length = psize;
 		fd.format = DPAA_FD_FORMAT_SHORT_MBSF;
 
 		fd.liodn = 0;
 		fd.bpid = 0;
 		fd.eliodn = 0;
-		fd.offset = 0;
-		fd.cmd_stat = 0;
+		fd.offset = offsetof(struct dpaa_eth_frame_info, fi_sgt) -
+		    offsetof(struct dpaa_eth_frame_info, fi_ic);
+		fd.cmd_stat = dpaa_eth_tx_add_csum(fi);
 
 		DPAA_ETH_UNLOCK(sc);
 		if (qman_fq_enqueue(sc->sc_tx_fq, &fd) != 0) {
