@@ -783,7 +783,7 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 	 * only option.  This is broken if NFS mounts are enabled
 	 * within vnet prisons.
 	 */
-	KGSS_CURVNET_SET_QUIET(vnet0);
+	CURVNET_SET_QUIET(vnet0);
 	/*
 	 * For KerberosV, if there is a client principal name, that implies
 	 * that this is a host based initiator credential in the default
@@ -1030,14 +1030,14 @@ out:
 			gss_delete_sec_context(&min_stat, &gd->gd_ctx,
 				GSS_C_NO_BUFFER);
 		}
-		KGSS_CURVNET_RESTORE();
+		CURVNET_RESTORE();
 		mtx_lock(&gd->gd_lock);
 		gd->gd_state = RPCSEC_GSS_START;
 		wakeup(gd);
 		mtx_unlock(&gd->gd_lock);
 		return (FALSE);
 	}
-	KGSS_CURVNET_RESTORE();
+	CURVNET_RESTORE();
 	
 	mtx_lock(&gd->gd_lock);
 	gd->gd_state = RPCSEC_GSS_ESTABLISHED;
