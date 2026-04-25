@@ -459,6 +459,7 @@ if_unlink_ifnet(struct ifnet *ifp, bool vmove)
 	struct ifnet *iter;
 	int found = 0;
 
+	sx_assert(&ifnet_detach_sxlock, SX_XLOCKED);
 	IFNET_WLOCK();
 	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
@@ -1087,14 +1088,23 @@ if_detach(struct ifnet *ifp)
 {
 	bool found;
 
+	/*
+	 * The driver private data holds a strong reference to the ifnet, and
+	 * it is actually the "owner", hence this routine shall never fail.
+	 *
+	 * Ideally we can loop retrying when we lose race with other threads
+	 * those run if_unlink_ifnet(). For simplicity, use ifnet_detach_sxlock
+	 * to serialize all the detach / vmove operations.
+	 */
+	sx_xlock(&ifnet_detach_sxlock);
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	found = if_unlink_ifnet(ifp, false);
-	if (found) {
-		sx_xlock(&ifnet_detach_sxlock);
-		if_detach_internal(ifp, false);
-		sx_xunlock(&ifnet_detach_sxlock);
-	}
+	if (! found)
+		panic("%s: interface is not on the active list",
+		    ifp->if_xname);
+	if_detach_internal(ifp, false);
 	CURVNET_RESTORE();
+	sx_xunlock(&ifnet_detach_sxlock);
 }
 
 /*
@@ -1403,13 +1413,14 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	}
 
 	/* Get interface back from child jail/vnet. */
+	sx_xlock(&ifnet_detach_sxlock);
 	found = if_unlink_ifnet(ifp, true);
 	if (! found) {
+		sx_xunlock(&ifnet_detach_sxlock);
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (ENODEV);
 	}
-	sx_xlock(&ifnet_detach_sxlock);
 	if_vmove(ifp, vnet_dst);
 	sx_xunlock(&ifnet_detach_sxlock);
 	CURVNET_RESTORE();
