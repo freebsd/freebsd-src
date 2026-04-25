@@ -325,7 +325,7 @@ include_config(void *scanner, const char *cfname)
 extern char **environ;
 
 static FILE *
-open_config(const char *cfname, pid_t pid[static 1])
+open_config(const char *cfname, pid_t *const pid)
 {
 
 	int read_fd, write_fd, exec_fd, pipes[2];
