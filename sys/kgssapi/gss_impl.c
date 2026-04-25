@@ -28,7 +28,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/lock.h>
@@ -52,7 +51,7 @@ MALLOC_DEFINE(M_GSSAPI, "GSS-API", "GSS-API");
 struct kgss_mech_list kgss_mechs;
 struct mtx kgss_gssd_lock;
 
-VNET_DEFINE(CLIENT *, kgss_gssd_handle) = NULL;
+CLIENT *kgss_gssd_handle;
 
 static int
 kgss_load(void)
@@ -79,11 +78,9 @@ kgss_load(void)
 	 */
 	clnt_control(cl, CLSET_WAITCHAN, "gssd");
 
-	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	mtx_lock(&kgss_gssd_lock);
-	VNET(kgss_gssd_handle) = cl;
+	kgss_gssd_handle = cl;
 	mtx_unlock(&kgss_gssd_lock);
-	CURVNET_RESTORE();
 
 	return (0);
 }
@@ -93,9 +90,7 @@ static void
 kgss_unload(void)
 {
 
-	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
-	clnt_destroy(VNET(kgss_gssd_handle));
-	CURVNET_RESTORE();
+	clnt_destroy(kgss_gssd_handle);
 }
 #endif
 
@@ -207,16 +202,9 @@ kgss_transfer_context(gss_ctx_id_t ctx, void *lctx)
 		return (maj_stat);
 	}
 
-	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
-	if (!VNET(kgss_gssd_handle)) {
-		CURVNET_RESTORE();
-		return (GSS_S_FAILURE);
-	}
-
 	args.ctx = ctx->handle;
 	bzero(&res, sizeof(res));
-	stat = gssd_export_sec_context_1(&args, &res, VNET(kgss_gssd_handle));
-	CURVNET_RESTORE();
+	stat = gssd_export_sec_context_1(&args, &res, kgss_gssd_handle);
 	if (stat != RPC_SUCCESS) {
 		return (GSS_S_FAILURE);
 	}
@@ -250,13 +238,11 @@ kgss_gssd_client(void)
 {
 	CLIENT *cl;
 
-	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	mtx_lock(&kgss_gssd_lock);
-	cl = VNET(kgss_gssd_handle);
+	cl = kgss_gssd_handle;
 	if (cl != NULL)
 		CLNT_ACQUIRE(cl);
 	mtx_unlock(&kgss_gssd_lock);
-	CURVNET_RESTORE();
 	return (cl);
 }
 
