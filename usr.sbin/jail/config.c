@@ -335,16 +335,17 @@ open_config(const char *cfname, pid_t pid[static 1])
 	*pid = -1;
 
 	/* The configuration must be readable. */
-	read_fd = open(cfname, O_RDONLY|O_CLOEXEC);
+	read_fd = open(cfname, O_RDONLY);
 	if (read_fd < 0)
 		err(1, "open(): %s", cfname);
 
 	/* Try to open the configuration for execution (to parse its standard output config instead). */
-	exec_fd = openat(read_fd, "", O_EMPTY_PATH|O_EXEC);
+	exec_fd = open(cfname, O_RDONLY | O_EXEC);
 	if (exec_fd < 0) {
 		if (errno != EACCES)
 			err(1, "openat(): %s", cfname);
 	} else {
+		close(exec_fd);
 		const size_t cfname_size = strlen(cfname) + 1;
 		char dir_buf[PATH_MAX], base_buf[PATH_MAX];
 		if (cfname_size > PATH_MAX) {
@@ -395,8 +396,8 @@ open_config(const char *cfname, pid_t pid[static 1])
 			}
 
 			/* Replace the forked child with the configuration command. */
-			fexecve(exec_fd, argv, environ);
-			err(1, "fexecve(): %s", cfname);
+			execve(argv[0], argv, environ);
+			err(1, "execve(): %s", cfname);
 			break;
 
 		/* After successful fork() inside the parent process. */
