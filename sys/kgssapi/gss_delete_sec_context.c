@@ -52,12 +52,12 @@ gss_delete_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
 
 	*minor_status = 0;
 
-	KGSS_CURVNET_SET_QUIET(KGSS_TD_TO_VNET(curthread));
-	if (!KGSS_VNET(kgss_gssd_handle)) {
-		KGSS_CURVNET_RESTORE();
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
+	if (!VNET(kgss_gssd_handle)) {
+		CURVNET_RESTORE();
 		return (GSS_S_FAILURE);
 	}
-	KGSS_CURVNET_RESTORE();
+	CURVNET_RESTORE();
 
 	if (*context_handle) {
 		ctx = *context_handle;
