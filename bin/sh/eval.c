@@ -34,6 +34,7 @@
 
 #include <paths.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/resource.h>
@@ -804,6 +805,50 @@ safe_builtin(int idx, int argc, char **argv)
 }
 
 /*
+ * Perform redirections, then execute a simple command with vfork.
+ * This cannot be used for command substitutions for two reasons:
+ * - Redirections might cause the error message for later redirections or for
+ *   an unknown command to be sent to the pipe (to be substituted), and this
+ *   might cause a deadlock if the message is too long.
+ * - The assignment of the pipe needs to come before instead of after the
+ *   redirections.
+ */
+static bool
+redirected_vforkexecshell(struct job *jp, union node *redir, char **argv,
+    char **envp, const char *path, int idx)
+{
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
+	volatile int in_redirect = 1;
+
+	savehandler = handler;
+	if (setjmp(jmploc.loc)) {
+		int e;
+
+		handler = savehandler;
+		e = exception;
+		popredir();
+		if (e == EXERROR && in_redirect) {
+			FORCEINTON;
+			return false;
+		}
+		longjmp(handler->loc, 1);
+	} else {
+		INTOFF;
+		handler = &jmploc;
+		redirect(redir, REDIR_PUSH);
+		in_redirect = 0;
+		INTON;
+		vforkexecshell(jp, argv, envp, path, idx, NULL);
+	}
+	INTOFF;
+	handler = savehandler;
+	popredir();
+	INTON;
+	return true;
+}
+
+/*
  * Execute a simple command.
  * Note: This may or may not return if (flags & EV_EXIT).
  */
@@ -986,12 +1031,22 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				error("Pipe call failed: %s", strerror(errno));
 		}
 		if (cmdentry.cmdtype == CMDNORMAL &&
-		    cmd->ncmd.redirect == NULL &&
+		    (cmd->ncmd.redirect == NULL || (flags & EV_BACKCMD) == 0) &&
 		    varlist.count == 0 &&
 		    (mode == FORK_FG || mode == FORK_NOJOB) &&
 		    !disvforkset() && !iflag && !mflag) {
-			vforkexecshell(jp, argv, environment(), path,
-			    cmdentry.u.index, flags & EV_BACKCMD ? pip : NULL);
+			if (cmd->ncmd.redirect != NULL) {
+				if (redirected_vforkexecshell(jp,
+				    cmd->ncmd.redirect,
+				    argv, environment(), path,
+				    cmdentry.u.index))
+					goto parent;
+				else
+					goto out;
+			} else
+				vforkexecshell(jp, argv, environment(), path,
+				    cmdentry.u.index,
+				    flags & EV_BACKCMD ? pip : NULL);
 			goto parent;
 		}
 		if (forkshell(jp, cmd, mode) != 0)
