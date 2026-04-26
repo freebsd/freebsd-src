@@ -317,6 +317,10 @@ check_epoch_and_opts
 #          "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 #fi
 
+# 20250426 # libpkgconfig contains incorrect paths
+clean_obj lib/libpkgconf personality c pkgconfig:/share
+clean_obj lib/libpkgconf pkg c pkgconfig:/share
+
 # 20251219 # libkrb5profile is now internal
 for libcompat in "" $ALL_libcompats; do
 	dirprfx=${libcompat:+obj-lib${libcompat}}
