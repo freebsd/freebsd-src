@@ -889,10 +889,6 @@ vn_inotify_add_watch(struct vnode *vp, struct inotify_softc *sc, uint32_t mask,
 void
 vn_inotify_revoke(struct vnode *vp)
 {
-	if (vp->v_pollinfo == NULL) {
-		/* This is a nullfs vnode which shadows a watched vnode. */
-		return;
-	}
 	inotify_log(vp, NULL, 0, IN_UNMOUNT, 0);
 }
 
