@@ -317,7 +317,7 @@ check_epoch_and_opts
 #          "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 #fi
 
-# 20250426 # libpkgconfig contains incorrect paths
+# 20260426 # libpkgconf contains incorrect paths
 clean_obj lib/libpkgconf personality c pkgconfig:/share
 clean_obj lib/libpkgconf pkg c pkgconfig:/share
 
