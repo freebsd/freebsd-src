@@ -1197,6 +1197,7 @@ void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *,
     struct ieee80211_txq *, bool);
 void linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *,
 	struct ieee80211_txq *);
+int linuxkpi_ieee80211_start_tx_ba_session(struct ieee80211_sta *, uint8_t, int);
 
 /* -------------------------------------------------------------------------- */
 
@@ -2118,10 +2119,9 @@ ieee80211_sta_eosp(struct ieee80211_sta *sta)
 }
 
 static __inline int
-ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int x)
+ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int timeout)
 {
-	TODO("rtw8x");
-	return (-EINVAL);
+	return (linuxkpi_ieee80211_start_tx_ba_session(sta, tid, timeout));
 }
 
 static __inline int
