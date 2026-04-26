@@ -133,8 +133,7 @@ struct vnode {
 	 * Fields which define the identity of the vnode.  These fields are
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
-	__enum_uint8(vtype) v_type;		/* u vnode type */
-	__enum_uint8(vstate) v_state;		/* u vnode state */
+	short	v_v2flag;			/* v frequently read flag */
 	short	v_irflag;			/* i frequently read flags */
 	seqc_t	v_seqc;				/* i modification count */
 	uint32_t v_nchash;			/* u namecache hash */
@@ -203,6 +202,12 @@ struct vnode {
 						   (negative) text users */
 	int	v_seqc_users;			/* i modifications pending */
 };
+/*
+	__enum_uint8(vtype) v_type;
+	__enum_uint8(vstate) v_state;
+*/
+#define	v_type	v_rl.resv1			/* u vnode type */
+#define	v_state	v_rl.resv2			/* u vnode state */
 
 #define VN_ISDEV(vp)		VTYPE_ISDEV((vp)->v_type)
 
@@ -237,6 +242,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
  *	VI flags are protected by interlock and live in v_iflag
  *	VIRF flags are protected by interlock and live in v_irflag
  *	VV flags are protected by the vnode lock and live in v_vflag
+ *	V2 flags are protected by the vnode lock and live in v_v2flag
  *
  *	VIRF_DOOMED is doubly protected by the interlock and vnode lock.  Both
  *	are required for writing but the status may be checked with either.
