@@ -500,9 +500,16 @@ void lkpi_80211_mo_wake_tx_queue(struct ieee80211_hw *, struct ieee80211_txq *,
 void lkpi_80211_mo_sync_rx_queues(struct ieee80211_hw *);
 void lkpi_80211_mo_sta_pre_rcu_remove(struct ieee80211_hw *,
     struct ieee80211_vif *, struct ieee80211_sta *);
+void lkpi_80211_mo_link_sta_rc_update(struct ieee80211_hw *,
+    struct ieee80211_vif *, struct ieee80211_link_sta *,
+    enum ieee80211_rate_control_changed_flags);
+int lkpi_80211_mo_set_bitrate_mask(struct ieee80211_hw *,
+    struct ieee80211_vif *, const struct cfg80211_bitrate_mask *);
 int lkpi_80211_mo_set_key(struct ieee80211_hw *, enum set_key_cmd,
     struct ieee80211_vif *, struct ieee80211_sta *,
     struct ieee80211_key_conf *);
+void lkpi_80211_mo_sta_set_decap_offload(struct ieee80211_hw *,
+    struct ieee80211_vif *, struct ieee80211_sta *, bool);
 int lkpi_80211_mo_ampdu_action(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_ampdu_params *);
 int lkpi_80211_mo_sta_statistics(struct ieee80211_hw *, struct ieee80211_vif *,
