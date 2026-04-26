@@ -192,7 +192,10 @@ local function run_make(args)
 
 	local _, exit_type, exit_code = assert(sys_wait.wait(pid))
 	assert(exit_type == "exited", "make exited with wrong status")
-	assert(exit_code == 0, "make exited unsuccessfully")
+	if exit_code ~= 0 then
+		io.stderr:write("Warning: make exited unsuccessfully\n" ..
+		    "cmd: make " .. table.concat(args, " ") .. "\n")
+	end
 	return output
 end
 
