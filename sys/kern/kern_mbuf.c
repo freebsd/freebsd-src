@@ -1019,7 +1019,7 @@ _mb_unmapped_to_ext(struct mbuf *m, struct mbuf **mres)
 			goto fail;
 
 		ref_inc++;
-		m_extadd(m_new, (char *)sf_buf_kva(sf), PAGE_SIZE,
+		m_extadd(m_new, sf_buf_kva(sf), PAGE_SIZE,
 		    mb_unmapped_free_mext, sf, mref, m->m_flags & M_RDONLY,
 		    EXT_SFBUF);
 		m_new->m_data += segoff;
@@ -1767,7 +1767,7 @@ mb_mapped_to_unmapped(struct mbuf *mp, int len, int mlen, int how,
 	m = mout = mb_alloc_ext_plus_pages(mbufsiz, how);
 	if (m == NULL)
 		return (m);
-	pgpos = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[0]);
+	pgpos = PHYS_TO_DMAP(m->m_epg_pa[0]);
 	pglen = PAGE_SIZE;
 	mblen = 0;
 	i = 0;
@@ -1785,7 +1785,7 @@ mb_mapped_to_unmapped(struct mbuf *mp, int len, int mlen, int how,
 				}
 				i = 0;
 			}
-			pgpos = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[i]);
+			pgpos = PHYS_TO_DMAP(m->m_epg_pa[i]);
 			pglen = PAGE_SIZE;
 		}
 		while (mblen == 0) {

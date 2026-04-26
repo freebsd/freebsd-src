@@ -428,7 +428,7 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 }
 
 static void
-init_proc0(vm_offset_t kstack)
+init_proc0(void *kstack)
 {
 	struct pcpu *pcpup;
 
@@ -484,7 +484,7 @@ arm64_get_writable_addr(void *addr, void **out)
 	 * If it is within the DMAP region and is writable use that.
 	 */
 	if (PHYS_IN_DMAP_RANGE(pa)) {
-		addr = (void *)PHYS_TO_DMAP(pa);
+		addr = PHYS_TO_DMAP(pa);
 		if (PAR_SUCCESS(arm64_address_translate_s1e1w(
 		    (vm_offset_t)addr))) {
 			*out = addr;
@@ -534,7 +534,7 @@ efi_early_map(vm_offset_t va)
 	efi_map_foreach_entry(efihdr, efi_early_map_entry, &emd);
 	if (emd.pa == 0)
 		return NULL;
-	return (void *)PHYS_TO_DMAP(emd.pa);
+	return PHYS_TO_DMAP(emd.pa);
 }
 
 
@@ -552,7 +552,7 @@ exclude_efi_memreserve(vm_paddr_t efi_systbl_phys)
 	struct efi_systbl *systbl;
 	efi_guid_t efi_memreserve = LINUX_EFI_MEMRESERVE_TABLE;
 
-	systbl = (struct efi_systbl *)PHYS_TO_DMAP(efi_systbl_phys);
+	systbl = PHYS_TO_DMAP(efi_systbl_phys);
 	if (systbl == NULL) {
 		printf("can't map systbl\n");
 		return;
@@ -588,8 +588,7 @@ exclude_efi_memreserve(vm_paddr_t efi_systbl_phys)
 		 * after a SetVirtualAddressMap(). The list's mr_next pointer
 		 * is also a PA.
 		 */
-		mr = (struct linux_efi_memreserve *)PHYS_TO_DMAP(
-			(vm_offset_t)cfgtbl->ct_data);
+		mr = PHYS_TO_DMAP((vm_offset_t)cfgtbl->ct_data);
 		while (true) {
 			for (int j = 0; j < mr->mr_count; j++) {
 				struct linux_efi_memreserve_entry *mre;
@@ -600,7 +599,7 @@ exclude_efi_memreserve(vm_paddr_t efi_systbl_phys)
 			}
 			if (mr->mr_next == 0)
 				break;
-			mr = (struct linux_efi_memreserve *)PHYS_TO_DMAP(mr->mr_next);
+			mr = PHYS_TO_DMAP(mr->mr_next);
 		};
 	}
 

@@ -45,23 +45,73 @@ seq_read(struct linux_file *f, char __user *ubuf, size_t size, off_t *ppos)
 	struct seq_file *m;
 	struct sbuf *sbuf;
 	void *p;
-	ssize_t rc;
+	ssize_t rc, oldlen;
+	size_t todo;
 
 	m = f->private_data;
 	sbuf = m->buf;
 	sbuf_clear(sbuf);
 
 	p = m->op->start(m, ppos);
-	rc = m->op->show(m, p);
-	if (rc)
+	if (p == NULL)
+		return (0);
+
+	rc = 0;
+	while (size > sbuf_len(sbuf)) {
+		oldlen = sbuf_len(sbuf);
+		rc = m->op->show(m, p);
+		if (rc < 0)
+			break;
+
+		if (rc == SEQ_SKIP) {
+			/* Discard any data written in show callback. */
+			sbuf_setpos(sbuf, oldlen);
+			rc = 0;
+		}
+
+		/*
+		 * If the sbuf has overflowed, bail.  Discard any
+		 * partial output from the show callback for this item
+		 * preserving output from any earlier items.  Since we
+		 * break before calling the next callback to update
+		 * *ppos, a subsequent read() will start by displaying
+		 * the current item.  However, if the current item
+		 * could not be displayed by itself, still fail with
+		 * ENOMEM rather than returning EOF.
+		 */
+		if (sbuf_error(sbuf)) {
+			if (oldlen != 0)
+				sbuf_setpos(sbuf, oldlen);
+			break;
+		}
+
+		/*
+		 * XXX: The seq_file documentation claims that Linux
+		 * warns if this callback doesn't update the value in
+		 * *ppos.  We don't bother warning here.
+		 */
+		p = m->op->next(m, p, ppos);
+		if (p == NULL)
+			break;
+	}
+	m->op->stop(m, p);
+
+	if (rc < 0)
 		return (rc);
 
 	rc = sbuf_finish(sbuf);
-	if (rc)
-		return (rc);
+	if (rc != 0)
+		return (-rc);
 
-	return (simple_read_from_buffer(ubuf, size, ppos, sbuf_data(sbuf),
-	    sbuf_len(sbuf)));
+	todo = sbuf_len(sbuf);
+	if (todo > size)
+		todo = size;
+
+	rc = copy_to_user(ubuf, sbuf_data(sbuf), todo);
+	if (rc != 0)
+		return (-EFAULT);
+
+	return (todo);
 }
 
 int

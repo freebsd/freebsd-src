@@ -255,7 +255,8 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
-	vm_offset_t va, offset;
+	char *va;
+	vm_offset_t offset;
 #ifdef __HAVE_STATIC_DEVMAP
 	void * rva;
 
@@ -278,8 +279,9 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 #ifdef PMAP_MAPDEV_EARLY_SIZE
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
-		va = akva_devmap_vaddr;
-		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE),
+		va = (char *)akva_devmap_vaddr;
+		KASSERT((vm_offset_t)va >=
+		    (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE),
 		    ("%s: Too many early devmap mappings", __func__));
 	} else
 #endif
@@ -291,34 +293,33 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	else
 #endif
 		va = kva_alloc(size);
-	if (!va)
+	if (va == NULL)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
-	pmap_kenter(va, size, pa, ma);
+	pmap_kenter((vm_offset_t)va, size, pa, ma);
 
-	return ((void *)(va + offset));
+	return (va + offset);
 }
 
 /*
  * Unmap device memory and free the kva space.
  */
 void
-pmap_unmapdev(void *p, vm_size_t size)
+pmap_unmapdev(void *va, vm_size_t size)
 {
-	vm_offset_t offset, va;
+	vm_offset_t offset;
 
 #ifdef __HAVE_STATIC_DEVMAP
 	/* Nothing to do if we find the mapping in the static table. */
-	if (devmap_vtop(p, size) != DEVMAP_PADDR_NOTFOUND)
+	if (devmap_vtop(va, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
 #endif
 
-	va = (vm_offset_t)p;
-	offset = va & PAGE_MASK;
+	offset = (vm_offset_t)va & PAGE_MASK;
 	va = trunc_page(va);
 	size = round_page(size + offset);
 
-	pmap_kremove_device(va, size);
+	pmap_kremove_device((vm_offset_t)va, size);
 	kva_free(va, size);
 }
 

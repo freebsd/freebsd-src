@@ -219,7 +219,7 @@ void	*pmap_bios16_enter(void);
 void	pmap_bios16_leave(void *handle);
 void	pmap_bootstrap(vm_paddr_t);
 int	pmap_cache_bits(pmap_t, int mode, bool is_pde);
-int	pmap_change_attr(vm_offset_t, vm_size_t, int);
+int	pmap_change_attr(void *, vm_size_t, int);
 caddr_t	pmap_cmap3(vm_paddr_t pa, u_int pte_bits);
 void	pmap_cp_slow0_map(vm_offset_t kaddr, int plen, vm_page_t *ma);
 void	pmap_flush_page(vm_page_t m);

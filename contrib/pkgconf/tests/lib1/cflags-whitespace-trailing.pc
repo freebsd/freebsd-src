@@ -1,0 +1,4 @@
+Name: CFlags Trailing Whitespace Bug
+Description: Demonstrates problems with -I with spaces
+Version: 1
+Cflags: -I/usr/include  -I/usr/include/foo

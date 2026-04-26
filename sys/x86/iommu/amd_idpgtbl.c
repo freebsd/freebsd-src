@@ -138,7 +138,7 @@ amdiommu_pgtbl_map_pte(struct amdiommu_domain *domain, iommu_gaddr_t base,
 
 	idx = pglvl_pgtbl_get_pindex(domain->pglvl, base, lvl);
 	if (*sf != NULL && idx == *idxp) {
-		pte = (iommu_pte_t *)sf_buf_kva(*sf);
+		pte = sf_buf_kva(*sf);
 	} else {
 		if (*sf != NULL)
 			iommu_unmap_pgtbl(*sf);

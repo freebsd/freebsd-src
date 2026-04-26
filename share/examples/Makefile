@@ -22,7 +22,6 @@ LDIRS=	BSD_daemon \
 	mdoc \
 	netgraph \
 	oci \
-	perfmon \
 	ppi \
 	ppp \
 	ses \
@@ -201,12 +200,6 @@ SE_DIRS+=	oci
 SE_OCI= \
 	README \
 	Containerfile.pkg
-
-SE_DIRS+=	perfmon
-SE_PERFMON= \
-	Makefile \
-	README \
-	perfmon.c \
 
 .if ${MK_PF} != "no"
 SE_DIRS+=	pf

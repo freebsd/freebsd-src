@@ -29,7 +29,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 3, 2025
+.Dd April 20, 2026
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -79,6 +79,12 @@ targets.
 .Bl -tag -width "-D file"
 .It Cm auto
 Run the standard interactive installation, including disk partitioning.
+.Pp
+The
+.Ev DISTRIBUTIONS
+environment variable is set to
+.Dq base.txz kernel.txz
+by default for this target.
 .It Cm jail Ar destination
 Sets up a new chroot system at
 .Pa destination ,
@@ -88,12 +94,24 @@ Behavior is generally similar to
 .Cm auto ,
 except that disk partitioning and network setup are skipped and a kernel is
 not installed into the new system.
+.Pp
+The
+.Ev DISTRIBUTIONS
+environment variable is set to
+.Dq base.txz
+by default for this target.
 .It Cm script Ar script
 Runs the installation script at
 .Pa script .
 See
 .Sx SCRIPTING
 for more information on this target.
+.Pp
+The
+.Ev DISTRIBUTIONS
+environment variable is set to
+.Dq base.txz kernel.txz
+by default for this target.
 .It Cm keymap
 If the current controlling TTY is a
 .Xr syscons 4
@@ -305,7 +323,9 @@ Default:
 .Dq Pa /tmp
 .It Ev DISTRIBUTIONS
 The set of distributions to install, e.g., "base.txz kernel.txz ports.txz".
-Default: unset
+Default: unset unless noted otherwise in the
+.Sx TARGETS
+section.
 .It Ev PARTITIONS
 The partitioning of the disk onto which the system is being installed.
 See

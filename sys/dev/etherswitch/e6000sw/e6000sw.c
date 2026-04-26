@@ -302,6 +302,10 @@ e6000sw_probe(device_t dev)
 		description = "Marvell 88E6352";
 		sc->num_ports = 7;
 		break;
+	case MV88E6171:
+		description = "Marvell 88E6171";
+		sc->num_ports = 7;
+		break;
 	case MV88E6172:
 		description = "Marvell 88E6172";
 		sc->num_ports = 7;
@@ -571,6 +575,8 @@ e6000sw_attach(device_t dev)
 	}
 
 	for (child = OF_child(ports); child != 0; child = OF_peer(child)) {
+		if (!ofw_bus_node_status_okay(child))
+			continue;
 		err = e6000sw_parse_child_fdt(sc, child, &port);
 		if (err != 0) {
 			device_printf(sc->dev, "failed to parse DTS\n");

@@ -50,7 +50,6 @@
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
-#include "opt_perfmon.h"
 #include "opt_platform.h"
 
 #include <sys/param.h>
@@ -133,9 +132,6 @@
 #include <x86/ucode.h>
 #include <machine/vm86.h>
 #include <x86/init.h>
-#ifdef PERFMON
-#include <machine/perfmon.h>
-#endif
 #ifdef SMP
 #include <machine/smp.h>
 #endif
@@ -245,9 +241,6 @@ cpu_startup(void *dummy)
 	startrtclock();
 	printcpuinfo();
 	panicifcpuunsupported();
-#ifdef PERFMON
-	perfmon_init();
-#endif
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.
@@ -1387,7 +1380,7 @@ init386(int first)
 	vm_offset_t addend;
 	size_t ucode_len;
 
-	thread0.td_kstack = proc0kstack;
+	thread0.td_kstack = (char *)proc0kstack;
 	thread0.td_kstack_pages = TD0_KSTACK_PAGES;
 
 	/*
@@ -1499,8 +1492,8 @@ init386(int first)
 	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
 
 	/* Initialize the tss (except for the final esp0) early for vm86. */
-	common_tss0.tss_esp0 = thread0.td_kstack + thread0.td_kstack_pages *
-	    PAGE_SIZE - VM86_STACK_SPACE;
+	common_tss0.tss_esp0 = (vm_offset_t)thread0.td_kstack +
+	    thread0.td_kstack_pages * PAGE_SIZE - VM86_STACK_SPACE;
 	common_tss0.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	common_tss0.tss_ioopt = sizeof(struct i386tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);

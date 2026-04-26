@@ -9,14 +9,15 @@
 #include "LibCxx.h"
 
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
-#include "lldb/Core/ValueObject.h"
-#include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Endian.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/Stream.h"
+#include "lldb/ValueObject/ValueObject.h"
+#include "lldb/ValueObject/ValueObjectConstResult.h"
+#include "lldb/lldb-enumerations.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -105,10 +106,14 @@ private:
 
 class AbstractListFrontEnd : public SyntheticChildrenFrontEnd {
 public:
-  size_t GetIndexOfChildWithName(ConstString name) override {
-    return ExtractIndexFromString(name.GetCString());
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override {
+    auto optional_idx = formatters::ExtractIndexFromString(name.GetCString());
+    if (!optional_idx) {
+      return llvm::createStringError("Type has no child named '%s'",
+                                     name.AsCString());
+    }
+    return *optional_idx;
   }
-  bool MightHaveChildren() override { return true; }
   lldb::ChildCacheState Update() override;
 
 protected:
@@ -292,14 +297,26 @@ lldb::ChildCacheState ForwardListFrontEnd::Update() {
   if (err.Fail() || !backend_addr)
     return lldb::ChildCacheState::eRefetch;
 
-  ValueObjectSP impl_sp(m_backend.GetChildMemberWithName("__before_begin_"));
-  if (!impl_sp)
+  auto list_base_sp = m_backend.GetChildAtIndex(0);
+  if (!list_base_sp)
     return lldb::ChildCacheState::eRefetch;
-  impl_sp = GetFirstValueOfLibCXXCompressedPair(*impl_sp);
+
+  // Anonymous strucutre index is in base class at index 0.
+  auto [impl_sp, is_compressed_pair] =
+      GetValueOrOldCompressedPair(*list_base_sp, /*anon_struct_idx=*/0,
+                                  "__before_begin_", "__before_begin_");
   if (!impl_sp)
-    return lldb::ChildCacheState::eRefetch;
+    return ChildCacheState::eRefetch;
+
+  if (is_compressed_pair)
+    impl_sp = GetFirstValueOfLibCXXCompressedPair(*impl_sp);
+
+  if (!impl_sp)
+    return ChildCacheState::eRefetch;
+
   m_head = impl_sp->GetChildMemberWithName("__next_").get();
-  return lldb::ChildCacheState::eRefetch;
+
+  return ChildCacheState::eRefetch;
 }
 
 ListFrontEnd::ListFrontEnd(lldb::ValueObjectSP valobj_sp)
@@ -313,34 +330,35 @@ llvm::Expected<uint32_t> ListFrontEnd::CalculateNumChildren() {
     return m_count;
   if (!m_head || !m_tail || m_node_address == 0)
     return 0;
-  ValueObjectSP size_alloc(m_backend.GetChildMemberWithName("__size_alloc_"));
-  if (size_alloc) {
-    ValueObjectSP value = GetFirstValueOfLibCXXCompressedPair(*size_alloc);
-    if (value) {
-      m_count = value->GetValueAsUnsigned(UINT32_MAX);
-    }
-  }
-  if (m_count != UINT32_MAX) {
+
+  auto [size_node_sp, is_compressed_pair] = GetValueOrOldCompressedPair(
+      m_backend, /*anon_struct_idx=*/1, "__size_", "__size_alloc_");
+  if (is_compressed_pair)
+    size_node_sp = GetFirstValueOfLibCXXCompressedPair(*size_node_sp);
+
+  if (size_node_sp)
+    m_count = size_node_sp->GetValueAsUnsigned(UINT32_MAX);
+
+  if (m_count != UINT32_MAX)
     return m_count;
-  } else {
-    uint64_t next_val = m_head->GetValueAsUnsigned(0);
-    uint64_t prev_val = m_tail->GetValueAsUnsigned(0);
-    if (next_val == 0 || prev_val == 0)
-      return 0;
-    if (next_val == m_node_address)
-      return 0;
-    if (next_val == prev_val)
-      return 1;
-    uint64_t size = 2;
-    ListEntry current(m_head);
-    while (current.next() && current.next().value() != m_node_address) {
-      size++;
-      current = current.next();
-      if (size > m_list_capping_size)
-        break;
-    }
-    return m_count = (size - 1);
+
+  uint64_t next_val = m_head->GetValueAsUnsigned(0);
+  uint64_t prev_val = m_tail->GetValueAsUnsigned(0);
+  if (next_val == 0 || prev_val == 0)
+    return 0;
+  if (next_val == m_node_address)
+    return 0;
+  if (next_val == prev_val)
+    return 1;
+  uint64_t size = 2;
+  ListEntry current(m_head);
+  while (current.next() && current.next().value() != m_node_address) {
+    size++;
+    current = current.next();
+    if (size > m_list_capping_size)
+      break;
   }
+  return m_count = (size - 1);
 }
 
 lldb::ValueObjectSP ListFrontEnd::GetChildAtIndex(uint32_t idx) {
@@ -370,7 +388,7 @@ lldb::ValueObjectSP ListFrontEnd::GetChildAtIndex(uint32_t idx) {
       return lldb::ValueObjectSP();
 
     // if we grabbed the __next_ pointer, then the child is one pointer deep-er
-    lldb::addr_t addr = current_sp->GetParent()->GetPointerValue();
+    lldb::addr_t addr = current_sp->GetParent()->GetPointerValue().address;
     addr = addr + 2 * process_sp->GetAddressByteSize();
     ExecutionContext exe_ctx(process_sp);
     current_sp =

@@ -680,7 +680,7 @@ ivhd_attach(device_t dev)
 		break;
 	}
 
-	softc->ctrl = (struct amdvi_ctrl *) PHYS_TO_DMAP(ivhd->BaseAddress);
+	softc->ctrl = PHYS_TO_DMAP(ivhd->BaseAddress);
 	status = ivhd_dev_parse(ivhd, softc);
 	if (status != 0) {
 		device_printf(dev,

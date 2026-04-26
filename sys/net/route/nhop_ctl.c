@@ -451,6 +451,7 @@ nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_orig,
 		nhop_free(nh);
 		return (error);
 	}
+	set_nhop_expire_from_info(nh, info);
 
 	*pnh = nhop_get_nhop(nh, &error);
 

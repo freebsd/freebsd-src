@@ -1510,11 +1510,17 @@ zpool_has_draid_vdev(nvlist_t *nvroot)
  */
 static char *
 zpool_draid_name(char *name, int len, uint64_t data, uint64_t parity,
-    uint64_t spares, uint64_t children)
+    uint64_t spares, uint64_t children, uint64_t width)
 {
-	snprintf(name, len, "%s%llu:%llud:%lluc:%llus",
-	    VDEV_TYPE_DRAID, (u_longlong_t)parity, (u_longlong_t)data,
-	    (u_longlong_t)children, (u_longlong_t)spares);
+	if (children < width)
+		snprintf(name, len, "%s%llu:%llud:%lluc:%lluw:%llus",
+		    VDEV_TYPE_DRAID, (u_longlong_t)parity, (u_longlong_t)data,
+		    (u_longlong_t)children, (u_longlong_t)width,
+		    (u_longlong_t)spares);
+	else
+		snprintf(name, len, "%s%llu:%llud:%lluc:%llus",
+		    VDEV_TYPE_DRAID, (u_longlong_t)parity, (u_longlong_t)data,
+		    (u_longlong_t)children, (u_longlong_t)spares);
 
 	return (name);
 }
@@ -1534,6 +1540,50 @@ zpool_is_draid_spare(const char *name)
 	}
 
 	return (B_FALSE);
+}
+
+
+/*
+ * Extract device-specific error information from a failed pool creation.
+ * If the kernel returned ZPOOL_CONFIG_CREATE_INFO in the ioctl output,
+ * set an appropriate error aux message identifying the problematic device.
+ */
+static int
+zpool_create_info(libzfs_handle_t *hdl, zfs_cmd_t *zc)
+{
+	nvlist_t *outnv = NULL;
+	nvlist_t *info = NULL;
+	const char *vdev = NULL;
+	const char *pname = NULL;
+
+	if (zc->zc_nvlist_dst_size == 0)
+		return (ENOENT);
+
+	if (nvlist_unpack((void *)(uintptr_t)zc->zc_nvlist_dst,
+	    zc->zc_nvlist_dst_size, &outnv, 0) != 0 || outnv == NULL)
+		return (EINVAL);
+
+	if (nvlist_lookup_nvlist(outnv, ZPOOL_CONFIG_CREATE_INFO, &info) != 0) {
+		nvlist_free(outnv);
+		return (EINVAL);
+	}
+
+	if (nvlist_lookup_string(info, ZPOOL_CREATE_INFO_VDEV, &vdev) != 0) {
+		nvlist_free(outnv);
+		return (EINVAL);
+	}
+
+	if (nvlist_lookup_string(info, ZPOOL_CREATE_INFO_POOL, &pname) == 0) {
+		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+		    "device '%s' is part of active pool '%s'"),
+		    vdev, pname);
+	} else {
+		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+		    "device '%s' is in use"), vdev);
+	}
+
+	nvlist_free(outnv);
+	return (0);
 }
 
 /*
@@ -1615,16 +1665,9 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 		zcmd_write_src_nvlist(hdl, &zc, zc_props);
 
 	(void) strlcpy(zc.zc_name, pool, sizeof (zc.zc_name));
+	zcmd_alloc_dst_nvlist(hdl, &zc, 4096);
 
 	if ((ret = zfs_ioctl(hdl, ZFS_IOC_POOL_CREATE, &zc)) != 0) {
-
-		zcmd_free_nvlists(&zc);
-		nvlist_free(zc_props);
-		nvlist_free(zc_fsprops);
-		nvlist_free(hidden_args);
-		if (wkeydata != NULL)
-			free(wkeydata);
-
 		switch (errno) {
 		case EBUSY:
 			/*
@@ -1634,11 +1677,14 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 			 * label.  This can also happen under if the device is
 			 * part of an active md or lvm device.
 			 */
-			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-			    "one or more vdevs refer to the same device, or "
-			    "one of\nthe devices is part of an active md or "
-			    "lvm device"));
-			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+			if (zpool_create_info(hdl, &zc) != 0) {
+				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+				    "one or more vdevs refer to the same "
+				    "device, or one of\nthe devices is "
+				    "part of an active md or lvm device"));
+			}
+			ret = zfs_error(hdl, EZFS_BADDEV, errbuf);
+			break;
 
 		case ERANGE:
 			/*
@@ -1653,7 +1699,8 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 			 */
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "record size invalid"));
-			return (zfs_error(hdl, EZFS_BADPROP, errbuf));
+			ret = zfs_error(hdl, EZFS_BADPROP, errbuf);
+			break;
 
 		case EOVERFLOW:
 			/*
@@ -1672,12 +1719,14 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 				    "one or more devices is less than the "
 				    "minimum size (%s)"), buf);
 			}
-			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+			ret = zfs_error(hdl, EZFS_BADDEV, errbuf);
+			break;
 
 		case ENOSPC:
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "one or more devices is out of space"));
-			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+			ret = zfs_error(hdl, EZFS_BADDEV, errbuf);
+			break;
 
 		case EINVAL:
 			if (zpool_has_draid_vdev(nvroot) &&
@@ -1685,24 +1734,32 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "dRAID vdevs are unsupported by the "
 				    "kernel"));
-				return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+				ret = zfs_error(hdl, EZFS_BADDEV, errbuf);
 			} else {
-				return (zpool_standard_error(hdl, errno,
-				    errbuf));
+				ret = zpool_standard_error(hdl, errno, errbuf);
 			}
+			break;
 
 		case ENXIO:
-			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-			    "one or more devices could not be opened"));
-			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+			if (zpool_create_info(hdl, &zc) == 0) {
+				ret = zfs_error(hdl, EZFS_BADDEV, errbuf);
+			} else {
+				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+				    "one or more devices could not be "
+				    "opened"));
+				ret = zfs_error(hdl, EZFS_BADDEV, errbuf);
+			}
+			break;
 
 		case EDOM:
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "block size out of range or does not match"));
-			return (zfs_error(hdl, EZFS_BADDEV, errbuf));
+			ret = zfs_error(hdl, EZFS_BADDEV, errbuf);
+			break;
 
 		default:
-			return (zpool_standard_error(hdl, errno, errbuf));
+			ret = zpool_standard_error(hdl, errno, errbuf);
+			break;
 		}
 	}
 
@@ -3571,9 +3628,52 @@ zpool_vdev_fault(zpool_handle_t *zhp, uint64_t guid, vdev_aux_t aux)
 	zfs_cmd_t zc = {"\0"};
 	char errbuf[ERRBUFLEN];
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
+	nvlist_t *vdev_nv;
+	boolean_t avail_spare, l2cache;
+	char *vdev_name;
+	char guid_str[21]; /* 64-bit num + '\0' */
+	boolean_t is_draid_spare = B_FALSE;
+	const char *vdev_type;
 
 	(void) snprintf(errbuf, sizeof (errbuf),
 	    dgettext(TEXT_DOMAIN, "cannot fault %llu"), (u_longlong_t)guid);
+
+	snprintf(guid_str, sizeof (guid_str), "%llu", (u_longlong_t)guid);
+	if ((vdev_nv = zpool_find_vdev(zhp, guid_str, &avail_spare,
+	    &l2cache, NULL)) == NULL)
+		return (zfs_error(hdl, EZFS_NODEVICE, errbuf));
+
+	vdev_name = zpool_vdev_name(hdl, zhp, vdev_nv, 0);
+	if (vdev_name != NULL) {
+		/*
+		 * We have the actual vdev name, so use that instead of the GUID
+		 * in any error messages.
+		 */
+		(void) snprintf(errbuf, sizeof (errbuf),
+		    dgettext(TEXT_DOMAIN, "cannot fault %s"), vdev_name);
+		free(vdev_name);
+	}
+
+	/*
+	 * Spares (traditional or draid) cannot be faulted by libzfs, except:
+	 *
+	 * - Any spare type that exceeds it's errors can be faulted (aux =
+	 *   VDEV_AUX_ERR_EXCEEDED).  This is only used by zed.
+	 *
+	 * - Traditional spares that are active can be force faulted.
+	 */
+	if (nvlist_lookup_string(vdev_nv, ZPOOL_CONFIG_TYPE, &vdev_type) == 0)
+		if (strcmp(vdev_type, VDEV_TYPE_DRAID_SPARE) == 0)
+			is_draid_spare = B_TRUE;
+
+	/*
+	 * If vdev is a spare that is not being used, or is a dRAID spare (in
+	 * use or not), then don't allow it to be force-faulted.  However, an
+	 * in-use dRAID spare can be faulted by ZED if see too many errors
+	 * (aux = VDEV_AUX_ERR_EXCEEDED).
+	 */
+	if (avail_spare || (is_draid_spare && aux != VDEV_AUX_ERR_EXCEEDED))
+		return (zfs_error(hdl, EZFS_ISSPARE, errbuf));
 
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
 	zc.zc_guid = guid;
@@ -4650,12 +4750,12 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 		 * If it's a dRAID device, we add parity, groups, and spares.
 		 */
 		if (strcmp(path, VDEV_TYPE_DRAID) == 0) {
-			uint64_t ndata, nparity, nspares;
+			uint64_t ndata, nparity, nspares, children;
 			nvlist_t **child;
-			uint_t children;
+			uint_t width;
 
 			verify(nvlist_lookup_nvlist_array(nv,
-			    ZPOOL_CONFIG_CHILDREN, &child, &children) == 0);
+			    ZPOOL_CONFIG_CHILDREN, &child, &width) == 0);
 			nparity = fnvlist_lookup_uint64(nv,
 			    ZPOOL_CONFIG_NPARITY);
 			ndata = fnvlist_lookup_uint64(nv,
@@ -4663,8 +4763,12 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 			nspares = fnvlist_lookup_uint64(nv,
 			    ZPOOL_CONFIG_DRAID_NSPARES);
 
+			if (nvlist_lookup_uint64(nv,
+			    ZPOOL_CONFIG_DRAID_NCHILDREN, &children) != 0)
+				children = width;
+
 			path = zpool_draid_name(buf, sizeof (buf), ndata,
-			    nparity, nspares, children);
+			    nparity, nspares, children, width);
 		}
 
 		/*
@@ -5588,6 +5692,8 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 		case VDEV_PROP_IO_T:
 		case VDEV_PROP_SLOW_IO_N:
 		case VDEV_PROP_SLOW_IO_T:
+		case VDEV_PROP_FDOMAIN:
+		case VDEV_PROP_FGROUP:
 			if (intval == UINT64_MAX) {
 				(void) strlcpy(buf, "-", len);
 			} else {

@@ -858,6 +858,16 @@ def calltarget  : Operand<iPTR> {
 
 def imm64: Operand<i64>;
 
+def ConstantImmAsmOperandClass : AsmOperandClass {
+  let Name = "ConstantImm";
+  let PredicateMethod = "isConstantImm";
+  let RenderMethod = "addImmOperands";
+}
+
+def ConstantImm64: Operand<i64> {
+  let ParserMatchClass = ConstantImmAsmOperandClass;
+}
+
 def simm19_lsl2 : Operand<i32> {
   let EncoderMethod = "getSimm19Lsl2Encoding";
   let DecoderMethod = "DecodeSimm19Lsl2";
@@ -1199,7 +1209,9 @@ def HI16 : SDNodeXForm<imm, [{
 }]>;
 
 // Plus 1.
-def Plus1 : SDNodeXForm<imm, [{ return getImm(N, N->getSExtValue() + 1); }]>;
+def Plus1 : SDNodeXForm<imm, [{
+  return getSignedImm(N, N->getSExtValue() + 1);
+}]>;
 
 // Node immediate is zero (e.g. insve.d)
 def immz : PatLeaf<(imm), [{ return N->getSExtValue() == 0; }]>;
@@ -2948,10 +2960,10 @@ def : MipsInstAlias<"nor\t$rs, $imm", (NORImm GPR32Opnd:$rs, GPR32Opnd:$rs,
 
 let hasDelaySlot = 1, isCTI = 1 in {
 def BneImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rt),
-                               (ins imm64:$imm64, brtarget:$offset),
+                               (ins ConstantImm64:$imm64, brtarget:$offset),
                                "bne\t$rt, $imm64, $offset">;
 def BeqImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rt),
-                               (ins imm64:$imm64, brtarget:$offset),
+                               (ins ConstantImm64:$imm64, brtarget:$offset),
                                "beq\t$rt, $imm64, $offset">;
 
 class CondBranchPseudo<string instr_asm> :
@@ -2979,7 +2991,7 @@ def BGTUL: CondBranchPseudo<"bgtul">, ISA_MIPS2_NOT_32R6_64R6;
 
 let isCTI = 1 in
 class CondBranchImmPseudo<string instr_asm> :
-  MipsAsmPseudoInst<(outs), (ins GPR32Opnd:$rs, imm64:$imm, brtarget:$offset),
+  MipsAsmPseudoInst<(outs), (ins GPR32Opnd:$rs, ConstantImm64:$imm, brtarget:$offset),
                     !strconcat(instr_asm, "\t$rs, $imm, $offset")>;
 
 def BEQLImmMacro : CondBranchImmPseudo<"beql">, ISA_MIPS2_NOT_32R6_64R6;
@@ -3356,9 +3368,9 @@ let AdditionalPredicates = [NotInMicroMips] in {
   }
 
   // Atomic load patterns.
-  def : MipsPat<(atomic_load_8 addr:$a), (LB addr:$a)>, ISA_MIPS1;
-  def : MipsPat<(atomic_load_16 addr:$a), (LH addr:$a)>, ISA_MIPS1;
-  def : MipsPat<(atomic_load_32 addr:$a), (LW addr:$a)>, ISA_MIPS1;
+  def : MipsPat<(atomic_load_asext_8 addr:$a), (LB addr:$a)>, ISA_MIPS1;
+  def : MipsPat<(atomic_load_asext_16 addr:$a), (LH addr:$a)>, ISA_MIPS1;
+  def : MipsPat<(atomic_load_nonext_32 addr:$a), (LW addr:$a)>, ISA_MIPS1;
 
   // Atomic store patterns.
   def : MipsPat<(atomic_store_8 GPR32:$v, addr:$a), (SB GPR32:$v, addr:$a)>,

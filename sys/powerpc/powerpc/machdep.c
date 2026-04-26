@@ -195,9 +195,6 @@ cpu_startup(void *dummy)
 	 */
 	cpu_setup(PCPU_GET(cpuid));
 
-#ifdef PERFMON
-	perfmon_init();
-#endif
 	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)physmem),
 	    ptoa((uintmax_t)physmem) / 1048576);
 	realmem = physmem;
@@ -565,7 +562,7 @@ load_external_symtab(void) {
 	if (!(end - start > 0))
 		return;
 
-	kernelimg_final = (u_char *) PHYS_TO_DMAP(start);
+	kernelimg_final = PHYS_TO_DMAP(start);
 #ifdef	AIM
 	kernelimg = kernelimg_final;
 #else	/* BOOKE */

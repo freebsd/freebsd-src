@@ -59,8 +59,8 @@ gve_free_qpl(struct gve_priv *priv, struct gve_queue_page_list *qpl)
 		 */
 		if (vm_page_unwire_noq(qpl->pages[i])) {
 			if (!qpl->kva) {
-				pmap_qremove((vm_offset_t)qpl->dmas[i].cpu_addr, 1);
-				kva_free((vm_offset_t)qpl->dmas[i].cpu_addr, PAGE_SIZE);
+				pmap_qremove(qpl->dmas[i].cpu_addr, 1);
+				kva_free(qpl->dmas[i].cpu_addr, PAGE_SIZE);
 			}
 			vm_page_free(qpl->pages[i]);
 		}
@@ -104,7 +104,7 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 	qpl->pages = malloc(npages * sizeof(*qpl->pages), M_GVE_QPL,
 	    M_WAITOK | M_ZERO);
 
-	qpl->kva = 0;
+	qpl->kva = NULL;
 	if (single_kva) {
 		qpl->kva = kva_alloc(PAGE_SIZE * npages);
 		if (!qpl->kva) {
@@ -120,15 +120,15 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 						    VM_ALLOC_ZERO);
 
 		if (!single_kva) {
-			qpl->dmas[i].cpu_addr = (void *)kva_alloc(PAGE_SIZE);
+			qpl->dmas[i].cpu_addr = kva_alloc(PAGE_SIZE);
 			if (!qpl->dmas[i].cpu_addr) {
 				device_printf(priv->dev, "Failed to create kva for page %d in QPL %d", i, id);
 				err = ENOMEM;
 				goto abort;
 			}
-			pmap_qenter((vm_offset_t)qpl->dmas[i].cpu_addr, &(qpl->pages[i]), 1);
+			pmap_qenter(qpl->dmas[i].cpu_addr, &(qpl->pages[i]), 1);
 		} else
-			qpl->dmas[i].cpu_addr = (void *)(qpl->kva + (PAGE_SIZE * i));
+			qpl->dmas[i].cpu_addr = qpl->kva + (PAGE_SIZE * i);
 
 
 		qpl->num_pages++;
@@ -244,7 +244,7 @@ void
 gve_mextadd_free(struct mbuf *mbuf)
 {
 	vm_page_t page = (vm_page_t)mbuf->m_ext.ext_arg1;
-	vm_offset_t va = (vm_offset_t)mbuf->m_ext.ext_arg2;
+	void *va = mbuf->m_ext.ext_arg2;
 
 	/*
 	 * Free the page only if this is the last ref.

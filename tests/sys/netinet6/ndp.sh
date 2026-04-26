@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2021 Alexander V. Chernikov
+# Copyright (c) 2026 Pouria Mousavizadeh Tehrani <pouria@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -300,23 +301,28 @@ ndp_prefix_lifetime_extend_head() {
 get_prefix_attr() {
 	local prefix=$1
 	local attr=$2
+	local jail=""
 
-	ndp -p --libxo json | \
+	if [ -n "$3" ]; then
+		jail="jexec $3"
+	fi
+
+	${jail} ndp -p --libxo json | \
 	    jq -r '.ndp.["prefix-list"][] |
 	           select(.prefix == "'${prefix}'") | .["'${attr}'"]'
 }
 
 # Given a prefix, return its expiry time in seconds.
 prefix_expiry() {
-	get_prefix_attr $1 "expires_sec"
+	get_prefix_attr $1 "expires_sec" $2
 }
 
 # Given a prefix, return its valid and preferred lifetimes.
 prefix_lifetimes() {
 	local p v
 
-	v=$(get_prefix_attr $1 "valid-lifetime")
-	p=$(get_prefix_attr $1 "preferred-lifetime")
+	v=$(get_prefix_attr $1 "valid-lifetime" $2)
+	p=$(get_prefix_attr $1 "preferred-lifetime" $2)
 	echo $v $p
 }
 
@@ -372,7 +378,7 @@ ndp_grand_linklayer_event_head() {
 }
 
 ndp_grand_linklayer_event_body() {
-	local epair0 jname address mac
+	local epair0 jname prefix address mac
 
 	vnet_init
 
@@ -414,13 +420,450 @@ ndp_grand_linklayer_event_body() {
 		jexec ${jname}2 ndp -n ${prefix}1
 }
 
+ndp_grand_linklayer_event_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_input_validation_hlim" "cleanup"
+ndp_input_validation_hlim_head() {
+	atf_set descr 'Test RFC 4861 section 6.1.2: RA hop limit validation'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_input_validation_hlim_body() {
+	local epair0 jname
+
+	vnet_init
+
+	jname="v6t-ndp_input_validation_hlim"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
+
+	# Make sure that NAs from us are flagged as coming from a router.
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+
+	# Send an invalid RA advertising a prefix.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --hoplimit 254
+
+	# Wait to make sure no router would appear.
+	sleep 0.5
+	atf_check -o empty jexec ${jname} ndp -r
+}
+
+ndp_input_validation_hlim_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_input_validation_src_linklocal" "cleanup"
+ndp_input_validation_src_linklocal_head() {
+	atf_set descr 'Test RFC 4861 section 6.1.2: RA source address must be link-local'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_input_validation_src_linklocal_body() {
+	local epair0 jname
+
+	vnet_init
+
+	jname="v6t-ndp_input_validation_src_linklocal"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
+
+	# Make sure that NAs from us are flagged as coming from a router.
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+
+	# Send an invalid RA with multicast source.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ff02::2
+
+	# Send an invalid RA with global unicast source.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src 3fff::1
+
+	# Wait to make sure no router would appear.
+	sleep 0.5
+	atf_check -o empty jexec ${jname} ndp -r
+}
+
+ndp_input_validation_src_linklocal_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_multirouter_pref" "cleanup"
+ndp_multirouter_pref_head() {
+	atf_set descr 'Test RFC 4861 section 6.3.4: multiple routers with different pref'
+	atf_set require.user root
+	atf_set require.progs jq python3 scapy
+}
+
+ndp_multirouter_pref_body() {
+	local epair0 jname prefix lladdr advrtrs
+
+	vnet_init
+
+	jname="v6t-ndp_multirouter_pref"
+	prefix="2001:db8:ffff:1000::"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
+
+	# Make sure that NAs from us are flagged as coming from a router.
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+
+	lladdr="$(ndp_if_lladdr ${epair0}b)"
+	lladdr="${lladdr%?}a"
+	# Send an RA with high preference.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ${lladdr} \
+	    --rtrpref 1 --prefix ${prefix} \
+	    --validlifetime 10 --preferredlifetime 5
+
+	lladdr="${lladdr%?}b"
+	# Send an RA with medium preference.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ${lladdr} \
+	    --rtrpref 0 --prefix ${prefix} \
+	    --validlifetime 10 --preferredlifetime 5
+
+	lladdr="${lladdr%?}c"
+	# Send an RA with low preference.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ${lladdr} \
+	    --rtrpref 3 --prefix ${prefix} \
+	    --validlifetime 10 --preferredlifetime 5
+
+	# Wait for a default router to appear.
+	while [ "$(jexec ${jname} ndp -r | wc -l)" -ne 3 ]; do
+		sleep 0.01
+	done
+	atf_check -s exit:0 \
+		-o match:"^${lladdr%?}a%${epair0}a if=${epair0}a, flags=, pref=high,.*" \
+		-o match:"^${lladdr%?}b%${epair0}a if=${epair0}a, flags=, pref=medium,.*" \
+		-o match:"^${lladdr%?}c%${epair0}a if=${epair0}a, flags=, pref=low,.*" \
+		jexec ${jname} ndp -r
+
+	# Make sure a default route is being installed
+	# XXX: for now, does not matter which router
+	atf_check -o match:"^default[[:space:]]+${lladdr%?}" \
+	    jexec ${jname} netstat -rn6
+
+	# Make sure ndp knows about prefix advertising routers.
+	advrtrs=$(get_prefix_attr ${prefix}/64 "advertising-routers" "${jname}" | \
+		jq -r '. | length')
+	if [ "${advrtrs}" -ne 3 ]; then
+		atf_fail "Unexpected number of advertising routers: ${advrtrs}"
+	fi
+}
+
+ndp_muiltirouter_pref_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_slaac_twohour_rule" "cleanup"
+ndp_slaac_twohour_rule_head() {
+	atf_set descr 'Test RFC 4862 section 5.5.3 (e): Two hour rule'
+	atf_set require.user root
+	atf_set require.progs jq python3 scapy
+}
+
+ndp_slaac_twohour_rule_body() {
+	local epair0 jname prefix ex1 ex2
+
+	vnet_init
+
+	jname="v6t-ndp_slaac_twohour_rule"
+	prefix="2001:db8:ffff:1000::"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
+
+	# Make sure that NAs from us are flagged as coming from a router.
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+
+	# Send an RA with 1 hour lifetime
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix ${prefix} --prefixlen 64 \
+	    --validlifetime 3600 --preferredlifetime 3600
+
+	# Wait for a default router to appear.
+	while [ -z "$(jexec ${jname} ndp -r)" ]; do
+		sleep 0.01
+	done
+	ex1=$(prefix_expiry ${prefix}/64 "${jname}")
+
+	# Set the address lifetime to 2 hours and verify that the prefix is updated.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix ${prefix} --prefixlen 64 \
+	    --validlifetime 7200 --preferredlifetime 7200
+
+	# Verify that ndp sets the correct value from RA.
+	ex2=$(prefix_expiry ${prefix}/64 "${jname}")
+	if [ "${ex2}" -le "${ex1}" ]; then
+		atf_fail "Unexpected expiry time: ${ex2} <= ${ex1}"
+	fi
+	# Verify that address also updated the valid lifetime.
+	ex2=$(ifconfig -j "${jname}" ${epair0}a inet6 | grep vltime | awk '{print $NF}' )
+	if [ "${ex2}" -le 3600 ]; then
+		atf_fail "Unexpected expiry time: ${ex2} <= ${ex1}"
+	fi
+
+	# Set the address lifetime to 1 Hour and verify that
+	# the address of prefix is NOT updated to 1 hour.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix ${prefix} --prefixlen 64 \
+	    --validlifetime 3600 --preferredlifetime 3600
+
+	# Verify that ndp sets the received value from RA.
+	ex2=$(prefix_expiry ${prefix}/64 "${jname}")
+	if [ "${ex2}" -gt 3600 ]; then
+		atf_fail "Unexpected ndp expiry time: ${ex2} > 3600"
+	fi
+	# Verify that address NOT updated the valid lifetime.
+	ex2=$(ifconfig -j "${jname}" ${epair0}a inet6 | grep vltime | awk '{print $NF}' )
+	if [ "${ex2}" -le 3600 ]; then
+		atf_fail "Unexpected expiry time: ${ex2} <= 3600"
+	fi
+}
+
+ndp_slaac_twohour_rule_cleanup() {
+	vnet_cleanup
+}
+
+get_iface_prefix_flags() {
+	local prefix=$1
+	local iface=$2
+	local jail=""
+
+	if [ -n "$3" ]; then
+		jail="jexec $3"
+	fi
+
+	${jail} ndp -p --libxo json | \
+	    jq -r '.ndp.["prefix-list"][] |
+		select((.prefix == "'${prefix}'") and .interface == "'${iface}'") |
+		.flags'
+}
+
+atf_test_case "ndp_slaac_switch_onlink_prefix" "cleanup"
+ndp_slaac_switch_onlink_prefix_head() {
+	atf_set descr 'Test SLAAC onlink prefix switching when prefix received via multiple interfaces'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_slaac_switch_onlink_prefix_body() {
+	local epair0 epair1 jname prefix lladdr1 lladdr2 f1 f2
+
+	vnet_init
+
+	jname="v6t-ndp_slaac_switch_onlink_prefix"
+	prefix="2001:db8:ffff:1000::"
+
+	epair0=$(vnet_mkepair)
+	epair1=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+	atf_check ifconfig ${epair1}a vnet ${jname}
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair1}a ${jname}
+	ndp_if_up ${epair0}b
+	ndp_if_up ${epair1}b
+
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 accept_rtadv
+	atf_check ifconfig -j ${jname} ${epair1}a inet6 accept_rtadv
+	lladdr0=$(ndp_if_lladdr ${epair0}b)
+	lladdr1=$(ndp_if_lladdr ${epair1}b)
+
+	# Send an RA with high pref from epair0
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ${lladdr0} \
+	    --rtrpref 1 --prefix ${prefix} \
+	    --validlifetime 10 --preferredlifetime 5
+
+	# Send an RA with medium pref from epair1
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair1}b \
+	    --dst $(ndp_if_lladdr ${epair1}a ${jname}) \
+	    --src ${lladdr1} \
+	    --rtrpref 0 --prefix ${prefix} \
+	    --validlifetime 10 --preferredlifetime 5
+
+	# Wait for a default router to appear.
+	while [ -z "$(jexec ${jname} ndp -r)" ]; do
+		sleep 0.01
+	done
+
+	# Verify that we have a default route to epair0a
+	atf_check -o match:"^default[[:space:]]+${lladdr0}" \
+	    jexec ${jname} netstat -rn6
+
+	# Verify that epair0a is_onlink and epair1a is_detached
+	f1=$(get_iface_prefix_flags "${prefix}/64" "${epair0}a" "${jname}")
+	f2=$(get_iface_prefix_flags "${prefix}/64" "${epair1}a" "${jname}")
+	if [ "${f1}" != "LAO" ]; then
+		atf_fail "Unexpected prefix flags on epair0a: ${f1}"
+	fi
+	if [ "${f2}" != "LAD" ]; then
+		atf_fail "Unexpected prefix flags on epair1a: ${f2}"
+	fi
+
+	# Send an RA to withdraw prefix from epair0
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ${lladdr0} \
+	    --rtrpref 1 --rtrltime 0 --prefix ${prefix} \
+	    --validlifetime 0 --preferredlifetime 0
+
+	# Verify that epair1a is_onlink and epair0a is not
+	while [ "$(get_iface_prefix_flags ${prefix}/64 ${epair0}a ${jname})" == "LAO" ];
+	do
+		sleep 0.1
+	done
+	f2=$(get_iface_prefix_flags "${prefix}/64" "${epair1}a" "${jname}")
+	if [ "${f2}" != "LAO" ]; then
+		atf_fail "Unexpected prefix flags on epair1a: ${f2}"
+	fi
+
+	# Verify that we have a default route to epair1a
+	atf_check -o match:"^default[[:space:]]+${lladdr1}" \
+	    jexec ${jname} netstat -rn6
+}
+
+ndp_slaac_switch_onlink_prefix_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_routeinfo_option" "cleanup"
+ndp_routeinfo_option_head() {
+	atf_set descr 'Test RFC 4191: Add route based on received RTI in RA'
+	atf_set require.user root
+	atf_set require.progs jq python3 scapy
+}
+
+ndp_routeinfo_option_body() {
+	local epair0 jname prefix lladdr route1 route2
+
+	vnet_init
+
+	jname="v6t-ndp_routeinfo_option"
+	prefix="2001:db8:ffff:1000::"
+	route1="3fff:1000::"
+	route2="3fff:2000::"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
+
+	# Make sure that NAs from us are flagged as coming from a router.
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+
+	lladdr="$(ndp_if_lladdr ${epair0}b)"
+	# Send an RA with high preference with 3 routes.
+	# The last rti should overwrite the default route rtiltime to 100 seconds
+	# and its preference to medium.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src ${lladdr} \
+	    --rtrpref 1 --rtrltime 1800 --prefix ${prefix} \
+	    --route ${route1} --routelen 32 \
+	    --rtipref 1 --rtiltime 1800 \
+	    --route ${route2} --routelen 48 \
+	    --rtipref 4 --rtiltime 600 \
+	    --route :: --routelen 0 \
+	    --rtipref 4 --rtiltime 100
+
+	# Wait for a default router to appear.
+	while [ -z "$(jexec ${jname} ndp -r)" ]; do
+		sleep 0.1
+	done
+
+	# Make sure routes from rti option are being installed
+	atf_check -s exit:0 \
+		-o match:"^${route1}/32[[:space:]]+${lladdr}.*1800" \
+		-o match:"^${route2}/48[[:space:]]+${lladdr}.*600" \
+		-o match:"^default[[:space:]]+${lladdr}" \
+		jexec ${jname} netstat -rn6
+
+	# Verify the default route lifetime and its preference is overwrited
+	atf_check -s exit:0 \
+		-o match:"^${lladdr}%${epair0}a if=${epair0}a, flags=, pref=medium, expire=1m.*" \
+		jexec ${jname} ndp -r
+}
+
+ndp_routeinfo_option_cleanup() {
+	vnet_cleanup
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case "ndp_add_gu_success"
 	atf_add_test_case "ndp_del_gu_success"
 	atf_add_test_case "ndp_slaac_default_route"
+	atf_add_test_case "ndp_slaac_twohour_rule"
+	atf_add_test_case "ndp_slaac_switch_onlink_prefix"
 	atf_add_test_case "ndp_prefix_len_mismatch"
 	atf_add_test_case "ndp_prefix_lifetime"
 	atf_add_test_case "ndp_prefix_lifetime_extend"
 	atf_add_test_case "ndp_grand_linklayer_event"
+	atf_add_test_case "ndp_input_validation_hlim"
+	atf_add_test_case "ndp_input_validation_src_linklocal"
+	atf_add_test_case "ndp_multirouter_pref"
+	atf_add_test_case "ndp_routeinfo_option"
 }

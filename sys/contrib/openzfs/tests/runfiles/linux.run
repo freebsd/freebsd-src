@@ -30,10 +30,6 @@ tags = ['functional', 'acl', 'posix']
 tests = ['posix_001_pos', 'posix_002_pos', 'posix_003_pos', 'posix_004_pos']
 tags = ['functional', 'acl', 'posix-sa']
 
-[tests/functional/atime:Linux]
-tests = ['atime_003_pos', 'root_relatime_on']
-tags = ['functional', 'atime']
-
 [tests/functional/block_cloning:Linux]
 tests = ['block_cloning_ficlone', 'block_cloning_ficlonerange',
     'block_cloning_ficlonerange_partial', 'block_cloning_disabled_ficlone',
@@ -124,7 +120,8 @@ tests = ['auto_offline_001_pos', 'auto_online_001_pos', 'auto_online_002_pos',
     'auto_spare_002_pos', 'auto_spare_double', 'auto_spare_multiple',
     'auto_spare_ashift', 'auto_spare_shared', 'decrypt_fault',
     'decompress_fault', 'fault_limits', 'scrub_after_resilver',
-    'suspend_on_probe_errors', 'suspend_resume_single', 'zpool_status_-s']
+    'suspend_on_probe_errors', 'suspend_resume_single', 'suspend_draid_fgroups',
+    'zpool_status_-s']
 tags = ['functional', 'fault']
 
 [tests/functional/features/large_dnode:Linux]

@@ -1,8 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2023 Dmitry Salychev
- * Copyright © 2022 Mathew McBride
+ * Copyright (c) 2021-2023 Dmitry Salychev
+ * Copyright (c) 2022 Mathew McBride
+ * Copyright (c) 2026 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,9 +69,8 @@
 #define DPAA2_NI_BUFS_PER_TX	(1 << 7)
 #define DPAA2_NI_MAX_BPTX	(1 << 8)
 
-/* Number of the DPNI statistics counters. */
-#define DPAA2_NI_STAT_COUNTERS	7u
-#define	DPAA2_NI_STAT_SYSCTLS	9u
+/* Number of the DPNI statistics counters per page. */
+#define	DPAA2_NI_STAT_COUNTERS_PER_PAGE	7u
 
 /* Error and status bits in the frame annotation status word. */
 #define DPAA2_NI_FAS_DISC	0x80000000 /* debug frame */
@@ -466,6 +466,7 @@ struct dpaa2_ni_softc {
 	uint64_t		 rx_sg_buf_frames;
 	uint64_t		 rx_enq_rej_frames;
 	uint64_t		 rx_ieoi_err_frames;
+	uint64_t		 rx_other_err_frames;
 	uint64_t		 tx_single_buf_frames;
 	uint64_t		 tx_sg_frames;
 

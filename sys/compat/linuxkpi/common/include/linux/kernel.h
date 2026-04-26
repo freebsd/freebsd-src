@@ -40,6 +40,7 @@
 #include <sys/syslog.h>
 #include <sys/time.h>
 
+#include <linux/array_size.h>
 #include <linux/bitops.h>
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
@@ -56,6 +57,8 @@
 #include <linux/log2.h>
 #include <linux/kconfig.h>
 #include <linux/instruction_pointer.h>
+#include <linux/hex.h>
+#include <linux/wordpart.h>
 
 #include <asm/byteorder.h>
 #include <asm/cpufeature.h>
@@ -264,8 +267,6 @@ extern int linuxkpi_debug;
 })
 #endif
 
-#define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-
 #define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
 
 #define offsetofend(t, m)	\
@@ -304,37 +305,6 @@ linux_ratelimited(linux_ratelimit_t *rl)
 #define	test_taint(x)	(0)
 #define	add_taint(x,y)	do {	\
 	} while (0)
-
-static inline int
-_h2b(const char c)
-{
-
-	if (c >= '0' && c <= '9')
-		return (c - '0');
-	if (c >= 'a' && c <= 'f')
-		return (10 + c - 'a');
-	if (c >= 'A' && c <= 'F')
-		return (10 + c - 'A');
-	return (-EINVAL);
-}
-
-static inline int
-hex2bin(uint8_t *bindst, const char *hexsrc, size_t binlen)
-{
-	int hi4, lo4;
-
-	while (binlen > 0) {
-		hi4 = _h2b(*hexsrc++);
-		lo4 = _h2b(*hexsrc++);
-		if (hi4 < 0 || lo4 < 0)
-			return (-EINVAL);
-
-		*bindst++ = (hi4 << 4) | lo4;
-		binlen--;
-	}
-
-	return (0);
-}
 
 static inline bool
 mac_pton(const char *macin, uint8_t *macout)
@@ -380,5 +350,49 @@ mac_pton(const char *macin, uint8_t *macout)
 
 #define	DECLARE_FLEX_ARRAY(_t, _n)					\
     struct { struct { } __dummy_ ## _n; _t _n[0]; }
+
+/*
+ * The following functions/macros are debug/diagnostics tools. They default to
+ * no-ops, except `might_sleep()` which uses `WITNESS_WARN()` on FreeBSD.
+ */
+static inline void
+__might_resched(const char *file, int line, unsigned int offsets)
+{
+}
+
+static inline void
+__might_sleep(const char *file, int line)
+{
+}
+
+static inline void
+might_fault(void)
+{
+}
+
+#define	might_sleep()							\
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "might_sleep()")
+
+#define	might_sleep_if(cond) do { \
+	if (cond) { might_sleep(); } \
+} while (0)
+
+#define	might_resched()		do { } while (0)
+#define	cant_sleep()		do { } while (0)
+#define	cant_migrate()		do { } while (0)
+#define	sched_annotate_sleep()	do { } while (0)
+#define	non_block_start()	do { } while (0)
+#define	non_block_end()		do { } while (0)
+
+extern enum system_states {
+	SYSTEM_BOOTING,
+	SYSTEM_SCHEDULING,
+	SYSTEM_FREEING_INITMEM,
+	SYSTEM_RUNNING,
+	SYSTEM_HALT,
+	SYSTEM_POWER_OFF,
+	SYSTEM_RESTART,
+	SYSTEM_SUSPEND,
+} system_state;
 
 #endif	/* _LINUXKPI_LINUX_KERNEL_H_ */

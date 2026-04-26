@@ -47,8 +47,7 @@ fminimumf(float x, float y)
 	u[1].f = y;
 
 	/* Handle NaN according to ISO/IEC 60559. NaN argument -> NaN return */
-	if (u[0].bits.exp == 255 && u[0].bits.man != 0 || 
-	    u[1].bits.exp == 255 && u[1].bits.man != 0)
+	if (isnan(x) || isnan(y))
 		return (NAN);
 
 	/* Handle comparisons of signed zeroes. */

@@ -291,7 +291,7 @@ bool moea_is_modified(vm_page_t);
 bool moea_is_prefaultable(pmap_t, vm_offset_t);
 bool moea_is_referenced(vm_page_t);
 int moea_ts_referenced(vm_page_t);
-vm_offset_t moea_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+void *moea_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 static int moea_mincore(pmap_t, vm_offset_t, vm_paddr_t *);
 bool moea_page_exists_quick(pmap_t, vm_page_t);
 void moea_page_init(vm_page_t);
@@ -299,8 +299,8 @@ int moea_page_wired_mappings(vm_page_t);
 int moea_pinit(pmap_t);
 void moea_pinit0(pmap_t);
 void moea_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
-void moea_qenter(vm_offset_t, vm_page_t *, int);
-void moea_qremove(vm_offset_t, int);
+void moea_qenter(void *, vm_page_t *, int);
+void moea_qremove(void *, int);
 void moea_release(pmap_t);
 void moea_remove(pmap_t, vm_offset_t, vm_offset_t);
 void moea_remove_all(vm_page_t);
@@ -323,8 +323,8 @@ int moea_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void moea_sync_icache(pmap_t, vm_offset_t, vm_size_t);
 void moea_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
 void moea_scan_init(void);
-vm_offset_t moea_quick_enter_page(vm_page_t m);
-void moea_quick_remove_page(vm_offset_t addr);
+void *moea_quick_enter_page(vm_page_t m);
+void moea_quick_remove_page(void *addr);
 bool moea_page_is_mapped(vm_page_t m);
 bool moea_ps_enabled(pmap_t pmap);
 static int moea_map_user_ptr(pmap_t pm,
@@ -962,7 +962,7 @@ moea_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	va = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
 	virtual_avail = va + kstack_pages * PAGE_SIZE;
 	CTR2(KTR_PMAP, "moea_bootstrap: kstack0 at %#x (%#x)", pa, va);
-	thread0.td_kstack = va;
+	thread0.td_kstack = (char *)va;
 	thread0.td_kstack_pages = kstack_pages;
 	for (i = 0; i < kstack_pages; i++) {
 		moea_kenter(va, pa);
@@ -1104,15 +1104,15 @@ moea_zero_page_area(vm_page_t m, int off, int size)
 	bzero(va, size);
 }
 
-vm_offset_t
+void *
 moea_quick_enter_page(vm_page_t m)
 {
 
-	return (VM_PAGE_TO_PHYS(m));
+	return ((void *)VM_PAGE_TO_PHYS(m));
 }
 
 void
-moea_quick_remove_page(vm_offset_t addr)
+moea_quick_remove_page(void *addr)
 {
 }
 
@@ -1642,7 +1642,7 @@ moea_decode_kernel_ptr(vm_offset_t addr, int *is_user,
  * unchanged.  We cannot and therefore do not; *virt is updated with the
  * first usable address after the mapped region.
  */
-vm_offset_t
+void *
 moea_map(vm_offset_t *virt, vm_paddr_t pa_start,
     vm_paddr_t pa_end, int prot)
 {
@@ -1653,7 +1653,7 @@ moea_map(vm_offset_t *virt, vm_paddr_t pa_start,
 	for (; pa_start < pa_end; pa_start += PAGE_SIZE, va += PAGE_SIZE)
 		moea_kenter(va, pa_start);
 	*virt = va;
-	return (sva);
+	return ((void *)sva);
 }
 
 /*
@@ -1846,11 +1846,11 @@ moea_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva,
  * references recorded.  Existing mappings in the region are overwritten.
  */
 void
-moea_qenter(vm_offset_t sva, vm_page_t *m, int count)
+moea_qenter(void *sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		moea_kenter(va, VM_PAGE_TO_PHYS(*m));
 		va += PAGE_SIZE;
@@ -1863,11 +1863,11 @@ moea_qenter(vm_offset_t sva, vm_page_t *m, int count)
  * temporary mappings entered by moea_qenter.
  */
 void
-moea_qremove(vm_offset_t sva, int count)
+moea_qremove(void *sva, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		moea_kremove(va);
 		va += PAGE_SIZE;
@@ -2695,7 +2695,8 @@ moea_mapdev(vm_paddr_t pa, vm_size_t size)
 void *
 moea_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
-	vm_offset_t va, tmpva, ppa, offset;
+	char *va;
+	vm_offset_t tmpva, ppa, offset;
 	int i;
 
 	ppa = trunc_page(pa);
@@ -2713,10 +2714,10 @@ moea_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	}
 
 	va = kva_alloc(size);
-	if (!va)
+	if (va == NULL)
 		panic("moea_mapdev: Couldn't alloc kernel virtual memory");
 
-	for (tmpva = va; size > 0;) {
+	for (tmpva = (vm_offset_t)va; size > 0;) {
 		moea_kenter_attr(tmpva, ppa, ma);
 		tlbie(tmpva);
 		size -= PAGE_SIZE;
@@ -2724,13 +2725,14 @@ moea_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 		ppa += PAGE_SIZE;
 	}
 
-	return ((void *)(va + offset));
+	return (va + offset);
 }
 
 void
 moea_unmapdev(void *p, vm_size_t size)
 {
-	vm_offset_t base, offset, va;
+	void *base;
+	vm_offset_t offset, va;
 
 	/*
 	 * If this is outside kernel virtual space, then it's a
@@ -2738,10 +2740,10 @@ moea_unmapdev(void *p, vm_size_t size)
 	 */
 	va = (vm_offset_t)p;
 	if ((va >= VM_MIN_KERNEL_ADDRESS) && (va <= virtual_end)) {
-		base = trunc_page(va);
+		base = trunc_page(p);
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
-		moea_qremove(base, atop(size));
+		moea_qremove((vm_offset_t)base, atop(size));
 		kva_free(base, size);
 	}
 }

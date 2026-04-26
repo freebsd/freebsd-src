@@ -33,7 +33,7 @@ struct hwt_vm {
 	vm_page_t			*pages;
 	int				npages;
 	vm_object_t			obj;
-	vm_offset_t			kvaddr;
+	void				*kvaddr;
 	struct cdev			*cdev;
 
 	struct hwt_context		*ctx;

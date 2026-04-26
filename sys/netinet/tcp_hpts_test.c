@@ -35,6 +35,7 @@
 #include <sys/mutex.h>
 #include <sys/refcount.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -369,9 +370,15 @@ static struct tcpcb *
 test_hpts_create_tcpcb(struct ktest_test_context *ctx, struct tcp_hptsi *pace)
 {
 	struct tcpcb *tp;
+	struct socket *so;
 
 	tp = malloc(sizeof(struct tcpcb), M_TCPHPTS, M_WAITOK | M_ZERO);
 	if (tp) {
+		so = malloc(sizeof(struct socket), M_TCPHPTS,
+		    M_WAITOK | M_ZERO);
+		so->so_vnet = curvnet;
+		tp->t_inpcb.inp_socket = so;
+
 		rw_init_flags(&tp->t_inpcb.inp_lock, "test-inp",
 			RW_RECURSE | RW_DUPOK);
 		refcount_init(&tp->t_inpcb.inp_refcount, 1);
@@ -399,6 +406,7 @@ test_hpts_free_tcpcb(struct tcpcb *tp)
 		return;
 
 	INP_LOCK_DESTROY(&tp->t_inpcb);
+	free(tp->t_inpcb.inp_socket, M_TCPHPTS);
 	free(tp, M_TCPHPTS);
 }
 

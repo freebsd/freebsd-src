@@ -57,8 +57,10 @@
 #define	LINUX_PR_GET_SECCOMP	21
 #define	LINUX_PR_SET_SECCOMP	22
 #define	LINUX_PR_CAPBSET_READ	23
-#define LINUX_PR_SET_CHILD_SUBREAPER 36
-#define	LINUX_PR_SET_NO_NEW_PRIVS	38
+#define	LINUX_PR_SET_CHILD_SUBREAPER	36 /* Set child subreaper status */
+#define	LINUX_PR_GET_CHILD_SUBREAPER	37 /* Get child subreaper status */
+#define	LINUX_PR_SET_NO_NEW_PRIVS	38 /* Set no_new_privs attribute */
+#define	LINUX_PR_GET_NO_NEW_PRIVS	39 /* Get no_new_privs attribute */
 #define	LINUX_PR_SET_PTRACER	1499557217
 
 #define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
@@ -226,5 +228,21 @@ struct syscall_info {
 #define	LINUX_KCMP_SYSVSEM		6
 #define	LINUX_KCMP_EPOLL_TFD		7
 #define	LINUX_KCMP_TYPES		8
+
+/* Linux membarrier commands from <linux/membarrier.h> */
+#define	LINUX_MEMBARRIER_CMD_QUERY				0
+#define	LINUX_MEMBARRIER_CMD_GLOBAL				(1 << 0)
+#define	LINUX_MEMBARRIER_CMD_GLOBAL_EXPEDITED			(1 << 1)
+#define	LINUX_MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED		(1 << 2)
+#define	LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED			(1 << 3)
+#define	LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED		(1 << 4)
+#define	LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE	(1 << 5)
+#define	LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE (1 << 6)
+#define	LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ		(1 << 7)
+#define	LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ	(1 << 8)
+#define	LINUX_MEMBARRIER_CMD_GET_REGISTRATIONS			(1 << 9)
+
+/* Linux membarrier flags from <linux/membarrier.h> */
+#define	LINUX_MEMBARRIER_CMD_FLAG_CPU				(1 << 0)
 
 #endif	/* _LINUX_MISC_H_ */

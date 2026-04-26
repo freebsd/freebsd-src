@@ -150,10 +150,10 @@ extern void     uma_startup2(void);
  *	its use, typically with pmap_qenter().  Any attempt to create
  *	a mapping on demand through vm_fault() will result in a panic. 
  */
-vm_offset_t
+void *
 kva_alloc(vm_size_t size)
 {
-	vm_offset_t addr;
+	vmem_addr_t addr;
 
 	TSENTER();
 	size = round_page(size);
@@ -162,7 +162,7 @@ kva_alloc(vm_size_t size)
 		return (0);
 	TSEXIT();
 
-	return (addr);
+	return ((void *)addr);
 }
 
 /*
@@ -171,10 +171,10 @@ kva_alloc(vm_size_t size)
  *	Allocate a virtual address range as in kva_alloc where the base
  *	address is aligned to align.
  */
-vm_offset_t
+void *
 kva_alloc_aligned(vm_size_t size, vm_size_t align)
 {
-	vm_offset_t addr;
+	vmem_addr_t addr;
 
 	TSENTER();
 	size = round_page(size);
@@ -183,7 +183,7 @@ kva_alloc_aligned(vm_size_t size, vm_size_t align)
 		return (0);
 	TSEXIT();
 
-	return (addr);
+	return ((void *)addr);
 }
 
 /*
@@ -196,11 +196,11 @@ kva_alloc_aligned(vm_size_t size, vm_size_t align)
  *	This routine may not block on kernel maps.
  */
 void
-kva_free(vm_offset_t addr, vm_size_t size)
+kva_free(void *addr, vm_size_t size)
 {
 
 	size = round_page(size);
-	vmem_xfree(kernel_arena, addr, size);
+	vmem_xfree(kernel_arena, (uintptr_t)addr, size);
 }
 
 /*
@@ -714,14 +714,14 @@ kmem_free(void *addr, vm_size_t size)
  *
  *	This routine may block.
  */
-vm_offset_t
+void *
 kmap_alloc_wait(vm_map_t map, vm_size_t size)
 {
 	vm_offset_t addr;
 
 	size = round_page(size);
 	if (!swap_reserve(size))
-		return (0);
+		return (NULL);
 
 	for (;;) {
 		/*
@@ -744,7 +744,7 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
 	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_RW, VM_PROT_RW,
 	    MAP_ACC_CHARGED);
 	vm_map_unlock(map);
-	return (addr);
+	return ((void *)addr);
 }
 
 /*
@@ -754,9 +754,11 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
  *	waiting for memory in that map.
  */
 void
-kmap_free_wakeup(vm_map_t map, vm_offset_t addr, vm_size_t size)
+kmap_free_wakeup(vm_map_t map, void *va, vm_size_t size)
 {
+	vm_offset_t addr;
 
+	addr = (vm_offset_t)va;
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
 	if ((map->flags & MAP_NEEDS_WAKEUP) != 0) {
@@ -769,7 +771,8 @@ kmap_free_wakeup(vm_map_t map, vm_offset_t addr, vm_size_t size)
 void
 kmem_init_zero_region(void)
 {
-	vm_offset_t addr, i;
+	char *addr;
+	vm_offset_t i;
 	vm_page_t m;
 
 	/*
@@ -782,7 +785,8 @@ kmem_init_zero_region(void)
 	    VM_ALLOC_NOFREE);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
 		pmap_qenter(addr + i, &m, 1);
-	pmap_protect(kernel_pmap, addr, addr + ZERO_REGION_SIZE, VM_PROT_READ);
+	pmap_protect(kernel_pmap, (vm_offset_t)addr,
+	    (vm_offset_t)addr + ZERO_REGION_SIZE, VM_PROT_READ);
 
 	zero_region = (const void *)addr;
 }

@@ -9,7 +9,6 @@ CFLAGS+=	-I${.OBJDIR}
 
 SRCDIR=		lldb/tools/lldb-server
 
-SRCS+=		Acceptor.cpp
 SRCS+=		LLDBServerUtilities.cpp
 SRCS+=		SystemInitializerLLGS.cpp
 SRCS+=		lldb-gdbserver.cpp

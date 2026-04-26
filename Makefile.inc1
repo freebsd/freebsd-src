@@ -1573,8 +1573,15 @@ packageworld: .PHONY
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 .endfor
 
+# We can't assume here that ${TMPPATH} will include ${PATH} or /usr/libexec
+# because we may be building with a STRICTTMPPATH, so we explicitly include
+# /usr/libexec here for flua.  ${TMPPATH} still usefully includes anything else
+# we may need to function.
+_flua_PATH=	${TMPPATH}:/usr/libexec
+
 makeman: .PHONY
-	${_+_}cd ${.CURDIR}/tools/build/options; sh makeman > \
+	${_+_}@cd ${.CURDIR}/tools/build/options; \
+	    PATH=${_flua_PATH:Q} flua makeman.lua > \
 	    ${.CURDIR}/share/man/man5/src.conf.5
 
 # Ensure no regressions in self-includeability of sys/*.h and net*/*.h
@@ -1583,11 +1590,6 @@ test-includes: .PHONY
 	    ${WMAKEENV} ${MAKE} ${WORLD_FLAGS} obj; \
 	    ${WMAKEENV} ${MAKE} ${WORLD_FLAGS} DESTDIR=${WORLDTMP} test-includes
 
-# We can't assume here that ${TMPPATH} will include ${PATH} or /usr/libexec
-# because we may be building with a STRICTTMPPATH, so we explicitly include
-# /usr/libexec here for flua.  ${TMPPATH} still usefully includes anything else
-# we may need to function.
-_sysent_PATH=	${TMPPATH}:/usr/libexec
 _sysent_dirs=	sys/kern
 _sysent_dirs+=	sys/compat/freebsd32
 _sysent_dirs+=	sys/amd64/linux		\
@@ -1600,7 +1602,7 @@ sysent: .PHONY
 .for _dir in ${_sysent_dirs}
 sysent-${_dir}: .PHONY
 	@echo "${MAKE} -C ${.CURDIR}/${_dir} sysent"
-	${_+_}@env PATH=${_sysent_PATH:Q} ${MAKE} -C ${.CURDIR}/${_dir} sysent
+	${_+_}@env PATH=${_flua_PATH:Q} ${MAKE} -C ${.CURDIR}/${_dir} sysent
 
 sysent: sysent-${_dir}
 .endfor
@@ -2258,48 +2260,15 @@ create-world-packages:	_pkgbootstrap .PHONY
 	@cd ${WSTAGEDIR} ; \
 		${METALOG_SORT_CMD} ${WSTAGEDIR}/${DISTDIR}/METALOG | \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk
-	@for plist in ${WSTAGEDIR}/*.plist; do \
-	  plist=$${plist##*/} ; \
-	  pkgname=$${plist%.plist} ; \
-	  echo "_PKGS+= $${pkgname}" ; \
-	done > ${WSTAGEDIR}/packages.mk
-	${_+_}@cd ${.CURDIR}; \
-		PATH="${TMPPATH}" ${MAKE} -f Makefile.inc1 \
-		create-world-packages-jobs \
-		SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
-		.MAKE.JOB.PREFIX=
-
-.if make(create-world-packages-jobs)
-.include "${WSTAGEDIR}/packages.mk"
-.endif
-
-create-world-packages-jobs: .PHONY
-.for pkgname in ${_PKGS}
-create-world-packages-jobs: create-world-package-${pkgname}
-create-world-package-${pkgname}: .PHONY
-	@sh ${SRCDIR}/release/packages/generate-ucl.sh -o ${pkgname} \
-		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl
-	@if [ "$$(grep -vc '^@dir' ${WSTAGEDIR}/${pkgname}.plist)" -gt 0 ]; then \
-		awk -F\" ' \
-			/^name/ { printf("===> Creating %s-", $$2); next } \
-			/^version/ { print $$2; next } \
-			' ${WSTAGEDIR}/${pkgname}.ucl && \
-		${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
-			-o SHLIB_PROVIDE_PATHS_NATIVE=/lib,/usr/lib \
-			${_ALL_LIBCOMPATS:range:@i@-o SHLIB_PROVIDE_PATHS_COMPAT_${_ALL_LIBCOMPATS:[$i]}=/usr/lib${_ALL_libcompats:[$i]}@} \
-			-o OSVERSION="${SRCRELDATE}" \
-			create -f ${PKG_FORMAT} ${PKG_CLEVEL} -T${PKG_CTHREADS} \
-			-M ${WSTAGEDIR}/${pkgname}.ucl \
-			-p ${WSTAGEDIR}/${pkgname}.plist \
-			-r ${WSTAGEDIR} \
-			-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}; \
-	else \
-		awk -F\" ' \
-			/^name/ { printf("===> Skipping %s-", $$2); next } \
-			/^version/ { print $$2; next } \
-			' ${WSTAGEDIR}/${pkgname}.ucl; \
-	fi
-.endfor
+	# bsd.pkg.mk doesn't always know about the dependencies of things
+	# it builds, so for now, always run clean here.
+	${CROSSENV} ${MAKE} -C ${.CURDIR}/packages \
+	    FLUA=${WORLDTMP}/legacy/usr/libexec/flua \
+	    REPODIR=${REPODIR} \
+	    WSTAGEDIR=${WSTAGEDIR} \
+	    PKG_VERSION=${PKG_VERSION} \
+	    MK_AUTO_OBJ=yes \
+	    clean all stagepackages
 
 create-sets-packages-jobs: .PHONY create-sets-packages
 create-sets-packages: .PHONY

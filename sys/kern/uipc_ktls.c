@@ -449,7 +449,7 @@ ktls_buffer_import(void *arg, void **store, int count, int domain, int flags)
 		    VM_MEMATTR_DEFAULT);
 		if (m == NULL)
 			break;
-		store[i] = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+		store[i] = VM_PAGE_TO_DMAP(m);
 	}
 	return (i);
 }
@@ -461,7 +461,7 @@ ktls_buffer_release(void *arg __unused, void **store, int count)
 	int i, j;
 
 	for (i = 0; i < count; i++) {
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)store[i]));
+		m = DMAP_TO_VM_PAGE(store[i]);
 		for (j = 0; j < atop(ktls_maxlen); j++) {
 			(void)vm_page_unwire_noq(m + j);
 			vm_page_free(m + j);
@@ -473,7 +473,7 @@ static void
 ktls_free_mext_contig(struct mbuf *m)
 {
 	M_ASSERTEXTPG(m);
-	uma_zfree(ktls_buffer_zone, (void *)PHYS_TO_DMAP(m->m_epg_pa[0]));
+	uma_zfree(ktls_buffer_zone, PHYS_TO_DMAP(m->m_epg_pa[0]));
 }
 
 static int
@@ -2816,7 +2816,7 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 		state->dst_iov[0].iov_base = (char *)state->cbuf +
 		    m->m_epg_1st_off;
 		state->dst_iov[0].iov_len = len;
-		state->parray[0] = DMAP_TO_PHYS((vm_offset_t)state->cbuf);
+		state->parray[0] = DMAP_TO_PHYS(state->cbuf);
 		i = 1;
 	} else {
 		off = m->m_epg_1st_off;

@@ -57,6 +57,7 @@
 #define	D80211_IMPROVE		0x00000002
 #endif
 #define	D80211_IMPROVE_TXQ	0x00000004
+#define	D80211_CHANDEF		0x00000008
 #define	D80211_TRACE		0x00000010
 #define	D80211_TRACEOK		0x00000020
 #define	D80211_SCAN		0x00000040
@@ -250,9 +251,13 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	struct sx			lvif_sx;
 
 	struct list_head		lchanctx_list;
+	struct list_head		lchanctx_list_reserved;
 	struct netdev_hw_addr_list	mc_list;
 	unsigned int			mc_flags;
 	struct sx			mc_sx;
+
+	struct cfg80211_chan_def	dflt_chandef;
+	struct cfg80211_chan_def	scan_chandef;
 
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
@@ -314,6 +319,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	bool				mc_all_multi;
 	bool				update_wme;
 	bool				rxq_stopped;
+	bool				emulate_chanctx;
 
 	/* Must be last! */
 	struct ieee80211_hw		hw __aligned(CACHE_LINE_SIZE);
@@ -328,6 +334,7 @@ struct lkpi_chanctx {
 	struct list_head		entry;
 
 	bool				added_to_drv;	/* Managed by MO */
+	struct lkpi_vif			*lvif;		/* Backpointer. */
 
 	struct ieee80211_chanctx_conf	chanctx_conf __aligned(CACHE_LINE_SIZE);
 };

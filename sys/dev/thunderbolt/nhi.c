@@ -571,7 +571,7 @@ nhi_alloc_ring0(struct nhi_softc *sc)
 		TAILQ_INSERT_TAIL(&r->rx_head, cmd, cm_link);
 	}
 
-	/* Inititalize the TX frames */
+	/* Initialize the TX frames */
 	for ( ; i < r->tx_ring_depth + r->rx_ring_depth - 1; i++) {
 		cmd = &sc->ring0_cmds[i];
 		cmd->data = (uint32_t *)(frames + NHI_RING0_FRAME_SIZE * i);

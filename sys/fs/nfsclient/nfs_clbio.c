@@ -116,7 +116,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	int i, error, nextoff, size, toff, count, npages;
 	struct uio uio;
 	struct iovec iov;
-	vm_offset_t kva;
+	void *kva;
 	struct buf *bp;
 	struct vnode *vp;
 	struct thread *td;
@@ -180,13 +180,13 @@ ncl_getpages(struct vop_getpages_args *ap)
 	 */
 	bp = uma_zalloc(ncl_pbuf_zone, M_WAITOK);
 
-	kva = (vm_offset_t) bp->b_data;
+	kva = bp->b_data;
 	pmap_qenter(kva, pages, npages);
 	VM_CNT_INC(v_vnodein);
 	VM_CNT_ADD(v_vnodepgsin, npages);
 
 	count = npages << PAGE_SHIFT;
-	iov.iov_base = (caddr_t) kva;
+	iov.iov_base = kva;
 	iov.iov_len = count;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;

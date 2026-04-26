@@ -99,6 +99,8 @@ static int ukbd_debug = 0;
 static int ukbd_no_leds = 0;
 static int ukbd_pollrate = 0;
 static int ukbd_apple_fn_mode = 0;
+static int ukbd_apple_swap_cmd_ctl = 0;
+static int ukbd_apple_swap_cmd_opt = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB keyboard");
@@ -112,6 +114,10 @@ SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, pollrate, CTLFLAG_RWTUN,
     &ukbd_pollrate, 0, "Force this polling rate, 1-1000Hz");
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, apple_fn_mode, CTLFLAG_RWTUN,
     &ukbd_apple_fn_mode, 0, "0 = Fn + F1..12 -> media, 1 = F1..F12 -> media");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, apple_swap_cmd_ctl, CTLFLAG_RWTUN,
+    &ukbd_apple_swap_cmd_ctl, 0, "Swap Command & Control keys");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, apple_swap_cmd_opt, CTLFLAG_RWTUN,
+    &ukbd_apple_swap_cmd_opt, 0, "Swap Command & Option keys");
 
 #define	UKBD_EMULATE_ATSCANCODE	       1
 #define	UKBD_DRIVER_NAME          "ukbd"
@@ -721,6 +727,30 @@ ukbd_apple_fn_media(uint32_t keycode)
 }
 
 static uint32_t
+ukbd_apple_doswap_cmd_ctl(uint32_t keycode)
+{
+	switch (keycode) {
+	case 0xe3: return 0xe0; /* LCMD -> LCTL */
+	case 0xe7: return 0xe4; /* RCMD -> RCTL */
+	case 0xe0: return 0xe3; /* LCTL -> LCMD */
+	case 0xe4: return 0xe7; /* RCTL -> RCMD */
+	default: return keycode;
+	}
+}
+
+static uint32_t
+ukbd_apple_doswap_cmd_opt(uint32_t keycode)
+{
+	switch (keycode) {
+	case 0xe3: return 0xe2; /* LCMD -> ROPT */
+	case 0xe7: return 0xe6; /* RCMD -> ROPT */
+	case 0xe2: return 0xe3; /* LOPT -> LCMD */
+	case 0xe6: return 0xe7; /* ROPT -> RCMD */
+	default: return keycode;
+	}
+}
+
+static uint32_t
 ukbd_apple_swap(uint32_t keycode)
 {
 	switch (keycode) {
@@ -839,6 +869,10 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 						key = ukbd_apple_fn(key);
 					if (apply_apple_fn_media)
 						key = ukbd_apple_fn_media(key);
+					if (ukbd_apple_swap_cmd_ctl)
+						key = ukbd_apple_doswap_cmd_ctl(key);
+					if (ukbd_apple_swap_cmd_opt)
+						key = ukbd_apple_doswap_cmd_opt(key);
 					if (sc->sc_flags & UKBD_FLAG_APPLE_SWAP)
 						key = ukbd_apple_swap(key);
 					if (key == KEY_NONE || key >= UKBD_NKEYCODE)
@@ -853,6 +887,10 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					key = ukbd_apple_fn(key);
 				if (apply_apple_fn_media)
 					key = ukbd_apple_fn_media(key);
+				if (ukbd_apple_swap_cmd_ctl)
+					key = ukbd_apple_doswap_cmd_ctl(key);
+				if (ukbd_apple_swap_cmd_opt)
+					key = ukbd_apple_doswap_cmd_opt(key);
 				if (sc->sc_flags & UKBD_FLAG_APPLE_SWAP)
 					key = ukbd_apple_swap(key);
 				if (key == KEY_NONE || key == KEY_ERROR || key >= UKBD_NKEYCODE)

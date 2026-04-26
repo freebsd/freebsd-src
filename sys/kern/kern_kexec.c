@@ -342,6 +342,9 @@ sys_kexec_load(struct thread *td, struct kexec_load_args *uap)
 {
 	int error;
 
+	error = securelevel_gt(td->td_ucred, 0);
+	if (error != 0)
+		return (error);
 	// FIXME: Do w need a better privilege check than PRIV_REBOOT here?
 	error = priv_check(td, PRIV_REBOOT);
 	if (error != 0)

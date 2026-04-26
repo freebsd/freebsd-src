@@ -1,0 +1,6 @@
+.include(try=false) "${SRCDIR}/common.ucl"
+
+scripts: {
+	post-install = "/usr/sbin/certctl -D${PKG_ROOTDIR}/ ${PKG_METALOG:+-U -M $PKG_METALOG} rehash"
+	post-deinstall = "/usr/sbin/certctl -D${PKG_ROOTDIR}/ ${PKG_METALOG:+-U -M $PKG_METALOG} rehash"
+}

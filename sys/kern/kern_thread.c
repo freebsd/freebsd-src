@@ -466,7 +466,7 @@ thread_init(void *mem, int size, int flags)
 	td->td_turnstile = turnstile_alloc();
 	EVENTHANDLER_DIRECT_INVOKE(thread_init, td);
 	umtx_thread_init(td);
-	td->td_kstack = 0;
+	td->td_kstack = NULL;
 	td->td_sel = NULL;
 	return (0);
 }
@@ -791,7 +791,7 @@ thread_alloc(int pages)
 
 	tid = tid_alloc();
 	td = uma_zalloc(thread_zone, M_WAITOK);
-	KASSERT(td->td_kstack == 0, ("thread_alloc got thread with kstack"));
+	KASSERT(td->td_kstack == NULL, ("thread_alloc got thread with kstack"));
 	if (!vm_thread_new(td, pages)) {
 		uma_zfree(thread_zone, td);
 		tid_free(tid);
@@ -810,8 +810,8 @@ thread_alloc(int pages)
 int
 thread_recycle(struct thread *td, int pages)
 {
-	if (td->td_kstack == 0 || td->td_kstack_pages != pages) {
-		if (td->td_kstack != 0)
+	if (td->td_kstack == NULL || td->td_kstack_pages != pages) {
+		if (td->td_kstack != NULL)
 			vm_thread_dispose(td);
 		if (!vm_thread_new(td, pages))
 			return (ENOMEM);
@@ -834,7 +834,7 @@ thread_free_batched(struct thread *td)
 		cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
 	cpu_thread_free(td);
-	if (td->td_kstack != 0)
+	if (td->td_kstack != NULL)
 		vm_thread_dispose(td);
 	callout_drain(&td->td_slpcallout);
 	/*

@@ -1,0 +1,5 @@
+Build the pkgconf binaries,
+.Xr pkgconf 1 ,
+and
+.Xr bomtool 1 ,
+and libpkgconf library (private).

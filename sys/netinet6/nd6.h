@@ -287,7 +287,7 @@ VNET_DECLARE(int, ip6_temp_regen_advance); /* seconds */
 #define	V_ip6_temp_regen_advance	VNET(ip6_temp_regen_advance)
 
 union nd_opts {
-	struct nd_opt_hdr *nd_opt_array[16];	/* max = ND_OPT_NONCE */
+	struct nd_opt_hdr *nd_opt_array[24];	/* max = ND_OPT_ROUTE_INFO */
 	struct {
 		struct nd_opt_hdr *zero;
 		struct nd_opt_hdr *src_lladdr;
@@ -305,10 +305,20 @@ union nd_opts {
 		struct nd_opt_hdr *__res13;
 		struct nd_opt_nonce *nonce;
 		struct nd_opt_hdr *__res15;
+		struct nd_opt_hdr *__res16;
+		struct nd_opt_hdr *__res17;
+		struct nd_opt_hdr *__res18;
+		struct nd_opt_hdr *__res19;
+		struct nd_opt_hdr *__res20;
+		struct nd_opt_hdr *__res21;
+		struct nd_opt_hdr *__res22;
+		struct nd_opt_hdr *__res23;
+		struct nd_opt_route_info *rti_beg;
 		struct nd_opt_hdr *search;	/* multiple opts */
 		struct nd_opt_hdr *last;	/* multiple opts */
 		int done;
 		struct nd_opt_prefix_info *pi_end;/* multiple opts, end */
+		struct nd_opt_route_info *rti_end;/* multiple opts, end */
 	} nd_opt_each;
 };
 #define nd_opts_src_lladdr	nd_opt_each.src_lladdr
@@ -318,6 +328,8 @@ union nd_opts {
 #define nd_opts_rh		nd_opt_each.rh
 #define nd_opts_mtu		nd_opt_each.mtu
 #define nd_opts_nonce		nd_opt_each.nonce
+#define nd_opts_rti		nd_opt_each.rti_beg
+#define nd_opts_rti_end		nd_opt_each.rti_end
 #define nd_opts_search		nd_opt_each.search
 #define nd_opts_last		nd_opt_each.last
 #define nd_opts_done		nd_opt_each.done
@@ -390,8 +402,7 @@ void nd6_defrouter_flush_all(void);
 void nd6_defrouter_purge(struct ifnet *);
 void nd6_defrouter_timer(void);
 void nd6_defrouter_init(void);
-int nd6_prelist_add(struct nd_prefixctl *, struct nd_defrouter *,
-    struct nd_prefix **);
+int nd6_prelist_add(struct nd_prefixctl *, struct nd_prefix **);
 void nd6_prefix_unlink(struct nd_prefix *, struct nd_prhead *);
 void nd6_prefix_del(struct nd_prefix *);
 void nd6_prefix_ref(struct nd_prefix *);

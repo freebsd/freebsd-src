@@ -1,0 +1,10 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+cflags=-I${includedir}
+
+Name: flag order 1
+Description: test for flag ordering
+Version: 1
+Libs: -L${libdir} -Bdynamic -lfoo -Bstatic -lbar

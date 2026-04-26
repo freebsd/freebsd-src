@@ -31,6 +31,7 @@
 
 #include <sys/ctype.h>
 
+#include <linux/array_size.h>
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
@@ -88,6 +89,17 @@ memdup_user_nul(const void *ptr, size_t len)
 }
 
 static inline void *
+memdup_array_user(const void *src, size_t n, size_t size)
+{
+	size_t len;
+
+	if (check_mul_overflow(n, size, &len))
+		return (ERR_PTR(-EOVERFLOW));
+
+	return (memdup_user(src, len));
+}
+
+static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)
 {
 	void *dst;
@@ -96,6 +108,12 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 	if (dst != NULL)
 		memcpy(dst, src, len);
 	return (dst);
+}
+
+static inline void *
+kmemdup_array(const void *src, size_t count, size_t element_size, gfp_t gfp)
+{
+	return (kmemdup(src, size_mul(count, element_size), gfp));
 }
 
 /* See slab.h for kvmalloc/kvfree(). */
@@ -196,6 +214,12 @@ memchr_inv(const void *start, int c, size_t length)
 		ptr++;
 	}
 	return (NULL);
+}
+
+static inline bool
+mem_is_zero(const void *start, size_t length)
+{
+	return (memchr_inv(start, 0, length) == NULL);
 }
 
 static inline size_t

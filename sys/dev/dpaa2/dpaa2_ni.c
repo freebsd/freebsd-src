@@ -1,8 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2023 Dmitry Salychev
- * Copyright © 2022 Mathew McBride
+ * Copyright (c) 2021-2026 Dmitry Salychev
+ * Copyright (c) 2022 Mathew McBride
+ * Copyright (c) 2026 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,6 +57,7 @@
 #include <sys/buf_ring.h>
 #include <sys/smp.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -360,19 +362,43 @@ static struct dpni_stat {
 	int	 cnt;
 	char	*name;
 	char	*desc;
-} dpni_stat_sysctls[DPAA2_NI_STAT_SYSCTLS] = {
+} dpni_stat_sysctls[] = {
 	/* PAGE, COUNTER, NAME, DESCRIPTION */
-	{  0, 0, "in_all_frames",	"All accepted ingress frames" },
-	{  0, 1, "in_all_bytes",	"Bytes in all accepted ingress frames" },
-	{  0, 2, "in_multi_frames",	"Multicast accepted ingress frames" },
-	{  1, 0, "eg_all_frames",	"All egress frames transmitted" },
-	{  1, 1, "eg_all_bytes",	"Bytes in all frames transmitted" },
-	{  1, 2, "eg_multi_frames",	"Multicast egress frames transmitted" },
-	{  2, 0, "in_filtered_frames",	"All ingress frames discarded due to "
-	   				"filtering" },
-	{  2, 1, "in_discarded_frames",	"All frames discarded due to errors" },
-	{  2, 2, "in_nobuf_discards",	"Discards on ingress side due to buffer "
-	   				"depletion in DPNI buffer pools" },
+	{ 0, 0, "in_all_frames",	"All accepted ingress frames" },
+	{ 0, 1, "in_all_bytes",		"Bytes in all accepted ingress frames" },
+	{ 0, 2, "in_mc_frames",		"Multicast accepted ingress frames" },
+	{ 0, 3, "in_mc_bytes",		"Bytes in received multicast frames" },
+	{ 0, 4, "in_bc_frames",		"Broadcast accepted ingress frames" },
+	{ 0, 5, "in_bc_bytes",		"Bytes in broadcast multicast frames" },
+
+	{ 1, 0, "eg_all_frames",	"All egress frames transmitted" },
+	{ 1, 1, "eg_all_bytes",		"Bytes in all frames transmitted" },
+	{ 1, 2, "eg_mc_frames",		"Multicast egress frames transmitted" },
+	{ 1, 3, "eg_mc_bytes",		"Bytes in transmitted multicast frame" },
+	{ 1, 4, "eg_bc_frames",		"Broadcast egress frames transmitted" },
+	{ 1, 5, "eg_bc_bytes",		"Bytes in broadcast multicast frames" },
+
+	{ 2, 0, "in_filtered_frames",	"All ingress frames discarded due to filtering" },
+	{ 2, 1, "in_discarded_frames",	"All frames discarded due to errors" },
+	{ 2, 2, "in_nobuf_discards",	"Discards on ingress side due to buffer depletion in DPNI buffer pools" },
+	{ 2, 3, "eg_frames_disc",	"Frames discarded on transmit due to DPNI configuration and/or frame state" },
+	{ 2, 4, "eg_frames_tx",		"Frames that have been confirmed after transmission" },
+
+	/* XXX FIXME Page 3/4 can take a param as well not encoded here. */
+	/* XXX 3/0 and 3/1 have the same description in the manual?  Where's the difference? */
+	{ 3, 0, "bytes_dequeued",	"Cumulative count of the number of bytes dequeued" },
+	{ 3, 1, "frames_dequeued",	"Cumulative count of the number of frames dequeued" },
+	{ 3, 2, "bytes_enqueued_rej",	"Cumulative count of the number of bytes in all frames whose enqueue was rejected." },
+	{ 3, 3, "frames_enqueued_rej",	"Cumulative count of all frame enqueues rejected." },
+
+	{ 4, 0, "fames_rej_tc",		"Rejected frames in associated congestion point (valid if this TC has an associated congestion point)" },
+	{ 4, 1, "bytes_rej_tc",		"Rejected bytes in associated congestion point (valid if this TC has an associated congestion point)" },
+
+	{ 5, 0, "pol_red",		"Policer RED packet counter. 32bit value valid only when policer is enabled." },
+	{ 5, 1, "pol_yel",		"Policer YELLOW packet counter. 32bit value valid only when policer is enabled." },
+	{ 5, 2, "pol_gre",		"Policer GREEN packet counter. 32bit value valid only when policer is enabled." },
+	{ 5, 3, "pol_re_red",		"Policer recolored RED packet counter. 32bit value valid only when policer is enabled." },
+	{ 5, 4, "pol_re_yel",		"Policer recolored YELLOW packet counter. 32bit value valid only when policer is enabled." },
 };
 
 struct dpaa2_ni_rx_ctx {
@@ -415,6 +441,7 @@ static int dpaa2_ni_set_dist_key(device_t, enum dpaa2_ni_dist_mode, uint64_t);
 /* Various subroutines */
 static int dpaa2_ni_cmp_api_version(struct dpaa2_ni_softc *, uint16_t, uint16_t);
 static int dpaa2_ni_prepare_key_cfg(struct dpkg_profile_cfg *, uint8_t *);
+static int dpaa2_ni_update_csum_flags(struct dpaa2_fd *, struct mbuf *);
 
 /* Network interface routines */
 static void dpaa2_ni_init(void *);
@@ -454,6 +481,7 @@ static int dpaa2_ni_tx_conf(struct dpaa2_channel *, struct dpaa2_ni_fq *,
 static int dpaa2_ni_collect_stats(SYSCTL_HANDLER_ARGS);
 static int dpaa2_ni_collect_buf_num(SYSCTL_HANDLER_ARGS);
 static int dpaa2_ni_collect_buf_free(SYSCTL_HANDLER_ARGS);
+static int dpaa2_ni_sysctl_link_state(SYSCTL_HANDLER_ARGS);
 
 static int
 dpaa2_ni_probe(device_t dev)
@@ -494,6 +522,7 @@ dpaa2_ni_attach(device_t dev)
 	sc->rx_sg_buf_frames = 0;
 	sc->rx_enq_rej_frames = 0;
 	sc->rx_ieoi_err_frames = 0;
+	sc->rx_other_err_frames = 0;
 	sc->tx_single_buf_frames = 0;
 	sc->tx_sg_frames = 0;
 
@@ -1721,7 +1750,7 @@ dpaa2_ni_setup_sysctls(struct dpaa2_ni_softc *sc)
 	node = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "stats",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "DPNI Statistics");
 	parent = SYSCTL_CHILDREN(node);
-	for (i = 0; i < DPAA2_NI_STAT_SYSCTLS; ++i) {
+	for (i = 0; i < nitems(dpni_stat_sysctls); ++i) {
 		SYSCTL_ADD_PROC(ctx, parent, i, dpni_stat_sysctls[i].name,
 		    CTLTYPE_U64 | CTLFLAG_RD, sc, 0, dpaa2_ni_collect_stats,
 		    "IU", dpni_stat_sysctls[i].desc);
@@ -1741,6 +1770,9 @@ dpaa2_ni_setup_sysctls(struct dpaa2_ni_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, parent, OID_AUTO, "rx_ieoi_err_frames",
 	    CTLFLAG_RD, &sc->rx_ieoi_err_frames,
 	    "QMan IEOI error");
+	SYSCTL_ADD_UQUAD(ctx, parent, OID_AUTO, "rx_other_err_frames",
+	    CTLFLAG_RD, &sc->rx_other_err_frames,
+	    "Other Rx frames with errors");
 	SYSCTL_ADD_UQUAD(ctx, parent, OID_AUTO, "tx_single_buf_frames",
 	    CTLFLAG_RD, &sc->tx_single_buf_frames,
 	    "Tx single buffer frames");
@@ -1755,9 +1787,8 @@ dpaa2_ni_setup_sysctls(struct dpaa2_ni_softc *sc)
 	    CTLTYPE_U32 | CTLFLAG_RD, sc, 0, dpaa2_ni_collect_buf_free,
 	    "IU", "number of free Rx buffers in the buffer pool");
 
- 	parent = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
-
 	/* Add channels statistics. */
+	parent = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 	node = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "channels",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "DPNI Channels");
 	parent = SYSCTL_CHILDREN(node);
@@ -1775,6 +1806,13 @@ dpaa2_ni_setup_sysctls(struct dpaa2_ni_softc *sc)
 		    CTLFLAG_RD, &sc->channels[i]->tx_dropped,
 		    "Tx dropped counter");
 	}
+
+	/* Add Link debugging options. */
+	parent = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
+	node = SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "link",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    sc, 0, dpaa2_ni_sysctl_link_state,
+	    "A", "DPNI link state information");
 
 	return (0);
 }
@@ -3124,6 +3162,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	bus_addr_t released[DPAA2_SWP_BUFS_PER_CMD];
 	void *buf_data;
 	int buf_len, error, released_n = 0;
+	bool update_csum_flags;
 
 	error = dpaa2_fa_get_swa(fd, &swa);
 	if (__predict_false(error != 0))
@@ -3134,6 +3173,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	buf = swa->buf;
 	bch = (struct dpaa2_channel *)buf->opt;
 	sc = device_get_softc(bch->ni_dev);
+	update_csum_flags = true;
 
 	KASSERT(swa->magic == DPAA2_MAGIC, ("%s: wrong magic", __func__));
 	/*
@@ -3148,6 +3188,14 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	}
 
 	switch (dpaa2_fd_err(fd)) {
+	case 0:
+		/*
+		 * FD[ERR] = 0 value is reserved to indicate that there is no
+		 * error encoded in this field. See 3.4.5 Error handling,
+		 * LX2160A DPAA2 Low-Level Hardware Reference Manual, Rev. 0,
+		 * 06/2020.
+		 */
+		break;
 	case 1: /* Enqueue rejected by QMan */
 		sc->rx_enq_rej_frames++;
 		break;
@@ -3155,8 +3203,10 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 		sc->rx_ieoi_err_frames++;
 		break;
 	default:
+		sc->rx_other_err_frames++;
 		break;
 	}
+
 	switch (dpaa2_fd_format(fd)) {
 	case DPAA2_FD_SINGLE:
 		sc->rx_single_buf_frames++;
@@ -3165,6 +3215,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 		sc->rx_sg_buf_frames++;
 		break;
 	default:
+		update_csum_flags = false;
 		break;
 	}
 
@@ -3196,6 +3247,14 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	m->m_pkthdr.flowid = fq->fqid;
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
+
+	if (update_csum_flags && ((if_getcapenable(sc->ifp) & (IFCAP_RXCSUM |
+	    IFCAP_RXCSUM_IPV6)) != 0)) {
+		error = dpaa2_ni_update_csum_flags(fd, m);
+		if (error != 0)
+			device_printf(sc->dev, "%s: failed to update checksum "
+			    "flags: error=%d\n", __func__, error);
+	}
 
 	if (ctx->head == NULL) {
 		KASSERT(ctx->tail == NULL, ("%s: tail already given?", __func__));
@@ -3399,7 +3458,7 @@ dpaa2_ni_collect_stats(SYSCTL_HANDLER_ARGS)
 	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_cmd cmd;
-	uint64_t cnt[DPAA2_NI_STAT_COUNTERS];
+	uint64_t cnt[DPAA2_NI_STAT_COUNTERS_PER_PAGE];
 	uint64_t result = 0;
 	uint16_t rc_token, ni_token;
 	int error;
@@ -3429,6 +3488,71 @@ close_rc:
 	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 exit:
 	return (sysctl_handle_64(oidp, &result, 0, req));
+}
+
+static int
+dpaa2_ni_sysctl_link_state(SYSCTL_HANDLER_ARGS)
+{
+	struct dpaa2_ni_softc *sc;
+	struct dpaa2_devinfo *rcinfo;
+	struct dpaa2_devinfo *dinfo;
+	struct dpaa2_cmd cmd;
+	struct dpaa2_ni_link_state ls;
+	struct sbuf s;
+	int error;
+	uint16_t rc_token, ni_token;
+
+	if (req->newptr)
+		return (EPERM);
+
+	sc = (struct dpaa2_ni_softc *)arg1;
+
+	rcinfo = device_get_ivars(device_get_parent(sc->dev));
+	dinfo = device_get_ivars(sc->dev);
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(sc->dev, sc->dev, &cmd, rcinfo->id, &rc_token);
+	if (error != 0) {
+		device_printf(sc->dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(sc->dev, sc->dev, &cmd, dinfo->id, &ni_token);
+	if (error != 0) {
+		device_printf(sc->dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	error = DPAA2_CMD_NI_GET_LINK_STATE(sc->dev, sc->dev, &cmd, &ls);
+
+	(void)DPAA2_CMD_NI_CLOSE(sc->dev, sc->dev, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(sc->dev, sc->dev, DPAA2_CMD_TK(&cmd, rc_token));
+
+	if (error != 0)
+		goto exit;
+
+#define	NI_LINK_STATE_OPTIONS_BITS					\
+    "\20\1AUTONEG\2HDX\3PAUSE\4ASYM_PAUSE"
+
+	sbuf_new_for_sysctl(&s, NULL, 1024, req);
+	sbuf_putc(&s, '\n');
+	sbuf_printf(&s, "Link State: %s (%s)\n", ls.link_up ? "UP" : "DOWN",
+	    ls.state_valid ? "VALID" : "IGNORE");
+	sbuf_printf(&s, "Link Rate: %ju\n", (uintmax_t)ls.rate);
+	sbuf_printf(&s, "Link Options: %b\n",
+	    (int)ls.options, NI_LINK_STATE_OPTIONS_BITS);
+	sbuf_printf(&s, "Link Speed Capabilities: %#018jx\n",
+	    (uintmax_t)ls.sup_speeds);
+	sbuf_printf(&s, "Link Speed Advertised for autoneg: %#018jx\n",
+	    (uintmax_t)ls.adv_speeds);
+	sbuf_finish(&s);
+	sbuf_delete(&s);
+
+exit:
+	return (error);
 }
 
 static int
@@ -3636,6 +3760,51 @@ dpaa2_ni_prepare_key_cfg(struct dpkg_profile_cfg *cfg, uint8_t *key_cfg_buf)
 	}
 
 	return (0);
+}
+
+static int
+dpaa2_ni_update_csum_flags(struct dpaa2_fd *fd, struct mbuf *m)
+{
+	struct dpaa2_hwa_fas fas;
+	uint32_t status;
+	int rc;
+
+	if (__predict_false((dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV)) == 0u)
+		return (EINVAL);
+
+	/*
+	 * XXX-DSL: Frame context of the frame descriptor (FD[FRC]) contains
+	 *          an Accelerator ID in the MSbits on some SoCs (e.g. LS1088A),
+	 *          but a frame ParseSummary on the others (e.g. LX2160A).
+	 *          However, frame annotation valid bits seem to be at the
+	 *          same offsets. This is the reason why different accelerators
+	 *          are treated the same here. It isn't clear whether this is
+	 *          a hardware limitation of the SoCs, version of the firmware
+	 *          or DPL configuration.
+	 */
+
+	rc = dpaa2_fa_get_fas(fd, &fas);
+	if (rc != 0)
+		return (rc);
+
+	status = le32toh(fas.status);
+	rc = 0;
+
+	/* L3 */
+	if ((status & DPAA2_FAS_L3CV) != 0) {
+		m->m_pkthdr.csum_flags |= CSUM_L3_CALC;
+		if ((status & DPAA2_FAS_L3CE) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_L3_VALID;
+	}
+	/* L4 */
+	if ((status & DPAA2_FAS_L4CV) != 0) {
+		m->m_pkthdr.csum_flags |= CSUM_L4_CALC;
+		m->m_pkthdr.csum_data = 0xffff;
+		if ((status & DPAA2_FAS_L4CE) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_L4_VALID;
+	}
+
+	return (rc);
 }
 
 static device_method_t dpaa2_ni_methods[] = {

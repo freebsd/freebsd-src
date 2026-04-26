@@ -1012,7 +1012,7 @@ nfsrv_createiovec_extpgs(int len, int maxextsiz, struct mbuf **mpp,
 			panic("nfsvno_createiovec_extpgs iov");
 		siz = min(PAGE_SIZE, left);
 		if (siz > 0) {
-			iv->iov_base = (void *)PHYS_TO_DMAP(m->m_epg_pa[pgno]);
+			iv->iov_base = PHYS_TO_DMAP(m->m_epg_pa[pgno]);
 			iv->iov_len = siz;
 			m->m_len += siz;
 			if (pgno == m->m_epg_npgs - 1)
@@ -7358,7 +7358,7 @@ nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
 	if ((mb->m_flags & M_EXTPG) != 0) {
 		KASSERT(bextpg >= 0 && bextpg < mb->m_epg_npgs,
 		    ("nfsm_trimtrailing: bextpg out of range"));
-		KASSERT(bpos == (char *)(void *)
+		KASSERT(bpos == (char *)
 		    PHYS_TO_DMAP(mb->m_epg_pa[bextpg]) + PAGE_SIZE - bextpgsiz,
 		    ("nfsm_trimtrailing: bextpgsiz bad!"));
 

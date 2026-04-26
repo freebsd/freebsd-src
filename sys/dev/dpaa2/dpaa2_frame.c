@@ -1,7 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2026 Dmitry Salychev
+ * Copyright (c) 2026 Dmitry Salychev
+ * Copyright (c) 2026 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/endian.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -138,28 +140,102 @@ dpaa2_fd_offset(struct dpaa2_fd *fd)
 	return (fd->offset_fmt_sl & DPAA2_FD_OFFSET_MASK);
 }
 
+uint32_t
+dpaa2_fd_get_frc(struct dpaa2_fd *fd)
+{
+	/* TODO: Convert endiannes in the other functions as well. */
+	return (le32toh(fd->frame_ctx));
+}
+
+#ifdef _not_yet_
+void
+dpaa2_fd_set_frc(struct dpaa2_fd *fd, uint32_t frc)
+{
+	/* TODO: Convert endiannes in the other functions as well. */
+	fd->frame_ctx = htole32(frc);
+}
+#endif
+
 int
 dpaa2_fa_get_swa(struct dpaa2_fd *fd, struct dpaa2_swa **swa)
 {
-	int rc;
-
-	if (fd == NULL || swa == NULL)
+	if (__predict_false(fd == NULL || swa == NULL))
 		return (EINVAL);
 
-	if (((fd->ctrl >> DPAA2_FD_PTAC_SHIFT) & DPAA2_FD_PTAC_MASK) >= 0x4u) {
-		*swa = (struct dpaa2_swa *)PHYS_TO_DMAP((bus_addr_t)fd->addr);
-		rc = 0;
-	} else {
+	if (((fd->ctrl >> DPAA2_FD_PTAC_SHIFT) & DPAA2_FD_PTAC_PTA_MASK) == 0u) {
 		*swa = NULL;
-		rc = ENOENT;
+		return (ENOENT);
 	}
 
-	return (rc);
+	*swa = (struct dpaa2_swa *)PHYS_TO_DMAP((bus_addr_t)fd->addr);
+
+	return (0);
 }
 
 int
 dpaa2_fa_get_hwa(struct dpaa2_fd *fd, struct dpaa2_hwa **hwa)
 {
-	/* TODO: To be implemented next. */
-	return (ENOENT);
+	uint8_t *buf;
+	uint32_t hwo; /* HW annotation offset */
+
+	if (__predict_false(fd == NULL || hwa == NULL))
+		return (EINVAL);
+
+	/*
+	 * As soon as the ASAL is in the 64-byte units, we don't need to
+	 * calculate the exact length, but make sure that it isn't 0.
+	 */
+	if (((fd->ctrl >> DPAA2_FD_ASAL_SHIFT) & DPAA2_FD_ASAL_MASK) == 0u) {
+		*hwa = NULL;
+		return (ENOENT);
+	}
+
+	buf = (uint8_t *)PHYS_TO_DMAP((bus_addr_t)fd->addr);
+	hwo = ((fd->ctrl >> DPAA2_FD_PTAC_SHIFT) & DPAA2_FD_PTAC_PTA_MASK) > 0u
+	    ? DPAA2_FA_SWA_SIZE : 0u;
+	*hwa = (struct dpaa2_hwa *)(buf + hwo);
+
+	return (0);
 }
+
+int
+dpaa2_fa_get_fas(struct dpaa2_fd *fd, struct dpaa2_hwa_fas *fas)
+{
+	struct dpaa2_hwa *hwa;
+	struct dpaa2_hwa_fas *fasp;
+	int rc;
+
+	if (__predict_false(fd == NULL || fas == NULL))
+		return (EINVAL);
+
+	rc = dpaa2_fa_get_hwa(fd, &hwa);
+	if (__predict_false(rc != 0))
+		return (rc);
+
+	fasp = (struct dpaa2_hwa_fas *)&hwa->fas;
+	*fas = *fasp;
+
+	return (rc);
+}
+
+#ifdef _not_yet_
+int
+dpaa2_fa_set_fas(struct dpaa2_fd *fd, struct dpaa2_hwa_fas *fas)
+{
+	struct dpaa2_hwa *hwa;
+	uint64_t *valp;
+	int rc;
+
+	if (__predict_false(fd == NULL || fas == NULL))
+		return (EINVAL);
+
+	rc = dpaa2_fa_get_hwa(fd, &hwa);
+	if (__predict_false(rc != 0))
+		return (rc);
+
+	valp = (uint64_t *)fas;
+	hwa->fas = *valp;
+
+	return (rc);
+}
+#endif

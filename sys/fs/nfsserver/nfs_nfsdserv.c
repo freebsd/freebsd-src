@@ -862,7 +862,7 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_mb = mpend;
 		if ((mpend->m_flags & M_EXTPG) != 0) {
 			nd->nd_bextpg = mpend->m_epg_npgs - 1;
-			nd->nd_bpos = (char *)(void *)
+			nd->nd_bpos =
 			    PHYS_TO_DMAP(mpend->m_epg_pa[nd->nd_bextpg]);
 			off = (nd->nd_bextpg == 0) ? mpend->m_epg_1st_off : 0;
 			nd->nd_bpos += off + mpend->m_epg_last_len;
@@ -1068,8 +1068,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 		if ((m2->m_flags & M_EXTPG) != 0) {
 			nd->nd_flag |= ND_EXTPG;
 			nd->nd_bextpg = m2->m_epg_npgs - 1;
-			nd->nd_bpos = (char *)(void *)
-			    PHYS_TO_DMAP(m2->m_epg_pa[nd->nd_bextpg]);
+			nd->nd_bpos = PHYS_TO_DMAP(m2->m_epg_pa[nd->nd_bextpg]);
 			poff = (nd->nd_bextpg == 0) ? m2->m_epg_1st_off : 0;
 			nd->nd_bpos += poff + m2->m_epg_last_len;
 			nd->nd_bextpgsiz = PAGE_SIZE - m2->m_epg_last_len -
@@ -6431,7 +6430,7 @@ nfsrvd_getxattr(struct nfsrv_descript *nd, __unused int isdgram,
 			if ((mpend->m_flags & M_EXTPG) != 0) {
 				nd->nd_flag |= ND_EXTPG;
 				nd->nd_bextpg = mpend->m_epg_npgs - 1;
-				nd->nd_bpos = (char *)(void *)
+				nd->nd_bpos =
 				   PHYS_TO_DMAP(mpend->m_epg_pa[nd->nd_bextpg]);
 				off = (nd->nd_bextpg == 0) ?
 				    mpend->m_epg_1st_off : 0;

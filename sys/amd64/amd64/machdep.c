@@ -1132,7 +1132,7 @@ do_next:
 	phys_avail[pa_indx] -= round_page(msgbufsize);
 
 	/* Map the message buffer. */
-	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
+	msgbufp = PHYS_TO_DMAP(phys_avail[pa_indx]);
 	TSEXIT();
 }
 
@@ -1365,10 +1365,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* Init basic tunables, hz etc */
 	init_param1();
 
-	thread0.td_kstack = physfree - kernphys + KERNSTART;
+	thread0.td_kstack = (char *)physfree - kernphys + KERNSTART;
 	thread0.td_kstack_pages = kstack_pages;
 	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
-	bzero((void *)thread0.td_kstack, kstack0_sz);
+	bzero(thread0.td_kstack, kstack0_sz);
 	physfree += kstack0_sz;
 
 	/*
@@ -1584,7 +1584,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	fpuinit();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	rsp0 = thread0.td_md.md_stack_base;
+	rsp0 = (uintptr_t)thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 = STACKALIGN(rsp0);
 	PCPU_PTR(common_tss)->tss_rsp0 = rsp0;
@@ -1621,7 +1621,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	TSEXIT();
 
 	/* Location of kernel stack for locore */
-	return (thread0.td_md.md_stack_base);
+	return ((uintptr_t)thread0.td_md.md_stack_base);
 }
 
 void

@@ -200,12 +200,13 @@ acpi_spmc_probe(device_t dev)
 	}
 
 	handle = acpi_get_handle(dev);
-	if (handle == NULL)
-		return (ENXIO);
+	/* ACPI_ID_PROBE() above cannot succeed without a handle. */
+	MPASS(handle != NULL);
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 
-	/* Check which sets of DSM's are supported. */
+	/* Check which sets of DSMs are supported. */
 	sc->dsm_sets = 0;
 
 	acpi_spmc_check_dsm_set(sc, handle, &intel_dsm_set);
@@ -225,8 +226,6 @@ static int
 acpi_spmc_attach(device_t dev)
 {
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
-
-	sc->dev = dev;
 
 	sc->handle = acpi_get_handle(dev);
 	if (sc->handle == NULL)
@@ -286,7 +285,7 @@ acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
 
 	if ((dsms_supported & ~max_dsms) != 0)
 		device_printf(sc->dev, "DSM set %s supports more DSMs than "
-		    "expected (%#" PRIx64 " vs %#" PRIx64 ").", dsm_set->name,
+		    "expected (%#" PRIx64 " vs %#" PRIx64 ").\n", dsm_set->name,
 		    dsms_supported, max_dsms);
 }
 

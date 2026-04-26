@@ -513,6 +513,14 @@ nd6_options(union nd_opts *ndopts)
 			ndopts->nd_opts_pi_end =
 				(struct nd_opt_prefix_info *)nd_opt;
 			break;
+		case ND_OPT_ROUTE_INFO:
+			if (ndopts->nd_opt_array[nd_opt->nd_opt_type] == 0) {
+				ndopts->nd_opt_array[nd_opt->nd_opt_type]
+					= nd_opt;
+			}
+			ndopts->nd_opts_rti_end =
+				(struct nd_opt_route_info *)nd_opt;
+			break;
 		/* What about ND_OPT_ROUTE_INFO? RFC 4191 */
 		case ND_OPT_RDNSS:	/* RFC 6106 */
 		case ND_OPT_DNSSL:	/* RFC 6106 */

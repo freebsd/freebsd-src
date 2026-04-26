@@ -344,8 +344,7 @@ acpi_alloc_wakeup_handler(void **wakeaddr,
 
 	for (i = 0; i < ACPI_WAKEPT_PAGES - (la57 ? 0 : 1); i++) {
 		wakept_m[i] = pmap_page_alloc_below_4g(true);
-		wakept_pages[i] = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
-		    wakept_m[i]));
+		wakept_pages[i] = VM_PAGE_TO_DMAP(wakept_m[i]);
 	}
 	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
 	    EVENTHANDLER_PRI_LAST) == NULL) {

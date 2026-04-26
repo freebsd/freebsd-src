@@ -59,6 +59,8 @@
 #include "ctld.hh"
 #include "isns.hh"
 
+static freebsd::pidfile pidfile;
+
 bool proxy_mode = false;
 
 static volatile bool sighup_received = false;
@@ -125,34 +127,19 @@ conf::set_pidfile_path(std::string_view path)
 	return (true);
 }
 
-void
-conf::open_pidfile()
+static void
+open_pidfile(const char *path)
 {
-	const char *path;
 	pid_t otherpid;
 
-	assert(!conf_pidfile_path.empty());
-	path = conf_pidfile_path.c_str();
 	log_debugx("opening pidfile %s", path);
-	conf_pidfile = pidfile_open(path, 0600, &otherpid);
-	if (!conf_pidfile) {
+	pidfile = pidfile_open(path, 0600, &otherpid);
+	if (!pidfile) {
 		if (errno == EEXIST)
 			log_errx(1, "daemon already running, pid: %jd.",
 			    (intmax_t)otherpid);
 		log_err(1, "cannot open or create pidfile \"%s\"", path);
 	}
-}
-
-void
-conf::write_pidfile()
-{
-	conf_pidfile.write();
-}
-
-void
-conf::close_pidfile()
-{
-	conf_pidfile.close();
 }
 
 #ifdef ICL_KERNEL_PROXY
@@ -1082,9 +1069,9 @@ kports::has_port(std::string_view name)
 }
 
 struct pport *
-kports::find_port(std::string_view name)
+kports::find_port(const std::string &name)
 {
-	auto it = pports.find(std::string(name));
+	auto it = pports.find(name);
 	if (it == pports.end())
 		return (nullptr);
 	return (&it->second);
@@ -1383,14 +1370,16 @@ target::set_auth_type(const char *type)
 }
 
 bool
-target::set_physical_port(std::string_view pport)
+target::add_physical_port(std::string_view pport)
 {
-	if (!t_pport.empty()) {
-		log_warnx("cannot set multiple physical ports for target "
-		    "\"%s\"", name());
-		return (false);
+	for (const auto &s : t_pports) {
+		if (s == pport) {
+			log_warnx("duplicate physical port \"%s\" for target "
+			    "\"%s\"", s.c_str(), name());
+			return (false);
+		}
 	}
-	t_pport = pport;
+	t_pports.emplace_back(pport);
 	return (true);
 }
 
@@ -1459,7 +1448,7 @@ target::verify()
 		t_auth_group = t_conf->find_auth_group("default");
 		assert(t_auth_group != nullptr);
 	}
-	if (t_ports.empty()) {
+	if (t_ports.empty() && t_pports.empty()) {
 		struct portal_group *pg = default_portal_group();
 		assert(pg != NULL);
 		t_conf->add_port(this, pg, nullptr);
@@ -1970,12 +1959,10 @@ conf::apply(struct conf *oldconf)
 	}
 
 	/*
-	 * On startup, oldconf created via conf_new_from_kernel will
-	 * not contain a valid pidfile_path, and the current
-	 * conf_pidfile will already own the pidfile.  On shutdown,
-	 * the temporary newconf will not contain a valid
-	 * pidfile_path, and the pidfile will be cleaned up when the
-	 * oldconf is deleted.
+	 * Rename the pidfile if the pathname changes.  On startup,
+	 * oldconf created via conf_new_from_kernel will not contain a
+	 * valid pidfile_path.  On shutdown, the temporary newconf
+	 * will not contain a valid pidfile_path.
 	 */
 	if (!oldconf->conf_pidfile_path.empty() &&
 	    !conf_pidfile_path.empty()) {
@@ -1990,7 +1977,6 @@ conf::apply(struct conf *oldconf)
 				    conf_pidfile_path.c_str());
 			}
 		}
-		conf_pidfile = std::move(oldconf->conf_pidfile);
 	}
 
 	/*
@@ -2293,18 +2279,17 @@ start_timer(int timeout, bool fatal)
 		log_err(1, "setitimer");
 }
 
-static int
+static void
 wait_for_children(bool block)
 {
 	pid_t pid;
 	int status;
-	int num = 0;
 
-	for (;;) {
-		/*
-		 * If "block" is true, wait for at least one process.
-		 */
-		if (block && num == 0)
+	/*
+	 * If "block" is true, wait for at least one process.
+	 */
+	while (nchildren > 0) {
+		if (block)
 			pid = wait4(-1, &status, 0, NULL);
 		else
 			pid = wait4(-1, &status, WNOHANG, NULL);
@@ -2319,10 +2304,10 @@ wait_for_children(bool block)
 		} else {
 			log_debugx("child process %d terminated gracefully", pid);
 		}
-		num++;
-	}
+		nchildren--;
 
-	return (num);
+		block = false;
+	}
 }
 
 static void
@@ -2341,15 +2326,13 @@ handle_connection(struct portal *portal, freebsd::fd_up fd,
 	if (dont_fork) {
 		log_debugx("incoming connection; not forking due to -d flag");
 	} else {
-		nchildren -= wait_for_children(false);
-		assert(nchildren >= 0);
+		wait_for_children(false);
 
 		while (conf->maxproc() > 0 && nchildren >= conf->maxproc()) {
 			log_debugx("maxproc limit of %d child processes hit; "
 			    "waiting for child process to exit",
 			    conf->maxproc());
-			nchildren -= wait_for_children(true);
-			assert(nchildren >= 0);
+			wait_for_children(true);
 		}
 		log_debugx("incoming connection; forking child process #%d",
 		    nchildren);
@@ -2359,7 +2342,7 @@ handle_connection(struct portal *portal, freebsd::fd_up fd,
 			log_err(1, "fork");
 		if (pid > 0)
 			return;
-		conf->close_pidfile();
+		pidfile.close();
 	}
 
 	error = getnameinfo(client_sa, client_sa->sa_len,
@@ -2418,7 +2401,7 @@ main_loop(bool dont_fork)
 			error = kevent(kqfd, NULL, 0, &kev, 1, NULL);
 			if (error == -1) {
 				if (errno == EINTR)
-					continue;
+					return;
 				log_err(1, "kevent");
 			}
 
@@ -2619,36 +2602,36 @@ conf::add_pports(struct kports &kports)
 	for (auto &kv : conf_targets) {
 		struct target *targ = kv.second.get();
 
-		if (!targ->has_pport())
-			continue;
+		for (const auto &pport : targ->pports()) {
+			ret = sscanf(pport.c_str(), "ioctl/%d/%d", &i_pp,
+			    &i_vp);
+			if (ret > 0) {
+				if (!add_port(kports, targ, i_pp, i_vp)) {
+					log_warnx("can't create new ioctl port "
+					    "for %s", targ->label());
+					return (false);
+				}
 
-		ret = sscanf(targ->pport(), "ioctl/%d/%d", &i_pp, &i_vp);
-		if (ret > 0) {
-			if (!add_port(kports, targ, i_pp, i_vp)) {
-				log_warnx("can't create new ioctl port "
-				    "for %s", targ->label());
-				return (false);
+				continue;
 			}
 
-			continue;
-		}
-
-		pp = kports.find_port(targ->pport());
-		if (pp == NULL) {
-			log_warnx("unknown port \"%s\" for %s",
-			    targ->pport(), targ->label());
-			return (false);
-		}
-		if (pp->linked()) {
-			log_warnx("can't link port \"%s\" to %s, "
-			    "port already linked to some target",
-			    targ->pport(), targ->label());
-			return (false);
-		}
-		if (!add_port(targ, pp)) {
-			log_warnx("can't link port \"%s\" to %s",
-			    targ->pport(), targ->label());
-			return (false);
+			pp = kports.find_port(pport);
+			if (pp == NULL) {
+				log_warnx("unknown port \"%s\" for %s",
+				    pport.c_str(), targ->label());
+				return (false);
+			}
+			if (pp->linked()) {
+				log_warnx("can't link port \"%s\" to %s, "
+				    "port already linked to some target",
+				    pport.c_str(), targ->label());
+				return (false);
+			}
+			if (!add_port(targ, pp)) {
+				log_warnx("can't link port \"%s\" to %s",
+				    pport.c_str(), targ->label());
+				return (false);
+			}
 		}
 	}
 	return (true);
@@ -2706,7 +2689,7 @@ main(int argc, char **argv)
 	if (test_config)
 		return (0);
 
-	newconf->open_pidfile();
+	open_pidfile(newconf->pidfile_path());
 
 	register_signals();
 
@@ -2740,7 +2723,7 @@ main(int argc, char **argv)
 
 	oldconf.reset();
 
-	newconf->write_pidfile();
+	pidfile.write();
 
 	newconf->isns_schedule_update();
 
@@ -2789,8 +2772,7 @@ main(int argc, char **argv)
 			log_warnx("exiting on signal");
 			return (0);
 		} else {
-			nchildren -= wait_for_children(false);
-			assert(nchildren >= 0);
+			wait_for_children(false);
 			if (timed_out()) {
 				newconf->isns_update();
 			}

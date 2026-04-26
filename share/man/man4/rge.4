@@ -152,6 +152,15 @@ Maximum number of RX packets to process per interrupt.
 The default value is 16.
 Increasing this value may improve throughput on high-speed links at the
 cost of increased interrupt latency.
+.It Va dev.rge.%d.disable_aspm
+Disable PCIe Active State Power Management (ASPM) and Extended
+Configuration Power Management (ECPM).
+The default value is 0 (leave ASPM enabled).
+Setting this to 1 reduces latency at the cost of increased power
+consumption.
+This tunable can only be set in
+.Xr loader.conf 5
+and requires a reboot to take effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

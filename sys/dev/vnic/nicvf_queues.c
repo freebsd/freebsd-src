@@ -116,7 +116,8 @@ struct rbuf_info {
 	struct mbuf *	mbuf;
 };
 
-#define GET_RBUF_INFO(x) ((struct rbuf_info *)((x) - NICVF_RCV_BUF_ALIGN_BYTES))
+#define GET_RBUF_INFO(x)						\
+	((struct rbuf_info *)((char *)(x) - NICVF_RCV_BUF_ALIGN_BYTES))
 
 /* Poll a register for a specific value */
 static int nicvf_poll_reg(struct nicvf *nic, int qidx,

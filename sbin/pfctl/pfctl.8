@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 30, 2025
+.Dd April 20, 2026
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -110,6 +110,12 @@ The options are as follows:
 .It Fl A
 Load only the queue rules present in the rule file.
 Other rules and options are ignored.
+Can be combined with the
+.Fl N ,
+.Fl O ,
+and
+.Fl R
+flags to load multiple rule types without (re)loading all rules.
 .It Fl a Ar anchor
 Apply flags
 .Fl f ,
@@ -399,11 +405,23 @@ Allows single options to be modified without disturbing the others:
 .It Fl N
 Load only the NAT rules present in the rule file.
 Other rules and options are ignored.
+Can be combined with the
+.Fl A ,
+.Fl O ,
+and
+.Fl R
+flags to load multiple rule types without (re)loading all rules.
 .It Fl n
 Do not actually load rules, just parse them.
 .It Fl O
 Load only the options present in the rule file.
 Other rules and options are ignored.
+Can be combined with the
+.Fl A ,
+.Fl N ,
+and
+.Fl R
+flags to load multiple rule types without (re)loading all rules.
 .It Fl o Ar level
 Control the ruleset optimizer, overriding any rule file settings.
 .Pp
@@ -432,9 +450,15 @@ Only print errors and warnings.
 .It Fl R
 Load only the filter rules present in the rule file.
 Other rules and options are ignored.
+Can be combined with the
+.Fl A ,
+.Fl N ,
+and
+.Fl O
+flags to load multiple rule types without (re)loading all rules.
 .It Fl r
 Perform reverse DNS lookups on states and tables when displaying them.
-.Fl N
+.Fl S
 and
 .Fl r
 are mutually exclusive.

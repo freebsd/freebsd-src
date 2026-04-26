@@ -1021,12 +1021,15 @@ getconfig_free_prf64:
 		} else {
 			struct rdnss *rdn;
 			struct dnssl *dns;
+			struct rtinfo *rti;
 
 			rai_old->rai_lifetime = 0;
 			TAILQ_FOREACH(rdn, &rai_old->rai_rdnss, rd_next)
 			    rdn->rd_ltime = 0;
 			TAILQ_FOREACH(dns, &rai_old->rai_dnssl, dn_next)
 			    dns->dn_ltime = 0;
+			TAILQ_FOREACH(rti, &rai_old->rai_route, rti_next)
+			    rti->rti_ltime = 0;
 
 			ifi->ifi_rainfo_trans = rai_old;
 			ifi->ifi_state = IFI_STATE_TRANSITIVE;

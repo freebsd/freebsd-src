@@ -324,6 +324,8 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_TCP_MD5SIG	14
 #define	LINUX_TCP_USER_TIMEOUT	18
 
+#define	LINUX_ICMP6_FILTER	1
+
 struct l_ifmap {
 	l_ulong		mem_start;
 	l_ulong		mem_end;

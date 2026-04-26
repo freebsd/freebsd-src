@@ -26,6 +26,8 @@
                     ..
                 ..
             ..
+            pkgconf           tags=package=pkgconf-dev
+            ..
             samplerate        tags=package=sound-dev
             ..
             sqlite3           tags=package=libsqlite3-dev
@@ -40,7 +42,7 @@
     ..
     lib
         clang
-            19
+            21
                 include
                     cuda_wrappers
                         bits
@@ -343,8 +345,6 @@
             mdoc
             ..
             netgraph
-            ..
-            perfmon
             ..
             pf
             ..

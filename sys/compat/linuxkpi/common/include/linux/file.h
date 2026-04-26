@@ -184,6 +184,8 @@ static inline struct fd fdget(unsigned int fd)
 	return (struct fd){f};
 }
 
+#define	fd_file(fd)	((fd).linux_file)
+
 #define	file		linux_file
 #define	fget(...)	linux_fget(__VA_ARGS__)
 

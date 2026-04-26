@@ -682,3 +682,5 @@ outofnmi:
 #endif
 
 ENTRY(end_exceptions)
+
+	.section .note.GNU-stack,"",%progbits

@@ -707,7 +707,7 @@ x86bios_map_mem(void)
 #ifdef X86BIOS_NATIVE_ARCH
 	/* Change attribute for EBDA. */
 	if (x86bios_rom_phys < X86BIOS_ROM_BASE &&
-	    pmap_change_attr((vm_offset_t)x86bios_rom,
+	    pmap_change_attr(x86bios_rom,
 	    X86BIOS_ROM_BASE - x86bios_rom_phys, PAT_WRITE_BACK) != 0)
 		goto fail;
 #endif

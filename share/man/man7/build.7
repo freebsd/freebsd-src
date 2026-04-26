@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 25, 2025
+.Dd April 22, 2026
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -578,11 +578,20 @@ name ${MACHINE_ARCH}-gcc<major version>.
 .It Va INSTKERNNAME
 If set, specify an alternative name to build and install for the various
 kernel make targets.
+Defaults to
+.Dq Li kernel .
 .It Va KERNCONF
-Overrides which kernel to build and install for the various kernel
-make targets.
-It defaults to
-.Cm GENERIC .
+Specify one or more space-separated kernels to build and install for the
+various kernel make targets.
+If multiple kernels are specified, the first listed kernel installs to
+.Pa /boot/${INSTKERNNAME} ,
+and subsequent kernels install to
+.Pa /boot/${INSTKERNNAME}.NAME .
+.Pp
+If unset, it defaults to GENERIC,
+except on POWER architectures,
+where it defaults to GENERIC64 for powerpc64,
+and GENERIC64LE for powerpc64le.
 .It Va KERNBUILDDIR
 Overrides the default directory to get all the opt_*.h files for
 building a kernel module.
@@ -1018,17 +1027,21 @@ shutdown -r now
 .Pp
 For major version upgrades, boot into single-user mode.
 After restarting, install userspace, and merge configurations.
-After verifying that you do not need them, delete old files
-and libraries:
+After verifying that you do not need them, delete old files:
 .Bd -literal -offset indent
 cd /usr/src
 etcupdate -p
 make installworld
 etcupdate -B
-make delete-old delete-old-libs
+make delete-old
 shutdown -r now
 .Ed
-.Ss Example 2: Build and upgrade a custom kernel in place
+.Pp
+After testing the new system and verifying that your applications do not
+depend on them, delete the old libraries:
+.Pp
+.Dl make delete-old-libs
+.Ss Example 2: Build and upgrade a custom kernel
 Create a custom kernel configuration,
 .Va MYKERNEL ,
 by including an existing configuration and using
@@ -1046,7 +1059,7 @@ EOF
 .Ed
 .Pp
 After creating the new kernel configuration, build a fresh toolchain,
-build the kernel, and install it, moving the old kernel to
+build the kernel, and install it directly, moving the old kernel to
 .Pa /boot/kernel.old/ :
 .Bd -literal -offset indent
 make kernel-toolchain
@@ -1055,7 +1068,18 @@ make -DALWAYS_CHECK_MAKE installkernel KERNCONF=MYKERNEL
 shutdown -r now
 .Ed
 .Pp
-To build the kernel to an alternate location, use the
+To package the kernel into a
+.Xr freebsd-base 7
+package instead of installing it directly, use
+.Cm update-packages
+instead of
+.Cm installkernel :
+.Bd -literal -offset indent
+make buildworld buildkernel KERNCONF=MYKERNEL
+make update-packages KERNCONF=MYKERNEL
+.Ed
+.Pp
+To install the kernel directly to an alternate location, use the
 .Va INSTKERNNAME
 variable and boot it once to test via
 .Xr nextboot 8 :
@@ -1103,21 +1127,21 @@ such as amd64:
 .Bd -literal -offset indent
 cd /usr/src
 make TARGET_ARCH=aarch64 buildworld buildkernel
-make TARGET_ARCH=aarch64 DESTDIR=/armclient installworld installkernel
+make TARGET_ARCH=aarch64 DESTDIR=/client installworld installkernel
 .Ed
 .Pp
 Afterwards, to build and install a single piece of userspace, use:
 .Bd -literal -offset indent
 cd src/bin/ls
 make buildenv TARGET_ARCH=aarch64
-make clean all install DESTDIR=/armclient
+make clean all install DESTDIR=/client
 .Ed
 .Pp
 Likewise, to quickly rebuild and reinstall the kernel, use:
 .Bd -literal -offset indent
 cd src
 make buildenv TARGET_ARCH=aarch64
-make kernel KERNFAST=1 DESTDIR=/armclient
+make kernel KERNFAST=1 DESTDIR=/client
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag

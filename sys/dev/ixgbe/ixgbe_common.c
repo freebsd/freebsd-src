@@ -4631,11 +4631,11 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
 	/* Setting this bit tells the ARC that a new command is pending. */
 	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);
 
-	for (i = 0; i < timeout; i++) {
+	for (i = 0; i < timeout * 1000; i++) {
 		hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
 		if (!(hicr & IXGBE_HICR_C))
 			break;
-		msec_delay(1);
+		usec_delay(1);
 	}
 
 	/* For each command except "Apply Update" perform

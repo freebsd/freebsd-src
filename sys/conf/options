@@ -39,7 +39,7 @@ AHC_DEBUG_OPTS		opt_aic7xxx.h
 AHC_REG_PRETTY_PRINT	opt_aic7xxx.h
 AHD_DEBUG		opt_aic79xx.h
 AHD_DEBUG_OPTS		opt_aic79xx.h
-AHD_TMODE_ENABLE	opt_aic79xx.h	
+AHD_TMODE_ENABLE	opt_aic79xx.h
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 
 # Debugging options
@@ -385,6 +385,9 @@ CHANGER_MAX_BUSY_SECONDS	opt_cd.h
 
 # Options used only in cam/scsi/scsi_da.c
 DA_TRACK_REFS		opt_da.h
+
+# Allow unsafe PA transactions
+PASS_UNSAFE_PADDR	opt_pass.h
 
 # Options used only in cam/scsi/scsi_sa.c
 SA_IO_TIMEOUT		opt_sa.h
@@ -865,7 +868,7 @@ IWN_DEBUG		opt_iwn.h
 # Options for the Intel 3945ABG wireless driver
 WPI_DEBUG		opt_wpi.h
 
-# dcons options 
+# dcons options
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
 DCONS_FORCE_CONSOLE	opt_dcons.h

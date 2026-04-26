@@ -281,7 +281,6 @@ CFLAGS+=	-DWANTS_MUTEX_OWNED
 CFLAGS+=	-I${SRCTOP}/lib/libpthread/thread
 CFLAGS+=	-I${SRCTOP}/lib/libpthread/sys
 CFLAGS+=	-I${SRCTOP}/lib/libthr/arch/${MACHINE_CPUARCH}/include
-CFLAGS.gcc+=	-fms-extensions
 
 LIBADD=		md pthread z spl icp nvpair avl umem
 

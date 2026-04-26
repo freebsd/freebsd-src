@@ -35,6 +35,7 @@
 #include <sys/imgact.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/membarrier.h>
 #include <sys/msgbuf.h>
 #include <sys/mqueue.h>
 #include <sys/mutex.h>
@@ -1804,11 +1805,31 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 
 		return (kern_procctl(td, P_PID, 0, PROC_REAP_ACQUIRE,
 		    NULL));
+	case LINUX_PR_GET_CHILD_SUBREAPER: {
+		struct procctl_reaper_status rs;
+		l_int val;
+
+		error = kern_procctl(td, P_PID, 0, PROC_REAP_STATUS, &rs);
+		if (error != 0)
+			return (error);
+		val = rs.rs_reaper == p->p_pid ? 1 : 0;
+		error = copyout(&val, (void *)(register_t)args->arg2,
+		    sizeof(val));
+		break;
+	}
 	case LINUX_PR_SET_NO_NEW_PRIVS:
 		arg = args->arg2 == 1 ?
 		    PROC_NO_NEW_PRIVS_ENABLE : PROC_NO_NEW_PRIVS_DISABLE;
 		error = kern_procctl(td, P_PID, p->p_pid,
 		    PROC_NO_NEW_PRIVS_CTL, &arg);
+		break;
+	case LINUX_PR_GET_NO_NEW_PRIVS:
+		error = kern_procctl(td, P_PID, p->p_pid,
+		    PROC_NO_NEW_PRIVS_STATUS, &arg);
+		if (error != 0)
+			return (error);
+		/* Linux returns the value as the syscall return */
+		td->td_retval[0] = arg == PROC_NO_NEW_PRIVS_ENABLE ? 1 : 0;
 		break;
 	case LINUX_PR_SET_PTRACER:
 		linux_msg(td, "unsupported prctl PR_SET_PTRACER");
@@ -3093,6 +3114,69 @@ linux_kcmp(struct thread *td, struct linux_kcmp_args *args)
 
 	return (kern_kcmp(td, args->pid1, args->pid2, type, args->idx1,
 	    args->idx));
+}
+
+int
+linux_membarrier(struct thread *td, struct linux_membarrier_args *args)
+{
+	static const struct {
+		int linux_cmd;
+		int freebsd_cmd;
+	} cmds[] = {
+		{ LINUX_MEMBARRIER_CMD_QUERY,
+		    MEMBARRIER_CMD_QUERY },
+		{ LINUX_MEMBARRIER_CMD_GLOBAL,
+		    MEMBARRIER_CMD_GLOBAL },
+		{ LINUX_MEMBARRIER_CMD_GLOBAL_EXPEDITED,
+		    MEMBARRIER_CMD_GLOBAL_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED,
+		    MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ },
+		{ LINUX_MEMBARRIER_CMD_GET_REGISTRATIONS,
+		    MEMBARRIER_CMD_GET_REGISTRATIONS },
+	};
+	int cmd, error, flags, i, mask;
+
+	cmd = -1;
+	for (i = 0; i < nitems(cmds); i++) {
+		if (args->cmd == cmds[i].linux_cmd) {
+			cmd = cmds[i].freebsd_cmd;
+			break;
+		}
+	}
+
+	if (cmd == -1 || (args->flags & ~LINUX_MEMBARRIER_CMD_FLAG_CPU) != 0)
+		return (EINVAL);
+
+	flags = 0;
+	if ((args->flags & LINUX_MEMBARRIER_CMD_FLAG_CPU) != 0)
+		flags |= MEMBARRIER_CMD_FLAG_CPU;
+
+	error = kern_membarrier(td, cmd, flags, args->cpu_id);
+	if (error != 0)
+		return (error);
+
+	if (args->cmd == LINUX_MEMBARRIER_CMD_QUERY ||
+	    args->cmd == LINUX_MEMBARRIER_CMD_GET_REGISTRATIONS) {
+		mask = td->td_retval[0];
+		td->td_retval[0] = 0;
+		for (i = 0; i < nitems(cmds); i++)
+			if ((mask & cmds[i].freebsd_cmd) != 0)
+				td->td_retval[0] |= cmds[i].linux_cmd;
+	}
+
+	return (0);
 }
 
 MODULE_DEPEND(linux, mqueuefs, 1, 1, 1);

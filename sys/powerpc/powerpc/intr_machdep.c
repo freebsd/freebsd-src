@@ -537,7 +537,7 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 	if (error)
 		return (error);
 	i->pi_domain = domain;
-	if (strcmp(name, "IPI") != 0)  {
+	if (ipi)  {
 		CPU_ZERO(&i->pi_cpuset);
 		CPU_COPY(&cpuset_domain[domain], &i->pi_cpuset);
 	}

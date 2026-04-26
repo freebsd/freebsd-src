@@ -1235,6 +1235,8 @@ fill_kinfo_proc_pgrp(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_tdev = NODEV;
 		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
 	}
+	kp->ki_reaper = p->p_reaper->p_pid;
+	kp->ki_reapsubtree = p->p_reapsubtree;
 }
 
 /*
@@ -1325,7 +1327,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_tid = td->td_tid;
 	kp->ki_numthreads = p->p_numthreads;
 	kp->ki_pcb = td->td_pcb;
-	kp->ki_kstack = (void *)td->td_kstack;
+	kp->ki_kstack = td->td_kstack;
 	kp->ki_slptime = (ticks - td->td_slptick) / hz;
 	kp->ki_pri.pri_class = td->td_pri_class;
 	kp->ki_pri.pri_user = td->td_user_pri;
@@ -1494,6 +1496,8 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_fibnum);
 	CP(*ki, *ki32, ki_cr_flags);
 	CP(*ki, *ki32, ki_jid);
+	CP(*ki, *ki32, ki_reaper);
+	CP(*ki, *ki32, ki_reapsubtree);
 	CP(*ki, *ki32, ki_numthreads);
 	CP(*ki, *ki32, ki_tid);
 	CP(*ki, *ki32, ki_pri);

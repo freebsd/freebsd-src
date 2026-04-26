@@ -892,6 +892,8 @@ main(int argc, char** argv)
 	}
 
 	vcpu = vm_vcpu_open(ctx, BSP);
+	if (vcpu == NULL)
+		err(1, "vm_vcpu_open");
 
 	caph_cache_catpages();
 	if (caph_enter() < 0)

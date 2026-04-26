@@ -1135,6 +1135,25 @@ mlx5e_hw_clock(struct mlx5e_priv *priv)
 }
 
 /*
+ * Seed the first calibration point so that base_prev and clbr_hw_prev
+ * are always valid.  Called once during attach before the first
+ * calibration callout fires.
+ */
+static void
+mlx5e_seed_calibration(struct mlx5e_priv *priv)
+{
+	struct mlx5e_clbr_point *cp;
+	struct timespec ts;
+
+	cp = &priv->clbr_points[0];
+	cp->clbr_hw_curr = mlx5e_hw_clock(priv);
+	nanouptime(&ts);
+	cp->base_curr = mlx5e_timespec2usec(&ts);
+	cp->clbr_hw_prev = cp->clbr_hw_curr - 1;
+	cp->base_prev = cp->base_curr - 1;
+}
+
+/*
  * The calibration callout, it runs either in the context of the
  * thread which enables calibration, or in callout.  It takes the
  * snapshot of system and adapter clocks, then advances the pointers to
@@ -1147,6 +1166,9 @@ mlx5e_calibration_callout(void *arg)
 	struct mlx5e_priv *priv;
 	struct mlx5e_clbr_point *next, *curr;
 	struct timespec ts;
+	uint64_t hw_delta_new, hw_delta_old;
+	uint64_t old_nsec, old_projected, old_sec;
+	uint64_t res_n, res_s, res_s_mod, rt_delta_old;
 	int clbr_curr_next;
 
 	priv = arg;
@@ -1174,6 +1196,33 @@ mlx5e_calibration_callout(void *arg)
 
 	nanouptime(&ts);
 	next->base_curr = mlx5e_timespec2usec(&ts);
+
+	/*
+	 * Ensure monotonicity across calibration transitions.  Compute
+	 * what the old calibration would extrapolate to at the new
+	 * hw_curr.  If the new base_curr is less, clamp it so the new
+	 * slope is at least as steep as the old one.  This prevents
+	 * packets from seeing time go backwards when the slope drops.
+	 *
+	 * Use the same split-seconds technique as mlx5e_mbuf_tstmp()
+	 * to avoid overflowing uint64_t in the multiplication.
+	 */
+	hw_delta_new = next->clbr_hw_curr - curr->clbr_hw_curr;
+	rt_delta_old = curr->base_curr - curr->base_prev;
+	hw_delta_old = curr->clbr_hw_curr - curr->clbr_hw_prev;
+	old_sec = hw_delta_new / priv->cclk;
+	old_nsec = hw_delta_new % priv->cclk;
+	res_s = old_sec * rt_delta_old;
+	res_n = old_nsec * rt_delta_old;
+	res_s_mod = res_s % hw_delta_old;
+	res_s /= hw_delta_old;
+	res_s_mod *= priv->cclk;
+	res_n += res_s_mod;
+	res_n /= hw_delta_old;
+	res_s *= priv->cclk;
+	old_projected = curr->base_curr + res_s + res_n;
+	if (next->base_curr < old_projected)
+		next->base_curr = old_projected;
 
 	curr->clbr_gen = 0;
 	atomic_thread_fence_rel();
@@ -4887,6 +4936,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	callout_init(&priv->tstmp_clbr, 1);
 	/* Pull out the frequency of the clock in hz */
 	priv->cclk = (uint64_t)MLX5_CAP_GEN(mdev, device_frequency_khz) * 1000ULL;
+	mlx5e_seed_calibration(priv);
 	mlx5e_reset_calibration_callout(priv);
 
 	pa.pa_version = PFIL_VERSION;

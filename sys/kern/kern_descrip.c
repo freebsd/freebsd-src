@@ -2009,7 +2009,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	KASSERT(fdp->fd_nfiles >= NDFILE, ("file table of length %d shorter "
 	    "than NDFILE (%d)", fdp->fd_nfiles, NDFILE));
 	KASSERT(fdp->fd_nfiles == NDFILE || fdp->fd_nfiles % NDENTRIES == 0,
-	    ("file table of length %d should be multiple of NDENTRIES (%lu)",
+	    ("file table of length %d should be multiple of NDENTRIES (%zu)",
 	    fdp->fd_nfiles, NDENTRIES));
 	KASSERT((fdp->fd_nfiles == NDFILE) == ((intptr_t)fdp->fd_files -
 	    offsetof(struct filedesc0, fd_dfiles) == (intptr_t)fdp -

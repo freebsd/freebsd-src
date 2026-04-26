@@ -92,7 +92,7 @@ ofw_initrd_probe_and_attach(void *junk)
 	}
 
 	if (end - start > 0) {
-		taste = (u_char*) PHYS_TO_DMAP(start);
+		taste = PHYS_TO_DMAP(start);
 		memcpy(&ehdr, taste, sizeof(ehdr));
 
 		if (IS_ELF(ehdr)) {

@@ -21,9 +21,7 @@
 // ABI macro definitions
 
 #if __ARM_EABI__
-#if defined(COMPILER_RT_ARMHF_TARGET) || (!defined(__clang__) && \
-    defined(__GNUC__) && (__GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ < 5))
-// The pcs attribute was introduced in GCC 4.5.0
+#ifdef COMPILER_RT_ARMHF_TARGET
 #define COMPILER_RT_ABI
 #else
 #define COMPILER_RT_ABI __attribute__((__pcs__("aapcs")))
@@ -51,7 +49,7 @@
 #define SYMBOL_NAME(name) XSTR(__USER_LABEL_PREFIX__) #name
 
 #if defined(__ELF__) || defined(__MINGW32__) || defined(__wasm__) ||           \
-    defined(_AIX)    || defined(__CYGWIN__)
+    defined(_AIX) || defined(__CYGWIN__)
 #define COMPILER_RT_ALIAS(name, aliasname) \
   COMPILER_RT_ABI __typeof(name) aliasname __attribute__((__alias__(#name)));
 #elif defined(__APPLE__)
@@ -66,7 +64,7 @@
   COMPILER_RT_ALIAS_VISIBILITY(aliasname) \
   __asm__(SYMBOL_NAME(aliasname) " = " SYMBOL_NAME(name)); \
   COMPILER_RT_ABI __typeof(name) aliasname;
-#elif defined(_WIN32)
+#elif defined(_WIN32) || defined(__UEFI__)
 #define COMPILER_RT_ALIAS(name, aliasname)
 #else
 #error Unsupported target

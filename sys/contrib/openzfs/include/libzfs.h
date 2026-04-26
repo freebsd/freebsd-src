@@ -160,6 +160,7 @@ typedef enum zfs_error {
 	EZFS_SHAREFAILED,	/* filesystem share failed */
 	EZFS_RAIDZ_EXPAND_IN_PROGRESS,	/* a raidz is currently expanding */
 	EZFS_ASHIFT_MISMATCH,   /* can't add vdevs with different ashifts */
+	EZFS_NO_USER_NS_SUPPORT, /* kernel built without CONFIG_USER_NS */
 	EZFS_UNKNOWN
 } zfs_error_t;
 
@@ -443,6 +444,7 @@ typedef enum {
 	 * checksum errors) has been lost.
 	 */
 	ZPOOL_STATUS_FAULTED_DEV_R,	/* faulted device with replicas */
+	ZPOOL_STATUS_FAULTED_FDOM_R,	/* faulted fdomain with replicas */
 	ZPOOL_STATUS_FAULTED_DEV_NR,	/* faulted device with no replicas */
 
 	/*

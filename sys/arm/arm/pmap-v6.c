@@ -1152,7 +1152,7 @@ pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
  *
  *  void pmap_kenter(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode);
  *  void pmap_kremove(vm_offset_t va);
- *  vm_offset_t pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
+ *  void *pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
  *      int prot);
  *
  *  NOTE: This is not SMP coherent stage. And physical page allocation is not
@@ -1213,7 +1213,7 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 	SYSMAP(caddr_t, pc->pc_cmap1_pte2p, pc->pc_cmap1_addr, 1);
 	SYSMAP(caddr_t, pc->pc_cmap2_pte2p, pc->pc_cmap2_addr, 1);
-	SYSMAP(vm_offset_t, pc->pc_qmap_pte2p, pc->pc_qmap_addr, 1);
+	SYSMAP(caddr_t, pc->pc_qmap_pte2p, pc->pc_qmap_addr, 1);
 
 	/*
 	 * Crashdump maps.
@@ -1249,7 +1249,7 @@ static void
 pmap_init_reserved_pages(void *dummy __unused)
 {
 	struct pcpu *pc;
-	vm_offset_t pages;
+	char *pages;
 	int i;
 
 	CPU_FOREACH(i) {
@@ -1262,13 +1262,13 @@ pmap_init_reserved_pages(void *dummy __unused)
 			continue;
 		mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 		pages = kva_alloc(PAGE_SIZE * 3);
-		if (pages == 0)
+		if (pages == NULL)
 			panic("%s: unable to allocate KVA", __func__);
-		pc->pc_cmap1_pte2p = pt2map_entry(pages);
-		pc->pc_cmap2_pte2p = pt2map_entry(pages + PAGE_SIZE);
-		pc->pc_qmap_pte2p = pt2map_entry(pages + (PAGE_SIZE * 2));
-		pc->pc_cmap1_addr = (caddr_t)pages;
-		pc->pc_cmap2_addr = (caddr_t)(pages + PAGE_SIZE);
+		pc->pc_cmap1_pte2p = pt2map_entry((vm_offset_t)pages);
+		pc->pc_cmap2_pte2p = pt2map_entry((vm_offset_t)pages + PAGE_SIZE);
+		pc->pc_qmap_pte2p = pt2map_entry((vm_offset_t)pages + (PAGE_SIZE * 2));
+		pc->pc_cmap1_addr = pages;
+		pc->pc_cmap2_addr = pages + PAGE_SIZE;
 		pc->pc_qmap_addr = pages + (PAGE_SIZE * 2);
 	}
 }
@@ -1402,7 +1402,7 @@ pmap_kenter_pte1(vm_offset_t va, pt1_entry_t npte1)
  *  NOTE: Read the comments above pmap_kenter_prot_attr() as
  *        the function is used herein!
  */
-vm_offset_t
+void *
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 	vm_offset_t va, sva;
@@ -1455,7 +1455,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	}
 	tlb_flush_range(sva, va - sva);
 	*virt = va;
-	return (sva);
+	return ((void *)sva);
 }
 
 /*
@@ -1803,7 +1803,7 @@ pmap_init(void)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = kva_alloc(PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("%s: not enough kvm for pv chunks", __func__);
 	pmap_pte2list_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
@@ -1819,8 +1819,9 @@ pmap_init(void)
  *  Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+pmap_qenter(void *va, vm_page_t *ma, int count)
 {
+	vm_offset_t sva = (vm_offset_t)va;
 	u_int anychanged;
 	pt2_entry_t *epte2p, *pte2p, pte2;
 	vm_page_t m;
@@ -1851,16 +1852,16 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
  *  Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qremove(vm_offset_t sva, int count)
+pmap_qremove(void *sva, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	tlb_flush_range(sva, va - sva);
+	tlb_flush_range((vm_offset_t)sva, va - (vm_offset_t)sva);
 }
 
 /*
@@ -2946,7 +2947,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 			PV_STAT(pc_chunk_frees++);
 			/* Entire chunk is free; return it. */
 			m_pc = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-			pmap_qremove((vm_offset_t)pc, 1);
+			pmap_qremove(pc, 1);
 			pmap_pte2list_free(&pv_vafree, (vm_offset_t)pc);
 			break;
 		}
@@ -2979,7 +2980,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-	pmap_qremove((vm_offset_t)pc, 1);
+	pmap_qremove(pc, 1);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
 	pmap_pte2list_free(&pv_vafree, (vm_offset_t)pc);
@@ -3088,7 +3089,7 @@ retry:
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
 	pc = (struct pv_chunk *)pmap_pte2list_alloc(&pv_vafree);
-	pmap_qenter((vm_offset_t)pc, &m, 1);
+	pmap_qenter(pc, &m, 1);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = pc_freemask[0] & ~1ul;	/* preallocated bit 0 */
 	for (field = 1; field < _NPCM; field++)
@@ -6006,7 +6007,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	mtx_unlock(&pc->pc_cmap_lock);
 }
 
-vm_offset_t
+void *
 pmap_quick_enter_page(vm_page_t m)
 {
 	struct pcpu *pc;
@@ -6024,7 +6025,7 @@ pmap_quick_enter_page(vm_page_t m)
 }
 
 void
-pmap_quick_remove_page(vm_offset_t addr)
+pmap_quick_remove_page(void *addr)
 {
 	struct pcpu *pc;
 	pt2_entry_t *pte2p;
@@ -6032,11 +6033,12 @@ pmap_quick_remove_page(vm_offset_t addr)
 	pc = get_pcpu();
 	pte2p = pc->pc_qmap_pte2p;
 
-	KASSERT(addr == pc->pc_qmap_addr, ("%s: invalid address", __func__));
+	KASSERT(addr == pc->pc_qmap_addr,
+	    ("%s: invalid address", __func__));
 	KASSERT(pte2_load(pte2p) != 0, ("%s: PTE2 not in use", __func__));
 
 	pte2_clear(pte2p);
-	tlb_flush(pc->pc_qmap_addr);
+	tlb_flush((vm_offset_t)pc->pc_qmap_addr);
 	critical_exit();
 }
 

@@ -42,5 +42,5 @@
 int
 fls(int mask)
 {
-	return (mask == 0 ? 0 : CHAR_BIT * sizeof(mask) - __builtin_clz(mask));
+	return (mask == 0 ? 0 : INT_WIDTH - __builtin_clz(mask));
 }

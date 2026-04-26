@@ -73,7 +73,7 @@ struct spigen_softc {
 
 struct spigen_mmap {
 	vm_object_t bufobj;
-	vm_offset_t kvaddr;
+	void	   *kvaddr;
 	size_t      bufsize;
 };
 
@@ -235,10 +235,10 @@ spigen_transfer_mmapped(struct cdev *cdev, struct spigen_transfer_mmapped *stm)
 	if (mmap->bufsize < stm->stm_command_length + stm->stm_data_length)
 		return (E2BIG);
 
-	transfer.tx_cmd = transfer.rx_cmd = (void *)((uintptr_t)mmap->kvaddr);
+	transfer.tx_cmd = transfer.rx_cmd = mmap->kvaddr;
 	transfer.tx_cmd_sz = transfer.rx_cmd_sz = stm->stm_command_length;
 	transfer.tx_data = transfer.rx_data =
-	    (void *)((uintptr_t)mmap->kvaddr + stm->stm_command_length);
+	    (void *)((char *)mmap->kvaddr + stm->stm_command_length);
 	transfer.tx_data_sz = transfer.rx_data_sz = stm->stm_data_length;
 	error = SPIBUS_TRANSFER(device_get_parent(dev), dev, &transfer);
 
@@ -283,7 +283,7 @@ spigen_mmap_cleanup(void *arg)
 {
 	struct spigen_mmap *mmap = arg;
 
-	if (mmap->kvaddr != 0) {
+	if (mmap->kvaddr != NULL) {
 		pmap_qremove(mmap->kvaddr, mmap->bufsize / PAGE_SIZE);
 		kva_free(mmap->kvaddr, mmap->bufsize);
 	}

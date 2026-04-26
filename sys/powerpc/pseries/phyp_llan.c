@@ -547,6 +547,10 @@ llan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		err = ifmedia_ioctl(ifp, (struct ifreq *)data, &sc->media, cmd);
 		break;
 	case SIOCSIFFLAGS:
+		if ((if_getflags(ifp) & IFF_UP) &&
+		    !(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
+			llan_init(sc);
+		break;
 	default:
 		err = ether_ioctl(ifp, cmd, data);
 		break;

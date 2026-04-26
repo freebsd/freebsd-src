@@ -82,13 +82,13 @@ ibs_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 	KASSERT(ibs_pcpu[cpu],
 	    ("[ibs,%d] null per-cpu, cpu %d", __LINE__, cpu));
 
-	/* read the IBS ctl */
+	/* read the IBS count */
 	switch (ri) {
 	case IBS_PMC_FETCH:
-		*v = rdmsr(IBS_FETCH_CTL);
+		*v = IBS_FETCH_CTL_TO_COUNT(rdmsr(IBS_FETCH_CTL));
 		break;
 	case IBS_PMC_OP:
-		*v = rdmsr(IBS_OP_CTL);
+		*v = IBS_OP_CTL_TO_COUNT(rdmsr(IBS_OP_CTL));
 		break;
 	}
 
@@ -103,11 +103,30 @@ ibs_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 static int
 ibs_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
+	pmc_value_t m;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[ibs,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < IBS_NPMCS,
 	    ("[ibs,%d] illegal row-index %d", __LINE__, ri));
+
+	/* write the IBS count */
+	switch (ri) {
+	case IBS_PMC_FETCH:
+		m = rdmsr(IBS_FETCH_CTL) & ~IBS_FETCH_CTL_CURCNTMASK;
+		/* Setting a count greater than interval is undefined. */
+		if (IBS_FETCH_CTL_TO_INTERVAL(m) > v)
+			m |= IBS_FETCH_COUNT_TO_CTL(v);
+		wrmsr(IBS_FETCH_CTL, m);
+		break;
+	case IBS_PMC_OP:
+		m = rdmsr(IBS_OP_CTL) & ~IBS_OP_CTL_CURCNTMASK;
+		/* Setting a count greater than interval is undefined */
+		if (IBS_OP_CTL_TO_INTERVAL(m) > v)
+			m |= IBS_OP_COUNT_TO_CTL(v);
+		wrmsr(IBS_OP_CTL, m);
+		break;
+	}
 
 	PMCDBG3(MDP, WRI, 1, "ibs-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
@@ -175,6 +194,9 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 	PMCDBG2(MDP, ALL, 1, "ibs-allocate ri=%d caps=0x%x", ri, caps);
 
 	if ((caps & PMC_CAP_SYSTEM) == 0)
+		return (EINVAL);
+
+	if (!PMC_IS_SAMPLING_MODE(a->pm_mode))
 		return (EINVAL);
 
 	config = a->pm_md.pm_ibs.ibs_ctl;
@@ -329,9 +351,9 @@ pmc_ibs_process_fetch(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	memset(&mpd, 0, sizeof(mpd));
 
 	mpd.pl_type = PMC_CC_MULTIPART_IBS_FETCH;
-	mpd.pl_length = 4;
+	mpd.pl_length = PMC_MPIDX_FETCH_MAX;
 	mpd.pl_mpdata[PMC_MPIDX_FETCH_CTL] = config;
-	if (ibs_features) {
+	if ((ibs_features & CPUID_IBSID_IBSFETCHCTLEXTD) != 0) {
 		mpd.pl_mpdata[PMC_MPIDX_FETCH_EXTCTL] = rdmsr(IBS_FETCH_EXTCTL);
 	}
 	mpd.pl_mpdata[PMC_MPIDX_FETCH_CTL] = config;
@@ -360,7 +382,7 @@ pmc_ibs_process_op(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	memset(&mpd, 0, sizeof(mpd));
 
 	mpd.pl_type = PMC_CC_MULTIPART_IBS_OP;
-	mpd.pl_length = 8;
+	mpd.pl_length = PMC_MPIDX_OP_MAX;
 	mpd.pl_mpdata[PMC_MPIDX_OP_CTL] = config;
 	mpd.pl_mpdata[PMC_MPIDX_OP_RIP] = rdmsr(IBS_OP_RIP);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DATA] = rdmsr(IBS_OP_DATA);
@@ -368,6 +390,12 @@ pmc_ibs_process_op(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	mpd.pl_mpdata[PMC_MPIDX_OP_DATA3] = rdmsr(IBS_OP_DATA3);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_LINADDR] = rdmsr(IBS_OP_DC_LINADDR);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_PHYSADDR] = rdmsr(IBS_OP_DC_PHYSADDR);
+	if ((ibs_features & CPUID_IBSID_BRNTRGT) != 0) {
+		mpd.pl_mpdata[PMC_MPIDX_OP_TGT_RIP] = rdmsr(IBS_OP_TGT_RIP);
+	}
+	if ((ibs_features & CPUID_IBSID_IBSOPDATA4) != 0) {
+		mpd.pl_mpdata[PMC_MPIDX_OP_DATA4] = rdmsr(IBS_OP_DATA4);
+	}
 
 	pmc_process_interrupt_mp(PMC_HR, pm, tf, &mpd);
 

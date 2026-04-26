@@ -622,7 +622,7 @@ icl_cxgbei_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *ip,
 {
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 	struct mbuf *m, *m_tail;
-	vm_offset_t vaddr;
+	void *vaddr;
 	size_t page_offset, todo, mtodo;
 	bool mapped;
 	int i;
@@ -810,7 +810,7 @@ icl_cxgbei_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
     size_t pdu_off, struct bio *bp, size_t bio_off, size_t len)
 {
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
-	vm_offset_t vaddr;
+	void *vaddr;
 	size_t page_offset, todo;
 	bool mapped;
 	int i;

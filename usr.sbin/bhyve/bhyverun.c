@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2026 Hans Rosenfeld
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -917,6 +918,12 @@ main(int argc, char *argv[])
 	}
 
 	bsp = vm_vcpu_open(ctx, BSP);
+	if (bsp == NULL) {
+		fprintf(stderr, "Unable to open boot VCPU: %s",
+		    strerror(errno));
+		exit(BHYVE_EXIT_ERROR);
+	}
+
 	max_vcpus = num_vcpus_allowed(ctx, bsp);
 	if (guest_ncpus > max_vcpus) {
 		fprintf(stderr, "%d vCPUs requested but only %d available\n",
@@ -935,6 +942,12 @@ main(int argc, char *argv[])
 			vcpu_info[vcpuid].vcpu = bsp;
 		else
 			vcpu_info[vcpuid].vcpu = vm_vcpu_open(ctx, vcpuid);
+
+		if (vcpu_info[vcpuid].vcpu == NULL) {
+			fprintf(stderr, "Unable to open VCPU %d: %s", vcpuid,
+			    strerror(errno));
+			exit(BHYVE_EXIT_ERROR);
+		}
 	}
 
 	if (bhyve_init_platform(ctx, bsp) != 0)

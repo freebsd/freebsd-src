@@ -2058,8 +2058,7 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
-			if (inp->inp_faddr.s_addr == INADDR_ANY &&
-			    inp->inp_laddr.s_addr == laddr.s_addr &&
+			if (inp->inp_laddr.s_addr == laddr.s_addr &&
 			    inp->inp_lport == lport && (fib == RT_ALL_FIBS ||
 			    inp->inp_inc.inc_fibnum == fib)) {
 				/*

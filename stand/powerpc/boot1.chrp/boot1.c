@@ -102,14 +102,11 @@ ofwh_t bootdevh;
 ofwh_t stdinh, stdouth;
 
 /*
- * Note about the entry point:
+ * Our entrypoint.
  *
- * For some odd reason, the first page of the load appears to have trouble
- * when entering in LE. The first five instructions decode weirdly.
- * I suspect it is some cache weirdness between the ELF headers and .text.
- *
- * Ensure we have a gap between the start of .text and the entry as a
- * workaround.
+ * A bug in the SLOF shipped with some versions of QEMU causes the first
+ * 32 bytes of .text to be wrongly byte-swapped when loading LE programs.
+ * As a workaround, we add some padding at the start of the text section.
  */
 __asm("                         \n\
         .data                   \n\
@@ -118,7 +115,7 @@ stack:                          \n\
         .space  16384           \n\
                                 \n\
         .text                   \n\
-        /* SLOF cache hack */   \n\
+        /* SLOF workaround */   \n\
         .space 4096             \n\
         .globl  _start          \n\
 _start:                         \n\

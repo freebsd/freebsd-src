@@ -492,7 +492,7 @@ pcie_init_cache(void)
 		if (pcie_array == NULL)
 			return (false);
 
-		va = kva_alloc(PCIE_CACHE * PAGE_SIZE);
+		va = (vm_offset_t)kva_alloc(PCIE_CACHE * PAGE_SIZE);
 		if (va == 0) {
 			free(pcie_array, M_DEVBUF);
 			return (false);
