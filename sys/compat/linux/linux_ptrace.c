@@ -335,6 +335,87 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	return (error);
 }
 
+#ifdef __amd64__
+static int
+linux_ptrace_getregset_prfpreg(struct thread *td, pid_t pid, l_ulong data)
+{
+	struct savefpu b_fpreg;
+	struct linux_pt_fpregset l_fpregset;
+	struct iovec iov;
+	size_t len;
+	int error;
+
+	error = copyin((const void *)data, &iov, sizeof(iov));
+	if (error != 0) {
+		linux_msg(td, "copyin error %d", error);
+		return (error);
+	}
+
+	error = kern_ptrace(td, PT_GETFPREGS, pid, &b_fpreg, 0);
+	if (error != 0)
+		return (error);
+
+	bsd_to_linux_fpregset(&b_fpreg, &l_fpregset);
+
+	len = MIN(iov.iov_len, sizeof(l_fpregset));
+	error = copyout(&l_fpregset, iov.iov_base, len);
+	if (error != 0) {
+		linux_msg(td, "copyout error %d", error);
+		return (error);
+	}
+
+	iov.iov_len = len;
+	error = copyout(&iov, (void *)data, sizeof(iov));
+	if (error != 0)
+		linux_msg(td, "iov copyout error %d", error);
+
+	return (error);
+}
+
+static int
+linux_ptrace_getregset_xstate(struct thread *td, pid_t pid, l_ulong data)
+{
+	struct ptrace_xstate_info info;
+	struct iovec iov;
+	void *xstate;
+	size_t len;
+	int error;
+
+	error = copyin((const void *)data, &iov, sizeof(iov));
+	if (error != 0) {
+		linux_msg(td, "copyin error %d", error);
+		return (error);
+	}
+
+	error = kern_ptrace(td, PT_GETXSTATE_INFO, pid, &info, sizeof(info));
+	if (error != 0)
+		return (error);
+
+	xstate = malloc(info.xsave_len, M_LINUX, M_WAITOK | M_ZERO);
+
+	error = kern_ptrace(td, PT_GETXSTATE, pid, xstate, info.xsave_len);
+	if (error != 0) {
+		free(xstate, M_LINUX);
+		return (error);
+	}
+
+	len = MIN(iov.iov_len, info.xsave_len);
+	error = copyout(xstate, iov.iov_base, len);
+	free(xstate, M_LINUX);
+	if (error != 0) {
+		linux_msg(td, "copyout error %d", error);
+		return (error);
+	}
+
+	iov.iov_len = len;
+	error = copyout(&iov, (void *)data, sizeof(iov));
+	if (error != 0)
+		linux_msg(td, "iov copyout error %d", error);
+
+	return (error);
+}
+#endif /* __amd64__ */
+
 static int
 linux_ptrace_getregset(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 {
@@ -342,14 +423,12 @@ linux_ptrace_getregset(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 	switch (addr) {
 	case LINUX_NT_PRSTATUS:
 		return (linux_ptrace_getregset_prstatus(td, pid, data));
+#ifdef __amd64__
 	case LINUX_NT_PRFPREG:
-		linux_msg(td, "PTRAGE_GETREGSET NT_PRFPREG not implemented; "
-		    "returning EINVAL");
-		return (EINVAL);
+		return (linux_ptrace_getregset_prfpreg(td, pid, data));
 	case LINUX_NT_X86_XSTATE:
-		linux_msg(td, "PTRAGE_GETREGSET NT_X86_XSTATE not implemented; "
-		    "returning EINVAL");
-		return (EINVAL);
+		return (linux_ptrace_getregset_xstate(td, pid, data));
+#endif
 	default:
 		linux_msg(td, "PTRACE_GETREGSET request %#lx not implemented; "
 		    "returning EINVAL", addr);
