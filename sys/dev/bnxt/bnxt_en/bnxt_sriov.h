@@ -81,7 +81,6 @@ struct bnxt_vf_info {
 	struct		iflib_dma_info	hwrm_cmd_req;
 	uint16_t	trusted;
 	bool		spoofchk;
-	bool		has_admin_mac;
 };
 
 struct bnxt_resc_map {

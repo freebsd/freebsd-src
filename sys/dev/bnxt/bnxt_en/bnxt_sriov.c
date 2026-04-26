@@ -30,7 +30,7 @@ bnxt_set_vf_admin_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 	return (rc);
 }
 
-static void
+static bool
 bnxt_vf_parse_schema(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 		     const nvlist_t *params)
 {
@@ -41,7 +41,7 @@ bnxt_vf_parse_schema(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 	memset(vf->vf_mac_addr, 0, ETHER_ADDR_LEN);
 
 	if (params == NULL)
-		return;
+		return (false);
 
 	if (nvlist_exists(params, "mac-anti-spoof"))
 		vf->spoofchk = nvlist_get_bool(params, "mac-anti-spoof");
@@ -49,18 +49,18 @@ bnxt_vf_parse_schema(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 		vf->trusted = nvlist_get_bool(params, "trust");
 
 	if (!nvlist_exists(params, "mac-addr"))
-		return;
+		return (false);
 
 	mac = nvlist_get_binary(params, "mac-addr", &maclen);
 
 	if (maclen != ETHER_ADDR_LEN)
-		return;
+		return (false);
 
 	if (!is_valid_ether_addr(mac))
-		return;
+		return (false);
 
 	memcpy(vf->mac_addr, mac, ETHER_ADDR_LEN);
-	vf->has_admin_mac = true;
+	return (true);
 }
 
 /* Add a Virtual Functions */
@@ -74,13 +74,10 @@ bnxt_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	vf->fw_fid = softc->pf.first_vf_id + vfnum;
 	vf->vfnum = vfnum;
 
-	/* Parse schema */
-	bnxt_vf_parse_schema(softc, vf, params);
-
 	/*
-	 * If user provided MAC, program it into firmware.
+	 * If the schema provided a valid admin MAC, program it into firmware.
 	 */
-	if (vf->has_admin_mac) {
+	if (bnxt_vf_parse_schema(softc, vf, params)) {
 		rc = bnxt_set_vf_admin_mac(softc, vf, vf->mac_addr);
 		if (rc)
 			device_printf(softc->dev,
@@ -113,9 +110,9 @@ void bnxt_free_vf_resources(struct bnxt_softc *softc)
 	for (i = 0; i < softc->pf.hwrm_cmd_req_pages; i++) {
 		if (softc->pf.hwrm_cmd_req_addr[i]) {
 			dma_free_coherent(&softc->pdev->dev, page_size,
-					  softc->pf.hwrm_cmd_req_addr[i],
-					  softc->pf.hwrm_cmd_req_dma_addr[i]);
-					  softc->pf.hwrm_cmd_req_addr[i] = NULL;
+			    softc->pf.hwrm_cmd_req_addr[i],
+			    softc->pf.hwrm_cmd_req_dma_addr[i]);
+			softc->pf.hwrm_cmd_req_addr[i] = NULL;
 		}
 	}
 }
@@ -125,12 +122,16 @@ int
 bnxt_hwrm_func_vf_resource_free(struct bnxt_softc *softc, int num_vfs)
 {
 	int i, rc;
+	int first_vf_id, last_vf_id;
 	struct hwrm_func_vf_resc_free_input req;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_RESC_FREE);
 
+	first_vf_id = softc->pf.first_vf_id;
+	last_vf_id = first_vf_id + num_vfs - 1;
+
 	BNXT_HWRM_LOCK(softc);
-	for (i = softc->pf.first_vf_id; i < softc->pf.first_vf_id + num_vfs; i++) {
+	for (i = first_vf_id; i <= last_vf_id; i++) {
 		req.vf_id = cpu_to_le16(i);
 		rc = _hwrm_send_message(softc, &req, sizeof(req));
 		if (rc)
