@@ -778,13 +778,17 @@ restart:
 		cnp->cn_nameptr = cnp->cn_pnbuf;
 		if (*(cnp->cn_nameptr) == '/') {
 			/*
-			 * Reset the lookup to start from the real root without
-			 * origin path name reloading.
+			 * For ABI-root lookups, preserve the ABI root while
+			 * following absolute symlinks during the first lookup.
+			 *
+			 * Only force the real root after the ABI lookup has
+			 * already failed and namei() has restarted in the
+			 * native namespace.  Otherwise absolute symlinks inside
+			 * /compat/linux, including the ELF interpreter symlink,
+			 * incorrectly escape to the native root (PR 289739).
 			 */
-			if (__predict_false(ndp->ni_rootdir != pwd->pwd_rdir)) {
-				cnp->cn_flags |= ISRESTARTED;
+			if ((cnp->cn_flags & ISRESTARTED) != 0)
 				ndp->ni_rootdir = pwd->pwd_rdir;
-			}
 			vrele(dp);
 			error = namei_handle_root(ndp, &dp);
 			if (error != 0)
