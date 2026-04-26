@@ -1831,6 +1831,10 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		/* Linux returns the value as the syscall return */
 		td->td_retval[0] = arg == PROC_NO_NEW_PRIVS_ENABLE ? 1 : 0;
 		break;
+	case LINUX_PR_SET_VMA:
+		linux_msg(td, "unsupported prctl PR_SET_VMA");
+		error = EINVAL;
+		break;
 	case LINUX_PR_SET_PTRACER:
 		linux_msg(td, "unsupported prctl PR_SET_PTRACER");
 		error = EINVAL;
