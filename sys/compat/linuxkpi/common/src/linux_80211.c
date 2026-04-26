@@ -7068,6 +7068,12 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 
 	lkpi_enable_hw_scan(lhw);
 
+	/* Does the driver/firmware handle rate countrol? */
+	/* Currently only older iwlwifi mvm devices are in this category. */
+	if (bootverbose && !ieee80211_hw_check(hw, HAS_RATE_CONTROL))
+		ic_printf(ic, "NOTE: rate control not supported by LinuxKPI; "
+		    "expect low rates only\n");
+
 	/* Does HW support Fragmentation offload? */
 	if (ieee80211_hw_check(hw, SUPPORTS_TX_FRAG))
 		ic->ic_flags_ext |= IEEE80211_FEXT_FRAG_OFFLOAD;
