@@ -745,6 +745,46 @@ lkpi_80211_mo_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	lhw->ops->sta_pre_rcu_remove(hw, vif, sta);
 }
 
+void
+lkpi_80211_mo_link_sta_rc_update(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct ieee80211_link_sta *link_sta,
+    enum ieee80211_rate_control_changed_flags rc_changed)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->link_sta_rc_update == NULL)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p link_sta %p rc_changed %#010x",
+	    hw, vif, link_sta, rc_changed);
+	lhw->ops->link_sta_rc_update(hw, vif, link_sta, rc_changed);
+}
+
+int
+lkpi_80211_mo_set_bitrate_mask(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, const struct cfg80211_bitrate_mask *br_mask)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_bitrate_mask == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p vif %p br_mask %p",
+	    hw, vif, br_mask);
+	error = lhw->ops->set_bitrate_mask(hw, vif, br_mask);
+
+out:
+	return (error);
+}
+
 int
 lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
     struct ieee80211_vif *vif, struct ieee80211_sta *sta,
@@ -766,6 +806,23 @@ lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 out:
 	return (error);
+}
+
+void
+lkpi_80211_mo_sta_set_decap_offload(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+    bool enable)
+{
+	struct lkpi_hw *lhw;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sta_set_decap_offload == NULL)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p sta %p enable %d", hw, vif, sta, enable);
+	lhw->ops->sta_set_decap_offload(hw, vif, sta, enable);
 }
 
 int
