@@ -82,6 +82,9 @@ struct vtballoon_softc {
 	struct thread		*vtballoon_td;
 	uint32_t		*vtballoon_page_frames;
 	int			 vtballoon_timeout;
+	int			 vtballoon_debug;
+	uint64_t		 vtballoon_guest_lowmem_count;
+	uint64_t		 vtballoon_guest_lowmem_pages;
 
 	eventhandler_tag	 vtballoon_guest_lowmem_tag;
 };
@@ -688,11 +691,16 @@ vtballoon_thread(void *xsc)
 			    MIN(sc->vtballoon_current_npages,
 			    VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES);
 
-			device_printf(sc->vtballoon_dev,
-			    "guest low memory, deflating balloon by %d pages "
-			    "(current: %d)\n",
-			    sc->vtballoon_current_npages - desired,
-			    sc->vtballoon_current_npages);
+			sc->vtballoon_guest_lowmem_count++;
+			sc->vtballoon_guest_lowmem_pages +=
+			    sc->vtballoon_current_npages - desired;
+
+			if (__predict_false(sc->vtballoon_debug > 0))
+				device_printf(sc->vtballoon_dev,
+				    "guest low memory, deflating balloon by "
+				    "%d pages (current: %d)\n",
+				    sc->vtballoon_current_npages - desired,
+				    sc->vtballoon_current_npages);
 
 			while (sc->vtballoon_current_npages > desired)
 				vtballoon_deflate(sc,
@@ -851,4 +859,16 @@ vtballoon_setup_sysctl(struct vtballoon_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "current",
 	    CTLFLAG_RD, &sc->vtballoon_current_npages, sizeof(uint32_t),
 	    "Current balloon size in pages");
+
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "debug",
+	    CTLFLAG_RWTUN, &sc->vtballoon_debug, 0,
+	    "Debug level");
+
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "guest_lowmem_deflations",
+	    CTLFLAG_RD, &sc->vtballoon_guest_lowmem_count,
+	    "Number of guest low-memory deflation events");
+
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "guest_lowmem_pages_freed",
+	    CTLFLAG_RD, &sc->vtballoon_guest_lowmem_pages,
+	    "Total pages freed by guest low-memory deflation");
 }
