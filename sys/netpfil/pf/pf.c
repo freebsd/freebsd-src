@@ -6581,7 +6581,7 @@ again:
 
 static int
 pf_multihome_scan(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
-    struct pfi_kkif *kif, int op)
+    struct pfi_kkif *kif, int op, bool asconf)
 {
 	int			 off = 0;
 	struct pf_sctp_multihome_job	*job;
@@ -6684,13 +6684,16 @@ pf_multihome_scan(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
 			int ret;
 			struct sctp_asconf_paramhdr ah;
 
+			if (asconf)
+				return (PF_DROP);
+
 			if (!pf_pull_hdr(m, start + off, &ah, sizeof(ah),
 			    NULL, NULL, pd->af))
 				return (PF_DROP);
 
 			ret = pf_multihome_scan(m, start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd, kif,
-			    SCTP_ADD_IP_ADDRESS);
+			    SCTP_ADD_IP_ADDRESS, true);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -6699,12 +6702,15 @@ pf_multihome_scan(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
 			int ret;
 			struct sctp_asconf_paramhdr ah;
 
+			if (asconf)
+				return (PF_DROP);
+
 			if (!pf_pull_hdr(m, start + off, &ah, sizeof(ah),
 			    NULL, NULL, pd->af))
 				return (PF_DROP);
 			ret = pf_multihome_scan(m, start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd, kif,
-			    SCTP_DEL_IP_ADDRESS);
+			    SCTP_DEL_IP_ADDRESS, true);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -6726,7 +6732,8 @@ pf_multihome_scan_init(struct mbuf *m, int start, int len, struct pf_pdesc *pd,
 	start += sizeof(struct sctp_init_chunk);
 	len -= sizeof(struct sctp_init_chunk);
 
-	return (pf_multihome_scan(m, start, len, pd, kif, SCTP_ADD_IP_ADDRESS));
+	return (pf_multihome_scan(m, start, len, pd, kif, SCTP_ADD_IP_ADDRESS,
+	    false));
 }
 
 int
@@ -6736,7 +6743,8 @@ pf_multihome_scan_asconf(struct mbuf *m, int start, int len,
 	start += sizeof(struct sctp_asconf_chunk);
 	len -= sizeof(struct sctp_asconf_chunk);
 
-	return (pf_multihome_scan(m, start, len, pd, kif, SCTP_ADD_IP_ADDRESS));
+	return (pf_multihome_scan(m, start, len, pd, kif, SCTP_ADD_IP_ADDRESS,
+	    false));
 }
 
 int
