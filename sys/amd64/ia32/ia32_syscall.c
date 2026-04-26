@@ -75,7 +75,7 @@
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 
 #include <compat/freebsd32/freebsd32_signal.h>

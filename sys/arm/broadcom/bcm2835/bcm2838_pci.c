@@ -33,7 +33,6 @@
 #include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
-#include <sys/intr.h>
 #include <sys/mutex.h>
 
 #include <dev/ofw/openfirm.h>
@@ -47,7 +46,6 @@
 #include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 
 #include "pcib_if.h"
 #include "msi_if.h"

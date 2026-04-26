@@ -31,7 +31,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <isa/isareg.h>

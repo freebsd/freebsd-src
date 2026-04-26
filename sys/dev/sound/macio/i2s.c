@@ -65,12 +65,14 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <machine/dbdma.h>
-#include <machine/intr_machdep.h>
-#include <machine/resource.h>
-#include <machine/bus.h>
-#include <machine/pio.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
+#include <machine/dbdma.h>
+#include <machine/interrupt.h>
+#include <machine/resource.h>
+#include <machine/pio.h>
+
 #include <dev/ofw/ofw_bus.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS

@@ -48,7 +48,7 @@
 #include <x86/legacyvar.h>
 #include <x86/mptable.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>

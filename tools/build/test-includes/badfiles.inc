@@ -53,7 +53,6 @@ BADHDRS= \
 	sys/imgact.h \
 	sys/imgact_aout.h \
 	sys/imgact_elf.h \
-	sys/interrupt.h \
 	sys/intr.h \
 	sys/ioctl_compat.h \
 	sys/iov.h \
@@ -68,7 +67,6 @@ BADHDRS= \
 	sys/libkern.h \
 	sys/link_aout.h \
 	sys/lock.h \
-	sys/lock_profile.h \
 	sys/lockf.h \
 	sys/lockmgr.h \
 	sys/loginclass.h \
@@ -99,7 +97,6 @@ BADHDRS= \
 	sys/rmlock.h \
 	sys/rtprio.h \
 	sys/runq.h \
-	sys/rwlock.h \
 	sys/sbuf.h \
 	sys/sf_buf.h \
 	sys/sglist.h \

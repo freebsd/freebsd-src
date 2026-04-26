@@ -45,8 +45,8 @@ static MALLOC_DEFINE(M_KOBJ, "kobj", "Kernel object structures");
 
 #ifdef KOBJ_STATS
 
-u_int kobj_lookup_hits;
-u_int kobj_lookup_misses;
+unsigned int kobj_lookup_hits;
+unsigned int kobj_lookup_misses;
 
 SYSCTL_UINT(_kern, OID_AUTO, kobj_hits, CTLFLAG_RD,
 	   &kobj_lookup_hits, 0, "");

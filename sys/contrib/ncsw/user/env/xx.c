@@ -44,7 +44,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/cpufunc.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/pmap.h>
 
 #include <dev/dpaa/bman.h>

@@ -49,7 +49,7 @@
 
 #include <machine/bus_dma.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/platform.h>
