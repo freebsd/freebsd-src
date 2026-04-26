@@ -339,12 +339,16 @@ open_config(const char *cfname, pid_t *const pid)
 	if (read_fd < 0)
 		err(1, "open(): %s", cfname);
 
-	// Try to open the configuration for execution (to parse its standard output config instead).
-	exec_fd = open(cfname, O_RDONLY | O_EXEC);
+	// Try to open the configuration for execution.
+	exec_fd = open(cfname, O_EXEC);
 	if (exec_fd < 0) {
 		if (errno != EACCES)
 			err(1, "openat(): %s", cfname);
 	} else {
+		// Close the exec_fd, because fexecve(2) doesn't work
+		// with scripts since the interpreter can't read the
+		// source code through the exec_fd unless /dev/fd was
+		// mounted with the non-default "nodup" option.
 		close(exec_fd);
 		const size_t cfname_size = strlen(cfname) + 1;
 		char dir_buf[PATH_MAX], base_buf[PATH_MAX];
@@ -353,13 +357,22 @@ open_config(const char *cfname, pid_t *const pid)
 			err(1, "open_config(): %s", cfname);
 		}
 		
-		// Set the argument list: <jail_conf> <jail_conf> <jail_dir> <jail_base> <jail_name>.
-		const struct cfjail *const current_jail = TAILQ_LAST(&cfjails, cfjails);
+		// Set the argument list:
+		//   <jail_conf> <jail_conf> <jail_dir> <jail_base> <jail_name>
+		const struct cfjail *const current_jail =
+			TAILQ_LAST(&cfjails, cfjails);
 		char *const jail_conf = __DECONST(char *, cfname);
-		char *const jail_dir  = dirname(memcpy(dir_buf, cfname, cfname_size));
-		char *const jail_base = basename(memcpy(base_buf, cfname, cfname_size));
-		char *const jail_name = current_jail && current_jail->name ? current_jail->name : __DECONST(char *, "");
-		char *argv[] = { jail_conf, jail_conf, jail_dir, jail_base, jail_name, NULL };
+		char *const jail_dir  =
+			dirname(memcpy(dir_buf, cfname, cfname_size));
+		char *const jail_base =
+			basename(memcpy(base_buf, cfname, cfname_size));
+		char *const jail_name = current_jail && current_jail->name
+			? current_jail->name : __DECONST(char *, "");
+		char *const argv[]    = {
+			jail_conf,
+			jail_conf, jail_dir, jail_base, jail_name,
+			NULL
+		};
 
 		// Read from the pipe instead of the configuration.
 		close(read_fd);
@@ -378,31 +391,37 @@ open_config(const char *cfname, pid_t *const pid)
 
 		// After successful fork() inside the child process.
 		case 0:
-			// Export the arguments to the executable configuration.
+			// Export the arguments as env vars too.
 			if (setenv("JAIL_CONF", cfname, 1))
-				err(1, "setenv(\"JAIL_CONF\", \"%s\"): %s", cfname, cfname);
+				err(1, "setenv(\"JAIL_CONF\", \"%s\"): %s",
+						cfname, cfname);
 			if (setenv("JAIL_DIR", jail_dir, 1))
-				err(1, "setenv(\"JAIL_DIR\", \"%s\"): %s", jail_dir, cfname);
+				err(1, "setenv(\"JAIL_DIR\", \"%s\"): %s",
+						jail_dir, cfname);
 			if (setenv("JAIL_BASE", jail_base, 1))
-				err(1, "setenv(\"JAIL_BASE\", \"%s\"): %s", jail_base, cfname);
+				err(1, "setenv(\"JAIL_BASE\", \"%s\"): %s",
+						jail_base, cfname);
 			if (setenv("JAIL_NAME", jail_name, 1))
-				err(1, "setenv(\"JAIL_NAME\", \"%s\"): %s", jail_name, cfname);
+				err(1, "setenv(\"JAIL_NAME\", \"%s\"): %s",
+						jail_name, cfname);
 
 			// Redirect the child's standard output into the pipe.
 			if (write_fd != STDOUT_FILENO) {
-				if (dup2(write_fd, STDOUT_FILENO) != STDOUT_FILENO)
+				if (dup2(write_fd, STDOUT_FILENO) < 0)
 					err(1, "dup2(): %s", cfname);
 				close(write_fd);
 			}
 
-			// Replace the forked child with the configuration command.
+			// Replace the forked child with the
+			// dynamic configuration command.
 			execve(argv[0], argv, environ);
 			err(1, "execve(): %s", cfname);
 			break;
 
 		// After successful fork() inside the parent process.
 		default:
-			// Close the write end of the pipe and the executable file descriptor in the parent.
+			// Close the write end of the pipe as well as
+			// the executable file descriptor in the parent.
 			close(write_fd); write_fd = -1;
 			close(exec_fd); exec_fd = -1;
 			break;
