@@ -61,6 +61,9 @@ OLD_FILES+=etc/rc.d/apmd
 OLD_FILES+=etc/apmd.conf
 OLD_FILES+=usr/sbin/apm
 OLD_FILES+=usr/share/examples/etc/apmd.conf
+.elif ${TARGET_ARCH} != "i386"
+OLD_FILES+=etc/rc.d/apm
+OLD_FILES+=etc/rc.d/apmd
 .endif
 
 .if ${MK_AT} == no
