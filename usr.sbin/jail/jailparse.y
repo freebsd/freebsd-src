@@ -38,8 +38,8 @@
 #define YYDEBUG 1
 #endif
 
-static struct cfjail *current_jail;
-static struct cfjail *global_jail;
+struct cfjail *current_jail = NULL;
+struct cfjail *global_jail = NULL;
 %}
 
 %union {

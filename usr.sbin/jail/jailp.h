@@ -35,6 +35,9 @@
 #include <jail.h>
 #include <stdio.h>
 
+extern struct cfjail *current_jail;
+extern struct cfjail *global_jail;
+
 #define CONF_FILE	"/etc/jail.conf"
 
 #define DEP_FROM	0

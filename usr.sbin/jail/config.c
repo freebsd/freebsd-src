@@ -359,8 +359,6 @@ open_config(const char *cfname, pid_t *const pid)
 		
 		// Set the argument list:
 		//   <jail_conf> <jail_conf> <jail_dir> <jail_base> <jail_name>
-		const struct cfjail *const current_jail =
-			TAILQ_LAST(&cfjails, cfjails);
 		char *const jail_conf = __DECONST(char *, cfname);
 		char *const jail_dir  =
 			dirname(memcpy(dir_buf, cfname, cfname_size));
