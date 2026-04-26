@@ -203,6 +203,7 @@ struct vnode {
 						   (negative) text users */
 	int	v_seqc_users;			/* i modifications pending */
 };
+#define	v_vrflag	v_rl.resv1
 
 #define VN_ISDEV(vp)		VTYPE_ISDEV((vp)->v_type)
 

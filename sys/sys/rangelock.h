@@ -46,6 +46,9 @@ struct rl_q_entry;
  * all existing lock owners are compatible with the request. Two lock
  * owners are compatible if their ranges do not overlap, or both
  * owners are for read.
+ *
+ * The resvX fields can be used by consumers.  For instance, struct
+ * vnode uses resv1 as v_vrflag.
  */
 struct rangelock {
 	uintptr_t head;
