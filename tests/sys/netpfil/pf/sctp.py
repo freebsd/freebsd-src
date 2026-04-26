@@ -597,6 +597,29 @@ class TestSCTP_SRV(VnetTestTemplate):
         assert r.getlayer(sp.SCTPChunkInitAck)
         assert r.getlayer(sp.SCTP).tag == 42
 
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_too_many_add_ip(self):
+        import scapy.all as sp
+        DEPTH=90
+        params=[]
+        for i in range(0, DEPTH):
+            ch = sp.SCTPChunkParamAddIPAddr(len=(DEPTH - i) * 8)
+            params.append(ch)
+        packet = sp.IP(src="192.0.2.1", dst="192.0.2.2") \
+            / sp.SCTP(sport=4321, dport=1234) \
+            / sp.SCTPChunkInit(init_tag=1, n_in_streams=1, n_out_streams=1, a_rwnd=1500,
+                params=params)
+        packet.show()
+        sp.hexdump(packet)
+        print("len %d" % len(packet))
+
+        r = sp.sr1(packet, timeout=3)
+        # We should not get a reply to this
+        if r:
+            r.show()
+        assert not r
+
 class TestSCTPv6(VnetTestTemplate):
     REQUIRED_MODULES = ["sctp", "pf"]
     TOPOLOGY = {
