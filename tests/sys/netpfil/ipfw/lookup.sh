@@ -36,17 +36,16 @@ setup_network_v4()
 {
 	epair="$1"
 
-	ifconfig ${epair}a 192.0.2.0/31 up
-	ifconfig ${epair_recv}a up
+	atf_check ifconfig ${epair}a 192.0.2.0/31 up
 
 	vnet_mkjail alcatraz ${epair}b
 
-	jexec alcatraz ifconfig ${epair}b 192.0.2.1/31 up
+	atf_check jexec alcatraz ifconfig ${epair}b 192.0.2.1/31 up
 
-	jexec alcatraz /usr/sbin/inetd -p /dev/null $(atf_get_srcdir)/lookup_inetd.conf
+	atf_check jexec alcatraz inetd -p $(pwd)/inetd.pid $(atf_get_srcdir)/lookup_inetd.conf
 
 	# Sanity checks
-	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.1
+	atf_check -o ignore ping -i .1 -c 3 -s 1200 192.0.2.1
 	atf_check -o "inline:GOOD 82\n" ${NC} 192.0.2.1 82
 
 }
@@ -122,16 +121,16 @@ setup_network_v6()
 {
 	epair="$1"
 
-	ifconfig ${epair}a inet6 2001:db8:42::1/64 up no_dad -ifdisabled
+	atf_check ifconfig ${epair}a inet6 2001:db8:42::1/64 up no_dad -ifdisabled
 
 	vnet_mkjail alcatraz ${epair}b
 
-	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
+	atf_check jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
 
-	jexec alcatraz /usr/sbin/inetd -p /dev/null $(atf_get_srcdir)/lookup_inetd.conf
+	atf_check jexec alcatraz inetd -p $(pwd)/inetd.pid $(atf_get_srcdir)/lookup_inetd.conf
 
 	# Sanity checks
-	atf_check -s exit:0 -o ignore ping6 -i .1 -c 3 -s 1200 2001:db8:42::2
+	atf_check -o ignore ping6 -i .1 -c 3 -s 1200 2001:db8:42::2
 	atf_check -o "inline:GOOD 82\n" ${NC} 2001:db8:42::2 82
 
 }
