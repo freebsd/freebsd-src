@@ -396,6 +396,11 @@ back to the default, so that the
 .Pa /etc/rc
 script is executed with the standard shell
 .Pa /bin/sh .
+.It Va init_path
+Specifies the path used to search for the init binary.
+More than one binary can be listed in the string,
+candidate file names are split by the \[lq]:\[rq] separator.
+Each name is opened in sequence until a valid executable is found.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/init.log -compact
