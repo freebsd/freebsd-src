@@ -40,6 +40,7 @@
 #include <sys/ptrace.h>
 #include <sys/syscallsubr.h>
 
+#include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
@@ -279,6 +280,28 @@ linux_to_bsd_regset(struct reg *b_reg, const struct linux_pt_regset *l_regset)
 	b_reg->r_es = l_regset->es;
 	b_reg->r_fs = l_regset->fs;
 	b_reg->r_gs = l_regset->gs;
+}
+
+void
+bsd_to_linux_fpregset(const struct savefpu *b_fpreg,
+    struct linux_pt_fpregset *l_fpregset)
+{
+	const struct envxmm *env = &b_fpreg->sv_env;
+
+	l_fpregset->cwd = env->en_cw;
+	l_fpregset->swd = env->en_sw;
+	l_fpregset->twd = env->en_tw;	/* zero-extended; en_zero is always 0 */
+	l_fpregset->fop = env->en_opcode;
+	l_fpregset->rip = env->en_rip;
+	l_fpregset->rdp = env->en_rdp;
+	l_fpregset->mxcsr = env->en_mxcsr;
+	l_fpregset->mxcsr_mask = env->en_mxcsr_mask;
+
+	memcpy(l_fpregset->st_space, b_fpreg->sv_fp,
+	    sizeof(l_fpregset->st_space));
+	memcpy(l_fpregset->xmm_space, b_fpreg->sv_xmm,
+	    sizeof(l_fpregset->xmm_space));
+	memset(l_fpregset->padding, 0, sizeof(l_fpregset->padding));
 }
 
 void
