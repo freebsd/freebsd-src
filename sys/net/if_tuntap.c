@@ -1802,6 +1802,23 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	case FIOGETOWN:
 		*(int *)data = fgetown(&tp->tun_sigio);
 		return (0);
+	case SIOCGIFCAP:
+		ifrp = (struct ifreq *)data;
+		TUN_LOCK(tp);
+		ifrp->ifr_reqcap = ifp->if_capabilities;
+		ifrp->ifr_curcap = ifp->if_capenable;
+		TUN_UNLOCK(tp);
+		break;
+	case SIOCSIFCAP:
+		ifrp = (struct ifreq *)data;
+		if (ifrp->ifr_reqcap & ~ifp->if_capabilities)
+			return (EINVAL);
+		TUN_LOCK(tp);
+		ifp->if_capenable = ifrp->ifr_reqcap;
+		tun_caps_changed(ifp);
+		TUN_UNLOCK(tp);
+		VLAN_CAPABILITIES(ifp);
+		break;
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
 	case TIOCSPGRP:
