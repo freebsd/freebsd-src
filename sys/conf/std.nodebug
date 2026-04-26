@@ -8,6 +8,7 @@ nooptions	DIAGNOSTIC
 nooptions	WITNESS
 nooptions	WITNESS_SKIPSPIN
 nooptions	DEBUG_VFS_LOCKS
+nooptions	DEBUG_LOCKS
 nooptions	BUF_TRACKING
 nooptions	FULL_BUF_TRACKING
 nooptions	DEADLKRES
