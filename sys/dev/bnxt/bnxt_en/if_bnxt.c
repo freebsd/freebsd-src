@@ -180,7 +180,7 @@ static const pci_vendor_info_t bnxt_vendor_info_array[] =
 	"Broadcom NetXtreme-C Virtual Function for Hyper-V"),
     PVID(BROADCOM_VENDOR_ID, NETXTREME_E_P5_VF_HV2,
 	"Broadcom NetXtreme-C Virtual Function for Hyper-V"),
-    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_P7_VF,
+    PVID(BROADCOM_VENDOR_ID, E_P7_VF,
 	"Broadcom BCM5760X Virtual Function"),
     /* required last entry */
 
@@ -479,7 +479,7 @@ bnxt_is_vf_device(uint16_t device_id)
 	case NETXTREME_E_P5_VF2:
 	case NETXTREME_E_P5_VF_HV1:
 	case NETXTREME_E_P5_VF_HV2:
-	case NETXTREME_E_P7_VF:
+	case E_P7_VF:
 		return true;
 	default:
 		return false;
