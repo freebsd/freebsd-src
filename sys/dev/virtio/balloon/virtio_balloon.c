@@ -78,6 +78,9 @@ static struct virtio_feature_desc vtballoon_feature_desc[] = {
 	{ VIRTIO_BALLOON_F_MUST_TELL_HOST,	"MustTellHost"	},
 	{ VIRTIO_BALLOON_F_STATS_VQ,		"StatsVq"	},
 	{ VIRTIO_BALLOON_F_DEFLATE_ON_OOM,	"DeflateOnOOM"	},
+	{ VIRTIO_BALLOON_F_FREE_PAGE_HINT,	"FreePageHint"	},
+	{ VIRTIO_BALLOON_F_PAGE_POISON,		"PagePoison"	},
+	{ VIRTIO_BALLOON_F_PAGE_REPORTING,	"PageReporting"	},
 
 	{ 0, NULL }
 };
