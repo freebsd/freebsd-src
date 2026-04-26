@@ -6435,6 +6435,108 @@ net80211_only:
 }
 #endif
 
+int
+linuxkpi_ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid,
+    int timeout)
+{
+	struct lkpi_sta *lsta;
+	struct ieee80211_hw *hw;
+	struct lkpi_hw *lhw;
+	struct ieee80211_tx_ampdu *tap;
+	int worked;
+
+	lsta = STA_TO_LSTA(sta);
+
+	/* If tid is out of range, fail gracefully. */
+	/* XXX-BZ are we limited to 8? */
+	if (tid >= IEEE80211_NUM_TIDS) {
+		net80211_vap_printf(lsta->ni->ni_vap, "%s: tid %u out of range "
+		    ">= %u\n", __func__, tid, IEEE80211_NUM_TIDS);
+		return (-EINVAL);
+	}
+
+	hw = lsta->hw;
+	lhw = HW_TO_LHW(hw);
+
+	/* No ampdu_action support, just error. */
+	if (lhw->ops->ampdu_action == NULL) {
+		net80211_vap_printf(lsta->ni->ni_vap, "%s: (*ampdu_action) "
+		    "not supported\n", __func__);
+		return (-ENOTSUPP);
+	}
+
+	/* Does HW allow us to set this up? */
+	if (!ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
+		net80211_vap_printf(lsta->ni->ni_vap, "%s: !AMPDU_AGGREGATION\n",
+		    __func__);
+		return (-ENOTSUPP);
+	}
+	if (ieee80211_hw_check(hw, TX_AMPDU_SETUP_IN_HW)) {
+		net80211_vap_printf(lsta->ni->ni_vap, "%s: TX_AMPDU_SETUP_IN_HW\n",
+		    __func__);
+		return (-EPERM);
+	}
+
+	/* We need at least HT or higher support enabled. */
+	if (!sta->deflink.ht_cap.ht_supported &&
+	    !sta->deflink.vht_cap.vht_supported &&
+	    !sta->deflink.he_cap.has_he &&
+	    !sta->deflink.eht_cap.has_eht) {
+		net80211_vap_printf(lsta->ni->ni_vap, "%s: HT or later not "
+		    "supported\n", __func__);
+		return (-ENOTSUPP);
+	}
+
+#ifdef __notyet__
+	/*
+	 * We need some rate limiting/disabling in case we try too hard and
+	 * get NACKed over and over.
+	 * XXX-BZ This check should likely go to addba_req along with a counter.
+	 */
+	if (lsta->block_ba)
+		return (-EACCESS);
+#endif
+
+	/* XXX-BZ locking? */
+
+	/* Do we have a running session already? */
+	tap = &lsta->ni->ni_tx_ampdu[tid];
+	if (IEEE80211_AMPDU_REQUESTED(tap)) {
+		net80211_vap_printf(lsta->ni->ni_vap, "%s: "
+		    "AMPDU requested/running\n", __func__);
+		return (-EINPROGRESS);
+	}
+
+	/* Tell net80211 to setup an aggr sessions. */
+	/* XXX-BZ we have no way to carry the timeout forward easily. */
+	worked = ieee80211_ampdu_tx_request_ext(lsta->ni, tid);
+	TRACEOK("ieee80211_ampdu_tx_request_ext %d", worked);
+
+	if (worked != 1) {
+		net80211_vap_printf(lsta->ni->ni_vap, "%s: "
+		    "ieee80211_ampdu_tx_request_ext returned %d != 1\n",
+		    __func__, worked);
+		return (-EINVAL);
+	}
+
+	/*
+	 * How do we make sure the EAPOL handshake has completed?
+	 * Let ieee80211_output do it.
+	 */
+	if (1) {
+		/* Immediately trigger the setup and output of the action frame. */
+		worked = ieee80211_ampdu_request(lsta->ni, tap);
+		if (worked != 1) {
+			net80211_vap_printf(lsta->ni->ni_vap, "%s: "
+			    "ieee80211_ampdu_request returned %d != 1\n",
+			    __func__, worked);
+			return (-EAGAIN);
+		}
+	}
+
+	return (0);
+}
+
 static void
 lkpi_ic_getradiocaps_ht(struct ieee80211com *ic, struct ieee80211_hw *hw,
     uint8_t *bands, int *chan_flags, enum nl80211_band band)
