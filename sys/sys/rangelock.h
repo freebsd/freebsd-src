@@ -50,6 +50,12 @@ struct rl_q_entry;
 struct rangelock {
 	uintptr_t head;
 	bool sleepers;
+	uint8_t resv1;
+	uint8_t resv2;
+	uint8_t resv3;
+#if __SIZEOF_LONG__ >= 8
+	uint32_t resv4;
+#endif
 };
 
 #ifdef _KERNEL
