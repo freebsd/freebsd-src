@@ -6010,7 +6010,7 @@ lkpi_ic_recv_action(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
 
-	IMPROVE_HT("recv_action called; nothing to do in lkpi; make debugging");
+	TRACEOK("recv_action called");
 
 	return (lhw->ic_recv_action(ni, wh, frm, efrm));
 }
@@ -6024,7 +6024,7 @@ lkpi_ic_send_action(struct ieee80211_node *ni, int category, int action, void *s
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
 
-	IMPROVE_HT("send_action called; nothing to do in lkpi; make debugging");
+	TRACEOK("send_action with action %d called", action);
 
 	return (lhw->ic_send_action(ni, category, action, sa));
 }
@@ -6039,7 +6039,7 @@ lkpi_ic_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
 
-	IMPROVE_HT("ieee80211_ampdu_enable called; nothing to do in lkpi for now; make debugging");
+	TRACEOK("ieee80211_ampdu_enable called");
 
 	return (lhw->ic_ampdu_enable(ni, tap));
 }
@@ -6073,6 +6073,8 @@ lkpi_ic_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	vif = LVIF_TO_VIF(lvif);
 	lsta = ni->ni_drv_data;
 	sta = LSTA_TO_STA(lsta);
+
+	TRACEOK("ADDBA REQ tid %u", tap->txa_tid);
 
 	if (!lsta->added_to_drv) {
 		ic_printf(ic, "%s: lsta %p ni %p, sta %p not added to firmware\n",
@@ -6133,6 +6135,8 @@ lkpi_ic_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap
 	vif = LVIF_TO_VIF(lvif);
 	lsta = ni->ni_drv_data;
 	sta = LSTA_TO_STA(lsta);
+
+	TRACEOK("ADDBA RESP status %d (0 == SUCCESS) tid %u", status, tap->txa_tid);
 
 	if (!lsta->added_to_drv) {
 		ic_printf(ic, "%s: lsta %p ni %p, sta %p not added to firmware\n",
@@ -6251,6 +6255,8 @@ lkpi_ic_addba_response_timeout(struct ieee80211_node *ni, struct ieee80211_tx_am
 
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
+
+	TRACEOK("ADDBA RESP TIMEO tid %u", tap->txa_tid);
 
 	IMPROVE_HT();
 
