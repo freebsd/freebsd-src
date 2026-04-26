@@ -92,11 +92,11 @@ CONFGROUPS.${MK_ACPI}+=		ACPI
 ACPIPACKAGE=			acpi
 ACPI=		power_profile
 
+.if ${MACHINE} == "i386"
 CONFGROUPS.${MK_APM}+=		APM
 APMPACKAGE=			apm
-APM=		apm
-.if ${MACHINE} == "i386"
-APM+=		apmd
+APM=		apm \
+		apmd
 .endif
 
 CONFGROUPS.${MK_AUDIT}+=	AUDIT
