@@ -34,7 +34,7 @@
 /* Feature bits. */
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0x1 /* Tell before reclaiming pages */
 #define VIRTIO_BALLOON_F_STATS_VQ	0x2 /* Memory stats virtqueue */
-#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	0x4 /* Deflate balloon on OOM */
+#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	0x4 /* Deflate balloon on guest OOM */
 #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	0x8 /* VQ to report free pages */
 #define VIRTIO_BALLOON_F_PAGE_POISON	0x10 /* Guest is using page poisoning */
 #define VIRTIO_BALLOON_F_PAGE_REPORTING	0x20 /* Page reporting virtqueue */
