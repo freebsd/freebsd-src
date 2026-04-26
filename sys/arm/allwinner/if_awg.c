@@ -651,13 +651,13 @@ awg_encap(struct awg_softc *sc, struct mbuf **mp)
 
 	flags = TX_FIR_DESC;
 	status = 0;
-	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
-		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0)
-			csum_flags = TX_CHECKSUM_CTL_FULL;
-		else
-			csum_flags = TX_CHECKSUM_CTL_IP;
-		flags |= (csum_flags << TX_CHECKSUM_CTL_SHIFT);
-	}
+	if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0)
+		csum_flags = TX_CHECKSUM_CTL_FULL;
+	else if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+		csum_flags = TX_CHECKSUM_CTL_IP;
+	else
+		csum_flags = 0;
+	flags |= (csum_flags << TX_CHECKSUM_CTL_SHIFT);
 
 	for (i = 0; i < nsegs; i++) {
 		sc->tx.segs++;

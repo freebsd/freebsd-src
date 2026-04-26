@@ -135,7 +135,7 @@ static int	vtnet_rxq_replace_buf(struct vtnet_rxq *, struct mbuf *, int);
 static int	vtnet_rxq_enqueue_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_new_buf(struct vtnet_rxq *);
 #if defined(INET) || defined(INET6)
-static int	vtnet_rxq_csum_needs_csum(struct vtnet_rxq *, struct mbuf *,
+static void	vtnet_rxq_csum_needs_csum(struct vtnet_rxq *, struct mbuf *,
 		     bool, int, struct virtio_net_hdr *);
 static void	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
 		    int);
@@ -272,11 +272,6 @@ static SYSCTL_NODE(_hw, OID_AUTO, vtnet, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 static int vtnet_csum_disable = 0;
 SYSCTL_INT(_hw_vtnet, OID_AUTO, csum_disable, CTLFLAG_RDTUN,
     &vtnet_csum_disable, 0, "Disables receive and send checksum offload");
-
-static int vtnet_fixup_needs_csum = 0;
-SYSCTL_INT(_hw_vtnet, OID_AUTO, fixup_needs_csum, CTLFLAG_RDTUN,
-    &vtnet_fixup_needs_csum, 0,
-    "Calculate valid checksum for NEEDS_CSUM packets");
 
 static int vtnet_tso_disable = 0;
 SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_disable, CTLFLAG_RDTUN,
@@ -1158,10 +1153,6 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 		if_setcapabilitiesbit(ifp, IFCAP_RXCSUM, 0);
 		if_setcapabilitiesbit(ifp, IFCAP_RXCSUM_IPV6, 0);
 
-		if (vtnet_tunable_int(sc, "fixup_needs_csum",
-		    vtnet_fixup_needs_csum) != 0)
-			sc->vtnet_flags |= VTNET_FLAG_FIXUP_NEEDS_CSUM;
-
 		/* Support either "hardware" or software LRO. */
 		if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
 	}
@@ -1784,12 +1775,10 @@ vtnet_rxq_new_buf(struct vtnet_rxq *rxq)
 }
 
 #if defined(INET) || defined(INET6)
-static int
+static void
 vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, bool isipv6,
     int protocol, struct virtio_net_hdr *hdr)
 {
-	struct vtnet_softc *sc;
-
 	/*
 	 * The packet is likely from another VM on the same host or from the
 	 * host that itself performed checksum offloading so Tx/Rx is basically
@@ -1800,57 +1789,18 @@ vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, bool isipv6,
 	    ("%s: unsupported IP protocol %d", __func__, protocol));
 
 	/*
-	 * If the user don't want us to fix it up here by computing the
-	 * checksum, just forward the order to compute the checksum by setting
+	 * Just forward the order to compute the checksum by setting
 	 * the corresponding mbuf flag (e.g., CSUM_TCP).
 	 */
-	sc = rxq->vtnrx_sc;
-	if ((sc->vtnet_flags & VTNET_FLAG_FIXUP_NEEDS_CSUM) == 0) {
-		switch (protocol) {
-		case IPPROTO_TCP:
-			m->m_pkthdr.csum_flags |=
-			    (isipv6 ? CSUM_TCP_IPV6 : CSUM_TCP);
-			break;
-		case IPPROTO_UDP:
-			m->m_pkthdr.csum_flags |=
-			    (isipv6 ? CSUM_UDP_IPV6 : CSUM_UDP);
-			break;
-		}
-		m->m_pkthdr.csum_data = hdr->csum_offset;
-		return (0);
+	switch (protocol) {
+	case IPPROTO_TCP:
+		m->m_pkthdr.csum_flags |= (isipv6 ? CSUM_TCP_IPV6 : CSUM_TCP);
+		break;
+	case IPPROTO_UDP:
+		m->m_pkthdr.csum_flags |= (isipv6 ? CSUM_UDP_IPV6 : CSUM_UDP);
+		break;
 	}
-
-	/*
-	 * Compute the checksum in the driver so the packet will contain a
-	 * valid checksum. The checksum is at csum_offset from csum_start.
-	 */
-	int csum_off, csum_end;
-	uint16_t csum;
-
-	csum_off = hdr->csum_start + hdr->csum_offset;
-	csum_end = csum_off + sizeof(uint16_t);
-
-	/* Assume checksum will be in the first mbuf. */
-	if (m->m_len < csum_end || m->m_pkthdr.len < csum_end) {
-		sc->vtnet_stats.rx_csum_bad_offset++;
-		return (1);
-	}
-
-	/*
-	 * Like in_delayed_cksum()/in6_delayed_cksum(), compute the
-	 * checksum and write it at the specified offset. We could
-	 * try to verify the packet: csum_start should probably
-	 * correspond to the start of the TCP/UDP header.
-	 *
-	 * BMV: Need to properly handle UDP with zero checksum. Is
-	 * the IPv4 header checksum implicitly validated?
-	 */
-	csum = in_cksum_skip(m, m->m_pkthdr.len, hdr->csum_start);
-	*(uint16_t *)(mtodo(m, csum_off)) = csum;
-	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-	m->m_pkthdr.csum_data = 0xFFFF;
-
-	return (0);
+	m->m_pkthdr.csum_data = hdr->csum_offset;
 }
 
 static void
@@ -1934,8 +1884,7 @@ vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
 	}
 
 	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)
-		return (vtnet_rxq_csum_needs_csum(rxq, m, isipv6, protocol,
-		    hdr));
+		vtnet_rxq_csum_needs_csum(rxq, m, isipv6, protocol, hdr);
 	else /* VIRTIO_NET_HDR_F_DATA_VALID */
 		vtnet_rxq_csum_data_valid(rxq, m, protocol);
 
@@ -4354,9 +4303,6 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_ipproto",
 	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_ipproto,
 	    "Received checksum offloaded buffer with incorrect IP protocol");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_offset",
-	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_offset,
-	    "Received checksum offloaded buffer with incorrect offset");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_inaccessible_ipproto",
 	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_inaccessible_ipproto,
 	    "Received checksum offloaded buffer with inaccessible IP protocol");
