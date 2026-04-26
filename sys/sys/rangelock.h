@@ -50,6 +50,9 @@ struct rl_q_entry;
 struct rangelock {
 	uintptr_t head;
 	bool sleepers;
+	uint8_t resv0;
+	uint16_t resv1;
+	uint32_t resv2;
 };
 
 #ifdef _KERNEL
