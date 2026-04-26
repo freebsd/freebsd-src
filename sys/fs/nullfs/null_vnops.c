@@ -927,6 +927,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp;
 	struct null_node *xp;
 	struct vnode *lowervp;
+	short flags;
 
 	vp = ap->a_vp;
 	xp = VTONULL(vp);
@@ -955,6 +956,17 @@ null_reclaim(struct vop_reclaim_args *ap)
 		VOP_ADD_WRITECOUNT(lowervp, -vp->v_writecount);
 	else if (vp->v_writecount < 0)
 		vp->v_writecount = 0;
+
+	/*
+	 * Undo the effects of null_copy_inotify(): setting VIRF_INOTIFY* causes
+	 * the VFS to invoke VOP_INOTIFY on the marked vnode, and for nullfs
+	 * vnodes this is bypassed to the lower vnode.  The inotify watch holds
+	 * a ref on the lower vnode, but not the upper vnode, so VOP_INOTIFY
+	 * must not be called on the upper vnode after this point.
+	 */
+	flags = vn_irflag_read(vp) & (VIRF_INOTIFY | VIRF_INOTIFY_PARENT);
+	if (flags != 0)
+		vn_irflag_unset_locked(vp, flags);
 
 	VI_UNLOCK(vp);
 
