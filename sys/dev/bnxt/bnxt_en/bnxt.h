@@ -107,7 +107,7 @@
 #define NETXTREME_E_P5_VF2	0x1807
 #define NETXTREME_E_P5_VF_HV1	0x1808
 #define NETXTREME_E_P5_VF_HV2	0x1809
-#define NETXTREME_E_P7_VF	0x1819
+#define E_P7_VF	0x1819
 
 #define EVENT_DATA1_RESET_NOTIFY_FATAL(data1)				\
 	(((data1) &							\
