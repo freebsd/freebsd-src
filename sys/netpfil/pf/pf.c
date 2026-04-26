@@ -8353,7 +8353,7 @@ again:
 }
 
 static int
-pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
+pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op, bool asconf)
 {
 	int			 off = 0;
 	struct pf_sctp_multihome_job	*job;
@@ -8458,6 +8458,9 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			int ret;
 			struct sctp_asconf_paramhdr ah;
 
+			if (asconf)
+				return (PF_DROP);
+
 			if (!pf_pull_hdr(pd->m, start + off, &ah, sizeof(ah),
 			    NULL, pd->af))
 				return (PF_DROP);
@@ -8467,7 +8470,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 
 			ret = pf_multihome_scan(start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd,
-			    SCTP_ADD_IP_ADDRESS);
+			    SCTP_ADD_IP_ADDRESS, true);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -8476,6 +8479,9 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			int ret;
 			struct sctp_asconf_paramhdr ah;
 
+			if (asconf)
+				return (PF_DROP);
+
 			if (!pf_pull_hdr(pd->m, start + off, &ah, sizeof(ah),
 			    NULL, pd->af))
 				return (PF_DROP);
@@ -8485,7 +8491,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 
 			ret = pf_multihome_scan(start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd,
-			    SCTP_DEL_IP_ADDRESS);
+			    SCTP_DEL_IP_ADDRESS, true);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -8506,7 +8512,7 @@ pf_multihome_scan_init(int start, int len, struct pf_pdesc *pd)
 	start += sizeof(struct sctp_init_chunk);
 	len -= sizeof(struct sctp_init_chunk);
 
-	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS));
+	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS, false));
 }
 
 int
@@ -8515,7 +8521,7 @@ pf_multihome_scan_asconf(int start, int len, struct pf_pdesc *pd)
 	start += sizeof(struct sctp_asconf_chunk);
 	len -= sizeof(struct sctp_asconf_chunk);
 
-	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS));
+	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS, false));
 }
 
 int
