@@ -17,6 +17,8 @@ ATF_TESTS_C+=	basic		\
 		socket		\
 		vlan_rotate	\
 
+ATF_TESTS_SH+=	eiface_test
+
 SRCS.basic=	basic.c util.c
 SRCS.bridge=	bridge.c util.c
 SRCS.hub=	hub.c util.c
