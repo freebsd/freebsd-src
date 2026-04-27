@@ -58,8 +58,6 @@ struct debug_monitor_state;
 struct pcb;
 struct pcpu;
 
-register struct pcpu *pcpup __asm ("x18");
-
 static inline struct pcpu *
 get_pcpu(void)
 {
@@ -80,10 +78,10 @@ get_curthread(void)
 
 #define	curthread get_curthread()
 
-#define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_ADD(member, value)	(pcpup->pc_ ## member += (value))
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
+#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
+#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
+#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
+#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
 
 #define	PCPU_GET_MPIDR(pc)	((pc)->pc_mpidr)
 
