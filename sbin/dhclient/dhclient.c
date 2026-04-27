@@ -1226,6 +1226,12 @@ packet_to_lease(struct packet *packet)
 		}
 		memcpy(lease->server_name, packet->raw->sname, DHCP_SNAME_LEN);
 		lease->server_name[DHCP_SNAME_LEN]='\0';
+		if (strchr(lease->server_name, '"') != NULL ||
+		    strchr(lease->server_name, '\\') != NULL) {
+			warning("dhcpoffer: server name contains invalid characters.");
+			free_client_lease(lease);
+			return (NULL);
+		}
 	}
 
 	/* Ditto for the filename. */
@@ -1241,6 +1247,12 @@ packet_to_lease(struct packet *packet)
 		}
 		memcpy(lease->filename, packet->raw->file, DHCP_FILE_LEN);
 		lease->filename[DHCP_FILE_LEN]='\0';
+		if (strchr(lease->filename, '"') != NULL ||
+		    strchr(lease->filename, '\\') != NULL) {
+			warning("dhcpoffer: filename contains invalid characters.");
+			free_client_lease(lease);
+			return (NULL);
+		}
 	}
 	return lease;
 }
