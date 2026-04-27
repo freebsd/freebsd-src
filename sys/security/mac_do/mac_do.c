@@ -1352,7 +1352,7 @@ set_default_conf(struct prison *const pr)
  */
 
 static void
-clone_rules(struct rules *dst, struct rules *const src)
+clone_rules(struct rules *const dst, const struct rules *const src)
 {
 	struct rule *src_rule, *dst_rule;
 
@@ -1384,7 +1384,8 @@ clone_rules(struct rules *dst, struct rules *const src)
 }
 
 static void
-clone_exec_paths(struct exec_paths *dst, struct exec_paths *const src)
+clone_exec_paths(struct exec_paths *const dst,
+    const struct exec_paths *const src)
 {
 	bzero(dst, sizeof(*dst));
 	dst->exec_path_count = src->exec_path_count;
