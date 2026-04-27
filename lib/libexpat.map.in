@@ -117,3 +117,8 @@ LIBEXPAT_2.7.2 {
 @_EXPAT_COMMENT_DTD_OR_GE@ XML_SetAllocTrackerActivationThreshold;
 @_EXPAT_COMMENT_DTD_OR_GE@ XML_SetAllocTrackerMaximumAmplification;
 } LIBEXPAT_2.6.0;
+
+LIBEXPAT_2.8.0 {
+ global:
+  XML_SetHashSalt16Bytes;
+} LIBEXPAT_2.7.2;
