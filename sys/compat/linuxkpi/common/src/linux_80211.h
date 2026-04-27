@@ -150,12 +150,20 @@ struct lkpi_radiotap_rx_hdr {
 
 struct lkpi_hw;
 
+enum lkpi_txq_flags {
+	LKPI_TXQ_SEEN_DEQUEUE			= 0x01,
+	LKPI_TXQ_STOPPED			= 0x02,
+	LKPI_TXQ_STOPPED_BA			= 0x04,
+};
+#define	LKPI_TXQ_FLAGS_BITS						\
+    "\010\1SEEN_DEQUEUE\2STOPPED\3STOPPED_BA"
+
 struct lkpi_txq {
 	TAILQ_ENTRY(lkpi_txq)	txq_entry;
 
 	struct mtx		ltxq_mtx;
-	bool			seen_dequeue;
-	bool			stopped;
+	enum lkpi_txq_flags	flags;
+
 	uint32_t		txq_generation;
 	struct sk_buff_head	skbq;
 	uint64_t		frms_enqueued;
