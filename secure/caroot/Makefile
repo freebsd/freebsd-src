@@ -8,7 +8,7 @@ SUBDIR+=	blacklisted
 
 # Set this to an upstream hash or tag
 # https://hg-edge.mozilla.org/projects/nss/tags
-HGVER = e71e3de47d4ca7a3efa7c11096ab2e20ae71683e
+HGVER = NSS_3_123_1_RTM
 
 # To be used by secteam@ to update the trusted certificates
 fetchcerts: .PHONY
