@@ -90,6 +90,18 @@ SYSCTL_INT(_net_inet_tcp_hpts_test, OID_AUTO, exit_on_failure, CTLFLAG_RW,
 	} \
 } while (0)
 
+#define KTEST_EQUAL_GOTO(x, y, label) do { \
+	if ((x) != (y)) { \
+		KTEST_ERR(ctx, "FAIL: %s != %s (%d != %d)", #x, #y, (x), (y)); \
+		if (test_exit_on_failure) { \
+			error = EINVAL; \
+			goto label; \
+		} \
+	} else { \
+		KTEST_LOG(ctx, "PASS: %s == %s", #x, #y); \
+	} \
+} while (0)
+
 #define KTEST_NEQUAL(x, y) do { \
 	if ((x) == (y)) { \
 		KTEST_ERR(ctx, "FAIL: %s == %s (%d == %d)", #x, #y, (x), (y)); \
@@ -1461,6 +1473,7 @@ KTEST_FUNC(direct_wake_mechanism)
 	struct tcp_hptsi *pace;
 	struct tcpcb *tp;
 	struct tcp_hpts_entry *hpts;
+	int error;
 
 	test_hpts_init();
 
@@ -1477,8 +1490,8 @@ KTEST_FUNC(direct_wake_mechanism)
 	hpts->p_on_queue_cnt = 50; /* Below threshold */
 	hpts->p_hpts_wake_scheduled = 0;
 	tcp_hpts_wake(hpts);
-	KTEST_EQUAL(hpts->p_hpts_wake_scheduled, 1);
-	KTEST_EQUAL(call_counts[CCNT_SWI_SCHED], 1);
+	KTEST_EQUAL_GOTO(hpts->p_hpts_wake_scheduled, 1, cleanup_locked);
+	KTEST_EQUAL_GOTO(call_counts[CCNT_SWI_SCHED], 1, cleanup_locked);
 	HPTS_UNLOCK(hpts);
 
 	/* Reset for next test */
@@ -1490,9 +1503,9 @@ KTEST_FUNC(direct_wake_mechanism)
 	hpts->p_on_queue_cnt = 200; /* Above threshold */
 	hpts->p_direct_wake = 1; /* Request direct wake */
 	tcp_hpts_wake(hpts);
-	KTEST_EQUAL(hpts->p_hpts_wake_scheduled, 0); /* Should be inhibited */
-	KTEST_EQUAL(hpts->p_direct_wake, 0); /* Should be cleared */
-	KTEST_EQUAL(call_counts[CCNT_SWI_SCHED], 0); /* No SWI scheduled */
+	KTEST_EQUAL_GOTO(hpts->p_hpts_wake_scheduled, 0, cleanup_locked);
+	KTEST_EQUAL_GOTO(hpts->p_direct_wake, 0, cleanup_locked);
+	KTEST_EQUAL_GOTO(call_counts[CCNT_SWI_SCHED], 0, cleanup_locked);
 	HPTS_UNLOCK(hpts);
 
 	test_hpts_free_tcpcb(tp);
@@ -1500,6 +1513,10 @@ KTEST_FUNC(direct_wake_mechanism)
 	tcp_hptsi_destroy(pace);
 
 	return (0);
+
+cleanup_locked:
+	HPTS_UNLOCK(hpts);
+	return (error);
 }
 
 /*
