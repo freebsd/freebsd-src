@@ -1186,7 +1186,15 @@ find_conf(struct prison *const pr, struct prison **const aprp)
 		prison_unlock(cpr);
 
 		ppr = cpr->pr_parent;
-		MPASS(ppr != NULL); /* prison0 always has rules. */
+		/*
+		 * 'prison0' normally always have a mac_do(4) configuration
+		 * because we installed one on module load/activation and
+		 * nothing can destroy it as 'prison0' is not a regular jail and
+		 * the 'mac.do' parameter cannot be set to 'inherit' on it,
+		 * which is the only way to clear an existing configuration.
+		 */
+		KASSERT(ppr != NULL,
+		    ("MAC/do: 'prison0' must always have a configuration."));
 		cpr = ppr;
 	}
 
