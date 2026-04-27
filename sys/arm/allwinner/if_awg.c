@@ -226,6 +226,9 @@ static uint32_t syscon_read_emac_clk_reg(device_t dev);
 static void syscon_write_emac_clk_reg(device_t dev, uint32_t val);
 static phandle_t awg_get_phy_node(device_t dev);
 static bool awg_has_internal_phy(device_t dev);
+#ifdef DEVICE_POLLING
+static int awg_poll(if_t ifp, enum poll_cmd cmd, int count);
+#endif
 
 /*
  * MII functions
