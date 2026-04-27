@@ -2062,7 +2062,7 @@ _pkgbootstrap: .PHONY
 	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
 	    all install clean
 .else
-	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
+	@env ASSUME_ALWAYS_YES=YES ${PKG_CMD} bootstrap
 .endif
 .endif
 
@@ -2124,13 +2124,13 @@ real-update-packages: stage-packages .PHONY
 .if defined(PKG_VERSION_FROM_DIR)
 	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
 	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
-	  pkgname=$$(pkg query -F $${pkg} '%n' | sed 's/${PKG_NAME_PREFIX}-\(.*\)/\1/') ; \
+	  pkgname=$$(${PKG_CMD} query -F $${pkg} '%n' | sed 's/${PKG_NAME_PREFIX}-\(.*\)/\1/') ; \
 	  newpkgname=${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION}.${PKG_EXT} ; \
-	  oldsum=$$(pkg query -F $${pkg} '%X') ; \
+	  oldsum=$$(${PKG_CMD} query -F $${pkg} '%X') ; \
 	  if [ ! -f ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ]; then \
 	    continue; \
 	  fi ; \
-	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
+	  newsum=$$(${PKG_CMD} query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
 	  if [ "${BRANCH_EXT_FROM}" = "${BRANCH_EXT}" -a "$${oldsum}" = "$${newsum}" ]; then \
 	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_EXT}" ; \
 	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
