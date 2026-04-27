@@ -891,8 +891,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 		} else {
 			ltxq->txq.ac = ieee80211e_up_to_ac[tid & 7];
 		}
-		ltxq->seen_dequeue = false;
-		ltxq->stopped = false;
+		ltxq->flags = 0;
 		ltxq->txq.vif = vif;
 		ltxq->txq.tid = tid;
 		ltxq->txq.sta = sta;
@@ -2179,7 +2178,7 @@ lkpi_wake_tx_queues(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 			continue;
 
 		ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
-		if (dequeue_seen && !ltxq->seen_dequeue)
+		if (dequeue_seen && (ltxq->flags & LKPI_TXQ_SEEN_DEQUEUE) == 0)
 			continue;
 
 		LKPI_80211_LTXQ_LOCK(ltxq);
@@ -5793,8 +5792,8 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 				if (sta->txq[tid] == NULL)
 					continue;
 				ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
-				ic_printf(ic, "  tid %d ltxq %p seen_dequeue %d stopped %d skb_queue_len %u\n",
-				    tid, ltxq, ltxq->seen_dequeue, ltxq->stopped, skb_queue_len(&ltxq->skbq));
+				ic_printf(ic, "  tid %d ltxq %p flags %b skb_queue_len %u\n",
+				    tid, ltxq, ltxq->flags, LKPI_TXQ_FLAGS_BITS, skb_queue_len(&ltxq->skbq));
 			}
 		}
 		ieee80211_free_node(ni);
@@ -6091,15 +6090,27 @@ lkpi_ic_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	params.tid = tap->txa_tid;
 	params.amsdu = false;
 
-	IEEE80211_UNLOCK(ic);
+	/* We get called from if_transmit all the way up unlocked in net80211. */
+	IEEE80211_UNLOCK_ASSERT(ic);
 	wiphy_lock(hw->wiphy);
 	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
 	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(ic);
-	if (error != 0) {
+	if (error == IEEE80211_AMPDU_TX_START_IMMEDIATE) {
+		ic_printf(ic, "%s: mo_ampdu_action returned AMPDU_TX_START_IMMEDIATE. "
+		    "ni %p tap %p\n", __func__, ni, tap);
+	} else if (error != 0) {
 		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p tap %p\n",
 		    __func__, error, ni, tap);
 		return (0);
+	}
+
+	if (sta->txq[tap->txa_tid] != NULL) {
+		struct lkpi_txq *ltxq;
+
+		ltxq = TXQ_TO_LTXQ(sta->txq[tap->txa_tid]);
+		TRACEOK("ADDBA REQ ltxq tid %u flags %b qlen %d", tap->txa_tid,
+		    ltxq->flags, LKPI_TXQ_FLAGS_BITS, skb_queue_len(&ltxq->skbq));
+		ltxq->flags |= LKPI_TXQ_STOPPED_BA;
 	}
 
 	return (lhw->ic_addba_request(ni, tap, dialogtoken, baparamset, batimeout));
@@ -6171,15 +6182,25 @@ lkpi_ic_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap
 		params.amsdu = false;
 	}
 
-	IEEE80211_UNLOCK(ic);
+	/* We are called all they way up from ieee80211_input* without lock. */
 	wiphy_lock(hw->wiphy);
 	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
 	wiphy_unlock(hw->wiphy);
-	IEEE80211_LOCK(ic);
 	if (error != 0) {
 		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p tap %p\n",
 		    __func__, error, ni, tap);
 		return (0);
+	}
+
+	if (sta->txq[tap->txa_tid] != NULL) {
+		struct lkpi_txq *ltxq;
+
+		ltxq = TXQ_TO_LTXQ(sta->txq[tap->txa_tid]);
+		TRACEOK("ADDBA RESP ltxq tid %u flags %b qlen %d", tap->txa_tid,
+		    ltxq->flags, LKPI_TXQ_FLAGS_BITS, skb_queue_len(&ltxq->skbq));
+		ltxq->flags &= ~LKPI_TXQ_STOPPED_BA;
+
+		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tap->txa_tid], true);
 	}
 
 	IMPROVE_HT("who unleashes the TXQ? and when?, do we need to ni->ni_txseqs[tid] = tap->txa_start & 0xfff;");
@@ -6252,14 +6273,40 @@ lkpi_ic_addba_response_timeout(struct ieee80211_node *ni, struct ieee80211_tx_am
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
 
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
+	lsta = ni->ni_drv_data;
+	sta = LSTA_TO_STA(lsta);
 
 	TRACEOK("ADDBA RESP TIMEO tid %u", tap->txa_tid);
 
 	IMPROVE_HT();
 
+	if (!lsta->added_to_drv) {
+		ic_printf(ic, "%s: lsta %p ni %p, sta %p not added to firmware\n",
+		    __func__, lsta, ni, sta);
+		goto n80211;
+	}
+
+	/* We need to re-enable the txq and get packets out. */
+	if (sta->txq[tap->txa_tid] != NULL) {
+		struct lkpi_txq *ltxq;
+		struct ieee80211_hw *hw;
+
+		ltxq = TXQ_TO_LTXQ(sta->txq[tap->txa_tid]);
+		TRACEOK("ADDBA RESP TIMEO ltxq tid %u flags %b qlen %d",
+		    tap->txa_tid, ltxq->flags, LKPI_TXQ_FLAGS_BITS,
+		    skb_queue_len(&ltxq->skbq));
+		ltxq->flags &= ~LKPI_TXQ_STOPPED_BA;
+
+		hw = LHW_TO_HW(lhw);
+		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tap->txa_tid], true);
+	}
+
+n80211:
 	lhw->ic_addba_response_timeout(ni, tap);
 }
 
@@ -8592,14 +8639,14 @@ linuxkpi_ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	IMPROVE("wiphy_lock? or assert?");
 	skb = NULL;
 	ltxq = TXQ_TO_LTXQ(txq);
-	ltxq->seen_dequeue = true;
+	ltxq->flags |= LKPI_TXQ_SEEN_DEQUEUE;
 
-	if (ltxq->stopped)
+	if ((ltxq->flags & (LKPI_TXQ_STOPPED|LKPI_TXQ_STOPPED_BA)) != 0)
 		goto stopped;
 
 	lvif = VIF_TO_LVIF(ltxq->txq.vif);
 	if (lvif->hw_queue_stopped[ltxq->txq.ac]) {
-		ltxq->stopped = true;
+		ltxq->flags |= LKPI_TXQ_STOPPED;
 		goto stopped;
 	}
 
@@ -9102,10 +9149,10 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 							continue;
 
 						ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
-						if (!ltxq->stopped)
+						if ((ltxq->flags & LKPI_TXQ_STOPPED) == 0)
 							continue;
 
-						ltxq->stopped = false;
+						ltxq->flags &= ~LKPI_TXQ_STOPPED;
 
 						if (!skb_queue_empty(&ltxq->skbq))
 							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid], false);
@@ -9244,6 +9291,8 @@ linuxkpi_ieee80211_next_txq(struct ieee80211_hw *hw, uint8_t ac)
 	if (ltxq == NULL)
 		goto out;
 	if (ltxq->txq_generation == lhw->txq_generation[ac])
+		goto out;
+	if ((ltxq->flags & (LKPI_TXQ_STOPPED|LKPI_TXQ_STOPPED_BA)) != 0)
 		goto out;
 
 	IMPROVE("check AIRTIME_FAIRNESS");
