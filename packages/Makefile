@@ -61,7 +61,6 @@ SUBDIR=	blocklist \
 	periodic \
 	powerd \
 	ppp \
-	quotacheck \
 	rc \
 	rcmds \
 	resolvconf \
@@ -140,6 +139,7 @@ SUBDIR.${MK_OPENSSH}+=		ssh
 SUBDIR.${MK_OPENSSL}+=		openssl
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg-bootstrap
 SUBDIR.${MK_PMC}+=		pmc
+SUBDIR.${MK_QUOTAS}+=		quotacheck
 SUBDIR.${MK_RESCUE}+=		rescue
 SUBDIR.${MK_SENDMAIL}+=		sendmail libmilter
 SUBDIR.${MK_SOUND}+=		sound
