@@ -1,7 +1,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2024 The FreeBSD Foundation
+# Copyright (c) 2024-2026 The FreeBSD Foundation
 #
 # This software was developed by Christos Margiolis <christos@FreeBSD.org>
 # under sponsorship from the FreeBSD Foundation.
@@ -210,16 +210,6 @@ mute_body()
 	atf_check -o ignore -e empty mixer vol.mute=toggle
 	atf_check -o match:"=off" mixer vol.mute
 
-	# Test deprecated interface
-	atf_check -o ignore -e empty mixer vol.mute=0
-	atf_check -o match:"=off" mixer vol.mute
-
-	atf_check -o ignore -e empty mixer vol.mute=1
-	atf_check -o match:"=on" mixer vol.mute
-
-	atf_check -o ignore -e empty mixer vol.mute=^
-	atf_check -o match:"=off" mixer vol.mute
-
 	# Test wrong values
 	atf_check -o ignore -e not-empty mixer vol.mute=foobar
 	atf_check -o ignore -e not-empty mixer vol.mute=10
@@ -247,12 +237,6 @@ recsrc_body()
 	atf_check -o ignore -e empty mixer ${recsrc}.recsrc=remove
 	atf_check -o ignore -e empty mixer ${recsrc}.recsrc=set
 	atf_check -o ignore -e empty mixer ${recsrc}.recsrc=toggle
-
-	# Test deprecated interface
-	atf_check -o ignore -e empty mixer ${recsrc}.recsrc=+
-	atf_check -o ignore -e empty mixer ${recsrc}.recsrc=-
-	atf_check -o ignore -e empty mixer ${recsrc}.recsrc==
-	atf_check -o ignore -e empty mixer ${recsrc}.recsrc=^
 
 	# Test wrong values
 	atf_check -o ignore -e not-empty mixer ${recsrc}.recsrc=foobar
