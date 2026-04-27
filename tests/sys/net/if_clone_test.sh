@@ -104,6 +104,8 @@ epair_destroy_race2_head()
 }
 epair_destroy_race2_body()
 {
+	atf_skip "Need BPF fix due to (bpf: virtualize bpf_iflist)"
+
 	jid=$(jail -ic vnet host.hostname="epair_destroy2" persist path=/)
 
 	for i in `seq 1 10`

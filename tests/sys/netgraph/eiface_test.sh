@@ -35,6 +35,8 @@ pr292993_head()
 
 pr292993_body()
 {
+	atf_skip "Need BPF fix due to (bpf: virtualize bpf_iflist)"
+
 	vnet_init
 
 	for i in `seq 1 10`
