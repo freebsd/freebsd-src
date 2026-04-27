@@ -22,7 +22,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2024 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
 # Copyright (c) 2020      Jeffrey Walton <noloader@gmail.com>
 # Copyright (c) 2024      Dag-Erling Smørgrav <des@des.dev>
@@ -122,8 +122,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = runtests$(EXEEXT) runtests_cxx$(EXEEXT)
-TESTS = runtests$(EXEEXT) runtests_cxx$(EXEEXT)
+check_PROGRAMS = runtests$(EXEEXT)
+TESTS = runtests$(EXEEXT)
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -162,19 +162,6 @@ am__v_lt_1 =
 runtests_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(runtests_LDFLAGS) $(LDFLAGS) -o $@
-am_runtests_cxx_OBJECTS = acc_tests_cxx.$(OBJEXT) \
-	alloc_tests_cxx.$(OBJEXT) basic_tests_cxx.$(OBJEXT) \
-	chardata_cxx.$(OBJEXT) common_cxx.$(OBJEXT) \
-	dummy_cxx.$(OBJEXT) handlers_cxx.$(OBJEXT) \
-	memcheck_cxx.$(OBJEXT) minicheck_cxx.$(OBJEXT) \
-	misc_tests_cxx.$(OBJEXT) nsalloc_tests_cxx.$(OBJEXT) \
-	ns_tests_cxx.$(OBJEXT) runtests_cxx.$(OBJEXT) \
-	structdata_cxx.$(OBJEXT)
-runtests_cxx_OBJECTS = $(am_runtests_cxx_OBJECTS)
-runtests_cxx_DEPENDENCIES = ../lib/libtestpat.la
-runtests_cxx_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
-	$(CXXFLAGS) $(runtests_cxx_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -191,20 +178,13 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/conftools/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/acc_tests.Po \
-	./$(DEPDIR)/acc_tests_cxx.Po ./$(DEPDIR)/alloc_tests.Po \
-	./$(DEPDIR)/alloc_tests_cxx.Po ./$(DEPDIR)/basic_tests.Po \
-	./$(DEPDIR)/basic_tests_cxx.Po ./$(DEPDIR)/chardata.Po \
-	./$(DEPDIR)/chardata_cxx.Po ./$(DEPDIR)/common.Po \
-	./$(DEPDIR)/common_cxx.Po ./$(DEPDIR)/dummy.Po \
-	./$(DEPDIR)/dummy_cxx.Po ./$(DEPDIR)/handlers.Po \
-	./$(DEPDIR)/handlers_cxx.Po ./$(DEPDIR)/memcheck.Po \
-	./$(DEPDIR)/memcheck_cxx.Po ./$(DEPDIR)/minicheck.Po \
-	./$(DEPDIR)/minicheck_cxx.Po ./$(DEPDIR)/misc_tests.Po \
-	./$(DEPDIR)/misc_tests_cxx.Po ./$(DEPDIR)/ns_tests.Po \
-	./$(DEPDIR)/ns_tests_cxx.Po ./$(DEPDIR)/nsalloc_tests.Po \
-	./$(DEPDIR)/nsalloc_tests_cxx.Po ./$(DEPDIR)/runtests.Po \
-	./$(DEPDIR)/runtests_cxx.Po ./$(DEPDIR)/structdata.Po \
-	./$(DEPDIR)/structdata_cxx.Po
+	./$(DEPDIR)/alloc_tests.Po ./$(DEPDIR)/basic_tests.Po \
+	./$(DEPDIR)/chardata.Po ./$(DEPDIR)/common.Po \
+	./$(DEPDIR)/dummy.Po ./$(DEPDIR)/handlers.Po \
+	./$(DEPDIR)/memcheck.Po ./$(DEPDIR)/minicheck.Po \
+	./$(DEPDIR)/misc_tests.Po ./$(DEPDIR)/ns_tests.Po \
+	./$(DEPDIR)/nsalloc_tests.Po ./$(DEPDIR)/runtests.Po \
+	./$(DEPDIR)/structdata.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -224,26 +204,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
-	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
-	$(AM_CXXFLAGS) $(CXXFLAGS)
-AM_V_CXX = $(am__v_CXX_@AM_V@)
-am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
-am__v_CXX_0 = @echo "  CXX     " $@;
-am__v_CXX_1 = 
-CXXLD = $(CXX)
-CXXLINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
-	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
-am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
-am__v_CXXLD_0 = @echo "  CXXLD   " $@;
-am__v_CXXLD_1 = 
-SOURCES = $(runtests_SOURCES) $(runtests_cxx_SOURCES)
-DIST_SOURCES = $(runtests_SOURCES) $(runtests_cxx_SOURCES)
+SOURCES = $(runtests_SOURCES)
+DIST_SOURCES = $(runtests_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -695,26 +657,8 @@ runtests_SOURCES = \
     runtests.c \
     structdata.c
 
-runtests_cxx_SOURCES = \
-    acc_tests_cxx.cpp \
-    alloc_tests_cxx.cpp \
-    basic_tests_cxx.cpp \
-    chardata_cxx.cpp \
-    common_cxx.cpp \
-    dummy_cxx.cpp \
-    handlers_cxx.cpp \
-    memcheck_cxx.cpp \
-    minicheck_cxx.cpp \
-    misc_tests_cxx.cpp \
-    nsalloc_tests_cxx.cpp \
-    ns_tests_cxx.cpp \
-    runtests_cxx.cpp \
-    structdata_cxx.cpp
-
 runtests_LDADD = ../lib/libtestpat.la
-runtests_cxx_LDADD = ../lib/libtestpat.la
 runtests_LDFLAGS = @AM_LDFLAGS@ @LIBM@
-runtests_cxx_LDFLAGS = @AM_LDFLAGS@ @LIBM@
 EXTRA_DIST = \
     acc_tests.h \
     alloc_tests.h \
@@ -737,7 +681,7 @@ EXTRA_DIST = \
 all: all-recursive
 
 .SUFFIXES:
-.SUFFIXES: .c .cpp .lo .log .o .obj .test .test$(EXEEXT) .trs
+.SUFFIXES: .c .lo .log .o .obj .test .test$(EXEEXT) .trs
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -776,10 +720,6 @@ runtests$(EXEEXT): $(runtests_OBJECTS) $(runtests_DEPENDENCIES) $(EXTRA_runtests
 	@rm -f runtests$(EXEEXT)
 	$(AM_V_CCLD)$(runtests_LINK) $(runtests_OBJECTS) $(runtests_LDADD) $(LIBS)
 
-runtests_cxx$(EXEEXT): $(runtests_cxx_OBJECTS) $(runtests_cxx_DEPENDENCIES) $(EXTRA_runtests_cxx_DEPENDENCIES) 
-	@rm -f runtests_cxx$(EXEEXT)
-	$(AM_V_CXXLD)$(runtests_cxx_LINK) $(runtests_cxx_OBJECTS) $(runtests_cxx_LDADD) $(LIBS)
-
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -787,33 +727,19 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acc_tests.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acc_tests_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/alloc_tests.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/alloc_tests_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic_tests.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic_tests_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chardata.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chardata_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dummy.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dummy_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/handlers.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/handlers_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcheck.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcheck_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/minicheck.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/minicheck_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/misc_tests.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/misc_tests_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ns_tests.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ns_tests_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nsalloc_tests.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nsalloc_tests_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/runtests.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/runtests_cxx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/structdata.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/structdata_cxx.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -841,27 +767,6 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
-
-.cpp.o:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
-
-.cpp.obj:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
-
-.cpp.lo:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1141,13 +1046,6 @@ runtests.log: runtests$(EXEEXT)
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
-runtests_cxx.log: runtests_cxx$(EXEEXT)
-	@p='runtests_cxx$(EXEEXT)'; \
-	b='runtests_cxx'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
 .test.log:
 	@p='$<'; \
 	$(am__set_b); \
@@ -1268,33 +1166,19 @@ clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 
 distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/acc_tests.Po
-	-rm -f ./$(DEPDIR)/acc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/alloc_tests.Po
-	-rm -f ./$(DEPDIR)/alloc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/basic_tests.Po
-	-rm -f ./$(DEPDIR)/basic_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/chardata.Po
-	-rm -f ./$(DEPDIR)/chardata_cxx.Po
 	-rm -f ./$(DEPDIR)/common.Po
-	-rm -f ./$(DEPDIR)/common_cxx.Po
 	-rm -f ./$(DEPDIR)/dummy.Po
-	-rm -f ./$(DEPDIR)/dummy_cxx.Po
 	-rm -f ./$(DEPDIR)/handlers.Po
-	-rm -f ./$(DEPDIR)/handlers_cxx.Po
 	-rm -f ./$(DEPDIR)/memcheck.Po
-	-rm -f ./$(DEPDIR)/memcheck_cxx.Po
 	-rm -f ./$(DEPDIR)/minicheck.Po
-	-rm -f ./$(DEPDIR)/minicheck_cxx.Po
 	-rm -f ./$(DEPDIR)/misc_tests.Po
-	-rm -f ./$(DEPDIR)/misc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/ns_tests.Po
-	-rm -f ./$(DEPDIR)/ns_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/nsalloc_tests.Po
-	-rm -f ./$(DEPDIR)/nsalloc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/runtests.Po
-	-rm -f ./$(DEPDIR)/runtests_cxx.Po
 	-rm -f ./$(DEPDIR)/structdata.Po
-	-rm -f ./$(DEPDIR)/structdata_cxx.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -1341,33 +1225,19 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/acc_tests.Po
-	-rm -f ./$(DEPDIR)/acc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/alloc_tests.Po
-	-rm -f ./$(DEPDIR)/alloc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/basic_tests.Po
-	-rm -f ./$(DEPDIR)/basic_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/chardata.Po
-	-rm -f ./$(DEPDIR)/chardata_cxx.Po
 	-rm -f ./$(DEPDIR)/common.Po
-	-rm -f ./$(DEPDIR)/common_cxx.Po
 	-rm -f ./$(DEPDIR)/dummy.Po
-	-rm -f ./$(DEPDIR)/dummy_cxx.Po
 	-rm -f ./$(DEPDIR)/handlers.Po
-	-rm -f ./$(DEPDIR)/handlers_cxx.Po
 	-rm -f ./$(DEPDIR)/memcheck.Po
-	-rm -f ./$(DEPDIR)/memcheck_cxx.Po
 	-rm -f ./$(DEPDIR)/minicheck.Po
-	-rm -f ./$(DEPDIR)/minicheck_cxx.Po
 	-rm -f ./$(DEPDIR)/misc_tests.Po
-	-rm -f ./$(DEPDIR)/misc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/ns_tests.Po
-	-rm -f ./$(DEPDIR)/ns_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/nsalloc_tests.Po
-	-rm -f ./$(DEPDIR)/nsalloc_tests_cxx.Po
 	-rm -f ./$(DEPDIR)/runtests.Po
-	-rm -f ./$(DEPDIR)/runtests_cxx.Po
 	-rm -f ./$(DEPDIR)/structdata.Po
-	-rm -f ./$(DEPDIR)/structdata_cxx.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

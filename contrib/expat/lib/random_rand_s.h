@@ -1,4 +1,4 @@
-/* C++ compilation harness for the test suite.
+/*
                             __  __            _
                          ___\ \/ /_ __   __ _| |_
                         / _ \\  /| '_ \ / _` | __|
@@ -6,7 +6,8 @@
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2019 David Loffredo <loffredo@steptools.com>
+   Copyright (c) 2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -29,4 +30,12 @@
    USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "dummy.c"
+#if ! defined(RANDOM_RAND_S_H)
+#  define RANDOM_RAND_S_H 1
+
+#  include <stdbool.h>
+#  include <stddef.h> // for size_t
+
+bool writeRandomBytes_rand_s(void *target, size_t count);
+
+#endif // ! defined(RANDOM_RAND_S_H)
