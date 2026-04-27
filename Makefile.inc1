@@ -2418,7 +2418,7 @@ real-sign-packages:	_pkgbootstrap .PHONY
 		${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
 		${PKG_REPO_SIGNING_KEY} ; \
 	cd ${REPODIR}/${PKG_ABI}; \
-	ln -hfs ${PKG_OUTPUT_DIR} latest
+	ln -nfs ${PKG_OUTPUT_DIR} latest
 
 #
 #
