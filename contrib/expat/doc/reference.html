@@ -53,7 +53,7 @@
   <body>
     <div>
       <h1>
-        The Expat XML Parser <small>Release 2.7.5</small>
+        The Expat XML Parser <small>Release 2.8.0</small>
       </h1>
     </div>
 
@@ -404,7 +404,11 @@
                 </li>
 
                 <li>
-                  <a href="#XML_SetHashSalt">XML_SetHashSalt</a>
+                  <a href="#XML_SetHashSalt">XML_SetHashSalt</a> (deprecated)
+                </li>
+
+                <li>
+                  <a href="#XML_SetHashSalt16Bytes">XML_SetHashSalt16Bytes</a>
                 </li>
 
                 <li>
@@ -3449,22 +3453,35 @@ XML_SetParamEntityParsing(XML_Parser p,
       </div>
 
       <h4 id="XML_SetHashSalt">
-        XML_SetHashSalt
+        XML_SetHashSalt (deprecated)
       </h4>
 
       <pre class="fcndec">
 int XMLCALL
-XML_SetHashSalt(XML_Parser p,
+XML_SetHashSalt(XML_Parser parser,
                 unsigned long hash_salt);
 </pre>
       <div class="fcndef">
         Sets the hash salt to use for internal hash calculations. Helps in preventing DoS
         attacks based on predicting hash function behavior. In order to have an effect
         this must be called before parsing has started. Returns 1 if successful, 0 when
-        called after <code>XML_Parse</code> or <code>XML_ParseBuffer</code>.
+        called after <code>XML_Parse</code> or <code>XML_ParseBuffer</code> or when
+        <code>parser</code> is <code>NULL</code>.
+        <p>
+          <b>Note:</b> Function <code>XML_SetHashSalt</code> is
+          <strong>deprecated</strong>. Please use function <code><a href=
+          "#XML_SetHashSalt16Bytes">XML_SetHashSalt16Bytes</a></code> instead for better
+          security. <code>XML_SetHashSalt</code> only provides 4 to 8 bytes of entropy
+          (depending on the size of type <code>unsigned long</code>) while the SipHash
+          implementation used by Expat can leverage up to 16 bytes of entropy — at least
+          twice as much. Function <code><a href=
+          "#XML_SetHashSalt16Bytes">XML_SetHashSalt16Bytes</a></code> of Expat &gt;=2.8.0
+          (and where backported) matches the amount of entropy supported by SipHash.
+        </p>
+
         <p>
           <b>Note:</b> This call is optional, as the parser will auto-generate a new
-          random salt value if no value has been set at the start of parsing.
+          random salt value internally if no value has been set by the start of parsing.
         </p>
 
         <p>
@@ -3472,6 +3489,34 @@ XML_SetHashSalt(XML_Parser p,
           value of 0, as this value is used as sentinel value to indicate that
           <code>XML_SetHashSalt</code> has <b>not</b> been called. Consequently such a
           call will have no effect, even if it returns 1.
+        </p>
+      </div>
+
+      <h4 id="XML_SetHashSalt16Bytes">
+        XML_SetHashSalt16Bytes
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.8.0. */
+XML_Bool XMLCALL
+XML_SetHashSalt16Bytes(XML_Parser parser,
+                       const uint8_t entropy[16]);
+</pre>
+      <div class="fcndef">
+        Sets the hash salt to use for internal hash calculations. Helps in preventing DoS
+        attacks based on predicting hash function behavior. In order to have an effect
+        this must be called before parsing has started. Returns <code>XML_TRUE</code> if
+        successful, <code>XML_FALSE</code> when called after <code>XML_Parse</code> or
+        <code>XML_ParseBuffer</code> or when <code>parser</code> is <code>NULL</code>.
+        <p>
+          <b>Note:</b> Setting a salt that is <em>not</em> from a source of high quality
+          entropy (like <code>getentropy(3)</code>) will make the parser vulnerable to
+          hash flooding attacks.
+        </p>
+
+        <p>
+          <b>Note:</b> This call is optional, as the parser will auto-generate a new
+          random salt value internally if no value has been set by the start of parsing.
         </p>
       </div>
 

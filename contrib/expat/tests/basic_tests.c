@@ -20,6 +20,7 @@
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2023-2024 Sony Corporation / Snild Dolkow <snild@sony.com>
    Copyright (c) 2024-2025 Berkay Eren Ürün <berkay.ueruen@siemens.com>
+   Copyright (c) 2026      Francesco Bertolaccini
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -203,6 +204,30 @@ START_TEST(test_hash_collision) {
 }
 END_TEST
 #undef COLLIDING_HASH_SALT
+
+START_TEST(test_hash_salt_setter) {
+  const uint8_t entropy[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                               '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  XML_Parser parser = XML_ParserCreate(NULL);
+
+  // NULL parser should be rejected
+  assert_true(XML_SetHashSalt16Bytes(NULL, entropy) == XML_FALSE);
+
+  // NULL entropy should be rejected
+  assert_true(XML_SetHashSalt16Bytes(parser, NULL) == XML_FALSE);
+
+  // Setting should be allowed more than once
+  assert_true(XML_SetHashSalt16Bytes(parser, entropy) == XML_TRUE);
+  assert_true(XML_SetHashSalt16Bytes(parser, entropy) == XML_TRUE);
+
+  // But not after parsing has started
+  assert_true(XML_Parse(parser, "", 0, XML_FALSE /* isFinal */)
+              == XML_STATUS_OK);
+  assert_true(XML_SetHashSalt16Bytes(parser, entropy) == XML_FALSE);
+
+  XML_ParserFree(parser);
+}
+END_TEST
 
 /* Regression test for SF bug #491986. */
 START_TEST(test_danish_latin1) {
@@ -6292,6 +6317,7 @@ make_basic_test_case(Suite *s) {
   tcase_add_test(tc_basic, test_bom_utf16_le);
   tcase_add_test(tc_basic, test_nobom_utf16_le);
   tcase_add_test(tc_basic, test_hash_collision);
+  tcase_add_test(tc_basic, test_hash_salt_setter);
   tcase_add_test(tc_basic, test_illegal_utf8);
   tcase_add_test(tc_basic, test_utf8_auto_align);
   tcase_add_test(tc_basic, test_utf16);
