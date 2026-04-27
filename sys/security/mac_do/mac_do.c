@@ -1178,14 +1178,19 @@ drop_conf(struct conf *const conf)
 /*
  * Find configuration applicable to the passed prison.
  *
- * Returns the applicable configuration (and never NULL).  'pr' must be
- * unlocked.  'aprp' is set to the (ancestor) prison holding these, and it must
- * be unlocked once the caller is done accessing the configuration.  '*aprp' is
- * equal to 'pr' if and only if the current jail has its own specific
- * configuration.
+ * Returns the applicable configuration (which always exists), with an
+ * additional reference that must be freed by the caller.  'pr' must not be
+ * locked.
+ *
+ * The applicable configuration is that of the closest ancestor prison
+ * (including itself) of the passed prison that actually has a 'struct conf'
+ * associated to it.
+ *
+ * If 'hpr' is not NULL, it is used to return a pointer to the (unlocked) prison
+ * holding the applicable configuration.
  */
 static struct conf *
-find_conf(struct prison *const pr, struct prison **const aprp)
+find_conf(struct prison *const pr, struct prison **const hpr)
 {
 	struct prison *cpr, *ppr;
 	struct conf *conf;
@@ -1211,7 +1216,11 @@ find_conf(struct prison *const pr, struct prison **const aprp)
 		cpr = ppr;
 	}
 
-	*aprp = cpr;
+	hold_conf(conf);
+	prison_unlock(cpr);
+
+	if (hpr != NULL)
+		*hpr = cpr;
 	return (conf);
 }
 
@@ -1386,7 +1395,6 @@ static int
 parse_and_set_conf(struct prison *pr, const char *rules_string,
     const char *exec_paths_string, struct parse_error **parse_error)
 {
-	struct prison *ppr = NULL;
 	struct conf *applicable_conf = NULL;
 	struct conf *conf;
 	int error = 0;
@@ -1395,11 +1403,8 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 	need_applicable_conf = (rules_string == NULL || rules_string[0] == '\0' ||
 	    exec_paths_string == NULL || exec_paths_string[0] == '\0');
 
-	if (need_applicable_conf) {
-		applicable_conf = find_conf(pr, &ppr);
-		hold_conf(applicable_conf);
-		prison_unlock(ppr);
-	}
+	if (need_applicable_conf)
+		applicable_conf = find_conf(pr, NULL);
 
 	conf = alloc_conf();
 
@@ -1437,22 +1442,20 @@ static int
 mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
 	char *const buf = malloc(MAX_RULE_STRING_SIZE, M_MAC_DO, M_WAITOK);
-	struct prison *const td_pr = req->td->td_ucred->cr_prison;
-	struct prison *pr;
+	struct prison *const pr = req->td->td_ucred->cr_prison;
 	struct conf *conf;
 	struct parse_error *parse_error = NULL;
 	int error;
 
-	conf = find_conf(td_pr, &pr);
+	conf = find_conf(pr, NULL);
 	strlcpy(buf, conf->rules.string, MAX_RULE_STRING_SIZE);
-	prison_unlock(pr);
 
 	error = sysctl_handle_string(oidp, buf, MAX_RULE_STRING_SIZE, req);
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
 	/* Set our prison's rules, not that of the jail we inherited from. */
-	error = parse_and_set_conf(td_pr, buf, NULL, &parse_error);
+	error = parse_and_set_conf(pr, buf, NULL, &parse_error);
 	if (error != 0) {
 		if (print_parse_error)
 			printf("MAC/do: Parse error at index %zu: %s\n",
@@ -1461,6 +1464,7 @@ mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 	}
 
 out:
+	drop_conf(conf);
 	free(buf, M_MAC_DO);
 	return (error);
 }
@@ -1479,21 +1483,19 @@ static int
 mac_do_sysctl_exec_paths(SYSCTL_HANDLER_ARGS)
 {
 	char *const buf = malloc(MAX_EXEC_PATHS_SIZE, M_MAC_DO, M_WAITOK);
-	struct prison *const td_pr = req->td->td_ucred->cr_prison;
-	struct prison *pr;
+	struct prison *const pr = req->td->td_ucred->cr_prison;
 	struct conf *conf;
 	struct parse_error *parse_error = NULL;
 	int error;
 
-	conf = find_conf(td_pr, &pr);
+	conf = find_conf(pr, NULL);
 	strlcpy(buf, conf->exec_paths.exec_paths_str, MAX_EXEC_PATHS_SIZE);
-	prison_unlock(pr);
 
 	error = sysctl_handle_string(oidp, buf, MAX_EXEC_PATHS_SIZE, req);
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
-	error = parse_and_set_conf(td_pr, NULL, buf, &parse_error);
+	error = parse_and_set_conf(pr, NULL, buf, &parse_error);
 	if (error != 0) {
 		if (print_parse_error)
 			printf("MAC/do: Parse error at index %zu: %s\n",
@@ -1502,6 +1504,7 @@ mac_do_sysctl_exec_paths(SYSCTL_HANDLER_ARGS)
 	}
 
 out:
+	drop_conf(conf);
 	free(buf, M_MAC_DO);
 	return (error);
 }
@@ -1527,20 +1530,19 @@ mac_do_jail_create(void *obj, void *data)
 static int
 mac_do_jail_get(void *obj, void *data)
 {
-	struct prison *ppr, *const pr = obj;
+	struct prison *const pr = obj;
 	struct vfsoptlist *const opts = data;
-	struct conf *conf;
-	struct rules *rules;
-	struct exec_paths *exec_paths;
+	struct prison *hpr_out;
+	struct conf *const applicable_conf = find_conf(pr, &hpr_out);
+	const struct prison *const hpr = hpr_out;
+	const struct rules *const rules = &applicable_conf->rules;
+	const struct exec_paths *const exec_paths = &applicable_conf->exec_paths;
 	int jsys, error;
 
-	conf = find_conf(pr, &ppr);
-	rules = &conf->rules;
-	exec_paths = &conf->exec_paths;
-
-	jsys = pr == ppr ?
+	jsys = hpr == pr ?
 	    (STAILQ_EMPTY(&rules->head) ? JAIL_SYS_DISABLE : JAIL_SYS_NEW) :
 	    JAIL_SYS_INHERIT;
+
 	error = vfs_setopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error != 0 && error != ENOENT)
 		goto done;
@@ -1556,7 +1558,7 @@ mac_do_jail_get(void *obj, void *data)
 
 	error = 0;
 done:
-	prison_unlock(ppr);
+	drop_conf(applicable_conf);
 	return (error);
 }
 
@@ -2290,11 +2292,10 @@ mac_do_priv_grant(struct ucred *cred, int priv)
 static int
 check_proc(void)
 {
+	struct prison *const pr = curproc->p_ucred->cr_prison;
 	char *path, *to_free;
 	struct conf *conf;
 	struct exec_paths *exec_paths;
-	struct prison *td_pr;
-	struct prison *pr;
 	int error;
 
 	/*
@@ -2319,8 +2320,7 @@ check_proc(void)
 		return (EPERM);
 
 	error = EPERM;
-	td_pr = curproc->p_ucred->cr_prison;
-	conf = find_conf(td_pr, &pr);
+	conf = find_conf(pr, NULL);
 	exec_paths = &conf->exec_paths;
 
 	for (int i = 0; i < exec_paths->exec_path_count; i++)
@@ -2329,8 +2329,7 @@ check_proc(void)
 			break;
 		}
 
-	prison_unlock(pr);
-
+	drop_conf(conf);
 	free(to_free, M_TEMP);
 	return (error);
 }
@@ -2338,7 +2337,7 @@ check_proc(void)
 static void
 mac_do_setcred_enter(void)
 {
-	struct prison *pr;
+	struct prison *const pr = curproc->p_ucred->cr_prison;
 	struct mac_do_setcred_data * data;
 	struct conf *conf;
 	int error;
@@ -2362,9 +2361,7 @@ mac_do_setcred_enter(void)
 	/*
 	 * Find the currently applicable rules.
 	 */
-	conf = find_conf(curproc->p_ucred->cr_prison, &pr);
-	hold_conf(conf);
-	prison_unlock(pr);
+	conf = find_conf(pr, NULL);
 
 	/*
 	 * Setup thread data to be used by other hooks.
