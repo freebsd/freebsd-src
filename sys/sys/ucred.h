@@ -193,6 +193,17 @@ struct setcred32 {
 	uint32_t sc_label;		/* struct mac32 [*] */
 };
 
+#ifdef COMPAT_FREEBSD32
+/* 32-bit compatible version of xucred */
+struct xucred32 {
+	u_int	cr_version;		/* structure layout version */
+	uid_t	cr_uid;			/* effective user id */
+	short	cr_ngroups;		/* number of groups (incl. cr_gid). */
+	gid_t	cr_groups[XU_NGROUPS];	/* groups */
+	pid_t	cr_pid;
+};
+#endif
+
 struct thread;
 
 /* Common native and 32-bit compatibility entry point. */

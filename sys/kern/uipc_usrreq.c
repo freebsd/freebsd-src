@@ -83,6 +83,7 @@
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
+#include <sys/sysent.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -2752,8 +2753,24 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 					error = EINVAL;
 			}
 			UNP_PCB_UNLOCK(unp);
-			if (error == 0)
-				error = sooptcopyout(sopt, &xu, sizeof(xu));
+			if (error != 0)
+				break;
+#ifdef COMPAT_FREEBSD32
+			if (SV_PROC_FLAG(sopt->sopt_td->td_proc, SV_ILP32)) {
+				struct xucred32 xu32 = {};
+				int i;
+
+				xu32.cr_version = xu.cr_version;
+				xu32.cr_uid = xu.cr_uid;
+				xu32.cr_ngroups = xu.cr_ngroups;
+				for (i = 0; i < XU_NGROUPS; i++)
+					xu32.cr_groups[i] = xu.cr_groups[i];
+				xu32.cr_pid = xu.cr_pid;
+				error = sooptcopyout(sopt, &xu32, sizeof(xu32));
+				break;
+			}
+#endif
+			error = sooptcopyout(sopt, &xu, sizeof(xu));
 			break;
 
 		case LOCAL_CREDS:
