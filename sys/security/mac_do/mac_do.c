@@ -1363,12 +1363,6 @@ set_default_conf(struct prison *const pr)
 	drop_conf(conf);
 }
 
-/*
- * Parse a rules specification and assign them to a jail.
- *
- * Returns the same error code as parse_rules() (which see).
- */
-
 static void
 clone_rules(struct rules *const dst, const struct rules *const src)
 {
@@ -1415,7 +1409,17 @@ clone_exec_paths(struct exec_paths *const dst,
 	    sizeof(dst->exec_paths_str));
 }
 
-/* Must be called with '*parse_error' set to NULL. */
+/*
+ * Sets/modifies the MAC/do configuration for a jail.
+ *
+ * Must be called with '*parse_error' set to NULL.
+ *
+ * Supports explicitly setting all parameters or only some of them, in which
+ * case the implicit ones are copied from the currently applicable configuration
+ * (that of the closest ancestor jail that has one).
+ *
+ * An unspecified parameter must be passed as NULL.
+ */
 static int
 parse_and_set_conf(struct prison *pr, const char *rules_string,
     const char *exec_paths_string, struct parse_error **parse_error)
@@ -1423,17 +1427,13 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 	struct conf *applicable_conf = NULL;
 	struct conf *conf;
 	int error = 0;
-	bool need_applicable_conf;
 
-	need_applicable_conf = (rules_string == NULL || rules_string[0] == '\0' ||
-	    exec_paths_string == NULL || exec_paths_string[0] == '\0');
-
-	if (need_applicable_conf)
+	if (rules_string == NULL || exec_paths_string == NULL)
 		applicable_conf = find_conf(pr, NULL);
 
 	conf = new_conf();
 
-	if (rules_string != NULL && rules_string[0] != '\0') {
+	if (rules_string != NULL) {
 		error = parse_rules(rules_string, &conf->rules, parse_error);
 		if (error != 0)
 			goto error;
@@ -1441,7 +1441,7 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 	else if (applicable_conf != NULL)
 		clone_rules(&conf->rules, &applicable_conf->rules);
 
-	if (exec_paths_string != NULL && exec_paths_string[0] != '\0') {
+	if (exec_paths_string != NULL) {
 		error = parse_exec_paths(exec_paths_string, &conf->exec_paths,
 		    parse_error);
 		if (error != 0)
