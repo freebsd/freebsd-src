@@ -2438,8 +2438,8 @@ script_set_env(struct client_state *client, const char *prefix,
 			char **newscriptEnv;
 			int newscriptEnvsize = client->scriptEnvsize + 50;
 
-			newscriptEnv = realloc(client->scriptEnv,
-			    newscriptEnvsize);
+			newscriptEnv = reallocarray(client->scriptEnv,
+			    newscriptEnvsize, sizeof(char *));
 			if (newscriptEnv == NULL) {
 				free(client->scriptEnv);
 				client->scriptEnv = NULL;
