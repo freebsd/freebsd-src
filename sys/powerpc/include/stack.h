@@ -38,7 +38,7 @@ extern int end[];
 /* Get the current kernel thread stack usage. */
 #define	GET_STACK_USAGE(total, used) do {				\
 	struct thread *td = curthread;					\
-	(total) = td->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb);	\
+	(total) = ptoa(td->td_kstack_pages) - sizeof(struct pcb);	\
 	(used) = td->td_kstack + (total) - (char *)&td;			\
 } while (0)
 
