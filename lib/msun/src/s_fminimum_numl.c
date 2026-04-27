@@ -47,12 +47,18 @@ fminimum_numl(long double x, long double y)
 	nan_y = isnan(y);
 
 	if (nan_x || nan_y) {
-		/* These ternary conditionals force (x+y), so that sNaN's raise exceptions */
+		/* If both are NaN, adding returns qNaN */
 		if (nan_x && nan_y)
-			return (x + y);
+		    return (x + y);
+
+		/* force_except makes sure sNaN's raise exceptions */
+		volatile long double force_except = x + y;
+		force_except;
+
 		if (nan_x)
-			return ((x + y) != 0.0 ? y : y);
-		return ((x + y) != 0.0 ? x : x);
+			return (y);
+		else
+			return (x);
 	}
 
 	/* Handle comparisons of signed zeroes. */
