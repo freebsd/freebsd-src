@@ -196,8 +196,6 @@ extern int64_t dczva_line_size;
 #define	cpu_nullop()			arm64_nullop()
 #define	cpufunc_nullop()		arm64_nullop()
 
-#define	cpu_tlb_flushID()		arm64_tlb_flushID()
-
 #define	cpu_dcache_wbinv_range(a, s)	arm64_dcache_wbinv_range((a), (s))
 #define	cpu_dcache_inv_range(a, s)	arm64_dcache_inv_range((a), (s))
 #define	cpu_dcache_wb_range(a, s)	arm64_dcache_wb_range((a), (s))
@@ -208,7 +206,6 @@ extern void (*arm64_icache_sync_range)(void *, vm_size_t);
 #define cpu_icache_sync_range_checked(a, s) arm64_icache_sync_range_checked((a), (s))
 
 void arm64_nullop(void);
-void arm64_tlb_flushID(void);
 void arm64_dic_idc_icache_sync_range(void *, vm_size_t);
 void arm64_idc_aliasing_icache_sync_range(void *, vm_size_t);
 void arm64_aliasing_icache_sync_range(void *, vm_size_t);
