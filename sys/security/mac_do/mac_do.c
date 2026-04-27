@@ -1162,6 +1162,21 @@ error:
 	goto out;
 }
 
+static void
+hold_conf(struct conf *const conf)
+{
+	refcount_acquire(&conf->use_count);
+}
+
+static void
+drop_conf(struct conf *const conf)
+{
+	if (refcount_release(&conf->use_count)) {
+		toast_rules(&conf->rules);
+		free(conf, M_MAC_DO);
+	}
+}
+
 /*
  * Find configuration applicable to the passed prison.
  *
@@ -1200,21 +1215,6 @@ find_conf(struct prison *const pr, struct prison **const aprp)
 
 	*aprp = cpr;
 	return (conf);
-}
-
-static void
-hold_conf(struct conf *const conf)
-{
-	refcount_acquire(&conf->use_count);
-}
-
-static void
-drop_conf(struct conf *const conf)
-{
-	if (refcount_release(&conf->use_count)) {
-		toast_rules(&conf->rules);
-		free(conf, M_MAC_DO);
-	}
 }
 
 #ifdef INVARIANTS
