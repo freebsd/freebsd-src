@@ -246,8 +246,7 @@ cpu_thread_alloc(struct thread *td)
 void
 cpu_thread_new_kstack(struct thread *td)
 {
-	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages *
-	    PAGE_SIZE) - 1;
+	td->td_pcb = (struct pcb *)td_kstack_top(td) - 1;
 	/*
 	 * Ensure td_frame is aligned to an 8 byte boundary as it will be
 	 * placed into the stack pointer which must be 8 byte aligned in

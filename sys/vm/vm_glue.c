@@ -739,7 +739,7 @@ intr_prof_stack_use(struct thread *td, struct trapframe *frame)
 	if (TRAPF_USERMODE(frame))
 		return;
 
-	stack_top = td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
+	stack_top = td_kstack_top(td);
 	current = (char *)&stack_top;
 
 	/*

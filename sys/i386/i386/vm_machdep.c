@@ -89,7 +89,7 @@ get_pcb_user_save_td(struct thread *td)
 {
 	char *p;
 
-	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
+	p = td_kstack_top(td) -
 	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN);
 	KASSERT(__is_aligned(p, XSAVE_AREA_ALIGN),
 	    ("Unaligned pcb_user_save area"));
@@ -110,7 +110,7 @@ get_pcb_td(struct thread *td)
 {
 	char *p;
 
-	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
+	p = td_kstack_top(td) -
 	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN) -
 	    sizeof(struct pcb);
 	return ((struct pcb *)p);

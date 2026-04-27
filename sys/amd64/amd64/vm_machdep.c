@@ -377,8 +377,7 @@ cpu_thread_alloc(struct thread *td)
 void
 cpu_thread_new_kstack(struct thread *td)
 {
-	td->td_md.md_stack_base = td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE;
+	td->td_md.md_stack_base = td_kstack_top(td);
 	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
 }
 

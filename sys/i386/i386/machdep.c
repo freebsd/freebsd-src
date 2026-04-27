@@ -1492,8 +1492,8 @@ init386(int first)
 	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
 
 	/* Initialize the tss (except for the final esp0) early for vm86. */
-	common_tss0.tss_esp0 = (vm_offset_t)thread0.td_kstack +
-	    thread0.td_kstack_pages * PAGE_SIZE - VM86_STACK_SPACE;
+	common_tss0.tss_esp0 = (vm_offset_t)td_kstack_top(&thread0) -
+	    VM86_STACK_SPACE;
 	common_tss0.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	common_tss0.tss_ioopt = sizeof(struct i386tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);

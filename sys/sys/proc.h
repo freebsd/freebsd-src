@@ -1327,6 +1327,12 @@ td_get_sched(struct thread *td)
 	return ((struct td_sched *)&td[1]);
 }
 
+static __inline char *
+td_kstack_top(struct thread *td)
+{
+	return (td->td_kstack + ptoa(td->td_kstack_pages));
+}
+
 static __inline void
 ruxreset(struct rusage_ext *rux)
 {

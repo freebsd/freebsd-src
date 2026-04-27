@@ -61,8 +61,7 @@
 void
 cpu_thread_new_kstack(struct thread *td)
 {
-	td->td_pcb = (struct pcb *)(td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
+	td->td_pcb = (struct pcb *)td_kstack_top(td) - 1;
 
 	/*
 	 * td->td_frame + TF_SIZE will be the saved kernel stack pointer whilst
