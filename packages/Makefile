@@ -80,7 +80,8 @@ SUBDIR=	blocklist \
 SUBDIR+=	acct
 .endif
 
-.if ${MK_CLANG} != "no" || ${MK_TOOLCHAIN} != "no"
+.if ${MK_CLANG} != "no" || ${MK_LLD} != "no" || \
+    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
 SUBDIR+=	clang
 .endif
 
