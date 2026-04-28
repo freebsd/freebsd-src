@@ -829,12 +829,20 @@ shm_dotruncate_largepage(struct shmfd *shmfd, off_t length, void *rl_cookie)
 	 * object lock might allowed mapping of them.
 	 */
 	while (object->size < newobjsz) {
+		error = sig_intr();
+		if (error != 0)
+			return (error);
 		m = vm_page_alloc_contig(object, object->size, aflags,
 		    pagesizes[psind] / PAGE_SIZE, 0, ~0,
 		    pagesizes[psind], 0,
 		    VM_MEMATTR_DEFAULT);
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
+			error = sig_intr();
+			if (error != 0) {
+				VM_OBJECT_WLOCK(object);
+				return (error);
+			}
 			if (shmfd->shm_lp_alloc_policy ==
 			    SHM_LARGEPAGE_ALLOC_NOWAIT ||
 			    (shmfd->shm_lp_alloc_policy ==
