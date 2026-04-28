@@ -1116,6 +1116,13 @@ but if the
 .Cm bssid
 parameter is specified then the driver will craft a unique address for
 the device (if supported).
+.Pp
+Use the
+.Cm random
+keyword to set a randomly generated MAC address.
+A randomly-generated MAC address might be the same as one already in use
+in the network.
+Such duplications are extremely unlikely.
 .It Cm wdslegacy
 Mark a
 .Cm wds

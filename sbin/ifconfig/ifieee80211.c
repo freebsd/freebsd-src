@@ -6115,13 +6115,27 @@ set80211clone_wlanbssid(if_ctx *ctx __unused, const char *arg, int dummy __unuse
 static void
 set80211clone_wlanaddr(if_ctx *ctx __unused, const char *arg, int dummy __unused)
 {
+	struct sockaddr_dl sdl;
 	const struct ether_addr *ea;
 
-	ea = ether_aton(arg);
-	if (ea == NULL)
-		errx(1, "%s: cannot parse address", arg);
-	memcpy(params.icp_macaddr, ea->octet, IEEE80211_ADDR_LEN);
-	params.icp_flags |= IEEE80211_CLONE_MACADDR;
+	if (!strcmp(arg, "random")) {
+		sdl.sdl_len = sizeof(sdl);
+		sdl.sdl_alen = IEEE80211_ADDR_LEN;
+		sdl.sdl_nlen = 0;
+		sdl.sdl_family = AF_LINK;
+		arc4random_buf(&sdl.sdl_data, IEEE80211_ADDR_LEN);
+		/* Non-multicast and claim it is locally administered. */
+		sdl.sdl_data[0] &= 0xfc;
+		sdl.sdl_data[0] |= 0x02;
+		memcpy(params.icp_macaddr, LLADDR(&sdl), IEEE80211_ADDR_LEN);
+		params.icp_flags |= IEEE80211_CLONE_MACADDR;
+	} else {
+		ea = ether_aton(arg);
+		if (ea == NULL)
+			errx(1, "%s: cannot parse address", arg);
+		memcpy(params.icp_macaddr, ea->octet, IEEE80211_ADDR_LEN);
+		params.icp_flags |= IEEE80211_CLONE_MACADDR;
+	}
 }
 
 static void
