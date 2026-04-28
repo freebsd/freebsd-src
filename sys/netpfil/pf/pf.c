@@ -7794,6 +7794,9 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op, bool asconf)
 			    NULL, NULL, pd->af))
 				return (PF_DROP);
 
+			if (ntohs(ah.ph.param_length) < sizeof(ah))
+				return (PF_DROP);
+
 			ret = pf_multihome_scan(start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd,
 			    SCTP_ADD_IP_ADDRESS, true);
@@ -7811,6 +7814,10 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op, bool asconf)
 			if (!pf_pull_hdr(pd->m, start + off, &ah, sizeof(ah),
 			    NULL, NULL, pd->af))
 				return (PF_DROP);
+
+			if (ntohs(ah.ph.param_length) < sizeof(ah))
+				return (PF_DROP);
+
 			ret = pf_multihome_scan(start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd,
 			    SCTP_DEL_IP_ADDRESS, true);
