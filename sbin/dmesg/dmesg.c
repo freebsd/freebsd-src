@@ -227,7 +227,7 @@ main(int argc, char *argv[])
 
 		if (*q == '.') {
 			errno = 0;
-			reltime.tv_usec = strtoul(++q, &q, 10);
+			reltime.tv_usec = strtof(q, &q) * 1000000.0;
 			if (errno != 0) {
 				printf("%s", visbp);
 				continue;
