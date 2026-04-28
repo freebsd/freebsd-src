@@ -32,6 +32,8 @@
 #include <sys/types.h>
 #include <sys/msgbuf.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -47,8 +49,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <vis.h>
-#include <sys/syslog.h>
-#include <sys/time.h>
 
 static struct nlist nl[] = {
 #define	X_MSGBUF	0
@@ -109,7 +109,8 @@ main(int argc, char *argv[])
 		usage();
 
 	if (timeconv) {
-		int mib[6] = {CTL_KERN, KERN_BOOTTIME};
+		int mib[2] = {CTL_KERN, KERN_BOOTTIME};
+
 		size_t l = sizeof(boottime);
 		if (sysctl(mib, 2, &boottime, &l, 0, 0) < 0)
 			err(1, "sysctl kern.boottime");
@@ -207,20 +208,20 @@ main(int argc, char *argv[])
 
 		(void)strvisx(visbp, p, nextp - p, 0);
 		if (!timeconv) {
-			(void)printf("%s", visbp);
+			printf("%s", visbp);
 			continue;
 		}
 
 		if (visbp[0] != '[') {
-			(void)printf("%s", visbp);
+			printf("%s", visbp);
 			continue;
 		}
 
 		reltime.tv_usec = 0;
 		errno = 0;
-		reltime.tv_sec = strtoul(visbp+1, &q, 10);
+		reltime.tv_sec = strtoul(visbp + 1, &q, 10);
 		if (errno != 0) {
-			(void)printf("%s", visbp);
+			printf("%s", visbp);
 			continue;
 		}
 
@@ -228,13 +229,13 @@ main(int argc, char *argv[])
 			errno = 0;
 			reltime.tv_usec = strtoul(++q, &q, 10);
 			if (errno != 0) {
-				(void)printf("%s", visbp);
+				printf("%s", visbp);
 				continue;
 			}
 		}
 
 		if (*q != ']' || q[1] != ' ') {
-			(void)printf("%s", visbp);
+			printf("%s", visbp);
 			continue;
 		}
 		q++;
@@ -243,9 +244,9 @@ main(int argc, char *argv[])
 
 		if (strftime(timebuf, sizeof timebuf, timefmt,
 		    localtime(&abstime.tv_sec)) != 0) {
-			(void)printf("[%s]%s", timebuf, q);
+			printf("[%s]%s", timebuf, q);
 		} else {
-			(void)printf("%s", visbp);
+			printf("%s", visbp);
 			continue;
 		}
 	}
