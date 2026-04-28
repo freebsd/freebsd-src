@@ -334,28 +334,32 @@ patch_precompiled() {
 	pprint 3 "log: ${NANO_LOG}/_.pds"
 
 	(
-	# Fix freebsd-update to not check for TTY and to allow
-	# EOL branches to still get updates.
-	fu_bin="$(mktemp -t freebsd-update)"
-	trap 'rm -rf "${fu_bin}"' 1 2 15 EXIT
-	sed \
-	    -e 's/! -t 0/1 -eq 0/' \
-	    -e 's/-t 0/1 -eq 1/' \
-	    -e 's,\(fetch_warn_eol ||\) return 1,\1 :,' \
-	    -e 's,sysctl -n kern.bootfile,echo /boot/kernel/kernel,' \
-	    -e 's,service sshd restart,#service sshd restart,' \
-	    /usr/sbin/freebsd-update > "${fu_bin}"
-	FREEBSD_UPDATE="env PAGER=/bin/cat"
-	FREEBSD_UPDATE="${FREEBSD_UPDATE} /bin/sh ${fu_bin}"
-	fu_basedir="${NANO_WORLDDIR}"
-	FREEBSD_UPDATE="${FREEBSD_UPDATE} -b ${fu_basedir}"
-	fu_workdir="${NANO_WORLDDIR}/var/db/freebsd-update"
-	FREEBSD_UPDATE="${FREEBSD_UPDATE} -d ${fu_workdir}"
-	FREEBSD_UPDATE="${FREEBSD_UPDATE} --currently-running ${NANO_REVISION}-${NANO_BRANCH}"
-	FREEBSD_UPDATE="${FREEBSD_UPDATE} -f ${NANO_WORLDDIR}/etc/freebsd-update.conf"
+	# freebsd-update(8) requires root privileges to fetch and
+	# install updates.  Skip it for nopriv builds (for now). XXXAS
+	if [ -z "${NANO_NOPRIV_BUILD}" ]; then
+		# Fix freebsd-update to not check for TTY and to allow
+		# EOL branches to still get updates.
+		fu_bin="$(mktemp -t freebsd-update)"
+		trap 'rm -rf "${fu_bin}"' 1 2 15 EXIT
+		sed \
+		    -e 's/! -t 0/1 -eq 0/' \
+		    -e 's/-t 0/1 -eq 1/' \
+		    -e 's,\(fetch_warn_eol ||\) return 1,\1 :,' \
+		    -e 's,sysctl -n kern.bootfile,echo /boot/kernel/kernel,' \
+		    -e 's,service sshd restart,#service sshd restart,' \
+		    /usr/sbin/freebsd-update > "${fu_bin}"
+		FREEBSD_UPDATE="env PAGER=/bin/cat"
+		FREEBSD_UPDATE="${FREEBSD_UPDATE} /bin/sh ${fu_bin}"
+		fu_basedir="${NANO_WORLDDIR}"
+		FREEBSD_UPDATE="${FREEBSD_UPDATE} -b ${fu_basedir}"
+		fu_workdir="${NANO_WORLDDIR}/var/db/freebsd-update"
+		FREEBSD_UPDATE="${FREEBSD_UPDATE} -d ${fu_workdir}"
+		FREEBSD_UPDATE="${FREEBSD_UPDATE} --currently-running ${NANO_REVISION}-${NANO_BRANCH}"
+		FREEBSD_UPDATE="${FREEBSD_UPDATE} -f ${NANO_WORLDDIR}/etc/freebsd-update.conf"
 
-	if ${FREEBSD_UPDATE} fetch; then
-		yes | ${FREEBSD_UPDATE} install
+		if ${FREEBSD_UPDATE} fetch; then
+			yes | ${FREEBSD_UPDATE} install
+		fi
 	fi
 
 	set -o xtrace
@@ -369,19 +373,18 @@ patch_precompiled() {
 
 	# XXXJL This should be fixed in base.txz
 	# Remove debug files present in base.txz
-	! nano_distributions_contains "-dbg.txz " && rm -rf "${NANO_WORLDDIR}/usr/lib/debug"
+	! nano_distributions_contains "-dbg.txz " && tgt_rm usr/lib/debug
 	# Remove lib32 files present in base.txz
 	if ! nano_distributions_contains " lib32"; then
-		chflags -R noschg "${NANO_WORLDDIR}/libexec/ld-elf32.so.1"
-		rm -f "${NANO_WORLDDIR}/libexec/ld-elf32.so.1"
-		rm -f "${NANO_WORLDDIR}/usr/bin/ldd32"
-		rm -f "${NANO_WORLDDIR}/usr/libexec/ld-elf32.so.1"
+		tgt_rm libexec/ld-elf32.so.1
+		tgt_rm usr/bin/ldd32
+		tgt_rm usr/libexec/ld-elf32.so.1
 	fi
 	# Remove test files present in base.txz
 	if ! nano_distributions_contains " tests.txz "; then
-		rm -rf "${NANO_WORLDDIR}"/usr/tests/*
-		rm -f "${NANO_WORLDDIR}/usr/lib/libxo/encoder/test.enc"
-		rm -f "${NANO_WORLDDIR}/usr/share/man/man7/tests.7.gz"
+		tgt_rm usr/tests
+		tgt_rm usr/lib/libxo/encoder/test.enc
+		tgt_rm usr/share/man/man7/tests.7.gz
 	fi
 	) > "${NANO_LOG}/_.pds" 2>&1
 }
@@ -659,6 +662,18 @@ tgt_dir() {
 	done
 }
 
+tgt_rm() {
+	for i; do
+		chflags -R 0 "${NANO_WORLDDIR}/${i}" 2>/dev/null
+		rm -rf "${NANO_WORLDDIR}/${i}"
+
+		if [ -n "$NANO_METALOG" ]; then
+			LC_ALL=C grep -v "^./${i}" "$NANO_METALOG" > "${NANO_METALOG}.tmp" &&
+			    mv "${NANO_METALOG}.tmp" "$NANO_METALOG"
+		fi
+	done
+}
+
 #
 # Switch the current root partition in the target file system tab.
 # Takes two arguments: the current, and the new partition.
@@ -747,7 +762,7 @@ clean_world() {
 	if [ "${NANO_OBJ}" != "${MAKEOBJDIRPREFIX}" ]; then
 		pprint 2 "Clean and create object directory (${NANO_OBJ})"
 		if ! rm -xrf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
-			chflags -R noschg ${NANO_OBJ}
+			[ -z "${NANO_NOPRIV_BUILD}" ] && chflags -R noschg ${NANO_OBJ}
 			rm -xr ${NANO_OBJ}/
 		fi
 		mkdir -p "${NANO_OBJ}" "${NANO_WORLDDIR}"
@@ -755,7 +770,7 @@ clean_world() {
 	else
 		pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
 		if ! rm -xrf "${NANO_WORLDDIR}/" > /dev/null 2>&1 ; then
-			chflags -R noschg "${NANO_WORLDDIR}"
+			[ -z "${NANO_NOPRIV_BUILD}" ] && chflags -R noschg "${NANO_WORLDDIR}"
 			rm -xrf "${NANO_WORLDDIR}/"
 		fi
 		mkdir -p "${NANO_WORLDDIR}"
@@ -812,6 +827,10 @@ install_precompiled_world() {
 			fi
 			if [ -f "$(nano_distset_dir)/${distset}" ]; then
 				tar -xvf "$(nano_distset_dir)/${distset}" -C "${NANO_WORLDDIR}"
+				if [ -n "${NANO_NOPRIV_BUILD}" ] && [ -n "${NANO_METALOG}" ]; then
+					tar -cf - --format=mtree @"$(nano_distset_dir)/${distset}" 2>/dev/null |\
+					 sed '2s,^/\.,.,' >> "${NANO_METALOG}"
+				fi
 			else
 				err "File $(nano_distset_dir)/${distset} not found"
 			fi
@@ -868,12 +887,20 @@ install_precompiled_kernel() {
 		fi
 	else
 		if [ -f "$(nano_distset_dir)/kernel.txz" ]; then
+			if [ -n "${NANO_NOPRIV_BUILD}" ] && [ -n "${NANO_METALOG}" ]; then
+				tgt_dir boot/kernel
+				tar -cf - --format=mtree @"$(nano_distset_dir)/kernel.txz" 2>/dev/null >> "${NANO_METALOG}"
+			fi
 			tar -xvf "$(nano_distset_dir)/kernel.txz" -C "${NANO_WORLDDIR}"
 		else
 			err "File $(nano_distset_dir)/kernel.txz not found"
 		fi
 		if nano_distributions_contains " kernel-dbg.txz " &&
 		    [ -f "$(nano_distset_dir)/kernel-dbg.txz" ]; then
+			if [ -n "${NANO_NOPRIV_BUILD}" ] && [ -n "${NANO_METALOG}" ]; then
+				tgt_dir usr/lib/debug/boot/kernel
+				tar -cf - --format=mtree @"$(nano_distset_dir)/kernel-dbg.txz" 2>/dev/null >> "${NANO_METALOG}"
+			fi
 			tar -xvf "$(nano_distset_dir)/kernel-dbg.txz" -C "${NANO_WORLDDIR}"
 		fi
 	fi
