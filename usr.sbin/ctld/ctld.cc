@@ -1136,11 +1136,20 @@ port_delete(struct port *port)
 	free(port);
 }
 
+/*
+ * Foreign portal groups (which only redirect to other targets), and portal
+ * groups without any active portals are considered dummies and ports belonging
+ * to such groups are ignored.  However, portal groups that exist in the kernel
+ * prior to ctld starting will contain real ports but no portals, so these are
+ * never considered dummies.
+ */
 bool
 port_is_dummy(struct port *port)
 {
 
 	if (port->p_portal_group) {
+		if (port->p_portal_group->pg_kernel)
+			return (false);
 		if (port->p_portal_group->pg_foreign)
 			return (true);
 		if (TAILQ_EMPTY(&port->p_portal_group->pg_portals))

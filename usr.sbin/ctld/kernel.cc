@@ -577,6 +577,8 @@ retry_port:
 				log_warnx("portal_group_new failed");
 				continue;
 			}
+
+			pg->pg_kernel = true;
 		}
 		pg->pg_tag = port->cfiscsi_portal_group_tag;
 		cp = port_new(conf, targ, pg);

@@ -117,6 +117,7 @@ struct portal_group {
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
 	bool				pg_foreign;
+	bool				pg_kernel;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
