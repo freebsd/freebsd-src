@@ -1560,9 +1560,8 @@ mac_do_jail_get(void *obj, void *data)
 	const struct exec_paths *const exec_paths = &applicable_conf->exec_paths;
 	int jsys, error;
 
-	jsys = hpr == pr ?
-	    (STAILQ_EMPTY(&rules->head) ? JAIL_SYS_DISABLE : JAIL_SYS_NEW) :
-	    JAIL_SYS_INHERIT;
+	jsys = hpr == pr ? (has_rules(rules) && has_exec_paths(exec_paths) ?
+	    JAIL_SYS_NEW : JAIL_SYS_DISABLE) : JAIL_SYS_INHERIT;
 
 	error = vfs_setopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error != 0 && error != ENOENT)
