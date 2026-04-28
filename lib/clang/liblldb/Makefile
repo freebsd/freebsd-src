@@ -6,7 +6,6 @@
 LIB=		lldb
 INTERNALLIB=
 .else
-PACKAGE=	lldb
 SHLIB_CXX=	lldb
 SHLIB_MAJOR=	21
 PRIVATELIB=
