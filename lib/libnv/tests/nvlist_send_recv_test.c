@@ -28,6 +28,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/resource.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
@@ -534,6 +536,59 @@ ATF_TC_BODY(nvlist_send_recv__send_nvlist__stream, tc)
 	nvlist_send_recv__send_nvlist(SOCK_STREAM);
 }
 
+/*
+ * Regression test for fd_wait(): the previous select(2)-based implementation
+ * called FD_SET() unconditionally, which is an out-of-bounds stack write when
+ * the socket fd is >= FD_SETSIZE.  Force the socketpair fds above FD_SETSIZE
+ * and verify a full nvlist round-trip still works.
+ */
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__highfd);
+ATF_TC_BODY(nvlist_send_recv__highfd, tc)
+{
+	struct rlimit rl;
+	nvlist_t *nvl;
+	int socks[2], hi_send, hi_recv, status;
+	pid_t pid;
+
+	hi_send = FD_SETSIZE + 5;
+	hi_recv = FD_SETSIZE + 6;
+
+	rl.rlim_cur = rl.rlim_max = hi_recv + 1;
+	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
+		atf_tc_skip("cannot raise RLIMIT_NOFILE: %s", strerror(errno));
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
+	ATF_REQUIRE(dup2(socks[0], hi_recv) == hi_recv);
+	ATF_REQUIRE(dup2(socks[1], hi_send) == hi_send);
+	(void)close(socks[0]);
+	(void)close(socks[1]);
+
+	pid = fork();
+	ATF_REQUIRE(pid >= 0);
+	if (pid == 0) {
+		/* Child: send. */
+		(void)close(hi_recv);
+		nvl = nvlist_create(0);
+		nvlist_add_string(nvl, "key", "value");
+		if (nvlist_send(hi_send, nvl) != 0)
+			err(EXIT_FAILURE, "nvlist_send");
+		nvlist_destroy(nvl);
+		_exit(0);
+	}
+
+	(void)close(hi_send);
+	nvl = nvlist_recv(hi_recv, 0);
+	ATF_REQUIRE(nvl != NULL);
+	ATF_REQUIRE(nvlist_error(nvl) == 0);
+	ATF_REQUIRE(nvlist_exists_string(nvl, "key"));
+	ATF_REQUIRE(strcmp(nvlist_get_string(nvl, "key"), "value") == 0);
+	nvlist_destroy(nvl);
+
+	ATF_REQUIRE(waitpid(pid, &status, 0) == pid);
+	ATF_REQUIRE(status == 0);
+	(void)close(hi_recv);
+}
+
 ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_closed_fd__dgram);
 ATF_TC_BODY(nvlist_send_recv__send_closed_fd__dgram, tc)
 {
@@ -737,6 +792,7 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_nvlist__dgram);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_nvlist__stream);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__highfd);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd__dgram);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd__stream);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds__dgram);
