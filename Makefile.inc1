@@ -965,8 +965,10 @@ IMAKE=		${TIME_ENV} ${IMAKEENV} ${MAKE} -f Makefile.inc1 \
 		${IMAKE_INSTALL} ${IMAKE_MTREE}
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH:Q}:${INSTALLTMP:Q} \
-		LD_LIBRARY_PATH=${INSTALLTMP:Q} \
-		PATH_LOCALE=${INSTALLTMP}/locale
+		LD_LIBRARY_PATH=${INSTALLTMP:Q}
+.if ${.MAKE.OS} == "FreeBSD"
+IMAKEENV+=	PATH_LOCALE=${INSTALLTMP}/locale
+.endif
 IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
 .else
 IMAKEENV+=	PATH=${TMPPATH:Q}:${INSTALLTMP:Q}
@@ -1475,7 +1477,12 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 		    done); \
 	fi; \
 	${INSTALLTMP_COPY_HOST_TOOL} $$libs $$progs ${INSTALLTMP}
+	# On non-FreeBSD systems, there's no point copying locales here
+	# since we aren't going to overwrite them anyway.  This avoids
+	# failing if /usr/share/locale has odd modes (e.g., openSUSE).
+.if ${.MAKE.OS} == "FreeBSD"
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+.endif
 .if defined(NO_ROOT)
 	-mkdir -p ${METALOG:H}
 	echo "#${MTREE_MAGIC}" > ${METALOG}
