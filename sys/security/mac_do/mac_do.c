@@ -366,14 +366,14 @@ init_exec_paths(struct exec_paths *const exec_paths)
 }
 
 static struct conf *
-alloc_conf(void)
+new_conf(void)
 {
 	struct conf *const conf = malloc(sizeof(*conf), M_MAC_DO, M_WAITOK |
 	    M_ZERO);
 
 	init_rules(&conf->rules);
 	init_exec_paths(&conf->exec_paths);
-	conf->use_count = 0;
+	refcount_init(&conf->use_count, 1);
 
 	return (conf);
 }
@@ -1163,7 +1163,10 @@ error:
 static void
 hold_conf(struct conf *const conf)
 {
-	refcount_acquire(&conf->use_count);
+	int old_count __diagused = refcount_acquire(&conf->use_count);
+
+	KASSERT(old_count != 0,
+	    ("MAC/do: Trying to resurrect a destroyed configuration."));
 }
 
 static void
@@ -1329,7 +1332,7 @@ set_conf(struct prison *const pr, struct conf *const conf)
 static void
 set_default_conf(struct prison *const pr)
 {
-	struct conf *const conf = alloc_conf();
+	struct conf *const conf = new_conf();
 
 	strlcpy(conf->exec_paths.exec_paths_str, "/usr/bin/mdo",
 	    MAX_EXEC_PATHS_SIZE);
@@ -1337,6 +1340,7 @@ set_default_conf(struct prison *const pr)
 	conf->exec_paths.exec_path_count = 1;
 
 	set_conf(pr, conf);
+	drop_conf(conf);
 }
 
 /*
@@ -1406,7 +1410,7 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 	if (need_applicable_conf)
 		applicable_conf = find_conf(pr, NULL);
 
-	conf = alloc_conf();
+	conf = new_conf();
 
 	if (rules_string != NULL && rules_string[0] != '\0') {
 		error = parse_rules(rules_string, &conf->rules, parse_error);
@@ -1429,12 +1433,12 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 
 	MPASS(error == 0 && *parse_error == NULL);
 out:
+	drop_conf(conf);
 	if (applicable_conf != NULL)
 		drop_conf(applicable_conf);
 	return (error);
 error:
 	MPASS(error != 0 && *parse_error != NULL);
-	drop_conf(conf);
 	goto out;
 }
 
