@@ -1151,12 +1151,6 @@ parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
 		exec_paths->exec_path_count++;
 	}
 
-	if (exec_paths->exec_path_count == 0) {
-		make_parse_error(parse_error, 0, "No valid exec paths found");
-		error = EINVAL;
-		goto error;
-	}
-
 	MPASS(error == 0 && *parse_error == NULL);
 out:
 	free(copy, M_MAC_DO);
