@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2016 Roy Marples
+# Copyright (c) 2007-2023 Roy Marples
 # All rights reserved
 
 # named subscriber for resolvconf
@@ -79,7 +79,7 @@ for d in $DOMAINS; do
 done
 
 # Try to ensure that config dirs exist
-if type config_mkdirs >/dev/null 2>&1; then
+if command -v config_mkdirs >/dev/null 2>&1; then
 	config_mkdirs "$named_options" "$named_zones"
 else
 	@SBINDIR@/resolvconf -D "$named_options" "$named_zones"
