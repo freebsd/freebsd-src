@@ -2303,12 +2303,11 @@ check_proc(void)
 	conf = find_conf(td_pr, &pr);
 	exec_paths = &conf->exec_paths;
 
-	if (exec_paths->exec_path_count > 0)
-		for (int i = 0; i < exec_paths->exec_path_count; i++)
-			if (strcmp(exec_paths->exec_paths[i], path) == 0) {
-				error = 0;
-				break;
-			}
+	for (int i = 0; i < exec_paths->exec_path_count; i++)
+		if (strcmp(exec_paths->exec_paths[i], path) == 0) {
+			error = 0;
+			break;
+		}
 
 	prison_unlock(pr);
 
