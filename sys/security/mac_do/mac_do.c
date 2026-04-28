@@ -1294,7 +1294,7 @@ dealloc_jail_osd(void *const value)
  * Remove the rules specifically associated to a prison.
  *
  * In practice, this means that the rules become inherited (from the closest
- * ascendant that has some).
+ * ancestor that has some).
  *
  * Destroys the 'osd_jail_slot' slot of the passed jail.
  */
