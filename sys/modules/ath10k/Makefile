@@ -1,3 +1,5 @@
+.include <kmod.opts.mk>
+
 DEVATH10KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath10k
 
 .PATH: ${DEVATH10KDIR}
