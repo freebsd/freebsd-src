@@ -578,9 +578,18 @@ conf::find_transport_group(std::string_view name)
 	return (it->second.get());
 }
 
+/*
+ * Foreign portal groups (which only redirect to other targets), and portal
+ * groups without any active portals are considered dummies and ports belonging
+ * to such groups are ignored.  However, portal groups that exist in the kernel
+ * prior to ctld starting will contain real ports but no portals, so these are
+ * never considered dummies.
+ */
 bool
 portal_group::is_dummy() const
 {
+	if (pg_kernel)
+		return (false);
 	if (pg_foreign)
 		return (true);
 	if (pg_portals.empty())
@@ -695,6 +704,12 @@ void
 portal_group::set_foreign()
 {
 	pg_foreign = true;
+}
+
+void
+portal_group::set_kernel()
+{
+	pg_kernel = true;
 }
 
 bool

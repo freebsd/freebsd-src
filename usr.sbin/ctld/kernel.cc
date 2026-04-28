@@ -483,6 +483,8 @@ add_iscsi_port(struct kports &kports, struct conf *conf,
 			log_warnx("Failed to add portal-group \"%s\"", pg_name);
 			return;
 		}
+
+		pg->set_kernel();
 	}
 	pg->set_tag(port.cfiscsi_portal_group_tag);
 	if (!conf->add_port(targ, pg, port.port_id)) {
@@ -520,6 +522,8 @@ add_nvmf_port(struct conf *conf, const struct cctl_port &port,
 			    tg_name);
 			return;
 		}
+
+		pg->set_kernel();
 	}
 	pg->set_tag(port.portid);
 	if (!conf->add_port(targ, pg, port.port_id)) {
