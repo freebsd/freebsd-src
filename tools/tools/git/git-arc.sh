@@ -234,7 +234,7 @@ commit2diff()
 
 create_one_review()
 {
-    local childphid commit doprompt msg parent parentphid reviewers
+    local childphid commit doprompt draft msg parent parentphid reviewers
     local subscribers
 
     commit=$1
@@ -242,9 +242,16 @@ create_one_review()
     subscribers=$3
     parent=$4
     doprompt=$5
+    draft=$6
 
     if [ "$doprompt" ] && ! show_and_prompt "$commit"; then
         return 1
+    fi
+
+    if [ "$draft" -eq 1 ]; then
+        draft=--draft
+    else
+        unset draft
     fi
 
     msg=$(xmktemp)
@@ -257,7 +264,7 @@ create_one_review()
 
     yes | EDITOR=true \
         arc diff --message-file "$msg" --never-apply-patches --create \
-        --allow-untracked $BROWSE --head "$commit" "${commit}~"
+        --allow-untracked $draft $BROWSE --head "$commit" "${commit}~"
     [ $? -eq 0 ] || err "could not create Phabricator diff"
 
     if [ -n "$parent" ]; then
@@ -351,7 +358,7 @@ build_commit_list()
 
 gitarc__create()
 {
-    local commit commits doprompt list o prev reviewers subscribers
+    local commit commits doprompt draft list o prev reviewers subscribers
 
     list=
     prev=""
@@ -359,8 +366,12 @@ gitarc__create()
         list=1
     fi
     doprompt=1
-    while getopts lp:r:s: o; do
+    draft=0
+    while getopts dlp:r:s: o; do
         case "$o" in
+        d)
+            draft=1
+            ;;
         l)
             list=1
             ;;
@@ -394,7 +405,7 @@ gitarc__create()
 
     for commit in ${commits}; do
         if create_one_review "$commit" "$reviewers" "$subscribers" "$prev" \
-            "$doprompt"; then
+            "$doprompt" "$draft"; then
             prev=$(commit2diff "$commit")
         else
             prev=""
