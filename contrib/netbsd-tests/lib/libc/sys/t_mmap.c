@@ -504,7 +504,7 @@ ATF_TC_BODY(mmap_truncate_signal, tc)
 		ATF_REQUIRE(signal(SIGSEGV, map_sighandler) != SIG_ERR);
 		sta = 0;
 		for (i = 0; i < page; i++)
-			sta += map[i];
+			sta += ((volatile char *)map)[i];
 		/* child never will get this far, but the compiler will
 		   not know, so better use the values calculated to
 		   prevent the access to be optimized out */
