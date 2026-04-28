@@ -88,9 +88,12 @@ ACCT+=		utx
 .endif
 .endif
 
+.if ${MACHINE} == "i386" || ${MACHINE} == "amd64" || \
+    ${MACHINE} == "arm64"
 CONFGROUPS.${MK_ACPI}+=		ACPI
 ACPIPACKAGE=			acpi
 ACPI=		power_profile
+.endif
 
 .if ${MACHINE} == "i386"
 CONFGROUPS.${MK_APM}+=		APM
