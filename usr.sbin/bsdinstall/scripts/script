@@ -40,6 +40,7 @@ f_include $BSDCFG_SHARE/variable.subr
 # PARTITIONS
 # DISTRIBUTIONS
 # BSDINSTALL_DISTDIR
+# COMPONENTS
 
 #
 # Default name of the ZFS boot-pool
@@ -97,7 +98,6 @@ awk 'BEGIN {pathb=ARGV[2]; ARGV[2]=""} /^#!/{b=1} {
     >$TMPDIR/bsdinstall-installscript-preamble
 
 . $TMPDIR/bsdinstall-installscript-preamble
-: ${DISTRIBUTIONS="kernel.txz base.txz"}; export DISTRIBUTIONS
 export BSDINSTALL_DISTDIR
 
 # Re-initialize a new log if preamble changed BSDINSTALL_LOG
@@ -118,37 +118,48 @@ else
 fi
 bsdinstall mount
 
-# Fetch missing distribution files, if any
-exec 5>&1
-export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&5)
-FETCH_RESULT=$?
-exec 5>&-
-
-[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
-
-# Unpack distributions
-bsdinstall checksum
-if [ -t 0 ]; then
-	# If install is a tty, use distextract as normal
-	bsdinstall distextract
+if [ -n "$COMPONENTS" -a -n "$DISTRIBUTIONS" ]; then
+	error "Cannot set both COMPONENTS and DISTRIBUTIONS"
+elif [ -z "$DISTRIBUTIONS" ]; then
+	# If COMPONENTS is set, or neither is, install with pkgbase
+	bsdinstall pkgbase --non-interactive
 else
-	# Otherwise, we need to use tar (see https://reviews.freebsd.org/D10736)
-	for set in $DISTRIBUTIONS; do
-		f_dprintf "Extracting $BSDINSTALL_DISTDIR/$set"
-		# XXX: The below fails if any mountpoints are FAT, due to
-		# inability to set ctime/mtime on the root of FAT partitions,
-		# which is needed to support e.g. EFI system partitions. tar has
-		# no option to ignore this (distextract ignores them internally
-		# through a hack), and returns 1 on any warning or error,
-		# effectively turning all warnings into fatal errors.
-		# 
-		# Work around this in an extremely lame way for the specific
-		# case of EFI system partitions only. This *ONLY WORKS* if
-		# /boot/efi is empty and does not handle analogous problems on
-		# other systems (ARM, PPC64).
-		tar -xf "$BSDINSTALL_DISTDIR/$set" -C $BSDINSTALL_CHROOT --exclude boot/efi
-		mkdir -p $BSDINSTALL_CHROOT/boot/efi
-	done
+	# Otherwise, unpack distsets
+
+	# Fetch missing distribution files, if any
+	exec 5>&1
+	export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&5)
+	FETCH_RESULT=$?
+	exec 5>&-
+
+	[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
+
+	bsdinstall checksum
+	if [ -t 0 ]; then
+		# If install is a tty, use distextract as normal
+		bsdinstall distextract
+	else
+		# Otherwise, we need to use tar (see
+		# https://reviews.freebsd.org/D10736)
+		for set in $DISTRIBUTIONS; do
+			f_dprintf "Extracting $BSDINSTALL_DISTDIR/$set"
+			# XXX: The below fails if any mountpoints are FAT, due
+			# to inability to set ctime/mtime on the root of FAT
+			# partitions, which is needed to support e.g. EFI
+			# system partitions. tar has no option to ignore this
+			# (distextract ignores them internally through a hack),
+			# and returns 1 on any warning or error, effectively
+			# turning all warnings into fatal errors.
+			#
+			# Work around this in an extremely lame way for the
+			# specific case of EFI system partitions only. This
+			# *ONLY WORKS* if /boot/efi is empty and does not
+			# handle analogous problems on other systems (ARM,
+			# PPC64).
+			tar -xf "$BSDINSTALL_DISTDIR/$set" -C $BSDINSTALL_CHROOT --exclude boot/efi
+			mkdir -p $BSDINSTALL_CHROOT/boot/efi
+		done
+	fi
 fi
 
 # Configure bootloader if needed

@@ -180,7 +180,18 @@ local function select_components(components, options)
 	}
 	append_list(bsddialog_args, checklist_items)
 
-	local exit_code, output = bsddialog(bsddialog_args)
+	local exit_code = 0
+	local output = ""
+	if options.non_interactive then
+		local env_components = os.getenv("COMPONENTS")
+		if env_components then
+			output = env_components:gsub(" ", "\n")
+		else
+			output = "base\nkernel-dbg"
+		end
+	else
+		exit_code, output = bsddialog(bsddialog_args)
+	end
 	-- This should only be possible if bsddialog is killed by a signal
 	-- or buggy, we disable the cancel option and esc key.
 	-- If this does happen, there's not much we can do except exit with a
@@ -300,6 +311,8 @@ local function parse_options()
 	for _, a in ipairs(arg) do
 		if a == "--jail" then
 			options.jail = true
+		elseif a == "--non-interactive" then
+			options.non_interactive = true
 		else
 			io.stderr:write("Error: unknown option " .. a .. "\n")
 			os.exit(1)
