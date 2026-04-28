@@ -328,6 +328,18 @@ unexpected_flags:
 #define check_type_and_type_flags(...)
 #endif /* INVARIANTS */
 
+static bool
+has_rules(const struct rules *const rules)
+{
+	return (rules->string[0] != '\0');
+}
+
+static bool
+has_exec_paths(const struct exec_paths *const exec_paths)
+{
+	return (exec_paths->exec_paths_str[0] != '\0');
+}
+
 /*
  * Returns EALREADY if both flags have some overlap, or EINVAL if flags are
  * incompatible, else 0 with flags successfully merged into 'dest'.
@@ -1600,7 +1612,7 @@ mac_do_jail_check(void *obj, void *data)
 	struct vfsoptlist *opts = data;
 	char *rules_string, *exec_paths_string;
 	int error, jsys, rules_size = 0, exec_paths_size = 0;
-	bool has_rules, has_exec_paths;
+	bool absent_or_empty_rules, absent_or_empty_exec_paths;
 
 	error = vfs_copyopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error == ENOENT)
@@ -1663,22 +1675,17 @@ mac_do_jail_check(void *obj, void *data)
 		}
 	}
 
-	/*
-	 * Be liberal, considering that an empty rule or execution paths
-	 * specification is equivalent to no specification.  This affects the
-	 * JAIL_SYS_DISABLE and JAIL_SYS_INHERIT sanity checks below.
-	 */
-	has_rules = rules_string != NULL && rules_string[0] != '\0';
-	has_exec_paths = exec_paths_string != NULL &&
-	    exec_paths_string[0] != '\0';
+	absent_or_empty_rules = is_null_or_empty(rules_string);
+	absent_or_empty_exec_paths = is_null_or_empty(exec_paths_string);
 
 	/* If not specified, infer 'jsys' from passed options. */
 	if (jsys == -1) {
 		/*
 		 * Default in absence of "mac.do.rules" and "mac.do.exec_paths"
-		 * is to disable (and, in particular, not inherit).
+		 * is to disable.  We never implicitly inherit, as that changes
+		 * reasoning about configurations.
 		 */
-		if (has_rules || has_exec_paths)
+		if (!absent_or_empty_rules || !absent_or_empty_exec_paths)
 			jsys = JAIL_SYS_NEW;
 		else
 			jsys = JAIL_SYS_DISABLE;
@@ -1687,31 +1694,38 @@ mac_do_jail_check(void *obj, void *data)
 	/* Final checks based on resolved 'jsys'. */
 	switch (jsys) {
 	case JAIL_SYS_DISABLE:
+		/*
+		 * Tolerate specified but empty rules or execution paths
+		 * (instead of not being specified).  Also, tolerate that one of
+		 * them is not empty (but not both).  Indeed, as soon as one is
+		 * empty, mac_do(4) is effectively disabled.  This allows the
+		 * administrator to still specify a value for one of them, which
+		 * is then used for new sub-jails that do not inherit and for
+		 * which no value for the parameter is explicitly specified
+		 * (because then the value passed here is copied).
+		 */
+		if (!absent_or_empty_rules && !absent_or_empty_exec_paths) {
+			vfs_opterror(opts,
+			    "One of 'mac.do.rules' and 'mac_do.exec_paths' "
+			    "should not be specified or should be empty when "
+			    "'mac.do' is 'disabled'");
+			return (EINVAL);
+		}
+		break;
+
 	case JAIL_SYS_INHERIT:
-		if (has_rules) {
-			vfs_opterror(opts,
-			    "'mac.do.rules' specified but should not be when "
-			    "'mac.do' is 'disabled' or 'inherited'");
-			return (EINVAL);
-		}
-		if (has_exec_paths) {
-			vfs_opterror(opts,
-			    "'mac.do.exec_paths' specified but should not be "
-			    "when 'mac.do' is 'disabled' or 'inherited'");
-			return (EINVAL);
-		}
+		/*
+		 * Canonically, no parameters should be specified in this case.
+		 * However, we tolerate empty ones, and also non-empty ones
+		 * provided they match the inherited values, so that we can
+		 * report the *resolved* value of current parameters via
+		 * mac_do_jail_get() and have them re-applicable to this jail in
+		 * a similar situation.  Testing that inherited values are the
+		 * same as passed ones is more expensive than a single test and
+		 * requires some atomicity, which is why we do not perform that
+		 * here but only in mac_do_jail_set().
+		 */
 		break;
-
-	case JAIL_SYS_NEW:
-		if (!has_rules && !has_exec_paths) {
-			vfs_opterror(opts, "'mac.do' set to 'new' but neither "
-			    "rules nor executable paths specified");
-			return (EINVAL);
-		}
-		break;
-
-	default:
-		__assert_unreachable();
 	}
 
 	return (0);
@@ -1720,13 +1734,13 @@ mac_do_jail_check(void *obj, void *data)
 static int
 mac_do_jail_set(void *obj, void *data)
 {
-	struct prison *pr = obj;
-	struct vfsoptlist *opts = data;
+	struct prison *const pr = obj;
+	struct vfsoptlist *const opts = data;
 	char *rules_string, *exec_paths_string;
 	struct parse_error *parse_error = NULL;
 	struct conf *model_conf;
 	int error, jsys;
-	bool has_rules, has_exec_paths;
+	bool absent_or_empty_rules, absent_or_empty_exec_paths;
 
 	/*
 	 * The invariants checks used below correspond to what has already been
@@ -1743,59 +1757,124 @@ mac_do_jail_set(void *obj, void *data)
 	exec_paths_string = vfs_getopts(opts, "mac.do.exec_paths", &error);
 	MPASS(error == 0 || error == ENOENT);
 
-	has_rules = rules_string != NULL && rules_string[0] != '\0';
-	has_exec_paths = exec_paths_string != NULL &&
-	    exec_paths_string[0] != '\0';
+	absent_or_empty_rules = is_null_or_empty(rules_string);
+	absent_or_empty_exec_paths = is_null_or_empty(exec_paths_string);
 
 	if (jsys == -1) {
-		if (has_rules || has_exec_paths)
+		if (!absent_or_empty_rules || !absent_or_empty_exec_paths)
 			jsys = JAIL_SYS_NEW;
 		else
 			jsys = JAIL_SYS_DISABLE;
 	}
 
 	if (jsys == JAIL_SYS_INHERIT) {
-		MPASS(!has_rules && !has_exec_paths);
-		remove_conf(pr);
-		return (0);
+		error = 0;
+
+		if (!absent_or_empty_rules || !absent_or_empty_exec_paths) {
+			/*
+			 * Some values specified.  Check that they match the
+			 * ones we are going to inherit.
+			 */
+			model_conf = find_conf(pr->pr_parent, NULL);
+			if (strcmp(model_conf->rules.string, rules_string)
+			    != 0) {
+				error = EINVAL;
+				vfs_opterror(opts,
+				    "'mac.do' is 'inherited' but 'mac.do.rules'"
+				    " was specified with a different value "
+				    "than the one to be inherited (\"%s\")",
+				    model_conf->rules.string);
+			}
+			if (strcmp(model_conf->exec_paths.exec_paths_str,
+			    exec_paths_string) != 0) {
+				error = EINVAL;
+				vfs_opterror(opts,
+				    "'mac.do' is 'inherited' but "
+				    "'mac.do.exec_paths' was specified with a "
+				    "different value than the one to be "
+				    "inherited (\"%s\")",
+				    model_conf->exec_paths.exec_paths_str);
+			}
+			drop_conf(model_conf);
+		}
+
+		if (error == 0)
+			/*
+			 * There's no TOCTOU problem here as the removal of the
+			 * current jail's configuration commutes with changing
+			 * the inherited configuration we checked against.
+			 */
+			remove_conf(pr);
+
+		return (error);
 	}
 
 	model_conf = NULL;
 
 	switch (jsys) {
 	case JAIL_SYS_DISABLE:
-		rules_string = "";
-		has_rules = true;
-		/* FALLTHROUGH */
+		/*
+		 * mac_do(4) is disabled iff one of the parameter's string is
+		 * empty.  The parse_and_set_conf() call below treats passing
+		 * NULL for a parameter as a flag to copy its value from the
+		 * relevant ancestor jail's configuration, so we have to watch
+		 * for the final result having an empty parameter if no
+		 * parameter has been explicitly passed as empty.  Thanks to
+		 * mac_do_jail_check(), we know that at least one parameter is
+		 * absent or empty (see the comment for the corresponding case
+		 * there).
+		 */
+		MPASS(absent_or_empty_rules || absent_or_empty_exec_paths);
+		if (!absent_or_empty_rules)
+			exec_paths_string = "";
+		else if (!absent_or_empty_exec_paths)
+			rules_string = "";
+		else {
+			/*
+			 * Both are either empty or absent.  If at least one is
+			 * absent, we retrieve the applicable configuration as
+			 * it will serve as a template (provides default
+			 * values).
+			 */
+			if (rules_string == NULL || exec_paths_string == NULL)
+				model_conf = find_conf(pr, NULL);
+			/* If both are absent, we have to examine if, in the
+			 * currently applicable configuration, one of the
+			 * parameters, which we are going to copy, is
+			 * effectively empty.  If both of those are non-empty,
+			 * we keep the executable paths and empty the rules,
+			 * since we expect that this is more convenient to
+			 * administrators that may want to enable mac_do(4)
+			 * later by just setting new rules.
+			 */
+			if (rules_string == NULL && exec_paths_string == NULL &&
+			    has_rules(&model_conf->rules) &&
+			    has_exec_paths(&model_conf->exec_paths))
+				rules_string = "";
+		}
+		break;
 
 	case JAIL_SYS_NEW:
-		/*
-		 * If 'pr' has a configuration, we want to use it as the model
-		 * (i.e., only change what has been explicitly specified).
-		 * Else, we want as default values those that are inherited.
-		 */
-		model_conf = !has_rules || !has_exec_paths ?
-		    find_conf(pr, NULL) : NULL;
-		error = parse_and_set_conf(pr,
-		    has_rules ? rules_string : NULL,
-		    has_exec_paths ? exec_paths_string : NULL,
-		    model_conf,
-		    &parse_error);
-
-		if (error != 0) {
-			vfs_opterror(opts,
-			    "MAC/do: Parse error at index %zu: %s\n",
-			    parse_error->pos, parse_error->msg);
-			free_parse_error(parse_error);
-		}
+		/* See the comment before the call to find_conf() above. */
+		if (rules_string == NULL || exec_paths_string == NULL)
+			model_conf = find_conf(pr, NULL);
 		break;
 
 	default:
 		__assert_unreachable();
 	}
 
+	error = parse_and_set_conf(pr, rules_string, exec_paths_string,
+	    model_conf, &parse_error);
 	if (model_conf != NULL)
 		drop_conf(model_conf);
+	if (error != 0) {
+		vfs_opterror(opts,
+		    "MAC/do: Parse error at index %zu: %s\n",
+		    parse_error->pos, parse_error->msg);
+		free_parse_error(parse_error);
+	}
+
 	return (error);
 }
 
