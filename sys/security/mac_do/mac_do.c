@@ -1414,49 +1414,46 @@ clone_exec_paths(struct exec_paths *const dst,
  *
  * Must be called with '*parse_error' set to NULL.
  *
- * Supports explicitly setting all parameters or only some of them, in which
- * case the implicit ones are copied from the currently applicable configuration
- * (that of the closest ancestor jail that has one).
- *
- * An unspecified parameter must be passed as NULL.
+ * Supports explicitly setting all parameters or only some of them.  An
+ * unspecified parameter must be passed as NULL.  The values of unspecified
+ * parameters are copied from those of the passed model configuration (which is
+ * expected to be the currently applicable configuration, i.e., that of the
+ * closest ancestor jail that has one).
  */
 static int
-parse_and_set_conf(struct prison *pr, const char *rules_string,
-    const char *exec_paths_string, struct parse_error **parse_error)
+parse_and_set_conf(struct prison *const pr, const char *const rules_string,
+    const char *const exec_paths_string, const struct conf *const model_conf,
+    struct parse_error **const parse_error)
 {
-	struct conf *applicable_conf = NULL;
-	struct conf *conf;
+	struct conf *const conf = new_conf();
 	int error = 0;
 
-	if (rules_string == NULL || exec_paths_string == NULL)
-		applicable_conf = find_conf(pr, NULL);
-
-	conf = new_conf();
+	KASSERT(model_conf != NULL ||
+	    (rules_string != NULL && exec_paths_string != NULL),
+	    ("MAC/do: %s: Model configuration needed!", __func__));
 
 	if (rules_string != NULL) {
 		error = parse_rules(rules_string, &conf->rules, parse_error);
 		if (error != 0)
 			goto error;
 	}
-	else if (applicable_conf != NULL)
-		clone_rules(&conf->rules, &applicable_conf->rules);
+	else
+		clone_rules(&conf->rules, &model_conf->rules);
 
 	if (exec_paths_string != NULL) {
 		error = parse_exec_paths(exec_paths_string, &conf->exec_paths,
 		    parse_error);
 		if (error != 0)
 			goto error;
-	} else if (applicable_conf != NULL)
+	} else
 		clone_exec_paths(&conf->exec_paths,
-		    &applicable_conf->exec_paths);
+		    &model_conf->exec_paths);
 
 	set_conf(pr, conf);
 
 	MPASS(error == 0 && *parse_error == NULL);
 out:
 	drop_conf(conf);
-	if (applicable_conf != NULL)
-		drop_conf(applicable_conf);
 	return (error);
 error:
 	MPASS(error != 0 && *parse_error != NULL);
@@ -1479,8 +1476,7 @@ mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
-	/* Set our prison's rules, not that of the jail we inherited from. */
-	error = parse_and_set_conf(pr, buf, NULL, &parse_error);
+	error = parse_and_set_conf(pr, buf, NULL, conf, &parse_error);
 	if (error != 0) {
 		if (print_parse_error)
 			printf("MAC/do: Parse error at index %zu: %s\n",
@@ -1520,7 +1516,7 @@ mac_do_sysctl_exec_paths(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
-	error = parse_and_set_conf(pr, NULL, buf, &parse_error);
+	error = parse_and_set_conf(pr, NULL, buf, conf, &parse_error);
 	if (error != 0) {
 		if (print_parse_error)
 			printf("MAC/do: Parse error at index %zu: %s\n",
@@ -1728,6 +1724,7 @@ mac_do_jail_set(void *obj, void *data)
 	struct vfsoptlist *opts = data;
 	char *rules_string, *exec_paths_string;
 	struct parse_error *parse_error = NULL;
+	struct conf *model_conf;
 	int error, jsys;
 	bool has_rules, has_exec_paths;
 
@@ -1757,20 +1754,32 @@ mac_do_jail_set(void *obj, void *data)
 			jsys = JAIL_SYS_DISABLE;
 	}
 
-	switch (jsys) {
-	case JAIL_SYS_INHERIT:
+	if (jsys == JAIL_SYS_INHERIT) {
+		MPASS(!has_rules && !has_exec_paths);
 		remove_conf(pr);
 		return (0);
+	}
 
+	model_conf = NULL;
+
+	switch (jsys) {
 	case JAIL_SYS_DISABLE:
 		rules_string = "";
 		has_rules = true;
 		/* FALLTHROUGH */
 
 	case JAIL_SYS_NEW:
+		/*
+		 * If 'pr' has a configuration, we want to use it as the model
+		 * (i.e., only change what has been explicitly specified).
+		 * Else, we want as default values those that are inherited.
+		 */
+		model_conf = !has_rules || !has_exec_paths ?
+		    find_conf(pr, NULL) : NULL;
 		error = parse_and_set_conf(pr,
 		    has_rules ? rules_string : NULL,
 		    has_exec_paths ? exec_paths_string : NULL,
+		    model_conf,
 		    &parse_error);
 
 		if (error != 0) {
@@ -1778,15 +1787,16 @@ mac_do_jail_set(void *obj, void *data)
 			    "MAC/do: Parse error at index %zu: %s\n",
 			    parse_error->pos, parse_error->msg);
 			free_parse_error(parse_error);
-
-			return (error);
 		}
-
-		return (0);
+		break;
 
 	default:
 		__assert_unreachable();
 	}
+
+	if (model_conf != NULL)
+		drop_conf(model_conf);
+	return (error);
 }
 
 /*
