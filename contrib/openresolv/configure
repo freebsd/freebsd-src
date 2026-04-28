@@ -39,7 +39,7 @@ for x do
 	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
 	--datadir|--infodir) ;; # ignore autotools
 	--disable-maintainer-mode|--disable-dependency-tracking) ;;
-	--help) echo "See the README file for available options"; exit 0;;
+	--help) echo "See the source for available options"; exit 0;;
 	*) echo "$0: WARNING: unknown option $opt" >&2;;
 	esac
 done
@@ -92,7 +92,7 @@ dragonfly*)
 	: ${LIBEXECDIR:=${PREFIX:-/usr}/libexec/resolvconf}
 	;;
 linux*)
-	# cksum does't support -a and netpgp is rare
+	# cksum doesn't support -a and netpgp is rare
 	echo "CKSUM=		sha256sum --tag" >>$CONFIG_MK
 	echo "PGP=		gpg2" >>$CONFIG_MK
 	;;
