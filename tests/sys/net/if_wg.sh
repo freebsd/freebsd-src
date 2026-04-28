@@ -303,7 +303,8 @@ atf_test_case "wg_key_peerdev_makeshared" "cleanup"
 wg_key_peerdev_makeshared_head()
 {
 	atf_set descr 'Create a wg(4) interface and assign peer key to device'
-	atf_set require.progs wg
+	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_key_peerdev_makeshared_body()
