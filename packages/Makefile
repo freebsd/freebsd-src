@@ -66,7 +66,6 @@ SUBDIR=	blocklist \
 	resolvconf \
 	rip \
 	runtime \
-	smart \
 	smbutils \
 	syslogd \
 	tcpd \

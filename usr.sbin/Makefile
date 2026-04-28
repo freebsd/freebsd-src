@@ -81,7 +81,6 @@ SUBDIR=	adduser \
 	setfib \
 	setfmac \
 	setpmac \
-	smart \
 	smbmsg \
 	snapinfo \
 	spi \
