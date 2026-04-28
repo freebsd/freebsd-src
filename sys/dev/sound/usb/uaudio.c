@@ -713,6 +713,10 @@ static driver_t uaudio_driver = {
 	.size = sizeof(struct uaudio_softc),
 };
 
+static const STRUCT_USB_HOST_ID uaudio_vendor_audio[] = {
+	{ USB_VPI(USB_VENDOR_ROLAND, 0x0132, 0) }, /* UA-33 */
+};
+
 /* The following table is derived from Linux's quirks-table.h */ 
 static const STRUCT_USB_HOST_ID uaudio_vendor_midi[] = {
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1000, 0) }, /* UX256 */
@@ -867,6 +871,11 @@ uaudio_probe(device_t dev)
 		return (ENXIO);
 
 	/* lookup non-standard device(s) */
+
+	if (usbd_lookup_id_by_uaa(uaudio_vendor_audio,
+	    sizeof(uaudio_vendor_audio), uaa) == 0) {
+		return (BUS_PROBE_SPECIFIC);
+	}
 
 	if (usbd_lookup_id_by_uaa(uaudio_vendor_midi,
 	    sizeof(uaudio_vendor_midi), uaa) == 0) {
@@ -6258,4 +6267,5 @@ MODULE_DEPEND(snd_uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_DEPEND(snd_uaudio, hid, 1, 1, 1);
 MODULE_VERSION(snd_uaudio, 1);
 USB_PNP_HOST_INFO(uaudio_devs);
+USB_PNP_HOST_INFO(uaudio_vendor_audio);
 USB_PNP_HOST_INFO(uaudio_vendor_midi);
