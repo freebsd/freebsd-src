@@ -12,6 +12,32 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260429:
+	14.4-RELEASE-p3	SA-26:12.dhclient
+			SA-26:13.exec
+			SA-26:14.pf
+			SA-26:15.dhclient
+			SA-26:16.libnv
+			SA-26:17.libnv
+			EN-26:09.tzdata
+			EN-26:10.amd64
+
+	Remote code execution via malicious DHCP options. [SA-26:12.dhclient]
+
+	Local privilege escalation via execve(). [SA-26:13.exec]
+
+	pf can overflow the stack parsing crafted SCTP packets. [SA-26:14.pf]
+
+	Remotely triggerable out-of-bounds heap write in dhclient. [SA-26:15.dhclient]
+
+	Stack overflow via select() file descriptor set overflow. [SA-26:16.libnv]
+
+	Heap overflow in libnv. [SA-26:17.libnv]
+
+	Timezone database information update. [EN-26:09.tzdata]
+
+	TLB invalidation bug on AMD systems with INVLPGB. [EN-26:10.amd64]
+
 20260421:
 	14.4-RELEASE-p2	SA-26:10.tty
 			SA-26:11.amd64
