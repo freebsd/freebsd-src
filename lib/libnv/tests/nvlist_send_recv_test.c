@@ -1,5 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2024-2026 Mariusz Zaborski <oshogbo@FreeBSD.org>
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
@@ -661,6 +664,58 @@ ATF_TC_BODY(nvlist_send_recv__overflow_header_size, tc)
 	}
 }
 
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__overflow_big_endian_size);
+ATF_TC_BODY(nvlist_send_recv__overflow_big_endian_size, tc)
+{
+	static const unsigned char payload[] = {
+		0x6c,						/* magic */
+		0x00,						/* version */
+		0x80,						/* flags: NV_FLAG_BIG_ENDIAN */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf5,
+	};
+	nvlist_t *nvl;
+	int sv[2];
+
+	ATF_REQUIRE_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+	ATF_REQUIRE_EQ(write(sv[1], payload, sizeof(payload)),
+	    (ssize_t)sizeof(payload));
+	ATF_REQUIRE_EQ(close(sv[1]), 0);
+
+	errno = 0;
+	nvl = nvlist_recv(sv[0], 0);
+	ATF_REQUIRE(nvl == NULL);
+	ATF_REQUIRE_EQ(errno, EINVAL);
+
+	ATF_REQUIRE_EQ(close(sv[0]), 0);
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__overflow_little_endian_size);
+ATF_TC_BODY(nvlist_send_recv__overflow_little_endian_size, tc)
+{
+	static const unsigned char payload[] = {
+		0x6c,						/* magic */
+		0x00,						/* version */
+		0x00,						/* flags */
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xf5, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	};
+	nvlist_t *nvl;
+	int sv[2];
+
+	ATF_REQUIRE_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+	ATF_REQUIRE_EQ(write(sv[1], payload, sizeof(payload)),
+	    (ssize_t)sizeof(payload));
+	ATF_REQUIRE_EQ(close(sv[1]), 0);
+
+	errno = 0;
+	nvl = nvlist_recv(sv[0], 0);
+	ATF_REQUIRE(nvl == NULL);
+	ATF_REQUIRE_EQ(errno, EINVAL);
+
+	ATF_REQUIRE_EQ(close(sv[0]), 0);
+}
+
 ATF_TC_WITHOUT_HEAD(nvlist_send_recv__invalid_fd_size);
 ATF_TC_BODY(nvlist_send_recv__invalid_fd_size, tc)
 {
@@ -796,6 +851,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds__stream);
 
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__overflow_header_size);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__overflow_big_endian_size);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__overflow_little_endian_size);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__invalid_fd_size);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__overflow_fd_size);
 
