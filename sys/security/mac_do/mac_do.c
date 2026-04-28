@@ -33,6 +33,7 @@
 
 #include <security/mac/mac_policy.h>
 
+
 #ifdef INVARIANTS
 /*
  * Should typically be moved to libkern (and perhaps libc) at some point, and be
@@ -225,6 +226,7 @@ struct id_elem {
 };
 
 STAILQ_HEAD(id_list, id_elem);
+
 
 #ifdef INVARIANTS
 static void
