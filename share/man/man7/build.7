@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 22, 2026
+.Dd April 28, 2026
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -387,10 +387,18 @@ defaults to
 Create or update the
 .Xr freebsd-base 7
 package repository for the base system.
+.Bl -bullet
+.It
 If an old repository is being updated,
 then packages whose contents have not changed since the previous version
 will be copied into the new repository to avoid needless updating of the
 version number.
+.It
+If
+.Va PKG_REPO_SIGNING_KEY
+is defined, the repo will be signed according to
+.Xr pkg-repo 8 .
+.El
 .It Cm xdev-build
 Builds for the
 .Cm xdev
@@ -1166,6 +1174,7 @@ Study the examples above.
 .Xr config 8 ,
 .Xr etcupdate 8 ,
 .Xr nextboot 8 ,
+.Xr pkg-repo 8 ,
 .Xr shutdown 8
 .Sh HISTORY
 The
