@@ -1551,16 +1551,6 @@ SYSCTL_JAIL_PARAM_STRING(_mac_do, exec_paths, CTLFLAG_RW, MAX_EXEC_PATHS_SIZE,
     "Jail MAC/do executable paths");
 
 static int
-mac_do_jail_create(void *obj, void *data)
-{
-	struct prison *const pr = obj;
-
-	set_default_conf(pr);
-
-	return (0);
-}
-
-static int
 mac_do_jail_get(void *obj, void *data)
 {
 	struct prison *const pr = obj;
@@ -1881,12 +1871,14 @@ mac_do_jail_set(void *obj, void *data)
 /*
  * OSD jail methods.
  *
- * There is no PR_METHOD_REMOVE, as OSD storage is destroyed by the common jail
- * code (see prison_cleanup()), which triggers a run of our dealloc_jail_osd()
- * destructor.
+ * There is no PR_METHOD_REMOVE method, as OSD storage is destroyed by the
+ * common jail code (see prison_cleanup()), which triggers a run of our
+ * dealloc_jail_osd() destructor.  There is neither a PR_METHOD_CREATE as
+ * PR_METHOD_SET is called just after (or the created jail destroyed if some
+ * PR_METHOD_CREATE fails), and our mac_do_jail_set() will ensure a jail is
+ * properly configured.
  */
 static const osd_method_t osd_methods[PR_MAXMETHOD] = {
-	[PR_METHOD_CREATE] = mac_do_jail_create,
 	[PR_METHOD_GET] = mac_do_jail_get,
 	[PR_METHOD_CHECK] = mac_do_jail_check,
 	[PR_METHOD_SET] = mac_do_jail_set,
