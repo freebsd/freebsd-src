@@ -26,6 +26,8 @@ if [ $# -lt 3 ]; then
 	exit 1
 fi
 
+: ${PKG_CMD:="pkg"}
+
 srcdir="$1"; shift
 wstagedir="$1"; shift
 repodir="$1"; shift
@@ -43,7 +45,8 @@ for pkg in "$repodir"/*.pkg; do
 	# packages.
 	{ echo "$pkg" | grep -q '-'; } || continue
 
-	set -- $(pkg query -F "$pkg" '%At %n %Av' | grep '^set ')
+	_tmp="$(${PKG_CMD} query -F "$pkg" '%At %n %Av' | grep '^set ')"
+	set -- $_tmp
 	pkgname="$2"
 	sets="$(echo "$3" | tr , ' ')"
 	for set in $sets; do
