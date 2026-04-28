@@ -86,7 +86,7 @@ log_common(int priority, int log_errno, const char *fmt, va_list ap)
 	static char msgbuf[MSGBUF_LEN];
 	static char msgbuf_strvised[MSGBUF_LEN * 4 + 1];
 	char *errstr;
-	int ret;
+	int ret, serrno = errno;
 
 	ret = vsnprintf(msgbuf, sizeof(msgbuf), fmt, ap);
 	if (ret < 0) {
@@ -138,6 +138,8 @@ log_common(int priority, int log_errno, const char *fmt, va_list ap)
 			    msgbuf_strvised, errstr);
 		}
 	}
+
+	errno = serrno;
 }
 
 void
