@@ -17178,7 +17178,7 @@ pace_to_fill_cwnd(struct tcp_rack *rack, int32_t pacing_delay, uint32_t len, uin
 		return (pacing_delay);
 	/*
 	 * first lets calculate the b/w based on the last us-rtt
-	 * and the the smallest send window.
+	 * and the smallest send window.
 	 */
 	fill_bw = min(rack->rc_tp->snd_cwnd, rack->r_ctl.cwnd_to_use);
 	if (rack->rc_fillcw_apply_discount) {
