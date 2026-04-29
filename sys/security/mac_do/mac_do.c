@@ -1406,10 +1406,10 @@ set_conf(struct prison *const pr, struct conf *const conf)
  *
  * Destroys the 'osd_jail_slot' slot of the passed jail.
  */
-static void
-remove_conf(struct prison *const pr)
+static struct conf *
+remove_conf_locked(struct prison *const pr)
 {
-	set_conf(pr, NULL);
+	return (set_conf_locked(pr, NULL, NULL));
 }
 
 static struct conf *
@@ -1483,11 +1483,15 @@ clone_exec_paths(struct exec_paths *const dst,
  * parameters are copied from those of the passed model configuration (which is
  * expected to be the currently applicable configuration, i.e., that of the
  * closest ancestor jail that has one).
+ *
+ * 'mac_do_rml' needs to be write-locked (and stays so). 'old_conf' serves to
+ * return, on no error, the old configuration with a reference (which must be
+ * eventually freed).
  */
 static int
 parse_and_set_conf(struct prison *const pr, const char *const rules_string,
     const char *const exec_paths_string, const struct conf *const model_conf,
-    struct parse_error **const parse_error)
+    struct conf **const old_conf, struct parse_error **const parse_error)
 {
 	struct conf *const conf = new_conf();
 	int error = 0;
@@ -1513,7 +1517,8 @@ parse_and_set_conf(struct prison *const pr, const char *const rules_string,
 		clone_exec_paths(&conf->exec_paths,
 		    &model_conf->exec_paths);
 
-	set_conf(pr, conf);
+	MPASS(error == 0);
+	*old_conf = set_conf_locked(pr, conf, osd_reserve(osd_jail_slot));
 
 	MPASS(error == 0 && *parse_error == NULL);
 out:
@@ -1524,6 +1529,30 @@ error:
 	goto out;
 }
 
+/*
+ * Calls parse_and_set_conf() and closes the current configuration transaction.
+ *
+ * Closes the transaction by unlocking 'mac_do_rml' and releasing the old
+ * configuration returned by parse_and_set_conf().
+ */
+static int
+parse_and_commit_conf(struct prison *const pr, const char *const rules_string,
+    const char *const exec_paths_string, const struct conf *const model_conf,
+    struct parse_error **const parse_error)
+{
+	struct conf *old_conf;
+	int error;
+
+	error = parse_and_set_conf(pr, rules_string, exec_paths_string,
+	    model_conf, &old_conf, parse_error);
+	rm_wunlock(&mac_do_rml);
+
+	if (error == 0 && old_conf != NULL)
+		drop_conf(old_conf);
+	return (error);
+}
+
+
 static int
 mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
@@ -1533,14 +1562,23 @@ mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 	struct parse_error *parse_error = NULL;
 	int error;
 
-	conf = find_conf(pr, NULL);
+	if (req->newptr != NULL) {
+		rm_wlock(&mac_do_rml);
+		conf = find_conf_locked(pr, NULL);
+	} else
+		conf = find_conf(pr, NULL);
 	strlcpy(buf, conf->rules.string, MAX_RULE_STRING_SIZE);
 
 	error = sysctl_handle_string(oidp, buf, MAX_RULE_STRING_SIZE, req);
-	if (error != 0 || req->newptr == NULL)
+	if (req->newptr == NULL)
 		goto out;
+	if (error != 0) {
+		rm_wunlock(&mac_do_rml);
+		goto out;
+	}
 
-	error = parse_and_set_conf(pr, buf, NULL, conf, &parse_error);
+	/* Unlocks 'mac_do_rml'. */
+	error = parse_and_commit_conf(pr, buf, NULL, conf, &parse_error);
 	if (error != 0) {
 		if (print_parse_error)
 			printf("MAC/do: Parse error at index %zu: %s\n",
@@ -1573,14 +1611,23 @@ mac_do_sysctl_exec_paths(SYSCTL_HANDLER_ARGS)
 	struct parse_error *parse_error = NULL;
 	int error;
 
-	conf = find_conf(pr, NULL);
+	if (req->newptr != NULL) {
+		rm_wlock(&mac_do_rml);
+		conf = find_conf_locked(pr, NULL);
+	} else
+		conf = find_conf(pr, NULL);
 	strlcpy(buf, conf->exec_paths.exec_paths_str, MAX_EXEC_PATHS_SIZE);
 
 	error = sysctl_handle_string(oidp, buf, MAX_EXEC_PATHS_SIZE, req);
-	if (error != 0 || req->newptr == NULL)
+	if (req->newptr == NULL)
 		goto out;
+	if (error != 0) {
+		rm_wunlock(&mac_do_rml);
+		goto out;
+	}
 
-	error = parse_and_set_conf(pr, NULL, buf, conf, &parse_error);
+	/* Unlocks 'mac_do_rml'. */
+	error = parse_and_commit_conf(pr, NULL, buf, conf, &parse_error);
 	if (error != 0) {
 		if (print_parse_error)
 			printf("MAC/do: Parse error at index %zu: %s\n",
@@ -1809,14 +1856,17 @@ mac_do_jail_set(void *obj, void *data)
 	}
 
 	if (jsys == JAIL_SYS_INHERIT) {
+		struct conf *old_conf = NULL;
+
 		error = 0;
+		rm_wlock(&mac_do_rml);
 
 		if (!absent_or_empty_rules || !absent_or_empty_exec_paths) {
 			/*
 			 * Some values specified.  Check that they match the
 			 * ones we are going to inherit.
 			 */
-			model_conf = find_conf(pr->pr_parent, NULL);
+			model_conf = find_conf_locked(pr->pr_parent, NULL);
 			if (strcmp(model_conf->rules.string, rules_string)
 			    != 0) {
 				error = EINVAL;
@@ -1840,23 +1890,25 @@ mac_do_jail_set(void *obj, void *data)
 		}
 
 		if (error == 0)
-			/*
-			 * There's no TOCTOU problem here as the removal of the
-			 * current jail's configuration commutes with changing
-			 * the inherited configuration we checked against.
-			 */
-			remove_conf(pr);
+			old_conf = remove_conf_locked(pr);
+
+		rm_wunlock(&mac_do_rml);
+
+		if (old_conf != NULL)
+			drop_conf(old_conf);
 
 		return (error);
 	}
 
 	model_conf = NULL;
+	/* Freeze configuration accesses. */
+	rm_wlock(&mac_do_rml);
 
 	switch (jsys) {
 	case JAIL_SYS_DISABLE:
 		/*
 		 * mac_do(4) is disabled iff one of the parameter's string is
-		 * empty.  The parse_and_set_conf() call below treats passing
+		 * empty.  The parse_and_commit_conf() call below treats passing
 		 * NULL for a parameter as a flag to copy its value from the
 		 * relevant ancestor jail's configuration, so we have to watch
 		 * for the final result having an empty parameter if no
@@ -1878,7 +1930,7 @@ mac_do_jail_set(void *obj, void *data)
 			 * values).
 			 */
 			if (rules_string == NULL || exec_paths_string == NULL)
-				model_conf = find_conf(pr, NULL);
+				model_conf = find_conf_locked(pr, NULL);
 			/* If both are absent, we have to examine if, in the
 			 * currently applicable configuration, one of the
 			 * parameters, which we are going to copy, is
@@ -1896,16 +1948,17 @@ mac_do_jail_set(void *obj, void *data)
 		break;
 
 	case JAIL_SYS_NEW:
-		/* See the comment before the call to find_conf() above. */
+		/* See the comment before the same test above. */
 		if (rules_string == NULL || exec_paths_string == NULL)
-			model_conf = find_conf(pr, NULL);
+			model_conf = find_conf_locked(pr, NULL);
 		break;
 
 	default:
 		__assert_unreachable();
 	}
 
-	error = parse_and_set_conf(pr, rules_string, exec_paths_string,
+	/* Unlocks 'mac_do_rml'. */
+	error = parse_and_commit_conf(pr, rules_string, exec_paths_string,
 	    model_conf, &parse_error);
 	if (model_conf != NULL)
 		drop_conf(model_conf);
