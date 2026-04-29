@@ -32,11 +32,15 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_kern_tls.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#ifdef KERN_TLS
+#include <sys/ktls.h>
+#endif
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -132,6 +136,12 @@ tcp_twstart(struct tcpcb *tp)
 	tcp_free_sackholes(tp);
 	soisdisconnected(inp->inp_socket);
 
+#ifdef KERN_TLS
+	/* release ktls snd tag now that no more data can be sent */
+	if (tptosocket(tp)->so_snd.sb_tls_info != NULL) {
+		ktls_release_snd_tag(tptosocket(tp)->so_snd.sb_tls_info);
+	}
+#endif
 	if (tp->t_flags & TF_ACKNOW)
 		(void) tcp_output(tp);
 
