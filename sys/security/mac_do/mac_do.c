@@ -24,6 +24,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/stdarg.h>
 #include <sys/sx.h>
@@ -73,6 +74,8 @@ _Static_assert(MAX_RULE_STRING_SIZE > 0,
 #define MAX_EXEC_PATHS		8
 _Static_assert(MAX_EXEC_PATHS_SIZE > 0,
     "MAX_EXEC_PATHS_SIZE: No space for the NUL terminator!");
+
+struct rmlock mac_do_rml;
 
 static unsigned		osd_jail_slot;
 static unsigned		osd_thread_slot;
@@ -1228,28 +1231,46 @@ drop_conf(struct conf *const conf)
  *
  * If 'hpr' is not NULL, it is used to return a pointer to the (unlocked) prison
  * holding the applicable configuration.
+ *
+ * The find_conf_unlocked() variant needs 'mac_do_rml' to be (read- or write-)
+ * locked.  The find_conf() variant will take a read lock for the duration of
+ * the search.
+ *
+ * The configuration returned by this function is sequentially consistent with
+ * other concurrent reads and configuration modifications, even in the presence
+ * of concurrent changes of configurations higher up in the jail tree (whether
+ * they "change" the value of some parameters, install a new configuration where
+ * there wasn't any, breaking inheritance from higher up, or remove an existing
+ * one, establishing inheritance from higher up).
  */
 static struct conf *
 find_conf(struct prison *const pr, struct prison **const hpr)
 {
-	struct prison *cpr, *ppr;
+	struct prison *cpr, *ppr; /* Current and parent. */
 	struct conf *conf;
+	struct rm_priotracker rmpt;
 
+	rm_rlock(&mac_do_rml, &rmpt);
+	/*
+	 * We do not need to take any locks here to climb the prison tree as
+	 * either the start prison ('pr') is that of the current thread (and our
+	 * ancestors are necessarily stable), or it is a prison passed by the jail
+	 * machinery to an OSD method, in which case the prison tree lock is
+	 * already being held.
+	 */
 	cpr = pr;
 	for (;;) {
-		prison_lock(cpr);
-		conf = osd_jail_get(cpr, osd_jail_slot);
+		conf = osd_jail_get_unlocked(cpr, osd_jail_slot);
 		if (conf != NULL)
 			break;
-		prison_unlock(cpr);
 
 		ppr = cpr->pr_parent;
 		/*
-		 * 'prison0' normally always have a mac_do(4) configuration
-		 * because we installed one on module load/activation and
-		 * nothing can destroy it as 'prison0' is not a regular jail and
-		 * the 'mac.do' parameter cannot be set to 'inherit' on it,
-		 * which is the only way to clear an existing configuration.
+		 * 'prison0' always has a mac_do(4) configuration because we
+		 * installed one on module load/activation and nothing can
+		 * destroy it as 'prison0' is not a regular jail and the
+		 * 'mac.do' parameter cannot be set to 'inherit' on it, which is
+		 * the only way to clear an existing configuration.
 		 */
 		KASSERT(ppr != NULL,
 		    ("MAC/do: 'prison0' must always have a configuration."));
@@ -1257,10 +1278,11 @@ find_conf(struct prison *const pr, struct prison **const hpr)
 	}
 
 	hold_conf(conf);
-	prison_unlock(cpr);
+	rm_runlock(&mac_do_rml, &rmpt);
 
 	if (hpr != NULL)
 		*hpr = cpr;
+
 	return (conf);
 }
 
@@ -1308,6 +1330,39 @@ dealloc_jail_osd(void *const value)
 }
 
 /*
+ * Assign an already-built configuration to a jail.
+ *
+ * Takes care of write-locking 'mac_do_rm', which should be unlocked on entry
+ * and will be unlocked on exit.
+ */
+static void
+set_conf(struct prison *const pr, struct conf *const conf)
+{
+	void **const rsv = conf != NULL ? osd_reserve(osd_jail_slot) : NULL;
+	struct conf *old_conf;
+	int error __diagused;
+
+	if (conf != NULL)
+		hold_conf(conf);
+
+	rm_wlock(&mac_do_rml);
+	old_conf = osd_jail_get_unlocked(pr, osd_jail_slot);
+	error = osd_jail_set_reserved(pr, osd_jail_slot, rsv, conf);
+	KASSERT(error == 0, ("MAC/do: osd_jail_set_reserved() failed "
+	    "with 'conf' = %p and 'rsv' = %p", conf, rsv));
+	if (conf == NULL)
+		/*
+		 * This completely frees the OSD slot, but doesn't call the
+		 * destructor since we've just put NULL into the slot.
+		 */
+		osd_jail_del(pr, osd_jail_slot);
+	rm_wunlock(&mac_do_rml);
+
+	if (old_conf != NULL)
+		drop_conf(old_conf);
+}
+
+/*
  * Remove the rules specifically associated to a prison.
  *
  * In practice, this means that the rules become inherited (from the closest
@@ -1318,49 +1373,7 @@ dealloc_jail_osd(void *const value)
 static void
 remove_conf(struct prison *const pr)
 {
-	struct conf *old_conf;
-	int error __unused;
-
-	prison_lock(pr);
-	/*
-	 * We burden ourselves with extracting rules first instead of just
-	 * letting osd_jail_del() call dealloc_jail_osd() as we want to
-	 * decrement their use count, and possibly free them, outside of the
-	 * prison lock.
-	 */
-	old_conf = osd_jail_get(pr, osd_jail_slot);
-	error = osd_jail_set(pr, osd_jail_slot, NULL);
-	/* osd_set() never allocates memory when 'value' is NULL, nor fails. */
-	MPASS(error == 0);
-	/*
-	 * This completely frees the OSD slot, but doesn't call the destructor
-	 * since we've just put NULL in the slot.
-	 */
-	osd_jail_del(pr, osd_jail_slot);
-	prison_unlock(pr);
-
-	if (old_conf != NULL)
-		drop_conf(old_conf);
-}
-
-/*
- * Assign an already-built configuration to a jail.
- */
-static void
-set_conf(struct prison *const pr, struct conf *const conf)
-{
-	struct conf *old_conf;
-	void **rsv;
-
-	hold_conf(conf);
-	rsv = osd_reserve(osd_jail_slot);
-
-	prison_lock(pr);
-	old_conf = osd_jail_get(pr, osd_jail_slot);
-	osd_jail_set_reserved(pr, osd_jail_slot, rsv, conf);
-	prison_unlock(pr);
-	if (old_conf != NULL)
-		drop_conf(old_conf);
+	set_conf(pr, NULL);
 }
 
 static struct conf *
@@ -2527,6 +2540,8 @@ mac_do_init(struct mac_policy_conf *mpc)
 	struct conf *const default_conf = new_default_conf();
 	struct prison *pr;
 
+	rm_init(&mac_do_rml, "mac_do(4)");
+
 	osd_jail_slot = osd_jail_register(dealloc_jail_osd, osd_methods);
 	set_conf(&prison0, default_conf);
 	sx_slock(&allprison_lock);
@@ -2547,6 +2562,7 @@ mac_do_destroy(struct mac_policy_conf *mpc)
 	 */
 	osd_thread_deregister(osd_thread_slot);
 	osd_jail_deregister(osd_jail_slot);
+	rm_destroy(&mac_do_rml);
 }
 
 static struct mac_policy_ops do_ops = {
