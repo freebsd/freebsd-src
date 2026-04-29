@@ -59,8 +59,6 @@ LIN_SDT_PROBE_DEFINE1(uid16, linux_setgroups16, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(uid16, linux_setgroups16, priv_check_cred_error, "int");
 LIN_SDT_PROBE_DEFINE1(uid16, linux_getgroups16, copyout_error, "int");
 
-DUMMY(setfsuid16);
-DUMMY(setfsgid16);
 DUMMY(getresuid16);
 DUMMY(getresgid16);
 
@@ -283,4 +281,18 @@ linux_setresuid16(struct thread *td, struct linux_setresuid16_args *args)
 	error = sys_setresuid(td, &bsd);
 
 	return (error);
+}
+
+int
+linux_setfsuid16(struct thread *td, struct linux_setfsuid16_args *args)
+{
+	td->td_retval[0] = td->td_ucred->cr_uid;
+	return (0);
+}
+
+int
+linux_setfsgid16(struct thread *td, struct linux_setfsgid16_args *args)
+{
+	td->td_retval[0] = td->td_ucred->cr_gid;
+	return (0);
 }
