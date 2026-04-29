@@ -1,0 +1,159 @@
+#!/bin/sh
+# Copyright (c) 2025 Roy Marples
+# All rights reserved
+
+# resolvectl subscriber for resolvconf
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[ -f "@SYSCONFDIR@"/resolvconf.conf ] || exit 0
+. "@SYSCONFDIR@/resolvconf.conf" || exit 1
+
+case "${resolvectl:-NO}" in
+[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1) ;;
+*) exit 0;;
+esac
+
+# If we don't have resolvectl or systemd-resolved isn't running then
+# we can't do much.
+# We can't persist our data in /run/systemd/resolve/netif/$ifindex
+# because systemd-resolved keeps it somehow, ie we can't change it
+# once we have inserted it
+if ! [ -d /sys/class/net ] || \
+   ! type resolvectl >/dev/null 2>&1 || \
+   ! pidof systemd-resolved >/dev/null
+then
+	exit 1
+fi
+
+# resolvectl only accepts resolv.conf setup per physical interface
+# although resolvconf has always hinted that the named configuration
+# should be $interface.$protocol, this has never been a fixed requirement.
+# Because resolvectl only accepts one configuration per interface we need
+# to try and merge the resolv.conf's together.
+# Luckily resolvconf makes this easy for us.
+
+# Returns a list of resolvconf entries for a real interface
+get_resolvconf_interfaces() {
+	IFACE="$1"
+	[ -d /sys/class/net/"$IFACE" ] || return 1
+
+	IFACES=
+	for IFACE_PROTO in $(@SBINDIR@/resolvconf -Li "$IFACE" "$IFACE.*" 2>/dev/null); do
+		# ens5 will work with ens5.dhcp and ens5.ra,
+		# but not ens5.5 or ens5.5.dhcp
+		if [ "$IFACE_PROTO" != "$IFACE" ]; then
+			# Ensure that ens5.5.dhcp doesn't work for ens5
+			if [ "${IFACE_PROTO%.*}" != "$IFACE" ]; then
+				continue
+			fi
+			# Ensure that ens5.dhcp isn't a real interface
+			# as ens5.5 likely is and the .5 matches the .dhcp
+			if [ -d /sys/class/net/"$IFACE_PROTO" ]; then
+				continue
+			fi
+		fi
+		IFACES="$IFACES${IFACES:+ }$IFACE_PROTO"
+	done
+	echo "$IFACES"
+}
+
+# For the given interface, apply a list of resolvconf entries
+apply_resolvconf() {
+	IFACE="$1"
+	shift
+
+	if [ -z "$1" ]; then
+		resolvectl revert "$IFACE"
+		return
+	fi
+
+	# Set the default-route property first to avoid leakage.
+	# If any entry is private, the whole interface has to be private.
+	# If a more granular approach is needed, consider using the
+	# systemd-resolved subscriber instead which supports DNS delegates.
+	if [ -n "$(@SBINDIR@/resolvconf -p $@)" ]; then
+		resolvectl default-route "$IFACE" false
+	else
+		resolvectl default-route "$IFACE" true
+	fi
+
+	# Now set domain and dns
+	DOMAIN=$(@SBINDIR@/resolvconf -L $@ 2>/dev/null | sed -n -e "s/domain //p" -e "s/search //p")
+	NS=$(@SBINDIR@/resolvconf -L $@ 2>/dev/null | sed -n -e "s/nameserver //p")
+	if [ -n "$DOMAIN" ]; then
+		# If any entry is marked as not searchable, we mark all the
+		# domains as non searchable.
+		# If a more granular approach is needed, consider using the
+		# systemd-resolved subscriber instead which supports DNS delegates.
+		if [ -n "$(@SBINDIR@/resolvconf -pp $@)" ]; then
+			ND=
+			for d in $DOMAIN; do
+				ND="$ND${ND:+ }~$d"
+			done
+			DOMAIN="$ND"
+		fi
+		resolvectl domain "$IFACE" $DOMAIN
+	else
+		resolvectl domain "$IFACE" ""
+	fi
+	if [ -n "$NS" ]; then
+		resolvectl dns "$IFACE" $NS
+	else
+		resolvectl dns "$IFACE" ""
+	fi
+}
+
+# To get the full features of resolvconf, we need to work out each interface
+# for every resolvconf addition and deletion
+# This is because resolvconf.conf might have changed OR an exclusive
+# interface deleted which makes other interfaces visible.
+cd /sys/class/net
+for IFACE in *; do
+	if [ "$IFACE" = lo ]; then
+		# systemd-resolved doesn't work with lo
+		continue
+	fi
+
+	IFACES=$(get_resolvconf_interfaces "$IFACE")
+	apply_resolvconf "$IFACE" $IFACES
+done
+
+# warn about resolv.conf with no matching interface
+FAILED=
+for IFACE_PROTO in $(@SBINDIR@/resolvconf -Li); do
+	IFACE="${IFACE_PROTO%.*}"
+	if [ "$IFACE" = lo ]; then
+		# Don't warn about loopback interface as that is typically
+		# used to configure libc for a nameserver on it and the libc
+		# subscriber will process that just fine.
+		continue
+	fi
+
+	if ! [ -d "/sys/class/net/$IFACE" ]; then
+		FAILED="$FAILED${FAILED:+ }$IFACE_PROTO"
+	fi
+done
+if [ -n "$FAILED" ]; then
+	echo "Could not apply resolv.conf to resolvectl: $FAILED" >&2
+fi

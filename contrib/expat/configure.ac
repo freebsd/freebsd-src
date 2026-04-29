@@ -89,9 +89,9 @@ dnl
 dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
-LIBCURRENT=12  # sync
-LIBREVISION=3  # with
-LIBAGE=11      # CMakeLists.txt!
+LIBCURRENT=13  # sync
+LIBREVISION=0  # with
+LIBAGE=12      # CMakeLists.txt!
 
 AC_CONFIG_HEADERS([expat_config.h])
 AH_TOP([#ifndef EXPAT_CONFIG_H
@@ -217,21 +217,51 @@ AM_CONDITIONAL([_INTERNAL_LARGE_SIZE], [echo -- "${CPPFLAGS}${CFLAGS}" | ${FGREP
 
 LT_LIB_M
 
-AC_MSG_CHECKING([for arc4random_buf (BSD or glibc 2.36+)])
-AC_LINK_IFELSE([AC_LANG_SOURCE([
-    #include <stdlib.h>
-    int main(void) {
-      char dummy[[123]];  // double brackets for m4
-      arc4random_buf(dummy, 0U);
-      return 0;
-    }
-  ])],
-  [AC_DEFINE([HAVE_ARC4RANDOM_BUF], [1], [Define to 1 if you have the `arc4random_buf' function.])
-   AC_MSG_RESULT([yes])],
-  [AC_MSG_RESULT([no])
+AC_ARG_WITH([arc4random],
+  [AS_HELP_STRING([--with-arc4random],
+                  [enforce the use of arc4random function in the system @<:@default=check@:>@])
+AS_HELP_STRING([--without-arc4random],
+               [skip auto detect of arc4random @<:@default=check@:>@])],
+  [],
+  [with_arc4random=check])
 
-   AC_MSG_CHECKING([for arc4random (BSD, macOS, or glibc 2.36+)])
+AC_ARG_WITH([arc4random-buf],
+  [AS_HELP_STRING([--with-arc4random-buf],
+                  [enforce the use of arc4random_buf function in the system @<:@default=check@:>@])
+AS_HELP_STRING([--without-arc4random-buf],
+               [skip auto detect of arc4random_buf @<:@default=check@:>@])],
+  [],
+  [with_arc4random_buf=check])
+
+have_arc4random=false
+have_arc4random_buf=false
+
+AS_IF([test "x${with_arc4random_buf}" != xno],
+  [AC_MSG_CHECKING([for arc4random_buf (BSD or glibc 2.36+)])
    AC_LINK_IFELSE([AC_LANG_SOURCE([
+       #if ! defined(_DEFAULT_SOURCE)
+       # define _DEFAULT_SOURCE 1 /* for glibc */
+       #endif
+       #include <stdlib.h>
+       int main(void) {
+         char dummy[[123]];  // double brackets for m4
+         arc4random_buf(dummy, 0U);
+         return 0;
+       }
+     ])],
+     [AC_DEFINE([HAVE_ARC4RANDOM_BUF], [1], [Define to 1 if you have the `arc4random_buf' function.])
+      have_arc4random_buf=true
+      AC_MSG_RESULT([yes])],
+     [AC_MSG_RESULT([no])
+      AS_IF([test "x${with_arc4random_buf}" = xyes],
+        [AC_MSG_ERROR([enforced the use of arc4random_buf --with-arc4random-buf, but not detected])])])])
+
+AS_IF([test "x${with_arc4random}" != xno],
+  [AC_MSG_CHECKING([for arc4random (BSD, macOS, or glibc 2.36+)])
+   AC_LINK_IFELSE([AC_LANG_SOURCE([
+       #if ! defined(_DEFAULT_SOURCE)
+       # define _DEFAULT_SOURCE 1 /* for glibc */
+       #endif
        #include <stdlib.h>
        int main(void) {
           arc4random();
@@ -239,8 +269,58 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([
        }
      ])],
      [AC_DEFINE([HAVE_ARC4RANDOM], [1], [Define to 1 if you have the `arc4random' function.])
+      have_arc4random=true
       AC_MSG_RESULT([yes])],
-     [AC_MSG_RESULT([no])])])
+     [AC_MSG_RESULT([no])
+      AS_IF([test "x${with_arc4random}" = xyes],
+        [AC_MSG_ERROR([enforced the use of arc4random --with-arc4random, but not detected])])])])
+
+AM_CONDITIONAL([WITH_ARC4RANDOM], [test x${have_arc4random} = xtrue])
+AM_CONDITIONAL([WITH_ARC4RANDOM_BUF], [test x${have_arc4random_buf} = xtrue])
+
+have_getentropy=false
+
+AC_ARG_WITH([getentropy],
+  [AS_HELP_STRING([--with-getentropy],
+                  [enforce the use of getentropy function in the system @<:@default=check@:>@])
+AS_HELP_STRING([--without-getentropy],
+               [skip auto detect of getentropy @<:@default=check@:>@])],
+  [],
+  [with_getentropy=check])
+
+AS_IF([test "x$with_getentropy" != xno],
+  [AC_MSG_CHECKING([for getentropy (BSD, macOS 10.12+, glibc 2.25+)])
+   AC_LINK_IFELSE([AC_LANG_SOURCE([
+       // NOTE: Please keep this block in sync with its two siblings in files
+       //       'ConfigureChecks.cmake' and 'lib/random_getentropy.c'!
+       #if defined(__APPLE__)
+       #  include <sys/random.h>
+       #else
+       #  if defined(__GLIBC__) && ! defined(_DEFAULT_SOURCE)
+       #    define _DEFAULT_SOURCE 1
+       #  endif
+       #  if ! defined(_GNU_SOURCE)
+       #    define _GNU_SOURCE 1 /* for musl */
+       #  endif
+       #  include <unistd.h>
+       #endif // ! defined(__APPLE__)
+
+       int main(void) {
+         return getentropy(NULL, 0U);
+       }
+     ])],
+     [AC_DEFINE([HAVE_GETENTROPY], [1], [Define to 1 if you have the `getentropy' function.])
+      have_getentropy=true
+      AC_MSG_RESULT([yes])],
+     [AC_MSG_RESULT([no])
+      AS_IF([test "x$with_getentropy" = xyes],
+        [AC_MSG_ERROR([enforced the use of getentropy --with-getentropy, but not detected])])])])
+
+AM_CONDITIONAL([WITH_GETENTROPY], [test x${have_getentropy} = xtrue])
+
+have_either_getrandom=false
+have_getrandom_function=false
+have_getrandom_syscall=false
 
 AC_ARG_WITH([getrandom],
   [AS_HELP_STRING([--with-getrandom],
@@ -260,6 +340,8 @@ AS_IF([test "x$with_getrandom" != xno],
        }
      ])],
      [AC_DEFINE([HAVE_GETRANDOM], [1], [Define to 1 if you have the `getrandom' function.])
+      have_either_getrandom=true
+      have_getrandom_function=true
       AC_MSG_RESULT([yes])],
      [AC_MSG_RESULT([no])
       AS_IF([test "x$with_getrandom" = xyes],
@@ -286,10 +368,14 @@ AS_IF([test "x$with_sys_getrandom" != xno],
      }
    ])],
      [AC_DEFINE([HAVE_SYSCALL_GETRANDOM], [1], [Define to 1 if you have `syscall' and `SYS_getrandom'.])
+      have_either_getrandom=true
+      have_getrandom_syscall=true
       AC_MSG_RESULT([yes])],
      [AC_MSG_RESULT([no])
       AS_IF([test "x$with_sys_getrandom" = xyes],
         [AC_MSG_ERROR([enforced the use of syscall SYS_getrandom --with-sys-getrandom, but not detected])])])])
+
+AM_CONDITIONAL([WITH_EITHER_GETRANDOM], [test x${have_either_getrandom} = xtrue])
 
 dnl Only needed for xmlwf:
 AC_CHECK_HEADERS(fcntl.h unistd.h)
@@ -486,4 +572,17 @@ User flags (override Automake flags on conflict):
      CPPFLAGS: ${CPPFLAGS}
        CFLAGS: ${CFLAGS}
      CXXFLAGS: ${CXXFLAGS}
-      LDFLAGS: ${LDFLAGS}])
+      LDFLAGS: ${LDFLAGS}
+
+Entropy sources:
+             arc4random: ${have_arc4random}
+         arc4random_buf: ${have_arc4random_buf}
+             getentropy: ${have_getentropy}
+              getrandom: ${have_getrandom_function}
+  syscall SYS_getrandom: ${have_getrandom_syscall}
+           /dev/urandom: true
+
+Continue with e.g.:
+  make -j2
+  make check
+  sudo make install])

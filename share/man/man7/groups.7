@@ -1,0 +1,345 @@
+.\"	$NetBSD: groups.7,v 1.8 2020/04/02 20:57:20 roy Exp $
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd April 19, 2026
+.Dt GROUPS 7
+.Os
+.Sh NAME
+.Nm groups
+.Nd standard group names
+.Sh DESCRIPTION
+A standard
+.Fx
+installation has the following user group names:
+.Bl -tag -width "realtime"
+.It Em wheel
+Users authorized to elevate themselves to the super-user privileges of
+the root user, meaning uid\~0.
+Normally the
+.Em wheel
+group has gid\~0.
+.Pp
+Users who are not in the group
+.Em wheel
+are never allowed by
+.Xr su 1
+to gain root privileges.
+.It Em daemon
+Used by the set-group-id programs
+.Xr lpr 1
+and
+.Xr rwho 1 .
+.It Em kmem
+Used by the set-group-id programs (like
+.Xr ktrdump 8 )
+that need to access kernel memory
+.Po Pa /dev/mem
+and
+.Pa /dev/kmem
+are in the group
+.Em kmem
+.Pc .
+See
+.Xr mem 4 .
+.It Em sys
+Historic group.
+Unused in modern
+.Fx .
+.It Em tty
+Used by the set-group-id programs
+.Xr wall 1
+and
+.Xr write 1
+to allow users to send messages to another tty even if they don't own
+it (static tty device nodes
+.Pa /dev/pts/*
+are all in the group
+.Em tty ) .
+See
+.Xr tty 4 .
+.It Em operator
+Users authorized to take backups of disk devices and shut down the
+machine.
+.Pp
+The disk device nodes
+(such as
+.Pa /dev/ada0 )
+are in the group
+.Em operator
+and group-readable so users in the group can read from disk devices,
+for example with
+.Xr dump 8 .
+The tape device nodes
+(such as
+.Pa /dev/sa0 )
+are in the group
+.Em operator
+and are both group-readable and group-writable so users in the group
+can write to tape devices.
+.Pp
+The
+.Xr shutdown 8
+program is executable only by root and members of the
+.Em operator
+group.
+.It Em mail
+Used by mail agents (like
+.Xr dma 8 ) .
+.Pp
+By default, root mail
+.Pq Pa /var/mail/root
+is in the
+.Em mail
+group.
+.It Em bin
+Historic group.
+Unused in modern
+.Fx .
+.It Em news
+Historic group.
+Unused in modern
+.Fx .
+.It Em man
+Historic group; used to be used for managing manual pages (see
+.Xr man 1 ) .
+.It Em games
+Used by various set-group-id games to maintain high-scores files
+and other common files in
+.Pa /var/games .
+The members of this group are also allowed to access
+.Pa /dev/input/event*
+device nodes (see
+.Xr hgame 4 ) .
+See also
+.Xr intro 6 .
+.It Em ftp
+Used to be used by
+.Xr sysinstall 8
+(which is now replaced with
+.Xr bsdinstall 8 )
+for setting up anonymous FTP.
+Unused in modern
+.Fx .
+.It Em staff
+Staff users, in contrast to guest users (see
+.Em guest
+group).
+Not used by
+.Fx ;
+available for the administrator's interpretation.
+See
+.Xr security 7
+for some recommendations on managing accounts in
+.Em staff
+group.
+.It Em sshd
+Primary group for the
+.Em sshd
+pseudo-user used by the
+.Xr sshd 8
+secure shell daemon.
+.It Em smmsp
+Primary group for user
+.Em smmsp ,
+which is used by
+.Xr sendmail 8
+if no non-root users were configured for running it.
+.Pp
+The name of the group means "SendMail Message Submission Program".
+.It Em mailnull
+Used by electronic mail transport agent
+.Xr sendmail 8
+as group for its default user
+.Em mailnull .
+.It Em guest
+Guest users, in contrast to staff users (see
+.Em staff
+group).
+Not used by
+.Fx ;
+available for the administrator's interpretation.
+.It Em video
+Used for access to
+.Pa /dev/drm/*
+devices,  which are used for GPU hardware acceleration.
+See
+.Xr drm 7 .
+.It Em realtime
+Used by
+.Xr mac_priority 4
+to allow members of this group to run threads and processes with
+realtime scheduling priority.
+See also
+.Xr rtprio 1 .
+.It Em idletime
+Used by
+.Xr mac_priority 4
+to allow members of this group to run processes with idle scheduling
+priority.
+See also
+.Xr idprio 1 .
+.It Em bind
+Used to be used as primary group for the
+.Em bind
+pseudo-user used by
+.Xr named 8
+Internet domain name server, which has been removed from the base system in
+.Fx 10.0 .
+.It Em unbound
+Primary group for the
+.Em unbound
+pseudo-user used by the
+.Xr local-unbound 8
+recursive DNS resolver.
+.It Em proxy
+Primary group for the
+.Em proxy
+pseudo-user used by the
+.Xr ftp-proxy 8
+proxy daemon with packet filters such as
+.Xr pf 4 .
+.It Em authpf
+Used by the set-group-id program
+.Xr authpf 8
+to configure authenticated gateways.
+.It Em _pflogd
+Primary group for the
+.Em _pflogd
+pseudo-user used by the
+.Xr pflogd 8
+log daemon with the
+.Xr pf 4
+packet filter.
+.It Em _dhcp
+Primary group for the
+.Em _dhcp
+pseudo-user used by the
+.Xr dhclient 8
+DHCP Client.
+.It Em dialer
+Users authorized to make outgoing modem calls (see
+.Xr cu 1
+and
+.Pa /dev/cuauN
+devices).
+.It Em network
+Historic group.
+Unused in modern
+.Fx .
+.It Em audit
+Primary group for the
+.Em auditdistd
+pseudo-user used by
+.Xr auditd 8
+and
+.Xr auditdistd 8
+audit daemons.
+.It Em www
+Historic group for accessing World Wide Web.
+Unused in modern
+.Fx .
+.It Em u2f
+Used for users who need to access
+.Pa /dev/u2f/*
+devices (see
+.Xr u2f 4 ) .
+.It Em ntpd
+Primary group for the
+.Em ntpd
+pseudo-user used by the
+.Xr ntpd 8
+network time protocol daemon.
+.It Em _ypldap
+Primary group for the
+.Em _ypldap
+pseudo-user used by
+.Xr ypldap 8
+daemon.
+.It Em hast
+Primary group for the
+.Em hast
+pseudo-user used by
+Highly Available Storage daemon
+.Xr hastd 8 .
+.It Em tests
+Primary group for the
+.Em tests
+pseudo-user used by
+automatic tests that request to run unprivileged.
+See
+.Xr tests 7 .
+.It Em nogroup
+Pseudo-group (fake group).
+It differs from group
+.Em nobody
+in way that
+.Em nogroup
+doesn't have a dedicated user for it.
+For instance, this group is used for users
+.Em tty
+and
+.Em kmem .
+.It Em nobody
+Primary group for the traditional
+.Em nobody
+pseudo-user.
+Modern practice is to assign to each different daemon its own separate
+pseudo-user account and group so that if one daemon is compromised it
+does not compromise all the other daemons.
+.Pp
+See also group
+.Em nogroup .
+.El
+.Sh FILES
+.Bl -tag -width "/usr/src/etc/group" -compact
+.It Pa /etc/group
+Main group permissions file.
+.It Pa /usr/src/etc/group
+Group permissions file for the base system.
+.It Pa /usr/ports/GIDs
+A list of GIDs (group IDs) reserved for ports (see
+.Xr ports 7 ) .
+.El
+.Pp
+See
+.Xr group 5
+for the format of abovementioned files.
+.Sh SEE ALSO
+.Xr chgrp 1 ,
+.Xr groups 1 ,
+.Xr id 1 ,
+.Xr newgrp 1 ,
+.Xr group 5 ,
+.Xr pw 8
+.Sh HISTORY
+The
+.Nm
+manual page appeared in
+.Nx 10.0
+and
+.Fx 15.1 .

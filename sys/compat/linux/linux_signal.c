@@ -129,6 +129,14 @@ linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
 		bsa->sa_flags |= SA_NODEFER;
 	}
 
+	/*
+	 * SA_UNSUPPORTED was introduced in Linux 5.11 to probe support for
+	 * other flags such as SA_EXPOSE_TAGBITS, introduced at the same time.
+	 * Ignore both.
+	 */
+	if (lsa->lsa_flags & (LINUX_SA_UNSUPPORTED | LINUX_SA_EXPOSE_TAGBITS))
+		flags &= ~(LINUX_SA_UNSUPPORTED | LINUX_SA_EXPOSE_TAGBITS);
+
 	if (flags != 0)
 		linux_msg(curthread, "unsupported sigaction flag %#lx", flags);
 }

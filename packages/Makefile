@@ -61,7 +61,6 @@ SUBDIR=	blocklist \
 	periodic \
 	powerd \
 	ppp \
-	quotacheck \
 	rc \
 	rcmds \
 	resolvconf \
@@ -81,7 +80,8 @@ SUBDIR=	blocklist \
 SUBDIR+=	acct
 .endif
 
-.if ${MK_CLANG} != "no" || ${MK_TOOLCHAIN} != "no"
+.if ${MK_CLANG} != "no" || ${MK_LLD} != "no" || \
+    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
 SUBDIR+=	clang
 .endif
 
@@ -141,6 +141,7 @@ SUBDIR.${MK_OPENSSL}+=		openssl
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg-bootstrap
 SUBDIR.${MK_PKGCONF}+=		pkgconf
 SUBDIR.${MK_PMC}+=		pmc
+SUBDIR.${MK_QUOTAS}+=		quotacheck
 SUBDIR.${MK_RESCUE}+=		rescue
 SUBDIR.${MK_SENDMAIL}+=		sendmail libmilter
 SUBDIR.${MK_SOUND}+=		sound

@@ -396,6 +396,46 @@ back to the default, so that the
 .Pa /etc/rc
 script is executed with the standard shell
 .Pa /bin/sh .
+.It Va init_path
+Specifies the path used to search for the init binary.
+More than one binary can be listed in the string,
+candidate file names are split by the \[lq]:\[rq] separator.
+Each name is opened in sequence until a valid executable is found.
+.Sh RECOVERING
+If the
+.Pa /sbin/init
+binary is broken or cannot be executed by the current kernel,
+recovery requires console access.
+Then, the
+.Va init_path
+loader tunable can be used to specify alternative
+.Nm
+location.
+.Pp
+By default, system install leaves copy of the previous
+.Nm init
+binary at
+.Pa /sbin/init.bak ,
+and this path is set as one component of the default
+.Va init_path .
+.Pp
+If
+.Nm
+cannot be run, the
+.Fx
+version of
+.Xr sh 1
+has a special provision for running as PID 1.
+If the shell detects that it is running as init, it opens
+.Pa /dev/console
+as it standard input and output and enters the
+command loop.
+.Pp
+The session should be exited using
+.Ic reboot Fl q
+or exec-ing fixed
+.Nm ,
+since a normal exit will cause a kernel panic.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/init.log -compact

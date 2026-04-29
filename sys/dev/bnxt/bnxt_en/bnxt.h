@@ -47,6 +47,7 @@
 #include "hsi_struct_def.h"
 #include "bnxt_dcb.h"
 #include "bnxt_auxbus_compat.h"
+#include "bnxt_sriov.h"
 
 #define DFLT_HWRM_CMD_TIMEOUT		500
 
@@ -95,9 +96,18 @@
 #define NETXTREME_C_VF1	0x16cb
 #define NETXTREME_C_VF2	0x16e1
 #define NETXTREME_C_VF3	0x16e5
-#define NETXTREME_E_VF1	0x16c1
-#define NETXTREME_E_VF2	0x16d3
-#define NETXTREME_E_VF3	0x16dc
+
+#define NETXTREME_E_VF1	0x1606
+#define NETXTREME_E_VF2	0x1609
+#define NETXTREME_E_VF3	0x16c1
+#define NETXTREME_E_VF4	0x16d3
+#define NETXTREME_E_VF5	0x16dc
+
+#define NETXTREME_E_P5_VF1	0x1806
+#define NETXTREME_E_P5_VF2	0x1807
+#define NETXTREME_E_P5_VF_HV1	0x1808
+#define NETXTREME_E_P5_VF_HV2	0x1809
+#define E_P7_VF	0x1819
 
 #define EVENT_DATA1_RESET_NOTIFY_FATAL(data1)				\
 	(((data1) &							\
@@ -504,7 +514,9 @@ struct bnxt_pf_info {
 	uint8_t		port_id;
 	uint32_t	first_vf_id;
 	uint16_t	active_vfs;
+	uint16_t	registered_vfs;
 	uint16_t	max_vfs;
+	uint16_t	max_msix_vfs;
 	uint32_t	max_encap_records;
 	uint32_t	max_decap_records;
 	uint32_t	max_tx_em_flows;
@@ -515,31 +527,14 @@ struct bnxt_pf_info {
 	uint16_t	hwrm_cmd_req_pages;
 	void		*hwrm_cmd_req_addr[4];
 	bus_addr_t	hwrm_cmd_req_dma_addr[4];
-};
-
-struct bnxt_vf_info {
 	uint16_t	fw_fid;
 	uint8_t		mac_addr[ETHER_ADDR_LEN];
-	uint16_t	max_rsscos_ctxs;
-	uint16_t	max_cp_rings;
-	uint16_t	max_tx_rings;
-	uint16_t	max_rx_rings;
-	uint16_t	max_hw_ring_grps;
-	uint16_t	max_l2_ctxs;
-	uint16_t	max_irqs;
-	uint16_t	max_vnics;
-	uint16_t	max_stat_ctxs;
-	uint32_t	vlan;
-#define BNXT_VF_QOS		0x1
-#define BNXT_VF_SPOOFCHK	0x2
-#define BNXT_VF_LINK_FORCED	0x4
-#define BNXT_VF_LINK_UP		0x8
-	uint32_t	flags;
-	uint32_t	func_flags; /* func cfg flags */
-	uint32_t	min_tx_rate;
-	uint32_t	max_tx_rate;
-	void		*hwrm_cmd_req_addr;
-	bus_addr_t	hwrm_cmd_req_dma_addr;
+	uint8_t		vf_resv_strategy;
+	uint8_t		num_vfs;
+	struct		bnxt_vf_info *vf;
+	uint16_t	vf_hwrm_cmd_req_page_shift;
+	struct sysctl_ctx_list	sysctl_ctx;
+	struct sysctl_oid	*sysctl_node;
 };
 
 #define BNXT_PF(softc)		(!((softc)->flags & BNXT_FLAG_VF))
@@ -698,6 +693,12 @@ struct bnxt_func_qcfg {
 	uint16_t alloc_tx_rings;
 	uint16_t alloc_rx_rings;
 	uint16_t alloc_vnics;
+	uint16_t alloc_rss_ctx;
+	uint16_t alloc_l2_ctx;
+	uint16_t alloc_vfs;
+	uint16_t alloc_hw_ring_grps;
+	uint16_t alloc_stat_ctx;
+	uint16_t alloc_msix;
 };
 
 struct bnxt_hw_lro {
@@ -1089,6 +1090,7 @@ struct bnxt_softc {
 	struct bnxt_func_qcfg	fn_qcfg;
 	struct bnxt_pf_info	pf;
 	struct bnxt_vf_info	vf;
+	struct hwrm_func_vf_resource_cfg_input vf_resc_cfg_input;
 
 	uint16_t		hwrm_cmd_seq;
 	uint32_t		hwrm_cmd_timeo;	/* milliseconds */
@@ -1097,6 +1099,7 @@ struct bnxt_softc {
 	/* Interrupt info for HWRM */
 	struct if_irq		irq;
 	struct mtx		hwrm_lock;
+	struct mtx		sriov_lock;
 	uint16_t		hwrm_max_req_len;
 	uint16_t		hwrm_max_ext_req_len;
 	uint32_t		hwrm_spec_code;
@@ -1394,5 +1397,7 @@ int bnxt_dcb_ieee_setapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
 int bnxt_dcb_ieee_delapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
 int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
     size_t nitems, int *num_inputs);
+void bnxt_set_flags_by_devid(struct bnxt_softc *softc);
+int bnxt_hwrm_reserve_rings(struct bnxt_softc *softc);
 
 #endif /* _BNXT_H */

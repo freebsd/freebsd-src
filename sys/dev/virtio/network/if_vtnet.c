@@ -96,6 +96,17 @@
 #define VTNET_ETHER_ALIGN ETHER_ALIGN
 #endif
 
+/*
+ * Worst case offset to ensure header doesn't share any cache lines with
+ * payload.
+ */
+#define VTNET_RX_BUFFER_HEADER_OFFSET 128
+
+struct vtnet_rx_buffer_header {
+	bus_addr_t   addr;
+	bus_dmamap_t dmap;
+};
+
 static int	vtnet_modevent(module_t, int, void *);
 
 static int	vtnet_probe(device_t);
@@ -208,7 +219,7 @@ static void	vtnet_init_locked(struct vtnet_softc *, int);
 static void	vtnet_init(void *);
 
 static void	vtnet_free_ctrl_vq(struct vtnet_softc *);
-static void	vtnet_exec_ctrl_cmd(struct vtnet_softc *, void *,
+static int	vtnet_exec_ctrl_cmd(struct vtnet_softc *, uint8_t *,
 		    struct sglist *, int, int);
 static int	vtnet_ctrl_mac_cmd(struct vtnet_softc *, uint8_t *);
 static int	vtnet_ctrl_guest_offloads(struct vtnet_softc *, uint64_t);
@@ -384,6 +395,17 @@ MODULE_DEPEND(vtnet, netmap, 1, 1, 1);
 
 VIRTIO_SIMPLE_PNPINFO(vtnet, VIRTIO_ID_NETWORK, "VirtIO Networking Adapter");
 
+static struct vtnet_rx_buffer_header *
+vtnet_mbuf_to_rx_buffer_header(struct vtnet_softc *sc, struct mbuf *m)
+{
+	if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0)
+		return (struct vtnet_rx_buffer_header *)((uintptr_t)m->m_data -
+		    VTNET_RX_BUFFER_HEADER_OFFSET - VTNET_ETHER_ALIGN);
+	else
+		return (struct vtnet_rx_buffer_header *)((uintptr_t)m->m_data -
+		    VTNET_RX_BUFFER_HEADER_OFFSET);
+}
+
 static int
 vtnet_modevent(module_t mod __unused, int type, void *unused __unused)
 {
@@ -456,6 +478,106 @@ vtnet_attach(device_t dev)
 		device_printf(dev, "cannot setup features\n");
 		goto fail;
 	}
+
+	mtx_init(&sc->vtnet_rx_mtx, device_get_nameunit(dev),
+	    "VirtIO Net RX lock", MTX_DEF);
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),		/* parent */
+	    sizeof(uint16_t),			/* alignment */
+	    0,					/* boundary */
+	    BUS_SPACE_MAXADDR,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    MJUM9BYTES,				/* max request size */
+	    1,					/* max # segments */
+	    MJUM9BYTES,				/* maxsegsize - worst case */
+	    BUS_DMA_COHERENT,			/* flags */
+	    busdma_lock_mutex,			/* lockfunc */
+	    &sc->vtnet_rx_mtx,			/* lockarg */
+	    &sc->vtnet_rx_dmat);
+	if (error) {
+		device_printf(dev, "cannot create bus_dma_tag\n");
+		goto fail;
+	}
+
+	mtx_init(&sc->vtnet_tx_mtx, device_get_nameunit(dev),
+	    "VirtIO Net TX lock", MTX_DEF);
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),		/* parent */
+	    sizeof(uint16_t),			/* alignment */
+	    0,					/* boundary */
+	    BUS_SPACE_MAXADDR,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    sc->vtnet_tx_nsegs * MJUM9BYTES,	/* max request size */
+	    sc->vtnet_tx_nsegs,			/* max # segments */
+	    MJUM9BYTES,				/* maxsegsize */
+	    BUS_DMA_COHERENT,			/* flags */
+	    busdma_lock_mutex,			/* lockfunc */
+	    &sc->vtnet_tx_mtx,			/* lockarg */
+	    &sc->vtnet_tx_dmat);
+	if (error) {
+		device_printf(dev, "cannot create bus_dma_tag\n");
+		goto fail;
+	}
+
+	mtx_init(&sc->vtnet_hdr_mtx, device_get_nameunit(dev),
+	    "VirtIO Net header lock", MTX_DEF);
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),		/* parent */
+	    sizeof(uint16_t),			/* alignment */
+	    0,					/* boundary */
+	    BUS_SPACE_MAXADDR,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    PAGE_SIZE,				/* max request size */
+	    1,					/* max # segments */
+	    PAGE_SIZE,				/* maxsegsize */
+	    BUS_DMA_COHERENT,			/* flags */
+	    busdma_lock_mutex,			/* lockfunc */
+	    &sc->vtnet_hdr_mtx,			/* lockarg */
+	    &sc->vtnet_hdr_dmat);
+	if (error) {
+		device_printf(dev, "cannot create bus_dma_tag\n");
+		goto fail;
+	}
+
+	mtx_init(&sc->vtnet_ack_mtx, device_get_nameunit(dev),
+	    "VirtIO Net ACK lock", MTX_DEF);
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),		/* parent */
+	    sizeof(uint8_t),			/* alignment */
+	    0,					/* boundary */
+	    BUS_SPACE_MAXADDR,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    sizeof(uint8_t),			/* max request size */
+	    1,					/* max # segments */
+	    sizeof(uint8_t),			/* maxsegsize */
+	    BUS_DMA_COHERENT,			/* flags */
+	    busdma_lock_mutex,			/* lockfunc */
+	    &sc->vtnet_ack_mtx,			/* lockarg */
+	    &sc->vtnet_ack_dmat);
+	if (error) {
+		device_printf(dev, "cannot create bus_dma_tag\n");
+		goto fail;
+	}
+
+#ifdef __powerpc__
+        /*
+         * Virtio uses physical addresses rather than bus addresses, so we
+         * need to ask busdma to skip the iommu physical->bus mapping.  At
+         * present, this is only a thing on the powerpc architectures.
+         */
+        bus_dma_tag_set_iommu(sc->vtnet_rx_dmat, NULL, NULL);
+        bus_dma_tag_set_iommu(sc->vtnet_tx_dmat, NULL, NULL);
+        bus_dma_tag_set_iommu(sc->vtnet_hdr_dmat, NULL, NULL);
+        bus_dma_tag_set_iommu(sc->vtnet_ack_dmat, NULL, NULL);
+#endif
 
 	error = vtnet_alloc_rx_filters(sc);
 	if (error) {
@@ -1545,6 +1667,11 @@ static struct mbuf *
 vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 {
 	struct mbuf *m_head, *m_tail, *m;
+	struct vtnet_rx_buffer_header *vthdr;
+	bus_dma_segment_t segs[1];
+	bus_dmamap_t dmap;
+	int nsegs;
+	int err;
 	int i, size;
 
 	m_head = NULL;
@@ -1562,13 +1689,43 @@ vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 		}
 
 		m->m_len = size;
+		vthdr = (struct vtnet_rx_buffer_header *)m->m_data;
+
+		/* Reserve space for header */
+		m_adj(m, VTNET_RX_BUFFER_HEADER_OFFSET);
+
 		/*
 		 * Need to offset the mbuf if the header we're going to add
 		 * will misalign.
 		 */
-		if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0) {
+		if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0)
 			m_adj(m, VTNET_ETHER_ALIGN);
+
+		err = bus_dmamap_create(sc->vtnet_rx_dmat, 0, &dmap);
+		if (err) {
+			printf("Failed to create dmamap, err :%d\n",
+			    err);
+			m_freem(m);
+			return (NULL);
 		}
+
+		nsegs = 0;
+		err = bus_dmamap_load_mbuf_sg(sc->vtnet_rx_dmat, dmap, m, segs,
+		    &nsegs, BUS_DMA_NOWAIT);
+		if (err != 0) {
+			printf("Failed to map mbuf into DMA visible memory, err: %d\n",
+			    err);
+			m_freem(m);
+			bus_dmamap_destroy(sc->vtnet_rx_dmat, dmap);
+			return (NULL);
+		}
+		KASSERT(nsegs == 1,
+		    ("%s: unexpected number of DMA segments for rx buffer: %d",
+		    __func__, nsegs));
+
+		vthdr->addr = segs[0].ds_addr;
+		vthdr->dmap = dmap;
+
 		if (m_head != NULL) {
 			m_tail->m_next = m;
 			m_tail = m;
@@ -1594,7 +1751,7 @@ vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 	int len, clustersz, nreplace, error;
 
 	sc = rxq->vtnrx_sc;
-	clustersz = sc->vtnet_rx_clustersz;
+	clustersz = sc->vtnet_rx_clustersz - VTNET_RX_BUFFER_HEADER_OFFSET;
 	/*
 	 * Need to offset the mbuf if the header we're going to add will
 	 * misalign, account for that here.
@@ -1709,9 +1866,12 @@ vtnet_rxq_replace_buf(struct vtnet_rxq *rxq, struct mbuf *m, int len)
 static int
 vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 {
+	struct vtnet_rx_buffer_header *hdr;
 	struct vtnet_softc *sc;
 	struct sglist *sg;
 	int header_inlined, error;
+	bus_addr_t paddr;
+	struct mbuf *mp;
 
 	sc = rxq->vtnrx_sc;
 	sg = rxq->vtnrx_sg;
@@ -1724,28 +1884,38 @@ vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 	header_inlined = vtnet_modern(sc) ||
 	    (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) != 0; /* TODO: ANY_LAYOUT */
 
+	hdr = vtnet_mbuf_to_rx_buffer_header(sc, m);
+	paddr = hdr->addr;
+
 	/*
 	 * Note: The mbuf has been already adjusted when we allocate it if we
 	 * have to do strict alignment.
 	 */
-	if (header_inlined)
-		error = sglist_append_mbuf(sg, m);
-	else {
-		struct vtnet_rx_header *rxhdr =
-		    mtod(m, struct vtnet_rx_header *);
+	if (header_inlined) {
+		error = sglist_append_phys(sg, paddr, m->m_len);
+	} else {
 		MPASS(sc->vtnet_hdr_size == sizeof(struct virtio_net_hdr));
 
 		/* Append the header and remaining mbuf data. */
-		error = sglist_append(sg, &rxhdr->vrh_hdr, sc->vtnet_hdr_size);
+		error = sglist_append_phys(sg, paddr, sc->vtnet_hdr_size);
 		if (error)
 			return (error);
-		error = sglist_append(sg, &rxhdr[1],
+		error = sglist_append_phys(sg,
+		    paddr + sizeof(struct vtnet_rx_header),
 		    m->m_len - sizeof(struct vtnet_rx_header));
 		if (error)
 			return (error);
 
-		if (m->m_next != NULL)
-			error = sglist_append_mbuf(sg, m->m_next);
+		mp = m->m_next;
+		while (mp) {
+			hdr = vtnet_mbuf_to_rx_buffer_header(sc, mp);
+			paddr = hdr->addr;
+			error = sglist_append_phys(sg, paddr, mp->m_len);
+			if (error)
+				return (error);
+
+			mp = mp->m_next;
+		}
 	}
 
 	if (error)
@@ -1931,6 +2101,7 @@ vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 	m_tail = m_head;
 
 	while (--nbufs > 0) {
+		struct vtnet_rx_buffer_header *vthdr;
 		struct mbuf *m;
 		uint32_t len;
 
@@ -1939,6 +2110,10 @@ vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 			rxq->vtnrx_stats.vrxs_ierrors++;
 			goto fail;
 		}
+
+		vthdr = vtnet_mbuf_to_rx_buffer_header(sc, m);
+		bus_dmamap_sync(sc->vtnet_rx_dmat, vthdr->dmap,
+		    BUS_DMASYNC_POSTREAD);
 
 		if (vtnet_rxq_new_buf(rxq) != 0) {
 			rxq->vtnrx_stats.vrxs_iqdrops++;
@@ -2060,6 +2235,7 @@ static int
 vtnet_rxq_eof(struct vtnet_rxq *rxq)
 {
 	struct virtio_net_hdr lhdr, *hdr;
+	struct vtnet_rx_buffer_header *vthdr;
 	struct vtnet_softc *sc;
 	if_t ifp;
 	struct virtqueue *vq;
@@ -2075,13 +2251,30 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 	CURVNET_SET(if_getvnet(ifp));
 	while (count-- > 0) {
-		struct mbuf *m;
+		struct mbuf *m, *mp;
 		uint32_t len, nbufs, adjsz;
+		uint32_t synced;
 
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL)
 			break;
 		deq++;
+
+		mp = m;
+
+		/*
+		 * Sync all mbufs in this packet. There will only be a single
+		 * mbuf unless LRO is in use.
+		 */
+		synced = 0;
+		while (mp && synced < len) {
+			vthdr = vtnet_mbuf_to_rx_buffer_header(sc, mp);
+			bus_dmamap_sync(sc->vtnet_rx_dmat, vthdr->dmap,
+			    BUS_DMASYNC_POSTREAD);
+
+			synced += mp->m_len;
+			mp = mp->m_next;
+		}
 
 		if (len < sc->vtnet_hdr_size + ETHER_HDR_LEN) {
 			rxq->vtnrx_stats.vrxs_ierrors++;
@@ -2342,6 +2535,14 @@ vtnet_txq_free_mbufs(struct vtnet_txq *txq)
 
 	while ((txhdr = virtqueue_drain(vq, &last)) != NULL) {
 		if (kring == NULL) {
+			bus_dmamap_unload(txq->vtntx_sc->vtnet_tx_dmat,
+			    txhdr->dmap);
+			bus_dmamap_destroy(txq->vtntx_sc->vtnet_tx_dmat,
+			    txhdr->dmap);
+			bus_dmamap_unload(txq->vtntx_sc->vtnet_tx_dmat,
+			    txhdr->hdr_dmap);
+			bus_dmamap_destroy(txq->vtntx_sc->vtnet_tx_dmat,
+			    txhdr->hdr_dmap);
 			m_freem(txhdr->vth_mbuf);
 			uma_zfree(vtnet_tx_header_zone, txhdr);
 		}
@@ -2511,15 +2712,36 @@ drop:
 	return (NULL);
 }
 
+static void
+vtnet_txq_enqueue_callback(void *arg, bus_dma_segment_t *segs,
+    int nsegs, int error)
+{
+	vm_paddr_t *hdr_paddr;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	hdr_paddr = (vm_paddr_t *)arg;
+	*hdr_paddr = segs[0].ds_addr;
+}
+
 static int
 vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
     struct vtnet_tx_header *txhdr)
 {
+	bus_dma_segment_t segs[VTNET_TX_SEGS_MAX];
+	int nsegs;
 	struct vtnet_softc *sc;
 	struct virtqueue *vq;
 	struct sglist *sg;
 	struct mbuf *m;
 	int error;
+	vm_paddr_t hdr_paddr;
+	bus_dmamap_t hdr_dmap;
+	bus_dmamap_t dmap;
+	int i;
 
 	sc = txq->vtntx_sc;
 	vq = txq->vtntx_vq;
@@ -2527,15 +2749,55 @@ vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
 	m = *m_head;
 
 	sglist_reset(sg);
-	error = sglist_append(sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
+
+	error = bus_dmamap_create(sc->vtnet_tx_dmat, 0, &hdr_dmap);
+	if (error)
+	    goto fail;
+
+	error = bus_dmamap_load(sc->vtnet_tx_dmat, hdr_dmap, &txhdr->vth_uhdr,
+	    sc->vtnet_hdr_size, vtnet_txq_enqueue_callback, &hdr_paddr,
+	    BUS_DMA_NOWAIT);
+	if (error)
+		goto fail_hdr_dmamap_destroy;
+
+	error = sglist_append_phys(sg, hdr_paddr, sc->vtnet_hdr_size);
 	if (error != 0 || sg->sg_nseg != 1) {
 		KASSERT(0, ("%s: cannot add header to sglist error %d nseg %d",
 		    __func__, error, sg->sg_nseg));
-		goto fail;
+		goto fail_hdr_dmamap_unload;
 	}
 
-	error = sglist_append_mbuf(sg, m);
+	bus_dmamap_sync(sc->vtnet_tx_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
+
+	error = bus_dmamap_create(sc->vtnet_tx_dmat, 0, &dmap);
+	if (error)
+		goto fail_hdr_dmamap_unload;
+
+	nsegs = 0;
+	error = bus_dmamap_load_mbuf_sg(sc->vtnet_tx_dmat, dmap, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error != 0)
+		goto fail_dmamap_destroy;
+	KASSERT(nsegs <= sc->vtnet_tx_nsegs,
+	    ("%s: unexpected number of DMA segments for tx buffer: %d (max %d)",
+	    __func__, nsegs, sc->vtnet_tx_nsegs));
+
+	bus_dmamap_sync(sc->vtnet_tx_dmat, dmap, BUS_DMASYNC_PREWRITE);
+
+	for (i = 0; i < nsegs && !error; i++)
+		error = sglist_append_phys(sg, segs[i].ds_addr, segs[i].ds_len);
+
 	if (error) {
+		sglist_reset(sg);
+		bus_dmamap_unload(sc->vtnet_tx_dmat, dmap);
+
+		error = sglist_append_phys(sg, hdr_paddr, sc->vtnet_hdr_size);
+		if (error != 0 || sg->sg_nseg != 1) {
+			KASSERT(0, ("%s: cannot add header to sglist error %d nseg %d",
+			    __func__, error, sg->sg_nseg));
+			goto fail_dmamap_destroy;
+		}
+
 		m = m_defrag(m, M_NOWAIT);
 		if (m == NULL) {
 			sc->vtnet_stats.tx_defrag_failed++;
@@ -2545,16 +2807,41 @@ vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
 		*m_head = m;
 		sc->vtnet_stats.tx_defragged++;
 
-		error = sglist_append_mbuf(sg, m);
+		nsegs = 0;
+		error = bus_dmamap_load_mbuf_sg(sc->vtnet_tx_dmat, dmap, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0)
+			goto fail_dmamap_destroy;
+		KASSERT(nsegs <= sc->vtnet_tx_nsegs,
+		    ("%s: unexpected number of DMA segments for tx buffer: %d (max %d)",
+		    __func__, nsegs, sc->vtnet_tx_nsegs));
+
+		bus_dmamap_sync(sc->vtnet_tx_dmat, dmap, BUS_DMASYNC_PREWRITE);
+
+		for (i = 0; i < nsegs && !error; i++)
+			error = sglist_append_phys(sg, segs[i].ds_addr,
+			    segs[i].ds_len);
+
 		if (error)
-			goto fail;
+			goto fail_dmamap_unload;
 	}
 
 	txhdr->vth_mbuf = m;
+	txhdr->dmap = dmap;
+	txhdr->hdr_dmap = hdr_dmap;
+
 	error = virtqueue_enqueue(vq, txhdr, sg, sg->sg_nseg, 0);
 
 	return (error);
 
+fail_dmamap_unload:
+	bus_dmamap_unload(sc->vtnet_tx_dmat, dmap);
+fail_dmamap_destroy:
+	bus_dmamap_destroy(sc->vtnet_tx_dmat, dmap);
+fail_hdr_dmamap_unload:
+	bus_dmamap_unload(sc->vtnet_tx_dmat, hdr_dmap);
+fail_hdr_dmamap_destroy:
+	bus_dmamap_destroy(sc->vtnet_tx_dmat, hdr_dmap);
 fail:
 	m_freem(*m_head);
 	*m_head = NULL;
@@ -3510,10 +3797,43 @@ vtnet_free_ctrl_vq(struct vtnet_softc *sc)
 }
 
 static void
-vtnet_exec_ctrl_cmd(struct vtnet_softc *sc, void *cookie,
-    struct sglist *sg, int readable, int writable)
+vtnet_load_callback(void *arg, bus_dma_segment_t *segs, int nsegs,
+    int error)
 {
+	bus_addr_t *paddr;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	paddr = (bus_addr_t *)arg;
+	*paddr = segs[0].ds_addr;
+}
+
+static int
+vtnet_exec_ctrl_cmd(struct vtnet_softc *sc, uint8_t *ack, struct sglist *sg,
+    int readable, int writable)
+{
+	bus_dmamap_t ack_dmap;
+	bus_addr_t ack_paddr;
 	struct virtqueue *vq;
+	int error;
+
+	error = bus_dmamap_create(sc->vtnet_ack_dmat, 0, &ack_dmap);
+	if (error)
+		goto error_out;
+
+	error = bus_dmamap_load(sc->vtnet_ack_dmat, ack_dmap, ack,
+	    sizeof(uint8_t), vtnet_load_callback, &ack_paddr, BUS_DMA_NOWAIT);
+	if (error)
+		goto error_destroy;
+
+	bus_dmamap_sync(sc->vtnet_ack_dmat, ack_dmap, BUS_DMASYNC_PREWRITE);
+
+	error = sglist_append_phys(sg, ack_paddr, sizeof(uint8_t));
+	if (error)
+		goto error_unload;
 
 	vq = sc->vtnet_ctrl_vq;
 
@@ -3521,152 +3841,237 @@ vtnet_exec_ctrl_cmd(struct vtnet_softc *sc, void *cookie,
 	VTNET_CORE_LOCK_ASSERT(sc);
 
 	if (!virtqueue_empty(vq))
-		return;
+		goto error_unload;
 
 	/*
 	 * Poll for the response, but the command is likely completed before
 	 * returning from the notify.
 	 */
-	if (virtqueue_enqueue(vq, cookie, sg, readable, writable) == 0)  {
+	if (virtqueue_enqueue(vq, (void *)ack, sg, readable, writable) == 0)  {
 		virtqueue_notify(vq);
 		virtqueue_poll(vq, NULL);
 	}
+
+	bus_dmamap_sync(sc->vtnet_ack_dmat, ack_dmap, BUS_DMASYNC_POSTREAD);
+
+error_unload:
+	bus_dmamap_unload(sc->vtnet_ack_dmat, ack_dmap);
+error_destroy:
+	bus_dmamap_destroy(sc->vtnet_ack_dmat, ack_dmap);
+error_out:
+	return (error);
 }
 
 static int
 vtnet_ctrl_mac_cmd(struct vtnet_softc *sc, uint8_t *hwaddr)
 {
 	struct sglist_seg segs[3];
+	bus_dmamap_t hdr_dmap;
+	bus_addr_t hdr_paddr;
 	struct sglist sg;
 	struct {
 		struct virtio_net_ctrl_hdr hdr __aligned(2);
 		uint8_t pad1;
 		uint8_t addr[ETHER_ADDR_LEN] __aligned(8);
 		uint8_t pad2;
-		uint8_t ack;
 	} s;
+	uint8_t ack;
 	int error;
 
-	error = 0;
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &hdr_dmap);
+	if (error)
+		goto error_out;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, &s,
+	    sizeof(s), vtnet_load_callback, &hdr_paddr, BUS_DMA_NOWAIT);
+	if (error)
+		goto error_destroy_hdr;
+
 	MPASS(sc->vtnet_flags & VTNET_FLAG_CTRL_MAC);
 
 	s.hdr.class = VIRTIO_NET_CTRL_MAC;
 	s.hdr.cmd = VIRTIO_NET_CTRL_MAC_ADDR_SET;
 	bcopy(hwaddr, &s.addr[0], ETHER_ADDR_LEN);
-	s.ack = VIRTIO_NET_ERR;
+	ack = VIRTIO_NET_ERR;
+	bus_dmamap_sync(sc->vtnet_hdr_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
 
 	sglist_init(&sg, nitems(segs), segs);
-	error |= sglist_append(&sg, &s.hdr, sizeof(struct virtio_net_ctrl_hdr));
-	error |= sglist_append(&sg, &s.addr[0], ETHER_ADDR_LEN);
-	error |= sglist_append(&sg, &s.ack, sizeof(uint8_t));
-	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
+	error |= sglist_append_phys(&sg, hdr_paddr,
+	    sizeof(struct virtio_net_ctrl_hdr));
+	error |= sglist_append_phys(&sg,
+	    hdr_paddr + ((uintptr_t)&s.addr - (uintptr_t)&s),
+	    ETHER_ADDR_LEN);
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs) - 1);
 
 	if (error == 0)
-		vtnet_exec_ctrl_cmd(sc, &s.ack, &sg, sg.sg_nseg - 1, 1);
+		error = vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg, 1);
+	if (error == 0)
+		error = (ack == VIRTIO_NET_OK ? 0 : EIO);
 
-	return (s.ack == VIRTIO_NET_OK ? 0 : EIO);
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, hdr_dmap);
+error_destroy_hdr:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
+error_out:
+	return (error);
 }
 
 static int
 vtnet_ctrl_guest_offloads(struct vtnet_softc *sc, uint64_t offloads)
 {
 	struct sglist_seg segs[3];
+	bus_dmamap_t hdr_dmap;
+	bus_addr_t hdr_paddr;
 	struct sglist sg;
 	struct {
 		struct virtio_net_ctrl_hdr hdr __aligned(2);
 		uint8_t pad1;
 		uint64_t offloads __aligned(8);
 		uint8_t pad2;
-		uint8_t ack;
 	} s;
+	uint8_t ack;
 	int error;
 
-	error = 0;
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &hdr_dmap);
+	if (error)
+		goto error_out;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, &s,
+	    sizeof(s), vtnet_load_callback, &hdr_paddr, BUS_DMA_NOWAIT);
+	if (error)
+		goto error_destroy_hdr;
+
 	MPASS(sc->vtnet_features & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS);
 
 	s.hdr.class = VIRTIO_NET_CTRL_GUEST_OFFLOADS;
 	s.hdr.cmd = VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET;
 	s.offloads = vtnet_gtoh64(sc, offloads);
-	s.ack = VIRTIO_NET_ERR;
+	ack = VIRTIO_NET_ERR;
+	bus_dmamap_sync(sc->vtnet_hdr_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
 
 	sglist_init(&sg, nitems(segs), segs);
-	error |= sglist_append(&sg, &s.hdr, sizeof(struct virtio_net_ctrl_hdr));
-	error |= sglist_append(&sg, &s.offloads, sizeof(uint64_t));
-	error |= sglist_append(&sg, &s.ack, sizeof(uint8_t));
-	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
+	error |= sglist_append_phys(&sg, hdr_paddr,
+	    sizeof(struct virtio_net_ctrl_hdr));
+	error |= sglist_append_phys(&sg,
+	    hdr_paddr + ((uintptr_t)&s.offloads - (uintptr_t)&s),
+	    sizeof(uint64_t));
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs) - 1);
 
 	if (error == 0)
-		vtnet_exec_ctrl_cmd(sc, &s.ack, &sg, sg.sg_nseg - 1, 1);
+		error = vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg, 1);
+	if (error == 0)
+		error = (ack == VIRTIO_NET_OK ? 0 : EIO);
 
-	return (s.ack == VIRTIO_NET_OK ? 0 : EIO);
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, hdr_dmap);
+error_destroy_hdr:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
+error_out:
+	return (error);
 }
 
 static int
 vtnet_ctrl_mq_cmd(struct vtnet_softc *sc, uint16_t npairs)
 {
 	struct sglist_seg segs[3];
+	bus_dmamap_t hdr_dmap;
+	bus_addr_t hdr_paddr;
 	struct sglist sg;
 	struct {
 		struct virtio_net_ctrl_hdr hdr __aligned(2);
 		uint8_t pad1;
 		struct virtio_net_ctrl_mq mq __aligned(2);
 		uint8_t pad2;
-		uint8_t ack;
 	} s;
+	uint8_t ack;
 	int error;
 
-	error = 0;
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &hdr_dmap);
+	if (error)
+		goto error_out;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, &s,
+	    sizeof(s), vtnet_load_callback, &hdr_paddr, BUS_DMA_NOWAIT);
+	if (error)
+		goto error_destroy_hdr;
+
 	MPASS(sc->vtnet_flags & VTNET_FLAG_MQ);
 
 	s.hdr.class = VIRTIO_NET_CTRL_MQ;
 	s.hdr.cmd = VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET;
 	s.mq.virtqueue_pairs = vtnet_gtoh16(sc, npairs);
-	s.ack = VIRTIO_NET_ERR;
+	ack = VIRTIO_NET_ERR;
+	bus_dmamap_sync(sc->vtnet_hdr_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
 
 	sglist_init(&sg, nitems(segs), segs);
-	error |= sglist_append(&sg, &s.hdr, sizeof(struct virtio_net_ctrl_hdr));
-	error |= sglist_append(&sg, &s.mq, sizeof(struct virtio_net_ctrl_mq));
-	error |= sglist_append(&sg, &s.ack, sizeof(uint8_t));
-	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
+	error |= sglist_append_phys(&sg, hdr_paddr,
+	    sizeof(struct virtio_net_ctrl_hdr));
+	error |= sglist_append_phys(&sg,
+	    hdr_paddr + ((uintptr_t)&s.mq - (uintptr_t)&s),
+	    sizeof(struct virtio_net_ctrl_mq));
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs) - 1);
 
 	if (error == 0)
-		vtnet_exec_ctrl_cmd(sc, &s.ack, &sg, sg.sg_nseg - 1, 1);
+		error = vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg, 1);
+	if (error == 0)
+		error = (ack == VIRTIO_NET_OK ? 0 : EIO);
 
-	return (s.ack == VIRTIO_NET_OK ? 0 : EIO);
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, hdr_dmap);
+error_destroy_hdr:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
+error_out:
+	return (error);
 }
 
 static int
 vtnet_ctrl_rx_cmd(struct vtnet_softc *sc, uint8_t cmd, bool on)
 {
 	struct sglist_seg segs[3];
+	bus_dmamap_t hdr_dmap;
+	bus_addr_t hdr_paddr;
 	struct sglist sg;
 	struct {
 		struct virtio_net_ctrl_hdr hdr __aligned(2);
 		uint8_t pad1;
 		uint8_t onoff;
 		uint8_t pad2;
-		uint8_t ack;
 	} s;
+	uint8_t ack;
 	int error;
 
-	error = 0;
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &hdr_dmap);
+	if (error)
+		goto error_out;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, &s,
+	    sizeof(s), vtnet_load_callback, &hdr_paddr, BUS_DMA_NOWAIT);
+	if (error)
+		goto error_destroy_hdr;
+
 	MPASS(sc->vtnet_flags & VTNET_FLAG_CTRL_RX);
 
 	s.hdr.class = VIRTIO_NET_CTRL_RX;
 	s.hdr.cmd = cmd;
 	s.onoff = on;
-	s.ack = VIRTIO_NET_ERR;
+	ack = VIRTIO_NET_ERR;
+	bus_dmamap_sync(sc->vtnet_hdr_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
 
 	sglist_init(&sg, nitems(segs), segs);
-	error |= sglist_append(&sg, &s.hdr, sizeof(struct virtio_net_ctrl_hdr));
-	error |= sglist_append(&sg, &s.onoff, sizeof(uint8_t));
-	error |= sglist_append(&sg, &s.ack, sizeof(uint8_t));
-	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
+	error |= sglist_append_phys(&sg, hdr_paddr,
+	    sizeof(struct virtio_net_ctrl_hdr));
+	error |= sglist_append_phys(&sg,
+	    hdr_paddr + ((uintptr_t)&s.onoff - (uintptr_t)&s),
+	    sizeof(uint8_t));
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs) - 1);
 
 	if (error == 0)
-		vtnet_exec_ctrl_cmd(sc, &s.ack, &sg, sg.sg_nseg - 1, 1);
+		error = vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg, 1);
+	if (error == 0)
+		error = (ack == VIRTIO_NET_OK ? 0 : EIO);
 
-	return (s.ack == VIRTIO_NET_OK ? 0 : EIO);
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, hdr_dmap);
+error_destroy_hdr:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
+error_out:
+	return (error);
 }
 
 static int
@@ -3737,6 +4142,10 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	struct virtio_net_ctrl_hdr hdr __aligned(2);
 	struct vtnet_mac_filter *filter;
 	struct sglist_seg segs[4];
+	bus_dmamap_t filter_dmap;
+	bus_addr_t filter_paddr;
+	bus_dmamap_t hdr_dmap;
+	bus_addr_t hdr_paddr;
 	struct sglist sg;
 	if_t ifp;
 	bool promisc, allmulti;
@@ -3776,6 +4185,25 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	if (promisc && allmulti)
 		goto out;
 
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &hdr_dmap);
+	if (error)
+		goto out_error;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, &hdr,
+	    sizeof(hdr), vtnet_load_callback, &hdr_paddr, BUS_DMA_NOWAIT);
+	if (error)
+		goto out_destroy_hdr;
+
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &filter_dmap);
+	if (error)
+		goto out_unload_hdr;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, filter,
+	    sizeof(*filter), vtnet_load_callback, &filter_paddr,
+	    BUS_DMA_NOWAIT);
+	if (error)
+		goto out_destroy_filter;
+
 	filter->vmf_unicast.nentries = vtnet_gtoh32(sc, ucnt);
 	filter->vmf_multicast.nentries = vtnet_gtoh32(sc, mcnt);
 
@@ -3784,19 +4212,33 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	ack = VIRTIO_NET_ERR;
 
 	sglist_init(&sg, nitems(segs), segs);
-	error |= sglist_append(&sg, &hdr, sizeof(struct virtio_net_ctrl_hdr));
-	error |= sglist_append(&sg, &filter->vmf_unicast,
+	error |= sglist_append_phys(&sg, hdr_paddr,
+	    sizeof(struct virtio_net_ctrl_hdr));
+	error |= sglist_append_phys(&sg,
+	    filter_paddr + ((uintptr_t)&filter->vmf_unicast -
+	    (uintptr_t)filter),
 	    sizeof(uint32_t) + ucnt * ETHER_ADDR_LEN);
-	error |= sglist_append(&sg, &filter->vmf_multicast,
+	error |= sglist_append_phys(&sg,
+	    filter_paddr + ((uintptr_t)&filter->vmf_multicast -
+	    (uintptr_t)filter),
 	    sizeof(uint32_t) + mcnt * ETHER_ADDR_LEN);
-	error |= sglist_append(&sg, &ack, sizeof(uint8_t));
-	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs) - 1);
 
 	if (error == 0)
-		vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg - 1, 1);
-	if (ack != VIRTIO_NET_OK)
-		if_printf(ifp, "error setting host MAC filter table\n");
+		error = vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg, 1);
+	if (error == 0)
+		error = (ack == VIRTIO_NET_OK ? 0 : EIO);
 
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, filter_dmap);
+out_destroy_filter:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, filter_dmap);
+out_unload_hdr:
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, hdr_dmap);
+out_destroy_hdr:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
+out_error:
+	if (error != 0)
+		if_printf(ifp, "error setting host MAC filter table\n");
 out:
 	if (promisc && vtnet_set_promisc(sc, true) != 0)
 		if_printf(ifp, "cannot enable promiscuous mode\n");
@@ -3808,34 +4250,53 @@ static int
 vtnet_exec_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 {
 	struct sglist_seg segs[3];
+	bus_dmamap_t hdr_dmap;
+	bus_addr_t hdr_paddr;
 	struct sglist sg;
 	struct {
 		struct virtio_net_ctrl_hdr hdr __aligned(2);
 		uint8_t pad1;
 		uint16_t tag __aligned(2);
 		uint8_t pad2;
-		uint8_t ack;
 	} s;
+	uint8_t ack;
 	int error;
 
-	error = 0;
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &hdr_dmap);
+	if (error)
+		goto error_out;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, &s,
+	    sizeof(s), vtnet_load_callback, &hdr_paddr, BUS_DMA_NOWAIT);
+	if (error)
+		goto error_destroy_hdr;
+
 	MPASS(sc->vtnet_flags & VTNET_FLAG_VLAN_FILTER);
 
 	s.hdr.class = VIRTIO_NET_CTRL_VLAN;
 	s.hdr.cmd = add ? VIRTIO_NET_CTRL_VLAN_ADD : VIRTIO_NET_CTRL_VLAN_DEL;
 	s.tag = vtnet_gtoh16(sc, tag);
-	s.ack = VIRTIO_NET_ERR;
+	ack = VIRTIO_NET_ERR;
+	bus_dmamap_sync(sc->vtnet_hdr_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
 
 	sglist_init(&sg, nitems(segs), segs);
-	error |= sglist_append(&sg, &s.hdr, sizeof(struct virtio_net_ctrl_hdr));
-	error |= sglist_append(&sg, &s.tag, sizeof(uint16_t));
-	error |= sglist_append(&sg, &s.ack, sizeof(uint8_t));
-	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
+	error |= sglist_append_phys(&sg, hdr_paddr,
+	    sizeof(struct virtio_net_ctrl_hdr));
+	error |= sglist_append_phys(&sg,
+	    hdr_paddr + ((uintptr_t)&s.tag - (uintptr_t)&s),
+	    sizeof(uint16_t));
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs) - 1);
 
 	if (error == 0)
-		vtnet_exec_ctrl_cmd(sc, &s.ack, &sg, sg.sg_nseg - 1, 1);
+		error = vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg, 1);
+	if (error == 0)
+		error = (ack == VIRTIO_NET_OK ? 0 : EIO);
 
-	return (s.ack == VIRTIO_NET_OK ? 0 : EIO);
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, hdr_dmap);
+error_destroy_hdr:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
+error_out:
+	return (error);
 }
 
 static void

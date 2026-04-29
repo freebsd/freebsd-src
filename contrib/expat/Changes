@@ -29,6 +29,72 @@
 !! THANK YOU!                        Sebastian Pipping -- Berlin, 2026-03-17 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+Release 2.8.0 Fri April 24 2026
+        Security fixes:
+       #47 #1183  CVE-2026-41080 -- The existing hash flooding protection
+                    (based on SipHash) only used 4 to 8 bytes of entropy for
+                    a salt, when 16 bytes of salt are supported by the
+                    implementation of SipHash used by Expat. Now full 16 bytes
+                    of entropy are used to improve protection against hash
+                    flooding attacks.
+                      Existing API function XML_SetHashSalt is now deprecated
+                    because of its limitations, and its use should be
+                    considered a vulnerability. Please either use the new API
+                    function XML_SetHashSalt16Bytes (with known-high-quality
+                    entropy input only!) instead, or leave the derivation of
+                    a 16-bytes hash salt from high quality entropy to Expat's
+                    internal machinery (by *not* calling either of the two
+                    XML_SetHashSalt* functions).
+
+        Bug fixes:
+           #1188  Avoid propagating /dev/urandom file descriptor to child
+                    processes
+           #1193  Fix interpretation of `errno` after randomization calls
+           #1195  Avoid assuming uint8_t is a character type
+
+        Other changes:
+     #1180 #1199  Add support for `getentropy(3)` as a source of entropy;
+                    this helps with protecting against hash flooding attacks,
+                    in particular with WASI SDK (where none of the other
+                    entropy sources supported by libexpat are available).
+           #1200  Autotools: Add `--without-arc4random` and
+                    `--without-arc4random-buf`
+           #1200  Autotools: Make `./configure` output report on available
+                    high quality entropy sources
+           #1173  Autotools|macOS: Sync CMake templates with CMake 4.3.0
+           #1201  Autotools|CMake: Improve checks for `arc4random` and
+                    `arc4random_buf` e.g. with modern glibc
+           #1201  CMake: Report on availability of functions `arc4random` and
+                    `arc4random_buf`
+           #1201  CMake: Mark entropy related build switches as advanced
+        #1189 ..
+     #1203 #1204  Extract new files from entropy extraction code
+           #1194  Stop duplicating C tests 1:1 as C++ ("runtests_cxx")
+           #1202  Fix a comment typo in expat_external.h
+           #1187  Fix grammar in compile error message
+           #1192  examples: Build warning-free with -Wwrite-strings
+           #1171  tests: Address harmless warning from Coverity
+     #1170 #1176  Sync file headers
+     #1190 #1206  Version info bumped from 12:3:11 (libexpat*.so.1.11.3)
+                    to 13:0:12 (libexpat*.so.1.12.0); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+  #1166 #1167 ..
+  #1172 #1175 ..
+  #1178 #1179 ..
+     #1185 #1205  CI: Make Perl XML::Parser integration tests run against
+                    both version 2.47 and the latest release 2.58
+           #1169  CI: Adapt to breaking changes regarding Inno Setup
+           #1173  CI: Adapt to breaking changes regarding CMake
+           #1174  CI: Include public corpus of fuzzer `xml_lpm_fuzzer` with
+                    regression testing
+     #1181 #1182  CI: Bump WASI SDK from 30 to 32
+
+        Special thanks to:
+            Jérôme Duval
+            Matthew Fernandez
+
 Release 2.7.5 Tue March 17 2026
         Security fixes:
            #1158  CVE-2026-32776 -- Fix NULL function pointer dereference for

@@ -35,6 +35,7 @@ LIB=		efivar
 SRCS=		efivar.c efichar.c efivar-dp-format.c \
 		efivar-dp-parse.c \
 		efivar-dp-xlate.c \
+		efiutil.c \
 		uefi-guid.c uefi-dputil.c
 INCS=		efivar.h efivar-dp.h
 SHLIB_MAJOR=	1
