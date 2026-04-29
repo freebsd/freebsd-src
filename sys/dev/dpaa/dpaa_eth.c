@@ -360,7 +360,8 @@ dpaa_eth_fq_rx_callback(device_t portal, struct qman_fq *fq,
 
 	frame_va = DPAA_FD_GET_ADDR(frame);
 	frame_ic = frame_va;	/* internal context at head of the frame */
-	KASSERT(frame->format == 0,
+	/* Only simple (single- or multi-) frames are supported. */
+	KASSERT(frame->format == 0 || frame->format == 4,
 	    ("%s(): Got unsupported frame format 0x%02X!", __func__,
 	    frame->format));
 
@@ -374,8 +375,26 @@ dpaa_eth_fq_rx_callback(device_t portal, struct qman_fq *fq,
 	if (m == NULL)
 		goto err;
 
-	m_extadd(m, (char *)frame_va + frame->offset, frame->length,
-	    dpaa_eth_fq_mext_free, frame_va, sc, 0, EXT_NET_DRV);
+	if (frame->format == 0) {
+		/* Single-frame format */
+		m_extadd(m, (char *)frame_va + frame->offset, frame->length,
+		    dpaa_eth_fq_mext_free, frame_va, sc, 0, EXT_NET_DRV);
+	} else {
+		struct dpaa_sgte *sgt =
+		    (struct dpaa_sgte *)(char *)frame_va + frame->offset;
+		/* Simple multi-frame format */
+		for (int i = 0; i < DPAA_NUM_OF_SG_TABLE_ENTRY; i++) {
+			if (sgt[i].length > 0)
+				m_extadd(m, PHYS_TO_DMAP(sgt[i].addr),
+				    sgt[i].length, dpaa_eth_fq_mext_free,
+				    PHYS_TO_DMAP(sgt[i].addr), sc, 0,
+				    EXT_NET_DRV);
+			if (sgt[i].final)
+				break;
+		}
+		/* Free the SGT buffer, it's no longer needed. */
+		bman_put_buffer(sc->sc_rx_pool, frame->addr, sc->sc_rx_bpid);
+	}
 
 	if (if_getcapenable(sc->sc_ifnet) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 		dpaa_eth_update_csum_flags(frame, &frame_ic->prs, m);
