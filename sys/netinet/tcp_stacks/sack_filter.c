@@ -863,7 +863,7 @@ main(int argc, char **argv)
 			outwrite:
 				fclose(io);
 			} else {
-				printf("failed to open sack_setup.bin for writting .. sorry\n");
+				printf("failed to open sack_setup.bin for writing .. sorry\n");
 			}
 		} else if (strncmp(buffer, "restore", 7) == 0) {
 			FILE *io;
