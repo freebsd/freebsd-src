@@ -234,10 +234,46 @@ double_match_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "duplicate_rules" "cleanup"
+duplicate_rules_head()
+{
+	atf_set descr 'Test identical rules'
+	atf_set require.user root
+}
+
+duplicate_rules_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	  "block" \
+	  "pass tagged FOO" \
+	  "match tag FOO" \
+	  "pass tagged FOO"
+
+	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
+}
+
+duplicate_rules_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "dummynet"
 	atf_add_test_case "quick"
 	atf_add_test_case "allow_opts"
 	atf_add_test_case "double_match"
+	atf_add_test_case "duplicate_rules"
 }
