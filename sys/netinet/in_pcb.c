@@ -302,7 +302,7 @@ in_pcblbgroup_find(struct inpcb *inp)
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
-	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
+	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask)];
 	CK_LIST_FOREACH(grp, hdr, il_list) {
 		struct inpcb *inp1;
 
@@ -410,7 +410,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 	}
 #endif
 
-	idx = INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask);
+	idx = INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask);
 	hdr = &pcbinfo->ipi_lbgrouphashbase[idx];
 	CK_LIST_FOREACH(grp, hdr, il_list) {
 		if (grp->il_cred->cr_prison == inp->inp_cred->cr_prison &&
@@ -471,7 +471,7 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
-	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
+	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask)];
 	CK_LIST_FOREACH(grp, hdr, il_list) {
 		for (i = 0; i < grp->il_inpcnt; ++i) {
 			if (grp->il_inp[i] != inp)
@@ -547,7 +547,7 @@ in_pcblbgroup_numa(struct inpcb *inp, int arg)
  */
 void
 in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
-    u_int hash_nelements, u_int porthash_nelements)
+    u_int hash_nelements, u_int porthash_nelements, u_int lbgrouphash_nelements)
 {
 	struct hashalloc_args ha = {
 		.mtype = M_PCB,
@@ -565,10 +565,18 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
 	pcbinfo->ipi_hash_wild = hashalloc(&ha);
 	pcbinfo->ipi_hashmask = ha.size - 1;
 
-	ha.size = imin(porthash_nelements, IPPORT_MAX + 1);
-	pcbinfo->ipi_porthashbase = hashalloc(&ha);
-	pcbinfo->ipi_lbgrouphashbase = hashalloc(&ha);
-	pcbinfo->ipi_porthashmask = ha.size - 1;
+	if (porthash_nelements > 0) {
+		ha.size = imin(porthash_nelements, IPPORT_MAX + 1);
+		pcbinfo->ipi_porthashbase = hashalloc(&ha);
+		pcbinfo->ipi_porthashmask = ha.size - 1;
+	} else
+		pcbinfo->ipi_porthashbase = NULL;
+	if (lbgrouphash_nelements > 0) {
+		ha.size = imin(lbgrouphash_nelements, IPPORT_MAX + 1);
+		pcbinfo->ipi_lbgrouphashbase = hashalloc(&ha);
+		pcbinfo->ipi_lbgrouphashmask = ha.size - 1;
+	} else
+		pcbinfo->ipi_lbgrouphashbase = NULL;
 
 	pcbinfo->ipi_zone = pcbstor->ips_zone;
 	pcbinfo->ipi_smr = uma_zone_get_smr(pcbinfo->ipi_zone);
@@ -591,9 +599,14 @@ in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 	ha.size = pcbinfo->ipi_hashmask + 1;
 	hashfree(pcbinfo->ipi_hash_exact, &ha);
 	hashfree(pcbinfo->ipi_hash_wild, &ha);
-	ha.size = pcbinfo->ipi_porthashmask + 1;
-	hashfree(pcbinfo->ipi_porthashbase, &ha);
-	hashfree(pcbinfo->ipi_lbgrouphashbase, &ha);
+	if (pcbinfo->ipi_porthashbase != NULL) {
+		ha.size = pcbinfo->ipi_porthashmask + 1;
+		hashfree(pcbinfo->ipi_porthashbase, &ha);
+	}
+	if (pcbinfo->ipi_lbgrouphashbase != NULL) {
+		ha.size = pcbinfo->ipi_lbgrouphashmask + 1;
+		hashfree(pcbinfo->ipi_lbgrouphashbase, &ha);
+	}
 	mtx_destroy(&pcbinfo->ipi_hash_lock);
 }
 
@@ -2154,7 +2167,7 @@ in_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	NET_EPOCH_ASSERT();
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
-	    INP_PCBPORTHASH(lport, pcbinfo->ipi_porthashmask)];
+	    INP_PCBPORTHASH(lport, pcbinfo->ipi_lbgrouphashmask)];
 
 	/*
 	 * Search for an LB group match based on the following criteria:

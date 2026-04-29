@@ -180,10 +180,11 @@ udp_vnet_init(void *arg __unused)
 	 * Once we can calculate the flowid that way and re-establish
 	 * a 4-tuple, flip this to 4-tuple.
 	 */
-	in_pcbinfo_init(&V_udbinfo, &udpcbstor, UDBHASHSIZE, UDBHASHSIZE);
+	in_pcbinfo_init(&V_udbinfo, &udpcbstor, UDBHASHSIZE, UDBHASHSIZE,
+	    UDBHASHSIZE);
 	/* Additional pcbinfo for UDP-Lite */
 	in_pcbinfo_init(&V_ulitecbinfo, &udplitecbstor, UDBHASHSIZE,
-	    UDBHASHSIZE);
+	    UDBHASHSIZE, UDBHASHSIZE);
 }
 VNET_SYSINIT(udp_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
     udp_vnet_init, NULL);

@@ -463,7 +463,8 @@ struct inpcbinfo {
 	struct inpcbhead 	*ipi_hash_exact;	/* (r:e/w:h) */
 	struct inpcbhead 	*ipi_hash_wild;		/* (r:e/w:h) */
 	u_long			 ipi_hashmask;		/* (c) */
-	u_long			 ipi_porthashmask;	/* (h) */
+	u_long			 ipi_porthashmask;	/* (c) */
+	u_long			 ipi_lbgrouphashmask;	/* (c) */
 
 	/*
 	 * Global hash of inpcbs, hashed by only local port number.
@@ -644,7 +645,7 @@ VNET_DECLARE(int, ipport_randomized);
 #define	V_ipport_randomized	VNET(ipport_randomized)
 
 void	in_pcbinfo_init(struct inpcbinfo *, struct inpcbstorage *,
-	    u_int, u_int);
+	    u_int, u_int, u_int);
 void	in_pcbinfo_destroy(struct inpcbinfo *);
 void	in_pcbstorage_init(void *);
 void	in_pcbstorage_destroy(void *);

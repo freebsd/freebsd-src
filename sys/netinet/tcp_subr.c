@@ -1454,7 +1454,7 @@ tcp_vnet_init(void *arg __unused)
 		    __func__);
 #endif
 	in_pcbinfo_init(&V_tcbinfo, &tcpcbstor, tcp_tcbhashsize,
-	    tcp_tcbhashsize);
+	    tcp_tcbhashsize, tcp_tcbhashsize);
 
 	syncache_init();
 	tcp_hc_init();
