@@ -1065,10 +1065,10 @@ LENTRY(start_mmu)
 	ldr	x2, mair
 
 	/*
-	 * If MTE is supported, configure GCR_EL1 and clear the TFSR registers of
-	 * any pending tag check faults
+	 * If FEAT_MTE2 is supported, configure GCR_EL1 and clear the TFSR
+	 * registers of any pending tag check faults
 	 */
-	CHECK_CPU_FEAT(x3, ID_AA64PFR1, MTE, MTE, 1f)
+	CHECK_CPU_FEAT(x3, ID_AA64PFR1, MTE, MTE2, 1f)
 
 	/* Set GCR_EL1, non-zero tags excluded by default */
 	mov	x3, #(GCR_Exclude_MASK | GCR_RRND)
