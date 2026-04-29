@@ -104,6 +104,7 @@ FILE_PATTERNS          = *.c \
                          *.inc \
                          *.m \
                          *.mm \
+                         *.md \
                          *.dox \
                          *.C \
                          *.CC \
