@@ -50,11 +50,12 @@ dev/qcom_clk/qcom_clk_rcg2.c		optional qcom_gcc
 dev/qcom_clk/qcom_clk_branch2.c		optional qcom_gcc
 dev/qcom_clk/qcom_clk_ro_div.c		optional qcom_gcc
 
-dev/qcom_tlmm/qcom_tlmm_debug.c		optional qcom_tlmm_ipq4018
-dev/qcom_tlmm/qcom_tlmm_ipq4018.c	optional qcom_tlmm_ipq4018
-dev/qcom_tlmm/qcom_tlmm_ipq4018_hw.c	optional qcom_tlmm_ipq4018
-dev/qcom_tlmm/qcom_tlmm_pin.c		optional qcom_tlmm_ipq4018
-dev/qcom_tlmm/qcom_tlmm_pinmux.c	optional qcom_tlmm_ipq4018
+dev/qcom_tlmm/qcom_tlmm_debug.c		optional qcom_tlmm
+dev/qcom_tlmm/qcom_tlmm_ipq4018.c	optional qcom_tlmm
+dev/qcom_tlmm/qcom_tlmm_ipq4018_hw.c	optional qcom_tlmm
+dev/qcom_tlmm/qcom_tlmm_pin.c		optional qcom_tlmm
+dev/qcom_tlmm/qcom_tlmm_pinmux.c	optional qcom_tlmm
+dev/qcom_tlmm/qcom_tlmm.c		optional qcom_tlmm
 
 dev/qcom_tcsr/qcom_tcsr.c		optional qcom_tcsr
 

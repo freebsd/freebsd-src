@@ -783,6 +783,12 @@ dev/qcom_clk/qcom_clk_rcg2.c			optional qcom_gcc fdt
 dev/qcom_clk/qcom_clk_branch2.c			optional qcom_gcc fdt
 dev/qcom_clk/qcom_clk_ro_div.c			optional qcom_gcc fdt
 dev/qcom_mdio/qcom_mdio_ipq4018.c		optional qcom_mdio fdt mdio mii
+dev/qcom_tlmm/qcom_tlmm_debug.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_pin.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_pinmux.c		optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_ipq4018.c		optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_ipq4018_hw.c		optional qcom_tlmm gpio
 
 # RockChip Drivers
 arm64/rockchip/rk3328_codec.c			optional fdt rk3328codec soc_rockchip_rk3328

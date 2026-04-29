@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 Christos Margiolis <christos@FreeBSD.org>
+ * Copyright (c) 2021-2026 Christos Margiolis <christos@FreeBSD.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -428,16 +428,22 @@ mod_mute(struct mix_dev *d, void *p)
 	m = d->parent_mixer;
 	cp = mixer_get_ctl(m->dev, C_MUT);
 	val = p;
-	if (strncmp(val, "off", strlen(val)) == 0 ||
-	    strncmp(val, "0", strlen(val)) == 0)
+	if (strncmp(val, "off", strlen(val)) == 0) {
 		opt = MIX_UNMUTE;
-	else if (strncmp(val, "on", strlen(val)) == 0 ||
-	    strncmp(val, "1", strlen(val)) == 0)
+	} else if (strncmp(val, "0", strlen(val)) == 0) {
+		warnx("%s: deprecated: use \"off\" instead", val);
+		opt = MIX_UNMUTE;
+	} else if (strncmp(val, "on", strlen(val)) == 0) {
 		opt = MIX_MUTE;
-	else if (strncmp(val, "toggle", strlen(val)) == 0 ||
-	    strncmp(val, "^", strlen(val)) == 0)
+	} else if (strncmp(val, "1", strlen(val)) == 0) {
+		warnx("%s: deprecated: use \"on\" instead", val);
+		opt = MIX_MUTE;
+	} else if (strncmp(val, "toggle", strlen(val)) == 0) {
 		opt = MIX_TOGGLEMUTE;
-	else {
+	} else if (strncmp(val, "^", strlen(val)) == 0) {
+		warnx("%s: deprecated: use \"toggle\" instead", val);
+		opt = MIX_TOGGLEMUTE;
+	} else {
 		warnx("%s: no such modifier", val);
 		return (-1);
 	}
@@ -464,19 +470,27 @@ mod_recsrc(struct mix_dev *d, void *p)
 	m = d->parent_mixer;
 	cp = mixer_get_ctl(m->dev, C_SRC);
 	val = p;
-	if (strncmp(val, "add", strlen(val)) == 0 ||
-	    strncmp(val, "+", strlen(val)) == 0)
+	if (strncmp(val, "add", strlen(val)) == 0) {
 		opt = MIX_ADDRECSRC;
-	else if (strncmp(val, "remove", strlen(val)) == 0 ||
-	    strncmp(val, "-", strlen(val)) == 0)
+	} else if (strncmp(val, "+", strlen(val)) == 0) {
+		warnx("%s: deprecated: use \"add\" instead", val);
+		opt = MIX_ADDRECSRC;
+	} else if (strncmp(val, "remove", strlen(val)) == 0) {
 		opt = MIX_REMOVERECSRC;
-	else if (strncmp(val, "set", strlen(val)) == 0 ||
-	    strncmp(val, "=", strlen(val)) == 0)
+	} else if (strncmp(val, "-", strlen(val)) == 0) {
+		warnx("%s: deprecated: use \"remove\" instead", val);
+		opt = MIX_REMOVERECSRC;
+	} else if (strncmp(val, "set", strlen(val)) == 0) {
 		opt = MIX_SETRECSRC;
-	else if (strncmp(val, "toggle", strlen(val)) == 0 ||
-	    strncmp(val, "^", strlen(val)) == 0)
+	} else if (strncmp(val, "=", strlen(val)) == 0) {
+		warnx("%s: deprecated: use \"set\" instead", val);
+		opt = MIX_SETRECSRC;
+	} else if (strncmp(val, "toggle", strlen(val)) == 0) {
 		opt = MIX_TOGGLERECSRC;
-	else {
+	} else if (strncmp(val, "^", strlen(val)) == 0) {
+		warnx("%s: deprecated: use \"toggle\" instead", val);
+		opt = MIX_TOGGLERECSRC;
+	} else {
 		warnx("%s: no such modifier", val);
 		return (-1);
 	}

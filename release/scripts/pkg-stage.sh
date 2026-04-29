@@ -76,7 +76,7 @@ export PKG_REPODIR="packages/${PKG_ABI}"
 
 /bin/mkdir -p ${ROOTDIR}/${PKG_REPODIR}
 if [ -n "${PKG_ALTABI}" ]; then
-	ln -s ${PKG_ABI} ${ROOTDIR}/packages/${PKG_ALTABI}
+	ln -nfs ${PKG_ABI} ${ROOTDIR}/packages/${PKG_ALTABI}
 fi
 
 # Ensure the ports listed in _DVD_PACKAGES_* exist to sanitize the
@@ -115,7 +115,7 @@ ${PKGCMD} fetch -o ${PKG_REPODIR} -r release-kmods -d ${DVD_PACKAGES_KMODS}
 # using the on-disc packages.
 export LATEST_DIR="${ROOTDIR}/${PKG_REPODIR}/Latest"
 mkdir -p ${LATEST_DIR}
-ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
+ln -nfs ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
 
 ${PKGCMD} repo ${PKG_REPODIR}
 

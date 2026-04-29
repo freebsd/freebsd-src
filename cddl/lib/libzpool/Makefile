@@ -293,6 +293,11 @@ CFLAGS+=	-g -DDEBUG=1
 
 CFLAGS.gcc+=	-Wno-pointer-to-int-cast
 
+# Some versions of LLVM contain duplicate typedefs in the <*intrin.h> headers,
+# which are not allowed prior to C11; since libzpool is built with C99, make
+# this not be an error.
+CFLAGS.clang+=	-Wno-error=typedef-redefinition
+
 # Pointer values are used as debugging "tags" to mark reference count
 # ownerships and in some cases the tag reference is dropped after an
 # object is freed.

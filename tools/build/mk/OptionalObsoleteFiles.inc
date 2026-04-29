@@ -53,6 +53,10 @@ OLD_FILES+=usr/share/man/man8/acpiconf.8.gz
 OLD_FILES+=usr/share/man/man8/acpidb.8.gz
 OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
+.elif ${MACHINE} != "i386" && ${MACHINE} != "amd64" && \
+      ${MACHINE} != "arm64"
+OLD_FILES+=etc/rc.d/power_profile
+OLD_FILES+=etc/devd/power_profile.conf
 .endif
 
 .if ${MK_APM} == no

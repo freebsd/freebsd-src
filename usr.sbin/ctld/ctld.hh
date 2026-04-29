@@ -220,6 +220,7 @@ struct portal_group {
 	bool set_dscp(u_int dscp);
 	virtual bool set_filter(const char *str) = 0;
 	void set_foreign();
+	void set_kernel();
 	bool set_offload(const char *offload);
 	bool set_pcp(u_int pcp);
 	bool set_redirection(const char *addr);
@@ -248,6 +249,7 @@ protected:
 	enum discovery_filter		pg_discovery_filter =
 	    discovery_filter::UNKNOWN;
 	bool				pg_foreign = false;
+	bool				pg_kernel = false;
 	bool				pg_assigned = false;
 	std::list<portal_up>	        pg_portals;
 	std::unordered_map<std::string, port *> pg_ports;

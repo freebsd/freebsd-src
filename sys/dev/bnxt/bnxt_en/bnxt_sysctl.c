@@ -1219,10 +1219,11 @@ bnxt_create_ver_sysctls(struct bnxt_softc *softc)
 	    "chip_type", CTLFLAG_RD, vi->chip_type > MAX_CHIP_TYPE ?
 	    bnxt_chip_type[MAX_CHIP_TYPE] : bnxt_chip_type[vi->chip_type], 0,
 	    "RoCE firmware name");
-	SYSCTL_ADD_PROC(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "package_ver", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    softc, 0, bnxt_package_ver_sysctl, "A",
-	    "currently installed package version");
+	if (!BNXT_VF(softc))
+		SYSCTL_ADD_PROC(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		    "package_ver", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    softc, 0, bnxt_package_ver_sysctl, "A",
+		    "currently installed package version");
 	SYSCTL_ADD_PROC(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "hwrm_min_ver", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    softc, 0, bnxt_hwrm_min_ver_sysctl, "A",

@@ -1,6 +1,5 @@
 .include "${SRCTOP}/lib/clang/lldb.pre.mk"
 
-PACKAGE=	lldb
 PROG_CXX=	lldb
 
 CFLAGS+=	-I${LLDB_SRCS}/include

@@ -79,6 +79,14 @@ long bnxt_rx_pkts_pri_arr_base_off[] = {BNXT_RX_STATS_PRI_ENTRIES(rx_packets)};
 long bnxt_tx_bytes_pri_arr_base_off[] = {BNXT_TX_STATS_PRI_ENTRIES(tx_bytes)};
 long bnxt_tx_pkts_pri_arr_base_off[] = {BNXT_TX_STATS_PRI_ENTRIES(tx_packets)};
 
+uint16_t bnxt_vf_req_snif[] = {
+	HWRM_FUNC_CFG,
+	HWRM_FUNC_VF_CFG,
+	HWRM_PORT_PHY_QCFG,
+	HWRM_CFA_L2_FILTER_ALLOC,
+	HWRM_OEM_CMD,
+};
+
 static int
 bnxt_hwrm_err_map(uint16_t err)
 {
@@ -757,8 +765,20 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all)
 	hw_resc->max_stat_ctxs = le16toh(resp->max_stat_ctx);
 
 	if (BNXT_CHIP_P5_PLUS(softc)) {
-		hw_resc->max_nqs = le16toh(resp->max_msix);
+		hw_resc->max_nqs = hw_resc->max_irqs = le16toh(resp->max_msix);
 		hw_resc->max_hw_ring_grps = hw_resc->max_rx_rings;
+	}
+	
+	if (BNXT_PF(softc)) {
+		struct bnxt_pf_info *pf = &softc->pf;
+
+		pf->vf_resv_strategy = le16toh(resp->vf_reservation_strategy);
+		if (pf->vf_resv_strategy > BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC)
+			pf->vf_resv_strategy = BNXT_VF_RESV_STRATEGY_MAXIMAL;
+
+		if (resp->flags &
+		    htole16(FUNC_RESOURCE_QCAPS_RESP_FLAGS_MIN_GUARANTEED))
+			softc->fw_cap |= BNXT_FW_CAP_VF_RES_MIN_GUARANTEED;
 	}
 
 hwrm_func_resc_qcaps_exit:
@@ -1054,6 +1074,26 @@ int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *bp, unsigned long *bmap, int bmap
 	req.os_type = htole16(HWRM_FUNC_DRV_RGTR_INPUT_OS_TYPE_FREEBSD);
 
 	if (BNXT_PF(bp)) {
+		u32 data[8];
+		int i;
+
+		memset(data, 0, sizeof(data));
+		for (i = 0; i < ARRAY_SIZE(bnxt_vf_req_snif); i++) {
+			u16 cmd = bnxt_vf_req_snif[i];
+			unsigned int bit, idx;
+
+			if ((bp->fw_cap & BNXT_FW_CAP_LINK_ADMIN) &&
+			    (cmd == HWRM_PORT_PHY_QCFG))
+				continue;
+
+			idx = cmd / 32;
+			bit = cmd % 32;
+			data[idx] |= 1 << bit;
+		}
+
+		for (i = 0; i < 8; i++)
+			req.vf_req_fwd[i] = cpu_to_le32(data[i]);
+
 		req.enables |=
 			htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_VF_REQ_FWD);
 	}
@@ -1224,7 +1264,6 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_GENERIC_STATS_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_GENERIC_STATS;
 	func->fw_fid = le16toh(resp->fid);
-	memcpy(func->mac_addr, resp->mac_address, ETHER_ADDR_LEN);
 	func->max_rsscos_ctxs = le16toh(resp->max_rsscos_ctx);
 	func->max_cp_rings = le16toh(resp->max_cmpl_rings);
 	func->max_tx_rings = le16toh(resp->max_tx_rings);
@@ -1235,6 +1274,7 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	func->max_l2_ctxs = le16toh(resp->max_l2_ctxs);
 	func->max_vnics = le16toh(resp->max_vnics);
 	func->max_stat_ctxs = le16toh(resp->max_stat_ctx);
+
 	if (BNXT_PF(softc)) {
 		struct bnxt_pf_info *pf = &softc->pf;
 
@@ -1247,10 +1287,40 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 		pf->max_tx_wm_flows = le32toh(resp->max_tx_wm_flows);
 		pf->max_rx_em_flows = le32toh(resp->max_rx_em_flows);
 		pf->max_rx_wm_flows = le32toh(resp->max_rx_wm_flows);
-	}
-	if (!_is_valid_ether_addr(func->mac_addr)) {
-		device_printf(softc->dev, "Invalid ethernet address, generating random locally administered address\n");
-		get_random_ether_addr(func->mac_addr);
+
+		pf->fw_fid = le16toh(resp->fid);
+		memcpy(pf->mac_addr, resp->mac_address, ETHER_ADDR_LEN);
+		pf->max_msix_vfs = le16toh(resp->max_msix_vfs);
+		if (!_is_valid_ether_addr(pf->mac_addr)) {
+			device_printf(softc->dev, "Invalid PF ethernet address, generating random "
+				      "locally administered PF mac address\n");
+			get_random_ether_addr(pf->mac_addr);
+		}
+		iflib_set_mac(softc->ctx, pf->mac_addr);
+		memcpy(softc->func.mac_addr, pf->mac_addr, ETHER_ADDR_LEN);
+	} else {
+		struct bnxt_vf_info *vf = &softc->vf;
+
+		vf->fw_fid = le16toh(resp->fid);
+		memcpy(vf->mac_addr, resp->mac_address, ETHER_ADDR_LEN);
+		/* if PF has assigned a MAC -> use it. */
+		if (_is_valid_ether_addr(vf->mac_addr)) {
+			iflib_set_mac(softc->ctx, vf->mac_addr);
+			memcpy(softc->func.mac_addr, vf->mac_addr, ETHER_ADDR_LEN);
+		} else {
+			/* else PF has NOT assigned a MAC -> Generate one. */
+			uint8_t la_mac[ETHER_ADDR_LEN];
+			device_printf(softc->dev, "PF has not assigned a MAC address to VF, generating random "
+				      "locally administered VF mac address\n");
+			get_random_ether_addr(la_mac);
+
+			/* Set OS MAC and function MAC to LAA */
+			if (_is_valid_ether_addr(la_mac)) {
+				iflib_set_mac(softc->ctx, la_mac);
+				memcpy(softc->func.mac_addr, la_mac, ETHER_ADDR_LEN);
+				memcpy(vf->mac_addr, la_mac, ETHER_ADDR_LEN);
+			}
+		}
 	}
 
 fail:
@@ -1261,25 +1331,31 @@ fail:
 int
 bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 {
-	struct hwrm_func_qcfg_input req = {0};
-	struct hwrm_func_qcfg_output *resp =
-		(void *)softc->hwrm_cmd_resp.idi_vaddr;
-	struct bnxt_func_qcfg *fn_qcfg = &softc->fn_qcfg;
+	int rc;
 	uint32_t min_db_offset = 0;
 	uint16_t flags;
-	int rc;
+        struct hwrm_func_qcfg_input req = {0};
+        struct hwrm_func_qcfg_output *resp =
+	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct bnxt_func_qcfg *fn_qcfg = &softc->fn_qcfg;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCFG);
-	req.fid = htole16(0xffff);
+        req.fid = htole16(0xffff);
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
-	if (rc)
+        if (rc)
 		goto end;
 
-	fn_qcfg->alloc_completion_rings = le16toh(resp->alloc_cmpl_rings);
 	fn_qcfg->alloc_tx_rings = le16toh(resp->alloc_tx_rings);
 	fn_qcfg->alloc_rx_rings = le16toh(resp->alloc_rx_rings);
+	fn_qcfg->alloc_completion_rings = le16toh(resp->alloc_cmpl_rings);
 	fn_qcfg->alloc_vnics = le16toh(resp->alloc_vnics);
+	fn_qcfg->alloc_rss_ctx = le16toh(resp->alloc_rsscos_ctx);
+	fn_qcfg->alloc_l2_ctx = le16toh(resp->alloc_l2_ctx);
+	fn_qcfg->alloc_vfs = le16toh(resp->alloc_vfs);
+	fn_qcfg->alloc_hw_ring_grps = le16toh(resp->alloc_hw_ring_grps);
+	fn_qcfg->alloc_stat_ctx = le16toh(resp->alloc_stat_ctx);
+	fn_qcfg->alloc_msix = le16toh(resp->alloc_msix);
 
 	switch (resp->port_partition_type) {
 	case HWRM_FUNC_QCFG_OUTPUT_PORT_PARTITION_TYPE_NPAR1_0:
@@ -1291,22 +1367,34 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 	}
 
 	flags = le16toh(resp->flags);
-	if (flags & (HWRM_FUNC_QCFG_OUTPUT_FLAGS_FW_DCBX_AGENT_ENABLED |
-		     HWRM_FUNC_QCFG_OUTPUT_FLAGS_FW_LLDP_AGENT_ENABLED)) {
-		softc->fw_cap |= BNXT_FW_CAP_LLDP_AGENT;
-		if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_FW_DCBX_AGENT_ENABLED)
-			softc->fw_cap |= BNXT_FW_CAP_DCBX_AGENT;
-	}
-	if (BNXT_PF(softc) && (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_MULTI_HOST))
-		softc->flags |= BNXT_FLAG_MULTI_HOST;
-	if (BNXT_PF(softc) && (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_MULTI_ROOT))
-		softc->flags |= BNXT_FLAG_MULTI_ROOT;
-	if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_SECURE_MODE_ENABLED)
-		softc->fw_cap |= BNXT_FW_CAP_SECURE_MODE;
-	if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_RING_MONITOR_ENABLED)
-		softc->fw_cap |= BNXT_FW_CAP_RING_MONITOR;
-	if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_ENABLE_RDMA_SRIOV)
-		softc->fw_cap |= BNXT_FW_CAP_ENABLE_RDMA_SRIOV;
+
+	if (BNXT_VF(softc)) {
+		struct bnxt_vf_info *vf = &softc->vf;
+
+		vf->vlan = le16toh(resp->vlan) & BNXT_VLAN_VID_MASK;
+		if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_TRUSTED_VF)
+			vf->flags |= BNXT_VF_TRUST;
+		else
+			vf->flags &= ~BNXT_VF_TRUST;
+	} else
+		softc->pf.registered_vfs = le16toh(resp->registered_vfs);
+
+        if (flags & (HWRM_FUNC_QCFG_OUTPUT_FLAGS_FW_DCBX_AGENT_ENABLED |
+                     HWRM_FUNC_QCFG_OUTPUT_FLAGS_FW_LLDP_AGENT_ENABLED)) {
+                softc->fw_cap |= BNXT_FW_CAP_LLDP_AGENT;
+                if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_FW_DCBX_AGENT_ENABLED)
+                        softc->fw_cap |= BNXT_FW_CAP_DCBX_AGENT;
+        }
+        if (BNXT_PF(softc) && (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_MULTI_HOST))
+                softc->flags |= BNXT_FLAG_MULTI_HOST;
+        if (BNXT_PF(softc) && (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_MULTI_ROOT))
+                softc->flags |= BNXT_FLAG_MULTI_ROOT;
+        if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_SECURE_MODE_ENABLED)
+                softc->fw_cap |= BNXT_FW_CAP_SECURE_MODE;
+        if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_RING_MONITOR_ENABLED)
+                softc->fw_cap |= BNXT_FW_CAP_RING_MONITOR;
+        if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_ENABLE_RDMA_SRIOV)
+                softc->fw_cap |= BNXT_FW_CAP_ENABLE_RDMA_SRIOV;
 
 	if (softc->db_size)
 		goto end;
@@ -2251,25 +2339,63 @@ bnxt_hwrm_reserve_pf_rings(struct bnxt_softc *softc)
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
+#define BNXT_VF_MAX_L2_CTX      4
+int bnxt_hwrm_reserve_vf_rings(struct bnxt_softc *softc)
+{
+	struct hwrm_func_vf_cfg_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
+
+	req.enables |= htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_NUM_RSSCOS_CTXS);
+	req.enables |= htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_NUM_CMPL_RINGS);
+	req.enables |= htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_NUM_TX_RINGS);
+	req.enables |= htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_NUM_RX_RINGS);
+	req.enables |= htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_NUM_VNICS);
+	req.enables |= htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_NUM_STAT_CTXS);
+	req.enables |= htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_NUM_L2_CTXS);
+	req.num_rsscos_ctxs = htole16(0x8);
+	req.num_cmpl_rings = htole16(BNXT_MAX_NUM_QUEUES * 2);
+	req.num_tx_rings = htole16(BNXT_MAX_NUM_QUEUES);
+	req.num_rx_rings = htole16(BNXT_MAX_NUM_QUEUES);
+	req.num_vnics = htole16(BNXT_MAX_NUM_QUEUES);
+	req.num_stat_ctxs = htole16(BNXT_MAX_NUM_QUEUES * 2);
+	req.num_l2_ctxs = htole16(BNXT_VF_MAX_L2_CTX);
+
+	return hwrm_send_message(softc, &req, sizeof(req));
+}
+
 int
 bnxt_cfg_async_cr(struct bnxt_softc *softc)
 {
 	int rc = 0;
-	struct hwrm_func_cfg_input req = {0};
 
-	if (!BNXT_PF(softc))
-		return 0;
+	if (BNXT_PF(softc)) {
+		struct hwrm_func_cfg_input req = {0};
 
-	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
-	req.fid = htole16(0xffff);
-	req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
-	if (BNXT_CHIP_P5_PLUS(softc))
-		req.async_event_cr = htole16(softc->nq_rings[0].ring.phys_id);
-	else
-		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
+		req.fid = htole16(0xffff);
+		req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		if (BNXT_CHIP_P5_PLUS(softc))
+			req.async_event_cr = htole16(softc->nq_rings[0].ring.phys_id);
+		else
+			req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
 
-	rc = hwrm_send_message(softc, &req, sizeof(req));
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	} else {
+		/* VF needs to configure async event completion ring using HWRM_FUNC_VF_CFG */
+		struct hwrm_func_vf_cfg_input req = {0};
+
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
+
+		req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		if (BNXT_CHIP_P5_PLUS(softc))
+			req.async_event_cr = htole16(softc->nq_rings[0].ring.phys_id);
+		else
+			req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
+
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	}
 
 	return rc;
 }
@@ -2343,6 +2469,9 @@ bnxt_hwrm_nvm_find_dir_entry(struct bnxt_softc *softc, uint16_t type,
 	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	int	rc = 0;
 	uint32_t old_timeo;
+	
+	if (BNXT_VF(softc))
+		return 0;
 
 	MPASS(ordinal);
 

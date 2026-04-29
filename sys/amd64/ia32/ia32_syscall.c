@@ -187,7 +187,7 @@ ia32_fetch_syscall_args(struct thread *td)
   	else
  		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	if (params != NULL && sa->callp->sy_narg != 0)
+	if (sa->callp->sy_narg != 0)
 		error = copyin(params, (caddr_t)args,
 		    (u_int)(sa->callp->sy_narg * sizeof(int)));
 	else
@@ -218,6 +218,15 @@ ia32_syscall(struct trapframe *frame)
 	orig_tf_rflags = frame->tf_rflags;
 	td = curthread;
 	td->td_frame = frame;
+	if (__predict_false(SV_PROC_FLAG(td->td_proc, SV_ILP32) == 0)) {
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_addr = (void *)frame->tf_rip;
+		trapsignal(td, &ksi);
+		userret(td, td->td_frame);
+		return;
+	}
 
 	syscallenter(td);
 
