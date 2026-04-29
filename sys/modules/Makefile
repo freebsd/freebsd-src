@@ -73,6 +73,7 @@ SUBDIR=	\
 	bridgestp \
 	bwi \
 	bwn \
+	${_adlngpio} \
 	${_bytgpio} \
 	${_chvgpio} \
 	cam \
@@ -797,6 +798,7 @@ _wdatwd=	wdatwd
 
 _aac=		aac
 _aacraid=	aacraid
+_adlngpio=	adlngpio
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
 .endif
