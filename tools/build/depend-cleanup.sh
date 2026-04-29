@@ -105,6 +105,10 @@ clean_dep()
 
 # Date      Rev      Description
 
+# 20260427 # bc / dc test scripts no longer generated
+dir="${OBJTOP%/}"/usr.bin/gh-bc/tests
+run rm -fv "${dir}"/bc_tests.sh "${dir}"/dc_tests.sh
+
 # 20220326  fbc002cb72d2    move from bcmp.c to bcmp.S
 if [ "$MACHINE_ARCH" = "amd64" ]; then
 	clean_dep lib/libc bcmp c
