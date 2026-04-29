@@ -139,6 +139,11 @@ ifconfig_bridge_get_bridge_status(ifconfig_handle_t *h,
 	}
 	for (size_t i = 0; i < bridge->inner.members_count; ++i) {
 		struct ifbif_vlan_req vreq;
+
+		/* Skip VLAN config for span members */
+		if (bridge->inner.members[i].ifbr_ifsflags & IFBIF_SPAN)
+			continue;
+
 		memset(&vreq, 0, sizeof(vreq));
 		strlcpy(vreq.bv_ifname, bridge->inner.members[i].ifbr_ifsname,
 		    sizeof(vreq.bv_ifname));
