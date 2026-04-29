@@ -147,7 +147,7 @@ static void
 rip_init(void *arg __unused)
 {
 #define	INP_PCBHASH_RAW_SIZE	256
-	in_pcbinfo_init(&V_ripcbinfo, &ripcbstor, INP_PCBHASH_RAW_SIZE, 1);
+	in_pcbinfo_init(&V_ripcbinfo, &ripcbstor, INP_PCBHASH_RAW_SIZE, 0, 0);
 }
 VNET_SYSINIT(rip_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rip_init, NULL);
 
