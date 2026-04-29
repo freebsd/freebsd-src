@@ -617,7 +617,8 @@ memac_attach(device_t dev)
 		    device_get_unit(sc->sc_base.sc_dev));
 
 
-	if_setcapabilities(ifp, IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |
+	if_setcapabilities(ifp, IFCAP_JUMBO_MTU |
+	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |
 	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 |
 	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
