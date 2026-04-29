@@ -212,6 +212,11 @@ struct exec_paths {
 	int exec_path_count;
 };
 
+/*
+ * Once in use, i.e., being pointed to by a jail, a configuration structure MUST
+ * NEVER CHANGE (except for the 'use_count' field).  This invariant is
+ * fundamental to correctness!
+ */
 struct conf {
 	struct rules rules;
 	struct exec_paths exec_paths;
