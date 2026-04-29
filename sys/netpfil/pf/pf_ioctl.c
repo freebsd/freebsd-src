@@ -3226,14 +3226,12 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	PF_RULES_WUNLOCK();
 	pf_hash_rule(rule);
-	if (RB_INSERT(pf_krule_global, ruleset->rules[rs_num].inactive.tree, rule) != NULL) {
-		PF_RULES_WLOCK();
-		TAILQ_REMOVE(ruleset->rules[rs_num].inactive.ptr, rule, entries);
-		ruleset->rules[rs_num].inactive.rcount--;
-		pf_free_rule(rule);
-		rule = NULL;
-		ERROUT(EEXIST);
-	}
+	/**
+	 * Note: rule hashes may collide. Accept this, because the worst that can
+	 * happen is that we get counter preservation wrong.
+	 * Failing to insert here would be worse.
+	 **/
+	RB_INSERT(pf_krule_global, ruleset->rules[rs_num].inactive.tree, rule);
 	PF_CONFIG_UNLOCK();
 
 	return (0);
@@ -4895,14 +4893,8 @@ DIOCGETRULENV_error:
 			ruleset->rules[rs_num].active.rcount--;
 		} else {
 			pf_hash_rule(newrule);
-			if (RB_INSERT(pf_krule_global,
-			    ruleset->rules[rs_num].active.tree, newrule) != NULL) {
-				pf_free_rule(newrule);
-				PF_RULES_WUNLOCK();
-				PF_CONFIG_UNLOCK();
-				error = EEXIST;
-				goto fail;
-			}
+			RB_INSERT(pf_krule_global,
+			    ruleset->rules[rs_num].active.tree, newrule);
 
 			if (oldrule == NULL)
 				TAILQ_INSERT_TAIL(
