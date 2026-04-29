@@ -297,7 +297,6 @@ gre_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 {
 	GRE_RLOCK_TRACKER;
 	struct gre_softc *sc;
-	struct ifreq ifr;
 
 	nlattr_add_u32(nw, IFLA_LINK, ifp->if_index);
 	nlattr_add_string(nw, IFLA_IFNAME, ifp->if_xname);
@@ -318,21 +317,23 @@ gre_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 
 	if (sc->gre_family == AF_INET) {
 #ifdef INET
-		if (in_gre_ioctl(sc, SIOCGIFPSRCADDR, (caddr_t)&ifr) == 0)
+		struct in_aliasreq in;
+		if (in_gre_ioctl(sc, SIOCGIFPSRCADDR, (caddr_t)&in) == 0)
 			nlattr_add_in_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in_addr *)&ifr.ifr_addr);
-		if (in_gre_ioctl(sc, SIOCGIFPDSTADDR, (caddr_t)&ifr) == 0)
-			nlattr_add_in_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in_addr *)&ifr.ifr_dstaddr);
+			    &in.ifra_addr.sin_addr);
+		if (in_gre_ioctl(sc, SIOCGIFPDSTADDR, (caddr_t)&in) == 0)
+			nlattr_add_in_addr(nw, IFLA_GRE_REMOTE,
+			    &in.ifra_addr.sin_addr);
 #endif
 	} else if (sc->gre_family == AF_INET6) {
 #ifdef INET6
-		if (in6_gre_ioctl(sc, SIOCGIFPSRCADDR_IN6, (caddr_t)&ifr) == 0)
+		struct in6_aliasreq in6;
+		if (in6_gre_ioctl(sc, SIOCGIFPSRCADDR_IN6, (caddr_t)&in6) == 0)
 			nlattr_add_in6_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in6_addr *)&ifr.ifr_addr);
-		if (in6_gre_ioctl(sc, SIOCGIFPDSTADDR_IN6, (caddr_t)&ifr) == 0)
-			nlattr_add_in6_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in6_addr *)&ifr.ifr_dstaddr);
+			    &in6.ifra_addr.sin6_addr);
+		if (in6_gre_ioctl(sc, SIOCGIFPDSTADDR_IN6, (caddr_t)&in6) == 0)
+			nlattr_add_in6_addr(nw, IFLA_GRE_REMOTE,
+			    &in6.ifra_addr.sin6_addr);
 #endif
 	}
 
