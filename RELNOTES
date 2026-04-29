@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4c486fe40267:
+	The multicast routing modules, ip_mroute and ip6_mroute, are now FIB-aware.
+	That is, there is a multicast routing table per FIB, rather than a global
+	table.  One can run a multicast routing daemon within each FIB; the FIB of
+	the routing socket determines the corresponding multicast routing table.
 
 65f5dd42f11c:
 	sh(1) add -l option which makes sh act as a login shell and read the profile.
