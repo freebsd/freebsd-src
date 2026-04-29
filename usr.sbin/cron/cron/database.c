@@ -166,8 +166,10 @@ load_database(cron_db *old_db)
 		fname[sizeof(fname)-1] = '\0';
 
 		if (snprintf(tabname, sizeof tabname, CRON_TAB(fname))
-		    >= sizeof(tabname))
-			continue;	/* XXX log? */
+		    >= (int)sizeof(tabname)) {
+			log_it("CRON", getpid(), "TABNAME TOO LONG", fname);
+			continue;
+		}
 
 		process_crontab(fname, fname, tabname,
 				&statbuf, &new_db, old_db);
