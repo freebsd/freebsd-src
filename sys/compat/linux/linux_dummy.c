@@ -56,8 +56,6 @@ UNIMPLEMENTED(query_module);	/* Added in Linux 2.2 removed in 2.6. */
 UNIMPLEMENTED(security);
 UNIMPLEMENTED(vserver);
 
-DUMMY(setfsuid);
-DUMMY(setfsgid);
 DUMMY(vhangup);
 DUMMY(pivot_root);
 DUMMY(adjtimex);

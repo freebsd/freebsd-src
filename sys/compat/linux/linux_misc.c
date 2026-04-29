@@ -3179,4 +3179,30 @@ linux_membarrier(struct thread *td, struct linux_membarrier_args *args)
 	return (0);
 }
 
+/*
+ * setfsuid() & setfsgid() exist to decouple the Linux filesystem credentials
+ * from the effective credentials, avoiding signal exposure during privilege
+ * transitions. The signal permission model that motivated this was revised in
+ * Linux 2.0, making these syscalls obsolete for new applications.
+ *
+ * As there's no FreeBSD equivalent, implement both syscalls as no-ops that
+ * return the current effective UID/GID as the previous filesystem UID/GID.
+ * Linux returns the previous filesystem UID/GID for these syscalls, with no
+ * error indication.
+ */
+
+int
+linux_setfsuid(struct thread *td, struct linux_setfsuid_args *args)
+{
+	td->td_retval[0] = td->td_ucred->cr_uid;
+	return (0);
+}
+
+int
+linux_setfsgid(struct thread *td, struct linux_setfsgid_args *args)
+{
+	td->td_retval[0] = td->td_ucred->cr_gid;
+	return (0);
+}
+
 MODULE_DEPEND(linux, mqueuefs, 1, 1, 1);
