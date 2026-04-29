@@ -1246,13 +1246,12 @@ drop_conf(struct conf *const conf)
  * one, establishing inheritance from higher up).
  */
 static struct conf *
-find_conf(struct prison *const pr, struct prison **const hpr)
+find_conf_locked(struct prison *const pr, struct prison **const hpr)
 {
 	struct prison *cpr, *ppr; /* Current and parent. */
 	struct conf *conf;
-	struct rm_priotracker rmpt;
 
-	rm_rlock(&mac_do_rml, &rmpt);
+	rm_assert(&mac_do_rml, RA_LOCKED);
 	/*
 	 * We do not need to take any locks here to climb the prison tree as
 	 * either the start prison ('pr') is that of the current thread (and our
@@ -1280,11 +1279,20 @@ find_conf(struct prison *const pr, struct prison **const hpr)
 	}
 
 	hold_conf(conf);
-	rm_runlock(&mac_do_rml, &rmpt);
-
 	if (hpr != NULL)
 		*hpr = cpr;
+	return (conf);
+}
 
+static struct conf *
+find_conf(struct prison *const pr, struct prison **const hpr)
+{
+	struct conf *conf;
+	struct rm_priotracker rmpt;
+
+	rm_rlock(&mac_do_rml, &rmpt);
+	conf = find_conf_locked(pr, hpr);
+	rm_runlock(&mac_do_rml, &rmpt);
 	return (conf);
 }
 
@@ -1332,22 +1340,29 @@ dealloc_jail_osd(void *const value)
 }
 
 /*
- * Assign an already-built configuration to a jail.
+ * Sets a mac_do(4) configuration on a jail.
  *
- * Takes care of write-locking 'mac_do_rm', which should be unlocked on entry
- * and will be unlocked on exit.
+ * 'conf' is the new conf to set (can be NULL), and an additional reference will
+ * be taken on it to represent the jail holding it (if not NULL).  'rsv' must
+ * have been allocated through osd_reserve() (if 'conf' is not NULL; else can
+ * be NULL).
+ *
+ * The previous configuration on the jail (or NULL) is returned (with an
+ * associated reference if not NULL).
  */
-static void
-set_conf(struct prison *const pr, struct conf *const conf)
+static struct conf *
+set_conf_locked(struct prison *const pr, struct conf *const conf,
+    void **const rsv)
 {
-	void **const rsv = conf != NULL ? osd_reserve(osd_jail_slot) : NULL;
 	struct conf *old_conf;
 	int error __diagused;
 
+	KASSERT(conf == NULL || rsv != NULL,
+	    ("MAC/do: OSD reserve needed to avoid allocating memory"));
+	rm_assert(&mac_do_rml, RA_WLOCKED);
+
 	if (conf != NULL)
 		hold_conf(conf);
-
-	rm_wlock(&mac_do_rml);
 	old_conf = osd_jail_get_unlocked(pr, osd_jail_slot);
 	error = osd_jail_set_reserved(pr, osd_jail_slot, rsv, conf);
 	KASSERT(error == 0, ("MAC/do: osd_jail_set_reserved() failed "
@@ -1358,8 +1373,27 @@ set_conf(struct prison *const pr, struct conf *const conf)
 		 * destructor since we've just put NULL into the slot.
 		 */
 		osd_jail_del(pr, osd_jail_slot);
-	rm_wunlock(&mac_do_rml);
+	return (old_conf);
+}
 
+/*
+ * Immediately replace the jail's configuration.
+ *
+ * To be used only if the configuration to set does not depend in any way on the
+ * currently applicable configuration.
+ *
+ * Takes care of write-locking 'mac_do_rml', which should be unlocked on entry
+ * and will be unlocked on exit.
+ */
+static void
+set_conf(struct prison *const pr, struct conf *const conf)
+{
+	void **const rsv = conf != NULL ? osd_reserve(osd_jail_slot) : NULL;
+	struct conf *old_conf;
+
+	rm_wlock(&mac_do_rml);
+	old_conf = set_conf_locked(pr, conf, rsv);
+	rm_wunlock(&mac_do_rml);
 	if (old_conf != NULL)
 		drop_conf(old_conf);
 }
@@ -2542,7 +2576,7 @@ mac_do_init(struct mac_policy_conf *mpc)
 	struct conf *const default_conf = new_default_conf();
 	struct prison *pr;
 
-	rm_init(&mac_do_rml, "mac_do(4)");
+	rm_init_flags(&mac_do_rml, "mac_do(4)", RM_SLEEPABLE);
 
 	osd_jail_slot = osd_jail_register(dealloc_jail_osd, osd_methods);
 	set_conf(&prison0, default_conf);
