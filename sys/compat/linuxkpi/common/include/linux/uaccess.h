@@ -111,5 +111,12 @@ __copy_from_user_inatomic(void *to, const void __user *from,
 }
 #define	__copy_from_user_inatomic_nocache(to, from, n)	\
 	__copy_from_user_inatomic((to), (from), (n))
+/*
+ * __copy_from_user_inatomic_nocache() was renamed to
+ * copy_from_user_inatomic_nontemporal() in Linux 7.1. The change was
+ * backported to at least several LTS branches.
+ */
+#define	copy_from_user_inatomic_nontemporal(to, from, n)	\
+	__copy_from_user_inatomic((to), (from), (n))
 
 #endif					/* _LINUXKPI_LINUX_UACCESS_H_ */
