@@ -1939,7 +1939,7 @@ ena_request_io_irq(struct ena_adapter *adapter)
 		flags = RF_ACTIVE | RF_SHAREABLE;
 	}
 
-	for (i = ENA_IO_IRQ_FIRST_IDX; i < adapter->msix_vecs; i++) {
+	for (i = ENA_IO_IRQ_FIRST_IDX; i < ENA_IO_IRQ_IDX(adapter->num_io_queues); i++) {
 		irq = &adapter->irq_tbl[i];
 
 		if (unlikely(irq->requested))
@@ -2053,7 +2053,7 @@ ena_free_io_irq(struct ena_adapter *adapter)
 	struct ena_irq *irq;
 	int rc;
 
-	for (int i = ENA_IO_IRQ_FIRST_IDX; i < adapter->msix_vecs; i++) {
+	for (int i = ENA_IO_IRQ_FIRST_IDX; i < ENA_IO_IRQ_IDX(adapter->num_io_queues); i++) {
 		irq = &adapter->irq_tbl[i];
 		if (irq->requested) {
 			ena_log(pdev, DBG, "tear down irq: %d\n", irq->vector);
