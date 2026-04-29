@@ -1,4 +1,4 @@
-.Dd March 12, 2024
+.Dd April 6, 2026
 .Dt MD5 1
 .Os
 .Sh NAME
@@ -84,11 +84,18 @@ If no files are listed on the command line, or a file name is given as
 .Pa - ,
 input is taken from stdin instead.
 .Pp
+The utility's different modes have different output formats, but in
+all cases, filenames containing unprintable characters are encoded as
+described in
+.Xr vis 3
+using the
+.Dv VIS_CSTYLE \&| Dv VIS_OCTAL
+style.
+.Pp
 It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
-The SHA-224 , SHA-256 , SHA-384 , SHA-512, RIPEMD-160,
-and SKEIN
+The SHA-224, SHA-256, SHA-384, SHA-512, RIPEMD-160, and SKEIN
 algorithms are intended for digital signature applications, where a
 large file must be
 .Dq compressed
@@ -99,10 +106,6 @@ key under a public-key cryptosystem such as RSA.
 The MD5 and SHA-1 algorithms have been proven to be vulnerable to practical
 collision attacks and should not be relied upon to produce unique outputs,
 .Em nor should they be used as part of a cryptographic signature scheme.
-As of 2017-03-02, there is no publicly known method to
-.Em reverse
-either algorithm, i.e., to find an input that produces a specific
-output.
 .Pp
 SHA-512t256 is a version of SHA-512 truncated to only 256 bits.
 On 64-bit hardware, this algorithm is approximately 50% faster than SHA-256 but
@@ -385,7 +388,8 @@ is printed instead of
 .Xr sha256 3 ,
 .Xr sha384 3 ,
 .Xr sha512 3 ,
-.Xr skein 3
+.Xr skein 3 ,
+.Xr vis 3
 .Rs
 .%A R. Rivest
 .%T The MD5 Message-Digest Algorithm
@@ -411,6 +415,16 @@ Secure Hash Standard (SHS):
 .Pp
 The RIPEMD-160 page:
 .Pa https://homes.esat.kuleuven.be/~bosselae/ripemd160.html
+.Sh CAVEATS
+The encoding used for file names containing non-printable characters
+is incompatible with that used by GNU coreutils.
+The encoding used by GNU coreutils is non-reversible, in that certain
+non-printable characters are encoded while others are simply omitted.
+The encoding used by this utility, on the other hand, is fully
+reversible.
+.Pp
+If interoperability with GNU coreutils is required, it is recommended
+to ensure that all file names contain only printable characters.
 .Sh BUGS
 In bits mode, the original
 .Nm shasum
