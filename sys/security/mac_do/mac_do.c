@@ -1358,21 +1358,19 @@ set_conf(struct prison *const pr, struct conf *const conf)
 		drop_conf(old_conf);
 }
 
-/*
- * Assigns the default configuration to a jail.
- */
-static void
-set_default_conf(struct prison *const pr)
+static struct conf *
+new_default_conf(void)
 {
-	struct conf *const conf = new_conf();
+	const char *const mdo_path = "/usr/bin/mdo";
+	struct conf *conf = new_conf();
 
-	strlcpy(conf->exec_paths.exec_paths_str, "/usr/bin/mdo",
+	strlcpy(conf->exec_paths.exec_paths_str, mdo_path,
 	    MAX_EXEC_PATHS_SIZE);
-	strlcpy(conf->exec_paths.exec_paths[0], "/usr/bin/mdo", PATH_MAX);
+	strlcpy(conf->exec_paths.exec_paths[0], mdo_path,
+	    PATH_MAX);
 	conf->exec_paths.exec_path_count = 1;
 
-	set_conf(pr, conf);
-	drop_conf(conf);
+	return (conf);
 }
 
 static void
@@ -2521,14 +2519,16 @@ mac_do_setcred_exit(void)
 static void
 mac_do_init(struct mac_policy_conf *mpc)
 {
+	struct conf *const default_conf = new_default_conf();
 	struct prison *pr;
 
 	osd_jail_slot = osd_jail_register(dealloc_jail_osd, osd_methods);
-	set_default_conf(&prison0);
+	set_conf(&prison0, default_conf);
 	sx_slock(&allprison_lock);
 	TAILQ_FOREACH(pr, &allprison, pr_list)
-	    set_default_conf(pr);
+	    set_conf(pr, default_conf);
 	sx_sunlock(&allprison_lock);
+	drop_conf(default_conf);
 
 	osd_thread_slot = osd_thread_register(dealloc_thread_osd);
 }
