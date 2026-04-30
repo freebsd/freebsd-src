@@ -254,7 +254,7 @@ openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 				break;
 			ncpu++;
 		}
-		mask &= (1 << cpu);
+		mask = (1 << __pcpu[cpu].pc_pic);
 	}
 
 	openpic_write(sc, OPENPIC_IDEST(irq), mask);
@@ -288,9 +288,10 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 
 	CTR1(KTR_INTR, "%s: got interrupt", __func__);
 
-	cpuid = (dev == root_pic) ? PCPU_GET(cpuid) : 0;
-
 	sc = device_get_softc(dev);
+
+	cpuid = (dev == root_pic) ? PCPU_GET(pic) : 0;
+
 	while (1) {
 		vector = openpic_read(sc, OPENPIC_PCPU_IACK(cpuid));
 		vector &= OPENPIC_VECTOR_MASK;
@@ -337,9 +338,9 @@ openpic_eoi(device_t dev, u_int irq __unused, void *priv __unused)
 	struct openpic_softc *sc;
 	u_int cpuid;
 
-	cpuid = (dev == root_pic) ? PCPU_GET(cpuid) : 0;
-
 	sc = device_get_softc(dev);
+	cpuid = (dev == root_pic) ? PCPU_GET(pic) : 0;
+
 	openpic_write(sc, OPENPIC_PCPU_EOI(cpuid), 0);
 }
 
@@ -352,8 +353,8 @@ openpic_ipi(device_t dev, u_int cpu)
 
 	sc = device_get_softc(dev);
 	sched_pin();
-	openpic_write(sc, OPENPIC_PCPU_IPI_DISPATCH(PCPU_GET(cpuid), 0),
-	    1u << cpu);
+	openpic_write(sc, OPENPIC_PCPU_IPI_DISPATCH(PCPU_GET(pic), 0),
+	    1u << pcpu_find(cpu)->pc_pic);
 	sched_unpin();
 }
 
@@ -454,6 +455,18 @@ openpic_resume(device_t dev)
 	return (0);
 }
 
+static void
+openpic_ap_init(device_t dev)
+{
+	struct openpic_softc *sc;
+
+	if (dev != root_pic)
+		return;
+
+	sc = device_get_softc(dev);
+	PCPU_SET(pic, bus_read_4(sc->sc_memr, OPENPIC_WHOAMI));
+}
+
 static device_method_t openpic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_suspend,	openpic_suspend),
@@ -468,6 +481,7 @@ static device_method_t openpic_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
+	DEVMETHOD(pic_ap_init,		openpic_ap_init),
 
 	DEVMETHOD_END
 };

@@ -45,6 +45,7 @@ struct pvo_entry;
 	struct thread	*pc_vecthread;		/* current vec user */  \
 	struct thread	*pc_htmthread;		/* current htm user */  \
 	uintptr_t	pc_hwref;					\
+	uintptr_t	pc_pic;						\
 	int		pc_bsp;						\
 	volatile int	pc_awake;					\
 	uint32_t	pc_ipimask;					\
