@@ -253,6 +253,10 @@ parse_nego_message(OM_uint32 *minor, struct k5input *in,
     offset = k5_input_get_uint32_le(in);
     count = k5_input_get_uint16_le(in);
     p = vector_base(offset, count, EXTENSION_LENGTH, msg_base, msg_len);
+    if (p == NULL) {
+        *minor = ERR_NEGOEX_INVALID_MESSAGE_SIZE;
+        return GSS_S_DEFECTIVE_TOKEN;
+    }
     for (i = 0; i < count; i++) {
         extension_type = load_32_le(p + i * EXTENSION_LENGTH);
         if (extension_type & EXTENSION_FLAG_CRITICAL) {
@@ -391,7 +395,8 @@ parse_message(OM_uint32 *minor, spnego_gss_ctx_id_t ctx, struct k5input *in,
     msg_len = k5_input_get_uint32_le(in);
     conv_id = k5_input_get_bytes(in, GUID_LENGTH);
 
-    if (in->status || msg_len > token_remaining || header_len > msg_len) {
+    if (in->status || msg_len > token_remaining ||
+        header_len < (size_t)(in->ptr - msg_base) || header_len > msg_len) {
         *minor = ERR_NEGOEX_INVALID_MESSAGE_SIZE;
         return GSS_S_DEFECTIVE_TOKEN;
     }
