@@ -112,7 +112,7 @@
 #define  OPENPIC_ACTIVITY			0x40000000
 #define  OPENPIC_PRIORITY_MASK			0x000f0000
 #define  OPENPIC_PRIORITY_SHIFT			16
-#define  OPENPIC_VECTOR_MASK			0x000000ff
+#define  OPENPIC_VECTOR_MASK			0x0000ffff
 
 /* interrupt destination cpu */
 #ifndef OPENPIC_IDEST

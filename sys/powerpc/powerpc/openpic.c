@@ -151,6 +151,12 @@ openpic_common_attach(device_t dev, uint32_t node)
 	    OPENPIC_FEATURE_LAST_CPU_SHIFT) + 1;
 	sc->sc_nirq = ((x & OPENPIC_FEATURE_LAST_IRQ_MASK) >>
 	    OPENPIC_FEATURE_LAST_IRQ_SHIFT) + 1;
+	/*
+	 * Generate the vector mask used for IACK.
+	 * Some PICs may not support the full 11 bit vector width, so clamp the
+	 * mask to only the next-power-of-2 from the max IRQ.
+	 */
+	sc->sc_vec_mask = (1 << fls(sc->sc_nirq)) - 1;
 
 	/*
 	 * PSIM seems to report 1 too many IRQs and CPUs
@@ -294,8 +300,8 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 
 	while (1) {
 		vector = openpic_read(sc, OPENPIC_PCPU_IACK(cpuid));
-		vector &= OPENPIC_VECTOR_MASK;
-		if (vector == 255)
+		vector &= sc->sc_vec_mask;
+		if (vector == sc->sc_vec_mask)
 			break;
 		powerpc_dispatch_intr(vector, tf);
 	}
