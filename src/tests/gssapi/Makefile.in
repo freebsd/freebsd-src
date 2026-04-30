@@ -4,7 +4,7 @@ DEFINES = -DUSE_AUTOCONF_H
 
 # For t_prf.c
 LOCALINCLUDES = -I$(srcdir)/../../lib/gssapi/mechglue \
-	-I$(srcdir)/../../lib/gssapi/krb5 \
+	-I$(srcdir)/../../lib/gssapi/krb5 -I$(srcdir)/../../lib/gssapi/spnego \
 	-I$(srcdir)/../../lib/gssapi/generic -I../../lib/gssapi/krb5 \
 	-I../../lib/gssapi/generic
 

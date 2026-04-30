@@ -562,7 +562,7 @@ krad_packet_decode_request(krb5_context ctx, const char *secret,
 
     if (cb != NULL) {
         for (tmp = (*cb)(data, FALSE); tmp != NULL; tmp = (*cb)(data, FALSE)) {
-            if (pkt_id_get(*reqpkt) == pkt_id_get(tmp))
+            if (pkt_id_get(req) == pkt_id_get(tmp))
                 break;
         }
 

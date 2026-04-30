@@ -29,6 +29,11 @@
 #include <string.h>
 #include <assert.h>
 
+/* See create_reselection_cred(). */
+#include "k5-int.h"
+#include <mglueP.h>
+#include <gssapiP_spnego.h>
+
 #include "common.h"
 
 static gss_OID_desc mech_krb5_wrong = {
@@ -228,6 +233,47 @@ test_neghints(void)
     (void)gss_delete_sec_context(&minor, &actx, NULL);
 }
 
+/*
+ * There is currently no API to create a SPNEGO credential supporting multiple
+ * mechanisms unless a third-party mechanism is configured in the mechs file;
+ * the default credential contains only krb5 (after tickets #8021 and #8217)
+ * and a SPNEGO cred cannot be created from an existing union cred.  Using
+ * internal structures, create a two-mechanism initiator cred so that we can
+ * test reselection.
+ */
+static gss_cred_id_t
+create_reselection_cred(void)
+{
+    OM_uint32 major, minor;
+    gss_OID_desc mlist[2] = { mech_krb5, mech_iakerb };
+    gss_OID_set_desc mechs = { 2, mlist };
+    gss_cred_id_t cred;
+    spnego_gss_cred_id_t scred;
+    gss_union_cred_t ucred;
+
+    major = gss_acquire_cred(&minor, GSS_C_NO_NAME, GSS_C_INDEFINITE,
+                             &mechs, GSS_C_INITIATE, &cred, NULL, NULL);
+    check_gsserr("gss_acquire_cred(reslection)", major, minor);
+
+    scred = calloc(1, sizeof(*scred));
+    assert(scred != NULL);
+    scred->mcred = cred;
+
+    ucred = calloc(1, sizeof(*ucred));
+    assert(ucred != NULL);
+    ucred->loopback = ucred;
+    ucred->count = 1;
+    ucred->mechs_array = calloc(1, sizeof(*ucred->mechs_array));
+    ucred->cred_array = calloc(1, sizeof(*ucred->cred_array));
+    assert(ucred->mechs_array != NULL && ucred->cred_array != NULL);
+    ucred->mechs_array[0].elements = malloc(mech_spnego.length);
+    assert(ucred->mechs_array[0].elements != NULL);
+    g_OID_copy(&ucred->mechs_array[0], &mech_spnego);
+    ucred->cred_array[0] = (gss_cred_id_t)scred;
+
+    return (gss_cred_id_t)ucred;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -254,19 +300,7 @@ main(int argc, char *argv[])
     }
 
     /* Get default initiator cred. */
-    major = gss_acquire_cred(&minor, GSS_C_NO_NAME, GSS_C_INDEFINITE,
-                             &mechset_spnego, GSS_C_INITIATE,
-                             &initiator_cred_handle, NULL, NULL);
-    check_gsserr("gss_acquire_cred(initiator)", major, minor);
-
-    /*
-     * The following test is designed to exercise SPNEGO reselection on the
-     * client and server.  Unfortunately, it no longer does so after tickets
-     * #8217 and #8021, since SPNEGO now only acquires a single krb5 cred and
-     * there is no way to expand the underlying creds with gss_set_neg_mechs().
-     * To fix this we need gss_acquire_cred_with_cred() or some other way to
-     * turn a cred with a specifically requested mech set into a SPNEGO cred.
-     */
+    initiator_cred_handle = create_reselection_cred();
 
     /* Make the initiator prefer IAKERB and offer krb5 as an alternative. */
     pref_oids[0] = mech_iakerb;
