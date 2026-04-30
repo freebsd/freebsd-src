@@ -2364,7 +2364,7 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 
 		/* find most significant set bit */
 		for (x = 31; x != 1; x--) {
-			if (mask & (1 << x))
+			if (mask & (1U << x))
 				break;
 		}
 
