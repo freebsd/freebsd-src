@@ -912,6 +912,7 @@ error_out:
         if (cred->name)
             kg_release_name(context, &cred->name);
         krb5_free_principal(context, cred->impersonator);
+        krb5_free_principal(context, cred->acceptor_mprinc);
         zapfreestr(cred->password);
         k5_mutex_destroy(&cred->lock);
         xfree(cred);
