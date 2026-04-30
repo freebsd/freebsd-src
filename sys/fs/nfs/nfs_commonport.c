@@ -62,7 +62,6 @@ int newnfs_numnfsd = 0;
 struct nfsstatsv1 nfsstatsv1;
 int nfs_numnfscbd = 0;
 int nfscl_debuglevel = 0;
-char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
 int nfsrv_lughashsize = 100;
 struct mtx nfsrv_dslock_mtx;
 struct nfsdevicehead nfsrv_devidhead;
@@ -90,9 +89,6 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test,
     0, "Number of realign tests done");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
     0, "Number of mbuf realignments done");
-SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
-    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
-    "NFSv4 callback addr for server to use");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
     0, "Debug level for NFS client");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, userhashsize, CTLFLAG_RDTUN, &nfsrv_lughashsize,
