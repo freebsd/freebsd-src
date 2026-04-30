@@ -100,3 +100,6 @@ METHOD void unmask {
 	void		*priv;
 };
 
+METHOD void ap_init {
+	device_t	dev;
+};
