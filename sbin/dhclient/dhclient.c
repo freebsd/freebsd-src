@@ -1161,7 +1161,7 @@ packet_to_lease(struct packet *packet)
 	lease = malloc(sizeof(struct client_lease));
 
 	if (!lease) {
-		warning("dhcpoffer: no memory to record lease.");
+		warning("dhcpoffer: no memory to record lease");
 		return (NULL);
 	}
 
@@ -1202,7 +1202,7 @@ packet_to_lease(struct packet *packet)
 
 	/* If the server name was filled out, copy it.
 	   Do not attempt to validate the server name as a host name.
-	   RFC 2131 merely states that sname is NUL-terminated (which do
+	   RFC 2131 merely states that sname is NUL-terminated (which we
 	   do not assume) and that it is the server's host name.  Since
 	   the ISC client and server allow arbitrary characters, we do
 	   as well. */
@@ -1210,39 +1210,72 @@ packet_to_lease(struct packet *packet)
 	    !(packet->options[DHO_DHCP_OPTION_OVERLOAD].data[0] & 2)) &&
 	    packet->raw->sname[0]) {
 		lease->server_name = malloc(DHCP_SNAME_LEN + 1);
-		if (!lease->server_name) {
-			warning("dhcpoffer: no memory for server name.");
+		if (lease->server_name == NULL) {
+			warning("dhcpoffer: no memory for server name");
 			free_client_lease(lease);
 			return (NULL);
 		}
-		memcpy(lease->server_name, packet->raw->sname, DHCP_SNAME_LEN);
-		lease->server_name[DHCP_SNAME_LEN]='\0';
-		if (strchr(lease->server_name, '"') != NULL ||
-		    strchr(lease->server_name, '\\') != NULL) {
-			warning("dhcpoffer: server name contains invalid characters.");
-			free_client_lease(lease);
-			return (NULL);
+		for (i = 0; i < DHCP_SNAME_LEN; i++) {
+			if (packet->raw->sname[i] == '\0') {
+				break;
+			}
+			if (packet->raw->sname[i] < ' ' ||
+			    packet->raw->sname[i] == '"' ||
+			    packet->raw->sname[i] == '\\') {
+				warning("dhcpoffer: server name contains "
+				    "unsafe characters");
+				free(lease->server_name);
+				lease->server_name = NULL;
+				break;
+			}
+			lease->server_name[i] = packet->raw->sname[i];
+		}
+		/* Terminate and zero-pad */
+		if (lease->server_name != NULL) {
+			while (i < DHCP_SNAME_LEN + 1) {
+				lease->server_name[i++] = '\0';
+			}
 		}
 	}
 
-	/* Ditto for the filename. */
+	/* Ditto for the file name. */
 	if ((!packet->options[DHO_DHCP_OPTION_OVERLOAD].len ||
 	    !(packet->options[DHO_DHCP_OPTION_OVERLOAD].data[0] & 1)) &&
 	    packet->raw->file[0]) {
 		/* Don't count on the NUL terminator. */
 		lease->filename = malloc(DHCP_FILE_LEN + 1);
-		if (!lease->filename) {
-			warning("dhcpoffer: no memory for filename.");
+		if (lease->filename == NULL) {
+			warning("dhcpoffer: no memory for file name");
 			free_client_lease(lease);
 			return (NULL);
 		}
-		memcpy(lease->filename, packet->raw->file, DHCP_FILE_LEN);
-		lease->filename[DHCP_FILE_LEN]='\0';
-		if (strchr(lease->filename, '"') != NULL ||
-		    strchr(lease->filename, '\\') != NULL) {
-			warning("dhcpoffer: filename contains invalid characters.");
-			free_client_lease(lease);
-			return (NULL);
+		for (i = 0; i < DHCP_FILE_LEN; i++) {
+			if (packet->raw->file[i] == '\0') {
+				break;
+			}
+			if (packet->raw->file[i] < ' ' ||
+			    packet->raw->file[i] == '"') {
+				warning("dhcpoffer: file name contains "
+				    "unsafe characters");
+				free(lease->filename);
+				lease->filename = NULL;
+				break;
+			}
+			if (packet->raw->file[i] == '\\') {
+				/*
+				 * This is common in Windows-centric
+				 * environments.  Instead of rejecting,
+				 * silently convert to forward slash.
+				 */
+				packet->raw->file[i] = '/';
+			}
+			lease->filename[i] = packet->raw->file[i];
+		}
+		/* Terminate and zero-pad */
+		if (lease->filename != NULL) {
+			while (i < DHCP_FILE_LEN + 1) {
+				lease->filename[i++] = '\0';
+			}
 		}
 	}
 	return lease;
