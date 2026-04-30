@@ -114,6 +114,9 @@ struct uio;
 struct sbuf	*sbuf_uionew(struct sbuf *, struct uio *, int *);
 int		 sbuf_bcopyin(struct sbuf *, const void *, size_t);
 int		 sbuf_copyin(struct sbuf *, const void *, size_t);
+#ifdef DDB
+int		 sbuf_db_printf_drain(void *arg, const char *data, int len);
+#endif
 #endif
 __END_DECLS
 

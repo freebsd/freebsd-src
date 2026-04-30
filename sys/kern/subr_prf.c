@@ -1358,3 +1358,12 @@ sbuf_printf_drain(void *arg, const char *data, int len)
 
 	return (r);
 }
+
+#if defined(_KERNEL) && defined(DDB)
+int
+sbuf_db_printf_drain(void *arg __unused, const char *data, int len)
+{
+
+	return (db_printf("%.*s", len, data));
+}
+#endif

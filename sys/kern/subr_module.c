@@ -28,6 +28,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker.h>
@@ -38,6 +41,10 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 /*
  * Preloaded module support
@@ -607,3 +614,16 @@ SYSCTL_PROC(_debug, OID_AUTO, dump_modinfo,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_preload_dump, "A",
     "pretty-print the bootloader metadata");
+
+#ifdef DDB
+DB_SHOW_COMMAND_FLAGS(preload, db_show_preload, DB_CMD_MEMSAFE)
+{
+	struct sbuf sb;
+	char buffer[128];
+
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	sbuf_set_drain(&sb, sbuf_db_printf_drain, NULL);
+	preload_dump_internal(&sb);
+	sbuf_finish(&sb);
+}
+#endif
