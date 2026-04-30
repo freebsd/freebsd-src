@@ -745,7 +745,7 @@ hwpstate_settings(device_t dev, struct cf_setting *sets, int *count)
 static int
 hwpstate_type_cppc(device_t dev, int *type)
 {
-	*type |= CPUFREQ_TYPE_ABSOLUTE | CPUFREQ_FLAG_INFO_ONLY |
+	*type = CPUFREQ_TYPE_ABSOLUTE | CPUFREQ_FLAG_INFO_ONLY |
 	    CPUFREQ_FLAG_UNCACHED;
 	return (0);
 }
