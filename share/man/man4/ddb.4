@@ -24,7 +24,7 @@
 .\" any improvements or extensions that they make and grant Carnegie Mellon
 .\" the rights to redistribute these changes.
 .\"
-.Dd October 31, 2025
+.Dd April 30, 2026
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1008,6 +1008,11 @@ Names of spin locks held.
 .Pp
 .It Ic show Cm pgrpdump
 Dump process groups present within the system.
+.\"
+.Pp
+.It Ic show Cm preload
+Pretty-print the metadata passed to the kernel by
+.Xr loader 8 .
 .\"
 .Pp
 .It Ic show Cm prison Op Ar addr
