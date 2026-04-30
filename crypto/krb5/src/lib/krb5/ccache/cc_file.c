@@ -1311,6 +1311,14 @@ fcc_replace(krb5_context context, krb5_ccache id, krb5_principal princ,
         goto errno_cleanup;
 
     st = rename(tmpname, data->filename);
+#ifdef _WIN32
+    /* Windows cannot rename over an existing file under most circumstances.
+     * Try ReplaceFile() (which only works if the destination file exists). */
+    if (st != 0) {
+        if (ReplaceFile(data->filename, tmpname, NULL, 0, NULL, NULL))
+            st = 0;
+    }
+#endif
     if (st != 0)
         goto errno_cleanup;
     tmpfile_exists = FALSE;
