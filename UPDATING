@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260430:
+	13.5-RELEASE-p14 EN-26:11.dhclient
+
+	dhclient(8) lease validation is too strict. [EN-26:11.dhclient]
+
 20260429:
 	13.5-RELEASE-p13 SA-26:12.dhclient
 			SA-26:13.exec
