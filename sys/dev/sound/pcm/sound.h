@@ -204,7 +204,6 @@ struct snddev_info {
 	} channels;
 	unsigned playcount, reccount, pvchancount, rvchancount;
 	unsigned flags;
-	unsigned int bufsz;
 	void *devinfo;
 	device_t dev;
 	char status[SND_STATUSLEN];
