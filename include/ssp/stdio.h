@@ -36,6 +36,10 @@
 
 #include <ssp/ssp.h>
 
+#if __SSP_FORTIFY_LEVEL > 0 && __EXT1_VISIBLE
+#include <sys/stdint.h>
+#endif
+
 __BEGIN_DECLS
 #if __SSP_FORTIFY_LEVEL > 0
 #if __POSIX_VISIBLE
@@ -51,7 +55,31 @@ __ssp_redirect(size_t, fread, (void *__restrict __buf, size_t __len,
 __ssp_redirect(size_t, fread_unlocked, (void *__restrict __buf, size_t __len,
     size_t __nmemb, FILE *__restrict __fp), (__buf, __len, __nmemb, __fp));
 #if __EXT1_VISIBLE
-__ssp_redirect(char *, gets_s, (char *__buf, rsize_t __len), (__buf, __len));
+__ssp_redirect_raw_impl(char *, gets_s, gets_s,
+    (char *buf, rsize_t len))
+{
+	char *retbuf;
+	size_t bufsz;
+	int need_fail = 0;
+
+	/*
+	 * If we would have overwritten our buffer, we want to fail the check
+	 * only if these arguments wouldn't have triggered a constraint
+	 * violation.
+	 */
+	bufsz = __ssp_bos(buf);
+	if (bufsz != (size_t)-1 && (size_t)len > bufsz) {
+		if (len <= RSIZE_MAX)
+			__chk_fail();
+		need_fail = 1;
+	}
+
+	retbuf = __ssp_real(gets_s)(buf, len);
+	if (need_fail && retbuf != NULL)
+		__chk_fail();
+	return (retbuf);
+}
+
 #endif /* __EXT1_VISIBLE */
 __ssp_redirect_raw(char *, tmpnam, tmpnam, (char *__buf), (__buf), 1,
     __ssp_bos, L_tmpnam);
