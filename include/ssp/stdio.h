@@ -75,6 +75,13 @@ __ssp_redirect_raw_impl(char *, gets_s, gets_s,
 	}
 
 	retbuf = __ssp_real(gets_s)(buf, len);
+
+	/*
+	 * If the implementation did *not* handle the case correctly, then
+	 * there's a risk that they could have corrupted us into not failing
+	 * here.  We have tests that cover this, so we'll just count on finding
+	 * a broken implementation early on in a less hostile environmnt.
+	 */
 	if (need_fail && retbuf != NULL)
 		__chk_fail();
 	return (retbuf);
