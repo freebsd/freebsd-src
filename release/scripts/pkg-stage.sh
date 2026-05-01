@@ -11,7 +11,7 @@ export REPO_AUTOUPDATE="NO"
 export ROOTDIR="$PWD/dvd"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
-_DVD_PACKAGES_MAIN="
+_DVD_PACKAGES="
 comms/usbmuxd
 devel/git@lite
 editors/emacs@nox
@@ -19,6 +19,7 @@ editors/vim
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
+net/wifi-firmware-kmod@release
 ports-mgmt/pkg
 shells/bash
 shells/zsh
@@ -32,10 +33,6 @@ x11/gnome
 x11/sddm
 x11/xorg
 x11-wm/sway
-"
-
-_DVD_PACKAGES_KMODS="
-net/wifi-firmware-kmod@release
 "
 
 # If NOPORTS is set for the release, do not attempt to build pkg(8).
@@ -77,25 +74,18 @@ if [ -n "${PKG_ALTABI}" ]; then
 	ln -s ${PKG_ABI} ${ROOTDIR}/packages/${PKG_ALTABI}
 fi
 
-# Ensure the ports listed in _DVD_PACKAGES_* exist to sanitize the
+# Ensure the ports listed in _DVD_PACKAGES exist to sanitize the
 # final list.
-for _P in ${_DVD_PACKAGES_MAIN}; do
+for _P in ${_DVD_PACKAGES}; do
 	if [ -d "${PORTSDIR}/${_P%%@*}" ]; then
-		DVD_PACKAGES_MAIN="${DVD_PACKAGES_MAIN} ${_P}"
-	else
-		echo "*** Skipping nonexistent port: ${_P%%@*}"
-	fi
-done
-for _P in ${_DVD_PACKAGES_KMODS}; do
-	if [ -d "${PORTSDIR}/${_P%%@*}" ]; then
-		DVD_PACKAGES_KMODS="${DVD_PACKAGES_KMODS} ${_P}"
+		DVD_PACKAGES="${DVD_PACKAGES} ${_P}"
 	else
 		echo "*** Skipping nonexistent port: ${_P%%@*}"
 	fi
 done
 
 # Make sure the package list is not empty.
-if [ -z "${DVD_PACKAGES_MAIN}${DVD_PACKAGES_KMODS}" ]; then
+if [ -z "${DVD_PACKAGES}" ]; then
 	echo "*** The package list is empty."
 	echo "*** Something is very wrong."
 	# Exit '0' so the rest of the build process continues
@@ -106,8 +96,7 @@ fi
 # Print pkg(8) information to make debugging easier.
 ${PKGCMD} -vv
 ${PKGCMD} update -f
-${PKGCMD} fetch -o ${PKG_REPODIR} -r release -d ${DVD_PACKAGES_MAIN}
-${PKGCMD} fetch -o ${PKG_REPODIR} -r release-kmods -d ${DVD_PACKAGES_KMODS}
+${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 
 # Create the 'Latest/pkg.pkg' symlink so 'pkg bootstrap' works
 # using the on-disc packages.
