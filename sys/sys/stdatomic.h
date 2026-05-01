@@ -86,11 +86,17 @@
  * 7.17.2 Initialization.
  */
 
+#if __ISO_C_VISIBLE < 2023 || defined(__cplusplus)
 #if defined(__CLANG_ATOMICS)
 #define	ATOMIC_VAR_INIT(value)		(value)
-#define	atomic_init(obj, value)		__c11_atomic_init(obj, value)
 #else
 #define	ATOMIC_VAR_INIT(value)		{ .__val = (value) }
+#endif
+#endif
+
+#if defined(__CLANG_ATOMICS)
+#define	atomic_init(obj, value)		__c11_atomic_init(obj, value)
+#else
 #define	atomic_init(obj, value)		((void)((obj)->__val = (value)))
 #endif
 
