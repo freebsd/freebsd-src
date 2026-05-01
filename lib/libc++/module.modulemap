@@ -2433,10 +2433,6 @@ module std_stddef_h [system] {
   // <stddef.h> supports being included multiple times with different pre-defined macros
   textual header "stddef.h"
 }
-module std_stdint_h [system] {
-  // <stdint.h> supports being included multiple times with different pre-defined macros
-  textual header "stdint.h"
-}
 module std_stdio_h [system] {
   // <stdio.h> supports being included multiple times with different pre-defined macros
   textual header "stdio.h"
