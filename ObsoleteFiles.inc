@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260430: Provide stdint.h macros unconditionally
+OLD_FILES+=usr/include/c++/v1/stdint.h
+
 # 20260426: Regenerate trust store
 OLD_FILES+=usr/share/certs/trusted/Entrust_net_Premium_2048_Secure_Server_CA.pem
 OLD_FILES+=usr/share/certs/trusted/AffirmTrust_Premium.pem
