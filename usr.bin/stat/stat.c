@@ -650,6 +650,7 @@ format1(const struct stat *st,
 	struct timespec ts;
 	struct tm *tm;
 	int l, small, formats;
+	mode_t dtype;
 
 	tsp = NULL;
 	formats = 0;
@@ -665,9 +666,16 @@ format1(const struct stat *st,
 		small = (sizeof(st->st_dev) == 4);
 		data = (what == SHOW_st_dev) ? st->st_dev : st->st_rdev;
 #if HAVE_DEVNAME
-		sdata = devname(what == SHOW_st_dev ? st->st_dev :
-		    st->st_rdev, S_ISCHR(st->st_mode) ? S_IFCHR :
-		    (S_ISBLK(st->st_mode) ? S_IFBLK : 0));
+		switch (what) {
+		case SHOW_st_dev:
+			dtype = S_IFCHR;
+			break;
+		case SHOW_st_rdev:
+			dtype = st->st_mode & (S_IFCHR | S_IFBLK);
+			break;
+		}
+
+		sdata = devname(data, dtype);
 #endif /* HAVE_DEVNAME */
 		if (hilo == HIGH_PIECE) {
 			data = major(data);
