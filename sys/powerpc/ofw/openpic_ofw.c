@@ -125,6 +125,7 @@ openpic_ofw_attach(device_t dev)
 	if (ofw_bus_is_compatible(dev, "fsl,mpic")) {
 		sc->sc_quirks = OPENPIC_QUIRK_SINGLE_BIND;
 		sc->sc_quirks |= OPENPIC_QUIRK_HIDDEN_IRQS;
+		sc->sc_quirks |= OPENPIC_QUIRK_WHOAMI_WORKS;
 	}
 
 	return (openpic_common_attach(dev, xref));
