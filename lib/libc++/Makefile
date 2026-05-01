@@ -232,7 +232,6 @@ STD_HEADERS+=	stdatomic.h
 STD_HEADERS+=	stdbool.h
 STD_HEADERS+=	stddef.h
 STD_HEADERS+=	stdexcept
-STD_HEADERS+=	stdint.h
 STD_HEADERS+=	stdio.h
 STD_HEADERS+=	stdlib.h
 STD_HEADERS+=	stop_token

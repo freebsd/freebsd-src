@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260430: Provide stdint.h macros unconditionally
+OLD_FILES+=usr/include/c++/v1/stdint.h
+
 # 20260425: new clang import which bumps version from 19 to 21
 OLD_FILES+=usr/lib/clang/19/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/19/include/__clang_cuda_cmath.h
