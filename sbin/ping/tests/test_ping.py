@@ -12,7 +12,31 @@ from typing import List
 from typing import Optional
 
 logging.getLogger("scapy").setLevel(logging.CRITICAL)
-import scapy.all as sc
+try:
+    import scapy.all as sc
+except ImportError as e:
+    # Fake scapy well enough to be able to list test cases
+    from types import SimpleNamespace
+    sc = SimpleNamespace(
+        scapy=SimpleNamespace(
+            fields=SimpleNamespace(
+                SourceIPField=0,
+                ByteEnumField=0,
+                MultiEnumField=0,
+                BitField=0,
+                FlagsField=0,
+                ByteField=0,
+                IPField=0,
+                ShortField=0,
+            ),
+            layers=SimpleNamespace(
+                inet=SimpleNamespace(
+                    DestIPField=0,
+                    ICMPTimeStampField=0,
+                )
+            )
+        )
+    )
 
 
 def build_response_packet(echo, ip, icmp, oip_ihl, special):
