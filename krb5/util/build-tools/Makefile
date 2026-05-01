@@ -8,6 +8,7 @@
 #
 
 .include "../Makefile.inc"
+.include "../../Makefile.pc"
 
 SCRIPTS=	krb5-config.sh
 BINDIR?=	/usr/bin
