@@ -114,12 +114,12 @@
 #define HAVE_PTHREAD_SETNAME_NP 1
 
 /* Define to 1 if you have the `pthread_get_name_np' function. */
-#if !defined(__linux__)
+#if defined(__FreeBSD__)
 #define HAVE_PTHREAD_GET_NAME_NP 1
 #endif
 
 /* Define to 1 if you have the `pthread_set_name_np' function. */
-#if !defined(__linux__)
+#if defined(__FreeBSD__)
 #define HAVE_PTHREAD_SET_NAME_NP 1
 #endif
 
