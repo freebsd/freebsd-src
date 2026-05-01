@@ -253,6 +253,40 @@ inject_reply_cleanup()
 	ifconfig `cat tun.txt` destroy
 }
 
+atf_test_case timestamp_origin
+timestamp_origin_head()
+{
+	atf_set "descr" "ICMP Originate Timestamp"
+}
+timestamp_origin_body()
+{
+	require_ipv4
+	# Run ping timestamp
+	out=$(ping -Mt -c1 127.0.0.1)
+
+	# Extract tso and tsr
+	tso=$(echo "$out" | sed -n 's/.*tso=\([0-9:]*\).*/\1/p')
+	tsr=$(echo "$out" | sed -n 's/.*tsr=\([0-9:]*\).*/\1/p')
+
+	atf_check test -n "$tso"
+	atf_check test -n "$tsr"
+
+	# Convert tso and tsr from HH:MM:SS to seconds
+	tso_s=`date -jf %H:%M:%S $tso`
+	tsr_s=`date -jf %H:%M:%S $tsr`
+
+	diff=$((tso_s - tsr_s))
+	# Tolerate negative time difference between the sender and receiver
+	if [ $diff -lt 0 ]; then
+		diff=$(( -diff ))
+	fi
+
+	# Tolerate 2 seconds difference
+	if [ $diff -gt 2 ]; then
+		atf_fail "tso ($tso) differs from tsr ($tsr) by $diff seconds"
+	fi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case ping_c1_s56_t1
@@ -271,6 +305,7 @@ atf_init_test_cases()
 	atf_add_test_case inject_opts
 	atf_add_test_case inject_pip
 	atf_add_test_case inject_reply
+	atf_add_test_case timestamp_origin
 }
 
 check_ping_statistics()

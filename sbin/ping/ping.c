@@ -1029,9 +1029,16 @@ pinger(void)
 		 */
 		tv32.tv32_sec = (uint32_t)htonl(now.tv_sec);
 		tv32.tv32_nsec = (uint32_t)htonl(now.tv_nsec);
-		if (options & F_TIME)
+		if (options & F_TIME) {
+			/*
+			 * However, per RFC 792 the Originate Timestamp (otime)
+			 * should be milliseconds since midnight UTC. Something,
+			 * that CLOCK_MONOTONIC does not guarantee.
+			 */
+			(void)clock_gettime(CLOCK_REALTIME, &now);
 			icp.icmp_otime = htonl((now.tv_sec % (24*60*60))
 				* 1000 + now.tv_nsec / 1000000);
+		}
 		if (timing)
 			bcopy((void *)&tv32,
 			    (void *)&outpack[ICMP_MINLEN + phdr_len],
