@@ -173,14 +173,14 @@
 
 #ifdef __LP64__
 /* Limits of ptrdiff_t. */
-#define	PTRDIFF_MIN	INT64_MIN	
+#define	PTRDIFF_MIN	INT64_MIN
 #define	PTRDIFF_MAX	INT64_MAX
 
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT64_MAX
 #else
 /* Limits of ptrdiff_t. */
-#define	PTRDIFF_MIN	INT32_MIN	
+#define	PTRDIFF_MIN	INT32_MIN
 #define	PTRDIFF_MAX	INT32_MAX
 
 /* Limit of size_t. */
