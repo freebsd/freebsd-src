@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _STDATOMIC_H_
-#define	_STDATOMIC_H_
+#ifndef __STDC_VERSION_STDATOMIC_H__
+#define __STDC_VERSION_STDATOMIC_H__	202311L
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -421,4 +421,4 @@ atomic_flag_clear(volatile atomic_flag *__object)
 #undef __bool_locally_defined
 #endif
 
-#endif /* !_STDATOMIC_H_ */
+#endif /* !__STDC_VERSION_STDATOMIC_H__ */
