@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
 .\"
-.Dd January 26, 2022
+.Dd June 8, 2026
 .Dt EXECVE 2
 .Os
 .Sh NAME
@@ -231,6 +231,17 @@ is to use the
 .Dv O_EXEC
 flag when opening
 .Fa fd .
+Opening without
+.Dv O_EXEC
+may be necessary in the case of executing an interpreted program, as the
+interpreter will not be able to acquire a descriptor to the script for reading
+without mounting
+.Xr fdescfs 4
+on
+.Pa /dev/fd
+with the
+.Cm nodup
+option.
 Note that the file to be executed can not be open for writing.
 .Sh RETURN VALUES
 As the
