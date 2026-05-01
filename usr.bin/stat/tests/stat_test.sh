@@ -25,6 +25,8 @@
 # SUCH DAMAGE.
 #
 
+: ${CHKPATH:="mnt"}
+
 atf_test_case F_flag
 F_flag_head()
 {
@@ -301,6 +303,36 @@ x_flag_body()
 	done
 }
 
+atf_test_case devname cleanup
+devname_head()
+{
+	atf_set	"descr" "Verify that %Sd outputs a device name"
+}
+devname_body()
+{
+	local devname devpath
+
+	atf_check -o save:dev mdconfig -t malloc -s 16M
+	read devname < dev
+	devpath="/dev/$devname"
+	atf_check -o not-empty newfs "$devpath"
+
+	atf_check mkdir "$CHKPATH"
+	atf_check mount "$devpath" "$CHKPATH"
+
+	atf_check -o inline:"$devname\n" stat -f '%Sd' "$CHKPATH"
+	atf_check -o inline:"$devname\n" stat -f '%Sr' "$devpath"
+}
+devname_cleanup()
+{
+	if [ -d "$CHKPATH" ]; then
+		umount "$CHKPATH" || true
+	fi
+	if [ -f dev ]; then
+		mdconfig -d -u $(cat dev) || true
+	fi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case F_flag
@@ -315,4 +347,5 @@ atf_init_test_cases()
 	atf_add_test_case s_flag
 	atf_add_test_case t_flag
 	atf_add_test_case x_flag
+	atf_add_test_case devname
 }
