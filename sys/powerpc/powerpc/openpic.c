@@ -469,8 +469,23 @@ openpic_ap_init(device_t dev)
 	if (dev != root_pic)
 		return;
 
+	/*
+	 * Not everything implements the full OpenPIC specification.
+	 *
+	 * Notably the CPC945 Bridge and Memory Controller User Manual, which
+	 * is in the PPC 970 (ie Apple G5) CPUs, calls out a set of
+	 * deviations from the specification.  Thus we can't just assume
+	 * WHOAMI is available everywhere.
+	 *
+	 * See 9.5.3.3 - Deviations from the OpenPIC specification.
+	 * Notably - the WhoAmI register is actually 0xF8000050 for all CPUs.
+	 */
+
 	sc = device_get_softc(dev);
-	PCPU_SET(pic, bus_read_4(sc->sc_memr, OPENPIC_WHOAMI));
+	if (sc->sc_quirks & OPENPIC_QUIRK_WHOAMI_WORKS)
+		PCPU_SET(pic, bus_read_4(sc->sc_memr, OPENPIC_WHOAMI));
+	else
+		PCPU_SET(pic, PCPU_GET(cpuid));
 }
 
 static device_method_t openpic_methods[] = {
