@@ -141,6 +141,8 @@ typedef enum {
 	memory_order_seq_cst = __ATOMIC_SEQ_CST
 } memory_order;
 
+#define	kill_dependency(y)		(y)
+
 /*
  * 7.17.4 Fences.
  */
