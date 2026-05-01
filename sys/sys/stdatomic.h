@@ -101,9 +101,10 @@
 #endif
 
 /*
- * Clang and recent GCC both provide predefined macros for the memory
- * orderings.  If we are using a compiler that doesn't define them, use the
- * clang values - these will be ignored in the fallback path.
+ * 7.17.3 Order and consistency.
+ *
+ * The memory_order_* constants that denote the barrier behaviour of the
+ * atomic operations.
  */
 
 #ifndef __ATOMIC_RELAXED
@@ -124,13 +125,6 @@
 #ifndef __ATOMIC_SEQ_CST
 #define __ATOMIC_SEQ_CST		5
 #endif
-
-/*
- * 7.17.3 Order and consistency.
- *
- * The memory_order_* constants that denote the barrier behaviour of the
- * atomic operations.
- */
 
 typedef enum {
 	memory_order_relaxed = __ATOMIC_RELAXED,
