@@ -42,8 +42,6 @@
 
 #include <machine/_limits.h>
 
-#if !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS)
-
 #define	INT8_C(c)		(c)
 #define	INT16_C(c)		(c)
 #define	INT32_C(c)		(c)
@@ -62,10 +60,6 @@
 
 #define	INTMAX_C(c)		INT64_C(c)
 #define	UINTMAX_C(c)		UINT64_C(c)
-
-#endif /* !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS) */
-
-#if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS)
 
 /*
  * ISO/IEC 9899:1999
@@ -185,7 +179,5 @@
 /* Limits of wint_t. */
 #define	WINT_MIN	INT32_MIN
 #define	WINT_MAX	INT32_MAX
-
-#endif /* !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS) */
 
 #endif /* !_MACHINE__STDINT_H_ */
