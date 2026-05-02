@@ -825,6 +825,7 @@ vdev_rebuild_thread(void *arg)
 		uint64_t limit = (arc_c_max / 2) / MAX(rvd->vdev_children, 1);
 		vr->vr_bytes_inflight_max = MIN(limit, MAX(1ULL << 20,
 		    zfs_rebuild_vdev_limit * vd->vdev_children));
+		vr->vr_last_txg = 0;
 
 		/*
 		 * Removal of vdevs from the vdev tree may eliminate the need
@@ -916,7 +917,9 @@ vdev_rebuild_thread(void *arg)
 		 * to avoid any interfering allocations. Otherwise, we might
 		 * see checksum errors after scrub.
 		 */
-		txg_wait_synced(dp, vr->vr_last_txg);
+		if (vr->vr_last_txg != 0)
+			txg_wait_synced(dp, vr->vr_last_txg);
+
 		metaslab_enable(msp, B_FALSE, B_FALSE);
 		spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 
