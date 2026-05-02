@@ -272,7 +272,7 @@ CFLAGS+= \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h \
 	-I${SRCTOP}/sys/modules/zfs \
 	-I${ZFSTOP}/include/os/freebsd/zfs \
-	-DLIB_ZPOOL_BUILD -DZFS_DEBUG \
+	-DLIB_ZPOOL_BUILD -DZFS_DEBUG -DXXH_INLINE_ALL \
 
 # XXX: pthread doesn't have mutex_owned() equivalent, so we need to look
 #      into libthr private structures. That's sooo evil, but it's only for
