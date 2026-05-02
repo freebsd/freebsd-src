@@ -90,7 +90,8 @@ struct rt_metrics {
 	u_long	rmx_pksent;	/* packets sent using this route */
 	u_long	rmx_weight;	/* route weight */
 	u_long	rmx_nhidx;	/* route nexhop index */
-	u_long	rmx_filler[2];	/* will be used for T/TCP later */
+	u_long	rmx_metric;	/* route metric */
+	u_long	rmx_filler[1];
 };
 
 /*
@@ -103,7 +104,8 @@ struct rt_metrics {
 
 /* default route weight */
 #define	RT_DEFAULT_WEIGHT	1
-#define	RT_MAX_WEIGHT		16777215	/* 3 bytes */
+#define	RT_DEFAULT_METRIC	1
+#define	RT_WILDCARD_METRIC	0
 
 /*
  * Keep a generation count of routing table, incremented on route addition,
@@ -300,6 +302,7 @@ struct rt_msghdr {
 #define RTV_RTT		0x40	/* init or lock _rtt */
 #define RTV_RTTVAR	0x80	/* init or lock _rttvar */
 #define RTV_WEIGHT	0x100	/* init or lock _weight */
+#define RTV_METRIC	0x200	/* init or lock _metric */
 
 #ifndef NETLINK_COMPAT
 
