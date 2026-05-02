@@ -1254,7 +1254,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct mount *mp;
 	struct nfsmount *nmp;
 
-	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
+	CURVNET_SET(TD_TO_VNET(td));
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
 		if (error)
@@ -1374,7 +1374,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		error = EINVAL;
 	}
 out:
-	NFSD_CURVNET_RESTORE();
+	CURVNET_RESTORE();
 	return (error);
 }
 
