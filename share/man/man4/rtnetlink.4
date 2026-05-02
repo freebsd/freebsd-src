@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 1, 2022
+.Dd May 15, 2026
 .Dt RTNETLINK 4
 .Os
 .Sh NAME
@@ -178,6 +178,8 @@ Default route table is
 .Dv RT_TABLE_MAIN .
 To explicitly specify "all tables" one needs to set the value to
 .Dv RT_TABLE_UNSPEC .
+.It Dv RTA_PRIORITY
+(uint32_t) metric of the nexthop.
 .It Dv RTA_EXPIRES
 (uint32_t) seconds till path expiration.
 .It Dv RTA_NH_ID
