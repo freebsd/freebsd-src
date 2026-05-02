@@ -58,6 +58,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/ktls.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -440,15 +441,19 @@ got_reply:
 		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
 		 */
-		else if (stat == RPC_AUTHERROR)
+		else if (stat == RPC_AUTHERROR) {
 			/* maybe our credentials need to be refreshed ... */
+			CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 			if (nrefreshes > 0 && AUTH_REFRESH(auth, &reply_msg)) {
+				CURVNET_RESTORE();
 				nrefreshes--;
 				XDR_DESTROY(&xdrs);
 				mtx_lock(&ct->ct_lock);
 				goto call_again;
 			}
+			CURVNET_RESTORE();
 			/* end of unsuccessful completion */
+		}
 		/* end of valid reply message */
 	} else
 		errp->re_status = stat = RPC_CANTDECODERES;
