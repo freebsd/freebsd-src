@@ -134,7 +134,7 @@ Set to a non-zero value to enable.
 Slack value in microseconds passed to
 .Fn schedule_hrtimeout_range
 when a condition variable times out.
-A non-zero value lets the kernel coalesce the wakeup with other timers
+A non-zero value enforces the kernel coalesce the wakeup with other timers
 to reduce wakeup count, at the cost of some additional sleep duration.
 The maximum is
 .Sy 1000 ,
