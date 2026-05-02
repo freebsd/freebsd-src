@@ -4167,7 +4167,7 @@ nfsrv_nfsuserdport(struct nfsuserd_args *nargs, NFSPROC_T *p)
 	rp->nr_sotype = SOCK_DGRAM;
 	rp->nr_soproto = IPPROTO_UDP;
 	rp->nr_lock = (NFSR_RESERVEDPORT | NFSR_LOCALHOST);
-	rp->nr_cred = NULL;
+	rp->nr_cred = crhold(curthread->td_ucred);
 	rp->nr_prog = RPCPROG_NFSUSERD;
 	error = 0;
 	switch (nargs->nuserd_family) {
@@ -4235,6 +4235,7 @@ nfsrv_nfsuserddelport(void)
 	NFSUNLOCKNAMEID();
 	newnfs_disconnect(NULL, &NFSD_VNET(nfsrv_nfsuserdsock));
 	free(NFSD_VNET(nfsrv_nfsuserdsock).nr_nam, M_SONAME);
+	crfree(VNET(nfsrv_nfsuserdsock).nr_cred);
 	NFSLOCKNAMEID();
 	NFSD_VNET(nfsrv_nfsuserd) = NOTRUNNING;
 	NFSUNLOCKNAMEID();
