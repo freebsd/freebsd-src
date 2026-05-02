@@ -254,6 +254,10 @@ tests = ['zfs_inherit_001_neg', 'zfs_inherit_002_neg', 'zfs_inherit_003_pos',
     'zfs_inherit_mountpoint']
 tags = ['functional', 'cli_root', 'zfs_inherit']
 
+[tests/functional/cli_root/zfs_list]
+tests = ['zfs_list_009_pos']
+tags = ['functional', 'cli_root', 'zfs_list']
+
 [tests/functional/cli_root/zfs_load-key]
 tests = ['zfs_load-key', 'zfs_load-key_all', 'zfs_load-key_file',
     'zfs_load-key_https', 'zfs_load-key_location', 'zfs_load-key_noop',
@@ -912,7 +916,7 @@ tags = ['functional', 'redacted_send']
 tests = ['raidz_001_neg', 'raidz_002_pos', 'raidz_expand_001_pos',
     'raidz_expand_002_pos', 'raidz_expand_003_neg', 'raidz_expand_003_pos',
     'raidz_expand_004_pos', 'raidz_expand_005_pos', 'raidz_expand_006_neg',
-    'raidz_expand_007_neg']
+    'raidz_expand_007_neg', 'raidz_zinject']
 tags = ['functional', 'raidz']
 timeout = 1200
 

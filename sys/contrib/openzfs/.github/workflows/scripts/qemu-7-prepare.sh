@@ -51,6 +51,11 @@ cd $RESPATH
 
 # prepare result files for summary
 for ((i=1; i<=VMs; i++)); do
+
+  # no results, VM either didn't start or was unreachable, create
+  # the missing directory which is expected by subsequent steps
+  test -d vm$i || mkdir -p vm$i
+
   file="vm$i/build-stderr.txt"
   test -s $file && mv -f $file build-stderr.txt
 
@@ -61,12 +66,14 @@ for ((i=1; i<=VMs; i++)); do
   test -s $file && mv -f $file uname.txt
 
   file="vm$i/tests-exitcode.txt"
-  if [ ! -s $file ]; then
-    # XXX - add some tests for kernel panic's here
-    # tail -n 80 vm$i/console.txt | grep XYZ
-    echo 1 > $file
+  if [ ! -s "$file" ]; then
+    # Print in bold red
+    echo -e "\033[1;31mVM$i didn't finish ZTS and may have crashed!\033[0m" >> extra
+
+    # ENOENT=2
+    echo 2 > "$file"
   fi
-  rv=$(cat vm$i/tests-exitcode.txt)
+  rv=$(cat "$file")
   test $rv != 0 && touch /tmp/have_failed_tests
 
   file="vm$i/current/log"
@@ -89,6 +96,14 @@ done
 if [ -s summary ]; then
   $MERGE summary | grep -v '^/' > summary.txt
   $MERGE summary | $BASE/scripts/zfs-tests-color.sh > /tmp/summary.txt
+
+  # Add in additional 'extra' text at the end, if file is present.
+  if [ -s extra ] ; then
+    echo "" >> /tmp/summary.txt
+    cat extra >> /tmp/summary.txt
+    rm -f extra
+  fi
+
   rm -f summary
 else
   touch summary.txt /tmp/summary.txt
