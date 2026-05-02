@@ -458,6 +458,7 @@ rib_add_default_route(uint32_t fibnum, int family, struct ifnet *ifp,
 	nhop_set_transmit_ifp(nh, ifp);
 	nhop_set_src(nh, ifa);
 	nhop_set_pxtype_flag(nh, NHF_DEFAULT);
+	nhop_set_metric(nh, RT_DEFAULT_METRIC);
 	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
 
 	if (error == 0)

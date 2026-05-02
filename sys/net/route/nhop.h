@@ -219,6 +219,8 @@ uint32_t nhop_get_fibnum(const struct nhop_object *nh);
 void nhop_set_fibnum(struct nhop_object *nh, uint32_t fibnum);
 uint32_t nhop_get_expire(const struct nhop_object *nh);
 void nhop_set_expire(struct nhop_object *nh, uint32_t expire);
+uint32_t nhop_get_metric(const struct nhop_object *nh);
+void nhop_set_metric(struct nhop_object *nh, uint32_t metric);
 struct rib_head *nhop_get_rh(const struct nhop_object *nh);
 
 struct nhgrp_object;
