@@ -149,7 +149,7 @@ enum rtattr_type_t {
 	NL_RTA_IIF		= 3, /* not supported */
 	NL_RTA_OIF		= 4, /* u32, transmit ifindex */
 	NL_RTA_GATEWAY		= 5, /* binary: IPv4/IPv6 gateway */
-	NL_RTA_PRIORITY		= 6, /* not supported */
+	NL_RTA_PRIORITY		= 6, /* u32, path metric */
 	NL_RTA_PREFSRC		= 7, /* not supported */
 	NL_RTA_METRICS		= 8, /* nested, list of NL_RTAX* attrs */
 	NL_RTA_MULTIPATH	= 9, /* binary, array of struct rtnexthop */
