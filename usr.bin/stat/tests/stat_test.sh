@@ -307,6 +307,7 @@ atf_test_case devname cleanup
 devname_head()
 {
 	atf_set	"descr" "Verify that %Sd outputs a device name"
+	atf_set "require.user" "root"
 }
 devname_body()
 {
