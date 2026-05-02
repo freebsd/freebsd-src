@@ -50,6 +50,7 @@ ssthresh
 static
 sticky
 weight
+metric
 x25
 xns
 xresolve

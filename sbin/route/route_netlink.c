@@ -270,6 +270,8 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 	if (rt_metrics->rmx_expire > 0)
 		snl_add_msg_attr_u32(&nw, NL_RTA_EXPIRES, rt_metrics->rmx_expire);
 
+	if (rt_metrics->rmx_metric > 0)
+		snl_add_msg_attr_u32(&nw, NL_RTA_PRIORITY, rt_metrics->rmx_metric);
 	if (rt_metrics->rmx_weight > 0)
 		snl_add_msg_attr_u32(&nw, NL_RTA_WEIGHT, rt_metrics->rmx_weight);
 
