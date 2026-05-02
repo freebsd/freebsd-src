@@ -1504,6 +1504,7 @@ nfsrv_zapclient(struct nfsclient *clp, NFSPROC_T *p)
 	newnfs_disconnect(NULL, &clp->lc_req);
 	free(clp->lc_req.nr_nam, M_SONAME);
 	NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+	crfree(clp->lc_req.nr_cred);
 	free(clp->lc_stateid, M_NFSDCLIENT);
 	free(clp, M_NFSDCLIENT);
 	NFSLOCKSTATE();

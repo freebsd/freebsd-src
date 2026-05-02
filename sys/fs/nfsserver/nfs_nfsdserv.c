@@ -4269,7 +4269,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	/* Allocated large enough for an AF_INET or AF_INET6 socket. */
 	clp->lc_req.nr_nam = malloc(sizeof(struct sockaddr_in6), M_SONAME,
 	    M_WAITOK | M_ZERO);
-	clp->lc_req.nr_cred = NULL;
+	clp->lc_req.nr_cred = crhold(nd->nd_cred);
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
 	clp->lc_idlen = idlen;
 	error = nfsrv_mtostr(nd, clp->lc_id, idlen);
@@ -4359,6 +4359,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (clp) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
@@ -4377,6 +4378,7 @@ nfsmout:
 	if (clp) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
@@ -4634,7 +4636,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 #endif
 	}
-	clp->lc_req.nr_cred = NULL;
+	clp->lc_req.nr_cred = crhold(nd->nd_cred);
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
 	clp->lc_idlen = idlen;
 	error = nfsrv_mtostr(nd, clp->lc_id, idlen);
@@ -4707,6 +4709,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (clp != NULL) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
@@ -4750,6 +4753,7 @@ nfsmout:
 	if (clp != NULL) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
