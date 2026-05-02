@@ -22,42 +22,9 @@
 #
 
 #
-# Copyright (c) 2024, Klara Inc.
-#
-
-#
-# TODO: this only checks that the set of valid device fault types. It should
-#       check all the other options, and that they work, and everything really.
+# Copyright (c) 2026 by Delphix. All rights reserved.
 #
 
 . $STF_SUITE/include/libtest.shlib
 
-verify_runnable "global"
-
-log_assert "Check zinject parameters."
-
-log_onexit cleanup
-
-DISK1=${DISKS%% *}
-
-function cleanup
-{
-	zinject -c all
-	default_cleanup_noexit
-}
-
-function test_device_fault
-{
-	typeset -a errno=("io" "decompress" "decrypt" "nxio" "dtl" "corrupt" "noop" "io-prefail")
-	for e in ${errno[@]}; do
-		log_must eval \
-		    "zinject -d $DISK1 -e $e -T read -f 0.001 $TESTPOOL"
-	done
-	zinject -c all
-}
-
-default_mirror_setup_noexit $DISKS
-
-test_device_fault
-
-log_pass "zinject parameters work as expected."
+default_cleanup
