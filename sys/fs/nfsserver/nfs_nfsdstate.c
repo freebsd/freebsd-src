@@ -165,7 +165,6 @@ static void nfsrv_insertlock(struct nfslock *new_lop,
     struct nfslock *insert_lop, struct nfsstate *stp, struct nfslockfile *lfp);
 static void nfsrv_updatelock(struct nfsstate *stp, struct nfslock **new_lopp,
     struct nfslock **other_lopp, struct nfslockfile *lfp);
-static int nfsrv_getipnumber(u_char *cp);
 static int nfsrv_checkrestart(nfsquad_t clientid, u_int32_t flags,
     nfsv4stateid_t *stateidp, int specialid);
 static int nfsrv_checkgrace(struct nfsrv_descript *nd, struct nfsclient *clp,
@@ -4079,277 +4078,71 @@ out:
 }
 
 /*
- * Get the client ip address for callbacks. If the strings can't be parsed,
- * just set lc_program to 0 to indicate no callbacks are possible.
- * (For cases where the address can't be parsed or is 0.0.0.0.0.0, set
- *  the address to the client's transport address. This won't be used
- *  for callbacks, but can be printed out by nfsstats for info.)
+ * Just set lc_program to 0 to indicate no callbacks are possible.
+ * Set the address to the client's transport address. This won't be used
+ * for callbacks, but can be printed out by nfsstats for info.
  * Return error if the xdr can't be parsed, 0 otherwise.
  */
 int
 nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 {
-	u_int32_t *tl;
-	u_char *cp, *cp2;
-	int i, j, maxalen = 0, minalen = 0;
-	sa_family_t af;
+	uint32_t *tl;
+	int error = 0, i;
 #ifdef INET
-	struct sockaddr_in *rin = NULL, *sin;
+	struct sockaddr_in *rin, *sin;
 #endif
 #ifdef INET6
-	struct sockaddr_in6 *rin6 = NULL, *sin6;
-#endif
-	u_char *addr;
-	int error = 0, cantparse = 0;
-#ifdef INET
-	union {
-		in_addr_t ival;
-		u_char cval[4];
-	} ip;
-#endif
-#if defined(INET6) || defined(INET)
-	union {
-		in_port_t sval;
-		u_char cval[2];
-	} port;
+	struct sockaddr_in6 *rin6, *sin6;
 #endif
 
-	/* 8 is the maximum length of the port# string. */
-	addr = malloc(INET6_ADDRSTRLEN + 8, M_TEMP, M_WAITOK);
 	clp->lc_req.nr_client = NULL;
 	clp->lc_req.nr_lock = 0;
-	af = AF_UNSPEC;
-	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-	i = fxdr_unsigned(int, *tl);
-	if (i >= 3 && i <= 4) {
-		error = nfsrv_mtostr(nd, addr, i);
-		if (error)
-			goto nfsmout;
-#ifdef INET
-		if (!strcmp(addr, "tcp")) {
-			clp->lc_flags |= LCL_TCPCALLBACK;
-			clp->lc_req.nr_sotype = SOCK_STREAM;
-			clp->lc_req.nr_soproto = IPPROTO_TCP;
-			af = AF_INET;
-		} else if (!strcmp(addr, "udp")) {
-			clp->lc_req.nr_sotype = SOCK_DGRAM;
-			clp->lc_req.nr_soproto = IPPROTO_UDP;
-			af = AF_INET;
-		}
-#endif
-#ifdef INET6
-		if (af == AF_UNSPEC) {
-			if (!strcmp(addr, "tcp6")) {
-				clp->lc_flags |= LCL_TCPCALLBACK;
-				clp->lc_req.nr_sotype = SOCK_STREAM;
-				clp->lc_req.nr_soproto = IPPROTO_TCP;
-				af = AF_INET6;
-			} else if (!strcmp(addr, "udp6")) {
-				clp->lc_req.nr_sotype = SOCK_DGRAM;
-				clp->lc_req.nr_soproto = IPPROTO_UDP;
-				af = AF_INET6;
-			}
-		}
-#endif
-		if (af == AF_UNSPEC) {
-			cantparse = 1;
-		}
-	} else {
-		cantparse = 1;
-		if (i > 0) {
-			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
-			if (error)
-				goto nfsmout;
-		}
-	}
-	/*
-	 * The caller has allocated clp->lc_req.nr_nam to be large enough
-	 * for either AF_INET or AF_INET6 and zeroed out the contents.
-	 * maxalen is set to the maximum length of the host IP address string
-	 * plus 8 for the maximum length of the port#.
-	 * minalen is set to the minimum length of the host IP address string
-	 * plus 4 for the minimum length of the port#.
-	 * These lengths do not include NULL termination,
-	 * so INET[6]_ADDRSTRLEN - 1 is used in the calculations.
-	 */
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
-		rin->sin_family = AF_INET;
-		rin->sin_len = sizeof(struct sockaddr_in);
-		maxalen = INET_ADDRSTRLEN - 1 + 8;
-		minalen = 7 + 4;
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
-		rin6->sin6_family = AF_INET6;
-		rin6->sin6_len = sizeof(struct sockaddr_in6);
-		maxalen = INET6_ADDRSTRLEN - 1 + 8;
-		minalen = 3 + 4;
-		break;
-#endif
-	}
-	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *tl);
 	if (i < 0) {
 		error = NFSERR_BADXDR;
 		goto nfsmout;
-	} else if (i == 0) {
-		cantparse = 1;
-	} else if (!cantparse && i <= maxalen && i >= minalen) {
-		error = nfsrv_mtostr(nd, addr, i);
+	} else if (i > 0) {
+		error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
 		if (error)
 			goto nfsmout;
-
-		/*
-		 * Parse out the address fields. We expect 6 decimal numbers
-		 * separated by '.'s for AF_INET and two decimal numbers
-		 * preceded by '.'s for AF_INET6.
-		 */
-		cp = NULL;
-		switch (af) {
-#ifdef INET6
-		/*
-		 * For AF_INET6, first parse the host address.
-		 */
-		case AF_INET6:
-			cp = strchr(addr, '.');
-			if (cp != NULL) {
-				*cp++ = '\0';
-				if (inet_pton(af, addr, &rin6->sin6_addr) == 1)
-					i = 4;
-				else {
-					cp = NULL;
-					cantparse = 1;
-				}
-			}
-			break;
-#endif
-#ifdef INET
-		case AF_INET:
-			cp = addr;
-			i = 0;
-			break;
-#endif
-		}
-		while (cp != NULL && *cp && i < 6) {
-			cp2 = cp;
-			while (*cp2 && *cp2 != '.')
-				cp2++;
-			if (*cp2)
-				*cp2++ = '\0';
-			else if (i != 5) {
-				cantparse = 1;
-				break;
-			}
-			j = nfsrv_getipnumber(cp);
-			if (j >= 0) {
-				if (i < 4)
-#ifdef INET
-					ip.cval[3 - i] = j;
-#else
-					;
-#endif
-#if defined(INET6) || defined(INET)
-				else
-					port.cval[5 - i] = j;
-#endif
-			} else {
-				cantparse = 1;
-				break;
-			}
-			cp = cp2;
-			i++;
-		}
-		if (!cantparse) {
-			/*
-			 * The host address INADDR_ANY is (mis)used to indicate
-			 * "there is no valid callback address".
-			 */
-			switch (af) {
-#ifdef INET6
-			case AF_INET6:
-				if (!IN6_ARE_ADDR_EQUAL(&rin6->sin6_addr,
-				    &in6addr_any))
-					rin6->sin6_port = htons(port.sval);
-				else
-					cantparse = 1;
-				break;
-#endif
-#ifdef INET
-			case AF_INET:
-				if (ip.ival != INADDR_ANY) {
-					rin->sin_addr.s_addr = htonl(ip.ival);
-					rin->sin_port = htons(port.sval);
-				} else {
-					cantparse = 1;
-				}
-				break;
-#endif
-			}
-		}
-	} else {
-		cantparse = 1;
-		if (i > 0) {
-			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
-			if (error)
-				goto nfsmout;
-		}
 	}
-	if (cantparse) {
-		switch (nd->nd_nam->sa_family) {
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	i = fxdr_unsigned(int, *tl);
+	if (i < 0) {
+		error = NFSERR_BADXDR;
+		goto nfsmout;
+	} else if (i > 0) {
+		error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
+		if (error)
+			goto nfsmout;
+	}
+	switch (nd->nd_nam->sa_family) {
 #ifdef INET
-		case AF_INET:
-			sin = (struct sockaddr_in *)nd->nd_nam;
-			rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
-			rin->sin_family = AF_INET;
-			rin->sin_len = sizeof(struct sockaddr_in);
-			rin->sin_addr.s_addr = sin->sin_addr.s_addr;
-			rin->sin_port = 0x0;
-			break;
+	case AF_INET:
+		sin = (struct sockaddr_in *)nd->nd_nam;
+		rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
+		rin->sin_family = AF_INET;
+		rin->sin_len = sizeof(struct sockaddr_in);
+		rin->sin_addr.s_addr = sin->sin_addr.s_addr;
+		rin->sin_port = 0x0;
+		break;
 #endif
 #ifdef INET6
-		case AF_INET6:
-			sin6 = (struct sockaddr_in6 *)nd->nd_nam;
-			rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
-			rin6->sin6_family = AF_INET6;
-			rin6->sin6_len = sizeof(struct sockaddr_in6);
-			rin6->sin6_addr = sin6->sin6_addr;
-			rin6->sin6_port = 0x0;
-			break;
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)nd->nd_nam;
+		rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
+		rin6->sin6_family = AF_INET6;
+		rin6->sin6_len = sizeof(struct sockaddr_in6);
+		rin6->sin6_addr = sin6->sin6_addr;
+		rin6->sin6_port = 0x0;
+		break;
 #endif
-		}
-		clp->lc_program = 0;
 	}
+	clp->lc_program = 0;
 nfsmout:
-	free(addr, M_TEMP);
 	NFSEXITCODE2(error, nd);
 	return (error);
-}
-
-/*
- * Turn a string of up to three decimal digits into a number. Return -1 upon
- * error.
- */
-static int
-nfsrv_getipnumber(u_char *cp)
-{
-	int i = 0, j = 0;
-
-	while (*cp) {
-		if (j > 2 || *cp < '0' || *cp > '9')
-			return (-1);
-		i *= 10;
-		i += (*cp - '0');
-		cp++;
-		j++;
-	}
-	if (i < 256)
-		return (i);
-	return (-1);
 }
 
 /*
