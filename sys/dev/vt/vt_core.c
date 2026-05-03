@@ -1684,6 +1684,9 @@ vtterm_splash(struct vt_device *vd)
 	uintptr_t image;
 	vt_axis_t top, left;
 
+	if (KERNEL_PANICKED())
+		return;
+
 	if ((vd->vd_flags & VDF_TEXTMODE) != 0 || (boothowto & RB_MUTE) == 0)
 		return;
 
