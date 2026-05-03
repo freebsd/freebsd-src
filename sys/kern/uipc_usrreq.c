@@ -3159,6 +3159,8 @@ unp_soisdisconnected(struct socket *so)
 	so->so_state |= SS_ISDISCONNECTED;
 	so->so_state &= ~SS_ISCONNECTED;
 	so->so_rcv.uxst_peer = NULL;
+	selwakeuppri(&so->so_wrsel, PSOCK);
+	KNOTE_LOCKED(&so->so_snd.sb_sel->si_note, 0);
 	socantrcvmore_locked(so);
 }
 
