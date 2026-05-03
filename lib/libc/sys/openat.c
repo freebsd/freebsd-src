@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, 2026 The FreeBSD Foundation.
+ * Copyright (c) 2014 The FreeBSD Foundation.
  *
  * Portions of this software were developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.
@@ -29,45 +29,10 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "namespace.h"
 #include <sys/types.h>
 #include <sys/fcntl.h>
-#include <sys/stat.h>
-#include <errno.h>
 #include <stdarg.h>
-#include <unistd.h>
-#include "un-namespace.h"
 #include "libc_private.h"
-
-static int
-do_openat(int fd, const char *path, int flags, int interposed)
-{
-	if (interposed)
-		return (__sys_openat(fd, path, flags | O_PATH, 0));
-	return (INTERPOS_SYS(openat, fd, path, flags | O_PATH, 0));
-}
-
-int
-__openat_symlink(int fd, const char *path, int flags, int interposed)
-{
-	struct stat st;
-	int rfd, xfd, saved_errno;
-
-	flags &= ~O_SYMLINK;
-	rfd = do_openat(fd, path, flags | O_PATH | O_NOFOLLOW, interposed);
-	if (rfd != -1 && _fstat(rfd, &st) != -1 && !S_ISLNK(st.st_mode)) {
-		xfd = do_openat(rfd, "", flags | O_EMPTY_PATH, interposed);
-		saved_errno = errno;
-		/* dup to rfd to guarantee lowest fd number value */
-		if (_dup2(xfd, rfd) == -1) {
-			_close(rfd);
-			rfd = -1;
-		}
-		_close(xfd);
-		errno = saved_errno;
-	}
-	return (rfd);
-}
 
 __sym_compat(openat, __impl_openat, FBSD_1.1);
 __weak_reference(openat, __impl_openat);
@@ -80,19 +45,12 @@ openat(int fd, const char *path, int flags, ...)
 	va_list ap;
 	int mode;
 
-	if (__predict_false((flags & (O_SYMLINK | O_CREAT)) ==
-	    (O_SYMLINK | O_CREAT))) {
-		errno = EINVAL;
-		return (-1);
-	}
 	if ((flags & O_CREAT) != 0) {
 		va_start(ap, flags);
 		mode = va_arg(ap, int);
 		va_end(ap);
 	} else {
 		mode = 0;
-		if (__predict_false((flags & O_SYMLINK) == O_SYMLINK))
-			return (__openat_symlink(fd, path, flags, 0));
 	}
 	return (INTERPOS_SYS(openat, fd, path, flags, mode));
 }

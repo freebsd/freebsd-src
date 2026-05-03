@@ -29,11 +29,9 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "namespace.h"
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <stdarg.h>
-#include "un-namespace.h"
 #include "libc_private.h"
 
 #pragma weak open
@@ -50,5 +48,5 @@ open(const char *path, int flags, ...)
 	} else {
 		mode = 0;
 	}
-	return (__impl_openat(AT_FDCWD, path, flags, mode));
+	return (INTERPOS_SYS(openat, AT_FDCWD, path, flags, mode));
 }

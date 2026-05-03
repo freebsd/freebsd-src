@@ -475,7 +475,6 @@ FBSD_1.8 {
 };
 
 FBSD_1.9 {
-	freadlink;
 	posix_spawn_file_actions_addchdir;
 	posix_spawn_file_actions_addfchdir;
 	posix_spawnattr_getexecfd_np;

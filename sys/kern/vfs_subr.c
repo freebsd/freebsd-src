@@ -879,7 +879,7 @@ vfs_busy(struct mount *mp, int flags)
 	MPASS((flags & ~MBF_MASK) == 0);
 	CTR3(KTR_VFS, "%s: mp %p with flags %d", __func__, mp, flags);
 
-	if (vfs_op_thread_enter(mp, &mpcpu)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
 		MPASS((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0);
 		MPASS((mp->mnt_kern_flag & MNTK_REFEXPIRE) == 0);
@@ -942,7 +942,7 @@ vfs_unbusy(struct mount *mp)
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 
-	if (vfs_op_thread_enter(mp, &mpcpu)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
 		vfs_mp_count_sub_pcpu(mpcpu, lockref, 1);
 		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
@@ -5817,15 +5817,6 @@ assert_vop_elocked(struct vnode *vp, const char *str)
 }
 #endif /* INVARIANTS */
 
-static bool
-vop_check_pollinfo(struct vnode *vp, int rc)
-{
-	return (rc == 0 &&
-	    (vn_irflag_read(vp) & (VIRF_KNOTE | VIRF_INOTIFY)) != 0);
-}
-#define	vop_check_pollinfo(vp, rc)	\
-    __predict_false((vop_check_pollinfo)((vp), (rc)))
-
 void
 vop_rename_fail(struct vop_rename_args *ap)
 {
@@ -6102,7 +6093,7 @@ vop_create_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (rc == 0) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
 	}
@@ -6160,7 +6151,7 @@ vop_deleteextattr_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	vn_seqc_write_end(vp);
-	if (vop_check_pollinfo(vp, rc)) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
 		INOTIFY(vp, IN_ATTRIB);
 	}
@@ -6190,7 +6181,7 @@ vop_link_post(void *ap, int rc)
 	tdvp = a->a_tdvp;
 	vn_seqc_write_end(vp);
 	vn_seqc_write_end(tdvp);
-	if (rc == 0) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_LINK);
 		VFS_KNOTE_LOCKED(tdvp, NOTE_WRITE);
 		INOTIFY_NAME(vp, tdvp, a->a_cnp, _IN_ATTRIB_LINKCOUNT);
@@ -6218,7 +6209,7 @@ vop_mkdir_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (rc == 0) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
 	}
@@ -6256,7 +6247,7 @@ vop_mknod_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (rc == 0) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
 	}
@@ -6271,8 +6262,7 @@ vop_reclaim_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	ASSERT_VOP_IN_SEQC(vp);
-
-	if (vop_check_pollinfo(vp, rc)) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_REVOKE);
 		INOTIFY_REVOKE(vp);
 	}
@@ -6303,7 +6293,7 @@ vop_remove_post(void *ap, int rc)
 	vp = a->a_vp;
 	vn_seqc_write_end(dvp);
 	vn_seqc_write_end(vp);
-	if (rc == 0) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 		VFS_KNOTE_LOCKED(vp, NOTE_DELETE);
 		INOTIFY_NAME(vp, dvp, a->a_cnp, _IN_ATTRIB_LINKCOUNT);
@@ -6376,7 +6366,7 @@ vop_rmdir_post(void *ap, int rc)
 	vp = a->a_vp;
 	vn_seqc_write_end(dvp);
 	vn_seqc_write_end(vp);
-	if (rc == 0) {
+	if (!rc) {
 		vp->v_vflag |= VV_UNLINKED;
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 		VFS_KNOTE_LOCKED(vp, NOTE_DELETE);
@@ -6404,7 +6394,7 @@ vop_setattr_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	vn_seqc_write_end(vp);
-	if (vop_check_pollinfo(vp, rc)) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_ATTRIB);
 		INOTIFY(vp, IN_ATTRIB);
 	}
@@ -6452,7 +6442,7 @@ vop_setextattr_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	vn_seqc_write_end(vp);
-	if (vop_check_pollinfo(vp, rc)) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_ATTRIB);
 		INOTIFY(vp, IN_ATTRIB);
 	}
@@ -6478,7 +6468,7 @@ vop_symlink_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (rc == 0) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
 	}
@@ -6489,7 +6479,7 @@ vop_open_post(void *ap, int rc)
 {
 	struct vop_open_args *a = ap;
 
-	if (vop_check_pollinfo(a->a_vp, rc)) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_OPEN);
 		INOTIFY(a->a_vp, IN_OPEN);
 	}
@@ -6500,9 +6490,8 @@ vop_close_post(void *ap, int rc)
 {
 	struct vop_close_args *a = ap;
 
-	if (rc == 0 && (a->a_cred != NOCRED || /* filter out revokes */
-	    !VN_IS_DOOMED(a->a_vp)) &&
-	    vop_check_pollinfo(a->a_vp, rc)) {
+	if (!rc && (a->a_cred != NOCRED || /* filter out revokes */
+	    !VN_IS_DOOMED(a->a_vp))) {
 		VFS_KNOTE_LOCKED(a->a_vp, (a->a_fflag & FWRITE) != 0 ?
 		    NOTE_CLOSE_WRITE : NOTE_CLOSE);
 		INOTIFY(a->a_vp, (a->a_fflag & FWRITE) != 0 ?
@@ -6515,7 +6504,7 @@ vop_read_post(void *ap, int rc)
 {
 	struct vop_read_args *a = ap;
 
-	if (vop_check_pollinfo(a->a_vp, rc)) {
+	if (!rc) {
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_READ);
 		INOTIFY(a->a_vp, IN_ACCESS);
 	}
@@ -6526,7 +6515,7 @@ vop_read_pgcache_post(void *ap, int rc)
 {
 	struct vop_read_pgcache_args *a = ap;
 
-	if (rc == 0)
+	if (!rc)
 		VFS_KNOTE_UNLOCKED(a->a_vp, NOTE_READ);
 }
 
@@ -6673,8 +6662,6 @@ vfs_knlunlock(void *arg)
 {
 	struct vnode *vp = arg;
 
-	if (KNLIST_EMPTY(&vp->v_pollinfo->vpi_selinfo.si_note))
-		vn_irflag_unset(vp, VIRF_KNOTE);
 	VOP_UNLOCK(vp);
 }
 
@@ -6722,11 +6709,7 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 		return (ENOMEM);
 	knl = &vp->v_pollinfo->vpi_selinfo.si_note;
 	vhold(vp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	knlist_add(knl, kn, 1);
-	if ((vn_irflag_read(vp) & VIRF_KNOTE) == 0)
-		vn_irflag_set(vp, VIRF_KNOTE);
-	VOP_UNLOCK(vp);
+	knlist_add(knl, kn, 0);
 
 	return (0);
 }
@@ -7005,7 +6988,7 @@ vfs_cache_root(struct mount *mp, int flags, struct vnode **vpp)
 	struct vnode *vp;
 	int error;
 
-	if (!vfs_op_thread_enter(mp, &mpcpu))
+	if (!vfs_op_thread_enter(mp, mpcpu))
 		return (vfs_cache_root_fallback(mp, flags, vpp));
 	vp = atomic_load_ptr(&mp->mnt_rootvnode);
 	if (vp == NULL || VN_IS_DOOMED(vp)) {

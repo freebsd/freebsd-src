@@ -518,7 +518,6 @@ int	 execvpe(const char *, char * const *, char * const *);
 int	 feature_present(const char *);
 int	 fchroot(int);
 char	*fflagstostr(u_long);
-ssize_t	 freadlink(int fd, char *buf, size_t bufsize);
 int	 getdomainname(char *, int);
 int	 getentropy(void *, size_t);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);

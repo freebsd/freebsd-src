@@ -36,10 +36,8 @@
 #include <sys/ucred.h>
 #include <sys/queue.h>
 #ifdef _KERNEL
-#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
-#include <sys/proc.h>
 #include <sys/tslog.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
@@ -853,134 +851,114 @@ struct vfsops {
 
 vfs_statfs_t	__vfs_statfs;
 
-static inline int
-VFS_MOUNT(struct mount *mp)
-{
-	int rc;
+#define	VFS_MOUNT(MP) ({						\
+	int _rc;							\
+									\
+	TSRAW(curthread, TS_ENTER, "VFS_MOUNT", (MP)->mnt_vfc->vfc_name);\
+	_rc = (*(MP)->mnt_op->vfs_mount)(MP);				\
+	TSRAW(curthread, TS_EXIT, "VFS_MOUNT", (MP)->mnt_vfc->vfc_name);\
+	_rc; })
 
-	TSRAW(curthread, TS_ENTER, "VFS_MOUNT", mp->mnt_vfc->vfc_name);
-	rc = mp->mnt_op->vfs_mount(mp);
-	TSRAW(curthread, TS_EXIT, "VFS_MOUNT", mp->mnt_vfc->vfc_name);
-	return (rc);
-}
+#define	VFS_UNMOUNT(MP, FORCE) ({					\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_unmount)(MP, FORCE);			\
+	_rc; })
 
-static inline int
-VFS_UNMOUNT(struct mount *mp, int force)
-{
-	return (mp->mnt_op->vfs_unmount(mp, force));
-}
+#define	VFS_ROOT(MP, FLAGS, VPP) ({					\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_root)(MP, FLAGS, VPP);		\
+	_rc; })
 
-static inline int
-VFS_ROOT(struct mount *mp, int flags, struct vnode **vpp)
-{
-	return (mp->mnt_op->vfs_root(mp, flags, vpp));
-}
+#define	VFS_CACHEDROOT(MP, FLAGS, VPP) ({				\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_cachedroot)(MP, FLAGS, VPP);		\
+	_rc; })
 
-static inline int
-VFS_CACHEDROOT(struct mount *mp, int flags, struct vnode **vpp)
-{
-	return (mp->mnt_op->vfs_cachedroot(mp, flags, vpp));
-}
+#define	VFS_QUOTACTL(MP, C, U, A, MP_BUSY) ({				\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A, MP_BUSY);	\
+	_rc; })
 
-static inline int
-VFS_QUOTACTL(struct mount *mp, int cmds, uid_t uid, void *arg, bool *mp_busy)
-{
-	return (mp->mnt_op->vfs_quotactl(mp, cmds, uid, arg, mp_busy));
-}
+#define	VFS_STATFS(MP, SBP) ({						\
+	int _rc;							\
+									\
+	_rc = __vfs_statfs((MP), (SBP));				\
+	_rc; })
 
-static inline int
-VFS_STATFS(struct mount *mp, struct statfs *sbp)
-{
-	return (__vfs_statfs(mp, sbp));
-}
+#define	VFS_SYNC(MP, WAIT) ({						\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_sync)(MP, WAIT);			\
+	_rc; })
 
-static inline int
-VFS_SYNC(struct mount *mp, int waitfor)
-{
-	return (mp->mnt_op->vfs_sync(mp, waitfor));
-}
+#define	VFS_VGET(MP, INO, FLAGS, VPP) ({				\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP);		\
+	_rc; })
 
-static inline int
-VFS_VGET(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
-{
-	return (mp->mnt_op->vfs_vget(mp, ino, flags, vpp));
-}
+#define	VFS_FHTOVP(MP, FIDP, FLAGS, VPP) ({				\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, FLAGS, VPP);	\
+	_rc; })
 
-static inline int
-VFS_FHTOVP(struct mount *mp, struct fid *fidp, int flags, struct vnode **vpp)
-{
-	return (mp->mnt_op->vfs_fhtovp(mp, fidp, flags, vpp));
-}
+#define	VFS_CHECKEXP(MP, NAM, EXFLG, CRED, NUMSEC, SEC) ({		\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED, NUMSEC,\
+	    SEC);							\
+	_rc; })
 
-static inline int
-VFS_CHECKEXP(struct mount *mp, struct sockaddr *nam, uint64_t *extflagsp,
-    struct ucred **credanonp, int *numsecflavors, int *secflavors)
-{
-	return (mp->mnt_op->vfs_checkexp(mp, nam, extflagsp, credanonp,
-	    numsecflavors, secflavors));
-}
+#define	VFS_EXTATTRCTL(MP, C, FN, NS, N) ({				\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N);	\
+	_rc; })
 
-static inline int
-VFS_EXTATTRCTL(struct mount *mp, int cmd, struct vnode *filename_vp,
-    int attrnamespace, const char *attrname)
-{
-	return (mp->mnt_op->vfs_extattrctl(mp, cmd, filename_vp,
-	    attrnamespace, attrname));
-}
+#define	VFS_SYSCTL(MP, OP, REQ) ({					\
+	int _rc;							\
+									\
+	_rc = (*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ);			\
+	_rc; })
 
-static inline int
-VFS_SYSCTL(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
-{
-	return (mp->mnt_op->vfs_sysctl(mp, op, req));
-}
+#define	VFS_SUSP_CLEAN(MP) do {						\
+	if (*(MP)->mnt_op->vfs_susp_clean != NULL) {			\
+		(*(MP)->mnt_op->vfs_susp_clean)(MP);			\
+	}								\
+} while (0)
 
-static inline void
-VFS_SUSP_CLEAN(struct mount *mp)
-{
-	if (mp->mnt_op->vfs_susp_clean != NULL)
-		mp->mnt_op->vfs_susp_clean(mp);
-}
+#define	VFS_RECLAIM_LOWERVP(MP, VP) do {				\
+	if (*(MP)->mnt_op->vfs_reclaim_lowervp != NULL) {		\
+		(*(MP)->mnt_op->vfs_reclaim_lowervp)((MP), (VP));	\
+	}								\
+} while (0)
 
-static inline void
-VFS_RECLAIM_LOWERVP(struct mount *mp, struct vnode *vp)
-{
-	if (mp->mnt_op->vfs_reclaim_lowervp != NULL)
-		mp->mnt_op->vfs_reclaim_lowervp(mp, vp);
-}
+#define	VFS_UNLINK_LOWERVP(MP, VP) do {					\
+	if (*(MP)->mnt_op->vfs_unlink_lowervp != NULL) {		\
+		(*(MP)->mnt_op->vfs_unlink_lowervp)((MP), (VP));	\
+	}								\
+} while (0)
 
-static inline void
-VFS_UNLINK_LOWERVP(struct mount *mp, struct vnode *vp)
-{
-	if (mp->mnt_op->vfs_unlink_lowervp != NULL)
-		mp->mnt_op->vfs_unlink_lowervp(mp, vp);
-}
+#define	VFS_PURGE(MP) do {						\
+	if (*(MP)->mnt_op->vfs_purge != NULL) {				\
+		(*(MP)->mnt_op->vfs_purge)(MP);				\
+	}								\
+} while (0)
 
-static inline void
-VFS_PURGE(struct mount *mp)
-{
-	if (mp->mnt_op->vfs_purge != NULL)
-		mp->mnt_op->vfs_purge(mp);
-}
+#define VFS_KNOTE_LOCKED(vp, hint) do					\
+{									\
+	VN_KNOTE((vp), (hint), KNF_LISTLOCKED);				\
+} while (0)
 
-#include <sys/vnode.h>
-
-static inline void
-VFS_KNOTE_LOCKED(struct vnode *vp, int hint)
-{
-	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {
-		KNOTE_LOCKED(&vp->v_pollinfo->vpi_selinfo.si_note,
-		    hint);
-	}
-}
-
-static inline void
-VFS_KNOTE_UNLOCKED(struct vnode *vp, int hint)
-{
-	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {
-		KNOTE_UNLOCKED(&vp->v_pollinfo->vpi_selinfo.si_note,
-		    hint);
-	}
-}
+#define VFS_KNOTE_UNLOCKED(vp, hint) do					\
+{									\
+	VN_KNOTE((vp), (hint), 0);					\
+} while (0)
 
 #include <sys/module.h>
 
@@ -1160,64 +1138,47 @@ void resume_all_fs(void);
  */
 #define	vfs_mount_pcpu(mp)		zpcpu_get(mp->mnt_pcpu)
 #define	vfs_mount_pcpu_remote(mp, cpu)	zpcpu_get_cpu(mp->mnt_pcpu, cpu)
-static void vfs_op_thread_exit_crit(struct mount *mp, struct mount_pcpu *mpcpu);
 
-static inline bool
-vfs_op_thread_entered(struct mount *mp)
-{
-	struct mount_pcpu *mpcpu = vfs_mount_pcpu(mp);
+#define vfs_op_thread_entered(mp) ({				\
+	MPASS(curthread->td_critnest > 0);			\
+	struct mount_pcpu *_mpcpu = vfs_mount_pcpu(mp);		\
+	_mpcpu->mntp_thread_in_ops == 1;			\
+})
 
-	MPASS(curthread->td_critnest > 0);
-	return (mpcpu->mntp_thread_in_ops == 1);
-}
+#define vfs_op_thread_enter_crit(mp, _mpcpu) ({			\
+	bool _retval_crit = true;				\
+	MPASS(curthread->td_critnest > 0);			\
+	_mpcpu = vfs_mount_pcpu(mp);				\
+	MPASS(mpcpu->mntp_thread_in_ops == 0);			\
+	_mpcpu->mntp_thread_in_ops = 1;				\
+	atomic_interrupt_fence();					\
+	if (__predict_false(mp->mnt_vfs_ops > 0)) {		\
+		vfs_op_thread_exit_crit(mp, _mpcpu);		\
+		_retval_crit = false;				\
+	}							\
+	_retval_crit;						\
+})
 
-static inline bool
-vfs_op_thread_enter_crit(struct mount *mp, struct mount_pcpu **mpcpup)
-{
-	struct mount_pcpu *mpcpu;
-	bool retval_crit = true;
+#define vfs_op_thread_enter(mp, _mpcpu) ({			\
+	bool _retval;						\
+	critical_enter();					\
+	_retval = vfs_op_thread_enter_crit(mp, _mpcpu);		\
+	if (__predict_false(!_retval))				\
+		critical_exit();				\
+	_retval;						\
+})
 
-	MPASS(curthread->td_critnest > 0);
-	mpcpu = vfs_mount_pcpu(mp);
-	MPASS(mpcpu->mntp_thread_in_ops == 0);
-	mpcpu->mntp_thread_in_ops = 1;
-	atomic_interrupt_fence();
-	if (__predict_false(mp->mnt_vfs_ops > 0)) {
-		vfs_op_thread_exit_crit(mp, mpcpu);
-		retval_crit = false;
-	}
-	*mpcpup = mpcpu;
-	return (retval_crit);
-}
+#define vfs_op_thread_exit_crit(mp, _mpcpu) do {		\
+	MPASS(_mpcpu == vfs_mount_pcpu(mp));			\
+	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\
+	atomic_interrupt_fence();					\
+	_mpcpu->mntp_thread_in_ops = 0;				\
+} while (0)
 
-static inline bool
-vfs_op_thread_enter(struct mount *mp, struct mount_pcpu **mpcpup)
-{
-	bool retval;
-
-	critical_enter();
-	retval = vfs_op_thread_enter_crit(mp, mpcpup);
-	if (__predict_false(!retval))
-		critical_exit();
-	return (retval);
-}
-
-static inline void
-vfs_op_thread_exit_crit(struct mount *mp, struct mount_pcpu *mpcpu)
-{
-	MPASS(mpcpu == vfs_mount_pcpu(mp));
-	MPASS(mpcpu->mntp_thread_in_ops == 1);
-
-	atomic_interrupt_fence();
-	mpcpu->mntp_thread_in_ops = 0;
-}
-
-static inline void
-vfs_op_thread_exit(struct mount *mp, struct mount_pcpu *mpcpu)
-{
-	vfs_op_thread_exit_crit(mp, mpcpu);
-	critical_exit();
-}
+#define vfs_op_thread_exit(mp, _mpcpu) do {			\
+	vfs_op_thread_exit_crit(mp, _mpcpu);			\
+	critical_exit();					\
+} while (0)
 
 #define vfs_mp_count_add_pcpu(_mpcpu, count, val) do {		\
 	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\

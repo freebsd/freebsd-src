@@ -5737,7 +5737,7 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 
 	prev_mp = NULL;
 	for (;;) {
-		if (!vfs_op_thread_enter_crit(mp, &mpcpu)) {
+		if (!vfs_op_thread_enter_crit(mp, mpcpu)) {
 			if (prev_mp != NULL)
 				vfs_op_thread_exit_crit(prev_mp, prev_mpcpu);
 			return (cache_fpl_partial(fpl));
@@ -5792,7 +5792,7 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 		return (0);
 	}
 
-	if (!vfs_op_thread_enter_crit(mp, &mpcpu)) {
+	if (!vfs_op_thread_enter_crit(mp, mpcpu)) {
 		return (cache_fpl_partial(fpl));
 	}
 	if (!vn_seqc_consistent(vp, vp_seqc)) {
