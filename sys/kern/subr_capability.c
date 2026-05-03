@@ -60,6 +60,8 @@ const cap_rights_t cap_fchmod_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHMOD);
 const cap_rights_t cap_fchown_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHOWN);
 const cap_rights_t cap_fchroot_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHROOT);
 const cap_rights_t cap_fcntl_rights = CAP_RIGHTS_INITIALIZER(CAP_FCNTL);
+const cap_rights_t cap_fcntl_readahead_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_FCNTL_READAHEAD);
 const cap_rights_t cap_fexecve_rights = CAP_RIGHTS_INITIALIZER(CAP_FEXECVE);
 const cap_rights_t cap_flock_rights = CAP_RIGHTS_INITIALIZER(CAP_FLOCK);
 const cap_rights_t cap_fpathconf_rights = CAP_RIGHTS_INITIALIZER(CAP_FPATHCONF);
@@ -79,7 +81,17 @@ const cap_rights_t cap_inotify_add_rights =
 const cap_rights_t cap_inotify_rm_rights =
     CAP_RIGHTS_INITIALIZER(CAP_INOTIFY_RM);
 const cap_rights_t cap_ioctl_rights = CAP_RIGHTS_INITIALIZER(CAP_IOCTL);
+const cap_rights_t cap_jail_attach_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_JAIL_ATTACH);
+const cap_rights_t cap_jail_remove_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_JAIL_REMOVE);
+const cap_rights_t cap_jail_set_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_JAIL_SET);
 const cap_rights_t cap_listen_rights = CAP_RIGHTS_INITIALIZER(CAP_LISTEN);
+const cap_rights_t cap_timerfd_gettime_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_TIMERFD_GETTIME);
+const cap_rights_t cap_timerfd_settime_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_TIMERFD_SETTIME);
 const cap_rights_t cap_linkat_source_rights =
     CAP_RIGHTS_INITIALIZER(CAP_LINKAT_SOURCE);
 const cap_rights_t cap_linkat_target_rights =
@@ -91,6 +103,8 @@ const cap_rights_t cap_mknodat_rights = CAP_RIGHTS_INITIALIZER(CAP_MKNODAT);
 const cap_rights_t cap_pdgetpid_rights = CAP_RIGHTS_INITIALIZER(CAP_PDGETPID);
 const cap_rights_t cap_pdkill_rights = CAP_RIGHTS_INITIALIZER(CAP_PDKILL);
 const cap_rights_t cap_pdwait_rights = CAP_RIGHTS_INITIALIZER(CAP_PDWAIT);
+const cap_rights_t cap_posix_fadvise_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_POSIX_FADVISE);
 const cap_rights_t cap_pread_rights = CAP_RIGHTS_INITIALIZER(CAP_PREAD);
 const cap_rights_t cap_pwrite_rights = CAP_RIGHTS_INITIALIZER(CAP_PWRITE);
 const cap_rights_t cap_read_rights = CAP_RIGHTS_INITIALIZER(CAP_READ);

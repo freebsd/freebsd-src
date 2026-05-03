@@ -496,7 +496,7 @@ kern_timerfd_gettime(struct thread *td, int fd, struct itimerspec *curr_value)
 	struct timerfd *tfd;
 	int error;
 
-	error = fget(td, fd, &cap_write_rights, &fp);
+	error = fget(td, fd, &cap_timerfd_gettime_rights, &fp);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_TIMERFD) {
@@ -528,7 +528,7 @@ kern_timerfd_settime(struct thread *td, int fd, int flags,
 	    !timespecvalid_interval(&new_value->it_interval))
 		return (EINVAL);
 
-	error = fget(td, fd, &cap_write_rights, &fp);
+	error = fget(td, fd, &cap_timerfd_settime_rights, &fp);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_TIMERFD) {

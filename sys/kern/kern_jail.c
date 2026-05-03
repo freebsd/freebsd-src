@@ -52,6 +52,7 @@
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/jaildesc.h>
+#include <sys/capsicum.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
@@ -1118,7 +1119,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			 * descriptor's prison.
 			 */
 			prison_free(mypr);
-			error = jaildesc_find(td, jfd_in, &mypr, NULL);
+			error = jaildesc_find(td, jfd_in, &cap_no_rights,
+			    &mypr, NULL);
 			if (error != 0) {
 				vfs_opterror(opts, error == ENOENT ?
 				    "descriptor to dead jail" :
@@ -1539,7 +1541,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 	if (flags & JAIL_USE_DESC) {
 		/* Get the jail from its descriptor. */
-		error = jaildesc_find(td, jfd_in, &pr, &jdcred);
+		error = jaildesc_find(td, jfd_in, &cap_jail_set_rights, &pr, &jdcred);
 		if (error) {
 			vfs_opterror(opts, error == ENOENT ?
 			    "descriptor to dead jail" :
@@ -2604,7 +2606,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		}
 		if (flags & JAIL_USE_DESC) {
 			/* Get the jail from its descriptor. */
-			error = jaildesc_find(td, jfd_in, &pr, NULL);
+			error = jaildesc_find(td, jfd_in, &cap_no_rights,
+			    &pr, NULL);
 			if (error) {
 				vfs_opterror(opts, error == ENOENT ?
 				    "descriptor to dead jail" :
@@ -2619,7 +2622,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		if (flags & JAIL_AT_DESC) {
 			/* Look up jails based on the descriptor's prison. */
 			prison_free(mypr);
-			error = jaildesc_find(td, jfd_in, &mypr, NULL);
+			error = jaildesc_find(td, jfd_in, &cap_no_rights,
+			    &mypr, NULL);
 			if (error != 0) {
 				vfs_opterror(opts, error == ENOENT ?
 				    "descriptor to dead jail" :
@@ -3009,7 +3013,7 @@ sys_jail_remove_jd(struct thread *td, struct jail_remove_jd_args *uap)
 	struct ucred *jdcred;
 	int error;
 
-	error = jaildesc_find(td, uap->fd, &pr, &jdcred);
+	error = jaildesc_find(td, uap->fd, &cap_jail_remove_rights, &pr, &jdcred);
 	if (error)
 		return (error);
 	error = priv_check_cred(jdcred, PRIV_JAIL_REMOVE);
@@ -3097,7 +3101,7 @@ sys_jail_attach_jd(struct thread *td, struct jail_attach_jd_args *uap)
 
 	sx_slock(&allprison_lock);
 	drflags = PD_LIST_SLOCKED;
-	error = jaildesc_find(td, uap->fd, &pr, &jdcred);
+	error = jaildesc_find(td, uap->fd, &cap_jail_attach_rights, &pr, &jdcred);
 	if (error)
 		goto fail;
 	drflags |= PD_DEREF;

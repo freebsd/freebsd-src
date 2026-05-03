@@ -111,13 +111,13 @@ jaildesc_get_prison_impl(struct file *fp, struct prison **prp)
  * by the caller.
  */
 int
-jaildesc_find(struct thread *td, int fd, struct prison **prp,
-    struct ucred **ucredp)
+jaildesc_find(struct thread *td, int fd, const cap_rights_t *rightsp,
+    struct prison **prp, struct ucred **ucredp)
 {
 	struct file *fp;
 	int error;
 
-	error = fget(td, fd, &cap_no_rights, &fp);
+	error = fget(td, fd, rightsp, &fp);
 	if (error != 0)
 		return (error);
 

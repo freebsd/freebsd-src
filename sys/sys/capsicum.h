@@ -283,11 +283,32 @@
 #define	CAP_INOTIFY_ADD		CAPRIGHT(1, 0x0000000000200000ULL)
 #define	CAP_INOTIFY_RM		CAPRIGHT(1, 0x0000000000400000ULL)
 
+/* Jail management via jail descriptors. */
+/* Allows for jail_attach_jd(2). */
+#define	CAP_JAIL_ATTACH		CAPRIGHT(1, 0x0000000000800000ULL)
+/* Allows for jail_remove_jd(2). */
+#define	CAP_JAIL_REMOVE		CAPRIGHT(1, 0x0000000001000000ULL)
+/* Allows for jail_set(2) with JAIL_USE_DESC. */
+#define	CAP_JAIL_SET		CAPRIGHT(1, 0x0000000008000000ULL)
+
+/* Timer file descriptor operations. */
+/* Allows for timerfd_gettime(2). */
+#define	CAP_TIMERFD_GETTIME	CAPRIGHT(1, 0x0000000002000000ULL)
+/* Allows for timerfd_settime(2). */
+#define	CAP_TIMERFD_SETTIME	CAPRIGHT(1, 0x0000000004000000ULL)
+
+/* fcntl(2) operations. */
+/* Allows for fcntl(F_READAHEAD) and fcntl(F_RDAHEAD). */
+#define	CAP_FCNTL_READAHEAD	CAPRIGHT(1, 0x0000000040000000ULL)
+
+/* Allows for posix_fadvise(2). */
+#define	CAP_POSIX_FADVISE	CAPRIGHT(1, 0x0000000020000000ULL)
+
 /* All used bits for index 1. */
-#define	CAP_ALL1		CAPRIGHT(1, 0x00000000007FFFFFULL)
+#define	CAP_ALL1		CAPRIGHT(1, 0x000000006FFFFFFFULL)
 
 /* Available bits for index 1. */
-#define	CAP_UNUSED1_22		CAPRIGHT(1, 0x0000000000800000ULL)
+#define	CAP_UNUSED1_31		CAPRIGHT(1, 0x0000000080000000ULL)
 /* ... */
 #define	CAP_UNUSED1_57		CAPRIGHT(1, 0x0100000000000000ULL)
 

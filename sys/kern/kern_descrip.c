@@ -895,7 +895,7 @@ revert_flags:
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(td, fd, &cap_no_rights, &fp);
+		error = fget_unlocked(td, fd, &cap_fcntl_readahead_rights, &fp);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE || fp->f_ops == &path_fileops) {
