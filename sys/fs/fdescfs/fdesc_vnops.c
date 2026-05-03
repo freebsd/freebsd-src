@@ -471,7 +471,6 @@ fdesc_getattr(struct vop_getattr_args *ap)
 		break;
 	}
 
-	vp->v_type = vap->va_type;
 	return (0);
 }
 
