@@ -383,16 +383,18 @@ print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
 	struct rt_metrics rmx = {
 		.rmx_mtu = r.rtax_mtu,
 		.rmx_weight = r.rtax_weight,
+		.rmx_metric = r.rta_metric,
 		.rmx_expire = r.rta_expire,
 	};
 
-	printf("\n%9s %9s %9s %9s %9s %10s %9s\n", "recvpipe",
-	    "sendpipe", "ssthresh", "rtt,msec", "mtu   ", "weight", "expire");
+	printf("\n%9s %9s %9s %9s %9s %9s %9s %9s\n", "recvpipe", "sendpipe",
+	    "ssthresh", "rtt,msec", "mtu   ", "metric", "weight", "expire");
 	printf("%8lu  ", rmx.rmx_recvpipe);
 	printf("%8lu  ", rmx.rmx_sendpipe);
 	printf("%8lu  ", rmx.rmx_ssthresh);
 	printf("%8lu  ", 0UL);
 	printf("%8lu  ", rmx.rmx_mtu);
+	printf("%8lu  ", rmx.rmx_metric);
 	printf("%8lu  ", rmx.rmx_weight);
 	printf("%8ld \n", rmx.rmx_expire);
 }
@@ -436,6 +438,7 @@ print_nhop_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *ds
 			.gw = r.rta_gw,
 			.ifindex = r.rta_oif,
 			.rtax_mtu = link.ifla_mtu,
+			.rta_metric = r.rta_metric,
 		};
 		printf("\tvia ");
 		print_nlmsg_route_nhop(h, &r, &nh, true);
