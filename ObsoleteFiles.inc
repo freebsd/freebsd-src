@@ -51,6 +51,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260503: Kill off MANSUBDIRs
+OLD_FILES+=usr/share/man/man8/amd64/apm.8.gz
+OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
+OLD_FILES+=usr/share/man/man8/i386/apmd.8.gz
+OLD_FILES+=usr/share/man/man8/powerpc/nvram.8.gz
+OLD_DIRS+=usr/share/man/man8/amd64
+OLD_DIRS+=usr/share/man/man8/i386
+OLD_DIRS+=usr/share/man/man8/powerpc
+
 # 20260430: Regenerate trust store
 OLD_FILES+=usr/share/certs/trusted/Entrust_net_Premium_2048_Secure_Server_CA.pem
 OLD_FILES+=usr/share/certs/trusted/AffirmTrust_Premium.pem
