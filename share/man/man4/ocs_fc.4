@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 2017 Broadcom. All rights reserved.
 .\" The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
 .\"
@@ -27,24 +30,37 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 29, 2021
+.Dd May 1, 2026
 .Dt OCS_FC 4
 .Os
 .Sh NAME
 .Nm ocs_fc
-.Nd "Device driver for Emulex Fibre Channel Host Adapters"
+.Nd Emulex Fibre Channel Host Adapter driver
 .Sh SYNOPSIS
-To compile this driver into the kernel, add this line to the
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ocs_fc"
-.Ed
+.Cd device ocs_fc
 .Pp
-To load the driver as a module at boot, add this line to
+In
+.Xr device.hints 5 :
+.Cd hint.ocs_fc.N.initiator
+.Cd hint.ocs_fc.N.target
+.Cd hint.ocs_fc.N.topology
+.Cd hint.ocs_fc.N.speed
+.Pp
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ocs_fc_load="YES"
-.Ed
+.Cd ocs_fc_load="YES"
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd dev.ocs_fc.N.port_state
+.Cd dev.ocs_fc.N.wwpn
+.Cd dev.ocs_fc.N.wwnn
+.Cd dev.ocs_fc.N.configured_speed
+.Cd dev.ocs_fc.N.configured_topology
+.Cd dev.ocs_fc.N.current_speed
+.Cd dev.ocs_fc.N.current_topology
 .Sh DESCRIPTION
 The
 .Nm
@@ -58,7 +74,8 @@ and Fabric connections.
 FC-Tape is highly recommended for connections to tape drives that support
 it.
 FC-Tape includes four elements from the T-10 FCP-4 specification:
-.Bl -bullet -offset indent
+.Pp
+.Bl -bullet -offset indent -compact
 .It
 Precise Delivery of Commands
 .It
@@ -71,29 +88,31 @@ Task Retry Identification
 .Pp
 Together these features allow for link level error recovery with tape
 devices.
-Without link level error recovery, an initiator cannot, for instance, tell whether a tape write
-command that has timed out resulted in all, part, or none of the data going to
-the tape drive.
+Without link level error recovery, an initiator cannot, for instance,
+tell whether a tape write command that has timed out resulted in all,
+part, or none of the data going to the tape drive.
 FC-Tape is automatically enabled when both the controller and target support it.
 .Sh HARDWARE
 The
 .Nm
-driver supports these Fibre Channel adapters:
-.Bl -tag -width xxxxxx -offset indent
-.It Emulex 16/8G FC GEN 5 HBAS
-.Bd -literal -offset indent
-LPe15004 FC Host Bus Adapters
-LPe160XX FC Host Bus Adapters
-.Ed
-.It Emulex 32/16G FC GEN 6 HBAS
-.Bd -literal -offset indent
-LPe3100X FC Host Bus Adapters
-LPe3200X FC Host Bus Adapters
-.Ed
-.It Emulex 64/32G FC GEN 7 HBAS
-.Bd -literal -offset indent
-LPe3500X FC Host Bus Adapters
-.Ed
+driver supports the following PCIe Fibre Channel adapters:
+.Pp
+.Bl -bullet -compact
+.It
+LPe3500X FC Host Bus Adapter
+.Pq Emulex 64/32G FC Gen 7 HBA
+.It
+LPe3200X FC Host Bus Adapter
+.Pq Emulex 32/16G FC Gen 6 HBA
+.It
+LPe3100X FC Host Bus Adapter
+.Pq Emulex 32/16G FC Gen 6 HBA
+.It
+LPe160XX FC Host Bus Adapter
+.Pq Emulex 16/8G FC Gen 5 HBA
+.It
+LPe15004 FC Host Bus Adapter
+.Pq Emulex 16/8G FC Gen 5 HBA
 .El
 .Sh UPDATING FIRMWARE
 Adapter firmware updates are persistent.
@@ -131,11 +150,9 @@ Check kernel messages regarding status of the operation
 Reboot the machine
 .El
 .Sh BOOT OPTIONS
-Options are controlled by setting values in
-.Pa /boot/device.hints .
-.Pp
-They are:
-.Bl -tag -width indent
+The following boot options are controlled by setting values in
+.Pa /boot/device.hints :
+.Bl -tag -width hint.ocs_fc.N.initiator
 .It Va hint.ocs_fc.N.initiator
 Enable initiator functionality.
 Default 1 (enabled), 0 to disable.
@@ -181,9 +198,9 @@ Current Port Topology (read-only).
 .Sh SUPPORT
 For general information and support,
 go to the Broadcom website at:
-.Pa http://www.broadcom.com/
+.Lk http://www.broadcom.com/
 or E-Mail at
-.Pa ocs-driver-team.pdl@broadcom.com .
+.Mt ocs-driver-team.pdl@broadcom.com .
 .Sh SEE ALSO
 .Xr ifconfig 8
 .Sh AUTHORS
