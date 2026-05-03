@@ -272,8 +272,8 @@ timestamp_origin_body()
 	atf_check test -n "$tsr"
 
 	# Convert tso and tsr from HH:MM:SS to seconds
-	tso_s=`date -jf %H:%M:%S $tso`
-	tsr_s=`date -jf %H:%M:%S $tsr`
+	tso_s=`date -jf %H:%M:%S $tso +%s`
+	tsr_s=`date -jf %H:%M:%S $tsr +%s`
 
 	diff=$((tso_s - tsr_s))
 	# Tolerate negative time difference between the sender and receiver
