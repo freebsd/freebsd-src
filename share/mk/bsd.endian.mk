@@ -12,7 +12,7 @@ MACHINE_ARCH_LIST.big = \
 	powerpc64
 
 .for e in big little
-N_$e:= ${MACHINE_ARCH_LIST.$e:${M_ListToSkip}}
+N_$e:= ${MACHINE_ARCH_LIST.$e:@m@N$m@:ts:}
 .endfor
 
 # For the host, we need to look at the host architecture
