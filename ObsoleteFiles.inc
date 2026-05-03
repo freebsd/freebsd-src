@@ -51,6 +51,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260503: Kill off MANSUBDIRs
+OLD_FILES+=usr/share/man/man8/amd64/apm.8.gz
+OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
+OLD_FILES+=usr/share/man/man8/i386/apmd.8.gz
+OLD_FILES+=usr/share/man/man8/powerpc/nvram.8.gz
+OLD_DIRS+=usr/share/man/man8/amd64
+OLD_DIRS+=usr/share/man/man8/i386
+OLD_DIRS+=usr/share/man/man8/powerpc
+
 # 20260430: Provide stdint.h macros unconditionally
 OLD_FILES+=usr/include/c++/v1/stdint.h
 
