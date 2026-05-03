@@ -298,10 +298,7 @@ __thr_openat(int fd, const char *path, int flags, int mode)
 
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
-	if (__predict_false((flags & O_SYMLINK) == O_SYMLINK))
-		ret = __openat_symlink(fd, path, flags, 1);
-	else
-		ret = __sys_openat(fd, path, flags, mode);
+	ret = __sys_openat(fd, path, flags, mode);
 	_thr_cancel_leave(curthread, ret == -1);
 
 	return (ret);

@@ -500,7 +500,7 @@ vfs_ref_from_vp(struct vnode *vp)
 	if (__predict_false(mp == NULL)) {
 		return (mp);
 	}
-	if (vfs_op_thread_enter(mp, &mpcpu)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		if (__predict_true(mp == vp->v_mount)) {
 			vfs_mp_count_add_pcpu(mpcpu, ref, 1);
 			vfs_op_thread_exit(mp, mpcpu);
@@ -527,7 +527,7 @@ vfs_ref(struct mount *mp)
 	struct mount_pcpu *mpcpu;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	if (vfs_op_thread_enter(mp, &mpcpu)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		vfs_mp_count_add_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return;
@@ -645,7 +645,7 @@ vfs_rel(struct mount *mp)
 	struct mount_pcpu *mpcpu;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	if (vfs_op_thread_enter(mp, &mpcpu)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return;

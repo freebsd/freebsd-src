@@ -56,7 +56,6 @@ SRCS+= \
 	fmtmsg.c \
 	fnmatch.c \
 	fpclassify.c \
-	freadlink.c \
 	frexp.c \
 	fstab.c \
 	ftok.c \
