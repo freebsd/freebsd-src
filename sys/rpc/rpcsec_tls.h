@@ -65,21 +65,6 @@ bool		rpctls_getinfo(u_int *maxlen, bool rpctlscd_run,
 /* String for AUTH_TLS reply verifier. */
 #define	RPCTLS_START_STRING	"STARTTLS"
 
-/* Macros for VIMAGE. */
-/* Just define the KRPC_VNETxxx() macros as VNETxxx() macros. */
-#define	KRPC_VNET_NAME(n)		VNET_NAME(n)
-#define	KRPC_VNET_DECLARE(t, n)		VNET_DECLARE(t, n)
-#define	KRPC_VNET_DEFINE(t, n)		VNET_DEFINE(t, n)
-#define	KRPC_VNET_DEFINE_STATIC(t, n)	VNET_DEFINE_STATIC(t, n)
-#define	KRPC_VNET(n)			VNET(n)
-
-#define	CTLFLAG_KRPC_VNET		CTLFLAG_VNET
-
-#define	KRPC_CURVNET_SET(n)		CURVNET_SET(n)
-#define	KRPC_CURVNET_SET_QUIET(n)	CURVNET_SET_QUIET(n)
-#define	KRPC_CURVNET_RESTORE()		CURVNET_RESTORE()
-#define	KRPC_TD_TO_VNET(n)		TD_TO_VNET(n)
-
 #endif	/* _KERNEL */
 
 #endif	/* _RPC_RPCSEC_TLS_H_ */
