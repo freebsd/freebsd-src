@@ -42,6 +42,7 @@
 #include <libgen.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,6 +88,7 @@ static const struct ipspec intparams[] = {
 							PF_INTERNAL | PF_BOOL},
     [IP_EXEC_SYSTEM_USER] =	{"exec.system_user",	PF_INTERNAL},
     [IP_EXEC_TIMEOUT] =		{"exec.timeout",	PF_INTERNAL | PF_INT},
+    [IP_ALLOW_EXEC_INCLUDE] =   {"allow.exec_include",	PF_INTERNAL | PF_BOOL},
 #if defined(INET) || defined(INET6)
     [IP_INTERFACE] =		{"interface",		PF_INTERNAL},
     [IP_IP_HOSTNAME] =		{"ip_hostname",		PF_INTERNAL | PF_BOOL},
@@ -324,11 +326,68 @@ include_config(void *scanner, const char *cfname)
 
 extern char **environ;
 
+/*
+ * Check if a file descriptor references a file is executable to the process
+ * at the time of check.
+ */
+static bool
+is_executable(const int fd)
+{
+	return faccessat(fd, "", X_OK, AT_EMPTY_PATH) == 0;
+}
+
+/*
+ * Check if dynamic includes are enabled.
+ *
+ * The check searches for the boolean internal parameter "dynamic_include"
+ * in the current jail, up its ancestor chain, and in the global jail
+ * in that order.
+ *
+ * An explicit search is needed because the parameter inheritance 
+ * gets applied too late for use in open_config().
+ */
+static bool
+dynamic_include(void)
+{
+	struct cfjail *jail;
+	struct cfparam *p;
+	const char *const name = intparams[IP_ALLOW_EXEC_INCLUDE].name;
+
+	// Search the jail and its ancestors.
+	jail = current_jail;
+	while (jail != NULL) {
+		TAILQ_FOREACH(p, &jail->params, tq)
+			if (equalopts(p->name, name))
+				return !!bool_param(p);
+		jail = jail->cfparent;
+	}
+
+	// Search the global jail.
+	jail = global_jail;
+	if (jail != NULL)
+		TAILQ_FOREACH(p, &jail->params, tq)
+			if (equalopts(p->name, name))
+				return !!bool_param(p);
+
+	// Default to disabled.
+	return false;
+}
+
+/*
+ * Open a jail configuration file.
+ *
+ * The configuration file can be dynamic (aka executable).
+ * For a dynamic configuration the FILE wraps the pipe to
+ * the child process.
+ * The PID is an out parameter and allowing the caller
+ * to wait for the exit status of the child.
+ * The PID is set to -1 if no child has been created.
+ */
 static FILE *
 open_config(const char *cfname, pid_t *const pid)
 {
 
-	int read_fd, write_fd, exec_fd, pipes[2];
+	int read_fd;
 	FILE *file;
 
 	// Invalidate the child PID.
@@ -339,18 +398,17 @@ open_config(const char *cfname, pid_t *const pid)
 	if (read_fd < 0)
 		err(1, "open(): %s", cfname);
 
-	// Try to open the configuration for execution.
-	exec_fd = open(cfname, O_EXEC);
-	if (exec_fd < 0) {
-		if (errno != EACCES)
-			err(1, "openat(): %s", cfname);
-	} else {
-		// Close the exec_fd, because fexecve(2) doesn't work
-		// with scripts since the interpreter can't read the
-		// source code through the exec_fd unless /dev/fd was
-		// mounted with the non-default "nodup" option.
-		close(exec_fd);
-		const size_t cfname_size = strlen(cfname) + 1;
+	const bool is_exec = is_executable(read_fd);
+	const bool dyn_include = dynamic_include();
+
+	// If the configuration is executable run it as a child of jail(8)
+	// and parse its standard output as jail.conf(5) configuration.
+	if (is_exec && !dyn_include) {
+		warnx("Warning: \"%s\" is executable, but executable includes "
+				"are disabled.", cfname);
+	} else if (is_exec && dyn_include) {
+		int exec_fd, write_fd;
+		const size_t cfname_size = strlen(cfname) + sizeof("");
 		char dir_buf[PATH_MAX], base_buf[PATH_MAX];
 		if (cfname_size > PATH_MAX) {
 			errno = ENAMETOOLONG;
@@ -372,12 +430,17 @@ open_config(const char *cfname, pid_t *const pid)
 			NULL
 		};
 
-		// Read from the pipe instead of the configuration.
-		close(read_fd);
-		if (pipe(pipes))
-			err(1, "pipe(): %s", cfname);
-		read_fd = pipes[0];
-		write_fd = pipes[1];
+		// The read end of the pipe replaces the configuration file
+		// as input to the parser, but the file descriptor
+		// is still needed as executable.
+		{
+			int pipes[2];
+			if (pipe(pipes))
+				err(1, "pipe(): %s", cfname);
+			exec_fd = read_fd;
+			read_fd = pipes[0];
+			write_fd = pipes[1];
+		}
 
 		// Run the configuration as child process.
 		switch ((*pid = fork())) {
@@ -412,16 +475,17 @@ open_config(const char *cfname, pid_t *const pid)
 
 			// Replace the forked child with the
 			// dynamic configuration command.
-			execve(argv[0], argv, environ);
-			err(1, "execve(): %s", cfname);
+			close(read_fd);
+			fexecve(exec_fd, argv, environ);
+			err(1, "fexecve(): %s", cfname);
 			break;
 
 		// After successful fork() inside the parent process.
 		default:
 			// Close the write end of the pipe as well as
 			// the executable file descriptor in the parent.
-			close(write_fd); write_fd = -1;
-			close(exec_fd); exec_fd = -1;
+			close(write_fd);
+			close(exec_fd);
 			break;
 		}
 	}
