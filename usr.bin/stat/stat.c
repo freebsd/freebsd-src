@@ -7,7 +7,7 @@
  * This code is derived from software contributed to The NetBSD Foundation
  * by Andrew Brown.
  *
- * Copyright (c) 2025 Klara, Inc.
+ * Copyright (c) 2025-2026 Klara, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,26 +31,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#if 0
-#ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.33 2011/01/15 22:54:10 njoly Exp $"
-"$OpenBSD: stat.c,v 1.14 2009/06/24 09:44:25 sobrado Exp $");
-#endif
-#endif
-#if HAVE_CONFIG_H
-#include "config.h" 
-#else  /* HAVE_CONFIG_H */
-#define HAVE_STRUCT_STAT_ST_FLAGS 1
-#define HAVE_STRUCT_STAT_ST_GEN 1
-#define HAVE_STRUCT_STAT_ST_BIRTHTIME 1
-#define HAVE_STRUCT_STAT_ST_MTIMENSEC 1
-#define HAVE_DEVNAME 1
-#endif /* HAVE_CONFIG_H */
-
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -68,44 +51,18 @@ __RCSID("$NetBSD: stat.c,v 1.33 2011/01/15 22:54:10 njoly Exp $"
 #include <time.h>
 #include <unistd.h>
 
-#if HAVE_STRUCT_STAT_ST_FLAGS
-#define DEF_F "%#Xf "
-#define RAW_F "%f "
-#define SHELL_F " st_flags=%f"
-#else /* HAVE_STRUCT_STAT_ST_FLAGS */
-#define DEF_F
-#define RAW_F
-#define SHELL_F
-#endif /* HAVE_STRUCT_STAT_ST_FLAGS */
-
-#if HAVE_STRUCT_STAT_ST_BIRTHTIME
-#define DEF_B "\"%SB\" "
-#define RAW_B "%B "
-#define SHELL_B "st_birthtime=%B "
-#else /* HAVE_STRUCT_STAT_ST_BIRTHTIME */
-#define DEF_B
-#define RAW_B
-#define SHELL_B
-#endif /* HAVE_STRUCT_STAT_ST_BIRTHTIME */
-
-#if HAVE_STRUCT_STAT_ST_ATIM
-#define st_atimespec st_atim
-#define st_ctimespec st_ctim
-#define st_mtimespec st_mtim
-#endif /* HAVE_STRUCT_STAT_ST_ATIM */
-
 #define DEF_FORMAT \
-	"%d %i %Sp %l %Su %Sg %r %z \"%Sa\" \"%Sm\" \"%Sc\" " DEF_B \
-	"%k %b " DEF_F "%N"
-#define RAW_FORMAT	"%d %i %#p %l %u %g %r %z %a %m %c " RAW_B \
-	"%k %b " RAW_F "%N"
+	"%d %i %Sp %l %Su %Sg %r %z \"%Sa\" \"%Sm\" \"%Sc\" \"%SB\" " \
+	"%k %b %#Xf %N"
+#define RAW_FORMAT	"%d %i %#p %l %u %g %r %z %a %m %c %B " \
+	"%k %b %f %N"
 #define LS_FORMAT	"%Sp %l %Su %Sg %Z %Sm %N%SY"
 #define LSF_FORMAT	"%Sp %l %Su %Sg %Z %Sm %N%T%SY"
 #define SHELL_FORMAT \
 	"st_dev=%d st_ino=%i st_mode=%#p st_nlink=%l " \
 	"st_uid=%u st_gid=%g st_rdev=%r st_size=%z " \
-	"st_atime=%a st_mtime=%m st_ctime=%c " SHELL_B \
-	"st_blksize=%k st_blocks=%b" SHELL_F
+	"st_atime=%a st_mtime=%m st_ctime=%c st_birthtime=%B " \
+	"st_blksize=%k st_blocks=%b st_flags=%f"
 #define LINUX_FORMAT \
 	"  File: \"%N\"%n" \
 	"  Size: %-11z  FileType: %HT%n" \
@@ -190,9 +147,7 @@ static int	 format1(const struct stat *,	/* stat info */
 	    int, int, int, int,		/* the parsed format */
 	    int, int);
 static int	 hex2byte(const char [2]);
-#if HAVE_STRUCT_STAT_ST_FLAGS
 static char	*xfflagstostr(unsigned long);
-#endif
 static int	 fdlistholes(int, const char *);
 static int	 listholes(const char *);
 
@@ -210,7 +165,7 @@ int
 main(int argc, char *argv[])
 {
 	struct stat st;
-	char dname[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
+	char dname[sizeof(_PATH_DEV) + SPECNAMELEN] = _PATH_DEV;
 	const char *statfmt, *options, *synopsis;
 	const char *file;
 	fhandle_t fhnd;
@@ -413,7 +368,6 @@ main(int argc, char *argv[])
 	return (am_readlink ? linkfail : errs);
 }
 
-#if HAVE_STRUCT_STAT_ST_FLAGS
 /*
  * fflagstostr() wrapper that leaks only once
  */
@@ -430,7 +384,6 @@ xfflagstostr(unsigned long fflags)
 		err(1, "fflagstostr");
 	return (str);
 }
-#endif /* HAVE_STRUCT_STAT_ST_FLAGS */
 
 static void
 usage(const char *synopsis)
@@ -664,19 +617,17 @@ format1(const struct stat *st,
 	case SHOW_st_dev:
 	case SHOW_st_rdev:
 		small = (sizeof(st->st_dev) == 4);
-		data = (what == SHOW_st_dev) ? st->st_dev : st->st_rdev;
-#if HAVE_DEVNAME
 		switch (what) {
 		case SHOW_st_dev:
+			data = st->st_dev;
 			dtype = S_IFCHR;
 			break;
 		case SHOW_st_rdev:
+			data = st->st_rdev;
 			dtype = st->st_mode & (S_IFCHR | S_IFBLK);
 			break;
 		}
-
 		sdata = devname(data, dtype);
-#endif /* HAVE_DEVNAME */
 		if (hilo == HIGH_PIECE) {
 			data = major(data);
 			hilo = 0;
@@ -686,11 +637,7 @@ format1(const struct stat *st,
 			hilo = 0;
 		}
 		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX |
-#if HAVE_DEVNAME
 		    FMTF_STRING;
-#else /* HAVE_DEVNAME */
-		    0;
-#endif /* HAVE_DEVNAME */
 		if (ofmt == 0)
 			ofmt = FMTF_UNSIGNED;
 		break;
@@ -779,11 +726,9 @@ format1(const struct stat *st,
 		if (tsp == NULL)
 			tsp = &st->st_ctimespec;
 		/* FALLTHROUGH */
-#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 	case SHOW_st_btime:
 		if (tsp == NULL)
 			tsp = &st->st_birthtimespec;
-#endif /* HAVE_STRUCT_STAT_ST_BIRTHTIME */
 		ts = *tsp;		/* copy so we can muck with it */
 		small = (sizeof(ts.tv_sec) == 4);
 		data = ts.tv_sec;
@@ -824,7 +769,6 @@ format1(const struct stat *st,
 		if (ofmt == 0)
 			ofmt = FMTF_UNSIGNED;
 		break;
-#if HAVE_STRUCT_STAT_ST_FLAGS
 	case SHOW_st_flags:
 		small = (sizeof(st->st_flags) == 4);
 		data = st->st_flags;
@@ -836,8 +780,6 @@ format1(const struct stat *st,
 		if (ofmt == 0)
 			ofmt = FMTF_UNSIGNED;
 		break;
-#endif /* HAVE_STRUCT_STAT_ST_FLAGS */
-#if HAVE_STRUCT_STAT_ST_GEN
 	case SHOW_st_gen:
 		small = (sizeof(st->st_gen) == 4);
 		data = st->st_gen;
@@ -846,7 +788,6 @@ format1(const struct stat *st,
 		if (ofmt == 0)
 			ofmt = FMTF_UNSIGNED;
 		break;
-#endif /* HAVE_STRUCT_STAT_ST_GEN */
 	case SHOW_realpath:
 		small = 0;
 		data = 0;
