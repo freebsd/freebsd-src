@@ -55,6 +55,8 @@ ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
 ATF_TESTS_C+=	timerfd
 LIBADD.timerfd+=	pthread
+# One test modifies the system time.
+TEST_METADATA.timerfd+=	is_exclusive="true"
 ATF_TESTS_C+=	tty_pts
 ATF_TESTS_C+=	unix_dgram
 ATF_TESTS_C+=	unix_passfd_dgram
