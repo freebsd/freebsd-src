@@ -152,6 +152,23 @@ fdlock_body()
 	atf_check test "$status2" -eq 0
 }
 
+atf_test_case fdlockspin
+fdlockspin_head()
+{
+	atf_set "descr" "Don't spin when locking a file descriptor"
+}
+fdlockspin_body()
+{
+	# Start background locker and give it time to get settled
+	lockf foo sleep 2 & sleep 1
+	# Start foreground locker in fdlock mode
+	atf_check ktrace -tc lockf -t 3 0 <foo
+	# Background locker quit and foreground locker succeeded
+	atf_check -o save:trace kdump -tc
+	# Check how many times foreground locker called flock()
+	atf_check -o inline:"2\n" egrep -c 'CALL +flock' trace
+}
+
 atf_test_case keep
 keep_body()
 {
@@ -234,6 +251,7 @@ atf_init_test_cases()
 	atf_add_test_case badargs
 	atf_add_test_case basic
 	atf_add_test_case fdlock
+	atf_add_test_case fdlockspin
 	atf_add_test_case keep
 	atf_add_test_case needfile
 	atf_add_test_case timeout
