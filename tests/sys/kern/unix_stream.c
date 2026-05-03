@@ -109,6 +109,7 @@ typedef void check_func_t(struct check_ctx *);
 struct check_ctx {
 	check_func_t	*method;
 	int		sv[2];
+	int		kq;
 	bool		timeout;
 	union {
 		enum { SELECT_RD, SELECT_WR } select_what;
@@ -156,24 +157,47 @@ check_poll(struct check_ctx *ctx)
 }
 
 static void
+add_kevent(struct check_ctx *ctx)
+{
+	struct kevent kev;
+	int kq, nfds;
+
+	if (ctx->kq <= 0) {
+		kq = kqueue();
+		ATF_REQUIRE(kq > 0);
+		ctx->kq = kq;
+	}
+
+	EV_SET(&kev, ctx->sv[0], ctx->kev_filter, EV_ADD, 0, 0, NULL);
+	nfds = kevent(ctx->kq, &kev, 1, NULL, 0, NULL);
+	ATF_REQUIRE_MSG(nfds == 0,
+	    "kevent() returns %d errno %d", nfds, errno);
+}
+
+static void
 check_kevent(struct check_ctx *ctx)
 {
 	struct kevent kev;
-	int nfds, kq;
+	int nfds;
 
-	ATF_REQUIRE(kq = kqueue());
-	EV_SET(&kev, ctx->sv[0], ctx->kev_filter, EV_ADD, 0, 0, NULL);
-	nfds = kevent(kq, &kev, 1, NULL, 0, NULL);
-	ATF_REQUIRE_MSG(nfds == 0,
-	    "kevent() returns %d errno %d", nfds, errno);
-	nfds = kevent(kq, NULL, 0, &kev, 1, ctx->timeout ?
+	nfds = kevent(ctx->kq, NULL, 0, &kev, 1, ctx->timeout ?
 	    &(struct timespec){.tv_nsec = 1000000} : NULL);
 	ATF_REQUIRE_MSG(nfds == ctx->nfds,
 	    "kevent() returns %d errno %d", nfds, errno);
-	ATF_REQUIRE(kev.ident == (uintptr_t)ctx->sv[0] &&
-	    kev.filter == ctx->kev_filter &&
-	    (kev.flags & ctx->kev_flags) == ctx->kev_flags);
-	close(kq);
+	if (nfds > 0) {
+		ATF_REQUIRE_EQ(kev.ident, (uintptr_t)ctx->sv[0]);
+		ATF_REQUIRE_EQ(kev.filter, ctx->kev_filter);
+		ATF_REQUIRE_EQ(kev.flags & ctx->kev_flags, ctx->kev_flags);
+	}
+	close(ctx->kq);
+	ctx->kq = -1;
+}
+
+static void
+add_and_check_kevent(struct check_ctx *ctx)
+{
+	add_kevent(ctx);
+	check_kevent(ctx);
 }
 
 static void
@@ -287,7 +311,7 @@ ATF_TC_WITHOUT_HEAD(full_writability_kevent);
 ATF_TC_BODY(full_writability_kevent, tc)
 {
 	struct check_ctx ctx = {
-		.method = check_kevent,
+		.method = add_and_check_kevent,
 		.kev_filter = EVFILT_WRITE,
 	};
 
@@ -312,7 +336,7 @@ ATF_TC_BODY(connected_writability, tc)
 	ctx.poll_events = POLLOUT | POLLWRNORM;
 	check_poll(&ctx);
 	ctx.kev_filter = EVFILT_WRITE;
-	check_kevent(&ctx);
+	add_and_check_kevent(&ctx);
 
 	close(ctx.sv[0]);
 	close(ctx.sv[1]);
@@ -333,13 +357,13 @@ ATF_TC_BODY(unconnected_writability, tc)
 	ctx.poll_events = POLLOUT | POLLWRNORM;
 	check_poll(&ctx);
 	ctx.kev_filter = EVFILT_WRITE;
-	check_kevent(&ctx);
+	add_and_check_kevent(&ctx);
 
 	close(ctx.sv[0]);
 }
 
-ATF_TC_WITHOUT_HEAD(peerclosed_writability);
-ATF_TC_BODY(peerclosed_writability, tc)
+ATF_TC_WITHOUT_HEAD(peerclosed_writability_level);
+ATF_TC_BODY(peerclosed_writability_level, tc)
 {
 	struct check_ctx ctx = {
 		.timeout = false,
@@ -355,6 +379,24 @@ ATF_TC_BODY(peerclosed_writability, tc)
 	check_poll(&ctx);
 	ctx.kev_filter = EVFILT_WRITE;
 	ctx.kev_flags = EV_EOF;
+	add_and_check_kevent(&ctx);
+
+	close(ctx.sv[0]);
+}
+
+ATF_TC_WITHOUT_HEAD(peerclosed_writability_edge);
+ATF_TC_BODY(peerclosed_writability_edge, tc)
+{
+	struct check_ctx ctx = {
+		.timeout = false,
+		.nfds = 1,
+	};
+
+	do_socketpair(ctx.sv);
+	ctx.kev_filter = EVFILT_WRITE;
+	ctx.kev_flags = EV_EOF;
+	add_kevent(&ctx);
+	close(ctx.sv[1]);
 	check_kevent(&ctx);
 
 	close(ctx.sv[0]);
@@ -384,7 +426,7 @@ ATF_TC_BODY(peershutdown_writability, tc)
 	 * and then this test will also expect EV_EOF in returned flags.
 	 */
 	ctx.kev_filter = EVFILT_WRITE;
-	check_kevent(&ctx);
+	add_and_check_kevent(&ctx);
 
 	close(ctx.sv[0]);
 	close(ctx.sv[1]);
@@ -463,7 +505,7 @@ ATF_TC_WITHOUT_HEAD(peershutdown_wakeup_kevent);
 ATF_TC_BODY(peershutdown_wakeup_kevent, tc)
 {
 	peershutdown_wakeup(&(struct check_ctx){
-		.method = check_kevent,
+		.method = add_and_check_kevent,
 		.kev_filter = EVFILT_READ,
 		.kev_flags = EV_EOF,
 	});
@@ -525,7 +567,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, full_writability_select);
 	ATF_TP_ADD_TC(tp, full_writability_poll);
 	ATF_TP_ADD_TC(tp, full_writability_kevent);
-	ATF_TP_ADD_TC(tp, peerclosed_writability);
+	ATF_TP_ADD_TC(tp, peerclosed_writability_level);
+	ATF_TP_ADD_TC(tp, peerclosed_writability_edge);
 	ATF_TP_ADD_TC(tp, peershutdown_writability);
 	ATF_TP_ADD_TC(tp, peershutdown_readability);
 	ATF_TP_ADD_TC(tp, peershutdown_wakeup_select);
