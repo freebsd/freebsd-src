@@ -340,10 +340,7 @@ static void	acpi_spmc_resume(device_t dev, enum power_stype stype);
 static int
 acpi_spmc_probe(device_t dev)
 {
-	char			*name;
-	ACPI_HANDLE		 handle;
-	struct acpi_spmc_softc	*sc;
-	char			 buf[32];
+	char *name;
 
 	/* Check that this is an enabled device. */
 	if (acpi_get_type(dev) != ACPI_TYPE_DEVICE || acpi_disabled("spmc"))
@@ -357,41 +354,42 @@ acpi_spmc_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	handle = acpi_get_handle(dev);
-	/* ACPI_ID_PROBE() above cannot succeed without a handle. */
-	MPASS(handle != NULL);
+	device_set_desc(dev, "System Power Management Controller");
 
-	sc = device_get_softc(dev);
-	sc->dev = dev;
-
-	/* Check which DSMs are supported. */
-	sc->dsms = 0;
-
-	for (int i = 0; i < nitems(dsms); ++i)
-		acpi_spmc_check_dsm(sc, handle, dsms[i]);
-
-	if (sc->dsms == 0)
-		return (ENXIO);
-
-	print_bit_field(buf, sizeof(buf), sc->dsms, "DSM", pbf_dsm_name, NULL);
-	device_set_descf(dev, "System Power Management Controller (DSMs %s)",
-	    buf);
-
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
 acpi_spmc_attach(device_t dev)
 {
-	struct acpi_spmc_softc *sc = device_get_softc(dev);
+	struct acpi_spmc_softc *const sc = device_get_softc(dev);
+	const ACPI_HANDLE handle = acpi_get_handle(dev);
+	char buf[32];
 
-	sc->handle = acpi_get_handle(dev);
-	if (sc->handle == NULL)
+	/*
+	 * ACPI_ID_PROBE() in acpi_spmc_probe() cannot succeed without a handle.
+	 */
+	MPASS(handle != NULL);
+
+	sc->dev = dev;
+	sc->handle = handle;
+
+	for (int i = 0; i < nitems(dsms); ++i) {
+		KASSERT(dsms[i] != NULL, ("%s: Sparse dsms[]!", __func__));
+		KASSERT(dsms[i]->index == i,
+		    ("%s: Inconsistent indices for DSM %s", __func__,
+		    dsms[i]->name));
+
+		acpi_spmc_check_dsm(sc, handle, dsms[i]);
+	}
+
+	if (sc->dsms == 0) {
+		device_printf(dev, "No DSM supported!");
 		return (ENXIO);
+	}
 
-	sc->constraints_populated = false;
-	sc->constraint_count = 0;
-	sc->constraints = NULL;
+	print_bit_field(buf, sizeof(buf), sc->dsms, "DSM", pbf_dsm_name, NULL);
+	device_printf(dev, "DSMs supported: %s\n", buf);
 
 	/* Get device constraints. We can only call this once so do this now. */
 	acpi_spmc_get_constraints(dev);
