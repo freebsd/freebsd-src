@@ -175,7 +175,9 @@ struct asmc_softc {
 #define ASMC_KEY_CLAMSHELL	"MSLD"	/* RO; 1 byte */
 
 /*
- * Auto power on / Wake-on-LAN.
+ * Auto power-on after AC power loss (AUPO).
+ * When set, the machine boots automatically when AC power is restored
+ * after an unclean power loss.  This is NOT Wake-on-LAN.
  */
 #define ASMC_KEY_AUPO		"AUPO"	/* RW; 1 byte */
 
