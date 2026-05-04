@@ -451,7 +451,7 @@ acpi_spmc_get_constraints(device_t dev)
 		dsm_index.regular = DSM_GET_DEVICE_CONSTRAINTS;
 	}
 
-	/* XXX It seems like this DSM fails if called more than once. */
+	/* It seems like this DSM can fail if called more than once. */
 	status = acpi_EvaluateDSMTyped(sc->handle, (uint8_t *)&dsm_set->uuid,
 	    dsm_set->revision, dsm_index.i, NULL, &result,
 	    ACPI_TYPE_PACKAGE);
