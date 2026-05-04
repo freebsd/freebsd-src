@@ -364,3 +364,4 @@ model xxXAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
 /* Microchip (formerly SMSC) */
 model SMSC LAN8710A		0x000F Microchip LAN8710A 10/100 interface
 model SMSC LAN8700		0x000C Microchip LAN8700  10/100 interface
+model SMSC LAN867X		0x0016 Microchip LAN8670/1/2 10BASE-T1S PHY
