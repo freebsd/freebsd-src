@@ -262,6 +262,8 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_1000_BX	IFM_X(121)	/* 1000Base-BX */
 #define	IFM_400G_SR8	IFM_X(122)	/* 400GBase-SR8 */
 #define	IFM_400G_CR8	IFM_X(123)	/* 400GBase-CR8 */
+#define	IFM_10_T1S	IFM_X(124)	/* 10BASE-T1S */
+#define	IFM_10_T1L	IFM_X(125)	/* 10BASE-T1L */
 
 /*
  * Please update ieee8023ad_lacp.c:lacp_compose_key()
@@ -554,6 +556,8 @@ struct ifmedia_description {
 	{ IFM_400G_AUI8,	"400G-AUI8" },				\
 	{ IFM_400G_SR8,	"400GBase-SR8" },				\
 	{ IFM_400G_CR8,	"400GBase-CR8" },				\
+	{ IFM_10_T1S,	"10BASE-T1S" },					\
+	{ IFM_10_T1L,	"10BASE-T1L" },					\
 	{ 0, NULL },							\
 }
 
@@ -903,6 +907,8 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_400G_AUI8,	IF_Gbps(400ULL) },		\
 	{ IFM_ETHER | IFM_400G_SR8,	IF_Gbps(400ULL) },		\
 	{ IFM_ETHER | IFM_400G_CR8,	IF_Gbps(400ULL) },		\
+	{ IFM_ETHER | IFM_10_T1S,	IF_Mbps(10) },			\
+	{ IFM_ETHER | IFM_10_T1L,	IF_Mbps(10) },			\
 									\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH1,	IF_Mbps(1) },		\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH2,	IF_Mbps(2) },		\
