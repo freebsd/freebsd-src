@@ -65,6 +65,7 @@ SUBDIR+=	lldb-server
 .if ${MK_LLVM_COV} != "no"
 SUBDIR+=	llvm-cov
 SUBDIR+=	llvm-profdata
+SUBDIR_DEPEND_toolchain=	llvm-cov
 .endif
 .endif # TOOLS_PREFIX
 
