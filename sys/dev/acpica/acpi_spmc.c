@@ -486,8 +486,7 @@ acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *objec
 	ACPI_OBJECT	*detail;
 	ACPI_OBJECT	*constraint_package;
 
-	KASSERT(sc->constraints_populated == false,
-	    ("constraints already populated"));
+	KASSERT(!sc->constraints_populated, ("Constraints already populated"));
 
 	sc->constraint_count = object->Package.Count;
 	sc->constraints = malloc(sc->constraint_count * sizeof *sc->constraints,
@@ -548,8 +547,7 @@ acpi_spmc_parse_constraints_amd(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 	struct acpi_spmc_constraint *constraint;
 	ACPI_OBJECT	*name_obj;
 
-	KASSERT(sc->constraints_populated == false,
-	    ("constraints already populated"));
+	KASSERT(!sc->constraints_populated, ("Constraints already populated"));
 
 	/*
 	 * First element in the package is unknown.
@@ -658,7 +656,7 @@ acpi_spmc_check_constraints(struct acpi_spmc_softc *sc)
 {
 	bool violation = false;
 
-	KASSERT(sc->constraints_populated, ("constraints not populated"));
+	KASSERT(sc->constraints_populated, ("Constraints not populated"));
 	for (size_t i = 0; i < sc->constraint_count; i++) {
 		struct acpi_spmc_constraint *constraint = &sc->constraints[i];
 
