@@ -643,7 +643,8 @@ acpi_spmc_get_constraints(device_t dev)
 		status = acpi_GetHandleInScope(sc->handle,
 		    __DECONST(char *, constraint->name), &constraint->handle);
 		if (ACPI_FAILURE(status)) {
-			device_printf(dev, "failed to get handle for %s\n",
+			device_printf(dev,
+			    "Constraints: Cannot get handle for %s, ignoring\n",
 			    constraint->name);
 			constraint->handle = NULL;
 		}
@@ -662,16 +663,6 @@ acpi_spmc_check_constraints(struct acpi_spmc_softc *sc)
 
 		if (!constraint->enabled)
 			continue;
-		if (constraint->handle == NULL)
-			continue;
-
-		ACPI_STATUS status = acpi_GetHandleInScope(sc->handle,
-		    __DECONST(char *, constraint->name), &constraint->handle);
-		if (ACPI_FAILURE(status)) {
-			device_printf(sc->dev, "failed to get handle for %s\n",
-			    constraint->name);
-			constraint->handle = NULL;
-		}
 		if (constraint->handle == NULL)
 			continue;
 
