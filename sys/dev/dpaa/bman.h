@@ -1,7 +1,7 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c) 2026 Justin Hibbits
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 /*-
