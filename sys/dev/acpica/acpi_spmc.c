@@ -164,7 +164,6 @@ struct acpi_spmc_constraint {
 struct acpi_spmc_softc {
 	device_t		dev;
 	ACPI_HANDLE		handle;
-	ACPI_OBJECT		*obj;
 	enum dsm_flags		dsms;
 
 	struct eventhandler_entry	*eh_suspend;
