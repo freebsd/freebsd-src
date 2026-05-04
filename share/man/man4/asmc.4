@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" Copyright (c) 2007, 2008, 2009 Rui Paulo <rpaulo@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -112,6 +112,13 @@ minimum fan speed, the minimum speed and the maximum speed
 respectively.
 .Pp
 All values are in RPM.
+.Sh POWER MANAGEMENT
+The
+.Va dev.asmc.%d.auto_poweron
+sysctl controls whether the machine automatically powers on when AC power
+is restored after an unclean power loss
+.Pq SMC key Dq AUPO .
+A value of 1 enables automatic power-on; 0 disables it.
 .Sh RAW SMC KEY ACCESS
 When the kernel is compiled with the
 .Dv ASMC_DEBUG

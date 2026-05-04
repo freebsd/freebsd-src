@@ -123,7 +123,7 @@ static int 	asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS);
-static int	asmc_wol_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_aupo_sysctl(SYSCTL_HANDLER_ARGS);
 
 static int	asmc_key_getinfo(device_t, const char *, uint8_t *, char *);
 
@@ -793,14 +793,14 @@ asmc_init(device_t dev)
 	device_printf(dev, "SMC revision: %x.%x%x%x\n", buf[0], buf[1], buf[2],
 	    ntohs(*(uint16_t *)buf + 4));
 
-	/* Wake-on-LAN convenience sysctl */
+	/* Auto power-on after AC power loss (AUPO). */
 	if (asmc_key_read(dev, ASMC_KEY_AUPO, buf, 1) == 0) {
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "wol",
+		    OID_AUTO, "auto_poweron",
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-		    dev, 0, asmc_wol_sysctl, "I",
-		    "Wake-on-LAN enable (0=off, 1=on)");
+		    dev, 0, asmc_aupo_sysctl, "I",
+		    "Auto power-on after AC power loss (0=off, 1=on)");
 	}
 
 	sc->sc_nfan = asmc_fan_count(dev);
@@ -1222,7 +1222,7 @@ out:
 /*
  * Raw SMC key access sysctls - enables reading/writing any SMC key by name
  * Usage:
- *   sysctl dev.asmc.0.raw.key=AUPO   # Set key, auto-detects length
+ *   sysctl dev.asmc.0.raw.key=TC0P   # Set key, auto-detects length
  *   sysctl dev.asmc.0.raw.value      # Read current value (hex bytes)
  *   sysctl dev.asmc.0.raw.value=01   # Write new value
  */
@@ -2338,18 +2338,17 @@ asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Wake-on-LAN convenience sysctl.
- * Reading returns 1 if WoL is enabled, 0 if disabled.
- * Writing 1 enables WoL, 0 disables it.
+ * Auto power-on after AC power loss (AUPO key).
+ * When non-zero the machine boots automatically when AC is restored
+ * after an unclean power loss.  Useful for always-on servers / home labs.
  */
 static int
-asmc_wol_sysctl(SYSCTL_HANDLER_ARGS)
+asmc_aupo_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
 	uint8_t aupo;
 	int val, error;
 
-	/* Read current AUPO value */
 	if (asmc_key_read(dev, ASMC_KEY_AUPO, &aupo, 1) != 0)
 		return (EIO);
 
@@ -2358,10 +2357,7 @@ asmc_wol_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	/* Clamp to 0 or 1 */
 	aupo = (val != 0) ? 1 : 0;
-
-	/* Write AUPO */
 	if (asmc_key_write(dev, ASMC_KEY_AUPO, &aupo, 1) != 0)
 		return (EIO);
 
