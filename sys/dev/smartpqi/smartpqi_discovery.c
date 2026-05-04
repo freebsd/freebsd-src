@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -155,7 +155,7 @@ pqisrc_remove_target_bit(pqisrc_softstate_t *softs, int target)
 	softs->bit_map.bit_vector[target] = SLOT_AVAILABLE;
 }
 
-/* Use bit map to find availible targets */
+/* Use bit map to find available targets */
 int
 pqisrc_find_avail_target(pqisrc_softstate_t *softs)
 {
@@ -1423,7 +1423,11 @@ pqisrc_add_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 
 	if(device->expose_device) {
 		pqisrc_init_device_active_io(softs, device);
-		/* TBD: Call OS upper layer function to add the device entry */
+		device_printf(softs->os_specific.pqi_dev,
+		    "device added: vendor=%s model=%s B%d:T%d:L%d type=%s\n",
+		    device->vendor, device->model,
+		    device->bus, device->target, device->lun,
+		    device->is_physical_device ? "physical" : "logical");
 		os_add_device(softs,device);
 	}
 	DBG_FUNC("OUT\n");
@@ -1451,6 +1455,11 @@ pqisrc_remove_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 	}
 	/* Wait for device outstanding Io's */
 	pqisrc_wait_for_device_commands_to_complete(softs, device);
+	device_printf(softs->os_specific.pqi_dev,
+	    "device removed: vendor=%s model=%s B%d:T%d:L%d type=%s\n",
+	    device->vendor, device->model,
+	    device->bus, device->target, device->lun,
+	    device->is_physical_device ? "physical" : "logical");
 	/* Call OS upper layer function to remove the exposed device entry */
 	os_remove_device(softs,device);
 	DBG_FUNC("OUT\n");
@@ -1674,10 +1683,14 @@ pqisrc_update_device_list(pqisrc_softstate_t *softs,
 		case DEVICE_NOT_FOUND:
 			/* Device not found in existing list */
 			device->new_device = true;
+			DBG_DISC("new device found B%d:T%d:L%d\n",
+			    device->bus, device->target, device->lun);
 			break;
 		case DEVICE_CHANGED:
 			/* Actual device gone need to add device to list*/
 			device->new_device = true;
+			DBG_DISC("device changed B%d:T%d:L%d\n",
+			    device->bus, device->target, device->lun);
 			break;
 		case DEVICE_IN_REMOVE:
 			/*Older device with same target/lun is in removal stage*/
@@ -1686,6 +1699,8 @@ pqisrc_update_device_list(pqisrc_softstate_t *softs,
 			 * free call*/
 			device->new_device = false;
 			same_device->schedule_rescan = true;
+			DBG_DISC("device in removal B%d:T%d:L%d, scheduling rescan\n",
+			    device->bus, device->target, device->lun);
 			break;
 		default:
 			break;

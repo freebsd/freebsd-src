@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1998,7 +1998,7 @@ pqisrc_send_raid_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t const *devp,
 
 	if (softs->timeout_in_tmf &&
 			tmf_type == SOP_TASK_MANAGEMENT_LUN_RESET) {
-		/* OS_TMF_TIMEOUT_SEC - 1 to accomodate driver processing */
+		/* OS_TMF_TIMEOUT_SEC - 1 to accommodate driver processing */
 		tmf_req.timeout_in_sec = OS_TMF_TIMEOUT_SEC - 1;
 	}
 

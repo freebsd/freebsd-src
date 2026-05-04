@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -204,6 +204,17 @@ pqisrc_process_event_intr_src(pqisrc_softstate_t *softs,int obq_id)
 		}
 
 		if (event_index >= 0) {
+			static const char *event_names[] = {
+				[PQI_EVENT_HOTPLUG]           = "hotplug",
+				[PQI_EVENT_HARDWARE]          = "hardware",
+				[PQI_EVENT_PHYSICAL_DEVICE]   = "physical device",
+				[PQI_EVENT_LOGICAL_DEVICE]    = "logical device",
+				[PQI_EVENT_AIO_STATE_CHANGE]  = "AIO state change",
+				[PQI_EVENT_AIO_CONFIG_CHANGE] = "AIO config change",
+			};
+			device_printf(softs->os_specific.pqi_dev,
+			    "event: %s (type=0x%x)\n",
+			    event_names[event_index], response.event_type);
 			if(response.request_acknowledge) {
 				pending_event = &softs->pending_events[event_index];
 				pending_event->pending = true;
@@ -385,7 +396,7 @@ pqisrc_report_event_config(pqisrc_softstate_t *softs)
 	pqi_event_config_request_t request;
 	pqi_event_config_t  *event_config_p ;
 	dma_mem_t  buf_report_event ;
-	/*bytes to be allocaed for report event config data-in buffer */
+	/*bytes to be allocated for report event config data-in buffer */
 	uint32_t alloc_size = sizeof(pqi_event_config_t) ;
 	memset(&request, 0 , sizeof(request));
 
@@ -446,7 +457,7 @@ pqisrc_set_event_config(pqisrc_softstate_t *softs)
 	pqi_event_config_request_t request;
 	pqi_event_config_t *event_config_p;
 	dma_mem_t buf_set_event;
-	/*bytes to be allocaed for set event config data-out buffer */
+	/*bytes to be allocated for set event config data-out buffer */
 	uint32_t alloc_size = sizeof(pqi_event_config_t);
 	memset(&request, 0 , sizeof(request));
 

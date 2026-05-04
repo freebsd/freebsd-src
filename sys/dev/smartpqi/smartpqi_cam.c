@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1300,7 +1300,7 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 	csa.callback_arg = softs;
 	xpt_action((union ccb *)&csa);
 	if (csa.ccb_h.status != CAM_REQ_CMP) {
-		DBG_ERR("Unable to register smartpqi_aysnc handler: %d!\n",
+		DBG_ERR("Unable to register smartpqi_async handler: %d!\n",
 			csa.ccb_h.status);
 	}
 
