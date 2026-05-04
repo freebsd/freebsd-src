@@ -367,6 +367,7 @@ acpi_spmc_attach(device_t dev)
 	struct acpi_spmc_softc *const sc = device_get_softc(dev);
 	const ACPI_HANDLE handle = acpi_get_handle(dev);
 	char buf[32];
+	int error;
 
 	/*
 	 * ACPI_ID_PROBE() in acpi_spmc_probe() cannot succeed without a handle.
@@ -399,7 +400,12 @@ acpi_spmc_attach(device_t dev)
 			acpi_spmc_dsm_print_functions(sc, dsms[i]);
 
 	/* Get device constraints. We can only call this once so do this now. */
-	acpi_spmc_get_constraints(sc);
+	error = acpi_spmc_get_constraints(sc);
+	if (error != 0)
+		/* acpi_spmc_get_constraints() takes care of cleaning up. */
+		device_printf(dev,
+		    "Could not parse power state constraints (%d), "
+		    "will not check for them before suspend\n", error);
 
 	sc->eh_suspend = EVENTHANDLER_REGISTER(acpi_post_dev_suspend,
 	    acpi_spmc_suspend, dev, 0);
