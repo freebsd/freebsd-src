@@ -2978,8 +2978,8 @@ out:
  * bsd_list, bsd_list_len - output list compatible with bsd vfs
  */
 static int
-fuse_xattrlist_convert(char *prefix, const char *list, int list_len,
-    char *bsd_list, int *bsd_list_len)
+fuse_xattrlist_convert(struct fuse_data *data, char *prefix, const char *list,
+    int list_len, char *bsd_list, int *bsd_list_len)
 {
 	int len, pos, dist_to_next, prefix_len;
 
@@ -2988,7 +2988,14 @@ fuse_xattrlist_convert(char *prefix, const char *list, int list_len,
 	prefix_len = strlen(prefix);
 
 	while (pos < list_len && list[pos] != '\0') {
-		dist_to_next = strlen(&list[pos]) + 1;
+		dist_to_next = strnlen(&list[pos], list_len - pos - 1) + 1;
+		if (list[pos + dist_to_next - 1] != '\0') {
+			fuse_warn(data, FSESS_WARN_LSEXTATTR_NUL,
+				"The FUSE server returned a non nul-terminated "
+				"LISTXATTR response.");
+			return (EXTERROR(EIO,
+				"The FUSE server returned a malformed list"));
+		}
 		if (bcmp(&list[pos], prefix, prefix_len) == 0 &&
 		    list[pos + prefix_len] == extattr_namespace_separator) {
 			len = dist_to_next -
@@ -3044,6 +3051,7 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	struct fuse_listxattr_in *list_xattr_in;
 	struct fuse_listxattr_out *list_xattr_out;
 	struct mount *mp = vnode_mount(vp);
+	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
 	char *prefix;
@@ -3124,8 +3132,6 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	linux_list = fdi.answ;
 	/* FUSE doesn't allow the server to return more data than requested */
 	if (fdi.iosize > linux_list_len) {
-		struct fuse_data *data = fuse_get_mpdata(mp);
-
 		fuse_warn(data, FSESS_WARN_LSEXTATTR_LONG,
 			"server returned "
 			"more extended attribute data than requested; "
@@ -3142,7 +3148,7 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	 * FreeBSD's format before giving it to the user.
 	 */
 	bsd_list = malloc(linux_list_len, M_TEMP, M_WAITOK);
-	err = fuse_xattrlist_convert(prefix, linux_list, linux_list_len,
+	err = fuse_xattrlist_convert(data, prefix, linux_list, linux_list_len,
 	    bsd_list, &bsd_list_len);
 	if (err != 0)
 		goto out;
