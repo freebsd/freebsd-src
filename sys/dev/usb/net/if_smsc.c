@@ -157,6 +157,7 @@ static const struct usb_device_id smsc_devs[] = {
 	SMSC_DEV(LAN9500A_HAL, 0),
 	SMSC_DEV(LAN9505A_HAL, 0),
 #undef SMSC_DEV
+	{ USB_VPI(USB_VENDOR_K2L, USB_PRODUCT_K2L_EVB_LAN8670_USB, 0) },
 };
 
 #ifdef USB_DEBUG
