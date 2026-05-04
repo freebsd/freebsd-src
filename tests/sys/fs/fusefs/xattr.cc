@@ -449,6 +449,79 @@ TEST_F(ListxattrSig, erange_forever)
 }
 
 /*
+ * A buggy or malicious server returns a list that isn't nul-terminated.  The
+ * kernel should handle it gracefully.
+ */
+TEST_F(Listxattr, not_nul_terminated)
+{
+	uint64_t ino = 42;
+	int ns = EXTATTR_NAMESPACE_USER;
+	char *data;
+	const char expected[4] = {3, 'f', 'o', 'o'};
+	const char first[255] = "user.foo\0system.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+	const uint8_t badlist[9] = {'u', 's', 'e', 'r', '.', 'f', 'o', 'o', 'd'};
+	Sequence seq;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	/* 
+	 * On the first LISTXATTRS call, return a big attribute just to fill
+	 * the heap with non-NUL data.
+	 */
+	expect_listxattr(ino, 0,
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			out.body.listxattr.size = sizeof(first);
+			SET_OUT_HEADER_LEN(out, listxattr);
+		}), &seq
+	);
+	expect_listxattr(ino, sizeof(first),
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			memcpy((void*)out.body.bytes, first, sizeof(first));
+			out.header.len = sizeof(fuse_out_header) + sizeof(first);
+		}), &seq
+	);
+	/*
+	 * On the second LISTXATTRS call, return a malformed list with no NUL
+	 * termination.  The heap might still be full of the data from the
+	 * first call.
+	 */
+	expect_listxattr(ino, 0,
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			out.body.listxattr.size = sizeof(badlist);
+			SET_OUT_HEADER_LEN(out, listxattr);
+		}), &seq
+	);
+	expect_listxattr(ino, sizeof(badlist),
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			memset((void*)out.body.bytes, 'x', sizeof(first));
+			memcpy((void*)out.body.bytes, badlist, sizeof(badlist));
+			out.header.len = sizeof(fuse_out_header) + sizeof(badlist);
+		}), &seq
+	);
+
+	data = new char[1024];
+
+	ASSERT_EQ(static_cast<ssize_t>(sizeof(expected)),
+		extattr_list_file(FULLPATH, ns, data, sizeof(data)))
+		<< strerror(errno);
+	/*
+	 * Receiving this malformed list, the kernel should log it to dmesg and
+	 * report an IO error to the caller.
+	 */
+	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, data, sizeof(data)));
+	EXPECT_EQ(EIO, errno);
+}
+
+/*
  * Get the size of the list that it would take to list no extended attributes
  */
 TEST_F(Listxattr, size_only_empty)
