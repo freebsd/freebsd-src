@@ -172,6 +172,12 @@ struct acpi_spmc_softc {
 	struct acpi_spmc_constraint	*constraints;
 };
 
+static bool
+has_dsm(const struct acpi_spmc_softc *const sc, const int dsm_set_bit)
+{
+	return ((sc->dsm_sets & dsm_set_bit) != 0);
+}
+
 static void	acpi_spmc_check_dsm_set(struct acpi_spmc_softc *sc,
 		    ACPI_HANDLE handle, struct dsm_set *dsm_set);
 static int	acpi_spmc_get_constraints(device_t dev);
@@ -442,7 +448,7 @@ acpi_spmc_get_constraints(device_t dev)
 		return (0);
 
 	/* The Microsoft DSM set doesn't have this DSM. */
-	is_amd = (sc->dsm_sets & DSM_SET_AMD) != 0;
+	is_amd = has_dsm(sc, DSM_SET_AMD);
 	if (is_amd) {
 		dsm_set = &amd_dsm_set;
 		dsm_index.amd = AMD_DSM_GET_DEVICE_CONSTRAINTS;
@@ -562,11 +568,11 @@ acpi_spmc_display_off_notif(device_t dev)
 {
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
-	if ((sc->dsm_sets & DSM_SET_INTEL) != 0)
+	if (has_dsm(sc, DSM_SET_INTEL))
 		acpi_spmc_run_dsm(dev, &intel_dsm_set, DSM_DISPLAY_OFF_NOTIF);
-	if ((sc->dsm_sets & DSM_SET_MS) != 0)
+	if (has_dsm(sc, DSM_SET_MS))
 		acpi_spmc_run_dsm(dev, &ms_dsm_set, DSM_DISPLAY_OFF_NOTIF);
-	if ((sc->dsm_sets & DSM_SET_AMD) != 0)
+	if (has_dsm(sc, DSM_SET_AMD))
 		acpi_spmc_run_dsm(dev, &amd_dsm_set, AMD_DSM_DISPLAY_OFF_NOTIF);
 }
 
@@ -575,11 +581,11 @@ acpi_spmc_display_on_notif(device_t dev)
 {
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
-	if ((sc->dsm_sets & DSM_SET_INTEL) != 0)
+	if (has_dsm(sc, DSM_SET_INTEL))
 		acpi_spmc_run_dsm(dev, &intel_dsm_set, DSM_DISPLAY_ON_NOTIF);
-	if ((sc->dsm_sets & DSM_SET_MS) != 0)
+	if (has_dsm(sc, DSM_SET_MS))
 		acpi_spmc_run_dsm(dev, &ms_dsm_set, DSM_DISPLAY_ON_NOTIF);
-	if ((sc->dsm_sets & DSM_SET_AMD) != 0)
+	if (has_dsm(sc, DSM_SET_AMD))
 		acpi_spmc_run_dsm(dev, &amd_dsm_set, AMD_DSM_DISPLAY_ON_NOTIF);
 }
 
@@ -590,13 +596,13 @@ acpi_spmc_entry_notif(device_t dev)
 
 	acpi_spmc_check_constraints(sc);
 
-	if ((sc->dsm_sets & DSM_SET_AMD) != 0)
+	if (has_dsm(sc, DSM_SET_AMD))
 		acpi_spmc_run_dsm(dev, &amd_dsm_set, AMD_DSM_ENTRY_NOTIF);
-	if ((sc->dsm_sets & DSM_SET_MS) != 0) {
+	if (has_dsm(sc, DSM_SET_MS)) {
 		acpi_spmc_run_dsm(dev, &ms_dsm_set, DSM_MODERN_ENTRY_NOTIF);
 		acpi_spmc_run_dsm(dev, &ms_dsm_set, DSM_ENTRY_NOTIF);
 	}
-	if ((sc->dsm_sets & DSM_SET_INTEL) != 0)
+	if (has_dsm(sc, DSM_SET_INTEL))
 		acpi_spmc_run_dsm(dev, &intel_dsm_set, DSM_ENTRY_NOTIF);
 }
 
@@ -605,11 +611,11 @@ acpi_spmc_exit_notif(device_t dev)
 {
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
-	if ((sc->dsm_sets & DSM_SET_INTEL) != 0)
+	if (has_dsm(sc, DSM_SET_INTEL))
 		acpi_spmc_run_dsm(dev, &intel_dsm_set, DSM_EXIT_NOTIF);
-	if ((sc->dsm_sets & DSM_SET_AMD) != 0)
+	if (has_dsm(sc, DSM_SET_AMD))
 		acpi_spmc_run_dsm(dev, &amd_dsm_set, AMD_DSM_EXIT_NOTIF);
-	if ((sc->dsm_sets & DSM_SET_MS) != 0) {
+	if (has_dsm(sc, DSM_SET_MS)) {
 		acpi_spmc_run_dsm(dev, &ms_dsm_set, DSM_EXIT_NOTIF);
 		if (ms_dsm_set.dsms_supported &
 		    (1 << DSM_MODERN_TURN_ON_DISPLAY))
