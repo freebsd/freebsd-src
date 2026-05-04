@@ -136,9 +136,14 @@ _module_run(void *arg)
 #define	module_exit_order(fn, order)				\
 	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, (order), _module_run, (fn))
 
-#define	module_get(module)
-#define	module_put(module)
-#define	try_module_get(module)	1
+static inline void module_get(struct module *module) {}
+static inline void module_put(struct module *module) {}
+
+static inline bool
+try_module_get(struct module *module)
+{
+	return (true);
+}
 
 #define	postcore_initcall(fn)	module_init(fn)
 
