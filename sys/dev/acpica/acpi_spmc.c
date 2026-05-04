@@ -186,6 +186,15 @@ has_dsm(const struct acpi_spmc_softc *const sc, const int dsm_bit)
 	return ((sc->dsms & dsm_bit) != 0);
 }
 
+static void
+failed_to_call_dsm(const struct acpi_spmc_softc *const sc,
+    const struct dsm_desc *const dsm, const int function_index)
+{
+	(void)device_printf(sc->dev,
+	    "Failed to call DSM %s (rev %u) function %d\n",
+	    dsm->name, dsm->revision, function_index);
+}
+
 static void	acpi_spmc_check_dsm(struct acpi_spmc_softc *sc,
 		    ACPI_HANDLE handle, struct dsm_desc *dsm);
 static int	acpi_spmc_get_constraints(device_t dev);
@@ -470,8 +479,7 @@ acpi_spmc_get_constraints(device_t dev)
 	    dsm->revision, dsm_index.i, NULL, &result,
 	    ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(status)) {
-		device_printf(dev, "%s failed to call %s DSM %d (rev %d)\n",
-		    __func__, dsm->name, dsm_index.i, dsm->revision);
+		failed_to_call_dsm(sc, dsm, dsm_index.i);
 		return (ENXIO);
 	}
 
@@ -555,13 +563,10 @@ acpi_spmc_run_dsm(device_t dev, struct dsm_desc *dsm, int function_index)
 	status = acpi_EvaluateDSMTyped(sc->handle, (uint8_t *)&dsm->uuid,
 	    dsm->revision, function_index, NULL, &result, ACPI_TYPE_ANY);
 
-	if (ACPI_FAILURE(status)) {
-		device_printf(dev, "%s failed to call %s DSM %d (rev %d)\n",
-		    __func__, dsm->name, function_index, dsm->revision);
-		return;
-	}
-
-	AcpiOsFree(result.Pointer);
+	if (ACPI_FAILURE(status))
+		failed_to_call_dsm(sc, dsm, function_index);
+	else
+		AcpiOsFree(result.Pointer);
 }
 
 /*
