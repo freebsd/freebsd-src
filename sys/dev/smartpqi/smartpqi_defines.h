@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -944,12 +944,12 @@ typedef uint8_t *passthru_buf_type_t;
 
 #define PQISRC_DRIVER_MAJOR		__FreeBSD__
 #if __FreeBSD__ <= 14
-#define PQISRC_DRIVER_MINOR	   4690
+#define PQISRC_DRIVER_MINOR	   4691
 #else
 #define PQISRC_DRIVER_MINOR	   2
 #endif
-#define PQISRC_DRIVER_RELEASE	   0
-#define PQISRC_DRIVER_REVISION   2008
+#define PQISRC_DRIVER_RELEASE	   1
+#define PQISRC_DRIVER_REVISION   2000
 
 #define STR(s)                          # s
 #define PQISRC_VERSION(a, b, c, d)      STR(a.b.c-d)
