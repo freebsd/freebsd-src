@@ -17,6 +17,7 @@ ATF_TESTS_C+=	kern_copyin
 ATF_TESTS_C+=	kern_descrip_test
 # One test modifies the maxfiles limit, which can cause spurious test failures.
 TEST_METADATA.kern_descrip_test+= is_exclusive="true"
+PLAIN_TESTS_C+=	execve_overflow
 ATF_TESTS_C+=	exterr_test
 ATF_TESTS_C+=	fdgrowtable_test
 ATF_TESTS_C+=	getdirentries_test
