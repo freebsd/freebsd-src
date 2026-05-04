@@ -1,4 +1,4 @@
-.\" Copyright (C) 2019-2025, Microchip Technology Inc. and its subsidiaries
+.\" Copyright (C) 2019-2026, Microchip Technology Inc. and its subsidiaries
 .\" Copyright (C) 2016-2018, Microsemi Corporation
 .\" Copyright (C) 2016, PMC-Sierra, Inc.
 .\" Written by John Hall <john.hall@microchip.com>
@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 28, 2025
+.Dd April 14, 2026
 .Dt SMARTPQI 4 amd64
 .Os
 .Sh NAME
@@ -64,11 +64,13 @@ OEM Controllers based on the Microchip Technology Inc. SmartROC
 and SmartIOC Chipsets
 .El
 .Sh DEBUGGING
-Driver diagnostic printing is controlled in
+Driver diagnostic printing is controlled at boot time in
 .Xr loader.conf 5
 by using the global
 .Va hw.smartpqi.debug_level
-tunable.
+tunable, or at runtime via the per-controller
+.Va dev.smartpqi.<unit>.debug_level
+sysctl.
 .Pp
 The
 .Va debug_level
@@ -82,11 +84,27 @@ The following levels are available:
 .It 0x0002 Ta info Ta Basic information
 .It 0x0004 Ta function Ta Used to show function entry and exit
 .It 0x0008 Ta io Ta Logging data from controller
-.It 0x0010 Ta discovery Ta Device discovery
+.It 0x0010 Ta discovery Ta Device discovery state transitions
 .It 0x0020 Ta warning Ta Operational warnings
 .It 0x0040 Ta error Ta Parameter errors and programming bugs
 .It 0x0080 Ta note Ta More detailed information
 .El
+.Pp
+In addition to the level-gated debug output, the driver always logs
+device addition, device removal, and controller events
+(hotplug, hardware, physical/logical device changes, AIO state and
+configuration changes) via
+.Xr device_printf 9 ,
+which appear in
+.Xr dmesg 8
+regardless of the
+.Va debug_level
+setting.
+.Pp
+For example, to enable discovery logging at runtime on the first controller:
+.Bd -literal -offset indent
+sysctl dev.smartpqi.0.debug_level=0x0070
+.Ed
 .Sh DEVICE HINTS
 The following tunable values can be set in
 .Pa /boot/device.hints
@@ -162,7 +180,9 @@ https://www.microchip.com/design-centers/storage
 .Xr xpt 4 ,
 .Xr loader.conf 5 ,
 .Xr camcontrol 8 ,
-.Xr kldload 8
+.Xr dmesg 8 ,
+.Xr kldload 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
