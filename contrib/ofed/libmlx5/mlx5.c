@@ -67,6 +67,11 @@ static struct {
 	unsigned		vendor;
 	unsigned		device;
 } hca_table[] = {
+	/*
+	 * PCI IDs must match mlx5_core_pci_table in
+	 * sys/dev/mlx5/mlx5_core/mlx5_main.c so userspace loads for every
+	 * mlx5 device the kernel probes.
+	 */
 	HCA(MELLANOX, 4113),	/* MT4113 Connect-IB */
 	HCA(MELLANOX, 4114),	/* Connect-IB Virtual Function */
 	HCA(MELLANOX, 4115),	/* ConnectX-4 */
@@ -82,9 +87,23 @@ static struct {
 	HCA(MELLANOX, 4125),	/* ConnectX-6 DX */
 	HCA(MELLANOX, 4126),	/* ConnectX family mlx5Gen Virtual Function */
 	HCA(MELLANOX, 4127),	/* ConnectX-6 LX */
+	HCA(MELLANOX, 4128),
 	HCA(MELLANOX, 4129),	/* ConnectX-7 */
+	HCA(MELLANOX, 4130),
 	HCA(MELLANOX, 4131),	/* ConnectX-8 */
+	HCA(MELLANOX, 4132),
 	HCA(MELLANOX, 4133),	/* ConnectX-9 */
+	HCA(MELLANOX, 4134),
+	HCA(MELLANOX, 4135),
+	HCA(MELLANOX, 4136),
+	HCA(MELLANOX, 4137),
+	HCA(MELLANOX, 4138),
+	HCA(MELLANOX, 4139),
+	HCA(MELLANOX, 4140),
+	HCA(MELLANOX, 4141),
+	HCA(MELLANOX, 4142),
+	HCA(MELLANOX, 4143),
+	HCA(MELLANOX, 4144),
 	HCA(MELLANOX, 41682),	/* BlueField integrated ConnectX-5 network controller */
 	HCA(MELLANOX, 41683),	/* BlueField integrated ConnectX-5 network controller VF */
 	HCA(MELLANOX, 41686),	/* BlueField-2 integrated ConnectX-6 Dx network controller */
