@@ -2471,6 +2471,7 @@ dev/mii/gentbi.c		optional miibus | gentbi
 dev/mii/icsphy.c		optional miibus | icsphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
+dev/mii/lan867xphy.c		optional miibus | lan867xphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
 dev/mii/mcommphy.c		optional miibus | mcommphy
 dev/mii/micphy.c		optional miibus fdt | micphy fdt
