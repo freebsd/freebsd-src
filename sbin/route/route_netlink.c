@@ -542,6 +542,7 @@ print_nlmsg_route_nhop(struct nl_helper *h, struct snl_parsed_route *r,
 		if (nh->rtax_mtu == 0)
 			nh->rtax_mtu = link.ifla_mtu;
 		printf("iface %s ", link.ifla_ifname);
+		printf("metric %d ", nh->rta_metric);
 		printf("weight %d ", nh->rtnh_weight);
 		if (nh->rtax_mtu != 0)
 			printf("mtu %d ", nh->rtax_mtu);
