@@ -274,8 +274,12 @@ again:
 	exec_map_entries = 2 * mp_ncpus + 4;
 #endif
 	exec_map_entry_size = round_page(PATH_MAX + ARG_MAX);
-	kmem_subinit(exec_map, kernel_map, &minaddr, &maxaddr,
-	    exec_map_entries * exec_map_entry_size + 64 * PAGE_SIZE, false);
+	exec_map_guard_pages = 1;
+	TUNABLE_INT_FETCH("vm.exec_map_guard_pages", &exec_map_guard_pages);
+	size = exec_map_entries *
+	    (exec_map_entry_size + 2 * ptoa(exec_map_guard_pages)) +
+	    64 * PAGE_SIZE;
+	kmem_subinit(exec_map, kernel_map, &minaddr, &maxaddr, size, false);
 	kmem_subinit(pipe_map, kernel_map, &minaddr, &maxaddr, maxpipekva,
 	    false);
 	TSEXIT();
