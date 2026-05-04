@@ -150,11 +150,11 @@ struct acpi_spmc_constraint {
 	int		min_d_state;
 	ACPI_HANDLE	handle;
 
-	/* Unused, spec only. */
+	/* Intel only.  Currently filled but unused. */
 	uint64_t	lpi_uid;
 	uint64_t	min_dev_specific_state;
 
-	/* Unused, AMD only. */
+	/* AMD only.  Currently filled but unused. */
 	uint64_t	function_states;
 };
 
