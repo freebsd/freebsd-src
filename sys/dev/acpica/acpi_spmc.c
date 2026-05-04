@@ -74,7 +74,6 @@ struct dsm_desc {
 	 */
 	int			 revision;
 	struct uuid		 uuid;
-	uint64_t		 supported_functions;
 	uint64_t		 expected_functions;
 	uint64_t		 extra_functions;
 	/* Human-friendly names of known functions. */
@@ -129,7 +128,7 @@ static const char *const dsm_ms_function_names[] = {
 	[DSM_MS_TURN_ON_DISPLAY] = "TURN_ON",
 };
 
-static struct dsm_desc dsm_ms = {
+static const struct dsm_desc dsm_ms = {
 	.index = DSM_MS,
 	.name = "Microsoft",
 	.uuid = { /* 11e00d56-ce64-47ce-837b-1f898f9aa461 */
@@ -185,7 +184,7 @@ static struct dsm_desc dsm_amd = {
 	.function_names_nb = nitems(dsm_amd_function_names),
 };
 
-static struct dsm_desc *const dsms[] = {
+static const struct dsm_desc *const dsms[] = {
 	[DSM_INTEL] = &dsm_intel,
 	[DSM_MS] = &dsm_ms,
 	[DSM_AMD] = &dsm_amd,
@@ -219,6 +218,7 @@ struct acpi_spmc_softc {
 	device_t		dev;
 	ACPI_HANDLE		handle;
 	int			dsms;
+	uint64_t		supported_functions[nitems(dsms)];
 
 	struct eventhandler_entry	*eh_suspend;
 	struct eventhandler_entry	*eh_resume;
@@ -239,9 +239,13 @@ resolve_dsm(int dsm_index)
 }
 
 static bool
-supports_function(const struct dsm_desc *const dsm, const int function_index)
+supports_function(const struct acpi_spmc_softc *const sc, const int dsm_index,
+    const int function_index)
 {
-	return ((dsm->supported_functions & IDX_TO_BIT(function_index)) != 0);
+	MPASS(0 <= dsm_index && dsm_index < nitems(sc->supported_functions));
+
+	return ((sc->supported_functions[dsm_index] &
+	    IDX_TO_BIT(function_index)) != 0);
 }
 
 static bool
@@ -329,7 +333,7 @@ failed_to_call_dsm(const struct acpi_spmc_softc *const sc,
 }
 
 static void	acpi_spmc_probe_dsm(struct acpi_spmc_softc *sc,
-		    ACPI_HANDLE handle, struct dsm_desc *const dsm);
+		    ACPI_HANDLE handle, const struct dsm_desc *const dsm);
 static void	acpi_spmc_dsm_print_functions(
 		    const struct acpi_spmc_softc *const sc,
 		    const struct dsm_desc *const dsm);
@@ -350,11 +354,6 @@ acpi_spmc_probe(device_t dev)
 
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, spmc_ids, &name) > 0)
 		return (ENXIO);
-
-	if (device_get_unit(dev) > 0) {
-		device_printf(dev, "shouldn't have more than one SPMC");
-		return (ENXIO);
-	}
 
 	device_set_desc(dev, "System Power Management Controller");
 
@@ -431,16 +430,17 @@ static void
 acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
     const struct dsm_desc *const dsm)
 {
-	const uint64_t missing = dsm->expected_functions &
-	    ~dsm->supported_functions;
-	const uint64_t unknown = dsm->supported_functions &
+	const uint64_t supported_functions =
+	    sc->supported_functions[dsm->index];
+	const uint64_t missing = dsm->expected_functions & ~supported_functions;
+	const uint64_t unknown = supported_functions &
 	    ~(dsm->expected_functions | dsm->extra_functions);
 	char buf[128];
 
-	print_bit_field(buf, sizeof(buf), dsm->supported_functions,
+	print_bit_field(buf, sizeof(buf), supported_functions,
 	    "FUNC", pbf_function_name, dsm);
 	device_printf(sc->dev, "DSM %s: Supported functions: %#" PRIx64 "%s\n",
-	    dsm->name, dsm->supported_functions, buf);
+	    dsm->name, supported_functions, buf);
 
 	if (missing != 0) {
 		print_bit_field(buf, sizeof(buf), missing, "FUNC",
@@ -461,17 +461,17 @@ acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
 
 static void
 acpi_spmc_probe_dsm(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
-    struct dsm_desc *const dsm)
+    const struct dsm_desc *const dsm)
 {
 	const uint64_t supported_functions = acpi_DSMQuery(handle,
-	    (uint8_t *)&dsm->uuid, dsm->revision);
+	    (const uint8_t *)&dsm->uuid, dsm->revision);
 
 	/*
 	 * DSM is supported if bit 0 is set.
 	 */
 	if ((supported_functions & 1) == 0)
 		return;
-	dsm->supported_functions = supported_functions & ~1;
+	sc->supported_functions[dsm->index] = supported_functions & ~1;
 	sc->dsms |= IDX_TO_BIT(dsm->index);
 }
 
@@ -798,7 +798,7 @@ acpi_spmc_exit_notif(device_t dev)
 		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_LPI_EXIT_NOTIF);
 	if (has_dsm(sc, DSM_MS)) {
 		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_INTEL_MS_LPI_EXIT_NOTIF);
-		if (supports_function(&dsm_ms, DSM_MS_TURN_ON_DISPLAY))
+		if (supports_function(sc, DSM_MS, DSM_MS_TURN_ON_DISPLAY))
 			acpi_spmc_run_dsm(dev, &dsm_ms,
 			    DSM_MS_TURN_ON_DISPLAY);
 		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MS_SLEEP_EXIT_NOTIF);
