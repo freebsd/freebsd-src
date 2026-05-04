@@ -75,4 +75,5 @@ extern struct vmem *memguard_arena;
 extern u_long vm_kmem_size;
 extern u_int exec_map_entries;
 extern u_int exec_map_entry_size;
+extern u_int exec_map_guard_pages;
 #endif /* _VM_VM_KERN_H_ */
