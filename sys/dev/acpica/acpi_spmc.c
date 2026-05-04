@@ -22,12 +22,10 @@
 
 #include <dev/acpica/acpivar.h>
 
+
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_SPMC
 ACPI_MODULE_NAME("SPMC")
-
-static SYSCTL_NODE(_debug_acpi, OID_AUTO, spmc, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, "SPMC debugging");
 
 static char *spmc_ids[] = {
 	"PNP0D80",
@@ -37,48 +35,69 @@ static char *spmc_ids[] = {
 /* Conversion of an index to a mask. */
 #define IDX_TO_BIT(idx)		(1ull << (idx))
 
-enum intel_dsm_index {
-	DSM_ENUM_FUNCTIONS		= 0,
-	DSM_GET_DEVICE_CONSTRAINTS	= 1,
-	DSM_GET_CRASH_DUMP_DEVICE	= 2,
-	DSM_DISPLAY_OFF_NOTIF		= 3,
-	DSM_DISPLAY_ON_NOTIF		= 4,
-	DSM_ENTRY_NOTIF			= 5,
-	DSM_EXIT_NOTIF			= 6,
-	/* Only for Microsoft DSM. */
-	DSM_MODERN_ENTRY_NOTIF		= 7,
-	DSM_MODERN_EXIT_NOTIF		= 8,
-	DSM_MODERN_TURN_ON_DISPLAY	= 9,
-};
+/* List of supported DSMs. */
+#define DSM_INTEL			0
+#define DSM_MS				1
+#define DSM_AMD				2
 
-enum amd_dsm_index {
-	AMD_DSM_ENUM_FUNCTIONS		= 0,
-	AMD_DSM_GET_DEVICE_CONSTRAINTS	= 1,
-	AMD_DSM_ENTRY_NOTIF		= 2,
-	AMD_DSM_EXIT_NOTIF		= 3,
-	AMD_DSM_DISPLAY_OFF_NOTIF	= 4,
-	AMD_DSM_DISPLAY_ON_NOTIF	= 5,
-};
+/* List of DSM function indices. */
+#define DSM_ENUM_FUNCTIONS		0	/* Common to all DSMs */
+#define DSM_GET_DEVICE_CONSTRAINTS	1	/* AMD and Intel, MS N/A */
 
-enum dsm_flags {
-	DSM_INTEL	= 1 << 0,
-	DSM_MS		= 1 << 1,
-	DSM_AMD		= 1 << 2,
-};
+#define DSM_GET_CRASH_DUMP_DEVICE	2	/* Intel, MS N/A */
+#define DSM_INTEL_MS_DISPLAY_OFF_NOTIF	3
+#define DSM_INTEL_MS_DISPLAY_ON_NOTIF	4
+#define DSM_INTEL_MS_LPI_ENTRY_NOTIF	5
+#define DSM_INTEL_MS_LPI_EXIT_NOTIF	6
+
+#define DSM_MS_SLEEP_ENTRY_NOTIF	7
+#define DSM_MS_SLEEP_EXIT_NOTIF		8
+#define DSM_MS_TURN_ON_DISPLAY		9
+
+#define DSM_AMD_LPI_ENTRY_NOTIF		2
+#define DSM_AMD_LPI_EXIT_NOTIF		3
+#define DSM_AMD_DISPLAY_OFF_NOTIF	4
+#define DSM_AMD_DISPLAY_ON_NOTIF	5
+
+
+/* Descriptors for the DSMs we support. */
 
 struct dsm_desc {
-	enum dsm_flags		 flag;
 	const char		*name;
+	/* Index in the dsms[] array below. */
+	int			 index;
+	/*
+	 * Revisions are zero or a positive number.  Strictly speaking, next
+	 * field should be a 'uint64_t' as per the ACPI spec, but our ACPI DSM
+	 * interface takes an 'int' and anyway actual revision numbers never
+	 * even exceed the limits of a 'uint8_t'.
+	 */
 	int			 revision;
 	struct uuid		 uuid;
 	uint64_t		 supported_functions;
 	uint64_t		 expected_functions;
 	uint64_t		 extra_functions;
+	/* Human-friendly names of known functions. */
+	const char *const	*function_names;
+	int			 function_names_nb;
+};
+
+static const char *const dsm_intel_function_names[] = {
+	[DSM_GET_DEVICE_CONSTRAINTS] = "DEVICE_CONSTRAINTS",
+	[DSM_GET_CRASH_DUMP_DEVICE] = "CRASH_DUMP_DEVICE",
+	[DSM_INTEL_MS_DISPLAY_OFF_NOTIF] = "DISPLAY_OFF",
+	[DSM_INTEL_MS_DISPLAY_ON_NOTIF] = "DISPLAY_ON",
+	[DSM_INTEL_MS_LPI_ENTRY_NOTIF] = "LPI_ENTRY",
+	[DSM_INTEL_MS_LPI_EXIT_NOTIF] = "LPI_EXIT",
 };
 
 static struct dsm_desc dsm_intel = {
-	.flag = DSM_INTEL,
+	.index = DSM_INTEL,
 	.name = "Intel",
+	.uuid = { /* c4eb40a0-6cd2-11e2-bcfd-0800200c9a66 */
+		0xc4eb40a0, 0x6cd2, 0x11e2, 0xbc, 0xfd,
+		{0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66}
+	},
 	/*
 	 * XXX Linux uses 1 for the revision on Intel DSMs, but doesn't explain
 	 * why.  The commit that introduces this links to a document mentioning
@@ -88,64 +107,99 @@ static struct dsm_desc dsm_intel = {
 	 * this just in case.
 	 */
 	.revision = 0,
-	.uuid = { /* c4eb40a0-6cd2-11e2-bcfd-0800200c9a66 */
-		0xc4eb40a0, 0x6cd2, 0x11e2, 0xbc, 0xfd,
-		{0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66},
-	},
-	.expected_functions = (1 << DSM_GET_DEVICE_CONSTRAINTS) |
-	    (1 << DSM_DISPLAY_OFF_NOTIF) | (1 << DSM_DISPLAY_ON_NOTIF) |
-	    (1 << DSM_ENTRY_NOTIF) | (1 << DSM_EXIT_NOTIF),
+	.expected_functions =
+	    IDX_TO_BIT(DSM_GET_DEVICE_CONSTRAINTS) |
+	    IDX_TO_BIT(DSM_INTEL_MS_DISPLAY_OFF_NOTIF) |
+	    IDX_TO_BIT(DSM_INTEL_MS_DISPLAY_ON_NOTIF) |
+	    IDX_TO_BIT(DSM_INTEL_MS_LPI_ENTRY_NOTIF) |
+	    IDX_TO_BIT(DSM_INTEL_MS_LPI_EXIT_NOTIF),
+	.extra_functions =
+	    IDX_TO_BIT(DSM_GET_CRASH_DUMP_DEVICE), /* Not used. */
+	.function_names = dsm_intel_function_names,
+	.function_names_nb = nitems(dsm_intel_function_names),
 };
 
-SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, intel_dsm_revision, CTLFLAG_RW,
-    &dsm_intel.revision, 0,
-    "Revision to use when evaluating Intel SPMC DSMs");
+static const char *const dsm_ms_function_names[] = {
+	[DSM_INTEL_MS_DISPLAY_OFF_NOTIF] = "DISPLAY_OFF",
+	[DSM_INTEL_MS_DISPLAY_ON_NOTIF] = "DISPLAY_ON",
+	[DSM_INTEL_MS_LPI_ENTRY_NOTIF] = "LPI_ENTRY",
+	[DSM_INTEL_MS_LPI_EXIT_NOTIF] = "LPI_EXIT",
+	[DSM_MS_SLEEP_ENTRY_NOTIF] = "SLEEP_ENTRY",
+	[DSM_MS_SLEEP_EXIT_NOTIF] = "SLEEP_EXIT",
+	[DSM_MS_TURN_ON_DISPLAY] = "TURN_ON",
+};
 
 static struct dsm_desc dsm_ms = {
-	.flag = DSM_MS,
+	.index = DSM_MS,
 	.name = "Microsoft",
-	.revision = 0,
 	.uuid = { /* 11e00d56-ce64-47ce-837b-1f898f9aa461 */
 		0x11e00d56, 0xce64, 0x47ce, 0x83, 0x7b,
-		{0x1f, 0x89, 0x8f, 0x9a, 0xa4, 0x61},
+		{0x1f, 0x89, 0x8f, 0x9a, 0xa4, 0x61}
 	},
-	.expected_functions = (1 << DSM_DISPLAY_OFF_NOTIF) |
-	    (1 << DSM_DISPLAY_ON_NOTIF) | (1 << DSM_ENTRY_NOTIF) |
-	    (1 << DSM_EXIT_NOTIF) | (1 << DSM_MODERN_ENTRY_NOTIF) |
-	    (1 << DSM_MODERN_EXIT_NOTIF),
-	.extra_functions = (1 << DSM_MODERN_TURN_ON_DISPLAY),
+	.revision = 0,
+	.expected_functions =
+	    IDX_TO_BIT(DSM_INTEL_MS_DISPLAY_OFF_NOTIF) |
+	    IDX_TO_BIT(DSM_INTEL_MS_DISPLAY_ON_NOTIF) |
+	    IDX_TO_BIT(DSM_INTEL_MS_LPI_ENTRY_NOTIF) |
+	    IDX_TO_BIT(DSM_INTEL_MS_LPI_EXIT_NOTIF) |
+	    IDX_TO_BIT(DSM_MS_SLEEP_ENTRY_NOTIF) |
+	    IDX_TO_BIT(DSM_MS_SLEEP_EXIT_NOTIF),
+	.extra_functions =
+	    IDX_TO_BIT(DSM_MS_TURN_ON_DISPLAY),
+	.function_names = dsm_ms_function_names,
+	.function_names_nb = nitems(dsm_ms_function_names),
+};
+
+static const char *const dsm_amd_function_names[] = {
+	[DSM_GET_DEVICE_CONSTRAINTS] = "DEVICE_CONSTRAINTS",
+	[DSM_AMD_DISPLAY_OFF_NOTIF] = "DISPLAY_OFF",
+	[DSM_AMD_DISPLAY_ON_NOTIF] = "DISPLAY_ON",
+	[DSM_AMD_LPI_ENTRY_NOTIF] = "LPI_ENTRY",
+	[DSM_AMD_LPI_EXIT_NOTIF] = "LPI_EXIT",
 };
 
 static struct dsm_desc dsm_amd = {
-	.flag = DSM_AMD,
+	.index = DSM_AMD,
 	.name = "AMD",
+	.uuid = { /* e3f32452-febc-43ce-9039-932122d37721 */
+		0xe3f32452, 0xfebc, 0x43ce, 0x90, 0x39,
+		{0x93, 0x21, 0x22, 0xd3, 0x77, 0x21}
+	},
 	/*
 	 * XXX Linux uses 0 for the revision on AMD DSMs, but at least on the
-	 * Framework 13 AMD 7040 series, the enum functions DSM only returns a
-	 * function mask that covers all the DSMs we need to call when called
-	 * with revision 2.
+	 * Framework 13 AMD 7040 series, the "enumerate functions" DSM function
+	 * needs to be called with revision 2 to return a mask that covers all
+	 * the functions we would like to call.
 	 *
 	 * The debug.acpi.spmc.amd_dsm_revision sysctl may be used to configure
 	 * this just in case.
 	 */
 	.revision = 2,
-	.uuid = { /* e3f32452-febc-43ce-9039-932122d37721 */
-		0xe3f32452, 0xfebc, 0x43ce, 0x90, 0x39,
-		{0x93, 0x21, 0x22, 0xd3, 0x77, 0x21},
-	},
-	.expected_functions = (1 << AMD_DSM_GET_DEVICE_CONSTRAINTS) |
-	    (1 << AMD_DSM_ENTRY_NOTIF) | (1 << AMD_DSM_EXIT_NOTIF) |
-	    (1 << AMD_DSM_DISPLAY_OFF_NOTIF) | (1 << AMD_DSM_DISPLAY_ON_NOTIF),
+	.expected_functions =
+	    IDX_TO_BIT(DSM_GET_DEVICE_CONSTRAINTS) |
+	    IDX_TO_BIT(DSM_AMD_DISPLAY_OFF_NOTIF) |
+	    IDX_TO_BIT(DSM_AMD_DISPLAY_ON_NOTIF) |
+	    IDX_TO_BIT(DSM_AMD_LPI_ENTRY_NOTIF) |
+	    IDX_TO_BIT(DSM_AMD_LPI_EXIT_NOTIF),
+	.function_names = dsm_amd_function_names,
+	.function_names_nb = nitems(dsm_amd_function_names),
 };
+
+static struct dsm_desc *const dsms[] = {
+	[DSM_INTEL] = &dsm_intel,
+	[DSM_MS] = &dsm_ms,
+	[DSM_AMD] = &dsm_amd,
+};
+
+static SYSCTL_NODE(_debug_acpi, OID_AUTO, spmc, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, "SPMC debugging");
+
+SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, intel_dsm_revision, CTLFLAG_RW,
+    &dsm_intel.revision, 0,
+    "Revision to use when evaluating Intel SPMC DSMs");
 
 SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, amd_dsm_revision, CTLFLAG_RW,
     &dsm_amd.revision, 0, "Revision to use when evaluating AMD SPMC DSMs");
-
-union dsm_index {
-	int			i;
-	enum intel_dsm_index	regular;
-	enum amd_dsm_index	amd;
-};
 
 struct acpi_spmc_constraint {
 	bool		enabled;
@@ -164,7 +218,7 @@ struct acpi_spmc_constraint {
 struct acpi_spmc_softc {
 	device_t		dev;
 	ACPI_HANDLE		handle;
-	enum dsm_flags		dsms;
+	int			dsms;
 
 	struct eventhandler_entry	*eh_suspend;
 	struct eventhandler_entry	*eh_resume;
@@ -174,6 +228,14 @@ struct acpi_spmc_softc {
 	struct acpi_spmc_constraint	*constraints;
 };
 
+
+static const struct dsm_desc *
+resolve_dsm(int dsm_index)
+{
+	MPASS(0 <= dsm_index && dsm_index < nitems(dsms));
+	return (dsms[dsm_index]);
+}
+
 static bool
 supports_function(const struct dsm_desc *const dsm, const int function_index)
 {
@@ -181,9 +243,78 @@ supports_function(const struct dsm_desc *const dsm, const int function_index)
 }
 
 static bool
-has_dsm(const struct acpi_spmc_softc *const sc, const int dsm_bit)
+has_dsm(const struct acpi_spmc_softc *const sc, const int dsm_index)
 {
-	return ((sc->dsms & dsm_bit) != 0);
+	return ((sc->dsms & IDX_TO_BIT(dsm_index)) != 0);
+}
+
+typedef const char *pbf_get_name_t(const int, const void *const);
+
+static const char *
+pbf_dsm_name(const int dsm_index, const void *const opaque __unused)
+{
+	return (resolve_dsm(dsm_index)->name);
+}
+
+static const char *
+dsm_function_name(const struct dsm_desc *const dsm, const int function_index)
+{
+	MPASS(function_index >= 0);
+	if (function_index >= dsm->function_names_nb)
+		return (NULL);
+	/* May be NULL. */
+	return (dsm->function_names[function_index]);
+}
+
+static const char *
+pbf_function_name(const int function_index, const void *const opaque)
+{
+	return (dsm_function_name(opaque, function_index));
+}
+
+static int
+print_bit_field(char *const buf, const size_t buf_size,
+    const uint64_t bit_field, const char *const fallback_prefix,
+    pbf_get_name_t get_name, const void *const opaque)
+{
+	uint64_t bf = bit_field;
+	char *const buf_end = buf + buf_size;
+	char *p = buf;
+	int ret = 0;
+	bool one_set = false;
+
+#define PBF_PRINT(...)							\
+	do {								\
+		const __ptrdiff_t rem = MAX(buf_end - p, 0);		\
+		const int lret = snprintf(p, rem, __VA_ARGS__);		\
+									\
+		MPASS(lret >= 0);					\
+		p += MIN(lret, rem);					\
+		ret += lret;						\
+	} while (0)
+
+	if (bf == 0) {
+		PBF_PRINT("");
+		return (ret);
+	}
+
+	do {
+		const int b_idx = ffsll(bf) - 1;
+		const char *const name = get_name(b_idx, opaque);
+
+		PBF_PRINT(one_set ? "," : "<");
+		one_set = true;
+		if (name != NULL)
+			PBF_PRINT("%s", name);
+		else
+			PBF_PRINT("%s_%d", fallback_prefix, b_idx);
+
+		bf &= ~IDX_TO_BIT(b_idx);
+	} while (bf != 0);
+	PBF_PRINT(">");
+#undef PBF_PRINT
+
+	return (ret);
 }
 
 static void
@@ -191,14 +322,17 @@ failed_to_call_dsm(const struct acpi_spmc_softc *const sc,
     const struct dsm_desc *const dsm, const int function_index)
 {
 	(void)device_printf(sc->dev,
-	    "Failed to call DSM %s (rev %u) function %d\n",
-	    dsm->name, dsm->revision, function_index);
+	    "Failed to call DSM %s (rev %u) function %s\n",
+	    dsm->name, dsm->revision, dsm_function_name(dsm, function_index));
 }
 
 static void	acpi_spmc_check_dsm(struct acpi_spmc_softc *sc,
-		    ACPI_HANDLE handle, struct dsm_desc *dsm);
+		    ACPI_HANDLE handle, struct dsm_desc *const dsm);
+static void	acpi_spmc_dsm_print_functions(
+		    const struct acpi_spmc_softc *const sc,
+		    const struct dsm_desc *const dsm);
 static int	acpi_spmc_get_constraints(device_t dev);
-static void	acpi_spmc_free_constraints(struct acpi_spmc_softc *sc);
+static void	acpi_spmc_free_constraints(struct acpi_spmc_softc *const sc);
 
 static void	acpi_spmc_suspend(device_t dev, enum power_stype stype);
 static void	acpi_spmc_resume(device_t dev, enum power_stype stype);
@@ -207,8 +341,9 @@ static int
 acpi_spmc_probe(device_t dev)
 {
 	char			*name;
-	ACPI_HANDLE		handle;
+	ACPI_HANDLE		 handle;
 	struct acpi_spmc_softc	*sc;
+	char			 buf[32];
 
 	/* Check that this is an enabled device. */
 	if (acpi_get_type(dev) != ACPI_TYPE_DEVICE || acpi_disabled("spmc"))
@@ -232,15 +367,15 @@ acpi_spmc_probe(device_t dev)
 	/* Check which DSMs are supported. */
 	sc->dsms = 0;
 
-	acpi_spmc_check_dsm(sc, handle, &dsm_intel);
-	acpi_spmc_check_dsm(sc, handle, &dsm_ms);
-	acpi_spmc_check_dsm(sc, handle, &dsm_amd);
+	for (int i = 0; i < nitems(dsms); ++i)
+		acpi_spmc_check_dsm(sc, handle, dsms[i]);
 
 	if (sc->dsms == 0)
 		return (ENXIO);
 
-	device_set_descf(dev, "System Power Management Controller (DSMs 0x%x)",
-	    sc->dsms);
+	print_bit_field(buf, sizeof(buf), sc->dsms, "DSM", pbf_dsm_name, NULL);
+	device_set_descf(dev, "System Power Management Controller (DSMs %s)",
+	    buf);
 
 	return (0);
 }
@@ -282,38 +417,56 @@ acpi_spmc_detach(device_t dev)
 }
 
 static void
-acpi_spmc_check_dsm(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
-    struct dsm_desc *dsm)
+acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
+    const struct dsm_desc *const dsm)
 {
-	uint64_t supported_functions = acpi_DSMQuery(handle,
-	    (uint8_t *)&dsm->uuid, dsm->revision);
-	const uint64_t min_dsms = dsm->expected_functions;
-	const uint64_t max_dsms = min_dsms | dsm->extra_functions;
+	const uint64_t missing = dsm->expected_functions &
+	    ~dsm->supported_functions;
+	const uint64_t unknown = dsm->supported_functions &
+	    ~(dsm->expected_functions | dsm->extra_functions);
+	char buf[128];
 
-	/*
-	 * Check if DSM supported at all.  We do this by checking the existence
-	 * of "enum functions".
-	 */
-	if ((supported_functions & 1) == 0)
-		return;
-	supported_functions &= ~1;
-	dsm->supported_functions = supported_functions;
-	sc->dsms |= dsm->flag;
+	print_bit_field(buf, sizeof(buf), dsm->supported_functions,
+	    "FUNC", pbf_function_name, dsm);
+	device_printf(sc->dev, "DSM %s: Supported functions: %#" PRIx64 "%s\n",
+	    dsm->name, dsm->supported_functions, buf);
 
-	if ((supported_functions & min_dsms) != min_dsms)
-		device_printf(sc->dev, "DSM %s does not support expected "
-		    "functions (%#" PRIx64 " vs %#" PRIx64 "). "
-		    "Some may fail.\n",
-		    dsm->name, supported_functions, min_dsms);
+	if (missing != 0) {
+		print_bit_field(buf, sizeof(buf), missing, "FUNC",
+		    pbf_function_name, dsm);
+		device_printf(sc->dev, "DSM %s: Does not enumerate expected "
+		    "functions %#" PRIx64 "%s.  Calls to them may fail.\n",
+		    dsm->name, missing, buf);
+	}
 
-	if ((supported_functions & ~max_dsms) != 0)
-		device_printf(sc->dev, "DSM %s supports more functions than "
-		    "expected (%#" PRIx64 " vs %#" PRIx64 ").\n", dsm->name,
-		    supported_functions, max_dsms);
+	if (unknown != 0) {
+		print_bit_field(buf, sizeof(buf), unknown, "FUNC",
+		    pbf_function_name, dsm);
+		device_printf(sc->dev, "DSM %s: Supports more functions than "
+		    "used (%#" PRIx64 "%s), driver might need an upgrade.\n",
+		    dsm->name, unknown, buf);
+	}
 }
 
 static void
-acpi_spmc_free_constraints(struct acpi_spmc_softc *sc)
+acpi_spmc_check_dsm(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
+    struct dsm_desc *const dsm)
+{
+	const uint64_t supported_functions = acpi_DSMQuery(handle,
+	    (uint8_t *)&dsm->uuid, dsm->revision);
+
+	/*
+	 * DSM is supported if bit 0 is set.
+	 */
+	if ((supported_functions & 1) == 0)
+		return;
+	dsm->supported_functions = supported_functions & ~1;
+	sc->dsms |= IDX_TO_BIT(dsm->index);
+	acpi_spmc_dsm_print_functions(sc, dsm);
+}
+
+static void
+acpi_spmc_free_constraints(struct acpi_spmc_softc *const sc)
 {
 	for (size_t i = 0; i < sc->constraint_count; i++)
 		free(sc->constraints[i].name, M_TEMP);
@@ -451,7 +604,6 @@ static int
 acpi_spmc_get_constraints(device_t dev)
 {
 	struct acpi_spmc_softc	*sc;
-	union dsm_index		dsm_index;
 	struct dsm_desc		*dsm;
 	ACPI_STATUS		status;
 	ACPI_BUFFER		result;
@@ -466,20 +618,14 @@ acpi_spmc_get_constraints(device_t dev)
 
 	/* The Microsoft DSM doesn't have this function. */
 	is_amd = has_dsm(sc, DSM_AMD);
-	if (is_amd) {
-		dsm = &dsm_amd;
-		dsm_index.amd = AMD_DSM_GET_DEVICE_CONSTRAINTS;
-	} else {
-		dsm = &dsm_intel;
-		dsm_index.regular = DSM_GET_DEVICE_CONSTRAINTS;
-	}
+	dsm = is_amd ? &dsm_amd : &dsm_intel;
 
 	/* It seems like this DSM can fail if called more than once. */
 	status = acpi_EvaluateDSMTyped(sc->handle, (uint8_t *)&dsm->uuid,
-	    dsm->revision, dsm_index.i, NULL, &result,
+	    dsm->revision, DSM_GET_DEVICE_CONSTRAINTS, NULL, &result,
 	    ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(status)) {
-		failed_to_call_dsm(sc, dsm, dsm_index.i);
+		failed_to_call_dsm(sc, dsm, DSM_GET_DEVICE_CONSTRAINTS);
 		return (ENXIO);
 	}
 
@@ -552,7 +698,7 @@ acpi_spmc_check_constraints(struct acpi_spmc_softc *sc)
 }
 
 static void
-acpi_spmc_run_dsm(device_t dev, struct dsm_desc *dsm, int function_index)
+acpi_spmc_run_dsm(device_t dev, const struct dsm_desc *dsm, int function_index)
 {
 	struct acpi_spmc_softc	*sc;
 	ACPI_STATUS		status;
@@ -560,7 +706,7 @@ acpi_spmc_run_dsm(device_t dev, struct dsm_desc *dsm, int function_index)
 
 	sc = device_get_softc(dev);
 
-	status = acpi_EvaluateDSMTyped(sc->handle, (uint8_t *)&dsm->uuid,
+	status = acpi_EvaluateDSMTyped(sc->handle, (const uint8_t *)&dsm->uuid,
 	    dsm->revision, function_index, NULL, &result, ACPI_TYPE_ANY);
 
 	if (ACPI_FAILURE(status))
@@ -582,11 +728,13 @@ acpi_spmc_display_off_notif(device_t dev)
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel, DSM_DISPLAY_OFF_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_intel,
+		    DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
 	if (has_dsm(sc, DSM_MS))
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_DISPLAY_OFF_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_ms,
+		    DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, AMD_DSM_DISPLAY_OFF_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_DISPLAY_OFF_NOTIF);
 }
 
 static void
@@ -595,11 +743,13 @@ acpi_spmc_display_on_notif(device_t dev)
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel, DSM_DISPLAY_ON_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_intel,
+		    DSM_INTEL_MS_DISPLAY_ON_NOTIF);
 	if (has_dsm(sc, DSM_MS))
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_DISPLAY_ON_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_ms,
+		    DSM_INTEL_MS_DISPLAY_ON_NOTIF);
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, AMD_DSM_DISPLAY_ON_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_DISPLAY_ON_NOTIF);
 }
 
 static void
@@ -610,13 +760,14 @@ acpi_spmc_entry_notif(device_t dev)
 	acpi_spmc_check_constraints(sc);
 
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, AMD_DSM_ENTRY_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_LPI_ENTRY_NOTIF);
 	if (has_dsm(sc, DSM_MS)) {
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MODERN_ENTRY_NOTIF);
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_ENTRY_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MS_SLEEP_ENTRY_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_INTEL_MS_LPI_ENTRY_NOTIF);
 	}
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel, DSM_ENTRY_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_intel,
+		    DSM_INTEL_MS_LPI_ENTRY_NOTIF);
 }
 
 static void
@@ -625,15 +776,15 @@ acpi_spmc_exit_notif(device_t dev)
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel, DSM_EXIT_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_intel, DSM_INTEL_MS_LPI_EXIT_NOTIF);
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, AMD_DSM_EXIT_NOTIF);
+		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_LPI_EXIT_NOTIF);
 	if (has_dsm(sc, DSM_MS)) {
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_EXIT_NOTIF);
-		if (supports_function(&dsm_ms, DSM_MODERN_TURN_ON_DISPLAY))
+		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_INTEL_MS_LPI_EXIT_NOTIF);
+		if (supports_function(&dsm_ms, DSM_MS_TURN_ON_DISPLAY))
 			acpi_spmc_run_dsm(dev, &dsm_ms,
-			    DSM_MODERN_TURN_ON_DISPLAY);
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MODERN_EXIT_NOTIF);
+			    DSM_MS_TURN_ON_DISPLAY);
+		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MS_SLEEP_EXIT_NOTIF);
 	}
 }
 
