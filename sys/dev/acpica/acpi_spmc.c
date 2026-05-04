@@ -508,10 +508,6 @@ acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *objec
 
 		name_obj = &constraint_obj->Package.Elements[0];
 		constraint->name = strdup(name_obj->String.Pointer, M_TEMP);
-		if (constraint->name == NULL) {
-			acpi_spmc_free_constraints(sc);
-			return (ENOMEM);
-		}
 
 		detail = &constraint_obj->Package.Elements[2];
 		/*
@@ -582,10 +578,6 @@ acpi_spmc_parse_constraints_amd(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 
 		name_obj = &constraint_obj->Package.Elements[1];
 		constraint->name = strdup(name_obj->String.Pointer, M_TEMP);
-		if (constraint->name == NULL) {
-			acpi_spmc_free_constraints(sc);
-			return (ENOMEM);
-		}
 
 		constraint->function_states =
 		    constraint_obj->Package.Elements[2].Integer.Value;
