@@ -46,12 +46,13 @@ fire(void)
 {
 	int res;
 
+	res = SYS_getpid;
 	asm volatile(
 	    ".globl\tafter_int0x80\n"
 	    "\tint\t$0x80\n"
 	    "after_int0x80:"
-	    : "=a" (res)
-	    : "%0" (SYS_getpid)
+	    : "+a" (res)
+	    :
 	    : "rdx", "memory", "cc");
 	return (res);
 }
