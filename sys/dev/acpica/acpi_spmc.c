@@ -301,7 +301,7 @@ acpi_spmc_free_constraints(struct acpi_spmc_softc *sc)
 }
 
 static int
-acpi_spmc_get_constraints_spec(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
+acpi_spmc_get_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 {
 	struct acpi_spmc_constraint *constraint;
 	int		revision;
@@ -465,7 +465,7 @@ acpi_spmc_get_constraints(device_t dev)
 	if (is_amd)
 		rv = acpi_spmc_get_constraints_amd(sc, object);
 	else
-		rv = acpi_spmc_get_constraints_spec(sc, object);
+		rv = acpi_spmc_get_constraints_intel(sc, object);
 	AcpiOsFree(object);
 	if (rv != 0)
 		return (rv);
