@@ -332,8 +332,8 @@ failed_to_call_dsm(const struct acpi_spmc_softc *const sc,
 	    dsm->name, dsm->revision, dsm_function_name(dsm, function_index));
 }
 
-static void	acpi_spmc_probe_dsm(struct acpi_spmc_softc *sc,
-		    ACPI_HANDLE handle, const struct dsm_desc *const dsm);
+static void	acpi_spmc_probe_dsm(struct acpi_spmc_softc *const sc,
+		    const struct dsm_desc *const dsm);
 static void	acpi_spmc_dsm_print_functions(
 		    const struct acpi_spmc_softc *const sc,
 		    const struct dsm_desc *const dsm);
@@ -382,7 +382,7 @@ acpi_spmc_attach(device_t dev)
 		    ("%s: Inconsistent indices for DSM %s", __func__,
 		    dsms[i]->name));
 
-		acpi_spmc_probe_dsm(sc, handle, dsms[i]);
+		acpi_spmc_probe_dsm(sc, dsms[i]);
 	}
 
 	if (sc->dsms == 0) {
@@ -460,10 +460,10 @@ acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
 }
 
 static void
-acpi_spmc_probe_dsm(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
+acpi_spmc_probe_dsm(struct acpi_spmc_softc *const sc,
     const struct dsm_desc *const dsm)
 {
-	const uint64_t supported_functions = acpi_DSMQuery(handle,
+	const uint64_t supported_functions = acpi_DSMQuery(sc->handle,
 	    (const uint8_t *)&dsm->uuid, dsm->revision);
 
 	/*
