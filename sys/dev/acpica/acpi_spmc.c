@@ -333,7 +333,7 @@ static void	acpi_spmc_probe_dsm(struct acpi_spmc_softc *sc,
 static void	acpi_spmc_dsm_print_functions(
 		    const struct acpi_spmc_softc *const sc,
 		    const struct dsm_desc *const dsm);
-static int	acpi_spmc_get_constraints(device_t dev);
+static int	acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc);
 static void	acpi_spmc_free_constraints(struct acpi_spmc_softc *const sc);
 
 static void	acpi_spmc_suspend(device_t dev, enum power_stype stype);
@@ -399,7 +399,7 @@ acpi_spmc_attach(device_t dev)
 			acpi_spmc_dsm_print_functions(sc, dsms[i]);
 
 	/* Get device constraints. We can only call this once so do this now. */
-	acpi_spmc_get_constraints(dev);
+	acpi_spmc_get_constraints(sc);
 
 	sc->eh_suspend = EVENTHANDLER_REGISTER(acpi_post_dev_suspend,
 	    acpi_spmc_suspend, dev, 0);
@@ -597,24 +597,36 @@ acpi_spmc_parse_constraints_amd(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 }
 
 static int
-acpi_spmc_get_constraints(device_t dev)
+acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc)
 {
-	struct acpi_spmc_softc	*sc;
-	struct dsm_desc		*dsm;
-	ACPI_STATUS		status;
-	ACPI_BUFFER		result;
-	ACPI_OBJECT		*object;
-	bool			is_amd;
-	int			rv;
+	struct dsm_desc *dsm;
+	ACPI_STATUS status;
+	ACPI_BUFFER result;
+	ACPI_OBJECT *object;
+	int rv;
 	struct acpi_spmc_constraint *constraint;
 
-	sc = device_get_softc(dev);
 
 	MPASS(!sc->get_constraints_succeeded);
+	/*
+	 * Constraints are not supported by the Microsoft DSM.  Since we do not
+	 * expect both Intel and AMD DSMs to be present at once, we only have
+	 * a single storage for common information ('min_d_state').  In case
+	 * some day both happen to be present, warn the user so that he can
+	 * report that condition to us, and somewhat arbitrarily favor the Intel
+	 * one because it at least has a written specification.
+	 */
+	if (has_dsm(sc, DSM_INTEL)) {
+		dsm = &dsm_intel;
 
-	/* The Microsoft DSM doesn't have this function. */
-	is_amd = has_dsm(sc, DSM_AMD);
-	dsm = is_amd ? &dsm_amd : &dsm_intel;
+		if (has_dsm(sc, DSM_AMD))
+			device_printf(sc->dev, "Constraints: Both Intel and "
+			    "AMD DSMs are present!\n"
+			    "Using constraints from Intel.\nPlease report.\n");
+	} else if (has_dsm(sc, DSM_AMD))
+		dsm = &dsm_amd;
+	else
+		return (0);
 
 	/* It seems like this DSM can fail if called more than once. */
 	status = acpi_EvaluateDSMTyped(sc->handle, (uint8_t *)&dsm->uuid,
@@ -626,10 +638,12 @@ acpi_spmc_get_constraints(device_t dev)
 	}
 
 	object = (ACPI_OBJECT *)result.Pointer;
-	if (is_amd)
-		rv = acpi_spmc_parse_constraints_amd(sc, object);
-	else
+	if (dsm == &dsm_intel)
 		rv = acpi_spmc_parse_constraints_intel(sc, object);
+	else {
+		MPASS(dsm == &dsm_amd);
+		rv = acpi_spmc_parse_constraints_amd(sc, object);
+	}
 	AcpiOsFree(object);
 	if (rv != 0)
 		return (rv);
@@ -641,7 +655,7 @@ acpi_spmc_get_constraints(device_t dev)
 		status = acpi_GetHandleInScope(sc->handle,
 		    __DECONST(char *, constraint->name), &constraint->handle);
 		if (ACPI_FAILURE(status)) {
-			device_printf(dev,
+			device_printf(sc->dev,
 			    "Constraints: Cannot get handle for %s, ignoring\n",
 			    constraint->name);
 			constraint->handle = NULL;
