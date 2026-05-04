@@ -34,6 +34,9 @@ static char *spmc_ids[] = {
 	NULL
 };
 
+/* Conversion of an index to a mask. */
+#define IDX_TO_BIT(idx)		(1ull << (idx))
+
 enum intel_dsm_index {
 	DSM_ENUM_FUNCTIONS		= 0,
 	DSM_GET_DEVICE_CONSTRAINTS	= 1,
@@ -171,6 +174,12 @@ struct acpi_spmc_softc {
 	size_t				constraint_count;
 	struct acpi_spmc_constraint	*constraints;
 };
+
+static bool
+supports_function(const struct dsm_desc *const dsm, const int function_index)
+{
+	return ((dsm->supported_functions & IDX_TO_BIT(function_index)) != 0);
+}
 
 static bool
 has_dsm(const struct acpi_spmc_softc *const sc, const int dsm_bit)
@@ -617,8 +626,7 @@ acpi_spmc_exit_notif(device_t dev)
 		acpi_spmc_run_dsm(dev, &dsm_amd, AMD_DSM_EXIT_NOTIF);
 	if (has_dsm(sc, DSM_MS)) {
 		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_EXIT_NOTIF);
-		if (dsm_ms.supported_functions &
-		    (1 << DSM_MODERN_TURN_ON_DISPLAY))
+		if (supports_function(&dsm_ms, DSM_MODERN_TURN_ON_DISPLAY))
 			acpi_spmc_run_dsm(dev, &dsm_ms,
 			    DSM_MODERN_TURN_ON_DISPLAY);
 		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MODERN_EXIT_NOTIF);
