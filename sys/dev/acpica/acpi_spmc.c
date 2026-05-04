@@ -477,7 +477,7 @@ acpi_spmc_free_constraints(struct acpi_spmc_softc *const sc)
 }
 
 static int
-acpi_spmc_get_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
+acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 {
 	struct acpi_spmc_constraint *constraint;
 	int		revision;
@@ -540,7 +540,7 @@ acpi_spmc_get_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 }
 
 static int
-acpi_spmc_get_constraints_amd(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
+acpi_spmc_parse_constraints_amd(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 {
 	size_t		constraint_count;
 	ACPI_OBJECT	*constraint_obj;
@@ -631,9 +631,9 @@ acpi_spmc_get_constraints(device_t dev)
 
 	object = (ACPI_OBJECT *)result.Pointer;
 	if (is_amd)
-		rv = acpi_spmc_get_constraints_amd(sc, object);
+		rv = acpi_spmc_parse_constraints_amd(sc, object);
 	else
-		rv = acpi_spmc_get_constraints_intel(sc, object);
+		rv = acpi_spmc_parse_constraints_intel(sc, object);
 	AcpiOsFree(object);
 	if (rv != 0)
 		return (rv);
