@@ -714,6 +714,7 @@ vendor DISPLAYLINK	0x17e9	DisplayLink
 vendor LENOVO		0x17ef	Lenovo
 vendor WAVESENSE	0x17f4	WaveSense
 vendor VAISALA		0x1843	Vaisala
+vendor K2L		0x184f	K2L GmbH
 vendor VERBATIM 	0x18a5	Verbatim
 vendor E3C		0x18b4	E3C Technologies
 vendor AMIT		0x18c5	AMIT
@@ -2763,6 +2764,9 @@ product JVC MP_PRX1		0x3008	MP-PRX1 Ethernet
 
 /* JRC products */
 product JRC AH_J3001V_J3002V	0x0001	AirH PHONE AH-J3001V/J3002V
+
+/* K2L products */
+product K2L EVB_LAN8670_USB	0x0051	Microchip EVB-LAN8670-USB 10BASE-T1S
 
 /* Kamstrrup products */
 product KAMSTRUP OPTICALEYE	0x0001	Optical Eye/3-wire
