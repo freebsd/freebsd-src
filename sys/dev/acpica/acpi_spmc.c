@@ -326,7 +326,7 @@ failed_to_call_dsm(const struct acpi_spmc_softc *const sc,
 	    dsm->name, dsm->revision, dsm_function_name(dsm, function_index));
 }
 
-static void	acpi_spmc_check_dsm(struct acpi_spmc_softc *sc,
+static void	acpi_spmc_probe_dsm(struct acpi_spmc_softc *sc,
 		    ACPI_HANDLE handle, struct dsm_desc *const dsm);
 static void	acpi_spmc_dsm_print_functions(
 		    const struct acpi_spmc_softc *const sc,
@@ -380,7 +380,7 @@ acpi_spmc_attach(device_t dev)
 		    ("%s: Inconsistent indices for DSM %s", __func__,
 		    dsms[i]->name));
 
-		acpi_spmc_check_dsm(sc, handle, dsms[i]);
+		acpi_spmc_probe_dsm(sc, handle, dsms[i]);
 	}
 
 	if (sc->dsms == 0) {
@@ -390,6 +390,11 @@ acpi_spmc_attach(device_t dev)
 
 	print_bit_field(buf, sizeof(buf), sc->dsms, "DSM", pbf_dsm_name, NULL);
 	device_printf(dev, "DSMs supported: %s\n", buf);
+
+	/* Print supported functions of usable DSMs. */
+	for (int i = 0; i < nitems(dsms); ++i)
+		if (has_dsm(sc, i))
+			acpi_spmc_dsm_print_functions(sc, dsms[i]);
 
 	/* Get device constraints. We can only call this once so do this now. */
 	acpi_spmc_get_constraints(dev);
@@ -447,7 +452,7 @@ acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
 }
 
 static void
-acpi_spmc_check_dsm(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
+acpi_spmc_probe_dsm(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
     struct dsm_desc *const dsm)
 {
 	const uint64_t supported_functions = acpi_DSMQuery(handle,
@@ -460,7 +465,6 @@ acpi_spmc_check_dsm(struct acpi_spmc_softc *sc, ACPI_HANDLE handle,
 		return;
 	dsm->supported_functions = supported_functions & ~1;
 	sc->dsms |= IDX_TO_BIT(dsm->index);
-	acpi_spmc_dsm_print_functions(sc, dsm);
 }
 
 static void
