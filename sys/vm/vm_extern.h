@@ -51,7 +51,7 @@ void *kva_alloc_aligned(vm_size_t, vm_size_t);
 void kva_free(void *, vm_size_t);
 
 /* These operate on pageable virtual addresses. */
-void *kmap_alloc_wait(vm_map_t, vm_size_t);
+void *kmap_alloc_wait(vm_map_t, vm_size_t, vm_size_t);
 void kmap_free_wakeup(vm_map_t, void *, vm_size_t);
 
 /* These operate on virtual addresses backed by memory. */
