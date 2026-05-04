@@ -2126,7 +2126,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4130) },
 	{ PCI_VDEVICE(MELLANOX, 4131) }, /* ConnectX-8 */
 	{ PCI_VDEVICE(MELLANOX, 4132) },
-	{ PCI_VDEVICE(MELLANOX, 4133) },
+	{ PCI_VDEVICE(MELLANOX, 4133) }, /* ConnectX-9 */
 	{ PCI_VDEVICE(MELLANOX, 4134) },
 	{ PCI_VDEVICE(MELLANOX, 4135) },
 	{ PCI_VDEVICE(MELLANOX, 4136) },

@@ -84,6 +84,7 @@ static struct {
 	HCA(MELLANOX, 4127),	/* ConnectX-6 LX */
 	HCA(MELLANOX, 4129),	/* ConnectX-7 */
 	HCA(MELLANOX, 4131),	/* ConnectX-8 */
+	HCA(MELLANOX, 4133),	/* ConnectX-9 */
 	HCA(MELLANOX, 41682),	/* BlueField integrated ConnectX-5 network controller */
 	HCA(MELLANOX, 41683),	/* BlueField integrated ConnectX-5 network controller VF */
 	HCA(MELLANOX, 41686),	/* BlueField-2 integrated ConnectX-6 Dx network controller */
