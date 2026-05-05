@@ -1299,13 +1299,18 @@ ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 }
 
 static void
+ena_set_io_queue_count(struct ena_adapter *adapter, uint32_t num)
+{
+	adapter->num_io_queues = num;
+	/* Force indirection table to be reinitialized */
+	ena_com_rss_destroy(adapter->ena_dev);
+}
+
+static void
 ena_update_io_rings(struct ena_adapter *adapter, uint32_t num)
 {
 	ena_free_all_io_rings_resources(adapter);
-	/* Force indirection table to be reinitialized */
-	ena_com_rss_destroy(adapter->ena_dev);
-
-	adapter->num_io_queues = num;
+	ena_set_io_queue_count(adapter, num);
 	ena_init_io_rings(adapter);
 }
 
@@ -3680,7 +3685,8 @@ ena_restore_device(struct ena_adapter *adapter)
 	 * are available.
 	 */
 	if ((adapter->msix_vecs - ENA_ADMIN_MSIX_VEC) < adapter->num_io_queues)
-		adapter->num_io_queues = adapter->msix_vecs - ENA_ADMIN_MSIX_VEC;
+		ena_set_io_queue_count(adapter,
+		    adapter->msix_vecs - ENA_ADMIN_MSIX_VEC);
 
 	/* Re-initialize rings basic information */
 	ena_init_io_rings(adapter);
