@@ -113,7 +113,10 @@ ibs_validate_fetch_config(uint64_t config)
 {
 
 	if ((config & ~(ibs_fetch_allowed_mask | ibs_fetch_extra_mask)) != 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "Unsupported IBS fetch control bits %#jx",
+		    (uintmax_t)(config &
+		    ~(ibs_fetch_allowed_mask | ibs_fetch_extra_mask))));
 
 	return (0);
 }
@@ -127,9 +130,11 @@ ibs_validate_op_config(uint64_t config)
 
 	if ((config & IBS_OP_CTL_LATFLTEN) != 0) {
 		if ((ibs_features & CPUID_IBSID_IBSLOADLATENCYFILT) == 0)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+			    "IBS op load-latency filter is not supported"));
 		if ((config & IBS_OP_CTL_L3MISSONLY) == 0)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+			    "IBS op load-latency filter requires L3MISS"));
 
 		allowed_mask |= IBS_OP_CTL_LDLATMASK | IBS_OP_CTL_L3MISSONLY;
 	}
@@ -137,7 +142,9 @@ ibs_validate_op_config(uint64_t config)
 	allowed_mask |= ibs_op_extra_mask;
 
 	if ((config & ~allowed_mask) != 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "Unsupported IBS op control bits %#jx",
+		    (uintmax_t)(config & ~allowed_mask)));
 
 	return (0);
 }
@@ -152,7 +159,8 @@ ibs_validate_pmc_config(int ri, uint64_t config)
 	case IBS_PMC_OP:
 		return (ibs_validate_op_config(config));
 	default:
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Unsupported IBS PMC type %ju",
+		    (uintmax_t)ri));
 	}
 }
 
@@ -288,7 +296,7 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 		return (EXTERROR(EINVAL, "IBS requires SYSTEM capability"));
 
 	if (!PMC_IS_SAMPLING_MODE(a->pm_mode))
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "IBS only supports sampling mode"));
 
 	config = a->pm_md.pm_ibs.ibs_ctl;
 	error = ibs_validate_pmc_config(ri, config);
