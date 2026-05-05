@@ -137,7 +137,7 @@ SYSCTL_INT(_hw_usb_smsc, OID_AUTO, debug, CTLFLAG_RWTUN, &smsc_debug, 0,
  * Various supported device vendors/products.
  */
 static const struct usb_device_id smsc_devs[] = {
-#define	SMSC_DEV(p,i) { USB_VPI(USB_VENDOR_SMC2, USB_PRODUCT_SMC2_##p, i) }
+#define	SMSC_DEV(p,i) { USB_VPI(USB_VENDOR_SMSC, USB_PRODUCT_SMSC_##p, i) }
 	SMSC_DEV(LAN89530_ETH, 0),
 	SMSC_DEV(LAN9500_ETH, 0),
 	SMSC_DEV(LAN9500_ETH_2, 0),

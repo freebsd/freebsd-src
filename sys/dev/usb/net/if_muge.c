@@ -126,7 +126,7 @@ SYSCTL_INT(_hw_usb_muge, OID_AUTO, debug, CTLFLAG_RWTUN, &muge_debug, 0,
 
 /* Supported Vendor and Product IDs. */
 static const struct usb_device_id lan78xx_devs[] = {
-#define MUGE_DEV(p,i) { USB_VPI(USB_VENDOR_SMC2, USB_PRODUCT_SMC2_##p, i) }
+#define MUGE_DEV(p,i) { USB_VPI(USB_VENDOR_SMSC, USB_PRODUCT_SMSC_##p, i) }
 	MUGE_DEV(LAN7800_ETH, 0),
 	MUGE_DEV(LAN7801_ETH, 0),
 	MUGE_DEV(LAN7850_ETH, 0),

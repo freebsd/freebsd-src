@@ -102,7 +102,7 @@ vendor CREATIVE		0x041e	Creative Labs
 vendor NOKIA		0x0421	Nokia
 vendor ADI		0x0422	ADI Systems
 vendor CATC		0x0423	Computer Access Technology
-vendor SMC2		0x0424	Microchip Technology
+vendor SMSC		0x0424	Microchip Technology (formerly SMSC)
 vendor MOTOROLA_HK	0x0425	Motorola HK
 vendor GRAVIS		0x0428	Advanced Gravis Computer
 vendor CIRRUSLOGIC	0x0429	Cirrus Logic
@@ -4615,37 +4615,39 @@ product SMART2 G2MEMKEY		0x1700	G2 Memory Key
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB Ethernet
 product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP Ethernet
 
-/* Microchip Technology (formerly SMC) products */
+/* SMC products */
 product SMC 2102USB		0x0100	10Mbps Ethernet
 product SMC 2202USB		0x0200	10/100 Ethernet
 product SMC 2206USB		0x0201	EZ Connect USB Ethernet
 product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
-product SMC2 2020HUB		0x2020	USB Hub
-product SMC2 2513HUB		0x2513	USB Hub
-product SMC2 2514HUB		0x2514	USB Hub
-product SMC2 2517HUB		0x2517	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
-product SMC2 LAN7800_ETH	0x7800	USB/Ethernet
-product SMC2 LAN7801_ETH	0x7801	USB/Ethernet
-product SMC2 LAN7850_ETH	0x7850	USB/Ethernet
-product SMC2 LAN9500_ETH	0x9500	USB/Ethernet
-product SMC2 LAN9505_ETH	0x9505	USB/Ethernet
-product SMC2 LAN9530_ETH	0x9530	USB/Ethernet
-product SMC2 LAN9730_ETH	0x9730	USB/Ethernet
-product SMC2 LAN9500_SAL10	0x9900	USB/Ethernet
-product SMC2 LAN9505_SAL10	0x9901	USB/Ethernet
-product SMC2 LAN9500A_SAL10	0x9902	USB/Ethernet
-product SMC2 LAN9505A_SAL10	0x9903	USB/Ethernet
-product SMC2 LAN9514_SAL10	0x9904	USB/Ethernet
-product SMC2 LAN9500A_HAL	0x9905	USB/Ethernet
-product SMC2 LAN9505A_HAL	0x9906	USB/Ethernet
-product SMC2 LAN9500_ETH_2	0x9907	USB/Ethernet
-product SMC2 LAN9500A_ETH_2	0x9908	USB/Ethernet
-product SMC2 LAN9514_ETH_2	0x9909	USB/Ethernet
-product SMC2 LAN9500A_ETH	0x9e00	USB/Ethernet
-product SMC2 LAN9505A_ETH	0x9e01	USB/Ethernet
-product SMC2 LAN89530_ETH	0x9e08	USB/Ethernet
-product SMC2 LAN9514_ETH	0xec00	USB/Ethernet
+
+/* Microchip Technology (formerly SMSC) products */
+product SMSC 2020HUB		0x2020	USB Hub
+product SMSC 2513HUB		0x2513	USB Hub
+product SMSC 2514HUB		0x2514	USB Hub
+product SMSC 2517HUB		0x2517	USB Hub
+product SMSC LAN7800_ETH	0x7800	USB/Ethernet
+product SMSC LAN7801_ETH	0x7801	USB/Ethernet
+product SMSC LAN7850_ETH	0x7850	USB/Ethernet
+product SMSC LAN9500_ETH	0x9500	USB/Ethernet
+product SMSC LAN9505_ETH	0x9505	USB/Ethernet
+product SMSC LAN9530_ETH	0x9530	USB/Ethernet
+product SMSC LAN9730_ETH	0x9730	USB/Ethernet
+product SMSC LAN9500_SAL10	0x9900	USB/Ethernet
+product SMSC LAN9505_SAL10	0x9901	USB/Ethernet
+product SMSC LAN9500A_SAL10	0x9902	USB/Ethernet
+product SMSC LAN9505A_SAL10	0x9903	USB/Ethernet
+product SMSC LAN9514_SAL10	0x9904	USB/Ethernet
+product SMSC LAN9500A_HAL	0x9905	USB/Ethernet
+product SMSC LAN9505A_HAL	0x9906	USB/Ethernet
+product SMSC LAN9500_ETH_2	0x9907	USB/Ethernet
+product SMSC LAN9500A_ETH_2	0x9908	USB/Ethernet
+product SMSC LAN9514_ETH_2	0x9909	USB/Ethernet
+product SMSC LAN9500A_ETH	0x9e00	USB/Ethernet
+product SMSC LAN9505A_ETH	0x9e01	USB/Ethernet
+product SMSC LAN89530_ETH	0x9e08	USB/Ethernet
+product SMSC LAN9514_ETH	0xec00	USB/Ethernet
 
 /* SOHOware products */
 product SOHOWARE NUB100		0x9100	10/100 USB Ethernet
