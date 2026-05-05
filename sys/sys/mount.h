@@ -1071,7 +1071,6 @@ int	vfs_report_lockf(struct mount *mp, struct sbuf *sb);
 
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx_padalign mountlist_mtx;
-extern	struct nfs_public nfs_pub;
 extern	struct sx vfsconf_sx;
 #define	vfsconf_lock()		sx_xlock(&vfsconf_sx)
 #define	vfsconf_unlock()	sx_xunlock(&vfsconf_sx)
