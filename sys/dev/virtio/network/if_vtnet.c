@@ -96,17 +96,6 @@
 #define VTNET_ETHER_ALIGN ETHER_ALIGN
 #endif
 
-/*
- * Worst case offset to ensure header doesn't share any cache lines with
- * payload.
- */
-#define VTNET_RX_BUFFER_HEADER_OFFSET 128
-
-struct vtnet_rx_buffer_header {
-	bus_addr_t   addr;
-	bus_dmamap_t dmap;
-};
-
 static int	vtnet_modevent(module_t, int, void *);
 
 static int	vtnet_probe(device_t);
@@ -395,17 +384,6 @@ MODULE_DEPEND(vtnet, netmap, 1, 1, 1);
 
 VIRTIO_SIMPLE_PNPINFO(vtnet, VIRTIO_ID_NETWORK, "VirtIO Networking Adapter");
 
-static struct vtnet_rx_buffer_header *
-vtnet_mbuf_to_rx_buffer_header(struct vtnet_softc *sc, struct mbuf *m)
-{
-	if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0)
-		return (struct vtnet_rx_buffer_header *)((uintptr_t)m->m_data -
-		    VTNET_RX_BUFFER_HEADER_OFFSET - VTNET_ETHER_ALIGN);
-	else
-		return (struct vtnet_rx_buffer_header *)((uintptr_t)m->m_data -
-		    VTNET_RX_BUFFER_HEADER_OFFSET);
-}
-
 static int
 vtnet_modevent(module_t mod __unused, int type, void *unused __unused)
 {
@@ -478,60 +456,6 @@ vtnet_attach(device_t dev)
 		device_printf(dev, "cannot setup features\n");
 		goto fail;
 	}
-
-	mtx_init(&sc->vtnet_rx_mtx, device_get_nameunit(dev),
-	    "VirtIO Net RX lock", MTX_DEF);
-
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),		/* parent */
-	    sizeof(uint16_t),			/* alignment */
-	    0,					/* boundary */
-	    BUS_SPACE_MAXADDR,			/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL, NULL,				/* filter, filterarg */
-	    MJUM9BYTES,				/* max request size */
-	    1,					/* max # segments */
-	    MJUM9BYTES,				/* maxsegsize - worst case */
-	    BUS_DMA_COHERENT,			/* flags */
-	    busdma_lock_mutex,			/* lockfunc */
-	    &sc->vtnet_rx_mtx,			/* lockarg */
-	    &sc->vtnet_rx_dmat);
-	if (error) {
-		device_printf(dev, "cannot create bus_dma_tag\n");
-		goto fail;
-	}
-
-	mtx_init(&sc->vtnet_tx_mtx, device_get_nameunit(dev),
-	    "VirtIO Net TX lock", MTX_DEF);
-
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),		/* parent */
-	    sizeof(uint16_t),			/* alignment */
-	    0,					/* boundary */
-	    BUS_SPACE_MAXADDR,			/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL, NULL,				/* filter, filterarg */
-	    sc->vtnet_tx_nsegs * MJUM9BYTES,	/* max request size */
-	    sc->vtnet_tx_nsegs,			/* max # segments */
-	    MJUM9BYTES,				/* maxsegsize */
-	    BUS_DMA_COHERENT,			/* flags */
-	    busdma_lock_mutex,			/* lockfunc */
-	    &sc->vtnet_tx_mtx,			/* lockarg */
-	    &sc->vtnet_tx_dmat);
-	if (error) {
-		device_printf(dev, "cannot create bus_dma_tag\n");
-		goto fail;
-	}
-
-#ifdef __powerpc__
-        /*
-         * Virtio uses physical addresses rather than bus addresses, so we
-         * need to ask busdma to skip the iommu physical->bus mapping.  At
-         * present, this is only a thing on the powerpc architectures.
-         */
-        bus_dma_tag_set_iommu(sc->vtnet_rx_dmat, NULL, NULL);
-        bus_dma_tag_set_iommu(sc->vtnet_tx_dmat, NULL, NULL);
-#endif
 
 	error = vtnet_alloc_rx_filters(sc);
 	if (error) {
@@ -1621,11 +1545,6 @@ static struct mbuf *
 vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 {
 	struct mbuf *m_head, *m_tail, *m;
-	struct vtnet_rx_buffer_header *vthdr;
-	bus_dma_segment_t segs[1];
-	bus_dmamap_t dmap;
-	int nsegs;
-	int err;
 	int i, size;
 
 	m_head = NULL;
@@ -1643,43 +1562,13 @@ vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 		}
 
 		m->m_len = size;
-		vthdr = (struct vtnet_rx_buffer_header *)m->m_data;
-
-		/* Reserve space for header */
-		m_adj(m, VTNET_RX_BUFFER_HEADER_OFFSET);
-
 		/*
 		 * Need to offset the mbuf if the header we're going to add
 		 * will misalign.
 		 */
-		if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0)
+		if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0) {
 			m_adj(m, VTNET_ETHER_ALIGN);
-
-		err = bus_dmamap_create(sc->vtnet_rx_dmat, 0, &dmap);
-		if (err) {
-			printf("Failed to create dmamap, err :%d\n",
-			    err);
-			m_freem(m);
-			return (NULL);
 		}
-
-		nsegs = 0;
-		err = bus_dmamap_load_mbuf_sg(sc->vtnet_rx_dmat, dmap, m, segs,
-		    &nsegs, BUS_DMA_NOWAIT);
-		if (err != 0) {
-			printf("Failed to map mbuf into DMA visible memory, err: %d\n",
-			    err);
-			m_freem(m);
-			bus_dmamap_destroy(sc->vtnet_rx_dmat, dmap);
-			return (NULL);
-		}
-		KASSERT(nsegs == 1,
-		    ("%s: unexpected number of DMA segments for rx buffer: %d",
-		    __func__, nsegs));
-
-		vthdr->addr = segs[0].ds_addr;
-		vthdr->dmap = dmap;
-
 		if (m_head != NULL) {
 			m_tail->m_next = m;
 			m_tail = m;
@@ -1705,7 +1594,7 @@ vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 	int len, clustersz, nreplace, error;
 
 	sc = rxq->vtnrx_sc;
-	clustersz = sc->vtnet_rx_clustersz - VTNET_RX_BUFFER_HEADER_OFFSET;
+	clustersz = sc->vtnet_rx_clustersz;
 	/*
 	 * Need to offset the mbuf if the header we're going to add will
 	 * misalign, account for that here.
@@ -1820,12 +1709,9 @@ vtnet_rxq_replace_buf(struct vtnet_rxq *rxq, struct mbuf *m, int len)
 static int
 vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 {
-	struct vtnet_rx_buffer_header *hdr;
 	struct vtnet_softc *sc;
 	struct sglist *sg;
 	int header_inlined, error;
-	bus_addr_t paddr;
-	struct mbuf *mp;
 
 	sc = rxq->vtnrx_sc;
 	sg = rxq->vtnrx_sg;
@@ -1838,38 +1724,28 @@ vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 	header_inlined = vtnet_modern(sc) ||
 	    (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) != 0; /* TODO: ANY_LAYOUT */
 
-	hdr = vtnet_mbuf_to_rx_buffer_header(sc, m);
-	paddr = hdr->addr;
-
 	/*
 	 * Note: The mbuf has been already adjusted when we allocate it if we
 	 * have to do strict alignment.
 	 */
-	if (header_inlined) {
-		error = sglist_append_phys(sg, paddr, m->m_len);
-	} else {
+	if (header_inlined)
+		error = sglist_append_mbuf(sg, m);
+	else {
+		struct vtnet_rx_header *rxhdr =
+		    mtod(m, struct vtnet_rx_header *);
 		MPASS(sc->vtnet_hdr_size == sizeof(struct virtio_net_hdr));
 
 		/* Append the header and remaining mbuf data. */
-		error = sglist_append_phys(sg, paddr, sc->vtnet_hdr_size);
+		error = sglist_append(sg, &rxhdr->vrh_hdr, sc->vtnet_hdr_size);
 		if (error)
 			return (error);
-		error = sglist_append_phys(sg,
-		    paddr + sizeof(struct vtnet_rx_header),
+		error = sglist_append(sg, &rxhdr[1],
 		    m->m_len - sizeof(struct vtnet_rx_header));
 		if (error)
 			return (error);
 
-		mp = m->m_next;
-		while (mp) {
-			hdr = vtnet_mbuf_to_rx_buffer_header(sc, mp);
-			paddr = hdr->addr;
-			error = sglist_append_phys(sg, paddr, mp->m_len);
-			if (error)
-				return (error);
-
-			mp = mp->m_next;
-		}
+		if (m->m_next != NULL)
+			error = sglist_append_mbuf(sg, m->m_next);
 	}
 
 	if (error)
@@ -2055,7 +1931,6 @@ vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 	m_tail = m_head;
 
 	while (--nbufs > 0) {
-		struct vtnet_rx_buffer_header *vthdr;
 		struct mbuf *m;
 		uint32_t len;
 
@@ -2064,10 +1939,6 @@ vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 			rxq->vtnrx_stats.vrxs_ierrors++;
 			goto fail;
 		}
-
-		vthdr = vtnet_mbuf_to_rx_buffer_header(sc, m);
-		bus_dmamap_sync(sc->vtnet_rx_dmat, vthdr->dmap,
-		    BUS_DMASYNC_POSTREAD);
 
 		if (vtnet_rxq_new_buf(rxq) != 0) {
 			rxq->vtnrx_stats.vrxs_iqdrops++;
@@ -2189,7 +2060,6 @@ static int
 vtnet_rxq_eof(struct vtnet_rxq *rxq)
 {
 	struct virtio_net_hdr lhdr, *hdr;
-	struct vtnet_rx_buffer_header *vthdr;
 	struct vtnet_softc *sc;
 	if_t ifp;
 	struct virtqueue *vq;
@@ -2205,30 +2075,13 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 	CURVNET_SET(if_getvnet(ifp));
 	while (count-- > 0) {
-		struct mbuf *m, *mp;
+		struct mbuf *m;
 		uint32_t len, nbufs, adjsz;
-		uint32_t synced;
 
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL)
 			break;
 		deq++;
-
-		mp = m;
-
-		/*
-		 * Sync all mbufs in this packet. There will only be a single
-		 * mbuf unless LRO is in use.
-		 */
-		synced = 0;
-		while (mp && synced < len) {
-			vthdr = vtnet_mbuf_to_rx_buffer_header(sc, mp);
-			bus_dmamap_sync(sc->vtnet_rx_dmat, vthdr->dmap,
-			    BUS_DMASYNC_POSTREAD);
-
-			synced += mp->m_len;
-			mp = mp->m_next;
-		}
 
 		if (len < sc->vtnet_hdr_size + ETHER_HDR_LEN) {
 			rxq->vtnrx_stats.vrxs_ierrors++;
@@ -2489,14 +2342,6 @@ vtnet_txq_free_mbufs(struct vtnet_txq *txq)
 
 	while ((txhdr = virtqueue_drain(vq, &last)) != NULL) {
 		if (kring == NULL) {
-			bus_dmamap_unload(txq->vtntx_sc->vtnet_tx_dmat,
-			    txhdr->dmap);
-			bus_dmamap_destroy(txq->vtntx_sc->vtnet_tx_dmat,
-			    txhdr->dmap);
-			bus_dmamap_unload(txq->vtntx_sc->vtnet_tx_dmat,
-			    txhdr->hdr_dmap);
-			bus_dmamap_destroy(txq->vtntx_sc->vtnet_tx_dmat,
-			    txhdr->hdr_dmap);
 			m_freem(txhdr->vth_mbuf);
 			uma_zfree(vtnet_tx_header_zone, txhdr);
 		}
@@ -2666,36 +2511,15 @@ drop:
 	return (NULL);
 }
 
-static void
-vtnet_txq_enqueue_callback(void *arg, bus_dma_segment_t *segs,
-    int nsegs, int error)
-{
-	vm_paddr_t *hdr_paddr;
-
-	if (error != 0)
-		return;
-
-	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
-
-	hdr_paddr = (vm_paddr_t *)arg;
-	*hdr_paddr = segs[0].ds_addr;
-}
-
 static int
 vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
     struct vtnet_tx_header *txhdr)
 {
-	bus_dma_segment_t segs[VTNET_TX_SEGS_MAX];
-	int nsegs;
 	struct vtnet_softc *sc;
 	struct virtqueue *vq;
 	struct sglist *sg;
 	struct mbuf *m;
 	int error;
-	vm_paddr_t hdr_paddr;
-	bus_dmamap_t hdr_dmap;
-	bus_dmamap_t dmap;
-	int i;
 
 	sc = txq->vtntx_sc;
 	vq = txq->vtntx_vq;
@@ -2703,55 +2527,15 @@ vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
 	m = *m_head;
 
 	sglist_reset(sg);
-
-	error = bus_dmamap_create(sc->vtnet_tx_dmat, 0, &hdr_dmap);
-	if (error)
-	    goto fail;
-
-	error = bus_dmamap_load(sc->vtnet_tx_dmat, hdr_dmap, &txhdr->vth_uhdr,
-	    sc->vtnet_hdr_size, vtnet_txq_enqueue_callback, &hdr_paddr,
-	    BUS_DMA_NOWAIT);
-	if (error)
-		goto fail_hdr_dmamap_destroy;
-
-	error = sglist_append_phys(sg, hdr_paddr, sc->vtnet_hdr_size);
+	error = sglist_append(sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
 	if (error != 0 || sg->sg_nseg != 1) {
 		KASSERT(0, ("%s: cannot add header to sglist error %d nseg %d",
 		    __func__, error, sg->sg_nseg));
-		goto fail_hdr_dmamap_unload;
+		goto fail;
 	}
 
-	bus_dmamap_sync(sc->vtnet_tx_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
-
-	error = bus_dmamap_create(sc->vtnet_tx_dmat, 0, &dmap);
-	if (error)
-		goto fail_hdr_dmamap_unload;
-
-	nsegs = 0;
-	error = bus_dmamap_load_mbuf_sg(sc->vtnet_tx_dmat, dmap, m, segs,
-	    &nsegs, BUS_DMA_NOWAIT);
-	if (error != 0)
-		goto fail_dmamap_destroy;
-	KASSERT(nsegs <= sc->vtnet_tx_nsegs,
-	    ("%s: unexpected number of DMA segments for tx buffer: %d (max %d)",
-	    __func__, nsegs, sc->vtnet_tx_nsegs));
-
-	bus_dmamap_sync(sc->vtnet_tx_dmat, dmap, BUS_DMASYNC_PREWRITE);
-
-	for (i = 0; i < nsegs && !error; i++)
-		error = sglist_append_phys(sg, segs[i].ds_addr, segs[i].ds_len);
-
+	error = sglist_append_mbuf(sg, m);
 	if (error) {
-		sglist_reset(sg);
-		bus_dmamap_unload(sc->vtnet_tx_dmat, dmap);
-
-		error = sglist_append_phys(sg, hdr_paddr, sc->vtnet_hdr_size);
-		if (error != 0 || sg->sg_nseg != 1) {
-			KASSERT(0, ("%s: cannot add header to sglist error %d nseg %d",
-			    __func__, error, sg->sg_nseg));
-			goto fail_dmamap_destroy;
-		}
-
 		m = m_defrag(m, M_NOWAIT);
 		if (m == NULL) {
 			sc->vtnet_stats.tx_defrag_failed++;
@@ -2761,41 +2545,16 @@ vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
 		*m_head = m;
 		sc->vtnet_stats.tx_defragged++;
 
-		nsegs = 0;
-		error = bus_dmamap_load_mbuf_sg(sc->vtnet_tx_dmat, dmap, m,
-		    segs, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0)
-			goto fail_dmamap_destroy;
-		KASSERT(nsegs <= sc->vtnet_tx_nsegs,
-		    ("%s: unexpected number of DMA segments for tx buffer: %d (max %d)",
-		    __func__, nsegs, sc->vtnet_tx_nsegs));
-
-		bus_dmamap_sync(sc->vtnet_tx_dmat, dmap, BUS_DMASYNC_PREWRITE);
-
-		for (i = 0; i < nsegs && !error; i++)
-			error = sglist_append_phys(sg, segs[i].ds_addr,
-			    segs[i].ds_len);
-
+		error = sglist_append_mbuf(sg, m);
 		if (error)
-			goto fail_dmamap_unload;
+			goto fail;
 	}
 
 	txhdr->vth_mbuf = m;
-	txhdr->dmap = dmap;
-	txhdr->hdr_dmap = hdr_dmap;
-
 	error = virtqueue_enqueue(vq, txhdr, sg, sg->sg_nseg, 0);
 
 	return (error);
 
-fail_dmamap_unload:
-	bus_dmamap_unload(sc->vtnet_tx_dmat, dmap);
-fail_dmamap_destroy:
-	bus_dmamap_destroy(sc->vtnet_tx_dmat, dmap);
-fail_hdr_dmamap_unload:
-	bus_dmamap_unload(sc->vtnet_tx_dmat, hdr_dmap);
-fail_hdr_dmamap_destroy:
-	bus_dmamap_destroy(sc->vtnet_tx_dmat, hdr_dmap);
 fail:
 	m_freem(*m_head);
 	*m_head = NULL;
