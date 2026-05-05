@@ -4869,6 +4869,14 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 		*tl++ = txdr_unsigned(sep->sess_cbsess.nfsess_foreslots);
 		*tl++ = txdr_unsigned(1);
 		*tl = txdr_unsigned(0);			/* No RDMA. */
+		/*
+		 * Although the client accepts slot#s up to
+		 * sess_cbsess.nfsess_foreslots, the server can only use
+		 * a maximum of NFSV4_SLOTS, so clip it to avoid ever using
+		 * too high a slot.
+		 */
+		if (sep->sess_cbsess.nfsess_foreslots > NFSV4_SLOTS)
+			sep->sess_cbsess.nfsess_foreslots = NFSV4_SLOTS;
 	}
 nfsmout:
 	if (nd->nd_repstat != 0 && sep != NULL)
