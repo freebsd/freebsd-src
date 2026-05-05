@@ -176,6 +176,7 @@ out_7_skein1024="cf21a613620e6c119eca31fdfaad449a8e02f95ca256c21d2a105f8e4157048
 out_8_skein1024="e6799b78db54085a2be7ff4c8007f147fa88d326abab30be0560b953396d8802feee9a15419b48a467574e9283be15685ca8a079ee52b27166b64dd70b124b1d4e4f6aca37224c3f2685e67e67baef9f94b905698adc794a09672aba977a61b20966912acdb08c21a2c37001785355dc884751a21f848ab36e590331ff938138"
 
 for alg in $algorithms ; do
+	eval "perl=\$name_perl_${alg}"		# supported in Perl mode?
 	eval "
 atf_test_case self_test_${alg}
 self_test_${alg}_head() {
@@ -228,14 +229,13 @@ gnu_${alg}_vec${i}_body() {
 	atf_check -o inline:\"\$out_${i}_${alg}  -\0\" ${alg}sum -z - <in
 }
 "
-		eval "
+		[ -n "$perl" ] && eval "
 atf_test_case perl_${alg}_vec${i}
 perl_${alg}_vec${i}_head() {
 	atf_set descr \"Perl mode \$name_bsd_${alg} test vector ${i}\"
 	atf_set require.progs \"shasum\"
 }
 perl_${alg}_vec${i}_body() {
-	[ -n \"\$name_perl_${alg}\" ] || atf_skip \"shasum does not support ${alg}\"
 	printf '%s' \"\$inp_${i}\" >in
 	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" shasum \$alg_perl_${alg} <in
 	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b <in
@@ -281,14 +281,13 @@ gnu_check_${alg}_body() {
 	atf_check -s exit:$rv ${alg}sum --check --status digests
 }
 "
-	eval "
+	[ -n "$perl" ] && eval "
 atf_test_case perl_check_${alg}
 perl_check_${alg}_head() {
 	atf_set descr \"Perl mode check test for \$name_bsd_${alg}\"
 	atf_set require.progs \"shasum\"
 }
 perl_check_${alg}_body() {
-	[ -n \"\$name_perl_${alg}\" ] || atf_skip \"shasum does not support ${alg}\"
 	:>digests
 	:>stdout
 	:>stderr
@@ -394,14 +393,15 @@ EOF
 atf_init_test_cases()
 {
 	for alg in $algorithms ; do
+		eval "perl=\$name_perl_${alg}"	# supported in Perl mode?
 		atf_add_test_case self_test_${alg}
 		for i in $(seq $n) ; do
 			atf_add_test_case bsd_${alg}_vec${i}
 			atf_add_test_case gnu_${alg}_vec${i}
-			atf_add_test_case perl_${alg}_vec${i}
+			[ -n "$perl" ] && atf_add_test_case perl_${alg}_vec${i}
 		done
 		atf_add_test_case gnu_check_${alg}
-		atf_add_test_case perl_check_${alg}
+		[ -n "$perl" ] && atf_add_test_case perl_check_${alg}
 	done
 	atf_add_test_case gnu_bflag
 	atf_add_test_case gnu_cflag
