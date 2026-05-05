@@ -1991,6 +1991,7 @@ pfctl_show_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_show_state_arg arg;
 	struct pfctl_state_filter filter = {};
+	int ret;
 
 	if (iface != NULL)
 		strlcpy(filter.ifname, iface, IFNAMSIZ);
@@ -1999,8 +2000,8 @@ pfctl_show_states(int dev, const char *iface, int opts)
 	arg.dotitle = opts & PF_OPT_SHOWALL;
 	arg.iface = iface;
 
-	if (pfctl_get_states_h(pfh, &filter, pfctl_show_state, &arg))
-		return (-1);
+	if ((ret = pfctl_get_states_h(pfh, &filter, pfctl_show_state, &arg)) != 0)
+		errc(1, ret, "pfctl_get_states");
 
 	return (0);
 }
