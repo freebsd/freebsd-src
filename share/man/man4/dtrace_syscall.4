@@ -1,0 +1,87 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.Dd May 7, 2026
+.Dt DTRACE_SYSCALL 4
+.Os
+.Sh NAME
+.Nm dtrace_syscall
+.Nd a DTrace provider for system calls
+.Sh SYNOPSIS
+.Nm syscall Ns Cm \&: Ns Ar abi Ns Cm \&: Ns Ar syscall Ns Cm :entry
+.Nm syscall Ns Cm \&: Ns Ar abi Ns Cm \&: Ns Ar syscall Ns Cm :return
+.Sh DESCRIPTION
+The
+.Nm syscall
+provider provides entry and return probes for system calls.
+.Pp
+The module in the probe's description is
+.Ar abi ,
+which indicates what system call ABI a
+.Ar syscall
+belongs to.
+.Nm
+supports the following system call ABIs:
+.Pp
+.Bl -tag -offset indent -width freebsd32 -compact
+.It Cm freebsd
+Native ABI.
+.It Cm freebsd32
+Non-native, 32-bit ABI.
+.It Cm linux
+Refer to
+.Xr linux 4 .
+.It Cm linux32
+Refer to
+.Xr linux 4 .
+.El
+.Pp
+The arguments to the
+.Cm entry
+probes are the arguments passed to the system call.
+.Pp
+The
+.Cm return
+probe stores the system call's return value in both
+.Fa arg0
+and
+.Fa arg1 .
+.Pp
+Inspect the
+.Xr d 7 Ap s
+.Va errno
+variable to check if a system call failed.
+.Sh EXAMPLES
+.Ss Example 1 : Count Up System Calls
+The following script traces all system calls and counts them for every process
+on the system.
+.Bd -literal -offset 2n
+syscall:::entry {
+    @[execname, pid] = count();
+}
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr intro 2 ,
+.Xr tracing 7
+.Rs
+.%B The illumos Dynamic Tracing Guide
+.%O Chapter syscall Provider
+.%D 2008
+.%U https://illumos.org/books/dtrace/chp-syscall.html
+.Re
+.Rs
+.%A Brendan Gregg
+.%A Jim Mauro
+.%B DTrace: Dynamic Tracing in Oracle Solaris, Mac OS X and FreeBSD
+.%I Prentice Hall
+.%O Chapter Syscall Provider
+.%P pp. 315\(en327
+.%D 2011
+.%U https://www.brendangregg.com/dtracebook/
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
