@@ -2009,7 +2009,7 @@ pfctl_get_states_h(struct pfctl_handle *h, struct pfctl_state_filter *filter, pf
 			return (ret);
 	}
 
-	return (0);
+	return (e.error);
 }
 
 int
