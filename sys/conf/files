@@ -3497,6 +3497,7 @@ dev/usb/template/usb_template_cdceem.c	optional usb_template
 # USB video drivers
 #
 dev/usb/video/udl.c			optional udl
+dev/usb/video/uvideo.c			optional uvideo
 #
 # USB END
 #
