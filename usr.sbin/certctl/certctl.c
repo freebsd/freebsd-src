@@ -636,22 +636,17 @@ write_bundle(const char *dir, const char *file, struct cert_tree *tree)
  * Returns the number of certificates loaded.
  */
 static unsigned int
-load_trusted(bool all, struct cert_tree *exclude)
+load_trusted(void)
 {
 	unsigned int i, n;
 	int ret;
 
 	/* load external trusted certs */
-	for (i = n = 0; all && trusted_paths[i] != NULL; i++) {
-		ret = read_certs(trusted_paths[i], &trusted, exclude);
+	for (i = n = 0; trusted_paths[i] != NULL; i++) {
+		ret = read_certs(trusted_paths[i], &trusted, &untrusted);
 		if (ret > 0)
 			n += ret;
 	}
-
-	/* load installed trusted certs */
-	ret = read_certs(trusted_dest, &trusted, exclude);
-	if (ret > 0)
-		n += ret;
 
 	info("%d trusted certificates found", n);
 	return (n);
@@ -663,23 +658,18 @@ load_trusted(bool all, struct cert_tree *exclude)
  * Returns the number of certificates loaded.
  */
 static unsigned int
-load_untrusted(bool all)
+load_untrusted(void)
 {
 	char *path;
 	unsigned int i, n;
 	int ret;
 
 	/* load external untrusted certs */
-	for (i = n = 0; all && untrusted_paths[i] != NULL; i++) {
+	for (i = n = 0; untrusted_paths[i] != NULL; i++) {
 		ret = read_certs(untrusted_paths[i], &untrusted, NULL);
 		if (ret > 0)
 			n += ret;
 	}
-
-	/* load installed untrusted certs */
-	ret = read_certs(untrusted_dest, &untrusted, NULL);
-	if (ret > 0)
-		n += ret;
 
 	/* load legacy untrusted certs */
 	path = expand_path(LEGACY_PATH);
@@ -796,8 +786,8 @@ certctl_list(int argc, char **argv __unused)
 {
 	if (argc > 1)
 		usage();
-	/* load trusted certificates */
-	load_trusted(false, NULL);
+	/* load installed trusted certificates */
+	read_certs(trusted_dest, &trusted, NULL);
 	/* list them */
 	list_certs(&trusted);
 	free_certs(&trusted);
@@ -814,8 +804,8 @@ certctl_untrusted(int argc, char **argv __unused)
 {
 	if (argc > 1)
 		usage();
-	/* load untrusted certificates */
-	load_untrusted(false);
+	/* load installed untrusted certificates */
+	read_certs(untrusted_dest, &untrusted, NULL);
 	/* list them */
 	list_certs(&untrusted);
 	free_certs(&untrusted);
@@ -842,10 +832,10 @@ certctl_rehash(int argc, char **argv __unused)
 	}
 
 	/* load untrusted certs first */
-	load_untrusted(true);
+	load_untrusted();
 
 	/* load trusted certs, excluding any that are already untrusted */
-	load_trusted(true, &untrusted);
+	load_trusted();
 
 	/* save everything */
 	ret = save_all();
@@ -859,7 +849,8 @@ certctl_rehash(int argc, char **argv __unused)
 }
 
 /*
- * Manually add one or more certificates to the list of trusted certificates.
+ * Manually add one or more certificates to the list of trusted
+ * certificates.
  *
  * Returns 0 on success and -1 on failure.
  */
@@ -875,10 +866,10 @@ certctl_trust(int argc, char **argv)
 		usage();
 
 	/* load untrusted certs first */
-	load_untrusted(true);
+	load_untrusted();
 
 	/* load trusted certs, excluding any that are already untrusted */
-	load_trusted(true, &untrusted);
+	load_trusted();
 
 	/* now load the additional trusted certificates */
 	n = 0;
@@ -891,9 +882,9 @@ certctl_trust(int argc, char **argv)
 		warnx("no new trusted certificates found");
 		free_certs(&untrusted);
 		free_certs(&trusted);
-		free_certs(&extra);
 		return (0);
 	}
+	warnx("%u new trusted certificate%s found", n, n > 1 ? "s" : "");
 
 	/*
 	 * For each new trusted cert, move it from the extra list to the
@@ -906,10 +897,16 @@ certctl_trust(int argc, char **argv)
 		RB_INSERT(cert_tree, &trusted, cert);
 		if ((other = RB_FIND(cert_tree, &untrusted, cert)) != NULL) {
 			warnx("%s was previously untrusted", cert->name);
+			warnx("source of untrust: %s", other->path);
 			RB_REMOVE(cert_tree, &untrusted, other);
 			free_cert(other);
 		}
 	}
+	warnx("This operation is not persistent.  To persistently add");
+	warnx("trusted certificates to the system store, copy them to");
+	warnx("one of these directories, then run `certctl rehash`:");
+	for (i = 0; trusted_paths[i] != NULL; i++)
+		warnx("    %s", trusted_paths[i]);
 
 	/* save everything */
 	ret = save_all();
@@ -929,6 +926,8 @@ certctl_trust(int argc, char **argv)
 static int
 certctl_untrust(int argc, char **argv)
 {
+	struct cert_tree extra = RB_INITIALIZER(&extra);
+	struct cert *cert, *other, *tmp;
 	unsigned int n;
 	int i, ret;
 
@@ -936,23 +935,47 @@ certctl_untrust(int argc, char **argv)
 		usage();
 
 	/* load untrusted certs first */
-	load_untrusted(true);
+	load_untrusted();
+
+	/* load trusted certs, excluding any that are already untrusted */
+	load_trusted();
 
 	/* now load the additional untrusted certificates */
 	n = 0;
 	for (i = 1; i < argc; i++) {
-		ret = read_cert(argv[i], &untrusted, NULL);
+		ret = read_cert(argv[i], &extra, NULL);
 		if (ret > 0)
 			n += ret;
 	}
 	if (n == 0) {
 		warnx("no new untrusted certificates found");
 		free_certs(&untrusted);
+		free_certs(&trusted);
 		return (0);
 	}
+	warnx("%u new untrusted certificate%s found", n, n > 1 ? "s" : "");
 
-	/* load trusted certs, excluding any that are already untrusted */
-	load_trusted(true, &untrusted);
+	/*
+	 * For each new untrusted cert, move it from the extra list to the
+	 * untrusted list, then check if a matching certificate exists on
+	 * the trusted list.  If that is the case, warn the user, then
+	 * remove the matching certificate from the trusted list.
+	 */
+	RB_FOREACH_SAFE(cert, cert_tree, &extra, tmp) {
+		RB_REMOVE(cert_tree, &extra, cert);
+		RB_INSERT(cert_tree, &untrusted, cert);
+		if ((other = RB_FIND(cert_tree, &trusted, cert)) != NULL) {
+			warnx("%s was previously trusted", cert->name);
+			warnx("source of trust: %s", other->path);
+			RB_REMOVE(cert_tree, &trusted, other);
+			free_cert(other);
+		}
+	}
+	warnx("This operation is not persistent.  To persistently add");
+	warnx("untrusted certificates to the system store, copy them to");
+	warnx("one of these directories, then run `certctl rehash`:");
+	for (i = 0; untrusted_paths[i] != NULL; i++)
+		warnx("    %s", untrusted_paths[i]);
 
 	/* save everything */
 	ret = save_all();
