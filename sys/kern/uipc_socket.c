@@ -1631,10 +1631,9 @@ solisten_dequeue(struct socket *head, struct socket **ret, int flags)
 			return (error);
 		}
 	}
-	if (head->so_error) {
-		error = head->so_error;
-		head->so_error = 0;
-	} else if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->sol_comp))
+	if (soerror(head))
+		error = soerrorfetch(head);
+	else if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->sol_comp))
 		error = EWOULDBLOCK;
 	else
 		error = 0;
@@ -2163,7 +2162,7 @@ soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * Prevent accumulated error from previous connection from
 		 * biting us.
 		 */
-		so->so_error = 0;
+		so->so_error = so->so_rerror = 0;
 		if (fd == AT_FDCWD) {
 			error = so->so_proto->pr_connect(so, nam, td);
 		} else {
@@ -3321,14 +3320,18 @@ restart:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 
 	/* Abort if socket has reported problems. */
-	if (so->so_error) {
+	if (so->so_error || so->so_rerror) {
 		if (sbavail(sb) > 0)
 			goto deliver;
 		if (oresid > uio->uio_resid)
 			goto out;
-		error = so->so_error;
-		if (!(flags & MSG_PEEK))
-			so->so_error = 0;
+		error = (so->so_error ? so->so_error : so->so_rerror);
+		if ((flags & MSG_PEEK) == 0) {
+			if (so->so_error)
+				so->so_error = 0;
+			else
+				so->so_rerror = 0;
+		}
 		goto out;
 	}
 
@@ -3579,6 +3582,12 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		if (so->so_error) {
 			error = so->so_error;
 			so->so_error = 0;
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			return (error);
+		}
+		if (so->so_rerror) {
+			error = so->so_rerror;
+			so->so_rerror = 0;
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			return (error);
 		}

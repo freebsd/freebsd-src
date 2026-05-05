@@ -1696,7 +1696,7 @@ uipc_sopoll_stream_or_seqpacket(struct socket *so, int events,
 			revents = 0;
 		else if (!TAILQ_EMPTY(&so->sol_comp))
 			revents = events & (POLLIN | POLLRDNORM);
-		else if (so->so_error)
+		else if (soerror(so))
 			revents = (events & (POLLIN | POLLRDNORM)) | POLLHUP;
 		else {
 			selrecord(td, &so->so_rdsel);
@@ -1711,7 +1711,7 @@ uipc_sopoll_stream_or_seqpacket(struct socket *so, int events,
 		if (events & (POLLIN | POLLRDNORM | POLLRDHUP)) {
 			SOCK_RECVBUF_LOCK(so);
 			if (sbavail(&so->so_rcv) >= so->so_rcv.sb_lowat ||
-			    so->so_error || so->so_rerror)
+			    soerror(so))
 				revents |= events & (POLLIN | POLLRDNORM);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				revents |= events &
@@ -2268,10 +2268,9 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	while ((m = so->so_rcv.uxdg_peeked) == NULL &&
 	    (sb = TAILQ_FIRST(&so->so_rcv.uxdg_conns)) == NULL &&
 	    (m = STAILQ_FIRST(&so->so_rcv.uxdg_mb)) == NULL) {
-		if (so->so_error) {
-			error = so->so_error;
-			if (!(flags & MSG_PEEK))
-				so->so_error = 0;
+		if (soerror(so)) {
+			error = flags & MSG_PEEK ? soerror(so) :
+			    soerrorfetch(so);
 			SOCK_RECVBUF_UNLOCK(so);
 			SOCK_IO_RECV_UNLOCK(so);
 			return (error);
