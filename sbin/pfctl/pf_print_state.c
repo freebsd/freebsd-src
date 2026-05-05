@@ -434,6 +434,10 @@ print_state(struct pfctl_state *s, int opts)
 
 		if (strcmp(s->ifname, s->orig_ifname) != 0)
 			printf("   origif: %s\n", s->orig_ifname);
+
+		printf("   rule: ");
+		print_rule(&s->created_by_rule, "", 0, 0);
+		printf("\n");
 	}
 }
 

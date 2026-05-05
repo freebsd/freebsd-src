@@ -51,8 +51,11 @@
 #include <netlink/netlink_debug.h>
 _DECLARE_DEBUG(LOG_DEBUG);
 
+static bool nlattr_add_labels(struct nl_writer *nw, int attrtype,
+    const struct pf_krule *r);
+static bool nlattr_add_rule(struct nl_writer *nw, const struct pf_krule *rule);
 static bool nlattr_add_pf_threshold(struct nl_writer *, int,
-    struct pf_kthreshold *);
+    const struct pf_kthreshold *);
 
 struct nl_parsed_state {
 	uint8_t		version;
@@ -63,6 +66,7 @@ struct nl_parsed_state {
 	sa_family_t	af;
 	struct pf_addr	addr;
 	struct pf_addr	mask;
+	bool		include_rule;
 };
 
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
@@ -75,6 +79,7 @@ static const struct nlattr_parser nla_p_state[] = {
 	{ .type = PF_ST_PROTO, .off = _OUT(proto), .cb = nlattr_get_uint16 },
 	{ .type = PF_ST_FILTER_ADDR, .off = _OUT(addr), .cb = nlattr_get_in6_addr },
 	{ .type = PF_ST_FILTER_MASK, .off = _OUT(mask), .cb = nlattr_get_in6_addr },
+	{ .type = PF_ST_INCLUDE_RULE, .off = _OUT(include_rule), .cb = nlattr_get_bool },
 };
 static const struct nlfield_parser nlf_p_generic[] = {
 	{ .off_in = _IN(version), .off_out = _OUT(version), .cb = nlf_get_u8 },
@@ -146,8 +151,26 @@ dump_state_key(struct nl_writer *nw, int attr, const struct pf_state_key *key)
 	return (true);
 }
 
+static bool
+nlattr_add_rule_nested(struct nl_writer *nw, int attr, const struct pf_krule *r)
+{
+	int off;
+	bool ret;
+
+	off = nlattr_add_nested(nw, attr);
+	if (off == 0)
+		return (false);
+
+	ret = nlattr_add_rule(nw, r);
+
+	nlattr_set_len(nw, off);
+
+	return (ret);
+}
+
 static int
-dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
+dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr,
+    struct nl_parsed_state *attrs, struct pf_kstate *s,
     struct nl_pstate *npt)
 {
 	struct nl_writer *nw = npt->nw;
@@ -231,6 +254,9 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	if (!dump_state_peer(nw, PF_ST_PEER_DST, &s->dst))
 		goto enomem;
 
+	if (attrs->include_rule && s->rule != NULL)
+		nlattr_add_rule_nested(nw, PF_ST_CREATED_BY_RULE, s->rule);
+
 	if (nlmsg_end(nw))
 		return (0);
 
@@ -282,7 +308,7 @@ handle_dumpstates(struct nlpcb *nlp, struct nl_parsed_state *attrs,
 			    &attrs->mask, &attrs->addr, af))
 				continue;
 
-			error = dump_state(nlp, hdr, s, npt);
+			error = dump_state(nlp, hdr, attrs, s, npt);
 			if (error != 0)
 				break;
 		}
@@ -307,7 +333,7 @@ handle_getstate(struct nlpcb *nlp, struct nl_parsed_state *attrs,
 	s = pf_find_state_byid(attrs->id, attrs->creatorid);
 	if (s == NULL)
 		return (ENOENT);
-	ret = dump_state(nlp, hdr, s, npt);
+	ret = dump_state(nlp, hdr, attrs, s, npt);
 	PF_STATE_UNLOCK(s);
 
 	return (ret);
@@ -465,7 +491,8 @@ NL_DECLARE_ATTR_PARSER(rule_addr_parser, nla_p_ruleaddr);
 #undef _OUT
 
 static bool
-nlattr_add_rule_addr(struct nl_writer *nw, int attrtype, struct pf_rule_addr *r)
+nlattr_add_rule_addr(struct nl_writer *nw, int attrtype,
+    const struct pf_rule_addr *r)
 {
 	struct pf_addr_wrap aw = {0};
 	int off = nlattr_add_nested(nw, attrtype);
@@ -687,7 +714,8 @@ nlattr_get_nested_timeouts(struct nlattr *nla, struct nl_pstate *npt, const void
 }
 
 static bool
-nlattr_add_timeout(struct nl_writer *nw, int attrtype, uint32_t *timeout)
+nlattr_add_timeout(struct nl_writer *nw, int attrtype,
+    const uint32_t *timeout)
 {
 	int off = nlattr_add_nested(nw, attrtype);
 
@@ -875,76 +903,10 @@ out:
 	return (error);
 }
 
-struct nl_parsed_get_rule {
-	char anchor[MAXPATHLEN];
-	uint8_t action;
-	uint32_t nr;
-	uint32_t ticket;
-	uint8_t clear;
-};
-#define	_OUT(_field)	offsetof(struct nl_parsed_get_rule, _field)
-static const struct nlattr_parser nla_p_getrule[] = {
-	{ .type = PF_GR_ANCHOR, .off = _OUT(anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
-	{ .type = PF_GR_ACTION, .off = _OUT(action), .cb = nlattr_get_uint8 },
-	{ .type = PF_GR_NR, .off = _OUT(nr), .cb = nlattr_get_uint32 },
-	{ .type = PF_GR_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
-	{ .type = PF_GR_CLEAR, .off = _OUT(clear), .cb = nlattr_get_uint8 },
-};
-#undef _OUT
-NL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, nlf_p_empty, nla_p_getrule);
-
-static int
-pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
+static bool
+nlattr_add_rule(struct nl_writer *nw, const struct pf_krule *rule)
 {
-	char				 anchor_call[MAXPATHLEN];
-	struct nl_parsed_get_rule	 attrs = {};
-	struct nl_writer		*nw = npt->nw;
-	struct genlmsghdr		*ghdr_new;
-	struct pf_kruleset		*ruleset;
-	struct pf_krule			*rule;
-	u_int64_t			 src_nodes_total = 0;
-	int				 rs_num;
-	int				 error;
-
-	error = nl_parse_nlmsg(hdr, &getrule_parser, npt, &attrs);
-	if (error != 0)
-		return (error);
-
-	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
-		return (ENOMEM);
-
-	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
-	ghdr_new->cmd = PFNL_CMD_GETRULE;
-
-	PF_RULES_WLOCK();
-	ruleset = pf_find_kruleset(attrs.anchor);
-	if (ruleset == NULL) {
-		PF_RULES_WUNLOCK();
-		error = ENOENT;
-		goto out;
-	}
-
-	rs_num = pf_get_ruleset_number(attrs.action);
-	if (rs_num >= PF_RULESET_MAX) {
-		PF_RULES_WUNLOCK();
-		error = EINVAL;
-		goto out;
-	}
-
-	if (attrs.ticket != ruleset->rules[rs_num].active.ticket) {
-		PF_RULES_WUNLOCK();
-		error = EBUSY;
-		goto out;
-	}
-
-	rule = TAILQ_FIRST(ruleset->rules[rs_num].active.ptr);
-	while ((rule != NULL) && (rule->nr != attrs.nr))
-		rule = TAILQ_NEXT(rule, entries);
-	if (rule == NULL) {
-		PF_RULES_WUNLOCK();
-		error = EBUSY;
-		goto out;
-	}
+	u_int64_t src_nodes_total = 0;
 
 	nlattr_add_rule_addr(nw, PF_RT_SRC, &rule->src);
 	nlattr_add_rule_addr(nw, PF_RT_DST, &rule->dst);
@@ -1049,6 +1011,81 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u32(nw, PF_RT_STATE_LIMIT_ACTION, rule->statelim.limiter_action);
 	nlattr_add_u8(nw, PF_RT_SOURCE_LIMIT, rule->sourcelim.id);
 	nlattr_add_u32(nw, PF_RT_SOURCE_LIMIT_ACTION, rule->sourcelim.limiter_action);
+
+	return (true);
+}
+
+struct nl_parsed_get_rule {
+	char anchor[MAXPATHLEN];
+	uint8_t action;
+	uint32_t nr;
+	uint32_t ticket;
+	uint8_t clear;
+};
+#define	_OUT(_field)	offsetof(struct nl_parsed_get_rule, _field)
+static const struct nlattr_parser nla_p_getrule[] = {
+	{ .type = PF_GR_ANCHOR, .off = _OUT(anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_GR_ACTION, .off = _OUT(action), .cb = nlattr_get_uint8 },
+	{ .type = PF_GR_NR, .off = _OUT(nr), .cb = nlattr_get_uint32 },
+	{ .type = PF_GR_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
+	{ .type = PF_GR_CLEAR, .off = _OUT(clear), .cb = nlattr_get_uint8 },
+};
+#undef _OUT
+NL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, nlf_p_empty, nla_p_getrule);
+
+static int
+pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	char				 anchor_call[MAXPATHLEN];
+	struct nl_parsed_get_rule	 attrs = {};
+	struct nl_writer		*nw = npt->nw;
+	struct genlmsghdr		*ghdr_new;
+	struct pf_kruleset		*ruleset;
+	struct pf_krule			*rule;
+	int				 rs_num;
+	int				 error;
+
+	error = nl_parse_nlmsg(hdr, &getrule_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GETRULE;
+
+	PF_RULES_WLOCK();
+	ruleset = pf_find_kruleset(attrs.anchor);
+	if (ruleset == NULL) {
+		PF_RULES_WUNLOCK();
+		error = ENOENT;
+		goto out;
+	}
+
+	rs_num = pf_get_ruleset_number(attrs.action);
+	if (rs_num >= PF_RULESET_MAX) {
+		PF_RULES_WUNLOCK();
+		error = EINVAL;
+		goto out;
+	}
+
+	if (attrs.ticket != ruleset->rules[rs_num].active.ticket) {
+		PF_RULES_WUNLOCK();
+		error = EBUSY;
+		goto out;
+	}
+
+	rule = TAILQ_FIRST(ruleset->rules[rs_num].active.ptr);
+	while ((rule != NULL) && (rule->nr != attrs.nr))
+		rule = TAILQ_NEXT(rule, entries);
+	if (rule == NULL) {
+		PF_RULES_WUNLOCK();
+		error = EBUSY;
+		goto out;
+	}
+
+	nlattr_add_rule(nw, rule);
 
 	error = pf_kanchor_copyout(ruleset, rule, anchor_call, sizeof(anchor_call));
 	MPASS(error == 0);
@@ -1729,7 +1766,7 @@ pf_handle_get_ruleset(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 static bool
 nlattr_add_pf_threshold(struct nl_writer *nw, int attrtype,
-    struct pf_kthreshold *t)
+    const struct pf_kthreshold *t)
 {
 	int	 off = nlattr_add_nested(nw, attrtype);
 	int	 conn_rate_count = 0;

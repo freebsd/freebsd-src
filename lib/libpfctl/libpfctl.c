@@ -1929,6 +1929,8 @@ static const struct snl_attr_parser nla_p_skey[] = {
 SNL_DECLARE_ATTR_PARSER(skey_parser, nla_p_skey);
 #undef _OUT
 
+SNL_DECLARE_ATTR_PARSER(rule_parser, ap_getrule);
+
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pfctl_state, _field)
 static struct snl_attr_parser ap_state[] = {
@@ -1963,6 +1965,7 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_RT_IFNAME, .off = _OUT(rt_ifname), .cb = snl_attr_store_ifname },
 	{ .type = PF_ST_SRC_NODE_FLAGS, .off = _OUT(src_node_flags), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_RT_AF, .off = _OUT(rt_af), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_CREATED_BY_RULE, .off = _OUT(created_by_rule), .arg = &rule_parser, .cb = snl_attr_get_nested },
 };
 #undef _IN
 #undef _OUT
@@ -1988,6 +1991,7 @@ pfctl_get_states_h(struct pfctl_handle *h, struct pfctl_state_filter *filter, pf
 	snl_add_msg_attr_u8(&nw, PF_ST_AF, filter->af);
 	snl_add_msg_attr_ip6(&nw, PF_ST_FILTER_ADDR, &filter->addr.v6);
 	snl_add_msg_attr_ip6(&nw, PF_ST_FILTER_MASK, &filter->mask.v6);
+	snl_add_msg_attr_bool(&nw, PF_ST_INCLUDE_RULE, filter->include_rule);
 
 	hdr = snl_finalize_msg(&nw);
 	if (hdr == NULL)

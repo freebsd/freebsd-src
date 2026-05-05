@@ -1996,6 +1996,9 @@ pfctl_show_states(int dev, const char *iface, int opts)
 	if (iface != NULL)
 		strlcpy(filter.ifname, iface, IFNAMSIZ);
 
+	if (opts & PF_OPT_VERBOSE2)
+		filter.include_rule = true;
+
 	arg.opts = opts;
 	arg.dotitle = opts & PF_OPT_SHOWALL;
 	arg.iface = iface;

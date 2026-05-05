@@ -152,6 +152,8 @@ enum pfstate_type_t {
 	PF_ST_RT_IFNAME		= 37, /* string */
 	PF_ST_SRC_NODE_FLAGS	= 38, /* u8 */
 	PF_ST_RT_AF		= 39, /* u8 */
+	PF_ST_INCLUDE_RULE	= 40, /* bool */
+	PF_ST_CREATED_BY_RULE	= 41, /* nested, pf_rule_type_t */
 };
 
 enum pf_addr_type_t {
