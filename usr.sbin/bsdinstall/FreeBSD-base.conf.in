@@ -1,5 +1,5 @@
 FreeBSD-base: {
-  url: "pkg+https://%%PKGHOST%%.FreeBSD.org/${ABI}/%%SUBURL%%",
+  url: "pkg+https://pkg.FreeBSD.org/${ABI}/%%SUBURL%%",
   mirror_type: "srv",
   signature_type: "fingerprints",
   fingerprints: "/usr/share/keys/%%KEYSDIR%%",
