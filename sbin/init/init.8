@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 22, 2021
+.Dd May 5, 2026
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -396,6 +396,14 @@ back to the default, so that the
 .Pa /etc/rc
 script is executed with the standard shell
 .Pa /bin/sh .
+.It Va init_rc
+If set to a valid file name in the root file system,
+overrides the default path to
+.Xr rc 8
+.Pq Pa /etc/rc .
+This is useful for testing alternative service managers
+without modifying the default
+.Pa /etc/rc .
 .It Va init_path
 Specifies the path used to search for the init binary.
 More than one binary can be listed in the string,
