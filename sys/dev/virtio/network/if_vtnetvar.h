@@ -196,12 +196,6 @@ struct vtnet_softc {
 
 	bus_dma_tag_t		 vtnet_tx_dmat;
 	struct mtx		 vtnet_tx_mtx;
-
-	bus_dma_tag_t		 vtnet_hdr_dmat;
-	struct mtx		 vtnet_hdr_mtx;
-
-	bus_dma_tag_t		 vtnet_ack_dmat;
-	struct mtx		 vtnet_ack_mtx;
 };
 /* vtnet flag descriptions for use with printf(9) %b identifier. */
 #define VTNET_FLAGS_BITS \
