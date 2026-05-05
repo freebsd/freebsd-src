@@ -1025,11 +1025,23 @@ static state_func_t
 runcom(void)
 {
 	state_func_t next_transition;
+	char runcom_path[PATH_MAX];
+	const char *rc_script;
 
-	BOOTTRACE("/etc/rc starting...");
-	if ((next_transition = run_script(_PATH_RUNCOM)) != NULL)
+	/*
+	 * Allow overriding /etc/rc via the init_rc kenv variable.
+	 * This is useful for testing alternative service managers
+	 * without modifying /etc/rc.
+	 */
+	if (kenv(KENV_GET, "init_rc", runcom_path, sizeof(runcom_path)) > 0)
+		rc_script = runcom_path;
+	else
+		rc_script = _PATH_RUNCOM;
+
+	BOOTTRACE("%s starting...", rc_script);
+	if ((next_transition = run_script(rc_script)) != NULL)
 		return next_transition;
-	BOOTTRACE("/etc/rc finished");
+	BOOTTRACE("%s finished", rc_script);
 
 	runcom_mode = AUTOBOOT;		/* the default */
 	return (state_func_t) read_ttys;
