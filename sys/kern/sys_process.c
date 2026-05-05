@@ -74,7 +74,7 @@
 
 #define PROC_PRIV_CHECK(priv) do {	 			\
 		int _error;					\
-		_error = priv_check(currthread, priv);	\
+		_error = priv_check(curthread, priv);	\
 		if (_error)					\
 			return (_error);			\
 	} while (0)
