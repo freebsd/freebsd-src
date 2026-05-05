@@ -1296,7 +1296,7 @@ smsc_phy_init(struct smsc_softc *sc)
 	} while ((bmcr & BMCR_RESET) && ((ticks - start_ticks) < max_ticks));
 
 	if (((usb_ticks_t)(ticks - start_ticks)) >= max_ticks) {
-		smsc_err_printf(sc, "PHY reset timed-out");
+		smsc_err_printf(sc, "PHY reset timed-out\n");
 		return (EIO);
 	}
 
