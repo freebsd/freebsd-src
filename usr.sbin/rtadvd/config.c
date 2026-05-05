@@ -1150,7 +1150,24 @@ get_prefix(struct rainfo *rai)
         pfx->pfx_validlifetime = DEF_ADVVALIDLIFETIME;
         MAYHAVE(val64, "pltime", DEF_ADVPREFERREDLIFETIME);
         pfx->pfx_preflifetime = val64;
-        pfx->pfx_preflifetime = DEF_ADVPREFERREDLIFETIME;
+	MAYHAVE(val, "vltime", DEF_ADVVALIDLIFETIME);
+	if (val < 0 || val > 0xffffffff) {
+		syslog(LOG_WARNING,
+		    "<%s> vltime (%d) for %s/%d on %s "
+		    "is out of range, use default value instead.",
+		    __func__, val, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
+		pfx->pfx_validlifetime = DEF_ADVVALIDLIFETIME;
+	} else
+		pfx->pfx_validlifetime = val;
+	MAYHAVE(val, "pltime", DEF_ADVPREFERREDLIFETIME);
+	if (val < 0 || val > 0xffffffff) {
+		syslog(LOG_WARNING,
+		    "<%s> pltime (%d) for %s/%d on %s "
+		    "is out of range, use default value instead.",
+		    __func__, val, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
+		pfx->pfx_preflifetime = DEF_ADVPREFERREDLIFETIME;
+	} else
+		pfx->pfx_preflifetime = val;
 
 		pfx->pfx_onlinkflg = 1;
 		pfx->pfx_autoconfflg = 1;
