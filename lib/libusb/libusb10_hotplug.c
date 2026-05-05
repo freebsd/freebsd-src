@@ -176,9 +176,8 @@ libusb_hotplug_equal(libusb_device *_adev, libusb_device *_bdev)
 }
 
 static int
-libusb_hotplug_filter(libusb_context *ctx,
-    struct libusb_hotplug_callback_handle_struct *pcbh, libusb_device *dev,
-    libusb_hotplug_event event)
+libusb_hotplug_filter(libusb_context *ctx, libusb_hotplug_callback_handle pcbh,
+    libusb_device *dev, libusb_hotplug_event event)
 {
 	if (!(pcbh->events & event))
 		return (0);
@@ -217,7 +216,8 @@ libusb_hotplug_scan(void *arg)
 {
 	struct pollfd pfd;
 	struct libusb_device_head hotplug_devs;
-	struct libusb_hotplug_callback_handle_struct *acbh, *bcbh;
+	libusb_hotplug_callback_handle acbh;
+	libusb_hotplug_callback_handle bcbh;
 	libusb_context *ctx = arg;
 	libusb_device *temp;
 	libusb_device *adev;
@@ -343,7 +343,7 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
     libusb_hotplug_callback_fn cb_fn, void *user_data,
     libusb_hotplug_callback_handle *phandle)
 {
-	struct libusb_hotplug_callback_handle_struct *handle;
+	libusb_hotplug_callback_handle handle;
 	struct libusb_device *adev;
 
 	ctx = GET_CONTEXT(ctx);
@@ -365,17 +365,6 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 	if (handle == NULL)
 		return (LIBUSB_ERROR_NO_MEM);
 
-	handle->events = events;
-	handle->vendor = vendor_id;
-	handle->product = product_id;
-	handle->devclass = dev_class;
-	handle->fn = cb_fn;
-	handle->user_data = user_data;
-	CTX_LOCK(ctx);
-	if ((handle->id = ctx->next_callback_id++) < 0)
-		handle->id = ctx->next_callback_id = 1;
-	CTX_UNLOCK(ctx);
-
 	HOTPLUG_LOCK(ctx);
 	if (ctx->hotplug_handler == NO_THREAD) {
 	  	libusb_hotplug_enumerate(ctx, &ctx->hotplug_devs);
@@ -384,6 +373,12 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 		    &libusb_hotplug_scan, ctx) != 0)
 			ctx->hotplug_handler = NO_THREAD;
 	}
+	handle->events = events;
+	handle->vendor = vendor_id;
+	handle->product = product_id;
+	handle->devclass = dev_class;
+	handle->fn = cb_fn;
+	handle->user_data = user_data;
 
 	if (flags & LIBUSB_HOTPLUG_ENUMERATE) {
 		TAILQ_FOREACH(adev, &ctx->hotplug_devs, hotplug_entry) {
@@ -400,32 +395,23 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 	HOTPLUG_UNLOCK(ctx);
 
 	if (phandle != NULL)
-		*phandle = handle->id;
+		*phandle = handle;
 	return (LIBUSB_SUCCESS);
 }
 
 void libusb_hotplug_deregister_callback(libusb_context *ctx,
-    libusb_hotplug_callback_handle callback_handle)
+    libusb_hotplug_callback_handle handle)
 {
-	struct libusb_hotplug_callback_handle_struct *handle;
+  	ctx = GET_CONTEXT(ctx);
 
-	ctx = GET_CONTEXT(ctx);
-
-	if (ctx == NULL || callback_handle == 0)
+	if (ctx == NULL || handle == NULL)
 		return;
 
 	HOTPLUG_LOCK(ctx);
-	TAILQ_FOREACH(handle, &ctx->hotplug_cbh, entry) {
-		if (handle->id == callback_handle)
-			break;
-	}
-	if (handle == NULL)
-		goto clean;
 	TAILQ_REMOVE(&ctx->hotplug_cbh, handle, entry);
 	libusb_interrupt_event_handler(ctx);
-
-clean:
 	HOTPLUG_UNLOCK(ctx);
+
 	free(handle);
 }
 
@@ -433,13 +419,13 @@ void *
 libusb_hotplug_get_user_data(struct libusb_context *ctx,
     libusb_hotplug_callback_handle callback_handle)
 {
-	struct libusb_hotplug_callback_handle_struct *handle;
+	libusb_hotplug_callback_handle handle;
 
 	ctx = GET_CONTEXT(ctx);
 
 	HOTPLUG_LOCK(ctx);
 	TAILQ_FOREACH(handle, &ctx->hotplug_cbh, entry) {
-		if (handle->id == callback_handle)
+		if (handle == callback_handle)
 			break;
 	}
 	HOTPLUG_UNLOCK(ctx);

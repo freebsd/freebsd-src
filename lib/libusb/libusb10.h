@@ -80,7 +80,6 @@ struct libusb_hotplug_callback_handle_struct {
 	int devclass;
 	libusb_hotplug_callback_fn fn;
 	void *user_data;
-	int id;
 };
 
 TAILQ_HEAD(libusb_device_head, libusb_device);
@@ -119,7 +118,6 @@ struct libusb_context {
 	libusb_pollfd_added_cb fd_added_cb;
 	libusb_pollfd_removed_cb fd_removed_cb;
 	void   *fd_cb_user_data;
-	int next_callback_id;
 };
 
 struct libusb_device {
