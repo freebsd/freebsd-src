@@ -35,17 +35,61 @@ repodir="$1"; shift
 # generate-set-ucl.lua.
 UCL_VARS="$@"
 
+# Extract PKG_NAME_PREFIX so we can use it later.
+PKG_NAME_PREFIX=""
+set -- $UCL_VARS
+while [ -n "$1" ]; do
+	case "$1" in
+	PKG_NAME_PREFIX)
+		shift
+		PKG_NAME_PREFIX="$1"
+		break;;
+	*)
+		shift; shift;;
+	esac
+done
+if [ -z "$PKG_NAME_PREFIX" ]; then
+	printf >&2 '%s: PKG_NAME_PREFIX must be specified\n' "$0"
+	exit 1
+fi
+
 # Nothing is explicitly added to set-base, so it wouldn't get built unless
 # we list it here.
 SETS="base base-dbg base-jail base-jail-dbg"
 
 for pkg in "$repodir"/*.pkg; do
-	# If the package name doesn't containing a '-', then it's
-	# probably data.pkg or packagesite.pkg, which are not real
-	# packages.
-	{ echo "$pkg" | grep -q '-'; } || continue
+	# Check if we should process this package.
+	case "${pkg##*/}" in
 
+	# When building release, we add a 'pkg' package to the repository,
+	# but this isn't a base package and doesn't have a set.  To avoid
+	# this causing an error, skip it.
+	pkg-*)	continue;;
+
+	# Any existing set packages may also have no sets (and even if they
+	# do, they shouldn't be included here).
+	${PKG_NAME_PREFIX}-set-*)
+		continue;;
+
+	# If the package name contains a '-', process it.  All "real"
+	# packages contain a '-', because the package filename format
+	# is <pkgname>-<version>.pkg, so this skips files which aren't
+	# really packages, like data.pkg or packagesite.pkg.
+	#
+	*-*)	;;
+	*)	continue;;
+	esac
+
+	# Print a useful error message instead of failing silently if
+	# grep doesn't find any sets here.
+	set +e
 	_tmp="$(${PKG_CMD} query -F "$pkg" '%At %n %Av' | grep '^set ')"
+	if [ -z "$_tmp" ]; then
+		printf >&2 '%s: package has no sets: %s\n' "$0" "$pkg"
+		exit 1
+	fi
+	set -e
+
 	set -- $_tmp
 	pkgname="$2"
 	sets="$(echo "$3" | tr , ' ')"
