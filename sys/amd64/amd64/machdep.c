@@ -1369,6 +1369,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	thread0.td_kstack_pages = kstack_pages;
 	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
 	bzero(thread0.td_kstack, kstack0_sz);
+	cpu_thread_new_kstack(&thread0);
 	physfree += kstack0_sz;
 
 	/*
@@ -1521,7 +1522,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * We initialize the PCB pointer early so that exception
 	 * handlers will work.
 	 */
-	set_top_of_stack_td(&thread0);
 	thread0.td_pcb = get_pcb_td(&thread0);
 
 	/*

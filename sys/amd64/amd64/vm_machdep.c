@@ -83,13 +83,6 @@
 _Static_assert(OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
     "OFFSETOF_MONITORBUF does not correspond with offset of pc_monitorbuf.");
 
-void
-set_top_of_stack_td(struct thread *td)
-{
-	td->td_md.md_stack_base = td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE;
-}
-
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
 {
@@ -384,7 +377,8 @@ cpu_thread_alloc(struct thread *td)
 void
 cpu_thread_new_kstack(struct thread *td)
 {
-	set_top_of_stack_td(td);
+	td->td_md.md_stack_base = td->td_kstack +
+	    td->td_kstack_pages * PAGE_SIZE;
 	td->td_frame = (struct trapframe *)td->td_md.md_stack_base - 1;
 }
 
