@@ -271,7 +271,8 @@ untrust_body()
 	crtfile=usr/share/certs/trusted/${crtname}.crt
 	check_trusted "${crtname}"
 	check_in_bundle ${crtfile}
-	atf_check certctl untrust "${crtfile}"
+	atf_check -e match:"1 new untrusted" \
+	    certctl untrust "${crtfile}"
 	check_untrusted "${crtname}"
 	check_not_in_bundle ${crtfile}
 }
