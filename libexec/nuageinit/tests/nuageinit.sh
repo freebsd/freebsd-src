@@ -76,10 +76,12 @@ nocloud_userdata_script_body()
 {
 	mkdir -p media/nuageinit
 	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
-	printf "#!/bin/sh\necho yeah\n" > "${PWD}"/media/nuageinit/user-data
-	chmod 755 "${PWD}"/media/nuageinit/user-data
+	# ensure this is an invalid when parsed with the yaml parser
+	printf "#!/bin/sh\n: ${test:-yes}\necho $test\n" > "${PWD}"/media/nuageinit/user-data
+	chmod 644 "${PWD}"/media/nuageinit/user-data
 	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
-	atf_check -o inline:"#!/bin/sh\necho yeah\n" cat var/cache/nuageinit/user_data
+	atf_check test -x var/cache/nuageinit/user_data
+	atf_check -o inline:"#!/bin/sh\n: ${test:-yes}\necho $test\n" cat var/cache/nuageinit/user_data
 }
 
 nocloud_user_data_script_body()
