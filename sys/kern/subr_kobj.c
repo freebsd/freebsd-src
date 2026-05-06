@@ -308,7 +308,7 @@ kobj_init(kobj_t obj, kobj_class_t cls)
 {
 	int error;
 
-	error = kobj_init1(obj, cls, M_NOWAIT);
+	error = kobj_init1(obj, cls, M_WAITOK);
 	if (error != 0)
 		panic("kobj_init1 failed: error %d", error);
 }
