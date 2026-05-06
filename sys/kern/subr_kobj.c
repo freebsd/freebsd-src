@@ -317,6 +317,8 @@ void
 kobj_init_static(kobj_t obj, kobj_class_t cls)
 {
 
+	KASSERT(cls->ops != NULL,
+	    ("%s: class %p is not compiled", __func__, cls));
 	KASSERT(kobj_mutex_inited == 0,
 	    ("%s: only supported during early cycles", __func__));
 
