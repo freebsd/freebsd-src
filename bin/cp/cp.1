@@ -247,14 +247,17 @@ flags (in conjunction with the
 .Fl R
 flag) cause symbolic links to be followed as described above.
 The
-.Fl H ,
-.Fl L
+.Fl H
 and
-.Fl P
+.Fl L
 options are ignored unless the
 .Fl R
 option is specified.
-In addition, these options override each other and the
+The
+.Fl P
+option can be used with or without
+.Fl R .
+These options override each other and the
 command's actions are determined by the last one specified.
 .Pp
 If
