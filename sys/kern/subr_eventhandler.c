@@ -288,10 +288,12 @@ void
 eventhandler_prune_list(struct eventhandler_list *list)
 {
     struct eventhandler_entry *ep, *en;
-    int pruned = 0;
+    int pruned __diagused;
 
     CTR2(KTR_EVH, "%s: pruning list \"%s\"", __func__, list->el_name);
     EHL_LOCK_ASSERT(list, MA_OWNED);
+
+    pruned = 0;
     TAILQ_FOREACH_SAFE(ep, &list->el_entries, ee_link, en) {
 	if (ep->ee_priority == EHE_DEAD_PRIORITY) {
 	    TAILQ_REMOVE(&list->el_entries, ep, ee_link);
