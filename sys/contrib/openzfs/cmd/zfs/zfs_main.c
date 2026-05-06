@@ -6867,7 +6867,7 @@ holds_callback(zfs_handle_t *zhp, void *data)
 
 	if (cbp->cb_recursive) {
 		const char *snapname;
-		char *delim  = strchr(zname, '@');
+		const char *delim  = strchr(zname, '@');
 		if (delim == NULL)
 			return (0);
 
@@ -9417,6 +9417,7 @@ main(int argc, char **argv)
 	/*
 	 * Run the appropriate command.
 	 */
+	libzfs_mnttab_cache(g_zfs, B_TRUE);
 	if (find_command_idx(cmdname, &i) == 0) {
 		current_command = &command_table[i];
 		ret = command_table[i].func(argc - 1, newargv + 1);
