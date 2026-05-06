@@ -148,14 +148,21 @@ mydev_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 int
 mydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
+    size_t amt;
     int err = 0;
 
     printf("mydev_write: dev_t=%lu, uio=%p, ioflag=%d\n",
 	dev2udev(dev), uio, ioflag);
 
-    err = copyinstr(uio->uio_iov->iov_base, &buf, 512, &len);
+    amt = MIN(uio->uio_resid, sizeof(buf) - 1);
+    err = uiomove(buf, amt, uio);
     if (err != 0) {
+	len = 0;
+	buf[0] = '\0';
 	printf("Write to \"cdev\" failed.\n");
+    } else {
+	len = amt;
+	buf[len] = '\0';
     }
     return(err);
 }
@@ -173,10 +180,6 @@ mydev_read(struct cdev *dev, struct uio *uio, int ioflag)
     printf("mydev_read: dev_t=%lu, uio=%p, ioflag=%d\n",
 	dev2udev(dev), uio, ioflag);
 
-    if (len <= 0) {
-	err = -1;
-    } else {	/* copy buf to userland */
-	copystr(&buf, uio->uio_iov->iov_base, 513, &len);
-    }
+    err = uiomove_frombuf(buf, len, uio);
     return(err);
 }
