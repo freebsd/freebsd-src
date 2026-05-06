@@ -61,7 +61,7 @@ struct sillyrename {
 
 struct nfsdmap {
 	LIST_ENTRY(nfsdmap)	ndm_list;
-	int			ndm_eocookie;
+	u_int			ndm_eocookie;
 	union {
 		nfsuint64	ndmu3_cookies[NFSNUMCOOKIES];
 		uint64_t	ndmu4_cookies[NFSNUMCOOKIES];
