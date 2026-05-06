@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
@@ -50,9 +51,9 @@
  * ANSI is written such that the original file gets closed if at
  * all possible, no matter what.
  */
-FILE *
-freopen(const char * __restrict file, const char * __restrict mode,
-    FILE * __restrict fp)
+static FILE *
+__sfreopen(const char * __restrict file, const char * __restrict mode,
+    FILE * __restrict fp, bool short_only)
 {
 	int f;
 	int dflags, fdflags, flags, isopen, oflags, sverrno, wantfd;
@@ -66,9 +67,6 @@ freopen(const char * __restrict file, const char * __restrict mode,
 
 	FLOCKFILE_CANCELSAFE(fp);
 
-	if (!__sdidinit)
-		__sinit();
-
 	/*
 	 * If the filename is a NULL pointer, the caller is asking us to
 	 * re-open the same file with a different mode. We allow this only
@@ -81,7 +79,8 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			fp = NULL;
 			goto end;
 		}
-		if ((dflags = _fcntl(fp->_file, F_GETFL)) < 0) {
+		f = __sfileno(fp);
+		if ((dflags = _fcntl(f, F_GETFL)) < 0) {
 			sverrno = errno;
 			fclose(fp);
 			errno = sverrno;
@@ -101,7 +100,7 @@ freopen(const char * __restrict file, const char * __restrict mode,
 		if ((oflags ^ dflags) & O_APPEND) {
 			dflags &= ~O_APPEND;
 			dflags |= oflags & O_APPEND;
-			if (_fcntl(fp->_file, F_SETFL, dflags) < 0) {
+			if (_fcntl(f, F_SETFL, dflags) < 0) {
 				sverrno = errno;
 				fclose(fp);
 				errno = sverrno;
@@ -110,16 +109,15 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			}
 		}
 		if (oflags & O_TRUNC)
-			(void) ftruncate(fp->_file, (off_t)0);
+			(void) ftruncate(f, (off_t)0);
 		if (!(oflags & O_APPEND))
 			(void) _sseek(fp, (fpos_t)0, SEEK_SET);
 		if ((oflags & O_CLOEXEC) != 0) {
-			fdflags = _fcntl(fp->_file, F_GETFD, 0);
+			fdflags = _fcntl(f, F_GETFD, 0);
 			if (fdflags != -1 && (fdflags & FD_CLOEXEC) == 0)
-				(void) _fcntl(fp->_file, F_SETFD,
+				(void) _fcntl(f, F_SETFD,
 				    fdflags | FD_CLOEXEC);
 		}
-		f = fp->_file;
 		isopen = 0;
 		wantfd = -1;
 		goto finish;
@@ -143,7 +141,7 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			(void) __sflush(fp);
 		/* if close is NULL, closing is a no-op, hence pointless */
 		isopen = fp->_close != NULL;
-		if ((wantfd = fp->_file) < 0 && isopen) {
+		if ((wantfd = __sfileno(fp)) < 0 && isopen) {
 			(void) (*fp->_close)(fp->_cookie);
 			isopen = 0;
 		}
@@ -219,7 +217,8 @@ finish:
 	 * invalid file descriptor.  Handle this case by failing the
 	 * open.
 	 */
-	if (f > SHRT_MAX) {
+	if (__sforce_short_fildes(short_only) && f > SHRT_MAX) {
+		_close(f);
 		fp->_flags = 0;		/* set it free */
 		errno = EMFILE;
 		fp = NULL;
@@ -227,7 +226,7 @@ finish:
 	}
 
 	fp->_flags = flags;
-	fp->_file = f;
+	__sfileno_set(fp, f);
 	fp->_cookie = fp;
 	fp->_read = __sread;
 	fp->_write = __swrite;
@@ -248,4 +247,19 @@ finish:
 end:
 	FUNLOCKFILE_CANCELSAFE();
 	return (fp);
+}
+
+FILE *
+__sfreopen_fbsd10(const char * __restrict file,
+    const char * __restrict mode, FILE * __restrict fp)
+{
+	return (__sfreopen(file, mode, fp, true));
+}
+__sym_compat(freopen, __sfreopen_fbsd10, FBSD_1.0);
+
+FILE *
+freopen(const char * __restrict file, const char * __restrict mode,
+    FILE * __restrict fp)
+{
+	return (__sfreopen(file, mode, fp, false));
 }

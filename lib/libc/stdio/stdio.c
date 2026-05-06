@@ -42,6 +42,8 @@
 #include "un-namespace.h"
 #include "local.h"
 
+__weak_symbol bool __stdio_force_short_fildes;
+
 /*
  * Small standard I/O/seek/close functions.
  */
@@ -50,7 +52,7 @@ __sread(void *cookie, char *buf, int n)
 {
 	FILE *fp = cookie;
 
-	return(_read(fp->_file, buf, (size_t)n));
+	return (_read(__sfileno(fp), buf, (size_t)n));
 }
 
 int
@@ -58,7 +60,7 @@ __swrite(void *cookie, char const *buf, int n)
 {
 	FILE *fp = cookie;
 
-	return (_write(fp->_file, buf, (size_t)n));
+	return (_write(__sfileno(fp), buf, (size_t)n));
 }
 
 fpos_t
@@ -66,14 +68,15 @@ __sseek(void *cookie, fpos_t offset, int whence)
 {
 	FILE *fp = cookie;
 
-	return (lseek(fp->_file, (off_t)offset, whence));
+	return (lseek(__sfileno(fp), (off_t)offset, whence));
 }
 
 int
 __sclose(void *cookie)
 {
+	FILE *fp = cookie;
 
-	return (_close(((FILE *)cookie)->_file));
+	return (_close(__sfileno(fp)));
 }
 
 /*
@@ -164,9 +167,33 @@ _sseek(FILE *fp, fpos_t offset, int whence)
 }
 
 void
-__stdio_cancel_cleanup(void * arg)
+__stdio_cancel_cleanup(void *arg)
 {
-
 	if (arg != NULL)
 		_funlockfile((FILE *)arg);
+}
+
+/*
+ * exit() calls _cleanup() through *__cleanup, set via a weak reference
+ * at program initialisation.  This chicanery is done so that programs
+ * that do not use stdio need not link it all in.
+ *
+ * The name `_cleanup' is, alas, fairly well known outside stdio.
+ */
+void
+_cleanup(void)
+{
+	/* (void) _fwalk(fclose); */
+	(void) _fwalk(__sflush);		/* `cheating' */
+}
+
+/*
+ * This function runs at program load time before main() runs
+ * and initialises stdio based on the environment.
+ */
+__attribute__((constructor)) static void
+__stdio_init(void)
+{
+	if (getenv("__STDIO_FORCE_SHORT_FILDES") != NULL)
+		__stdio_force_short_fildes = true;
 }

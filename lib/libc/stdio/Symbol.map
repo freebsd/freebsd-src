@@ -6,7 +6,6 @@ FBSD_1.0 {
 	clearerr;
 	fclose;
 	fcloseall;
-	fdopen;
 	feof;
 	ferror;
 	fflush;
@@ -22,7 +21,6 @@ FBSD_1.0 {
 	__stdoutp;
 	__stderrp;
 	f_prealloc;	/* deprecated??? */
-	fopen;
 	fprintf;
 	fpurge;
 	fputc;
@@ -30,7 +28,6 @@ FBSD_1.0 {
 	fputwc;
 	fputws;
 	fread;
-	freopen;
 	fscanf;
 	fseek;
 	fseeko;
@@ -174,6 +171,12 @@ FBSD_1.6 {
 	mkostempsat;
 };
 
+FBSD_1.9 {
+	fdopen;
+	fopen;
+	freopen;
+};
+
 FBSDprivate_1.0 {
 	_flockfile;
 	_flockfile_debug_stub;
@@ -212,4 +215,6 @@ FBSDprivate_1.0 {
 	__printf_render_time;
 	__printf_arginfo_vis;
 	__printf_render_vis;
+
+	__stdio_force_short_fildes;
 };

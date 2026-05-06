@@ -40,12 +40,14 @@
 #include <stdio.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdbool.h>
 #include "un-namespace.h"
 
 #include "local.h"
 
-FILE *
-fopen(const char * __restrict file, const char * __restrict mode)
+static FILE *
+__sfopen(const char * __restrict file, const char * __restrict mode,
+    bool short_only)
 {
 	FILE *fp;
 	int f;
@@ -66,13 +68,13 @@ fopen(const char * __restrict file, const char * __restrict mode)
 	 * invalid file descriptor.  Handle this case by failing the
 	 * open.
 	 */
-	if (f > SHRT_MAX) {
-		fp->_flags = 0;			/* release */
+	if (__sforce_short_fildes(short_only) && f > SHRT_MAX) {
 		_close(f);
+		fp->_flags = 0;			/* release */
 		errno = EMFILE;
 		return (NULL);
 	}
-	fp->_file = f;
+	__sfileno_set(fp, f);
 	fp->_flags = flags;
 	fp->_cookie = fp;
 	fp->_read = __sread;
@@ -92,4 +94,17 @@ fopen(const char * __restrict file, const char * __restrict mode)
 		(void)_sseek(fp, (fpos_t)0, SEEK_END);
 	}
 	return (fp);
+}
+
+FILE *
+__sfopen_fbsd10(const char * __restrict file, const char * __restrict mode)
+{
+	return (__sfopen(file, mode, true));
+}
+__sym_compat(fopen, __sfopen_fbsd10, FBSD_1.0);
+
+FILE *
+fopen(const char * __restrict file, const char * __restrict mode)
+{
+	return (__sfopen(file, mode, false));
 }

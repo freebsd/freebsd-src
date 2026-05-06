@@ -191,7 +191,8 @@ __END_DECLS
 #define	__SALC	0x4000		/* allocate string space dynamically */
 #define	__SIGN	0x8000		/* ignore this file in _fwalk */
 
-#define	__S2OAP	0x0001		/* O_APPEND mode is set */
+#define	__S2OAP	0x00000001	/* O_APPEND mode is set */
+#define	__S2FDX	0x0001fffe	/* Encoded upper sixteen bits of fileno */
 
 /*
  * The following three definitions are for ANSI C, which took them
@@ -276,7 +277,8 @@ int	 fprintf(FILE * __restrict, const char * __restrict, ...);
 int	 fputc(int, FILE *);
 int	 fputs(const char * __restrict, FILE * __restrict);
 size_t	 fread(void * __restrict, size_t, size_t, FILE * __restrict);
-FILE	*freopen(const char * __restrict, const char * __restrict, FILE * __restrict);
+FILE	*freopen(const char * __restrict, const char * __restrict,
+	    FILE * __restrict);
 int	 fscanf(FILE * __restrict, const char * __restrict, ...);
 int	 fseek(FILE *, long, int);
 int	 fsetpos(FILE *, const fpos_t *);
@@ -303,11 +305,9 @@ int	 sscanf(const char * __restrict, const char * __restrict, ...);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
 int	 ungetc(int, FILE *);
-int	 vfprintf(FILE * __restrict, const char * __restrict,
-	    __va_list);
+int	 vfprintf(FILE * __restrict, const char * __restrict, __va_list);
 int	 vprintf(const char * __restrict, __va_list);
-int	 (vsprintf)(char * __restrict, const char * __restrict,
-	    __va_list);
+int	 (vsprintf)(char * __restrict, const char * __restrict, __va_list);
 
 #if __ISO_C_VISIBLE >= 1999 || __POSIX_VISIBLE >= 199506
 int	 (snprintf)(char * __restrict, size_t, const char * __restrict,
@@ -470,7 +470,9 @@ int	__swbuf(int, FILE *);
  */
 #define	__sgetc(p) (--(p)->_r < 0 ? __srget(p) : (int)(*(p)->_p++))
 #if defined(__GNUC__) && defined(__STDC__)
-static __inline int __sputc(int _c, FILE *_p) {
+static __inline int
+__sputc(int _c, FILE *_p)
+{
 	if (--_p->_w >= 0 || (_p->_w >= _p->_lbfsize && (char)_c != '\n'))
 		return (*_p->_p++ = _c);
 	else
@@ -499,8 +501,7 @@ extern int __isthreaded;
 
 #define	__sfeof(p)	(((p)->_flags & __SEOF) != 0)
 #define	__sferror(p)	(((p)->_flags & __SERR) != 0)
-#define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
-#define	__sfileno(p)	((p)->_file)
+#define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR | __SEOF)))
 
 
 #define	feof(p)		(!__isthreaded ? __sfeof(p) : (feof)(p))
@@ -521,7 +522,6 @@ extern int __isthreaded;
 #define	clearerr_unlocked(p)	__sclearerr(p)
 #define	feof_unlocked(p)	__sfeof(p)
 #define	ferror_unlocked(p)	__sferror(p)
-#define	fileno_unlocked(p)	__sfileno(p)
 #define	fputc_unlocked(s, p)	__sputc(s, p)
 #endif
 #if __POSIX_VISIBLE >= 199506
