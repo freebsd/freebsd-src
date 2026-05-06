@@ -71,7 +71,7 @@ main(int argc, char *argv[])
 			errno = 0;
 			dunit = strtol(optarg, NULL, 10);
 			if (errno == EINVAL || errno == ERANGE)
-				err(1, "strtol(%s)", optarg);
+				err(1, "%s", strlen(optarg) ? optarg : "pcm");
 			dflag = 1;
 			break;
 		case 'f':
@@ -328,6 +328,8 @@ set_dunit(struct mixer *m, int dunit)
 {
 	int n;
 
+	if (dunit > mixer_get_nmixers())
+		errx(1, "No such mixer unit: %d", dunit);
 	if ((n = mixer_get_dunit()) < 0) {
 		warn("cannot get default unit");
 		return (-1);
