@@ -1096,6 +1096,7 @@ get_prefix(struct rainfo *rai)
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		int plen;
+		int64_t val64;
 
 		if (strcmp(ifa->ifa_name, ifi->ifi_ifname) != 0)
 			continue;
@@ -1143,32 +1144,25 @@ get_prefix(struct rainfo *rai)
 		    "<%s> add %s/%d to prefix list on %s",
 		    __func__, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
 
-		/* set other fields with protocol defaults and honor pltime/vltime declarations for interface */
-		int64_t val64;
-        MAYHAVE(val64, "vltime", DEF_ADVVALIDLIFETIME);
-        pfx->pfx_validlifetime = val64;
-        pfx->pfx_validlifetime = DEF_ADVVALIDLIFETIME;
-        MAYHAVE(val64, "pltime", DEF_ADVPREFERREDLIFETIME);
-        pfx->pfx_preflifetime = val64;
-	MAYHAVE(val, "vltime", DEF_ADVVALIDLIFETIME);
-	if (val < 0 || val > 0xffffffff) {
-		syslog(LOG_WARNING,
-		    "<%s> vltime (%d) for %s/%d on %s "
-		    "is out of range, use default value instead.",
-		    __func__, val, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
-		pfx->pfx_validlifetime = DEF_ADVVALIDLIFETIME;
-	} else
-		pfx->pfx_validlifetime = val;
-	MAYHAVE(val, "pltime", DEF_ADVPREFERREDLIFETIME);
-	if (val < 0 || val > 0xffffffff) {
-		syslog(LOG_WARNING,
-		    "<%s> pltime (%d) for %s/%d on %s "
-		    "is out of range, use default value instead.",
-		    __func__, val, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
-		pfx->pfx_preflifetime = DEF_ADVPREFERREDLIFETIME;
-	} else
-		pfx->pfx_preflifetime = val;
-
+		MAYHAVE(val64, "vltime", DEF_ADVVALIDLIFETIME);
+		if (val64 < 0 || val64 > 0xffffffff) {
+			syslog(LOG_WARNING,
+			    "<%s> vltime (%" PRIu64 ") for %s/%d on %s "
+			    "is out of range, use default value instead.",
+			    __func__, val64, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
+			pfx->pfx_validlifetime = DEF_ADVVALIDLIFETIME;
+		} else
+			pfx->pfx_validlifetime = val64;
+		MAYHAVE(val64, "pltime", DEF_ADVPREFERREDLIFETIME);
+		if (val64 < 0 || val64 > 0xffffffff) {
+			syslog(LOG_WARNING,
+			    "<%s> pltime (%" PRIu64 ") for %s/%d on %s "
+			    "is out of range, use default value instead.",
+			    __func__, val64, ntopbuf, pfx->pfx_prefixlen, ifi->ifi_ifname);
+			pfx->pfx_preflifetime = DEF_ADVPREFERREDLIFETIME;
+		} else
+			pfx->pfx_preflifetime = val64;	
+    
 		pfx->pfx_onlinkflg = 1;
 		pfx->pfx_autoconfflg = 1;
 		pfx->pfx_origin = PREFIX_FROM_KERNEL;
