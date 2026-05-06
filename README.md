@@ -32,6 +32,7 @@ Source Roadmap:
 | krb5 | Build system for Kerberos 5 (MIT). |
 | lib | System libraries. |
 | libexec | System commands intended to be executed by other commands or daemons. |
+| packages | Base system packages. |
 | release | Makefiles and scripts used for building releases and VM images. |
 | rescue | Build system for statically linked /rescue commands. |
 | sbin | System commands. |
