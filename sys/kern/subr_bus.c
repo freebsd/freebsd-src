@@ -55,6 +55,8 @@
 #include <sys/taskqueue.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
+#include <sys/tslog.h>
+
 #ifdef INTRNG
 #include <sys/intr.h>
 #endif
@@ -420,7 +422,7 @@ void
 bus_topo_assert(void)
 {
 
-	GIANT_REQUIRED;	
+	GIANT_REQUIRED;
 }
 
 struct mtx *
@@ -2568,14 +2570,19 @@ device_probe_and_attach(device_t dev)
 {
 	int error;
 
+	TSENTER();
 	bus_topo_assert();
 
 	error = device_probe(dev);
-	if (error == -1)
+	if (error == -1) {
+		TSEXIT();
 		return (0);
-	else if (error != 0)
+	}
+	else if (error != 0) {
+		TSEXIT();
 		return (error);
-
+	}
+	TSEXIT();
 	return (device_attach(dev));
 }
 
@@ -2605,6 +2612,7 @@ device_attach(device_t dev)
 	uint16_t attachentropy;
 	int error;
 
+	TSENTER();
 	if (resource_disabled(dev->driver->name, dev->unit)) {
 		/*
 		 * Mostly detach the device, but leave it attached to
@@ -2615,6 +2623,7 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		if (bootverbose)
 			 device_printf(dev, "disabled via hints entry\n");
+		TSEXIT();
 		return (ENXIO);
 	}
 
@@ -2655,6 +2664,8 @@ device_attach(device_t dev)
 			dev->state = DS_NOTPRESENT;
 		}
 		CURVNET_RESTORE();
+		TSEXIT();
+
 		return (error);
 	}
 	CURVNET_RESTORE();
@@ -2669,6 +2680,8 @@ device_attach(device_t dev)
 	dev->state = DS_ATTACHED;
 	dev->flags &= ~DF_DONENOMATCH;
 	EVENTHANDLER_DIRECT_INVOKE(device_attach, dev);
+	TSEXIT();
+
 	return (0);
 }
 
