@@ -606,8 +606,8 @@ pfs_open(struct vop_open_args *va)
 	pfs_assert_not_owned(pn);
 
 	/* check if the requested mode is permitted */
-	if (((mode & FREAD) && !(mode & PFS_RD)) ||
-	    ((mode & FWRITE) && !(mode & PFS_WR)))
+	if (((mode & FREAD) && !(pn->pn_flags & PFS_RD)) ||
+	    ((mode & FWRITE) && !(pn->pn_flags & PFS_WR)))
 		PFS_RETURN (EPERM);
 
 	/* we don't support locking */
