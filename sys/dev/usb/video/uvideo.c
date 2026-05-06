@@ -95,6 +95,10 @@ static usb_error_t	uvideo_vc_parse_desc_header(struct uvideo_softc *,
 			    const struct usb_descriptor *);
 static usb_error_t	uvideo_vc_parse_desc_pu(struct uvideo_softc *,
 			    const struct usb_descriptor *);
+static usb_error_t	uvideo_vc_parse_desc_ct(struct uvideo_softc *,
+			    const struct usb_descriptor *);
+static int		uvideo_has_ct_ctrl(
+			    struct usb_video_camera_terminal_desc *, int);
 static usb_error_t	uvideo_vc_get_ctrl(struct uvideo_softc *, uint8_t *,
 			    uint8_t, uint8_t, uint16_t, uint16_t);
 static usb_error_t	uvideo_vc_set_ctrl(struct uvideo_softc *, uint8_t *,
@@ -245,6 +249,11 @@ struct uvideo_softc {
 	struct usb_video_vc_processing_desc *sc_desc_vc_pu_cur;
 	struct usb_video_vc_processing_desc *sc_desc_vc_pu[UVIDEO_MAX_PU];
 
+#define	UVIDEO_MAX_CT		8
+	int			sc_desc_vc_ct_num;
+	struct usb_video_camera_terminal_desc *sc_desc_vc_ct_cur;
+	struct usb_video_camera_terminal_desc *sc_desc_vc_ct[UVIDEO_MAX_CT];
+
 #define	UVIDEO_MAX_FORMAT	8
 	int			sc_fmtgrp_idx;
 	int			sc_fmtgrp_num;
@@ -388,6 +397,88 @@ static struct uvideo_controls uvideo_ctrls[] = {
 	    "White Balance Component Auto",
 	    13,
 	    PU_WHITE_BALANCE_COMPONENT_AUTO_CONTROL,
+	    1,
+	    0
+	},
+	/* Camera Terminal Controls (UVC 1.5 spec Table A-12) */
+	{
+	    V4L2_CID_EXPOSURE_AUTO,
+	    V4L2_CTRL_TYPE_MENU,
+	    "Exposure, Auto",
+	    1,
+	    CT_AE_MODE_CONTROL,
+	    1,
+	    0
+	},
+	{
+	    V4L2_CID_EXPOSURE_AUTO_PRIORITY,
+	    V4L2_CTRL_TYPE_BOOLEAN,
+	    "Exposure, Auto Priority",
+	    2,
+	    CT_AE_PRIORITY_CONTROL,
+	    1,
+	    0
+	},
+	{
+	    V4L2_CID_EXPOSURE_ABSOLUTE,
+	    V4L2_CTRL_TYPE_INTEGER,
+	    "Exposure (Absolute)",
+	    3,
+	    CT_EXPOSURE_TIME_ABSOLUTE_CONTROL,
+	    4,
+	    0
+	},
+	{
+	    V4L2_CID_FOCUS_ABSOLUTE,
+	    V4L2_CTRL_TYPE_INTEGER,
+	    "Focus (Absolute)",
+	    5,
+	    CT_FOCUS_ABSOLUTE_CONTROL,
+	    2,
+	    0
+	},
+	{
+	    V4L2_CID_FOCUS_AUTO,
+	    V4L2_CTRL_TYPE_BOOLEAN,
+	    "Focus, Auto",
+	    17,
+	    CT_FOCUS_AUTO_CONTROL,
+	    1,
+	    0
+	},
+	{
+	    V4L2_CID_ZOOM_ABSOLUTE,
+	    V4L2_CTRL_TYPE_INTEGER,
+	    "Zoom (Absolute)",
+	    9,
+	    CT_ZOOM_ABSOLUTE_CONTROL,
+	    2,
+	    0
+	},
+	{
+	    V4L2_CID_PAN_ABSOLUTE,
+	    V4L2_CTRL_TYPE_INTEGER,
+	    "Pan (Absolute)",
+	    11,
+	    CT_PANTILT_ABSOLUTE_CONTROL,
+	    4,
+	    1
+	},
+	{
+	    V4L2_CID_TILT_ABSOLUTE,
+	    V4L2_CTRL_TYPE_INTEGER,
+	    "Tilt (Absolute)",
+	    11,
+	    CT_PANTILT_ABSOLUTE_CONTROL,
+	    4,
+	    1
+	},
+	{
+	    V4L2_CID_PRIVACY,
+	    V4L2_CTRL_TYPE_BOOLEAN,
+	    "Privacy",
+	    18,
+	    CT_PRIVACY_CONTROL,
 	    1,
 	    0
 	},
@@ -824,6 +915,14 @@ uvideo_vc_parse_desc(struct uvideo_softc *sc)
 				return (error);
 			vc_header_found = 1;
 			break;
+		case UDESCSUB_VC_INPUT_TERMINAL:
+		    {
+			struct usb_video_input_terminal_desc *itd;
+			itd = (struct usb_video_input_terminal_desc *)desc;
+			if (UGETW(itd->wTerminalType) == ITT_CAMERA)
+				(void)uvideo_vc_parse_desc_ct(sc, desc);
+			break;
+		    }
 		case UDESCSUB_VC_PROCESSING_UNIT:
 			(void)uvideo_vc_parse_desc_pu(sc, desc);
 			break;
@@ -884,6 +983,25 @@ uvideo_vc_parse_desc_pu(struct uvideo_softc *sc,
 }
 
 static usb_error_t
+uvideo_vc_parse_desc_ct(struct uvideo_softc *sc,
+    const struct usb_descriptor *desc)
+{
+	struct usb_video_camera_terminal_desc *d;
+
+	d = __DECONST(struct usb_video_camera_terminal_desc *, desc);
+
+	if (sc->sc_desc_vc_ct_num == UVIDEO_MAX_CT) {
+		device_printf(sc->sc_dev, "too many CT descriptors\n");
+		return (USB_ERR_INVAL);
+	}
+
+	sc->sc_desc_vc_ct[sc->sc_desc_vc_ct_num] = d;
+	sc->sc_desc_vc_ct_num++;
+
+	return (USB_ERR_NORMAL_COMPLETION);
+}
+
+static usb_error_t
 uvideo_vc_get_ctrl(struct uvideo_softc *sc, uint8_t *ctrl_data,
     uint8_t request, uint8_t unitid, uint16_t ctrl_selector, uint16_t ctrl_len)
 {
@@ -934,8 +1052,8 @@ uvideo_find_ctrl(struct uvideo_softc *sc, int id)
 {
 	int i, j, found;
 
-	if (sc->sc_desc_vc_pu_num == 0) {
-		DPRINTFN(1, "no processing unit descriptors found!\n");
+	if (sc->sc_desc_vc_pu_num == 0 && sc->sc_desc_vc_ct_num == 0) {
+		DPRINTFN(1, "no PU or CT descriptors found!\n");
 		return (EINVAL);
 	}
 
@@ -951,25 +1069,50 @@ uvideo_find_ctrl(struct uvideo_softc *sc, int id)
 		return (EINVAL);
 	}
 
-	/* does the device support this control? */
+	/* does a PU support this control? */
+	sc->sc_desc_vc_pu_cur = NULL;
+	sc->sc_desc_vc_ct_cur = NULL;
 	for (found = 0, j = 0; j < sc->sc_desc_vc_pu_num; j++) {
 		if (uvideo_has_ctrl(sc->sc_desc_vc_pu[j],
 		    uvideo_ctrls[i].ctrl_bit) != 0) {
 			found = 1;
+			sc->sc_desc_vc_pu_cur = sc->sc_desc_vc_pu[j];
 			break;
 		}
 	}
+
+	/* does a CT support this control? */
+	if (found == 0) {
+		for (j = 0; j < sc->sc_desc_vc_ct_num; j++) {
+			if (uvideo_has_ct_ctrl(sc->sc_desc_vc_ct[j],
+			    uvideo_ctrls[i].ctrl_bit) != 0) {
+				found = 1;
+				sc->sc_desc_vc_ct_cur = sc->sc_desc_vc_ct[j];
+				break;
+			}
+		}
+	}
+
 	if (found == 0) {
 		DPRINTFN(1, "control not supported by device!\n");
 		return (EINVAL);
 	}
-	sc->sc_desc_vc_pu_cur = sc->sc_desc_vc_pu[j];
 
 	return (i);
 }
 
 static int
 uvideo_has_ctrl(struct usb_video_vc_processing_desc *desc, int ctrl_bit)
+{
+
+	if (desc->bControlSize * 8 <= ctrl_bit)
+		return (0);
+
+	return (desc->bmControls[byteof(ctrl_bit)] & bitof(ctrl_bit));
+}
+
+static int
+uvideo_has_ct_ctrl(struct usb_video_camera_terminal_desc *desc, int ctrl_bit)
 {
 
 	if (desc->bControlSize * 8 <= ctrl_bit)
@@ -3353,13 +3496,19 @@ uvideo_queryctrl(struct uvideo_softc *sc, struct v4l2_queryctrl *qctrl)
 	usb_error_t error;
 	uint8_t *ctrl_data;
 	uint16_t ctrl_len;
+	uint8_t unit_id;
 
 	i = uvideo_find_ctrl(sc, qctrl->id);
 	if (i == EINVAL)
 		return (i);
 
+	if (sc->sc_desc_vc_ct_cur != NULL)
+		unit_id = sc->sc_desc_vc_ct_cur->bTerminalID;
+	else
+		unit_id = sc->sc_desc_vc_pu_cur->bUnitID;
+
 	ctrl_len = uvideo_ctrls[i].ctrl_len;
-	if (ctrl_len < 1 || ctrl_len > 2) {
+	if (ctrl_len < 1 || ctrl_len > 4) {
 		device_printf(sc->sc_dev,
 		    "invalid control length: %d\n", ctrl_len);
 		return (EINVAL);
@@ -3374,7 +3523,7 @@ uvideo_queryctrl(struct uvideo_softc *sc, struct v4l2_queryctrl *qctrl)
 
 	/* get minimum */
 	error = uvideo_vc_get_ctrl(sc, ctrl_data, GET_MIN,
-	    sc->sc_desc_vc_pu_cur->bUnitID,
+	    unit_id,
 	    uvideo_ctrls[i].ctrl_selector, uvideo_ctrls[i].ctrl_len);
 	if (error != USB_ERR_NORMAL_COMPLETION) {
 		ret = EINVAL;
@@ -3388,12 +3537,16 @@ uvideo_queryctrl(struct uvideo_softc *sc, struct v4l2_queryctrl *qctrl)
 	case 2:
 		qctrl->minimum = uvideo_ctrls[i].sig ?
 		    (int16_t)UGETW(ctrl_data) : UGETW(ctrl_data);
+		break;
+	case 4:
+		qctrl->minimum = uvideo_ctrls[i].sig ?
+		    (int32_t)UGETDW(ctrl_data) : UGETDW(ctrl_data);
 		break;
 	}
 
 	/* get maximum */
 	error = uvideo_vc_get_ctrl(sc, ctrl_data, GET_MAX,
-	    sc->sc_desc_vc_pu_cur->bUnitID,
+	    unit_id,
 	    uvideo_ctrls[i].ctrl_selector, uvideo_ctrls[i].ctrl_len);
 	if (error != USB_ERR_NORMAL_COMPLETION) {
 		ret = EINVAL;
@@ -3407,12 +3560,16 @@ uvideo_queryctrl(struct uvideo_softc *sc, struct v4l2_queryctrl *qctrl)
 	case 2:
 		qctrl->maximum = uvideo_ctrls[i].sig ?
 		    (int16_t)UGETW(ctrl_data) : UGETW(ctrl_data);
+		break;
+	case 4:
+		qctrl->maximum = uvideo_ctrls[i].sig ?
+		    (int32_t)UGETDW(ctrl_data) : UGETDW(ctrl_data);
 		break;
 	}
 
 	/* get resolution/step */
 	error = uvideo_vc_get_ctrl(sc, ctrl_data, GET_RES,
-	    sc->sc_desc_vc_pu_cur->bUnitID,
+	    unit_id,
 	    uvideo_ctrls[i].ctrl_selector, uvideo_ctrls[i].ctrl_len);
 	if (error != USB_ERR_NORMAL_COMPLETION) {
 		ret = EINVAL;
@@ -3426,12 +3583,16 @@ uvideo_queryctrl(struct uvideo_softc *sc, struct v4l2_queryctrl *qctrl)
 	case 2:
 		qctrl->step = uvideo_ctrls[i].sig ?
 		    (int16_t)UGETW(ctrl_data) : UGETW(ctrl_data);
+		break;
+	case 4:
+		qctrl->step = uvideo_ctrls[i].sig ?
+		    (int32_t)UGETDW(ctrl_data) : UGETDW(ctrl_data);
 		break;
 	}
 
 	/* get default */
 	error = uvideo_vc_get_ctrl(sc, ctrl_data, GET_DEF,
-	    sc->sc_desc_vc_pu_cur->bUnitID,
+	    unit_id,
 	    uvideo_ctrls[i].ctrl_selector, uvideo_ctrls[i].ctrl_len);
 	if (error != USB_ERR_NORMAL_COMPLETION) {
 		ret = EINVAL;
@@ -3445,6 +3606,10 @@ uvideo_queryctrl(struct uvideo_softc *sc, struct v4l2_queryctrl *qctrl)
 	case 2:
 		qctrl->default_value = uvideo_ctrls[i].sig ?
 		    (int16_t)UGETW(ctrl_data) : UGETW(ctrl_data);
+		break;
+	case 4:
+		qctrl->default_value = uvideo_ctrls[i].sig ?
+		    (int32_t)UGETDW(ctrl_data) : UGETDW(ctrl_data);
 		break;
 	}
 
@@ -3462,13 +3627,19 @@ uvideo_g_ctrl(struct uvideo_softc *sc, struct v4l2_control *gctrl)
 	usb_error_t error;
 	uint8_t *ctrl_data;
 	uint16_t ctrl_len;
+	uint8_t unit_id;
 
 	i = uvideo_find_ctrl(sc, gctrl->id);
 	if (i == EINVAL)
 		return (i);
 
+	if (sc->sc_desc_vc_ct_cur != NULL)
+		unit_id = sc->sc_desc_vc_ct_cur->bTerminalID;
+	else
+		unit_id = sc->sc_desc_vc_pu_cur->bUnitID;
+
 	ctrl_len = uvideo_ctrls[i].ctrl_len;
-	if (ctrl_len < 1 || ctrl_len > 2)
+	if (ctrl_len < 1 || ctrl_len > 4)
 		return (EINVAL);
 
 	ctrl_data = malloc(ctrl_len, M_USBDEV, M_WAITOK | M_ZERO);
@@ -3476,7 +3647,7 @@ uvideo_g_ctrl(struct uvideo_softc *sc, struct v4l2_control *gctrl)
 		return (ENOMEM);
 
 	error = uvideo_vc_get_ctrl(sc, ctrl_data, GET_CUR,
-	    sc->sc_desc_vc_pu_cur->bUnitID,
+	    unit_id,
 	    uvideo_ctrls[i].ctrl_selector, uvideo_ctrls[i].ctrl_len);
 	if (error != USB_ERR_NORMAL_COMPLETION) {
 		ret = EINVAL;
@@ -3490,6 +3661,10 @@ uvideo_g_ctrl(struct uvideo_softc *sc, struct v4l2_control *gctrl)
 	case 2:
 		gctrl->value = uvideo_ctrls[i].sig ?
 		    (int16_t)UGETW(ctrl_data) : UGETW(ctrl_data);
+		break;
+	case 4:
+		gctrl->value = uvideo_ctrls[i].sig ?
+		    (int32_t)UGETDW(ctrl_data) : UGETDW(ctrl_data);
 		break;
 	}
 
@@ -3505,13 +3680,19 @@ uvideo_s_ctrl(struct uvideo_softc *sc, struct v4l2_control *sctrl)
 	usb_error_t error;
 	uint8_t *ctrl_data;
 	uint16_t ctrl_len;
+	uint8_t unit_id;
 
 	i = uvideo_find_ctrl(sc, sctrl->id);
 	if (i == EINVAL)
 		return (i);
 
+	if (sc->sc_desc_vc_ct_cur != NULL)
+		unit_id = sc->sc_desc_vc_ct_cur->bTerminalID;
+	else
+		unit_id = sc->sc_desc_vc_pu_cur->bUnitID;
+
 	ctrl_len = uvideo_ctrls[i].ctrl_len;
-	if (ctrl_len < 1 || ctrl_len > 2)
+	if (ctrl_len < 1 || ctrl_len > 4)
 		return (EINVAL);
 
 	ctrl_data = malloc(ctrl_len, M_USBDEV, M_WAITOK | M_ZERO);
@@ -3528,10 +3709,13 @@ uvideo_s_ctrl(struct uvideo_softc *sc, struct v4l2_control *sctrl)
 	case 2:
 		USETW(ctrl_data, sctrl->value);
 		break;
+	case 4:
+		USETDW(ctrl_data, sctrl->value);
+		break;
 	}
 
 	error = uvideo_vc_set_ctrl(sc, ctrl_data, SET_CUR,
-	    sc->sc_desc_vc_pu_cur->bUnitID,
+	    unit_id,
 	    uvideo_ctrls[i].ctrl_selector, uvideo_ctrls[i].ctrl_len);
 	if (error != USB_ERR_NORMAL_COMPLETION)
 		ret = EINVAL;

@@ -211,7 +211,7 @@ struct usb_video_camera_terminal_desc {
 	uWord	wObjectiveFocalLengthMax;
 	uWord	wOcularFocalLength;
 	uByte	bControlSize;
-	uByte	*bmControls;
+	uByte	bmControls[255]; /* [bControlSize] */
 } __packed;
 
 /* Table 3-8: VC Processing Unit Descriptor */
