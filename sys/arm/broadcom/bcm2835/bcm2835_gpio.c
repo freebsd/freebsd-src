@@ -961,8 +961,7 @@ bcm_gpio_intr_internal(struct bcm_gpio_softc *sc, uint32_t bank)
 		bgi = sc->sc_isrcs + irq;
 		if (!bcm_gpio_isrc_is_level(bgi))
 			bcm_gpio_isrc_eoi(sc, bgi);
-		if (intr_isrc_dispatch(&bgi->bgi_isrc,
-		    curthread->td_intr_frame) != 0) {
+		if (intr_isrc_dispatch(&bgi->bgi_isrc) != 0) {
 			bcm_gpio_isrc_mask(sc, bgi);
 			if (bcm_gpio_isrc_is_level(bgi))
 				bcm_gpio_isrc_eoi(sc, bgi);

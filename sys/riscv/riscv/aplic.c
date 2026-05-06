@@ -207,14 +207,13 @@ fdt_get_hartid(device_t dev, phandle_t aplic)
 }
 
 static inline void
-aplic_irq_dispatch(struct aplic_softc *sc, u_int irq, u_int prio,
-    struct trapframe *tf)
+aplic_irq_dispatch(struct aplic_softc *sc, u_int irq, u_int prio)
 {
 	struct aplic_irqsrc *src;
 
 	src = &sc->isrcs[irq];
 
-	if (intr_isrc_dispatch(&src->isrc, tf) != 0)
+	if (intr_isrc_dispatch(&src->isrc) != 0)
 		if (bootverbose)
 			device_printf(sc->dev, "Stray irq %u detected\n", irq);
 }
@@ -223,7 +222,6 @@ static int
 aplic_intr(void *arg)
 {
 	struct aplic_softc *sc;
-	struct trapframe *tf;
 	uint32_t claimi;
 	u_int prio, irq;
 	int cpu;
@@ -238,8 +236,7 @@ aplic_intr(void *arg)
 
 		KASSERT((irq != 0), ("Invalid IRQ 0"));
 
-		tf = curthread->td_intr_frame;
-		aplic_irq_dispatch(sc, irq, prio, tf);
+		aplic_irq_dispatch(sc, irq, prio);
 	}
 
 	return (FILTER_HANDLED);

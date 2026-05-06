@@ -304,8 +304,8 @@ mpic_intr(void *arg)
 			irqsrc = MPIC_READ(sc, MPIC_INT_CTL(irq));
 			if ((irqsrc & MPIC_INT_IRQ_FIQ_MASK(cpuid)) == 0)
 				continue;
-			if (intr_isrc_dispatch(&sc->mpic_isrcs[irq].mmi_isrc,
-			    curthread->td_intr_frame) != 0) {
+			if (intr_isrc_dispatch(&sc->mpic_isrcs[irq].mmi_isrc)
+			    != 0) {
 				mpic_mask_irq(irq);
 				device_printf(sc->sc_dev, "Stray irq %u "
 				    "disabled\n", irq);

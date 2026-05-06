@@ -514,6 +514,8 @@ hardclock(int cnt, int usermode)
 #endif
 	/* We are in charge to handle this tick duty. */
 	if (newticks > 0) {
+		struct trapframe *oldframe;
+
 		tc_ticktock(newticks);
 #ifdef DEVICE_POLLING
 		/* Dangerous and no need to call these things concurrently. */
@@ -530,7 +532,15 @@ hardclock(int cnt, int usermode)
 			if (left > 0 && left <= newticks)
 				watchdog_fire();
 		}
-		intr_event_handle(clk_intr_event, NULL);
+
+		curthread->td_intr_nesting_level++;
+		critical_enter();
+		oldframe = curthread->td_intr_frame;
+		curthread->td_intr_frame = NULL;
+		intr_event_handle(clk_intr_event);
+		curthread->td_intr_frame = oldframe;
+		critical_exit();
+		curthread->td_intr_nesting_level--;
 	}
 	if (curcpu == CPU_FIRST())
 		cpu_tick_calibration();

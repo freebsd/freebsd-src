@@ -97,12 +97,10 @@ static int
 qoriq_gpio_pic_intr(void *arg)
 {
 	struct qoriq_gpio_pic_softc *sc;
-	struct trapframe *tf;
 	uint32_t status;
 	int pin;
 
 	sc = (struct qoriq_gpio_pic_softc *)arg;
-	tf = curthread->td_intr_frame;
 
 	status = RD4(sc, GPIO_GPIER);
 	status &= RD4(sc, GPIO_GPIMR);
@@ -111,7 +109,7 @@ qoriq_gpio_pic_intr(void *arg)
 		status &= ~BIT(pin);
 		pin = 31 - pin;
 
-		if (intr_isrc_dispatch(&sc->isrcs[pin].isrc, tf) != 0) {
+		if (intr_isrc_dispatch(&sc->isrcs[pin].isrc) != 0) {
 			GPIO_LOCK(&sc->base);
 			qoriq_gpio_pic_set_intr(sc, pin, false);
 			qoriq_gpio_pic_ack_intr(sc, pin);
