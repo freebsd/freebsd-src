@@ -102,6 +102,9 @@ read_linker_hints(void)
 	size_t buflen, len;
 
 	if (linker_hints == NULL) {
+		void *all_hints = NULL;
+		size_t all_len = 0;
+
 		if (sysctlbyname("kern.module_path", NULL, &buflen, NULL, 0) < 0)
 			errx(1, "Can't find kernel module path.");
 		modpath = malloc(buflen);
@@ -111,13 +114,39 @@ read_linker_hints(void)
 			errx(1, "Can't find kernel module path.");
 		p = modpath;
 		while ((q = strsep(&p, ";")) != NULL) {
+			void *h;
+
 			snprintf(fn, sizeof(fn), "%s/linker.hints", q);
-			hints = read_hints(fn, &len);
-			if (hints == NULL)
+			h = read_hints(fn, &len);
+			if (h == NULL)
 				continue;
-			break;
+			if (len < sizeof(int) ||
+			    *(int *)(intptr_t)h != LINKER_HINTS_VERSION) {
+				free(h);
+				continue;
+			}
+			if (all_hints == NULL) {
+				all_hints = h;
+				all_len = len;
+			} else {
+				void *merged;
+
+				merged = realloc(all_hints, all_len + len - sizeof(int));
+				if (merged == NULL) {
+					free(h);
+					continue;
+				}
+				all_hints = merged;
+				memcpy((char *)all_hints + all_len,
+				    (char *)h + sizeof(int),
+				    len - sizeof(int));
+				all_len += len - sizeof(int);
+				free(h);
+			}
 		}
-		if (q == NULL) {
+		hints = all_hints;
+		len = all_len;
+		if (hints == NULL) {
 			if (quiet_flag)
 				exit(EX_UNAVAILABLE);
 			else
