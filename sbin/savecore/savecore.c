@@ -411,6 +411,7 @@ symlinks_remove(int savedirfd)
 
 	(void)unlinkat(savedirfd, "info.last", 0);
 	(void)unlinkat(savedirfd, "key.last", 0);
+	(void)unlinkat(savedirfd, "core.txt.last", 0);
 	(void)unlinkat(savedirfd, "vmcore.last", 0);
 	(void)unlinkat(savedirfd, "vmcore.last.gz", 0);
 	(void)unlinkat(savedirfd, "vmcore.last.zst", 0);
@@ -901,6 +902,12 @@ DoLiveFile(const char *savedir, int savedirfd, const char *device)
 		    savedir, "info.last");
 	}
 
+	snprintf(linkname, sizeof(linkname), "core.txt.%d", bounds);
+	if (symlinkat(linkname, savedirfd, "core.txt.last") == -1) {
+		logmsg(LOG_WARNING, "unable to create symlink %s/%s: %m",
+		    savedir, "core.txt.last");
+	}
+
 	snprintf(linkname, sizeof(linkname), "livecore.last");
 	if (compress)
 		strcat(linkname, kdhl.compression == KERNELDUMP_COMP_ZSTD ?
@@ -1247,6 +1254,13 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 			    "key.last");
 		}
 	}
+
+	snprintf(linkname, sizeof(linkname), "core.txt.%d", bounds);
+	if (symlinkat(linkname, savedirfd, "core.txt.last") == -1) {
+		logmsg(LOG_WARNING, "unable to create symlink %s/%s: %m",
+		    savedir, "core.txt.last");
+	}
+
 	if ((iscompressed && !uncompress) || compress) {
 		snprintf(linkname, sizeof(linkname), "%s.last.%s",
 		    istextdump ? "textdump.tar" :
