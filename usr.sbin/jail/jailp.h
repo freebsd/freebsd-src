@@ -35,6 +35,9 @@
 #include <jail.h>
 #include <stdio.h>
 
+extern struct cfjail *current_jail;
+extern struct cfjail *global_jail;
+
 #define CONF_FILE	"/etc/jail.conf"
 
 #define DEP_FROM	0
@@ -97,6 +100,7 @@ enum intparam {
 	IP_EXEC_SYSTEM_JAIL_USER,/* Get jail_user from system passwd file */
 	IP_EXEC_SYSTEM_USER,	/* Run non-jailed commands as this user */
 	IP_EXEC_TIMEOUT,	/* Time to wait for a command to complete */
+	IP_ALLOW_EXEC_INCLUDE,  /* Allow dynamic jail.conf to be executed */
 #if defined(INET) || defined(INET6)
 	IP_INTERFACE,		/* Add IP addresses to this interface */
 	IP_IP_HOSTNAME,		/* Get jail IP address(es) from hostname */

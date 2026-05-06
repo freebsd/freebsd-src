@@ -29,14 +29,20 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/wait.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
 #include <err.h>
+#include <fcntl.h>
 #include <glob.h>
+#include <libgen.h>
 #include <netdb.h>
+#include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,6 +88,7 @@ static const struct ipspec intparams[] = {
 							PF_INTERNAL | PF_BOOL},
     [IP_EXEC_SYSTEM_USER] =	{"exec.system_user",	PF_INTERNAL},
     [IP_EXEC_TIMEOUT] =		{"exec.timeout",	PF_INTERNAL | PF_INT},
+    [IP_ALLOW_EXEC_INCLUDE] =   {"allow.exec_include",	PF_INTERNAL | PF_BOOL},
 #if defined(INET) || defined(INET6)
     [IP_INTERFACE] =		{"interface",		PF_INTERNAL},
     [IP_IP_HOSTNAME] =		{"ip_hostname",		PF_INTERNAL | PF_BOOL},
@@ -317,10 +324,185 @@ include_config(void *scanner, const char *cfname)
 	--depth;
 }
 
+extern char **environ;
+
+/*
+ * Check if a file descriptor references a file is executable to the process
+ * at the time of check.
+ */
+static bool
+is_executable(const int fd)
+{
+	return faccessat(fd, "", X_OK, AT_EMPTY_PATH) == 0;
+}
+
+/*
+ * Check if dynamic includes are enabled.
+ *
+ * The check searches for the boolean internal parameter "dynamic_include"
+ * in the current jail, up its ancestor chain, and in the global jail
+ * in that order.
+ *
+ * An explicit search is needed because the parameter inheritance 
+ * gets applied too late for use in open_config().
+ */
+static bool
+dynamic_include(void)
+{
+	struct cfjail *jail;
+	struct cfparam *p;
+	const char *const name = intparams[IP_ALLOW_EXEC_INCLUDE].name;
+
+	// Search the jail and its ancestors.
+	jail = current_jail;
+	while (jail != NULL) {
+		TAILQ_FOREACH(p, &jail->params, tq)
+			if (equalopts(p->name, name))
+				return !!bool_param(p);
+		jail = jail->cfparent;
+	}
+
+	// Search the global jail.
+	jail = global_jail;
+	if (jail != NULL)
+		TAILQ_FOREACH(p, &jail->params, tq)
+			if (equalopts(p->name, name))
+				return !!bool_param(p);
+
+	// Default to disabled.
+	return false;
+}
+
+/*
+ * Open a jail configuration file.
+ *
+ * The configuration file can be dynamic (aka executable).
+ * For a dynamic configuration the FILE wraps the pipe to
+ * the child process.
+ * The PID is an out parameter and allowing the caller
+ * to wait for the exit status of the child.
+ * The PID is set to -1 if no child has been created.
+ */
+static FILE *
+open_config(const char *cfname, pid_t *const pid)
+{
+
+	int read_fd;
+	FILE *file;
+
+	// Invalidate the child PID.
+	*pid = -1;
+
+	// The configuration must be readable.
+	read_fd = open(cfname, O_RDONLY);
+	if (read_fd < 0)
+		err(1, "open(): %s", cfname);
+
+	const bool is_exec = is_executable(read_fd);
+	const bool dyn_include = dynamic_include();
+
+	// If the configuration is executable run it as a child of jail(8)
+	// and parse its standard output as jail.conf(5) configuration.
+	if (is_exec && !dyn_include) {
+		warnx("Warning: \"%s\" is executable, but executable includes "
+				"are disabled.", cfname);
+	} else if (is_exec && dyn_include) {
+		int exec_fd, write_fd;
+		const size_t cfname_size = strlen(cfname) + sizeof("");
+		char dir_buf[PATH_MAX], base_buf[PATH_MAX];
+		if (cfname_size > PATH_MAX) {
+			errno = ENAMETOOLONG;
+			err(1, "open_config(): %s", cfname);
+		}
+		
+		// Set the argument list:
+		//   <jail_conf> <jail_conf> <jail_dir> <jail_base> <jail_name>
+		char *const jail_conf = __DECONST(char *, cfname);
+		char *const jail_dir  =
+			dirname(memcpy(dir_buf, cfname, cfname_size));
+		char *const jail_base =
+			basename(memcpy(base_buf, cfname, cfname_size));
+		char *const jail_name = current_jail && current_jail->name
+			? current_jail->name : __DECONST(char *, "");
+		char *const argv[]    = {
+			jail_conf,
+			jail_conf, jail_dir, jail_base, jail_name,
+			NULL
+		};
+
+		// The read end of the pipe replaces the configuration file
+		// as input to the parser, but the file descriptor
+		// is still needed as executable.
+		{
+			int pipes[2];
+			if (pipe(pipes))
+				err(1, "pipe(): %s", cfname);
+			exec_fd = read_fd;
+			read_fd = pipes[0];
+			write_fd = pipes[1];
+		}
+
+		// Run the configuration as child process.
+		switch ((*pid = fork())) {
+
+		// Failed to fork().
+		case -1:
+			err(1, "fork(): %s", cfname);
+			break;
+
+		// After successful fork() inside the child process.
+		case 0:
+			// Export the arguments as env vars too.
+			if (setenv("JAIL_CONF", cfname, 1))
+				err(1, "setenv(\"JAIL_CONF\", \"%s\"): %s",
+						cfname, cfname);
+			if (setenv("JAIL_DIR", jail_dir, 1))
+				err(1, "setenv(\"JAIL_DIR\", \"%s\"): %s",
+						jail_dir, cfname);
+			if (setenv("JAIL_BASE", jail_base, 1))
+				err(1, "setenv(\"JAIL_BASE\", \"%s\"): %s",
+						jail_base, cfname);
+			if (setenv("JAIL_NAME", jail_name, 1))
+				err(1, "setenv(\"JAIL_NAME\", \"%s\"): %s",
+						jail_name, cfname);
+
+			// Redirect the child's standard output into the pipe.
+			if (write_fd != STDOUT_FILENO) {
+				if (dup2(write_fd, STDOUT_FILENO) < 0)
+					err(1, "dup2(): %s", cfname);
+				close(write_fd);
+			}
+
+			// Replace the forked child with the
+			// dynamic configuration command.
+			close(read_fd);
+			fexecve(exec_fd, argv, environ);
+			err(1, "fexecve(): %s", cfname);
+			break;
+
+		// After successful fork() inside the parent process.
+		default:
+			// Close the write end of the pipe as well as
+			// the executable file descriptor in the parent.
+			close(write_fd);
+			close(exec_fd);
+			break;
+		}
+	}
+
+	// Wrap a FILE handle around the read-only file descriptor.
+	file = fdopen(read_fd, "r");
+	if (file == NULL)
+		err(1, "fdopen(): %s", cfname);
+
+	return file;
+}
+
 static void
 parse_config(const char *cfname, int is_stdin)
 {
 	struct cflex cflex = {.cfname = cfname, .error = 0};
+	pid_t child = -1;
 	void *scanner;
 
 	yylex_init_extra(&cflex, &scanner);
@@ -328,7 +510,7 @@ parse_config(const char *cfname, int is_stdin)
 		cflex.cfname = "STDIN";
 		yyset_in(stdin, scanner);
 	} else {
-		FILE *yfp = fopen(cfname, "r");
+		FILE *yfp = open_config(cfname, &child);
 		if (!yfp)
 			err(1, "%s", cfname);
 		yyset_in(yfp, scanner);
@@ -336,6 +518,16 @@ parse_config(const char *cfname, int is_stdin)
 	if (yyparse(scanner) || cflex.error)
 		exit(1);
 	yylex_destroy(scanner);
+	if (child > 0) {
+		pid_t exited;
+		int status;
+		do {
+			exited = waitpid(child, &status, 0);
+		} while (exited < 0 || errno == EINTR);
+		status = WEXITSTATUS(status);
+		if (status != 0)
+			errx(status, "Config child failed (exit code = %i): %s", status, cfname);
+	}
 }
 
 /*
