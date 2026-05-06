@@ -4723,6 +4723,11 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	return (rv);
 }
 
+static bool report_stackoverflow = true;
+SYSCTL_BOOL(_vm, OID_AUTO, report_stackoverflow, CTLFLAG_RWTUN,
+    &report_stackoverflow, 0,
+    "uprintf() on stack overflow");
+
 /*
  * Attempts to grow a vm stack entry.  Returns KERN_SUCCESS if we
  * successfully grow the stack.
@@ -4787,8 +4792,12 @@ retry:
 	if (guard > max_grow)
 		return (KERN_NO_SPACE);
 	max_grow -= guard;
-	if (grow_amount > max_grow)
+	if (grow_amount > max_grow) {
+		if (report_stackoverflow)
+			uprintf("pid %d comm %s tid %d stack overflow\n",
+			    p->p_pid, p->p_comm, td->td_tid);
 		return (KERN_NO_SPACE);
+	}
 
 	/*
 	 * If this is the main process stack, see if we're over the stack
@@ -4796,8 +4805,12 @@ retry:
 	 */
 	is_procstack = addr >= (vm_offset_t)vm->vm_maxsaddr &&
 	    addr < (vm_offset_t)vm->vm_stacktop;
-	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim))
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim)) {
+		if (report_stackoverflow)
+			uprintf("pid %d comm %s tid %d stack overflow\n",
+			    p->p_pid, p->p_comm, td->td_tid);
 		return (KERN_NO_SPACE);
+	}
 
 #ifdef RACCT
 	if (racct_enable) {
