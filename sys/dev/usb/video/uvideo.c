@@ -38,6 +38,7 @@
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/event.h>
 #include <sys/selinfo.h>
 #include <sys/limits.h>
 #include <sys/sysctl.h>
@@ -155,6 +156,7 @@ static d_close_t	uvideo_cdev_close;
 static d_read_t		uvideo_cdev_read;
 static d_ioctl_t	uvideo_cdev_ioctl;
 static d_poll_t		uvideo_cdev_poll;
+static d_kqfilter_t	uvideo_cdev_kqfilter;
 static d_mmap_t		uvideo_cdev_mmap;
 
 static int	uvideo_querycap(struct uvideo_softc *, struct v4l2_capability *);
@@ -540,6 +542,7 @@ static struct cdevsw uvideo_cdevsw = {
 	.d_read = uvideo_cdev_read,
 	.d_ioctl = uvideo_cdev_ioctl,
 	.d_poll = uvideo_cdev_poll,
+	.d_kqfilter = uvideo_cdev_kqfilter,
 	.d_mmap = uvideo_cdev_mmap,
 	.d_name = "video",
 };
@@ -2433,6 +2436,7 @@ uvideo_mmap_queue(struct uvideo_softc *sc, int len, int err)
 
 	wakeup(sc);
 	selwakeup(&sc->sc_selinfo);
+	KNOTE_LOCKED(&sc->sc_selinfo.si_note, 0);
 }
 
 static void
@@ -2453,6 +2457,7 @@ uvideo_read_frame(struct uvideo_softc *sc, uint8_t *buf, int len)
 
 	wakeup(sc);
 	selwakeup(&sc->sc_selinfo);
+	KNOTE_LOCKED(&sc->sc_selinfo.si_note, 0);
 }
 
 /* ---------------------------------------------------------------- */
@@ -2688,6 +2693,49 @@ uvideo_cdev_poll(struct cdev *dev, int events, struct thread *td)
 	}
 
 	return (revents);
+}
+
+static void
+uvideo_kqfilter_detach(struct knote *kn)
+{
+	struct uvideo_softc *sc = kn->kn_hook;
+
+	knlist_remove(&sc->sc_selinfo.si_note, kn, 0);
+}
+
+static int
+uvideo_kqfilter_read(struct knote *kn, long hint __unused)
+{
+	struct uvideo_softc *sc = kn->kn_hook;
+
+	if (sc->sc_mmap_flag)
+		return (!STAILQ_EMPTY(&sc->sc_mmap_q));
+	return (sc->sc_frames_ready > 0);
+}
+
+static struct filterops uvideo_filtops_read = {
+	.f_isfd = 1,
+	.f_detach = uvideo_kqfilter_detach,
+	.f_event = uvideo_kqfilter_read,
+};
+
+static int
+uvideo_cdev_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct uvideo_softc *sc = dev->si_drv1;
+
+	if (sc == NULL || sc->sc_dying)
+		return (ENXIO);
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &uvideo_filtops_read;
+		kn->kn_hook = sc;
+		knlist_add(&sc->sc_selinfo.si_note, kn, 0);
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 static int
