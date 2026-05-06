@@ -727,7 +727,7 @@ local function load_userdata()
 	f:close()
 
 	local obj = nil
-	if ud then
+	if ud and line == "#cloud-config" then
 		f = io.open(ni_path .. "/" .. ud)
 		obj = yaml.load(f:read("*a"))
 		f:close()
