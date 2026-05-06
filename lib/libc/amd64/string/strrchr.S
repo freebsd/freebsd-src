@@ -251,35 +251,65 @@ ARCHENTRY(strrchr, avx2)
 	/* main loop */
 	ALIGN_TEXT
 .Lloop:
+	/* first 32-byte block */
 	vmovdqu		(%rdi), %ymm1
-	add		$32, %rdi		# advance to next block
 
-	/* reuse zero vector (ymm2) instead of re-zeroing every iteration */
-	vpcmpeqb	%ymm2, %ymm1, %ymm3	# NUL
-	vpcmpeqb	%ymm0, %ymm1, %ymm4	# match
+	vpcmpeqb	%ymm2, %ymm1, %ymm3
+	vpcmpeqb	%ymm0, %ymm1, %ymm4
 
 	vpmovmskb	%ymm3, %eax
 	vpmovmskb	%ymm4, %ecx
 
-	/* NUL found? */
 	test		%eax, %eax
-	jnz		.Lhandle_nul
+	jnz		.Lhandle_nul_first
 
-	/* update last match */
 	bsr		%ecx, %edx
-	lea		-32(%rdi,%rdx,1), %rdx
+	lea		(%rdi,%rdx,1), %rdx
 	cmovnz		%rdx, %r8
+
+	/* second 32-byte block */
+	vmovdqu		32(%rdi), %ymm1
+
+	vpcmpeqb	%ymm2, %ymm1, %ymm3
+	vpcmpeqb	%ymm0, %ymm1, %ymm4
+
+	vpmovmskb	%ymm3, %eax
+	vpmovmskb	%ymm4, %ecx
+
+	test		%eax, %eax
+	jnz		.Lhandle_nul_second
+
+	bsr		%ecx, %edx
+	lea		32(%rdi,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
+	add		$64, %rdi
 	jmp		.Lloop
 
-.Lhandle_nul:
+.Lhandle_nul_first:
 	tzcnt		%eax, %edx
 	mov		$-1, %r11d
 	bzhi		%edx, %r11d, %r11d
 	and		%r11d, %ecx
 
 	bsr		%ecx, %edx
-	lea		-32(%rdi,%rdx,1), %rdx
+	lea		(%rdi,%rdx,1), %rdx
 	cmovnz		%rdx, %r8
+
+	mov		%r8, %rax
+	vzeroupper
+	ret
+
+.Lhandle_nul_second:
+	tzcnt		%eax, %edx
+	mov		$-1, %r11d
+	bzhi		%edx, %r11d, %r11d
+	and		%r11d, %ecx
+
+	bsr		%ecx, %edx
+	lea		32(%rdi,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
 	mov		%r8, %rax
 	vzeroupper
 	ret
