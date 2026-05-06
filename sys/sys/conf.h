@@ -155,6 +155,7 @@ typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh);
 #define		GID_OPERATOR	5
 #define		GID_BIN		7
 #define		GID_GAMES	13
+#define		GID_AUDIO	43
 #define		GID_VIDEO	44
 #define		GID_RT_PRIO	47
 #define		GID_ID_PRIO	48
