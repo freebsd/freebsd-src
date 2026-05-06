@@ -727,14 +727,18 @@ acpi_spmc_check_constraints(struct acpi_spmc_softc *sc)
 #endif
 }
 
+/*
+ * Run a single DSM function.
+ *
+ * Discards the result, but prints a message on error.
+ */
 static void
-acpi_spmc_run_dsm(device_t dev, const struct dsm_desc *dsm, int function_index)
+acpi_spmc_run(device_t dev, const struct dsm_desc *const dsm,
+    const int function_index)
 {
-	struct acpi_spmc_softc	*sc;
-	ACPI_STATUS		status;
-	ACPI_BUFFER		result;
-
-	sc = device_get_softc(dev);
+	const struct acpi_spmc_softc *const sc = device_get_softc(dev);
+	ACPI_STATUS status;
+	ACPI_BUFFER result;
 
 	status = acpi_EvaluateDSMTyped(sc->handle, (const uint8_t *)&dsm->uuid,
 	    dsm->revision, function_index, NULL, &result, ACPI_TYPE_ANY);
@@ -758,13 +762,13 @@ acpi_spmc_display_off_notif(device_t dev)
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel,
+		acpi_spmc_run(dev, &dsm_intel,
 		    DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
 	if (has_dsm(sc, DSM_MS))
-		acpi_spmc_run_dsm(dev, &dsm_ms,
+		acpi_spmc_run(dev, &dsm_ms,
 		    DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_DISPLAY_OFF_NOTIF);
+		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_DISPLAY_OFF_NOTIF);
 }
 
 static void
@@ -773,13 +777,13 @@ acpi_spmc_display_on_notif(device_t dev)
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel,
+		acpi_spmc_run(dev, &dsm_intel,
 		    DSM_INTEL_MS_DISPLAY_ON_NOTIF);
 	if (has_dsm(sc, DSM_MS))
-		acpi_spmc_run_dsm(dev, &dsm_ms,
+		acpi_spmc_run(dev, &dsm_ms,
 		    DSM_INTEL_MS_DISPLAY_ON_NOTIF);
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_DISPLAY_ON_NOTIF);
+		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_DISPLAY_ON_NOTIF);
 }
 
 static void
@@ -790,13 +794,13 @@ acpi_spmc_entry_notif(device_t dev)
 	acpi_spmc_check_constraints(sc);
 
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_LPI_ENTRY_NOTIF);
+		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_LPI_ENTRY_NOTIF);
 	if (has_dsm(sc, DSM_MS)) {
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MS_SLEEP_ENTRY_NOTIF);
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_INTEL_MS_LPI_ENTRY_NOTIF);
+		acpi_spmc_run(dev, &dsm_ms, DSM_MS_SLEEP_ENTRY_NOTIF);
+		acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_LPI_ENTRY_NOTIF);
 	}
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel,
+		acpi_spmc_run(dev, &dsm_intel,
 		    DSM_INTEL_MS_LPI_ENTRY_NOTIF);
 }
 
@@ -806,15 +810,15 @@ acpi_spmc_exit_notif(device_t dev)
 	struct acpi_spmc_softc *sc = device_get_softc(dev);
 
 	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run_dsm(dev, &dsm_intel, DSM_INTEL_MS_LPI_EXIT_NOTIF);
+		acpi_spmc_run(dev, &dsm_intel, DSM_INTEL_MS_LPI_EXIT_NOTIF);
 	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run_dsm(dev, &dsm_amd, DSM_AMD_LPI_EXIT_NOTIF);
+		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_LPI_EXIT_NOTIF);
 	if (has_dsm(sc, DSM_MS)) {
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_INTEL_MS_LPI_EXIT_NOTIF);
+		acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_LPI_EXIT_NOTIF);
 		if (supports_function(sc, DSM_MS, DSM_MS_TURN_ON_DISPLAY))
-			acpi_spmc_run_dsm(dev, &dsm_ms,
+			acpi_spmc_run(dev, &dsm_ms,
 			    DSM_MS_TURN_ON_DISPLAY);
-		acpi_spmc_run_dsm(dev, &dsm_ms, DSM_MS_SLEEP_EXIT_NOTIF);
+		acpi_spmc_run(dev, &dsm_ms, DSM_MS_SLEEP_EXIT_NOTIF);
 	}
 }
 
