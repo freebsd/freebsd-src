@@ -391,10 +391,8 @@ setinputfile(const char *fname, int push, int verify)
 void
 setinputfd(int fd, int push)
 {
-	if (push) {
+	if (push)
 		pushfile();
-		parsefile->buf = ckmalloc(BUFSIZ + 1);
-	}
 	if (parsefile->fd > 0)
 		close(parsefile->fd);
 	parsefile->fd = fd;
@@ -441,6 +439,7 @@ pushfile(void)
 	pf = (struct parsefile *)ckmalloc(sizeof (struct parsefile));
 	pf->prev = parsefile;
 	pf->fd = -1;
+	pf->buf = NULL;
 	pf->strpush = NULL;
 	pf->basestrpush.prev = NULL;
 	parsefile = pf;
