@@ -294,6 +294,14 @@ static const struct cpu_parts cpu_parts_apple[] = {
 	{ CPU_PART_M2_AVALANCHE_PRO, "M2 Pro Avalanche" },
 	{ CPU_PART_M2_BLIZZARD_MAX, "M2 Max Blizzard" },
 	{ CPU_PART_M2_AVALANCHE_MAX, "M2 Max Avalanche" },
+/* ... existing M1/M2 ... */
+    	{ CPU_PART_M3_MALACCA,   "M3 Malacca" },
+    	{ CPU_PART_M3_SAWTOOTH,  "M3 Sawtooth" },
+    	{ CPU_PART_M4_TAHOE,     "M4 Tahoe" },
+    	{ CPU_PART_M4_SEYMOUR,   "M4 Seymour" },
+    /* Support for virtualized environments like yours */
+    	{ CPU_PART_APPLE_VIRT_P, "Apple Virtual Performance" },
+    	{ CPU_PART_APPLE_VIRT_E, "Apple Virtual Efficiency" },
 	CPU_PART_NONE,
 };
 
