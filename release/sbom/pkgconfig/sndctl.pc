@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: sndctl
+Description: List and modify soundcard properties
+URL: https://man.freebsd.org/cgi/man.cgi?query=sndctl(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/sndctl
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2024-2025 The FreeBSD Foundation

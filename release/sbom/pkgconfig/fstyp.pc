@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: fstyp
+Description: Determine filesystem type
+URL: https://man.freebsd.org/cgi/man.cgi?query=fstyp(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/fstyp
+License: BSD-2-Clause AND BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.bdacc9d5.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt
+Copyright: 2019 Conrad Meyer <cem@FreeBSD.org>, 2014 The FreeBSD Foundation, 2011-2018 The DragonFly Project, 2016-2019 The DragonFly Project, 2016-2019 Tomohiro Kusumi <tkusumi@netbsd.org>, 2005 Takanori Watanabe, 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>, 2006 Tobias Reifenberger, 2017-2019 The DragonFly Project, 2017-2019 Tomohiro Kusumi <tkusumi@netbsd.org>, 2007 The DragonFly Project, 2002, 2003 Gordon Tetlow, 2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>, 2015 Allan Jude <allanjude@FreeBSD.org>, 2015 Xin LI <delphij@FreeBSD.org>, 2021 Miguel Gocobachi, 2005 Stanislav Sedov, 2017 Conrad Meyer <cem@FreeBSD.org>
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libgeom, libmd, libufs

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ctld
+Description: CAM Target Layer / iSCSI target daemon
+URL: https://man.freebsd.org/cgi/man.cgi?query=ctld(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/ctld
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-intel-bsd-2-clause.b794004b.txt
+Copyright: 2014 Alexander Motin <mav@FreeBSD.org>, 2012 The FreeBSD Foundation, 2003, 2004 Silicon Graphics International Corp., 1997-2007 Kenneth D. Merry, 2017 Jakub Wojciech Klama <jceel@FreeBSD.org>, 2025 Chelsio Communications, Inc., 2015 iXsystems Inc., 2023-2025 Chelsio Communications, Inc.
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libexpat, libiscsiutil, libmd, libnv, libsbuf, libucl, libutil, msun

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: extattrctl
+Description: Manage UFS1 extended attributes
+URL: https://man.freebsd.org/cgi/man.cgi?query=extattrctl(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/extattrctl
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 1999-2002 Robert N. M. Watson
+Requires: csu, libc, libcompiler_rt, libutil

@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: etcupdate
+Description: Manage updates to system files not updated by installworld
+URL: https://man.freebsd.org/cgi/man.cgi?query=etcupdate(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/etcupdate
+License: BSD-2-Clause

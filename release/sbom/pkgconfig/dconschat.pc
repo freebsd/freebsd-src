@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: dconschat
+Description: User interface to dcons(4)
+URL: https://man.freebsd.org/cgi/man.cgi?query=dconschat(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/dconschat
+License: BSD-4-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.15290ac5.txt
+Copyright: 2003 Hidetoshi Shimokawa
+Requires: csu, libc, libcompiler_rt, libkvm

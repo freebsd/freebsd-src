@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: fdwrite
+Description: Format and write floppy disks
+URL: https://man.freebsd.org/cgi/man.cgi?query=fdwrite(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/fdwrite
+License: Beerware
+License.file: ${pcfiledir}/LICENSES/Beerware.6aa5c23c.txt
+Requires: csu, libc, libcompiler_rt

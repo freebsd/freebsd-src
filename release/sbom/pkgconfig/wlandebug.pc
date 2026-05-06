@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: wlandebug
+Description: Set/query 802.11 wireless debugging messages
+URL: https://man.freebsd.org/cgi/man.cgi?query=wlandebug(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/wlandebug
+License: NOASSERTION
+Copyright: 2002-2009 Sam Leffler, Errno Consulting
+Requires: csu, libc, libcompiler_rt, libifconfig, msun

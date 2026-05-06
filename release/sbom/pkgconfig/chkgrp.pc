@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: chkgrp
+Description: Check the syntax of the group file
+URL: https://man.freebsd.org/cgi/man.cgi?query=chkgrp(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/chkgrp
+License: LicenseRef-scancode-bsd-unchanged
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.e00db836.txt
+Copyright: 1998 Dag-Erling Smorgrav
+Requires: csu, libc, libcompiler_rt

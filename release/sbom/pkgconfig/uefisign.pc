@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: uefisign
+Description: UEFI Secure Boot signing utility
+URL: https://man.freebsd.org/cgi/man.cgi?query=uefisign(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/uefisign
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2014 The FreeBSD Foundation
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt

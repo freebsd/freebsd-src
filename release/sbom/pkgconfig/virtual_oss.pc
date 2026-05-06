@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: virtual_oss
+Description: Daemon to multiplex and demultiplex an OSS device
+URL: https://man.freebsd.org/cgi/man.cgi?query=virtual_oss(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/virtual_oss/virtual_oss
+License: BSD-2-Clause AND BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.987de04e.txt
+Copyright: 2021 Hans Petter Selasky, 2017 Hans Petter Selasky, 2012-2022 Hans Petter Selasky, 2018 Hans Petter Selasky, 2020 Hans Petter Selasky, 2014 Hans Petter Selasky, 2012-2020 Hans Petter Selasky, 2015 Hans Petter Selasky

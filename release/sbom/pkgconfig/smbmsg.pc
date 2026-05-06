@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: smbmsg
+Description: Send or receive messages over an SMBus
+URL: https://man.freebsd.org/cgi/man.cgi?query=smbmsg(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/smbmsg
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.e8f7e0ee.txt
+Copyright: 2004 Joerg Wunsch
+Requires: csu, libc, libcompiler_rt

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: dumpcis
+Description: PC Card and Cardbus (PCMCIA) CIS display tool
+URL: https://man.freebsd.org/cgi/man.cgi?query=dumpcis(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/dumpcis
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.b5add324.txt
+Copyright: 2006 M. Warner Losh <imp@FreeBSD.org>, 1995 Andrew McRae
+Requires: csu, libc, libcompiler_rt
