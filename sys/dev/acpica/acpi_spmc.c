@@ -206,6 +206,11 @@ SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, verbose, CTLFLAG_RW,
 
 #define VERBOSE()	(verbose || bootverbose)
 
+static bool force_call_expected_functions;
+SYSCTL_BOOL(_debug_acpi_spmc, OID_AUTO, always_call_expected_functions,
+    CTLFLAG_RW, &force_call_expected_functions, 0,
+    "Call all expected functions on a present DSM, even those not enumerated.");
+
 struct acpi_spmc_constraint {
 	bool		enabled;
 	char		*name;
@@ -461,7 +466,7 @@ acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
 		print_bit_field(buf, sizeof(buf), missing, "FUNC",
 		    pbf_function_name, dsm);
 		device_printf(sc->dev, "DSM %s: Does not enumerate expected "
-		    "functions %#" PRIx64 "%s.  Calls to them may fail.\n",
+		    "functions %#" PRIx64 "%s.  Will skip calling them.\n",
 		    dsm->name, missing, buf);
 	}
 
@@ -635,14 +640,14 @@ acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc)
 	 * report that condition to us, and somewhat arbitrarily favor the Intel
 	 * one because it at least has a written specification.
 	 */
-	if (has_dsm(sc, DSM_INTEL)) {
+	if (supports_function(sc, DSM_INTEL, DSM_GET_DEVICE_CONSTRAINTS)) {
 		dsm = &dsm_intel;
 
-		if (has_dsm(sc, DSM_AMD))
+		if (supports_function(sc, DSM_AMD, DSM_GET_DEVICE_CONSTRAINTS))
 			device_printf(sc->dev, "Constraints: Both Intel and "
-			    "AMD DSMs are present!\n"
+			    "AMD DSMs support getting them!\n"
 			    "Using constraints from Intel.\nPlease report.\n");
-	} else if (has_dsm(sc, DSM_AMD))
+	} else if (supports_function(sc, DSM_AMD, DSM_GET_DEVICE_CONSTRAINTS))
 		dsm = &dsm_amd;
 	else
 		return (0);
@@ -690,8 +695,9 @@ acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc)
 }
 
 static void
-acpi_spmc_check_constraints(struct acpi_spmc_softc *sc)
+acpi_spmc_check_constraints(device_t dev)
 {
+	const struct acpi_spmc_softc *const sc = device_get_softc(dev);
 #ifdef notyet
 	bool violation = false;
 #endif
@@ -703,7 +709,8 @@ acpi_spmc_check_constraints(struct acpi_spmc_softc *sc)
 	if (sc->constraint_count == 0)
 		return;
 	for (size_t i = 0; i < sc->constraint_count; i++) {
-		struct acpi_spmc_constraint *constraint = &sc->constraints[i];
+		const struct acpi_spmc_constraint *constraint =
+		    &sc->constraints[i];
 
 		if (!constraint->enabled)
 			continue;
@@ -738,6 +745,7 @@ acpi_spmc_check_constraints(struct acpi_spmc_softc *sc)
 /*
  * Run a single DSM function.
  *
+ * Only runs the function if it was reported present during enumeration.
  * Discards the result, but prints a message on error.
  */
 static void
@@ -747,6 +755,10 @@ acpi_spmc_run(device_t dev, const struct dsm_desc *const dsm,
 	const struct acpi_spmc_softc *const sc = device_get_softc(dev);
 	ACPI_STATUS status;
 	ACPI_BUFFER result;
+
+	if (!(supports_function(sc, dsm->index, function_index) ||
+	    (force_call_expected_functions && has_dsm(sc, dsm->index))))
+		return;
 
 	status = acpi_EvaluateDSMTyped(sc->handle, (const uint8_t *)&dsm->uuid,
 	    dsm->revision, function_index, NULL, &result, ACPI_TYPE_ANY);
@@ -767,67 +779,40 @@ acpi_spmc_run(device_t dev, const struct dsm_desc *const dsm,
 static void
 acpi_spmc_display_off_notif(device_t dev)
 {
-	struct acpi_spmc_softc *sc = device_get_softc(dev);
-
-	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run(dev, &dsm_intel,
-		    DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
-	if (has_dsm(sc, DSM_MS))
-		acpi_spmc_run(dev, &dsm_ms,
-		    DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
-	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_DISPLAY_OFF_NOTIF);
+	acpi_spmc_run(dev, &dsm_intel, DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
+	acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_DISPLAY_OFF_NOTIF);
+	acpi_spmc_run(dev, &dsm_amd, DSM_AMD_DISPLAY_OFF_NOTIF);
 }
 
 static void
 acpi_spmc_display_on_notif(device_t dev)
 {
-	struct acpi_spmc_softc *sc = device_get_softc(dev);
-
-	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run(dev, &dsm_intel,
-		    DSM_INTEL_MS_DISPLAY_ON_NOTIF);
-	if (has_dsm(sc, DSM_MS))
-		acpi_spmc_run(dev, &dsm_ms,
-		    DSM_INTEL_MS_DISPLAY_ON_NOTIF);
-	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_DISPLAY_ON_NOTIF);
+	acpi_spmc_run(dev, &dsm_intel, DSM_INTEL_MS_DISPLAY_ON_NOTIF);
+	acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_DISPLAY_ON_NOTIF);
+	acpi_spmc_run(dev, &dsm_amd, DSM_AMD_DISPLAY_ON_NOTIF);
 }
 
 static void
 acpi_spmc_entry_notif(device_t dev)
 {
-	struct acpi_spmc_softc *sc = device_get_softc(dev);
+	/* XXX - No real check currently. Check return code when it does. */
+	acpi_spmc_check_constraints(dev);
 
-	acpi_spmc_check_constraints(sc);
-
-	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_LPI_ENTRY_NOTIF);
-	if (has_dsm(sc, DSM_MS)) {
-		acpi_spmc_run(dev, &dsm_ms, DSM_MS_SLEEP_ENTRY_NOTIF);
-		acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_LPI_ENTRY_NOTIF);
-	}
-	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run(dev, &dsm_intel,
-		    DSM_INTEL_MS_LPI_ENTRY_NOTIF);
+	acpi_spmc_run(dev, &dsm_amd, DSM_AMD_LPI_ENTRY_NOTIF);
+	acpi_spmc_run(dev, &dsm_ms, DSM_MS_SLEEP_ENTRY_NOTIF);
+	acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_LPI_ENTRY_NOTIF);
+	acpi_spmc_run(dev, &dsm_intel, DSM_INTEL_MS_LPI_ENTRY_NOTIF);
 }
 
 static void
 acpi_spmc_exit_notif(device_t dev)
 {
-	struct acpi_spmc_softc *sc = device_get_softc(dev);
-
-	if (has_dsm(sc, DSM_INTEL))
-		acpi_spmc_run(dev, &dsm_intel, DSM_INTEL_MS_LPI_EXIT_NOTIF);
-	if (has_dsm(sc, DSM_AMD))
-		acpi_spmc_run(dev, &dsm_amd, DSM_AMD_LPI_EXIT_NOTIF);
-	if (has_dsm(sc, DSM_MS)) {
-		acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_LPI_EXIT_NOTIF);
-		if (supports_function(sc, DSM_MS, DSM_MS_TURN_ON_DISPLAY))
-			acpi_spmc_run(dev, &dsm_ms,
-			    DSM_MS_TURN_ON_DISPLAY);
-		acpi_spmc_run(dev, &dsm_ms, DSM_MS_SLEEP_EXIT_NOTIF);
-	}
+	acpi_spmc_run(dev, &dsm_intel, DSM_INTEL_MS_LPI_EXIT_NOTIF);
+	acpi_spmc_run(dev, &dsm_amd, DSM_AMD_LPI_EXIT_NOTIF);
+	acpi_spmc_run(dev, &dsm_ms, DSM_INTEL_MS_LPI_EXIT_NOTIF);
+	/* Hint to the platform we are soon going to turn on the display. */
+	acpi_spmc_run(dev, &dsm_ms, DSM_MS_TURN_ON_DISPLAY);
+	acpi_spmc_run(dev, &dsm_ms, DSM_MS_SLEEP_EXIT_NOTIF);
 }
 
 static void
