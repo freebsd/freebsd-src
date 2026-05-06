@@ -220,11 +220,10 @@ ARCHENTRY(strrchr, avx2)
 	vpmovmskb	%ymm3, %eax
 	vpmovmskb	%ymm4, %ecx
 
-	and		%edx, %eax
 	and		%edx, %ecx
+	and		%edx, %eax
 
 	/* NUL in first block */
-	test		%eax, %eax
 	jz		.Lhead_no_nul
 
 	tzcnt		%eax, %edx		# first NUL
@@ -232,12 +231,14 @@ ARCHENTRY(strrchr, avx2)
 	bzhi		%edx, %r11d, %r11d	# mask before NUL
 	and		%r11d, %ecx
 
-	test		%ecx, %ecx
-	jz		.Lret_last
-
 	bsr		%ecx, %edx		# last match
-	lea		(%r9,%rdx,1), %r8
-	jmp		.Lret_last
+	lea		(%r9,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
+	/* return last match */
+	mov		%r8, %rax
+	vzeroupper
+	ret
 
 .Lhead_no_nul:
 	/* match in first block */
@@ -282,28 +283,6 @@ ARCHENTRY(strrchr, avx2)
 	mov		%r8, %rax
 	vzeroupper
 	ret
-
-.Lret_last:
-	/* return last match */
-	mov		%r8, %rax
-	vzeroupper
-	ret
-
-	/* scalar fallback */
-.Lpeel:
-	movzbl		(%rdi), %eax
-	test		%al, %al
-	je		.Lret_last
-
-	cmp		%sil, %al
-	jne		.Lpeel_next
-	mov		%rdi, %r8
-
-.Lpeel_next:
-	inc		%rdi
-	test		$4095, %edi
-	jnz		.Lpeel
-	jmp		.Lloop
 
 	/* find NUL (c == 0) */
 .Lfind_nul:
