@@ -726,7 +726,7 @@ check_intparams(struct cfjail *j)
 		TAILQ_FOREACH(s, &j->intparams[IP_MOUNT_FSTAB]->val, tq) {
 			if (s->len == 0)
 				continue;
-			f = fopen(s->s, "r");
+			f = fopen(s->s, "re");
 			if (f == NULL) {
 				jail_warnx(j, "mount.fstab: %s: %s",
 				    s->s, strerror(errno));
