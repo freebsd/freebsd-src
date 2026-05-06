@@ -88,6 +88,11 @@ case "$OS" in
     OSv="fedora-unknown"
     URL="https://download.fedoraproject.org/pub/fedora/linux/releases/43/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-43-1.6.x86_64.qcow2"
     ;;
+  fedora44)
+    OSNAME="Fedora 44"
+    OSv="fedora-unknown"
+    URL="https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2"
+    ;;
   freebsd13-5r)
     FreeBSD="13.5-RELEASE"
     OSNAME="FreeBSD $FreeBSD"
@@ -101,6 +106,13 @@ case "$OS" in
     OSNAME="FreeBSD $FreeBSD"
     OSv="freebsd14.0"
     URLxz="$FREEBSD_REL/$FreeBSD/amd64/Latest/FreeBSD-$FreeBSD-amd64-BASIC-CI.raw.xz"
+    KSRC="$FREEBSD_REL/../amd64/$FreeBSD/src.txz"
+    ;;
+  freebsd15-0r)
+    FreeBSD="15.0-RELEASE"
+    OSNAME="FreeBSD $FreeBSD"
+    OSv="freebsd15.0"
+    URLxz="$FREEBSD_REL/$FreeBSD/amd64/Latest/FreeBSD-$FreeBSD-amd64-BASIC-CI-ufs.raw.xz"
     KSRC="$FREEBSD_REL/../amd64/$FreeBSD/src.txz"
     ;;
   freebsd13-5s)
@@ -118,8 +130,8 @@ case "$OS" in
     URLxz="$FREEBSD_SNAP/$FreeBSD/amd64/Latest/FreeBSD-$FreeBSD-amd64-BASIC-CI-ufs.raw.xz"
     KSRC="$FREEBSD_SNAP/../amd64/$FreeBSD/src.txz"
     ;;
-  freebsd15-0s)
-    FreeBSD="15.0-STABLE"
+  freebsd15-1s)
+    FreeBSD="15.1-PRERELEASE"
     OSNAME="FreeBSD $FreeBSD"
     OSv="freebsd14.0"
     URLxz="$FREEBSD_SNAP/$FreeBSD/amd64/Latest/FreeBSD-$FreeBSD-amd64-BASIC-CI-ufs.raw.xz"
