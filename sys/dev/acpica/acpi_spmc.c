@@ -200,6 +200,12 @@ SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, intel_dsm_revision, CTLFLAG_RW,
 SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, amd_dsm_revision, CTLFLAG_RW,
     &dsm_amd.revision, 0, "Revision to use when evaluating AMD SPMC DSMs");
 
+static int verbose;
+SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, verbose, CTLFLAG_RW,
+    &verbose, 0, "acpi_spmc(4) verbosity");
+
+#define VERBOSE()	(verbose || bootverbose)
+
 struct acpi_spmc_constraint {
 	bool		enabled;
 	char		*name;
