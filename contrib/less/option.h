@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -24,6 +24,7 @@
 #define O_NO_QUERY        0400    /* Option cannot be queried with "_" cmd */
 #define O_INIT_HANDLER    01000   /* Call option handler function at startup */
 #define O_UNSUPPORTED     02000   /* Option is unsupported via LESS_UNSUPPORT */
+#define O_NEGOK           04000   /* O_NUMBER parameter may be negative */
 
 #define OTYPE           (O_BOOL|O_TRIPLE|O_NUMBER|O_STRING|O_NOVAR)
 
