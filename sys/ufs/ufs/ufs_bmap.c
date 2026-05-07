@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -44,10 +43,13 @@
 #include <sys/mount.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/stat.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vnode_pager.h>
 
 #include <ufs/ufs/extattr.h>
@@ -58,6 +60,11 @@
 
 static ufs_lbn_t lbn_count(struct ufsmount *, int);
 static int readindir(struct vnode *, ufs_lbn_t, ufs2_daddr_t, struct buf **);
+
+static int ufs_bmap_use_unmapped = 1;
+
+SYSCTL_INT(_vfs_ufs, OID_AUTO, bmap_use_unmapped, CTLFLAG_RWTUN,
+    &ufs_bmap_use_unmapped, 0, "UFS bmap uses unmapped bufs");
 
 /*
  * Bmap converts the logical block number of a file to its physical block
@@ -102,12 +109,15 @@ readindir(struct vnode *vp,
 	struct buf *bp;
 	struct mount *mp;
 	struct ufsmount *ump;
-	int error;
+	struct inode *ip;
+	int error, gbflags;
 
 	mp = vp->v_mount;
 	ump = VFSTOUFS(mp);
+	ip = VTOI(vp);
 
-	bp = getblk(vp, lbn, mp->mnt_stat.f_iosize, 0, 0, 0);
+	gbflags = !I_IS_UFS1(ip) && ufs_bmap_use_unmapped ? GB_UNMAPPED : 0;
+	bp = getblk(vp, lbn, mp->mnt_stat.f_iosize, 0, 0, gbflags);
 	if ((bp->b_flags & B_CACHE) == 0) {
 		KASSERT(daddr != 0,
 		    ("readindir: indirect block not in cache"));
@@ -151,6 +161,24 @@ readindir(struct vnode *vp,
  * next block and the disk address of the block (if it is assigned).
  */
 
+static void *
+ufs_bm_sf_get(struct buf *bp, int32_t pgidx, struct sf_buf **sfp)
+{
+	struct sf_buf *sf;
+
+	sched_pin();
+	sf = sf_buf_alloc(bp->b_pages[pgidx], SFB_CPUPRIVATE);
+	*sfp = sf;
+	return (sf_buf_kva(sf));
+}
+
+static void
+ufs_bm_sf_put(struct sf_buf *sf)
+{
+	sf_buf_free(sf);
+	sched_unpin();
+}
+
 int
 ufs_bmaparray(struct vnode *vp,
 	ufs2_daddr_t bn,
@@ -164,10 +192,16 @@ ufs_bmaparray(struct vnode *vp,
 	struct ufsmount *ump;
 	struct mount *mp;
 	struct indir a[UFS_NIADDR+1], *ap;
+	struct sf_buf *sf;
 	ufs2_daddr_t daddr;
 	ufs_lbn_t metalbn;
 	int error, num, maxrun = 0;
 	int *nump;
+	ufs1_daddr_t *daddr1p;
+	ufs2_daddr_t pgbn, daddrppg, prevdaddr, *daddr2p;
+	int32_t daddrsz, boff, pgidx, pgoff;
+	void *pgaddr;
+	bool isseq;
 
 	ap = NULL;
 	ip = VTOI(vp);
@@ -261,17 +295,71 @@ ufs_bmaparray(struct vnode *vp,
 		if (error != 0)
 			return (error);
 
-		if (I_IS_UFS1(ip))
-			daddr = ((ufs1_daddr_t *)bp->b_data)[ap->in_off];
-		else
-			daddr = ((ufs2_daddr_t *)bp->b_data)[ap->in_off];
+		daddrsz = I_IS_UFS1(ip) ? sizeof(ufs1_daddr_t) : sizeof(ufs2_daddr_t);
+		if (!buf_mapped(bp)) {
+			boff = ap->in_off * daddrsz;
+			pgidx = boff / PAGE_SIZE;
+			pgoff = (boff & PAGE_MASK) / daddrsz;
+			pgaddr = ufs_bm_sf_get(bp, pgidx, &sf);
+			if (I_IS_UFS1(ip))
+				daddr = ((ufs1_daddr_t *)pgaddr)[pgoff];
+			else
+				daddr = ((ufs2_daddr_t *)pgaddr)[pgoff];
+			ufs_bm_sf_put(sf);
+		} else {
+			if (I_IS_UFS1(ip))
+				daddr = ((ufs1_daddr_t *)bp->b_data)[ap->in_off];
+			else
+				daddr = ((ufs2_daddr_t *)bp->b_data)[ap->in_off];
+		}
+
 		if ((error = UFS_CHECK_BLKNO(mp, ip->i_number, daddr,
 		     mp->mnt_stat.f_iosize)) != 0) {
 			bqrelse(bp);
 			return (error);
 		}
+		if (num > 1 || daddr == 0 || runp == NULL)
+			continue;
+
+		daddrppg = PAGE_SIZE / daddrsz;
 		if (I_IS_UFS1(ip)) {
-			if (num == 1 && daddr && runp) {
+			if (!buf_mapped(bp)) {
+				prevdaddr = daddr;
+				isseq = true;
+				for (bn = ap->in_off + 1;
+				    bn < MNINDIR(ump) && *runp < maxrun && isseq; ) {
+					boff = bn * daddrsz;
+					pgidx = boff / PAGE_SIZE;
+					pgoff = (boff & PAGE_MASK) / daddrsz;
+					KASSERT(pgidx >= 0 && pgidx < bp->b_npages,
+						("pgidx %d vs b_npages %d", pgidx, bp->b_npages));
+					pgaddr = ufs_bm_sf_get(bp, pgidx, &sf);
+					daddr1p = (ufs1_daddr_t *)pgaddr;
+					for (pgbn = pgoff;
+					     pgbn < daddrppg && *runp < maxrun &&
+					     (isseq = is_sequential(ump, prevdaddr, daddr1p[pgbn]));
+					     prevdaddr = daddr1p[pgbn], ++pgbn, ++bn, ++*runp);
+					ufs_bm_sf_put(sf);
+				}
+				prevdaddr = daddr;
+				bn = ap->in_off;
+				if (runb && bn) {
+					isseq = true;
+					for (--bn; bn >= 0 && *runb < maxrun && isseq; ) {
+						boff = bn * daddrsz;
+						pgidx = boff / PAGE_SIZE;
+						pgoff = (boff & PAGE_MASK) / daddrsz;
+						KASSERT(pgidx >= 0 && pgidx < bp->b_npages,
+							("pgidx %d vs b_npages %d", pgidx, bp->b_npages));
+						pgaddr = ufs_bm_sf_get(bp, pgidx, &sf);
+						daddr1p = (ufs1_daddr_t *)pgaddr;
+						for (pgbn = pgoff; pgbn >= 0 && *runb < maxrun &&
+						     (isseq = is_sequential(ump, daddr1p[pgbn], prevdaddr));
+						     prevdaddr = daddr1p[pgbn], --pgbn, --bn, ++*runb);
+						ufs_bm_sf_put(sf);
+					}
+				}
+			} else {
 				for (bn = ap->in_off + 1;
 				    bn < MNINDIR(ump) && *runp < maxrun &&
 				    is_sequential(ump,
@@ -289,7 +377,44 @@ ufs_bmaparray(struct vnode *vp,
 			}
 			continue;
 		}
-		if (num == 1 && daddr && runp) {
+
+		if (!buf_mapped(bp)) {
+			prevdaddr = daddr;
+			isseq = true;
+			for (bn = ap->in_off + 1;
+			    bn < MNINDIR(ump) && *runp < maxrun && isseq; ) {
+				boff = bn * daddrsz;
+				pgidx = boff / PAGE_SIZE;
+				pgoff = (boff & PAGE_MASK) / daddrsz;
+				KASSERT(pgidx >= 0 && pgidx < bp->b_npages,
+					("pgidx %d vs b_npages %d", pgidx, bp->b_npages));
+				pgaddr = ufs_bm_sf_get(bp, pgidx, &sf);
+				daddr2p = (ufs2_daddr_t *)pgaddr;
+				for (pgbn = pgoff;
+				     pgbn < daddrppg && *runp < maxrun &&
+				     (isseq = is_sequential(ump, prevdaddr, daddr2p[pgbn]));
+				     prevdaddr = daddr2p[pgbn], ++pgbn, ++bn, ++*runp);
+				ufs_bm_sf_put(sf);
+			}
+			prevdaddr = daddr;
+			bn = ap->in_off;
+			if (runb && bn) {
+				isseq = true;
+				for (--bn; bn >= 0 && *runb < maxrun && isseq; ) {
+					boff = bn * daddrsz;
+					pgidx = boff / PAGE_SIZE;
+					pgoff = (boff & PAGE_MASK) / daddrsz;
+					KASSERT(pgidx >= 0 && pgidx < bp->b_npages,
+						("pgidx %d vs b_npages %d", pgidx, bp->b_npages));
+					pgaddr = ufs_bm_sf_get(bp, pgidx, &sf);
+					daddr2p = (ufs2_daddr_t *)pgaddr;
+					for (pgbn = pgoff; pgbn >= 0 && *runb < maxrun &&
+					     (isseq = is_sequential(ump, daddr2p[pgbn], prevdaddr));
+					     prevdaddr = daddr2p[pgbn], --pgbn, --bn, ++*runb);
+					ufs_bm_sf_put(sf);
+				}
+			}
+		} else {
 			for (bn = ap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&
 			    is_sequential(ump,
