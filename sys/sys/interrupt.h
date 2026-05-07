@@ -32,6 +32,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/ck.h>
+#include <sys/sysctl.h>
 
 struct intr_event;
 struct intr_thread;
@@ -125,12 +126,15 @@ struct intr_event {
 	int		ie_cpu;		/* CPU this event is bound to. */
 	volatile int	ie_phase;	/* Switched to establish a barrier. */
 	volatile int	ie_active[2];	/* Filters in ISR context. */
+	u_long		ie_stray;	/* Stray interrupt counter */
+	u_long		ie_intrcnt;	/* Interrupt counter(s) */
 };
 
 /* Interrupt event flags kept in ie_flags. */
 #define	IE_SOFT		0x000001	/* Software interrupt. */
 #define	IE_SLEEPABLE	0x000002	/* Sleepable ithread */
 #define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
+#define	IE_MULTIPROC	0x000008	/* Interrupt occurs on multiple procs */
 
 /* Flags to pass to swi_sched. */
 #define	SWI_FROMNMI	0x1
@@ -154,14 +158,6 @@ struct intr_event {
 
 struct proc;
 
-extern struct	intr_event *clk_intr_event;
-
-/* Counts and names for statistics (defined in MD code). */
-extern u_long 	*intrcnt;	/* counts for each device and stray */
-extern char 	*intrnames;	/* string table containing device names */
-extern size_t	sintrcnt;	/* size of intrcnt table */
-extern size_t	sintrnames;	/* size of intrnames table */
-
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
@@ -183,7 +179,8 @@ int	intr_event_create(struct intr_event **event, void *source,
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
 int	intr_event_destroy(struct intr_event *ie);
-int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
+void	intr_event_incr(struct intr_event *ie);
+u_long	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
@@ -196,5 +193,9 @@ int	swi_add(struct intr_event **eventp, const char *name,
 	    void **cookiep);
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
+
+/* For handling the core interrupt counters and names */
+extern int intr_event_sysctl_intrnames(SYSCTL_HANDLER_ARGS);
+extern int intr_event_sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
 
 #endif

@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
+ * Copyright © 2022-2024 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,8 +33,10 @@
 #include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/clock.h>
 #include <sys/cpuset.h>
 #include <sys/rtprio.h>
 #include <sys/systm.h>
@@ -45,12 +48,15 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/epoch.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/stdarg.h>
 #include <sys/sysctl.h>
@@ -86,7 +92,6 @@ struct	intr_entropy {
 	uintptr_t event;
 };
 
-struct	intr_event *clk_intr_event;
 struct proc *intrproc;
 
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
@@ -105,10 +110,13 @@ SYSCTL_INT(_hw, OID_AUTO, intr_hwpmc_waiting_report_threshold, CTLFLAG_RWTUN,
     "Threshold for reporting number of events in a workq");
 #define	PMC_HOOK_INSTALLED_ANY() __predict_false(pmc_hook != NULL)
 #endif
-static TAILQ_HEAD(, intr_event) event_list =
-    TAILQ_HEAD_INITIALIZER(event_list);
-static struct mtx event_lock;
-MTX_SYSINIT(intr_event_list, &event_lock, "intr event list", MTX_DEF);
+/*
+ * Exported to allow crash dump analysis.  NOT TO BE REFERENCED FOR ANY OTHER
+ * PURPOSE!
+ */
+TAILQ_HEAD(, intr_event) event_list = TAILQ_HEAD_INITIALIZER(event_list);
+static struct rwlock event_lock;
+RW_SYSINIT(intr_event_list, &event_lock, "intr event list");
 
 static void	intr_event_update(struct intr_event *ie);
 static int	intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame);
@@ -118,7 +126,6 @@ static void	ithread_execute_handlers(struct proc *p,
 		    struct intr_event *ie);
 static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
-static void	start_softintr(void *);
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -137,6 +144,14 @@ do {					\
 		PMC_SOFT_CALL( , , intr, event);		\
 } while (0)
 #endif
+
+#define INTRCNT_MULTI_COUNT 64
+/*
+ * Exported to allow crash dump analysis.  NOT TO BE REFERENCED FOR ANY OTHER
+ * PURPOSE!
+ */
+DPCPU_DEFINE(u_long, intrcnt_multi[INTRCNT_MULTI_COUNT]);
+static bitstr_t bit_decl(intrcnt_multi_inuse, INTRCNT_MULTI_COUNT);
 
 /* Map an interrupt type to an ithread priority. */
 u_char
@@ -284,8 +299,8 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	struct intr_event *ie;
 	va_list ap;
 
-	/* The only valid flag during creation is IE_SOFT. */
-	if ((flags & ~IE_SOFT) != 0)
+	/* The flags valid during creation are IE_SOFT and IE_MULTIPROC. */
+	if ((flags & ~(IE_SOFT | IE_MULTIPROC)) != 0)
 		return (EINVAL);
 	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
 	ie->ie_source = source;
@@ -296,6 +311,7 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	ie->ie_flags = flags;
 	ie->ie_irq = irq;
 	ie->ie_cpu = NOCPU;
+	/* ->ie_stray and ->ie_intrcnt handled by M_ZERO */
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
@@ -303,9 +319,22 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
 	va_end(ap);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
-	mtx_lock(&event_lock);
+	rw_wlock(&event_lock);
+	if (flags & IE_MULTIPROC) {
+		int idx;
+		bit_ffc(intrcnt_multi_inuse, INTRCNT_MULTI_COUNT, &idx);
+
+		if (bootverbose)
+			printf("Allocate multi-processor counter #%d to \"%s"
+			    "\"\n", idx, ie->ie_name);
+
+		if (idx == -1)
+			panic("Exhausted multiprocessor interrupt counters");
+		bit_set(intrcnt_multi_inuse, idx);
+		ie->ie_intrcnt = idx;
+	}
 	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
-	mtx_unlock(&event_lock);
+	rw_wunlock(&event_lock);
 	if (event != NULL)
 		*event = ie;
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
@@ -432,13 +461,13 @@ intr_lookup(int irq)
 {
 	struct intr_event *ie;
 
-	mtx_lock(&event_lock);
+	rw_rlock(&event_lock);
 	TAILQ_FOREACH(ie, &event_list, ie_list)
 		if (ie->ie_irq == irq &&
 		    (ie->ie_flags & IE_SOFT) == 0 &&
 		    CK_SLIST_FIRST(&ie->ie_handlers) != NULL)
 			break;
-	mtx_unlock(&event_lock);
+	rw_runlock(&event_lock);
 	return (ie);
 }
 
@@ -533,15 +562,24 @@ intr_event_destroy(struct intr_event *ie)
 	if (ie == NULL)
 		return (EINVAL);
 
-	mtx_lock(&event_lock);
+	rw_wlock(&event_lock);
 	mtx_lock(&ie->ie_lock);
 	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
 		mtx_unlock(&ie->ie_lock);
-		mtx_unlock(&event_lock);
+		rw_wunlock(&event_lock);
 		return (EBUSY);
 	}
 	TAILQ_REMOVE(&event_list, ie, ie_list);
-	mtx_unlock(&event_lock);
+
+	if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+		u_int i;
+
+		CPU_FOREACH(i)
+			DPCPU_ID_GET(i, intrcnt_multi)[ie->ie_intrcnt] = 0;
+		bit_clear(intrcnt_multi_inuse, ie->ie_intrcnt);
+	}
+	rw_wunlock(&event_lock);
+
 	if (ie->ie_thread != NULL)
 		ithread_destroy(ie->ie_thread);
 	mtx_unlock(&ie->ie_lock);
@@ -615,6 +653,19 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		    __func__);
 		return (EINVAL);
 	}
+
+	if ((flags & INTR_MULTIPROC) && !(ie->ie_flags & IE_MULTIPROC)) {
+#if defined(INVARIANTS) || defined(DEBUG)
+		printf("%s: Requested multi-processor interupt, but got "
+		    "uniprocessor interrupt\n", name);
+#endif
+		return (ENODEV);
+	}
+#if defined(INVARIANTS) || defined(DEBUG)
+	if (!(flags & INTR_MULTIPROC) && (ie->ie_flags & IE_MULTIPROC))
+		printf("%s: Requested uniprocessor interupt, but got "
+		    "multi-processor interrupt\n", name);
+#endif
 
 	/* Allocate and populate an interrupt handler structure. */
 	ih = malloc(sizeof(struct intr_handler), M_ITHREAD, M_WAITOK | M_ZERO);
@@ -1043,10 +1094,14 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
 	struct intr_event *ie;
+	int ieflags = IE_SOFT;
 	int error = 0;
 
 	if (flags & INTR_ENTROPY)
 		return (EINVAL);
+
+	if (flags & INTR_MULTIPROC)
+		ieflags |= IE_MULTIPROC;
 
 	ie = (eventp != NULL) ? *eventp : NULL;
 
@@ -1054,8 +1109,10 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
-		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
+		error = intr_event_create(&ie, NULL, ieflags, 0,
+		    NULL, NULL, NULL, swi_assign_cpu,
+		    handler == NULL && name != NULL ? "%2$s swi%1$d:" : "swi%d",
+		    pri, name);
 		if (error)
 			return (error);
 		if (eventp != NULL)
@@ -1100,9 +1157,13 @@ swi_sched(void *cookie, int flags)
 
 	if (flags & SWI_FROMNMI) {
 #if defined(SMP) && (defined(__i386__) || defined(__amd64__))
+#ifdef DEV_ACPI
 		KASSERT(ie == clk_intr_event,
 		    ("SWI_FROMNMI used not with clk_intr_event"));
 		ipi_self_from_nmi(IPI_SWI);
+#else
+		KASSERT(0, ("SWI_FROMNMI used not with clk_intr_event"));
+#endif
 #endif
 	} else {
 		VM_CNT_INC(v_soft);
@@ -1328,6 +1389,30 @@ ithread_loop(void *arg)
 }
 
 /*
+ * Increment event counter on event.
+ *
+ * Input:
+ * o ie:                        the event connected to this interrupt.
+ *
+ */
+void
+intr_event_incr(struct intr_event *ie)
+{
+
+	/*
+	 * Note about interrupt counters.  Having per-processor counters avoids
+	 * the need for atomic increment of counters.  Whereas other interrupt
+	 * types will be bound to a single processor and not need atomics.
+	 * Per-processor interrupts are *never* flagged as stray, so stray
+	 * counters don't need atomic increment.
+	 */
+	if (__predict_false(ie->ie_flags & IE_MULTIPROC))
+		++DPCPU_GET(intrcnt_multi)[ie->ie_intrcnt];
+	else
+		++ie->ie_intrcnt;
+}
+
+/*
  * Main interrupt handling body.
  *
  * Input:
@@ -1339,9 +1424,9 @@ ithread_loop(void *arg)
  *
  * Return value:
  * o 0:                         everything ok.
- * o EINVAL:                    stray interrupt.
+ * o non-0:                     stray interrupt, current count.
  */
-int
+u_long
 intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 {
 	struct intr_handler *ih;
@@ -1349,7 +1434,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	struct thread *td;
 	int phase;
 	int ret;
-	bool filter, thread;
+	bool filter, thread, stray = true;
 
 	td = curthread;
 
@@ -1357,9 +1442,16 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	intr_prof_stack_use(td, frame);
 #endif
 
-	/* An interrupt with no event or handlers is a stray interrupt. */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers))
-		return (EINVAL);
+	/* An interrupt with no event is a stray interrupt. */
+	if (ie == NULL)
+		return (~0UL);
+
+	/* Increment the interrupt counter. */
+	intr_event_incr(ie);
+
+	/* An interrupt with no handlers is a stray interrupt. */
+	if (CK_SLIST_EMPTY(&ie->ie_handlers))
+		return (++ie->ie_stray);
 
 	/*
 	 * Execute fast interrupt handlers directly.
@@ -1401,7 +1493,8 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		    (ret & ~(FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) == 0),
 		    ("%s: incorrect return value %#x from %s", __func__, ret,
 		    ih->ih_name));
-		filter = filter || ret == FILTER_HANDLED;
+		filter = filter || !!(ret & FILTER_HANDLED);
+		stray = stray && !(ret & FILTER_STRAY);
 #ifdef HWPMC_HOOKS
 		if (ret & FILTER_SCHEDULE_THREAD)
 			PMC_SOFT_CALL_TF( , , intr, ithread, frame);
@@ -1451,11 +1544,12 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	}
 	critical_exit();
 	td->td_intr_nesting_level--;
-#ifdef notyet
+
 	/* The interrupt is not aknowledged by any filter and has no ithread. */
-	if (!thread && !filter)
-		return (EINVAL);
-#endif
+	if (!thread && !filter) {
+		++ie->ie_stray;
+		return (stray ? ie->ie_stray : 0);
+	}
 	return (0);
 }
 
@@ -1599,67 +1693,113 @@ DB_SHOW_COMMAND_FLAGS(intr, db_show_intr, DB_CMD_MEMSAFE)
 #endif /* DDB */
 
 /*
- * Start standard software interrupt threads
- */
-static void
-start_softintr(void *dummy)
-{
-
-	if (swi_add(&clk_intr_event, "clk", NULL, NULL, SWI_CLOCK,
-	    INTR_MPSAFE, NULL))
-		panic("died while creating clk swi ithread");
-}
-SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
-    NULL);
-
-/*
  * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
- * The data for this machine dependent, and the declarations are in machine
- * dependent code.  The layout of intrnames and intrcnt however is machine
- * independent.
- *
- * We do not know the length of intrcnt and intrnames at compile time, so
- * calculate things at run time.
+ * The data for this machine independent.
  */
-static int
-sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+int
+intr_event_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
+	struct sbuf sbuf;
+	struct intr_event *ie;
+	int error = 0;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	rw_rlock(&event_lock);
+	TAILQ_FOREACH(ie, &event_list, ie_list) {
+		if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+			u_int proc;
+
+			CPU_FOREACH(proc) {
+				error = sbuf_printf(&sbuf, "cpu%u:%.*s%c", proc,
+				    (int)sizeof(ie->ie_fullname),
+				    ie->ie_fullname, 0);
+				if (error != 0)
+					goto out;
+			}
+		} else {
+			error = sbuf_printf(&sbuf, "%.*s%c",
+			    (int)sizeof(ie->ie_fullname), ie->ie_fullname, 0);
+			if (error != 0)
+				goto out;
+		}
+
+		error = sbuf_printf(&sbuf, "stray %.*s%c",
+		    (int)sizeof(ie->ie_fullname), ie->ie_fullname, 0);
+		if (error != 0)
+			goto out;
+	}
+out:
+	rw_runlock(&event_lock);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
 }
 
-SYSCTL_PROC(_hw, OID_AUTO, intrnames,
-    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_intrnames, "",
-    "Interrupt Names");
-
-static int
-sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+int
+intr_event_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
+	struct sbuf sbuf;
+	struct intr_event *ie;
+	int error = 0;
+	int sz = sizeof(ie->ie_intrcnt);
+	u_long val;
+	void *arg = &val;
 #ifdef SCTL_MASK32
-	uint32_t *intrcnt32;
-	unsigned i;
-	int error;
+	uint32_t val32;
 
 	if (req->flags & SCTL_MASK32) {
-		if (!req->oldptr)
-			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
-		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
-		if (intrcnt32 == NULL)
-			return (ENOMEM);
-		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
-			intrcnt32[i] = intrcnt[i];
-		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
-		free(intrcnt32, M_TEMP);
-		return (error);
+		sz = sizeof(val32);
+		arg = &val32;
 	}
 #endif
-	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
-}
 
-SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
-    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_intrcnt, "",
-    "Interrupt Counts");
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	rw_rlock(&event_lock);
+	TAILQ_FOREACH(ie, &event_list, ie_list) {
+		if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+			u_int proc;
+
+			CPU_FOREACH(proc) {
+#ifdef SCTL_MASK32
+				val32 =
+#endif
+				val = DPCPU_ID_GET(proc, intrcnt_multi)[ie->ie_intrcnt];
+				error = sbuf_bcat(&sbuf, arg, sz);
+				if (error != 0)
+					goto out;
+			}
+		} else {
+#ifdef SCTL_MASK32
+			val32 =
+#endif
+			val = ie->ie_intrcnt;
+			error = sbuf_bcat(&sbuf, arg, sz);
+			if (error != 0)
+				goto out;
+		}
+
+#ifdef SCTL_MASK32
+		val32 =
+#endif
+		val = ie->ie_stray;
+		error = sbuf_bcat(&sbuf, arg, sz);
+		if (error != 0)
+			goto out;
+	}
+out:
+	rw_runlock(&event_lock);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
 
 #ifdef DDB
 /*
@@ -1667,19 +1807,22 @@ SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
  */
 DB_SHOW_COMMAND_FLAGS(intrcnt, db_show_intrcnt, DB_CMD_MEMSAFE)
 {
-	u_long *i;
-	char *cp;
-	u_int j;
+	struct intr_event *ie;
 
-	cp = intrnames;
-	j = 0;
-	for (i = intrcnt; j < (sintrcnt / sizeof(u_long)) && !db_pager_quit;
-	    i++, j++) {
-		if (*cp == '\0')
-			break;
-		if (*i != 0)
-			db_printf("%s\t%lu\n", cp, *i);
-		cp += strlen(cp) + 1;
-	}
+	for (ie = TAILQ_FIRST(&event_list); ie && !db_pager_quit;
+	    ie = TAILQ_NEXT(ie, ie_list))
+		if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+			u_int proc;
+
+			for (proc = 0; proc <= mp_maxid && !db_pager_quit; ++proc)
+				db_printf("cpu%u:%s\t%lu\n", proc,
+				    ie->ie_fullname, DPCPU_ID_GET(proc,
+				    intrcnt_multi)[ie->ie_intrcnt]);
+			if (!db_pager_quit)
+				db_printf("stray %s\t%lu\n", ie->ie_fullname,
+				    ie->ie_stray);
+		} else if (ie->ie_intrcnt != 0)
+			db_printf("%s\t%lu\nstray %s\t%lu\n", ie->ie_fullname,
+			    ie->ie_intrcnt, ie->ie_fullname, ie->ie_stray);
 }
 #endif
