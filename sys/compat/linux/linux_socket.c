@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/domain.h>
+#include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -1093,6 +1094,18 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	error = linux_set_socket_flags(flags, &bflags);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Linux expects EBADF for O_PATH, not ENOTSOCK.
+	 */
+	error = fget(td, s, &cap_accept_rights, &fp);
+	if (error != 0)
+		return (error);
+	if (fp->f_ops == &path_fileops) {
+		fdrop(fp, td);
+		return (EBADF);
+	}
+	fdrop(fp, td);
 
 	if (PTRIN(addr) != NULL) {
 		error = copyin(PTRIN(namelen), &len, sizeof(len));
