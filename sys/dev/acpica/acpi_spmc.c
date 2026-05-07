@@ -32,6 +32,39 @@ static char *spmc_ids[] = {
 	NULL
 };
 
+/* sysctl(8) knobs */
+static SYSCTL_NODE(_debug_acpi, OID_AUTO, spmc, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, "SPMC debugging");
+
+int8_t dsm_intel_revision = -15;
+SYSCTL_S8(_debug_acpi_spmc, OID_AUTO, intel_dsm_revision, CTLFLAG_RW,
+    &dsm_intel_revision, 0,
+    "Revision to use with the Intel DSM "
+    "(negative: auto, try from 0 to minus the value)");
+
+int8_t dsm_amd_revision = -15;
+SYSCTL_S8(_debug_acpi_spmc, OID_AUTO, amd_dsm_revision, CTLFLAG_RW,
+    &dsm_amd_revision, 0,
+    "Revision to use with the AMD DSM "
+    "(negative: auto, try from 0 to minus the value)");
+
+int8_t dsm_ms_revision = -15;
+SYSCTL_S8(_debug_acpi_spmc, OID_AUTO, ms_dsm_revision, CTLFLAG_RW,
+    &dsm_ms_revision, 0,
+    "Revision to use with the Microsoft DSM "
+    "(negative: auto, try from 0 to minus the value)");
+
+static int verbose;
+SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, verbose, CTLFLAG_RW,
+    &verbose, 0, "acpi_spmc(4) verbosity");
+
+#define VERBOSE()	(verbose || bootverbose)
+
+static bool force_call_expected_functions;
+SYSCTL_BOOL(_debug_acpi_spmc, OID_AUTO, always_call_expected_functions,
+    CTLFLAG_RW, &force_call_expected_functions, 0,
+    "Call all expected functions on a present DSM, even those not enumerated.");
+
 /* Conversion of an index to a mask. */
 #define IDX_TO_BIT(idx)		(1ull << (idx))
 
@@ -64,21 +97,20 @@ static char *spmc_ids[] = {
 
 struct dsm_desc {
 	const char		*name;
-	/* Index in the dsms[] array below. */
-	int			 index;
-	/*
-	 * Revisions are zero or a positive number.  Strictly speaking, next
-	 * field should be a 'uint64_t' as per the ACPI spec, but our ACPI DSM
-	 * interface takes an 'int' and anyway actual revision numbers never
-	 * even exceed the limits of a 'uint8_t'.
-	 */
-	int			 revision;
 	struct uuid		 uuid;
+	/*
+	 * Points to an integer which, if negative, indicates to auto-detect the
+	 * revision by trying all revisions between 0 and minus the value, else
+	 * is the sole revision to try.
+	 */
+	const int8_t		*revision_spec;
 	uint64_t		 expected_functions;
 	uint64_t		 extra_functions;
 	/* Human-friendly names of known functions. */
 	const char *const	*function_names;
 	int			 function_names_nb;
+	/* Index in the dsms[] array below. */
+	int			 index;
 };
 
 static const char *const dsm_intel_function_names[] = {
@@ -90,22 +122,14 @@ static const char *const dsm_intel_function_names[] = {
 	[DSM_INTEL_MS_LPI_EXIT_NOTIF] = "LPI_EXIT",
 };
 
-static struct dsm_desc dsm_intel = {
+static const struct dsm_desc dsm_intel = {
 	.index = DSM_INTEL,
 	.name = "Intel",
 	.uuid = { /* c4eb40a0-6cd2-11e2-bcfd-0800200c9a66 */
 		0xc4eb40a0, 0x6cd2, 0x11e2, 0xbc, 0xfd,
 		{0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66}
 	},
-	/*
-	 * XXX Linux uses 1 for the revision on Intel DSMs, but doesn't explain
-	 * why.  The commit that introduces this links to a document mentioning
-	 * revision 0, so default this to 0.
-	 *
-	 * The debug.acpi.spmc.intel_dsm_revision sysctl may be used to configure
-	 * this just in case.
-	 */
-	.revision = 0,
+	.revision_spec = &dsm_intel_revision,
 	.expected_functions =
 	    IDX_TO_BIT(DSM_GET_DEVICE_CONSTRAINTS) |
 	    IDX_TO_BIT(DSM_INTEL_MS_DISPLAY_OFF_NOTIF) |
@@ -135,7 +159,7 @@ static const struct dsm_desc dsm_ms = {
 		0x11e00d56, 0xce64, 0x47ce, 0x83, 0x7b,
 		{0x1f, 0x89, 0x8f, 0x9a, 0xa4, 0x61}
 	},
-	.revision = 0,
+	.revision_spec = &dsm_ms_revision,
 	.expected_functions =
 	    IDX_TO_BIT(DSM_INTEL_MS_DISPLAY_OFF_NOTIF) |
 	    IDX_TO_BIT(DSM_INTEL_MS_DISPLAY_ON_NOTIF) |
@@ -157,23 +181,14 @@ static const char *const dsm_amd_function_names[] = {
 	[DSM_AMD_LPI_EXIT_NOTIF] = "LPI_EXIT",
 };
 
-static struct dsm_desc dsm_amd = {
+static const struct dsm_desc dsm_amd = {
 	.index = DSM_AMD,
 	.name = "AMD",
 	.uuid = { /* e3f32452-febc-43ce-9039-932122d37721 */
 		0xe3f32452, 0xfebc, 0x43ce, 0x90, 0x39,
 		{0x93, 0x21, 0x22, 0xd3, 0x77, 0x21}
 	},
-	/*
-	 * XXX Linux uses 0 for the revision on AMD DSMs, but at least on the
-	 * Framework 13 AMD 7040 series, the "enumerate functions" DSM function
-	 * needs to be called with revision 2 to return a mask that covers all
-	 * the functions we would like to call.
-	 *
-	 * The debug.acpi.spmc.amd_dsm_revision sysctl may be used to configure
-	 * this just in case.
-	 */
-	.revision = 2,
+	.revision_spec = &dsm_amd_revision,
 	.expected_functions =
 	    IDX_TO_BIT(DSM_GET_DEVICE_CONSTRAINTS) |
 	    IDX_TO_BIT(DSM_AMD_DISPLAY_OFF_NOTIF) |
@@ -190,30 +205,16 @@ static const struct dsm_desc *const dsms[] = {
 	[DSM_AMD] = &dsm_amd,
 };
 
-static SYSCTL_NODE(_debug_acpi, OID_AUTO, spmc, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, "SPMC debugging");
-
-SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, intel_dsm_revision, CTLFLAG_RW,
-    &dsm_intel.revision, 0,
-    "Revision to use when evaluating Intel SPMC DSMs");
-
-SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, amd_dsm_revision, CTLFLAG_RW,
-    &dsm_amd.revision, 0, "Revision to use when evaluating AMD SPMC DSMs");
-
-static int verbose;
-SYSCTL_INT(_debug_acpi_spmc, OID_AUTO, verbose, CTLFLAG_RW,
-    &verbose, 0, "acpi_spmc(4) verbosity");
-
-#define VERBOSE()	(verbose || bootverbose)
-
-static bool force_call_expected_functions;
-SYSCTL_BOOL(_debug_acpi_spmc, OID_AUTO, always_call_expected_functions,
-    CTLFLAG_RW, &force_call_expected_functions, 0,
-    "Call all expected functions on a present DSM, even those not enumerated.");
-
 /* Per DSM probed information. */
 struct dsm_info {
 	uint64_t	supported_functions;
+	/*
+	 * Revisions are zero or a positive number.  Strictly speaking, next
+	 * field should be a 'uint64_t' as per the ACPI spec, but our ACPI DSM
+	 * interface takes an 'int' and anyway actual revision numbers never
+	 * even exceed the limits of a 'uint8_t'.
+	 */
+	uint8_t		revision;
 };
 
 struct acpi_spmc_constraint {
@@ -253,20 +254,60 @@ resolve_dsm(int dsm_index)
 	return (dsms[dsm_index]);
 }
 
+static struct dsm_info *
+get_dsm_info(struct acpi_spmc_softc *const sc, const int dsm_index)
+{
+	MPASS(0 <= dsm_index && dsm_index < nitems(dsms));
+	return (&sc->dsms_info[dsm_index]);
+}
+
+static const struct dsm_info *
+get_const_dsm_info(const struct acpi_spmc_softc *const sc, const int dsm_index)
+{
+	MPASS(0 <= dsm_index && dsm_index < nitems(dsms));
+	return (&sc->dsms_info[dsm_index]);
+}
+
+static const uint64_t
+get_supported_functions(const struct acpi_spmc_softc *const sc,
+    const int dsm_index)
+{
+	return (get_const_dsm_info(sc, dsm_index)->supported_functions);
+}
+
+static const uint8_t
+get_revision(const struct acpi_spmc_softc *const sc, const int dsm_index)
+{
+	return (get_const_dsm_info(sc, dsm_index)->revision);
+}
+
+static bool
+supports_function_bitset(const uint64_t supported_functions,
+    const int function_index)
+{
+	return ((supported_functions & IDX_TO_BIT(function_index)) != 0);
+}
+
 static bool
 supports_function(const struct acpi_spmc_softc *const sc, const int dsm_index,
     const int function_index)
 {
-	MPASS(0 <= dsm_index && dsm_index < nitems(dsms));
+	return (supports_function_bitset(get_supported_functions(sc, dsm_index),
+	    function_index));
+}
 
-	return ((sc->dsms_info[dsm_index].supported_functions &
-	    IDX_TO_BIT(function_index)) != 0);
+static bool
+has_dsm_bitset(const uint64_t supported_functions)
+{
+	/* DSM is supported if bit DSM_ENUM_FUNCTIONS (0) is set. */
+	return (supports_function_bitset(supported_functions,
+	    DSM_ENUM_FUNCTIONS));
 }
 
 static bool
 has_dsm(const struct acpi_spmc_softc *const sc, const int dsm_index)
 {
-	return (supports_function(sc, dsm_index, DSM_ENUM_FUNCTIONS));
+	return (has_dsm_bitset(get_supported_functions(sc, dsm_index)));
 }
 
 typedef const char *pbf_get_name_t(const int, const void *const);
@@ -344,12 +385,13 @@ failed_to_call_dsm(const struct acpi_spmc_softc *const sc,
 {
 	(void)device_printf(sc->dev,
 	    "Failed to call DSM %s (rev %u) function %s\n",
-	    dsm->name, dsm->revision, dsm_function_name(dsm, function_index));
+	    dsm->name, get_revision(sc, dsm->index),
+	    dsm_function_name(dsm, function_index));
 }
 
 static void	acpi_spmc_probe_dsm(struct acpi_spmc_softc *const sc,
 		    const struct dsm_desc *const dsm);
-static void	acpi_spmc_dsm_print_functions(
+static void	acpi_spmc_dsm_print(
 		    const struct acpi_spmc_softc *const sc,
 		    const struct dsm_desc *const dsm);
 static int	acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc);
@@ -416,7 +458,7 @@ acpi_spmc_attach(device_t dev)
 	/* Print supported functions of usable DSMs. */
 	for (int i = 0; i < nitems(dsms); ++i)
 		if (has_dsm(sc, i))
-			acpi_spmc_dsm_print_functions(sc, dsms[i]);
+			acpi_spmc_dsm_print(sc, dsms[i]);
 
 	/* Get device constraints. We can only call this once so do this now. */
 	error = acpi_spmc_get_constraints(sc);
@@ -445,8 +487,15 @@ acpi_spmc_detach(device_t dev)
 	return (0);
 }
 
+static uint64_t
+dsm_missing_functions(const struct dsm_desc *const dsm,
+    uint64_t supported_functions)
+{
+	return (dsm->expected_functions & ~supported_functions);
+}
+
 static void
-acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
+acpi_spmc_dsm_print(const struct acpi_spmc_softc *const sc,
     const struct dsm_desc *const dsm)
 {
 	/*
@@ -455,16 +504,17 @@ acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
 	 * report as unknown.
 	 */
 	const uint64_t supported_functions = ~IDX_TO_BIT(DSM_ENUM_FUNCTIONS) &
-	    sc->dsms_info[dsm->index].supported_functions;
-	const uint64_t missing = dsm->expected_functions & ~supported_functions;
+	    get_supported_functions(sc, dsm->index);
+	const uint64_t missing = dsm_missing_functions(dsm, supported_functions);
 	const uint64_t unknown = supported_functions &
 	    ~(dsm->expected_functions | dsm->extra_functions);
 	char buf[128];
 
 	print_bit_field(buf, sizeof(buf), supported_functions,
 	    "FUNC", pbf_function_name, dsm);
-	device_printf(sc->dev, "DSM %s: Supported functions: %#" PRIx64 "%s\n",
-	    dsm->name, supported_functions, buf);
+	device_printf(sc->dev,
+	    "DSM %s, revision %d: Supported functions: %#" PRIx64 "%s\n",
+	    dsm->name, get_revision(sc, dsm->index), supported_functions, buf);
 
 	if (VERBOSE() && missing != 0) {
 		print_bit_field(buf, sizeof(buf), missing, "FUNC",
@@ -483,19 +533,69 @@ acpi_spmc_dsm_print_functions(const struct acpi_spmc_softc *const sc,
 	}
 }
 
+/* Returns whether the DSM is supported (enumeration succeeds). */
+static bool
+probe_dsm_revision(const struct acpi_spmc_softc *const sc,
+    const struct dsm_desc *const dsm, const uint8_t revision,
+    uint64_t *const supported_functions)
+{
+	*supported_functions = acpi_DSMQuery(sc->handle,
+	    (const uint8_t *)&dsm->uuid, revision);
+	return (has_dsm_bitset(*supported_functions));
+}
+
+static void
+set_dsm_revision(struct acpi_spmc_softc *const sc,
+    const struct dsm_desc *const dsm, const uint8_t revision,
+    uint64_t supported_functions)
+{
+	struct dsm_info *const dsm_info = get_dsm_info(sc, dsm->index);
+
+	MPASS(has_dsm_bitset(supported_functions));
+	dsm_info->supported_functions = supported_functions;
+	dsm_info->revision = revision;
+}
+
 static void
 acpi_spmc_probe_dsm(struct acpi_spmc_softc *const sc,
     const struct dsm_desc *const dsm)
 {
-	const uint64_t supported_functions = acpi_DSMQuery(sc->handle,
-	    (const uint8_t *)&dsm->uuid, dsm->revision);
+	const int8_t revision_spec = *dsm->revision_spec;
+	uint64_t supported_functions;
+
+	if (revision_spec >= 0) {
+		/* Specific revision specified. */
+		if (probe_dsm_revision(sc, dsm, revision_spec,
+		    &supported_functions))
+			set_dsm_revision(sc, dsm, revision_spec,
+			    supported_functions);
+		return;
+	}
 
 	/*
-	 * DSM is supported if bit 0 is set.
+	 * Auto-detect.  We try revisions in ascending order, selecting the
+	 * first that has all the functions we expect in the hope to avoid potential
+	 * backwards-compatibility problems, else continuing with higher ones
+	 * but adopting them only if they actually add new functions (it seems
+	 * common that firmwares do not care about the revision, or will return
+	 * the same supported functions after a revision limit).
 	 */
-	if ((supported_functions & IDX_TO_BIT(DSM_ENUM_FUNCTIONS)) == 0)
-		return;
-	sc->dsms_info[dsm->index].supported_functions = supported_functions;
+	for (uint8_t revision = 0; revision <= -revision_spec; ++revision) {
+		if (!probe_dsm_revision(sc, dsm, revision,
+		    &supported_functions))
+			continue;
+		if ((~get_supported_functions(sc, dsm->index) &
+		    supported_functions) == 0)
+			/* This revision adds no new function, skip it. */
+			continue;
+
+		set_dsm_revision(sc, dsm, revision, supported_functions);
+
+		if (dsm_missing_functions(dsm, ~IDX_TO_BIT(DSM_ENUM_FUNCTIONS) &
+		    supported_functions) == 0)
+			/* We have all expected functions, bail out. */
+			break;
+	}
 }
 
 static void
@@ -627,7 +727,7 @@ acpi_spmc_parse_constraints_amd(struct acpi_spmc_softc *sc, ACPI_OBJECT *object)
 static int
 acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc)
 {
-	struct dsm_desc *dsm;
+	const struct dsm_desc *dsm;
 	ACPI_STATUS status;
 	ACPI_BUFFER result;
 	ACPI_OBJECT *object;
@@ -657,9 +757,9 @@ acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc)
 		return (0);
 
 	/* It seems like this DSM can fail if called more than once. */
-	status = acpi_EvaluateDSMTyped(sc->handle, (uint8_t *)&dsm->uuid,
-	    dsm->revision, DSM_GET_DEVICE_CONSTRAINTS, NULL, &result,
-	    ACPI_TYPE_PACKAGE);
+	status = acpi_EvaluateDSMTyped(sc->handle, (const uint8_t *)&dsm->uuid,
+	    get_revision(sc, dsm->index), DSM_GET_DEVICE_CONSTRAINTS, NULL,
+	    &result, ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(status)) {
 		failed_to_call_dsm(sc, dsm, DSM_GET_DEVICE_CONSTRAINTS);
 		return (ENXIO);
@@ -765,7 +865,8 @@ acpi_spmc_run(device_t dev, const struct dsm_desc *const dsm,
 		return;
 
 	status = acpi_EvaluateDSMTyped(sc->handle, (const uint8_t *)&dsm->uuid,
-	    dsm->revision, function_index, NULL, &result, ACPI_TYPE_ANY);
+	    get_revision(sc, dsm->index), function_index, NULL,
+	    &result, ACPI_TYPE_ANY);
 
 	if (ACPI_FAILURE(status))
 		failed_to_call_dsm(sc, dsm, function_index);
