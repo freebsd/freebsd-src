@@ -1163,7 +1163,7 @@ parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
 	MPASS(copy[len] == '\0');
 
 	p = copy;
-	while ((path = strsep_noblanks(&p, ":")) != NULL) {
+	while ((path = strsep(&p, ":")) != NULL) {
 		size_t path_len;
 
 		if (*path == '\0')
