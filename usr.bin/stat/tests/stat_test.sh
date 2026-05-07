@@ -26,6 +26,7 @@
 #
 
 : ${CHKPATH:="mnt"}
+: ${NODEV:="#NODEV"}
 
 atf_test_case F_flag
 F_flag_head()
@@ -323,6 +324,7 @@ devname_body()
 
 	atf_check -o inline:"$devname\n" stat -f '%Sd' "$CHKPATH"
 	atf_check -o inline:"$devname\n" stat -f '%Sr' "$devpath"
+	atf_check -o inline:"$NODEV\n" stat -f '%Sr' "$CHKPATH"
 }
 devname_cleanup()
 {
