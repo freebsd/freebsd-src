@@ -58,3 +58,14 @@ sed -i "" "s/${NANO_DRIVE}s1/${NANO_DRIVE}s2/" /mnt/etc/fstab
 umount /mnt
 trap 1 2 15 EXIT
 gpart set -a active -i 2 ${NANO_DRIVE}
+#
+# KD - If the partition has an EFI partition then set "loader.env"
+#
+EFI=`gpart show ${NANO_DRIVE}|grep 'efi'`
+if [ $EFI != '' ] ;
+then
+        PART=`echo $EFI|awk '{ print $3 }'`
+        mount -t msdosfs /dev/${NANO_DRIVE}s$EFI /mnt
+        echo 'rootdev=disk0s2a' >/mnt/EFI/FreeBSD/loader.env
+        umount /mnt
+fi
