@@ -18,5 +18,6 @@ ${PACKAGE}FILES+=	sethostname.lua
 ${PACKAGE}FILES+=	settimezone.lua
 ${PACKAGE}FILES+=	warn.lua
 ${PACKAGE}FILES+=	addfile.lua
+${PACKAGE}FILES+=	decode_base64.lua
 
 .include <bsd.test.mk>
