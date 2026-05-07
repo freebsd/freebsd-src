@@ -138,21 +138,31 @@ int	kern_execve(struct thread *td, struct image_args *args,
 	    struct mac *mac_p, struct vmspace *oldvmspace);
 int	kern_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
 	    const char *attrname);
+int	kern_extattr_delete_fp(struct thread *td, struct file *fp,
+	    int attrnamespace, const char *attrname);
 int	kern_extattr_delete_path(struct thread *td, const char *path,
 	    int attrnamespace, const char *attrname, int follow,
 	    enum uio_seg pathseg);
 int	kern_extattr_get_fd(struct thread *td, int fd, int attrnamespace,
 	    const char *attrname, void *data, size_t nbytes);
+int	kern_extattr_get_fp(struct thread *td, struct file *fp,
+	    int attrnamespace, const char *attrname, void *data,
+	    size_t nbytes);
 int	kern_extattr_get_path(struct thread *td, const char *path,
 	    int attrnamespace, const char *attrname, void *data,
 	    size_t nbytes, int follow, enum uio_seg pathseg);
 int	kern_extattr_list_fd(struct thread *td, int fd, int attrnamespace,
 	    struct uio *auiop);
+int	kern_extattr_list_fp(struct thread *td, struct file *fp,
+	    int attrnamespace, struct uio *auiop);
 int	kern_extattr_list_path(struct thread *td, const char *path,
 	    int attrnamespace, struct uio *auiop, int follow,
 	    enum uio_seg pathseg);
 int	kern_extattr_set_fd(struct thread *td, int fd, int attrnamespace,
 	    const char *attrname, void *data, size_t nbytes);
+int	kern_extattr_set_fp(struct thread *td, struct file *fp,
+	    int attrnamespace, const char *attrname, void *data,
+	    size_t nbytes);
 int	kern_extattr_set_path(struct thread *td, const char *path,
 	    int attrnamespace, const char *attrname, void *data,
 	    size_t nbytes, int follow, enum uio_seg pathseg);
