@@ -63,7 +63,11 @@
 #define	VT_ALT_TO_ESC_HACK	1
 #endif
 
+#ifdef	VT_OVERRIDE_CON_VT
+#define	VT_CONSWINDOW	VT_OVERRIDE_CON_VT
+#else
 #define	VT_CONSWINDOW	0
+#endif
 
 #if defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE)
 #define VT_MOUSE_PASTEBUTTON	MOUSE_BUTTON3DOWN	/* right button */
@@ -409,6 +413,7 @@ struct vt_driver {
 
 extern struct vt_device vt_consdev;
 void vt_upgrade(struct vt_device *vd);
+void vt_override_cons(struct vt_device *vd);
 
 #define	PIXEL_WIDTH(w)	((w) / 8)
 #define	PIXEL_HEIGHT(h)	((h) / 16)
