@@ -4761,8 +4761,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	 * debugger or AIO daemon.  The reason is that the wrong
 	 * resource limits are applied.
 	 */
-	if (p != initproc && (map != &p->p_vmspace->vm_map ||
-	    p->p_textvp == NULL))
+	if (p != initproc && (map != &vm->vm_map || p->p_textvp == NULL))
 		return (KERN_FAILURE);
 
 	MPASS(!vm_map_is_system(map));
