@@ -95,8 +95,48 @@ group_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "start_number" "cleanup"
+start_number_head()
+{
+	atf_set descr 'Test interface names starting with a number'
+	atf_set require.user root
+}
+
+start_number_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair}b name 4ever
+	jexec alcatraz pfctl -e
+
+	jexec alcatraz ifconfig
+
+	pft_set_rules alcatraz \
+	    "block" \
+	    "pass in from any to (4ever)"
+
+	atf_check -o ignore ping -c 3 192.0.2.2
+
+	# Negative test, if the interface doesn't exist we don't pass packets
+	pft_set_rules alcatraz \
+	    "block" \
+	    "pass in from any to (5ever)"
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+}
+
+start_number_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "names"
 	atf_add_test_case "group"
+	atf_add_test_case "start_number"
 }
