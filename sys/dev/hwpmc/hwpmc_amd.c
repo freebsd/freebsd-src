@@ -43,6 +43,9 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_HWPMC_AMD
+#include <sys/exterrvar.h>
+
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
@@ -398,28 +401,38 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 
 	/* check class match */
 	if (pd->pd_class != a->pm_class)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "PMC class %ju does not match AMD row class %ju",
+		    (uintmax_t)a->pm_class, (uintmax_t)pd->pd_class));
 
 	if ((a->pm_flags & PMC_F_EV_PMU) == 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "AMD PMCs require PMC_F_EV_PMU"));
 
 	caps = pm->pm_caps;
 
 	if (((caps & PMC_CAP_PRECISE) != 0) &&
 	    ((pd->pd_caps & PMC_CAP_PRECISE) == 0))
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "PMC row %ju does not support PRECISE capability",
+		    (uintmax_t)ri));
 
 	PMCDBG2(MDP, ALL, 1,"amd-allocate ri=%d caps=0x%x", ri, caps);
 
 	/* Validate sub-class. */
 	if (amd_pmcdesc[ri].pm_subclass != a->pm_md.pm_amd.pm_amd_sub_class)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "AMD subclass %ju does not match row subclass %ju",
+		    (uintmax_t)a->pm_md.pm_amd.pm_amd_sub_class,
+		    (uintmax_t)amd_pmcdesc[ri].pm_subclass));
 
 	if (strlen(pmc_cpuid) != 0) {
 		config = a->pm_md.pm_amd.pm_amd_config;
 		if ((config & ~amd_config_mask(amd_pmcdesc[ri].pm_subclass,
 		    caps)) != 0)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+			    "AMD PMU config has unsupported bits %#jx",
+			    (uintmax_t)(config & ~amd_config_mask(
+			    amd_pmcdesc[ri].pm_subclass, caps))));
 		pm->pm_md.pm_amd.pm_amd_evsel = config;
 		PMCDBG2(MDP, ALL, 2, "amd-allocate ri=%d -> config=0x%jx",
 		    ri, (uintmax_t)config);
@@ -443,11 +456,15 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 		}
 	}
 	if (i == amd_event_codes_size)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "AMD legacy event %ju is not supported",
+		    (uintmax_t)pe));
 
 	unitmask = a->pm_md.pm_amd.pm_amd_config & AMD_PMC_UNITMASK;
 	if ((unitmask & ~allowed_unitmask) != 0) /* disallow reserved bits */
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "AMD unitmask %#jx exceeds allowed mask %#jx",
+		    (uintmax_t)unitmask, (uintmax_t)allowed_unitmask));
 
 	if (unitmask && (caps & PMC_CAP_QUALIFIER) != 0)
 		config |= unitmask;
