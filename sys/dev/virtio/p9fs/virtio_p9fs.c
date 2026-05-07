@@ -471,14 +471,12 @@ vt9p_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 		if (loaded++ == 0) {
-			p9_init_zones();
 			p9_register_trans(&vt9p_trans);
 		}
 		break;
 	case MOD_UNLOAD:
 		if (--loaded == 0) {
 			p9_unregister_trans(&vt9p_trans);
-			p9_destroy_zones();
 		}
 		break;
 	case MOD_SHUTDOWN:
@@ -487,6 +485,7 @@ vt9p_modevent(module_t mod, int type, void *unused)
 		error = EOPNOTSUPP;
 		break;
 	}
+
 	return (error);
 }
 

@@ -119,6 +119,8 @@ p9fs_init(struct vfsconf *vfsp)
 	p9fs_io_buffer_zone = uma_zcreate("p9fs io_buffer zone",
 	    P9FS_MTU, NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
+	p9_init_zones();
+
 	return (0);
 }
 
@@ -126,6 +128,8 @@ p9fs_init(struct vfsconf *vfsp)
 static int
 p9fs_uninit(struct vfsconf *vfsp)
 {
+
+	p9_destroy_zones();
 
 	uma_zdestroy(p9fs_node_zone);
 	uma_zdestroy(p9fs_io_buffer_zone);
