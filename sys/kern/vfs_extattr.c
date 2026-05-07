@@ -241,6 +241,15 @@ sys_extattr_set_fd(struct thread *td, struct extattr_set_fd_args *uap)
 }
 
 int
+kern_extattr_set_fp(struct thread *td, struct file *fp, int attrnamespace,
+    const char *attrname, void *data, size_t nbytes)
+{
+
+	return (extattr_set_vp(fp->f_vnode, attrnamespace, attrname, data,
+	    nbytes, td));
+}
+
+int
 kern_extattr_set_fd(struct thread *td, int fd, int attrnamespace,
     const char *attrname, void *data, size_t nbytes)
 {
@@ -257,8 +266,8 @@ kern_extattr_set_fd(struct thread *td, int fd, int attrnamespace,
 	if (error)
 		return (error);
 
-	error = extattr_set_vp(fp->f_vnode, attrnamespace,
-	    attrname, data, nbytes, td);
+	error = kern_extattr_set_fp(td, fp, attrnamespace, attrname, data,
+	    nbytes);
 	fdrop(fp, td);
 
 	return (error);
@@ -429,6 +438,15 @@ sys_extattr_get_fd(struct thread *td, struct extattr_get_fd_args *uap)
 }
 
 int
+kern_extattr_get_fp(struct thread *td, struct file *fp, int attrnamespace,
+    const char *attrname, void *data, size_t nbytes)
+{
+
+	return (extattr_get_vp(fp->f_vnode, attrnamespace, attrname, data,
+	    nbytes, td));
+}
+
+int
 kern_extattr_get_fd(struct thread *td, int fd, int attrnamespace,
     const char *attrname, void *data, size_t nbytes)
 {
@@ -445,8 +463,8 @@ kern_extattr_get_fd(struct thread *td, int fd, int attrnamespace,
 	if (error)
 		return (error);
 
-	error = extattr_get_vp(fp->f_vnode, attrnamespace,
-	    attrname, data, nbytes, td);
+	error = kern_extattr_get_fp(td, fp, attrnamespace, attrname, data,
+	    nbytes);
 
 	fdrop(fp, td);
 	return (error);
@@ -585,6 +603,14 @@ sys_extattr_delete_fd(struct thread *td, struct extattr_delete_fd_args *uap)
 }
 
 int
+kern_extattr_delete_fp(struct thread *td, struct file *fp, int attrnamespace,
+    const char *attrname)
+{
+
+	return (extattr_delete_vp(fp->f_vnode, attrnamespace, attrname, td));
+}
+
+int
 kern_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
     const char *attrname)
 {
@@ -601,8 +627,7 @@ kern_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
 	if (error)
 		return (error);
 
-	error = extattr_delete_vp(fp->f_vnode, attrnamespace,
-	    attrname, td);
+	error = kern_extattr_delete_fp(td, fp, attrnamespace, attrname);
 	fdrop(fp, td);
 	return (error);
 }
@@ -754,6 +779,14 @@ sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
 }
 
 int
+kern_extattr_list_fp(struct thread *td, struct file *fp, int attrnamespace,
+    struct uio *auiop)
+{
+
+	return (extattr_list_vp(fp->f_vnode, attrnamespace, auiop, td));
+}
+
+int
 kern_extattr_list_fd(struct thread *td, int fd, int attrnamespace,
     struct uio *auiop)
 {
@@ -768,7 +801,7 @@ kern_extattr_list_fd(struct thread *td, int fd, int attrnamespace,
 	if (error)
 		return (error);
 
-	error = extattr_list_vp(fp->f_vnode, attrnamespace, auiop, td);
+	error = kern_extattr_list_fp(td, fp, attrnamespace, auiop);
 
 	fdrop(fp, td);
 	return (error);
