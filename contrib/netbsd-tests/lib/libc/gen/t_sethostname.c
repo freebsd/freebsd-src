@@ -47,6 +47,14 @@ static const char hosts[][MAXHOSTNAMELEN] = {
 	"--------------------------------------------------------------------"
 };
 
+__attribute__((constructor))
+static void pre_fork_init(void)
+{
+	(void)memset(host, 0, sizeof(host));
+
+	ATF_REQUIRE(gethostname(host, sizeof(host)) == 0);
+}
+
 ATF_TC_WITH_CLEANUP(sethostname_basic);
 ATF_TC_HEAD(sethostname_basic, tc)
 {
@@ -58,8 +66,6 @@ ATF_TC_BODY(sethostname_basic, tc)
 {
 	char name[MAXHOSTNAMELEN];
 	size_t i;
-
-	atf_tc_skip("screws up the test host's hostname on FreeBSD");
 
 	for (i = 0; i < __arraycount(hosts); i++) {
 
@@ -82,7 +88,6 @@ ATF_TC_BODY(sethostname_basic, tc)
 		ATF_REQUIRE(strcmp(hosts[i], name) == 0);
 	}
 
-	(void)sethostname(host, sizeof(host));
 }
 
 ATF_TC_CLEANUP(sethostname_basic, tc)
@@ -137,10 +142,6 @@ ATF_TC_CLEANUP(sethostname_perm, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-
-	(void)memset(host, 0, sizeof(host));
-
-	ATF_REQUIRE(gethostname(host, sizeof(host)) == 0);
 
 	ATF_TP_ADD_TC(tp, sethostname_basic);
 	ATF_TP_ADD_TC(tp, sethostname_limit);
