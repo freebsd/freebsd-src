@@ -26,8 +26,10 @@
  */
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/extattr.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
@@ -83,6 +85,21 @@ struct removexattr_args {
 	const char	*name;
 	int		follow;
 };
+
+static int
+linux_xattr_check_fd(struct thread *td, int fd)
+{
+	struct file *fp;
+	cap_rights_t rights;
+	int error;
+
+	error = getvnode(td, fd, cap_rights_init_one(&rights, CAP_EXTATTR_GET),
+	    &fp);
+	if (error != 0)
+		return (error);
+	fdrop(fp, td);
+	return (0);
+}
 
 static char *extattr_namespace_names[] = EXTATTR_NAMESPACE_NAMES;
 
@@ -255,6 +272,12 @@ removexattr(struct thread *td, struct removexattr_args *args)
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	int attrnamespace, error;
 
+	if (args->path == NULL) {
+		error = linux_xattr_check_fd(td, args->fd);
+		if (error != 0)
+			return (error);
+	}
+
 	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
 		return (error);
@@ -311,6 +334,12 @@ getxattr(struct thread *td, struct getxattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	int attrnamespace, error;
+
+	if (args->path == NULL) {
+		error = linux_xattr_check_fd(td, args->fd);
+		if (error != 0)
+			return (error);
+	}
 
 	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
@@ -374,6 +403,12 @@ setxattr(struct thread *td, struct setxattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	int attrnamespace, error;
+
+	if (args->path == NULL) {
+		error = linux_xattr_check_fd(td, args->fd);
+		if (error != 0)
+			return (error);
+	}
 
 	if ((args->flags & ~(LINUX_XATTR_FLAGS)) != 0 ||
 	    args->flags == (LINUX_XATTR_FLAGS))
