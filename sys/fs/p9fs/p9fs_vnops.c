@@ -37,10 +37,12 @@
 #include <sys/fcntl.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
-#include <sys/stat.h>
-#include <sys/vnode.h>
 #include <sys/rwlock.h>
+#include <sys/stat.h>
+#include <sys/syslimits.h>
+#include <sys/unistd.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -2248,6 +2250,72 @@ p9fs_delayed_setsize(struct vop_delayed_setsize_args *ap)
 	return (0);
 }
 
+static unsigned int
+p9fs_get_name_max(struct p9fs_node *np)
+{
+	struct p9fs_session *vses = np->p9fs_ses;
+	struct p9_statfs statfs;
+	struct p9_fid *vfid;
+	unsigned int name_max;
+	int error = 0;
+
+	name_max = atomic_load_int(&vses->name_max);
+	if (name_max != 0)
+		return (name_max);
+
+	P9_DEBUG(VOPS, "%s: querying _PC_NAME_MAX\n", __func__);
+	vfid = p9fs_get_fid(vses->clnt, np, NULL, VFID, -1, &error);
+	if (vfid != NULL) {
+		error = p9_client_statfs(vfid, &statfs);
+		if (error == 0) {
+			/*
+			 * Note that this is not strictly correct if you have
+			 * nested mounts on the host (e.g. when using qemu with
+			 * multidevs=remap), but is a better estimate than just
+			 * returning 255.
+			 */
+			name_max = statfs.namelen;
+		}
+	}
+	P9_DEBUG(VOPS, "%s: max_name=%u error=%d\n", __func__, name_max, error);
+	if (error != 0 || name_max == 0) {
+		printf("p9fs: warning: failed to query name_max (error %d), "
+		    "using fallback %d\n", error, NAME_MAX);
+		name_max = NAME_MAX; /* fallback and prevent retrying */
+	}
+	atomic_store_int(&vses->name_max, name_max);
+	return (name_max);
+}
+
+/*
+ * Return POSIX pathconf information applicable to p9fs filesystems.
+ */
+static int
+p9fs_pathconf(struct vop_pathconf_args *ap)
+{
+	int error = 0;
+	struct vnode *vp = ap->a_vp;
+	struct p9fs_node *np = P9FS_VTON(vp);
+
+	switch (ap->a_name) {
+	case _PC_NAME_MAX:
+		*ap->a_retval = p9fs_get_name_max(np);
+		break;
+	case _PC_SYMLINK_MAX:
+	case _PC_PATH_MAX:
+		/*
+		 * These are conservative estimates, the real value depends on
+		 * the host file system.
+		 */
+		*ap->a_retval = MAXPATHLEN;
+		break;
+	default:
+		error = vop_stdpathconf(ap);
+		break;
+	}
+	return (error);
+}
+
 struct vop_vector p9fs_vnops = {
 	.vop_default =		&default_vnodeops,
 	.vop_lookup =		p9fs_lookup,
@@ -2257,6 +2325,7 @@ struct vop_vector p9fs_vnops = {
 	.vop_delayed_setsize =	p9fs_delayed_setsize,
 	.vop_getattr =		p9fs_getattr_dotl,
 	.vop_setattr =		p9fs_setattr_dotl,
+	.vop_pathconf =		p9fs_pathconf,
 	.vop_reclaim =		p9fs_reclaim,
 	.vop_inactive =		p9fs_inactive,
 	.vop_readdir =		p9fs_readdir,
