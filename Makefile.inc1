@@ -2128,7 +2128,7 @@ real-packages:	stage-packages create-packages sign-packages .PHONY
 
 real-update-packages: stage-packages .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} create-packages
-.if defined(PKG_VERSION_FROM_DIR)
+.if defined(PKG_VERSION_FROM_DIR) && ${PKG_VERSION} != ${PKG_VERSION_FROM}
 	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
 	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
 	  pkgname=$$(${PKG_CMD} query -F $${pkg} '%n' | sed 's/${PKG_NAME_PREFIX}-\(.*\)/\1/') ; \
@@ -2146,6 +2146,8 @@ real-update-packages: stage-packages .PHONY
 	    echo "==> New package $${newpkgname}" ; \
 	  fi ; \
 	done
+.elif defined(PKG_VERSION_FROM_DIR)
+	@echo "==> Package version ${PKG_VERSION} unchanged, keeping old package set"
 .else
 	@echo "==> Bootstrapping repository, not checking for new packages"
 .endif
