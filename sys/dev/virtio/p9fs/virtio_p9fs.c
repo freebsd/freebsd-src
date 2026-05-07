@@ -464,16 +464,22 @@ static int
 vt9p_modevent(module_t mod, int type, void *unused)
 {
 	int error;
+	static int loaded = 0;
 
 	error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		p9_init_zones();
-		p9_register_trans(&vt9p_trans);
+		if (loaded++ == 0) {
+			p9_init_zones();
+			p9_register_trans(&vt9p_trans);
+		}
 		break;
 	case MOD_UNLOAD:
-		p9_destroy_zones();
+		if (--loaded == 0) {
+			p9_unregister_trans(&vt9p_trans);
+			p9_destroy_zones();
+		}
 		break;
 	case MOD_SHUTDOWN:
 		break;
