@@ -29,6 +29,7 @@
   ESC-{  ^LeftArrow    Left  to first column.
   F                    Forward forever; like "tail -f".
   ESC-F                Like F but stop when search pattern is found.
+  ESC-f                Like F but ring the bell when search pattern is found.
   r  ^R  ^L            Repaint screen.
   R                    Repaint screen, discarding buffered input.
         ---------------------------------------------------
@@ -65,8 +66,8 @@
 
                            JJUUMMPPIINNGG
 
-  g  <  ESC-<       *  Go to first line in file (or line _N).
-  G  >  ESC->       *  Go to last line in file (or line _N).
+  g  <  ESC-<  HOME *  Go to first line in file (or line _N).
+  G  >  ESC->  END  *  Go to last line in file (or line _N).
   p  %              *  Go to beginning of file (or _N percent into file).
   t                 *  Go to the (_N-th) next tag.
   T                 *  Go to the (_N-th) previous tag.
@@ -219,6 +220,8 @@
   -# [_N]  ....  --shift=[_N]
                   Set horizontal scroll amount (0 = one half screen width).
 
+                --autosave=[_m_/_!_*]
+                  Actions which cause the history file to be saved.
                 --exit-follow-on-close
                   Exit F command on a pipe when writer closes pipe.
                 --file-size

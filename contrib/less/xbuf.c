@@ -1,3 +1,12 @@
+/*
+ * Copyright (C) 1984-2026  Mark Nudelman
+ *
+ * You may distribute under the terms of either the GNU General Public
+ * License or the Less License, as specified in the README file.
+ *
+ * For more information, see the README file.
+ */
+
 #include "less.h"
 #include "xbuf.h"
 
@@ -66,8 +75,9 @@ public void xbuf_add_char(struct xbuffer *xbuf, char c)
 /*
  * Add arbitrary data to an xbuf.
  */
-public void xbuf_add_data(struct xbuffer *xbuf, constant unsigned char *data, size_t len)
+public void xbuf_add_data(struct xbuffer *xbuf, constant void *vdata, size_t len)
 {
+	constant unsigned char *data = (constant unsigned char *) vdata;
 	size_t i;
 	for (i = 0;  i < len;  i++)
 		xbuf_add_byte(xbuf, data[i]);
