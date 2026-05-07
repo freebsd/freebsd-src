@@ -55,6 +55,35 @@ local function decode_base64(input)
 	return table.concat(result)
 end
 
+local function encode_base64(input)
+	if input == nil or #input == 0 then
+		return ""
+	end
+	local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+	local result = {}
+	local pos = 1
+	local padding = ""
+	while pos <= #input do
+		local a = string.byte(input, pos)
+		local bb = pos + 1 <= #input and string.byte(input, pos + 1) or 0
+		local c = pos + 2 <= #input and string.byte(input, pos + 2) or 0
+		table.insert(result, string.sub(b, math.floor(a / 4) + 1, math.floor(a / 4) + 1))
+		table.insert(result, string.sub(b, math.floor(a % 4 * 16 + bb / 16) + 1, math.floor(a % 4 * 16 + bb / 16) + 1))
+		if pos + 1 <= #input then
+			table.insert(result, string.sub(b, math.floor(bb % 16 * 4 + c / 64) + 1, math.floor(bb % 16 * 4 + c / 64) + 1))
+		else
+			table.insert(result, "=")
+		end
+		if pos + 2 <= #input then
+			table.insert(result, string.sub(b, math.floor(c % 64) + 1, math.floor(c % 64) + 1))
+		else
+			table.insert(result, "=")
+		end
+		pos = pos + 3
+	end
+	return table.concat(result)
+end
+
 local function shell_escape(s)
 	return "'" .. string.gsub(s, "'", "'\\''") .. "'"
 end
@@ -964,6 +993,7 @@ local n = {
 	addsudo = addsudo,
 	adddoas = adddoas,
 	addfile = addfile,
+	encode_base64 = encode_base64,
 	add_fstab_entry = add_fstab_entry,
 	remove_fstab_entry = remove_fstab_entry,
 	write_resolv_conf = write_resolv_conf,
