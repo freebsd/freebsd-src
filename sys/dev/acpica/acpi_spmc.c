@@ -441,8 +441,7 @@ acpi_spmc_detach(device_t dev)
 
 	EVENTHANDLER_DEREGISTER(acpi_post_dev_suspend, sc->eh_suspend);
 	EVENTHANDLER_DEREGISTER(acpi_pre_dev_resume, sc->eh_resume);
-
-	acpi_spmc_free_constraints(device_get_softc(dev));
+	acpi_spmc_free_constraints(sc);
 	return (0);
 }
 
