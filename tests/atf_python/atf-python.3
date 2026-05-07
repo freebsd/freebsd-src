@@ -1,0 +1,132 @@
+.\"
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd April 7, 2025
+.Dt ATF-PYTHON 3
+.Os
+.Sh NAME
+.Nm atf-python
+.Nd Automated Testing Framework for Python-based network and system testing
+.Sh SYNOPSIS
+Importing modules:
+.Bd -literal -offset indent
+from atf_python.sys.net.tools import ToolsHelper
+from atf_python.sys.net.vnet import VnetTestTemplate
+from atf_python.sys.net.vnet import SingleVnetTestTemplate
+.Ed
+.Sh DESCRIPTION
+The
+.Nm atf-python
+library was introduced to complement
+.Fx Ns 's
+Automated Testing Framework (ATF).
+It provides extensive support for modern network features, such as IPv6,
+virtual networks (VNET), and routing socket management.
+The
+.Nm atf-python
+framework is a comprehensive Python-based automated testing library,
+specifically designed for testing network functionality and behavior on
+.Fx
+systems.
+It integrates network configuration utilities, jail-based virtual networks
+(VNET), and routing socket operations.
+This facilitates detailed and reproducible system-level testing.
+ATF wraps around Pytest, allowing you to write ATF tests similarly to Pytest.
+.Pp
+The library is structured around several key modules:
+.Bl -tag -width "SingleVnetTestTemplate"
+.It Sy ToolsHelper
+Provides utility functions to interact with system network tools like
+.Xr ifconfig 8 ,
+and
+.Xr pfctl 8 .
+It supports execution of shell commands, retrieving routing information,
+and fetching link-local IPv6 addresses.
+Key methods include:
+.Bl -bullet -compact
+.It
+.Fn get_output cmd verbose
+Execute shell commands and capture output.
+.It
+.Fn get_routes family fibnum
+Fetch routing tables for IPv4 or IPv6 in JSON format.
+.El
+.It Sy VnetTestTemplate
+An extensible base class for tests involving multiple virtual networks
+(VNETs).
+It supports complex topologies, automatic jail creation, interface
+configuration, and subprocess management.
+Topology definitions are dictionaries mapping virtual networks (VNET) to
+their respective interfaces.
+.It Sy SingleVnetTestTemplate
+A simplified version of
+.Em VnetTestTemplate
+optimized for scenarios with a single virtual network.
+It automatically sets up a basic VNET topology, significantly reducing
+boilerplate code for simple test cases.
+.El
+.Sh EXAMPLES
+Fetch IPv6 routes from FIB 0:
+.Bd -literal -offset indent
+ipv6_routes = ToolsHelper.get_routes("inet6")
+.Ed
+.Pp
+Create and manage a single VNET test:
+.Bd -literal -offset indent
+class TestMySimpleExample(SingleVnetTestTemplate):
+    IPV4_PREFIXES = ["192.0.2.1/24"]
+
+    def test_interface_up(self):
+        iface = self.vnet.iface_alias_map["if1"]
+        assert "UP" in ToolsHelper.get_output(f"ifconfig {iface.name}")
+.Ed
+.Pp
+Test prefix route switchover upon address deletion:
+.Bd -literal -offset indent
+class TestIfOps(VnetTestTemplate):
+    TOPOLOGY = {
+        "vnet1": {"ifaces": ["if1", "if2"]},
+        "if1": {"prefixes4": [], "prefixes6": []},
+        "if2": {"prefixes4": [], "prefixes6": []},
+    }
+
+    @pytest.mark.parametrize("family", ["inet", "inet6"])
+    @pytest.mark.require_user("root")
+    def test_change_prefix_route(self, family):
+        vnet = self.vnet_map["vnet1"]
+        first_iface = vnet.iface_alias_map["if1"]
+        second_iface = vnet.iface_alias_map["if2"]
+
+        if family == "inet":
+            first_addr = ipaddress.ip_interface("192.0.2.1/24")
+            second_addr = ipaddress.ip_interface("192.0.2.2/24")
+        else:
+            first_addr = ipaddress.ip_interface("2001:db8::1/64")
+            second_addr = ipaddress.ip_interface("2001:db8::2/64")
+
+        first_iface.setup_addr(str(first_addr))
+        second_iface.setup_addr(str(second_addr))
+
+        routes = ToolsHelper.get_routes(family)
+        px = [r for r in routes if r["destination"] ==
+              str(first_addr.network)][0]
+        assert px["interface-name"] == first_iface.name
+
+        first_iface.delete_addr(first_addr.ip)
+
+        routes = ToolsHelper.get_routes(family)
+        px = [r for r in routes if r["destination"] ==
+              str(first_addr.network)][0]
+        assert px["interface-name"] == second_iface.name
+.Ed
+.Pp
+Also see
+.Pa /usr/src/tests/examples
+for additional examples.
+.Sh SEE ALSO
+.Xr atf-sh 1 ,
+.Xr kyua 1 ,
+.Xr tests 7 ,
+.Xr ifconfig 8 ,
+.Xr pfctl 8
