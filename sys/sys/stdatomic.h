@@ -96,6 +96,9 @@
 
 #if defined(__CLANG_ATOMICS)
 #define	atomic_init(obj, value)		__c11_atomic_init(obj, value)
+#elif defined(__GNUC_ATOMICS)
+#define	atomic_init(obj, value)		atomic_store_explicit(obj,	\
+	    value, __ATOMIC_RELAXED)
 #else
 #define	atomic_init(obj, value)		((void)((obj)->__val = (value)))
 #endif
