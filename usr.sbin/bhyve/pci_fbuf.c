@@ -42,6 +42,7 @@
 
 #include <errno.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "bhyvegc.h"
 #include "bhyverun.h"
@@ -240,6 +241,24 @@ pci_fbuf_baraddr(struct pci_devinst *pi, int baridx, int enabled,
 	}
 }
 
+static char *
+abspath(const char *origpath)
+{
+	char *ret = NULL, *dn, *cp, *fn;
+
+	if ((cp = strdup(origpath)) == NULL || cp[0] == '/')
+		return (cp);
+	if ((dn = realpath(dirname(cp), NULL)) == NULL)
+		EPRINTLN("fbuf: Invalid path: \"%s\"", origpath);
+	else {
+		fn = strrchr(origpath, '/');
+		if (asprintf(&ret, "%s/%s", dn, fn ? fn + 1 : origpath) < 0)
+			EPRINTLN("fbuf: failed to allocate memory");
+	}
+	free(dn);
+	free(cp);
+	return (ret);
+}
 
 static int
 pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
@@ -285,17 +304,17 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 				return (-1);
 			}
 		} else if (strncmp("unix:", value, 5) == 0) {
-			if (strlen(value + 5) > SUNPATHLEN) {
-				EPRINTLN(
-				    "fbuf: UNIX socket path too long: \"%s\"",
-				    value + 5);
-				return (-1);
-			} else if (*(value + 5) == '\0') {
+			if (*(value + 5) == '\0') {
 				EPRINTLN("fbuf: UNIX socket path is empty");
 				return (-1);
-			} else {
-				sc->rfb_family = AF_UNIX;
-				sc->rfb_host = strdup(value + 5);
+			}
+			sc->rfb_family = AF_UNIX;
+			sc->rfb_host = abspath(value + 5);
+			if (sc->rfb_host && strlen(sc->rfb_host) > SUNPATHLEN) {
+				EPRINTLN(
+				    "fbuf: UNIX socket path too long: \"%s\"",
+				    sc->rfb_host);
+				return (-1);
 			}
 		} else {
 			sc->rfb_family = AF_UNSPEC;
