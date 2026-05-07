@@ -1,9 +1,9 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2025-2026 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
-.Dd October 28, 2025
+.Dd May 7, 2026
 .Dt D 7
 .Os
 .Sh NAME
@@ -39,6 +39,41 @@ This manual page serves as a short reference of the language.
 Refer to books listed in
 .Sx SEE ALSO
 for a complete reference.
+.Sh MACRO VARIABLES
+.Bl -column "$1, $2, $3, ..." "Syntax"
+.It Sy Name Ta Sy Description
+.It  Va  $1 , $2 , $3 , .\&.\&.  Ta  Macro arguments
+.It  Va  $egid                   Ta  Effective group ID Pq Xr getegid 2
+.It  Va  $euid                   Ta  Effective user ID Pq Xr geteuid 2
+.It  Va  $gid                    Ta  Real group ID Pq Xr getgid 2
+.It  Va  $pid                    Ta  Process ID Pq Xr getpid 2
+.It  Va  $pgid                   Ta  Process group ID Pq Xr getpgrp 2
+.It  Va  $ppid                   Ta  Parent process ID Pq Xr getppid 2
+.It  Va  $sid                    Ta  Session ID Pq Xr getsid 2
+.It  Va  $target                 Ta  Target process ID of the process
+specified via the
+.Fl p
+flag or created via the
+.Fl c
+flag.
+.It  Va  $uid                    Ta  Real user ID Pq Xr getuid 2
+.El
+.Pp
+The macro arguments correspond to the command-line operands.
+They expand to an integer, identifier, or string depending on the context.
+Prepending a macro argument with an extra dollar sign
+.Pq Ql $
+forces string expansion.
+.Pp
+For example,
+.Bd -literal -compact -offset indent
+dtrace -n 'syscall::fstatat: /execname == $$1/ {}' -- ls
+.Ed
+uses
+.Va $$1
+instead of
+.Va $1
+to expand to a string instead rather than to a global variable identifier.
 .Sh PROBE'S DESCRIPTION
 A probe's description consists of four elements:
 .Sm off
@@ -411,3 +446,10 @@ variable which typically provides the current working directory is
 not supported on
 .Fx
 at the moment.
+.Pp
+Macro variables
+.Va $projid
+and
+.Va $taskid
+are always 0 on
+.Fx .
