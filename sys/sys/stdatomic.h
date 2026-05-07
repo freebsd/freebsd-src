@@ -377,21 +377,29 @@ __extension__ ({							\
 
 /*
  * 7.17.8 Atomic flag type and operations.
- *
- * XXX: Assume atomic_bool can be used as an atomic_flag. Is there some
- * kind of compiler built-in type we could use?
  */
 
 typedef struct {
+#if ATOMIC_BOOL_LOCK_FREE == 2
 	atomic_bool	__flag;
+#elif ATOMIC_CHAR_LOCK_FREE == 2
+	atomic_uchar	__flag;
+#else
+#error "atomic_flag is required to be lock-free"
+#endif
 } atomic_flag;
+#if __ISO_C_VISIBLE < 2023
 #define	ATOMIC_FLAG_INIT		{ ATOMIC_VAR_INIT(0) }
+#else
+#define	ATOMIC_FLAG_INIT		{ 0 }
+#endif
 
 static __inline _Bool
 atomic_flag_test_and_set_explicit(volatile atomic_flag *__object,
     memory_order __order)
 {
-	return (atomic_exchange_explicit(&__object->__flag, 1, __order));
+
+	return (atomic_exchange_explicit(&__object->__flag, 1, __order) != 0);
 }
 
 static __inline void
