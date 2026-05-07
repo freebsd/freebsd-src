@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -22,7 +22,6 @@
 extern int squeeze;
 extern int hshift;
 extern int quit_if_one_screen;
-extern int ignore_eoi;
 extern int status_col;
 extern int wordwrap;
 extern POSITION start_attnpos;
