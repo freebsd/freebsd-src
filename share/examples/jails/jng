@@ -593,7 +593,7 @@ jng_stats()
 				fmt_stats -n "${name}.lower" -t "$now"
 
 			[ "$STATS_FMT" != "text" ] ||
-				echo "${name}bridge:link0 [lower]"
+				echo "${name}bridge:link1 [upper]"
 			ngctl msg ${name}bridge: getstats 1 |
 				fmt_stats -n "${name}.upper" -t "$now"
 		fi
