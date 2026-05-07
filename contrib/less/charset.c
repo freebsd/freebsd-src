@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -202,20 +202,20 @@ static void ichardef_utf(constant char *s)
 			switch (*s++)
 			{
 			case 'b':
-				xbuf_add_data(&user_ubin_array, (unsigned char *) &range, sizeof(range));
+				xbuf_add_data(&user_ubin_array, &range, sizeof(range));
 				break;
 			case 'c':
-				xbuf_add_data(&user_compose_array, (unsigned char *) &range, sizeof(range));
+				xbuf_add_data(&user_compose_array, &range, sizeof(range));
 				break;
 			case 'd':
-				xbuf_add_data(&user_omit_array, (unsigned char *) &range, sizeof(range));
+				xbuf_add_data(&user_omit_array, &range, sizeof(range));
 				break;
 			case 'w':
-				xbuf_add_data(&user_wide_array, (unsigned char *) &range, sizeof(range));
-				xbuf_add_data(&user_prt_array, (unsigned char *) &range, sizeof(range));
+				xbuf_add_data(&user_wide_array, &range, sizeof(range));
+				xbuf_add_data(&user_prt_array, &range, sizeof(range));
 				break;
 			case 'p': case '.':
-				xbuf_add_data(&user_prt_array, (unsigned char *) &range, sizeof(range));
+				xbuf_add_data(&user_prt_array, &range, sizeof(range));
 				break;
 			case '\0':
 				s--;
@@ -429,13 +429,21 @@ static void set_charset(void)
 	/*
 	 * Try using the codeset name as the charset name.
 	 */
-	s = nl_langinfo(CODESET);
-	if (icharset(s, 1))
-		return;
+#if LESSTEST
+	/*
+	 * Don't check nl_langinfo in lesstest mode; charset should come
+	 * only from environment variables, not from the system locale.
+	 */
+	if (0) /* {{ unfortunately it's too early to use is_lesstest }} */
+#endif
+	{
+		s = nl_langinfo(CODESET);
+		if (icharset(s, 1))
+			return;
+	}
 #endif
 #endif
 
-#if HAVE_STRSTR
 	/*
 	 * Check whether LC_ALL, LC_CTYPE or LANG look like UTF-8 is used.
 	 */
@@ -448,7 +456,6 @@ static void set_charset(void)
 			if (icharset("utf-8", 1))
 				return;
 	}
-#endif
 
 #if HAVE_LOCALE
 	/*

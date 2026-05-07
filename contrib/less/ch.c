@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2025  Mark Nudelman
+ * Copyright (C) 1984-2026  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -22,7 +22,7 @@
 
 typedef POSITION BLOCKNUM;
 
-public int ignore_eoi;
+public lbool ignore_eoi = FALSE;
 
 /*
  * Pool of buffers holding the most recently used blocks of the input file.
@@ -883,13 +883,13 @@ public void ch_init(int f, int flags, ssize_t nread)
 	 */
 	ch_fsize = (flags & CH_HELPFILE) ? size_helpdata : filesize(ch_file);
 
-	/*
-	 * This is a kludge to workaround a Linux kernel bug: files in some
-	 * pseudo filesystems like /proc and tracefs have a size of 0 according
-	 * to fstat() but have readable data.
-	 */
 	if (ch_fsize == 0 && nread > 0)
 	{
+		/*
+		 * This is a kludge to workaround a Linux kernel bug: files in some
+		 * pseudo filesystems like /proc and tracefs have a size of 0 according
+		 * to fstat() but have readable data.
+		 */
 		ch_flags |= CH_NOTRUSTSIZE;
 	}
 
