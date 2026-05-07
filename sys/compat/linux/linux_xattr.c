@@ -26,8 +26,10 @@
  */
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/extattr.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
@@ -132,11 +134,20 @@ listxattr(struct thread *td, struct listxattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	char *data, *prefix, *key;
+	cap_rights_t rights;
+	struct file *fp = NULL;
 	struct uio auio;
 	struct iovec aiov;
 	unsigned char keylen;
 	size_t sz, cnt, rs, prefixlen, pairlen;
 	int attrnamespace, error;
+
+	if (args->path == NULL) {
+		error = getvnode(td, args->fd,
+		    cap_rights_init_one(&rights, CAP_EXTATTR_LIST), &fp);
+		if (error != 0)
+			return (error);
+	}
 
 	if (args->size != 0)
 		sz = min(LINUX_XATTR_LIST_MAX, args->size);
@@ -162,7 +173,7 @@ listxattr(struct thread *td, struct listxattr_args *args)
 			error = kern_extattr_list_path(td, args->path,
 			    attrnamespace, &auio, args->follow, UIO_USERSPACE);
 		else
-			error = kern_extattr_list_fd(td, args->fd,
+			error = kern_extattr_list_fp(td, fp,
 			    attrnamespace, &auio);
 		rs = sz - auio.uio_resid;
 		if (error == EPERM)
@@ -204,6 +215,8 @@ listxattr(struct thread *td, struct listxattr_args *args)
 	if (error == 0)
 		td->td_retval[0] = cnt;
 	free(data, M_LINUX);
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error_to_xattrerror(attrnamespace, error));
 }
 
@@ -253,18 +266,33 @@ static int
 removexattr(struct thread *td, struct removexattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
+	struct file *fp = NULL;
+	cap_rights_t rights;
 	int attrnamespace, error;
+
+	if (args->path == NULL) {
+		error = getvnode(td, args->fd,
+		    cap_rights_init_one(&rights, CAP_EXTATTR_DELETE), &fp);
+		if (error != 0)
+			return (error);
+	}
 
 	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
-		return (error);
+		goto out_err;
 	if (args->path != NULL)
 		error = kern_extattr_delete_path(td, args->path, attrnamespace,
 		    attrname, args->follow, UIO_USERSPACE);
 	else
-		error = kern_extattr_delete_fd(td, args->fd, attrnamespace,
+		error = kern_extattr_delete_fp(td, fp, attrnamespace,
 		    attrname);
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error_to_xattrerror(attrnamespace, error));
+out_err:
+	if (fp != NULL)
+		fdrop(fp, td);
+	return (error);
 }
 
 int
@@ -310,17 +338,30 @@ static int
 getxattr(struct thread *td, struct getxattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
+	struct file *fp = NULL;
+	cap_rights_t rights;
 	int attrnamespace, error;
+
+	if (args->path == NULL) {
+		error = getvnode(td, args->fd,
+		    cap_rights_init_one(&rights, CAP_EXTATTR_GET), &fp);
+		if (error != 0)
+			return (error);
+	}
 
 	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
-		return (error);
+		goto out_err;
 	if (args->path != NULL)
 		error = kern_extattr_get_path(td, args->path, attrnamespace,
 		    attrname, args->value, args->size, args->follow, UIO_USERSPACE);
 	else
-		error = kern_extattr_get_fd(td, args->fd, attrnamespace,
+		error = kern_extattr_get_fp(td, fp, attrnamespace,
 		    attrname, args->value, args->size);
+
+out_err:
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error == EPERM ? ENOATTR : error);
 }
 
@@ -373,14 +414,28 @@ static int
 setxattr(struct thread *td, struct setxattr_args *args)
 {
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
+	struct file *fp = NULL;
+	cap_rights_t rights;
 	int attrnamespace, error;
 
+	if (args->path == NULL) {
+		if ((args->flags & LINUX_XATTR_FLAGS) != 0)
+			cap_rights_init(&rights, CAP_EXTATTR_GET, CAP_EXTATTR_SET);
+		else
+			cap_rights_init_one(&rights, CAP_EXTATTR_SET);
+		error = getvnode(td, args->fd, &rights, &fp);
+		if (error != 0)
+			return (error);
+	}
+
 	if ((args->flags & ~(LINUX_XATTR_FLAGS)) != 0 ||
-	    args->flags == (LINUX_XATTR_FLAGS))
-		return (EINVAL);
+	    args->flags == (LINUX_XATTR_FLAGS)) {
+		error = EINVAL;
+		goto out_err;
+	}
 	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
-		return (error);
+		goto out_err;
 
 	if ((args->flags & (LINUX_XATTR_FLAGS)) != 0 ) {
 		if (args->path != NULL)
@@ -388,7 +443,7 @@ setxattr(struct thread *td, struct setxattr_args *args)
 			    attrnamespace, attrname, NULL, args->size,
 			    args->follow, UIO_USERSPACE);
 		else
-			error = kern_extattr_get_fd(td, args->fd,
+			error = kern_extattr_get_fp(td, fp,
 			    attrnamespace, attrname, NULL, args->size);
 		if ((args->flags & LINUX_XATTR_CREATE) != 0) {
 			if (error == 0)
@@ -404,11 +459,17 @@ setxattr(struct thread *td, struct setxattr_args *args)
 		    attrname, args->value, args->size, args->follow,
 		    UIO_USERSPACE);
 	else
-		error = kern_extattr_set_fd(td, args->fd, attrnamespace,
+		error = kern_extattr_set_fp(td, fp, attrnamespace,
 		    attrname, args->value, args->size);
 out:
+	if (fp != NULL)
+		fdrop(fp, td);
 	td->td_retval[0] = 0;
 	return (error_to_xattrerror(attrnamespace, error));
+out_err:
+	if (fp != NULL)
+		fdrop(fp, td);
+	return (error);
 }
 
 int
