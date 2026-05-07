@@ -1,0 +1,189 @@
+.\" Copyright (c) 2022 Corey Hinshaw <corey@electrickite.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd February 10, 2022
+.Dt FAND 8
+.Os fand 0.2.3
+.Sh NAME
+.Nm fand
+.Nd daemon to control PWM (Pulse Width Modulation) cooling fans
+.Sh SYNOPSIS
+.Nm
+.Op options...
+.Ar temperature_sensor
+.Ar pwm_device
+.Nm
+.Op Fl fiIp
+.Op Fl m Ar multiplier
+.Op Fl r Ar path
+.Fl c Ar profile
+.Ar temperature_sensor
+.Ar pwm_device
+.Nm
+.Op options...
+.Fl s
+.Ar temperature_sensor
+.Ar pwm_device
+.Nm
+.Fl h
+.Nm
+.Fl v
+.Sh DESCRIPTION
+The
+.Nm
+daemon can be used to control a cooling fan connected to a
+.Xr pwmc 4
+.Ar pwm_device
+based on the system temperature retrived from a
+.Xr sysctl 3
+.Ar temperature_sensor
+. Low and high temperature thresholds can be configured, each with separate
+PWM parameters.
+.Pp
+.Ar temperature_sensor
+should be the name of the sysctl variable used to read the system temperature.
+.Ar pwm_device
+should be the name of the PWM device that controls the system fan. If an
+unqualified name is provided,
+.Pa /dev/pwm
+is automatically prepended.
+.Pp
+When called with the
+.Fl s
+option,
+.Nm
+will print the current status of the temperature sensor and the PWM state and
+exit. This can be useful when determining the required temperature multiplier
+and other options.
+.Pp
+The options are as follows:
+.Bl -tag -width "-t temperature"
+
+.It Fl c Ar profile
+The name of the cooling profile to use. Defaults to none. Conflicts with the
+.Fl d ,
+.Fl D ,
+.Fl t ,
+.Fl T ,
+.Fl K ,
+.Fl o ,
+.Fl p ,
+.Fl P ,
+.Fl t
+and
+.Fl T
+options.
+
+.It Fl d Ar duty
+The duty cycle (in nanoseconds or percentage) of the PWM channel for the
+default (low) temperature threshold. Duty is the portion of the
+.Ar period
+during which the signal is asserted. Conflicts with the
+.Fl c
+option.
+
+.It Fl D Ar duty
+The duty cycle (in nanoseconds or percentage) of the PWM channel for the
+high temperature threshold. Duty is the portion of the
+.Ar period
+during which the signal is asserted. Conflicts with the
+.Fl c
+option.
+
+.It Fl f
+Run
+.Nm
+in the foreground. Also enables more verbose output.
+
+.It Fl i Ar seconds
+The temperature polling interval, in seconds (Default: 60)
+
+.It Fl I
+Invert PWM signal polarity
+
+.It Fl K
+Converts the temperature sensor reading from Kelvin. Conflicts with the
+.Fl c
+option.
+
+.It Fl m Ar multiplier
+Multiplier applied to reading from temperature sensor (Default: 1.0)
+
+.It Fl o Ar temperature
+Temperature to deactivate fan, in degrees Celsius. Defaults to 50 °C. Conflicts with the
+.Fl c
+option.
+
+.It Fl p Ar period
+The period in nanoseconds of the PWM channel for the default (low) temperature
+threshold. Defaults to 0. Conflicts with the
+.Fl c
+option.
+
+.It Fl P Ar period
+The period in nanoseconds of the PWM channel for the high temperature threshold
+Defaults to 0. Conflicts with the
+.Fl c
+option.
+
+.It Fl r Ar path
+The PID file path
+(Default: /var/run/fand.pid)
+
+.It Fl s
+Show current temperature and PWM status, then exit.
+
+.It Fl t Ar temperature
+Default (low) temperature to enable the fan, in degrees Celsius. Defaults to 50 °C. Conflicts with the
+.Fl c
+option.
+
+.It Fl T Ar temperature
+High temperature threshold, in degrees Celsius. Defaults to none. Conflicts with the
+.Fl c
+option.
+
+.It Fl v
+Print program version and exit
+
+.El
+.Sh EXAMPLES
+.Bl -bullet
+.It
+Using the "hw.temp.CPU" sensor and the pwmc1.0 controller, run the fan
+at half duty cycle when the temperature reaches 45 °C and run at full when the
+temperature rises above 60 °C. Disable the fan if the temperature falls below
+35 °C. When reading from the sensor, assume value is in tenth Kelvin.
+.Bd -literal
+fand -t 45 -p 50000 -d "50%" -T 60 -o 35 -K -m 0.1 hw.temp.CPU pwmc1.0
+.Ed
+.El
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr pwm 8
+.Xr rc.conf 5
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility and this manual page were written by
+.An Corey Hinshaw Aq Mt corey@electrickite.org .
