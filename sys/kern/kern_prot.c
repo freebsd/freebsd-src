@@ -527,10 +527,10 @@ kern_setcred_copyin_supp_groups(struct setcred *const wcred,
 		 */
 		*groups = wcred->sc_supp_groups_nb < CRED_SMALLGROUPS_NB ?
 		    smallgroups : malloc((wcred->sc_supp_groups_nb + 1) *
-		    sizeof(*groups), M_TEMP, M_WAITOK);
+		    sizeof(gid_t), M_TEMP, M_WAITOK);
 
 		error = copyin(wcred->sc_supp_groups, *groups + 1,
-		    wcred->sc_supp_groups_nb * sizeof(*groups));
+		    wcred->sc_supp_groups_nb * sizeof(gid_t));
 		if (error != 0)
 			return (error);
 		wcred->sc_supp_groups = *groups + 1;
