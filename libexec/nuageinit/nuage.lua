@@ -52,6 +52,10 @@ local function decode_base64(input)
 	return table.concat(result)
 end
 
+local function shell_escape(s)
+	return "'" .. string.gsub(s, "'", "'\\''") .. "'"
+end
+
 local function warnmsg(str, prepend)
 	if not str then
 		return
@@ -121,7 +125,7 @@ local function sethostname(hostname)
 		warnmsg("Impossible to open " .. hostnamepath .. ":" .. err)
 		return
 	end
-	f:write('hostname="' .. hostname .. '"\n')
+	f:write('hostname="' .. hostname:gsub('"', '\\"') .. '"\n')
 	f:close()
 end
 
@@ -199,7 +203,7 @@ local function adduser(pwd)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " usershow " .. pwd.name .. " -7 2> /dev/null")
+	local f = io.popen(cmd .. " usershow " .. shell_escape(pwd.name) .. " -7 2> /dev/null")
 	local pwdstr = f:read("*a")
 	f:close()
 	if pwdstr:len() ~= 0 then
@@ -220,13 +224,17 @@ local function adduser(pwd)
 		-- a warning but creates the user anyway.
 		list = purge_group(list)
 		if #list > 0 then
-			extraargs = " -G " .. table.concat(list, ",")
+			local escaped_list = {}
+			for _, g in ipairs(list) do
+				table.insert(escaped_list, shell_escape(g))
+			end
+			extraargs = " -G " .. table.concat(escaped_list, ",")
 		end
 	end
 	-- pw will automatically create a group named after the username
 	-- do not add a -g option in this case
 	if pwd.primary_group and pwd.primary_group ~= pwd.name then
-		extraargs = extraargs .. " -g " .. pwd.primary_group
+		extraargs = extraargs .. " -g " .. shell_escape(pwd.primary_group)
 	end
 	if not pwd.no_create_home then
 		extraargs = extraargs .. " -m "
@@ -248,9 +256,9 @@ local function adduser(pwd)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	cmd = cmd .. "useradd -n " .. pwd.name .. " -M 0755 -w none "
-	cmd = cmd .. extraargs .. " -c '" .. pwd.gecos
-	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s " .. pwd.shell .. postcmd
+	cmd = cmd .. "useradd -n " .. shell_escape(pwd.name) .. " -M 0755 -w none "
+	cmd = cmd .. extraargs .. " -c " .. shell_escape(pwd.gecos)
+	cmd = cmd .. " -d " .. shell_escape(pwd.homedir) .. " -s " .. shell_escape(pwd.shell) .. postcmd
 
 	f = io.popen(cmd, "w")
 	if input then
@@ -267,7 +275,7 @@ local function adduser(pwd)
 		if root then
 			cmd = cmd .. "-R " .. root .. " "
 		end
-		cmd = cmd .. "lock " .. pwd.name
+		cmd = cmd .. "lock " .. shell_escape(pwd.name)
 		os.execute(cmd)
 	end
 	return pwd.homedir
@@ -283,7 +291,7 @@ local function addgroup(grp)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " groupshow " .. grp.name .. " 2> /dev/null")
+	local f = io.popen(cmd .. " groupshow " .. shell_escape(grp.name) .. " 2> /dev/null")
 	local grpstr = f:read("*a")
 	f:close()
 	if grpstr:len() ~= 0 then
@@ -292,13 +300,17 @@ local function addgroup(grp)
 	local extraargs = ""
 	if grp.members then
 		local list = splitlist(grp.members)
-		extraargs = " -M " .. table.concat(list, ",")
+		local escaped_list = {}
+		for _, m in ipairs(list) do
+			table.insert(escaped_list, shell_escape(m))
+		end
+		extraargs = " -M " .. table.concat(escaped_list, ",")
 	end
 	cmd = "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	cmd = cmd .. "groupadd -n " .. grp.name .. extraargs
+	cmd = cmd .. "groupadd -n " .. shell_escape(grp.name) .. extraargs
 	local r = os.execute(cmd)
 	if not r then
 		warnmsg("fail to add group " .. grp.name)
@@ -484,7 +496,7 @@ local function exec_change_password(user, password, type, expire)
 			postcmd = " -w random"
 		end
 	end
-	cmd = cmd .. "usermod " .. user .. postcmd
+	cmd = cmd .. "usermod " .. shell_escape(user) .. postcmd
 	if expire then
 		cmd = cmd .. " -p 1"
 	else
@@ -577,7 +589,7 @@ local function settimezone(timezone)
 		root = "/"
 	end
 
-	local f, _, rc = os.execute("tzsetup -s -C " .. root .. " " .. timezone)
+	local f, _, rc = os.execute("tzsetup -s -C " .. shell_escape(root) .. " " .. shell_escape(timezone))
 
 	if not f then
 		warnmsg("Impossible to configure time zone ( rc = " .. rc .. " )")
@@ -600,8 +612,8 @@ local function install_package(package)
 	if package == nil then
 		return true
 	end
-	local install_cmd = "pkg install -y " .. package
-	local test_cmd = "pkg info -q " .. package
+	local install_cmd = "pkg install -y " .. shell_escape(package)
+	local test_cmd = "pkg info -q " .. shell_escape(package)
 	if os.getenv("NUAGE_RUN_TESTS") then
 		print(install_cmd)
 		print(test_cmd)
@@ -683,6 +695,7 @@ local function addfile(file, defer)
 end
 
 local n = {
+	shell_escape = shell_escape,
 	warn = warnmsg,
 	err = errmsg,
 	chmod = chmod,
