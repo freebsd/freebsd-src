@@ -763,7 +763,8 @@ acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc)
 	if (ACPI_FAILURE(status)) {
 		failed_to_call_dsm(sc, dsm, DSM_GET_DEVICE_CONSTRAINTS);
 		return (ENXIO);
-	}
+	} else if (VERBOSE())
+		device_printf(sc->dev, "Constraints: Retrieved successfully\n");
 
 	object = (ACPI_OBJECT *)result.Pointer;
 	if (dsm == &dsm_intel)
@@ -864,14 +865,21 @@ acpi_spmc_run(device_t dev, const struct dsm_desc *const dsm,
 	    (force_call_expected_functions && has_dsm(sc, dsm->index))))
 		return;
 
+	if (VERBOSE())
+		device_printf(dev, "DSM %s: Calling function %s\n",
+		    dsm->name, dsm_function_name(dsm, function_index));
 	status = acpi_EvaluateDSMTyped(sc->handle, (const uint8_t *)&dsm->uuid,
 	    get_revision(sc, dsm->index), function_index, NULL,
 	    &result, ACPI_TYPE_ANY);
 
 	if (ACPI_FAILURE(status))
 		failed_to_call_dsm(sc, dsm, function_index);
-	else
+	else {
+		if (VERBOSE())
+			device_printf(dev, "DSM %s: Function %s successful\n",
+			    dsm->name, dsm_function_name(dsm, function_index));
 		AcpiOsFree(result.Pointer);
+	}
 }
 
 /*
