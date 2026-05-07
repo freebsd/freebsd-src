@@ -419,7 +419,7 @@ out:
  * the name and perm specified under the parent dir. If this succeeds (an entry
  * is created for the new file on the server), we create our metadata for this
  * file (vnode, p9fs node calling vget). Once we are done, we clunk the open
- * fid of the parent directory.
+ * fid of the parent directory if it was not retained.
  */
 static int
 create_common(struct p9fs_node *dnp, struct componentname *cnp,
@@ -473,6 +473,28 @@ create_common(struct p9fs_node *dnp, struct componentname *cnp,
 			    dnp, newfid, vpp, cnp->cn_nameptr);
 			if (error != 0)
 				goto out;
+
+			if (ofid != NULL) {
+				struct p9fs_node *np = P9FS_VTON(*vpp);
+				ofid->v_opens = 0;
+				/*
+				 * The 9P file creation request natively opens
+				 * the file as part of the create operation and
+				 * gives us a writable file handle (ofid).
+				 * We retain this open descriptor by adding it
+				 * to the VOFID list of the new vnode. This
+				 * guarantees that a subsequent VOP_OPEN call
+				 * does not need to send a redundant TOPEN
+				 * request. This is particularly important
+				 * because if a file was requested to be created
+				 * with 000 permissions, the host will reject
+				 * subsequent TOPEN requests due to insufficient
+				 * permissions, which would cause an overall
+				 * open() failure.
+				 */
+				p9fs_fid_add(np, ofid, VOFID);
+				ofid = NULL; /* prevent closing handle below */
+			}
 		} else {
 			/* Not found return NOENTRY.*/
 			goto out;
