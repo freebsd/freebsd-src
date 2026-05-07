@@ -538,6 +538,9 @@ legacy_emulate_cpuid(struct vcpu *vcpu, uint32_t *eax, uint32_t *ebx,
 	if (cpu_exthigh != 0 && func >= 0x80000000) {
 		if (func > cpu_exthigh)
 			func = cpu_exthigh;
+	} else if (func >= CPUID_VM_SIGNATURE + CPUID_VM_BHYVE_OFF) {
+		if (func > CPUID_VM_HIGH + CPUID_VM_BHYVE_OFF)
+			func = CPUID_VM_HIGH + CPUID_VM_BHYVE_OFF;
 	} else if (func >= CPUID_VM_SIGNATURE) {
 		if (func > CPUID_VM_HIGH)
 			func = CPUID_VM_HIGH;
@@ -1053,13 +1056,15 @@ legacy_emulate_cpuid(struct vcpu *vcpu, uint32_t *eax, uint32_t *ebx,
 			break;
 
 		case CPUID_VM_SIGNATURE:
-			regs[0] = CPUID_VM_HIGH;
+		case CPUID_VM_SIGNATURE + CPUID_VM_BHYVE_OFF:
+			regs[0] = CPUID_VM_HIGH + (func - CPUID_VM_SIGNATURE);
 			bcopy(bhyve_id, &regs[1], 4);
 			bcopy(bhyve_id + 4, &regs[2], 4);
 			bcopy(bhyve_id + 8, &regs[3], 4);
 			break;
 
 		case CPUID_BHYVE_FEATURES:
+		case CPUID_BHYVE_FEATURES + CPUID_VM_BHYVE_OFF:
 			regs[0] = CPUID_BHYVE_FEAT_EXT_DEST_ID;
 			regs[1] = 0;
 			regs[2] = 0;
