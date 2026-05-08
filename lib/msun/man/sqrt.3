@@ -25,17 +25,20 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 15, 2020
+.Dd May 7, 2026
 .Dt SQRT 3
 .Os
 .Sh NAME
 .Nm cbrt ,
 .Nm cbrtf ,
 .Nm cbrtl ,
+.Nm rsqrt ,
+.Nm rsqrtf ,
+.Nm rsqrtl,
 .Nm sqrt ,
 .Nm sqrtf ,
 .Nm sqrtl
-.Nd cube root and square root functions
+.Nd cube root, square root, and inverse square root functions
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -46,6 +49,12 @@
 .Fn cbrtf "float x"
 .Ft long double
 .Fn cbrtl "long double x"
+.Ft double
+.Fn rsqrt "double x"
+.Ft float
+.Fn rsqrtf "float x"
+.Ft long double
+.Fn rsqrtl "long double x"
 .Ft double
 .Fn sqrt "double x"
 .Ft float
@@ -63,6 +72,15 @@ the cube root of
 .Fa x .
 .Pp
 The
+.Fn rsqrt ,
+.Fn rsqrtf ,
+and
+.Fn rsqrtl
+functions compute
+the inverse square root of
+.Fa x .
+.Pp
+The
 .Fn sqrt ,
 .Fn sqrtf ,
 and
@@ -77,6 +95,23 @@ The
 and
 .Fn cbrtl
 functions return the requested cube root.
+.Pp
+The
+.Fn rsqrt ,
+.Fn rsqrtf ,
+and
+.Fn rsqrtl
+functions return 1 divided by the square root of
+.Fa x
+unless an error occurs.
+An attempt to take the
+.Fn rsqrt
+of negative
+.Fa x
+raises an invalid exception and causes an \*(Na to be returned.
+The inverse square root of \*(Pm0 returns \*(Pm\(if and
+raises a divide-by-zero exception.
+.Pp
 The
 .Fn sqrt ,
 .Fn sqrtf ,
@@ -104,6 +139,13 @@ and
 .Fn sqrtl
 functions conform to
 .St -isoC-99 .
+The
+.Fn rsqrt ,
+.Fn rsqrtf ,
+and
+.Fn rsqrtl
+functions conform to ISO/IEC 9899:2024 ("ISO C23").
+.\" .St -isoC-24 .
 .Sh HISTORY
 The
 .Fn cbrt
@@ -120,3 +162,10 @@ The
 .Fn cbrtl
 function appeared in
 .Fx 9.0 .
+The
+.Fn rsqrt ,
+.Fn rsqrtf ,
+and
+.Fn rsqrtl
+functions appeared in
+.Fx 16.0 .

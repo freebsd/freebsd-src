@@ -344,4 +344,7 @@ FBSD_1.9 {
 	fminimum_mag_num;
 	fminimum_mag_numf;
 	fminimum_mag_numl;
+	rsqrt;
+	rsqrtf;
+	rsqrtl;
 };
