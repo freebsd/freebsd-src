@@ -270,6 +270,8 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 #define	atomic_fetch_and_explicit(object, operand, order)		\
 	__c11_atomic_fetch_and(object, operand, order)
 #elif defined(__GNUC_ATOMICS)
+#define	__atomic_apply_stride(object, operand)				\
+	(((__typeof__(*(object)))0) + (operand))
 #define	atomic_store_explicit(object, desired, order)			\
 	__atomic_store_n(object, desired, order)
 #define	atomic_load_explicit(object, order)				\
@@ -285,9 +287,11 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 	__atomic_compare_exchange_n(object, expected,			\
 	    desired, 1, success, failure)
 #define	atomic_fetch_add_explicit(object, operand, order)		\
-	__atomic_fetch_add(object, operand, order)
+	__atomic_fetch_add(object,					\
+	    __atomic_apply_stride(object, operand), order)
 #define	atomic_fetch_sub_explicit(object, operand, order)		\
-	__atomic_fetch_sub(object, operand, order)
+	__atomic_fetch_sub(object,					\
+	    __atomic_apply_stride(object, operand), order)
 #define	atomic_fetch_or_explicit(object, operand, order)		\
 	__atomic_fetch_or(object, operand, order)
 #define	atomic_fetch_xor_explicit(object, operand, order)		\
