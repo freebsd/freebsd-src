@@ -510,6 +510,9 @@ long double 	sinpil(long double);
 double		tanpi(double);
 float		tanpif(float);
 long double	tanpil(long double);
+double		rsqrt(double);
+float		rsqrtf(float);
+long double	rsqrtl(long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS
