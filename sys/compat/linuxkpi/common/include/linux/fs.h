@@ -43,6 +43,7 @@
 #include <linux/capability.h>
 #include <linux/wait_bit.h>
 #include <linux/kernel.h>
+#include <linux/mount.h>
 #include <linux/mutex.h>
 
 struct module;

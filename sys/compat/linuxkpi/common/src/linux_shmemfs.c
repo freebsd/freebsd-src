@@ -93,6 +93,15 @@ err_0:
 	return (ERR_PTR(error));
 }
 
+struct linux_file *
+linux_shmem_file_setup_with_mnt(struct vfsmount *mount,
+    const char *name, loff_t size, unsigned long flags)
+{
+	pr_debug("%s: TODO\n", __func__);
+
+	return (linux_shmem_file_setup(name, size, flags));
+}
+
 static vm_ooffset_t
 linux_invalidate_mapping_pages_sub(vm_object_t obj, vm_pindex_t start,
     vm_pindex_t end, int flags)
