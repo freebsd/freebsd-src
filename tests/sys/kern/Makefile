@@ -27,6 +27,7 @@ ATF_TESTS_C+=	ktls_test
 .endif
 ATF_TESTS_C+=	ktrace_test
 ATF_TESTS_C+=	module_test
+ATF_TESTS_C+=	procdesc
 ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
@@ -85,6 +86,7 @@ LIBADD.unix_seqpacket_test+=		pthread
 LIBADD.kcov+=				pthread
 CFLAGS.ktls_test+=			-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD.ktls_test+=			crypto util
+LIBADD.procdesc+=			pthread
 LIBADD.socket_msg_waitall+=		pthread
 LIBADD.socket_splice+=			pthread
 LIBADD.sendfile_helper+=		pthread
