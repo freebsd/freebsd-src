@@ -86,7 +86,6 @@ struct procdesc {
  * Flags for the pd_flags field.
  */
 #define	PDF_CLOSED	0x00000001	/* Descriptor has closed. */
-#define	PDF_SELECTED	0x00000002	/* Issue selwakeup(). */
 #define	PDF_EXITED	0x00000004	/* Process exited. */
 #define	PDF_DAEMON	0x00000008	/* Don't exit when procdesc closes. */
 

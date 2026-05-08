@@ -274,6 +274,7 @@ procdesc_free(struct procdesc *pd)
 		if (pd->pd_pid != -1)
 			proc_id_clear(PROC_ID_PID, pd->pd_pid);
 
+		seldrain(&pd->pd_selinfo);
 		knlist_destroy(&pd->pd_selinfo.si_note);
 		PROCDESC_LOCK_DESTROY(pd);
 		free(pd, M_PROCDESC);
@@ -316,10 +317,7 @@ procdesc_exit(struct proc *p)
 		procdesc_free(pd);
 		return (1);
 	}
-	if (pd->pd_flags & PDF_SELECTED) {
-		pd->pd_flags &= ~PDF_SELECTED;
-		selwakeup(&pd->pd_selinfo);
-	}
+	selwakeup(&pd->pd_selinfo);
 	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_EXIT);
 	PROCDESC_UNLOCK(pd);
 
@@ -438,10 +436,8 @@ procdesc_poll(struct file *fp, int events, struct ucred *active_cred,
 	PROCDESC_LOCK(pd);
 	if (pd->pd_flags & PDF_EXITED)
 		revents |= POLLHUP;
-	if (revents == 0) {
+	else
 		selrecord(td, &pd->pd_selinfo);
-		pd->pd_flags |= PDF_SELECTED;
-	}
 	PROCDESC_UNLOCK(pd);
 	return (revents);
 }
