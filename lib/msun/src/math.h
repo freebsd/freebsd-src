@@ -538,6 +538,9 @@ long double	fmaximum_numl(long double, long double);
 double		fminimum_num(double, double);
 float		fminimum_numf(float, float);
 long double	fminimum_numl(long double, long double);
+double		rsqrt(double);
+float		rsqrtf(float);
+long double	rsqrtl(long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS

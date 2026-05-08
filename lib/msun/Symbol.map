@@ -338,4 +338,7 @@ FBSD_1.9 {
 	fminimum_num;
 	fminimum_numf;
 	fminimum_numl;
+	rsqrt;
+	rsqrtf;
+	rsqrtl;
 };

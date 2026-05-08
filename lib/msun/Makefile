@@ -86,7 +86,7 @@ COMMON_SRCS= b_tgamma.c \
 	s_lround.c s_lroundf.c s_lroundl.c s_modff.c \
 	s_nan.c s_nearbyint.c s_nextafter.c s_nextafterf.c \
 	s_nexttowardf.c s_remquo.c s_remquof.c \
-	s_rint.c s_rintf.c s_round.c s_roundf.c \
+	s_rint.c s_rintf.c s_round.c s_roundf.c s_rsqrt.c s_rsqrtf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c \
 	s_sincos.c s_sincosf.c s_sinf.c \
@@ -139,7 +139,7 @@ COMMON_SRCS+=	b_tgammal.c catrigl.c \
 	s_fminl.c s_fminimuml.c s_fminimum_magl.c s_fminimum_numl.c \
 	s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
 	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
-	s_scalbnl.c s_sinl.c s_sincosl.c s_sinpil.c \
+	s_scalbnl.c s_sinl.c s_sincosl.c s_sinpil.c s_rsqrtl.c \
 	s_tanhl.c s_tanl.c s_tanpil.c s_truncl.c w_cabsl.c
 # Work around this warning from gcc:
 #     lib/msun/ld80/e_powl.c:275:1: error: floating constant exceeds range of
@@ -281,7 +281,7 @@ MLINKS+=sincos.3 sincosf.3 sin.3 sincosl.3
 MLINKS+=sinh.3 sinhf.3 sinh.3 sinhl.3
 MLINKS+=sinpi.3 sinpif.3 sinpi.3 sinpil.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 cbrtl.3 sqrt.3 sqrtf.3 \
-	sqrt.3 sqrtl.3
+	sqrt.3 sqrtl.3 sqrt.3 rsqrt.3 sqrt.3 rsqrtf.3 sqrt.3 rsqrtl.3
 MLINKS+=tan.3 tanf.3 tan.3 tanl.3
 MLINKS+=tanh.3 tanhf.3 tanh.3 tanhl.3
 MLINKS+=tanpi.3 tanpif.3 tanpi.3 tanpil.3
