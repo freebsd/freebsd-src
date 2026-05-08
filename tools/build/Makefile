@@ -353,6 +353,7 @@ DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 .if ${.MAKE.OS} == "FreeBSD"
 # Needed to build most of the things below, which include sys/cdefs.h either
 # directly or transitively
+SYSINCS+=	${SRCTOP}/sys/sys/_decls.h
 SYSINCS+=	${SRCTOP}/sys/sys/_visible.h
 SYSINCS+=	${SRCTOP}/sys/sys/cdefs.h
 .endif
