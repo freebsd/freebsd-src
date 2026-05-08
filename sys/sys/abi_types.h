@@ -27,8 +27,10 @@ typedef struct {
 
 #if defined(__amd64__) || defined(__i386__)
 typedef	__int32_t	time32_t;
+#define	__SIZEOF_TIME32_T	__SIZEOF_INT32_T
 #else
 typedef	__int64_t	time32_t;
+#define	__SIZEOF_TIME32_T	__SIZEOF_INT64_T
 #endif
 #define	__HAVE_TIME32_T
 
