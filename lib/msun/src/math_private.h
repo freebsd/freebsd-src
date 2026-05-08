@@ -472,6 +472,89 @@ do {								\
 } while (0)
 
 /*
+ * Split x into high and low bits where CC is 0x1p(N/2) + 1 where
+ * N is rounded up for types with odd precisions.
+ *
+ * #define _CC (0x1p12F + 1)	// float
+ * #define _CC (0x1p27  + 1)	// double
+ * #define _CC (0x1p32L + 1)	// long double (LD80)
+ * #define _CC (0x1p57L + 1)	// long double (LD128)
+ */
+#define _SPLIT(x, xh, xl)		\
+do {					\
+	typeof(x) __t1;			\
+	__t1 = (x) * _CC;		\
+	xh = __t1 + ((x) - __t1);	\
+	xl = (x) - xh;			\
+} while(0)
+
+/*
+ * FAST2SUM requires |x| >= |y|.  x and y are full precision.
+ * Note, _2SUMF(x,y) above destroys x and y.
+ */
+#define _FAST2SUM(x, y, hi, lo)	\
+do {				\
+	hi = (x) + (y);		\
+	lo = (y) - (hi - (x));	\
+} while(0)
+
+/*
+ * SLOW2SUM does not require |x| >= |y|.  Here, x and y are full precision.
+ * The t1 temporary variable is volatile to prevent compiler optimizations.
+ * Note, _2SUM(x,y) above destroys x and y.
+ */
+#define _SLOW2SUM(x, y, hi, lo)			\
+do {						\
+	volatile typeof(x) __t1;		\
+	typeof(x) __t2;				\
+	hi = (x) + (y);				\
+	__t1 = hi - (y);			\
+	__t2 = hi - __t1;			\
+	lo = ((x) - __t1) + ((y) - __t2);	\
+} while(0)
+
+/*
+ * x and y are full precision quantities that have been split into high
+ * and low parts via the _SPLIT macro.  x and y are added to give z as
+ * high and low parts.
+ */
+#define _XADD(xh, xl, yh, yl, zh, zl)			\
+do {							\
+	typeof(xh) __s1, __s2, __s3, __s4, __s5, __s6;	\
+	_SLOW2SUM(xh, yh, __s1, __s2);			\
+	_SLOW2SUM(xl, yl, __s3, __s4);			\
+	_FAST2SUM(__s1, __s2 + __s3, __s5, __s6);	\
+	_FAST2SUM(__s5, __s6 + __s4, zh, zl);		\
+} while(0)
+
+/*
+ * x and y are full precision quantities.  r1 and r2 are full precision
+ * high and low parts of the multiplication x * y.
+ */
+#define _MUL(x, y, r1 ,r2)				\
+do  {							\
+	typeof(x) __xh, __xl, __yh, __yl;		\
+	typeof(x) __t1;				\
+	_SPLIT(x, __xh, __xl);				\
+	_SPLIT(y, __yh, __yl);				\
+	r1 = (x) * (y);					\
+	__t1 = __xh * __yl + (__xh * __yh - r1);	\
+	r2 = __xl * __yl + (__xl * __yh + __t1);	\
+} while(0)
+
+/*
+ * x and y are full precision quantities that have been split into high
+ * and low parts via the _SPLIT macro.  x and y are multiplied to give z
+ * as high and low parts.
+ */
+#define _XMUL(xh, xl, yh, yl, ph, pl)	\
+do {					\
+    _MUL(xh, yh, ph, pl);		\
+    pl += xl * yl + xl * yh + xh * yl;	\
+} while(0)
+
+
+/*
  * Common routine to process the arguments to nan(), nanf(), and nanl().
  */
 void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
