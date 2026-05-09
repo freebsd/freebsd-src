@@ -424,7 +424,7 @@ posix_spawn_file_actions_init(posix_spawn_file_actions_t *ret)
 
 	fa = malloc(sizeof(struct __posix_spawn_file_actions));
 	if (fa == NULL)
-		return (-1);
+		return (errno);
 
 	STAILQ_INIT(&fa->fa_list);
 	*ret = fa;
