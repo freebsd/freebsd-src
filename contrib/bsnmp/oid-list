@@ -10,11 +10,25 @@ enterprises
   12325		FOKUS
     1		BEGEMOT
       1		BEGEMOT-SNMPD
+        1	begemotSnmpdObjects
+          1	begemotSnmpdConfig
+          2	begemotTrapSinkTable
+          4	begemotSnmpdPortTable
+          5	begemotSnmpdCommunityTable
+          6	begemotSnmpdModuleTable
+          7	begemotSnmpdStats
+          8	begemotSnmpdDebug
+          9	begemotSnmpdLocalPortTable
+          10	begemotSnmpdTransportMappings
+          11	begemotSnmpdTransInetTable
+          13	begemotSnmpdTraps
+          14	begemotSnmpdContextTable
       2		BEGEMOT-NETGRAPH	snmpd netgraph module
       3		BEGEMOT-IP		snmpd IP related stuff.
       4		BEGEMOT-IFACE-MIB	interface MIB private stuff
       5		BEGEMOT-IPSTATS-MIB	IP statistics
       6		BEGEMOT-IP-MIB		IP objects
+      7		BEGEMOT-VACM		VACM support objects
       100	BEGEMOT-ILMID		snmpd ILMID module
       101	BEGEMOT-ATM		snmpd ATM module
       200	BEGEMOT-PF		snmpd PF module (phillip@freebsd.org)
@@ -25,10 +39,14 @@ enterprises
       205	begemotBridge		bridge module
       210	begemotWlan		WLAN module
       220	begemotHast		HAST module
+      230	begemotJails		jails module
 
       300	BEGEMOT-ACM		DLR ACM project
       303	BEGEMOT-WLINK		DLR WLINK simulator
       304	BEGEMOT-SATX		DLR SatX simulator
+      305	BEGEMOT-INET		inet transport module
+      306	BEGEMOT-LSOCK		local socket transport module
+      307	BEGEMOT-UDP		UDP transport module
 
       405	mysql			(vanilla@fatpipi.com)
       406	varnish			(vanilla@fatpipi.com)
