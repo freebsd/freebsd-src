@@ -229,7 +229,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define v_object	v_bufobj.bo_object
 
 #define VN_KNOTE(vp, b, a) do {                    			\
-	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {			\
+	if ((vp->v_v2flag & V2_KNOTE) != 0) {			\
 		KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b),	\
 		    (a) | KNF_NOKQLOCK);				\
 	}								\
@@ -261,7 +261,8 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define	VIRF_INOTIFY	0x0080	/* This vnode is being watched */
 #define	VIRF_INOTIFY_PARENT 0x0100 /* A parent of this vnode may be being
 				      watched */
-#define	VIRF_KNOTE	0x0200	/* Has knlist */
+
+#define	V2_KNOTE	0x0001	/* Has knlist */
 
 #define	VI_UNUSED0	0x0001	/* unused */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
@@ -1055,7 +1056,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 	off_t osize, ooffset, noffset;					\
 									\
 	osize = ooffset = noffset = 0;					\
-	if ((vn_irflag_read((ap)->a_vp) & VIRF_KNOTE) != 0) {		\
+	if (((ap)->a_vp->v_v2flag & V2_KNOTE) != 0) {			\
 		error = VOP_GETATTR((ap)->a_vp, &va, (ap)->a_cred);	\
 		if (error)						\
 			return (error);					\

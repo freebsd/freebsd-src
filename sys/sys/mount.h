@@ -967,7 +967,7 @@ VFS_PURGE(struct mount *mp)
 static inline void
 VFS_KNOTE_LOCKED(struct vnode *vp, int hint)
 {
-	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {
+	if ((vp->v_v2flag & V2_KNOTE) != 0) {
 		KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note,
 		    hint, KNF_LISTLOCKED | KNF_NOKQLOCK);
 	}
@@ -976,7 +976,7 @@ VFS_KNOTE_LOCKED(struct vnode *vp, int hint)
 static inline void
 VFS_KNOTE_UNLOCKED(struct vnode *vp, int hint)
 {
-	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {
+	if ((vp->v_v2flag & V2_KNOTE) != 0) {
 		KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note,
 		    hint, KNF_NOKQLOCK);
 	}
