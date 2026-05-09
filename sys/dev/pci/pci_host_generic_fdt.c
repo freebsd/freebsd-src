@@ -104,6 +104,25 @@ generic_pcie_fdt_probe(device_t dev)
 	return (ENXIO);
 }
 
+void
+pci_host_generic_destroy_fdt(device_t dev)
+{
+	struct generic_pcie_fdt_softc *sc;
+	struct pci_ofw_devinfo *di;
+
+	sc = device_get_softc(dev);
+	while (!STAILQ_EMPTY(&sc->pci_ofw_devlist)) {
+		di = STAILQ_FIRST(&sc->pci_ofw_devlist);
+		STAILQ_REMOVE_HEAD(&sc->pci_ofw_devlist, pci_ofw_link);
+
+		ofw_bus_gen_destroy_devinfo(&di->di_dinfo);
+		free(di, M_DEVBUF);
+	}
+
+	ofw_bus_destroy_iinfo(&sc->pci_iinfo);
+	(void)pci_host_generic_core_free(dev);
+}
+
 int
 pci_host_generic_setup_fdt(device_t dev)
 {
