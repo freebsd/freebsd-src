@@ -358,6 +358,18 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 	}
 }
 
+void
+ofw_bus_destroy_iinfo(struct ofw_bus_iinfo *ii)
+{
+
+	if (ii->opi_imapsz > 0) {
+		OF_prop_free(ii->opi_imapmsk);
+		ii->opi_imapsz = 0;
+	}
+
+	OF_prop_free(ii->opi_imap);
+}
+
 int
 ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
     int regsz, void *pintr, int pintrsz, void *mintr, int mintrsz,
