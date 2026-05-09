@@ -105,7 +105,7 @@
             untrusted		tags=package=caroot
             ..
         ..
-        sysctl.kld.d    tags=package=runtime
+        sysctl.kld.d    tags=package=rc
         ..
         syslog.d        tags=package=syslogd
         ..
