@@ -31,7 +31,10 @@
  */
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/eventhandler.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
 #include <sys/power.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
@@ -48,6 +51,54 @@ static power_pm_fn_t	 power_pm_fn	= NULL;
 static void		*power_pm_arg	= NULL;
 static bool		 power_pm_supported[POWER_STYPE_COUNT] = {0};
 static struct task	 power_pm_task;
+
+static d_ioctl_t	 power_ioctl;
+
+static struct cdevsw power_cdevsw = {
+	.d_version	= D_VERSION,
+	.d_ioctl	= power_ioctl,
+	.d_name		= "power",
+};
+
+static void
+power_init(void *unused)
+{
+	struct make_dev_args args;
+	struct cdev *dev;
+
+	make_dev_args_init(&args);
+	args.mda_devsw = &power_cdevsw;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0660;
+	if (make_dev_s(&args, &dev, "power") != 0)
+		printf("Failed to create power device");
+}
+SYSINIT(powerdev, SI_SUB_PSEUDO, SI_ORDER_ANY, power_init, NULL);
+
+static int
+power_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	int err = 0;
+	uint32_t trans;
+
+	if ((fflag & FWRITE) == 0)
+		return (EPERM);
+
+	switch (cmd) {
+	case PIOTRANSITION:
+		trans = *(uint32_t *)data;
+		/* Check for overflow */
+		if ((enum power_transition)trans != trans)
+			return (EINVAL);
+		err = power_pm_suspend((enum power_transition)trans);
+		break;
+	default:
+		err = EINVAL;
+	}
+	return (err);
+}
 
 enum power_stype
 power_name_to_stype(const char *name)
@@ -175,13 +226,13 @@ power_pm_get_type(void)
 	return (power_pm_type);
 }
 
-void
+int
 power_pm_suspend(enum power_transition trans)
 {
 	enum power_stype	stype;
 
 	if (power_pm_fn == NULL)
-		return;
+		return (ENXIO);
 
 	switch (trans) {
 	case POWER_TRANSITION_STANDBY:
@@ -196,11 +247,13 @@ power_pm_suspend(enum power_transition trans)
 	default:
 		printf("%s: unknown sleep state transition %d\n", __func__,
 		    trans);
-		return;
+		return (EINVAL);
 	}
 
 	power_pm_task.ta_context = (void *)(intptr_t)stype;
 	taskqueue_enqueue(taskqueue_thread, &power_pm_task);
+
+	return (0);
 }
 
 /*

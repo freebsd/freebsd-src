@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2001 Mitsuru IWASAKI
  * All rights reserved.
- * Copyright (c) 2025 The FreeBSD Foundation
+ * Copyright (c) 2025-2026 The FreeBSD Foundation
  *
  * Portions of this software were developed by Aymeric Wibo
  * <obiwac@freebsd.org> under sponsorship from the FreeBSD Foundation.
@@ -32,17 +32,9 @@
 
 #ifndef _SYS_POWER_H_
 #define _SYS_POWER_H_
-#ifdef _KERNEL
 
-#include <sys/_eventhandler.h>
 #include <sys/types.h>
-
-/* Power management system type */
-#define POWER_PM_TYPE_ACPI		0x01
-#define POWER_PM_TYPE_NONE		0xff
-
-/* Commands for Power management function */
-#define POWER_CMD_SUSPEND		0x00
+#include <sys/ioccom.h>
 
 /*
  * Sleep state transition requests.
@@ -55,7 +47,24 @@ enum power_transition {
 	POWER_TRANSITION_STANDBY,
 	POWER_TRANSITION_SUSPEND,
 	POWER_TRANSITION_HIBERNATE,
+	POWER_TRANSITION_COUNT,
 };
+
+/*
+ * Power ioctls.
+ */
+#define	PIOTRANSITION	_IOW('T', 1, uint32_t)
+
+#ifdef _KERNEL
+
+#include <sys/_eventhandler.h>
+
+/* Power management system type */
+#define POWER_PM_TYPE_ACPI		0x01
+#define POWER_PM_TYPE_NONE		0xff
+
+/* Commands for Power management function */
+#define POWER_CMD_SUSPEND		0x00
 
 /*
  * Sleep type.
@@ -97,7 +106,7 @@ extern int	 power_pm_register(u_int _pm_type, power_pm_fn_t _pm_fn,
 			void *_pm_arg,
 			bool _pm_supported[static POWER_STYPE_COUNT]);
 extern u_int	 power_pm_get_type(void);
-extern void	 power_pm_suspend(enum power_transition _trans);
+extern int	 power_pm_suspend(enum power_transition _trans);
 
 /*
  * System power API.
