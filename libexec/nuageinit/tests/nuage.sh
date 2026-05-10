@@ -16,6 +16,7 @@ atf_test_case addgroup
 atf_test_case addfile
 atf_test_case decode_base64
 atf_test_case addsudo
+atf_test_case adddoas
 
 settimezone_body()
 {
@@ -103,6 +104,11 @@ addsudo_body()
 	atf_check /usr/libexec/flua $(atf_get_srcdir)/addsudo.lua
 }
 
+adddoas_body()
+{
+	atf_check /usr/libexec/flua $(atf_get_srcdir)/adddoas.lua
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case sethostname
@@ -113,4 +119,5 @@ atf_init_test_cases()
 	atf_add_test_case addfile
 	atf_add_test_case decode_base64
 	atf_add_test_case addsudo
+	atf_add_test_case adddoas
 }
