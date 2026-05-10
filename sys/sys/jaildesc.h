@@ -71,7 +71,6 @@ struct jaildesc {
 /*
  * Flags for the jd_flags field
  */
-#define	JDF_SELECTED	0x00000001	/* issue selwakeup() */
 #define	JDF_REMOVED	0x00000002	/* jail was removed */
 #define	JDF_OWNING	0x00000004	/* closing descriptor removes jail */
 

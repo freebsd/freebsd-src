@@ -232,10 +232,7 @@ jaildesc_knote(struct prison *pr, long hint)
 			JAILDESC_LOCK(jd);
 			if (hint == NOTE_JAIL_REMOVE) {
 				jd->jd_flags |= JDF_REMOVED;
-				if (jd->jd_flags & JDF_SELECTED) {
-					jd->jd_flags &= ~JDF_SELECTED;
-					selwakeup(&jd->jd_selinfo);
-				}
+				selwakeup(&jd->jd_selinfo);
 			}
 			KNOTE_LOCKED(&jd->jd_selinfo.si_note, hint);
 			JAILDESC_UNLOCK(jd);
@@ -292,6 +289,7 @@ jaildesc_close(struct file *fp, struct thread *td)
 			}
 			prison_free(pr);
 		}
+		seldrain(&jd->jd_selinfo);
 		knlist_destroy(&jd->jd_selinfo.si_note);
 		JAILDESC_LOCK_DESTROY(jd);
 		free(jd, M_JAILDESC);
@@ -311,10 +309,8 @@ jaildesc_poll(struct file *fp, int events, struct ucred *active_cred,
 	JAILDESC_LOCK(jd);
 	if (jd->jd_flags & JDF_REMOVED)
 		revents |= POLLHUP;
-	if (revents == 0) {
+	else
 		selrecord(td, &jd->jd_selinfo);
-		jd->jd_flags |= JDF_SELECTED;
-	}
 	JAILDESC_UNLOCK(jd);
 	return (revents);
 }
