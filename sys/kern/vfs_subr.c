@@ -237,14 +237,14 @@ static struct mtx mntid_mtx;
  */
 static struct mtx __exclusive_cache_line vnode_list_mtx;
 
-static uma_zone_t buf_trie_zone;
-static smr_t buf_trie_smr;
+static __read_mostly uma_zone_t buf_trie_zone;
+static __read_mostly smr_t buf_trie_smr;
 
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
-static uma_zone_t vnode_zone;
-MALLOC_DEFINE(M_VNODEPOLL, "VN POLL", "vnode poll");
-
+static __read_mostly uma_zone_t vnode_zone;
 __read_frequently smr_t vfs_smr;
+
+MALLOC_DEFINE(M_VNODEPOLL, "VN POLL", "vnode poll");
 
 /*
  * The workitem queue.
