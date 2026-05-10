@@ -3021,6 +3021,7 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	if (sc == NULL)
 		return (false);
 
+	ifp = sc->gnv_ifp;
 	if ((sc->gnv_flags & GENEVE_FLAG_RUNNING) == 0)
 		goto out;
 
@@ -3043,7 +3044,6 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	if (error != 0)
 		goto out;
 
-	ifp = sc->gnv_ifp;
 	if (ifp == m->m_pkthdr.rcvif)
 		/* XXX Does not catch more complex loops. */
 		goto out;
