@@ -54,6 +54,7 @@
 #define	_PATH_DEFTAPE	"/dev/sa0"
 #define	_PATH_DEVGPIOC	"/dev/gpioc"
 #define	_PATH_DEVNULL	"/dev/null"
+#define	_PATH_DEVPOWER	"/dev/power"
 #define	_PATH_DEVZERO	"/dev/zero"
 #define	_PATH_DRUM	"/dev/drum"
 #define	_PATH_ESDB	"/usr/share/i18n/esdb"
