@@ -17,6 +17,7 @@ atf_test_case addfile
 atf_test_case decode_base64
 atf_test_case addsudo
 atf_test_case adddoas
+atf_test_case update_sshd_config
 
 settimezone_body()
 {
@@ -109,6 +110,12 @@ adddoas_body()
 	atf_check /usr/libexec/flua $(atf_get_srcdir)/adddoas.lua
 }
 
+update_sshd_config_body()
+{
+	mkdir -p etc/ssh
+	atf_check /usr/libexec/flua $(atf_get_srcdir)/update_sshd_config.lua
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case sethostname
@@ -120,4 +127,5 @@ atf_init_test_cases()
 	atf_add_test_case decode_base64
 	atf_add_test_case addsudo
 	atf_add_test_case adddoas
+	atf_add_test_case update_sshd_config
 }
