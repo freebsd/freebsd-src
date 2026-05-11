@@ -296,6 +296,7 @@ SUBDIR=	\
 	nlsysevent \
 	nge \
 	nmdm \
+	ntsync \
 	nullfs \
 	${_ntb} \
 	nvd \
