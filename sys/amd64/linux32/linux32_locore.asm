@@ -128,3 +128,5 @@ END(__kernel_vsyscall)
 	.balign 4
 	.previous
 #endif
+
+	.section .note.GNU-stack,"",%progbits

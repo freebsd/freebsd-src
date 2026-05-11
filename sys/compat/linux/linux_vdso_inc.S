@@ -37,3 +37,5 @@ _binary_linux_vdso_so_o_end:
 #include <machine/asm.h>
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
 #endif
+
+	.section .note.GNU-stack,"",%progbits
