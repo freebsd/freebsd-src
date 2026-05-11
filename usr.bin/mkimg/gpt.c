@@ -52,6 +52,9 @@ static mkimg_uuid_t gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
 static mkimg_uuid_t gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 static mkimg_uuid_t gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static mkimg_uuid_t gpt_uuid_prep_boot = GPT_ENT_TYPE_PREP_BOOT;
+static mkimg_uuid_t gpt_uuid_hifive_bbl = GPT_ENT_TYPE_HIFIVE_BBL;
+static mkimg_uuid_t gpt_uuid_xbootldr = GPT_ENT_TYPE_XBOOTLDR;
+static mkimg_uuid_t gpt_uuid_hifive_fsbl = GPT_ENT_TYPE_HIFIVE_FSBL;
 
 static struct mkimg_alias gpt_aliases[] = {
     {	ALIAS_EFI, ALIAS_PTR2TYPE(&gpt_uuid_efi) },
@@ -65,6 +68,9 @@ static struct mkimg_alias gpt_aliases[] = {
     {	ALIAS_MBR, ALIAS_PTR2TYPE(&gpt_uuid_mbr) },
     {	ALIAS_NTFS, ALIAS_PTR2TYPE(&gpt_uuid_ms_basic_data) },
     {	ALIAS_PPCBOOT, ALIAS_PTR2TYPE(&gpt_uuid_prep_boot) },
+    {	ALIAS_HIFIVE_BBL, ALIAS_PTR2TYPE(&gpt_uuid_hifive_bbl) },
+    {	ALIAS_XBOOTLDR, ALIAS_PTR2TYPE(&gpt_uuid_xbootldr) },
+    {	ALIAS_HIFIVE_FSBL, ALIAS_PTR2TYPE(&gpt_uuid_hifive_fsbl) },
     {	ALIAS_NONE, 0 }		/* Keep last! */
 };
 
