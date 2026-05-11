@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -450,6 +450,15 @@ AcGetOneTableFromFile (
     else
     {
         TableLength = TableHeader.Length;
+    }
+
+    /* Table length must be at least large enough to hold the header */
+
+    if (TableLength < HeaderLength)
+    {
+        fprintf (stderr, "Table length too small for header: 0x%.2X\n",
+            TableLength);
+        return (AE_BAD_HEADER);
     }
 
     /* Allocate a buffer for the entire table */

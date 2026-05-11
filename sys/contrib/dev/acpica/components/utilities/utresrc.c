@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -322,6 +322,29 @@ AcpiUtWalkAmlResources (
 
     while (Aml < EndAml)
     {
+        /*
+         * Validate that the remaining buffer space can hold enough
+         * bytes to safely access fields during validation.
+         * For large resource descriptors (bit 7 set), we need enough
+         * bytes to access the Type field in SerialBus resources.
+         * Small resource descriptors only need sizeof(AML_RESOURCE_END_TAG).
+         */
+        if ((ACPI_SIZE) (EndAml - Aml) < sizeof (AML_RESOURCE_END_TAG))
+        {
+            return_ACPI_STATUS (AE_AML_BUFFER_LENGTH);
+        }
+
+        /*
+         * For large resource descriptors, ensure enough space for
+         * the header plus SerialBus Type field access.
+         */
+        if ((ACPI_GET8 (Aml) & ACPI_RESOURCE_NAME_LARGE) &&
+            ((ACPI_SIZE) (EndAml - Aml) <
+                ACPI_OFFSET (AML_RESOURCE_COMMON_SERIALBUS, Type) + 1))
+        {
+            return_ACPI_STATUS (AE_AML_BUFFER_LENGTH);
+        }
+
         /* Validate the Resource Type and Resource Length */
 
         Status = AcpiUtValidateResource (WalkState, Aml, &ResourceIndex);
@@ -337,6 +360,15 @@ AcpiUtWalkAmlResources (
         /* Get the length of this descriptor */
 
         Length = AcpiUtGetDescriptorLength (Aml);
+
+        /*
+         * Validate that the descriptor length doesn't exceed the
+         * remaining buffer size to prevent reading beyond the end.
+         */
+        if (Length > (ACPI_SIZE) (EndAml - Aml))
+        {
+            return_ACPI_STATUS (AE_AML_BUFFER_LENGTH);
+        }
 
         /* Invoke the user function */
 

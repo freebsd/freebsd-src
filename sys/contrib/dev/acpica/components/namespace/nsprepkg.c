@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -778,6 +778,13 @@ AcpiNsCustomPackage (
 
 
     /* Get version number, must be Integer */
+
+    if (!(*Elements))
+    {
+        ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
+            "Return Package has a NULL version element"));
+        return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+    }
 
     if ((*Elements)->Common.Type != ACPI_TYPE_INTEGER)
     {

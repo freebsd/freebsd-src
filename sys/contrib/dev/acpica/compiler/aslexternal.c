@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -170,6 +170,10 @@ static void
 ExMoveExternals (
     ACPI_PARSE_OBJECT       *DefinitionBlockOp);
 
+static void
+ExRemoveOpFromTree (
+    ACPI_PARSE_OBJECT       *Op);
+
 
 /*******************************************************************************
  *
@@ -194,9 +198,14 @@ ExDoExternal (
     ACPI_PARSE_OBJECT       *ArgCountOp;
     ACPI_PARSE_OBJECT       *TypeOp;
     ACPI_PARSE_OBJECT       *ExternTypeOp = Op->Asl.Child->Asl.Next;
+    ACPI_PARSE_OBJECT       *Existing;
+    ACPI_PARSE_OBJECT       *NameOp = Op->Asl.Child;
+    ACPI_PARSE_OBJECT       *ExistingNameOp;
     UINT32                  ExternType;
     UINT8                   ParamCount = ASL_EXTERNAL_METHOD_UNKNOWN_PARAMS;
     UINT32                  ParamTypes[ACPI_METHOD_NUM_ARGS];
+    char                    *NewPath = NULL;
+    char                    *ExistingPath;
 
 
     ExternType = AnMapObjTypeToBtype (ExternTypeOp);
@@ -250,6 +259,53 @@ ExDoExternal (
     ArgCountOp->Asl.Value.Integer = ParamCount;
     UtSetParseOpName (ArgCountOp);
 
+    /*
+     * Deduplicate identical External() declarations. The disassembler
+     * already collapses duplicates; mirror that behavior in the compiler
+     * so duplicate externals do not bloat emitted AML.
+     */
+
+    NewPath = NameOp->Asl.Namepath;
+    if (!NewPath && NameOp->Asl.Value.String)
+    {
+        (void) UtInternalizeName (NameOp->Asl.Value.String, &NewPath);
+        NameOp->Asl.Namepath = NewPath;
+    }
+
+    Existing = AslGbl_ExternalsListHead;
+    while (Existing && NewPath)
+    {
+        ExistingNameOp = Existing->Asl.Child->Asl.Child;
+        ExistingPath = ExistingNameOp->Asl.Namepath;
+        if (!ExistingPath && ExistingNameOp->Asl.Value.String)
+        {
+            (void) UtInternalizeName (ExistingNameOp->Asl.Value.String,
+                &ExistingPath);
+            ExistingNameOp->Asl.Namepath = ExistingPath;
+        }
+
+        if (ExistingPath && !strcmp (NewPath, ExistingPath))
+        {
+            ACPI_PARSE_OBJECT *ExistingArgCount;
+
+            /* Update arg count if this instance is more specific */
+
+            ExistingArgCount = Existing->Asl.Child->Asl.Child->Asl.Next->Asl.Next;
+            if ((ExternType == ACPI_BTYPE_METHOD) &&
+                (ParamCount < ExistingArgCount->Asl.Value.Integer))
+            {
+                ExistingArgCount->Asl.Value.Integer = ParamCount;
+            }
+
+            /* Remove duplicate External node from the parse tree */
+
+            ExRemoveOpFromTree (Op);
+            return;
+        }
+
+        Existing = Existing->Asl.Next;
+    }
+
     /* Create new list node of arbitrary type */
 
     ListOp = TrAllocateOp (PARSEOP_DEFAULT_ARG);
@@ -276,6 +332,53 @@ ExDoExternal (
     else
     {
         AslGbl_ExternalsListHead = ListOp;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    ExRemoveOpFromTree
+ *
+ * PARAMETERS:  Op              - Parse op to remove from the tree
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Unlink a parse op from its parent sibling list. Used to drop
+ *              duplicate External() declarations before AML emission.
+ *
+ ******************************************************************************/
+
+static void
+ExRemoveOpFromTree (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *Parent;
+    ACPI_PARSE_OBJECT       *Child;
+
+
+    if (!Op || !Op->Asl.Parent)
+    {
+        return;
+    }
+
+    Parent = Op->Asl.Parent;
+    Child = Parent->Asl.Child;
+
+    if (Child == Op)
+    {
+        Parent->Asl.Child = Op->Asl.Next;
+        return;
+    }
+
+    while (Child && Child->Asl.Next != Op)
+    {
+        Child = Child->Asl.Next;
+    }
+
+    if (Child)
+    {
+        Child->Asl.Next = Op->Asl.Next;
     }
 }
 

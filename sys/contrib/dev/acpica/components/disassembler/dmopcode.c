@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -797,6 +797,7 @@ AcpiDmDisassembleOneOp (
     UINT32                  Offset;
     UINT32                  Length;
     ACPI_PARSE_OBJECT       *Child;
+    ACPI_PARSE_OBJECT       *MethodCallOp;
     ACPI_STATUS             Status;
     UINT8                   *Aml;
     const AH_DEVICE_ID      *IdInfo;
@@ -986,6 +987,13 @@ AcpiDmDisassembleOneOp (
     case AML_INT_NAMEPATH_OP:
 
         AcpiDmNamestring (Op->Common.Value.Name);
+        /* If this namepath is a Package element, emit a separating comma */
+        if ((Op->Common.Parent) &&
+            ((Op->Common.Parent->Common.AmlOpcode == AML_PACKAGE_OP) ||
+             (Op->Common.Parent->Common.AmlOpcode == AML_VARIABLE_PACKAGE_OP)))
+        {
+            AcpiOsPrintf (", ");
+        }
         break;
 
     case AML_INT_NAMEDFIELD_OP:
@@ -1086,10 +1094,19 @@ AcpiDmDisassembleOneOp (
 
     case AML_INT_METHODCALL_OP:
 
+        MethodCallOp = Op;
         Op = AcpiPsGetDepthNext (NULL, Op);
         Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
 
         AcpiDmNamestring (Op->Common.Value.Name);
+
+        /* If the method name is a Package element, emit a separating comma */
+        if ((MethodCallOp->Common.Parent) &&
+            ((MethodCallOp->Common.Parent->Common.AmlOpcode == AML_PACKAGE_OP) ||
+             (MethodCallOp->Common.Parent->Common.AmlOpcode == AML_VARIABLE_PACKAGE_OP)))
+        {
+            AcpiOsPrintf (", ");
+        }
         break;
 
     case AML_WHILE_OP:

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -901,6 +901,8 @@ AcpiDsTerminateControlMethod (
     ACPI_OPERAND_OBJECT     *MethodDesc,
     ACPI_WALK_STATE         *WalkState)
 {
+    UINT32                  i;
+    ACPI_NAMESPACE_NODE     *RefNode;
 
     ACPI_FUNCTION_TRACE_PTR (DsTerminateControlMethod, WalkState);
 
@@ -914,6 +916,45 @@ AcpiDsTerminateControlMethod (
 
     if (WalkState)
     {
+        /*
+         * Check if the return value is a RefOf reference to a method local
+         * or argument. If so, clear the reference to avoid use-after-free
+         * when the walk state is deleted.
+         */
+        if (WalkState->ReturnDesc &&
+            (WalkState->ReturnDesc->Common.Type == ACPI_TYPE_LOCAL_REFERENCE) &&
+            (WalkState->ReturnDesc->Reference.Class == ACPI_REFCLASS_REFOF))
+        {
+            RefNode = WalkState->ReturnDesc->Reference.Object;
+            if (RefNode)
+            {
+                /* Check against method locals */
+                for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
+                {
+                    if (RefNode == &WalkState->LocalVariables[i])
+                    {
+                        AcpiUtRemoveReference (WalkState->ReturnDesc);
+                        WalkState->ReturnDesc = NULL;
+                        break;
+                    }
+                }
+
+                /* Check against method arguments if not already cleared */
+                if (WalkState->ReturnDesc)
+                {
+                    for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
+                    {
+                        if (RefNode == &WalkState->Arguments[i])
+                        {
+                            AcpiUtRemoveReference (WalkState->ReturnDesc);
+                            WalkState->ReturnDesc = NULL;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         /* Delete all arguments and locals */
 
         AcpiDsMethodDataDeleteAll (WalkState);

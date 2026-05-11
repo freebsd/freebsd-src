@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1667,6 +1667,115 @@ AcpiDmDumpDrtm (
     AcpiOsPrintf ("\n");
     (void) AcpiDmDumpTable (Table->Length, Offset,
         DrtmDps, sizeof (ACPI_DRTM_DPS_ID), AcpiDmTableInfoDrtm2);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpDtpr
+ *
+ * PARAMETERS:  Table               - A DTPR table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a DTPR.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpDtpr (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS                Status;
+    ACPI_TPR_ARRAY             *TprArr;
+    ACPI_TPR_INSTANCE          *TprInstance;
+    ACPI_TPR_AUX_SR            *TprAuxSr;
+    ACPI_TPR_SERIALIZE_REQUEST *TprSerializeRequest;
+    UINT32                     i = 0, j, InsCnt, TprRefCnt;
+    UINT32                     Offset = sizeof(ACPI_TABLE_DTPR);
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoDtpr);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Subtables */
+
+    while (Offset < Table->Length)
+    {
+        InsCnt = ((ACPI_TABLE_DTPR*) Table)->InsCnt;
+
+        for (i = 0; i < InsCnt; i++)
+        {
+            TprInstance = ACPI_ADD_PTR(ACPI_TPR_INSTANCE, Table, Offset);
+            Status = AcpiDmDumpTable(Table->Length, Offset, TprInstance,
+                                     sizeof(ACPI_TPR_INSTANCE), AcpiDmTableInfoDtprInstance);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+                /* Each of the TPR instances must have the same number of TPRs*/
+            TprRefCnt = TprInstance->TprCnt;
+
+            Offset += sizeof(ACPI_TPR_INSTANCE);
+
+            if (TprInstance->TprCnt < 2)
+            {
+                AcpiOsPrintf("TPR Instance No.%d has invalid number of TPRs.\n"
+                             "There should be at least 2 of them, but there is %d.",
+                             i, TprInstance->TprCnt);
+                return;
+            }
+            else
+            {
+                if (TprInstance->TprCnt != TprRefCnt)
+                {
+                    AcpiOsPrintf("Each of TPR instances should have equal\n"
+                                 "number of TPRs. TprInstance No.%d has %d TPRs"
+                                 ", while the reference TPR instance has %d.\n",
+                                 i, TprInstance->TprCnt, TprRefCnt);
+                    return;
+                }
+            }
+
+            for (j = 0; j < TprInstance->TprCnt; j++)
+            {
+                TprArr = ACPI_ADD_PTR(ACPI_TPR_ARRAY, Table, Offset);
+                Status = AcpiDmDumpTable(Table->Length, Offset, TprArr,
+                                         sizeof(ACPI_TPR_ARRAY), AcpiDmTableInfoDtprArr);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
+                Offset += sizeof(ACPI_TPR_ARRAY);
+            }
+        }
+
+        TprAuxSr = ACPI_ADD_PTR(ACPI_TPR_AUX_SR, Table, Offset);
+        Status = AcpiDmDumpTable(Table->Length, Offset, TprAuxSr,
+                                 sizeof(ACPI_TPR_AUX_SR), AcpiDmTableInfoDtprSerializeReq0);
+
+        Offset += sizeof(ACPI_TPR_AUX_SR);
+
+        for (i = 0; i < TprAuxSr->SrlCnt; i++)
+        {
+            TprSerializeRequest = ACPI_ADD_PTR(ACPI_TPR_SERIALIZE_REQUEST,
+                                               Table, Offset);
+            Status = AcpiDmDumpTable(Table->Length, Offset, TprSerializeRequest,
+                                     sizeof(ACPI_TPR_SERIALIZE_REQUEST), AcpiDmTableInfoDtprSerializeReq1);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            Offset += sizeof(ACPI_TPR_SERIALIZE_REQUEST);
+        }
+    }
 }
 
 

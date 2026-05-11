@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -586,14 +586,16 @@ CgWriteTableHeader (
     /* OEMID */
 
     Child = Child->Asl.Next;
-    memcpy (AslGbl_TableHeader.OemId, Child->Asl.Value.String,
-        strlen (Child->Asl.Value.String));
+    /* Bound copy to header field size to avoid overflow on malformed input */
+    strncpy (AslGbl_TableHeader.OemId, Child->Asl.Value.String,
+        ACPI_OEM_ID_SIZE);
 
     /* OEM TableID */
 
     Child = Child->Asl.Next;
-    memcpy (AslGbl_TableHeader.OemTableId, Child->Asl.Value.String,
-        strlen (Child->Asl.Value.String));
+    /* Bound copy to header field size to avoid overflow on malformed input */
+    strncpy (AslGbl_TableHeader.OemTableId, Child->Asl.Value.String,
+        ACPI_OEM_TABLE_ID_SIZE);
 
     /* OEM Revision */
 

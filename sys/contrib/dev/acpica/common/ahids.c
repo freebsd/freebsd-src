@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -202,6 +202,14 @@ const AH_DEVICE_ID  AslDeviceIds[] =
     {"CPLM3218",    "Capella Micro CM3218x Ambient Light Sensor"},
     {"DELLABCE",    "Dell Airplane Mode Switch Driver"},
     {"DLAC3002",    "Qualcomm Atheros Bluetooth UART Transport"},
+    {"FRMW0001",    "Framework I2C HID from EC (Laptop 13 Intel 11-13th Gen)"},
+    {"FRMW0002",    "Framework PS2 Touchpad Emulation"},
+    {"FRMW0003",    "Framework I2C HID from EC (Laptop 16 AMD Ryzen 7040)"},
+    {"FRMW0004",    "Framework I2C HID from EC for keyboard media ikeys"},
+    {"FRMW0005",    "Framework I2C HID from EC for ALS Sensor"},
+    {"FRMW0006",    "Framework Desktop ARGB HID Interface (Chrome EC RGBKBD)"},
+    {"FRMWC004",    "Framework EC Controller"},
+    {"FRMWC006",    "Framework EC Sensor Hub"},
     {"FTTH5506",    "FocalTech 5506 Touch Controller"},
     {"HAD0F28",     "Intel HDMI Audio Driver"},
     {"INBC0000",    "GPIO Expander"},

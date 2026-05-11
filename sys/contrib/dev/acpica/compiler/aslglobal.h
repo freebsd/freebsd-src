@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -252,6 +252,7 @@ extern FILE                         *AslCompilerin;
 extern int                          DtParserdebug;
 extern int                          PrParserdebug;
 extern const ASL_MAPPING_ENTRY      AslKeywordMapping[];
+extern const UINT32                 AslKeywordMappingCount;
 extern char                         *AslCompilertext;
 extern char                         *DtCompilerParsertext;
 

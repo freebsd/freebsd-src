@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -198,7 +198,7 @@ AcpiPsDeleteParseTree (
             {
                 /* This debug option will print the entire parse tree */
 
-                AcpiOsPrintf ("        %*.s%s %p", (Level * 4), " ",
+                AcpiOsPrintf ("        %*s%s %p", (Level * 4), "",
                     AcpiPsGetOpcodeName (Op->Common.AmlOpcode), Op);
 
                 if (Op->Named.AmlOpcode == AML_INT_NAMEPATH_OP)

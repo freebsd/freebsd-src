@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -437,6 +437,21 @@ DtCompileMadt (
         case ACPI_MADT_TYPE_PLIC:
 
             InfoTable = AcpiDmTableInfoMadt27;
+            break;
+
+		case ACPI_MADT_TYPE_GICV5_IRS:
+
+            InfoTable = AcpiDmTableInfoMadt28;
+            break;
+
+		case ACPI_MADT_TYPE_GICV5_ITS:
+
+            InfoTable = AcpiDmTableInfoMadt29;
+            break;
+
+		case ACPI_MADT_TYPE_GICV5_ITS_TRANSLATE:
+
+            InfoTable = AcpiDmTableInfoMadt30;
             break;
 
         default:

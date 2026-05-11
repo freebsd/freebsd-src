@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -203,6 +203,11 @@ const AH_UUID  Gbl_AcpiUuids[] =
     {"[Processor Properties]",      NULL},
     {"Cache Properties",            UUID_CACHE_PROPERTIES},
     {"Physical Package Property",   UUID_PHYSICAL_PROPERTY},
+
+    {"[Modern Standby]",            NULL},
+    {"Modern Standby Microsoft",    UUID_LPS0_MICROSOFT},
+    {"Modern Standby Intel",        UUID_LPS0_INTEL},
+    {"Modern Standby AMD",          UUID_LPS0_AMD},
 
     {"[Miscellaneous]",             NULL},
     {"Platform-wide Capabilities",  UUID_PLATFORM_CAPABILITIES},

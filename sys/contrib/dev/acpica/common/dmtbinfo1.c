@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1152,6 +1152,44 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDrtm2[] =
     ACPI_DMT_TERMINATOR
 };
 
+
+/*******************************************************************************
+ *
+ * DTPR - DMA TXT Protection Ranges Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDtpr[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_DTPR_OFFSET (Flags),                  "Flags (reserved)", 0},
+    {ACPI_DMT_UINT32,   ACPI_DTPR_OFFSET (InsCnt),                 "Instance Count", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDtprInstance[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_DTPR_INST_OFFSET (Flags),             "Instance control flags (reserved)", 0},
+    {ACPI_DMT_UINT32,   ACPI_DTPR_INST_OFFSET (TprCnt),            "Number of TPR ranges in instance", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDtprArr[] =
+{
+    {ACPI_DMT_UINT64,   ACPI_DTPR_ARR_OFFSET (Base),               "TPR Base Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDtprSerializeReq0[] =
+{
+    {ACPI_DMT_UINT32, ACPI_DTPR_AUX_SR_OFFSET (SrlCnt),             "Number of serialization registers", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDtprSerializeReq1[] =
+{
+    {ACPI_DMT_UINT64, ACPI_DTPR_SR_OFFSET (SrRegister),            "Serialize Request register", 0},
+    ACPI_DMT_TERMINATOR
+};
 
 /*******************************************************************************
  *
