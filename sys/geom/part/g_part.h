@@ -108,6 +108,8 @@ enum g_part_alias {
 	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
 	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */
 	G_PART_ALIAS_VMVSANHDR,		/* A VMware vSAN header partition entry */
+	G_PART_ALIAS_XBOOTLDR,		/* A Systemd/Linux extended boot partition
+					   Also used by visionfive2 as part of the boot sequence */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };
