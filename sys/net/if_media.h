@@ -279,6 +279,8 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_800G_SR4	IFM_X(138)	/* 800GBase-SR4 */
 #define	IFM_800G_KR4_PAM4 IFM_X(139)	/* 800GBase-KR4 PAM4 */
 #define	IFM_10G_BX	IFM_X(140)	/* 10GBase-BX */
+#define	IFM_100_T1	IFM_X(141)	/* 100BASE-T1 */
+#define	IFM_1000_T1	IFM_X(142)	/* 1000BASE-T1 */
 
 /*
  * Please update ieee8023ad_lacp.c:lacp_compose_key()
@@ -588,6 +590,8 @@ struct ifmedia_description {
 	{ IFM_800G_CR4,	"800GBase-CR4" },				\
 	{ IFM_800G_SR4,	"800GBase-SR4" },				\
 	{ IFM_800G_KR4_PAM4,	"800GBase-KR4-PAM4" },			\
+	{ IFM_100_T1,	"100BASE-T1" },					\
+	{ IFM_1000_T1,	"1000BASE-T1" },					\
 	{ 0, NULL },							\
 }
 
@@ -954,6 +958,8 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_800G_CR4,	IF_Gbps(800ULL) },		\
 	{ IFM_ETHER | IFM_800G_SR4,	IF_Gbps(800ULL) },		\
 	{ IFM_ETHER | IFM_800G_KR4_PAM4, IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_100_T1,	IF_Mbps(100) },			\
+	{ IFM_ETHER | IFM_1000_T1,	IF_Mbps(1000) },		\
 									\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH1,	IF_Mbps(1) },		\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH2,	IF_Mbps(2) },		\
