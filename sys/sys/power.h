@@ -67,9 +67,9 @@ enum power_sstate_transition {
 enum power_stype {
 	POWER_STYPE_AWAKE,
 	POWER_STYPE_STANDBY,
-	POWER_STYPE_SUSPEND_TO_MEM,
+	POWER_STYPE_FW_SUSPEND,
 	POWER_STYPE_SUSPEND_TO_IDLE,
-	POWER_STYPE_HIBERNATE,
+	POWER_STYPE_FW_HIBERNATE,
 	POWER_STYPE_POWEROFF,
 	POWER_STYPE_COUNT,
 	POWER_STYPE_UNKNOWN,
@@ -78,9 +78,9 @@ enum power_stype {
 static const char * const power_stype_names[POWER_STYPE_COUNT] = {
 	[POWER_STYPE_AWAKE]		= "awake",
 	[POWER_STYPE_STANDBY]		= "standby",
-	[POWER_STYPE_SUSPEND_TO_MEM]	= "s2mem",
-	[POWER_STYPE_SUSPEND_TO_IDLE]	= "s2idle",
-	[POWER_STYPE_HIBERNATE]		= "hibernate",
+	[POWER_STYPE_FW_SUSPEND]	= "fw_suspend",
+	[POWER_STYPE_SUSPEND_TO_IDLE]	= "suspend_to_idle",
+	[POWER_STYPE_FW_HIBERNATE]	= "fw_hibernate",
 	[POWER_STYPE_POWEROFF]		= "poweroff",
 };
 
