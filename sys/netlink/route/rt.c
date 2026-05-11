@@ -447,6 +447,10 @@ nlattr_get_multipath(struct nlattr *nla, struct nl_pstate *npt,
 	max_nhops = data_len / sizeof(struct rtnexthop);
 
 	mp = npt_alloc(npt, (max_nhops + 2) * sizeof(struct rta_mpath_nh));
+	if (mp == NULL) {
+		NLMSG_REPORT_ERR_MSG(npt, "%s: too many RTA_MULTIPATH", __func__);
+		return (ENOMEM);
+	}
 	mp->num_nhops = 0;
 
 	for (rtnh = (struct rtnexthop *)(nla + 1); data_len > 0; ) {
