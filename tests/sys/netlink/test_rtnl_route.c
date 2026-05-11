@@ -18,6 +18,7 @@
 #include <netlink/netlink_snl_route_compat.h>
 #include <netlink/netlink_snl_route_parsers.h>
 
+#include <errno.h>
 #include <unistd.h>
 #include <time.h>
 
@@ -310,12 +311,66 @@ ATF_TC_BODY(rtnl_nhgrp_expire, tc)
 	cleanup_route_by_dst(&ss, &nw, "203.0.113.0");
 }
 
+ATF_TC(rtnl_nhgrp_big_nhops);
+ATF_TC_HEAD(rtnl_nhgrp_big_nhops, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "test RTA_MULTIPATH with too many nhops using netlink");
+	atf_tc_set_md_var(tc, "require.user", "root");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
+
+ATF_TC_BODY(rtnl_nhgrp_big_nhops, tc)
+{
+	struct snl_state ss;
+	struct snl_writer nw;
+	struct nlmsghdr *hdr, *rx_hdr;
+	struct in_addr gw;
+	struct snl_errmsg_data e = {};
+	struct snl_parsed_route r = { .rtax_weight = RT_DEFAULT_WEIGHT };
+	struct rtmsg *rtm;
+	struct rtnexthop *rtnh;
+	int nhop, max_nhop, off, off2;
+
+	max_nhop = 25;
+	ATF_REQUIRE_MSG(snl_init(&ss, NETLINK_ROUTE), "snl_init() failed");
+
+	inet_pton(AF_INET, "127.0.2.1", &gw);
+
+	/* create new multipath route */
+	snl_init_writer(&ss, &nw);
+	ATF_REQUIRE((hdr = snl_create_msg_request(&nw, RTM_NEWROUTE)) != NULL);
+	hdr->nlmsg_flags |= NLM_F_CREATE;
+	ATF_REQUIRE((rtm = prepare_rtm_by_dst(&nw, "203.0.113.0")) != NULL);
+
+	off = snl_add_msg_attr_nested(&nw, RTA_MULTIPATH);
+	for (nhop = 0; nhop < max_nhop; nhop++) {
+		off2 = snl_get_msg_offset(&nw);
+		rtnh = snl_reserve_msg_object(&nw, struct rtnexthop);
+		rtnh->rtnh_flags = 0;
+		rtnh->rtnh_hops = nhop + 1;
+		rtnh->rtnh_ifindex = 0;
+		snl_add_msg_attr_ip4(&nw, RTA_GATEWAY, &gw);
+		rtnh = snl_restore_msg_offset(&nw, off2, struct rtnexthop);
+		rtnh->rtnh_len = snl_get_msg_offset(&nw) - off2;
+	}
+	snl_end_attr_nested(&nw, off);
+
+	ATF_REQUIRE((hdr = snl_finalize_msg(&nw)) != NULL);
+	ATF_REQUIRE(snl_send_message(&ss, hdr));
+	ATF_REQUIRE((rx_hdr = snl_read_reply(&ss, hdr->nlmsg_seq)) != NULL);
+	ATF_REQUIRE(snl_parse_errmsg(&ss, rx_hdr, &e));
+	ATF_REQUIRE_INTEQ(e.error, ENOMEM);
+
+	cleanup_route_by_dst(&ss, &nw, "203.0.113.0");
+}
+
 
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, rtnl_nhgrp);
 	ATF_TP_ADD_TC(tp, rtnl_nhgrp_expire);
 	ATF_TP_ADD_TC(tp, rtnl_nhop_merge);
+	ATF_TP_ADD_TC(tp, rtnl_nhgrp_big_nhops);
 
 	return (atf_no_error());
 }
