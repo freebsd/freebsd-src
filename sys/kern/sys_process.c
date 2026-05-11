@@ -1377,17 +1377,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * register file or specifying the pc, make the thread
 		 * xstopped by waking it up.
 		 */
-		if ((td2->td_dbgflags & TDB_USERWR) != 0) {
-			if (pt_attach_transparent) {
-				thread_lock(td2);
-				if (TD_ON_SLEEPQ(td2) &&
-				    (td2->td_flags & TDF_SINTR) != 0) {
-					sleepq_abort(td2, EINTR);
-				} else {
-					thread_unlock(td2);
-				}
+		if ((td2->td_dbgflags & TDB_USERWR) != 0 &&
+		    pt_attach_transparent) {
+			thread_lock(td2);
+			if (TD_ON_SLEEPQ(td2) &&
+			    (td2->td_flags & TDF_SINTR) != 0) {
+				td2->td_dbgflags &= ~TDB_USERWR;
+				sleepq_abort(td2, EINTR);
+			} else {
+				thread_unlock(td2);
 			}
-			td2->td_dbgflags &= ~TDB_USERWR;
 		}
 
 		/*
