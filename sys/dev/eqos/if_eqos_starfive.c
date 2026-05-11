@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <machine/bus.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
 #include <dev/mii/mii.h>
@@ -40,6 +41,7 @@
 #define JH7110_CSR_FREQ		198000000
 
 #define	WR4(sc, o, v) bus_write_4(sc->base.res[EQOS_RES_MEM], (o), (v))
+#define	RD4(sc, o)	bus_read_4(sc->base.res[EQOS_RES_MEM], (o))
 
 static const struct ofw_compat_data compat_data[] = {
 	{"starfive,jh7110-dwmac",	1},
@@ -131,6 +133,8 @@ if_eqos_starfive_init(device_t dev)
 	struct if_eqos_starfive_softc *sc = device_get_softc(dev);
 	hwreset_t rst_ahb, rst_stmmaceth;
 	phandle_t node;
+	uint8_t eaddr[ETHER_ADDR_LEN];
+	uint32_t maclo, machi;
 
 	node = ofw_bus_get_node(dev);
 
@@ -186,6 +190,14 @@ if_eqos_starfive_init(device_t dev)
 		return (ENXIO);
 	}
 
+	if (OF_getprop(node, "local-mac-address", eaddr, sizeof(eaddr)) ==
+	    sizeof(eaddr)) {
+		machi = eaddr[5] | (eaddr[4] << 8);
+		WR4(sc, GMAC_MAC_ADDRESS0_HIGH, machi);
+		maclo = eaddr[3] | (eaddr[2] << 8) | (eaddr[1] << 16) |
+		    (eaddr[0] << 24);
+		WR4(sc, GMAC_MAC_ADDRESS0_LOW, maclo);
+	}
 	return (0);
 }
 
