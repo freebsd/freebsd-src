@@ -4396,7 +4396,8 @@ unionread:
 		goto unionread;
 	}
 	VOP_UNLOCK(vp);
-	*basep = loff;
+	if (basep != NULL)
+		*basep = loff;
 	if (residp != NULL)
 		*residp = auio.uio_resid;
 	td->td_retval[0] = count - auio.uio_resid;
