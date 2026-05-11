@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -558,10 +558,22 @@ XfNamespaceLocateBegin (
 
         Node = NextOp->Asl.Node;
 
+        /* Malformed tree: parent method has no namespace node */
+        if (!Node)
+        {
+            return_ACPI_STATUS (AE_OK);
+        }
+
         /* Get Arg # */
 
         RegisterNumber = Op->Asl.AmlOpcode - AML_ARG0; /* 0x68 through 0x6F */
         MethodArgs = Node->MethodArgs;
+
+        /* Gracefully handle malformed trees where method args were not set up */
+        if (!MethodArgs)
+        {
+            return_ACPI_STATUS (AE_OK);
+        }
 
         /* Mark this Arg as referenced */
 
