@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -412,7 +412,8 @@ const char                      *AslTableCompilerMsgs [] =
 /*    ASL_MSG_UNKNOWN_FORMAT */             "Unknown format value",
 /*    ASL_MSG_RESERVED_VALUE */             "Value for field is reserved or unknown",
 /*    ASL_MSG_TWO_ZERO_VALUES */            "32-bit DSDT Address and 64-bit X_DSDT Address cannot both be zero",
-/*    ASL_MSG_BAD_PARSE_TREE */             "Parse tree appears to be ill-defined"
+/*    ASL_MSG_BAD_PARSE_TREE */             "Parse tree appears to be ill-defined",
+/*    ASL_MSG_MALFORMED_HEADER */           "Malformed ACPI table header detected"
 };
 
 /* Preprocessor */

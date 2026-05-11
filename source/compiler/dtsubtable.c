@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -430,7 +430,12 @@ DtGetSubtableLength (
 
         case ACPI_DMT_IORTMEM:
 
-            Step = 10;
+            /*
+             * The ACPI_DMT_IORTMEM type is defined in AcpiDmTableInfoIortAcc.
+             * TODO: compute number of fields ("Step") directly from the array initialisation.
+             * This may require some refactoring of dmtbinfo2.c and acdiasasm.h
+             */
+            Step = 11;
             break;
 
         default:

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -186,6 +186,7 @@
 
 #pragma warning( disable: 4201)
 #pragma warning( disable: 4068)
+#pragma warning( disable: 4214)
 #pragma warning( push)
 
 #define ACPI_MACHINE_WIDTH      32

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -851,7 +851,9 @@ OpnDoPackage (
 {
     ACPI_PARSE_OBJECT       *InitializerOp;
     ACPI_PARSE_OBJECT       *PackageLengthOp;
+    UINT64                  DeclaredLength;
     UINT32                  PackageLength = 0;
+    UINT32                  MaxEncodedLength = 0x0FFFFFFF; /* Max AML package length encoding (28 bits) */
 
 
     /* Opcode and package length first, followed by the initializer list */
@@ -875,9 +877,21 @@ OpnDoPackage (
     /* If package length is a constant, compare to the initializer list */
 
     if ((PackageLengthOp->Asl.ParseOpcode == PARSEOP_INTEGER)      ||
-        (PackageLengthOp->Asl.ParseOpcode == PARSEOP_QWORDCONST))
+        (PackageLengthOp->Asl.ParseOpcode == PARSEOP_QWORDCONST)   ||
+        (PackageLengthOp->Asl.ParseOpcode == PARSEOP_PACKAGE_LENGTH))
     {
-        if (PackageLengthOp->Asl.Value.Integer > PackageLength)
+        DeclaredLength = PackageLengthOp->Asl.Value.Integer;
+
+        /* Guard against values that cannot be encoded in AML package length format */
+
+        if (DeclaredLength > MaxEncodedLength)
+        {
+            AslError (ASL_ERROR, ASL_MSG_ENCODING_LENGTH, PackageLengthOp, NULL);
+            DeclaredLength = MaxEncodedLength;
+            PackageLengthOp->Asl.Value.Integer = DeclaredLength;
+        }
+
+        if (DeclaredLength > PackageLength)
         {
             /*
              * Allow package length to be longer than the initializer
@@ -891,9 +905,9 @@ OpnDoPackage (
                     PackageLengthOp, NULL);
             }
 
-            PackageLength = (UINT32) PackageLengthOp->Asl.Value.Integer;
+            PackageLength = (UINT32) DeclaredLength;
         }
-        else if (PackageLengthOp->Asl.Value.Integer < PackageLength)
+        else if (DeclaredLength < PackageLength)
         {
             /*
              * The package length is smaller than the length of the
@@ -999,7 +1013,13 @@ OpnDoLoadTable (
     /* Fourth child is the RootPath string */
 
     Next = Next->Asl.Next;
-    if (Next->Asl.ParseOpcode == PARSEOP_ZERO)
+    if ((Next->Asl.ParseOpcode == PARSEOP_ZERO)           ||
+        ((Next->Asl.Value.Integer == 0) &&
+            ((Next->Asl.ParseOpcode == PARSEOP_INTEGER)   ||
+             (Next->Asl.ParseOpcode == PARSEOP_BYTECONST) ||
+             (Next->Asl.ParseOpcode == PARSEOP_WORDCONST) ||
+             (Next->Asl.ParseOpcode == PARSEOP_DWORDCONST)||
+             (Next->Asl.ParseOpcode == PARSEOP_QWORDCONST))))
     {
         Next->Asl.ParseOpcode = PARSEOP_STRING_LITERAL;
         Next->Asl.Value.String = "\\";

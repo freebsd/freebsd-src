@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -658,10 +658,19 @@ AeRegionHandler (
      * NOTE: RegionElement->Length is in bytes, therefore it we compare against
      * ByteWidth (see above)
      */
-    if ((RegionObject->Region.SpaceId != ACPI_ADR_SPACE_GPIO) &&
+    if (Address < RegionElement->Address ||
         ((UINT64) Address + ByteWidth) >
         ((UINT64)(RegionElement->Address) + RegionElement->Length))
     {
+        if (RegionObject->Region.SpaceId == ACPI_ADR_SPACE_GPIO)
+        {
+            if (Function == ACPI_READ)
+            {
+                memset (Value, 0, ByteWidth);
+            }
+            return (AE_OK);
+        }
+
         ACPI_WARNING ((AE_INFO,
             "Request on [%4.4s] is beyond region limit "
             "Req-0x%X+0x%X, Base=0x%X, Len-0x%X",
@@ -682,6 +691,11 @@ DoFunction:
     /*
      * Perform a read or write to the buffer space
      */
+    if (ByteWidth == 0)
+    {
+        return (AE_AML_OPERAND_VALUE);
+    }
+
     switch (Function)
     {
     case ACPI_READ:
