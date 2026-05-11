@@ -1991,7 +1991,7 @@ ipf_checkcipso(fr_info_t *fin, u_char *s, int ol)
 
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_makefrip                                                */
-/* Returns:     int     - 0 == packet ok, -1 == packet freed                */
+/* Returns:     int     - 0 == packet ok, -1 == packet freed or bad length  */
 /* Parameters:  hlen(I) - length of IP packet header                        */
 /*              ip(I)   - pointer to the IP header                          */
 /*              fin(IO) - pointer to packet information                     */
@@ -2019,14 +2019,23 @@ ipf_makefrip(int hlen, ip_t *ip, fr_info_t *fin)
 	if (v == 4) {
 		fin->fin_plen = ntohs(ip->ip_len);
 		fin->fin_dlen = fin->fin_plen - hlen;
-		ipf_pr_ipv4hdr(fin);
+		if (fin->fin_m != NULL && fin->fin_m->m_flags & M_PKTHDR && fin->fin_m->m_pkthdr.len < fin->fin_plen) {
+			LBUMPD(ipf_stats[fin->fin_out], fr_bad);
+			return (-1);
+		} else {
+			ipf_pr_ipv4hdr(fin);
+		}
 #ifdef	USE_INET6
 	} else if (v == 6) {
 		fin->fin_plen = ntohs(((ip6_t *)ip)->ip6_plen);
 		fin->fin_dlen = fin->fin_plen;
 		fin->fin_plen += hlen;
-
-		ipf_pr_ipv6hdr(fin);
+		if (fin->fin_m != NULL && fin->fin_m->m_flags & M_PKTHDR && fin->fin_m->m_pkthdr.len < fin->fin_plen) {
+			LBUMPD(ipf_stats[fin->fin_out], fr_v6_bad);
+			return (-1);
+		} else {
+			ipf_pr_ipv6hdr(fin);
+		}
 #endif
 	}
 	if (fin->fin_ip == NULL) {
