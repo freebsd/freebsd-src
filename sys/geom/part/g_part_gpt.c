@@ -230,6 +230,7 @@ static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
 static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
 static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
 static struct uuid gpt_uuid_vmvsanhdr = GPT_ENT_TYPE_VMVSANHDR;
+static struct uuid gpt_uuid_xbootldr = GPT_ENT_TYPE_XBOOTLDR;
 
 static struct g_part_uuid_alias {
 	struct uuid *uuid;
@@ -302,6 +303,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
 	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
 	{ &gpt_uuid_vmvsanhdr,		G_PART_ALIAS_VMVSANHDR,		 0 },
+	{ &gpt_uuid_xbootldr,		G_PART_ALIAS_XBOOTLDR,		 0 },
 	{ NULL, 0, 0 }
 };
 

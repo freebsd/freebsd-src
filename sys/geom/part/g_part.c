@@ -135,6 +135,7 @@ struct g_part_alias_list {
 	{ "vmware-vmfs", G_PART_ALIAS_VMFS },
 	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
 	{ "vmware-vsanhdr", G_PART_ALIAS_VMVSANHDR },
+	{ "xbootldr", G_PART_ALIAS_XBOOTLDR },
 };
 
 SYSCTL_DECL(_kern_geom);
