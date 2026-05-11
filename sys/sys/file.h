@@ -73,6 +73,7 @@ struct nameidata;
 #define	DTYPE_TIMERFD	14	/* timerfd */
 #define	DTYPE_INOTIFY	15	/* inotify descriptor */
 #define	DTYPE_JAILDESC	16	/* jail descriptor */
+#define	DTYPE_NTSYNC	17	/* /dev/ntsync */
 
 #ifdef _KERNEL
 
