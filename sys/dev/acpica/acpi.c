@@ -672,12 +672,12 @@ acpi_attach(device_t dev)
      * s2idle when ACPI_FADT_LOW_POWER_S0 is set.
      */
     sc->acpi_sleep_button_stype = POWER_STYPE_UNKNOWN;
-    for (stype = POWER_STYPE_STANDBY; stype <= POWER_STYPE_HIBERNATE; stype++)
+    for (stype = POWER_STYPE_STANDBY; stype <= POWER_STYPE_FW_HIBERNATE; stype++)
 	if (acpi_supported_stypes[stype]) {
 	    sc->acpi_sleep_button_stype = stype;
 	    break;
 	}
-    if (sc->acpi_sleep_button_stype == POWER_STYPE_HIBERNATE ||
+    if (sc->acpi_sleep_button_stype == POWER_STYPE_FW_HIBERNATE ||
 	sc->acpi_sleep_button_stype == POWER_STYPE_UNKNOWN) {
 	if (acpi_supported_stypes[POWER_STYPE_SUSPEND_TO_IDLE])
 	    sc->acpi_sleep_button_stype = POWER_STYPE_SUSPEND_TO_IDLE;
@@ -816,9 +816,9 @@ acpi_stype_to_sstate(struct acpi_softc *sc, enum power_stype stype)
 		return (ACPI_STATE_S0);
 	case POWER_STYPE_STANDBY:
 		return (sc->acpi_standby_sx);
-	case POWER_STYPE_SUSPEND_TO_MEM:
+	case POWER_STYPE_FW_SUSPEND:
 		return (ACPI_STATE_S3);
-	case POWER_STYPE_HIBERNATE:
+	case POWER_STYPE_FW_HIBERNATE:
 		return (ACPI_STATE_S4);
 	case POWER_STYPE_POWEROFF:
 		return (ACPI_STATE_S5);
@@ -851,9 +851,9 @@ acpi_sstate_to_stype(int sstate)
 	case ACPI_STATE_S2:
 		return (POWER_STYPE_STANDBY);
 	case ACPI_STATE_S3:
-		return (POWER_STYPE_SUSPEND_TO_MEM);
+		return (POWER_STYPE_FW_SUSPEND);
 	case ACPI_STATE_S4:
-		return (POWER_STYPE_HIBERNATE);
+		return (POWER_STYPE_FW_HIBERNATE);
 	case ACPI_STATE_S5:
 		return (POWER_STYPE_POWEROFF);
 	}
@@ -3723,8 +3723,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
     case POWER_STYPE_STANDBY:
 	do_standby(sc, &slp_state, intr);
 	break;
-    case POWER_STYPE_SUSPEND_TO_MEM:
-    case POWER_STYPE_HIBERNATE:
+    case POWER_STYPE_FW_SUSPEND:
+    case POWER_STYPE_FW_HIBERNATE:
 	do_sleep(sc, &slp_state, intr, acpi_sstate);
 	break;
     case POWER_STYPE_SUSPEND_TO_IDLE:

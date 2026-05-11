@@ -153,12 +153,12 @@ power_pm_register(u_int pm_type, power_pm_fn_t pm_fn, void *pm_arg,
 		    sizeof(power_pm_supported));
 		if (power_pm_supported[POWER_STYPE_STANDBY])
 			power_standby_stype = POWER_STYPE_STANDBY;
-		if (power_pm_supported[POWER_STYPE_SUSPEND_TO_MEM])
-			power_suspend_stype = POWER_STYPE_SUSPEND_TO_MEM;
+		if (power_pm_supported[POWER_STYPE_FW_SUSPEND])
+			power_suspend_stype = POWER_STYPE_FW_SUSPEND;
 		else if (power_pm_supported[POWER_STYPE_SUSPEND_TO_IDLE])
 			power_suspend_stype = POWER_STYPE_SUSPEND_TO_IDLE;
-		if (power_pm_supported[POWER_STYPE_HIBERNATE])
-			power_hibernate_stype = POWER_STYPE_HIBERNATE;
+		if (power_pm_supported[POWER_STYPE_FW_HIBERNATE])
+			power_hibernate_stype = POWER_STYPE_FW_HIBERNATE;
 		error = 0;
 		TASK_INIT(&power_pm_task, 0, power_pm_deferred_fn, NULL);
 	} else {
