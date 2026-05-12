@@ -429,6 +429,8 @@ MK_KERBEROS_SUPPORT:=	no
 MK_MITKRB5:=	no
 .endif
 
+# MK_DTRACE also gates ctf tools, so we cannot build userland with CTF
+# if it is off.
 .if ${MK_DTRACE} == "no"
 MK_CTF:=	no
 .endif
