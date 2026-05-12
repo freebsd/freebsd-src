@@ -40,6 +40,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
