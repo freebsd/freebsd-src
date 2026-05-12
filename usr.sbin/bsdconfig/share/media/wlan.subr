@@ -813,6 +813,7 @@ f_dialog_wireless_edit()
 		[ $nmatches -le ${#DIALOG_MENU_TAGS} ] || break
 		f_substr -v tag "$DIALOG_MENU_TAGS" $nmatches 1
 
+		f_shell_escape "$wssid" wssid
 		f_wireless_describe WIRELESS_$n help
 		menu_list1="$menu_list1
 			'$tag $wssid' '$wbssid' '$help'
@@ -1076,6 +1077,7 @@ f_menu_wireless_configs()
 	while [ $n -lt $nunique ]; do
 		n=$(( $n + 1 ))
 		menuitem_$n get ssid ssid
+		f_shell_escape "$ssid" ssid
 
 		menuitem_$n get nconfigs nconfigs
 		desc="$nconfigs $msg_configured_lc"
@@ -1184,6 +1186,7 @@ f_menu_wpa_scan_results()
 	while [ $n -lt $nunique ]; do
 		n=$(( $n + 1 ))
 		menuitem_$n get ssid ssid
+		f_shell_escape "$ssid" ssid
 
 		desc=
 		if [ "$DIALOG_MENU_WLAN_SHOW_ALL" ]; then
