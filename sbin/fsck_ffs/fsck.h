@@ -62,12 +62,13 @@
 #ifndef _FSCK_H_
 #define	_FSCK_H_
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <libufs.h>
-
 #include <sys/queue.h>
+
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <libufs.h>
 
 #define	MAXDUP		10	/* limit on dup blks (per inode) */
 #define	MAXBAD		10	/* limit on bad blks (per inode) */
