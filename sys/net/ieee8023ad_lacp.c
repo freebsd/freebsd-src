@@ -682,6 +682,7 @@ static void
 lacp_disable_distributing(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
+	struct lacp_aggregator *la_active;
 	struct lacp_softc *lsc = lp->lp_lsc;
 	struct lagg_softc *sc = lsc->lsc_softc;
 	char buf[LACP_LAGIDSTR_MAX+1];
@@ -703,7 +704,6 @@ lacp_disable_distributing(struct lacp_port *lp)
 
 	TAILQ_REMOVE(&la->la_ports, lp, lp_dist_q);
 	la->la_nports--;
-	sc->sc_active = la->la_nports;
 
 	if (lsc->lsc_active_aggregator == la) {
 		lacp_suppress_distributing(lsc, la);
@@ -713,6 +713,8 @@ lacp_disable_distributing(struct lacp_port *lp)
 	}
 
 	lp->lp_state &= ~LACP_STATE_DISTRIBUTING;
+	la_active = lsc->lsc_active_aggregator;
+	sc->sc_active = la_active != NULL ? la_active->la_nports : 0;
 	if_link_state_change(sc->sc_ifp,
 	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
@@ -721,6 +723,7 @@ static void
 lacp_enable_distributing(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
+	struct lacp_aggregator *la_active;
 	struct lacp_softc *lsc = lp->lp_lsc;
 	struct lagg_softc *sc = lsc->lsc_softc;
 	char buf[LACP_LAGIDSTR_MAX+1];
@@ -739,7 +742,6 @@ lacp_enable_distributing(struct lacp_port *lp)
 	KASSERT(la->la_refcnt > la->la_nports, ("aggregator refcnt invalid"));
 	TAILQ_INSERT_HEAD(&la->la_ports, lp, lp_dist_q);
 	la->la_nports++;
-	sc->sc_active = la->la_nports;
 
 	lp->lp_state |= LACP_STATE_DISTRIBUTING;
 
@@ -750,6 +752,8 @@ lacp_enable_distributing(struct lacp_port *lp)
 		/* try to become the active aggregator */
 		lacp_select_active_aggregator(lsc);
 
+	la_active = lsc->lsc_active_aggregator;
+	sc->sc_active = la_active != NULL ? la_active->la_nports : 0;
 	if_link_state_change(sc->sc_ifp,
 	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
