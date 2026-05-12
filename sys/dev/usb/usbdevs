@@ -4807,6 +4807,8 @@ product TELEX MIC1		0x0001	Enhanced USB Microphone
 /* Telit products */
 product TELIT UC864E		0x1003	UC864E 3G modem
 product TELIT UC864G		0x1004	UC864G 3G modem
+product TELIT LM960		0x1040	LM960A18 LTE modem (RNDIS)
+product TELIT LM960_ECM		0x1042	LM960A18 LTE modem (ECM)
 
 /* Ten X Technology, Inc. */
 product TENX UAUDIO0		0xf211	USB audio headset
