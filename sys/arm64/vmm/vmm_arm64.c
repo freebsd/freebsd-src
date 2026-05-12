@@ -542,7 +542,7 @@ vmmops_init(struct vm *vm, pmap_t pmap)
 	if (ID_AA64MMFR1_HCX_VAL(idreg) >= ID_AA64MMFR1_HCX_IMPL)
 		hyp->feats |= HYP_FEAT_HCX;
 
-	hyp->cntvoff_el2 = READ_SPECIALREG(cntpct_el0);
+	hyp->cntvoff_el2 = READ_CNTPCT();
 	vgic_vminit(hyp);
 
 	if (!in_vhe())
