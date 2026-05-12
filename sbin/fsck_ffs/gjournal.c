@@ -53,10 +53,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <string.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <ufs/ffs/fs.h>
+#include <string.h>
 #include "fsck.h"
 
 void
