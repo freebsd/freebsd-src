@@ -5135,7 +5135,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		return (ENOENT);
 	}
 	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
-	okif = malloc(sizeof(*okif), M_TEMP, M_WAITOK);
+	okif = malloc(sizeof(*okif), M_TEMP, M_WAITOK | M_ZERO);
 	PWDDESC_XLOCK(pdp);
 	pwd = pwd_hold_pwddesc(pdp);
 	if (pwd != NULL) {
