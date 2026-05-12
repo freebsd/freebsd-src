@@ -308,6 +308,17 @@ bintime2ns(const struct bintime *_bt)
 	return (ret);
 }
 
+static __inline uint64_t
+bintime2us(const struct bintime *_bt)
+{
+	uint64_t ret;
+
+	ret = (uint64_t)(_bt->sec) * (uint64_t)1000000;
+	ret += __utime64_scale64_floor(
+	    _bt->frac, 1000000, 1ULL << 32) >> 32;
+	return (ret);
+}
+
 static __inline void
 timespec2bintime(const struct timespec *_ts, struct bintime *_bt)
 {
