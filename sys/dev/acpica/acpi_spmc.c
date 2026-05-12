@@ -5,6 +5,10 @@
  *
  * This software was developed by Aymeric Wibo <obiwac@freebsd.org>
  * under sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Olivier Certner
+ * <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+ * Foundation.
  */
 
 #include <sys/param.h>
