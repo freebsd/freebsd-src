@@ -624,7 +624,9 @@ KTEST_FUNC(tcpcb_insertion)
 	struct tcpcb *tp;
 	struct tcp_hpts_entry *hpts;
 	uint32_t timeout_usecs = 10;
+	int error;
 
+	error = 0;
 	test_hpts_init();
 
 	pace = tcp_hptsi_create(&test_funcs, false);
@@ -638,9 +640,9 @@ KTEST_FUNC(tcpcb_insertion)
 
 	INP_WLOCK(&tp->t_inpcb);
 	tp->t_flags2 |= TF2_HPTS_CALLS;
-	KTEST_EQUAL(call_counts[CCNT_SWI_SCHED], 0);
+	KTEST_EQUAL_GOTO(call_counts[CCNT_SWI_SCHED], 0, cleanup_locked);
 	tcp_hpts_insert(pace, tp, timeout_usecs, NULL);
-	KTEST_EQUAL(tp->t_in_hpts, IHPTS_ONQUEUE);
+	KTEST_EQUAL_GOTO(tp->t_in_hpts, IHPTS_ONQUEUE, cleanup_locked);
 	INP_WUNLOCK(&tp->t_inpcb);
 	KTEST_EQUAL(call_counts[CCNT_TCP_OUTPUT], 0);
 	KTEST_EQUAL(call_counts[CCNT_SWI_SCHED], 1);
@@ -656,7 +658,7 @@ KTEST_FUNC(tcpcb_insertion)
 
 	INP_WLOCK(&tp->t_inpcb);
 	tcp_hpts_remove(pace, tp);
-	KTEST_EQUAL(tp->t_in_hpts, IHPTS_NONE);
+	KTEST_EQUAL_GOTO(tp->t_in_hpts, IHPTS_NONE, cleanup_locked);
 	INP_WUNLOCK(&tp->t_inpcb);
 	KTEST_EQUAL(call_counts[CCNT_TCP_OUTPUT], 0);
 	KTEST_VERIFY(!tcp_in_hpts(tp));
@@ -668,6 +670,10 @@ KTEST_FUNC(tcpcb_insertion)
 	tcp_hptsi_destroy(pace);
 
 	return (0);
+
+cleanup_locked:
+	INP_WUNLOCK(&tp->t_inpcb);
+	return (error);
 }
 
 /*
@@ -1475,6 +1481,7 @@ KTEST_FUNC(direct_wake_mechanism)
 	struct tcp_hpts_entry *hpts;
 	int error;
 
+	error = 0;
 	test_hpts_init();
 
 	pace = tcp_hptsi_create(&test_funcs, false);
