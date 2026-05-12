@@ -181,8 +181,13 @@ int	cpusetobj_strscan(cpuset_t *, const char *);
 void	ddb_display_cpuset(const cpuset_t *);
 #endif
 
-#else
+#else /* !_KERNEL */
+#include <sys/cdefs.h>
+
 __BEGIN_DECLS
+cpuset_t *__cpuset_alloc(size_t set_size);
+void	__cpuset_free(cpuset_t *ptr);
+
 int	cpuset(cpusetid_t *);
 int	cpuset_setid(cpuwhich_t, id_t, cpusetid_t);
 int	cpuset_getid(cpulevel_t, cpuwhich_t, id_t, cpusetid_t *);
