@@ -5515,10 +5515,7 @@ read_options:
 			break;
 
 		case TOK_FLOWID:
-			if (proto != IPPROTO_IPV6 )
-				errx( EX_USAGE, "flow-id filter is active "
-				    "only for ipv6 protocol\n");
-			fill_flow6( (ipfw_insn_u32 *) cmd, *av, cblen);
+			fill_flow6(insntod(cmd, u32), *av, cblen);
 			av++;
 			break;
 

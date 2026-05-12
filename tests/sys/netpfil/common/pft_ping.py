@@ -63,6 +63,7 @@ def prepare_ipv6(send_params):
     dst_address = send_params.get('dst_address')
     hlim = send_params.get('hlim')
     tc = send_params.get('tc')
+    fl = send_params.get('fl')
     ip6 = sp.IPv6(dst=dst_address)
     if src_address:
         ip6.src = src_address
@@ -70,6 +71,8 @@ def prepare_ipv6(send_params):
         ip6.hlim = hlim
     if tc:
         ip6.tc = tc
+    if fl:
+        ip6.fl = fl
     return ip6
 
 
@@ -224,6 +227,7 @@ def check_ipv6(expect_params, packet):
     flags = expect_params.get('flags')
     hlim = expect_params.get('hlim')
     tc = expect_params.get('tc')
+    fl = expect_params.get('fl')
     ip6 = packet.getlayer(sp.IPv6)
     if not ip6:
         LOGGER.debug('Packet is not IPv6!')
@@ -244,6 +248,9 @@ def check_ipv6(expect_params, packet):
         return False
     if tc and ip6.tc != tc:
         LOGGER.debug(f'Wrong TC value {ip6.tc}, expected {tc}')
+        return False
+    if fl and ip6.fl != fl:
+        LOGGER.debug(f'Wrong Flow Label value {ip6.fl}, expected {fl}')
         return False
     return True
 
@@ -635,6 +642,8 @@ def parse_args():
         help='ICMP Echo Request payload size')
     parser_send.add_argument('--send-tc', type=int,
         help='IPv6 Traffic Class or IPv4 DiffServ / ToS')
+    parser_send.add_argument('--send-fl', type=int,
+        help='IPv6 Flow label')
     parser_send.add_argument('--send-tcpopt-unaligned', action='store_true',
         help='Include unaligned TCP options')
     parser_send.add_argument('--send-nop', action='store_true',
@@ -652,6 +661,8 @@ def parse_args():
         help='TCP sequence number')
     parser_expect.add_argument('--expect-tc', type=int,
         help='IPv6 Traffic Class or IPv4 DiffServ / ToS')
+    parser_expect.add_argument('--expect-fl', type=int,
+        help='IPv6 Flow Label')
 
     parser.add_argument('-v', '--verbose', action='store_true',
         help=('Enable verbose logging. Apart of potentially useful information '
@@ -673,7 +684,7 @@ def main():
     send_params = {}
     expect_params = {}
     for param_name in (
-        'flags', 'hlim', 'length', 'mss', 'seq', 'tc', 'frag_length',
+        'flags', 'hlim', 'length', 'mss', 'seq', 'tc', 'fl', 'frag_length',
         'sport', 'dport',
     ):
         param_arg = vars(args).get(f'send_{param_name}')
