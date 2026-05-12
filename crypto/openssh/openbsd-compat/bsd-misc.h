@@ -202,6 +202,14 @@ int flock(int, int);
 struct tm *localtime_r(const time_t *, struct tm *);
 #endif
 
+#ifndef HAVE_CLOCK_GETTIME
+typedef int clockid_t;
+#ifndef CLOCK_REALTIME
+# define CLOCK_REALTIME	0
+#endif
+int clock_gettime(clockid_t, struct timespec *);
+#endif
+
 #ifndef HAVE_REALPATH
 #define realpath(x, y)	(sftp_realpath((x), (y)))
 #endif
