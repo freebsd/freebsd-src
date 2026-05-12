@@ -36,6 +36,7 @@
  * Disk quota editor.
  */
 
+#include <sys/param.h>
 #include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
