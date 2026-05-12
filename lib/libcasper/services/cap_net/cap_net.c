@@ -1099,11 +1099,36 @@ net_connect(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 	return (0);
 }
 
+/*
+ * If the old sublimit restricted a subkey, the new one must too;
+ * a missing subkey means "allow any" at request time.
+ */
+static bool
+verify_subkeys_present(const nvlist_t *oldfunclimits,
+    const nvlist_t *newfunclimit)
+{
+	void *cookie;
+	const char *name;
+
+	if (oldfunclimits == NULL)
+		return (true);
+
+	cookie = NULL;
+	while ((name = nvlist_next(oldfunclimits, NULL, &cookie)) != NULL) {
+		if (!nvlist_exists(newfunclimit, name))
+			return (false);
+	}
+	return (true);
+}
+
 static bool
 verify_only_sa_newlimts(const nvlist_t *oldfunclimits,
     const nvlist_t *newfunclimit)
 {
 	void *cookie;
+
+	if (!verify_subkeys_present(oldfunclimits, newfunclimit))
+		return (false);
 
 	cookie = NULL;
 	while (nvlist_next(newfunclimit, NULL, &cookie) != NULL) {
@@ -1177,6 +1202,9 @@ verify_addr2name_newlimits(const nvlist_t *oldlimits,
 		    LIMIT_NV_ADDR2NAME, NULL);
 	}
 
+	if (!verify_subkeys_present(oldfunclimits, newfunclimit))
+		return (false);
+
 	cookie = NULL;
 	while (nvlist_next(newfunclimit, NULL, &cookie) != NULL) {
 		if (strcmp(cnvlist_name(cookie), "sockaddr") == 0) {
@@ -1234,6 +1262,9 @@ verify_name2addr_newlimits(const nvlist_t *oldlimits,
 		oldfunclimits = dnvlist_get_nvlist(oldlimits,
 		    LIMIT_NV_NAME2ADDR, NULL);
 	}
+
+	if (!verify_subkeys_present(oldfunclimits, newfunclimit))
+		return (false);
 
 	cookie = NULL;
 	while (nvlist_next(newfunclimit, NULL, &cookie) != NULL) {
