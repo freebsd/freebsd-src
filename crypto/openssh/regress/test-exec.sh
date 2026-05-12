@@ -964,7 +964,7 @@ EOF
 	softhsm2-util --slot "$slot" --label 01 --id 01 --pin "$TEST_SSH_PIN" \
 	    --import $RSAP8 >/dev/null || fatal "softhsm import RSA fail"
 	chmod 600 $RSA
-	ssh-keygen -y -f $RSA > ${RSA}.pub
+	${SSHKEYGEN} -y -f $RSA > ${RSA}.pub
 	# ECDSA key
 	ECPARAM=${SSH_SOFTHSM_DIR}/ECPARAM
 	EC=${SSH_SOFTHSM_DIR}/EC
@@ -978,7 +978,7 @@ EOF
 	softhsm2-util --slot "$slot" --label 02 --id 02 --pin "$TEST_SSH_PIN" \
 	    --import $ECP8 >/dev/null || fatal "softhsm import EC fail"
 	chmod 600 $EC
-	ssh-keygen -y -f $EC > ${EC}.pub
+	${SSHKEYGEN} -y -f $EC > ${EC}.pub
 	# Ed25519 key
 	ED25519=${SSH_SOFTHSM_DIR}/ED25519
 	ED25519P8=${SSH_SOFTHSM_DIR}/ED25519P8
@@ -990,7 +990,7 @@ EOF
 	    --import $ED25519P8 >/dev/null || \
 		fatal "softhsm import ed25519 fail"
 	chmod 600 $ED25519
-	ssh-keygen -y -f $ED25519 > ${ED25519}.pub
+	${SSHKEYGEN} -y -f $ED25519 > ${ED25519}.pub
 	# Prepare askpass script to load PIN.
 	PIN_SH=$SSH_SOFTHSM_DIR/pin.sh
 	cat > $PIN_SH << EOF
@@ -999,7 +999,11 @@ echo "${TEST_SSH_PIN}"
 EOF
 	chmod 0700 "$PIN_SH"
 	PKCS11_OK=yes
-	return 0
+	if env SSH_ASKPASS="$PIN_SH" SSH_ASKPASS_REQUIRE=force \
+	    ${SSHKEYGEN} -D ${TEST_SSH_PKCS11} >/dev/null 2>&1 ; then
+		return 0
+	fi
+	return 1
 }
 
 # Peforms ssh-add with the right token PIN.

@@ -535,7 +535,6 @@
 #define qfileout				Fssh_qfileout
 #define read_mux				Fssh_read_mux
 #define read_passphrase				Fssh_read_passphrase
-#define recallocarray				Fssh_recallocarray
 #define record_hostkey				Fssh_record_hostkey
 #define replacearg				Fssh_replacearg
 #define revoke_blob				Fssh_revoke_blob

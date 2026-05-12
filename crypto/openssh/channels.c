@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.451 2025/09/25 06:33:19 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.452 2025/10/07 08:02:32 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -362,7 +362,7 @@ channel_classify(struct ssh *ssh, Channel *c)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
 	const char *type = c->xctype == NULL ? c->ctype : c->xctype;
-	const char *classifier = c->isatty ?
+	const char *classifier = (c->isatty || c->remote_has_tty) ?
 	    sc->bulk_classifier_tty : sc->bulk_classifier_notty;
 
 	c->bulk = type != NULL && match_pattern_list(type, classifier, 0) == 1;
@@ -566,7 +566,7 @@ channel_new(struct ssh *ssh, char *ctype, int type, int rfd, int wfd, int efd,
 void
 channel_set_tty(struct ssh *ssh, Channel *c)
 {
-	c->isatty = 1;
+	c->remote_has_tty = 1;
 	channel_classify(ssh, c);
 }
 
@@ -1078,7 +1078,8 @@ channel_format_status(const Channel *c)
 	    c->rfd, c->wfd, c->efd, c->sock, c->ctl_chan,
 	    c->have_ctl_child_id ? "c" : "nc", c->ctl_child_id,
 	    c->io_want, c->io_ready,
-	    c->isatty ? "T" : "", c->bulk ? "B" : "I");
+	    c->isatty ? "T" : (c->remote_has_tty ? "RT" : ""),
+	    c->bulk ? "B" : "I");
 	return ret;
 }
 

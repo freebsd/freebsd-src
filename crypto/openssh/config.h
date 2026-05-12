@@ -995,6 +995,9 @@
 /* Define to 1 if you have the 'mkdtemp' function. */
 #define HAVE_MKDTEMP 1
 
+/* Define to 1 if you have the 'mmap' function. */
+#define HAVE_MMAP 1
+
 /* define if you have mode_t data type */
 #define HAVE_MODE_T 1
 
@@ -1145,7 +1148,7 @@
 #define HAVE_REALPATH 1
 
 /* Define to 1 if you have the 'recallocarray' function. */
-/* #undef HAVE_RECALLOCARRAY */
+#define HAVE_RECALLOCARRAY 1
 
 /* Define to 1 if you have the 'recvmsg' function. */
 #define HAVE_RECVMSG 1

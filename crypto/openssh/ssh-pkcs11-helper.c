@@ -310,22 +310,6 @@ main(int argc, char **argv)
 	}
 }
 #else /* ENABLE_PKCS11 */
-/* stubs */
-int
-pkcs11_sign(struct sshkey *key,
-    u_char **sigp, size_t *lenp,
-    const u_char *data, size_t datalen,
-    const char *alg, const char *sk_provider,
-    const char *sk_pin, u_int compat)
-{
-	return SSH_ERR_INTERNAL_ERROR;
-}
-
-void
-pkcs11_key_free(struct sshkey *key)
-{
-}
-
 int
 main(int argc, char **argv)
 {

@@ -494,6 +494,30 @@ localtime_r(const time_t *timep, struct tm *result)
 }
 #endif
 
+#ifndef HAVE_CLOCK_GETTIME
+int
+clock_gettime(clockid_t clockid, struct timespec *ts)
+{
+	struct timeval tv;
+
+	if (clockid != CLOCK_REALTIME) {
+		errno = ENOSYS;
+		return -1;
+	}
+	if (ts == NULL) {
+		errno = EFAULT;
+		return -1;
+	}
+
+	if (gettimeofday(&tv, NULL) == -1)
+		return -1;
+
+	ts->tv_sec = tv.tv_sec;
+	ts->tv_nsec = (long)tv.tv_usec * 1000;
+	return 0;
+}
+#endif
+
 #ifdef ASAN_OPTIONS
 const char *__asan_default_options(void) {
 	return ASAN_OPTIONS;

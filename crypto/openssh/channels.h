@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.161 2025/09/25 06:33:19 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.162 2025/10/07 08:02:32 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -145,6 +145,7 @@ struct Channel {
 	int     ctl_chan;	/* control channel (multiplexed connections) */
 	uint32_t ctl_child_id;	/* child session for mux controllers */
 	int	have_ctl_child_id;/* non-zero if ctl_child_id is valid */
+	int     remote_has_tty;	/* remote side has a tty */
 	int     isatty;		/* rfd is a tty */
 #ifdef _AIX
 	int     wfd_isatty;	/* wfd is a tty */
