@@ -626,11 +626,22 @@ int
 powerpc_teardown_intr(unsigned int irq, struct intr_handler *cookie)
 {
 	struct powerpc_intr *i;
+	int res;
 
 	i = intr_lookup(irq);
 	if (i == NULL)
 		return (EINVAL);
-	return (intr_event_remove_handler(&i->event, cookie));
+	res = intr_event_remove_handler(&i->event, cookie);
+
+	if (intr_event_has_handlers(&i->event))
+		return (res);
+
+	PIC_MASK(i->event.ie_pic, i->intline, &i->priv);
+
+	i->trig = INTR_TRIGGER_CONFORM;
+	i->pol = INTR_POLARITY_CONFORM;
+
+	return (res);
 }
 
 #ifdef SMP
