@@ -1197,6 +1197,10 @@ vtterm_fill(struct terminal *tm, const term_rect_t *r, term_char_t c)
 {
 	struct vt_window *vw = tm->tm_softc;
 
+#ifndef SC_NO_CUTPASTE
+        vtbuf_unmark_on_cross(&vw->vw_buf, r->tr_begin.tp_row,
+            r->tr_end.tp_row);
+#endif
 	vtbuf_fill(&vw->vw_buf, r, c);
 }
 
@@ -2465,9 +2469,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		default:
 			vt_mouse_paste();
 			/* clear paste buffer selection after paste */
-			vtbuf_set_mark(&vw->vw_buf, VTB_MARK_START,
-			    vd->vd_mx / vf->vf_width,
-			    vd->vd_my / vf->vf_height);
+                        vtbuf_unmark(&vw->vw_buf);
 			break;
 		}
 		return; /* Done */
