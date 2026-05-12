@@ -1011,12 +1011,12 @@ net_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	}
 
 	if (!net_allowed_family(funclimit, family)) {
-		errno = ENOTCAPABLE;
+		serrno = ENOTCAPABLE;
 		error = EAI_SYSTEM;
 		goto out;
 	}
 	if (!net_allowed_hosts(funclimit, hostname, servname)) {
-		errno = ENOTCAPABLE;
+		serrno = ENOTCAPABLE;
 		error = EAI_SYSTEM;
 		goto out;
 	}
