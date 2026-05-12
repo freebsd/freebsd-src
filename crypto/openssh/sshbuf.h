@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.29 2024/08/15 00:51:51 djm Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.32 2025/09/02 09:41:23 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -61,7 +61,8 @@ struct sshbuf *sshbuf_fromb(struct sshbuf *buf);
  * an existing buffer (the string is consumed in the process).
  * The contents of "buf" must not change in the lifetime of the resultant
  * buffer.
- * Returns pointer to buffer on success, or NULL on allocation failure.
+ * On success, a pointer to the newly allocated buffer is placed in *bufp.
+ * Returns 0 on success, or a negative SSH_ERR_* error code on failure.
  */
 int	sshbuf_froms(struct sshbuf *buf, struct sshbuf **bufp);
 
@@ -235,7 +236,9 @@ void	sshbuf_dump(const struct sshbuf *buf, FILE *f);
 void	sshbuf_dump_data(const void *s, size_t len, FILE *f);
 
 /* Return the hexadecimal representation of the contents of the buffer */
-char	*sshbuf_dtob16(struct sshbuf *buf);
+char	*sshbuf_dtob16(const struct sshbuf *buf);
+/* Make a sshbuf from a hex string */
+struct sshbuf *sshbuf_b16tod(const char *b16);
 
 /* Encode the contents of the buffer as base64 */
 char	*sshbuf_dtob64_string(const struct sshbuf *buf, int wrap);
@@ -260,6 +263,15 @@ int	sshbuf_b64tod(struct sshbuf *buf, const char *b64);
  */
 int	sshbuf_cmp(const struct sshbuf *b, size_t offset,
     const void *s, size_t len);
+
+/*
+ * Test whether two buffers have identical contents.
+ * SSH_ERR_MESSAGE_INCOMPLETE indicates the buffers had differing size.
+ * SSH_ERR_INVALID_FORMAT indicates the buffers were the same size but
+ * had differing contents.
+ * Returns 0 on successful compare (comparing two empty buffers returns 0).
+ */
+int sshbuf_equals(const struct sshbuf *a, const struct sshbuf *b);
 
 /*
  * Searches the buffer for the specified string. Returns 0 on success

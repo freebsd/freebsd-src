@@ -73,17 +73,6 @@ identities and, in particular, signature requests will check the key
 constraints against the session-bind@openssh.com bindings recorded for
 the agent connection over which they were received.
 
-3. SSH_AGENT_CONSTRAIN_MAXSIGN key constraint
-
-This key constraint allows communication to an agent of the maximum
-number of signatures that may be made with an XMSS key. The format of
-the constraint is:
-
-	byte		SSH_AGENT_CONSTRAIN_MAXSIGN (0x03)
-	uint32		max_signatures
-
-This option is only valid for XMSS keys.
-
 3. associated-certs-v00@openssh.com key constraint extension
 
 The key constraint extension allows certificates to be associated
@@ -115,4 +104,4 @@ A SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED will return SSH_AGENT_SUCCESS
 if any key (plain private or certificate) was successfully loaded, or
 SSH_AGENT_FAILURE if no key was loaded.
 
-$OpenBSD: PROTOCOL.agent,v 1.24 2024/11/27 13:27:34 djm Exp $
+$OpenBSD: PROTOCOL.agent,v 1.25 2025/08/29 03:50:38 djm Exp $

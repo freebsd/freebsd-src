@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.53 2024/05/17 00:30:23 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.55 2025/08/14 09:26:53 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -213,8 +213,17 @@ hostbased_key_allowed(struct ssh *ssh, struct passwd *pw,
 
 	if (sshkey_is_cert(key) &&
 	    sshkey_cert_check_authority_now(key, 1, 0, 0, lookup, &reason)) {
-		error("%s", reason);
-		auth_debug_add("%s", reason);
+		if ((fp = sshkey_fingerprint(key->cert->signature_key,
+		    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+			fatal_f("sshkey_fingerprint fail");
+		error("Refusing certificate ID \"%s\" serial=%llu signed by "
+		    "%s CA %s: %s", key->cert->key_id,
+		    (unsigned long long)key->cert->serial,
+		    sshkey_type(key->cert->signature_key), fp, reason);
+		auth_debug_add("Refused Certificate ID \"%s\" serial=%llu: %s",
+		    key->cert->key_id, (unsigned long long)key->cert->serial,
+		    reason);
+		free(fp);
 		return 0;
 	}
 

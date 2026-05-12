@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.27 2021/09/30 05:26:26 dtucker Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.28 2025/05/06 06:05:48 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
@@ -70,7 +70,7 @@ touch $OBJ/host_revoked_plain
 touch $OBJ/host_revoked_cert
 cat $OBJ/host_ca_key.pub $OBJ/host_ca_key2.pub > $OBJ/host_revoked_ca
 
-PLAIN_TYPES=`echo "$SSH_KEYTYPES" | sed 's/^ssh-dss/ssh-dsa/g;s/^ssh-//'`
+PLAIN_TYPES=`echo "$SSH_KEYTYPES" | sed 's/^ssh-//'`
 
 if echo "$PLAIN_TYPES" | grep '^rsa$' >/dev/null 2>&1 ; then
 	PLAIN_TYPES="$PLAIN_TYPES rsa-sha2-256 rsa-sha2-512"

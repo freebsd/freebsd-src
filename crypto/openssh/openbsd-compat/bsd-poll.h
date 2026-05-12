@@ -31,11 +31,7 @@
 #define	_COMPAT_POLL_H_
 
 #include <sys/types.h>
-#ifdef HAVE_POLL_H
-# include <poll.h>
-#elif HAVE_SYS_POLL_H
-# include <sys/poll.h>
-#endif
+#include <poll.h>
 
 #ifndef HAVE_STRUCT_POLLFD_FD
 typedef struct pollfd {

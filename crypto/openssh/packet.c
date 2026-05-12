@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.318 2025/02/18 08:02:12 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.323 2025/09/25 06:33:19 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,9 +42,7 @@
 #include <sys/types.h>
 #include "openbsd-compat/sys-queue.h"
 #include <sys/socket.h>
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -58,9 +56,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
-#ifdef HAVE_POLL_H
 #include <poll.h>
-#endif
 #include <signal.h>
 #include <time.h>
 
@@ -210,14 +206,23 @@ struct session_state {
 	/* Used in ssh_packet_send_mux() */
 	int mux;
 
-	/* Used in packet_set_interactive */
-	int set_interactive_called;
+	/* QoS handling */
+	int qos_interactive, qos_other;
 
 	/* Used in packet_set_maxsize */
 	int set_maxsize_called;
 
 	/* One-off warning about weak ciphers */
 	int cipher_warning_done;
+
+	/*
+	 * Disconnect in progress. Used to prevent reentry in
+	 * ssh_packet_disconnect()
+	 */
+	int disconnecting;
+
+	/* Nagle disabled on socket */
+	int nodelay_set;
 
 	/* Hook for fuzzing inbound packets */
 	ssh_packet_hook_fn *hook_in;
@@ -247,6 +252,8 @@ ssh_alloc_session_state(void)
 	state->connection_out = -1;
 	state->max_packet_size = 32768;
 	state->packet_timeout_ms = -1;
+	state->interactive_mode = 1;
+	state->qos_interactive = state->qos_other = -1;
 	state->p_send.packets = state->p_read.packets = 0;
 	state->initialized = 1;
 	/*
@@ -675,6 +682,7 @@ ssh_packet_close_internal(struct ssh *ssh, int do_close)
 {
 	struct session_state *state = ssh->state;
 	u_int mode;
+	struct packet *p;
 
 	if (!state->initialized)
 		return;
@@ -691,6 +699,11 @@ ssh_packet_close_internal(struct ssh *ssh, int do_close)
 	sshbuf_free(state->output);
 	sshbuf_free(state->outgoing_packet);
 	sshbuf_free(state->incoming_packet);
+	while ((p = TAILQ_FIRST(&state->outgoing))) {
+		sshbuf_free(p->payload);
+		TAILQ_REMOVE(&state->outgoing, p, next);
+		free(p);
+	}
 	for (mode = 0; mode < MODE_MAX; mode++) {
 		kex_free_newkeys(state->newkeys[mode]);	/* current keys */
 		state->newkeys[mode] = NULL;
@@ -737,6 +750,13 @@ ssh_packet_close_internal(struct ssh *ssh, int do_close)
 		kex_free(ssh->kex);
 		ssh->kex = NULL;
 	}
+}
+
+void
+ssh_packet_free(struct ssh *ssh)
+{
+	ssh_packet_close_internal(ssh, 1);
+	freezero(ssh, sizeof(*ssh));
 }
 
 void
@@ -2064,12 +2084,12 @@ ssh_packet_disconnect(struct ssh *ssh, const char *fmt,...)
 {
 	char buf[1024], remote_id[512];
 	va_list args;
-	static int disconnecting = 0;
 	int r;
 
-	if (disconnecting)	/* Guard against recursive invocations. */
+	/* Guard against recursive invocations. */
+	if (ssh->state->disconnecting)
 		fatal("packet_disconnect called recursively.");
-	disconnecting = 1;
+	ssh->state->disconnecting = 1;
 
 	/*
 	 * Format the message.  Note that the caller must make sure the
@@ -2206,41 +2226,41 @@ ssh_packet_interactive_data_to_write(struct ssh *ssh)
 	    sshbuf_len(ssh->state->output) < 256;
 }
 
-void
-ssh_packet_set_tos(struct ssh *ssh, int tos)
+static void
+apply_qos(struct ssh *ssh)
 {
-	if (!ssh_packet_connection_is_on_socket(ssh) || tos == INT_MAX)
+	struct session_state *state = ssh->state;
+	int qos = state->interactive_mode ?
+	    state->qos_interactive : state->qos_other;
+
+	if (!ssh_packet_connection_is_on_socket(ssh))
 		return;
-	set_sock_tos(ssh->state->connection_in, tos);
+	if (!state->nodelay_set) {
+		set_nodelay(state->connection_in);
+		state->nodelay_set = 1;
+	}
+	set_sock_tos(ssh->state->connection_in, qos);
 }
 
-/* Informs that the current session is interactive.  Sets IP flags for that. */
-
+/* Informs that the current session is interactive. */
 void
-ssh_packet_set_interactive(struct ssh *ssh, int interactive, int qos_interactive, int qos_bulk)
+ssh_packet_set_interactive(struct ssh *ssh, int interactive)
 {
 	struct session_state *state = ssh->state;
 
-	if (state->set_interactive_called)
-		return;
-	state->set_interactive_called = 1;
-
-	/* Record that we are in interactive mode. */
 	state->interactive_mode = interactive;
-
-	/* Only set socket options if using a socket.  */
-	if (!ssh_packet_connection_is_on_socket(ssh))
-		return;
-	set_nodelay(state->connection_in);
-	ssh_packet_set_tos(ssh, interactive ? qos_interactive : qos_bulk);
+	apply_qos(ssh);
 }
 
-/* Returns true if the current connection is interactive. */
-
-int
-ssh_packet_is_interactive(struct ssh *ssh)
+/* Set QoS flags to be used for interactive and non-interactive sessions */
+void
+ssh_packet_set_qos(struct ssh *ssh, int qos_interactive, int qos_other)
 {
-	return ssh->state->interactive_mode;
+	struct session_state *state = ssh->state;
+
+	state->qos_interactive = qos_interactive;
+	state->qos_other = qos_other;
+	apply_qos(ssh);
 }
 
 int
@@ -2415,6 +2435,7 @@ ssh_packet_get_state(struct ssh *ssh, struct sshbuf *m)
 	struct session_state *state = ssh->state;
 	int r;
 
+#define ENCODE_INT(v) (((v) < 0) ? 0xFFFFFFFF : (u_int)v)
 	if ((r = kex_to_blob(m, ssh->kex)) != 0 ||
 	    (r = newkeys_to_blob(m, ssh, MODE_OUT)) != 0 ||
 	    (r = newkeys_to_blob(m, ssh, MODE_IN)) != 0 ||
@@ -2429,9 +2450,12 @@ ssh_packet_get_state(struct ssh *ssh, struct sshbuf *m)
 	    (r = sshbuf_put_u32(m, state->p_read.packets)) != 0 ||
 	    (r = sshbuf_put_u64(m, state->p_read.bytes)) != 0 ||
 	    (r = sshbuf_put_stringb(m, state->input)) != 0 ||
-	    (r = sshbuf_put_stringb(m, state->output)) != 0)
+	    (r = sshbuf_put_stringb(m, state->output)) != 0 ||
+	    (r = sshbuf_put_u32(m, ENCODE_INT(state->interactive_mode))) != 0 ||
+	    (r = sshbuf_put_u32(m, ENCODE_INT(state->qos_interactive))) != 0 ||
+	    (r = sshbuf_put_u32(m, ENCODE_INT(state->qos_other))) != 0)
 		return r;
-
+#undef ENCODE_INT
 	return 0;
 }
 
@@ -2550,6 +2574,7 @@ ssh_packet_set_state(struct ssh *ssh, struct sshbuf *m)
 	const u_char *input, *output;
 	size_t ilen, olen;
 	int r;
+	u_int interactive, qos_interactive, qos_other;
 
 	if ((r = kex_from_blob(m, &ssh->kex)) != 0 ||
 	    (r = newkeys_from_blob(m, ssh, MODE_OUT)) != 0 ||
@@ -2585,6 +2610,16 @@ ssh_packet_set_state(struct ssh *ssh, struct sshbuf *m)
 	    (r = sshbuf_put(state->input, input, ilen)) != 0 ||
 	    (r = sshbuf_put(state->output, output, olen)) != 0)
 		return r;
+
+	if ((r = sshbuf_get_u32(m, &interactive)) != 0 ||
+	    (r = sshbuf_get_u32(m, &qos_interactive)) != 0 ||
+	    (r = sshbuf_get_u32(m, &qos_other)) != 0)
+		return r;
+#define DECODE_INT(v) ((v) > INT_MAX ? -1 : (int)(v))
+	state->interactive_mode = DECODE_INT(interactive);
+	state->qos_interactive = DECODE_INT(qos_interactive);
+	state->qos_other = DECODE_INT(qos_other);
+#undef DECODE_INT
 
 	if (sshbuf_len(m))
 		return SSH_ERR_INVALID_FORMAT;

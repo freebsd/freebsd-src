@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkeyfile.c,v 1.4 2023/03/05 05:34:09 dtucker Exp $ */
+/* $OpenBSD: auth2-pubkeyfile.c,v 1.6 2025/08/14 10:03:44 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -344,15 +344,15 @@ auth_check_authkey_line(struct passwd *pw, struct sshkey *key,
 	/* Parse and check options present in certificate */
 	if ((certopts = sshauthopt_from_cert(key)) == NULL) {
 		reason = "Invalid certificate options";
-		goto fail_reason;
+		goto cert_fail_reason;
 	}
 	if (auth_authorise_keyopts(pw, certopts, 0,
 	    remote_ip, remote_host, loc) != 0) {
 		reason = "Refused by certificate options";
-		goto fail_reason;
+		goto cert_fail_reason;
 	}
 	if ((finalopts = sshauthopt_merge(keyopts, certopts, &reason)) == NULL)
-		goto fail_reason;
+		goto cert_fail_reason;
 
 	/*
 	 * If the user has specified a list of principals as
@@ -362,12 +362,12 @@ auth_check_authkey_line(struct passwd *pw, struct sshkey *key,
 	if (keyopts->cert_principals != NULL &&
 	    !match_principals_option(keyopts->cert_principals, key->cert)) {
 		reason = "Certificate does not contain an authorized principal";
-		goto fail_reason;
+		goto cert_fail_reason;
 	}
 	if (sshkey_cert_check_authority_now(key, 0, 0, 0,
 	    keyopts->cert_principals == NULL ? pw->pw_name : NULL,
 	    &reason) != 0)
-		goto fail_reason;
+		goto cert_fail_reason;
 
 	verbose("Accepted certificate ID \"%s\" (serial %llu) "
 	    "signed by CA %s %s found at %s",
@@ -386,8 +386,17 @@ auth_check_authkey_line(struct passwd *pw, struct sshkey *key,
 	ret = 0;
 	goto out;
 
+ cert_fail_reason:
+	error("Refusing certificate ID \"%s\" serial=%llu "
+	    "signed by %s CA %s via %s: %s", key->cert->key_id,
+	    (unsigned long long)key->cert->serial,
+	    sshkey_type(key->cert->signature_key), fp, loc, reason);
+	auth_debug_add("Refused Certificate ID \"%s\" serial=%llu: %s",
+	    key->cert->key_id, (unsigned long long)key->cert->serial, reason);
+	goto out;
+
  fail_reason:
-	error("%s", reason);
+	error("%s at %s", reason, loc);
 	auth_debug_add("%s", reason);
  out:
 	free(fp);

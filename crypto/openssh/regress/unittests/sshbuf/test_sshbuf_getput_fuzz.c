@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_fuzz.c,v 1.5 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_fuzz.c,v 1.6 2025/09/25 22:17:29 dtucker Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -9,9 +9,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,22 +47,22 @@ attempt_parse_blob(u_char *blob, size_t len)
 	p1 = sshbuf_new();
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put(p1, blob, len), 0);
-	sshbuf_get_u8(p1, &u8);
-	sshbuf_get_u16(p1, &u16);
-	sshbuf_get_u32(p1, &u32);
-	sshbuf_get_u64(p1, &u64);
+	ASSERT_INT_EQ(sshbuf_get_u8(p1, &u8), 0);
+	ASSERT_INT_EQ(sshbuf_get_u16(p1, &u16), 0);
+	ASSERT_INT_EQ(sshbuf_get_u32(p1, &u32), 0);
+	ASSERT_INT_EQ(sshbuf_get_u64(p1, &u64), 0);
 	if (sshbuf_get_string(p1, &s, &l) == 0) {
 		bzero(s, l);
 		free(s);
 	}
 #ifdef WITH_OPENSSL
 	bn = NULL;
-	sshbuf_get_bignum2(p1, &bn);
+	ASSERT_INT_EQ(sshbuf_get_bignum2(p1, &bn), 0);
 	BN_clear_free(bn);
 #if defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256)
 	eck = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 	ASSERT_PTR_NE(eck, NULL);
-	sshbuf_get_eckey(p1, eck);
+	ASSERT_INT_EQ(sshbuf_get_eckey(p1, eck), 0);
 	EC_KEY_free(eck);
 #endif /* defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256) */
 #endif /* WITH_OPENSSL */

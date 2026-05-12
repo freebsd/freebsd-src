@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.87 2024/06/17 08:30:29 djm Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.88 2025/09/11 02:54:42 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: June 17 2024 $
+.Dd $Mdocdate: September 11 2025 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd adds private key identities to the OpenSSH authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl CcDdKkLlqvXx
+.Op Fl CcDdKkLlNqvXx
 .Op Fl E Ar fingerprint_hash
 .Op Fl H Ar hostkey_file
 .Op Fl h Ar destination_constraint
@@ -223,6 +223,13 @@ Lists public key parameters of all identities currently represented
 by the agent.
 .It Fl l
 Lists fingerprints of all identities currently represented by the agent.
+.It Fl N
+When adding certificates, by default
+.Nm
+will request that the agent automatically delete the certificate shortly
+after the certificate's expiry date.
+This flag suppresses this behaviour and does not specify a lifetime for
+certificates added to an agent.
 .It Fl q
 Be quiet after a successful operation.
 .It Fl S Ar provider

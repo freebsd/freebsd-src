@@ -1,8 +1,8 @@
-name: C/C++ CI self-hosted
+name: CI self-hosted
 
 on:
   push:
-    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/workflows/selfhosted.yml' ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/run_tests.sh', '.github/workflows/selfhosted.yml' ]
 
 jobs:
   selfhosted:
@@ -11,7 +11,6 @@ jobs:
     runs-on: ${{ matrix.host }}
     timeout-minutes: 600
     env:
-      DEBUG_ACTIONS: false
       HOST: ${{ matrix.host }}
       TARGET_HOST: ${{ matrix.target }}
       TARGET_CONFIG: ${{ matrix.config }}
@@ -21,7 +20,7 @@ jobs:
       REMOTE: ${{ startsWith(matrix.host, 'remote') }}
       VM: ${{ startsWith(matrix.host, 'libvirt') || startsWith(matrix.host, 'persist') }}
       SSHFS: ${{ startsWith(matrix.host, 'libvirt') || startsWith(matrix.host, 'persist') || startsWith(matrix.host, 'remote') }}
-      BIGENDIAN: ${{ matrix.target == 'aix51' || matrix.target == 'fbsd14-ppc64' || matrix.target == 'openwrt-mips' }}
+      BIGENDIAN: ${{ matrix.target == 'aix51' || matrix.target == 'nbsd-arm64be' || matrix.target == 'openwrt-mips' }}
     strategy:
       fail-fast: false
       # We use a matrix in two parts: firstly all of the VMs are tested with the
@@ -49,8 +48,9 @@ jobs:
           - obsd51
           - obsd67
           - obsd72
-          - obsd73
           - obsd74
+          - obsd76
+          - obsd77
           - obsdsnap
           - obsdsnap-i386
           - omnios
@@ -63,7 +63,6 @@ jobs:
         include:
           # Long-running/slow tests have access to high priority runners.
           - { target: aix51, config: default, host: libvirt-hipri }
-          - { target: fbsd14-ppc64, config: default, host: libvirt-hipri }
           - { target: openindiana, config: pam, host: libvirt-hipri }
           - { target: sol10,  config: default, host: libvirt-hipri }
           - { target: sol10,  config: pam, host: libvirt-hipri }
@@ -100,6 +99,7 @@ jobs:
           - { target: debian-riscv64, config: default, host: remote-debian-riscv64 }
           - { target: openwrt-mips, config: default, host: remote-openwrt-mips }
           - { target: openwrt-mipsel, config: default, host: remote-openwrt-mipsel }
+          - { target: nbsd-arm64be, config: default, host: remote-nbsd-arm64be }
     steps:
     - name: shutdown VM if running
       if: env.VM == 'true'
@@ -129,6 +129,9 @@ jobs:
     - name: make tests
       run: vmrun ./.github/run_test.sh ${{ matrix.config }}
       timeout-minutes: 600
+    - name: show logs
+      if: failure()
+      run: vmrun 'for i in regress/failed*.log; do echo ====; echo logfile $i; echo =====; cat $i; done'
     - name: save logs
       if: failure()
       uses: actions/upload-artifact@main

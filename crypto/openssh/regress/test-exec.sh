@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.127 2025/03/28 05:41:15 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.131 2025/07/26 01:53:31 djm Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -101,7 +101,7 @@ SSH_REGRESS_TMP=
 PLINK=/usr/local/bin/plink
 PUTTYGEN=/usr/local/bin/puttygen
 CONCH=/usr/local/bin/conch
-DROPBEAR=/usr/local/bin/dropbear
+DROPBEAR=/usr/local/sbin/dropbear
 DBCLIENT=/usr/local/bin/dbclient
 DROPBEARKEY=/usr/local/bin/dropbearkey
 DROPBEARCONVERT=/usr/local/bin/dropbearconvert
@@ -535,6 +535,7 @@ save_debug_log ()
 			$SUDO chown -R $USER $logfile
 		fi
 	done
+	test -z "$SUDO" || $SUDO chmod ug+rw $TEST_SSHD_LOGFILE
 	echo $@ >>$TEST_REGRESS_LOGFILE
 	echo $@ >>$TEST_SSH_LOGFILE
 	echo $@ >>$TEST_SSHD_LOGFILE
@@ -542,19 +543,6 @@ save_debug_log ()
 	(cat $TEST_REGRESS_LOGFILE; echo) >>$OBJ/failed-regress.log
 	(cat $TEST_SSH_LOGFILE; echo) >>$OBJ/failed-ssh.log
 	(cat $TEST_SSHD_LOGFILE; echo) >>$OBJ/failed-sshd.log
-
-	# Save all logfiles in a tarball.
-	(cd $OBJ &&
-	  logfiles=""
-	  for i in $TEST_REGRESS_LOGFILE $TEST_SSH_LOGFILE $TEST_SSHD_LOGFILE \
-	    $TEST_SSH_LOGDIR; do
-		if [ -e "`basename $i`" ]; then
-			logfiles="$logfiles `basename $i`"
-		else
-			logfiles="$logfiles $i"
-		fi
-	  done
-	  tar cf "$tarname" $logfiles)
 }
 
 trace ()
@@ -939,7 +927,7 @@ p11_setup() {
 		/usr/lib64/pkcs11/libsofthsm2.so \
 		/usr/lib/x86_64-linux-gnu/softhsm/libsofthsm2.so
 	test -z "$TEST_SSH_PKCS11" && return 1
-	verbose "using token library $TEST_SSH_PKCS11"
+	trace "using token library $TEST_SSH_PKCS11"
 	TEST_SSH_PIN=1234
 	TEST_SSH_SOPIN=12345678
 	if [ "x$TEST_SSH_SSHPKCS11HELPER" != "x" ]; then
@@ -991,6 +979,18 @@ EOF
 	    --import $ECP8 >/dev/null || fatal "softhsm import EC fail"
 	chmod 600 $EC
 	ssh-keygen -y -f $EC > ${EC}.pub
+	# Ed25519 key
+	ED25519=${SSH_SOFTHSM_DIR}/ED25519
+	ED25519P8=${SSH_SOFTHSM_DIR}/ED25519P8
+	$OPENSSL_BIN genpkey -algorithm ed25519 > $ED25519 || \
+	    fatal "genpkey Ed25519 fail"
+	$OPENSSL_BIN pkcs8 -nocrypt -in $ED25519 > $ED25519P8 || \
+		fatal "pkcs8 Ed25519 fail"
+	softhsm2-util --slot "$slot" --label 03 --id 03 --pin "$TEST_SSH_PIN" \
+	    --import $ED25519P8 >/dev/null || \
+		fatal "softhsm import ed25519 fail"
+	chmod 600 $ED25519
+	ssh-keygen -y -f $ED25519 > ${ED25519}.pub
 	# Prepare askpass script to load PIN.
 	PIN_SH=$SSH_SOFTHSM_DIR/pin.sh
 	cat > $PIN_SH << EOF
@@ -1005,6 +1005,28 @@ EOF
 # Peforms ssh-add with the right token PIN.
 p11_ssh_add() {
 	env SSH_ASKPASS="$PIN_SH" SSH_ASKPASS_REQUIRE=force ${SSHADD} "$@"
+}
+
+start_ssh_agent() {
+	EXTRA_AGENT_ARGS="$1"
+	SSH_AUTH_SOCK="$OBJ/agent.sock"
+	export SSH_AUTH_SOCK
+	rm -f $SSH_AUTH_SOCK $OBJ/agent.log
+	trace "start agent"
+	${SSHAGENT} ${EXTRA_AGENT_ARGS} -d -a $SSH_AUTH_SOCK \
+	    > $OBJ/agent.log 2>&1 &
+	AGENT_PID=$!
+	trap "kill $AGENT_PID" EXIT
+	for x in 0 1 2 3 4 ; do
+		# Give it a chance to start
+		${SSHADD} -l > /dev/null 2>&1
+		r=$?
+		test $r -eq 1 && break
+		sleep 1
+	done
+	if [ $r -ne 1 ]; then
+		fatal "ssh-add -l did not fail with exit code 1 (got $r)"
+	fi
 }
 
 # source test body

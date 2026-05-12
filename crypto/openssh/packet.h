@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.99 2024/08/15 00:51:51 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.103 2025/09/25 06:33:19 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -101,6 +101,7 @@ int	 ssh_packet_connection_af(struct ssh *);
 void     ssh_packet_set_nonblocking(struct ssh *);
 int      ssh_packet_get_connection_in(struct ssh *);
 int      ssh_packet_get_connection_out(struct ssh *);
+void	 ssh_packet_free(struct ssh *);
 void     ssh_packet_close(struct ssh *);
 void	 ssh_packet_set_input_hook(struct ssh *, ssh_packet_hook_fn *, void *);
 void	 ssh_packet_clear_keys(struct ssh *);
@@ -110,9 +111,8 @@ int	 ssh_packet_is_rekeying(struct ssh *);
 int	 ssh_packet_check_rekey(struct ssh *);
 void     ssh_packet_set_protocol_flags(struct ssh *, u_int);
 u_int	 ssh_packet_get_protocol_flags(struct ssh *);
-void	 ssh_packet_set_tos(struct ssh *, int);
-void     ssh_packet_set_interactive(struct ssh *, int, int, int);
-int      ssh_packet_is_interactive(struct ssh *);
+void	 ssh_packet_set_interactive(struct ssh *, int);
+void	 ssh_packet_set_qos(struct ssh *, int, int);
 void     ssh_packet_set_server(struct ssh *);
 void     ssh_packet_set_authenticated(struct ssh *);
 void     ssh_packet_set_mux(struct ssh *);

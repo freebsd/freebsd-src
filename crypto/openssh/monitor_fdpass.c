@@ -29,21 +29,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
-#endif
 
 #include <errno.h>
 #include <string.h>
 #include <stdarg.h>
 
-#ifdef HAVE_POLL_H
-# include <poll.h>
-#else
-# ifdef HAVE_SYS_POLL_H
-#  include <sys/poll.h>
-# endif
-#endif
+#include <poll.h>
 
 #include "log.h"
 #include "monitor_fdpass.h"
@@ -103,7 +95,7 @@ mm_send_fd(int sock, int fd)
 	}
 	return 0;
 #else
-	error("%s: file descriptor passing not supported", __func__);
+	error_f("file descriptor passing not supported");
 	return -1;
 #endif
 }

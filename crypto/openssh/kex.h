@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.126 2024/09/02 12:13:56 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.127 2025/08/11 10:55:38 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -115,6 +115,10 @@ enum kex_exchange {
 #define KEX_HAS_PING			0x0020
 #define KEX_HAS_EXT_INFO_IN_AUTH	0x0040
 
+/* kex->pq */
+#define KEX_NOT_PQ			0
+#define KEX_IS_PQ			1
+
 struct sshenc {
 	char	*name;
 	const struct sshcipher *cipher;
@@ -189,6 +193,7 @@ int	 kex_name_valid(const char *);
 u_int	 kex_type_from_name(const char *);
 int	 kex_hash_from_name(const char *);
 int	 kex_nid_from_name(const char *);
+int	 kex_is_pq_from_name(const char *);
 int	 kex_names_valid(const char *);
 char	*kex_alg_list(char);
 char	*kex_names_cat(const char *, const char *);

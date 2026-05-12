@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.h,v 1.9 2018/10/17 23:28:05 djm Exp $	*/
+/*	$OpenBSD: test_helper.h,v 1.10 2025/04/15 04:00:42 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -23,9 +23,7 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 
 #ifdef WITH_OPENSSL
 #include <openssl/bn.h>
@@ -39,6 +37,7 @@ typedef void (test_onerror_func_t)(void *);
 
 /* Supplied by test suite */
 void tests(void);
+void benchmarks(void);
 
 const char *test_data_file(const char *name);
 void test_start(const char *n);
@@ -49,6 +48,7 @@ int test_is_verbose(void);
 int test_is_quiet(void);
 int test_is_fast(void);
 int test_is_slow(void);
+int test_is_benchmark(void);
 void test_subtest_info(const char *fmt, ...)
     __attribute__((format(printf, 1, 2)));
 void ssl_err_check(const char *file, int line);
@@ -284,6 +284,26 @@ void assert_u64(const char *file, int line,
 	assert_u32(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_GE)
 #define ASSERT_U64_GE(a1, a2) \
 	assert_u64(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_GE)
+
+/* Benchmarking support */
+#define BENCH_START(name)	\
+	do { \
+		bench_start(__FILE__, __LINE__, name); \
+		while (!bench_done()) { \
+			bench_case_start(__FILE__, __LINE__); \
+			do {
+#define BENCH_FINISH(unit) \
+			} while (0); \
+			bench_case_finish(__FILE__, __LINE__); \
+		} \
+		bench_finish(__FILE__, __LINE__, unit); \
+	} while (0)
+
+void bench_start(const char *file, int line, const char *name);
+void bench_case_start(const char *file, int line);
+void bench_case_finish(const char *file, int line);
+void bench_finish(const char *file, int line, const char *unit);
+int bench_done(void);
 
 /* Fuzzing support */
 

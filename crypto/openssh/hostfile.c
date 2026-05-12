@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.95 2023/02/21 06:48:18 dtucker Exp $ */
+/* $OpenBSD: hostfile.c,v 1.99 2025/05/06 05:40:56 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -150,8 +150,8 @@ host_hash(const char *host, const char *name_from_hostfile, u_int src_len)
 }
 
 /*
- * Parses an RSA (number of bits, e, n) or DSA key from a string.  Moves the
- * pointer over the key.  Skips any whitespace at the beginning and at end.
+ * Parses an RSA key from a string. Moves the pointer over the key.
+ * Skips any whitespace at the beginning and at end.
  */
 
 int
@@ -434,7 +434,7 @@ lookup_marker_in_hostkeys(struct hostkeys *hostkeys, int want_marker)
 }
 
 static int
-write_host_entry(FILE *f, const char *host, const char *ip,
+format_host_entry(struct sshbuf *entry, const char *host, const char *ip,
     const struct sshkey *key, int store_hash)
 {
 	int r, success = 0;
@@ -449,22 +449,50 @@ write_host_entry(FILE *f, const char *host, const char *ip,
 			free(lhost);
 			return 0;
 		}
-		fprintf(f, "%s ", hashed_host);
-	} else if (ip != NULL)
-		fprintf(f, "%s,%s ", lhost, ip);
-	else {
-		fprintf(f, "%s ", lhost);
+		if ((r = sshbuf_putf(entry, "%s ", hashed_host)) != 0)
+			fatal_fr(r, "sshbuf_putf");
+	} else if (ip != NULL) {
+		if ((r = sshbuf_putf(entry, "%s,%s ", lhost, ip)) != 0)
+			fatal_fr(r, "sshbuf_putf");
+	} else {
+		if ((r = sshbuf_putf(entry, "%s ", lhost)) != 0)
+			fatal_fr(r, "sshbuf_putf");
 	}
 	free(hashed_host);
 	free(lhost);
-	if ((r = sshkey_write(key, f)) == 0)
+	if ((r = sshkey_format_text(key, entry)) == 0)
 		success = 1;
 	else
 		error_fr(r, "sshkey_write");
-	fputc('\n', f);
+	if ((r = sshbuf_putf(entry, "\n")) != 0)
+		fatal_fr(r, "sshbuf_putf");
+
 	/* If hashing is enabled, the IP address needs to go on its own line */
 	if (success && store_hash && ip != NULL)
-		success = write_host_entry(f, ip, NULL, key, 1);
+		success = format_host_entry(entry, ip, NULL, key, 1);
+	return success;
+}
+
+static int
+write_host_entry(FILE *f, const char *host, const char *ip,
+    const struct sshkey *key, int store_hash)
+{
+	int r, success = 0;
+	struct sshbuf *entry = NULL;
+
+	if ((entry = sshbuf_new()) == NULL)
+		fatal_f("allocation failed");
+	if ((r = format_host_entry(entry, host, ip, key, store_hash)) != 1) {
+		debug_f("failed to format host entry");
+		goto out;
+	}
+	if ((r = fwrite(sshbuf_ptr(entry), sshbuf_len(entry), 1, f)) != 1) {
+		error_f("fwrite: %s", strerror(errno));
+		goto out;
+	}
+	success = 1;
+ out:
+	sshbuf_free(entry);
 	return success;
 }
 
@@ -520,9 +548,9 @@ add_host_to_hostfile(const char *filename, const char *host,
 	if (key == NULL)
 		return 1;	/* XXX ? */
 	hostfile_create_user_ssh_dir(filename, 0);
-	f = fopen(filename, "a+");
-	if (!f)
+	if ((f = fopen(filename, "a+")) == NULL)
 		return 0;
+	setvbuf(f, NULL, _IONBF, 0);
 	/* Make sure we have a terminating newline. */
 	if (fseek(f, -1L, SEEK_END) == 0 && fgetc(f) != '\n')
 		addnl = 1;
@@ -810,6 +838,12 @@ hostkeys_foreach_file(const char *path, FILE *f, hostkeys_foreach_fn *callback,
 		/* Find the end of the host name portion. */
 		for (cp2 = cp; *cp2 && *cp2 != ' ' && *cp2 != '\t'; cp2++)
 			;
+		if (*cp2 == '\0') {
+			verbose_f("truncated line at %s:%lu", path, linenum);
+			if ((options & HKF_WANT_MATCH) == 0)
+				goto bad;
+			continue;
+		}
 		lineinfo.hosts = cp;
 		*cp2++ = '\0';
 

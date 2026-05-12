@@ -106,7 +106,7 @@ store_lastlog_message(const char *user, uid_t uid)
 	if (time_string != NULL) {
 		if ((r = sshbuf_put(loginmsg,
 		    time_string, strlen(time_string))) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "buffer error");
 		free(time_string);
 	}
 # else

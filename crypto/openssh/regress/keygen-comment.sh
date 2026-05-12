@@ -1,4 +1,5 @@
-#    Placed in the Public Domain.
+#	$OpenBSD: keygen-comment.sh,v 1.3 2025/10/01 00:30:19 dtucker Exp $
+#	Placed in the Public Domain.
 
 tid="Comment extraction from private key"
 

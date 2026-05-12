@@ -1,4 +1,4 @@
-#	$OpenBSD: cfgmatch.sh,v 1.14 2024/09/27 01:05:54 djm Exp $
+#	$OpenBSD: cfgmatch.sh,v 1.15 2025/07/11 23:26:59 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshd_config match"
@@ -105,6 +105,8 @@ stop_client
 cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
 echo "PermitOpen 127.0.0.1:1 127.0.0.1:$PORT 127.0.0.2:2" >>$OBJ/sshd_proxy
 echo "Match User NoSuchUser" >>$OBJ/sshd_proxy
+echo "PermitOpen 127.0.0.1:1 127.0.0.1:2" >>$OBJ/sshd_proxy
+echo "Match Group NoSuchGroup" >>$OBJ/sshd_proxy
 echo "PermitOpen 127.0.0.1:1 127.0.0.1:2" >>$OBJ/sshd_proxy
 
 # Test that a rule that doesn't match doesn't override, plus test a

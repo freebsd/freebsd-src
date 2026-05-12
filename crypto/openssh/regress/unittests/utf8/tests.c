@@ -1,4 +1,4 @@
-/*	$OpenBSD: tests.c,v 1.4 2017/02/19 00:11:29 djm Exp $ */
+/*	$OpenBSD: tests.c,v 1.5 2025/04/15 04:00:42 djm Exp $ */
 /*
  * Regress test for the utf8.h *mprintf() API
  *
@@ -101,4 +101,10 @@ tests(void)
 	one(0, "width_double", "a\343\201\201", 2, 1, -1, "a");
 	one(0, "double_fit", "a\343\201\201", 7, 5, -1, "a\\343");
 	one(0, "double_spc", "a\343\201\201", 13, 13, 13, "a\\343\\201\\201");
+}
+
+void
+benchmarks(void)
+{
+	printf("no benchmarks\n");
 }

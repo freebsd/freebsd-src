@@ -1,4 +1,4 @@
-#	$OpenBSD: keytype.sh,v 1.11 2021/02/25 03:27:34 djm Exp $
+#	$OpenBSD: keytype.sh,v 1.12 2025/05/06 06:05:48 djm Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key types"
@@ -10,7 +10,6 @@ cp $OBJ/ssh_proxy $OBJ/ssh_proxy_bak
 ktypes=""
 for i in ${SSH_KEYTYPES}; do
 	case "$i" in
-		ssh-dss)		ktypes="$ktypes dsa-1024" ;;
 		ssh-rsa)		ktypes="$ktypes rsa-2048 rsa-3072" ;;
 		ssh-ed25519)		ktypes="$ktypes ed25519-512" ;;
 		ecdsa-sha2-nistp256)	ktypes="$ktypes ecdsa-256" ;;
@@ -36,7 +35,6 @@ done
 
 kname_to_ktype() {
 	case $1 in
-	dsa-1024)	echo ssh-dss;;
 	ecdsa-256)	echo ecdsa-sha2-nistp256;;
 	ecdsa-384)	echo ecdsa-sha2-nistp384;;
 	ecdsa-521)	echo ecdsa-sha2-nistp521;;

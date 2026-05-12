@@ -41,9 +41,7 @@
 #include <string.h>
 #include <pwd.h>
 #include <netdb.h>
-#ifdef HAVE_TIME_H
 #include <time.h>
-#endif
 
 #include "loginrec.h"
 

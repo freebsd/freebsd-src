@@ -23,8 +23,8 @@
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
+#include <openssl/bn.h>
 #include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #ifdef OPENSSL_HAS_ECC
 #include <openssl/ecdsa.h>
 #endif
@@ -45,9 +45,6 @@ void ssh_libcrypto_init(void);
 #ifndef OPENSSL_RSA_MAX_MODULUS_BITS
 # define OPENSSL_RSA_MAX_MODULUS_BITS	16384
 #endif
-#ifndef OPENSSL_DSA_MAX_MODULUS_BITS
-# define OPENSSL_DSA_MAX_MODULUS_BITS	10000
-#endif
 
 #ifdef LIBRESSL_VERSION_NUMBER
 # if LIBRESSL_VERSION_NUMBER < 0x3010000fL
@@ -62,6 +59,20 @@ void ssh_libcrypto_init(void);
  * https://boringssl.googlesource.com/boringssl/+/0a211dfe9
  */
 # define BN_set_flags(a, b)
+#endif
+
+/* LibreSSL <3.4 has the _GFp variants but not the equivalent modern ones. */
+#ifndef HAVE_EC_POINT_GET_AFFINE_COORDINATES
+# ifdef HAVE_EC_POINT_GET_AFFINE_COORDINATES_GFP
+#  define EC_POINT_get_affine_coordinates(a, b, c, d, e) \
+	(EC_POINT_get_affine_coordinates_GFp(a, b, c, d, e))
+# endif
+#endif
+#ifndef HAVE_EC_POINT_SET_AFFINE_COORDINATES
+# ifdef HAVE_EC_POINT_SET_AFFINE_COORDINATES_GFP
+#  define EC_POINT_set_affine_coordinates(a, b, c, d, e) \
+	(EC_POINT_set_affine_coordinates_GFp(a, b, c, d, e))
+# endif
 #endif
 
 #ifndef HAVE_EVP_CIPHER_CTX_GET_IV

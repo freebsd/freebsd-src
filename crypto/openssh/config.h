@@ -372,6 +372,10 @@
    don't. */
 #define HAVE_DECL_H_ERRNO 1
 
+/* Define to 1 if you have the declaration of 'INFINITY', and to 0 if you
+   don't. */
+#define HAVE_DECL_INFINITY 1
+
 /* Define to 1 if you have the declaration of 'le32toh', and to 0 if you
    don't. */
 #define HAVE_DECL_LE32TOH 1
@@ -444,6 +448,10 @@
    don't. */
 #define HAVE_DECL__GETSHORT 0
 
+/* Define to 1 if you have the declaration of '__builtin_inff', and to 0 if
+   you don't. */
+/* #undef HAVE_DECL___BUILTIN_INFF */
+
 /* Define to 1 if you have the 'DES_crypt' function. */
 #define HAVE_DES_CRYPT 1
 
@@ -465,11 +473,22 @@
 /* Define to 1 if you have the 'dlopen' function. */
 #define HAVE_DLOPEN 1
 
-/* Define to 1 if you have the 'DSA_generate_parameters_ex' function. */
-#define HAVE_DSA_GENERATE_PARAMETERS_EX 1
-
 /* Define to 1 if you have the 'EC_KEY_METHOD_new' function. */
 #define HAVE_EC_KEY_METHOD_NEW 1
+
+/* Define to 1 if you have the 'EC_POINT_get_affine_coordinates' function. */
+#define HAVE_EC_POINT_GET_AFFINE_COORDINATES 1
+
+/* Define to 1 if you have the 'EC_POINT_get_affine_coordinates_GFp' function.
+   */
+#define HAVE_EC_POINT_GET_AFFINE_COORDINATES_GFP 1
+
+/* Define to 1 if you have the 'EC_POINT_set_affine_coordinates' function. */
+#define HAVE_EC_POINT_SET_AFFINE_COORDINATES 1
+
+/* Define to 1 if you have the 'EC_POINT_set_affine_coordinates_GFp' function.
+   */
+#define HAVE_EC_POINT_SET_AFFINE_COORDINATES_GFP 1
 
 /* Define to 1 if you have the <elf.h> header file. */
 #define HAVE_ELF_H 1
@@ -635,6 +654,9 @@
 
 /* Define to 1 if the system has the type 'fsfilcnt_t'. */
 #define HAVE_FSFILCNT_T 1
+
+/* Define to 1 if you have the 'fstatat' function. */
+#define HAVE_FSTATAT 1
 
 /* Define to 1 if you have the 'fstatfs' function. */
 #define HAVE_FSTATFS 1
@@ -1003,6 +1025,12 @@
 /* Define to 1 if you have the 'ngetaddrinfo' function. */
 /* #undef HAVE_NGETADDRINFO */
 
+/* Define to 1 if you have the 'nlist' function. */
+#define HAVE_NLIST 1
+
+/* Define to 1 if you have the <nlist.h> header file. */
+#define HAVE_NLIST_H 1
+
 /* Define to 1 if you have the 'nl_langinfo' function. */
 #define HAVE_NL_LANGINFO 1
 
@@ -1362,6 +1390,9 @@
 /* define if you have struct addrinfo data type */
 #define HAVE_STRUCT_ADDRINFO 1
 
+/* Define to 1 if 'd_type' is a member of 'struct dirent'. */
+#define HAVE_STRUCT_DIRENT_D_TYPE 1
+
 /* define if you have struct in6_addr data type */
 #define HAVE_STRUCT_IN6_ADDR 1
 
@@ -1580,6 +1611,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
+
+/* Define to 1 if you have the 'unlinkat' function. */
+#define HAVE_UNLINKAT 1
 
 /* Define to 1 if you have the 'unsetenv' function. */
 #define HAVE_UNSETENV 1
@@ -1823,6 +1857,9 @@
 /* System dirs owned by bin (uid 2) */
 /* #undef PLATFORM_SYS_DIR_UID */
 
+/* need inet in pledge for setsockopt IP_TOS */
+#define PLEDGE_EXTRA_INET /**/
+
 /* Port number of PRNGD/EGD random number socket */
 /* #undef PRNGD_PORT */
 
@@ -1910,7 +1947,7 @@
 #define SSH_PRIVSEP_USER "sshd"
 
 /* Use tunnel device compatibility to OpenBSD */
-/* #undef SSH_TUN_COMPAT_AF */
+#define SSH_TUN_COMPAT_AF 1
 
 /* Open tunnel devices the FreeBSD way */
 #define SSH_TUN_FREEBSD 1

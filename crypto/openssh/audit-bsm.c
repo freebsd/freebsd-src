@@ -449,7 +449,7 @@ audit_event(struct ssh *ssh, ssh_audit_event_t event)
 		break;
 
 	default:
-		debug("%s: unhandled event %d", __func__, event);
+		debug_f("unhandled event %d", event);
 	}
 }
 #endif /* BSM */

@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: modpipe.c,v 1.6 2013/11/21 03:16:47 djm Exp $ */
+/* $OpenBSD: modpipe.c,v 1.7 2025/10/03 01:03:45 dtucker Exp $ */
 
 #include "includes.h"
 
@@ -127,7 +127,7 @@ main(int argc, char **argv)
 			}
 		}
 		for (o = 0; o < s; o += r) {
-			r = write(STDOUT_FILENO, buf, s - o);
+			r = write(STDOUT_FILENO, buf + o, s - o);
 			if (r == 0)
 				break;
 			if (r < 0) {
