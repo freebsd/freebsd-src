@@ -1652,6 +1652,14 @@ mbufq_enqueue(struct mbufq *mq, struct mbuf *m)
 	return (0);
 }
 
+static inline void
+mbufq_remove(struct mbufq *mq, struct mbuf *m)
+{
+
+	STAILQ_REMOVE(&mq->mq_head, m, mbuf, m_stailqpkt);
+	mq->mq_len--;
+}
+
 static inline struct mbuf *
 mbufq_dequeue(struct mbufq *mq)
 {
