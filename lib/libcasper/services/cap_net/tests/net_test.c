@@ -73,7 +73,7 @@ test_getnameinfo_v4(cap_channel_t *chan, int family, const char *ip)
 
 	capret = cap_getnameinfo(chan, (struct sockaddr *)&ipaddr, sizeof(ipaddr),
 	    capfn, sizeof(capfn), NULL, 0, NI_NAMEREQD);
-	if (capret != 0 && capret == ENOTCAPABLE)
+	if (capret == EAI_SYSTEM && errno == ENOTCAPABLE)
 		return (ENOTCAPABLE);
 
 	sysret = getnameinfo((struct sockaddr *)&ipaddr, sizeof(ipaddr), origfn,
@@ -102,7 +102,7 @@ test_getnameinfo_v6(cap_channel_t *chan, const char *ip)
 
 	capret = cap_getnameinfo(chan, (struct sockaddr *)&ipaddr, sizeof(ipaddr),
 	    capfn, sizeof(capfn), NULL, 0, NI_NAMEREQD);
-	if (capret != 0 && capret == ENOTCAPABLE)
+	if (capret == EAI_SYSTEM && errno == ENOTCAPABLE)
 		return (ENOTCAPABLE);
 
 	sysret = getnameinfo((struct sockaddr *)&ipaddr, sizeof(ipaddr), origfn,
@@ -196,8 +196,8 @@ test_getaddrinfo(cap_channel_t *chan, int family, const char *domain,
 	hints.ai_socktype = SOCK_STREAM;
 
 	capret = cap_getaddrinfo(chan, domain, servname, &hints, &capres);
-	if (capret != 0 && capret == ENOTCAPABLE)
-		return (capret);
+	if (capret == EAI_SYSTEM && errno == ENOTCAPABLE)
+		return (ENOTCAPABLE);
 
 	sysret = getaddrinfo(domain, servname, &hints, &origres);
 	if (sysret != 0)
