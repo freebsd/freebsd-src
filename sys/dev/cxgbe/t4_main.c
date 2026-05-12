@@ -5998,7 +5998,29 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.key.start = val[0];
 		sc->vres.key.size = val[1] - val[0] + 1;
 	}
-
+	if (sc->cryptocaps & FW_CAPS_CONFIG_IPSEC_INLINE) {
+		param[0] = FW_PARAM_PFVF(NIPSEC_TUNNEL);
+		param[1] = FW_PARAM_PFVF(NIPSEC_TRANSPORT);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 2, param, val);
+		if (rc == 0) {
+			sc->params.nipsec_tunnel = val[0];
+			sc->params.nipsec_transport = val[1];
+		} else {
+			CH_ERR(sc, "failed to query IPsec params: %d.\n", rc);
+			MPASS(sc->params.nipsec_tunnel == 0);
+			MPASS(sc->params.nipsec_transport == 0);
+		}
+	}
+	if (sc->cryptocaps & FW_CAPS_CONFIG_OFLD_OVER_IPSEC_INLINE) {
+		param[0] = FW_PARAM_PFVF(OFLD_NIPSEC_TUNNEL);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+		if (rc == 0) {
+			sc->params.nofld_ipsec_tunnel = val[0];
+		} else {
+			CH_ERR(sc, "failed to query TOE IPsec params: %d.\n", rc);
+			MPASS(sc->params.nofld_ipsec_tunnel == 0);
+		}
+	}
 	/*
 	 * We've got the params we wanted to query directly from the firmware.
 	 * Grab some others via other means.
@@ -7986,6 +8008,15 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "nipsec_tunnel", CTLFLAG_RD,
+	    NULL, sc->params.nipsec_tunnel, "max hw IPsec tunnels");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "nipsec_transport", CTLFLAG_RD,
+	    NULL, sc->params.nipsec_transport, "max hw IPsec transport pairs");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "nofld_ipsec_tunnel", CTLFLAG_RD,
+	    NULL, sc->params.nofld_ipsec_tunnel, "max hw IPsec tunnels (TOE)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
