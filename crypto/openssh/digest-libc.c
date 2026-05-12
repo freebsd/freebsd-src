@@ -1,4 +1,4 @@
-/* $OpenBSD: digest-libc.c,v 1.7 2020/02/26 13:40:09 jsg Exp $ */
+/* $OpenBSD: digest-libc.c,v 1.8 2025/09/05 09:31:31 dtucker Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
@@ -27,7 +27,6 @@
 
 #if 0
 #include <md5.h>
-#include <rmd160.h>
 #endif
 #ifdef HAVE_SHA1_H
 #include <sha1.h>

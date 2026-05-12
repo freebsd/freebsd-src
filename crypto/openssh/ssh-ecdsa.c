@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.27 2024/08/15 00:51:51 djm Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.28 2025/07/24 05:44:55 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -328,8 +328,7 @@ ssh_ecdsa_sign(struct sshkey *key,
 	const BIGNUM *sig_r, *sig_s;
 	int hash_alg;
 	size_t slen = 0;
-	struct sshbuf *b = NULL, *bb = NULL;
-	int len = 0, ret = SSH_ERR_INTERNAL_ERROR;
+	int ret = SSH_ERR_INTERNAL_ERROR;
 
 	if (lenp != NULL)
 		*lenp = 0;
@@ -352,11 +351,37 @@ ssh_ecdsa_sign(struct sshkey *key,
 		ret = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
+	ECDSA_SIG_get0(esig, &sig_r, &sig_s);
+
+	if ((ret = ssh_ecdsa_encode_store_sig(key, sig_r, sig_s,
+	    sigp, lenp)) != 0)
+		goto out;
+	/* success */
+	ret = 0;
+ out:
+	freezero(sigb, slen);
+	ECDSA_SIG_free(esig);
+	return ret;
+}
+
+int
+ssh_ecdsa_encode_store_sig(const struct sshkey *key,
+    const BIGNUM *sig_r, const BIGNUM *sig_s,
+    u_char **sigp, size_t *lenp)
+{
+	struct sshbuf *b = NULL, *bb = NULL;
+	int ret;
+	size_t len;
+
+	if (lenp != NULL)
+		*lenp = 0;
+	if (sigp != NULL)
+		*sigp = NULL;
+
 	if ((bb = sshbuf_new()) == NULL || (b = sshbuf_new()) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	ECDSA_SIG_get0(esig, &sig_r, &sig_s);
 	if ((ret = sshbuf_put_bignum2(bb, sig_r)) != 0 ||
 	    (ret = sshbuf_put_bignum2(bb, sig_s)) != 0)
 		goto out;
@@ -375,10 +400,8 @@ ssh_ecdsa_sign(struct sshkey *key,
 		*lenp = len;
 	ret = 0;
  out:
-	freezero(sigb, slen);
 	sshbuf_free(b);
 	sshbuf_free(bb);
-	ECDSA_SIG_free(esig);
 	return ret;
 }
 

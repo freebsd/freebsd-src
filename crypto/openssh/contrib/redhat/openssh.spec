@@ -1,4 +1,4 @@
-%global ver 10.0p1
+%global ver 10.1p1
 %global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
@@ -281,20 +281,6 @@ if [ "$1" != 0 -a -r /var/run/sshd.pid ] ; then
 	touch /var/run/sshd.restart
 fi
 
-%triggerun server -- openssh-server < 2.5.0p1
-# Count the number of HostKey and HostDsaKey statements we have.
-gawk	'BEGIN {IGNORECASE=1}
-	 /^hostkey/ || /^hostdsakey/ {sawhostkey = sawhostkey + 1}
-	 END {exit sawhostkey}' /etc/ssh/sshd_config
-# And if we only found one, we know the client was relying on the old default
-# behavior, which loaded the the SSH2 DSA host key when HostDsaKey wasn't
-# specified.  Now that HostKey is used for both SSH1 and SSH2 keys, specifying
-# one nullifies the default, which would have loaded both.
-if [ $? -eq 1 ] ; then
-	echo HostKey /etc/ssh/ssh_host_rsa_key >> /etc/ssh/sshd_config
-	echo HostKey /etc/ssh/ssh_host_dsa_key >> /etc/ssh/sshd_config
-fi
-
 %triggerpostun server -- ssh-server
 if [ "$1" != 0 ] ; then
 	/sbin/chkconfig --add sshd
@@ -367,6 +353,7 @@ fi
 %defattr(-,root,root)
 %dir %attr(0111,root,root) %{_var}/empty/sshd
 %attr(0755,root,root) %{_sbindir}/sshd
+%attr(0755,root,root) %{_libexecdir}/openssh/sshd-auth
 %attr(0755,root,root) %{_libexecdir}/openssh/sshd-session
 %attr(0755,root,root) %{_libexecdir}/openssh/sftp-server
 %attr(0644,root,root) %{_mandir}/man8/sshd.8*

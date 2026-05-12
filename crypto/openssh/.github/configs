@@ -13,6 +13,10 @@ if [ "$config" = "" ]; then
 	config="default"
 fi
 
+if [ ! -z "${LTESTS}" ]; then
+	OVERRIDE_LTESTS="${LTESTS}"
+fi
+
 unset CC CFLAGS CPPFLAGS LDFLAGS LTESTS SUDO
 
 TEST_TARGET="tests compat-tests"
@@ -144,6 +148,8 @@ case "$config" in
 	TCMALLOC_STACKTRACE_METHOD=generic_fp
 	TEST_SSH_SSHD_ENV="TCMALLOC_STACKTRACE_METHOD=generic_fp"
 	export TCMALLOC_STACKTRACE_METHOD TEST_SSH_SSHD_ENV
+
+	SKIP_LTESTS="agent-restrict"
 	;;
     krb5|heimdal)
 	CONFIGFLAGS="--with-kerberos5"
@@ -277,7 +283,7 @@ case "${TARGET_HOST}" in
 	# Native linker is not great with PIC so OpenSSL is built w/out.
 	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
 	;;
-    fbsd14-ppc64)
+    fbsd14-ppc64|nbsd-arm64be)
 	# Disable security key tests for bigendian interop test.
 	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
 	;;
@@ -390,6 +396,11 @@ CONFIGFLAGS="${CONFIGFLAGS} ${LIBCRYPTOFLAGS}"
 if [ -x "$(which plink 2>/dev/null)" ]; then
 	REGRESS_INTEROP_PUTTY=yes
 	export REGRESS_INTEROP_PUTTY
+fi
+
+if [ ! -z "${OVERRIDE_LTESTS}" ]; then
+	echo >&2 "Overriding LTESTS, was '${LTESTS}', now '${OVERRIDE_LTESTS}'"
+	LTESTS="${OVERRIDE_LTESTS}"
 fi
 
 export CC CFLAGS CPPFLAGS LDFLAGS LTESTS SUDO

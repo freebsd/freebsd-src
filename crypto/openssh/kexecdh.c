@@ -1,4 +1,4 @@
-/* $OpenBSD: kexecdh.c,v 1.10 2019/01/21 10:40:11 djm Exp $ */
+/* $OpenBSD: kexecdh.c,v 1.11 2025/10/03 00:08:02 djm Exp $ */
 /*
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
@@ -34,6 +34,7 @@
 #include <string.h>
 #include <signal.h>
 
+#include <openssl/bn.h>
 #include <openssl/ecdh.h>
 
 #include "sshkey.h"

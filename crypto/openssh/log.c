@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.64 2024/12/07 10:05:36 djm Exp $ */
+/* $OpenBSD: log.c,v 1.65 2025/09/02 09:34:48 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -502,7 +502,7 @@ sshlogdirect(LogLevel level, int forced, const char *fmt, ...)
  * To prevent flipping in and out of rate-limiting, there is a hysteresis
  * timer that delays leaving the rate-limited state.
  *
- * While in the rate-limited state, events can be periodically allowed though
+ * While in the rate-limited state, events can be periodically allowed through
  * and the number of dropped events since the last log obtained.
  *
  * XXX a moving average rate of events might be a better approach here rather

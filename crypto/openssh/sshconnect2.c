@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.377 2025/02/18 08:02:48 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.378 2025/09/15 04:51:35 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -1815,7 +1815,7 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 		TAILQ_REMOVE(preferred, id, next);
 		sshkey_free(id->key);
 		free(id->filename);
-		memset(id, 0, sizeof(*id));
+		freezero(id, sizeof(*id));
 	}
 	/* List the keys we plan on using */
 	TAILQ_FOREACH_SAFE(id, preferred, next, id2) {

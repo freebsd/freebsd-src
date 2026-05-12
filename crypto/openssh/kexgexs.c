@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.47 2024/05/17 00:30:23 djm Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.49 2025/10/03 00:09:26 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -28,15 +28,14 @@
 
 #ifdef WITH_OPENSSL
 
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 
-#include <openssl/dh.h>
-
 #include "openbsd-compat/openssl-compat.h"
+#include <openssl/bn.h>
+#include <openssl/dh.h>
 
 #include "sshkey.h"
 #include "cipher.h"

@@ -49,6 +49,8 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
+#include <netinet/ip.h>
+
 #include <linux/futex.h>
 #include <linux/net.h>
 #include <linux/audit.h>
@@ -180,12 +182,12 @@
 
 /* Use this for both __NR_futex and __NR_futex_time64 */
 # define SC_FUTEX(_nr) \
-	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAIT), \
-	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAIT_BITSET), \
-	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAKE), \
-	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAKE_BITSET), \
-	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_REQUEUE), \
-	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_CMP_REQUEUE)
+	SC_ALLOW_FUTEX_OP(_nr, FUTEX_WAIT), \
+	SC_ALLOW_FUTEX_OP(_nr, FUTEX_WAIT_BITSET), \
+	SC_ALLOW_FUTEX_OP(_nr, FUTEX_WAKE), \
+	SC_ALLOW_FUTEX_OP(_nr, FUTEX_WAKE_BITSET), \
+	SC_ALLOW_FUTEX_OP(_nr, FUTEX_REQUEUE), \
+	SC_ALLOW_FUTEX_OP(_nr, FUTEX_CMP_REQUEUE)
 #endif /* __NR_futex || __NR_futex_time64 */
 
 #if defined(__NR_mmap) || defined(__NR_mmap2)
@@ -199,6 +201,32 @@
 	SC_DENY_UNLESS_ARG_MASK(_nr, 3, SC_MMAP_FLAGS, EINVAL), \
 	SC_ALLOW_ARG_MASK(_nr, 2, PROT_READ|PROT_WRITE|PROT_NONE)
 #endif /* __NR_mmap || __NR_mmap2 */
+
+/* Special handling for setsockopt(2) */
+#define SC_ALLOW_SETSOCKOPT(_level, _optname) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_setsockopt, 0, 10), \
+	/* load and test level, low word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[1]) + ARG_LO_OFFSET), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
+	    ((_level) & 0xFFFFFFFF), 0, 7), \
+	/* load and test level high word is zero */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[1]) + ARG_HI_OFFSET), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 5), \
+	/* load and test optname, low word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[2]) + ARG_LO_OFFSET), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
+	    ((_optname) & 0xFFFFFFFF), 0, 3), \
+	/* load and test level high word is zero */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[2]) + ARG_HI_OFFSET), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+	/* reload syscall number; all rules expect it in accumulator */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+		offsetof(struct seccomp_data, nr))
 
 /* Syscall filtering set for preauth. */
 static const struct sock_filter preauth_insns[] = {
@@ -398,7 +426,23 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_writev
 	SC_ALLOW(__NR_writev),
 #endif
+#ifdef __NR_getsockopt
+	SC_ALLOW(__NR_getsockopt),
+#endif
+#ifdef __NR_getsockname
+	SC_ALLOW(__NR_getsockname),
+#endif
+#ifdef __NR_getpeername
+	SC_ALLOW(__NR_getpeername),
+#endif
+#ifdef __NR_setsockopt
+	SC_ALLOW_SETSOCKOPT(IPPROTO_IPV6, IPV6_TCLASS),
+	SC_ALLOW_SETSOCKOPT(IPPROTO_IP, IP_TOS),
+#endif
 #ifdef __NR_socketcall
+	SC_ALLOW_ARG(__NR_socketcall, 0, SYS_GETPEERNAME),
+	SC_ALLOW_ARG(__NR_socketcall, 0, SYS_GETSOCKNAME),
+	SC_ALLOW_ARG(__NR_socketcall, 0, SYS_GETSOCKOPT),
 	SC_ALLOW_ARG(__NR_socketcall, 0, SYS_SHUTDOWN),
 	SC_DENY(__NR_socketcall, EACCES),
 #endif
@@ -442,7 +486,7 @@ ssh_sandbox_init(struct monitor *monitor)
 	 * Strictly, we don't need to maintain any state here but we need
 	 * to return non-NULL to satisfy the API.
 	 */
-	debug3("%s: preparing seccomp filter sandbox", __func__);
+	debug3_f("preparing seccomp filter sandbox");
 	box = xcalloc(1, sizeof(*box));
 	return box;
 }
@@ -469,7 +513,7 @@ ssh_sandbox_child_debugging(void)
 	struct sigaction act;
 	sigset_t mask;
 
-	debug3("%s: installing SIGSYS handler", __func__);
+	debug3_f("installing SIGSYS handler");
 	memset(&act, 0, sizeof(act));
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGSYS);
@@ -477,7 +521,7 @@ ssh_sandbox_child_debugging(void)
 	act.sa_sigaction = &ssh_sandbox_violation;
 	act.sa_flags = SA_SIGINFO;
 	if (sigaction(SIGSYS, &act, NULL) == -1)
-		fatal("%s: sigaction(SIGSYS): %s", __func__, strerror(errno));
+		fatal_f("sigaction(SIGSYS): %s", strerror(errno));
 	if (sigprocmask(SIG_UNBLOCK, &mask, NULL) == -1)
 		fatal("%s: sigprocmask(SIGSYS): %s",
 		    __func__, strerror(errno));
@@ -510,13 +554,13 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 	ssh_sandbox_child_debugging();
 #endif /* SANDBOX_SECCOMP_FILTER_DEBUG */
 
-	debug3("%s: setting PR_SET_NO_NEW_PRIVS", __func__);
+	debug3_f("setting PR_SET_NO_NEW_PRIVS");
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
 		debug("%s: prctl(PR_SET_NO_NEW_PRIVS): %s",
 		    __func__, strerror(errno));
 		nnp_failed = 1;
 	}
-	debug3("%s: attaching seccomp filter program", __func__);
+	debug3_f("attaching seccomp filter program");
 	if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &preauth_program) == -1)
 		debug("%s: prctl(PR_SET_SECCOMP): %s",
 		    __func__, strerror(errno));

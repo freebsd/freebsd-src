@@ -20,9 +20,7 @@
 
 #include "includes.h"
 
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 
 #ifndef HAVE_ARC4RANDOM_UNIFORM

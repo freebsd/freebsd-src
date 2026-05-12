@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.3 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.4 2025/05/12 05:42:02 tb Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -11,9 +11,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +20,7 @@
 #ifdef OPENSSL_HAS_NISTP256
 # include <openssl/ec.h>
 #endif
+#include "openbsd-compat/openssl-compat.h"
 
 #include "../test_helper/test_helper.h"
 #include "ssherr.h"
@@ -230,7 +229,7 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(ecp, NULL);
 	MKBN(ec256_x, bn_x);
 	MKBN(ec256_y, bn_y);
-	ASSERT_INT_EQ(EC_POINT_set_affine_coordinates_GFp(
+	ASSERT_INT_EQ(EC_POINT_set_affine_coordinates(
 	    EC_KEY_get0_group(eck), ecp, bn_x, bn_y, NULL), 1);
 	ASSERT_INT_EQ(EC_KEY_set_public_key(eck, ecp), 1);
 	BN_free(bn_x);
@@ -259,7 +258,7 @@ sshbuf_getput_crypto_tests(void)
 	bn_y = BN_new();
 	ASSERT_PTR_NE(bn_x, NULL);
 	ASSERT_PTR_NE(bn_y, NULL);
-	ASSERT_INT_EQ(EC_POINT_get_affine_coordinates_GFp(
+	ASSERT_INT_EQ(EC_POINT_get_affine_coordinates(
 	    EC_KEY_get0_group(eck), EC_KEY_get0_public_key(eck),
 	    bn_x, bn_y, NULL), 1);
 	MKBN(ec256_x, bn);

@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.442 2024/12/05 06:49:26 dtucker Exp $ */
+/* $OpenBSD: channels.c,v 1.451 2025/09/25 06:33:19 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -46,9 +46,7 @@
 #include <sys/ioctl.h>
 #include <sys/un.h>
 #include <sys/socket.h>
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -57,13 +55,9 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
-#ifdef HAVE_POLL_H
 #include <poll.h>
-#endif
 #include <stdarg.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -212,6 +206,10 @@ struct ssh_channels {
 	/* Global timeout for all OPEN channels */
 	int global_deadline;
 	time_t lastused;
+	/* pattern-lists used to classify channels as bulk */
+	char *bulk_classifier_tty, *bulk_classifier_notty;
+	/* Number of active bulk channels (set by channel_handler) */
+	u_int nbulk;
 };
 
 /* helper */
@@ -239,6 +237,8 @@ channel_init_channels(struct ssh *ssh)
 	sc->channels_alloc = 10;
 	sc->channels = xcalloc(sc->channels_alloc, sizeof(*sc->channels));
 	sc->IPv4or6 = AF_UNSPEC;
+	sc->bulk_classifier_tty = xstrdup(CHANNEL_BULK_TTY);
+	sc->bulk_classifier_notty = xstrdup(CHANNEL_BULK_NOTTY);
 	channel_handler_init(sc);
 
 	ssh->chanctxt = sc;
@@ -357,6 +357,17 @@ lookup_timeout(struct ssh *ssh, const char *type)
 	return 0;
 }
 
+static void
+channel_classify(struct ssh *ssh, Channel *c)
+{
+	struct ssh_channels *sc = ssh->chanctxt;
+	const char *type = c->xctype == NULL ? c->ctype : c->xctype;
+	const char *classifier = c->isatty ?
+	    sc->bulk_classifier_tty : sc->bulk_classifier_notty;
+
+	c->bulk = type != NULL && match_pattern_list(type, classifier, 0) == 1;
+}
+
 /*
  * Sets "extended type" of a channel; used by session layer to add additional
  * information about channel types (e.g. shell, login, subsystem) that can then
@@ -375,6 +386,7 @@ channel_set_xtype(struct ssh *ssh, int id, const char *xctype)
 	c->xctype = xstrdup(xctype);
 	/* Type has changed, so look up inactivity deadline again */
 	c->inactive_deadline = lookup_timeout(ssh, c->xctype);
+	channel_classify(ssh, c);
 	debug2_f("labeled channel %d as %s (inactive timeout %u)", id, xctype,
 	    c->inactive_deadline);
 }
@@ -409,6 +421,13 @@ channel_get_expiry(struct ssh *ssh, Channel *c)
 			expiry = channel_expiry;
 	}
 	return expiry;
+}
+
+/* Returns non-zero if there is an open, non-interactive channel */
+int
+channel_has_bulk(struct ssh *ssh)
+{
+	return ssh->chanctxt != NULL && ssh->chanctxt->nbulk != 0;
 }
 
 /*
@@ -478,6 +497,7 @@ channel_register_fds(struct ssh *ssh, Channel *c, int rfd, int wfd, int efd,
 	}
 	/* channel might be entering a larval state, so reset global timeout */
 	channel_set_used_time(ssh, NULL);
+	channel_classify(ssh, c);
 }
 
 /*
@@ -537,9 +557,17 @@ channel_new(struct ssh *ssh, char *ctype, int type, int rfd, int wfd, int efd,
 	c->delayed = 1;		/* prevent call to channel_post handler */
 	c->inactive_deadline = lookup_timeout(ssh, c->ctype);
 	TAILQ_INIT(&c->status_confirms);
+	channel_classify(ssh, c);
 	debug("channel %d: new %s [%s] (inactive timeout: %u)",
 	    found, c->ctype, remote_name, c->inactive_deadline);
 	return c;
+}
+
+void
+channel_set_tty(struct ssh *ssh, Channel *c)
+{
+	c->isatty = 1;
+	channel_classify(ssh, c);
 }
 
 int
@@ -827,6 +855,27 @@ channel_free_all(struct ssh *ssh)
 	sc->x11_fake_data_len = 0;
 }
 
+void
+channel_free_channels(struct ssh *ssh)
+{
+	struct ssh_channels *sc;
+
+	if (ssh == NULL || ssh->chanctxt == NULL)
+		return;
+	channel_free_all(ssh);
+	channel_clear_permission(ssh, FORWARD_USER, FORWARD_LOCAL);
+	channel_clear_permission(ssh, FORWARD_USER, FORWARD_REMOTE);
+	channel_clear_permission(ssh, FORWARD_ADM, FORWARD_LOCAL);
+	channel_clear_permission(ssh, FORWARD_ADM, FORWARD_REMOTE);
+	sc = ssh->chanctxt;
+	free(sc->bulk_classifier_tty);
+	free(sc->bulk_classifier_notty);
+	free(sc->channel_pre);
+	free(sc->channel_post);
+	freezero(sc, sizeof(*sc));
+	ssh->chanctxt = NULL;
+}
+
 /*
  * Closes the sockets/fds of all channels.  This is used to close extra file
  * descriptors after a fork.
@@ -1019,7 +1068,7 @@ channel_format_status(const Channel *c)
 	char *ret = NULL;
 
 	xasprintf(&ret, "t%d [%s] %s%u %s%u i%u/%zu o%u/%zu e[%s]/%zu "
-	    "fd %d/%d/%d sock %d cc %d %s%u io 0x%02x/0x%02x",
+	    "fd %d/%d/%d sock %d cc %d %s%u io 0x%02x/0x%02x %s%s",
 	    c->type, c->xctype != NULL ? c->xctype : c->ctype,
 	    c->have_remote_id ? "r" : "nr", c->remote_id,
 	    c->mux_ctx != NULL ? "m" : "nm", c->mux_downstream_id,
@@ -1028,7 +1077,8 @@ channel_format_status(const Channel *c)
 	    channel_format_extended_usage(c), sshbuf_len(c->extended),
 	    c->rfd, c->wfd, c->efd, c->sock, c->ctl_chan,
 	    c->have_ctl_child_id ? "c" : "nc", c->ctl_child_id,
-	    c->io_want, c->io_ready);
+	    c->io_want, c->io_ready,
+	    c->isatty ? "T" : "", c->bulk ? "B" : "I");
 	return ret;
 }
 
@@ -1094,6 +1144,21 @@ channel_open_message(struct ssh *ssh)
 		fatal_f("sshbuf_dup_string");
 	sshbuf_free(buf);
 	return ret;
+}
+
+void
+channel_report_open(struct ssh *ssh, int level)
+{
+	char *open, *oopen, *cp, ident[256];
+
+	sshpkt_fmt_connection_id(ssh, ident, sizeof(ident));
+	do_log2(level, "Connection: %s (pid %ld)", ident, (long)getpid());
+	open = oopen = channel_open_message(ssh);
+	while ((cp = strsep(&open, "\r\n")) != NULL) {
+		if (*cp != '\0')
+			do_log2(level, "%s", cp);
+	}
+	free(oopen);
 }
 
 static void
@@ -2606,10 +2671,13 @@ channel_handler(struct ssh *ssh, int table, struct timespec *timeout)
 	time_t now;
 
 	now = monotime();
-	for (i = 0, oalloc = sc->channels_alloc; i < oalloc; i++) {
+	for (sc->nbulk = i = 0, oalloc = sc->channels_alloc; i < oalloc; i++) {
 		c = sc->channels[i];
 		if (c == NULL)
 			continue;
+		/* Count open channels in bulk state */
+		if (c->type == SSH_CHANNEL_OPEN && c->bulk)
+			sc->nbulk++;
 		/* Try to keep IO going while rekeying */
 		if (ssh_packet_is_rekeying(ssh) && c->type != SSH_CHANNEL_OPEN)
 			continue;
@@ -4518,7 +4586,7 @@ channel_add_permission(struct ssh *ssh, int who, int where,
 	 * host/port_to_connect.
 	 */
 	permission_set_add(ssh, who, where,
-	    local ? host : 0, local ? port : 0,
+	    local ? host : NULL, local ? port : 0,
 	    local ? NULL : host, NULL, local ? 0 : port, NULL);
 	pset->all_permitted = 0;
 }
@@ -4541,10 +4609,13 @@ void
 channel_clear_permission(struct ssh *ssh, int who, int where)
 {
 	struct permission **permp;
-	u_int *npermp;
+	u_int i, *npermp;
 
 	permission_set_get_array(ssh, who, where, &permp, &npermp);
-	*permp = xrecallocarray(*permp, *npermp, 0, sizeof(**permp));
+	for (i = 0; i < *npermp; i++)
+		fwd_perm_clear((*permp) + i);
+	free(*permp);
+	*permp = NULL;
 	*npermp = 0;
 }
 
@@ -4677,8 +4748,7 @@ connect_to_helper(struct ssh *ssh, const char *name, int port, int socktype,
 		 * channel_connect_ctx_free() must check ai_family
 		 * and use free() not freeaddirinfo() for AF_UNIX.
 		 */
-		ai = xmalloc(sizeof(*ai) + sizeof(*sunaddr));
-		memset(ai, 0, sizeof(*ai) + sizeof(*sunaddr));
+		ai = xcalloc(1, sizeof(*ai) + sizeof(*sunaddr));
 		ai->ai_addr = (struct sockaddr *)(ai + 1);
 		ai->ai_addrlen = sizeof(*sunaddr);
 		ai->ai_family = AF_UNIX;
@@ -5010,7 +5080,7 @@ x11_create_display_inet(struct ssh *ssh, int x11_display_offset,
 		return -1;
 
 	for (display_number = x11_display_offset;
-	    display_number < MAX_DISPLAYS;
+	    display_number < x11_display_offset + MAX_DISPLAYS;
 	    display_number++) {
 		port = X11_BASE_PORT + display_number;
 		memset(&hints, 0, sizeof(hints));
@@ -5065,7 +5135,7 @@ x11_create_display_inet(struct ssh *ssh, int x11_display_offset,
 		if (num_socks > 0)
 			break;
 	}
-	if (display_number >= MAX_DISPLAYS) {
+	if (display_number >= x11_display_offset + MAX_DISPLAYS) {
 		error("Failed to allocate internet-domain X11 display socket.");
 		return -1;
 	}
@@ -5133,7 +5203,7 @@ is_path_to_xsocket(const char *display, char *path, size_t pathlen)
 	struct stat sbuf;
 
 	if (strlcpy(path, display, pathlen) >= pathlen) {
-		error("%s: display path too long", __func__);
+		error_f("display path too long");
 		return 0;
 	}
 	if (display[0] != '/')
@@ -5354,7 +5424,8 @@ x11_channel_used_recently(struct ssh *ssh) {
 		if (c == NULL || c->ctype == NULL || c->lastused == 0 ||
 		    strcmp(c->ctype, "x11-connection") != 0)
 			continue;
-		lastused = c->lastused;
+		if (c->lastused > lastused)
+			lastused = c->lastused;
 	}
-	return lastused != 0 && monotime() > lastused + 1;
+	return lastused != 0 && monotime() <= lastused + 1;
 }

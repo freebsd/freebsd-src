@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_expand.c,v 1.3 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_expand.c,v 1.4 2025/09/15 03:00:22 djm Exp $ */
 /*
  * Regress test for misc string expansion functions.
  *
@@ -9,9 +9,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -73,17 +71,26 @@ test_expand(void)
 	TEST_DONE();
 
 	TEST_START("percent_expand");
-	ASSERT_STRING_EQ(percent_expand("%%", "%h", "foo", NULL), "%");
-	ASSERT_STRING_EQ(percent_expand("%h", "h", "foo", NULL), "foo");
-	ASSERT_STRING_EQ(percent_expand("%h ", "h", "foo", NULL), "foo ");
-	ASSERT_STRING_EQ(percent_expand(" %h", "h", "foo", NULL), " foo");
-	ASSERT_STRING_EQ(percent_expand(" %h ", "h", "foo", NULL), " foo ");
-	ASSERT_STRING_EQ(percent_expand(" %a%b ", "a", "foo", "b", "bar", NULL),
-	    " foobar ");
+#define CHECK_ONE(val, expect) \
+	ASSERT_STRING_EQ(val, expect); \
+	free(val);
+	ret = percent_expand("%%", "%h", "foo", NULL);
+	CHECK_ONE(ret, "%");
+	ret = percent_expand("%h", "h", "foo", NULL);
+	CHECK_ONE(ret, "foo");
+	ret = percent_expand("%h ", "h", "foo", NULL);
+	CHECK_ONE(ret, "foo ");
+	ret = percent_expand(" %h", "h", "foo", NULL);
+	CHECK_ONE(ret, " foo");
+	ret = percent_expand(" %h ", "h", "foo", NULL);
+	CHECK_ONE(ret, " foo ");
+	ret = percent_expand(" %a%b ", "a", "foo", "b", "bar", NULL);
+	CHECK_ONE(ret, " foobar ");
 	TEST_DONE();
 
 	TEST_START("percent_dollar_expand");
-	ASSERT_STRING_EQ(percent_dollar_expand("%h${FOO}", "h", "foo", NULL),
-	    "foobar");
+	ret = percent_dollar_expand("%h${FOO}", "h", "foo", NULL);
+	CHECK_ONE(ret, "foobar");
+#undef CHECK_ONE
 	TEST_DONE();
 }

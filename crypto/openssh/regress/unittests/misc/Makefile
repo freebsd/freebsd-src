@@ -1,7 +1,8 @@
-#	$OpenBSD: Makefile,v 1.9 2023/01/06 02:59:50 djm Exp $
+#	$OpenBSD: Makefile,v 1.12 2025/09/04 00:34:17 djm Exp $
 
 PROG=test_misc
 SRCS=tests.c
+SRCS+=	test_misc.c
 SRCS+=	test_convtime.c
 SRCS+=	test_expand.c
 SRCS+=	test_parse.c
@@ -9,6 +10,7 @@ SRCS+=	test_argv.c
 SRCS+=	test_strdelim.c
 SRCS+=	test_hpdelim.c
 SRCS+=	test_ptimeout.c
+SRCS+=	test_xextendf.c
 
 # From usr.bin/ssh/Makefile.inc
 SRCS+=	sshbuf.c
@@ -28,6 +30,6 @@ SRCS+=	atomicio.c cleanup.c fatal.c
 REGRESS_TARGETS=run-regress-${PROG}
 
 run-regress-${PROG}: ${PROG}
-	env ${TEST_ENV} ./${PROG}
+	env ${TEST_ENV} ./${PROG} ${UNITTEST_ARGS}
 
 .include <bsd.regress.mk>
