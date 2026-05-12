@@ -1453,7 +1453,7 @@ acpi_ibm_eventhandler(struct acpi_ibm_softc *sc, int arg)
 	 * instead of suspend-to-RAM.
 	 */
 	case IBM_EVENT_SUSPEND_TO_RAM:
-		power_pm_suspend(POWER_SSTATE_TRANSITION_SUSPEND);
+		power_pm_suspend(POWER_TRANSITION_SUSPEND);
 		break;
 
 	case IBM_EVENT_BLUETOOTH:

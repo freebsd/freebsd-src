@@ -176,7 +176,7 @@ power_pm_get_type(void)
 }
 
 void
-power_pm_suspend(enum power_sstate_transition trans)
+power_pm_suspend(enum power_transition trans)
 {
 	enum power_stype	stype;
 
@@ -184,13 +184,13 @@ power_pm_suspend(enum power_sstate_transition trans)
 		return;
 
 	switch (trans) {
-	case POWER_SSTATE_TRANSITION_STANDBY:
+	case POWER_TRANSITION_STANDBY:
 		stype = power_standby_stype;
 		break;
-	case POWER_SSTATE_TRANSITION_SUSPEND:
+	case POWER_TRANSITION_SUSPEND:
 		stype = power_suspend_stype;
 		break;
-	case POWER_SSTATE_TRANSITION_HIBERNATE:
+	case POWER_TRANSITION_HIBERNATE:
 		stype = power_hibernate_stype;
 		break;
 	default:

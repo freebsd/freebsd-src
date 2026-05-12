@@ -3987,10 +3987,10 @@ next_code:
 				break;
 
 			case SUSP:
-				power_pm_suspend(POWER_SSTATE_TRANSITION_SUSPEND);
+				power_pm_suspend(POWER_TRANSITION_SUSPEND);
 				break;
 			case STBY:
-				power_pm_suspend(POWER_SSTATE_TRANSITION_STANDBY);
+				power_pm_suspend(POWER_TRANSITION_STANDBY);
 				break;
 
 			case DBG:
