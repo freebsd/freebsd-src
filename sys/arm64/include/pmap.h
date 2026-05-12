@@ -43,6 +43,7 @@
 #ifndef LOCORE
 
 #include <sys/queue.h>
+#include <sys/systm.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_pv_entry.h>
@@ -131,6 +132,8 @@ extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
 extern pt_entry_t pmap_sh_attr;
+
+extern __read_mostly uint64_t prot_ns_shared_pa;
 
 /*
  * Macros to test if a mapping is mappable with an L1 Section mapping

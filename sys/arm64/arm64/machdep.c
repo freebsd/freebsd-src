@@ -86,6 +86,7 @@
 #include <machine/metadata.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/rsi.h>
 #include <machine/undefined.h>
 #include <machine/vmparam.h>
 
@@ -103,6 +104,7 @@
 #include <dev/ofw/openfirm.h>
 #endif
 
+#include <dev/psci/psci.h>
 #include <dev/smbios/smbios.h>
 
 _Static_assert(sizeof(struct pcb) == 1248, "struct pcb is incorrect size");
@@ -888,6 +890,9 @@ initarm(struct arm64_bootparams *abp)
 	physmem_init_kernel_globals();
 
 	valid = bus_probe();
+
+	psci_init(NULL);
+	arm64_rsi_setup_memory();
 
 	cninit();
 	set_ttbr0(abp->kern_ttbr0);

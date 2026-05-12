@@ -205,6 +205,8 @@ __exclusive_cache_line static struct pmap_large_md_page pv_dummy_large;
 #define pv_dummy pv_dummy_large.pv_page
 __read_mostly static struct pmap_large_md_page *pv_table;
 
+__read_mostly uint64_t prot_ns_shared_pa;
+
 static struct pmap_large_md_page *
 _pa_to_pmdp(vm_paddr_t pa)
 {
