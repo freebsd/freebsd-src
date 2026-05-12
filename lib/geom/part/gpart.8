@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 9, 2026
+.Dd May 12, 2026
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1041,6 +1041,12 @@ for GPT.
 A partition claimed by VMware VSAN.
 The scheme-specific type is
 .Qq Li "!381cfccc-7288-11e0-92ee-000c2911d0b2"
+for GPT.
+.It Cm xbootldr
+An Extended Boot Loader Partition (XBOOTLDR), secondary to the EFI system
+partition, used to store additional firmware or boot loader menu entries.
+The scheme-specific type is
+.Qq Li "!bc13c2ff-59e6-4262-a352-b275fd6f7172"
 for GPT.
 .El
 .Sh ATTRIBUTES
