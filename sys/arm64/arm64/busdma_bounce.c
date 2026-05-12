@@ -36,6 +36,7 @@
 #include <sys/domainset.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/busdma_bufalloc.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -56,6 +57,7 @@
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
+#include <machine/rsi.h>
 #include <arm64/include/bus_dma_impl.h>
 
 #define MAX_BPAGES 4096
@@ -119,6 +121,8 @@ static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     pmap_t pmap, void *buf, bus_size_t buflen, int flags);
 static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
     vm_paddr_t buf, bus_size_t buflen, int flags);
+
+static busdma_bufalloc_t nonsecure_allocator;
 
 static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
@@ -215,6 +219,10 @@ might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 	if (map && (map->flags & DMAMAP_FROM_DMAMEM) != 0)
 		return (false);
 
+	/* Bounce if accessing secure memory */
+	if (in_realm() && !(paddr & prot_ns_shared_pa))
+		return (true);
+
 	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0)
 		return (true);
 
@@ -237,6 +245,10 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 
 	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0 &&
 	    addr_needs_bounce(dmat, paddr))
+		return (true);
+
+	/* Bounce if accessing secure memory */
+	if (in_realm() && !(paddr & prot_ns_shared_pa))
 		return (true);
 
 	return (false);
@@ -492,6 +504,7 @@ static int
 bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
     bus_dmamap_t *mapp)
 {
+	struct busdma_bufzone *bufzone;
 	vm_memattr_t attr;
 	int mflags;
 
@@ -523,6 +536,9 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		attr = VM_MEMATTR_UNCACHEABLE;
 	else
 		attr = VM_MEMATTR_DEFAULT;
+
+	if (in_realm())
+		mflags |= M_UNPROTECTED;
 
 	/*
 	 * Create the map, but don't set the could bounce flag as
@@ -567,13 +583,16 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	 *
 	 * In the meantime warn the user if malloc gets it wrong.
 	 */
-	if (dmat->alloc_size <= PAGE_SIZE &&
+
+	bufzone = busdma_bufalloc_findzone(nonsecure_allocator,
+	    dmat->alloc_size);
+
+	if (bufzone &&
+	    dmat->alloc_size <= PAGE_SIZE &&
 	    dmat->alloc_alignment <= PAGE_SIZE &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
-		*vaddr = malloc_domainset_aligned(dmat->alloc_size,
-		    dmat->alloc_alignment, M_DEVBUF,
-		    DOMAINSET_PREF(dmat->common.domain), mflags);
+		*vaddr = uma_zalloc(bufzone->umazone, mflags);
 	} else if (dmat->common.nsegments >=
 	    howmany(dmat->alloc_size, MIN(dmat->common.maxsegsz, PAGE_SIZE)) &&
 	    dmat->alloc_alignment <= PAGE_SIZE &&
@@ -1148,3 +1167,44 @@ struct bus_dma_impl bus_dma_bounce_impl = {
 	.load_kmsan = bounce_bus_dmamap_load_kmsan,
 #endif
 };
+
+static void *
+nonsecure_alloc(uma_zone_t zone, vm_size_t size, int domain, uint8_t *pflag,
+    int wait)
+{
+	void *p;	/* Returned page */
+
+	*pflag = UMA_SLAB_KERNEL;
+	p = kmem_malloc_domainset(DOMAINSET_FIXED(domain), size,
+	    wait | M_UNPROTECTED);
+
+	return (p);
+}
+
+static void
+nonsecure_free(void *mem, vm_size_t size, uint8_t flags)
+{
+	KASSERT((flags & UMA_SLAB_KERNEL) != 0,
+	    ("UMA: page_free used with invalid flags %x", flags));
+
+	kmem_free(mem, size);
+}
+
+static void
+busdma_bounce_init(void *dummy)
+{
+	if (in_realm())
+		nonsecure_allocator = busdma_bufalloc_create("nonsecure",
+		    dcache_line_size,		/* minimum_alignment */
+		    nonsecure_alloc,		/* uma_alloc func */
+		    nonsecure_free,		/* uma_free func */
+		    UMA_ZONE_NOTOUCH);		/* uma_zcreate_flags */
+	else
+		nonsecure_allocator = busdma_bufalloc_create("nonsecure",
+		    dcache_line_size,		/* minimum_alignment */
+		    NULL,			/* uma_alloc func */
+		    NULL,			/* uma_free func */
+		    UMA_ZONE_NOTOUCH);		/* uma_zcreate_flags */
+}
+
+SYSINIT(busdma, SI_SUB_KMEM + 1, SI_ORDER_FIRST, busdma_bounce_init, NULL);

@@ -46,6 +46,7 @@
 #include <sys/vmmeter.h>
 
 #include <machine/pte.h>
+#include <machine/rsi.h>
 #include <machine/vmparam.h>
 
 #include <vm/vm.h>
@@ -171,6 +172,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	vm_page_t efi_l0_page;
 	uint64_t idx;
 	int i, mode;
+	uint64_t pa;
 
 	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, L0_ENTRIES +
 	    L0_ENTRIES * Ln_ENTRIES + L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES +
@@ -231,7 +233,13 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		for (va = p->md_phys, idx = 0; idx < p->md_pages;
 		    idx += (PAGE_SIZE / EFI_PAGE_SIZE), va += PAGE_SIZE) {
 			l3 = efi_1t1_l3(va);
-			*l3 = va | l3_attr;
+
+			if (mode == VM_MEMATTR_DEVICE && in_realm())
+				pa = va | prot_ns_shared_pa;
+			else
+				pa = va;
+
+			*l3 = PHYS_TO_PTE(pa) | l3_attr;
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	}

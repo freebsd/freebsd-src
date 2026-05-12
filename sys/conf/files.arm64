@@ -9,6 +9,7 @@ kern/subr_devmap.c				standard
 kern/subr_efi_map.c				standard
 kern/subr_intr.c				optional intrng
 kern/subr_physmem.c				standard
+kern/subr_busdma_bufalloc.c			standard
 libkern/strlen.c		standard
 libkern/arm64/crc32c_armv8.S			standard
 

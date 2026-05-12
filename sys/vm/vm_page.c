@@ -110,6 +110,10 @@
 #include <vm/uma_int.h>
 
 #include <machine/md_var.h>
+#if defined(__aarch64__)
+#include <machine/pmap.h>
+#include <machine/rsi.h>
+#endif
 
 struct vm_domain vm_dom[MAXMEMDOM];
 
@@ -1290,6 +1294,10 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 	vm_page_t m;
 
 #ifdef VM_PHYSSEG_SPARSE
+#if defined(__aarch64__)
+	if (in_realm())
+		pa &= ~prot_ns_shared_pa; /* Mask off secure bit */
+#endif
 	m = vm_phys_paddr_to_vm_page(pa);
 	if (m == NULL)
 		m = vm_phys_fictitious_to_vm_page(pa);
