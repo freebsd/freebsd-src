@@ -10,9 +10,9 @@
  * Foundation.
  */
 
+#include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/limits.h>
-#include <sys/types.h>
 #include <sys/ucred.h>
 
 #include <assert.h>
