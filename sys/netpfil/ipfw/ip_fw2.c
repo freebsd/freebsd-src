@@ -780,7 +780,9 @@ static int
 flow6id_match(int curr_flow, ipfw_insn_u32 *cmd)
 {
 	int i;
-	for (i=0; i <= cmd->o.arg1; ++i)
+	/* Mask proto version and traffic class out before comparing flow-id */
+	curr_flow &= ntohl(IPV6_FLOWLABEL_MASK);
+	for (i=0; i < cmd->o.arg1; ++i)
 		if (curr_flow == cmd->d[i])
 			return 1;
 	return 0;

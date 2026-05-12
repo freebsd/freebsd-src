@@ -4,6 +4,7 @@ TESTSDIR=       ${TESTSBASE}/sys/netpfil/ipfw
 
 ATF_TESTS_SH+=	fwd \
 		divert \
+		ipv6-flow-id \
 		lookup
 
 ${PACKAGE}FILES+=	fwd_inetd.conf \
