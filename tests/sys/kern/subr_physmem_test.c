@@ -79,6 +79,12 @@ ATF_TC_BODY(hwregion, tc)
 	ATF_CHECK_EQ(len, 2);
 	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, nitems(avail));
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
 }
 
 ATF_TC_WITHOUT_HEAD(hwregion_exclude);
@@ -106,6 +112,27 @@ ATF_TC_BODY(hwregion_exclude, tc)
 	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[2], 6 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[3], 7 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, 6);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
+
+	/* Check an excluded region out of the included memory works */
+	physmem_exclude_region(7 * PAGE_SIZE, PAGE_SIZE, EXFLAG_NOALLOC);
+	len = physmem_avail(avail, 6);
+	ATF_CHECK_EQ(len, 4);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[2], 6 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[3], 7 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, 6);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
 }
 
 ATF_TC_WITHOUT_HEAD(hwregion_unordered);
@@ -122,6 +149,12 @@ ATF_TC_BODY(hwregion_unordered, tc)
 	physmem_hardware_region(PAGE_SIZE + PAGE_SIZE / 2, PAGE_SIZE / 2);
 
 	len = physmem_avail(avail, 4);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, 4);
 	ATF_CHECK_EQ(len, 2);
 	ATF_CHECK_EQ(avail[0], PAGE_SIZE);
 	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
