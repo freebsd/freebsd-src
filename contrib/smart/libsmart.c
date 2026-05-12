@@ -1347,7 +1347,7 @@ __smart_read_pages(smart_h h, smart_buf_t *sb)
 		memset(buf, 0, plist->pages[p].bytes);
 		rc = device_read_log(h, plist->pages[p].id, buf, plist->pages[p].bytes);
 		if (rc) {
-			dprintf("bad read (%d) from page %#x (bytes=%lu)\n", rc,
+			dprintf("bad read (%d) from page %#x (bytes=%zu)\n", rc,
 					plist->pages[p].id, plist->pages[p].bytes);
 			break;
 		}
