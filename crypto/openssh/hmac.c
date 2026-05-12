@@ -1,4 +1,4 @@
-/* $OpenBSD: hmac.c,v 1.14 2020/02/26 13:40:09 jsg Exp $ */
+/* $OpenBSD: hmac.c,v 1.15 2025/09/05 09:49:26 dtucker Exp $ */
 /*
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
  *

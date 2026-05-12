@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.c,v 1.13 2021/12/14 21:25:27 deraadt Exp $	*/
+/*	$OpenBSD: test_helper.c,v 1.14 2025/04/15 04:00:42 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -21,18 +21,20 @@
 
 #include <sys/types.h>
 #include <sys/uio.h>
-
-#include <stdarg.h>
+#include <sys/time.h>
+ 
+#include <assert.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <math.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include <time.h>
 #include <unistd.h>
-#include <signal.h>
 
 #ifdef WITH_OPENSSL
 #include <openssl/bn.h>
@@ -43,12 +45,21 @@
 # include <vis.h>
 #endif
 
-#define MINIMUM(a, b)    (((a) < (b)) ? (a) : (b))
-
 #include "entropy.h"
 #include "test_helper.h"
 #include "atomicio.h"
+#include "match.h"
+#include "misc.h"
+#include "xmalloc.h"
 
+#define BENCH_FAST_DEADLINE	1
+#define BENCH_NORMAL_DEADLINE	10
+#define BENCH_SLOW_DEADLINE	60
+#define BENCH_SAMPLES_ALLOC	8192
+#define BENCH_COLUMN_WIDTH	40
+
+#define MINIMUM(a, b)    (((a) < (b)) ? (a) : (b))
+ 
 #define TEST_CHECK_INT(r, pred) do {		\
 		switch (pred) {			\
 		case TEST_EQ:			\
@@ -123,6 +134,15 @@ static const char *data_dir = NULL;
 static char subtest_info[512];
 static int fast = 0;
 static int slow = 0;
+static int benchmark_detail_statistics = 0;
+
+static int benchmark = 0;
+static const char *bench_name = NULL;
+static char *benchmark_pattern = NULL;
+static struct timespec bench_start_time, bench_finish_time;
+static struct timespec *bench_samples;
+static int bench_skip, bench_nruns, bench_nalloc;
+double bench_accum_secs;
 
 int
 main(int argc, char **argv)
@@ -147,8 +167,17 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((ch = getopt(argc, argv, "Ffvqd:")) != -1) {
+	while ((ch = getopt(argc, argv, "O:bBFfvqd:")) != -1) {
 		switch (ch) {
+		case 'b':
+			benchmark = 1;
+			break;
+		case 'B':
+			benchmark = benchmark_detail_statistics = 1;
+			break;
+		case 'O':
+			benchmark_pattern = xstrdup(optarg);
+			break;
 		case 'F':
 			slow = 1;
 			break;
@@ -168,7 +197,8 @@ main(int argc, char **argv)
 			break;
 		default:
 			fprintf(stderr, "Unrecognised command line option\n");
-			fprintf(stderr, "Usage: %s [-v]\n", __progname);
+			fprintf(stderr, "Usage: %s [-vqfFbB] [-d data_dir] "
+			    "[-O pattern]\n", __progname);
 			exit(1);
 		}
 	}
@@ -178,9 +208,12 @@ main(int argc, char **argv)
 	if (verbose_mode)
 		printf("\n");
 
-	tests();
+	if (benchmark)
+		benchmarks();
+	else
+		tests();
 
-	if (!quiet_mode)
+	if (!quiet_mode && !benchmark)
 		printf(" %u tests ok\n", test_number);
 	return 0;
 }
@@ -274,7 +307,7 @@ test_done(void)
 	active_test_name = NULL;
 	if (verbose_mode)
 		printf("OK\n");
-	else if (!quiet_mode) {
+	else if (!quiet_mode && !benchmark) {
 		printf(".");
 		fflush(stdout);
 	}
@@ -288,6 +321,12 @@ test_subtest_info(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(subtest_info, sizeof(subtest_info), fmt, ap);
 	va_end(ap);
+}
+
+int
+test_is_benchmark(void)
+{
+	return benchmark;
 }
 
 void
@@ -380,23 +419,6 @@ assert_string(const char *file, int line, const char *a1, const char *a2,
 	fprintf(stderr, "%12s = %s (len %zu)\n", a1, aa1, strlen(aa1));
 	fprintf(stderr, "%12s = %s (len %zu)\n", a2, aa2, strlen(aa2));
 	test_die();
-}
-
-static char *
-tohex(const void *_s, size_t l)
-{
-	u_int8_t *s = (u_int8_t *)_s;
-	size_t i, j;
-	const char *hex = "0123456789abcdef";
-	char *r = malloc((l * 2) + 1);
-
-	assert(r != NULL);
-	for (i = j = 0; i < l; i++) {
-		r[j++] = hex[(s[i] >> 4) & 0xf];
-		r[j++] = hex[s[i] & 0xf];
-	}
-	r[j] = '\0';
-	return r;
 }
 
 void
@@ -593,3 +615,131 @@ assert_ptr(const char *file, int line, const char *a1, const char *a2,
 	test_die();
 }
 
+static double
+tstod(const struct timespec *ts)
+{
+	return (double)ts->tv_sec + ((double)ts->tv_nsec / 1000000000.0);
+}
+
+void
+bench_start(const char *file, int line, const char *name)
+{
+	char *cp;
+
+	if (bench_name != NULL) {
+		fprintf(stderr, "\n%s:%d internal error: BENCH_START() called "
+		    "while previous benchmark \"%s\" incomplete",
+		    file, line, bench_name);
+		abort();
+	}
+	cp = xstrdup(name);
+	lowercase(cp);
+	bench_skip = benchmark_pattern != NULL &&
+	    match_pattern_list(cp, benchmark_pattern, 1) != 1;
+	free(cp);
+
+	bench_name = name;
+	bench_nruns = 0;
+	if (bench_skip)
+		return;
+	free(bench_samples);
+	bench_nalloc = BENCH_SAMPLES_ALLOC;
+	bench_samples = xcalloc(sizeof(*bench_samples), bench_nalloc);
+	bench_accum_secs = 0;
+}
+
+int
+bench_done(void)
+{
+	return bench_skip || bench_accum_secs >= (fast ? BENCH_FAST_DEADLINE :
+	    (slow ? BENCH_SLOW_DEADLINE : BENCH_NORMAL_DEADLINE));
+}
+
+void
+bench_case_start(const char *file, int line)
+{
+	clock_gettime(CLOCK_REALTIME, &bench_start_time);
+}
+
+void
+bench_case_finish(const char *file, int line)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_REALTIME, &bench_finish_time);
+	timespecsub(&bench_finish_time, &bench_start_time, &ts);
+	if (bench_nruns >= bench_nalloc) {
+		if (bench_nalloc >= INT_MAX / 2) {
+			fprintf(stderr, "\n%s:%d benchmark %s too many samples",
+			    __FILE__, __LINE__, bench_name);
+			abort();
+		}
+		bench_samples = xrecallocarray(bench_samples, bench_nalloc,
+		    bench_nalloc * 2, sizeof(*bench_samples));
+		bench_nalloc *= 2;
+	}
+	bench_samples[bench_nruns++] = ts;
+	bench_accum_secs += tstod(&ts);
+}
+
+static int
+tscmp(const void *aa, const void *bb)
+{
+	const struct timespec *a = (const struct timespec *)aa;
+	const struct timespec *b = (const struct timespec *)bb;
+
+	if (timespeccmp(a, b, ==))
+		return 0;
+	return timespeccmp(a, b, <) ? -1 : 1;
+}
+
+void
+bench_finish(const char *file, int line, const char *unit)
+{
+	double std_dev = 0, mean_spr, mean_rps, med_spr, med_rps;
+	int i;
+
+	if (bench_skip)
+		goto done;
+
+	if (bench_nruns < 1) {
+		fprintf(stderr, "\n%s:%d benchmark %s never ran", file, line,
+		    bench_name);
+		abort();
+	}
+	/* median */
+	qsort(bench_samples, bench_nruns, sizeof(*bench_samples), tscmp);
+	i = bench_nruns / 2;
+	med_spr = tstod(&bench_samples[i]);
+	if (bench_nruns > 1 && bench_nruns & 1)
+		med_spr = (med_spr + tstod(&bench_samples[i - 1])) / 2.0;
+	med_rps = (med_spr == 0.0) ? INFINITY : 1.0/med_spr;
+	/* mean */
+	mean_spr = bench_accum_secs / (double)bench_nruns;
+	mean_rps = (mean_spr == 0.0) ? INFINITY : 1.0/mean_spr;
+	/* std. dev */
+	std_dev = 0;
+	for (i = 0; i < bench_nruns; i++) {
+		std_dev = tstod(&bench_samples[i]) - mean_spr;
+		std_dev *= std_dev;
+	}
+	std_dev /= (double)bench_nruns;
+	std_dev = sqrt(std_dev);
+	if (benchmark_detail_statistics) {
+		printf("%s: %d runs in %0.3fs, %0.03f/%0.03f ms/%s "
+		    "(mean/median), std.dev %0.03f ms, "
+		    "%0.2f/%0.2f %s/s (mean/median)\n",
+		    bench_name, bench_nruns, bench_accum_secs,
+		    mean_spr * 1000, med_spr * 1000, unit, std_dev * 1000,
+		    mean_rps, med_rps, unit);
+	} else {
+		printf("%-*s %0.2f %s/s\n", BENCH_COLUMN_WIDTH,
+		    bench_name, med_rps, unit);
+	}
+ done:
+	bench_name = NULL;
+	bench_nruns = 0;
+	free(bench_samples);
+	bench_samples = NULL;
+	bench_skip = 0;
+}

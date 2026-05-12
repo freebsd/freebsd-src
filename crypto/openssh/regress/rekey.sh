@@ -11,7 +11,7 @@ cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 echo "Compression no" >> $OBJ/ssh_proxy
 echo "RekeyLimit 256k" >> $OBJ/ssh_proxy
-echo "KexAlgorithms curve25519-sha256" >> ssh_proxy
+echo "KexAlgorithms curve25519-sha256" >> $OBJ/ssh_proxy
 
 # Test rekeying based on data volume only.
 # Arguments: rekeylimit, kex method, optional remaining opts are passed to ssh.

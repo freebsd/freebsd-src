@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.8 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: tests.c,v 1.9 2025/04/15 04:00:42 djm Exp $ */
 /*
  * Regress test for matching functions
  *
@@ -9,9 +9,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -128,4 +126,10 @@ tests(void)
  * char    *match_list(const char *, const char *, u_int *);
  * int      addr_match_cidr_list(const char *, const char *);
  */
+}
+
+void
+benchmarks(void)
+{
+	printf("no benchmarks\n");
 }

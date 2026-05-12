@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com.sh,v 1.10 2017/05/08 01:52:49 djm Exp $
+#	$OpenBSD: ssh-com.sh,v 1.11 2025/05/06 06:05:48 djm Exp $
 #	Placed in the Public Domain.
 
 tid="connect to ssh.com server"
@@ -41,8 +41,8 @@ cat << EOF > $OBJ/sshd2_config
 	PubKeyAuthentication		yes
 	#AllowedAuthentications		publickey
 	AuthorizationFile		authorization
-	HostKeyFile			${SRC}/dsa_ssh2.prv
-	PublicHostKeyFile		${SRC}/dsa_ssh2.pub
+	HostKeyFile			${SRC}/rsa_ssh2.prv
+	PublicHostKeyFile		${SRC}/rsa_ssh2.pub
 	RandomSeedFile			${OBJ}/random_seed
 	MaxConnections			0
 	PermitRootLogin			yes
@@ -55,23 +55,21 @@ EOF
 sed "s/HostKeyAlias.*/HostKeyAlias ssh2-localhost-with-alias/" \
 	< $OBJ/ssh_config > $OBJ/ssh_config_com
 
-# we need a DSA key for
-rm -f                             ${OBJ}/dsa ${OBJ}/dsa.pub
-${SSHKEYGEN} -q -N '' -t dsa -f	  ${OBJ}/dsa
+# we need a RSA key for
+rm -f                             ${OBJ}/rsa ${OBJ}/rsa.pub
+${SSHKEYGEN} -q -N '' -t rsa -f	  ${OBJ}/rsa
 
 # setup userdir, try rsa first
 mkdir -p ${OBJ}/${USER}
 cp /dev/null ${OBJ}/${USER}/authorization
-for t in rsa dsa; do
-	${SSHKEYGEN} -e -f ${OBJ}/$t.pub	>  ${OBJ}/${USER}/$t.com
-	echo Key $t.com			>> ${OBJ}/${USER}/authorization
-	echo IdentityFile ${OBJ}/$t	>> ${OBJ}/ssh_config_com
-done
+${SSHKEYGEN} -e -f ${OBJ}/rsa.pub	>  ${OBJ}/${USER}/rsa.com
+echo Key rsa.com			>> ${OBJ}/${USER}/authorization
+echo IdentityFile ${OBJ}/rsa		>> ${OBJ}/ssh_config_com
 
-# convert and append DSA hostkey
+# convert and append RSA hostkey
 (
 	printf 'ssh2-localhost-with-alias,127.0.0.1,::1 '
-	${SSHKEYGEN} -if ${SRC}/dsa_ssh2.pub
+	${SSHKEYGEN} -if ${SRC}/rsa_ssh2.pub
 ) >> $OBJ/known_hosts
 
 # go for it
@@ -114,6 +112,6 @@ done
 
 rm -rf ${OBJ}/${USER}
 for i in sshd_config_proxy ssh_config_proxy random_seed \
-	sshd2_config dsa.pub dsa ssh_config_com; do
+	sshd2_config rsa.pub rsa ssh_config_com; do
 	rm -f ${OBJ}/$i
 done

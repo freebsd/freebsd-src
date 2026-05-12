@@ -32,7 +32,8 @@
 #include "openssl-compat.h"
 
 /*
- * OpenSSL version numbers: MNNFFPPS: major minor fix patch status
+ * OpenSSL version numbers: MNNFFPPS: major minor fix patch status.
+ * See the OpenSSL_version_num(3ssl) man page.
  * Versions >=3 require only major versions to match.
  * For versions <3, we accept compatible fix versions (so we allow 1.0.1
  * to work with 1.0.0). Going backwards is only allowed within a patch series.
@@ -49,10 +50,10 @@ ssh_compatible_openssl(long headerver, long libver)
 		return 1;
 
 	/*
-	 * For versions >= 3.0, only the major and status must match.
+	 * For versions >= 3.0, only the major must match.
 	 */
-	if (headerver >= 0x3000000f) {
-		mask = 0xf000000fL; /* major,status */
+	if (headerver >= 0x30000000) {
+		mask = 0xf0000000L; /* major only */
 		return (headerver & mask) == (libver & mask);
 	}
 

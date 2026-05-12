@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.39 2023/03/02 06:41:56 dtucker Exp $ */
+/* $OpenBSD: moduli.c,v 1.40 2025/05/24 03:39:48 dtucker Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -88,13 +88,6 @@
 #define SHIFT_MEGAWORD	(SHIFT_MEGABYTE-SHIFT_BYTE)
 
 /*
- * Using virtual memory can cause thrashing.  This should be the largest
- * number that is supported without a large amount of disk activity --
- * that would increase the run time from hours to days or weeks!
- */
-#define LARGE_MINIMUM	(8UL)	/* megabytes */
-
-/*
  * Do not increase this number beyond the unsigned integer bit size.
  * Due to a multiple of 4, it must be LESS than 128 (yielding 2**30 bits).
  */
@@ -142,7 +135,7 @@ static u_int32_t *LargeSieve, largewords, largetries, largenumbers;
 static u_int32_t largebits, largememory;	/* megabytes */
 static BIGNUM *largebase;
 
-int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
+int gen_candidates(FILE *, u_int32_t, BIGNUM *);
 int prime_test(FILE *, FILE *, u_int32_t, u_int32_t, char *, unsigned long,
     unsigned long);
 
@@ -242,7 +235,7 @@ sieve_large(u_int32_t s32)
  * The list is checked against small known primes (less than 2**30).
  */
 int
-gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
+gen_candidates(FILE *out, u_int32_t power, BIGNUM *start)
 {
 	BIGNUM *q;
 	u_int32_t j, r, s, t;
@@ -251,15 +244,6 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 	time_t time_start, time_stop;
 	u_int32_t i;
 	int ret = 0;
-
-	largememory = memory;
-
-	if (memory != 0 &&
-	    (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
-		error("Invalid memory amount (min %ld, max %ld)",
-		    LARGE_MINIMUM, LARGE_MAXIMUM);
-		return (-1);
-	}
 
 	/*
 	 * Set power to the length in bits of the prime to be generated.
@@ -274,33 +258,9 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 	}
 	power--; /* decrement before squaring */
 
-	/*
-	 * The density of ordinary primes is on the order of 1/bits, so the
-	 * density of safe primes should be about (1/bits)**2. Set test range
-	 * to something well above bits**2 to be reasonably sure (but not
-	 * guaranteed) of catching at least one safe prime.
-	 */
-	largewords = ((power * power) >> (SHIFT_WORD - TEST_POWER));
-
-	/*
-	 * Need idea of how much memory is available. We don't have to use all
-	 * of it.
-	 */
-	if (largememory > LARGE_MAXIMUM) {
-		logit("Limited memory: %u MB; limit %lu MB",
-		    largememory, LARGE_MAXIMUM);
-		largememory = LARGE_MAXIMUM;
-	}
-
-	if (largewords <= (largememory << SHIFT_MEGAWORD)) {
-		logit("Increased memory: %u MB; need %u bytes",
-		    largememory, (largewords << SHIFT_BYTE));
-		largewords = (largememory << SHIFT_MEGAWORD);
-	} else if (largememory > 0) {
-		logit("Decreased memory: %u MB; want %u bytes",
-		    largememory, (largewords << SHIFT_BYTE));
-		largewords = (largememory << SHIFT_MEGAWORD);
-	}
+	/* Always use the maximum amount of memory supported by the algorithm. */
+	largememory = LARGE_MAXIMUM;
+	largewords = (largememory << SHIFT_MEGAWORD);
 
 	TinySieve = xcalloc(tinywords, sizeof(u_int32_t));
 	tinybits = tinywords << SHIFT_WORD;
@@ -308,12 +268,7 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 	SmallSieve = xcalloc(smallwords, sizeof(u_int32_t));
 	smallbits = smallwords << SHIFT_WORD;
 
-	/*
-	 * dynamically determine available memory
-	 */
-	while ((LargeSieve = calloc(largewords, sizeof(u_int32_t))) == NULL)
-		largewords -= (1L << (SHIFT_MEGAWORD - 2)); /* 1/4 MB chunks */
-
+	LargeSieve = xcalloc(largewords, sizeof(u_int32_t));
 	largebits = largewords << SHIFT_WORD;
 	largenumbers = largebits * 2;	/* even numbers excluded */
 

@@ -246,9 +246,8 @@ done
 check_user_homedir
 check_user_dot_ssh_dir
 create_identity id_rsa rsa "SSH2 RSA"
-create_identity id_dsa dsa "SSH2 DSA"
+create_identity id_ed25519 ed25519 "SSH2 Ed25519"
 create_identity id_ecdsa ecdsa "SSH2 ECDSA"
-create_identity identity rsa1 "(deprecated) SSH1 RSA"
 fix_authorized_keys_perms
 
 echo

@@ -3,12 +3,14 @@ piddir=@piddir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
+BUILDDIR=@abs_top_builddir@
 VPATH=@srcdir@
 CC=@CC@
 LD=@LD@
 CFLAGS=@CFLAGS@
 CFLAGS_NOPIE=@CFLAGS_NOPIE@
-CPPFLAGS=-I. -I.. -I$(srcdir) -I$(srcdir)/.. @CPPFLAGS@ @DEFS@
+COMPATINCLUDES="$(BUILDDIR)/@COMPATINCLUDES@"
+CPPFLAGS=-I. -I.. -I$(srcdir) -I$(srcdir)/.. -I$(COMPATINCLUDES) @CPPFLAGS@ @DEFS@
 PICFLAG=@PICFLAG@
 LIBS=@LIBS@
 AR=@AR@
@@ -120,3 +122,4 @@ clean:
 
 distclean: clean
 	rm -f Makefile *~
+	rm -rf include

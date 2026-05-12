@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-restrict.sh,v 1.7 2025/03/28 21:45:55 dtucker Exp $
+#	$OpenBSD: agent-restrict.sh,v 1.8 2025/05/23 08:40:13 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="agent restrictions"
@@ -52,10 +52,6 @@ done
 cat $OBJ/ssh_proxy.bak >> $OBJ/ssh_proxy
 cat $OBJ/ssh_proxy.bak >> $OBJ/ssh_proxy_noid
 
-LC_ALL=C
-export LC_ALL
-echo "SetEnv LC_ALL=${LC_ALL}" >> sshd_proxy
-
 verbose "prepare known_hosts"
 rm -f $OBJ/known_hosts
 for h in a b c x ; do
@@ -84,7 +80,8 @@ reset_keys() {
 	_command=""
 	case "$_whichcmd" in
 	authinfo)	_command="cat \$SSH_USER_AUTH" ;;
-	keylist)		_command="$SSHADD -L | cut -d' ' -f-2 | sort" ;;
+	keylist)		_command="$SSHADD -L | cut -d' ' -f-2 | \
+	    env LC_ALL=C sort" ;;
 	*)		fatal "unsupported command $_whichcmd" ;;
 	esac
 	trace "reset keys"
@@ -227,7 +224,7 @@ rm -f $OBJ/expect_list.pre
 for u in a b c d e x; do
 	cut -d " " -f-2 $OBJ/user_${u}.pub >> $OBJ/expect_list.pre
 done
-sort $OBJ/expect_list.pre > $OBJ/expect_list
+env LC_ALL=C sort $OBJ/expect_list.pre > $OBJ/expect_list
 for h in a b c d e; do
 	cp $OBJ/expect_list $OBJ/expect_$h
 	expect_succeed $h "unrestricted keylist"
@@ -332,7 +329,7 @@ if test ! -z "\$me" ; then
 	cat \$SSH_USER_AUTH
 fi
 echo AGENT
-$SSHADD -L | egrep "^ssh" | cut -d" " -f-2 | sort
+$SSHADD -L | egrep "^ssh" | cut -d" " -f-2 | env LC_ALL=C sort
 if test -z "\$next" ; then 
 	touch $OBJ/done
 	echo "FINISH"
@@ -369,7 +366,7 @@ prepare_multihop_expected() {
 	done
 	rm -f $OBJ/expect_a
 	echo "AGENT" >> $OBJ/expect_a
-	test "x$_keys" = "xnone" || sort $OBJ/expect_keys >> $OBJ/expect_a
+	test "x$_keys" = "xnone" || env LC_ALL=C sort $OBJ/expect_keys >> $OBJ/expect_a
 	echo "NEXT" >> $OBJ/expect_a
 	for h in $_hops ; do 
 		echo "HOSTNAME host_$h" >> $OBJ/expect_a
@@ -377,7 +374,7 @@ prepare_multihop_expected() {
 		(printf "publickey " ; cut -d" " -f-2 $OBJ/user_a.pub) >> $OBJ/expect_a
 		echo "AGENT" >> $OBJ/expect_a
 		if test "x$_keys" = "xall" ; then
-			sort $OBJ/expect_keys >> $OBJ/expect_a
+			env LC_ALL=C sort $OBJ/expect_keys >> $OBJ/expect_a
 		fi
 		if test "x$h" != "x$_lasthop" ; then
 			if test "x$_keys" = "xfiltered" ; then

@@ -39,9 +39,7 @@
 
 #include <stdlib.h>
 
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
-#endif
+#include <sys/stat.h>
 #ifdef HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
 #endif
@@ -50,9 +48,7 @@
 # include <fcntl.h>
 #endif
 
-#ifdef HAVE_UTIL_H
-# include <util.h>
-#endif /* HAVE_UTIL_H */
+#include <util.h>
 
 #ifdef HAVE_PTY_H
 # include <pty.h>

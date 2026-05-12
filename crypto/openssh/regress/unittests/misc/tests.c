@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.10 2023/01/06 02:59:50 djm Exp $ */
+/* 	$OpenBSD: tests.c,v 1.13 2025/09/04 00:34:17 djm Exp $ */
 /*
  * Regress test for misc helper functions.
  *
@@ -9,9 +9,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -27,6 +25,8 @@ void test_argv(void);
 void test_strdelim(void);
 void test_hpdelim(void);
 void test_ptimeout(void);
+void test_xextendf(void);
+void test_misc(void);
 
 void
 tests(void)
@@ -38,4 +38,12 @@ tests(void)
 	test_strdelim();
 	test_hpdelim();
 	test_ptimeout();
+	test_xextendf();
+	test_misc();
+}
+
+void
+benchmarks(void)
+{
+	printf("no benchmarks\n");
 }

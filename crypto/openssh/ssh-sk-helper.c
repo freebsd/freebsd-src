@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk-helper.c,v 1.14 2022/12/04 11:03:11 dtucker Exp $ */
+/* $OpenBSD: ssh-sk-helper.c,v 1.15 2025/07/24 05:44:55 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -45,6 +45,7 @@
 #include "uidswap.h"
 #include "ssherr.h"
 #include "ssh-sk.h"
+#include "ssh-pkcs11.h"
 
 #ifdef ENABLE_SK
 extern char *__progname;
@@ -85,6 +86,22 @@ null_empty(char **s)
 
 	free(*s);
 	*s = NULL;
+}
+
+/* stubs */
+int
+pkcs11_sign(struct sshkey *key,
+    u_char **sigp, size_t *lenp,
+    const u_char *data, size_t datalen,
+    const char *alg, const char *sk_provider,
+    const char *sk_pin, u_int compat)
+{
+	return SSH_ERR_INTERNAL_ERROR;
+}
+
+void
+pkcs11_key_free(struct sshkey *key)
+{
 }
 
 static struct sshbuf *

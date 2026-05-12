@@ -22,9 +22,7 @@
 
 #include <sys/types.h>
 #include <errno.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <stdlib.h>
 
 /*

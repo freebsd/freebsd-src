@@ -70,9 +70,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <stdlib.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <string.h>
 #include <unistd.h>
 
