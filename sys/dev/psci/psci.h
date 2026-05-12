@@ -44,6 +44,9 @@ void	psci_reset(void);
 int32_t	psci_features(uint32_t);
 int	psci_get_version(void);
 
+void	psci_init(void *dummy);
+bool	psci_conduit_is_smc(void);
+
 /* Handler to let us call into the PSCI/SMCCC firmware */
 extern psci_callfn_t psci_callfn;
 static inline int

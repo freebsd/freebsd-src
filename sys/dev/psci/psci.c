@@ -133,7 +133,7 @@ static int psci_def_callfn(register_t, register_t, register_t, register_t,
 
 psci_callfn_t psci_callfn = psci_def_callfn;
 
-static void
+void
 psci_init(void *dummy)
 {
 	psci_callfn_t new_callfn;
@@ -146,8 +146,11 @@ psci_init(void *dummy)
 	psci_callfn = new_callfn;
 	psci_present = true;
 }
+
+#ifdef __arm__
 /* This needs to be before cpu_mp at SI_SUB_CPU, SI_ORDER_THIRD */
 SYSINIT(psci_start, SI_SUB_CPU, SI_ORDER_FIRST, psci_init, NULL);
+#endif
 
 static int
 psci_def_callfn(register_t a __unused, register_t b __unused,
@@ -630,4 +633,10 @@ psci_v0_2_init(device_t dev, int default_version)
 
 	device_printf(dev, "PSCI version number mismatched with DT\n");
 	return (1);
+}
+
+bool
+psci_conduit_is_smc(void)
+{
+	return (psci_callfn == arm_smccc_smc);
 }
