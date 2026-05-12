@@ -152,6 +152,7 @@
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/rsi.h>
 
 #ifdef NUMA
 #define	PMAP_MEMDOM	MAXMEMDOM
@@ -538,6 +539,9 @@ static void bti_free_range(void *ctx, void *node);
 static int pmap_bti_copy(pmap_t dst_pmap, pmap_t src_pmap);
 static void pmap_bti_deassign_all(pmap_t pmap);
 static void pagezero(void *);
+
+static void pmap_set_protected(pt_entry_t old_l3);
+static void pmap_set_unprotected(pt_entry_t new_l3);
 
 /*
  * These load the old table data and store the new value.
@@ -2380,6 +2384,11 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 	    ("pmap_kenter: Invalid virtual address"));
 	KASSERT((size & PAGE_MASK) == 0,
 	    ("pmap_kenter: Mapping is not page-sized"));
+
+	/* CCA - Map devices as nonsecure */
+	if (in_realm() && (mode == VM_MEMATTR_DEVICE ||
+	    mode == VM_MEMATTR_DEVICE_NP))
+		pa |= prot_ns_shared_pa;
 
 	attr = ATTR_AF | pmap_sh_attr | ATTR_S1_AP(ATTR_S1_AP_RW) |
 	    ATTR_S1_XN | ATTR_KERN_GP | ATTR_S1_IDX(mode);
@@ -4224,6 +4233,9 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 		if ((old_l3 & ATTR_SW_WIRED) != 0)
 			pmap->pm_stats.wired_count--;
 		pmap_resident_count_dec(pmap, 1);
+		/* Below will only be true in a realm environment. */
+		if (PTE_TO_PHYS(old_l3) & prot_ns_shared_pa)
+			pmap_set_protected(old_l3);
 		if ((old_l3 & ATTR_SW_MANAGED) != 0) {
 			m = PTE_TO_VM_PAGE(old_l3);
 			if (pmap_pte_dirty(pmap, old_l3))
@@ -5376,6 +5388,28 @@ restart:
 	return (KERN_SUCCESS);
 }
 
+static void
+pmap_set_unprotected(pt_entry_t new_l3)
+{
+	vm_paddr_t pa;
+
+	pa = PTE_TO_PHYS(new_l3) & ~prot_ns_shared_pa;
+
+	rsi_set_addr_range_state(pa, pa + L3_SIZE, RSI_RIPAS_EMPTY,
+	    RSI_CHANGE_DESTROYED, NULL);
+}
+
+static void
+pmap_set_protected(pt_entry_t old_l3)
+{
+	vm_paddr_t pa;
+
+	pa = PTE_TO_PHYS(old_l3) & ~prot_ns_shared_pa;
+
+	rsi_set_addr_range_state(pa, pa + L3_SIZE, RSI_RIPAS_RAM,
+	    RSI_CHANGE_DESTROYED, NULL);
+}
+
 /*
  *	Insert the given physical page (p) at
  *	the specified virtual address (v) in the
@@ -5409,6 +5443,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		VM_PAGE_OBJECT_BUSY_ASSERT(m);
 	pa = VM_PAGE_TO_PHYS(m);
+	if (in_realm() && (flags & PMAP_ENTER_UNPROTECTED) != 0)
+		pa |= prot_ns_shared_pa;
 	new_l3 = (pt_entry_t)(PHYS_TO_PTE(pa) | ATTR_AF | pmap_sh_attr |
 	    L3_PAGE);
 	new_l3 |= pmap_pte_memattr(pmap, m->md.pv_memattr);
@@ -5728,6 +5764,10 @@ validate:
 #endif
 
 	rv = KERN_SUCCESS;
+
+	if (in_realm() && (flags & PMAP_ENTER_UNPROTECTED) != 0)
+		pmap_set_unprotected(new_l3);
+
 out:
 	if (lock != NULL)
 		rw_wunlock(lock);
