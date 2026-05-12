@@ -39,11 +39,19 @@ task:
       TOOLCHAIN: llvm18
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
   - name: amd64-llvm19 World and kernel build and boot smoke test
-    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
+    trigger_type: manual
     env:
       TARGET: amd64
       TARGET_ARCH: amd64
       TOOLCHAIN: llvm19
+      TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
+  - name: amd64-llvm21 World and kernel build and boot smoke test
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+    env:
+      TARGET: amd64
+      TARGET_ARCH: amd64
+      TOOLCHAIN: llvm21
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
   - name: arm64-llvm16 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
@@ -76,6 +84,14 @@ task:
       TARGET: arm64
       TARGET_ARCH: aarch64
       TOOLCHAIN: llvm19
+      TOOLCHAIN_PKG: ${TOOLCHAIN}
+  - name: arm64-llvm21 World and kernel build and boot smoke test (manual)
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
+    trigger_type: manual
+    env:
+      TARGET: arm64
+      TARGET_ARCH: aarch64
+      TOOLCHAIN: llvm21
       TOOLCHAIN_PKG: ${TOOLCHAIN}
   - name: amd64-gcc12 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
