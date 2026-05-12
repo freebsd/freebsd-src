@@ -48,6 +48,9 @@
 
 #include <libufs.h>
 
+_Static_assert(LIBUFS_MAXBSIZE >= MAXBSIZE,
+    "LIBUFS_MAXBSIZE must be at least MAXBSIZE");
+
 int
 getinode(struct uufsd *disk, union dinodep *dp, ino_t inum)
 {
