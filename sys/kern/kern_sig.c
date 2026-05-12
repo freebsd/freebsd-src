@@ -2692,23 +2692,26 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	struct sysentvec *sv;
 	struct sysent *se;
 	register_t rv_saved[2];
+	unsigned int sc;
 	int error, nerror;
-	int sc;
 	bool audited, sy_thr_static;
-
-	sv = p->p_sysent;
-	if (sv->sv_table == NULL || sv->sv_size < tsr->ts_sa.code) {
-		tsr->ts_ret.sr_error = ENOSYS;
-		return;
-	}
 
 	sc = tsr->ts_sa.code;
 	if (sc == SYS_syscall || sc == SYS___syscall) {
+		if (tsr->ts_nargs == 0) {
+			tsr->ts_ret.sr_error = EINVAL;
+			return;
+		}
 		sc = tsr->ts_sa.args[0];
 		memmove(&tsr->ts_sa.args[0], &tsr->ts_sa.args[1],
 		    sizeof(register_t) * (tsr->ts_nargs - 1));
 	}
 
+	sv = p->p_sysent;
+	if (sv->sv_table == NULL || sc >= sv->sv_size) {
+		tsr->ts_ret.sr_error = ENOSYS;
+		return;
+	}
 	tsr->ts_sa.callp = se = &sv->sv_table[sc];
 
 	VM_CNT_INC(v_syscall);

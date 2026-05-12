@@ -4363,6 +4363,25 @@ ATF_TC_BODY(ptrace__procdesc_reparent_wait_child, tc)
 	REQUIRE_EQ(close(pd), 0);
 }
 
+static void
+pt_sc_remote(pid_t pid, struct ptrace_sc_remote *pscr, int error,
+    syscallarg_t ret)
+{
+	pid_t wpid;
+	int status;
+
+	ATF_REQUIRE(ptrace(PT_SC_REMOTE, pid, (caddr_t)pscr, sizeof(*pscr)) !=
+	    -1);
+	ATF_REQUIRE_EQ(pscr->pscr_ret.sr_error, error);
+	if (error == 0)
+		ATF_REQUIRE_EQ(pscr->pscr_ret.sr_retval[0], ret);
+
+	wpid = waitpid(pid, &status, 0);
+	REQUIRE_EQ(wpid, pid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+}
+
 /*
  * Try using PT_SC_REMOTE to get the PID of a traced child process.
  */
@@ -4387,34 +4406,61 @@ ATF_TC_BODY(ptrace__PT_SC_REMOTE_getpid, tc)
 	pscr.pscr_syscall = SYS_getpid;
 	pscr.pscr_nargs = 0;
 	pscr.pscr_args = NULL;
-	ATF_REQUIRE(ptrace(PT_SC_REMOTE, fpid, (caddr_t)&pscr, sizeof(pscr)) !=
-	    -1);
-	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_error == 0,
-	    "remote getpid failed with error %d", pscr.pscr_ret.sr_error);
-	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_retval[0] == fpid,
-	    "unexpected return value %jd instead of %d",
-	    (intmax_t)pscr.pscr_ret.sr_retval[0], fpid);
-
-	wpid = waitpid(fpid, &status, 0);
-	REQUIRE_EQ(wpid, fpid);
-	ATF_REQUIRE(WIFSTOPPED(status));
-	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+	pt_sc_remote(fpid, &pscr, 0, fpid);
 
 	pscr.pscr_syscall = SYS_getppid;
 	pscr.pscr_nargs = 0;
 	pscr.pscr_args = NULL;
-	ATF_REQUIRE(ptrace(PT_SC_REMOTE, fpid, (caddr_t)&pscr, sizeof(pscr)) !=
-	    -1);
-	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_error == 0,
-	    "remote getppid failed with error %d", pscr.pscr_ret.sr_error);
-	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_retval[0] == getpid(),
-	    "unexpected return value %jd instead of %d",
-	    (intmax_t)pscr.pscr_ret.sr_retval[0], fpid);
+	pt_sc_remote(fpid, &pscr, 0, getpid());
+
+	ATF_REQUIRE(ptrace(PT_DETACH, fpid, (caddr_t)1, 0) != -1);
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SC_REMOTE_syscall_validation);
+ATF_TC_BODY(ptrace__PT_SC_REMOTE_syscall_validation, tc)
+{
+	struct ptrace_sc_remote pscr;
+	quad_t code;
+	int status;
+	pid_t fpid, wpid;
+
+	code = SYS_MAXSYSCALL;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		exit(0);
+	}
 
 	wpid = waitpid(fpid, &status, 0);
 	REQUIRE_EQ(wpid, fpid);
 	ATF_REQUIRE(WIFSTOPPED(status));
 	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	pscr.pscr_syscall = SYS_MAXSYSCALL;
+	pscr.pscr_nargs = 0;
+	pscr.pscr_args = NULL;
+	pt_sc_remote(fpid, &pscr, ENOSYS, 0);
+
+	pscr.pscr_syscall = SYS_syscall;
+	pscr.pscr_nargs = 0;
+	pscr.pscr_args = NULL;
+	pt_sc_remote(fpid, &pscr, EINVAL, 0);
+
+	pscr.pscr_syscall = SYS_syscall;
+	pscr.pscr_nargs = 1;
+	pscr.pscr_args = (syscallarg_t *)&code;
+	pt_sc_remote(fpid, &pscr, ENOSYS, 0);
+
+	pscr.pscr_syscall = SYS___syscall;
+	pscr.pscr_nargs = 0;
+	pscr.pscr_args = NULL;
+	pt_sc_remote(fpid, &pscr, EINVAL, 0);
+
+	pscr.pscr_syscall = SYS___syscall;
+	pscr.pscr_nargs = 1;
+	pscr.pscr_args = (syscallarg_t *)&code;
+	pt_sc_remote(fpid, &pscr, ENOSYS, 0);
 
 	ATF_REQUIRE(ptrace(PT_DETACH, fpid, (caddr_t)1, 0) != -1);
 }
@@ -4658,6 +4704,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_wait_child);
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_reparent_wait_child);
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_getpid);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_syscall_validation);
 	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_no_EINTR);
 	ATF_TP_ADD_TC(tp, ptrace__PT_DETACH_continued);
