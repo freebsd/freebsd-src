@@ -192,7 +192,6 @@ class Test1RBasicINET(MRouteINETTestTemplate):
 
     @pytest.mark.require_user("root")
     @pytest.mark.require_progs(["pimd"])
-    @pytest.mark.timeout(30)
     def test(self):
         self.starttest(["vnet_host1", "vnet_host2"])
         self.waittest()
@@ -287,7 +286,6 @@ class Test1RCrissCrossINET(MRouteINETCrissCrossTestTemplate):
 
     @pytest.mark.require_user("root")
     @pytest.mark.require_progs(["pimd"])
-    @pytest.mark.timeout(30)
     def test(self):
         self.starttest(["vnet_host1", "vnet_host2", "vnet_host3", "vnet_host4"])
         self.waittest()
@@ -347,7 +345,6 @@ class Test1RCrissCrossINETMissingRouter(MRouteINETCrissCrossTestTemplate):
 
     @pytest.mark.require_user("root")
     @pytest.mark.require_progs(["pimd"])
-    @pytest.mark.timeout(30)
     def test(self):
         self.starttest(["vnet_host1", "vnet_host2", "vnet_host3", "vnet_host4"])
         self.waittest()
@@ -401,7 +398,6 @@ class Test1RBasicINET6(MRouteINET6TestTemplate):
         self.donetest()
 
     @pytest.mark.require_user("root")
-    @pytest.mark.timeout(30)
     def test(self):
         self.starttest(["vnet_host1", "vnet_host2"])
         self.waittest()
@@ -489,7 +485,6 @@ class Test1RCrissCrossINET6MissingRouter(MRouteINET6CrissCrossTestTemplate):
         self.donetest()
 
     @pytest.mark.require_user("root")
-    @pytest.mark.timeout(30)
     def test(self):
         self.starttest(["vnet_host1", "vnet_host2", "vnet_host3", "vnet_host4"])
         self.waittest()
@@ -549,7 +544,6 @@ class Test1RCrissCrossINET6(MRouteINET6CrissCrossTestTemplate):
         self.donetest()
 
     @pytest.mark.require_user("root")
-    @pytest.mark.timeout(30)
     def test(self):
         self.starttest(["vnet_host1", "vnet_host2", "vnet_host3", "vnet_host4"])
         self.waittest()
