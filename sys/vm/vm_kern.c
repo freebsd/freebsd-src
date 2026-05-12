@@ -270,6 +270,7 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	vm_size_t asize;
 	int pflags;
 	vm_prot_t prot;
+	u_int pmap_enter_flags;
 
 	object = kernel_object;
 	asize = round_page(size);
@@ -279,6 +280,11 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
 	prot = (flags & M_EXEC) != 0 ? VM_PROT_ALL : VM_PROT_RW;
+
+	pmap_enter_flags = prot | PMAP_ENTER_WIRED;
+	if ((flags & M_UNPROTECTED) != 0)
+		pmap_enter_flags |= PMAP_ENTER_UNPROTECTED;
+
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < asize; i += PAGE_SIZE) {
 		m = kmem_alloc_contig_pages(object, atop(offset + i),
@@ -296,7 +302,7 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 			pmap_zero_page(m);
 		vm_page_valid(m);
 		pmap_enter(kernel_pmap, addr + i, m, prot,
-		    prot | PMAP_ENTER_WIRED, 0);
+		    pmap_enter_flags, 0);
 	}
 	VM_OBJECT_WUNLOCK(object);
 	kmem_alloc_san(addr, size, asize, flags);
@@ -363,6 +369,7 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	vm_size_t asize;
 	u_long npages;
 	int pflags;
+	u_int pmap_enter_flags;
 
 	object = kernel_object;
 	asize = round_page(size);
@@ -385,12 +392,17 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	    vm_page_domain(m), domain));
 	end_m = m + npages;
 	tmp = addr;
+
+	pmap_enter_flags = VM_PROT_RW | PMAP_ENTER_WIRED;
+	if ((flags & M_UNPROTECTED) != 0)
+                pmap_enter_flags |= PMAP_ENTER_UNPROTECTED;
+
 	for (; m < end_m; m++) {
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		vm_page_valid(m);
 		pmap_enter(kernel_pmap, tmp, m, VM_PROT_RW,
-		    VM_PROT_RW | PMAP_ENTER_WIRED, 0);
+		    pmap_enter_flags, 0);
 		tmp += PAGE_SIZE;
 	}
 	VM_OBJECT_WUNLOCK(object);
@@ -549,6 +561,7 @@ kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
 	vm_page_t m;
 	vm_prot_t prot;
 	int pflags;
+	u_int pmap_enter_flags;
 
 	KASSERT(object == kernel_object,
 	    ("kmem_back_domain: only supports kernel object."));
@@ -559,6 +572,10 @@ kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
 	if (flags & M_WAITOK)
 		pflags |= VM_ALLOC_WAITFAIL;
 	prot = (flags & M_EXEC) != 0 ? VM_PROT_ALL : VM_PROT_RW;
+
+	pmap_enter_flags = prot | PMAP_ENTER_WIRED;
+	if ((flags & M_UNPROTECTED) != 0)
+		pmap_enter_flags |= PMAP_ENTER_UNPROTECTED;
 
 	i = 0;
 	vm_page_iter_init(&pages, object);
@@ -589,7 +606,7 @@ retry:
 		    ("kmem_malloc: page %p is managed", m));
 		vm_page_valid(m);
 		pmap_enter(kernel_pmap, addr + i, m, prot,
-		    prot | PMAP_ENTER_WIRED, 0);
+		    pmap_enter_flags, 0);
 		if (__predict_false((prot & VM_PROT_EXECUTE) != 0))
 			m->oflags |= VPO_KMEM_EXEC;
 	}
