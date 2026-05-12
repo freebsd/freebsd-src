@@ -799,7 +799,7 @@ common:
 	adrp	x9, socdev_va
 	str	x17, [x9, :lo12:socdev_va]
 
-	mov	x9, #(SOCDEV_PA & ~L2_OFFSET)	/* PA start */
+	ldr	x9, =(SOCDEV_PA)	/* PA start */
 	mov	x10, #1
 	bl	build_l2_block_pagetable
 #endif
