@@ -1,5 +1,9 @@
 This file documents changes for smart releases
 
+version 1.0.3
+ - Fix build errors detected by GCC14
+ - Fix printf build error on 32-bit systems
+
 version 1.0.2
  - Bring man page up to snuff
  - Fix various complier warnings

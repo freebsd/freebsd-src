@@ -121,7 +121,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 	struct fbsd_smart *fsmart = h;
 	const uint8_t *smart_fis;
 	uint32_t smart_fis_size = 0;
-	uint32_t cam_flags = 0;
+	uint32_t flags = 0;
 	uint16_t sector_count = 0;
 	uint8_t protocol = 0;
 
@@ -129,7 +129,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 	case PAGE_ID_ATA_SMART_READ_DATA: /* Support SMART READ DATA */
 		smart_fis = smart_read_data;
 		smart_fis_size = sizeof(smart_read_data);
-		cam_flags = CAM_DIR_IN;
+		flags = CAM_DIR_IN;
 		sector_count = 1;
 		protocol = AP_PROTO_PIO_IN;
 		break;
@@ -137,7 +137,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 		smart_fis = smart_return_status;
 		smart_fis_size = sizeof(smart_return_status);
 		/* Command has no data but uses the return status */
-		cam_flags = CAM_DIR_NONE;
+		flags = CAM_DIR_NONE;
 		protocol = AP_PROTO_NON_DATA;
 		bsize = 0;
 		break;
@@ -165,7 +165,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 		scsi_ata_pass_16(&ccb->csio,
 				/*retries*/	1,
 				/*cbfcnp*/	NULL,
-				/*flags*/	cam_flags,
+				/*flags*/	flags,
 				/*tag_action*/	MSG_SIMPLE_Q_TAG,
 				/*protocol*/	protocol,
 				/*ata_flags*/	cdb_flags,
@@ -188,7 +188,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 		cam_fill_ataio(&ccb->ataio,
 				/* retries */1,
 				/* cbfcnp */NULL,
-				/* flags */cam_flags,
+				/* flags */flags,
 				/* tag_action */0,
 				/* data_ptr */buf,
 				/* dxfer_len */bsize,
@@ -709,8 +709,6 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 {
 	struct ata_params ident_data;
 	union ccb *ccb = NULL;
-	struct ata_pass_16 *ata_pass_16;
-	struct ata_cmd ata_cmd;
 	int32_t rc = -1;
 
 	ccb = cam_getccb(fsmart->camdev);
@@ -741,11 +739,6 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 			/*sense_len*/	SSD_FULL_SIZE,
 			/*timeout*/	5000
 			);
-
-	ata_pass_16 = (struct ata_pass_16 *)ccb->csio.cdb_io.cdb_bytes;
-	ata_cmd.command = ata_pass_16->command;
-	ata_cmd.control = ata_pass_16->control;
-	ata_cmd.features = ata_pass_16->features;
 
 	rc = cam_send_ccb(fsmart->camdev, ccb);
 	if (rc != 0) {
