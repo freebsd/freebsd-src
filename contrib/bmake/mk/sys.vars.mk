@@ -1,4 +1,4 @@
-# $Id: sys.vars.mk,v 1.27 2026/03/13 16:02:44 sjg Exp $
+# $Id: sys.vars.mk,v 1.28 2026/04/24 19:50:26 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2023, Simon J. Gerraty
 #
@@ -69,7 +69,7 @@ M_sh1 = sh1
 .endif
 
 # AUTOCONF := ${autoconf:L:${M_whence}}
-M_type = @x@(${_type_sh:Utype} $x) 2> /dev/null; echo;@:${M_sh1:Ush}:[0]:N* found*:[@]:C,[()],,g
+M_type = @x@(${_type_sh:Utype} $x) 2> /dev/null; echo;@:sh:[0]:N* found*:[@]:C,[()],,g
 M_whence = ${M_type}:M/*:[1]
 
 # produce similar output to jot(1) or seq(1)

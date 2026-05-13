@@ -344,15 +344,17 @@ SSHHEELLLL CCOOMMMMAANNDDSS
            --       in compatibility mode causes any non-zero exit status of
                    the command line to be ignored.
 
-     When bbmmaakkee is run in jobs mode with --jj _m_a_x___j_o_b_s, the entire script for
-     the target is fed to a single instance of the shell.  In compatibility
-     (non-jobs) mode, each command is run in a separate process.  If the
-     command contains any shell meta characters (`#=|^(){};&<>*?[]:$`\\n'), it
-     is passed to the shell; otherwise bbmmaakkee attempts direct execution.  If a
-     line starts with `--' and the shell has ErrCtl enabled, failure of the
-     command line is ignored as in compatibility mode.  Otherwise `--' affects
-     the entire job; the script stops at the first command line that fails,
-     but the target is not deemed to have failed.
+                   When bbmmaakkee is run in jobs mode with --jj _m_a_x___j_o_b_s, the entire
+                   script for the target is fed to a single instance of the
+                   shell.  In compatibility (non-jobs) mode, each command is
+                   run in a separate process.  If the command contains any
+                   shell meta characters (`#=|^(){};&<>*?[]:$`\\n'), it is
+                   passed to the shell; otherwise bbmmaakkee attempts direct
+                   execution.  If a line starts with `--' and the shell has
+                   ErrCtl enabled, failure of the command line is ignored as
+                   in compatibility mode.  Otherwise `--' affects the entire
+                   job; the script stops at the first command line that fails,
+                   but the target is not deemed to have failed.
 
      Makefiles should be written so that the mode of bbmmaakkee operation does not
      change their behavior.  For example, any command which uses "cd" or
@@ -1880,4 +1882,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.3-RELEASE-p9        February 8, 2026        FreeBSD 14.3-RELEASE-p9
+FreeBSD 14.3-RELEASE-p9           May 8, 2026          FreeBSD 14.3-RELEASE-p9

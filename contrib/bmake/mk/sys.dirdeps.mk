@@ -1,4 +1,4 @@
-# $Id: sys.dirdeps.mk,v 1.17 2026/02/15 17:04:27 sjg Exp $
+# $Id: sys.dirdeps.mk,v 1.20 2026/04/24 19:56:01 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -15,6 +15,7 @@
 # Include from [local.]sys.mk - if doing DIRDEPS_BUILD
 # we should not be here otherwise
 MK_DIRDEPS_BUILD ?= yes
+MK_META_AUTODEP ?= yes
 # these are all implied
 MK_AUTO_OBJ ?= yes
 MK_META_MODE ?= yes
@@ -192,7 +193,7 @@ RELSRCTOP?= ${RELTOP}
 .undef .MAKE.DEPENDFILE
 .endif
 # just in case
-.MAKE.DEPENDFILE ?= Makefile.depend
+.MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_PREFIX}
 
 # Makefile.depend* often refer to DEP_MACHINE etc,
 # we need defaults for both first include in a leaf dir

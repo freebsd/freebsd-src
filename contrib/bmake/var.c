@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1179 2026/03/13 04:22:03 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.1180 2026/04/06 17:13:55 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -145,7 +145,7 @@
 #endif
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1179 2026/03/13 04:22:03 sjg Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1180 2026/04/06 17:13:55 rillig Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -3397,8 +3397,8 @@ SubNumAsc(const void *sa, const void *sb)
 {
 	NUM_TYPE a, b;
 
-	a = num_val(*((const Substring *)sa));
-	b = num_val(*((const Substring *)sb));
+	a = num_val(*(const Substring *)sa);
+	b = num_val(*(const Substring *)sb);
 	return a > b ? 1 : b > a ? -1 : 0;
 }
 
@@ -4428,7 +4428,7 @@ CheckVarname(Substring name)
 		    ch_isprint(*p)
 		    ? "Invalid character \"%c\" in variable name \"%.*s\""
 		    : "Invalid character \"\\x%02x\" in variable name \"%.*s\"",
-		    (int)(*p),
+		    (int)*p,
 		    (int)Substring_Length(name), name.start);
 	}
 }
@@ -4909,8 +4909,7 @@ Var_Stats(void)
 static int
 StrAsc(const void *sa, const void *sb)
 {
-	return strcmp(
-	    *((const char *const *)sa), *((const char *const *)sb));
+	return strcmp(*(const char *const *)sa, *(const char *const *)sb);
 }
 
 

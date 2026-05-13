@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.86 2025/05/20 17:19:37 sjg Exp $
+# $Id: lib.mk,v 1.87 2026/04/24 19:56:01 sjg Exp $
 
 # should be set properly in sys.mk
 _this ?= ${.PARSEFILE:S,bsd.,,}
@@ -251,7 +251,7 @@ DLLIB ?= -ldl
 # is a waste of time, this tells meta.autodep.mk to just pick one
 # (typically ${PICO})
 # yes, 42 is a random number.
-.if ${MK_DIRDEPS_BUILD} == "yes" && ${SRCS:Uno:[\#]} > 42
+.if ${MK_META_AUTODEP} == "yes" && ${SRCS:Uno:[\#]} > 42
 OPTIMIZE_OBJECT_META_FILES ?= yes
 .endif
 

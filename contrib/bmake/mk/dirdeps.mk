@@ -1,8 +1,8 @@
-# $Id: dirdeps.mk,v 1.176 2026/02/23 21:37:10 sjg Exp $
+# $Id: dirdeps.mk,v 1.178 2026/05/09 20:33:46 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2010-2023, Simon J. Gerraty
+# Copyright (c) 2010-2026, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 #
@@ -321,6 +321,12 @@ _debug_reldir = 0
 _debug_search = 1
 .else
 _debug_search = 0
+.endif
+.if ${DEBUG_DIRDEPS:Mno*recurse} != ""
+BUILD_DIRDEPS_RECURSE = no
+.endif
+.if ${DEBUG_DIRDEPS:M-V} != ""
+_V_READ_DIRDEPS = yes
 .endif
 
 # First off, we want to know what ${MACHINE} to build for.
@@ -720,12 +726,12 @@ DEP_DIRDEPS_BUILD_DIR_FILTER = u
 .endif
 
 # this is what we start with
-__depdirs := ${DIRDEPS:${NSkipDir}:${DEP_DIRDEPS_FILTER:ts:}:C,//+,/,g:O:u:@d@${SRCTOP}/$d@}
+__depdirs := ${DIRDEPS:${NSkipDir}:${DEP_DIRDEPS_FILTER:ts:}:C,//+,/,g:S,/$,,:O:u:@d@${SRCTOP}/$d@}
 
 # some entries may be qualified with .<machine> or .<target_spec>
 # we can tell the unqualified ones easily - because they exist
 __unqual_depdirs := ${__depdirs:@d@${exists($d):?$d:}@}
-__qual_depdirs := ${__depdirs:${__unqual_depdirs:Uno:${M_ListToSkip}}}
+__qual_depdirs := ${__depdirs:${__unqual_depdirs:Uno:${M_ListToSkip}}:C,/(\.[^.]*)$,\1,}
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # if it was called out - we likely need it.
@@ -750,16 +756,13 @@ _build_dirs += \
 	${_machines:Nhost*:@m@${__unqual_depdirs:@d@$d.$m@}@}
 
 # qualify everything now
-.if ${_debug_reldir}
-.info _build_dirs=${_build_dirs:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
-.endif
 # make sure we do not mess with qualifying "host" entries
 _build_dirs := ${_build_dirs:M*.host*:${M_dep_qual_fixes.host:ts:}} \
 	${_build_dirs:N*.host*:${M_dep_qual_fixes:ts:}}
 # some filters can only be applied now
 _build_dirs := ${_build_dirs:${DEP_DIRDEPS_BUILD_DIR_FILTER:ts:}:O:u}
 .if ${_debug_reldir}
-.info _build_dirs=${_build_dirs:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
+.info _build_dirs=${_build_dirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .endif
 
 .endif				# empty DIRDEPS
@@ -796,7 +799,7 @@ dirdeps: ${_build_all_dirs}
 ${_build_all_dirs}:	_DIRDEP_USE
 
 .if ${_debug_reldir}
-.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_dirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
+.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_all_dirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .endif
 
 # this builds the dependency graph
@@ -863,6 +866,7 @@ DIRDEPS_EXPORT_VARS =
 DEP_EXPORT_VARS =
 .endif
 
+.if ${BUILD_DIRDEPS_RECURSE:Uyes} != "no"
 # Now find more dependencies - and recurse.
 .for d in ${_build_all_dirs}
 .if !target(_dirdeps_checked.$d)
@@ -914,6 +918,7 @@ DIRDEPS =
 .endif
 .endif
 .endfor
+.endif
 
 .endif				# -V
 .endif				# BUILD_DIRDEPS

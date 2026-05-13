@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.220 2026/02/10 18:53:34 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.221 2026/04/06 17:13:54 rillig Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -458,8 +458,6 @@ meta_create(BuildMon *pbm, GNode *gn)
 	    fprintf(stdout, "%s\n", mp);
 	free(mp);
     }
-    /* Get the basename of the target */
-    cp = str_basename(tname);
 
     fflush(stdout);
 
@@ -1511,7 +1509,7 @@ meta_oodate(GNode *gn, bool oodate)
 		    if (p != NULL &&
 			!hasOODATE &&
 			!(gn->type & OP_NOMETA_CMP) &&
-			(meta_cmd_cmp(gn, p, cmd, cmp_filter) != 0)) {
+			meta_cmd_cmp(gn, p, cmd, cmp_filter) != 0) {
 			DEBUG4(META, "%s:%u: a build command has changed\n%s\nvs\n%s\n",
 			       fname, lineno, p, cmd);
 			if (!metaIgnoreCMDs)
@@ -1555,7 +1553,7 @@ meta_oodate(GNode *gn, bool oodate)
 
 	    /* if target is in .CURDIR we do not need a meta file */
 	    if (gn->path != NULL && (cp = strrchr(gn->path, '/')) != NULL &&
-		(cp > gn->path)) {
+		cp > gn->path) {
 		if (strncmp(curdir, gn->path, (size_t)(cp - gn->path)) != 0) {
 		    cp = NULL;		/* not in .CURDIR */
 		}

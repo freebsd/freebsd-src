@@ -1,3 +1,19 @@
+2026-05-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260508
+	Merge with NetBSD make, pick up
+	o make.1: fix description of '-' handling in jobs-mod
+	by intenting it correctly.
+
+2026-04-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20260406
+	Merge with NetBSD make, pick up
+	o cleanup unnecessary parens
+
+	* configure.in: add --with-save-dollars to control default for
+	.MAKE.SAVE.DOLLARS - address FreeBSD PR 294436
+
 2026-03-12  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20260313

@@ -1,3 +1,29 @@
+2026-05-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* gendirdeps.mk: also apply ':S,/$,,' and ':C,/(\.[^.]*)$,\1,'
+	when setting DIRDEPS prior to saving.
+
+	* dirdeps.mk: when debugging it is handy to be able to skip
+	recursing so if DEBUG_DIRDEPS contains 'norecurse' we will only
+	process the immediate DIRDEPS.
+	Also if DEBUG_DIRDEPS contains '-V' we process sections normally
+	skipped when doing 'make -V'.
+	o ensure we do not get duplicate build dirs due to someone
+	adding a trailing '/' or '/.${TARGET_SPEC}' to a DIRDEPS entry.
+	Add ':S,/$,,' when setting '__depdirs' and
+	add ':C,/(\.[^.]*)$,\1,' when setting '__qual_depdirs'.
+
+2026-04-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20260424
+
+	* Use MK_META_AUTODEP to control use of meta.autodep.mk
+	so it can be used independently of MK_DIRDEPS_BUILD for
+	bootstrapping.
+
+	* sys.vars.mk (M_type): use :sh rather than :sh1 to avoid
+	surprises in a .for loop.
+
 2026-03-12  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20260313
