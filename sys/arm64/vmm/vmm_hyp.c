@@ -708,9 +708,7 @@ VMM_HYP_FUNC(s2_tlbi_range)(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
 	uint64_t host_tcr;
 #endif
 
-#ifdef VMM_VHE
 	dsb(ishst);
-#endif
 
 #define	TLBI_VA_SHIFT			12
 #define	TLBI_VA_MASK			((1ul << 44) - 1)
@@ -768,9 +766,7 @@ VMM_HYP_FUNC(s2_tlbi_all)(uint64_t vttbr)
 {
 	uint64_t host_vttbr;
 
-#ifdef VMM_VHE
 	dsb(ishst);
-#endif
 
 	/* Switch to the guest vttbr */
 	/* TODO: Handle Cortex-A57/A72 erratum 131936 */
