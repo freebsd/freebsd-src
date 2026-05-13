@@ -20,6 +20,7 @@
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
    Copyright (c) 2025      Berkay Eren Ürün <berkay.ueruen@siemens.com>
+   Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -2136,8 +2137,7 @@ START_TEST(test_alloc_tracker_pointer_alignment) {
   XML_Parser parser = XML_ParserCreate(NULL);
 #if XML_GE == 1
   assert_true(sizeof(long long) >= sizeof(size_t)); // self-test
-  long long *const ptr
-      = (long long *)expat_malloc(parser, 4 * sizeof(long long), -1);
+  long long *const ptr = expat_malloc(parser, 4 * sizeof(long long), -1);
   ptr[0] = 0LL;
   ptr[1] = 1LL;
   ptr[2] = 2LL;

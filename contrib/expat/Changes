@@ -29,6 +29,32 @@
 !! THANK YOU!                        Sebastian Pipping -- Berlin, 2026-03-17 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+Release 2.8.1 Sun May 10 2026
+        Security fixes:
+           #1216  CVE-2026-45186 -- Fix quadratic runtime from attribute name
+                    collision checks that allowed denial of service attacks
+                    through moderately sized crafted XML input (CWE-407).
+                    Please note that a layer of compression around XML can
+                    significantly reduce the minimum attack payload size.
+
+        Other changes:
+     #1209 #1213  Drop more casts related to `void *` that C99 does not need
+           #1213  xmlwf: Streamline use of `mmap`
+     #1214 #1217  Version info bumped from 13:0:12 (libexpat*.so.1.12.0)
+                    to 13:1:12 (libexpat*.so.1.12.1); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+           #1210  CI: Cover compilation with Visual Studio 18 2026 on Windows
+           #1215  CI: Cover compilation for ARM64 on Windows
+           #1212  CI: Bump WASI SDK from 32 to 33
+
+        Special thanks to:
+            Berkay Eren Ürün
+            Matthew Fernandez
+            Nick Wellnhofer
+            Tania Somanna
+
 Release 2.8.0 Fri April 24 2026
         Security fixes:
        #47 #1183  CVE-2026-41080 -- The existing hash flooding protection

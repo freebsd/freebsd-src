@@ -19,6 +19,7 @@
    Copyright (c) 2020      Tim Gates <tim.gates@iress.com>
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
+   Copyright (c) 2026      Berkay Eren Ürün <berkay.ueruen@siemens.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -88,6 +89,7 @@ typedef struct attrInfo {
 typedef struct elementInfo {
   const XML_Char *name;
   int attr_count;
+  int default_attr_count;
   const XML_Char *id_name;
   AttrInfo *attributes;
 } ElementInfo;

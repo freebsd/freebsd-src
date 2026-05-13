@@ -11,7 +11,7 @@
 > at the top of the `Changes` file.
 
 
-# Expat, Release 2.8.0
+# Expat, Release 2.8.1
 
 This is Expat, a C99 library for parsing
 [XML 1.0 Fourth Edition](https://www.w3.org/TR/2006/REC-xml-20060816/), started by

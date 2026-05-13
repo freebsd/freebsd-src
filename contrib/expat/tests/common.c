@@ -19,6 +19,7 @@
    Copyright (c) 2020      Tim Gates <tim.gates@iress.com>
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2023-2024 Sony Corporation / Snild Dolkow <snild@sony.com>
+   Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -261,7 +262,7 @@ _run_attribute_check(const char *text, const XML_Char *expected,
 void
 _run_ext_character_check(const char *text, ExtTest *test_data,
                          const XML_Char *expected, const char *file, int line) {
-  CharData *const storage = (CharData *)malloc(sizeof(CharData));
+  CharData *const storage = malloc(sizeof(CharData));
 
   CharData_Init(storage);
   test_data->storage = storage;
@@ -320,7 +321,7 @@ portable_strndup(const char *s, size_t n) {
 
   n = portable_strnlen(s, n);
 
-  char *const buffer = (char *)malloc(n + 1);
+  char *const buffer = malloc(n + 1);
   if (buffer == NULL) {
     errno = ENOMEM;
     return NULL;
