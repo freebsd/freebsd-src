@@ -846,6 +846,8 @@
             ..
         ..
         sbom
+            jsonld
+            ..
             spdx
             ..
         ..

@@ -3066,7 +3066,8 @@ _ar=usr.bin/ar
 
 .if ${MK_PKGCONF} != "no"
 _sbom= lib/libpkgconf \
-       usr.bin/bomtool
+       usr.bin/bomtool \
+       usr.bin/spdxtool
 .endif
 
 cross-tools: .MAKE .PHONY
