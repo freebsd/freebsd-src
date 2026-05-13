@@ -71,7 +71,7 @@ Increments in SI seconds like a wall clock.
 It uses a 1970 epoch and implements the UTC timescale.
 The count of physical SI seconds since 1970, adjusted by subtracting the number
 of positive leap seconds and adding the number of negative leap seconds.
-Behavior during a leap second is not defined by and POSIX standard.
+Behavior during a leap second is not defined by any POSIX standard.
 .It Dv CLOCK_MONOTONIC
 .It Dv CLOCK_MONOTONIC_PRECISE
 .It Dv CLOCK_MONOTONIC_FAST
@@ -109,7 +109,7 @@ It will increase monotonically during a leap second.
 Will return
 .Er EINVAL
 if the current offset between TAI and UTC is not known,
-which may be the case early in boot before NTP or other time daemon has
+which may be the case early in boot before NTP or another time daemon has
 synchronized.
 .El
 .Pp
