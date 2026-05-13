@@ -592,6 +592,9 @@ mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp, int prot,
 	return (0);
 }
 
+void	mac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
+	    int *prot);
+
 int	mac_vnode_check_open_impl(struct ucred *cred, struct vnode *vp,
 	    accmode_t accmode);
 #ifdef MAC
