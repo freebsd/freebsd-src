@@ -12,6 +12,7 @@
    Copyright (c) 2006      Karl Waclawek <karl@waclawek.net>
    Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
+   Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -95,13 +96,13 @@ filemap(const tchar *name,
     return 1;
   }
   p = mmap(NULL, nbytes, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, (off_t)0);
-  if (p == (void *)-1) {
+  if (p == MAP_FAILED) {
     tperror(name);
     close(fd);
     return 0;
   }
   processor(p, nbytes, name, arg);
-  munmap((void *)p, nbytes);
+  munmap(p, nbytes);
   close(fd);
   return 1;
 }
