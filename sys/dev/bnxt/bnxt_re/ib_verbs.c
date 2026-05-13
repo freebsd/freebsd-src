@@ -241,7 +241,7 @@ int bnxt_re_modify_device(struct ib_device *ibdev,
 	return 0;
 }
 
-static void __to_ib_speed_width(u32 espeed, u8 lanes, u8 *speed, u8 *width)
+static void __to_ib_speed_width(u32 espeed, u8 lanes, u16 *speed, u8 *width)
 {
 	if (!lanes) {
 		switch (espeed) {
@@ -342,7 +342,8 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_qplib_dev_attr *dev_attr = rdev->dev_attr;
-	u8 active_speed = 0, active_width = 0;
+	u16 active_speed = 0;
+	u8 active_width = 0;
 
 	dev_dbg(rdev_to_dev(rdev), "QUERY PORT with port_num 0x%x\n", port_num);
 	memset(port_attr, 0, sizeof(*port_attr));

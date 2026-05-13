@@ -155,7 +155,7 @@ static if_t mlx5_ib_get_netdev(struct ib_device *device,
 	return ndev;
 }
 
-static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+static int translate_eth_proto_oper(u32 eth_proto_oper, u16 *active_speed,
 				    u8 *active_width)
 {
 	switch (eth_proto_oper) {
@@ -216,7 +216,7 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	return 0;
 }
 
-static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u16 *active_speed,
 					u8 *active_width)
 {
 	switch (eth_proto_oper) {
@@ -969,7 +969,7 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 	if (err)
 		goto out;
 
-	props->active_speed	= (u8)ptys->ib_proto_oper;
+	props->active_speed	= (u16)ptys->ib_proto_oper;
 
 	pmtu->local_port = port;
 	err = mlx5_core_access_pmtu(mdev, pmtu, 0);
