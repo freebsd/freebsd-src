@@ -1,9 +1,7 @@
 PACKAGE=	pkgconf
 
 PROG=		pkgconf
-SRCS=		main.c
-SRCS+=		getopt_long.c
-SRCS+=		renderer-msvc.c
+SRCS=		main.c core.c getopt_long.c renderer-msvc.c
 
 LIBADD=		pkgconf
 
