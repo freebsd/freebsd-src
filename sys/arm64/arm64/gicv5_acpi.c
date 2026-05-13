@@ -428,6 +428,7 @@ gic_v5_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		    ITS_REGISTER_SIZE);
 
 		di->di_base.di_irs = sc->gic_irs[0];
+		di->di_base.di_is_vgic = false;
 
 		gicv5_add_child(dev, &di->di_base);
 
@@ -456,6 +457,23 @@ gic_v5_acpi_bus_attach(device_t dev)
 	    gic_v5_add_children, dev);
 
 	acpi_unmap_table(madt);
+
+	if (gicv5_has_virt_support(dev)) {
+		device_t cdev;
+
+		cdev = device_add_child(dev, "vgic", DEVICE_UNIT_ANY);
+		if (cdev == NULL) {
+			device_printf(dev, "Could not add vgic child\n");
+		} else {
+			struct gic_v5_acpi_devinfo *di;
+
+			di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
+			resource_list_init(&di->di_base.di_rl);
+			di->di_base.di_irs = NULL;
+			di->di_base.di_is_vgic = true;
+			device_set_ivars(cdev, di);
+		}
+	}
 
 	bus_attach_children(dev);
 }

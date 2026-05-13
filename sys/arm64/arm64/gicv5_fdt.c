@@ -97,6 +97,7 @@ gicv5_fdt_add_child(device_t dev, phandle_t node, struct gicv5_irs *irs,
 
 	di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
 	di->di_base.di_irs = irs;
+	di->di_base.di_is_vgic = false;
 	if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, node)) {
 		if (bootverbose) {
 			device_printf(dev,
@@ -173,6 +174,23 @@ gicv5_fdt_add_children(device_t dev)
 		}
 
 		gicv5_fdt_add_child(dev, child, NULL, addr_cells, size_cells);
+	}
+
+	if (gicv5_has_virt_support(dev)) {
+		device_t cdev;
+
+		cdev = device_add_child(dev, "vgic", DEVICE_UNIT_ANY);
+		if (cdev == NULL) {
+			device_printf(dev, "Could not add vgic child\n");
+		} else {
+			struct gicv5_fdt_devinfo *di;
+
+			di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
+			resource_list_init(&di->di_base.di_rl);
+			di->di_base.di_irs = NULL;
+			di->di_base.di_is_vgic = true;
+			device_set_ivars(cdev, di);
+		}
 	}
 }
 

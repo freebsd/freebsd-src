@@ -58,6 +58,7 @@ struct gicv5_softc {
 struct gicv5_devinfo {
 	struct resource_list	di_rl;
 	struct gicv5_irs	*di_irs;
+	bool			di_is_vgic;
 };
 
 #define GICV5_PPIS_PER_REG	64
@@ -69,6 +70,7 @@ __BUS_ACCESSOR(gicv5, lpi_start, GICV5, LPI_START, u_int);
 
 void gicv5_attach(device_t);
 bool gicv5_add_child(device_t, struct gicv5_devinfo *);
+bool gicv5_has_virt_support(device_t);
 int gicv5_intr(void *);
 
 void gicv5_irs_init(device_t, u_int, cpuset_t *);

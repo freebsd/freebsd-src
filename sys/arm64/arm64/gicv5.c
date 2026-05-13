@@ -1031,6 +1031,22 @@ gicv5_attach(device_t dev)
 }
 
 bool
+gicv5_has_virt_support(device_t dev)
+{
+	struct gicv5_softc *sc;
+	uint32_t idr0;
+
+	sc = device_get_softc(dev);
+	/*
+	 * VIRT field is guaranteed to be identical between all IRS units.
+	 * Arm GIC Architecture Specification (AES 0070) rule RJJPQJ.
+	 */
+	idr0 = IRS_CFG_READ_4(sc->gic_irs[0], IRS_IDR0);
+
+	return (idr0 & IRS_IDR0_VIRT);
+}
+
+bool
 gicv5_add_child(device_t dev, struct gicv5_devinfo *di)
 {
 	device_t cdev;
@@ -1106,8 +1122,10 @@ gicv5_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		*result = sc->gic_bus;
 		return (0);
 	case GIC_IVAR_VGIC:
-		/* TODO when we have vgic support */
-		*result = 0;
+		di = device_get_ivars(child);
+		if (di == NULL)
+			return (EINVAL);
+		*result = di->di_is_vgic;
 		return (0);
 	case GIC_IVAR_SUPPORT_LPIS:
 		di = device_get_ivars(child);
