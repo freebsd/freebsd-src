@@ -12,12 +12,6 @@
 /* Define to 1 if you have the `reallocarray' function. */
 #mesondefine HAVE_REALLOCARRAY
 
-/* Define to 1 if you have the `strlcat' function. */
-#mesondefine HAVE_DECL_STRLCAT
-
-/* Define to 1 if you have the `strlcpy' function. */
-#mesondefine HAVE_DECL_STRLCPY
-
 /* Define to 1 if you have the `strndup' function. */
 #mesondefine HAVE_DECL_STRNDUP
 

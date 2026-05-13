@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: cflags-libs-only
+WantedFlags: libs-only-ldpath libs-only-libname
+ExpectedStdout: -L/test/local/lib -lfoo

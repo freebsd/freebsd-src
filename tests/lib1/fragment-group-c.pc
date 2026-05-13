@@ -1,4 +1,4 @@
 Name: fragment-group-c
 Version: 1.0
 Description: Test fixture for fragment groups
-Libs: -Wl,--start-group -la -lgcc -Wl,--end-group -Wl,--gc-sections
+Libs: -Wl,--start-group -la -lb -lgcc -Wl,--end-group -Wl,--gc-sections

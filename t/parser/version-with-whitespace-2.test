@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: print-provides
+Query: malformed-version
+ExpectedStdout: malformed-version = 3.922

@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: dump-license
+Query: foo
+ExpectedStdout: foo: ISC

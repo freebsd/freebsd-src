@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: variable-whitespace
+WantedFlags: cflags libs
+ExpectedStdout: -I/test/include -lvariable-whitespace -L/test/lib64

@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=%TEST_FIXTURES_DIR%
+PackageSearchPath: lib1
+Query: baz
+WantedFlags: cflags
+ExpectedStdout: -fPIC -I%TEST_FIXTURES_DIR%/test/include/foo

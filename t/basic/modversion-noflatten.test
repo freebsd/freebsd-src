@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: modversion
+Query: bar
+ExpectedStdout: 1.3

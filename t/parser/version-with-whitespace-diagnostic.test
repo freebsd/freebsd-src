@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: validate
+Query: malformed-version
+ExpectedStderr: warning: malformed version field with whitespace
+MatchStderr: partial
