@@ -405,7 +405,7 @@ struct bufqueue __exclusive_cache_line bqempty;
 /*
  * per-cpu empty buffer cache.
  */
-uma_zone_t buf_zone;
+uma_zone_t __read_mostly buf_zone;
 
 static int
 sysctl_runningspace(SYSCTL_HANDLER_ARGS)
