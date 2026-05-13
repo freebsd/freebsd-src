@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: CDDL-1.0
 CLEANFILES =
 dist_noinst_DATA =
 include $(top_srcdir)/config/Substfiles.am
@@ -492,6 +493,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/block_cloning/block_cloning_rlimit_fsize.ksh \
 	functional/block_cloning/block_cloning_large_offset.ksh \
 	functional/block_cloning/block_cloning_after_device_removal.ksh \
+	functional/block_cloning/block_cloning_after_trunc.ksh \
 	functional/bootfs/bootfs_001_pos.ksh \
 	functional/bootfs/bootfs_002_neg.ksh \
 	functional/bootfs/bootfs_003_pos.ksh \
@@ -765,6 +767,9 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zfs_jail/cleanup.ksh \
 	functional/cli_root/zfs_jail/setup.ksh \
 	functional/cli_root/zfs_jail/zfs_jail_001_pos.ksh \
+	functional/cli_root/zfs_list/cleanup.ksh \
+	functional/cli_root/zfs_list/setup.ksh \
+	functional/cli_root/zfs_list/zfs_list_009_pos.ksh \
 	functional/cli_root/zfs_load-key/cleanup.ksh \
 	functional/cli_root/zfs_load-key/setup.ksh \
 	functional/cli_root/zfs_load-key/zfs_load-key_all.ksh \
@@ -1561,6 +1566,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/exec/exec_002_neg.ksh \
 	functional/exec/setup.ksh \
 	functional/fadvise/cleanup.ksh \
+	functional/fadvise/fadvise_dontneed.ksh \
 	functional/fadvise/fadvise_willneed.ksh \
 	functional/fadvise/setup.ksh \
 	functional/failmode/cleanup.ksh \
@@ -1655,6 +1661,9 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/io/psync.ksh \
 	functional/io/setup.ksh \
 	functional/io/sync.ksh \
+	functional/lease/cleanup.ksh \
+	functional/lease/lease_setlease.ksh \
+	functional/lease/setup.ksh \
 	functional/l2arc/cleanup.ksh \
 	functional/l2arc/l2arc_arcstats_pos.ksh \
 	functional/l2arc/l2arc_l2miss_pos.ksh \
@@ -1886,6 +1895,8 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/redundancy/redundancy_draid3.ksh \
 	functional/redundancy/redundancy_draid_damaged1.ksh \
 	functional/redundancy/redundancy_draid_damaged2.ksh \
+	functional/redundancy/redundancy_draid_degraded1.ksh \
+	functional/redundancy/redundancy_draid_degraded2.ksh \
 	functional/redundancy/redundancy_draid.ksh \
 	functional/redundancy/redundancy_draid_spare1.ksh \
 	functional/redundancy/redundancy_draid_spare2.ksh \

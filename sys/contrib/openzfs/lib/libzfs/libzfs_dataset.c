@@ -708,7 +708,7 @@ zfs_open(libzfs_handle_t *hdl, const char *path, int types)
 {
 	zfs_handle_t *zhp;
 	char errbuf[ERRBUFLEN];
-	char *bookp;
+	const char *bookp;
 
 	(void) snprintf(errbuf, sizeof (errbuf),
 	    dgettext(TEXT_DOMAIN, "cannot open '%s'"), path);
@@ -1701,26 +1701,6 @@ zfs_fix_auto_resv(zfs_handle_t *zhp, nvlist_t *nvl)
 	return (1);
 }
 
-static boolean_t
-zfs_is_namespace_prop(zfs_prop_t prop)
-{
-	switch (prop) {
-
-	case ZFS_PROP_ATIME:
-	case ZFS_PROP_RELATIME:
-	case ZFS_PROP_DEVICES:
-	case ZFS_PROP_EXEC:
-	case ZFS_PROP_SETUID:
-	case ZFS_PROP_READONLY:
-	case ZFS_PROP_XATTR:
-	case ZFS_PROP_NBMAND:
-		return (B_TRUE);
-
-	default:
-		return (B_FALSE);
-	}
-}
-
 /*
  * Given a property name and value, set the property for the given dataset.
  */
@@ -1778,7 +1758,7 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 	int nvl_len = 0;
 	int added_resv = 0;
 	zfs_prop_t prop;
-	boolean_t nsprop = B_FALSE;
+	uint32_t nspflags = 0;
 	nvpair_t *elem;
 
 	(void) snprintf(errbuf, sizeof (errbuf),
@@ -1825,7 +1805,7 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 	    elem = nvlist_next_nvpair(nvl, elem)) {
 
 		prop = zfs_name_to_prop(nvpair_name(elem));
-		nsprop |= zfs_is_namespace_prop(prop);
+		nspflags |= zfs_namespace_prop_flag(prop);
 
 		assert(cl_idx < nvl_len);
 		/*
@@ -1926,8 +1906,8 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 			 * if one of the options handled by the generic
 			 * Linux namespace layer has been modified.
 			 */
-			if (nsprop && zfs_is_mounted(zhp, NULL))
-				ret = zfs_mount(zhp, MNTOPT_REMOUNT, 0);
+			if (nspflags && zfs_is_mounted(zhp, NULL))
+				ret = zfs_mount_setattr(zhp, nspflags);
 		}
 	}
 
@@ -2049,7 +2029,8 @@ zfs_prop_inherit(zfs_handle_t *zhp, const char *propname, boolean_t received)
 		 */
 		if (zfs_is_namespace_prop(prop) &&
 		    zfs_is_mounted(zhp, NULL))
-			ret = zfs_mount(zhp, MNTOPT_REMOUNT, 0);
+			ret = zfs_mount_setattr(zhp,
+			    zfs_namespace_prop_flag(prop));
 	}
 
 error:
@@ -3148,7 +3129,7 @@ userquota_propname_decode(const char *propname, boolean_t zoned,
     zfs_userquota_prop_t *typep, char *domain, int domainlen, uint64_t *ridp)
 {
 	zfs_userquota_prop_t type;
-	char *cp;
+	const char *cp;
 	boolean_t isuser;
 	boolean_t isgroup;
 	boolean_t isproject;
@@ -4489,12 +4470,13 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 {
 	int ret = 0;
 	zfs_cmd_t zc = {"\0"};
-	char *delim;
 	prop_changelist_t *cl = NULL;
 	char parent[ZFS_MAX_DATASET_NAME_LEN];
 	char property[ZFS_MAXPROPLEN];
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	char errbuf[ERRBUFLEN];
+	const char *delim;
+	char *delim2;
 
 	/* if we have the same exact name, just return success */
 	if (strcmp(zhp->zfs_name, target) == 0)
@@ -4519,11 +4501,11 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 			 */
 			(void) strlcpy(parent, zhp->zfs_name,
 			    sizeof (parent));
-			delim = strchr(parent, '@');
+			delim2 = strchr(parent, '@');
 			if (strchr(target, '@') == NULL)
-				*(++delim) = '\0';
+				*(++delim2) = '\0';
 			else
-				*delim = '\0';
+				*delim2 = '\0';
 			(void) strlcat(parent, target, sizeof (parent));
 			target = parent;
 		} else {
@@ -4544,6 +4526,7 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 		if (!zfs_validate_name(hdl, target, zhp->zfs_type, B_TRUE))
 			return (zfs_error(hdl, EZFS_INVALIDNAME, errbuf));
 	} else {
+
 		if (flags.recursive) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "recursive rename must be a snapshot"));
@@ -4599,8 +4582,8 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 	}
 	if (flags.recursive) {
 		char *parentname = zfs_strdup(zhp->zfs_hdl, zhp->zfs_name);
-		delim = strchr(parentname, '@');
-		*delim = '\0';
+		delim2 = strchr(parentname, '@');
+		*delim2 = '\0';
 		zfs_handle_t *zhrp = zfs_open(zhp->zfs_hdl, parentname,
 		    ZFS_TYPE_DATASET);
 		free(parentname);

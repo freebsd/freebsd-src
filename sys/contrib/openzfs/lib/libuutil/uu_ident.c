@@ -76,7 +76,7 @@ is_valid_ident(const char *s, const char *e, int allowdot)
 static int
 is_valid_component(const char *b, const char *e, uint_t flags)
 {
-	char *sp;
+	const char *sp;
 
 	if (flags & UU_NAME_DOMAIN) {
 		sp = strchr(b, ',');
