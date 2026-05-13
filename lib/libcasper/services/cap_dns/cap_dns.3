@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 15, 2020
+.Dd May 13, 2026
 .Dt CAP_DNS 3
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ functions.
 The functions
 .Fn cap_gethostbyname ,
 .Fn cap_gethostbyname2 ,
-.Fn cep_gethostbyaddr
+.Fn cap_gethostbyaddr
 and
 .Fn cap_getnameinfo
 are respectively equivalent to
@@ -100,7 +100,7 @@ See the
 .Sx LIMITS
 section for more details.
 The
-.Fa ntpyes
+.Fa ntypes
 variable contains the number of
 .Fa types
 provided.
@@ -190,7 +190,7 @@ if (capdns == NULL)
 /* Close Casper capability, we don't need it anymore. */
 cap_close(capcas);
 
-/* Limit system.dns to reserve IPv4 addresses */
+/* Limit system.dns to resolve IPv4 addresses */
 familylimit = AF_INET;
 if (cap_dns_family_limit(capdns, &familylimit, 1) < 0)
 	err(1, "Unable to limit access to the system.dns service");
