@@ -1268,6 +1268,9 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_400G_CR8:
 			key = IFM_400G_FR8;
 			break;
+		case IF_Gbps(800):
+			key = 15;
+			break;
 		default:
 			key = subtype;
 			break;

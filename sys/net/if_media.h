@@ -264,6 +264,20 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_400G_CR8	IFM_X(123)	/* 400GBase-CR8 */
 #define	IFM_10_T1S	IFM_X(124)	/* 10BASE-T1S */
 #define	IFM_10_T1L	IFM_X(125)	/* 10BASE-T1L */
+#define	IFM_400G_KR2_PAM4 IFM_X(126)	/* 400GBase-KR2 PAM4 */
+#define	IFM_400G_CR2	IFM_X(127)	/* 400GBase-CR2 */
+#define	IFM_400G_SR2	IFM_X(128)	/* 400GBase-SR2 */
+#define	IFM_800G_FR8	IFM_X(129)	/* 800GBase-FR8 */
+#define	IFM_800G_LR8	IFM_X(130)	/* 800GBase-LR8 */
+#define	IFM_800G_DR8	IFM_X(131)	/* 800GBase-DR8 */
+#define	IFM_800G_AUI8_AC IFM_X(132)	/* 800G-AUI8 active copper/optical */
+#define	IFM_800G_AUI8	IFM_X(133)	/* 800G-AUI8 */
+#define	IFM_800G_SR8	IFM_X(134)	/* 800GBase-SR8 */
+#define	IFM_800G_CR8	IFM_X(135)	/* 800GBase-CR8 */
+#define	IFM_800G_KR8	IFM_X(136)	/* 800GBase-KR8 (KR8) */
+#define	IFM_800G_CR4	IFM_X(137)	/* 800GBase-CR4 */
+#define	IFM_800G_SR4	IFM_X(138)	/* 800GBase-SR4 */
+#define	IFM_800G_KR4_PAM4 IFM_X(139)	/* 800GBase-KR4 PAM4 */
 
 /*
  * Please update ieee8023ad_lacp.c:lacp_compose_key()
@@ -558,6 +572,20 @@ struct ifmedia_description {
 	{ IFM_400G_CR8,	"400GBase-CR8" },				\
 	{ IFM_10_T1S,	"10BASE-T1S" },					\
 	{ IFM_10_T1L,	"10BASE-T1L" },					\
+	{ IFM_400G_KR2_PAM4,	"400GBase-KR2-PAM4" },			\
+	{ IFM_400G_CR2,	"400GBase-CR2" },				\
+	{ IFM_400G_SR2,	"400GBase-SR2" },				\
+	{ IFM_800G_FR8,	"800GBase-FR8" },				\
+	{ IFM_800G_LR8,	"800GBase-LR8" },				\
+	{ IFM_800G_DR8,	"800GBase-DR8" },				\
+	{ IFM_800G_AUI8_AC,	"800G-AUI8-AC" },			\
+	{ IFM_800G_AUI8,	"800G-AUI8" },				\
+	{ IFM_800G_SR8,	"800GBase-SR8" },				\
+	{ IFM_800G_KR8,	"800GBase-KR8" },				\
+	{ IFM_800G_CR8,	"800GBase-CR8" },				\
+	{ IFM_800G_CR4,	"800GBase-CR4" },				\
+	{ IFM_800G_SR4,	"800GBase-SR4" },				\
+	{ IFM_800G_KR4_PAM4,	"800GBase-KR4-PAM4" },			\
 	{ 0, NULL },							\
 }
 
@@ -909,6 +937,20 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_400G_CR8,	IF_Gbps(400ULL) },		\
 	{ IFM_ETHER | IFM_10_T1S,	IF_Mbps(10) },			\
 	{ IFM_ETHER | IFM_10_T1L,	IF_Mbps(10) },			\
+	{ IFM_ETHER | IFM_400G_KR2_PAM4, IF_Gbps(400ULL) },		\
+	{ IFM_ETHER | IFM_400G_CR2,	IF_Gbps(400ULL) },		\
+	{ IFM_ETHER | IFM_400G_SR2,	IF_Gbps(400ULL) },		\
+	{ IFM_ETHER | IFM_800G_FR8,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_LR8,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_DR8,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_AUI8_AC,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_AUI8,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_SR8,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_CR8,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_KR8,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_CR4,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_SR4,	IF_Gbps(800ULL) },		\
+	{ IFM_ETHER | IFM_800G_KR4_PAM4, IF_Gbps(800ULL) },		\
 									\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH1,	IF_Mbps(1) },		\
 	{ IFM_IEEE80211 | IFM_IEEE80211_FH2,	IF_Mbps(2) },		\
