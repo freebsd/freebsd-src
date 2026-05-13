@@ -495,6 +495,7 @@ wtap_rx_proc(void *arg, int npending)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct wtap_buf *bf;
+	int8_t rssi, nf;
 
 #if 0
 	DWTAP_PRINTF("%s\n", __func__);
@@ -529,6 +530,15 @@ wtap_rx_proc(void *arg, int npending)
 #endif
 
 		/*
+		 * Use arbitrary but sane values, and do the correct conversion
+		 * for net80211 using 0.5 dBm values relative to the noise floor.
+		 */
+		nf = -95;
+		rssi = 42;
+		rssi -= nf;
+		rssi *= 2;
+
+		/*
 		 * Locate the node for sender, track state, and then
 		 * pass the (referenced) node up to the 802.11 layer
 		 * for its use.
@@ -540,10 +550,10 @@ wtap_rx_proc(void *arg, int npending)
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
-			ieee80211_input(ni, m, 1<<7, 10);
+			ieee80211_input(ni, m, rssi, nf);
 			ieee80211_free_node(ni);
 		} else {
-			ieee80211_input_all(ic, m, 1<<7, 10);
+			ieee80211_input_all(ic, m, rssi, nf);
 		}
 		
 		/* The mbufs are freed by the Net80211 stack */
