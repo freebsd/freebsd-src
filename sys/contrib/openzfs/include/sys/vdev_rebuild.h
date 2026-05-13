@@ -70,6 +70,7 @@ typedef struct vdev_rebuild {
 	zfs_range_tree_t	*vr_scan_tree;
 	kmutex_t	vr_io_lock;		/* inflight IO lock */
 	kcondvar_t	vr_io_cv;		/* inflight IO cv */
+	uint64_t	vr_last_txg;		/* last used txg */
 
 	/* In-core state and progress */
 	uint64_t	vr_scan_offset[TXG_SIZE];
@@ -90,7 +91,8 @@ typedef struct vdev_rebuild {
 boolean_t vdev_rebuild_active(vdev_t *);
 
 int vdev_rebuild_load(vdev_t *);
-void vdev_rebuild(vdev_t *);
+void vdev_rebuild(vdev_t *, uint64_t);
+void vdev_rebuild_txgs(vdev_t *, uint64_t *, uint64_t *);
 void vdev_rebuild_stop_wait(vdev_t *);
 void vdev_rebuild_stop_all(spa_t *);
 void vdev_rebuild_restart(spa_t *);

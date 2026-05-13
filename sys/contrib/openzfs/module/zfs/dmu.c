@@ -899,6 +899,41 @@ dmu_prefetch_dnode(objset_t *os, uint64_t object, zio_priority_t pri)
 }
 
 /*
+ * Advisory cache eviction for a byte range of an object.
+ */
+void
+dmu_evict_range(objset_t *os, uint64_t object, uint64_t offset, uint64_t len)
+{
+	dnode_t *dn;
+
+	if (len == 0)
+		return;
+	if (dnode_hold(os, object, FTAG, &dn) != 0)
+		return;
+
+	/*
+	 * Exclude the last block if the range end is not block-aligned:
+	 * a sequential access may continue into that block.  The first
+	 * block is included even when partially covered since backwards
+	 * access patterns are rare.
+	 */
+	rw_enter(&dn->dn_struct_rwlock, RW_READER);
+	uint64_t start, end;
+	if (dn->dn_datablkshift != 0) {
+		start = dbuf_whichblock(dn, 0, offset);
+		end = dbuf_whichblock(dn, 0, offset + len);
+	} else {
+		start = (offset >= dn->dn_datablksz);
+		end = (offset + len >= dn->dn_datablksz);
+	}
+	if (end > start)
+		dbuf_evict_range(dn, start, end - 1);
+	rw_exit(&dn->dn_struct_rwlock);
+
+	dnode_rele(dn, FTAG);
+}
+
+/*
  * Get the next "chunk" of file data to free.  We traverse the file from
  * the end so that the file gets shorter over time (if we crash in the
  * middle, this will leave us in a better state).  We find allocated file
@@ -2517,9 +2552,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	memset(zp->zp_salt, 0, ZIO_DATA_SALT_LEN);
 	memset(zp->zp_iv, 0, ZIO_DATA_IV_LEN);
 	memset(zp->zp_mac, 0, ZIO_DATA_MAC_LEN);
-	zp->zp_zpl_smallblk = (DMU_OT_IS_FILE(zp->zp_type) ||
-	    zp->zp_type == DMU_OT_ZVOL) ?
-	    os->os_zpl_special_smallblock : 0;
+	zp->zp_zpl_smallblk = os->os_zpl_special_smallblock;
 	zp->zp_storage_type = dn ? dn->dn_storage_type : DMU_OT_NONE;
 
 	ASSERT3U(zp->zp_compress, !=, ZIO_COMPRESS_INHERIT);
