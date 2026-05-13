@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.390 2026/02/08 11:02:03 rillig Exp $
+.\"	$NetBSD: make.1,v 1.391 2026/05/08 16:11:21 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd February 8, 2026
+.Dd May 8, 2026
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -556,7 +556,6 @@ except that the effect can be limited to a single line of a script.
 .It Ic \-
 in compatibility mode
 causes any non-zero exit status of the command line to be ignored.
-.El
 .Pp
 When
 .Nm
@@ -578,6 +577,7 @@ Otherwise
 affects the entire job;
 the script stops at the first command line that fails,
 but the target is not deemed to have failed.
+.El
 .Pp
 Makefiles should be written so that the mode of
 .Nm

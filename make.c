@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.274 2026/02/10 18:53:34 sjg Exp $	*/
+/*	$NetBSD: make.c,v 1.275 2026/04/06 17:13:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #endif
 
 /*	"@(#)make.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: make.c,v 1.274 2026/02/10 18:53:34 sjg Exp $");
+MAKE_RCSID("$NetBSD: make.c,v 1.275 2026/04/06 17:13:54 rillig Exp $");
 
 /* Sequence # to detect recursion. */
 static unsigned checked_seqno = 1;
@@ -211,7 +211,7 @@ GNode_FprintDetails(FILE *f, const char *prefix, const GNode *gn,
 bool
 GNode_ShouldExecute(GNode *gn)
 {
-	return !((gn->type & OP_MAKE)
+	return !(gn->type & OP_MAKE
 	    ? opts.noRecursiveExecute
 	    : opts.noExecute);
 }
@@ -315,9 +315,8 @@ GNode_IsOODate(GNode *gn)
 		 * always out of date if no children and :: target
 		 * or nonexistent.
 		 */
-		oodate = (gn->mtime == 0 || Arch_LibOODate(gn) ||
-			  (gn->youngestChild == NULL &&
-			   (gn->type & OP_DOUBLEDEP)));
+		oodate = gn->mtime == 0 || Arch_LibOODate(gn) ||
+		    (gn->youngestChild == NULL && (gn->type & OP_DOUBLEDEP));
 	} else if (gn->type & OP_JOIN) {
 		/*
 		 * A target with the .JOIN attribute is only considered
@@ -863,7 +862,7 @@ MakeAddAllSrc(GNode *cgn, GNode *pgn)
 		if (cgn->made == MADE)
 			Var_Append(pgn, OODATE, child);
 
-	} else if ((pgn->mtime < cgn->mtime) ||
+	} else if (pgn->mtime < cgn->mtime ||
 		   (cgn->mtime >= now && cgn->made == MADE)) {
 		/*
 		 * It goes in the OODATE variable if the parent is

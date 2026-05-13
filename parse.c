@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.755 2026/02/10 18:53:34 sjg Exp $	*/
+/*	$NetBSD: parse.c,v 1.756 2026/04/06 17:13:55 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -110,7 +110,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.755 2026/02/10 18:53:34 sjg Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.756 2026/04/06 17:13:55 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -724,7 +724,7 @@ TryApplyDependencyOperator(GNode *gn, GNodeType op)
 	 * operator also defines a dependency, they must match.
 	 */
 	if ((op & OP_OPMASK) && (gn->type & OP_OPMASK) &&
-	    ((op & OP_OPMASK) != (gn->type & OP_OPMASK))) {
+	    (op & OP_OPMASK) != (gn->type & OP_OPMASK)) {
 		Parse_Error(PARSE_FATAL, "Inconsistent operator for %s",
 		    gn->name);
 		return false;

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.365 2026/03/13 04:22:03 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.366 2026/04/06 17:13:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -294,7 +294,7 @@ typedef enum GNodeType {
 	/*
 	 * The dependency operator '::' behaves like ':', except that it
 	 * allows multiple dependency groups to be defined.  Each of these
-	 * groups is executed on its own, independently from the others. Each
+	 * groups is executed on its own, independently of the others. Each
 	 * individual dependency group is called a cohort.
 	 */
 	OP_DOUBLEDEP	= 1 << 2,
@@ -427,11 +427,11 @@ typedef struct GNodeFlags {
 	bool doneCycle:1;
 } GNodeFlags;
 
-typedef struct List StringList;
-typedef struct ListNode StringListNode;
+typedef List StringList;
+typedef ListNode StringListNode;
 
-typedef struct List GNodeList;
-typedef struct ListNode GNodeListNode;
+typedef List GNodeList;
+typedef ListNode GNodeListNode;
 
 typedef struct SearchPath {
 	List /* of CachedDir */ dirs;
@@ -616,7 +616,7 @@ extern GNode *defaultNode;
  * by makefiles.
  */
 extern GNode *SCOPE_INTERNAL;
-/* Variables defined in a global scope, e.g in the makefile itself. */
+/* Variables defined in a global scope, e.g. in the makefile itself. */
 extern GNode *SCOPE_GLOBAL;
 /* Variables defined on the command line. */
 extern GNode *SCOPE_CMDLINE;

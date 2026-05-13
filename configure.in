@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.111 2025/11/11 18:43:59 sjg Exp $
+dnl	$Id: configure.in,v 1.114 2026/04/13 18:40:26 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ([2.71])
-AC_INIT([bmake],[20251111],[sjg@NetBSD.org])
+AC_INIT([bmake],[20260406],[sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -135,9 +135,23 @@ dev) ;;
 *) filemon_h=no;;
 esac
 ])
+dnl
+dnl in 2020 NetBSD make changed the handling of $$ in :=
+dnl bmake introduced .MAKE.SAVE_DOLLARS defaulting to "no" to retain
+dnl the  traditional behavior.
+dnl Use "yes" to be compatible with NetBSD make.
+dnl
+save_dollars=no
+AC_ARG_WITH(save_dollars,
+[  --with-save-dollars={yes,no} control default for .MAKE.SAVE_DOLLARS - default is "no"],
+[case "${withval}" in
+yes|no) MAKE_SAVE_DOLLARS_DEFAULT=${withval} ;;
+*) AC_MSG_ERROR(bad value ${withval} given for save_dollars) ;;
+esac])
+dnl
 dnl some systems have broken/incomplete strftime
 AC_ARG_WITH(bmake_strftime,
-[ --with-bmake-strftime force use of bmake strftime],
+[  --with-bmake-strftime force use of bmake strftime],
 [case "${withval}" in
 yes|no) bmake_strftime=$withval;;
 esac])
@@ -608,6 +622,7 @@ AC_SUBST(INSTALL)
 AC_SUBST(GCC)
 AC_SUBST(diff)
 AC_SUBST(diff_u)
+AC_SUBST(save_dollars)
 AC_SUBST(use_meta)
 AC_SUBST(use_filemon)
 AC_SUBST(filemon_h)

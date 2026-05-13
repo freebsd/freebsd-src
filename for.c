@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.186 2025/06/28 22:39:27 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.187 2026/04/06 17:13:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -50,15 +50,15 @@
  * that, the body is treated like a file from an .include directive.
  *
  * Interface:
- *	For_Eval	Evaluate the loop in the passed line.
+ *	For_Eval	Evaluate the loop directive in a line.
  *
- *	For_Run		Run accumulated loop
+ *	For_Run		Run the previously accumulated loop.
  */
 
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.186 2025/06/28 22:39:27 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.187 2026/04/06 17:13:54 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -226,13 +226,13 @@ IsEndfor(const char *p)
 }
 
 /*
- * Evaluate the for loop in the passed line. The line looks like this:
+ * Evaluate the for loop in the line, which has this form:
  *	.for <varname...> in <value...>
  *
  * Results:
- *	0	not a .for directive
  *	1	found a .for directive
- *	-1	erroneous .for directive
+ *	0	not a .for directive
+ *	-1	misplaced .endfor directive
  */
 int
 For_Eval(const char *line)
