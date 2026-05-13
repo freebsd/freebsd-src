@@ -72,6 +72,7 @@
 #include <dev/vmm/vmm_vm.h>
 
 #include "vgic.h"
+#include "vgic_internal.h"
 #include "vgic_v3.h"
 #include "vgic_v3_reg.h"
 
@@ -92,55 +93,6 @@ struct vgic_v3_virt_features {
 	size_t ich_apr_num;
 };
 
-struct vgic_v3_irq {
-	/* List of IRQs that are active or pending */
-	TAILQ_ENTRY(vgic_v3_irq) act_pend_list;
-	struct mtx irq_spinmtx;
-	uint64_t mpidr;
-	int target_vcpu;
-	uint32_t irq;
-	bool active;
-	bool pending;
-	bool enabled;
-	bool level;
-	bool on_aplist;
-	uint8_t priority;
-	uint8_t config;
-#define	VGIC_CONFIG_MASK	0x2
-#define	VGIC_CONFIG_LEVEL	0x0
-#define	VGIC_CONFIG_EDGE	0x2
-};
-
-/* Global data not needed by EL2 */
-struct vgic_v3 {
-	struct mtx 	dist_mtx;
-	uint64_t 	dist_start;
-	size_t   	dist_end;
-
-	uint64_t 	redist_start;
-	size_t 		redist_end;
-
-	uint32_t 	gicd_ctlr;	/* Distributor Control Register */
-
-	struct vgic_v3_irq *irqs;
-};
-
-/* Per-CPU data not needed by EL2 */
-struct vgic_v3_cpu {
-	/*
-	 * We need a mutex for accessing the list registers because they are
-	 * modified asynchronously by the virtual timer.
-	 *
-	 * Note that the mutex *MUST* be a spin mutex because an interrupt can
-	 * be injected by a callout callback function, thereby modifying the
-	 * list registers from a context where sleeping is forbidden.
-	 */
-	struct mtx	lr_mtx;
-
-	struct vgic_v3_irq private_irqs[VGIC_PRV_I_NUM];
-	TAILQ_HEAD(, vgic_v3_irq) irq_act_pend;
-	u_int		ich_lr_used;
-};
 
 /* How many IRQs we support (SGIs + PPIs + SPIs). Not including LPIs */
 #define	VGIC_NIRQS	1023
@@ -473,6 +425,9 @@ vgic_v3_cpuinit(device_t dev, struct hypctx *hypctx)
 	vgic_cpu = hypctx->vgic_cpu;
 
 	mtx_init(&vgic_cpu->lr_mtx, "VGICv3 ICH_LR_EL2 lock", NULL, MTX_SPIN);
+
+	vgic_cpu->private_irqs = mallocarray(VGIC_PRV_I_NUM,
+	    sizeof(*vgic_cpu->private_irqs), M_VGIC_V3, M_WAITOK | M_ZERO);
 
 	/* Set the SGI and PPI state */
 	for (irqid = 0; irqid < VGIC_PRV_I_NUM; irqid++) {
