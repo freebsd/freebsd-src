@@ -80,4 +80,53 @@ struct vgic_v3_cpu {
 	u_int		ich_lr_used;
 };
 
+typedef void (register_read)(struct hypctx *, u_int, uint64_t *, void *);
+typedef void (register_write)(struct hypctx *, u_int, u_int, u_int,
+    uint64_t, void *);
+
+register_read vgic_zero_read;
+register_write vgic_ignore_write;
+
+#define	VGIC_8_BIT	(1 << 0)
+/* (1 << 1) is reserved for 16 bit accesses */
+#define	VGIC_32_BIT	(1 << 2)
+#define	VGIC_64_BIT	(1 << 3)
+
+struct vgic_register {
+	u_int start;	/* Start within a memory region */
+	u_int end;
+	u_int size;
+	u_int flags;
+	register_read *read;
+	register_write *write;
+};
+
+#define	VGIC_REGISTER_RANGE(reg_start, reg_end, reg_size, reg_flags, readf, \
+    writef)								\
+{									\
+	.start = (reg_start),						\
+	.end = (reg_end),						\
+	.size = (reg_size),						\
+	.flags = (reg_flags),						\
+	.read = (readf),						\
+	.write = (writef),						\
+}
+
+#define	VGIC_REGISTER_RANGE_RAZ_WI(reg_start, reg_end, reg_size, reg_flags) \
+	VGIC_REGISTER_RANGE(reg_start, reg_end, reg_size, reg_flags,	\
+	    vgic_zero_read, vgic_ignore_write)
+
+#define	VGIC_REGISTER(start_addr, reg_size, reg_flags, readf, writef)	\
+	VGIC_REGISTER_RANGE(start_addr, (start_addr) + (reg_size),	\
+	    reg_size, reg_flags, readf, writef)
+
+#define	VGIC_REGISTER_RAZ_WI(start_addr, reg_size, reg_flags)		\
+	VGIC_REGISTER_RANGE_RAZ_WI(start_addr,				\
+	    (start_addr) + (reg_size), reg_size, reg_flags)
+
+bool vgic_register_read(struct hypctx *, struct vgic_register *, u_int, u_int,
+    u_int, uint64_t *, void *);
+bool vgic_register_write(struct hypctx *, struct vgic_register *, u_int, u_int,
+    u_int, uint64_t, void *);
+
 #endif /* _VGIC_INTERNAL_H_ */

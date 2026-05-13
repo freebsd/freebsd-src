@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2023 Arm Ltd
+ * Copyright (c) 2023,2026 Arm Ltd
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,8 +32,85 @@
 
 #include "vgic.h"
 #include "vgic_if.h"
+#include "vgic_internal.h"
 
 device_t vgic_dev;
+
+/* Common register read-only/write-ignored helpers */
+void
+vgic_zero_read(struct hypctx *hypctx, u_int reg, uint64_t *rval,
+    void *arg)
+{
+	*rval = 0;
+}
+
+void
+vgic_ignore_write(struct hypctx *hypctx, u_int reg, u_int offset, u_int size,
+    uint64_t wval, void *arg)
+{
+	/* Nothing to do */
+}
+
+bool
+vgic_register_read(struct hypctx *hypctx, struct vgic_register *reg_list,
+    u_int reg_list_size, u_int reg, u_int size, uint64_t *rval, void *arg)
+{
+	u_int i, offset;
+
+	for (i = 0; i < reg_list_size; i++) {
+		if (reg_list[i].start <= reg && reg_list[i].end >= reg + size) {
+			offset = reg & (reg_list[i].size - 1);
+			reg -= offset;
+			if ((reg_list[i].flags & size) != 0) {
+				reg_list[i].read(hypctx, reg, rval, NULL);
+
+				/* Move the bits into the correct place */
+				*rval >>= (offset * 8);
+				if (size < 8) {
+					*rval &= (1ul << (size * 8)) - 1;
+				}
+			} else {
+				/*
+				 * The access is an invalid size. Section
+				 * 12.1.3 "GIC memory-mapped register access"
+				 * of the GICv3 and GICv4 spec issue H
+				 * (IHI0069) lists the options. For a read
+				 * the controller returns unknown data, in
+				 * this case it is zero.
+				 */
+				*rval = 0;
+			}
+			return (true);
+		}
+	}
+	return (false);
+}
+
+bool
+vgic_register_write(struct hypctx *hypctx, struct vgic_register *reg_list,
+    u_int reg_list_size, u_int reg, u_int size, uint64_t wval, void *arg)
+{
+	u_int i, offset;
+
+	for (i = 0; i < reg_list_size; i++) {
+		if (reg_list[i].start <= reg && reg_list[i].end >= reg + size) {
+			offset = reg & (reg_list[i].size - 1);
+			reg -= offset;
+			if ((reg_list[i].flags & size) != 0) {
+				reg_list[i].write(hypctx, reg, offset,
+				    size, wval, NULL);
+			} else {
+				/*
+				 * See the comment in vgic_register_read.
+				 * For writes the controller ignores the
+				 * operation.
+				 */
+			}
+			return (true);
+		}
+	}
+	return (false);
+}
 
 bool
 vgic_present(void)
