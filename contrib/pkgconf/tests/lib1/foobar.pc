@@ -10,3 +10,4 @@ Libs: -L${libdir} -lfoobar
 Cflags: -fPIC -I${includedir}/foobar
 Cflags.private: -DFOOBAR_STATIC
 License: ISC
+Source: https://foo.bar/foo

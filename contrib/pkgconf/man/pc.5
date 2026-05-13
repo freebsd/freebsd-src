@@ -97,7 +97,10 @@ Required compiler flags.
 These flags are always used, regardless of whether static compilation is requested.
 (optional; fragment list)
 .It Cflags.private
-Required compiler flags for static compilation.
+Required compiler flags for static compilation only.
+(optional; fragment list; pkgconf extension)
+.It Cflags.shared
+Required compiler flags for shared compilation only.
 (optional; fragment list; pkgconf extension)
 .It Copyright
 A copyright attestation statement.
@@ -115,22 +118,49 @@ not described as dependencies should be specified here.
 (optional; fragment list)
 .It License
 The asserted SPDX license tag that should be applied to the given package.
+One should try to determine the correct SPDX license tag for package
+from the SPDX License list. If a standard license name isn't available, use the
+LicenseRef-tag. For complex licensing details, utilize
+SPDX expression notation.
+It’s possible to assign multiple license tags in pc-file, which are
+then merged together with an 'AND' when rendering output.
+(optional; literal; pkgconf extension)
+.It License.file
+License file location for whole license text.
 (optional; literal; pkgconf extension)
 .It Maintainer
 The preferred contact for the maintainer.  This should be in the format of a
 name followed by an e-mail address or website.
+(optional; literal; pkgconf extension)
+.It Source
+The asserted SPDX downloadLocation tag that should be applied to the given package.
+Source should be URI contain tarball with exact version or Repository that contains
+tag with version same as mentioned in version tag. It can be also be URI with hash
+that is exact release point of the source.
 (optional; literal; pkgconf extension)
 .It Requires
 Required dependencies that must be met for the package to be usable.
 All dependencies must be satisfied or the pkg-config implementation must not use
 the package.
 (optional; dependency list)
+.It Requires.internal
+Required dependencies that must be met for the package to be usable for
+static linking.
+The main differences verses Requires.private are that CFLAGS will not be
+included and the solver will not consider the dependency when solving for
+CFLAGS only.
+(optional; dependency list; pkgconf extension)
 .It Requires.private
 Required dependencies that must be met for the package to be usable for header
 inclusion and static linking.
 All dependencies must be satisfied or the pkg-config implementation must not use
 the package for header inclusion and static linking.
 (optional; dependency list)
+.It Requires.shared
+Required dependencies that are only traversed when not in static mode. This allows
+a package to express dependencies that are only relevant when it is used as a
+shared library.
+(optional; dependency list; pkgconf extension)
 .It Conflicts
 Dependencies that must not be met for the package to be usable.
 If any package in the proposed dependency solution match any dependency in the

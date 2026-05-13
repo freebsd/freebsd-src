@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: conflicts, foo
+WantedFlags: exists
+ExpectedExitCode: 1

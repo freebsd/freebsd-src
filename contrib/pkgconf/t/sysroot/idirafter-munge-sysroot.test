@@ -1,0 +1,6 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=%TEST_FIXTURES_DIR%
+PackageSearchPath: lib1
+Query: idirafter
+WantedFlags: cflags
+ExpectedStdout: -idirafter %TEST_FIXTURES_DIR%/opt/bad/include
+MatchStdout: partial

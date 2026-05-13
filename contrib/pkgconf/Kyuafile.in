@@ -1,5 +1,0 @@
-syntax(2)
-
-test_suite('pkgconf')
-
-include('tests/Kyuafile')

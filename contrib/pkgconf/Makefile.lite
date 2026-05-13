@@ -12,26 +12,47 @@
 # all features, notably it does not include cross-compile support and MSVC
 # support.  It does not include the libpkgconf library.
 
-SRCS = \
+LIBPKGCONF_SRCS = \
 	libpkgconf/argvsplit.c		\
 	libpkgconf/audit.c		\
 	libpkgconf/bsdstubs.c		\
+	libpkgconf/buffer.c		\
+	libpkgconf/bufferset.c		\
+	libpkgconf/bytecode.c		\
 	libpkgconf/cache.c		\
 	libpkgconf/client.c		\
 	libpkgconf/dependency.c		\
 	libpkgconf/fileio.c		\
 	libpkgconf/fragment.c		\
+	libpkgconf/license.c		\
+	libpkgconf/output.c		\
 	libpkgconf/parser.c		\
 	libpkgconf/path.c		\
 	libpkgconf/personality.c	\
 	libpkgconf/pkg.c		\
 	libpkgconf/queue.c		\
 	libpkgconf/tuple.c		\
+	libpkgconf/variable.c		\
+	libpkgconf/version.c		\
+
+CLI_CORE_SRCS = \
 	cli/getopt_long.c		\
+	cli/core.c
+
+CLI_MAIN_SRCS = \
 	cli/main.c
-OBJS = ${SRCS:.c=.o}
-CFLAGS = ${STATIC} -DPKGCONF_LITE -I. -Ilibpkgconf -Icli -DSYSTEM_LIBDIR=\"${SYSTEM_LIBDIR}\" -DSYSTEM_INCLUDEDIR=\"${SYSTEM_INCLUDEDIR}\" -DPKG_DEFAULT_PATH=\"${PKG_DEFAULT_PATH}\"
-STATIC =
+
+PKGCONF_SRCS = ${LIBPKGCONF_SRCS} ${CLI_CORE_SRCS} ${CLI_MAIN_SRCS}
+PKGCONF_OBJS = ${PKGCONF_SRCS:.c=.o}
+
+TEST_RUNNER_MAIN_SRCS = \
+	tests/test-runner.c
+
+TEST_RUNNER_SRCS = ${LIBPKGCONF_SRCS} ${CLI_CORE_SRCS} ${TEST_RUNNER_MAIN_SRCS}
+TEST_RUNNER_OBJS = ${TEST_RUNNER_SRCS:.c=.o}
+
+CFLAGS += -Wno-unused-variable -Wno-unused-parameter
+CPPFLAGS = -DPKGCONF_LITE -I. -Ilibpkgconf -Icli -DSYSTEM_LIBDIR=\"${SYSTEM_LIBDIR}\" -DSYSTEM_INCLUDEDIR=\"${SYSTEM_INCLUDEDIR}\" -DPKG_DEFAULT_PATH=\"${PKG_DEFAULT_PATH}\"
 STRIP = strip
 
 all: pkgconf-lite
@@ -41,18 +62,32 @@ libpkgconf/config.h:
 	@echo '#define PACKAGE_BUGREPORT "https://git.dereferenced.org/pkgconf/pkgconf/issues"' >> $@
 	@echo '#define PACKAGE_VERSION "2.5.1"' >> $@
 	@echo '#define PACKAGE PACKAGE_NAME " " PACKAGE_VERSION' >> $@
-	@echo '#define HAVE_STRLCPY' >> $@
-	@echo '#define HAVE_STRLCAT' >> $@
-	@echo '#define HAVE_STRNDUP' >> $@
+	@echo '#define HAVE_DECL_STRNDUP 1' >> $@
+	@echo '#define HAVE_DECL_REALLOCARRAY 1' >> $@
 
-pkgconf-lite: preflight libpkgconf/config.h ${OBJS}
-	${CC} ${STATIC} -o $@ ${OBJS}
+pkgconf-lite: preflight libpkgconf/config.h ${PKGCONF_OBJS}
+	${CC} ${CFLAGS} ${STATIC} -o $@ ${PKGCONF_OBJS}
 	${STRIP} $@
+
+test-runner-lite: preflight libpkgconf/config.h ${TEST_RUNNER_OBJS}
+	${CC} ${CFLAGS} ${STATIC} -o $@ ${TEST_RUNNER_OBJS}
+	${STRIP} $@
+
+check: test-runner-lite
+	./test-runner-lite --test-fixtures ./tests ./t/basic
+	./test-runner-lite --test-fixtures ./tests ./t/ordering
+	./test-runner-lite --test-fixtures ./tests ./t/parser
+	./test-runner-lite --test-fixtures ./tests ./t/personality
+	./test-runner-lite --test-fixtures ./tests ./t/sbom
+	./test-runner-lite --test-fixtures ./tests ./t/solver
+	./test-runner-lite --test-fixtures ./tests ./t/sysroot
+	./test-runner-lite --test-fixtures ./tests ./t/tuple
 
 clean:
 	rm -f libpkgconf/config.h
-	rm -f ${OBJS}
+	rm -f ${PKGCONF_OBJS}
 	rm -f pkgconf-lite
+	rm -f test-runner-lite
 
 preflight: preflight-system-libdir preflight-system-includedir preflight-pkg-default-path
 

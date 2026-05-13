@@ -1,0 +1,10 @@
+prefix=/test/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: requires-shared-dep
+Description: A dependency only needed for shared linking
+Version: 1.0.0
+Libs: -L${libdir} -lshared-dep
+Cflags: -I${includedir}/shared-dep
