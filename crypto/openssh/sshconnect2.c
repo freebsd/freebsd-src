@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.385 2026/04/02 07:48:13 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.386 2026/05/13 05:11:02 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -1277,7 +1277,7 @@ identity_sign(struct identity *id, u_char **sigp, size_t *lenp,
 	 * PKCS#11 tokens may not support all signature algorithms,
 	 * so check what we get back.
 	 */
-	if ((id->key->flags & SSHKEY_FLAG_EXT) != 0 &&
+	if (id->key != NULL && (id->key->flags & SSHKEY_FLAG_EXT) != 0 &&
 	    (r = sshkey_check_sigtype(*sigp, *lenp, alg)) != 0) {
 		debug_fr(r, "sshkey_check_sigtype");
 		goto out;
