@@ -1198,6 +1198,9 @@ lacp_compose_key(struct lacp_port *lp)
 		case IF_Gbps(400):
 			key = 14;
 			break;
+		case IF_Gbps(800):
+			key = 15;
+			break;
 		default:
 			key = subtype;
 			if (!warned) {
