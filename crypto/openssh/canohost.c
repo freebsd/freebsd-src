@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.77 2023/03/31 04:42:29 dtucker Exp $ */
+/* $OpenBSD: canohost.c,v 1.78 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -30,7 +30,6 @@
 #include <unistd.h>
 
 #include "xmalloc.h"
-#include "packet.h"
 #include "log.h"
 #include "canohost.h"
 #include "misc.h"
@@ -41,7 +40,7 @@ ipv64_normalise_mapped(struct sockaddr_storage *addr, socklen_t *len)
 	struct sockaddr_in6 *a6 = (struct sockaddr_in6 *)addr;
 	struct sockaddr_in *a4 = (struct sockaddr_in *)addr;
 	struct in_addr inaddr;
-	u_int16_t port;
+	uint16_t port;
 
 	if (addr->ss_family != AF_INET6 ||
 	    !IN6_IS_ADDR_V4MAPPED(&a6->sin6_addr))

@@ -1,4 +1,4 @@
-/* $OpenBSD: readpass.c,v 1.72 2025/06/11 13:24:05 dtucker Exp $ */
+/* $OpenBSD: readpass.c,v 1.73 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -43,7 +43,6 @@
 #include "pathnames.h"
 #include "log.h"
 #include "ssh.h"
-#include "uidswap.h"
 
 static char *
 ssh_askpass(char *askpass, const char *msg, const char *env_hint)

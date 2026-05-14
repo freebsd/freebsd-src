@@ -28,12 +28,14 @@ void	srclimit_done(int);
 #define SRCLIMIT_PENALTY_GRACE_EXCEEDED		3
 #define SRCLIMIT_PENALTY_NOAUTH			4
 #define SRCLIMIT_PENALTY_REFUSECONNECTION	5
+#define SRCLIMIT_PENALTY_INVALIDUSER		6
 
 /* meaningful exit values, used by sshd listener for penalties */
 #define EXIT_LOGIN_GRACE	3	/* login grace period exceeded */
 #define EXIT_CHILD_CRASH	4	/* preauth child crashed */
 #define EXIT_AUTH_ATTEMPTED	5	/* at least one auth attempt made */
 #define EXIT_CONFIG_REFUSED	6	/* sshd_config RefuseConnection */
+#define EXIT_INVALID_USER	7	/* invalid user supplied */
 
 void	srclimit_penalise(struct xaddr *, int);
 int	srclimit_penalty_check_allow(int, const char **);

@@ -18,10 +18,9 @@
 #ifndef API_H
 #define API_H
 
+#include <sys/queue.h>
 #include <sys/types.h>
 #include <signal.h>
-
-#include "openbsd-compat/sys-queue.h"
 
 #include "cipher.h"
 #include "sshkey.h"

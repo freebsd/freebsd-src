@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_convtime.c,v 1.3 2022/08/11 01:57:50 djm Exp $ */
+/* 	$OpenBSD: test_convtime.c,v 1.4 2025/12/05 07:43:24 djm Exp $ */
 /*
  * Regress test for misc time conversion functions.
  *
@@ -55,6 +55,41 @@ test_convtime(void)
 #if INT_MAX == 2147483647
 	ASSERT_INT_EQ(convtime("3550w5d3h14m8s"), -1);
 #endif
+	TEST_DONE();
+
+	TEST_START("misc_convtime_double");
+	ASSERT_DOUBLE_EQ(convtime_double("0"), 0);
+	ASSERT_DOUBLE_EQ(convtime_double("1"), 1.0);
+	ASSERT_DOUBLE_EQ(convtime_double("2s"), 2.0);
+	ASSERT_DOUBLE_EQ(convtime_double("3m"), 180.0);
+	ASSERT_DOUBLE_EQ(convtime_double("1m30s"), 90.0);
+	ASSERT_DOUBLE_EQ(convtime_double("1.5s"), 1.5);
+	ASSERT_DOUBLE_EQ(convtime_double(".5s"), 0.5);
+	ASSERT_DOUBLE_EQ(convtime_double("0.5s"), 0.5);
+	ASSERT_DOUBLE_EQ(convtime_double("1.123456s"), 1.123456);
+	ASSERT_DOUBLE_EQ(convtime_double("1.1234567s"), 1.1234567);
+	ASSERT_DOUBLE_EQ(convtime_double("1.123s"), 1.123);
+	ASSERT_DOUBLE_EQ(convtime_double("1m0.5s"), 60.5);
+	ASSERT_DOUBLE_EQ(convtime_double("1m.5s"), 60.5);
+	ASSERT_DOUBLE_EQ(convtime_double("1.5"), 1.5);
+	ASSERT_DOUBLE_EQ(convtime_double("1.123456"), 1.123456);
+	ASSERT_DOUBLE_EQ(convtime_double("1.1234567"), 1.1234567);
+	/* errors */
+	ASSERT_DOUBLE_LT(convtime_double(""), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("trout"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1.s"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("0x1"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("inf"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("nan"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1e10"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("-1"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("3.w0.5s"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1.0d0.5s"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1.5m"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1.5h"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1.5d"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1.5w"), 0.0);
+	ASSERT_DOUBLE_LT(convtime_double("1s1.5"), 0.0);
 	TEST_DONE();
 
 	/* XXX timezones/DST make verification of this tricky */

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf.c,v 1.2 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_sshbuf.c,v 1.3 2025/12/30 00:12:58 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -28,7 +28,8 @@ void sshbuf_tests(void);
 void
 sshbuf_tests(void)
 {
-	struct sshbuf *p1;
+	struct sshbuf *p1, *p2, *p3;
+	u_int v32;
 	const u_char *cdp;
 	u_char *dp;
 	size_t sz;
@@ -237,5 +238,39 @@ sshbuf_tests(void)
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_avail(p1), 1223);
 	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_consume_upto_child");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	p2 = sshbuf_new();
+	ASSERT_PTR_NE(p2, NULL);
+	/* Unrelated buffers */
+	ASSERT_INT_EQ(sshbuf_consume_upto_child(p1, p2),
+	    SSH_ERR_INVALID_ARGUMENT);
+	/* Simple success case */
+	ASSERT_INT_EQ(sshbuf_put_u32(p1, 0xdeadbeef), 0);
+	ASSERT_INT_EQ(sshbuf_put_u32(p1, 0x01020304), 0);
+	ASSERT_INT_EQ(sshbuf_put_u32(p1, 0xfeedface), 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 12);
+	p3 = sshbuf_fromb(p1);
+	ASSERT_PTR_NE(p3, NULL);
+	ASSERT_INT_EQ(sshbuf_get_u32(p3, &v32), 0);
+	ASSERT_U32_EQ(v32, 0xdeadbeef);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p3), 8);
+	ASSERT_INT_EQ(sshbuf_consume_upto_child(p1, p3), 0);
+	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sshbuf_len(p3));
+	ASSERT_PTR_EQ(sshbuf_ptr(p1), sshbuf_ptr(p3));
+	sshbuf_free(p3);
+	/* Parent already consumed past child */
+	p3 = sshbuf_fromb(p1);
+	ASSERT_PTR_NE(p3, NULL);
+	ASSERT_INT_EQ(sshbuf_get_u32(p1, &v32), 0);
+	ASSERT_U32_EQ(v32, 0x01020304);
+	ASSERT_INT_EQ(sshbuf_consume_upto_child(p1, p3),
+	    SSH_ERR_INVALID_ARGUMENT);
+	sshbuf_free(p1);
+	sshbuf_free(p2);
+	sshbuf_free(p3);
 	TEST_DONE();
 }

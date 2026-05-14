@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.245 2025/10/02 04:23:11 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.250 2026/02/11 17:01:34 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -21,14 +21,12 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/wait.h>
-#ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
-#endif
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <errno.h>
-
+#include <glob.h>
 #include <paths.h>
 #include <libgen.h>
 #ifdef HAVE_LOCALE_H
@@ -46,7 +44,6 @@ typedef void EditLine;
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
 #include <util.h>
 
 #include "xmalloc.h"
@@ -679,6 +676,10 @@ process_get(struct sftp_conn *conn, const char *src, const char *dst,
 			goto out;
 		}
 
+		/* Special handling for dest of '..' */
+		if (strcmp(filename, "..") == 0)
+			filename = "."; /* Download to dest, not dest/.. */
+
 		if (g.gl_matchc == 1 && dst) {
 			if (local_is_dir(dst)) {
 				abs_dst = sftp_path_append(dst, filename);
@@ -773,6 +774,9 @@ process_put(struct sftp_conn *conn, const char *src, const char *dst,
 			err = -1;
 			goto out;
 		}
+		/* Special handling for source of '..' */
+		if (strcmp(filename, "..") == 0)
+			filename = "."; /* Upload to dest, not dest/.. */
 
 		free(abs_dst);
 		abs_dst = NULL;
@@ -1863,29 +1867,44 @@ complete_display(char **list, u_int len)
 static char *
 complete_ambiguous(const char *word, char **list, size_t count)
 {
+	size_t i, j, matchlen;
+	char *tmp;
+	int len;
+
 	if (word == NULL)
 		return NULL;
 
-	if (count > 0) {
-		u_int y, matchlen = strlen(list[0]);
+	if (count == 0)
+		return xstrdup(word); /* no options to complete */
 
-		/* Find length of common stem */
-		for (y = 1; list[y]; y++) {
-			u_int x;
+	/* Find length of common stem across list */
+	matchlen = strlen(list[0]);
+	for (i = 1; i < count && list[i] != NULL; i++) {
+		for (j = 0; j < matchlen; j++)
+			if (list[0][j] != list[i][j])
+				break;
+		matchlen = j;
+	}
 
-			for (x = 0; x < matchlen; x++)
-				if (list[0][x] != list[y][x])
-					break;
+	/*
+	 * Now check that the common stem doesn't finish in the middle of
+	 * a multibyte character.
+	 */
+	mblen(NULL, 0);
+	for (i = 0; i < matchlen;) {
+		len = mblen(list[0] + i, matchlen - i);
+		if (len <= 0 || i + (size_t)len > matchlen)
+			break;
+		i += (size_t)len;
+	}
+	/* If so, truncate */
+	if (i < matchlen)
+		matchlen = i;
 
-			matchlen = x;
-		}
-
-		if (matchlen > strlen(word)) {
-			char *tmp = xstrdup(list[0]);
-
-			tmp[matchlen] = '\0';
-			return tmp;
-		}
+	if (matchlen > strlen(word)) {
+		tmp = xstrdup(list[0]);
+		tmp[matchlen] = '\0';
+		return tmp;
 	}
 
 	return xstrdup(word);
@@ -2065,6 +2084,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 		tmp2 = tmp + filelen - cesc;
 		len = strlen(tmp2);
 		/* quote argument on way out */
+		mblen(NULL, 0);
 		for (i = 0; i < len; i += clen) {
 			if ((clen = mblen(tmp2 + i, len - i)) < 0 ||
 			    (size_t)clen > sizeof(ins) - 2)
@@ -2205,6 +2225,7 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 	int err, interactive;
 	EditLine *el = NULL;
 #ifdef USE_LIBEDIT
+	const char *editor;
 	History *hl = NULL;
 	HistEvent hev;
 	extern char *__progname;
@@ -2238,6 +2259,10 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 		el_set(el, EL_BIND, "\\e\\e[D", "ed-prev-word", NULL);
 		/* make ^w match ksh behaviour */
 		el_set(el, EL_BIND, "^w", "ed-delete-prev-word", NULL);
+
+		/* el_source() may have changed EL_EDITOR to vi */
+		if (el_get(el, EL_EDITOR, &editor) == 0 && editor[0] == 'v')
+			el_set(el, EL_BIND, "^[", "vi-command-mode", NULL);
 	}
 #endif /* USE_LIBEDIT */
 

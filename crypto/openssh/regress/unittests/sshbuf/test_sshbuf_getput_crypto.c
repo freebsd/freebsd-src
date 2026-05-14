@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.4 2025/05/12 05:42:02 tb Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.5 2026/03/06 06:57:33 dtucker Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -82,7 +82,7 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_bignum2(p1, bn), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn1) + 4);
-	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (u_int32_t)BN_num_bytes(bn));
+	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (uint32_t)BN_num_bytes(bn));
 	ASSERT_MEM_EQ(sshbuf_ptr(p1) + 4, expbn1, sizeof(expbn1));
 	BN_free(bn);
 	sshbuf_free(p1);
@@ -106,7 +106,7 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_bignum2(p1, bn), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn2) + 4 + 1); /* MSB */
-	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (u_int32_t)BN_num_bytes(bn) + 1);
+	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (uint32_t)BN_num_bytes(bn) + 1);
 	ASSERT_U8_EQ(*(sshbuf_ptr(p1) + 4), 0x00);
 	ASSERT_MEM_EQ(sshbuf_ptr(p1) + 5, expbn2, sizeof(expbn2));
 	BN_free(bn);

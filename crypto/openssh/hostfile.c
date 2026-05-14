@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.99 2025/05/06 05:40:56 djm Exp $ */
+/* $OpenBSD: hostfile.c,v 1.100 2025/11/25 00:57:04 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -626,7 +626,7 @@ hostfile_replace_entries(const char *filename, const char *host, const char *ip,
 	int r, fd, oerrno = 0;
 	int loglevel = quiet ? SYSLOG_LEVEL_DEBUG1 : SYSLOG_LEVEL_VERBOSE;
 	struct host_delete_ctx ctx;
-	char *fp, *temp = NULL, *back = NULL;
+	char *fp = NULL, *temp = NULL, *back = NULL;
 	const char *what;
 	mode_t omask;
 	size_t i;
@@ -715,6 +715,7 @@ hostfile_replace_entries(const char *filename, const char *host, const char *ip,
 		    host, ip == NULL ? "" : ",", ip == NULL ? "" : ip, filename,
 		    sshkey_ssh_name(keys[i]), fp);
 		free(fp);
+		fp = NULL;
 		ctx.modified = 1;
 	}
 	fclose(ctx.out);
@@ -755,6 +756,7 @@ hostfile_replace_entries(const char *filename, const char *host, const char *ip,
 		unlink(temp);
 	free(temp);
 	free(back);
+	free(fp);
 	if (ctx.out != NULL)
 		fclose(ctx.out);
 	free(ctx.match_keys);

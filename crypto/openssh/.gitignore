@@ -1,7 +1,7 @@
+*~
 Makefile
 buildpkg.sh
 config.h
-config.h.in~
 config.log
 config.status
 openbsd-compat/Makefile
@@ -17,7 +17,6 @@ survey.sh
 **/*.dll
 **/*.out
 **/*.a
-**/*.un~
 **/.*.swp
 autom4te.cache/
 scp

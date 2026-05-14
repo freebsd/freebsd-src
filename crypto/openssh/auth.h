@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.108 2024/05/17 06:42:04 jsg Exp $ */
+/* $OpenBSD: auth.h,v 1.109 2026/02/06 01:24:36 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -181,8 +181,6 @@ int	 auth2_methods_valid(const char *, int);
 int	 auth2_update_methods_lists(Authctxt *, const char *, const char *);
 int	 auth2_setup_methods_lists(Authctxt *);
 int	 auth2_method_allowed(Authctxt *, const char *, const char *);
-
-void	privsep_challenge_enable(void);
 
 int	auth2_challenge(struct ssh *, char *);
 void	auth2_challenge_stop(struct ssh *);

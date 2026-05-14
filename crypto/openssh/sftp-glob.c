@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 
 #include <dirent.h>
+#include <glob.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>

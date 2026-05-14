@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-common.h,v 1.13 2022/09/19 10:41:58 djm Exp $ */
+/* $OpenBSD: sftp-common.h,v 1.14 2026/03/03 09:57:25 dtucker Exp $ */
 
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -33,13 +33,13 @@ typedef struct Attrib Attrib;
 
 /* File attributes */
 struct Attrib {
-	u_int32_t	flags;
-	u_int64_t	size;
-	u_int32_t	uid;
-	u_int32_t	gid;
-	u_int32_t	perm;
-	u_int32_t	atime;
-	u_int32_t	mtime;
+	uint32_t	flags;
+	uint64_t	size;
+	uint32_t	uid;
+	uint32_t	gid;
+	uint32_t	perm;
+	uint32_t	atime;
+	uint32_t	mtime;
 };
 
 void	 attrib_clear(Attrib *);

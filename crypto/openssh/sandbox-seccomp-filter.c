@@ -405,6 +405,9 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_read
 	SC_ALLOW(__NR_read),
 #endif
+#ifdef __NR_riscv_hwprobe
+	SC_ALLOW(__NR_riscv_hwprobe),
+#endif
 #ifdef __NR_rt_sigprocmask
 	SC_ALLOW(__NR_rt_sigprocmask),
 #endif
@@ -434,6 +437,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_getpeername
 	SC_ALLOW(__NR_getpeername),
+#endif
+#ifdef __NR_uname
+	SC_ALLOW(__NR_uname),
 #endif
 #ifdef __NR_setsockopt
 	SC_ALLOW_SETSOCKOPT(IPPROTO_IPV6, IPV6_TCLASS),

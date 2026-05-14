@@ -1,4 +1,4 @@
-/* $OpenBSD: hmac.c,v 1.15 2025/09/05 09:49:26 dtucker Exp $ */
+/* $OpenBSD: hmac.c,v 1.16 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
  *
@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sshbuf.h"
 #include "digest.h"
 #include "hmac.h"
 

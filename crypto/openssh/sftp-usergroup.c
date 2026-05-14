@@ -19,8 +19,9 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <openbsd-compat/sys-tree.h>
+#include <sys/tree.h>
 
+#include <glob.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>

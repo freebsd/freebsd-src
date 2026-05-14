@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_fuzz.c,v 1.6 2025/09/25 22:17:29 dtucker Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_fuzz.c,v 1.7 2026/03/06 06:57:33 dtucker Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -39,10 +39,10 @@ attempt_parse_blob(u_char *blob, size_t len)
 #endif /* WITH_OPENSSL */
 	u_char *s;
 	size_t l;
-	u_int8_t u8;
-	u_int16_t u16;
-	u_int32_t u32;
-	u_int64_t u64;
+	uint8_t u8;
+	uint16_t u16;
+	uint32_t u32;
+	uint64_t u64;
 
 	p1 = sshbuf_new();
 	ASSERT_PTR_NE(p1, NULL);

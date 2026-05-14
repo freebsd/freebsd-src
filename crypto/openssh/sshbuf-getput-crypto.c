@@ -15,7 +15,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define SSHBUF_INTERNAL
 #include "includes.h"
 
 #include <sys/types.h>
@@ -30,6 +29,7 @@
 #endif /* OPENSSL_HAS_ECC */
 
 #include "ssherr.h"
+#define SSHBUF_INTERNAL
 #include "sshbuf.h"
 
 int

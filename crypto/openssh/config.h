@@ -35,7 +35,7 @@
 /* getline is not what we expect */
 /* #undef BROKEN_GETLINE */
 
-/* FreeBSD glob does not do what we need */
+/* Do not use system glob */
 #define BROKEN_GLOB 1
 
 /* Define if you system's inet_ntoa is busted (e.g. Irix gcc issue) */
@@ -216,6 +216,9 @@
 
 /* Have attribute nonnull */
 #define HAVE_ATTRIBUTE__NONNULL__ 1
+
+/* compiler supports nonstring attribute */
+#define HAVE_ATTRIBUTE__NONSTRING__ 1
 
 /* OpenBSD's gcc has sentinel */
 /* #undef HAVE_ATTRIBUTE__SENTINEL__ */
@@ -1053,9 +1056,6 @@
 /* Define to 1 if you have the 'openpty' function. */
 #define HAVE_OPENPTY 1
 
-/* as a macro */
-#define HAVE_OPENSSL_ADD_ALL_ALGORITHMS 1
-
 /* Define to 1 if you have the 'OpenSSL_version' function. */
 #define HAVE_OPENSSL_VERSION 1
 
@@ -1624,6 +1624,9 @@
 /* Define to 1 if the system has the type 'unsigned long long'. */
 #define HAVE_UNSIGNED_LONG_LONG 1
 
+/* Define to 1 if you have the 'unveil' function. */
+/* #undef HAVE_UNVEIL */
+
 /* Define to 1 if you have the 'updwtmp' function. */
 /* #undef HAVE_UPDWTMP */
 
@@ -1863,6 +1866,9 @@
 /* need inet in pledge for setsockopt IP_TOS */
 #define PLEDGE_EXTRA_INET /**/
 
+/* Define if poll 2nd arg is ulong */
+/* #undef POLL_NFDS_T_ULONG */
+
 /* Port number of PRNGD/EGD random number socket */
 /* #undef PRNGD_PORT */
 
@@ -1936,9 +1942,6 @@
 
 /* sshd PAM service name */
 /* #undef SSHD_PAM_SERVICE */
-
-/* Define if pam_chauthtok wants real uid set to the unpriv'ed user */
-/* #undef SSHPAM_CHAUTHTOK_NEEDS_RUID */
 
 /* Use audit debugging module */
 /* #undef SSH_AUDIT_EVENTS */

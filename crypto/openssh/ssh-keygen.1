@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.236 2025/10/04 21:41:35 naddy Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.237 2025/12/22 01:49:03 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: October 4 2025 $
+.Dd $Mdocdate: December 22 2025 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -902,15 +902,29 @@ User certificates authenticate users to servers, whereas host certificates
 authenticate server hosts to users.
 To generate a user certificate:
 .Pp
-.Dl $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
+.Dl $ ssh-keygen -s /path/to/ca_key -I id -n user \e
+.Dl \ \ \ \ \ \ /path/to/user_key.pub
 .Pp
 The resultant certificate will be placed in
 .Pa /path/to/user_key-cert.pub .
+The argument to
+.Fl I
+is a key identifier that will be used in logs and may be used to revoke
+keys.
+The argument to
+.Fl n
+is one or more (comma-separated) principals, typically usernames, that
+the certificate represents.
 A host certificate requires the
 .Fl h
 option:
 .Pp
-.Dl $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
+.Dl $ ssh-keygen -s /path/to/ca_key -I id -h -n foo.example.org \e
+.Dl \ \ \ \ \ \ /path/to/host_key.pub
+.Pp
+For host certificates, the principals specified using the
+.Fl n
+argument are hostnames and may contain wildcard characters.
 .Pp
 The host certificate will be output to
 .Pa /path/to/host_key-cert.pub .
@@ -922,7 +936,8 @@ and identifying the CA key by providing its public half as an argument
 to
 .Fl s :
 .Pp
-.Dl $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id user_key.pub
+.Dl $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I id -n user \e
+.Dl \ \ \ \ \ \ user_key.pub
 .Pp
 Similarly, it is possible for the CA key to be hosted in an
 .Xr ssh-agent 1 .
@@ -930,20 +945,19 @@ This is indicated by the
 .Fl U
 flag and, again, the CA key must be identified by its public half.
 .Pp
-.Dl $ ssh-keygen -Us ca_key.pub -I key_id user_key.pub
+.Dl $ ssh-keygen -Us ca_key.pub -I id -n user user_key.pub
 .Pp
 In all cases,
 .Ar key_id
 is a "key identifier" that is logged by the server when the certificate
 is used for authentication.
 .Pp
-Certificates may be limited to be valid for a set of principal (user/host)
+Certificates are limited to be valid for a set of principal (user/host)
 names.
-By default, generated certificates are valid for all users or hosts.
 To generate a certificate for a specified set of principals:
 .Pp
-.Dl $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
-.Dl "$ ssh-keygen -s ca_key -I key_id -h -n host.domain host_key.pub"
+.Dl $ ssh-keygen -s ca_key -I id -n user1,user2 user_key.pub
+.Dl $ ssh-keygen -s ca_key -I id -h -n host.domain host_key.pub
 .Pp
 Additional limitations on the validity and use of user certificates may
 be specified through certificate options.

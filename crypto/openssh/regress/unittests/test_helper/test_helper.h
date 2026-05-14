@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.h,v 1.10 2025/04/15 04:00:42 djm Exp $	*/
+/*	$OpenBSD: test_helper.h,v 1.12 2026/03/06 06:57:33 dtucker Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -89,16 +89,19 @@ void assert_ptr(const char *file, int line,
     const void *aa1, const void *aa2, enum test_predicate pred);
 void assert_u8(const char *file, int line,
     const char *a1, const char *a2,
-    u_int8_t aa1, u_int8_t aa2, enum test_predicate pred);
+    uint8_t aa1, uint8_t aa2, enum test_predicate pred);
 void assert_u16(const char *file, int line,
     const char *a1, const char *a2,
-    u_int16_t aa1, u_int16_t aa2, enum test_predicate pred);
+    uint16_t aa1, uint16_t aa2, enum test_predicate pred);
 void assert_u32(const char *file, int line,
     const char *a1, const char *a2,
-    u_int32_t aa1, u_int32_t aa2, enum test_predicate pred);
+    uint32_t aa1, uint32_t aa2, enum test_predicate pred);
 void assert_u64(const char *file, int line,
     const char *a1, const char *a2,
-    u_int64_t aa1, u_int64_t aa2, enum test_predicate pred);
+    uint64_t aa1, uint64_t aa2, enum test_predicate pred);
+void assert_double(const char *file, int line,
+    const char *a1, const char *a2,
+    double aa1, double aa2, enum test_predicate pred);
 
 #define TEST_START(n)			test_start(n)
 #define TEST_DONE()			test_done()
@@ -284,6 +287,19 @@ void assert_u64(const char *file, int line,
 	assert_u32(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_GE)
 #define ASSERT_U64_GE(a1, a2) \
 	assert_u64(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_GE)
+
+#define ASSERT_DOUBLE_EQ(a1, a2) \
+	assert_double(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_EQ)
+#define ASSERT_DOUBLE_NE(a1, a2) \
+	assert_double(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_NE)
+#define ASSERT_DOUBLE_LT(a1, a2) \
+	assert_double(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_LT)
+#define ASSERT_DOUBLE_LE(a1, a2) \
+	assert_double(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_LE)
+#define ASSERT_DOUBLE_GT(a1, a2) \
+	assert_double(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_GT)
+#define ASSERT_DOUBLE_GE(a1, a2) \
+	assert_double(__FILE__, __LINE__, #a1, #a2, a1, a2, TEST_GE)
 
 /* Benchmarking support */
 #define BENCH_START(name)	\

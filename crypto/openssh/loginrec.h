@@ -52,6 +52,7 @@ union login_netinfo {
  */
 /* types - different to utmp.h 'type' macros */
 /* (though set to the same value as linux, openbsd and others...) */
+#define LTYPE_FAILED   6
 #define LTYPE_LOGIN    7
 #define LTYPE_LOGOUT   8
 

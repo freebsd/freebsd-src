@@ -4,7 +4,7 @@
 
 SSHDIR=		${SRCTOP}/crypto/openssh
 
-SFTP_CLIENT_SRCS=sftp-common.c sftp-client.c sftp-glob.c
+SFTP_CLIENT_SRCS=sftp-common.c sftp-client.c sftp-glob.c ssherr-nolibcrypto.c
 SKSRCS=	ssh-sk-client.c
 
 CFLAGS+= -I${SSHDIR} -I${SSHDIR}/openbsd-compat/include -include ssh_namespace.h

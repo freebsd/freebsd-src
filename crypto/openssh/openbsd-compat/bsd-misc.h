@@ -159,6 +159,10 @@ int pselect(int, fd_set *, fd_set *, fd_set *, const struct timespec *,
 int pledge(const char *promises, const char *execpromises);
 #endif
 
+#ifndef HAVE_UNVEIL
+int unveil(const char *, const char *);
+#endif
+
 /* bsd-err.h */
 #ifndef HAVE_ERR
 void err(int, const char *, ...) __attribute__((format(printf, 2, 3)));

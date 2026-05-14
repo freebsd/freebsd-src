@@ -18,6 +18,7 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <sys/queue.h>
 
 #include <stdlib.h>
 #include <netdb.h>
@@ -28,8 +29,6 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <limits.h>
-
-#include "openbsd-compat/sys-queue.h"
 
 #include "xmalloc.h"
 #include "ssherr.h"

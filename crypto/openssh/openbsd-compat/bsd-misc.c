@@ -18,6 +18,7 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #ifdef HAVE_SYS_SELECT_H
 # include <sys/select.h>
 #endif
@@ -404,6 +405,14 @@ getpgid(pid_t pid)
 #ifndef HAVE_PLEDGE
 int
 pledge(const char *promises, const char *execpromises)
+{
+	return 0;
+}
+#endif
+
+#ifndef HAVE_UNVEIL
+int
+unveil(const char *path, const char *permissions)
 {
 	return 0;
 }

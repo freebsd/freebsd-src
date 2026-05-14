@@ -718,4 +718,4 @@ master instance and later clients.
 OpenSSH extends the usual agent protocol. These changes are documented
 in the PROTOCOL.agent file.
 
-$OpenBSD: PROTOCOL,v 1.59 2025/08/06 11:22:53 dtucker Exp $
+$OpenBSD: PROTOCOL,v 1.60 2026/02/09 22:09:48 dtucker Exp $

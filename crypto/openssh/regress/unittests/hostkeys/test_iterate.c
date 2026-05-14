@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_iterate.c,v 1.10 2025/05/06 06:05:48 djm Exp $ */
+/* 	$OpenBSD: test_iterate.c,v 1.11 2025/11/17 09:59:13 dtucker Exp $ */
 /*
  * Regress test for hostfile.h hostkeys_foreach()
  *
@@ -133,7 +133,7 @@ check(struct hostkey_foreach_line *l, void *_ctx)
 			ASSERT_INT_EQ(sshkey_equal(l->key, expected->l.key), 1);
 		}
 	}
-	if (parse_key && !(l->comment == NULL && expected->l.comment == NULL))
+	if (parse_key && l->comment != NULL && expected->l.comment != NULL)
 		ASSERT_STRING_EQ(l->comment, expected->l.comment);
 	return 0;
 }
