@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssherr.h,v 1.8 2020/01/25 23:13:09 djm Exp $	*/
+/*	$OpenBSD: ssherr.h,v 1.9 2026/02/06 23:31:29 dtucker Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -85,5 +85,7 @@
 
 /* Translate a numeric error code to a human-readable error string */
 const char *ssh_err(int n);
+/* Return most recent error from libcrypto. */
+const char *ssherr_libcrypto(void);
 
 #endif /* _SSHERR_H */

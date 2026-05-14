@@ -90,7 +90,7 @@ extern void	aug_save_egid(gid_t);
 extern void	aug_save_pid(pid_t);
 extern void	aug_save_asid(au_asid_t);
 extern void	aug_save_tid(dev_t, unsigned int);
-extern void	aug_save_tid_ex(dev_t, u_int32_t *, u_int32_t);
+extern void	aug_save_tid_ex(dev_t, uint32_t *, uint32_t);
 extern int	aug_save_me(void);
 extern int	aug_save_namask(void);
 extern void	aug_save_event(au_event_t);
@@ -129,10 +129,10 @@ static AuditInfoTermID ssh_bsm_tid;
  * getaudit_addr() is only present on IPv6 capable machines.
  */
 #if defined(HAVE_AUG_GET_MACHINE) || !defined(HAVE_GETAUDIT_ADDR)
-extern int aug_get_machine(char *, u_int32_t *, u_int32_t *);
+extern int aug_get_machine(char *, uint32_t *, uint32_t *);
 #else
 static int
-aug_get_machine(char *host, u_int32_t *addr, u_int32_t *type)
+aug_get_machine(char *host, uint32_t *addr, uint32_t *type)
 {
 	struct addrinfo *ai; 
 	struct sockaddr_in *in4;

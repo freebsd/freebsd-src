@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-misc.c,v 1.22 2025/09/04 00:32:31 djm Exp $	*/
+/*	$OpenBSD: sshbuf-misc.c,v 1.23 2026/03/28 05:10:25 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -95,7 +95,7 @@ b16tod(const char v)
 		return v - '0';
 	if (v >= 'a' && v <= 'f')
 		return 10 + v - 'a';
-	if (v >= 'A' && v <= 'A')
+	if (v >= 'A' && v <= 'F')
 		return 10 + v - 'A';
 	return -1;
 }

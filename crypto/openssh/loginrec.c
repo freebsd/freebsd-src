@@ -66,7 +66,7 @@
  *  code should suffice.
  *
  *  Retrieving the time of last login ('lastlog') is in some ways even
- *  more problemmatic than login recording. Some systems provide a
+ *  more problematic than login recording. Some systems provide a
  *  simple table of all users which we seek based on uid and retrieve a
  *  relatively standard structure. Others record the same information in
  *  a directory with a separate file, and others don't record the
@@ -651,6 +651,9 @@ construct_utmp(struct logininfo *li,
 # ifdef HAVE_TYPE_IN_UTMP
 	/* This is done here to keep utmp constants out of struct logininfo */
 	switch (li->type) {
+	case LTYPE_FAILED:
+		ut->ut_type = LOGIN_PROCESS;
+		break;
 	case LTYPE_LOGIN:
 		ut->ut_type = USER_PROCESS;
 		break;
@@ -975,7 +978,7 @@ utmp_write_entry(struct logininfo *li)
 /* not much point if we don't want utmpx entries */
 #ifdef USE_UTMPX
 
-/* if we have the wherewithall, use pututxline etc. */
+/* if we have the wherewithal, use pututxline etc. */
 # if !defined(DISABLE_PUTUTXLINE) && defined(HAVE_SETUTXENT) && \
 	defined(HAVE_PUTUTXLINE)
 #  define UTMPX_USE_LIBRARY
@@ -1732,7 +1735,7 @@ record_failed_login(struct ssh *ssh, const char *username, const char *hostname,
 
 	/* Construct a logininfo and turn it into a utmp */
 	memset(&li, 0, sizeof(li));
-	li.type = LTYPE_LOGIN;
+	li.type = LTYPE_FAILED;
 	li.pid = getpid();
 	strlcpy(li.line, "ssh:notty", sizeof(li.line));
 	strlcpy(li.username, username, sizeof(li.username));

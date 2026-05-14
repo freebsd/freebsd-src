@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ed25519.c,v 1.20 2025/07/24 06:12:08 djm Exp $ */
+/* $OpenBSD: ssh-ed25519.c,v 1.22 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Copyright (c) 2013 Markus Friedl <markus@openbsd.org>
  *
@@ -30,7 +30,6 @@
 #define SSHKEY_INTERNAL
 #include "sshkey.h"
 #include "ssherr.h"
-#include "ssh.h"
 
 static void
 ssh_ed25519_cleanup(struct sshkey *k)

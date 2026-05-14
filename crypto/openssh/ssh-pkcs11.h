@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.h,v 1.9 2025/07/30 04:27:42 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.h,v 1.11 2026/03/03 09:57:25 dtucker Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -14,6 +14,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+/* API for ssh-pkcs11.c and ssh-pkcs11-client.c */
 
 /* Errors for pkcs11_add_provider() */
 #define	SSH_PKCS11_ERR_GENERIC			1
@@ -36,10 +38,10 @@ void	pkcs11_key_free(struct sshkey *);
 #ifdef WITH_PKCS11_KEYGEN
 struct sshkey *
 	pkcs11_gakp(char *, char *, unsigned int, char *, unsigned int,
-	    unsigned int, unsigned char, u_int32_t *);
+	    unsigned int, unsigned char, uint32_t *);
 struct sshkey *
 	pkcs11_destroy_keypair(char *, char *, unsigned long, unsigned char,
-	    u_int32_t *);
+	    uint32_t *);
 #endif
 
 /* Only available in ssh-pkcs11-client.c */

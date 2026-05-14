@@ -51,6 +51,11 @@ else
     ${env} make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}"
 fi
 
+# Activate kbdint regression test for PAM
+if echo "${SSHD_CONFOPTS}" | grep -i usepam >/dev/null && [ -f regress/password ]; then
+	cp regress/password regress/kbdintpw
+fi
+
 if [ ! -z "${SSHD_CONFOPTS}" ]; then
     echo "rerunning t-exec with TEST_SSH_SSHD_CONFOPTS='${SSHD_CONFOPTS}'"
     if [ -z "${LTESTS}" ]; then

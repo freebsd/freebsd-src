@@ -1,5 +1,5 @@
 #!/bin/sh
-#       $OpenBSD: sntrup761.sh,v 1.9 2024/09/16 05:37:05 djm Exp $
+#       $OpenBSD: sntrup761.sh,v 1.10 2026/01/20 22:56:11 dtucker Exp $
 #       Placed in the Public Domain.
 #
 AUTHOR="supercop-20240808/crypto_kem/sntrup761/ref/implementors"
@@ -86,6 +86,28 @@ for i in $FILES; do
 	    ;;
 	*/uint32/useint32/sort.c)
 	    sed -e "s/void crypto_sort/void crypto_sort_uint32/g"
+	    ;;
+	# Replace Short_random and Small_random with versions that fetch
+	# entropy in a single operation, then delete urandom32 as unused.
+	*/crypto_kem/sntrup761/compact/kem.c)
+	    sed -e '/ uint32_t urandom32/,/^}$/d' \
+		-e '/ void Short_random/i\
+static void Short_random(small *out) {\
+  uint32_t L[p];\
+  randombytes(L, sizeof(L));\
+  Short_fromlist(out, L);\
+  explicit_bzero(L, sizeof(L));\
+}' \
+	        -e '/ void Short_random(/,/^}$/d' \
+		-e '/ void Small_random/i\
+static void Small_random(small *out) {\
+  int i;\
+  uint32_t L[p];\
+  randombytes(L, sizeof(L));\
+  for (i = 0; i < p; ++i) out[i] = (((L[i] & 0x3fffffff) * 3) >> 30) - 1;\
+  explicit_bzero(L, sizeof(L));\
+}' \
+	        -e '/ void Small_random(/,/^}$/d'
 	    ;;
 	# Remove unused function to prevent warning.
 	*/crypto_kem/sntrup761/ref/int32.c)
