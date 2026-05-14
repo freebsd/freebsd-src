@@ -96,6 +96,12 @@ __ElfType(Auxinfo);
 /* First __FreeBSD_version that supports Top Byte Ignore (TBI) */
 #define	TBI_VERSION	1500058
 
+/*
+ * The HWCAP values must be identical to Linux. Many userspace programs
+ * will define missing HWCAP values to the Linux version. To keep these
+ * working when we add the HWCAP it must be the same.
+ */
+
 /* HWCAP */
 #define	HWCAP_FP		(1 << 0)
 #define	HWCAP_ASIMD		(1 << 1)
