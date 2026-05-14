@@ -89,8 +89,11 @@
  * It used to be called NFS_MAXDATA, but has been renamed to clarify that
  * it refers to server side only and doesn't conflict with the NFS_MAXDATA
  * defined in rpcsvc/nfs_prot.h for userland.
+ * NFS_SRVMAXIO is the default setting for vfs.nfsd.srvmaxio
+ * NFS_SRVLIMITIO is the maximum setting allowed for vfs.nfsd.srvmaxio
  */
 #define	NFS_SRVMAXIO	(128 * 1024)
+#define	NFS_SRVLIMITIO	(4 * 1024 * 1024)
 
 /* Stat numbers for rpc returns (version 2, 3 and 4) */
 /*
