@@ -25,14 +25,13 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_platform.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/physmem.h>
 #include <sys/rwlock.h>
 
-#include <vm/vm_page.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/rsi.h>
 #include <machine/vmparam.h>
