@@ -241,8 +241,9 @@ sysctl_srvmaxio(SYSCTL_HANDLER_ARGS)
 		printf("nfsd: vfs.nfsd.srvmaxio can only be increased\n");
 		return (EINVAL);
 	}
-	if (newsrvmaxio > 1048576) {
-		printf("nfsd: vfs.nfsd.srvmaxio cannot be > 1Mbyte\n");
+	if (newsrvmaxio > NFS_SRVLIMITIO) {
+		printf("nfsd: vfs.nfsd.srvmaxio cannot be > %d\n",
+		    NFS_SRVLIMITIO);
 		return (EINVAL);
 	}
 	if ((newsrvmaxio & (newsrvmaxio - 1)) != 0) {
