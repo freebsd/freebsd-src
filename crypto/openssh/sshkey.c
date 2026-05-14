@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.155 2025/10/03 00:08:02 djm Exp $ */
+/* $OpenBSD: sshkey.c,v 1.161 2026/02/06 22:59:18 dtucker Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -96,6 +96,7 @@ extern const struct sshkey_impl sshkey_ed25519_sk_cert_impl;
 extern const struct sshkey_impl sshkey_ecdsa_sk_impl;
 extern const struct sshkey_impl sshkey_ecdsa_sk_cert_impl;
 extern const struct sshkey_impl sshkey_ecdsa_sk_webauthn_impl;
+extern const struct sshkey_impl sshkey_ecdsa_sk_webauthn_cert_impl;
 #  endif /* ENABLE_SK */
 extern const struct sshkey_impl sshkey_ecdsa_nistp256_impl;
 extern const struct sshkey_impl sshkey_ecdsa_nistp256_cert_impl;
@@ -135,6 +136,7 @@ const struct sshkey_impl * const keyimpls[] = {
 	&sshkey_ecdsa_sk_impl,
 	&sshkey_ecdsa_sk_cert_impl,
 	&sshkey_ecdsa_sk_webauthn_impl,
+	&sshkey_ecdsa_sk_webauthn_cert_impl,
 #  endif /* ENABLE_SK */
 # endif /* OPENSSL_HAS_ECC */
 	&sshkey_rsa_impl,
@@ -299,6 +301,17 @@ sshkey_match_keyname_to_sigalgs(const char *keyname, const char *sigalgs)
 		    match_pattern_list("rsa-sha2-256-cert-v01@openssh.com",
 		    sigalgs, 0) == 1 ||
 		    match_pattern_list("rsa-sha2-512-cert-v01@openssh.com",
+		    sigalgs, 0) == 1;
+	} else if (ktype == KEY_ECDSA_SK) {
+		return match_pattern_list("sk-ecdsa-sha2-nistp256@openssh.com",
+		    sigalgs, 0) == 1 || match_pattern_list(
+		    "webauthn-sk-ecdsa-sha2-nistp256@openssh.com",
+		    sigalgs, 0) == 1;
+	} else if (ktype == KEY_ECDSA_SK_CERT) {
+		return match_pattern_list(
+		    "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com",
+		    sigalgs, 0) == 1 || match_pattern_list(
+		    "webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com",
 		    sigalgs, 0) == 1;
 	} else
 		return match_pattern_list(keyname, sigalgs, 0) == 1;
@@ -2205,7 +2218,7 @@ sshkey_sign(struct sshkey *key,
 }
 
 /*
- * ssh_key_verify returns 0 for a correct signature  and < 0 on error.
+ * ssh_key_verify returns 0 for a correct signature and < 0 on error.
  * If "alg" specified, then the signature must use that algorithm.
  */
 int
@@ -2386,8 +2399,8 @@ sshkey_certify(struct sshkey *k, struct sshkey *ca, const char *alg,
 
 int
 sshkey_cert_check_authority(const struct sshkey *k,
-    int want_host, int require_principal, int wildcard_pattern,
-    uint64_t verify_time, const char *name, const char **reason)
+    int want_host, int wildcard_pattern, uint64_t verify_time,
+    const char *name, const char **reason)
 {
 	u_int i, principal_matches;
 
@@ -2417,37 +2430,36 @@ sshkey_cert_check_authority(const struct sshkey *k,
 		return SSH_ERR_KEY_CERT_INVALID;
 	}
 	if (k->cert->nprincipals == 0) {
-		if (require_principal) {
-			*reason = "Certificate lacks principal list";
-			return SSH_ERR_KEY_CERT_INVALID;
-		}
-	} else if (name != NULL) {
-		principal_matches = 0;
-		for (i = 0; i < k->cert->nprincipals; i++) {
-			if (wildcard_pattern) {
-				if (match_pattern(k->cert->principals[i],
-				    name)) {
-					principal_matches = 1;
-					break;
-				}
-			} else if (strcmp(name, k->cert->principals[i]) == 0) {
+		*reason = "Certificate lacks principal list";
+		return SSH_ERR_KEY_CERT_INVALID;
+	}
+	if (name == NULL)
+		return 0; /* principal matching not requested */
+
+	principal_matches = 0;
+	for (i = 0; i < k->cert->nprincipals; i++) {
+		if (wildcard_pattern) {
+			if (match_pattern(name, k->cert->principals[i])) {
 				principal_matches = 1;
 				break;
 			}
+		} else if (strcmp(name, k->cert->principals[i]) == 0) {
+			principal_matches = 1;
+			break;
 		}
-		if (!principal_matches) {
-			*reason = "Certificate invalid: name is not a listed "
-			    "principal";
-			return SSH_ERR_KEY_CERT_INVALID;
-		}
+	}
+	if (!principal_matches) {
+		*reason = "Certificate invalid: name is not a listed "
+		    "principal";
+		return SSH_ERR_KEY_CERT_INVALID;
 	}
 	return 0;
 }
 
 int
 sshkey_cert_check_authority_now(const struct sshkey *k,
-    int want_host, int require_principal, int wildcard_pattern,
-    const char *name, const char **reason)
+    int want_host, int wildcard_pattern, const char *name,
+    const char **reason)
 {
 	time_t now;
 
@@ -2456,19 +2468,17 @@ sshkey_cert_check_authority_now(const struct sshkey *k,
 		*reason = "Certificate invalid: not yet valid";
 		return SSH_ERR_KEY_CERT_INVALID;
 	}
-	return sshkey_cert_check_authority(k, want_host, require_principal,
-	    wildcard_pattern, (uint64_t)now, name, reason);
+	return sshkey_cert_check_authority(k, want_host, wildcard_pattern,
+	    (uint64_t)now, name, reason);
 }
 
 int
 sshkey_cert_check_host(const struct sshkey *key, const char *host,
-    int wildcard_principals, const char *ca_sign_algorithms,
-    const char **reason)
+    const char *ca_sign_algorithms, const char **reason)
 {
 	int r;
 
-	if ((r = sshkey_cert_check_authority_now(key, 1, 0, wildcard_principals,
-	    host, reason)) != 0)
+	if ((r = sshkey_cert_check_authority_now(key, 1, 1, host, reason)) != 0)
 		return r;
 	if (sshbuf_len(key->cert->critical) != 0) {
 		*reason = "Certificate contains unsupported critical options";
@@ -2672,64 +2682,54 @@ int
 sshkey_ec_validate_public(const EC_GROUP *group, const EC_POINT *public)
 {
 	EC_POINT *nq = NULL;
-	BIGNUM *order = NULL, *x = NULL, *y = NULL, *tmp = NULL;
+	BIGNUM *order = NULL, *cofactor = NULL;
 	int ret = SSH_ERR_KEY_INVALID_EC_VALUE;
 
 	/*
 	 * NB. This assumes OpenSSL has already verified that the public
-	 * point lies on the curve. This is done by EC_POINT_oct2point()
-	 * implicitly calling EC_POINT_is_on_curve(). If this code is ever
-	 * reachable with public points not unmarshalled using
-	 * EC_POINT_oct2point then the caller will need to explicitly check.
+	 * point lies on the curve and that its coordinates are in [0, p).
+	 * This is done by EC_POINT_oct2point() on at least OpenSSL >= 1.1,
+	 * LibreSSL and BoringSSL.
 	 */
 
 	/* Q != infinity */
 	if (EC_POINT_is_at_infinity(group, public))
 		goto out;
 
-	if ((x = BN_new()) == NULL ||
-	    (y = BN_new()) == NULL ||
-	    (order = BN_new()) == NULL ||
-	    (tmp = BN_new()) == NULL) {
+	if ((cofactor = BN_new()) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-
-	/* log2(x) > log2(order)/2, log2(y) > log2(order)/2 */
-	if (EC_GROUP_get_order(group, order, NULL) != 1 ||
-	    EC_POINT_get_affine_coordinates(group, public, x, y, NULL) != 1) {
-		ret = SSH_ERR_LIBCRYPTO_ERROR;
-		goto out;
-	}
-	if (BN_num_bits(x) <= BN_num_bits(order) / 2 ||
-	    BN_num_bits(y) <= BN_num_bits(order) / 2)
+	if (EC_GROUP_get_cofactor(group, cofactor, NULL) != 1)
 		goto out;
 
-	/* nQ == infinity (n == order of subgroup) */
-	if ((nq = EC_POINT_new(group)) == NULL) {
-		ret = SSH_ERR_ALLOC_FAIL;
-		goto out;
+	/*
+	 * Verify nQ == infinity (n == order of subgroup)
+	 * This check may be skipped for curves with cofactor 1, as per
+	 * NIST SP 800-56A, 5.6.2.3.
+	 */
+	if (!BN_is_one(cofactor)) {
+		if ((order = BN_new()) == NULL) {
+			ret = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
+		if ((nq = EC_POINT_new(group)) == NULL) {
+			ret = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
+		if (EC_POINT_mul(group, nq, NULL, public, order, NULL) != 1) {
+			ret = SSH_ERR_LIBCRYPTO_ERROR;
+			goto out;
+		}
+		if (EC_POINT_is_at_infinity(group, nq) != 1)
+			goto out;
 	}
-	if (EC_POINT_mul(group, nq, NULL, public, order, NULL) != 1) {
-		ret = SSH_ERR_LIBCRYPTO_ERROR;
-		goto out;
-	}
-	if (EC_POINT_is_at_infinity(group, nq) != 1)
-		goto out;
 
-	/* x < order - 1, y < order - 1 */
-	if (!BN_sub(tmp, order, BN_value_one())) {
-		ret = SSH_ERR_LIBCRYPTO_ERROR;
-		goto out;
-	}
-	if (BN_cmp(x, tmp) >= 0 || BN_cmp(y, tmp) >= 0)
-		goto out;
+	/* success */
 	ret = 0;
  out:
-	BN_clear_free(x);
-	BN_clear_free(y);
+	BN_clear_free(cofactor);
 	BN_clear_free(order);
-	BN_clear_free(tmp);
 	EC_POINT_free(nq);
 	return ret;
 }
@@ -3321,6 +3321,19 @@ sshkey_private_to_blob_pem_pkcs8(struct sshkey *key, struct sshbuf *buf,
 			success = 1;
 		}
 		break;
+#ifdef OPENSSL_HAS_ED25519
+	case KEY_ED25519:
+		if (format == SSHKEY_PRIVATE_PEM) {
+			r = SSH_ERR_INVALID_FORMAT;
+			goto out;
+		} else {
+			pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519,
+			    NULL, key->ed25519_sk,
+			    ED25519_SK_SZ - ED25519_PK_SZ);
+			success = pkey != NULL;
+		}
+		break;
+#endif
 	default:
 		success = 0;
 		break;
@@ -3366,9 +3379,11 @@ sshkey_private_to_fileblob(struct sshkey *key, struct sshbuf *blob,
 #ifdef WITH_OPENSSL
 	case KEY_ECDSA:
 	case KEY_RSA:
-		break; /* see below */
-#endif /* WITH_OPENSSL */
 	case KEY_ED25519:
+		break; /* see below */
+#else /* WITH_OPENSSL */
+	case KEY_ED25519:
+#endif /* WITH_OPENSSL */
 	case KEY_ED25519_SK:
 #ifdef WITH_OPENSSL
 	case KEY_ECDSA_SK:

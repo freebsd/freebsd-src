@@ -1,4 +1,4 @@
-#	$OpenBSD: scp3.sh,v 1.5 2023/09/08 06:10:57 djm Exp $
+#	$OpenBSD: scp3.sh,v 1.6 2025/10/13 00:56:15 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp3"
@@ -6,6 +6,12 @@ tid="scp3"
 COPY2=${OBJ}/copy2
 DIR=${COPY}.dd
 DIR2=${COPY}.dd2
+DIFFOPT="-rN"
+
+# Figure out if diff does not understand "-N"
+if ! diff -N ${SRC}/scp.sh ${SRC}/scp.sh 2>/dev/null; then
+	DIFFOPT="-r"
+fi
 
 maybe_add_scp_path_to_sshd
 
@@ -63,6 +69,15 @@ for mode in scp sftp ; do
 	echo b > ${COPY2}
 	$SCP $scpopts -3 hostA:${DATA} hostA:${COPY} hostB:${COPY2}
 	cmp ${COPY} ${COPY2} >/dev/null && fail "corrupt target"
+
+	# scp /blah/.. is only supported via the sftp protocol.
+	# Original protocol scp just refuses it.
+	test $mode != sftp && continue
+	verbose "$tag: recursive .."
+	forest
+	$SCP $scpopts -r hostA:${DIR}/subdir/.. hostB:${DIR2} || \
+		fail "copy failed"
+	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
 done
 
 scpclean

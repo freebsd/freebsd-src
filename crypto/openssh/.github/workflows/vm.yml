@@ -22,7 +22,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # First we test all OSes in the default configuration.
         target:
           - "6.4.2"
         config: [default]
@@ -83,7 +82,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # First we test all OSes in the default configuration.
         target:
           - "13.5"
           - "14.3"
@@ -127,7 +125,7 @@ jobs:
 
     - name: "PAM: configure"
       shell: freebsd {0}
-      run: cd $GITHUB_WORKSPACE && sudo -u builder ./configure --with-pam
+      run: cd $GITHUB_WORKSPACE && sudo -u builder ./configure --with-pam --with-audit=bsm
     - name: "PAM: make clean"
       shell: freebsd {0}
       run: cd $GITHUB_WORKSPACE && sudo -u builder make clean
@@ -147,7 +145,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # First we test all OSes in the default configuration.
         target:
           - "9.0"
           - "9.4"
@@ -206,15 +203,15 @@ jobs:
         sudo -u builder env SUDO=sudo SSHD_CONFOPTS="UsePam yes" make tests
 
 
-  ominios:
+  omnios:
     name: "omnios-${{ matrix.target }}"
     if: github.repository != 'openssh/openssh-portable-selfhosted'
     strategy:
       fail-fast: false
       matrix:
-        # First we test all OSes in the default configuration.
         target:
           - "r151054"
+          - "r151046"
         config: [default]
     runs-on: ubuntu-latest
     steps:
@@ -263,12 +260,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # First we test all OSes in the default configuration.
         target:
           - "7.3"
           - "7.5"
           - "7.6"
           - "7.7"
+          - "7.8"
         config: [default]
     runs-on: ubuntu-latest
     steps:
@@ -282,9 +279,12 @@ jobs:
         release: ${{ matrix.target }}
         usesh: true
         prepare: |
-          env PKG_PATH=https://ftp.openbsd.org/pub/OpenBSD/${{matrix.target}}/packages/amd64 pkg_add sudo--
           useradd -m builder
-          echo "builder ALL=(ALL:ALL) NOPASSWD: ALL" >>/etc/sudoers
+          echo "permit nopass keepenv root" >/etc/doas.conf
+          echo "permit nopass keepenv builder" >>/etc/doas.conf
+          ls -l /etc/doas.conf
+          chown root:wheel /etc/doas.conf
+          chmod 644 /etc/doas.conf
           mkdir -p /var/empty /usr/local/etc
           cp $GITHUB_WORKSPACE/moduli /usr/local/etc/moduli
 
@@ -293,18 +293,117 @@ jobs:
       run: cd $GITHUB_WORKSPACE && chown -R builder .
     - name: configure
       shell: openbsd {0}
-      run: cd $GITHUB_WORKSPACE && sudo -u builder ./configure
+      run: cd $GITHUB_WORKSPACE && doas -u builder ./configure
     - name: make clean
       shell: openbsd {0}
-      run: cd $GITHUB_WORKSPACE && sudo -u builder make clean
+      run: cd $GITHUB_WORKSPACE && doas -u builder make clean
     - name: make
       shell: openbsd {0}
-      run: cd $GITHUB_WORKSPACE && sudo -u builder make -j4
+      run: cd $GITHUB_WORKSPACE && doas -u builder make -j4
     - name: make tests
       shell: openbsd {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder env SUDO=sudo make tests
+        doas -u builder env SUDO=doas make tests
+
+
+  openbsd-current-upstream:
+    # This job is special, and tests OpenBSD -current, both the underlying
+    # plaform (the latest snapshot) and most recent upstream code (or at least
+    # the most recent code in the github mirror) instead of OpenSSH Portable.
+    name: "openbsd-current-upstream"
+    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+    - name: start OpenBSD VM
+      uses: vmactions/openbsd-vm@v1
+      with:
+        copyback: false
+        nat: |
+          "20022": "22"
+        usesh: true
+        prepare: |
+          useradd -g wobj -m builder
+          echo "permit nopass keepenv root" >/etc/doas.conf
+          echo "permit nopass keepenv builder" >>/etc/doas.conf
+          ls -l /etc/doas.conf
+          chown root:wheel /etc/doas.conf
+          chmod 644 /etc/doas.conf
+          touch /etc/ssh/ssh_known_hosts
+          pkg_add git
+
+    - name: Fetch sysupgrade version
+      run: |
+        ver=$(curl -s https://cdn.openbsd.org/pub/OpenBSD/snapshots/amd64/BUILDINFO)
+        echo "SNAPSHOT_VERSION=${ver}" >> $GITHUB_ENV
+    - name: check for cached sysupgrade
+      id: cache-sysupgrade
+      uses: actions/cache@v4
+      with:
+        key: openbsd-sysupgrade ${{ env.SNAPSHOT_VERSION }}
+        path: /tmp/_sysupgrade/
+    - name: push sysupgrade from cache to VM
+      if: steps.cache-sysupgrade.outputs.cache-hit == 'true'
+      run: rsync -av /tmp/_sysupgrade/ openbsd:/home/_sysupgrade/
+    - name: upgrade to latest snapshot
+      run: ssh -q openbsd sysupgrade -s -k || true
+    - name: wait for upgrade
+      run: |
+        SECONDS=0; sleep 10; while ! ssh -q -oConnectTimeout=1 openbsd true; do sleep 10; echo waited ${SECONDS}s; done
+        ssh -q openbsd uname -a
+    - name: retrieve sysupgrade from VM to cache
+      if: steps.cache-sysupgrade.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p /tmp/_sysupgrade/
+        rsync -av openbsd:/home/_sysupgrade/ /tmp/_sysupgrade/
+    - name: save sysupgrade to cache
+      if: steps.cache-sysupgrade.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        key: openbsd-sysupgrade ${{ env.SNAPSHOT_VERSION }}
+        path: /tmp/_sysupgrade/
+
+    - name: checkout upstream source
+      shell: openbsd {0}
+      run: |
+        umask 022
+        cd /usr
+        rm -rf src/*
+        git clone --no-checkout --depth=1 --filter=tree:0 https://github.com/openbsd/src.git
+        cd /usr/src
+        git sparse-checkout set --no-cone Makefile usr.bin/Makefile usr.bin/Makefile.inc usr.bin/ssh usr.bin/nc regress/usr.bin/ssh
+        git checkout
+        git log -n1
+        chown -R builder /usr/src
+        chmod -R go-w /usr/src/ /usr/obj/
+    - name: make ssh
+      shell: openbsd {0}
+      run: |
+        cd /usr/src/usr.bin/ssh && make -j4 || make
+        make install
+        /etc/rc.d/sshd restart
+    - name: make nc
+      shell: openbsd {0}
+      run: cd /usr/src/usr.bin/nc && make && make install
+    - name: make tests
+      shell: openbsd {0}
+      run: |
+        cd /usr/src/regress/usr.bin/ssh
+        make obj
+        doas -u builder env SUDO=doas TEST_SSH_UNSAFE_PERMISSIONS=yes TEST_SSH_FAIL_FATAL=yes TEST_SSH_HOSTBASED_AUTH=setupandrun make
+    - name: retrieve logs
+      if: failure()
+      run: |
+        rsync -a openbsd:/usr/obj/regress/usr.bin/ssh/ regress-logs/
+        for i in regress-logs/failed*.log; do echo ===; echo LOGFILE: $i; echo ===; cat $i; echo; done
+    - name: save logs
+      if: failure()
+      uses: actions/upload-artifact@main
+      with:
+        name: openbsd-current-upstream-logs
+        path: regress-logs/*.log
 
 
   solaris:
@@ -313,7 +412,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # First we test all OSes in the default configuration.
         target:
           - "11.4-gcc"
         config: [default]
@@ -369,3 +467,4 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE
         sudo -u builder make tests
+

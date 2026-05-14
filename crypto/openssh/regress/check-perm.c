@@ -2,8 +2,6 @@
  * Placed in the public domain
  */
 
-/* $OpenBSD: modpipe.c,v 1.6 2013/11/21 03:16:47 djm Exp $ */
-
 #include "includes.h"
 
 #include <sys/types.h>

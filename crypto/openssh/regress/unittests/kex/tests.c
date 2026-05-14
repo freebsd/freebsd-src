@@ -3,6 +3,10 @@
  * Placed in the public domain
  */
 
+#include "includes.h"
+
+#include <stdio.h>
+
 #include "../test_helper/test_helper.h"
 
 void kex_tests(void);

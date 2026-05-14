@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.h,v 1.10 2016/07/08 03:44:42 djm Exp $ */
+/* $OpenBSD: mac.h,v 1.11 2026/03/03 09:57:25 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -44,9 +44,9 @@ int	 mac_valid(const char *);
 char	*mac_alg_list(char);
 int	 mac_setup(struct sshmac *, char *);
 int	 mac_init(struct sshmac *);
-int	 mac_compute(struct sshmac *, u_int32_t, const u_char *, int,
+int	 mac_compute(struct sshmac *, uint32_t, const u_char *, int,
     u_char *, size_t);
-int	 mac_check(struct sshmac *, u_int32_t, const u_char *, size_t,
+int	 mac_check(struct sshmac *, uint32_t, const u_char *, size_t,
     const u_char *, size_t);
 void	 mac_clear(struct sshmac *);
 

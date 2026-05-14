@@ -2,7 +2,7 @@
 .include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	ssh-sk-helper
-SRCS=	ssh-sk-helper.c ssh-sk.c sk-usbhid.c
+SRCS=	ssh-sk-helper.c ssh-sk.c sk-usbhid.c ssherr-nolibcrypto.c
 MAN=	ssh-sk-helper.8
 CFLAGS+=-I${SRCTOP}/contrib/libfido2/src
 

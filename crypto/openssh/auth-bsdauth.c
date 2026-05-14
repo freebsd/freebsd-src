@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-bsdauth.c,v 1.15 2018/07/09 21:35:50 markus Exp $ */
+/* $OpenBSD: auth-bsdauth.c,v 1.16 2026/02/06 01:24:36 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -124,14 +124,6 @@ bsdauth_free_ctx(void *ctx)
 		authctxt->as = NULL;
 	}
 }
-
-KbdintDevice bsdauth_device = {
-	"bsdauth",
-	bsdauth_init_ctx,
-	bsdauth_query,
-	bsdauth_respond,
-	bsdauth_free_ctx
-};
 
 KbdintDevice mm_bsdauth_device = {
 	"bsdauth",

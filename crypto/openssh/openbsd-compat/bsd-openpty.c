@@ -38,6 +38,7 @@
 #include <sys/types.h>
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <sys/stat.h>
 #ifdef HAVE_SYS_IOCTL_H
