@@ -784,6 +784,7 @@ MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
 MLINKS+=openfirm.4 openfirmware.4
 MLINKS+=ow.4 onewire.4
+MLINKS+=p9fs.4 virtio_p9fs.4
 MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
