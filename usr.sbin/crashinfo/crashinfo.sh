@@ -149,6 +149,7 @@ fi
 VMCORE=$CRASHDIR/vmcore.$DUMPNR
 INFO=$CRASHDIR/info.$DUMPNR
 FILE=$CRASHDIR/core.txt.$DUMPNR
+LINK=$CRASHDIR/core.txt.last
 HOSTNAME=`hostname`
 
 if $BATCH; then
@@ -342,3 +343,5 @@ echo "ddb capture buffer"
 echo
 
 ddb capture -M $VMCORE -N $KERNEL print
+
+ln -sf $(basename $FILE) $LINK
