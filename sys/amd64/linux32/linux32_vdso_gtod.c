@@ -27,12 +27,14 @@
 
 #include <sys/elf.h>
 #include <sys/errno.h>
-#include <sys/proc.h>
 #include <sys/stdarg.h>
 #include <sys/stddef.h>
+#include <sys/time.h>
 #define	_KERNEL
 #include <sys/vdso.h>
 #undef	_KERNEL
+
+#include <limits.h>
 #include <stdbool.h>
 
 #include <i386/include/atomic.h>
