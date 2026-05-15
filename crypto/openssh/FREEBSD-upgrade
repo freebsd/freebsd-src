@@ -188,6 +188,11 @@
    internet protocols are supported by the kernel before trying to
    connect to the target host.  This avoids confusing the user with
    spurious error messages.
+
+12) EVP_CIPHER_CTX_get_iv() stub bugfix
+
+   Bug fix submitted upstream at
+   https://bugzilla.mindrot.org/show_bug.cgi?id=3873
 
 
 This port was brought to you by (in no particular order) DARPA, NAI
