@@ -92,10 +92,34 @@
 	blr	x1
 1:
 
-	ldr	x0, [x18, #PC_CURTHREAD]
+	ldr	x19, [x18, #PC_CURTHREAD]
+
+	ldr	x1, [x19, #TD_MD_SCTLR]
+	/*
+	 * If the upper bit in SCTLR_EL1.TCF0 is set we are either in async
+	 * or asym modes. Either of which could set TFSRE0_EL1.
+	 */
+	tbz	x1, #(SCTLR_TCF0_SHIFT + 1), 2f
+	/* Check for a tag fault */
+	mrs	x1, TFSRE0_EL1_REG
+	tbz	x1, #TFSRE0_TF0_SHIFT, 2f
+
+	/*
+	 * A fault has happened, set MD_FLAG_MTE_ASYNC_FAULT. As FEAT_LSE
+	 * is a required feature where FEAT_MTE_ASYNC could be implemented
+	 * we can depend on it being present to set the flag.
+	 */
+	ldr	w1, =MD_FLAG_MTE_ASYNC_FAULT
+	add	x2, x19, #TD_MD_FLAGS
+.arch_extension lse
+	stset	w1, [x2]
+.arch_extension nolse
+
+2:
+	mov	x0, x19
 	bl	ptrauth_exit_el0
 
-	ldr	x0, [x18, #(PC_CURTHREAD)]
+	mov	x0, x19
 	bl	dbg_monitor_enter
 
 	/* Unmask debug and SError exceptions */
@@ -118,6 +142,14 @@
 	msr	daifset, #(DAIF_ALL)
 .if \el == 0
 	ldr	x0, [x18, #PC_CURTHREAD]
+
+	ldr	x1, [x0, #TD_MD_SCTLR]
+	/* See above for why we check this field */
+	tbz	x1, #(SCTLR_TCF0_SHIFT + 1), 1f
+	dsb	ish
+	msr	TFSRE0_EL1_REG, xzr
+1:
+
 	mov	x1, sp
 	bl	dbg_monitor_exit
 

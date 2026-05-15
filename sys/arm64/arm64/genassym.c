@@ -74,6 +74,9 @@ ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_MD_CANARY, offsetof(struct thread, td_md.md_canary));
 ASSYM(TD_MD_EFIRT_TMP, offsetof(struct thread, td_md.md_efirt_tmp));
+ASSYM(TD_MD_FLAGS, offsetof(struct thread, td_md.md_flags));
+ASSYM(MD_FLAG_MTE_ASYNC_FAULT, MD_FLAG_MTE_ASYNC_FAULT);
+ASSYM(TD_MD_SCTLR, offsetof(struct thread, td_md.md_sctlr));
 
 ASSYM(TF_SIZE, sizeof(struct trapframe));
 ASSYM(TF_SP, offsetof(struct trapframe, tf_sp));

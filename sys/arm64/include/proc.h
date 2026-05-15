@@ -69,7 +69,9 @@ struct mdthread {
 	uint64_t md_efirt_tmp;
 	int md_efirt_dis_pf;
 
-	int md_reserved0;
+	u_int md_flags;
+#define	MD_FLAG_MTE_ASYNC_FAULT_SHIFT	0
+#define	MD_FLAG_MTE_ASYNC_FAULT		(1u << 0)
 	uint64_t md_sctlr;
 	uint64_t md_gcr;		/* FEAT_MTE: Tag Control Register */
 };
