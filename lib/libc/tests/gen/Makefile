@@ -7,9 +7,11 @@ ATF_TESTS_C+=		fmtcheck2_test
 ATF_TESTS_C+=		fmtmsg_test
 ATF_TESTS_C+=		fnmatch2_test
 ATF_TESTS_C+=		fpclassify2_test
+ATF_TESTS_C+=	        fts_open_test
+ATF_TESTS_C+=	        fts_children_test
+ATF_TESTS_C+=	        fts_set_test
 .if ${COMPILER_FEATURES:Mblocks}
 ATF_TESTS_C+=		fts_blocks_test
-ATF_TESTS_C+=	        fts_open_test
 .endif
 ATF_TESTS_C+=		fts_misc_test
 ATF_TESTS_C+=		fts_options_test
