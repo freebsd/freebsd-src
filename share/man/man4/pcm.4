@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 15, 2025
+.Dd May 15, 2026
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -254,21 +254,29 @@ are global settings and
 are device specific.
 .Bl -tag -width indent
 .It Va hw.snd.compat_linux_mmap
-Linux
+This
+.Xr sysctl 8
+variable is available only when Linux application support is compiled into the
+kernel, and affects Linux binaries only.
+It is a hack to get around the fact that, for i386 emulation,
+.Xr linux 4
+historically set PROT_EXEC automatically when PROT_READ or PROT_WRITE was set
+during an
 .Xr mmap 2
-compatibility.
+call, which
+.Fx
+does not.
+.Pp
 The following values are supported (default is 0):
 .Bl -tag -width 2n
 .It -1
-Force disabling/denying PROT_EXEC
+Force-disable PROT_EXEC
 .Xr mmap 2
-requests.
+requests, even for Linux applications.
 .It 0
-Auto detect proc/ABI type, allow
+Allow PROT_EXEC
 .Xr mmap 2
-for Linux applications, and deny for everything else.
-.It 1
-Always allow PROT_EXEC page mappings.
+requests for Linux applications only.
 .El
 .It Va hw.snd.default_auto
 Automatically assign the default sound unit.
