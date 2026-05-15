@@ -52,6 +52,7 @@ struct _wid {
 	int pksent;
 	int mtu;
 	int iface;
+	int metric;
 	int expire;
 };
 void set_wid(int fam);

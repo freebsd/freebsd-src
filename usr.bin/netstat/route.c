@@ -205,13 +205,14 @@ pr_rthdr(int af1 __unused)
 
 	if (Wflag) {
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s} {T:/%*.*s} "
-		    "{T:/%*.*s} {T:/%*.*s} {T:/%*s}\n",
+		    "{T:/%*.*s} {T:/%*.*s} {T:/%*.*s} {T:/%*s}\n",
 			wid.dst,	wid.dst,	"Destination",
 			wid.gw,		wid.gw,		"Gateway",
 			wid.flags,	wid.flags,	"Flags",
 			wid.mtu,	wid.mtu,	"Nhop#",
 			wid.mtu,	wid.mtu,	"Mtu",
 			wid.iface,	wid.iface,	"Netif",
+			wid.metric,	wid.metric,	"Metric",
 			wid.expire,			"Expire");
 	} else {
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s} {T:/%*.*s} "
@@ -233,6 +234,7 @@ set_wid(int fam)
 	wid.pksent = 8;
 	wid.mtu = 6;
 	wid.iface = WID_IF_DEFAULT;
+	wid.metric = 8;
 	wid.expire = 6;
 }
 
@@ -326,8 +328,9 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:} ",
 	    wid.flags - protrusion);
 	p_flags(rtm->rtm_flags, buffer);
-	/* Output path weight as non-visual property */
+	/* Output path weight and metric as non-visual property */
 	xo_emit("{e:weight/%u}", rtm->rtm_rmx.rmx_weight);
+	xo_emit("{e:metric/%lu}", rtm->rtm_rmx.rmx_metric);
 	if (Wflag) {
 		/* XXX: use=0? */
 		xo_emit("{t:nhop/%*lu} ", wid.mtu, rtm->rtm_rmx.rmx_nhidx);
@@ -346,9 +349,10 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 			strlcpy(prettyname, "---", sizeof(prettyname));
 	}
 
-	if (Wflag)
+	if (Wflag) {
 		xo_emit("{t:interface-name/%*s}", wid.iface, prettyname);
-	else
+		xo_emit("{t:metric/%*lu} ", wid.metric, rtm->rtm_rmx.rmx_metric);
+	} else
 		xo_emit("{t:interface-name/%*.*s}", wid.iface, wid.iface,
 		    prettyname);
 	if (rtm->rtm_rmx.rmx_expire) {
