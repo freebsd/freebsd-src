@@ -149,11 +149,13 @@ fi
 VMCORE=$CRASHDIR/vmcore.$DUMPNR
 INFO=$CRASHDIR/info.$DUMPNR
 FILE=$CRASHDIR/core.txt.$DUMPNR
+LINK=$CRASHDIR/core.txt.last
 HOSTNAME=`hostname`
 
 if $BATCH; then
 	echo "Writing crash summary to $FILE."
 	exec > $FILE 2>&1
+	ln -sf $FILE $LINK
 fi
 
 GDB=/usr/local/bin/gdb
@@ -204,6 +206,7 @@ machine=$(gdb_command $KERNEL 'printf "%s", machine')
 if ! $BATCH; then
 	echo "Writing crash summary to $FILE."
 	exec > $FILE 2>&1
+	ln -sf $FILE $LINK
 fi
 
 echo "$HOSTNAME dumped core - see $VMCORE"
