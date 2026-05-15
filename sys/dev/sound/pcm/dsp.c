@@ -1908,23 +1908,24 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 
 	ret = 0;
 
-	dsp_lock_chans(priv, FREAD | FWRITE);
 	wrch = priv->wrch;
 	rdch = priv->rdch;
 
 	if (wrch != NULL && !(wrch->flags & CHN_F_DEAD)) {
+		CHN_LOCK(wrch);
 		e = (events & (POLLOUT | POLLWRNORM));
 		if (e)
 			ret |= chn_poll(wrch, e, td);
+		CHN_UNLOCK(wrch);
 	}
 
 	if (rdch != NULL && !(rdch->flags & CHN_F_DEAD)) {
+		CHN_LOCK(rdch);
 		e = (events & (POLLIN | POLLRDNORM));
 		if (e)
 			ret |= chn_poll(rdch, e, td);
+		CHN_UNLOCK(rdch);
 	}
-
-	dsp_unlock_chans(priv, FREAD | FWRITE);
 
 	PCM_GIANT_LEAVE(d);
 
