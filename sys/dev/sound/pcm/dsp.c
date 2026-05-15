@@ -55,7 +55,7 @@ struct dsp_cdevpriv {
 };
 
 #ifdef SV_ABI_LINUX
-static int dsp_mmap_allow_prot_exec = 0;
+static int dsp_mmap_allow_prot_exec = -1;
 SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RWTUN,
     &dsp_mmap_allow_prot_exec, 0,
     "linux mmap compatibility (-1=force-disable 0=auto)");
