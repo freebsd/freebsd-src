@@ -71,7 +71,7 @@ struct mdthread {
 
 	int md_reserved0;
 	uint64_t md_sctlr;
-	uint64_t md_reserved1;
+	uint64_t md_gcr;		/* FEAT_MTE: Tag Control Register */
 };
 
 struct mdproc {

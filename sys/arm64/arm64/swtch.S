@@ -96,8 +96,9 @@ ENTRY(cpu_throw)
 	mov	x0, x1
 #endif
 
-	/* This returns the thread pointer so no need to save it */
+	/* These return the thread pointer so no need to save it */
 	bl	ptrauth_switch
+	bl	mte_switch
 #ifdef PERTHREAD_SSP
 	mov	x19, x0
 #endif
@@ -176,8 +177,9 @@ ENTRY(cpu_switch)
 	mov	x0, x1
 #endif
 
-	/* This returns the thread pointer so no need to save it */
+	/* These return the thread pointer so no need to save it */
 	bl	ptrauth_switch
+	bl	mte_switch
 	/* This returns the thread pcb */
 	bl	pmap_switch
 	/* Move the new pcb out of the way */

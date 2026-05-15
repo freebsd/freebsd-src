@@ -471,6 +471,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 
 	/* Generate new pointer authentication keys */
 	ptrauth_exec(td);
+	mte_exec(td);
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and from */

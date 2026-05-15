@@ -76,6 +76,7 @@ arm64/arm64/ofw_machdep.c			optional fdt
 arm64/arm64/pl031_rtc.c				optional fdt pl031
 arm64/arm64/ptrauth.c				standard \
 	compile-with	"${NORMAL_C:N-mbranch-protection*} -mbranch-protection=bti"
+arm64/arm64/mte.c				standard
 arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
 arm64/arm64/rsi.c				standard
