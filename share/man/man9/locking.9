@@ -205,11 +205,6 @@ The functions
 and
 .Fn wakeup_one
 also handle event-based thread blocking.
-Unlike condition variables,
-arbitrary addresses may be used as wait channels and a dedicated
-structure does not need to be allocated.
-However, care must be taken to ensure that wait channel addresses are
-unique to an event.
 If a thread must wait for an external event, it is put to sleep by
 .Fn tsleep ,
 .Fn msleep ,
@@ -221,6 +216,16 @@ Threads may also wait using one of the locking primitive sleep routines
 .Xr rw_sleep 9 ,
 or
 .Xr sx_sleep 9 .
+.Pp
+Unlike condition variables,
+arbitrary addresses may be used as wait channels and a dedicated
+structure does not need to be allocated.
+However, care must be taken to ensure that wait channel addresses are
+unique to an event.
+For example, the memory address of a sleepable lock such as a
+.Xr sx 9
+must not be used as a sleep channel, because the lock implementation
+will internally use the same address as a wait channel.
 .Pp
 The parameter
 .Fa chan
