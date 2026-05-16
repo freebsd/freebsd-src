@@ -496,3 +496,5 @@ sw1wait:
 	cmpq	%rcx, %rdx
 	je	1b
 	jmp	sw1cont
+
+	.section .note.GNU-stack,"",%progbits

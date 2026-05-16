@@ -66,3 +66,5 @@ sgx_onfault:
 	popq	%rbx
 	POP_FRAME_POINTER
 	ret
+
+	.section .note.GNU-stack,"",%progbits
