@@ -32,12 +32,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_apic.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
 #include <sys/bio.h>
@@ -47,7 +45,6 @@
 #endif
 #include <sys/proc.h>
 #include <sys/errno.h>
-#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
