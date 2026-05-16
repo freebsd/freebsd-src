@@ -117,3 +117,5 @@ ENTRY(efi_rt_fault)
 END(efi_rt_fault)
 
 efi_rt_panic_str:	.asciz	"efi_rt_arch_call: too many args"
+
+	.section .note.GNU-stack,"",%progbits

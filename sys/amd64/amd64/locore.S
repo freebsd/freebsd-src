@@ -194,3 +194,5 @@ ENTRY(la57_trampoline_end)
 	.globl	bootstack
 	.space	BOOTSTACK_SIZE		/* space for bootstack - temporary stack */
 bootstack:
+
+	.section .note.GNU-stack,"",%progbits

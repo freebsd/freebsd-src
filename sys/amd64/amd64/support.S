@@ -1996,3 +1996,5 @@ ENTRY(cpu_sync_core)
 	pushq	%rdx
 	iretq
 END(cpu_sync_core)
+
+	.section .note.GNU-stack,"",%progbits

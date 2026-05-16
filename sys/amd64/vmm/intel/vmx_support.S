@@ -268,3 +268,5 @@ ENTRY(vmx_call_isr)
 	VLEAVE
 	ret
 END(vmx_call_isr)
+
+	.section .note.GNU-stack,"",%progbits

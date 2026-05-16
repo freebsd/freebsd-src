@@ -1373,3 +1373,5 @@ gsbase_load_fault:
 #ifdef HWPMC_HOOKS
 	ENTRY(end_exceptions)
 #endif
+
+	.section .note.GNU-stack,"",%progbits

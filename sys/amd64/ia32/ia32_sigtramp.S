@@ -138,3 +138,5 @@ __vdso_lcall_tramp:
 	ud2
 #endif
 	.p2align 1
+
+	.section .note.GNU-stack,"",%progbits
