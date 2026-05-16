@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 18, 2023
+.Dd May 17, 2026
 .Dt MEMORY 3
 .Os
 .Sh NAME
@@ -33,6 +33,8 @@
 .Nm alloca ,
 .Nm calloc ,
 .Nm free ,
+.Nm free_sized ,
+.Nm free_aligned_sized ,
 .Nm malloc ,
 .Nm posix_memalign ,
 .Nm realloc ,
@@ -53,6 +55,10 @@
 .Fn calloc "size_t nelem" "size_t elsize"
 .Ft void
 .Fn free "void *ptr"
+.Ft void
+.Fn free_sized "void *ptr" "size_t size"
+.Ft void
+.Fn free_aligned_sized "void *ptr" "size_t alignment" "size_t size"
 .Ft void *
 .Fn malloc "size_t size"
 .Ft int
@@ -79,6 +85,8 @@ individual manual pages.
 .Xr alloca 3 ,
 .Xr calloc 3 ,
 .Xr free 3 ,
+.Xr free_aligned_sized 3 ,
+.Xr free_sized 3 ,
 .Xr malloc 3 ,
 .Xr posix_memalign 3 ,
 .Xr realloc 3 ,
@@ -101,3 +109,10 @@ and
 .Fn posix_memalign
 functions conform to
 .St -p1003.1-2001 .
+.Pp
+The
+.Fn free_sized
+and
+.Fn free_aligned_sized
+functions conform to
+.St -isoC-2023 .
