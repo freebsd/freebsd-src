@@ -179,6 +179,7 @@ pmap_l3(struct riscv_iommu_pmap *pmap, vm_offset_t va)
 	return (pmap_l2_to_l3(l2, va));
 }
 
+#ifdef INVARIANTS
 static __inline void
 pmap_resident_count_inc(struct riscv_iommu_pmap *pmap, int count)
 {
@@ -197,6 +198,17 @@ pmap_resident_count_dec(struct riscv_iommu_pmap *pmap, int count)
 	    pmap->sp_resident_count, count));
 	pmap->sp_resident_count -= count;
 }
+#else
+static __inline void
+pmap_resident_count_inc(struct riscv_iommu_pmap *pmap, int count)
+{
+}
+
+static __inline void
+pmap_resident_count_dec(struct riscv_iommu_pmap *pmap, int count)
+{
+}
+#endif
 
 /***************************************************
  * Page table page management routines.....
