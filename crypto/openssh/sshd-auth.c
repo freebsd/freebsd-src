@@ -96,6 +96,7 @@
 #include "srclimit.h"
 #include "ssh-sandbox.h"
 #include "dh.h"
+#include "blocklist_client.h"
 
 /* Privsep fds */
 #define PRIVSEP_MONITOR_FD		(STDERR_FILENO + 1)
@@ -812,8 +813,10 @@ do_ssh2_kex(struct ssh *ssh)
 	free(hkalgs);
 
 	if ((r = kex_exchange_identification(ssh, -1,
-	    options.version_addendum)) != 0)
+	    options.version_addendum)) != 0) {
+		BLOCKLIST_NOTIFY(ssh, BLOCKLIST_AUTH_FAIL, "Banner exchange");
 		sshpkt_fatal(ssh, r, "banner exchange");
+	}
 	mm_sshkey_setcompat(ssh); /* tell monitor */
 
 	if ((ssh->compat & SSH_BUG_NOREKEY))
