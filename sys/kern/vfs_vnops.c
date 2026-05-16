@@ -4358,9 +4358,16 @@ vn_lock_pair_pause(const char *wmesg)
  * Only one of LK_SHARED and LK_EXCLUSIVE must be specified.
  * LK_NODDLKTREAT can be optionally passed.
  *
- * If vp1 == vp2, only one, most exclusive, lock is obtained on it.
+ * If vp1->v_vnlock == vp2->v_vnlock, only one, most exclusive, lock
+ * is obtained on the vnode(s).  The function accounts for the
+ * possibility of vp1 or vp2' v_vnlock changing while the
+ * corresponding vnode is unlocked.
+ *
+ * Return values:
+ *    0       - locked, two unlocks are required
+ *    EDEADLK - locked, vnodes share the same lock, only one unlock is due.
  */
-void
+int
 vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
     struct vnode *vp2, bool vp2_locked, int lkflags2)
 {
@@ -4374,9 +4381,10 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 	MPASS((lkflags2 & ~(LK_SHARED | LK_EXCLUSIVE | LK_NODDLKTREAT)) == 0);
 
 	if (vp1 == NULL && vp2 == NULL)
-		return;
+		return (0);
 
-	if (vp1 == vp2) {
+recheck_same:
+	if (vp1 != NULL && vp2 != NULL && vp1->v_vnlock == vp2->v_vnlock) {
 		MPASS(vp1_locked == vp2_locked);
 
 		/* Select the most exclusive mode for lock. */
@@ -4389,20 +4397,26 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 			/* No need to relock if any lock is exclusive. */
 			if ((vp1->v_vnlock->lock_object.lo_flags &
 			    LK_NOSHARE) != 0)
-				return;
+				return (EDEADLK);
 
 			locked1 = VOP_ISLOCKED(vp1);
 			if (((lkflags1 & LK_SHARED) != 0 &&
 			    locked1 != LK_EXCLUSIVE) ||
 			    ((lkflags1 & LK_EXCLUSIVE) != 0 &&
 			    locked1 == LK_EXCLUSIVE))
-				return;
+				return (EDEADLK);
 			VOP_UNLOCK(vp1);
 		}
 
 		ASSERT_VOP_UNLOCKED(vp1, "vp1");
 		vn_lock(vp1, lkflags1 | LK_RETRY);
-		return;
+		if (vp1->v_vnlock == vp2->v_vnlock)
+			return (EDEADLK);
+		VOP_UNLOCK(vp1);
+		if (vp2_locked) {
+			VOP_UNLOCK(vp2);
+			vp2_locked = false;
+		}
 	}		
 
 	if (vp1 != NULL) {
@@ -4473,6 +4487,9 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 			vn_lock(vp1, lkflags1 | LK_RETRY);
 			vp1_locked = true;
 		}
+		if (vp1 != NULL && vp2 != NULL &&
+		    vp1->v_vnlock == vp2->v_vnlock)
+			goto recheck_same;
 	}
 	if (vp1 != NULL) {
 		if (lkflags1 == LK_EXCLUSIVE)
@@ -4486,6 +4503,7 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 		else
 			ASSERT_VOP_LOCKED(vp2, "vp2 ret");
 	}
+	return (0);
 }
 
 int
