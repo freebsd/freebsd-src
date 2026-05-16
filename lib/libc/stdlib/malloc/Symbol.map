@@ -47,6 +47,13 @@ FBSD_1.4 {
 	__mallctlbymib;
 };
 
+FBSD_1.9 {
+	free_sized;
+	free_aligned_sized;
+	__free_sized;
+	__free_aligned_sized;
+};
+
 FBSDprivate_1.0 {
 	_malloc_thread_cleanup;
 	_malloc_prefork;

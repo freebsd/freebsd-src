@@ -1,0 +1,100 @@
+.\"
+.\" Copyright (c) 2026 Faraz Vahedi <kfv@kfv.io>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 17, 2026
+.Dt FREE_SIZED 3
+.Os
+.Sh NAME
+.Nm free_sized ,
+.Nm free_aligned_sized
+.Nd C23 sized deallocation functions
+.Sh SYNOPSIS
+.Lb libc
+.In stdlib.h
+.Ft void
+.Fn free_sized "void *ptr" "size_t size"
+.Ft void
+.Fn free_aligned_sized "void *ptr" "size_t alignment" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn free_sized
+function deallocates the memory referenced by
+.Fa ptr
+that was previously allocated by
+.Xr malloc 3 ,
+.Xr realloc 3 ,
+or
+.Xr calloc 3 .
+The
+.Fa size
+argument shall equal the size passed to the allocation function.
+The result of an
+.Xr aligned_alloc 3
+may not be passed to
+.Fn free_sized .
+.Pp
+The
+.Fn free_aligned_sized
+function deallocates memory referenced by
+.Fa ptr
+that was previously allocated by
+.Xr aligned_alloc 3 .
+The
+.Fa alignment
+and
+.Fa size
+arguments shall equal the values supplied to the allocation function.
+The result of an
+.Xr malloc 3 ,
+.Xr calloc 3 ,
+or
+.Xr realloc 3
+may not be passed to
+.Fn free_aligned_sized .
+.Pp
+If
+.Fa ptr
+is neither a null pointer nor a pointer returned by the allocation functions
+described above for the corresponding deallocation function, the behaviour is
+undefined, and so is supplying a
+.Fa size
+or
+.Fa alignment
+that does not match the original allocation.
+.Sh IMPLEMENTATION NOTES
+The C standard permits an implementation to ignore the
+.Fa size
+and
+.Fa alignment
+hints.
+The current implementation forwards to
+.Xr free 3
+without validating these arguments, so behaviour remains correct for
+well-formed use.
+.Pp
+These functions will be wired to the system allocator's sized deallocation,
+once supported, as with the rest of the memory allocation API, so that
+.Fa size
+and
+.Fa alignment
+hints are used for performance and security benefits.
+That behaviour conforms to the practice recommended for each function in the
+C standard.
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr calloc 3 ,
+.Xr realloc 3 ,
+.Xr aligned_alloc 3 ,
+.Xr jemalloc 3
+.Sh STANDARDS
+The
+.Fn free_sized
+and
+.Fn free_aligned_sized
+functions conform to
+.St -isoC-2023 .
+.Sh AUTHOR
+.An Faraz Vahedi Aq Mt kfv@kfv.io
