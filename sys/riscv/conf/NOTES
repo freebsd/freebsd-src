@@ -16,6 +16,7 @@ options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	IOMMU
 
 # Enable detailed accounting by the PV entry allocator.
 options 	PV_STATS
