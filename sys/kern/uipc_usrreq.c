@@ -2756,7 +2756,9 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 			if (error != 0)
 				break;
 #ifdef COMPAT_FREEBSD32
-			if (SV_PROC_FLAG(sopt->sopt_td->td_proc, SV_ILP32)) {
+			if (sopt->sopt_td &&
+			    SV_PROC_FLAG(sopt->sopt_td->td_proc, SV_ILP32))
+			{
 				struct xucred32 xu32 = {};
 				int i;
 
