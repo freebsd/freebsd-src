@@ -1369,8 +1369,11 @@ cleanup_exit(int i)
 		audit_event(the_active_state, SSH_CONNECTION_ABANDON);
 #endif
 	/* Override default fatal exit value when auth was attempted */
-	if (i == 255 && monitor_auth_attempted())
+	if (i == 255 && monitor_auth_attempted()) {
+		BLOCKLIST_NOTIFY(the_active_state, BLOCKLIST_AUTH_FAIL,
+		    "Fatal exit");
 		_exit(EXIT_AUTH_ATTEMPTED);
+	}
 	if (i == 255 && monitor_invalid_user())
 		_exit(EXIT_INVALID_USER);
 	_exit(i);
