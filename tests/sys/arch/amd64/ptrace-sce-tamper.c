@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -58,7 +59,7 @@ main(void)
 		err(1, "fork");
 
 	if (pid == 0) {
-		(void)ptrace(PT_TRACE_ME, 0, 0, 0);
+		raise(SIGSTOP);
 		(void)getpid();
 		exit(0);
 	} else {
