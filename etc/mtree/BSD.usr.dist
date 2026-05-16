@@ -503,8 +503,6 @@
             man4
                 aarch64
                 ..
-                amd64
-                ..
                 arm
                 ..
                 i386
@@ -519,12 +517,6 @@
             man7
             ..
             man8
-                amd64
-                ..
-                i386
-                ..
-                powerpc
-                ..
             ..
             man9
             ..
