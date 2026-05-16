@@ -52,6 +52,7 @@
 # done
 
 # 20260503: Kill off MANSUBDIRs
+OLD_DIRS+=usr/share/man/man4/amd64
 OLD_FILES+=usr/share/man/man8/amd64/apm.8.gz
 OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 OLD_FILES+=usr/share/man/man8/i386/apmd.8.gz
