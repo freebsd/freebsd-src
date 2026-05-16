@@ -968,8 +968,8 @@ static inline void
 VFS_KNOTE_LOCKED(struct vnode *vp, int hint)
 {
 	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {
-		KNOTE_LOCKED(&vp->v_pollinfo->vpi_selinfo.si_note,
-		    hint);
+		KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note,
+		    hint, KNF_LISTLOCKED | KNF_NOKQLOCK);
 	}
 }
 
@@ -977,8 +977,8 @@ static inline void
 VFS_KNOTE_UNLOCKED(struct vnode *vp, int hint)
 {
 	if ((vn_irflag_read(vp) & VIRF_KNOTE) != 0) {
-		KNOTE_UNLOCKED(&vp->v_pollinfo->vpi_selinfo.si_note,
-		    hint);
+		KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note,
+		    hint, KNF_NOKQLOCK);
 	}
 }
 
