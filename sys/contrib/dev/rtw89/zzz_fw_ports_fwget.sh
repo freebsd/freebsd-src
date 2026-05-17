@@ -51,7 +51,7 @@ fi
 #
 list_fw()
 {
-	for f in `ls -1 rtw?????.c rtw?????e.c`; do
+	for f in `ls -1 rtw?????.c rtw?????e.c rtw?????te.c`; do
 
 		l=$(cpp ${f} 2>&1 | awk '/^MODULE_FIRMWARE\(/ { gsub(/"/, ""); gsub("__stringify\\(", ""); gsub("\\);$", ""); gsub("\\)", ""); gsub("^MODULE_FIRMWARE\\(", ""); gsub(" ", ""); printf "%s\n", $0; }' | sort -n | uniq)
 		if test "${l}" == ""; then
@@ -134,7 +134,7 @@ fi
 fwgetfile=$(mktemp -p /tmp ${DRIVER}-fwget.XXXXXX)
 :> ${fwgetfile}
 
-for f in `ls -1 rtw?????.c rtw?????e.c`; do
+for f in `ls -1 rtw?????.c rtw?????e.c rtw?????te.c`; do
 
 	# Ports FLAVOR names are [a-z0-9_].  If needed add more mangling magic here.
 	n=${f%.c};
