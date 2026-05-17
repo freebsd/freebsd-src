@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright 2023 Bjoern A. Zeeb
-# Copyright (c) 2024 The FreeBSD Foundation
+# Copyright (c) 2024-2026 The FreeBSD Foundation
 #
 # Portions of this software were developed by Björn Zeeb
 # under sponsorship from the FreeBSD Foundation.
@@ -41,6 +41,7 @@ pci_network_realtek_rtw88()
 	### >>>
 
 	0xd723)	addpkg "wifi-firmware-rtw88-kmod-rtw8723d"; return 1 ;;
+	0x8813)	addpkg "wifi-firmware-rtw88-kmod-rtw8814a"; return 1 ;;
 	0xb821)	addpkg "wifi-firmware-rtw88-kmod-rtw8821c"; return 1 ;;
 	0xc821)	addpkg "wifi-firmware-rtw88-kmod-rtw8821c"; return 1 ;;
 	0xb822)	addpkg "wifi-firmware-rtw88-kmod-rtw8822b"; return 1 ;;
@@ -67,8 +68,10 @@ pci_network_realtek_rtw89()
 	0xa85a)	addpkg "wifi-firmware-rtw89-kmod-rtw8852a"; return 1 ;;
 	0xb852)	addpkg "wifi-firmware-rtw89-kmod-rtw8852b"; return 1 ;;
 	0xb85b)	addpkg "wifi-firmware-rtw89-kmod-rtw8852b"; return 1 ;;
+	0xb520)	addpkg "wifi-firmware-rtw89-kmod-rtw8852bt"; return 1 ;;
 	0xc852)	addpkg "wifi-firmware-rtw89-kmod-rtw8852c"; return 1 ;;
 	0x8922)	addpkg "wifi-firmware-rtw89-kmod-rtw8922a"; return 1 ;;
+	0x892b)	addpkg "wifi-firmware-rtw89-kmod-rtw8922a"; return 1 ;;
 
 	### <<<
 	esac
