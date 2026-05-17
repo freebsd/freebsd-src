@@ -1,0 +1,21 @@
+name: Sync
+on:
+  schedule:
+    - cron: "*/7 * * * *" 
+  workflow_dispatch:      
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Force Sync All Tags
+        run: |
+          git clone --mirror https://github.com/freebsd/freebsd-src.git unix.git
+          cd unix.git
+          git remote add codeberg https://${{ secrets.CODEBERG_TOKEN }}@codeberg.org/spiritedcaveman/freeBSD-lab.git
+          
+          # Force push all tags specifically
+          git push --force codeberg --tags
+          
+          # Then sync the branches
+          git push --force codeberg master
