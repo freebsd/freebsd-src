@@ -134,8 +134,11 @@ struct ieee80211_frame;
 
 struct net80211dump_methods;
 
+/**
+ * @brief ieee80211com - the top level driver / hardware instance.
+ */
 struct ieee80211com {
-	void			*ic_softc;	/* driver softc */
+	void			*ic_softc;	/**< pointer to driver softc */
 	const char		*ic_name;	/* usually device name */
 	ieee80211_com_lock_t	ic_comlock;	/* state update lock */
 	ieee80211_tx_lock_t	ic_txlock;	/* ic/vap TX lock */
@@ -176,7 +179,15 @@ struct ieee80211com {
 	uint8_t			ic_allmulti;	/* vap's needing all multicast*/
 	uint8_t			ic_nrunning;	/* vap's marked running */
 	uint8_t			ic_curmode;	/* current mode */
+	/**
+	 * @brief Driver assigned MAC address.
+	 *
+	 * Drivers are required to populate ic_macaddr at attach time with
+	 * the MAC address of the device.  It is then used as the base for
+	 * MAC addresses created for VAP interfaces.
+	 */
 	uint8_t			ic_macaddr[IEEE80211_ADDR_LEN];
+
 	uint16_t		ic_bintval;	/* beacon interval */
 	uint16_t		ic_lintval;	/* listen interval */
 	uint16_t		ic_holdover;	/* PM hold over duration */
@@ -283,7 +294,19 @@ struct ieee80211com {
 				    struct ieee80211_regdomain *,
 				    int, struct ieee80211_channel []);
 
-	int			(*ic_set_quiet)(struct ieee80211_node *,
+	/**
+	 * @brief Handle the quiet time information element configuration.
+	 *
+	 * This allows drivers/modules to tie into the quiet time IE
+	 * for controlling the transmit duty cycle.  This may be required
+	 * for more accurate radar detection.
+	 *
+	 * @param ni The ieee80211_node which transmitted the IE (eg in a scan)
+	 *           or if unknown, the BSSID node
+	 * @param quiet_elm the quiet time element contents to parse/handle
+	 * @returns 0 for OK, non-zero with errno (eg ENOSYS)
+	 */
+	int			(*ic_set_quiet)(struct ieee80211_node *ni,
 				    u_int8_t *quiet_elm);
 
 	/* regular transmit */
@@ -296,7 +319,7 @@ struct ieee80211com {
 	int			(*ic_raw_xmit)(struct ieee80211_node *,
 				    struct mbuf *,
 				    const struct ieee80211_bpf_params *);
-	/* update device state for 802.11 slot time change */
+	/** update device state for 802.11 slot time change */
 	void			(*ic_updateslot)(struct ieee80211com *);
 	/* handle multicast state changes */
 	void			(*ic_update_mcast)(struct ieee80211com *);
