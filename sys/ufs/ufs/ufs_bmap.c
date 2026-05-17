@@ -59,7 +59,8 @@
 #include <ufs/ufs/ufs_extern.h>
 
 static ufs_lbn_t lbn_count(struct ufsmount *, int);
-static int readindir(struct vnode *, ufs_lbn_t, ufs2_daddr_t, struct buf **);
+static int readindir(struct vnode *, ufs_lbn_t, ufs2_daddr_t, bool,
+    struct buf **);
 
 static int ufs_bmap_use_unmapped = 1;
 
@@ -104,6 +105,7 @@ static int
 readindir(struct vnode *vp,
 	ufs_lbn_t lbn,
 	ufs2_daddr_t daddr,
+	bool allow_unmapped,
 	struct buf **bpp)
 {
 	struct buf *bp;
@@ -116,7 +118,8 @@ readindir(struct vnode *vp,
 	ump = VFSTOUFS(mp);
 	ip = VTOI(vp);
 
-	gbflags = !I_IS_UFS1(ip) && ufs_bmap_use_unmapped ? GB_UNMAPPED : 0;
+	gbflags = allow_unmapped && !I_IS_UFS1(ip) &&
+	    ufs_bmap_use_unmapped ? GB_UNMAPPED : 0;
 	bp = getblk(vp, lbn, mp->mnt_stat.f_iosize, 0, 0, gbflags);
 	if ((bp->b_flags & B_CACHE) == 0) {
 		KASSERT(daddr != 0,
@@ -291,7 +294,7 @@ ufs_bmaparray(struct vnode *vp,
 		 */
 		if (bp)
 			bqrelse(bp);
-		error = readindir(vp, metalbn, daddr, &bp);
+		error = readindir(vp, metalbn, daddr, true, &bp);
 		if (error != 0)
 			return (error);
 
@@ -525,7 +528,7 @@ ufs_bmap_seekdata(struct vnode *vp, off_t *offp)
 		for (; daddr != 0 && num > 0; ap++, num--) {
 			if (bp != NULL)
 				bqrelse(bp);
-			error = readindir(vp, ap->in_lbn, daddr, &bp);
+			error = readindir(vp, ap->in_lbn, daddr, false, &bp);
 			if (error != 0)
 				return (error);
 
