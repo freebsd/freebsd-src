@@ -247,5 +247,7 @@ bool	ieee80211_ht_check_tx_shortgi_20(const struct ieee80211_node *ni);
 bool	ieee80211_ht_check_tx_shortgi_40(const struct ieee80211_node *ni);
 bool	ieee80211_ht_check_tx_ht40(const struct ieee80211_node *ni);
 bool	ieee80211_ht_check_tx_ht(const struct ieee80211_node *ht);
+bool	ieee80211_ht_check_bar_exceed_retry_count(const struct ieee80211_node *,
+	    int);
 
 #endif /* _NET80211_IEEE80211_HT_H_ */
