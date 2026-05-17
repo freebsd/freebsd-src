@@ -72,8 +72,11 @@
  * C++ template parameters may contain commas, even if not enclosed in
  * parentheses, causing the _Static_assert macro to be invoked with more
  * than two parameters.
+ *
+ * C23 defines static_assert and its obsolescent alternative spelling,
+ * _Static_assert, as keywords.
  */
-#if __ISO_C_VISIBLE >= 2011 && !defined(__cplusplus)
+#if __ISO_C_VISIBLE >= 2011 && __ISO_C_VISIBLE < 2023 && !defined(__cplusplus)
 #define	static_assert	_Static_assert
 #endif
 
