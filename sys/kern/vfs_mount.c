@@ -1281,7 +1281,8 @@ vfs_domount_first(
 	 * Use vn_lock_pair to avoid establishing an ordering between vnodes
 	 * from different filesystems.
 	 */
-	vn_lock_pair(vp, false, LK_EXCLUSIVE, newdp, false, LK_EXCLUSIVE);
+	error1 = vn_lock_pair(vp, false, LK_EXCLUSIVE, newdp, false,
+	    LK_EXCLUSIVE);
 
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
@@ -1291,7 +1292,10 @@ vfs_domount_first(
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
-	VOP_UNLOCK(vp);
+	if (error1 == 0)
+		VOP_UNLOCK(vp);
+	else
+		MPASS(error1 == EDEADLK);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
 	VOP_UNLOCK(newdp);
 	mount_devctl_event("MOUNT", mp, false);
