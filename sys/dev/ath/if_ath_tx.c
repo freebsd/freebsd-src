@@ -6225,7 +6225,8 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 * Also, don't call it if bar_tx/bar_wait are 0; something
 	 * has beaten us to the punch? (XXX figure out what?)
 	 */
-	if (status == 0 || attempts == 50) {
+	if (status == 0 ||
+	    ieee80211_ht_check_bar_exceed_retry_count(ni, attempts)) {
 		ATH_TX_LOCK(sc);
 		if (atid->bar_tx == 0 || atid->bar_wait == 0)
 			DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,

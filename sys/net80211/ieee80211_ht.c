@@ -2899,7 +2899,7 @@ bar_timeout(void *arg)
 	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) == 0)
 		return;
 	/* XXX ? */
-	if (tap->txa_attempts >= ieee80211_bar_maxtries) {
+	if (ieee80211_ht_check_bar_exceed_retry_count(ni, tap->txa_attempts)) {
 		struct ieee80211com *ic = ni->ni_ic;
 
 		ni->ni_vap->iv_stats.is_ampdu_bar_tx_fail++;
@@ -3844,4 +3844,22 @@ ieee80211_ht_check_tx_ht40(const struct ieee80211_node *ni)
 	return (IEEE80211_IS_CHAN_HT40(bss_chan) &&
 	    IEEE80211_IS_CHAN_HT40(ni->ni_chan) &&
 	    (ni->ni_chw == NET80211_STA_RX_BW_40));
+}
+
+/**
+ * @brief Return whether the given BAR retry count exceeds the configured count
+ *
+ * @param ni ieee80211_node to check against
+ * @param count BAR retry count
+ * @returns true if the count has exceeded the configured count, false if not
+ */
+bool
+ieee80211_ht_check_bar_exceed_retry_count(const struct ieee80211_node *ni __unused,
+    int count)
+{
+	/*
+	 * Note: ni isn't used here because the BAR limit is currently
+	 * global.  It's here for future work.
+	 */
+	return (count >= ieee80211_bar_maxtries);
 }
