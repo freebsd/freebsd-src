@@ -55,3 +55,10 @@ diff -u config.h.kerberos5 config.h |
 diff -u config.h.sk-builtin config.h |
     sed -n '/^-#define/s/^-//p' |
     grep -Ff /dev/stdin config.h.sk-builtin > sk_config.h
+
+# Fix 32/64-bit time_t defines
+sed -i '' 's/^#define SIZEOF_TIME_T 8$/#ifdef __i386__\
+#define SIZEOF_TIME_T 4\
+#else\
+#define SIZEOF_TIME_T 8\
+#endif/' config.h
