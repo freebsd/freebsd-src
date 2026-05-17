@@ -137,6 +137,30 @@ class TestAddRule(BaseTest):
             ),
             pytest.param(
                 {
+                    "in": "add allow ip4 from 0.0.0.0/0 to 192.0.2.1/0",
+                    "out": {
+                        "insns": [
+                            InsnEmpty(IpFwOpcode.O_IP4),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_zero_addrmask4",
+            ),
+            pytest.param(
+                {
+                    "in": "add allow ip6 from ::/0 to 2001:DB8::/0",
+                    "out": {
+                        "insns": [
+                            InsnEmpty(IpFwOpcode.O_IP6),
+                            InsnEmpty(IpFwOpcode.O_ACCEPT),
+                        ],
+                    },
+                },
+                id="test_zero_addrmask6",
+            ),
+            pytest.param(
+                {
                     "in": "add allow ip from { 1.2.3.4 or 2.3.4.5 } to any",
                     "out": {
                         "insns": [
