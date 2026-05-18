@@ -1587,6 +1587,7 @@ pmap_page_init(vm_page_t m)
 
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.pv_memattr = VM_MEMATTR_WRITE_BACK;
+	m->md.pv_flags = 0;
 }
 
 static void
