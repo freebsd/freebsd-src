@@ -364,6 +364,10 @@ struct v4l2_frmivalenum {
 
 /* Luminance+Chrominance formats */
 #define V4L2_PIX_FMT_YUYV	v4l2_fourcc('Y', 'U', 'Y', 'V')
+#define V4L2_PIX_FMT_UYVY	v4l2_fourcc('U', 'Y', 'V', 'Y')
+#define V4L2_PIX_FMT_NV12	v4l2_fourcc('N', 'V', '1', '2')
+#define V4L2_PIX_FMT_NV21	v4l2_fourcc('N', 'V', '2', '1')
+#define V4L2_PIX_FMT_M420	v4l2_fourcc('M', '4', '2', '0')
 #define V4L2_PIX_FMT_YVU420	v4l2_fourcc('Y', 'V', '1', '2')
 #define V4L2_PIX_FMT_YUV420	v4l2_fourcc('Y', 'U', '1', '2')
 
@@ -375,6 +379,8 @@ struct v4l2_frmivalenum {
 /* Grey formats */
 #define V4L2_PIX_FMT_GREY	v4l2_fourcc('G', 'R', 'E', 'Y')
 #define V4L2_PIX_FMT_Y10	v4l2_fourcc('Y', '1', '0', ' ')
+#define V4L2_PIX_FMT_Y12	v4l2_fourcc('Y', '1', '2', ' ')
+#define V4L2_PIX_FMT_Y16	v4l2_fourcc('Y', '1', '6', ' ')
 
 /* RGB formats */
 #define V4L2_PIX_FMT_RGB565	v4l2_fourcc('R', 'G', 'B', 'P')
