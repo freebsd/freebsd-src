@@ -196,6 +196,8 @@ enum {
 	UVIDEO_ISOC_RX_0,
 	UVIDEO_ISOC_RX_1,
 	UVIDEO_ISOC_RX_2,
+	UVIDEO_ISOC_RX_3,
+	UVIDEO_ISOC_RX_4,
 	UVIDEO_BULK_RX,
 	UVIDEO_N_XFER
 };
@@ -608,6 +610,24 @@ static const struct usb_config uvideo_isoc_config[UVIDEO_IXFERS] = {
 		.callback = &uvideo_isoc_callback,
 	},
 	[2] = {
+		.type = UE_ISOCHRONOUS,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = 0,
+		.frames = UVIDEO_NFRAMES_MAX,
+		.flags = {.short_xfer_ok = 1, .short_frames_ok = 1,},
+		.callback = &uvideo_isoc_callback,
+	},
+	[3] = {
+		.type = UE_ISOCHRONOUS,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = 0,
+		.frames = UVIDEO_NFRAMES_MAX,
+		.flags = {.short_xfer_ok = 1, .short_frames_ok = 1,},
+		.callback = &uvideo_isoc_callback,
+	},
+	[4] = {
 		.type = UE_ISOCHRONOUS,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
