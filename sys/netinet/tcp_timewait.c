@@ -92,7 +92,7 @@
 #include <security/mac/mac_framework.h>
 
 VNET_DEFINE(int, tcp_do_rfc6191) = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_VNET | CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6191, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc6191), 0,
     "Enable RFC 6191 (Reduced TIME-WAIT State)");
 
