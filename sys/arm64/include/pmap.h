@@ -74,6 +74,9 @@ struct md_page {
 	uint8_t			pv_reserve[2];
 };
 
+/* machine page flags */
+#define PV_MTE_TAGGED	0x01	/* page is tagged with MTE */
+
 enum pmap_stage {
 	PM_INVALID,
 	PM_STAGE1,

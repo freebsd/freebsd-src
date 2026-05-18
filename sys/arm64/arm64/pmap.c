@@ -6922,6 +6922,7 @@ pmap_zero_page(vm_page_t m)
 	void *va = VM_PAGE_TO_DMAP(m);
 
 	pagezero(va);
+	m->md.pv_flags &= ~PV_MTE_TAGGED;
 }
 
 /*

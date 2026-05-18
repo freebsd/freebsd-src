@@ -284,6 +284,8 @@ void	mte_copy_thread(struct thread *, struct thread *);
 void	mte_thread_alloc(struct thread *);
 void	mte_thread0(struct thread *);
 
+void	mte_sync_tags(vm_page_t page);
+
 /* Functions to read the sanitised view of the special registers */
 void	update_special_regs(u_int);
 void	update_special_reg_iss(u_int, uint64_t, uint64_t);
