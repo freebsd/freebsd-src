@@ -1973,22 +1973,14 @@ conf::apply(struct conf *oldconf)
 		log_init(conf_debug);
 	}
 
-	/*
-	 * Rename the pidfile if the pathname changes.  On startup,
-	 * oldconf created via conf_new_from_kernel will not contain a
-	 * valid pidfile_path.
-	 */
-	if (!oldconf->conf_pidfile_path.empty()) {
-		if (oldconf->conf_pidfile_path != conf_pidfile_path) {
-			/* pidfile has changed.  rename it */
-			log_debugx("moving pidfile to %s",
+	/* Rename the pidfile if the pathname changes. */
+	if (oldconf->conf_pidfile_path != conf_pidfile_path) {
+		log_debugx("moving pidfile to %s", conf_pidfile_path.c_str());
+		if (rename(oldconf->conf_pidfile_path.c_str(),
+		    conf_pidfile_path.c_str()) != 0) {
+			log_err(1, "renaming pidfile %s -> %s",
+			    oldconf->conf_pidfile_path.c_str(),
 			    conf_pidfile_path.c_str());
-			if (rename(oldconf->conf_pidfile_path.c_str(),
-				conf_pidfile_path.c_str()) != 0) {
-				log_err(1, "renaming pidfile %s -> %s",
-				    oldconf->conf_pidfile_path.c_str(),
-				    conf_pidfile_path.c_str());
-			}
 		}
 	}
 
@@ -2747,6 +2739,9 @@ main(int argc, char **argv)
 		oldconf->set_debug(debug);
 		newconf->set_debug(debug);
 	}
+
+	/* Reuse the pidfile path from the configuration file. */
+	oldconf->set_pidfile_path(newconf->pidfile_path());
 
 	if (!newconf->add_pports(kports))
 		log_errx(1, "Error associating physical ports; exiting");
