@@ -628,7 +628,7 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 
 	pdev = codec->dev;
-	while (strcmp(device_get_name(device_get_parent(pdev)), "pci") != 0) {
+	while (!is_pci_device(pdev)) {
 		/* find the top-level PCI device handler */
 		pdev = device_get_parent(pdev);
 	}
