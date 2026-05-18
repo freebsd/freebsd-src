@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _TGMATH_H_
-#define	_TGMATH_H_
+#ifndef __STDC_VERSION_TGMATH_H__
+#define __STDC_VERSION_TGMATH_H__ 202311L
 
 #include <complex.h>
 #include <math.h>
@@ -207,4 +207,4 @@
 #define	cproj(x)	__tg_simple(x, cproj)
 #define	creal(x)	__tg_simple(x, creal)
 
-#endif /* !_TGMATH_H_ */
+#endif /* !__STDC_VERSION_TGMATH_H__ */

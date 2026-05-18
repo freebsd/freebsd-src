@@ -584,7 +584,7 @@ void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
 #define	nan_mix(x, y)		(nan_mix_op((x), (y), +))
 #define	nan_mix_op(x, y, op)	(((x) + 0.0L) op ((y) + 0))
 
-#ifdef _COMPLEX_H
+#ifdef __STDC_VERSION_COMPLEX_H__
 
 /*
  * C99 specifies that complex numbers have the same representation as
@@ -657,7 +657,7 @@ CMPLXL(long double x, long double y)
 }
 #endif
 
-#endif /* _COMPLEX_H */
+#endif /* __STDC_VERSION_COMPLEX_H__ */
  
 /*
  * The rnint() family rounds to the nearest integer for a restricted range
@@ -897,7 +897,7 @@ double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
 double	__ldexp_exp(double,int);
-#ifdef _COMPLEX_H
+#ifdef __STDC_VERSION_COMPLEX_H__
 double complex __ldexp_cexp(double complex,int);
 #endif
 
@@ -915,7 +915,7 @@ float	__kernel_cosdf(double);
 float	__kernel_tandf(double,int);
 #endif
 float	__ldexp_expf(float,int);
-#ifdef _COMPLEX_H
+#ifdef __STDC_VERSION_COMPLEX_H__
 float complex __ldexp_cexpf(float complex,int);
 #endif
 

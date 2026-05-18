@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_FENV_H_
+#ifndef __STDC_VERSION_FENV_H__
 #error "This file is meant to be included only by <fenv.h>."
 #endif
 

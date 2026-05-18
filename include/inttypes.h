@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _INTTYPES_H_
-#define	_INTTYPES_H_
+#ifndef __STDC_VERSION_INTTYPES_H__
+#define __STDC_VERSION_INTTYPES_H__ 202311L
 
 #include <machine/_inttypes.h>
 #include <sys/stdint.h>
@@ -59,4 +59,4 @@ uintmax_t	wcstoumax(const wchar_t * __restrict,
 		    wchar_t ** __restrict, int);
 __END_DECLS
 
-#endif /* !_INTTYPES_H_ */
+#endif /* !__STDC_VERSION_INTTYPES_H__ */

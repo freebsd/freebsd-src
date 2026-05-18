@@ -57,8 +57,8 @@
  *	$NetBSD: wchar.h,v 1.8 2000/12/22 05:31:42 itojun Exp $
  */
 
-#ifndef _WCHAR_H_
-#define _WCHAR_H_
+#ifndef __STDC_VERSION_WCHAR_H__
+#define __STDC_VERSION_WCHAR_H__ 202311L
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
@@ -246,4 +246,4 @@ size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #endif
 __END_DECLS
 
-#endif /* !_WCHAR_H_ */
+#endif /* !__STDC_VERSION_WCHAR_H__ */
