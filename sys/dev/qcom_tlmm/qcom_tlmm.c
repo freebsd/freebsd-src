@@ -90,7 +90,6 @@ qcom_tlmm_probe(device_t dev)
 
 	for (i = 0; qcom_tlmm_chipsets[i].id != 0; i++) {
 		ql = &qcom_tlmm_chipsets[i];
-		device_printf(dev, "%s: checking %s\n", __func__, ql->ofw_str);
 		if (ofw_bus_is_compatible(dev, ql->ofw_str) == 1) {
 			sc->sc_chipset = ql->id;
 			sc->sc_attach_func = ql->attach_func;
