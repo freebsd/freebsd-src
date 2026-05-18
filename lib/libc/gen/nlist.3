@@ -41,9 +41,11 @@
 The
 .Fn nlist
 function
-retrieves name list entries from the symbol table of an
-executable file (see
-.Xr elf 5 ) .
+retrieves name list entries from the
+.Xr elf 5
+section with type
+.Dv SHT_SYMTAB
+in an ELF object (for example, an executable file or shared library).
 The argument
 .Fa \&nl
 is set to reference the
