@@ -23,11 +23,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 27, 2025
+.Dd May 18, 2026
 .Dt PCI 9
 .Os
 .Sh NAME
 .Nm pci ,
+.Nm is_pci_device ,
 .Nm pci_alloc_msi ,
 .Nm pci_alloc_msix ,
 .Nm pci_clear_pme ,
@@ -80,6 +81,8 @@
 .In sys/bus.h
 .In dev/pci/pcireg.h
 .In dev/pci/pcivar.h
+.Ft bool
+.Fn is_pci_device "device_t dev"
 .Ft int
 .Fn pci_alloc_msi "device_t dev" "int *count"
 .Ft int
@@ -202,6 +205,12 @@ device information,
 device configuration,
 and
 message signaled interrupts.
+.Pp
+The
+.Fn is_pci_device
+function can be used to determine if
+.Fa dev
+is a PCI device.
 .Ss Raw Configuration Access
 The
 .Fn pci_read_config
