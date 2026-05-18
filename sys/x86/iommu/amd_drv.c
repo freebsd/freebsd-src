@@ -894,8 +894,7 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	if (!amdiommu_enable)
 		return (ENXIO);
 
-	if (device_get_devclass(device_get_parent(dev)) !=
-	    devclass_find("pci"))
+	if (!is_pci_device(dev))
 		return (ENXIO);
 
 	bzero(&ifu, sizeof(ifu));

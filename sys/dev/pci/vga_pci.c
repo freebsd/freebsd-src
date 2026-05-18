@@ -111,8 +111,7 @@ vga_pci_is_boot_display(device_t dev)
 	 */
 
 	pcib = device_get_parent(device_get_parent(dev));
-	if (device_get_devclass(device_get_parent(pcib)) ==
-	    devclass_find("pci")) {
+	if (is_pci_device(pcib)) {
 		/*
 		 * The parent bridge is a PCI-to-PCI bridge: check the
 		 * value of the "VGA Enable" bit.
@@ -186,8 +185,7 @@ vga_pci_map_bios(device_t dev, size_t *size)
 #endif
 
 	pcib = device_get_parent(device_get_parent(dev));
-	if (device_get_devclass(device_get_parent(pcib)) ==
-	    devclass_find("pci")) {
+	if (is_pci_device(pcib)) {
 		/*
 		 * The parent bridge is a PCI-to-PCI bridge: check the
 		 * value of the "VGA Enable" bit.

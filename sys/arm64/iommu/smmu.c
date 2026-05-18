@@ -1825,7 +1825,6 @@ smmu_ctx_init(device_t dev, struct iommu_ctx *ioctx)
 	struct iommu_domain *iodom;
 	struct smmu_softc *sc;
 	struct smmu_ctx *ctx;
-	devclass_t pci_class;
 	u_int sid;
 	int err;
 
@@ -1836,8 +1835,7 @@ smmu_ctx_init(device_t dev, struct iommu_ctx *ioctx)
 	domain = ctx->domain;
 	iodom = (struct iommu_domain *)domain;
 
-	pci_class = devclass_find("pci");
-	if (device_get_devclass(device_get_parent(ctx->dev)) == pci_class) {
+	if (is_pci_device(ctx->dev)) {
 		err = smmu_pci_get_sid(ctx->dev, NULL, &sid);
 		if (err)
 			return (err);
@@ -1863,7 +1861,7 @@ smmu_ctx_init(device_t dev, struct iommu_ctx *ioctx)
 
 	smmu_init_ste(sc, domain->cd, ctx->sid, ctx->bypass);
 
-	if (device_get_devclass(device_get_parent(ctx->dev)) == pci_class)
+	if (is_pci_device((ctx->dev))
 		if (iommu_is_buswide_ctx(iodom->iommu, pci_get_bus(ctx->dev)))
 			smmu_set_buswide(dev, domain, ctx);
 

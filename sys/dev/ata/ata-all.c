@@ -1176,8 +1176,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
-		if (device_get_devclass(device_get_parent(parent)) ==
-		    devclass_find("pci")) {
+		if (is_pci_device(parent)) {
 			cpi->hba_vendor = pci_get_vendor(parent);
 			cpi->hba_device = pci_get_device(parent);
 			cpi->hba_subvendor = pci_get_subvendor(parent);

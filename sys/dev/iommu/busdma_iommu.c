@@ -117,17 +117,14 @@ iommu_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
 int
 iommu_get_requester(device_t dev, device_t *requesterp, uint16_t *rid)
 {
-	devclass_t pci_class;
 	device_t l, pci, pcib, pcip, pcibp, requester;
 	int cap_offset;
 	uint16_t pcie_flags;
 	bool bridge_is_pcie;
 
-	pci_class = devclass_find("pci");
 	l = requester = dev;
 
-	pci = device_get_parent(dev);
-	if (pci == NULL || device_get_devclass(pci) != pci_class) {
+	if (!is_pci_device(dev)) {
 		*rid = 0;	/* XXXKIB: Could be ACPI HID */
 		*requesterp = NULL;
 		return (ENOTTY);
@@ -141,29 +138,18 @@ iommu_get_requester(device_t dev, device_t *requesterp, uint16_t *rid)
 	 * unit.
 	 */
 	for (;;) {
-		pci = device_get_parent(l);
-		if (pci == NULL) {
+		if (!is_pci_device(l)) {
 			if (bootverbose) {
 				printf(
-			"iommu_get_requester(%s): NULL parent for %s\n",
+			"iommu_get_requester(%s): non-pci ancestor %s\n",
 				    device_get_name(dev), device_get_name(l));
 			}
 			*rid = 0;
 			*requesterp = NULL;
 			return (ENXIO);
 		}
-		if (device_get_devclass(pci) != pci_class) {
-			if (bootverbose) {
-				printf(
-			"iommu_get_requester(%s): non-pci parent %s for %s\n",
-				    device_get_name(dev), device_get_name(pci),
-				    device_get_name(l));
-			}
-			*rid = 0;
-			*requesterp = NULL;
-			return (ENXIO);
-		}
 
+		pci = device_get_parent(l);
 		pcib = device_get_parent(pci);
 		if (pcib == NULL) {
 			if (bootverbose) {
@@ -182,10 +168,8 @@ iommu_get_requester(device_t dev, device_t *requesterp, uint16_t *rid)
 		 * port, and the requester ID won't be translated
 		 * further.
 		 */
-		pcip = device_get_parent(pcib);
-		if (device_get_devclass(pcip) != pci_class)
+		if (!is_pci_device(pcib))
 			break;
-		pcibp = device_get_parent(pcip);
 
 		if (pci_find_cap(l, PCIY_EXPRESS, &cap_offset) == 0) {
 			/*
@@ -212,6 +196,8 @@ iommu_get_requester(device_t dev, device_t *requesterp, uint16_t *rid)
 			 * PCI bridge, then we know pcib is actually a
 			 * PCIe/PCI bridge.
 			 */
+			pcip = device_get_parent(pcib);
+			pcibp = device_get_parent(pcip);
 			if (!bridge_is_pcie && pci_find_cap(pcibp,
 			    PCIY_EXPRESS, &cap_offset) == 0) {
 				pcie_flags = pci_read_config(pcibp,
@@ -337,11 +323,9 @@ bool
 bus_dma_iommu_set_buswide(device_t dev)
 {
 	struct iommu_unit *unit;
-	device_t parent;
 	u_int busno, slot, func;
 
-	parent = device_get_parent(dev);
-	if (device_get_devclass(parent) != devclass_find("pci"))
+	if (!is_pci_device(dev))
 		return (false);
 	unit = iommu_find(dev, bootverbose);
 	if (unit == NULL)
