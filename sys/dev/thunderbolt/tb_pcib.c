@@ -548,16 +548,13 @@ tb_pci_probe(device_t dev)
 {
 	struct tb_pcib_ident *n;
 	device_t parent;
-	devclass_t dc;
 
 	/*
 	 * This driver is only valid if the parent device is a PCI-PCI
-	 * bridge.  To determine that, check if the grandparent is a
-	 * PCI bus.
+	 * bridge.
 	 */
 	parent = device_get_parent(dev);
-	dc = device_get_devclass(device_get_parent(parent));
-	if (strcmp(devclass_get_name(dc), "pci") != 0)
+	if (!is_pci_device(parent))
 		return (ENXIO);
 
 	if ((n = tb_pcib_find_ident(parent)) != NULL) {
