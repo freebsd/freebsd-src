@@ -6995,6 +6995,17 @@ pci_print_faulted_dev(void)
 	}
 }
 
+bool
+is_pci_device(device_t dev)
+{
+	devclass_t pci_class;
+
+	if (device_get_parent(dev) == NULL)
+		return (false);
+	pci_class = devclass_find("pci");
+	return (device_get_devclass(device_get_parent(dev)) == pci_class);
+}
+
 #ifdef DDB
 DB_SHOW_COMMAND_FLAGS(pcierr, pci_print_faulted_dev_db, DB_CMD_MEMSAFE)
 {

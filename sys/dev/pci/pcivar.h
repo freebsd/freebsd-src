@@ -663,6 +663,7 @@ pci_child_added(device_t dev)
     return (PCI_CHILD_ADDED(device_get_parent(dev), dev));
 }
 
+bool	is_pci_device(device_t dev);
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
