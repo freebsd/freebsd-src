@@ -1803,7 +1803,8 @@ MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_set_reserved.9
 MLINKS+=panic.9 vpanic.9 \
 	panic.9 KERNEL_PANICKED.9
-MLINKS+=pci.9 pci_alloc_msi.9 \
+MLINKS+=pci.9 is_pci_device.9 \
+	pci.9 pci_alloc_msi.9 \
 	pci.9 pci_alloc_msix.9 \
 	pci.9 pci_clear_pme.9 \
 	pci.9 pci_disable_busmaster.9 \
