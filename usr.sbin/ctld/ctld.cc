@@ -2740,8 +2740,6 @@ main(int argc, char **argv)
 
 	pidfile.write();
 
-	newconf->isns_schedule_update();
-
 	for (;;) {
 		main_loop(!daemonize);
 		if (sighup_received) {
