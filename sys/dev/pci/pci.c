@@ -6536,11 +6536,9 @@ device_t
 pci_find_pcie_root_port(device_t dev)
 {
 	struct pci_devinfo *dinfo;
-	devclass_t pci_class;
 	device_t pcib, bus;
 
-	pci_class = devclass_find("pci");
-	KASSERT(device_get_devclass(device_get_parent(dev)) == pci_class,
+	KASSERT(is_pci_device(dev),
 	    ("%s: non-pci device %s", __func__, device_get_nameunit(dev)));
 
 	/*
@@ -6556,11 +6554,7 @@ pci_find_pcie_root_port(device_t dev)
 		KASSERT(pcib != NULL, ("%s: null bridge of %s", __func__,
 		    device_get_nameunit(bus)));
 
-		/*
-		 * pcib's parent must be a PCI bus for this to be a
-		 * PCI-PCI bridge.
-		 */
-		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+		if (!is_pci_device(pcib))
 			return (NULL);
 
 		dinfo = device_get_ivars(pcib);

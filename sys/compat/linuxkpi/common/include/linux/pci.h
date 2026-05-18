@@ -399,8 +399,7 @@ int _lkpi_pci_enable_msi_range(struct pci_dev *pdev, int minvec, int maxvec);
 static inline bool
 dev_is_pci(struct device *dev)
 {
-	return (device_get_devclass(device_get_parent(dev->bsddev)) ==
-	    devclass_find("pci"));
+	return (is_pci_device(dev->bsddev));
 }
 
 static inline uint16_t
@@ -556,8 +555,7 @@ pci_upstream_bridge(struct pci_dev *pdev)
 		bridge = device_get_parent(bridge);
 		if (bridge == NULL)
 			goto done;
-		if (device_get_devclass(device_get_parent(bridge)) !=
-		    devclass_find("pci"))
+		if (!is_pci_device(bridge))
 			goto done;
 
 		/*
