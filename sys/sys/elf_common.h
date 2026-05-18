@@ -446,6 +446,7 @@ typedef struct {
 #define	SHT_GROUP		17	/* Section group. */
 #define	SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
 #define	SHT_LOOS		0x60000000	/* First of OS specific semantics */
+#define	SHT_LLVM_ADDRSIG	0x6fff4c03	/* Address significance table */
 #define	SHT_LOSUNW		0x6ffffff4
 #define	SHT_SUNW_dof		0x6ffffff4
 #define	SHT_SUNW_cap		0x6ffffff5
