@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/nv.h>
@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +72,8 @@ struct service_connection {
 	int		 sc_magic;
 	cap_channel_t	*sc_chan;
 	nvlist_t	*sc_limits;
-	TAILQ_ENTRY(service_connection) sc_next;
+	struct service	*sc_service;
+	size_t		 sc_pollidx;
 };
 
 #define	SERVICE_MAGIC	0x5e91ce
@@ -81,8 +83,89 @@ struct service {
 	uint64_t		 s_flags;
 	service_limit_func_t	*s_limit;
 	service_command_func_t	*s_command;
-	TAILQ_HEAD(, service_connection) s_connections;
 };
+
+#define	POLLSET_CHUNK	8
+static struct pollfd		*pollset_pfds;
+static struct service_connection **pollset_conns;
+static size_t			 pollset_cap;
+static size_t			 pollset_size;
+
+static int
+pollset_add(struct service_connection *sconn, int sock)
+{
+	size_t i, newcap;
+	void *p;
+
+	for (i = 0; i < pollset_size; i++) {
+		if (pollset_pfds[i].fd < 0)
+			break;
+	}
+	if (i == pollset_size) {
+		newcap = roundup2(pollset_size + 1, POLLSET_CHUNK);
+		if (newcap > pollset_cap) {
+			p = reallocarray(pollset_pfds, newcap,
+			    sizeof(*pollset_pfds));
+			if (p == NULL)
+				return (-1);
+			pollset_pfds = p;
+			p = reallocarray(pollset_conns, newcap,
+			    sizeof(*pollset_conns));
+			if (p == NULL)
+				return (-1);
+			pollset_conns = p;
+			pollset_cap = newcap;
+		}
+		pollset_size++;
+	}
+	pollset_pfds[i].fd = sock;
+	pollset_pfds[i].events = POLLIN;
+	pollset_pfds[i].revents = 0;
+	pollset_conns[i] = sconn;
+	sconn->sc_pollidx = i;
+	return (0);
+}
+
+static void
+pollset_remove(struct service_connection *sconn)
+{
+
+	pollset_pfds[sconn->sc_pollidx].fd = -1;
+	pollset_conns[sconn->sc_pollidx] = NULL;
+}
+
+bool
+service_have_connections(void)
+{
+	size_t i;
+
+	for (i = 0; i < pollset_size; i++) {
+		if (pollset_pfds[i].fd >= 0)
+			return (true);
+	}
+	return (false);
+}
+
+bool
+service_poll_dispatch(void)
+{
+	size_t i;
+	int ret;
+
+	do {
+		ret = poll(pollset_pfds, pollset_size, -1);
+	} while (ret == -1 && errno == EINTR);
+	if (ret == -1)
+		return (false);
+
+	for (i = 0; i < pollset_size; i++) {
+		if (pollset_pfds[i].revents == 0)
+			continue;
+		service_message(pollset_conns[i]->sc_service,
+		    pollset_conns[i]);
+	}
+	return (true);
+}
 
 struct service *
 service_alloc(const char *name, service_limit_func_t *limitfunc,
@@ -101,7 +184,6 @@ service_alloc(const char *name, service_limit_func_t *limitfunc,
 	service->s_limit = limitfunc;
 	service->s_command = commandfunc;
 	service->s_flags = flags;
-	TAILQ_INIT(&service->s_connections);
 	service->s_magic = SERVICE_MAGIC;
 
 	return (service);
@@ -110,13 +192,16 @@ service_alloc(const char *name, service_limit_func_t *limitfunc,
 void
 service_free(struct service *service)
 {
-	struct service_connection *sconn;
+	size_t i;
 
 	assert(service->s_magic == SERVICE_MAGIC);
 
 	service->s_magic = 0;
-	while ((sconn = service_connection_first(service)) != NULL)
-		service_connection_remove(service, sconn);
+	for (i = 0; i < pollset_size; i++) {
+		if (pollset_conns[i] != NULL &&
+		    pollset_conns[i]->sc_service == service)
+			service_connection_remove(service, pollset_conns[i]);
+	}
 	free(service->s_name);
 	free(service);
 }
@@ -153,8 +238,16 @@ service_connection_add(struct service *service, int sock,
 			return (NULL);
 		}
 	}
+	sconn->sc_service = service;
+	if (pollset_add(sconn, sock) == -1) {
+		serrno = errno;
+		nvlist_destroy(sconn->sc_limits);
+		(void)cap_unwrap(sconn->sc_chan, NULL);
+		free(sconn);
+		errno = serrno;
+		return (NULL);
+	}
 	sconn->sc_magic = SERVICE_CONNECTION_MAGIC;
-	TAILQ_INSERT_TAIL(&service->s_connections, sconn, sc_next);
 	return (sconn);
 }
 
@@ -166,7 +259,7 @@ service_connection_remove(struct service *service,
 	assert(service->s_magic == SERVICE_MAGIC);
 	assert(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
 
-	TAILQ_REMOVE(&service->s_connections, sconn, sc_next);
+	pollset_remove(sconn);
 	sconn->sc_magic = 0;
 	nvlist_destroy(sconn->sc_limits);
 	cap_close(sconn->sc_chan);
@@ -194,31 +287,6 @@ service_connection_clone(struct service *service,
 	}
 
 	return (sock[1]);
-}
-
-struct service_connection *
-service_connection_first(struct service *service)
-{
-	struct service_connection *sconn;
-
-	assert(service->s_magic == SERVICE_MAGIC);
-
-	sconn = TAILQ_FIRST(&service->s_connections);
-	assert(sconn == NULL ||
-	    sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-	return (sconn);
-}
-
-struct service_connection *
-service_connection_next(struct service_connection *sconn)
-{
-
-	assert(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-
-	sconn = TAILQ_NEXT(sconn, sc_next);
-	assert(sconn == NULL ||
-	    sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-	return (sconn);
 }
 
 cap_channel_t *
@@ -329,14 +397,6 @@ service_message(struct service *service, struct service_connection *sconn)
 	nvlist_destroy(nvlout);
 }
 
-static int
-fd_add(fd_set *fdsp, int maxfd, int fd)
-{
-
-	FD_SET(fd, fdsp);
-	return (fd > maxfd ? fd : maxfd);
-}
-
 const char *
 service_name(struct service *service)
 {
@@ -417,9 +477,6 @@ service_clean(int *sockp, int *procfdp, uint64_t flags)
 void
 service_start(struct service *service, int sock, int procfd)
 {
-	struct service_connection *sconn, *sconntmp;
-	fd_set fds;
-	int maxfd, nfds;
 
 	assert(service != NULL);
 	assert(service->s_magic == SERVICE_MAGIC);
@@ -429,43 +486,9 @@ service_start(struct service *service, int sock, int procfd)
 	if (service_connection_add(service, sock, NULL) == NULL)
 		_exit(1);
 
-	for (;;) {
-		FD_ZERO(&fds);
-		maxfd = -1;
-		for (sconn = service_connection_first(service); sconn != NULL;
-		    sconn = service_connection_next(sconn)) {
-			maxfd = fd_add(&fds, maxfd,
-			    service_connection_get_sock(sconn));
-		}
-
-		assert(maxfd >= 0);
-		assert(maxfd + 1 <= (int)FD_SETSIZE);
-		nfds = select(maxfd + 1, &fds, NULL, NULL, NULL);
-		if (nfds < 0) {
-			if (errno != EINTR)
-				_exit(1);
-			continue;
-		} else if (nfds == 0) {
-			/* Timeout. */
-			abort();
-		}
-
-		for (sconn = service_connection_first(service); sconn != NULL;
-		    sconn = sconntmp) {
-			/*
-			 * Prepare for connection to be removed from the list
-			 * on failure.
-			 */
-			sconntmp = service_connection_next(sconn);
-			if (FD_ISSET(service_connection_get_sock(sconn), &fds))
-				service_message(service, sconn);
-		}
-		if (service_connection_first(service) == NULL) {
-			/*
-			 * No connections left, exiting.
-			 */
-			break;
-		}
+	while (service_have_connections()) {
+		if (!service_poll_dispatch())
+			_exit(1);
 	}
 
 	_exit(0);
