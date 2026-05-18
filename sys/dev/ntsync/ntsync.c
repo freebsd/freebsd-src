@@ -19,6 +19,7 @@
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
+#include <sys/user.h>
 #include <dev/ntsync/ntsyncvar.h>
 
 static struct cdev *ntsync_cdev;
@@ -484,7 +485,19 @@ static int
 ntsync_sem_fill_kinfo(struct file *fp, struct kinfo_file *kif,
     struct filedesc *fdp)
 {
-	// XXXKIB
+	struct ntsync_obj *obj;
+	struct ntsync_obj_sem *sem;
+
+	MPASS(fp->f_type == DTYPE_NTSYNC);
+	obj = fp->f_data;
+	MPASS(obj->type == NTSYNC_OBJ_SEM);
+	sem = OBJ_TO_SEM(obj);
+
+	kif->kf_type = KF_TYPE_NTSYNC;
+	kif->kf_un.kf_ntsync.kf_ntsync_type = KF_NTSYNC_TYPE_SEM;
+	kif->kf_un.kf_ntsync.kf_ntsync_dev = (uintptr_t)obj->owner;
+	kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_sem.count = sem->a.count;
+	kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_sem.max = sem->a.max;
 	return (0);
 }
 
@@ -778,7 +791,21 @@ static int
 ntsync_mutex_fill_kinfo(struct file *fp, struct kinfo_file *kif,
     struct filedesc *fdp)
 {
-	// XXXKIB
+	struct ntsync_obj *obj;
+	struct ntsync_obj_mutex *mutex;
+
+	MPASS(fp->f_type == DTYPE_NTSYNC);
+	obj = fp->f_data;
+	MPASS(obj->type == NTSYNC_OBJ_MUTEX);
+	mutex = OBJ_TO_MUTEX(obj);
+
+	kif->kf_type = KF_TYPE_NTSYNC;
+	kif->kf_un.kf_ntsync.kf_ntsync_type = KF_NTSYNC_TYPE_MUTEX;
+	kif->kf_un.kf_ntsync.kf_ntsync_dev = (uintptr_t)obj->owner;
+	kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_mutex.owner =
+	    mutex->a.owner;
+	kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_mutex.count =
+	    mutex->a.count;
 	return (0);
 }
 
@@ -1053,7 +1080,21 @@ static int
 ntsync_event_fill_kinfo(struct file *fp, struct kinfo_file *kif,
     struct filedesc *fdp)
 {
-	// XXXKIB
+	struct ntsync_obj *obj;
+	struct ntsync_obj_event *event;
+
+	MPASS(fp->f_type == DTYPE_NTSYNC);
+	obj = fp->f_data;
+	MPASS(obj->type == NTSYNC_OBJ_EVENT);
+	event = OBJ_TO_EVENT(obj);
+
+	kif->kf_type = KF_TYPE_NTSYNC;
+	kif->kf_un.kf_ntsync.kf_ntsync_type = KF_NTSYNC_TYPE_EVENT;
+	kif->kf_un.kf_ntsync.kf_ntsync_dev = (uintptr_t)obj->owner;
+	kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_event.signaled =
+		event->a.signaled;
+	kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_event.manual =
+		event->a.manual;
 	return (0);
 }
 
