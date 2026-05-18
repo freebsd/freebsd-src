@@ -2528,7 +2528,7 @@ upgrade_merge () {
 
 			# Some files need special treatment.
 			case ${F} in
-			/etc/spwd.db | /etc/pwd.db | /etc/login.conf.db)
+			/etc/spwd.db | /etc/pwd.db | /etc/login.conf.db | /etc/ssl/cert.pem)
 				# Don't merge these -- we're rebuild them
 				# after updates are installed.
 				cp merge/old/${F} merge/new/${F}
