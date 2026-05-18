@@ -146,6 +146,7 @@
 #include <vm/uma.h>
 
 #include <machine/asan.h>
+#include <machine/cpu.h>
 #include <machine/cpu_feat.h>
 #include <machine/elf.h>
 #include <machine/ifunc.h>
@@ -6954,6 +6955,15 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	void *src = VM_PAGE_TO_DMAP(msrc);
 	void *dst = VM_PAGE_TO_DMAP(mdst);
 
+	/*
+	 * On a page copy, check whether the src page is tagged. If it is,
+	 * we must copy the tags before copying the contents of the page.
+	 */
+	if ((msrc->md.pv_flags & PV_MTE_TAGGED) != 0)
+		mte_copy_tags(msrc, mdst, src, dst);
+	else
+		mdst->md.pv_flags &= ~PV_MTE_TAGGED;
+
 	pagecopy(src, dst);
 }
 
@@ -6970,6 +6980,9 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	int cnt;
 
 	while (xfersize > 0) {
+		KASSERT(ADDR_IS_CANONICAL(a_offset),
+		    ("%s: Address not in canonical form: %lx", __func__, a_offset));
+
 		a_pg_offset = a_offset & PAGE_MASK;
 		m_a = ma[a_offset >> PAGE_SHIFT];
 		p_a = m_a->phys_addr;
