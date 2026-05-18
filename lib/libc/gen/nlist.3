@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 19, 1994
+.Dd May 18, 2026
 .Dt NLIST 3
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@ The
 function
 retrieves name list entries from the symbol table of an
 executable file (see
-.Xr a.out 5 ) .
+.Xr elf 5 ) .
 The argument
 .Fa \&nl
 is set to reference the
@@ -66,7 +66,8 @@ if the file
 .Fa filename
 does not exist or is not executable, the returned value is \-1.
 .Sh SEE ALSO
-.Xr elf 5
+.Xr elf 5 ,
+.Xr stab 5
 .Sh HISTORY
 A
 .Fn nlist
