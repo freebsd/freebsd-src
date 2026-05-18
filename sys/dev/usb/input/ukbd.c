@@ -959,7 +959,6 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 		req.bRequest = UR_SET_REPORT;
-		USETW2(req.wValue, UHID_OUTPUT_REPORT, 0);
 		req.wIndex[0] = sc->sc_iface_no;
 		req.wIndex[1] = 0;
 		req.wLength[1] = 0;
@@ -1001,6 +1000,8 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* if no leds, nothing to do */
 		if (!any)
 			break;
+
+		USETW2(req.wValue, UHID_OUTPUT_REPORT, id);
 
 		/* range check output report length */
 		len = sc->sc_led_size;
