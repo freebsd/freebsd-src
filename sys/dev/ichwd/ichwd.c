@@ -561,13 +561,12 @@ static device_t
 ichwd_find_ich_lpc_bridge(device_t isa, struct ichwd_device **id_p)
 {
 	struct ichwd_device *id;
-	device_t isab, pci;
+	device_t isab;
 	uint16_t devid;
 
 	/* Check whether parent ISA bridge looks familiar. */
 	isab = device_get_parent(isa);
-	pci = device_get_parent(isab);
-	if (pci == NULL || device_get_devclass(pci) != devclass_find("pci"))
+	if (!is_pci_device(isab))
 		return (NULL);
 	if (pci_get_vendor(isab) != VENDORID_INTEL)
 		return (NULL);

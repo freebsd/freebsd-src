@@ -285,11 +285,9 @@ bgx_fdt_traverse_nodes(uint8_t unit, phandle_t start, char *name,
 static device_t
 bgx_find_root_pcib(device_t dev)
 {
-	devclass_t pci_class;
 	device_t pcib, bus;
 
-	pci_class = devclass_find("pci");
-	KASSERT(device_get_devclass(device_get_parent(dev)) == pci_class,
+	KASSERT(is_pci_device(dev),
 	    ("%s: non-pci device %s", __func__, device_get_nameunit(dev)));
 
 	/* Walk the bridge hierarchy until we find a non-PCI device */
@@ -297,9 +295,6 @@ bgx_find_root_pcib(device_t dev)
 		bus = device_get_parent(dev);
 		KASSERT(bus != NULL, ("%s: null parent of %s", __func__,
 		    device_get_nameunit(dev)));
-
-		if (device_get_devclass(bus) != pci_class)
-			return (NULL);
 
 		pcib = device_get_parent(bus);
 		KASSERT(pcib != NULL, ("%s: null bridge of %s", __func__,
@@ -309,7 +304,7 @@ bgx_find_root_pcib(device_t dev)
 		 * If the parent of this PCIB is not PCI
 		 * then we found our root PCIB.
 		 */
-		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+		if (!is_pci_device(pcib))
 			return (pcib);
 
 		dev = pcib;
