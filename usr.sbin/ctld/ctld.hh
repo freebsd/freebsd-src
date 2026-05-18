@@ -513,6 +513,7 @@ struct conf {
 	int apply(struct conf *oldconf);
 	void delete_target_luns(struct lun *lun);
 	bool reuse_portal_group_socket(struct portal &newp);
+	void shutdown();
 	bool verify();
 
 private:

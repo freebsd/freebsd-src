@@ -1976,11 +1976,9 @@ conf::apply(struct conf *oldconf)
 	/*
 	 * Rename the pidfile if the pathname changes.  On startup,
 	 * oldconf created via conf_new_from_kernel will not contain a
-	 * valid pidfile_path.  On shutdown, the temporary newconf
-	 * will not contain a valid pidfile_path.
+	 * valid pidfile_path.
 	 */
-	if (!oldconf->conf_pidfile_path.empty() &&
-	    !conf_pidfile_path.empty()) {
+	if (!oldconf->conf_pidfile_path.empty()) {
 		if (oldconf->conf_pidfile_path != conf_pidfile_path) {
 			/* pidfile has changed.  rename it */
 			log_debugx("moving pidfile to %s",
@@ -2208,6 +2206,41 @@ conf::apply(struct conf *oldconf)
 	isns_schedule_update();
 
 	return (cumulated_error);
+}
+
+void
+conf::shutdown()
+{
+	/* Deregister from iSNS servers. */
+	for (auto &kv : conf_isns)
+		isns_deregister_targets(&kv.second);
+
+	/* Remove all ports. */
+	for (const auto &kv : conf_ports) {
+		const std::string &name = kv.first;
+		port *port = kv.second.get();
+
+		if (port->is_dummy())
+			continue;
+		log_debugx("removing port \"%s\"", name.c_str());
+		if (!port->kernel_remove())
+			log_warnx("failed to remove port %s", name.c_str());
+	}
+
+	/* Remove all LUNs. */
+	for (const auto &kv : conf_luns) {
+		struct lun *lun = kv.second.get();
+
+		if (!lun->kernel_remove())
+			log_warnx("failed to remove lun \"%s\", CTL lun %d",
+			    lun->name(), lun->ctl_lun());
+	}
+
+	/* Close sockets on all portal groups. */
+	for (auto &kv : conf_portal_groups)
+		kv.second->close_sockets();
+	for (auto &kv : conf_transport_groups)
+		kv.second->close_sockets();
 }
 
 bool
@@ -2767,21 +2800,12 @@ main(int argc, char **argv)
 				oldconf.reset();
 			}
 		} else if (sigterm_received) {
-			log_debugx("exiting on signal; "
-			    "reloading empty configuration");
+			log_debugx("exiting on signal");
 
-			log_debugx("removing CTL iSCSI ports "
+			log_debugx("removing CTL iSCSI and NVMeoF ports "
 			    "and terminating all connections");
 
-			oldconf = std::move(newconf);
-			newconf = std::make_unique<conf>();
-			if (debug > 0)
-				newconf->set_debug(debug);
-			error = newconf->apply(oldconf.get());
-			if (error != 0)
-				log_warnx("failed to apply configuration");
-			oldconf.reset();
-
+			newconf->shutdown();
 			log_warnx("exiting on signal");
 			return (0);
 		} else {
