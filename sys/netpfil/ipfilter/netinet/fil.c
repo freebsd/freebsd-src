@@ -916,6 +916,9 @@ ipf_pr_icmp6(fr_info_t *fin)
 			if (fin->fin_plen < ICMP6ERR_IPICMPHLEN)
 				break;
 
+			if (fin->fin_m == NULL)
+				break;
+
 			if (M_LEN(fin->fin_m) < fin->fin_plen) {
 				if (ipf_coalesce(fin) != 1)
 					return;
