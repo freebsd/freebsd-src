@@ -890,6 +890,8 @@ ipf_pr_icmp6(fr_info_t *fin)
 		ip6_t *ip6;
 
 		icmp6 = fin->fin_dp;
+		if (icmp6 == NULL)
+			return;
 
 		fin->fin_data[0] = *(u_short *)icmp6;
 
@@ -1198,6 +1200,8 @@ ipf_pr_icmp(fr_info_t *fin)
 	}
 
 	icmp = fin->fin_dp;
+	if (icmp == NULL)
+		return;
 
 	fin->fin_data[0] = *(u_short *)icmp;
 	fin->fin_data[1] = icmp->icmp_id;
