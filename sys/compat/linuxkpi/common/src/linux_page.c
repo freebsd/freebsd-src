@@ -512,6 +512,27 @@ lkpi_arch_phys_wc_del(int reg)
 #endif
 }
 
+int
+lkpi_set_pages_attr(struct page *page, int numpages, vm_memattr_t ma)
+{
+	while (numpages-- > 0) {
+		/*
+		 * pmap_page_set_memattr() would only update the DMAP mapping
+		 * if it's a normal page, leaving the kernel map untouched.
+		 */
+		MPASS(page->object != kernel_object);
+
+		/*
+		 * pmap_page_set_memattr() sets page->md.pat_mode, which is
+		 * crucial for future userspace mappings.
+		 */
+		pmap_page_set_memattr(page, ma);
+		page++;
+	}
+
+	return (0);
+}
+
 /*
  * This is a highly simplified version of the Linux page_frag_cache.
  * We only support up-to 1 single page as fragment size and we will
