@@ -1,3 +1,5 @@
 dev/clk/spacemit/k1_clk.c	optional k1_ccu fdt
 dev/clk/spacemit/k1_pll.c	optional k1_ccu fdt
 dev/clk/spacemit/k1_apmu.c	optional k1_ccu fdt
+
+dev/sdhci/sdhci_fdt_spacemit.c	optional fdt sdhci sdhci_spacemit
