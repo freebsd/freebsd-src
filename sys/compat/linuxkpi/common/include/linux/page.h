@@ -127,4 +127,6 @@ clflush_cache_range(void *addr, unsigned int size)
 }
 #endif
 
+int lkpi_set_pages_attr(struct page *page, int numpages, vm_memattr_t ma);
+
 #endif	/* _LINUXKPI_LINUX_PAGE_H_ */

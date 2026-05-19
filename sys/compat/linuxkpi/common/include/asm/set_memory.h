@@ -62,8 +62,6 @@ set_memory_wb(unsigned long addr, int numpages)
 	return (-pmap_change_attr((void *)addr, len, VM_MEMATTR_WRITE_BACK));
 }
 
-int lkpi_set_pages_attr(struct page *page, int numpages, vm_memattr_t ma);
-
 static inline int
 set_pages_uc(struct page *page, int numpages)
 {
