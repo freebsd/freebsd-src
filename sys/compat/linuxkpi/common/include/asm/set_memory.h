@@ -62,35 +62,28 @@ set_memory_wb(unsigned long addr, int numpages)
 	return (-pmap_change_attr((void *)addr, len, VM_MEMATTR_WRITE_BACK));
 }
 
+int lkpi_set_pages_attr(struct page *page, int numpages, vm_memattr_t ma);
+
 static inline int
 set_pages_uc(struct page *page, int numpages)
 {
-	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
-
-	pmap_page_set_memattr(page, VM_MEMATTR_UNCACHEABLE);
-	return (0);
+	return (lkpi_set_pages_attr(page, numpages, VM_MEMATTR_UNCACHEABLE));
 }
 
 static inline int
 set_pages_wc(struct page *page, int numpages)
 {
-	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
-
 #ifdef VM_MEMATTR_WRITE_COMBINING
-	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_COMBINING);
+	return (lkpi_set_pages_attr(page, numpages, VM_MEMATTR_WRITE_COMBINING));
 #else
 	return (set_pages_uc(page, numpages));
 #endif
-	return (0);
 }
 
 static inline int
 set_pages_wb(struct page *page, int numpages)
 {
-	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
-
-	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_BACK);
-	return (0);
+	return (lkpi_set_pages_attr(page, numpages, VM_MEMATTR_WRITE_BACK));
 }
 
 static inline int
