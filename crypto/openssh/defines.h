@@ -55,7 +55,6 @@ enum
 /*
  * Definitions for IP type of service (ip_tos)
  */
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #ifndef IPTOS_LOWDELAY
 # define IPTOS_LOWDELAY          0x10
@@ -95,6 +94,9 @@ enum
 # define	IPTOS_DSCP_CS6		0xc0
 # define	IPTOS_DSCP_CS7		0xe0
 #endif /* IPTOS_DSCP_CS0 */
+#ifndef IPTOS_DSCP_VA
+# define	IPTOS_DSCP_VA		0x2c
+#endif /* IPTOS_DSCP_VA */
 #ifndef IPTOS_DSCP_EF
 # define	IPTOS_DSCP_EF		0xb8
 #endif /* IPTOS_DSCP_EF */
@@ -602,6 +604,10 @@ struct winsize {
 # define __nonnull__(x)
 #endif
 
+#if !defined(HAVE_ATTRIBUTE__NONSTRING__) && !defined(__nonstring__)
+# define __nonstring__
+#endif
+
 #ifndef OSSH_ALIGNBYTES
 #define OSSH_ALIGNBYTES	(sizeof(int) - 1)
 #endif
@@ -976,13 +982,6 @@ struct winsize {
 #  define __predict_false(exp)    ((exp) != 0)
 # endif /* gcc version */
 #endif /* __predict_true */
-
-#if defined(HAVE_GLOB_H) && defined(GLOB_HAS_ALTDIRFUNC) && \
-    defined(GLOB_HAS_GL_MATCHC) && defined(GLOB_HAS_GL_STATV) && \
-    defined(HAVE_DECL_GLOB_NOMATCH) &&  HAVE_DECL_GLOB_NOMATCH != 0 && \
-    !defined(BROKEN_GLOB)
-# define USE_SYSTEM_GLOB
-#endif
 
 /*
  * sntrup761 uses variable length arrays and c99-style declarations after code,

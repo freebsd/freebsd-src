@@ -19,12 +19,15 @@ A working installation of zlib:
 Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
 https://zlib.net/
 
-libcrypto from either of LibreSSL or OpenSSL.  Building without libcrypto
-is supported but severely restricts the available ciphers and algorithms.
+libcrypto from one of LibreSSL, OpenSSL, AWS-LC or BoringSSL.  Building
+without libcrypto is supported but severely restricts the available
+ciphers and algorithms.
  - LibreSSL (https://www.libressl.org/) 3.1.0 or greater
  - OpenSSL (https://www.openssl.org) 1.1.1 or greater
+ - AWS-LC (https://github.com/aws/aws-lc)
+ - BoringSSL (https://github.com/google/boringssl)
 
-LibreSSL/OpenSSL should be compiled as a position-independent library
+libcrypto should be compiled as a position-independent library
 (i.e. -fPIC, eg by configuring OpenSSL as "./config [options] -fPIC"
 or LibreSSL as "CFLAGS=-fPIC ./configure") otherwise OpenSSH will not
 be able to link with it.  If you must use a non-position-independent

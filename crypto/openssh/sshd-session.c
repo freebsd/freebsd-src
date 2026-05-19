@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd-session.c,v 1.16 2025/09/25 06:45:50 djm Exp $ */
+/* $OpenBSD: sshd-session.c,v 1.23 2026/03/11 09:10:59 dtucker Exp $ */
 /*
  * SSH2 implementation:
  * Privilege Separation:
@@ -31,12 +31,12 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include "openbsd-compat/sys-tree.h"
-#include "openbsd-compat/sys-queue.h"
 #include <sys/wait.h>
+#include <sys/tree.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/queue.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -51,13 +51,6 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <limits.h>
-
-#ifdef WITH_OPENSSL
-#include <openssl/bn.h>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
-#include "openbsd-compat/openssl-compat.h"
-#endif
 
 #ifdef HAVE_SECUREWARE
 #include <sys/security.h>
@@ -270,27 +263,6 @@ demote_sensitive_data(void)
 	}
 }
 
-static void
-reseed_prngs(void)
-{
-	u_int32_t rnd[256];
-
-#ifdef WITH_OPENSSL
-	RAND_poll();
-#endif
-	arc4random_stir(); /* noop on recent arc4random() implementations */
-	arc4random_buf(rnd, sizeof(rnd)); /* let arc4random notice PID change */
-
-#ifdef WITH_OPENSSL
-	RAND_seed(rnd, sizeof(rnd));
-	/* give libcrypto a chance to notice the PID change */
-	if ((RAND_bytes((u_char *)rnd, 1)) != 1)
-		fatal_f("RAND_bytes failed");
-#endif
-
-	explicit_bzero(rnd, sizeof(rnd));
-}
-
 struct sshbuf *
 pack_hostkeys(void)
 {
@@ -406,7 +378,7 @@ privsep_postauth(struct ssh *ssh, Authctxt *authctxt)
 	 * Hack for systems that don't support FD passing: retain privileges
 	 * in the post-auth privsep process so it can allocate PTYs directly.
 	 * This is basically equivalent to what we did <= 9.7, which was to
-	 * disable post-auth privsep entriely.
+	 * disable post-auth privsep entirely.
 	 * Cygwin doesn't need to drop privs here although it doesn't support
 	 * fd passing, as AFAIK PTY allocation on this platform doesn't require
 	 * special privileges to begin with.
@@ -819,7 +791,7 @@ main(int ac, char **av)
 	const char *remote_ip, *rdomain;
 	char *line, *laddr, *logfile = NULL;
 	u_int i;
-	u_int64_t ibytes, obytes;
+	uint64_t ibytes, obytes;
 	mode_t new_umask;
 	Authctxt *authctxt;
 	struct connection_info *connection_info = NULL;
@@ -1166,8 +1138,8 @@ main(int ac, char **av)
 	setproctitle("%s", "[accepted]");
 
 	/* Executed child processes don't need these. */
-	fcntl(sock_out, F_SETFD, FD_CLOEXEC);
-	fcntl(sock_in, F_SETFD, FD_CLOEXEC);
+	FD_CLOSEONEXEC(sock_out);
+	FD_CLOSEONEXEC(sock_in);
 
 	/* We will not restart on SIGHUP since it no longer makes sense. */
 	ssh_signal(SIGALRM, SIG_DFL);
@@ -1254,12 +1226,6 @@ main(int ac, char **av)
 
 		if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
 			fatal("login grace time setitimer failed");
-	}
-
-	if ((r = kex_exchange_identification(ssh, -1,
-	    options.version_addendum)) != 0) {
-		BLOCKLIST_NOTIFY(ssh, BLOCKLIST_AUTH_FAIL, "Banner exchange");
-		sshpkt_fatal(ssh, r, "banner exchange");
 	}
 
 	ssh_packet_set_nonblocking(ssh);
@@ -1385,8 +1351,6 @@ sshd_hostkey_sign(struct ssh *ssh, struct sshkey *privkey,
 void
 cleanup_exit(int i)
 {
-	extern int auth_attempted; /* monitor.c */
-
 	if (the_active_state != NULL && the_authctxt != NULL) {
 		do_cleanup(the_active_state, the_authctxt);
 		if (privsep_is_preauth &&
@@ -1405,10 +1369,12 @@ cleanup_exit(int i)
 		audit_event(the_active_state, SSH_CONNECTION_ABANDON);
 #endif
 	/* Override default fatal exit value when auth was attempted */
-	if (i == 255 && auth_attempted) {
+	if (i == 255 && monitor_auth_attempted()) {
 		BLOCKLIST_NOTIFY(the_active_state, BLOCKLIST_AUTH_FAIL,
 		    "Fatal exit");
 		_exit(EXIT_AUTH_ATTEMPTED);
 	}
+	if (i == 255 && monitor_invalid_user())
+		_exit(EXIT_INVALID_USER);
 	_exit(i);
 }

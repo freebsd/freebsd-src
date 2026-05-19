@@ -508,14 +508,12 @@ struct conf {
 	void set_timeout(int timeout);
 
 	bool add_isns(const char *addr);
-	void isns_register_targets(struct isns *isns, struct conf *oldconf);
-	void isns_deregister_targets(struct isns *isns);
-	void isns_schedule_update();
 	void isns_update();
 
 	int apply(struct conf *oldconf);
 	void delete_target_luns(struct lun *lun);
 	bool reuse_portal_group_socket(struct portal &newp);
+	void shutdown();
 	bool verify();
 
 private:
@@ -523,6 +521,9 @@ private:
 	struct isns_req isns_check_request(const char *hostname);
 	struct isns_req isns_deregister_request(const char *hostname);
 	void isns_check(struct isns *isns);
+	void isns_deregister_targets(struct isns *isns);
+	void isns_register_targets(struct isns *isns, struct conf *oldconf);
+	void isns_schedule_update();
 
 	std::string			conf_pidfile_path;
 	std::unordered_map<std::string, std::unique_ptr<lun>> conf_luns;

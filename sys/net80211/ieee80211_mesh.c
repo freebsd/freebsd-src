@@ -83,7 +83,7 @@ static void	mesh_transmit_to_gate(struct ieee80211vap *, struct mbuf *,
 static void	mesh_forward(struct ieee80211vap *, struct mbuf *,
 		    const struct ieee80211_meshcntl *);
 static int	mesh_input(struct ieee80211_node *, struct mbuf *,
-		    const struct ieee80211_rx_stats *rxs, int, int);
+		    const struct ieee80211_rx_stats *rxs, net80211_rssi_t, int);
 static void	mesh_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
 		    const struct ieee80211_rx_stats *rxs, int, int);
 static void	mesh_recv_ctl(struct ieee80211_node *, struct mbuf *, int);
@@ -1525,7 +1525,7 @@ mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
 
 static int
 mesh_input(struct ieee80211_node *ni, struct mbuf *m,
-    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
+    const struct ieee80211_rx_stats *rxs, net80211_rssi_t rssi, int nf)
 {
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 #define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)

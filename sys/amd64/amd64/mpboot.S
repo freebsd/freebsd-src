@@ -276,3 +276,5 @@ entry_64:
 	wrmsr
 
 	jmp	init_secondary
+
+	.section .note.GNU-stack,"",%progbits

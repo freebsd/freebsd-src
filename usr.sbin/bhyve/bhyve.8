@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 23, 2026
+.Dd May 15, 2026
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -46,8 +46,8 @@
 .Op Cm ,threads= Ar n
 .Oc
 .Sm on
-.Oo Fl f
 .Sm off
+.Oo Fl f\~
 .Ar name Cm \&,
 .Oo
 .Cm string No | Cm file
@@ -58,7 +58,7 @@
 .Oo
 .Sm off
 .Fl G\~
-.Oo Ar w Oc
+.Oo Cm w Oc
 .Oo Ar bind_address Cm \&: Oc
 .Ar port
 .Sm on
@@ -194,7 +194,7 @@ If a
 is specified, bhyve reads the file and adds the file content as fw_cfg data.
 .It Fl G Xo
 .Sm off
-.Oo Ar w Oc
+.Oo Cm w Oc
 .Oo Ar bind_address Cm \&: Oc
 .Ar port
 .Sm on
@@ -208,7 +208,7 @@ and
 to listen for debugger connections.
 Only a single debugger may be attached to the debug server at a time.
 If the option begins with
-.Sq w ,
+.Cm w ,
 .Nm
 will pause execution at the first instruction waiting for a debugger to attach.
 .It Fl H

@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.19 2025/07/24 06:04:47 djm Exp $
+#	$OpenBSD: Makefile,v 1.21 2026/02/06 23:39:14 dtucker Exp $
 
 PROG=test_kex
 SRCS=tests.c test_kex.c test_proposal.c
@@ -9,9 +9,9 @@ SRCS+=sshbuf-io.c atomicio.c sshkey.c authfile.c cipher.c log.c ssh-rsa.c
 SRCS+=ssh-ecdsa.c ssh-ed25519.c mac.c umac.c umac128.c hmac.c misc.c
 SRCS+=ssherr.c uidswap.c cleanup.c xmalloc.c match.c krl.c fatal.c
 SRCS+=addr.c addrmatch.c bitmap.c packet.c dispatch.c canohost.c ssh_api.c
-SRCS+=compat.c ed25519.c hash.c
+SRCS+=compat.c
 SRCS+=cipher-chachapoly.c chacha.c poly1305.c ssh-ecdsa-sk.c ssh-sk.c
-SRCS+=ssh-ed25519-sk.c sk-usbhid.c ssh-pkcs11-client.c
+SRCS+=ssh-ed25519-sk.c sk-usbhid.c ssh-pkcs11-client.c ssherr-libcrypto.c
 
 SRCS+=	kex.c
 SRCS+=	kex-names.c
@@ -29,8 +29,8 @@ SRCS+=	kexmlkem768x25519.c
 SRCS+=	sntrup761.c
 SRCS+=	utf8.c
 
-SRCS+=digest-openssl.c
-#SRCS+=digest-libc.c
+SRCS+=digest-openssl.c ed25519-openssl.c
+#SRCS+=digest-libc.c ed25519.c
 
 REGRESS_TARGETS=run-regress-${PROG}
 

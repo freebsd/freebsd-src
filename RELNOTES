@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+b92b9da33006, 13d3bd165e22:
+	This patch allows vfs.nfsd.srvmaxio to be set to
+	a value as high as 4Mbytes.  It is usually set
+	via the nfs_server_maxio variable in /etc/rc.conf.
+
 4c486fe40267:
 	The multicast routing modules, ip_mroute and ip6_mroute, are now FIB-aware.
 	That is, there is a multicast routing table per FIB, rather than a global

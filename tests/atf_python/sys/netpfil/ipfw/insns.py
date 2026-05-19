@@ -682,6 +682,8 @@ insn_attrs = prepare_attrs_map(
 
 
         AttrDescr(IpFwOpcode.O_NOP, InsnComment),
+        AttrDescr(IpFwOpcode.O_IP4, InsnEmpty),
+        AttrDescr(IpFwOpcode.O_IP6, InsnEmpty),
         AttrDescr(IpFwOpcode.O_PROTO, InsnProto),
         AttrDescr(IpFwOpcode.O_PROB, InsnProb),
         AttrDescr(IpFwOpcode.O_IP_DST_ME, InsnEmpty),

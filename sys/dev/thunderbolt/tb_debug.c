@@ -206,7 +206,7 @@ int
 tb_debug_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf *sbuf;
-#if defined (THUNDERBOLT_DEBUG) && (THUNDERBOLT_DEBUG > 0)
+#ifdef THUNDERBOLT_DEBUG
 	struct tb_debug_string *string;
 	char *buffer;
 	size_t sz;
@@ -221,7 +221,7 @@ tb_debug_sysctl(SYSCTL_HANDLER_ARGS)
 
 	sbuf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 
-#if defined (THUNDERBOLT_DEBUG) && (THUNDERBOLT_DEBUG > 0)
+#ifdef THUNDERBOLT_DEBUG
 	debug = (u_int *)arg1;
 
 	sbuf_printf(sbuf, "%#x", *debug);
@@ -317,7 +317,7 @@ tb_parse_debug(u_int *debug, char *list)
 void
 tbdbg_dprintf(device_t dev, u_int debug, u_int val, const char *fmt, ...)
 {
-#if defined(THUNDERBOLT_DEBUG) && (THUNDERBOLT_DEBUG > 0)
+#ifdef THUNDERBOLT_DEBUG
 	va_list ap;
 	u_int lvl, dbg;
 

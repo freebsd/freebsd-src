@@ -375,6 +375,11 @@ struct ieee80211_channel {
 #define	IEEE80211_AID_MIN		16
 
 /*
+ * Definitions for (internal, basic) types.
+ */
+typedef int8_t				net80211_rssi_t;
+
+/*
  * 802.11 rate set.
  */
 #define	IEEE80211_RATE_SIZE	8		/* 802.11 standard */
@@ -618,14 +623,14 @@ struct ieee80211_rx_stats {
 	uint64_t c_rx_tsf;		/* 32 or 64 bit TSF */
 
 	/* All DWORD aligned */
-	int16_t c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	int16_t c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
+	net80211_rssi_t c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
+	net80211_rssi_t c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
+	net80211_rssi_t c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
+	net80211_rssi_t c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
 
 	/* 32 bits */
 	int8_t c_nf;			/* global NF */
-	int8_t c_rssi;			/* global RSSI */
+	net80211_rssi_t c_rssi;			/* global RSSI */
 	uint8_t c_chain;		/* number of RX chains involved */
 	uint8_t c_rate;			/* legacy; 11n rate code; VHT MCS */
 

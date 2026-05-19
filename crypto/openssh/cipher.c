@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher.c,v 1.125 2025/09/02 11:08:34 djm Exp $ */
+/* $OpenBSD: cipher.c,v 1.126 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -47,7 +47,6 @@
 #include "misc.h"
 #include "sshbuf.h"
 #include "ssherr.h"
-#include "digest.h"
 
 #include "openbsd-compat/openssl-compat.h"
 

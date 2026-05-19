@@ -152,6 +152,14 @@ nullfs_mount(struct mount *mp)
 	lowerrootvp = ndp->ni_vp;
 
 	/*
+	 * Do not allow to mount a vnode over itself.
+	 */
+	if (mp->mnt_vnodecovered == lowerrootvp) {
+		vput(lowerrootvp);
+		return (EDEADLK);
+	}
+
+	/*
 	 * Check multi null mount to avoid `lock against myself' panic.
 	 */
 	if (null_is_nullfs_vnode(mp->mnt_vnodecovered)) {

@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.28 2025/05/06 06:05:48 djm Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.31 2026/02/11 22:58:23 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
@@ -143,6 +143,8 @@ for ktype in $PLAIN_TYPES ; do
 	attempt_connect "$ktype basic connect"			"yes"
 	attempt_connect "$ktype empty KRL"			"yes" \
 	    -oRevokedHostKeys=$OBJ/host_krl_empty
+	attempt_connect "$ktype multiple KRL files"		"no" \
+	    -oRevokedHostKeys="/dev/null $OBJ/host_krl_plain"
 	attempt_connect "$ktype KRL w/ plain key revoked"	"no" \
 	    -oRevokedHostKeys=$OBJ/host_krl_plain
 	attempt_connect "$ktype KRL w/ cert revoked"		"no" \
@@ -208,18 +210,32 @@ kh_ca host_ca_key.pub host_ca_key2.pub > $OBJ/known_hosts-cert.orig
 cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 
 test_one() {
-	ident=$1
-	result=$2
-	sign_opts=$3
+	ident="$1"
+	result="$2"
+	hosts="$3"
+	sign_opts="$4"
+
+	test -z "$hosts" || sign_opts="$sign_opts -n $hosts"
 
 	for kt in $PLAIN_TYPES; do
 		case $ktype in
 		rsa-sha2-*)	tflag="-t $ktype"; ca="$OBJ/host_ca_key2" ;;
 		*)		tflag=""; ca="$OBJ/host_ca_key" ;;
 		esac
-		${SSHKEYGEN} -q -s $ca $tflag -I "regress host key for $USER" \
-		    $sign_opts $OBJ/cert_host_key_${kt} ||
-			fatal "couldn't sign cert_host_key_${kt}"
+		if test -z "$hosts" ; then
+			# Empty principals section.
+			${SSHKEYGEN} -q -s $ca $tflag $sign_opts \
+			    -I "regress host key for $USER" \
+			    $OBJ/cert_host_key_${kt} 2>/dev/null ||
+				fatal "couldn't sign cert_host_key_${kt}"
+		else
+			# Be careful with quoting principals, which may contain
+			# wilcards.
+			${SSHKEYGEN} -q -s $ca $tflag $sign_opts \
+			    -I "regress host key for $USER" -n "$hosts" \
+			    $OBJ/cert_host_key_${kt} ||
+				fatal "couldn't sign cert_host_key_${kt}"
+		fi
 		(
 			cat $OBJ/sshd_proxy_bak
 			echo HostKey $OBJ/cert_host_key_${kt}
@@ -243,13 +259,16 @@ test_one() {
 	done
 }
 
-test_one "user-certificate"	failure "-n $HOSTS"
-test_one "empty principals"	success "-h"
-test_one "wrong principals"	failure "-h -n foo"
-test_one "cert not yet valid"	failure "-h -V20300101:20320101"
-test_one "cert expired"		failure "-h -V19800101:19900101"
-test_one "cert valid interval"	success "-h -V-1w:+2w"
-test_one "cert has constraints"	failure "-h -Oforce-command=false"
+test_one "simple"		success $HOSTS	"-h"
+test_one "wildcard"		success "loc*"	"-h"
+test_one "user-certificate"	failure $HOSTS
+test_one "wildcard user"	failure "local*"
+test_one "empty principals"	failure ""	"-h"
+test_one "wrong principals"	failure foo	"-h"
+test_one "cert not yet valid"	failure $HOSTS	"-h -V20300101:20320101"
+test_one "cert expired"		failure $HOSTS	"-h -V19800101:19900101"
+test_one "cert valid interval"	success $HOSTS	"-h -V-1w:+2w"
+test_one "cert has constraints"	failure $HOSTS	"-h -Oforce-command=false"
 
 # Check downgrade of cert to raw key when no CA found
 for ktype in $PLAIN_TYPES ; do

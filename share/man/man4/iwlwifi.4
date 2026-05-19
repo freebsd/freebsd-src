@@ -1,33 +1,12 @@
 .\"
-.\" SPDX-License-Identifier: BSD-2-Clause
-.\"
-.\" Copyright (c) 2021-2025 The FreeBSD Foundation
+.\" Copyright (c) 2021-2026 The FreeBSD Foundation
 .\"
 .\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
 .\" the FreeBSD Foundation.
 .\"
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
-.\"
-.Dd August 19, 2025
+.Dd May 15, 2026
 .Dt IWLWIFI 4
 .Os
 .Sh NAME
@@ -62,7 +41,7 @@ The
 driver provides support for Intel Wireless network devices.
 .Pp
 .Nm
-is derived from Intel's Linux iwlwifi driver.
+is derived from Intel's Linux iwlwifi driver based on Linux version 7.0.
 The
 .Xr iwm 4
 and
@@ -72,7 +51,7 @@ driver.
 .Pp
 In addition
 .Nm
-already supports Intel's Linux iwlwifi/mld chipsets.
+supports the chipsets based on Intel's Linux iwlwifi/mld driver.
 .Pp
 .Nm
 still complements the
@@ -83,10 +62,9 @@ Intel's Linux iwlwifi/dvm, which
 does not support.
 .Pp
 The driver uses the
-.\" No LinuxKPI man pages so no .Xr here.
-.Sy linuxkpi_wlan
+.Xr linuxkpi_wlan 4
 and
-.Sy linuxkpi
+.Xr linuxkpi 4
 compat framework to bridge between the Linux and
 native
 .Fx
@@ -147,75 +125,33 @@ Intel(R) Wireless N 7260
 .It
 Intel(R) Dual Band Wireless AC 3160
 .It
-Intel(R) Dual Band Wireless N 3160
-.It
 Intel(R) Wireless N 3160
 .It
-Intel(R) Dual Band Wireless AC 3165
+Intel(R) Dual Band Wireless N 3160
 .It
-Intel(R) Dual Band Wireless AC 3168
+Intel(R) Dual Band Wireless-AC 3165
 .It
-Intel(R) Dual Band Wireless AC 7265
+Intel(R) Dual Band Wireless-AC 3168
 .It
-Intel(R) Wireless N 7265
+Intel(R) Dual Band Wireless-AC 7265
 .It
-Intel(R) Dual Band Wireless N 7265
+Intel(R) Dual Band Wireless-N 7265
 .It
-Intel(R) Dual Band Wireless AC 8260
+Intel(R) Wireless-N 7265
 .It
-Intel(R) Dual Band Wireless N 8260
+Intel(R) Dual Band Wireless-AC 8260
 .It
-Intel(R) Dual Band Wireless AC 4165
+Intel(R) Dual Band Wireless-N 8260
 .It
-Intel(R) Dual Band Wireless AC 8265
+Intel(R) Dual Band Wireless-AC 4165
 .It
-Intel(R) Dual Band Wireless AC 8275
+Intel(R) Dual Band Wireless-AC 8265
 .It
-Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz
+Intel(R) Dual Band Wireless-AC 8275
 .It
-Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)
+Killer(R) Wireless-AC 1435i Wireless Network Adapter (8265D2W)
 .It
-Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)
-.It
-Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz
-.It
-Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz
-.It
-Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W)
-.It
-Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)
-.It
-Intel(R) Wireless-AC 9260-1
-.It
-Intel(R) Wi-Fi 6 AX200 160MHz
-.It
-Killer(R) Wi-Fi 6 AX1650w 160MHz Wireless Network Adapter (200D2W)
-.It
-Killer(R) Wi-Fi 6 AX1650x 160MHz Wireless Network Adapter (200NGW)
-.It
-Intel(R) Wi-Fi 6 AX201 160MHz
-.It
-Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)
-.It
-Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)
-.It
-Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW)
-.It
-Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W)
-.It
-Intel(R) Wi-Fi 6E AX211 160MHz
-.It
-Intel(R) Wi-Fi 6 AX210 160MHz
-.It
-Killer(R) Wi-Fi 6E AX1675w 160MHz Wireless Network Adapter (210D2W)
-.It
-Killer(R) Wi-Fi 6E AX1675x 160MHz Wireless Network Adapter (210NGW)
-.It
-Intel(R) Wi-Fi 6E AX411 160MHz
-.It
-Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW)
-.It
-Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW)
+Killer(R) Wireless-AC 1435-KIX Wireless Network Adapter (8265NGW)
 .It
 Intel(R) Wireless-AC 9461 160MHz
 .It
@@ -225,39 +161,93 @@ Intel(R) Wireless-AC 9462 160MHz
 .It
 Intel(R) Wireless-AC 9462
 .It
+Intel(R) Wireless-AC 9260 160MHz
+.It
+Intel(R) Wireless-AC 9260
+.It
 Intel(R) Wireless-AC 9560 160MHz
 .It
 Intel(R) Wireless-AC 9560
 .It
-Intel(R) Wireless-AC 9270 160MHz
-.It
-Intel(R) Wireless-AC 9270
-.It
-Intel(R) Wireless-AC 9162 160MHz
-.It
-Intel(R) Wireless-AC 9162
-.It
-Intel(R) Wireless-AC 9260 160MHz
-.It
-Intel(R) Wireless-AC 9260
+Intel(R) Wi-Fi 6 AX201 160MHz
 .It
 Intel(R) Wi-Fi 6 AX101
 .It
 Intel(R) Wi-Fi 6 AX203
 .It
-Intel(R) Wi-Fi 6E AX231 160MHz
+Intel(R) Wi-Fi 6 AX200 160MHz
+.It
+Intel(R) Wi-Fi 6E AX211 160MHz
+.It
+Intel(R) Wi-Fi 6E AX411 160MHz
+.It
+Intel(R) Wi-Fi 6E AX210 160MHz
+.It
+Killer(R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz
+.It
+Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz
+.It
+Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz
+.It
+Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)
+.It
+Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)
+.It
+Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211D2W)
+.It
+Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW)
+.It
+Killer(R) Wi-Fi 6E AX1675w 160MHz Wireless Network Adapter (210D2W)
+.It
+Killer(R) Wi-Fi 6E AX1675x 160MHz Wireless Network Adapter (210NGW)
+.It
+Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W)
+.It
+Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)
+.It
+Killer(R) Wi-Fi 6 AX1650w 160MHz Wireless Network Adapter (200D2W)
+.It
+Killer(R) Wi-Fi 6 AX1650x 160MHz Wireless Network Adapter (200NGW)
 .It
 Intel(R) Wi-Fi 7 BE201 320MHz
+.It
+Intel(R) Wi-Fi 7 BE401 320MHz
 .It
 Intel(R) Wi-Fi 7 BE200 320MHz
 .It
 Intel(R) Wi-Fi 7 BE202 160MHz
 .It
-Intel(R) TBD Sc device
+Killer(R) Wi-Fi 7 BE1750s 320MHz Wireless Network Adapter (BE201D2W)
 .It
-Intel(R) TBD Sc2 device
+Killer(R) Wi-Fi 7 BE1750i 320MHz Wireless Network Adapter (BE201NGW)
 .It
-Intel(R) TBD Sc2f device
+Killer(R) Wi-Fi 7 BE1790s 320MHz Wireless Network Adapter (BE401D2W)
+.It
+Killer(R) Wi-Fi 7 BE1790i 320MHz Wireless Network Adapter (BE401NGW)
+.It
+Killer(TM) Wi-Fi 7 BE1750w 320MHz Wireless Network Adapter (BE200D2W)
+.It
+Killer(TM) Wi-Fi 7 BE1750x 320MHz Wireless Network Adapter (BE200NGW)
+.It
+Intel(R) Wi-Fi 7 BE211 320MHz
+.It
+Intel(R) Wi-Fi 6E AX221 160MHz
+.It
+Intel(R) Wi-Fi 7 BE213 160MHz
+.It
+Intel(R) Wi-Fi 8 BN201
+.It
+Intel(R) Wi-Fi 7 BE223
+.It
+Intel(R) Wi-Fi 8 BN203
+.It
+Killer(R) Wi-Fi 7 BE1775s 320MHz Wireless Network Adapter (BE211D2W)
+.It
+Killer(R) Wi-Fi 7 BE1775i 320MHz Wireless Network Adapter (BE211NGW)
+.It
+Killer(R) Wi-Fi 8 BN1850w2 320MHz Wireless Network Adapter (BN201.D2W)
+.It
+Killer(R) Wi-Fi 8 BN1850i 320MHz Wireless Network Adapter (BN201.NGW)
 .\" --------------------------------------------------------------------
 .El
 .Sh LOADER TUNABLES
@@ -318,6 +308,8 @@ directory.
 .Xr iwm 4 ,
 .Xr iwn 4 ,
 .Xr iwx 4 ,
+.Xr linuxkpi 4,
+.Xr linuxkpi_wlan 4,
 .Xr wlan 4 ,
 .Xr networking 7 ,
 .Xr fwget 8 ,

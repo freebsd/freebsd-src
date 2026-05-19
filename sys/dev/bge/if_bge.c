@@ -3202,20 +3202,13 @@ bge_mbox_reorder(struct bge_softc *sc)
 	} mbox_reorder_lists[] = {
 		{ 0x1022, 0x7450, "AMD-8131 PCI-X Bridge" },
 	};
-	devclass_t pci, pcib;
-	device_t bus, dev;
+	device_t dev;
 	int i;
 
-	pci = devclass_find("pci");
-	pcib = devclass_find("pcib");
 	dev = sc->bge_dev;
-	bus = device_get_parent(dev);
 	for (;;) {
-		dev = device_get_parent(bus);
-		bus = device_get_parent(dev);
-		if (device_get_devclass(dev) != pcib)
-			break;
-		if (device_get_devclass(bus) != pci)
+		dev = device_get_parent(device_get_parent(dev));
+		if (!is_pci_device(dev))
 			break;
 		for (i = 0; i < nitems(mbox_reorder_lists); i++) {
 			if (pci_get_vendor(dev) ==

@@ -72,7 +72,11 @@ typedef struct pollfd {
 #endif /* !HAVE_STRUCT_POLLFD_FD */
 
 #ifndef HAVE_NFDS_T
+# ifdef POLL_NFDS_T_ULONG
+typedef unsigned long	nfds_t;
+# else
 typedef unsigned int	nfds_t;
+# endif
 #endif
 
 #ifndef HAVE_POLL
