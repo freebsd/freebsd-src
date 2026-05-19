@@ -540,6 +540,7 @@ SUBDIR+=	fdt
     ${MACHINE_CPUARCH} == "i386"
 SUBDIR+=	linprocfs
 SUBDIR+=	linsysfs
+SUBDIR+=	linux_ntsync
 .endif
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SUBDIR+=	linux
