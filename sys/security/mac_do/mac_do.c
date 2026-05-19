@@ -71,6 +71,11 @@ static const char *id_type_to_str[] = {
 
 #define PARSE_ERROR_SIZE	256
 
+/*
+ * All functions having a parse error parameter must return through it a parse
+ * error object if and only if they return an error value (non-zero); else, NULL
+ * must be returned through it.
+ */
 struct parse_error {
 	size_t	pos;
 	char	msg[PARSE_ERROR_SIZE];
@@ -776,6 +781,7 @@ parse_target_clause(char *to, struct rule *const rule,
 check_type_and_finish:
 	check_type_and_type_flags(type, *tflags);
 finish:
+	MPASS(error == 0 && *parse_error == NULL);
 	return (0);
 einval:
 	/* We must have built a parse error on error. */
@@ -853,7 +859,7 @@ pour_list_into_rule(const id_type_t type, struct id_list *const list,
 					make_parse_error(parse_error, 0,
 					    "Incompatible flags or duplicate "
 					    "GID %u.", id);
-					return (EINVAL);
+					goto einval;
 				}
 				check_type_and_id_flags(type,
 				    array[ref_idx].flags);
@@ -867,7 +873,7 @@ pour_list_into_rule(const id_type_t type, struct id_list *const list,
 				 */
 				make_parse_error(parse_error, 0,
 				    "Duplicate UID %u.", id);
-				return (EINVAL);
+				goto einval;
 
 			default:
 				__assert_unreachable();
@@ -876,7 +882,12 @@ pour_list_into_rule(const id_type_t type, struct id_list *const list,
 		*nb = ref_idx + 1;
 	}
 
+	MPASS(*parse_error == NULL);
 	return (0);
+
+einval:
+	MPASS(*parse_error != NULL);
+	return (EINVAL);
 }
 
 /*
@@ -1002,6 +1013,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 	}
 
 	STAILQ_INSERT_TAIL(&rules->head, new, r_entries);
+	MPASS(error == 0 && *parse_error == NULL);
 	return (0);
 
 einval:
@@ -1019,13 +1031,13 @@ einval:
 /*
  * Parse rules specification and produce rule structures out of it.
  *
- * Returns 0 on success, with '*rulesp' made to point to a 'struct rule'
- * representing the rules.  On error, the returned value is non-zero and
- * '*rulesp' is unchanged.  If 'string' has length greater or equal to
- * MAC_RULE_STRING_LEN, ENAMETOOLONG is returned.  If it is not in the expected
- * format, EINVAL is returned.  If an error is returned, '*parse_error' is set
- * to point to a 'struct parse_error' giving an error message for the problem,
- * else '*parse_error' is set to NULL.
+ * Must be called with '*parse_error' set to NULL.  Returns 0 on success, with
+ * '*rulesp' made to point to a 'struct rule' representing the rules.  On error,
+ * the returned value is non-zero and '*rulesp' is unchanged.  If 'string' has
+ * length greater or equal to MAC_RULE_STRING_LEN, ENAMETOOLONG is returned.  If
+ * it is not in the expected format, EINVAL is returned.  If an error is
+ * returned, '*parse_error' is set to point to a 'struct parse_error' giving an
+ * error message for the problem.
  *
  * Expected format: A >-colon-separated list of rules of the form
  * "<from>><target>" (for backwards compatibility, a semi-colon ":" is accepted
@@ -1050,8 +1062,6 @@ parse_rules(const char *const string, struct rules *const rules,
 	char *copy, *p, *rule;
 	int error = 0;
 
-	*parse_error = NULL;
-
 	if (len >= MAC_RULE_STRING_LEN) {
 		make_parse_error(parse_error, 0,
 		    "Rule specification string is too long (%zu, max %zu)",
@@ -1074,15 +1084,22 @@ parse_rules(const char *const string, struct rules *const rules,
 		if (error != 0) {
 			(*parse_error)->pos += rule - copy;
 			toast_rules(rules);
-			goto out;
+			goto error;
 		}
 	}
 
+	MPASS(error == 0 && *parse_error == NULL);
 out:
 	free(copy, M_MAC_DO);
 	return (error);
+error:
+	MPASS(error != 0 && *parse_error != NULL);
+	goto out;
 }
 
+/*
+ * Similar constraints as parse_rules() (which see).
+ */
 static int
 parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
     struct parse_error **const parse_error)
@@ -1090,8 +1107,6 @@ parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
 	const size_t len = strlen(string);
 	char *copy, *p, *path;
 	int error = 0;
-
-	*parse_error = NULL;
 
 	if (len >= EXEC_PATHS_MAXLEN) {
 		make_parse_error(parse_error, 0,
@@ -1119,7 +1134,7 @@ parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
 			    "Too many exec paths specified (max %d)",
 			    MAX_EXEC_PATHS);
 			error = EINVAL;
-			goto out;
+			goto error;
 		}
 
 		path_len = strlen(path);
@@ -1128,7 +1143,7 @@ parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
 			    "Exec paths too long (%zu, max %u)",
 			    path_len, PATH_MAX - 1);
 			error = ENAMETOOLONG;
-			goto out;
+			goto error;
 		}
 
 		strlcpy(exec_paths->exec_paths[exec_paths->exec_path_count],
@@ -1139,12 +1154,16 @@ parse_exec_paths(const char *const string, struct exec_paths *const exec_paths,
 	if (exec_paths->exec_path_count == 0) {
 		make_parse_error(parse_error, 0, "No valid exec paths found");
 		error = EINVAL;
-		goto out;
+		goto error;
 	}
 
+	MPASS(error == 0 && *parse_error == NULL);
 out:
 	free(copy, M_MAC_DO);
 	return (error);
+error:
+	MPASS(error != 0 && *parse_error != NULL);
+	goto out;
 }
 
 /*
@@ -1360,6 +1379,7 @@ clone_exec_paths(struct exec_paths *dst, struct exec_paths *const src)
 	    sizeof(dst->exec_paths_str));
 }
 
+/* Must be called with '*parse_error' set to NULL. */
 static int
 parse_and_set_conf(struct prison *pr, const char *rules_string,
     const char *exec_paths_string, struct parse_error **parse_error)
@@ -1369,8 +1389,6 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 	struct conf *conf;
 	int error = 0;
 	bool need_applicable_conf;
-
-	*parse_error = NULL;
 
 	need_applicable_conf = (rules_string == NULL || rules_string[0] == '\0' ||
 	    exec_paths_string == NULL || exec_paths_string[0] == '\0');
@@ -1386,7 +1404,7 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 	if (rules_string != NULL && rules_string[0] != '\0') {
 		error = parse_rules(rules_string, &conf->rules, parse_error);
 		if (error != 0)
-			goto out;
+			goto error;
 	}
 	else if (applicable_conf != NULL)
 		clone_rules(&conf->rules, &applicable_conf->rules);
@@ -1395,20 +1413,22 @@ parse_and_set_conf(struct prison *pr, const char *rules_string,
 		error = parse_exec_paths(exec_paths_string, &conf->exec_paths,
 		    parse_error);
 		if (error != 0)
-			goto out;
+			goto error;
 	} else if (applicable_conf != NULL)
 		clone_exec_paths(&conf->exec_paths,
 		    &applicable_conf->exec_paths);
 
 	set_conf(pr, conf);
 
+	MPASS(error == 0 && *parse_error == NULL);
 out:
 	if (applicable_conf != NULL)
 		drop_conf(applicable_conf);
-	if (error != 0)
-		drop_conf(conf);
-
 	return (error);
+error:
+	MPASS(error != 0 && *parse_error != NULL);
+	drop_conf(conf);
+	goto out;
 }
 
 static int
@@ -1418,7 +1438,7 @@ mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 	struct prison *const td_pr = req->td->td_ucred->cr_prison;
 	struct prison *pr;
 	struct conf *conf;
-	struct parse_error *parse_error;
+	struct parse_error *parse_error = NULL;
 	int error;
 
 	conf = find_conf(td_pr, &pr);
@@ -1460,7 +1480,7 @@ mac_do_sysctl_exec_paths(SYSCTL_HANDLER_ARGS)
 	struct prison *const td_pr = req->td->td_ucred->cr_prison;
 	struct prison *pr;
 	struct conf *conf;
-	struct parse_error *parse_error;
+	struct parse_error *parse_error = NULL;
 	int error;
 
 	conf = find_conf(td_pr, &pr);
@@ -1725,12 +1745,10 @@ mac_do_jail_set(void *obj, void *data)
 		    &parse_error);
 
 		if (error != 0) {
-			if (parse_error != NULL) {
-				vfs_opterror(opts,
-				    "MAC/do: Parse error at index %zu: %s\n",
-				    parse_error->pos, parse_error->msg);
-				free_parse_error(parse_error);
-			}
+			vfs_opterror(opts,
+			    "MAC/do: Parse error at index %zu: %s\n",
+			    parse_error->pos, parse_error->msg);
+			free_parse_error(parse_error);
 
 			return (error);
 		}
