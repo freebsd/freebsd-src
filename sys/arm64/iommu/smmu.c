@@ -1861,7 +1861,7 @@ smmu_ctx_init(device_t dev, struct iommu_ctx *ioctx)
 
 	smmu_init_ste(sc, domain->cd, ctx->sid, ctx->bypass);
 
-	if (is_pci_device((ctx->dev))
+	if (is_pci_device((ctx->dev)))
 		if (iommu_is_buswide_ctx(iodom->iommu, pci_get_bus(ctx->dev)))
 			smmu_set_buswide(dev, domain, ctx);
 
