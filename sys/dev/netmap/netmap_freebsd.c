@@ -119,6 +119,7 @@ nm_os_selinfo_uninit(NM_SELINFO_T *si)
 	taskqueue_drain(si->ntfytq, &si->ntfytask);
 	taskqueue_free(si->ntfytq);
 	si->ntfytq = NULL;
+	seldrain(&si->si);
 	knlist_delete(&si->si.si_note, curthread, /*islocked=*/0);
 	knlist_destroy(&si->si.si_note);
 	/* now we don't need the mutex anymore */
