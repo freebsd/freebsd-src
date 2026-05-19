@@ -52,6 +52,7 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/mii/miivar.h>
+#include <dev/pci/pcivar.h>
 
 #include "thunder_bgx.h"
 #include "thunder_bgx_var.h"
