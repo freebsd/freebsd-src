@@ -1245,7 +1245,7 @@ ena_sysctl_rss_indir_table_size(SYSCTL_HANDLER_ARGS)
 	int actual_size;
 
 	actual_size = ena_get_rss_indirection_table_size(adapter);
-	if (actual_size == 0)
+	if (!ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter) || actual_size == 0)
 		return (EOPNOTSUPP);
 
 	return sysctl_handle_int(oidp, &actual_size, 0, req);
