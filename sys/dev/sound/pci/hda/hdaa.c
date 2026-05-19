@@ -3268,10 +3268,51 @@ hdaa_audio_as_parse(struct hdaa_devinfo *devinfo)
 				first = seq;
 			/* Check association correctness. */
 			if (as[cnt].pins[seq] != 0) {
-				device_printf(devinfo->dev, "%s: Duplicate pin %d (%d) "
-				    "in association %d! Disabling association.\n",
-				    __func__, seq, w->nid, j);
-				as[cnt].enable = 0;
+				int newseq = -1;
+
+				/*
+				 * Some firmware (e.g. Apple EFI on Mac hardware)
+				 * assigns seq=0 to all HDMI/DP output pins in
+				 * an association.  Reassign the duplicate to
+				 * the next free slot rather than disabling the
+				 * whole association.  Limit to seq=0 duplicates:
+				 * any other duplicate sequence is more likely a
+				 * genuine firmware error and should still disable.
+				 */
+				if (seq == 0 && dir == HDAA_CTL_OUT &&
+				    HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(
+				    w->param.widget_cap) &&
+				    (HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap) ||
+				    HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap))) {
+					int cand;
+
+					for (cand = 1; cand < 16; cand++) {
+						if (as[cnt].pins[cand] == 0) {
+							newseq = cand;
+							break;
+						}
+					}
+				}
+				if (newseq >= 0) {
+					HDA_BOOTVERBOSE(
+						device_printf(devinfo->dev,
+						    "%s: Duplicate pin %d (%d) "
+						    "in association %d, "
+						    "reassigning to seq %d.\n",
+						    __func__, seq, w->nid,
+						    j, newseq);
+					);
+					seq = newseq;
+					/* Update hpredir anchor to lowest seq. */
+					first = min(first, newseq);
+				} else {
+					device_printf(devinfo->dev,
+					    "%s: Duplicate pin %d (%d) "
+					    "in association %d! "
+					    "Disabling association.\n",
+					    __func__, seq, w->nid, j);
+					as[cnt].enable = 0;
+				}
 			}
 			if (dir != as[cnt].dir) {
 				device_printf(devinfo->dev, "%s: Pin %d has wrong "
