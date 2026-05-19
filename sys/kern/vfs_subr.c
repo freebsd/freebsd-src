@@ -1775,7 +1775,7 @@ SYSCTL_ULONG(_vfs_vnode_vnlru, OID_AUTO, uma_reclaim_calls, CTLFLAG_RD | CTLFLAG
 static void
 vnlru_proc(void)
 {
-	u_long rnumvnodes, rfreevnodes, target;
+	u_long rnumvnodes, target;
 	unsigned long onumvnodes;
 	int done, force, trigger, usevnodes;
 	bool reclaim_nc_src, want_reread;
@@ -1824,7 +1824,6 @@ vnlru_proc(void)
 			vnlru_proc_sleep();
 			continue;
 		}
-		rfreevnodes = vnlru_read_freevnodes();
 
 		onumvnodes = rnumvnodes;
 		/*
@@ -1833,14 +1832,7 @@ vnlru_proc(void)
 		 * The trigger point is to avoid recycling vnodes with lots
 		 * of resident pages.  We aren't trying to free memory; we
 		 * are trying to recycle or at least free vnodes.
-		 */
-		if (rnumvnodes <= desiredvnodes)
-			usevnodes = rnumvnodes - rfreevnodes;
-		else
-			usevnodes = rnumvnodes;
-		if (usevnodes <= 0)
-			usevnodes = 1;
-		/*
+		 *
 		 * The trigger value is chosen to give a conservatively
 		 * large value to ensure that it alone doesn't prevent
 		 * making progress.  The value can easily be so large that
@@ -1848,9 +1840,18 @@ vnlru_proc(void)
 		 * misconfigured cases, and this is necessary.  Normally
 		 * it is about 8 to 100 (pages), which is quite large.
 		 */
-		trigger = vm_cnt.v_page_count * 2 / usevnodes;
-		if (force < 2)
+		if (force < 2) {
 			trigger = vsmalltrigger;
+		} else {
+			if (rnumvnodes <= desiredvnodes)
+				usevnodes = rnumvnodes -
+				    vnlru_read_freevnodes();
+			else
+				usevnodes = rnumvnodes;
+			if (usevnodes <= 0)
+				usevnodes = 1;
+			trigger = vm_cnt.v_page_count * 2 / usevnodes;
+		}
 		reclaim_nc_src = force >= 3;
 		target = rnumvnodes * (int64_t)gapvnodes / imax(desiredvnodes, 1);
 		target = target / 10 + 1;
