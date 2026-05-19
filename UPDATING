@@ -12,6 +12,32 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260520:
+	14.3-RELEASE-p14 SA-26:18.setcred
+			SA-26:19.file
+			SA-26:20.fusefs
+			SA-26:21.ptrace
+			SA-26:22.libcasper
+			SA-26:23.bsdinstall
+			SA-26:24.cap_net
+			EN-26:13.freebsd-update
+
+	Stack buffer overflow via setcred(2). [SA-26:18.setcred]
+
+	Kernel use-after-free via file descriptor syscalls. [SA-26:19.file]
+
+	Heap overflow in FUSE_LISTXATTR. [SA-26:20.fusefs]
+
+	Missing validation in ptrace(PT_SC_REMOTE). [SA-26:21.ptrace]
+
+	Stack overflow via select() file descriptor set overflow. [SA-26:22.libcasper]
+
+	Remote code execution via Wi-Fi access point scans. [SA-26:23.bsdinstall]
+
+	Incorrect libcap_net limitation list manipulation. [SA-26:24.cap_net]
+
+	freebsd-update attempts to merge a generated file. [EN-26:13.freebsd-update]
+
 20260430:
 	14.3-RELEASE-p13 EN-26:11.dhclient
 
