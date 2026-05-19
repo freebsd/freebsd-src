@@ -287,16 +287,16 @@ ATF_TC_BODY(nondirectory, tc)
 }
 
 /*
- * fts_children() with an invalid instr value must return NULL with
+ * fts_children() with an invalid options value must return NULL with
  * errno == EINVAL.
  */
-ATF_TC(invalid_instr);
-ATF_TC_HEAD(invalid_instr, tc)
+ATF_TC(invalid_options);
+ATF_TC_HEAD(invalid_options, tc)
 {
 	atf_tc_set_md_var(tc, "descr",
-	    "fts_children with invalid instr returns NULL with EINVAL");
+	    "fts_children with invalid options returns NULL with EINVAL");
 }
-ATF_TC_BODY(invalid_instr, tc)
+ATF_TC_BODY(invalid_options, tc)
 {
 	char *paths[] = { ".", NULL };
 	FTS *fts;
@@ -317,7 +317,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, called_twice);
 	ATF_TP_ADD_TC(tp, nameonly);
 	ATF_TP_ADD_TC(tp, nondirectory);
-	ATF_TP_ADD_TC(tp, invalid_instr);
+	ATF_TP_ADD_TC(tp, invalid_options);
 
 	return (atf_no_error());
 }
