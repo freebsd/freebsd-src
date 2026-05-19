@@ -4364,9 +4364,13 @@ ipf_checkicmp6matchingstate(fr_info_t *fin)
 	}
 
 	ic6 = fin->fin_dp;
+	if (ic6 == NULL) {
+		SBUMPD(ipf_state_stats, iss_icmp6_miss);
+		return (NULL);
+	}
 
 	oip6 = (ip6_t *)((char *)ic6 + ICMPERR_ICMPHLEN);
-	if (fin->fin_plen < sizeof(*oip6)) {
+	if (fin->fin_dlen < ICMPERR_ICMPHLEN + sizeof(*oip6)) {
 		SBUMPD(ipf_state_stats, iss_icmp_short);
 		return (NULL);
 	}
@@ -4408,6 +4412,10 @@ ipf_checkicmp6matchingstate(fr_info_t *fin)
 
 	if (oip6->ip6_nxt == IPPROTO_ICMPV6) {
 		oic = ofin.fin_dp;
+		if (oic == NULL) {
+			SBUMPD(ipf_state_stats, iss_icmp6_miss);
+			return (NULL);
+		}
 		/*
 		 * an ICMP error can only be generated as a result of an
 		 * ICMP query, not as the response on an ICMP error
