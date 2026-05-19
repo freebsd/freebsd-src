@@ -198,39 +198,6 @@ ena_rss_configure(struct ena_adapter *adapter)
 	return (0);
 }
 
-static void
-ena_rss_init_default_deferred(void *arg)
-{
-	struct ena_adapter *adapter;
-	devclass_t dc;
-	int max;
-	int rc;
-
-	dc = devclass_find("ena");
-	if (unlikely(dc == NULL)) {
-		ena_log_raw(ERR, "SYSINIT: %s: No devclass ena\n", __func__);
-		return;
-	}
-
-	max = devclass_get_maxunit(dc);
-	while (max-- >= 0) {
-		adapter = devclass_get_softc(dc, max);
-		if (adapter != NULL) {
-			rc = ena_rss_init_default(adapter);
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
-			if (unlikely(rc != 0)) {
-				ena_log(adapter->pdev, WARN,
-				    "WARNING: RSS was not properly initialized,"
-				    " it will affect bandwidth\n");
-				ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE,
-				    adapter);
-			}
-		}
-	}
-}
-SYSINIT(ena_rss_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND,
-    ena_rss_init_default_deferred, NULL);
-
 int
 ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table)
 {
