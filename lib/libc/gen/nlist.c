@@ -38,8 +38,9 @@ __SCCSID("@(#)nlist.c	8.1 (Berkeley) 6/4/93");
 #include <sys/file.h>
 #include <arpa/inet.h>
 
-#include <errno.h>
 #include <a.out.h>
+#include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -87,6 +88,8 @@ __fdnlist(int fd, struct nlist *list)
 
 #define	ISLAST(p)	(p->n_un.n_name == 0 || p->n_un.n_name[0] == 0)
 
+static int elf_scan_symtab(Elf_Shdr *, int, int, off_t, size_t, char *, size_t,
+    struct nlist *, int);
 static void elf_sym_to_nlist(struct nlist *, Elf_Sym *, Elf_Shdr *, int);
 
 /*
@@ -123,22 +126,19 @@ int
 __elf_fdnlist(int fd, struct nlist *list)
 {
 	struct nlist *p;
-	Elf_Off symoff = 0, symstroff = 0;
-	Elf_Size symsize = 0, symstrsize = 0;
-	Elf_Ssize cc, i;
+	Elf_Off symoff = 0, stroff = 0;
+	Elf_Size symsize = 0, strsize = 0;
+	Elf_Ssize i;
 	int nent = -1;
 	int errsave;
-	Elf_Sym sbuf[1024];
-	Elf_Sym *s;
 	Elf_Ehdr ehdr;
-	char *strtab = NULL;
-	Elf_Shdr *shdr = NULL;
+	Elf_Shdr *shdr;
 	Elf_Size shdr_size;
 	void *base;
 	struct stat st;
 
 	/* Make sure obj is OK */
-	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
+	if (lseek(fd, 0, SEEK_SET) == -1 ||
 	    _read(fd, &ehdr, sizeof(Elf_Ehdr)) != sizeof(Elf_Ehdr) ||
 	    !__elf_is_okay__(&ehdr) ||
 	    _fstat(fd, &st) < 0)
@@ -161,39 +161,6 @@ __elf_fdnlist(int fd, struct nlist *list)
 	shdr = (Elf_Shdr *)base;
 
 	/*
-	 * Find the symbol table entry and it's corresponding
-	 * string table entry.	Version 1.1 of the ABI states
-	 * that there is only one symbol table but that this
-	 * could change in the future.
-	 */
-	for (i = 0; i < ehdr.e_shnum; i++) {
-		if (shdr[i].sh_type == SHT_SYMTAB) {
-			symoff = shdr[i].sh_offset;
-			symsize = shdr[i].sh_size;
-			symstroff = shdr[shdr[i].sh_link].sh_offset;
-			symstrsize = shdr[shdr[i].sh_link].sh_size;
-			break;
-		}
-	}
-
-	/* Check for files too large to mmap. */
-	if (symstrsize > SIZE_T_MAX) {
-		errno = EFBIG;
-		goto done;
-	}
-	/*
-	 * Map string table into our address space.  This gives us
-	 * an easy way to randomly access all the strings, without
-	 * making the memory allocation permanent as with malloc/free
-	 * (i.e., munmap will return it to the system).
-	 */
-	base = mmap(NULL, (size_t)symstrsize, PROT_READ, MAP_PRIVATE, fd,
-	    (off_t)symstroff);
-	if (base == MAP_FAILED)
-		goto done;
-	strtab = (char *)base;
-
-	/*
 	 * clean out any left-over information for all valid entries.
 	 * Type and value defined to be 0 if not found; historical
 	 * versions cleared other and desc as well.  Also figure out
@@ -212,46 +179,95 @@ __elf_fdnlist(int fd, struct nlist *list)
 		++nent;
 	}
 
-	/* Don't process any further if object is stripped. */
-	if (symoff == 0)
-		goto done;
-		
-	if (lseek(fd, (off_t) symoff, SEEK_SET) == -1) {
-		nent = -1;
-		goto done;
-	}
+	/*
+	 * Find the symbol table entry and it's corresponding
+	 * string table entry.	Version 1.1 of the ABI states
+	 * that there is only one symbol table but that this
+	 * could change in the future.
+	 */
+	for (i = 0; nent > 0 && i < ehdr.e_shnum; i++) {
+		if (shdr[i].sh_type != SHT_SYMTAB &&
+		    shdr[i].sh_type != SHT_DYNSYM)
+			continue;
+		symoff = shdr[i].sh_offset;
+		symsize = shdr[i].sh_size;
+		stroff = shdr[shdr[i].sh_link].sh_offset;
+		strsize = shdr[shdr[i].sh_link].sh_size;
 
+		/*
+		 * Skip this section if it or its string table is empty or
+		 * extends beyond the end of the file, or if the string
+		 * table is too large to map into memory.
+		 */
+		if (symoff == 0 || symsize == 0 ||
+		    symsize > SIZE_MAX - symoff ||
+		    symoff + symsize > st.st_size ||
+		    stroff == 0 || strsize == 0 ||
+		    strsize > SIZE_MAX - stroff ||
+		    stroff + strsize > st.st_size) {
+			errno = ENOENT;
+			continue;
+		}
+
+		/*
+		 * Map string table into our address space.  This gives us
+		 * an easy way to randomly access all the strings, without
+		 * making the memory allocation permanent as with
+		 * malloc/free (i.e., munmap will return it to the
+		 * system).
+		 */
+		base = mmap(NULL, (size_t)strsize, PROT_READ,
+		    MAP_PRIVATE, fd, (off_t)stroff);
+		if (base == MAP_FAILED)
+			continue;
+
+		nent = elf_scan_symtab(shdr, ehdr.e_shnum, fd, symoff, symsize,
+		    base, strsize, list, nent);
+
+		errsave = errno;
+		munmap(base, strsize);
+		errno = errsave;
+	}
+	errsave = errno;
+	munmap(shdr, shdr_size);
+	errno = errsave;
+	return (nent);
+}
+
+static int
+elf_scan_symtab(Elf_Shdr *shdr, int shnum, int fd, off_t symoff, size_t symsize,
+    char *strtab, size_t strsize, struct nlist *list, int nent)
+{
+	Elf_Sym sbuf[1024];
+	Elf_Sym *s;
+	char *name;
+	struct nlist *p;
+	Elf_Ssize cc;
+	size_t slen;
+
+	if (lseek(fd, symoff, SEEK_SET) == -1)
+		return (-1);
 	while (symsize > 0 && nent > 0) {
 		cc = MIN(symsize, sizeof(sbuf));
 		if (_read(fd, sbuf, cc) != cc)
 			break;
 		symsize -= cc;
 		for (s = sbuf; cc > 0 && nent > 0; ++s, cc -= sizeof(*s)) {
-			char *name;
-			struct nlist *p;
-
+			if (s->st_name >= strsize)
+				continue;
 			name = strtab + s->st_name;
 			if (name[0] == '\0')
 				continue;
-			for (p = list; !ISLAST(p); p++) {
-				if ((p->n_un.n_name[0] == '_' &&
-				    strcmp(name, p->n_un.n_name+1) == 0)
-				    || strcmp(name, p->n_un.n_name) == 0) {
-					elf_sym_to_nlist(p, s, shdr,
-					    ehdr.e_shnum);
-					if (--nent <= 0)
-						break;
+			slen = strnlen(name, strsize - s->st_name);
+			for (p = list; nent > 0 && !ISLAST(p); p++) {
+				if (strncmp(name, p->n_un.n_name, slen) == 0 &&
+				    p->n_un.n_name[slen] == '\0') {
+					elf_sym_to_nlist(p, s, shdr, shnum);
+					--nent;
 				}
 			}
 		}
 	}
-  done:
-	errsave = errno;
-	if (strtab != NULL)
-		munmap(strtab, symstrsize);
-	if (shdr != NULL)
-		munmap(shdr, shdr_size);
-	errno = errsave;
 	return (nent);
 }
 
