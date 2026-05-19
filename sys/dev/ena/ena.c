@@ -2133,14 +2133,13 @@ ena_up_complete(struct ena_adapter *adapter)
 {
 	int rc;
 
-	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter))) {
-		rc = ena_rss_configure(adapter);
-		if (rc != 0) {
-			ena_log(adapter->pdev, ERR,
-			    "Failed to configure RSS\n");
-			return (rc);
-		}
+	rc = ena_rss_configure(adapter);
+	if (rc != 0) {
+		ena_log(adapter->pdev, ERR,
+		    "Failed to configure RSS\n");
+		return (rc);
 	}
+	ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
 
 	rc = ena_change_mtu(adapter->ifp, if_getmtu(adapter->ifp));
 	if (unlikely(rc != 0))
