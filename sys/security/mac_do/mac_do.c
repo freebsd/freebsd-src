@@ -47,10 +47,14 @@ SYSCTL_INT(_security_mac_do, OID_AUTO, print_parse_error, CTLFLAG_RWTUN,
 
 static MALLOC_DEFINE(M_MAC_DO, "mac_do", "mac_do(4) security module");
 
+#define MAX_RULE_STRING_SIZE	1024
+_Static_assert(MAX_RULE_STRING_SIZE > 0,
+    "MAX_RULE_STRING_SIZE: No space for the NUL terminator!");
+
 #define MAX_EXEC_PATHS_SIZE	2048
 #define MAX_EXEC_PATHS		8
-
-#define MAX_RULE_STRING_SIZE	1024
+_Static_assert(MAX_EXEC_PATHS_SIZE > 0,
+    "MAX_EXEC_PATHS_SIZE: No space for the NUL terminator!");
 
 static unsigned		osd_jail_slot;
 static unsigned		osd_thread_slot;
@@ -355,14 +359,12 @@ toast_rules(struct rules *const rules)
 static void
 init_rules(struct rules *const rules)
 {
-	_Static_assert(MAX_RULE_STRING_SIZE > 0, "MAX_RULE_STRING_SIZE <= 0!");
 	STAILQ_INIT(&rules->head);
 }
 
 static void
 init_exec_paths(struct exec_paths *const exec_paths)
 {
-	_Static_assert(MAX_EXEC_PATHS_SIZE > 0, "MAX_EXEC_PATHS_SIZE <= 0!");
 	bzero(exec_paths, sizeof(*exec_paths));
 	exec_paths->exec_paths_str[0] = 0;
 }
