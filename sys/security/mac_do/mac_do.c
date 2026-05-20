@@ -33,6 +33,23 @@
 
 #include <security/mac/mac_policy.h>
 
+#ifdef INVARIANTS
+/*
+ * Should typically be moved to libkern (and perhaps libc) at some point, and be
+ * optimized if to be used outside of INVARIANTS.
+ */
+static bool
+is_zeroed(const void *const buf, const size_t size)
+{
+	const char *const p = buf;
+
+	for (size_t i = 0; i < size; ++i)
+		if (p[i] != 0)
+			return (false);
+	return (true);
+}
+#endif
+
 static SYSCTL_NODE(_security_mac, OID_AUTO, do,
     CTLFLAG_RW|CTLFLAG_MPSAFE, 0, "mac_do policy controls");
 
@@ -355,25 +372,24 @@ toast_rules(struct rules *const rules)
 	}
 }
 
-/* Assumes storage has been zeroed. */
-static void
+static inline void
 init_rules(struct rules *const rules)
 {
+	MPASS(is_zeroed(rules, sizeof(*rules)));
 	STAILQ_INIT(&rules->head);
 }
 
-static void
+static inline void
 init_exec_paths(struct exec_paths *const exec_paths)
 {
-	bzero(exec_paths, sizeof(*exec_paths));
-	exec_paths->exec_paths_str[0] = 0;
+	MPASS(is_zeroed(exec_paths, sizeof(*exec_paths)));
 }
 
 static struct conf *
 new_conf(void)
 {
-	struct conf *const conf = malloc(sizeof(*conf), M_MAC_DO, M_WAITOK |
-	    M_ZERO);
+	struct conf *const conf = malloc(sizeof(*conf), M_MAC_DO,
+	    M_WAITOK | M_ZERO);
 
 	init_rules(&conf->rules);
 	init_exec_paths(&conf->exec_paths);
@@ -1358,9 +1374,7 @@ clone_rules(struct rules *const dst, const struct rules *const src)
 {
 	struct rule *src_rule, *dst_rule;
 
-	bzero(dst, sizeof(*dst));
 	strlcpy(dst->string, src->string, sizeof(dst->string));
-	STAILQ_INIT(&dst->head);
 
 	STAILQ_FOREACH(src_rule, &src->head, r_entries) {
 		dst_rule = malloc(sizeof(*dst_rule), M_MAC_DO, M_WAITOK |
@@ -1389,7 +1403,7 @@ static void
 clone_exec_paths(struct exec_paths *const dst,
     const struct exec_paths *const src)
 {
-	bzero(dst, sizeof(*dst));
+	MPASS(is_zeroed(dst, sizeof(*dst)));
 	dst->exec_path_count = src->exec_path_count;
 	for (int i = 0; i < src->exec_path_count; i++)
 		strlcpy(dst->exec_paths[i], src->exec_paths[i],
