@@ -1915,7 +1915,7 @@ s32 e1000_blink_led_generic(struct e1000_hw *hw)
 			     (mode == E1000_LEDCTL_MODE_LED_OFF))) {
 				ledctl_blink &=
 				    ~(E1000_LEDCTL_LED0_MODE_MASK << i);
-				ledctl_blink |= (E1000_LEDCTL_LED0_BLINK |
+				ledctl_blink |= (u32)(E1000_LEDCTL_LED0_BLINK |
 						 E1000_LEDCTL_MODE_LED_ON) << i;
 			}
 		}
