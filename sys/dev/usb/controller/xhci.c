@@ -132,28 +132,6 @@ SYSCTL_INT(_hw_usb_xhci, OID_AUTO, ctlstep, CTLFLAG_RWTUN,
 
 #define	XHCI_INTR_ENDPT 1
 
-struct xhci_std_temp {
-	struct xhci_softc	*sc;
-	struct usb_page_cache	*pc;
-	struct xhci_td		*td;
-	struct xhci_td		*td_next;
-	uint32_t		len;
-	uint32_t		offset;
-	uint32_t		max_packet_size;
-	uint32_t		average;
-	uint32_t		isoc_frame;
-	uint16_t		isoc_delta;
-	uint8_t			shortpkt;
-	uint8_t			multishort;
-	uint8_t			last_frame;
-	uint8_t			trb_type;
-	uint8_t			direction;
-	uint8_t			tbc;
-	uint8_t			tlbpc;
-	uint8_t			step_td;
-	uint8_t			do_isoc_sync;
-};
-
 static void	xhci_do_poll(struct usb_bus *);
 static void	xhci_device_done(struct usb_xfer *, usb_error_t);
 static void	xhci_get_xecp(struct xhci_softc *);
@@ -997,6 +975,8 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 			continue;
 
 		td = xfer->td_transfer_cache;
+		if (td == NULL)
+			continue;
 
 		DPRINTFN(5, "Checking if 0x%016llx == (0x%016llx .. 0x%016llx)\n",
 			(long long)td_event,
@@ -1757,555 +1737,583 @@ xhci_do_poll(struct usb_bus *bus)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
+/*
+ * Fill the link TRB at td->td_trb[td->ntrb].
+ *
+ * td_next: the TD to link to (qwTrb0 is set to its physical address), or
+ *          NULL when this is the end of the static chain (xhci_transfer_insert
+ *          will later overwrite qwTrb0 with the ring-return address).
+ * last:    when true, CHAIN_BIT is NOT set on this link TRB; the hardware
+ *          treats it as a TD boundary.  When false, CHAIN_BIT is set so
+ *          the hardware continues to the next TD without a TD boundary.
+ *
+ * NOTE: isochronous transfers must always use last=true (no CHAIN) even for
+ * non-final frames; see xhci_setup_isoc() for the rationale.
+ */
 static void
-xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
+xhci_td_fill_link(struct xhci_td *td, struct xhci_td *td_next, bool last)
 {
-	struct usb_page_search buf_res;
-	struct xhci_td *td;
-	struct xhci_td *td_next;
-	struct xhci_td *td_alt_next;
-	struct xhci_td *td_first;
-	uint32_t buf_offset;
-	uint32_t average;
-	uint32_t len_old;
-	uint32_t npkt_off;
+	struct xhci_trb *trb;
 	uint32_t dword;
-	uint8_t shortpkt_old;
-	uint8_t precompute;
-	uint8_t x;
 
-	td_alt_next = NULL;
-	buf_offset = 0;
-	shortpkt_old = temp->shortpkt;
-	len_old = temp->len;
-	npkt_off = 0;
-	precompute = 1;
+	trb = &td->td_trb[td->ntrb];
+	trb->qwTrb0 = td_next != NULL ? htole64(td_next->td_self) : 0;
+	trb->dwTrb2 = 0;
+	dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) | XHCI_TRB_3_CYCLE_BIT |
+	    XHCI_TRB_3_IOC_BIT;
+	trb->dwTrb3 = htole32(dword);
+	(void)last;
+}
 
-restart:
+/*
+ * Build Normal TRBs for one transfer frame.
+ *
+ * cache:   DMA page cache containing the data.
+ * offset:  byte offset within cache (non-zero for isochronous frames that
+ *          share a single frbuffer[0]).
+ * len:     number of bytes in this frame (0 = zero-length packet).
+ * mps:     maximum packet size of the endpoint.
+ * td:      transfer descriptor to fill.
+ * td_next: next TD in the chain (for the link TRB), or NULL if last.
+ * is_in:   true for an IN endpoint (ISP_BIT is set on data TRBs).
+ * step_td: if true, leave CYCLE_BIT clear on the first TRB so that
+ *          xhci_activate_transfer() can start it later (bulk IN stepping).
+ * last:    true if this is the last TD of the transfer.
+ */
+static void
+xhci_setup_normal_trbs(struct usb_page_cache *cache, uint32_t offset,
+    uint32_t len, uint32_t mps, struct xhci_td *td, struct xhci_td *td_next,
+    bool is_in, bool step_td, bool last)
+{
+	struct xhci_trb *trb;
+	struct usb_page_search search;
+	uint32_t cur_len, seg_len, npkt, dword;
+	int i;
 
-	td = temp->td;
-	td_next = td_first = temp->td_next;
+	trb = NULL;
+	cur_len = 0;
+	i = 0;
 
-	while (1) {
-		if (temp->len == 0) {
-			if (temp->shortpkt)
-				break;
-
-			/* send a Zero Length Packet, ZLP, last */
-
-			temp->shortpkt = 1;
-			average = 0;
-
+	do {
+		trb = &td->td_trb[i];
+		if (len > 0) {
+			usbd_get_page(cache, offset + cur_len, &search);
+			seg_len = search.length;
+			if (cur_len + seg_len > len)
+				seg_len = len - cur_len;
+			if (seg_len > XHCI_TD_PAGE_SIZE)
+				seg_len = XHCI_TD_PAGE_SIZE;
+			cur_len += seg_len;
 		} else {
-			average = temp->average;
-
-			if (temp->len < average) {
-				if (temp->len % temp->max_packet_size) {
-					temp->shortpkt = 1;
-				}
-				average = temp->len;
-			}
+			/* Zero-length packet: no data buffer */
+			memset(&search, 0, sizeof(search));
+			seg_len = 0;
 		}
 
-		if (td_next == NULL)
-			panic("%s: out of XHCI transfer descriptors!", __FUNCTION__);
+		npkt = howmany(len - cur_len, mps);
+		if (npkt > 31)
+			npkt = 31;
 
-		/* get next TD */
+		trb->qwTrb0 = htole64(search.physaddr);
+		trb->dwTrb2 = htole32(
+		    XHCI_TRB_2_BYTES_SET(seg_len) | XHCI_TRB_2_TDSZ_SET(npkt));
+		dword = XHCI_TRB_3_CHAIN_BIT |
+		    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
+		if (is_in)
+			dword |= XHCI_TRB_3_ISP_BIT;
+		/* First TRB: omit CYCLE if stepping */
+		if (i > 0 || !step_td)
+			dword |= XHCI_TRB_3_CYCLE_BIT;
+		trb->dwTrb3 = htole32(dword);
+		i++;
+	} while (cur_len < len);
 
-		td = td_next;
-		td_next = td->obj_next;
+	/* Last data TRB: remove CHAIN, add IOC, clear TD size */
+	trb->dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+	trb->dwTrb3 |= htole32(XHCI_TRB_3_IOC_BIT);
+	trb->dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(31));
 
-		/* check if we are pre-computing */
+	td->ntrb = i;
+	td->len = len;
+	td->remainder = 0;
+	td->status = 0;
+	td->alt_next = last ? NULL : td_next;
 
-		if (precompute) {
-			/* update remaining length */
+	xhci_td_fill_link(td, td_next, last);
+	usb_pc_cpu_flush(td->page_cache);
+}
 
-			temp->len -= average;
+/*
+ * Build TRBs for a control transfer.  Each stage (Setup, Data, Status)
+ * occupies its own xhci_td so that xhci_generic_done_sub() can account
+ * for each frame independently.  Returns the last TD used.
+ */
+static struct xhci_td *
+xhci_setup_ctrl(struct usb_xfer *xfer, struct xhci_td *td)
+{
+	struct xhci_softc *sc = XHCI_BUS2SC(xfer->xroot->bus);
+	struct xhci_trb *trb;
+	struct usb_page_search search;
+	uint32_t dword, len, cur_len, seg_len, npkt;
+	int x, i;
+	bool is_in, use_data_stage, step_td, is_last;
 
-			continue;
-		}
-		/* fill out current TD */
+	is_in = !!(xfer->endpointno & UE_DIR_IN);
+	use_data_stage = !xfer->flags_int.control_did_data;
 
-		td->len = average;
+	/* ---- Setup stage ---- */
+	if (xfer->flags_int.control_hdr) {
+		/* setup_only: no data or status to follow */
+		bool setup_only = (xfer->nframes == 1) &&
+		    xfer->flags_int.control_act;
+
+		trb = &td->td_trb[0];
+		usbd_copy_out(&xfer->frbuffers[0], 0,
+		    (uint8_t *)(uintptr_t)&trb->qwTrb0, 8);
+		trb->dwTrb2 = htole32(
+		    XHCI_TRB_2_BYTES_SET(8) | XHCI_TRB_2_TDSZ_SET(0));
+		/*
+		 * IOC: the Setup stage is a complete one-TRB TD; without IOC
+		 * the controller generates no Transfer Event for it and
+		 * td_transfer_cache never advances past the Setup stage, so the
+		 * control transfer (and thus enumeration) hangs.
+		 */
+		dword = XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IDT_BIT |
+		    XHCI_TRB_3_IOC_BIT |
+		    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_SETUP_STAGE);
+		/* TRT field: set only when wLength != 0 (XHCI 1.2 §4.11.2.2) */
+		if (trb->qwTrb0 & htole64(XHCI_TRB_0_WLENGTH_MASK))
+			dword |= (trb->qwTrb0 &
+				     htole64(XHCI_TRB_0_DIR_IN_MASK)) ?
+			    XHCI_TRB_3_TRT_IN :
+			    XHCI_TRB_3_TRT_OUT;
+		trb->dwTrb3 = htole32(dword);
+
+		td->ntrb = 1;
+		td->len = 8;
 		td->remainder = 0;
 		td->status = 0;
+		td->alt_next = setup_only ? NULL : td->obj_next;
 
-		/* update remaining length */
-
-		temp->len -= average;
-
-		/* reset TRB index */
-
-		x = 0;
-
-		if (temp->trb_type == XHCI_TRB_TYPE_SETUP_STAGE) {
-			/* immediate data */
-
-			if (average > 8)
-				average = 8;
-
-			td->td_trb[0].qwTrb0 = 0;
-
-			usbd_copy_out(temp->pc, temp->offset + buf_offset, 
-			   (uint8_t *)(uintptr_t)&td->td_trb[0].qwTrb0,
-			   average);
-
-			dword = XHCI_TRB_2_BYTES_SET(8) |
-			    XHCI_TRB_2_TDSZ_SET(0) |
-			    XHCI_TRB_2_IRQ_SET(0);
-
-			td->td_trb[0].dwTrb2 = htole32(dword);
-
-			dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_SETUP_STAGE) |
-			  XHCI_TRB_3_IDT_BIT | XHCI_TRB_3_CYCLE_BIT;
-
-			/* check wLength */
-			if (td->td_trb[0].qwTrb0 &
-			   htole64(XHCI_TRB_0_WLENGTH_MASK)) {
-				if (td->td_trb[0].qwTrb0 &
-				    htole64(XHCI_TRB_0_DIR_IN_MASK))
-					dword |= XHCI_TRB_3_TRT_IN;
-				else
-					dword |= XHCI_TRB_3_TRT_OUT;
-			}
-
-			td->td_trb[0].dwTrb3 = htole32(dword);
-#ifdef USB_DEBUG
-			xhci_dump_trb(&td->td_trb[x]);
-#endif
-			x++;
-
-		} else do {
-			uint32_t npkt;
-
-			/* fill out buffer pointers */
-
-			if (average == 0) {
-				memset(&buf_res, 0, sizeof(buf_res));
-			} else {
-				usbd_get_page(temp->pc, temp->offset +
-				    buf_offset, &buf_res);
-
-				/* get length to end of page */
-				if (buf_res.length > average)
-					buf_res.length = average;
-
-				/* check for maximum length */
-				if (buf_res.length > XHCI_TD_PAGE_SIZE)
-					buf_res.length = XHCI_TD_PAGE_SIZE;
-
-				npkt_off += buf_res.length;
-			}
-
-			/* set up npkt */
-			npkt = howmany(len_old - npkt_off,
-				       temp->max_packet_size);
-
-			if (npkt == 0)
-				npkt = 1;
-			else if (npkt > 31)
-				npkt = 31;
-
-			/* fill out TRB's */
-			td->td_trb[x].qwTrb0 =
-			    htole64((uint64_t)buf_res.physaddr);
-
-			dword =
-			  XHCI_TRB_2_BYTES_SET(buf_res.length) |
-			  XHCI_TRB_2_TDSZ_SET(npkt) | 
-			  XHCI_TRB_2_IRQ_SET(0);
-
-			td->td_trb[x].dwTrb2 = htole32(dword);
-
-			switch (temp->trb_type) {
-			case XHCI_TRB_TYPE_ISOCH:
-				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
-				if (td != td_first) {
-					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
-				} else if (temp->do_isoc_sync != 0) {
-					temp->do_isoc_sync = 0;
-					/* wait until "isoc_frame" */
-					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ISOCH) |
-					    XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8);
-				} else {
-					/* start data transfer at next interval */
-					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ISOCH) |
-					    XHCI_TRB_3_ISO_SIA_BIT;
-				}
-				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_ISP_BIT;
-				break;
-			case XHCI_TRB_TYPE_DATA_STAGE:
-				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE);
-				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
-				/*
-				 * Section 3.2.9 in the XHCI
-				 * specification about control
-				 * transfers says that we should use a
-				 * normal-TRB if there are more TRBs
-				 * extending the data-stage
-				 * TRB. Update the "trb_type".
-				 */
-				temp->trb_type = XHCI_TRB_TYPE_NORMAL;
-				break;
-			case XHCI_TRB_TYPE_STATUS_STAGE:
-				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE);
-				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN;
-				break;
-			default:	/* XHCI_TRB_TYPE_NORMAL */
-				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
-				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_ISP_BIT;
-				break;
-			}
-			td->td_trb[x].dwTrb3 = htole32(dword);
-
-			average -= buf_res.length;
-			buf_offset += buf_res.length;
-#ifdef USB_DEBUG
-			xhci_dump_trb(&td->td_trb[x]);
-#endif
-			x++;
-
-		} while (average != 0);
-
-		td->td_trb[x-1].dwTrb3 |= htole32(XHCI_TRB_3_IOC_BIT);
-
-		/* store number of data TRB's */
-
-		td->ntrb = x;
-
-		DPRINTF("NTRB=%u\n", x);
-
-		/* fill out link TRB */
-
-		if (td_next != NULL) {
-			/* link the current TD with the next one */
-			td->td_trb[x].qwTrb0 = htole64((uint64_t)td_next->td_self);
-			DPRINTF("LINK=0x%08llx\n", (long long)td_next->td_self);
-		} else {
-			/* this field will get updated later */
-			DPRINTF("NOLINK\n");
-		}
-
-		dword = XHCI_TRB_2_IRQ_SET(0);
-
-		td->td_trb[x].dwTrb2 = htole32(dword);
-
-		dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) |
-		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT |
-		    /*
-		     * CHAIN-BIT: Ensure that a multi-TRB IN-endpoint
-		     * frame only receives a single short packet event
-		     * by setting the CHAIN bit in the LINK field. In
-		     * addition some XHCI controllers have problems
-		     * sending a ZLP unless the CHAIN-BIT is set in
-		     * the LINK TRB.
-		     */
-		    XHCI_TRB_3_CHAIN_BIT;
-
-		td->td_trb[x].dwTrb3 = htole32(dword);
-
-		td->alt_next = td_alt_next;
-#ifdef USB_DEBUG
-		xhci_dump_trb(&td->td_trb[x]);
-#endif
+		xhci_td_fill_link(td, setup_only ? NULL : td->obj_next,
+		    setup_only);
 		usb_pc_cpu_flush(td->page_cache);
+
+		if (setup_only)
+			return (td);
+		td = td->obj_next;
 	}
 
-	if (precompute) {
-		precompute = 0;
+	/* ---- Data stages (frame indices 1 .. nframes-1) ---- */
+	for (x = 1; x < xfer->nframes; x++) {
+		len = xfer->frlengths[x];
+		is_last = (x == xfer->nframes - 1) &&
+		    xfer->flags_int.control_act;
 
-		/* set up alt next pointer, if any */
-		if (temp->last_frame) {
-			td_alt_next = NULL;
-		} else {
-			/* we use this field internally */
-			td_alt_next = td_next;
-		}
+		cur_len = 0;
+		i = 0;
 
-		/* restore */
-		temp->shortpkt = shortpkt_old;
-		temp->len = len_old;
-		goto restart;
+		do {
+			trb = &td->td_trb[i];
+			usbd_get_page(&xfer->frbuffers[x], cur_len, &search);
+			seg_len = search.length;
+			if (cur_len + seg_len > len)
+				seg_len = len - cur_len;
+			if (seg_len > XHCI_TD_PAGE_SIZE)
+				seg_len = XHCI_TD_PAGE_SIZE;
+			cur_len += seg_len;
+
+			npkt = howmany(len - cur_len, xfer->max_packet_size);
+			if (npkt > 31)
+				npkt = 31;
+
+			trb->qwTrb0 = htole64(search.physaddr);
+			trb->dwTrb2 = htole32(XHCI_TRB_2_BYTES_SET(seg_len) |
+			    XHCI_TRB_2_TDSZ_SET(npkt));
+
+			/*
+			 * XHCI 1.2 §4.11.2.2: first TRB of the data
+			 * phase must be Data Stage type; subsequent
+			 * TRBs (same or later data frame) use Normal.
+			 */
+			if (use_data_stage) {
+				dword = XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_CHAIN_BIT |
+				    XHCI_TRB_3_TYPE_SET(
+					XHCI_TRB_TYPE_DATA_STAGE);
+				if (is_in)
+					dword |= XHCI_TRB_3_DIR_IN |
+					    XHCI_TRB_3_ISP_BIT;
+				use_data_stage = false;
+			} else {
+				dword = XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_CHAIN_BIT |
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
+				if (is_in)
+					dword |= XHCI_TRB_3_ISP_BIT;
+			}
+			trb->dwTrb3 = htole32(dword);
+			i++;
+		} while (cur_len < len);
+		/* Fix last data TRB */
+		trb->dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+		trb->dwTrb3 |= htole32(XHCI_TRB_3_IOC_BIT);
+		trb->dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(31));
+
+		td->ntrb = i;
+		td->len = len;
+		td->remainder = 0;
+		td->status = 0;
+		td->alt_next = is_last ? NULL : td->obj_next;
+
+		xhci_td_fill_link(td, is_last ? NULL : td->obj_next, is_last);
+		usb_pc_cpu_flush(td->page_cache);
+
+		if (is_last)
+			return (td);
+		td = td->obj_next;
+	}
+
+	/* ---- Status stage ---- */
+
+	/*
+	 * Some XHCI controllers will not delay the status stage until the
+	 * next SOF, causing control transfer failures.  When ctlstep is
+	 * set we leave CYCLE_BIT clear; xhci_activate_transfer() enables it
+	 * after the data stage has completed.
+	 */
+	step_td = (xhcictlstep || sc->sc_ctlstep) && (xfer->nframes != 0);
+
+	trb = &td->td_trb[0];
+	trb->qwTrb0 = 0;
+	trb->dwTrb2 = htole32(XHCI_TRB_2_BYTES_SET(0) | XHCI_TRB_2_TDSZ_SET(0));
+	dword = XHCI_TRB_3_IOC_BIT |
+	    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE);
+	/* Status direction is opposite to the data direction */
+	if (!is_in)
+		dword |= XHCI_TRB_3_DIR_IN;
+	if (!step_td)
+		dword |= XHCI_TRB_3_CYCLE_BIT;
+	trb->dwTrb3 = htole32(dword);
+
+	td->ntrb = 1;
+	td->len = 0;
+	td->remainder = 0;
+	td->status = 0;
+	td->alt_next = NULL;
+
+	xhci_td_fill_link(td, NULL, true);
+	usb_pc_cpu_flush(td->page_cache);
+
+	return (td);
+}
+
+/*
+ * Build TRBs for a bulk (or interrupt) transfer.
+ * Each frame gets its own xhci_td.  Returns the last TD used.
+ */
+static struct xhci_td *
+xhci_setup_bulk(struct usb_xfer *xfer, struct xhci_td *td)
+{
+	bool is_in = !!(xfer->endpointno & UE_DIR_IN);
+	bool multishort = xfer->flags_int.short_frames_ok;
+	struct xhci_td *td_last;
+	int i;
+
+	td_last = td;
+	for (i = 0; i < xfer->nframes; i++) {
+		bool is_last = (i == xfer->nframes - 1);
+		/*
+		 * Bulk IN: skip CYCLE on the first TRB of non-first frames
+		 * (unless short frames are allowed) so that the host
+		 * controller does not start the next frame before software
+		 * calls xhci_activate_transfer().
+		 */
+		bool step_td = is_in && (i != 0) && !multishort;
+		struct xhci_td *td_next = is_last ? NULL : td->obj_next;
+
+		xhci_setup_normal_trbs(&xfer->frbuffers[i], 0,
+		    xfer->frlengths[i], xfer->max_packet_size, td, td_next,
+		    is_in, step_td, is_last);
+		td_last = td;
+		td = td->obj_next;
 	}
 
 	/*
-	 * Remove cycle bit from the first TRB if we are
-	 * stepping them:
+	 * If force_short_xfer is set and the last frame length is a non-zero
+	 * multiple of the max packet size, the hardware will not generate a
+	 * short packet naturally, so we must append a zero-length TD.
+	 *
+	 * The last regular-frame TD was set up with qwTrb0=0 in its link TRB
+	 * (the placeholder that xhci_transfer_insert would normally overwrite
+	 * for the final TD).  Since the ZLP TD is now the true final TD, that
+	 * link TRB must be patched: qwTrb0 must point to the ZLP TD, and
+	 * CHAIN_BIT must be set.  Some xHCI controllers refuse to send a ZLP
+	 * if the preceding link TRB does not have CHAIN_BIT set.
 	 */
-	if (temp->step_td != 0) {
-		td_first->td_trb[0].dwTrb3 &= ~htole32(XHCI_TRB_3_CYCLE_BIT);
-		usb_pc_cpu_flush(td_first->page_cache);
+	if (xfer->flags.force_short_xfer && xfer->nframes > 0) {
+		uint32_t last_len = xfer->frlengths[xfer->nframes - 1];
+
+		if (last_len > 0 && (last_len % xfer->max_packet_size) == 0) {
+			xhci_setup_normal_trbs(NULL, 0, 0,
+			    xfer->max_packet_size, td, NULL, is_in, false,
+			    true);
+			/*
+			 * Fix the previous TD's link TRB: point to the ZLP TD
+			 * and set CHAIN_BIT.  The address fix is necessary
+			 * because xhci_transfer_insert only patches td_last's
+			 * link TRB.  The CHAIN_BIT is required because some
+			 * xHCI controllers will not emit a ZLP unless the
+			 * preceding link TRB has CHAIN_BIT set.
+			 */
+			td_last->td_trb[td_last->ntrb].qwTrb0 =
+			    htole64(td->td_self);
+			td_last->td_trb[td_last->ntrb].dwTrb3 |= htole32(
+			    XHCI_TRB_3_CHAIN_BIT);
+			usb_pc_cpu_flush(td_last->page_cache);
+			td_last = td;
+		}
+	}
+	return (td_last);
+}
+
+/*
+ * Build TRBs for an isochronous transfer.
+ *
+ * All isochronous frame data lives in a single contiguous DMA buffer
+ * (frbuffers[0]); frlengths[x] gives the size of each frame.  Each frame
+ * maps to one xhci_td whose first TRB is of type ISOCH and whose remaining
+ * TRBs (if data spans multiple pages) are of type NORMAL.
+ *
+ * Returns the last TD used.
+ */
+static struct xhci_td *
+xhci_setup_isoc(struct usb_xfer *xfer, struct xhci_td *td)
+{
+	struct xhci_softc *sc = XHCI_BUS2SC(xfer->xroot->bus);
+	struct xhci_trb *trb;
+	struct usb_page_search search;
+	uint32_t dword, len, cur_len, buf_offset, seg_len, npkt;
+	uint32_t mfindex, isoc_frame, isoc_delta;
+	uint8_t mult, tdpc, tbc, tlbpc, shift, ist, y;
+	int x, i;
+	bool is_in = !!(xfer->endpointno & UE_DIR_IN);
+	bool do_isoc_sync = false;
+	struct xhci_td *td_last;
+
+	/* Compute burst multiplier (SuperSpeed or USB 2.0 high-bandwidth) */
+	mult = xfer->endpoint->ecomp ?
+	    UE_GET_SS_ISO_MULT(xfer->endpoint->ecomp->bmAttributes) :
+	    0;
+	if (mult == 0)
+		mult = (xfer->endpoint->edesc->wMaxPacketSize[1] >> 3) & 3;
+	if (mult > 2)
+		mult = 3;
+	else
+		mult++;
+
+	mfindex = XREAD4(sc, runt, XHCI_MFINDEX);
+	DPRINTF("MFINDEX=0x%08x IST=0x%x\n", mfindex, sc->sc_ist);
+
+	switch (usbd_get_speed(xfer->xroot->udev)) {
+	case USB_SPEED_FULL:
+		shift = 3;
+		isoc_delta = 8; /* 1 ms = 8 microframes */
+		break;
+	default:
+		shift = usbd_xfer_get_fps_shift(xfer);
+		isoc_delta = 1U << shift;
+		break;
 	}
 
-	/* clear TD SIZE to zero, hence this is the last TRB */
-	/* remove chain bit because this is the last data TRB in the chain */
-	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(31));
-	td->td_trb[td->ntrb - 1].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
-	/* remove CHAIN-BIT from last LINK TRB */
-	td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+	/* Compute isochronous scheduling threshold (XHCI 1.2 §4.14.2) */
+	ist = sc->sc_ist;
+	if (ist & 8)
+		y = (ist & 7) << 3;
+	else
+		y = (ist & 7);
+	if (y < 8) {
+		y = 0;
+	} else if (y > 15) {
+		DPRINTFN(3, "IST(%d) is too big!\n", ist);
+		/*
+		 * The USB stack minimum isochronous transfer size is typically
+		 * 2x2 ms of payload.  An IST above 15 microframes gives a
+		 * scheduling delay >= 2 ms, which is too much.
+		 */
+		y = 7;
+	} else {
+		/* Subtract one millisecond added by the generic layer */
+		y -= 8;
+	}
 
-	usb_pc_cpu_flush(td->page_cache);
+	if (usbd_xfer_get_isochronous_start_frame(xfer, mfindex, y, 8,
+		XHCI_MFINDEX_GET(-1), &isoc_frame)) {
+		/* Synchronise to a specific frame number */
+		do_isoc_sync = true;
+		DPRINTFN(3, "start next=%d\n", isoc_frame);
+	}
 
-	temp->td = td;
-	temp->td_next = td_next;
+	buf_offset = 0;
+	td_last = td;
+
+	for (x = 0; x < xfer->nframes; x++) {
+		bool is_last = (x == xfer->nframes - 1);
+		struct xhci_td *td_next = is_last ? NULL : td->obj_next;
+
+		len = xfer->frlengths[x];
+		if (len > xfer->max_frame_size)
+			len = xfer->max_frame_size;
+
+		/* Compute TBC and TLBPC (XHCI 1.2 §4.11.2.3) */
+		if (len == 0) {
+			tbc = 0;
+			tlbpc = mult - 1;
+		} else {
+			tdpc = howmany(len, xfer->max_packet_size);
+			tbc = howmany(tdpc, mult) - 1;
+			tlbpc = tdpc % mult;
+			if (tlbpc == 0)
+				tlbpc = mult - 1;
+			else
+				tlbpc--;
+		}
+
+		cur_len = 0;
+		i = 0;
+
+		if (len == 0) {
+			/* Zero-length isochronous frame */
+			trb = &td->td_trb[0];
+			trb->qwTrb0 = 0;
+			trb->dwTrb2 = htole32(
+			    XHCI_TRB_2_BYTES_SET(0) | XHCI_TRB_2_TDSZ_SET(0));
+			dword = XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT |
+			    XHCI_TRB_3_TBC_SET(tbc) |
+			    XHCI_TRB_3_TLBPC_SET(tlbpc) |
+			    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ISOCH);
+			if (do_isoc_sync) {
+				do_isoc_sync = false;
+				dword |= XHCI_TRB_3_FRID_SET(isoc_frame / 8);
+			} else {
+				dword |= XHCI_TRB_3_ISO_SIA_BIT;
+			}
+			if (is_in)
+				dword |= XHCI_TRB_3_ISP_BIT;
+			trb->dwTrb3 = htole32(dword);
+			i = 1;
+		} else {
+			while (cur_len < len) {
+				trb = &td->td_trb[i];
+				usbd_get_page(&xfer->frbuffers[0],
+				    buf_offset + cur_len, &search);
+				seg_len = search.length;
+				if (cur_len + seg_len > len)
+					seg_len = len - cur_len;
+				if (seg_len > XHCI_TD_PAGE_SIZE)
+					seg_len = XHCI_TD_PAGE_SIZE;
+				cur_len += seg_len;
+
+				npkt = howmany(len - cur_len,
+				    xfer->max_packet_size);
+				if (npkt > 31)
+					npkt = 31;
+
+				trb->qwTrb0 = htole64(search.physaddr);
+				trb->dwTrb2 = htole32(
+				    XHCI_TRB_2_BYTES_SET(seg_len) |
+				    XHCI_TRB_2_TDSZ_SET(npkt));
+
+				/*
+				 * TBC and TLBPC are placed in the same bit
+				 * positions for both ISOCH and NORMAL TRBs
+				 * within an isochronous frame.
+				 */
+				dword = XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_CHAIN_BIT |
+				    XHCI_TRB_3_TBC_SET(tbc) |
+				    XHCI_TRB_3_TLBPC_SET(tlbpc);
+				if (i == 0) {
+					/* First TRB: ISOCH type */
+					if (do_isoc_sync) {
+						do_isoc_sync = false;
+						dword |=
+						    XHCI_TRB_3_TYPE_SET(
+							XHCI_TRB_TYPE_ISOCH) |
+						    XHCI_TRB_3_FRID_SET(
+							isoc_frame / 8);
+					} else {
+						dword |=
+						    XHCI_TRB_3_TYPE_SET(
+							XHCI_TRB_TYPE_ISOCH) |
+						    XHCI_TRB_3_ISO_SIA_BIT;
+					}
+				} else {
+					/* Subsequent TRBs: NORMAL type */
+					dword |= XHCI_TRB_3_TYPE_SET(
+					    XHCI_TRB_TYPE_NORMAL);
+				}
+				if (is_in)
+					dword |= XHCI_TRB_3_ISP_BIT;
+				trb->dwTrb3 = htole32(dword);
+				i++;
+			}
+			/* Fix last data TRB */
+			trb->dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+			trb->dwTrb3 |= htole32(XHCI_TRB_3_IOC_BIT);
+			trb->dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(31));
+		}
+
+		td->ntrb = i;
+		td->len = len;
+		td->remainder = 0;
+		td->status = 0;
+		/* For isochronous, alt_next always follows to the next frame */
+		td->alt_next = is_last ? NULL : td->obj_next;
+
+		/*
+		 * Isochronous frames must NOT have CHAIN set on their link
+		 * TRBs.  The old xhci_setup_generic_chain_sub always removed
+		 * CHAIN from the link TRB at the end of each per-frame call.
+		 * With CHAIN set, some controllers treat consecutive ISOCH TDs
+		 * as a single chained TD and generate only one Transfer Event
+		 * for the whole transfer instead of one per frame, which causes
+		 * td_transfer_cache to stall on the first frame and time out.
+		 * Pass last=true unconditionally so qwTrb0 is still written
+		 * with td_next's address while CHAIN is suppressed.
+		 */
+		xhci_td_fill_link(td, td_next, true);
+		usb_pc_cpu_flush(td->page_cache);
+
+		td_last = td;
+		td = td->obj_next;
+		buf_offset += xfer->frlengths[x];
+		isoc_frame += isoc_delta;
+	}
+
+	return (td_last);
 }
 
 static void
 xhci_setup_generic_chain(struct usb_xfer *xfer)
 {
-	struct xhci_std_temp temp;
 	struct xhci_td *td;
-	uint32_t x;
-	uint32_t y;
-	uint8_t mult;
 
-	temp.do_isoc_sync = 0;
-	temp.step_td = 0;
-	temp.tbc = 0;
-	temp.tlbpc = 0;
-	temp.average = xfer->max_hc_frame_size;
-	temp.max_packet_size = xfer->max_packet_size;
-	temp.sc = XHCI_BUS2SC(xfer->xroot->bus);
-	temp.pc = NULL;
-	temp.last_frame = 0;
-	temp.offset = 0;
-	temp.multishort = xfer->flags_int.isochronous_xfr ||
-	    xfer->flags_int.control_xfr ||
-	    xfer->flags_int.short_frames_ok;
-
-	/* toggle the DMA set we are using */
+	/* Toggle the DMA set we are using */
 	xfer->flags_int.curr_dma_set ^= 1;
 
-	/* get next DMA set */
+	/* Get the first TD of this DMA set */
 	td = xfer->td_start[xfer->flags_int.curr_dma_set];
-
-	temp.td = NULL;
-	temp.td_next = td;
 
 	xfer->td_transfer_first = td;
 	xfer->td_transfer_cache = td;
 
-	if (xfer->flags_int.isochronous_xfr) {
-		uint8_t shift;
-
-		/* compute multiplier for ISOCHRONOUS transfers */
-		mult = xfer->endpoint->ecomp ?
-		    UE_GET_SS_ISO_MULT(xfer->endpoint->ecomp->bmAttributes)
-		    : 0;
-		/* check for USB 2.0 multiplier */
-		if (mult == 0) {
-			mult = (xfer->endpoint->edesc->
-			    wMaxPacketSize[1] >> 3) & 3;
-		}
-		/* range check */
-		if (mult > 2)
-			mult = 3;
-		else
-			mult++;
-
-		x = XREAD4(temp.sc, runt, XHCI_MFINDEX);
-
-		DPRINTF("MFINDEX=0x%08x IST=0x%x\n", x, temp.sc->sc_ist);
-
-		switch (usbd_get_speed(xfer->xroot->udev)) {
-		case USB_SPEED_FULL:
-			shift = 3;
-			temp.isoc_delta = 8;	/* 1ms */
-			break;
-		default:
-			shift = usbd_xfer_get_fps_shift(xfer);
-			temp.isoc_delta = 1U << shift;
-			break;
-		}
-
-		/* Compute isochronous scheduling threshold. */
-		if (temp.sc->sc_ist & 8)
-			y = (temp.sc->sc_ist & 7) << 3;
-		else
-			y = (temp.sc->sc_ist & 7);
-
-		/* Range check the IST. */
-		if (y < 8) {
-			y = 0;
-		} else if (y > 15) {
-			DPRINTFN(3, "IST(%d) is too big!\n", temp.sc->sc_ist);
-			/*
-			 * The USB stack minimum isochronous transfer
-			 * size is typically 2x2 ms of payload. If the
-			 * IST makes is above 15 microframes, we have
-			 * an effective scheduling delay of more than
-			 * or equal to 2 milliseconds, which is too
-			 * much.
-			 */
-			y = 7;
-		} else {
-			/*
-			 * Subtract one millisecond, because the
-			 * generic code adds that to the latency.
-			 */
-			y -= 8;
-		}
-
-		if (usbd_xfer_get_isochronous_start_frame(
-		    xfer, x, y, 8, XHCI_MFINDEX_GET(-1), &temp.isoc_frame)) {
-			/* Start isochronous transfer at specified time. */
-			temp.do_isoc_sync = 1;
-
-			DPRINTFN(3, "start next=%d\n", temp.isoc_frame);
-		}
-
-		x = 0;
-		temp.trb_type = XHCI_TRB_TYPE_ISOCH;
-
-	} else if (xfer->flags_int.control_xfr) {
-		/* check if we should prepend a setup message */
-
-		if (xfer->flags_int.control_hdr) {
-			temp.len = xfer->frlengths[0];
-			temp.pc = xfer->frbuffers + 0;
-			temp.shortpkt = temp.len ? 1 : 0;
-			temp.trb_type = XHCI_TRB_TYPE_SETUP_STAGE;
-			temp.direction = 0;
-
-			/* check for last frame */
-			if (xfer->nframes == 1) {
-				/* no STATUS stage yet, SETUP is last */
-				if (xfer->flags_int.control_act)
-					temp.last_frame = 1;
-			}
-
-			xhci_setup_generic_chain_sub(&temp);
-		}
-		x = 1;
-		mult = 1;
-		temp.isoc_delta = 0;
-		temp.isoc_frame = 0;
-		temp.trb_type = xfer->flags_int.control_did_data ?
-		    XHCI_TRB_TYPE_NORMAL : XHCI_TRB_TYPE_DATA_STAGE;
-	} else {
-		x = 0;
-		mult = 1;
-		temp.isoc_delta = 0;
-		temp.isoc_frame = 0;
-		temp.trb_type = XHCI_TRB_TYPE_NORMAL;
-	}
-
-	if (x != xfer->nframes) {
-                /* set up page_cache pointer */
-                temp.pc = xfer->frbuffers + x;
-		/* set endpoint direction */
-		temp.direction = UE_GET_DIR(xfer->endpointno);
-	}
-
-	while (x != xfer->nframes) {
-		/* DATA0 / DATA1 message */
-
-		temp.len = xfer->frlengths[x];
-		temp.step_td = ((xfer->endpointno & UE_DIR_IN) &&
-		    x != 0 && temp.multishort == 0);
-
-		x++;
-
-		if (x == xfer->nframes) {
-			if (xfer->flags_int.control_xfr) {
-				/* no STATUS stage yet, DATA is last */
-				if (xfer->flags_int.control_act)
-					temp.last_frame = 1;
-			} else {
-				temp.last_frame = 1;
-			}
-		}
-		if (temp.len == 0) {
-			/* make sure that we send an USB packet */
-
-			temp.shortpkt = 0;
-
-			temp.tbc = 0;
-			temp.tlbpc = mult - 1;
-
-		} else if (xfer->flags_int.isochronous_xfr) {
-			uint8_t tdpc;
-
-			/*
-			 * Isochronous transfers don't have short
-			 * packet termination:
-			 */
-
-			temp.shortpkt = 1;
-
-			/* isochronous transfers have a transfer limit */
-
-			if (temp.len > xfer->max_frame_size)
-				temp.len = xfer->max_frame_size;
-
-			/* compute TD packet count */
-			tdpc = howmany(temp.len, xfer->max_packet_size);
-
-			temp.tbc = howmany(tdpc, mult) - 1;
-			temp.tlbpc = (tdpc % mult);
-
-			if (temp.tlbpc == 0)
-				temp.tlbpc = mult - 1;
-			else
-				temp.tlbpc--;
-		} else {
-			/* regular data transfer */
-
-			temp.shortpkt = xfer->flags.force_short_xfer ? 0 : 1;
-		}
-
-		xhci_setup_generic_chain_sub(&temp);
-
-		if (xfer->flags_int.isochronous_xfr) {
-			temp.offset += xfer->frlengths[x - 1];
-			temp.isoc_frame += temp.isoc_delta;
-		} else {
-			/* get next Page Cache pointer */
-			temp.pc = xfer->frbuffers + x;
-		}
-	}
-
-	/* check if we should append a status stage */
-
-	if (xfer->flags_int.control_xfr &&
-	    !xfer->flags_int.control_act) {
-		/*
-		 * Send a DATA1 message and invert the current
-		 * endpoint direction.
-		 */
-		if (xhcictlstep || temp.sc->sc_ctlstep) {
-			/*
-			 * Some XHCI controllers will not delay the
-			 * status stage until the next SOF. Force this
-			 * behaviour to avoid failed control
-			 * transfers.
-			 */
-			temp.step_td = (xfer->nframes != 0);
-		} else {
-			temp.step_td = 0;
-		}
-		temp.direction = UE_GET_DIR(xfer->endpointno) ^ UE_DIR_IN;
-		temp.len = 0;
-		temp.pc = NULL;
-		temp.shortpkt = 0;
-		temp.last_frame = 1;
-		temp.trb_type = XHCI_TRB_TYPE_STATUS_STAGE;
-
-		xhci_setup_generic_chain_sub(&temp);
-	}
-
-	td = temp.td;
-
-	/* must have at least one frame! */
+	if (xfer->flags_int.isochronous_xfr)
+		td = xhci_setup_isoc(xfer, td);
+	else if (xfer->flags_int.control_xfr)
+		td = xhci_setup_ctrl(xfer, td);
+	else
+		td = xhci_setup_bulk(xfer, td);
 
 	xfer->td_transfer_last = td;
 
@@ -3184,8 +3192,7 @@ xhci_device_generic_start(struct usb_xfer *xfer)
 		usbd_transfer_timeout_ms(xfer, &xhci_timeout, xfer->timeout);
 }
 
-static const struct usb_pipe_methods xhci_device_generic_methods =
-{
+static const struct usb_pipe_methods xhci_device_generic_methods = {
 	.open = xhci_device_generic_open,
 	.close = xhci_device_generic_close,
 	.enter = xhci_device_generic_enter,
