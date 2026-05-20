@@ -203,7 +203,8 @@ will consume and apply the limits.
 .Pp
 Once a set of limits is applied, subsequent calls to
 .Fn cap_net_limit
-will fail unless the new set is a subset of the current set.
+may only further restrict the service.
+Any call that would grant operations not currently permitted will fail.
 .Pp
 If the
 .Fn cap_net_limit
