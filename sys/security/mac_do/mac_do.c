@@ -399,7 +399,7 @@ new_conf(void)
 }
 
 static bool
-is_null_or_empty(const char *s)
+is_null_or_empty(const char *const s)
 {
 	return (s == NULL || s[0] == '\0');
 }
