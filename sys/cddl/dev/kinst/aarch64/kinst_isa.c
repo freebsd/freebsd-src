@@ -18,7 +18,7 @@
 
 DPCPU_DEFINE_STATIC(struct kinst_cpu_state, kinst_state);
 
-static int
+static void
 kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 {
 	kinst_patchval_t instr = kp->kp_savedval;
@@ -132,17 +132,13 @@ kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 		else
 			frame->tf_elr += INSN_SIZE;
 	}
-
-	return (0);
 }
 
 static int
 kinst_jump_next_instr(struct trapframe *frame, const struct kinst_probe *kp)
 {
-	frame->tf_elr = (register_t)((const uint8_t *)kp->kp_patchpoint +
-	    INSN_SIZE);
-
-	return (0);
+	frame->tf_elr = (register_t)(uintptr_t)kp->kp_patchpoint;
+	return (NOP_INSTR);
 }
 
 static void
@@ -215,21 +211,27 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 	dtrace_probe(kp->kp_id, 0, 0, 0, 0, 0);
 	cpu->cpu_dtrace_caller = 0;
 
-	if (kp->kp_md.emulate)
-		return (kinst_emulate(frame, kp));
+	if (kp->kp_md.emulate) {
+		kinst_emulate(frame, kp);
+	} else {
+		ks->state = KINST_PROBE_FIRED;
+		ks->kp = kp;
 
-	ks->state = KINST_PROBE_FIRED;
-	ks->kp = kp;
+		/*
+		 * Cache the current SPSR and clear interrupts for the duration
+		 * of the double breakpoint.
+		 */
+		ks->status = frame->tf_spsr;
+		frame->tf_spsr |= PSR_I;
+		frame->tf_elr = (register_t)kp->kp_tramp;
+	}
 
 	/*
-	 * Cache the current SPSR and clear interrupts for the duration
-	 * of the double breakpoint.
+	 * NOP_INSTR is handled in dtrace_invop_start() by advancing the ELR, so
+	 * compensate by subtracting INSTR_SIZE before returning.
 	 */
-	ks->status = frame->tf_spsr;
-	frame->tf_spsr |= PSR_I;
-	frame->tf_elr = (register_t)kp->kp_tramp;
-
-	return (0);
+	frame->tf_elr -= INSN_SIZE;
+	return (NOP_INSTR);
 }
 
 void
