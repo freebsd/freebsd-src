@@ -832,56 +832,15 @@ rk_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (EINVAL);
 	}
 	rk_gpio_write_bit(sc, RK_GPIO_DEBOUNCE, pin, 1);
-	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, pin, 0);
-	rk_gpio_write_bit(sc, RK_GPIO_INTEN, pin, 1);
 	RK_GPIO_UNLOCK(sc);
 
+	/*
+	 * Leave the interrupt masked + disabled here.  INTRNG will call
+	 * pic_enable_intr() next to make it live.  That keeps the
+	 * masking responsibility cleanly in enable/disable rather than
+	 * split between setup and disable.
+	 */
 	return (0);
-}
-
-/*
- * INTRNG calls pic_disable_intr() to mask the source when it must hold off
- * delivery -- e.g. between FILTER_SCHEDULE_THREAD and ithread completion.
- * Without these, level-low IRQs (FUSB302 INT_N) re-fire continuously and
- * starve the ithread (~210 kHz storm observed via dtrace).
- */
-static void
-rk_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct rk_gpio_softc *sc = device_get_softc(dev);
-	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
-
-	RK_GPIO_LOCK(sc);
-	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, rkisrc->irq, 1);
-	RK_GPIO_UNLOCK(sc);
-}
-
-static void
-rk_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct rk_gpio_softc *sc = device_get_softc(dev);
-	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
-
-	RK_GPIO_LOCK(sc);
-	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, rkisrc->irq, 0);
-	RK_GPIO_UNLOCK(sc);
-}
-
-/*
- * Called by INTRNG before delivering to the ithread; mask the source.
- * Re-enabled in pic_post_ithread once the ithread has cleared the
- * device-side interrupt cause.
- */
-static void
-rk_pic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
-{
-	rk_pic_disable_intr(dev, isrc);
-}
-
-static void
-rk_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
-{
-	rk_pic_enable_intr(dev, isrc);
 }
 
 static int
@@ -896,12 +855,84 @@ rk_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	if (isrc->isrc_handlers == 0) {
 		irqsrc->mode = GPIO_INTR_CONFORM;
 		RK_GPIO_LOCK(sc);
-		rk_gpio_write_bit(sc, RK_GPIO_INTEN, irqsrc->irq, 0);
-		rk_gpio_write_bit(sc, RK_GPIO_INTMASK, irqsrc->irq, 0);
+		/*
+		 * INTEN/INTMASK are already cleared by pic_disable_intr,
+		 * which INTRNG calls before teardown of the last handler.
+		 * We only need to undo what setup_intr configured -- here,
+		 * the debounce filter.
+		 */
 		rk_gpio_write_bit(sc, RK_GPIO_DEBOUNCE, irqsrc->irq, 0);
 		RK_GPIO_UNLOCK(sc);
 	}
 	return (0);
+}
+
+/*
+ * INTRNG calls pic_disable_intr() during teardown of the final handler
+ * for a source, OR when a consumer explicitly wants the source off.
+ * Clear INTEN so the controller will not raise this pin at all.
+ *
+ * The in-flight masking between FILTER_SCHEDULE_THREAD and ithread
+ * completion is handled by pic_pre_ithread() / pic_post_ithread()
+ * below, NOT by this method.
+ */
+static void
+rk_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
+
+	RK_GPIO_LOCK(sc);
+	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, rkisrc->irq, 1);
+	rk_gpio_write_bit(sc, RK_GPIO_INTEN, rkisrc->irq, 0);
+	RK_GPIO_UNLOCK(sc);
+}
+
+/*
+ * INTRNG calls pic_enable_intr() to make a source live for the first
+ * time (after setup_intr), or to re-enable after a prior
+ * pic_disable_intr().  Set INTEN and unmask so the controller starts
+ * delivering this pin.
+ */
+static void
+rk_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
+
+	RK_GPIO_LOCK(sc);
+	rk_gpio_write_bit(sc, RK_GPIO_INTEN, rkisrc->irq, 1);
+	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, rkisrc->irq, 0);
+	RK_GPIO_UNLOCK(sc);
+}
+
+/*
+ * Called by INTRNG before delivering to the ithread.  Mask the source
+ * so it cannot re-fire during the ithread window -- without this,
+ * level-low IRQs (e.g. FUSB302 INT_N) re-trigger continuously and
+ * starve the ithread (~210 kHz storm observed via dtrace).
+ * Re-unmasked in pic_post_ithread() once the ithread acks the source.
+ */
+static void
+rk_pic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
+
+	RK_GPIO_LOCK(sc);
+	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, rkisrc->irq, 1);
+	RK_GPIO_UNLOCK(sc);
+}
+
+static void
+rk_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
+
+	RK_GPIO_LOCK(sc);
+	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, rkisrc->irq, 0);
+	RK_GPIO_UNLOCK(sc);
 }
 
 static device_method_t rk_gpio_methods[] = {
