@@ -1,8 +1,8 @@
-/*-
+/*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright(c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2024, 2026, The FreeBSD Foundation
  * Copyright (c) 2025 Kushagra Srivastava <kushagra1403@gmail.com>
  *
  * Portions of this software were developed by Olivier Certner
