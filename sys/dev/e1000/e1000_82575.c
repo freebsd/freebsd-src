@@ -2348,7 +2348,7 @@ s32 e1000_validate_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
 
 	DEBUGFUNC("e1000_validate_nvm_checksum_with_offset");
 
-	for (i = offset; i < ((NVM_CHECKSUM_REG + offset) + 1); i++) {
+	for (i = offset; i < (u16)((NVM_CHECKSUM_REG + offset) + 1); i++) {
 		ret_val = hw->nvm.ops.read(hw, i, 1, &nvm_data);
 		if (ret_val) {
 			DEBUGOUT("NVM Read Error\n");
@@ -2385,7 +2385,7 @@ s32 e1000_update_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
 
 	DEBUGFUNC("e1000_update_nvm_checksum_with_offset");
 
-	for (i = offset; i < (NVM_CHECKSUM_REG + offset); i++) {
+	for (i = offset; i < (u16)(NVM_CHECKSUM_REG + offset); i++) {
 		ret_val = hw->nvm.ops.read(hw, i, 1, &nvm_data);
 		if (ret_val) {
 			DEBUGOUT("NVM Read Error while updating checksum.\n");
