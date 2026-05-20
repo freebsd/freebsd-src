@@ -1866,6 +1866,7 @@ dev/iicbus/rtc/s35390a.c	optional s35390a
 dev/iicbus/sensor/htu21.c	optional htu21
 dev/iicbus/sensor/lm75.c	optional lm75
 dev/iicbus/sensor/max44009.c	optional max44009
+dev/iicbus/sensor/w83793g.c	optional w83793g
 dev/iicbus/gpio/pcf8574.c	optional pcf8574
 dev/iicbus/gpio/tca64xx.c	optional tca64xx fdt gpio
 dev/iicbus/pmic/fan53555.c	optional fan53555 fdt | tcs4525 fdt

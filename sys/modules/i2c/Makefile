@@ -32,7 +32,8 @@ SUBDIR += hym8563 \
 	  rv3032 \
 	  rx8803 \
 	  tca64xx \
-	  tmp461
+	  tmp461 \
+	  w83793g
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
