@@ -232,6 +232,11 @@ The process descriptor being operated on has insufficient rights (e.g.
 .Dv CAP_PDKILL
 for
 .Fn pdkill ) .
+.It Bq Er EINVAL
+The
+.Fn pdwait
+function is called with reserved bits set in
+.Fa options .
 .El
 .Sh SEE ALSO
 .Xr close 2 ,
