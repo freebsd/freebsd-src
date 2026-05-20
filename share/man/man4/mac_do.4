@@ -1,8 +1,8 @@
 .\"-
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
-.\" Copyright (c) 2024 The FreeBSD Foundation
+.\" Copyright (c) 2024, Baptiste Daroussin <bapt@FreeBSD.org>
+.\" Copyright (c) 2024, 2026, The FreeBSD Foundation
 .\"
 .\" Portions of this documentation were written by Olivier Certner
 .\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
@@ -42,13 +42,23 @@ policy module allows unprivileged users to change process credentials according
 to rules configured by the administrator.
 It supports per-jail configuration.
 .Pp
-Currently, the
+The
 .Nm
-policy module only produces effects to processes spawned from the
+policy module only produces effects on processes spawned from specific
+executables from a configurable whitelist.
+By default, this whitelist only contains the
 .Pa /usr/bin/mdo
 executable, please see
 .Xr mdo 1
 for more details on this program.
+.Pp
+Section
+.Sx CREDENTIALS RULES
+specifies the format of credentials transition rules, and section
+.Sx CONFIGURATION
+explains how to configure
+.Nm ,
+including rules and authorized executables.
 .Sh CREDENTIALS RULES
 Rules specify which transitions of process credentials
 .Nm
@@ -267,84 +277,170 @@ then converted to unsigned ones as specified in the C standard for the
 and
 .Vt gid_t
 types, which are both 32-bit unsigned integers.
-.Sh RUNTIME CONFIGURATION
-The following
+.Sh CONFIGURATION
+Each parameter of
+.Nm
+has a corresponding
 .Xr sysctl 8
-knobs are available:
+knob.
+.Nm
+supports per-jail values for most parameters.
+.Ss Sysctl Knobs
+The
+.Xr sysctl 8
+knobs presented by
+.Nm
+are of two types: Global ones, which influence all uses of the module, and
+per-jail ones, which allow to retrieve or change the setting applicable to
+a jail
+.Pq or the host
+from within.
+They are tagged accordingly in the list below.
+.Pp
+The indicated default values for per-jail parameters applies to the host.
+Those applying to jails are described in the
+.Sx Jail Parameters
+subsection below.
+.Pp
+The following knobs are available:
 .Bl -tag -width indent
 .It Va security.mac.do.enabled
 Enable the
 .Nm
 policy.
-(Default: 1).
-.It Va security.mac.do.rules
-The list of credential rules, whose syntax is described in the
-.Sx CREDENTIALS RULES
-section above.
-This list is specific to each jail.
-Please see the
-.Sx JAIL SUPPORT
-section below for more details on the interaction of
-.Nm
-with jails.
+.Pq Global. Default: 1.
 .It Va security.mac.do.print_parse_error
 Logs a message on trying to set incorrect rules via the
 .Va security.mac.do.rules
 .Xr sysctl 8
 knob.
+.Pq Global. Default: 1.
+.It Va security.mac.do.rules
+The list of credentials transition rules, whose syntax is described in the
+.Sx CREDENTIALS RULES
+section above.
+An empty string effectively disables the policy.
+.Pq Per-jail. Default: Empty.
+.It Va security.mac.do.exec_paths
+The list of absolute paths
+.Pq relative to the current jail's root
+to authorized executables, separated by colons
+.Pq Ql ":" .
+Only processes launched from these executables are considered by the
+.Nm
+policy.
+An empty string effectively disables the policy.
+.Po
+Per-jail. Default:
+.Ql "/usr/bin/mdo" .
+.Pc
 .El
-.Sh JAIL SUPPORT
+.Ss Jail Parameters
+Most parameters of
 .Nm
-supports per-jail configuration of rules.
+are per-jail
+.Po
+see the
+.Sx "Sysctl Knobs"
+subsection above
+.Pc .
+Those that are per-jail have corresponding jail parameters that can be used to
+set their initial values on jail creation or modify their values in a running
+jail from outside the jail.
 .Pp
-By default, at creation, a new jail has no credentials rules, effectively
-disabling
+By default, as it is for the host, a new jail has
 .Nm
-for its processes.
+disabled for its processes, as if the
+.Va mac.do
+parameter below was explicitly set to
+.Ql disable .
 .Pp
-The following jail parameters are defined:
+Each unspecified parameter other than
+.Va mac.do
+defaults to a copy of its value in the currently applicable configuration for
+a running jail, or from the parent jail on jail creation.
+.Pp
+The following jail parameters are available:
 .Bl -tag -width indent
 .It Va mac.do
 Possible values are:
+.Pp
 .Bl -tag -width "'disable'" -compact
 .It Ql new
 .Nm
-will enforce specific credential rules in the jail.
-The
-.Va mac.do.rules
-jail parameter must also be set in this case.
+will use a specific configuration for the jail.
+This case degrades to
+.Ql disable
+if one of the other jail parameters end up empty after applying the default
+values rule
+.Pq see the preamble .
 .It Ql disable
 Disables
 .Nm
 in the jail.
-Strictly equivalent to jail creation's default behavior and to setting the rules
-to an empty string.
+This is achieved by ensuring that at least one of the
+.Va mac.do.rules
+and
+.Va mac.do.exec_paths
+jail parameters are empty.
+If none of them ends up empty after applying the default values rule
+.Pq see the preamble ,
+.Va mac.do.rules
+is forced to an empty value.
+An explicit
+.Ql disable
+is incompatible with explicit non-empty values for all other jail parameters and
+will trigger an error.
 .It Ql inherit
-The jail's credentials rules are inherited from the jail's parent
+The other per-jail parameters are inherited from those applicable to the jail's
+parent
 .Pq which may themselves have been inherited .
-Modified rules propagate to all children jails configured for inheritance.
+Configuration modifications immediately propagate to all descendant jails
+configured for inheritance
+.Po
+as long as there is no intervening jail having its own specific configuration
+.Pc .
 .El
+.Pp
+The default value depends on the absence or presence and value of the other jail
+parameters.
+As soon as one of the latter is present and not empty, the default value is
+.Ql new ,
+else it is
+.Ql disable .
+Inheritance is never established implicitly, it must be explicitly requested.
 .It Va mac.do.rules
 The credentials rules for the jail.
-It is always equal to the value that can be retrieved by the
+See the description of the corresponding
 .Xr sysctl 8
 knob
 .Va security.mac.do.rules
-described in section
-.Sx RUNTIME CONFIGURATION .
-If set, and the jail parameter
-.Va mac.do
-is not so explicitly, the value of the latter will default to
-.Ql disable
-if empty, else to
-.Ql new .
+in subsection
+.Sx "Sysctl Knobs"
+above.
+See also the preamble for the default values rule.
+.It Va mac.do.exec_paths
+The authorized executables.
+See the description of the corresponding
+.Xr sysctl 8
+knob
+.Va security.mac.do.exec_paths
+in subsection
+.Sx "Sysctl Knobs"
+above.
+See also the preamble for the default values rule.
 .El
+.Ss Consistency
+Values read or set from jail parameters are always consistent with their
+corresponding
+.Xr sysctl 8
+knobs, effectively operating on the same internal
+.Dq variable .
 .Pp
-Each jail must have
-.Xr mdo 1
-installed at path
-.Pa /usr/bin/mdo ,
-as this path is currently not configurable.
+All accesses to some parameter or some jail configuration as a whole, whether
+a read or a modification, are sequentially consistent.
+In other words, they appear to be atomic, and all threads see them happening in
+the same order.
 .Sh EXAMPLES
 Here are several examples of single rules matching processes having a real user
 ID of 10001:
@@ -405,6 +501,7 @@ current supplementary groups must be kept.
 .Sh AUTHORS
 .An Olivier Certner Aq Mt olce@FreeBSD.org
 .An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
+.An Kushagra Srivastava Aq Mt kushagra1403@gmail.com
 .Sh BUGS
 Currently,
 .Nm
