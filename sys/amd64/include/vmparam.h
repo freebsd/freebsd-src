@@ -171,7 +171,7 @@
  * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
  * 0xffff848000000000 - 0xfffff77fffffffff   unused (large map extends there)
  * 0xfffff60000000000 - 0xfffff7ffffffffff   2TB KMSAN origin map, optional
- * 0xfffff78000000000 - 0xfffff7bfffffffff   512GB KASAN shadow map, optional
+ * 0xfffff78000000000 - 0xfffff7bfffffffff   256GB KASAN shadow map, optional
  * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
  * 0xfffffc0000000000 - 0xfffffdffffffffff   2TB KMSAN shadow map, optional
  * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
@@ -185,7 +185,7 @@
  * 0xff41000000000000 - 0xffff7fffffffffff   unused
  * 0xffff800000000000 - 0xfffff5ffffffffff   unused (start of kernel pml4 entry)
  * 0xfffff60000000000 - 0xfffff7ffffffffff   2TB KMSAN origin map, optional
- * 0xfffff78000000000 - 0xfffff7bfffffffff   512GB KASAN shadow map, optional
+ * 0xfffff78000000000 - 0xfffff7bfffffffff   256GB KASAN shadow map, optional
  * 0xfffff80000000000 - 0xfffffbffffffffff   4TB unused
  * 0xfffffc0000000000 - 0xfffffdffffffffff   2TB KMSAN shadow map, optional
  * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
