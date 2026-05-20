@@ -1,0 +1,5 @@
+Name: fragment-collision-intermediary
+Version: 0
+Description: fragment collision test package
+Requires.private: fragment-collision-1, fragment-collision-2
+CFlags: -D_BAR

@@ -1,9 +1,13 @@
-.\"-
-.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2022-2026 Bjoern A. Zeeb
+.\" Copyright (c) 2026 The FreeBSD Foundation
 .\"
-.Dd February 10, 2026
+.\" Portions of this documentation were written by Bj\xc3\xb6rn Zeeb
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 15, 2026
 .Dt RTW88 4
 .Os
 .Sh NAME
@@ -28,7 +32,7 @@ It is not possible to load the driver from
 .Sh DESCRIPTION
 The
 .Nm
-driver is derived from Realtek's Linux rtw88 driver.
+driver is derived from Realtek's Linux rtw88 driver based on Linux version 7.0.
 .Pp
 This driver requires firmware to be loaded before it will work.
 The package
@@ -45,10 +49,9 @@ One can use
 to install the correct firmware package.
 .Pp
 The driver uses the
-.\" No LinuxKPI man pages so no .Xr here.
-.Sy linuxkpi_wlan
+.Xr linuxkpi_wlan 4
 and
-.Sy linuxkpi
+.Xr linuxkpi 4
 compat framework to bridge between the Linux and
 native
 .Fx
@@ -63,6 +66,8 @@ driver supports PCIe devices with the following chipsets:
 .Bl -bullet -offset indent -compact
 .It
 Realtek 802.11n  wireless 8723de (RTL8723DE)
+.It
+Realtek 802.11ac wireless 8814ae (RTL8814AE)
 .It
 Realtek 802.11ac wireless 8821ce (RTL8821CE)
 .It
@@ -84,6 +89,8 @@ for network buffer memory to the lower 32bit of physical memory and
 make the driver work.
 .El
 .Sh SEE ALSO
+.Xr linuxkpi 4,
+.Xr linuxkpi_wlan 4,
 .Xr wlan 4 ,
 .Xr networking 7 ,
 .Xr fwget 8 ,
@@ -95,13 +102,15 @@ The
 driver first appeared in
 .Fx 13.2 .
 .Sh BUGS
-Certainly.
-.Pp
 Does not seem to work (reliably) on machines with more than 4GB of
 main memory.
 See in the
 .Sx LOADER TUNABLES
 section above.
+.Pp
+At least the 8821CE and 8822BE chipsets have trouble associating,
+which seems to be due to the software scan fallback, the chandef emulation,
+and net80211 interactions, along with a 6s timeout observed in the driver.
 .Pp
 While
 .Nm

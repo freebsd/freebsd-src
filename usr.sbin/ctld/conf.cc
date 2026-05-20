@@ -404,9 +404,9 @@ target_set_auth_type(const char *type)
 }
 
 bool
-target_set_physical_port(const char *pport)
+target_add_physical_port(const char *pport)
 {
-	return (target->set_physical_port(pport));
+	return (target->add_physical_port(pport));
 }
 
 bool

@@ -40,6 +40,7 @@
 #define	EXTERR_CAT_FORK		15
 #define	EXTERR_CAT_PROCEXIT	16
 #define	EXTERR_CAT_VMM		17
+#define	EXTERR_CAT_HWPMC_IBS	18
 
 #endif
 

@@ -154,6 +154,7 @@ struct p9fs_session {
 	struct mtx p9fs_mtx;				/* mutex used for guarding the chain.*/
 	STAILQ_HEAD( ,p9fs_node) virt_node_list;	/* list of p9fs nodes in this session*/
 	struct p9_fid *mnt_fid;				/* to save nobody 's fid for unmounting as root user */
+	unsigned int name_max;				/* cached max filename length */
 };
 
 struct p9fs_mount {

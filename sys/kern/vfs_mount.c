@@ -500,7 +500,7 @@ vfs_ref_from_vp(struct vnode *vp)
 	if (__predict_false(mp == NULL)) {
 		return (mp);
 	}
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		if (__predict_true(mp == vp->v_mount)) {
 			vfs_mp_count_add_pcpu(mpcpu, ref, 1);
 			vfs_op_thread_exit(mp, mpcpu);
@@ -527,7 +527,7 @@ vfs_ref(struct mount *mp)
 	struct mount_pcpu *mpcpu;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		vfs_mp_count_add_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return;
@@ -645,7 +645,7 @@ vfs_rel(struct mount *mp)
 	struct mount_pcpu *mpcpu;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return;
@@ -1152,6 +1152,17 @@ vfs_domount_first(
 	error = VOP_GETATTR(vp, &va, td->td_ucred);
 	if (error == 0 && va.va_uid != td->td_ucred->cr_uid)
 		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN);
+#ifdef MAC
+	/*
+	 * XXX XNU also has a check_mount_late variant, which takes the
+	 * struct mount instead and gives MAC visibility into, e.g.,
+	 * f_mntfromname and other facts.
+	 */
+	if (error == 0) {
+		error = mac_mount_check_mount(td->td_ucred, vp, vfsp,
+		    optlist, fsflags);
+	}
+#endif
 	if (error == 0)
 		error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (vfsp->vfc_flags & VFCF_FILEMOUNT) {
@@ -1371,6 +1382,12 @@ vfs_domount_update(
 		error = 0;
 		vfs_suser_failed = true;
 	}
+#ifdef MAC
+	if (error == 0) {
+		error = mac_mount_check_update(td->td_ucred, mp, optlist,
+		    fsflags);
+	}
+#endif
 	if (error != 0) {
 		vput(vp);
 		return (error);
@@ -1750,7 +1767,6 @@ kern_unmount(struct thread *td, const char *path, uint64_t flags)
 		if (error)
 			return (error);
 	}
-
 	if (flags & MNT_BYFSID) {
 		fsidbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 		error = copyinstr(path, fsidbuf, MNAMELEN, NULL);
@@ -1818,6 +1834,13 @@ kern_unmount(struct thread *td, const char *path, uint64_t flags)
 		vfs_rel(mp);
 		return (EINVAL);
 	}
+#ifdef MAC
+	error = mac_mount_check_unmount(td->td_ucred, mp, flags);
+	if (error != 0) {
+		vfs_rel(mp);
+		return (error);
+	}
+#endif
 	error = dounmount(mp, flags, td);
 	return (error);
 }

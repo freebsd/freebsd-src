@@ -115,7 +115,7 @@ bs_remap_earlyboot(void)
 		spa = earlyboot_mappings[i].addr;
 
 		if (hw_direct_map &&
-		   PHYS_TO_DMAP(spa) == earlyboot_mappings[i].virt &&
+		   PHYS_TO_DMAP_ADDR(spa) == earlyboot_mappings[i].virt &&
 		   pmap_dev_direct_mapped(spa, earlyboot_mappings[i].size) == 0)
 			continue;
 

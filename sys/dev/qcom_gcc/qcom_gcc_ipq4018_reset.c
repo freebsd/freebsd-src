@@ -38,6 +38,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <sys/rman.h>
 #include <sys/bus.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -136,7 +137,8 @@ qcom_gcc_ipq4018_hwreset_assert(device_t dev, intptr_t id, bool reset)
 	sc = device_get_softc(dev);
 
 	if (id > nitems(gcc_ipq4019_reset_list)) {
-		device_printf(dev, "%s: invalid id (%d)\n", __func__, id);
+		device_printf(dev, "%s: invalid id (%d)\n", __func__,
+		    (uint32_t) id);
 		return (EINVAL);
 	}
 
@@ -160,7 +162,8 @@ qcom_gcc_ipq4018_hwreset_is_asserted(device_t dev, intptr_t id, bool *reset)
 	sc = device_get_softc(dev);
 
 	if (id > nitems(gcc_ipq4019_reset_list)) {
-		device_printf(dev, "%s: invalid id (%d)\n", __func__, id);
+		device_printf(dev, "%s: invalid id (%d)\n", __func__,
+		    (uint32_t) id);
 		return (EINVAL);
 	}
 	mtx_lock(&sc->mtx);
@@ -171,7 +174,7 @@ qcom_gcc_ipq4018_hwreset_is_asserted(device_t dev, intptr_t id, bool *reset)
 		*reset = false;
 	mtx_unlock(&sc->mtx);
 
-	device_printf(dev, "called; id=%d\n", id);
+	device_printf(dev, "called; id=%d\n", (uint32_t) id);
 	return (0);
 }
 

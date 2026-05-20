@@ -518,6 +518,9 @@ static const struct limits limits[] = {
 #ifdef RLIMIT_PIPEBUF
 	{ "pipebuf",		(char *)0,	RLIMIT_PIPEBUF, 1024, 'y' },
 #endif
+#ifdef RLIMIT_VMM
+	{ "virtual machines",	(char *)0,	RLIMIT_VMM,	   1, 'V' },
+#endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
 
@@ -553,7 +556,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnuvlbpwkoy")) != '\0')
+	while ((optc = nextopt("abcdfHklmnopSstuVvwy")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;

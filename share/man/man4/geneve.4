@@ -1,0 +1,384 @@
+.\"
+.\" Copyright (c) 2025-2026 Pouria Mousavizadeh Tehrani <pouria@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd March 31, 2026
+.Dt GENEVE 4
+.Os
+.Sh NAME
+.Nm geneve
+.Nd Generic Network Virtualization Encapsulation interface
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Cd device geneve
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Cd if_geneve_load="YES"
+.Sh DESCRIPTION
+The
+.Nm
+driver creates a generic network virtualization tunnel interfaces
+for Tentant Systems over an L3 (IP/UDP) underlay network that provides
+a Layer 2 (ethernet) or Layer 3 service using
+.Nm
+protocol.
+.Pp
+This driver corresponds to RFC 8926 for format specification and by default
+uses the multicast-learning-based approach for its control plane.
+To provide control plane independence all of the driver-specific operations
+are implemented using
+.Xr rtnetlink 4
+and all the
+.Xr ioctl 2
+calls are implemented using the
+.Xr nv 9
+library.
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+The interface may be removed with the
+.Xr ifconfig 8
+.Cm destroy
+command.
+.Pp
+The
+.Nm
+interface must be configured in either L2 or L3 mode.
+An L2
+.Nm
+tunnel could be used as a backplane between the virtual switches
+residing in hypervisors, switches, or other appliances.
+.Pp
+The L3
+.Nm
+tunnel provides virtualized IP forwarding service similar to IP/VRF.
+.Pp
+By default the
+.Nm
+driver creates an L2 interface that supports the usual network
+.Xr ioctl 2 Ns s
+and thus can be used with
+.Xr ifconfig 8
+like any other Ethernet interface.
+An L2
+.Nm
+interface encapsulates the Ethernet frame by prepending IP/UDP and
+.Nm
+headers.
+Thus, the encapsulated (inner) frame is able to be transmitted
+over a routed, Layer 3 network to the remote host.
+.Pp
+The
+.Nm
+interface may be configured in either unicast or multicast mode.
+When in unicast mode,
+the interface creates a tunnel to a single remote host,
+and all traffic is transmitted to that host.
+When in multicast mode,
+the interface joins an IP multicast group,
+and receives packets sent to the group address,
+and transmits packets to either the multicast group address,
+or directly to the remote host if there is an appropriate
+forwarding table entry.
+.Pp
+When the
+.Nm
+interface is brought up, a
+.Xr udp 4
+.Xr socket 9
+is created based on the configuration,
+such as the local address for unicast mode or
+the group address for multicast mode,
+and the listening (local) port number.
+Since multiple
+.Nm
+interfaces may be created that either
+use the same local address
+or join the same group address,
+and use the same port,
+the driver may share a socket among multiple interfaces.
+However, each interface within a socket must belong to
+a unique
+.Nm
+segment per
+.Xr vnet 9 .
+The analogous
+.Xr vlan 4
+configuration would be a physical interface configured as
+the parent device for multiple VLAN interfaces, each with
+a unique VLAN tag.
+Each
+.Nm
+segment is identified by a 24-bit value in the
+.Nm
+header called the
+.Dq Virtual Network Identifier ,
+or VNI.
+This value can be set with
+.Xr ifconfig 8
+.Cm geneveid
+parameter.
+.Pp
+When configured with the
+.Xr ifconfig 8
+.Cm genevelearn
+parameter, the interface dynamically creates forwarding table entries
+from received packets.
+An entry in the forwarding table maps the inner source MAC address
+to the outer remote IP address.
+During transmit, the interface attempts to lookup an entry for
+the encapsulated destination MAC address.
+If an entry is found, the IP address in the entry is used to directly
+transmit the encapsulated frame to the destination.
+Otherwise, when configured in multicast mode,
+the interface must flood the frame to all hosts in the group.
+The maximum number of entries in the table is configurable with the
+.Xr ifconfig 8
+.Cm genevemaxaddr
+command.
+Stale entries in the table are periodically pruned.
+The timeout is configurable with the
+.Xr ifconfig 8
+.Cm genevetimeout
+command.
+.Ss MTU
+Since the
+.Nm
+interface encapsulates the Ethernet frame with an IP, UDP, and
+.Nm
+header, the resulting frame may be larger than the MTU of the
+physical network.
+The
+.Nm
+specification recommends the physical network MTU be configured
+to use jumbo frames to accommodate the encapsulated frame size.
+.Pp
+By default, the
+.Nm
+driver sets its MTU to usual ethernet MTU of 1500 bytes, reduced by
+the size of geneve headers prepended which is depends on
+.Cm genevemode .
+.Pp
+Alternatively, the
+.Xr ifconfig 8
+.Cm mtu
+command may be used to set the fixed MTU size on the
+.Nm
+interface to allow the encapsulated frame to fit in the
+current MTU of the physical network.
+If the
+.Cm mtu
+command was used, system no longer adjust the
+.Nm
+interface MTU on routing or address changes.
+.Ss Hop Limit
+TTL value of
+.Nm
+interface can change by using the
+.Xr ifconfig 8
+.Cm genevettl
+command and it also can be inherited from carrying packet.
+You can set the
+.Cm genevettl
+to a number value or
+.Cm inherit
+option to be inherited at the encapsulation and decapsulation point.
+.Ss Traffic Class
+Just like the TTL value, ToS value can be inherited at the encapsulation point
+using
+.Xr ifconfig 8
+.Cm genevedscpinherit .
+As defined in RFC 8926, ECN value follows the RFC 6040 for both ingress and
+egress traffic.
+.Ss Don't Fragment
+To make sure fragmentation does not happing during transmission, you can
+set the
+.Xr ifconfig 8
+.Cm genevedf
+value to
+.Cm set
+value which sets the DF bit on IPv4 header and IP_DONTFRAG option on both IPv4
+and IPv6 sockets.
+Similar to other options, it can be set to
+.Cm inherit
+value.
+.Ss Multicast
+To create the
+.Nm
+interface with multicast underlay, one must use
+.Xr ifconfig 8
+.Cm genevegroup
+instead of
+.Cm geneveremote
+and set it to a multicast address (e.g. ff08::db8:0:1, 239.0.0.1).
+One can set the outbound multicast interface with
+.Xr ifconfig 8
+.Cm genevedev
+to bound its multicast group to specific interface.
+.Pp
+The
+.Cm ip_mroute
+kernel module for IPv4 underlay and
+.Cm ip6_mroute
+for IPv6 underlay must be loaded for
+.Xr multicast 4
+to function.
+.Sh HARDWARE
+The
+.Nm
+driver supports hardware checksum offload (receive and transmit) and TSO on the
+encapsulated traffic over physical interfaces that support these features.
+The
+.Nm
+interface examines the
+.Cm genevedev
+interface, if one is specified, or the interface hosting the
+.Cm genevelocal
+address, and configures its capabilities based on the hardware offload
+capabilities of that physical interface.
+If multiple physical interfaces will transmit or receive traffic for the
+.Nm
+then they all must have the same hardware capabilities.
+The transmit routine of a
+.Nm
+interface may fail with
+.Er ENXIO
+if an outbound physical interface does not support
+an offload that the
+.Nm
+interface is requesting.
+This can happen if there are multiple physical interfaces involved, with
+different hardware capabilities, or an interface capability was disabled after
+the
+.Nm
+interface had already started.
+.Sh EXAMPLES
+.Bd -literal
+       Host A (198.51.100.10)
+       +--------------------+
+       | VNI 100 10.1.1.0/24|
+       | VNI 200 10.2.2.0/24|
+       +---------+----------+
+                 |
+         (198.51.100.0/24)
+                 |
+ +---------------v---------------+
+ | Host B (203.0.113.1)          |
+ |        +------+-------+       |
+ | geneve0|              |geneve1|
+ | +------v----+   +-----v-----+ |
+ | | bridge0   |   | bridge1   | |
+ | | (VNI 100) |   | (VNI 200) | |
+ | +------+----+   +----+------+ |
+ |        |             |        |
+ +--------v-------------v--------+
+   epair0b|             |epair1b
+   +------+----+   +----+------+
+   | Jail A    |   | Jail B    |
+   | (10.1.1.x)|   | (10.2.2.x)|
+   +-----------+   +-----------+
+.Ed
+Assume host A has the (external) IP address 198.51.100.10 and
+two internal addresses of 10.1.1.1/24 and 10.2.2.1/24, while
+host B has the external address of 203.0.113.10 and two jails
+with their own separate
+.Xr VNET 9 .
+the following commands will configure the tunnel:
+.Pp
+On host A, create a l2
+.Nm
+interface in unicast mode:
+.Bd -literal
+ifconfig geneve0 create geneveid 100 genevelocal 198.51.100.10 geneveremote 203.0.113.1
+ifconfig geneve1 create geneveid 200 genevelocal 198.51.100.10 geneveremote 203.0.113.1
+.Ed
+.Pp
+On host B:
+.Bd -literal
+ifconfig geneve0 create geneveid 100 genevelocal 203.0.113.1 geneveremote 198.51.100.10
+ifconfig geneve1 create geneveid 200 genevelocal 203.0.113.1 geneveremote 198.51.100.10
+ifconfig bridge0 addm geneve0 addm epair0a
+ifconfig bridge1 addm geneve1 addm epair1a
+.Ed
+.Pp
+The example below demonstrate multicast configuration with IPv6:
+.Bd -literal
+                      ----------- VNI 42 -----------
+                     /                              \\
+2001:db8::1/64 --- Host A ------ Multicast ------- Host B --- 2001:db8::2/64
+                  3fff::1 [em0] ff08::db8:1 [em0]  3fff::2
+.Ed
+.Pp
+Create a
+.Nm
+interface in multicast mode,
+with the
+.Cm genevelocal
+address of 3fff::1,
+and the
+.Cm genevegroup
+address of ff08::db8:0:1.
+The em0 interface will be used to transmit multicast packets.
+On host A:
+.Bd -literal
+ifconfig geneve0 create geneveid 42 genevelocal 3fff::1 genevegroup ff08::db8:1 genevedev em0
+.Ed
+.Pp
+On host B:
+.Bd -literal
+ifconfig geneve0 create geneveid 42 genevelocal 3fff::2 genevegroup ff08::db8:1 genevedev em0
+.Ed
+.Pp
+Once created, the
+.Nm
+interface can be configured with
+.Xr ifconfig 8 .
+.Pp
+The following when placed in the file
+.Pa /etc/rc.conf
+will cause a geneve interface called
+.Dq Li geneve0
+to be created, and will configure the interface in unicast mode.
+.Bd -literal
+cloned_interfaces="geneve0"
+create_args_geneve0="geneveid 108 genevelocal 192.168.100.1 geneveremote 192.168.100.2"
+.Ed
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr multicast 4 ,
+.Xr rtnetlink 4 ,
+.Xr vlan 4 ,
+.Xr rc.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Rs
+.%A "J. Gross, Ed."
+.%A "I. Gross, Ed."
+.%A "T. Sridhar, Ed."
+.%T "Geneve: Generic Network Virtualization Encapsulation"
+.%D November 2020
+.%O "RFC 8926"
+.Re
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Seyed Pouria Mousavizadeh Tehrani Aq info@spmzt.net
+.Sh BUGS
+Current geneve implementation with netlink can't set geneve options
+other than genevemode during interface cloning in ifconfig without
+specifying the interface index.

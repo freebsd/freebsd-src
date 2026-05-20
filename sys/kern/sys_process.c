@@ -108,7 +108,12 @@ proc_read_regs(struct thread *td, struct reg *regs)
 int
 proc_write_regs(struct thread *td, struct reg *regs)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_regs(td, regs));
 }
 
@@ -122,7 +127,12 @@ proc_read_dbregs(struct thread *td, struct dbreg *dbregs)
 int
 proc_write_dbregs(struct thread *td, struct dbreg *dbregs)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_dbregs(td, dbregs));
 }
 
@@ -140,7 +150,12 @@ proc_read_fpregs(struct thread *td, struct fpreg *fpregs)
 int
 proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_fpregs(td, fpregs));
 }
 
@@ -261,6 +276,10 @@ proc_write_regset(struct thread *td, int note, struct iovec *iov)
 	if (regset->set == NULL)
 		return (EINVAL);
 
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
+
 	p = td->td_proc;
 
 	/* Drop the proc lock while allocating the temp buffer */
@@ -293,7 +312,12 @@ proc_read_regs32(struct thread *td, struct reg32 *regs32)
 int
 proc_write_regs32(struct thread *td, struct reg32 *regs32)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_regs32(td, regs32));
 }
 
@@ -307,7 +331,12 @@ proc_read_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
 int
 proc_write_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_dbregs32(td, dbregs32));
 }
 
@@ -321,7 +350,12 @@ proc_read_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 int
 proc_write_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_fpregs32(td, fpregs32));
 }
 #endif
@@ -363,8 +397,8 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL;
 
 	if (writing) {
-		error = priv_check_cred(p->p_ucred, PRIV_PROC_MEM_WRITE);
-		if (error)
+		error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+		if (error != 0)
 			return (error);
 	}
 
@@ -697,11 +731,11 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		addr = uap->addr;
 		break;
 	}
-	if (error)
+	if (error != 0)
 		return (error);
 
 	error = kern_ptrace(td, uap->req, uap->pid, addr, uap->data);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	switch (uap->req) {
@@ -1237,7 +1271,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			CTR3(KTR_PTRACE, "PT_STEP: tid %d (pid %d), sig = %d",
 			    td2->td_tid, p->p_pid, data);
 			error = ptrace_single_step(td2);
-			if (error)
+			if (error != 0)
 				goto out;
 			break;
 		case PT_CONTINUE:
@@ -1247,7 +1281,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			if (addr != (void *)1) {
 				error = ptrace_set_pc(td2,
 				    (u_long)(uintfptr_t)addr);
-				if (error)
+				if (error != 0)
 					goto out;
 				td2->td_dbgflags |= TDB_USERWR;
 			}
@@ -1377,17 +1411,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * register file or specifying the pc, make the thread
 		 * xstopped by waking it up.
 		 */
-		if ((td2->td_dbgflags & TDB_USERWR) != 0) {
-			if (pt_attach_transparent) {
-				thread_lock(td2);
-				if (TD_ON_SLEEPQ(td2) &&
-				    (td2->td_flags & TDF_SINTR) != 0) {
-					sleepq_abort(td2, EINTR);
-				} else {
-					thread_unlock(td2);
-				}
+		if ((td2->td_dbgflags & TDB_USERWR) != 0 &&
+		    pt_attach_transparent) {
+			thread_lock(td2);
+			if (TD_ON_SLEEPQ(td2) &&
+			    (td2->td_flags & TDF_SINTR) != 0) {
+				td2->td_dbgflags &= ~TDB_USERWR;
+				sleepq_abort(td2, EINTR);
+			} else {
+				thread_unlock(td2);
 			}
-			td2->td_dbgflags &= ~TDB_USERWR;
 		}
 
 		/*

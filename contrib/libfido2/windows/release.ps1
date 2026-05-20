@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022 Yubico AB. All rights reserved.
+# Copyright (c) 2021-2024 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
@@ -35,8 +35,8 @@ Function Package-Dynamic(${SRC}, ${DEST}) {
 	Copy-Item "${SRC}\lib\cbor.lib" "${DEST}"
 	Copy-Item "${SRC}\bin\zlib1.dll" "${DEST}"
 	Copy-Item "${SRC}\lib\zlib1.lib" "${DEST}"
-	Copy-Item "${SRC}\bin\${CRYPTO_LIBRARIES}.dll" "${DEST}"
-	Copy-Item "${SRC}\lib\${CRYPTO_LIBRARIES}.lib" "${DEST}"
+	Copy-Item "${SRC}\bin\${CRYPTO_DLL}.dll" "${DEST}"
+	Copy-Item "${SRC}\lib\${CRYPTO_LIB}.lib" "${DEST}"
 	Copy-Item "${SRC}\bin\fido2.dll" "${DEST}"
 	Copy-Item "${SRC}\lib\fido2.lib" "${DEST}"
 }
@@ -44,13 +44,13 @@ Function Package-Dynamic(${SRC}, ${DEST}) {
 Function Package-Static(${SRC}, ${DEST}) {
 	Copy-Item "${SRC}/lib/cbor.lib" "${DEST}"
 	Copy-Item "${SRC}/lib/zlib1.lib" "${DEST}"
-	Copy-Item "${SRC}/lib/${CRYPTO_LIBRARIES}.lib" "${DEST}"
+	Copy-Item "${SRC}/lib/${CRYPTO_LIB}.lib" "${DEST}"
 	Copy-Item "${SRC}/lib/fido2_static.lib" "${DEST}/fido2.lib"
 }
 
 Function Package-PDBs(${SRC}, ${DEST}) {
 	Copy-Item "${SRC}\${LIBRESSL}\crypto\crypto_obj.dir\${Config}\crypto_obj.pdb" `
-	    "${DEST}\${CRYPTO_LIBRARIES}.pdb"
+	    "${DEST}\${CRYPTO_LIB}.pdb"
 	Copy-Item "${SRC}\${LIBCBOR}\src\cbor.dir\${Config}\vc${SDK}.pdb" `
 	    "${DEST}\cbor.pdb"
 	Copy-Item "${SRC}\${ZLIB}\zlib.dir\${Config}\vc${SDK}.pdb" `
@@ -60,14 +60,12 @@ Function Package-PDBs(${SRC}, ${DEST}) {
 }
 
 Function Package-StaticPDBs(${SRC}, ${DEST}) {
+	# NOTE: original file names must be preserved
 	Copy-Item "${SRC}\${LIBRESSL}\crypto\crypto_obj.dir\${Config}\crypto_obj.pdb" `
-	    "${DEST}\${CRYPTO_LIBRARIES}.pdb"
-	Copy-Item "${SRC}\${LIBCBOR}\src\${Config}\cbor.pdb" `
-	    "${DEST}\cbor.pdb"
-	Copy-Item "${SRC}\${ZLIB}\${Config}\zlibstatic.pdb" `
-	    "${DEST}\zlib1.pdb"
-	Copy-Item "${SRC}\src\${Config}\fido2_static.pdb" `
-	    "${DEST}\fido2.pdb"
+	    "${DEST}"
+	Copy-Item "${SRC}\${LIBCBOR}\src\${Config}\cbor.pdb" "${DEST}"
+	Copy-Item "${SRC}\${ZLIB}\${Config}\zlibstatic.pdb" "${DEST}"
+	Copy-Item "${SRC}\src\${Config}\fido2_static.pdb" "${DEST}"
 }
 
 Function Package-Tools(${SRC}, ${DEST}) {

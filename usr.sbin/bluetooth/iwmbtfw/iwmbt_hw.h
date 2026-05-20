@@ -101,11 +101,14 @@ extern	int iwmbt_load_ecdsa_header(struct libusb_device_handle *hdl,
 	    const struct iwmbt_firmware *fw);
 extern	int iwmbt_load_fwfile(struct libusb_device_handle *hdl,
 	    const struct iwmbt_firmware *fw, uint32_t *boot_param, int offset);
+extern	int iwmbt_bt_reset(struct libusb_device_handle *hdl);
 extern	int iwmbt_enter_manufacturer(struct libusb_device_handle *hdl);
 extern	int iwmbt_exit_manufacturer(struct libusb_device_handle *hdl,
 	    enum iwmbt_mm_exit mode);
 extern	int iwmbt_get_version(struct libusb_device_handle *hdl,
 	    struct iwmbt_version *version);
+extern	int iwmbt_read_version_tlv(struct libusb_device_handle *hdl,
+	    uint8_t *data, uint8_t *datalen);
 extern	int iwmbt_get_version_tlv(struct libusb_device_handle *hdl,
 	    struct iwmbt_version_tlv *version);
 extern	int iwmbt_get_boot_params(struct libusb_device_handle *hdl,

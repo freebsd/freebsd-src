@@ -74,7 +74,51 @@ many_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "rule" "cleanup"
+rule_head()
+{
+	atf_set descr 'Test retrieving original state establishing rule'
+	atf_set require.user root
+}
+
+rule_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"pass in proto icmp label \"icmplabel\""
+
+	# Establish state
+	atf_check -o ignore ping -c 1 -W 1 192.0.2.2
+
+	# We should see the rule now
+	atf_check -o match:"rule: pass in proto icmp all keep state label \"icmplabel\"" \
+	    -e ignore \
+	    jexec alcatraz pfctl -ss -vv
+
+	pft_set_rules noflush alcatraz \
+	    "pass"
+
+	# Even after the rules changes we should see the original rule
+	atf_check -o match:"rule: pass in proto icmp all keep state label \"icmplabel\"" \
+	    -e ignore \
+	    jexec alcatraz pfctl -ss -vv
+}
+
+rule_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "many"
+	atf_add_test_case "rule"
 }

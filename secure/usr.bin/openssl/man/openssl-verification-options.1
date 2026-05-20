@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-VERIFICATION-OPTIONS 1ossl"
-.TH OPENSSL-VERIFICATION-OPTIONS 1ossl 2026-01-27 3.5.5 OpenSSL
+.TH OPENSSL-VERIFICATION-OPTIONS 1ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -180,6 +180,12 @@ equals the public key algorithm of the candidate issuer certificate.
 The lookup first searches for issuer certificates in the trust store.
 If it does not find a match there it consults
 the list of untrusted ("intermediate" CA) certificates, if provided.
+If one issuer certificate was found in the trust store, the list of
+untrusted certificates will not be consulted anymore to find further
+issuer certificates. Therefore, either only the root certificate or an
+uninterrupted chain to the root certificate must be provided in the trust
+store for a successful verification, if \fBX509_V_FLAG_PARTIAL_CHAIN\fR
+is not enabled.
 .SS "Certification Path Validation"
 .IX Subsection "Certification Path Validation"
 When the certificate chain building process was successful
@@ -685,7 +691,7 @@ only the first one (in the mentioned order of locations) is recognised.
 The checks enabled by \fB\-x509_strict\fR have been extended in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -279,3 +279,5 @@ BOOTMP2:
 	.globl	bootMP_size
 bootMP_size:
 	.long	BOOTMP2 - BOOTMP1
+
+	.section .note.GNU-stack,"",%progbits

@@ -103,8 +103,8 @@ $errormsg" \
 	exec 5>&-
 	[ $res -eq $BSDDIALOG_OK ] || exit 0
 
-	echo -n "$output" | (read password1
-		read password2
+	echo -n "$output" | (read -r password1
+		read -r password2
 		[ -n "$password1" -o -n "$password2" ] || exit 62
 		[ "$password1" = "$password2" ] || exit 63
 		echo "$password1" | chroot $BSDINSTALL_CHROOT \

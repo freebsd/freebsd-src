@@ -204,6 +204,9 @@
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
 
+/* dentry aliases are in d_u member */
+/* #undef HAVE_DENTRY_D_U_ALIASES */
+
 /* 3-arg dequeue_signal() takes a type argument */
 /* #undef HAVE_DEQUEUE_SIGNAL_3ARG_TYPE */
 
@@ -911,7 +914,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-468-FreeBSD_g3ee08abd2"
+#define ZFS_META_ALIAS "zfs-2.4.99-566-FreeBSD_ga12c6ed62"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -920,7 +923,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.19"
+#define ZFS_META_KVER_MAX "7.0"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -941,7 +944,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "468-FreeBSD_g3ee08abd2"
+#define ZFS_META_RELEASE "566-FreeBSD_ga12c6ed62"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"

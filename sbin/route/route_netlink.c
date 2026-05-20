@@ -31,7 +31,7 @@ const char *routename(struct sockaddr *);
 const char *netname(struct sockaddr *);
 void printb(int, const char *);
 extern const char routeflags[];
-extern int verbose, debugonly;
+extern int verbose, debugonly, nexthop;
 
 int rtmsg_nl(int cmd, int rtm_flags, int fib, int rtm_addrs, struct sockaddr_storage *so,
     struct rt_metrics *rt_metrics);
@@ -42,8 +42,12 @@ struct nl_helper;
 struct snl_msg_info;
 static void print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr,
     struct sockaddr *dst);
+static void print_nhop_getmsg(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct sockaddr *dst);
 static void print_nlmsg(struct nl_helper *h, struct nlmsghdr *hdr,
     struct snl_msg_info *cinfo);
+static void print_nlmsg_route_nhop(struct nl_helper *, struct snl_parsed_route *,
+    struct rta_mpath_nh *, bool);
 
 #define s6_addr32 __u6_addr.__u6_addr32
 #define	bitcount32(x)	__bitcount32((uint32_t)(x))
@@ -275,7 +279,10 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 		hdr = snl_read_reply(ss, hdr->nlmsg_seq);
 		if (nl_type == NL_RTM_GETROUTE) {
 			if (hdr->nlmsg_type == NL_RTM_NEWROUTE) {
-				print_getmsg(h, hdr, dst);
+				if (!nexthop)
+					print_getmsg(h, hdr, dst);
+				else
+					print_nhop_getmsg(h, hdr, dst);
 				return (0);
 			}
 		}
@@ -389,6 +396,52 @@ print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
 	printf("%8lu  ", rmx.rmx_weight);
 	printf("%8ld \n", rmx.rmx_expire);
 }
+
+static void
+print_nhop_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
+{
+	struct snl_state *ss = &h->ss_cmd;
+	struct snl_parsed_route r = { .rtax_weight = RT_DEFAULT_WEIGHT };
+	struct snl_parsed_link_simple link = {};
+	struct sockaddr *mask;
+
+	if (!snl_parse_nlmsg(ss, hdr, &snl_rtm_route_parser, &r))
+		return;
+
+	get_ifdata(h, r.rta_oif, &link);
+	r.rta_rtflags |= (RTF_UP | RTF_DONE);
+
+	printf("   route to: %s\n", routename(dst));
+
+	if (r.rta_dst)
+		printf("destination: %s\n", routename(r.rta_dst));
+	mask = get_netmask(ss, r.rtm_family, r.rtm_dst_len);
+	if (mask)
+		printf("       mask: %s\n", routename(mask));
+	printf("        fib: %u\n", (unsigned int)r.rta_table);
+	printf("      flags: ");
+	printb(r.rta_rtflags, routeflags);
+	printf("\n      nhops: %u\n", r.rta_multipath.num_nhops);
+	if (r.rta_multipath.num_nhops != 0) {
+		bool first = true;
+		for (uint32_t i = 0; i < r.rta_multipath.num_nhops; i++) {
+			struct rta_mpath_nh *nh = r.rta_multipath.nhops[i];
+
+			printf("\tvia ");
+			print_nlmsg_route_nhop(h, &r, nh, first);
+			first = false;
+		}
+	} else {
+		struct rta_mpath_nh nh = {
+			.gw = r.rta_gw,
+			.ifindex = r.rta_oif,
+			.rtax_mtu = link.ifla_mtu,
+		};
+		printf("\tvia ");
+		print_nlmsg_route_nhop(h, &r, &nh, true);
+	}
+}
+
 
 static void
 print_prefix(struct nl_helper *h, char *buf, int bufsize, struct sockaddr *sa, int plen)

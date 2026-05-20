@@ -453,3 +453,5 @@ ENTRY(resumectx)
 	xorl	%eax,%eax
 	lret
 END(resumectx)
+
+	.section .note.GNU-stack,"",%progbits

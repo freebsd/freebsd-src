@@ -391,6 +391,8 @@ vmmops_modinit(int ipinum)
 #ifdef SMP
 	el2_regs.vtcr_el2 |= VTCR_EL2_SH0_IS;
 #endif
+	if (pmap_vs_enabled())
+		el2_regs.vtcr_el2 |= VTCR_EL2_VS;
 	/*
 	 * If FEAT_LPA2 is enabled in the host then we need to enable it here
 	 * so the page tables created by pmap.c are correct. The meaning of

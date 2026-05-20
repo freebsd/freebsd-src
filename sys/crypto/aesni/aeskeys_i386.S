@@ -269,3 +269,5 @@ ENTRY(aesni_set_deckey)
 	retl
 	.cfi_endproc
 END(aesni_set_deckey)
+
+	.section .note.GNU-stack,"",%progbits

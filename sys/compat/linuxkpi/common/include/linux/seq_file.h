@@ -39,6 +39,8 @@
 #undef file
 #define inode vnode
 
+#define	SEQ_SKIP	1
+
 MALLOC_DECLARE(M_LSEQ);
 
 #define	DEFINE_SHOW_ATTRIBUTE(__name)					\

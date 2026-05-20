@@ -1,8 +1,8 @@
-#	$OpenBSD: Makefile,v 1.136 2025/03/11 07:50:20 dtucker Exp $
+#	$OpenBSD: Makefile,v 1.144 2026/03/30 07:19:02 djm Exp $
 
 tests:		prep file-tests t-exec unit
 
-REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12
+REGRESS_TARGETS=	t1 t2 t3 t4 t5 t7 t9 t10 t11 t12
 
 # File based tests
 file-tests: $(REGRESS_TARGETS)
@@ -19,6 +19,7 @@ clean:
 	for F in $(CLEANFILES); do rm -f $(OBJ)$$F; done
 	rm -rf $(OBJ).putty
 	rm -rf $(OBJ).dropbear
+	rm -rf $(OBJ).fakehome
 
 distclean:	clean
 
@@ -106,16 +107,22 @@ LTESTS= 	connect \
 		knownhosts-command \
 		agent-restrict \
 		hostbased \
+		password \
+		kbdint \
 		channel-timeout \
 		connection-timeout \
 		match-subsystem \
 		agent-pkcs11-restrict \
 		agent-pkcs11-cert \
 		penalty \
-		penalty-expire
+		penalty-expire \
+		connect-bigconf \
+		ssh-pkcs11 \
+		ssh-tty \
+		proxyjump
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
-INTEROP_TESTS+=	dropbear-ciphers dropbear-kex
+INTEROP_TESTS+=	dropbear-ciphers dropbear-kex dropbear-server
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
 
 EXTRA_TESTS=	agent-pkcs11
@@ -130,9 +137,9 @@ CLEANFILES=	*.core actual agent-key.* authorized_keys_${USERNAME} \
 		ed25519-agent.pub ed25519 ed25519.pub empty.in \
 		expect failed-regress.log failed-ssh.log failed-sshd.log \
 		hkr.* host.ecdsa-sha2-nistp256 host.ecdsa-sha2-nistp384 \
-		host.ecdsa-sha2-nistp521 host.ssh-dss host.ssh-ed25519 \
+		host.ecdsa-sha2-nistp521 host.ssh-ed25519 \
 		host.ssh-rsa host_ca_key* host_krl_* host_revoked_* key.* \
-		key.dsa-* key.ecdsa-* key.ed25519-512 \
+		key.ecdsa-* key.ed25519-512 \
 		key.ed25519-512.pub key.rsa-* keys-command-args kh.* askpass \
 		known_hosts known_hosts-cert known_hosts.* krl-* ls.copy \
 		modpipe netcat no_identity_config \
@@ -149,7 +156,8 @@ CLEANFILES=	*.core actual agent-key.* authorized_keys_${USERNAME} \
 		sshd_proxy_orig t10.out t10.out.pub t12.out t12.out.pub \
 		t2.out t3.out t6.out1 t6.out2 t7.out t7.out.pub \
 		t8.out t8.out.pub t9.out t9.out.pub \
-		timestamp testdata user_*key* user_ca* user_key*
+		timestamp testdata user_*key* user_ca* user_key* \
+		pin.sh nopin.sh wrongpin.sh key.pub test.sh ctl-sock
 
 # Enable all malloc(3) randomisations and checks
 TEST_ENV=      "MALLOC_OPTIONS=CFGJRSUX"
@@ -191,34 +199,16 @@ t5:
 		${TEST_SSH_SSHKEYGEN} -Bf ${.CURDIR}/rsa_openssh.pub |\
 			awk '{print $$2}' | diff - ${.CURDIR}/t5.ok ; \
 	fi
-t6:
-	set -xe ; if ${TEST_SSH_SSH} -Q key | grep -q "^ssh-dss" ; then \
-		${TEST_SSH_SSHKEYGEN} -if ${.CURDIR}/dsa_ssh2.prv > $(OBJ)/t6.out1 ; \
-		${TEST_SSH_SSHKEYGEN} -if ${.CURDIR}/dsa_ssh2.pub > $(OBJ)/t6.out2 ; \
-		chmod 600 $(OBJ)/t6.out1 ; \
-		${TEST_SSH_SSHKEYGEN} -yf $(OBJ)/t6.out1 | diff - $(OBJ)/t6.out2 ; \
-	fi
 
 $(OBJ)/t7.out:
-	set -xe ; if ${TEST_SSH_SSH} -Q key | grep -q "^ssh-dss" ; then \
+	set -xe ; if ${TEST_SSH_SSH} -Q key | grep -q "^ssh-rsa" ; then \
 		${TEST_SSH_SSHKEYGEN} -q -t rsa -N '' -f $@ ; \
 	fi
 
 t7: $(OBJ)/t7.out
-	set -xe ; if ${TEST_SSH_SSH} -Q key | grep -q "^ssh-dss" ; then \
+	set -xe ; if ${TEST_SSH_SSH} -Q key | grep -q "^ssh-rsa" ; then \
 		${TEST_SSH_SSHKEYGEN} -lf $(OBJ)/t7.out > /dev/null ; \
 		${TEST_SSH_SSHKEYGEN} -Bf $(OBJ)/t7.out > /dev/null ; \
-	fi
-
-$(OBJ)/t8.out:
-	set -xe ; if ssh -Q key | grep -q "^ssh-dss" ; then \
-		${TEST_SSH_SSHKEYGEN} -q -t dsa -N '' -f $@ ; \
-	fi
-
-t8: $(OBJ)/t8.out
-	set -xe ; if ssh -Q key | grep -q "^ssh-dss" ; then \
-		${TEST_SSH_SSHKEYGEN} -lf $(OBJ)/t8.out > /dev/null ; \
-		${TEST_SSH_SSHKEYGEN} -Bf $(OBJ)/t8.out > /dev/null ; \
 	fi
 
 $(OBJ)/t9.out:
@@ -240,7 +230,7 @@ t10: $(OBJ)/t10.out
 	${TEST_SSH_SSHKEYGEN} -Bf $(OBJ)/t10.out > /dev/null
 
 t11:
-	set -xe ; if ${TEST_SSH_SSH} -Q key | grep -q "^ssh-dss" ; then \
+	set -xe ; if ${TEST_SSH_SSH} -Q key | grep -q "^ssh-rsa" ; then \
 		${TEST_SSH_SSHKEYGEN} -E sha256 -lf ${.CURDIR}/rsa_openssh.pub |\
 			awk '{print $$2}' | diff - ${.CURDIR}/t11.ok ; \
 	fi
@@ -292,26 +282,33 @@ t-extra:	${EXTRA_TESTS:=.sh}
 interop: ${INTEROP_TARGETS}
 
 # Unit tests, built by top-level Makefile
-unit:
+unit unit-bench:
 	set -e ; if test -z "${SKIP_UNIT}" ; then \
 		V="" ; \
 		test "x${USE_VALGRIND}" = "x" || \
 		    V=${.CURDIR}/valgrind-unit.sh ; \
-		 $$V ${.OBJDIR}/unittests/sshbuf/test_sshbuf ; \
+		ARGS=""; \
+		test "x$@" = "xunit-bench" && ARGS="-b"; \
+		test "x${UNITTEST_FAST}" = "x" || ARGS="$$ARGS -f"; \
+		test "x${UNITTEST_SLOW}" = "x" || ARGS="$$ARGS -F"; \
+		test "x${UNITTEST_VERBOSE}" = "x" || ARGS="$$ARGS -v"; \
+		test "x${UNITTEST_BENCH_DETAIL}" = "x" || ARGS="$$ARGS -B"; \
+		test "x${UNITTEST_BENCH_ONLY}" = "x" || ARGS="$$ARGS -O ${UNITTEST_BENCH_ONLY}"; \
+		 $$V ${.OBJDIR}/unittests/sshbuf/test_sshbuf $${ARGS}; \
 		 $$V ${.OBJDIR}/unittests/sshkey/test_sshkey \
-			-d ${.CURDIR}/unittests/sshkey/testdata ; \
+			-d ${.CURDIR}/unittests/sshkey/testdata $${ARGS}; \
 		$$V ${.OBJDIR}/unittests/sshsig/test_sshsig \
-			-d ${.CURDIR}/unittests/sshsig/testdata ; \
+			-d ${.CURDIR}/unittests/sshsig/testdata $${ARGS}; \
 		$$V ${.OBJDIR}/unittests/authopt/test_authopt \
-			-d ${.CURDIR}/unittests/authopt/testdata ; \
-		$$V ${.OBJDIR}/unittests/bitmap/test_bitmap ; \
-		$$V ${.OBJDIR}/unittests/conversion/test_conversion ; \
-		$$V ${.OBJDIR}/unittests/kex/test_kex ; \
+			-d ${.CURDIR}/unittests/authopt/testdata $${ARGS}; \
+		$$V ${.OBJDIR}/unittests/bitmap/test_bitmap $${ARGS}; \
+		$$V ${.OBJDIR}/unittests/conversion/test_conversion $${ARGS}; \
+		$$V ${.OBJDIR}/unittests/kex/test_kex $${ARGS}; \
 		$$V ${.OBJDIR}/unittests/hostkeys/test_hostkeys \
-			-d ${.CURDIR}/unittests/hostkeys/testdata ; \
-		$$V ${.OBJDIR}/unittests/match/test_match ; \
-		$$V ${.OBJDIR}/unittests/misc/test_misc ; \
+			-d ${.CURDIR}/unittests/hostkeys/testdata $${ARGS}; \
+		$$V ${.OBJDIR}/unittests/match/test_match $${ARGS}; \
+		$$V ${.OBJDIR}/unittests/misc/test_misc $${ARGS}; \
 		if test "x${TEST_SSH_UTF8}" = "xyes"  ; then \
-			$$V ${.OBJDIR}/unittests/utf8/test_utf8 ; \
+			$$V ${.OBJDIR}/unittests/utf8/test_utf8 $${ARGS}; \
 		fi \
 	fi

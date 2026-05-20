@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.75 2024/12/03 16:27:53 dtucker Exp $ */
+/* $OpenBSD: dh.c,v 1.76 2026/02/08 19:54:31 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -26,6 +26,7 @@
 #include "includes.h"
 
 #ifdef WITH_OPENSSL
+#include "openbsd-compat/openssl-compat.h"
 
 #include <errno.h>
 #include <stdarg.h>
@@ -42,8 +43,6 @@
 #include "log.h"
 #include "misc.h"
 #include "ssherr.h"
-
-#include "openbsd-compat/openssl-compat.h"
 
 static const char *moduli_filename;
 

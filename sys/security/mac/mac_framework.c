@@ -417,7 +417,7 @@ mac_policy_update(void)
  * policies. Gross hack below enables doing it in a cheap manner.
  */
 
-#define FPO(f)	(offsetof(struct mac_policy_ops, mpo_##f) / sizeof(uintptr_t))
+#define FPO(f)	(offsetof(struct mac_policy_ops, mpo_##f) / sizeof(void *))
 
 struct mac_policy_fastpath_elem {
 	int	count;
@@ -488,12 +488,12 @@ static void
 mac_policy_fastpath_register(struct mac_policy_conf *mpc)
 {
 	struct mac_policy_fastpath_elem *mpfe;
-	uintptr_t **ops;
+	const void * const *ops;
 	int i;
 
 	mac_policy_xlock_assert();
 
-	ops = (uintptr_t **)mpc->mpc_ops;
+	ops = (const void * const *)mpc->mpc_ops;
 	for (i = 0; i < nitems(mac_policy_fastpath_array); i++) {
 		mpfe = &mac_policy_fastpath_array[i];
 		if (ops[mpfe->offset] != NULL)
@@ -505,12 +505,12 @@ static void
 mac_policy_fastpath_unregister(struct mac_policy_conf *mpc)
 {
 	struct mac_policy_fastpath_elem *mpfe;
-	uintptr_t **ops;
+	const void * const *ops;
 	int i;
 
 	mac_policy_xlock_assert();
 
-	ops = (uintptr_t **)mpc->mpc_ops;
+	ops = (const void * const *)mpc->mpc_ops;
 	for (i = 0; i < nitems(mac_policy_fastpath_array); i++) {
 		mpfe = &mac_policy_fastpath_array[i];
 		if (ops[mpfe->offset] != NULL)

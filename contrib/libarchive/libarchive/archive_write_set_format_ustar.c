@@ -254,11 +254,11 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 		sconv = ustar->opt_sconv;
 
 	/* Sanity check. */
+	if (archive_entry_pathname(entry) == NULL
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	if (archive_entry_pathname_w(entry) == NULL) {
-#else
-	if (archive_entry_pathname(entry) == NULL) {
+	    && archive_entry_pathname_w(entry) == NULL
 #endif
+	    ) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Can't record entry in tar file without pathname");
 		return (ARCHIVE_FAILED);
@@ -409,15 +409,28 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 */
 	r = archive_entry_pathname_l(entry, &pp, &copy_length, sconv);
 	if (r != 0) {
+		const char* p_mbs;
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Pathname");
 			return (ARCHIVE_FATAL);
 		}
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate pathname '%s' to %s",
-		    pp, archive_string_conversion_charset_name(sconv));
-		ret = ARCHIVE_WARN;
+		p_mbs = archive_entry_pathname(entry);
+		if (p_mbs) {
+			/* We have a wrongly-encoded MBS pathname.
+			 * Warn and use it.  */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate pathname '%s' to %s", p_mbs,
+			    archive_string_conversion_charset_name(sconv));
+			ret = ARCHIVE_WARN;
+		} else {
+			/* We have no MBS pathname.  Fail.  */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate pathname to %s",
+			    archive_string_conversion_charset_name(sconv));
+			return ARCHIVE_FAILED;
+		}
 	}
 	if (copy_length <= USTAR_name_size)
 		memcpy(h + USTAR_name_offset, pp, copy_length);

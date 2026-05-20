@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.398 2025/03/18 04:53:14 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.411 2026/03/30 07:18:24 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -22,42 +22,29 @@
 
 #include <net/if.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
-#ifdef HAVE_IFADDRS_H
-# include <ifaddrs.h>
-#endif
+#include <glob.h>
+#include <ifaddrs.h>
 #include <limits.h>
 #include <netdb.h>
-#ifdef HAVE_PATHS_H
-# include <paths.h>
-#endif
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <unistd.h>
-#ifdef USE_SYSTEM_GLOB
-# include <glob.h>
-#else
-# include "openbsd-compat/glob.h"
-#endif
-#ifdef HAVE_UTIL_H
 #include <util.h>
-#endif
 #if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H) && !defined(BROKEN_STRNVIS)
 # include <vis.h>
 #endif
 
 #include "xmalloc.h"
 #include "ssh.h"
-#include "ssherr.h"
 #include "cipher.h"
 #include "pathnames.h"
 #include "log.h"
@@ -67,7 +54,6 @@
 #include "match.h"
 #include "kex.h"
 #include "mac.h"
-#include "uidswap.h"
 #include "myproposal.h"
 #include "digest.h"
 #include "version.h"
@@ -180,7 +166,7 @@ typedef enum {
 	oPubkeyAcceptedAlgorithms, oCASignatureAlgorithms, oProxyJump,
 	oSecurityKeyProvider, oKnownHostsCommand, oRequiredRSASize,
 	oEnableEscapeCommandline, oObscureKeystrokeTiming, oChannelTimeout,
-	oVersionAddendum,
+	oVersionAddendum, oRefuseConnection, oWarnWeakCrypto,
 	oIgnore, oIgnoredUnknownOption, oDeprecated, oUnsupported
 } OpCodes;
 
@@ -332,6 +318,8 @@ static struct {
 	{ "obscurekeystroketiming", oObscureKeystrokeTiming },
 	{ "channeltimeout", oChannelTimeout },
 	{ "versionaddendum", oVersionAddendum },
+	{ "refuseconnection", oRefuseConnection },
+	{ "warnweakcrypto", oWarnWeakCrypto },
 
 	{ NULL, oBadOption }
 };
@@ -736,12 +724,12 @@ match_cfg_line(Options *options, const char *full_line, int *acp, char ***avp,
 	debug2("checking match for '%s' host %s originally %s",
 	    full_line, host, original_host);
 	while ((attrib = argv_next(acp, avp)) != NULL) {
-		attrib = oattrib = xstrdup(attrib);
 		/* Terminate on comment */
 		if (*attrib == '#') {
 			argv_consume(acp);
 			break;
 		}
+		attrib = oattrib = xstrdup(attrib);
 		arg = criteria = NULL;
 		this_result = 1;
 		if ((negate = (attrib[0] == '!')))
@@ -768,19 +756,20 @@ match_cfg_line(Options *options, const char *full_line, int *acp, char ***avp,
 		if (strcasecmp(attrib, "canonical") == 0 ||
 		    strcasecmp(attrib, "final") == 0) {
 			/*
-			 * If the config requests "Match final" then remember
-			 * this so we can perform a second pass later.
+			 * If the config requests "Match final" without
+			 * negation then remember this so we can perform a
+			 * second pass later.
 			 */
 			if (strcasecmp(attrib, "final") == 0 &&
 			    want_final_pass != NULL)
-				*want_final_pass = 1;
+				*want_final_pass |= !negate;
 			r = !!final_pass;  /* force bitmask member to boolean */
 			if (r == (negate ? 1 : 0))
 				this_result = result = 0;
 			debug3("%.200s line %d: %smatched '%s'",
 			    filename, linenum,
 			    this_result ? "" : "not ", oattrib);
-			continue;
+			goto next;
 		}
 
 		/* Keep this list in sync with below */
@@ -891,7 +880,7 @@ match_cfg_line(Options *options, const char *full_line, int *acp, char ***avp,
 				debug3("%.200s line %d: skipped exec "
 				    "\"%.100s\"", filename, linenum, cmd);
 				free(cmd);
-				continue;
+				goto next;
 			}
 			r = execute_in_shell(cmd);
 			if (r == -1) {
@@ -915,6 +904,7 @@ match_cfg_line(Options *options, const char *full_line, int *acp, char ***avp,
 		    criteria == NULL ? "" : " \"",
 		    criteria == NULL ? "" : criteria,
 		    criteria == NULL ? "" : "\"");
+ next:
 		free(criteria);
 		free(oattrib);
 		oattrib = attrib = NULL;
@@ -1097,6 +1087,15 @@ static const struct multistate multistate_compression[] = {
 	{ "yes",			COMP_DELAYED },
 #endif
 	{ "no",				COMP_NONE },
+	{ NULL, -1 }
+};
+/* XXX this will need to be replaced with a bitmask if we add more flags */
+static const struct multistate multistate_warnweakcrypto[] = {
+	{ "true",			1 },
+	{ "false",			0 },
+	{ "yes",			1 },
+	{ "no",				0 },
+	{ "no-pq-kex",			0 },
 	{ NULL, -1 }
 };
 
@@ -1529,9 +1528,6 @@ parse_char_array:
 
 	case oProxyCommand:
 		charptr = &options->proxy_command;
-		/* Ignore ProxyCommand if ProxyJump already specified */
-		if (options->jump_host != NULL)
-			charptr = &options->jump_host; /* Skip below */
 parse_command:
 		if (str == NULL) {
 			error("%.200s line %d: Missing argument.",
@@ -1552,7 +1548,7 @@ parse_command:
 		}
 		len = strspn(str, WHITESPACE "=");
 		/* XXX use argv? */
-		if (parse_jump(str + len, options, *activep) == -1) {
+		if (parse_jump(str + len, options, cmdline, *activep) == -1) {
 			error("%.200s line %d: Invalid ProxyJump \"%s\"",
 			    filename, linenum, str + len);
 			goto out;
@@ -2158,6 +2154,12 @@ parse_pubkey_algos:
 			    filename, linenum, arg);
 			goto out;
 		}
+		if (value == INT_MIN) {
+			debug("%s line %d: Deprecated IPQoS value \"%s\" "
+			    "ignored - using system default instead. Consider"
+			    " using DSCP values.", filename, linenum, arg);
+			value = INT_MAX;
+		}
 		arg = argv_next(&ac, &av);
 		if (arg == NULL)
 			value2 = value;
@@ -2165,6 +2167,12 @@ parse_pubkey_algos:
 			error("%s line %d: Bad IPQoS value: %s",
 			    filename, linenum, arg);
 			goto out;
+		}
+		if (value2 == INT_MIN) {
+			debug("%s line %d: Deprecated IPQoS value \"%s\" "
+			    "ignored - using system default instead. Consider"
+			    " using DSCP values.", filename, linenum, arg);
+			value2 = INT_MAX;
 		}
 		if (*activep && options->ip_qos_interactive == -1) {
 			options->ip_qos_interactive = value;
@@ -2312,8 +2320,38 @@ parse_pubkey_algos:
 		goto parse_flag;
 
 	case oRevokedHostKeys:
-		charptr = &options->revoked_host_keys;
-		goto parse_string;
+		uintptr = &options->num_revoked_host_keys;
+		cppptr = &options->revoked_host_keys;
+		found = *uintptr == 0;
+		while ((arg = argv_next(&ac, &av)) != NULL) {
+			if (*arg == '\0') {
+				error("%s line %d: keyword %s empty argument",
+				    filename, linenum, keyword);
+				goto out;
+			}
+			/* Allow "none" only in first position */
+			if (strcasecmp(arg, "none") == 0) {
+				if (nstrs > 0 || ac > 0) {
+					error("%s line %d: keyword %s \"none\" "
+					    "argument must appear alone.",
+					    filename, linenum, keyword);
+					goto out;
+				}
+			}
+			opt_array_append(filename, linenum, keyword,
+			    &strs, &nstrs, arg);
+		}
+		if (nstrs == 0) {
+			fatal("%s line %d: no %s specified",
+			    filename, linenum, keyword);
+		}
+		if (found && *activep) {
+			*cppptr = strs;
+			*uintptr = nstrs;
+			strs = NULL; /* transferred */
+			nstrs = 0;
+		}
+		break;
 
 	case oFingerprintHash:
 		intptr = &options->fingerprint_hash;
@@ -2413,6 +2451,11 @@ parse_pubkey_algos:
 		intptr = &options->required_rsa_size;
 		goto parse_int;
 
+	case oWarnWeakCrypto:
+		intptr = &options->warn_weak_crypto;
+		multistate_ptr = multistate_warnweakcrypto;
+		goto parse_multistate;
+
 	case oObscureKeystrokeTiming:
 		value = -1;
 		while ((arg = argv_next(&ac, &av)) != NULL) {
@@ -2506,6 +2549,19 @@ parse_pubkey_algos:
 				options->version_addendum = xstrdup(str + len);
 		}
 		argv_consume(&ac);
+		break;
+
+	case oRefuseConnection:
+		arg = argv_next(&ac, &av);
+		if (!arg || *arg == '\0') {
+			error("%.200s line %d: Missing argument.",
+			    filename, linenum);
+			goto out;
+		}
+		if (*activep) {
+			fatal("%.200s line %d: RefuseConnection: %s",
+			    filename, linenum, arg);
+		}
 		break;
 
 	case oDeprecated:
@@ -2753,12 +2809,14 @@ initialize_options(Options * options)
 	options->canonicalize_fallback_local = -1;
 	options->canonicalize_hostname = -1;
 	options->revoked_host_keys = NULL;
+	options->num_revoked_host_keys = 0;
 	options->fingerprint_hash = -1;
 	options->update_hostkeys = -1;
 	options->hostbased_accepted_algos = NULL;
 	options->pubkey_accepted_algos = NULL;
 	options->known_hosts_command = NULL;
 	options->required_rsa_size = -1;
+	options->warn_weak_crypto = -1;
 	options->enable_escape_commandline = -1;
 	options->obscure_keystroke_timing_interval = -1;
 	options->tag = NULL;
@@ -2868,10 +2926,6 @@ fill_default_options(Options * options)
 		    _PATH_SSH_CLIENT_ID_ED25519, 0);
 		add_identity_file(options, "~/",
 		    _PATH_SSH_CLIENT_ID_ED25519_SK, 0);
-		add_identity_file(options, "~/", _PATH_SSH_CLIENT_ID_XMSS, 0);
-#ifdef WITH_DSA
-		add_identity_file(options, "~/", _PATH_SSH_CLIENT_ID_DSA, 0);
-#endif
 	}
 	if (options->escape_char == -1)
 		options->escape_char = '~';
@@ -2935,9 +2989,9 @@ fill_default_options(Options * options)
 	if (options->visual_host_key == -1)
 		options->visual_host_key = 0;
 	if (options->ip_qos_interactive == -1)
-		options->ip_qos_interactive = IPTOS_DSCP_AF21;
+		options->ip_qos_interactive = IPTOS_DSCP_EF;
 	if (options->ip_qos_bulk == -1)
-		options->ip_qos_bulk = IPTOS_DSCP_CS1;
+		options->ip_qos_bulk = IPTOS_DSCP_CS0;
 	if (options->request_tty == -1)
 		options->request_tty = REQUEST_TTY_AUTO;
 	if (options->session_type == -1)
@@ -2965,6 +3019,8 @@ fill_default_options(Options * options)
 #endif
 	if (options->required_rsa_size == -1)
 		options->required_rsa_size = SSH_RSA_MINIMUM_MODULUS_SIZE;
+	if (options->warn_weak_crypto == -1)
+		options->warn_weak_crypto = 1;
 	if (options->enable_escape_commandline == -1)
 		options->enable_escape_commandline = 0;
 	if (options->obscure_keystroke_timing_interval == -1) {
@@ -2992,6 +3048,7 @@ fill_default_options(Options * options)
 			goto fail; \
 		} \
 	} while (0)
+	options->kex_algorithms_set = options->kex_algorithms != NULL;
 	ASSEMBLE(ciphers, def_cipher, all_cipher);
 	ASSEMBLE(macs, def_mac, all_mac);
 	ASSEMBLE(kex_algorithms, def_kex, all_kex);
@@ -3021,11 +3078,11 @@ fill_default_options(Options * options)
 	CLEAR_ON_NONE(options->remote_command);
 	CLEAR_ON_NONE(options->proxy_command);
 	CLEAR_ON_NONE(options->control_path);
-	CLEAR_ON_NONE(options->revoked_host_keys);
 	CLEAR_ON_NONE(options->pkcs11_provider);
 	CLEAR_ON_NONE(options->sk_provider);
 	CLEAR_ON_NONE(options->known_hosts_command);
 	CLEAR_ON_NONE_ARRAY(channel_timeouts, num_channel_timeouts, "none");
+	CLEAR_ON_NONE_ARRAY(revoked_host_keys, num_revoked_host_keys, "none");
 #undef CLEAR_ON_NONE
 #undef CLEAR_ON_NONE_ARRAY
 	if (options->jump_host != NULL &&
@@ -3136,6 +3193,7 @@ free_options(Options *o)
 		free(o->permitted_cnames[i].source_list);
 		free(o->permitted_cnames[i].target_list);
 	}
+	FREE_ARRAY(u_int, o->num_revoked_host_keys, o->revoked_host_keys);
 	free(o->revoked_host_keys);
 	free(o->hostbased_accepted_algos);
 	free(o->pubkey_accepted_algos);
@@ -3367,65 +3425,116 @@ parse_forward(struct Forward *fwd, const char *fwdspec, int dynamicfwd, int remo
 }
 
 int
-parse_jump(const char *s, Options *o, int active)
+ssh_valid_hostname(const char *s)
 {
-	char *orig, *sdup, *cp;
-	char *host = NULL, *user = NULL;
-	int r, ret = -1, port = -1, first;
+	size_t i;
 
-	active &= o->proxy_command == NULL && o->jump_host == NULL;
+	if (*s == '-')
+		return 0;
+	for (i = 0; s[i] != 0; i++) {
+		if (strchr("'`\"$\\;&<>|(){},", s[i]) != NULL ||
+		    isspace((u_char)s[i]) || iscntrl((u_char)s[i]))
+			return 0;
+	}
+	return 1;
+}
 
-	orig = sdup = xstrdup(s);
+int
+ssh_valid_ruser(const char *s)
+{
+	size_t i;
 
-	/* Remove comment and trailing whitespace */
+	if (*s == '-')
+		return 0;
+	for (i = 0; s[i] != 0; i++) {
+		if (iscntrl((u_char)s[i]))
+			return 0;
+		if (strchr("'`\";&<>|(){}", s[i]) != NULL)
+			return 0;
+		/* Disallow '-' after whitespace */
+		if (isspace((u_char)s[i]) && s[i + 1] == '-')
+			return 0;
+		/* Disallow \ in last position */
+		if (s[i] == '\\' && s[i + 1] == '\0')
+			return 0;
+	}
+	return 1;
+}
+
+int
+parse_jump(const char *s, Options *o, int strict, int active)
+{
+	char *orig = NULL, *sdup = NULL, *cp;
+	char *tmp_user = NULL, *tmp_host = NULL, *host = NULL, *user = NULL;
+	int r, ret = -1, tmp_port = -1, port = -1, first = 1;
+
+	if (strcasecmp(s, "none") == 0) {
+		if (active && o->jump_host == NULL) {
+			o->jump_host = xstrdup("none");
+			o->jump_port = 0;
+		}
+		return 0;
+	}
+
+	orig = xstrdup(s);
 	if ((cp = strchr(orig, '#')) != NULL)
 		*cp = '\0';
 	rtrim(orig);
 
-	first = active;
+	active &= o->proxy_command == NULL && o->jump_host == NULL;
+	sdup = xstrdup(orig);
 	do {
-		if (strcasecmp(s, "none") == 0)
-			break;
+		/* Work backwards through string */
 		if ((cp = strrchr(sdup, ',')) == NULL)
 			cp = sdup; /* last */
 		else
 			*cp++ = '\0';
 
+		r = parse_ssh_uri(cp, &tmp_user, &tmp_host, &tmp_port);
+		if (r == -1 || (r == 1 && parse_user_host_port(cp,
+		    &tmp_user, &tmp_host, &tmp_port) != 0))
+			goto out; /* error already logged */
+		if (strict) {
+			if (!ssh_valid_hostname(tmp_host)) {
+				error_f("invalid hostname \"%s\"", tmp_host);
+				goto out;
+			}
+			if (tmp_user != NULL && !ssh_valid_ruser(tmp_user)) {
+				error_f("invalid username \"%s\"", tmp_user);
+				goto out;
+			}
+		}
 		if (first) {
-			/* First argument and configuration is active */
-			r = parse_ssh_uri(cp, &user, &host, &port);
-			if (r == -1 || (r == 1 &&
-			    parse_user_host_port(cp, &user, &host, &port) != 0))
-				goto out;
-		} else {
-			/* Subsequent argument or inactive configuration */
-			r = parse_ssh_uri(cp, NULL, NULL, NULL);
-			if (r == -1 || (r == 1 &&
-			    parse_user_host_port(cp, NULL, NULL, NULL) != 0))
-				goto out;
+			user = tmp_user;
+			host = tmp_host;
+			port = tmp_port;
+			tmp_user = tmp_host = NULL; /* transferred */
 		}
 		first = 0; /* only check syntax for subsequent hosts */
+		free(tmp_user);
+		free(tmp_host);
+		tmp_user = tmp_host = NULL;
+		tmp_port = -1;
 	} while (cp != sdup);
+
 	/* success */
 	if (active) {
-		if (strcasecmp(s, "none") == 0) {
-			o->jump_host = xstrdup("none");
-			o->jump_port = 0;
-		} else {
-			o->jump_user = user;
-			o->jump_host = host;
-			o->jump_port = port;
-			o->proxy_command = xstrdup("none");
-			user = host = NULL;
-			if ((cp = strrchr(s, ',')) != NULL && cp != s) {
-				o->jump_extra = xstrdup(s);
-				o->jump_extra[cp - s] = '\0';
-			}
+		o->jump_user = user;
+		o->jump_host = host;
+		o->jump_port = port;
+		o->proxy_command = xstrdup("none");
+		user = host = NULL; /* transferred */
+		if (orig != NULL && (cp = strrchr(orig, ',')) != NULL) {
+			o->jump_extra = xstrdup(orig);
+			o->jump_extra[cp - orig] = '\0';
 		}
 	}
 	ret = 0;
  out:
 	free(orig);
+	free(sdup);
+	free(tmp_user);
+	free(tmp_host);
 	free(user);
 	free(host);
 	return ret;
@@ -3679,6 +3788,7 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_fmtint(oVisualHostKey, o->visual_host_key);
 	dump_cfg_fmtint(oUpdateHostkeys, o->update_hostkeys);
 	dump_cfg_fmtint(oEnableEscapeCommandline, o->enable_escape_commandline);
+	dump_cfg_fmtint(oWarnWeakCrypto, o->warn_weak_crypto);
 
 	/* Integer options */
 	dump_cfg_int(oCanonicalizeMaxDots, o->canonicalize_max_dots);
@@ -3714,7 +3824,6 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_string(oSecurityKeyProvider, o->sk_provider);
 	dump_cfg_string(oPreferredAuthentications, o->preferred_authentications);
 	dump_cfg_string(oPubkeyAcceptedAlgorithms, o->pubkey_accepted_algos);
-	dump_cfg_string(oRevokedHostKeys, o->revoked_host_keys);
 	dump_cfg_string(oXAuthLocation, o->xauth_location);
 	dump_cfg_string(oKnownHostsCommand, o->known_hosts_command);
 	dump_cfg_string(oTag, o->tag);
@@ -3731,6 +3840,7 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_strarray(oCertificateFile, o->num_certificate_files, o->certificate_files);
 	dump_cfg_strarray_oneline(oGlobalKnownHostsFile, o->num_system_hostfiles, o->system_hostfiles);
 	dump_cfg_strarray_oneline(oUserKnownHostsFile, o->num_user_hostfiles, o->user_hostfiles);
+	dump_cfg_strarray_oneline(oRevokedHostKeys, o->num_revoked_host_keys, o->revoked_host_keys);
 	dump_cfg_strarray(oSendEnv, o->num_send_env, o->send_env);
 	dump_cfg_strarray(oSetEnv, o->num_setenv, o->setenv);
 	dump_cfg_strarray_oneline(oLogVerbose,

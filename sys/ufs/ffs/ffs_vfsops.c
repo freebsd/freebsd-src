@@ -2083,7 +2083,7 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	 * Writing the superblock itself. We need to do special checks for it.
 	 * A negative error code is returned to indicate that a copy of the
 	 * superblock has been made and that the copy is discarded when the
-	 * I/O is done. So the the caller should not attempt to restore the
+	 * I/O is done. So the caller should not attempt to restore the
 	 * fs_si field after the write is done. The caller will convert the
 	 * error code back to its usual positive value when returning it.
 	 */

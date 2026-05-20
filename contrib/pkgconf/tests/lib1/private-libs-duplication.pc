@@ -1,0 +1,7 @@
+Name: private-libs-duplication
+Description: test
+Version: 1.0
+Requires: baz bar
+Libs: -lprivate
+Libs.private: -lfoo
+

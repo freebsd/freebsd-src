@@ -32,11 +32,15 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_kern_tls.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#ifdef KERN_TLS
+#include <sys/ktls.h>
+#endif
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -87,6 +91,11 @@
 
 #include <security/mac/mac_framework.h>
 
+VNET_DEFINE(int, tcp_do_rfc6191) = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6191, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_do_rfc6191), 0,
+    "Enable RFC 6191 (Reduced TIME-WAIT State)");
+
 static u_int
 tcp_eff_msl(struct tcpcb *tp)
 {
@@ -126,15 +135,18 @@ tcp_twstart(struct tcpcb *tp)
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
-
-	/* A dropped inp should never transition to TIME_WAIT state. */
-	KASSERT((inp->inp_flags & INP_DROPPED) == 0, ("tcp_twstart: "
-	    "(inp->inp_flags & INP_DROPPED) != 0"));
+	MPASS(!(tp->t_flags & TF_DISCONNECTED));
 
 	tcp_state_change(tp, TCPS_TIME_WAIT);
 	tcp_free_sackholes(tp);
 	soisdisconnected(inp->inp_socket);
 
+#ifdef KERN_TLS
+	/* release ktls snd tag now that no more data can be sent */
+	if (tptosocket(tp)->so_snd.sb_tls_info != NULL) {
+		ktls_release_snd_tag(tptosocket(tp)->so_snd.sb_tls_info);
+	}
+#endif
 	if (tp->t_flags & TF_ACKNOW)
 		(void) tcp_output(tp);
 
@@ -216,24 +228,40 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	}
 
 	/*
-	 * If a new connection request is received
-	 * while in TIME_WAIT, drop the old connection
-	 * and start over if the sequence numbers
-	 * are above the previous ones.
+	 * If a new connection request is received while in TIME_WAIT,
+	 * drop the old connection and start over if appropriate.
+	 *
+	 * The original rule is to start over if and only if the sequence
+	 * number of the new connection is greater than the last sequence
+	 * number seen on the old connection.
+	 *
+	 * Additionally, RFC 6191 allows restarting if the new connection
+	 * has TCP timestamps enabled and either the old one didn't, or it
+	 * did but the timestamp on the incoming SYN is greater than the
+	 * last timestamp seen on the old connection.
+	 *
 	 * Allow UDP port number changes in this case.
 	 */
-	if (((thflags & (TH_SYN | TH_ACK)) == TH_SYN) &&
-	    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
-		/*
-		 * In case we can't upgrade our lock just pretend we have
-		 * lost this packet.
-		 */
-		if (INP_TRY_UPGRADE(inp) == 0)
-			goto drop;
-		if ((tp = tcp_close(tp)) != NULL)
-			INP_WUNLOCK(inp);
-		TCPSTAT_INC(tcps_tw_recycles);
-		return (true);
+	if ((thflags & (TH_SYN | TH_ACK)) == TH_SYN) {
+		bool rfc6191 = false;
+
+		if ((to->to_flags & TOF_TS) != 0 && V_tcp_do_rfc6191) {
+			rfc6191 = (tp->t_flags & TF_RCVD_TSTMP) != 0 ?
+			    TSTMP_LT(tp->ts_recent, to->to_tsval) :
+			    V_tcp_tolerate_missing_ts == 0;
+		}
+		if (rfc6191 || SEQ_GT(th->th_seq, tp->rcv_nxt)) {
+			/*
+			 * In case we can't upgrade our lock just pretend
+			 * we have lost this packet.
+			 */
+			if (INP_TRY_UPGRADE(inp) == 0)
+				goto drop;
+			if ((tp = tcp_close(tp)) != NULL)
+				INP_WUNLOCK(inp);
+			TCPSTAT_INC(tcps_tw_recycles);
+			return (true);
+		}
 	}
 
 	/*

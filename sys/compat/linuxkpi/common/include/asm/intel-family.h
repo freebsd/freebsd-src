@@ -1,5 +1,14 @@
 /* Public domain. */
 
+#define	IFM(_fam, _model)	VFM_MAKE(X86_VENDOR_INTEL, _fam, _model)
+
+#define	INTEL_ALDERLAKE			IFM(6, 0x97)
+#define	INTEL_ALDERLAKE_L		IFM(6, 0x9A)
+
+#define	INTEL_RAPTORLAKE		IFM(6, 0xB7)
+#define	INTEL_RAPTORLAKE_P		IFM(6, 0xBA)
+#define	INTEL_RAPTORLAKE_S		IFM(6, 0xBF)
+
 #define	INTEL_FAM6_ALDERLAKE	0x97
 #define	INTEL_FAM6_ALDERLAKE_L	0x9A
 

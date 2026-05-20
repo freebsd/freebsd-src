@@ -308,6 +308,17 @@ bintime2ns(const struct bintime *_bt)
 	return (ret);
 }
 
+static __inline uint64_t
+bintime2us(const struct bintime *_bt)
+{
+	uint64_t ret;
+
+	ret = (uint64_t)(_bt->sec) * (uint64_t)1000000;
+	ret += __utime64_scale64_floor(
+	    _bt->frac, 1000000, 1ULL << 32) >> 32;
+	return (ret);
+}
+
 static __inline void
 timespec2bintime(const struct timespec *_ts, struct bintime *_bt)
 {
@@ -355,10 +366,12 @@ tstosbt(struct timespec _ts)
 static __inline sbintime_t
 tstosbt_sat(struct timespec _ts)
 {
+#if __SIZEOF_TIME_T > 4
 	if (_ts.tv_sec > SBT_MAX >> 32)
 		return (SBT_MAX);
 	if (_ts.tv_sec < -(SBT_MAX >> 32) - 1)
 		return (-SBT_MAX - 1);
+#endif
 	return (tstosbt(_ts));
 }
 
@@ -382,10 +395,12 @@ tvtosbt(struct timeval _tv)
 static __inline sbintime_t
 tvtosbt_sat(struct timeval _tv)
 {
+#if __SIZEOF_TIME_T > 4
 	if (_tv.tv_sec > SBT_MAX >> 32)
 		return (SBT_MAX);
 	if (_tv.tv_sec < -(SBT_MAX >> 32) - 1)
 		return (-SBT_MAX - 1);
+#endif
 	return (tvtosbt(_tv));
 }
 

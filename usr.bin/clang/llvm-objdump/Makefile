@@ -29,7 +29,4 @@ DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
-SYMLINKS=	llvm-objdump ${BINDIR}/objdump
-MLINKS=		llvm-objdump.1 objdump.1
-
 .include "../llvm.prog.mk"

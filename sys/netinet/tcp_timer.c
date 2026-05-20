@@ -315,7 +315,7 @@ tcp_timer_delack(struct tcpcb *tp)
 
 	INP_WLOCK_ASSERT(inp);
 
-	CURVNET_SET(inp->inp_vnet);
+	CURVNET_SET(inp->inp_socket->so_vnet);
 	tp->t_flags |= TF_ACKNOW;
 	TCPSTAT_INC(tcps_delack);
 	NET_EPOCH_ENTER(et);
@@ -335,7 +335,7 @@ tcp_timer_2msl(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
-	CURVNET_SET(inp->inp_vnet);
+	CURVNET_SET(inp->inp_socket->so_vnet);
 	tcp_log_end_status(tp, TCP_EI_STATUS_2MSL);
 	tcp_free_sackholes(tp);
 	/*
@@ -385,7 +385,7 @@ tcp_timer_keep(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
-	CURVNET_SET(inp->inp_vnet);
+	CURVNET_SET(inp->inp_socket->so_vnet);
 	/*
 	 * Because we don't regularly reset the keepalive callout in
 	 * the ESTABLISHED state, it may be that we don't actually need
@@ -493,7 +493,7 @@ tcp_timer_persist(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
-	CURVNET_SET(inp->inp_vnet);
+	CURVNET_SET(inp->inp_socket->so_vnet);
 	/*
 	 * Persistence timer into zero window.
 	 * Force a byte to be output, if possible.
@@ -560,7 +560,7 @@ tcp_timer_rexmt(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
-	CURVNET_SET(inp->inp_vnet);
+	CURVNET_SET(inp->inp_socket->so_vnet);
 	if (tp->t_fb->tfb_tcp_rexmit_tmr) {
 		/* The stack has a timer action too. */
 		(*tp->t_fb->tfb_tcp_rexmit_tmr)(tp);

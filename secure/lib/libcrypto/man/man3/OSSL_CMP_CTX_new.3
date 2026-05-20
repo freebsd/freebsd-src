@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_CMP_CTX_NEW 3ossl"
-.TH OSSL_CMP_CTX_NEW 3ossl 2026-01-27 3.5.5 OpenSSL
+.TH OSSL_CMP_CTX_NEW 3ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -394,6 +394,12 @@ Taking it over as a trust anchor implements trust\-on\-first\-use (TOFU).
 .IX Item "OSSL_CMP_OPT_NO_CACHE_EXTRACERTS"
 Do not cache certificates received in the extraCerts CMP message field.
 Otherwise they are stored to potentially help validate further messages.
+.Sp
+In any case, after successfully validating an incoming message, its protection
+certificate (if any) is cached for reuse with validation of subsequent messages.
+This is done not only for efficiency but also
+to eliminate the need for the sender to include its certificate and related chain
+in the extraCerts field of subsequent messages of the same transaction.
 .PP
 \&\fBOSSL_CMP_CTX_get_option()\fR reads the current value of the given option
 (e.g., OSSL_CMP_OPT_IMPLICIT_CONFIRM) from the given OSSL_CMP_CTX structure.
@@ -924,13 +930,14 @@ in OpenSSL 3.2.
 \&\fBOSSL_CMP_CTX_get0_libctx()\fR, \fBOSSL_CMP_CTX_get0_propq()\fR, and
 \&\fBOSSL_CMP_CTX_get0_validatedSrvCert()\fR were added in OpenSSL 3.2.
 .PP
-\&\fBOSSL_CMP_CTX_get0_geninfo_ITAVs()\fR was added in OpenSSL 3.3.
+\&\fBOSSL_CMP_CTX_get0_geninfo_ITAVs()\fR and
+the \fBOSSL_CMP_OPT_NO_CACHE_EXTRACERTS\fR option were added in OpenSSL 3.3.
 .PP
 Support for central key generation, requested via \fBOSSL_CRMF_POPO_NONE\fR,
 was added in OpenSSL 3.5.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2007\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

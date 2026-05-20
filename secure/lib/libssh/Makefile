@@ -26,18 +26,18 @@ SRCS=	${LIBOPENSSH_SRCS} \
 	log.c match.c moduli.c nchan.c packet.c \
 	readpass.c ttymodes.c xmalloc.c addr.c addrmatch.c \
 	atomicio.c dispatch.c mac.c misc.c utf8.c \
-	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-ecdsa-sk.c \
+	monitor_fdpass.c rijndael.c ssh-ecdsa.c ssh-ecdsa-sk.c \
 	ssh-ed25519-sk.c ssh-rsa.c dh.c \
 	msg.c dns.c entropy.c umac.c umac128.c \
 	ssh-pkcs11.c smult_curve25519_ref.c \
 	poly1305.c chacha.c cipher-chachapoly.c cipher-chachapoly-libcrypto.c \
 	ssh-ed25519.c digest-openssl.c digest-libc.c \
-	hmac.c ed25519.c hash.c \
+	hmac.c ed25519.c ed25519-openssl.c \
 	kex.c kex-names.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
 	kexgexc.c kexgexs.c \
 	kexsntrup761x25519.c kexmlkem768x25519.c sntrup761.c kexgen.c \
 	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c \
-	sshbuf-io.c
+	sshbuf-io.c misc-agent.c ssherr-libcrypto.c
 
 # Add ${SKSRCS} to avoid linking problems.
 SRCS+=	${SKSRCS}

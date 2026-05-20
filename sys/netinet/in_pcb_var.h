@@ -41,8 +41,7 @@
  * Definitions shared between netinet/in_pcb.c and netinet6/in6_pcb.c
  */
 
-VNET_DECLARE(uint32_t, in_pcbhashseed);
-#define	V_in_pcbhashseed	VNET(in_pcbhashseed)
+#define	INP_UNCONNECTED	0x04000000	/* Not inserted into hashes. */
 
 void	inp_lock(struct inpcb *inp, const inp_lookup_t lock);
 void	inp_unlock(struct inpcb *inp, const inp_lookup_t lock);
@@ -57,7 +56,7 @@ struct inpcb *in_pcblookup_local(struct inpcbinfo *, struct in_addr, u_short,
 	    int, int, struct ucred *);
 int     in_pcbinshash(struct inpcb *);
 void    in_pcbrehash(struct inpcb *);
-void    in_pcbremhash_locked(struct inpcb *);
+void    in_pcbremhash(struct inpcb *);
 
 /*
  * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group

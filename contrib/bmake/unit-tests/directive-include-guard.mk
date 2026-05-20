@@ -1,4 +1,4 @@
-# $NetBSD: directive-include-guard.mk,v 1.19 2025/04/11 17:21:31 rillig Exp $
+# $NetBSD: directive-include-guard.mk,v 1.20 2025/11/16 16:43:57 sjg Exp $
 #
 # Tests for multiple-inclusion guards in makefiles.
 #

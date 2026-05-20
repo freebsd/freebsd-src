@@ -1,4 +1,4 @@
-/* $OpenBSD: dns.c,v 1.44 2023/03/10 04:06:21 dtucker Exp $ */
+/* $OpenBSD: dns.c,v 1.48 2026/03/03 09:57:25 dtucker Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -38,7 +38,6 @@
 
 #include "xmalloc.h"
 #include "sshkey.h"
-#include "ssherr.h"
 #include "dns.h"
 #include "log.h"
 #include "digest.h"
@@ -78,7 +77,7 @@ dns_result_totext(unsigned int res)
  * Caller must free digest which is allocated by sshkey_fingerprint_raw().
  */
 static int
-dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
+dns_read_key(uint8_t *algorithm, uint8_t *digest_type,
     u_char **digest, size_t *digest_len, struct sshkey *key)
 {
 	int r, success = 0;
@@ -88,17 +87,11 @@ dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
 	case KEY_RSA:
 		*algorithm = SSHFP_KEY_RSA;
 		break;
-	case KEY_DSA:
-		*algorithm = SSHFP_KEY_DSA;
-		break;
 	case KEY_ECDSA:
 		*algorithm = SSHFP_KEY_ECDSA;
 		break;
 	case KEY_ED25519:
 		*algorithm = SSHFP_KEY_ED25519;
-		break;
-	case KEY_XMSS:
-		*algorithm = SSHFP_KEY_XMSS;
 		break;
 	default:
 		*algorithm = SSHFP_KEY_RESERVED; /* 0 */
@@ -132,7 +125,7 @@ dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
  * Read SSHFP parameters from rdata buffer.
  */
 static int
-dns_read_rdata(u_int8_t *algorithm, u_int8_t *digest_type,
+dns_read_rdata(uint8_t *algorithm, uint8_t *digest_type,
     u_char **digest, size_t *digest_len, u_char *rdata, int rdata_len)
 {
 	int success = 0;
@@ -200,12 +193,12 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 	int result;
 	struct rrsetinfo *fingerprints = NULL;
 
-	u_int8_t hostkey_algorithm;
+	uint8_t hostkey_algorithm;
 	u_char *hostkey_digest;
 	size_t hostkey_digest_len;
 
-	u_int8_t dnskey_algorithm;
-	u_int8_t dnskey_digest_type;
+	uint8_t dnskey_algorithm;
+	uint8_t dnskey_digest_type;
 	u_char *dnskey_digest;
 	size_t dnskey_digest_len;
 
@@ -305,9 +298,9 @@ int
 export_dns_rr(const char *hostname, struct sshkey *key, FILE *f, int generic,
     int alg)
 {
-	u_int8_t rdata_pubkey_algorithm = 0;
-	u_int8_t rdata_digest_type = SSHFP_HASH_RESERVED;
-	u_int8_t dtype;
+	uint8_t rdata_pubkey_algorithm = 0;
+	uint8_t rdata_digest_type = SSHFP_HASH_RESERVED;
+	uint8_t dtype;
 	u_char *rdata_digest;
 	size_t i, rdata_digest_len;
 	int success = 0;

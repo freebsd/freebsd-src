@@ -26,6 +26,13 @@
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 
+#ifdef HAVE_GETEUID
+#define getuid() geteuid()
+#endif
+#ifdef HAVE_GETEGID
+#define getgid() getegid()
+#endif
+
 #define UMASK 022
 
 static long _default_gid = -1;
@@ -142,7 +149,7 @@ DEFINE_TEST(test_write_disk_perms)
 	 * and we're on a system where group ownership is inherited.
 	 * (Because we're not allowed to SGID files with defaultgid().)
 	 */
-	assertEqualInt(0, chown(".", getuid(), getgid()));
+	assertChown(".", getuid(), getgid());
 
 	/* Create an archive_write_disk object. */
 	assert((a = archive_write_disk_new()) != NULL);
@@ -208,7 +215,7 @@ DEFINE_TEST(test_write_disk_perms)
 	if (getuid() == 0) {
 		original_uid = getuid() + 1;
 		try_to_change_uid = getuid();
-		assertEqualInt(0, chown("dir_owner", original_uid, getgid()));
+		assertChown("dir_owner", original_uid, getgid());
 	} else {
 		original_uid = getuid();
 		try_to_change_uid = getuid() + 1;

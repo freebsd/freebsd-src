@@ -283,7 +283,8 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 	{
 		int verror;
 
-		ef->vctx = vectx_open(ef->fd, filename, 0L, NULL, &verror, __func__);
+		ef->vctx = vectx_open(ef->fd, filename, VE_MUST,
+		    0L, NULL, &verror, __func__);
 		if (verror) {
 			printf("Unverified %s: %s\n", filename, ve_error_get());
 			close(ef->fd);
@@ -504,7 +505,7 @@ out:
 		if (!err && ef.vctx) {
 			int verror;
 
-			verror = vectx_close(ef.vctx, VE_MUST, __func__);
+			verror = vectx_close(ef.vctx, __func__);
 			if (verror) {
 				err = EAUTH;
 				file_discard(fp);
@@ -1095,7 +1096,7 @@ out:
 		if (!err && ef.vctx) {
 			int verror;
 
-			verror = vectx_close(ef.vctx, VE_MUST, __func__);
+			verror = vectx_close(ef.vctx, __func__);
 			if (verror) {
 				err = EAUTH;
 				file_discard(fp);
@@ -1281,10 +1282,11 @@ __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
 	int error;
 
 	/*
-	 * The kernel is already relocated, but we still want to apply
-	 * offset adjustments.
+	 * On most platforms, the kernel is already relocated, but we still
+	 * want to apply offset adjustments.  For PowerPC, the kernel is
+	 * ET_DYN rather than ET_EXEC and we still need to relocate here.
 	 */
-	if (ef->kernel)
+	if (ef->kernel && ef->ehdr->e_type != ET_DYN)
 		return (EOPNOTSUPP);
 
 	for (n = 0; n < ef->relsz / sizeof(r); n++) {

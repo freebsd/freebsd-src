@@ -24,39 +24,30 @@
  * SUCH DAMAGE.
  */
 
-typedef struct dpaa_portal {
-	int		dp_irid;		/* interrupt rid */
-	struct resource	*dp_ires;		/* interrupt resource */
+#ifndef DPAA_PORTALS_H
+#define	DPAA_PORTALS_H
 
-	bool		dp_regs_mapped;		/* register mapping status */
-
-	t_Handle	dp_ph;			/* portal's handle */
-	vm_paddr_t	dp_ce_pa;		/* portal's CE area PA */
-	vm_paddr_t	dp_ci_pa;		/* portal's CI area PA */
-	uint32_t	dp_ce_size;		/* portal's CE area size */
-	uint32_t	dp_ci_size;		/* portal's CI area size */
-	uintptr_t	dp_intr_num;		/* portal's intr. number */
-} dpaa_portal_t;
-
-struct dpaa_portals_softc {
+struct dpaa_portal_softc {
 	device_t	sc_dev;			/* device handle */
-	vm_paddr_t	sc_dp_pa;		/* portal's PA */
-	uint32_t	sc_dp_size;		/* portal's size */
-	int		sc_rrid[2];		/* memory rid */
-	struct resource	*sc_rres[2];		/* memory resource */
-	dpaa_portal_t	sc_dp[MAXCPU];
+	vm_paddr_t	sc_ce_pa;		/* portal's CE PA */
+	vm_offset_t	sc_ce_va;
+	vm_paddr_t	sc_ci_pa;		/* portal's CI PA */
+	vm_offset_t	sc_ci_va;
+	int		sc_cpu;
+	uint32_t	sc_ce_size;		/* portal's CE size */
+	uint32_t	sc_ci_size;		/* portal's CI size */
+	struct resource	*sc_mres[2];		/* memory resource */
+	struct resource	*sc_ires;		/* Interrupt */
+	void		*sc_intr_cookie;
+	bool		sc_regs_mapped;		/* register mapping status */
 };
 
-struct dpaa_portals_devinfo {
-	struct resource_list	di_res;
-	int			di_intr_rid;
-};
+int bman_portal_attach(device_t, int);
+int bman_portal_detach(device_t);
 
-int bman_portals_attach(device_t);
-int bman_portals_detach(device_t);
+int qman_portal_attach(device_t, int);
+int qman_portal_detach(device_t);
 
-int qman_portals_attach(device_t);
-int qman_portals_detach(device_t);
-
-int dpaa_portal_alloc_res(device_t, struct dpaa_portals_devinfo *, int);
-void dpaa_portal_map_registers(struct dpaa_portals_softc *);
+int dpaa_portal_alloc_res(device_t, int);
+void dpaa_portal_map_registers(struct dpaa_portal_softc *);
+#endif

@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 5, 2025
+.Dd May 17, 2026
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -940,6 +940,10 @@ maximum segment size.
 This helps throughput in general, but
 particularly affects short transfers and high-bandwidth large
 propagation-delay connections.
+.It Va rfc6191
+Enable RFC 6191 connection recycling, which allows faster connection
+recycling in certain circumstances when the new connection has TCP
+timestamps enabled.
 .It Va sack.enable
 Enable support for RFC 2018, TCP Selective Acknowledgment option,
 which allows the receiver to inform the sender about all successfully
@@ -1098,6 +1102,7 @@ when trying to use a TCP function block that is not available;
 .Xr stats 3 ,
 .Xr sysctl 3 ,
 .Xr blackhole 4 ,
+.Xr dtrace_mib 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ip 4 ,
@@ -1143,6 +1148,11 @@ when trying to use a TCP function block that is not available;
 .%A "M. Dalal"
 .%T "Improving TCP's Robustness to Blind In-Window Attacks"
 .%O "RFC 5961"
+.Re
+.Rs
+.%A "F. Gont"
+.%T "Reducing the TIME-WAIT State Using TCP Timestamps"
+.%O "RFC 6191"
 .Re
 .Sh HISTORY
 The

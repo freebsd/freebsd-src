@@ -1133,6 +1133,9 @@ tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged)
 
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
 MALLOC_DEFINE(M_TCPFUNCTIONS, "tcpfunc", "TCP function set memory");
+#ifdef TCP_REQUEST_TRK
+MALLOC_DEFINE(M_TCPREQTRK, "tcpreqtrk", "TCP request tracking");
+#endif
 
 static struct mtx isn_mtx;
 
@@ -1140,7 +1143,7 @@ static struct mtx isn_mtx;
 #define	ISN_LOCK()	mtx_lock(&isn_mtx)
 #define	ISN_UNLOCK()	mtx_unlock(&isn_mtx)
 
-INPCBSTORAGE_DEFINE(tcpcbstor, tcpcb, "tcpinp", "tcp_inpcb", "tcp", "tcphash");
+INPCBSTORAGE_DEFINE(tcpcbstor, tcpcb, "tcpinp", "tcp_inpcb", "tcphash");
 
 /*
  * Take a value and get the next power of 2 that doesn't overflow.
@@ -1451,7 +1454,7 @@ tcp_vnet_init(void *arg __unused)
 		    __func__);
 #endif
 	in_pcbinfo_init(&V_tcbinfo, &tcpcbstor, tcp_tcbhashsize,
-	    tcp_tcbhashsize);
+	    tcp_tcbhashsize, tcp_tcbhashsize);
 
 	syncache_init();
 	tcp_hc_init();
@@ -2445,6 +2448,12 @@ tcp_discardcb(struct tcpcb *tp)
 #ifdef STATS
 	stats_blob_destroy(tp->t_stats);
 #endif
+#ifdef TCP_REQUEST_TRK
+	if (tp->t_tcpreq_info != NULL) {
+		free(tp->t_tcpreq_info, M_TCPREQTRK);
+		tp->t_tcpreq_info = NULL;
+	}
+#endif
 
 	CC_ALGO(tp) = NULL;
 	if ((m = STAILQ_FIRST(&tp->t_inqueue)) != NULL) {
@@ -2551,10 +2560,20 @@ tcp_close(struct tcpcb *tp)
 	tcp_timer_stop(tp);
 	if (tp->t_fb->tfb_tcp_timer_stop_all != NULL)
 		tp->t_fb->tfb_tcp_timer_stop_all(tp);
-	in_pcbdrop(inp);
+#if defined(INET) && defined(INET6)
+	if ((inp->inp_vflag & INP_IPV6) != 0)
+		in6_pcbdisconnect(inp);
+	else
+		in_pcbdisconnect(inp);
+#elif defined(INET6)
+	in6_pcbdisconnect(inp);
+#else
+	in_pcbdisconnect(inp);
+#endif
 	TCPSTAT_INC(tcps_closed);
 	if (tp->t_state != TCPS_CLOSED)
 		tcp_state_change(tp, TCPS_CLOSED);
+	tp->t_flags |= TF_DISCONNECTED;
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	tcp_free_sackholes(tp);
 	soisdisconnected(so);
@@ -4880,6 +4899,14 @@ tcp_req_alloc_req_full(struct tcpcb *tp, struct tcp_snd_req *req, uint64_t ts, i
 	struct tcp_sendfile_track *fil;
 	int i, allocated;
 
+	/* Allocate the request tracking array on demand */
+	if (tp->t_tcpreq_info == NULL) {
+		tp->t_tcpreq_info = malloc(
+		    sizeof(*tp->t_tcpreq_info) * MAX_TCP_TRK_REQ,
+		    M_TCPREQTRK, M_NOWAIT | M_ZERO);
+		if (tp->t_tcpreq_info == NULL)
+			return (NULL);
+	}
 	/* In case the stack does not check for completions do so now */
 	tcp_req_check_for_comp(tp, tp->snd_una);
 	/* Check for stale entries */

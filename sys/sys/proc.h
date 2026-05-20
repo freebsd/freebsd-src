@@ -367,7 +367,7 @@ struct thread {
 	/* LP64 hole */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
-	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
+	char		*td_kstack;	/* (a) Pointer to kstack. */
 	u_short td_kstack_pages;	/* (a) Size of the kstack. */
 	u_short td_kstack_domain;		/* (a) Domain backing kstack KVA. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */

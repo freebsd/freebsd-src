@@ -31,14 +31,12 @@ atf_test_case "4in4" "cleanup"
 {
 	atf_set descr 'IPv4 in IPv4 tunnel'
 	atf_set require.user root
+	atf_set require.kmods if_gif
 }
 
 4in4_body()
 {
 	vnet_init
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 
@@ -75,14 +73,12 @@ atf_test_case "6in4" "cleanup"
 {
 	atf_set descr 'IPv6 in IPv4 tunnel'
 	atf_set require.user root
+	atf_set require.kmods if_gif
 }
 
 6in4_body()
 {
 	vnet_init
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 
@@ -119,14 +115,12 @@ atf_test_case "4in6" "cleanup"
 {
 	atf_set descr 'IPv4 in IPv6 tunnel'
 	atf_set require.user root
+	atf_set require.kmods if_gif
 }
 
 4in6_body()
 {
 	vnet_init
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 
@@ -163,14 +157,12 @@ atf_test_case "6in6" "cleanup"
 {
 	atf_set descr 'IPv6 in IPv6 tunnel'
 	atf_set require.user root
+	atf_set require.kmods if_gif
 }
 
 6in6_body()
 {
 	vnet_init
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 
@@ -207,16 +199,13 @@ etherip_head()
 {
 	atf_set descr 'EtherIP regression'
 	atf_set require.user root
+	atf_set require.kmods if_gif
 }
 
 etherip_body()
 {
 	vnet_init
 	vnet_init_bridge
-
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 
@@ -283,16 +272,13 @@ etherip6_head()
 {
 	atf_set descr 'EtherIP over IPv6 regression'
 	atf_set require.user root
+	atf_set require.kmods if_gif
 }
 
 etherip6_body()
 {
 	vnet_init
 	vnet_init_bridge
-
-	if ! kldstat -q -m if_gif; then
-		atf_skip "This test requires if_gif"
-	fi
 
 	epair=$(vnet_mkepair)
 

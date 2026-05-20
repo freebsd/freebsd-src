@@ -10,6 +10,4 @@ LIBADD=	util crypt
 CONFTTYSNAME=	ttys
 CONFTTYS+=	ttys
 
-NO_SHARED?=	YES
-
 .include <bsd.prog.mk>

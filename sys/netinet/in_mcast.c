@@ -2582,6 +2582,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		error = copyin(msfr.msfr_srcs, kss,
 		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
 		if (error) {
+			IN_MULTI_UNLOCK();
 			free(kss, M_TEMP);
 			return (error);
 		}
@@ -2852,6 +2853,11 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
+	retval = sysctl_wire_old_buffer(req,
+	    sizeof(uint32_t) + (in_mcast_maxgrpsrc * sizeof(struct in_addr)));
+	if (retval)
+		return (retval);
+
 	ifindex = name[0];
 	NET_EPOCH_ENTER(et);
 	ifp = ifnet_byindex(ifindex);
@@ -2860,13 +2866,6 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 		CTR2(KTR_IGMPV3, "%s: no ifp for ifindex %u",
 		    __func__, ifindex);
 		return (ENOENT);
-	}
-
-	retval = sysctl_wire_old_buffer(req,
-	    sizeof(uint32_t) + (in_mcast_maxgrpsrc * sizeof(struct in_addr)));
-	if (retval) {
-		NET_EPOCH_EXIT(et);
-		return (retval);
 	}
 
 	IN_MULTI_LIST_LOCK();

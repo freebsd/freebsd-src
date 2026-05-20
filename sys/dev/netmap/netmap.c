@@ -3503,6 +3503,7 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 		/* check optsz and nro_size to avoid for possible integer overflows of rqsz */
 		if ((optsz > NETMAP_REQ_MAXSIZE) || (opt->nro_size > NETMAP_REQ_MAXSIZE)
 				|| (rqsz + optsz > NETMAP_REQ_MAXSIZE)
+				|| (p - ker + optsz > bufsz)
 				|| (optsz > 0 && rqsz + optsz <= rqsz)) {
 			error = EMSGSIZE;
 			goto out_restore;

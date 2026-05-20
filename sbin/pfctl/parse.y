@@ -4242,7 +4242,7 @@ dynaddr		: '(' STRING ')'		{
 			char	*p, *op;
 
 			op = $2;
-			if (!isalpha(op[0])) {
+			if (op[0] == '\0') {
 				yyerror("invalid interface name '%s'", op);
 				free(op);
 				YYERROR;

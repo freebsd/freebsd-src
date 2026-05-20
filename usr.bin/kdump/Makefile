@@ -5,6 +5,7 @@
 PROG=		kdump
 SRCS=		kdump.c subr.c
 CFLAGS+=	-I${SRCTOP}/usr.bin/ktrace
+CFLAGS+=	-I${SRCTOP}/lib/libc/gen
 
 LIBADD=		sysdecode
 .if ${MK_CASPER} != "no"

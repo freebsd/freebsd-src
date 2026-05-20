@@ -34,9 +34,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#define	XA_LIMIT(min, max) \
-    ({ CTASSERT((min) == 0); (uint32_t)(max); })
-
 #define	XA_FLAGS_ALLOC (1U << 0)
 #define	XA_FLAGS_LOCK_IRQ (1U << 1)
 #define	XA_FLAGS_ALLOC1 (1U << 2)
@@ -46,8 +43,6 @@
 
 #define	xa_is_err(x) \
 	IS_ERR(x)
-
-#define	xa_limit_32b XA_LIMIT(0, 0xFFFFFFFF)
 
 #define	XA_ASSERT_LOCKED(xa) mtx_assert(&(xa)->xa_lock, MA_OWNED)
 #define	xa_lock(xa) mtx_lock(&(xa)->xa_lock)
@@ -59,15 +54,38 @@ struct xarray {
 	uint32_t xa_flags;	/* see XA_FLAGS_XXX */
 };
 
+#define	DEFINE_XARRAY_FLAGS(name, flags) \
+	struct xarray name = { \
+		.xa_head.gfp_mask = GFP_NOWAIT, \
+		.xa_flags = flags, \
+	}; \
+	MTX_SYSINIT(name ## _mtx, &name.xa_lock, \
+	    "linuxkpi_DEFINE_XARRAY(" #name ")", \
+	    MTX_DEF | MTX_RECURSE)
+
+#define	DEFINE_XARRAY(name)		DEFINE_XARRAY_FLAGS(name, 0)
+#define	DEFINE_XARRAY_ALLOC(name)	DEFINE_XARRAY_FLAGS(name, XA_FLAGS_ALLOC)
+
+struct xa_limit {
+	uint32_t max;
+	uint32_t min;
+};
+
+#define	XA_LIMIT(min_, max_)	(struct xa_limit){ .min = (min_), .max = (max_) }
+
+#define	xa_limit_16b XA_LIMIT(0, USHRT_MAX)
+#define	xa_limit_31b XA_LIMIT(0, INT_MAX)
+#define	xa_limit_32b XA_LIMIT(0, UINT_MAX)
+
 /*
  * Extensible arrays API implemented as a wrapper
  * around the radix tree implementation.
  */
 void *xa_erase(struct xarray *, uint32_t);
 void *xa_load(struct xarray *, uint32_t);
-int xa_alloc(struct xarray *, uint32_t *, void *, uint32_t, gfp_t);
-int xa_alloc_cyclic(struct xarray *, uint32_t *, void *, uint32_t, uint32_t *, gfp_t);
-int xa_alloc_cyclic_irq(struct xarray *, uint32_t *, void *, uint32_t, uint32_t *, gfp_t);
+int xa_alloc(struct xarray *, uint32_t *, void *, struct xa_limit, gfp_t);
+int xa_alloc_cyclic(struct xarray *, uint32_t *, void *, struct xa_limit, uint32_t *, gfp_t);
+int xa_alloc_cyclic_irq(struct xarray *, uint32_t *, void *, struct xa_limit, uint32_t *, gfp_t);
 int xa_insert(struct xarray *, uint32_t, void *, gfp_t);
 void *xa_store(struct xarray *, uint32_t, void *, gfp_t);
 void xa_init_flags(struct xarray *, uint32_t);
@@ -83,8 +101,8 @@ void *xa_next(struct xarray *, unsigned long *, bool);
  * Unlocked version of functions above.
  */
 void *__xa_erase(struct xarray *, uint32_t);
-int __xa_alloc(struct xarray *, uint32_t *, void *, uint32_t, gfp_t);
-int __xa_alloc_cyclic(struct xarray *, uint32_t *, void *, uint32_t, uint32_t *, gfp_t);
+int __xa_alloc(struct xarray *, uint32_t *, void *, struct xa_limit, gfp_t);
+int __xa_alloc_cyclic(struct xarray *, uint32_t *, void *, struct xa_limit, uint32_t *, gfp_t);
 int __xa_insert(struct xarray *, uint32_t, void *, gfp_t);
 void *__xa_store(struct xarray *, uint32_t, void *, gfp_t);
 bool __xa_empty(struct xarray *);

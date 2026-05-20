@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -523,6 +523,21 @@ fido_hid_set_sigmask(void *handle, const fido_sigset_t *sigmask)
 	return (FIDO_ERR_INTERNAL);
 }
 
+static void
+schedule_io_loop(struct hid_osx *ctx, int ms)
+{
+	IOHIDDeviceScheduleWithRunLoop(ctx->ref, CFRunLoopGetCurrent(),
+	    ctx->loop_id);
+
+	if (ms == -1)
+		ms = 5000; /* wait 5 seconds by default */
+
+	CFRunLoopRunInMode(ctx->loop_id, (double)ms/1000.0, true);
+
+	IOHIDDeviceUnscheduleFromRunLoop(ctx->ref, CFRunLoopGetCurrent(),
+	    ctx->loop_id);
+}
+
 int
 fido_hid_read(void *handle, unsigned char *buf, size_t len, int ms)
 {
@@ -537,20 +552,19 @@ fido_hid_read(void *handle, unsigned char *buf, size_t len, int ms)
 		return (-1);
 	}
 
-	IOHIDDeviceScheduleWithRunLoop(ctx->ref, CFRunLoopGetCurrent(),
-	    ctx->loop_id);
-
-	if (ms == -1)
-		ms = 5000; /* wait 5 seconds by default */
-
-	CFRunLoopRunInMode(ctx->loop_id, (double)ms/1000.0, true);
-
-	IOHIDDeviceUnscheduleFromRunLoop(ctx->ref, CFRunLoopGetCurrent(),
-	    ctx->loop_id);
-
+	/* check for pending frame  */
 	if ((r = read(ctx->report_pipe[0], buf, len)) == -1) {
-		fido_log_error(errno, "%s: read", __func__);
-		return (-1);
+		if (errno != EAGAIN && errno != EWOULDBLOCK) {
+			fido_log_error(errno, "%s: read", __func__);
+			return (-1);
+		}
+
+		schedule_io_loop(ctx, ms);
+
+		if ((r = read(ctx->report_pipe[0], buf, len)) == -1) {
+			fido_log_error(errno, "%s: read", __func__);
+			return (-1);
+		}
 	}
 
 	if (r < 0 || (size_t)r != len) {

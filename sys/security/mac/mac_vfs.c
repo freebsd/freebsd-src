@@ -123,6 +123,56 @@ mac_mount_init(struct mount *mp)
 		mp->mnt_label = NULL;
 }
 
+/*
+ * SDT doesn't have a PROBE7 version anymore, so we just drop the label.
+ */
+MAC_CHECK_PROBE_DEFINE5(mount_check_mount, "struct ucred *",
+    "struct vnode *", "struct vfsconf *",
+    "struct vfsoptlist **", "uint64_t");
+int
+mac_mount_check_mount(struct ucred *cred, struct vnode *vp,
+     struct vfsconf *vfsp, struct vfsoptlist **optlist, uint64_t fsflags)
+{
+	int error;
+
+	MAC_POLICY_CHECK(mount_check_mount, cred, vp, vp->v_label, vfsp,
+	    optlist, fsflags);
+	MAC_CHECK_PROBE5(mount_check_mount, error, cred, vp, vfsp, optlist,
+	    fsflags);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE5(mount_check_update, "struct ucred *",
+    "struct mount *", "struct label *", "struct vfsoptlist **", "uint64_t");
+int
+mac_mount_check_update(struct ucred *cred, struct mount *mp,
+	    struct vfsoptlist **optlist, uint64_t fsflags)
+{
+	int error;
+
+	MAC_POLICY_CHECK(mount_check_update, cred, mp, mp->mnt_label,
+	    optlist, fsflags);
+	MAC_CHECK_PROBE5(mount_check_update, error, cred, mp, mp->mnt_label,
+	    optlist, fsflags);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE4(mount_check_unmount, "struct ucred *",
+    "struct mount *", "struct label *", "uint64_t");
+int
+mac_mount_check_unmount(struct ucred *cred, struct mount *mp, uint64_t flags)
+{
+	int error;
+
+	MAC_POLICY_CHECK(mount_check_unmount, cred, mp, mp->mnt_label, flags);
+	MAC_CHECK_PROBE4(mount_check_unmount, error, cred, mp, mp->mnt_label,
+	    flags);
+
+	return (error);
+}
+
 struct label *
 mac_vnode_label_alloc(void)
 {

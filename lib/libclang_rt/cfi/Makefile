@@ -4,6 +4,7 @@ LIB=		clang_rt.cfi-${CRTARCH}
 
 SRCS+=		cfi/cfi.cpp
 SRCS+=		interception/interception_linux.cpp
+SRCS+=		interception/interception_type_test.cpp
 SRCS+=		sanitizer_common/sanitizer_allocator.cpp
 SRCS+=		sanitizer_common/sanitizer_allocator_checks.cpp
 SRCS+=		sanitizer_common/sanitizer_common.cpp

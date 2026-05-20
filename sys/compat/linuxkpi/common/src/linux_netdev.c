@@ -405,7 +405,7 @@ linuxkpi_alloc_netdev(size_t len, const char *name, uint32_t flags,
 	/* Always first as it zeros! */
 	linuxkpi_init_dummy_netdev(ndev);
 
-	strlcpy(ndev->name, name, sizeof(*ndev->name));
+	strlcpy(ndev->name, name, sizeof(ndev->name));
 
 	/* This needs extending as we support more. */
 

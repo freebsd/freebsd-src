@@ -176,3 +176,5 @@ ENTRY(futex_xorl)
 END(futex_xorl)
 
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
+
+	.section .note.GNU-stack,"",%progbits

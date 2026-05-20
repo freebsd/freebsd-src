@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/domain.h>
 #include <sys/filedesc.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -52,6 +53,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #ifdef INET6
+#include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
@@ -622,6 +624,19 @@ bsd_to_linux_tcp_user_timeout(u_int bsd_timeout)
 	return (bsd_timeout * 1000U);
 }
 
+#ifdef INET6
+static int
+linux_to_bsd_icmp6_sockopt(int opt)
+{
+
+	switch (opt) {
+	case LINUX_ICMP6_FILTER:
+		return (ICMP6_FILTER);
+	}
+	return (-1);
+}
+#endif
+
 static int
 linux_to_bsd_msg_flags(int flags)
 {
@@ -692,6 +707,20 @@ bsd_to_linux_ip_cmsg_type(int cmsg_type)
 	return (-1);
 }
 
+#ifdef INET6
+static int
+bsd_to_linux_ip6_cmsg_type(int cmsg_type)
+{
+	switch (cmsg_type) {
+	case IPV6_2292HOPLIMIT:
+		return (LINUX_IPV6_2292HOPLIMIT);
+	case IPV6_HOPLIMIT:
+		return (LINUX_IPV6_HOPLIMIT);
+	}
+	return (-1);
+}
+#endif
+
 static int
 bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type, int cmsg_level)
 {
@@ -699,6 +728,10 @@ bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type, int cmsg_level)
 
 	if (cmsg_level == IPPROTO_IP)
 		return (bsd_to_linux_ip_cmsg_type(cmsg_type));
+#ifdef INET6
+	if (cmsg_level == IPPROTO_IPV6)
+		return (bsd_to_linux_ip6_cmsg_type(cmsg_type));
+#endif
 	if (cmsg_level != SOL_SOCKET)
 		return (-1);
 
@@ -2175,6 +2208,49 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 			break;
 		}
 		break;
+#ifdef INET6
+	case IPPROTO_RAW: {
+		struct file *fp;
+		struct socket *so;
+		int family;
+
+		error = getsock(td, args->s, &cap_setsockopt_rights, &fp);
+		if (error != 0)
+			return (error);
+		so = fp->f_data;
+		family = so->so_proto->pr_domain->dom_family;
+		fdrop(fp, td);
+
+		name = -1;
+		if (family == AF_INET6) {
+			name = linux_to_bsd_ip6_sockopt(args->optname);
+			if (name >= 0)
+				level = IPPROTO_IPV6;
+		}
+		break;
+	}
+	case IPPROTO_ICMPV6: {
+		struct icmp6_filter f;
+		int i;
+
+		name = linux_to_bsd_icmp6_sockopt(args->optname);
+		if (name != ICMP6_FILTER)
+			break;
+
+		if (args->optlen != sizeof(f))
+			return (EINVAL);
+
+		error = copyin(PTRIN(args->optval), &f, sizeof(f));
+		if (error)
+			return (error);
+
+		/* Linux uses opposite values for pass/block in ICMPv6 */
+		for (i = 0; i < nitems(f.icmp6_filt); i++)
+			f.icmp6_filt[i] = ~f.icmp6_filt[i];
+		return (kern_setsockopt(td, args->s, IPPROTO_ICMPV6,
+		    ICMP6_FILTER, &f, UIO_SYSSPACE, sizeof(f)));
+	}
+#endif
 	case SOL_NETLINK:
 		name = args->optname;
 		break;
@@ -2435,6 +2511,56 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			break;
 		}
 		break;
+#ifdef INET6
+	case IPPROTO_RAW: {
+		struct file *fp;
+		struct socket *so;
+		int family;
+
+		error = getsock(td, args->s, &cap_getsockopt_rights, &fp);
+		if (error != 0)
+			return (error);
+		so = fp->f_data;
+		family = so->so_proto->pr_domain->dom_family;
+		fdrop(fp, td);
+
+		name = -1;
+		if (family == AF_INET6) {
+			name = linux_to_bsd_ip6_sockopt(args->optname);
+			if (name >= 0)
+				level = IPPROTO_IPV6;
+		}
+		break;
+	}
+	case IPPROTO_ICMPV6: {
+		struct icmp6_filter f;
+		int i;
+
+		name = linux_to_bsd_icmp6_sockopt(args->optname);
+		if (name != ICMP6_FILTER)
+			break;
+
+		error = copyin(PTRIN(args->optlen), &len, sizeof(len));
+		if (error)
+			return (error);
+		if (len != sizeof(f))
+			return (EINVAL);
+
+		error = kern_getsockopt(td, args->s, IPPROTO_ICMPV6,
+		    ICMP6_FILTER, &f, UIO_SYSSPACE, &len);
+		if (error)
+			return (error);
+
+		/* Linux uses opposite values for pass/block in ICMPv6 */
+		for (i = 0; i < nitems(f.icmp6_filt); i++)
+			f.icmp6_filt[i] = ~f.icmp6_filt[i];
+		error = copyout(&f, PTRIN(args->optval), len);
+		if (error)
+			return (error);
+
+		return (copyout(&len, PTRIN(args->optlen), sizeof(socklen_t)));
+	}
+#endif
 	default:
 		name = -1;
 		break;

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2026 Dag-Erling Smørgrav <des@FreeBSD.org>
  * Copyright (c) 2015-2021 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
  *
@@ -24,20 +25,24 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/capsicum.h>
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/sbuf.h>
 
 #include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
+#include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <xlocale.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 typedef enum {
 	/* state	condition to transit to next state */
@@ -56,20 +61,20 @@ scan(FILE *fp, const char *name, bool quiet)
 	bool hasid = false;
 	bool subversion = false;
 	analyzer_states state = INIT;
-	FILE* buffp;
+	FILE *buffp;
 	char *buf;
 	size_t sz;
-	locale_t l;
 
-	l = newlocale(LC_ALL_MASK, "C", NULL);
 	sz = 0;
 	buf = NULL;
-	buffp = open_memstream(&buf, &sz);
-	if (buffp == NULL)
-		err(EXIT_FAILURE, "open_memstream()");
+	if ((buffp = open_memstream(&buf, &sz)) == NULL)
+		goto bufferr;
 
-	if (name != NULL)
+	if (name != NULL) {
 		printf("%s:\n", name);
+		if (fflush(stdout) == EOF)
+			err(EXIT_FAILURE, "stdout");
+	}
 
 	while ((c = fgetc(fp)) != EOF) {
 		switch (state) {
@@ -83,13 +88,14 @@ scan(FILE *fp, const char *name, bool quiet)
 			}
 			break;
 		case DELIM_SEEN:
-			if (isalpha_l(c, l)) {
+			if (isalpha(c)) {
 				/* Transit to KEYWORD if we see letter */
 				if (buf != NULL)
 					memset(buf, 0, sz);
-				rewind(buffp);
-				fputc('$', buffp);
-				fputc(c, buffp);
+				if (fseek(buffp, 0, SEEK_SET) != 0 ||
+				    fputc('$', buffp) == EOF ||
+				    fputc(c, buffp) == EOF)
+					goto bufferr;
 				state = KEYWORD;
 
 				continue;
@@ -102,9 +108,10 @@ scan(FILE *fp, const char *name, bool quiet)
 			}
 			break;
 		case KEYWORD:
-			fputc(c, buffp);
+			if (fputc(c, buffp) == EOF)
+				goto bufferr;
 
-			if (isalpha_l(c, l)) {
+			if (isalpha(c)) {
 				/*
 				 * Stay in KEYWORD if additional letter is seen
 				 */
@@ -132,7 +139,8 @@ scan(FILE *fp, const char *name, bool quiet)
 			break;
 		case PUNC_SEEN:
 		case PUNC_SEEN_SVN:
-			fputc(c, buffp);
+			if (fputc(c, buffp) == EOF)
+				goto bufferr;
 
 			switch (c) {
 			case ':':
@@ -166,13 +174,15 @@ scan(FILE *fp, const char *name, bool quiet)
 			}
 			break;
 		case TEXT:
-			fputc(c, buffp);
+			if (fputc(c, buffp) == EOF)
+				goto bufferr;
 
-			if (iscntrl_l(c, l)) {
+			if (iscntrl(c)) {
 				/* Control characters are not allowed in this state */
 				state = INIT;
 			} else if (c == '$') {
-				fflush(buffp);
+				if (fflush(buffp) == EOF)
+					goto bufferr;
 				/*
 				 * valid ident should end with a space.
 				 *
@@ -182,9 +192,11 @@ scan(FILE *fp, const char *name, bool quiet)
 				 * subversion mode.  No length check is enforced
 				 * because GNU RCS ident(1) does not do it either.
 				 */
-				c = buf[strlen(buf) -2 ];
+				c = buf[strlen(buf) - 2];
 				if (c == ' ' || (subversion && c == '#')) {
 					printf("     %s\n", buf);
+					if (fflush(stdout) == EOF)
+						err(EXIT_FAILURE, "stdout");
 					hasid = true;
 				}
 				state = INIT;
@@ -193,32 +205,49 @@ scan(FILE *fp, const char *name, bool quiet)
 			break;
 		}
 	}
-	fclose(buffp);
+	if (fclose(buffp) == EOF)
+		goto bufferr;
 	free(buf);
-	freelocale(l);
 
 	if (!hasid) {
-		if (!quiet)
+		if (!quiet) {
 			fprintf(stderr, "%s warning: no id keywords in %s\n",
 			    getprogname(), name ? name : "standard input");
-
+		}
 		return (EXIT_FAILURE);
 	}
 
 	return (EXIT_SUCCESS);
+bufferr:
+	err(EXIT_FAILURE, "buffer");
 }
+
+static void
+usage(void)
+{
+	fprintf(stderr, "usage: %s [-q] [-V] [file...]", getprogname());
+	exit(EXIT_FAILURE);
+}
+
+static struct option longopts[] = {
+	{ "quiet",	no_argument,	NULL,	'q' },
+	{ "version",	no_argument,	NULL,	'V' },
+	{ NULL,		0,		NULL,	0 }
+};
 
 int
 main(int argc, char **argv)
 {
+	fileargs_t *fa;
+	cap_rights_t rights;
 	bool quiet = false;
-	int ch, i, *fds, fd;
-	int ret = EXIT_SUCCESS;
-	size_t nfds;
+	int i, opt, ret;
 	FILE *fp;
 
-	while ((ch = getopt(argc, argv, "qV")) != -1) {
-		switch (ch) {
+	setlocale(LC_CTYPE, "C");
+
+	while ((opt = getopt_long(argc, argv, "+qV", longopts, NULL)) != -1) {
+		switch (opt) {
 		case 'q':
 			quiet = true;
 			break;
@@ -226,61 +255,36 @@ main(int argc, char **argv)
 			/* Do nothing, compat with GNU rcs's ident */
 			return (EXIT_SUCCESS);
 		default:
-			errx(EXIT_FAILURE, "usage: %s [-q] [-V] [file...]",
-			    getprogname());
+			usage();
 		}
 	}
 
 	argc -= optind;
 	argv += optind;
 
-	if (caph_limit_stdio() < 0)
-		err(EXIT_FAILURE, "unable to limit stdio");
+	cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_FCNTL);
+	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
+	if (fa == NULL)
+		err(EXIT_FAILURE, "Unable to initialize casper");
+	caph_cache_catpages();
+	if (caph_limit_stdio() != 0)
+		err(EXIT_FAILURE, "Unable to limit stdio");
+	if (caph_enter_casper() != 0)
+		err(EXIT_FAILURE, "Unable to enter capability mode");
 
 	if (argc == 0) {
-		nfds = 1;
-		fds = malloc(sizeof(*fds));
-		if (fds == NULL)
-			err(EXIT_FAILURE, "unable to allocate fds array");
-		fds[0] = STDIN_FILENO;
+		ret = scan(stdin, NULL, quiet);
 	} else {
-		nfds = argc;
-		fds = malloc(sizeof(*fds) * nfds);
-		if (fds == NULL)
-			err(EXIT_FAILURE, "unable to allocate fds array");
-
+		ret = EXIT_SUCCESS;
 		for (i = 0; i < argc; i++) {
-			fds[i] = fd = open(argv[i], O_RDONLY);
-			if (fd < 0) {
-				warn("%s", argv[i]);
+			if ((fp = fileargs_fopen(fa, argv[i], "r")) == NULL)
+				err(EXIT_FAILURE, "%s", argv[i]);
+			if (scan(fp, argv[i], quiet) != EXIT_SUCCESS)
 				ret = EXIT_FAILURE;
-				continue;
-			}
-			if (caph_limit_stream(fd, CAPH_READ) < 0)
-				err(EXIT_FAILURE,
-				    "unable to limit fcntls/rights for %s",
-				    argv[i]);
+			(void)fclose(fp);
 		}
 	}
 
-	/* Enter Capsicum sandbox. */
-	if (caph_enter() < 0)
-		err(EXIT_FAILURE, "unable to enter capability mode");
-
-	for (i = 0; i < (int)nfds; i++) {
-		if (fds[i] < 0)
-			continue;
-
-		fp = fdopen(fds[i], "r");
-		if (fp == NULL) {
-			warn("%s", argv[i]);
-			ret = EXIT_FAILURE;
-			continue;
-		}
-		if (scan(fp, argc == 0 ? NULL : argv[i], quiet) != EXIT_SUCCESS)
-			ret = EXIT_FAILURE;
-		fclose(fp);
-	}
-
+	fileargs_free(fa);
 	return (ret);
 }

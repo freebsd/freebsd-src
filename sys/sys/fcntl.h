@@ -142,6 +142,13 @@ typedef	__pid_t		pid_t;
 #define	O_EMPTY_PATH	0x02000000
 #define	O_NAMEDATTR	0x04000000	/* NFSv4 named attributes */
 #define	O_XATTR		O_NAMEDATTR	/* Solaris compatibility */
+
+/*
+ * Emulate MacOSX compatibility flag without consuming a flags bit.
+ * It is not fully correct since reads over regular files opened with
+ * this definition fail.
+ */
+#define	O_SYMLINK	(O_PATH | O_NOFOLLOW)
 #endif
 
 #if __POSIX_VISIBLE >= 202405
@@ -171,6 +178,12 @@ typedef	__pid_t		pid_t;
 #define	FOPENFAILED	O_TTY_INIT
 /* Only for O_PATH files which passed ACCESS FREAD check on open */
 #define	FKQALLOWED	O_RESOLVE_BENEATH
+/* Flags userspace is allowed to pass to openat() */
+#define	FUSERALLOWED	(O_ACCMODE | O_NONBLOCK | O_APPEND | O_SHLOCK | \
+    O_EXLOCK | O_ASYNC | O_SYNC | O_NOFOLLOW | O_CREAT | O_TRUNC | \
+    O_EXCL | O_NOCTTY | O_DIRECT | O_DIRECTORY | O_EXEC | O_TTY_INIT | \
+    O_CLOEXEC | O_VERIFY | O_PATH | O_RESOLVE_BENEATH | O_DSYNC | \
+    O_EMPTY_PATH | O_NAMEDATTR | O_CLOFORK)
 
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)

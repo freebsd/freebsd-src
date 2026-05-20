@@ -3121,12 +3121,6 @@ sysctl_debug_witness_badstacks(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef DDB
-static int
-sbuf_db_printf_drain(void *arg __unused, const char *data, int len)
-{
-	return (db_printf("%.*s", len, data));
-}
-
 DB_SHOW_COMMAND_FLAGS(badstacks, db_witness_badstacks, DB_CMD_MEMSAFE)
 {
 	struct sbuf sb;

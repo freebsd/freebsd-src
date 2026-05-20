@@ -57,39 +57,38 @@ struct ucl_emitter_context_streamline {
 	struct ucl_emitter_streamline_stack *containers;
 };
 
-#define TO_STREAMLINE(ctx) (struct ucl_emitter_context_streamline *)(ctx)
+#define TO_STREAMLINE(ctx) (struct ucl_emitter_context_streamline *) (ctx)
 
-struct ucl_emitter_context*
-ucl_object_emit_streamline_new (const ucl_object_t *obj,
-		enum ucl_emitter emit_type,
-		struct ucl_emitter_functions *emitter)
+struct ucl_emitter_context *
+ucl_object_emit_streamline_new(const ucl_object_t *obj,
+							   enum ucl_emitter emit_type,
+							   struct ucl_emitter_functions *emitter)
 {
 	const struct ucl_emitter_context *ctx;
 	struct ucl_emitter_context_streamline *sctx;
 
-	ctx = ucl_emit_get_standard_context (emit_type);
+	ctx = ucl_emit_get_standard_context(emit_type);
 	if (ctx == NULL) {
 		return NULL;
 	}
 
-	sctx = calloc (1, sizeof (*sctx));
+	sctx = calloc(1, sizeof(*sctx));
 	if (sctx == NULL) {
 		return NULL;
 	}
 
-	memcpy (sctx, ctx, sizeof (*ctx));
+	memcpy(sctx, ctx, sizeof(*ctx));
 	sctx->func = emitter;
 	sctx->top = obj;
 
-	ucl_object_emit_streamline_start_container ((struct ucl_emitter_context *)sctx,
-			obj);
+	ucl_object_emit_streamline_start_container((struct ucl_emitter_context *) sctx,
+											   obj);
 
-	return (struct ucl_emitter_context *)sctx;
+	return (struct ucl_emitter_context *) sctx;
 }
 
-void
-ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
-		const ucl_object_t *obj)
+bool ucl_object_emit_streamline_start_container(struct ucl_emitter_context *ctx,
+												const ucl_object_t *obj)
 {
 	struct ucl_emitter_context_streamline *sctx = TO_STREAMLINE(ctx);
 	struct ucl_emitter_streamline_stack *st, *top;
@@ -101,7 +100,7 @@ ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
 	}
 
 	top = sctx->containers;
-	st = malloc (sizeof (*st));
+	st = malloc(sizeof(*st));
 	if (st != NULL) {
 		st->empty = true;
 		if (top && !top->is_array) {
@@ -111,19 +110,26 @@ ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
 		st->obj = obj;
 		if (obj != NULL && obj->type == UCL_ARRAY) {
 			st->is_array = true;
-			sctx->ops->ucl_emitter_start_array (ctx, obj, top == NULL, print_key);
+			sctx->ops->ucl_emitter_start_array(ctx, obj, top == NULL, print_key);
+		}
+		else if (obj != NULL && obj->type == UCL_OBJECT) {
+			st->is_array = false;
+			sctx->ops->ucl_emitter_start_object(ctx, obj, top == NULL, print_key);
 		}
 		else {
-			st->is_array = false;
-			sctx->ops->ucl_emitter_start_object (ctx, obj, top == NULL, print_key);
+			/* API MISUSE */
+			free(st);
+
+			return false;
 		}
-		LL_PREPEND (sctx->containers, st);
+		LL_PREPEND(sctx->containers, st);
 	}
+
+	return true;
 }
 
-void
-ucl_object_emit_streamline_add_object (
-		struct ucl_emitter_context *ctx, const ucl_object_t *obj)
+void ucl_object_emit_streamline_add_object(
+	struct ucl_emitter_context *ctx, const ucl_object_t *obj)
 {
 	struct ucl_emitter_context_streamline *sctx = TO_STREAMLINE(ctx);
 	bool is_array = false, is_first = false;
@@ -138,11 +144,10 @@ ucl_object_emit_streamline_add_object (
 		}
 	}
 
-	sctx->ops->ucl_emitter_write_elt (ctx, obj, is_first, !is_array);
+	sctx->ops->ucl_emitter_write_elt(ctx, obj, is_first, !is_array);
 }
 
-void
-ucl_object_emit_streamline_end_container (struct ucl_emitter_context *ctx)
+void ucl_object_emit_streamline_end_container(struct ucl_emitter_context *ctx)
 {
 	struct ucl_emitter_context_streamline *sctx = TO_STREAMLINE(ctx);
 	struct ucl_emitter_streamline_stack *st;
@@ -151,24 +156,23 @@ ucl_object_emit_streamline_end_container (struct ucl_emitter_context *ctx)
 		st = sctx->containers;
 
 		if (st->is_array) {
-			sctx->ops->ucl_emitter_end_array (ctx, st->obj);
+			sctx->ops->ucl_emitter_end_array(ctx, st->obj);
 		}
 		else {
-			sctx->ops->ucl_emitter_end_object (ctx, st->obj);
+			sctx->ops->ucl_emitter_end_object(ctx, st->obj);
 		}
 		sctx->containers = st->next;
-		free (st);
+		free(st);
 	}
 }
 
-void
-ucl_object_emit_streamline_finish (struct ucl_emitter_context *ctx)
+void ucl_object_emit_streamline_finish(struct ucl_emitter_context *ctx)
 {
 	struct ucl_emitter_context_streamline *sctx = TO_STREAMLINE(ctx);
 
 	while (sctx->containers != NULL) {
-		ucl_object_emit_streamline_end_container (ctx);
+		ucl_object_emit_streamline_end_container(ctx);
 	}
 
-	free (sctx);
+	free(sctx);
 }

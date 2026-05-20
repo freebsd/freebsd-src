@@ -1,3 +1,5 @@
+.include <kmod.opts.mk>
+
 DEVATH11KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath11k
 
 .PATH: ${DEVATH11KDIR}
@@ -5,6 +7,7 @@ DEVATH11KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath11k
 ATH11K_PCI=		1
 ATH11K_AHB=		0
 
+ATH11K_CFR=		0
 ATH11K_DEBUGFS=		0
 ATH11K_TRACE=		0
 ATH11K_THERMAL=		0
@@ -29,6 +32,11 @@ CFLAGS+=	-DCONFIG_ATH11K_PCI
 .if defined(ATH11K_AHB) && ${ATH11K_AHB} > 0
 SRCS+=	ahb.c
 CFLAGS+=	-DCONFIG_ATH11K_AHB
+.endif
+
+.if defined(ATH11K_CFR) && ${ATH11K_CFR} > 0
+SRCS+=	cfr.c
+CFLAGS+=	-DCONFIG_ATH11K_CFR
 .endif
 
 .if defined(ATH11K_DEBUGFS) && ${ATH11K_DEBUGFS} > 0
@@ -75,6 +83,6 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-DCONFIG_ATH11K_DEBUG
 
 CFLAGS+=	-DKBUILD_MODNAME='"ath11k"'
-CFLAGS+=	-DLINUXKPI_VERSION=61900
+CFLAGS+=	-DLINUXKPI_VERSION=70000
 
 .include <bsd.kmod.mk>

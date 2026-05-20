@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -18,6 +18,7 @@
    Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
    Copyright (c) 2020      Tim Gates <tim.gates@iress.com>
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
+   Copyright (c) 2026      Christian Ng <christianrng@berkeley.edu>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -1507,7 +1508,7 @@ END_TEST
 
 /* Verify that retry after OOM in setContext() does not crash.
  */
-START_TEST(test_nsalloc_setContext_zombie) {
+START_TEST(test_nsalloc_set_context_zombie) {
   const char *text = "<doc>Hello</doc>";
   unsigned int i;
   const unsigned int max_alloc_count = 30;
@@ -1519,7 +1520,9 @@ START_TEST(test_nsalloc_setContext_zombie) {
       break;
     /* Retry on the same parser — must not crash */
     g_allocation_count = ALLOC_ALWAYS_SUCCEED;
-    XML_Parse(g_parser, text, (int)strlen(text), XML_TRUE);
+    const enum XML_Status status
+        = XML_Parse(g_parser, text, (int)strlen(text), XML_TRUE);
+    (void)status;
 
     nsalloc_teardown();
     nsalloc_setup();
@@ -1565,5 +1568,5 @@ make_nsalloc_test_case(Suite *s) {
   tcase_add_test__if_xml_ge(tc_nsalloc, test_nsalloc_long_default_in_ext);
   tcase_add_test(tc_nsalloc, test_nsalloc_long_systemid_in_ext);
   tcase_add_test(tc_nsalloc, test_nsalloc_prefixed_element);
-  tcase_add_test(tc_nsalloc, test_nsalloc_setContext_zombie);
+  tcase_add_test(tc_nsalloc, test_nsalloc_set_context_zombie);
 }

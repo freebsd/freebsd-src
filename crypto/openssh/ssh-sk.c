@@ -23,9 +23,7 @@
 
 #include <dlfcn.h>
 #include <stddef.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 

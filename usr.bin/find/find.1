@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 26, 2025
+.Dd February 14, 2026
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -976,6 +976,23 @@ This test makes use of the
 .Xr access 2
 system call, and so can be fooled by NFS servers which do UID mapping (or root-squashing).
 This is a GNU find extension.
+.It Ic -xattr
+Matches files which have extended attributes set in any supported namespace.
+.It Ic -xattrname Ar xattr
+Matches files which have the specified
+.Ar xattr
+extended attribute set.
+All supported namespaces are searched by default, but
+.Ar xattr
+may be prefixed with
+.Dq user:
+or
+.Dq system:
+to filter by namespace.
+.Pp
+Note that named attributes are not supported, only extended attributes as set
+by, e.g.,
+.Xr setextattr 8 .
 .El
 .Sh OPERATORS
 The primaries may be combined using the following operators.
@@ -1245,6 +1262,7 @@ section below for details.
 .Xr whereis 1 ,
 .Xr which 1 ,
 .Xr xargs 1 ,
+.Xr extattr 2 ,
 .Xr stat 2 ,
 .Xr acl 3 ,
 .Xr fts 3 ,
@@ -1253,7 +1271,8 @@ section below for details.
 .Xr strmode 3 ,
 .Xr ascii 7 ,
 .Xr re_format 7 ,
-.Xr symlink 7
+.Xr symlink 7 ,
+.Xr setextattr 8
 .Sh STANDARDS
 The
 .Nm

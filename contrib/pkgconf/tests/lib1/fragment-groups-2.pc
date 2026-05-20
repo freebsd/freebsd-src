@@ -1,0 +1,4 @@
+Name: fragment-groups-2
+Version: 1.0
+Description: Test fixture for fragment groups
+Requires: fragment-group-a, fragment-group-b, fragment-group-c

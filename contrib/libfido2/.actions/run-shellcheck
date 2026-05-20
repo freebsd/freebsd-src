@@ -1,0 +1,25 @@
+#!/bin/sh -u
+
+# Copyright (c) 2024 Google LLC. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+LIST="$(mktemp)"
+trap 'rm -- $LIST' EXIT
+
+git ls-files | while read -r file; do
+	if head -n1 "$file" | grep -q '^#!.*sh'; then
+		if ! shellcheck -Cnever --norc "$file"; then
+			echo "$file" >> "$LIST"
+		fi
+	fi
+done
+
+[ -s "$LIST" ] && {
+	echo "The following files contain errors:"
+	cat "$LIST"
+	exit 1
+} 1>&2
+
+exit 0

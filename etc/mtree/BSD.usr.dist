@@ -26,6 +26,8 @@
                     ..
                 ..
             ..
+            pkgconf           tags=package=pkgconf-dev
+            ..
             samplerate        tags=package=sound-dev
             ..
             sqlite3           tags=package=libsqlite3-dev
@@ -40,7 +42,7 @@
     ..
     lib
         clang
-            19
+            21
                 include
                     cuda_wrappers
                         bits
@@ -344,8 +346,6 @@
             ..
             netgraph
             ..
-            perfmon
-            ..
             pf
             ..
             ppi
@@ -503,8 +503,6 @@
             man4
                 aarch64
                 ..
-                amd64
-                ..
                 arm
                 ..
                 i386
@@ -519,12 +517,6 @@
             man7
             ..
             man8
-                amd64
-                ..
-                i386
-                ..
-                powerpc
-                ..
             ..
             man9
             ..

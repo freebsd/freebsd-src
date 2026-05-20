@@ -1,0 +1,4 @@
+Name: fragment-group-b
+Version: 1.0
+Description: Test fixture for fragment groups
+Libs: -nodefaultlibs

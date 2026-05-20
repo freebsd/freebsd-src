@@ -50,8 +50,9 @@
 
 #define	PMCSTAT_PRINT_ENTRY(T,...) do {					\
 		(void) fprintf(args.pa_printfile, "%-9s", T);		\
-		(void) fprintf(args.pa_printfile, " "  __VA_ARGS__);	\
-		(void) fprintf(args.pa_printfile, "\n");		\
+		(void) fprintf(args.pa_printfile, " " __VA_ARGS__);	\
+		(void) fprintf(args.pa_printfile, " %20ju\n",		\
+		(uintmax_t)_pmcstat_current_tsc);			\
 	} while (0)
 
 #define PMCSTAT_PL_NONE		0

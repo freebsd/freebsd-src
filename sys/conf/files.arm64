@@ -9,6 +9,7 @@ kern/subr_devmap.c				standard
 kern/subr_efi_map.c				standard
 kern/subr_intr.c				optional intrng
 kern/subr_physmem.c				standard
+kern/subr_busdma_bufalloc.c			standard
 libkern/strlen.c		standard
 libkern/arm64/crc32c_armv8.S			standard
 
@@ -77,6 +78,7 @@ arm64/arm64/ptrauth.c				standard \
 	compile-with	"${NORMAL_C:N-mbranch-protection*} -mbranch-protection=bti"
 arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
+arm64/arm64/rsi.c				standard
 arm64/arm64/sdt_machdep.c			optional kdtrace_hooks
 arm64/arm64/sigtramp.S				standard
 arm64/arm64/spec_workaround.c			standard
@@ -262,6 +264,7 @@ dev/dpaa2/dpaa2_channel.c			optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_cmd_if.m			optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_con.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_console.c			optional soc_nxp_ls dpaa2 fdt
+dev/dpaa2/dpaa2_frame.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_io.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_mac.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_mc.c				optional soc_nxp_ls dpaa2
@@ -767,8 +770,27 @@ dev/ahci/ahci_fsl_fdt.c				optional soc_nxp_ls ahci fdt
 dev/flash/flexspi/flex_spi.c    		optional clk flex_spi soc_nxp_ls fdt
 
 # Qualcomm
-arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_main.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_clock.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_reset.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_ipq4018_reset.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_ipq4018_clock.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_msm8916_reset.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_msm8916_clock.c		optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_fepll.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_fdiv.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_apssdiv.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_freqtbl.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_rcg2.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_branch2.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_ro_div.c			optional qcom_gcc fdt
 dev/qcom_mdio/qcom_mdio_ipq4018.c		optional qcom_mdio fdt mdio mii
+dev/qcom_tlmm/qcom_tlmm_debug.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_pin.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_pinmux.c		optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_ipq4018.c		optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_ipq4018_hw.c		optional qcom_tlmm gpio
 
 # RockChip Drivers
 arm64/rockchip/rk3328_codec.c			optional fdt rk3328codec soc_rockchip_rk3328

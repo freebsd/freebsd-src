@@ -862,7 +862,7 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_mb = mpend;
 		if ((mpend->m_flags & M_EXTPG) != 0) {
 			nd->nd_bextpg = mpend->m_epg_npgs - 1;
-			nd->nd_bpos = (char *)(void *)
+			nd->nd_bpos =
 			    PHYS_TO_DMAP(mpend->m_epg_pa[nd->nd_bextpg]);
 			off = (nd->nd_bextpg == 0) ? mpend->m_epg_1st_off : 0;
 			nd->nd_bpos += off + mpend->m_epg_last_len;
@@ -1068,8 +1068,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 		if ((m2->m_flags & M_EXTPG) != 0) {
 			nd->nd_flag |= ND_EXTPG;
 			nd->nd_bextpg = m2->m_epg_npgs - 1;
-			nd->nd_bpos = (char *)(void *)
-			    PHYS_TO_DMAP(m2->m_epg_pa[nd->nd_bextpg]);
+			nd->nd_bpos = PHYS_TO_DMAP(m2->m_epg_pa[nd->nd_bextpg]);
 			poff = (nd->nd_bextpg == 0) ? m2->m_epg_1st_off : 0;
 			nd->nd_bpos += poff + m2->m_epg_last_len;
 			nd->nd_bextpgsiz = PAGE_SIZE - m2->m_epg_last_len -
@@ -4270,7 +4269,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	/* Allocated large enough for an AF_INET or AF_INET6 socket. */
 	clp->lc_req.nr_nam = malloc(sizeof(struct sockaddr_in6), M_SONAME,
 	    M_WAITOK | M_ZERO);
-	clp->lc_req.nr_cred = NULL;
+	clp->lc_req.nr_cred = crhold(nd->nd_cred);
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
 	clp->lc_idlen = idlen;
 	error = nfsrv_mtostr(nd, clp->lc_id, idlen);
@@ -4360,6 +4359,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (clp) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
@@ -4378,6 +4378,7 @@ nfsmout:
 	if (clp) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
@@ -4635,7 +4636,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 #endif
 	}
-	clp->lc_req.nr_cred = NULL;
+	clp->lc_req.nr_cred = crhold(nd->nd_cred);
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
 	clp->lc_idlen = idlen;
 	error = nfsrv_mtostr(nd, clp->lc_id, idlen);
@@ -4708,6 +4709,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (clp != NULL) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
@@ -4751,6 +4753,7 @@ nfsmout:
 	if (clp != NULL) {
 		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		crfree(clp->lc_req.nr_cred);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
@@ -4866,6 +4869,14 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 		*tl++ = txdr_unsigned(sep->sess_cbsess.nfsess_foreslots);
 		*tl++ = txdr_unsigned(1);
 		*tl = txdr_unsigned(0);			/* No RDMA. */
+		/*
+		 * Although the client accepts slot#s up to
+		 * sess_cbsess.nfsess_foreslots, the server can only use
+		 * a maximum of NFSV4_SLOTS, so clip it to avoid ever using
+		 * too high a slot.
+		 */
+		if (sep->sess_cbsess.nfsess_foreslots > NFSV4_SLOTS)
+			sep->sess_cbsess.nfsess_foreslots = NFSV4_SLOTS;
 	}
 nfsmout:
 	if (nd->nd_repstat != 0 && sep != NULL)
@@ -6431,7 +6442,7 @@ nfsrvd_getxattr(struct nfsrv_descript *nd, __unused int isdgram,
 			if ((mpend->m_flags & M_EXTPG) != 0) {
 				nd->nd_flag |= ND_EXTPG;
 				nd->nd_bextpg = mpend->m_epg_npgs - 1;
-				nd->nd_bpos = (char *)(void *)
+				nd->nd_bpos =
 				   PHYS_TO_DMAP(mpend->m_epg_pa[nd->nd_bextpg]);
 				off = (nd->nd_bextpg == 0) ?
 				    mpend->m_epg_1st_off : 0;

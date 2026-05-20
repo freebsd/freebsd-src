@@ -355,7 +355,6 @@
 ################################################################################
 .align 4
 aes_gcm_crypt_1x:
-.localentry	aes_gcm_crypt_1x,0
 
 	cmpdi	5, 16
 	bge	__More_1x
@@ -438,7 +437,6 @@ __Encrypt_1x:
 ################################################################################
 .align 4
 __Process_partial:
-.localentry	__Process_partial,0
 
 	# create partial mask
 	vspltisb 16, -1
@@ -510,7 +508,6 @@ __Encrypt_partial:
 .global ppc_aes_gcm_encrypt
 .align 5
 ppc_aes_gcm_encrypt:
-.localentry     ppc_aes_gcm_encrypt,0
 
 	SAVE_REGS
 	LOAD_HASH_TABLE
@@ -698,7 +695,6 @@ __Process_more_enc:
 .global ppc_aes_gcm_decrypt
 .align 5
 ppc_aes_gcm_decrypt:
-.localentry	ppc_aes_gcm_decrypt, 0
 
 	SAVE_REGS
 	LOAD_HASH_TABLE
@@ -978,7 +974,6 @@ __Process_more_dec:
 .size   ppc_aes_gcm_decrypt,.-ppc_aes_gcm_decrypt
 
 aes_gcm_out:
-.localentry	aes_gcm_out,0
 
 	mr	3, 11			# return count
 

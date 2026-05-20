@@ -263,9 +263,17 @@ nfsuint64 *
 ncl_getcookie(struct nfsnode *np, off_t off, int add)
 {
 	struct nfsdmap *dp, *dp2;
-	int pos;
+	u_int pos;
 	nfsuint64 *retval = NULL;
 
+	/*
+	 * Limiting "off" to 50Gbytes sets a limit of 100 million directory
+	 * entries of maximum filename length.  Much more with shorter
+	 * file names.  This limit ensures "pos" will not be truncated
+	 * in the devision below.
+	 */
+	if (off > 53687091200ull)
+		goto out;
 	pos = (uoff_t)off / NFS_DIRBLKSIZ;
 	if (pos == 0 || off < 0) {
 		KASSERT(!add, ("nfs getcookie add at <= 0"));

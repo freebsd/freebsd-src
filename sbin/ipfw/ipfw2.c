@@ -3595,12 +3595,13 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 		 * list unless it is the only item, in which case we
 		 * report an error.
 		 */
-		if (cmd->o.len & F_NOT) {	/* "not any" never matches */
-			if (av == NULL && len == 0) /* only this entry */
+		if (av == NULL && len == 0) {
+			if (cmd->o.len & F_NOT) /* "not any" never matches */
 				errx(EX_DATAERR, "not any never matches");
+			return;
 		}
 		/* else do nothing and skip this entry */
-		return;
+		continue;
 	}
 	/* A single IP can be stored in an optimized format */
 	if (d[1] == (uint32_t)~0 && av == NULL && len == 0) {
@@ -5515,10 +5516,7 @@ read_options:
 			break;
 
 		case TOK_FLOWID:
-			if (proto != IPPROTO_IPV6 )
-				errx( EX_USAGE, "flow-id filter is active "
-				    "only for ipv6 protocol\n");
-			fill_flow6( (ipfw_insn_u32 *) cmd, *av, cblen);
+			fill_flow6(insntod(cmd, u32), *av, cblen);
 			av++;
 			break;
 

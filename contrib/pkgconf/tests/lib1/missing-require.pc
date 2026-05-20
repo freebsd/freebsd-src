@@ -1,0 +1,11 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: missing-require
+Description: A testing pkg-config file
+Version: 1.2.3
+Requires.private: missing
+Libs: -L${libdir} -lfoo
+Cflags: -fPIC -I${includedir}/foo

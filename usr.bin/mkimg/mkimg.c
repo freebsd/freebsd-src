@@ -446,6 +446,8 @@ mkimg(void)
 {
 	FILE *fp;
 	struct part *part;
+	struct stat sb;
+	char *p;
 	lba_t block, blkoffset;
 	uint64_t bytesize, byteoffset;
 	char *size, *offset;
@@ -468,12 +470,28 @@ mkimg(void)
 		/* Look for an offset. Set size too if we can. */
 		switch (part->kind) {
 		case PART_KIND_SIZE:
-		case PART_KIND_FILE:
 			offset = part->contents;
 			size = strsep(&offset, ":");
-			if (part->kind == PART_KIND_SIZE &&
-			    expand_number(size, &bytesize) == -1)
+			if (expand_number(size, &bytesize) == -1)
 				error = errno;
+			break;
+		case PART_KIND_FILE:
+			size = part->contents;
+			if (stat(part->contents, &sb) == 0) {
+				if (S_ISDIR(sb.st_mode)) {
+					errc(EX_IOERR, EISDIR, "partition %d",
+					    part->index + 1);
+				}
+				offset = NULL;
+			} else {
+				p = strrchr(part->contents, ':');
+				if (p != NULL) {
+					*p = '\0';
+					offset = p + 1;
+				} else {
+					offset = NULL;
+				}
+			}
 			if (offset != NULL) {
 				if (*offset != '+')
 					abs_offset = true;

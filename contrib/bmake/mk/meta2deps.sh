@@ -75,7 +75,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.25 2025/11/11 18:08:02 sjg Exp $
+#	$Id: meta2deps.sh,v 1.26 2025/12/08 17:34:02 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -261,8 +261,8 @@ meta2deps() {
 	# first a sanity check - filemon on Linux is not very reliable
 	# path2 should only be non-empty for op L or M
 	# and it should not contain spaces.
-        # It will also be non-empty for # Meta line
-        # which tells us which meta_file we are processing
+	# It will also be non-empty for # Meta line
+	# which tells us which meta_file we are processing
 	case "$op,$path2" in
 	\#*,*.meta) # new file, reset some vars
 	    version=no epids= xpids= eof_token=no lpid=

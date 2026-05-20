@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.187 2024/08/23 04:51:00 deraadt Exp $ */
+/* $OpenBSD: kex.c,v 1.193 2026/03/05 05:40:35 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -33,9 +33,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
 
 #ifdef WITH_OPENSSL
 #include <openssl/crypto.h>
@@ -56,7 +53,6 @@
 #include "match.h"
 #include "misc.h"
 #include "dispatch.h"
-#include "monitor.h"
 #include "myproposal.h"
 
 #include "ssherr.h"
@@ -66,7 +62,7 @@
 
 /* prototype */
 static int kex_choose_conf(struct ssh *, uint32_t seq);
-static int kex_input_newkeys(int, u_int32_t, struct ssh *);
+static int kex_input_newkeys(int, uint32_t, struct ssh *);
 
 static const char * const proposal_names[PROPOSAL_MAX] = {
 	"KEX algorithms",
@@ -233,7 +229,7 @@ kex_prop_free(char **proposal)
 }
 
 int
-kex_protocol_error(int type, u_int32_t seq, struct ssh *ssh)
+kex_protocol_error(int type, uint32_t seq, struct ssh *ssh)
 {
 	int r;
 
@@ -301,13 +297,15 @@ kex_compose_ext_info_server(struct ssh *ssh, struct sshbuf *m)
 	if (ssh->kex->server_sig_algs == NULL &&
 	    (ssh->kex->server_sig_algs = sshkey_alg_list(0, 1, 1, ',')) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	if ((r = sshbuf_put_u32(m, 3)) != 0 ||
+	if ((r = sshbuf_put_u32(m, 4)) != 0 ||
 	    (r = sshbuf_put_cstring(m, "server-sig-algs")) != 0 ||
 	    (r = sshbuf_put_cstring(m, ssh->kex->server_sig_algs)) != 0 ||
 	    (r = sshbuf_put_cstring(m,
 	    "publickey-hostbound@openssh.com")) != 0 ||
 	    (r = sshbuf_put_cstring(m, "0")) != 0 ||
 	    (r = sshbuf_put_cstring(m, "ping@openssh.com")) != 0 ||
+	    (r = sshbuf_put_cstring(m, "0")) != 0 ||
+	    (r = sshbuf_put_cstring(m, "agent-forward")) != 0 ||
 	    (r = sshbuf_put_cstring(m, "0")) != 0) {
 		error_fr(r, "compose");
 		return r;
@@ -451,6 +449,12 @@ kex_ext_info_client_parse(struct ssh *ssh, const char *name,
 		    "0", KEX_HAS_PING)) != 0) {
 			return r;
 		}
+	} else if (ssh->kex->ext_info_received == 1 &&
+	    strcmp(name, "agent-forward") == 0) {
+		if ((r = kex_ext_info_check_ver(ssh->kex, name, value, vlen,
+		    "0", KEX_HAS_NEWAGENT)) != 0) {
+			return r;
+		}
 	} else
 		debug_f("%s (unrecognised)", name);
 
@@ -474,11 +478,11 @@ kex_ext_info_server_parse(struct ssh *ssh, const char *name,
 }
 
 int
-kex_input_ext_info(int type, u_int32_t seq, struct ssh *ssh)
+kex_input_ext_info(int type, uint32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	const int max_ext_info = kex->server ? 1 : 2;
-	u_int32_t i, ninfo;
+	uint32_t i, ninfo;
 	char *name;
 	u_char *val;
 	size_t vlen;
@@ -521,7 +525,7 @@ kex_input_ext_info(int type, u_int32_t seq, struct ssh *ssh)
 }
 
 static int
-kex_input_newkeys(int type, u_int32_t seq, struct ssh *ssh)
+kex_input_newkeys(int type, uint32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	int r, initial = (kex->flags & KEX_INITIAL) != 0;
@@ -563,8 +567,6 @@ kex_input_newkeys(int type, u_int32_t seq, struct ssh *ssh)
 	kex->flags &= ~KEX_INITIAL;
 	sshbuf_reset(kex->peer);
 	kex->flags &= ~KEX_INIT_SENT;
-	free(kex->name);
-	kex->name = NULL;
 	return 0;
 }
 
@@ -607,7 +609,7 @@ kex_send_kexinit(struct ssh *ssh)
 }
 
 int
-kex_input_kexinit(int type, u_int32_t seq, struct ssh *ssh)
+kex_input_kexinit(int type, uint32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	const u_char *ptr;
@@ -620,6 +622,8 @@ kex_input_kexinit(int type, u_int32_t seq, struct ssh *ssh)
 		error_f("no kex");
 		return SSH_ERR_INTERNAL_ERROR;
 	}
+	free(kex->name);
+	kex->name = NULL;
 	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, &kex_protocol_error);
 	ptr = sshpkt_ptr(ssh, &dlen);
 	if ((r = sshbuf_put(kex->peer, ptr, dlen)) != 0)
@@ -742,6 +746,7 @@ kex_free(struct kex *kex)
 	free(kex->failed_choice);
 	free(kex->hostkey_alg);
 	free(kex->name);
+	free(kex->server_sig_algs);
 	free(kex);
 }
 

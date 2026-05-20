@@ -67,7 +67,14 @@ local function open_resolv_conf()
 end
 
 local function open_resolvconf_conf()
-	return openat("/etc", "resolvconf.conf")
+	local path_dir = root .. "/etc"
+	local path_name = path_dir .. "/resolvconf.conf"
+	nuage.mkdir_p(path_dir)
+	local f, err = io.open(path_name, "a")
+	if not f then
+		nuage.err("unable to open " .. path_name .. ": " .. err)
+	end
+	return f, path_name
 end
 
 local function get_ifaces_by_mac()
@@ -271,8 +278,9 @@ local function nameservers(interface, obj)
 	end
 
 	-- Only call resolvconf with interface if interface is provided
+	local resolvconf_command
 	if interface then
-		resolvconf_command = "resolvconf -a " .. interface .. " < " .. resolv_conf
+		resolvconf_command = "resolvconf -a " .. nuage.shell_escape(interface) .. " < " .. resolv_conf
 	else
 		resolvconf_command = "resolvconf -u"
 	end
@@ -727,7 +735,7 @@ local function load_userdata()
 	f:close()
 
 	local obj = nil
-	if ud then
+	if ud and line == "#cloud-config" then
 		f = io.open(ni_path .. "/" .. ud)
 		obj = yaml.load(f:read("*a"))
 		f:close()
@@ -736,6 +744,11 @@ local function load_userdata()
 		end
 	end
 	return line, obj
+end
+
+-- Clean up stale resolvconf.conf from previous boot
+if citype ~= "postnet" then
+	os.remove(root .. "/etc/resolvconf.conf")
 end
 
 if citype == "config-2" then

@@ -191,7 +191,7 @@ static void	vtpci_modern_write_device_8(struct vtpci_modern_softc *,
 /* Tunables. */
 SYSCTL_DECL(_hw_virtio_pci);
 
-static int vtpci_modern_transitional = 0;
+static int vtpci_modern_transitional = 1;
 SYSCTL_INT(_hw_virtio_pci, OID_AUTO, transitional, CTLFLAG_RDTUN,
     &vtpci_modern_transitional, 0,
     "If 0, a transitional VirtIO device is used in legacy mode; otherwise, in modern mode.");

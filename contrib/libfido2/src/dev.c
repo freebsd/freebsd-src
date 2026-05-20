@@ -46,16 +46,21 @@ fido_dev_set_option_flags(fido_dev_t *dev, const fido_cbor_info_t *info)
 		if (strcmp(ptr[i], "clientPin") == 0) {
 			dev->flags |= val[i] ?
 			    FIDO_DEV_PIN_SET : FIDO_DEV_PIN_UNSET;
-		} else if (strcmp(ptr[i], "credMgmt") == 0 ||
-			   strcmp(ptr[i], "credentialMgmtPreview") == 0) {
+		} else if (strcmp(ptr[i], "credMgmt") == 0) {
 			if (val[i])
 				dev->flags |= FIDO_DEV_CREDMAN;
+		} else if (strcmp(ptr[i], "credentialMgmtPreview") == 0) {
+			if (val[i])
+				dev->flags |= FIDO_DEV_CREDMAN_PRE;
 		} else if (strcmp(ptr[i], "uv") == 0) {
 			dev->flags |= val[i] ?
 			    FIDO_DEV_UV_SET : FIDO_DEV_UV_UNSET;
 		} else if (strcmp(ptr[i], "pinUvAuthToken") == 0) {
 			if (val[i])
 				dev->flags |= FIDO_DEV_TOKEN_PERMS;
+		} else if (strcmp(ptr[i], "bioEnroll") == 0) {
+			dev->flags |= val[i] ?
+			    FIDO_DEV_BIO_SET : FIDO_DEV_BIO_UNSET;
 		}
 }
 
@@ -538,7 +543,7 @@ fido_dev_supports_cred_prot(const fido_dev_t *dev)
 bool
 fido_dev_supports_credman(const fido_dev_t *dev)
 {
-	return (dev->flags & FIDO_DEV_CREDMAN);
+	return (dev->flags & (FIDO_DEV_CREDMAN|FIDO_DEV_CREDMAN_PRE));
 }
 
 bool

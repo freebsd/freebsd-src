@@ -325,9 +325,9 @@ struct ieee80211com {
 
 	void			(*ic_node_age)(struct ieee80211_node *);
 	void			(*ic_node_drain)(struct ieee80211_node *);
-	int8_t			(*ic_node_getrssi)(const struct ieee80211_node*);
+	net80211_rssi_t		(*ic_node_getrssi)(const struct ieee80211_node*);
 	void			(*ic_node_getsignal)(const struct ieee80211_node*,
-				    int8_t *, int8_t *);
+				    net80211_rssi_t *, int8_t *);
 	void			(*ic_node_getmimoinfo)(
 				    const struct ieee80211_node*,
 				    struct ieee80211_mimo_info *);
@@ -543,7 +543,7 @@ struct ieee80211vap {
 	int			(*iv_input)(struct ieee80211_node *,
 				    struct mbuf *,
 				    const struct ieee80211_rx_stats *,
-				    int, int);
+				    net80211_rssi_t, int);
 	void			(*iv_recv_mgmt)(struct ieee80211_node *,
 				    struct mbuf *, int,
 				    const struct ieee80211_rx_stats *,

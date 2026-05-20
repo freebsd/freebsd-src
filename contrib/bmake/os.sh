@@ -17,9 +17,9 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.68 2025/08/07 21:59:54 sjg Exp $
+#	$Id: os.sh,v 1.70 2026/02/25 05:44:34 sjg Exp $
 #
-#	@(#) Copyright (c) 1994 Simon J. Gerraty
+#	@(#) Copyright (c) 1994-2026 Simon J. Gerraty
 #
 #	SPDX-License-Identifier: BSD-2-Clause
 #      
@@ -226,6 +226,10 @@ x86*64|amd64) MACHINE32_ARCH=i386;;
 *) MACHINE32_ARCH=$MACHINE_ARCH;;
 esac
 HOST_ARCH32=${HOST_ARCH32:-$MACHINE32_ARCH}
+MACHINE32=${HOST_ARCH32:-$MACHINE}
+HOST_MACHINE=${HOST_MACHINE:-$MACHINE}
+HOST_MACHINE32=${HOST_MACHINE32:-$MACHINE32}
+export HOST_MACHINE HOST_MACHINE32
 export HOST_ARCH HOST_ARCH32
 # we mount server:/share/arch/$SHARE_ARCH as /usr/local
 SHARE_ARCH_DEFAULT=$OS/$OSMAJOR.X/$HOST_ARCH

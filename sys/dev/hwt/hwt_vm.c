@@ -109,9 +109,6 @@ hwt_vm_alloc_pages(struct hwt_vm *vm, int kva_req)
 {
 	vm_paddr_t low, high, boundary;
 	vm_memattr_t memattr;
-#ifdef  __aarch64__
-	uintptr_t va;
-#endif
 	int alignment;
 	vm_page_t m;
 	int pflags;
@@ -127,7 +124,7 @@ hwt_vm_alloc_pages(struct hwt_vm *vm, int kva_req)
 
 	if (kva_req) {
 		vm->kvaddr = kva_alloc(vm->npages * PAGE_SIZE);
-		if (!vm->kvaddr)
+		if (vm->kvaddr == NULL)
 			return (ENOMEM);
 	}
 
@@ -159,8 +156,7 @@ retry:
 #endif
 
 #ifdef __aarch64__
-		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-		cpu_dcache_wb_range((void *)va, PAGE_SIZE);
+		cpu_dcache_wb_range(VM_PAGE_TO_DMAP(m), PAGE_SIZE);
 #endif
 
 		m->valid = VM_PAGE_BITS_ALL;
@@ -171,7 +167,7 @@ retry:
 		VM_OBJECT_WLOCK(vm->obj);
 		vm_page_insert(m, vm->obj, i);
 		if (kva_req)
-			pmap_qenter(vm->kvaddr + i * PAGE_SIZE, &m, 1);
+			pmap_qenter((char *)vm->kvaddr + i * PAGE_SIZE, &m, 1);
 		VM_OBJECT_WUNLOCK(vm->obj);
 	}
 
@@ -441,7 +437,7 @@ hwt_vm_destroy_buffers(struct hwt_vm *vm)
 	vm_page_t m;
 	int i;
 
-	if (vm->ctx->hwt_backend->kva_req && vm->kvaddr != 0) {
+	if (vm->ctx->hwt_backend->kva_req && vm->kvaddr != NULL) {
 		pmap_qremove(vm->kvaddr, vm->npages);
 		kva_free(vm->kvaddr, vm->npages * PAGE_SIZE);
 	}

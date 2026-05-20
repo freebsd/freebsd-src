@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.378 2025/07/06 07:56:16 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.379 2026/04/06 17:13:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -90,7 +90,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.378 2025/07/06 07:56:16 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.379 2026/04/06 17:13:54 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -623,7 +623,7 @@ done_lhs:
 
 /*
  * The argument to empty() is a variable name, optionally followed by
- * variable modifiers.
+ * modifiers.
  */
 static bool
 CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
@@ -641,8 +641,6 @@ CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
 
 	p--;			/* Make p[1] point to the '('. */
 	val = Var_Parse(&p, SCOPE_CMDLINE, doEval ? VARE_EVAL : VARE_PARSE);
-	/* TODO: handle errors */
-
 	if (val.str == var_Error)
 		tok = TOK_ERROR;
 	else {
@@ -1013,7 +1011,7 @@ unknown_directive:
 CondResult
 Cond_EvalLine(const char *line)
 {
-	typedef enum IfState {
+	typedef enum {
 
 		/* None of the previous <cond> evaluated to true. */
 		IFS_INITIAL	= 0,
@@ -1032,7 +1030,7 @@ Cond_EvalLine(const char *line)
 
 	} IfState;
 
-	static enum IfState *cond_states = NULL;
+	static IfState *cond_states = NULL;
 	static unsigned cond_states_cap = 128;
 
 	bool plain;

@@ -22,15 +22,15 @@ nextafterf(float x, float y)
 	volatile float t;
 	int32_t hx,hy,ix,iy;
 
+	if(isnan(x) || isnan(y))     /* x or y is nan */
+	   return x+y;
+	if(x==y) return y;		/* x=y, return y */
+
 	GET_FLOAT_WORD(hx,x);
 	GET_FLOAT_WORD(hy,y);
 	ix = hx&0x7fffffff;		/* |x| */
 	iy = hy&0x7fffffff;		/* |y| */
 
-	if((ix>0x7f800000) ||   /* x is nan */
-	   (iy>0x7f800000))     /* y is nan */
-	   return x+y;
-	if(x==y) return y;		/* x=y, return y */
 	if(ix==0) {				/* x == 0 */
 	    SET_FLOAT_WORD(x,(hy&0x80000000)|1);/* return +-minsubnormal */
 	    t = x*x;

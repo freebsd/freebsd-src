@@ -3515,7 +3515,7 @@ get_negTokenResp(OM_uint32 *minor_status, struct k5input *in,
 			return GSS_S_DEFECTIVE_TOKEN;
 	}
 
-	if (k5_der_get_value(&seq, CONTEXT | 0x04, &field)) {
+	if (k5_der_get_value(&seq, CONTEXT | 0x03, &field)) {
 		*mechListMIC = get_octet_string(&field);
 
                 /* Handle Windows 2000 duplicate response token */

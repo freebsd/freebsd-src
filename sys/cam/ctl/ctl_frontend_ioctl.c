@@ -588,7 +588,7 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td)
 {
 	struct cfi_port *cfi;
-	union ctl_io *io;
+	union ctl_io *io, *user_io;
 	void *pool_tmp, *sc_tmp;
 	int retval = 0;
 
@@ -606,6 +606,11 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	if ((cfi->port.status & CTL_PORT_STATUS_ONLINE) == 0)
 		return (EPERM);
 
+	/* Reject out-of-range initiator IDs. */
+	user_io = (void *)addr;
+	if (user_io->io_hdr.nexus.initid >= CTL_MAX_INIT_PER_PORT)
+		return (EINVAL);
+
 	io = ctl_alloc_io(cfi->port.ctl_pool_ref);
 
 	/*
@@ -614,7 +619,7 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	 */
 	pool_tmp = io->io_hdr.pool;
 	sc_tmp = CTL_SOFTC(io);
-	memcpy(io, (void *)addr, sizeof(*io));
+	memcpy(io, user_io, sizeof(*io));
 	io->io_hdr.pool = pool_tmp;
 	CTL_SOFTC(io) = sc_tmp;
 	TAILQ_INIT(&io->io_hdr.blocked_queue);
@@ -636,7 +641,7 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 	retval = cfi_submit_wait(io);
 	if (retval == 0)
-		memcpy((void *)addr, io, sizeof(*io));
+		memcpy(user_io, io, sizeof(*io));
 
 	ctl_free_io(io);
 	return (retval);

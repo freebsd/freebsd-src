@@ -1,0 +1,93 @@
+.\" Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd February 13, 2026
+.Dt APPLEIR 4
+.Os
+.Sh NAME
+.Nm appleir
+.Nd Apple IR receiver driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device appleir"
+.Cd "device hidbus"
+.Cd "device hid"
+.Cd "device evdev"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 Ns :
+.Bd -literal -offset indent
+appleir_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Apple IR receivers found in Mac computers
+(2006-2011 era).
+It supports both Apple Remote controls and generic IR remotes using the
+NEC infrared protocol.
+.Pp
+Supported devices include:
+.Bl -bullet -compact
+.It
+Apple IR Receiver (USB product IDs 0x8240, 0x8241, 0x8242, 0x8243, 0x1440)
+.El
+.Pp
+The driver decodes proprietary Apple Remote button presses and provides
+a default keymap for common NEC protocol codes used by generic IR remotes.
+Unmapped button codes can be accessed via the raw HID device at
+.Pa /dev/hidrawX
+for custom userland remapping.
+.Pp
+The
+.Pa /dev/input/eventX
+device presents the remote control as an
+evdev
+input device with standard KEY_* codes suitable for media applications.
+.Sh HARDWARE
+The
+.Nm
+driver supports Apple IR receivers with USB vendor ID 0x05ac and the
+following product IDs:
+.Pp
+.Bl -tag -width "0x8242" -compact
+.It 0x8240
+Apple IR Receiver (first generation)
+.It 0x8241
+Apple IR Receiver
+.It 0x8242
+Apple IR Receiver (Mac Mini 2011, MacBook Pro 3,1)
+.It 0x8243
+Apple IR Receiver
+.It 0x1440
+Apple IR Receiver (slim)
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/input/eventX" -compact
+.It Pa /dev/input/eventX
+evdev input device
+.It Pa /dev/hidrawX
+raw HID device for custom button mapping
+.El
+.Sh SEE ALSO
+evdev ,
+.Xr hidbus 4 ,
+.Xr usbhid 4
+.Pp
+NEC Infrared Transmission Protocol:
+.Lk https://techdocs.altium.com/display/FPGA/NEC+Infrared+Transmission+Protocol
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt freebsd@seuros.com
+.Pp
+Based on protocol reverse-engineering by James McKenzie and others.

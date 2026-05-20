@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-CIPHERS 1ossl"
-.TH OPENSSL-CIPHERS 1ossl 2026-01-27 3.5.5 OpenSSL
+.TH OPENSSL-CIPHERS 1ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -177,16 +177,16 @@ the IANA TLS Cipher Suites Registry
 .PP
 The actual cipher string can take several different forms.
 .PP
-It can consist of a single cipher suite such as \fBRC4\-SHA\fR.
+It can consist of a single cipher suite such as \fBAES256\-SHA\fR.
 .PP
 It can represent a list of cipher suites containing a certain algorithm, or
-cipher suites of a certain type. For example \fBSHA1\fR represents all ciphers
-suites using the digest algorithm SHA1 and \fBSSLv3\fR represents all SSL v3
-algorithms.
+cipher suites of a certain type. For example \fBSHA256\fR represents all cipher
+suites using the digest algorithm SHA256 and \fBTLSv1.2\fR represents all
+cipher suites introduced in TLS v.1.2.
 .PP
 Lists of cipher suites can be combined in a single cipher string using the
 \&\fB+\fR character. This is used as a logical \fBand\fR operation. For example
-\&\fBSHA1+DES\fR represents all cipher suites containing the SHA1 \fBand\fR the DES
+\&\fBSHA256+AES\fR represents all cipher suites using the SHA256 \fBand\fR the AES
 algorithms.
 .PP
 Each cipher string can be optionally preceded by the characters \fB!\fR,
@@ -217,7 +217,7 @@ See \fBSSL_CTX_set_security_level\fR\|(3) for a description of what each level m
 The cipher list can be prefixed with the \fBDEFAULT\fR keyword, which enables
 the default cipher list as defined below.  Unlike cipher strings,
 this prefix may not be combined with other strings using \fB+\fR character.
-For example, \fBDEFAULT+DES\fR is not valid.
+For example, \fBDEFAULT+AES\fR is not valid.
 .PP
 The content of the default list is determined at compile time and normally
 corresponds to \fBALL:!COMPLEMENTOFDEFAULT:!eNULL\fR.
@@ -226,11 +226,12 @@ corresponds to \fBALL:!COMPLEMENTOFDEFAULT:!eNULL\fR.
 The following is a list of all permitted cipher strings and their meanings.
 .IP \fBCOMPLEMENTOFDEFAULT\fR 4
 .IX Item "COMPLEMENTOFDEFAULT"
-The ciphers included in \fBALL\fR, but not enabled by default. Currently
-this includes all RC4 and anonymous ciphers. Note that this rule does
-not cover \fBeNULL\fR, which is not included by \fBALL\fR (use \fBCOMPLEMENTOFALL\fR if
-necessary). Note that RC4 based cipher suites are not built into OpenSSL by
-default (see the enable\-weak\-ssl\-ciphers option to Configure).
+The cipher suites included in \fBALL\fR, but not enabled by default. The default
+cipher suite list provides strong security and reasonable interoperability.
+A cipher suite can be not included in the default list for different reasons:
+because it is weak, or not "mature" enough, or not widely used, etc.
+Note that this rule does not cover \fBeNULL\fR, which is not included by \fBALL\fR
+(use \fBCOMPLEMENTOFALL\fR if necessary).
 .IP \fBALL\fR 4
 .IX Item "ALL"
 All cipher suites except the \fBeNULL\fR ciphers (which must be explicitly enabled
@@ -252,6 +253,9 @@ encryption.
 "Low" encryption cipher suites, currently those using 64 or 56 bit
 encryption algorithms but excluding export cipher suites.  All these
 cipher suites have been removed as of OpenSSL 1.1.0.
+.IP \fBFIPS\fR 4
+.IX Item "FIPS"
+Cipher suites permitted in FIPS mode.
 .IP "\fBeNULL\fR, \fBNULL\fR" 4
 .IX Item "eNULL, NULL"
 The "NULL" ciphers that is those offering no encryption. Because these offer no
@@ -272,13 +276,8 @@ Be careful when building cipherlists out of lower\-level primitives such as
 When in doubt, include \fB!aNULL\fR in your cipherlist.
 .IP "\fBkRSA\fR, \fBaRSA\fR, \fBRSA\fR" 4
 .IX Item "kRSA, aRSA, RSA"
-Cipher suites using RSA key exchange or authentication. \fBRSA\fR is an alias for
-\&\fBkRSA\fR.
-.IP "\fBkDHr\fR, \fBkDHd\fR, \fBkDH\fR" 4
-.IX Item "kDHr, kDHd, kDH"
-Cipher suites using static DH key agreement and DH certificates signed by CAs
-with RSA and DSS keys or either respectively.
-All these cipher suites have been removed in OpenSSL 1.1.0.
+Cipher suites using RSA key exchange, RSA authentication, or both of them
+respectively.
 .IP "\fBkDHE\fR, \fBkEDH\fR, \fBDH\fR" 4
 .IX Item "kDHE, kEDH, DH"
 Cipher suites using ephemeral DH key agreement, including anonymous cipher
@@ -303,19 +302,13 @@ Anonymous Elliptic Curve Diffie\-Hellman cipher suites.
 .IP "\fBaDSS\fR, \fBDSS\fR" 4
 .IX Item "aDSS, DSS"
 Cipher suites using DSS authentication, i.e. the certificates carry DSS keys.
-.IP \fBaDH\fR 4
-.IX Item "aDH"
-Cipher suites effectively using DH authentication, i.e. the certificates carry
-DH keys.
-All these cipher suites have been removed in OpenSSL 1.1.0.
 .IP "\fBaECDSA\fR, \fBECDSA\fR" 4
 .IX Item "aECDSA, ECDSA"
 Cipher suites using ECDSA authentication, i.e. the certificates carry ECDSA
 keys.
 .IP "\fBTLSv1.2\fR, \fBTLSv1.0\fR, \fBSSLv3\fR" 4
 .IX Item "TLSv1.2, TLSv1.0, SSLv3"
-Lists cipher suites which are only supported in at least TLS v1.2, TLS v1.0 or
-SSL v3.0 respectively.
+Lists cipher suites introduced in TLS v1.2, TLS v1.0 or SSL v3.0 respectively.
 Note: there are no cipher suites specific to TLS v1.1.
 Since this is only the minimum version, if, for example, TLSv1.0 is negotiated
 then both TLSv1.0 and SSLv3.0 cipher suites are available.
@@ -335,10 +328,12 @@ AES in Cipher Block Chaining \- Message Authentication Mode (CCM): these
 cipher suites are only supported in TLS v1.2. \fBAESCCM\fR references CCM
 cipher suites using both 16 and 8 octet Integrity Check Value (ICV)
 while \fBAESCCM8\fR only references 8 octet ICV.
-.IP "\fBARIA128\fR, \fBARIA256\fR, \fBARIA\fR" 4
-.IX Item "ARIA128, ARIA256, ARIA"
-Cipher suites using 128 bit ARIA, 256 bit ARIA or either 128 or 256 bit
-ARIA.
+.IP "\fBARIA128\fR, \fBARIA256\fR" 4
+.IX Item "ARIA128, ARIA256"
+Cipher suites using 128 bit ARIA or 256 bit ARIA respectively.
+.IP "\fBARIA\fR, \fBARIAGCM\fR" 4
+.IX Item "ARIA, ARIAGCM"
+Cipher suites using either 128 or 256 bit ARIA.
 .IP "\fBCAMELLIA128\fR, \fBCAMELLIA256\fR, \fBCAMELLIA\fR" 4
 .IX Item "CAMELLIA128, CAMELLIA256, CAMELLIA"
 Cipher suites using 128 bit CAMELLIA, 256 bit CAMELLIA or either 128 or 256 bit
@@ -376,20 +371,37 @@ Cipher suites using SHA1.
 Cipher suites using SHA256 or SHA384.
 .IP \fBaGOST\fR 4
 .IX Item "aGOST"
-Cipher suites using GOST R 34.10 (either 2001 or 94) for authentication
+Cipher suites using GOST R 34.10 (either 2001 or 2012) for authentication
 (needs an engine supporting GOST algorithms).
 .IP \fBaGOST01\fR 4
 .IX Item "aGOST01"
-Cipher suites using GOST R 34.10\-2001 authentication.
+Cipher suites that can be uses with GOST R 34.10\-2001 keys for authentication.
+.IP \fBaGOST12\fR 4
+.IX Item "aGOST12"
+Cipher suites that can be used with GOST R 34.10\-2012 keys for authentication.
 .IP \fBkGOST\fR 4
 .IX Item "kGOST"
-Cipher suites, using VKO 34.10 key exchange, specified in the RFC 4357.
+Cipher suites using VKO 34.10 key exchange and key wrap specified in the
+RFC 4357 or RFC 7836.
+.IP \fBkGOST18\fR 4
+.IX Item "kGOST18"
+Cipher suites using VKO 34.10 key exchange specified in the RFC 7836 and
+KExp15 key export specified in the RFC 9189.
 .IP \fBGOST94\fR 4
 .IX Item "GOST94"
 Cipher suites, using HMAC based on GOST R 34.11\-94.
+.IP \fBGOST12\fR 4
+.IX Item "GOST12"
+Cipher suites, using HMAC based on GOST R 34.11\-2012 256 bits.
 .IP \fBGOST89MAC\fR 4
 .IX Item "GOST89MAC"
-Cipher suites using GOST 28147\-89 MAC \fBinstead of\fR HMAC.
+Cipher suites using GOST 28147\-89 MAC \fBinstead of\fR HMAC with S\-boxes A.
+.IP \fBGOST89MAC12\fR 4
+.IX Item "GOST89MAC12"
+Cipher suites using GOST 28147\-89 MAC \fBinstead of\fR HMAC with S\-boxes Z.
+.IP \fBGOST89\fR 4
+.IX Item "GOST89"
+Cipher suites using any GOST cipher (GOST 28147\-89, Magma or Kuznyechik).
 .IP \fBPSK\fR 4
 .IX Item "PSK"
 All cipher suites using pre\-shared keys (PSK).
@@ -400,6 +412,12 @@ Cipher suites using PSK key exchange, ECDHE_PSK, DHE_PSK or RSA_PSK.
 .IX Item "aPSK"
 Cipher suites using PSK authentication (currently all PSK modes apart from
 RSA_PSK).
+.IP "\fBkSRP\fR, \fBSRP\fR" 4
+.IX Item "kSRP, SRP"
+Cipher suites using SRP key exchange.
+.IP \fBaSRP\fR 4
+.IX Item "aSRP"
+Cipher suites using SRP authentication.
 .IP "\fBSUITEB128\fR, \fBSUITEB128ONLY\fR, \fBSUITEB192\fR" 4
 .IX Item "SUITEB128, SUITEB128ONLY, SUITEB192"
 Enables suite B mode of operation using 128 (permitting 192 bit mode by peer)
@@ -429,323 +447,407 @@ standard names or OpenSSL names in cipher lists, or a mix of both.
 It should be noted, that several cipher suite names do not include the
 authentication used, e.g. DES\-CBC3\-SHA. In these cases, RSA authentication
 is used.
-.SS "SSL v3.0 cipher suites"
-.IX Subsection "SSL v3.0 cipher suites"
-.Vb 6
-\& SSL_RSA_WITH_NULL_MD5                   NULL\-MD5
-\& SSL_RSA_WITH_NULL_SHA                   NULL\-SHA
-\& SSL_RSA_WITH_RC4_128_MD5                RC4\-MD5
-\& SSL_RSA_WITH_RC4_128_SHA                RC4\-SHA
-\& SSL_RSA_WITH_IDEA_CBC_SHA               IDEA\-CBC\-SHA
-\& SSL_RSA_WITH_3DES_EDE_CBC_SHA           DES\-CBC3\-SHA
-\&
-\& SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA        DH\-DSS\-DES\-CBC3\-SHA
-\& SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA        DH\-RSA\-DES\-CBC3\-SHA
-\& SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA       DHE\-DSS\-DES\-CBC3\-SHA
-\& SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA       DHE\-RSA\-DES\-CBC3\-SHA
-\&
-\& SSL_DH_anon_WITH_RC4_128_MD5            ADH\-RC4\-MD5
-\& SSL_DH_anon_WITH_3DES_EDE_CBC_SHA       ADH\-DES\-CBC3\-SHA
-\&
-\& SSL_FORTEZZA_KEA_WITH_NULL_SHA          Not implemented.
-\& SSL_FORTEZZA_KEA_WITH_FORTEZZA_CBC_SHA  Not implemented.
-\& SSL_FORTEZZA_KEA_WITH_RC4_128_SHA       Not implemented.
+.SS "AES cipher suites for  TLS v1.2"
+.IX Subsection "AES cipher suites for TLS v1.2"
+.Vb 10
+\& TLS_DH_anon_WITH_AES_128_CBC_SHA256            ADH\-AES128\-SHA256
+\& TLS_DH_anon_WITH_AES_128_CBC_SHA               ADH\-AES128\-SHA
+\& TLS_DH_anon_WITH_AES_128_GCM_SHA256            ADH\-AES128\-GCM\-SHA256
+\& TLS_DH_anon_WITH_AES_256_CBC_SHA256            ADH\-AES256\-SHA256
+\& TLS_DH_anon_WITH_AES_256_CBC_SHA               ADH\-AES256\-SHA
+\& TLS_DH_anon_WITH_AES_256_GCM_SHA384            ADH\-AES256\-GCM\-SHA384
+\& TLS_DHE_DSS_WITH_AES_128_CBC_SHA256            DHE\-DSS\-AES128\-SHA256
+\& TLS_DHE_DSS_WITH_AES_128_CBC_SHA               DHE\-DSS\-AES128\-SHA
+\& TLS_DHE_DSS_WITH_AES_128_GCM_SHA256            DHE\-DSS\-AES128\-GCM\-SHA256
+\& TLS_DHE_DSS_WITH_AES_256_CBC_SHA256            DHE\-DSS\-AES256\-SHA256
+\& TLS_DHE_DSS_WITH_AES_256_CBC_SHA               DHE\-DSS\-AES256\-SHA
+\& TLS_DHE_DSS_WITH_AES_256_GCM_SHA384            DHE\-DSS\-AES256\-GCM\-SHA384
+\& TLS_DHE_PSK_WITH_AES_128_CBC_SHA256            DHE\-PSK\-AES128\-CBC\-SHA256
+\& TLS_DHE_PSK_WITH_AES_128_CBC_SHA               DHE\-PSK\-AES128\-CBC\-SHA
+\& TLS_DHE_PSK_WITH_AES_128_CCM_8                 DHE\-PSK\-AES128\-CCM8
+\& TLS_DHE_PSK_WITH_AES_128_CCM                   DHE\-PSK\-AES128\-CCM
+\& TLS_DHE_PSK_WITH_AES_128_GCM_SHA256            DHE\-PSK\-AES128\-GCM\-SHA256
+\& TLS_DHE_PSK_WITH_AES_256_CBC_SHA384            DHE\-PSK\-AES256\-CBC\-SHA384
+\& TLS_DHE_PSK_WITH_AES_256_CBC_SHA               DHE\-PSK\-AES256\-CBC\-SHA
+\& TLS_DHE_PSK_WITH_AES_256_CCM_8                 DHE\-PSK\-AES256\-CCM8
+\& TLS_DHE_PSK_WITH_AES_256_CCM                   DHE\-PSK\-AES256\-CCM
+\& TLS_DHE_PSK_WITH_AES_256_GCM_SHA384            DHE\-PSK\-AES256\-GCM\-SHA384
+\& TLS_DHE_RSA_WITH_AES_128_CBC_SHA256            DHE\-RSA\-AES128\-SHA256
+\& TLS_DHE_RSA_WITH_AES_128_CBC_SHA               DHE\-RSA\-AES128\-SHA
+\& TLS_DHE_RSA_WITH_AES_128_CCM_8                 DHE\-RSA\-AES128\-CCM8
+\& TLS_DHE_RSA_WITH_AES_128_CCM                   DHE\-RSA\-AES128\-CCM
+\& TLS_DHE_RSA_WITH_AES_128_GCM_SHA256            DHE\-RSA\-AES128\-GCM\-SHA256
+\& TLS_DHE_RSA_WITH_AES_256_CBC_SHA256            DHE\-RSA\-AES256\-SHA256
+\& TLS_DHE_RSA_WITH_AES_256_CBC_SHA               DHE\-RSA\-AES256\-SHA
+\& TLS_DHE_RSA_WITH_AES_256_CCM_8                 DHE\-RSA\-AES256\-CCM8
+\& TLS_DHE_RSA_WITH_AES_256_CCM                   DHE\-RSA\-AES256\-CCM
+\& TLS_DHE_RSA_WITH_AES_256_GCM_SHA384            DHE\-RSA\-AES256\-GCM\-SHA384
+\& TLS_ECDH_anon_WITH_AES_128_CBC_SHA             AECDH\-AES128\-SHA
+\& TLS_ECDH_anon_WITH_AES_128_CCM_8               AECDH\-AES128\-CCM8
+\& TLS_ECDH_anon_WITH_AES_128_CCM                 AECDH\-AES128\-CCM
+\& TLS_ECDH_anon_WITH_AES_256_CBC_SHA             AECDH\-AES256\-SHA
+\& TLS_ECDH_anon_WITH_AES_256_CCM_8               AECDH\-AES256\-CCM8
+\& TLS_ECDH_anon_WITH_AES_256_CCM                 AECDH\-AES256\-CCM
+\& TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256         ECDH\-ECDSA\-AES128\-SHA256
+\& TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA            ECDH\-ECDSA\-AES128\-SHA
+\& TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256         ECDH\-ECDSA\-AES128\-GCM\-SHA256
+\& TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384         ECDH\-ECDSA\-AES256\-SHA384
+\& TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA            ECDH\-ECDSA\-AES256\-SHA
+\& TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384         ECDH\-ECDSA\-AES256\-GCM\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256        ECDHE\-ECDSA\-AES128\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA           ECDHE\-ECDSA\-AES128\-SHA
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8             ECDHE\-ECDSA\-AES128\-CCM8
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CCM               ECDHE\-ECDSA\-AES128\-CCM
+\& TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256        ECDHE\-ECDSA\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384        ECDHE\-ECDSA\-AES256\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA           ECDHE\-ECDSA\-AES256\-SHA
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8             ECDHE\-ECDSA\-AES256\-CCM8
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CCM               ECDHE\-ECDSA\-AES256\-CCM
+\& TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384        ECDHE\-ECDSA\-AES256\-GCM\-SHA384
+\& TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256          ECDHE\-PSK\-AES128\-CBC\-SHA256
+\& TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA             ECDHE\-PSK\-AES128\-CBC\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256        ECDHE\-PSK\-AES128\-CCM8
+\& TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256          ECDHE\-PSK\-AES128\-CCM
+\& TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256          ECDHE\-PSK\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA384          ECDHE\-PSK\-AES256\-CBC\-SHA384
+\& TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA             ECDHE\-PSK\-AES256\-CBC\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384          ECDHE\-PSK\-AES256\-GCM\-SHA384
+\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256          ECDHE\-RSA\-AES128\-SHA256
+\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA             ECDHE\-RSA\-AES128\-SHA
+\& TLS_ECDHE_RSA_WITH_AES_128_CCM_8               ECDHE\-RSA\-AES128\-CCM8
+\& TLS_ECDHE_RSA_WITH_AES_128_CCM                 ECDHE\-RSA\-AES128\-CCM
+\& TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256          ECDHE\-RSA\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384          ECDHE\-RSA\-AES256\-SHA384
+\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA             ECDHE\-RSA\-AES256\-SHA
+\& TLS_ECDHE_RSA_WITH_AES_256_CCM_8               ECDHE\-RSA\-AES256\-CCM8
+\& TLS_ECDHE_RSA_WITH_AES_256_CCM                 ECDHE\-RSA\-AES256\-CCM
+\& TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384          ECDHE\-RSA\-AES256\-GCM\-SHA384
+\& TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256           ECDH\-RSA\-AES128\-SHA256
+\& TLS_ECDH_RSA_WITH_AES_128_CBC_SHA              ECDH\-RSA\-AES128\-SHA
+\& TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256           ECDH\-RSA\-AES128\-GCM\-SHA256
+\& TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384           ECDH\-RSA\-AES256\-SHA384
+\& TLS_ECDH_RSA_WITH_AES_256_CBC_SHA              ECDH\-RSA\-AES256\-SHA
+\& TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384           ECDH\-RSA\-AES256\-GCM\-SHA384
+\& TLS_PSK_WITH_AES_128_CBC_SHA256                PSK\-AES128\-CBC\-SHA256
+\& TLS_PSK_WITH_AES_128_CBC_SHA                   PSK\-AES128\-CBC\-SHA
+\& TLS_PSK_WITH_AES_128_CCM_8                     PSK\-AES128\-CCM8
+\& TLS_PSK_WITH_AES_128_CCM                       PSK\-AES128\-CCM
+\& TLS_PSK_WITH_AES_128_GCM_SHA256                PSK\-AES128\-GCM\-SHA256
+\& TLS_PSK_WITH_AES_256_CBC_SHA384                PSK\-AES256\-CBC\-SHA384
+\& TLS_PSK_WITH_AES_256_CBC_SHA                   PSK\-AES256\-CBC\-SHA
+\& TLS_PSK_WITH_AES_256_CCM_8                     PSK\-AES256\-CCM8
+\& TLS_PSK_WITH_AES_256_CCM                       PSK\-AES256\-CCM
+\& TLS_PSK_WITH_AES_256_GCM_SHA384                PSK\-AES256\-GCM\-SHA384
+\& TLS_RSA_PSK_WITH_AES_128_CBC_SHA256            RSA\-PSK\-AES128\-CBC\-SHA256
+\& TLS_RSA_PSK_WITH_AES_128_CBC_SHA               RSA\-PSK\-AES128\-CBC\-SHA
+\& TLS_RSA_PSK_WITH_AES_128_GCM_SHA256            RSA\-PSK\-AES128\-GCM\-SHA256
+\& TLS_RSA_PSK_WITH_AES_256_CBC_SHA384            RSA\-PSK\-AES256\-CBC\-SHA384
+\& TLS_RSA_PSK_WITH_AES_256_CBC_SHA               RSA\-PSK\-AES256\-CBC\-SHA
+\& TLS_RSA_PSK_WITH_AES_256_GCM_SHA384            RSA\-PSK\-AES256\-GCM\-SHA384
+\& TLS_RSA_WITH_AES_128_CBC_SHA256                AES128\-SHA256
+\& TLS_RSA_WITH_AES_128_CBC_SHA                   AES128\-SHA
+\& TLS_RSA_WITH_AES_128_CCM_8                     AES128\-CCM8
+\& TLS_RSA_WITH_AES_128_CCM                       AES128\-CCM
+\& TLS_RSA_WITH_AES_128_GCM_SHA256                AES128\-GCM\-SHA256
+\& TLS_RSA_WITH_AES_256_CBC_SHA256                AES256\-SHA256
+\& TLS_RSA_WITH_AES_256_CBC_SHA                   AES256\-SHA
+\& TLS_RSA_WITH_AES_256_CCM_8                     AES256\-CCM8
+\& TLS_RSA_WITH_AES_256_CCM                       AES256\-CCM
+\& TLS_RSA_WITH_AES_256_GCM_SHA384                AES256\-GCM\-SHA384
 .Ve
-.SS "TLS v1.0 cipher suites"
-.IX Subsection "TLS v1.0 cipher suites"
-.Vb 6
-\& TLS_RSA_WITH_NULL_MD5                   NULL\-MD5
-\& TLS_RSA_WITH_NULL_SHA                   NULL\-SHA
-\& TLS_RSA_WITH_RC4_128_MD5                RC4\-MD5
-\& TLS_RSA_WITH_RC4_128_SHA                RC4\-SHA
-\& TLS_RSA_WITH_IDEA_CBC_SHA               IDEA\-CBC\-SHA
-\& TLS_RSA_WITH_3DES_EDE_CBC_SHA           DES\-CBC3\-SHA
-\&
-\& TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA        Not implemented.
-\& TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA        Not implemented.
-\& TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA       DHE\-DSS\-DES\-CBC3\-SHA
-\& TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA       DHE\-RSA\-DES\-CBC3\-SHA
-\&
-\& TLS_DH_anon_WITH_RC4_128_MD5            ADH\-RC4\-MD5
-\& TLS_DH_anon_WITH_3DES_EDE_CBC_SHA       ADH\-DES\-CBC3\-SHA
+.SS "Camellia cipher suites for TLS v1.2"
+.IX Subsection "Camellia cipher suites for TLS v1.2"
+.Vb 10
+\& TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA256       ADH\-CAMELLIA128\-SHA256
+\& TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA          ADH\-CAMELLIA128\-SHA
+\& TLS_DH_anon_WITH_CAMELLIA_128_GCM_SHA256       ADH\-CAMELLIA128\-GCM\-SHA256
+\& TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA256       ADH\-CAMELLIA256\-SHA256
+\& TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA          ADH\-CAMELLIA256\-SHA
+\& TLS_DH_anon_WITH_CAMELLIA_256_GCM_SHA384       ADH\-CAMELLIA256\-GCM\-SHA384
+\& TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA256       DHE\-DSS\-CAMELLIA128\-SHA256
+\& TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA          DHE\-DSS\-CAMELLIA128\-SHA
+\& TLS_DHE_DSS_WITH_CAMELLIA_128_GCM_SHA256       DHE\-DSS\-CAMELLIA128\-GCM\-SHA256
+\& TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA256       DHE\-DSS\-CAMELLIA256\-SHA256
+\& TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA          DHE\-DSS\-CAMELLIA256\-SHA
+\& TLS_DHE_DSS_WITH_CAMELLIA_256_GCM_SHA384       DHE\-DSS\-CAMELLIA256\-GCM\-SHA384
+\& TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256       DHE\-RSA\-CAMELLIA128\-SHA256
+\& TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA          DHE\-RSA\-CAMELLIA128\-SHA
+\& TLS_DHE_RSA_WITH_CAMELLIA_128_GCM_SHA256       DHE\-RSA\-CAMELLIA128\-GCM\-SHA256
+\& TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256       DHE\-RSA\-CAMELLIA256\-SHA256
+\& TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA          DHE\-RSA\-CAMELLIA256\-SHA
+\& TLS_DHE_RSA_WITH_CAMELLIA_256_GCM_SHA384       DHE\-RSA\-CAMELLIA256\-GCM\-SHA384
+\& TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256    ECDH\-ECDSA\-CAMELLIA128\-SHA256
+\& TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384    ECDH\-ECDSA\-CAMELLIA256\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256   ECDHE\-ECDSA\-CAMELLIA128\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384   ECDHE\-ECDSA\-CAMELLIA256\-SHA384
+\& TLS_ECDHE_PSK_WITH_CAMELLIA_128_CBC_SHA256     ECDHE\-PSK\-CAMELLIA128\-SHA256
+\& TLS_ECDHE_PSK_WITH_CAMELLIA_256_CBC_SHA384     ECDHE\-PSK\-CAMELLIA256\-SHA384
+\& TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256     ECDHE\-RSA\-CAMELLIA128\-SHA256
+\& TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384     ECDHE\-RSA\-CAMELLIA256\-SHA384
+\& TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256      ECDH\-RSA\-CAMELLIA128\-SHA256
+\& TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384      ECDH\-RSA\-CAMELLIA256\-SHA384
+\& TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256           CAMELLIA128\-SHA256
+\& TLS_RSA_WITH_CAMELLIA_128_CBC_SHA              CAMELLIA128\-SHA
+\& TLS_RSA_WITH_CAMELLIA_128_GCM_SHA256           CAMELLIA128\-GCM\-SHA256
+\& TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256           CAMELLIA256\-SHA256
+\& TLS_RSA_WITH_CAMELLIA_256_CBC_SHA              CAMELLIA256\-SHA
+\& TLS_RSA_WITH_CAMELLIA_256_GCM_SHA384           CAMELLIA256\-GCM\-SHA384
 .Ve
-.SS "AES cipher suites from RFC3268, extending TLS v1.0"
-.IX Subsection "AES cipher suites from RFC3268, extending TLS v1.0"
-.Vb 2
-\& TLS_RSA_WITH_AES_128_CBC_SHA            AES128\-SHA
-\& TLS_RSA_WITH_AES_256_CBC_SHA            AES256\-SHA
-\&
-\& TLS_DH_DSS_WITH_AES_128_CBC_SHA         DH\-DSS\-AES128\-SHA
-\& TLS_DH_DSS_WITH_AES_256_CBC_SHA         DH\-DSS\-AES256\-SHA
-\& TLS_DH_RSA_WITH_AES_128_CBC_SHA         DH\-RSA\-AES128\-SHA
-\& TLS_DH_RSA_WITH_AES_256_CBC_SHA         DH\-RSA\-AES256\-SHA
-\&
-\& TLS_DHE_DSS_WITH_AES_128_CBC_SHA        DHE\-DSS\-AES128\-SHA
-\& TLS_DHE_DSS_WITH_AES_256_CBC_SHA        DHE\-DSS\-AES256\-SHA
-\& TLS_DHE_RSA_WITH_AES_128_CBC_SHA        DHE\-RSA\-AES128\-SHA
-\& TLS_DHE_RSA_WITH_AES_256_CBC_SHA        DHE\-RSA\-AES256\-SHA
-\&
-\& TLS_DH_anon_WITH_AES_128_CBC_SHA        ADH\-AES128\-SHA
-\& TLS_DH_anon_WITH_AES_256_CBC_SHA        ADH\-AES256\-SHA
-.Ve
-.SS "Camellia cipher suites from RFC4132, extending TLS v1.0"
-.IX Subsection "Camellia cipher suites from RFC4132, extending TLS v1.0"
-.Vb 2
-\& TLS_RSA_WITH_CAMELLIA_128_CBC_SHA      CAMELLIA128\-SHA
-\& TLS_RSA_WITH_CAMELLIA_256_CBC_SHA      CAMELLIA256\-SHA
-\&
-\& TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA   DH\-DSS\-CAMELLIA128\-SHA
-\& TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA   DH\-DSS\-CAMELLIA256\-SHA
-\& TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA   DH\-RSA\-CAMELLIA128\-SHA
-\& TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA   DH\-RSA\-CAMELLIA256\-SHA
-\&
-\& TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA  DHE\-DSS\-CAMELLIA128\-SHA
-\& TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA  DHE\-DSS\-CAMELLIA256\-SHA
-\& TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA  DHE\-RSA\-CAMELLIA128\-SHA
-\& TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA  DHE\-RSA\-CAMELLIA256\-SHA
-\&
-\& TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA  ADH\-CAMELLIA128\-SHA
-\& TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA  ADH\-CAMELLIA256\-SHA
-.Ve
-.SS "SEED cipher suites from RFC4162, extending TLS v1.0"
-.IX Subsection "SEED cipher suites from RFC4162, extending TLS v1.0"
-.Vb 1
-\& TLS_RSA_WITH_SEED_CBC_SHA              SEED\-SHA
-\&
-\& TLS_DH_DSS_WITH_SEED_CBC_SHA           DH\-DSS\-SEED\-SHA
-\& TLS_DH_RSA_WITH_SEED_CBC_SHA           DH\-RSA\-SEED\-SHA
-\&
-\& TLS_DHE_DSS_WITH_SEED_CBC_SHA          DHE\-DSS\-SEED\-SHA
-\& TLS_DHE_RSA_WITH_SEED_CBC_SHA          DHE\-RSA\-SEED\-SHA
-\&
-\& TLS_DH_anon_WITH_SEED_CBC_SHA          ADH\-SEED\-SHA
-.Ve
-.SS "GOST cipher suites from draft\-chudov\-cryptopro\-cptls, extending TLS v1.0"
-.IX Subsection "GOST cipher suites from draft-chudov-cryptopro-cptls, extending TLS v1.0"
-Note: these ciphers require an engine which including GOST cryptographic
-algorithms, such as the \fBgost\fR engine, which isn\*(Aqt part of the OpenSSL
-distribution.
-.PP
+.SS "SEED cipher suites for TLS v1.2"
+.IX Subsection "SEED cipher suites for TLS v1.2"
 .Vb 4
-\& TLS_GOSTR341094_WITH_28147_CNT_IMIT GOST94\-GOST89\-GOST89
-\& TLS_GOSTR341001_WITH_28147_CNT_IMIT GOST2001\-GOST89\-GOST89
-\& TLS_GOSTR341094_WITH_NULL_GOSTR3411 GOST94\-NULL\-GOST94
-\& TLS_GOSTR341001_WITH_NULL_GOSTR3411 GOST2001\-NULL\-GOST94
+\& TLS_DH_anon_WITH_SEED_CBC_SHA                  ADH\-SEED\-SHA
+\& TLS_DHE_DSS_WITH_SEED_CBC_SHA                  DHE\-DSS\-SEED\-SHA
+\& TLS_DHE_RSA_WITH_SEED_CBC_SHA                  DHE\-RSA\-SEED\-SHA
+\& TLS_RSA_WITH_SEED_CBC_SHA                      SEED\-SHA
 .Ve
-.SS "GOST cipher suites, extending TLS v1.2"
-.IX Subsection "GOST cipher suites, extending TLS v1.2"
+.SS "GOST cipher suites for TLS v1.2"
+.IX Subsection "GOST cipher suites for TLS v1.2"
 Note: these ciphers require an engine which including GOST cryptographic
 algorithms, such as the \fBgost\fR engine, which isn\*(Aqt part of the OpenSSL
 distribution.
 .PP
-.Vb 2
-\& TLS_GOSTR341112_256_WITH_28147_CNT_IMIT GOST2012\-GOST8912\-GOST8912
-\& TLS_GOSTR341112_256_WITH_NULL_GOSTR3411 GOST2012\-NULL\-GOST12
-.Ve
-.PP
-Note: GOST2012\-GOST8912\-GOST8912 is an alias for two ciphers ID
-old LEGACY\-GOST2012\-GOST8912\-GOST8912 and new IANA\-GOST2012\-GOST8912\-GOST8912
-.SS "Additional Export 1024 and other cipher suites"
-.IX Subsection "Additional Export 1024 and other cipher suites"
-Note: these ciphers can also be used in SSL v3.
-.PP
-.Vb 1
-\& TLS_DHE_DSS_WITH_RC4_128_SHA            DHE\-DSS\-RC4\-SHA
-.Ve
-.SS "Elliptic curve cipher suites"
-.IX Subsection "Elliptic curve cipher suites"
-.Vb 5
-\& TLS_ECDHE_RSA_WITH_NULL_SHA             ECDHE\-RSA\-NULL\-SHA
-\& TLS_ECDHE_RSA_WITH_RC4_128_SHA          ECDHE\-RSA\-RC4\-SHA
-\& TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA     ECDHE\-RSA\-DES\-CBC3\-SHA
-\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA      ECDHE\-RSA\-AES128\-SHA
-\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA      ECDHE\-RSA\-AES256\-SHA
-\&
-\& TLS_ECDHE_ECDSA_WITH_NULL_SHA           ECDHE\-ECDSA\-NULL\-SHA
-\& TLS_ECDHE_ECDSA_WITH_RC4_128_SHA        ECDHE\-ECDSA\-RC4\-SHA
-\& TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA   ECDHE\-ECDSA\-DES\-CBC3\-SHA
-\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA    ECDHE\-ECDSA\-AES128\-SHA
-\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA    ECDHE\-ECDSA\-AES256\-SHA
-\&
-\& TLS_ECDH_anon_WITH_NULL_SHA             AECDH\-NULL\-SHA
-\& TLS_ECDH_anon_WITH_RC4_128_SHA          AECDH\-RC4\-SHA
-\& TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA     AECDH\-DES\-CBC3\-SHA
-\& TLS_ECDH_anon_WITH_AES_128_CBC_SHA      AECDH\-AES128\-SHA
-\& TLS_ECDH_anon_WITH_AES_256_CBC_SHA      AECDH\-AES256\-SHA
-.Ve
-.SS "TLS v1.2 cipher suites"
-.IX Subsection "TLS v1.2 cipher suites"
-.Vb 1
-\& TLS_RSA_WITH_NULL_SHA256                  NULL\-SHA256
-\&
-\& TLS_RSA_WITH_AES_128_CBC_SHA256           AES128\-SHA256
-\& TLS_RSA_WITH_AES_256_CBC_SHA256           AES256\-SHA256
-\& TLS_RSA_WITH_AES_128_GCM_SHA256           AES128\-GCM\-SHA256
-\& TLS_RSA_WITH_AES_256_GCM_SHA384           AES256\-GCM\-SHA384
-\&
-\& TLS_DH_RSA_WITH_AES_128_CBC_SHA256        DH\-RSA\-AES128\-SHA256
-\& TLS_DH_RSA_WITH_AES_256_CBC_SHA256        DH\-RSA\-AES256\-SHA256
-\& TLS_DH_RSA_WITH_AES_128_GCM_SHA256        DH\-RSA\-AES128\-GCM\-SHA256
-\& TLS_DH_RSA_WITH_AES_256_GCM_SHA384        DH\-RSA\-AES256\-GCM\-SHA384
-\&
-\& TLS_DH_DSS_WITH_AES_128_CBC_SHA256        DH\-DSS\-AES128\-SHA256
-\& TLS_DH_DSS_WITH_AES_256_CBC_SHA256        DH\-DSS\-AES256\-SHA256
-\& TLS_DH_DSS_WITH_AES_128_GCM_SHA256        DH\-DSS\-AES128\-GCM\-SHA256
-\& TLS_DH_DSS_WITH_AES_256_GCM_SHA384        DH\-DSS\-AES256\-GCM\-SHA384
-\&
-\& TLS_DHE_RSA_WITH_AES_128_CBC_SHA256       DHE\-RSA\-AES128\-SHA256
-\& TLS_DHE_RSA_WITH_AES_256_CBC_SHA256       DHE\-RSA\-AES256\-SHA256
-\& TLS_DHE_RSA_WITH_AES_128_GCM_SHA256       DHE\-RSA\-AES128\-GCM\-SHA256
-\& TLS_DHE_RSA_WITH_AES_256_GCM_SHA384       DHE\-RSA\-AES256\-GCM\-SHA384
-\&
-\& TLS_DHE_DSS_WITH_AES_128_CBC_SHA256       DHE\-DSS\-AES128\-SHA256
-\& TLS_DHE_DSS_WITH_AES_256_CBC_SHA256       DHE\-DSS\-AES256\-SHA256
-\& TLS_DHE_DSS_WITH_AES_128_GCM_SHA256       DHE\-DSS\-AES128\-GCM\-SHA256
-\& TLS_DHE_DSS_WITH_AES_256_GCM_SHA384       DHE\-DSS\-AES256\-GCM\-SHA384
-\&
-\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256     ECDHE\-RSA\-AES128\-SHA256
-\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384     ECDHE\-RSA\-AES256\-SHA384
-\& TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256     ECDHE\-RSA\-AES128\-GCM\-SHA256
-\& TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384     ECDHE\-RSA\-AES256\-GCM\-SHA384
-\&
-\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256   ECDHE\-ECDSA\-AES128\-SHA256
-\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384   ECDHE\-ECDSA\-AES256\-SHA384
-\& TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256   ECDHE\-ECDSA\-AES128\-GCM\-SHA256
-\& TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384   ECDHE\-ECDSA\-AES256\-GCM\-SHA384
-\&
-\& TLS_DH_anon_WITH_AES_128_CBC_SHA256       ADH\-AES128\-SHA256
-\& TLS_DH_anon_WITH_AES_256_CBC_SHA256       ADH\-AES256\-SHA256
-\& TLS_DH_anon_WITH_AES_128_GCM_SHA256       ADH\-AES128\-GCM\-SHA256
-\& TLS_DH_anon_WITH_AES_256_GCM_SHA384       ADH\-AES256\-GCM\-SHA384
-\&
-\& RSA_WITH_AES_128_CCM                      AES128\-CCM
-\& RSA_WITH_AES_256_CCM                      AES256\-CCM
-\& DHE_RSA_WITH_AES_128_CCM                  DHE\-RSA\-AES128\-CCM
-\& DHE_RSA_WITH_AES_256_CCM                  DHE\-RSA\-AES256\-CCM
-\& RSA_WITH_AES_128_CCM_8                    AES128\-CCM8
-\& RSA_WITH_AES_256_CCM_8                    AES256\-CCM8
-\& DHE_RSA_WITH_AES_128_CCM_8                DHE\-RSA\-AES128\-CCM8
-\& DHE_RSA_WITH_AES_256_CCM_8                DHE\-RSA\-AES256\-CCM8
-\& ECDHE_ECDSA_WITH_AES_128_CCM              ECDHE\-ECDSA\-AES128\-CCM
-\& ECDHE_ECDSA_WITH_AES_256_CCM              ECDHE\-ECDSA\-AES256\-CCM
-\& ECDHE_ECDSA_WITH_AES_128_CCM_8            ECDHE\-ECDSA\-AES128\-CCM8
-\& ECDHE_ECDSA_WITH_AES_256_CCM_8            ECDHE\-ECDSA\-AES256\-CCM8
+.Vb 7
+\& TLS_GOSTR341001_WITH_28147_CNT_IMIT         GOST2001\-GOST89\-GOST89
+\& TLS_GOSTR341001_WITH_NULL_GOSTR3411         GOST2001\-NULL\-GOST94
+\&                                             IANA\-GOST2012\-GOST8912\-GOST8912
+\&                                             LEGACY\-GOST2012\-GOST8912\-GOST8912
+\&                                             GOST2012\-NULL\-GOST12
+\&                                             GOST2012\-KUZNYECHIK\-KUZNYECHIKOMAC
+\&                                             GOST2012\-MAGMA\-MAGMAOMAC
 .Ve
 .SS "ARIA cipher suites from RFC6209, extending TLS v1.2"
 .IX Subsection "ARIA cipher suites from RFC6209, extending TLS v1.2"
 Note: the CBC modes mentioned in this RFC are not supported.
 .PP
 .Vb 10
-\& TLS_RSA_WITH_ARIA_128_GCM_SHA256          ARIA128\-GCM\-SHA256
-\& TLS_RSA_WITH_ARIA_256_GCM_SHA384          ARIA256\-GCM\-SHA384
-\& TLS_DHE_RSA_WITH_ARIA_128_GCM_SHA256      DHE\-RSA\-ARIA128\-GCM\-SHA256
-\& TLS_DHE_RSA_WITH_ARIA_256_GCM_SHA384      DHE\-RSA\-ARIA256\-GCM\-SHA384
-\& TLS_DHE_DSS_WITH_ARIA_128_GCM_SHA256      DHE\-DSS\-ARIA128\-GCM\-SHA256
-\& TLS_DHE_DSS_WITH_ARIA_256_GCM_SHA384      DHE\-DSS\-ARIA256\-GCM\-SHA384
-\& TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256  ECDHE\-ECDSA\-ARIA128\-GCM\-SHA256
-\& TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384  ECDHE\-ECDSA\-ARIA256\-GCM\-SHA384
-\& TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256    ECDHE\-ARIA128\-GCM\-SHA256
-\& TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384    ECDHE\-ARIA256\-GCM\-SHA384
-\& TLS_PSK_WITH_ARIA_128_GCM_SHA256          PSK\-ARIA128\-GCM\-SHA256
-\& TLS_PSK_WITH_ARIA_256_GCM_SHA384          PSK\-ARIA256\-GCM\-SHA384
-\& TLS_DHE_PSK_WITH_ARIA_128_GCM_SHA256      DHE\-PSK\-ARIA128\-GCM\-SHA256
-\& TLS_DHE_PSK_WITH_ARIA_256_GCM_SHA384      DHE\-PSK\-ARIA256\-GCM\-SHA384
-\& TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256      RSA\-PSK\-ARIA128\-GCM\-SHA256
-\& TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384      RSA\-PSK\-ARIA256\-GCM\-SHA384
-.Ve
-.SS "Camellia HMAC\-Based cipher suites from RFC6367, extending TLS v1.2"
-.IX Subsection "Camellia HMAC-Based cipher suites from RFC6367, extending TLS v1.2"
-.Vb 4
-\& TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256 ECDHE\-ECDSA\-CAMELLIA128\-SHA256
-\& TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384 ECDHE\-ECDSA\-CAMELLIA256\-SHA384
-\& TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256   ECDHE\-RSA\-CAMELLIA128\-SHA256
-\& TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384   ECDHE\-RSA\-CAMELLIA256\-SHA384
-.Ve
-.SS "Pre\-shared keying (PSK) cipher suites"
-.IX Subsection "Pre-shared keying (PSK) cipher suites"
-.Vb 3
-\& PSK_WITH_NULL_SHA                         PSK\-NULL\-SHA
-\& DHE_PSK_WITH_NULL_SHA                     DHE\-PSK\-NULL\-SHA
-\& RSA_PSK_WITH_NULL_SHA                     RSA\-PSK\-NULL\-SHA
-\&
-\& PSK_WITH_RC4_128_SHA                      PSK\-RC4\-SHA
-\& PSK_WITH_3DES_EDE_CBC_SHA                 PSK\-3DES\-EDE\-CBC\-SHA
-\& PSK_WITH_AES_128_CBC_SHA                  PSK\-AES128\-CBC\-SHA
-\& PSK_WITH_AES_256_CBC_SHA                  PSK\-AES256\-CBC\-SHA
-\&
-\& DHE_PSK_WITH_RC4_128_SHA                  DHE\-PSK\-RC4\-SHA
-\& DHE_PSK_WITH_3DES_EDE_CBC_SHA             DHE\-PSK\-3DES\-EDE\-CBC\-SHA
-\& DHE_PSK_WITH_AES_128_CBC_SHA              DHE\-PSK\-AES128\-CBC\-SHA
-\& DHE_PSK_WITH_AES_256_CBC_SHA              DHE\-PSK\-AES256\-CBC\-SHA
-\&
-\& RSA_PSK_WITH_RC4_128_SHA                  RSA\-PSK\-RC4\-SHA
-\& RSA_PSK_WITH_3DES_EDE_CBC_SHA             RSA\-PSK\-3DES\-EDE\-CBC\-SHA
-\& RSA_PSK_WITH_AES_128_CBC_SHA              RSA\-PSK\-AES128\-CBC\-SHA
-\& RSA_PSK_WITH_AES_256_CBC_SHA              RSA\-PSK\-AES256\-CBC\-SHA
-\&
-\& PSK_WITH_AES_128_GCM_SHA256               PSK\-AES128\-GCM\-SHA256
-\& PSK_WITH_AES_256_GCM_SHA384               PSK\-AES256\-GCM\-SHA384
-\& DHE_PSK_WITH_AES_128_GCM_SHA256           DHE\-PSK\-AES128\-GCM\-SHA256
-\& DHE_PSK_WITH_AES_256_GCM_SHA384           DHE\-PSK\-AES256\-GCM\-SHA384
-\& RSA_PSK_WITH_AES_128_GCM_SHA256           RSA\-PSK\-AES128\-GCM\-SHA256
-\& RSA_PSK_WITH_AES_256_GCM_SHA384           RSA\-PSK\-AES256\-GCM\-SHA384
-\&
-\& PSK_WITH_AES_128_CBC_SHA256               PSK\-AES128\-CBC\-SHA256
-\& PSK_WITH_AES_256_CBC_SHA384               PSK\-AES256\-CBC\-SHA384
-\& PSK_WITH_NULL_SHA256                      PSK\-NULL\-SHA256
-\& PSK_WITH_NULL_SHA384                      PSK\-NULL\-SHA384
-\& DHE_PSK_WITH_AES_128_CBC_SHA256           DHE\-PSK\-AES128\-CBC\-SHA256
-\& DHE_PSK_WITH_AES_256_CBC_SHA384           DHE\-PSK\-AES256\-CBC\-SHA384
-\& DHE_PSK_WITH_NULL_SHA256                  DHE\-PSK\-NULL\-SHA256
-\& DHE_PSK_WITH_NULL_SHA384                  DHE\-PSK\-NULL\-SHA384
-\& RSA_PSK_WITH_AES_128_CBC_SHA256           RSA\-PSK\-AES128\-CBC\-SHA256
-\& RSA_PSK_WITH_AES_256_CBC_SHA384           RSA\-PSK\-AES256\-CBC\-SHA384
-\& RSA_PSK_WITH_NULL_SHA256                  RSA\-PSK\-NULL\-SHA256
-\& RSA_PSK_WITH_NULL_SHA384                  RSA\-PSK\-NULL\-SHA384
-\& PSK_WITH_AES_128_GCM_SHA256               PSK\-AES128\-GCM\-SHA256
-\& PSK_WITH_AES_256_GCM_SHA384               PSK\-AES256\-GCM\-SHA384
-\&
-\& ECDHE_PSK_WITH_RC4_128_SHA                ECDHE\-PSK\-RC4\-SHA
-\& ECDHE_PSK_WITH_3DES_EDE_CBC_SHA           ECDHE\-PSK\-3DES\-EDE\-CBC\-SHA
-\& ECDHE_PSK_WITH_AES_128_CBC_SHA            ECDHE\-PSK\-AES128\-CBC\-SHA
-\& ECDHE_PSK_WITH_AES_256_CBC_SHA            ECDHE\-PSK\-AES256\-CBC\-SHA
-\& ECDHE_PSK_WITH_AES_128_CBC_SHA256         ECDHE\-PSK\-AES128\-CBC\-SHA256
-\& ECDHE_PSK_WITH_AES_256_CBC_SHA384         ECDHE\-PSK\-AES256\-CBC\-SHA384
-\& ECDHE_PSK_WITH_NULL_SHA                   ECDHE\-PSK\-NULL\-SHA
-\& ECDHE_PSK_WITH_NULL_SHA256                ECDHE\-PSK\-NULL\-SHA256
-\& ECDHE_PSK_WITH_NULL_SHA384                ECDHE\-PSK\-NULL\-SHA384
-\&
-\& PSK_WITH_CAMELLIA_128_CBC_SHA256          PSK\-CAMELLIA128\-SHA256
-\& PSK_WITH_CAMELLIA_256_CBC_SHA384          PSK\-CAMELLIA256\-SHA384
-\&
-\& DHE_PSK_WITH_CAMELLIA_128_CBC_SHA256      DHE\-PSK\-CAMELLIA128\-SHA256
-\& DHE_PSK_WITH_CAMELLIA_256_CBC_SHA384      DHE\-PSK\-CAMELLIA256\-SHA384
-\&
-\& RSA_PSK_WITH_CAMELLIA_128_CBC_SHA256      RSA\-PSK\-CAMELLIA128\-SHA256
-\& RSA_PSK_WITH_CAMELLIA_256_CBC_SHA384      RSA\-PSK\-CAMELLIA256\-SHA384
-\&
-\& ECDHE_PSK_WITH_CAMELLIA_128_CBC_SHA256    ECDHE\-PSK\-CAMELLIA128\-SHA256
-\& ECDHE_PSK_WITH_CAMELLIA_256_CBC_SHA384    ECDHE\-PSK\-CAMELLIA256\-SHA384
-\&
-\& PSK_WITH_AES_128_CCM                      PSK\-AES128\-CCM
-\& PSK_WITH_AES_256_CCM                      PSK\-AES256\-CCM
-\& DHE_PSK_WITH_AES_128_CCM                  DHE\-PSK\-AES128\-CCM
-\& DHE_PSK_WITH_AES_256_CCM                  DHE\-PSK\-AES256\-CCM
-\& PSK_WITH_AES_128_CCM_8                    PSK\-AES128\-CCM8
-\& PSK_WITH_AES_256_CCM_8                    PSK\-AES256\-CCM8
-\& DHE_PSK_WITH_AES_128_CCM_8                DHE\-PSK\-AES128\-CCM8
-\& DHE_PSK_WITH_AES_256_CCM_8                DHE\-PSK\-AES256\-CCM8
+\& TLS_DH_anon_WITH_ARIA_128_CBC_SHA256           ADH\-ARIA128\-CBC\-SHA256
+\& TLS_DH_anon_WITH_ARIA_128_GCM_SHA256           ADH\-ARIA128\-GCM\-SHA256
+\& TLS_DH_anon_WITH_ARIA_256_CBC_SHA384           ADH\-ARIA256\-CBC\-SHA384
+\& TLS_DH_anon_WITH_ARIA_256_GCM_SHA384           ADH\-ARIA256\-GCM\-SHA384
+\& TLS_DHE_DSS_WITH_ARIA_128_GCM_SHA256           DHE\-DSS\-ARIA128\-GCM\-SHA256
+\& TLS_DHE_DSS_WITH_ARIA_256_GCM_SHA384           DHE\-DSS\-ARIA256\-GCM\-SHA384
+\& TLS_DHE_PSK_WITH_ARIA_128_CBC_SHA256           DHE\-PSK\-ARIA128\-CBC\-SHA256
+\& TLS_DHE_PSK_WITH_ARIA_128_GCM_SHA256           DHE\-PSK\-ARIA128\-GCM\-SHA256
+\& TLS_DHE_PSK_WITH_ARIA_256_CBC_SHA384           DHE\-PSK\-ARIA256\-CBC\-SHA384
+\& TLS_DHE_PSK_WITH_ARIA_256_GCM_SHA384           DHE\-PSK\-ARIA256\-GCM\-SHA384
+\& TLS_DHE_RSA_WITH_ARIA_128_CBC_SHA256           DHE\-RSA\-ARIA128\-CBC\-SHA256
+\& TLS_DHE_RSA_WITH_ARIA_128_GCM_SHA256           DHE\-RSA\-ARIA128\-GCM\-SHA256
+\& TLS_DHE_RSA_WITH_ARIA_256_CBC_SHA384           DHE\-RSA\-ARIA256\-CBC\-SHA384
+\& TLS_DHE_RSA_WITH_ARIA_256_GCM_SHA384           DHE\-RSA\-ARIA256\-GCM\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256       ECDHE\-ECDSA\-ARIA128\-CBC\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256       ECDHE\-ECDSA\-ARIA128\-GCM\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384       ECDHE\-ECDSA\-ARIA256\-CBC\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384       ECDHE\-ECDSA\-ARIA256\-GCM\-SHA384
+\& TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256         ECDHE\-PSK\-ARIA128\-CBC\-SHA256
+\& TLS_ECDHE_PSK_WITH_ARIA_128_GCM_SHA256         ECDHE\-PSK\-ARIA128\-GCM\-SHA256
+\& TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384         ECDHE\-PSK\-ARIA256\-CBC\-SHA384
+\& TLS_ECDHE_PSK_WITH_ARIA_256_GCM_SHA384         ECDHE\-PSK\-ARIA256\-GCM\-SHA384
+\& TLS_ECDHE_RSA_WITH_ARIA_128_CBC_SHA256         ECDHE\-RSA\-ARIA128\-CBC\-SHA256
+\& TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256         ECDHE\-RSA\-ARIA128\-GCM\-SHA256
+\& TLS_ECDHE_RSA_WITH_ARIA_256_CBC_SHA384         ECDHE\-RSA\-ARIA256\-CBC\-SHA384
+\& TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384         ECDHE\-RSA\-ARIA256\-GCM\-SHA384
+\& TLS_PSK_WITH_ARIA_128_CBC_SHA256               PSK\-ARIA128\-CBC\-SHA256
+\& TLS_PSK_WITH_ARIA_128_GCM_SHA256               PSK\-ARIA128\-GCM\-SHA256
+\& TLS_PSK_WITH_ARIA_256_GCM_SHA384               PSK\-ARIA256\-GCM\-SHA384
+\& TLS_RSA_PSK_WITH_ARIA_128_CBC_SHA256           RSA\-PSK\-ARIA128\-CBC\-SHA256
+\& TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256           RSA\-PSK\-ARIA128\-GCM\-SHA256
+\& TLS_RSA_PSK_WITH_ARIA_256_CBC_SHA384           RSA\-PSK\-ARIA256\-CBC\-SHA384
+\& TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384           RSA\-PSK\-ARIA256\-GCM\-SHA384
+\& TLS_RSA_WITH_ARIA_128_CBC_SHA256               ARIA128\-CBC\-SHA256
+\& TLS_RSA_WITH_ARIA_128_GCM_SHA256               ARIA128\-GCM\-SHA256
+\& TLS_RSA_WITH_ARIA_256_CBC_SHA384               ARIA256\-CBC\-SHA384
+\& TLS_RSA_WITH_ARIA_256_GCM_SHA384               ARIA256\-GCM\-SHA384
 .Ve
 .SS "ChaCha20\-Poly1305 cipher suites, extending TLS v1.2"
 .IX Subsection "ChaCha20-Poly1305 cipher suites, extending TLS v1.2"
 .Vb 7
-\& TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256      ECDHE\-RSA\-CHACHA20\-POLY1305
-\& TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256    ECDHE\-ECDSA\-CHACHA20\-POLY1305
-\& TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256        DHE\-RSA\-CHACHA20\-POLY1305
-\& TLS_PSK_WITH_CHACHA20_POLY1305_SHA256            PSK\-CHACHA20\-POLY1305
-\& TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256      ECDHE\-PSK\-CHACHA20\-POLY1305
-\& TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256        DHE\-PSK\-CHACHA20\-POLY1305
-\& TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256        RSA\-PSK\-CHACHA20\-POLY1305
+\& TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256      DHE\-PSK\-CHACHA20\-POLY1305
+\& TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256      DHE\-RSA\-CHACHA20\-POLY1305
+\& TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256  ECDHE\-ECDSA\-CHACHA20\-POLY1305
+\& TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256    ECDHE\-PSK\-CHACHA20\-POLY1305
+\& TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256    ECDHE\-RSA\-CHACHA20\-POLY1305
+\& TLS_PSK_WITH_CHACHA20_POLY1305_SHA256          PSK\-CHACHA20\-POLY1305
+\& TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256      RSA\-PSK\-CHACHA20\-POLY1305
+.Ve
+.SS "Elliptic curve cipher suites for TLS v.1.2"
+.IX Subsection "Elliptic curve cipher suites for TLS v.1.2"
+.Vb 10
+\& TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA            AECDH\-DES\-CBC3\-SHA
+\& TLS_ECDH_anon_WITH_AES_128_CBC_SHA             AECDH\-AES128\-SHA
+\& TLS_ECDH_anon_WITH_AES_128_CCM_8               AECDH\-AES128\-CCM8
+\& TLS_ECDH_anon_WITH_AES_128_CCM                 AECDH\-AES128\-CCM
+\& TLS_ECDH_anon_WITH_AES_256_CBC_SHA             AECDH\-AES256\-SHA
+\& TLS_ECDH_anon_WITH_AES_256_CCM_8               AECDH\-AES256\-CCM8
+\& TLS_ECDH_anon_WITH_AES_256_CCM                 AECDH\-AES256\-CCM
+\& TLS_ECDH_anon_WITH_RC4_128_SHA                 AECDH\-RC4\-SHA
+\& TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA           ECDH\-ECDSA\-DES\-CBC3\-SHA
+\& TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256         ECDH\-ECDSA\-AES128\-SHA256
+\& TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA            ECDH\-ECDSA\-AES128\-SHA
+\& TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256         ECDH\-ECDSA\-AES128\-GCM\-SHA256
+\& TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384         ECDH\-ECDSA\-AES256\-SHA384
+\& TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA            ECDH\-ECDSA\-AES256\-SHA
+\& TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384         ECDH\-ECDSA\-AES256\-GCM\-SHA384
+\& TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256    ECDH\-ECDSA\-CAMELLIA128\-SHA256
+\& TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384    ECDH\-ECDSA\-CAMELLIA256\-SHA384
+\& TLS_ECDH_ECDSA_WITH_RC4_128_SHA                ECDH\-ECDSA\-RC4\-SHA
+\& TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA             ECDH\-RSA\-DES\-CBC3\-SHA
+\& TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256           ECDH\-RSA\-AES128\-SHA256
+\& TLS_ECDH_RSA_WITH_AES_128_CBC_SHA              ECDH\-RSA\-AES128\-SHA
+\& TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256           ECDH\-RSA\-AES128\-GCM\-SHA256
+\& TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384           ECDH\-RSA\-AES256\-SHA384
+\& TLS_ECDH_RSA_WITH_AES_256_CBC_SHA              ECDH\-RSA\-AES256\-SHA
+\& TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384           ECDH\-RSA\-AES256\-GCM\-SHA384
+\& TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256      ECDH\-RSA\-CAMELLIA128\-SHA256
+\& TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384      ECDH\-RSA\-CAMELLIA256\-SHA384
+\& TLS_ECDH_RSA_WITH_RC4_128_SHA                  ECDH\-RSA\-RC4\-SHA
+\& TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA          ECDHE\-ECDSA\-DES\-CBC3\-SHA
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256        ECDHE\-ECDSA\-AES128\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA           ECDHE\-ECDSA\-AES128\-SHA
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8             ECDHE\-ECDSA\-AES128\-CCM8
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CCM               ECDHE\-ECDSA\-AES128\-CCM
+\& TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256        ECDHE\-ECDSA\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384        ECDHE\-ECDSA\-AES256\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA           ECDHE\-ECDSA\-AES256\-SHA
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8             ECDHE\-ECDSA\-AES256\-CCM8
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CCM               ECDHE\-ECDSA\-AES256\-CCM
+\& TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384        ECDHE\-ECDSA\-AES256\-GCM\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256       ECDHE\-ECDSA\-ARIA128\-CBC\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256       ECDHE\-ECDSA\-ARIA128\-GCM\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384       ECDHE\-ECDSA\-ARIA256\-CBC\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384       ECDHE\-ECDSA\-ARIA256\-GCM\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256   ECDHE\-ECDSA\-CAMELLIA128\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384   ECDHE\-ECDSA\-CAMELLIA256\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256  ECDHE\-ECDSA\-CHACHA20\-POLY1305
+\& TLS_ECDHE_ECDSA_WITH_RC4_128_SHA               ECDHE\-ECDSA\-RC4\-SHA
+\& TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3               ECDHE\-ECDSA\-SM4\-CCM\-SM3
+\& TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3               ECDHE\-ECDSA\-SM4\-GCM\-SM3
+\& TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA            ECDHE\-RSA\-DES\-CBC3\-SHA
+\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256          ECDHE\-RSA\-AES128\-SHA256
+\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA             ECDHE\-RSA\-AES128\-SHA
+\& TLS_ECDHE_RSA_WITH_AES_128_CCM_8               ECDHE\-RSA\-AES128\-CCM8
+\& TLS_ECDHE_RSA_WITH_AES_128_CCM                 ECDHE\-RSA\-AES128\-CCM
+\& TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256          ECDHE\-RSA\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384          ECDHE\-RSA\-AES256\-SHA384
+\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA             ECDHE\-RSA\-AES256\-SHA
+\& TLS_ECDHE_RSA_WITH_AES_256_CCM_8               ECDHE\-RSA\-AES256\-CCM8
+\& TLS_ECDHE_RSA_WITH_AES_256_CCM                 ECDHE\-RSA\-AES256\-CCM
+\& TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384          ECDHE\-RSA\-AES256\-GCM\-SHA384
+\& TLS_ECDHE_RSA_WITH_ARIA_128_CBC_SHA256         ECDHE\-RSA\-ARIA128\-CBC\-SHA256
+\& TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256         ECDHE\-RSA\-ARIA128\-GCM\-SHA256
+\& TLS_ECDHE_RSA_WITH_ARIA_256_CBC_SHA384         ECDHE\-RSA\-ARIA256\-CBC\-SHA384
+\& TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384         ECDHE\-RSA\-ARIA256\-GCM\-SHA384
+\& TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256     ECDHE\-RSA\-CAMELLIA128\-SHA256
+\& TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384     ECDHE\-RSA\-CAMELLIA256\-SHA384
+\& TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256    ECDHE\-RSA\-CHACHA20\-POLY1305
+\& TLS_ECDHE_RSA_WITH_RC4_128_SHA                 ECDHE\-RSA\-RC4\-SHA
+\& TLS_ECDHE_RSA_WITH_SM4_CCM_SM3                 ECDHE\-RSA\-SM4\-CCM\-SM3
+\& TLS_ECDHE_RSA_WITH_SM4_GCM_SM3                 ECDHE\-RSA\-SM4\-GCM\-SM3
+\& TLS_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA            ECDHE\-PSK\-DES\-CBC3\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256          ECDHE\-PSK\-AES128\-CBC\-SHA256
+\& TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA             ECDHE\-PSK\-AES128\-CBC\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256        ECDHE\-PSK\-AES128\-CCM8
+\& TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256          ECDHE\-PSK\-AES128\-CCM
+\& TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256          ECDHE\-PSK\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA384          ECDHE\-PSK\-AES256\-CBC\-SHA384
+\& TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA             ECDHE\-PSK\-AES256\-CBC\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384          ECDHE\-PSK\-AES256\-GCM\-SHA384
+\& TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256         ECDHE\-PSK\-ARIA128\-CBC\-SHA256
+\& TLS_ECDHE_PSK_WITH_ARIA_128_GCM_SHA256         ECDHE\-PSK\-ARIA128\-GCM\-SHA256
+\& TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384         ECDHE\-PSK\-ARIA256\-CBC\-SHA384
+\& TLS_ECDHE_PSK_WITH_ARIA_256_GCM_SHA384         ECDHE\-PSK\-ARIA256\-GCM\-SHA384
+\& TLS_ECDHE_PSK_WITH_CAMELLIA_128_CBC_SHA256     ECDHE\-PSK\-CAMELLIA128\-SHA256
+\& TLS_ECDHE_PSK_WITH_CAMELLIA_256_CBC_SHA384     ECDHE\-PSK\-CAMELLIA256\-SHA384
+\& TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256    ECDHE\-PSK\-CHACHA20\-POLY1305
+\& TLS_ECDHE_PSK_WITH_RC4_128_SHA                 ECDHE\-PSK\-RC4\-SHA
+\& TLS_ECDHE_PSK_WITH_SM4_CCM_SM3                 ECDHE\-PSK\-SM4\-CCM\-SM3
+\& TLS_ECDHE_PSK_WITH_SM4_GCM_SM3                 ECDHE\-PSK\-SM4\-GCM\-SM3
+.Ve
+.SS "Pre\-shared keying (PSK) cipher suites"
+.IX Subsection "Pre-shared keying (PSK) cipher suites"
+.Vb 10
+\& TLS_DHE_PSK_WITH_AES_128_CBC_SHA256            DHE\-PSK\-AES128\-CBC\-SHA256
+\& TLS_DHE_PSK_WITH_AES_128_CBC_SHA               DHE\-PSK\-AES128\-CBC\-SHA
+\& TLS_DHE_PSK_WITH_AES_128_CCM_8                 DHE\-PSK\-AES128\-CCM8
+\& TLS_DHE_PSK_WITH_AES_128_CCM                   DHE\-PSK\-AES128\-CCM
+\& TLS_DHE_PSK_WITH_AES_128_GCM_SHA256            DHE\-PSK\-AES128\-GCM\-SHA256
+\& TLS_DHE_PSK_WITH_AES_256_CBC_SHA384            DHE\-PSK\-AES256\-CBC\-SHA384
+\& TLS_DHE_PSK_WITH_AES_256_CBC_SHA               DHE\-PSK\-AES256\-CBC\-SHA
+\& TLS_DHE_PSK_WITH_AES_256_CCM_8                 DHE\-PSK\-AES256\-CCM8
+\& TLS_DHE_PSK_WITH_AES_256_CCM                   DHE\-PSK\-AES256\-CCM
+\& TLS_DHE_PSK_WITH_AES_256_GCM_SHA384            DHE\-PSK\-AES256\-GCM\-SHA384
+\& TLS_DHE_PSK_WITH_ARIA_128_CBC_SHA256           DHE\-PSK\-ARIA128\-CBC\-SHA256
+\& TLS_DHE_PSK_WITH_ARIA_128_GCM_SHA256           DHE\-PSK\-ARIA128\-GCM\-SHA256
+\& TLS_DHE_PSK_WITH_ARIA_256_CBC_SHA384           DHE\-PSK\-ARIA256\-CBC\-SHA384
+\& TLS_DHE_PSK_WITH_ARIA_256_GCM_SHA384           DHE\-PSK\-ARIA256\-GCM\-SHA384
+\& TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256      DHE\-PSK\-CHACHA20\-POLY1305
+\& TLS_DHE_PSK_WITH_SM4_CCM_SM3                   DHE\-PSK\-SM4\-CCM\-SM3
+\& TLS_DHE_PSK_WITH_SM4_GCM_SM3                   DHE\-PSK\-SM4\-GCM\-SM3
+\& TLS_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA            ECDHE\-PSK\-DES\-CBC3\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256          ECDHE\-PSK\-AES128\-CBC\-SHA256
+\& TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA             ECDHE\-PSK\-AES128\-CBC\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256        ECDHE\-PSK\-AES128\-CCM8
+\& TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256          ECDHE\-PSK\-AES128\-CCM
+\& TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256          ECDHE\-PSK\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA384          ECDHE\-PSK\-AES256\-CBC\-SHA384
+\& TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA             ECDHE\-PSK\-AES256\-CBC\-SHA
+\& TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384          ECDHE\-PSK\-AES256\-GCM\-SHA384
+\& TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256         ECDHE\-PSK\-ARIA128\-CBC\-SHA256
+\& TLS_ECDHE_PSK_WITH_ARIA_128_GCM_SHA256         ECDHE\-PSK\-ARIA128\-GCM\-SHA256
+\& TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384         ECDHE\-PSK\-ARIA256\-CBC\-SHA384
+\& TLS_ECDHE_PSK_WITH_ARIA_256_GCM_SHA384         ECDHE\-PSK\-ARIA256\-GCM\-SHA384
+\& TLS_ECDHE_PSK_WITH_CAMELLIA_128_CBC_SHA256     ECDHE\-PSK\-CAMELLIA128\-SHA256
+\& TLS_ECDHE_PSK_WITH_CAMELLIA_256_CBC_SHA384     ECDHE\-PSK\-CAMELLIA256\-SHA384
+\& TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256    ECDHE\-PSK\-CHACHA20\-POLY1305
+\& TLS_ECDHE_PSK_WITH_RC4_128_SHA                 ECDHE\-PSK\-RC4\-SHA
+\& TLS_ECDHE_PSK_WITH_SM4_CCM_SM3                 ECDHE\-PSK\-SM4\-CCM\-SM3
+\& TLS_ECDHE_PSK_WITH_SM4_GCM_SM3                 ECDHE\-PSK\-SM4\-GCM\-SM3
+\& TLS_PSK_WITH_AES_128_CBC_SHA256                PSK\-AES128\-CBC\-SHA256
+\& TLS_PSK_WITH_AES_128_CBC_SHA                   PSK\-AES128\-CBC\-SHA
+\& TLS_PSK_WITH_AES_128_CCM_8                     PSK\-AES128\-CCM8
+\& TLS_PSK_WITH_AES_128_CCM                       PSK\-AES128\-CCM
+\& TLS_PSK_WITH_AES_128_GCM_SHA256                PSK\-AES128\-GCM\-SHA256
+\& TLS_PSK_WITH_AES_256_CBC_SHA384                PSK\-AES256\-CBC\-SHA384
+\& TLS_PSK_WITH_AES_256_CBC_SHA                   PSK\-AES256\-CBC\-SHA
+\& TLS_PSK_WITH_AES_256_CCM_8                     PSK\-AES256\-CCM8
+\& TLS_PSK_WITH_AES_256_CCM                       PSK\-AES256\-CCM
+\& TLS_PSK_WITH_AES_256_GCM_SHA384                PSK\-AES256\-GCM\-SHA384
+\& TLS_PSK_WITH_ARIA_128_CBC_SHA256               PSK\-ARIA128\-CBC\-SHA256
+\& TLS_PSK_WITH_ARIA_128_GCM_SHA256               PSK\-ARIA128\-GCM\-SHA256
+\& TLS_PSK_WITH_ARIA_256_GCM_SHA384               PSK\-ARIA256\-GCM\-SHA384
+\& TLS_PSK_WITH_CHACHA20_POLY1305_SHA256          PSK\-CHACHA20\-POLY1305
+\& TLS_RSA_PSK_WITH_AES_128_CBC_SHA256            RSA\-PSK\-AES128\-CBC\-SHA256
+\& TLS_RSA_PSK_WITH_AES_128_CBC_SHA               RSA\-PSK\-AES128\-CBC\-SHA
+\& TLS_RSA_PSK_WITH_AES_128_GCM_SHA256            RSA\-PSK\-AES128\-GCM\-SHA256
+\& TLS_RSA_PSK_WITH_AES_256_CBC_SHA384            RSA\-PSK\-AES256\-CBC\-SHA384
+\& TLS_RSA_PSK_WITH_AES_256_CBC_SHA               RSA\-PSK\-AES256\-CBC\-SHA
+\& TLS_RSA_PSK_WITH_AES_256_GCM_SHA384            RSA\-PSK\-AES256\-GCM\-SHA384
+\& TLS_RSA_PSK_WITH_ARIA_128_CBC_SHA256           RSA\-PSK\-ARIA128\-CBC\-SHA256
+\& TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256           RSA\-PSK\-ARIA128\-GCM\-SHA256
+\& TLS_RSA_PSK_WITH_ARIA_256_CBC_SHA384           RSA\-PSK\-ARIA256\-CBC\-SHA384
+\& TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384           RSA\-PSK\-ARIA256\-GCM\-SHA384
+\& TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256      RSA\-PSK\-CHACHA20\-POLY1305
+\& TLS_RSA_PSK_WITH_SM4_CCM_SM3                   RSA\-PSK\-SM4\-CCM\-SM3
+\& TLS_RSA_PSK_WITH_SM4_GCM_SM3                   RSA\-PSK\-SM4\-GCM\-SM3
+.Ve
+.SS "Other TLS v1.2 cipher suites"
+.IX Subsection "Other TLS v1.2 cipher suites"
+.Vb 10
+\& TLS_RSA_WITH_NULL_MD5                          NULL\-MD5
+\& TLS_RSA_WITH_NULL_SHA                          NULL\-SHA
+\& TLS_RSA_WITH_NULL_SHA256                       NULL\-SHA256
+\& TLS_RSA_WITH_RC4_128_MD5                       RC4\-MD5
+\& TLS_RSA_WITH_RC4_128_SHA                       RC4\-SHA
+\& TLS_RSA_WITH_IDEA_CBC_SHA                      IDEA\-CBC\-SHA
+\& TLS_RSA_WITH_3DES_EDE_CBC_SHA                  DES\-CBC3\-SHA
+\& TLS_RSA_WITH_SM4_CCM_SM3                       SM4\-CCM\-SM3
+\& TLS_RSA_WITH_SM4_GCM_SM3                       SM4\-GCM\-SM3
+\& TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA              DHE\-DSS\-DES\-CBC3\-SHA
+\& TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA              DHE\-RSA\-DES\-CBC3\-SHA
+\& TLS_DHE_RSA_WITH_SM4_CCM_SM3                   DHE\-RSA\-SM4\-CCM\-SM3
+\& TLS_DHE_RSA_WITH_SM4_GCM_SM3                   DHE\-RSA\-SM4\-GCM\-SM3
+\& TLS_DH_anon_WITH_RC4_128_MD5                   ADH\-RC4\-MD5
+\& TLS_DH_anon_WITH_3DES_EDE_CBC_SHA              ADH\-DES\-CBC3\-SHA
 .Ve
 .SS "TLS v1.3 cipher suites"
 .IX Subsection "TLS v1.3 cipher suites"
@@ -766,13 +868,13 @@ Note: the CBC modes mentioned in this RFC are not supported.
 Note: these ciphers are purely HMAC based and do not provide any confidentiality
 and thus are disabled by default.
 These ciphers are only available at security level 0.
-.SS "Older names used by OpenSSL"
-.IX Subsection "Older names used by OpenSSL"
+.SS """EDH\-"" aliases to ""DHE\-"" names for backward compatibility"
+.IX Subsection """EDH-"" aliases to ""DHE-"" names for backward compatibility"
 The following names are accepted by older releases:
 .PP
 .Vb 2
-\& SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA    EDH\-RSA\-DES\-CBC3\-SHA (DHE\-RSA\-DES\-CBC3\-SHA)
-\& SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA    EDH\-DSS\-DES\-CBC3\-SHA (DHE\-DSS\-DES\-CBC3\-SHA)
+\& EDH\-RSA\-DES\-CBC3\-SHA \- alias of DHE\-RSA\-DES\-CBC3\-SHA
+\& EDH\-DSS\-DES\-CBC3\-SHA \- alias of DHE\-DSS\-DES\-CBC3\-SHA
 .Ve
 .SH NOTES
 .IX Header "NOTES"
@@ -800,16 +902,10 @@ authentication (aNULL):
 \& openssl ciphers \-v \*(AqALL:!aNULL\*(Aq
 .Ve
 .PP
-Include only 3DES ciphers and then place RSA ciphers last:
+Include only AES ciphers and then place RSA ciphers last:
 .PP
 .Vb 1
-\& openssl ciphers \-v \*(Aq3DES:+RSA\*(Aq
-.Ve
-.PP
-Include all RC4 ciphers but leave out those without authentication:
-.PP
-.Vb 1
-\& openssl ciphers \-v \*(AqRC4:!COMPLEMENTOFDEFAULT\*(Aq
+\& openssl ciphers \-v \*(AqAES:+RSA\*(Aq
 .Ve
 .PP
 Include all ciphers with RSA authentication but leave out ciphers without
@@ -845,7 +941,7 @@ OpenSSL 3.2.0.
 The support for TLS v1.3 integrity\-only cipher suites was added in OpenSSL 3.4.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

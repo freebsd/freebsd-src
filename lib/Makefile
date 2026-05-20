@@ -34,7 +34,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	lib9p \
 	libalias \
 	libarchive \
-	libauditd \
 	libbegemot \
 	libblocksruntime \
 	libbsddialog \
@@ -91,7 +90,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	librss \
 	librt \
 	librtld_db \
-	libsamplerate \
 	libsbuf \
 	libsmb \
 	libstdbuf \
@@ -174,6 +172,7 @@ SUBDIR+=	clang
 .endif
 .endif
 
+SUBDIR.${MK_AUDIT}+=	libauditd
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_TOOLCHAIN}+=libpe
 SUBDIR.${MK_DIALOG}+=	libdpv libfigpar
@@ -189,6 +188,7 @@ SUBDIR.${MK_ICONV}+=	libiconv_modules
 SUBDIR.${MK_KERBEROS}+=	libcom_err
 .endif
 SUBDIR.${MK_LDNS}+=	libldns
+SUBDIR.${MK_PKGCONF}+=	libpkgconf
 SUBDIR.${MK_STATS}+=	libstats
 
 # The libraries under libclang_rt can only be built by clang.
@@ -237,7 +237,7 @@ SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius
 SUBDIR.${MK_SENDMAIL}+=	libmilter libsm libsmdb libsmutil
 SUBDIR.${MK_TELNET}+=	libtelnet
 SUBDIR.${MK_SOUND}+=	libmixer
-SUBDIR.${MK_CUSE}.${MK_SOUND}+=	virtual_oss
+SUBDIR.${MK_CUSE}.${MK_SOUND}+=	libsamplerate virtual_oss
 SUBDIR.${MK_TESTS_SUPPORT}+=	atf
 SUBDIR.${MK_TESTS_SUPPORT}+=	liblutok
 SUBDIR.${MK_TESTS}+=	tests

@@ -169,6 +169,19 @@ s32 ixgbe_handle_nvm_access(struct ixgbe_hw *hw,
 
 s32 ixgbe_aci_set_health_status_config(struct ixgbe_hw *hw, u8 event_source);
 
+s32 ixgbe_fwlog_init(struct ixgbe_hw *hw, struct ixgbe_fwlog_cfg *cfg);
+bool ixgbe_fwlog_supported(struct ixgbe_hw *hw);
+s32 ixgbe_fwlog_set(struct ixgbe_hw *hw, struct ixgbe_fwlog_cfg *cfg);
+s32 ixgbe_fwlog_update_modules(struct ixgbe_hw *hw,
+			       struct ixgbe_fwlog_module_entry *entries,
+			       u16 num_entries);
+s32 ixgbe_fwlog_register(struct ixgbe_hw *hw);
+s32 ixgbe_fwlog_unregister(struct ixgbe_hw *hw);
+void ixgbe_fwlog_set_support_ena(struct ixgbe_hw *hw);
+s32 ixgbe_fwlog_get(struct ixgbe_hw *hw, struct ixgbe_fwlog_cfg *cfg);
+void ixgbe_fwlog_event_dump(struct ixgbe_hw *hw,
+			    struct ixgbe_aci_desc *desc, void *buf);
+
 /* E610 operations */
 s32 ixgbe_init_ops_E610(struct ixgbe_hw *hw);
 s32 ixgbe_reset_hw_E610(struct ixgbe_hw *hw);

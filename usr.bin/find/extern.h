@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <signal.h>
 
 void	 brace_subst(char *, char **, char *, size_t);
 PLAN	*find_create(char ***);
@@ -122,6 +122,8 @@ exec_f	f_sparse;
 exec_f	f_type;
 exec_f	f_user;
 exec_f	f_writable;
+exec_f	f_xattr;
+exec_f	f_xattrname;
 
 extern int ftsoptions, ignore_readdir_race, isdepth, isoutput;
 extern int issort, isxargs;

@@ -293,6 +293,17 @@ archive_write_gnutar_header(struct archive_write *a,
 	} else
 		sconv = gnutar->opt_sconv;
 
+	/* Sanity check. */
+	if (archive_entry_pathname(entry) == NULL
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    && archive_entry_pathname_w(entry) == NULL
+#endif
+	    ) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't record entry in tar file without pathname");
+		return ARCHIVE_FAILED;
+	}
+
 	/* Only regular files (not hardlinks) have data. */
 	if (archive_entry_hardlink(entry) != NULL ||
 	    archive_entry_symlink(entry) != NULL ||
@@ -385,17 +396,30 @@ archive_write_gnutar_header(struct archive_write *a,
 	r = archive_entry_pathname_l(entry, &(gnutar->pathname),
 	    &(gnutar->pathname_length), sconv);
 	if (r != 0) {
+		const char* p_mbs;
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for pathname");
 			ret = ARCHIVE_FATAL;
 			goto exit_write_header;
 		}
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate pathname '%s' to %s",
-		    archive_entry_pathname(entry),
-		    archive_string_conversion_charset_name(sconv));
-		ret2 = ARCHIVE_WARN;
+		p_mbs = archive_entry_pathname(entry);
+		if (p_mbs) {
+			/* We have a wrongly-encoded MBS pathname.
+			 * Warn and use it.  */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate pathname '%s' to %s", p_mbs,
+			    archive_string_conversion_charset_name(sconv));
+			ret2 = ARCHIVE_WARN;
+		} else {
+			/* We have no MBS pathname.  Fail.  */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate pathname to %s",
+			    archive_string_conversion_charset_name(sconv));
+			return ARCHIVE_FAILED;
+		}
 	}
 	r = archive_entry_uname_l(entry, &(gnutar->uname),
 	    &(gnutar->uname_length), sconv);

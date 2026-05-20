@@ -1,4 +1,4 @@
-/*	$NetBSD: arch.c,v 1.223 2025/06/28 22:39:27 rillig Exp $	*/
+/*	$NetBSD: arch.c,v 1.224 2026/04/06 17:13:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,10 +147,10 @@ struct ar_hdr {
 #include "dir.h"
 
 /*	"@(#)arch.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: arch.c,v 1.223 2025/06/28 22:39:27 rillig Exp $");
+MAKE_RCSID("$NetBSD: arch.c,v 1.224 2026/04/06 17:13:54 rillig Exp $");
 
-typedef struct List ArchList;
-typedef struct ListNode ArchListNode;
+typedef List ArchList;
+typedef ListNode ArchListNode;
 
 static ArchList archives;	/* The archives we've already examined */
 
@@ -737,9 +737,9 @@ ArchFindMember(const char *archive, const char *member,
 		 * BSD 4.4 extended AR format: #1/<namelen>, with name as the
 		 * first <namelen> bytes of the file
 		 */
-		if (strncmp(out_arh->AR_NAME, AR_EFMT1, sizeof AR_EFMT1 - 1) ==
-		    0 &&
-		    (ch_isdigit(out_arh->AR_NAME[sizeof AR_EFMT1 - 1]))) {
+		if (strncmp(out_arh->AR_NAME, AR_EFMT1, sizeof AR_EFMT1 - 1)
+		    == 0 &&
+		    ch_isdigit(out_arh->AR_NAME[sizeof AR_EFMT1 - 1])) {
 			size_t elen = (size_t)atoi(
 			    &out_arh->AR_NAME[sizeof AR_EFMT1 - 1]);
 			char ename[MAXPATHLEN + 1];
@@ -982,7 +982,7 @@ Arch_LibOODate(GNode *gn)
 	if (!GNode_IsTarget(gn) && Lst_IsEmpty(&gn->children))
 		return false;
 	if ((!Lst_IsEmpty(&gn->children) && gn->youngestChild == NULL) ||
-		   (gn->mtime > now) ||
+		   gn->mtime > now ||
 		   (gn->youngestChild != NULL &&
 		    gn->mtime < gn->youngestChild->mtime))
 		return true;

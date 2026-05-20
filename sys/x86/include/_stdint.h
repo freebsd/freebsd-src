@@ -40,8 +40,6 @@
 #ifndef _MACHINE__STDINT_H_
 #define	_MACHINE__STDINT_H_
 
-#if !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS)
-
 #define	INT8_C(c)		(c)
 #define	INT16_C(c)		(c)
 #define	INT32_C(c)		(c)
@@ -60,10 +58,6 @@
 
 #define	INTMAX_C(c)		INT64_C(c)
 #define	UINTMAX_C(c)		UINT64_C(c)
-
-#endif /* !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS) */
-
-#if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS)
 
 /*
  * ISO/IEC 9899:1999
@@ -163,7 +157,7 @@
  */
 #ifdef	__LP64__
 /* Limits of ptrdiff_t. */
-#define	PTRDIFF_MIN	INT64_MIN	
+#define	PTRDIFF_MIN	INT64_MIN
 #define	PTRDIFF_MAX	INT64_MAX
 
 /* Limits of sig_atomic_t. */
@@ -216,7 +210,5 @@
 #define WCHAR_WIDTH		INT32_WIDTH
 #define WINT_WIDTH		INT32_WIDTH
 #endif /* __ISO_C_VISIBLE >= 2023 */
-
-#endif /* !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS) */
 
 #endif /* !_MACHINE__STDINT_H_ */

@@ -166,7 +166,7 @@ struct gve_queue_page_list {
 	uint32_t id;
 	uint32_t num_dmas;
 	uint32_t num_pages;
-	vm_offset_t kva;
+	char *kva;
 	vm_page_t *pages;
 	struct gve_dma_handle *dmas;
 };
@@ -350,7 +350,7 @@ struct gve_rx_ring {
  * uses it.
  */
 struct gve_tx_fifo {
-	vm_offset_t base; /* address of base of FIFO */
+	char *base; /* address of base of FIFO */
 	uint32_t size; /* total size */
 	volatile int available; /* how much space is still available */
 	uint32_t head; /* offset to write at */

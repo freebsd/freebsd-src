@@ -237,6 +237,11 @@ rge_sysctl_attach(struct rge_softc *sc)
 	    "rx_process_limit", CTLFLAG_RW, &sc->sc_rx_process_limit, 0,
 	    "max number of RX packets to process per interrupt");
 
+	sc->sc_disable_aspm = 0;
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "disable_aspm", CTLFLAG_RDTUN, &sc->sc_disable_aspm, 0,
+	    "disable PCIe ASPM and ECPM (requires reboot)");
+
 	/* Stats */
 	rge_sysctl_drv_stats_attach(sc);
 	rge_sysctl_mac_stats_attach(sc);

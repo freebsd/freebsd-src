@@ -37,10 +37,12 @@
 #include <sys/fcntl.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
-#include <sys/stat.h>
-#include <sys/vnode.h>
 #include <sys/rwlock.h>
+#include <sys/stat.h>
+#include <sys/syslimits.h>
+#include <sys/unistd.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -417,7 +419,7 @@ out:
  * the name and perm specified under the parent dir. If this succeeds (an entry
  * is created for the new file on the server), we create our metadata for this
  * file (vnode, p9fs node calling vget). Once we are done, we clunk the open
- * fid of the parent directory.
+ * fid of the parent directory if it was not retained.
  */
 static int
 create_common(struct p9fs_node *dnp, struct componentname *cnp,
@@ -471,6 +473,28 @@ create_common(struct p9fs_node *dnp, struct componentname *cnp,
 			    dnp, newfid, vpp, cnp->cn_nameptr);
 			if (error != 0)
 				goto out;
+
+			if (ofid != NULL) {
+				struct p9fs_node *np = P9FS_VTON(*vpp);
+				ofid->v_opens = 0;
+				/*
+				 * The 9P file creation request natively opens
+				 * the file as part of the create operation and
+				 * gives us a writable file handle (ofid).
+				 * We retain this open descriptor by adding it
+				 * to the VOFID list of the new vnode. This
+				 * guarantees that a subsequent VOP_OPEN call
+				 * does not need to send a redundant TOPEN
+				 * request. This is particularly important
+				 * because if a file was requested to be created
+				 * with 000 permissions, the host will reject
+				 * subsequent TOPEN requests due to insufficient
+				 * permissions, which would cause an overall
+				 * open() failure.
+				 */
+				p9fs_fid_add(np, ofid, VOFID);
+				ofid = NULL; /* prevent closing handle below */
+			}
 		} else {
 			/* Not found return NOENTRY.*/
 			goto out;
@@ -2179,7 +2203,7 @@ p9fs_putpages(struct vop_putpages_args *ap)
 	struct ucred *cred;
 	struct p9fs_node *np;
 	vm_page_t *pages;
-	vm_offset_t kva;
+	void *kva;
 	struct buf *bp;
 
 	vp = ap->a_vp;
@@ -2205,13 +2229,13 @@ p9fs_putpages(struct vop_putpages_args *ap)
 		rtvals[i] = VM_PAGER_ERROR;
 
 	bp = uma_zalloc(p9fs_pbuf_zone, M_WAITOK);
-	kva = (vm_offset_t) bp->b_data;
+	kva = bp->b_data;
 	pmap_qenter(kva, pages, npages);
 
 	VM_CNT_INC(v_vnodeout);
 	VM_CNT_ADD(v_vnodepgsout, count);
 
-	iov.iov_base = (caddr_t) kva;
+	iov.iov_base = kva;
 	iov.iov_len = count;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
@@ -2248,6 +2272,72 @@ p9fs_delayed_setsize(struct vop_delayed_setsize_args *ap)
 	return (0);
 }
 
+static unsigned int
+p9fs_get_name_max(struct p9fs_node *np)
+{
+	struct p9fs_session *vses = np->p9fs_ses;
+	struct p9_statfs statfs;
+	struct p9_fid *vfid;
+	unsigned int name_max;
+	int error = 0;
+
+	name_max = atomic_load_int(&vses->name_max);
+	if (name_max != 0)
+		return (name_max);
+
+	P9_DEBUG(VOPS, "%s: querying _PC_NAME_MAX\n", __func__);
+	vfid = p9fs_get_fid(vses->clnt, np, NULL, VFID, -1, &error);
+	if (vfid != NULL) {
+		error = p9_client_statfs(vfid, &statfs);
+		if (error == 0) {
+			/*
+			 * Note that this is not strictly correct if you have
+			 * nested mounts on the host (e.g. when using qemu with
+			 * multidevs=remap), but is a better estimate than just
+			 * returning 255.
+			 */
+			name_max = statfs.namelen;
+		}
+	}
+	P9_DEBUG(VOPS, "%s: max_name=%u error=%d\n", __func__, name_max, error);
+	if (error != 0 || name_max == 0) {
+		printf("p9fs: warning: failed to query name_max (error %d), "
+		    "using fallback %d\n", error, NAME_MAX);
+		name_max = NAME_MAX; /* fallback and prevent retrying */
+	}
+	atomic_store_int(&vses->name_max, name_max);
+	return (name_max);
+}
+
+/*
+ * Return POSIX pathconf information applicable to p9fs filesystems.
+ */
+static int
+p9fs_pathconf(struct vop_pathconf_args *ap)
+{
+	int error = 0;
+	struct vnode *vp = ap->a_vp;
+	struct p9fs_node *np = P9FS_VTON(vp);
+
+	switch (ap->a_name) {
+	case _PC_NAME_MAX:
+		*ap->a_retval = p9fs_get_name_max(np);
+		break;
+	case _PC_SYMLINK_MAX:
+	case _PC_PATH_MAX:
+		/*
+		 * These are conservative estimates, the real value depends on
+		 * the host file system.
+		 */
+		*ap->a_retval = MAXPATHLEN;
+		break;
+	default:
+		error = vop_stdpathconf(ap);
+		break;
+	}
+	return (error);
+}
+
 struct vop_vector p9fs_vnops = {
 	.vop_default =		&default_vnodeops,
 	.vop_lookup =		p9fs_lookup,
@@ -2257,6 +2347,7 @@ struct vop_vector p9fs_vnops = {
 	.vop_delayed_setsize =	p9fs_delayed_setsize,
 	.vop_getattr =		p9fs_getattr_dotl,
 	.vop_setattr =		p9fs_setattr_dotl,
+	.vop_pathconf =		p9fs_pathconf,
 	.vop_reclaim =		p9fs_reclaim,
 	.vop_inactive =		p9fs_inactive,
 	.vop_readdir =		p9fs_readdir,

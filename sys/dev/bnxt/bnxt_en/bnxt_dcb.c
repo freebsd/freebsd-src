@@ -326,6 +326,9 @@ bnxt_hwrm_get_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
 	if (softc->hwrm_spec_code < 0x10601)
 		return 0;
 
+	if (BNXT_VF(softc))
+		return 0;
+
 	bnxt_hwrm_cmd_hdr_init(softc, &get, HWRM_FW_GET_STRUCTURED_DATA);
 
 	n = BNXT_IEEE_8021QAZ_MAX_TCS;

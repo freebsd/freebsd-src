@@ -440,7 +440,7 @@ f_yesno()
 # f_noyes $format [$arguments ...]
 #
 # Display a message in a dialog yes/no box using printf(1) syntax.
-# NOTE: THis is just like the f_yesno function except "No" is default.
+# NOTE: This is just like the f_yesno function except "No" is default.
 #
 f_noyes()
 {

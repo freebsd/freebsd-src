@@ -29,6 +29,21 @@ local function checkAbiChanges(arg)
 	return false
 end
 
+-- Extracts the Microsoft(R) SAL annotations from this argument.
+local function extractArgAnnotations(arg)
+	local annotations = {}
+	for ann in arg:gmatch("_Contains_[^ ]*[_)]") do
+		table.insert(annotations, ann)
+	end
+	for ann in arg:gmatch("_In[^ ]*[_)]") do
+		table.insert(annotations, ann)
+	end
+	for ann in arg:gmatch("_Out[^ ]*[_)]") do
+		table.insert(annotations, ann)
+	end
+	return table.concat(annotations, " ")
+end
+
 -- Strips the Microsoft(R) SAL annotations from this argument.
 local function stripArgAnnotations(arg)
 	arg = arg:gsub("_Contains_[^ ]*[_)] ?", "")
@@ -46,6 +61,7 @@ function scarg:init(line)
 
 	self.arg_abi_change = checkAbiChanges(self.scarg)
 	self.changes_abi = self.arg_abi_change
+	self.annotation = extractArgAnnotations(self.scarg)
 	self.scarg = stripArgAnnotations(self.scarg)
 
 	self.name = self.scarg:match("([^* ]+)$")
@@ -126,15 +142,18 @@ function scarg:append(tbl)
 		table.insert(tbl, {
 			type = "uint32_t",
 			name = self.name .. "1",
+			annotation = self.annotation or "",
 		})
 		table.insert(tbl, {
 			type = "uint32_t",
 			name = self.name .. "2",
+			annotation = "",
 		})
 	else
 		table.insert(tbl, {
 			type = self.type,
 			name = self.name,
+			annotation = self.annotation or "",
 		})
 	end
 end

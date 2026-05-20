@@ -34,6 +34,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sx.h>
 
@@ -146,6 +147,13 @@ genl_handle_message(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	if (cmd->cmd_priv != 0 && !nlp_has_priv(nlp, cmd->cmd_priv)) {
 		NLP_LOG(LOG_DEBUG, nlp, "family %s: cmd %d priv_check() failed",
+		    gf->family_name, ghdr->cmd);
+		return (EPERM);
+	}
+
+	if (cmd->cmd_securelevel > 0 &&
+	    securelevel_ge(nlp_get_cred(nlp), cmd->cmd_securelevel)) {
+		NLP_LOG(LOG_DEBUG, nlp, "family %s: cmd %d securelevel_gt() failed",
 		    gf->family_name, ghdr->cmd);
 		return (EPERM);
 	}

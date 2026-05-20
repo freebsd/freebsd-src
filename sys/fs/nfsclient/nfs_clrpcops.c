@@ -67,13 +67,13 @@ SYSCTL_U64(_vfs_nfs, OID_AUTO, maxcopyrange, CTLFLAG_RW,
 /*
  * Global variables
  */
+uint32_t nfs_exchangeboot = 0;
 extern struct nfsstatsv1 nfsstatsv1;
 extern int nfs_numnfscbd;
 extern struct timeval nfsboottime;
 extern u_int32_t newnfs_false, newnfs_true;
 extern nfstype nfsv34_type[9];
 extern int nfsrv_useacl;
-extern char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
 extern int nfscl_debuglevel;
 extern int nfs_pnfsiothreads;
 extern u_long sb_max_adj;
@@ -1039,13 +1039,10 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
-	u_int8_t *cp = NULL, *cp2, addr[INET6_ADDRSTRLEN + 9];
-	u_short port;
-	int error, isinet6 = 0, callblen;
+	int error;
 	nfsquad_t confirm;
 	static u_int32_t rev = 0;
 	struct nfsclds *dsp, *odsp;
-	struct in6_addr a6;
 	struct nfsclsession *tsep;
 	struct rpc_reconupcall recon;
 	struct nfscl_reconarg *rcp;
@@ -1203,49 +1200,13 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	(void) nfsm_strtom(nd, clp->nfsc_id, clp->nfsc_idlen);
 
 	/*
-	 * set up the callback address
+	 * Always set the callback address to 0.0.0.0.0.0 so NFSv4.0
+	 * callbacks are disabled.
 	 */
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFS_CALLBCKPROG);
-	callblen = strlen(nfsv4_callbackaddr);
-	if (callblen == 0)
-		cp = nfscl_getmyip(nmp, &a6, &isinet6);
-	if (nfscl_enablecallb && nfs_numnfscbd > 0 &&
-	    (callblen > 0 || cp != NULL)) {
-		port = htons(nfsv4_cbport);
-		cp2 = (u_int8_t *)&port;
-#ifdef INET6
-		if ((callblen > 0 &&
-		     strchr(nfsv4_callbackaddr, ':')) || isinet6) {
-			char ip6buf[INET6_ADDRSTRLEN], *ip6add;
-
-			(void) nfsm_strtom(nd, "tcp6", 4);
-			if (callblen == 0) {
-				ip6_sprintf(ip6buf, (struct in6_addr *)cp);
-				ip6add = ip6buf;
-			} else {
-				ip6add = nfsv4_callbackaddr;
-			}
-			snprintf(addr, INET6_ADDRSTRLEN + 9, "%s.%d.%d",
-			    ip6add, cp2[0], cp2[1]);
-		} else
-#endif
-		{
-			(void) nfsm_strtom(nd, "tcp", 3);
-			if (callblen == 0)
-				snprintf(addr, INET6_ADDRSTRLEN + 9,
-				    "%d.%d.%d.%d.%d.%d", cp[0], cp[1],
-				    cp[2], cp[3], cp2[0], cp2[1]);
-			else
-				snprintf(addr, INET6_ADDRSTRLEN + 9,
-				    "%s.%d.%d", nfsv4_callbackaddr,
-				    cp2[0], cp2[1]);
-		}
-		(void) nfsm_strtom(nd, addr, strlen(addr));
-	} else {
-		(void) nfsm_strtom(nd, "tcp", 3);
-		(void) nfsm_strtom(nd, "0.0.0.0.0.0", 11);
-	}
+	(void)nfsm_strtom(nd, "tcp", 3);
+	(void)nfsm_strtom(nd, "0.0.0.0.0.0", 11);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(clp->nfsc_cbident);
 	nd->nd_flag |= ND_USEGSSNAME;
@@ -5537,7 +5498,7 @@ nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
 	nfscl_reqstart(nd, NFSPROC_EXCHANGEID, nmp, NULL, 0, NULL, NULL,
 	    NFS_VER4, minorvers, NULL);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
-	*tl++ = txdr_unsigned(nfsboottime.tv_sec);	/* Client owner */
+	*tl++ = txdr_unsigned(nfs_exchangeboot);	/* Client owner */
 	*tl = txdr_unsigned(clp->nfsc_rev);
 	(void) nfsm_strtom(nd, clp->nfsc_id, clp->nfsc_idlen);
 
@@ -9833,11 +9794,11 @@ nfsm_split(struct mbuf *mp, uint64_t xfer)
 
 		/* Copy the data after left to the new page. */
 		trim = plen - left;
-		cp = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[pgno]);
+		cp = PHYS_TO_DMAP(m->m_epg_pa[pgno]);
 		if (pgno == 0)
 			cp += m->m_epg_1st_off;
 		cp += left;
-		cp2 = (char *)(void *)PHYS_TO_DMAP(m2->m_epg_pa[0]);
+		cp2 = PHYS_TO_DMAP(m2->m_epg_pa[0]);
 		if (pgno == m->m_epg_npgs - 1)
 			m2->m_epg_last_len = trim;
 		else {

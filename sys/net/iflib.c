@@ -190,6 +190,7 @@ struct iflib_ctx {
 	struct ifmedia	ifc_media;
 	struct ifmedia	*ifc_mediap;
 
+	struct sysctl_ctx_list ifc_sysctl_ctx;
 	struct sysctl_oid *ifc_sysctl_node;
 	uint16_t ifc_sysctl_ntxqs;
 	uint16_t ifc_sysctl_nrxqs;
@@ -702,6 +703,7 @@ static struct mbuf *iflib_fixup_rx(struct mbuf *m);
 #endif
 static __inline int iflib_completed_tx_reclaim(iflib_txq_t txq,
     struct mbuf **m_defer);
+static __inline void iflib_completed_tx_reclaim_force(iflib_txq_t txq);
 
 static SLIST_HEAD(cpu_offset_list, cpu_offset) cpu_offsets =
     SLIST_HEAD_INITIALIZER(cpu_offsets);
@@ -2952,8 +2954,10 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		ri.iri_frags = rxq->ifr_frags;
 		err = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
 
-		if (err)
+		if (err) {
+			CURVNET_RESTORE();
 			goto err;
+		}
 		rx_pkts += 1;
 		rx_bytes += ri.iri_len;
 		if (sctx->isc_flags & IFLIB_HAS_RXCQ) {
@@ -3476,7 +3480,7 @@ iflib_ether_pad(device_t dev, struct mbuf **m_head, uint16_t min_frame_size)
 }
 
 static int
-iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
+iflib_encap(iflib_txq_t txq, struct mbuf **m_headp, int *obytes, int *opkts)
 {
 	if_ctx_t		ctx;
 	if_shared_ctx_t		sctx;
@@ -3599,7 +3603,7 @@ defrag:
 	 *        cxgb
 	 */
 	if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
-		(void)iflib_completed_tx_reclaim(txq, NULL);
+		iflib_completed_tx_reclaim_force(txq);
 		if (__predict_false(nsegs > TXQ_AVAIL(txq))) {
 			txq->ift_no_desc_avail++;
 			bus_dmamap_unload(buf_tag, map);
@@ -3661,6 +3665,20 @@ defrag:
 		 */
 		txq->ift_pidx = pi.ipi_new_pidx;
 		txq->ift_npending += pi.ipi_ndescs;
+
+		/*
+		 * Update packets / bytes sent
+		 */
+		if (flags & IFLIB_TSO) {
+			int hlen = pi.ipi_ehdrlen + pi.ipi_ip_hlen + pi.ipi_tcp_hlen;
+			int tsolen = pi.ipi_len - hlen;
+			int nsegs = (tsolen + pi.ipi_tso_segsz - 1) / pi.ipi_tso_segsz;
+			*obytes += tsolen + nsegs * hlen;
+			*opkts += nsegs;
+		} else {
+			*obytes += pi.ipi_len;
+			*opkts += 1;
+		}
 	} else {
 		*m_headp = m_head = iflib_remove_mbuf(txq);
 		if (err == EFBIG) {
@@ -3788,6 +3806,20 @@ iflib_completed_tx_reclaim(iflib_txq_t txq, struct mbuf **m_defer)
 	return (reclaim);
 }
 
+/*
+ * Reclaim any transmit descriptors possible, ignoring coalescing
+ */
+static __inline void
+iflib_completed_tx_reclaim_force(iflib_txq_t txq)
+{
+	int reclaim;
+
+	iflib_tx_credits_update(txq->ift_ctx, txq);
+	reclaim = DESC_RECLAIMABLE(txq);
+	if (reclaim != 0)
+		_iflib_completed_tx_reclaim(txq, NULL, reclaim);
+}
+
 static struct mbuf **
 _ring_peek_one(struct ifmp_ring *r, int cidx, int offset, int remaining)
 {
@@ -3836,7 +3868,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	if_ctx_t ctx = txq->ift_ctx;
 	if_t ifp = ctx->ifc_ifp;
 	struct mbuf *m, **mp;
-	int avail, bytes_sent, skipped, count, err, i;
+	int avail, bytes_sent, consumed, count, err, i;
 	int mcast_sent, pkt_sent, reclaimed;
 	bool do_prefetch, rang, ring;
 
@@ -3876,7 +3908,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	 */
 	if (reclaimed)
 		txq->ift_qstatus = IFLIB_QUEUE_IDLE;
-	skipped = mcast_sent = bytes_sent = pkt_sent = 0;
+	consumed = mcast_sent = bytes_sent = pkt_sent = 0;
 	count = MIN(avail, TX_BATCH_SIZE);
 #ifdef INVARIANTS
 	if (iflib_verbose_debug)
@@ -3899,22 +3931,21 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		 * and skip them.
 		 */
 		if (__predict_false(*mp == (struct mbuf *)txq)) {
-			skipped++;
+			consumed++;
 			continue;
 		}
-		err = iflib_encap(txq, mp);
+		err = iflib_encap(txq, mp, &bytes_sent, &pkt_sent);
 		if (__predict_false(err)) {
 			/* no room - bail out */
 			if (err == ENOBUFS)
 				break;
-			skipped++;
+			consumed++;
 			/* we can't send this packet - skip it */
 			continue;
 		}
-		pkt_sent++;
+		consumed++;
 		m = *mp;
 		DBG_COUNTER_INC(tx_sent);
-		bytes_sent += m->m_pkthdr.len;
 		mcast_sent += !!(m->m_flags & M_MCAST);
 
 		if (__predict_false(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)))
@@ -3932,9 +3963,9 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		if_inc_counter(ifp, IFCOUNTER_OMCASTS, mcast_sent);
 #ifdef INVARIANTS
 	if (iflib_verbose_debug)
-		printf("consumed=%d\n", skipped + pkt_sent);
+		printf("consumed=%d\n", consumed);
 #endif
-	return (skipped + pkt_sent);
+	return (consumed);
 }
 
 static uint32_t
@@ -4468,8 +4499,11 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		err = ifmedia_ioctl(ifp, ifr, ctx->ifc_mediap, command);
 		break;
 	case SIOCGI2C:
+		/* FALLTHROUGH */
+	case SIOCGI2CPB:
 	{
 		struct ifi2creq i2c;
+		if_shared_ctx_t sctx = ctx->ifc_sctx;
 
 		err = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (err != 0)
@@ -4479,6 +4513,12 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			break;
 		}
 		if (i2c.len > sizeof(i2c.data)) {
+			err = EINVAL;
+			break;
+		}
+		if (command == SIOCGI2C) {
+			i2c.page = i2c.bank = 0;
+		} else if ((sctx->isc_flags & IFLIB_I2C_PAGE_BANK) == 0) {
 			err = EINVAL;
 			break;
 		}
@@ -5282,14 +5322,33 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	return (0);
 
 fail_detach:
+	CTX_UNLOCK(ctx);
+	taskqueue_drain(ctx->ifc_tq, &ctx->ifc_admin_task);
 	ether_ifdetach(ctx->ifc_ifp);
+	CTX_LOCK(ctx);
 fail_queues:
-	taskqueue_free(ctx->ifc_tq);
+	sysctl_ctx_free(&ctx->ifc_sysctl_ctx);
+	ctx->ifc_sysctl_node = NULL;
+	/*
+	 * Drain without holding CTX_LOCK so _task_fn_admin can run to
+	 * completion if it needs the context lock.  On fail_detach we already
+	 * drained above; a second drain is a no-op when the queue is empty.
+	 */
+	CTX_UNLOCK(ctx);
+	taskqueue_drain(ctx->ifc_tq, &ctx->ifc_admin_task);
+	CTX_LOCK(ctx);
 	iflib_tqg_detach(ctx);
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
+	/*
+	 * Match iflib_device_deregister: IFDI_DETACH before taskqueue_free.
+	 * Avoid IFNET_WLOCK across driver detach (LinuxKPI workqueue drain).
+	 */
+	IFNET_WUNLOCK();
 	IFDI_DETACH(ctx);
 	IFDI_QUEUES_FREE(ctx);
+	IFNET_WLOCK();
+	taskqueue_free(ctx->ifc_tq);
 fail_intr_free:
 	iflib_free_intr_mem(ctx);
 fail_unlock:
@@ -5322,6 +5381,9 @@ iflib_device_deregister(if_ctx_t ctx)
 {
 	if_t ifp = ctx->ifc_ifp;
 	device_t dev = ctx->ifc_dev;
+
+	sysctl_ctx_free(&ctx->ifc_sysctl_ctx);
+	ctx->ifc_sysctl_node = NULL;
 
 	/* Make sure VLANS are not using driver */
 	if (if_vlantrunkinuse(ifp)) {
@@ -6778,62 +6840,61 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 {
 	device_t dev = iflib_get_dev(ctx);
 	struct sysctl_oid_list *child, *oid_list;
-	struct sysctl_ctx_list *ctx_list;
 	struct sysctl_oid *node;
 
-	ctx_list = device_get_sysctl_ctx(dev);
+	sysctl_ctx_init(&ctx->ifc_sysctl_ctx);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-	ctx->ifc_sysctl_node = node = SYSCTL_ADD_NODE(ctx_list, child,
+	ctx->ifc_sysctl_node = node = SYSCTL_ADD_NODE(&ctx->ifc_sysctl_ctx, child,
 	    OID_AUTO, "iflib", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 	    "IFLIB fields");
 	oid_list = SYSCTL_CHILDREN(node);
 
-	SYSCTL_ADD_CONST_STRING(ctx_list, oid_list, OID_AUTO, "driver_version",
+	SYSCTL_ADD_CONST_STRING(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "driver_version",
 	    CTLFLAG_RD, ctx->ifc_sctx->isc_driver_version, "driver version");
 
-	SYSCTL_ADD_BOOL(ctx_list, oid_list, OID_AUTO, "simple_tx",
+	SYSCTL_ADD_BOOL(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "simple_tx",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_simple_tx, 0,
 	    "use simple tx ring");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_ntxqs",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_ntxqs",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_ntxqs, 0,
 	    "# of txqs to use, 0 => use default #");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_nrxqs",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_nrxqs",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_nrxqs, 0,
 	    "# of rxqs to use, 0 => use default #");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_qs_enable",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_qs_enable",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
 	    "permit #txq != #rxq");
-	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
+	SYSCTL_ADD_INT(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "disable_msix",
 	    CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
 	    "disable MSI-X (default 0)");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "rx_budget",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "rx_budget",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0, "set the RX budget");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "tx_abdicate",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "tx_abdicate",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_tx_abdicate, 0,
 	    "cause TX to abdicate instead of running to completion");
 	ctx->ifc_sysctl_core_offset = CORE_OFFSET_UNSPECIFIED;
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "core_offset",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "core_offset",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_core_offset, 0,
 	    "offset to start using cores at");
-	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "separate_txrx",
+	SYSCTL_ADD_U8(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "separate_txrx",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_separate_txrx, 0,
 	    "use separate cores for TX and RX");
-	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "use_logical_cores",
+	SYSCTL_ADD_U8(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "use_logical_cores",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_use_logical_cores, 0,
 	    "try to make use of logical cores for TX and RX");
-	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "use_extra_msix_vectors",
+	SYSCTL_ADD_U16(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "use_extra_msix_vectors",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_extra_msix_vectors, 0,
 	    "attempt to reserve the given number of extra MSI-X vectors during driver load for the creation of additional interfaces later");
-	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "allocated_msix_vectors",
+	SYSCTL_ADD_INT(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "allocated_msix_vectors",
 	    CTLFLAG_RDTUN, &ctx->ifc_softc_ctx.isc_vectors, 0,
 	    "total # of MSI-X vectors allocated by driver");
 
 	/* XXX change for per-queue sizes */
-	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
+	SYSCTL_ADD_PROC(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_ntxds",
 	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, ctx,
 	    IFLIB_NTXD_HANDLER, mp_ndesc_handler, "A",
 	    "list of # of TX descriptors to use, 0 = use default #");
-	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_nrxds",
+	SYSCTL_ADD_PROC(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "override_nrxds",
 	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, ctx,
 	    IFLIB_NRXD_HANDLER, mp_ndesc_handler, "A",
 	    "list of # of RX descriptors to use, 0 = use default #");
@@ -6844,9 +6905,8 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 {
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
-	device_t dev = iflib_get_dev(ctx);
 	struct sysctl_oid_list *child;
-	struct sysctl_ctx_list *ctx_list;
+	struct sysctl_ctx_list *ctx_list = &ctx->ifc_sysctl_ctx;
 	iflib_fl_t fl;
 	iflib_txq_t txq;
 	iflib_rxq_t rxq;
@@ -6855,7 +6915,6 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 	char *qfmt;
 	struct sysctl_oid *queue_node, *fl_node, *node;
 	struct sysctl_oid_list *queue_list, *fl_list;
-	ctx_list = device_get_sysctl_ctx(dev);
 
 	node = ctx->ifc_sysctl_node;
 	child = SYSCTL_CHILDREN(node);
@@ -7092,6 +7151,8 @@ iflib_debugnet_transmit(if_t ifp, struct mbuf *m)
 	if_ctx_t ctx;
 	iflib_txq_t txq;
 	int error;
+	int bytes_sent = 0;
+	int pkt_sent = 0;
 
 	ctx = if_getsoftc(ifp);
 	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
@@ -7099,7 +7160,7 @@ iflib_debugnet_transmit(if_t ifp, struct mbuf *m)
 		return (EBUSY);
 
 	txq = &ctx->ifc_txqs[0];
-	error = iflib_encap(txq, &m);
+	error = iflib_encap(txq, &m, &bytes_sent, &pkt_sent);
 	if (error == 0)
 		(void)iflib_txd_db_check(txq, true);
 	return (error);
@@ -7165,10 +7226,8 @@ iflib_simple_transmit(if_t ifp, struct mbuf *m)
 
 	txq = iflib_simple_select_queue(ctx, m);
 	mtx_lock(&txq->ift_mtx);
-	error = iflib_encap(txq, &m);
+	error = iflib_encap(txq, &m, &bytes_sent, &pkt_sent);
 	if (error == 0) {
-		pkt_sent++;
-		bytes_sent += m->m_pkthdr.len;
 		mcast_sent += !!(m->m_flags & M_MCAST);
 		(void)iflib_txd_db_check(txq, true);
 	} else {

@@ -135,12 +135,18 @@ void
 mutate_byte(uint8_t *b)
 {
 	LLVMFuzzerMutate(b, sizeof(*b), sizeof(*b));
+#ifdef WITH_MSAN
+	__msan_unpoison(b, sizeof(*b));
+#endif
 }
 
 void
 mutate_int(int *i)
 {
 	LLVMFuzzerMutate((uint8_t *)i, sizeof(*i), sizeof(*i));
+#ifdef WITH_MSAN
+	__msan_unpoison(i, sizeof(*i));
+#endif
 }
 
 void

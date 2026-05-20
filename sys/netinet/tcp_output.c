@@ -220,6 +220,7 @@ tcp_default_output(struct tcpcb *tp)
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
+	MPASS(!(tp->t_flags & TF_DISCONNECTED));
 
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)

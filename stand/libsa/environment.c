@@ -222,6 +222,82 @@ env_noset(struct env_var *ev __unused, int flags __unused,
 	return (EPERM);
 }
 
+bool
+is_restricted_var(const char *name)
+{
+	/*
+	 * We impose restrictions if input is not verified/trusted
+	 * allowing for exceptions.
+	 * These entries should probably include the '='
+	 */
+	const char *allowed[] = {
+		"boot_function=",
+		"boot_phase=",
+		"boot_recover_cli=",
+		"boot_recover_volume=",
+		"boot_safe=",
+		"boot_set=",
+		"boot_single=",
+		"boot_verbose=",
+#ifdef ENV_IS_RESTRICTED_ALLOWED_LIST
+		ENV_IS_RESTRICTED_ALLOWED_LIST,
+#endif
+		NULL,
+	};
+	/*
+	 * These are prefixes we want to be careful with.
+	 */
+	const char *restricted[] = {
+		"boot",
+		"init",
+		"loader.ve.",
+		"rootfs",
+		"secur",
+		"vfs.",
+#ifdef ENV_IS_RESTRICTED_LIST
+		ENV_IS_RESTRICTED_LIST,
+#endif
+		NULL,
+	};
+	const char **cp;
+	int ok = -1;
+	
+	for (cp = restricted; *cp; cp++) {
+		if (strncmp(name, *cp, strlen(*cp)) == 0) {
+			ok = 0;
+			break;
+		}
+	}
+	if (!ok) {
+		for (cp = allowed; *cp; cp++) {
+			if (strncmp(name, *cp, strlen(*cp)) == 0) {
+				ok = 1;
+				break;
+			}
+		}
+	}
+	return (ok == 0);
+}
+
+static bool check_restricted = false;
+
+void
+set_check_restricted(bool b)
+{
+	check_restricted = b;
+}
+
+/* called from subr_boot with not quite trusted input */
+int
+boot_setenv(const char *name, const char *value)
+{
+	if (check_restricted && is_restricted_var(name)) {
+		errno = EPERM;
+		return -1;
+	}
+	return setenv(name, value, 1);
+}
+
 int
 env_nounset(struct env_var *ev __unused)
 {

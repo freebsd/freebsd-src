@@ -273,8 +273,6 @@ vm_fault_might_be_cow(struct faultstate *fs)
 static void
 vm_fault_deallocate(struct faultstate *fs)
 {
-
-	fs->m_needs_zeroing = true;
 	vm_fault_page_release(&fs->m_cow);
 	vm_fault_page_release(&fs->m);
 	vm_object_pip_wakeup(fs->object);
@@ -1373,7 +1371,8 @@ vm_fault_allocate(struct faultstate *fs, struct pctrie_iter *pages)
 			vm_waitpfault(dset, vm_pfault_oom_wait * hz);
 		return (FAULT_RESTART);
 	}
-	fs->m_needs_zeroing = (fs->m->flags & PG_ZERO) == 0;
+	if (fs->object == fs->first_object)
+		fs->m_needs_zeroing = (fs->m->flags & PG_ZERO) == 0;
 	fs->oom_started = false;
 
 	return (FAULT_CONTINUE);
@@ -1708,7 +1707,6 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.fault_flags = fault_flags;
 	fs.map = map;
 	fs.lookup_still_valid = false;
-	fs.m_needs_zeroing = true;
 	fs.oom_started = false;
 	fs.nera = -1;
 	fs.can_read_lock = true;
@@ -1717,6 +1715,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 
 RetryFault:
 	fs.fault_type = fault_type;
+	fs.m_needs_zeroing = true;
 
 	/*
 	 * Find the backing store object and offset into it to begin the

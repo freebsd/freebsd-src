@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_READ 3ossl"
-.TH BIO_READ 3ossl 2026-01-27 3.5.5 OpenSSL
+.TH BIO_READ 3ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -114,7 +114,9 @@ For implementing this, unfortunately the data needs to be read byte\-by\-byte.
 .PP
 \&\fBBIO_write()\fR attempts to write \fIlen\fR bytes from \fIbuf\fR to BIO \fIb\fR.
 .PP
-\&\fBBIO_puts()\fR attempts to write a NUL\-terminated string \fIbuf\fR to BIO \fIb\fR.
+\&\fBBIO_puts()\fR attempts to write a NUL\-terminated string \fIbuf\fR to BIO \fIb\fR,
+without the terminating NUL byte and without appending \*(Aq\en\*(Aq
+(so, similar to \fBfputs\fR\|(3), and not \fBputs\fR\|(3)).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBBIO_read_ex()\fR returns 1 if data was successfully read, and 0 otherwise.
@@ -176,7 +178,7 @@ keep the \*(Aq\en\*(Aq at the end of the line in the buffer.
 \&\fIwritten\fR parameter of the function can be NULL since OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

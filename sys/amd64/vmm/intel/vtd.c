@@ -324,7 +324,7 @@ vtd_init(void)
 		snprintf(envname, sizeof(envname), "vtd.regmap.%d.addr", units);
 		if (getenv_ulong(envname, &mapaddr) == 0)
 			break;
-		vtdmaps[units] = (struct vtdmap *)PHYS_TO_DMAP(mapaddr);
+		vtdmaps[units] = PHYS_TO_DMAP(mapaddr);
 	}
 
 	if (units > 0)
@@ -353,7 +353,7 @@ vtd_init(void)
 
 		drhd = (ACPI_DMAR_HARDWARE_UNIT *)hdr;
 		drhds[units] = drhd;
-		vtdmaps[units] = (struct vtdmap *)PHYS_TO_DMAP(drhd->Address);
+		vtdmaps[units] = PHYS_TO_DMAP(drhd->Address);
 		if (++units >= DRHD_MAX_UNITS)
 			break;
 		remaining -= hdr->Length;
@@ -581,7 +581,7 @@ vtd_update_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len,
 			ptp[ptpindex] = vtophys(nlp)| VTD_PTE_RD | VTD_PTE_WR;
 		}
 
-		ptp = (uint64_t *)PHYS_TO_DMAP(ptp[ptpindex] & VTD_PTE_ADDR_M);
+		ptp = PHYS_TO_DMAP(ptp[ptpindex] & VTD_PTE_ADDR_M);
 	}
 
 	if ((gpa & ((1UL << ptpshift) - 1)) != 0)
@@ -743,7 +743,7 @@ vtd_free_ptp(uint64_t *ptp, int level)
 				continue;
 			if ((ptp[i] & VTD_PTE_SUPERPAGE) != 0)
 				continue;
-			nlp = (uint64_t *)PHYS_TO_DMAP(ptp[i] & VTD_PTE_ADDR_M);
+			nlp = PHYS_TO_DMAP(ptp[i] & VTD_PTE_ADDR_M);
 			vtd_free_ptp(nlp, level - 1);
 		}
 	}

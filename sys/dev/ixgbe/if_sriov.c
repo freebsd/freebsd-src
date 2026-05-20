@@ -170,7 +170,7 @@ ixgbe_get_mrqc(int iov_mode)
 		mrqc = IXGBE_MRQC_VMDQRSS32EN;
 		break;
 	case IXGBE_NO_VM:
-		mrqc = 0;
+		mrqc = IXGBE_MRQC_RSSEN;
 		break;
 	default:
 		panic("Unexpected SR-IOV mode %d", iov_mode);

@@ -183,7 +183,7 @@ mxge_enable_wc(mxge_softc_t *sc)
 
 	sc->wc = 1;
 	len = rman_get_size(sc->mem_res);
-	err = pmap_change_attr((vm_offset_t) sc->sram,
+	err = pmap_change_attr(__DEVOLATILE(void *, sc->sram),
 			       len, PAT_WRITE_COMBINING);
 	if (err != 0) {
 		device_printf(sc->dev, "pmap_change_attr failed, %d\n",

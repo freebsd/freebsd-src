@@ -321,6 +321,7 @@ static void
 parse_config(const char *cfname, int is_stdin)
 {
 	struct cflex cflex = {.cfname = cfname, .error = 0};
+	FILE *yfp = NULL;
 	void *scanner;
 
 	yylex_init_extra(&cflex, &scanner);
@@ -328,7 +329,7 @@ parse_config(const char *cfname, int is_stdin)
 		cflex.cfname = "STDIN";
 		yyset_in(stdin, scanner);
 	} else {
-		FILE *yfp = fopen(cfname, "r");
+		yfp = fopen(cfname, "re");
 		if (!yfp)
 			err(1, "%s", cfname);
 		yyset_in(yfp, scanner);
@@ -336,6 +337,8 @@ parse_config(const char *cfname, int is_stdin)
 	if (yyparse(scanner) || cflex.error)
 		exit(1);
 	yylex_destroy(scanner);
+	if (yfp != NULL)
+		fclose(yfp);
 }
 
 /*
@@ -723,7 +726,7 @@ check_intparams(struct cfjail *j)
 		TAILQ_FOREACH(s, &j->intparams[IP_MOUNT_FSTAB]->val, tq) {
 			if (s->len == 0)
 				continue;
-			f = fopen(s->s, "r");
+			f = fopen(s->s, "re");
 			if (f == NULL) {
 				jail_warnx(j, "mount.fstab: %s: %s",
 				    s->s, strerror(errno));

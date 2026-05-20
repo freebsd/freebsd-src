@@ -82,14 +82,68 @@ struct frame {
 };
 
 void report_exc(struct trapframe *tf);
-void
-report_exc(struct trapframe *tf)
+
+static void
+stack_trace(struct frame *fp, uintptr_t pc)
 {
-	struct frame *fp;
-	uintptr_t pc, base;
+	uintptr_t base;
 	char buf[80];
 
 	base = (uintptr_t)boot_img->ImageBase;
+
+	printf("Stack trace:\n");
+	pager_open();
+	while (fp != NULL || pc != 0) {
+		struct frame *nfp;
+		char *source = "PC";
+
+		if (pc >= base && pc < base + boot_img->ImageSize) {
+			pc -= base;
+			source = "loader PC";
+		}
+		(void) snprintf(buf, sizeof (buf), "FP %016lx: %s 0x%016lx\n",
+		    (uintptr_t)fp, source, pc);
+		if (pager_output(buf))
+			break;
+
+		if (fp == NULL)
+			break;
+
+		nfp = fp->fr_savfp;
+		if (nfp != NULL && nfp <= fp) {
+			printf("FP %016lx: loop detected, stopping trace\n",
+			    (uintptr_t)nfp);
+			break;
+		}
+		fp = nfp;
+
+		if (fp != NULL)
+			pc = fp->fr_savpc;
+		else
+			pc = 0;
+	}
+	pager_close();
+}
+
+void
+panic_action(void)
+{
+	struct frame *fp;
+	uintptr_t rip;
+
+	__asm __volatile("movq %%rbp,%0" : "=r" (fp));
+	rip = fp->fr_savpc;
+
+	stack_trace(fp, rip);
+	printf("--> Press a key on the console to reboot <--\n");
+	getchar();
+	printf("Rebooting...\n");
+	exit(1);
+}
+
+void
+report_exc(struct trapframe *tf)
+{
 	/*
 	 * printf() depends on loader runtime and UEFI firmware health
 	 * to produce the console output, in case of exception, the
@@ -116,32 +170,8 @@ report_exc(struct trapframe *tf)
 	    tf->tf_r9, tf->tf_rax, tf->tf_rbx, tf->tf_rbp, tf->tf_r10,
 	    tf->tf_r11, tf->tf_r12, tf->tf_r13, tf->tf_r14, tf->tf_r15);
 
-	fp = (struct frame *)tf->tf_rbp;
-	pc = tf->tf_rip;
+	stack_trace((struct frame *)tf->tf_rbp, tf->tf_rip);
 
-	printf("Stack trace:\n");
-	pager_open();
-	while (fp != NULL || pc != 0) {
-		char *source = "PC";
-
-		if (pc >= base && pc < base + boot_img->ImageSize) {
-			pc -= base;
-			source = "loader PC";
-		}
-		(void) snprintf(buf, sizeof (buf), "FP %016lx: %s 0x%016lx\n",
-		    (uintptr_t)fp, source, pc);
-		if (pager_output(buf))
-			break;
-
-		if (fp != NULL)
-			fp = fp->fr_savfp;
-
-		if (fp != NULL)
-			pc = fp->fr_savpc;
-		else
-			pc = 0;
-	}
-	pager_close();
 	printf("Machine stopped.\n");
 }
 

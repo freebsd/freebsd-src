@@ -1,3 +1,5 @@
+.include <kmod.opts.mk>
+
 DEVATH10KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath10k
 
 .PATH: ${DEVATH10KDIR}
@@ -65,6 +67,6 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 #CFLAGS+=	-DCONFIG_THERMAL
 
 CFLAGS+=	-DKBUILD_MODNAME='"ath10k"'
-CFLAGS+=	-DLINUXKPI_VERSION=61900
+CFLAGS+=	-DLINUXKPI_VERSION=70000
 
 .include <bsd.kmod.mk>

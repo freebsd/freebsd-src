@@ -55,7 +55,7 @@ struct vmspace;
 	void *pc_cmap2_pte2p;						\
 	caddr_t pc_cmap1_addr;						\
 	caddr_t pc_cmap2_addr;						\
-	vm_offset_t pc_qmap_addr;					\
+	caddr_t pc_qmap_addr;						\
 	void *pc_qmap_pte2p;						\
 	unsigned int pc_dbreg[32];					\
 	int pc_dbreg_cmd;						\

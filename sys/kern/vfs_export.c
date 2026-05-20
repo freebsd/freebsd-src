@@ -62,6 +62,9 @@
 #include <rpc/types.h>
 #include <rpc/auth.h>
 
+/* Publicly exported FS */
+static struct nfs_public nfs_pub;
+
 static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
 #if defined(INET) || defined(INET6)

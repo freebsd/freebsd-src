@@ -32,10 +32,10 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/select.h>
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -86,14 +86,14 @@ msghdr_add_fd(struct cmsghdr *cmsg, int fd)
 static void
 fd_wait(int fd, bool doread)
 {
-	fd_set fds;
+	struct pollfd pfd;
 
 	PJDLOG_ASSERT(fd >= 0);
 
-	FD_ZERO(&fds);
-	FD_SET(fd, &fds);
-	(void)select(fd + 1, doread ? &fds : NULL, doread ? NULL : &fds,
-	    NULL, NULL);
+	pfd.fd = fd;
+	pfd.events = doread ? POLLIN : POLLOUT;
+	pfd.revents = 0;
+	(void)poll(&pfd, 1, -1);
 }
 
 static int

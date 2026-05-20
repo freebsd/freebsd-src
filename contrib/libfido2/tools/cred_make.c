@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2024 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -151,11 +151,16 @@ cred_make(int argc, char **argv)
 	int type = COSE_ES256;
 	int flags = 0;
 	int cred_protect = -1;
+	int ea = 0;
 	int ch;
 	int r;
 
-	while ((ch = getopt(argc, argv, "bc:dhi:o:qruvw")) != -1) {
+	while ((ch = getopt(argc, argv, "a:bc:dhi:o:qruvw")) != -1) {
 		switch (ch) {
+		case 'a':
+			if ((ea = base10(optarg)) < 0)
+				errx(1, "-a: invalid argument '%s'", optarg);
+			break;
 		case 'b':
 			flags |= FLAG_LARGEBLOB;
 			break;
@@ -220,6 +225,11 @@ cred_make(int argc, char **argv)
 		if (r != FIDO_OK) {
 			errx(1, "fido_cred_set_prot: %s", fido_strerr(r));
 		}
+	}
+	if (ea > 0) {
+		r = fido_cred_set_entattest(cred, ea);
+		if (r != FIDO_OK)
+			errx(1, "fido_cred_set_entattest: %s", fido_strerr(r));
 	}
 
 	r = fido_dev_make_cred(dev, cred, NULL);

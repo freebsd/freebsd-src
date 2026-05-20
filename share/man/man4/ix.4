@@ -138,7 +138,7 @@ The
 driver supports the following
 .Xr sysctl 8
 variables:
-.Bl -tag -width "dev.ix.?.debug.dump.clusters"
+.Bl -tag -width "dev.ix.?.debug.fw_log.severity.<module>"
 .It Va dev.ix.?.debug.dump.clusters
 Specify a bitmask to select firmware event clusters
 to be included in the debug dump.
@@ -160,6 +160,38 @@ Output must be redirected to a file
 and decoded by Intel Customer Support.
 .Pp
 This feature is only supported on E610.
+.It Va dev.ix.?.debug.fw_log.severity.<module>
+Specify firmware logging verbosity level for the specified module.
+Available levels include:
+.Pp
+.Bl -tag -compact
+.It 0
+none
+.It 1
+error
+.It 2
+warning
+.It 3
+normal
+.It 4
+verbose
+.El
+.Pp
+Supported modules: general, ctrl, link, link_topo, dnl, i2c, sdp, mdio,
+adminq, hdma, lldp, dcbx, dcb, xlr, nvm, auth, vpd, iosf, parser, sw,
+scheduler, txq, acl, post, watchdog, task_dispatch, mng, synce, health,
+tsdrv, pfreg, mdlver.
+.Pp
+This feature is only supported on E610 devices.
+.It Va dev.ix.?.debug.fw_log.register
+Specify 1 to apply per-device firmware logging configuration.
+.Pp
+This feature is only supported on E610 devices.
+.It Va dev.ix.?.debug.fw_log.on_load
+Enable firmware logging during driver initialization when set via
+.Xr kenv 1 .
+.Pp
+This feature is only supported on E610 devices.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

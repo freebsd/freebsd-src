@@ -999,6 +999,15 @@ ns8250_bus_probe(struct uart_softc *sc)
 			uart_setreg(bas, REG_IER, ier);
 			uart_setreg(bas, REG_MCR, mcr);
 			uart_setreg(bas, REG_FCR, 0);
+			/*
+			 * The Alder Lake AMT SOL Redirection device will never
+			 * set LSR_OE (when in loopback mode at least) and
+			 * instead block further input by not setting LSR_TEMT.
+			 * Recovering the device afterwards into a working
+			 * state requires re-writing the LCR register.  This
+			 * should be harmless on all other devices.
+			 */
+			uart_setreg(bas, REG_LCR, uart_getreg(bas, REG_LCR));
 			uart_barrier(bas);
 			count = 0;
 			goto describe;

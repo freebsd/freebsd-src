@@ -1,0 +1,79 @@
+/* libpkgconf/config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to 1 if you have the `strlcat' function. */
+#mesondefine HAVE_STRLCAT
+
+/* Define to 1 if you have the `strlcpy' function. */
+#mesondefine HAVE_STRLCPY
+
+/* Define to 1 if you have the `strndup' function. */
+#mesondefine HAVE_STRNDUP
+
+/* Define to 1 if you have the `reallocarray' function. */
+#mesondefine HAVE_REALLOCARRAY
+
+/* Define to 1 if you have the `strlcat' function. */
+#mesondefine HAVE_DECL_STRLCAT
+
+/* Define to 1 if you have the `strlcpy' function. */
+#mesondefine HAVE_DECL_STRLCPY
+
+/* Define to 1 if you have the `strndup' function. */
+#mesondefine HAVE_DECL_STRNDUP
+
+/* Define to 1 if you have the `reallocarray' function. */
+#mesondefine HAVE_DECL_REALLOCARRAY
+
+/* Define to 1 if you have the `pledge' function. */
+#mesondefine HAVE_DECL_PLEDGE
+
+/* Define to 1 if you have the `unveil' function. */
+#mesondefine HAVE_DECL_UNVEIL
+
+/* Name of package */
+#mesondefine PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#mesondefine PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#mesondefine PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#mesondefine PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#mesondefine PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#mesondefine PACKAGE_URL
+
+/* Define to the version of this package. */
+#mesondefine PACKAGE_VERSION
+
+/* Define to 1 if you have the ANSI C header files. */
+#mesondefine STDC_HEADERS
+
+/* Version number of package */
+#mesondefine VERSION
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#mesondefine _FILE_OFFSET_BITS
+
+/* Define for large files, on AIX-style hosts. */
+#mesondefine _LARGE_FILES
+
+#mesondefine PKG_DEFAULT_PATH
+#mesondefine SYSTEM_INCLUDEDIR
+#mesondefine SYSTEM_LIBDIR
+#mesondefine PERSONALITY_PATH
+
+/* Enable Solaris extensions. */
+#ifndef __EXTENSIONS__
+# define __EXTENSIONS__ 1
+#endif

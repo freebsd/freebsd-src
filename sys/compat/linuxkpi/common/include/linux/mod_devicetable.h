@@ -30,6 +30,7 @@
 #define	__LINUXKPI_LINUX_MOD_DEVICETABLE_H__
 
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 enum dmi_field {
 	DMI_NONE,

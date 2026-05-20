@@ -177,6 +177,7 @@ static struct mtx copy_page_mutex;
 #endif
 
 static struct mtx tlbivax_mutex;
+static bool mmuv2;
 
 /**************************************************************************/
 /* PMAP */
@@ -306,7 +307,7 @@ static bool		mmu_booke_is_modified(vm_page_t);
 static bool		mmu_booke_is_prefaultable(pmap_t, vm_offset_t);
 static bool		mmu_booke_is_referenced(vm_page_t);
 static int		mmu_booke_ts_referenced(vm_page_t);
-static vm_offset_t	mmu_booke_map(vm_offset_t *, vm_paddr_t, vm_paddr_t,
+static void		*mmu_booke_map(vm_offset_t *, vm_paddr_t, vm_paddr_t,
     int);
 static int		mmu_booke_mincore(pmap_t, vm_offset_t,
     vm_paddr_t *);
@@ -319,8 +320,8 @@ static int		mmu_booke_pinit(pmap_t);
 static void		mmu_booke_pinit0(pmap_t);
 static void		mmu_booke_protect(pmap_t, vm_offset_t, vm_offset_t,
     vm_prot_t);
-static void		mmu_booke_qenter(vm_offset_t, vm_page_t *, int);
-static void		mmu_booke_qremove(vm_offset_t, int);
+static void		mmu_booke_qenter(void *, vm_page_t *, int);
+static void		mmu_booke_qremove(void *, int);
 static void		mmu_booke_release(pmap_t);
 static void		mmu_booke_remove(pmap_t, vm_offset_t, vm_offset_t);
 static void		mmu_booke_remove_all(vm_page_t);
@@ -346,9 +347,9 @@ static void		mmu_booke_dumpsys_map(vm_paddr_t pa, size_t,
 static void		mmu_booke_dumpsys_unmap(vm_paddr_t pa, size_t,
     void *);
 static void		mmu_booke_scan_init(void);
-static vm_offset_t	mmu_booke_quick_enter_page(vm_page_t m);
-static void		mmu_booke_quick_remove_page(vm_offset_t addr);
-static int		mmu_booke_change_attr(vm_offset_t addr,
+static void		*mmu_booke_quick_enter_page(vm_page_t m);
+static void		mmu_booke_quick_remove_page(void *addr);
+static int		mmu_booke_change_attr(void *addr,
     vm_size_t sz, vm_memattr_t mode);
 static int		mmu_booke_decode_kernel_ptr(vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
@@ -640,6 +641,9 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
+	if ((mfspr(SPR_MMUCFG) & MMUCFG_MAVN_M) > 0)
+		mmuv2 = true;
+
 	/* Set interesting system properties */
 #ifdef __powerpc64__
 	hw_direct_map = 1;
@@ -926,7 +930,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 
 	/* Enter kstack0 into kernel map, provide guard page */
 	kstack0 = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
-	thread0.td_kstack = kstack0;
+	thread0.td_kstack = (char *)kstack0;
 	thread0.td_kstack_pages = kstack_pages;
 
 	debugf("kstack_sz = 0x%08jx\n", (uintmax_t)kstack0_sz);
@@ -998,7 +1002,7 @@ booke_pmap_init_qpages(void)
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
-		if (pc->pc_qmap_addr == 0)
+		if (pc->pc_qmap_addr == NULL)
 			panic("pmap_init_qpages: unable to allocate KVA");
 	}
 }
@@ -1097,11 +1101,11 @@ mmu_booke_init(void)
  * references recorded.  Existing mappings in the region are overwritten.
  */
 static void
-mmu_booke_qenter(vm_offset_t sva, vm_page_t *m, int count)
+mmu_booke_qenter(void *sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		mmu_booke_kenter(va, VM_PAGE_TO_PHYS(*m));
 		va += PAGE_SIZE;
@@ -1114,11 +1118,11 @@ mmu_booke_qenter(vm_offset_t sva, vm_page_t *m, int count)
  * temporary mappings entered by mmu_booke_qenter.
  */
 static void
-mmu_booke_qremove(vm_offset_t sva, int count)
+mmu_booke_qremove(void *sva, int count)
 {
 	vm_offset_t va;
 
-	va = sva;
+	va = (vm_offset_t)sva;
 	while (count-- > 0) {
 		mmu_booke_kremove(va);
 		va += PAGE_SIZE;
@@ -1566,7 +1570,7 @@ mmu_booke_remove_all(vm_page_t m)
 /*
  * Map a range of physical addresses into kernel virtual address space.
  */
-static vm_offset_t
+static void *
 mmu_booke_map(vm_offset_t *virt, vm_paddr_t pa_start,
     vm_paddr_t pa_end, int prot)
 {
@@ -1586,7 +1590,7 @@ mmu_booke_map(vm_offset_t *virt, vm_paddr_t pa_start,
 	}
 	*virt = va;
 
-	return (sva);
+	return ((void *)sva);
 }
 
 /*
@@ -2325,7 +2329,8 @@ static void
 mmu_booke_unmapdev(void *p, vm_size_t size)
 {
 #ifdef SUPPORTS_SHRINKING_TLB1
-	vm_offset_t base, offset, va;
+	void *base;
+	vm_offset_t offset, va;
 
 	/*
 	 * Unmap only if this is inside kernel virtual space.
@@ -2336,7 +2341,7 @@ mmu_booke_unmapdev(void *p, vm_size_t size)
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
 		mmu_booke_qremove(base, atop(size));
-		kva_free(base, size);
+		kva_free((vm_offset_t)base, size);
 	}
 #endif
 }
@@ -2368,13 +2373,14 @@ mmu_booke_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 }
 
 static int
-mmu_booke_change_attr(vm_offset_t addr, vm_size_t sz, vm_memattr_t mode)
+mmu_booke_change_attr(void *sva, vm_size_t sz, vm_memattr_t mode)
 {
-	vm_offset_t va;
+	vm_offset_t addr, va;
 	pte_t *pte;
 	int i, j;
 	tlb_entry_t e;
 
+	addr = (vm_offset_t)sva;
 	addr = trunc_page(addr);
 
 	/* Only allow changes to mapped kernel addresses.  This includes:
@@ -2703,7 +2709,7 @@ tsize2size(unsigned int tsize)
 	 * size = 4^tsize * 2^10 = 2^(2 * tsize - 10)
 	 */
 
-	return ((1 << (2 * tsize)) * 1024);
+	return ((1UL << tsize) * 1024);
 }
 
 /*
@@ -2713,7 +2719,7 @@ static unsigned int
 size2tsize(vm_size_t size)
 {
 
-	return (ilog2(size) / 2 - 5);
+	return (ilog2(size) - 10);
 }
 
 /*
@@ -2772,23 +2778,29 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size, int wimge)
 {
 	vm_offset_t base;
 	vm_size_t mapped, sz, ssize;
+	int shift;
 
 	mapped = 0;
 	base = va;
 	ssize = size;
 
+	if (mmuv2)
+		shift = 1;
+	else
+		shift = 2;
+
 	while (size > 0) {
-		sz = 1UL << (ilog2(size) & ~1);
+		sz = 1UL << (ilog2(size) & ~(shift - 1));
 		/* Align size to PA */
 		if (pa % sz != 0) {
 			do {
-				sz >>= 2;
+				sz >>= shift;
 			} while (pa % sz != 0);
 		}
 		/* Now align from there to VA */
 		if (va % sz != 0) {
 			do {
-				sz >>= 2;
+				sz >>= shift;
 			} while (va % sz != 0);
 		}
 #ifdef __powerpc64__
@@ -2805,7 +2817,8 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size, int wimge)
 		 * For now, though, since we have plenty of space in TLB1,
 		 * always avoid creating entries larger than 4GB.
 		 */
-		sz = MIN(sz, 1UL << 32);
+		if (!mmuv2)
+			sz = MIN(sz, 1UL << 32);
 #endif
 		if (bootverbose)
 			printf("Wiring VA=%p to PA=%jx (size=%lx)\n",

@@ -83,11 +83,15 @@ struct ifconfig_sfp_status {
 #define QSFP_DUMP1_SIZE		128	/**< bytes in the second region
 					     in a QSFP module dump */
 
+#define CMIS_DUMP_SIZE		512	/**< CMIS dump buffer size */
+#define CMIS_DUMP_P11		256	/**< offset of Page 11h in dump buffer */
+
 /** SFP module I2C memory dump
- * SFP modules have one region, QSFP modules have two regions.
+ * SFP modules have one region, QSFP modules have two.
+ * CMIS modules have three: lower memory, Page 00h, and Page 11h.
  */
 struct ifconfig_sfp_dump {
-	uint8_t data[SFF_DUMP_SIZE];	/**< memory dump data */
+	uint8_t data[CMIS_DUMP_SIZE];	/**< memory dump data */
 };
 
 /** Get information about the static properties of an SFP/QSFP module
@@ -120,6 +124,25 @@ ifconfig_sfp_id_is_qsfp(enum sfp_id id)
 	case SFP_ID_QSFP:
 	case SFP_ID_QSFPPLUS:
 	case SFP_ID_QSFP28:
+		return (true);
+	default:
+		return (false);
+	}
+}
+
+/** Is the given module ID a CMIS-managed module (QSFP-DD, OSFP, etc.)
+ * @param id	The sfp_id field of a SFP module info object
+ * @return	A bool true if CMIS-type sfp_id otherwise false
+ */
+static inline bool
+ifconfig_sfp_id_is_cmis(enum sfp_id id)
+{
+	switch (id) {
+	case SFP_ID_QSFP_DD:
+	case SFP_ID_QSFP8X:
+	case SFP_ID_SFP_DD:
+	case SFP_ID_DSFP:
+	case SFP_ID_QSFP_CMIS:
 		return (true);
 	default:
 		return (false);

@@ -324,7 +324,7 @@ amd64_mp_alloc_pcpu(void)
 			m = vm_page_alloc_noobj(VM_ALLOC_ZERO);
 		if (m == NULL)
 			panic("cannot alloc pcpu page for cpu %d", cpu);
-		pmap_qenter((vm_offset_t)&__pcpu[cpu], &m, 1);
+		pmap_qenter(&__pcpu[cpu], &m, 1);
 	}
 }
 
@@ -355,29 +355,29 @@ start_all_aps(void)
 	/* Create a transient 1:1 mapping of low 4G */
 	if (la57) {
 		m_pml4 = pmap_page_alloc_below_4g(true);
-		v_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pml4));
+		v_pml4 = VM_PAGE_TO_DMAP(m_pml4);
 	} else {
 		v_pml4 = &kernel_pmap->pm_pmltop[0];
 	}
 	m_pdp = pmap_page_alloc_below_4g(true);
-	v_pdp = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pdp));
+	v_pdp = VM_PAGE_TO_DMAP(m_pdp);
 	m_pd[0] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[0]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[0]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (i << PDRSHIFT) | X86_PG_V | X86_PG_RW | X86_PG_A |
 		    X86_PG_M | PG_PS;
 	m_pd[1] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[1]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[1]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (NBPDP + (i << PDRSHIFT)) | X86_PG_V | X86_PG_RW |
 		    X86_PG_A | X86_PG_M | PG_PS;
 	m_pd[2] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[2]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[2]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (2UL * NBPDP + (i << PDRSHIFT)) | X86_PG_V |
 		    X86_PG_RW | X86_PG_A | X86_PG_M | PG_PS;
 	m_pd[3] = pmap_page_alloc_below_4g(false);
-	v_pd = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd[3]));
+	v_pd = VM_PAGE_TO_DMAP(m_pd[3]);
 	for (i = 0; i < NPDEPG; i++)
 		v_pd[i] = (3UL * NBPDP + (i << PDRSHIFT)) | X86_PG_V |
 		    X86_PG_RW | X86_PG_A | X86_PG_M | PG_PS;
@@ -399,7 +399,7 @@ start_all_aps(void)
 	pmap_invalidate_all(kernel_pmap);
 
 	/* copy the AP 1st level boot code */
-	bcopy(mptramp_start, (void *)PHYS_TO_DMAP(boot_address), bootMP_size);
+	bcopy(mptramp_start, PHYS_TO_DMAP(boot_address), bootMP_size);
 	if (bootverbose)
 		printf("AP boot address %#lx\n", boot_address);
 
@@ -739,25 +739,12 @@ smp_masked_invlpg_range(vm_offset_t addr1, vm_offset_t addr2, pmap_t pmap,
 		addr2 = round_page(addr2);
 		total = atop(addr2 - addr1);
 		for (va = addr1; total > 0;) {
-			if ((va & PDRMASK) != 0 || total < NPDEPG) {
-				cnt = atop(NBPDR - (va & PDRMASK));
-				if (cnt > total)
-					cnt = total;
-				if (cnt > invlpgb_maxcnt + 1)
-					cnt = invlpgb_maxcnt + 1;
-				invlpgb(INVLPGB_GLOB | INVLPGB_VA | va, 0,
-				    cnt - 1);
-				va += ptoa(cnt);
-				total -= cnt;
-			} else {
-				cnt = total / NPTEPG;
-				if (cnt > invlpgb_maxcnt + 1)
-					cnt = invlpgb_maxcnt + 1;
-				invlpgb(INVLPGB_GLOB | INVLPGB_VA | va, 0,
-				    INVLPGB_2M_CNT | (cnt - 1));
-				va += cnt << PDRSHIFT;
-				total -= cnt * NPTEPG;
-			}
+			cnt = MIN(total, invlpgb_maxcnt + 1);
+			/* 4K increments because these may not be superpages. */
+			invlpgb(INVLPGB_GLOB | INVLPGB_VA | va, 0,
+			    cnt - 1);
+			va += ptoa(cnt);
+			total -= cnt;
 		}
 		tlbsync();
 		sched_unpin();

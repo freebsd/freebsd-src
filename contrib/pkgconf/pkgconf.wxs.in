@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?define Arch = "@WIXL_ARCH@"?>
+  <?if $(var.Arch) = "x64"?>
+      <?define GLIB_ARCH = "win64"?>
+      <?define ArchString = "64-bit"?>
+      <?define ArchProgramFilesFolder = "ProgramFiles64Folder"?>
+      <?define Win64 = "yes"?>
+  <?else?>
+      <?define GLIB_ARCH = "win32"?>
+      <?define ArchString = "32-bit"?>
+      <?define ArchProgramFilesFolder = "ProgramFilesFolder"?>
+      <?define Win64 = "no"?>
+  <?endif?>
+
+
+  <Product Id="*"
+           Name="pkgconf @VERSION@ ($(var.ArchString))"
+           Language="1033"
+           Version="@VERSION@"
+           Manufacturer="pkgconf"
+           UpgradeCode="4faedad2-3f9d-45cc-89a7-3732ad2db0f7">
+
+      <Package InstallerVersion="200"
+               Compressed="yes"
+               InstallScope="perMachine" />
+
+      <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+      <MediaTemplate EmbedCab="yes" />
+
+      <Feature Id="ProductFeature" Title="pkgconf" Level="1">
+          <ComponentGroupRef Id="ProductComponents" />
+      </Feature>
+
+      <Directory Id="TARGETDIR" Name="SourceDir">
+          <Directory Id="$(var.ArchProgramFilesFolder)">
+              <Directory Id="INSTALLFOLDER" Name="pkgconf @VERSION@" />
+          </Directory>
+      </Directory>
+
+      <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+          <Component Id="PkgconfExe" Guid="*" Win64="$(var.Win64)">
+              <File Id="PkgconfExeFile"
+                    Source="@EXE@"
+                    KeyPath="yes" />
+              <File Id="PkgconfigExeFile"
+                    Name="pkg-config.exe"
+                    Source="@EXE@"/>
+              <File Id="PkgconfDllFile"
+                    Source="@DLL@"/>
+              <Environment Id="PATH"
+                           Name="PATH"
+                           Value="[INSTALLFOLDER]"
+                           Permanent="no"
+                           Part="last"
+                           Action="set"
+                           System="yes" />
+          </Component>
+      </ComponentGroup>
+
+      <UIRef Id="WixUI_Minimal" />
+   </Product>
+</Wix>

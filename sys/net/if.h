@@ -255,7 +255,9 @@ struct if_data {
 #define	IFCAP_B_RXTLS4		32 /* can do TLS receive for TCP */
 #define	IFCAP_B_RXTLS6		33 /* can do TLS receive for TCP6 */
 #define	IFCAP_B_IPSEC_OFFLOAD	34 /* inline IPSEC offload */
-#define	__IFCAP_B_SIZE		35
+#define	IFCAP_B_GENEVE_HWCSUM	35 /* can do IFCAN_HWCSUM on GENEVE */
+#define	IFCAP_B_GENEVE_HWTSO	36 /* can do IFCAP_TSO on GENEVE */
+#define	__IFCAP_B_SIZE		37
 
 #define	IFCAP_B_MAX	(__IFCAP_B_MAX - 1)
 #define	IFCAP_B_SIZE	(__IFCAP_B_SIZE)
@@ -299,6 +301,8 @@ struct if_data {
 #define	IFCAP2_RXTLS4		(IFCAP_B_RXTLS4 - 32)
 #define	IFCAP2_RXTLS6		(IFCAP_B_RXTLS6 - 32)
 #define	IFCAP2_IPSEC_OFFLOAD	(IFCAP_B_IPSEC_OFFLOAD - 32)
+#define	IFCAP2_GENEVE_HWCSUM		(IFCAP_B_GENEVE_HWCSUM - 32)
+#define	IFCAP2_GENEVE_HWTSO		(IFCAP_B_GENEVE_HWTSO - 32)
 
 #define	IFCAP2_BIT(x)		(1UL << (x))
 
@@ -604,8 +608,9 @@ struct ifi2creq {
 	uint8_t dev_addr;	/* i2c address (0xA0, 0xA2) */
 	uint8_t offset;		/* read offset */
 	uint8_t len;		/* read length */
-	uint8_t spare0;
-	uint32_t spare1;
+	uint8_t page;		/* CMIS page number (0 for legacy) */
+	uint8_t bank;		/* CMIS bank number (0 for legacy) */
+	uint8_t spare[3];	/* reserved for future use */
 	uint8_t data[8];	/* read buffer */
 }; 
 

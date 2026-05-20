@@ -98,6 +98,7 @@
 #include <linux/interval_tree_generic.h>
 #include <linux/printk.h>
 #include <linux/seq_file.h>
+#include <linux/uuid.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
@@ -163,6 +164,10 @@ unsigned long linux_timer_hz_mask;
 
 wait_queue_head_t linux_bit_waitq;
 wait_queue_head_t linux_var_waitq;
+
+const guid_t guid_null;
+
+enum system_states system_state = SYSTEM_RUNNING;
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)

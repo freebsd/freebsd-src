@@ -77,10 +77,10 @@ int
 memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
-	void *p;
+	void *p, *vd;
 	ssize_t orig_resid;
 	vm_prot_t prot;
-	u_long v, vd;
+	u_long v;
 	u_int c;
 	int error;
 
@@ -145,7 +145,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		case CDEV_MINOR_MEM:
 			if (v < dmaplimit) {
 				vd = PHYS_TO_DMAP(v);
-				error = uiomove((void *)vd, c, uio);
+				error = uiomove(vd, c, uio);
 				break;
 			}
 			if (v > cpu_getmaxphyaddr()) {

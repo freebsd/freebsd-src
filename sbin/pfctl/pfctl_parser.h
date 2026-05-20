@@ -77,7 +77,8 @@ struct pfr_buffer;	/* forward definition */
 
 struct pfctl_statelim {
 	struct pfctl_state_lim		 ioc;
-	RB_ENTRY(pfctl_statelim)	 entry;
+	RB_ENTRY(pfctl_statelim)	 id_entry;
+	RB_ENTRY(pfctl_statelim)	 nm_entry;
 };
 
 RB_HEAD(pfctl_statelim_ids, pfctl_statelim);
@@ -85,7 +86,8 @@ RB_HEAD(pfctl_statelim_nms, pfctl_statelim);
 
 struct pfctl_sourcelim {
 	struct pfctl_source_lim		 ioc;
-	RB_ENTRY(pfctl_sourcelim)	 entry;
+	RB_ENTRY(pfctl_sourcelim)	 id_entry;
+	RB_ENTRY(pfctl_sourcelim)	 nm_entry;
 };
 
 RB_HEAD(pfctl_sourcelim_ids, pfctl_sourcelim);

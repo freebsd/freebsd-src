@@ -1,0 +1,11 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: unavailable_provider
+Description: Provides an otherwise unavailable package
+Version: 1.2.3
+Provides: unavailable = 1.2.3
+Libs: -lunavailable
+Cflags:

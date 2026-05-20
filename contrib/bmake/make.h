@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.361 2025/07/06 07:11:31 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.366 2026/04/06 17:13:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -294,7 +294,7 @@ typedef enum GNodeType {
 	/*
 	 * The dependency operator '::' behaves like ':', except that it
 	 * allows multiple dependency groups to be defined.  Each of these
-	 * groups is executed on its own, independently from the others. Each
+	 * groups is executed on its own, independently of the others. Each
 	 * individual dependency group is called a cohort.
 	 */
 	OP_DOUBLEDEP	= 1 << 2,
@@ -419,17 +419,19 @@ typedef struct GNodeFlags {
 	bool fromDepend:1;
 	/* We do it once only */
 	bool doneAllsrc:1;
+	/* Have we checked for submake? */
+	bool doneSubmake:1;
 	/* Used by MakePrintStatus */
 	bool cycle:1;
 	/* Used by MakePrintStatus */
 	bool doneCycle:1;
 } GNodeFlags;
 
-typedef struct List StringList;
-typedef struct ListNode StringListNode;
+typedef List StringList;
+typedef ListNode StringListNode;
 
-typedef struct List GNodeList;
-typedef struct ListNode GNodeListNode;
+typedef List GNodeList;
+typedef ListNode GNodeListNode;
 
 typedef struct SearchPath {
 	List /* of CachedDir */ dirs;
@@ -614,7 +616,7 @@ extern GNode *defaultNode;
  * by makefiles.
  */
 extern GNode *SCOPE_INTERNAL;
-/* Variables defined in a global scope, e.g in the makefile itself. */
+/* Variables defined in a global scope, e.g. in the makefile itself. */
 extern GNode *SCOPE_GLOBAL;
 /* Variables defined on the command line. */
 extern GNode *SCOPE_CMDLINE;
@@ -909,7 +911,7 @@ void Parse_End(void);
 void PrintLocation(FILE *, bool, const GNode *);
 const char *GetParentStackTrace(void);
 char *GetStackTrace(bool);
-void PrintStackTrace(bool);
+void PrintStackTrace(FILE *, bool);
 void Parse_Error(ParseErrorLevel, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 bool Parse_VarAssign(const char *, bool, GNode *) MAKE_ATTR_USE;
 void Parse_File(const char *, int);
@@ -995,14 +997,16 @@ typedef enum VarEvalMode {
 	VARE_EVAL,
 
 	/*
-	 * Parse and evaluate the expression.  It is an error if a
-	 * subexpression evaluates to undefined.
+	 * Only for Var_Parse, not for Var_Subst or Var_Expand: Parse and
+	 * evaluate the expression.  It is an error if the expression
+	 * evaluates to undefined.  Subexpressions or indirect expressions
+	 * may evaluate to undefined, though.
 	 */
 	VARE_EVAL_DEFINED_LOUD,
 
 	/*
 	 * Parse and evaluate the expression.  It is a silent error if a
-	 * subexpression evaluates to undefined.
+	 * top-level expression evaluates to undefined.
 	 */
 	VARE_EVAL_DEFINED,
 
@@ -1051,6 +1055,8 @@ typedef enum VarExportMode {
 	/* .export-literal: Do not expand the variable value. */
 	VEM_LITERAL
 } VarExportMode;
+
+#define MAKE_SAVE_DOLLARS ".MAKE.SAVE_DOLLARS"
 
 void Var_Delete(GNode *, const char *);
 #ifdef CLEANUP

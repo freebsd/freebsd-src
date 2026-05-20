@@ -60,6 +60,9 @@
 	type __max2 = (y);			\
 	__max1 > __max2 ? __max1 : __max2; })
 
+#define	MIN_T(type, x, y)	MIN((type)(x), (type)(y))
+#define	MAX_T(type, x, y)	MAX((type)(x), (type)(y))
+
 #define	clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define	clamp(x, lo, hi)		min(max(x, lo), hi)
 #define	clamp_val(val, lo, hi)	clamp_t(typeof(val), val, lo, hi)
@@ -73,5 +76,15 @@
 
 /* XXX would have to make sure both are unsigned. */
 #define	umin(x, y)			MIN(x, y)
+
+/* This macro assumes that the array has elements inside. */
+#define	__minmax_array(op, array, len) ({		\
+	typeof(array[0]) __val = array[0];		\
+	for (typeof(len) __i = 1; __i < len; __i++)	\
+		__val = op(__val, array[__i]);		\
+	__val; })
+
+#define	min_array(array, len) __minmax_array(min, array, len)
+#define	max_array(array, len) __minmax_array(max, array, len)
 
 #endif /* _LINUXKPI_LINUX_MINMAX_H_ */

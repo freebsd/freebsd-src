@@ -360,6 +360,7 @@ DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 .if ${.MAKE.OS} == "FreeBSD"
 # Needed to build most of the things below, which include sys/cdefs.h either
 # directly or transitively
+SYSINCS+=	${SRCTOP}/sys/sys/_decls.h
 SYSINCS+=	${SRCTOP}/sys/sys/_visible.h
 SYSINCS+=	${SRCTOP}/sys/sys/cdefs.h
 .endif
@@ -395,10 +396,8 @@ SYSINCS+=	${SRCTOP}/sys/sys/ctf.h
 SYSINCS+=	${SRCTOP}/sys/sys/kbio.h
 # for kldxref:
 SYSINCS+=	${SRCTOP}/sys/sys/module.h
-.if ${.MAKE.OS} != "FreeBSD"
 # for libmd:
 SYSINCS+=	${SRCTOP}/sys/sys/md4.h
-.endif
 
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.

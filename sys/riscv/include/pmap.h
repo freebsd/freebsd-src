@@ -134,7 +134,7 @@ struct thread;
 void	pmap_activate_boot(pmap_t);
 void	pmap_activate_sw(struct thread *);
 void	pmap_bootstrap(vm_paddr_t, vm_size_t);
-int	pmap_change_attr(vm_offset_t va, vm_size_t size, int mode);
+int	pmap_change_attr(void *va, vm_size_t size, int mode);
 void	pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode);
 void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
 vm_paddr_t pmap_kextract(vm_offset_t va);
@@ -150,8 +150,8 @@ void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(void *, vm_size_t);
 void	pmap_unmapbios(void *, vm_size_t);
 
-bool	pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, bool);
-void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, bool);
+bool	pmap_map_io_transient(vm_page_t *, void **, int, bool);
+void	pmap_unmap_io_transient(vm_page_t *, void **, int, bool);
 
 bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
     pt_entry_t **);

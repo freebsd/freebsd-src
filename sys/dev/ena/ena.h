@@ -39,7 +39,7 @@
 
 #define ENA_DRV_MODULE_VER_MAJOR	2
 #define ENA_DRV_MODULE_VER_MINOR	8
-#define ENA_DRV_MODULE_VER_SUBMINOR	2
+#define ENA_DRV_MODULE_VER_SUBMINOR	3
 
 #define ENA_DRV_MODULE_NAME		"ena"
 
@@ -99,8 +99,8 @@
  *  of TCP retransmissions.
  */
 #define ENA_TX_BUDGET	128
-/* RX cleanup budget. -1 stands for infinity. */
-#define ENA_RX_BUDGET	256
+/* RX cleanup budget, in descriptors. -1 stands for infinity. */
+#define ENA_RX_DESC_BUDGET	256
 /*
  * How many times we can repeat cleanup in the io irq handling routine if the
  * RX or TX budget was depleted.
@@ -417,6 +417,8 @@ struct ena_hw_stats {
 
 	counter_u64_t rx_drops;
 	counter_u64_t tx_drops;
+
+	counter_u64_t rx_overruns;
 };
 
 /* Board specific private data structure */

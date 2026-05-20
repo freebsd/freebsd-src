@@ -659,8 +659,7 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	int major, minor;
 
 	g_topology_lock();
-	sbuf_printf(sb, "major minor  #blocks  name rio rmerge rsect "
-	    "ruse wio wmerge wsect wuse running use aveq\n");
+	sbuf_printf(sb, "major minor  #blocks  name\n\n");
 
 	LIST_FOREACH(cp, &g_classes, class) {
 		if (strcmp(cp->name, "DISK") == 0 ||
@@ -672,13 +671,10 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 						major = 0;
 						minor = 0;
 					}
-					sbuf_printf(sb, "%d %d %lld %s "
-					    "%d %d %d %d %d "
-					     "%d %d %d %d %d %d\n",
-					     major, minor,
-					     (long long)pp->mediasize, pp->name,
-					     0, 0, 0, 0, 0,
-					     0, 0, 0, 0, 0, 0);
+					sbuf_printf(sb, "%4d  %7d %10lld %s\n",
+					    major, minor,
+					    B2K((long long)pp->mediasize),
+					    pp->name);
 				}
 			}
 	}
@@ -1741,6 +1737,23 @@ linprocfs_dotainted(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/kernel/threads-max
+ */
+static int
+linprocfs_dothreads_max(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.maxproc",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
  * Filler function for proc/sys/vm/min_free_kbytes
  *
  * This mirrors the approach in illumos to return zero for reads. Effectively,
@@ -2026,23 +2039,26 @@ linprocfs_doauxv(PFS_FILL_ARGS)
 	if (asb == NULL)
 		return (ENOMEM);
 	error = proc_getauxv(td, p, asb);
-	if (error == 0)
-		error = sbuf_finish(asb);
+	if (error != 0)
+		goto out;
+	error = sbuf_finish(asb);
+	if (error != 0)
+		goto out;
 
 	resid = sbuf_len(asb) - uio->uio_offset;
 	if (resid > uio->uio_resid)
 		buflen = uio->uio_resid;
 	else
 		buflen = resid;
-	if (buflen > IOSIZE_MAX)
-		return (EINVAL);
+	if (buflen > IOSIZE_MAX) {
+		error = EINVAL;
+		goto out;
+	}
 	if (buflen > maxphys)
 		buflen = maxphys;
-	if (resid <= 0)
-		return (0);
-
-	if (error == 0)
+	if (resid > 0)
 		error = uiomove(sbuf_data(asb) + uio->uio_offset, buflen, uio);
+out:
 	sbuf_delete(asb);
 	return (error);
 }
@@ -2213,6 +2229,122 @@ linprocfs_dosysvipc_shm(PFS_FILL_ARGS)
 	}
 
 	free(shmids, M_TEMP);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/file-max
+ */
+static int
+linprocfs_dofile_max(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.maxfiles",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/file-nr
+ */
+static int
+linprocfs_dofile_nr(PFS_FILL_ARGS)
+{
+	int openfiles, maxfiles, error;
+	size_t size;
+
+	size = sizeof(openfiles);
+	error = kernel_sysctlbyname(curthread, "kern.openfiles",
+	    &openfiles, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	size = sizeof(maxfiles);
+	error = kernel_sysctlbyname(curthread, "kern.maxfiles",
+	    &maxfiles, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	/*
+	 * From Linux's proc_sys_fs(5):
+	 * the "free file handles" value is always zero.
+	 */
+	sbuf_printf(sb, "%d\t0\t%d\n", openfiles, maxfiles);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/nr_open
+ */
+static int
+linprocfs_donr_open(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.maxfilesperproc",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/overflowuid
+ */
+static int
+linprocfs_dooverflowuid(PFS_FILL_ARGS)
+{
+	sbuf_printf(sb, "%u\n", UID_NOBODY);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/overflowgid
+ */
+static int
+linprocfs_dooverflowgid(PFS_FILL_ARGS)
+{
+	sbuf_printf(sb, "%u\n", GID_NOGROUP);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/suid_dumpable
+ */
+static int
+linprocfs_dosuid_dumpable(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.sugid_coredump",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	sbuf_printf(sb, "%d\n", res ? 1 : 0);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/protected_hardlinks
+ */
+static int
+linprocfs_doprotected_hardlinks(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread,
+	    "security.bsd.hardlink_check_uid",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+	sbuf_printf(sb, "%d\n", res ? 1 : 0);
 	return (0);
 }
 
@@ -2500,6 +2632,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, PFS_RD);
 	pfs_create_file(dir, NULL, "tainted", &linprocfs_dotainted, NULL, NULL,
 	    NULL, PFS_RD);
+	pfs_create_file(dir, NULL, "threads-max", &linprocfs_dothreads_max,
+	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/sys/kernel/random/... */
 	pfs_create_dir(dir, &dir, "random", NULL, NULL, NULL, 0);
@@ -2526,6 +2660,21 @@ linprocfs_init(PFS_INIT_ARGS)
 
 	/* /proc/sys/fs/... */
 	pfs_create_dir(sys, &fs, "fs", NULL, NULL, NULL, 0);
+
+	pfs_create_file(fs, NULL, "file-nr", &linprocfs_dofile_nr,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(fs, NULL, "file-max", &linprocfs_dofile_max,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(fs, NULL, "nr_open", &linprocfs_donr_open,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(fs, NULL, "overflowgid", &linprocfs_dooverflowgid,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(fs, NULL, "overflowuid", &linprocfs_dooverflowuid,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(fs, NULL, "protected_hardlinks",
+	    &linprocfs_doprotected_hardlinks, NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(fs, NULL, "suid_dumpable", &linprocfs_dosuid_dumpable,
+	    NULL, NULL, NULL, PFS_RD);
 
 	pfs_create_dir(fs, &dir, "inotify", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, NULL, "max_queued_events",

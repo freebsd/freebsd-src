@@ -179,6 +179,7 @@ struct hwpstate_softc {
 			uint64_t request;
 		} cppc;
 	};
+	u_int cpuid;
 };
 
 static void	hwpstate_identify(driver_t *driver, device_t parent);
@@ -337,8 +338,6 @@ static int
 sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 {
 	const struct hwpstate_softc *const sc = arg1;
-	const device_t dev = sc->dev;
-	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
 	struct sbuf *sb;
 	struct sbuf sbs;
 	struct get_cppc_regs_data data;
@@ -349,16 +348,16 @@ sysctl_cppc_dump_handler(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new_for_sysctl(&sbs, NULL, 0, req);
 
-	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier, get_cppc_regs_cb,
-	    smp_no_rendezvous_barrier, &data);
+	smp_rendezvous_cpu(sc->cpuid, smp_no_rendezvous_barrier,
+	    get_cppc_regs_cb, smp_no_rendezvous_barrier, &data);
 
 	if (hwp_has_error(data.res, HWP_ERROR_CPPC_ENABLE))
 		sbuf_printf(sb, "CPU%u: " MSR_AMD_CPPC_ENABLE_NAME ": "
-		    MSR_NOT_READ_MSG "\n", cpuid);
+		    MSR_NOT_READ_MSG "\n", sc->cpuid);
 	else
 		sbuf_printf(sb, "CPU%u: HWP %sabled (" MSR_AMD_CPPC_REQUEST_NAME
-		    ": %#" PRIx64 ")\n", cpuid, data.enable & 1 ? "En" : "Dis",
-		    data.enable);
+		    ": %#" PRIx64 ")\n", sc->cpuid, data.enable & 1 ?
+		    "En" : "Dis", data.enable);
 
 	if (hwp_has_error(data.res, HWP_ERROR_CPPC_CAPS))
 		print_cppc_no_caps_1(sb);
@@ -433,10 +432,8 @@ set_cppc_request_cb(void *args)
 static inline void
 set_cppc_request_send_one(struct set_cppc_request_cb *const data, device_t dev)
 {
-	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
-
 	data->sc = device_get_softc(dev);
-	smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
+	smp_rendezvous_cpu(data->sc->cpuid, smp_no_rendezvous_barrier,
 	    set_cppc_request_cb, smp_no_rendezvous_barrier, data);
 }
 
@@ -505,9 +502,7 @@ sysctl_cppc_request_field_handler(SYSCTL_HANDLER_ARGS)
 	check_cppc_in_use(sc, __func__);
 
 	if ((sc->flags & HWPFL_CPPC_REQUEST_NOT_READ) != 0) {
-		const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
-
-		smp_rendezvous_cpu(cpuid, smp_no_rendezvous_barrier,
+		smp_rendezvous_cpu(sc->cpuid, smp_no_rendezvous_barrier,
 		    get_cppc_request_cb, smp_no_rendezvous_barrier, sc);
 
 		if ((sc->flags & HWPFL_CPPC_REQUEST_NOT_READ) != 0)
@@ -552,6 +547,20 @@ hwpstate_amd_iscale(int val, int div)
 	return (val);
 }
 
+static void
+hwpstate_pstate_read_limit(int cpu, uint64_t *msr)
+{
+	(void)x86_msr_op(MSR_AMD_10H_11H_LIMIT,
+	    MSR_OP_READ | MSR_OP_RENDEZVOUS_ONE | MSR_OP_CPUID(cpu), 0, msr);
+}
+
+static void
+hwpstate_pstate_read_status(int cpu, uint64_t *msr)
+{
+	(void)x86_msr_op(MSR_AMD_10H_11H_STATUS,
+	    MSR_OP_READ | MSR_OP_RENDEZVOUS_ONE | MSR_OP_CPUID(cpu), 0, msr);
+}
+
 /*
  * Go to Px-state on all cpus, considering the limit register (if so
  * configured).
@@ -561,11 +570,15 @@ hwpstate_goto_pstate(device_t dev, int id)
 {
 	sbintime_t sbt;
 	uint64_t msr;
-	int cpu, i, j, limit;
+	int cpu, j, limit;
+	struct hwpstate_softc *sc;
+
+	sc = device_get_softc(dev);
+	cpu = sc->cpuid;
 
 	if (hwpstate_pstate_limit) {
 		/* get the current pstate limit */
-		msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
+		hwpstate_pstate_read_limit(cpu, &msr);
 		limit = AMD_10H_11H_GET_PSTATE_LIMIT(msr);
 		if (limit > id) {
 			HWPSTATE_DEBUG(dev, "Restricting requested P%d to P%d "
@@ -574,53 +587,31 @@ hwpstate_goto_pstate(device_t dev, int id)
 		}
 	}
 
-	cpu = curcpu;
 	HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n", id, cpu);
 	/* Go To Px-state */
-	wrmsr(MSR_AMD_10H_11H_CONTROL, id);
-
-	/*
-	 * We are going to the same Px-state on all cpus.
-	 * Probably should take _PSD into account.
-	 */
-	CPU_FOREACH(i) {
-		if (i == cpu)
-			continue;
-
-		/* Bind to each cpu. */
-		thread_lock(curthread);
-		sched_bind(curthread, i);
-		thread_unlock(curthread);
-		HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n", id, i);
-		/* Go To Px-state */
-		wrmsr(MSR_AMD_10H_11H_CONTROL, id);
-	}
+	x86_msr_op(MSR_AMD_10H_11H_CONTROL,
+	    MSR_OP_WRITE | MSR_OP_RENDEZVOUS_ONE | MSR_OP_CPUID(cpu), id, NULL);
 
 	/*
 	 * Verify whether each core is in the requested P-state.
 	 */
 	if (hwpstate_verify) {
-		CPU_FOREACH(i) {
-			thread_lock(curthread);
-			sched_bind(curthread, i);
-			thread_unlock(curthread);
-			/* wait loop (100*100 usec is enough ?) */
-			for (j = 0; j < 100; j++) {
-				/* get the result. not assure msr=id */
-				msr = rdmsr(MSR_AMD_10H_11H_STATUS);
-				if (msr == id)
-					break;
-				sbt = SBT_1MS / 10;
-				tsleep_sbt(dev, PZERO, "pstate_goto", sbt,
-				    sbt >> tc_precexp, 0);
-			}
-			HWPSTATE_DEBUG(dev, "result: P%d-state on cpu%d\n",
-			    (int)msr, i);
-			if (msr != id) {
-				HWPSTATE_DEBUG(dev,
-				    "error: loop is not enough.\n");
-				return (ENXIO);
-			}
+		/* wait loop (100*100 usec is enough ?) */
+		for (j = 0; j < 100; j++) {
+			/* get the result. not assure msr=id */
+
+			hwpstate_pstate_read_status(cpu, &msr);
+			if (msr == id)
+				break;
+			sbt = SBT_1MS / 10;
+			tsleep_sbt(dev, PZERO, "pstate_goto", sbt,
+			    sbt >> tc_precexp, 0);
+		}
+		HWPSTATE_DEBUG(dev, "result: P%d-state on cpu%d\n", (int)msr,
+		    cpu);
+		if (msr != id) {
+			HWPSTATE_DEBUG(dev, "error: loop is not enough.\n");
+			return (ENXIO);
 		}
 	}
 
@@ -663,17 +654,14 @@ hwpstate_set(device_t dev, const struct cf_setting *cf)
 static int
 hwpstate_get_cppc(device_t dev, struct cf_setting *cf)
 {
-	struct pcpu *pc;
+	struct hwpstate_softc *sc;
 	uint64_t rate;
 	int ret;
 
-	pc = cpu_get_pcpu(dev);
-	if (pc == NULL)
-		return (ENXIO);
-
+	sc = device_get_softc(dev);
 	memset(cf, CPUFREQ_VAL_UNKNOWN, sizeof(*cf));
 	cf->dev = dev;
-	if ((ret = cpu_est_clockrate(pc->pc_cpuid, &rate)))
+	if ((ret = cpu_est_clockrate(sc->cpuid, &rate)))
 		return (ret);
 	cf->freq = rate / 1000000;
 	return (0);
@@ -685,13 +673,14 @@ hwpstate_get_pstate(device_t dev, struct cf_setting *cf)
 	struct hwpstate_softc *sc;
 	struct hwpstate_setting set;
 	uint64_t msr;
+	int cpu;
 
 	sc = device_get_softc(dev);
-	msr = rdmsr(MSR_AMD_10H_11H_STATUS);
+	cpu = sc->cpuid;
+	hwpstate_pstate_read_status(cpu, &msr);
 	if (msr >= sc->cfnum)
 		return (EINVAL);
 	set = sc->hwpstate_settings[msr];
-
 	cf->freq = set.freq;
 	cf->volts = set.volts;
 	cf->power = set.power;
@@ -756,7 +745,7 @@ hwpstate_settings(device_t dev, struct cf_setting *sets, int *count)
 static int
 hwpstate_type_cppc(device_t dev, int *type)
 {
-	*type |= CPUFREQ_TYPE_ABSOLUTE | CPUFREQ_FLAG_INFO_ONLY |
+	*type = CPUFREQ_TYPE_ABSOLUTE | CPUFREQ_FLAG_INFO_ONLY |
 	    CPUFREQ_FLAG_UNCACHED;
 	return (0);
 }
@@ -900,7 +889,7 @@ static int
 enable_cppc(struct hwpstate_softc *sc)
 {
 	const device_t dev = sc->dev;
-	const u_int cpuid = cpu_get_pcpu(dev)->pc_cpuid;
+	const u_int cpuid = sc->cpuid;
 	struct set_autonomous_hwp_data data;
 	struct sbuf sbs;
 	struct sbuf *sb;
@@ -967,8 +956,10 @@ hwpstate_probe_pstate(device_t dev)
 	device_t perf_dev;
 	int error, type;
 	uint64_t msr;
+	int cpu;
 
 	sc = device_get_softc(dev);
+	cpu = sc->cpuid;
 	/*
 	 * Check if acpi_perf has INFO only flag.
 	 */
@@ -985,15 +976,15 @@ hwpstate_probe_pstate(device_t dev)
 				 */
 				HWPSTATE_DEBUG(dev, "acpi_perf will take care of pstate transitions.\n");
 				return (ENXIO);
-			} else {
-				/*
-				 * If acpi_perf has INFO_ONLY flag, (_PCT has FFixedHW)
-				 * we can get _PSS info from acpi_perf
-				 * without going into ACPI.
-				 */
-				HWPSTATE_DEBUG(dev, "going to fetch info from acpi_perf\n");
-				error = hwpstate_get_info_from_acpi_perf(dev, perf_dev);
 			}
+			/*
+			 * If acpi_perf has INFO_ONLY flag, (_PCT has FFixedHW)
+			 * we can get _PSS info from acpi_perf
+			 * without going into ACPI.
+			 */
+			HWPSTATE_DEBUG(dev,
+			    "going to fetch info from acpi_perf\n");
+			error = hwpstate_get_info_from_acpi_perf(dev, perf_dev);
 		}
 	}
 
@@ -1002,7 +993,7 @@ hwpstate_probe_pstate(device_t dev)
 		 * Now we get _PSS info from acpi_perf without error.
 		 * Let's check it.
 		 */
-		msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
+		hwpstate_pstate_read_limit(cpu, &msr);
 		if (sc->cfnum != 1 + AMD_10H_11H_GET_PSTATE_MAX_VAL(msr)) {
 			HWPSTATE_DEBUG(dev, "MSR (%jd) and ACPI _PSS (%d)"
 			    " count mismatch\n", (intmax_t)msr, sc->cfnum);
@@ -1042,17 +1033,11 @@ hwpstate_probe(device_t dev)
 		sc->flags |= HWPFL_USE_CPPC;
 		device_set_desc(dev,
 		    "AMD Collaborative Processor Performance Control (CPPC)");
-	} else {
-		/*
-		 * No CPPC support.  Only keep hwpstate0, it goes well with
-		 * acpi_throttle.
-		 */
-		if (device_get_unit(dev) != 0)
-			return (ENXIO);
+	} else
 		device_set_desc(dev, "Cool`n'Quiet 2.0");
-	}
 
 	sc->dev = dev;
+	sc->cpuid = cpu_get_pcpu(dev)->pc_cpuid;
 	if ((sc->flags & HWPFL_USE_CPPC) != 0) {
 		sc->cpufreq_methods = &cppc_methods;
 		return (0);
@@ -1119,22 +1104,56 @@ hwpstate_attach(device_t dev)
 	return (cpufreq_register(dev));
 }
 
+struct hwpstate_pstate_read_settings_cb {
+	struct hwpstate_softc *sc;
+	uint64_t *vals;
+	int err;
+};
+
+static void
+hwpstate_pstate_read_settings_cb(void *args)
+{
+	struct hwpstate_pstate_read_settings_cb *req = args;
+	int i;
+
+	req->err = 0;
+	for (i = 0; i < req->sc->cfnum; i++) {
+		req->err = rdmsr_safe(MSR_AMD_10H_11H_CONFIG + i,
+		    &req->vals[i]);
+		if (req->err != 0)
+			return;
+	}
+}
+
+static int
+hwpstate_pstate_read_settings(struct hwpstate_softc *sc, uint64_t vals[])
+{
+	struct hwpstate_pstate_read_settings_cb req;
+
+	req.sc = sc;
+	req.vals = vals;
+	smp_rendezvous_cpu(sc->cpuid, smp_no_rendezvous_barrier,
+	    hwpstate_pstate_read_settings_cb, smp_no_rendezvous_barrier, &req);
+	return (req.err);
+}
+
 static int
 hwpstate_get_info_from_msr(device_t dev)
 {
 	struct hwpstate_softc *sc;
 	struct hwpstate_setting *hwpstate_set;
-	uint64_t msr;
+	uint64_t state_settings[AMD_10H_11H_MAX_STATES], msr;
 	int family, i, fid, did;
 
 	family = CPUID_TO_FAMILY(cpu_id);
 	sc = device_get_softc(dev);
 	/* Get pstate count */
-	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
+	hwpstate_pstate_read_limit(sc->cpuid, &msr);
 	sc->cfnum = 1 + AMD_10H_11H_GET_PSTATE_MAX_VAL(msr);
 	hwpstate_set = sc->hwpstate_settings;
+	hwpstate_pstate_read_settings(sc, state_settings);
 	for (i = 0; i < sc->cfnum; i++) {
-		msr = rdmsr(MSR_AMD_10H_11H_CONFIG + i);
+		msr = state_settings[i];
 		if ((msr & ((uint64_t)1 << 63)) == 0) {
 			HWPSTATE_DEBUG(dev, "msr is not valid.\n");
 			return (ENXIO);

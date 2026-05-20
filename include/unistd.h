@@ -453,6 +453,10 @@ int	unlinkat(int, const char *, int);
 int	 symlink(const char * __restrict, const char * __restrict);
 #endif
 
+#if __POSIX_VISIBLE >= 202405
+pid_t	 _Fork(void);
+#endif
+
 /* X/Open System Interfaces */
 #if __XSI_VISIBLE
 char	*crypt(const char *, const char *);
@@ -514,6 +518,7 @@ int	 execvpe(const char *, char * const *, char * const *);
 int	 feature_present(const char *);
 int	 fchroot(int);
 char	*fflagstostr(u_long);
+ssize_t	 freadlink(int fd, char *buf, size_t bufsize);
 int	 getdomainname(char *, int);
 int	 getentropy(void *, size_t);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
@@ -594,7 +599,6 @@ int	 undelete(const char *);
 int	 unwhiteout(const char *);
 void	*valloc(size_t);			/* obsoleted by malloc() */
 int	 funlinkat(int, const char *, int, int);
-pid_t	 _Fork(void);
 
 #ifndef _OPTRESET_DECLARED
 #define	_OPTRESET_DECLARED

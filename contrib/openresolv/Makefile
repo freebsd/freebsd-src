@@ -5,6 +5,9 @@ _CONFIG_MK!=	test -e config.mk && echo config.mk || echo config-null.mk
 CONFIG_MK?=	${_CONFIG_MK}
 include		${CONFIG_MK}
 
+DIST!=		if test -d .git; then echo "dist-git"; \
+		else echo "dist-inst"; fi
+
 SBINDIR?=	/sbin
 SYSCONFDIR?=	/etc
 LIBEXECDIR?=	/libexec/resolvconf
@@ -20,9 +23,11 @@ BINMODE?=	0755
 DOCMODE?=	0644
 MANMODE?=	0444
 
-RESOLVCONF=	resolvconf resolvconf.8 resolvconf.conf.5
-SUBSCRIBERS=	libc dnsmasq named pdnsd pdns_recursor unbound
-TARGET=		${RESOLVCONF} ${SUBSCRIBERS}
+RESOLVCONF=		resolvconf resolvconf.8 resolvconf.conf.5
+SUBSCRIBERS=		libc dnsmasq named pdnsd pdns_recursor unbound
+SUBSCRIBERS+=		systemd-resolved resolvectl
+LIBC_SUBSCRIBERS=	avahi-daemon mdnsd
+TARGET=		${RESOLVCONF} ${SUBSCRIBERS} ${LIBC_SUBSCRIBERS}
 SRCS=		${TARGET:C,$,.in,} # pmake
 SRCS:=		${TARGET:=.in} # gmake
 
@@ -36,12 +41,12 @@ SED_RCDIR=		-e 's:@RCDIR@:${RCDIR}:g'
 SED_STATUSARG=		-e 's:@STATUSARG@:${STATUSARG}:g'
 
 DISTPREFIX?=	${PKG}-${VERSION}
-DISTFILEGZ?=	${DISTPREFIX}.tar.gz
 DISTFILE?=	${DISTPREFIX}.tar.xz
 DISTINFO=	${DISTFILE}.distinfo
-DISTINFOSIGN=	${DISTINFO}.asc
-CKSUM?=		cksum -a SHA256
-PGP?=		netpgp
+DISTINFOMD=	${DISTINFO}.md
+DISTSIGN=	${DISTFILE}.asc
+SHA256?=	sha256
+PGP?=		gpg2
 
 GITREF?=	HEAD
 
@@ -59,7 +64,7 @@ clean:
 	rm -f ${TARGET}
 
 distclean: clean
-	rm -f config.mk ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
+	rm -f config.mk ${DISTFILE} ${DISTINFO} ${DISTINFOMD} ${DISTSIGN}
 
 installdirs:
 
@@ -71,6 +76,9 @@ proginstall: ${TARGET}
 	${INSTALL} -m ${DOCMODE} resolvconf.conf ${DESTDIR}${SYSCONFDIR}
 	${INSTALL} -d ${DESTDIR}${LIBEXECDIR}
 	${INSTALL} -m ${DOCMODE} ${SUBSCRIBERS} ${DESTDIR}${LIBEXECDIR}
+	${INSTALL} -d ${DESTDIR}${LIBEXECDIR}/libc.d
+	${INSTALL} -m ${DOCMODE} ${LIBC_SUBSCRIBERS} \
+		${DESTDIR}${LIBEXECDIR}/libc.d
 
 maninstall:
 	${INSTALL} -d ${DESTDIR}${MANDIR}/man8
@@ -87,18 +95,30 @@ dist-inst:
 	mkdir /tmp/${DISTPREFIX}
 	cp -RPp * /tmp/${DISTPREFIX}
 	(cd /tmp/${DISTPREFIX}; make clean)
-	tar -cvjpf ${DISTFILE} -C /tmp ${DISTPREFIX}
+	tar -cvJpf ${DISTFILE} -C /tmp ${DISTPREFIX}
 	rm -rf /tmp/${DISTPREFIX}
 
-dist: dist-git
+dist: ${DIST}
 
 distinfo: dist
-	rm -f ${DISTINFO} ${DISTINFOSIGN}
-	${CKSUM} ${DISTFILE} >${DISTINFO}
-	#printf "SIZE (${DISTFILE}) = %s\n" $$(wc -c <${DISTFILE}) >>${DISTINFO}
-	${PGP} --clearsign --output=${DISTINFOSIGN} ${DISTINFO}
-	chmod 644 ${DISTINFOSIGN}
-	ls -l ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
+	rm -f ${DISTINFO} ${DISTSIGN}
+	${SHA256} ${DISTFILE} >${DISTINFO}
+	wc -c <${DISTFILE} \
+		| xargs printf 'Size   (${DISTFILE}) = %s\n' >>${DISTINFO}
+	${PGP} --sign --armour --detach ${DISTFILE}
+	chmod 644 ${DISTSIGN}
+	ls -l ${DISTFILE} ${DISTINFO} ${DISTSIGN}
+
+${DISTINFOMD}: ${DISTINFO}
+	echo '```' >${DISTINFOMD}
+	cat ${DISTINFO} >>${DISTINFOMD}
+	echo '```' >>${DISTINFOMD}
+
+release: distinfo ${DISTINFOMD}
+	gh release create v${VERSION} \
+		--title "openresolv ${VERSION}" --draft --generate-notes \
+		--notes-file ${DISTINFOMD} \
+		${DISTFILE} ${DISTSIGN}
 
 import: dist
 	rm -rf /tmp/${DISTPREFIX}
@@ -115,4 +135,4 @@ _import-src:
 	@${ECHO} "openresolv-${VERSION} imported to ${DESTDIR}"
 
 import-src:
-	${MAKE} _import-src DESTDIR=`if [ -n "${DESTDIR}" ]; then echo "${DESTDIR}"; else  echo /tmp/${DISTPREFIX}; fi`
+	${MAKE} _import-src DESTDIR=`if [ -n "${DESTDIR}" ]; then echo "${DESTDIR}"; else echo /tmp/${DISTPREFIX}; fi`

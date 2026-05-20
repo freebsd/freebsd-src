@@ -206,14 +206,14 @@ rpi_virt_gpio_probe(device_t dev)
 	union msg_gpiovirtbuf cfg;
 	int rv;
 
-	if (ofw_bus_status_okay(dev) == 0)
+	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	gpio = ofw_bus_get_node(dev);
-	if (OF_hasprop(gpio, "gpio-controller") == 0)
+	if (!OF_hasprop(gpio, "gpio-controller"))
 		return (ENXIO);
 
 	/* Check whether the firmware is ready. */
@@ -275,8 +275,7 @@ rpi_virt_gpio_attach(device_t dev)
 	}
 	sc->paddr = vtophys(sc->vaddr);
 	/* Mark it uncacheable. */
-	pmap_change_attr((vm_offset_t)sc->vaddr, PAGE_SIZE,
-	    VM_MEMATTR_UNCACHEABLE);
+	pmap_change_attr(sc->vaddr, PAGE_SIZE, VM_MEMATTR_UNCACHEABLE);
 
 	if (bootverbose)
 		device_printf(dev,

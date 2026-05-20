@@ -1,14 +1,7 @@
-#	$OpenBSD: sshcfgparse.sh,v 1.9 2021/06/08 07:05:27 dtucker Exp $
+#	$OpenBSD: sshcfgparse.sh,v 1.10 2025/05/06 06:05:48 djm Exp $
 #	Placed in the Public Domain.
 
 tid="ssh config parse"
-
-dsa=0
-for t in $SSH_KEYTYPES; do
-	case "$t" in
-		ssh-dss)	dsa=1 ;;
-	esac
-done
 
 expect_result_present() {
 	_str="$1" ; shift
@@ -66,33 +59,23 @@ verbose "pubkeyacceptedalgorithms"
 # Default set
 f=`${SSH} -GF none host | awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*"
-expect_result_absent "$f" "ssh-dss"
 # Explicit override
 f=`${SSH} -GF none -opubkeyacceptedalgorithms=ssh-ed25519 host | \
     awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519"
-expect_result_absent "$f" "ssh-ed25519-cert-v01.*" "ssh-dss"
+expect_result_absent "$f" "ssh-ed25519-cert-v01.*"
 # Removal from default set
 f=`${SSH} -GF none -opubkeyacceptedalgorithms=-ssh-ed25519-cert* host | \
     awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519"
-expect_result_absent "$f" "ssh-ed25519-cert-v01.*" "ssh-dss"
+expect_result_absent "$f" "ssh-ed25519-cert-v01.*"
 f=`${SSH} -GF none -opubkeyacceptedalgorithms=-ssh-ed25519 host | \
     awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519-cert-v01.*"
-expect_result_absent "$f" "ssh-ed25519" "ssh-dss"
+expect_result_absent "$f" "ssh-ed25519"
 # Append to default set.
 # This is not tested when built !WITH_OPENSSL
-if [ "$dsa" = "1" ]; then
-	f=`${SSH} -GF none -opubkeyacceptedalgorithms=+ssh-dss-cert* host | \
-	    awk '/^pubkeyacceptedalgorithms /{print $2}'`
-	expect_result_present "$f" "ssh-ed25519" "ssh-dss-cert-v01.*"
-	expect_result_absent "$f" "ssh-dss"
-	f=`${SSH} -GF none -opubkeyacceptedalgorithms=+ssh-dss host | \
-	    awk '/^pubkeyacceptedalgorithms /{print $2}'`
-	expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*" "ssh-dss"
-	expect_result_absent "$f" "ssh-dss-cert-v01.*"
-fi
+# XXX need a test for this
 
 verbose "agentforwarding"
 f=`${SSH} -GF none host | awk '/^forwardagent /{print$2}'`

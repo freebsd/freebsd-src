@@ -60,6 +60,7 @@ struct vectx {
 	int		vec_fd;		/* file descriptor */
 	int		vec_status;	/* verification status */
 	int		vec_closing;	/* we are closing */
+	int		vec_severity;	/* usually VE_MUST */
 };
 
 
@@ -93,7 +94,8 @@ struct vectx {
  *	NULL is only returned for non-files or out-of-memory.
  */
 struct vectx *
-vectx_open(int fd, const char *path, off_t off, struct stat *stp,
+vectx_open(int fd, const char *path, int severity,
+    off_t off, struct stat *stp,
     int *error, const char *caller)
 {
 	struct vectx *ctx;
@@ -106,14 +108,19 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp,
 	    stp = &st;
 
 	rc = verify_prep(fd, path, off, stp, __func__);
+	if (severity == VE_GUESS)
+		severity = severity_guess(path);
 
 	DEBUG_PRINTF(2,
-	    ("vectx_open: caller=%s,fd=%d,name='%s',prep_rc=%d\n",
-		caller, fd, path, rc));
+	    ("vectx_open: caller=%s,fd=%d,name='%s',prep_rc=%d,severity=%d\n",
+		caller, fd, path, rc, severity));
 
 	switch (rc) {
 	case VE_FINGERPRINT_NONE:
 	case VE_FINGERPRINT_UNKNOWN:
+		if (severity < VE_MUST)
+			break;
+		/* FALLTHROUGH */
 	case VE_FINGERPRINT_WRONG:
 		*error = rc;
 		return (NULL);
@@ -127,19 +134,24 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp,
 	ctx->vec_off = 0;
 	ctx->vec_hashed = 0;
 	ctx->vec_want = NULL;
+	ctx->vec_severity = severity;
 	ctx->vec_status = 0;
 	ctx->vec_hashsz = hashsz = 0;
 	ctx->vec_closing = 0;
 
-	if (rc == 0) {
+	if (rc == VE_UNVERIFIED_OK) {
 		/* we are not verifying this */
 		*error = 0;
 		return (ctx);
 	}
 	cp = fingerprint_info_lookup(fd, path);
 	if (!cp) {
-		ctx->vec_status = VE_FINGERPRINT_NONE;
-		ve_error_set("%s: no entry", path);
+		if (severity < VE_MUST)
+			ctx->vec_status = VE_UNVERIFIED_OK;
+		else {
+			ctx->vec_status = VE_FINGERPRINT_NONE;
+			ve_error_set("%s: no entry", path);
+		}
 	} else {
 		if (strncmp(cp, "no_hash", 7) == 0) {
 			ctx->vec_status = VE_FINGERPRINT_IGNORE;
@@ -167,8 +179,12 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp,
 		    cp += 7;
 #endif
 		} else {
-			ctx->vec_status = VE_FINGERPRINT_UNKNOWN;
-			ve_error_set("%s: no supported fingerprint", path);
+			if (severity < VE_MUST)
+				ctx->vec_status = VE_UNVERIFIED_OK;
+			else {
+				ctx->vec_status = VE_FINGERPRINT_UNKNOWN;
+				ve_error_set("%s: no supported fingerprint", path);
+			}
 		}
 	}
 	*error = ctx->vec_status;
@@ -183,9 +199,9 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp,
 		}
 	}
 	DEBUG_PRINTF(2,
-	    ("vectx_open: caller=%s,name='%s',hashsz=%lu,status=%d\n",
+	    ("vectx_open: caller=%s,name='%s',hashsz=%lu,severity=%d,status=%d\n",
 		caller, path, (unsigned long)ctx->vec_hashsz,
-		ctx->vec_status));
+		severity, ctx->vec_status));
 	return (ctx);
 
 enomem:					/* unlikely */
@@ -379,7 +395,7 @@ vectx_lseek(struct vectx *ctx, off_t off, int whence)
  * @return 0 or an error.
  */
 int
-vectx_close(struct vectx *ctx, int severity, const char *caller)
+vectx_close(struct vectx *ctx, const char *caller)
 {
 	int rc;
 
@@ -393,7 +409,7 @@ vectx_close(struct vectx *ctx, int severity, const char *caller)
 		 * these tend to be processed in a more deterministic
 		 * order, which makes our pseudo pcr more useful.
 		 */
-		ve_pcr_updating_set((severity == VE_MUST));
+		ve_pcr_updating_set((ctx->vec_severity == VE_MUST));
 #endif
 		/* make sure we have hashed it all */
 		vectx_lseek(ctx, 0, SEEK_END);
@@ -401,13 +417,13 @@ vectx_close(struct vectx *ctx, int severity, const char *caller)
 		    ctx->vec_path, ctx->vec_want, ctx->vec_hashsz);
 	}
 	DEBUG_PRINTF(2,
-	    ("vectx_close: caller=%s,name='%s',rc=%d,severity=%d\n",
-		caller,ctx->vec_path, rc, severity));
-	verify_report(ctx->vec_path, severity, rc, NULL);
+	    ("vectx_close: caller=%s,name='%s',severity=%d,rc=%d\n",
+		caller,ctx->vec_path, ctx->vec_severity, rc));
+	verify_report(ctx->vec_path, ctx->vec_severity, rc, NULL);
 	if (rc == VE_FINGERPRINT_WRONG) {
 #if !defined(UNIT_TEST) && !defined(DEBUG_VECTX)
 		/* we are generally called with VE_MUST */
-		if (severity > VE_WANT)
+		if (ctx->vec_severity > VE_WANT)
 			panic("cannot continue");
 #endif
 	}

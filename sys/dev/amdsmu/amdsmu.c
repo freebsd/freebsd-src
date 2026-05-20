@@ -30,11 +30,21 @@ amdsmu_match(device_t dev, const struct amdsmu_product **product_out)
 	const uint16_t vendorid = pci_get_vendor(dev);
 	const uint16_t deviceid = pci_get_device(dev);
 
+	const uint32_t model = CPUID_TO_MODEL(cpu_id);
+
 	for (size_t i = 0; i < nitems(amdsmu_products); i++) {
 		const struct amdsmu_product *prod = &amdsmu_products[i];
 
 		if (vendorid == prod->amdsmu_vendorid &&
 		    deviceid == prod->amdsmu_deviceid) {
+
+			/*
+			 * Some Krackan Point devices have different ip blocks
+			 * based on CPU model.
+			 */
+			if (prod->model != 0x00 && model != prod->model)
+				continue;
+
 			if (product_out != NULL)
 				*product_out = prod;
 			return (true);
@@ -105,7 +115,7 @@ amdsmu_cmd(device_t dev, enum amdsmu_msg msg, uint32_t arg, uint32_t *ret)
 	amdsmu_write4(sc, SMU_REG_RESPONSE, SMU_RES_WAIT);
 
 	/* Write out command to registers. */
-	amdsmu_write4(sc, SMU_REG_MESSAGE, msg);
+	amdsmu_write4(sc, sc->product->amdsmu_msg, msg);
 	amdsmu_write4(sc, SMU_REG_ARGUMENT, arg);
 
 	/* Wait for SMU response and handle it. */
@@ -175,7 +185,7 @@ amdsmu_get_ip_blocks(device_t dev)
 		sc->ip_blocks_active[i] = active;
 		if (!active)
 			continue;
-		printf("%s%s", amdsmu_ip_blocks_names[i],
+		printf("%s%s", sc->product->ip_blocks_names[i],
 		    i + 1 < sc->product->ip_block_count ? " " : "\n");
 	}
 
@@ -193,10 +203,10 @@ amdsmu_get_ip_blocks(device_t dev)
 		/* Create the sysctl node itself for the IP block. */
 		snprintf(sysctl_descr, sizeof sysctl_descr,
 		    "Metrics about the %s AMD IP block",
-		    amdsmu_ip_blocks_names[i]);
+		    sc->product->ip_blocks_names[i]);
 		sc->ip_block_sysctlnodes[i] = SYSCTL_ADD_NODE(sc->sysctlctx,
 		    SYSCTL_CHILDREN(sc->ip_blocks_sysctlnode), OID_AUTO,
-		    amdsmu_ip_blocks_names[i], CTLFLAG_RD, NULL, sysctl_descr);
+		    sc->product->ip_blocks_names[i], CTLFLAG_RD, NULL, sysctl_descr);
 		if (sc->ip_block_sysctlnodes[i] == NULL) {
 			device_printf(dev,
 			    "could not add sysctl node for \"%s\"\n", sysctl_descr);

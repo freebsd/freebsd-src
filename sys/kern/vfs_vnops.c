@@ -2083,7 +2083,7 @@ vn_start_write_refed(struct mount *mp, int flags)
 	struct mount_pcpu *mpcpu;
 	int error, mflags;
 
-	if ((flags & V_XSLEEP) == 0 && vfs_op_thread_enter(mp, mpcpu)) {
+	if ((flags & V_XSLEEP) == 0 && vfs_op_thread_enter(mp, &mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_SUSPEND) == 0);
 		vfs_mp_count_add_pcpu(mpcpu, writeopcount, 1);
 		vfs_op_thread_exit(mp, mpcpu);
@@ -2252,7 +2252,7 @@ vn_finished_write(struct mount *mp)
 	if (mp == NULL)
 		return;
 
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		vfs_mp_count_sub_pcpu(mpcpu, writeopcount, 1);
 		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);

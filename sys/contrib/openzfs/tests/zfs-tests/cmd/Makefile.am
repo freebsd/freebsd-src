@@ -34,6 +34,8 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/crypto_test
 %C%_crypto_test_SOURCES = %D%/crypto_test.c
 %C%_crypto_test_LDADD = libzpool.la
 
+scripts_zfs_tests_bin_PROGRAMS += %D%/clone_after_trunc
+%C%_clone_after_trunc_LDADD = -lpthread
 
 if WANT_DEVNAME2DEVID
 scripts_zfs_tests_bin_PROGRAMS += %D%/devname2devid
@@ -63,6 +65,10 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/libzfs_input_check
 %C%_libzfs_input_check_LDADD = \
 	libzfs_core.la \
 	libnvpair.la
+
+scripts_zfs_tests_bin_PROGRAMS += %D%/libzfs_mnttab_cache_check
+%C%_libzfs_mnttab_cache_check_LDADD = \
+	libzfs.la
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/manipulate_user_buffer
 %C%_manipulate_user_buffer_LDADD = -lpthread

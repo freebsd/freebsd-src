@@ -61,13 +61,7 @@
 #define	__has_builtin(x)	0
 #endif
 
-#if defined(__cplusplus)
-#define	__BEGIN_DECLS	extern "C" {
-#define	__END_DECLS	}
-#else
-#define	__BEGIN_DECLS
-#define	__END_DECLS
-#endif
+#include <sys/_decls.h>
 
 /*
  * This code has been put in place to help reduce the addition of
@@ -152,6 +146,7 @@
 #define	__weak_symbol	__attribute__((__weak__))
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
+#define	__maybe_unused	__attribute__((__unused__))
 #define	__unused	__attribute__((__unused__))
 #define	__used		__attribute__((__used__))
 #define __deprecated	__attribute__((__deprecated__))

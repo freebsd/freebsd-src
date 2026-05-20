@@ -307,6 +307,8 @@ struct __siginfo32 {
 #define SEGV_ACCERR	2	/* Invalid permissions for mapped	*/
 				/* object.				*/
 #define	SEGV_PKUERR	100	/* x86: PKU violation			*/
+#define	SEGV_MTEAERR	100	/* arm64: Asynchronous Arm MTE error	*/
+#define	SEGV_MTESERR	101	/* arm64: Synchronous Arm MTE error	*/
 
 /* codes for SIGFPE */
 #define FPE_INTOVF	1	/* Integer overflow.			*/

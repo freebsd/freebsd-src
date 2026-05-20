@@ -4624,17 +4624,12 @@ umtx_shm(struct thread *td, void *addr, u_int flags)
 	if ((flags & UMTX_SHM_DESTROY) != 0) {
 		umtx_shm_unref_reg(reg, true);
 	} else {
-#if 0
-#ifdef MAC
-		error = mac_posixshm_check_open(td->td_ucred,
-		    reg->ushm_obj, FFLAGS(O_RDWR));
-		if (error == 0)
-#endif
-			error = shm_access(reg->ushm_obj, td->td_ucred,
-			    FFLAGS(O_RDWR));
-		if (error == 0)
-#endif
-			error = falloc_caps(td, &fp, &fd, O_CLOEXEC, NULL);
+		/*
+		 * The current vmspace has the mapping, so it can be
+		 * converted into shm filedescriptor for current
+		 * thread.
+		 */
+		error = falloc_caps(td, &fp, &fd, O_CLOEXEC, NULL);
 		if (error == 0) {
 			shm_hold(reg->ushm_obj);
 			finit(fp, FFLAGS(O_RDWR), DTYPE_SHM, reg->ushm_obj,

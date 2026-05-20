@@ -238,7 +238,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 		    __func__,
 		    gmux->id,
 		    tmp);
-		err = qcom_tlmm_ipq4018_hw_pin_set_function(sc, gmux->id,
+		err = sc->sc_hw->qcom_tlmm_hw_pin_set_function(sc, gmux->id,
 		    tmp);
 		if (err != 0) {
 			device_printf(sc->dev,
@@ -263,7 +263,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 		    cfg->params[i]);
 		switch (i) {
 		case PIN_ID_BIAS_DISABLE:
-			err = qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc,
 			    gmux->id, QCOM_TLMM_PIN_PUPD_CONFIG_DISABLE);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -274,7 +274,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 		case PIN_ID_BIAS_PULL_DOWN:
-			err = qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc,
 			    gmux->id, QCOM_TLMM_PIN_PUPD_CONFIG_PULL_DOWN);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -285,7 +285,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 		case PIN_ID_BIAS_BUS_HOLD:
-			err = qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc,
 			    gmux->id, QCOM_TLMM_PIN_PUPD_CONFIG_BUS_HOLD);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -297,7 +297,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			break;
 
 		case PIN_ID_BIAS_PULL_UP:
-			err = qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc,
 			    gmux->id, QCOM_TLMM_PIN_PUPD_CONFIG_PULL_UP);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -308,7 +308,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 		case PIN_ID_OUTPUT_LOW:
-			err = qcom_tlmm_ipq4018_hw_pin_set_oe_output(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_oe_output(sc,
 			    gmux->id);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -317,7 +317,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 				    __func__, gmux->id, err);
 				goto done;
 			}
-			err = qcom_tlmm_ipq4018_hw_pin_set_output_value(
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_output_value(
 			    sc, gmux->id, 0);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -328,7 +328,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 		case PIN_ID_OUTPUT_HIGH:
-			err = qcom_tlmm_ipq4018_hw_pin_set_oe_output(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_oe_output(sc,
 			    gmux->id);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -337,7 +337,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 				    __func__, gmux->id, err);
 				goto done;
 			}
-			err = qcom_tlmm_ipq4018_hw_pin_set_output_value(
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_output_value(
 			    sc, gmux->id, 1);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -348,7 +348,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 		case PIN_ID_DRIVE_STRENGTH:
-			err = qcom_tlmm_ipq4018_hw_pin_set_drive_strength(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_drive_strength(sc,
 			    gmux->id, cfg->params[i]);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -360,7 +360,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 			case PIN_ID_VM_ENABLE:
-			err = qcom_tlmm_ipq4018_hw_pin_set_vm(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_vm(sc,
 			    gmux->id, true);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -371,7 +371,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 		case PIN_ID_VM_DISABLE:
-			err = qcom_tlmm_ipq4018_hw_pin_set_vm(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_vm(sc,
 			    gmux->id, false);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -382,7 +382,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			}
 			break;
 		case PIN_ID_DRIVE_OPEN_DRAIN:
-			err = qcom_tlmm_ipq4018_hw_pin_set_open_drain(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_open_drain(sc,
 			    gmux->id, true);
 			if (err != 0) {
 				device_printf(sc->dev,
@@ -394,7 +394,7 @@ qcom_tlmm_pinctrl_config_gmux(struct qcom_tlmm_softc *sc, char *pin_name,
 			break;
 		case PIN_ID_INPUT_ENABLE:
 			/* Configure pin as an input */
-			err = qcom_tlmm_ipq4018_hw_pin_set_oe_input(sc,
+			err = sc->sc_hw->qcom_tlmm_hw_pin_set_oe_input(sc,
 			    gmux->id);
 			if (err != 0) {
 				device_printf(sc->dev,

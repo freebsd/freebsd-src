@@ -92,6 +92,9 @@ int fegetenv(fenv_t *);
 int feholdexcept(fenv_t *);
 int fesetenv(const fenv_t *);
 int feupdateenv(const fenv_t *);
+int feenableexcept(int);
+int fedisableexcept(int);
+int fegetexcept(void);
 
 #define	feclearexcept(a)	__feclearexcept_int(a)
 #define	fegetexceptflag(e, a)	__fegetexceptflag_int(e, a)
@@ -104,6 +107,9 @@ int feupdateenv(const fenv_t *);
 #define	feholdexcept(e)		__feholdexcept_int(e)
 #define	fesetenv(e)		__fesetenv_int(e)
 #define	feupdateenv(e)		__feupdateenv_int(e)
+#define	feenableexcept(a)	__feenableexcept_int(a)
+#define	fedisableexcept(a)	__fedisableexcept_int(a)
+#define	fegetexcept()		__fegetexcept_int()
 
 __fenv_static inline int
 __feclearexcept_int(int __excepts)
@@ -233,10 +239,8 @@ __feupdateenv_int(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
-/* We currently provide no external definitions of the functions below. */
-
 static inline int
-feenableexcept(int __mask)
+__feenableexcept_int(int __mask)
 {
 	fenv_t __old_r, __new_r;
 
@@ -247,7 +251,7 @@ feenableexcept(int __mask)
 }
 
 static inline int
-fedisableexcept(int __mask)
+__fedisableexcept_int(int __mask)
 {
 	fenv_t __old_r, __new_r;
 
@@ -258,7 +262,7 @@ fedisableexcept(int __mask)
 }
 
 static inline int
-fegetexcept(void)
+__fegetexcept_int(void)
 {
 	fenv_t __r;
 

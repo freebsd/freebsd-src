@@ -381,6 +381,9 @@ extern int		setenv(const char *name, const char *value,
 			       int overwrite);
 extern int		putenv(char *string);
 extern int		unsetenv(const char *name);
+extern bool		is_restricted_var(const char *name);
+extern void		set_check_restricted(bool);
+extern int		boot_setenv(const char *name, const char *value);
 
 extern ev_sethook_t	env_noset;		/* refuse set operation */
 extern ev_unsethook_t	env_nounset;		/* refuse unset operation */

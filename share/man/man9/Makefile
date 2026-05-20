@@ -174,6 +174,7 @@ MAN=	accept_filter.9 \
 	gone_in.9 \
 	hardclock.9 \
 	hash.9 \
+	hashalloc.9 \
 	hashinit.9 \
 	hexdump.9 \
 	hhook.9 \
@@ -1216,6 +1217,7 @@ MLINKS+=hash.9 hash32.9 \
 	hash.9 hash32_strne.9 \
 	hash.9 jenkins_hash.9 \
 	hash.9 jenkins_hash32.9
+MLINKS+=hashalloc.9 hashfree.9
 MLINKS+=hashinit.9 hashdestroy.9 \
 	hashinit.9 hashinit_flags.9 \
 	hashinit.9 phashinit.9
@@ -1801,7 +1803,8 @@ MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_set_reserved.9
 MLINKS+=panic.9 vpanic.9 \
 	panic.9 KERNEL_PANICKED.9
-MLINKS+=pci.9 pci_alloc_msi.9 \
+MLINKS+=pci.9 is_pci_device.9 \
+	pci.9 pci_alloc_msi.9 \
 	pci.9 pci_alloc_msix.9 \
 	pci.9 pci_clear_pme.9 \
 	pci.9 pci_disable_busmaster.9 \
@@ -2331,6 +2334,7 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9 \
 	uio.9 uiomove_frombuf.9 \
+	uio.9 uiomove_fromphys.9 \
 	uio.9 uiomove_nofault.9
 MLINKS+=unr.9 alloc_unr.9 \
 	unr.9 alloc_unrl.9 \

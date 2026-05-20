@@ -115,19 +115,16 @@ xa_vm_wait_locked(struct xarray *xa)
  * available to complete the radix tree insertion.
  */
 int
-__xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gfp)
+__xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, struct xa_limit limit, gfp_t gfp)
 {
 	int retval;
 
 	XA_ASSERT_LOCKED(xa);
 
-	/* mask should allow to allocate at least one item */
-	MPASS(mask > ((xa->xa_flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0));
-
-	/* mask can be any power of two value minus one */
-	MPASS((mask & (mask + 1)) == 0);
+	MPASS(limit.max > limit.min);
 
 	*pindex = (xa->xa_flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0;
+	*pindex = MAX(*pindex, limit.min);
 	if (ptr == NULL)
 		ptr = NULL_VALUE;
 retry:
@@ -135,7 +132,7 @@ retry:
 
 	switch (retval) {
 	case -EEXIST:
-		if (likely(*pindex != mask)) {
+		if (likely(*pindex < limit.max)) {
 			(*pindex)++;
 			goto retry;
 		}
@@ -154,7 +151,7 @@ retry:
 }
 
 int
-xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gfp)
+xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, struct xa_limit limit, gfp_t gfp)
 {
 	int retval;
 
@@ -162,7 +159,7 @@ xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gf
 		ptr = NULL_VALUE;
 
 	xa_lock(xa);
-	retval = __xa_alloc(xa, pindex, ptr, mask, gfp);
+	retval = __xa_alloc(xa, pindex, ptr, limit, gfp);
 	xa_unlock(xa);
 
 	return (retval);
@@ -175,7 +172,7 @@ xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gf
  * beginning of the array. If the xarray is full -ENOMEM is returned.
  */
 int
-__xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask,
+__xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, struct xa_limit limit,
     uint32_t *pnext_index, gfp_t gfp)
 {
 	int retval;
@@ -183,13 +180,10 @@ __xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask,
 
 	XA_ASSERT_LOCKED(xa);
 
-	/* mask should allow to allocate at least one item */
-	MPASS(mask > ((xa->xa_flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0));
-
-	/* mask can be any power of two value minus one */
-	MPASS((mask & (mask + 1)) == 0);
+	MPASS(limit.max > limit.min);
 
 	*pnext_index = (xa->xa_flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0;
+	*pnext_index = MAX(*pnext_index, limit.min);
 	if (ptr == NULL)
 		ptr = NULL_VALUE;
 retry:
@@ -197,14 +191,15 @@ retry:
 
 	switch (retval) {
 	case -EEXIST:
-		if (unlikely(*pnext_index == mask) && !timeout--) {
+		if (unlikely(*pnext_index == limit.max) && !timeout--) {
 			retval = -ENOMEM;
 			break;
 		}
 		(*pnext_index)++;
-		(*pnext_index) &= mask;
-		if (*pnext_index == 0 && (xa->xa_flags & XA_FLAGS_ALLOC1) != 0)
-			(*pnext_index)++;
+		if (*pnext_index > limit.max) {
+			*pnext_index = (xa->xa_flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0;
+			*pnext_index = MAX(*pnext_index, limit.min);
+		}
 		goto retry;
 	case -ENOMEM:
 		if (likely(gfp & M_WAITOK)) {
@@ -221,13 +216,13 @@ retry:
 }
 
 int
-xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask,
+xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, struct xa_limit limit,
     uint32_t *pnext_index, gfp_t gfp)
 {
 	int retval;
 
 	xa_lock(xa);
-	retval = __xa_alloc_cyclic(xa, pindex, ptr, mask, pnext_index, gfp);
+	retval = __xa_alloc_cyclic(xa, pindex, ptr, limit, pnext_index, gfp);
 	xa_unlock(xa);
 
 	return (retval);
@@ -235,12 +230,12 @@ xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask,
 
 int
 xa_alloc_cyclic_irq(struct xarray *xa, uint32_t *pindex, void *ptr,
-    uint32_t mask, uint32_t *pnext_index, gfp_t gfp)
+    struct xa_limit limit, uint32_t *pnext_index, gfp_t gfp)
 {
 	int retval;
 
 	xa_lock_irq(xa);
-	retval = __xa_alloc_cyclic(xa, pindex, ptr, mask, pnext_index, gfp);
+	retval = __xa_alloc_cyclic(xa, pindex, ptr, limit, pnext_index, gfp);
 	xa_unlock_irq(xa);
 
 	return (retval);

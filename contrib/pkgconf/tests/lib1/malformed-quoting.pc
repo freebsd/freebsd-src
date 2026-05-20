@@ -1,0 +1,4 @@
+Name: malformed-quoting
+Version: 1
+Description: None.
+Cflags: '-I/ABC

@@ -441,8 +441,6 @@ allocuio(u_int iovcnt)
 	struct uio *uio;
 	int iovlen;
 
-	KASSERT(iovcnt <= UIO_MAXIOV,
-	    ("Requested %u iovecs exceed UIO_MAXIOV", iovcnt));
 	iovlen = iovcnt * sizeof(struct iovec);
 	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
 	uio->uio_iov = (struct iovec *)(uio + 1);

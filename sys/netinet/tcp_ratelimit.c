@@ -490,7 +490,7 @@ populate_canned_table(struct tcp_rate_set *rs, const uint64_t *rate_table_act)
 {
 	/*
 	 * The internal table is "special", it
-	 * is two seperate ordered tables that
+	 * is two separate ordered tables that
 	 * must be merged. We get here when the
 	 * adapter specifies a number of rates that
 	 * covers both ranges in the table in some

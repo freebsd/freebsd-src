@@ -14750,8 +14750,8 @@ rack_init(struct tcpcb *tp, void **ptr)
 	 */
 	rack_convert_rtts(tp);
 	rack_log_hystart_event(rack, rack->r_ctl.roundends, 20);
-	if ((tptoinpcb(tp)->inp_flags & INP_DROPPED) == 0) {
-		/* We do not start any timers on DROPPED connections */
+	if ((tp->t_flags & TF_DISCONNECTED) == 0) {
+		/* We do not start any timers on disconnected connections */
 		if (tp->t_fb->tfb_chg_query == NULL) {
 			rack_start_hpts_timer(rack, tp, tcp_get_usecs(NULL), 0, 0, 0);
 		} else {
@@ -17178,7 +17178,7 @@ pace_to_fill_cwnd(struct tcp_rack *rack, int32_t pacing_delay, uint32_t len, uin
 		return (pacing_delay);
 	/*
 	 * first lets calculate the b/w based on the last us-rtt
-	 * and the the smallest send window.
+	 * and the smallest send window.
 	 */
 	fill_bw = min(rack->rc_tp->snd_cwnd, rack->r_ctl.cwnd_to_use);
 	if (rack->rc_fillcw_apply_discount) {
@@ -22106,10 +22106,8 @@ out:
 		 * Now for special SYN/FIN handling.
 		 */
 		if (flags & (TH_SYN | TH_FIN)) {
-			if ((flags & TH_SYN) &&
-			    ((tp->t_flags & TF_SENTSYN) == 0)) {
+			if ((flags & TH_SYN) != 0 && tp->snd_max == tp->iss) {
 				tp->snd_max++;
-				tp->t_flags |= TF_SENTSYN;
 			}
 			if ((flags & TH_FIN) &&
 			    ((tp->t_flags & TF_SENTFIN) == 0)) {

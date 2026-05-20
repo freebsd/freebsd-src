@@ -709,7 +709,7 @@ static char init_path[MAXPATHLEN] =
     "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init";
 #endif
 SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
-	"Path used to search the init process");
+    "Path used to search for the init binary");
 
 /*
  * Shutdown timeout of init(8).

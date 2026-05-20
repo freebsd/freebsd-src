@@ -40,18 +40,23 @@
  */
 typedef	signed char		__int8_t;
 typedef	unsigned char		__uint8_t;
+#define	__SIZEOF_INT8_T		__SIZEOF_CHAR__
 typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
+#define	__SIZEOF_INT16_T	__SIZEOF_SHORT__
 typedef	int			__int32_t;
 typedef	unsigned int		__uint32_t;
+#define	__SIZEOF_INT32_T	__SIZEOF_INT__
 #if __SIZEOF_LONG__ == 8
 typedef	long			__int64_t;
 typedef	unsigned long		__uint64_t;
+#define	__SIZEOF_INT64_T	__SIZEOF_LONG__
 #elif __SIZEOF_LONG__ == 4
 __extension__
 typedef	long long		__int64_t;
 __extension__
 typedef	unsigned long long	__uint64_t;
+#define	__SIZEOF_INT64_T	__SIZEOF_LONG_LONG__
 #else
 #error unsupported long size
 #endif

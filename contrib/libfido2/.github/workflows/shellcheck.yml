@@ -1,0 +1,27 @@
+# Copyright (c) 2024 Google LLC. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: shellcheck
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+    - '*-ci'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: dependencies
+      run: |
+        sudo apt -q update
+        sudo apt install -q -y shellcheck
+    - name: build
+      run: ./.actions/run-shellcheck

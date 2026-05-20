@@ -61,6 +61,7 @@
 #define	M_EXEC		0x4000		/* allocate executable space */
 #define	M_NEXTFIT	0x8000		/* only for vmem, follow cursor */
 #define	M_NEVERFREED 	0x10000		/* chunk will never get freed */
+#define	M_UNPROTECTED	0x20000		/* alloc out of unprotected memory */
 
 #define	M_VERSION	2024073001
 

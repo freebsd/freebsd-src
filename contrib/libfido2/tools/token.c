@@ -170,6 +170,12 @@ print_maxcredcntlst(uint64_t maxcredcntlst)
 }
 
 static void
+print_maxcredblob(uint64_t maxcredblob)
+{
+	printf("maxcredblob: %d\n", (int)maxcredblob);
+}
+
+static void
 print_maxcredidlen(uint64_t maxcredidlen)
 {
 	printf("maxcredlen: %d\n", (int)maxcredidlen);
@@ -387,6 +393,9 @@ token_info(int argc, char **argv, char *path)
 
 	/* print maximum length of a credential ID */
 	print_maxcredidlen(fido_cbor_info_maxcredidlen(ci));
+
+	/* print maximum length of credBlob */
+	print_maxcredblob(fido_cbor_info_maxcredbloblen(ci));
 
 	/* print maximum length of serialized largeBlob array */
 	print_maxlargeblob(fido_cbor_info_maxlargeblob(ci));

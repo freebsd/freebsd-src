@@ -280,33 +280,43 @@ uart_pci_probe(device_t dev)
 {
 	struct uart_softc *sc;
 	const struct pci_id *id;
-	struct pci_id cid = {
-		.regshft = 0,
-		.rclk = 0,
-		.rid = 0x10 | PCI_NO_MSI,
-		.desc = "Generic SimpleComm PCI device",
-	};
-	int result;
 
 	sc = device_get_softc(dev);
 
 	id = uart_pci_match(dev, pci_ns8250_ids);
 	if (id != NULL) {
 		sc->sc_class = &uart_ns8250_class;
-		goto match;
+		return (BUS_PROBE_SPECIFIC);
 	}
 	if (pci_get_class(dev) == PCIC_SIMPLECOMM &&
 	    pci_get_subclass(dev) == PCIS_SIMPLECOMM_UART &&
 	    pci_get_progif(dev) <= PCIP_SIMPLECOMM_UART_16550A) {
-		/* XXX rclk what to do */
-		id = &cid;
 		sc->sc_class = &uart_ns8250_class;
-		goto match;
+		return (BUS_PROBE_GENERIC);
 	}
 	/* Add checks for non-ns8250 IDs here. */
 	return (ENXIO);
+}
 
- match:
+static int
+uart_pci_attach(device_t dev)
+{
+	static const struct pci_id cid = {
+		.regshft = 0,
+		.rclk = 0,
+		.rid = 0x10 | PCI_NO_MSI,
+		.desc = "Generic SimpleComm PCI device",
+	};
+	struct uart_softc *sc;
+	const struct pci_id *id = uart_pci_match(dev, pci_ns8250_ids);
+	int count, result;
+
+	if (id == NULL)
+		/* No specific PCI ID match, must be a generic device. */
+		id = &cid;
+
+	sc = device_get_softc(dev);
+
 	result = uart_bus_probe(dev, id->regshft, 0, id->rclk,
 	    id->rid & PCI_RID_MASK, 0, 0);
 	/* Bail out on error. */
@@ -322,26 +332,13 @@ uart_pci_probe(device_t dev)
 	/* Set/override the device description. */
 	if (id->desc)
 		device_set_desc(dev, id->desc);
-	return (result);
-}
-
-static int
-uart_pci_attach(device_t dev)
-{
-	struct uart_softc *sc;
-	const struct pci_id *id;
-	int count;
-
-	sc = device_get_softc(dev);
 
 	/*
-	 * Use MSI in preference to legacy IRQ if available. However, experience
-	 * suggests this is only reliable when one MSI vector is advertised.
+	 * Use MSI in preference to legacy IRQ if available. However,
+	 * experience suggests this is only reliable when one MSI vector is
+	 * advertised.
 	 */
-	id = uart_pci_match(dev, pci_ns8250_ids);
-	/* Always disable MSI for generic devices. */
-	if (id != NULL && (id->rid & PCI_NO_MSI) == 0 &&
-	    pci_msi_count(dev) == 1) {
+	if ((id->rid & PCI_NO_MSI) == 0 && pci_msi_count(dev) == 1) {
 		count = 1;
 		if (pci_alloc_msi(dev, &count) == 0) {
 			sc->sc_irid = 1;

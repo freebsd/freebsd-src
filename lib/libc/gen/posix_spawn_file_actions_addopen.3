@@ -40,8 +40,8 @@
 .Nm posix_spawn_file_actions_adddup2 ,
 .Nm posix_spawn_file_actions_addclose ,
 .Nm posix_spawn_file_actions_addclosefrom_np ,
-.Nm posix_spawn_file_actions_addchdir_np ,
-.Nm posix_spawn_file_actions_addfchdir_np
+.Nm posix_spawn_file_actions_addchdir ,
+.Nm posix_spawn_file_actions_addfchdir
 .Nd "add open, dup2, close, closefrom, or chdir/fchdir actions to spawn file actions object"
 .Sh LIBRARY
 .Lb libc
@@ -72,12 +72,12 @@
 .Fa "int from"
 .Fc
 .Ft int
-.Fo posix_spawn_file_actions_addchdir_np
+.Fo posix_spawn_file_actions_addchdir
 .Fa "posix_spawn_file_actions_t *restrict file_actions"
 .Fa "const char *restrict path"
 .Fc
 .Ft int
-.Fo posix_spawn_file_actions_addfchdir_np
+.Fo posix_spawn_file_actions_addfchdir
 .Fa "posix_spawn_file_actions_t * file_actions"
 .Fa "int fildes"
 .Fc
@@ -189,9 +189,9 @@ For each open file descriptor, logically the close action is performed,
 and any possible errors encountered are ignored.
 .Pp
 The
-.Fn posix_spawn_file_actions_addchdir_np
+.Fn posix_spawn_file_actions_addchdir
 and
-.Fn posix_spawn_file_actions_addfchdir_np
+.Fn posix_spawn_file_actions_addfchdir
 functions add a change current directory action to the object
 referenced by
 .Fa file_actions
@@ -201,11 +201,11 @@ in the order of insertion into the
 object.
 It also sets the working directory for the spawned program.
 The
-.Fn posix_spawn_file_actions_addchdir_np
+.Fn posix_spawn_file_actions_addchdir
 function takes the
 .Fa path
 to set as the working directory, while
-.Fn posix_spawn_file_actions_addfchdir_np
+.Fn posix_spawn_file_actions_addfchdir
 takes the directory file descriptor.
 .Sh RETURN VALUES
 Upon successful completion, these functions return zero;
@@ -250,11 +250,8 @@ is equal to
 A future update of the Standard is expected to require this behavior.
 .Pp
 The
-.Fn posix_spawn_file_actions_addchdir_np ,
-.Fn posix_spawn_file_actions_addfchdir_np ,
-and
 .Fn posix_spawn_file_actions_addclosefrom_np
-functions are non-standard functions implemented after the similar
+function is non-standard and implemented after the similar
 functionality provided by glibc.
 .Sh HISTORY
 The
@@ -271,5 +268,13 @@ and
 .Fn posix_spawn_file_actions_addclosefrom_np
 functions first appeared in
 .Fx 13.1 .
+In
+.Fx 16.0 ,
+the
+.Fn posix_spawn_file_actions_addchdir ,
+.Fn posix_spawn_file_actions_addfchdir
+aliases where added to the corresponding functions with the
+.Ql _np
+suffix.
 .Sh AUTHORS
 .An \&Ed Schouten Aq Mt ed@FreeBSD.org

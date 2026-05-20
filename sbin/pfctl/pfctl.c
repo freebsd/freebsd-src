@@ -152,13 +152,13 @@ int	 pfctl_call_cleartables(int, int, struct pfr_anchoritem *);
 int	 pfctl_call_clearanchors(int, int, struct pfr_anchoritem *);
 int	 pfctl_call_showtables(int, int, struct pfr_anchoritem *);
 
-RB_PROTOTYPE(pfctl_statelim_ids, pfctl_statelim, entry,
+RB_PROTOTYPE(pfctl_statelim_ids, pfctl_statelim, id_entry,
     pfctl_statelim_id_cmp);
-RB_PROTOTYPE(pfctl_statelim_nms, pfctl_statelim, entry,
+RB_PROTOTYPE(pfctl_statelim_nms, pfctl_statelim, nm_entry,
     pfctl_statelim_nm_cmp);
-RB_PROTOTYPE(pfctl_sourcelim_ids, pfctl_sourcelim, entry,
+RB_PROTOTYPE(pfctl_sourcelim_ids, pfctl_sourcelim, id_entry,
     pfctl_sourcelim_id_cmp);
-RB_PROTOTYPE(pfctl_sourcelim_nms, pfctl_sourcelim, entry,
+RB_PROTOTYPE(pfctl_sourcelim_nms, pfctl_sourcelim, nm_entry,
     pfctl_sourcelim_nm_cmp);
 
 enum showopt_id {
@@ -1991,16 +1991,20 @@ pfctl_show_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_show_state_arg arg;
 	struct pfctl_state_filter filter = {};
+	int ret;
 
 	if (iface != NULL)
 		strlcpy(filter.ifname, iface, IFNAMSIZ);
+
+	if (opts & PF_OPT_VERBOSE2)
+		filter.include_rule = true;
 
 	arg.opts = opts;
 	arg.dotitle = opts & PF_OPT_SHOWALL;
 	arg.iface = iface;
 
-	if (pfctl_get_states_h(pfh, &filter, pfctl_show_state, &arg))
-		return (-1);
+	if ((ret = pfctl_get_states_h(pfh, &filter, pfctl_show_state, &arg)) != 0)
+		errc(1, ret, "pfctl_get_states");
 
 	return (0);
 }
@@ -3809,7 +3813,7 @@ main(int argc, char *argv[])
 	}
 
 	if ((opts & PF_OPT_NODNS) && (opts & PF_OPT_USEDNS))
-		errx(1, "-N and -r are mutually exclusive");
+		errx(1, "-S and -r are mutually exclusive");
 
 	if ((tblcmdopt == NULL) ^ (tableopt == NULL) &&
 	    (tblcmdopt == NULL || *tblcmdopt != 'l'))
@@ -4187,7 +4191,8 @@ pfctl_statelim_id_cmp(const struct pfctl_statelim *a,
 	return (0);
 }
 
-RB_GENERATE(pfctl_statelim_ids, pfctl_statelim, entry, pfctl_statelim_id_cmp);
+RB_GENERATE(pfctl_statelim_ids, pfctl_statelim, id_entry,
+    pfctl_statelim_id_cmp);
 
 static inline int
 pfctl_statelim_nm_cmp(const struct pfctl_statelim *a,
@@ -4196,7 +4201,8 @@ pfctl_statelim_nm_cmp(const struct pfctl_statelim *a,
 	return (strcmp(a->ioc.name, b->ioc.name));
 }
 
-RB_GENERATE(pfctl_statelim_nms, pfctl_statelim, entry, pfctl_statelim_nm_cmp);
+RB_GENERATE(pfctl_statelim_nms, pfctl_statelim, nm_entry,
+    pfctl_statelim_nm_cmp);
 
 int
 pfctl_add_statelim(struct pfctl *pf, struct pfctl_statelim *stlim)
@@ -4253,7 +4259,7 @@ pfctl_sourcelim_id_cmp(const struct pfctl_sourcelim *a,
 	return (0);
 }
 
-RB_GENERATE(pfctl_sourcelim_ids, pfctl_sourcelim, entry,
+RB_GENERATE(pfctl_sourcelim_ids, pfctl_sourcelim, id_entry,
     pfctl_sourcelim_id_cmp);
 
 static inline int
@@ -4263,7 +4269,7 @@ pfctl_sourcelim_nm_cmp(const struct pfctl_sourcelim *a,
 	return (strcmp(a->ioc.name, b->ioc.name));
 }
 
-RB_GENERATE(pfctl_sourcelim_nms, pfctl_sourcelim, entry,
+RB_GENERATE(pfctl_sourcelim_nms, pfctl_sourcelim, nm_entry,
     pfctl_sourcelim_nm_cmp);
 
 int
@@ -4272,8 +4278,9 @@ pfctl_add_sourcelim(struct pfctl *pf, struct pfctl_sourcelim *srlim)
 	struct pfctl_sourcelim *osrlim;
 
 	osrlim = RB_INSERT(pfctl_sourcelim_ids, &pf->sourcelim_ids, srlim);
-	if (osrlim != NULL)
+	if (osrlim != NULL) {
 		return (-1);
+	}
 
 	osrlim = RB_INSERT(pfctl_sourcelim_nms, &pf->sourcelim_nms, srlim);
 	if (osrlim != NULL) {

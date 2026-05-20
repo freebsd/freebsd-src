@@ -1,6 +1,6 @@
-# $Id: rust.mk,v 1.38 2025/08/09 22:42:24 sjg Exp $
+# $Id: rust.mk,v 1.40 2026/01/08 20:34:30 sjg Exp $
 #
-#	@(#) Copyright (c) 2024, Simon J. Gerraty
+#	@(#) Copyright (c) 2024-2026, Simon J. Gerraty
 #
 #	SPDX-License-Identifier: BSD-2-Clause
 #
@@ -180,15 +180,24 @@ all: cargo.clippy
 .if !defined(RUST_LIBS)
 RUST_PROGS ?= ${RUST_PROJECT_DIR:T}
 .endif
-.if !empty(RUST_PROGS)
-BINDIR ?= ${prefix}/bin
+.if  !empty(RUST_LIBS) || !empty(RUST_PROGS)
 # there could be a target triple involved
 RUST_CARGO_TARGET_DIR ?= ${CARGO_TARGET_DIR}
 RUST_CARGO_OUTPUT_DIR ?= ${RUST_CARGO_TARGET_DIR}/${RUST_CARGO_TARGET}
 
-RUST_CARGO_BUILD_OUTPUT_LIST := ${RUST_PROGS:S,^,${RUST_CARGO_OUTPUT_DIR}/,}
+.if !empty(RUST_LIBS)
+LIBDIR ?= ${prefix}/lib
+RUST_LIBS_CARGO_BUILD_OUTPUT_LIST := ${RUST_LIBS:S,^,${RUST_CARGO_OUTPUT_DIR}/,}
 
-${RUST_CARGO_BUILD_OUTPUT_LIST}: cargo.build
+${RUST_LIBS_CARGO_BUILD_OUTPUT_LIST}: cargo.build
+.endif
+
+.if !empty(RUST_PROGS)
+BINDIR ?= ${prefix}/bin
+RUST_PROGS_CARGO_BUILD_OUTPUT_LIST := ${RUST_PROGS:S,^,${RUST_CARGO_OUTPUT_DIR}/,}
+
+${RUST_PROGS_CARGO_BUILD_OUTPUT_LIST}: cargo.build
+.endif
 .endif
 
 # for late customizations

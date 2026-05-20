@@ -29,7 +29,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 3, 2025
+.Dd May 12, 2026
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -79,6 +79,12 @@ targets.
 .Bl -tag -width "-D file"
 .It Cm auto
 Run the standard interactive installation, including disk partitioning.
+.Pp
+The
+.Ev DISTRIBUTIONS
+environment variable is set to
+.Dq base.txz kernel.txz
+by default for this target.
 .It Cm jail Ar destination
 Sets up a new chroot system at
 .Pa destination ,
@@ -88,12 +94,27 @@ Behavior is generally similar to
 .Cm auto ,
 except that disk partitioning and network setup are skipped and a kernel is
 not installed into the new system.
+.Pp
+The
+.Ev DISTRIBUTIONS
+environment variable is set to
+.Dq base.txz
+by default for this target.
 .It Cm script Ar script
 Runs the installation script at
 .Pa script .
 See
 .Sx SCRIPTING
 for more information on this target.
+.Pp
+The
+.Ev DISTRIBUTIONS
+environment variable is unset by default for this target.
+Instead, the
+.Ev COMPONENTS
+environment variable is effectively set to
+.Dq base kernel kernel-dbg
+for this target.
 .It Cm keymap
 If the current controlling TTY is a
 .Xr syscons 4
@@ -303,9 +324,20 @@ overridden when making scripted or customized installers.
 The directory to use for temporary files.
 Default:
 .Dq Pa /tmp
+.It Ev COMPONENTS
+The set of components to install for scripted installations using
+base system packages, e.g.,
+.Dq base lib32 kernel-dbg tests .
+Default: "base kernel-dbg"
 .It Ev DISTRIBUTIONS
-The set of distributions to install, e.g., "base.txz kernel.txz ports.txz".
-Default: unset
+The set of distributions to install for traditional installations, e.g.,
+.Dq base.txz kernel.txz ports.txz .
+If unset, then
+.Nm
+will install using base system packages.
+Default: unset unless noted otherwise in the
+.Sx TARGETS
+section.
 .It Ev PARTITIONS
 The partitioning of the disk onto which the system is being installed.
 See
@@ -589,18 +621,18 @@ A typical bsdinstall script, using the default filesystem layout and the UFS
 filesystem, looks like this:
 .Bd -literal -offset indent
 PARTITIONS=DEFAULT
-DISTRIBUTIONS="kernel.txz base.txz"
+COMPONENTS="base debug"
 
 #!/bin/sh
 sysrc ifconfig_DEFAULT=DHCP
 sysrc sshd_enable=YES
-pkg install puppet
+pkg install -y puppet
 .Ed
 .Pp
 For a scripted installation involving a ZFS pool spanning multiple disks,
 the script instead looks like this:
 .Bd -literal -offset indent
-DISTRIBUTIONS="kernel.txz base.txz"
+COMPONENTS="base debug"
 export ZFSBOOT_VDEV_TYPE=stripe
 export ZFSBOOT_DISKS="ada0 ada1"
 export nonInteractive="YES"
@@ -608,7 +640,20 @@ export nonInteractive="YES"
 #!/bin/sh
 echo "ifconfig_DEFAULT=DHCP" >> /etc/rc.conf
 echo "sshd_enable=YES" >> /etc/rc.conf
-pkg install puppet
+pkg install -y puppet
+.Ed
+.Pp
+To install using traditional distributions sets instead of packages, set
+.Ev DISTRIBUTIONS
+to the list of distribution sets to install, like this:
+.Bd -literal -offset indent
+PARTITIONS=DEFAULT
+DISTRIBUTIONS="kernel.txz base.txz"
+
+#!/bin/sh
+sysrc ifconfig_DEFAULT=DHCP
+sysrc sshd_enable=YES
+pkg install -y puppet
 .Ed
 .Pp
 On
@@ -633,7 +678,7 @@ arbitrary commands can be run here to extend the installer.
 In addition to the variables in
 .Sx ENVIRONMENT VARIABLES ,
 in particular
-.Ev DISTRIBUTIONS ,
+.Ev COMPONENTS ,
 the preamble can contain a variable
 .Ev PARTITIONS
 which is passed to the

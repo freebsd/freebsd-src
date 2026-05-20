@@ -1,0 +1,5 @@
+Name: metapackage-2
+Version: 0.1
+Description: metapackage for testing purposes
+Libs: -lmetapackage-2
+Cflags: -I/metapackage-2

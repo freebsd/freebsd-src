@@ -232,7 +232,7 @@ link_elf_protect_range(elf_file_t ef, vm_offset_t start, vm_offset_t end,
 		return;
 	if (ef->preloaded) {
 #ifdef __amd64__
-		error = pmap_change_prot(start, end - start, prot);
+		error = pmap_change_prot((void *)start, end - start, prot);
 		KASSERT(error == 0,
 		    ("link_elf_protect_range: pmap_change_prot() returned %d",
 		    error));

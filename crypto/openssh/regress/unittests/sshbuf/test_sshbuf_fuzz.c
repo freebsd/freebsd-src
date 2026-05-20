@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_fuzz.c,v 1.4 2021/12/18 06:53:59 anton Exp $ */
+/* 	$OpenBSD: test_sshbuf_fuzz.c,v 1.5 2026/03/06 06:57:33 dtucker Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -9,9 +9,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,7 +28,7 @@ sshbuf_fuzz_tests(void)
 	struct sshbuf *p1;
 	u_char *dp;
 	size_t sz, sz2, i, ntests = NUM_FUZZ_TESTS;
-	u_int32_t r;
+	uint32_t r;
 	int ret;
 
 	if (test_is_fast())

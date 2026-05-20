@@ -3326,10 +3326,12 @@ igmp_v3_merge_state_changes(struct in_multi *inm, struct mbufq *scq)
 			CTR2(KTR_IGMPV3,
 			    "%s: outbound queue full, skipping whole packet %p",
 			    __func__, m);
-			mt = m->m_nextpkt;
-			if (!docopy)
+			m0 = m->m_nextpkt;
+			if (!docopy) {
+				mbufq_remove(gq, m);
 				m_freem(m);
-			m = mt;
+			}
+			m = m0;
 			continue;
 		}
 

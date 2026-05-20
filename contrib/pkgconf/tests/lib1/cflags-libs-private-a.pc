@@ -1,0 +1,7 @@
+Name: cflags-libs-private-a
+Version: 1
+Description: test case for issue #370
+Cflags:
+Libs:
+Requires.private: cflags-libs-private-b
+

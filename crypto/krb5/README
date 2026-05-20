@@ -6,7 +6,7 @@
 Copyright and Other Notices
 ---------------------------
 
-Copyright (C) 1985-2025 by the Massachusetts Institute of Technology
+Copyright (C) 1985-2026 by the Massachusetts Institute of Technology
 and its contributors.  All rights reserved.
 
 Please see the file named NOTICE for additional notices.
@@ -96,6 +96,24 @@ removed.
 
 Beginning with the krb5-1.18 release, all support for single-DES
 encryption types has been removed.
+
+Major changes in 1.22.2 (2026-01-29)
+------------------------------------
+
+This is a bug fix release.
+
+* Fix a SPNEGO packet parsing bug which could cause GSS mechanism
+  negotiation failure.
+
+krb5-1.22.2 changes by ticket ID
+--------------------------------
+
+9183    Fix SPNEGO mechListMIC parsing
+9188    Improve MSLSA ccache timestamp conversion
+9189    Fix krb5 gss_acquire_cred() leak on some errors
+9190    Make atomic ccache replacement work on Windows
+9193    Fix uninitialized pointer dereference in libkrad
+9194    Fix IAKERB realm discovery state machine logic
 
 Major changes in 1.22.1 (2025-08-20)
 ------------------------------------
@@ -378,6 +396,7 @@ reports, suggestions, and valuable resources:
     Gerald Combs
     Simon Cooper
     Sylvain Cortes
+    Robert Crowston
     Ian Crowther
     Arran Cudbard-Bell
     Adam Dabrowski
@@ -475,6 +494,7 @@ reports, suggestions, and valuable resources:
     Tomas Kuthan
     Pierre Labastie
     Andreas Ladanyi
+    Yubi Lee
     Chris Leick
     Volker Lendecke
     Jan iankko Lieskovsky
@@ -519,6 +539,7 @@ reports, suggestions, and valuable resources:
     Felipe Ortega
     Michael Osipov
     Andrej Ota
+    Dmitry Ovsyannikov
     Dmitri Pal
     Javier Palacios
     Dilyan Palauzov
@@ -530,6 +551,7 @@ reports, suggestions, and valuable resources:
     Zoran Pericic
     W. Michael Petullo
     Mark Phalan
+    Ben Pope
     Sharwan Ram
     Brett Randall
     Jonathan Reams

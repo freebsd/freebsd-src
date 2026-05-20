@@ -35,6 +35,8 @@
 #include <sys/errno.h>
 #include <sys/libkern.h>
 
+#include <linux/bits.h>
+
 #define	BIT(nr)			(1UL << (nr))
 #define	BIT_ULL(nr)		(1ULL << (nr))
 #define	BITS_PER_LONG		(__SIZEOF_LONG__ * __CHAR_BIT__)
@@ -45,8 +47,6 @@
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
 #define	BIT_MASK(nr)		(1UL << ((nr) & (BITS_PER_LONG - 1)))
 #define	BIT_WORD(nr)		((nr) / BITS_PER_LONG)
-#define	GENMASK(h, l)		(((~0UL) >> (BITS_PER_LONG - (h) - 1)) & ((~0UL) << (l)))
-#define	GENMASK_ULL(h, l)	(((~0ULL) >> (BITS_PER_LONG_LONG - (h) - 1)) & ((~0ULL) << (l)))
 #define	BITS_PER_BYTE		8
 #define	BITS_PER_TYPE(t)	(sizeof(t) * BITS_PER_BYTE)
 #define	BITS_TO_BYTES(n)	howmany((n), BITS_PER_BYTE)

@@ -62,7 +62,7 @@ kmap(struct page *page)
 	struct sf_buf *sf;
 
 	if (PMAP_HAS_DMAP) {
-		return ((void *)PHYS_TO_DMAP(page_to_phys(page)));
+		return (PHYS_TO_DMAP(page_to_phys(page)));
 	} else {
 		sched_pin();
 		sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
@@ -70,7 +70,7 @@ kmap(struct page *page)
 			sched_unpin();
 			return (NULL);
 		}
-		return ((void *)sf_buf_kva(sf));
+		return (sf_buf_kva(sf));
 	}
 }
 
@@ -97,6 +97,19 @@ static inline void *
 kmap_local_page(struct page *page)
 {
 	return (kmap(page));
+}
+
+static inline void *
+kmap_local_folio(struct folio *folio, size_t offset)
+{
+	struct page *page;
+	char *vaddr;
+
+	page = &folio->page;
+	vaddr = kmap_local_page(page);
+	vaddr += offset;
+
+	return (vaddr);
 }
 
 static inline void *
@@ -166,6 +179,15 @@ memcpy_to_page(struct page *page, size_t offset, const char *from, size_t len)
 	to = kmap_local_page(page);
 	memcpy(to + offset, from, len);
 	kunmap_local(to);
+}
+
+static inline void
+memcpy_to_folio(struct folio *folio, size_t offset, const char *from, size_t len)
+{
+	struct page *page;
+
+	page = &folio->page;
+	memcpy_to_page(page, offset, from, len);
 }
 
 #endif	/* _LINUXKPI_LINUX_HIGHMEM_H_ */

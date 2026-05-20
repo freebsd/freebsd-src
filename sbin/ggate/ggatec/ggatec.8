@@ -101,7 +101,7 @@ providers.
 .El
 .Pp
 Available options:
-.Bl -tag -width ".Fl s Cm ro | wo | rw"
+.Bl -tag -width "-q queue_size"
 .It Fl f
 Forcibly destroy
 .Nm ggate
@@ -136,15 +136,15 @@ start to be canceled.
 Default is 1024.
 .It Fl R Ar rcvbuf
 Size of receive buffer to use.
-Default is 131072 (128kB).
+Default is 131072 (128\~KiB).
 .It Fl S Ar sndbuf
 Size of send buffer to use.
-Default is 131072 (128kB).
+Default is 131072 (128\~KiB).
 .It Fl s Ar sectorsize
 Sector size for
 .Nm ggate
 provider.
-If not specified, it is taken from the device, or set to 512 bytes for files.
+If not specified, it is taken from the device, or set to 512\~bytes for files.
 .It Fl t Ar timeout
 Number of seconds to wait before an I/O request will be canceled.
 Default is 0, which means no timeout.

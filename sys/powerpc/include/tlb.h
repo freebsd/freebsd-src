@@ -50,20 +50,20 @@
 #define MAS1_TID_SHIFT		16
 #define MAS1_TS_MASK		0x00001000
 #define MAS1_TS_SHIFT		12
-#define MAS1_TSIZE_MASK		0x00000F00
-#define MAS1_TSIZE_SHIFT	8
+#define MAS1_TSIZE_MASK		0x00000F80
+#define MAS1_TSIZE_SHIFT	7
 
-#define	TLB_SIZE_4K		1
-#define	TLB_SIZE_16K		2
-#define	TLB_SIZE_64K		3
-#define	TLB_SIZE_256K		4
-#define	TLB_SIZE_1M		5
-#define	TLB_SIZE_4M		6
-#define	TLB_SIZE_16M		7
-#define	TLB_SIZE_64M		8
-#define	TLB_SIZE_256M		9
-#define	TLB_SIZE_1G		10
-#define	TLB_SIZE_4G		11
+#define	TLB_SIZE_4K		2
+#define	TLB_SIZE_16K		4
+#define	TLB_SIZE_64K		6
+#define	TLB_SIZE_256K		8
+#define	TLB_SIZE_1M		10
+#define	TLB_SIZE_4M		12
+#define	TLB_SIZE_16M		14
+#define	TLB_SIZE_64M		16
+#define	TLB_SIZE_256M		18
+#define	TLB_SIZE_1G		20
+#define	TLB_SIZE_4G		22
 
 #ifdef __powerpc64__
 #define	MAS2_EPN_MASK		0xFFFFFFFFFFFFF000UL

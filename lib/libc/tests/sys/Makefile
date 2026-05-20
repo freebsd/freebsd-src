@@ -22,6 +22,7 @@ NETBSD_ATF_TESTS_C+=		dup_test
 NETBSD_ATF_TESTS_C+=		fsync_test
 NETBSD_ATF_TESTS_C+=		getcontext_test
 NETBSD_ATF_TESTS_C+=		getgroups_test
+FORTIFY_SOURCE.t_getgroups.c=	0
 NETBSD_ATF_TESTS_C+=		getitimer_test
 NETBSD_ATF_TESTS_C+=		getlogin_test
 NETBSD_ATF_TESTS_C+=		getpid_test

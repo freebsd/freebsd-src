@@ -47,6 +47,9 @@ enum alias {
 	ALIAS_MBR,
 	ALIAS_NTFS,
 	ALIAS_PPCBOOT,
+	ALIAS_HIFIVE_BBL,
+	ALIAS_XBOOTLDR,
+	ALIAS_HIFIVE_FSBL,
 	/* end */
 	ALIAS_COUNT		/* Keep last! */
 };

@@ -3756,7 +3756,7 @@ xhci_early_takeover(device_t self)
 	struct resource *res;
 	uint32_t cparams;
 	uint32_t eec;
-	uint8_t eecp;
+	uint32_t eecp;
 	uint8_t bios_sem;
 	uint8_t offs;
 	int rid;
@@ -6535,11 +6535,9 @@ device_t
 pci_find_pcie_root_port(device_t dev)
 {
 	struct pci_devinfo *dinfo;
-	devclass_t pci_class;
 	device_t pcib, bus;
 
-	pci_class = devclass_find("pci");
-	KASSERT(device_get_devclass(device_get_parent(dev)) == pci_class,
+	KASSERT(is_pci_device(dev),
 	    ("%s: non-pci device %s", __func__, device_get_nameunit(dev)));
 
 	/*
@@ -6555,11 +6553,7 @@ pci_find_pcie_root_port(device_t dev)
 		KASSERT(pcib != NULL, ("%s: null bridge of %s", __func__,
 		    device_get_nameunit(bus)));
 
-		/*
-		 * pcib's parent must be a PCI bus for this to be a
-		 * PCI-PCI bridge.
-		 */
-		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+		if (!is_pci_device(pcib))
 			return (NULL);
 
 		dinfo = device_get_ivars(pcib);
@@ -6991,6 +6985,17 @@ pci_print_faulted_dev(void)
 			}
 		}
 	}
+}
+
+bool
+is_pci_device(device_t dev)
+{
+	devclass_t pci_class;
+
+	if (device_get_parent(dev) == NULL)
+		return (false);
+	pci_class = devclass_find("pci");
+	return (device_get_devclass(device_get_parent(dev)) == pci_class);
 }
 
 #ifdef DDB

@@ -1276,7 +1276,8 @@ struct linux_userfaultfd_args {
 };
 struct linux_membarrier_args {
 	char cmd_l_[PADL_(l_int)]; l_int cmd; char cmd_r_[PADR_(l_int)];
-	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
+	char flags_l_[PADL_(l_uint)]; l_uint flags; char flags_r_[PADR_(l_uint)];
+	char cpu_id_l_[PADL_(l_int)]; l_int cpu_id; char cpu_id_r_[PADR_(l_int)];
 };
 struct linux_mlock2_args {
 	char start_l_[PADL_(l_ulong)]; l_ulong start; char start_r_[PADR_(l_ulong)];

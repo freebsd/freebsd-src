@@ -77,6 +77,7 @@ crypto/openssl/powerpc64/x25519-ppc64.S			optional	ossl powerpc64
 
 cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc compile-with "${ZFS_C}"
 cddl/dev/dtrace/powerpc/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/powerpc/dtrace_isa.c		optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/powerpc/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/des/des_enc.c		optional	netsmb
@@ -88,6 +89,27 @@ dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
+dev/dpaa/bman_portals.c		optional	dpaa fdt
+dev/dpaa/bman.c			optional	dpaa
+dev/dpaa/bman_fdt.c		optional	dpaa fdt
+dev/dpaa/dpaa_eth.c		optional	dpaa
+dev/dpaa/fman.c			optional	dpaa fdt
+dev/dpaa/fman_fdt.c		optional	dpaa fdt
+dev/dpaa/fman_if.m		optional	dpaa
+dev/dpaa/fman_mdio.c		optional	dpaa fdt
+dev/dpaa/fman_port_if.m		optional	dpaa
+dev/dpaa/fman_port.c		optional	dpaa
+dev/dpaa/fman_xmdio.c		optional	dpaa fdt mdio miibus
+dev/dpaa/dpaa_common.c		optional	dpaa
+dev/dpaa/if_dtsec.c		optional	dpaa
+dev/dpaa/if_dtsec_fdt.c		optional	dpaa fdt
+dev/dpaa/if_memac.c		optional	dpaa
+dev/dpaa/if_memac_fdt.c		optional	dpaa
+dev/dpaa/portals_common.c	optional	dpaa
+dev/dpaa/qman_portal_if.m	optional	dpaa
+dev/dpaa/qman_portals.c		optional	dpaa fdt
+dev/dpaa/qman.c			optional	dpaa
+dev/dpaa/qman_fdt.c		optional	dpaa fdt
 dev/fb/fb.c			optional	sc
 dev/gpio/qoriq_gpio.c		optional	mpc85xx gpio
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
@@ -231,7 +253,7 @@ dev/sound/macio/snapper.c	optional	snd_ai2s iicbus powermac
 dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
-dev/tsec/if_tsec_fdt.c		optional	tsec 
+dev/tsec/if_tsec_fdt.c		optional	tsec
 dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
@@ -327,19 +349,19 @@ powerpc/powermac/fcu.c		optional	powermac fcu
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/kiic.c		optional	powermac kiic
-powerpc/powermac/macgpio.c	optional	powermac pci 
+powerpc/powermac/macgpio.c	optional	powermac pci
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/nvbl.c		optional	powermac nvbl
 powerpc/powermac/platform_powermac.c optional	powermac
 powerpc/powermac/powermac_thermal.c optional	powermac
 powerpc/powermac/pswitch.c	optional	powermac pswitch
-powerpc/powermac/pmu.c		optional	powermac pmu 
-powerpc/powermac/smu.c		optional	powermac smu 
+powerpc/powermac/pmu.c		optional	powermac pmu
+powerpc/powermac/smu.c		optional	powermac smu
 powerpc/powermac/smusat.c	optional	powermac smu
 powerpc/powermac/tbgpio.c	optional	powermac pci smp
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
-powerpc/powermac/vcoregpio.c	optional	powermac 
+powerpc/powermac/vcoregpio.c	optional	powermac
 powerpc/powernv/opal.c		optional	powernv
 powerpc/powernv/opal_async.c	optional	powernv
 powerpc/powernv/opal_console.c	optional	powernv
@@ -360,6 +382,7 @@ powerpc/powernv/xive.c		optional	powernv
 powerpc/powerpc/altivec.c	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bus_machdep.c	standard
+powerpc/powerpc/busdma_bounce.c standard
 powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/clock.c		standard
 powerpc/powerpc/copyinout.c	optional	aim

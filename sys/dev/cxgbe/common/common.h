@@ -457,6 +457,10 @@ struct adapter_params {
 	unsigned int max_ordird_qp;	  /* Max read depth per RDMA QP */
 	unsigned int max_ird_adapter;	  /* Max read depth per adapter */
 
+	unsigned int nipsec_tunnel;
+	unsigned int nipsec_transport;
+	unsigned int nofld_ipsec_tunnel;
+
 	/* These values are for all ports (8b/port, upto 4 ports) */
 	uint32_t mps_bg_map;	/* MPS rx buffer group map */
 	uint32_t tp_ch_map;	/* TPCHMAP from firmware */

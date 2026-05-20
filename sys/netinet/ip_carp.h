@@ -81,6 +81,12 @@ struct carp_header {
 CTASSERT(sizeof(struct carp_header) == 36);
 
 /*
+ * CARP authentication length in 32-bit chunks:
+ * counter[2] (8 bytes) + SHA1 HMAC (20 bytes) = 28 bytes = 7 chunks.
+ */
+#define	CARP_AUTHLEN	7
+
+/*
  * The VRRPv3 header layout is as follows:
  * See RFC9568, 5.1.  VRRP Packet Format
  *

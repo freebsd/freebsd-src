@@ -181,6 +181,8 @@ device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		re		# Realtek 8139C+/8169/8169S/8110S
 device		rl		# Realtek 8129/8139
 
+device		mdio		# MDIO bus
+
 # Nvidia/Mellanox Connect-X 4 and later, Ethernet only
 # mlx5ib requires ibcore infra and is not included by default
 device		mlx5		# Base driver

@@ -82,9 +82,9 @@ The
 utility is used to control GEOM cache, which can
 speed up read performance by sending fixed size
 read requests to its consumer.  It has been developed to address
-the problem of a horrible read performance of a 64k blocksize FS
+the problem of a horrible read performance of a 64\~KiB blocksize FS
 residing on a RAID3 array with 8 data components, where a single
-disk component would only get 8k read requests, thus effectively
+disk component would only get 8\~KiB read requests, thus effectively
 killing disk performance under high load.
 .Pp
 Caching can be configured using two different methods:

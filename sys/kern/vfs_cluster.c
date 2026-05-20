@@ -539,8 +539,7 @@ clean_sbusy:
 		    bp->b_bufsize, bp->b_kvasize);
 
 	if (buf_mapped(bp)) {
-		pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
-		    (vm_page_t *)bp->b_pages, bp->b_npages);
+		pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 	}
 	return (bp);
 }
@@ -564,8 +563,7 @@ cluster_callback(struct buf *bp)
 		error = bp->b_error;
 
 	if (buf_mapped(bp)) {
-		pmap_qremove(trunc_page((vm_offset_t) bp->b_data),
-		    bp->b_npages);
+		pmap_qremove(trunc_page(bp->b_data), bp->b_npages);
 	}
 	/*
 	 * Move memory from the large cluster buffer into the component
@@ -1020,8 +1018,8 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 		}
 	finishcluster:
 		if (buf_mapped(bp)) {
-			pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
-			    (vm_page_t *)bp->b_pages, bp->b_npages);
+			pmap_qenter(trunc_page(bp->b_data), bp->b_pages,
+			    bp->b_npages);
 		}
 		if (bp->b_bufsize > bp->b_kvasize)
 			panic(

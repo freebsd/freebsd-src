@@ -864,5 +864,10 @@
 #define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
 #define	  BUCSR_BBFI		0x00000200	/* Branch Buffer Flash Invalidate */
 
+#define	SPR_MMUCFG		0x3f7	/* ..8 MMU Configuration Register */
+#define	  MMUCFG_PIDSIZE_M	  0x000007c0
+#define	  MMUCFG_PIDSIZE_S	  6
+#define	  MMUCFG_MAVN_M		  0x00000003
+
 #endif /* BOOKE */
 #endif /* !_POWERPC_SPR_H_ */

@@ -51,6 +51,7 @@ int	ve_status_get(int);
 int	load_manifest(const char *, const char *, const char *, struct stat *);
 int	pass_manifest(const char *, const char *);
 int	pass_manifest_export_envs(void);
+int	severity_guess(const char *);
 void	verify_report(const char *, int, int, struct stat *);
 int	verify_file(int, const char *, off_t, int, const char *);
 void	verify_pcr_export(void);
@@ -59,9 +60,9 @@ int	is_verified(struct stat *);
 void	add_verify_status(struct stat *, int);
 
 struct vectx;
-struct vectx* vectx_open(int, const char *, off_t, struct stat *, int *, const char *);
+struct vectx* vectx_open(int, const char *, int, off_t, struct stat *, int *, const char *);
 ssize_t	vectx_read(struct vectx *, void *, size_t);
 off_t	vectx_lseek(struct vectx *, off_t, int);
-int	vectx_close(struct vectx *, int, const char *);
+int	vectx_close(struct vectx *, const char *);
 
 #endif	/* _VERIFY_FILE_H_ */

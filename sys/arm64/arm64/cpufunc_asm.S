@@ -90,22 +90,6 @@ ENTRY(arm64_nullop)
 END(arm64_nullop)
 
 /*
- * Generic functions to read/modify/write the internal coprocessor registers
- */
-
-ENTRY(arm64_tlb_flushID)
-	dsb	ishst
-#ifdef SMP
-	tlbi	vmalle1is
-#else
-	tlbi	vmalle1
-#endif
-	dsb	ish
-	isb
-	ret
-END(arm64_tlb_flushID)
-
-/*
  * void arm64_dcache_wb_range(void *, vm_size_t)
  */
 ENTRY(arm64_dcache_wb_range)

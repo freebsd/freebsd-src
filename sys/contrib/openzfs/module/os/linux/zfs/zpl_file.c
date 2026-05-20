@@ -673,6 +673,8 @@ static long
 zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 {
 	cred_t *cr = CRED();
+	znode_t *zp = ITOZ(ip);
+	zfsvfs_t *zfsvfs = ITOZSB(ip);
 	loff_t olen;
 	fstrans_cookie_t cookie;
 	int error = 0;
@@ -706,7 +708,7 @@ zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 		bf.l_len = len;
 		bf.l_pid = 0;
 
-		error = -zfs_space(ITOZ(ip), F_FREESP, &bf, O_RDWR, offset, cr);
+		error = -zfs_space(zp, F_FREESP, &bf, O_RDWR, offset, cr);
 	} else if ((mode & ~FALLOC_FL_KEEP_SIZE) == 0) {
 		unsigned int percent = zfs_fallocate_reserve_percent;
 		struct kstatfs statfs;
@@ -721,7 +723,7 @@ zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 		 * Use zfs_statvfs() instead of dmu_objset_space() since it
 		 * also checks project quota limits, which are relevant here.
 		 */
-		error = zfs_statvfs(ip, &statfs);
+		error = -zfs_statvfs(ip, &statfs);
 		if (error)
 			goto out_unmark;
 
@@ -734,8 +736,14 @@ zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 			error = -ENOSPC;
 			goto out_unmark;
 		}
-		if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > olen)
-			error = zfs_freesp(ITOZ(ip), offset + len, 0, 0, FALSE);
+		if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > olen) {
+			error = zpl_enter_verify_zp(zfsvfs, zp, FTAG);
+			if (error)
+				goto out_unmark;
+
+			error = -zfs_freesp(zp, offset + len, 0, 0, FALSE);
+			zfs_exit(zfsvfs, FTAG);
+		}
 	}
 out_unmark:
 	spl_fstrans_unmark(cookie);
@@ -779,34 +787,23 @@ zpl_fadvise(struct file *filp, loff_t offset, loff_t len, int advice)
 	if ((error = zpl_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 		return (error);
 
-	switch (advice) {
-	case POSIX_FADV_SEQUENTIAL:
-	case POSIX_FADV_WILLNEED:
-#ifdef HAVE_GENERIC_FADVISE
-		if (zn_has_cached_data(zp, offset, offset + len - 1))
-			error = generic_fadvise(filp, offset, len, advice);
-#endif
-		/*
-		 * Pass on the caller's size directly, but note that
-		 * dmu_prefetch_max will effectively cap it.  If there
-		 * really is a larger sequential access pattern, perhaps
-		 * dmu_zfetch will detect it.
-		 */
-		if (len == 0)
-			len = i_size_read(ip) - offset;
-
-		dmu_prefetch(os, zp->z_id, 0, offset, len,
+	if (advice == POSIX_FADV_WILLNEED) {
+		loff_t rlen = len ? len : i_size_read(ip) - offset;
+		dmu_prefetch(os, zp->z_id, 0, offset, rlen,
 		    ZIO_PRIORITY_ASYNC_READ);
-		break;
-	case POSIX_FADV_NORMAL:
-	case POSIX_FADV_RANDOM:
-	case POSIX_FADV_DONTNEED:
-	case POSIX_FADV_NOREUSE:
-		/* ignored for now */
-		break;
-	default:
-		error = -EINVAL;
-		break;
+		if (!zn_has_cached_data(zp, offset, offset + rlen - 1)) {
+			zfs_exit(zfsvfs, FTAG);
+			return (error);
+		}
+	}
+
+#ifdef HAVE_GENERIC_FADVISE
+	error = generic_fadvise(filp, offset, len, advice);
+#endif
+
+	if (error == 0 && advice == POSIX_FADV_DONTNEED) {
+		loff_t rlen = len ? len : i_size_read(ip) - offset;
+		dmu_evict_range(os, zp->z_id, offset, rlen);
 	}
 
 	zfs_exit(zfsvfs, FTAG);

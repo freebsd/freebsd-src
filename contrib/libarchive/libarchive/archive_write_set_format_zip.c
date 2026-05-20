@@ -398,16 +398,17 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		return (ret);
 	} else if (strcmp(key, "compression-level") == 0) {
 		char *endptr;
+		unsigned long v;
 
 		if (val == NULL)
 			return (ARCHIVE_WARN);
 		errno = 0;
-		zip->compression_level = (short)strtoul(val, &endptr, 10);
-		if (errno != 0 || *endptr != '\0' || zip->compression_level < 0 ||
-			zip->compression_level > 9) {
+		v = strtoul(val, &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || v > 9) {
 			zip->compression_level = 6; // set to default
 			return (ARCHIVE_WARN);
 		}
+		zip->compression_level = (short)v;
 
 		if (zip->compression_level == 0) {
 			zip->requested_compression = COMPRESSION_STORE;
@@ -435,17 +436,19 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		}
 	} else if (strcmp(key, "threads") == 0) {
 		char *endptr;
+		unsigned long v;
 
 		if (val == NULL)
 			return (ARCHIVE_FAILED);
 		errno = 0;
-		zip->threads = (short)strtoul(val, &endptr, 10);
-		if (errno != 0 || *endptr != '\0') {
+		v = strtoul(val, &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || v > SHRT_MAX) {
 			zip->threads = 1;
 			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 			    "Illegal value `%s'", val);
 			return (ARCHIVE_FAILED);
 		}
+		zip->threads = (short)v;
 		if (zip->threads == 0) {
 #ifdef HAVE_LZMA_STREAM_ENCODER_MT
 			zip->threads = lzma_cputhreads();
@@ -802,6 +805,17 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	int version_needed = 10;
 #define MIN_VERSION_NEEDED(x) do { if (version_needed < x) { version_needed = x; } } while (0)
 
+	/* Sanity check. */
+	if (archive_entry_pathname(entry) == NULL
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    && archive_entry_pathname_w(entry) == NULL
+#endif
+	    ) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't record entry in zip file without pathname");
+		return ARCHIVE_FAILED;
+	}
+
 	/* Ignore types of entries that we don't support. */
 	type = archive_entry_filetype(entry);
 	if (type != AE_IFREG && type != AE_IFDIR && type != AE_IFLNK) {
@@ -882,22 +896,33 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 
-	if (sconv != NULL) {
+	{
 		const char *p;
 		size_t len;
 
 		if (archive_entry_pathname_l(zip->entry, &p, &len, sconv) != 0) {
+			const char* p_mbs;
 			if (errno == ENOMEM) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Pathname");
 				return (ARCHIVE_FATAL);
 			}
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate Pathname '%s' to %s",
-			    archive_entry_pathname(zip->entry),
-			    archive_string_conversion_charset_name(sconv));
-			ret2 = ARCHIVE_WARN;
+			p_mbs = archive_entry_pathname(zip->entry);
+			if (p_mbs) {
+				/* We have a wrongly-encoded MBS pathname.  Warn and use it.  */
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Can't translate pathname '%s' to %s", p_mbs,
+				    archive_string_conversion_charset_name(sconv));
+				ret2 = ARCHIVE_WARN;
+			} else {
+				/* We have no MBS pathname.  Fail.  */
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Can't translate pathname to %s",
+				    archive_string_conversion_charset_name(sconv));
+				return ARCHIVE_FAILED;
+			}
 		}
 		if (len > 0)
 			archive_entry_set_pathname(zip->entry, p);

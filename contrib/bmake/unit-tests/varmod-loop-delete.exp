@@ -1,6 +1,12 @@
-make: varmod-loop-delete.mk:20: Cannot delete variable "VAR" while it is used
+make -f varmod-loop-delete.mk delete-active-variable || true
+make: varmod-loop-delete.mk:31: Cannot delete variable "VAR" while it is used
 	while evaluating "${:U:@VAR@@} rest of the value" with value ""
 	while evaluating variable "VAR" with value "${:U:@VAR@@} rest of the value"
+	in make[1] in directory "<curdir>"
 make: Fatal errors encountered -- cannot continue
-make: stopped making "all" in unit-tests
-exit status 1
+make: stopped making "delete-active-variable" in unit-tests
+
+make -f varmod-loop-delete.mk delete-active-variable-in-target || true
+: delete-active-variable-in-target: ' rest of the value'
+
+exit status 0

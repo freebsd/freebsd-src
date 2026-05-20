@@ -140,7 +140,7 @@ kexec_reboot_md(struct kexec_image *image)
 
 	for (int i = 0; i < KEXEC_SEGMENT_MAX; i++) {
 		if (image->segments[i].size > 0)
-			cpu_dcache_inv_range((void *)PHYS_TO_DMAP(image->segments[i].target),
+			cpu_dcache_inv_range(PHYS_TO_DMAP(image->segments[i].target),
 			    image->segments[i].size);
 	}
 	ptr = pmap_kextract((vm_offset_t)kexec_reboot_bottom);
@@ -148,7 +148,7 @@ kexec_reboot_md(struct kexec_image *image)
 
 	reg = pmap_kextract((vm_offset_t)pagetable_l0_ttbr0_bootstrap);
 	set_ttbr0(reg);
-	cpu_tlb_flushID();
+	pmap_s1_invalidate_all_kernel();
 
 	typeof(kexec_reboot_bottom) *p = (void *)ptr;
 	switch_stack((void *)pmap_kextract((vm_offset_t)initstack_end),

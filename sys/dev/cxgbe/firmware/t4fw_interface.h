@@ -2560,6 +2560,22 @@ struct fw_ri_wr {
 			__be32 tpt_offset_t10_config;
 			__be32 r8[2];
 		} nvmet_init;
+		struct fw_ri_iscsi_init {
+			__u8   type;
+			__u8   dcrc_dis_to_hcrc;
+			__u8   r4[3];
+			__u8   qp_caps;
+			__be16 r5;
+			__be32 pdid;
+			__be32 qpid;
+			__be32 sq_eqid;
+			__be32 r6;
+			__be32 scqid;
+			__be32 rcqid;
+			__be32 r7[4];
+			__be32 r8[2];
+			__be64 r9;
+		} iscsi_init;
 		struct fw_ri_fini {
 			__u8   type;
 			__u8   r3[7];
@@ -2634,6 +2650,37 @@ struct fw_ri_wr {
 #define G_FW_RI_WR_T10_CONFIG(x)	\
     (((x) >> S_FW_RI_WR_T10_CONFIG) & M_FW_RI_WR_T10_CONFIG)
 
+#define S_FW_RI_WR_DCRC_DIS	7
+#define M_FW_RI_WR_DCRC_DIS	0x1
+#define V_FW_RI_WR_DCRC_DIS(x)	((x) << S_FW_RI_WR_DCRC_DIS)
+#define G_FW_RI_WR_DCRC_DIS(x)	\
+    (((x) >> S_FW_RI_WR_DCRC_DIS) & M_FW_RI_WR_DCRC_DIS)
+#define F_FW_RI_WR_DCRC_DIS	V_FW_RI_WR_DCRC_DIS(1U)
+
+#define S_FW_RI_WR_HCRC_DIS	6
+#define M_FW_RI_WR_HCRC_DIS	0x1
+#define V_FW_RI_WR_HCRC_DIS(x)	((x) << S_FW_RI_WR_HCRC_DIS)
+#define G_FW_RI_WR_HCRC_DIS(x)	\
+    (((x) >> S_FW_RI_WR_HCRC_DIS) & M_FW_RI_WR_HCRC_DIS)
+#define F_FW_RI_WR_HCRC_DIS	V_FW_RI_WR_HCRC_DIS(1U)
+
+#define S_FW_RI_WR_PSZ_IDX	4
+#define M_FW_RI_WR_PSZ_IDX	0x3
+#define V_FW_RI_WR_PSZ_IDX(x)	((x) << S_FW_RI_WR_PSZ_IDX)
+#define G_FW_RI_WR_PSZ_IDX(x)	\
+    (((x) >> S_FW_RI_WR_PSZ_IDX) & M_FW_RI_WR_PSZ_IDX)
+
+#define S_FW_RI_WR_DCRC		1
+#define M_FW_RI_WR_DCRC		0x1
+#define V_FW_RI_WR_DCRC(x)	((x) << S_FW_RI_WR_DCRC)
+#define G_FW_RI_WR_DCRC(x)	(((x) >> S_FW_RI_WR_DCRC) & M_FW_RI_WR_DCRC)
+#define F_FW_RI_WR_DCRC	V_FW_RI_WR_DCRC(1U)
+
+#define S_FW_RI_WR_HCRC		0
+#define M_FW_RI_WR_HCRC		0x1
+#define V_FW_RI_WR_HCRC(x)	((x) << S_FW_RI_WR_HCRC)
+#define G_FW_RI_WR_HCRC(x)	(((x) >> S_FW_RI_WR_HCRC) & M_FW_RI_WR_HCRC)
+#define F_FW_RI_WR_HCRC	V_FW_RI_WR_HCRC(1U)
 
 /******************************************************************************
  *   R o C E V 2    W O R K   R E Q U E S T s
@@ -2950,6 +2997,24 @@ struct fw_v2_nvmet_tx_data_wr {
 	} u;
 #endif
 };
+
+#define S_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE	20
+#define M_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE	0x1
+#define V_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE(x)	\
+    ((x) << S_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE)
+#define G_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE(x)	\
+    (((x) >> S_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE) & \
+     M_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE)
+#define F_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE	\
+    V_FW_V2_NVMET_TX_DATA_WR_DACK_CHANGE(1U)
+
+#define S_FW_V2_NVMET_TX_DATA_WR_DACK_MODE	18
+#define M_FW_V2_NVMET_TX_DATA_WR_DACK_MODE	0x3
+#define V_FW_V2_NVMET_TX_DATA_WR_DACK_MODE(x)	\
+    ((x) << S_FW_V2_NVMET_TX_DATA_WR_DACK_MODE)
+#define G_FW_V2_NVMET_TX_DATA_WR_DACK_MODE(x)	\
+    (((x) >> S_FW_V2_NVMET_TX_DATA_WR_DACK_MODE) & \
+     M_FW_V2_NVMET_TX_DATA_WR_DACK_MODE)
 
 #define S_FW_V2_NVMET_TX_DATA_WR_FLAGS_HI	10
 #define M_FW_V2_NVMET_TX_DATA_WR_FLAGS_HI	0x3fffff
@@ -4989,6 +5054,16 @@ struct fw_crypto_update_sa_wr {
 		} aes256;
 	} key;
 };
+
+#define S_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER       3
+#define M_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER       0x1
+#define V_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER(x)    \
+    ((x) << S_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER)
+#define G_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER(x)    \
+    (((x) >> S_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER) & \
+     M_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER)
+#define F_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER       \
+    V_FW_CRYPTO_UPDATE_SA_WR_EG_IPVER(1U)
 
 #define S_FW_CRYPTO_UPDATE_SA_WR_SAOP		2
 #define M_FW_CRYPTO_UPDATE_SA_WR_SAOP		0x1
@@ -8952,24 +9027,40 @@ enum fw_port_type {
 	FW_PORT_TYPE_KX4	=  5,	/* No, 4, No, No, Yes, Yes, 10G */
 	FW_PORT_TYPE_CX4	=  6,	/* No, 4, No, No, No, No, 10G */
 	FW_PORT_TYPE_KX		=  7,	/* No, 1, No, No, Yes, No, 1G */
-	FW_PORT_TYPE_KR		=  8,	/* No, 1, No, No, Yes, Yes, 10G */
+	FW_PORT_TYPE_KR		=  8,	/* No, 1, No, No, Yes, Yes, 10G BP AN */
 	FW_PORT_TYPE_SFP	=  9,	/* No, 1, Yes, No, No, No, 10G */
-	FW_PORT_TYPE_BP_AP	= 10,	/* No, 1, No, No, Yes, Yes, 10G, BP ANGE */
-	FW_PORT_TYPE_BP4_AP	= 11,	/* No, 4, No, No, Yes, Yes, 10G, BP ANGE */
+	FW_PORT_TYPE_BP_AP	= 10,	/* No, 1, No, No, Yes, Yes, 10G, BP AN */
+	FW_PORT_TYPE_BP4_AP	= 11,	/* No, 4, No, No, Yes, Yes, 10G, BP AN */
 	FW_PORT_TYPE_QSFP_10G	= 12,	/* No, 1, Yes, No, No, No, 10G */
 	FW_PORT_TYPE_QSA	= 13,	/* No, 1, Yes, No, No, No, 10G */
 	FW_PORT_TYPE_QSFP	= 14,	/* No, 4, Yes, No, No, No, 40G */
-	FW_PORT_TYPE_BP40_BA	= 15,	/* No, 4, No, No, Yes, Yes, 40G/10G/1G, BP ANGE */
-	FW_PORT_TYPE_KR4_100G	= 16,	/* No, 4, 100G/40G/25G, Backplane */
+	FW_PORT_TYPE_BP40_BA	= 15,	/* No, 4, No, No, Yes, Yes, 40G/10G/1G, BP AN */
+	FW_PORT_TYPE_KR4_100G	= 16,	/* No, 4, 100G/40G/50G/25G/10G/1G, BP AN */
 	FW_PORT_TYPE_CR4_QSFP	= 17,	/* No, 4, 100G/40G/25G */
-	FW_PORT_TYPE_CR_QSFP	= 18,	/* No, 1, 25G Spider cable */
-	FW_PORT_TYPE_CR2_QSFP	= 19,	/* No, 2, 50G */
+	FW_PORT_TYPE_CR_QSFP	= 18,	/* No, 1, 25G, Spider cable */
+	FW_PORT_TYPE_CR2_QSFP	= 19,	/* No, 2, 50G, Spider cable  */
 	FW_PORT_TYPE_SFP28	= 20,	/* No, 1, 25G/10G/1G */
 	FW_PORT_TYPE_KR_SFP28	= 21,	/* No, 1, 25G/10G/1G using Backplane */
 	FW_PORT_TYPE_KR_XLAUI	= 22,	/* No, 4, 40G/10G/1G, No AN*/
+	FW_PORT_TYPE_BARE_LINK_50G = 23,  /* No, 1, 50G */
+	FW_PORT_TYPE_BARE_LINK_100G = 24, /* No, 2, 100G/50G */
+	FW_PORT_TYPE_BARE_LINK_200G = 25, /* No, 4, 200G/100G/50G */
 	FW_PORT_TYPE_SFP56	= 26,	/* No, 1, 50G/25G */
 	FW_PORT_TYPE_QSFP56	= 27,	/* No, 4, 200G/100G/50G/25G */
-	FW_PORT_TYPE_QSFPDD	= 34,   /* No, 8, 400G/200G/100G/50G */
+	FW_PORT_TYPE_QSFP56_4_50G = 28,	/* No, 1, 50G, Spider cable */
+	FW_PORT_TYPE_KR_50G	= 29,	/* No, 1, 50G/25G/10G/1G, BP AN  */
+	FW_PORT_TYPE_KR2_100G	= 30,	/* No, 2, 100G/50G/25G/10G/1G, BP AN */
+	FW_PORT_TYPE_KR4_200G	= 31,	/* No, 4, 200G/100G/40G/50G/25G/10G/1G, BP AN */
+	FW_PORT_TYPE_QSFP56_2_50G = 32,	/* No, 1, 50G, Spider cable */
+	FW_PORT_TYPE_OSFP	= 33,	/* No, 8, 400G/200G/100G/50G */
+	FW_PORT_TYPE_QSFPDD	= 34,	/* No, 8, 400G/200G/100G/50G */
+	FW_PORT_TYPE_OSFP_2_200G = 35,	/* No, 4, 200G, Spider cable */
+	FW_PORT_TYPE_QSFPDD_2_200G = 36,/* No, 4, 200G, Spider cable */
+	FW_PORT_TYPE_KR8_400G	= 37,	/* No, 8, 400G/200G/100G/50G/40G/25G/10G/1G, BP AN */
+	FW_PORT_TYPE_QSFP56_2_100G = 38,/* No, 2, 100G, Spider cable */
+	FW_PORT_TYPE_QSFPDD_4_100G = 39,/* No, 2, 100G, Spider cable */
+	FW_PORT_TYPE_KR2_50G	= 40,	/* No, 1, 50G/25G/10G/1G, BP AN  */
+	FW_PORT_TYPE_MAX,
 	FW_PORT_TYPE_NONE = M_FW_PORT_CMD_PORTTYPE32
 };
 

@@ -52,10 +52,6 @@ SRCS+=	ifpfsync.c		# pfsync(4) support
 SRCS+=	ifbridge.c		# bridge support
 SRCS+=	iflagg.c		# lagg support
 
-.if ${MK_EXPERIMENTAL} != "no"
-CFLAGS+= -DDRAFT_IETF_6MAN_IPV6ONLY_FLAG
-CFLAGS+= -DEXPERIMENTAL
-.endif
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
@@ -70,6 +66,7 @@ LIBADD+=	nv
 
 .if ${MK_NETLINK_SUPPORT} != "no"
 SRCS+=	ifconfig_netlink.c
+SRCS+=	ifgeneve.c		# GENEVE support
 .else
 CFLAGS+=-DWITHOUT_NETLINK
 .endif

@@ -1,8 +1,0 @@
-comment = "LLVM compiler_rt library"
-desc = <<EOD
-The libcompiler_rt library from LLVM.
-EOD
-
-annotations {
-	set = "optional,optional-jail"
-}

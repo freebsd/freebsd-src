@@ -243,10 +243,6 @@ struct nd_router_advert {	/* router advertisement */
 #define ND_RA_FLAG_RTPREF_LOW	0x18 /* 00011000 */
 #define ND_RA_FLAG_RTPREF_RSV	0x10 /* 00010000 */
 
-#ifdef EXPERIMENTAL
-#define	ND_RA_FLAG_IPV6_ONLY	0x02 /* draft-ietf-6man-ipv6only-flag */
-#endif
-
 #define nd_ra_router_lifetime	nd_ra_hdr.icmp6_data16[1]
 
 struct nd_neighbor_solicit {	/* neighbor solicitation */
@@ -359,6 +355,8 @@ struct nd_opt_route_info {	/* route info */
 	u_int32_t	nd_opt_rti_lifetime;
 	/* prefix follows */
 } __packed;
+
+#define ND_OPT_RTI_FLAG_PRF_MASK	0x18	/* 00011000 */
 
 struct nd_opt_rdnss {		/* RDNSS option (RFC 6106) */
 	u_int8_t	nd_opt_rdnss_type;

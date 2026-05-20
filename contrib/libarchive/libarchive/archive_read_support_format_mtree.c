@@ -300,7 +300,12 @@ cleanup(struct archive_read *a)
 	struct mtree_entry *p, *q;
 
 	mtree = (struct mtree *)(a->format->data);
-
+	
+	/* Close any dangling file descriptor before freeing */
+    if (mtree->fd >= 0) {
+        close(mtree->fd);
+        mtree->fd = -1;
+    }
 	p = mtree->entries;
 	while (p != NULL) {
 		q = p->next;

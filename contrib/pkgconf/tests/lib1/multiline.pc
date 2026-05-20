@@ -1,0 +1,9 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: multiline
+Description: A multiline \
+             description
+Version: 1.2.3

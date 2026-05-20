@@ -1341,7 +1341,7 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 			goto destroy_bios;
 		}
 		if (pbuf != NULL) {
-			pmap_qenter((vm_offset_t)pbuf->b_data, pages, npages);
+			pmap_qenter(pbuf->b_data, pages, npages);
 			bp->bio_data = pbuf->b_data + poff;
 			pbuf->b_npages = npages;
 			atomic_add_int(&num_buf_aio, 1);
@@ -2462,7 +2462,7 @@ aio_biocleanup(struct bio *bp)
 	/* Release mapping into kernel space. */
 	if (pbuf != NULL) {
 		MPASS(pbuf->b_npages <= atop(maxphys) + 1);
-		pmap_qremove((vm_offset_t)pbuf->b_data, pbuf->b_npages);
+		pmap_qremove(pbuf->b_data, pbuf->b_npages);
 		vm_page_unhold_pages(pbuf->b_pages, pbuf->b_npages);
 		uma_zfree(pbuf_zone, pbuf);
 		atomic_subtract_int(&num_buf_aio, 1);
@@ -2668,8 +2668,7 @@ filt_aiodetach(struct knote *kn)
 
 	knl = &kn->kn_ptr.p_aio->klist;
 	knl->kl_lock(knl->kl_lockarg);
-	if (!knlist_empty(knl))
-		knlist_remove(knl, kn, 1);
+	knlist_remove(knl, kn, 1);
 	knl->kl_unlock(knl->kl_lockarg);
 }
 
@@ -2718,8 +2717,7 @@ filt_liodetach(struct knote *kn)
 
 	knl = &kn->kn_ptr.p_lio->klist;
 	knl->kl_lock(knl->kl_lockarg);
-	if (!knlist_empty(knl))
-		knlist_remove(knl, kn, 1);
+	knlist_remove(knl, kn, 1);
 	knl->kl_unlock(knl->kl_lockarg);
 }
 

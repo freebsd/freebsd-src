@@ -24,7 +24,6 @@ CLOUDWARE_TYPES?= AZURE \
 		BASIC-CLOUDINIT \
 		EC2 \
 		GCE \
-		ORACLE \
 		VAGRANT
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST?=	ufs zfs
@@ -45,9 +44,6 @@ EC2-SMALL_DESC=	Amazon EC2 small image
 GCE_FORMAT=	raw
 GCE_FSLIST?=	ufs zfs
 GCE_DESC=	Google Compute Engine image
-ORACLE_FORMAT=	raw
-ORACLE_FSLIST?=	ufs zfs
-ORACLE_DESC=	Oracle Cloud Infrastructure image
 OPENSTACK_FORMAT=qcow2
 OPENSTACK_FSLIST?=	ufs
 OPENSTACK_DESC=	OpenStack platform image
@@ -103,9 +99,10 @@ QEMUTGT?=
 
 .if (defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)) || \
     (defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES))
-.if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
-  (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
-.error WITHOUT_QEMU requires NO_ROOT (and vice versa)
+.if (defined(WITHOUT_QEMU) && !defined(NO_ROOT))
+.error WITHOUT_QEMU requires NO_ROOT
+.elif (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
+.error NO_ROOT requires WITHOUT_QEMU
 .endif
 .endif
 
@@ -315,6 +312,5 @@ cloudware-release:
 .include "${.CURDIR}/Makefile.ec2"
 .include "${.CURDIR}/Makefile.firecracker"
 .include "${.CURDIR}/Makefile.gce"
-.include "${.CURDIR}/Makefile.oracle"
 .include "${.CURDIR}/Makefile.vagrant"
 .include "${.CURDIR}/Makefile.inc1"

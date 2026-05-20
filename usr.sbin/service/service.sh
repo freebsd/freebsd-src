@@ -39,7 +39,7 @@ usage () {
 	echo "${0##*/} [-j <jail name or id>] [-dqv] [-E var=value] <rc.d script> start|stop|etc."
 	echo "${0##*/} -h"
 	echo ''
-	echo "-d                Enable debugging of rc.d scripts"
+	echo "-d		Enable debugging of rc.d scripts"
 	echo "-j		Perform actions within the named jail"
 	echo "-E n=val	Set variable n to val before executing the rc.d script"
 	echo '-e		Show services that are enabled'

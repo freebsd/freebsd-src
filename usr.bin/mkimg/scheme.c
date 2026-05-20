@@ -58,6 +58,9 @@ static struct {
 	{ "mbr", ALIAS_MBR },
 	{ "ntfs", ALIAS_NTFS },
 	{ "prepboot", ALIAS_PPCBOOT },
+	{ "hifive-bbl", ALIAS_HIFIVE_BBL },
+	{ "xbootldr", ALIAS_XBOOTLDR },
+	{ "hifive-fsbl", ALIAS_HIFIVE_FSBL },
 	{ NULL, ALIAS_NONE }		/* Keep last! */
 };
 

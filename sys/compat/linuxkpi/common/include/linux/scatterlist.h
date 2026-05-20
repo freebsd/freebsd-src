@@ -654,9 +654,9 @@ sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 			sf = sf_buf_alloc(page, SFB_CPUPRIVATE | SFB_NOWAIT);
 			if (sf == NULL)
 				break;
-			vaddr = (char *)sf_buf_kva(sf);
+			vaddr = sf_buf_kva(sf);
 		} else
-			vaddr = (char *)PHYS_TO_DMAP(page_to_phys(page));
+			vaddr = PHYS_TO_DMAP(page_to_phys(page));
 		memcpy(buf, vaddr + sg->offset + offset, len);
 		if (!PMAP_HAS_DMAP)
 			sf_buf_free(sf);

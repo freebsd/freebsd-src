@@ -1,0 +1,11 @@
+
+prefix=/test  
+exec_prefix= ${prefix}
+libdir= ${prefix}/lib64
+includedir=${prefix}/include
+
+Name: variable-whitespace
+Description: A test for variable whitespace
+Version: 2.12.3
+Libs: -lvariable-whitespace -L${libdir}
+Cflags:   -I${includedir}

@@ -155,3 +155,5 @@ ENTRY(svm_launch)
 	VLEAVE
 	ret
 END(svm_launch)
+
+	.section .note.GNU-stack,"",%progbits

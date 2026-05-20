@@ -25,7 +25,8 @@ DTS=	\
 	rockchip/rk3568-bpi-r2-pro.dts \
 	rockchip/rk3588-rock-5-itx.dts \
 	rockchip/rk3588-rock-5b.dts \
-	rockchip/rk3588-orangepi-5-plus
+	rockchip/rk3588-orangepi-5-plus.dts \
+	rockchip/rk3588-friendlyelec-cm3588-nas.dts
 
 DTSO=	rk3328-analog-sound.dtso \
 	rk3328-i2c0.dtso \

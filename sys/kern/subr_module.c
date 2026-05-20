@@ -28,6 +28,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker.h>
@@ -38,6 +41,10 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 /*
  * Preloaded module support
@@ -307,6 +314,7 @@ preload_bootstrap_relocate(vm_offset_t offset)
 	    case MODINFO_ADDR:
 	    case MODINFO_METADATA|MODINFOMD_FONT:
 	    case MODINFO_METADATA|MODINFOMD_SPLASH:
+	    case MODINFO_METADATA|MODINFOMD_SHTDWNSPLASH:
 	    case MODINFO_METADATA|MODINFOMD_SSYM:
 	    case MODINFO_METADATA|MODINFOMD_ESYM:
 		ptr = (vm_offset_t *)(curp + (sizeof(uint32_t) * 2));
@@ -439,9 +447,17 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 	case MODINFOMD_SPLASH:
 		sbuf_cat(sbp, "MODINFOMD_SPLASH");
 		break;
+	case MODINFOMD_SHTDWNSPLASH:
+		sbuf_cat(sbp, "MODINFOMD_SHTDWNSPLASH");
+		break;
 #ifdef MODINFOMD_BOOT_HARTID
 	case MODINFOMD_BOOT_HARTID:
 		sbuf_cat(sbp, "MODINFOMD_BOOT_HARTID");
+		break;
+#endif
+#ifdef MODINFOMD_EFI_ARCH
+	case MODINFOMD_EFI_ARCH:
+		sbuf_cat(sbp, "MODINFOMD_EFI_ARCH");
 		break;
 #endif
 	default:
@@ -465,6 +481,9 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 	case MODINFO_NAME:
 	case MODINFO_TYPE:
 	case MODINFO_ARGS:
+#ifdef MODINFOMD_EFI_ARCH
+	case MODINFO_METADATA | MODINFOMD_EFI_ARCH:
+#endif
 		sbuf_printf(sbp, "%s", (char *)bptr);
 		break;
 	case MODINFO_SIZE:
@@ -495,6 +514,7 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 #endif
 	case MODINFO_METADATA | MODINFOMD_FONT:
 	case MODINFO_METADATA | MODINFOMD_SPLASH:
+	case MODINFO_METADATA | MODINFOMD_SHTDWNSPLASH:
 		sbuf_print_vmoffset(sbp, *(vm_offset_t *)bptr);
 		break;
 	case MODINFO_METADATA | MODINFOMD_HOWTO:
@@ -594,3 +614,16 @@ SYSCTL_PROC(_debug, OID_AUTO, dump_modinfo,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_preload_dump, "A",
     "pretty-print the bootloader metadata");
+
+#ifdef DDB
+DB_SHOW_COMMAND_FLAGS(preload, db_show_preload, DB_CMD_MEMSAFE)
+{
+	struct sbuf sb;
+	char buffer[128];
+
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	sbuf_set_drain(&sb, sbuf_db_printf_drain, NULL);
+	preload_dump_internal(&sb);
+	sbuf_finish(&sb);
+}
+#endif

@@ -94,7 +94,7 @@ ofw_save_trap_vec(char *save_trap_vec)
 	if (!ofw_real_mode || !hw_direct_map)
                 return;
 
-	bcopy((void *)PHYS_TO_DMAP(EXC_RST), save_trap_vec, EXC_LAST - EXC_RST);
+	bcopy(PHYS_TO_DMAP(EXC_RST), save_trap_vec, EXC_LAST - EXC_RST);
 }
 
 static __inline void
@@ -103,9 +103,8 @@ ofw_restore_trap_vec(char *restore_trap_vec)
 	if (!ofw_real_mode || !hw_direct_map)
                 return;
 
-	bcopy(restore_trap_vec, (void *)PHYS_TO_DMAP(EXC_RST),
-	    EXC_LAST - EXC_RST);
-	__syncicache((void *)PHYS_TO_DMAP(EXC_RSVD), EXC_LAST - EXC_RSVD);
+	bcopy(restore_trap_vec, PHYS_TO_DMAP(EXC_RST), EXC_LAST - EXC_RST);
+	__syncicache(PHYS_TO_DMAP(EXC_RSVD), EXC_LAST - EXC_RSVD);
 }
 
 #pragma clang diagnostic pop

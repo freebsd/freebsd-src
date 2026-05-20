@@ -1975,7 +1975,7 @@ archive_write_disk_gid(struct archive *_a, const char *name, la_int64_t id)
                return (a->lookup_gid)(a->lookup_gid_data, name, id);
        return (id);
 }
- 
+
 int64_t
 archive_write_disk_uid(struct archive *_a, const char *name, la_int64_t id)
 {
@@ -2119,7 +2119,7 @@ restore_entry(struct archive_write_disk *a)
 
 	if ((en == ENOENT) && (archive_entry_hardlink(a->entry) != NULL)) {
 		archive_set_error(&a->archive, en,
-		    "Hard-link target '%s' does not exist.",
+		    "Hard-link target '%s' does not exist",
 		    archive_entry_hardlink(a->entry));
 		return (ARCHIVE_FAILED);
 	}
@@ -2406,7 +2406,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	 */
 	mode = final_mode & 0777 & ~a->user_umask;
 
-	/* 
+	/*
 	 * Always create writable such that [f]setxattr() works if we're not
 	 * root.
 	 */
@@ -3024,7 +3024,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				/*
 				 * We are not the last element and we want to
 				 * follow symlinks if they are a directory.
-				 * 
+				 *
 				 * This is needed to extract hardlinks over
 				 * symlinks.
 				 */
@@ -3435,7 +3435,7 @@ create_dir(struct archive_write_disk *a, char *path)
 			le = new_fixup(a, path);
 			if (le == NULL)
 				return (ARCHIVE_FATAL);
-			le->fixup |=TODO_MODE_BASE;
+			le->fixup |= TODO_MODE_BASE;
 			le->mode = mode_final;
 		}
 		return (ARCHIVE_OK);
@@ -3447,8 +3447,17 @@ create_dir(struct archive_write_disk *a, char *path)
 	 * don't add it to the fixup list here, as it's already been
 	 * added.
 	 */
-	if (la_stat(path, &st) == 0 && S_ISDIR(st.st_mode))
-		return (ARCHIVE_OK);
+	if (errno == EEXIST) {
+		if (la_stat(path, &st) == 0) {
+			if (S_ISDIR(st.st_mode))
+				return (ARCHIVE_OK);
+			/* path exists but is not a directory */
+			errno = ENOTDIR;
+		} else {
+			/* restore original errno */
+			errno = EEXIST;
+		}
+	}
 
 	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
 	    path);
@@ -4010,7 +4019,7 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 #elif defined(HAVE_CHFLAGS)
 	if (S_ISLNK(a->st.st_mode)) {
 		archive_set_error(&a->archive, errno,
-		    "Can't set file flags on symlink.");
+		    "Can't set file flags on symlink");
 		return (ARCHIVE_WARN);
 	}
 	if (chflags(name, a->st.st_flags) == 0)
@@ -4569,7 +4578,7 @@ set_xattrs(struct archive_write_disk *a)
 		} else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Cannot restore extended "
-			    "attributes on this file system.");
+			    "attributes on this file system");
 	}
 
 	archive_string_free(&errlist);
@@ -4671,7 +4680,7 @@ set_xattrs(struct archive_write_disk *a)
 		} else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Cannot restore extended "
-			    "attributes on this file system.");
+			    "attributes on this file system");
 	}
 
 	archive_string_free(&errlist);
@@ -4767,4 +4776,3 @@ static void close_file_descriptor(struct archive_write_disk* a)
 
 
 #endif /* !_WIN32 || __CYGWIN__ */
-

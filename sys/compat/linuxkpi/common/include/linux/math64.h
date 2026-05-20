@@ -93,6 +93,12 @@ mul_u32_u32(uint32_t a, uint32_t b)
 }
 
 static inline uint64_t
+div_u64_round_up(uint64_t dividend, uint32_t divisor)
+{
+	return ((dividend + divisor - 1) / divisor);
+}
+
+static inline uint64_t
 div64_u64_round_up(uint64_t dividend, uint64_t divisor)
 {
 	return ((dividend + divisor - 1) / divisor);
@@ -103,6 +109,9 @@ roundup_u64(uint64_t x1, uint32_t x2)
 {
 	return (div_u64(x1 + x2 - 1, x2) * x2);
 }
+
+#define	DIV_U64_ROUND_UP(...) \
+	div_u64_round_up(__VA_ARGS__)
 
 #define	DIV64_U64_ROUND_UP(...) \
 	div64_u64_round_up(__VA_ARGS__)

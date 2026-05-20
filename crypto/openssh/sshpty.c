@@ -1,4 +1,4 @@
-/* $OpenBSD: sshpty.c,v 1.34 2019/07/04 16:20:10 deraadt Exp $ */
+/* $OpenBSD: sshpty.c,v 1.35 2026/02/11 17:05:32 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -17,23 +17,19 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <signal.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
-#ifdef HAVE_PATHS_H
-# include <paths.h>
-#endif
+#include <paths.h>
 #include <pwd.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
-#ifdef HAVE_UTIL_H
-# include <util.h>
-#endif
 #include <unistd.h>
+#include <util.h>
 
 #include "sshpty.h"
 #include "log.h"
@@ -173,7 +169,7 @@ pty_setowner(struct passwd *pw, const char *tty)
 	/* Determine the group to make the owner of the tty. */
 	grp = getgrnam("tty");
 	if (grp == NULL)
-		debug("%s: no tty group", __func__);
+		debug_f("no tty group");
 	gid = (grp != NULL) ? grp->gr_gid : pw->pw_gid;
 	mode = (grp != NULL) ? 0620 : 0600;
 

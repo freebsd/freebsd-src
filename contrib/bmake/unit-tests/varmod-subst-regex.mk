@@ -1,6 +1,6 @@
-# $NetBSD: varmod-subst-regex.mk,v 1.12 2024/07/20 11:05:12 rillig Exp $
+# $NetBSD: varmod-subst-regex.mk,v 1.13 2026/01/03 22:40:38 rillig Exp $
 #
-# Tests for the :C,from,to, variable modifier.
+# Tests for the :C,from,to, modifier.
 
 # report unmatched subexpressions
 .MAKEFLAGS: -dL
@@ -23,7 +23,7 @@ all: unmatched-subexpression
 .  error
 .endif
 
-# The 'W' modifier treats the whole variable value as a single big word,
+# The 'W' modifier treats the whole expression value as a single big word,
 # containing whitespace.  This big word matches the regular expression,
 # therefore it gets replaced.  Whitespace is preserved after replacing.
 .if ${:Ua b b c:C,a b,,W} != " b c"
@@ -60,11 +60,13 @@ all: unmatched-subexpression
 # The modifier '1' applies the replacement at most once, across the whole
 # expression value, no matter whether it is a single big word or many small
 # words.
-#
-# Up to 2020-08-28, the manual page said that the modifiers '1' and 'g'
-# were orthogonal, which was wrong.  It doesn't make sense to specify both
-# 'g' and '1' at the same time.
 .if ${:U12345 12345:C,.,\0\0,1} != "112345 12345"
+.  error
+.endif
+
+# When both '1' and 'g' are given, this means to replace all occurrences,
+# but only in the first word where they are found, not in any remaining words.
+.if ${:U 11111 22222 22222 :C,2,0,g1} != "11111 00000 22222"
 .  error
 .endif
 
@@ -129,16 +131,30 @@ all: unmatched-subexpression
 .endif
 
 
+# Just as in the ":S" modifier and the sed(1) utility, an "&" in the
+# replacement part stands for the whole matched string. It can be escaped
+# using a backslash.
+.if ${:U 123 234 345 :C,2,&\&&,} != "12&23 2&234 345"
+.  error
+.endif
+
+# When the ":C" modifier uses "&" as the delimiter for its parts, the "&"
+# needs to be escaped.  To get a literal "&" in the replacement, it needs
+# to be written as "\\\&".  When parsing the modifier part, the "\\" and "\&"
+# result in "\" and "&", which then form the replacement "\&", and that is
+# interpreted as a literal "&".
+.if ${:U 123 234 345 :C&2&\&\\\&\&&} != "12&23 2&234 345"
+.  error
+.endif
+
+
 # Multiple asterisks form an invalid regular expression.  This produces an
-# error message and (as of 2020-08-28) stops parsing in the middle of the
-# expression.  The unparsed part of the expression is then copied
-# verbatim to the output, which is unexpected and can lead to strange shell
-# commands being run.
+# error message, and due to this error message, the shell command is not run.
 mod-regex-compile-error:
 	@echo $@: ${:Uword1 word2:C,****,____,g:C,word,____,:Q}.
 
-# These tests generate error messages but as of 2020-08-28 just continue
-# parsing and execution as if nothing bad had happened.
+# These tests generate error messages for the missing capturing groups.
+# Due to these error messages, the echo commands are not executed.
 mod-regex-limits-1:
 	@echo $@:11-missing:${:U1 23 456:C,..,\1\1,:Q}
 mod-regex-limits-2:
@@ -158,9 +174,8 @@ mod-regex-errors-1:
 	@echo $@: ${UNDEF:Uvalue:C,[,,}
 
 mod-regex-errors-2:
-	# If the replacement pattern produces a parse error because of an
-	# unknown modifier, the parse error is ignored in ParseModifierPart
-	# and the faulty expression expands to "".
+	# If the replacement pattern produces a parse error due to an
+	# unknown modifier, the faulty expression expands to "".
 	@echo $@: ${word:L:C,.*,x${:U:Z}y,W}
 
 # In regular expressions with alternatives, not all capturing groups are

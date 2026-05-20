@@ -28,6 +28,12 @@
 #ifndef _LINUX_COMMON_H_
 #define _LINUX_COMMON_H_
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+struct ifnet;
+struct thread;
+
 int	ifname_bsd_to_linux_ifp(const struct ifnet *, char *, size_t);
 int	ifname_bsd_to_linux_idx(u_int, char *, size_t);
 struct ifnet *ifname_linux_to_ifp( const char *);

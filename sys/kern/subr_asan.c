@@ -297,8 +297,8 @@ kasan_mark(const void *addr, size_t size, size_t redzsize, uint8_t code)
 void
 kasan_thread_alloc(struct thread *td)
 {
-	if (td->td_kstack != 0) {
-		kasan_mark((void *)td->td_kstack, ptoa(td->td_kstack_pages),
+	if (td->td_kstack != NULL) {
+		kasan_mark(td->td_kstack, ptoa(td->td_kstack_pages),
 		    ptoa(td->td_kstack_pages), 0);
 	}
 }

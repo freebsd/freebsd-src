@@ -632,6 +632,63 @@ append_nhops(struct nh_control *ctl, const struct nhgrp_object *gr_orig,
 	return (nhg_priv);
 }
 
+/*
+ * Merge nexthop group denoted by @gr_add with the nexthop group @gr_orig.
+ *
+ * Returns referenced nexthop group or NULL. In the latter case, @perror is
+ *  filled with an error code.
+ * Note that function does NOT care if the next nexthops already exists
+ * in the @gr_orig. As a result, they will be added, resulting in the
+ * same nexthop being present multiple times in the new group.
+ */
+static struct nhgrp_priv *
+merge_nhgrps(struct nh_control *ctl, const struct nhgrp_object *gr_orig,
+     const struct nhgrp_object *gr_add, int *perror)
+{
+	char storage[64];
+	struct weightened_nhop *pnhops;
+	struct nhgrp_priv *nhg_priv;
+	const struct nhgrp_priv *orig_priv, *add_priv;
+	size_t sz;
+	int curr_nhops;
+
+	orig_priv = NHGRP_PRIV_CONST(gr_orig);
+	add_priv = NHGRP_PRIV_CONST(gr_add);
+	curr_nhops = orig_priv->nhg_nh_count;
+
+	*perror = 0;
+
+	sz = (orig_priv->nhg_nh_count + orig_priv->nhg_nh_count) *
+		sizeof(struct weightened_nhop);
+	/* optimize for <= 4 paths, each path=16 bytes */
+	if (sz <= sizeof(storage))
+		pnhops = (struct weightened_nhop *)&storage[0];
+	else {
+		pnhops = malloc(sz, M_TEMP, M_NOWAIT);
+		if (pnhops == NULL) {
+			*perror = ENOMEM;
+			return (NULL);
+		}
+	}
+
+	/* First, copy nhops from first group */
+	memcpy(pnhops, orig_priv->nhg_nh_weights,
+	   orig_priv->nhg_nh_count * sizeof(struct weightened_nhop));
+	memcpy(&pnhops[curr_nhops], add_priv->nhg_nh_weights,
+	   add_priv->nhg_nh_count * sizeof(struct weightened_nhop));
+	curr_nhops += add_priv->nhg_nh_count;
+
+	nhg_priv = get_nhgrp(ctl, pnhops, curr_nhops, 0, perror);
+
+	if (pnhops != (struct weightened_nhop *)&storage[0])
+		free(pnhops, M_TEMP);
+
+	if (nhg_priv == NULL)
+		return (NULL);
+
+	return (nhg_priv);
+}
+
 
 /*
  * Creates/finds nexthop group based on @wn and @num_nhops.
@@ -728,6 +785,8 @@ nhgrp_get_addition_group(struct rib_head *rh, struct route_nhop_data *rnd_orig,
 	struct weightened_nhop wn[2] = {};
 	int error;
 
+	MPASS((!NH_IS_NHGRP(rnd_add->rnd_nhop)));
+
 	if (rnd_orig->rnd_nhop == NULL) {
 		/* No paths to add to, just reference current nhop */
 		*rnd_new = *rnd_add;
@@ -747,6 +806,46 @@ nhgrp_get_addition_group(struct rib_head *rh, struct route_nhop_data *rnd_orig,
 	} else {
 		/* Get new nhop group with @rt->rt_nhop as an additional nhop */
 		nhg_priv = append_nhops(ctl, rnd_orig->rnd_nhgrp, &wn[0], 1,
+		    &error);
+	}
+
+	if (nhg_priv == NULL)
+		return (error);
+	rnd_new->rnd_nhgrp = nhg_priv->nhg;
+	rnd_new->rnd_weight = 0;
+
+	return (0);
+}
+
+/*
+ * Creates new multipath group based on existing group/nhop in @rnd_orig and
+ *  to-be-merged nhgrp @wn_add.
+ * Returns 0 on success and stores result in @rnd_new.
+ */
+int
+nhgrp_get_merge_group(struct rib_head *rh, struct route_nhop_data *rnd_orig,
+    struct route_nhop_data *rnd_add, struct route_nhop_data *rnd_new)
+{
+	struct nh_control *ctl = rh->nh_control;
+	struct nhgrp_priv *nhg_priv;
+	struct weightened_nhop wn = {};
+	int error;
+
+	MPASS((NH_IS_NHGRP(rnd_add->rnd_nhop)));
+
+	/* No paths to add to, Just give up */
+	if (rnd_orig->rnd_nhop == NULL)
+		return (EINVAL);
+
+	if (!NH_IS_NHGRP(rnd_orig->rnd_nhop)) {
+		wn.nh = rnd_orig->rnd_nhop;
+		wn.weight = rnd_orig->rnd_weight;
+		/* Get new nhop group with addition of nhops in nhgrp */
+		nhg_priv = append_nhops(ctl, rnd_add->rnd_nhgrp, &wn, 1,
+		    &error);
+	} else {
+		/* Get new nhop group with addition of nhops in nhgrp */
+		nhg_priv = merge_nhgrps(ctl, rnd_orig->rnd_nhgrp, rnd_add->rnd_nhgrp,
 		    &error);
 	}
 

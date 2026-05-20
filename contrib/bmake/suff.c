@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.384 2025/05/18 06:24:27 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.385 2026/01/03 19:57:38 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.384 2025/05/18 06:24:27 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.385 2026/01/03 19:57:38 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -1431,7 +1431,7 @@ Suff_FindPath(GNode *gn)
 		return suff->searchPath;
 	} else {
 		DEBUG0(SUFF, "\n");
-		return &dirSearchPath;	/* Use default search path */
+		return &dirSearchPath;	/* Use the default search path */
 	}
 }
 
@@ -1439,8 +1439,8 @@ Suff_FindPath(GNode *gn)
  * Apply a transformation rule, given the source and target nodes and
  * suffixes.
  *
- * The source and target are linked and the commands from the transformation
- * are added to the target node's commands list. The target also inherits all
+ * The source and target are linked, and the commands from the transformation
+ * are added to the target node's commands. The target also inherits all
  * the sources for the transformation rule.
  *
  * Results:
@@ -1470,7 +1470,7 @@ ApplyTransform(GNode *tgn, GNode *sgn, Suffix *tsuff, Suffix *ssuff)
 	DEBUG3(SUFF, "\tapplying %s -> %s to \"%s\"\n",
 	    ssuff->name, tsuff->name, tgn->name);
 
-	/* Record last child; Make_HandleUse may add child nodes. */
+	/* Record the last child; Make_HandleUse may add child nodes. */
 	ln = tgn->children.last;
 
 	/* Apply the rule. */

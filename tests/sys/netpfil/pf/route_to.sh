@@ -97,6 +97,80 @@ pf_map_addr_common()
 	done
 }
 
+# Setup the environment for bcast_* and mcast_* tests.
+rt_leak_setup()
+{
+	pft_init
+
+	epair_lan=$(vnet_mkepair)
+	epair_wan=$(vnet_mkepair)
+
+	# client (lan)
+	vnet_mkjail client ${epair_lan}a
+	jexec client ifconfig ${epair_lan}a 192.0.2.2/24 up
+	jexec client ifconfig ${epair_lan}a inet6 2001:db8:1::2/64 no_dad up
+	jexec client route add default 192.0.2.1
+	jexec client route add -inet6 default 2001:db8:1::1
+
+	# router
+	vnet_mkjail router ${epair_lan}b ${epair_wan}a
+	jexec router ifconfig ${epair_lan}b 192.0.2.1/24 up
+	jexec router ifconfig ${epair_lan}b inet6 2001:db8:1::1/64 no_dad up
+	jexec router ifconfig ${epair_wan}a 198.51.100.1/24 up
+	jexec router ifconfig ${epair_wan}a inet6 2001:db8:2::1/64 no_dad up
+	jexec router sysctl net.inet.ip.forwarding=1
+	jexec router sysctl net.inet6.ip6.forwarding=1
+	jexec router route add 255.255.255.255 -iface ${epair_wan}a
+	jexec router route add 224.0.0.0/4 -iface ${epair_wan}a
+	jexec router route add -inet6 ff00::/8 -iface ${epair_wan}a
+	jexec router pfctl -e
+
+	# wan
+	vnet_mkjail wan ${epair_wan}b
+	jexec wan ifconfig ${epair_wan}b 198.51.100.2/24 up
+	jexec wan ifconfig ${epair_wan}b inet6 2001:db8:2::2/64 no_dad up
+	jexec wan pfctl -e
+	pft_set_rules wan \
+		"pass" \
+		"pass in on ${epair_wan}b inet  proto udp from any to any port 5000 label rt_leak_probe" \
+		"pass in on ${epair_wan}b inet6 proto udp from any to any port 5000 label rt_leak_probe"
+
+	# Sanity check before proceeding.
+	atf_check -s exit:0 -o ignore jexec client ping -c 1 -t 1 192.0.2.1
+}
+
+# Install the router ruleset for bcast_* and mcast_* tests.
+rt_leak_install_rules()
+{
+	pft_set_rules router \
+		"block all" \
+		"pass out keep state" \
+		"pass in on ${epair_lan}b inet  proto icmp  all keep state" \
+		"pass in on ${epair_lan}b inet6 proto icmp6 all keep state" \
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv, routersol, routeradv } keep state" \
+		"$@"
+}
+
+# Packet count observed by the probe rule in the wan jail.
+rt_leak_probe_pkts()
+{
+	jexec wan pfctl -sl | awk '$1 == "rt_leak_probe" { print $3 }'
+}
+
+# Send one UDP datagram from $1 (a jail name) to $2 (a destination address).
+rt_leak_send()
+{
+	atf_check -s exit:0 -o ignore jexec "$1" python3 -c "
+import socket
+dst = '$2'
+af = socket.AF_INET6 if ':' in dst else socket.AF_INET
+s = socket.socket(af, socket.SOCK_DGRAM)
+if af == socket.AF_INET:
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+s.sendto(b'rt_leak_probe', (dst, 5000))
+"
+}
+
 atf_test_case "v4" "cleanup"
 v4_head()
 {
@@ -1647,6 +1721,270 @@ prefer_ipv6_nexthop_ipv4_random_prefix_ipv6_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "bcast_directed_forwarded" "cleanup"
+bcast_directed_forwarded_head()
+{
+	atf_set descr 'Forwarded subnet directed broadcast is blocked by a received-on-scoped block-out rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+bcast_directed_forwarded_body()
+{
+	rt_leak_setup
+
+	# pf_route() does not guard against forwarding broadcast traffic
+	# across broadcast domains. Operators who use route-to with a
+	# permissive destination must plug the leak manually with a
+	# block-out rule matching the target interface's broadcast
+	# address. Scope the rule to forwarded traffic with received-on
+	# so the router's own broadcasts are *not* affected.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet from any to (${epair_wan}a:broadcast) received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 198.51.100.2) inet proto udp from any to any keep state"
+
+	rt_leak_send client 198.51.100.255
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -ne 0 ]; then
+		jexec wan pfctl -vvsr
+		atf_fail "directed broadcast leaked to wan despite block-out rule (${pkts} packet(s))"
+	fi
+}
+bcast_directed_forwarded_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "bcast_limited_forwarded" "cleanup"
+bcast_limited_forwarded_head()
+{
+	atf_set descr 'Forwarded limited broadcast is blocked by a received-on-scoped block-out rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+bcast_limited_forwarded_body()
+{
+	rt_leak_setup
+
+	# pf_route() does not guard against forwarding broadcast traffic
+	# across broadcast domains. Operators who use route-to with a
+	# permissive destination must plug the leak manually with a
+	# block-out rule matching 255.255.255.255 on the route-to target
+	# interface. Scope the rule to forwarded traffic with received-on
+	# so the router's own broadcasts are *not* affected.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet from any to 255.255.255.255 received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 198.51.100.2) inet proto udp from any to any keep state"
+
+	rt_leak_send client 255.255.255.255
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -ne 0 ]; then
+		jexec wan pfctl -vvsr
+		atf_fail "limited broadcast leaked to wan despite block-out rule (${pkts} packet(s))"
+	fi
+}
+bcast_limited_forwarded_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "bcast_directed_local" "cleanup"
+bcast_directed_local_head()
+{
+	atf_set descr 'Router-originated directed broadcast is not blocked by a received-on-scoped rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+bcast_directed_local_body()
+{
+	rt_leak_setup
+
+	# Install the same ruleset used by bcast_{directed,limited}_forwarded.
+	# The received-on qualifier should restrict the block to forwarded
+	# packets, leaving router-originated broadcasts to pass normally.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet from any to (${epair_wan}a:broadcast) received-on any" \
+		"block out quick on ${epair_wan}a inet from any to 255.255.255.255 received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 198.51.100.2) inet proto udp from any to any keep state"
+
+	# Router emits a directed broadcast on its own wan subnet.
+	rt_leak_send router 198.51.100.255
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -eq 0 ]; then
+		jexec router pfctl -vvsr
+		atf_fail "router-originated broadcast was incorrectly blocked by received-on-scoped rule"
+	fi
+}
+bcast_directed_local_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "bcast_limited_local" "cleanup"
+bcast_limited_local_head()
+{
+	atf_set descr 'Router-originated limited broadcast is not blocked by a received-on-scoped rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+bcast_limited_local_body()
+{
+	rt_leak_setup
+
+	# Install the same ruleset used by bcast_{directed,limited}_forwarded.
+	# The received-on qualifier should restrict the block to forwarded
+	# packets, leaving router-originated broadcasts to pass normally.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet from any to (${epair_wan}a:broadcast) received-on any" \
+		"block out quick on ${epair_wan}a inet from any to 255.255.255.255 received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 198.51.100.2) inet proto udp from any to any keep state"
+
+	# Router emits a limited broadcast on its own wan subnet.
+	rt_leak_send router 255.255.255.255
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -eq 0 ]; then
+		jexec router pfctl -vvsr
+		atf_fail "router-originated limited broadcast was incorrectly blocked by received-on-scoped rule"
+	fi
+}
+bcast_limited_local_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "mcast_v4_forwarded" "cleanup"
+mcast_v4_forwarded_head()
+{
+	atf_set descr 'Forwarded IPv4 multicast is blocked by a received-on-scoped block-out rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+mcast_v4_forwarded_body()
+{
+	rt_leak_setup
+
+	# pf_route() does not guard against forwarding multicast traffic
+	# across broadcast domains. An IPv4 multicast block-out rule on
+	# the route-to target interface plugs the leak. Scope the rule
+	# to forwarded traffic with received-on so the router's own
+	# multicast is *not* affected.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet from any to 224.0.0.0/4 received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 198.51.100.2) inet proto udp from any to any keep state"
+
+	rt_leak_send client 224.0.0.1
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -ne 0 ]; then
+		jexec wan pfctl -vvsr
+		atf_fail "IPv4 multicast leaked to wan despite block-out rule (${pkts} packet(s))"
+	fi
+}
+mcast_v4_forwarded_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "mcast_v6_forwarded" "cleanup"
+mcast_v6_forwarded_head()
+{
+	atf_set descr 'Forwarded IPv6 multicast is blocked by a received-on-scoped block-out rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+mcast_v6_forwarded_body()
+{
+	rt_leak_setup
+
+	# pf_route6() does not guard against forwarding multicast traffic
+	# across broadcast domains. An IPv6 multicast block-out rule on
+	# the route-to target interface plugs the leak. Scope the rule
+	# to forwarded traffic with received-on so the router's own
+	# multicast is *not* affected.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet6 from any to ff00::/8 received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 2001:db8:2::2) inet6 proto udp from any to any keep state"
+
+	rt_leak_send client ff0e::1
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -ne 0 ]; then
+		jexec wan pfctl -vvsr
+		atf_fail "IPv6 multicast leaked to wan despite block-out rule (${pkts} packet(s))"
+	fi
+}
+mcast_v6_forwarded_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "mcast_v4_local" "cleanup"
+mcast_v4_local_head()
+{
+	atf_set descr 'Router-originated IPv4 multicast is not blocked by a received-on-scoped rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+mcast_v4_local_body()
+{
+	rt_leak_setup
+
+	# Install the same ruleset used by mcast_v4_forwarded. The received-on
+	# qualifier should restrict the block to forwarded packets, leaving
+	# router-originated broadcasts to pass normally.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet from any to 224.0.0.0/4 received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 198.51.100.2) inet proto udp from any to any keep state"
+
+	# Router emits an IPv4 multicast datagram from its own stack.
+	rt_leak_send router 224.0.0.1
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -eq 0 ]; then
+		jexec router pfctl -vvsr
+		atf_fail "router-originated multicast was incorrectly blocked by received-on-scoped rule"
+	fi
+}
+mcast_v4_local_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "mcast_v6_local" "cleanup"
+mcast_v6_local_head()
+{
+	atf_set descr 'Router-originated IPv6 multicast is not blocked by a received-on-scoped rule'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+mcast_v6_local_body()
+{
+	rt_leak_setup
+
+	# Install the same ruleset used by mcast_v6_forwarded. The received-on
+	# qualifier should restrict the block to forwarded packets, leaving
+	# router-originated broadcasts to pass normally.
+	rt_leak_install_rules \
+		"block out quick on ${epair_wan}a inet6 from any to ff00::/8 received-on any" \
+		"pass in on ${epair_lan}b route-to (${epair_wan}a 2001:db8:2::2) inet6 proto udp from any to any keep state"
+
+	# Router emits an IPv6 multicast datagram from its own stack.
+	rt_leak_send router ff0e::1
+
+	pkts=$(rt_leak_probe_pkts)
+	if [ "${pkts:-0}" -eq 0 ]; then
+		jexec router pfctl -vvsr
+		atf_fail "router-originated IPv6 multicast was incorrectly blocked by received-on-scoped rule"
+	fi
+}
+mcast_v6_local_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -1666,6 +2004,14 @@ atf_init_test_cases()
 	atf_add_test_case "sticky"
 	atf_add_test_case "ttl"
 	atf_add_test_case "empty_pool"
+	atf_add_test_case "bcast_directed_forwarded"
+	atf_add_test_case "bcast_directed_local"
+	atf_add_test_case "bcast_limited_forwarded"
+	atf_add_test_case "bcast_limited_local"
+	atf_add_test_case "mcast_v4_forwarded"
+	atf_add_test_case "mcast_v4_local"
+	atf_add_test_case "mcast_v6_forwarded"
+	atf_add_test_case "mcast_v6_local"
 	# Tests for pf_map_addr() without prefer-ipv6-nexthop
 	atf_add_test_case "table_loop"
 	atf_add_test_case "roundrobin"

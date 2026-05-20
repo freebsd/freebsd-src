@@ -56,18 +56,18 @@ LIST_HEAD(nfsdontlisthead, nfsdontlist);
 TAILQ_HEAD(nfsuserhashhead, nfsusrgrp);
 
 #define	NFSCLIENTHASH(id)						\
-	(&NFSD_VNET(nfsclienthash)[(id).lval[1] % nfsrv_clienthashsize])
+	(&VNET(nfsclienthash)[(id).lval[1] % nfsrv_clienthashsize])
 #define	NFSSTATEHASH(clp, id)						\
 	(&((clp)->lc_stateid[(id).other[2] % nfsrv_statehashsize]))
 #define	NFSUSERHASH(id)							\
-	(&NFSD_VNET(nfsuserhash)[(id) % nfsrv_lughashsize])
+	(&VNET(nfsuserhash)[(id) % nfsrv_lughashsize])
 #define	NFSUSERNAMEHASH(p, l)						\
-	(&NFSD_VNET(nfsusernamehash)[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
+	(&VNET(nfsusernamehash)[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
 		% nfsrv_lughashsize])
 #define	NFSGROUPHASH(id)						\
-	(&NFSD_VNET(nfsgrouphash)[(id) % nfsrv_lughashsize])
+	(&VNET(nfsgrouphash)[(id) % nfsrv_lughashsize])
 #define	NFSGROUPNAMEHASH(p, l)						\
-	(&NFSD_VNET(nfsgroupnamehash)[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
+	(&VNET(nfsgroupnamehash)[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
 		% nfsrv_lughashsize])
 
 struct nfssessionhash {
@@ -75,7 +75,7 @@ struct nfssessionhash {
 	struct nfssessionhashhead	list;
 };
 #define	NFSSESSIONHASH(f) 						\
-	(&NFSD_VNET(nfssessionhash)[nfsrv_hashsessionid(f) %		\
+	(&VNET(nfssessionhash)[nfsrv_hashsessionid(f) %		\
 	 nfsrv_sessionhashsize])
 
 struct nfslayouthash {
@@ -317,6 +317,7 @@ struct nfsusrgrp {
 	} lug_un;
 	struct ucred		*lug_cred;	/* Cred. with groups list */
 	int			lug_namelen;	/* Name length */
+	bool			lug_wired;	/* Wired into cache */
 	u_char			lug_name[1];	/* malloc'd correct length */
 };
 #define	lug_uid		lug_un.un_uid

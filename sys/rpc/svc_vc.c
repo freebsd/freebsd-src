@@ -77,57 +77,57 @@ SYSCTL_NODE(_kern_rpc, OID_AUTO, tls, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 SYSCTL_NODE(_kern_rpc, OID_AUTO, unenc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "unencrypted");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_rx_msgbytes) = 0;
-SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, rx_msgbytes, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
-    &KRPC_VNET_NAME(svc_vc_rx_msgbytes), 0, "Count of non-TLS rx bytes");
+VNET_DEFINE_STATIC(uint64_t, svc_vc_rx_msgbytes) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, rx_msgbytes, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(svc_vc_rx_msgbytes), 0, "Count of non-TLS rx bytes");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_rx_msgcnt) = 0;
-SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, rx_msgcnt, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
-    &KRPC_VNET_NAME(svc_vc_rx_msgcnt), 0, "Count of non-TLS rx messages");
+VNET_DEFINE_STATIC(uint64_t, svc_vc_rx_msgcnt) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, rx_msgcnt, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(svc_vc_rx_msgcnt), 0, "Count of non-TLS rx messages");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tx_msgbytes) = 0;
-SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, tx_msgbytes, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
-    &KRPC_VNET_NAME(svc_vc_tx_msgbytes), 0, "Count of non-TLS tx bytes");
+VNET_DEFINE_STATIC(uint64_t, svc_vc_tx_msgbytes) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, tx_msgbytes, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(svc_vc_tx_msgbytes), 0, "Count of non-TLS tx bytes");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tx_msgcnt) = 0;
-SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, tx_msgcnt, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
-    &KRPC_VNET_NAME(svc_vc_tx_msgcnt), 0, "Count of non-TLS tx messages");
+VNET_DEFINE_STATIC(uint64_t, svc_vc_tx_msgcnt) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, tx_msgcnt, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(svc_vc_tx_msgcnt), 0, "Count of non-TLS tx messages");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_alerts) = 0;
+VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_alerts) = 0;
 SYSCTL_U64(_kern_rpc_tls, OID_AUTO, alerts,
-    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_alerts), 0,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(svc_vc_tls_alerts), 0,
     "Count of TLS alert messages");
 
-KRPC_VNET_DEFINE(uint64_t, svc_vc_tls_handshake_failed) = 0;
+VNET_DEFINE(uint64_t, svc_vc_tls_handshake_failed) = 0;
 SYSCTL_U64(_kern_rpc_tls, OID_AUTO, handshake_failed,
-    CTLFLAG_KRPC_VNET | CTLFLAG_RW,
-    &KRPC_VNET_NAME(svc_vc_tls_handshake_failed), 0,
+    CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(svc_vc_tls_handshake_failed), 0,
     "Count of TLS failed handshakes");
 
-KRPC_VNET_DEFINE(uint64_t, svc_vc_tls_handshake_success) = 0;
+VNET_DEFINE(uint64_t, svc_vc_tls_handshake_success) = 0;
 SYSCTL_U64(_kern_rpc_tls, OID_AUTO, handshake_success,
-    CTLFLAG_KRPC_VNET | CTLFLAG_RW,
-    &KRPC_VNET_NAME(svc_vc_tls_handshake_success), 0,
+    CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(svc_vc_tls_handshake_success), 0,
     "Count of TLS successful handshakes");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_rx_msgbytes) = 0;
+VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_rx_msgbytes) = 0;
 SYSCTL_U64(_kern_rpc_tls, OID_AUTO, rx_msgbytes,
-    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_rx_msgbytes), 0,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(svc_vc_tls_rx_msgbytes), 0,
     "Count of TLS rx bytes");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_rx_msgcnt) = 0;
+VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_rx_msgcnt) = 0;
 SYSCTL_U64(_kern_rpc_tls, OID_AUTO, rx_msgcnt,
-    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_rx_msgcnt), 0,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(svc_vc_tls_rx_msgcnt), 0,
     "Count of TLS rx messages");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_tx_msgbytes) = 0;
+VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_tx_msgbytes) = 0;
 SYSCTL_U64(_kern_rpc_tls, OID_AUTO, tx_msgbytes,
-    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_tx_msgbytes), 0,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(svc_vc_tls_tx_msgbytes), 0,
     "Count of TLS tx bytes");
 
-KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_tx_msgcnt) = 0;
+VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_tx_msgcnt) = 0;
 SYSCTL_U64(_kern_rpc_tls, OID_AUTO, tx_msgcnt,
-    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_tx_msgcnt), 0,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(svc_vc_tls_tx_msgcnt), 0,
     "Count of TLS tx messages");
 
 static bool_t svc_vc_rendezvous_recv(SVCXPRT *, struct rpc_msg *,
@@ -850,15 +850,15 @@ tryagain:
 		 * This record needs to be handled in userland
 		 * via an SSL_read() call, so do an upcall to the daemon.
 		 */
-		KRPC_CURVNET_SET(so->so_vnet);
+		CURVNET_SET(so->so_vnet);
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0 &&
 		    error == ENXIO) {
-			KRPC_VNET(svc_vc_tls_alerts)++;
+			VNET(svc_vc_tls_alerts)++;
 			/* Disable reception. */
 			xprt->xp_dontrcv = TRUE;
 			sx_xunlock(&xprt->xp_lock);
 			ret = rpctls_srv_handlerecord(so, &reterr);
-			KRPC_CURVNET_RESTORE();
+			CURVNET_RESTORE();
 			sx_xlock(&xprt->xp_lock);
 			xprt->xp_dontrcv = FALSE;
 			if (ret != RPC_SUCCESS || reterr != RPCTLSERR_OK) {
@@ -875,7 +875,7 @@ tryagain:
 		}
 
 		if (error) {
-			KRPC_CURVNET_RESTORE();
+			CURVNET_RESTORE();
 			SOCK_RECVBUF_LOCK(so);
 			if (xprt->xp_upcallset) {
 				xprt->xp_upcallset = 0;
@@ -889,7 +889,7 @@ tryagain:
 		}
 
 		if (!m) {
-			KRPC_CURVNET_RESTORE();
+			CURVNET_RESTORE();
 			/*
 			 * EOF - the other end has closed the socket.
 			 */
@@ -915,20 +915,20 @@ tryagain:
 					m_freem(m);
 					m_free(ctrl);
 					rcvflag = MSG_DONTWAIT | MSG_TLSAPPDATA;
-					KRPC_CURVNET_RESTORE();
+					CURVNET_RESTORE();
 					goto tryagain;
 				}
-				KRPC_VNET(svc_vc_tls_rx_msgcnt)++;
-				KRPC_VNET(svc_vc_tls_rx_msgbytes) +=
+				VNET(svc_vc_tls_rx_msgcnt)++;
+				VNET(svc_vc_tls_rx_msgbytes) +=
 				    1000000000 - uio.uio_resid;
 			}
 			m_free(ctrl);
 		} else {
-			KRPC_VNET(svc_vc_rx_msgcnt)++;
-			KRPC_VNET(svc_vc_rx_msgbytes) += 1000000000 -
+			VNET(svc_vc_rx_msgcnt)++;
+			VNET(svc_vc_rx_msgbytes) += 1000000000 -
 			    uio.uio_resid;
 		}
-		KRPC_CURVNET_RESTORE();
+		CURVNET_RESTORE();
 
 		if (cd->mpending)
 			m_last(cd->mpending)->m_next = m;
@@ -1017,7 +1017,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 			htonl(0x80000000 | (len - sizeof(uint32_t)));
 
 		/* For RPC-over-TLS, copy mrep to a chain of ext_pgs. */
-		KRPC_CURVNET_SET(xprt->xp_socket->so_vnet);
+		CURVNET_SET(xprt->xp_socket->so_vnet);
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
 			/*
 			 * Copy the mbuf chain to a chain of
@@ -1029,13 +1029,13 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 				maxextsiz = min(maxextsiz, maxlen);
 #endif
 			mrep = _rpc_copym_into_ext_pgs(mrep, maxextsiz);
-			KRPC_VNET(svc_vc_tls_tx_msgcnt)++;
-			KRPC_VNET(svc_vc_tls_tx_msgbytes) += len;
+			VNET(svc_vc_tls_tx_msgcnt)++;
+			VNET(svc_vc_tls_tx_msgbytes) += len;
 		} else {
-			KRPC_VNET(svc_vc_tx_msgcnt)++;
-			KRPC_VNET(svc_vc_tx_msgbytes) += len;
+			VNET(svc_vc_tx_msgcnt)++;
+			VNET(svc_vc_tx_msgbytes) += len;
 		}
-		KRPC_CURVNET_RESTORE();
+		CURVNET_RESTORE();
 		atomic_add_32(&xprt->xp_snd_cnt, len);
 		/*
 		 * sosend consumes mreq.

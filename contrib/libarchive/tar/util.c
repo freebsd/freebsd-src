@@ -715,8 +715,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	/* Use uname if it's present, else uid. */
 	p = archive_entry_uname(entry);
 	if ((p == NULL) || (*p == '\0')) {
-		snprintf(tmp, sizeof(tmp), "%lu ",
-		    (unsigned long)archive_entry_uid(entry));
+		snprintf(tmp, sizeof(tmp), "%lld ",
+		    (long long)archive_entry_uid(entry));
 		p = tmp;
 	}
 	w = strlen(p);
@@ -730,8 +730,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		fprintf(out, "%s", p);
 		w = strlen(p);
 	} else {
-		snprintf(tmp, sizeof(tmp), "%lu",
-		    (unsigned long)archive_entry_gid(entry));
+		snprintf(tmp, sizeof(tmp), "%lld",
+		    (long long)archive_entry_gid(entry));
 		w = strlen(tmp);
 		fprintf(out, "%s", tmp);
 	}

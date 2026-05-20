@@ -58,6 +58,52 @@
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_util.h>
 
+/*
+ * Linux dev_t conversion routines.
+ *
+ * As of version 2.6.0 of the Linux kernel, dev_t is a 32-bit quantity
+ * with 12 bits set asaid for the major number and 20 for the minor number.
+ * The in-kernel dev_t encoded as MMMmmmmm, where M is a hex digit of the
+ * major number and m is a hex digit of the minor number.
+ * The user-space dev_t encoded as mmmM MMmm, where M and m is the major
+ * and minor numbers accordingly. This is downward compatible with legacy
+ * systems where dev_t is 16 bits wide, encoded as MMmm.
+ * In glibc dev_t is a 64-bit quantity, with 32-bit major and minor numbers,
+ * encoded as MMMM Mmmm mmmM MMmm. This is downward compatible with the Linux
+ * kernel and with legacy systems where dev_t is 16 bits wide.
+ *
+ * In the FreeBSD dev_t is a 64-bit quantity. The major and minor numbers
+ * are encoded as MMMmmmMm, therefore conversion of the device numbers between
+ * Linux user-space and FreeBSD kernel required.
+ */
+static l_dev_t
+linux_encode_dev(int _major, int _minor)
+{
+
+	return ((_minor & 0xff) | ((_major & 0xfff) << 8) |
+	    (((_minor & ~0xff) << 12) & 0xfff00000));
+}
+
+static l_dev_t
+linux_new_encode_dev(dev_t _dev)
+{
+
+	return (_dev == NODEV ? 0 : linux_encode_dev(major(_dev), minor(_dev)));
+}
+
+static int
+linux_encode_major(dev_t _dev)
+{
+
+	return (_dev == NODEV ? 0 : major(_dev) & 0xfff);
+}
+
+static int
+linux_encode_minor(dev_t _dev)
+{
+
+	return (_dev == NODEV ? 0 : minor(_dev) & 0xfffff);
+}
 
 static int
 linux_kern_fstat(struct thread *td, int fd, struct stat *sbp)
@@ -295,26 +341,28 @@ struct l_statfs {
 #define	LINUX_ZFS_SUPER_MAGIC	0x2FC12FC1
 #define	LINUX_DEVFS_SUPER_MAGIC	0x1373L
 #define	LINUX_SHMFS_MAGIC	0x01021994
+#define	LINUX_SYSFS_MAGIC	0x62656572
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
 {
 	int i;
 	static struct {const char *bsd_name; long linux_type;} b2l_tbl[] = {
-		{"ufs",     LINUX_UFS_SUPER_MAGIC},
-		{"zfs",     LINUX_ZFS_SUPER_MAGIC},
-		{"cd9660",  LINUX_ISOFS_SUPER_MAGIC},
-		{"nfs",     LINUX_NFS_SUPER_MAGIC},
-		{"ext2fs",  LINUX_EXT2_SUPER_MAGIC},
-		{"procfs",  LINUX_PROC_SUPER_MAGIC},
-		{"msdosfs", LINUX_MSDOS_SUPER_MAGIC},
-		{"ntfs",    LINUX_NTFS_SUPER_MAGIC},
-		{"nwfs",    LINUX_NCP_SUPER_MAGIC},
-		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
-		{"coda",    LINUX_CODA_SUPER_MAGIC},
-		{"devfs",   LINUX_DEVFS_SUPER_MAGIC},
-		{"tmpfs",   LINUX_SHMFS_MAGIC},
-		{NULL,      0L}};
+		{"ufs",      LINUX_UFS_SUPER_MAGIC},
+		{"zfs",      LINUX_ZFS_SUPER_MAGIC},
+		{"cd9660",   LINUX_ISOFS_SUPER_MAGIC},
+		{"nfs",      LINUX_NFS_SUPER_MAGIC},
+		{"ext2fs",   LINUX_EXT2_SUPER_MAGIC},
+		{"procfs",   LINUX_PROC_SUPER_MAGIC},
+		{"msdosfs",  LINUX_MSDOS_SUPER_MAGIC},
+		{"ntfs",     LINUX_NTFS_SUPER_MAGIC},
+		{"nwfs",     LINUX_NCP_SUPER_MAGIC},
+		{"hpfs",     LINUX_HPFS_SUPER_MAGIC},
+		{"coda",     LINUX_CODA_SUPER_MAGIC},
+		{"devfs",    LINUX_DEVFS_SUPER_MAGIC},
+		{"tmpfs",    LINUX_SHMFS_MAGIC},
+		{"linsysfs", LINUX_SYSFS_MAGIC},
+		{NULL,       0L}};
 
 	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
 		if (strcmp(b2l_tbl[i].bsd_name, fstypename) == 0)

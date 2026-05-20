@@ -121,7 +121,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			c = min(c, (u_int)(PAGE_SIZE - o));
 			c = min(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&_tmppt[o], (int)c, uio);
-			pmap_qremove((vm_offset_t)_tmppt, 1);
+			pmap_qremove(_tmppt, 1);
 			sx_xunlock(&tmppt_lock);
 			continue;
 		}

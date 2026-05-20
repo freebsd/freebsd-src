@@ -229,6 +229,7 @@ static const struct errstr errstrtable[] = {
 	{ ECHILD,	"dtl" },
 	{ EILSEQ,	"corrupt" },
 	{ ENOSYS,	"noop" },
+	{ EFAULT,	"io-prefail" },
 	{ 0, NULL },
 };
 
@@ -308,7 +309,8 @@ usage(void)
 	    "\t\tlabel.  Label injection can either be 'nvlist', 'uber',\n "
 	    "\t\t'pad1', or 'pad2'.\n"
 	    "\t\t'errno' can be 'nxio' (the default), 'io', 'dtl',\n"
-	    "\t\t'corrupt' (bit flip), or 'noop' (successfully do nothing).\n"
+	    "\t\t'corrupt' (bit flip), 'io-prefail' (unsuccessfully do\n"
+	    "\t\tnothing) or 'noop' (successfully do nothing).\n"
 	    "\t\t'frequency' is a value between 0.0001 and 100.0 that limits\n"
 	    "\t\tdevice error injection to a percentage of the IOs.\n"
 	    "\n"
@@ -389,7 +391,9 @@ usage(void)
 	    "0.\n"
 	    "\t\t-m\tAutomatically remount underlying filesystem.\n"
 	    "\t\t-r\tInject error over a particular logical range of an\n"
-	    "\t\t\tobject.  Will be translated to the appropriate blkid\n"
+	    "\t\t\tobject, specified as 'start[,end]'.  Numeric\n"
+	    "\t\t\tsuffixes (K, M, G, T, P, E) are accepted.\n"
+	    "\t\t\tWill be translated to the appropriate blkid\n"
 	    "\t\t\trange according to the object's properties.\n"
 	    "\t\t-a\tFlush the ARC cache.  Can be specified without any\n"
 	    "\t\t\tassociated object.\n"
@@ -1024,7 +1028,8 @@ main(int argc, char **argv)
 			if (error < 0) {
 				(void) fprintf(stderr, "invalid error type "
 				    "'%s': must be one of: io decompress "
-				    "decrypt nxio dtl corrupt noop\n",
+				    "decrypt nxio dtl corrupt noop "
+				    "io-prefail\n",
 				    optarg);
 				usage();
 				libzfs_fini(g_zfs);

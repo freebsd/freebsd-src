@@ -445,6 +445,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	else
 		new_tcr = 0;
 	td->td_proc->p_md.md_tcr = new_tcr;
+	td->td_md.md_sctlr = 0;
 
 	/* TODO: should create a pmap function for this... */
 	tcr = READ_SPECIALREG(tcr_el1);

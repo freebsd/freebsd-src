@@ -88,16 +88,14 @@ kexec_generate_page_tables(pml4_entry_t *root, vm_offset_t start,
 			mpa = VM_PAGE_TO_PHYS(m);
 			root[i] = mpa | PG_RW | PG_V;
 		}
-		pdp_entry_t *pdp =
-			(pdp_entry_t *)(PHYS_TO_DMAP(root[i] & PG_FRAME));
+		pdp_entry_t *pdp = PHYS_TO_DMAP(root[i] & PG_FRAME);
 		for (; j < NPDPEPG && pg < start + size; j++, k = 0, l = 0) {
 			if (pdp[j] == 0) {
 				m = vm_radix_iter_next(pages);
 				mpa = VM_PAGE_TO_PHYS(m);
 				pdp[j] = mpa | PG_RW | PG_V;
 			}
-			pd_entry_t *pde =
-			    (pd_entry_t *)(PHYS_TO_DMAP(pdp[j] & PG_FRAME));
+			pd_entry_t *pde = PHYS_TO_DMAP(pdp[j] & PG_FRAME);
 			for (; k < NPDEPG && pg < start + size; k++, l = 0) {
 				if (pde[k] == 0) {
 					if (!do_pte) {
@@ -118,7 +116,7 @@ kexec_generate_page_tables(pml4_entry_t *root, vm_offset_t start,
 				for (; l < NPTEPG && pg < start + size;
 				    l++, pg += PAGE_SIZE) {
 					pt_entry_t *pte =
-					    (pt_entry_t *)PHYS_TO_DMAP(pde[pmap_pde_index(pg)] & PG_FRAME);
+					    PHYS_TO_DMAP(pde[pmap_pde_index(pg)] & PG_FRAME);
 					pte[pmap_pte_index(pg)] =
 					    pmap_kextract(pg) | PG_RW | PG_V;
 				}

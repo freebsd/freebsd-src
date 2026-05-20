@@ -14217,7 +14217,7 @@ bbr_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 	if (error)
 		return (error);
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}

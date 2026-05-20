@@ -275,16 +275,20 @@ p9fs_compatible_mode(struct p9_fid *fid, int mode)
 {
 	/*
 	 * Return TRUE for an exact match. For OREAD and OWRITE, allow
-	 * existing ORDWR fids to match. Only check the low two bits
-	 * of mode.
+	 * existing ORDWR fids to match.
 	 *
-	 * TODO: figure out if this is correct for O_APPEND
+	 * We mask both the requested mode and the existing fid's mode
+	 * with 3 (0b11) to isolate the base access intent (O_RDONLY,
+	 * O_WRONLY, or O_RDWR). This prevents extended open flags like
+	 * O_EXCL or O_APPEND from causing a mismatch when we are merely
+	 * looking for an appropriately privileged open descriptor.
 	 */
 	int fid_mode = fid->mode & 3;
-	if (fid_mode == mode)
+	int req_mode = mode & 3;
+	if (fid_mode == req_mode)
 		return (TRUE);
 	if (fid_mode == P9PROTO_ORDWR)
-		return (mode == P9PROTO_OREAD || mode == P9PROTO_OWRITE);
+		return (req_mode == P9PROTO_OREAD || req_mode == P9PROTO_OWRITE);
 	return (FALSE);
 }
 

@@ -1216,7 +1216,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 	ch.carp_vhid = sc->sc_vhid;
 	ch.carp_advbase = sc->sc_advbase;
 	ch.carp_advskew = advskew;
-	ch.carp_authlen = 7;	/* XXX DEFINE */
+	ch.carp_authlen = CARP_AUTHLEN;
 	ch.carp_pad1 = 0;	/* must be zero */
 	ch.carp_cksum = 0;
 

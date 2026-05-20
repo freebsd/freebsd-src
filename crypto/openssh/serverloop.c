@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.241 2024/11/26 22:01:37 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.246 2026/03/03 09:57:25 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -40,9 +40,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
+#include <sys/time.h>
+#include <sys/queue.h>
 
 #include <netinet/in.h>
 
@@ -50,16 +49,13 @@
 #include <fcntl.h>
 #include <pwd.h>
 #include <limits.h>
-#ifdef HAVE_POLL_H
 #include <poll.h>
-#endif
 #include <signal.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdarg.h>
 
-#include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
 #include "packet.h"
 #include "sshbuf.h"
@@ -89,7 +85,8 @@ extern struct sshauthopt *auth_opts;
 
 static int no_more_sessions = 0; /* Disallow further sessions. */
 
-static volatile sig_atomic_t child_terminated = 0;	/* The child has terminated. */
+static volatile sig_atomic_t child_terminated = 0; /* set on SIGCHLD */
+static volatile sig_atomic_t siginfo_received = 0;
 
 /* prototypes */
 static void server_init_dispatch(struct ssh *);
@@ -102,6 +99,14 @@ sigchld_handler(int sig)
 {
 	child_terminated = 1;
 }
+
+#ifdef SIGINFO
+static void
+siginfo_handler(int sig)
+{
+	siginfo_received = 1;
+}
+#endif
 
 static void
 client_alive_check(struct ssh *ssh)
@@ -173,12 +178,15 @@ wait_until_can_do_something(struct ssh *ssh,
 	 * start the clock to terminate the connection.
 	 */
 	if (options.unused_connection_timeout != 0) {
-		if (channel_still_open(ssh) || unused_connection_expiry == 0) {
+		if (channel_still_open(ssh))
+			unused_connection_expiry = 0;
+		else if (unused_connection_expiry == 0) {
 			unused_connection_expiry = now +
 			    options.unused_connection_timeout;
 		}
-		ptimeout_deadline_monotime(&timeout, unused_connection_expiry);
 	}
+	if (unused_connection_expiry != 0)
+		ptimeout_deadline_monotime(&timeout, unused_connection_expiry);
 
 	/*
 	 * if using client_alive, set the max timeout accordingly,
@@ -285,8 +293,15 @@ static void
 process_output(struct ssh *ssh, int connection_out)
 {
 	int r;
+	static int interactive = -1;
 
 	/* Send any buffered packet data to the client. */
+	if (interactive != !channel_has_bulk(ssh)) {
+		interactive = !channel_has_bulk(ssh);
+		debug2_f("session QoS is now %s", interactive ?
+		    "interactive" : "non-interactive");
+		ssh_packet_set_interactive(ssh, interactive);
+	}
 	if ((r = ssh_packet_write_poll(ssh)) != 0) {
 		sshpkt_fatal(ssh, r, "%s: ssh_packet_write_poll",
 		    __func__);
@@ -326,9 +341,15 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 
 	debug("Entering interactive session for SSH2.");
 
-	if (sigemptyset(&bsigset) == -1 || sigaddset(&bsigset, SIGCHLD) == -1)
+	if (sigemptyset(&bsigset) == -1 ||
+	    sigaddset(&bsigset, SIGCHLD) == -1)
 		error_f("bsigset setup: %s", strerror(errno));
 	ssh_signal(SIGCHLD, sigchld_handler);
+#ifdef SIGINFO
+	if (sigaddset(&bsigset, SIGINFO) == -1)
+		error_f("bsigset setup: %s", strerror(errno));
+	ssh_signal(SIGINFO, siginfo_handler);
+#endif
 	child_terminated = 0;
 	connection_in = ssh_packet_get_connection_in(ssh);
 	connection_out = ssh_packet_get_connection_out(ssh);
@@ -350,6 +371,10 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 		if (sigprocmask(SIG_BLOCK, &bsigset, &osigset) == -1)
 			error_f("bsigset sigprocmask: %s", strerror(errno));
 		collect_children(ssh);
+		if (siginfo_received) {
+			siginfo_received = 0;
+			channel_report_open(ssh, SYSLOG_LEVEL_INFO);
+		}
 		wait_until_can_do_something(ssh, connection_in, connection_out,
 		    &pfd, &npfd_alloc, &npfd_active, &osigset,
 		    &conn_in_ready, &conn_out_ready);
@@ -377,7 +402,7 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 }
 
 static int
-server_input_keep_alive(int type, u_int32_t seq, struct ssh *ssh)
+server_input_keep_alive(int type, uint32_t seq, struct ssh *ssh)
 {
 	debug("Got %d/%u for keepalive", type, seq);
 	/*
@@ -583,7 +608,7 @@ server_request_session(struct ssh *ssh)
 }
 
 static int
-server_input_channel_open(int type, u_int32_t seq, struct ssh *ssh)
+server_input_channel_open(int type, uint32_t seq, struct ssh *ssh)
 {
 	Channel *c = NULL;
 	char *ctype = NULL;
@@ -650,7 +675,7 @@ server_input_hostkeys_prove(struct ssh *ssh, struct sshbuf **respp)
 	int r, ndx, success = 0;
 	const u_char *blob;
 	const char *sigalg, *kex_rsa_sigalg = NULL;
-	u_char *sig = 0;
+	u_char *sig = NULL;
 	size_t blen, slen;
 
 	if ((resp = sshbuf_new()) == NULL || (sigbuf = sshbuf_new()) == NULL)
@@ -727,7 +752,7 @@ server_input_hostkeys_prove(struct ssh *ssh, struct sshbuf **respp)
 }
 
 static int
-server_input_global_request(int type, u_int32_t seq, struct ssh *ssh)
+server_input_global_request(int type, uint32_t seq, struct ssh *ssh)
 {
 	char *rtype = NULL;
 	u_char want_reply = 0;
@@ -832,7 +857,7 @@ server_input_global_request(int type, u_int32_t seq, struct ssh *ssh)
 }
 
 static int
-server_input_channel_req(int type, u_int32_t seq, struct ssh *ssh)
+server_input_channel_req(int type, uint32_t seq, struct ssh *ssh)
 {
 	Channel *c;
 	int r, success = 0;

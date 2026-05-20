@@ -1027,10 +1027,6 @@ static bool
 nvlist_check_header(struct nvlist_header *nvlhdrp)
 {
 
-	if (nvlhdrp->nvlh_size > SIZE_MAX - sizeof(*nvlhdrp)) {
-		ERRNO_SET(EINVAL);
-		return (false);
-	}
 	if (nvlhdrp->nvlh_magic != NVLIST_HEADER_MAGIC) {
 		ERRNO_SET(EINVAL);
 		return (false);
@@ -1050,6 +1046,11 @@ nvlist_check_header(struct nvlist_header *nvlhdrp)
 		nvlhdrp->nvlh_descriptors = be64toh(nvlhdrp->nvlh_descriptors);
 	}
 #endif
+	if (nvlhdrp->nvlh_size > SIZE_MAX - sizeof(*nvlhdrp)) {
+		ERRNO_SET(EINVAL);
+		return (false);
+	}
+
 	return (true);
 }
 

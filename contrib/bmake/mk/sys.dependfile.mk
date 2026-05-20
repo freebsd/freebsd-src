@@ -1,4 +1,4 @@
-# $Id: sys.dependfile.mk,v 1.12 2025/08/09 22:42:24 sjg Exp $
+# $Id: sys.dependfile.mk,v 1.13 2026/04/24 19:56:01 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -11,7 +11,7 @@
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
 
-# This only makes sense for DIRDEPS_BUILD.
+# This only makes sense for DIRDEPS_BUILD or META_AUTODEP.
 # This allows a mixture of auto generated as well as manually edited
 # dependency files, which can be differentiated by their names.
 # As per dirdeps.mk we only require:

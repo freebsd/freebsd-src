@@ -1,0 +1,6 @@
+Name: comments
+Description: Portable CD-ROM I/O library
+Version: 0
+#Requires: bar-2.0
+Libs: -lfoo
+Cflags: -I${includedir}

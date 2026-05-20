@@ -40,3 +40,5 @@ ticks	=ticksl + TICKS_OFFSET
 	.type jiffies, %object
 jiffies	= ticksl
 	.size jiffies, __SIZEOF_LONG__
+
+	.section .note.GNU-stack,"",%progbits

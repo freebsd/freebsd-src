@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -425,6 +425,16 @@ smartpqi_attach(device_t dev)
 		DBG_ERR("Failed to register character device index=%d r=%d\n",
 			card_index, error);
 		goto out;
+	}
+
+	/* Register sysctl for runtime debug_level changes */
+	{
+		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+		struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+
+		SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "debug_level", CTLFLAG_RW, &logging_level,
+		    "Debug logging bitmask");
 	}
 
 	goto out;

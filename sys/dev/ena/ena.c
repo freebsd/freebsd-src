@@ -2671,11 +2671,11 @@ static int
 ena_enable_wc(device_t pdev, struct resource *res)
 {
 #if defined(__i386) || defined(__amd64) || defined(__aarch64__)
-	vm_offset_t va;
+	void *va;
 	vm_size_t len;
 	int rc;
 
-	va = (vm_offset_t)rman_get_virtual(res);
+	va = rman_get_virtual(res);
 	len = rman_get_size(res);
 	/* Enable write combining */
 	rc = pmap_change_attr(va, len, VM_MEMATTR_WRITE_COMBINING);
@@ -3090,15 +3090,19 @@ ena_keep_alive_wd(void *adapter_data, struct ena_admin_aenq_entry *aenq_e)
 	sbintime_t stime;
 	uint64_t rx_drops;
 	uint64_t tx_drops;
+	uint64_t rx_overruns;
 
 	desc = (struct ena_admin_aenq_keep_alive_desc *)aenq_e;
 
 	rx_drops = ((uint64_t)desc->rx_drops_high << 32) | desc->rx_drops_low;
 	tx_drops = ((uint64_t)desc->tx_drops_high << 32) | desc->tx_drops_low;
+	rx_overruns = ((uint64_t)desc->rx_overruns_high << 32) | desc->rx_overruns_low;
 	counter_u64_zero(adapter->hw_stats.rx_drops);
 	counter_u64_add(adapter->hw_stats.rx_drops, rx_drops);
 	counter_u64_zero(adapter->hw_stats.tx_drops);
 	counter_u64_add(adapter->hw_stats.tx_drops, tx_drops);
+	counter_u64_zero(adapter->hw_stats.rx_overruns);
+	counter_u64_add(adapter->hw_stats.rx_overruns, rx_overruns);
 
 	stime = getsbinuptime();
 	atomic_store_rel_64(&adapter->keep_alive_timestamp, stime);

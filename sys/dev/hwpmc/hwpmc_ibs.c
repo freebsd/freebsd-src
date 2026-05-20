@@ -36,7 +36,11 @@
 #include <sys/pmckern.h>
 #include <sys/pmclog.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
+
+#define	EXTERR_CATEGORY	EXTERR_CAT_HWPMC_IBS
+#include <sys/exterrvar.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -54,6 +58,21 @@ struct ibs_descr {
  * Globals
  */
 static uint64_t ibs_features;
+static uint64_t ibs_fetch_allowed_mask;
+static uint64_t ibs_op_allowed_mask;
+
+static uint64_t ibs_fetch_extra_mask;
+static uint64_t ibs_op_extra_mask;
+
+SYSCTL_DECL(_kern_hwpmc);
+
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, ibs_fetch_extra_mask, CTLFLAG_RDTUN,
+    &ibs_fetch_extra_mask, 0,
+    "Extra allowed bits in the IBS fetch control MSR (override; default 0)");
+
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, ibs_op_extra_mask, CTLFLAG_RDTUN,
+    &ibs_op_extra_mask, 0,
+    "Extra allowed bits in the IBS op control MSR (override; default 0)");
 
 /*
  * Per-processor information
@@ -67,6 +86,75 @@ struct ibs_cpu {
 	struct pmc_hw	pc_ibspmcs[IBS_NPMCS];
 };
 static struct ibs_cpu **ibs_pcpu;
+
+static void
+ibs_init_policy(void)
+{
+
+	ibs_fetch_allowed_mask = IBS_FETCH_ALLOWED_MASK_BASE;
+
+	ibs_op_allowed_mask = IBS_OP_CTL_MAXCNTBASEMASK;
+
+	if ((ibs_features & CPUID_IBSID_ZEN4IBSEXTENSIONS) != 0)
+		ibs_fetch_allowed_mask |= IBS_FETCH_CTL_L3MISSONLY;
+
+	if ((ibs_features & CPUID_IBSID_OPCNT) != 0)
+		ibs_op_allowed_mask |= IBS_OP_CTL_COUNTERCONTROL;
+
+	if ((ibs_features & CPUID_IBSID_OPCNTEXT) != 0)
+		ibs_op_allowed_mask |= IBS_OP_CTL_MAXCNTEXTMASK;
+
+	if ((ibs_features & CPUID_IBSID_ZEN4IBSEXTENSIONS) != 0)
+		ibs_op_allowed_mask |= IBS_OP_CTL_L3MISSONLY;
+}
+
+static int
+ibs_validate_fetch_config(uint64_t config)
+{
+
+	if ((config & ~(ibs_fetch_allowed_mask | ibs_fetch_extra_mask)) != 0)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+ibs_validate_op_config(uint64_t config)
+{
+	uint64_t allowed_mask;
+
+	allowed_mask = ibs_op_allowed_mask;
+
+	if ((config & IBS_OP_CTL_LATFLTEN) != 0) {
+		if ((ibs_features & CPUID_IBSID_IBSLOADLATENCYFILT) == 0)
+			return (EINVAL);
+		if ((config & IBS_OP_CTL_L3MISSONLY) == 0)
+			return (EINVAL);
+
+		allowed_mask |= IBS_OP_CTL_LDLATMASK | IBS_OP_CTL_L3MISSONLY;
+	}
+
+	allowed_mask |= ibs_op_extra_mask;
+
+	if ((config & ~allowed_mask) != 0)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+ibs_validate_pmc_config(int ri, uint64_t config)
+{
+
+	switch (ri) {
+	case IBS_PMC_FETCH:
+		return (ibs_validate_fetch_config(config));
+	case IBS_PMC_OP:
+		return (ibs_validate_op_config(config));
+	default:
+		return (EINVAL);
+	}
+}
 
 /*
  * Read a PMC value from the MSR.
@@ -82,13 +170,13 @@ ibs_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 	KASSERT(ibs_pcpu[cpu],
 	    ("[ibs,%d] null per-cpu, cpu %d", __LINE__, cpu));
 
-	/* read the IBS ctl */
+	/* read the IBS count */
 	switch (ri) {
 	case IBS_PMC_FETCH:
-		*v = rdmsr(IBS_FETCH_CTL);
+		*v = IBS_FETCH_CTL_TO_COUNT(rdmsr(IBS_FETCH_CTL));
 		break;
 	case IBS_PMC_OP:
-		*v = rdmsr(IBS_OP_CTL);
+		*v = IBS_OP_CTL_TO_COUNT(rdmsr(IBS_OP_CTL));
 		break;
 	}
 
@@ -103,11 +191,30 @@ ibs_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 static int
 ibs_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
+	pmc_value_t m;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[ibs,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < IBS_NPMCS,
 	    ("[ibs,%d] illegal row-index %d", __LINE__, ri));
+
+	/* write the IBS count */
+	switch (ri) {
+	case IBS_PMC_FETCH:
+		m = rdmsr(IBS_FETCH_CTL) & ~IBS_FETCH_CTL_CURCNTMASK;
+		/* Setting a count greater than interval is undefined. */
+		if (IBS_FETCH_CTL_TO_INTERVAL(m) > v)
+			m |= IBS_FETCH_COUNT_TO_CTL(v);
+		wrmsr(IBS_FETCH_CTL, m);
+		break;
+	case IBS_PMC_OP:
+		m = rdmsr(IBS_OP_CTL) & ~IBS_OP_CTL_CURCNTMASK;
+		/* Setting a count greater than interval is undefined */
+		if (IBS_OP_CTL_TO_INTERVAL(m) > v)
+			m |= IBS_OP_COUNT_TO_CTL(v);
+		wrmsr(IBS_OP_CTL, m);
+		break;
+	}
 
 	PMCDBG3(MDP, WRI, 1, "ibs-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
@@ -160,27 +267,37 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	uint64_t caps, config;
+	int error;
 
 	KASSERT(ri >= 0 && ri < IBS_NPMCS,
 	    ("[ibs,%d] illegal row index %d", __LINE__, ri));
 
 	/* check class match */
 	if (a->pm_class != PMC_CLASS_IBS)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "PMC class is not IBS"));
 	if (a->pm_md.pm_ibs.ibs_type != ri)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "IBS type %ju does not match PMC index %ju",
+		    (uint64_t)a->pm_md.pm_ibs.ibs_type, (uint64_t)ri));
 
 	caps = pm->pm_caps;
 
 	PMCDBG2(MDP, ALL, 1, "ibs-allocate ri=%d caps=0x%x", ri, caps);
 
 	if ((caps & PMC_CAP_SYSTEM) == 0)
+		return (EXTERROR(EINVAL, "IBS requires SYSTEM capability"));
+
+	if (!PMC_IS_SAMPLING_MODE(a->pm_mode))
 		return (EINVAL);
 
 	config = a->pm_md.pm_ibs.ibs_ctl;
+	error = ibs_validate_pmc_config(ri, config);
+	if (error != 0)
+		return (error);
 	pm->pm_md.pm_ibs.ibs_ctl = config;
 
-	PMCDBG2(MDP, ALL, 2, "ibs-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP, ALL, 2, "ibs-allocate ri=%d -> config=0x%jx", ri,
+	    config);
 
 	return (0);
 }
@@ -270,7 +387,7 @@ ibs_stop_pmc(int cpu __diagused, int ri, struct pmc *pm)
 	 * Turn off the ENABLE bit, but unfortunately there are a few quirks
 	 * that generate excess NMIs.  Workaround #420 in the Revision Guide
 	 * for AMD Family 10h Processors 41322 Rev. 3.92 March 2012. requires
-	 * that we clear the count before clearing enable.
+	 * that we clear the max count before clearing enable.
 	 *
 	 * Even after clearing the counter spurious NMIs are still possible so
 	 * we use a per-CPU atomic variable to notify the interrupt handler we
@@ -290,7 +407,7 @@ ibs_stop_pmc(int cpu __diagused, int ri, struct pmc *pm)
 		wrmsr(IBS_FETCH_CTL, config);
 		break;
 	case IBS_PMC_OP:
-		wrmsr(IBS_FETCH_CTL, config & ~IBS_FETCH_CTL_MAXCNTMASK);
+		wrmsr(IBS_OP_CTL, config & ~IBS_OP_CTL_MAXCNTMASK);
 		DELAY(1);
 		config &= ~IBS_OP_CTL_ENABLE;
 		wrmsr(IBS_OP_CTL, config);
@@ -329,12 +446,11 @@ pmc_ibs_process_fetch(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	memset(&mpd, 0, sizeof(mpd));
 
 	mpd.pl_type = PMC_CC_MULTIPART_IBS_FETCH;
-	mpd.pl_length = 4;
+	mpd.pl_length = PMC_MPIDX_FETCH_MAX;
 	mpd.pl_mpdata[PMC_MPIDX_FETCH_CTL] = config;
-	if (ibs_features) {
+	if ((ibs_features & CPUID_IBSID_IBSFETCHCTLEXTD) != 0) {
 		mpd.pl_mpdata[PMC_MPIDX_FETCH_EXTCTL] = rdmsr(IBS_FETCH_EXTCTL);
 	}
-	mpd.pl_mpdata[PMC_MPIDX_FETCH_CTL] = config;
 	mpd.pl_mpdata[PMC_MPIDX_FETCH_LINADDR] = rdmsr(IBS_FETCH_LINADDR);
 	if ((config & IBS_FETCH_CTL_PHYSADDRVALID) != 0) {
 		mpd.pl_mpdata[PMC_MPIDX_FETCH_PHYSADDR] =
@@ -342,6 +458,8 @@ pmc_ibs_process_fetch(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	}
 
 	pmc_process_interrupt_mp(PMC_HR, pm, tf, &mpd);
+
+	wrmsr(IBS_FETCH_CTL, pm->pm_md.pm_ibs.ibs_ctl | IBS_FETCH_CTL_ENABLE);
 }
 
 static void
@@ -358,7 +476,7 @@ pmc_ibs_process_op(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	memset(&mpd, 0, sizeof(mpd));
 
 	mpd.pl_type = PMC_CC_MULTIPART_IBS_OP;
-	mpd.pl_length = 8;
+	mpd.pl_length = PMC_MPIDX_OP_MAX;
 	mpd.pl_mpdata[PMC_MPIDX_OP_CTL] = config;
 	mpd.pl_mpdata[PMC_MPIDX_OP_RIP] = rdmsr(IBS_OP_RIP);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DATA] = rdmsr(IBS_OP_DATA);
@@ -366,6 +484,12 @@ pmc_ibs_process_op(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	mpd.pl_mpdata[PMC_MPIDX_OP_DATA3] = rdmsr(IBS_OP_DATA3);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_LINADDR] = rdmsr(IBS_OP_DC_LINADDR);
 	mpd.pl_mpdata[PMC_MPIDX_OP_DC_PHYSADDR] = rdmsr(IBS_OP_DC_PHYSADDR);
+	if ((ibs_features & CPUID_IBSID_BRNTRGT) != 0) {
+		mpd.pl_mpdata[PMC_MPIDX_OP_TGT_RIP] = rdmsr(IBS_OP_TGT_RIP);
+	}
+	if ((ibs_features & CPUID_IBSID_IBSOPDATA4) != 0) {
+		mpd.pl_mpdata[PMC_MPIDX_OP_DATA4] = rdmsr(IBS_OP_DATA4);
+	}
 
 	pmc_process_interrupt_mp(PMC_HR, pm, tf, &mpd);
 
@@ -587,9 +711,13 @@ pmc_ibs_initialize(struct pmc_mdep *pmc_mdep, int ncpus)
 	if (cpu_exthigh >= CPUID_IBSID) {
 		do_cpuid(CPUID_IBSID, regs);
 		ibs_features = regs[0];
+		if ((ibs_features & CPUID_IBSID_IBSFFV) == 0)
+			ibs_features = 0;
 	} else {
 		ibs_features = 0;
 	}
+
+	ibs_init_policy();
 
 	PMCDBG0(MDP, INI, 0, "ibs-initialize");
 

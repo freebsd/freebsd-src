@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL-GUIDE-TLS-INTRODUCTION 7ossl"
-.TH OSSL-GUIDE-TLS-INTRODUCTION 7ossl 2026-01-27 3.5.5 OpenSSL
+.TH OSSL-GUIDE-TLS-INTRODUCTION 7ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -224,7 +224,7 @@ directly in \fBOPENSSLDIR\fR. For example if \fBOPENSSLDIR\fR is "/usr/local/ssl
 then save it as "/usr/local/ssl/cert.pem".
 .PP
 You can also use environment variables to override the default location that
-OpenSSL will look for its trusted certificate store. Set the \fBSSL_CERT_PATH\fR
+OpenSSL will look for its trusted certificate store. Set the \fBSSL_CERT_DIR\fR
 environment variable to give the directory where OpenSSL should looks for its
 certificates or the \fBSSL_CERT_FILE\fR environment variable to give the name of
 a single file containing all of the certificates. See \fBopenssl\-env\fR\|(7) for
@@ -371,7 +371,7 @@ See \fBossl\-guide\-quic\-introduction\fR\|(7) for an introduction to QUIC in Op
 \&\fBossl\-guide\-tls\-server\-block\fR\|(7), \fBossl\-guide\-quic\-introduction\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2023\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2023\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

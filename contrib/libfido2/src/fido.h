@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2024 Yubico AB. All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -124,6 +124,7 @@ const unsigned char *fido_cred_pubkey_ptr(const fido_cred_t *);
 const unsigned char *fido_cred_sig_ptr(const fido_cred_t *);
 const unsigned char *fido_cred_user_id_ptr(const fido_cred_t *);
 const unsigned char *fido_cred_x5c_ptr(const fido_cred_t *);
+const unsigned char *fido_cred_x5c_list_ptr(const fido_cred_t *, size_t);
 
 int fido_assert_allow_cred(fido_assert_t *, const unsigned char *, size_t);
 int fido_assert_empty_allow_list(fido_assert_t *);
@@ -148,14 +149,17 @@ int fido_assert_set_winhello_appid(fido_assert_t *, const char *);
 int fido_assert_verify(const fido_assert_t *, size_t, int, const void *);
 int fido_cbor_info_algorithm_cose(const fido_cbor_info_t *, size_t);
 int fido_cred_empty_exclude_list(fido_cred_t *);
+bool fido_cred_entattest(const fido_cred_t *);
 int fido_cred_exclude(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_prot(const fido_cred_t *);
 int fido_cred_set_attstmt(fido_cred_t *, const unsigned char *, size_t);
+int fido_cred_set_attobj(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_set_authdata(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_set_authdata_raw(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_set_blob(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_set_clientdata(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_set_clientdata_hash(fido_cred_t *, const unsigned char *, size_t);
+int fido_cred_set_entattest(fido_cred_t *, int);
 int fido_cred_set_extensions(fido_cred_t *, int);
 int fido_cred_set_fmt(fido_cred_t *, const char *);
 int fido_cred_set_id(fido_cred_t *, const unsigned char *, size_t);
@@ -226,6 +230,8 @@ size_t fido_cred_pubkey_len(const fido_cred_t *);
 size_t fido_cred_sig_len(const fido_cred_t *);
 size_t fido_cred_user_id_len(const fido_cred_t *);
 size_t fido_cred_x5c_len(const fido_cred_t *);
+size_t fido_cred_x5c_list_count(const fido_cred_t *);
+size_t fido_cred_x5c_list_len(const fido_cred_t *, size_t);
 
 uint8_t  fido_assert_flags(const fido_assert_t *, size_t);
 uint32_t fido_assert_sigcount(const fido_assert_t *, size_t);

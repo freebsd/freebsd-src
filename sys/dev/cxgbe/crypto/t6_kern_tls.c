@@ -458,15 +458,15 @@ t6_tls_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 	}
 
 	inp = params->tls.inp;
+	tp = intotcpcb(inp);
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		error = ECONNRESET;
 		goto failed;
 	}
 	tlsp->inp = inp;
 
-	tp = intotcpcb(inp);
 	if (tp->t_flags & TF_REQ_TSTMP) {
 		tlsp->using_timestamps = true;
 		if ((tp->ts_offset & 0xfffffff) != 0) {
@@ -501,7 +501,7 @@ t6_tls_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 		goto failed;
 	}
 
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		error = ECONNRESET;
 		goto failed;

@@ -212,16 +212,15 @@ static void
 toe_listen_start(struct inpcb *inp, void *arg)
 {
 	struct toedev *t, *tod;
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(inp->inp_pcbinfo == &V_tcbinfo,
 	    ("%s: inp is not a TCP inp", __func__));
 
-	if (inp->inp_flags & INP_DROPPED)
+	if (tp->t_flags & TF_DISCONNECTED)
 		return;
 
-	tp = intotcpcb(inp);
 	if (tp->t_state != TCPS_LISTEN)
 		return;
 
@@ -510,13 +509,12 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 void
 toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 {
+	struct tcpcb *tp = intotcpcb(inp);
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
-	if (!(inp->inp_flags & INP_DROPPED)) {
-		struct tcpcb *tp = intotcpcb(inp);
-
+	if (!(tp->t_flags & TF_DISCONNECTED)) {
 		KASSERT(tp->t_flags & TF_TOE,
 		    ("%s: tp %p not offloaded.", __func__, tp));
 

@@ -687,7 +687,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 {
 	bus_size_t sgsize;
 	vm_paddr_t curaddr;
-	vm_offset_t kvaddr, vaddr;
+	char *kvaddr, *vaddr;
 	int error;
 
 	if (map == NULL)
@@ -705,17 +705,17 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		}
 	}
 
-	vaddr = (vm_offset_t)buf;
+	vaddr = buf;
 	while (buflen > 0) {
 		/*
 		 * Get the physical address for this segment.
 		 */
 		if (pmap == kernel_pmap) {
-			curaddr = pmap_kextract(vaddr);
+			curaddr = pmap_kextract((vm_offset_t)vaddr);
 			kvaddr = vaddr;
 		} else {
-			curaddr = pmap_extract(pmap, vaddr);
-			kvaddr = 0;
+			curaddr = pmap_extract(pmap, (vm_offset_t)vaddr);
+			kvaddr = NULL;
 		}
 
 		/*
@@ -861,7 +861,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
     bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
-	vm_offset_t datavaddr, tempvaddr;
+	char *datavaddr, *tempvaddr;
 	bus_size_t datacount1, datacount2;
 
 	if (map == NULL)
@@ -878,21 +878,20 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	if ((op & BUS_DMASYNC_PREWRITE) != 0) {
 		while (bpage != NULL) {
-			tempvaddr = 0;
+			tempvaddr = NULL;
 			datavaddr = bpage->datavaddr;
 			datacount1 = bpage->datacount;
-			if (datavaddr == 0) {
+			if (datavaddr == NULL) {
 				tempvaddr =
 				    pmap_quick_enter_page(bpage->datapage[0]);
-				datavaddr = tempvaddr | bpage->dataoffs;
+				datavaddr = tempvaddr + bpage->dataoffs;
 				datacount1 = min(PAGE_SIZE - bpage->dataoffs,
 				    datacount1);
 			}
 
-			bcopy((void *)datavaddr,
-			    (void *)bpage->vaddr, datacount1);
+			bcopy(datavaddr, bpage->vaddr, datacount1);
 
-			if (tempvaddr != 0)
+			if (tempvaddr != NULL)
 				pmap_quick_remove_page(tempvaddr);
 
 			if (bpage->datapage[1] == 0) {
@@ -907,8 +906,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 			 */
 			datavaddr = pmap_quick_enter_page(bpage->datapage[1]);
 			datacount2 = bpage->datacount - datacount1;
-			bcopy((void *)datavaddr,
-			    (void *)(bpage->vaddr + datacount1), datacount2);
+			bcopy(datavaddr, bpage->vaddr + datacount1, datacount2);
 			pmap_quick_remove_page(datavaddr);
 
 next_w:
@@ -919,21 +917,20 @@ next_w:
 
 	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 		while (bpage != NULL) {
-			tempvaddr = 0;
+			tempvaddr = NULL;
 			datavaddr = bpage->datavaddr;
 			datacount1 = bpage->datacount;
-			if (datavaddr == 0) {
+			if (datavaddr == NULL) {
 				tempvaddr =
 				    pmap_quick_enter_page(bpage->datapage[0]);
-				datavaddr = tempvaddr | bpage->dataoffs;
+				datavaddr = tempvaddr + bpage->dataoffs;
 				datacount1 = min(PAGE_SIZE - bpage->dataoffs,
 				    datacount1);
 			}
 
-			bcopy((void *)bpage->vaddr, (void *)datavaddr,
-			    datacount1);
+			bcopy(bpage->vaddr, datavaddr, datacount1);
 
-			if (tempvaddr != 0)
+			if (tempvaddr != NULL)
 				pmap_quick_remove_page(tempvaddr);
 
 			if (bpage->datapage[1] == 0) {
@@ -948,8 +945,7 @@ next_w:
 			 */
 			datavaddr = pmap_quick_enter_page(bpage->datapage[1]);
 			datacount2 = bpage->datacount - datacount1;
-			bcopy((void *)(bpage->vaddr + datacount1),
-			    (void *)datavaddr, datacount2);
+			bcopy(bpage->vaddr + datacount1, datavaddr, datacount2);
 			pmap_quick_remove_page(datavaddr);
 
 next_r:

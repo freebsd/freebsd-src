@@ -1,3 +1,5 @@
+747219d54565030ff7c45298b9f5e971801f6cb2	moduli-gen Makefile tweak
+c2eb57285424f819f9520fa33e0d6d3c4a361a5e	moduli-gen.sh tweak
 509bb19bb9762a4b3b589af98bac2e730541b6d4	clean sshd random relinking kit
 5317f294d63a876bfc861e19773b1575f96f027d	remove libssh from makefiles
 a337e886a49f96701ccbc4832bed086a68abfa85	Makefile changes
@@ -39,6 +41,12 @@ fb39324748824cb0387e9d67c41d1bef945c54ea	Makefile change
 112aacedd3b61cc5c34b1fa6d9fb759214179172	Makefile change
 a959fc45ea3431b36f52eda04faefc58bcde00db	groupaccess.c changes
 6d07e4606997e36b860621a14dd41975f2902f8f	Makefile.inc
+c7246a6b519ac390ca550719f91acfdaef1fa0f0	Makefile relink change
+ef7ecdb6dd2542f42fa7236d17ac0b144851f0b5	ssh-keygen, fixup'ed into 21682417
+da414a364c25b187fc686da7aacec2c35d29238a	ssh-keygen, fixup'ed into 21682417
+a05e13a7e2c0b65bb4b47184fef731243431c6ff	Makefile.inc
+7e8178786157e863f6ff63c5d55200d7b6b04f9e	remove old sandbox files
+98eefed432ff8253b307002e20d28da14b93e7e3	Makefile.inc
 
 Old upstream tree:
 

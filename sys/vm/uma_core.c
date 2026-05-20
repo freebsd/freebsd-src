@@ -1899,7 +1899,7 @@ startup_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	}
 
 	/* Allocate KVA and indirectly advance bootmem. */
-	return ((void *)pmap_map(&bootmem, m->phys_addr,
+	return (pmap_map(&bootmem, m->phys_addr,
 	    m->phys_addr + (pages * PAGE_SIZE), VM_PROT_READ | VM_PROT_WRITE));
 }
 
@@ -1955,7 +1955,8 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
     int wait)
 {
 	struct pglist alloctail;
-	vm_offset_t addr, zkva;
+	void *addr;
+	char *zkva;
 	int cpu, flags;
 	vm_page_t p, p_next;
 #ifdef NUMA
@@ -1988,14 +1989,14 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 			goto fail;
 		TAILQ_INSERT_TAIL(&alloctail, p, plinks.q);
 	}
-	if ((addr = kva_alloc(bytes)) == 0)
+	if ((addr = kva_alloc(bytes)) == NULL)
 		goto fail;
 	zkva = addr;
 	TAILQ_FOREACH(p, &alloctail, plinks.q) {
 		pmap_qenter(zkva, &p, 1);
 		zkva += PAGE_SIZE;
 	}
-	return ((void*)addr);
+	return (addr);
 fail:
 	TAILQ_FOREACH_SAFE(p, &alloctail, plinks.q, p_next) {
 		vm_page_unwire_noq(p);
@@ -2021,7 +2022,8 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 {
 	TAILQ_HEAD(, vm_page) alloctail;
 	u_long npages;
-	vm_offset_t retkva, zkva;
+	void *retkva;
+	char *zkva;
 	vm_page_t p, p_next;
 	uma_keg_t keg;
 	int req;
@@ -2051,7 +2053,7 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 		return (NULL);
 	}
 	*flags = UMA_SLAB_PRIV;
-	zkva = keg->uk_kva +
+	zkva = (char *)keg->uk_kva +
 	    atomic_fetchadd_long(&keg->uk_offset, round_page(bytes));
 	retkva = zkva;
 	TAILQ_FOREACH(p, &alloctail, plinks.q) {
@@ -2059,7 +2061,7 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 		zkva += PAGE_SIZE;
 	}
 
-	return ((void *)retkva);
+	return (retkva);
 }
 
 /*
@@ -2081,19 +2083,15 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
     int wait)
 {
 	vm_page_t m;
-	vm_paddr_t pa;
-	void *va;
 
 	*flags = UMA_SLAB_PRIV;
 	m = vm_page_alloc_noobj_domain(domain,
 	    malloc2vm_flags(wait) | VM_ALLOC_WIRED);
 	if (m == NULL)
 		return (NULL);
-	pa = m->phys_addr;
 	if ((wait & M_NODUMP) == 0)
-		dump_add_page(pa);
-	va = (void *)PHYS_TO_DMAP(pa);
-	return (va);
+		dump_add_page(VM_PAGE_TO_PHYS(m));
+	return (VM_PAGE_TO_DMAP(m));
 }
 #endif
 
@@ -2155,8 +2153,8 @@ pcpu_page_free(void *mem, vm_size_t size, uint8_t flags)
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}
-	pmap_qremove(sva, size >> PAGE_SHIFT);
-	kva_free(sva, size);
+	pmap_qremove(mem, size >> PAGE_SHIFT);
+	kva_free(mem, size);
 }
 
 #if defined(UMA_USE_DMAP) && !defined(UMA_MD_SMALL_ALLOC)
@@ -2166,7 +2164,7 @@ uma_small_free(void *mem, vm_size_t size, uint8_t flags)
 	vm_page_t m;
 	vm_paddr_t pa;
 
-	pa = DMAP_TO_PHYS((vm_offset_t)mem);
+	pa = DMAP_TO_PHYS(mem);
 	dump_drop_page(pa);
 	m = PHYS_TO_VM_PAGE(pa);
 	vm_page_unwire_noq(m);
@@ -5185,7 +5183,7 @@ int
 uma_zone_reserve_kva(uma_zone_t zone, int count)
 {
 	uma_keg_t keg;
-	vm_offset_t kva;
+	void *kva;
 	u_int pages;
 
 	KEG_GET(zone, keg);
@@ -5200,12 +5198,12 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 	if (1) {
 #endif
 		kva = kva_alloc((vm_size_t)pages * PAGE_SIZE);
-		if (kva == 0)
+		if (kva == NULL)
 			return (0);
 	} else
-		kva = 0;
+		kva = NULL;
 
-	MPASS(keg->uk_kva == 0);
+	MPASS(keg->uk_kva == NULL);
 	keg->uk_kva = kva;
 	keg->uk_offset = 0;
 	zone->uz_max_items = pages * keg->uk_ipers;

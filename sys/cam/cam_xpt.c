@@ -86,8 +86,8 @@ SDT_PROBE_DEFINE4(cam, , xpt, async__cb, "void *", "uint32_t",
 _Static_assert(XPT_PRINT_LEN <= XPT_PRINT_MAXLEN, "XPT_PRINT_LEN is too large");
 
 /*
- * This is the maximum number of high powered commands (e.g. start unit)
- * that can be outstanding at a particular time.
+ * This sets a default for the the maximum number of high powered commands
+ * (e.g. start unit) that can be outstanding at a particular time.
  */
 #ifndef CAM_MAX_HIGHPOWER
 #define CAM_MAX_HIGHPOWER  4
@@ -168,6 +168,9 @@ SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
 SYSCTL_UINT(_kern_cam, OID_AUTO, xpt_generation, CTLFLAG_RD,
 	    &xsoftc.xpt_generation, 0, "CAM peripheral generation count");
+SYSCTL_INT(_kern_cam, OID_AUTO, max_high_power, CTLFLAG_RWTUN,
+           &xsoftc.num_highpower, 0,
+	   "Max number of high power commands to be issued at once");
 
 struct cam_doneq {
 	struct mtx_padalign	cam_doneq_mtx;
@@ -892,7 +895,10 @@ xpt_init(void *dummy)
 	TAILQ_INIT(&xsoftc.xpt_busses);
 	TAILQ_INIT(&xsoftc.ccb_scanq);
 	STAILQ_INIT(&xsoftc.highpowerq);
-	xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
+
+	/* Fall back to a default if the kenv tunable isn't set */
+	if (xsoftc.num_highpower == 0)
+		xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
 
 	mtx_init(&xsoftc.xpt_highpower_lock, "XPT highpower lock", NULL, MTX_DEF);
 	xsoftc.xpt_taskq = taskqueue_create("CAM XPT task", M_WAITOK,
@@ -2779,6 +2785,7 @@ call_sim:
 		device = path->device;
 		periph_head = &device->periphs;
 		cgdl = &start_ccb->cgdl;
+		start_ccb->ccb_h.status = CAM_REQ_CMP;
 
 		/*
 		 * Check and see if the list has changed since the user
@@ -2820,7 +2827,6 @@ call_sim:
 		cgdl->index++;
 		cgdl->generation = device->generation;
 
-		cgdl->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 	case XPT_DEV_MATCH:

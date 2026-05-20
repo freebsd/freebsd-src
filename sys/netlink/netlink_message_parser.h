@@ -222,6 +222,9 @@ bool nlmsg_report_err_offset(struct nl_pstate *npt, uint32_t off);
 void nlmsg_report_cookie(struct nl_pstate *npt, struct nlattr *nla);
 void nlmsg_report_cookie_u32(struct nl_pstate *npt, uint32_t val);
 
+struct nlmsghdr *nl_alloc_compat_hdr(struct nlmsghdr *hdr, uint32_t len,
+    struct nl_pstate *npt);
+
 /*
  * Have it inline so compiler can optimize field accesses into
  * the list of direct function calls without iteration.
@@ -232,27 +235,7 @@ nl_parse_header(void *hdr, uint32_t len, const struct nlhdr_parser *parser,
 {
 	int error;
 
-	if (__predict_false(len < parser->nl_hdr_off)) {
-		void *tmp_hdr;
-
-		if (npt->strict) {
-			nlmsg_report_err_msg(npt,
-			    "header too short: expected %d, got %d",
-			    parser->nl_hdr_off, len);
-			return (EINVAL);
-		}
-
-		/*
-		 * Compatibility with older applications:
-		 * pretend there's a full header.
-		 */
-		tmp_hdr = npt_alloc(npt, parser->nl_hdr_off);
-		if (tmp_hdr == NULL)
-			return (EINVAL);
-		memcpy(tmp_hdr, hdr, len);
-		hdr = tmp_hdr;
-		len = parser->nl_hdr_off;
-	}
+	MPASS(len >= parser->nl_hdr_off);
 
 	if (npt->strict && parser->sp != NULL && !parser->sp(hdr, npt))
 		return (EINVAL);
@@ -320,6 +303,10 @@ static inline int
 nl_parse_nlmsg(struct nlmsghdr *hdr, const struct nlhdr_parser *parser,
     struct nl_pstate *npt, void *target)
 {
+	if (__predict_false(hdr->nlmsg_len - sizeof(struct nlmsghdr) <
+	    parser->nl_hdr_off) &&
+	    ((hdr = nl_alloc_compat_hdr(hdr, parser->nl_hdr_off, npt)) == NULL))
+		return (ENOMEM);
 	return (nl_parse_header(hdr + 1, hdr->nlmsg_len - sizeof(*hdr), parser,
 	    npt, target));
 }
@@ -328,6 +315,12 @@ static inline void
 nl_get_attrs_bmask_nlmsg(struct nlmsghdr *hdr,
     const struct nlhdr_parser *parser, struct nlattr_bmask *bm)
 {
+	if (__predict_false(hdr->nlmsg_len - sizeof(struct nlmsghdr) <
+	    parser->nl_hdr_off)) {
+		/* Doesn't make sense to call nl_alloc_compat_hdr() here. */
+		BIT_ZERO(NL_ATTR_BMASK_SIZE, bm);
+		return;
+	}
 	nl_get_attrs_bmask_raw(
 	    (struct nlattr *)((char *)(hdr + 1) + parser->nl_hdr_off),
 	    hdr->nlmsg_len - sizeof(*hdr) - parser->nl_hdr_off, bm);

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -729,7 +729,7 @@ pqisrc_create_op_ibq(pqisrc_softstate_t *softs,
 				op_ib_q->pi_register_offset);
 	} else {
 		int i = 0;
-		DBG_WARN("Error Status Decsriptors\n");
+		DBG_WARN("Error Status Descriptors\n");
 		for (i = 0; i < 4; i++)
 			DBG_WARN(" %x\n",admin_resp.resp_type.create_op_iq.status_desc[i]);
 	}

@@ -75,9 +75,13 @@ CFLAGS.zfs.c+=	-DHAS_ZSTD_ZFS					\
 #
 # ZSTD coding style has some issues, so suppress clang's warnings. Also, zstd's
 # use of BMI instrucitons is broken in this environment, so avoid them.
+# Avoid generating the DYNAMIC_BMI2 code paths because the code duplication
+# inflates the resulting binaries.  Disable ZSTD_TRACE because we don't need it
+# and the bfd linker trips over the weak undefined symbols it generates.
 #
 .for i in ${ZSTD_SRC}
-CFLAGS.$i+=	-U__BMI__ ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.$i+=	-U__BMI__ -DDYNAMIC_BMI2=0 -DZSTD_TRACE=0	\
+		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 .endfor
 
 CFLAGS.zfs_zstd.c+= -DIN_BASE -DIN_LIBSA

@@ -131,7 +131,7 @@ linux_handle_power_suspend_event(void *arg __unused, enum power_stype stype)
 		linux_acpi_target_sleep_state = ACPI_STATE_S3;
 		pm_suspend_target_state = PM_SUSPEND_TO_IDLE;
 		break;
-	case POWER_STYPE_SUSPEND_TO_MEM:
+	case POWER_STYPE_FW_SUSPEND:
 		linux_acpi_target_sleep_state = ACPI_STATE_S3;
 		pm_suspend_target_state = PM_SUSPEND_MEM;
 		break;

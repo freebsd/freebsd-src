@@ -89,6 +89,9 @@ struct genl_cmd {
 	uint32_t	cmd_flags;
 	uint32_t	cmd_priv;
 	uint32_t	cmd_num;
+
+	/* Disallow this call from this level up (inclusive). */
+	uint32_t	cmd_securelevel;
 };
 
 uint16_t genl_register_family(const char *family_name, size_t hdrsize,

@@ -46,7 +46,7 @@ struct eventhandler_entry_vimage {
 
 struct eventhandler_list {
 	char				*el_name;
-	int				el_flags;	/* Unused. */
+	u_int				el_deadcount;
 	u_int				el_runcount;
 	struct mtx			el_lock;
 	TAILQ_ENTRY(eventhandler_list)	el_link;
@@ -82,7 +82,7 @@ struct eventhandler_list {
 	KASSERT((list)->el_runcount > 0,				\
 	    ("eventhandler_invoke: runcount underflow"));		\
 	(list)->el_runcount--;						\
-	if ((list)->el_runcount == 0)					\
+	if ((list)->el_runcount == 0 && (list)->el_deadcount != 0)	\
 		eventhandler_prune_list(list);				\
 	EHL_UNLOCK((list));						\
 } while (0)

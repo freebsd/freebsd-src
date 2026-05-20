@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2024 Yubico AB. All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,8 @@
 #define CTAP_CBOR_CLIENT_PIN		0x06
 #define CTAP_CBOR_RESET			0x07
 #define CTAP_CBOR_NEXT_ASSERT		0x08
+#define CTAP_CBOR_BIO_ENROLL		0x09
+#define CTAP_CBOR_CRED_MGMT		0x0a
 #define CTAP_CBOR_LARGEBLOB		0x0c
 #define CTAP_CBOR_CONFIG		0x0d
 #define CTAP_CBOR_BIO_ENROLL_PRE	0x40
@@ -72,6 +74,7 @@
 
 /* ISO7816-4 status words. */
 #define SW1_MORE_DATA			0x61
+#define SW_WRONG_LENGTH			0x6700
 #define SW_CONDITIONS_NOT_SATISFIED	0x6985
 #define SW_WRONG_DATA			0x6a80
 #define SW_NO_ERROR			0x9000
@@ -133,6 +136,10 @@
 #define FIDO_CRED_PROT_UV_OPTIONAL		0x01
 #define FIDO_CRED_PROT_UV_OPTIONAL_WITH_ID	0x02
 #define FIDO_CRED_PROT_UV_REQUIRED		0x03
+
+/* Supported enterprise attestation modes. */
+#define FIDO_ENTATTEST_VENDOR	1
+#define FIDO_ENTATTEST_PLATFORM	2
 
 #ifdef _FIDO_INTERNAL
 #define FIDO_EXT_ASSERT_MASK	(FIDO_EXT_HMAC_SECRET|FIDO_EXT_LARGEBLOB_KEY| \

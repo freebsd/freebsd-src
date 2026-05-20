@@ -12,7 +12,7 @@
 .\" Please send copies of changes and bug-fixes to:
 .\" sjg@crufty.net
 .\"
-.Dd October 22, 2024
+.Dd April 27, 2026
 .Dt DEBUG.SH 8
 .Os
 .Sh NAME
@@ -175,6 +175,11 @@ The use of
 .Ic $_DEBUG_SH
 is to prevent multiple inclusion,
 though it does no harm in this case.
+.Sh FILES
+.Bl -tag -width "/libexec/debug.sh" -compact
+.It Pa /libexec/debug.sh
+Source code of the debugging facilities.
+.El
 .Sh BUGS
 Does not work with some versions of
 .Xr ksh 1 .
@@ -187,5 +192,3 @@ PD ksh works ok ;-)
 .Nm
 was written by
 .An Simon J Gerraty Aq Mt sjg@crufty.net .
-
-

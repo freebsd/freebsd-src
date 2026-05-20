@@ -6,6 +6,7 @@ cddl/dev/fbt/riscv/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${
 crypto/des/des_enc.c		optional	netsmb
 dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
 dev/ofw/ofw_cpu.c		optional	fdt
+dev/ofw/ofw_pci.c		optional 	pci fdt
 dev/ofw/ofw_pcib.c		optional 	pci fdt
 dev/pci/pci_dw.c		optional	pci fdt
 dev/pci/pci_dw_if.m		optional	pci fdt
@@ -42,6 +43,14 @@ libkern/memset.c		standard
 libkern/strcmp.c		standard
 libkern/strlen.c		standard
 libkern/strncmp.c		standard
+riscv/iommu/iommu_frontend.c	standard
+riscv/iommu/iommu_if.m		standard
+riscv/iommu/iommu.c		standard
+riscv/iommu/iommu_fdt.c		optional	fdt
+riscv/iommu/iommu_pci.c		optional	pci
+riscv/iommu/iommu_pmap.c	optional	iommu
+dev/iommu/busdma_iommu.c	optional	iommu
+dev/iommu/iommu_gas.c		optional	iommu
 riscv/riscv/aplic.c		standard
 riscv/riscv/autoconf.c		standard
 riscv/riscv/bus_machdep.c	standard

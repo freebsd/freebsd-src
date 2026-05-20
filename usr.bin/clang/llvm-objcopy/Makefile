@@ -26,11 +26,4 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LINKS=		${BINDIR}/llvm-objcopy ${BINDIR}/llvm-strip
 
-.if ${MK_LLVM_BINUTILS} != "no"
-SYMLINKS+=	llvm-objcopy ${BINDIR}/objcopy \
-		llvm-strip ${BINDIR}/strip
-MLINKS=		llvm-objcopy.1 objcopy.1 \
-		llvm-objcopy.1 strip.1
-.endif
-
 .include "../llvm.prog.mk"

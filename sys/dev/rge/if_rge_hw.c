@@ -2196,50 +2196,37 @@ rge_get_link_status(struct rge_softc *sc)
 	return ((RGE_READ_2(sc, RGE_PHYSTAT) & RGE_PHYSTAT_LINK) ? 1 : 0);
 }
 
-#if 0
-#ifndef SMALL_KERNEL
-int
-rge_wol(struct ifnet *ifp, int enable)
+void
+rge_wol_config(struct rge_softc *sc, int enable)
 {
-	struct rge_softc *sc = ifp->if_softc;
-
-	if (enable) {
-		if (!(RGE_READ_1(sc, RGE_CFG1) & RGE_CFG1_PM_EN)) {
-			printf("%s: power management is disabled, "
-			    "cannot do WOL\n", sc->sc_dev.dv_xname);
-			return (ENOTSUP);
-		}
-
-	}
-
-	rge_iff(sc);
-
 	if (enable)
 		RGE_MAC_SETBIT(sc, 0xc0b6, 0x0001);
 	else
 		RGE_MAC_CLRBIT(sc, 0xc0b6, 0x0001);
 
+	/* Enable config register write. */
 	RGE_SETBIT_1(sc, RGE_EECMD, RGE_EECMD_WRITECFG);
-	RGE_CLRBIT_1(sc, RGE_CFG5, RGE_CFG5_WOL_LANWAKE | RGE_CFG5_WOL_UCAST |
-	    RGE_CFG5_WOL_MCAST | RGE_CFG5_WOL_BCAST);
+
+	/* Clear all WOL bits, then set as requested. */
 	RGE_CLRBIT_1(sc, RGE_CFG3, RGE_CFG3_WOL_LINK | RGE_CFG3_WOL_MAGIC);
-	if (enable)
+	RGE_CLRBIT_1(sc, RGE_CFG5, RGE_CFG5_WOL_LANWAKE |
+	    RGE_CFG5_WOL_UCAST | RGE_CFG5_WOL_MCAST | RGE_CFG5_WOL_BCAST);
+	if (enable) {
+		RGE_SETBIT_1(sc, RGE_CFG3, RGE_CFG3_WOL_MAGIC);
 		RGE_SETBIT_1(sc, RGE_CFG5, RGE_CFG5_WOL_LANWAKE);
+	}
+
+	/* Config register write done. */
 	RGE_CLRBIT_1(sc, RGE_EECMD, RGE_EECMD_WRITECFG);
 
-	return (0);
+	if (enable) {
+		/* Disable RXDV gate so WOL packets can reach the NIC. */
+		RGE_CLRBIT_1(sc, RGE_PPSW, 0x08);
+		DELAY(2000);
+
+		/* Enable power management. */
+		RGE_SETBIT_1(sc, RGE_CFG1, RGE_CFG1_PM_EN);
+		RGE_SETBIT_1(sc, RGE_CFG2, RGE_CFG2_PMSTS_EN);
+	}
 }
 
-void
-rge_wol_power(struct rge_softc *sc)
-{
-	/* Disable RXDV gate. */
-	RGE_CLRBIT_1(sc, RGE_PPSW, 0x08);
-	DELAY(2000);
-
-	RGE_SETBIT_1(sc, RGE_CFG1, RGE_CFG1_PM_EN);
-	RGE_SETBIT_1(sc, RGE_CFG2, RGE_CFG2_PMSTS_EN);
-}
-#endif
-
-#endif

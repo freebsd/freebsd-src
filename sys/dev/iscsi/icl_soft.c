@@ -1112,7 +1112,7 @@ icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
 {
 	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)request;
 	struct mbuf *m, *m_tail;
-	vm_offset_t vaddr;
+	char *vaddr;
 	size_t mtodo, page_offset, todo;
 	int i;
 
@@ -1196,12 +1196,12 @@ icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
 
 	while (len > 0) {
 		todo = MIN(len, PAGE_SIZE - page_offset);
-		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
+		vaddr = VM_PAGE_TO_DMAP(bp->bio_ma[i]);
 
 		do {
 			mtodo = min(todo, M_SIZE(m) - m->m_len);
-			memcpy(mtod(m, char *) + m->m_len, (char *)vaddr +
-			    page_offset, mtodo);
+			memcpy(mtod(m, char *) + m->m_len, vaddr + page_offset,
+			    mtodo);
 			m->m_len += mtodo;
 			if (m->m_len == M_SIZE(m))
 				m = m->m_next;
@@ -1269,7 +1269,7 @@ void
 icl_soft_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
     size_t pdu_off, struct bio *bp, size_t bio_off, size_t len)
 {
-	vm_offset_t vaddr;
+	char *vaddr;
 	size_t page_offset, todo;
 	int i __unused;
 
@@ -1287,8 +1287,8 @@ icl_soft_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
 	while (len > 0) {
 		todo = MIN(len, PAGE_SIZE - page_offset);
 
-		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
-		m_copydata(ip->ip_data_mbuf, pdu_off, todo, (char *)vaddr +
+		vaddr = VM_PAGE_TO_DMAP(bp->bio_ma[i]);
+		m_copydata(ip->ip_data_mbuf, pdu_off, todo, vaddr +
 		    page_offset);
 
 		page_offset = 0;

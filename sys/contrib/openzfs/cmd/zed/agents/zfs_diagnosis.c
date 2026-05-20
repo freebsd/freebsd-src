@@ -48,8 +48,6 @@
 #define	DEFAULT_CHECKSUM_T	600	/* seconds */
 #define	DEFAULT_IO_N		10	/* events */
 #define	DEFAULT_IO_T		600	/* seconds */
-#define	DEFAULT_SLOW_IO_N	10	/* events */
-#define	DEFAULT_SLOW_IO_T	30	/* seconds */
 
 #define	CASE_GC_TIMEOUT_SECS	43200	/* 12 hours */
 
@@ -726,7 +724,7 @@ zfs_fm_recv(fmd_hdl_t *hdl, fmd_event_t *ep, nvlist_t *nvl, const char *class)
 		 */
 		if (isresource) {
 			zfs_stats.resource_drops.fmds_value.ui64++;
-			fmd_hdl_debug(hdl, "discarding '%s for vdev %llu",
+			fmd_hdl_debug(hdl, "discarding '%s' for vdev %llu",
 			    class, vdev_guid);
 			return;
 		}

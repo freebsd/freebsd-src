@@ -122,13 +122,14 @@ archive_read_open_filenames(struct archive *a, const char **filenames,
 	archive_clear_error(a);
 	do
 	{
+		size_t len;
 		if (filename == NULL)
 			filename = "";
-		mine = calloc(1,
-			sizeof(*mine) + strlen(filename));
+		len = strlen(filename);
+		mine = calloc(1, sizeof(*mine) + len);
 		if (mine == NULL)
 			goto no_memory;
-		strcpy(mine->filename.m, filename);
+		memcpy(mine->filename.m, filename, len + 1);
 		mine->block_size = block_size;
 		mine->fd = -1;
 		mine->buffer = NULL;

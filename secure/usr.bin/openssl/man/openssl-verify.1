@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-VERIFY 1ossl"
-.TH OPENSSL-VERIFY 1ossl 2026-01-27 3.5.5 OpenSSL
+.TH OPENSSL-VERIFY 1ossl 2026-04-07 3.5.6 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -201,6 +201,11 @@ with a \fB\-\fR.
 One or more target certificates to verify, one per file. If no certificates are
 given, this command will attempt to read a single certificate from standard
 input.
+.PP
+Note that the first parameter that does not begin with a \fB\-\fR ends the list
+of options and starts the list of certificates. If you place any options
+after a certificate filename, they will be interpreted not as options
+but as certificates.
 .SH DIAGNOSTICS
 .IX Header "DIAGNOSTICS"
 When a verify operation fails the output messages can be somewhat cryptic. The
@@ -236,7 +241,7 @@ The \fB\-show_chain\fR option was added in OpenSSL 1.1.0.
 The \fB\-engine option\fR was deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

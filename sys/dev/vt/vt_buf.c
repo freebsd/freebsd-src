@@ -202,6 +202,36 @@ vtbuf_in_this_range(int begin, int test, int end, int sz)
 	else
 		return (test >= begin && test < end);
 }
+
+void
+vtbuf_unmark(struct vt_buf *vb)
+{
+
+	vtbuf_set_mark(vb, VTB_MARK_START, 0, 0);
+}
+
+void
+vtbuf_unmark_on_cross(struct vt_buf *vb, int target_begin, int target_end)
+{
+	int hsz, mb, me, tb, te;
+
+	tb = vtbuf_wth(vb, target_begin);
+	te = vtbuf_wth(vb, target_end);
+	mb = vb->vb_mark_start.tp_row;
+	me = vb->vb_mark_end.tp_row;
+	hsz = vb->vb_history_size;
+
+	/*
+	 * Test intersection with vtbuf_in_this_range due to use of
+	 * the circular buffer.
+	 */
+	if (vtbuf_in_this_range(tb, mb, te, hsz) ||
+	    vtbuf_in_this_range(tb, me, te, hsz) ||
+	    vtbuf_in_this_range(mb, tb, me, hsz) ||
+	    vtbuf_in_this_range(mb, te, me, hsz)) {
+		vtbuf_unmark(vb);
+	}
+}
 #endif
 
 int

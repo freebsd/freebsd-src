@@ -13,6 +13,10 @@ if [ "$config" = "" ]; then
 	config="default"
 fi
 
+if [ ! -z "${LTESTS}" ]; then
+	OVERRIDE_LTESTS="${LTESTS}"
+fi
+
 unset CC CFLAGS CPPFLAGS LDFLAGS LTESTS SUDO
 
 TEST_TARGET="tests compat-tests"
@@ -48,7 +52,7 @@ case "$config" in
 	CONFIGFLAGS="--with-xauth=/usr/bin/xauth --with-security-key-builtin"
 	CONFIGFLAGS="$CONFIGFLAGS --with-kerberos5=/usr --with-libedit --disable-strip"
 	;;
-   clang-12-Werror)
+    clang-12-Werror)
 	CC="clang-12"
 	# clang's implicit-fallthrough requires that the code be annotated with
 	# __attribute__((fallthrough)) and does not understand /* FALLTHROUGH */
@@ -130,7 +134,9 @@ case "$config" in
 	CONFIGFLAGS="--with-kerberos5 --with-libedit --with-pam"
 	CONFIGFLAGS="${CONFIGFLAGS} --with-security-key-builtin --with-selinux"
 	CONFIGFLAGS="${CONFIGFLAGS} --with-linux-memlock-onfault"
+	CONFIGFLAGS="${CONFIGFLAGS} --with-audit=debug"
 	CFLAGS="-DSK_DEBUG -DSANDBOX_SECCOMP_FILTER_DEBUG"
+	EXTRA_TESTS="gss-auth"
 	;;
     hardenedmalloc)
 	CONFIGFLAGS="--with-ldflags=-lhardened_malloc"
@@ -144,9 +150,12 @@ case "$config" in
 	TCMALLOC_STACKTRACE_METHOD=generic_fp
 	TEST_SSH_SSHD_ENV="TCMALLOC_STACKTRACE_METHOD=generic_fp"
 	export TCMALLOC_STACKTRACE_METHOD TEST_SSH_SSHD_ENV
+
+	SKIP_LTESTS="agent-restrict"
 	;;
     krb5|heimdal)
 	CONFIGFLAGS="--with-kerberos5"
+	EXTRA_TESTS="gss-auth"
 	;;
     libedit)
 	CONFIGFLAGS="--with-libedit"
@@ -160,6 +169,7 @@ case "$config" in
     pam-krb5)
 	CONFIGFLAGS="--with-pam --with-kerberos5"
 	SSHD_CONFOPTS="UsePam yes"
+	EXTRA_TESTS="gss-auth"
 	;;
     *pam)
 	CONFIGFLAGS="--with-pam"
@@ -167,7 +177,7 @@ case "$config" in
 	;;
     boringssl)
 	CONFIGFLAGS="--disable-pkcs11"
-	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/boringssl --with-rpath=-Wl,-rpath,"
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/boringssl"
 	;;
 	aws-lc)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/aws-lc --with-rpath=-Wl,-rpath,"
@@ -189,7 +199,7 @@ case "$config" in
 	fi
 	;;
     selinux)
-	CONFIGFLAGS="--with-selinux"
+	CONFIGFLAGS="--with-selinux --with-audit=linux"
 	;;
     sk)
 	CONFIGFLAGS="--with-security-key-builtin --with-security-key-standalone"
@@ -198,10 +208,14 @@ case "$config" in
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET=t-exec
 	;;
-    valgrind-[1-4]|valgrind-unit)
+    valgrind-[1-4]|valgrind-unit|valgrind-pam-1)
 	# rlimit sandbox and FORTIFY_SOURCE confuse Valgrind.
 	CONFIGFLAGS="--without-sandbox --without-hardening"
 	CONFIGFLAGS="$CONFIGFLAGS --with-cppflags=-D_FORTIFY_SOURCE=0"
+	if [ "${config}" = "valgrind-pam-1" ]; then
+		CONFIGFLAGS="$CONFIGFLAGS --with-pam"
+		SSHD_CONFOPTS="UsePam yes"
+	fi
 	TEST_TARGET="t-exec USE_VALGRIND=1"
 	TEST_SSH_ELAPSED_TIMES=1
 	export TEST_SSH_ELAPSED_TIMES
@@ -212,7 +226,7 @@ case "$config" in
 	tests3="krl forward-control sshsig agent-restrict kextype sftp"
 	tests4="cert-userkey cert-hostkey kextype sftp-perm keygen-comment percent"
 	case "$config" in
-	    valgrind-1)
+	    valgrind-1|valgrind-pam)
 		# All tests except agent-timeout (which is flaky under valgrind),
 		# connection-timeout (which doesn't work since it's so slow)
 		# and hostbased (since valgrind won't let ssh exec keysign).
@@ -265,10 +279,6 @@ case "${TARGET_HOST}" in
 	TEST_TARGET="t-exec unit TEST_SHELL=bash"
 	SKIP_LTESTS="rekey sftp"
 	;;
-    debian-riscv64)
-	# This machine is fairly slow, so skip the unit tests.
-	TEST_TARGET="t-exec"
-	;;
     dfly58*|dfly60*)
 	# scp 3-way connection hangs on these so skip until sorted.
 	SKIP_LTESTS=scp3
@@ -277,7 +287,7 @@ case "${TARGET_HOST}" in
 	# Native linker is not great with PIC so OpenSSL is built w/out.
 	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
 	;;
-    fbsd14-ppc64)
+    fbsd14-ppc64|nbsd-arm64be)
 	# Disable security key tests for bigendian interop test.
 	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
 	;;
@@ -361,6 +371,13 @@ case "$host" in
 		SKIP_LTESTS="agent-getpeereid" ;;
 	esac
 	;;
+*-solaris2.10)
+	# Only the sol10 VM has BSM libraries installed, so add that to
+	# the PAM test config.
+	if [ "${config}" = "pam" ]; then
+		CONFIGFLAGS="${CONFIGFLAGS} --with-audit=bsm"
+	fi
+	;;
 esac
 
 # Unless specifically configured, search for a suitable version of OpenSSL,
@@ -390,6 +407,11 @@ CONFIGFLAGS="${CONFIGFLAGS} ${LIBCRYPTOFLAGS}"
 if [ -x "$(which plink 2>/dev/null)" ]; then
 	REGRESS_INTEROP_PUTTY=yes
 	export REGRESS_INTEROP_PUTTY
+fi
+
+if [ ! -z "${OVERRIDE_LTESTS}" ]; then
+	echo >&2 "Overriding LTESTS, was '${LTESTS}', now '${OVERRIDE_LTESTS}'"
+	LTESTS="${OVERRIDE_LTESTS}"
 fi
 
 export CC CFLAGS CPPFLAGS LDFLAGS LTESTS SUDO

@@ -40,8 +40,8 @@ struct pmap_methods {
 	void (*pm_remap_lowptdi)(bool);
 	void (*pm_align_superpage)(vm_object_t object, vm_ooffset_t offset,
 	    vm_offset_t *addr, vm_size_t size);
-	vm_offset_t (*pm_quick_enter_page)(vm_page_t m);
-	void (*pm_quick_remove_page)(vm_offset_t addr);
+	void *(*pm_quick_enter_page)(vm_page_t m);
+	void (*pm_quick_remove_page)(void *addr);
 	void *(*pm_trm_alloc)(size_t size, int flags);
 	void (*pm_trm_free)(void *addr, size_t size);
 	vm_offset_t (*pm_get_map_low)(void);
@@ -67,7 +67,7 @@ struct pmap_methods {
 	void (*pm_activate_boot)(pmap_t);
 	void (*pm_advise)(pmap_t, vm_offset_t, vm_offset_t, int);
 	void (*pm_clear_modify)(vm_page_t);
-	int (*pm_change_attr)(vm_offset_t, vm_size_t, int);
+	int (*pm_change_attr)(void *, vm_size_t, int);
 	int (*pm_mincore)(pmap_t, vm_offset_t, vm_paddr_t *);
 	void (*pm_copy)(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 	void (*pm_copy_page)(vm_page_t, vm_page_t);
@@ -98,9 +98,9 @@ struct pmap_methods {
 	void (*pm_page_set_memattr)(vm_page_t, vm_memattr_t);
 	vm_paddr_t (*pm_extract)(pmap_t, vm_offset_t);
 	vm_page_t (*pm_extract_and_hold)(pmap_t, vm_offset_t, vm_prot_t);
-	vm_offset_t (*pm_map)(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
-	void (*pm_qenter)(vm_offset_t sva, vm_page_t *, int);
-	void (*pm_qremove)(vm_offset_t, int);
+	void *(*pm_map)(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+	void (*pm_qenter)(void *sva, vm_page_t *, int);
+	void (*pm_qremove)(void *, int);
 	void (*pm_release)(pmap_t);
 	void (*pm_protect)(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
 	void (*pm_remove)(pmap_t, vm_offset_t, vm_offset_t);

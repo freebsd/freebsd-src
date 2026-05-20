@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Simulate the build environment.  Note that we need to unset some variables
 # which are set in the src tree since they have different (unwanted) effects
 # in the ports tree.

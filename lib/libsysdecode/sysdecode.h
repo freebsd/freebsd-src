@@ -134,6 +134,7 @@ bool	sysdecode_wait4_options(FILE *_fp, int _options, int *_rem);
 bool	sysdecode_wait6_options(FILE *_fp, int _options, int *_rem);
 const char *sysdecode_whence(int _whence);
 bool	sysdecode_shmflags(FILE *_fp, int _flags, int *_rem);
+bool	sysdecode_netlink(FILE *_fp, const void *_buf, size_t _len);
 
 #if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 

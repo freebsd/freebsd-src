@@ -142,7 +142,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		c = PAGE_SIZE - o;
 		c = min(c, (u_int)iov->iov_len);
 		error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
-		pmap_qremove((vm_offset_t)ptvmmap, 1);
+		pmap_qremove(ptvmmap, 1);
 		sx_xunlock(&memsxlock);
 	}
 

@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (C) 1998 John D. Polstra.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 24, 2025
+.Dd February 26, 2026
 .Dt LOCKF 1
 .Os
 .Sh NAME
@@ -104,15 +106,10 @@ that if the
 option is not used, then no guarantees around lock ordering can be made.
 .Pp
 The following options are supported:
-.Bl -tag -width ".Fl t Ar seconds"
+.Bl -tag -width "-t seconds"
 .It Fl k
 Causes the lock file to be kept (not removed) after the command
 completes.
-.It Fl s
-Causes
-.Nm
-to operate silently.
-Failure to acquire the lock is indicated only in the exit status.
 .It Fl n
 Causes
 .Nm
@@ -136,6 +133,11 @@ This option will cause
 to open
 .Ar file
 for writing rather than reading.
+.It Fl s
+Causes
+.Nm
+to operate silently.
+Failure to acquire the lock is indicated only in the exit status.
 .It Fl T
 Upon receipt of a
 .Dv SIGTERM ,
@@ -191,32 +193,32 @@ successfully acquires the lock, it returns the exit status produced by
 Otherwise, it returns one of the exit codes defined in
 .Xr sysexits 3 ,
 as follows:
-.Bl -tag -width ".Dv EX_CANTCREAT"
-.It Dv EX_TEMPFAIL
-The specified lock file was already locked by another process.
-.It Dv EX_CANTCREAT
+.Bl -tag -width "EX_UNAVAILABLE (69)"
+.It Er EX_OSERR Pq 61
+A system call, e.g.,
+.Xr fork 2 ,
+failed unexpectedly.
+.It Er EX_USAGE Pq 64
+There was an error on the
+.Nm
+command line.
+.It Er EX_UNAVAILABLE Pq 69
+The
+.Fl n
+option is specified and the specified lock file does not exist.
+.It Er EX_SOFTWARE Pq 70
+The
+.Ar command
+did not exit normally,
+but may have been signaled or stopped.
+.It Er EX_CANTCREAT Pq 73
 The
 .Nm
 utility
 was unable to create the lock file, e.g., because of insufficient access
 privileges.
-.It Dv EX_UNAVAILABLE
-The
-.Fl n
-option is specified and the specified lock file does not exist.
-.It Dv EX_USAGE
-There was an error on the
-.Nm
-command line.
-.It Dv EX_OSERR
-A system call (e.g.,
-.Xr fork 2 )
-failed unexpectedly.
-.It Dv EX_SOFTWARE
-The
-.Ar command
-did not exit normally,
-but may have been signaled or stopped.
+.It Er EX_TEMPFAIL Pq 75
+The specified lock file was already locked by another process.
 .El
 .Sh EXAMPLES
 The first job takes a lock and sleeps for 5 seconds in the background.
@@ -237,9 +239,10 @@ $ lockf mylock sleep 1 & lockf -t 5 mylock echo "Success"
 Success
 [1]+  Done                    lockf mylock sleep 1
 .Ed
+.Pp
 Lock a file and run a script, return immediately if the lock is not
-available. Do not delete the file afterward so lock order is
-guaranteed.
+available.
+Do not delete the file afterward so lock order is guaranteed.
 .Pp
 .Dl $ lockf -t 0 -k /tmp/my.lock myscript
 .Pp

@@ -172,14 +172,11 @@ if sys.platform.startswith('freebsd'):
             ['FAIL', known_reason],
         'cli_root/zpool_resilver/zpool_resilver_concurrent':
             ['SKIP', na_reason],
-        'cli_root/zpool_wait/zpool_wait_trim_basic': ['SKIP', trim_reason],
-        'cli_root/zpool_wait/zpool_wait_trim_cancel': ['SKIP', trim_reason],
-        'cli_root/zpool_wait/zpool_wait_trim_flag': ['SKIP', trim_reason],
+        'zoned_uid/setup': ['SKIP', na_reason],
         'cli_root/zfs_unshare/zfs_unshare_008_pos': ['SKIP', na_reason],
         'cp_files/cp_files_002_pos': ['SKIP', na_reason],
         'link_count/link_count_001': ['SKIP', na_reason],
         'mmap/mmap_sync_001_pos': ['SKIP', na_reason],
-        'rsend/send_raw_ashift': ['SKIP', 14961],
     })
 elif sys.platform.startswith('linux'):
     known.update({
@@ -204,7 +201,6 @@ elif sys.platform.startswith('linux'):
 # reasons listed above can be used.
 #
 maybe = {
-    'append/threadsappend_001_pos': ['FAIL', 6136],
     'chattr/setup': ['SKIP', exec_reason],
     'crtime/crtime_001_pos': ['SKIP', statx_reason],
     'cli_root/zdb/zdb_006_pos': ['FAIL', known_reason],
@@ -253,8 +249,6 @@ maybe = {
     'projectquota/setup': ['SKIP', exec_reason],
     'raidz/raidz_002_pos': ['FAIL', known_reason],
     'raidz/raidz_expand_001_pos': ['FAIL', 16421],
-    'redundancy/redundancy_draid_spare1': ['FAIL', 18307],
-    'redundancy/redundancy_draid_spare3': ['FAIL', 18319],
     'removal/removal_condense_export': ['FAIL', known_reason],
     'renameat2/setup': ['SKIP', renameat2_reason],
     'reservation/reservation_008_pos': ['FAIL', 7741],
@@ -322,6 +316,7 @@ elif sys.platform.startswith('linux'):
         'bclone/bclone_samefs_data': ['SKIP', cfr_reason],
         'bclone/bclone_samefs_embedded': ['SKIP', cfr_reason],
         'bclone/bclone_samefs_hole': ['SKIP', cfr_reason],
+        'block_cloning/block_cloning_after_trunc': ['SKIP', cfr_reason],
         'block_cloning/block_cloning_clone_mmap_cached': ['SKIP', cfr_reason],
         'block_cloning/block_cloning_clone_mmap_write':
             ['SKIP', cfr_reason],
@@ -368,6 +363,7 @@ elif sys.platform.startswith('linux'):
         'limits/filesystem_limit': ['SKIP', known_reason],
         'limits/snapshot_limit': ['SKIP', known_reason],
         'stat/statx_dioalign': ['SKIP', 'statx_reason'],
+        'zoned_uid/setup': ['SKIP', user_ns_reason],
     })
 
 
