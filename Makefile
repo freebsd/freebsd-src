@@ -599,8 +599,9 @@ targets:	.PHONY
 .endfor
 .endfor
 
+UNIVERSE_LOGDIR?=${.CURDIR}
 .if defined(DOING_TINDERBOX)
-FAILFILE=${.CURDIR}/_.tinderbox.failed
+FAILFILE=${UNIVERSE_LOGDIR}/_.tinderbox.failed
 MAKEFAIL=tee -a ${FAILFILE}
 .else
 MAKEFAIL=cat
@@ -612,9 +613,7 @@ universe_prologue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.if defined(DOING_TINDERBOX)
 	@rm -f ${FAILFILE}
-.endif
 
 universe-toolchain: .PHONY universe_prologue
 	@echo "--------------------------------------------------------------"
@@ -630,9 +629,9 @@ universe-toolchain: .PHONY universe_prologue
 	    TOOLS_PREFIX_UNDEF= \
 	    kernel-toolchain \
 	    MK_LLVM_TARGET_ALL=yes \
-	    > _.${.TARGET} 2>&1 || \
+	    > ${UNIVERSE_LOGDIR}/_.${.TARGET} 2>&1 || \
 	    (echo "${.TARGET} failed," \
-	    "check _.${.TARGET} for details" | \
+	    "check ${UNIVERSE_LOGDIR}/_.${.TARGET} for details" | \
 	    ${MAKEFAIL}; false)
 	@if [ ! -e "${HOST_OBJTOP}/tmp/usr/bin/cc" ]; then \
 	    echo "Missing host compiler at ${HOST_OBJTOP}/tmp/usr/bin/cc?" >&2; \
@@ -716,9 +715,9 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 	    TARGET=${target} \
 	    TARGET_ARCH=${target_arch} \
 	    ${MAKE_PARAMS_${target_arch}} \
-	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
+	    > ${UNIVERSE_LOGDIR}/_.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
 	    (echo "${target}.${target_arch} ${UNIVERSE_TARGET} failed," \
-	    "check _.${target}.${target_arch}.${UNIVERSE_TARGET} for details" | \
+	    "check ${UNIVERSE_LOGDIR}/_.${target}.${target_arch}.${UNIVERSE_TARGET} for details" | \
 	    ${MAKEFAIL}))
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
 .endfor
@@ -775,9 +774,9 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
 	    ${MAKE_PARAMS_${TARGET_ARCH_${kernel}}} \
 	    KERNCONF=${kernel} \
-	    > _.${TARGET}.${kernel} 2>&1 || \
+	    > ${UNIVERSE_LOGDIR}/_.${TARGET}.${kernel} 2>&1 || \
 	    (echo "${TARGET} ${kernel} kernel failed," \
-	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
+	    "check ${UNIVERSE_LOGDIR}/_.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
 	@echo ">> ${TARGET}.${TARGET_ARCH_${kernel}} ${kernel} kernel completed on `LC_ALL=C date`"
 .endfor
 .for target_arch in ${TARGET_ARCHES_${TARGET}}
