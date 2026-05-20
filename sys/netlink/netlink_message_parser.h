@@ -315,6 +315,12 @@ static inline void
 nl_get_attrs_bmask_nlmsg(struct nlmsghdr *hdr,
     const struct nlhdr_parser *parser, struct nlattr_bmask *bm)
 {
+	if (__predict_false(hdr->nlmsg_len - sizeof(struct nlmsghdr) <
+	    parser->nl_hdr_off)) {
+		/* Doesn't make sense to call nl_alloc_compat_hdr() here. */
+		BIT_ZERO(NL_ATTR_BMASK_SIZE, bm);
+		return;
+	}
 	nl_get_attrs_bmask_raw(
 	    (struct nlattr *)((char *)(hdr + 1) + parser->nl_hdr_off),
 	    hdr->nlmsg_len - sizeof(*hdr) - parser->nl_hdr_off, bm);
