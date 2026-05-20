@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\"	$NetBSD: crypto.4,v 1.24 2014/01/27 21:23:59 pgoyette Exp $
 .\"
 .\" Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -61,7 +64,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 6, 2021
+.Dd May 17, 2026
 .Dt CRYPTO 4
 .Os
 .Sh NAME
@@ -346,9 +349,15 @@ Destroys the session identified by
 .El
 .Sh SEE ALSO
 .Xr aesni 4 ,
+.Xr armv8crypto 4 ,
+.Xr ccr 4 ,
+.Xr glxsb 4 ,
 .Xr ipsec 4 ,
 .Xr padlock 4 ,
+.Xr qat 4 ,
+.Xr qat_c2xxx 4 ,
 .Xr safe 4 ,
+.Xr safexcel 4 ,
 .Xr crypto 7 ,
 .Xr geli 8 ,
 .Xr crypto 9
