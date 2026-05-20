@@ -50,6 +50,38 @@
 #include <netlink/netlink_debug.h>
 _DECLARE_DEBUG(LOG_INFO);
 
+/*
+ * Some applications try to provide only the non-zero part of the required
+ * message header instead of a full one.  It happens when fetching routes or
+ * interface addresses, where the first header byte is the family.
+ * This behavior is "illegal" under the "strict" Netlink socket option, however
+ * there are many applications out there doing things in the "old" way.
+ * Support this usecase by copying the provided bytes into the temporary
+ * zero-filled header and running the parser on this header instead.
+ */
+struct nlmsghdr *
+nl_alloc_compat_hdr(struct nlmsghdr *hdr, uint32_t len, struct nl_pstate *npt)
+{
+	struct nlmsghdr *tmp;
+
+	MPASS(hdr->nlmsg_len < sizeof(struct nlmsghdr) + len);
+
+	len += sizeof(struct nlmsghdr);
+	if (npt->strict) {
+		nlmsg_report_err_msg(npt,
+		    "header too short: expected %d, got %d",
+		     len, hdr->nlmsg_len);
+		return (NULL);
+	}
+	tmp = npt_alloc(npt, len);
+	if (tmp == NULL)
+		return (NULL);
+	memcpy(tmp, hdr, hdr->nlmsg_len);
+	tmp->nlmsg_len = len;
+
+	return (tmp);
+}
+
 bool
 nlmsg_report_err_msg(struct nl_pstate *npt, const char *fmt, ...)
 {
