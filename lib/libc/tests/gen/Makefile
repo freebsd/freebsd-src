@@ -14,6 +14,7 @@ ATF_TESTS_C+=		fts_children_test
 ATF_TESTS_C+=		fts_misc_test
 ATF_TESTS_C+=		fts_open_test
 ATF_TESTS_C+=		fts_options_test
+ATF_TESTS_C+=		fts_set_test
 ATF_TESTS_C+=		ftw_test
 ATF_TESTS_C+=		getentropy_test
 ATF_TESTS_C+=		getmntinfo_test
