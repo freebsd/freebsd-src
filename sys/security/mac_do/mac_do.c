@@ -1370,27 +1370,29 @@ set_default_conf(struct prison *const pr)
 static void
 clone_rules(struct rules *const dst, const struct rules *const src)
 {
-	struct rule *src_rule, *dst_rule;
+	const struct rule *src_rule;
 
 	strlcpy(dst->string, src->string, sizeof(dst->string));
 
 	STAILQ_FOREACH(src_rule, &src->head, r_entries) {
-		dst_rule = malloc(sizeof(*dst_rule), M_MAC_DO, M_WAITOK |
-		    M_ZERO);
+		struct rule *const dst_rule = malloc(sizeof(*dst_rule),
+		    M_MAC_DO, M_WAITOK);
 		bcopy(src_rule, dst_rule, sizeof(*dst_rule));
 
 		if (src_rule->uids_nb > 0) {
-			dst_rule->uids = malloc(sizeof(*dst_rule->uids) *
-			    src_rule->uids_nb, M_MAC_DO, M_WAITOK);
-			bcopy(src_rule->uids, dst_rule->uids,
-			    sizeof(*dst_rule->uids) * src_rule->uids_nb);
+			const size_t uids_size = sizeof(*dst_rule->uids) *
+			    src_rule->uids_nb;
+
+			dst_rule->uids = malloc(uids_size, M_MAC_DO, M_WAITOK);
+			bcopy(src_rule->uids, dst_rule->uids, uids_size);
 		}
 
 		if (src_rule->gids_nb > 0) {
-			dst_rule->gids = malloc(sizeof(*dst_rule->gids) *
-			    src_rule->gids_nb, M_MAC_DO, M_WAITOK);
-			bcopy(src_rule->gids, dst_rule->gids,
-			    sizeof(*dst_rule->gids) * src_rule->gids_nb);
+			const size_t gids_size = sizeof(*dst_rule->gids) *
+			    src_rule->gids_nb;
+
+			dst_rule->gids = malloc(gids_size, M_MAC_DO, M_WAITOK);
+			bcopy(src_rule->gids, dst_rule->gids, gids_size);
 		}
 
 		STAILQ_INSERT_TAIL(&dst->head, dst_rule, r_entries);
