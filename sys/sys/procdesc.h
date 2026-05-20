@@ -95,6 +95,8 @@ struct procdesc {
  */
 #define	F_PD_NOKILL	0x00000001	/* Opened with PD_DAEMON. Don't send
 					   SIGKILL when file closes. */
+#define	F_PD_NOFINSTALL	0x00000002	/* Procdesc file is closing because
+					   finstall() failed */
 
 /*
  * In-kernel interfaces to process descriptors.
