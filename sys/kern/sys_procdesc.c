@@ -241,6 +241,17 @@ procdesc_new(struct proc *p, int flags)
 	p->p_procdesc = pd;
 }
 
+static int
+pdtofdflags(int flags)
+{
+	int fflags;
+
+	fflags = 0;
+	if (flags & PD_CLOEXEC)
+		fflags |= O_CLOEXEC;
+	return (fflags);
+}
+
 /*
  * Create a new process decriptor for the process that refers to it.
  */
@@ -248,13 +259,7 @@ int
 procdesc_falloc(struct thread *td, struct file **resultfp, int *resultfd,
     int flags, struct filecaps *fcaps)
 {
-	int fflags;
-
-	fflags = 0;
-	if (flags & PD_CLOEXEC)
-		fflags = O_CLOEXEC;
-
-	return (falloc_caps(td, resultfp, resultfd, fflags, fcaps));
+	return (falloc_caps(td, resultfp, resultfd, pdtofdflags(flags), fcaps));
 }
 
 /*
