@@ -201,6 +201,28 @@ sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 	return (error);
 }
 
+static struct procdesc *
+procdesc_alloc(int flags)
+{
+	struct procdesc *pd;
+
+	pd = malloc(sizeof(*pd), M_PROCDESC, M_WAITOK | M_ZERO);
+	pd->pd_flags = 0;
+	pd->pd_pid = -1;
+	if ((flags & PD_DAEMON) != 0)
+		pd->pd_flags |= PDF_DAEMON;
+	PROCDESC_LOCK_INIT(pd);
+	knlist_init_mtx(&pd->pd_selinfo.si_note, &pd->pd_lock);
+
+	/*
+	 * Process descriptors start out with two references: one from their
+	 * struct file, and the other from their struct proc.
+	 */
+	refcount_init(&pd->pd_refcount, 2);
+
+	return (pd);
+}
+
 /*
  * When a new process is forked by pdfork(), a file descriptor is allocated
  * by the fork code first, then the process is forked, and then we get a
@@ -212,21 +234,11 @@ procdesc_new(struct proc *p, int flags)
 {
 	struct procdesc *pd;
 
-	pd = malloc(sizeof(*pd), M_PROCDESC, M_WAITOK | M_ZERO);
+	pd = procdesc_alloc(flags);
 	pd->pd_proc = p;
 	pd->pd_pid = p->p_pid;
+	MPASS(p->p_procdesc == NULL);
 	p->p_procdesc = pd;
-	pd->pd_flags = 0;
-	if (flags & PD_DAEMON)
-		pd->pd_flags |= PDF_DAEMON;
-	PROCDESC_LOCK_INIT(pd);
-	knlist_init_mtx(&pd->pd_selinfo.si_note, &pd->pd_lock);
-
-	/*
-	 * Process descriptors start out with two references: one from their
-	 * struct file, and the other from their struct proc.
-	 */
-	refcount_init(&pd->pd_refcount, 2);
 }
 
 /*
