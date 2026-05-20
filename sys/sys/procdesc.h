@@ -137,6 +137,7 @@ pid_t	 pdfork(int *, int);
 pid_t	 pdrfork(int *, int, int);
 int	 pdkill(int, int);
 int	 pdgetpid(int, pid_t *);
+int	 pdopenpid(pid_t, int);
 int	 pdwait(int, int *, int, struct __wrusage *, struct __siginfo *);
 pid_t	 pdrfork_thread(int *, int, int, void *, int (*)(void *), void *);
 __END_DECLS
