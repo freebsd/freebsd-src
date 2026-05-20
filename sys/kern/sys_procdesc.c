@@ -698,6 +698,9 @@ kern_pdopenpid(struct thread *td, pid_t pid, int flags)
 int
 sys_pdopenpid(struct thread *td, struct pdopenpid_args *args)
 {
+	AUDIT_ARG_PID(args->pid);
+	AUDIT_ARG_FFLAGS(args->flags);
+
 	if ((args->flags & ~(PD_ALLOWED_AT_FORK)) != 0)
 		return (EINVAL);
 	return (kern_pdopenpid(td, args->pid, args->flags));
