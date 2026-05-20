@@ -159,7 +159,7 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	len    = E1000_MNG_DHCP_COOKIE_LENGTH >> 2;
 	offset = E1000_MNG_DHCP_COOKIE_OFFSET >> 2;
 	for (i = 0; i < len; i++)
-		*(buffer + i) = E1000_READ_REG_ARRAY_DWORD(hw, E1000_HOST_IF,
+		buffer[i] = E1000_READ_REG_ARRAY_DWORD(hw, E1000_HOST_IF,
 							   offset + i);
 	hdr_csum = hdr->checksum;
 	hdr->checksum = 0;
@@ -203,7 +203,7 @@ s32 e1000_mng_write_cmd_header_generic(struct e1000_hw *hw,
 	/* Write the relevant command block into the ram area. */
 	for (i = 0; i < length; i++) {
 		E1000_WRITE_REG_ARRAY_DWORD(hw, E1000_HOST_IF, i,
-					    *((u32 *) hdr + i));
+					    ((u32 *)hdr)[i]);
 		E1000_WRITE_FLUSH(hw);
 	}
 
