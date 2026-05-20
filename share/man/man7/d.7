@@ -3,7 +3,7 @@
 .\"
 .\" Copyright (c) 2025-2026 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
-.Dd May 7, 2026
+.Dd May 20, 2026
 .Dt D 7
 .Os
 .Sh NAME
@@ -452,4 +452,12 @@ Macro variables
 and
 .Va $taskid
 are always 0 on
+.Fx .
+.Pp
+Functions
+.Fn ddi_pathname ,
+.Fn getmajor ,
+and
+.Fn getminor
+are not supported on
 .Fx .
