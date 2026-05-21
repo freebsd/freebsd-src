@@ -391,6 +391,7 @@ FBSD_1.8 {
 };
 
 FBSD_1.9 {
+	pddupfd;
 	pdopenpid;
 	pdrfork;
 	pdrfork_thread;
