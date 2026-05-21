@@ -1642,6 +1642,9 @@ static int voss_ntds;
 static pthread_t *voss_tds;
 static int voss_fd_sta = -1;
 
+static gid_t voss_gid;
+static int voss_perm = 0660;
+
 /* XXX I do not like the prefix argument... */
 static struct voss_backend *
 voss_load_backend(const char *prefix, const char *name, const char *dir)
@@ -1874,25 +1877,8 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 {
 	vprofile_t *ptr;
 	struct cuse_dev *pdev;
-	struct group *gr;
 	const char *errstr;
-	gid_t gid;
-	int x, perm;
-
-	if (!is_client) {
-		/*
-		 * Loopback devices can be used only by users who part of the
-		 * audio group, to avoid unintended snooping by unprivileged
-		 * users.
-		 */
-		if ((gr = getgrnam("audio")) == NULL)
-			return ("getgrnam() failed");
-		gid = gr->gr_gid;
-		perm = 0660;
-	} else {
-		gid = 0;
-		perm = 0666;
-	}
+	int x;
 
 	rx_mute = rx_mute ? 1 : 0;
 	tx_mute = tx_mute ? 1 : 0;
@@ -1945,7 +1931,7 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 
 		/* create DSP character device */
 		pdev = cuse_dev_create(&vclient_oss_methods, ptr, NULL,
-		    0, gid, perm, ptr->oss_name);
+		    0, voss_gid, voss_perm, ptr->oss_name);
 		if (pdev == NULL) {
 			errstr = "Could not create CUSE DSP device";
 			goto err;
@@ -1964,7 +1950,7 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 	/* create WAV device */
 	if (ptr->wav_name[0] != 0) {
 		pdev = cuse_dev_create(&vclient_wav_methods, ptr, NULL,
-		    0, gid, perm, ptr->wav_name);
+		    0, voss_gid, voss_perm, ptr->wav_name);
 		if (pdev == NULL) {
 			errstr = "Could not create CUSE WAV device";
 			goto err;
@@ -2581,6 +2567,12 @@ main(int argc, char **argv)
 	struct sigaction sa;
 	struct cuse_dev *pdev = NULL;
 	struct virtual_profile *pvp;
+	struct group *gr;
+
+	/* Devices can be used only by users who part of the audio group. */
+	if ((gr = getgrnam("audio")) == NULL)
+		err(EX_USAGE, "getgrnam");
+	voss_gid = gr->gr_gid;
 
 	TAILQ_INIT(&virtual_profile_client_head);
 	TAILQ_INIT(&virtual_profile_loopback_head);
@@ -2650,7 +2642,7 @@ main(int argc, char **argv)
 
 	if (voss_ctl_device[0] != 0) {
 		pdev = cuse_dev_create(&vctl_methods, NULL, NULL,
-		    0, 0, 0666, voss_ctl_device);
+		    0, voss_gid, voss_perm, voss_ctl_device);
 		if (pdev == NULL)
 			errx(EX_USAGE, "Could not create '/dev/%s'", voss_ctl_device);
 

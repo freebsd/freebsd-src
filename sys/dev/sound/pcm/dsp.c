@@ -122,8 +122,8 @@ dsp_make_dev(device_t dev)
 	make_dev_args_init(&devargs);
 	devargs.mda_devsw = &dsp_cdevsw;
 	devargs.mda_uid = UID_ROOT;
-	devargs.mda_gid = GID_WHEEL;
-	devargs.mda_mode = 0666;
+	devargs.mda_gid = GID_AUDIO;
+	devargs.mda_mode = 0660;
 	devargs.mda_si_drv1 = sc;
 	err = make_dev_s(&devargs, &sc->dsp_dev, "dsp%d", unit);
 	if (err != 0) {
