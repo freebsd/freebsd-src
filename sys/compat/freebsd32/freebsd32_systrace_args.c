@@ -3466,6 +3466,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* pddupfd */
+	case 604: {
+		struct pddupfd_args *p = params;
+		iarg[a++] = p->pd; /* int */
+		iarg[a++] = p->fd; /* int */
+		iarg[a++] = p->flags; /* int */
+		*n_args = 3;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9368,6 +9377,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* pddupfd */
+	case 604:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -11303,6 +11328,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pdopenpid */
 	case 603:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pddupfd */
+	case 604:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

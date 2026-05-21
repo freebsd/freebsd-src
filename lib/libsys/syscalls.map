@@ -825,4 +825,6 @@ FBSDprivate_1.0 {
 	__sys_renameat2;
 	_pdopenpid;
 	__sys_pdopenpid;
+	_pddupfd;
+	__sys_pddupfd;
 };

@@ -541,4 +541,5 @@
 #define	SYS_pdwait	601
 #define	SYS_renameat2	602
 #define	SYS_pdopenpid	603
-#define	SYS_MAXSYSCALL	604
+#define	SYS_pddupfd	604
+#define	SYS_MAXSYSCALL	605

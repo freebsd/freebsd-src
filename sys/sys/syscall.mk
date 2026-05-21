@@ -444,4 +444,5 @@ MIASM =  \
 	pdrfork.o \
 	pdwait.o \
 	renameat2.o \
-	pdopenpid.o
+	pdopenpid.o \
+	pddupfd.o
