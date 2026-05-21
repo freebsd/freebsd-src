@@ -67,6 +67,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -704,4 +705,85 @@ sys_pdopenpid(struct thread *td, struct pdopenpid_args *args)
 	if ((args->flags & ~(PD_ALLOWED_AT_FORK)) != 0)
 		return (EINVAL);
 	return (kern_pdopenpid(td, args->pid, args->flags));
+}
+
+static int
+kern_pddupfd(struct thread *td, int pdfd, int fd, int flags)
+{
+	struct proc *p;
+	struct file *fp, *pfp;
+	struct procdesc *pd;
+	struct filecaps fcaps;
+	uint8_t fd_flags;
+	int error, fdr;
+
+	error = fget(td, pdfd, &cap_pddupfd_rights, &pfp);
+	if (error != 0)
+		return (error);
+	if (pfp->f_type != DTYPE_PROCDESC) {
+		error = EBADF;
+		goto out;
+	}
+	pd = pfp->f_data;
+again:
+	sx_slock(&proctree_lock);
+	p = pd->pd_proc;
+	if (p != NULL) {
+		AUDIT_ARG_PROCESS(p);
+		PROC_LOCK(p);
+		sx_sunlock(&proctree_lock);
+		if ((p->p_flag & P_WEXIT) != 0) {
+			error = ESRCH;
+		} else {
+			/*
+			 * Block the target process from entering
+			 * execve().  We need to ensure that the
+			 * p_candebug() predicate is stable until the
+			 * fget_remote() call ends even after the
+			 * process lock is dropped.  For that, the
+			 * process must not change uid/suid.
+			 */
+			if (!execve_block(td, p))
+				goto again;
+			error = p_candebug(td, p);
+			if (error == 0)
+				_PHOLD(p);
+			else
+				execve_unblock(td, p);
+		}
+		PROC_UNLOCK(p);
+		if (error != 0)
+			goto out;
+
+		error = fget_remote(td, p, fd, &fcaps, &fd_flags, &fp);
+		PROC_LOCK(p);
+		execve_unblock(td, p);
+		_PRELE(p);
+		PROC_UNLOCK(p);
+		if (error == 0) {
+			error = finstall_refed(td, fp, &fdr, O_CLOEXEC |
+			    ((fd_flags & FD_RESOLVE_BENEATH) != 0 ?
+			    O_RESOLVE_BENEATH : 0), &fcaps);
+			if (error != 0) {
+				fdrop(fp, td);
+				filecaps_free(&fcaps);
+			} else {
+				td->td_retval[0] = fdr;
+			}
+		}
+	} else {
+		sx_sunlock(&proctree_lock);
+		error = ESRCH;
+	}
+out:
+	fdrop(pfp, td);
+	return (error);
+}
+
+int
+sys_pddupfd(struct thread *td, struct pddupfd_args *args)
+{
+	if (args->flags != 0)
+		return (EINVAL);
+	return (kern_pddupfd(td, args->pd, args->fd, args->flags));
 }

@@ -3428,5 +3428,12 @@
 		    int flags
 		);
 	}
+604	AUE_NULL	STD {
+		int pddupfd(
+			int pd,
+			int fd,
+			int flags
+		);
+	}
 
 ; vim: syntax=off

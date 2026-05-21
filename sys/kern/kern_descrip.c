@@ -3134,6 +3134,7 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 	struct filedesc *fdp;
 	struct file *fp;
 	int error;
+	bool copied __diagused;
 
 	/*
 	 * Both fcaps and fd_flags must be either requested together,
@@ -3158,8 +3159,11 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 				*fd_flags = fde_to_fd_flags(fdp->fd_ofiles[fd].
 				    fde_flags);
 			}
-			if (fcaps != NULL)
-				*fcaps = fdp->fd_ofiles[fd].fde_caps;
+			if (fcaps != NULL) {
+				copied = filecaps_copy(
+				    &fdp->fd_ofiles[fd].fde_caps, fcaps, true);
+				MPASS(copied);
+			}
 			error = 0;
 		} else {
 			error = EBADF;
