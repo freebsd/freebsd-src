@@ -8,7 +8,7 @@
 .\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
 .\" Foundation.
 .\"
-.Dd June 11, 2025
+.Dd May 21, 2026
 .Dt MAC_DO 4
 .Os
 .Sh NAME
@@ -266,7 +266,7 @@ then converted to unsigned ones as specified in the C standard for the
 .Vt uid_t
 and
 .Vt gid_t
-types, which are both 64-bit unsigned integers.
+types, which are both 32-bit unsigned integers.
 .Sh RUNTIME CONFIGURATION
 The following
 .Xr sysctl 8
@@ -307,7 +307,7 @@ The following jail parameters are defined:
 .It Va mac.do
 Possible values are:
 .Bl -tag -width "'disable'" -compact
-.It Ql enable
+.It Ql new
 .Nm
 will enforce specific credential rules in the jail.
 The
@@ -337,7 +337,7 @@ If set, and the jail parameter
 is not so explicitly, the value of the latter will default to
 .Ql disable
 if empty, else to
-.Ql enable .
+.Ql new .
 .El
 .Pp
 Each jail must have
