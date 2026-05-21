@@ -294,6 +294,7 @@ procdesc_exit(struct proc *p)
 	sx_assert(&proctree_lock, SA_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(p->p_procdesc != NULL, ("procdesc_exit: p_procdesc NULL"));
+	MPASS((p->p_flag & P_WEXIT) != 0);
 
 	pd = p->p_procdesc;
 
