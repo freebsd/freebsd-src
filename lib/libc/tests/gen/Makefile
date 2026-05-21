@@ -10,6 +10,7 @@ ATF_TESTS_C+=		fpclassify2_test
 .if ${COMPILER_FEATURES:Mblocks}
 ATF_TESTS_C+=		fts_blocks_test
 .endif
+ATF_TESTS_C+=		fts_children_test
 ATF_TESTS_C+=		fts_misc_test
 ATF_TESTS_C+=		fts_open_test
 ATF_TESTS_C+=		fts_options_test
