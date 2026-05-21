@@ -1577,8 +1577,8 @@ kern_pdwait(struct thread *td, int fd, int *status,
 
 	for (;;) {
 		/* We own a reference on the procdesc file. */
-		KASSERT((pd->pd_flags & PDF_CLOSED) == 0,
-		    ("PDF_CLOSED proc %p procdesc %p pd flags %#x",
+		KASSERT(pd->pd_fpcount > 0,
+		    ("closed proc %p procdesc %p pd flags %#x",
 		    p, pd, pd->pd_flags));
 
 		sx_xlock(&proctree_lock);

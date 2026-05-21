@@ -219,6 +219,7 @@ procdesc_alloc(int flags)
 	 * struct file, and the other from their struct proc.
 	 */
 	refcount_init(&pd->pd_refcount, 2);
+	pd->pd_fpcount = 1;
 
 	return (pd);
 }
@@ -293,8 +294,8 @@ procdesc_free(struct procdesc *pd)
 	if (refcount_release(&pd->pd_refcount)) {
 		KASSERT(pd->pd_proc == NULL,
 		    ("procdesc_free: pd_proc != NULL"));
-		KASSERT((pd->pd_flags & PDF_CLOSED),
-		    ("procdesc_free: !PDF_CLOSED"));
+		KASSERT(pd->pd_fpcount == 0,
+		    ("procdesc_free: not closed %p %d", pd, pd->pd_fpcount));
 
 		if (pd->pd_pid != -1)
 			proc_id_clear(PROC_ID_PID, pd->pd_pid);
@@ -322,7 +323,7 @@ procdesc_exit(struct proc *p)
 	pd = p->p_procdesc;
 
 	PROCDESC_LOCK(pd);
-	KASSERT((pd->pd_flags & PDF_CLOSED) == 0 || p->p_pptr == p->p_reaper,
+	KASSERT(pd->pd_fpcount > 0 || p->p_pptr == p->p_reaper,
 	    ("procdesc_exit: closed && parent not reaper"));
 
 	pd->pd_flags |= PDF_EXITED;
@@ -334,7 +335,7 @@ procdesc_exit(struct proc *p)
 	 * Clean up the procdesc now rather than letting it happen during
 	 * that reap.
 	 */
-	if (pd->pd_flags & PDF_CLOSED) {
+	if (pd->pd_fpcount == 0) {
 		PROCDESC_UNLOCK(pd);
 		pd->pd_proc = NULL;
 		p->p_procdesc = NULL;
@@ -388,7 +389,8 @@ procdesc_close(struct file *fp, struct thread *td)
 
 	sx_xlock(&proctree_lock);
 	PROCDESC_LOCK(pd);
-	pd->pd_flags |= PDF_CLOSED;
+	MPASS(pd->pd_fpcount > 0);
+	pd->pd_fpcount--;
 	PROCDESC_UNLOCK(pd);
 	p = pd->pd_proc;
 	if (p == NULL) {
@@ -408,7 +410,7 @@ procdesc_close(struct file *fp, struct thread *td)
 			 * calls back into procdesc_reap().
 			 */
 			proc_reap(curthread, p, NULL, 0);
-		} else {
+		} else if (pd->pd_fpcount == 0) /* last procdesc */ {
 			/*
 			 * If the process is not yet dead, we need to kill it,
 			 * but we can't wait around synchronously for it to go
@@ -436,6 +438,9 @@ procdesc_close(struct file *fp, struct thread *td)
 			}
 			if ((pd->pd_flags & PDF_DAEMON) == 0)
 				kern_psignal(p, SIGKILL);
+			PROC_UNLOCK(p);
+			sx_xunlock(&proctree_lock);
+		} else {
 			PROC_UNLOCK(p);
 			sx_xunlock(&proctree_lock);
 		}
