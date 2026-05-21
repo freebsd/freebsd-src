@@ -753,25 +753,28 @@ nat_show_cfg(struct nat44_cfg_nat *n, void *arg __unused)
 }
 
 static int
-nat_port_alias_parse(char *str, u_short *lpout, u_short *hpout) {
+nat_port_alias_parse(char *str, u_short *lpout, u_short *hpout)
+{
 	long lp, hp;
-	char *ptr;
+	char *ptr, *substr;
+
+	substr = strsep(&str, "-");
+	if (substr == NULL || str == NULL)
+		return (0);
+
 	/* Lower port parsing */
-	lp = (long) strtol(str, &ptr, 10);
-	if (lp < 1024 || lp > 65535)
-		return 0;
-	if (!ptr || *ptr != '-')
-		return 0;
+	lp = (long) strtol(substr, &ptr, 0);
+	if (*ptr != '\0' || lp < 1024 || lp > 65535)
+		return (0);
+
 	/* Upper port parsing */
-	hp = (long) strtol(ptr, &ptr, 10);
-	if (hp < 1024 || hp > 65535)
-		return 0;
-	if (ptr)
-		return 0;
+	hp = (long) strtol(str, &ptr, 0);
+	if (*ptr != '\0' || hp < 1024 || hp > 65535)
+		return (0);
 
 	*lpout = (u_short) lp;
 	*hpout = (u_short) hp;
-	return 1;
+	return (1);
 }
 
 void
