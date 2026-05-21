@@ -111,6 +111,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1145,7 +1146,7 @@ ping6(int argc, char *argv[])
 		struct timespec now, timeout;
 		struct msghdr m;
 		struct iovec iov[2];
-		fd_set rfds;
+		struct pollfd pfd;
 		int n;
 
 		/* signal handling */
@@ -1154,15 +1155,16 @@ ping6(int argc, char *argv[])
 			seeninfo = 0;
 			continue;
 		}
-		FD_ZERO(&rfds);
-		FD_SET(srecv, &rfds);
+		pfd.fd = srecv;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		timespecadd(&last, &intvl, &timeout);
 		timespecsub(&timeout, &now, &timeout);
 		if (timeout.tv_sec < 0)
 			timespecclear(&timeout);
 
-		n = pselect(srecv + 1, &rfds, NULL, NULL, &timeout, NULL);
+		n = ppoll(&pfd, 1, &timeout, NULL);
 		if (n < 0)
 			continue;	/* EINTR */
 		if (n == 1) {
