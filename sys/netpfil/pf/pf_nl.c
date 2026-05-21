@@ -2189,7 +2189,14 @@ nlattr_get_pfr_addr(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
 	return (0);
 }
 
-NL_DECLARE_ATTR_PARSER(nested_table_parser, nla_p_table);
+#define _OUT(_field)	offsetof(struct pfr_table, _field)
+static const struct nlattr_parser nla_p_pfrtable[] = {
+	{ .type = PF_T_ANCHOR, .off = _OUT(pfrt_anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_T_NAME, .off = _OUT(pfrt_name), .arg = (void *)PF_TABLE_NAME_SIZE, .cb = nlattr_get_chara },
+	{ .type = PF_T_TABLE_FLAGS, .off = _OUT(pfrt_flags), .cb = nlattr_get_uint32 },
+};
+#undef _OUT
+NL_DECLARE_ATTR_PARSER(nested_table_parser, nla_p_pfrtable);
 
 #define _OUT(_field)	offsetof(struct nl_parsed_table_addrs, _field)
 static const struct nlattr_parser nla_p_table_addr[] = {
