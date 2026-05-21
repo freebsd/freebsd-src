@@ -174,7 +174,7 @@ nl_find_nhop(uint32_t fibnum, int family, uint32_t uidx,
 	CHT_SLIST_FIND_BYOBJ(&ctl->un_head, unhop, &key, unhop);
 	if (unhop != NULL) {
 		struct nhop_object *nh = unhop->un_nhop;
-		UN_RLOCK(ctl);
+		UN_RUNLOCK(ctl);
 		*perror = 0;
 		nhop_ref_any(nh);
 		return (nh);
