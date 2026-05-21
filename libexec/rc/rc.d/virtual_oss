@@ -22,13 +22,9 @@ status_cmd="${name}_status"
 
 required_modules="cuse"
 
-configs=
 pidpath="/var/run/${name}"
+
 default_unit=$(sysctl -n hw.snd.default_unit 2> /dev/null)
-
-# Default configuration's control device.
-: "${virtual_oss_default_control_device:="vdsp.ctl"}"
-
 virtual_oss_default_args="\
 	-S \
 	-C 2 \
@@ -41,12 +37,6 @@ virtual_oss_default_args="\
 	-d dsp \
 	-l dsp.loop \
 	-t ${virtual_oss_default_control_device}"
-
-# Set to NO by default. Set it to "YES" to enable virtual_oss.
-: "${virtual_oss_enable:="NO"}"
-
-#  List of configurations to use. Default is "dsp".
-: "${virtual_oss_configs:="dsp"}"
 
 # Default (dsp) virtual_oss config.
 : "${virtual_oss_dsp:="${virtual_oss_default_args}"}"
