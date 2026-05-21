@@ -11,6 +11,7 @@ ATF_TESTS_C+=		fpclassify2_test
 ATF_TESTS_C+=		fts_blocks_test
 .endif
 ATF_TESTS_C+=		fts_misc_test
+ATF_TESTS_C+=		fts_open_test
 ATF_TESTS_C+=		fts_options_test
 ATF_TESTS_C+=		ftw_test
 ATF_TESTS_C+=		getentropy_test
