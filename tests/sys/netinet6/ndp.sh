@@ -834,11 +834,16 @@ ndp_routeinfo_option_body() {
 	done
 
 	# Make sure routes from rti option are being installed
-	atf_check -s exit:0 \
-		-o match:"^${route1}/32[[:space:]]+${lladdr}.*1800" \
-		-o match:"^${route2}/48[[:space:]]+${lladdr}.*600" \
-		-o match:"^default[[:space:]]+${lladdr}" \
-		jexec ${jname} netstat -rn6
+	atf_check -s exit:0 -o save:netstat_out netstat -j ${jname} -rn6
+	atf_check -s exit:0 -o match:"^default[[:space:]]+${lladdr}" \
+		cat netstat_out
+
+	# Ensure that route1's and route2's expiration times are correct
+	# respectively and do not get swapped
+	expire1="$(grep "^${route1}/32[[:space:]]*${lladdr}" netstat_out | cut -wf5)"
+	atf_check -s exit:0 test 601 -le ${expire1} -a ${expire1} -le 1800
+	expire2="$(grep "^${route2}/48[[:space:]]*${lladdr}" netstat_out | cut -wf5)"
+	atf_check -s exit:0 test ${expire2} -le 600
 
 	# Verify the default route lifetime and its preference is overwrited
 	atf_check -s exit:0 \
