@@ -36,6 +36,7 @@
 .Sh NAME
 .Nm pdfork ,
 .Nm pdrfork ,
+.Nm pdopenpid ,
 .Nm pdgetpid ,
 .Nm pdkill ,
 .Nm pdwait
@@ -48,6 +49,8 @@
 .Fn pdfork "int *fdp" "int pdflags"
 .Ft pid_t
 .Fn pdrfork "int *fdp" "int pdflags" "int rfflags"
+.Ft int
+.Fn pdopenpid "pid_t pid" "int pdflags"
 .Ft int
 .Fn pdgetpid "int fd" "pid_t *pidp"
 .Ft int
@@ -128,6 +131,28 @@ flags, or
 .Va RFSPAWN
 flag are specified.
 .Pp
+.Fn pdopenpid
+opens the process descriptor for the process specified by the argument
+.Fa pid .
+It takes the same flags in the
+.Fa pdflags
+argument as
+.Fn pdfork .
+The caller must have permission to debug the target process in order for
+.Fn pdopenpid
+to succeed.
+Zombie processes cannot be opened.
+.Pp
+There might be more that one file descriptor referencing the process.
+But only one caller of
+.Fn pdwait
+gets the exit status.
+After the zombie is reaped, calls to
+.Fn pdwait
+specifying any file descriptors for the same process fail with the
+.Er ESRCH
+error.
+.Pp
 .Fn pdgetpid
 queries the process ID (PID) in the process descriptor
 .Fa fd .
@@ -198,6 +223,7 @@ return a PID, 0 or -1, as
 .Xr fork 2
 does.
 .Pp
+.Fn pdopenpid ,
 .Fn pdgetpid ,
 .Fn pdkill ,
 and
@@ -244,6 +270,40 @@ The
 function is called with reserved bits set in
 .Fa options .
 .El
+.Pp
+The
+.Fn pdopenpid
+might return the same errors as
+.Xr open 2 ,
+related to the file descriptor allocation problems, as well as the
+following specific errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument has reserved bits set.
+.It Bq Er ECAPMODE
+.Fn pdopenpid
+is called by the process in capability mode.
+.It Bq Er EBUSY
+The process specified by the
+.Fa pid
+argument already terminated.
+.It Bq Er ESRCH
+The process specified by the
+.Fa pid
+argument does not exist, or the caller does not have enough privileges
+to open the process.
+.It Bq Er EMFILE
+The calling process already reached its limit for open file descriptors.
+.Pp
+Current implementation installs the opened process descriptor into the
+calling process's file descriptors table.
+If the descriptor cannot be installed, the process descriptor is closed,
+which executes all actions performed by
+.Xr close 2
+on it.
+.El
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr fork 2 ,
@@ -268,6 +328,10 @@ and
 .Fn pdwait
 system calls first appeared in
 .Fx 15.1 .
+The
+.Fn pdopenpid
+system call first appeared in
+.Fx 16.0 .
 .Pp
 Support for process descriptors mode was developed as part of the
 .Tn TrustedBSD
@@ -288,3 +352,7 @@ functions were developed by
 .An Konstantin Belousov Aq Mt kib@FreeBSD.org
 with input from
 .An Alan Somers Aq Mt asomers@FreeBSD.org .
+The
+.Fn pdopenpid
+function was developed by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .
