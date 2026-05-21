@@ -77,11 +77,30 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 	return bus_setup_intr(dev, res, flags, NULL, hand, param, cookiep);
 }
 
+static void
+pcm_hotswap(void)
+{
+	struct snddev_info *d;
+	char buf[32];
+
+	bus_topo_assert();
+	if (snd_unit >= 0) {
+		d = devclass_get_softc(pcm_devclass, snd_unit);
+		if (!PCM_REGISTERED(d))
+			return;
+		snprintf(buf, sizeof(buf), "cdev=dsp%d", snd_unit);
+		if (d->reccount > 0)
+			devctl_notify("SND", "CONN", "IN", buf);
+		if (d->playcount > 0)
+			devctl_notify("SND", "CONN", "OUT", buf);
+	} else
+		devctl_notify("SND", "CONN", "NODEV", NULL);
+}
+
 static int
 sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
-	char buf[32];
 	int error, unit;
 
 	unit = snd_unit;
@@ -95,13 +114,8 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 		}
 		snd_unit = unit;
 		snd_unit_auto = 0;
+		pcm_hotswap();
 		bus_topo_unlock();
-
-		snprintf(buf, sizeof(buf), "cdev=dsp%d", snd_unit);
-		if (d->reccount > 0)
-			devctl_notify("SND", "CONN", "IN", buf);
-		if (d->playcount > 0)
-			devctl_notify("SND", "CONN", "OUT", buf);
 	}
 	return (error);
 }
@@ -373,6 +387,7 @@ int
 pcm_register(device_t dev, char *str)
 {
 	struct snddev_info *d = device_get_softc(dev);
+	int err;
 
 	/* should only be called once */
 	if (d->flags & SD_F_REGISTERED)
@@ -417,6 +432,13 @@ pcm_register(device_t dev, char *str)
 	vchan_initsys(dev);
 	feeder_eq_initsys(dev);
 
+	sndstat_register(dev, SNDST_TYPE_PCM, d->status);
+
+	err = dsp_make_dev(dev);
+	if (err)
+		return (err);
+
+	bus_topo_lock();
 	if (snd_unit_auto < 0)
 		snd_unit_auto = (snd_unit < 0) ? 1 : 0;
 	if (snd_unit < 0 || snd_unit_auto > 1)
@@ -424,9 +446,11 @@ pcm_register(device_t dev, char *str)
 	else if (snd_unit_auto == 1)
 		snd_unit = pcm_best_unit(snd_unit);
 
-	sndstat_register(dev, SNDST_TYPE_PCM, d->status);
+	if (snd_unit == device_get_unit(dev))
+		pcm_hotswap();
+	bus_topo_unlock();
 
-	return (dsp_make_dev(dev));
+	return (0);
 }
 
 int
@@ -469,13 +493,14 @@ pcm_unregister(device_t dev)
 	cv_destroy(&d->cv);
 	mtx_destroy(&d->lock);
 
+	bus_topo_lock();
 	if (snd_unit == device_get_unit(dev)) {
 		snd_unit = pcm_best_unit(-1);
 		if (snd_unit_auto == 0)
 			snd_unit_auto = 1;
-		if (snd_unit < 0)
-			devctl_notify("SND", "CONN", "NODEV", NULL);
+		pcm_hotswap();
 	}
+	bus_topo_unlock();
 
 	return (0);
 }
