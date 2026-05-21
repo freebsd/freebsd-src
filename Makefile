@@ -772,12 +772,16 @@ KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		${_THINNER}
 universe_kernconfs: universe_kernels_prologue .PHONY
 .for kernel in ${KERNCONFS}
+.if !exists(${KERNSRCDIR}/${TARGET}/conf/${kernel})
+.warning ${TARGET}/conf/${kernel} missing; skipping.
+.else
 TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 	env PATH=${HOST_OBJTOP}/tmp/legacy/bin:${PATH:Q} \
 	config -m ${KERNSRCDIR}/${TARGET}/conf/${kernel} 2> /dev/null | \
 	grep -v WARNING: | cut -f 2
 .if empty(TARGET_ARCH_${kernel})
-.error Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old.
+.error Target architecture for ${TARGET}/conf/${kernel} cannot be determined, kernconf file may be invalid!
+.endif
 .endif
 universe_kernconfs_${TARGET_ARCH_${kernel}}: universe_kernconf_${TARGET}_${kernel}
 universe_kernconf_${TARGET}_${kernel}: .MAKE
