@@ -3898,10 +3898,8 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 */
 	switch (xhci_get_endpoint_state(udev, epno)) {
 	case XHCI_EPCTX_0_EPSTATE_DISABLED:
-		drop = 0;
-		break;
 	case XHCI_EPCTX_0_EPSTATE_STOPPED:
-		drop = 1;
+		drop = 0;
 		break;
 	case XHCI_EPCTX_0_EPSTATE_HALTED:
 		err = xhci_cmd_reset_ep(sc, 0, epno, index);
@@ -3910,9 +3908,15 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 			DPRINTF("Could not reset endpoint %u\n", epno);
 		break;
 	default:
-		drop = 1;
+		/*
+		 * xHCI spec 4.6.8:
+		 * The Drop and Add operation resets the toggle bit, which can
+		 * cause a toggle mismatch between the device and host. As a
+		 * result, xHCI may refuse to receive or process the packet.
+		 */
 		err = xhci_cmd_stop_ep(sc, 0, epno, index);
-		if (err != 0)
+		drop = (err != 0);
+		if (drop)
 			DPRINTF("Could not stop endpoint %u\n", epno);
 		break;
 	}
