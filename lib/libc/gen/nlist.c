@@ -259,8 +259,10 @@ elf_scan_symtab(Elf_Shdr *shdr, int shnum, int fd, off_t symoff, size_t symsize,
 			slen = strnlen(name, strsize - s->st_name);
 			for (p = list; nent > 0 && !ISLAST(p); p++) {
 				if (strncmp(name, p->n_un.n_name, slen) == 0 &&
-				    p->n_un.n_name[slen] == '\0')
+				    p->n_un.n_name[slen] == '\0') {
 					elf_sym_to_nlist(p, s, shdr, shnum);
+					--nent;
+				}
 			}
 		}
 	}
