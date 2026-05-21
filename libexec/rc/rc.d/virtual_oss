@@ -76,12 +76,17 @@ stop_instance()
 	if [ -z "${instance_args}" ]; then
 		warn "no such config: ${config}"
 	else
-		pid="$(cat "${pidpath}/${config}.pid")"
-		startmsg -n "Stopping virtual_oss config: ${config}: "
-		kill "${pid}"
-		pwait "${pid}"
-		rm -f "${pidpath}/${config}.pid"
-		startmsg "done"
+		pidfile="${pidpath}/${config}.pid"
+		if [ ! -f "${pidfile}" ]; then
+			warn "not running: ${config}"
+		else
+			pid="$(cat "${pidfile}")"
+			startmsg -n "Stopping virtual_oss config: ${config}: "
+			kill "${pid}"
+			pwait "${pid}"
+			rm -f "${pidfile}"
+			startmsg "done"
+		fi
 	fi
 }
 
