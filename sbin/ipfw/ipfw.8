@@ -1,5 +1,5 @@
 .\"
-.Dd March 1, 2026
+.Dd May 21, 2026
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3519,6 +3519,7 @@ Obey transparent proxy rules only, packet aliasing is not performed.
 Skip instance in case of global state lookup (see below).
 .It Cm port_range Ar lower-upper
 Set the aliasing ports between the ranges given.
+Ports must be in the range 1024-65535.
 Upper port has to be greater than lower.
 .It Cm udp_eim
 When enabled, UDP packets use endpoint-independent mapping (EIM) from RFC 4787
