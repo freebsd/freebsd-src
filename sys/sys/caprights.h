@@ -90,6 +90,7 @@ extern const cap_rights_t cap_mkfifoat_rights;
 extern const cap_rights_t cap_mknodat_rights;
 extern const cap_rights_t cap_mmap_rights;
 extern const cap_rights_t cap_no_rights;
+extern const cap_rights_t cap_pddupfd_rights;
 extern const cap_rights_t cap_pdgetpid_rights;
 extern const cap_rights_t cap_pdkill_rights;
 extern const cap_rights_t cap_pdwait_rights;
