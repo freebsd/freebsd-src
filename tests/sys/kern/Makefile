@@ -106,7 +106,7 @@ LIBADD.kcov+=				pthread
 CFLAGS.ktls_test+=			-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD.ktls_test+=			crypto util
 LIBADD.listener_wakeup+=		pthread
-LIBADD.procdesc+=			pthread
+LIBADD.procdesc+=			kvm pthread
 LIBADD.shutdown_dgram+=			pthread
 LIBADD.socket_msg_waitall+=		pthread
 LIBADD.socket_splice+=			pthread
