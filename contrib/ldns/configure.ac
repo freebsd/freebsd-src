@@ -1,13 +1,13 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.56)
+AC_PREREQ([2.71])
 sinclude(acx_nlnetlabs.m4)
 
 # must be numbers. ac_defun because of later processing.
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[8])
-m4_define([VERSION_MICRO],[3])
-AC_INIT(ldns, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), libdns@nlnetlabs.nl, libdns)
+m4_define([VERSION_MICRO],[4])
+AC_INIT([ldns],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[dns-team@nlnetlabs.nl],[libdns])
 AC_CONFIG_SRCDIR([packet.c])
 # needed to build correct soname
 AC_SUBST(LDNS_VERSION_MAJOR, [VERSION_MAJOR])
@@ -34,9 +34,9 @@ AC_SUBST(LDNS_VERSION_MICRO, [VERSION_MICRO])
 # ldns-1.8.2 had libversion 7:0:4
 # ldns-1.8.3 has libversion 8:0:5
 #
-AC_SUBST(VERSION_INFO, [8:0:5])
+AC_SUBST(VERSION_INFO, [9:0:6])
 
-AC_AIX
+AC_USE_SYSTEM_EXTENSIONS
 if test "$ac_cv_header_minix_config_h" = "yes"; then
 	AC_DEFINE(_NETBSD_SOURCE,1, [Enable for compile on Minix])
 fi
@@ -89,7 +89,7 @@ COPY_FILES($srcdir/$1/*.h, $2)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
-AC_LANG_C
+AC_LANG([C])
 if test "x$CFLAGS" = "x" ; then
 ACX_CHECK_COMPILER_FLAG(g, [CFLAGS="-g"])
 ACX_CHECK_COMPILER_FLAG(O2, [CFLAGS="-O2 $CFLAGS"])
@@ -137,23 +137,23 @@ AC_CHECK_FUNC([socket],
 # modern OS X provides inet_ntop in -lc.
 # modern Solaris provides inet_ntop in -lsocket -lnsl.
 # older Solaris provides inet_ntop in -lresolv.
+# Windows provides inet_ntop in -lws2_32.
 AC_CHECK_FUNC([inet_ntop],
     [],
-    [AC_SEARCH_LIBS([inet_ntop], [socket c nsl resolv], [ac_cv_func_inet_ntop=yes])
+    [AC_SEARCH_LIBS([inet_ntop], [socket c nsl resolv ws2_32], [ac_cv_func_inet_ntop=yes])
 ])
 
 # modern Linux provides inet_pton in -lsocket.
 # modern OS X provides inet_pton in -lc.
 # modern Solaris provides inet_pton in -lsocket -lnsl.
 # older Solaris provides inet_pton in -lresolv.
+# Windows provides inet_pton in -lws2_32.
 AC_CHECK_FUNC([inet_pton],
     [],
-    [AC_SEARCH_LIBS([inet_pton], [socket c nsl resolv], [ac_cv_func_inet_pton=yes])
+    [AC_SEARCH_LIBS([inet_pton], [socket c nsl resolv ws2_32], [ac_cv_func_inet_pton=yes])
 ])
 
-
-AC_ARG_WITH(drill, AC_HELP_STRING([--with-drill],
- [Also build drill.]),
+AC_ARG_WITH(drill, AS_HELP_STRING([--with-drill],[Also build drill.]),
  [],[with_drill="no"])
 if test x_$with_drill != x_no ; then
 	AC_SUBST(DRILL,[drill])
@@ -177,8 +177,7 @@ else
 fi
 
 
-AC_ARG_WITH(examples, AC_HELP_STRING([--with-examples],
- [Also build examples.]),
+AC_ARG_WITH(examples, AS_HELP_STRING([--with-examples],[Also build examples.]),
  [],[with_examples="no"])
 if test x_$with_examples != x_no ; then
 	AC_SUBST(EXAMPLES,[examples])
@@ -202,7 +201,7 @@ else
 fi
 
 # add option to disable installation of ldns-config script
-AC_ARG_ENABLE(ldns-config, AC_HELP_STRING([--disable-ldns-config], [disable installation of ldns-config (default=enabled)]),
+AC_ARG_ENABLE(ldns-config, AS_HELP_STRING([--disable-ldns-config],[disable installation of ldns-config (default=enabled)]),
 	enable_ldns_config=$enableval, enable_ldns_config=yes)
 if test "x$enable_ldns_config" = xyes; then
 	AC_SUBST(INSTALL_CONFIG, [install-config])
@@ -217,7 +216,7 @@ else
 fi
 
 # add option to disable library printing to stderr
-AC_ARG_ENABLE(stderr-msgs, AC_HELP_STRING([--enable-stderr-msgs], [Enable printing to stderr (default=disabled)]), enable_stderr_msgs=$enableval, enable_stderr_msgs=no)
+AC_ARG_ENABLE(stderr-msgs, AS_HELP_STRING([--enable-stderr-msgs],[Enable printing to stderr (default=disabled)]), enable_stderr_msgs=$enableval, enable_stderr_msgs=no)
 case "$enable_stderr_msgs" in
     no) dnl default
         ;;
@@ -237,8 +236,7 @@ AX_CONFIG_FEATURE(
 PYTHON_X_CFLAGS=""
 ldns_with_pyldns=no
 ldns_with_pyldnsx=no
-AC_ARG_WITH(pyldns, AC_HELP_STRING([--with-pyldns],
- [generate python library, or --without-pyldns to disable Python support.]),
+AC_ARG_WITH(pyldns, AS_HELP_STRING([--with-pyldns],[generate python library, or --without-pyldns to disable Python support.]),
  [],[ withval="no" ])
 ldns_have_python=no
 if test x_$withval != x_no; then
@@ -293,8 +291,7 @@ fi
 AC_SUBST(PYTHON_X_CFLAGS)
 
 # Check for pyldnsx
-AC_ARG_WITH(pyldnsx, AC_HELP_STRING([--without-pyldnsx],
-  [Do not install the ldnsx python module, or --with-pyldnsx to install it.]),
+AC_ARG_WITH(pyldnsx, AS_HELP_STRING([--without-pyldnsx],[Do not install the ldnsx python module, or --with-pyldnsx to install it.]),
   [],[ withval="with_pyldns" ])
 if test x_$withval != x_no; then
   if test x_$ldns_with_pyldns != x_no; then
@@ -324,8 +321,7 @@ fi
 
 # check for perl
 ldns_with_p5_dns_ldns=no
-AC_ARG_WITH(p5-dns-ldns, AC_HELP_STRING([--with-p5-dns-ldns],
- [generate DNS::LDNS perl bindings]),
+AC_ARG_WITH(p5-dns-ldns, AS_HELP_STRING([--with-p5-dns-ldns],[generate DNS::LDNS perl bindings]),
  [],[ withval="no" ])
 ldns_have_perl=no
 if test x_$withval != x_no; then
@@ -390,7 +386,7 @@ So either no OpenSSL at all (the include already failed), or the version < 3.0.0
 #AC_CHECK_PROG(glibtool, glibtool, [glibtool], )
 #AC_CHECK_PROGS(libtool, [libtool15 libtool], [./libtool])
 
-AC_ARG_ENABLE(sha2, AC_HELP_STRING([--disable-sha2], [Disable SHA256 and SHA512 RRSIG support]))
+AC_ARG_ENABLE(sha2, AS_HELP_STRING([--disable-sha2],[Disable SHA256 and SHA512 RRSIG support]))
 case "$enable_sha2" in
     no)
         ;;
@@ -515,7 +511,7 @@ eval "ac_cv_c_gost_works=maybe"
 fi
 ])dnl
 
-AC_ARG_ENABLE(gost, AC_HELP_STRING([--disable-gost], [Disable GOST support]))
+AC_ARG_ENABLE(gost, AS_HELP_STRING([--disable-gost],[Disable GOST support]))
 case "$enable_gost" in
     no)
         ;;
@@ -527,7 +523,7 @@ case "$enable_gost" in
         AC_CHECK_FUNC(EVP_PKEY_set_type_str, [],[AC_MSG_ERROR([OpenSSL >= 1.0.0 is needed for GOST support or rerun with --disable-gost])])
         AC_CHECK_FUNC(EC_KEY_new, [], [AC_MSG_ERROR([No ECC functions found in OpenSSL: please upgrade OpenSSL or rerun with --disable-gost])])
 	AC_CHECK_GOST_WORKS
-	AC_ARG_ENABLE(gost-anyway, AC_HELP_STRING([--enable-gost-anyway], [Enable GOST even without a GOST engine installed]))
+	AC_ARG_ENABLE(gost-anyway, AS_HELP_STRING([--enable-gost-anyway],[Enable GOST even without a GOST engine installed]))
 	if test "$ac_cv_c_gost_works" != "no" -o "$enable_gost_anyway" = "yes"; then
 		if test "$ac_cv_c_gost_works" = "no"; then
 			AC_MSG_RESULT([no, but compiling with GOST support anyway])
@@ -545,7 +541,7 @@ case "$enable_gost" in
         ;;
 esac
 
-AC_ARG_ENABLE(ecdsa, AC_HELP_STRING([--disable-ecdsa], [Disable ECDSA support]))
+AC_ARG_ENABLE(ecdsa, AS_HELP_STRING([--disable-ecdsa],[Disable ECDSA support]))
 case "$enable_ecdsa" in
     no)
       ;;
@@ -563,7 +559,7 @@ case "$enable_ecdsa" in
       ;;
 esac
 
-AC_ARG_ENABLE(dsa, AC_HELP_STRING([--disable-dsa], [Disable DSA support]))
+AC_ARG_ENABLE(dsa, AS_HELP_STRING([--disable-dsa],[Disable DSA support]))
 case "$enable_dsa" in
     no)
       AC_SUBST(ldns_build_config_use_dsa, 0)
@@ -579,7 +575,7 @@ case "$enable_dsa" in
       ;;
 esac
 
-AC_ARG_ENABLE(ed25519, AC_HELP_STRING([--disable-ed25519], [Disable (experimental) ED25519 support. Default is detect]))
+AC_ARG_ENABLE(ed25519, AS_HELP_STRING([--disable-ed25519],[Disable (experimental) ED25519 support. Default is detect]))
 case "$enable_ed25519" in
     no)
       AC_SUBST(ldns_build_config_use_ed25519, 0)
@@ -596,7 +592,7 @@ case "$enable_ed25519" in
       ;;
 esac
 
-AC_ARG_ENABLE(ed448, AC_HELP_STRING([--disable-ed448], [Disable (experimental) ED448 support. Default is detect]))
+AC_ARG_ENABLE(ed448, AS_HELP_STRING([--disable-ed448],[Disable (experimental) ED448 support. Default is detect]))
 case "$enable_ed448" in
     no)
       AC_SUBST(ldns_build_config_use_ed448, 0)
@@ -613,9 +609,9 @@ case "$enable_ed448" in
       ;;
 esac
 
-AC_ARG_ENABLE(dane, AC_HELP_STRING([--disable-dane], [Disable DANE support]))
-AC_ARG_ENABLE(dane-verify, AC_HELP_STRING([--disable-dane-verify], [Disable DANE verify support]))
-AC_ARG_ENABLE(dane-ta-usage, AC_HELP_STRING([--disable-dane-ta-usage], [Disable DANE-TA usage type support]))
+AC_ARG_ENABLE(dane, AS_HELP_STRING([--disable-dane],[Disable DANE support]))
+AC_ARG_ENABLE(dane-verify, AS_HELP_STRING([--disable-dane-verify],[Disable DANE verify support]))
+AC_ARG_ENABLE(dane-ta-usage, AS_HELP_STRING([--disable-dane-ta-usage],[Disable DANE-TA usage type support]))
 
 AC_ARG_ENABLE(full-dane,, [
 	enable_dane_ta_usage=yes
@@ -671,7 +667,7 @@ case "$enable_dane" in
       ;;
 esac
 
-AC_ARG_ENABLE(rrtype-ninfo, AC_HELP_STRING([--enable-rrtype-ninfo], [Enable draft RR type ninfo.]))
+AC_ARG_ENABLE(rrtype-ninfo, AS_HELP_STRING([--enable-rrtype-ninfo],[Enable draft RR type ninfo.]))
 case "$enable_rrtype_ninfo" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_NINFO], [], [Define this to enable RR type NINFO.])
@@ -679,7 +675,7 @@ case "$enable_rrtype_ninfo" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(rrtype-rkey, AC_HELP_STRING([--enable-rrtype-rkey], [Enable draft RR type rkey.]))
+AC_ARG_ENABLE(rrtype-rkey, AS_HELP_STRING([--enable-rrtype-rkey],[Enable draft RR type rkey.]))
 case "$enable_rrtype_rkey" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_RKEY], [], [Define this to enable RR type RKEY.])
@@ -687,7 +683,7 @@ case "$enable_rrtype_rkey" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(rrtype-openpgpkey, AC_HELP_STRING([--disable-rrtype-openpgpkey], [Disable openpgpkey RR type.]))
+AC_ARG_ENABLE(rrtype-openpgpkey, AS_HELP_STRING([--disable-rrtype-openpgpkey],[Disable openpgpkey RR type.]))
 case "$enable_rrtype_openpgpkey" in
 	no)
 		;;
@@ -695,7 +691,7 @@ case "$enable_rrtype_openpgpkey" in
 		AC_DEFINE_UNQUOTED([RRTYPE_OPENPGPKEY], [], [Define this to enable RR type OPENPGPKEY.])
 		;;
 esac
-AC_ARG_ENABLE(rrtype-ta, AC_HELP_STRING([--enable-rrtype-ta], [Enable draft RR type ta.]))
+AC_ARG_ENABLE(rrtype-ta, AS_HELP_STRING([--enable-rrtype-ta],[Enable draft RR type ta.]))
 case "$enable_rrtype_ta" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_TA], [], [Define this to enable RR type TA.])
@@ -703,7 +699,7 @@ case "$enable_rrtype_ta" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(rrtype-avc, AC_HELP_STRING([--enable-rrtype-avc], [Enable draft RR type avc.]))
+AC_ARG_ENABLE(rrtype-avc, AS_HELP_STRING([--enable-rrtype-avc],[Enable draft RR type avc.]))
 case "$enable_rrtype_avc" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_AVC], [], [Define this to enable RR type AVC.])
@@ -711,7 +707,7 @@ case "$enable_rrtype_avc" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(rrtype-doa, AC_HELP_STRING([--enable-rrtype-doa], [Enable draft RR type DOA.]))
+AC_ARG_ENABLE(rrtype-doa, AS_HELP_STRING([--enable-rrtype-doa],[Enable draft RR type DOA.]))
 case "$enable_rrtype_doa" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_DOA], [], [Define this to enable RR type DOA.])
@@ -719,15 +715,15 @@ case "$enable_rrtype_doa" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(rrtype-amtrelay, AC_HELP_STRING([--enable-rrtype-amtrelay], [Enable draft RR type AMTRELAY.]))
+AC_ARG_ENABLE(rrtype-amtrelay, AS_HELP_STRING([--disable-rrtype-amtrelay],[Disable RR type AMTRELAY.]))
 case "$enable_rrtype_amtrelay" in
-	yes)
+	no)
+		;;
+	yes|*)
 		AC_DEFINE_UNQUOTED([RRTYPE_AMTRELAY], [], [Define this to enable RR type AMTRELAY.])
 		;;
-	no|*)
-		;;
 esac
-AC_ARG_ENABLE(rrtype-svcb-https, AC_HELP_STRING([--disable-rrtype-svcb-https], [Disable RR types SVCB and HTTPS.]))
+AC_ARG_ENABLE(rrtype-svcb-https, AS_HELP_STRING([--disable-rrtype-svcb-https],[Disable RR types SVCB and HTTPS.]))
 case "$enable_rrtype_svcb_https" in
 	no)
 		;;
@@ -735,8 +731,22 @@ case "$enable_rrtype_svcb_https" in
 		AC_DEFINE_UNQUOTED([RRTYPE_SVCB_HTTPS], [], [Define this to enable RR types SVCB and HTTPS.])
 		;;
 esac
+AC_ARG_ENABLE(rrtype-resinfo, AS_HELP_STRING([--enable-rrtype-resinfo],[Disable RR type RESINFO.]))
+case "$enable_rrtype_resinfo" in
+	no)
+		;;
+	yes|*)
+		AC_DEFINE_UNQUOTED([RRTYPE_RESINFO], [], [Define this to enable RR type RESINFO.])
+		;;
+esac
 
 
+if echo "$tmp_LIBS" | grep "ws2_32" >/dev/null; then
+	if echo "$LIBSSL_LIBS" | grep "ws2_32" >/dev/null; then
+		# only need it once.
+		LIBSSL_LIBS=`echo "$LIBSSL_LIBS" | sed -e 's/ -lws2_32//' -e 's/^-lws2_32//'`
+	fi
+fi
 
 AC_SUBST(LIBSSL_CPPFLAGS)
 AC_SUBST(LIBSSL_LDFLAGS)
@@ -776,7 +786,15 @@ ACX_ARG_RPATH
 AC_C_BIGENDIAN
 
 # Checks for header files.
-AC_HEADER_STDC
+m4_warn([obsolete],
+[The preprocessor macro `STDC_HEADERS' is obsolete.
+  Except in unusual embedded environments, you can safely include all
+  ISO C90 headers unconditionally.])dnl
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_HEADER_STDBOOL
 #AC_HEADER_SYS_WAIT
 #AC_CHECK_HEADERS([getopt.h fcntl.h stdlib.h string.h strings.h unistd.h])
@@ -900,6 +918,29 @@ AC_CHECK_TYPE(in_port_t, [], [AC_DEFINE([in_port_t], [uint16_t], [in_port_t])], 
 #endif])
 ACX_CHECK_SS_FAMILY
 
+AC_CHECK_DECLS([inet_pton,inet_ntop], [], [], [
+AC_INCLUDES_DEFAULT
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#endif
+
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
+#endif
+])
+
 # AC_FUNC_MALLOC suffers false failures and causes Asan failures.
 # AC_FUNC_MALLOC
 # AC_FUNC_REALLOC
@@ -909,6 +950,7 @@ AC_REPLACE_FUNCS(b64_ntop)
 AC_REPLACE_FUNCS(calloc)
 AC_REPLACE_FUNCS(timegm)
 AC_REPLACE_FUNCS(gmtime_r)
+AC_REPLACE_FUNCS(asctime_r)
 AC_REPLACE_FUNCS(ctime_r)
 AC_REPLACE_FUNCS(localtime_r)
 AC_REPLACE_FUNCS(isblank)
@@ -930,7 +972,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 	AC_DEFINE([HAVE_FORK_AVAILABLE], 1, [if fork is available for compile])
 ], [	AC_MSG_RESULT(no)
 ])
-AC_CHECK_FUNCS([endprotoent endservent sleep random fcntl strtoul bzero memset b32_ntop b32_pton])
+AC_CHECK_FUNCS([endprotoent endservent sleep random fcntl strtoul bzero memset b32_ntop b32_pton symlink])
 if test "x$HAVE_B32_NTOP" = "xyes"; then
 	AC_SUBST(ldns_build_config_have_b32_ntop, 1)
 else
@@ -956,8 +998,7 @@ ACX_FUNC_IOCTLSOCKET
 ACX_CHECK_FORMAT_ATTRIBUTE
 ACX_CHECK_UNUSED_ATTRIBUTE
 
-AC_ARG_WITH(xcode-sdk, AC_HELP_STRING([--with-xcode-sdk],
- [Set xcode SDK version. Default is autodetect]),
+AC_ARG_WITH(xcode-sdk, AS_HELP_STRING([--with-xcode-sdk],[Set xcode SDK version. Default is autodetect]),
  [],[with_xcode_sdk="yes"])
 if test "x_$with_xcode_sdk" != "x_no" ; then
    # check OSX deployment target, if needed
@@ -985,14 +1026,14 @@ fi
 
 AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])
 
-AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file for drill and ldns-dane. [default=SYSCONFDIR/unbound/root.key]]), [
+AC_ARG_WITH(trust-anchor, AS_HELP_STRING([--with-trust-anchor=KEYFILE],[Default location of the trust anchor file for drill and ldns-dane. [default=SYSCONFDIR/unbound/root.key]]), [
  AC_SUBST([LDNS_TRUST_ANCHOR_FILE], ["$withval"])
  AC_MSG_NOTICE([Default trust anchor: $withval])
 ],[
  AC_SUBST([LDNS_TRUST_ANCHOR_FILE], ["\$(sysconfdir)/unbound/root.key"])
 ])
 
-AC_ARG_WITH(ca-file, AC_HELP_STRING([--with-ca-file=CAFILE], [File containing CA certificates for ldns-dane]), [
+AC_ARG_WITH(ca-file, AS_HELP_STRING([--with-ca-file=CAFILE],[File containing CA certificates for ldns-dane]), [
  AC_DEFINE([HAVE_DANE_CA_FILE], [1], [Is a CAFILE given at configure time])
  AC_DEFINE_UNQUOTED([LDNS_DANE_CA_FILE], ["$withval"], [Is a CAFILE given at configure time])
  AC_MSG_NOTICE([Using CAfile: $withval])
@@ -1002,7 +1043,7 @@ AC_ARG_WITH(ca-file, AC_HELP_STRING([--with-ca-file=CAFILE], [File containing CA
  AC_SUBST(DEFAULT_CAFILE, [])
 ])
 
-AC_ARG_WITH(ca-path, AC_HELP_STRING([--with-ca-path=CAPATH], [Directory containing CA certificate files for ldns-dane]), [
+AC_ARG_WITH(ca-path, AS_HELP_STRING([--with-ca-path=CAPATH],[Directory containing CA certificate files for ldns-dane]), [
  AC_DEFINE([HAVE_DANE_CA_PATH], [1], [Is a CAPATH given at configure time])
  AC_DEFINE_UNQUOTED([LDNS_DANE_CA_PATH], ["$withval"], [Is a CAPATH given at configure time])
  AC_MSG_NOTICE([Using CApath: $withval])
@@ -1114,6 +1155,9 @@ time_t timegm (struct tm *tm);
 #ifndef HAVE_GMTIME_R
 struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
+#ifndef HAVE_ASCTIME_R
+char *asctime_r(const struct tm *tm, char *buf);
+#endif
 #ifndef HAVE_LOCALTIME_R
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 #endif
@@ -1128,10 +1172,10 @@ int isascii(int c);
 int snprintf (char *str, size_t count, const char *fmt, ...);
 int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
 #endif /* HAVE_SNPRINTF */
-#ifndef HAVE_INET_PTON
+#if !defined(HAVE_INET_PTON) && !HAVE_DECL_INET_PTON
 int inet_pton(int af, const char* src, void* dst);
 #endif /* HAVE_INET_PTON */
-#ifndef HAVE_INET_NTOP
+#if !defined(HAVE_INET_NTOP) && !HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 #ifndef HAVE_INET_ATON
@@ -1145,7 +1189,7 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 
 #ifdef USE_WINSOCK
-#define SOCK_INVALID INVALID_SOCKET
+#define SOCK_INVALID ((INT_PTR)INVALID_SOCKET)
 #define close_socket(_s) do { if (_s != SOCK_INVALID) {closesocket(_s); _s = -1;} } while(0)
 #else
 #define SOCK_INVALID -1
@@ -1183,7 +1227,7 @@ CONFIG_FILES="Makefile libdns.doxygen ldns/common.h ldns/net.h ldns/util.h packa
 AC_SUBST(CONFIG_FILES)
 AC_CONFIG_FILES([$CONFIG_FILES])
 
-AC_CONFIG_HEADER([ldns/config.h])
+AC_CONFIG_HEADERS([ldns/config.h])
 AC_OUTPUT
 COPY_HEADER_FILES(ldns/, ldns/)
 
