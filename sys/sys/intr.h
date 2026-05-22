@@ -107,7 +107,7 @@ int intr_isrc_register(struct intr_irqsrc *, device_t, u_int, const char *, ...)
 bool intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu);
 #endif
 
-int intr_isrc_dispatch(struct intr_irqsrc *, struct trapframe *);
+int intr_isrc_dispatch(struct intr_irqsrc *);
 u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 
 struct intr_pic *intr_pic_register(device_t, intptr_t);

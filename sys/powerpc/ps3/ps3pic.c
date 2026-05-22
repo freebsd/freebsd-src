@@ -48,7 +48,7 @@ static void	ps3pic_identify(driver_t *driver, device_t parent);
 static int	ps3pic_probe(device_t);
 static int	ps3pic_attach(device_t);
 
-static void	ps3pic_dispatch(device_t, struct trapframe *);
+static pic_dispatch_t	ps3pic_dispatch;
 static void	ps3pic_enable(device_t, u_int, u_int, void **);
 static void	ps3pic_eoi(device_t, u_int, void *);
 static void	ps3pic_ipi(device_t, u_int);
@@ -155,7 +155,7 @@ ps3pic_attach(device_t dev)
  */
 
 static void
-ps3pic_dispatch(device_t dev, struct trapframe *tf)
+ps3pic_dispatch(device_t dev)
 {
 	uint64_t bitmap, mask;
 	int irq;
@@ -174,7 +174,7 @@ ps3pic_dispatch(device_t dev, struct trapframe *tf)
 
 	while ((irq = ffsl(bitmap & mask) - 1) != -1) {
 		bitmap &= ~(1UL << irq);
-		powerpc_dispatch_intr(sc->sc_vector[63 - irq], tf);
+		powerpc_dispatch_intr(sc->sc_vector[63 - irq]);
 	}
 }
 

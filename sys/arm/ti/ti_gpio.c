@@ -775,11 +775,9 @@ ti_gpio_intr(void *arg)
 	u_int irq;
 	uint32_t reg;
 	struct ti_gpio_softc *sc;
-	struct trapframe *tf;
 	struct ti_gpio_irqsrc *tgi;
 
 	sc = (struct ti_gpio_softc *)arg;
-	tf = curthread->td_intr_frame;
 
 	reg = ti_gpio_intr_status(sc);
 	for (irq = 0; irq < sc->sc_maxpin; irq++) {
@@ -788,7 +786,7 @@ ti_gpio_intr(void *arg)
 			continue;
 		if (!ti_gpio_isrc_is_level(tgi))
 			ti_gpio_isrc_eoi(sc, tgi);
-		if (intr_isrc_dispatch(&tgi->tgi_isrc, tf) != 0) {
+		if (intr_isrc_dispatch(&tgi->tgi_isrc) != 0) {
 			ti_gpio_isrc_mask(sc, tgi);
 			if (ti_gpio_isrc_is_level(tgi))
 				ti_gpio_isrc_eoi(sc, tgi);

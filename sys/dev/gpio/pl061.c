@@ -409,12 +409,10 @@ static int
 pl061_intr(void *arg)
 {
 	struct pl061_softc *sc;
-	struct trapframe *tf;
 	uint8_t status;
 	int pin;
 
 	sc = (struct pl061_softc *)arg;
-	tf = curthread->td_intr_frame;
 
 	status = bus_read_1(sc->sc_mem_res, PL061_STATUS);
 
@@ -422,7 +420,7 @@ pl061_intr(void *arg)
 		pin = ffs(status) - 1;
 		status &= ~(1 << pin);
 
-		if (intr_isrc_dispatch(PIC_INTR_ISRC(sc, pin), tf) != 0)
+		if (intr_isrc_dispatch(PIC_INTR_ISRC(sc, pin)) != 0)
 			device_printf(sc->sc_dev, "spurious interrupt %d\n",
 			    pin);
 

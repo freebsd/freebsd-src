@@ -156,14 +156,13 @@ plic_get_hartid(device_t dev, phandle_t intc)
 }
 
 static inline void
-plic_irq_dispatch(struct plic_softc *sc, u_int irq,
-    struct trapframe *tf)
+plic_irq_dispatch(struct plic_softc *sc, u_int irq)
 {
 	struct plic_irqsrc *src;
 
 	src = &sc->isrcs[irq];
 
-	if (intr_isrc_dispatch(&src->isrc, tf) != 0)
+	if (intr_isrc_dispatch(&src->isrc) != 0)
 		device_printf(sc->dev, "Stray irq %u detected\n", irq);
 }
 
@@ -171,7 +170,6 @@ static int
 plic_intr(void *arg)
 {
 	struct plic_softc *sc;
-	struct trapframe *tf;
 	uint32_t pending;
 	uint32_t cpu;
 
@@ -180,8 +178,7 @@ plic_intr(void *arg)
 
 	/* Claim all pending interrupts. */
 	while ((pending = RD4(sc, PLIC_CLAIM(sc, cpu))) != 0) {
-		tf = curthread->td_intr_frame;
-		plic_irq_dispatch(sc, pending, tf);
+		plic_irq_dispatch(sc, pending);
 	}
 
 	return (FILTER_HANDLED);
