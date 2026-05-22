@@ -72,9 +72,8 @@ ldns_dnssec_rrs_add_rr(ldns_dnssec_rrs *rrs, ldns_rr *rr)
 		new_rrs->next = rrs->next;
 		rrs->rr = rr;
 		rrs->next = new_rrs;
-	} else
-		return LDNS_STATUS_EQUAL_RR;
-
+	}
+	/* Silently ignore equal rr's */
 	return LDNS_STATUS_OK;
 }
 
@@ -734,37 +733,25 @@ ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, const ldns_rdf* or
 				 */
 				ldns_rr_set_ttl(cur_rr, ldns_rr_ttl(prev_rr));
 
+			prev_rr = cur_rr;
 #endif
 			status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
-			switch(status) {
-			case LDNS_STATUS_DNSSEC_NSEC3_ORIGINAL_NOT_FOUND:
+			if (status ==
+				LDNS_STATUS_DNSSEC_NSEC3_ORIGINAL_NOT_FOUND) {
+
 				if (rr_is_rrsig_covering(cur_rr,
 							LDNS_RR_TYPE_NSEC3)){
 					ldns_rr_list_push_rr(todo_nsec3_rrsigs,
 							cur_rr);
 				} else {
 					ldns_rr_list_push_rr(todo_nsec3s,
-							cur_rr);
+						       	cur_rr);
 				}
 				status = LDNS_STATUS_OK;
-				break;
-			case LDNS_STATUS_EQUAL_RR:
-				ldns_rr_free(cur_rr);
-#ifndef FASTER_DNSSEC_ZONE_NEW_FRM_FP
-				cur_rr = prev_rr;
-#else
-				cur_rr = NULL;
-#endif
-				status = LDNS_STATUS_OK;
-				break;
-			case LDNS_STATUS_OK:
-				break;
-			default:
+
+			} else if (status != LDNS_STATUS_OK)
 				goto error;
-			}
-#ifndef FASTER_DNSSEC_ZONE_NEW_FRM_FP
-			prev_rr = cur_rr;
-#endif
+
 			break;
 
 		case LDNS_STATUS_SYNTAX_TTL:	/* the ttl was set*/
@@ -1524,18 +1511,11 @@ dnssec_zone_rr_iter_first(dnssec_zone_rr_iter *i, ldns_dnssec_zone *zone)
 		: (ldns_dnssec_name *)i->node->data;
 
 	if (zone->hashed_names) {
-		i->nsec3_node = ldns_rbtree_first(zone->hashed_names);
-		i->nsec3_name = i->nsec3_node == LDNS_RBTREE_NULL ? NULL
-			      : (ldns_dnssec_name*)i->nsec3_node->data;
-		/* While there is no NSEC3 RR present at this hashed name,
-		 * skip to the next hashed name.
-		 */
-		while (i->nsec3_name && !i->nsec3_name->nsec) {
-			/* next nsec3 */
-			i->nsec3_node = ldns_rbtree_next(i->nsec3_node);
-			i->nsec3_name = i->nsec3_node == LDNS_RBTREE_NULL ? NULL
-				    : (ldns_dnssec_name*)i->nsec3_node->data;
-		}
+		do {
+			i->nsec3_node = ldns_rbtree_first(zone->hashed_names);
+			i->nsec3_name = i->nsec3_node == LDNS_RBTREE_NULL ?NULL
+				      : (ldns_dnssec_name*)i->nsec3_node->data;
+		} while (i->nsec3_name && !i->nsec3_name->nsec);
 	}
 	dnssec_zone_rr_iter_set_state_for_next_name(i);
 	return dnssec_zone_rr_iter_next(i);

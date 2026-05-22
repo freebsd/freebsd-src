@@ -1,10 +1,10 @@
 #! /bin/sh
 # Attempt to guess a canonical system name.
-#   Copyright 1992-2025 Free Software Foundation, Inc.
+#   Copyright 1992-2024 Free Software Foundation, Inc.
 
 # shellcheck disable=SC2006,SC2268 # see below for rationale
 
-timestamp='2025-07-10'
+timestamp='2024-01-01'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ version="\
 GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
-Copyright 1992-2025 Free Software Foundation, Inc.
+Copyright 1992-2024 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -123,7 +123,7 @@ set_cc_for_build() {
     dummy=$tmp/dummy
     case ${CC_FOR_BUILD-},${HOST_CC-},${CC-} in
 	,,)    echo "int x;" > "$dummy.c"
-	       for driver in cc gcc c17 c99 c89 ; do
+	       for driver in cc gcc c89 c99 ; do
 		   if ($driver -c -o "$dummy.o" "$dummy.c") >/dev/null 2>&1 ; then
 		       CC_FOR_BUILD=$driver
 		       break
@@ -634,8 +634,7 @@ EOF
 		sed 's/^		//' << EOF > "$dummy.c"
 		#include <sys/systemcfg.h>
 
-		int
-		main ()
+		main()
 			{
 			if (!__power_pc())
 				exit(1);
@@ -719,8 +718,7 @@ EOF
 		#include <stdlib.h>
 		#include <unistd.h>
 
-		int
-		main ()
+		int main ()
 		{
 		#if defined(_SC_KERNEL_BITS)
 		    long bits = sysconf(_SC_KERNEL_BITS);
@@ -1597,11 +1595,8 @@ EOF
     *:Unleashed:*:*)
 	GUESS=$UNAME_MACHINE-unknown-unleashed$UNAME_RELEASE
 	;;
-    x86_64:[Ii]ronclad:*:*|i?86:[Ii]ronclad:*:*)
-	GUESS=$UNAME_MACHINE-pc-ironclad-mlibc
-	;;
-    *:[Ii]ronclad:*:*)
-	GUESS=$UNAME_MACHINE-unknown-ironclad-mlibc
+    *:Ironclad:*:*)
+	GUESS=$UNAME_MACHINE-unknown-ironclad
 	;;
 esac
 
@@ -1626,7 +1621,6 @@ cat > "$dummy.c" <<EOF
 #endif
 #endif
 #endif
-int
 main ()
 {
 #if defined (sony)
@@ -1811,8 +1805,8 @@ fi
 exit 1
 
 # Local variables:
-# eval: (add-hook 'before-save-hook 'time-stamp nil t)
+# eval: (add-hook 'before-save-hook 'time-stamp)
 # time-stamp-start: "timestamp='"
-# time-stamp-format: "%Y-%02m-%02d"
+# time-stamp-format: "%:y-%02m-%02d"
 # time-stamp-end: "'"
 # End:

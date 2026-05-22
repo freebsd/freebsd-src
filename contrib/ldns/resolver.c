@@ -1062,8 +1062,6 @@ ldns_resolver_search_status(ldns_pkt** pkt,
 		/* query as-is */
 		return ldns_resolver_query_status(pkt, r, name, t, c, flags);
 	} else if (ldns_resolver_dnsrch(r)) {
-		ldns_pkt *return_pkt = NULL;
-
 		search_list = ldns_resolver_searchlist(r);
 		for (i = 0; i <= ldns_resolver_searchlist_count(r); i++) {
 			if (i == ldns_resolver_searchlist_count(r)) {
@@ -1074,24 +1072,20 @@ ldns_resolver_search_status(ldns_pkt** pkt,
 						search_list[i]);
 			}
 
-			s = ldns_resolver_query_status(&return_pkt, r,
+			s = ldns_resolver_query_status(pkt, r,
 					new_name, t, c, flags);
 			ldns_rdf_deep_free(new_name);
 
-			if (return_pkt) {
+			if (pkt && *pkt) {
 				if (s == LDNS_STATUS_OK && 
-						ldns_pkt_get_rcode(return_pkt)
-						== LDNS_RCODE_NOERROR) {
+						ldns_pkt_get_rcode(*pkt) ==
+						LDNS_RCODE_NOERROR) {
 
 					return LDNS_STATUS_OK;
-				} else if (i < ldns_resolver_searchlist_count(r)) {
-					ldns_pkt_free(return_pkt);
-					return_pkt = NULL;
 				}
+				ldns_pkt_free(*pkt);
+				*pkt = NULL;
 			}
-		}
-		if (pkt && return_pkt) {
-			*pkt = return_pkt;
 		}
 	}
 	return s;

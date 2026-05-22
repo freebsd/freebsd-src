@@ -376,7 +376,7 @@ ldns_status
 ldns_pkt2buffer_wire(ldns_buffer *buffer, const ldns_pkt *packet)
 {
 	ldns_status status;
-	ldns_rbtree_t *compression_data = ldns_rbtree_create(ldns_dname_compare_v);
+	ldns_rbtree_t *compression_data = ldns_rbtree_create((int (*)(const void *, const void *))ldns_dname_compare);
 
 	status = ldns_pkt2buffer_wire_compress(buffer, packet, compression_data);
 

@@ -391,6 +391,12 @@ ldns_rr_new_frm_str_internal(ldns_rr **newrr, const char *str,
 				ldns_buffer_skip(rd_buf, 1);
 				quoted = true;
 			}
+			if (!quoted && ldns_rr_descriptor_field_type(desc, r_cnt)
+					== LDNS_RDF_TYPE_LONG_STR) {
+
+				status = LDNS_STATUS_SYNTAX_RDATA_ERR;
+				goto error;
+			}
 		}
 
 		/* because number of fields can be variable, we can't rely on
@@ -406,8 +412,8 @@ ldns_rr_new_frm_str_internal(ldns_rr **newrr, const char *str,
 		}
 
 		pre_data_pos = ldns_buffer_position(rd_buf);
-		if (-1 == ldns_bget_token(
-				rd_buf, rd, delimiters, LDNS_MAX_RDFLEN)) {
+		if (-1 == (c = ldns_bget_token(
+				rd_buf, rd, delimiters, LDNS_MAX_RDFLEN))) {
 
 			done = true;
 			(void)done; /* we're breaking, so done not read anymore */
@@ -1282,47 +1288,7 @@ ldns_is_rrset(const ldns_rr_list *rr_list)
 		if (c != ldns_rr_get_class(tmp)) {
 			return false;
 		}
-		if (ldns_dname_compare(o, ldns_rr_owner(tmp)) != 0) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool
-ldns_is_rrset_strict(const ldns_rr_list *rr_list)
-{
-	ldns_rr_type t;
-	ldns_rr_class c;
-	uint32_t l;
-	ldns_rdf *o;
-	ldns_rr *tmp;
-	size_t i;
-
-	if (!rr_list || ldns_rr_list_rr_count(rr_list) == 0) {
-		return false;
-	}
-
-	tmp = ldns_rr_list_rr(rr_list, 0);
-
-	t = ldns_rr_get_type(tmp);
-	c = ldns_rr_get_class(tmp);
-	l = ldns_rr_ttl(tmp);
-	o = ldns_rr_owner(tmp);
-
-	/* compare these with the rest of the rr_list, start with 1 */
-	for (i = 1; i < ldns_rr_list_rr_count(rr_list); i++) {
-		tmp = ldns_rr_list_rr(rr_list, i);
-		if (t != ldns_rr_get_type(tmp)) {
-			return false;
-		}
-		if (c != ldns_rr_get_class(tmp)) {
-			return false;
-		}
-		if (l != ldns_rr_ttl(tmp)) {
-			return false;
-		}
-		if (ldns_dname_compare(o, ldns_rr_owner(tmp)) != 0) {
+		if (ldns_rdf_compare(o, ldns_rr_owner(tmp)) != 0) {
 			return false;
 		}
 	}
@@ -1716,8 +1682,8 @@ ldns_rr_compare(const ldns_rr *rr1, const ldns_rr *rr2)
 	return result;
 }
 
-/* convert (c)dnskey to a (c)ds with the given algorithm,
- * then compare the result with the given (c)ds */
+/* convert dnskey to a ds with the given algorithm,
+ * then compare the result with the given ds */
 static int
 ldns_rr_compare_ds_dnskey(ldns_rr *ds,
                           ldns_rr *dnskey)
@@ -1727,10 +1693,8 @@ ldns_rr_compare_ds_dnskey(ldns_rr *ds,
 	ldns_hash algo;
 
 	if (!dnskey || !ds ||
-	    (ldns_rr_get_type(ds) != LDNS_RR_TYPE_DS &&
-	     ldns_rr_get_type(ds) != LDNS_RR_TYPE_CDS) ||
-	    (ldns_rr_get_type(dnskey) != LDNS_RR_TYPE_DNSKEY &&
-	     ldns_rr_get_type(dnskey) != LDNS_RR_TYPE_CDNSKEY)) {
+	    ldns_rr_get_type(ds) != LDNS_RR_TYPE_DS ||
+	    ldns_rr_get_type(dnskey) != LDNS_RR_TYPE_DNSKEY) {
 		return false;
 	}
 
@@ -1763,12 +1727,6 @@ ldns_rr_compare_ds(const ldns_rr *orr1, const ldns_rr *orr2)
 		result = ldns_rr_compare_ds_dnskey(rr1, rr2);
 	} else if (ldns_rr_get_type(rr1) == LDNS_RR_TYPE_DNSKEY &&
 	    ldns_rr_get_type(rr2) == LDNS_RR_TYPE_DS) {
-		result = ldns_rr_compare_ds_dnskey(rr2, rr1);
-	} else if (ldns_rr_get_type(rr1) == LDNS_RR_TYPE_CDS &&
-	    ldns_rr_get_type(rr2) == LDNS_RR_TYPE_CDNSKEY) {
-		result = ldns_rr_compare_ds_dnskey(rr1, rr2);
-	} else if (ldns_rr_get_type(rr1) == LDNS_RR_TYPE_CDNSKEY &&
-	    ldns_rr_get_type(rr2) == LDNS_RR_TYPE_CDS) {
 		result = ldns_rr_compare_ds_dnskey(rr2, rr1);
 	} else {
 		result = (ldns_rr_compare(rr1, rr2) == 0);
@@ -1940,7 +1898,7 @@ static const ldns_rdf_type type_nsap_wireformat[] = {
 	LDNS_RDF_TYPE_NSAP
 };
 static const ldns_rdf_type type_nsap_ptr_wireformat[] = {
-	LDNS_RDF_TYPE_UNQUOTED
+	LDNS_RDF_TYPE_STR
 };
 static const ldns_rdf_type type_sig_wireformat[] = {
 	LDNS_RDF_TYPE_TYPE, LDNS_RDF_TYPE_ALG, LDNS_RDF_TYPE_INT8, LDNS_RDF_TYPE_INT32,
@@ -1954,7 +1912,7 @@ static const ldns_rdf_type type_px_wireformat[] = {
 	LDNS_RDF_TYPE_INT16, LDNS_RDF_TYPE_DNAME, LDNS_RDF_TYPE_DNAME
 };
 static const ldns_rdf_type type_gpos_wireformat[] = {
-	LDNS_RDF_TYPE_UNQUOTED, LDNS_RDF_TYPE_UNQUOTED, LDNS_RDF_TYPE_UNQUOTED
+	LDNS_RDF_TYPE_STR, LDNS_RDF_TYPE_STR, LDNS_RDF_TYPE_STR
 };
 static const ldns_rdf_type type_aaaa_wireformat[] = { LDNS_RDF_TYPE_AAAA };
 static const ldns_rdf_type type_loc_wireformat[] = { LDNS_RDF_TYPE_LOC };
@@ -2031,23 +1989,6 @@ static const ldns_rdf_type type_svcb_wireformat[] = {
 	LDNS_RDF_TYPE_SVCPARAMS
 };
 #endif
-#ifdef RRTYPE_DSYNC
-static const ldns_rdf_type type_dsync_wireformat[] = {
-	LDNS_RDF_TYPE_TYPE,
-	LDNS_RDF_TYPE_INT8,
-	LDNS_RDF_TYPE_INT16,
-	LDNS_RDF_TYPE_DNAME
-};
-#endif
-#ifdef RRTYPE_HHIT_BRID
-static const ldns_rdf_type type_hhit_wireformat[] = {
-	LDNS_RDF_TYPE_B64
-};
-static const ldns_rdf_type type_brid_wireformat[] = {
-	LDNS_RDF_TYPE_B64
-};
-#endif
-
 /* nsec3 is some vars, followed by same type of data of nsec */
 static const ldns_rdf_type type_nsec3_wireformat[] = {
 /*	LDNS_RDF_TYPE_NSEC3_VARS, LDNS_RDF_TYPE_NSEC3_NEXT_OWNER, LDNS_RDF_TYPE_NSEC*/
@@ -2141,12 +2082,6 @@ static const ldns_rdf_type type_amtrelay_wireformat[] = {
 	LDNS_RDF_TYPE_AMTRELAY
 };
 #endif
-#ifdef RRTYPE_CLA_IPN
-static const ldns_rdf_type type_ipn_wireformat[] = {
-	LDNS_RDF_TYPE_IPN
-};
-#endif
-
 
 
 /** \endcond */
@@ -2314,21 +2249,9 @@ static ldns_rr_descriptor rdata_field_descriptors[] = {
 {LDNS_RR_TYPE_NULL, "TYPE64", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 {LDNS_RR_TYPE_NULL, "TYPE65", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 #endif
-#ifdef RRTYPE_DSYNC
-	/* 66 */
-	{LDNS_RR_TYPE_DSYNC, "DSYNC", 4, 4, type_dsync_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 1 },
-#else
 {LDNS_RR_TYPE_NULL, "TYPE66", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-#endif
-#ifdef RRTYPE_HHIT_BRID
-	/* 67 */
-	{LDNS_RR_TYPE_HHIT, "HHIT", 1, 1, type_hhit_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-	/* 68 */
-	{LDNS_RR_TYPE_BRID, "BRID", 1, 1, type_brid_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-#else
 {LDNS_RR_TYPE_NULL, "TYPE67", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 {LDNS_RR_TYPE_NULL, "TYPE68", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-#endif
 {LDNS_RR_TYPE_NULL, "TYPE69", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 {LDNS_RR_TYPE_NULL, "TYPE70", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 {LDNS_RR_TYPE_NULL, "TYPE71", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
@@ -2572,21 +2495,13 @@ static ldns_rr_descriptor rdata_field_descriptors[] = {
 #endif
 #ifdef RRTYPE_RESINFO
 	/* 261 */
-	{LDNS_RR_TYPE_RESINFO, "RESINFO", 1, 0, NULL, LDNS_RDF_TYPE_UNQUOTED, LDNS_RR_NO_COMPRESS, 0 },
+	{LDNS_RR_TYPE_RESINFO, "RESINFO", 1, 0, NULL, LDNS_RDF_TYPE_STR, LDNS_RR_NO_COMPRESS, 0 },
 #else
 {LDNS_RR_TYPE_NULL, "TYPE261", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 #endif
 	/* 262 */
-	{LDNS_RR_TYPE_WALLET, "WALLET", 1, 0, NULL, LDNS_RDF_TYPE_STR, LDNS_RR_NO_COMPRESS, 0 },
-#ifdef RRTYPE_CLA_IPN
-	/* 263 */
-	{LDNS_RR_TYPE_CLA, "CLA", 1, 0, NULL, LDNS_RDF_TYPE_STR, LDNS_RR_NO_COMPRESS, 0 },
-	/* 264 */
-	{LDNS_RR_TYPE_IPN, "IPN", 1, 1, type_ipn_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-#else
-{LDNS_RR_TYPE_NULL, "TYPE263", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-{LDNS_RR_TYPE_NULL, "TYPE264", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
-#endif
+	{LDNS_RR_TYPE_WALLET, "TXT", 1, 0, NULL, LDNS_RDF_TYPE_STR, LDNS_RR_NO_COMPRESS, 0 },
+
 /* split in array, no longer contiguous */
 
 #ifdef RRTYPE_TA
@@ -2672,14 +2587,6 @@ ldns_rdf_bitmap_known_rr_types_set(ldns_rdf** rdf, int value)
 	for (d=rdata_field_descriptors; d < rdata_field_descriptors_end; d++) {
 		window  = d->_type >> 8;
 		subtype = d->_type & 0xff;
-
-		/* In the code below, windows[window] == 0 means that the
-		 * window is not in use. So subtype == 0 is a problem. The
-		 * easiest solution is to set subtype to 1, that marks the
-		 * window as in use and doesn't have negative effects.
-		 */
-		if (subtype == 0)
-			subtype = 1;
 		if (windows[window] < subtype) {
 			windows[window] = subtype;
 		}

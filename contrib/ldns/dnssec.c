@@ -285,7 +285,6 @@ ldns_calc_keytag(const ldns_rr *key)
 	}
 
 	if (ldns_rr_get_type(key) != LDNS_RR_TYPE_DNSKEY &&
-	    ldns_rr_get_type(key) != LDNS_RR_TYPE_CDNSKEY &&
 	    ldns_rr_get_type(key) != LDNS_RR_TYPE_KEY
 	    ) {
 		return 0;
@@ -518,8 +517,7 @@ ldns_key_rr2ds(const ldns_rr *key, ldns_hash h)
 	const EVP_MD* md = NULL;
 #endif
 
-	if (ldns_rr_get_type(key) != LDNS_RR_TYPE_DNSKEY &&
-	    ldns_rr_get_type(key) != LDNS_RR_TYPE_CDNSKEY) {
+	if (ldns_rr_get_type(key) != LDNS_RR_TYPE_DNSKEY) {
 		return NULL;
 	}
 

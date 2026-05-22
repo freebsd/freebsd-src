@@ -581,14 +581,6 @@ ldns_status ldns_rdf2buffer_str_int16(ldns_buffer *output, const ldns_rdf *rdf);
  */
 ldns_status ldns_rdf2buffer_str_int32(ldns_buffer *output, const ldns_rdf *rdf);
 
-/** 
- * Converts an LDNS_RDF_TYPE_INT64 rdata element to presentation format.
- * \param[in] *rdf The rdata to convert
- * \param[in] *output The buffer to add the data to
- * \return LDNS_STATUS_OK on success, and error status on failure
- */
-ldns_status ldns_rdf2buffer_str_int64(ldns_buffer *output, const ldns_rdf *rdf);
-
 /**
  * Converts an LDNS_RDF_TYPE_TIME rdata element to string format and adds it to the output buffer
  * \param[in] *rdf The rdata to convert
@@ -625,16 +617,6 @@ ldns_status ldns_rdf2buffer_str_eui48(ldns_buffer *output,
  * \return LDNS_STATUS_OK on success, and error status on failure
  */
 ldns_status ldns_rdf2buffer_str_eui64(ldns_buffer *output,
-		const ldns_rdf *rdf);
-
-/**
- * Adds the LDNS_RDF_TYPE_UNQUOTED rdata to the output buffer,
- * it escapes nonprinting and special characters.
- * \param[in] *rdf The rdata to convert
- * \param[in] *output The buffer to add the data to
- * \return LDNS_STATUS_OK on success, and error status on failure
- */
-ldns_status ldns_rdf2buffer_str_unquoted(ldns_buffer *output,
 		const ldns_rdf *rdf);
 
 /** 

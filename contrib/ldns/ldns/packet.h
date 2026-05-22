@@ -710,19 +710,6 @@ bool ldns_pkt_edns_do(const ldns_pkt *packet);
 void ldns_pkt_set_edns_do(ldns_pkt *packet, bool value);
 
 /**
- * return the packet's edns co bit
- * \param[in] packet the packet
- * \return the bit's value
- */
-bool ldns_pkt_edns_co(const ldns_pkt *packet);
-/**
- * Set the packet's edns co bit
- * \param[in] packet the packet
- * \param[in] value the bit's new value
- */
-void ldns_pkt_set_edns_co(ldns_pkt *packet, bool value);
-
-/**
  * return the packet's EDNS header bits that are unassigned.
  */
 uint16_t ldns_pkt_edns_unassigned(const ldns_pkt *packet);

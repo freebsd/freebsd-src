@@ -1,21 +1,3 @@
-DEVELOPMENT VISION
-
-Note: ldns has been in maintenance mode since 2020, with no plans for major
-features. We welcome PRs from contributors who want to add new functionality. 
-We also actively fix bugs, so users can continue to rely on ldns if its 
-current features meet their needs.
-
-We will continue to make occasional use of ldns in an experimental
-setting, such as during an IETF Hackathon to build a proof of concept for an
-Internet Draft.
-
-The natural successor to the ldns library is the domain library for Rust:
-https://github.com/NLnetLabs/domain
-
-We offer drop-in replacements for commonly used ldns example tools in dnst:
-https://github.com/NLnetLabs/dnst
-
----
 
 Contents: 
 	REQUIREMENTS
@@ -28,6 +10,7 @@ Contents:
 		Solaris
 	KNOWN ISSUES
 		pyldns
+        Your Support
 
 Project page:
 http://www.nlnetlabs.nl/ldns/
