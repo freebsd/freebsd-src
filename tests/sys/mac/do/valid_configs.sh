@@ -1,5 +1,3 @@
-#!/usr/bin/env atf-sh
-#
 # Copyright (c) 2026, The FreeBSD Foundation
 #
 # This software was developed by Olivier Certner <olce@FreeBSD.org> at
