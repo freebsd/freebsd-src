@@ -291,7 +291,12 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 				/* trust glue? */
 				new_ns_addr = NULL;
 				if (ldns_dname_is_subdomain(pop, labels[i])) {
-					new_ns_addr = ldns_pkt_rr_list_by_name_and_type(local_p, pop, LDNS_RR_TYPE_A, LDNS_SECTION_ADDITIONAL);
+					if (ldns_resolver_ip6(res) == LDNS_RESOLV_INET6) {
+						new_ns_addr = ldns_pkt_rr_list_by_name_and_type(local_p, pop, LDNS_RR_TYPE_AAAA, LDNS_SECTION_ADDITIONAL);
+					} else {
+						/* If IPv4 is specified, or no IP version is specified, default to A record and use IPv4 */
+						new_ns_addr = ldns_pkt_rr_list_by_name_and_type(local_p, pop, LDNS_RR_TYPE_A, LDNS_SECTION_ADDITIONAL);
+					}
 				}
 				if (!new_ns_addr || ldns_rr_list_rr_count(new_ns_addr) == 0) {
 					new_ns_addr = ldns_get_rr_list_addr_by_name(res, pop, c, 0);
