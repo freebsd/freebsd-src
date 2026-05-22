@@ -93,12 +93,10 @@ static struct genl_group {
 static inline struct genl_family *
 genl_family(uint16_t family_id)
 {
-	struct genl_family *gf;
-
-	gf = &families[family_id - GENL_MIN_ID];
 	KASSERT(family_id - GENL_MIN_ID < MAX_FAMILIES &&
-	    gf->family_name != NULL, ("family %u does not exist", family_id));
-	return (gf);
+	    families[family_id - GENL_MIN_ID].family_name != NULL,
+	    ("family %u does not exist", family_id));
+	return (&families[family_id - GENL_MIN_ID]);
 }
 
 static inline uint16_t
