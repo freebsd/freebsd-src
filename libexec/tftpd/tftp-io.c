@@ -173,11 +173,11 @@ send_error(int peer, int error)
 int
 send_wrq(int peer, char *filename, char *mode)
 {
-	int n;
+	char buf[MAXPKTSIZE];
 	struct tftphdr *tp;
 	char *bp;
-	char buf[MAXPKTSIZE];
-	int size;
+	size_t len;
+	int n, size;
 
 	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending WRQ: filename: '%s', mode '%s'",
@@ -191,17 +191,17 @@ send_wrq(int peer, char *filename, char *mode)
 	size = offsetof(struct tftphdr, th_stuff);
 
 	bp = tp->th_stuff;
-	strlcpy(bp, filename, sizeof(buf) - size);
-	bp += strlen(filename);
-	*bp = 0;
-	bp++;
-	size += strlen(filename) + 1;
+	len = strlcpy(bp, filename, sizeof(buf) - size);
+	if (len >= sizeof(buf) - size)
+		goto overflow;
+	bp += len + 1;
+	size += len + 1;
 
-	strlcpy(bp, mode, sizeof(buf) - size);
-	bp += strlen(mode);
-	*bp = 0;
-	bp++;
-	size += strlen(mode) + 1;
+	len = strlcpy(bp, mode, sizeof(buf) - size);
+	if (len >= sizeof(buf) - size)
+		goto overflow;
+	bp += len + 1;
+	size += len + 1;
 
 	if (options_rfc_enabled)
 		size += make_options(peer, bp, sizeof(buf) - size);
@@ -213,6 +213,9 @@ send_wrq(int peer, char *filename, char *mode)
 		return (1);
 	}
 	return (0);
+overflow:
+	tftp_log(LOG_ERR, "%s: file name too long", __func__);
+	return (1);
 }
 
 /*
@@ -221,11 +224,11 @@ send_wrq(int peer, char *filename, char *mode)
 int
 send_rrq(int peer, char *filename, char *mode)
 {
-	int n;
+	char buf[MAXPKTSIZE];
 	struct tftphdr *tp;
 	char *bp;
-	char buf[MAXPKTSIZE];
-	int size;
+	size_t len;
+	int n, size;
 
 	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending RRQ: filename: '%s', mode '%s'",
@@ -239,17 +242,17 @@ send_rrq(int peer, char *filename, char *mode)
 	size = offsetof(struct tftphdr, th_stuff);
 
 	bp = tp->th_stuff;
-	strlcpy(bp, filename, sizeof(buf) - size);
-	bp += strlen(filename);
-	*bp = 0;
-	bp++;
-	size += strlen(filename) + 1;
+	len = strlcpy(bp, filename, sizeof(buf) - size);
+	if (len >= sizeof(buf) - size)
+		goto overflow;
+	bp += len + 1;
+	size += len + 1;
 
-	strlcpy(bp, mode, sizeof(buf) - size);
-	bp += strlen(mode);
-	*bp = 0;
-	bp++;
-	size += strlen(mode) + 1;
+	len = strlcpy(bp, mode, sizeof(buf) - size);
+	if (len >= sizeof(buf) - size)
+		goto overflow;
+	bp += len + 1;
+	size += len + 1;
 
 	if (options_rfc_enabled) {
 		options_set_request(OPT_TSIZE, "0");
@@ -263,6 +266,9 @@ send_rrq(int peer, char *filename, char *mode)
 		return (1);
 	}
 	return (0);
+overflow:
+	tftp_log(LOG_ERR, "%s: file name too long", __func__);
+	return (1);
 }
 
 /*
