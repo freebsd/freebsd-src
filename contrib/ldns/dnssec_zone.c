@@ -1913,6 +1913,9 @@ rr_list2dnssec_rrs(ldns_rr_list *rr_list, ldns_dnssec_rrs **rrs,
 
 ldns_status
 dnssec_zone_equip_zonemd(ldns_dnssec_zone *zone,
+		ldns_rr_list *new_rrs, ldns_key_list *key_list, int signflags);
+ldns_status
+dnssec_zone_equip_zonemd(ldns_dnssec_zone *zone,
 		ldns_rr_list *new_rrs, ldns_key_list *key_list, int signflags)
 {
 	ldns_status st = LDNS_STATUS_OK;

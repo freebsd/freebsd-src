@@ -7,6 +7,9 @@
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
 
+/* Define to 1 if you have the `asctime_r' function. */
+#define HAVE_ASCTIME_R 1
+
 /* Whether the C compiler accepts the "format" attribute */
 #define HAVE_ATTR_FORMAT 1
 
@@ -52,6 +55,14 @@
 /* Define to 1 if you have the declaration of `EVP_PKEY_base_id', and to 0 if
    you don't. */
 #define HAVE_DECL_EVP_PKEY_BASE_ID 1
+
+/* Define to 1 if you have the declaration of `inet_ntop', and to 0 if you
+   don't. */
+#define HAVE_DECL_INET_NTOP 1
+
+/* Define to 1 if you have the declaration of `inet_pton', and to 0 if you
+   don't. */
+#define HAVE_DECL_INET_PTON 1
 
 /* Define to 1 if you have the declaration of `NID_ED25519', and to 0 if you
    don't. */
@@ -297,6 +308,9 @@
 /* Define if you have SWIG libraries and header files. */
 /* #undef HAVE_SWIG */
 
+/* Define to 1 if you have the `symlink' function. */
+#define HAVE_SYMLINK 1
+
 /* Define to 1 if you have the <sys/mount.h> header file. */
 #define HAVE_SYS_MOUNT_H 1
 
@@ -358,13 +372,13 @@
 #define LT_OBJDIR ".libs/"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "libdns@nlnetlabs.nl"
+#define PACKAGE_BUGREPORT "dns-team@nlnetlabs.nl"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "ldns"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ldns 1.8.3"
+#define PACKAGE_STRING "ldns 1.8.4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libdns"
@@ -373,10 +387,10 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.8.3"
+#define PACKAGE_VERSION "1.8.4"
 
 /* Define this to enable RR type AMTRELAY. */
-/* #undef RRTYPE_AMTRELAY */
+#define RRTYPE_AMTRELAY /**/
 
 /* Define this to enable RR type AVC. */
 /* #undef RRTYPE_AVC */
@@ -389,6 +403,9 @@
 
 /* Define this to enable RR type OPENPGPKEY. */
 #define RRTYPE_OPENPGPKEY /**/
+
+/* Define this to enable RR type RESINFO. */
+#define RRTYPE_RESINFO /**/
 
 /* Define this to enable RR type RKEY. */
 /* #undef RRTYPE_RKEY */
@@ -665,7 +682,7 @@
 #ifdef HAVE_WINSOCK2_H
 #define FD_SET_T (u_int)
 #else
-#define FD_SET_T 
+#define FD_SET_T
 #endif
 
 
@@ -718,6 +735,9 @@ time_t timegm (struct tm *tm);
 #ifndef HAVE_GMTIME_R
 struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
+#ifndef HAVE_ASCTIME_R
+char *asctime_r(const struct tm *tm, char *buf);
+#endif
 #ifndef HAVE_LOCALTIME_R
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 #endif
@@ -732,10 +752,10 @@ int isascii(int c);
 int snprintf (char *str, size_t count, const char *fmt, ...);
 int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
 #endif /* HAVE_SNPRINTF */
-#ifndef HAVE_INET_PTON
+#if !defined(HAVE_INET_PTON) && !HAVE_DECL_INET_PTON
 int inet_pton(int af, const char* src, void* dst);
 #endif /* HAVE_INET_PTON */
-#ifndef HAVE_INET_NTOP
+#if !defined(HAVE_INET_NTOP) && !HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 #ifndef HAVE_INET_ATON
@@ -749,7 +769,7 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 
 #ifdef USE_WINSOCK
-#define SOCK_INVALID INVALID_SOCKET
+#define SOCK_INVALID ((INT_PTR)INVALID_SOCKET)
 #define close_socket(_s) do { if (_s != SOCK_INVALID) {closesocket(_s); _s = -1;} } while(0)
 #else
 #define SOCK_INVALID -1
