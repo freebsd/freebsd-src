@@ -118,7 +118,7 @@
 #define HAVE_EVP_PKEY_BASE_ID 1
 
 /* Define to 1 if you have the `EVP_PKEY_get_base_id' function. */
-/* #undef HAVE_EVP_PKEY_GET_BASE_ID */
+#define HAVE_EVP_PKEY_GET_BASE_ID 1
 
 /* Define to 1 if you have the `EVP_PKEY_keygen' function. */
 #define HAVE_EVP_PKEY_KEYGEN 1
