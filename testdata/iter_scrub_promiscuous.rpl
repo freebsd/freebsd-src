@@ -16,6 +16,7 @@ SCENARIO_BEGIN Test iterator with scrub of promiscuous records
 ; The spoofed contents are ns.attacker.mesa and its IPs 5.6.7.8 and 5.6.7.9.
 ; The pollute1.mesa NS, ns.pollute2.mesa A, and test3.atkr.pollute3.mesa NS
 ; with ns.pollute3.mesa A records are tested for cache placement.
+; pollute4.mesa uses YXDOMAIN.
 
 ; ns.root
 RANGE_BEGIN 0 400
@@ -82,6 +83,18 @@ SECTION AUTHORITY
 pollute3.mesa. IN NS ns.pollute3.mesa.
 SECTION ADDITIONAL
 ns.pollute3.mesa. IN A 1.2.4.3
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+pollute4.mesa. IN NS
+SECTION AUTHORITY
+pollute4.mesa. IN NS ns.pollute4.mesa.
+SECTION ADDITIONAL
+ns.pollute4.mesa. IN A 1.2.4.4
 ENTRY_END
 
 ENTRY_BEGIN
@@ -185,6 +198,35 @@ SECTION QUESTION
 check.pollute3.mesa. IN A
 SECTION ANSWER
 check.pollute3.mesa. IN A 1.8.9.3
+ENTRY_END
+RANGE_END
+
+; ns.pollute4.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.4.4
+
+; This is the spoofed answer that is returned.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA YXDOMAIN
+SECTION QUESTION
+test4.atkr.pollute4.mesa. IN A
+SECTION ANSWER
+test4.atkr.pollute4.mesa. 86400 IN A 1.2.3.4
+SECTION AUTHORITY
+pollute4.mesa. 86400 IN NS ns.attacker.mesa.
+ENTRY_END
+
+; correct answer for the check query.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+check.pollute4.mesa. IN A
+SECTION ANSWER
+check.pollute4.mesa. IN A 1.8.9.4
 ENTRY_END
 RANGE_END
 
@@ -368,6 +410,48 @@ SECTION ANSWER
 check.pollute3.mesa. IN A 1.8.9.3
 ; bad answer
 ;check.pollute3.mesa. IN A 5.6.7.9
+ENTRY_END
+
+; Test query 4
+STEP 120 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test4.atkr.pollute4.mesa. IN A
+ENTRY_END
+
+STEP 130 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA YXDOMAIN
+SECTION QUESTION
+test4.atkr.pollute4.mesa. IN A
+SECTION ANSWER
+test4.atkr.pollute4.mesa. 86400 IN A 1.2.3.4
+SECTION AUTHORITY
+; removed record
+;pollute4.mesa.       0       IN      NS      ns.attacker.mesa.
+ENTRY_END
+
+; Check the cache contents, for query 4.
+STEP 140 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+check.pollute4.mesa. IN A
+ENTRY_END
+
+STEP 150 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+check.pollute4.mesa. IN A
+SECTION ANSWER
+; good answer
+check.pollute4.mesa. IN A 1.8.9.4
+; bad answer
+;check.pollute4.mesa. IN A 5.6.7.9
 ENTRY_END
 
 SCENARIO_END
