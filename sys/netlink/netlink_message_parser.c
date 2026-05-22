@@ -122,6 +122,8 @@ nlmsg_report_cookie_u32(struct nl_pstate *npt, uint32_t val)
 {
 	struct nlattr *nla = npt_alloc(npt, sizeof(*nla) + sizeof(uint32_t));
 
+	if (nla == NULL)
+		return;
 	nla->nla_type = NLMSGERR_ATTR_COOKIE;
 	nla->nla_len = sizeof(*nla) + sizeof(uint32_t);
 	memcpy(nla + 1, &val, sizeof(uint32_t));
