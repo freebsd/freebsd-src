@@ -82,7 +82,7 @@ usage(FILE *stream, const char *progname)
 	fprintf(stream, "\t-z\t\tdon't randomize the nameservers before use\n");
 	fprintf(stream, "\n  [*] = enables/implies DNSSEC\n");
 	fprintf(stream, "  [**] = can be given more than once\n");
-	fprintf(stream, "\n  ldns-team@nlnetlabs.nl | http://www.nlnetlabs.nl/ldns/\n");
+	fprintf(stream, "\n  dns-team@nlnetlabs.nl | http://www.nlnetlabs.nl/ldns/\n");
 }
 
 /**

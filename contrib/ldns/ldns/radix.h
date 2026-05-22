@@ -74,7 +74,7 @@ struct ldns_radix_node_t {
 	void* data;
 	/** Parent node. */
 	ldns_radix_node_t* parent;
-	/** Index in the the parent node select edge array. */
+	/** Index in the parent node select edge array. */
 	uint8_t parent_index;
 	/** Length of the array. */
 	uint16_t len;

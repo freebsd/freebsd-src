@@ -2,7 +2,16 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 41
+# Version 48
+# 2024-01-16 fix to add -l:libssp.a to -lcrypto link check.
+#	     and check for getaddrinfo with only header.
+# 2024-01-15 fix to add crypt32 to -lcrypto link check when checking for gdi32.
+# 2023-05-04 fix to remove unused whitespace.
+# 2023-01-26 fix -Wstrict-prototypes.
+# 2022-09-01 fix checking if nonblocking sockets work on OpenBSD.
+# 2021-08-17 fix sed script in ssldir split handling.
+# 2021-08-17 fix for openssl to detect split version, with ssldir_include
+# 	     and ssldir_lib output directories.
 # 2021-07-30 fix for openssl use of lib64 directory.
 # 2021-06-14 fix nonblocking test to use host instead of target for mingw test.
 # 2021-05-17 fix nonblocking socket test from grep on mingw32 to mingw for
@@ -183,7 +192,7 @@ dnl cache=`echo $1 | sed 'y%.=/+- %___p__%'`
 AC_CACHE_VAL(cv_prog_cc_flag_needed_$cache,
 [
 echo '$2' > conftest.c
-echo 'void f(){}' >>conftest.c
+echo 'void f(void){}' >>conftest.c
 if test -z "`$CC $CPPFLAGS $CFLAGS $ERRFLAG -c conftest.c 2>&1`"; then
 eval "cv_prog_cc_flag_needed_$cache=no"
 else
@@ -229,7 +238,7 @@ dnl DEPFLAG: set to flag that generates dependencies.
 AC_DEFUN([ACX_DEPFLAG],
 [
 AC_MSG_CHECKING([$CC dependency flag])
-echo 'void f(){}' >conftest.c
+echo 'void f(void){}' >conftest.c
 if test "`$CC -MM conftest.c 2>&1`" = "conftest.o: conftest.c"; then
 	DEPFLAG="-MM"
 else 
@@ -268,7 +277,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_DEFAUL
 #include <getopt.h>
 #endif
 
-int test() {
+int test(void) {
 	int a;
 	char **opts = NULL;
 	struct timeval tv;
@@ -305,7 +314,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG -D__EXTENSIONS__ -D_BSD_SOURCE -D_DEFAUL
 #include <getopt.h>
 #endif
 
-int test() {
+int test(void) {
 	int a;
 	char **opts = NULL;
 	struct timeval tv;
@@ -331,7 +340,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED($C99FLAG,
 [
 #include <stdbool.h>
 #include <ctype.h>
-int test() {
+int test(void) {
         int a = 0;
         return a;
 }
@@ -341,7 +350,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED(-D_BSD_SOURCE -D_DEFAULT_SOURCE,
 [
 #include <ctype.h>
 
-int test() {
+int test(void) {
         int a;
         a = isascii(32);
         return a;
@@ -352,7 +361,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED(-D_GNU_SOURCE,
 [
 #include <netinet/in.h>
 
-int test() {
+int test(void) {
         struct in6_pktinfo inf;
 	int a = (int)sizeof(inf);
         return a;
@@ -366,7 +375,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED(-D_GNU_SOURCE -D_FRSRESGID,
 [
 #include <unistd.h>
 
-int test() {
+int test(void) {
 	int a = setresgid(0,0,0);
 	a = setresuid(0,0,0);
         return a;
@@ -381,7 +390,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED(-D_POSIX_C_SOURCE=200112,
 #endif
 #include <netdb.h>
 
-int test() {
+int test(void) {
         int a = 0;
         char *t;
         time_t time = 0;
@@ -409,7 +418,7 @@ ACX_CHECK_COMPILER_FLAG_NEEDED(-D__EXTENSIONS__,
 #include <getopt.h>
 #endif
 
-int test() {
+int test(void) {
         int a;
         char **opts = NULL;
         struct timeval tv;
@@ -471,7 +480,7 @@ fi
 dnl Setup ATTR_FORMAT config.h parts.
 dnl make sure you call ACX_CHECK_FORMAT_ATTRIBUTE also.
 AC_DEFUN([AHX_CONFIG_FORMAT_ATTRIBUTE],
-[ 
+[
 #ifdef HAVE_ATTR_FORMAT
 #  define ATTR_FORMAT(archetype, string_index, first_to_check) \
     __attribute__ ((format (archetype, string_index, first_to_check)))
@@ -647,6 +656,30 @@ AC_DEFUN([ACX_SSL_CHECKS], [
     withval=$1
     if test x_$withval != x_no; then
         AC_MSG_CHECKING(for SSL)
+	if test -n "$withval"; then
+		dnl look for openssl install with different version, eg.
+		dnl in /usr/include/openssl11/openssl/ssl.h
+		dnl and /usr/lib64/openssl11/libssl.so
+		dnl with the --with-ssl=/usr/include/openssl11
+		if test ! -f "$withval/include/openssl/ssl.h" -a -f "$withval/openssl/ssl.h"; then
+			ssldir="$withval"
+			found_ssl="yes"
+			withval=""
+			ssldir_include="$ssldir"
+			dnl find the libdir
+			ssldir_lib=`echo $ssldir | sed -e 's/include/lib/'`
+			if test -f "$ssldir_lib/libssl.a" -o -f "$ssldir_lib/libssl.so"; then
+				: # found here
+			else
+				ssldir_lib=`echo $ssldir | sed -e 's/include/lib64/'`
+				if test -f "$ssldir_lib/libssl.a" -o -f "$ssldir_lib/libssl.so"; then
+					: # found here
+				else
+					AC_MSG_ERROR([Could not find openssl lib file, $ssldir_lib/libssl.[so,a], pass like "/usr/local" or "/usr/include/openssl11"])
+				fi
+			fi
+		fi
+	fi
         if test x_$withval = x_ -o x_$withval = x_yes; then
             withval="/usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr"
         fi
@@ -654,12 +687,12 @@ AC_DEFUN([ACX_SSL_CHECKS], [
             ssldir="$dir"
             if test -f "$dir/include/openssl/ssl.h"; then
                 found_ssl="yes"
-                AC_DEFINE_UNQUOTED([HAVE_SSL], [], [Define if you have the SSL libraries installed.])
-                dnl assume /usr/include is already in the include-path.
-                if test "$ssldir" != "/usr"; then
-                        CPPFLAGS="$CPPFLAGS -I$ssldir/include"
-                        LIBSSL_CPPFLAGS="$LIBSSL_CPPFLAGS -I$ssldir/include"
-                fi
+		ssldir_include="$ssldir/include"
+		if test ! -d "$ssldir/lib" -a -d "$ssldir/lib64"; then
+			ssldir_lib="$ssldir/lib64"
+		else
+			ssldir_lib="$ssldir/lib"
+		fi
                 break;
             fi
         done
@@ -667,20 +700,17 @@ AC_DEFUN([ACX_SSL_CHECKS], [
             AC_MSG_ERROR(Cannot find the SSL libraries in $withval)
         else
             AC_MSG_RESULT(found in $ssldir)
+            AC_DEFINE_UNQUOTED([HAVE_SSL], [], [Define if you have the SSL libraries installed.])
             HAVE_SSL=yes
-            dnl assume /usr is already in the lib and dynlib paths.
-            if test "$ssldir" != "/usr" -a "$ssldir" != ""; then
-		if test ! -d "$ssldir/lib" -a -d "$ssldir/lib64"; then
-			LDFLAGS="$LDFLAGS -L$ssldir/lib64"
-			LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir/lib64"
-			ACX_RUNTIME_PATH_ADD([$ssldir/lib64])
-		else
-			LDFLAGS="$LDFLAGS -L$ssldir/lib"
-			LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir/lib"
-			ACX_RUNTIME_PATH_ADD([$ssldir/lib])
-		fi
-            fi
-        
+	    dnl assume /usr is already in the include, lib and dynlib paths.
+            if test "$ssldir" != "/usr"; then
+		    CPPFLAGS="$CPPFLAGS -I$ssldir_include"
+		    LIBSSL_CPPFLAGS="$LIBSSL_CPPFLAGS -I$ssldir_include"
+		    LDFLAGS="$LDFLAGS -L$ssldir_lib"
+		    LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir_lib"
+	    	    ACX_RUNTIME_PATH_ADD([$ssldir_lib])
+	    fi
+
             AC_MSG_CHECKING([for EVP_sha256 in -lcrypto])
             LIBS="$LIBS -lcrypto"
             LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
@@ -705,40 +735,73 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                   ]])],[
                     AC_DEFINE([HAVE_EVP_SHA256], 1,
                         [If you have EVP_sha256])
-                    AC_MSG_RESULT(yes) 
+                    AC_MSG_RESULT(yes)
                   ],[
                     AC_MSG_RESULT(no)
                     LIBS="$BAKLIBS"
                     LIBSSL_LIBS="$BAKSSLLIBS"
-                    LIBS="$LIBS -ldl"
-                    LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
-                    AC_MSG_CHECKING([if -lcrypto needs -ldl])
-                    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
-                        int EVP_sha256(void);
-                        (void)EVP_sha256();
-                      ]])],[
-                        AC_DEFINE([HAVE_EVP_SHA256], 1,
-                            [If you have EVP_sha256])
-                        AC_MSG_RESULT(yes) 
-                      ],[
-                        AC_MSG_RESULT(no)
-                        LIBS="$BAKLIBS"
-                        LIBSSL_LIBS="$BAKSSLLIBS"
-                        LIBS="$LIBS -ldl -pthread"
-                        LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
-                        AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
-                        AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
-                            int EVP_sha256(void);
-                            (void)EVP_sha256();
-                          ]])],[
-                            AC_DEFINE([HAVE_EVP_SHA256], 1,
-                                [If you have EVP_sha256])
-                            AC_MSG_RESULT(yes) 
-                          ],[
-                            AC_MSG_RESULT(no)
-                            AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+
+		    LIBS="$LIBS -lgdi32 -lws2_32 -lcrypt32"
+		    LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32 -lws2_32 -lcrypt32"
+                    AC_MSG_CHECKING([if -lcrypto needs -lgdi32 -lws2_32 -lcrypt32])
+		    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+			int EVP_sha256(void);
+			(void)EVP_sha256();
+		      ]])],[
+			AC_DEFINE([HAVE_EVP_SHA256], 1,
+			    [If you have EVP_sha256])
+			AC_MSG_RESULT(yes)
+		      ],[
+			AC_MSG_RESULT(no)
+			LIBS="$BAKLIBS"
+			LIBSSL_LIBS="$BAKSSLLIBS"
+
+			LIBS="$LIBS -lgdi32 -lws2_32 -lcrypt32 -l:libssp.a"
+			LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32 -lws2_32 -lcrypt32 -l:libssp.a"
+			AC_MSG_CHECKING([if -lcrypto needs -lgdi32 -lws2_32 -lcrypt32 -l:libssp.a])
+			AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+			    int EVP_sha256(void);
+			    (void)EVP_sha256();
+			  ]])],[
+			    AC_DEFINE([HAVE_EVP_SHA256], 1,
+				[If you have EVP_sha256])
+			    AC_MSG_RESULT(yes)
+			  ],[
+			    AC_MSG_RESULT(no)
+			    LIBS="$BAKLIBS"
+			    LIBSSL_LIBS="$BAKSSLLIBS"
+
+			    LIBS="$LIBS -ldl"
+			    LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
+			    AC_MSG_CHECKING([if -lcrypto needs -ldl])
+			    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+				int EVP_sha256(void);
+				(void)EVP_sha256();
+			      ]])],[
+				AC_DEFINE([HAVE_EVP_SHA256], 1,
+				    [If you have EVP_sha256])
+				AC_MSG_RESULT(yes)
+			      ],[
+				AC_MSG_RESULT(no)
+				LIBS="$BAKLIBS"
+				LIBSSL_LIBS="$BAKSSLLIBS"
+				LIBS="$LIBS -ldl -pthread"
+				LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
+				AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
+				AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+				    int EVP_sha256(void);
+				    (void)EVP_sha256();
+				  ]])],[
+				    AC_DEFINE([HAVE_EVP_SHA256], 1,
+					[If you have EVP_sha256])
+				    AC_MSG_RESULT(yes)
+				  ],[
+				    AC_MSG_RESULT(no)
+				    AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+				])
+			    ])
 			])
-                    ])
+		    ])
                 ])
             ])
         fi
@@ -752,13 +815,13 @@ AC_CHECK_HEADERS([openssl/rand.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check for SSL, where SSL is mandatory
 dnl Adds --with-ssl option, searches for openssl and defines HAVE_SSL if found
-dnl Setup of CPPFLAGS, CFLAGS.  Adds -lcrypto to LIBS. 
+dnl Setup of CPPFLAGS, CFLAGS.  Adds -lcrypto to LIBS.
 dnl Checks main header files of SSL.
 dnl
 AC_DEFUN([ACX_WITH_SSL],
 [
 AC_ARG_WITH(ssl, AS_HELP_STRING([--with-ssl=pathname],[enable SSL (will check /usr/local/ssl
-                            /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr)]),[
+                            /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr or specify like /usr/include/openssl11)]),[
         ],[
             withval="yes"
         ])
@@ -776,7 +839,7 @@ dnl
 AC_DEFUN([ACX_WITH_SSL_OPTIONAL],
 [
 AC_ARG_WITH(ssl, AS_HELP_STRING([--with-ssl=pathname],[enable SSL (will check /usr/local/ssl
-                                /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr)]),[
+                                /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr or specify like /usr/include/openssl11)]),[
         ],[
             withval="yes"
         ])
@@ -809,7 +872,7 @@ dnl try to see if an additional _LARGEFILE_SOURCE 1 is needed to get fseeko
 ACX_CHECK_COMPILER_FLAG_NEEDED(-D_LARGEFILE_SOURCE=1,
 [
 #include <stdio.h>
-int test() {
+int test(void) {
         int a = fseeko(stdin, 0, 0);
         return a;
 }
@@ -834,7 +897,7 @@ char* (*f) () = getaddrinfo;
 #ifdef __cplusplus
 }
 #endif
-int main() {
+int main(void) {
         ;
         return 0;
 }
@@ -845,7 +908,7 @@ dnl see if on windows
 if test "$ac_cv_header_windows_h" = "yes"; then
 	AC_DEFINE(USE_WINSOCK, 1, [Whether the windows socket API is used])
 	USE_WINSOCK="1"
-	if echo $LIBS | grep 'lws2_32' >/dev/null; then
+	if echo "$LIBS" | grep 'lws2_32' >/dev/null; then
 		:
 	else
 		LIBS="$LIBS -lws2_32"
@@ -853,6 +916,24 @@ if test "$ac_cv_header_windows_h" = "yes"; then
 fi
 ],
 dnl no quick getaddrinfo, try mingw32 and winsock2 library.
+dnl perhaps getaddrinfo needs only the include
+AC_LINK_IFELSE(
+[AC_LANG_PROGRAM(
+[
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
+#endif
+],
+[
+        (void)getaddrinfo(NULL, NULL, NULL, NULL);
+]
+)],
+[
+ac_cv_func_getaddrinfo="yes"
+AC_DEFINE(USE_WINSOCK, 1, [Whether the windows socket API is used])
+USE_WINSOCK="1"
+],
+
 ORIGLIBS="$LIBS"
 LIBS="$LIBS -lws2_32"
 AC_LINK_IFELSE(
@@ -877,6 +958,7 @@ ac_cv_func_getaddrinfo="no"
 LIBS="$ORIGLIBS"
 ])
 )
+)
 
 AC_MSG_RESULT($ac_cv_func_getaddrinfo)
 if test $ac_cv_func_getaddrinfo = yes; then
@@ -898,7 +980,7 @@ cache=`echo $1 | sed 'y%.=/+-%___p_%'`
 AC_CACHE_VAL(cv_cc_deprecated_$cache,
 [
 echo '$3' >conftest.c
-echo 'void f(){ $2 }' >>conftest.c
+echo 'void f(void){ $2 }' >>conftest.c
 if test -z "`$CC $CPPFLAGS $CFLAGS -c conftest.c 2>&1 | grep -e deprecated -e unavailable`"; then
 eval "cv_cc_deprecated_$cache=no"
 else
@@ -938,6 +1020,9 @@ AC_LANG_SOURCE([[
 #include <errno.h>
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -1289,7 +1374,7 @@ AC_DEFUN([AHX_CONFIG_W32_FD_SET_T],
 #ifdef HAVE_WINSOCK2_H
 #define FD_SET_T (u_int)
 #else
-#define FD_SET_T 
+#define FD_SET_T
 #endif
 ])
 
@@ -1327,7 +1412,7 @@ dnl $3: define value, 1
 AC_DEFUN([AHX_CONFIG_FLAG_OMITTED],
 [#if defined($1) && !defined($2)
 #define $2 $3
-[#]endif ])
+[#]endif])
 
 dnl Wrapper for AHX_CONFIG_FLAG_OMITTED for -D style flags
 dnl $1: the -DNAME or -DNAME=value string.

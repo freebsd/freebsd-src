@@ -243,7 +243,7 @@ size_t ldns_rdf_size(const ldns_rdf *rd);
 
 /**
  * returns the type of the rdf. We need to insert _get_
- * here to prevent conflict the the rdf_type TYPE.
+ * here to prevent conflict the rdf_type TYPE.
  * \param[in] *rd the rdf to read from
  * \return ldns_rdf_type with the type
  */

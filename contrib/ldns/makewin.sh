@@ -17,6 +17,7 @@ cross_flag_nonstatic=""
 RC="no"
 SNAPSHOT="no"
 CHECKOUT=""
+GITREPO=""
 # the destination is a zipfile in the start directory ldns-a.b.c.zip
 # the start directory is a git repository, and it is copied to build from.
 
@@ -49,6 +50,8 @@ while [ "$1" ]; do
 		echo "	-s		snapshot, current date appended to version"
 		echo "	-rc <nr>	release candidate, the number is added to version"
 		echo "			ldns-<version>rc<nr>."
+		echo "	-u git_url	Retrieve the source from the specified repository url."
+		echo "			Detected from the working copy if not specified."
 		echo "	-c <tag/br>	Checkout this tag or branch, (defaults to current"
 		echo "			branch)."
 		echo "	-wssl <file>	Pass openssl.tar.gz file, use absolute path."
@@ -64,6 +67,10 @@ while [ "$1" ]; do
 		;;
 	"-rc")
 		RC="$2"
+		shift
+		;;
+	"-u")
+		GITREPO="$2"
 		shift
 		;;
 	"-wssl")
@@ -85,6 +92,10 @@ then
                 CHECKOUT=$( (git status | head -n 1 | awk '{print$3}') || echo develop)
         fi
 fi
+if [ -z "$GITREPO" ]
+then
+	GITREPO=`git config remote.origin.url`
+fi
 
 # this script creates a temp directory $cdir.
 # this directory contains subdirectories:
@@ -99,11 +110,11 @@ fi
 # sslinstall-nonstatic/ : install of nonstatic openssl compile
 
 info "exporting source into $cdir/ldns"
-git clone git://git.nlnetlabs.nl/ldns/ ldns || error_cleanup "git command failed"
+git clone "$GITREPO" ldns || error_cleanup "git command failed"
 (cd ldns; git checkout "$CHECKOUT") || error_cleanup "Could not checkout $CHECKOUT"
 #svn export . $cdir/ldns
 info "exporting source into $cdir/ldns-nonstatic"
-git clone git://git.nlnetlabs.nl/ldns/ ldns-nonstatic || error_cleanup "git command failed"
+git clone "$GITREPO" ldns-nonstatic || error_cleanup "git command failed"
 (cd ldns-nonstatic; git checkout "$CHECKOUT") || error_cleanup "Could not checkout $CHECKOUT"
 #svn export . $cdir/ldns-nonstatic
 
@@ -139,7 +150,10 @@ else
 	sslflags="no-shared no-asm -DOPENSSL_NO_CAPIENG mingw"
 fi
 info "winssl: Configure $sslflags"
-CC="${warch}-w64-mingw32-gcc" AR="${warch}-w64-mingw32-ar" RANLIB="${warch}-w64-mingw32-ranlib" WINDRES="${warch}-w64-mingw32-windres" ./Configure --prefix="$sslinstall" "$sslflags" || error_cleanup "OpenSSL Configure failed"
+if test -f "/usr/${warch}-w64-mingw32/sys-root/mingw/bin/libssp-0.dll" ; then
+	export __CNF_LDLIBS="-l:libssp.a"
+fi
+CC="${warch}-w64-mingw32-gcc" AR="${warch}-w64-mingw32-ar" RANLIB="${warch}-w64-mingw32-ranlib" WINDRES="${warch}-w64-mingw32-windres" ./Configure --prefix="$sslinstall" $sslflags || error_cleanup "OpenSSL Configure failed"
 info "winssl: make"
 make || error_cleanup "make failed for $WINSSL"
 info "winssl: make install_sw"
@@ -156,8 +170,13 @@ if test ! -f install-sh -a -f ../../install-sh; then cp ../../install-sh . ; fi
 libtoolize -ci
 autoreconf -fi
 ldns_flag="--with-examples --with-drill"
-info "ldns: Configure $cross_flag $ldns_flag"
-$configure "$cross_flag" "$ldns_flag" || error_cleanup "ldns configure failed"
+if test -f "/usr/${warch}-w64-mingw32/sys-root/mingw/bin/libssp-0.dll" ; then
+	info "ldns: Configure $cross_flag $ldns_flag LDFLAGS=\"-fstack-protector\" LIBS=\"-l:libssp.a\""
+	$configure $cross_flag $ldns_flag LDFLAGS="-fstack-protector" LIBS="-l:libssp.a" || error_cleanup "ldns configure failed"
+else
+	info "ldns: Configure $cross_flag $ldns_flag"
+	$configure $cross_flag $ldns_flag || error_cleanup "ldns configure failed"
+fi
 info "ldns: make"
 make || error_cleanup "ldns make failed"
 # do not strip debug symbols, could be useful for stack traces
@@ -178,7 +197,7 @@ else
 	sslflags_nonstatic="shared no-asm -DOPENSSL_NO_CAPIENG mingw"
 fi
 info "winsslnonstatic: Configure $sslflags_nonstatic"
-CC="${warch}-w64-mingw32-gcc" AR="${warch}-w64-mingw32-ar" RANLIB="${warch}-w64-mingw32-ranlib" WINDRES="${warch}-w64-mingw32-windres" ./Configure --prefix="$sslinstallnonstatic" "$sslflags_nonstatic" || error_cleanup "OpenSSL Configure failed"
+CC="${warch}-w64-mingw32-gcc" AR="${warch}-w64-mingw32-ar" RANLIB="${warch}-w64-mingw32-ranlib" WINDRES="${warch}-w64-mingw32-windres" ./Configure --prefix="$sslinstallnonstatic" $sslflags_nonstatic || error_cleanup "OpenSSL Configure failed"
 info "winsslnonstatic: make"
 make || error_cleanup "make failed for $WINSSL"
 info "winsslnonstatic: make install_sw"
@@ -195,8 +214,13 @@ if test ! -f install-sh -a -f ../../install-sh; then cp ../../install-sh . ; fi
 libtoolize -ci
 autoreconf -fi
 ldns_flag_nonstatic="--with-examples --with-drill"
-info "ldnsnonstatic: Configure $cross_flag_nonstatic $ldns_flag_nonstatic"
-$configure "$cross_flag_nonstatic" "$ldns_flag_nonstatic" || error_cleanup "ldns configure failed"
+if test -f "/usr/${warch}-w64-mingw32/sys-root/mingw/bin/libssp-0.dll" ; then
+	info "ldnsnonstatic: Configure $cross_flag_nonstatic $ldns_flag_nonstatic LDFLAGS=\"-fstack-protector\" LIBS=\"-lssp\""
+	$configure $cross_flag_nonstatic $ldns_flag_nonstatic LDFLAGS="-fstack-protector" LIBS="-lssp" || error_cleanup "ldns configure failed"
+else
+	info "ldnsnonstatic: Configure $cross_flag_nonstatic $ldns_flag_nonstatic"
+	$configure $cross_flag_nonstatic $ldns_flag_nonstatic || error_cleanup "ldns configure failed"
+fi
 info "ldnsnonstatic: make"
 make || error_cleanup "ldns make failed"
 # do not strip debug symbols, could be useful for stack traces
@@ -216,18 +240,31 @@ installplacenonstatic="$ldnsinstallnonstatic/usr/$warch-w64-mingw32/sys-root/min
 cp "$installplace"/lib/libldns.a .
 cp "$installplacenonstatic"/lib/libldns.dll.a .
 cp "$installplacenonstatic"/bin/*.dll .
-cp "$sslinstallnonstatic"/lib/*.dll.a .
+if test -d "$sslinstallnonstatic"/lib64; then
+	cp "$sslinstallnonstatic"/lib64/*.dll.a .
+else
+	cp "$sslinstallnonstatic"/lib/*.dll.a .
+fi
 cp "$sslinstallnonstatic"/bin/*.dll .
-cp "$sslinstallnonstatic"/lib/engines-*/*.dll .
+if test -d "$sslinstallnonstatic"/lib64; then
+	cp "$sslinstallnonstatic"/lib64/engines-*/*.dll .
+else
+	cp "$sslinstallnonstatic"/lib/engines-*/*.dll .
+fi
+if test -f "/usr/${warch}-w64-mingw32/sys-root/mingw/bin/libssp-0.dll" ; then
+	cp "/usr/${warch}-w64-mingw32/sys-root/mingw/bin/libssp-0.dll" .
+fi
 cp ../ldns/LICENSE .
 cp ../ldns/README .
 cp ../ldns/Changelog .
 info "copy static exe"
 for x in "$installplace"/bin/* ; do
-	cp "$x" "$(basename "$x").exe"
+	cp "$x" .
 done
 # but the shell script stays a script file
-mv ldns-config.exe ldns-config
+if test -f ldns-config.exe; then
+	mv ldns-config.exe ldns-config
+fi
 info "copy include"
 mkdir include
 mkdir include/ldns
@@ -244,13 +281,15 @@ for x in man1/*.1; do groff -man -Tascii -Z "$x" | grotty -cbu > cat1/"$(basenam
 info "create cat3"
 mkdir cat3
 for x in man3/*.3; do groff -man -Tascii -Z "$x" | grotty -cbu > cat3/"$(basename "$x" .3).txt"; done
+add_files=""
+if test -f ldns-config; then add_files="$add_files ldns-config"; fi
 rm -f "../../$file"
 info "$file contents"
 # show contents of directory we are zipping up.
 du -s ./*
 # zip it
 info "zip $file"
-zip -r ../../"$file" LICENSE README libldns.a *.dll *.dll.a Changelog *.exe include man1 man3 cat1 cat3
+zip -r ../../"$file" LICENSE README libldns.a *.dll *.dll.a Changelog *.exe $add_files include man1 man3 cat1 cat3
 info "Testing $file"
 (cd ../.. ; zip -T "$file" ) || error_cleanup "errors in zipfile $file"
 cd ..
