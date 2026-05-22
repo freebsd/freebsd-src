@@ -97,7 +97,7 @@ ldns_sha1_transform(uint32_t state[5], const unsigned char buffer[LDNS_SHA1_BLOC
     state[4] += e;
     /* Wipe variables */
     a = b = c = d = e = 0;
-    (void)a; (void)b; (void)c; (void)d; (void)e;
+    (void)a;
 }
 
 

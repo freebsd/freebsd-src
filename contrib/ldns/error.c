@@ -189,8 +189,6 @@ ldns_lookup_table ldns_error_str[] = {
 	{ LDNS_STATUS_EDE_OPTION_MALFORMED,
 		"The extended error code option is malformed, expected "
 		"at least 2 bytes of option data" },
-	{ LDNS_STATUS_EQUAL_RR,
-		"An identical RR already existed in the zone" },
 	{ 0, NULL }
 };
 

@@ -132,11 +132,11 @@ all:	setup-builddir lib linktest manpages @P5_DNS_LDNS@ @PYLDNS@ @DRILL@ @EXAMPL
 .SUFFIXES: .c .o .a .lo .h .i
 
 .c.lo:
-	$(COMP_LIB) $(LIBSSL_CPPFLAGS) -c $(srcdir)/$< -o $@
+	$(COMP_LIB) $(LIBSSL_CPPFLAGS) -c $< -o $@
 
 # Need libtool compile
 .c.o:
-	$(COMP_LIB) $(LIBSSL_CPPFLAGS) -c $(srcdir)/$< -o $@
+	$(COMP_LIB) $(LIBSSL_CPPFLAGS) -c $< -o $@
 
 $(LDNS_LOBJS) $(LIBLOBJS) $(DRILL_LOBJS) $(EXAMPLE_LOBJS):
 	$(COMP_LIB) $(LIBSSL_CPPFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
@@ -571,9 +571,9 @@ depend:
 		done; \
 	done
 	for p in $(EXAMPLE_PROGS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS); do \
-		echo "$$p: $$p.lo \$$(LIB)" >> $(DEPEND_TMP) ; done
+		echo "$$p: $$p.lo $$p.o \$$(LIB)" >> $(DEPEND_TMP) ; done
 	echo "$(TESTNS): `for o in $(TESTNS_LOBJS) ; do \
-				echo -n "$$o " ; done`\$$(LIB)" \
+				echo -n "$$o $${o%lo}o " ; done` \$$(LIB)" \
 			       	>> $(DEPEND_TMP)
 	cp $(DEPEND_TARGET) $(DEPEND_TMP2)
 	head -`egrep -n "# Dependencies" $(DEPEND_TARGET) | tail -1 | sed -e 's/:.*$$//'` $(DEPEND_TMP2) > $(DEPEND_TARGET)
@@ -1114,28 +1114,28 @@ drill/work.lo drill/work.o: $(srcdir)/drill/work.c $(srcdir)/drill/drill.h ldns/
  $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
  $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
  $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
-examples/ldns-chaos: examples/ldns-chaos.lo $(LIB)
-examples/ldns-compare-zones: examples/ldns-compare-zones.lo $(LIB)
-examples/ldnsd: examples/ldnsd.lo $(LIB)
-examples/ldns-gen-zone: examples/ldns-gen-zone.lo $(LIB)
-examples/ldns-key2ds: examples/ldns-key2ds.lo $(LIB)
-examples/ldns-keyfetcher: examples/ldns-keyfetcher.lo $(LIB)
-examples/ldns-keygen: examples/ldns-keygen.lo $(LIB)
-examples/ldns-mx: examples/ldns-mx.lo $(LIB)
-examples/ldns-notify: examples/ldns-notify.lo $(LIB)
-examples/ldns-read-zone: examples/ldns-read-zone.lo $(LIB)
-examples/ldns-resolver: examples/ldns-resolver.lo $(LIB)
-examples/ldns-rrsig: examples/ldns-rrsig.lo $(LIB)
-examples/ldns-test-edns: examples/ldns-test-edns.lo $(LIB)
-examples/ldns-update: examples/ldns-update.lo $(LIB)
-examples/ldns-version: examples/ldns-version.lo $(LIB)
-examples/ldns-walk: examples/ldns-walk.lo $(LIB)
-examples/ldns-zcat: examples/ldns-zcat.lo $(LIB)
-examples/ldns-zsplit: examples/ldns-zsplit.lo $(LIB)
-examples/ldns-dpa: examples/ldns-dpa.lo $(LIB)
-examples/ldns-dane: examples/ldns-dane.lo $(LIB)
-examples/ldns-nsec3-hash: examples/ldns-nsec3-hash.lo $(LIB)
-examples/ldns-revoke: examples/ldns-revoke.lo $(LIB)
-examples/ldns-signzone: examples/ldns-signzone.lo $(LIB)
-examples/ldns-verify-zone: examples/ldns-verify-zone.lo $(LIB)
-examples/ldns-testns: examples/ldns-testns.lo examples/ldns-testpkts.lo $(LIB)
+examples/ldns-chaos: examples/ldns-chaos.lo examples/ldns-chaos.o $(LIB)
+examples/ldns-compare-zones: examples/ldns-compare-zones.lo examples/ldns-compare-zones.o $(LIB)
+examples/ldnsd: examples/ldnsd.lo examples/ldnsd.o $(LIB)
+examples/ldns-gen-zone: examples/ldns-gen-zone.lo examples/ldns-gen-zone.o $(LIB)
+examples/ldns-key2ds: examples/ldns-key2ds.lo examples/ldns-key2ds.o $(LIB)
+examples/ldns-keyfetcher: examples/ldns-keyfetcher.lo examples/ldns-keyfetcher.o $(LIB)
+examples/ldns-keygen: examples/ldns-keygen.lo examples/ldns-keygen.o $(LIB)
+examples/ldns-mx: examples/ldns-mx.lo examples/ldns-mx.o $(LIB)
+examples/ldns-notify: examples/ldns-notify.lo examples/ldns-notify.o $(LIB)
+examples/ldns-read-zone: examples/ldns-read-zone.lo examples/ldns-read-zone.o $(LIB)
+examples/ldns-resolver: examples/ldns-resolver.lo examples/ldns-resolver.o $(LIB)
+examples/ldns-rrsig: examples/ldns-rrsig.lo examples/ldns-rrsig.o $(LIB)
+examples/ldns-test-edns: examples/ldns-test-edns.lo examples/ldns-test-edns.o $(LIB)
+examples/ldns-update: examples/ldns-update.lo examples/ldns-update.o $(LIB)
+examples/ldns-version: examples/ldns-version.lo examples/ldns-version.o $(LIB)
+examples/ldns-walk: examples/ldns-walk.lo examples/ldns-walk.o $(LIB)
+examples/ldns-zcat: examples/ldns-zcat.lo examples/ldns-zcat.o $(LIB)
+examples/ldns-zsplit: examples/ldns-zsplit.lo examples/ldns-zsplit.o $(LIB)
+examples/ldns-dpa: examples/ldns-dpa.lo examples/ldns-dpa.o $(LIB)
+examples/ldns-dane: examples/ldns-dane.lo examples/ldns-dane.o $(LIB)
+examples/ldns-nsec3-hash: examples/ldns-nsec3-hash.lo examples/ldns-nsec3-hash.o $(LIB)
+examples/ldns-revoke: examples/ldns-revoke.lo examples/ldns-revoke.o $(LIB)
+examples/ldns-signzone: examples/ldns-signzone.lo examples/ldns-signzone.o $(LIB)
+examples/ldns-verify-zone: examples/ldns-verify-zone.lo examples/ldns-verify-zone.o $(LIB)
+examples/ldns-testns: examples/ldns-testns.lo examples/ldns-testns.o examples/ldns-testpkts.lo examples/ldns-testpkts.o  $(LIB)
