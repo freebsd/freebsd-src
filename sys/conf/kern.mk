@@ -235,7 +235,7 @@ CFLAGS+=	-fwrapv
 # Stack Smashing Protection (SSP) support
 #
 .if ${MK_SSP} != "no"
-CFLAGS+=	-fstack-protector
+CFLAGS+=	-fstack-protector-strong
 .endif
 
 #
