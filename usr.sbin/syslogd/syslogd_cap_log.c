@@ -128,19 +128,19 @@ cap_ttymsg(cap_channel_t *chan, struct iovec *iov, int iovcnt,
 int
 casper_ttymsg(nvlist_t *nvlin, nvlist_t *nvlout)
 {
-	char **nvlstrs;
+	const char * const *nvlstrs;
 	struct iovec *iov;
 	size_t iovcnt;
 	int tmout;
 	const char *line;
 
-	nvlstrs = nvlist_take_string_array(nvlin, "iov_strs", &iovcnt);
+	nvlstrs = nvlist_get_string_array(nvlin, "iov_strs", &iovcnt);
 	assert(iovcnt <= TTYMSG_IOV_MAX);
 	iov = calloc(iovcnt, sizeof(*iov));
 	if (iov == NULL)
 		err(EXIT_FAILURE, "calloc");
 	for (size_t i = 0; i < iovcnt; ++i) {
-		iov[i].iov_base = nvlstrs[i];
+		iov[i].iov_base = __DECONST(char *, nvlstrs[i]);
 		iov[i].iov_len = strlen(nvlstrs[i]);
 	}
 	line = nvlist_get_string(nvlin, "line");
@@ -187,25 +187,23 @@ int
 casper_wallmsg(nvlist_t *nvlin)
 {
 	const struct filed *f;
-	char **nvlstrs;
+	const char * const *nvlstrs;
 	struct iovec *iov;
 	size_t sz;
 
 	f = nvlist_get_binary(nvlin, "filed", &sz);
 	assert(sz == sizeof(*f));
-	nvlstrs = nvlist_take_string_array(nvlin, "iov_strs", &sz);
+	nvlstrs = nvlist_get_string_array(nvlin, "iov_strs", &sz);
 	assert(sz <= TTYMSG_IOV_MAX);
 	iov = calloc(sz, sizeof(*iov));
 	if (iov == NULL)
 		err(EXIT_FAILURE, "calloc");
 	for (size_t i = 0; i < sz; ++i) {
-		iov[i].iov_base = nvlstrs[i];
+		iov[i].iov_base = __DECONST(char *, nvlstrs[i]);
 		iov[i].iov_len = strlen(nvlstrs[i]);
 	}
 	wallmsg(f, iov, sz);
 
-	for (size_t i = 0; i < sz; ++i)
-		free(iov[i].iov_base);
 	free(iov);
 	return (0);
 }
