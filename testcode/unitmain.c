@@ -1092,7 +1092,7 @@ static void edns_ede_encode_notxt_fit_test( struct query_info* qinfo,
 {
 	struct edns_data edns;
 	sldns_buffer* pkt;
-	uint16_t edns_field_size, ede_txt_size;
+	size_t edns_field_size, ede_txt_size;
 	int found_ede = 0, found_ede_other = 0, found_ede_txt = 0;
 	int found_other_edns = 0;
 	edns_ede_encode_setup(&edns, region);
@@ -1123,7 +1123,7 @@ static void edns_ede_encode_no_fit_test( struct query_info* qinfo,
 {
 	struct edns_data edns;
 	sldns_buffer* pkt;
-	uint16_t edns_field_size, ede_size, ede_txt_size;
+	size_t edns_field_size, ede_size, ede_txt_size;
 	int found_ede = 0, found_ede_other = 0, found_ede_txt = 0;
 	int found_other_edns = 0;
 	edns_ede_encode_setup(&edns, region);
