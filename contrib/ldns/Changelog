@@ -1,3 +1,44 @@
+1.8.4	2024-07-19
+	* Fix building documentation in build directory.
+	  Thanks Michael Tokarev
+	* Updated the configure script for split openssl directories.
+	* Fix for windows compile; asctime_r compat, search for inet_ntop
+	  in ws2_32, avoid double decl of inet_ntop, check for symlink call,
+	  include config.h in edns.c, have socket compare use correct
+	  signedness, add -u repo option to makewin.sh, fix quoting in
+	  makewin.sh and check return value of bind and connect in net.c
+	  for failure instead of a socket type. And fix to install .exe files.
+	* Fix to compile with OpenSSL 3.2. Update acx_nlnetlabs.m4 to 48.
+	* Fix to compile DLLs, and pick out of the lib64 dir, and include
+	  libssp-0.dll and ldns-config.
+	* bugfix #237: Resolver uses nameserver commented out in
+	  /etc/resolv.conf. Thanks grembo.
+	* Added RESINFO rrtype.
+	* Added WALLET rrtype.
+	* PR #241: Fix coverity cited problems. Thanks Enji Cooper.
+	* PR #233: Several Python SWIG issues. Thanks Florian Weimer.
+	* PR #231: const ldns_rdf * typemap fixes to support swig-4.2.0
+	  Thanks William S Fulton
+	* PR #227: keys.c: fix build with libressl >= 3.8.1
+	  Thanks Fabrice Fontaine
+	* PR #224: Portable executable progs don't underlink to libldns
+	  Thanks Ørjan Malde
+	* PR #216: Update declaration for function with no argument
+	  Thanks Ed Maste
+	* PR #214: fix the build in FreeBSD's base system
+	  Thanks Pierre Pronchery and Dag-Erling Smørgrav
+	* PR #206: improve 'next-label' algorithm in ldns-walk
+	  Thanks Jelte Jansen
+	* PR #205: Add functions to extract RFC 8914 extended errors
+	  Thanks Roland van Rijswijk-Deij
+	* PR #203: Expand CI: Cygwin, BSDs, musl libc, 32-bit, and big-endian
+	  Thanks Felipe Gasper
+	* PR #191: 16-unit-tests-edns: Fix leak & warnings
+	  Thanks Felipe Gasper
+	* Added NXNAME rrtype.
+	* PR #242: Openssl no engine improved support #242
+	  Thanks Petr Menšík
+
 1.8.3	2022-08-15
 	* bugfix #183: Assertion failure with OPT record without rdata.
 	  This caused packet creation with only a DO bit (for DNSSEC OK)
