@@ -462,6 +462,12 @@ enum ldns_enum_rr_type
 .br
 	LDNS_RR_TYPE_HTTPS = 65, /* RFC 9460 */
 .br
+	LDNS_RR_TYPE_DSYNC = 66, /* RFC 9859 */
+.br
+	LDNS_RR_TYPE_HHIT = 67, /* draft-ietf-drip-registries-28 */
+.br
+	LDNS_RR_TYPE_BRID = 68, /* draft-ietf-drip-registries-28 */
+.br
 
 .br
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
@@ -494,7 +500,7 @@ enum ldns_enum_rr_type
 .br
 
 .br
-	LDNS_RR_TYPE_NXNAME = 128, /* draft-ietf-dnsop-compact-denial-of-existence */
+	LDNS_RR_TYPE_NXNAME = 128, /* RFC 9824 */
 .br
 
 .br
@@ -543,6 +549,18 @@ enum ldns_enum_rr_type
 	\fBhttps://iana.org/assignments/dns-parameters/WALLET/wallet-completed-template:\fR
 .br
 	LDNS_RR_TYPE_WALLET = 262,
+.br
+
+.br
+	\fBhttps://www.iana.org/assignments/dns-parameters/CLA/cla-completed-template:\fR
+.br
+	LDNS_RR_TYPE_CLA = 263,
+.br
+
+.br
+	\fBhttps://www.iana.org/assignments/dns-parameters/IPN/ipn-completed-template:\fR
+.br
+	LDNS_RR_TYPE_IPN = 264,
 .br
 
 .br

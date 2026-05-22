@@ -350,7 +350,7 @@ error:
 		ldns_rdf_deep_free(my_prev);
 	}
 	if (newzone) {
-		ldns_zone_free(newzone);
+		ldns_zone_deep_free(newzone);
 	}
 	return ret;
 }

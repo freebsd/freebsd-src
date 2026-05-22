@@ -26,6 +26,7 @@ static int32_t inception_offset = 0;
 static int32_t expiration_offset = 0;
 static bool do_sigchase = false;
 static bool no_nomatch_msg = false;
+static int check_all_sigs = 0;
 
 static FILE* myout;
 static FILE* myerr;
@@ -171,23 +172,32 @@ verify_rrs(ldns_rr_list* rrset_rrs, ldns_dnssec_rrs* cur_sig,
 		ldns_rr_list* keys)
 {
 	ldns_status status, result = LDNS_STATUS_OK;
+	int one_signature_verified = 0;
 	ldns_dnssec_rrs *cur_sig_bak = cur_sig;
+	int is_dnskey_rrset = ldns_rr_list_rr_count(rrset_rrs) > 0 &&
+	    ldns_rr_get_type(ldns_rr_list_rr(rrset_rrs, 0)) == LDNS_RR_TYPE_DNSKEY;
 
 	/* A single valid signature validates the RRset */
-	while (cur_sig) {
+	/* With check all sigs, it skips this, except for the DNSKEY RRset. */
+	if(!check_all_sigs || is_dnskey_rrset) {
+	    while (cur_sig) {
 		if (ldns_verify_rrsig_keylist_time( rrset_rrs, cur_sig->rr
 		                                  , keys, check_time, NULL)
 		||  rrsig_check_time_margins(cur_sig->rr))
 			cur_sig = cur_sig->next;
 		else
 			return LDNS_STATUS_OK;
+	    }
 	}
 	/* Without any valid signature, do print all errors.  */
+	/* When checking all sigs, keep track if one is valid. */
 	for (cur_sig = cur_sig_bak; cur_sig; cur_sig = cur_sig->next) {
 		status = ldns_verify_rrsig_keylist_time(rrset_rrs,
 		    cur_sig->rr, keys, check_time, NULL);
 		status = status ? status 
 		       : rrsig_check_time_margins(cur_sig->rr);
+		if(check_all_sigs && status == LDNS_STATUS_OK)
+			one_signature_verified += 1;
 		if (!status)
 			; /* pass */
 		else if (!no_nomatch_msg || status !=
@@ -196,6 +206,8 @@ verify_rrs(ldns_rr_list* rrset_rrs, ldns_dnssec_rrs* cur_sig,
 			    myerr, rrset_rrs, status, cur_sig);
 		update_error(&result, status);
 	}
+	if(check_all_sigs && one_signature_verified)
+		return LDNS_STATUS_OK;
 	return result;
 }
 
@@ -712,6 +724,7 @@ static void print_usage(FILE *out, const char *progname)
 	       "\t\t\tDefault is %s\n", LDNS_TRUST_ANCHOR_FILE);
 	fprintf(out, "\t-p [0-100]\tonly checks this percentage of "
 	       "the zone.\n\t\t\tDefaults to 100\n");
+	fprintf(out, "\t-s\t\tcheck all signature results, instead of one.\n");
 	fprintf(out, "\t-S\t\tchase signature(s) to a known key. "
 	       "The network may be\n\t\t\taccessed to "
 	       "validate the zone's DNSKEYs. (implies -k)\n");
@@ -759,13 +772,14 @@ main(int argc, char **argv)
 	myout = stdout;
 	myerr = stderr;
 
-	while ((c = getopt(argc, argv, "ae:hi:k:vV:p:St:Z")) != -1) {
+	while ((c = getopt(argc, argv, "ae:hi:k:vV:p:sSt:Z")) != -1) {
 		switch(c) {
                 case 'a':
                         apexonly = true;
                         break;
 		case 'h':
 			print_usage(stdout, progname);
+			ldns_rr_list_deep_free(keys);
 			exit(EXIT_SUCCESS);
 			break;
 		case 'e':
@@ -779,6 +793,7 @@ main(int argc, char **argv)
 						"P[n]Y[n]M[n]DT[n]H[n]M[n]S\n"
 						);
 				}
+				ldns_rr_list_deep_free(keys);
                                 exit(EXIT_FAILURE);
 			}
 			if (c == 'e')
@@ -804,6 +819,7 @@ main(int argc, char **argv)
 						"%s: %s\n",optarg,
 						ldns_get_errorstr_by_id(s));
 				}
+				ldns_rr_list_deep_free(keys);
                                 exit(EXIT_FAILURE);
 			}
 			if (ldns_rr_list_rr_count(keys) == nkeys) {
@@ -812,6 +828,7 @@ main(int argc, char **argv)
 						"No keys found in file %s\n",
 						optarg);
 				}
+				ldns_rr_list_deep_free(keys);
 				exit(EXIT_FAILURE);
 			}
 			nkeys = ldns_rr_list_rr_count(keys);
@@ -824,10 +841,14 @@ main(int argc, char **argv)
 						"percentage needs to fall "
 						"between 0..100\n");
 				}
+				ldns_rr_list_deep_free(keys);
                                 exit(EXIT_FAILURE);
                         }
                         srandom(time(NULL) ^ getpid());
                         break;
+		case 's':
+			check_all_sigs = 1;
+			break;
 		case 'S':
 			do_sigchase = true;
 			/* may chase */
@@ -850,6 +871,7 @@ main(int argc, char **argv)
 		case 'v':
 			printf("verify-zone version %s (ldns version %s)\n",
 					LDNS_VERSION, ldns_version());
+			ldns_rr_list_deep_free(keys);
 			exit(EXIT_SUCCESS);
 			break;
 		case 'V':
@@ -869,6 +891,7 @@ main(int argc, char **argv)
 				fprintf(myerr, "Unable to chase "
 						"signature without keys.\n");
 			}
+			ldns_rr_list_deep_free(keys);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -887,10 +910,12 @@ main(int argc, char **argv)
 				fprintf(myerr, "Unable to open %s: %s\n",
 					filename, strerror(errno));
 			}
+			ldns_rr_list_deep_free(keys);
 			exit(EXIT_FAILURE);
 		}
 	} else {
 		print_usage(stderr, progname);
+		ldns_rr_list_deep_free(keys);
 		exit(EXIT_FAILURE);
 	}
 
@@ -901,6 +926,7 @@ main(int argc, char **argv)
 			fprintf(myerr, "%s at line %d\n",
 				ldns_get_errorstr_by_id(s), line_nr);
 		}
+		ldns_rr_list_deep_free(keys);
                 exit(EXIT_FAILURE);
 	}
 	if (!dnssec_zone->soa) {
@@ -908,6 +934,7 @@ main(int argc, char **argv)
 			fprintf(myerr,
 				"; Error: no SOA in the zone\n");
 		}
+		ldns_rr_list_deep_free(keys);
 		exit(EXIT_FAILURE);
 	}
 
@@ -927,9 +954,10 @@ main(int argc, char **argv)
 
 	if (zonemd_required == 1
 	&&  !ldns_dnssec_zone_find_rrset(dnssec_zone,
-			       	dnssec_zone->soa->name, LDNS_RR_TYPE_DNSKEY))
+				dnssec_zone->soa->name, LDNS_RR_TYPE_DNSKEY)) {
+		ldns_rr_list_deep_free(keys);
 		result = LDNS_STATUS_OK;
-	else
+	} else
 		result = verify_dnssec_zone(dnssec_zone,
 				dnssec_zone->soa->name, keys, apexonly,
 				percentage, zonemd_required > 2);

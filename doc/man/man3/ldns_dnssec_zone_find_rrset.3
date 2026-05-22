@@ -65,7 +65,9 @@ Special handling of \%NSEC and \%RRSIG provided
 \.br
 \fBrr\fR: The \%RR to add
 \.br
-Returns \%LDNS_STATUS_OK on success, an error code otherwise
+Returns \%LDNS_STATUS_OK on success and \%LDNS_STATUS_EQUAL_ERR when and
+\%RR with equal ownername, class, type and rdata already exists,
+and an error code otherwise
 .PP
 .HP
 \fIldns_dnssec_zone_names_print\fR()

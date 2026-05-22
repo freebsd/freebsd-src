@@ -26,7 +26,7 @@
 static void 
 usage(char *prog)
 {
-	printf("Usage: %s [-v] [-i] [-d] [-c] [-u] [-s] [-e] "
+	printf("Usage: %s [-v] [-i] [-d] [-c] [-u] [-s] [-Z] [-e] "
 	       "<zonefile1> <zonefile2>\n", prog);
 	printf("       -i - print inserted\n");
 	printf("       -d - print deleted\n");
@@ -35,6 +35,7 @@ usage(char *prog)
 	printf("       -U - print unchanged records in changed names\n");
 	printf("       -a - print all differences (-i -d -c)\n");
 	printf("       -s - do not exclude SOA record from comparison\n");
+	printf("       -Z - exclude ZONEMD records from comparison\n");
 	printf("       -z - do not sort zones\n");
 	printf("       -e - exit with status 2 on changed zones\n");
 	printf("       -h - show usage and exit\n");
@@ -60,11 +61,11 @@ main(int argc, char **argv)
 	int		c;
 	bool		opt_deleted = false, opt_inserted  = false;
 	bool            opt_changed = false, opt_unchanged = false, opt_Unchanged = false;
-        bool		sort = true, inc_soa = false;
+        bool		sort = true, inc_soa = false, exc_zonemd = false;
 	bool		opt_exit_status = false;
 	char		op = 0;
 
-	while ((c = getopt(argc, argv, "ahvdicuUesz")) != -1) {
+	while ((c = getopt(argc, argv, "ahvdicuUesZz")) != -1) {
 		switch (c) {
 		case 'h':
 			usage(argv[0]);
@@ -82,6 +83,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			inc_soa = true;
+			break;
+		case 'Z':
+			exc_zonemd = true;
 			break;
 		case 'z':
 			sort = false;
@@ -208,6 +212,18 @@ main(int argc, char **argv)
 	 * set the operator again.
 	 */
 	for (i = 0, j = 0; i < rrc1 || j < rrc2;) {
+		if (exc_zonemd) {
+			if (ldns_rr_get_type(ldns_rr_list_rr(rrl1, i))
+					== LDNS_RR_TYPE_ZONEMD) {
+				i += 1;
+				continue;
+			}
+			if (ldns_rr_get_type(ldns_rr_list_rr(rrl2, j))
+					== LDNS_RR_TYPE_ZONEMD) {
+				j += 1;
+				continue;
+			}
+		}
 		rr_cmp = 0;
 		if (i < rrc1 && j < rrc2) {
 			rr1 = ldns_rr_list_rr(rrl1, i);

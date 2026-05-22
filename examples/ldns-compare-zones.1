@@ -8,6 +8,7 @@ ldns-compare-zones \- read and compare two zonefiles and print differences
 .IR [-u]
 .IR [-i]
 .IR [-d]
+.IR [-Z]
 .IR [-z]
 .IR [-s]
 .IR ZONEFILE1
@@ -43,6 +44,9 @@ Print resource records whose owner names are present only in ZONEFILE1 (a.k.a. d
 \fB-a\fR
 Print all changes (except unchanged). Specifying this option is the same as specifying \-c \-i
 and \-d.
+.TP
+\fB-Z\fR
+exclude ZONEMD records from comparison
 .TP
 \fB-z\fR
 Suppress zone sorting; this option is not recommended; it can cause records

@@ -38,22 +38,24 @@ create_dname_plus_1(ldns_rdf *dname)
 	size_t i;
 	
 	ldns_dname2canonical(dname);
+	labellen = ldns_rdf_data(dname)[0];
 	if (verbosity >= 3) {
                 printf("Create +e for ");
                 ldns_rdf_print(stdout, dname);
                 printf("\n");
 	}
-	if (ldns_rdf_size(dname) < LDNS_MAX_DOMAINLEN) {
-		wire = malloc(ldns_rdf_size(dname) + 2);
+	if (labellen < 63) {
+		wire = malloc(ldns_rdf_size(dname) + 1);
 		if (!wire) {
 			fprintf(stderr, "Malloc error: out of memory?\n");
 			exit(127);
 		}
-		wire[0] = (uint8_t) 1;
-		wire[1] = (uint8_t) '\000';
-		memcpy(&wire[2], ldns_rdf_data(dname), ldns_rdf_size(dname));
+		wire[0] = labellen + 1;
+		memcpy(&wire[1], ldns_rdf_data(dname) + 1, labellen);
+		memcpy(&wire[labellen+1], ldns_rdf_data(dname) + labellen, ldns_rdf_size(dname) - labellen);
+		wire[labellen+1] = (uint8_t) '\000';
 		pos = 0;
-		status = ldns_wire2dname(&newdname, wire, ldns_rdf_size(dname) + 2, &pos);
+		status = ldns_wire2dname(&newdname, wire, ldns_rdf_size(dname) + 1, &pos);
 		free(wire);
 	} else {
 		wire = malloc(ldns_rdf_size(dname));
@@ -61,7 +63,6 @@ create_dname_plus_1(ldns_rdf *dname)
 			fprintf(stderr, "Malloc error: out of memory?\n");
 			exit(127);
 		}
-		labellen = ldns_rdf_data(dname)[0];
 		wire[0] = labellen;
 		memcpy(&wire[1], ldns_rdf_data(dname) + 1, labellen);
 		memcpy(&wire[labellen], ldns_rdf_data(dname) + labellen, ldns_rdf_size(dname) - labellen);
@@ -323,7 +324,7 @@ main(int argc, char *argv[])
 	/* create a new resolver from /etc/resolv.conf */
 	if(!serv) {
 		if (ldns_resolver_new_frm_file(&res, NULL) != LDNS_STATUS_OK) {
-			fprintf(stderr, "%s", "Could not create resolver obj");
+			fprintf(stderr, "%s\n", "Could not create resolver obj.");
 			result = EXIT_FAILURE;
 			goto exit;
 		}
@@ -344,7 +345,7 @@ main(int argc, char *argv[])
 			status = ldns_resolver_new_frm_file(&cmdline_res, NULL);
 			
 			if (status != LDNS_STATUS_OK) {
-				fprintf(stderr, "%s", "@server ip could not be converted");
+				fprintf(stderr, "%s\n", "@server ip could not be converted");
 				result = EXIT_FAILURE;
 				goto exit;
 			}
@@ -358,7 +359,7 @@ main(int argc, char *argv[])
 			ldns_rdf_deep_free(cmdline_dname);
                         ldns_resolver_deep_free(cmdline_res);
 			if (!cmdline_rr_list) {
-				fprintf(stderr, "%s %s", "could not find any address for the name: ", serv);
+				fprintf(stderr, "%s %s\n", "Could not find any address for the name:", serv);
 				result = EXIT_FAILURE;
 				goto exit;
 			} else {
@@ -366,7 +367,7 @@ main(int argc, char *argv[])
 						res, 
 						cmdline_rr_list
 					) != LDNS_STATUS_OK) {
-					fprintf(stderr, "%s", "pushing nameserver");
+					fprintf(stderr, "%s\n", "pushing nameserver");
 					result = EXIT_FAILURE;
 					ldns_rr_list_deep_free(cmdline_rr_list);
 					goto exit;
@@ -375,7 +376,7 @@ main(int argc, char *argv[])
 			}
 		} else {
 			if (ldns_resolver_push_nameserver(res, serv_rdf) != LDNS_STATUS_OK) {
-				fprintf(stderr, "%s", "pushing nameserver");
+				fprintf(stderr, "%s\n", "pushing nameserver");
 				result = EXIT_FAILURE;
 				goto exit;
 			} else {
@@ -569,7 +570,7 @@ main(int argc, char *argv[])
 		if (!rrlist) {
 			fflush(stdout);
 			fprintf(stderr, "Zone does not seem to be DNSSEC secured,"
-			                "or it uses NSEC3.\n");
+			                " or it uses NSEC3.\n");
 			fflush(stderr);
 			goto exit;
 		}

@@ -16,8 +16,8 @@ KEY
 .SH DESCRIPTION
 
 \fBldns-signzone\fR is used to generate a DNSSEC signed zone. When run it
-will create a new zonefile that contains RRSIG and NSEC resource records, as
-specified in RFC 4033, RFC 4034 and RFC 4035.
+will create a new zonefile that contains RRSIG and NSEC(3) resource records,
+as specified in RFC 4033, RFC 4034 and RFC 4035.
 
 Keys must be specified by their base name (i.e. without .private). If
 the DNSKEY that belongs to the key in the .private file is not present
@@ -25,9 +25,9 @@ in the zone, it will be read from the file <base name>.key. If that
 file does not exist, the DNSKEY value will be generated from the
 private key.
 
-Multiple keys can be specified, Key Signing Keys are used as such when
+Multiple keys can be specified. Key Signing Keys are used as such when
 they are either already present in the zone, or specified in a .key
-file, and have the KSK bit set.
+file, and have the SEP bit set.
 
 .SH OPTIONS
 .TP
@@ -42,10 +42,7 @@ the comment text.
 
 .TP
 \fB-d\fR
-Normally, if the DNSKEY RR for a key that is used to sign the zone is
-not found in the zone file, it will be read from .key, or derived from
-the private key (in that order). This option turns that feature off,
-so that only the signatures are added to the zone.
+Do not add DNSKEY resource records for used keys to the signed zone.
 
 .TP
 \fB-e\fR \fIdate\fR
@@ -95,7 +92,7 @@ turns off the default and all keys are used to sign the DNSKEY RRset.
 \fB-U\fR
 Sign with every unique algorithm in the provided keys.  The DNSKEY set
 is signed with all the SEP keys, plus all the non\-SEP keys that have an
-algorithm that was not presen in the SEP key set.
+algorithm that was not present in the SEP key set.
 
 .TP
 \fB-E\fR \fIname\fR

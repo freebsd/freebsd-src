@@ -180,6 +180,8 @@ struct entry {
 	bool match_ttl;
 	/** match DO bit */
 	bool match_do;
+	/** match CO bit */
+	bool match_co;
 	/** match absence of EDNS OPT record in query */
 	bool match_noedns;
 	/** match edns data field given in hex */

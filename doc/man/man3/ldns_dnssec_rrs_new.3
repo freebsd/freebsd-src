@@ -42,7 +42,8 @@ If an equal \%RR already exists, this \%RR will not be added.
 \.br
 \fBrr\fR: the \%RR to add
 \.br
-Returns \%LDNS_STATUS_OK on success
+Returns \%LDNS_STATUS_OK on success and \%LDNS_STATUS_EQUAL_ERR when and
+\%RR with equal ownername, class, type and rdata already exists.
 .PP
 .HP
 \fIldns_dnssec_rrs_print\fR()

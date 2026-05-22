@@ -45,7 +45,7 @@
 /* Result generation, appends (ldns_resolver *) after the result. */
 %typemap(argout,noblock=1) (ldns_resolver **r)
 {
-  $result = SWIG_Python_AppendOutput($result,
+  $result = SWIG_AppendOutput($result,
     SWIG_NewPointerObj(SWIG_as_voidptr($1_res),
       SWIGTYPE_p_ldns_struct_resolver, SWIG_POINTER_OWN |  0 ));
 }

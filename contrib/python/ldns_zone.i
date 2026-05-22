@@ -39,7 +39,7 @@
 /* result generation */
 %typemap(argout,noblock=1) (ldns_zone **)
 {
- $result = SWIG_Python_AppendOutput($result, SWIG_NewPointerObj(SWIG_as_voidptr($1_zone), SWIGTYPE_p_ldns_struct_zone, SWIG_POINTER_OWN |  0 ));
+ $result = SWIG_AppendOutput($result, SWIG_NewPointerObj(SWIG_as_voidptr($1_zone), SWIGTYPE_p_ldns_struct_zone, SWIG_POINTER_OWN |  0 ));
 }
 
 %nodefaultctor ldns_struct_zone; //no default constructor & destructor

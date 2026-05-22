@@ -69,7 +69,8 @@ If it is not present, add it as a new RRset with 1 record.
 \.br
 \fBrr\fR: the rr to add to the list of rrsets
 \.br
-Returns \%LDNS_STATUS_OK on success
+Returns \%LDNS_STATUS_OK on success and \%LDNS_STATUS_EQUAL_ERR when and
+\%RR with equal ownername, class, type and rdata already exists.
 .PP
 .HP
 \fIldns_dnssec_rrsets_print\fR()

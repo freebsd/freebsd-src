@@ -105,7 +105,9 @@ No checking is done whether the name matches
 \.br
 \fBrr\fR: The \%RR to add
 \.br
-Returns \%LDNS_STATUS_OK on success, error code otherwise
+Returns \%LDNS_STATUS_OK on success and \%LDNS_STATUS_EQUAL_ERR when and
+\%RR with equal ownername, class, type and rdata already exists,
+and an error code otherwise
 .PP
 .HP
 \fIldns_dnssec_name_find_rrset\fR()

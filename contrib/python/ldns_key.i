@@ -38,7 +38,7 @@
 /* result generation */
 %typemap(argout,noblock=1) (ldns_key **)
 {
-  $result = SWIG_Python_AppendOutput($result, SWIG_NewPointerObj(SWIG_as_voidptr($1_key), SWIGTYPE_p_ldns_struct_key, SWIG_POINTER_OWN |  0 ));
+  $result = SWIG_AppendOutput($result, SWIG_NewPointerObj(SWIG_as_voidptr($1_key), SWIGTYPE_p_ldns_struct_key, SWIG_POINTER_OWN |  0 ));
 }
 
 %typemap(argout) ldns_rdf *r "Py_INCREF($input);"

@@ -346,6 +346,11 @@ ldns_init_random(FILE *fd, unsigned int size)
 	unsigned int seed_i;
 	struct timeval tv;
 
+#ifdef HAVE_SSL
+	if(RAND_status() == 1)
+		/* already seeded */
+		return 0;
+#endif
 	/* we'll need at least sizeof(unsigned int) bytes for the
 	   standard prng seed */
 	if (size < (unsigned int) sizeof(seed_i)){

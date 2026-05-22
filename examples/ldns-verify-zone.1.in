@@ -49,6 +49,13 @@ Which names to check is determined randomly.
 Defaults to 100.
 
 .TP
+\fB-s\fR
+Check all signature results, instead of one. Without the option one signature
+that validates stops error output for the RRset. With the option, all
+results from signature validations are printed. For spurious RRSIGs that
+prints output for the spurious RRSIGs if they are wrong.
+
+.TP
 \fB-S\fR
 Chase signature(s) to a known key.
 The network may be accessed to validate the zone's DNSKEYs. (implies \-k)

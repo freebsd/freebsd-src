@@ -75,6 +75,10 @@ enum ldns_enum_rdf_type
 .br
 	LDNS_RDF_TYPE_INT32,
 .br
+	\fB64 bits:\fR
+.br
+	LDNS_RDF_TYPE_INT64,
+.br
 	\fBA record:\fR
 .br
 	LDNS_RDF_TYPE_A,
@@ -106,6 +110,8 @@ enum ldns_enum_rdf_type
 	\fBnsec type codes:\fR
 .br
 	LDNS_RDF_TYPE_NSEC,
+.br
+	LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC,
 .br
 	\fBa RR type:\fR
 .br
@@ -207,6 +213,12 @@ enum ldns_enum_rdf_type
 .br
 
 .br
+	\fBCharacter string without quotes.:\fR
+.br
+	LDNS_RDF_TYPE_UNQUOTED,
+.br
+
+.br
 	/** A non-zero sequence of US-ASCII letters and numbers in lower case.
 .br
 	 *  For CAA.
@@ -257,9 +269,9 @@ enum ldns_enum_rdf_type
 .br
 
 .br
-	/* Aliases */
+	\fBdraft-johnson-dns-ipn-cla-07 *:\fR
 .br
-	LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC
+	LDNS_RDF_TYPE_IPN
 .br
 };
 .br

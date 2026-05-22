@@ -85,6 +85,7 @@ enum enum_match_ids {
 	MATCH_EDNS,
 	MATCH_EDNS_PACKETSIZE,
 	MATCH_DO,
+	MATCH_CO,
 	MATCH_QUESTION_SIZE,
 	MATCH_ANSWER_SIZE,
 	MATCH_AUTHORITY_SIZE,
@@ -237,6 +238,7 @@ const match_table matches[] = {
 	{ MATCH_RD, "rd", "value of rd bit", TYPE_BOOL },
 	{ MATCH_EDNS, "edns", "existence of edns rr", TYPE_BOOL },
 	{ MATCH_DO, "do", "value of do bit", TYPE_BOOL },
+	{ MATCH_CO, "co", "value of co bit", TYPE_BOOL },
 	{ MATCH_QUESTION_SIZE, "questionsize", "number of rrs in the question section", TYPE_INT },
 	{ MATCH_ANSWER_SIZE, "answersize", "number of rrs in the answer section", TYPE_INT },
 	{ MATCH_AUTHORITY_SIZE, "authoritysize", "number of rrs in the authority section", TYPE_INT },
@@ -1129,6 +1131,7 @@ value_matches(match_id id,
 		case MATCH_CD:
 		case MATCH_RD:
 		case MATCH_DO:
+		case MATCH_CO:
 		case MATCH_PACKETSIZE:
 		case MATCH_EDNS:
 		case MATCH_EDNS_PACKETSIZE:
@@ -1213,6 +1216,9 @@ get_string_value(match_id id, ldns_pkt *pkt, ldns_rdf *src_addr, ldns_rdf *dst_a
 			break;
 		case MATCH_DO:
 			snprintf(val, valsize, "%u", (unsigned int) ldns_pkt_edns_do(pkt));
+			break;
+		case MATCH_CO:
+			snprintf(val, valsize, "%u", (unsigned int) ldns_pkt_edns_co(pkt));
 			break;
 		case MATCH_QUESTION_SIZE:
 			snprintf(val, valsize, "%u", (unsigned int) ldns_pkt_qdcount(pkt));

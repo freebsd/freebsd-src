@@ -224,6 +224,69 @@ ldns_str2rdf_int32(ldns_rdf **rd, const char *longstr)
 	}
 }
 
+#ifdef __BYTE_ORDER__
+# if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#  define htonll(x) (x)
+#  define ntohll(x) (x)
+# else
+#  define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+#  define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+# endif
+#else
+# define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+# define ntohll(x) ((1==ntohl(1)) ? (x) : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
+
+ldns_status
+ldns_str2rdf_ipn(ldns_rdf **rd, const char *ipnstr)
+{
+	char *end;
+	uint8_t r[sizeof(uint64_t)];
+	char left[21], *right;
+
+	if(strlen(ipnstr) > 21)
+		return LDNS_STATUS_SYNTAX_INTEGER_OVERFLOW;
+	errno = 0; /* must set to zero before call,
+			note race condition on errno */
+	if((right = strchr(ipnstr, '.'))) {
+		uint32_t u32 = strtoul(right + 1, &end, 10);
+
+		if(*end != 0)
+			return LDNS_STATUS_ERR;
+
+		if(errno == ERANGE)
+			return LDNS_STATUS_SYNTAX_INTEGER_OVERFLOW;
+
+		u32 = htonl(u32);
+		memcpy(r + sizeof(uint32_t), &u32, sizeof(uint32_t));
+		memcpy(left, ipnstr, right - ipnstr);
+		left[right - ipnstr] = 0;
+
+		u32 = strtoul(left, &end, 10);
+		if(*end != 0)
+			return LDNS_STATUS_ERR;
+
+		if(errno == ERANGE)
+			return LDNS_STATUS_SYNTAX_INTEGER_OVERFLOW;
+
+		u32 = htonl(u32);
+		memcpy(r, &u32, sizeof(uint32_t));
+	} else {
+		uint64_t u64 = strtoull(ipnstr, &end, 10);
+		
+		if(*end != 0)
+			return LDNS_STATUS_ERR;
+
+		if(u64 == ULLONG_MAX && errno == ERANGE)
+			return LDNS_STATUS_SYNTAX_INTEGER_OVERFLOW;
+
+		u64 = htonll(u64);
+		memcpy(r, &u64, sizeof(uint64_t));
+	}
+	*rd = ldns_rdf_new_frm_data(LDNS_RDF_TYPE_IPN, sizeof(r), r);
+	return *rd ? LDNS_STATUS_OK : LDNS_STATUS_MEM_ERR;
+}
+
 ldns_status
 ldns_str2rdf_int8(ldns_rdf **rd, const char *bytestr)
 {
@@ -1767,6 +1830,7 @@ ldns_str2rdf_amtrelay(ldns_rdf **rd, const char *str)
 			LDNS_FREE(relay);
 		LDNS_FREE(token);
 		ldns_buffer_free(str_buf);
+		ldns_rdf_deep_free(relay_rdf);
 		return LDNS_STATUS_INVALID_STR;
 	}
 
@@ -1782,7 +1846,7 @@ ldns_str2rdf_amtrelay(ldns_rdf **rd, const char *str)
 			LDNS_FREE(relay);
 		LDNS_FREE(token);
 		ldns_buffer_free(str_buf);
-		if (relay_rdf) ldns_rdf_free(relay_rdf);
+		ldns_rdf_deep_free(relay_rdf);
 		return LDNS_STATUS_MEM_ERR;
 	}
 
@@ -1801,7 +1865,7 @@ ldns_str2rdf_amtrelay(ldns_rdf **rd, const char *str)
 		LDNS_FREE(relay);
 	LDNS_FREE(token);
 	ldns_buffer_free(str_buf);
-	ldns_rdf_free(relay_rdf);
+	ldns_rdf_deep_free(relay_rdf);
 	LDNS_FREE(data);
 	if(!*rd) return LDNS_STATUS_MEM_ERR;
 	return LDNS_STATUS_OK;
