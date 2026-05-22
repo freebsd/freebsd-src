@@ -1625,6 +1625,29 @@ usbd_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_req_get_ext_port_status
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_get_ext_port_status(struct usb_device *udev, struct mtx *mtx,
+    struct usb_ext_status *ps, uint8_t port)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_READ_CLASS_OTHER;
+	req.bRequest = UR_GET_STATUS;
+	USETW(req.wValue, 2);
+	req.wIndex[0] = port;
+	req.wIndex[1] = 0;
+	USETW(req.wLength, sizeof(*ps));
+
+	return (usbd_do_request_flags(udev, mtx, &req, ps, 0, NULL, 1000));
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_req_clear_hub_feature
  *
  * Returns:
