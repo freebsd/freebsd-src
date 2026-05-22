@@ -482,6 +482,23 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	/* save exec header as metadata */
 	file_addmetadata(fp, MODINFOMD_ELFHDR, sizeof(*ehdr), ehdr);
 
+	/*
+	 * Save the program header table too.  The kernel walks PT_LOAD
+	 * entries to set per-segment protections via preload_protect(),
+	 * but on architectures whose default kmod ldscript places the
+	 * ELF header outside every PT_LOAD (e.g. aarch64, where
+	 * CONSTANT(COMMONPAGESIZE)=0x10000 pushes PT_LOAD[0] to file
+	 * offset 0x10000), the loader's PT_LOAD copy loop never lands
+	 * the header at the module's load address.  Caching the phdrs
+	 * as metadata lets the kernel locate them regardless of the
+	 * on-disk layout of the module.
+	 */
+	if (ehdr->e_phnum != 0 && ehdr->e_phoff != 0 &&
+	    ehdr->e_phoff + ehdr->e_phnum * sizeof(Elf_Phdr) <= ef.firstlen)
+		file_addmetadata(fp, MODINFOMD_PHDR,
+		    ehdr->e_phnum * sizeof(Elf_Phdr),
+		    ef.firstpage + ehdr->e_phoff);
+
 	/* Load OK, return module pointer */
 	*result = (struct preloaded_file *)fp;
 	err = 0;

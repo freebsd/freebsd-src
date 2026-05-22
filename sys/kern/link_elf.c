@@ -811,8 +811,31 @@ preload_protect1(elf_file_t ef, vm_prot_t prot, bool reset)
 	int error;
 
 	error = 0;
-	hdr = (Elf_Ehdr *)ef->address;
-	phdr = (Elf_Phdr *)(ef->address + hdr->e_phoff);
+	/*
+	 * Read the Elf header and the program header table from the
+	 * metadata copies the loader saved (MODINFOMD_ELFHDR /
+	 * MODINFOMD_PHDR).
+	 *
+	 * Dereferencing ef->address as Elf_Ehdr works by coincidence on
+	 * amd64 (CONSTANT(COMMONPAGESIZE)=0x1000 keeps the header inside
+	 * PT_LOAD[0]).  On aarch64 (COMMONPAGESIZE=0x10000) the default
+	 * lld kmod layout pushes PT_LOAD[0] to file offset 0x10000, so
+	 * the ELF header and program headers fall outside every PT_LOAD,
+	 * are never copied to memory by __elfN(loadimage)(), and the
+	 * deref reads .plt/.text bytes — yielding a garbage e_phoff and
+	 * an unmappable phdr pointer.
+	 *
+	 * Falls back to the legacy in-place layout for modules whose
+	 * loader pre-dates MODINFOMD_PHDR.
+	 */
+	hdr = (Elf_Ehdr *)preload_search_info(ef->modptr,
+	    MODINFO_METADATA | MODINFOMD_ELFHDR);
+	phdr = (Elf_Phdr *)preload_search_info(ef->modptr,
+	    MODINFO_METADATA | MODINFOMD_PHDR);
+	if (hdr == NULL || phdr == NULL) {
+		hdr = (Elf_Ehdr *)ef->address;
+		phdr = (Elf_Phdr *)(ef->address + hdr->e_phoff);
+	}
 	phlimit = phdr + hdr->e_phnum;
 	for (; phdr < phlimit; phdr++) {
 		if (phdr->p_type != PT_LOAD)
