@@ -2,7 +2,7 @@ PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/mac/do
 
-ATF_TESTS_SH+=	valid_configs invalid_configs
+ATF_TESTS_SH+=	valid_configs invalid_configs consistency
 
 ${PACKAGE}FILES+=	common.sh
 
