@@ -428,7 +428,7 @@ match_iface(if_t ifp, void *_arg)
 
 	if (attrs->ifi_index != 0 && attrs->ifi_index != if_getindex(ifp))
 		return (false);
-	if (attrs->ifi_type != 0 && attrs->ifi_index != if_gettype(ifp))
+	if (attrs->ifi_type != 0 && attrs->ifi_type != if_gettype(ifp))
 		return (false);
 	if (attrs->ifla_ifname != NULL && strcmp(attrs->ifla_ifname, if_name(ifp)))
 		return (false);
