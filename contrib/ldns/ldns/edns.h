@@ -76,7 +76,11 @@ enum ldns_edns_enum_ede_code
 	LDNS_EDE_NETWORK_ERROR = 23,
 	LDNS_EDE_INVALID_DATA = 24,
 	LDNS_EDE_SIGNATURE_EXPIRED_BEFORE_VALID = 25,
-	LDNS_EDE_TOO_EARLY = 26
+	LDNS_EDE_TOO_EARLY = 26, /* RFC 9250 */
+	LDNS_EDE_UNSUPPORTED_NSEC3_ITERATIONS_VALUE = 27, /* RFC 9276 */
+	LDNS_EDE_UNABLE_TO_CONFORM_TO_POLICY = 28, /* draft-homburg-dnsop-codcp-00 */
+	LDNS_EDE_SYNTHESIZED = 29, /* https://github.com/PowerDNS/pdns/pull/12334 */
+	LDNS_EDE_INVALID_QUERY_TYPE = 30 /* RFC 9824 */
 };
 typedef enum ldns_edns_enum_ede_code ldns_edns_ede_code;
 
