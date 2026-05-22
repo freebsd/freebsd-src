@@ -120,7 +120,7 @@ gid= 1001 >gid =5"
 
 atf_init_test_cases()
 {
-    . $(atf_get_srcdir)/common.sh
+    . "$(atf_get_srcdir)"/common.sh
 
     atf_add_test_case rule_uid_to_any
     atf_add_test_case rule_uid_to_uid
