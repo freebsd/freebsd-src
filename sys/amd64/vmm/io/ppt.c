@@ -577,7 +577,7 @@ ppt_unmap_mmio(struct vm *vm, int bus, int slot, int func,
 	}
 out:
 	PPT_UNLOCK();
-	return (ENOENT);
+	return (error);
 }
 
 static int
