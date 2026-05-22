@@ -324,6 +324,11 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 	case USB_SPEED_SUPER:
 		pdev->usb_speed = LIBUSB20_SPEED_SUPER;
 		break;
+	case USB_SPEED_SUPER_PLUS:
+	case USB_SPEED_SUPER_PLUS_X2:
+	case USB_SPEED_SUPER_PLUS_GEN2_X2:
+		pdev->usb_speed = LIBUSB20_SPEED_SUPER_PLUS;
+		break;
 	default:
 		pdev->usb_speed = LIBUSB20_SPEED_UNKNOWN;
 		break;
