@@ -2895,6 +2895,8 @@ dev/rge/if_rge_stats.c		optional rge
 dev/rge/if_rge_sysctl.c		optional rge
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
+dev/rust_echo/rust_echo.c	optional rust_echo rust_kernel
+dev/rust_echo/rust_echo.rs	optional rust_echo rust_kernel
 #
 dev/rtsx/rtsx.c			optional rtsx pci
 #

@@ -352,6 +352,7 @@ SUBDIR=	\
 	rge \
 	rl \
 	${_rockchip} \
+	${_rust_echo} \
 	rtsx \
 	${_rtw88} \
 	${_rtw89} \
@@ -721,6 +722,10 @@ _thunderbolt=	thunderbolt
 
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	zfs
+.endif
+
+.if ${MK_RUST_KERNEL} != "no" || defined(ALL_MODULES)
+_rust_echo=	rust_echo
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no"
