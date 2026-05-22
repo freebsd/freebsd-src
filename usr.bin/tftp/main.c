@@ -584,8 +584,11 @@ get(int argc, char *argv[])
 			if (verbose)
 				printf("getting from %s:%s to %s [%s]\n",
 				    hostname, src, cp, mode);
-			if (recvfile(peer, port, fd, src, mode) != 0)
+			if (recvfile(peer, port, fd, src, mode) != 0) {
+				(void) unlink(cp);
 				txrx_error = 1;
+			}
+			close(fd);
 			break;
 		}
 		cp = tail(src);         /* new .. jdg */
@@ -597,8 +600,11 @@ get(int argc, char *argv[])
 		if (verbose)
 			printf("getting from %s:%s to %s [%s]\n",
 			    hostname, src, cp, mode);
-		if (recvfile(peer, port, fd, src, mode) != 0)
+		if (recvfile(peer, port, fd, src, mode) != 0) {
+			(void) unlink(cp);
 			txrx_error = 1;
+		}
+		close(fd);
 	}
 }
 
