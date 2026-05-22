@@ -174,11 +174,11 @@
    0 if you don't. */
 #define HAVE_DECL_SSL_CTX_SET_ECDH_AUTO 1
 
-/* Define to 1 if you have the declaration of `SSL_CTX_set_tmp_ecdh', and to 0
+/* Define to 1 if you have the declaration of 'SSL_CTX_set_tmp_ecdh', and to 0
    if you don't. */
 #define HAVE_DECL_SSL_CTX_SET_TMP_ECDH 1
 
-/* Define to 1 if you have the declaration of `strlcat', and to 0 if you
+/* Define to 1 if you have the declaration of 'strlcat', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_STRLCAT */
 
@@ -482,10 +482,10 @@
    'ngtcp2_crypto_quictls_from_ossl_encryption_level' function. */
 /* #undef HAVE_NGTCP2_CRYPTO_QUICTLS_FROM_OSSL_ENCRYPTION_LEVEL */
 
-/* Define to 1 if you have the `ngtcp2_crypto_quictls_init' function. */
+/* Define to 1 if you have the 'ngtcp2_crypto_quictls_init' function. */
 /* #undef HAVE_NGTCP2_CRYPTO_QUICTLS_INIT */
 
-/* Define to 1 if the system has the type `ngtcp2_encryption_level'. */
+/* Define to 1 if the system has the type 'ngtcp2_encryption_level'. */
 /* #undef HAVE_NGTCP2_ENCRYPTION_LEVEL */
 
 /* Define to 1 if you have the <ngtcp2/ngtcp2_crypto_openssl.h> header file.
@@ -656,7 +656,7 @@
    function. */
 #define HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_EVP_CB 1
 
-/* Define to 1 if you have the `SSL_get0_alpn_selected' function. */
+/* Define to 1 if you have the 'SSL_get0_alpn_selected' function. */
 #define HAVE_SSL_GET0_ALPN_SELECTED 1
 
 /* Define to 1 if you have the 'SSL_get0_peername' function. */
@@ -891,7 +891,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.24.1"
+#define PACKAGE_STRING "unbound 1.24.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -900,7 +900,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.24.1"
+#define PACKAGE_VERSION "1.24.2"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -923,7 +923,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,24,1,0
+#define RSRC_PACKAGE_VERSION 1,24,2,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
