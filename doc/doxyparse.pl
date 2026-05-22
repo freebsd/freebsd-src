@@ -40,9 +40,8 @@ my $MAN_MIDDLE = ".SH AUTHOR
 The ldns team at NLnet Labs.
 
 .SH REPORTING BUGS
-Please report bugs to ldns-team\@nlnetlabs.nl or in 
-our bugzilla at
-http://www.nlnetlabs.nl/bugs/index.html
+Please report bugs to dns-team\@nlnetlabs.nl or on
+GitHub at https://github.com/NLnetLabs/ldns/issues
 
 .SH COPYRIGHT
 Copyright (c) 2004 - 2006 NLnet Labs.

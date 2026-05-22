@@ -99,12 +99,14 @@
 %typemap(in, noblock=1) (ssize_t)
 {
   int $1_res = 0;
-  $1_res = SWIG_AsVal_long($input, &$1);
+  long val;
+  $1_res = SWIG_AsVal_long($input, &val);
   if (!SWIG_IsOK($1_res)) {
     SWIG_exception_fail(SWIG_ArgError($1_res), "in method '"
       "$symname" "', argument " "$argnum" " of type '"
       "$type""'");
   }
+  $1 = val;
 }
 
 

@@ -50,13 +50,18 @@
       SWIGTYPE_p_ldns_struct_rdf, SWIG_POINTER_OWN | 0));
 }
 
+#if SWIG_VERSION < 0x040200
 /*
  * Automatic conversion of const (ldns_rdf *) parameter from string.
  * Argument default value.
  */
 %typemap(arginit, noblock=1) const ldns_rdf *
 {
+#if SWIG_VERSION >= 0x040200
+  PyObject *$1_bytes = NULL;
+#else
   char *$1_str = NULL;
+#endif
 }
 
 /*
@@ -66,11 +71,17 @@
 %typemap(in, noblock=1) const ldns_rdf * (void* argp, $1_ltype tmp = 0, int res)
 {
   if (Python_str_Check($input)) {
+    const char *argstr;
+#if SWIG_VERSION >= 0x040200
+    argstr = SWIG_PyUnicode_AsUTF8AndSize($input, NULL, &$1_bytes);
+#else
     $1_str = SWIG_Python_str_AsChar($input);
-    if ($1_str == NULL) {
+    argstr = $1_str;
+#endif
+    if (argstr == NULL) {
       %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
     }
-    tmp = ldns_dname_new_frm_str($1_str);
+    tmp = ldns_dname_new_frm_str(argstr);
     if (tmp == NULL) {
       %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
     }
@@ -90,11 +101,63 @@
  */
 %typemap(freearg, noblock=1) const ldns_rdf *
 {
+#if SWIG_VERSION >= 0x040200
+  if ($1_bytes != NULL) {
+    /* Is not NULL only when a conversion form string occurred. */
+    Py_XDECREF($1_bytes);
+  }
+#else
   if ($1_str != NULL) {
     /* Is not NULL only when a conversion form string occurred. */
     SWIG_Python_str_DelForPy3($1_str); /* Is a empty macro for Python < 3. */
   }
+#endif
 }
+
+#else
+/*
+ * Automatic conversion of const (ldns_rdf *) parameter from string.
+ * Argument default value.
+ */
+%typemap(arginit, noblock=1) const ldns_rdf *
+{
+  PyObject *$1_bytes = NULL;
+}
+
+/*
+ * Automatic conversion of const (ldns_rdf *) parameter from string.
+ * Preparation of arguments.
+ */
+%typemap(in, noblock=1) const ldns_rdf * (void* argp, $1_ltype tmp = 0, int res)
+{
+  if (Python_str_Check($input)) {
+    const char *$1_str = SWIG_PyUnicode_AsUTF8AndSize($input, NULL, &$1_bytes);
+    if ($1_str == NULL) {
+      %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
+    }
+    tmp = ldns_dname_new_frm_str($1_str);
+    if (tmp == NULL) {
+      %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
+    }
+    $1 = ($1_ltype) tmp;
+  } else {
+    res = SWIG_ConvertPtr($input, &argp, SWIGTYPE_p_ldns_struct_rdf, 0 | 0);
+    if (!SWIG_IsOK(res)) {
+      %argument_fail(res, "ldns_rdf const *", $symname, $argnum);
+    }
+    $1 = ($1_ltype) argp;
+  }
+}
+
+/*
+ * Automatic conversion of const (ldns_rdf *) parameter from string.
+ * Freeing of allocated memory (it's a no op unless compiling for some older versions of the Python stable ABI).
+ */
+%typemap(freearg, noblock=1) const ldns_rdf *
+{
+  Py_XDECREF($1_bytes);
+}
+#endif
 
 %nodefaultctor ldns_struct_rdf; /* No default constructor. */
 %nodefaultdtor ldns_struct_rdf; /* No default destructor. */

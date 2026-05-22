@@ -39,7 +39,7 @@ usage(void)
 	fprintf(stderr, "\t-r num\t\tmax number of retries (%d)\n", 
 		max_num_retry);
 	fprintf(stderr, "\t-h\t\tPrint this help information\n\n");
-	fprintf(stderr, "Report bugs to <ldns-team@nlnetlabs.nl>\n");
+	fprintf(stderr, "Report bugs to <dns-team@nlnetlabs.nl>\n");
 	exit(1);
 }
 

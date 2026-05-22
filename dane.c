@@ -625,10 +625,10 @@ ldns_dane_match_any_cert_with_data(STACK_OF(X509)* chain,
 		ldns_rdf* data, bool ca)
 {
 	ldns_status s = LDNS_STATUS_DANE_TLSA_DID_NOT_MATCH;
-	size_t n, i;
+	int n, i;
 	X509* cert;
 
-	n = (size_t)sk_X509_num(chain);
+	n = sk_X509_num(chain);
 	for (i = 0; i < n; i++) {
 		cert = sk_X509_pop(chain);
 		if (! cert) {

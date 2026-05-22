@@ -63,6 +63,9 @@
 	<RRs, one per line>
 	SECTION ADDITIONAL
 	<RRs, one per line>
+	HEX_EDNSDATA_BEGIN
+	<Hex data of an EDNS option>
+	HEX_EDNSDATA_END
 	EXTRA_PACKET		; follow with SECTION, REPLY for more packets.
 	HEX_ANSWER_BEGIN	; follow with hex data
 				; this replaces any answer packet constructed
@@ -88,6 +91,12 @@ SECTION ANSWER
 www.nlnetlabs.nl.	IN	A	195.169.215.155
 SECTION AUTHORITY
 nlnetlabs.nl.		IN	NS	www.nlnetlabs.nl.
+HEX_EDNSDATA_BEGIN
+00 03 ; NSID
+00 04 ; LENGTH
+4E 53 ; NS
+49 44 ; ID
+HEX_EDNSDATA_END
 ENTRY_END
 
 ENTRY_BEGIN

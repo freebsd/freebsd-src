@@ -10,6 +10,7 @@
  * See the file LICENSE for the license
  */
 
+#include <ldns/config.h>
 #include <ldns/ldns.h>
 
 #define LDNS_OPTIONLIST_INIT 8
@@ -39,6 +40,44 @@ ldns_edns_get_data(const ldns_edns_option *edns)
 {
 	assert(edns != NULL);
 	return edns->_data;
+}
+
+ldns_status 
+ldns_edns_ede_get_code(const ldns_edns_option *edns, uint16_t *ede_code)
+{
+	assert(edns != NULL);
+	assert(ede_code != NULL);
+
+	if (edns->_code != LDNS_EDNS_EDE) return LDNS_STATUS_NOT_EDE;
+
+	if (edns->_size < 2) return LDNS_STATUS_EDE_OPTION_MALFORMED;
+
+	*ede_code = (uint16_t) ntohs(*((uint16_t*) edns->_data));
+
+	return LDNS_STATUS_OK;
+}
+
+ldns_status 
+ldns_edns_ede_get_text(const ldns_edns_option* edns, char **ede_text)
+{
+	assert(edns != NULL);
+	assert(ede_text != NULL);
+
+	if (edns->_code != LDNS_EDNS_EDE) return LDNS_STATUS_NOT_EDE;
+
+	if (edns->_size < 2) return LDNS_STATUS_EDE_OPTION_MALFORMED;
+
+	*ede_text = NULL;
+
+	if (edns->_size > 2)
+	{
+		*ede_text = (char*) malloc((edns->_size - 1) * sizeof(char));
+
+		memset(*ede_text, 0, edns->_size - 1);
+		memcpy(*ede_text, &((char*)edns->_data)[2], edns->_size - 2);
+	}
+
+	return LDNS_STATUS_OK;
 }
 
 ldns_buffer *
@@ -73,21 +112,21 @@ ldns_edns_get_wireformat_buffer(const ldns_edns_option *edns)
 }
 
 /* write */
-void
+static void
 ldns_edns_set_size(ldns_edns_option *edns, size_t size)
 {
 	assert(edns != NULL);
 	edns->_size = size;
 }
 
-void
+static void
 ldns_edns_set_code(ldns_edns_option *edns, ldns_edns_option_code code)
 {
 	assert(edns != NULL);
 	edns->_code = code;
 }
 
-void
+static void
 ldns_edns_set_data(ldns_edns_option *edns, void *data)
 {
 	/* only copy the pointer */
@@ -167,7 +206,7 @@ ldns_edns_free(ldns_edns_option *edns)
 }
 
 ldns_edns_option_list*
-ldns_edns_option_list_new()
+ldns_edns_option_list_new(void)
 {
 	ldns_edns_option_list *option_list = LDNS_MALLOC(ldns_edns_option_list);
 	if(!option_list) {

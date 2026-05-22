@@ -38,24 +38,22 @@ create_dname_plus_1(ldns_rdf *dname)
 	size_t i;
 	
 	ldns_dname2canonical(dname);
-	labellen = ldns_rdf_data(dname)[0];
 	if (verbosity >= 3) {
                 printf("Create +e for ");
                 ldns_rdf_print(stdout, dname);
                 printf("\n");
 	}
-	if (labellen < 63) {
-		wire = malloc(ldns_rdf_size(dname) + 1);
+	if (ldns_rdf_size(dname) < LDNS_MAX_DOMAINLEN) {
+		wire = malloc(ldns_rdf_size(dname) + 2);
 		if (!wire) {
 			fprintf(stderr, "Malloc error: out of memory?\n");
 			exit(127);
 		}
-		wire[0] = labellen + 1;
-		memcpy(&wire[1], ldns_rdf_data(dname) + 1, labellen);
-		memcpy(&wire[labellen+1], ldns_rdf_data(dname) + labellen, ldns_rdf_size(dname) - labellen);
-		wire[labellen+1] = (uint8_t) '\000';
+		wire[0] = (uint8_t) 1;
+		wire[1] = (uint8_t) '\000';
+		memcpy(&wire[2], ldns_rdf_data(dname), ldns_rdf_size(dname));
 		pos = 0;
-		status = ldns_wire2dname(&newdname, wire, ldns_rdf_size(dname) + 1, &pos);
+		status = ldns_wire2dname(&newdname, wire, ldns_rdf_size(dname) + 2, &pos);
 		free(wire);
 	} else {
 		wire = malloc(ldns_rdf_size(dname));
@@ -63,6 +61,7 @@ create_dname_plus_1(ldns_rdf *dname)
 			fprintf(stderr, "Malloc error: out of memory?\n");
 			exit(127);
 		}
+		labellen = ldns_rdf_data(dname)[0];
 		wire[0] = labellen;
 		memcpy(&wire[1], ldns_rdf_data(dname) + 1, labellen);
 		memcpy(&wire[labellen], ldns_rdf_data(dname) + labellen, ldns_rdf_size(dname) - labellen);

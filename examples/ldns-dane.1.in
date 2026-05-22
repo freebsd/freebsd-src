@@ -170,7 +170,7 @@ unbound-anchor(8)
 Written by the ldns team as an example for ldns usage.
 
 .SH REPORTING BUGS
-Report bugs to \fIldns-team@nlnetlabs.nl\fR. 
+Report bugs to <dns-team@nlnetlabs.nl>.
 
 .SH COPYRIGHT
 Copyright (C) 2012 NLnet Labs. This is free software. There is NO

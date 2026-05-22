@@ -22,8 +22,12 @@
 #include <ldns/keys.h>
 
 #include <openssl/conf.h>
-#ifndef OPENSSL_NO_ENGINE
+#if defined(HAVE_OPENSSL_ENGINE_H) && !defined(OPENSSL_NO_ENGINE)
 #include <openssl/engine.h>
+#else
+#  ifndef OPENSSL_NO_ENGINE
+#  define OPENSSL_NO_ENGINE
+#  endif
 #endif
 #include <openssl/err.h>
 

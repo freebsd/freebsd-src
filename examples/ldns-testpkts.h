@@ -49,6 +49,9 @@
 	; 'DO' will match only queries with DO bit set.
 	; 'noedns' matches queries without EDNS OPT records.
 	; 'ednsdata' matches queries to HEX_EDNS section.
+	; 'udp_size=1232' makes the query match if:
+	;   udp_size in query edns0 field >= 1232,
+	;   or the query came over TCP.
 	MATCH [opcode] [qtype] [qname] [serial=<value>] [all] [ttl]
 	MATCH [UDP|TCP] DO
 	MATCH ...
@@ -185,6 +188,8 @@ struct entry {
 	uint32_t ixfr_soa_serial; 
 	/** match on UDP/TCP */
 	enum transport_type match_transport; 
+	/** match on edns udp size (larger or equal) */
+	uint16_t match_udp_size;
 
 	/** pre canned reply */
 	struct reply_packet *reply_list;

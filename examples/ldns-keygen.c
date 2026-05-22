@@ -75,9 +75,13 @@ create_symlink(const char *symlink_destination, const char *symlink_name)
 	if (!symlink_name)
 		return result;  /* no arg "-s" at all */
 
+#ifdef HAVE_SYMLINK
 	if ((result = symlink(symlink_destination, symlink_name)) == -1) {
 		fprintf(stderr, "Unable to create symlink %s -> %s: %s\n", symlink_name, symlink_destination, strerror(errno));
 	}
+#else
+	fprintf(stderr, "Unable to create symlink %s -> %s: no symlink()\n", symlink_name, symlink_destination);
+#endif
 	return result;
 }
 

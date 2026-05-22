@@ -216,7 +216,7 @@ class resolver:
 			self.drop_nameservers()
 			nm_list = ns.split(',')
 			nm_list = map(lambda s: s.strip(), nm_list)
-			nm_list = filter(lambda s: s != "", nm_list)
+			nm_list = list(filter(lambda s: s != "", nm_list))
 			nm_list.reverse()
 			for nm in nm_list:
 				self.add_nameserver(nm)

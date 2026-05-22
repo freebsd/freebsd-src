@@ -605,10 +605,6 @@ ldns_todo_nsec3_ents_node_free(ldns_rbnode_t *node, void *arg) {
 	LDNS_FREE(node);
 }
 
-ldns_status _ldns_rr_new_frm_fp_l_internal(ldns_rr **newrr, FILE *fp,
-		uint32_t *default_ttl, ldns_rdf **origin, ldns_rdf **prev,
-		int *line_nr, bool *explicit_ttl);
-
 ldns_status
 ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, const ldns_rdf* origin,
 		uint32_t default_ttl, ldns_rr_class ATTR_UNUSED(c), int* line_nr)
@@ -1914,6 +1910,9 @@ rr_list2dnssec_rrs(ldns_rr_list *rr_list, ldns_dnssec_rrs **rrs,
 }
 
 
+ldns_status
+dnssec_zone_equip_zonemd(ldns_dnssec_zone *zone,
+		ldns_rr_list *new_rrs, ldns_key_list *key_list, int signflags);
 ldns_status
 dnssec_zone_equip_zonemd(ldns_dnssec_zone *zone,
 		ldns_rr_list *new_rrs, ldns_key_list *key_list, int signflags)

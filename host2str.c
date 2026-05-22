@@ -835,10 +835,6 @@ ldns_rdf2buffer_str_wks(ldns_buffer *output, const ldns_rdf *rdf)
 		ldns_buffer_printf(output, "%u ", protocol_nr);
 	}
 
-#ifdef HAVE_ENDPROTOENT
-	endprotoent();
-#endif
-
 	for (current_service = 0;
 	     current_service < (ldns_rdf_size(rdf)-1)*8; current_service++) {
 		if (ldns_get_bit(&(ldns_rdf_data(rdf)[1]), current_service)) {
@@ -856,6 +852,11 @@ ldns_rdf2buffer_str_wks(ldns_buffer *output, const ldns_rdf *rdf)
 		/* exit from loop before integer overflow */
 		if(current_service == 65535) { break; }
 	}
+
+#ifdef HAVE_ENDPROTOENT
+	endprotoent();
+#endif
+
 	return ldns_buffer_status(output);
 }
 
@@ -2274,11 +2275,16 @@ ldns_edns_subnet2buffer_str(ldns_buffer* output, uint8_t* data, size_t len)
 {
 	uint16_t family;
 	uint8_t source, scope;
+
+	ldns_buffer_printf(output, "; CLIENT SUBNET: ");
+
 	if(len < 4) {
 		ldns_buffer_printf(output, "malformed subnet ");
 		ldns_edns_hex_data2buffer_str(output, data, len);
 		return ldns_buffer_status(output);
 	}
+
+
 	family = ldns_read_uint16(data);
 	source = data[2];
 	scope = data[3];
@@ -2402,11 +2408,11 @@ ldns_edns_padding2buffer_str(ldns_buffer* output, uint8_t* data, size_t len)
 static ldns_status
 ldns_edns_chain2buffer_str(ldns_buffer* output, uint8_t* data, size_t len)
 {
-	ldns_rdf** temp = NULL;
+	ldns_rdf* temp = NULL;
 
 	ldns_buffer_printf(output, "; CHAIN: ");
 
-	if (ldns_str2rdf_dname(temp, (char*) data) != LDNS_STATUS_OK) {
+	if (ldns_str2rdf_dname(&temp, (char*) data) != LDNS_STATUS_OK) {
 		ldns_buffer_printf(output, "malformed chain ");
 		ldns_edns_hex_data2buffer_str(output, data, len);
 
@@ -2746,6 +2752,7 @@ ldns_pkt2buffer_str_fmt(ldns_buffer *output,
 		ldns_buffer_printf(output, "\n");
 
 		ldns_buffer_printf(output, ";; ADDITIONAL SECTION:\n");
+
 		for (i = 0; i < ldns_pkt_arcount(pkt); i++) {
 			status = ldns_rr2buffer_str_fmt(output, fmt,
 				       ldns_rr_list_rr(
@@ -2788,6 +2795,7 @@ ldns_pkt2buffer_str_fmt(ldns_buffer *output,
 				} else {
 					ldns_buffer_printf(output, ";; Data: ");
 					(void)ldns_rdf2buffer_str(output, ldns_pkt_edns_data(pkt));
+					ldns_buffer_printf(output, "\n");
 				}
 			}
 		}

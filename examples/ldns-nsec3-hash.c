@@ -18,7 +18,6 @@
 
 #ifdef HAVE_SSL
 #include <openssl/conf.h>
-#include <openssl/engine.h>
 #endif /* HAVE_SSL */
 
 #define MAX_FILENAME_LEN 250

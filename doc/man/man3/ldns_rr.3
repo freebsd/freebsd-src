@@ -456,11 +456,11 @@ enum ldns_enum_rr_type
 .br
 	LDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
 .br
-	LDNS_RR_TYPE_ZONEMD = 63, /* draft-ietf-dnsop-dns-zone-digest */
+	LDNS_RR_TYPE_ZONEMD = 63, /* RFC 8976 */
 .br
-	LDNS_RR_TYPE_SVCB = 64, /* draft-ietf-dnsop-svcb-https */
+	LDNS_RR_TYPE_SVCB = 64, /* RFC 9460 */
 .br
-	LDNS_RR_TYPE_HTTPS = 65, /* draft-ietf-dnsop-svcb-https */
+	LDNS_RR_TYPE_HTTPS = 65, /* RFC 9460 */
 .br
 
 .br
@@ -494,6 +494,10 @@ enum ldns_enum_rr_type
 .br
 
 .br
+	LDNS_RR_TYPE_NXNAME = 128, /* draft-ietf-dnsop-compact-denial-of-existence */
+.br
+
+.br
 	LDNS_RR_TYPE_TKEY = 249, /* RFC 2930 */
 .br
 	LDNS_RR_TYPE_TSIG = 250,
@@ -524,9 +528,21 @@ enum ldns_enum_rr_type
 .br
 
 .br
-	\fBdraft-ietf-mboned-driad-amt-discovery *:\fR
+	\fBRFC 8777 *:\fR
 .br
 	LDNS_RR_TYPE_AMTRELAY = 260,
+.br
+
+.br
+	\fBRFC 9606:\fR
+.br
+	LDNS_RR_TYPE_RESINFO = 261,
+.br
+
+.br
+	\fBhttps://iana.org/assignments/dns-parameters/WALLET/wallet-completed-template:\fR
+.br
+	LDNS_RR_TYPE_WALLET = 262,
 .br
 
 .br
@@ -604,9 +620,8 @@ typedef struct ldns_struct_rr_list ldns_rr_list;
 The ldns team at NLnet Labs.
 
 .SH REPORTING BUGS
-Please report bugs to ldns-team@nlnetlabs.nl or in 
-our bugzilla at
-http://www.nlnetlabs.nl/bugs/index.html
+Please report bugs to dns-team@nlnetlabs.nl or on
+GitHub at https://github.com/NLnetLabs/ldns/issues
 
 .SH COPYRIGHT
 Copyright (c) 2004 - 2006 NLnet Labs.
