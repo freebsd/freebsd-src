@@ -254,7 +254,7 @@ dedup_mapping(unsigned int map_idx)
 }
 
 static struct glyph *
-add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
+add_glyph(const uint8_t *bytes, unsigned int map_idx, bool fallback)
 {
 	struct glyph *gl;
 	int hash;
@@ -321,13 +321,13 @@ add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 	/* Prevent adding two glyphs for 0xFFFD */
 	if (curchar == 0xFFFD) {
 		if (map_idx < VFNT_MAP_BOLD)
-			gl = add_glyph(bytes, 0, 1);
+			(void)add_glyph(bytes, 0, true);
 	} else if (filter == false || curchar >= 0x20) {
-		gl = add_glyph(bytes, map_idx, 0);
+		gl = add_glyph(bytes, map_idx, false);
 		if (add_mapping(gl, curchar, map_idx) != 0)
 			return (1);
 		if (bytes_r != NULL) {
-			gl = add_glyph(bytes_r, map_idx + 1, 0);
+			gl = add_glyph(bytes_r, map_idx + 1, false);
 			if (add_mapping(gl, curchar, map_idx + 1) != 0)
 				return (1);
 		}
