@@ -986,7 +986,7 @@ done:
 	if (rv != 0)
 		perror(filename);
 	fclose(fp);
-	return (0);
+	return (rv);
 }
 
 static void
