@@ -39,7 +39,8 @@
 .Nm pdopenpid ,
 .Nm pdgetpid ,
 .Nm pdkill ,
-.Nm pdwait
+.Nm pdwait ,
+.Nm pddupfd
 .Nd System calls to manage process descriptors
 .Sh LIBRARY
 .Lb libc
@@ -63,6 +64,8 @@
 .Fa "struct __wrusage *wrusage"
 .Fa "struct __siginfo *info"
 .Fc
+.Ft int
+.Fn pddupfd "int fd" "int remotefd" "int flags"
 .Sh DESCRIPTION
 Process descriptors are special file descriptors that represent processes,
 and are created using
@@ -176,6 +179,23 @@ See the description of the
 .Xr wait6
 system call for the behavior specification.
 .Pp
+The
+.Fn pddupfd
+allows the caller to duplicate a file descriptor across the process
+boundaries.
+The function returns the new file descriptor that points to the same file
+as the file descriptor
+.Fa remotefd
+in the process specified by the
+.Fa fd
+process descriptor.
+The returned file descriptor has the
+.Va O_CLOEXEC
+flag set.
+The
+.Fa flags
+argument is reserved and must be zero.
+.Pp
 The following system calls also have effects specific to process descriptors:
 .Pp
 .Xr fstat 2
@@ -228,8 +248,9 @@ does.
 .Fn pdopenpid ,
 .Fn pdgetpid ,
 .Fn pdkill ,
+.Fn pdwait ,
 and
-.Fn pdwait
+.Fn pddupfd
 return 0 on success and -1 on failure.
 .Sh ERRORS
 These functions may return the same error numbers as their PID-based equivalents
@@ -306,6 +327,30 @@ which executes all actions performed by
 .Xr close 2
 on it.
 .El
+.Pp
+The
+.Fn pddupfd
+returns the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument is not zero.
+.It Bq Er ESRCH
+The process specified by the file descriptor
+.Fa fd
+exited.
+.It Bq Er EBADF
+The file descriptor
+.Fa fd
+is not a process file descriptor.
+.It Bq Er EBADF
+The file descriptor
+.Fa remotefd
+is not a valid file descriptor in the specified process.
+.It Bq Er ENOENT
+The specified process does not have a file descriptor table.
+.El
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr fork 2 ,
@@ -332,7 +377,9 @@ system calls first appeared in
 .Fx 15.1 .
 The
 .Fn pdopenpid
-system call first appeared in
+and
+.Fn pddupfd
+system calls first appeared in
 .Fx 16.0 .
 .Pp
 Support for process descriptors mode was developed as part of the
@@ -356,5 +403,7 @@ with input from
 .An Alan Somers Aq Mt asomers@FreeBSD.org .
 The
 .Fn pdopenpid
-function was developed by
+and
+.Fn pddupfd
+functions were developed by
 .An Konstantin Belousov Aq Mt kib@FreeBSD.org .
