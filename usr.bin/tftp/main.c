@@ -331,6 +331,8 @@ setpeer0(char *host, const char *lport)
 	}
 
 	freeaddrinfo(res0);
+	free(port);
+	port = strdup(lport);
 }
 
 static void
@@ -350,10 +352,9 @@ setpeer(int argc, char *argv[])
 		printf("usage: %s [host [port]]\n", argv[0]);
 		return;
 	}
-	if (argc == 3) {
-		port = argv[2];
+	if (argc == 3)
 		setpeer0(argv[1], argv[2]);
-	} else
+	else
 		setpeer0(argv[1], NULL);
 }
 
