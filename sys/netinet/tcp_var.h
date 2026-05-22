@@ -1400,7 +1400,6 @@ struct tcpcb *
 void	 tcp_discardcb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
-void	 tcp_fini(void *);
 char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, const void *,
 	    const void *);
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, const void *,
