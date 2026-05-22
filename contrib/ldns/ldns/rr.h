@@ -194,6 +194,9 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_ZONEMD = 63, /* RFC 8976 */
 	LDNS_RR_TYPE_SVCB = 64, /* RFC 9460 */
 	LDNS_RR_TYPE_HTTPS = 65, /* RFC 9460 */
+	LDNS_RR_TYPE_DSYNC = 66, /* RFC 9859 */
+	LDNS_RR_TYPE_HHIT = 67, /* draft-ietf-drip-registries-28 */
+	LDNS_RR_TYPE_BRID = 68, /* draft-ietf-drip-registries-28 */
 
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 
@@ -210,7 +213,7 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_EUI48 = 108, /* RFC 7043 */
 	LDNS_RR_TYPE_EUI64 = 109, /* RFC 7043 */
 
-	LDNS_RR_TYPE_NXNAME = 128, /* draft-ietf-dnsop-compact-denial-of-existence */
+	LDNS_RR_TYPE_NXNAME = 128, /* RFC 9824 */
 
 	LDNS_RR_TYPE_TKEY = 249, /* RFC 2930 */
 	LDNS_RR_TYPE_TSIG = 250,
@@ -236,6 +239,12 @@ enum ldns_enum_rr_type
 	/** https://iana.org/assignments/dns-parameters/WALLET/wallet-completed-template */
 	LDNS_RR_TYPE_WALLET = 262,
 
+	/** https://www.iana.org/assignments/dns-parameters/CLA/cla-completed-template */
+	LDNS_RR_TYPE_CLA = 263,
+
+	/** https://www.iana.org/assignments/dns-parameters/IPN/ipn-completed-template */
+	LDNS_RR_TYPE_IPN = 264,
+
 	/** DNSSEC Trust Authorities */
 	LDNS_RR_TYPE_TA = 32768,
 	/* RFC 4431, 5074, DNSSEC Lookaside Validation */
@@ -251,7 +260,7 @@ enum ldns_enum_rr_type
 typedef enum ldns_enum_rr_type ldns_rr_type;
 
 /* The first fields are contiguous and can be referenced instantly */
-#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON (LDNS_RR_TYPE_WALLET + 1)
+#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON (LDNS_RR_TYPE_IPN + 1)
 
 /**
  * Resource Record
@@ -723,6 +732,13 @@ bool ldns_rr_list_contains_rr(const ldns_rr_list *rr_list, const ldns_rr *rr);
  * \return true if it is an rrset otherwise false
  */
 bool ldns_is_rrset(const ldns_rr_list *rr_list);
+
+/**
+ * checks if an rr_list is a rrset, including checking for TTL.
+ * \param[in] rr_list the rr_list to check
+ * \return true if it is an rrset otherwise false
+ */
+bool ldns_is_rrset_strict(const ldns_rr_list *rr_list);
 
 /**
  * pushes an rr to an rrset (which really are rr_list's).

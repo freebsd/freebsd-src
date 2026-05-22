@@ -5,8 +5,8 @@ sinclude(acx_nlnetlabs.m4)
 
 # must be numbers. ac_defun because of later processing.
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[8])
-m4_define([VERSION_MICRO],[4])
+m4_define([VERSION_MINOR],[9])
+m4_define([VERSION_MICRO],[0])
 AC_INIT([ldns],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[dns-team@nlnetlabs.nl],[libdns])
 AC_CONFIG_SRCDIR([packet.c])
 # needed to build correct soname
@@ -33,6 +33,7 @@ AC_SUBST(LDNS_VERSION_MICRO, [VERSION_MICRO])
 # ldns-1.8.1 had libversion 6:0:3
 # ldns-1.8.2 had libversion 7:0:4
 # ldns-1.8.3 has libversion 8:0:5
+# ldns-1.9.0 will have libversion 9:0:6 (new behaviour for dnssec_rrs_add_rr)
 #
 AC_SUBST(VERSION_INFO, [9:0:6])
 
@@ -667,7 +668,9 @@ case "$enable_dane" in
       ;;
 esac
 
+AC_ARG_ENABLE(draft-rrtypes, AS_HELP_STRING([--enable-draft-rrtypes],[Enable all draft RR types.]))
 AC_ARG_ENABLE(rrtype-ninfo, AS_HELP_STRING([--enable-rrtype-ninfo],[Enable draft RR type ninfo.]))
+if test "x$enable_draft_rrtypes" = "xyes"; then enable_rrtype_ninfo="yes"; fi
 case "$enable_rrtype_ninfo" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_NINFO], [], [Define this to enable RR type NINFO.])
@@ -676,6 +679,7 @@ case "$enable_rrtype_ninfo" in
 		;;
 esac
 AC_ARG_ENABLE(rrtype-rkey, AS_HELP_STRING([--enable-rrtype-rkey],[Enable draft RR type rkey.]))
+if test "x$enable_draft_rrtypes" = "xyes"; then enable_rrtype_rkey="yes"; fi
 case "$enable_rrtype_rkey" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_RKEY], [], [Define this to enable RR type RKEY.])
@@ -692,6 +696,7 @@ case "$enable_rrtype_openpgpkey" in
 		;;
 esac
 AC_ARG_ENABLE(rrtype-ta, AS_HELP_STRING([--enable-rrtype-ta],[Enable draft RR type ta.]))
+if test "x$enable_draft_rrtypes" = "xyes"; then enable_rrtype_ta="yes"; fi
 case "$enable_rrtype_ta" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_TA], [], [Define this to enable RR type TA.])
@@ -700,6 +705,7 @@ case "$enable_rrtype_ta" in
 		;;
 esac
 AC_ARG_ENABLE(rrtype-avc, AS_HELP_STRING([--enable-rrtype-avc],[Enable draft RR type avc.]))
+if test "x$enable_draft_rrtypes" = "xyes"; then enable_rrtype_avc="yes"; fi
 case "$enable_rrtype_avc" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_AVC], [], [Define this to enable RR type AVC.])
@@ -708,6 +714,7 @@ case "$enable_rrtype_avc" in
 		;;
 esac
 AC_ARG_ENABLE(rrtype-doa, AS_HELP_STRING([--enable-rrtype-doa],[Enable draft RR type DOA.]))
+if test "x$enable_draft_rrtypes" = "xyes"; then enable_rrtype_doa="yes"; fi
 case "$enable_rrtype_doa" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_DOA], [], [Define this to enable RR type DOA.])
@@ -731,12 +738,38 @@ case "$enable_rrtype_svcb_https" in
 		AC_DEFINE_UNQUOTED([RRTYPE_SVCB_HTTPS], [], [Define this to enable RR types SVCB and HTTPS.])
 		;;
 esac
-AC_ARG_ENABLE(rrtype-resinfo, AS_HELP_STRING([--enable-rrtype-resinfo],[Disable RR type RESINFO.]))
+AC_ARG_ENABLE(rrtype-resinfo, AS_HELP_STRING([--disable-rrtype-resinfo],[Disable RR type RESINFO.]))
 case "$enable_rrtype_resinfo" in
 	no)
 		;;
 	yes|*)
 		AC_DEFINE_UNQUOTED([RRTYPE_RESINFO], [], [Define this to enable RR type RESINFO.])
+		;;
+esac
+AC_ARG_ENABLE(rrtype-dsync, AS_HELP_STRING([--disable-rrtype-dsync],[Disable RR type DSYNC.]))
+case "$enable_rrtype_dsync" in
+	no)
+		;;
+	yes|*)
+		AC_DEFINE_UNQUOTED([RRTYPE_DSYNC], [], [Define this to enable RR type DSYNC.])
+		;;
+esac
+AC_ARG_ENABLE(rrtypes-cla-ipn, AS_HELP_STRING([--enable-rrtypes-cla-ipn],[Enable draft RR types CLA and IPN.]))
+if test "x$enable_draft_rrtypes" = "xyes"; then enable_rrtypes_cla_ipn="yes"; fi
+case "$enable_rrtypes_cla_ipn" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_CLA_IPN], [], [Define this to enable RR types CLA and IPN.])
+		;;
+	no|*)
+		;;
+esac
+AC_ARG_ENABLE(rrtypes-hhit-brid, AS_HELP_STRING([--enable-rrtypes-hhit-brid],[Enable draft RR types HHIT and BRID.]))
+if test "x$enable_draft_rrtypes" = "xyes"; then enable_rrtypes_hhit_brid="yes"; fi
+case "$enable_rrtypes_hhit_brid" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_HHIT_BRID], [], [Define this to enable RR types HHIT and BRID.])
+		;;
+	no|*)
 		;;
 esac
 
@@ -1193,7 +1226,7 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #define close_socket(_s) do { if (_s != SOCK_INVALID) {closesocket(_s); _s = -1;} } while(0)
 #else
 #define SOCK_INVALID -1
-#define close_socket(_s) do { if (_s != SOCK_INVALID) {close(_s); _s = -1;} } while(0)
+#define close_socket(_s) do { if (_s != SOCK_INVALID) {close(_s >= -1 ? _s : -1); _s = -1;} } while(0)
 #endif
 
 #ifdef __cplusplus

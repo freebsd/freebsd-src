@@ -754,6 +754,8 @@ ldns_tcp_read_wire_timeout(int sockfd, size_t *size, struct timeval timeout)
 	uint16_t wire_size;
 	ssize_t bytes = 0, rc = 0;
 
+	if(sockfd < 0)
+		return NULL;
 	wire = LDNS_XMALLOC(uint8_t, 2);
 	if (!wire) {
 		*size = 0;

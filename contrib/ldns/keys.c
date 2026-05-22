@@ -1530,11 +1530,13 @@ ldns_key_hmac_key(const ldns_key *k)
 size_t
 ldns_key_hmac_size(const ldns_key *k)
 {
+#ifndef __clang_analyzer__
 	if (k->_key.hmac.size) {
 		return k->_key.hmac.size;
 	} else {
 		return 0;
 	}
+#endif
 }
 
 void *
