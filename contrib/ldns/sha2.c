@@ -494,7 +494,8 @@ static void ldns_sha256_Transform(ldns_sha256_CTX* context,
 
 	/* Clean up */
 	a = b = c = d = e = f = g = h = T1 = T2 = 0;
-	(void)a;
+	(void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; (void)h;
+	(void)T1; (void)T2;
 }
 
 #endif /* SHA2_UNROLL_TRANSFORM */
@@ -528,7 +529,7 @@ void ldns_sha256_update(ldns_sha256_CTX* context, const sha2_byte *data, size_t 
 			context->bitcount += len << 3;
 			/* Clean up: */
 			usedspace = freespace = 0;
-			(void)usedspace;
+			(void)usedspace; (void)freespace;
 			return;
 		}
 	}
@@ -546,7 +547,7 @@ void ldns_sha256_update(ldns_sha256_CTX* context, const sha2_byte *data, size_t 
 	}
 	/* Clean up: */
 	usedspace = freespace = 0;
-	(void)usedspace;
+	(void)usedspace; (void)freespace;
 }
 
 typedef union _ldns_sha2_buffer_union {
@@ -737,6 +738,7 @@ static void ldns_sha512_Transform(ldns_sha512_CTX* context,
 	sha2_word64	a, b, c, d, e, f, g, h, s0, s1;
 	sha2_word64	T1, T2, *W512 = (sha2_word64*)context->buffer;
 	int		j;
+	sha2_word64	aligned;
 
 	/* initialize registers with the prev. intermediate value */
 	a = context->state[0];
@@ -752,7 +754,8 @@ static void ldns_sha512_Transform(ldns_sha512_CTX* context,
 	do {
 #if BYTE_ORDER == LITTLE_ENDIAN
 		/* Convert TO host byte order */
-		REVERSE64(*data++, W512[j]);
+		memcpy(&aligned, data++, sizeof(aligned));
+		REVERSE64(aligned, W512[j]);
 		/* Apply the SHA-512 compression function to update a..h */
 		T1 = h + Sigma1_512(e) + Ch(e, f, g) + K512[j] + W512[j];
 #else /* BYTE_ORDER == LITTLE_ENDIAN */
@@ -807,7 +810,8 @@ static void ldns_sha512_Transform(ldns_sha512_CTX* context,
 
 	/* Clean up */
 	a = b = c = d = e = f = g = h = T1 = T2 = 0;
-	(void)a;
+	(void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; (void)h;
+	(void)T1; (void)T2;
 }
 
 #endif /* SHA2_UNROLL_TRANSFORM */
@@ -841,7 +845,7 @@ void ldns_sha512_update(ldns_sha512_CTX* context, const sha2_byte *data, size_t 
 			ADDINC128(context->bitcount, len << 3);
 			/* Clean up: */
 			usedspace = freespace = 0;
-			(void)usedspace;
+			(void)usedspace; (void)freespace;
 			return;
 		}
 	}
@@ -859,7 +863,7 @@ void ldns_sha512_update(ldns_sha512_CTX* context, const sha2_byte *data, size_t 
 	}
 	/* Clean up: */
 	usedspace = freespace = 0;
-	(void)usedspace;
+	(void)usedspace; (void)freespace;
 }
 
 static void ldns_sha512_Last(ldns_sha512_CTX* context) {
