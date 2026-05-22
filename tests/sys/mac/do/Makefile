@@ -9,6 +9,5 @@ ${PACKAGE}FILES+=	common.sh
 TEST_METADATA+=	execenv="jail"
 TEST_METADATA+=	required_kmods="mac_do"
 TEST_METADATA+=	required_user="root"
-TEST_METADATA+=	required_programs="sysctl"
 
 .include <bsd.test.mk>
