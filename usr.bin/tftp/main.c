@@ -62,7 +62,6 @@
 #include "tftp-options.h"
 #include "tftp.h"
 
-#define	MAXLINE		(2 * MAXPATHLEN)
 #define	TIMEOUT		5		/* secs between rexmt's */
 
 typedef struct	sockaddr_storage peeraddr;
@@ -72,7 +71,7 @@ static jmp_buf	toplevel;
 static int	txrx_error;
 static int	peer;
 
-#define	MAX_MARGV	20
+#define	MAX_MARGV	32
 static int	margc;
 static char	*margv[MAX_MARGV];
 
@@ -106,7 +105,7 @@ static const char *command_prompt(void);
 
 static void urihandling(char *URI);
 static void getusage(char *);
-static void makeargv(char *line);
+static void makeargv(char *argv0, char *line);
 static void putusage(char *);
 static void settftpmode(const char *);
 
@@ -338,13 +337,13 @@ setpeer0(char *host, const char *lport)
 static void
 setpeer(int argc, char *argv[])
 {
-	char	line[MAXLINE];
+	static char *line;
+	static size_t sz;
 
 	if (argc < 2) {
-		strcpy(line, "Connect ");
 		printf("(to) ");
-		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv(line);
+		getline(&line, &sz, stdin);
+		makeargv(argv[0], line);
 		argc = margc;
 		argv = margv;
 	}
@@ -421,17 +420,16 @@ settftpmode(const char *newmode)
 static void
 put(int argc, char *argv[])
 {
-	int	fd;
-	int	n;
-	char	*cp, *targ, *path;
-	char	line[MAXLINE];
+	static char *line;
+	static size_t sz;
+	int fd, n;
+	char *cp, *targ, *path;
 	struct stat sb;
 
 	if (argc < 2) {
-		strcpy(line, "send ");
 		printf("(file) ");
-		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv(line);
+		getline(&line, &sz, stdin);
+		makeargv(argv[0], line);
 		argc = margc;
 		argv = margv;
 	}
@@ -531,17 +529,15 @@ putusage(char *s)
 static void
 get(int argc, char *argv[])
 {
-	int fd;
-	int n;
-	char *cp;
-	char *src;
-	char	line[MAXLINE];
+	static char *line;
+	static size_t sz;
+	int fd, n;
+	char *cp, *src;
 
 	if (argc < 2) {
-		strcpy(line, "get ");
 		printf("(files) ");
-		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv(line);
+		getline(&line, &sz, stdin);
+		makeargv(argv[0], line);
 		argc = margc;
 		argv = margv;
 	}
@@ -621,14 +617,14 @@ getusage(char *s)
 static void
 settimeoutpacket(int argc, char *argv[])
 {
+	static char *line;
+	static size_t sz;
 	int t;
-	char	line[MAXLINE];
 
 	if (argc < 2) {
-		strcpy(line, "Packet timeout ");
 		printf("(value) ");
-		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv(line);
+		getline(&line, &sz, stdin);
+		makeargv(argv[0], line);
 		argc = margc;
 		argv = margv;
 	}
@@ -648,14 +644,14 @@ settimeoutpacket(int argc, char *argv[])
 static void
 settimeoutnetwork(int argc, char *argv[])
 {
+	static char *line;
+	static size_t sz;
 	int t;
-	char	line[MAXLINE];
 
 	if (argc < 2) {
-		strcpy(line, "Network timeout ");
 		printf("(value) ");
-		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv(line);
+		getline(&line, &sz, stdin);
+		makeargv(argv[0], line);
 		argc = margc;
 		argv = margv;
 	}
@@ -731,23 +727,22 @@ command_prompt(void)
 static void
 command(bool interactive, EditLine *el, History *hist, HistEvent *hep)
 {
+	static char *line;
+	static size_t sz;
 	const struct cmd *c;
 	const char *bp;
-	char *cp;
-	int len, num;
-	char	line[MAXLINE];
+	int len;
 
 	for (;;) {
 		if (interactive) {
-			if ((bp = el_gets(el, &num)) == NULL || num == 0)
+			if ((bp = el_gets(el, &len)) == NULL || len == 0)
 				exit(0);
-			len = MIN(MAXLINE, num);
-			memcpy(line, bp, len);
-			line[len - 1] = '\0';
-			history(hist, hep, H_ENTER, bp);
+			if ((size_t)len >= sz)
+				line = realloc(line, sz = len + 1);
+			strlcpy(line, bp, sz);
+			history(hist, hep, H_ENTER, line);
 		} else {
-			line[0] = 0;
-			if (fgets(line, sizeof line , stdin) == NULL) {
+			if ((len = getline(&line, &sz, stdin)) <= 0) {
 				if (feof(stdin)) {
 					exit(txrx_error);
 				} else {
@@ -755,11 +750,11 @@ command(bool interactive, EditLine *el, History *hist, HistEvent *hep)
 				}
 			}
 		}
-		if ((cp = strchr(line, '\n')))
-			*cp = '\0';
+		if (line[len - 1] == '\n')
+			line[--len] = '\0';
 		if (line[0] == 0)
 			continue;
-		makeargv(line);
+		makeargv(NULL, line);
 		if (margc == 0)
 			continue;
 		c = getcmd(margv[0]);
@@ -808,12 +803,16 @@ getcmd(const char *name)
  * Slice a string up into argc/argv.
  */
 static void
-makeargv(char *line)
+makeargv(char *argv0, char *line)
 {
 	char *cp;
 	char **argp = margv;
 
 	margc = 0;
+	if (argv0 != NULL) {
+		*argp++ = argv0;
+		margc++;
+	}
 	if ((cp = strchr(line, '\n')) != NULL)
 		*cp = '\0';
 	for (cp = line; margc < MAX_MARGV - 1 && *cp != '\0';) {
@@ -822,13 +821,14 @@ makeargv(char *line)
 		if (*cp == '\0')
 			break;
 		*argp++ = cp;
-		margc += 1;
+		margc++;
 		while (*cp != '\0' && !isspace(*cp))
 			cp++;
 		if (*cp == '\0')
 			break;
 		*cp++ = '\0';
 	}
+	/* XXX warn about truncation if *cp != '\0'? */
 	*argp++ = 0;
 }
 
