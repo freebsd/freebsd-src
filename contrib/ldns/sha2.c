@@ -738,7 +738,9 @@ static void ldns_sha512_Transform(ldns_sha512_CTX* context,
 	sha2_word64	a, b, c, d, e, f, g, h, s0, s1;
 	sha2_word64	T1, T2, *W512 = (sha2_word64*)context->buffer;
 	int		j;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	sha2_word64	aligned;
+#endif /* BYTE_ORDER == LITTLE_ENDIAN */
 
 	/* initialize registers with the prev. intermediate value */
 	a = context->state[0];
