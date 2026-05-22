@@ -173,11 +173,11 @@
    0 if you don't. */
 #undef HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
 
-/* Define to 1 if you have the declaration of `SSL_CTX_set_tmp_ecdh', and to 0
+/* Define to 1 if you have the declaration of 'SSL_CTX_set_tmp_ecdh', and to 0
    if you don't. */
 #undef HAVE_DECL_SSL_CTX_SET_TMP_ECDH
 
-/* Define to 1 if you have the declaration of `strlcat', and to 0 if you
+/* Define to 1 if you have the declaration of 'strlcat', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRLCAT
 
@@ -481,10 +481,10 @@
    'ngtcp2_crypto_quictls_from_ossl_encryption_level' function. */
 #undef HAVE_NGTCP2_CRYPTO_QUICTLS_FROM_OSSL_ENCRYPTION_LEVEL
 
-/* Define to 1 if you have the `ngtcp2_crypto_quictls_init' function. */
+/* Define to 1 if you have the 'ngtcp2_crypto_quictls_init' function. */
 #undef HAVE_NGTCP2_CRYPTO_QUICTLS_INIT
 
-/* Define to 1 if the system has the type `ngtcp2_encryption_level'. */
+/* Define to 1 if the system has the type 'ngtcp2_encryption_level'. */
 #undef HAVE_NGTCP2_ENCRYPTION_LEVEL
 
 /* Define to 1 if you have the <ngtcp2/ngtcp2_crypto_openssl.h> header file.
@@ -655,7 +655,7 @@
    function. */
 #undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_EVP_CB
 
-/* Define to 1 if you have the `SSL_get0_alpn_selected' function. */
+/* Define to 1 if you have the 'SSL_get0_alpn_selected' function. */
 #undef HAVE_SSL_GET0_ALPN_SELECTED
 
 /* Define to 1 if you have the 'SSL_get0_peername' function. */
