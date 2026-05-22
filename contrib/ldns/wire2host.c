@@ -223,6 +223,8 @@ ldns_wire2rdf(ldns_rr *rr, const uint8_t *wire, size_t max, size_t *pos)
 			break;
 		case LDNS_RDF_TYPE_ILNP64:
 		case LDNS_RDF_TYPE_EUI64:
+		case LDNS_RDF_TYPE_IPN:
+		case LDNS_RDF_TYPE_INT64:
 			cur_rdf_length = LDNS_RDF_SIZE_8BYTES;
 			break;
 		case LDNS_RDF_TYPE_AAAA:
@@ -230,6 +232,7 @@ ldns_wire2rdf(ldns_rr *rr, const uint8_t *wire, size_t max, size_t *pos)
 			break;
 		case LDNS_RDF_TYPE_STR:
 		case LDNS_RDF_TYPE_NSEC3_SALT:
+		case LDNS_RDF_TYPE_UNQUOTED:
 		case LDNS_RDF_TYPE_TAG:
 			/* len is stored in first byte
 			 * it should be in the rdf too, so just

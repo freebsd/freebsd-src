@@ -331,6 +331,16 @@ ldns_status ldns_str2rdf_amtrelay(ldns_rdf **rd, const char *str);
  */
 ldns_status ldns_str2rdf_svcparams(ldns_rdf **rd, const char *str);
 
+/**
+ * Convert either two unsigned 32 bit decimal numbers seperated by a '.',
+ * or a single unsigned 64 bit decimal number, as described in
+ * [draft-johnson-dns-ipn-cla-07].
+ * \param[out] rd the rdf where to put the data
+ * \param[in] str the string to be converted
+ * \return ldns_status
+ */
+ldns_status ldns_str2rdf_ipn(ldns_rdf **rd, const char *str);
+
 
 #ifdef __cplusplus
 }
