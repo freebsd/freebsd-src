@@ -184,6 +184,11 @@ ldns_lookup_table ldns_error_str[] = {
 	{ LDNS_STATUS_INVALID_SVCPARAM_VALUE,
 		"Invalid wireformat of a value "
 		"in the ServiceParam rdata field of SVCB or HTTPS RR" },
+	{ LDNS_STATUS_NOT_EDE, 
+		"The EDNS option is not an extended error code" },
+	{ LDNS_STATUS_EDE_OPTION_MALFORMED,
+		"The extended error code option is malformed, expected "
+		"at least 2 bytes of option data" },
 	{ 0, NULL }
 };
 
