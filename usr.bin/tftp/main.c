@@ -76,7 +76,7 @@ static int	margc;
 static char	*margv[MAX_MARGV];
 
 int		verbose;
-static char	*port = NULL;
+static char	*port;
 
 static void	get(int, char **);
 static void	help(int, char **);
@@ -100,14 +100,14 @@ static void	setrollover(int, char **);
 static void	setpacketdrop(int, char **);
 static void	setwindowsize(int, char **);
 
-static void command(bool, EditLine *, History *, HistEvent *) __dead2;
+static void	command(bool, EditLine *, History *, HistEvent *) __dead2;
 static const char *command_prompt(void);
 
-static void urihandling(char *URI);
-static void getusage(char *);
-static void makeargv(char *argv0, char *line);
-static void putusage(char *);
-static void settftpmode(const char *);
+static void	urihandling(char *URI);
+static void	getusage(char *);
+static void	makeargv(char *argv0, char *line);
+static void	putusage(char *);
+static void	settftpmode(const char *);
 
 static char	*tail(char *);
 static const struct cmd *getcmd(const char *);
@@ -116,7 +116,7 @@ static const struct cmd *getcmd(const char *);
 
 struct cmd {
 	const char	*name;
-	void	(*handler)(int, char **);
+	void		(*handler)(int, char **);
 	const char	*help;
 };
 
@@ -224,13 +224,13 @@ main(int argc, char *argv[])
 static void
 urihandling(char *URI)
 {
-	char	meth[] = "get";
-	char	*host = NULL;
-	char	*path = NULL;
-	char	*opts = NULL;
 	const char *tmode = "octet";
-	char	*s;
-	int	i;
+	char meth[] = "get";
+	char *host = NULL;
+	char *path = NULL;
+	char *opts = NULL;
+	char *s;
+	int i;
 
 	host = URI + 7;
 
@@ -271,8 +271,8 @@ static void
 setpeer0(char *host, const char *lport)
 {
 	struct addrinfo hints, *res0, *res;
-	int error;
 	const char *cause = "unknown";
+	int error;
 
 	if (connected) {
 		close(peer);
@@ -285,7 +285,7 @@ setpeer0(char *host, const char *lport)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_flags = AI_CANONNAME;
-	if (!lport)
+	if (lport == NULL)
 		lport = "tftp";
 	error = getaddrinfo(host, lport, &hints, &res0);
 	if (error) {
@@ -347,7 +347,7 @@ setpeer(int argc, char *argv[])
 		argc = margc;
 		argv = margv;
 	}
-	if ((argc < 2) || (argc > 3)) {
+	if (argc < 2 || argc > 3) {
 		printf("usage: %s [host [port]]\n", argv[0]);
 		return;
 	}
@@ -393,21 +393,18 @@ modecmd(int argc, char *argv[])
 static void
 setbinary(int argc __unused, char *argv[] __unused)
 {
-
 	settftpmode("octet");
 }
 
 static void
 setascii(int argc __unused, char *argv[] __unused)
 {
-
 	settftpmode("netascii");
 }
 
 static void
 settftpmode(const char *newmode)
 {
-
 	strlcpy(mode, newmode, sizeof(mode));
 	if (verbose)
 		printf("mode set to %s\n", mode);
@@ -422,9 +419,9 @@ put(int argc, char *argv[])
 {
 	static char *line;
 	static size_t sz;
-	int fd, n;
-	char *cp, *targ, *path;
 	struct stat sb;
+	char *cp, *targ, *path;
+	int fd, n;
 
 	if (argc < 2) {
 		printf("(file) ");
@@ -517,7 +514,6 @@ put(int argc, char *argv[])
 static void
 putusage(char *s)
 {
-
 	printf("usage: %s file [remotename]\n", s);
 	printf("       %s file host:remotename\n", s);
 	printf("       %s file1 file2 ... fileN [[host:]remote-directory]\n", s);
@@ -531,8 +527,8 @@ get(int argc, char *argv[])
 {
 	static char *line;
 	static size_t sz;
-	int fd, n;
 	char *cp, *src;
+	int fd, n;
 
 	if (argc < 2) {
 		printf("(files) ");
@@ -608,7 +604,6 @@ get(int argc, char *argv[])
 static void
 getusage(char *s)
 {
-
 	printf("usage: %s file [localname]\n", s);
 	printf("       %s [host:]file [localname]\n", s);
 	printf("       %s [host1:]file1 [host2:]file2 ... [hostN:]fileN\n", s);
@@ -671,7 +666,6 @@ settimeoutnetwork(int argc, char *argv[])
 static void
 showstatus(int argc __unused, char *argv[] __unused)
 {
-
 	printf("Remote host: %s\n",
 	    connected ? hostname : "none specified yet");
 	printf("RFC2347 Options support: %s\n",
@@ -692,7 +686,6 @@ showstatus(int argc __unused, char *argv[] __unused)
 static void
 intr(int dummy __unused)
 {
-
 	signal(SIGALRM, SIG_IGN);
 	alarm(0);
 	longjmp(toplevel, -1);
@@ -717,7 +710,6 @@ tail(char *filename)
 static const char *
 command_prompt(void)
 {
-
 	return ("tftp> ");
 }
 
@@ -835,7 +827,6 @@ makeargv(char *argv0, char *line)
 static void
 quit(int argc __unused, char *argv[] __unused)
 {
-
 	exit(txrx_error);
 }
 
@@ -873,7 +864,6 @@ help(int argc, char *argv[])
 static void
 setverbose(int argc __unused, char *argv[] __unused)
 {
-
 	verbose = !verbose;
 	printf("Verbose mode %s.\n", verbose ? "on" : "off");
 }
@@ -881,7 +871,6 @@ setverbose(int argc __unused, char *argv[] __unused)
 static void
 setoptions(int argc, char *argv[])
 {
-
 	if (argc == 2) {
 		if (strcasecmp(argv[1], "enable") == 0 ||
 		    strcasecmp(argv[1], "on") == 0) {
@@ -911,7 +900,6 @@ setoptions(int argc, char *argv[])
 static void
 setrollover(int argc, char *argv[])
 {
-
 	if (argc == 2) {
 		if (strcasecmp(argv[1], "never") == 0 ||
 		    strcasecmp(argv[1], "none") == 0) {
@@ -962,7 +950,6 @@ setdebug(int argc, char *argv[])
 static void
 setblocksize(int argc, char *argv[])
 {
-
 	if (!options_rfc_enabled)
 		printf("RFC2347 style options are not enabled "
 		    "(but proceeding anyway)\n");
@@ -998,7 +985,6 @@ setblocksize(int argc, char *argv[])
 static void
 setblocksize2(int argc, char *argv[])
 {
-
 	if (!options_rfc_enabled || !options_extra_enabled)
 		printf(
 		    "RFC2347 style or non-RFC defined options are not enabled "
@@ -1054,7 +1040,6 @@ setblocksize2(int argc, char *argv[])
 static void
 setpacketdrop(int argc, char *argv[])
 {
-
 	if (argc != 1)
 		packetdroppercentage = atoi(argv[1]);
 
@@ -1065,7 +1050,6 @@ setpacketdrop(int argc, char *argv[])
 static void
 setwindowsize(int argc, char *argv[])
 {
-
 	if (!options_rfc_enabled)
 		printf("RFC2347 style options are not enabled "
 		    "(but proceeding anyway)\n");
