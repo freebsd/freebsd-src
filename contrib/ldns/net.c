@@ -201,14 +201,14 @@ ldns_tcp_connect_from(const struct sockaddr_storage *to, socklen_t tolen,
 		return -1;
 	}
 #endif
-	if (from && bind(sockfd, (const struct sockaddr*)from, fromlen) == SOCK_INVALID){
+	if (from && bind(sockfd, (const struct sockaddr*)from, fromlen) == -1){
 		close_socket(sockfd);
 		return -1;
 	}
 
 	/* perform nonblocking connect, to be able to wait with select() */
 	ldns_sock_nonblock(sockfd);
-	if (connect(sockfd, (struct sockaddr*)to, tolen) == SOCK_INVALID) {
+	if (connect(sockfd, (struct sockaddr*)to, tolen) == -1) {
 #ifndef USE_WINSOCK
 #ifdef EINPROGRESS
 		if(errno != EINPROGRESS) {

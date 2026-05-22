@@ -333,6 +333,7 @@ ldns_rdf *
 ldns_sign_public_dsa(ldns_buffer *to_sign, DSA *key)
 {
 #ifdef USE_DSA
+	unsigned char md[EVP_MAX_MD_SIZE];
 	unsigned char *sha1_hash;
 	ldns_rdf *sigdata_rdf;
 	ldns_buffer *b64sig;
@@ -348,7 +349,7 @@ ldns_sign_public_dsa(ldns_buffer *to_sign, DSA *key)
 	}
 
 	sha1_hash = SHA1((unsigned char*)ldns_buffer_begin(to_sign),
-				  ldns_buffer_position(to_sign), NULL);
+				  ldns_buffer_position(to_sign), md);
 	if (!sha1_hash) {
 		ldns_buffer_free(b64sig);
 		return NULL;
@@ -572,6 +573,7 @@ ldns_sign_public_evp(ldns_buffer *to_sign,
 ldns_rdf *
 ldns_sign_public_rsasha1(ldns_buffer *to_sign, RSA *key)
 {
+	unsigned char md[EVP_MAX_MD_SIZE];
 	unsigned char *sha1_hash;
 	unsigned int siglen;
 	ldns_rdf *sigdata_rdf;
@@ -585,7 +587,7 @@ ldns_sign_public_rsasha1(ldns_buffer *to_sign, RSA *key)
 	}
 
 	sha1_hash = SHA1((unsigned char*)ldns_buffer_begin(to_sign),
-				  ldns_buffer_position(to_sign), NULL);
+				  ldns_buffer_position(to_sign), md);
 	if (!sha1_hash) {
 		ldns_buffer_free(b64sig);
 		return NULL;
@@ -608,6 +610,7 @@ ldns_sign_public_rsasha1(ldns_buffer *to_sign, RSA *key)
 ldns_rdf *
 ldns_sign_public_rsamd5(ldns_buffer *to_sign, RSA *key)
 {
+	unsigned char md[EVP_MAX_MD_SIZE];
 	unsigned char *md5_hash;
 	unsigned int siglen;
 	ldns_rdf *sigdata_rdf;
@@ -619,7 +622,7 @@ ldns_sign_public_rsamd5(ldns_buffer *to_sign, RSA *key)
 	}
 
 	md5_hash = MD5((unsigned char*)ldns_buffer_begin(to_sign),
-				ldns_buffer_position(to_sign), NULL);
+				ldns_buffer_position(to_sign), md);
 	if (!md5_hash) {
 		ldns_buffer_free(b64sig);
 		return NULL;

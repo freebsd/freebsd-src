@@ -249,7 +249,7 @@ unbound-anchor(8)
 Jelte Jansen and Miek Gieben. Both of NLnet Labs.
 
 .SH REPORTING BUGS
-Report bugs to <ldns-team@nlnetlabs.nl>.
+Report bugs to <dns-team@nlnetlabs.nl>.
 
 .SH BUGS
 

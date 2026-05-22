@@ -760,6 +760,8 @@ ldns_pkt_edns(const ldns_pkt *pkt)
 }
 
 ldns_edns_option_list*
+pkt_edns_data2edns_option_list(const ldns_rdf *edns_data);
+ldns_edns_option_list*
 pkt_edns_data2edns_option_list(const ldns_rdf *edns_data)
 {
 	size_t pos = 0;
@@ -782,7 +784,7 @@ pkt_edns_data2edns_option_list(const ldns_rdf *edns_data)
 		ldns_edns_option* edns;
 		uint8_t *data;
 
-		if (pos + 4 > max) { /* make sure the header is  */
+		if (pos + 4 > max) { /* make sure the header fits */
 			ldns_edns_option_list_deep_free(edns_list);
 			return NULL;
 		}

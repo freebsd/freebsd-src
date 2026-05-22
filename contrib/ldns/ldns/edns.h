@@ -140,6 +140,21 @@ ldns_edns_option_code ldns_edns_get_code(const ldns_edns_option *edns);
  */
 uint8_t *ldns_edns_get_data(const ldns_edns_option *edns);
 
+/**
+ * extract the RFC 8914 extended error code value.
+ * \param[in] *edns the EDNS option to extract the extended error code from
+ * \param[inout] *ede_code pointer to an uint16_t in which to store the extended error code
+ * \return LDNS_STATUS_OK or an ldns_status message with the error (LDNS_STATUS_NOT_EDE or LDNS_STATUS_EDE_OPTION_MALFORMED)
+ */
+ldns_status ldns_edns_ede_get_code(const ldns_edns_option *edns, uint16_t *ede_code);
+
+/**
+ * extract the optional RFC 8914 extended error code text.
+ * \param[in] *edns the EDNS option to extract the extended error code from
+ * \param[inout] **ede_text pointer to a char* in which to store the extended error text; allocated buffer must be freed by the caller, assigns NULL if no text was provided in the EDNS option
+ * \return LDNS_STATUS_OK or an ldns_status message with the error (LDNS_STATUS_NOT_EDE or LDNS_STATUS_EDE_OPTION_MALFORMED)
+ */
+ldns_status ldns_edns_ede_get_text(const ldns_edns_option* edns, char **ede_text);
 
 /**
  * serialise the EDNS option into wireformat.
