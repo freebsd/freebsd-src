@@ -785,8 +785,8 @@ acpi_spmc_get_constraints(struct acpi_spmc_softc *const sc)
 	for (size_t i = 0; i < sc->constraint_count; i++) {
 		constraint = &sc->constraints[i];
 
-		status = acpi_GetHandleInScope(sc->handle,
-		    __DECONST(char *, constraint->name), &constraint->handle);
+		status = acpi_GetHandleInScope(sc->handle, constraint->name,
+		    &constraint->handle);
 		if (ACPI_FAILURE(status)) {
 			if (VERBOSE())
 				device_printf(sc->dev,
