@@ -752,6 +752,16 @@ struct usb_port_status {
 } __packed;
 typedef struct usb_port_status usb_port_status_t;
 
+struct usb_ext_status {
+	struct usb_port_status ps;
+	uDWord	dwExtPortStatus;
+#define UDS_RX_SUBLINK_SPEED_ID_BITS(x)  ((x) & 0xF)
+#define UDS_TX_SUBLINK_SPEED_ID_BITS(x)  (((x) >> 4) & 0xF)
+#define UDS_RX_SUBLINK_LANE_COUNT_BITS(x)  (((x) >> 8) & 0xF)
+#define UDS_TX_SUBLINK_LANE_COUNT_BITS(x)  (((x) >> 12) & 0xF)
+} __packed;
+typedef struct usb_ext_status usb_ext_status_t;
+
 /*
  * The "USB_SPEED" macros defines all the supported USB speeds.
  */
