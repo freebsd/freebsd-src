@@ -69,17 +69,12 @@ static struct errmsg {
 	{ -1,		NULL }
 };
 
-#define DROPPACKET(s)							\
+#define DROPPACKET(...)							\
 	if (packetdroppercentage != 0 &&				\
-	    arc4random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
-		return;							\
-	}
-#define DROPPACKETn(s,n)						\
-	if (packetdroppercentage != 0 &&				\
-	    arc4random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
-		return (n);						\
+	    arc4random() % 100 < packetdroppercentage) {		\
+		tftp_log(LOG_DEBUG, "Artificial packet drop in %s",	\
+		    __func__);						\
+		return __VA_ARGS__;					\
 	}
 
 const char *
@@ -104,7 +99,7 @@ send_packet(int peer, uint16_t block, char *pkt, int size)
 	int t = 1;
 
 	for (i = 0; i < 12 ; i++) {
-		DROPPACKETn("send_packet", 0);
+		DROPPACKET(0);
 
 		if (sendto(peer, pkt, size, 0, (struct sockaddr *)&peer_sock,
 		    peer_sock.ss_len) == size) {
@@ -144,7 +139,7 @@ send_error(int peer, int error)
 	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending ERROR %d", error);
 
-	DROPPACKET("send_error");
+	DROPPACKET();
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)ERROR);
@@ -179,12 +174,12 @@ send_wrq(int peer, char *filename, char *mode)
 	size_t len;
 	int n, size;
 
-	if (debug & DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS) {
 		tftp_log(LOG_DEBUG, "Sending WRQ: filename: '%s', mode '%s'",
-			filename, mode
-		);
+			filename, mode);
+	}
 
-	DROPPACKETn("send_wrq", 0);
+	DROPPACKET(0);
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)WRQ);
@@ -209,7 +204,7 @@ send_wrq(int peer, char *filename, char *mode)
 	n = sendto(peer, buf, size, 0,
 	    (struct sockaddr *)&peer_sock, peer_sock.ss_len);
 	if (n != size) {
-		tftp_log(LOG_ERR, "send_wrq: %s", strerror(errno));
+		tftp_log(LOG_ERR, "%s: %m", __func__);
 		return (1);
 	}
 	return (0);
@@ -230,12 +225,12 @@ send_rrq(int peer, char *filename, char *mode)
 	size_t len;
 	int n, size;
 
-	if (debug & DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS) {
 		tftp_log(LOG_DEBUG, "Sending RRQ: filename: '%s', mode '%s'",
-			filename, mode
-		);
+		    filename, mode);
+	}
 
-	DROPPACKETn("send_rrq", 0);
+	DROPPACKET(0);
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)RRQ);
@@ -262,7 +257,7 @@ send_rrq(int peer, char *filename, char *mode)
 	n = sendto(peer, buf, size, 0,
 	    (struct sockaddr *)&peer_sock, peer_sock.ss_len);
 	if (n != size) {
-		tftp_log(LOG_ERR, "send_rrq: %d %s", n, strerror(errno));
+		tftp_log(LOG_ERR, "%s: %m", __func__);
 		return (1);
 	}
 	return (0);
@@ -285,7 +280,7 @@ send_oack(int peer)
 	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending OACK");
 
-	DROPPACKETn("send_oack", 0);
+	DROPPACKET(0);
 
 	/*
 	 * Send back an options acknowledgement (only the ones with
@@ -299,8 +294,8 @@ send_oack(int peer)
 		if (options[i].o_reply != NULL) {
 			n = snprintf(bp, size, "%s%c%s", options[i].o_type,
 				     0, options[i].o_reply);
-			bp += n+1;
-			size -= n+1;
+			bp += n + 1;
+			size -= n + 1;
 			if (size < 0) {
 				tftp_log(LOG_ERR, "oack: buffer overflow");
 				exit(1);
@@ -331,7 +326,7 @@ send_ack(int fp, uint16_t block)
 	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending ACK for block %d", block);
 
-	DROPPACKETn("send_ack", 0);
+	DROPPACKET(0);
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)ACK);
@@ -361,7 +356,7 @@ send_data(int peer, uint16_t block, char *data, int size)
 		tftp_log(LOG_DEBUG, "Sending DATA packet %d of %d bytes",
 			block, size);
 
-	DROPPACKETn("send_data", 0);
+	DROPPACKET(0);
 
 	pkt = (struct tftphdr *)buf;
 
@@ -408,7 +403,7 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	fromlen = sizeof(*pfrom);
 	n = recvfrom(peer, data, size, 0, (struct sockaddr *)pfrom, &fromlen);
 
-	DROPPACKETn("receive_packet", RP_TIMEOUT);
+	DROPPACKET(RP_TIMEOUT);
 
 	if (n < 0) {
 		/* No idea what could have happened if it isn't a timeout */
