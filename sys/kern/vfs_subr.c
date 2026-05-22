@@ -6521,7 +6521,7 @@ vop_read_pgcache_post(void *ap, int rc)
 	struct vop_read_pgcache_args *a = ap;
 
 	if (rc == 0) {
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_READ);
+		VFS_KNOTE_UNLOCKED(a->a_vp, NOTE_READ);
 		INOTIFY(a->a_vp, IN_ACCESS);
 	}
 }
