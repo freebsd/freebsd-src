@@ -52,7 +52,7 @@ vmm_nvhe_exception.o: vmm_nvhe_exception.S vmm_hyp_exception.S
 	    ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} -o ${.TARGET} -fpie
 
 vmm_nvhe.o: vmm_nvhe.c vmm_hyp.c
-	${CC} -c ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} \
+	${CC} -c ${NOSAN_CFLAGS:N-mbranch-protection*:N-fstack-protector*} ${.IMPSRC} \
 	    -o ${.TARGET} -fpie
 
 vmm_hyp_blob.elf.full:	vmm_nvhe_exception.o vmm_nvhe.o
