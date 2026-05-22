@@ -1585,6 +1585,7 @@ dev/drm2/drm_dma.c		optional drm2
 dev/drm2/drm_dp_helper.c	optional drm2
 dev/drm2/drm_dp_iic_helper.c	optional drm2
 dev/drm2/drm_drv.c		optional drm2
+dev/drm2/drm_prime.c		optional drm2
 dev/drm2/drm_edid.c		optional drm2
 dev/drm2/drm_fb_helper.c	optional drm2
 dev/drm2/drm_fops.c		optional drm2
