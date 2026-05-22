@@ -442,6 +442,29 @@ tftp_url_ipv6_cleanup() {
 	stop_tftpd
 }
 
+atf_test_case tftp_url_long cleanup
+tftp_url_long_head() {
+	atf_set "descr" "Very long URL"
+	atf_set "require.user" "root"
+}
+tftp_url_long_body() {
+	start_tftpd
+	mkdir "${tftp_dir}/subdirectory"
+	local remote_file="${tftp_dir}/hello.txt"
+	echo "Hello, $$!" >"${remote_file}"
+	local local_file="${remote_file##*/}"
+	local d="subdirectory/../"
+	d="${d}${d}${d}${d}${d}${d}${d}${d}"
+	d="${d}${d}${d}${d}${d}${d}${d}${d}"
+	d="${d}${d}${d}${d}${d}${d}${d}${d}"
+	atf_check -s exit:1 -o match:"Illegal TFTP operation" \
+	    tftp "tftp://localhost/${d}${remote_file##*/}"
+	atf_check -s exit:1 test -f "${local_file}"
+}
+tftp_url_long_cleanup() {
+	stop_tftpd
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tftp_get_big
 	atf_add_test_case tftp_get_host
@@ -462,4 +485,5 @@ atf_init_test_cases() {
 	atf_add_test_case tftp_url_host
 	atf_add_test_case tftp_url_ipv4
 	atf_add_test_case tftp_url_ipv6
+	atf_add_test_case tftp_url_long
 }
