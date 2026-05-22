@@ -164,6 +164,9 @@ static const char *speed_table[USB_SPEED_MAX] = {
 	[USB_SPEED_LOW] = "LOW",
 	[USB_SPEED_VARIABLE] = "VARI",
 	[USB_SPEED_SUPER] = "SUPER",
+	[USB_SPEED_SUPER_PLUS] = "SUPER PLUS",
+	[USB_SPEED_SUPER_PLUS_X2] = "SUPER PLUS X2",
+	[USB_SPEED_SUPER_PLUS_GEN2_X2] = "SUPER PLUS GEN2 X2",
 };
 
 static STAILQ_HEAD(,usb_filt) usb_filt_head =
