@@ -145,7 +145,7 @@ sysctl_supported_stypes(SYSCTL_HANDLER_ARGS)
 static int
 power_sysctl_stype(SYSCTL_HANDLER_ARGS)
 {
-	char			name[10];
+	char			name[POWER_STYPE_NAME_LEN];
 	int			err;
 	enum power_stype	new_stype, old_stype;
 

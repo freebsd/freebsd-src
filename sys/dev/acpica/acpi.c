@@ -4609,7 +4609,7 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_stype_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    char name[10];
+    char name[POWER_STYPE_NAME_LEN];
     int err;
     int sstate;
     enum power_stype new_stype, old_stype;
