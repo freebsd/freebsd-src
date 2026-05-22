@@ -85,7 +85,10 @@ enum power_stype {
 	POWER_STYPE_UNKNOWN,
 };
 
-static const char * const power_stype_names[POWER_STYPE_COUNT] = {
+/* XXX NUL terminator is included in this number */
+#define	POWER_STYPE_NAME_LEN	16
+
+static const char power_stype_names[POWER_STYPE_COUNT][POWER_STYPE_NAME_LEN] = {
 	[POWER_STYPE_AWAKE]		= "awake",
 	[POWER_STYPE_STANDBY]		= "standby",
 	[POWER_STYPE_FW_SUSPEND]	= "fw_suspend",
