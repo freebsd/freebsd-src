@@ -1151,6 +1151,9 @@ ure_init(struct usb_ether *ue)
 	/* Set RX EARLY timeout and size */
 	if (sc->sc_flags & URE_FLAG_8153) {
 		switch (usbd_get_speed(sc->sc_ue.ue_udev)) {
+		case USB_SPEED_SUPER_PLUS_GEN2_X2:
+		case USB_SPEED_SUPER_PLUS_X2:
+		case USB_SPEED_SUPER_PLUS:
 		case USB_SPEED_SUPER:
 			reg = URE_COALESCE_SUPER / 8;
 			break;
@@ -1701,7 +1704,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 	URE_CLRBIT_2(sc, URE_PLA_LED_FEATURE, URE_MCU_TYPE_PLA, URE_LED_MODE_MASK);
 
 	if ((sc->sc_chip & URE_CHIP_VER_5C10) &&
-	    usbd_get_speed(sc->sc_ue.ue_udev) != USB_SPEED_SUPER)
+	    usbd_get_speed(sc->sc_ue.ue_udev) < USB_SPEED_SUPER)
 		val = URE_LPM_TIMER_500MS;
 	else
 		val = URE_LPM_TIMER_500US;
@@ -1883,7 +1886,7 @@ ure_rtl8153b_init(struct ure_softc *sc)
 	ure_write_1(sc, URE_PLA_CRWECR, URE_MCU_TYPE_PLA, URE_CRWECR_NORAML);
 
 	/* Enable U1U2 */
-	if (usbd_get_speed(sc->sc_ue.ue_udev) == USB_SPEED_SUPER)
+	if (usbd_get_speed(sc->sc_ue.ue_udev) >= USB_SPEED_SUPER)
 		URE_SETBIT_2(sc, URE_USB_LPM_CONFIG, URE_MCU_TYPE_USB, URE_LPM_U1U2_EN);
 
 	if (sc->sc_flags & URE_FLAG_8156B) {
@@ -2050,7 +2053,7 @@ ure_rtl8153b_nic_reset(struct ure_softc *sc)
 	}
 
 	/* Enable U1U2 */
-	if (usbd_get_speed(sc->sc_ue.ue_udev) == USB_SPEED_SUPER)
+	if (usbd_get_speed(sc->sc_ue.ue_udev) >= USB_SPEED_SUPER)
 		URE_SETBIT_2(sc, URE_USB_LPM_CONFIG, URE_MCU_TYPE_USB, URE_LPM_U1U2_EN);
 }
 

@@ -737,6 +737,18 @@ usb_bus_attach(struct usb_proc_msg *pm)
 		device_printf(bus->bdev, "5.0Gbps Super Speed USB v3.0\n");
 		break;
 
+	case USB_REV_3_1:
+		speed = USB_SPEED_SUPER_PLUS;
+		device_printf(bus->bdev,
+		    "10Gbps Super Speed Plus USB v3.1\n");
+		break;
+
+	case USB_REV_3_2:
+		speed = USB_SPEED_SUPER_PLUS_GEN2_X2;
+		device_printf(bus->bdev,
+		    "20Gbps Super Speed Plus USB v3.2\n");
+		break;
+
 	default:
 		device_printf(bus->bdev, "Unsupported USB revision\n");
 #if USB_HAVE_ROOT_MOUNT_HOLD

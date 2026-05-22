@@ -4537,9 +4537,9 @@ xhci_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
 	case USB_EP_MODE_DEFAULT:
 		return (0);
 	case USB_EP_MODE_STREAMS:
-		if (xhcistreams == 0 || 
+		if (xhcistreams == 0 ||
 		    (ep->edesc->bmAttributes & UE_XFERTYPE) != UE_BULK ||
-		    udev->speed != USB_SPEED_SUPER)
+		    udev->speed < USB_SPEED_SUPER)
 			return (USB_ERR_INVAL);
 		return (0);
 	default:

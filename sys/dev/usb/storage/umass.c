@@ -222,6 +222,7 @@ SYSCTL_INT(_hw_usb_umass, OID_AUTO, throttle, CTLFLAG_RWTUN,
 #define	UMASS_FULL_TRANSFER_SPEED	1000
 #define	UMASS_HIGH_TRANSFER_SPEED	40000
 #define	UMASS_SUPER_TRANSFER_SPEED	400000
+#define	UMASS_SUPER_PLUS_TRANSFER_SPEED	1000000
 #define	UMASS_FLOPPY_TRANSFER_SPEED	20
 
 #define	UMASS_TIMEOUT			5000	/* ms */
@@ -2409,6 +2410,13 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					    UMASS_FLOPPY_TRANSFER_SPEED;
 				} else {
 					switch (usbd_get_speed(sc->sc_udev)) {
+					case USB_SPEED_SUPER_PLUS_GEN2_X2:
+					case USB_SPEED_SUPER_PLUS_X2:
+					case USB_SPEED_SUPER_PLUS:
+						cpi->base_transfer_speed =
+						    UMASS_SUPER_PLUS_TRANSFER_SPEED;
+						cpi->maxio = maxphys;
+						break;
 					case USB_SPEED_SUPER:
 						cpi->base_transfer_speed =
 						    UMASS_SUPER_TRANSFER_SPEED;

@@ -817,6 +817,9 @@ lan78xx_miibus_statchg(device_t dev)
 	/* XXX Flow control settings obtained from Microchip's driver. */
 	switch(usbd_get_speed(sc->sc_ue.ue_udev)) {
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
+	case USB_SPEED_SUPER_PLUS_X2:
+	case USB_SPEED_SUPER_PLUS_GEN2_X2:
 		fct_flow = 0x817;
 		break;
 	case USB_SPEED_HIGH:
@@ -1023,6 +1026,9 @@ lan78xx_chip_init(struct muge_softc *sc)
 	/* Configuring the burst cap. */
 	switch (usbd_get_speed(sc->sc_ue.ue_udev)) {
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
+	case USB_SPEED_SUPER_PLUS_X2:
+	case USB_SPEED_SUPER_PLUS_GEN2_X2:
 		burst_cap = MUGE_DEFAULT_BURST_CAP_SIZE/MUGE_SS_USB_PKT_SIZE;
 		break;
 	case USB_SPEED_HIGH:

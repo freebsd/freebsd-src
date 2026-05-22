@@ -2081,8 +2081,7 @@ retry:
 	 * Try to reset the High Speed parent HUB of a LOW- or FULL-
 	 * speed device, if any.
 	 */
-	if (udev->parent_hs_hub != NULL &&
-	    udev->speed != USB_SPEED_HIGH) {
+	if (udev->parent_hs_hub != NULL && udev->speed < USB_SPEED_HIGH) {
 		DPRINTF("Trying to reset parent High Speed TT.\n");
 		if (udev->parent_hs_hub == parent_hub &&
 		    (uhub_count_active_host_ports(parent_hub, USB_SPEED_LOW) +
@@ -2103,7 +2102,7 @@ retry:
 	}
 #endif
 	/* Try to warm reset first */
-	if (parent_hub->speed == USB_SPEED_SUPER)
+	if (parent_hub->speed >= USB_SPEED_SUPER)
 		usbd_req_warm_reset_port(parent_hub, mtx, udev->port_no);
 
 	/* Try to reset the parent HUB port. */
