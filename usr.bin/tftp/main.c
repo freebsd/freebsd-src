@@ -225,23 +225,18 @@ main(int argc, char *argv[])
 static void
 urihandling(char *URI)
 {
-	char	uri[ARG_MAX];
+	char	meth[] = "get";
 	char	*host = NULL;
 	char	*path = NULL;
 	char	*opts = NULL;
 	const char *tmode = "octet";
 	char	*s;
-	char	line[MAXLINE];
 	int	i;
 
-	strlcpy(uri, URI, ARG_MAX);
-	host = uri + 7;
+	host = URI + 7;
 
-	if ((s = strchr(host, '/')) == NULL) {
-		fprintf(stderr,
-		    "Invalid URI: Couldn't find / after hostname\n");
-		exit(1);
-	}
+	if ((s = strchr(host, '/')) == NULL)
+		errx(1, "Invalid URI: Couldn't find / after hostname");
 	*s = '\0';
 	path = s + 1;
 
@@ -253,24 +248,21 @@ urihandling(char *URI)
 			tmode = opts;
 			tmode += 5;
 
-			for (i = 0; modes[i].m_name != NULL; i++) {
+			for (i = 0; modes[i].m_name != NULL; i++)
 				if (strcmp(modes[i].m_name, tmode) == 0)
 					break;
-			}
-			if (modes[i].m_name == NULL) {
-				fprintf(stderr, "Invalid mode: '%s'\n", mode);
-				exit(1);
-			}
-			settftpmode(modes[i].m_mode);
+			if (modes[i].m_name == NULL)
+				errx(1, "Invalid mode: '%s'", mode);
 		}
-	} else {
-		settftpmode("octet");
 	}
+	settftpmode(tmode);
 
 	setpeer0(host, NULL);
 
-	sprintf(line, "get %s", path);
-	makeargv(line);
+	margc = 0;
+	margv[margc++] = meth;
+	margv[margc++] = path;
+	margv[margc] = NULL;
 	get(margc, margv);
 }
 
