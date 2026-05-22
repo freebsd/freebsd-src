@@ -1536,6 +1536,68 @@ usbd_req_get_ss_hub_descriptor(struct usb_device *udev, struct mtx *mtx,
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_req_get_bos_descriptor
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_get_bos_descriptor(struct usb_device *udev, struct mtx *mtx,
+    struct usb_bos_descriptor *bd)
+{
+	return (usbd_req_get_desc(udev, mtx, NULL, bd, sizeof(*bd),
+	    sizeof(*bd), 0, UDESC_BOS, 0, 3));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_get_bos_descriptor_full
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_get_bos_descriptor_full(struct usb_device *udev, struct mtx *mtx,
+    struct usb_bos_descriptor **bdp)
+{
+	struct usb_bos_descriptor bd;
+	struct usb_bos_descriptor *bdesc;
+	uint32_t len;
+	usb_error_t err;
+
+	*bdp = NULL;
+
+	err = usbd_req_get_bos_descriptor(udev, mtx, &bd);
+	if (err)
+		return (err);
+
+	len = UGETW(bd.wTotalLength);
+	if (len < sizeof(bd) || len > USB_BOS_DESC_MAX_LEN) {
+		DPRINTFN(0, "BOS descriptor wTotalLength %u is invalid\n",
+		    len);
+		return (USB_ERR_INVAL);
+	}
+
+	bdesc = malloc(len, M_USBDEV, M_WAITOK | M_ZERO);
+	if (bdesc == NULL)
+		return (USB_ERR_NOMEM);
+	err = usbd_req_get_desc(udev, mtx, NULL, bdesc, len, len, 0,
+	    UDESC_BOS, 0, 3);
+	if (err) {
+		free(bdesc, M_USBDEV);
+		return (err);
+	}
+	if (UGETW(bdesc->wTotalLength) != len) {
+		DPRINTFN(0, "BOS descriptor length changed\n");
+		free(bdesc, M_USBDEV);
+		return (USB_ERR_INVAL);
+	}
+	*bdp = bdesc;
+	return (0);
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_req_get_hub_status
  *
  * Returns:

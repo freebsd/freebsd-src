@@ -309,6 +309,9 @@ struct usb_device_descriptor {
 } __packed;
 typedef struct usb_device_descriptor usb_device_descriptor_t;
 
+/* Maximum sane wTotalLength for a BOS descriptor */
+#define	USB_BOS_DESC_MAX_LEN	4096
+
 /* Binary Device Object Store (BOS) */
 struct usb_bos_descriptor {
 	uByte	bLength;
