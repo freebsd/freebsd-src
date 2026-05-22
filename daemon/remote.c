@@ -153,7 +153,7 @@ remote_setup_ctx(struct daemon_remote* rc, struct config_file* cfg)
 		log_crypto_err("could not SSL_CTX_new");
 		return 0;
 	}
-	if(!listen_sslctx_setup(rc->ctx)) {
+	if(!listen_sslctx_setup(rc->ctx, cfg->tls_protocols)) {
 		return 0;
 	}
 
@@ -307,6 +307,26 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 #endif
 		}
 	} else {
+		char* s = strchr(ip, '@');
+		char newif[128];
+		if(s) {
+			/* override port with ifspec@port */
+			int portnr;
+			if((size_t)(s-ip) >= sizeof(newif)) {
+				log_err("ifname too long: %s", ip);
+				return -1;
+			}
+			portnr = atoi(s+1);
+			if(portnr < 0 || 0 == portnr || portnr > 65535) {
+				log_err("invalid portnumber in control-interface: %s", ip);
+				return -1;
+			}
+			(void)strlcpy(newif, ip, sizeof(newif));
+			newif[s-ip] = 0;
+			ip = newif;
+			snprintf(port, sizeof(port), "%d", portnr);
+			port[sizeof(port)-1]=0;
+		}
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
 		if((r = getaddrinfo(ip, port, &hints, &res)) != 0 || !res) {
@@ -801,6 +821,8 @@ print_stats(RES* ssl, const char* nm, struct ub_stats_info* s)
 		(unsigned long)s->svr.num_queries_cookie_invalid)) return 0;
 	if(!ssl_printf(ssl, "%s.num.queries_discard_timeout"SQ"%lu\n", nm,
 		(unsigned long)s->svr.num_queries_discard_timeout)) return 0;
+	if(!ssl_printf(ssl, "%s.num.queries_replyaddr_limit"SQ"%lu\n", nm,
+		(unsigned long)s->svr.num_queries_replyaddr_limit)) return 0;
 	if(!ssl_printf(ssl, "%s.num.queries_wait_limit"SQ"%lu\n", nm,
 		(unsigned long)s->svr.num_queries_wait_limit)) return 0;
 	if(!ssl_printf(ssl, "%s.num.cachehits"SQ"%lu\n", nm,
@@ -845,6 +867,8 @@ print_stats(RES* ssl, const char* nm, struct ub_stats_info* s)
 		(unsigned long)s->mesh_num_states)) return 0;
 	if(!ssl_printf(ssl, "%s.requestlist.current.user"SQ"%lu\n", nm,
 		(unsigned long)s->mesh_num_reply_states)) return 0;
+	if(!ssl_printf(ssl, "%s.requestlist.current.replies"SQ"%lu\n", nm,
+		(unsigned long)s->mesh_num_reply_addrs)) return 0;
 #ifndef S_SPLINT_S
 	sumwait.tv_sec = s->mesh_replies_sum_wait_sec;
 	sumwait.tv_usec = s->mesh_replies_sum_wait_usec;
@@ -4629,6 +4653,26 @@ fr_init_time(struct timeval* time_start, struct timeval* time_read,
  * are kept in here. They can then be deleted.
  */
 struct fast_reload_construct {
+	/** ssl context for listening to dnstcp over ssl */
+	void* listen_dot_sslctx;
+	/** ssl context for connecting to dnstcp over ssl */
+	void* connect_dot_sslctx;
+	/** ssl context for listening to DoH */
+	void* listen_doh_sslctx;
+	/** ssl context for listening to quic */
+	void* listen_quic_sslctx;
+	/** the file name that the ssl context is made with, private key. */
+	char* ssl_service_key;
+	/** the file name that the ssl context is made with, certificate. */
+	char* ssl_service_pem;
+	/** modification time for ssl_service_key, in sec and ns. Like
+	 * in a struct timespec, but without that for portability. */
+	time_t mtime_ssl_service_key;
+	long mtime_ns_ssl_service_key;
+	/** modification time for ssl_service_pem, in sec and ns. Like
+	 * in a struct timespec, but without that for portability. */
+	time_t mtime_ssl_service_pem;
+	long mtime_ns_ssl_service_pem;
 	/** construct for views */
 	struct views* views;
 	/** construct for auth zones */
@@ -4932,9 +4976,7 @@ fr_check_compat_cfg(struct fast_reload_thread* fr, struct config_file* newcfg)
 	FR_CHECK_CHANGED_CFG("http_notls_downstream", http_notls_downstream, changed_str);
 	FR_CHECK_CHANGED_CFG("https-port", https_port, changed_str);
 	FR_CHECK_CHANGED_CFG("tls-port", ssl_port, changed_str);
-	FR_CHECK_CHANGED_CFG_STR("tls-service-key", ssl_service_key, changed_str);
-	FR_CHECK_CHANGED_CFG_STR("tls-service-pem", ssl_service_pem, changed_str);
-	FR_CHECK_CHANGED_CFG_STR("tls-cert-bundle", tls_cert_bundle, changed_str);
+	FR_CHECK_CHANGED_CFG_STR("tls-protocols", tls_protocols, changed_str);
 	FR_CHECK_CHANGED_CFG_STRLIST("proxy-protocol-port", proxy_protocol_port, changed_str);
 	FR_CHECK_CHANGED_CFG_STRLIST("tls-additional-port", tls_additional_port, changed_str);
 	FR_CHECK_CHANGED_CFG_STR("interface-automatic-ports", if_automatic_ports, changed_str);
@@ -5043,6 +5085,19 @@ fr_construct_clear(struct fast_reload_construct* ct)
 	wait_limits_free(&ct->wait_limits_netblock);
 	wait_limits_free(&ct->wait_limits_cookie_netblock);
 	domain_limits_free(&ct->domain_limits);
+#ifdef HAVE_SSL
+	/* The SSL contexts can be SSL_CTX_free here. It is reference
+	 * counted. So ongoing transfers with can continue.
+	 * Once they are done, the context is freed. */
+	SSL_CTX_free((SSL_CTX*)ct->listen_dot_sslctx);
+	SSL_CTX_free((SSL_CTX*)ct->connect_dot_sslctx);
+	SSL_CTX_free((SSL_CTX*)ct->listen_doh_sslctx);
+#endif /* HAVE_SSL */
+#ifdef HAVE_NGTCP2
+	SSL_CTX_free((SSL_CTX*)ct->listen_quic_sslctx);
+#endif
+	free(ct->ssl_service_key);
+	free(ct->ssl_service_pem);
 	/* Delete the log identity here so that the global value is not
 	 * reset by config_delete. */
 	if(ct->oldcfg && ct->oldcfg->log_identity) {
@@ -5175,6 +5230,7 @@ config_file_getmem(struct config_file* cfg)
 	m += getmem_config_strlist(cfg->tls_session_ticket_keys.first);
 	m += getmem_str(cfg->tls_ciphers);
 	m += getmem_str(cfg->tls_ciphersuites);
+	m += getmem_str(cfg->tls_protocols);
 	m += getmem_str(cfg->http_endpoint);
 	m += (cfg->outgoing_avail_ports?65536*sizeof(int):0);
 	m += getmem_str(cfg->target_fetch_policy);
@@ -5291,6 +5347,8 @@ fr_printmem(struct fast_reload_thread* fr,
 	size_t mem = 0;
 	if(fr_poll_for_quit(fr))
 		return 1;
+	mem += getmem_str(ct->ssl_service_key);
+	mem += getmem_str(ct->ssl_service_pem);
 	mem += views_get_mem(ct->views);
 	mem += respip_set_get_mem(ct->respip_set);
 	mem += auth_zones_get_mem(ct->auth_zones);
@@ -5524,6 +5582,96 @@ auth_zones_check_changes(struct fast_reload_thread* fr,
 	return 1;
 }
 
+/** Check if the sslctxs have changed. */
+static int
+fr_check_sslctx_change(struct fast_reload_thread* fr,
+	struct config_file* newcfg)
+{
+#ifdef HAVE_SSL
+	struct daemon* daemon = fr->worker->daemon;
+	if(newcfg->ssl_service_key && newcfg->ssl_service_key[0]) {
+		if(!daemon->ssl_service_key ||
+			ssl_cert_changed(daemon, newcfg))
+			return 1;
+	} else {
+		if(daemon->ssl_service_key)
+			return 1; /* it is removed */
+	}
+	if((daemon->cfg->tls_cert_bundle && !newcfg->tls_cert_bundle) ||
+	   (!daemon->cfg->tls_cert_bundle && newcfg->tls_cert_bundle) ||
+	   (daemon->cfg->tls_cert_bundle && newcfg->tls_cert_bundle &&
+	    strcmp(daemon->cfg->tls_cert_bundle, newcfg->tls_cert_bundle)!=0))
+		return 1; /* The tls-cert-bundle has changed and return
+			true here makes it reload the connect_dot_sslctx. */
+#else
+	(void)fr; (void)newcfg;
+#endif /* HAVE_SSL */
+	return 0;
+}
+
+/** Create the SSL CTXs when they have changed. */
+static int
+ct_create_sslctxs(struct fast_reload_construct* ct,
+	struct config_file* newcfg, struct daemon* daemon)
+{
+#ifdef HAVE_SSL
+	char* chroot = daemon->chroot;
+	char* key = newcfg->ssl_service_key;
+	char* pem = newcfg->ssl_service_pem;
+
+	if(!(newcfg->ssl_service_key && newcfg->ssl_service_key[0])) {
+		/* Leave listen ctxs and file str at NULL */
+		ct->connect_dot_sslctx = daemon_setup_connect_dot_sslctx(
+			daemon, newcfg);
+		return 1;
+	}
+
+	if(chroot && strncmp(key, chroot, strlen(chroot)) == 0)
+		key += strlen(chroot);
+	if(chroot && pem && strncmp(pem, chroot, strlen(chroot)) == 0)
+		pem += strlen(chroot);
+
+	ct->listen_dot_sslctx = daemon_setup_listen_dot_sslctx(daemon, newcfg);
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+	if(cfg_has_https(newcfg)) {
+		ct->listen_doh_sslctx = daemon_setup_listen_doh_sslctx(
+			daemon, newcfg);
+	}
+#endif
+#ifdef HAVE_NGTCP2
+	if(cfg_has_quic(newcfg)) {
+		ct->listen_quic_sslctx = daemon_setup_listen_quic_sslctx(
+			daemon, newcfg);
+	}
+#endif /* HAVE_NGTCP2 */
+	ct->connect_dot_sslctx = daemon_setup_connect_dot_sslctx(daemon,
+		newcfg);
+
+	/* Store mtime and names */
+	ct->ssl_service_key = strdup(newcfg->ssl_service_key);
+	if(!ct->ssl_service_key) {
+		log_err("ct_create_sslctxs: out of memory");
+		return 0;
+	}
+	ct->ssl_service_pem = strdup(newcfg->ssl_service_pem);
+	if(!ct->ssl_service_pem) {
+		log_err("ct_create_sslctxs: out of memory");
+		return 0;
+	}
+	if(!file_get_mtime(key, &ct->mtime_ssl_service_key,
+		&ct->mtime_ns_ssl_service_key, NULL))
+		log_err("Could not stat(%s): %s",
+			key, strerror(errno));
+	if(!file_get_mtime(pem, &ct->mtime_ssl_service_pem,
+		&ct->mtime_ns_ssl_service_pem, NULL))
+		log_err("Could not stat(%s): %s",
+			pem, strerror(errno));
+#else
+	(void)ct; (void)newcfg; (void)daemon;
+#endif /* HAVE_SSL */
+	return 1;
+}
+
 /** fast reload thread, construct from config the new items */
 static int
 fr_construct_from_config(struct fast_reload_thread* fr,
@@ -5531,6 +5679,13 @@ fr_construct_from_config(struct fast_reload_thread* fr,
 {
 	int have_view_respip_cfg = 0;
 
+	fr->sslctxs_changed = fr_check_sslctx_change(fr, newcfg);
+	if(fr->sslctxs_changed) {
+		if(!ct_create_sslctxs(ct, newcfg, fr->worker->daemon)) {
+			fr_construct_clear(ct);
+			return 0;
+		}
+	}
 	if(!(ct->views = views_create())) {
 		fr_construct_clear(ct);
 		return 0;
@@ -5808,6 +5963,44 @@ auth_zones_swap(struct auth_zones* az, struct auth_zones* data)
 	 * the xfer elements can continue to be their callbacks. */
 }
 
+/** Swap two void* */
+static void
+void_ptr_swap(void** a, void **b)
+{
+	void* tmp = *a;
+	*a = *b;
+	*b = tmp;
+}
+
+/** Swap two char* */
+static void
+char_ptr_swap(char** a, char **b)
+{
+	char* tmp = *a;
+	*a = *b;
+	*b = tmp;
+}
+
+/** Swap and set ssl ctx information */
+static void
+sslctxs_swap(struct daemon* daemon, struct fast_reload_construct* ct)
+{
+	void_ptr_swap(&daemon->listen_dot_sslctx, &ct->listen_dot_sslctx);
+	void_ptr_swap(&daemon->connect_dot_sslctx, &ct->connect_dot_sslctx);
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+	void_ptr_swap(&daemon->listen_doh_sslctx, &ct->listen_doh_sslctx);
+#endif
+#ifdef HAVE_NGTCP2
+	void_ptr_swap(&daemon->listen_quic_sslctx, &ct->listen_quic_sslctx);
+#endif /* HAVE_NGTCP2 */
+	char_ptr_swap(&daemon->ssl_service_key, &ct->ssl_service_key);
+	char_ptr_swap(&daemon->ssl_service_pem, &ct->ssl_service_pem);
+	daemon->mtime_ssl_service_key = ct->mtime_ssl_service_key;
+	daemon->mtime_ns_ssl_service_key = ct->mtime_ns_ssl_service_key;
+	daemon->mtime_ssl_service_pem = ct->mtime_ssl_service_pem;
+	daemon->mtime_ns_ssl_service_pem = ct->mtime_ns_ssl_service_pem;
+}
+
 #if defined(ATOMIC_POINTER_LOCK_FREE) && defined(HAVE_LINK_ATOMIC_STORE)
 /** Fast reload thread, if atomics are available, copy the config items
  * one by one with atomic store operations. */
@@ -5869,6 +6062,7 @@ fr_atomic_copy_cfg(struct config_file* oldcfg, struct config_file* cfg,
 	COPY_VAR_ptr(tls_session_ticket_keys.last);
 	COPY_VAR_ptr(tls_ciphers);
 	COPY_VAR_ptr(tls_ciphersuites);
+	COPY_VAR_ptr(tls_protocols);
 	COPY_VAR_int(tls_use_sni);
 	COPY_VAR_int(https_port);
 	COPY_VAR_ptr(http_endpoint);
@@ -5967,6 +6161,7 @@ fr_atomic_copy_cfg(struct config_file* oldcfg, struct config_file* cfg,
 	COPY_VAR_int(log_servfail);
 	COPY_VAR_ptr(log_identity);
 	COPY_VAR_int(log_destaddr);
+	COPY_VAR_int(log_thread_id);
 	COPY_VAR_int(hide_identity);
 	COPY_VAR_int(hide_version);
 	COPY_VAR_int(hide_trustanchor);
@@ -6176,7 +6371,20 @@ fr_atomic_copy_cfg(struct config_file* oldcfg, struct config_file* cfg,
 	COPY_VAR_ptr(ipset_name_v6);
 #endif
 	COPY_VAR_int(ede);
+	COPY_VAR_int(iter_scrub_ns);
+	COPY_VAR_int(iter_scrub_cname);
+	COPY_VAR_int(iter_scrub_rrsig);
+	COPY_VAR_int(max_global_quota);
 	COPY_VAR_int(iter_scrub_promiscuous);
+
+#undef COPY_VAR_int
+#undef COPY_VAR_ptr
+#undef COPY_VAR_unsigned_int
+#undef COPY_VAR_size_t
+#undef COPY_VAR_uint8_t
+#undef COPY_VAR_uint16_t
+#undef COPY_VAR_uint32_t
+#undef COPY_VAR_int32_t
 }
 #endif /* ATOMIC_POINTER_LOCK_FREE && HAVE_LINK_ATOMIC_STORE */
 
@@ -6402,6 +6610,9 @@ fr_reload_config(struct fast_reload_thread* fr, struct config_file* newcfg,
 	daemon->env->cachedb_enabled = cachedb_is_enabled(&daemon->mods,
 		daemon->env);
 #endif
+	if(fr->sslctxs_changed) {
+		sslctxs_swap(daemon, ct);
+	}
 #ifdef USE_DNSTAP
 	if(env->cfg->dnstap) {
 		if(!fr->fr_nopause)
@@ -6626,7 +6837,19 @@ static void* fast_reload_thread_main(void* arg)
 	struct fast_reload_thread* fast_reload_thread = (struct fast_reload_thread*)arg;
 	struct timeval time_start, time_read, time_construct, time_reload,
 		time_end;
-	log_thread_set(&fast_reload_thread->threadnum);
+	const char name[16] = "unbound/freload"; /* seems to be the safest size
+						    between different OSes */
+
+#if defined(HAVE_GETTID) && !defined(THREADS_DISABLED)
+	fast_reload_thread->thread_tid = gettid();
+	if(fast_reload_thread->thread_tid_log)
+		log_thread_set(&fast_reload_thread->thread_tid);
+	else
+#endif
+		log_thread_set(&fast_reload_thread->threadnum);
+
+	ub_thread_setname(fast_reload_thread->tid, name);
+	(void)name; /* When setname is not defined, ignore the name variable. */
 
 	verbose(VERB_ALGO, "start fast reload thread");
 	if(fast_reload_thread->fr_verb >= 1) {
@@ -7014,6 +7237,9 @@ fast_reload_thread_setup(struct worker* worker, int fr_verb, int fr_nopause,
 	lock_basic_init(&fr->fr_output_lock);
 	lock_protect(&fr->fr_output_lock, fr->fr_output,
 		sizeof(*fr->fr_output));
+#ifdef HAVE_GETTID
+	fr->thread_tid_log = worker->env.cfg->log_thread_id;
+#endif
 	return 1;
 }
 
@@ -7588,6 +7814,44 @@ fr_worker_pickup_auth_changes(struct worker* worker,
 	}
 }
 
+/** Fast reload, the worker picks up changes in listen_dnsport. */
+static void
+fr_worker_pickup_listen_dnsport(struct worker* worker)
+{
+	struct listen_dnsport* front = worker->front;
+	struct daemon* daemon = worker->daemon;
+	if(worker->daemon->fast_reload_thread->sslctxs_changed) {
+		struct listen_list* ll;
+		void* dot_sslctx = daemon->listen_dot_sslctx;
+		void* doh_sslctx = daemon->listen_doh_sslctx;
+#ifdef HAVE_NGTCP2
+		void* quic_sslctx = daemon->listen_quic_sslctx;
+#endif  /* HAVE_NGTCP2 */
+		for(ll = front->cps; ll; ll = ll->next) {
+			struct comm_point* cp = ll->com;
+			if(cp->type == comm_tcp_accept &&
+				cp->tcp_handlers &&
+				cp->max_tcp_count > 0 &&
+				cp->tcp_handlers[0]->type == comm_http) {
+				if(cp->ssl)
+					cp->ssl = doh_sslctx;
+			} else if(cp->type == comm_tcp_accept) {
+				if(cp->ssl)
+					cp->ssl = dot_sslctx;
+#ifdef HAVE_NGTCP2
+			} else if(cp->type == comm_doq) {
+				if(cp->ssl) {
+					cp->ssl = quic_sslctx;
+					if(cp->doq_socket)
+						cp->doq_socket->ctx =
+							(SSL_CTX*)quic_sslctx;
+				}
+#endif  /* HAVE_NGTCP2 */
+			}
+		}
+	}
+}
+
 /** Fast reload, the worker picks up changes in outside_network. */
 static void
 fr_worker_pickup_outside_network(struct worker* worker)
@@ -7603,6 +7867,8 @@ fr_worker_pickup_outside_network(struct worker* worker)
 	outnet->tcp_reuse_timeout = cfg->tcp_reuse_timeout;
 	outnet->tcp_auth_query_timeout = cfg->tcp_auth_query_timeout;
 	outnet->delayclose = cfg->delay_close;
+	if(worker->daemon->fast_reload_thread->sslctxs_changed)
+		outnet->sslctx = worker->daemon->connect_dot_sslctx;
 	if(outnet->delayclose) {
 #ifndef S_SPLINT_S
 		outnet->delay_tv.tv_sec = cfg->delay_close/1000;
@@ -7610,6 +7876,41 @@ fr_worker_pickup_outside_network(struct worker* worker)
 #endif
 	}
 }
+
+#ifdef USE_DNSTAP
+/** Fast reload, the worker picks up changes to DNSTAP configuration. */
+static void
+fr_worker_pickup_dnstap_changes(struct worker* worker)
+{
+	struct dt_env* w_dtenv = &worker->dtenv;
+	struct dt_env* d_dtenv = worker->daemon->dtenv;
+	log_assert(d_dtenv != NULL || !worker->daemon->cfg->dnstap);
+	if(d_dtenv == NULL) {
+		/* There is no environment when DNSTAP was not enabled
+		 * in the configuration. */
+		return;
+	}
+	w_dtenv->identity = d_dtenv->identity;
+	w_dtenv->len_identity = d_dtenv->len_identity;
+	w_dtenv->version = d_dtenv->version;
+	w_dtenv->len_version = d_dtenv->len_version;
+	w_dtenv->log_resolver_query_messages =
+		d_dtenv->log_resolver_query_messages;
+	w_dtenv->log_resolver_response_messages =
+		d_dtenv->log_resolver_response_messages;
+	w_dtenv->log_client_query_messages =
+		d_dtenv->log_client_query_messages;
+	w_dtenv->log_client_response_messages =
+		d_dtenv->log_client_response_messages;
+	w_dtenv->log_forwarder_query_messages =
+		d_dtenv->log_forwarder_query_messages;
+	w_dtenv->log_forwarder_response_messages =
+		d_dtenv->log_forwarder_response_messages;
+	lock_basic_lock(&d_dtenv->sample_lock);
+	w_dtenv->sample_rate = d_dtenv->sample_rate;
+	lock_basic_unlock(&d_dtenv->sample_lock);
+}
+#endif /* USE_DNSTAP */
 
 void
 fast_reload_worker_pickup_changes(struct worker* worker)
@@ -7638,7 +7939,11 @@ fast_reload_worker_pickup_changes(struct worker* worker)
 #ifdef USE_CACHEDB
 	worker->env.cachedb_enabled = worker->daemon->env->cachedb_enabled;
 #endif
+	fr_worker_pickup_listen_dnsport(worker);
 	fr_worker_pickup_outside_network(worker);
+#ifdef USE_DNSTAP
+	fr_worker_pickup_dnstap_changes(worker);
+#endif
 }
 
 /** fast reload thread, handle reload_stop notification, send reload stop

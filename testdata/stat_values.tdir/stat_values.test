@@ -468,8 +468,10 @@ bring_up_alternate_configuration ub_discard_wait_limit.conf
 teststep "Check discard-timeout and wait-limit"
 echo "> dig www.unresponsive"
 dig @127.0.0.1 -p $UNBOUND_PORT +retry=2 +timeout=1 www.unresponsive. | tee outfile
-echo "> check answer"
-if grep "no servers could be reached" outfile; then
+# Wait for nonresponse servfail, that causes discards.
+sleep 2
+if grep "no servers could be reached" outfile ||
+	grep "Too many queries queued up and waiting" outfile; then
 	echo "OK"
 else
 	end 1

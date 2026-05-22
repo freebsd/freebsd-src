@@ -454,7 +454,7 @@ int pythonmod_init(struct module_env* env, int id)
    if(PyDict_SetItemString(pe->data, "script", fname) < 0) {
 	log_err("pythonmod: could not add item to dictionary");
 	Py_XDECREF(fname);
-	goto python_init_fail;
+	goto fail_close_file;
    }
    Py_XDECREF(fname);
    Py_XINCREF(pe->data);  /* reference will be stolen below */
@@ -462,7 +462,7 @@ int pythonmod_init(struct module_env* env, int id)
 	log_err("pythonmod: could not add mod_env object");
 	Py_XDECREF(pe->data);  /* 2 times, here and on python_init_fail; */
 	                       /* on failure the reference is not stolen */
-	goto python_init_fail;
+	goto fail_close_file;
    }
 
    if (PyRun_SimpleFile(script_py, pe->fname) < 0) {
@@ -493,31 +493,15 @@ int pythonmod_init(struct module_env* env, int id)
       flen = (size_t)ftell(script_py);
       fstr = malloc(flen+1);
       if(!fstr) {
-	      log_err("malloc failure to print parse error");
-
-/* close the file */
-#if PY_MAJOR_VERSION < 3
-	      Py_XDECREF(PyFileObject);
-#else
-	      fclose(script_py);
-#endif
-
-	      goto python_init_fail;
+		log_err("malloc failure to print parse error");
+		goto fail_close_file;
       }
       fseek(script_py, 0, SEEK_SET);
       if(fread(fstr, flen, 1, script_py) < 1) {
-	      log_err("file read failed to print parse error: %s: %s",
+		log_err("file read failed to print parse error: %s: %s",
 		pe->fname, strerror(errno));
-	      free(fstr);
-
-/* close the file */
-#if PY_MAJOR_VERSION < 3
-	      Py_XDECREF(PyFileObject);
-#else
-	      fclose(script_py);
-#endif
-
-	      goto python_init_fail;
+		free(fstr);
+		goto fail_close_file;
       }
       fstr[flen] = 0;
       /* we compile the string, but do not run it, to stop side-effects */
@@ -527,21 +511,13 @@ int pythonmod_init(struct module_env* env, int id)
 #endif
 
       log_py_err();
-
-/* close the file */
-#if PY_MAJOR_VERSION < 3
-      Py_XDECREF(PyFileObject);
-#else
-      fclose(script_py);
-#endif
-
 #if PY_MAJOR_VERSION <= 2 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 9)
       /* no cleanup needed for python before 3.9 */
 #else
       /* cleanup for python 3.9 and newer */
       free(fstr);
 #endif
-      goto python_init_fail;
+      goto fail_close_file;
    }
 
 /* close the file */
@@ -601,6 +577,13 @@ int pythonmod_init(struct module_env* env, int id)
    Py_XDECREF(py_init_arg);
    PyGILState_Release(gil);
    return 1;
+
+fail_close_file:
+#if PY_MAJOR_VERSION < 3
+   Py_XDECREF(PyFileObject);
+#else
+   fclose(script_py);
+#endif
 
 python_init_fail:
    Py_XDECREF(pe->module);

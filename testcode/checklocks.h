@@ -360,6 +360,7 @@ typedef pthread_key_t ub_thread_key_type;
 #define ub_thread_key_create(key, f) LOCKRET(pthread_key_create(key, f))
 #define ub_thread_key_set(key, v) LOCKRET(pthread_setspecific(key, v))
 #define ub_thread_key_get(key) pthread_getspecific(key)
+#define ub_thread_setname(thread, name) /* nop */
 
 #endif /* USE_THREAD_DEBUG */
 #endif /* TESTCODE_CHECK_LOCKS_H */

@@ -141,6 +141,13 @@ if test -f $done; then
 	exit 0
 fi
 
+# always clear the skip mark file in case something changed in the environment
+# in between runs
+if test -f $skip; then
+	echo "minitdir $skip exists; removing."
+	rm $skip
+fi
+
 # Copy
 if test $quiet = 0; then
 	echo "minitdir copy $1 to $dir"

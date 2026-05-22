@@ -1,0 +1,239 @@
+; Check if an SERVFAIL answer is not stored in the global cache, and
+; does not block ECS queries to reach the ECS cache.
+
+server:
+	trust-anchor-signaling: no
+	target-fetch-policy: "0 0 0 0 0"
+	;send-client-subnet: 1.2.3.4
+	client-subnet-zone: "example.com"
+	max-client-subnet-ipv4: 21
+	module-config: "subnetcache iterator"
+	verbosity: 3
+	access-control: 127.0.0.1 allow_snoop
+	qname-minimisation: no
+	minimal-responses: yes
+	prefetch: yes
+	outbound-msg-retry: 3
+	ede: yes
+	log-servfail: yes
+
+stub-zone:
+	name: "example.com."
+	stub-addr: 1.2.3.4
+CONFIG_END
+
+SCENARIO_BEGIN Test that SERVFAIL after timeout does not block clients to reach the ECS cache
+; And that withing the servfail time a couple of seconds have cached servfail
+; for the subnet queries for that name.
+
+; ns.example.com.
+RANGE_BEGIN 1 20
+ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.    IN NS   ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.         IN      A       1.2.3.4
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname ednsdata
+ADJUST copy_id copy_ednsdata_assume_clientsubnet
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 10 IN A	10.20.30.40
+SECTION AUTHORITY
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+			; client is 127.0.0.1
+	00 08 		; OPC
+	00 05 		; option length
+	00 01 		; Family
+	08 00 		; source mask, scopemask
+	7f		; address
+HEX_EDNSDATA_END
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 100 120
+ADDRESS 1.2.3.4
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname ednsdata
+ADJUST copy_id copy_ednsdata_assume_clientsubnet
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 10 IN A	10.20.30.41
+SECTION AUTHORITY
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+			; client is 1.0.0.0
+	00 08 		; OPC
+	00 05 		; option length
+	00 01 		; Family
+	08 00 		; source mask, scopemask
+	01		; address
+HEX_EDNSDATA_END
+ENTRY_END
+RANGE_END
+
+; Put an item in subnet cache
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 08	; ip4, source 8, scope 8
+	7f   		; 127.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+www.example.com.		IN A
+SECTION ANSWER
+www.example.com.	10	IN A	10.20.30.40
+SECTION AUTHORITY
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 08	; ip4, source 8, scope 8
+	7f		; 127.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+; There is a valid subnet query in cache.
+; this query timeouts.
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 00	; ip4, source 8, scope 0
+	01   		; 1.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+; This query faces timeouts during the resolution.
+; The timeouted query is the 1.0.0.0/8 subnet lookup of www.example.com. A.
+STEP 31 TIMEOUT
+STEP 32 TIMEOUT
+STEP 33 TIMEOUT
+
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD DO RA SERVFAIL
+SECTION QUESTION
+www.example.com.	IN A
+ENTRY_END
+
+; Check if subnet cache item can be accessed.
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 00	; ip4, source 8, scope 0
+	7f   		; 127.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+STEP 60 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+www.example.com.		IN A
+SECTION ANSWER
+www.example.com.	10	IN A	10.20.30.40
+SECTION AUTHORITY
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 08	; ip4, source 8, scope 8
+	7f		; 127.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+; the existing subnet cache item can be accessed.
+; but another resolution, is now not cached at all?
+STEP 70 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 00	; ip4, source 8, scope 0
+	01   		; 1.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+STEP 80 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD DO RA SERVFAIL
+SECTION QUESTION
+www.example.com.	IN A
+ENTRY_END
+
+; after a couple of seconds, the servfail entry should have cleared.
+STEP 90 TIME_PASSES ELAPSE 10
+
+STEP 100 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 00	; ip4, source 8, scope 0
+	01   		; 1.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+STEP 110 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+www.example.com.		IN A
+SECTION ANSWER
+www.example.com.	10	IN A	10.20.30.41
+SECTION AUTHORITY
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 08	; ip4, source 8, scope 8
+	01		; 1.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+SCENARIO_END

@@ -218,6 +218,8 @@ struct entry {
 	uint8_t match_ttl;
 	/** match DO bit */
 	uint8_t match_do;
+	/** match CO bit */
+	uint8_t match_co;
 	/** match absence of EDNS OPT record in query */
 	uint8_t match_noedns;
 	/** match edns data field given in hex */

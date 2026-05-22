@@ -28,10 +28,11 @@ STEP 4 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
 REPLY QR FORMERR
-SECTION QUESTION
-nlnetlabs.nl. IN IXFR
-SECTION AUTHORITY
-nlnetlabs.nl. IN SOA mr. op. 12 0 0 0 0
+; The SOA RR should not be echoed back.
+; The question section is absent, because it gives a formerr because of the
+; authority section contents.
+;SECTION QUESTION
+;nlnetlabs.nl. IN IXFR
 ENTRY_END
 
 SCENARIO_END

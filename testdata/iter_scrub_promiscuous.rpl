@@ -204,6 +204,25 @@ RANGE_END
 ; ns.pollute4.mesa
 RANGE_BEGIN 0 400
 	ADDRESS 1.2.4.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.pollute4.mesa. IN A
+SECTION ANSWER
+ns.pollute4.mesa. IN A 1.2.4.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.pollute4.mesa. IN AAAA
+SECTION AUTHORITY
+pollute4.mesa. IN SOA ns.pollute4.mesa. host.pollute4.mesa 20701 3600 3600 604800 3600
+ENTRY_END
 
 ; This is the spoofed answer that is returned.
 ENTRY_BEGIN
@@ -423,14 +442,18 @@ ENTRY_END
 STEP 130 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RD RA YXDOMAIN
+REPLY QR RD RA SERVFAIL
 SECTION QUESTION
 test4.atkr.pollute4.mesa. IN A
-SECTION ANSWER
-test4.atkr.pollute4.mesa. 86400 IN A 1.2.3.4
-SECTION AUTHORITY
-; removed record
-;pollute4.mesa.       0       IN      NS      ns.attacker.mesa.
+; Since the reply does not contain a DNAME, it is rejected as YXDOMAIN answer.
+;REPLY QR RD RA YXDOMAIN
+;SECTION QUESTION
+;test4.atkr.pollute4.mesa. IN A
+;SECTION ANSWER
+;test4.atkr.pollute4.mesa. 86400 IN A 1.2.3.4
+;SECTION AUTHORITY
+;; removed record
+;;pollute4.mesa.       0       IN      NS      ns.attacker.mesa.
 ENTRY_END
 
 ; Check the cache contents, for query 4.

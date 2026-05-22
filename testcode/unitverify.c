@@ -513,8 +513,11 @@ nsec3_hash_test(const char* fname)
 #define xstr(s) str(s)
 #define str(s) #s
 
+#ifndef __QNX__
 #define SRCDIRSTR xstr(SRCDIR)
-
+#else /* !__QNX__ */
+#define SRCDIRSTR "."
+#endif /* __QNX__ */
 #if defined(HAVE_SSL) && defined(USE_SHA1)
 /* Detect if openssl is configured to disable RSASHA1 signatures,
  * with the rh-allow-sha1-signatures disabled. */
@@ -631,6 +634,7 @@ rh_allow_sha1_signatures_disabled(void)
 void 
 verify_test(void)
 {
+	int do_sha1 = 1;
 	unit_show_feature("signature verify");
 
 #if defined(HAVE_SSL) && defined(USE_SHA1)
@@ -643,27 +647,40 @@ verify_test(void)
 #else
 		_putenv("OPENSSL_ENABLE_SHA1_SIGNATURES=1");
 #endif
+		do_sha1 = 1;
 	}
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_IS_FIPS_ENABLED
+	if (EVP_default_properties_is_fips_enabled(NULL))
+		do_sha1 = 0;
 #endif
+#endif /* HAVE_SSL and USE_SHA1 */
 
 #ifdef USE_SHA1
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.1", "20070818005004");
+	if(do_sha1) {
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.1", "20070818005004");
+	}
 #endif
 #if defined(USE_DSA) && defined(USE_SHA1)
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.2", "20080414005004");
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.3", "20080416005004");
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.4", "20080416005004");
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.5", "20080416005004");
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.6", "20080416005004");
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.7", "20070829144150");
+	if(do_sha1) {
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.2", "20080414005004");
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.3", "20080416005004");
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.4", "20080416005004");
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.5", "20080416005004");
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.6", "20080416005004");
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.7", "20070829144150");
+	}
 #endif /* USE_DSA */
 #ifdef USE_SHA1
-	verifytest_file(SRCDIRSTR "/testdata/test_signatures.8", "20070829144150");
+	if(do_sha1) {
+		verifytest_file(SRCDIRSTR "/testdata/test_signatures.8", "20070829144150");
+	}
 #endif
 #if (defined(HAVE_EVP_SHA256) || defined(HAVE_NSS) || defined(HAVE_NETTLE)) && defined(USE_SHA2)
 	verifytest_file(SRCDIRSTR "/testdata/test_sigs.rsasha256", "20070829144150");
 #  ifdef USE_SHA1
-	verifytest_file(SRCDIRSTR "/testdata/test_sigs.sha1_and_256", "20070829144150");
+	if(do_sha1) {
+		verifytest_file(SRCDIRSTR "/testdata/test_sigs.sha1_and_256", "20070829144150");
+	}
 #  endif
 	verifytest_file(SRCDIRSTR "/testdata/test_sigs.rsasha256_draft", "20090101000000");
 #endif
@@ -672,8 +689,10 @@ verify_test(void)
 	verifytest_file(SRCDIRSTR "/testdata/test_signatures.9", "20171215000000");
 #endif
 #ifdef USE_SHA1
-	verifytest_file(SRCDIRSTR "/testdata/test_sigs.hinfo", "20090107100022");
-	verifytest_file(SRCDIRSTR "/testdata/test_sigs.revoked", "20080414005004");
+	if(do_sha1) {
+		verifytest_file(SRCDIRSTR "/testdata/test_sigs.hinfo", "20090107100022");
+		verifytest_file(SRCDIRSTR "/testdata/test_sigs.revoked", "20080414005004");
+	}
 #endif
 #ifdef USE_GOST
 	if(sldns_key_EVP_load_gost_id())
@@ -699,7 +718,9 @@ verify_test(void)
 	}
 #endif
 #ifdef USE_SHA1
-	dstest_file(SRCDIRSTR "/testdata/test_ds.sha1");
+	if(do_sha1) {
+		dstest_file(SRCDIRSTR "/testdata/test_ds.sha1");
+	}
 #endif
 	nsectest();
 	nsec3_hash_test(SRCDIRSTR "/testdata/test_nsec3_hash.1");

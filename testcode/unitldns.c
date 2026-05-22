@@ -207,7 +207,11 @@ rr_test_file(const char* input, const char* check)
 #define xstr(s) str(s)
 #define str(s) #s
 
+#ifndef __QNX__
 #define SRCDIRSTR xstr(SRCDIR)
+#else /* !__QNX__ */
+#define SRCDIRSTR "."
+#endif /* __QNX__ */
 
 /** read rrs to and from string, to and from wireformat */
 static void

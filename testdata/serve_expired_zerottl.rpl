@@ -66,11 +66,11 @@ RANGE_BEGIN 11 100
 		SECTION QUESTION
 			example.com. IN A
 		SECTION ANSWER
-			example.com. 10 IN A 5.6.7.8
+			example.com. 200 IN A 5.6.7.8
 		SECTION AUTHORITY
-			example.com. 10 IN NS ns.example.com.
+			example.com. 200 IN NS ns.example.com.
 		SECTION ADDITIONAL
-			ns.example.com. 10 IN A 1.2.3.4
+			ns.example.com. 200 IN A 1.2.3.4
 	ENTRY_END
 RANGE_END
 
@@ -119,15 +119,15 @@ ENTRY_BEGIN
 	SECTION QUESTION
 		example.com. IN A
 	SECTION ANSWER
-		example.com. 10 IN A 5.6.7.8
+		example.com. 200 IN A 5.6.7.8
 	SECTION AUTHORITY
-		example.com. 10 IN NS ns.example.com.
+		example.com. 200 IN NS ns.example.com.
 	SECTION ADDITIONAL
-		ns.example.com. 10 IN A 1.2.3.4
+		ns.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ; Wait for the TTL to expire
-STEP 30 TIME_PASSES ELAPSE 11
+STEP 30 TIME_PASSES ELAPSE 200
 
 ; Query with RD flag
 STEP 40 QUERY

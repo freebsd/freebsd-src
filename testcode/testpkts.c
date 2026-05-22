@@ -135,6 +135,8 @@ static void matchline(char* line, struct entry* e)
 			e->match_ttl = 1;
 		} else if(str_keyword(&parse, "DO")) {
 			e->match_do = 1;
+		} else if(str_keyword(&parse, "CO")) {
+			e->match_co = 1;
 		} else if(str_keyword(&parse, "noedns")) {
 			e->match_noedns = 1;
 		} else if(str_keyword(&parse, "ednsdata")) {
@@ -178,7 +180,7 @@ static void matchline(char* line, struct entry* e)
 
 /** parse REPLY line */
 static void replyline(char* line, uint8_t* reply, size_t reply_len,
-	int* do_flag)
+	int* do_flag, int* co_flag)
 {
 	char* parse = line;
 	if(reply_len < LDNS_HEADER_SIZE) error("packet too short for header");
@@ -236,6 +238,8 @@ static void replyline(char* line, uint8_t* reply, size_t reply_len,
 			LDNS_AD_SET(reply);
 		} else if(str_keyword(&parse, "DO")) {
 			*do_flag = 1;
+		} else if(str_keyword(&parse, "CO")) {
+			*co_flag = 1;
 		} else {
 			error("could not parse REPLY: '%s'", parse);
 		}
@@ -289,6 +293,7 @@ static struct entry* new_entry(void)
 	e->match_all_noedns = 0;
 	e->match_ttl = 0;
 	e->match_do = 0;
+	e->match_co = 0;
 	e->match_noedns = 0;
 	e->match_serial = 0;
 	e->ixfr_soa_serial = 0;
@@ -521,15 +526,17 @@ static void add_rr(char* rrstr, uint8_t* pktbuf, size_t pktsize,
 
 /* add EDNS 4096 opt record */
 static void
-add_edns(uint8_t* pktbuf, size_t pktsize, int do_flag, uint8_t *ednsdata,
-	uint16_t ednslen, size_t* pktlen)
+add_edns(uint8_t* pktbuf, size_t pktsize, int do_flag, int co_flag,
+	uint8_t *ednsdata, uint16_t ednslen, size_t* pktlen)
 {
 	uint8_t edns[] = {0x00, /* root label */
 		0x00, LDNS_RR_TYPE_OPT, /* type */
 		0x04, 0xD0, /* class is UDPSIZE 1232 */
 		0x00, /* TTL[0] is ext rcode */
 		0x00, /* TTL[1] is edns version */
-		(uint8_t)(do_flag?0x80:0x00), 0x00, /* TTL[2-3] is edns flags, DO */
+		(uint8_t)(do_flag?0x80:0x00)
+		| (uint8_t)(co_flag?0x40:0x00)
+		, 0x00, /* TTL[2-3] is edns flags, DO */
 		(uint8_t)((ednslen >> 8) & 0xff),
 		(uint8_t)(ednslen  & 0xff), /* rdatalength */
 	};
@@ -561,6 +568,7 @@ read_entry(FILE* in, const char* name, struct sldns_file_parse_state* pstate,
 	uint8_t pktbuf[MAX_PACKETLEN];
 	size_t pktlen = LDNS_HEADER_SIZE;
 	int do_flag = 0; /* DO flag in EDNS */
+	int co_flag = 0; /* CO flag in EDNS */
 	memset(pktbuf, 0, pktlen); /* ID = 0, FLAGS="", and rr counts 0 */
 
 	while(fgets(line, (int)sizeof(line), in) != NULL) {
@@ -598,7 +606,7 @@ read_entry(FILE* in, const char* name, struct sldns_file_parse_state* pstate,
 		if(str_keyword(&parse, "MATCH")) {
 			matchline(parse, current);
 		} else if(str_keyword(&parse, "REPLY")) {
-			replyline(parse, pktbuf, pktlen, &do_flag);
+			replyline(parse, pktbuf, pktlen, &do_flag, &co_flag);
 		} else if(str_keyword(&parse, "ADJUST")) {
 			adjustline(parse, current, cur_reply);
 		} else if(str_keyword(&parse, "EXTRA_PACKET")) {
@@ -654,15 +662,16 @@ read_entry(FILE* in, const char* name, struct sldns_file_parse_state* pstate,
 			if(hex_ednsdata_buffer)
 				sldns_buffer_free(hex_ednsdata_buffer);
 			if(pktlen != 0) {
-				if(do_flag || cur_reply->raw_ednsdata) {
+				if(do_flag || co_flag
+					|| cur_reply->raw_ednsdata) {
 					if(cur_reply->raw_ednsdata &&
 						sldns_buffer_limit(cur_reply->raw_ednsdata))
-						add_edns(pktbuf, sizeof(pktbuf), do_flag,
+						add_edns(pktbuf, sizeof(pktbuf), do_flag, co_flag,
 							sldns_buffer_begin(cur_reply->raw_ednsdata),
 							(uint16_t)sldns_buffer_limit(cur_reply->raw_ednsdata),
 							&pktlen);
 					else
-						add_edns(pktbuf, sizeof(pktbuf), do_flag,
+						add_edns(pktbuf, sizeof(pktbuf), do_flag, co_flag,
 							NULL, 0, &pktlen);
 				}
 				cur_reply->reply_pkt = memdup(pktbuf, pktlen);
@@ -907,6 +916,22 @@ get_do_flag(uint8_t* pkt, size_t len)
 		return 0; /* malformed */
 	edns_bits = sldns_read_uint16(walk+4);
 	return (int)(edns_bits&LDNS_EDNS_MASK_DO_BIT);
+}
+
+/** return true if the CO flag is set */
+static int
+get_co_flag(uint8_t* pkt, size_t len)
+{
+	uint16_t edns_bits;
+	uint8_t* walk = pkt;
+	size_t walk_len = len;
+	if(!pkt_find_edns_opt(&walk, &walk_len)) {
+		return 0;
+	}
+	if(walk_len < 6)
+		return 0; /* malformed */
+	edns_bits = sldns_read_uint16(walk+4);
+	return (int)(edns_bits&LDNS_EDNS_MASK_CO_BIT);
 }
 
 /** Snips the specified EDNS option out of the OPT record and puts it in the
@@ -1654,6 +1679,10 @@ find_match(struct entry* entries, uint8_t* query_pkt, size_t len,
 			verbose(3, "no DO bit set\n");
 			continue;
 		}
+		if(p->match_co && !get_co_flag(query_pkt, len)) {
+			verbose(3, "no CO bit set\n");
+			continue;
+		}
 		if(p->match_noedns && get_has_edns(query_pkt, len)) {
 			verbose(3, "bad; EDNS OPT present\n");
 			continue;
@@ -1745,11 +1774,14 @@ adjust_packet(struct entry* match, uint8_t** answer_pkt, size_t *answer_len,
 		memmove(res+LDNS_HEADER_SIZE+dlen+4,
 			orig+LDNS_HEADER_SIZE+olen+4,
 			reslen-(LDNS_HEADER_SIZE+dlen+4));
+	} else if(origlen == 0) {
+		res = NULL;
+		reslen = 0;
 	} else {
 		res = memdup(orig, origlen);
 		reslen = origlen;
 	}
-	if(!res) {
+	if(!res && reslen > 0) {
 		verbose(1, "out of memory; send without adjust\n");
 		return;
 	}

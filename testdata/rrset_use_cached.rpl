@@ -6,8 +6,11 @@ server:
 	# We do not want only serve-expired because fetches from that
 	# apply a generous PREFETCH_LEEWAY.
 	serve-expired-client-timeout: 1000
+	serve-expired-reply-ttl: 123
 	# So that we can only have to give one SERVFAIL answer.
 	outbound-msg-retry: 0
+	ede: yes
+	ede-serve-expired: yes
 
 forward-zone: name: "." forward-addr: 216.0.0.1
 CONFIG_END
@@ -36,11 +39,11 @@ ENTRY_BEGIN
 	SECTION QUESTION
 	www.example.com. IN A
 	SECTION ANSWER
-	www.example.com. 5 IN A 10.20.30.40
+	www.example.com. 205 IN A 10.20.30.40
 	SECTION AUTHORITY
-	example.com. 10 IN NS ns.example.com.
+	example.com. 210 IN NS ns.example.com.
 	SECTION ADDITIONAL
-	ns.example.com. 10 IN A 10.20.30.50
+	ns.example.com. 210 IN A 10.20.30.50
 ENTRY_END
 STEP 4 CHECK_ANSWER
 ENTRY_BEGIN
@@ -49,15 +52,15 @@ ENTRY_BEGIN
 	SECTION QUESTION
 	www.example.com. IN A
 	SECTION ANSWER
-	www.example.com. 5 IN A 10.20.30.40
+	www.example.com. 205 IN A 10.20.30.40
 	SECTION AUTHORITY
-	example.com. 10 IN NS ns.example.com.
+	example.com. 210 IN NS ns.example.com.
 	SECTION ADDITIONAL
-	ns.example.com. 10 IN A 10.20.30.50
+	ns.example.com. 210 IN A 10.20.30.50
 ENTRY_END
 
 ; Wait for the A RRSET to expire.
-STEP 5 TIME_PASSES ELAPSE 6
+STEP 5 TIME_PASSES ELAPSE 205
 
 STEP 6 QUERY
 ENTRY_BEGIN
@@ -81,14 +84,14 @@ ENTRY_BEGIN
 	SECTION QUESTION
 	www.example.com. IN A
 	SECTION ANSWER
-	www.example.com. 5 IN A 10.20.30.40
+	www.example.com. 205 IN A 10.20.30.40
 	SECTION AUTHORITY
-	example.com. 10 IN NS ns.example.com.
+	example.com. 210 IN NS ns.example.com.
 	SECTION ADDITIONAL
-	ns.example.com. 10 IN A 10.20.30.50
+	ns.example.com. 210 IN A 10.20.30.50
 ENTRY_END
 ; The cached NS related RRSETs will not be overwritten by the fresh answer.
-; The message should have a TTL of 4 instead of 5 from above.
+; The message should have a TTL of 5 instead of 205 from above.
 STEP 9 CHECK_ANSWER
 ENTRY_BEGIN
 	MATCH all ttl
@@ -96,11 +99,11 @@ ENTRY_BEGIN
 	SECTION QUESTION
 	www.example.com. IN A
 	SECTION ANSWER
-	www.example.com. 5 IN A 10.20.30.40
+	www.example.com. 205 IN A 10.20.30.40
 	SECTION AUTHORITY
-	example.com. 4 IN NS ns.example.com.
+	example.com. 5 IN NS ns.example.com.
 	SECTION ADDITIONAL
-	ns.example.com. 4 IN A 10.20.30.50
+	ns.example.com. 5 IN A 10.20.30.50
 ENTRY_END
 
 ; Wait for the NS RRSETs to expire.
@@ -108,7 +111,7 @@ STEP 10 TIME_PASSES ELAPSE 5
 
 STEP 11 QUERY
 ENTRY_BEGIN
-	REPLY RD
+	REPLY RD DO
 	SECTION QUESTION
 	www.example.com. IN A
 ENTRY_END
@@ -130,23 +133,23 @@ ENTRY_BEGIN
 ENTRY_END
 ; The SERVFAIL will trigger the serve-expired-client-timeout logic to try and
 ; replace the SERVFAIL with a possible cached (expired) answer.
-; The A RRSET would be at 0TTL left (not expired) but the message should have
-; been updated to use a TTL of 4 so expired by now.
+; The A RRSET would be at 200 left but the message should have
+; been updated to use a TTL of 5 so expired by now.
 ; If the message TTL was not updated (bug), this message would be treated as
 ; non-expired and the now expired NS related RRSETs would fail sanity checks
 ; for non-expired messages. The result would be SERVFAIL here.
 STEP 14 CHECK_ANSWER
 ENTRY_BEGIN
-	MATCH all ttl
-	REPLY QR RD RA
+	MATCH all ttl ede=3
+	REPLY QR RD RA DO
 	SECTION QUESTION
 	www.example.com. IN A
 	SECTION ANSWER
-	www.example.com. 0 IN A 10.20.30.40
+	www.example.com. 200 IN A 10.20.30.40
 	SECTION AUTHORITY
-	example.com. 30 IN NS ns.example.com.
+	example.com. 123 IN NS ns.example.com.
 	SECTION ADDITIONAL
-	ns.example.com. 30 IN A 10.20.30.50
+	ns.example.com. 123 IN A 10.20.30.50
 ENTRY_END
 
 SCENARIO_END

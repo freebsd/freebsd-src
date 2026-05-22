@@ -17,7 +17,11 @@ server:
 	serve-expired: yes
 	serve-expired-client-timeout: 0
 	serve-expired-ttl: 1
-	prefetch: yes
+	serve-expired-client-timeout: 0
+	serve-expired-reply-ttl: 123
+	#prefetch: yes  #not needed, expired answers also trigger refetch
+	ede: yes
+	ede-serve-expired: yes
 
 stub-zone:
 	name: "."
@@ -114,7 +118,7 @@ RANGE_BEGIN 0 10
 		SECTION QUESTION
 			www.example.com. IN A
 		SECTION ANSWER
-			www.example.com. 10 IN A	10.20.30.40
+			www.example.com. 200 IN A	10.20.30.40
 		SECTION AUTHORITY
 			example.com.	IN NS	ns.example.com.
 		SECTION ADDITIONAL
@@ -148,7 +152,7 @@ RANGE_BEGIN 11 100
 		SECTION QUESTION
 			www.example.com. IN A
 		SECTION ANSWER
-			www.example.com. 10 IN A	10.20.30.40
+			www.example.com. 200 IN A	10.20.30.40
 		SECTION AUTHORITY
 			example.com.	IN NS	ns.example.com.
 		SECTION ADDITIONAL
@@ -179,7 +183,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. IN A	10.20.30.40
+www.example.com. 200 IN A	10.20.30.40
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
@@ -187,11 +191,11 @@ ns.example.com.		IN 	A	1.2.3.4
 ENTRY_END
 
 ; Try to trigger a prefetch with expired data
-STEP 3 TIME_PASSES ELAPSE 11
+STEP 3 TIME_PASSES ELAPSE 200
 
 STEP 11 QUERY
 ENTRY_BEGIN
-REPLY RD
+REPLY RD DO
 SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
@@ -199,19 +203,18 @@ ENTRY_END
 ; This expired record came from the global cache and a prefetch is triggered.
 STEP 12 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all ttl
-REPLY QR RD RA NOERROR
+MATCH all ttl ede=3
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 30 IN A	10.20.30.40
+www.example.com. 123 IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.	3589 IN NS	ns.example.com.
+example.com.	3400 IN NS	ns.example.com.
 SECTION ADDITIONAL
-ns.example.com.	3589 IN 	A	1.2.3.4
+ns.example.com.	3400 IN 	A	1.2.3.4
 ENTRY_END
 
-;STEP 13 TRAFFIC
 ; Allow enough time to pass so that the expired record from the global cache
 ; cannot be used anymore.
 STEP 14 TIME_PASSES ELAPSE 1
@@ -233,7 +236,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 9 IN A	10.20.30.40
+www.example.com. 199 IN A	10.20.30.40
 SECTION AUTHORITY
 example.com.	3599 IN NS	ns.example.com.
 SECTION ADDITIONAL

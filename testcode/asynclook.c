@@ -488,12 +488,20 @@ int main(int argc, char** argv)
 #else
 	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
 		| OPENSSL_INIT_ADD_ALL_DIGESTS
-		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS
+#  if defined(OPENSSL_INIT_NO_LOAD_CONFIG) && defined(UB_ON_WINDOWS)
+		| OPENSSL_INIT_NO_LOAD_CONFIG
+#  endif
+		, NULL);
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	(void)SSL_library_init();
 #else
-	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS
+#  if defined(OPENSSL_INIT_NO_LOAD_CONFIG) && defined(UB_ON_WINDOWS)
+		| OPENSSL_INIT_NO_LOAD_CONFIG
+#  endif
+		, NULL);
 #endif
 #endif /* HAVE_SSL */
 

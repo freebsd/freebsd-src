@@ -732,8 +732,8 @@ struct module_env {
         char* tls_auth_name, struct module_qstate* q, int* was_ratelimited);
     void (*detach_subs)(struct module_qstate* qstate);
     int (*attach_sub)(struct module_qstate* qstate,
-        struct query_info* qinfo, uint16_t qflags, int prime,
-        int valrec, struct module_qstate** newq);
+        struct query_info* qinfo, struct respip_client_info* cinfo,
+        uint16_t qflags, int prime, int valrec, struct module_qstate** newq);
     void (*kill_sub)(struct module_qstate* newq);
     int (*detect_cycle)(struct module_qstate* qstate,
         struct query_info* qinfo, uint16_t flags, int prime,

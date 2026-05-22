@@ -11,7 +11,7 @@ server:
 	# specify every interface on a new 'interface:' labelled line.
 	interface: 192.0.2.153
 	interface: 192.0.2.154
-	interface: 2001:DB8::5
+	interface: 2001:db8::5
 	interface: 0.0.0.0@5353
 
 	# config

@@ -2255,7 +2255,7 @@ create_doq_client_data(const char* svr, int port, struct ub_event_base* base,
 	/* Initialize the ossl crypto, it is harmless to call twice,
 	 * and this is before use of doq connections. */
 	if(ngtcp2_crypto_ossl_init() != 0)
-		fatal_exit("ngtcp2_crypto_oss_init failed");
+		fatal_exit("ngtcp2_crypto_ossl_init failed");
 #elif defined(HAVE_NGTCP2_CRYPTO_QUICTLS_INIT)
 	if(ngtcp2_crypto_quictls_init() != 0)
 		fatal_exit("ngtcp2_crypto_quictls_init failed");

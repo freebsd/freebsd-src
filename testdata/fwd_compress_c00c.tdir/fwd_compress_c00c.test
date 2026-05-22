@@ -8,7 +8,7 @@
 if nc -h 2>&1 | grep "q secs"; then
 	ncopt="-q 3 -i 2"
 else
-	ncopt="-i 2"
+	ncopt="-i 2 --no-shutdown"
 fi
 
 PRE="../.."

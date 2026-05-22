@@ -283,7 +283,7 @@ net_test(void)
 		unit_assert(strcmp(astr, "1.2.3.0") == 0);
 		unit_assert(ntohs(((struct sockaddr_in*)&a)->sin_port)==53);
 
-		res = netblockstrtoaddr("2001:DB8:33:44::/64", 53,
+		res = netblockstrtoaddr("2001:db8:33:44::/64", 53,
 			&a, &alen, &net);
 		unit_assert(res!=0 && net == 64);
 		addr_to_str(&a, alen, astr, sizeof(astr));

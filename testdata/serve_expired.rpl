@@ -6,6 +6,7 @@ server:
 	iter-scrub-promiscuous: no
 	serve-expired: yes
 	serve-expired-client-timeout: 0
+	serve-expired-reply-ttl: 123
 	access-control: 127.0.0.1/32 allow_snoop
 	ede: yes
 	ede-serve-expired: yes
@@ -45,7 +46,7 @@ RANGE_BEGIN 0 100
 		SECTION QUESTION
 			example.com. IN A
 		SECTION ANSWER
-			example.com. 10 IN A 5.6.7.8
+			example.com. 200 IN A 5.6.7.8
 		SECTION AUTHORITY
 			example.com. IN NS ns.example.com.
 		SECTION ADDITIONAL
@@ -69,15 +70,15 @@ ENTRY_BEGIN
 	SECTION QUESTION
 		example.com. IN A
 	SECTION ANSWER
-		example.com. 10 IN A 5.6.7.8
+		example.com. 200 IN A 5.6.7.8
 	SECTION AUTHORITY
 		example.com. IN NS ns.example.com.
 	SECTION ADDITIONAL
 		ns.example.com. IN A 1.2.3.4
 ENTRY_END
 
-; Wait for the TTL to expire
-STEP 11 TIME_PASSES ELAPSE 3601
+; Wait for the TTL to expire (for all RRSets; default 3600)
+STEP 11 TIME_PASSES ELAPSE 3600
 
 ; Query again without RD bit
 STEP 30 QUERY
@@ -95,11 +96,11 @@ ENTRY_BEGIN
 	SECTION QUESTION
 		example.com. IN A
 	SECTION ANSWER
-		example.com.  30 IN A 5.6.7.8
+		example.com.  123 IN A 5.6.7.8
 	SECTION AUTHORITY
-		example.com. 30 IN NS ns.example.com.
+		example.com. 123 IN NS ns.example.com.
 	SECTION ADDITIONAL
-		ns.example.com. 30 IN A 1.2.3.4
+		ns.example.com. 123 IN A 1.2.3.4
 ENTRY_END
 
 ; Query with RD bit (the record should have been prefetched)
@@ -117,7 +118,7 @@ ENTRY_BEGIN
 	SECTION QUESTION
 		example.com. IN A
 	SECTION ANSWER
-		example.com.  10 IN A 5.6.7.8
+		example.com.  200 IN A 5.6.7.8
 	SECTION AUTHORITY
 		example.com. IN NS ns.example.com.
 	SECTION ADDITIONAL

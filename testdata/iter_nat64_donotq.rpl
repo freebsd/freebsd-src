@@ -1,0 +1,192 @@
+; config options
+server:
+	do-nat64: yes
+	nat64-prefix: 2001:db8:1234::/96
+	target-fetch-policy: "0 0 0 0 0"
+
+	; This is like a machine that is part of a cluster of hosts that
+	; is IPv6-only, and uses NAT64. The cluster has no internet access.
+	do-not-query-address: ::0/0
+
+	qname-minimisation: no
+
+stub-zone:
+	name: "."
+	; Pick an address in the NAT64 prefix, so it is allowed.
+	; other addresses would not be allowed. Or without the bugfix,
+	; allowed depending on state machine activation sequence.
+	stub-addr: 2001:db8:1234::1
+CONFIG_END
+
+SCENARIO_BEGIN Test NAT64 transport for v4-only with do-not-query-addresses.
+
+RANGE_BEGIN 0 100
+	ADDRESS 2001:db8:1234::1
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	FAKE.ROOT.
+SECTION ADDITIONAL
+FAKE.ROOT.	IN	AAAA 2001:db8:1234::1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+v4only. IN NS
+SECTION AUTHORITY
+v4only.	IN NS	ns.v4only.
+SECTION ADDITIONAL
+ns.v4only.	IN	A	192.0.2.1
+ENTRY_END
+
+RANGE_END
+
+; replies from NS over "NAT64"
+
+RANGE_BEGIN 0 20
+	ADDRESS 2001:db8:1234::c000:0201
+
+; A over NAT64
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY AA QR NOERROR
+SECTION QUESTION
+ns.v4only. IN A
+SECTION ANSWER
+ns.v4only.	IN	A	192.0.2.1
+SECTION AUTHORITY
+v4only.		IN	NS	ns.v4only.
+ENTRY_END
+
+; no AAAA
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY AA QR NOERROR
+SECTION QUESTION
+ns.v4only.	IN	AAAA
+SECTION AUTHORITY
+v4only.		IN	SOA	ns.v4only. host. 1 3600 300 48000 3600
+v4only.		IN	NS	ns.v4only.
+SECTION ADDITIONAL
+ns.v4only.	IN	A	192.0.2.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY AA QR NOERROR
+SECTION QUESTION
+v4only.		IN	NS
+SECTION ANSWER
+v4only.		IN	NS	ns.v4only.
+SECTION ADDITIONAL
+ns.v4only.	IN	A	192.0.2.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY AA QR NOERROR
+SECTION QUESTION
+test.v4only.	IN	A
+SECTION ANSWER
+test.v4only.	IN	A	192.0.2.2
+SECTION AUTHORITY
+v4only.		IN	NS	ns.v4only.
+SECTION ADDITIONAL
+ns.v4only.	IN	A	192.0.2.1
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 50 100
+	ADDRESS 2001:db8:1234::c000:0201
+; no AAAA
+; The last resort lookup of the AAAA is blocked here,
+; the last resort processing is not desired, it should resolve test2
+; straight away.
+;ENTRY_BEGIN
+;MATCH opcode qtype qname
+;ADJUST copy_id
+;REPLY AA QR NOERROR
+;SECTION QUESTION
+;ns.v4only.	IN	AAAA
+;SECTION AUTHORITY
+;v4only.		IN	SOA	ns.v4only. host. 1 3600 300 48000 3600
+;v4only.		IN	NS	ns.v4only.
+;SECTION ADDITIONAL
+;ns.v4only.	IN	A	192.0.2.1
+;ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY AA QR NOERROR
+SECTION QUESTION
+ns.v4only.	IN	A
+SECTION ANSWER
+ns.v4only.	IN	A	192.0.2.1
+SECTION AUTHORITY
+v4only.		IN	NS	ns.v4only.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY AA QR NOERROR
+SECTION QUESTION
+test2.v4only.	IN	A
+SECTION ANSWER
+test2.v4only.	IN	A	192.0.2.3
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test.v4only. IN A
+ENTRY_END
+
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+test.v4only.	IN	A
+SECTION ANSWER
+test.v4only.	IN	A	192.0.2.2
+ENTRY_END
+
+; for a query where the upstream nameserver has a timeout.
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test2.v4only. IN A
+ENTRY_END
+
+; Only the test2 query is there, and it has a timeout.
+; The address is already NAT64 translated, so now that it is
+; attempted again, it is looked up in dotnotq as the ipv6 address.
+STEP 40 TIMEOUT
+
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+test2.v4only.	IN	A
+SECTION ANSWER
+test2.v4only.	IN	A	192.0.2.3
+ENTRY_END
+
+SCENARIO_END

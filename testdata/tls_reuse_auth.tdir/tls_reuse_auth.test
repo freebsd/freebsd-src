@@ -1,0 +1,90 @@
+# #-- tls_reuse_auth.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+echo "> query www1.example.com."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www1.example.com. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.com" outfile | grep "10.20.30.41"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www1.example.com"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "result contents not OK, for www1.example.com"
+	exit 1
+fi
+echo "OK"
+echo ""
+
+# this should be reused on the same tcp stream:
+echo "> query www2.example.com."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www2.example.com. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www2.example.com" outfile | grep "10.20.30.42"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www2.example.com"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "result contents not OK, for www2.example.com"
+	exit 1
+fi
+
+# bad query with different auth name.
+echo "> query badname.example.org."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT badname.example.org. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "badname.example.org" outfile | grep "10.20.31.41"; then
+	echo "result contents not OK, for badname.example.org"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "result contents not OK, for badname.example.org"
+	exit 1
+else
+	echo "content OK"
+fi
+
+echo "OK"
+exit 0

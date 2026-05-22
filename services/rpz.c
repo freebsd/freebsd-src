@@ -153,6 +153,7 @@ rpz_type_ignored(uint16_t rr_type)
 		case LDNS_RR_TYPE_SOA:
 		case LDNS_RR_TYPE_NS:
 		case LDNS_RR_TYPE_DNAME:
+		case LDNS_RR_TYPE_ZONEMD:
 		/* all DNSSEC-related RRs must be ignored */
 		case LDNS_RR_TYPE_DNSKEY:
 		case LDNS_RR_TYPE_DS:

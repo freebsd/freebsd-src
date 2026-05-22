@@ -160,11 +160,26 @@ read_ssl_line(SSL* ssl, char* buf, size_t len)
 			return 0;
 		}
 		if((r = SSL_read(ssl, buf+n, 1)) <= 0) {
-			if(SSL_get_error(ssl, r) == SSL_ERROR_ZERO_RETURN) {
+			int e = SSL_get_error(ssl, r);
+			if(e == SSL_ERROR_ZERO_RETURN) {
 				/* EOF */
 				break;
+			} else if(e == SSL_ERROR_WANT_READ) {
+				continue;
+			} else if(e == SSL_ERROR_WANT_WRITE) {
+				continue;
+			} else if(e == SSL_ERROR_SYSCALL) {
+				if(verb) printf("could not SSL_read %s\n",
+					strerror(errno));
+			} else if(e == SSL_ERROR_SSL) {
+				int er = ERR_peek_error();
+				if(er)
+					printf("could not SSL_read: %s\n",
+						ERR_reason_error_string(er));
+			} else {
+				if(verb) printf("could not SSL_read "
+						"(SSL_get_error %d)\n", e);
 			}
-			if(verb) printf("could not SSL_read\n");
 			return 0;
 		}
 		if(endnl && buf[n] == '\n') {
@@ -222,7 +237,8 @@ read_http_headers(SSL* ssl, char* file, size_t flen, char* host, size_t hlen,
 		if(verb>=2) printf("read: %s\n", buf);
 		if(buf[0] == 0) {
 			int e = ERR_peek_error();
-			printf("error string: %s\n", ERR_reason_error_string(e));
+			if(e)
+				printf("error string: %s\n", ERR_reason_error_string(e));
 			return 1;
 		}
 		if(!process_one_header(buf, file, flen, host, hlen, vs))
@@ -246,7 +262,8 @@ setup_ctx(char* key, char* cert)
 #endif
 	if(!SSL_CTX_use_certificate_chain_file(ctx, cert)) {
 		int e = ERR_peek_error();
-		printf("error string: %s\n", ERR_reason_error_string(e));
+		if(e)
+			printf("error string: %s\n", ERR_reason_error_string(e));
 		print_exit("cannot read cert");
 	}
 	if(!SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM))
@@ -673,12 +690,20 @@ int main(int argc, char* argv[])
 #else
 	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
 		| OPENSSL_INIT_ADD_ALL_DIGESTS
-		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS
+#  if defined(OPENSSL_INIT_NO_LOAD_CONFIG) && defined(UB_ON_WINDOWS)
+		| OPENSSL_INIT_NO_LOAD_CONFIG
+#  endif
+		, NULL);
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	(void)SSL_library_init();
 #else
-	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+	(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS
+#  if defined(OPENSSL_INIT_NO_LOAD_CONFIG) && defined(UB_ON_WINDOWS)
+		| OPENSSL_INIT_NO_LOAD_CONFIG
+#  endif
+		, NULL);
 #endif
 
 	do_service(addr, port, key, cert);

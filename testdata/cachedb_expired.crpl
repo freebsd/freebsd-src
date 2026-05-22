@@ -5,7 +5,10 @@ server:
 	minimal-responses: no
 	serve-expired: yes
 	serve-expired-client-timeout: 0
+	serve-expired-reply-ttl: 123
 	module-config: "cachedb iterator"
+	ede: yes
+	ede-serve-expired: yes
 
 cachedb:
 	backend: "testframe"
@@ -82,7 +85,7 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 1.2.3.4
+www.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ENTRY_BEGIN
@@ -91,7 +94,8 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 www2.example.com. IN A
 SECTION ANSWER
-www2.example.com. 10 IN A 1.2.3.5
+; TTL lower than serve-expired-reply-ttl on purpose
+www2.example.com. 100 IN A 1.2.3.5
 ENTRY_END
 RANGE_END
 
@@ -111,7 +115,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 1.2.3.4
+www.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ; Get another query in cache to make it expired.
@@ -130,46 +134,46 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www2.example.com. IN A
 SECTION ANSWER
-www2.example.com. 10 IN A 1.2.3.5
+www2.example.com. 100 IN A 1.2.3.5
 ENTRY_END
 
 ; it is now expired
-STEP 40 TIME_PASSES ELAPSE 20
+STEP 40 TIME_PASSES ELAPSE 200
 
 ; cache is expired, and cachedb is expired.
 STEP 50 QUERY
 ENTRY_BEGIN
-REPLY RD
+REPLY RD DO
 SECTION QUESTION
 www2.example.com. IN A
 ENTRY_END
 
 STEP 60 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all ttl
-REPLY QR RD RA NOERROR
+MATCH all ttl ede=3
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 www2.example.com. IN A
 SECTION ANSWER
-www2.example.com. 30 IN A 1.2.3.5
+www2.example.com. 100 IN A 1.2.3.5
 ENTRY_END
 
 ; cache is expired, cachedb has no answer
 STEP 70 QUERY
 ENTRY_BEGIN
-REPLY RD
+REPLY RD DO
 SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
 STEP 80 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all ttl
-REPLY QR RD RA NOERROR
+MATCH all ttl ede=3
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 30 IN A 1.2.3.4
+www.example.com. 123 IN A 1.2.3.4
 ENTRY_END
 
 STEP 90 TRAFFIC
@@ -189,7 +193,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 1.2.3.4
+www.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ; flush the entry from cache
@@ -210,30 +214,30 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 1.2.3.4
+www.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ; it is now expired
-STEP 150 TIME_PASSES ELAPSE 20
+STEP 150 TIME_PASSES ELAPSE 200
 ; flush the entry from cache
 STEP 160 FLUSH_MESSAGE www.example.com. IN A
 
 ; cache has no answer, cachedb is expired
 STEP 170 QUERY
 ENTRY_BEGIN
-REPLY RD
+REPLY RD DO
 SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
 STEP 180 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all ttl
-REPLY QR RD RA NOERROR
+MATCH all ttl ede=3
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 30 IN A 1.2.3.4
+www.example.com. 123 IN A 1.2.3.4
 ENTRY_END
 
 STEP 190 TRAFFIC
@@ -254,7 +258,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 1.2.3.4
+www.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ; expire the entry in cache
@@ -275,30 +279,30 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 1.2.3.4
+www.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ; it is now expired
-STEP 250 TIME_PASSES ELAPSE 20
+STEP 250 TIME_PASSES ELAPSE 200
 ; expire the entry in cache
 STEP 260 EXPIRE_MESSAGE www.example.com. IN A
 
 ; cache is expired, cachedb is expired
 STEP 270 QUERY
 ENTRY_BEGIN
-REPLY RD
+REPLY RD DO
 SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
 STEP 280 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all ttl
-REPLY QR RD RA NOERROR
+MATCH all ttl ede=3
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 30 IN A 1.2.3.4
+www.example.com. 123 IN A 1.2.3.4
 ENTRY_END
 
 STEP 290 TRAFFIC
@@ -319,7 +323,7 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 1.2.3.4
+www.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 SCENARIO_END

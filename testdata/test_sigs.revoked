@@ -15,10 +15,29 @@ ENTRY_END
 ; entry to test
 ENTRY_BEGIN
 SECTION QUESTION
-secure.example.com.       IN      SOA
+bogus.example.com.       IN      SOA
 SECTION ANSWER
+; The REVOKE key is not allowed to sign other data
 example.com.  43200   IN      SOA     home.kuroiwa.eng.br. hostmaster.cesar.sec3.br. 2008040903 86400 86400 8640000 600
 example.com.	43200	IN	RRSIG	SOA 5 2 43200 20081010000000 20080410122550 31027 example.com. af7nqRak6cEeQLytqLHMIUKPsOECA4Cu/Zpm7vdnKSh2q2+/8ZwIxwHLyCEGdiu/mTYffZEHTZytJyzxnB0oxA== ;{id = 31027}
 ENTRY_END
 
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+bogus.a.example.com.       IN      DNSKEY
+SECTION ANSWER
+a.example.com. 3600    IN      DNSKEY  384 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3
+a.example.com.	3600	IN	RRSIG	DNSKEY 5 3 3600 20081010000000 20080410122550 31027 example.com. MdkvlzXlNEUrnk7jTXZ0whEjYLp1bGjOevL4yyzWAl+/LgaQqbFVApXbAQhHvouFQeoMp2+NvEGTLW8unBzJEw==
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+secure.example.com.       IN      DNSKEY
+SECTION ANSWER
+; the REVOKE key can sign itself
+example.com.	3600	IN	DNSKEY	384 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 31027 (zsk), size = 512b}
+example.com.	3600	IN	RRSIG	DNSKEY 5 2 3600 20081010000000 20080410122550 31027 example.com. NEEY7W2F0XGUo9pVhiLALoz1ToM1gIS4TwUvVBPlIQMF+ZRGtB7PMthV0BN+aR+AEurxYsMfVmXEH2vKUVepgw==
+ENTRY_END
 

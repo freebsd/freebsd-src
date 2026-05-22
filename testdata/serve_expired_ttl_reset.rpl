@@ -36,7 +36,7 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 0.0.0.0
+www.example.com. 200 IN A 0.0.0.0
 ENTRY_END
 
 STEP 3 CHECK_ANSWER
@@ -46,11 +46,11 @@ REPLY QR RA RD NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 10 IN A 0.0.0.0
+www.example.com. 200 IN A 0.0.0.0
 ENTRY_END
 
 ; Expire the record (+ serve-expired-ttl)
-STEP 4 TIME_PASSES ELAPSE 12
+STEP 4 TIME_PASSES ELAPSE 201
 
 STEP 5 QUERY
 ENTRY_BEGIN

@@ -59,12 +59,16 @@ static void usage(char* argv[])
 /** read hex input */
 static void read_input(sldns_buffer* pkt, FILE* in)
 {
-	char buf[102400];
+	/* Buffer for 64Kib packet, in hex, with spaces and comments. */
+	char buf[1024000];
 	char* np = buf;
 	while(fgets(np, (int)sizeof(buf) - (np-buf), in)) {
 		if(buf[0] == ';') /* comment */
 			continue;
 		np = &np[strlen(np)];
+		if((size_t)(np-buf) >= sizeof(buf)-1)
+			fatal_exit("input too large (%lu bytes)",
+				(unsigned long)sizeof(buf));
 	}
 	hex_to_buf(pkt, buf);
 }
@@ -188,10 +192,16 @@ static void analyze(sldns_buffer* pkt)
 /** main program for pktview */
 int main(int argc, char* argv[]) 
 {
-	sldns_buffer* pkt = sldns_buffer_new(65553);
+	sldns_buffer* pkt;
+
+	log_init(NULL, 0, NULL);
+	log_ident_set("pktview");
+
 	if(argc != 1) {
 		usage(argv);
 	}
+
+	pkt = sldns_buffer_new(65553);
 	if(!pkt) fatal_exit("out of memory");
 
 	read_input(pkt, stdin);

@@ -79,7 +79,7 @@ ENTRY_BEGIN
 ENTRY_END
 
 ; Wait for the TTL to expire + serve-expired-ttl
-STEP 11 TIME_PASSES ELAPSE 3611
+STEP 11 TIME_PASSES ELAPSE 3610
 
 ; Query again
 STEP 30 QUERY

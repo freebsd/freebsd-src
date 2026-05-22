@@ -1,0 +1,122 @@
+; config options
+server:
+	harden-referral-path: no
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	minimal-responses: no
+	iter-scrub-promiscuous: no
+
+stub-zone:
+        name: "."
+	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test scrub of out-of-zone DNAME in answer section
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+x.y.example.com. IN A
+ENTRY_END
+
+; root prime is sent
+STEP 20 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+. IN NS
+ENTRY_END
+STEP 30 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET. IN A 193.0.14.129
+ENTRY_END
+
+; query sent to root server
+STEP 40 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+x.y.example.com. IN A
+ENTRY_END
+STEP 50 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+x.y.example.com. IN A
+SECTION AUTHORITY
+com. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+; query sent to .com server
+STEP 60 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+x.y.example.com. IN A
+ENTRY_END
+
+STEP 70 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+x.y.example.com. IN A
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+STEP 80 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+x.y.example.com. IN A
+ENTRY_END
+
+STEP 90 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+x.y.example.com. IN A
+SECTION ANSWER
+com. DNAME z.example.com.
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+; answer to first query
+; nodata answer since the DNAME is ignored for synthesis and scrubbed
+; all together.
+STEP 120 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA
+SECTION QUESTION
+x.y.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+SCENARIO_END

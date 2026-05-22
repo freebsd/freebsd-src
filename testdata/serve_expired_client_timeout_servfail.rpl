@@ -41,9 +41,9 @@ RANGE_BEGIN 0 20
 		SECTION QUESTION
 			example.com. IN NS
 		SECTION ANSWER
-			example.com. 10 IN NS ns.example.com.
+			example.com. 200 IN NS ns.example.com.
 		SECTION ADDITIONAL
-			ns.example.com. 10 IN A 1.2.3.4
+			ns.example.com. 200 IN A 1.2.3.4
 	ENTRY_END
 
 	ENTRY_BEGIN
@@ -53,11 +53,11 @@ RANGE_BEGIN 0 20
 		SECTION QUESTION
 			example.com. IN A
 		SECTION ANSWER
-			example.com. 10 IN A 5.6.7.8
+			example.com. 200 IN A 5.6.7.8
 		SECTION AUTHORITY
-			example.com. 10 IN NS ns.example.com.
+			example.com. 200 IN NS ns.example.com.
 		SECTION ADDITIONAL
-			ns.example.com. 10 IN A 1.2.3.4
+			ns.example.com. 200 IN A 1.2.3.4
 	ENTRY_END
 RANGE_END
 
@@ -85,11 +85,11 @@ RANGE_BEGIN 50 100
 		SECTION QUESTION
 			example.com. IN A
 		SECTION ANSWER
-			example.com. 10 IN A 5.6.7.8
+			example.com. 200 IN A 5.6.7.8
 		SECTION AUTHORITY
-			example.com. 10 IN NS ns.example.com.
+			example.com. 200 IN NS ns.example.com.
 		SECTION ADDITIONAL
-			ns.example.com. 10 IN A 1.2.3.4
+			ns.example.com. 200 IN A 1.2.3.4
 	ENTRY_END
 RANGE_END
 
@@ -109,15 +109,15 @@ ENTRY_BEGIN
 	SECTION QUESTION
 		example.com. IN A
 	SECTION ANSWER
-		example.com. 10 IN A 5.6.7.8
+		example.com. 200 IN A 5.6.7.8
 	SECTION AUTHORITY
-		example.com. 10 IN NS ns.example.com.
+		example.com. 200 IN NS ns.example.com.
 	SECTION ADDITIONAL
-		ns.example.com. 10 IN A 1.2.3.4
+		ns.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 ; Wait for the TTL to expire
-STEP 11 TIME_PASSES ELAPSE 11
+STEP 11 TIME_PASSES ELAPSE 200
 
 ; Query again
 STEP 30 QUERY
@@ -210,11 +210,11 @@ ENTRY_BEGIN
 	SECTION QUESTION
 		example.com. IN A
 	SECTION ANSWER
-		example.com. 10 IN A 5.6.7.8
+		example.com. 200 IN A 5.6.7.8
 	SECTION AUTHORITY
-		example.com. 10 IN NS ns.example.com.
+		example.com. 200 IN NS ns.example.com.
 	SECTION ADDITIONAL
-		ns.example.com. 10 IN A 1.2.3.4
+		ns.example.com. 200 IN A 1.2.3.4
 ENTRY_END
 
 SCENARIO_END

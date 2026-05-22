@@ -1,0 +1,73 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	minimal-responses: no
+	iter-scrub-promiscuous: no
+
+stub-zone:
+        name: "."
+	stub-addr: 1.2.3.4
+CONFIG_END
+
+SCENARIO_BEGIN Test long query name.
+
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS ns.root.
+SECTION ADDITIONAL
+ns.root. IN A 1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+; matched anything
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+www.example.com. IN A
+SECTION AUTHORITY
+. SOA ns.root. host.invalid. 1 2 3 4 5
+ENTRY_END
+RANGE_END
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+HEX_ANSWER_BEGIN
+00 00 01 00		; RD
+00 01 00 00 00 00 00 00 ; QDCOUNT=1, ANCOUNT=0, NSCOUNT=0, ARCOUNT=0.
+; www.example.com.
+;03 77 77 77
+;07 65 78 61 6d 70 6c 65
+;03 63 6f 6d
+;00
+;
+; a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.a.ab.example.com.
+01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62 01 61 02 61 62
+07 65 78 61 6d 70 6c 65
+03 63 6f 6d
+00
+00 01 00 01
+HEX_ANSWER_END
+ENTRY_END
+
+; recursion happens here.
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD FORMERR
+SECTION QUESTION
+SECTION ANSWER
+ENTRY_END
+
+SCENARIO_END

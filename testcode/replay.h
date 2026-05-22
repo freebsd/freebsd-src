@@ -142,6 +142,10 @@
 #include "util/netevent.h"
 #include "testcode/testpkts.h"
 #include "util/rbtree.h"
+#ifdef __QNX__
+/* For struct timeval */
+#include <sys/time.h>
+#endif /* __QNX__ */
 struct replay_answer;
 struct replay_moment;
 struct replay_range;

@@ -141,6 +141,8 @@ struct mesh_area {
 	size_t rpz_action[UB_STATS_RPZ_ACTION_NUM];
 	/** stats, number of queries removed due to discard-timeout */
 	size_t num_queries_discard_timeout;
+	/** stats, number of queries removed due to replyaddr limit */
+	size_t num_queries_replyaddr_limit;
 	/** stats, number of queries removed due to wait-limit */
 	size_t num_queries_wait_limit;
 	/** stats, number of dns error reports generated */
@@ -399,6 +401,8 @@ void mesh_detach_subs(struct module_qstate* qstate);
  * @param qstate: the state to find mesh state, and that wants to receive
  * 	the results from the new subquery.
  * @param qinfo: what to query for (copied).
+ * @param cinfo: if non-NULL client specific info that may affect IP-based
+ * 	actions that apply to the query result. It is copied.
  * @param qflags: what flags to use (RD / CD flag or not).
  * @param prime: if it is a (stub) priming query.
  * @param valrec: if it is a validation recursion query (lookup of key, DS).
@@ -407,7 +411,8 @@ void mesh_detach_subs(struct module_qstate* qstate);
  * @return: false on error, true if success (and init may be needed).
  */
 int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
-	uint16_t qflags, int prime, int valrec, struct module_qstate** newq);
+	struct respip_client_info* cinfo, uint16_t qflags, int prime,
+	int valrec, struct module_qstate** newq);
 
 /**
  * Add detached query.
@@ -426,6 +431,8 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
  * @param qstate: the state to find mesh state, and that wants to receive
  * 	the results from the new subquery.
  * @param qinfo: what to query for (copied).
+ * @param cinfo: if non-NULL client specific info that may affect IP-based
+ * 	actions that apply to the query result. It is copied.
  * @param qflags: what flags to use (RD / CD flag or not).
  * @param prime: if it is a (stub) priming query.
  * @param valrec: if it is a validation recursion query (lookup of key, DS).
@@ -435,8 +442,8 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
  * @return: false on error, true if success (and init may be needed).
  */
 int mesh_add_sub(struct module_qstate* qstate, struct query_info* qinfo,
-        uint16_t qflags, int prime, int valrec, struct module_qstate** newq,
-	struct mesh_state** sub);
+	struct respip_client_info* cinfo, uint16_t qflags, int prime,
+	int valrec, struct module_qstate** newq, struct mesh_state** sub);
 
 /**
  * Query state is done, send messages to reply entries.
