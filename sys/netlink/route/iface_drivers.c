@@ -155,6 +155,9 @@ _nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp)
 		sizeof(ifindex) + NL_ITEM_ALIGN(ifname_len + 1);
 	struct nlattr *nla_cookie = npt_alloc(npt, nla_len);
 
+	if (nla_cookie == NULL)
+		return;
+
 	/* Nested TLV */
 	nla_cookie->nla_len = nla_len;
 	nla_cookie->nla_type = NLMSGERR_ATTR_COOKIE;
