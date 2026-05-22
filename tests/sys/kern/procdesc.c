@@ -33,14 +33,49 @@
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
+#include <fcntl.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
 
 #include <atf-c.h>
+#include <kvm.h>
 
 /* Tests for procdesc(4) that aren't specific to any one syscall */
+
+/*
+ * Block until a thread in the specified process is sleeping in the specified
+ * wait message.
+ */
+static void
+wait_for_naptime(pid_t pid, const char *wmesg)
+{
+	kvm_t *kd;
+	int count;
+
+	kd = kvm_openfiles(NULL, "/dev/null", NULL, O_RDONLY, NULL);
+	ATF_REQUIRE(kd != NULL);
+	for (;;) {
+		struct kinfo_proc *kip;
+		int i;
+
+		usleep(1000);
+		kip = kvm_getprocs(kd, KERN_PROC_PID | KERN_PROC_INC_THREAD,
+		    pid, &count);
+		ATF_REQUIRE(kip != NULL);
+		for (i = 0; i < count; i++) {
+			ATF_REQUIRE(kip[i].ki_stat != SZOMB);
+			if (kip[i].ki_stat == SSLEEP &&
+			    strcmp(kip[i].ki_wmesg, wmesg) == 0)
+				break;
+		}
+		if (i < count)
+			break;
+	}
+
+	kvm_close(kd);
+}
 
 /*
  * Even after waiting on a process descriptor with waitpid(2), the kernel will
@@ -128,8 +163,7 @@ ATF_TC_BODY(poll_close_race, tc)
 	error = pthread_create(&thr, NULL, poll_procdesc, &pd);
 	ATF_REQUIRE_MSG(error == 0, "pthread_create: %s", strerror(error));
 
-	/* Wait for the thread to block in poll(2). */
-	usleep(250000);
+	wait_for_naptime(getpid(), "select");
 
 	ATF_REQUIRE_MSG(close(pd) == 0, "close: %s", strerror(errno));
 
@@ -159,8 +193,7 @@ ATF_TC_BODY(poll_exit_wakeup, tc)
 	error = pthread_create(&thr, NULL, poll_procdesc, &pd);
 	ATF_REQUIRE_MSG(error == 0, "pthread_create: %s", strerror(error));
 
-	/* Wait for the thread to block in poll(2). */
-	usleep(250000);
+	wait_for_naptime(getpid(), "select");
 
 	ATF_REQUIRE_MSG(pdkill(pd, SIGKILL) == 0,
 	    "pdkill: %s", strerror(errno));
