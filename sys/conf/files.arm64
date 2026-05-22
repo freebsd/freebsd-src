@@ -141,7 +141,7 @@ arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
 	no-obj
 arm64/vmm/vmm_nvhe.c				optional vmm		\
 	dependency	"$S/arm64/vmm/vmm_hyp.c"			\
-	compile-with "${NOSAN_C} -fpie"					\
+	compile-with "${NOSAN_C:N-fstack-protector*} -fpie"		\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
 	dependency	"vmm_nvhe.o vmm_nvhe_exception.o"			\
