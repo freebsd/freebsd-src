@@ -70,8 +70,9 @@ int
 xmitfile(int peer, char *port, int fd, char *name, char *mode)
 {
 	struct tftphdr *rp;
+	struct servent *se;
 	int n, i, ret = 0;
-	uint16_t block;
+	uint16_t block, portn;
 	struct sockaddr_storage serv;	/* valid server port number */
 	char recvbuffer[MAXPKTSIZE];
 	struct tftp_stats tftp_stats;
@@ -81,14 +82,15 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	memset(&serv, 0, sizeof(serv));
 	rp = (struct tftphdr *)recvbuffer;
 
-	if (port == NULL) {
-		struct servent *se;
-		se = getservbyname("tftp", "udp");
-		assert(se != NULL);
-		((struct sockaddr_in *)&peer_sock)->sin_port = se->s_port;
-	} else
-		((struct sockaddr_in *)&peer_sock)->sin_port =
-		    htons(atoi(port));
+	if ((se = getservbyname(port ? port : "tftp", "udp")) != NULL)
+		portn = se->s_port;
+	else
+		portn = htons(atoi(port));
+	if (portn == 0) {
+		printf("Invalid port '%s'.\n", port ? port : "tftp");
+		return -1;
+	}
+	((struct sockaddr_in *)&peer_sock)->sin_port = portn;
 
 	for (i = 0; i < 12; i++) {
 		struct sockaddr_storage from;
@@ -172,7 +174,8 @@ int
 recvfile(int peer, char *port, int fd, char *name, char *mode)
 {
 	struct tftphdr *rp;
-	uint16_t block;
+	struct servent *se;
+	uint16_t block, portn;
 	char recvbuffer[MAXPKTSIZE];
 	int n, i, ret = 0;
 	struct tftp_stats tftp_stats;
@@ -181,14 +184,15 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 
 	rp = (struct tftphdr *)recvbuffer;
 
-	if (port == NULL) {
-		struct servent *se;
-		se = getservbyname("tftp", "udp");
-		assert(se != NULL);
-		((struct sockaddr_in *)&peer_sock)->sin_port = se->s_port;
-	} else
-		((struct sockaddr_in *)&peer_sock)->sin_port =
-		    htons(atoi(port));
+	if ((se = getservbyname(port ? port : "tftp", "udp")) != NULL)
+		portn = se->s_port;
+	else
+		portn = htons(atoi(port));
+	if (portn == 0) {
+		printf("Invalid port '%s'.\n", port ? port : "tftp");
+		return (-1);
+	}
+	((struct sockaddr_in *)&peer_sock)->sin_port = portn;
 
 	for (i = 0; i < 12; i++) {
 		struct sockaddr_storage from;
