@@ -27,53 +27,58 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "UNBOUND.CONF" "5" "Nov 26, 2025" "1.24.2" "Unbound"
+.TH "UNBOUND.CONF" "5" "Apr 29, 2026" "1.25.0" "Unbound"
 .SH NAME
-unbound.conf \- Unbound 1.24.2 configuration file.
+unbound.conf \- Unbound 1.25.0 configuration file.
 .SH SYNOPSIS
 .sp
 \fBunbound.conf\fP
 .SH DESCRIPTION
 .sp
 \fBunbound.conf\fP is used to configure \fI\%unbound(8)\fP\&.
-The file format has attributes and values.
-Some attributes have attributes inside them.
-The notation is: \fBattribute: value\fP\&.
-.sp
-Comments start with \fB#\fP and last to the end of line.
-Empty lines are ignored as is whitespace at the beginning of a line.
 .sp
 The utility \fI\%unbound\-checkconf(8)\fP can be
 used to check \fBunbound.conf\fP prior to usage.
+.SH FILE FORMAT
+.sp
+Whitespace is used to separate keywords.
+Whitespace indentation is insignificant, but is still recommended for visual
+clarity.
+Comments start with \fB#\fP and last to the end of line.
+Empty lines are ignored, as is whitespace at the beginning of a line.
+.sp
+Attribute keywords end with a colon (\fB:\fP) and they are either options or
+section clauses (group options together).
+.sp
+The configuration file is logically divided into \fBsections\fP where each section
+is introduced by a \fI\%section clause\fP\&.
 .SH EXAMPLE
 .sp
-An example config file is shown below.
-Copy this to \fB/etc/unbound/unbound.conf\fP and start the server with:
+An example minimal config file is shown below; most settings are the defaults.
+Copy this to \fB/var/unbound/unbound.conf\fP and start the server with:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ unbound \-c /etc/unbound/unbound.conf
+$ unbound \-c /var/unbound/unbound.conf
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-Most settings are the defaults.
 Stop the server with:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ kill \(gacat /etc/unbound/unbound.pid\(ga
+$ kill \(gacat /var/unbound/unbound.pid\(ga
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-Below is a minimal config file.
 The source distribution contains an extensive \fBexample.conf\fP file with
 all the options.
 .INDENT 0.0
@@ -83,33 +88,87 @@ all the options.
 .ft C
 # unbound.conf(5) config file for unbound(8).
 server:
-    directory: \(dq/etc/unbound\(dq
+    directory: \(dq/var/unbound\(dq
     username: unbound
     # make sure unbound can access entropy from inside the chroot.
     # e.g. on linux the use these commands (on BSD, devfs(8) is used):
-    #      mount \-\-bind \-n /dev/urandom /etc/unbound/dev/urandom
-    # and  mount \-\-bind \-n /dev/log /etc/unbound/dev/log
-    chroot: \(dq/etc/unbound\(dq
-    # logfile: \(dq/etc/unbound/unbound.log\(dq  #uncomment to use logfile.
-    pidfile: \(dq/etc/unbound/unbound.pid\(dq
+    #      mount \-\-bind \-n /dev/urandom /var/unbound/dev/urandom
+    # and  mount \-\-bind \-n /dev/log /var/unbound/dev/log
+    chroot: \(dq/var/unbound\(dq
+    # logfile: \(dq/var/unbound/unbound.log\(dq  #uncomment to use logfile.
+    pidfile: \(dq/var/unbound/unbound.pid\(dq
     # verbosity: 1      # uncomment and increase to get more logging.
     # listen on all interfaces, answer queries from the local subnet.
     interface: 0.0.0.0
     interface: ::0
     access\-control: 10.0.0.0/8 allow
-    access\-control: 2001:DB8::/64 allow
+    access\-control: 2001:db8::/64 allow
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
-.SH FILE FORMAT
+.SH SECTION CLAUSES
 .sp
-There must be whitespace between keywords.
-Attribute keywords end with a colon \fB\(aq:\(aq\fP\&.
-An attribute is followed by a value, or its containing attributes in which case
-it is referred to as a clause.
-Clauses can be repeated throughout the file (or included files) to group
-attributes under the same clause.
+The recognized section clauses are:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fI\%server:\fP
+Most of the configuration is found in this section.
+.TP
+.B \fI\%remote\-control:\fP
+Configuration for the facility used by
+\fI\%unbound\-control(8)\fP\&.
+.TP
+.B \fI\%stub\-zone:\fP
+Configuration for a zone that redirects to specific authoritative name
+servers, e.g. for zones not generally available on the greater
+Internet.
+.TP
+.B \fI\%forward\-zone:\fP
+Configuration for a zone that forwards to specific DNS resolvers.
+.TP
+.B \fI\%auth\-zone:\fP
+Configuration for local authoritative zones.
+.TP
+.B \fI\%view:\fP
+Overriding a small subset of configuration for incoming requests.
+Requests are mapped to views with
+\fI\%access\-control\-view\fP and
+\fI\%interface\-view\fP\&.
+.TP
+.B \fI\%python:\fP
+Configuration for the optional \fBpython\fP script module.
+.TP
+.B \fI\%dynlib:\fP
+Configuration for the optional \fBdynlib\fP module that loads dynamic
+libraries into Unbound.
+.TP
+.B \fI\%dnscrypt:\fP
+Configuration for the optional DNSCrypt feature.
+.TP
+.B \fI\%cachedb:\fP
+Configuration for the optional \fBcachedb\fP module that can interface
+with second level caches, currently Redis or Redis\-complatible
+databases.
+.TP
+.B \fI\%dnstap:\fP
+Configuration of the optional dnstap logging feature; a flexible,
+structured binary log format for DNS software.
+.TP
+.B \fI\%rpz:\fP
+Configuration for Response Policy Zones that allows for DNS filtering.
+Requires the \fBrespip\fP module.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Section clauses can be repeated throughout the file (or included files) to
+logically group options in one visually cohesive group.
+This may be particularly useful for the \fBserver:\fP clause with its myriad of
+options.
+.SH INCLUDING FILES
 .sp
 Files can be included using the \fBinclude:\fP directive.
 It can appear anywhere, it accepts a single file name as argument.
@@ -124,11 +183,11 @@ Wildcards can be used to include multiple files, see \fIglob(7)\fP\&.
 .sp
 For a more structural include option, the \fBinclude\-toplevel:\fP directive can
 be used.
-This closes whatever clause is currently active (if any) and forces the use of
-clauses in the included files and right after this directive.
-.SS Server Options
+This closes whatever section clause is currently active (if any) and forces the
+use of section clauses in the included files and right after this directive.
+.SH SERVER OPTIONS
 .sp
-These options are part of the \fBserver:\fP clause.
+These options are part of the \fBserver:\fP section.
 .INDENT 0.0
 .TP
 .B verbosity: \fI<number>\fP 
@@ -323,6 +382,10 @@ Default depends on compile options.
 Larger numbers need extra resources from the operating system.
 For performance a very large value is best, use libevent to make this
 possible.
+Should be higher (preferably double) than the value of
+\fI\%num\-queries\-per\-thread\fP to
+account for cases where the request list is full and avoid file descriptor
+starvation.
 .sp
 Default: 4096 (libevent) / 960 (minievent) / 48 (windows)
 .UNINDENT
@@ -539,6 +602,9 @@ Default: 376
 The wait time in msec where recursion requests are dropped.
 This is to stop a large number of replies from accumulating.
 They receive no reply, the work item continues to recurse.
+For UDP the replies are dropped, for stream connections the reply
+is not dropped if the stream connection is still open ready to receive
+answers.
 It is nice to be a bit larger than
 \fI\%serve\-expired\-client\-timeout\fP
 if that is enabled.
@@ -554,7 +620,7 @@ The number of replies that can wait for recursion, for an IP address.
 This makes a ratelimit per IP address of waiting replies for recursion.
 It stops very large amounts of queries waiting to be returned to one
 destination.
-The value \fB0\fP disables wait limits.
+The value \fB0\fP disables all wait limits.
 .sp
 Default: 1000
 .UNINDENT
@@ -563,7 +629,11 @@ Default: 1000
 .B wait\-limit\-cookie: \fI<number>\fP 
 The number of replies that can wait for recursion, for an IP address
 that sent the query with a valid DNS Cookie.
-Since the cookie validates the client address, this limit can be higher.
+Since the cookie already validates the client address, this option allows
+to override a configured
+\fI\%wait\-limit\fP value usually with a higher one
+for cookie validated queries.
+The value \fB0\fP disables wait limits for cookie validated queries.
 .sp
 Default: 10000
 .UNINDENT
@@ -1069,9 +1139,13 @@ The file must contain the private key for the TLS session, the public
 certificate is in the \fI\%tls\-service\-pem\fP
 file and it must also be specified if
 \fI\%tls\-service\-key\fP is specified.
-Enabling or disabling this service requires a restart (a reload is not
-enough), because the key is read while root permissions are held and before
-chroot (if any).
+If the key is stored with root permissions or outside of chroot, then
+a change or enabling or disabling requires a restart (a reload is not
+enough).
+But if the key file (and tls\-service\-pem file) are accessible, then they
+are read in on reload, and fast_reload.
+The server checks the modification time of the file (and the filename)
+to see if the file has changed for reload.
 The ports enabled implicitly or explicitly via
 \fI\%tls\-port\fP and
 \fI\%https\-port\fP do not provide normal DNS TCP
@@ -1153,8 +1227,8 @@ Default: no
 .INDENT 0.0
 .TP
 .B tls\-system\-cert: \fI<yes or no>\fP 
-This the same attribute as the
-\fI\%tls\-win\-cert\fP attribute, under a
+This the same as the
+\fI\%tls\-win\-cert\fP option, under a
 different name.
 Because it is not windows specific.
 .UNINDENT
@@ -1218,6 +1292,36 @@ Default: \(dq\(dq
 .UNINDENT
 .INDENT 0.0
 .TP
+.B tls\-use\-sni: \fI<yes or no>\fP 
+Enable or disable sending the SNI extension on TLS connections.
+.sp
+\fBNOTE:\fP
+.INDENT 7.0
+.INDENT 3.5
+Changing the value requires a restart.
+.UNINDENT
+.UNINDENT
+.sp
+Default: yes
+.UNINDENT
+.INDENT 0.0
+.TP
+.B tls\-protocols: \fI\(dq<list of protocols>\(dq\fP 
+Specify the allowed TLS protocol versions to use, in no particular order.
+Possible values are \fBTLSv1.2\fP and \fBTLSv1.3\fP\&.
+Enclose list of protocols in quotes (\fB\(dq\(dq\fP) and put spaces between them.
+.sp
+\fBNOTE:\fP
+.INDENT 7.0
+.INDENT 3.5
+Changing the value requires a restart.
+.UNINDENT
+.UNINDENT
+.sp
+Default: \(dqTLSv1.2 TLSv1.3\(dq
+.UNINDENT
+.INDENT 0.0
+.TP
 .B pad\-responses: \fI<yes or no>\fP 
 If enabled, TLS serviced queries that contained an EDNS Padding option will
 cause responses padded to the closest multiple of the size specified in
@@ -1248,20 +1352,6 @@ Default: yes
 The block size with which to pad queries sent over TLS upstreams.
 .sp
 Default: 128
-.UNINDENT
-.INDENT 0.0
-.TP
-.B tls\-use\-sni: \fI<yes or no>\fP 
-Enable or disable sending the SNI extension on TLS connections.
-.sp
-\fBNOTE:\fP
-.INDENT 7.0
-.INDENT 3.5
-Changing the value requires a reload.
-.UNINDENT
-.UNINDENT
-.sp
-Default: yes
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -1357,6 +1447,9 @@ The port number on which to provide DNS\-over\-QUIC service.
 Only interfaces configured with that port number as @number get the QUIC
 service.
 The interface uses QUIC for the UDP traffic on that port number.
+If it is set to 0, the server does not init QUIC code, and QUIC is
+disabled.
+This is similar to if QUIC is not in use, but then explicitly.
 .sp
 Default: 853
 .UNINDENT
@@ -1580,8 +1673,8 @@ implicit default \(dqaccess\-control: 127.0.0.0/8 allow\(dq option.
 .INDENT 3.5
 The interface needs to be already specified with
 \fI\%interface\fP and that any
-\fBaccess\-control*:\fP attribute overrides all \fBinterface\-*:\fP
-attributes for targeted clients.
+\fBaccess\-control*:\fP option overrides all \fBinterface\-*:\fP
+options for targeted clients.
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1596,8 +1689,8 @@ for interfaces.
 .INDENT 3.5
 The interface needs to be already specified with
 \fI\%interface\fP and that any
-\fBaccess\-control*:\fP attribute overrides all \fBinterface\-*:\fP
-attributes for targeted clients.
+\fBaccess\-control*:\fP option overrides all \fBinterface\-*:\fP
+options for targeted clients.
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1613,8 +1706,8 @@ but for interfaces.
 .INDENT 3.5
 The interface needs to be already specified with
 \fI\%interface\fP and that any
-\fBaccess\-control*:\fP attribute overrides all \fBinterface\-*:\fP
-attributes for targeted clients.
+\fBaccess\-control*:\fP option overrides all \fBinterface\-*:\fP
+options for targeted clients.
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1630,8 +1723,8 @@ for interfaces.
 .INDENT 3.5
 The interface needs to be already specified with
 \fI\%interface\fP and that any
-\fBaccess\-control*:\fP attribute overrides all \fBinterface\-*:\fP
-attributes for targeted clients.
+\fBaccess\-control*:\fP option overrides all \fBinterface\-*:\fP
+options for targeted clients.
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1646,8 +1739,8 @@ but for interfaces.
 .INDENT 3.5
 The interface needs to be already specified with
 \fI\%interface\fP and that any
-\fBaccess\-control*:\fP attribute overrides all \fBinterface\-*:\fP
-attributes for targeted clients.
+\fBaccess\-control*:\fP option overrides all \fBinterface\-*:\fP
+options for targeted clients.
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1724,7 +1817,7 @@ The logfile is appended to, in the following format:
 .UNINDENT
 .sp
 If this option is given, the \fI\%use\-syslog\fP
-attribute is internally set to \fBno\fP\&.
+option is internally set to \fBno\fP\&.
 .sp
 The logfile is reopened (for append) when the config file is reread, on
 SIGHUP.
@@ -1834,6 +1927,16 @@ Default: no
 .UNINDENT
 .INDENT 0.0
 .TP
+.B log\-thread\-id: \fI<yes or no>\fP 
+(Only on Linux and only when threads are available)
+Logs the system\-wide Linux thread ID instead of Unbound\(aqs internal thread
+counter.
+Can be useful when debugging with system tools.
+.sp
+Default: no
+.UNINDENT
+.INDENT 0.0
+.TP
 .B pidfile: \fI<filename>\fP 
 The process id is written to the file.
 Default is \fB\(dq/var/unbound/unbound.pid\(dq\fP\&.
@@ -1872,8 +1975,8 @@ Read the root hints from this file.
 Default is nothing, using builtin hints for the IN class.
 The file has the format of zone files, with root nameserver names and
 addresses only.
-The default may become outdated, when servers change, therefore it is good
-practice to use a root hints file.
+The default may become outdated, when servers change, and then it is
+possible to use a root hints file with specific servers.
 .sp
 Default: \(dq\(dq
 .UNINDENT
@@ -1969,7 +2072,7 @@ Default:  \(dq3 2 1 0 0\(dq
 .B harden\-short\-bufsize: \fI<yes or no>\fP 
 Very small EDNS buffer sizes from queries are ignored.
 .sp
-Default: yes (as described in the standard)
+Default: yes (per \fI\%RFC 6891\fP)
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -2165,6 +2268,11 @@ Additionally, the DNSSEC validator may mark the answers bogus.
 This protects against so\-called DNS Rebinding, where a user browser is
 turned into a network proxy, allowing remote access through the browser to
 other parts of your private network.
+.sp
+The option removes resource records of types A, AAAA, SVCB and HTTPS
+that match the filter.
+Inside the SVCB and HTTPS records, the svcparams of type ipv4hint
+and ipv6hint are checked for matches.
 .sp
 Some names can be allowed to contain your private addresses, by default all
 the \fI\%local\-data\fP that you configured is
@@ -2600,6 +2708,12 @@ If
 \fI\%serve\-expired\-client\-timeout\fP
 is also used then it is RECOMMENDED to use 30 as the value (\fI\%RFC 8767\fP).
 .sp
+This value is capped by the original TTL of the record.
+This means that records with higher original TTL than this value will use
+this value for expired replies.
+Records with lower original TTL than this value will use their original TTL
+for expired replies.
+.sp
 Default: 30
 .UNINDENT
 .INDENT 0.0
@@ -2898,6 +3012,39 @@ local\-data: \(dqexample.com. A 127.0.0.1\(dq
 queries for \fBwww.example.com\fP and \fBwww.foo.example.com\fP are
 redirected, so that users with web browsers cannot access sites with
 suffix example.com.
+.sp
+A \fBCNAME\fP record can also be provided via local\-data:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+local\-zone: \(dqexample.com.\(dq redirect
+local\-data: \(dqexample.com. CNAME www.example.org.\(dq
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+In that case, the \fBCNAME\fP is resolved and the answer
+includes resolved target records as well.
+The \fBCNAME\fP record has to be with the zone name of the local\-zone,
+and there can be one CNAME, not more.
+The \fBCNAME\fP record has to be at the zone apex of the
+\fBredirect\fP zone, then it is used for redirection.
+The resolution proceeds with upstream DNS resolution, and
+that does not include the lookup in local zones.
+So the record is not able to point in local zones, but it
+can point to upstream DNS answers.
+.sp
+\fBCNAME\fP resolution is supported only in type \fBredirect\fP
+local\-zone, and in type \fBinform_redirect\fP local\-zone.
+.sp
+As different from \fBCNAME\fP records that are used elsewhere, in
+the \fBredirect\fP type local\-zone, it is supported that in the target
+of the record a wildcard label gets expanded to the query name, with
+for example: \fBexample.com. CNAME *.foo.net.\fP gets expanded
+to \fBwww.example.com. CNAME www.example.com.foo.net.\fP\&.
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -2956,6 +3103,9 @@ use IPv6 protocol and avoid any queries to IPv4.
 .B always_refuse 
 Like \fI\%refuse\fP, but ignores
 local data and refuses the query.
+This type also blocks queries of type DS for the zone name.
+That can break the DNSSEC chain of trust, but it is refused anyway.
+The block for type DS assists in more completely blocking the zone.
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -3278,7 +3428,7 @@ zone section below.
 Configure local data shorthand for a PTR record with the reversed IPv4 or
 IPv6 address and the host name.
 For example \fB\(dq192.0.2.4 www.example.com\(dq\fP\&.
-TTL can be inserted like this: \fB\(dq2001:DB8::4 7200 www.example.com\(dq\fP
+TTL can be inserted like this: \fB\(dq2001:db8::4 7200 www.example.com\(dq\fP
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -3335,7 +3485,7 @@ This specifies the action data for
 \fI\%response\-ip\fP with action being to redirect
 as specified by \fI<\(dqresource record string\(dq>\fP\&.
 \fI<\(dqResource record string\(dq>\fP is similar to that of
-\fI\%access\-control\-tag\-action\fP,
+\fI\%access\-control\-tag\-data\fP,
 but it must be of either AAAA, A or CNAME types.
 If the \fI<IP\-netblock>\fP is an IPv6/IPv4 prefix, the record must be AAAA/A
 respectively, unless it is a CNAME (which can be used for both versions of
@@ -3619,6 +3769,10 @@ Default: 32
 Hard limit on the number of times Unbound is allowed to restart a query
 upon encountering a CNAME record.
 Results in SERVFAIL when reached.
+This applies to chained CNAME records but not sporadic CNAME records that
+could be encountered in the lifetime of the query\(aqs resolution effort.
+When a CNAME chain concludes, the counter keeping track of this limit is
+reset.
 Changing this value needs caution as it can allow long CNAME chains to be
 accepted, where Unbound needs to verify (resolve) each link individually.
 .sp
@@ -3643,6 +3797,16 @@ chains.
 Clips off the remainder of the reply packet at that point.
 .sp
 Default: 11
+.UNINDENT
+.INDENT 0.0
+.TP
+.B iter\-scrub\-rrsig: \fI<number>\fP 
+Limit on the number of RRSIGs allowed for an RRset, from the iterator
+scrubber.
+This protects against an overly large number of RRSIGs.
+Clips off the remainder of the RRSIG list at that point.
+.sp
+Default: 8
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -3805,17 +3969,18 @@ enabled to increase privacy on the outgoing reports.
 .sp
 Default: no
 .UNINDENT
-.SS Remote Control Options
+.SH REMOTE CONTROL OPTIONS
 .sp
-In the \fBremote\-control:\fP clause are the declarations for the remote control
-facility.
+These options are part of the \fBremote\-control:\fP section and are the
+declarations for the remote control facility.
+.sp
 If this is enabled, the \fI\%unbound\-control(8)\fP
 utility can be used to send commands to the running Unbound server.
-The server uses these clauses to setup TLSv1 security for the connection.
-The \fI\%unbound\-control(8)\fP utility also reads the
-\fBremote\-control:\fP section for options.
+The server uses these options to setup TLS security for the connection.
+The \fI\%unbound\-control(8)\fP utility also reads
+this \fBremote\-control:\fP section for options.
 To setup the correct self\-signed certificates use the
-\fIunbound\-control\-setup(8)\fP utility.
+\fBunbound\-control\-setup(8)\fP utility.
 .INDENT 0.0
 .TP
 .B control\-enable: \fI<yes or no>\fP 
@@ -3826,7 +3991,7 @@ Default: no
 .UNINDENT
 .INDENT 0.0
 .TP
-.B control\-interface: \fI<IP address or interface name or path>\fP 
+.B control\-interface: \fI<IP address or interface name[@port] or path>\fP 
 Give IPv4 or IPv6 addresses or local socket path to listen on for control
 commands.
 If an interface name is used instead of an IP address, the list of IP
@@ -3915,9 +4080,11 @@ This file is used by \fI\%unbound\-control(8)\fP\&.
 .sp
 Default: unbound_control.pem
 .UNINDENT
-.SS Stub Zone Options
+.SH STUB ZONE OPTIONS
 .sp
-There may be multiple \fBstub\-zone:\fP clauses.
+These options are part of the \fBstub\-zone:\fP section.
+.sp
+There may be multiple \fBstub\-zone:\fP sections.
 Each with a \fI\%name\fP and zero or more hostnames or
 IP addresses.
 For the stub zone this list of nameservers is used.
@@ -3956,9 +4123,10 @@ Consider adding \fI\%server\fP statements for
 \fI\%domain\-insecure\fP and for
 \fI\%local\-zone: <name> nodefault\fP
 for the zone if it is a locally served zone.
-The insecure clause stops DNSSEC from invalidating the zone.
+The \fI\%domain\-insecure\fP option stops DNSSEC
+from invalidating the zone.
 The \fI\%local\-zone: nodefault\fP (or
-\fI\%transparent\fP) clause makes the
+\fI\%transparent\fP) option makes the
 (reverse\-) zone bypass Unbound\(aqs filtering of \fI\%RFC 1918\fP zones.
 .INDENT 0.0
 .TP
@@ -3971,6 +4139,23 @@ This is the full domain name of the zone.
 .B stub\-host: \fI<domain name>\fP 
 Name of stub zone nameserver.
 Is itself resolved before it is used.
+.sp
+\fBCAUTION:\fP
+.INDENT 7.0
+.INDENT 3.5
+If the domain (or a subdomain) from this zone is used as the host, it
+will unavoidably introduce a circular dependency on retrieving the IP
+addresses of the name server.
+In that case, it is suggested to use
+\fI\%stub\-addr\fP instead.
+Alternatively,
+\fI\%stub\-first: yes\fP can also work
+around the circular dependency by trying resolution outside of this
+zone.
+However this has the caveat that it would allow escaping this zone when
+any resolution attempt fails within this zone.
+.UNINDENT
+.UNINDENT
 .sp
 To use a non\-default port for DNS communication append \fB\(aq@\(aq\fP with the
 port number.
@@ -4012,9 +4197,12 @@ Default: no
 .INDENT 0.0
 .TP
 .B stub\-first: \fI<yes or no>\fP 
-If enabled, a query is attempted without the stub clause if it fails.
+If enabled, a query is attempted without this stub section if it fails.
 The data could not be retrieved and would have caused SERVFAIL because the
-servers are unreachable, instead it is tried without this clause.
+servers are unreachable, instead it is tried without this stub section.
+This can lead to using less specific configured forward/stub/auth zones if
+any, or end up to otherwise normal recursive resolution for that particular
+query.
 .sp
 Default: no
 .UNINDENT
@@ -4047,9 +4235,11 @@ This is useful when you want immediate changes to be visible.
 .sp
 Default: no
 .UNINDENT
-.SS Forward Zone Options
+.SH FORWARD ZONE OPTIONS
 .sp
-There may be multiple \fBforward\-zone:\fP clauses.
+These options are part of the \fBforward\-zone:\fP section.
+.sp
+There may be multiple \fBforward\-zone:\fP sections.
 Each with a \fI\%name\fP and zero or more hostnames
 or IP addresses.
 For the forward zone this list of nameservers is used to forward the queries
@@ -4079,6 +4269,23 @@ This is the full domain name of the zone.
 .B forward\-host: \fI<domain name>\fP 
 Name of server to forward to.
 Is itself resolved before it is used.
+.sp
+\fBCAUTION:\fP
+.INDENT 7.0
+.INDENT 3.5
+If the domain (or a subdomain) from this zone is used as the host, it
+will unavoidably introduce a circular dependency on retrieving the IP
+addresses of the name server.
+In that case, it is suggested to use
+\fI\%forward\-addr\fP instead.
+Alternatively,
+\fI\%forward\-first: yes\fP can also
+work around the circular dependency by trying resolution outside of
+this zone.
+However this has the caveat that it would allow escaping this zone when
+any resolution attempt fails within this zone.
+.UNINDENT
+.UNINDENT
 .sp
 To use a non\-default port for DNS communication append \fB\(aq@\(aq\fP with the
 port number.
@@ -4116,9 +4323,11 @@ The cert must also match a CA from the
 .INDENT 0.0
 .TP
 .B forward\-first: \fI<yes or no>\fP 
-If a forwarded query is met with a SERVFAIL error, and this option is
-enabled, Unbound will fall back to normal recursive resolution for this
-query as if no query forwarding had been specified.
+If a forwarded query is met with a SERVFAIL error and this option is
+enabled Unbound will fall back to less specific resolution.
+This can lead to using less specific configured forward/stub/auth zones if
+any, or end up to otherwise normal recursive resolution for that particular
+query.
 .sp
 Default: no
 .UNINDENT
@@ -4156,12 +4365,14 @@ This is useful when you want immediate changes to be visible.
 .sp
 Default: no
 .UNINDENT
-.SS Authority Zone Options
+.SH AUTHORITY ZONE OPTIONS
+.sp
+These options are part of the \fBauth\-zone:\fP section.
 .sp
 Authority zones are configured with \fBauth\-zone:\fP, and each one must have a
 \fI\%name\fP\&.
-There can be multiple ones, by listing multiple auth\-zone clauses, each with a
-different name, pertaining to that part of the namespace.
+There can be multiple ones, by listing multiple \fBauth\-zone\fP section clauses,
+each with a different name, pertaining to that part of the namespace.
 The authority zone with the name closest to the name looked up is used.
 Authority zones can be processed on two distinct, non\-exclusive, configurable
 stages.
@@ -4192,7 +4403,7 @@ consult the local zone data while resolving.
 In this case, the aforementioned CNAME example will result in a thoroughly
 resolved answer.
 .sp
-Authority zones can be read from zonefile.
+Authority zones can be read from a zonefile.
 And can be kept updated via AXFR and IXFR.
 After update the zonefile is rewritten.
 The update mechanism uses the SOA timer values and performs SOA UDP queries to
@@ -4229,9 +4440,15 @@ does not support AXFR/IXFR for the zone, but if you used
 \fI\%url\fP to download the zonefile as a text file
 from a webserver that would work.
 .sp
-If you specify the hostname, you cannot use the domain from the zonefile,
-because it may not have that when retrieving that data, instead use a plain
-IP address to avoid a circular dependency on retrieving that IP address.
+\fBCAUTION:\fP
+.INDENT 7.0
+.INDENT 3.5
+If you specify the hostname, you cannot use the domain from the
+zonefile, because it may not have that when retrieving that data,
+instead use a plain IP address to avoid a circular dependency on
+retrieving that IP address.
+.UNINDENT
+.UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -4377,18 +4594,20 @@ If not given then no zonefile is used.
 If the file does not exist or is empty, Unbound will attempt to fetch zone
 data (eg. from the primary servers).
 .UNINDENT
-.SS View Options
+.SH VIEW OPTIONS
 .sp
-There may be multiple \fBview:\fP clauses.
+These options are part of the \fBview:\fP section.
+.sp
+There may be multiple \fBview:\fP sections.
 Each with a \fI\%name\fP and zero or more
 \fI\%local\-zone\fP and
-\fI\%local\-data\fP attributes.
+\fI\%local\-data\fP options.
 Views can also contain \fI\%view\-first\fP,
 \fI\%response\-ip\fP,
 \fI\%response\-ip\-data\fP and
-\fI\%local\-data\-ptr\fP attributes.
+\fI\%local\-data\-ptr\fP options.
 View can be mapped to requests by specifying the view name in an
-\fI\%access\-control\-view\fP attribute.
+\fI\%access\-control\-view\fP option.
 Options from matching views will override global options.
 Global options will be used if no matching view is found, or when the matching
 view does not have the option specified.
@@ -4398,7 +4617,7 @@ view does not have the option specified.
 Name of the view.
 Must be unique.
 This name is used in the
-\fI\%access\-control\-view\fP attribute.
+\fI\%access\-control\-view\fP option.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -4431,6 +4650,22 @@ Has the same behaviour as the global
 .UNINDENT
 .INDENT 0.0
 .TP
+.B response\-ip: \fI<IP\-netblock> <action>\fP 
+This requires use of the \fBrespip\fP module.
+.sp
+Similar to \fI\%response\-ip\fP but
+only applies to this view.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B response\-ip\-data: \fI<IP\-netblock> <\(dqresource record string\(dq>\fP 
+This requires use of the \fBrespip\fP module.
+.sp
+Similar to \fI\%response\-ip\-data\fP but
+only applies to this view.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B view\-first: \fI<yes or no>\fP 
 If enabled, it attempts to use the global
 \fI\%local\-zone\fP and
@@ -4439,9 +4674,11 @@ view specific options.
 .sp
 Default: no
 .UNINDENT
-.SS Python Module Options
+.SH PYTHON MODULE OPTIONS
 .sp
-The \fBpython:\fP clause gives the settings for the \fIpython(1)\fP script module.
+These options are part of the \fBpython:\fP section.
+.sp
+The \fBpython:\fP section gives the settings for the \fIpython(1)\fP script module.
 This module acts like the iterator and validator modules do, on queries and
 answers.
 To enable the script module it has to be compiled into the daemon, and the word
@@ -4464,14 +4701,16 @@ The script file to load.
 Repeat this option for every python module instance added to the
 \fI\%module\-config\fP option.
 .UNINDENT
-.SS Dynamic Library Module Options
+.SH DYNAMIC LIBRARY MODULE OPTIONS
 .sp
-The \fBdynlib:\fP clause gives the settings for the \fBdynlib\fP module.
+These options are part of the \fBdynlib:\fP section.
+.sp
+The \fBdynlib:\fP section gives the settings for the \fBdynlib\fP module.
 This module is only a very small wrapper that allows dynamic modules to be
 loaded on runtime instead of being compiled into the application.
 To enable the dynlib module it has to be compiled into the daemon, and the word
 \fBdynlib\fP has to be put in the
-\fI\%module\-config\fP attribute.
+\fI\%module\-config\fP option.
 Multiple instances of dynamic libraries are supported by adding the word
 \fBdynlib\fP more than once.
 .sp
@@ -4486,7 +4725,9 @@ The dynamic library file to load.
 Repeat this option for every dynlib module instance added to the
 \fI\%module\-config\fP option.
 .UNINDENT
-.SS DNS64 Module Options
+.SH DNS64 MODULE OPTIONS
+.sp
+These options are part of the \fBserver:\fP section.
 .sp
 The \fBdns64\fP module must be configured in the
 \fI\%module\-config\fP directive, e.g.:
@@ -4506,7 +4747,11 @@ and be compiled into the daemon to be enabled.
 \fBNOTE:\fP
 .INDENT 0.0
 .INDENT 3.5
-These settings go in the \fI\%server:\fP section.
+If combining the \fBrespip\fP and \fBdns64\fP modules, the \fBrespip\fP module
+needs to appear before the \fBdns64\fP module in the
+\fI\%module\-config\fP
+configuration option so that response IP and/or RPZ feeds can properly
+filter responses regardless of DNS64 synthesis.
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
@@ -4542,12 +4787,12 @@ Can be entered multiple times, list a new domain for which it applies, one
 per line.
 Applies also to names underneath the name given.
 .UNINDENT
-.SS NAT64 Operation
+.SH NAT64 OPTIONS
+.sp
+These options are part of the \fBserver:\fP section.
 .sp
 NAT64 operation allows using a NAT64 prefix for outbound requests to IPv4\-only
 servers.
-It is controlled by two options in the
-\fI\%server:\fP section:
 .INDENT 0.0
 .TP
 .B do\-nat64: \fI<yes or no>\fP 
@@ -4563,11 +4808,24 @@ Default: no
 Use a specific NAT64 prefix to reach IPv4\-only servers.
 The prefix length must be one of /32, /40, /48, /56, /64 or /96.
 .sp
+The NAT64 prefix is allowed by the
+\fI\%do\-not\-query\-address\fP option,
+so that there is a clear outcome of addresses in both; the NAT64 prefix
+is allowed.
+The IPv4 address could be filtered by the
+\fI\%do\-not\-query\-address\fP option,
+if needed.
+Allowing the NAT64 prefix is useful when using do\-not\-query\-address
+for a cluster of machines that is IPv6\-only and uses NAT64, but does
+not have internet access.
+.sp
 Default: 64:ff9b::/96 (same as \fI\%dns64\-prefix\fP)
 .UNINDENT
-.SS DNSCrypt Options
+.SH DNSCRYPT OPTIONS
 .sp
-The \fBdnscrypt:\fP clause gives the settings of the dnscrypt channel.
+These options are part of the \fBdnscrypt:\fP section.
+.sp
+The \fBdnscrypt:\fP section gives the settings of the dnscrypt channel.
 While those options are available, they are only meaningful if Unbound was
 compiled with \fB\-\-enable\-dnscrypt\fP\&.
 Currently certificate and secret/public keys cannot be generated by Unbound.
@@ -4697,7 +4955,9 @@ If left unconfigured, it will be configured automatically to be a power of
 .sp
 Default: (unconfigured)
 .UNINDENT
-.SS EDNS Client Subnet Module Options
+.SH EDNS CLIENT SUBNET MODULE OPTIONS
+.sp
+These options are part of the \fBserver:\fP section.
 .sp
 The ECS module must be configured in the
 \fI\%module\-config\fP directive, e.g.:
@@ -4713,13 +4973,6 @@ module\-config: \(dqsubnetcache validator iterator\(dq
 .UNINDENT
 .sp
 and be compiled into the daemon to be enabled.
-.sp
-\fBNOTE:\fP
-.INDENT 0.0
-.INDENT 3.5
-These settings go in the \fI\%server:\fP section.
-.UNINDENT
-.UNINDENT
 .sp
 If the destination address is allowed in the configuration Unbound will add the
 EDNS0 option to the query containing the relevant part of the client\(aqs address.
@@ -4842,7 +5095,9 @@ This number applies for each qname/qclass/qtype tuple.
 .sp
 Default: 100
 .UNINDENT
-.SS Opportunistic IPsec Support Module Options
+.SH OPPORTUNISTIC IPSEC SUPPORT MODULE OPTIONS
+.sp
+These options are part of the \fBserver:\fP section.
 .sp
 The IPsec module must be configured in the
 \fI\%module\-config\fP directive, e.g.:
@@ -4858,13 +5113,6 @@ module\-config: \(dqipsecmod validator iterator\(dq
 .UNINDENT
 .sp
 and be compiled into Unbound by using \fB\-\-enable\-ipsecmod\fP to be enabled.
-.sp
-\fBNOTE:\fP
-.INDENT 0.0
-.INDENT 3.5
-These settings go in the \fI\%server:\fP section.
-.UNINDENT
-.UNINDENT
 .sp
 When Unbound receives an A/AAAA query that is not in the cache and finds a
 valid answer, it will withhold returning the answer and instead will generate
@@ -4963,7 +5211,9 @@ If the option is not specified, all domains are treated as being allowed
 .B ipsecmod\-whitelist: \fI<domain>\fP 
 Alternate syntax for \fI\%ipsecmod\-allow\fP\&.
 .UNINDENT
-.SS Cache DB Module Options
+.SH CACHE DB MODULE OPTIONS
+.sp
+These options are part of the \fBcachedb:\fP section.
 .sp
 The Cache DB module must be configured in the
 \fI\%module\-config\fP directive, e.g.:
@@ -5025,7 +5275,7 @@ If connection close or timeout happens too often, Unbound will be effectively
 unusable with this backend.
 It\(aqs the administrator\(aqs responsibility to make the assumption hold.
 .sp
-The \fBcachedb:\fP clause gives custom settings of the cache DB module.
+The \fBcachedb:\fP section gives custom settings of the cache DB module.
 .INDENT 0.0
 .TP
 .B backend: \fI<backend name>\fP 
@@ -5253,10 +5503,13 @@ for the Redis replica server.
 .sp
 Default: 0
 .UNINDENT
-.SS DNSTAP Logging Options
+.SH DNSTAP OPTIONS
 .sp
-DNSTAP support, when compiled in by using \fB\-\-enable\-dnstap\fP, is enabled in
-the \fBdnstap:\fP section.
+These options are part of the \fBdnstap:\fP section.
+.sp
+DNSTAP is a flexible, structured binary log format for DNS software.
+When compiled in by using \fB\-\-enable\-dnstap\fP, it can be enabled in the
+\fBdnstap:\fP section.
 This starts an extra thread (when compiled with threading) that writes the log
 information to the destination.
 If Unbound is compiled without threading it does not spawn a thread, but
@@ -5422,15 +5675,18 @@ Enable to log forwarder response messages.
 .sp
 Default: no
 .UNINDENT
-.SS Response Policy Zone Options
+.SH RESPONSE POLICY ZONE OPTIONS
 .sp
-Response Policy Zones are configured with \fBrpz:\fP, and each one must have a
-\fI\%name\fP attribute.
-There can be multiple ones, by listing multiple RPZ clauses, each with a
-different name.
-RPZ clauses are applied in order of configuration and any match from an earlier
-RPZ zone will terminate the RPZ lookup.
+These options are part of the \fBrpz:\fP section.
+.sp
+Response Policy Zones are configured with \fBrpz:\fP section clauses, and each
+one must have a \fI\%name\fP option.
+There can be multiple ones, by listing multiple \fBrpz:\fP section clauses, each
+with a different name.
+RPZ sections are applied in order of configuration and any match from an
+earlier RPZ zone will terminate the RPZ lookup.
 Note that a PASSTHRU action is still considered a match.
+.sp
 The respip module needs to be added to the
 \fI\%module\-config\fP, e.g.:
 .INDENT 0.0
@@ -5441,6 +5697,17 @@ The respip module needs to be added to the
 module\-config: \(dqrespip validator iterator\(dq
 .ft P
 .fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+If combining the \fBrespip\fP and \fBdns64\fP modules, the \fBrespip\fP module
+needs to appear before the \fBdns64\fP module in the
+\fI\%module\-config\fP
+configuration option so that response IP and/or RPZ feeds can properly
+filter responses regardless of DNS64 synthesis.
 .UNINDENT
 .UNINDENT
 .sp
@@ -5512,9 +5779,6 @@ A 192.0.2.1                  answer with this IP address
 .sp
 Other records like AAAA, TXT and other CNAMEs (not rpz\-..) can also be used to
 answer queries with that content.
-.sp
-The RPZ zones can be configured in the config file with these settings in the
-\fBrpz:\fP block.
 .INDENT 0.0
 .TP
 .B name: \fI<zone name>\fP 
@@ -5653,7 +5917,7 @@ Default: no
 .INDENT 0.0
 .TP
 .B tags: \fI\(dq<list of tags>\(dq\fP 
-Limit the policies from this RPZ clause to clients with a matching tag.
+Limit the policies from this RPZ section to clients with a matching tag.
 .sp
 Tags need to be defined in \fI\%define\-tag\fP and
 can be assigned to client addresses using
@@ -5661,7 +5925,7 @@ can be assigned to client addresses using
 \fI\%interface\-tag\fP\&.
 Enclose list of tags in quotes (\fB\(dq\(dq\fP) and put spaces between tags.
 .sp
-If no tags are specified the policies from this clause will be applied for
+If no tags are specified the policies from this section will be applied for
 all clients.
 .UNINDENT
 .SH MEMORY CONTROL EXAMPLE
@@ -5730,6 +5994,6 @@ Default is to log to \fIsyslog(3)\fP\&.
 .SH AUTHOR
 Unbound developers are mentioned in the CREDITS file in the distribution.
 .SH COPYRIGHT
-1999-2025, NLnet Labs
+1999-2026, NLnet Labs
 .\" Generated by docutils manpage writer.
 .

@@ -148,6 +148,8 @@ struct config_file {
 	char* tls_ciphersuites;
 	/** if SNI is to be used */
 	int tls_use_sni;
+	/** TLS protocols */
+	char* tls_protocols;
 
 	/** port on which to provide DNS over HTTPS service */
 	int https_port;
@@ -365,6 +367,8 @@ struct config_file {
 	char* log_identity;
 	/** log dest addr for log_replies */
 	int log_destaddr;
+	/** log linux thread ID */
+	int log_thread_id;
 
 	/** do not report identity (id.server, hostname.bind) */
 	int hide_identity;
@@ -790,6 +794,8 @@ struct config_file {
 	size_t iter_scrub_ns;
 	/** limit on CNAME, DNAME RRs in answer for the iterator scrubber. */
 	int iter_scrub_cname;
+	/** limit on RRSIGs for an RRset for the iterator scrubber. */
+	int iter_scrub_rrsig;
 	/** limit on upstream queries for an incoming query and subqueries. */
 	int max_global_quota;
 	/** Should the iterator scrub promiscuous NS rrsets, from positive
@@ -1480,5 +1486,31 @@ int cfg_has_quic(struct config_file* cfg);
 
 /** get memory for string */
 size_t getmem_str(char* str);
+
+/**
+ * See if the if_automatic_ports list contains the value.
+ * @param ports: String with port numbers.
+ * @param p: number looked for.
+ * @return true if found, false if not found or parse failure.
+ */
+int cfg_ports_list_contains(char* ports, int p);
+
+/**
+ * Check if the configured string contains supported TLS protocols.
+ * @param tls_protocols: String with TLS protocols.
+ * @return true if all options are valid, else false.
+ */
+int cfg_tls_protocols_is_valid(const char* tls_protocols);
+
+/**
+ * Based on the configured TLS protocols fill which ones are allowed.
+ * @param tls_protocols: String with TLS protocols.
+ * @param allow12: will be true if TLSv1.2 is configured.
+ * @param allow13: will be true if TLSv1.3 is configured.
+ */
+void cfg_tls_protocols_allowed(const char* tls_protocols, int* allow12, int* allow13);
+
+/** get the file mtime stat (or error, with errno and nonexist) */
+int file_get_mtime(const char* file, time_t* mtime, long* ns, int* nonexist);
 
 #endif /* UTIL_CONFIG_FILE_H */

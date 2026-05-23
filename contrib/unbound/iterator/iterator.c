@@ -297,6 +297,7 @@ error_response_cache(struct module_qstate* qstate, int id, int rcode)
 	struct reply_info err;
 	struct msgreply_entry* msg;
 	if(qstate->no_cache_store) {
+		qstate->error_response_cache = 1;
 		return error_response(qstate, id, rcode);
 	}
 	if(qstate->prefetch_leeway > NORR_TTL) {
@@ -829,7 +830,7 @@ generate_sub_request(uint8_t* qname, size_t qnamelen, uint16_t qtype,
 		struct mesh_state* sub = NULL;
 		fptr_ok(fptr_whitelist_modenv_add_sub(
 			qstate->env->add_sub));
-		if(!(*qstate->env->add_sub)(qstate, &qinf,
+		if(!(*qstate->env->add_sub)(qstate, &qinf, NULL,
 			qflags, prime, valrec, &subq, &sub)){
 			return 0;
 		}
@@ -838,8 +839,8 @@ generate_sub_request(uint8_t* qname, size_t qnamelen, uint16_t qtype,
 		/* attach subquery, lookup existing or make a new one */
 		fptr_ok(fptr_whitelist_modenv_attach_sub(
 			qstate->env->attach_sub));
-		if(!(*qstate->env->attach_sub)(qstate, &qinf, qflags, prime,
-			valrec, &subq)) {
+		if(!(*qstate->env->attach_sub)(qstate, &qinf, NULL, qflags,
+			prime, valrec, &subq)) {
 			return 0;
 		}
 	}
@@ -2436,8 +2437,6 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 	int tf_policy;
 	struct delegpt_addr* target;
 	struct outbound_entry* outq;
-	struct sockaddr_storage real_addr;
-	socklen_t real_addrlen;
 	int auth_fallback = 0;
 	uint8_t* qout_orig = NULL;
 	size_t qout_orig_len = 0;
@@ -3060,17 +3059,6 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 			iq->dnssec_lame_query?" but lame_query anyway": "");
 	}
 
-	real_addr = target->addr;
-	real_addrlen = target->addrlen;
-
-	if(ie->nat64.use_nat64 && target->addr.ss_family == AF_INET) {
-		addr_to_nat64(&target->addr, &ie->nat64.nat64_prefix_addr,
-			ie->nat64.nat64_prefix_addrlen, ie->nat64.nat64_prefix_net,
-			&real_addr, &real_addrlen);
-		log_name_addr(VERB_QUERY, "applied NAT64:",
-			iq->dp->name, &real_addr, real_addrlen);
-	}
-
 	fptr_ok(fptr_whitelist_modenv_send_query(qstate->env->send_query));
 	outq = (*qstate->env->send_query)(&iq->qinfo_out,
 		iq->chase_flags | (iq->chase_to_rd?BIT_RD:0),
@@ -3082,7 +3070,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		!qstate->blacklist&&(!iter_qname_indicates_dnssec(qstate->env,
 		&iq->qinfo_out)||target->attempts==1)?0:BIT_CD),
 		iq->dnssec_expected, iq->caps_fallback || is_caps_whitelisted(
-		ie, iq), sq_check_ratelimit, &real_addr, real_addrlen,
+		ie, iq), sq_check_ratelimit, &target->addr, target->addrlen,
 		iq->dp->name, iq->dp->namelen,
 		(iq->dp->tcp_upstream || qstate->env->cfg->tcp_upstream),
 		(iq->dp->ssl_upstream || qstate->env->cfg->ssl_upstream),
@@ -3099,7 +3087,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 			return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
 		}
 		log_addr(VERB_QUERY, "error sending query to auth server",
-			&real_addr, real_addrlen);
+			&target->addr, target->addrlen);
 		if(qstate->env->cfg->qname_minimisation)
 			iq->minimisation_state = SKIP_MINIMISE_STATE;
 		return next_state(iq, QUERYTARGETS_STATE);
@@ -3236,8 +3224,19 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 	} else iter_scrub_ds(iq->response, NULL, NULL);
 	if(type == RESPONSE_TYPE_THROWAWAY &&
 		FLAGS_GET_RCODE(iq->response->rep->flags) == LDNS_RCODE_YXDOMAIN) {
-		/* YXDOMAIN is a permanent error, no need to retry */
-		type = RESPONSE_TYPE_ANSWER;
+		/* YXDOMAIN is a permanent error for DNAME expansion overflow
+		 * (RFC 6672 Section 2.2). Only accept if the response
+		 * contains a DNAME record in the answer section; otherwise
+		 * treat as invalid, to make sure the authoritative answer
+		 * make sense. */
+		size_t i;
+		for(i=0; i<iq->response->rep->an_numrrsets; i++) {
+			if(ntohs(iq->response->rep->rrsets[i]->rk.type)
+				== LDNS_RR_TYPE_DNAME) {
+				type = RESPONSE_TYPE_ANSWER;
+				break;
+			}
+		}
 	}
 	if(type == RESPONSE_TYPE_CNAME)
 		origtypecname = 1;
@@ -3616,7 +3615,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		return next_state(iq, INIT_REQUEST_STATE);
 	} else if(type == RESPONSE_TYPE_LAME) {
 		/* Cache the LAMEness. */
-		verbose(VERB_DETAIL, "query response was %sLAME",
+		verbose(VERB_DETAIL, "query response was categorized as %sLAME",
 			dnsseclame?"DNSSEC ":"");
 		if(!dname_subdomain_c(iq->qchase.qname, iq->dp->name)) {
 			log_err("mark lame: mismatch in qname and dpname");
@@ -3655,7 +3654,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		 * In this case, the event is just sent directly back to 
 		 * the QUERYTARGETS_STATE without resetting anything, 
 		 * because, clearly, the next target must be tried. */
-		verbose(VERB_DETAIL, "query response was THROWAWAY");
+		verbose(VERB_DETAIL, "query response was categorized as THROWAWAY");
 	} else {
 		log_warn("A query response came back with an unknown type: %d",
 			(int)type);

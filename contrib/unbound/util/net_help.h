@@ -307,7 +307,7 @@ int sockaddr_cmp_scopeid(struct sockaddr_storage* addr1, socklen_t len1,
  * @param len: the length of addr.
  * @return: true if sockaddr is ip6.
  */
-int addr_is_ip6(struct sockaddr_storage* addr, socklen_t len);
+int addr_is_ip6(const struct sockaddr_storage* addr, socklen_t len);
 
 /**
  * Make sure the sockaddr ends in zeroes. For tree insertion and subsequent
@@ -478,9 +478,10 @@ void log_cert(unsigned level, const char* str, void* cert);
 /**
  * Set SSL_OP_NOxxx options on SSL context to disable bad crypto
  * @param ctxt: SSL_CTX*
+ * @param tls_protocols: configure string with allowed TLS protocols to use.
  * @return false on failure.
  */
-int listen_sslctx_setup(void* ctxt);
+int listen_sslctx_setup(void* ctxt, const char* tls_protocols);
 
 /**
  * Further setup of listening SSL context, after keys loaded.
@@ -499,12 +500,13 @@ void listen_sslctx_setup_2(void* ctxt);
  *	to be set.
  * @param is_dot: if the TLS connection is for DoT to set the appropriate ALPN.
  * @param is_doh: if the TLS connection is for DoH to set the appropriate ALPN.
+ * @param tls_protocols: configure string with allowed TLS protocols to use.
  * return SSL_CTX* or NULL on failure (logged).
  */
 void* listen_sslctx_create(const char* key, const char* pem,
 	const char* verifypem, const char* tls_ciphers,
 	const char* tls_ciphersuites, int set_ticket_keys_cb,
-	int is_dot, int is_doh);
+	int is_dot, int is_doh, const char* tls_protocols);
 
 /**
  * create SSL connect context
@@ -563,9 +565,11 @@ void ub_openssl_lock_delete(void);
 /**
  * setup TLS session ticket
  * @param tls_session_ticket_keys: TLS ticket secret filenames
+ * @param chroot: if not NULL, the chroot that is in use.
  * @return false on failure (alloc failure).
  */
-int listen_sslctx_setup_ticket_keys(struct config_strlist* tls_session_ticket_keys);
+int listen_sslctx_setup_ticket_keys(
+	struct config_strlist* tls_session_ticket_keys, char* chroot);
 
 /** Free memory used for TLS session ticket keys */
 void listen_sslctx_delete_ticket_keys(void);

@@ -496,10 +496,18 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 				return r;
 			sldns_buffer_write(pkt, &key->rk.type, 2);
 			sldns_buffer_write(pkt, &key->rk.rrset_class, 2);
-			if(data->rr_ttl[j] < adjust)
+			if(key->rk.flags & PACKED_RRSET_UPSTREAM_0TTL) {
+				sldns_buffer_write_u32(pkt, 0);
+			} else if(adjust == 0) {
+				sldns_buffer_write_u32(pkt, data->rr_ttl[j]);
+			} else if(TTL_IS_EXPIRED(data->rr_ttl[j], adjust)) {
 				sldns_buffer_write_u32(pkt,
-					SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0);
-			else	sldns_buffer_write_u32(pkt, data->rr_ttl[j]-adjust);
+					EXPIRED_REPLY_TTL_CALC(
+					    data->rr_ttl[j], data->ttl_add));
+			} else {
+				sldns_buffer_write_u32(pkt,
+					data->rr_ttl[j] - adjust);
+			}
 			if(c) {
 				if((r=compress_rdata(pkt, data->rr_data[j],
 					data->rr_len[j], region, tree, c,
@@ -533,10 +541,18 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 			}
 			sldns_buffer_write_u16(pkt, LDNS_RR_TYPE_RRSIG);
 			sldns_buffer_write(pkt, &key->rk.rrset_class, 2);
-			if(data->rr_ttl[i] < adjust)
+			if(key->rk.flags & PACKED_RRSET_UPSTREAM_0TTL) {
+				sldns_buffer_write_u32(pkt, 0);
+			} else if(adjust == 0) {
+				sldns_buffer_write_u32(pkt, data->rr_ttl[i]);
+			} else if(TTL_IS_EXPIRED(data->rr_ttl[i], adjust)) {
 				sldns_buffer_write_u32(pkt,
-					SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0);
-			else	sldns_buffer_write_u32(pkt, data->rr_ttl[i]-adjust);
+					EXPIRED_REPLY_TTL_CALC(
+					    data->rr_ttl[i], data->ttl_add));
+			} else {
+				sldns_buffer_write_u32(pkt,
+					data->rr_ttl[i] - adjust);
+			}
 			/* rrsig rdata cannot be compressed, perform 100+ byte
 			 * memcopy. */
 			sldns_buffer_write(pkt, data->rr_data[i],
@@ -993,10 +1009,10 @@ attach_edns_record(sldns_buffer* pkt, struct edns_data* edns)
 	attach_edns_record_max_msg_sz(pkt, edns, edns->udp_size);
 }
 
-int 
-reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep, 
+int
+reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep,
 	uint16_t id, uint16_t qflags, sldns_buffer* pkt, time_t timenow,
-	int cached, struct regional* region, uint16_t udpsize, 
+	int cached, struct regional* region, uint16_t udpsize,
 	struct edns_data* edns, int dnssec, int secure)
 {
 	uint16_t flags;
@@ -1115,22 +1131,30 @@ extended_error_encode(sldns_buffer* buf, uint16_t rcode,
 		sldns_buffer_write_u16(buf, qinfo->qclass);
 	}
 	sldns_buffer_flip(buf);
-	if(edns) {
+	if(edns && edns->edns_present) {
+		uint16_t edns_field_size, ede_size, ede_txt_size;
 		struct edns_data es = *edns;
 		es.edns_version = EDNS_ADVERTISED_VERSION;
 		es.udp_size = EDNS_ADVERTISED_SIZE;
 		es.ext_rcode = (uint8_t)(rcode >> 4);
 		es.bits &= EDNS_DO;
-		if(sldns_buffer_limit(buf) + calc_edns_field_size(&es) >
-			edns->udp_size) {
+		/* EDEs are optional. If space is a concern try in order:
+		 * - removing any EXTRA-TEXT fields from explicit EDEs, or
+		 * - removing all EDEs,
+		 * to see if EDNS can fit. */
+		edns_field_size = calc_edns_field_size(&es);
+		ede_size = calc_ede_option_size(&es, &ede_txt_size);
+		if(edns->udp_size >= sldns_buffer_limit(buf) + edns_field_size)
+			attach_edns_record_max_msg_sz(buf, &es, edns->udp_size);
+		else if(edns->udp_size >= sldns_buffer_limit(buf) + edns_field_size - ede_txt_size) {
+			ede_trim_text(&es.opt_list_inplace_cb_out);
+			ede_trim_text(&es.opt_list_out);
+			attach_edns_record_max_msg_sz(buf, &es, edns->udp_size);
+		} else if(edns->udp_size >= sldns_buffer_limit(buf) + edns_field_size - ede_size) {
 			edns_opt_list_remove(&es.opt_list_inplace_cb_out, LDNS_EDNS_EDE);
 			edns_opt_list_remove(&es.opt_list_out, LDNS_EDNS_EDE);
-			if(sldns_buffer_limit(buf) + calc_edns_field_size(&es) >
-				edns->udp_size) {
-				return;
-			}
+			attach_edns_record_max_msg_sz(buf, &es, edns->udp_size);
 		}
-		attach_edns_record(buf, &es);
 	}
 }
 

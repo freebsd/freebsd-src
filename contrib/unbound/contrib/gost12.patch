@@ -1,0 +1,325 @@
+diff --git a/sldns/keyraw.c b/sldns/keyraw.c
+index 42a9262a3..cc6406a56 100644
+--- a/sldns/keyraw.c
++++ b/sldns/keyraw.c
+@@ -85,7 +85,7 @@ sldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
+ 		}
+ 		break;
+ #ifdef USE_GOST
+-	case LDNS_ECC_GOST:
++	case LDNS_ECC_GOST12:
+ 		return 512;
+ #endif
+ #ifdef USE_ECDSA
+@@ -146,7 +146,7 @@ sldns_key_EVP_load_gost_id(void)
+ 	if(gost_id) return gost_id;
+ 
+ 	/* see if configuration loaded gost implementation from other engine*/
+-	meth = EVP_PKEY_asn1_find_str(NULL, "gost2001", -1);
++	meth = EVP_PKEY_asn1_find_str(NULL, "gost2012_256", -1);
+ 	if(meth) {
+ 		EVP_PKEY_asn1_get0_info(&gost_id, NULL, NULL, NULL, NULL, meth);
+ 		return gost_id;
+@@ -170,7 +170,7 @@ sldns_key_EVP_load_gost_id(void)
+ 		return 0;
+ 	}
+ 
+-	meth = EVP_PKEY_asn1_find_str(&e, "gost2001", -1);
++	meth = EVP_PKEY_asn1_find_str(&e, "gost2012_256", -1);
+ 	if(!meth) {
+ 		/* algo not found */
+ 		ENGINE_finish(e);
+@@ -536,12 +536,17 @@ EVP_PKEY* sldns_key_rsa2pkey_raw(unsigned char* key, size_t len)
+ EVP_PKEY*
+ sldns_gost2pkey_raw(unsigned char* key, size_t keylen)
+ {
+-	/* prefix header for X509 encoding */
+-	uint8_t asn[37] = { 0x30, 0x63, 0x30, 0x1c, 0x06, 0x06, 0x2a, 0x85, 
+-		0x03, 0x02, 0x02, 0x13, 0x30, 0x12, 0x06, 0x07, 0x2a, 0x85, 
+-		0x03, 0x02, 0x02, 0x23, 0x01, 0x06, 0x07, 0x2a, 0x85, 0x03, 
+-		0x02, 0x02, 0x1e, 0x01, 0x03, 0x43, 0x00, 0x04, 0x40};
+-	unsigned char encoded[37+64];
++	/* prefix header for X509 encoding
++	 *
++	 * note: based on draft-makarenko-gost2012-dnssec-01 (pre-RFC9558 and it DOES work!)
++	 * ASN1 header described in RFC9558 is not suitable due to d2i_PUBKEY() works with
++	 * non-compressed public keys (two additional bytes 0x04, 0x40 at the end of header)
++	 */
++	uint8_t asn[32] = { 0x30, 0x5e, 0x30, 0x17, 0x06, 0x08, 0x2a, 0x85,
++			    0x03, 0x07, 0x01, 0x01, 0x01, 0x01, 0x30, 0x0b,
++			    0x06, 0x09, 0x2a, 0x85, 0x03, 0x07, 0x01, 0x02,
++			    0x01, 0x01, 0x01, 0x03, 0x43, 0x00, 0x04, 0x40 };
++	unsigned char encoded[32+64];
+ 	const unsigned char* pp;
+ 	if(keylen != 64) {
+ 		/* key wrong size */
+@@ -549,8 +554,8 @@ sldns_gost2pkey_raw(unsigned char* key, size_t keylen)
+ 	}
+ 
+ 	/* create evp_key */
+-	memmove(encoded, asn, 37);
+-	memmove(encoded+37, key, 64);
++	memmove(encoded, asn, 32);
++	memmove(encoded+32, key, 64);
+ 	pp = (unsigned char*)&encoded[0];
+ 
+ 	return d2i_PUBKEY(NULL, &pp, (int)sizeof(encoded));
+diff --git a/sldns/rrdef.h b/sldns/rrdef.h
+index bbc3d5b86..7d5f3c057 100644
+--- a/sldns/rrdef.h
++++ b/sldns/rrdef.h
+@@ -384,11 +384,12 @@ enum sldns_enum_algorithm
+         LDNS_RSASHA1_NSEC3      = 7,
+         LDNS_RSASHA256          = 8,   /* RFC 5702 */
+         LDNS_RSASHA512          = 10,  /* RFC 5702 */
+-        LDNS_ECC_GOST           = 12,  /* RFC 5933 */
++        LDNS_ECC_GOST           = 12,  /* RFC 5933, deprecated */
+         LDNS_ECDSAP256SHA256    = 13,  /* RFC 6605 */
+         LDNS_ECDSAP384SHA384    = 14,  /* RFC 6605 */
+ 	LDNS_ED25519		= 15,  /* RFC 8080 */
+ 	LDNS_ED448		= 16,  /* RFC 8080 */
++	LDNS_ECC_GOST12		= 23,  /* RFC 9558 */
+         LDNS_INDIRECT           = 252,
+         LDNS_PRIVATEDNS         = 253,
+         LDNS_PRIVATEOID         = 254
+@@ -402,8 +403,9 @@ enum sldns_enum_hash
+ {
+         LDNS_SHA1               = 1,  /* RFC 4034 */
+         LDNS_SHA256             = 2,  /* RFC 4509 */
+-        LDNS_HASH_GOST          = 3,  /* RFC 5933 */
+-        LDNS_SHA384             = 4   /* RFC 6605 */
++        LDNS_HASH_GOST          = 3,  /* RFC 5933, deprecated */
++        LDNS_SHA384             = 4,  /* RFC 6605 */
++        LDNS_HASH_GOST12        = 5   /* RFC 9558 */
+ };
+ typedef enum sldns_enum_hash sldns_hash;
+ 
+diff --git a/sldns/wire2str.c b/sldns/wire2str.c
+index 75b8f37b0..b4c4755e6 100644
+--- a/sldns/wire2str.c
++++ b/sldns/wire2str.c
+@@ -45,11 +45,12 @@ static sldns_lookup_table sldns_algorithms_data[] = {
+ 	{ LDNS_RSASHA1_NSEC3, "RSASHA1-NSEC3-SHA1" },
+ 	{ LDNS_RSASHA256, "RSASHA256"},
+ 	{ LDNS_RSASHA512, "RSASHA512"},
+-	{ LDNS_ECC_GOST, "ECC-GOST"},
++	{ LDNS_ECC_GOST, "ECC-GOST"}, /* deprecated */
+ 	{ LDNS_ECDSAP256SHA256, "ECDSAP256SHA256"},
+ 	{ LDNS_ECDSAP384SHA384, "ECDSAP384SHA384"},
+ 	{ LDNS_ED25519, "ED25519"},
+ 	{ LDNS_ED448, "ED448"},
++	{ LDNS_ECC_GOST12, "ECC-GOST12"},
+ 	{ LDNS_INDIRECT, "INDIRECT" },
+ 	{ LDNS_PRIVATEDNS, "PRIVATEDNS" },
+ 	{ LDNS_PRIVATEOID, "PRIVATEOID" },
+@@ -61,8 +62,9 @@ sldns_lookup_table* sldns_algorithms = sldns_algorithms_data;
+ static sldns_lookup_table sldns_hashes_data[] = {
+ 	{ LDNS_SHA1, "SHA1" },
+ 	{ LDNS_SHA256, "SHA256" },
+-	{ LDNS_HASH_GOST, "HASH-GOST" },
++	{ LDNS_HASH_GOST, "HASH-GOST" }, /* deprecated */
+ 	{ LDNS_SHA384, "SHA384" },
++	{ LDNS_HASH_GOST12, "HASH-GOST12" },
+ 	{ 0, NULL }
+ };
+ sldns_lookup_table* sldns_hashes = sldns_hashes_data;
+diff --git a/testcode/unitverify.c b/testcode/unitverify.c
+index fcf2e2ffe..4a33e9f6a 100644
+--- a/testcode/unitverify.c
++++ b/testcode/unitverify.c
+@@ -696,7 +696,7 @@ verify_test(void)
+ #endif
+ #ifdef USE_GOST
+ 	if(sldns_key_EVP_load_gost_id())
+-	  verifytest_file(SRCDIRSTR "/testdata/test_sigs.gost", "20090807060504");
++	  verifytest_file(SRCDIRSTR "/testdata/test_sigs.gost12", "20251226060504");
+ 	else printf("Warning: skipped GOST, openssl does not provide gost.\n");
+ #endif
+ #ifdef USE_ECDSA
+diff --git a/testdata/test_sigs.gost12 b/testdata/test_sigs.gost12
+new file mode 100644
+index 000000000..72a250cff
+--- /dev/null
++++ b/testdata/test_sigs.gost12
+@@ -0,0 +1,39 @@
++; Signature test file
++
++; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification.
++; later entries are verified with it.
++
++; Test GOST signatures using algo number 23.
++
++ENTRY_BEGIN
++SECTION QUESTION
++nlnetlabs.nl.	IN DNSKEY
++SECTION ANSWER
++nlnetlabs.nl.   3600    IN      DNSKEY  256 3 23 cdOtkEcb6NhcdOpIbPYtWyWxdlUiKgtKQbYg3lIjtG7i3fYjUID9zyOgoQEiV9wuGCfrw5cNsnvNw+8HiVFK4g== ;{id = 12301 (zsk), size = 512b}
++ENTRY_END
++
++; entry to test
++ENTRY_BEGIN
++SECTION QUESTION
++open.nlnetlabs.nl. IN A
++SECTION ANSWER
++open.nlnetlabs.nl.      600     IN      A       213.154.224.1
++open.nlnetlabs.nl.      600     IN      RRSIG   A 23 3 600 20260122084903 20251225084903 12301 nlnetlabs.nl. I12wYNs96DxMy26CWx296/sWMJAFg4nNXBo0sw7PnuMbJW5NFAmZYtFWhUdOWn4umaiodYOAmKG8Zg/OKvEtAQ==
++ENTRY_END
++
++ENTRY_BEGIN
++SECTION QUESTION
++open.nlnetlabs.nl. IN AAAA
++SECTION ANSWER
++open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::1
++open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::53
++open.nlnetlabs.nl.      600     IN      RRSIG   AAAA 23 3 600 20260122084903 20251225084903 12301 nlnetlabs.nl. J0jHa+CP8HM6UDa2+uYgaze2mfpJTh2hkZ2KwMTYb5sfL6iBmxxql0c/403Itk4fMfYBMGn7zfzDQ+CxnCgSWw==
++ENTRY_END
++
++ENTRY_BEGIN
++SECTION QUESTION
++open.nlnetlabs.nl. IN NSEC
++SECTION ANSWER
++open.nlnetlabs.nl.      86400   IN      NSEC    nlnetlabs.nl. A AAAA RRSIG NSEC
++open.nlnetlabs.nl.      86400   IN      RRSIG   NSEC 23 3 86400 20260122084903 20251225084903 12301 nlnetlabs.nl. INCLYe9vAaNYaYx5Ay3Q6QdX+wPW9sMRvVlGt/jUEGgCi+88QlV80CT1oHrhRI66I14Wk6NRAGZRNx1tUPSHSg==
++ENTRY_END
+diff --git a/validator/val_secalgo.c b/validator/val_secalgo.c
+index be8347b1b..4f621a309 100644
+--- a/validator/val_secalgo.c
++++ b/validator/val_secalgo.c
+@@ -246,10 +246,10 @@ ds_digest_size_supported(int algo)
+ 			return SHA256_DIGEST_LENGTH;
+ #endif
+ #ifdef USE_GOST
+-		case LDNS_HASH_GOST:
++		case LDNS_HASH_GOST12:
+ 			/* we support GOST if it can be loaded */
+ 			(void)sldns_key_EVP_load_gost_id();
+-			if(EVP_get_digestbyname("md_gost94"))
++			if(EVP_get_digestbyname("md_gost12_256"))
+ 				return 32;
+ 			else	return 0;
+ #endif
+@@ -265,9 +265,9 @@ ds_digest_size_supported(int algo)
+ #ifdef USE_GOST
+ /** Perform GOST hash */
+ static int
+-do_gost94(unsigned char* data, size_t len, unsigned char* dest)
++do_gost12(unsigned char* data, size_t len, unsigned char* dest)
+ {
+-	const EVP_MD* md = EVP_get_digestbyname("md_gost94");
++	const EVP_MD* md = EVP_get_digestbyname("md_gost12_256");
+ 	if(!md) 
+ 		return 0;
+ 	return sldns_digest_evp(data, (unsigned int)len, dest, md);
+@@ -302,8 +302,8 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
+ 			return 1;
+ #endif
+ #ifdef USE_GOST
+-		case LDNS_HASH_GOST:
+-			if(do_gost94(buf, len, res))
++		case LDNS_HASH_GOST12:
++			if(do_gost12(buf, len, res))
+ 				return 1;
+ 			break;
+ #endif
+@@ -384,7 +384,7 @@ dnskey_algo_id_is_supported(int id)
+ #endif
+ 
+ #ifdef USE_GOST
+-	case LDNS_ECC_GOST:
++	case LDNS_ECC_GOST12:
+ 		/* we support GOST if it can be loaded */
+ 		return sldns_key_EVP_load_gost_id();
+ #endif
+@@ -612,17 +612,17 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
+ 
+ 			break;
+ #ifdef USE_GOST
+-		case LDNS_ECC_GOST:
++		case LDNS_ECC_GOST12:
+ 			*evp_key = sldns_gost2pkey_raw(key, keylen);
+ 			if(!*evp_key) {
+ 				verbose(VERB_QUERY, "verify: "
+ 					"sldns_gost2pkey_raw failed");
+ 				return 0;
+ 			}
+-			*digest_type = EVP_get_digestbyname("md_gost94");
++			*digest_type = EVP_get_digestbyname("md_gost12_256");
+ 			if(!*digest_type) {
+ 				verbose(VERB_QUERY, "verify: "
+-					"EVP_getdigest md_gost94 failed");
++					"EVP_getdigest md_gost12_256 failed");
+ 				return 0;
+ 			}
+ 			break;
+@@ -964,7 +964,7 @@ ds_digest_size_supported(int algo)
+ 			return SHA384_LENGTH;
+ #endif
+ 		/* GOST not supported in NSS */
+-		case LDNS_HASH_GOST:
++		case LDNS_HASH_GOST12:
+ 		default: break;
+ 	}
+ 	return 0;
+@@ -991,7 +991,7 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
+ 			return HASH_HashBuf(HASH_AlgSHA384, res, buf, len)
+ 				== SECSuccess;
+ #endif
+-		case LDNS_HASH_GOST:
++		case LDNS_HASH_GOST12:
+ 		default: 
+ 			verbose(VERB_QUERY, "unknown DS digest algorithm %d", 
+ 				algo);
+@@ -1031,7 +1031,7 @@ dnskey_algo_id_is_supported(int id)
+ 	case LDNS_ECDSAP384SHA384:
+ 		return PK11_TokenExists(CKM_ECDSA);
+ #endif
+-	case LDNS_ECC_GOST:
++	case LDNS_ECC_GOST12:
+ 	default:
+ 		return 0;
+ 	}
+@@ -1352,7 +1352,7 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
+ 			/* no prefix for DSA verification */
+ 			break;
+ #endif /* USE_ECDSA */
+-		case LDNS_ECC_GOST:
++		case LDNS_ECC_GOST12:
+ 		default:
+ 			verbose(VERB_QUERY, "verify: unknown algorithm %d", 
+ 				algo);
+@@ -1675,7 +1675,7 @@ ds_digest_size_supported(int algo)
+ 			return SHA384_DIGEST_SIZE;
+ #endif
+ 		/* GOST not supported */
+-		case LDNS_HASH_GOST:
++		case LDNS_ECC_GOST12:
+ 		default:
+ 			break;
+ 	}
+@@ -1700,7 +1700,7 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
+ 			return _digest_nettle(SHA384_DIGEST_SIZE, buf, len, res);
+ 
+ #endif
+-		case LDNS_HASH_GOST:
++		case LDNS_ECC_GOST12:
+ 		default:
+ 			verbose(VERB_QUERY, "unknown DS digest algorithm %d",
+ 				algo);
+@@ -1744,7 +1744,7 @@ dnskey_algo_id_is_supported(int id)
+ 		return 1;
+ #endif
+ 	case LDNS_RSAMD5: /* RFC 6725 deprecates RSAMD5 */
+-	case LDNS_ECC_GOST:
++	case LDNS_ECC_GOST12:
+ 	default:
+ 		return 0;
+ 	}
+@@ -2103,7 +2103,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
+ 			return sec_status_secure;
+ #endif
+ 	case LDNS_RSAMD5:
+-	case LDNS_ECC_GOST:
++	case LDNS_ECC_GOST12:
+ 	default:
+ 		*reason = "unable to verify signature, unknown algorithm";
+ 		return sec_status_bogus;

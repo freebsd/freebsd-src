@@ -48,6 +48,10 @@
 #include "util/regional.h"
 #include "util/netevent.h"
 #include "dnstap/dnstap_config.h"
+#ifdef __QNX__
+/* For struct timeval */
+#include <sys/time.h>
+#endif /* __QNX__ */
 struct pending;
 struct pending_timeout;
 struct ub_randstate;
@@ -260,6 +264,9 @@ struct reuse_tcp {
 	socklen_t addrlen;
 	/** also key for tcp_reuse tree, if ssl is used */
 	int is_ssl;
+	/** If is_ssl is enabled, tls_auth_name is part of the key for
+	 * tcp_reuse tree. If the string is NULL, it without a tls_auth_name */
+	char* tls_auth_name;
 	/** lru chain, so that the oldest can be removed to get a new
 	 * connection when all are in (re)use. oldest is last in list.
 	 * The lru only contains empty connections waiting for reuse,

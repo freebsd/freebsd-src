@@ -44,6 +44,10 @@
 #include "util/storage/lruhash.h"
 #include "util/data/packed_rrset.h"
 #include "sldns/rrdef.h"
+#ifdef __QNX__
+/* For struct timeval */
+#include <sys/time.h>
+#endif /* __QNX__ */
 struct sldns_buffer;
 struct comm_reply;
 struct alloc_cache;
@@ -59,10 +63,6 @@ struct rrset_parse;
 struct local_rrset;
 struct dns_msg;
 enum comm_point_type;
-
-/** calculate the prefetch TTL as 90% of original. Calculation
- * without numerical overflow (uin32_t) */
-#define PREFETCH_TTL_CALC(ttl) ((ttl) - (ttl)/10)
 
 /**
  * Structure to store query information that makes answers to queries
@@ -340,6 +340,15 @@ void reply_info_sortref(struct reply_info* rep);
  */
 void reply_info_set_ttls(struct reply_info* rep, time_t timenow);
 
+/**
+ * Set TTLs inside the replyinfo to the given absolute values.
+ * @param rep: reply info. rrsets must be filled in.
+ *	Also refs must be filled in.
+ * @param ttl: absolute ttl value to be set.
+ * @param ttl_add: the current time to be used verbatim for ttl_add in the rrsets.
+ */
+void reply_info_absolute_ttls(struct reply_info* rep, time_t ttl, time_t ttl_add);
+
 /** 
  * Delete reply_info and packed_rrsets (while they are not yet added to the
  * hashtables.). Returns rrsets to the alloc cache.
@@ -572,7 +581,7 @@ void log_query_info(enum verbosity_value v, const char* str,
 	struct query_info* qinf);
 
 /**
- * Append edns option to edns option list
+ * Append edns option to edns option list.
  * @param list: the edns option list to append the edns option to.
  * @param code: the edns option's code.
  * @param len: the edns option's length.
@@ -584,17 +593,20 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
         uint8_t* data, struct regional* region);
 
 /**
- * Append edns EDE option to edns options list
+ * Append edns EDE option to edns options list.
+ * We need ATTR_NONSTRING because we are trimming the trailing \0 of static
+ * string (TXT) when assigning to ede.text; it silences compiler nonstring
+ * warnings.
  * @param LIST: the edns option list to append the edns option to.
  * @param REGION: region to allocate the new edns option.
  * @param CODE: the EDE code.
- * @param TXT: Additional text for the option
+ * @param TXT: Additional text for the option.
  */
 #define EDNS_OPT_LIST_APPEND_EDE(LIST, REGION, CODE, TXT) 		\
 	do {								\
 		struct {						\
 			uint16_t code;					\
-			char text[sizeof(TXT) - 1];			\
+			char ATTR_NONSTRING(text[sizeof(TXT) - 1]) ;	\
 		} ede = { htons(CODE), TXT };				\
                 verbose(VERB_ALGO, "attached EDE code: %d with"		\
                         " message: '%s'", CODE, TXT);			\

@@ -496,7 +496,7 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 		struct mesh_state* sub = NULL;
 		fptr_ok(fptr_whitelist_modenv_add_sub(
 			qstate->env->add_sub));
-		if(!(*qstate->env->add_sub)(qstate, &ask, 
+		if(!(*qstate->env->add_sub)(qstate, &ask, NULL,
 			(uint16_t)(BIT_RD|flags), 0, valrec, newq, &sub)){
 			log_err("Could not generate request: out of memory");
 			return 0;
@@ -505,7 +505,7 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	else {
 		fptr_ok(fptr_whitelist_modenv_attach_sub(
 			qstate->env->attach_sub));
-		if(!(*qstate->env->attach_sub)(qstate, &ask, 
+		if(!(*qstate->env->attach_sub)(qstate, &ask, NULL,
 			(uint16_t)(BIT_RD|flags), 0, valrec, newq)){
 			log_err("Could not generate request: out of memory");
 			return 0;
@@ -710,6 +710,37 @@ validate_msg_signatures(struct module_qstate* qstate, struct val_qstate* vq,
 			((struct packed_rrset_data*)chase_reply->rrsets[i-1]->entry.data)->security == sec_status_secure &&
 			dname_strict_subdomain_c(s->rk.dname, chase_reply->rrsets[i-1]->rk.dname)
 			) {
+			/* Check that the CNAME target matches the DNAME
+			 * derivation. Zone changes during the redirection
+			 * lookups or looped DNAMEs can have such a CNAME. */
+			uint8_t expected_target[LDNS_MAX_DOMAINLEN];
+			uint8_t* cname_target = NULL;
+			size_t cname_target_len = 0;
+			get_cname_target(s, &cname_target, &cname_target_len);
+			if(!cname_target ||
+				!derive_cname_from_dname(s, /* CNAME RRset */
+				chase_reply->rrsets[i-1], /* DNAME RRset */
+				expected_target, /* Output buffer */
+				sizeof(expected_target))) {
+				verbose(VERB_ALGO, "DNAME CNAME derivation failed");
+				errinf_ede(qstate, "DNAME CNAME derivation failed", reason_bogus);
+				errinf_origin(qstate, qstate->reply_origin);
+				chase_reply->security = sec_status_bogus;
+				update_reason_bogus(chase_reply, reason_bogus);
+				return 0;
+			}
+			if(query_dname_compare(cname_target, expected_target) != 0) {
+				verbose(VERB_ALGO, "CNAME target mismatch: not synthesized from DNAME");
+				errinf_ede(qstate, "CNAME target mismatch: not synthesized from DNAME", reason_bogus);
+				errinf_dname(qstate, ", for", s->rk.dname);
+				errinf_dname(qstate, "CNAME", cname_target);
+				errinf(qstate, ",");
+				errinf_origin(qstate, qstate->reply_origin);
+				chase_reply->security = sec_status_bogus;
+				update_reason_bogus(chase_reply, reason_bogus);
+				return 0;
+			}
+
 			/* CNAME was synthesized by our own iterator */
 			/* since the DNAME verified, mark the CNAME as secure */
 			((struct packed_rrset_data*)s->entry.data)->security =
@@ -2699,7 +2730,9 @@ val_operate(struct module_qstate* qstate, enum module_ev event, int id,
 		if(!needs_validation(qstate, qstate->return_rcode, 
 			qstate->return_msg)) {
 			/* no need to validate this */
-			if(qstate->return_msg)
+			/* For valrec responses, leave at sec_status_unchecked,
+			 * no security status has been requested for it. */
+			if(qstate->return_msg && !qstate->is_valrec)
 				qstate->return_msg->rep->security =
 					sec_status_indeterminate;
 			qstate->ext_state[id] = module_finished;
@@ -3090,6 +3123,62 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 			LDNS_SECTION_ANSWER, qstate, &verified, reasonbuf,
 			sizeof(reasonbuf));
 		if(sec == sec_status_secure) {
+			/* Check for wildcard expansion */
+			uint8_t* wc = NULL;
+			size_t wl = 0;
+
+			if(!val_rrset_wildcard(cname, &wc, &wl)) {
+				verbose(VERB_ALGO, "CNAME has inconsistent wildcard signatures");
+				reason = "wildcard CNAME inconsistent signatures";
+				errinf_ede(qstate, reason, reason_bogus);
+				goto return_bogus;
+			}
+
+			if(wc != NULL) {
+				/* Wildcard expansion detected - require NSEC proof */
+				/* So this is a wildcard CNAME response to DS.
+				 * If the wildcard is bogus then we have bogus.
+				 * If the wildcard is true, then there is
+				 * not a referral point here or lower,
+				 * that can be insecure,
+				 * and also no DS records, here or lower. */
+				/* For a valid chain, to DS, but this
+				 * wildcard CNAME happens in a middle label,
+				 * then that can not happen, because there is
+				 * data under that label, and thus the wildcard
+				 * should not expand.
+				 * If we are going to the wildcard, that also
+				 * does not expand the wildcard, when above it.
+				 * So for valids lookup chains to DS, no
+				 * wildcard CNAME is expected on middle labels.
+				 * For lookups to an insecure point, the
+				 * delegation is information under the label,
+				 * and thus the wildcard does not expand.
+				 * So, no insecure point is possible.
+				 * Can not get a valid chain of trust, or
+				 * to a delegation point for insecure.
+				 * Or the wildcard, its nxdomain for the qname
+				 * proof, is invalid, in which case this is
+				 * a bogus reply.
+				 * If this was a lookup where a wildcard
+				 * expansion is genuinely expected, eg,
+				 * a dnssec valid wildcard query, then the
+				 * lookup should go to the right point, and
+				 * not into the wildcard under the zone name.
+				 * For insecure, or wildcard missing
+				 * signatures, it would have to have found
+				 * the DS or insecure point earlier, in the
+				 * downwards search.
+				 * So for missing signatures, it turns the
+				 * missing signatures into a failure to the
+				 * wildcard CNAME, as the reported log.
+				 */
+				verbose(VERB_ALGO, "wildcard CNAME in chain of trust means no DS can be found and it is also not a delegation point that can be insecure");
+				reason = "wildcard CNAME in chain of trust means no DS found and it is also not a delegation point that can be insecure";
+				errinf_ede(qstate, reason, reason_bogus);
+				goto return_bogus;
+			}
+
 			verbose(VERB_ALGO, "CNAME validated, "
 				"proof that DS does not exist");
 			/* and that it is not a referral point */
