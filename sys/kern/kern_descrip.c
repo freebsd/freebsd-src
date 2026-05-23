@@ -3128,13 +3128,20 @@ fget_cap(struct thread *td, int fd, const cap_rights_t *needrightsp,
 #endif
 
 int
-fget_remote(struct thread *td, struct proc *p, int fd, struct file **fpp)
+fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
+    uint8_t *fd_flags, struct file **fpp)
 {
 	struct filedesc *fdp;
 	struct file *fp;
 	int error;
 
-	if (p == td->td_proc)	/* curproc */
+	/*
+	 * Both fcaps and fd_flags must be either requested together,
+	 * or not at all.
+	 */
+	MPASS((!(fcaps == NULL) ^ (fd_flags == NULL)));
+
+	if (p == td->td_proc && fcaps == NULL)	/* curproc */
 		return (fget_unlocked(td, fd, &cap_no_rights, fpp));
 
 	PROC_LOCK(p);
@@ -3147,6 +3154,12 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct file **fpp)
 		fp = fget_noref(fdp, fd);
 		if (fp != NULL && fhold(fp)) {
 			*fpp = fp;
+			if (fd_flags != NULL) {
+				*fd_flags = fde_to_fd_flags(fdp->fd_ofiles[fd].
+				    fde_flags);
+			}
+			if (fcaps != NULL)
+				*fcaps = fdp->fd_ofiles[fd].fde_caps;
 			error = 0;
 		} else {
 			error = EBADF;
@@ -3187,7 +3200,7 @@ fget_remote_foreach(struct thread *td, struct proc *p,
 	}
 
 	for (fd = 0; fd <= highfd; fd++) {
-		error1 = fget_remote(td, p, fd, &fp);
+		error1 = fget_remote(td, p, fd, NULL, NULL, &fp);
 		if (error1 != 0)
 			continue;
 		error = fn(p, fd, fp, arg);

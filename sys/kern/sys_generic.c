@@ -2208,9 +2208,9 @@ kern_kcmp(struct thread *td, pid_t pid1, pid_t pid2, int type,
 	switch (type) {
 	case KCMP_FILE:
 	case KCMP_FILEOBJ:
-		error = fget_remote(td, p1, idx1, &fp1);
+		error = fget_remote(td, p1, idx1, NULL, NULL, &fp1);
 		if (error == 0) {
-			error = fget_remote(td, p2, idx2, &fp2);
+			error = fget_remote(td, p2, idx2, NULL, NULL, &fp2);
 			if (error == 0) {
 				if (type == KCMP_FILEOBJ)
 					res = fo_cmp(fp1, fp2, td);

@@ -3391,7 +3391,7 @@ sysctl_kern_proc_kqueue_one(struct thread *td, struct sbuf *s, struct proc *p,
 	struct kqueue *kq;
 	int error;
 
-	error = fget_remote(td, p, kq_fd, &fp);
+	error = fget_remote(td, p, kq_fd, NULL, NULL, &fp);
 	if (error == 0) {
 		if (fp->f_type != DTYPE_KQUEUE) {
 			error = EINVAL;
