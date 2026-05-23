@@ -5374,7 +5374,7 @@ vn_pollrecord(struct vnode *vp, struct thread *td, int events)
 /*
  * Routine to create and manage a filesystem syncer vnode.
  */
-#define sync_close ((int (*)(struct  vop_close_args *))nullop)
+static int	sync_close(struct vop_close_args *);
 static int	sync_fsync(struct  vop_fsync_args *);
 static int	sync_inactive(struct  vop_inactive_args *);
 static int	sync_reclaim(struct  vop_reclaim_args *);
@@ -5466,6 +5466,12 @@ vfs_deallocate_syncvnode(struct mount *mp)
 	mtx_unlock(&sync_mtx);
 	if (vp != NULL)
 		vrele(vp);
+}
+
+static int
+sync_close(struct vop_close_args *ap __unused)
+{
+	return (0);
 }
 
 /*
