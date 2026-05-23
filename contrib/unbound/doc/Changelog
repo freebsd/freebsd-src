@@ -1,3 +1,33 @@
+20 May 2026: Wouter
+	- Fix CVE-2026-33278, Possible remote code execution during DNSSEC
+	  validation. Thanks to Qifan Zhang, Palo Alto Networks, for the report.
+	- Fix CVE-2026-42944, Heap overflow and crash with multiple nsid,
+	  cookie, padding EDNS options. Thanks to Qifan Zhang, Palo Alto
+	  Networks, for the report.
+	- Fix CVE-2026-42959, Crash during DNSSEC validation of malicious
+	  content. Thanks to Qifan Zhang, Palo Alto Networks, for the report.
+	- Fix CVE-2026-32792, Packet of death with DNSCrypt. Thanks to Andrew
+	  Griffiths from 'calif.io' for the report.
+	- Fix CVE-2026-40622, "Ghost domain name" variant. Thanks to Qifan
+	  Zhang, Palo Alto Networks, for the report.
+	- Fix CVE-2026-41292, Parsing a long list of incoming EDNS options
+	  degrades performance. Thanks to GitHub user 'N0zoM1z0', also Qifan
+	  Zhang from Palo Alto Networks, for the report.
+	- Fix CVE-2026-42534, Jostle logic bypass degrades resolution
+	  performance. Thanks to Qifan Zhang, Palo Alto Networks, for the
+	  report.
+	- Fix CVE-2026-42923, Degradation of service with unbounded NSEC3
+	  hash calculations. Thanks to Qifan Zhang, Palo Alto Networks, for
+	  the report.
+	- Fix CVE-2026-42960, Possible cache poisoning attack while following
+	  delegation. Thanks to TaoFei Guo from Peking University, Yang Luo
+	  and JianJun Chen, Tsinghua University, for the report.
+	- Fix CVE-2026-44390, Unbounded name compression in certain cases
+	  causes degradation of service. Thanks to Qifan Zhang, Palo Alto
+	  Networks, for the report.
+	- Fix CVE-2026-44608, Use after free and crash in RPZ code. Thanks
+	  to Qifan Zhang, Palo Alto Networks, for the report.
+
 23 April 2026: Wouter
 	- Merge #1441: Fix buffer overrun in
 	  doq_repinfo_retrieve_localaddr().
