@@ -84,6 +84,7 @@ int iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg);
 /**
  * Select a valid, nice target to send query to.
  * Sorting and removing unsuitable targets is combined.
+ * Adds records to the infra cache if not already there.
  *
  * @param iter_env: iterator module global state, with ip6 enabled and 
  *	do-not-query-addresses.

@@ -178,9 +178,9 @@ reply_info_alloc_rrset_keys(struct reply_info* rep, struct alloc_cache* alloc,
 int
 reply_info_can_answer_expired(struct reply_info* rep, time_t timenow)
 {
-	log_assert(rep->ttl < timenow);
+	log_assert(TTL_IS_EXPIRED(rep->ttl, timenow));
 	/* Really expired */
-	if(SERVE_EXPIRED_TTL && rep->serve_expired_ttl < timenow) return 0;
+	if(SERVE_EXPIRED_TTL && TTL_IS_EXPIRED(rep->serve_expired_ttl, timenow)) return 0;
 	/* Ignore expired failure answers */
 	if(FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NOERROR &&
 		FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NXDOMAIN &&
@@ -188,12 +188,13 @@ reply_info_can_answer_expired(struct reply_info* rep, time_t timenow)
 	return 1;
 }
 
-int reply_info_could_use_expired(struct reply_info* rep, time_t timenow)
+int
+reply_info_could_use_expired(struct reply_info* rep, time_t timenow)
 {
-	log_assert(rep->ttl < timenow);
+	log_assert(TTL_IS_EXPIRED(rep->ttl, timenow));
 	/* Really expired */
-	if(SERVE_EXPIRED_TTL && rep->serve_expired_ttl < timenow &&
-		!SERVE_EXPIRED_TTL_RESET) return 0;
+	if(SERVE_EXPIRED_TTL && TTL_IS_EXPIRED(rep->serve_expired_ttl, timenow)
+		&& !SERVE_EXPIRED_TTL_RESET) return 0;
 	/* Ignore expired failure answers */
 	if(FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NOERROR &&
 		FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NXDOMAIN &&
@@ -229,7 +230,7 @@ make_new_reply_info(const struct reply_info* rep, struct regional* region,
 }
 
 /** find the minimumttl in the rdata of SOA record */
-static time_t
+static uint32_t
 soa_find_minttl(struct rr_parse* rr)
 {
 	uint16_t rlen = sldns_read_uint16(rr->ttl_data+4);
@@ -237,7 +238,7 @@ soa_find_minttl(struct rr_parse* rr)
 		return 0; /* rdata too small for SOA (dname, dname, 5*32bit) */
 	/* minimum TTL is the last 32bit value in the rdata of the record */
 	/* at position ttl_data + 4(ttl) + 2(rdatalen) + rdatalen - 4(timeval)*/
-	return (time_t)sldns_read_uint32(rr->ttl_data+6+rlen-4);
+	return sldns_read_uint32(rr->ttl_data+6+rlen-4);
 }
 
 /** do the rdata copy */
@@ -247,37 +248,40 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 	sldns_pkt_section section)
 {
 	uint16_t pkt_len;
+	uint32_t ttl;
 	const sldns_rr_descriptor* desc;
 
-	*rr_ttl = sldns_read_uint32(rr->ttl_data);
+	ttl = sldns_read_uint32(rr->ttl_data);
 	/* RFC 2181 Section 8. if msb of ttl is set treat as if zero. */
-	if((*rr_ttl & 0x80000000U))
-		*rr_ttl = 0;
+	/* RFC 8767 Section 4. values with high-order bit as positive, not 0.
++	 *	As such, it will be capped by MAX_TTL below. */
 	if(type == LDNS_RR_TYPE_SOA && section == LDNS_SECTION_AUTHORITY) {
 		/* negative response. see if TTL of SOA record larger than the
 		 * minimum-ttl in the rdata of the SOA record */
-		if(*rr_ttl > soa_find_minttl(rr)) *rr_ttl = soa_find_minttl(rr);
+		if(ttl > soa_find_minttl(rr)) ttl = soa_find_minttl(rr);
 		if(!SERVE_ORIGINAL_TTL) {
 			/* If MIN_NEG_TTL is configured skip setting MIN_TTL */
-			if(MIN_NEG_TTL <= 0 && *rr_ttl < MIN_TTL) {
-				*rr_ttl = MIN_TTL;
+			if(MIN_NEG_TTL <= 0 && ttl < (uint32_t)MIN_TTL) {
+				ttl = (uint32_t)MIN_TTL;
 			}
-			if(*rr_ttl > MAX_TTL) *rr_ttl = MAX_TTL;
+			if(ttl > (uint32_t)MAX_TTL) ttl = (uint32_t)MAX_TTL;
 		}
 		/* MAX_NEG_TTL overrides the min and max ttl of everything
 		 * else; it is for a more specific record */
-		if(*rr_ttl > MAX_NEG_TTL) *rr_ttl = MAX_NEG_TTL;
+		if(ttl > (uint32_t)MAX_NEG_TTL) ttl = (uint32_t)MAX_NEG_TTL;
 		/* MIN_NEG_TTL overrides the min and max ttl of everything
 		 * else if configured; it is for a more specific record */
-		if(MIN_NEG_TTL > 0 && *rr_ttl < MIN_NEG_TTL) {
-			*rr_ttl = MIN_NEG_TTL;
+		if(MIN_NEG_TTL > 0 && ttl < (uint32_t)MIN_NEG_TTL) {
+			ttl = (uint32_t)MIN_NEG_TTL;
 		}
 	} else if(!SERVE_ORIGINAL_TTL) {
-		if(*rr_ttl < MIN_TTL) *rr_ttl = MIN_TTL;
-		if(*rr_ttl > MAX_TTL) *rr_ttl = MAX_TTL;
+		if(ttl < (uint32_t)MIN_TTL) ttl = (uint32_t)MIN_TTL;
+		if(ttl > (uint32_t)MAX_TTL) ttl = (uint32_t)MAX_TTL;
 	}
-	if(*rr_ttl < data->ttl)
-		data->ttl = *rr_ttl;
+	if((time_t)ttl < data->ttl)
+		data->ttl = (time_t)ttl;
+	/* We have concluded the TTL checks */
+	*rr_ttl = (time_t)ttl;
 
 	if(rr->outside_packet) {
 		/* uncompressed already, only needs copy */
@@ -481,6 +485,7 @@ parse_copy_decompress_rrset(sldns_buffer* pkt, struct msg_parse* msg,
 	pk->entry.key = (void*)pk;
 	pk->entry.hash = pset->hash;
 	data->trust = get_rrset_trust(msg, pset);
+	pk->rk.flags |= (data->ttl == 0) ? PACKED_RRSET_UPSTREAM_0TTL : 0;
 	return 1;
 }
 
@@ -614,6 +619,29 @@ reply_info_set_ttls(struct reply_info* rep, time_t timenow)
 			data->rr_ttl[j] += timenow;
 		}
 		data->ttl_add = timenow;
+	}
+}
+
+void
+reply_info_absolute_ttls(struct reply_info* rep, time_t ttl, time_t ttl_add)
+{
+	size_t i, j;
+	rep->ttl = ttl;
+	rep->prefetch_ttl = PREFETCH_TTL_CALC(ttl);
+	rep->serve_expired_ttl = ttl + SERVE_EXPIRED_TTL;
+	/* Don't set rep->serve_expired_norec_ttl; this should only be set
+	 * on cached records when encountering an error */
+	log_assert(rep->serve_expired_norec_ttl == 0);
+	for(i=0; i<rep->rrset_count; i++) {
+		struct packed_rrset_data* data = (struct packed_rrset_data*)
+			rep->ref[i].key->entry.data;
+		if(i>0 && rep->ref[i].key == rep->ref[i-1].key)
+			continue;
+		data->ttl = ttl;
+		for(j=0; j<data->count + data->rrsig_count; j++) {
+			data->rr_ttl[j] = ttl;
+		}
+		data->ttl_add = ttl_add;
 	}
 }
 

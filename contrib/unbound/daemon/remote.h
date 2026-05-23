@@ -206,6 +206,12 @@ struct fast_reload_thread {
 	int commpair[2];
 	/** thread id, of the io thread */
 	ub_thread_type tid;
+#ifdef HAVE_GETTID
+	/** thread tid, the LWP id */
+	pid_t thread_tid;
+	/** if logging should include the LWP id */
+	int thread_tid_log;
+#endif
 	/** if the io processing has started */
 	int started;
 	/** if the thread has to quit */
@@ -249,6 +255,8 @@ struct fast_reload_thread {
 	struct fast_reload_auth_change* auth_zone_change_list;
 	/** the old tree of auth zones, to lookup. */
 	struct auth_zones* old_auth_zones;
+	/** If the ssl ctxs have changed. */
+	int sslctxs_changed;
 };
 
 /**
