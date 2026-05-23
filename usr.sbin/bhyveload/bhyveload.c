@@ -57,6 +57,7 @@
 #include <sys/stat.h>
 #include <sys/disk.h>
 #include <sys/queue.h>
+#include <sys/uio.h>
 
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
@@ -88,6 +89,10 @@
 #define	BSP	0
 
 #define	NDISKS	32
+
+#define BUF_SIZE 256
+#define PRODUCE(u, p, n)  {(u) += (n); (p) = ((p) + (n)) % BUF_SIZE; }
+#define CONSUME(u, c, n)  {(u) -= (n); (c) = ((c) + (n)) % BUF_SIZE; }
 
 /*
  * Reason for our loader reload and reentry, though these aren't really used
@@ -125,9 +130,35 @@ static void cb_exit(void *arg, int v);
 static void
 cb_putc(void *arg __unused, int ch)
 {
-	char c = ch;
+	static char buf[BUF_SIZE];
+	static uint cons = 0, prod = 0, used = 0;
+	struct iovec iov[2];
+	uint niov;
+	ssize_t rc;
 
-	(void) write(consout_fd, &c, 1);
+	/* If the buffer is full, discard one character. */
+	if (used == BUF_SIZE)
+		CONSUME(used, cons, 1);
+
+	buf[prod] = ch;
+	PRODUCE(used, prod, 1);
+
+	if (prod > cons) {
+		iov[0].iov_base = &buf[cons];
+		iov[0].iov_len = prod - cons;
+		niov = 1;
+	} else {
+		iov[0].iov_base = &buf[cons];
+		iov[0].iov_len = BUF_SIZE - cons;
+		iov[1].iov_base = buf;
+		iov[1].iov_len = prod;
+		niov = 2;
+	}
+
+	if ((rc = writev(consout_fd, iov, niov)) < 0)
+		return;
+
+	CONSUME(used, cons, rc);
 }
 
 static int
