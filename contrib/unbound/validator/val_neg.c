@@ -1066,11 +1066,7 @@ grab_nsec(struct rrset_cache* rrset_cache, uint8_t* qname, size_t qname_len,
 		qname, qname_len, qtype, qclass, flags, now, 0);
 	struct packed_rrset_data* d;
 	if(!k) return NULL;
-	d = (struct packed_rrset_data*)k->entry.data;
-	if(d->ttl < now) {
-		lock_rw_unlock(&k->entry.lock);
-		return NULL;
-	}
+	d = k->entry.data;
 	/* only secure or unchecked records that have signatures. */
 	if( ! ( d->security == sec_status_secure ||
 		(d->security == sec_status_unchecked &&
@@ -1293,6 +1289,8 @@ neg_nsec3_proof_ds(struct val_neg_zone* zone, uint8_t* qname, size_t qname_len,
 		if(!(msg = dns_msg_create(qname, qname_len, 
 			LDNS_RR_TYPE_DS, zone->dclass, region, 1))) 
 			return NULL;
+		/* The cache response means recursion is available. */
+		msg->rep->flags |= BIT_RA;
 		/* TTL reduced in grab_nsec */
 		if(!dns_msg_authadd(msg, region, ce_rrset, 0)) 
 			return NULL;
@@ -1327,6 +1325,8 @@ neg_nsec3_proof_ds(struct val_neg_zone* zone, uint8_t* qname, size_t qname_len,
 		if(!(msg = dns_msg_create(qname, qname_len, 
 			LDNS_RR_TYPE_DS, zone->dclass, region, 3))) 
 			return NULL;
+		/* The cache response means recursion is available. */
+		msg->rep->flags |= BIT_RA;
 		/* now=0 because TTL was reduced in grab_nsec */
 		if(!dns_msg_authadd(msg, region, ce_rrset, 0)) 
 			return NULL;
@@ -1417,6 +1417,8 @@ val_neg_getmsg(struct val_neg_cache* neg, struct query_info* qinfo,
 		if(!(msg = dns_msg_create(qinfo->qname, qinfo->qname_len, 
 			qinfo->qtype, qinfo->qclass, region, 2))) 
 			return NULL;
+		/* The cache response means recursion is available. */
+		msg->rep->flags |= BIT_RA;
 		if(!dns_msg_authadd(msg, region, nsec, 0)) 
 			return NULL;
 		if(addsoa && !add_soa(rrset_cache, now, region, msg, NULL))
@@ -1430,6 +1432,8 @@ val_neg_getmsg(struct val_neg_cache* neg, struct query_info* qinfo,
 		if(!(msg = dns_msg_create(qinfo->qname, qinfo->qname_len, 
 			qinfo->qtype, qinfo->qclass, region, 3))) 
 			return NULL;
+		/* The cache response means recursion is available. */
+		msg->rep->flags |= BIT_RA;
 		if(!(ce = nsec_closest_encloser(qinfo->qname, nsec)))
 			return NULL;
 		dname_count_size_labels(ce, &ce_len);

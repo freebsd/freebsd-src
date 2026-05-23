@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.24.2.
+# See unbound.conf(5) man page, version 1.25.0.
 #
 # this is a comment.
 
@@ -54,7 +54,7 @@ server:
 	# interface: 192.0.2.153
 	# interface: 192.0.2.154
 	# interface: 192.0.2.154@5003
-	# interface: 2001:DB8::5
+	# interface: 2001:db8::5
 	# interface: eth0@5003
 
 	# enable this feature to copy the source address of queries to reply.
@@ -72,12 +72,12 @@ server:
 	# server from by ip-address. If none, the default (all) interface
 	# is used. Specify every interface on a 'outgoing-interface:' line.
 	# outgoing-interface: 192.0.2.153
-	# outgoing-interface: 2001:DB8::5
-	# outgoing-interface: 2001:DB8::6
+	# outgoing-interface: 2001:db8::5
+	# outgoing-interface: 2001:db8::6
 
 	# Specify a netblock to use remainder 64 bits as random bits for
 	# upstream queries.  Uses freebind option (Linux).
-	# outgoing-interface: 2001:DB8::/64
+	# outgoing-interface: 2001:db8::/64
 	# Also (Linux:) ip -6 addr add 2001:db8::/64 dev lo
 	# And: ip -6 route add local 2001:db8::/64 dev lo
 	# And set prefer-ip6: yes to use the ip6 randomness from a netblock.
@@ -192,6 +192,9 @@ server:
 
 	# Limit on number of CNAME, DNAME records for incoming packets.
 	# iter-scrub-cname: 11
+
+	# Limit on number of RRSIGs for an RRset for incoming packets.
+	# iter-scrub-rrsig: 8
 
 	# Limit on upstream queries for an incoming query and its recursion.
 	# max-global-quota: 200
@@ -379,7 +382,7 @@ server:
 	# interface-action: 192.0.2.153 allow
 	# interface-action: 192.0.2.154 allow
 	# interface-action: 192.0.2.154@5003 allow
-	# interface-action: 2001:DB8::5 allow
+	# interface-action: 2001:db8::5 allow
 	# interface-action: eth0@5003 allow
 
 	# Similar to 'access-control-tag:' but for interfaces.
@@ -495,6 +498,10 @@ server:
 
 	# print log lines that say why queries return SERVFAIL to clients.
 	# log-servfail: no
+
+	# log system-wide Linux thread ID, insted of Unbound's internal thread
+	# counter. Only on Linux and only when threads are available.
+	# log-thread-id: no
 
 	# the pid file. Can be an absolute path outside of chroot/work dir.
 	# pidfile: "@UNBOUND_PIDFILE@"
@@ -658,7 +665,7 @@ server:
 	# or, just before the iterator).
 	# module-config: "validator iterator"
 
-	# File with trusted keys, kept uptodate using RFC5011 probes,
+	# File with trusted keys, kept up-to-date using RFC5011 probes,
 	# initial file like trust-anchor-file, then it stores metadata.
 	# Use several entries, one per domain name, to track multiple zones.
 	#
@@ -718,7 +725,7 @@ server:
 	# val-max-restart: 5
 
 	# Should additional section of secure message also be kept clean of
-	# unsecure data. Useful to shield the users of this validator from
+	# non-secure data. Useful to shield the users of this validator from
 	# potential bogus data in the additional section. All unsigned data
 	# in the additional section is removed from secure messages.
 	# val-clean-additional: yes
@@ -756,6 +763,7 @@ server:
 	# serve-expired-ttl-reset: no
 	#
 	# TTL value to use when replying with expired data.
+	# Capped by the original TTL of the record.
 	# serve-expired-reply-ttl: 30
 	#
 	# Time in milliseconds before replying to the client with expired data.
@@ -925,6 +933,22 @@ server:
 	# add a netblock specific override to a localzone, with zone type
 	# local-zone-override: "example.com" 192.0.2.0/24 refuse
 
+	# Action to apply when the IP address in an AAAA or A RR in the answer
+	# section of a response matches the specified IP netblock.
+	# Requires use of the respip module.
+	# response-ip: 192.0.2.0/24 redirect
+
+	# Redirect as specified by the "resource record string" when the IP
+	# address in an AAAA or A RR in the answer section of a response
+	# matches the specified IP netblock.
+	# Requires use of the respip module.
+	# response-ip-data: 192.0.2.0/24 "example. A 192.0.2.1"
+
+	# Apply tag(s) when the IP address in an AAAA or A RR in the answer
+	# section of a response matches the specified IP netblock.
+	# Requires use of the respip module.
+	# response-ip-tag: 192.0.2.0/24 "tag1 tag2"
+
 	# service clients over TLS (on the TCP sockets) with plain DNS inside
 	# the TLS stream, and over HTTPS using HTTP/2 as specified in RFC8484.
 	# Give the certificate to use and private key.
@@ -935,20 +959,21 @@ server:
 	# https-port: 443
 	# quic-port: 853
 
+	# Also serve tls on these port numbers (eg. 443, ...), by listing
+	# tls-additional-port: portno for each of the port numbers.
+
 	# cipher setting for TLSv1.2
 	# tls-ciphers: "DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256"
 	# cipher setting for TLSv1.3
 	# tls-ciphersuites: "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_8_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256"
 
-	# Pad responses to padded queries received over TLS
-	# pad-responses: yes
-
-	# Padded responses will be padded to the closest multiple of this size.
-	# pad-responses-block-size: 468
-
 	# Use the SNI extension for TLS connections.  Default is yes.
-	# Changing the value requires a reload.
+	# Changing the value requires a restart.
 	# tls-use-sni: yes
+
+	# TLS protocols.
+	# Changing the value requires a restart.
+	# tls-protocols: "TLSv1.2 TLSv1.3"
 
 	# Add the secret file for TLS Session Ticket.
 	# Secret file must be 80 bytes of random data.
@@ -970,14 +995,17 @@ server:
 	# and on other systems, the default openssl certificates
 	# tls-system-cert: no
 
+	# Pad responses to padded queries received over TLS
+	# pad-responses: yes
+
+	# Padded responses will be padded to the closest multiple of this size.
+	# pad-responses-block-size: 468
+
 	# Pad queries over TLS upstreams
 	# pad-queries: yes
 
 	# Padded queries will be padded to the closest multiple of this size.
 	# pad-queries-block-size: 128
-
-	# Also serve tls on these port numbers (eg. 443, ...), by listing
-	# tls-additional-port: portno for each of the port numbers.
 
 	# HTTP endpoint to provide DNS-over-HTTPS service on.
 	# http-endpoint: "/dns-query"
@@ -1261,10 +1289,11 @@ remote-control:
 #	zonefile: "example.org.zone"
 
 # Views
-# Create named views. Name must be unique. Map views to requests using
-# the access-control-view option. Views can contain zero or more local-zone
-# and local-data options. Options from matching views will override global
-# options. Global options will be used if no matching view is found.
+# Create named views. Name must be unique.
+# Map views to requests using the access-control-view/interface-view options.
+# Views can contain zero or more local-zone and local-data options.
+# Options from matching views will override global options.
+# Global options will be used if no matching view is found.
 # With view-first yes, it will try to answer using the global local-zone and
 # local-data elements if there is no view specific match.
 # view:
@@ -1272,6 +1301,8 @@ remote-control:
 #	local-zone: "example.com" redirect
 #	local-data: "example.com A 192.0.2.3"
 #	local-data-ptr: "192.0.2.3 www.example.com"
+#	response-ip: 192.0.2.0/24 redirect
+#	response-ip-data: 192.0.2.0/24 "example. A 192.0.2.1"
 #	view-first: no
 # view:
 #	name: "anotherview"

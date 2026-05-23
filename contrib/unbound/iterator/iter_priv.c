@@ -207,6 +207,168 @@ size_t priv_get_mem(struct iter_priv* priv)
 	return sizeof(*priv) + regional_get_mem(priv->region);
 }
 
+/**
+ * Check if svcparam ipv4hint contains a private address.
+ * @param priv: private address lookup struct.
+ * @param d: the data bytes.
+ * @param data_len: number of data bytes in the svcparam.
+ * @param addr: address to return the private address to log in to.
+ *	It has space for IPv4 and IPv6 addresses.
+ * @param addrlen: length of the addr. Returns the correct size for the addr.
+ * @return true if the rdata contains a private address.
+ */
+static int svcb_ipv4hint_contains_priv_addr(struct iter_priv* priv,
+	uint8_t* d, uint16_t data_len, struct sockaddr_storage* addr,
+	socklen_t* addrlen)
+{
+	struct sockaddr_in sa;
+	*addrlen = (socklen_t)sizeof(struct sockaddr_in);
+	memset(&sa, 0, sizeof(struct sockaddr_in));
+	sa.sin_family = AF_INET;
+	sa.sin_port = (in_port_t)htons(UNBOUND_DNS_PORT);
+
+	while(data_len >= LDNS_IP4ADDRLEN) {
+		memmove(&sa.sin_addr, d, LDNS_IP4ADDRLEN);
+		memmove(addr, &sa, *addrlen);
+		if(priv_lookup_addr(priv, addr, *addrlen))
+			return 1;
+
+		d += LDNS_IP4ADDRLEN;
+		data_len -= LDNS_IP4ADDRLEN;
+	}
+	/* if data_len != 0 here, then the svcparam is malformed. */
+	return 0;
+}
+
+/**
+ * Check if svcparam ipv6hint contains a private address.
+ * @param priv: private address lookup struct.
+ * @param d: the data bytes.
+ * @param data_len: number of data bytes in the svcparam.
+ * @param addr: address to return the private address to log in to.
+ *	It has space for IPv4 and IPv6 addresses.
+ * @param addrlen: length of the addr. Returns the correct size for the addr.
+ * @return true if the rdata contains a private address.
+ */
+static int svcb_ipv6hint_contains_priv_addr(struct iter_priv* priv,
+	uint8_t* d, uint16_t data_len, struct sockaddr_storage* addr,
+	socklen_t* addrlen)
+{
+	struct sockaddr_in6 sa;
+	*addrlen = (socklen_t)sizeof(struct sockaddr_in6);
+	memset(&sa, 0, sizeof(struct sockaddr_in6));
+	sa.sin6_family = AF_INET6;
+	sa.sin6_port = (in_port_t)htons(UNBOUND_DNS_PORT);
+
+	while(data_len >= LDNS_IP6ADDRLEN) {
+		memmove(&sa.sin6_addr, d, LDNS_IP6ADDRLEN);
+		memmove(addr, &sa, *addrlen);
+		if(priv_lookup_addr(priv, addr, *addrlen))
+			return 1;
+
+		d += LDNS_IP6ADDRLEN;
+		data_len -= LDNS_IP6ADDRLEN;
+	}
+	/* if data_len != 0 here, then the svcparam is malformed. */
+	return 0;
+}
+
+/**
+ * Check if type SVCB and HTTPS rdata contains a private address.
+ * @param priv: private address lookup struct.
+ * @param pkt: the packet.
+ * @param rr: the rr with rdata to check.
+ * @param addr: address to return the private address to log in to.
+ * @param addrlen: length of the addr. Initially the total size, on
+ *	return the correct size for the addr.
+ * @return true if the rdata contains a private address.
+ */
+static int svcb_rr_contains_priv_addr(struct iter_priv* priv,
+	sldns_buffer* pkt, struct rr_parse* rr, struct sockaddr_storage* addr,
+	socklen_t* addrlen)
+{
+	uint8_t* d = rr->ttl_data;
+	uint16_t svcparamkey, data_len, rdatalen;
+	size_t oldpos, dname_len, dname_start, dname_compr_len;
+	d += 4; /* skip TTL */
+	rdatalen = sldns_read_uint16(d); /* read rdata length */
+	d += 2;
+
+	if(rdatalen < 2 /* priority */ + 1 /* 1 length target */)
+		return 0; /* malformed, too short */
+	d += 2; /* skip priority */
+	rdatalen -= 2;
+	oldpos = sldns_buffer_position(pkt);
+	sldns_buffer_set_position(pkt, (size_t)(d - sldns_buffer_begin(pkt)));
+	dname_start = sldns_buffer_position(pkt);
+	dname_len = pkt_dname_len(pkt);
+	dname_compr_len = sldns_buffer_position(pkt) - dname_start;
+	sldns_buffer_set_position(pkt, oldpos);
+	if(dname_len == 0)
+		return 0; /* dname malformed */
+	if(dname_compr_len > rdatalen)
+		return 0; /* malformed */
+	d += dname_compr_len; /* skip target */
+	rdatalen -= dname_compr_len;
+
+	while(rdatalen >= 4) {
+		svcparamkey = sldns_read_uint16(d);
+		data_len = sldns_read_uint16(d+2);
+		d += 4;
+		rdatalen -= 4;
+
+		/* verify that we have data_len data */
+		if(data_len > rdatalen) {
+			/* It is malformed, but if there are addresses
+			 * in there it can be rejected. */
+			data_len = rdatalen;
+		}
+
+		if(!data_len)
+			continue; /* no data for the svcparamkey */
+
+		if(svcparamkey == SVCB_KEY_IPV4HINT) {
+			if(svcb_ipv4hint_contains_priv_addr(priv, d, data_len,
+				addr, addrlen))
+				return 1;
+		} else if(svcparamkey == SVCB_KEY_IPV6HINT) {
+			if(svcb_ipv6hint_contains_priv_addr(priv, d, data_len,
+				addr, addrlen))
+				return 1;
+		}
+		d += data_len;
+		rdatalen -= data_len;
+	}
+	/* If rdatalen != 0 here, then the svcb rdata is malformed. */
+	return 0;
+}
+
+/**
+ * Check if the SVCB and HTTPS rrset is bad.
+ * @param priv: private address lookup struct.
+ * @param pkt: the packet.
+ * @param rrset: the rrset to check.
+ * @return 1 if the entire rrset has to be removed. 0 if not.
+ * It removes RRs if they have private addresses, and log that.
+ */
+static int priv_svcb_rrset_bad(struct iter_priv* priv, sldns_buffer* pkt,
+	struct rrset_parse* rrset)
+{
+	struct rr_parse* rr, *prev = NULL;
+	struct sockaddr_storage addr;
+	socklen_t addrlen = (socklen_t)sizeof(addr);
+	for(rr = rrset->rr_first; rr; rr = rr->next) {
+		if(svcb_rr_contains_priv_addr(priv, pkt, rr, &addr,
+			&addrlen)) {
+			if(msgparse_rrset_remove_rr("sanitize: removing public name with private address", pkt, rrset, prev, rr, &addr, addrlen))
+				return 1;
+			continue;
+		}
+		prev = rr;
+	}
+	return 0;
+}
+
 int priv_rrset_bad(struct iter_priv* priv, sldns_buffer* pkt,
 	struct rrset_parse* rrset)
 {
@@ -268,7 +430,11 @@ int priv_rrset_bad(struct iter_priv* priv, sldns_buffer* pkt,
 				}
 				prev = rr;
 			}
-		} 
+		} else if(rrset->type == LDNS_RR_TYPE_SVCB ||
+			rrset->type == LDNS_RR_TYPE_HTTPS) {
+			if(priv_svcb_rrset_bad(priv, pkt, rrset))
+				return 1;
+		}
 	}
 	return 0;
 }
