@@ -99,6 +99,12 @@ struct sldns_buffer;
 #define NSEC3_HASH_SHA1	0x01
 
 /**
+ * Max number of NSEC3 calculations at once, suspend query for later.
+ * 8 is low enough and allows for cases where multiple proofs are needed.
+ */
+#define MAX_NSEC3_CALCULATIONS 8
+
+/**
 * Cache table for NSEC3 hashes.
 * It keeps a *pointer* to the region its items are allocated.
 */

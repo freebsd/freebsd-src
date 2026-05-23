@@ -27,9 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "UNBOUND-CHECKCONF" "8" "Apr 29, 2026" "1.25.0" "Unbound"
+.TH "UNBOUND-CHECKCONF" "8" "May 20, 2026" "1.25.1" "Unbound"
 .SH NAME
-unbound-checkconf \- Check Unbound 1.25.0 configuration file for errors.
+unbound-checkconf \- Check Unbound 1.25.1 configuration file for errors.
 .SH SYNOPSIS
 .sp
 \fBunbound\-checkconf\fP [\fB\-hf\fP] [\fB\-o option\fP] [cfgfile]

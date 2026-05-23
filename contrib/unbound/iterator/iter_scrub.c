@@ -777,7 +777,13 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 			rrset->rrset_all_next = NULL;
 			return 1;
 		}
-		mark_additional_rrset(pkt, msg, rrset);
+		/* Only mark glue as allowed for type NS in the authority
+		 * section. Other RR types do not get glue for them, it
+		 * is allowed from the answer section, but not authority
+		 * so that a message can not have address records cached
+		 * as a side effect to the query. */
+		if(rrset->type==LDNS_RR_TYPE_NS)
+			mark_additional_rrset(pkt, msg, rrset);
 		prev = rrset;
 		rrset = rrset->rrset_all_next;
 	}

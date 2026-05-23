@@ -60,11 +60,6 @@
 #include "util/config_file.h"
 
 /**
- * Max number of NSEC3 calculations at once, suspend query for later.
- * 8 is low enough and allows for cases where multiple proofs are needed.
- */
-#define MAX_NSEC3_CALCULATIONS 8
-/**
  * When all allowed NSEC3 calculations at once resulted in error treat as
  * bogus. NSEC3 hash errors are not cached and this helps breaks loops with
  * erroneous data.
@@ -454,6 +449,67 @@ filter_init(struct nsec3_filter* filter, struct ub_packed_rrset_key** list,
 			filter->zone_len = nmlen;
 		}
 	}
+}
+
+/** Check if the NSEC3s have the same parameter set. */
+static int
+param_set_same(struct nsec3_filter* flt, char** reason)
+{
+	size_t rrsetnum;
+	int rrnum;
+	struct ub_packed_rrset_key* rrset;
+	int have_params = 0;
+	int first_algo = 0;
+	size_t first_iter = 0;
+	uint8_t* first_salt = NULL;
+	size_t first_saltlen = 0;
+
+	/* If the NSEC3 parameter sets have distinct values, then they are
+	 * from different NSEC3 chains, and we do not want that. */
+	for(rrset=filter_first(flt, &rrsetnum, &rrnum); rrset;
+		rrset=filter_next(flt, &rrsetnum, &rrnum)) {
+		if(!have_params) {
+			first_algo = nsec3_get_algo(rrset, rrnum);
+			first_iter = nsec3_get_iter(rrset, rrnum);
+			if(!nsec3_get_salt(rrset, rrnum, &first_salt,
+				&first_saltlen)) {
+				verbose(VERB_ALGO, "NSEC3 salt malformed");
+				if(reason)
+					*reason = "NSEC3 salt malformed";
+				return 0;
+			}
+			have_params = 1;
+		} else {
+			uint8_t* salt = NULL;
+			size_t saltlen = 0;
+			if(nsec3_get_algo(rrset, rrnum) != first_algo) {
+				verbose(VERB_ALGO, "NSEC3 algorithm mismatch");
+				if(reason)
+					*reason = "NSEC3 algorithm mismatch";
+				return 0;
+			}
+			if(nsec3_get_iter(rrset, rrnum) != first_iter) {
+				verbose(VERB_ALGO, "NSEC3 iterations mismatch");
+				if(reason)
+					*reason = "NSEC3 iterations mismatch";
+				return 0;
+			}
+			if(!nsec3_get_salt(rrset, rrnum, &salt, &saltlen)) {
+				verbose(VERB_ALGO, "NSEC3 salt malformed");
+				if(reason)
+					*reason = "NSEC3 salt malformed";
+				return 0;
+			}
+			if(saltlen != first_saltlen ||
+				memcmp(salt, first_salt, saltlen) != 0) {
+				verbose(VERB_ALGO, "NSEC3 salt mismatch");
+				if(reason)
+					*reason = "NSEC3 salt mismatch";
+				return 0;
+			}
+		}
+	}
+	return 1;
 }
 
 /**
@@ -1192,6 +1248,8 @@ nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(!param_set_same(&flt, NULL))
+		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
 		return sec_status_insecure; /* iteration count too high */
 	log_nametypeclass(VERB_ALGO, "start nsec3 nameerror proof, zone", 
@@ -1378,6 +1436,8 @@ nsec3_prove_nodata(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(!param_set_same(&flt, NULL))
+		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
 		return sec_status_insecure; /* iteration count too high */
 	return nsec3_do_prove_nodata(env, &flt, ct, qinfo, calc);
@@ -1401,6 +1461,8 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(!param_set_same(&flt, NULL))
+		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
 		return sec_status_insecure; /* iteration count too high */
 
@@ -1503,6 +1565,8 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 		*reason = "no NSEC3 records";
 		return sec_status_bogus; /* no RRs */
 	}
+	if(!param_set_same(&flt, reason))
+		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
 		return sec_status_insecure; /* iteration count too high */
 
@@ -1596,6 +1660,8 @@ nsec3_prove_nxornodata(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(!param_set_same(&flt, NULL))
+		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
 		return sec_status_insecure; /* iteration count too high */
 

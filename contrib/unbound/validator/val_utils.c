@@ -1066,10 +1066,10 @@ val_fill_reply(struct reply_info* chase, struct reply_info* orig,
 			if(query_dname_compare(name, 
 				orig->rrsets[i]->rk.dname) == 0)
 			    chase->rrsets[chase->an_numrrsets
-				+orig->ns_numrrsets+chase->ar_numrrsets++] 
+				+chase->ns_numrrsets+chase->ar_numrrsets++]
 				= orig->rrsets[i];
 		} else if(rrset_has_signer(orig->rrsets[i], name, len)) {
-			chase->rrsets[chase->an_numrrsets+orig->ns_numrrsets+
+			chase->rrsets[chase->an_numrrsets+chase->ns_numrrsets+
 				chase->ar_numrrsets++] = orig->rrsets[i];
 		}
 	}

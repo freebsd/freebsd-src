@@ -106,7 +106,7 @@ void qinfo_query_encode(struct sldns_buffer* pkt, struct query_info* qinfo);
  * @param edns: edns data or NULL.
  * @return octets to reserve for EDNS.
  */
-uint16_t calc_edns_field_size(struct edns_data* edns);
+size_t calc_edns_field_size(struct edns_data* edns);
 
 /**
  * Calculate the size of a specific EDNS option in packet.
@@ -127,7 +127,7 @@ uint16_t calc_edns_option_size(struct edns_data* edns, uint16_t code);
  *	extra text.
  * @return octets the option will take up.
  */
-uint16_t calc_ede_option_size(struct edns_data* edns, uint16_t* txt_size);
+uint16_t calc_ede_option_size(struct edns_data* edns, size_t* txt_size);
 
 /**
  * Attach EDNS record to buffer. Buffer has complete packet. There must
