@@ -68,6 +68,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_hub.h>
 #include <sys/ctype.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
@@ -2196,6 +2197,12 @@ retry:
 		DPRINTFN(0, "addr=%d, port reset failed, %s\n", 
 		    old_addr, usbd_errstr(err));
 		goto done;
+	}
+
+	/* The link may have been trained at another speed */
+	if (udev->speed >= USB_SPEED_SUPER) {
+		udev->speed = uhub_update_ss_port_speed(parent_hub, mtx,
+		    udev->port_no, udev->speed);
 	}
 
 	/*
