@@ -2426,6 +2426,8 @@ lkpi_set_chanctx_conf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
 		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		list_del(&lchanctx->entry);
+		memset(lchanctx, 0, sizeof(*lchanctx));
+		lchanctx->lvif = VIF_TO_LVIF(vif);
 		list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
 	}
 
@@ -2460,6 +2462,8 @@ lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 	list_del(&lchanctx->entry);
 	lhw = HW_TO_LHW(hw);
+	memset(lchanctx, 0, sizeof(*lchanctx));
+	lchanctx->lvif = VIF_TO_LVIF(vif);
 	list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
 }
 
@@ -6806,6 +6810,7 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 				lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
 			}
 			list_del(&lchanctx->entry);
+			/* No need to reset the lchanctx here as we will free it below. */
 			list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list_reserved);
 		}
 	}
