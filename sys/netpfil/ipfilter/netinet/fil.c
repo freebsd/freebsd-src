@@ -1082,6 +1082,8 @@ ipf_pr_gre6(fr_info_t *fin)
 	}
 
 	gre = fin->fin_dp;
+	if (gre == NULL)
+		return;
 	if (GRE_REV(gre->gr_flags) == 1)
 		fin->fin_data[0] = gre->gr_call;
 }
@@ -1322,6 +1324,8 @@ ipf_pr_tcpcommon(fr_info_t *fin)
 	}
 
 	tcp = fin->fin_dp;
+	if (tcp == NULL)
+		return (-1);
 	if (fin->fin_dlen > 3) {
 		fin->fin_sport = ntohs(tcp->th_sport);
 		fin->fin_dport = ntohs(tcp->th_dport);
@@ -1496,6 +1500,8 @@ ipf_pr_udpcommon(fr_info_t *fin)
 		}
 
 		udp = fin->fin_dp;
+		if (udp == NULL)
+			return (1);
 
 		fin->fin_sport = ntohs(udp->uh_sport);
 		fin->fin_dport = ntohs(udp->uh_dport);
@@ -1600,6 +1606,8 @@ ipf_pr_ah(fr_info_t *fin)
 	}
 
 	ah = (authhdr_t *)fin->fin_dp;
+	if (ah == NULL)
+		return (IPPROTO_NONE);
 
 	len = (ah->ah_plen + 2) << 2;
 	ipf_pr_short(fin, len);
@@ -1645,6 +1653,8 @@ ipf_pr_gre(fr_info_t *fin)
 	}
 
 	gre = fin->fin_dp;
+	if (gre == NULL)
+		return;
 	if (GRE_REV(gre->gr_flags) == 1)
 		fin->fin_data[0] = gre->gr_call;
 }
