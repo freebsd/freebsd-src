@@ -285,6 +285,17 @@ synth_cname_rrset(uint8_t** sname, size_t* snamelen, uint8_t* alias,
 		return NULL;
 	memmove(cn->rr_first->ttl_data, rrset->rr_first->ttl_data,
 		sizeof(uint32_t)); /* RFC6672: synth CNAME TTL == DNAME TTL */
+	/* Apply cache TTL policy so DNAME and synthesized CNAME stay equal
+	 * and respect cache-min-ttl/cache-max-ttl (same as rdata_copy path). */
+	if(!SERVE_ORIGINAL_TTL) {
+		uint32_t ttl = sldns_read_uint32(cn->rr_first->ttl_data);
+		time_t ttl_t = (time_t)ttl;
+		if(ttl_t < MIN_TTL) ttl_t = MIN_TTL;
+		if(ttl_t > MAX_TTL) ttl_t = MAX_TTL;
+		ttl = (uint32_t)ttl_t;
+		sldns_write_uint32(cn->rr_first->ttl_data, ttl);
+		sldns_write_uint32(rrset->rr_first->ttl_data, ttl);
+	}
 	sldns_write_uint16(cn->rr_first->ttl_data+4, aliaslen);
 	memmove(cn->rr_first->ttl_data+6, alias, aliaslen);
 	cn->rr_first->size = sizeof(uint16_t)+aliaslen;
@@ -408,6 +419,43 @@ shorten_rrset(sldns_buffer* pkt, struct rrset_parse* rrset, int count)
 	else	rrset->rr_first = NULL;
 }
 
+/** Shorten RRSIGs list */
+static void
+shorten_rrsig(sldns_buffer* pkt, struct rrset_parse* rrset, int count)
+{
+	/* The too large list of RRSIGs on the RRset is shortened.
+	 * This is so that too large content does not overwhelm the cache.
+	 * The validator does not validate more than a max number of
+	 * RRSIGs as well. */
+	int i;
+	struct rr_parse* rr = rrset->rrsig_first, *prev = NULL;
+	if(!rr)
+		return;
+	for(i=0; i<count; i++) {
+		prev = rr;
+		rr = rr->next;
+		if(!rr)
+			return; /* The RRSIG list is already short. */
+	}
+	if(verbosity >= VERB_QUERY
+		&& rrset->dname_len <= LDNS_MAX_DOMAINLEN) {
+		uint8_t buf[LDNS_MAX_DOMAINLEN+1];
+		dname_pkt_copy(pkt, buf, rrset->dname);
+		log_nametypeclass(VERB_QUERY, "normalize: shorten RRSIGs:",
+			buf, rrset->type, ntohs(rrset->rrset_class));
+	}
+	/* remove further rrsigs */
+	rrset->rrsig_last = prev;
+	rrset->rrsig_count = count;
+	while(rr) {
+		rrset->size -= rr->size;
+		rr = rr->next;
+	}
+	if(rrset->rrsig_last)
+		rrset->rrsig_last->next = NULL;
+	else	rrset->rrsig_first = NULL;
+}
+
 /**
  * This routine normalizes a response. This includes removing "irrelevant"
  * records from the answer and additional sections and (re)synthesizing
@@ -445,6 +493,8 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 	prev = NULL;
 	rrset = msg->rrset_first;
 	while(rrset && rrset->section == LDNS_SECTION_ANSWER) {
+		if((int)rrset->rrsig_count > env->cfg->iter_scrub_rrsig)
+			shorten_rrsig(pkt, rrset, env->cfg->iter_scrub_rrsig);
 		if(cname_length > env->cfg->iter_scrub_cname) {
 			/* Too many CNAMEs, or DNAMEs, from the authority
 			 * server, scrub down the length to something
@@ -455,8 +505,9 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				pkt, msg, prev, &rrset);
 			continue;
 		}
-		if(rrset->type == LDNS_RR_TYPE_DNAME && 
-			pkt_strict_sub(pkt, sname, rrset->dname)) {
+		if(rrset->type == LDNS_RR_TYPE_DNAME &&
+			pkt_strict_sub(pkt, sname, rrset->dname) &&
+			pkt_sub(pkt, rrset->dname, zonename)) {
 			/* check if next rrset is correct CNAME. else,
 			 * synthesize a CNAME */
 			struct rrset_parse* nx = rrset->rrset_all_next;
@@ -502,8 +553,6 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				log_err("out of memory synthesizing CNAME");
 				return 0;
 			}
-			/* FIXME: resolve the conflict between synthesized 
-			 * CNAME ttls and the cache. */
 			rrset = nx;
 			continue;
 
@@ -525,7 +574,8 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 			if(nx && nx->section == LDNS_SECTION_ANSWER &&
 				nx->type == LDNS_RR_TYPE_DNAME &&
 				nx->rr_count == 1 &&
-				pkt_strict_sub(pkt, sname, nx->dname)) {
+				pkt_strict_sub(pkt, sname, nx->dname) &&
+				pkt_sub(pkt, nx->dname, zonename)) {
 				/* there is a DNAME after this CNAME, it 
 				 * is in the ANSWER section, and the DNAME
 				 * applies to the name we cover */
@@ -620,6 +670,8 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				"RRset:", pkt, msg, prev, &rrset);
 			continue;
 		}
+		if((int)rrset->rrsig_count > env->cfg->iter_scrub_rrsig)
+			shorten_rrsig(pkt, rrset, env->cfg->iter_scrub_rrsig);
 		/* only one NS set allowed in authority section */
 		if(rrset->type==LDNS_RR_TYPE_NS) {
 			/* NS set must be pertinent to the query */
@@ -762,6 +814,8 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				"RRset:", pkt, msg, prev, &rrset);
 			continue;
 		}
+		if((int)rrset->rrsig_count > env->cfg->iter_scrub_rrsig)
+			shorten_rrsig(pkt, rrset, env->cfg->iter_scrub_rrsig);
 		prev = rrset;
 		rrset = rrset->rrset_all_next;
 	}
@@ -972,8 +1026,10 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
 		}
 
 		/* remove private addresses */
-		if( (rrset->type == LDNS_RR_TYPE_A || 
-			rrset->type == LDNS_RR_TYPE_AAAA)) {
+		if(rrset->type == LDNS_RR_TYPE_A ||
+			rrset->type == LDNS_RR_TYPE_AAAA ||
+			rrset->type == LDNS_RR_TYPE_SVCB ||
+			rrset->type == LDNS_RR_TYPE_HTTPS) {
 
 			/* do not set servfail since this leads to too
 			 * many drops of other people using rfc1918 space */

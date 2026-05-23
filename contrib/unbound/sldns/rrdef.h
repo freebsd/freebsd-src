@@ -480,11 +480,13 @@ enum sldns_enum_ede_code
 	LDNS_EDE_TOO_EARLY = 26,
 	LDNS_EDE_UNSUPPORTED_NSEC3_ITERATIONS = 27,
 	LDNS_EDE_BADPROXYPOLICY = 28,
-	LDNS_EDE_SYNTHESIZED = 29
+	LDNS_EDE_SYNTHESIZED = 29,
+	LDNS_EDE_INVALID_QUERY_TYPE = 30
 };
 typedef enum sldns_enum_ede_code sldns_ede_code;
 
 #define LDNS_EDNS_MASK_DO_BIT 0x8000
+#define LDNS_EDNS_MASK_CO_BIT 0x4000
 
 /** TSIG and TKEY extended rcodes (16bit), 0-15 are the normal rcodes. */
 #define LDNS_TSIG_ERROR_NOERROR  0

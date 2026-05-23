@@ -107,6 +107,18 @@ struct daemon {
 	void* listen_doh_sslctx;
 	/** ssl context for listening to quic */
 	void* listen_quic_sslctx;
+	/** the file name that the ssl context is made with, private key. */
+	char* ssl_service_key;
+	/** the file name that the ssl context is made with, certificate. */
+	char* ssl_service_pem;
+	/** modification time for ssl_service_key, in sec and ns. Like
+	 * in a struct timespec, but without that for portability. */
+	time_t mtime_ssl_service_key;
+	long mtime_ns_ssl_service_key;
+	/** modification time for ssl_service_pem, in sec and ns. Like
+	 * in a struct timespec, but without that for portability. */
+	time_t mtime_ssl_service_pem;
+	long mtime_ns_ssl_service_pem;
 	/** num threads allocated */
 	int num;
 	/** num threads allocated in the previous config or 0 at first */
@@ -143,7 +155,14 @@ struct daemon {
 	/** the dnstap environment master value, copied and changed by threads*/
 	struct dt_env* dtenv;
 #endif
+	/** The SHM info for shared memory stats. */
 	struct shm_main_info* shm_info;
+	/** if the timeout for statistics is attempted at specific offset.
+	 * If it is true, the stat timeout is the interval+offset, and that
+	 * picks (roughly) the same time offset every time period. */
+	int stat_time_specific;
+	/** if the timeout is specific, what offset in the period. */
+	int stat_time_offset;
 	/** some response-ip tags or actions are configured if true */
 	int use_response_ip;
 	/** some RPZ policies are configured */
@@ -228,5 +247,27 @@ void daemon_apply_cfg(struct daemon* daemon, struct config_file* cfg);
  * @return false on failure
  */
 int setup_acl_for_ports(struct acl_list* list, struct listen_port* port_list);
+
+/* setups the needed ssl contexts, fatal_exit() on any failure */
+void daemon_setup_sslctxs(struct daemon* daemon, struct config_file* cfg);
+
+/** See if the SSL cert files have changed */
+int ssl_cert_changed(struct daemon* daemon, struct config_file* cfg);
+
+/** Setup the listening DoT SSL_CTX, returns the ssl ctx. */
+void* daemon_setup_listen_dot_sslctx(struct daemon* daemon,
+	struct config_file* cfg);
+
+/** Setup the listening DoH SSL_CTX, returns the ssl ctx. */
+void* daemon_setup_listen_doh_sslctx(struct daemon* daemon,
+	struct config_file* cfg);
+
+/** Setup the listening Quic SSL_CTX, returns the ssl ctx */
+void* daemon_setup_listen_quic_sslctx(struct daemon* daemon,
+	struct config_file* cfg);
+
+/** Setup the connect DoT SSL_CTX, returns the ssl ctx */
+void* daemon_setup_connect_dot_sslctx(struct daemon* daemon,
+	struct config_file* cfg);
 
 #endif /* DAEMON_H */

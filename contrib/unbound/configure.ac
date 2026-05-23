@@ -11,15 +11,15 @@ sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[24])
-m4_define([VERSION_MICRO],[2])
+m4_define([VERSION_MINOR],[25])
+m4_define([VERSION_MICRO],[0])
 AC_INIT([unbound],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues],[unbound])
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=34
+LIBUNBOUND_REVISION=36
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -122,6 +122,7 @@ LIBUNBOUND_AGE=1
 # 1.24.0 had 9:33:1
 # 1.24.1 had 9:34:1
 # 1.24.2 had 9:35:1
+# 1.25.0 had 9:36:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -330,6 +331,7 @@ fi
 AC_C_INLINE
 ACX_CHECK_FORMAT_ATTRIBUTE
 ACX_CHECK_UNUSED_ATTRIBUTE
+ACX_CHECK_NONSTRING_ATTRIBUTE
 
 AC_DEFUN([CHECK_WEAK_ATTRIBUTE],
 [AC_REQUIRE([AC_PROG_CC])
@@ -360,7 +362,14 @@ AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "noreturn" attribu
 AC_CACHE_VAL(ac_cv_c_noreturn_attribute,
 [ac_cv_c_noreturn_attribute=no
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h>
-__attribute__((noreturn)) void f(int x) { printf("%d", x); }
+#ifdef STDC_HEADERS
+# include <stdlib.h>
+#else
+# ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+# endif
+#endif
+__attribute__((noreturn)) void f(int x) { printf("%d", x); exit(1); }
 ]], [[
    f(1);
 ]])],[ac_cv_c_noreturn_attribute="yes"],[ac_cv_c_noreturn_attribute="no"])
@@ -635,19 +644,19 @@ AC_ARG_ENABLE(alloc-nonregional, AS_HELP_STRING([--enable-alloc-nonregional],[ e
 if test x_$enable_alloc_nonregional = x_yes; then
 	AC_DEFINE(UNBOUND_ALLOC_NONREGIONAL, 1, [use malloc not regions, for debug use])
 fi
-if test x_$enable_alloc_checks = x_yes; then
+AS_IF([test x_$enable_alloc_checks = x_yes],[
 	AC_DEFINE(UNBOUND_ALLOC_STATS, 1, [use statistics for allocs and frees, for debug use])
 	SLDNS_ALLOCCHECK_EXTRA_OBJ="alloc.lo log.lo"
 	AC_SUBST(SLDNS_ALLOCCHECK_EXTRA_OBJ)
 	ASYNCLOOK_ALLOCCHECK_EXTRA_OBJ="alloc.lo"
 	AC_SUBST(ASYNCLOOK_ALLOCCHECK_EXTRA_OBJ)
-else
-	if test x_$enable_alloc_lite = x_yes; then
+],[
+	AS_IF([test x_$enable_alloc_lite = x_yes],[
 		AC_DEFINE(UNBOUND_ALLOC_LITE, 1, [use to enable lightweight alloc assertions, for debug use])
-	else
+	],[
 		ACX_FUNC_MALLOC([unbound])
-	fi
-fi
+	])
+])
 
 # check windows threads (we use them, not pthreads, on windows).
 if test "$on_mingw" = "yes"; then
@@ -720,6 +729,76 @@ int main(void) {return 0;}
 		fi # endif -pthread in CFLAGS
 
 		])
+fi
+
+if test x_$ub_have_pthreads != x_no; then
+	# Long checks to support pthread_setname_np().
+	# Some OSes have the extra non-portable functions in a specific
+	# header file.
+	AC_CHECK_HEADERS([pthread_np.h],,, [AC_INCLUDES_DEFAULT])
+	BAKCFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -Werror"
+	# MacOS only has 1 argument, the name.
+	AC_MSG_CHECKING([whether pthread_setname_np has only 1 argument])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([AC_INCLUDES_DEFAULT
+#include <pthread.h>
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
+	],[
+	    (void)pthread_setname_np("");
+	])],[
+	    AC_MSG_RESULT(yes)
+	    AC_DEFINE(HAVE_PTHREAD_SETNAME_NP1, 1, [Define if pthread_setname_np has only 1 argument.])
+	],[
+	    AC_MSG_RESULT(no)
+	])
+	# NetBSD has 3 arguments to allow for formatting of the name.
+	AC_MSG_CHECKING([whether pthread_setname_np has 3 arguments])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([AC_INCLUDES_DEFAULT
+#include <pthread.h>
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
+	],[
+	    (void)pthread_setname_np(0, "", NULL);
+	])],[
+	    AC_MSG_RESULT(yes)
+	    AC_DEFINE(HAVE_PTHREAD_SETNAME_NP3, 1, [Define if pthread_setname_np has 3 arguments.])
+	],[
+	    AC_MSG_RESULT(no)
+	])
+	# Most OSes have the common 2 arguments, thread and name.
+	AC_MSG_CHECKING([whether pthread_setname_np has the common 2 arguments])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([AC_INCLUDES_DEFAULT
+#include <pthread.h>
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
+	],[
+	    (void)pthread_setname_np(0, "");
+	])],[
+	    AC_MSG_RESULT(yes)
+	    AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [Define if pthread_setname_np has the common 2 arguments.])
+	],[
+	    AC_MSG_RESULT(no)
+	])
+	# FreeBSD/OpenBSD use a slightly different function name.
+	AC_MSG_CHECKING([whether pthread_setname_np exists as pthread_set_name_np instead])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([AC_INCLUDES_DEFAULT
+#include <pthread.h>
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
+	],[
+	    (void)pthread_set_name_np(0, "");
+	])],[
+	    AC_MSG_RESULT(yes)
+	    AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [Define if pthread_setname_np exists as pthread_set_name_np instead.])
+	],[
+	    AC_MSG_RESULT(no)
+	])
+	CFLAGS="$BAKCFLAGS"
 fi
 
 # check solaris thread library
@@ -1253,7 +1332,7 @@ case "$enable_ecdsa" in
 	      # see if OPENSSL 1.0.0 or later (has EVP MD and Verify independency)
 	      AC_MSG_CHECKING([if openssl supports SHA2 and ECDSA with EVP])
 	      if grep OPENSSL_VERSION_TEXT $ssldir_include/openssl/opensslv.h | grep "OpenSSL" >/dev/null; then
-		if grep OPENSSL_VERSION_NUMBER $ssldir_include/openssl/opensslv.h | grep 0x0 >/dev/null; then
+		if grep OPENSSL_VERSION_TEXT $ssldir_include/openssl/opensslv.h | grep "OpenSSL 0\." >/dev/null; then
 		  AC_MSG_RESULT([no])
 		  AC_DEFINE_UNQUOTED([USE_ECDSA_EVP_WORKAROUND], [1], [Define this to enable an EVP workaround for older openssl])
 		else
@@ -1673,10 +1752,12 @@ if test x_$enable_static_exe = x_yes; then
 			LIBS="$LIBS -lgdi32"
 		fi
 		AC_CHECK_LIB([z], [compress], [ LIBS="$LIBS -lz" ])
-		if echo "$LIBS" | grep -e "libssp.a" -e "lssp" >/dev/null; then
-			:
-		else
-			LIBS="$LIBS -l:libssp.a"
+		if echo "$host" | $GREP -i -e linux >/dev/null; then
+			if echo "$LIBS" | grep -e "libssp.a" -e "lssp" >/dev/null; then
+				:
+			else
+				LIBS="$LIBS -l:libssp.a"
+			fi
 		fi
 	fi
 fi
@@ -1694,10 +1775,12 @@ if test x_$enable_fully_static = x_yes; then
 			LIBS="$LIBS -lgdi32"
 		fi
 		AC_CHECK_LIB([z], [compress], [ LIBS="$LIBS -lz" ])
-		if echo "$LIBS" | grep -e "libssp.a" -e "lssp" >/dev/null; then
-			:
-		else
-			LIBS="$LIBS -l:libssp.a"
+		if echo "$host" | $GREP -i -e linux >/dev/null; then
+			if echo "$LIBS" | grep -e "libssp.a" -e "lssp" >/dev/null; then
+				:
+			else
+				LIBS="$LIBS -l:libssp.a"
+			fi
 		fi
 	fi
 fi
@@ -1756,6 +1839,7 @@ if test $ac_cv_func_daemon = yes; then
 ])
 fi
 
+AC_CHECK_MEMBERS([struct stat.st_mtimensec, struct stat.st_mtim.tv_nsec])
 AC_CHECK_MEMBERS([struct sockaddr_un.sun_len],,,[
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_SYS_UN_H
@@ -2293,6 +2377,7 @@ dnl includes
 
 AHX_CONFIG_FORMAT_ATTRIBUTE
 AHX_CONFIG_UNUSED_ATTRIBUTE
+AHX_CONFIG_NONSTRING_ATTRIBUTE
 AHX_CONFIG_FSEEKO
 AHX_CONFIG_MAXHOSTNAMELEN
 #if !defined(HAVE_SNPRINTF) || defined(SNPRINTF_RET_BROKEN)

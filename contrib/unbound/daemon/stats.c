@@ -262,6 +262,7 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 	s->svr = worker->stats;
 	s->mesh_num_states = (long long)worker->env.mesh->all.count;
 	s->mesh_num_reply_states = (long long)worker->env.mesh->num_reply_states;
+	s->mesh_num_reply_addrs = (long long)worker->env.mesh->num_reply_addrs;
 	s->mesh_jostled = (long long)worker->env.mesh->stats_jostled;
 	s->mesh_dropped = (long long)worker->env.mesh->stats_dropped;
 	s->mesh_replies_sent = (long long)worker->env.mesh->replies_sent;
@@ -284,6 +285,8 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 		NUM_BUCKETS_HIST);
 	s->svr.num_queries_discard_timeout +=
 		(long long)worker->env.mesh->num_queries_discard_timeout;
+	s->svr.num_queries_replyaddr_limit +=
+		(long long)worker->env.mesh->num_queries_replyaddr_limit;
 	s->svr.num_queries_wait_limit +=
 		(long long)worker->env.mesh->num_queries_wait_limit;
 	s->svr.num_dns_error_reports +=
@@ -448,6 +451,8 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 	total->svr.num_queries_cookie_invalid += a->svr.num_queries_cookie_invalid;
 	total->svr.num_queries_discard_timeout +=
 		a->svr.num_queries_discard_timeout;
+	total->svr.num_queries_replyaddr_limit +=
+		a->svr.num_queries_replyaddr_limit;
 	total->svr.num_queries_wait_limit += a->svr.num_queries_wait_limit;
 	total->svr.num_dns_error_reports += a->svr.num_dns_error_reports;
 	total->svr.num_queries_missed_cache += a->svr.num_queries_missed_cache;
@@ -519,6 +524,7 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 
 	total->mesh_num_states += a->mesh_num_states;
 	total->mesh_num_reply_states += a->mesh_num_reply_states;
+	total->mesh_num_reply_addrs += a->mesh_num_reply_addrs;
 	total->mesh_jostled += a->mesh_jostled;
 	total->mesh_dropped += a->mesh_dropped;
 	total->mesh_replies_sent += a->mesh_replies_sent;

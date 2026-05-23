@@ -366,22 +366,23 @@ static int
 dns64_apply_cfg(struct dns64_env* dns64_env, struct config_file* cfg)
 {
     struct config_strlist* s;
-    verbose(VERB_ALGO, "dns64-prefix: %s", cfg->dns64_prefix);
-    if (!netblockstrtoaddr(cfg->dns64_prefix ? cfg->dns64_prefix :
-                DEFAULT_DNS64_PREFIX, 0, &dns64_env->prefix_addr,
+    const char* dns64_prefix = cfg->dns64_prefix ?
+	cfg->dns64_prefix : DEFAULT_DNS64_PREFIX;
+    verbose(VERB_ALGO, "dns64-prefix: %s", dns64_prefix);
+    if (!netblockstrtoaddr(dns64_prefix, 0, &dns64_env->prefix_addr,
                 &dns64_env->prefix_addrlen, &dns64_env->prefix_net)) {
-        log_err("cannot parse dns64-prefix netblock: %s", cfg->dns64_prefix);
+        log_err("cannot parse dns64-prefix netblock: %s", dns64_prefix);
         return 0;
     }
     if (!addr_is_ip6(&dns64_env->prefix_addr, dns64_env->prefix_addrlen)) {
-        log_err("dns64_prefix is not IPv6: %s", cfg->dns64_prefix);
+        log_err("dns64_prefix is not IPv6: %s", dns64_prefix);
         return 0;
     }
     if (dns64_env->prefix_net != 32 && dns64_env->prefix_net != 40 &&
             dns64_env->prefix_net != 48 && dns64_env->prefix_net != 56 &&
             dns64_env->prefix_net != 64 && dns64_env->prefix_net != 96 ) {
-        log_err("dns64-prefix length it not 32, 40, 48, 56, 64 or 96: %s",
-                cfg->dns64_prefix);
+        log_err("dns64-prefix length is not 32, 40, 48, 56, 64 or 96: %s",
+                dns64_prefix);
         return 0;
     }
     for(s = cfg->dns64_ignore_aaaa; s; s = s->next) {
@@ -496,8 +497,8 @@ handle_ipv6_ptr(struct module_qstate* qstate, int id)
 
     /* Create the new sub-query. */
     fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
-    if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->query_flags, 0, 0,
-                &subq))
+    if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->client_info,
+	    qstate->query_flags, 0, 0, &subq))
         return module_error;
     if (subq) {
         subq->curmod = id;
@@ -522,8 +523,8 @@ generate_type_A_query(struct module_qstate* qstate, int id)
 
 	/* Start the sub-query. */
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
-	if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->query_flags, 0,
-				       0, &subq))
+	if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->client_info,
+		qstate->query_flags, 0, 0, &subq))
 	{
 		verbose(VERB_ALGO, "dns64: sub-query creation failed");
 		return module_error;

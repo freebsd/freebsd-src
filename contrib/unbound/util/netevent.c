@@ -2723,6 +2723,7 @@ doq_server_socket_create(struct doq_table* table, struct ub_randstate* rnd,
 {
 	size_t doq_buffer_size = 4096; /* bytes buffer size, for one packet. */
 	struct doq_server_socket* doq_socket;
+	log_assert(table != NULL);
 	doq_socket = calloc(1, sizeof(*doq_socket));
 	if(!doq_socket) {
 		return NULL;
@@ -2804,6 +2805,7 @@ doq_lookup_repinfo(struct doq_table* table, struct comm_reply* repinfo)
 {
 	struct doq_conn* conn;
 	struct doq_conn_key key;
+	log_assert(table != NULL);
 	doq_conn_key_from_repinfo(&key, repinfo);
 	lock_rw_rdlock(&table->lock);
 	conn = doq_conn_find(table, &key.paddr.addr,
@@ -4868,8 +4870,17 @@ http_process_initial_header(struct comm_point* c)
 			return 0;
 		}
 	} else if(strncasecmp(line, "Content-Length: ", 16) == 0) {
-		if(!c->http_is_chunked)
-			c->tcp_byte_count = (size_t)atoi(line+16);
+		if(!c->http_is_chunked) {
+			char* end = NULL;
+			long long cl;
+			errno = 0;
+			cl = strtoll(line+16, &end, 10);
+			if(end == line+16 || errno != 0 || cl < 0) {
+				verbose(VERB_ALGO, "http invalid Content-Length: " ARG_LL "d", cl);
+				return 0; /* reject */
+			}
+			c->tcp_byte_count = (size_t)cl;
+		}
 	} else if(strncasecmp(line, "Transfer-Encoding: chunked", 19+7) == 0) {
 		c->tcp_byte_count = 0;
 		c->http_is_chunked = 1;
@@ -4925,9 +4936,15 @@ http_process_chunk_header(struct comm_point* c)
 	if(c->http_in_chunk_headers == 1) {
 		/* read chunked start line */
 		char* end = NULL;
-		c->tcp_byte_count = (size_t)strtol(line, &end, 16);
-		if(end == line)
+		long chunk_sz;
+		errno = 0;
+		chunk_sz = strtol(line, &end, 16);
+		if(end == line || errno != 0 || chunk_sz < 0) {
+			verbose(VERB_ALGO, "http invalid chunk size: %ld",
+				chunk_sz);
 			return 0;
+		}
+		c->tcp_byte_count = (size_t)chunk_sz;
 		c->http_in_chunk_headers = 0;
 		/* remove header text from front of buffer */
 		http_moveover_buffer(c->buffer);
@@ -5883,6 +5900,7 @@ comm_point_create_doq(struct comm_base *base, int fd, sldns_buffer* buffer,
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
 	short evbits;
+	log_assert(table != NULL);
 	if(!c)
 		return NULL;
 	c->ev = (struct internal_event*)calloc(1,
@@ -6728,7 +6746,6 @@ comm_point_send_reply(struct comm_reply *repinfo)
 			tcp_req_info_send_reply(repinfo->c->tcp_req_info);
 		} else if(repinfo->c->use_h2) {
 			if(!http2_submit_dns_response(repinfo->c->h2_session)) {
-				comm_point_drop_reply(repinfo);
 				return;
 			}
 			repinfo->c->h2_stream = NULL;

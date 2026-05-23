@@ -411,6 +411,8 @@ struct module_env {
 	 * @param qstate: the state to find mesh state, and that wants to 
 	 * 	receive the results from the new subquery.
 	 * @param qinfo: what to query for (copied).
+	 * @param cinfo: if non-NULL client specific info that may affect
+	 *	IP-based actions that apply to the query result.
 	 * @param qflags: what flags to use (RD, CD flag or not).
 	 * @param prime: if it is a (stub) priming query.
 	 * @param valrec: validation lookup recursion, does not need validation
@@ -419,8 +421,9 @@ struct module_env {
 	 * @return: false on error, true if success (and init may be needed).
 	 */ 
 	int (*attach_sub)(struct module_qstate* qstate, 
-		struct query_info* qinfo, uint16_t qflags, int prime, 
-		int valrec, struct module_qstate** newq);
+		struct query_info* qinfo, struct respip_client_info* cinfo,
+		uint16_t qflags, int prime, int valrec,
+		struct module_qstate** newq);
 
 	/**
 	 * Add detached query.
@@ -440,6 +443,8 @@ struct module_env {
 	 * @param qstate: the state to find mesh state, and that wants to receive
 	 * 	the results from the new subquery.
 	 * @param qinfo: what to query for (copied).
+	 * @param cinfo: if non-NULL client specific info that may affect
+	 *	IP-based actions that apply to the query result.
 	 * @param qflags: what flags to use (RD / CD flag or not).
 	 * @param prime: if it is a (stub) priming query.
 	 * @param valrec: if it is a validation recursion query (lookup of key, DS).
@@ -449,9 +454,9 @@ struct module_env {
 	 * @return: false on error, true if success (and init may be needed).
 	 */
 	int (*add_sub)(struct module_qstate* qstate, 
-		struct query_info* qinfo, uint16_t qflags, int prime, 
-		int valrec, struct module_qstate** newq,
-		struct mesh_state** sub);
+		struct query_info* qinfo, struct respip_client_info* cinfo,
+		uint16_t qflags, int prime, int valrec,
+		struct module_qstate** newq, struct mesh_state** sub);
 
 	/**
 	 * Kill newly attached sub. If attach_sub returns newq for 
@@ -693,6 +698,10 @@ struct module_qstate {
 	time_t qstarttime;
 	/** whether a message from cachedb will be used for the reply */
 	int is_cachedb_answer;
+	/** if the response as error is from error_response_cache, and is
+	 * suitable for caching (briefly) the error response. Set by the
+	 * iterator when no_cache_store is enabled, and there is an error. */
+	int error_response_cache;
 
 	/**
 	 * Attributes of clients that share the qstate that may affect IP-based

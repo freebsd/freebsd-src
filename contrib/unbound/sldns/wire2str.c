@@ -233,6 +233,7 @@ static sldns_lookup_table sldns_edns_ede_codes_data[] = {
 	{ LDNS_EDE_UNSUPPORTED_NSEC3_ITERATIONS, "Unsupported NSEC3 Iterations Value" },
 	{ LDNS_EDE_BADPROXYPOLICY, "Unable to Conform to Policy" },
 	{ LDNS_EDE_SYNTHESIZED, "Synthesized Answer" },
+	{ LDNS_EDE_INVALID_QUERY_TYPE, "Invalid Query Type" },
 	{ 0, NULL}
 };
 sldns_lookup_table* sldns_edns_ede_codes = sldns_edns_ede_codes_data;
@@ -2485,6 +2486,8 @@ int sldns_wire2str_edns_scan(uint8_t** data, size_t* data_len, char** str,
 	w += sldns_str_print(str, str_len, " flags:");
 	if((edns_bits & LDNS_EDNS_MASK_DO_BIT))
 		w += sldns_str_print(str, str_len, " do");
+	if((edns_bits & LDNS_EDNS_MASK_CO_BIT))
+		w += sldns_str_print(str, str_len, " co");
 	/* the extended rcode is the value set, shifted four bits,
 	 * and or'd with the original rcode */
 	if(ext_rcode) {

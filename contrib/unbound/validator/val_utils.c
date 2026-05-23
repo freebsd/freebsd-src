@@ -1310,6 +1310,7 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 		/* DS rrset exists. Return it to the validator immediately*/
 		struct ub_packed_rrset_key* copy = packed_rrset_copy_region(
 			rrset, region, *env->now);
+		struct packed_rrset_data* d = copy->entry.data;
 		lock_rw_unlock(&rrset->entry.lock);
 		if(!copy)
 			return NULL;
@@ -1319,6 +1320,7 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 		msg->rep->rrsets[0] = copy;
 		msg->rep->rrset_count++;
 		msg->rep->an_numrrsets++;
+		UPDATE_TTL_FROM_RRSET(msg->rep->ttl, d->ttl);
 		return msg;
 	}
 	/* lookup in rrset and negative cache for NSEC/NSEC3 */
@@ -1331,4 +1333,27 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 	msg = val_neg_getmsg(env->neg_cache, &qinfo, region, env->rrset_cache,
 		env->scratch_buffer, *env->now, 0, topname, env->cfg);
 	return msg;
+}
+
+int derive_cname_from_dname(struct ub_packed_rrset_key* cname,
+	struct ub_packed_rrset_key* dname, uint8_t* out, size_t outlen)
+{
+	size_t prefix_len;
+	uint8_t* dname_target = NULL;
+	size_t dname_target_len = 0;
+	if(!dname_strict_subdomain_c(cname->rk.dname, dname->rk.dname))
+		return 0; /* Invalid: CNAME owner must be subdomain */
+	get_cname_target(dname, &dname_target, &dname_target_len);
+	if(!dname_target || !dname_target_len)
+		return 0; /* DNAME malformed */
+	if(cname->rk.dname_len < dname->rk.dname_len)
+		return 0; /* Not possible, due to subdomain, but check */
+	if(cname->rk.dname_len == 0)
+		return 0; /* Not possible, but check */
+	prefix_len = cname->rk.dname_len - dname->rk.dname_len;
+	if(prefix_len + dname_target_len > outlen)
+		return 0; /* Buffer too small */
+	memmove(out, cname->rk.dname, prefix_len);
+	memmove(out+prefix_len, dname_target, dname_target_len);
+	return 1;
 }

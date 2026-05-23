@@ -228,6 +228,11 @@ read_fwds_host(struct config_stub* s, struct delegpt* dp)
 				s->name, p->str);
 			return 0;
 		}
+		if(dname_subdomain_c(dname, dp->name)) {
+			log_warn("forward-host '%s' may have a circular "
+				"dependency on forward-zone '%s'",
+				p->str, s->name);
+		}
 #if ! defined(HAVE_SSL_SET1_HOST) && ! defined(HAVE_X509_VERIFY_PARAM_SET1_HOST)
 		if(tls_auth_name)
 			log_err("no name verification functionality in "

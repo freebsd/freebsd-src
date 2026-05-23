@@ -1564,7 +1564,7 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 			cp = comm_point_create_udp(base, ports->fd,
 				front->udp_buff, ports->pp2_enabled, cb,
 				cb_arg, ports->socket);
-		} else if(ports->ftype == listen_type_doq) {
+		} else if(ports->ftype == listen_type_doq && doq_table) {
 #ifndef HAVE_NGTCP2
 			log_warn("Unbound is not compiled with "
 				"ngtcp2. This is required to use DNS "
@@ -2300,21 +2300,8 @@ int
 tcp_req_info_handle_read_close(struct tcp_req_info* req)
 {
 	verbose(VERB_ALGO, "tcp channel read side closed %d", req->cp->fd);
-	/* reset byte count for (potential) partial read */
-	req->cp->tcp_byte_count = 0;
-	/* if we still have results to write, pick up next and write it */
-	if(req->num_done_req != 0) {
-		tcp_req_pickup_next_result(req);
-		tcp_req_info_setup_listen(req);
-		return 1;
-	}
-	/* if nothing to do, this closes the connection */
-	if(req->num_open_req == 0 && req->num_done_req == 0)
-		return 0;
-	/* otherwise, we must be waiting for dns resolve, wait with timeout */
-	req->read_is_closed = 1;
-	tcp_req_info_setup_listen(req);
-	return 1;
+	/* RFC 7766 6.2.4 says to drop pending replies when client closes. */
+	return 0; /* drop connection */
 }
 
 void
@@ -2884,6 +2871,7 @@ submit_http_error:
 	sldns_buffer_flip(h2_stream->qbuffer);
 	h2_session->postpone_drop = 1;
 	query_read_done = http2_query_read_done(h2_session, h2_stream);
+	h2_session->postpone_drop = 0;
 	if(query_read_done < 0)
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	else if(!query_read_done) {
@@ -2893,11 +2881,9 @@ submit_http_error:
 			 * failure will result in reclaiming (and closing)
 			 * of comm point. */
 			verbose(VERB_QUERY, "http2 query dropped in worker cb");
-			h2_session->postpone_drop = 0;
 			return NGHTTP2_ERR_CALLBACK_FAILURE;
 		}
 		/* nothing to submit right now, query added to mesh. */
-		h2_session->postpone_drop = 0;
 		return 0;
 	}
 	if(!http2_submit_dns_response(h2_session)) {
@@ -3275,14 +3261,18 @@ nghttp2_session_callbacks* http2_req_callbacks_create(void)
 struct doq_table*
 doq_table_create(struct config_file* cfg, struct ub_randstate* rnd)
 {
-	struct doq_table* table = calloc(1, sizeof(*table));
+	struct doq_table* table;
+
+	if (!cfg->quic_port)
+		return NULL;
+	table = calloc(1, sizeof(*table));
 	if(!table)
 		return NULL;
 #ifdef USE_NGTCP2_CRYPTO_OSSL
 	/* Initialize the ossl crypto, it is harmless to call twice,
 	 * and this is before use of doq connections. */
 	if(ngtcp2_crypto_ossl_init() != 0) {
-		log_err("ngtcp2_crypto_oss_init failed");
+		log_err("ngtcp2_crypto_ossl_init failed");
 		free(table);
 		return NULL;
 	}
@@ -3354,7 +3344,7 @@ conn_tree_del(rbnode_type* node, void* arg)
 {
 	struct doq_table* table = (struct doq_table*)arg;
 	struct doq_conn* conn;
-	if(!node)
+	if(!node || !table)
 		return;
 	conn = (struct doq_conn*)node->key;
 	if(conn->timer.timer_in_list) {
@@ -3413,6 +3403,7 @@ doq_timer_find_time(struct doq_table* table, struct timeval* tv)
 {
 	struct doq_timer key;
 	struct rbnode_type* node;
+	log_assert(table != NULL);
 	memset(&key, 0, sizeof(key));
 	key.time.tv_sec = tv->tv_sec;
 	key.time.tv_usec = tv->tv_usec;
@@ -3776,7 +3767,7 @@ doq_repinfo_retrieve_localaddr(struct comm_reply* repinfo,
 		memset(sa6, 0, *localaddrlen);
 		sa6->sin6_family = AF_INET6;
 		memmove(&sa6->sin6_addr, &repinfo->pktinfo.v6info.ipi6_addr,
-			*localaddrlen);
+			sizeof(struct in6_addr));
 		sa6->sin6_port = repinfo->doq_srcport;
 #endif
 	} else {
@@ -3786,7 +3777,7 @@ doq_repinfo_retrieve_localaddr(struct comm_reply* repinfo,
 		memset(sa, 0, *localaddrlen);
 		sa->sin_family = AF_INET;
 		memmove(&sa->sin_addr, &repinfo->pktinfo.v4info.ipi_addr,
-			*localaddrlen);
+			sizeof(struct in_addr));
 		sa->sin_port = repinfo->doq_srcport;
 #elif defined(IP_RECVDSTADDR)
 		struct sockaddr_in* sa = (struct sockaddr_in*)localaddr;
@@ -4922,6 +4913,7 @@ doq_conid_find(struct doq_table* table, const uint8_t* data, size_t datalen)
 	key.node.key = &key;
 	key.cid = (void*)data;
 	key.cidlen = datalen;
+	log_assert(table != NULL);
 	node = rbtree_search(table->conid_tree, &key);
 	if(node)
 		return (struct doq_conid*)node->key;
@@ -5662,6 +5654,8 @@ doq_table_quic_size_available(struct doq_table* table,
 	struct config_file* cfg, size_t mem)
 {
 	size_t cur;
+	if (!table)
+		return 0;
 	lock_basic_lock(&table->size_lock);
 	cur = table->current_size;
 	lock_basic_unlock(&table->size_lock);

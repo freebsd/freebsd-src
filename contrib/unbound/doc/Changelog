@@ -1,3 +1,487 @@
+23 April 2026: Wouter
+	- Merge #1441: Fix buffer overrun in
+	  doq_repinfo_retrieve_localaddr().
+	- For #1441: Fix type of ipv6 addr struct.
+
+21 April 2026: Wouter
+	- Add test case for malformed SVCB records. Thanks to
+	  Qifan Zhang, Palo Alto Networks for the additional test.
+	- Fix for the Jiggle Attack. The server is fixed to answer
+	  with errors for error cases, and does not stay silent.
+	  In addition, the error replies do not contain parts of the
+	  incoming query. This is more conformant, stops reflection
+	  and stops it as a covert channel. Thanks to Yuqi Qiu and
+	  Xiang Li, Nankai University (AOSP Lab) for the report.
+	  In addition, thanks to Qifan Zhang, Palo Alto Networks, for
+	  noting the fingerprinting possibility, that is also fixed
+	  with this.
+	- Fix EDNS extended RCODE reflection. This fixes that
+	  the server does not echo extended rcode values after class
+	  chaos queries. Thanks to Qifan Zhang, Palo Alto Networks
+	  for the report.
+	- Fix for iterator RCODE handling of YXDOMAIN. This fixes
+	  that the server only accepts YXDOMAIN answers that contain
+	  a DNAME record. This stops bad answers, and checks that
+	  the authoritative server gives correct replies.
+	  Thanks to Qifan Zhang, Palo Alto Networks for the report.
+	- Fix for missing bounds check for decompressing dnames
+	  for downloaded authority zones. This fixes that the server
+	  could end up with malformed zone content after receiving
+	  truncated packet contents from an AXFR. In addition, the
+	  domain names in the SOA rdata are checked before the
+	  authority code picks up the zone serial.
+	  Thanks to Halil Oktay for the report.
+	- Fix that upstream TLS connections are not reused as TLS
+	  connections for a different name, at the same IP. This
+	  checks that the tls name is correct when reusing the
+	  upstream connections. Thanks to TaoFei Guo from Peking
+	  University and JianJun Chen from Tsinghua University for
+	  the report.
+	- Fix that signatures are not allowed with revoked dnskeys.
+	  Thanks to Qifan Zhang, Palo Alto Networks for the report.
+	- Fix that a DNAME with an unsigned CNAME is checked for
+	  the correct match. This stops that for certain zone
+	  configurations an unchecked unsigned CNAME could get
+	  secure status. Thanks to Qifan Zhang, Palo Alto Networks
+	  for the report.
+	- Fix handling of wildcard CNAMEs in the chain of trust.
+	  An improper wildcard in the chain of trust would send
+	  the retries to the wrong upstream. Also it could label
+	  the step in the chain of trust as secure, when it was not.
+	  Thanks to Qifan Zhang, Palo Alto Networks for the report.
+	- Set version number to 1.25.0 of code repository.
+	- Fix doxygen comment syntax.
+
+20 April 2026: Wouter
+	- Fix compile warnings for thread setname routine, and test compile.
+	- Fix unused variable warning when compiled without ssl.
+	- Fix test with https zone for libressl.
+
+17 April 2026: Wouter
+	- Fix setup of ssl context copy of the tls service pem option,
+	  from a clang analyzer warning.
+	- Fix setup of ssl context copy, to check for the tls service
+	  pem option for stat calls.
+	- Fix to compile the shm code when there is no shmget.
+	- Update github ci to use actions/checkout@v6.
+	- Update github ci cross platform to use
+	  cross-platform-actions/action@v1.0.0.
+	- Fix github ci to speed up with parralel build, for windows ci.
+	- Fix compat/chacha_private sigma and tau definitions to use
+	  nonstring attribute.
+	- Fix compat/gmtime_r old style definition syntax.
+	- Fix to increase size of the buffer for the win_svc reportev log
+	  function.
+	- Fix ttl comparisons in rdata_copy for 32bit signed or unsigned.
+	- Fix subnet store of servfail to not leak memory.
+	- Update generated man pages.
+	- Update generated configure, with autoconf.
+	- Fix pthread_setname detection to fail on warnings.
+
+17 April 2026: Yorgos
+	- Merge #1400: Support pthread_setname_np. Adds support for
+	  pthread_setname_np and variants to set the name on spawned threads
+	  for easier debugging/monitoring.
+
+16 April 2026: Yorgos
+	- Merge #1406: Introduce new 'tls-protocols' configuration option.
+	- Introduce new 'tls-protocols' configuration option that specifies
+	  which of the supported TLS protocols will be used.
+	  This change invalidates some previous changes:
+	- TLSv1.2 is again enabled by default, but can be selectively turned
+	  off if desired (related to #1303).
+	- The biefly introduced (not yet released) 'tls-use-system-versions'
+	  configuration option, that addressed #1346, is reverted in favor of
+	  'tls-protocols'.
+	- The briefly introduced (not yet released) '--enable-system-tls'
+	  configure option, related to #1401, is no longer needed with the new
+	  option and the current default.
+	- Fix cleaning up DoH session. The same query can be on multiple
+	  streams in a session.
+
+16 April 2026: Wouter
+	- Fix configure, autoconf for #1406.
+
+15 April 2026: Wouter
+	- Fix RFC7766 compliance when client sends EOF over TCP. It stops
+	  pending replies and closes. Thanks to Yuxiao Wu, Tsinghua
+	  University for the report.
+	- Fix to shorten RRSIG count in scrubber, this protects against
+	  an overly large number of RRSIGs. It can be configured with
+	  `iter-scrub-rrsig: 8`, it has default 8. Thanks to Yuxiao Wu,
+	  Tsinghua University for the report.
+
+14 April 2026: Wouter
+	- Fix #1017: memory corruption related core dumps.
+	  When alloc_reg_obtain has an empty list, return a new allocation.
+	- Fix clang analyzer warning for subnetmod, when return_msg is
+	  NULL for update cache, like when it stores servfail status.
+	- iana portlist updated.
+
+13 April 2026: Yorgos
+	- Update the documentation of 'max-query-restarts' in the man page.
+
+10 April 2026: Wouter
+	- Fix for EDNS client subnet so that it does not store SERVFAIL in
+	  the global cache after a failed lookup, such as timeouts. A failure
+	  entry is stored in the subnet cache, for the query name, for a
+	  couple of seconds. Queries can continue to use the subnet cache
+	  during that time.
+
+7 April 2026: Yorgos
+	- Fix unused variable warning.
+
+30 March 2026: Wouter
+	- Merge #1408: Fix shared memory stats with threads.
+
+27 March 2026: Wouter
+	- Fix to allow the control-interface config to use ip@port notation.
+	- Fix test code to allow empty hex answer packets from testbound.
+	- Fix defense in depth for service callback with empty packet.
+
+24 March 2026: Wouter
+	- Fix to check for invalid http content length and chunk size,
+	  and to check the RR rdata field lengths when decompressing and
+	  inserting RRs from an authority zone transfer. This stops
+	  large memory use and heap buffer-overflow read errors. Thanks
+	  to Haruto Kimura (Stella) for the report.
+
+20 March 2026: Wouter
+	- Fix for testcode pktview to check buffer size and log errors.
+
+13 March 2026: Yorgos
+	- Fix to ignore out-of-zone DNAME records for CNAME synthesis. Thanks
+	  to Yuxiao Wu, Yiyi Wang, Zhang Chao, Baojun Liu, and Haixin Duan from
+	  Tsinghua University.
+
+13 March 2026: Wouter
+	- Fix #278: DoT: complete unbound restart required on certificate
+	  renew. Fix so that a reload checks if the files have changed, and
+	  if so, reload the contexts. Also for DoH, DoQ and outgoing DoT.
+	- iana portlist updated.
+	- For #278: fast_reload can reload tls-service-key, tls-service-pem
+	  and tls-cert-bundle changes. It checks the modification time of
+	  the tls-service-key and tls-service-pem files for update.
+	- Fix detection of http listening port in fast_reload.
+	- Fix to add tls-service-key to memory printout for fast_reload.
+
+9 March 2026: Wouter
+	- Fix compile failure in unbound-checkconf for older gcc compiler.
+	- Merge #1418: Apply cache TTL policy to DNAME and synthesized
+	  CNAME on wire path.
+
+6 March 2026: Wouter
+	- Merge #1415: Add lock unlock for view in memory error handling.
+
+6 March 2026: Yorgos
+	- Document the suggestion for a higher value for 'outgoing-range';
+	  helps when the request list is full.
+	- Warn for unused 'nodefault' local-zone configuration in
+	  unbound-checkconf (related to #1416).
+
+5 March 2026: Wouter
+	- Fix for DNS Rebinding Bypass via SVCB/HTTPS Records in Unbound.
+	  Thanks to Kunta Chu, School of Software, Tsinghua University,
+	  Taofei Guo, Peking University, and Jianjun Chen, Institute for
+	  Network Sciences and Cyberspace, Tsinghua University for the
+	  report. The private-address option is fixed to also elide
+	  SVCB and HTTPS records that match the filter.
+	- Update generated man pages.
+
+4 March 2026: Yorgos
+	- For #1411: Introduce a failing case in the rpl test so that it only
+	  passes with the fix in place.
+
+3 March 2026: Wouter
+	- Merge #1411: Allow synthesized DNAME TTL=0 to be served from cache
+	  within grace period. The responses are served from cache within
+	  a 1-second grace period. Reduces recursion when authoritative
+	  servers return DNAME with TTL=0 (RFC 2308). Response
+	  still returns TTL=0 to clients. Adds a test for it.
+	- For #1411: Fix that the lookup for DNAME uses flag. Fix assertion
+	  in expired calc debug routine.
+
+27 February 2026: Wouter
+	- Merge #1409: Documentation CNAME in redirect-type local-zone.
+	- Update generated man pages.
+
+25 February 2026: Wouter
+	- Fix validator to set unchecked when validation recursion
+	  requests are passed. The edns subnet module checks if validation
+	  is needed for a cache response, and set the validator to protect
+	  the cache with validation for non-subnet lookups.
+
+23 February 2026: Wouter
+	- Fix to have cachedb not return expired bogus data as non-bogus.
+	- Fix to make the cachedb_val_expired.crpl succeed.
+
+23 February 2026: Yorgos
+	- Fix to disallow cache lookup/store in external cachedb when a
+	  forwarder/stub forbids it with the no-cache option.
+	- Fixed some typos reported in #1395 by rezky_nightky.
+
+17 February 2026: Wouter
+	- Fix to remove unused conditional from cookie timestamp at
+	  worker env.
+	- For #1405: local-zone always_refuse also blocks queries of type DS.
+
+16 February 2026: Yorgos
+	- Fix #1404: Priming the root key fails after loading ipfire.org RPZ
+	  zones. Fixed by including the ZONEMD RRtype in the list of types to
+	  ignore for RPZ zones. Analysis and patch provided by ummeegge.
+
+16 February 2026: Wouter
+	- Fix that cachedb aggressive negative responses have the RA flag set.
+
+11 February 2026: Wouter
+	- Fix #1403: Inconsistency between do-nat64 and do-not-query-address
+	  during retries.
+
+9 February 2026: Wouter
+	- Merge #1401: Add a new build-time option for system TLS.
+	  The --enable-system-tls flag enables the
+	  tls-use-system-policy-versions setting by default.
+	- Update generated man pages.
+
+6 February 2026: Yorgos
+	- Fix #1389: [FR] replacement with ECC-GOST12 according to RFC9558.
+	  Patch contributed by Igor V. Ruzanov, available in
+	  contrib/gost12.patch.
+
+4 February 2026: Wouter
+	- Fix local privilege escalation on Windows. Thanks to Hao Huang and
+	  CrisprXiang with Fudan University for the report. The OpenSSL
+	  init calls are set to not load the openssl.cnf file when compiled
+	  for Windows.
+
+3 February 2026: Yorgos
+	- Eagerly remove .skip mark files in between mini_tdir.sh runs in case
+	  there has been a change on the environment.
+
+27 January 2026: Wouter
+	- Add test for allow-notify with a host name.
+
+26 January 2026: Wouter
+	- Fix that allow-notify entries with hostnames are copied after IPv4
+	  and IPv6 lookup.
+	- Fix to not skip allow-notify hostname lookups when there are only
+	  urls.
+
+23 January 2026: Yorgos
+	- Merge #1396: Log Linux thread ID.
+	- On Linux systems log the system-wide unique thread ID instead of
+	  Unbound's internal thread counter.
+	- Introduce the 'log-thread-id' configuration option to manage logging
+	  the system-wide Linux thread ID for easier debugging with system
+	  tools.
+	- Update generated man pages.
+
+22 January 2026: Wouter
+	- Fix that fast reload copies the iter_scrub_ns, iter_scrub_cname
+	  and max_global_quota options.
+	- Fix http test tool petal to not print errors when there is no
+	  error.
+
+21 January 2026: Wouter
+	- Merge #1388: QNX Porting support for unbound.
+
+19 January 2026: Wouter
+	- Merge #1392: Include "V" (version) option in synopsis.
+
+15 January 2026: Wouter
+	- Fix documentation for requestlist.overwritten and
+	  requestlist.exceeded, it explains which query was dropped.
+
+8 January 2026: Wouter
+	- Merge #1381: Do not initialize quic_table unless it is enabled.
+
+6 January 2026: Wouter
+	- Fix edns subnet, that scope zero queries, when there is a
+	  subquery without subnet, and the forward-no-cache or
+	  stub-no-cache option is set, it is not stored in cache due to
+	  the forward or stub option.
+
+6 January 2026: Yorgos
+	- Merge #1391 from Götz Görisch: Fix documentation to adhere to
+	  RFC5952.
+
+31 December 2025: Yorgos
+	- Update the unbound-anchor man page to note write permissions of the
+	  generated file if it is to be used with Unbound's
+	  auto-trust-anchor-file option.
+	- Use the same EDE removal logic when encoding errors as when encoding
+	  replies.
+
+30 December 2025: Yorgos
+	- Mark "THROWAWAY" and "(DNSSEC) LAME" responses clearly as Unbound's
+	  categorization in the log output.
+
+24 December 2025: Yorgos
+	- More specific wording in the unbound.conf man page for stub-first
+	  and forward-first options.
+
+3 December 2025: Wouter
+	- Fix http2 drop handling to clear the postpone_drop state so that
+	  other streams on the http2 session are not affected by a drop,
+	  and can clean up properly if also dropped. Fix http2 send reply
+	  so that when there is a send failure is does not recurse into
+	  the mesh functions and also does not drop the connection due to
+	  the condition of one stream.
+
+2 December 2025: Wouter
+	- Fix to remove http2 stream mesh state when mesh new request is
+	  dropping the new request.
+
+1 December 2025: Wouter
+	- Fix to add EDNS CO flag to testbound and debug message log.
+	- Fix header comment about EDE reference in validator/val_sigcrypt.h.
+
+28 November 2025: Yorgos
+	- For #1375, there is no DNSTAP environment if it wasn't configured.
+
+26 November 2025: Yorgos
+	- Tag for 1.24.2 release.
+	  The repository continues with version 1.24.3.
+
+13 November 2025: Wouter
+	- Merge #1374: Mesh reply counters.
+	  This adds the statistics num.queries.replyaddr_limit and
+	  requestlist.current.replies.
+	- Merge #1375: Copy DNSTAP changes from daemon to workers after
+	  fast_reload.
+
+12 November 2025: Wouter
+	- Fix that when discard timeout drops packet, they are accounted as
+	  less reply addresses in use in the mesh area.
+	- iana portlist updated.
+
+6 November 2025: Wouter
+	- Fix add comment to worker_handle_request function that explain it.
+	- Fix configure test for noreturn attribute so it compiles without
+	  warning.
+	- Fix configure test for nonstring attribute so that it does not
+	  accept when the compiler prints a warning about an unknown
+	  attribute.
+
+4 November 2025: Wouter
+	- Fix dns64 log output to log the default instead of a null string.
+
+1 November 2025: Yorgos
+	- Fix #1366: Infra cache does not work correctly for NAT64, by
+	  moving the NAT64 synthesis from the iterator when selecting a target
+	  address, to the delegation point itself when adding target
+	  addresses.
+
+27 October 2025: Yorgos
+	- Merge #1331 from Jitka Plesníková: Replace deprecated $function by
+	  new $action, for SWIG.
+	- Fix #1165, document the possible circular dependency when using
+	  host names instead of IP addresses for name servers in stub/forward
+	  zones and log a warning when spotted in the configuration.
+
+24 October 2025: Yorgos
+	- unbound.conf man page updates to include a preview of the section
+	  clauses and some reformatting around the use of "clause", "option"
+	  and "attributes". Based on Havard Eidnes' suggestions on the
+	  mailing list.
+	- Fix unused attribute warning in redis.c when threads are not
+	  supported.
+	- For #1364, use OPENSSL_VERSION_TEXT instead of OPENSSL_VERSION_NUMBER
+	  for part of the configure script. OPENSSL_VERSION_TEXT is more
+	  consistent across versions.
+
+22 October 2025: Yorgos
+	- Tag for 1.24.1 release.
+	  The repository continues with version 1.24.2.
+
+15 October 2025: Wouter
+	- Fix to drop UDP for discard-timeout, but not stream connections.
+	- Fix to reply with SERVFAIL when the wait-limit is exceeded.
+	- Add extended dns error code for invalid query type to definition
+	  list.
+	- Fix unbound.conf man page entry for root-hints to say it can
+	  be used without strongly recommending it.
+	- Remove iPhone armv7s, and iPhoneSimulator i386 from ios ci.
+	  The lib system does not provide symbols for it on the new macos
+	  runner.
+	- Fix to exclude libssp for windows compiles.
+
+10 October 2025: Wouter
+	- Fix #1358 Enabling FIPS in OpenSSL causes unit test to fail.
+
+3 October 2025: Yorgos
+	- Note 'respip' and 'dns64' module order in the unbound.conf
+	  man page.
+	- Note clearly that 'wait-limit: 0' disables all wait limits.
+	- 'wait-limit-cookie: 0' can now disable cookie validated wait
+	  limits.
+
+2 October 2025: Wouter
+	- Fix that https is set up as enabled when the port is listed in
+	  interface-automatic-ports. Also for the set up of quic it is
+	  enabled when listed there.
+
+30 September 2025: Wouter
+	- Fix for #1344: Fix that respip and dns64 can be enabled at the
+	  same time, the client info is copied for attach_sub and add_sub
+	  calls. That makes respip work on dns64 synthesized answers, and
+	  also makes RPZ work with DNS64. The order for the modules is
+	  module-config: "respip dns64 validator iterator".
+
+29 September 2025: Wouter
+	- Rebuild configure script from its sources.
+	- Fix modstack_call_init to use the original string when it has
+	  changed, to call modstack_config with. And skip the changed name
+	  in the string correctly. Thanks to Jan Komissar.
+	- Neaten up the change in acx_nlnetlabs.m4 to version 49.
+	- Fix fr_atomic_copy_cfg.
+	- Rebuild configure script from its sources.
+	- Fix #1353: auth-zone can not use empty label for $ORIGIN when
+	  http download.
+	- Fix #1344: module conf 'respip dns64 validator cachedb iterator'
+	  is not known to work.
+
+29 September 2025: Yorgos
+	- Merge #1349: Fix #1346: [FR] Please allow back TLS 1.2.
+	- Merge #1351: ac_cv_func_malloc_0_nonnull for malloc(0) check.
+
+26 September 2025: Yorgos
+	- Test for nonstring attribute in configure and add
+	  nonstring attribute annotations.
+
+24 September 2025: Yorgos
+	- Avoid calling mesh_detect_cycle_found() when there is no mesh state
+	  to begin with.
+
+23 September 2025: Yorgos
+	- Merge #1352 from Petr Vaganov: pythonmod: fix HANDLE_LEAK on
+	  pythonmod_init.
+	- For #1352, align with the current Python<3 code.
+	- Merge #1350 from Maryse47: unbound.service.in: allow CAP_NET_ADMIN.
+	- For #1350, same CAP_NET_ADMIN change for unbound_portable.service.in
+	  as well.
+
+19 September 2025: Wouter
+	- Fix to remove configure~ from release tarballs.
+
+19 September 2025: Yorgos
+	- Update README.man with clearer text.
+	- Merge #1337: 0 TTL cached replies and some TTL behavior changes.
+	- TTL change: Cached records that reach TTL 0 are expired.
+	- TTL change: TTL 0 upstream answers are no longer cached by
+	   cachedb, as they should.
+	- TTL change: 'serve-expired-reply-ttl' is now capped by the original
+	  TTL value of the record to try and make some sense when replying
+	  with expired records.
+	- TTL change: TTL decoding was updated to adhere to RFC8767 section 4
+	  where a 'set high-order bit' means the value is positive instead of
+	  0.
+	- unbound.conf manpage: explicitly mention RFC6891.
+
+18 September 2025: Wouter
+	- Tag for 1.24.0 release. Includes the fixes below after rc1.
+	  The repository continues with version 1.24.1.
+
 17 September 2025: Yorgos
 	- Too many quotes for the EDE message debug printout.
 

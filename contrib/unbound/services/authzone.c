@@ -171,7 +171,7 @@ get_rrset_ttl(struct ub_packed_rrset_key* k)
 /** Copy rrset into region from domain-datanode and packet rrset */
 static struct ub_packed_rrset_key*
 auth_packed_rrset_copy_region(struct auth_zone* z, struct auth_data* node,
-	struct auth_rrset* rrset, struct regional* region, time_t adjust)
+	struct auth_rrset* rrset, struct regional* region)
 {
 	struct ub_packed_rrset_key key;
 	memset(&key, 0, sizeof(key));
@@ -182,7 +182,7 @@ auth_packed_rrset_copy_region(struct auth_zone* z, struct auth_data* node,
 	key.rk.type = htons(rrset->type);
 	key.rk.rrset_class = htons(z->dclass);
 	key.entry.hash = rrset_key_hash(&key.rk);
-	return packed_rrset_copy_region(&key, region, adjust);
+	return packed_rrset_copy_region(&key, region, 0);
 }
 
 /** fix up msg->rep TTL and prefetch ttl */
@@ -236,7 +236,7 @@ msg_add_rrset_an(struct auth_zone* z, struct regional* region,
 		return 0;
 	/* copy it */
 	if(!(msg->rep->rrsets[msg->rep->rrset_count] =
-		auth_packed_rrset_copy_region(z, node, rrset, region, 0)))
+		auth_packed_rrset_copy_region(z, node, rrset, region)))
 		return 0;
 	msg->rep->rrset_count++;
 	msg->rep->an_numrrsets++;
@@ -260,7 +260,7 @@ msg_add_rrset_ns(struct auth_zone* z, struct regional* region,
 		return 0;
 	/* copy it */
 	if(!(msg->rep->rrsets[msg->rep->rrset_count] =
-		auth_packed_rrset_copy_region(z, node, rrset, region, 0)))
+		auth_packed_rrset_copy_region(z, node, rrset, region)))
 		return 0;
 	msg->rep->rrset_count++;
 	msg->rep->ns_numrrsets++;
@@ -283,7 +283,7 @@ msg_add_rrset_ar(struct auth_zone* z, struct regional* region,
 		return 0;
 	/* copy it */
 	if(!(msg->rep->rrsets[msg->rep->rrset_count] =
-		auth_packed_rrset_copy_region(z, node, rrset, region, 0)))
+		auth_packed_rrset_copy_region(z, node, rrset, region)))
 		return 0;
 	msg->rep->rrset_count++;
 	msg->rep->ar_numrrsets++;
@@ -1369,6 +1369,10 @@ decompress_rr_into_buffer(struct sldns_buffer* buf, uint8_t* pkt,
 				uncompressed_len = pkt_dname_len(&pktbuf);
 				if(!uncompressed_len)
 					return 0; /* parse error in dname */
+				compressed_len = sldns_buffer_position(
+					&pktbuf) - oldpos;
+				if(compressed_len > rdlen)
+					return 0; /* dname exceeds rdata */
 				if(!sldns_buffer_available(buf,
 					uncompressed_len))
 					/* dname too long for buffer */
@@ -1376,14 +1380,15 @@ decompress_rr_into_buffer(struct sldns_buffer* buf, uint8_t* pkt,
 				dname_pkt_copy(&pktbuf, 
 					sldns_buffer_current(buf), rd);
 				sldns_buffer_skip(buf, (ssize_t)uncompressed_len);
-				compressed_len = sldns_buffer_position(
-					&pktbuf) - oldpos;
 				rd += compressed_len;
 				rdlen -= compressed_len;
 				count--;
 				len = 0;
 				break;
 			case LDNS_RDF_TYPE_STR:
+				/* Check rdlen for resilience, because it is
+				 * checked above, that rdlen > 0 */
+				if(rdlen < 1) return 0; /* malformed */
 				len = rd[0] + 1;
 				break;
 			default:
@@ -1391,6 +1396,8 @@ decompress_rr_into_buffer(struct sldns_buffer* buf, uint8_t* pkt,
 				break;
 			}
 			if(len) {
+				if(len > rdlen)
+					return 0; /* malformed */
 				if(!sldns_buffer_available(buf, len))
 					return 0; /* too long for buffer */
 				sldns_buffer_write(buf, rd, len);
@@ -1998,12 +2005,21 @@ auth_zone_get_serial(struct auth_zone* z, uint32_t* serial)
 	struct auth_data* apex;
 	struct auth_rrset* soa;
 	struct packed_rrset_data* d;
+	size_t primlen, mboxlen;
 	apex = az_find_name(z, z->name, z->namelen);
 	if(!apex) return 0;
 	soa = az_domain_rrset(apex, LDNS_RR_TYPE_SOA);
 	if(!soa || soa->data->count==0)
 		return 0; /* no RRset or no RRs in rrset */
 	if(soa->data->rr_len[0] < 2+4*5) return 0; /* SOA too short */
+	if((primlen = dname_valid(soa->data->rr_data[0]+2,
+		soa->data->rr_len[0]-2)) == 0)
+		return 0; /* primary dname malformed */
+	if((mboxlen = dname_valid(soa->data->rr_data[0]+2+primlen,
+		soa->data->rr_len[0]-2-primlen)) == 0)
+		return 0; /* mailbox dname malformed */
+	if(2+primlen+mboxlen+4*5 != soa->data->rr_len[0])
+		return 0; /* rdata malformed */
 	d = soa->data;
 	*serial = sldns_read_uint32(d->rr_data[0]+(d->rr_len[0]-20));
 	return 1;
@@ -2016,12 +2032,21 @@ xfr_find_soa(struct auth_zone* z, struct auth_xfer* xfr)
 	struct auth_data* apex;
 	struct auth_rrset* soa;
 	struct packed_rrset_data* d;
+	size_t primlen, mboxlen;
 	apex = az_find_name(z, z->name, z->namelen);
 	if(!apex) return 0;
 	soa = az_domain_rrset(apex, LDNS_RR_TYPE_SOA);
 	if(!soa || soa->data->count==0)
 		return 0; /* no RRset or no RRs in rrset */
 	if(soa->data->rr_len[0] < 2+4*5) return 0; /* SOA too short */
+	if((primlen = dname_valid(soa->data->rr_data[0]+2,
+		soa->data->rr_len[0]-2)) == 0)
+		return 0; /* primary dname malformed */
+	if((mboxlen = dname_valid(soa->data->rr_data[0]+2+primlen,
+		soa->data->rr_len[0]-2-primlen)) == 0)
+		return 0; /* mailbox dname malformed */
+	if(2+primlen+mboxlen+4*5 != soa->data->rr_len[0])
+		return 0; /* rdata malformed */
 	/* SOA record ends with serial, refresh, retry, expiry, minimum,
 	 * as 4 byte fields */
 	d = soa->data;
@@ -3990,6 +4015,22 @@ auth_master_copy(struct auth_master* o)
 	return m;
 }
 
+/** append the master to the copied list. */
+static int
+auth_master_copy_and_append(struct auth_master* p, struct auth_master** list,
+	struct auth_master** last)
+{
+	struct auth_master* m = auth_master_copy(p);
+	if(!m) {
+		return 0;
+	}
+	m->next = NULL;
+	if(*last) (*last)->next = m;
+	if(!*list) *list = m;
+	*last = m;
+	return 1;
+}
+
 /** copy the master addresses from the task_probe lookups to the allow_notify
  * list of masters */
 static void
@@ -3998,17 +4039,27 @@ probe_copy_masters_for_allow_notify(struct auth_xfer* xfr)
 	struct auth_master* list = NULL, *last = NULL;
 	struct auth_master* p;
 	/* build up new list with copies */
-	for(p = xfr->task_transfer->masters; p; p=p->next) {
-		struct auth_master* m = auth_master_copy(p);
-		if(!m) {
+	/* The list in task probe has been looked up before the list in
+	 * task transfer. */
+	for(p = xfr->task_probe->masters; p; p=p->next) {
+		if(!auth_master_copy_and_append(p, &list, &last)) {
 			auth_free_masters(list);
 			/* failed because of malloc failure, use old list */
 			return;
 		}
-		m->next = NULL;
-		if(last) last->next = m;
-		if(!list) list = m;
-		last = m;
+	}
+	/* The list in task transfer also contains the http entries. */
+	for(p = xfr->task_transfer->masters; p; p=p->next) {
+		/* Copy the http entries from this lookup. The allow_notify
+		 * entries are not looked up from this list. The other
+		 * ones are already in from the probe lookups. */
+		if(!p->http)
+			continue;
+		if(!auth_master_copy_and_append(p, &list, &last)) {
+			auth_free_masters(list);
+			/* failed because of malloc failure, use old list */
+			return;
+		}
 	}
 	/* success, replace list */
 	auth_free_masters(xfr->allow_notify_list);
@@ -4556,6 +4607,23 @@ http_parse_ttl(sldns_buffer* buf, struct sldns_file_parse_state* pstate)
 	return 0;
 }
 
+/** remove newlines from collated line */
+static void
+chunkline_newline_removal(sldns_buffer* buf)
+{
+	size_t i, end=sldns_buffer_limit(buf);
+	for(i=0; i<end; i++) {
+		char c = (char)sldns_buffer_read_u8_at(buf, i);
+		if(c == '\n' && i==end-1) {
+			sldns_buffer_write_u8_at(buf, i, 0);
+			sldns_buffer_set_limit(buf, end-1);
+			return;
+		}
+		if(c == '\n')
+			sldns_buffer_write_u8_at(buf, i, (uint8_t)' ');
+	}
+}
+
 /** find noncomment RR line in chunks, collates lines if ( ) format */
 static int
 chunkline_non_comment_RR(struct auth_chunk** chunk, size_t* chunk_pos,
@@ -4563,6 +4631,7 @@ chunkline_non_comment_RR(struct auth_chunk** chunk, size_t* chunk_pos,
 {
 	int ret;
 	while(chunkline_get_line_collated(chunk, chunk_pos, buf)) {
+		chunkline_newline_removal(buf);
 		if(chunkline_is_comment_line_or_empty(buf)) {
 			/* a comment, go to next line */
 			continue;
@@ -4636,23 +4705,6 @@ chunklist_sum(struct auth_chunk* list)
 		s += p->len;
 	}
 	return s;
-}
-
-/** remove newlines from collated line */
-static void
-chunkline_newline_removal(sldns_buffer* buf)
-{
-	size_t i, end=sldns_buffer_limit(buf);
-	for(i=0; i<end; i++) {
-		char c = (char)sldns_buffer_read_u8_at(buf, i);
-		if(c == '\n' && i==end-1) {
-			sldns_buffer_write_u8_at(buf, i, 0);
-			sldns_buffer_set_limit(buf, end-1);
-			return;
-		}
-		if(c == '\n')
-			sldns_buffer_write_u8_at(buf, i, (uint8_t)' ');
-	}
 }
 
 /** for http download, parse and add RR to zone */
@@ -6668,6 +6720,18 @@ xfr_probe_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	return 1;
 }
 
+/** return true if there are probe (SOA UDP query) targets in the master list*/
+static int
+have_probe_targets(struct auth_master* list)
+{
+	struct auth_master* p;
+	for(p=list; p; p = p->next) {
+		if(!p->allow_notify && p->host)
+			return 1;
+	}
+	return 0;
+}
+
 /** move to sending the probe packets, next if fails. task_probe */
 static void
 xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
@@ -6707,6 +6771,16 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 			verbose(VERB_ALGO, "auth zone %s probe: finished only_lookup", zname);
 		}
 		xfr_probe_disown(xfr);
+		if(!have_probe_targets(xfr->task_probe->masters)) {
+			/* If there are no masters to probe, go to transfer. */
+			if(xfr->task_transfer->worker == NULL) {
+				xfr_start_transfer(xfr, env, NULL);
+				return;
+			}
+			/* The transfer is already in progress. */
+			lock_basic_unlock(&xfr->lock);
+			return;
+		}
 		if(xfr->task_nextprobe->worker == NULL)
 			xfr_set_timeout(xfr, env, 0, 0);
 		lock_basic_unlock(&xfr->lock);
@@ -6863,18 +6937,6 @@ auth_xfer_timer(void* arg)
 	}
 }
 
-/** return true if there are probe (SOA UDP query) targets in the master list*/
-static int
-have_probe_targets(struct auth_master* list)
-{
-	struct auth_master* p;
-	for(p=list; p; p = p->next) {
-		if(!p->allow_notify && p->host)
-			return 1;
-	}
-	return 0;
-}
-
 /** start task_probe if possible, if no masters for probe start task_transfer
  * returns true if task has been started, and false if the task is already
  * in progress. */
@@ -6886,7 +6948,9 @@ xfr_start_probe(struct auth_xfer* xfr, struct module_env* env,
 	 * progress (due to notify)) */
 	if(xfr->task_probe->worker == NULL) {
 		if(!have_probe_targets(xfr->task_probe->masters) &&
-			!(xfr->task_probe->only_lookup &&
+			xfr->task_probe->masters != NULL)
+			xfr->task_probe->only_lookup = 1;
+		if(!(xfr->task_probe->only_lookup &&
 			xfr->task_probe->masters != NULL)) {
 			/* useless to pick up task_probe, no masters to
 			 * probe. Instead attempt to pick up task transfer */

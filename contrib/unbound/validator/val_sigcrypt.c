@@ -1570,6 +1570,18 @@ dnskey_verify_rrset_sig(struct regional* region, sldns_buffer* buf,
 			*reason_bogus = LDNS_EDE_NO_ZONE_KEY_BIT_SET;
 		return sec_status_bogus; 
 	}
+	if((dnskey_get_flags(dnskey, dnskey_idx) & LDNS_KEY_REVOKE_KEY) &&
+		/* The REVOKE key is allowed to check sigs on itself. */
+		!(ntohs(rrset->rk.type) == LDNS_RR_TYPE_DNSKEY &&
+		  query_dname_compare(rrset->rk.dname, dnskey->rk.dname)==0)
+		) {
+		verbose(VERB_QUERY, "verify: dnskey has REVOKE bit set, "
+			"not usable for data validation per RFC 5011 s2.1");
+		*reason = "dnskey revoked";
+		if(reason_bogus)
+			*reason_bogus = LDNS_EDE_DNSKEY_MISSING;
+		return sec_status_bogus;
+	}
 
 	if(dnskey_get_protocol(dnskey, dnskey_idx) != LDNS_DNSSEC_KEYPROTO) { 
 		/* RFC 4034 says DNSKEY PROTOCOL MUST be 3 */

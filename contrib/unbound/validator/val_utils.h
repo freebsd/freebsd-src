@@ -427,4 +427,15 @@ int val_favorite_ds_algo(struct ub_packed_rrset_key* ds_rrset);
 struct dns_msg* val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen,
 	uint16_t c, struct regional* region, uint8_t* topname);
 
+/**
+ * Derive expected CNAME target from DNAME substitution per RFC 6672 s3.1
+ * @param cname: CNAME RRset, (e.g., b.d.a005.test CNAME 'some cname target')
+ * @param dname: DNAME RRset, (e.g., d.a005.test DNAME tgt.a005.test)
+ * @param out: Output buffer for expected CNAME target
+ * @param outlen: Output buffer size
+ * @return: 1 on success, 0 on error
+ */
+int derive_cname_from_dname(struct ub_packed_rrset_key* cname,
+	struct ub_packed_rrset_key* dname, uint8_t* out, size_t outlen);
+
 #endif /* VALIDATOR_VAL_UTILS_H */

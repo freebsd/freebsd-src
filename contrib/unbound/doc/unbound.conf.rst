@@ -46,34 +46,41 @@ Description
 -----------
 
 **unbound.conf** is used to configure :doc:`unbound(8)</manpages/unbound>`.
-The file format has attributes and values.
-Some attributes have attributes inside them.
-The notation is: ``attribute: value``.
-
-Comments start with ``#`` and last to the end of line.
-Empty lines are ignored as is whitespace at the beginning of a line.
 
 The utility :doc:`unbound-checkconf(8)</manpages/unbound-checkconf>` can be
 used to check ``unbound.conf`` prior to usage.
 
+File Format
+-----------
+
+Whitespace is used to separate keywords.
+Whitespace indentation is insignificant, but is still recommended for visual
+clarity.
+Comments start with ``#`` and last to the end of line.
+Empty lines are ignored, as is whitespace at the beginning of a line.
+
+Attribute keywords end with a colon (``:``) and they are either options or
+section clauses (group options together).
+
+The configuration file is logically divided into **sections** where each section
+is introduced by a :ref:`section clause<unbound.conf.clauses>`.
+
 Example
 -------
 
-An example config file is shown below.
-Copy this to :file:`/etc/unbound/unbound.conf` and start the server with:
+An example minimal config file is shown below; most settings are the defaults.
+Copy this to ``@ub_conf_file@`` and start the server with:
 
 .. code-block:: text
 
-    $ unbound -c /etc/unbound/unbound.conf
+    $ unbound -c @ub_conf_file@
 
-Most settings are the defaults.
 Stop the server with:
 
 .. code-block:: text
 
-    $ kill `cat /etc/unbound/unbound.pid`
+    $ kill `cat @UNBOUND_PIDFILE@`
 
-Below is a minimal config file.
 The source distribution contains an extensive :file:`example.conf` file with
 all the options.
 
@@ -81,35 +88,87 @@ all the options.
 
     # unbound.conf(5) config file for unbound(8).
     server:
-        directory: "/etc/unbound"
+        directory: "@UNBOUND_RUN_DIR@"
         username: unbound
         # make sure unbound can access entropy from inside the chroot.
         # e.g. on linux the use these commands (on BSD, devfs(8) is used):
-        #      mount --bind -n /dev/urandom /etc/unbound/dev/urandom
-        # and  mount --bind -n /dev/log /etc/unbound/dev/log
-        chroot: "/etc/unbound"
-        # logfile: "/etc/unbound/unbound.log"  #uncomment to use logfile.
-        pidfile: "/etc/unbound/unbound.pid"
+        #      mount --bind -n /dev/urandom @UNBOUND_RUN_DIR@/dev/urandom
+        # and  mount --bind -n /dev/log @UNBOUND_RUN_DIR@/dev/log
+        chroot: "@UNBOUND_CHROOT_DIR@"
+        # logfile: "@UNBOUND_RUN_DIR@/unbound.log"  #uncomment to use logfile.
+        pidfile: "@UNBOUND_PIDFILE@"
         # verbosity: 1      # uncomment and increase to get more logging.
         # listen on all interfaces, answer queries from the local subnet.
         interface: 0.0.0.0
         interface: ::0
         access-control: 10.0.0.0/8 allow
-        access-control: 2001:DB8::/64 allow
+        access-control: 2001:db8::/64 allow
 
-File Format
------------
+.. _unbound.conf.clauses:
 
-There must be whitespace between keywords.
-Attribute keywords end with a colon ``':'``.
-An attribute is followed by a value, or its containing attributes in which case
-it is referred to as a clause.
-Clauses can be repeated throughout the file (or included files) to group
-attributes under the same clause.
+Section Clauses
+---------------
+
+The recognized section clauses are:
+
+    :ref:`server:<unbound.conf.server>`
+        Most of the configuration is found in this section.
+
+    :ref:`remote-control:<unbound.conf.remote>`
+        Configuration for the facility used by
+        :doc:`unbound-control(8)</manpages/unbound-control>`.
+
+    :ref:`stub-zone:<unbound.conf.stub>`
+        Configuration for a zone that redirects to specific authoritative name
+        servers, e.g. for zones not generally available on the greater
+        Internet.
+
+    :ref:`forward-zone:<unbound.conf.forward>`
+        Configuration for a zone that forwards to specific DNS resolvers.
+
+    :ref:`auth-zone:<unbound.conf.auth>`
+        Configuration for local authoritative zones.
+
+    :ref:`view:<unbound.conf.view>`
+        Overriding a small subset of configuration for incoming requests.
+        Requests are mapped to views with
+        :ref:`access-control-view<unbound.conf.access-control-view>` and
+        :ref:`interface-view<unbound.conf.interface-view>`.
+
+    :ref:`python:<unbound.conf.python>`
+        Configuration for the optional ``python`` script module.
+
+    :ref:`dynlib:<unbound.conf.dynlib>`
+        Configuration for the optional ``dynlib`` module that loads dynamic
+        libraries into Unbound.
+
+    :ref:`dnscrypt:<unbound.conf.dnscrypt>`
+        Configuration for the optional DNSCrypt feature.
+
+    :ref:`cachedb:<unbound.conf.cachedb>`
+        Configuration for the optional ``cachedb`` module that can interface
+        with second level caches, currently Redis or Redis-complatible
+        databases.
+
+    :ref:`dnstap:<unbound.conf.dnstap>`
+        Configuration of the optional dnstap logging feature; a flexible,
+        structured binary log format for DNS software.
+
+    :ref:`rpz:<unbound.conf.rpz>`
+        Configuration for Response Policy Zones that allows for DNS filtering.
+        Requires the ``respip`` module.
+
+Section clauses can be repeated throughout the file (or included files) to
+logically group options in one visually cohesive group.
+This may be particularly useful for the ``server:`` clause with its myriad of
+options.
 
 .. _unbound.conf.include:
 
-Files can be included using the **include:** directive.
+Including Files
+---------------
+
+Files can be included using the ``include:`` directive.
 It can appear anywhere, it accepts a single file name as argument.
 Processing continues as if the text from the included file was copied into the
 config file at that point.
@@ -122,17 +181,17 @@ Wildcards can be used to include multiple files, see *glob(7)*.
 
 .. _unbound.conf.include-toplevel:
 
-For a more structural include option, the **include-toplevel:** directive can
+For a more structural include option, the ``include-toplevel:`` directive can
 be used.
-This closes whatever clause is currently active (if any) and forces the use of
-clauses in the included files and right after this directive.
+This closes whatever section clause is currently active (if any) and forces the
+use of section clauses in the included files and right after this directive.
 
 .. _unbound.conf.server:
 
 Server Options
-^^^^^^^^^^^^^^
+--------------
 
-These options are part of the **server:** clause.
+These options are part of the ``server:`` section.
 
 
 @@UAHL@unbound.conf@verbosity@@: *<number>*
@@ -307,6 +366,10 @@ These options are part of the **server:** clause.
     Larger numbers need extra resources from the operating system.
     For performance a very large value is best, use libevent to make this
     possible.
+    Should be higher (preferably double) than the value of
+    :ref:`num-queries-per-thread<unbound.conf.num-queries-per-thread>` to
+    account for cases where the request list is full and avoid file descriptor
+    starvation.
 
     Default: 4096 (libevent) / 960 (minievent) / 48 (windows)
 
@@ -496,6 +559,9 @@ These options are part of the **server:** clause.
     The wait time in msec where recursion requests are dropped.
     This is to stop a large number of replies from accumulating.
     They receive no reply, the work item continues to recurse.
+    For UDP the replies are dropped, for stream connections the reply
+    is not dropped if the stream connection is still open ready to receive
+    answers.
     It is nice to be a bit larger than
     :ref:`serve-expired-client-timeout<unbound.conf.serve-expired-client-timeout>`
     if that is enabled.
@@ -510,7 +576,7 @@ These options are part of the **server:** clause.
     This makes a ratelimit per IP address of waiting replies for recursion.
     It stops very large amounts of queries waiting to be returned to one
     destination.
-    The value ``0`` disables wait limits.
+    The value ``0`` disables all wait limits.
 
     Default: 1000
 
@@ -518,7 +584,11 @@ These options are part of the **server:** clause.
 @@UAHL@unbound.conf@wait-limit-cookie@@: *<number>*
     The number of replies that can wait for recursion, for an IP address
     that sent the query with a valid DNS Cookie.
-    Since the cookie validates the client address, this limit can be higher.
+    Since the cookie already validates the client address, this option allows
+    to override a configured
+    :ref:`wait-limit<unbound.conf.wait-limit>` value usually with a higher one
+    for cookie validated queries.
+    The value ``0`` disables wait limits for cookie validated queries.
 
     Default: 10000
 
@@ -978,9 +1048,13 @@ These options are part of the **server:** clause.
     certificate is in the :ref:`tls-service-pem<unbound.conf.tls-service-pem>`
     file and it must also be specified if
     :ref:`tls-service-key<unbound.conf.tls-service-key>` is specified.
-    Enabling or disabling this service requires a restart (a reload is not
-    enough), because the key is read while root permissions are held and before
-    chroot (if any).
+    If the key is stored with root permissions or outside of chroot, then
+    a change or enabling or disabling requires a restart (a reload is not
+    enough).
+    But if the key file (and tls-service-pem file) are accessible, then they
+    are read in on reload, and fast_reload.
+    The server checks the modification time of the file (and the filename)
+    to see if the file has changed for reload.
     The ports enabled implicitly or explicitly via
     :ref:`tls-port<unbound.conf.tls-port>` and
     :ref:`https-port<unbound.conf.https-port>` do not provide normal DNS TCP
@@ -1049,8 +1123,8 @@ These options are part of the **server:** clause.
 
 
 @@UAHL@unbound.conf@tls-system-cert@@: *<yes or no>*
-    This the same attribute as the
-    :ref:`tls-win-cert<unbound.conf.tls-win-cert>` attribute, under a
+    This the same as the
+    :ref:`tls-win-cert<unbound.conf.tls-win-cert>` option, under a
     different name.
     Because it is not windows specific.
 
@@ -1103,6 +1177,24 @@ These options are part of the **server:** clause.
     Default: ""
 
 
+@@UAHL@unbound.conf@tls-use-sni@@: *<yes or no>*
+    Enable or disable sending the SNI extension on TLS connections.
+
+    .. note:: Changing the value requires a restart.
+
+    Default: yes
+
+
+@@UAHL@unbound.conf@tls-protocols@@: *"<list of protocols>"*
+    Specify the allowed TLS protocol versions to use, in no particular order.
+    Possible values are ``TLSv1.2`` and ``TLSv1.3``.
+    Enclose list of protocols in quotes (``""``) and put spaces between them.
+
+    .. note:: Changing the value requires a restart.
+
+    Default: "TLSv1.2 TLSv1.3"
+
+
 @@UAHL@unbound.conf@pad-responses@@: *<yes or no>*
     If enabled, TLS serviced queries that contained an EDNS Padding option will
     cause responses padded to the closest multiple of the size specified in
@@ -1130,14 +1222,6 @@ These options are part of the **server:** clause.
     The block size with which to pad queries sent over TLS upstreams.
 
     Default: 128
-
-
-@@UAHL@unbound.conf@tls-use-sni@@: *<yes or no>*
-    Enable or disable sending the SNI extension on TLS connections.
-
-    .. note:: Changing the value requires a reload.
-
-    Default: yes
 
 
 @@UAHL@unbound.conf@https-port@@: *<number>*
@@ -1224,6 +1308,9 @@ These options are part of the **server:** clause.
     Only interfaces configured with that port number as @number get the QUIC
     service.
     The interface uses QUIC for the UDP traffic on that port number.
+    If it is set to 0, the server does not init QUIC code, and QUIC is
+    disabled.
+    This is similar to if QUIC is not in use, but then explicitly.
 
     Default: 853
 
@@ -1421,8 +1508,8 @@ These options are part of the **server:** clause.
     .. note::
         The interface needs to be already specified with
         :ref:`interface<unbound.conf.interface>` and that any
-        **access-control\*:** attribute overrides all **interface-\*:**
-        attributes for targeted clients.
+        **access-control\*:** option overrides all **interface-\*:**
+        options for targeted clients.
 
 
 @@UAHL@unbound.conf@interface-tag@@: *<ip address or interface name [@port]> <"list of tags">*
@@ -1432,8 +1519,8 @@ These options are part of the **server:** clause.
     .. note::
         The interface needs to be already specified with
         :ref:`interface<unbound.conf.interface>` and that any
-        **access-control\*:** attribute overrides all **interface-\*:**
-        attributes for targeted clients.
+        **access-control\*:** option overrides all **interface-\*:**
+        options for targeted clients.
 
 
 @@UAHL@unbound.conf@interface-tag-action@@: *<ip address or interface name [@port]> <tag> <action>*
@@ -1444,8 +1531,8 @@ These options are part of the **server:** clause.
     .. note::
         The interface needs to be already specified with
         :ref:`interface<unbound.conf.interface>` and that any
-        **access-control\*:** attribute overrides all **interface-\*:**
-        attributes for targeted clients.
+        **access-control\*:** option overrides all **interface-\*:**
+        options for targeted clients.
 
 
 @@UAHL@unbound.conf@interface-tag-data@@: *<ip address or interface name [@port]> <tag> <"resource record string">*
@@ -1456,8 +1543,8 @@ These options are part of the **server:** clause.
     .. note::
         The interface needs to be already specified with
         :ref:`interface<unbound.conf.interface>` and that any
-        **access-control\*:** attribute overrides all **interface-\*:**
-        attributes for targeted clients.
+        **access-control\*:** option overrides all **interface-\*:**
+        options for targeted clients.
 
 
 @@UAHL@unbound.conf@interface-view@@: *<ip address or interface name [@port]> <view name>*
@@ -1467,8 +1554,8 @@ These options are part of the **server:** clause.
     .. note::
         The interface needs to be already specified with
         :ref:`interface<unbound.conf.interface>` and that any
-        **access-control\*:** attribute overrides all **interface-\*:**
-        attributes for targeted clients.
+        **access-control\*:** option overrides all **interface-\*:**
+        options for targeted clients.
 
 
 @@UAHL@unbound.conf@chroot@@: *<directory>*
@@ -1533,7 +1620,7 @@ These options are part of the **server:** clause.
         [seconds since 1970] unbound[pid:tid]: type: message.
 
     If this option is given, the :ref:`use-syslog<unbound.conf.use-syslog>`
-    attribute is internally set to ``no``.
+    option is internally set to ``no``.
 
     The logfile is reopened (for append) when the config file is reread, on
     SIGHUP.
@@ -1632,6 +1719,15 @@ These options are part of the **server:** clause.
     Default: no
 
 
+@@UAHL@unbound.conf@log-thread-id@@: *<yes or no>*
+    (Only on Linux and only when threads are available)
+    Logs the system-wide Linux thread ID instead of Unbound's internal thread
+    counter.
+    Can be useful when debugging with system tools.
+
+    Default: no
+
+
 @@UAHL@unbound.conf@pidfile@@: *<filename>*
     The process id is written to the file.
     Default is :file:`"@UNBOUND_PIDFILE@"`.
@@ -1657,8 +1753,8 @@ These options are part of the **server:** clause.
     Default is nothing, using builtin hints for the IN class.
     The file has the format of zone files, with root nameserver names and
     addresses only.
-    The default may become outdated, when servers change, therefore it is good
-    practice to use a root hints file.
+    The default may become outdated, when servers change, and then it is
+    possible to use a root hints file with specific servers.
 
     Default: ""
 
@@ -1744,7 +1840,7 @@ These options are part of the **server:** clause.
 @@UAHL@unbound.conf@harden-short-bufsize@@: *<yes or no>*
     Very small EDNS buffer sizes from queries are ignored.
 
-    Default: yes (as described in the standard)
+    Default: yes (per :rfc:`6891`)
 
 
 @@UAHL@unbound.conf@harden-large-queries@@: *<yes or no>*
@@ -1917,6 +2013,11 @@ These options are part of the **server:** clause.
     This protects against so-called DNS Rebinding, where a user browser is
     turned into a network proxy, allowing remote access through the browser to
     other parts of your private network.
+
+    The option removes resource records of types A, AAAA, SVCB and HTTPS
+    that match the filter.
+    Inside the SVCB and HTTPS records, the svcparams of type ipv4hint
+    and ipv6hint are checked for matches.
 
     Some names can be allowed to contain your private addresses, by default all
     the :ref:`local-data<unbound.conf.local-data>` that you configured is
@@ -2306,6 +2407,12 @@ These options are part of the **server:** clause.
     :ref:`serve-expired-client-timeout<unbound.conf.serve-expired-client-timeout>`
     is also used then it is RECOMMENDED to use 30 as the value (:rfc:`8767`).
 
+    This value is capped by the original TTL of the record.
+    This means that records with higher original TTL than this value will use
+    this value for expired replies.
+    Records with lower original TTL than this value will use their original TTL
+    for expired replies.
+
     Default: 30
 
 
@@ -2562,6 +2669,33 @@ These options are part of the **server:** clause.
         redirected, so that users with web browsers cannot access sites with
         suffix example.com.
 
+        A ``CNAME`` record can also be provided via local-data:
+
+        .. code-block:: text
+
+            local-zone: "example.com." redirect
+            local-data: "example.com. CNAME www.example.org."
+
+        In that case, the ``CNAME`` is resolved and the answer
+        includes resolved target records as well.
+        The ``CNAME`` record has to be with the zone name of the local-zone,
+        and there can be one CNAME, not more.
+        The ``CNAME`` record has to be at the zone apex of the
+        ``redirect`` zone, then it is used for redirection.
+        The resolution proceeds with upstream DNS resolution, and
+        that does not include the lookup in local zones.
+        So the record is not able to point in local zones, but it
+        can point to upstream DNS answers.
+
+        ``CNAME`` resolution is supported only in type ``redirect``
+        local-zone, and in type ``inform_redirect`` local-zone.
+
+        As different from ``CNAME`` records that are used elsewhere, in
+        the ``redirect`` type local-zone, it is supported that in the target
+        of the record a wildcard label gets expanded to the query name, with
+        for example: ``example.com. CNAME *.foo.net.`` gets expanded
+        to ``www.example.com. CNAME www.example.com.foo.net.``.
+
     @@UAHL@unbound.conf.local-zone.type@inform@@
         The query is answered normally, same as
         :ref:`transparent<unbound.conf.local-zone.type.transparent>`.
@@ -2601,6 +2735,9 @@ These options are part of the **server:** clause.
     @@UAHL@unbound.conf.local-zone.type@always_refuse@@
         Like :ref:`refuse<unbound.conf.local-zone.type.refuse>`, but ignores
         local data and refuses the query.
+        This type also blocks queries of type DS for the zone name.
+        That can break the DNSSEC chain of trust, but it is refused anyway.
+        The block for type DS assists in more completely blocking the zone.
 
     @@UAHL@unbound.conf.local-zone.type@always_nxdomain@@
         Like :ref:`static<unbound.conf.local-zone.type.static>`, but ignores
@@ -2808,7 +2945,7 @@ These options are part of the **server:** clause.
     Configure local data shorthand for a PTR record with the reversed IPv4 or
     IPv6 address and the host name.
     For example ``"192.0.2.4 www.example.com"``.
-    TTL can be inserted like this: ``"2001:DB8::4 7200 www.example.com"``
+    TTL can be inserted like this: ``"2001:db8::4 7200 www.example.com"``
 
 
 @@UAHL@unbound.conf@local-zone-tag@@: *<zone> <"list of tags">*
@@ -2861,7 +2998,7 @@ These options are part of the **server:** clause.
     :ref:`response-ip<unbound.conf.response-ip>` with action being to redirect
     as specified by *<"resource record string">*.
     *<"Resource record string">* is similar to that of
-    :ref:`access-control-tag-action<unbound.conf.access-control-tag-action>`,
+    :ref:`access-control-tag-data<unbound.conf.access-control-tag-data>`,
     but it must be of either AAAA, A or CNAME types.
     If the *<IP-netblock>* is an IPv6/IPv4 prefix, the record must be AAAA/A
     respectively, unless it is a CNAME (which can be used for both versions of
@@ -3123,6 +3260,10 @@ These options are part of the **server:** clause.
     Hard limit on the number of times Unbound is allowed to restart a query
     upon encountering a CNAME record.
     Results in SERVFAIL when reached.
+    This applies to chained CNAME records but not sporadic CNAME records that
+    could be encountered in the lifetime of the query's resolution effort.
+    When a CNAME chain concludes, the counter keeping track of this limit is
+    reset.
     Changing this value needs caution as it can allow long CNAME chains to be
     accepted, where Unbound needs to verify (resolve) each link individually.
 
@@ -3145,6 +3286,15 @@ These options are part of the **server:** clause.
     Clips off the remainder of the reply packet at that point.
 
     Default: 11
+
+
+@@UAHL@unbound.conf@iter-scrub-rrsig@@: *<number>*
+    Limit on the number of RRSIGs allowed for an RRset, from the iterator
+    scrubber.
+    This protects against an overly large number of RRSIGs.
+    Clips off the remainder of the RRSIG list at that point.
+
+    Default: 8
 
 
 @@UAHL@unbound.conf@max-global-quota@@: *<number>*
@@ -3290,17 +3440,18 @@ These options are part of the **server:** clause.
 .. _unbound.conf.remote:
 
 Remote Control Options
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
-In the **remote-control:** clause are the declarations for the remote control
-facility.
+These options are part of the ``remote-control:`` section and are the
+declarations for the remote control facility.
+
 If this is enabled, the :doc:`unbound-control(8)</manpages/unbound-control>`
 utility can be used to send commands to the running Unbound server.
-The server uses these clauses to setup TLSv1 security for the connection.
-The :doc:`unbound-control(8)</manpages/unbound-control>` utility also reads the
-**remote-control:** section for options.
+The server uses these options to setup TLS security for the connection.
+The :doc:`unbound-control(8)</manpages/unbound-control>` utility also reads
+this ``remote-control:`` section for options.
 To setup the correct self-signed certificates use the
-*unbound-control-setup(8)* utility.
+``unbound-control-setup(8)`` utility.
 
 
 @@UAHL@unbound.conf.remote@control-enable@@: *<yes or no>*
@@ -3310,7 +3461,7 @@ To setup the correct self-signed certificates use the
     Default: no
 
 
-@@UAHL@unbound.conf.remote@control-interface@@: *<IP address or interface name or path>*
+@@UAHL@unbound.conf.remote@control-interface@@: *<IP address or interface name[@port] or path>*
     Give IPv4 or IPv6 addresses or local socket path to listen on for control
     commands.
     If an interface name is used instead of an IP address, the list of IP
@@ -3392,9 +3543,11 @@ To setup the correct self-signed certificates use the
 .. _unbound.conf.stub:
 
 Stub Zone Options
-^^^^^^^^^^^^^^^^^
+-----------------
 
-There may be multiple **stub-zone:** clauses.
+These options are part of the ``stub-zone:`` section.
+
+There may be multiple ``stub-zone:`` sections.
 Each with a :ref:`name<unbound.conf.stub.name>` and zero or more hostnames or
 IP addresses.
 For the stub zone this list of nameservers is used.
@@ -3427,9 +3580,10 @@ Consider adding :ref:`server<unbound.conf.server>` statements for
 :ref:`domain-insecure<unbound.conf.domain-insecure>` and for
 :ref:`local-zone: \<name\> nodefault<unbound.conf.local-zone.type.nodefault>`
 for the zone if it is a locally served zone.
-The insecure clause stops DNSSEC from invalidating the zone.
+The :ref:`domain-insecure<unbound.conf.domain-insecure>` option stops DNSSEC
+from invalidating the zone.
 The :ref:`local-zone: nodefault<unbound.conf.local-zone.type.nodefault>` (or
-:ref:`transparent<unbound.conf.local-zone.type.transparent>`) clause makes the
+:ref:`transparent<unbound.conf.local-zone.type.transparent>`) option makes the
 (reverse-) zone bypass Unbound's filtering of :rfc:`1918` zones.
 
 
@@ -3441,6 +3595,19 @@ The :ref:`local-zone: nodefault<unbound.conf.local-zone.type.nodefault>` (or
 @@UAHL@unbound.conf.stub@stub-host@@: *<domain name>*
     Name of stub zone nameserver.
     Is itself resolved before it is used.
+
+    .. caution::
+        If the domain (or a subdomain) from this zone is used as the host, it
+        will unavoidably introduce a circular dependency on retrieving the IP
+        addresses of the name server.
+        In that case, it is suggested to use
+        :ref:`stub-addr<unbound.conf.stub.stub-addr>` instead.
+        Alternatively,
+        :ref:`stub-first: yes<unbound.conf.stub.stub-first>` can also work
+        around the circular dependency by trying resolution outside of this
+        zone.
+        However this has the caveat that it would allow escaping this zone when
+        any resolution attempt fails within this zone.
 
     To use a non-default port for DNS communication append ``'@'`` with the
     port number.
@@ -3479,9 +3646,12 @@ The :ref:`local-zone: nodefault<unbound.conf.local-zone.type.nodefault>` (or
 
 
 @@UAHL@unbound.conf.stub@stub-first@@: *<yes or no>*
-    If enabled, a query is attempted without the stub clause if it fails.
+    If enabled, a query is attempted without this stub section if it fails.
     The data could not be retrieved and would have caused SERVFAIL because the
-    servers are unreachable, instead it is tried without this clause.
+    servers are unreachable, instead it is tried without this stub section.
+    This can lead to using less specific configured forward/stub/auth zones if
+    any, or end up to otherwise normal recursive resolution for that particular
+    query.
 
     Default: no
 
@@ -3513,9 +3683,11 @@ The :ref:`local-zone: nodefault<unbound.conf.local-zone.type.nodefault>` (or
 .. _unbound.conf.forward:
 
 Forward Zone Options
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
-There may be multiple **forward-zone:** clauses.
+These options are part of the ``forward-zone:`` section.
+
+There may be multiple ``forward-zone:`` sections.
 Each with a :ref:`name<unbound.conf.forward.name>` and zero or more hostnames
 or IP addresses.
 For the forward zone this list of nameservers is used to forward the queries
@@ -3544,6 +3716,19 @@ cache).
 @@UAHL@unbound.conf.forward@forward-host@@: *<domain name>*
     Name of server to forward to.
     Is itself resolved before it is used.
+
+    .. caution::
+        If the domain (or a subdomain) from this zone is used as the host, it
+        will unavoidably introduce a circular dependency on retrieving the IP
+        addresses of the name server.
+        In that case, it is suggested to use
+        :ref:`forward-addr<unbound.conf.forward.forward-addr>` instead.
+        Alternatively,
+        :ref:`forward-first: yes<unbound.conf.forward.forward-first>` can also
+        work around the circular dependency by trying resolution outside of
+        this zone.
+        However this has the caveat that it would allow escaping this zone when
+        any resolution attempt fails within this zone.
 
     To use a non-default port for DNS communication append ``'@'`` with the
     port number.
@@ -3579,9 +3764,11 @@ cache).
 
 
 @@UAHL@unbound.conf.forward@forward-first@@: *<yes or no>*
-    If a forwarded query is met with a SERVFAIL error, and this option is
-    enabled, Unbound will fall back to normal recursive resolution for this
-    query as if no query forwarding had been specified.
+    If a forwarded query is met with a SERVFAIL error and this option is
+    enabled Unbound will fall back to less specific resolution.
+    This can lead to using less specific configured forward/stub/auth zones if
+    any, or end up to otherwise normal recursive resolution for that particular
+    query.
 
     Default: no
 
@@ -3618,12 +3805,14 @@ cache).
 .. _unbound.conf.auth:
 
 Authority Zone Options
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
-Authority zones are configured with **auth-zone:**, and each one must have a
+These options are part of the ``auth-zone:`` section.
+
+Authority zones are configured with ``auth-zone:``, and each one must have a
 :ref:`name<unbound.conf.auth.name>`.
-There can be multiple ones, by listing multiple auth-zone clauses, each with a
-different name, pertaining to that part of the namespace.
+There can be multiple ones, by listing multiple ``auth-zone`` section clauses,
+each with a different name, pertaining to that part of the namespace.
 The authority zone with the name closest to the name looked up is used.
 Authority zones can be processed on two distinct, non-exclusive, configurable
 stages.
@@ -3654,7 +3843,7 @@ consult the local zone data while resolving.
 In this case, the aforementioned CNAME example will result in a thoroughly
 resolved answer.
 
-Authority zones can be read from zonefile.
+Authority zones can be read from a zonefile.
 And can be kept updated via AXFR and IXFR.
 After update the zonefile is rewritten.
 The update mechanism uses the SOA timer values and performs SOA UDP queries to
@@ -3690,9 +3879,11 @@ fallback activates to fetch from the upstream instead of the SERVFAIL.
     :ref:`url<unbound.conf.auth.url>` to download the zonefile as a text file
     from a webserver that would work.
 
-    If you specify the hostname, you cannot use the domain from the zonefile,
-    because it may not have that when retrieving that data, instead use a plain
-    IP address to avoid a circular dependency on retrieving that IP address.
+    .. caution::
+        If you specify the hostname, you cannot use the domain from the
+        zonefile, because it may not have that when retrieving that data,
+        instead use a plain IP address to avoid a circular dependency on
+        retrieving that IP address.
 
 
 @@UAHL@unbound.conf.auth@master@@: *<IP address or host name>*
@@ -3823,18 +4014,20 @@ fallback activates to fetch from the upstream instead of the SERVFAIL.
 .. _unbound.conf.view:
 
 View Options
-^^^^^^^^^^^^
+------------
 
-There may be multiple **view:** clauses.
+These options are part of the ``view:`` section.
+
+There may be multiple ``view:`` sections.
 Each with a :ref:`name<unbound.conf.view.name>` and zero or more
 :ref:`local-zone<unbound.conf.view.local-zone>` and
-:ref:`local-data<unbound.conf.view.local-data>` attributes.
+:ref:`local-data<unbound.conf.view.local-data>` options.
 Views can also contain :ref:`view-first<unbound.conf.view.view-first>`,
 :ref:`response-ip<unbound.conf.response-ip>`,
 :ref:`response-ip-data<unbound.conf.response-ip-data>` and
-:ref:`local-data-ptr<unbound.conf.view.local-data-ptr>` attributes.
+:ref:`local-data-ptr<unbound.conf.view.local-data-ptr>` options.
 View can be mapped to requests by specifying the view name in an
-:ref:`access-control-view<unbound.conf.access-control-view>` attribute.
+:ref:`access-control-view<unbound.conf.access-control-view>` option.
 Options from matching views will override global options.
 Global options will be used if no matching view is found, or when the matching
 view does not have the option specified.
@@ -3844,7 +4037,7 @@ view does not have the option specified.
     Name of the view.
     Must be unique.
     This name is used in the
-    :ref:`access-control-view<unbound.conf.access-control-view>` attribute.
+    :ref:`access-control-view<unbound.conf.access-control-view>` option.
 
 
 @@UAHL@unbound.conf.view@local-zone@@: *<zone> <type>*
@@ -3873,6 +4066,20 @@ view does not have the option specified.
     :ref:`local-data-ptr<unbound.conf.local-data-ptr>` elements.
 
 
+@@UAHL@unbound.conf.view@response-ip@@: *<IP-netblock> <action>*
+    This requires use of the ``respip`` module.
+
+    Similar to :ref:`response-ip<unbound.conf.response-ip>` but
+    only applies to this view.
+
+
+@@UAHL@unbound.conf.view@response-ip-data@@: *<IP-netblock> <"resource record string">*
+    This requires use of the ``respip`` module.
+
+    Similar to :ref:`response-ip-data<unbound.conf.response-ip-data>` but
+    only applies to this view.
+
+
 @@UAHL@unbound.conf.view@view-first@@: *<yes or no>*
     If enabled, it attempts to use the global
     :ref:`local-zone<unbound.conf.local-zone>` and
@@ -3881,10 +4088,14 @@ view does not have the option specified.
 
     Default: no
 
-Python Module Options
-^^^^^^^^^^^^^^^^^^^^^
+.. _unbound.conf.python:
 
-The **python:** clause gives the settings for the *python(1)* script module.
+Python Module Options
+---------------------
+
+These options are part of the ``python:`` section.
+
+The ``python:`` section gives the settings for the *python(1)* script module.
 This module acts like the iterator and validator modules do, on queries and
 answers.
 To enable the script module it has to be compiled into the daemon, and the word
@@ -3907,15 +4118,19 @@ path to the working directory.
     Repeat this option for every python module instance added to the
     :ref:`module-config<unbound.conf.module-config>` option.
 
-Dynamic Library Module Options
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _unbound.conf.dynlib:
 
-The **dynlib:** clause gives the settings for the ``dynlib`` module.
+Dynamic Library Module Options
+------------------------------
+
+These options are part of the ``dynlib:`` section.
+
+The ``dynlib:`` section gives the settings for the ``dynlib`` module.
 This module is only a very small wrapper that allows dynamic modules to be
 loaded on runtime instead of being compiled into the application.
 To enable the dynlib module it has to be compiled into the daemon, and the word
 ``dynlib`` has to be put in the
-:ref:`module-config<unbound.conf.module-config>` attribute.
+:ref:`module-config<unbound.conf.module-config>` option.
 Multiple instances of dynamic libraries are supported by adding the word
 ``dynlib`` more than once.
 
@@ -3931,7 +4146,9 @@ directory.
     :ref:`module-config<unbound.conf.module-config>` option.
 
 DNS64 Module Options
-^^^^^^^^^^^^^^^^^^^^
+--------------------
+
+These options are part of the ``server:`` section.
 
 The ``dns64`` module must be configured in the
 :ref:`module-config<unbound.conf.module-config>` directive, e.g.:
@@ -3943,7 +4160,11 @@ The ``dns64`` module must be configured in the
 and be compiled into the daemon to be enabled.
 
 .. note::
-    These settings go in the :ref:`server:<unbound.conf.server>` section.
+    If combining the ``respip`` and ``dns64`` modules, the ``respip`` module
+    needs to appear before the ``dns64`` module in the
+    :ref:`module-config<unbound.conf.module-config>`
+    configuration option so that response IP and/or RPZ feeds can properly
+    filter responses regardless of DNS64 synthesis.
 
 
 @@UAHL@unbound.conf.dns64@dns64-prefix@@: *<IPv6 prefix>*
@@ -3969,13 +4190,13 @@ and be compiled into the daemon to be enabled.
     per line.
     Applies also to names underneath the name given.
 
-NAT64 Operation
-^^^^^^^^^^^^^^^
+NAT64 Options
+-------------
+
+These options are part of the ``server:`` section.
 
 NAT64 operation allows using a NAT64 prefix for outbound requests to IPv4-only
 servers.
-It is controlled by two options in the
-:ref:`server:<unbound.conf.server>` section:
 
 
 @@UAHL@unbound.conf.nat64@do-nat64@@: *<yes or no>*
@@ -3990,12 +4211,27 @@ It is controlled by two options in the
     Use a specific NAT64 prefix to reach IPv4-only servers.
     The prefix length must be one of /32, /40, /48, /56, /64 or /96.
 
+    The NAT64 prefix is allowed by the
+    :ref:`do-not-query-address<unbound.conf.do-not-query-address>` option,
+    so that there is a clear outcome of addresses in both; the NAT64 prefix
+    is allowed.
+    The IPv4 address could be filtered by the
+    :ref:`do-not-query-address<unbound.conf.do-not-query-address>` option,
+    if needed.
+    Allowing the NAT64 prefix is useful when using do-not-query-address
+    for a cluster of machines that is IPv6-only and uses NAT64, but does
+    not have internet access.
+
     Default: 64:ff9b::/96 (same as :ref:`dns64-prefix<unbound.conf.dns64.dns64-prefix>`)
 
-DNSCrypt Options
-^^^^^^^^^^^^^^^^
+.. _unbound.conf.dnscrypt:
 
-The **dnscrypt:** clause gives the settings of the dnscrypt channel.
+DNSCrypt Options
+----------------
+
+These options are part of the ``dnscrypt:`` section.
+
+The ``dnscrypt:`` section gives the settings of the dnscrypt channel.
 While those options are available, they are only meaningful if Unbound was
 compiled with ``--enable-dnscrypt``.
 Currently certificate and secret/public keys cannot be generated by Unbound.
@@ -4102,7 +4338,9 @@ https://github.com/cofyc/dnscrypt-wrapper/blob/master/README.md#usage
     Default: (unconfigured)
 
 EDNS Client Subnet Module Options
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
+
+These options are part of the ``server:`` section.
 
 The ECS module must be configured in the
 :ref:`module-config<unbound.conf.module-config>` directive, e.g.:
@@ -4112,9 +4350,6 @@ The ECS module must be configured in the
     module-config: "subnetcache validator iterator"
 
 and be compiled into the daemon to be enabled.
-
-.. note::
-    These settings go in the :ref:`server:<unbound.conf.server>` section.
 
 If the destination address is allowed in the configuration Unbound will add the
 EDNS0 option to the query containing the relevant part of the client's address.
@@ -4230,7 +4465,9 @@ This module does not interact with the
     Default: 100
 
 Opportunistic IPsec Support Module Options
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------------------
+
+These options are part of the ``server:`` section.
 
 The IPsec module must be configured in the
 :ref:`module-config<unbound.conf.module-config>` directive, e.g.:
@@ -4240,9 +4477,6 @@ The IPsec module must be configured in the
     module-config: "ipsecmod validator iterator"
 
 and be compiled into Unbound by using ``--enable-ipsecmod`` to be enabled.
-
-.. note::
-    These settings go in the :ref:`server:<unbound.conf.server>` section.
 
 When Unbound receives an A/AAAA query that is not in the cache and finds a
 valid answer, it will withhold returning the answer and instead will generate
@@ -4333,8 +4567,12 @@ answer given from cache is still relevant for opportunistic IPsec.
 @@UAHL@unbound.conf@ipsecmod-whitelist@@: *<domain>*
     Alternate syntax for :ref:`ipsecmod-allow<unbound.conf.ipsecmod-allow>`.
 
+.. _unbound.conf.cachedb:
+
 Cache DB Module Options
-^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
+
+These options are part of the ``cachedb:`` section.
 
 The Cache DB module must be configured in the
 :ref:`module-config<unbound.conf.module-config>` directive, e.g.:
@@ -4386,7 +4624,7 @@ If connection close or timeout happens too often, Unbound will be effectively
 unusable with this backend.
 It's the administrator's responsibility to make the assumption hold.
 
-The **cachedb:** clause gives custom settings of the cache DB module.
+The ``cachedb:`` section gives custom settings of the cache DB module.
 
 
 @@UAHL@unbound.conf.cachedb@backend@@: *<backend name>*
@@ -4434,7 +4672,7 @@ The **cachedb:** clause gives custom settings of the cache DB module.
 
     Default: yes
 
-The following **cachedb:** options are specific to the ``redis`` backend.
+The following ``cachedb:`` options are specific to the ``redis`` backend.
 
 
 @@UAHL@unbound.conf.cachedb@redis-server-host@@: *<server address or name>*
@@ -4593,11 +4831,14 @@ The following **cachedb:** options are specific to the ``redis`` backend.
 
 .. _unbound.conf.dnstap:
 
-DNSTAP Logging Options
-^^^^^^^^^^^^^^^^^^^^^^
+DNSTAP Options
+--------------
 
-DNSTAP support, when compiled in by using ``--enable-dnstap``, is enabled in
-the **dnstap:** section.
+These options are part of the ``dnstap:`` section.
+
+DNSTAP is a flexible, structured binary log format for DNS software.
+When compiled in by using ``--enable-dnstap``, it can be enabled in the
+``dnstap:`` section.
 This starts an extra thread (when compiled with threading) that writes the log
 information to the destination.
 If Unbound is compiled without threading it does not spawn a thread, but
@@ -4747,21 +4988,31 @@ connects per-process to the destination.
 .. _unbound.conf.rpz:
 
 Response Policy Zone Options
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
-Response Policy Zones are configured with **rpz:**, and each one must have a
-:ref:`name<unbound.conf.rpz.name>` attribute.
-There can be multiple ones, by listing multiple RPZ clauses, each with a
-different name.
-RPZ clauses are applied in order of configuration and any match from an earlier
-RPZ zone will terminate the RPZ lookup.
+These options are part of the ``rpz:`` section.
+
+Response Policy Zones are configured with ``rpz:`` section clauses, and each
+one must have a :ref:`name<unbound.conf.rpz.name>` option.
+There can be multiple ones, by listing multiple ``rpz:`` section clauses, each
+with a different name.
+RPZ sections are applied in order of configuration and any match from an
+earlier RPZ zone will terminate the RPZ lookup.
 Note that a PASSTHRU action is still considered a match.
+
 The respip module needs to be added to the
 :ref:`module-config<unbound.conf.module-config>`, e.g.:
 
 .. code-block:: text
 
     module-config: "respip validator iterator"
+
+.. note::
+    If combining the ``respip`` and ``dns64`` modules, the ``respip`` module
+    needs to appear before the ``dns64`` module in the
+    :ref:`module-config<unbound.conf.module-config>`
+    configuration option so that response IP and/or RPZ feeds can properly
+    filter responses regardless of DNS64 synthesis.
 
 QNAME, Response IP Address, nsdname, nsip and clientip triggers are supported.
 Supported actions are: NXDOMAIN, NODATA, PASSTHRU, DROP, Local Data, tcp-only
@@ -4813,9 +5064,6 @@ The actions are specified with the record on the right
 
 Other records like AAAA, TXT and other CNAMEs (not rpz-..) can also be used to
 answer queries with that content.
-
-The RPZ zones can be configured in the config file with these settings in the
-**rpz:** block.
 
 
 @@UAHL@unbound.conf.rpz@name@@: *<zone name>*
@@ -4932,7 +5180,7 @@ The RPZ zones can be configured in the config file with these settings in the
 
 
 @@UAHL@unbound.conf.rpz@tags@@: *"<list of tags>"*
-    Limit the policies from this RPZ clause to clients with a matching tag.
+    Limit the policies from this RPZ section to clients with a matching tag.
 
     Tags need to be defined in :ref:`define-tag<unbound.conf.define-tag>` and
     can be assigned to client addresses using
@@ -4940,7 +5188,7 @@ The RPZ zones can be configured in the config file with these settings in the
     :ref:`interface-tag<unbound.conf.interface-tag>`.
     Enclose list of tags in quotes (``""``) and put spaces between tags.
 
-    If no tags are specified the policies from this clause will be applied for
+    If no tags are specified the policies from this section will be applied for
     all clients.
 
 Memory Control Example

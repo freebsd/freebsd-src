@@ -131,6 +131,12 @@ struct dt_io_thread {
 	struct dt_io_list_item* io_list_iter;
 	/** thread id, of the io thread */
 	ub_thread_type tid;
+#ifdef HAVE_GETTID
+	/** thread tid, the LWP id */
+	pid_t thread_tid;
+	/** if logging should include the LWP id */
+	int thread_tid_log;
+#endif
 	/** if the io processing has started */
 	int started;
 	/** ssl context for the io thread, for tls connections. type SSL_CTX* */

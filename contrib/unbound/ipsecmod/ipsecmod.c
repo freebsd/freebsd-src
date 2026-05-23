@@ -163,7 +163,7 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	}
 
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
-	if(!(*qstate->env->attach_sub)(qstate, &ask,
+	if(!(*qstate->env->attach_sub)(qstate, &ask, NULL,
 		(uint16_t)(BIT_RD|flags), 0, 0, &newq)){
 		log_err("Could not generate request: out of memory");
 		return 0;

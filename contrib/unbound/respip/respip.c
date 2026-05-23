@@ -973,6 +973,9 @@ respip_rewrite_reply(const struct query_info* qinfo,
 					lock_rw_unlock(&raddr->lock);
 					lock_rw_unlock(&a->lock);
 					lock_rw_unlock(&az->rpz_lock);
+					if(view) {
+                    	lock_rw_unlock(&view->lock);
+					}
 					return 0;
 				}
 				if(rpz_used) {
@@ -1074,7 +1077,8 @@ generate_cname_request(struct module_qstate* qstate,
 	subqi.qtype = qstate->qinfo.qtype;
 	subqi.qclass = qstate->qinfo.qclass;
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
-	return (*qstate->env->attach_sub)(qstate, &subqi, BIT_RD, 0, 0, &subq);
+	return (*qstate->env->attach_sub)(qstate, &subqi,
+		qstate->client_info, BIT_RD, 0, 0, &subq);
 }
 
 void
@@ -1233,7 +1237,8 @@ respip_inform_super(struct module_qstate* qstate, int id,
 	struct respip_qstate* rq = (struct respip_qstate*)super->minfo[id];
 	struct reply_info* new_rep = NULL;
 
-	rq->state = RESPIP_SUBQUERY_FINISHED;
+	if(rq)
+		rq->state = RESPIP_SUBQUERY_FINISHED;
 
 	/* respip subquery should have always been created with a valid reply
 	 * in super. */

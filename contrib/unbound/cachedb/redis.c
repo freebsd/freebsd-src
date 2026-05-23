@@ -143,6 +143,12 @@ redis_connect(const char* host, int port, const char* path,
 {
 	struct timeval now_val;
 	redisContext* ctx;
+#ifdef THREADS_DISABLED
+	/* Fix attribute unused warning.
+	 * wait_lock is only used with lock_basic_* functions that are nop'ed
+	 * when compiled without thread support. */
+	(void)wait_lock;
+#endif /* THREADS_DISABLED */
 
 	/* See if the redis server is down, and reconnect has to wait. */
 	if(*reconnect_attempts > REDIS_RECONNECT_ATTEMPT_LIMIT) {

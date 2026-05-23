@@ -131,7 +131,7 @@ need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
 	struct packed_rrset_data* newd = (struct packed_rrset_data*)nd;
 	struct packed_rrset_data* cached = (struct packed_rrset_data*)cd;
 	/*	o if new data is expired, cached data is better */
-	if( newd->ttl < timenow && timenow <= cached->ttl)
+	if( TTL_IS_EXPIRED(newd->ttl, timenow) && !TTL_IS_EXPIRED(cached->ttl, timenow))
 		return 0;
 	/* 	o store if rrset has been validated 
 	 *  		everything better than bogus data 
@@ -146,13 +146,13 @@ need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
         if( newd->trust > cached->trust ) {
 		/* if the cached rrset is bogus, and new is equal,
 		 * do not update the TTL - let it expire. */
-		if(equal && cached->ttl >= timenow && 
+		if(equal && !TTL_IS_EXPIRED(cached->ttl, timenow) &&
 			cached->security == sec_status_bogus)
 			return 0;
                 return 1;
 	}
 	/*	o item in cache has expired */
-	if( cached->ttl < timenow )
+	if( TTL_IS_EXPIRED(cached->ttl, timenow) )
 		return 1;
 	/*  o same trust, but different in data - insert it */
 	if( newd->trust == cached->trust && !equal ) {
@@ -278,6 +278,10 @@ void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache,
 	(void)rrset_cache_update(rrset_cache, &ref, alloc, timenow);
 }
 
+/** Grace period in seconds for TTL=0 DNAME rrsets (RFC 2308: do not cache).
+ * Allows synthesis from cache within this window to reduce recursion load. */
+#define DNAME_TTL0_GRACE_SECONDS 1
+
 struct ub_packed_rrset_key* 
 rrset_cache_lookup(struct rrset_cache* r, uint8_t* qname, size_t qnamelen, 
 	uint16_t qtype, uint16_t qclass, uint32_t flags, time_t timenow,
@@ -300,27 +304,36 @@ rrset_cache_lookup(struct rrset_cache* r, uint8_t* qname, size_t qnamelen,
 		/* check TTL */
 		struct packed_rrset_data* data = 
 			(struct packed_rrset_data*)e->data;
-		if(timenow > data->ttl) {
-			lock_rw_unlock(&e->lock);
-			return NULL;
+		struct ub_packed_rrset_key* k = (struct ub_packed_rrset_key*)e->key;
+		if(TTL_IS_EXPIRED(data->ttl, timenow)) {
+			/* Allow TTL=0 DNAME within grace period for synthesis */
+			if(qtype == LDNS_RR_TYPE_DNAME &&
+			   (k->rk.flags & PACKED_RRSET_UPSTREAM_0TTL) &&
+			   (timenow - data->ttl_add) <= DNAME_TTL0_GRACE_SECONDS) {
+				/* within grace: allow for synthesis */
+			} else {
+				lock_rw_unlock(&e->lock);
+				return NULL;
+			}
 		}
 		/* we're done */
-		return (struct ub_packed_rrset_key*)e->key;
+		return k;
 	}
 	return NULL;
 }
 
-int 
+int
 rrset_array_lock(struct rrset_ref* ref, size_t count, time_t timenow)
 {
 	size_t i;
+	struct packed_rrset_data* d;
 	for(i=0; i<count; i++) {
 		if(i>0 && ref[i].key == ref[i-1].key)
 			continue; /* only lock items once */
 		lock_rw_rdlock(&ref[i].key->entry.lock);
-		if(ref[i].id != ref[i].key->id || timenow >
-			((struct packed_rrset_data*)(ref[i].key->entry.data))
-			->ttl) {
+		d = ref[i].key->entry.data;
+		if(ref[i].id != ref[i].key->id ||
+			TTL_IS_EXPIRED(d->ttl, timenow)) {
 			/* failure! rollback our readlocks */
 			rrset_array_unlock(ref, i+1);
 			return 0;
@@ -511,7 +524,7 @@ rrset_cache_expired_above(struct rrset_cache* r, uint8_t** qname, size_t*
 			*qnamelen, searchtype, qclass, 0, 0, 0))) {
 			struct packed_rrset_data* data =
 				(struct packed_rrset_data*)rrset->entry.data;
-			if(now > data->ttl) {
+			if(TTL_IS_EXPIRED(data->ttl, now)) {
 				/* it is expired, this is not wanted */
 				lock_rw_unlock(&rrset->entry.lock);
 				log_nametypeclass(VERB_ALGO, "this rrset is expired", *qname, searchtype, qclass);

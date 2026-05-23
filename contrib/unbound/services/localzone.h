@@ -57,6 +57,9 @@ struct sldns_buffer;
 struct comm_reply;
 struct config_strlist;
 
+extern const char** local_zones_default_special;
+extern const char** local_zones_default_reverse;
+
 /**
  * Local zone type
  * This type determines processing for queries that did not match
@@ -262,11 +265,13 @@ void local_zone_delete(struct local_zone* z);
  * @param taglen: length of taglist.
  * @param ignoretags: lookup zone by name and class, regardless the
  * local-zone's tags.
+ * @param foradd: if the lookup is for addition or removal of the type.
+ *	Used for type DS. The lookup for answers turns this off.
  * @return closest local_zone or NULL if no covering zone is found.
  */
 struct local_zone* local_zones_tags_lookup(struct local_zones* zones, 
 	uint8_t* name, size_t len, int labs, uint16_t dclass, uint16_t dtype,
-	uint8_t* taglist, size_t taglen, int ignoretags);
+	uint8_t* taglist, size_t taglen, int ignoretags, int foradd);
 
 /**
  * Lookup zone that contains the given name, class.
@@ -278,10 +283,13 @@ struct local_zone* local_zones_tags_lookup(struct local_zones* zones,
  * @param dclass: class to lookup.
  * @param dtype: type of the record, if type DS then a zone higher up is found
  *   pass 0 to just plain find a zone for a name.
+ * @param foradd: if the lookup is for addition or removal of the type.
+ *	Used for type DS. The lookup for answers turns this off.
  * @return closest local_zone or NULL if no covering zone is found.
  */
 struct local_zone* local_zones_lookup(struct local_zones* zones, 
-	uint8_t* name, size_t len, int labs, uint16_t dclass, uint16_t dtype);
+	uint8_t* name, size_t len, int labs, uint16_t dclass, uint16_t dtype,
+	int foradd);
 
 /**
  * Debug helper. Print all zones 

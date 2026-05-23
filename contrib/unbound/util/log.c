@@ -174,10 +174,10 @@ void log_thread_set(int* num)
 
 int log_thread_get(void)
 {
-	unsigned int* tid;
+	int* tid;
 	if(!key_created) return 0;
-	tid = (unsigned int*)ub_thread_key_get(logkey);
-	return (int)(tid?*tid:0);
+	tid = ub_thread_key_get(logkey);
+	return (tid?*tid:0);
 }
 
 void log_ident_set(const char* id)
@@ -229,7 +229,7 @@ log_vmsg(int pri, const char* type,
 	const char *format, va_list args)
 {
 	char message[MAXSYSLOGMSGLEN];
-	unsigned int* tid = (unsigned int*)ub_thread_key_get(logkey);
+	int tid = log_thread_get();
 	time_t now;
 #if defined(HAVE_STRFTIME) && defined(HAVE_LOCALTIME_R) 
 	char tmbuf[32];
@@ -241,8 +241,8 @@ log_vmsg(int pri, const char* type,
 	vsnprintf(message, sizeof(message), format, args);
 #ifdef HAVE_SYSLOG_H
 	if(logging_to_syslog) {
-		syslog(pri, "[%d:%x] %s: %s", 
-			(int)getpid(), tid?*tid:0, type, message);
+		syslog(pri, "[%d:%d] %s: %s",
+			(int)getpid(), tid, type, message);
 		return;
 	}
 #elif defined(UB_ON_WINDOWS)
@@ -263,8 +263,8 @@ log_vmsg(int pri, const char* type,
 			tp=MSG_GENERIC_SUCCESS;
 			wt=EVENTLOG_SUCCESS;
 		}
-		snprintf(m, sizeof(m), "[%s:%x] %s: %s", 
-			ident, tid?*tid:0, type, message);
+		snprintf(m, sizeof(m), "[%s:%d] %s: %s",
+			ident, tid, type, message);
 		s = RegisterEventSource(NULL, SERVICE_NAME);
 		if(!s) return;
 		ReportEvent(s, wt, 0, tp, NULL, 1, 0, &str, NULL);
@@ -294,9 +294,9 @@ log_vmsg(int pri, const char* type,
 			tzbuf[3] = ':';
 			tzbuf[6] = 0;
 		}
-		fprintf(logfile, "%s.%3.3d%s %s[%d:%x] %s: %s\n",
+		fprintf(logfile, "%s.%3.3d%s %s[%d:%d] %s: %s\n",
 			tmbuf, (int)tv.tv_usec/1000, tzbuf,
-			ident, (int)getpid(), tid?*tid:0, type, message);
+			ident, (int)getpid(), tid, type, message);
 #ifdef UB_ON_WINDOWS
 		/* line buffering does not work on windows */
 		fflush(logfile);
@@ -310,19 +310,19 @@ log_vmsg(int pri, const char* type,
 	if(log_time_asc && strftime(tmbuf, sizeof(tmbuf), "%b %d %H:%M:%S",
 		localtime_r(&now, &tm))%(sizeof(tmbuf)) != 0) {
 		/* %sizeof buf!=0 because old strftime returned max on error */
-		fprintf(logfile, "%s %s[%d:%x] %s: %s\n", tmbuf, 
-			ident, (int)getpid(), tid?*tid:0, type, message);
+		fprintf(logfile, "%s %s[%d:%d] %s: %s\n", tmbuf,
+			ident, (int)getpid(), tid, type, message);
 	} else
 #elif defined(UB_ON_WINDOWS)
 	if(log_time_asc && GetTimeFormat(LOCALE_USER_DEFAULT, 0, NULL, NULL,
 		tmbuf, sizeof(tmbuf)) && GetDateFormat(LOCALE_USER_DEFAULT, 0,
 		NULL, NULL, dtbuf, sizeof(dtbuf))) {
-		fprintf(logfile, "%s %s %s[%d:%x] %s: %s\n", dtbuf, tmbuf, 
-			ident, (int)getpid(), tid?*tid:0, type, message);
+		fprintf(logfile, "%s %s %s[%d:%d] %s: %s\n", dtbuf, tmbuf,
+			ident, (int)getpid(), tid, type, message);
 	} else
 #endif
-	fprintf(logfile, "[" ARG_LL "d] %s[%d:%x] %s: %s\n", (long long)now, 
-		ident, (int)getpid(), tid?*tid:0, type, message);
+	fprintf(logfile, "[" ARG_LL "d] %s[%d:%d] %s: %s\n", (long long)now,
+		ident, (int)getpid(), tid, type, message);
 #ifdef UB_ON_WINDOWS
 	/* line buffering does not work on windows */
 	fflush(logfile);

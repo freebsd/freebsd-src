@@ -262,6 +262,7 @@ int
 modstack_call_init(struct module_stack* stack, const char* module_conf,
 	struct module_env* env)
 {
+	const char* orig_module_conf = module_conf;
         int i, changed = 0;
         env->need_to_validate = 0; /* set by module init below */
         for(i=0; i<stack->num; i++) {
@@ -276,11 +277,13 @@ modstack_call_init(struct module_stack* stack, const char* module_conf,
 				changed = 1;
 			}
 		}
-		module_conf += strlen(stack->mod[i]->name);
+		/* Skip this module name in module_conf. */
+		while(*module_conf && !isspace((unsigned char)*module_conf))
+			module_conf++;
 	}
 	if(changed) {
 		modstack_free(stack);
-		if(!modstack_config(stack, module_conf)) {
+		if(!modstack_config(stack, orig_module_conf)) {
 			return 0;
 		}
 	}

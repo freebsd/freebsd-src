@@ -29,7 +29,9 @@
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
+#ifndef __QNX__
 #include <sys/syscall.h>
+#endif /* !__QNX__ */
 #ifdef SYS__sysctl
 #include <linux/sysctl.h>
 #endif
@@ -42,7 +44,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#ifndef __QNX__
 #include <link.h>
+#endif /* __QNX__ */
 #include <termios.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -60,12 +64,14 @@
 #define SHA512_Final(r, c)	sha512_digest(c, SHA512_DIGEST_SIZE, r)
 #endif
 
+#ifndef __QNX__
 #include <linux/types.h>
 #include <linux/random.h>
 #ifdef HAVE_GETAUXVAL
 #include <sys/auxv.h>
 #endif
 #include <sys/vfs.h>
+#endif /* !__QNX__ */
 #ifndef MAP_ANON
 #define MAP_ANON MAP_ANONYMOUS
 #endif
@@ -94,8 +100,10 @@ static int getentropy_urandom(void *buf, size_t len);
 #ifdef SYS__sysctl
 static int getentropy_sysctl(void *buf, size_t len);
 #endif
+#ifndef __QNX__
 static int getentropy_fallback(void *buf, size_t len);
 static int getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data);
+#endif /* !__QNX__ */
 
 int
 getentropy(void *buf, size_t len)
@@ -178,6 +186,7 @@ getentropy(void *buf, size_t len)
 	 * sysctl ABI, or consider providing a new failsafe API which
 	 * works in a chroot or when file descriptors are exhausted.
 	 */
+#ifndef __QNX__
 #undef FAIL_INSTEAD_OF_TRYING_FALLBACK
 #ifdef FAIL_INSTEAD_OF_TRYING_FALLBACK
 	raise(SIGKILL);
@@ -185,6 +194,9 @@ getentropy(void *buf, size_t len)
 	ret = getentropy_fallback(buf, len);
 	if (ret != -1)
 		return (ret);
+#else /* !__QNX__ */
+	fatal_exit("failed to read from /dev/urandom");
+#endif /* __QNX__ */
 
 	errno = EIO;
 	return (ret);
@@ -214,7 +226,11 @@ getentropy_urandom(void *buf, size_t len)
 {
 	struct stat st;
 	size_t i;
+#ifndef __QNX__
 	int fd, cnt, flags;
+#else /* !__QNX__ */
+	int fd, flags;
+#endif /* __QNX__ */
 	int save_errno = errno;
 
 start:
@@ -241,10 +257,12 @@ start:
 		close(fd);
 		goto nodevrandom;
 	}
+#ifndef __QNX__
 	if (ioctl(fd, RNDGETENTCNT, &cnt) == -1) {
 		close(fd);
 		goto nodevrandom;
 	}
+#endif /* !__QNX__ */
 	for (i = 0; i < len; ) {
 		size_t wanted = len - i;
 		ssize_t ret = read(fd, (char *)buf + i, wanted);
@@ -265,6 +283,7 @@ nodevrandom:
 	return (-1);
 }
 
+#ifndef __QNX__
 #ifdef SYS__sysctl
 static int
 getentropy_sysctl(void *buf, size_t len)
@@ -537,3 +556,4 @@ getentropy_fallback(void *buf, size_t len)
 	errno = save_errno;
 	return (0);		/* satisfied */
 }
+#endif /* !__QNX__ */

@@ -47,6 +47,8 @@ struct worker;
 /* get struct ub_shm_stat_info */
 #include "libunbound/unbound.h"
 
+#include "util/locks.h"
+
 /**
  * The SHM info.
  */
@@ -59,6 +61,19 @@ struct shm_main_info {
 	int key;
 	int id_ctl;
 	int id_arr;
+
+	/** This mutex is on the volley information. */
+	lock_basic_type lock;
+	/** If there is a volley, a number of stat timer callbacks by the
+	 * threads, in progress. If not, there is no volley in progress and the
+	 * previous stat run has terminated succesfully for all threads.
+	 * Usually activated by the first thread and deactivated by the last
+	 * thread that starts its stat callback. */
+	int volley_in_progress;
+	/** Per thread, if they have put in stats. 0 if not. */
+	int* thread_volley;
+	/** The total stats of the thread stat timers, it is in progress */
+	struct ub_stats_info total_in_progress;
 };
 
 int shm_main_init(struct daemon* daemon);
