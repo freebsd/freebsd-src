@@ -199,6 +199,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DISCARD_TIMEOUT VAR_WAIT_LIMIT VAR_WAIT_LIMIT_COOKIE
 %token VAR_WAIT_LIMIT_NETBLOCK VAR_WAIT_LIMIT_COOKIE_NETBLOCK
 %token VAR_STREAM_WAIT_SIZE VAR_TLS_CIPHERS VAR_TLS_CIPHERSUITES VAR_TLS_USE_SNI
+%token VAR_TLS_PROTOCOLS
 %token VAR_IPSET VAR_IPSET_NAME_V4 VAR_IPSET_NAME_V6
 %token VAR_TLS_SESSION_TICKET_KEYS VAR_RPZ VAR_TAGS VAR_RPZ_ACTION_OVERRIDE
 %token VAR_RPZ_CNAME_OVERRIDE VAR_RPZ_LOG VAR_RPZ_LOG_NAME
@@ -214,8 +215,9 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_HARDEN_UNKNOWN_ADDITIONAL VAR_DISABLE_EDNS_DO VAR_CACHEDB_NO_STORE
 %token VAR_LOG_DESTADDR VAR_CACHEDB_CHECK_WHEN_SERVE_EXPIRED
 %token VAR_COOKIE_SECRET_FILE VAR_ITER_SCRUB_NS VAR_ITER_SCRUB_CNAME
+%token VAR_ITER_SCRUB_RRSIG
 %token VAR_MAX_GLOBAL_QUOTA VAR_HARDEN_UNVERIFIED_GLUE VAR_LOG_TIME_ISO
-%token VAR_ITER_SCRUB_PROMISCUOUS
+%token VAR_ITER_SCRUB_PROMISCUOUS VAR_LOG_THREAD_ID
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -287,7 +289,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_edns_buffer_size | server_prefetch | server_prefetch_key |
 	server_so_sndbuf | server_harden_below_nxdomain | server_ignore_cd_flag |
 	server_log_queries | server_log_replies | server_tcp_upstream | server_ssl_upstream |
-	server_log_local_actions |
+	server_log_local_actions | server_log_thread_id |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
 	server_https_port | server_http_endpoint | server_http_max_streams |
 	server_http_query_buffer_size | server_http_response_buffer_size |
@@ -346,7 +348,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_stream_wait_size | server_tls_ciphers |
 	server_tls_ciphersuites | server_tls_session_ticket_keys |
 	server_answer_cookie | server_cookie_secret | server_ip_ratelimit_cookie |
-	server_tls_use_sni | server_edns_client_string |
+	server_tls_use_sni | server_edns_client_string | server_tls_protocols |
 	server_edns_client_string_opcode | server_nsid |
 	server_zonemd_permissive_mode | server_max_reuse_tcp_queries |
 	server_tcp_reuse_timeout | server_tcp_auth_query_timeout |
@@ -357,6 +359,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_harden_unknown_additional | server_disable_edns_do |
 	server_log_destaddr | server_cookie_secret_file |
 	server_iter_scrub_ns | server_iter_scrub_cname | server_max_global_quota |
+	server_iter_scrub_rrsig |
 	server_harden_unverified_glue | server_log_time_iso | server_iter_scrub_promiscuous
 	;
 stub_clause: stubstart contents_stub
@@ -1155,6 +1158,15 @@ server_tls_use_sni: VAR_TLS_USE_SNI STRING_ARG
 		free($2);
 	}
 	;
+server_tls_protocols: VAR_TLS_PROTOCOLS STRING_ARG
+	{
+		OUTYY(("P(server_tls_protocols:%s)\n", $2));
+		if(!cfg_tls_protocols_is_valid($2))
+			yyerror("tls-protocols: valid values are 'TLSv1.2' and 'TLSv1.3'.");
+		free(cfg_parser->cfg->tls_protocols);
+		cfg_parser->cfg->tls_protocols = $2;
+	}
+	;
 server_https_port: VAR_HTTPS_PORT STRING_ARG
 	{
 		OUTYY(("P(server_https_port:%s)\n", $2));
@@ -1224,14 +1236,17 @@ server_http_notls_downstream: VAR_HTTP_NOTLS_DOWNSTREAM STRING_ARG
 server_quic_port: VAR_QUIC_PORT STRING_ARG
 	{
 		OUTYY(("P(server_quic_port:%s)\n", $2));
-#ifndef HAVE_NGTCP2
-		log_warn("%s:%d: Unbound is not compiled with "
-			"ngtcp2. This is required to use DNS "
-			"over QUIC.", cfg_parser->filename, cfg_parser->line);
-#endif
-		if(atoi($2) == 0)
+		if(atoi($2) == 0 && strcmp($2,"0")!=0)
 			yyerror("port number expected");
-		else cfg_parser->cfg->quic_port = atoi($2);
+		else {
+			cfg_parser->cfg->quic_port = atoi($2);
+#ifndef HAVE_NGTCP2
+			if (cfg_parser->cfg->quic_port != 0)
+				log_warn("%s:%d: Unbound is not compiled with "
+					"ngtcp2. This is required to use DNS "
+					"over QUIC.", cfg_parser->filename, cfg_parser->line);
+#endif
+		}
 		free($2);
 	};
 server_quic_size: VAR_QUIC_SIZE STRING_ARG
@@ -1333,6 +1348,15 @@ server_log_destaddr: VAR_LOG_DESTADDR STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->log_destaddr = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_log_thread_id: VAR_LOG_THREAD_ID STRING_ARG
+	{
+		OUTYY(("P(server_log_thread_id:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->log_thread_id = (strcmp($2, "yes")==0);
 		free($2);
 	}
 	;
@@ -2376,7 +2400,7 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 			yyerror("local-zone type: expected static, deny, "
 				"refuse, redirect, transparent, "
 				"typetransparent, inform, inform_deny, "
-				"inform_redirect, always_transparent, block_a,"
+				"inform_redirect, always_transparent, block_a, "
 				"always_refuse, always_nxdomain, "
 				"always_nodata, always_deny, always_null, "
 				"noview, nodefault or ipset");
@@ -4229,6 +4253,15 @@ server_iter_scrub_cname: VAR_ITER_SCRUB_CNAME STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->iter_scrub_cname = atoi($2);
+		free($2);
+	}
+	;
+server_iter_scrub_rrsig: VAR_ITER_SCRUB_RRSIG STRING_ARG
+	{
+		OUTYY(("P(server_iter_scrub_rrsig:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->iter_scrub_rrsig = atoi($2);
 		free($2);
 	}
 	;

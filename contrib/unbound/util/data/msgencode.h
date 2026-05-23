@@ -66,9 +66,9 @@ struct edns_data;
  * @param secure: if 1, the AD bit is set in the reply.
  * @return: 0 on error (server failure).
  */
-int reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep, 
+int reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep,
 	uint16_t id, uint16_t qflags, struct sldns_buffer* dest, time_t timenow,
-	int cached, struct regional* region, uint16_t udpsize, 
+	int cached, struct regional* region, uint16_t udpsize,
 	struct edns_data* edns, int dnssec, int secure);
 
 /**

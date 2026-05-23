@@ -448,6 +448,9 @@ int dt_io_thread_apply_cfg(struct dt_io_thread* dtio, struct config_file *cfg)
 		dtio->tls_use_sni = cfg->tls_use_sni;
 #endif /* HAVE_SSL */
 	}
+#ifdef HAVE_GETTID
+	dtio->thread_tid_log = cfg->log_thread_id;
+#endif
 	return 1;
 }
 
@@ -2130,7 +2133,18 @@ static void* dnstap_io(void* arg)
 	struct dt_io_thread* dtio = (struct dt_io_thread*)arg;
 	time_t secs = 0;
 	struct timeval now;
-	log_thread_set(&dtio->threadnum);
+	const char name[16] = "unbound/dnstap"; /* seems to be the safest size
+						   between different OSes */
+
+#if defined(HAVE_GETTID) && !defined(THREADS_DISABLED)
+	dtio->thread_tid = gettid();
+	if(dtio->thread_tid_log)
+		log_thread_set(&dtio->thread_tid);
+	else
+#endif
+		log_thread_set(&dtio->threadnum);
+
+	ub_thread_setname(dtio->tid, name);
 
 	/* setup */
 	verbose(VERB_ALGO, "start dnstap io thread");

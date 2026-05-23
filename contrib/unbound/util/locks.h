@@ -178,6 +178,30 @@ typedef pthread_key_t ub_thread_key_type;
 #define ub_thread_key_set(key, v) LOCKRET(pthread_setspecific(key, v))
 #define ub_thread_key_get(key) pthread_getspecific(key)
 
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
+#if defined(HAVE_PTHREAD_SET_NAME_NP)
+	#define ub_thread_setname(thread, name) do {	\
+		(void)pthread_set_name_np(thread, name);\
+		} while(0)
+#elif defined(HAVE_PTHREAD_SETNAME_NP1)
+	#define ub_thread_setname(thread, name) do {	\
+		(void)pthread_setname_np(name);		\
+		} while(0)
+#elif defined(HAVE_PTHREAD_SETNAME_NP3)
+	#define ub_thread_setname(thread, name) do {		\
+		(void)pthread_setname_np(thread, name, NULL);	\
+		} while(0)
+#elif defined(HAVE_PTHREAD_SETNAME_NP)
+	#define ub_thread_setname(thread, name) do {	\
+		(void)pthread_setname_np(thread, name);	\
+		} while(0)
+#else
+	#define ub_thread_setname(thread, name) /* nop */
+#endif /* HAVE_PTHREAD_SET_NAME_NP */
+
+
 #else /* we do not HAVE_PTHREAD */
 #ifdef HAVE_SOLARIS_THREADS
 
@@ -215,6 +239,7 @@ typedef thread_key_t ub_thread_key_type;
 #define ub_thread_key_create(key, f) LOCKRET(thr_keycreate(key, f))
 #define ub_thread_key_set(key, v) LOCKRET(thr_setspecific(key, v))
 void* ub_thread_key_get(ub_thread_key_type key);
+#define ub_thread_setname(thread, name) /* nop */
 
 
 #else /* we do not HAVE_SOLARIS_THREADS and no PTHREADS */
@@ -253,6 +278,7 @@ typedef DWORD ub_thread_key_type;
 void ub_thread_key_create(ub_thread_key_type* key, void* f);
 void ub_thread_key_set(ub_thread_key_type key, void* v);
 void* ub_thread_key_get(ub_thread_key_type key);
+#define ub_thread_setname(thread, name) /* nop */
 
 #else /* we do not HAVE_SOLARIS_THREADS, PTHREADS or WINDOWS_THREADS */
 
@@ -294,6 +320,7 @@ typedef void* ub_thread_key_type;
 #define ub_thread_key_create(key, f) (*(key)) = NULL
 #define ub_thread_key_set(key, v) (key) = (v)
 #define ub_thread_key_get(key) (key)
+#define ub_thread_setname(thread, name) /* nop */
 
 #endif /* HAVE_WINDOWS_THREADS */
 #endif /* HAVE_SOLARIS_THREADS */

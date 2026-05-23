@@ -69,8 +69,18 @@ struct subnet_env {
 };
 
 struct subnet_msg_cache_data {
+	/** Tree for nodes with IPv4 subnets. */
 	struct addrtree* tree4;
+	/** Tree for nodes with IPv6 subnets. */
 	struct addrtree* tree6;
+	/** If servfail is stored, for how long. Abs time in seconds.
+	 * This protects against too much recusion on the item when
+	 * resolution fails, for a couple of seconds. */
+	time_t ttl_servfail;
+	/** servfail ede */
+	sldns_ede_code ede_fail;
+	/** servfail reason */
+	char* reason_fail;
 };
 
 struct subnet_qstate {
