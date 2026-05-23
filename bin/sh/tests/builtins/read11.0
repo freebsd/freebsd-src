@@ -27,6 +27,7 @@ ts=$(date +%s%3N)
 read -t 0 v <&3 || r=$?
 te=$(date +%s%3N)
 kill -TERM "$!" || :
-[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = ALRM ]
+[ "$r" -gt 128 ]
+[ "$(kill -l "$r")" = ALRM ]
 [ $((te-ts)) -lt 250 ]
 [ -z "$v" ]
