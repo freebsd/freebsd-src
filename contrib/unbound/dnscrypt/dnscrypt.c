@@ -361,7 +361,7 @@ dnscrypt_server_uncurve(struct dnsc_env* env,
 
     len -= DNSCRYPT_QUERY_HEADER_SIZE;
 
-    while (*sldns_buffer_at(buffer, --len) == 0)
+    while (len>0 && *sldns_buffer_at(buffer, --len) == 0)
         ;
 
     if (*sldns_buffer_at(buffer, len) != 0x80) {
