@@ -130,6 +130,14 @@ In all other respects,
 acts just like
 .Xr loader 8 .
 .Pp
+.Nm
+requires NFS over UDP.
+Many recent distributions of Linux only serve NFS over TCP.
+Enable UDP in some distributions by uncommenting
+.Ql udp=y
+in
+.Pa /etc/nfs.conf .
+.Pp
 For further information on Intel's PXE specifications and Wired for
 Management (WfM) systems, see
 .Li http://www.pix.net/software/pxeboot/archive/pxespec.pdf .

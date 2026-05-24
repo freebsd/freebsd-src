@@ -415,6 +415,11 @@ rpc_getport(struct iodesc *d, n_long prog, n_long vers)
 		return (-1);
 	}
 	port = (int)ntohl(res->port);
+	if (port == 0) {
+		printf("Portmapper returned 0. TCP-only NFS server?\n");
+		free(pkt);
+		return (-1);
+	}
 	free(pkt);
 
 	rpc_pmap_putcache(d->destip, prog, vers, port);
