@@ -329,6 +329,7 @@ device		xz			# lzma decompression
 device		bpf			# Berkeley packet filter
 
 # random(4)
+device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
 # Disabled for now since tpm(4) breaks suspend/resume.
 #device		tpm			# Trusted Platform Module
