@@ -106,6 +106,12 @@ void	wrmsr_early_safe_start(void);
 void	wrmsr_early_safe_end(void);
 int	wrmsr_early_safe(u_int msr, uint64_t data);
 
+enum uiomove_mem_req {
+	UIO_MEM_KMEM = 101,
+	UIO_MEM_MEM,
+};
+int uiomove_mem(enum uiomove_mem_req req, struct uio *uio);
+
 #endif /* !_MACHINE_MD_VAR_H_ */
 
 #endif /* __i386__ */
