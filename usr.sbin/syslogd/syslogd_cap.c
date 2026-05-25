@@ -50,7 +50,7 @@ casper_command(const char *cmd, const nvlist_t *limits __unused,
 	else if (strcmp(cmd, "readconfigfile") == 0)
 		error = casper_readconfigfile(nvlin, nvlout);
 	else if (strcmp(cmd, "ttymsg") == 0)
-		error = casper_ttymsg(nvlin, nvlout);
+		error = casper_ttymsg(nvlin);
 	else if (strcmp(cmd, "wallmsg") == 0)
 		error = casper_wallmsg(nvlin);
 
