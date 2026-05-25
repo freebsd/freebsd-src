@@ -4731,7 +4731,7 @@ acpi_pm_func(u_long cmd, void *arg, ...)
 			goto out;
 		}
 
-		if (ACPI_FAILURE(acpi_EnterSleepState(sc, acpi_state)))
+		if (ACPI_FAILURE(acpi_ReqSleepState(sc, acpi_state)))
 			error = ENXIO;
 		break;
 	default:
