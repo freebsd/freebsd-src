@@ -80,8 +80,12 @@ static char sccsid[] = "@(#)printjob.c	8.7 (Berkeley) 5/10/95";
 
 /*
  * The buffer size to use when reading/writing spool files.
+ * This is also used to compose commands for remote servers and therefore
+ * needs to be able to fit the longest command we could possibly send.
  */
-#define	SPL_BUFSIZ	BUFSIZ
+#define	SPL_BUFSIZ	(BUFSIZ * 2)
+_Static_assert(SPL_BUFSIZ > sizeof("x18446744073709551615 ") + PATH_MAX +
+    sizeof("_c2147483647 "), "SPL_BUFSIZ is too short");
 
 /*
  * Error tokens
@@ -652,7 +656,7 @@ print(struct printer *pp, int format, char *file)
 	if (pp->filters[LPF_INPUT] == NULL
 	    && (format == 'f' || format == 'l' || format == 'o')) {
 		pp->tof = 0;
-		while ((n = read(fi, buf, SPL_BUFSIZ)) > 0)
+		while ((n = read(fi, buf, sizeof(buf))) > 0)
 			if (write(ofd, buf, n) != n) {
 				(void) close(fi);
 				return (REPRINT);
@@ -1139,13 +1143,18 @@ sendfile(struct printer *pp, int type, char *file, char format, int copyreq)
 sendagain:
 	copycnt++;
 
-	if (copycnt < 2)
-		(void) sprintf(buf, "%c%" PRId64 " %s\n", type, stb.st_size,
-		    file);
-	else
-		(void) sprintf(buf, "%c%" PRId64 " %s_c%d\n", type, stb.st_size,
-		    file, copycnt);
-	amt = strlen(buf);
+	if (copycnt < 2) {
+		amt = snprintf(buf, sizeof(buf), "%c%" PRId64 " %s\n",
+		    type, stb.st_size, file);
+	} else {
+		amt = snprintf(buf, sizeof(buf), "%c%" PRId64 " %s_c%d\n",
+		    type, stb.st_size, file, copycnt);
+	}
+	if (amt >= sizeof(buf)) {
+		syslog(LOG_ERR, "%s: file name too long", file);
+		sfres = ERROR;
+		goto return_sfres;
+	}
 	for (i = 0;  ; i++) {
 		if (write(pfd, buf, amt) != amt ||
 		    (resp = response(pp)) < 0 || resp == '\1') {
@@ -1169,8 +1178,8 @@ sendagain:
 	 */
 	if (type == '\3')
 		trstat_init(pp, file, job_dfcnt);
-	for (i = 0; i < stb.st_size; i += SPL_BUFSIZ) {
-		amt = SPL_BUFSIZ;
+	for (i = 0; i < stb.st_size; i += sizeof(buf)) {
+		amt = sizeof(buf);
 		if (i + amt > stb.st_size)
 			amt = stb.st_size - i;
 		if (sizerr == 0 && read(sfd, buf, amt) != amt)
