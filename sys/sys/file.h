@@ -213,6 +213,7 @@ struct file {
 	union {
 		int16_t	f_seqcount[2];	/* (a) Count of seq. reads and writes. */
 		int	f_pipegen;
+		int	f_pdflags;	/* Per-file flags for procdesc. */
 	};
 	off_t		f_nextoff[2];	/* next expected read/write offset. */
 	union {

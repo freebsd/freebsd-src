@@ -209,8 +209,6 @@ procdesc_alloc(int flags)
 	pd = malloc(sizeof(*pd), M_PROCDESC, M_WAITOK | M_ZERO);
 	pd->pd_flags = 0;
 	pd->pd_pid = -1;
-	if ((flags & PD_DAEMON) != 0)
-		pd->pd_flags |= PDF_DAEMON;
 	PROCDESC_LOCK_INIT(pd);
 	knlist_init_mtx(&pd->pd_selinfo.si_note, &pd->pd_lock);
 
@@ -260,7 +258,12 @@ int
 procdesc_falloc(struct thread *td, struct file **resultfp, int *resultfd,
     int flags, struct filecaps *fcaps)
 {
-	return (falloc_caps(td, resultfp, resultfd, pdtofdflags(flags), fcaps));
+	int error;
+
+	error = falloc_caps(td, resultfp, resultfd, pdtofdflags(flags), fcaps);
+	if (error == 0 && (flags & PD_DAEMON) != 0)
+		(*resultfp)->f_pdflags |= F_PD_NOKILL;
+	return (error);
 }
 
 /*
@@ -369,6 +372,15 @@ procdesc_reap(struct proc *p)
 	procdesc_free(pd);
 }
 
+static void
+procdesc_close_tail(struct file *fp, struct proc *p)
+{
+	if ((fp->f_pdflags & F_PD_NOKILL) == 0)
+		kern_psignal(p, SIGKILL);
+	PROC_UNLOCK(p);
+	sx_xunlock(&proctree_lock);
+}
+
 /*
  * procdesc_close() - last close on a process descriptor.  If the process is
  * still running, terminate with SIGKILL (unless PDF_DAEMON is set) and let
@@ -436,13 +448,9 @@ procdesc_close(struct file *fp, struct thread *td)
 				p->p_oppid = p->p_reaper->p_pid;
 				proc_add_orphan(p, p->p_reaper);
 			}
-			if ((pd->pd_flags & PDF_DAEMON) == 0)
-				kern_psignal(p, SIGKILL);
-			PROC_UNLOCK(p);
-			sx_xunlock(&proctree_lock);
+			procdesc_close_tail(fp, p);
 		} else {
-			PROC_UNLOCK(p);
-			sx_xunlock(&proctree_lock);
+			procdesc_close_tail(fp, p);
 		}
 	}
 

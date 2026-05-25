@@ -89,7 +89,12 @@ struct procdesc {
  * Flags for the pd_flags field.
  */
 #define	PDF_EXITED	0x00000004	/* Process exited. */
-#define	PDF_DAEMON	0x00000008	/* Don't exit when procdesc closes. */
+
+/*
+ * Flags for file f_pdflags.
+ */
+#define	F_PD_NOKILL	0x00000001	/* Opened with PD_DAEMON. Don't send
+					   SIGKILL when file closes. */
 
 /*
  * In-kernel interfaces to process descriptors.
