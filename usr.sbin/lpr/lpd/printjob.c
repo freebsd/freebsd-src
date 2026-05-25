@@ -155,7 +155,7 @@ printjob(struct printer *pp)
 	register int i, nitems;
 	off_t pidoff;
 	pid_t printpid;
-	int errcnt, jobcount, statok, tempfd;
+	int errcnt, jobcount, tempfd;
 
 	jobcount = 0;
 	init(pp); /* set up capabilities */
@@ -190,9 +190,6 @@ printjob(struct printer *pp)
 		    pp->spool_dir);
 		exit(1);
 	}
-	statok = stat(pp->lock_file, &stb);
-	if (statok == 0 && (stb.st_mode & LFM_PRINT_DIS))
-		exit(0);		/* printing disabled */
 	umask(S_IWOTH);
 	lfd = open(pp->lock_file, O_WRONLY|O_CREAT|O_EXLOCK|O_NONBLOCK, 
 		   LOCK_FILE_MODE);
@@ -203,12 +200,14 @@ printjob(struct printer *pp)
 		    pp->lock_file);
 		exit(1);
 	}
-	/*
-	 * If the initial call to stat() failed, then lock_file will have
-	 * been created by open().  Update &stb to match that new file.
-	 */
-	if (statok != 0)
-		statok = stat(pp->lock_file, &stb);
+	if (fstat(lfd, &stb) != 0) {
+		syslog(LOG_ERR, "%s: fstat(%s): %m", pp->printer,
+		    pp->lock_file);
+		exit(1);
+	}
+	if ((stb.st_mode & LFM_PRINT_DIS) != 0) {
+		exit(0);		/* printing disabled */
+	}
 	/* turn off non-blocking mode (was turned on for lock effects only) */
 	if (fcntl(lfd, F_SETFL, 0) < 0) {
 		syslog(LOG_ERR, "%s: fcntl(%s): %m", pp->printer,
@@ -219,8 +218,7 @@ printjob(struct printer *pp)
 	/*
 	 * write process id for others to know
 	 */
-	sprintf(line, "%u\n", printpid);
-	pidoff = i = strlen(line);
+	pidoff = i = snprintf(line, sizeof(line), "%u\n", printpid);
 	if (write(lfd, line, i) != i) {
 		syslog(LOG_ERR, "%s: write(%s): %m", pp->printer,
 		    pp->lock_file);
@@ -248,9 +246,10 @@ printjob(struct printer *pp)
 		    tempstderr);
 		exit(1);
 	}
-	if ((i = fchmod(tempfd, 0664)) == -1) {
+	if (fchmod(tempfd, 0664) == -1) {
 		syslog(LOG_ERR, "%s: fchmod(%s): %m", pp->printer,
 		    tempstderr);
+		(void) unlink(tempstderr);
 		exit(1);
 	}
 	/* lpd doesn't need it to be open, it just needs it to exist */
@@ -362,14 +361,17 @@ again:
 	goto again;
 }
 
-char	fonts[4][50];	/* fonts for troff */
+char	fonts[4][64];	/* fonts for troff */
 
-char ifonts[4][40] = {
+char	ifonts[4][64] = {
 	_PATH_VFONTR,
 	_PATH_VFONTI,
 	_PATH_VFONTB,
 	_PATH_VFONTS,
 };
+
+_Static_assert(sizeof(fonts) == sizeof(ifonts), "fonts != ifonts");
+_Static_assert(sizeof(fonts[0]) == sizeof(ifonts[0]), "fonts[0] != ifonts[0]");
 
 /*
  * The remaining part is the reading of the control file (cf)
@@ -394,10 +396,9 @@ printit(struct printer *pp, char *file)
 	/*
 	 * Reset troff fonts.
 	 */
-	for (i = 0; i < 4; i++)
-		strcpy(fonts[i], ifonts[i]);
+	memcpy(fonts, ifonts, sizeof(fonts));
 	sprintf(&width[2], "%ld", pp->page_width);
-	strcpy(indent+2, "0");
+	strcpy(indent, "-i0");
 
 	/* initialize job-specific count of datafiles processed */
 	job_dfcnt = 0;
@@ -945,7 +946,7 @@ sendit(struct printer *pp, char *file)
 			strlcpy(indent+2, line + 1, sizeof(indent) - 2);
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			dfcopies = 1;
-			strcpy(last, line);
+			memcpy(last, line, sizeof(last));
 			while ((i = get_line(cfp)) != 0) {
 				if (strcmp(last, line) != 0)
 					break;
