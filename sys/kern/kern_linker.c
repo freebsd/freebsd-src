@@ -32,10 +32,12 @@
 #include "opt_hwpmc_hooks.h"
 #include "opt_hwt_hooks.h"
 
+#define EXTERR_CATEGORY EXTERR_CAT_LINKER
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/boottrace.h>
 #include <sys/eventhandler.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -455,13 +457,14 @@ linker_load_file(const char *filename, linker_file_t *result)
 
 	/* Refuse to load modules if securelevel raised */
 	if (prison0.pr_securelevel > 0)
-		return (EPERM);
+		return (EXTERROR(EPERM, "security level %jd",
+		    prison0.pr_securelevel));
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 	lf = linker_find_file_by_name(filename);
 	if (lf) {
-		KLD_DPF(FILE, ("linker_load_file: file %s is already loaded,"
-		    " incrementing refs\n", filename));
+		KLD_DPF(FILE,
+("linker_load_file: file %s is already loaded, incrementing refs\n", filename));
 		*result = lf;
 		lf->refs++;
 		return (0);
@@ -508,7 +511,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 			 */
 			if (modules && TAILQ_EMPTY(&lf->modules)) {
 				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-				return (ENOEXEC);
+				return (EXTERROR(ENOEXEC, "no modules loaded"));
 			}
 			linker_file_enable_sysctls(lf);
 
@@ -535,17 +538,19 @@ linker_load_file(const char *filename, linker_file_t *result)
 			    __func__, filename);
 
 		/*
-		 * Format not recognized or otherwise unloadable.
-		 * When loading a module that is statically built into
-		 * the kernel EEXIST percolates back up as the return
-		 * value.  Preserve this so that apps like sysinstall
-		 * can recognize this special case and not post bogus
-		 * dialog boxes.
+		 * Format not recognized, version incompatible, or
+		 * otherwise unloadable. When loading a module that is
+		 * statically built into the kernel EEXIST percolates
+		 * back up as the return value.  Preserve this so that
+		 * apps like sysinstall can recognize this special case
+		 * and not post bogus dialog boxes.
 		 */
 		if (error != EEXIST)
-			error = ENOEXEC;
+			error = EXTERROR(ENOEXEC,
+			    "module format or version error");
 	} else
-		error = ENOENT;		/* Nothing found */
+		error = EXTERROR(ENOENT, "kld file not found");
+		/* Nothing found */
 	return (error);
 }
 
@@ -2249,6 +2254,7 @@ linker_load_module(const char *kldname, const char *modname,
     struct linker_file *parent, const struct mod_depend *verinfo,
     struct linker_file **lfpp)
 {
+	modlist_t mod;
 	linker_file_t lfdep;
 	const char *filename;
 	char *pathname;
@@ -2259,16 +2265,15 @@ linker_load_module(const char *kldname, const char *modname,
 		/*
  		 * We have to load KLD
  		 */
-		KASSERT(verinfo == NULL, ("linker_load_module: verinfo"
-		    " is not NULL"));
+		MPASS(verinfo == NULL);
 		if (!linker_root_mounted())
-			return (ENXIO);
+			return (EXTERROR(ENXIO, "root not yet mounted"));
 		pathname = linker_search_kld(kldname);
 	} else {
 		if (modlist_lookup2(modname, verinfo) != NULL)
-			return (EEXIST);
+			return (EXTERROR(EEXIST, "module already loaded"));
 		if (!linker_root_mounted())
-			return (ENXIO);
+			return (EXTERROR(ENXIO, "root not yet mounted"));
 		if (kldname != NULL)
 			pathname = strdup(kldname, M_LINKER);
 		else
@@ -2279,7 +2284,7 @@ linker_load_module(const char *kldname, const char *modname,
 			    strlen(modname), verinfo);
 	}
 	if (pathname == NULL)
-		return (ENOENT);
+		return (EXTERROR(ENOENT, "kld file not found"));
 
 	/*
 	 * Can't load more than one file with the same basename XXX:
@@ -2288,16 +2293,36 @@ linker_load_module(const char *kldname, const char *modname,
 	 * provide different versions of the same modules.
 	 */
 	filename = linker_basename(pathname);
-	if (linker_find_file_by_name(filename))
-		error = EEXIST;
-	else do {
+	lfdep = linker_find_file_by_name(filename);
+	if (lfdep) {
+		mod = modlist_lookup(modname, 0);
+		MPASS(mod != NULL);
+
+		if (modname && verinfo &&
+		    modlist_lookup2(modname, verinfo) == NULL) {
+			/*
+			 * Desired module is already loaded, but the correct
+			 * version does not exist.
+			 */
+			error = EXTERROR(ENOEXEC,
+			    "incompatible module version %jd already loaded",
+			    mod->version);
+		} else {
+			error = EXTERROR(EEXIST,
+			    "module version %jd already loaded",
+			    mod->version);
+		}
+	} else do {
 		error = linker_load_file(pathname, &lfdep);
 		if (error)
 			break;
 		if (modname && verinfo &&
 		    modlist_lookup2(modname, verinfo) == NULL) {
+			mod = modlist_lookup(modname, 0);
+			error = EXTERROR(ENOEXEC,
+			    "incompatible module version %jd already loaded",
+			    mod->version);
 			linker_file_unload(lfdep, LINKER_UNLOAD_FORCE);
-			error = ENOENT;
 			break;
 		}
 		if (parent)
@@ -2343,10 +2368,11 @@ linker_load_dependencies(linker_file_t lf)
 		ver = ((const struct mod_version *)mp->md_data)->mv_version;
 		mod = modlist_lookup(modname, ver);
 		if (mod != NULL) {
-			printf("interface %s.%d already present in the KLD"
-			    " '%s'!\n", modname, ver,
-			    mod->container->filename);
-			return (EEXIST);
+			printf(
+"interface %s.%d already present in the KLD '%s'!\n",
+			    modname, ver, mod->container->filename);
+			return (EXTERROR(EEXIST,
+			    "module version %jd already loaded", ver));
 		}
 	}
 
@@ -2376,8 +2402,9 @@ linker_load_dependencies(linker_file_t lf)
 		}
 		error = linker_load_module(NULL, modname, lf, verinfo, NULL);
 		if (error) {
-			printf("KLD %s: depends on %s - not available or"
-			    " version mismatch\n", lf->filename, modname);
+			printf(
+"KLD %s: depends on %s - not available or version mismatch\n",
+			    lf->filename, modname);
 			break;
 		}
 	}

@@ -95,8 +95,9 @@ path_check(const char *kldname, int quiet)
 
 		if (sb.st_dev != dev || sb.st_ino != ino) {
 			if (!quiet)
-				warnx("%s will be loaded from %s, not the "
-				    "current directory", kldname, element);
+				warnx(
+"%s will be loaded from %s, not the current directory",
+				    kldname, element);
 			break;
 		} else if (sb.st_dev == dev && sb.st_ino == ino)
 			break;
@@ -171,15 +172,13 @@ main(int argc, char** argv)
 					if (!quiet) {
 						switch (errno) {
 						case EEXIST:
-							warnx("can't load %s: module "
-							    "already loaded or "
-							    "in kernel", argv[0]);
+							warnx(
+"can't load %s: module already loaded or in kernel", argv[0]);
 							break;
 						case ENOEXEC:
-							warnx("an error occurred while "
-							    "loading module %s. "
-							    "Please check dmesg(8) for "
-							    "more details.", argv[0]);
+							warnx(
+"an error occurred while loading module %s. Please check dmesg(8) for more details.",
+							    argv[0]);
 							break;
 						default:
 							warn("can't load %s", argv[0]);
