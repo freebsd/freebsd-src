@@ -197,6 +197,8 @@ struct aq_hw {
 
 #define HW_ATL_RSS_INDIRECTION_TABLE_MAX  64U
 #define HW_ATL_RSS_HASHKEY_SIZE           40U
+/* Redirection-table entries are 3 bits wide, so RSS spans <= 8 queues. */
+#define HW_ATL_RSS_QUEUES_MAX             8U
 
 /* PCI core control register */
 #define AQ_HW_PCI_REG_CONTROL_6_ADR 0x1014U
