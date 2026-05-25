@@ -148,10 +148,10 @@ static int	 printit(struct printer *_pp, char *_file);
 static void	 pstatus(const struct printer *_pp, const char *_msg, ...)
 		    __printflike(2, 3);
 static char	 response(const struct printer *_pp);
-static void	 scan_out(struct printer *_pp, int _scfd, char *_scsp, 
+static void	 scan_out(struct printer *_pp, int _scfd, char *_scsp,
 		    int _dlm);
 static char	*scnline(int _key, char *_p, int _c);
-static int	 sendfile(struct printer *_pp, int _type, char *_file, 
+static int	 sendfile(struct printer *_pp, int _type, char *_file,
 		    char _format, int _copyreq);
 static int	 sendit(struct printer *_pp, char *_file);
 static void	 sendmail(struct printer *_pp, char *_userid, int _bombed);
@@ -162,18 +162,17 @@ void
 printjob(struct printer *pp)
 {
 	struct stat stb;
-	register struct jobqueue *q, **qp;
+	struct jobqueue *q, **qp;
 	struct jobqueue **queue;
-	register int i, nitems;
 	off_t pidoff;
 	pid_t printpid;
-	int errcnt, jobcount, tempfd;
+	int i, errcnt, jobcount, nitems, tempfd;
 
 	jobcount = 0;
 	init(pp); /* set up capabilities */
 	(void) write(STDOUT_FILENO, "", 1);	/* ack that daemon is started */
 	(void) close(STDERR_FILENO);			/* set up log file */
-	if (open(pp->log_file, O_WRONLY|O_APPEND, LOG_FILE_MODE) < 0) {
+	if (open(pp->log_file, O_WRONLY | O_APPEND, LOG_FILE_MODE) < 0) {
 		syslog(LOG_ERR, "%s: open(%s): %m", pp->printer,
 		    pp->log_file);
 		(void) open(_PATH_DEVNULL, O_WRONLY);
@@ -203,8 +202,8 @@ printjob(struct printer *pp)
 		exit(1);
 	}
 	umask(S_IWOTH);
-	lfd = open(pp->lock_file, O_WRONLY|O_CREAT|O_EXLOCK|O_NONBLOCK, 
-		   LOCK_FILE_MODE);
+	lfd = open(pp->lock_file, O_WRONLY | O_CREAT | O_EXLOCK | O_NONBLOCK,
+	    LOCK_FILE_MODE);
 	if (lfd < 0) {
 		if (errno == EWOULDBLOCK)	/* active daemon present */
 			exit(0);
@@ -240,7 +239,7 @@ printjob(struct printer *pp)
 	 * search the spool directory for work and sort by queue order.
 	 */
 	if ((nitems = getq(pp, &queue)) < 0) {
-		syslog(LOG_ERR, "%s: can't scan %s", pp->printer, 
+		syslog(LOG_ERR, "%s: can't scan %s", pp->printer,
 		    pp->spool_dir);
 		exit(1);
 	}
@@ -274,7 +273,7 @@ again:
 	 *    write the name of the current control file into the lock file
 	 *    so the spool queue program can tell what we're working on
 	 */
-	for (qp = queue; nitems--; free((char *) q)) {
+	for (qp = queue; nitems--; free(q)) {
 		q = *qp++;
 		if (stat(q->job_cfname, &stb) < 0)
 			continue;
@@ -327,12 +326,12 @@ again:
 			}
 			(void) close(pfd);	/* close printer */
 			if (ftruncate(lfd, pidoff) < 0)
-				syslog(LOG_WARNING, "%s: ftruncate(%s): %m", 
+				syslog(LOG_WARNING, "%s: ftruncate(%s): %m",
 				    pp->printer, pp->lock_file);
 			openpr(pp);		/* try to reopen printer */
 			goto restart;
 		} else {
-			syslog(LOG_WARNING, "%s: job could not be %s (%s)", 
+			syslog(LOG_WARNING, "%s: job could not be %s (%s)",
 			    pp->printer,
 			    pp->remote ? "sent to remote host" : "printed",
 			    q->job_cfname);
@@ -392,9 +391,8 @@ _Static_assert(sizeof(fonts[0]) == sizeof(ifonts[0]), "fonts[0] != ifonts[0]");
 static int
 printit(struct printer *pp, char *file)
 {
-	register int i;
 	char *cp;
-	int bombed, didignorehdr;
+	int bombed, didignorehdr, i;
 
 	bombed = OK;
 	didignorehdr = 0;
@@ -414,7 +412,7 @@ printit(struct printer *pp, char *file)
 
 	/* initialize job-specific count of datafiles processed */
 	job_dfcnt = 0;
-	
+
 	/*
 	 *      read the control file for work to do
 	 *
@@ -462,7 +460,7 @@ printit(struct printer *pp, char *file)
 		case 'H':
 			strlcpy(origin_host, line + 1, sizeof(origin_host));
 			if (class[0] == '\0') {
-				strlcpy(class, line+1, sizeof(class));
+				strlcpy(class, line + 1, sizeof(class));
 			}
 			continue;
 
@@ -471,14 +469,14 @@ printit(struct printer *pp, char *file)
 			if (pp->restricted) { /* restricted */
 				if (getpwnam(logname) == NULL) {
 					bombed = NOACCT;
-					sendmail(pp, line+1, bombed);
+					sendmail(pp, line + 1, bombed);
 					goto pass2;
 				}
 			}
 			continue;
 
 		case 'S':
-			cp = line+1;
+			cp = line + 1;
 			i = 0;
 			while (*cp >= '0' && *cp <= '9')
 				i = i * 10 + (*cp++ - '0');
@@ -514,7 +512,7 @@ printit(struct printer *pp, char *file)
 
 		case 'L':	/* identification line */
 			if (!pp->no_header && !pp->header_last)
-				banner(pp, line+1, jobname);
+				banner(pp, line + 1, jobname);
 			continue;
 
 		case '1':	/* troff fonts */
@@ -528,11 +526,11 @@ printit(struct printer *pp, char *file)
 			continue;
 
 		case 'W':	/* page width */
-			strlcpy(width+2, line + 1, sizeof(width) - 2);
+			strlcpy(width + 2, line + 1, sizeof(width) - 2);
 			continue;
 
 		case 'I':	/* indent amount */
-			strlcpy(indent+2, line + 1, sizeof(indent) - 2);
+			strlcpy(indent + 2, line + 1, sizeof(indent) - 2);
 			continue;
 
 		case 'Z':       /* locale for pr */
@@ -554,7 +552,7 @@ printit(struct printer *pp, char *file)
 				    pp->printer, line[0], &line[1]);
 				continue;
 			}
-			i = print(pp, line[0], line+1);
+			i = print(pp, line[0], line + 1);
 			switch (i) {
 			case ERROR:
 				if (bombed == OK)
@@ -586,18 +584,18 @@ pass2:
 		switch (line[0]) {
 		case 'L':	/* identification line */
 			if (!pp->no_header && pp->header_last)
-				banner(pp, line+1, jobname);
+				banner(pp, line + 1, jobname);
 			continue;
 
 		case 'M':
 			if (bombed < NOACCT)	/* already sent if >= NOACCT */
-				sendmail(pp, line+1, bombed);
+				sendmail(pp, line + 1, bombed);
 			continue;
 
 		case 'U':
-			if (strchr(line+1, '/'))
+			if (strchr(line + 1, '/'))
 				continue;
-			(void) unlink(line+1);
+			(void) unlink(line + 1);
 		}
 	/*
 	 * clean-up in case another control file exists
@@ -620,14 +618,13 @@ pass2:
 static int
 print(struct printer *pp, int format, char *file)
 {
-	register int n, i;
-	register char *prog;
-	int fi, fo;
-	FILE *fp;
-	char *av[15], buf[SPL_BUFSIZ];
-	pid_t wpid;
-	int p[2], retcode, stopped, wstatus, wstatus_set;
+	char buf[SPL_BUFSIZ];
 	struct stat stb;
+	char *av[15];
+	char *prog;
+	FILE *fp;
+	pid_t wpid;
+	int fi, fo, i, n, p[2], retcode, stopped, wstatus, wstatus_set;
 
 	/* Make sure the entire data file has arrived. */
 	wait4data(pp, file);
@@ -691,7 +688,7 @@ print(struct printer *pp, int format, char *file)
 			execl(_PATH_PR, "pr", width, length,
 			    "-h", *title ? title : " ",
 			    "-L", *locale ? locale : "C",
-			    "-F", (char *)0);
+			    "-F", NULL);
 			syslog(LOG_ERR, "cannot execl %s", _PATH_PR);
 			exit(2);
 		}
@@ -740,7 +737,7 @@ print(struct printer *pp, int format, char *file)
 	case 'd':	/* print tex output */
 		(void) unlink(".railmag");
 		if ((fo = creat(".railmag", FILMOD)) < 0) {
-			syslog(LOG_ERR, "%s: cannot create .railmag", 
+			syslog(LOG_ERR, "%s: cannot create .railmag",
 			    pp->printer);
 			(void) unlink(".railmag");
 		} else {
@@ -753,7 +750,7 @@ print(struct printer *pp, int format, char *file)
 			}
 			(void) close(fo);
 		}
-		prog = (format == 't') ? pp->filters[LPF_TROFF] 
+		prog = (format == 't') ? pp->filters[LPF_TROFF]
 			: ((format == 'n') ? pp->filters[LPF_DITROFF]
 			   : pp->filters[LPF_DVI]);
 		av[1] = pxwidth;
@@ -827,7 +824,7 @@ start:
 		dup2(fo, STDOUT_FILENO);
 		/* setup stderr for the filter (child process)
 		 * so it goes to our temporary errors file */
-		n = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
+		n = open(tempstderr, O_WRONLY | O_TRUNC, 0664);
 		if (n >= 0)
 			dup2(n, STDERR_FILENO);
 		closelog();
@@ -899,8 +896,9 @@ start:
 static int
 sendit(struct printer *pp, char *file)
 {
+	char last[sizeof(line)];
+	char *cp;
 	int dfcopies, err, i;
-	char *cp, last[sizeof(line)];
 
 	/*
 	 * open control file
@@ -930,7 +928,7 @@ sendit(struct printer *pp, char *file)
 	while (get_line(cfp)) {
 	again:
 		if (line[0] == 'S') {
-			cp = line+1;
+			cp = line + 1;
 			i = 0;
 			while (*cp >= '0' && *cp <= '9')
 				i = i * 10 + (*cp++ - '0');
@@ -949,13 +947,13 @@ sendit(struct printer *pp, char *file)
 			strlcpy(logname, line + 1, sizeof(logname));
 			if (pp->restricted) { /* restricted */
 				if (getpwnam(logname) == NULL) {
-					sendmail(pp, line+1, NOACCT);
+					sendmail(pp, line + 1, NOACCT);
 					err = ERROR;
 					break;
 				}
 			}
 		} else if (line[0] == 'I') {
-			strlcpy(indent+2, line + 1, sizeof(indent) - 2);
+			strlcpy(indent + 2, line + 1, sizeof(indent) - 2);
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			dfcopies = 1;
 			memcpy(last, line, sizeof(last));
@@ -964,7 +962,7 @@ sendit(struct printer *pp, char *file)
 					break;
 				dfcopies++;
 			}
-			switch (sendfile(pp, '\3', last+1, *last, dfcopies)) {
+			switch (sendfile(pp, '\3', last + 1, *last, dfcopies)) {
 			case OK:
 				if (i)
 					goto again;
@@ -989,8 +987,8 @@ sendit(struct printer *pp, char *file)
 	 */
 	fseek(cfp, 0L, 0);
 	while (get_line(cfp))
-		if (line[0] == 'U' && !strchr(line+1, '/'))
-			(void) unlink(line+1);
+		if (line[0] == 'U' && !strchr(line + 1, '/'))
+			(void) unlink(line + 1);
 	/*
 	 * clean-up in case another control file exists
 	 */
@@ -1006,11 +1004,10 @@ sendit(struct printer *pp, char *file)
 static int
 sendfile(struct printer *pp, int type, char *file, char format, int copyreq)
 {
-	int i, amt;
+	char buf[SPL_BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
 	struct stat stb;
 	char *av[15], *filtcmd;
-	char buf[SPL_BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
-	int copycnt, filtstat, narg, resp, sfd, sfres, sizerr, statrc;
+	int amt, copycnt, filtstat, i, narg, resp, sfd, sfres, sizerr, statrc;
 
 	/* Make sure the entire data file has arrived. */
 	wait4data(pp, file);
@@ -1270,12 +1267,12 @@ return_sfres:
 static void
 wait4data(struct printer *pp, const char *dfile)
 {
+	struct stat statdf;
 	const char *cp;
-	int statres;
-	u_int sleepreq;
 	size_t dlen, hlen;
 	time_t amtslept, cur_time, prev_mtime;
-	struct stat statdf;
+	unsigned int sleepreq;
+	int statres;
 
 	/* Skip these checks if the print job is from the local host. */
 	dlen = strlen(dfile);
@@ -1360,10 +1357,11 @@ wait4data(struct printer *pp, const char *dfile)
 static int
 execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 {
+	char buf[BUFSIZ];
+	char *slash;
+	FILE *errfp;
 	pid_t fpid, wpid;
 	int errfd, retcode, wstatus;
-	FILE *errfp;
-	char buf[BUFSIZ], *slash;
 
 	fpid = dofork(pp, DORETURN);
 	if (fpid != 0) {
@@ -1425,7 +1423,7 @@ execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 	 */
 	dup2(infd, STDIN_FILENO);
 	dup2(outfd, STDOUT_FILENO);
-	errfd = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
+	errfd = open(tempstderr, O_WRONLY | O_TRUNC, 0664);
 	if (errfd >= 0)
 		dup2(errfd, STDERR_FILENO);
 	closelog();
@@ -1498,7 +1496,7 @@ banner(struct printer *pp, char *name1, char *name2)
 static char *
 scnline(int key, char *p, int c)
 {
-	register int scnwidth;
+	int scnwidth;
 
 	for (scnwidth = WIDTH; --scnwidth;) {
 		key <<= 1;
@@ -1512,12 +1510,12 @@ scnline(int key, char *p, int c)
 static void
 scan_out(struct printer *pp, int scfd, char *scsp, int dlm)
 {
-	register char *strp;
-	register int nchrs, j;
-	char outbuf[LINELEN+1], *sp, c, cc;
-	int d, scnhgt;
+	char outbuf[LINELEN + 1];
+	char *sp, *strp;
+	int d, j, nchrs, scnhgt;
+	char c, cc;
 
-	for (scnhgt = 0; scnhgt++ < HEIGHT+DROP; ) {
+	for (scnhgt = 0; scnhgt++ < HEIGHT + DROP; ) {
 		strp = &outbuf[0];
 		sp = scsp;
 		for (nchrs = 0; ; ) {
@@ -1526,9 +1524,10 @@ scan_out(struct printer *pp, int scfd, char *scsp, int dlm)
 				for (j = WIDTH; --j;)
 					*strp++ = BACKGND;
 			else
-				strp = scnline(scnkey[(int)c][scnhgt-1-d], strp, cc);
-			if (*sp == dlm || *sp == '\0' || 
-			    nchrs++ >= pp->page_width/(WIDTH+1)-1)
+				strp = scnline(scnkey[(int)c][scnhgt - 1 - d],
+				    strp, cc);
+			if (*sp == dlm || *sp == '\0' ||
+			    nchrs++ >= pp->page_width / (WIDTH + 1) - 1)
 				break;
 			*strp++ = BACKGND;
 			*strp++ = BACKGND;
@@ -1544,8 +1543,7 @@ scan_out(struct printer *pp, int scfd, char *scsp, int dlm)
 static int
 dropit(int c)
 {
-	switch(c) {
-
+	switch (c) {
 	case TRC('_'):
 	case TRC(';'):
 	case TRC(','):
@@ -1555,7 +1553,6 @@ dropit(int c)
 	case TRC('q'):
 	case TRC('y'):
 		return (DROP);
-
 	default:
 		return (0);
 	}
@@ -1568,11 +1565,10 @@ dropit(int c)
 static void
 sendmail(struct printer *pp, char *userid, int bombed)
 {
-	register int i;
-	int p[2], s;
-	register const char *cp;
 	struct stat stb;
 	FILE *fp;
+	const char *cp;
+	int i, p[2], s;
 
 	pipe(p);
 	if ((s = dofork(pp, DORETURN)) == 0) {		/* child */
@@ -1583,7 +1579,7 @@ sendmail(struct printer *pp, char *userid, int bombed)
 			cp++;
 		else
 			cp = _PATH_SENDMAIL;
-		execl(_PATH_SENDMAIL, cp, "-t", (char *)0);
+		execl(_PATH_SENDMAIL, cp, "-t", NULL);
 		_exit(0);
 	} else if (s > 0) {				/* parent */
 		dup2(p[1], STDOUT_FILENO);
@@ -1612,8 +1608,8 @@ sendmail(struct printer *pp, char *userid, int bombed)
 			break;
 		case FILTERERR:
 			cp = "FILTERERR";
-			if (stat(tempstderr, &stb) < 0 || stb.st_size == 0
-			    || (fp = fopen(tempstderr, "r")) == NULL) {
+			if (stat(tempstderr, &stb) < 0 || stb.st_size == 0 ||
+			    (fp = fopen(tempstderr, "r")) == NULL) {
 				printf("\nhad some errors and may not have printed\n");
 				break;
 			}
@@ -1645,9 +1641,9 @@ sendmail(struct printer *pp, char *userid, int bombed)
 static int
 dofork(const struct printer *pp, int action)
 {
+	struct passwd *pwd;
 	pid_t forkpid;
 	int i, fail;
-	struct passwd *pwd;
 
 	forkpid = -1;
 	if (daemon_uname == NULL) {
@@ -1726,7 +1722,6 @@ error_ret:
 static void
 abortpr(int signo __unused)
 {
-
 	(void) unlink(tempstderr);
 	kill(0, SIGINT);
 	if (of_pid > 0)
@@ -1756,12 +1751,13 @@ init(struct printer *pp)
 void
 startprinting(const char *printer)
 {
-	struct printer myprinter, *pp = &myprinter;
+	struct printer myprinter;
+	struct printer *pp = &myprinter;
 	int status;
 
 	init_printer(pp);
 	status = getprintcap(printer, pp);
-	switch(status) {
+	switch (status) {
 	case PCAPERR_OSERR:
 		syslog(LOG_ERR, "can't open printer description file: %m");
 		exit(1);
@@ -1782,8 +1778,8 @@ startprinting(const char *printer)
 static void
 openpr(const struct printer *pp)
 {
-	int p[2];
 	char *cp;
+	int p[2];
 
 	if (pp->remote) {
 		openrem(pp);
@@ -1794,7 +1790,7 @@ openpr(const struct printer *pp)
 		 * local print queues.  For remote machines, all 'of='
 		 * filter processing is handled in sendfile(), and that
 		 * does not use these global "output filter" variables.
-		 */ 
+		 */
 		ofd = -1;
 		of_pid = 0;
 		return;
@@ -1828,8 +1824,7 @@ openpr(const struct printer *pp)
 				cp = pp->filters[LPF_OUTPUT];
 			else
 				cp++;
-			execl(pp->filters[LPF_OUTPUT], cp, width, length,
-			      (char *)0);
+			execl(pp->filters[LPF_OUTPUT], cp, width, length, NULL);
 			syslog(LOG_ERR, "%s: execl(%s): %m", pp->printer,
 			    pp->filters[LPF_OUTPUT]);
 			exit(1);
@@ -1849,11 +1844,10 @@ openpr(const struct printer *pp)
 static void
 opennet(const struct printer *pp)
 {
-	register int i;
-	int resp;
-	u_long port;
-	char *ep;
 	void (*savealrm)(int);
+	char *ep;
+	unsigned long port;
+	int i, resp;
 
 	port = strtoul(pp->lp, &ep, 0);
 	if (*ep != '@' || port > 65535) {
@@ -1886,7 +1880,7 @@ opennet(const struct printer *pp)
 				pstatus(pp, "waiting for %s to come up",
 					pp->lp);
 			else
-				pstatus(pp, 
+				pstatus(pp,
 					"waiting for access to printer on %s",
 					pp->lp);
 		}
@@ -1901,7 +1895,7 @@ opennet(const struct printer *pp)
 static void
 opentty(const struct printer *pp)
 {
-	register int i;
+	int i;
 
 	for (i = 1; ; i = i < 32 ? i << 1 : i) {
 		pfd = open(pp->lp, pp->rw ? O_RDWR : O_WRONLY);
@@ -1914,7 +1908,7 @@ opentty(const struct printer *pp)
 			exit(1);
 		}
 		if (i == 1)
-			pstatus(pp, 
+			pstatus(pp,
 				"waiting for %s to become ready (offline?)",
 				pp->printer);
 		sleep(i);
@@ -1930,9 +1924,8 @@ opentty(const struct printer *pp)
 static void
 openrem(const struct printer *pp)
 {
-	register int i;
-	int resp;
 	void (*savealrm)(int);
+	int i, resp;
 
 	for (i = 1; ; i = i < 256 ? i << 1 : i) {
 		resp = -1;
@@ -1942,16 +1935,15 @@ openrem(const struct printer *pp)
 		alarm(0);
 		(void)signal(SIGALRM, savealrm);
 		if (pfd >= 0) {
-			if ((writel(pfd, "\2", pp->remote_queue, "\n", 
-				    (char *)0)
-			     == 2 + strlen(pp->remote_queue))
-			    && (resp = response(pp)) == 0)
+			if (writel(pfd, "\2", pp->remote_queue, "\n", NULL) ==
+			    2 + strlen(pp->remote_queue) &&
+			    (resp = response(pp)) == 0)
 				break;
 			(void) close(pfd);
 		}
 		if (i == 1) {
 			if (resp < 0)
-				pstatus(pp, "waiting for %s to come up", 
+				pstatus(pp, "waiting for %s to come up",
 					pp->remote_host);
 			else {
 				pstatus(pp,
@@ -1973,7 +1965,7 @@ setty(const struct printer *pp)
 {
 	struct termios ttybuf;
 
-	if (ioctl(pfd, TIOCEXCL, (char *)0) < 0) {
+	if (ioctl(pfd, TIOCEXCL, NULL) < 0) {
 		syslog(LOG_ERR, "%s: ioctl(TIOCEXCL): %m", pp->printer);
 		exit(1);
 	}
@@ -2002,22 +1994,23 @@ setty(const struct printer *pp)
 static void
 pstatus(const struct printer *pp, const char *msg, ...)
 {
-	int fd;
-	char *buf;
 	va_list ap;
-	va_start(ap, msg);
+	char *buf;
+	int fd;
 
 	umask(S_IWOTH);
-	fd = open(pp->status_file, O_WRONLY|O_CREAT|O_EXLOCK, STAT_FILE_MODE);
+	fd = open(pp->status_file, O_WRONLY | O_CREAT | O_EXLOCK,
+	    STAT_FILE_MODE);
 	if (fd < 0) {
 		syslog(LOG_ERR, "%s: open(%s): %m", pp->printer,
 		    pp->status_file);
 		exit(1);
 	}
 	ftruncate(fd, 0);
+	va_start(ap, msg);
 	vasprintf(&buf, msg, ap);
 	va_end(ap);
-	writel(fd, buf, "\n", (char *)0);
+	writel(fd, buf, "\n", NULL);
 	close(fd);
 	free(buf);
 }
