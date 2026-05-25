@@ -87,8 +87,14 @@ This option is not permitted in
 .Xr capsicum 4
 capability mode (see
 .Xr cap_enter 2 ) .
-.El
-.Bl -tag -width ".Dv PD_DAEMON"
+.Pp
+Note: the option changes the behavior of
+.Xr close 2
+for the process descriptor returned by the operation.
+If there is another process descriptor for the same process, created without
+specifying the
+.Dv PD_DAEMON
+flag, closing that descriptor kills the process.
 .It Dv PD_CLOEXEC
 Set close-on-exec on process descriptor.
 .El
