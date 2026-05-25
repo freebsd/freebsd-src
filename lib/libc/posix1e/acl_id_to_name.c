@@ -67,7 +67,7 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf,
 		else
 			p = getpwuid(id);
 		if (!p)
-			i = snprintf(buf, buf_len, "%d", id);
+			i = snprintf(buf, buf_len, "%ju", (uintmax_t)id);
 		else
 			i = snprintf(buf, buf_len, "%s", p->pw_name);
 
@@ -83,7 +83,7 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf,
 		else
 			g = getgrgid(id);
 		if (g == NULL)
-			i = snprintf(buf, buf_len, "%d", id);
+			i = snprintf(buf, buf_len, "%ju", (uintmax_t)id);
 		else
 			i = snprintf(buf, buf_len, "%s", g->gr_name);
 
