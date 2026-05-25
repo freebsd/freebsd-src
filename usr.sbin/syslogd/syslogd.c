@@ -360,7 +360,6 @@ static int	evaluate_prop_filter(const struct prop_filter *filter,
 static nvlist_t *prop_filter_compile(const char *);
 static void	parsemsg(const char *, char *);
 static void	printsys(char *);
-static const char *ttymsg_check(struct iovec *, int, char *, int);
 static void	usage(void);
 static bool	validate(struct sockaddr *, const char *);
 static void	unmapped(struct sockaddr *);
@@ -1754,8 +1753,6 @@ iovlist_truncate(struct iovlist *il, size_t size)
 static void
 fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 {
-	const char *msgret;
-
 	switch (f->f_type) {
 	case F_FORW: {
 		ssize_t lsent;
@@ -1908,10 +1905,10 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		dprintf(" %s%s\n", _PATH_DEV, f->f_fname);
 		iovlist_append(il, "\r\n");
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
-		if ((msgret = cap_ttymsg(cap_syslogd, il->iov, il->iovcnt,
-		    f->f_fname, 10))) {
+		if (cap_ttymsg(cap_syslogd, il->iov, il->iovcnt, f->f_fname, 10,
+		    true) != 0) {
 			f->f_type = F_UNUSED;
-			logerror(msgret);
+			logerror(f->f_fname);
 		}
 		break;
 
@@ -2141,7 +2138,6 @@ wallmsg(const struct filed *f, struct iovec *iov, const int iovlen)
 	static int reenter;			/* avoid calling ourselves */
 	struct utmpx *ut;
 	int i;
-	const char *p;
 
 	if (reenter++)
 		return;
@@ -2151,48 +2147,25 @@ wallmsg(const struct filed *f, struct iovec *iov, const int iovlen)
 		if (ut->ut_type != USER_PROCESS)
 			continue;
 		if (f->f_type == F_WALL) {
-			if ((p = ttymsg(iov, iovlen, ut->ut_line,
-			    TTYMSGTIME)) != NULL)
-				dprintf("%s\n", p);
+			if (ttymsg(iov, iovlen, ut->ut_line, TTYMSGTIME,
+			    false) != 0 && errno != ENOENT)
+				dprintf("%s: %m\n", ut->ut_line);
 			continue;
 		}
 		/* should we send the message to this user? */
 		for (i = 0; i < MAXUNAMES; i++) {
 			if (!f->f_uname[i][0])
 				break;
-			if (!strcmp(f->f_uname[i], ut->ut_user)) {
-				if ((p = ttymsg_check(iov, iovlen, ut->ut_line,
-				    TTYMSGTIME)) != NULL)
-					dprintf("%s\n", p);
+			if (strcmp(f->f_uname[i], ut->ut_user) == 0) {
+				if (ttymsg(iov, iovlen, ut->ut_line, TTYMSGTIME,
+				    true) != 0 && errno != ENOENT)
+					dprintf("%s: %m\n", ut->ut_line);
 				break;
 			}
 		}
 	}
 	endutxent();
 	reenter = 0;
-}
-
-/*
- * Wrapper routine for ttymsg() that checks the terminal for messages enabled.
- */
-static const char *
-ttymsg_check(struct iovec *iov, int iovcnt, char *line, int tmout)
-{
-	static char device[1024];
-	static char errbuf[1024];
-	struct stat sb;
-
-	(void) snprintf(device, sizeof(device), "%s%s", _PATH_DEV, line);
-
-	if (stat(device, &sb) < 0) {
-		(void) snprintf(errbuf, sizeof(errbuf),
-		    "%s: %s", device, strerror(errno));
-		return (errbuf);
-	}
-	if ((sb.st_mode & S_IWGRP) == 0)
-		/* Messages disabled. */
-		return (NULL);
-	return (ttymsg(iov, iovcnt, line, tmout));
 }
 
 /*
