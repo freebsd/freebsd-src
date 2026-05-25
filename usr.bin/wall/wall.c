@@ -44,6 +44,7 @@
 #include <locale.h>
 #include <paths.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,7 +91,6 @@ main(int argc, char *argv[])
 	struct wallgroup *g;
 	struct group *grp;
 	char **np;
-	const char *p;
 	struct passwd *pw;
 
 	(void)setlocale(LC_CTYPE, "");
@@ -158,8 +158,8 @@ main(int argc, char *argv[])
 			if (ingroup == 0)
 				continue;
 		}
-		if ((p = ttymsg(&iov, 1, utmp->ut_line, 60*5)) != NULL)
-			warnx("%s", p);
+		if (ttymsg(&iov, 1, utmp->ut_line, 60 * 5, 1) != 0)
+			warn("%s", utmp->ut_line);
 	}
 	exit(0);
 }

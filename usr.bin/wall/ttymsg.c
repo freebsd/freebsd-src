@@ -29,15 +29,16 @@
  * SUCH DAMAGE.
  */
 
-
-
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/uio.h>
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -46,65 +47,72 @@
 #include "ttymsg.h"
 
 /*
- * Display the contents of a uio structure on a terminal.  Used by wall(1),
- * syslogd(8), and talkd(8).  Forks and finishes in child if write would block,
- * waiting up to tmout seconds.  Returns pointer to error string on unexpected
- * error; string is not newline-terminated.  Various "normal" errors are
- * ignored (exclusive-use, lack of permission, etc.).
+ * Display the contents of a uio structure on a terminal.  If shout is
+ * non-zero, do so even if the terminal has messages disabled.  Used by
+ * wall(1), syslogd(8), and talkd(8).  Forks and finishes in child if
+ * write would block, waiting up to timeout seconds.  Various "normal"
+ * errors are ignored (exclusive-use, lack of permission, etc.).
  */
-const char *
-ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
+int
+ttymsg(struct iovec *iov, int iovcnt, const char *tty, int timeout,
+    bool shout)
 {
 	struct iovec localiov[TTYMSG_IOV_MAX];
-	ssize_t left, wret;
-	int cnt, fd;
-	char device[MAXNAMLEN] = _PATH_DEV;
-	static char errbuf[1024];
-	char *p;
+	struct stat sb;
+	ssize_t wret;
+	size_t resid;
+	int cnt, dd, fd, serrno;
 	int forked;
 
 	forked = 0;
-	if (iovcnt > (int)(sizeof(localiov) / sizeof(localiov[0])))
-		return ("too many iov's (change code in wall/ttymsg.c)");
-
-	strlcat(device, line, sizeof(device));
-	p = device + sizeof(_PATH_DEV) - 1;
-	if (strncmp(p, "pts/", 4) == 0)
-		p += 4;
-	if (strchr(p, '/') != NULL) {
-		/* A slash is an attempt to break security... */
-		(void) snprintf(errbuf, sizeof(errbuf),
-		    "Too many '/' in \"%s\"", device);
-		return (errbuf);
+	if (iovcnt > (int)(sizeof(localiov) / sizeof(localiov[0]))) {
+		errno = EFBIG;
+		return (-1);
 	}
 
-	/*
-	 * open will fail on slip lines or exclusive-use lines
-	 * if not running as root; not an error.
-	 */
-	if ((fd = open(device, O_WRONLY|O_NONBLOCK, 0)) < 0) {
-		if (errno == EBUSY || errno == EACCES)
-			return (NULL);
-		(void) snprintf(errbuf, sizeof(errbuf), "%s: %s", device,
-		    strerror(errno));
-		return (errbuf);
+	dd = open(_PATH_DEV, O_SEARCH | O_DIRECTORY);
+	if (dd < 0)
+		return (-1);
+	fd = openat(dd, tty, O_WRONLY | O_NONBLOCK | O_RESOLVE_BENEATH);
+	if (fd < 0) {
+		serrno = errno;
+		close(dd);
+		/*
+		 * open will fail on slip lines or exclusive-use lines
+		 * if not running as root; not an error.
+		 */
+		if (serrno == EBUSY || serrno == EACCES)
+			return (0);
+		errno = serrno;
+		return (-1);
+	}
+	close(dd);
+	if (!shout) {
+		if (fstat(fd, &sb) != 0) {
+			serrno = errno;
+			close(fd);
+			errno = serrno;
+			return (-1);
+		}
+		if ((sb.st_mode & S_IWGRP) == 0) {
+			close(fd);
+			return (0);
+		}
 	}
 
-	for (cnt = 0, left = 0; cnt < iovcnt; ++cnt)
-		left += iov[cnt].iov_len;
+	for (cnt = 0, resid = 0; cnt < iovcnt; ++cnt)
+		resid += iov[cnt].iov_len;
 
-	for (;;) {
+	do {
 		wret = writev(fd, iov, iovcnt);
-		if (wret >= left)
-			break;
 		if (wret >= 0) {
-			left -= wret;
+			resid -= wret;
 			if (iov != localiov) {
-				bcopy(iov, localiov, 
+				bcopy(iov, localiov,
 				    iovcnt * sizeof(struct iovec));
 				iov = localiov;
 			}
-			for (cnt = 0; (size_t)wret >= iov->iov_len; ++cnt) {
+			while ((size_t)wret >= iov->iov_len) {
 				wret -= iov->iov_len;
 				++iov;
 				--iovcnt;
@@ -124,21 +132,21 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 			}
 			cpid = fork();
 			if (cpid < 0) {
-				(void) snprintf(errbuf, sizeof(errbuf),
-				    "fork: %s", strerror(errno));
+				serrno = errno;
 				(void) close(fd);
-				return (errbuf);
+				errno = serrno;
+				return (-1);
 			}
 			if (cpid) {	/* parent */
 				(void) close(fd);
-				return (NULL);
+				return (0);
 			}
 			forked++;
-			/* wait at most tmout seconds */
+			/* wait at most timeout seconds */
 			(void) signal(SIGALRM, SIG_DFL);
 			(void) signal(SIGTERM, SIG_DFL); /* XXX */
 			(void) sigsetmask(0);
-			(void) alarm((u_int)tmout);
+			(void) alarm((u_int)timeout);
 			(void) fcntl(fd, F_SETFL, 0);	/* clear O_NONBLOCK */
 			continue;
 		}
@@ -146,18 +154,18 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 		 * We get ENODEV on a slip line if we're running as root,
 		 * and EIO if the line just went away.
 		 */
-		if (errno == ENODEV || errno == EIO)
+		serrno = errno;
+		if (serrno == ENODEV || serrno == EIO)
 			break;
 		(void) close(fd);
 		if (forked)
 			_exit(1);
-		(void) snprintf(errbuf, sizeof(errbuf),
-		    "%s: %s", device, strerror(errno));
-		return (errbuf);
-	}
+		errno = serrno;
+		return (-1);
+	} while (resid > 0);
 
 	(void) close(fd);
 	if (forked)
 		_exit(0);
-	return (NULL);
+	return (0);
 }

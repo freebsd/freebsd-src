@@ -52,14 +52,12 @@ cap_p_open(cap_channel_t *chan, size_t filed_idx, const char *prog,
 		exit(1);
 	}
 	error = nvlist_get_number(nvl, "error");
-	if (error != 0) {
-		errno = error;
-		logerror("Failed to open piped command");
-	}
 	pipedesc_w = dnvlist_take_descriptor(nvl, "pipedesc_w", -1);
 	*procdesc = dnvlist_take_descriptor(nvl, "procdesc", -1);
 
 	nvlist_destroy(nvl);
+	if (error != 0)
+		errno = error;
 	return (pipedesc_w);
 }
 
@@ -81,29 +79,27 @@ casper_p_open(nvlist_t *nvlin, nvlist_t *nvlout)
 
 		pipedesc_w = p_open(prog, &procdesc);
 		if (pipedesc_w == -1)
-			return (-1);
+			return (errno);
 		nvlist_move_descriptor(nvlout, "pipedesc_w", pipedesc_w);
 		nvlist_move_descriptor(nvlout, "procdesc", procdesc);
 		return (0);
 	}
-
-	return (-1);
+	return (ECAPMODE);
 }
 
-const char *
+int
 cap_ttymsg(cap_channel_t *chan, struct iovec *iov, int iovcnt,
-    const char *line, int tmout)
+    const char *line, int timeout, bool shout)
 {
 	nvlist_t *nvl = nvlist_create(0);
-	int error;
-	static char errbuf[1024];
-	char *ret = NULL;
+	int error = 0;
 
 	nvlist_add_string(nvl, "cmd", "ttymsg");
 	for (int i = 0; i < iovcnt; ++i)
 		nvlist_append_string_array(nvl, "iov_strs", iov[i].iov_base);
 	nvlist_add_string(nvl, "line", line);
-	nvlist_add_number(nvl, "tmout", tmout);
+	nvlist_add_number(nvl, "timeout", timeout);
+	nvlist_add_bool(nvl, "shout", shout);
 
 	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL) {
@@ -111,28 +107,23 @@ cap_ttymsg(cap_channel_t *chan, struct iovec *iov, int iovcnt,
 		exit(1);
 	}
 	error = nvlist_get_number(nvl, "error");
+	nvlist_destroy(nvl);
 	if (error != 0) {
 		errno = error;
-		logerror("Failed to ttymsg");
+		return (-1);
 	}
-	if (nvlist_exists_string(nvl, "errstr")) {
-		const char *errstr = nvlist_get_string(nvl, "errstr");
-		(void)strlcpy(errbuf, errstr, sizeof(errbuf));
-		ret = errbuf;
-	}
-
-	nvlist_destroy(nvl);
-	return (ret);
+	return (0);
 }
 
 int
-casper_ttymsg(nvlist_t *nvlin, nvlist_t *nvlout)
+casper_ttymsg(nvlist_t *nvlin)
 {
 	const char * const *nvlstrs;
 	struct iovec *iov;
-	size_t iovcnt;
-	int tmout;
 	const char *line;
+	size_t iovcnt;
+	int ret, timeout;
+	bool shout;
 
 	nvlstrs = nvlist_get_string_array(nvlin, "iov_strs", &iovcnt);
 	assert(iovcnt <= TTYMSG_IOV_MAX);
@@ -144,13 +135,12 @@ casper_ttymsg(nvlist_t *nvlin, nvlist_t *nvlout)
 		iov[i].iov_len = strlen(nvlstrs[i]);
 	}
 	line = nvlist_get_string(nvlin, "line");
-	tmout = nvlist_get_number(nvlin, "tmout");
-	line = ttymsg(iov, iovcnt, line, tmout);
-	if (line != NULL)
-		nvlist_add_string(nvlout, "errstr", line);
-
+	timeout = nvlist_get_number(nvlin, "timeout");
+	shout = nvlist_get_bool(nvlin, "shout");
+	if ((ret = ttymsg(iov, iovcnt, line, timeout, shout)) != 0)
+		ret = errno;
 	free(iov);
-	return (0);
+	return (ret);
 }
 
 void
@@ -158,7 +148,6 @@ cap_wallmsg(cap_channel_t *chan, const struct filed *f, struct iovec *iov,
     int iovcnt)
 {
 	nvlist_t *nvl = nvlist_create(0);
-	int error;
 
 	nvlist_add_string(nvl, "cmd", "wallmsg");
 	/*
@@ -174,11 +163,6 @@ cap_wallmsg(cap_channel_t *chan, const struct filed *f, struct iovec *iov,
 	if (nvl == NULL) {
 		logerror("Failed to xfer wallmsg nvlist");
 		exit(1);
-	}
-	error = nvlist_get_number(nvl, "error");
-	if (error != 0) {
-		errno = error;
-		logerror("Failed to wallmsg");
 	}
 	nvlist_destroy(nvl);
 }
