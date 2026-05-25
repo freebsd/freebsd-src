@@ -176,7 +176,6 @@ struct fail_point_setting {
 	STAILQ_ENTRY(fail_point_setting) fs_garbage_link;
 	struct fail_point_entry_queue fp_entry_queue;
 	struct fail_point * fs_parent;
-	struct mtx feq_mtx; /* Gives fail_point_pause something to do.  */
 };
 
 /**
@@ -248,7 +247,6 @@ fail_point_setting_new(struct fail_point *fp)
 	fs_new = fs_malloc();
 	fs_new->fs_parent = fp;
 	TAILQ_INIT(&fs_new->fp_entry_queue);
-	mtx_init(&fs_new->feq_mtx, "fail point entries", NULL, MTX_SPIN);
 
 	fail_point_setting_garbage_append(fs_new);
 
@@ -407,14 +405,13 @@ fail_point_drain(struct fail_point *fp, int expected_ref)
 }
 
 static inline void
-fail_point_pause(struct fail_point *fp, enum fail_point_return_code *pret,
-        struct mtx *mtx_sleep)
+fail_point_pause(struct fail_point *fp, enum fail_point_return_code *pret)
 {
 
 	if (fp->fp_pre_sleep_fn)
 		fp->fp_pre_sleep_fn(fp->fp_pre_sleep_arg);
 
-	msleep_spin(FP_PAUSE_CHANNEL(fp), mtx_sleep, "failpt", 0);
+	tsleep(FP_PAUSE_CHANNEL(fp), 0, "failpt", 0);
 
 	if (fp->fp_post_sleep_fn)
 		fp->fp_post_sleep_fn(fp->fp_post_sleep_arg);
@@ -624,9 +621,7 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 			 * The sysctl layer actually truncates all entries after
 			 * a pause for this reason.
 			 */
-			mtx_lock_spin(&fp_setting->feq_mtx);
-			fail_point_pause(fp, &ret, &fp_setting->feq_mtx);
-			mtx_unlock_spin(&fp_setting->feq_mtx);
+			fail_point_pause(fp, &ret);
 			break;
 
 		case FAIL_POINT_YIELD:
