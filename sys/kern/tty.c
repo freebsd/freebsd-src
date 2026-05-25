@@ -101,6 +101,10 @@ static int  tty_drainwait = 5 * 60;
 SYSCTL_INT(_kern, OID_AUTO, tty_drainwait, CTLFLAG_RWTUN,
     &tty_drainwait, 0, "Default output drain timeout in seconds");
 
+static bool tty_tiocsti = true;
+SYSCTL_BOOL(_security_bsd, OID_AUTO, allow_tiocsti, CTLFLAG_RWTUN,
+    &tty_tiocsti, 0, "Allow TIOCSTI ioctl");
+
 /*
  * Set TTY buffer sizes.
  */
@@ -1651,6 +1655,10 @@ tty_set_winsize(struct tty *tp, const struct winsize *wsz)
 static int
 tty_sti_check(struct tty *tp, int fflag, struct thread *td)
 {
+	/* Check for global disable. */
+	if (!tty_tiocsti)
+		return (EPERM);
+
 	/* Root can bypass all of our constraints. */
 	if (priv_check(td, PRIV_TTY_STI) == 0)
 		return (0);
