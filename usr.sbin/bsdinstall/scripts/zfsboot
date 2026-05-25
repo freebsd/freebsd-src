@@ -159,6 +159,9 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Don't mount /usr so that 'base' files go to the BEROOT
 	/usr		mountpoint=/usr,canmount=off
 
+	# Objects tree
+	/usr/obj	setuid=off
+
 	# Ports tree
 	/usr/ports	setuid=off
 
