@@ -5064,7 +5064,7 @@ acpi_pm_func(u_long cmd, void *arg, enum power_stype stype)
 			error = EINVAL;
 			goto out;
 		}
-		if (ACPI_FAILURE(acpi_EnterSleepState(sc, stype)))
+		if (ACPI_FAILURE(acpi_ReqSleepState(sc, stype)))
 			error = ENXIO;
 		break;
 	default:
