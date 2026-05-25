@@ -878,8 +878,14 @@ aq_hw_rss_set(struct aq_hw_s *self,
 	memset(bitary, 0, sizeof(bitary));
 
 	for (i = HW_ATL_RSS_INDIRECTION_TABLE_MAX; i--;) {
-		(*(uint32_t *)(bitary + ((i * 3U) / 16U))) |=
-			((rss_table[i]) << ((i * 3U) & 0xFU));
+		uint32_t bit_pos = i * 3U;
+		uint32_t word = bit_pos / 16U;
+		uint32_t shift = bit_pos % 16U;
+		uint32_t val = (uint32_t)(rss_table[i] & 0x7U) << shift;
+
+		bitary[word] |= (uint16_t)val;
+		if ((val >> 16) && word + 1U < ARRAY_SIZE(bitary))
+			bitary[word + 1U] |= (uint16_t)(val >> 16);
 	}
 
 	for (i = ARRAY_SIZE(bitary); i--;) {
