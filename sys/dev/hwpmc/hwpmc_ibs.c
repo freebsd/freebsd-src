@@ -510,6 +510,9 @@ pmc_ibs_intr(struct trapframe *tf)
 	int retval, cpu;
 	uint64_t config;
 
+	if (ibs_pcpu == NULL)
+		return (0);
+
 	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[ibs,%d] out of range CPU %d", __LINE__, cpu));
