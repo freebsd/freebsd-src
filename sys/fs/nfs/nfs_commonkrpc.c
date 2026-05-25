@@ -1247,8 +1247,9 @@ tryagain:
 					goto out;
 				}
 				sep = NFSMNT_MDSSESSION(nmp);
-				if (bcmp(sep->nfsess_sessionid, nd->nd_sequence,
-				    NFSX_V4SESSIONID) == 0) {
+				if (bcmp(sep->nfsess_sessionid,
+				    nd->nd_sessionid, NFSX_V4SESSIONID) == 0 &&
+				    sep->nfsess_defunct == 0) {
 					printf("Initiate recovery. If server "
 					    "has not rebooted, "
 					    "check NFS clients for unique "

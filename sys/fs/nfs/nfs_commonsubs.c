@@ -337,6 +337,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	 * First, fill in some of the fields of nd.
 	 */
 	nd->nd_slotseq = NULL;
+	NFSBZERO(nd->nd_sessionid, NFSX_V4SESSIONID);
 	if (vers == NFS_VER4) {
 		nd->nd_flag = ND_NFSV4 | ND_NFSCL;
 		if (minorvers == NFSV41_MINORVERSION)
@@ -4919,6 +4920,7 @@ nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID + 4 * NFSX_UNSIGNED);
 	nd->nd_sequence = tl;
 	bcopy(sessionid, tl, NFSX_V4SESSIONID);
+	bcopy(sessionid, nd->nd_sessionid, NFSX_V4SESSIONID);
 	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 	nd->nd_slotseq = tl;
 	if (error == 0) {
@@ -5165,6 +5167,7 @@ nfsrpc_destroysession(struct nfsmount *nmp, struct nfsclsession *tsep,
 	    0, NULL);
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID);
 	bcopy(tsep->nfsess_sessionid, tl, NFSX_V4SESSIONID);
+	bcopy(tsep->nfsess_sessionid, nd->nd_sessionid, NFSX_V4SESSIONID);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
