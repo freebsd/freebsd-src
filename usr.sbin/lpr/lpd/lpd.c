@@ -153,9 +153,6 @@ main(int argc, char **argv)
 			lflag++;
 			break;
 		case 'p':		/* letter initially used for -s */
-			/*
-			 * This will probably be removed with 5.0-release.
-			 */
 			/* FALLTHROUGH */
 		case 's':		/* secure (no inet) */
 			sflag++;
