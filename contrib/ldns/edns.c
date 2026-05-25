@@ -10,6 +10,7 @@
  * See the file LICENSE for the license
  */
 
+#include <ldns/config.h>
 #include <ldns/ldns.h>
 
 #define LDNS_OPTIONLIST_INIT 8
