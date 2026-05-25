@@ -69,7 +69,7 @@ format_who(char *str, size_t size, const acl_entry_t entry, int numeric)
 		else
 			pwd = NULL;
 		if (pwd == NULL)
-			snprintf(str, size, "user:%d", (unsigned int)*id);
+			snprintf(str, size, "user:%ju", (uintmax_t)*id);
 		else
 			snprintf(str, size, "user:%s", pwd->pw_name);
 		acl_free(id);
@@ -89,7 +89,7 @@ format_who(char *str, size_t size, const acl_entry_t entry, int numeric)
 		else
 			grp = NULL;
 		if (grp == NULL)
-			snprintf(str, size, "group:%d", (unsigned int)*id);
+			snprintf(str, size, "group:%ju", (uintmax_t)*id);
 		else
 			snprintf(str, size, "group:%s", grp->gr_name);
 		acl_free(id);
