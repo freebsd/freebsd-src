@@ -35,7 +35,7 @@
 .Nd line printer spooler daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdlpsFW46
+.Op Fl cdlsFW46
 .Op Fl t Ar timeout
 .Op Ar port
 .Sh DEPRECATION NOTICE
@@ -106,15 +106,6 @@ Causes
 to log valid requests received from the network.
 This can be useful
 for debugging purposes.
-.It Fl p
-The
-.Fl p
-flag is a synonym for the
-.Fl s
-flag.
-It is being deprecated, and may be removed in a
-future version of
-.Nm .
 .It Fl s
 Do not open an Internet listening socket.
 This means that
