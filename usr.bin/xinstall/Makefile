@@ -13,7 +13,7 @@ MAN=		install.1
 CFLAGS+=	-I${SRCTOP}/contrib/mtree
 CFLAGS+=	-I${SRCTOP}/lib/libnetbsd
 
-LIBADD=		md
+LIBADD=		md util
 CFLAGS+=	-DWITH_MD5 -DWITH_RIPEMD160
 
 .ifdef BOOTSTRAPPING
