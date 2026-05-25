@@ -65,6 +65,12 @@ the request so the parent can continue to listen for more requests.
 .Pp
 Available options:
 .Bl -tag -width Ds
+.It Fl 4
+Accept IPv4 connections.
+The default is to accept both IPv4 and IPv6.
+.It Fl 6
+Accept IPv6 connections.
+The default is to accept both IPv4 and IPv6.
 .It Fl c
 By default, if some remote host has a connection error while trying to
 send a print request to
@@ -83,10 +89,19 @@ Turn on
 .Dv SO_DEBUG
 on the Internet listening socket (see
 .Xr setsockopt 2 ) .
-.It Fl l
+.It Fl F
+By default,
+.Nm
+will daemonize into the background.
 The
-.Fl l
+.Fl F
 flag causes
+.Nm
+to remain in the foreground.
+Logging is still performed with
+.Xr syslog 3 .
+.It Fl l
+Causes
 .Nm
 to log valid requests received from the network.
 This can be useful
@@ -101,11 +116,7 @@ It is being deprecated, and may be removed in a
 future version of
 .Nm .
 .It Fl s
-The
-.Fl s
-(secure) flag causes
-.Nm
-not to open an Internet listening socket.
+Do not open an Internet listening socket.
 This means that
 .Nm
 will not accept any connections from any remote
@@ -116,17 +127,6 @@ Set the network receive timeout for client connections to
 .Ar timeout
 seconds.
 The default is 120.
-.It Fl F
-By default,
-.Nm
-will daemonize into the background.
-The
-.Fl F
-flag causes
-.Nm
-to remain in the foreground.
-Logging is still performed with
-.Xr syslog 3 .
 .It Fl W
 By default, the
 .Nm
@@ -139,12 +139,6 @@ flag causes
 to accept connections coming from any port.
 This is can be useful when you want to accept print jobs
 from certain implementations of lpr written for Windows.
-.It Fl 4
-Inet only.
-.It Fl 6
-Inet6 only.
-.It Fl 46
-Inet and inet6 (default).
 .It Ar "port"
 The Internet port number or service name used to rendezvous with other
 processes.
