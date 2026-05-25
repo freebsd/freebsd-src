@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)lpd.8	8.3 (Berkeley) 4/19/94
 .\"
-.Dd February 19, 2026
+.Dd May 25, 2026
 .Dt LPD 8
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nm
 .Op Fl cdlpsFW46
 .Op Fl t Ar timeout
-.Op Ar port#
+.Op Ar port
 .Sh DEPRECATION NOTICE
 This facility is scheduled for removal prior to the release of
 .Fx 16.0 .
@@ -145,13 +145,13 @@ Inet only.
 Inet6 only.
 .It Fl 46
 Inet and inet6 (default).
-.It Ar "port#"
-The Internet port number used to rendezvous
-with other processes is normally obtained with
-.Xr getservbyname 3
-but can be changed with the
-.Ar port#
-argument.
+.It Ar "port"
+The Internet port number or service name used to rendezvous with other
+processes.
+Can be any number from 1 to 65,535 or any service name defined in
+.Pa /etc/services .
+Defaults to
+.Li printer .
 .El
 .Pp
 Access control is provided by two means.
@@ -348,6 +348,7 @@ but not under same administrative control.
 .Xr syslog 3 ,
 .Xr hosts.lpd 5 ,
 .Xr printcap 5 ,
+.Xr services 5 ,
 .Xr chkprintcap 8 ,
 .Xr lpc 8 ,
 .Xr pac 8

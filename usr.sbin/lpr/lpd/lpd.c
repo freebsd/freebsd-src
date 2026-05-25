@@ -113,7 +113,7 @@ static void	 startup(void);
 static void	 chkhost(struct sockaddr *_f, int _ch_opts);
 static int	 ckqueue(struct printer *_pp);
 static void	 fhosterr(int _ch_opts, char *_sysmsg, char *_usermsg);
-static int	*socksetup(int _af, int _debuglvl);
+static int	*socksetup(int _af, const char *portstr, int _debuglvl);
 static void	 usage(void);
 
 /* XXX from libc/net/rcmd.c */
@@ -136,7 +136,7 @@ main(int argc, char **argv)
 	struct sockaddr_storage frominet;
 	socklen_t fromlen;
 	sigset_t omask, nmask;
-	struct servent *sp, serv;
+	const char *portstr = "printer";
 	int inet_flag = 0, inet6_flag = 0;
 
 	euid = geteuid();	/* these shouldn't be different */
@@ -227,19 +227,9 @@ main(int argc, char **argv)
 	if (errs)
 		usage();
 
-	if (argc == 1) {
-		if ((i = atoi(argv[0])) == 0)
-			usage();
-		if (i < 0 || i > USHRT_MAX)
-			errx(EX_USAGE, "port # %d is invalid", i);
-
-		serv.s_port = htons(i);
-		sp = &serv;
+	if (argc > 0) {
+		portstr = *argv++;
 		argc--;
-	} else {
-		sp = getservbyname("printer", "tcp");
-		if (sp == NULL)
-			errx(EX_OSFILE, "printer/tcp: unknown service");
 	}
 
 	if (argc != 0)
@@ -351,7 +341,7 @@ main(int argc, char **argv)
 	FD_SET(funix, &defreadfds);
 	listen(funix, 5);
 	if (sflag == 0) {
-		finet = socksetup(family, socket_debug);
+		finet = socksetup(family, portstr, socket_debug);
 	} else
 		finet = NULL;	/* pretend we couldn't open TCP socket. */
 	if (finet) {
@@ -867,7 +857,7 @@ fhosterr(int ch_opts, char *sysmsg, char *usermsg)
 /* if af is PF_UNSPEC more than one socket may be returned */
 /* the returned list is dynamically allocated, so caller needs to free it */
 static int *
-socksetup(int af, int debuglvl)
+socksetup(int af, const char *portstr, int debuglvl)
 {
 	struct addrinfo hints, *res, *r;
 	int error, maxs, *s, *socks;
@@ -877,7 +867,7 @@ socksetup(int af, int debuglvl)
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = af;
 	hints.ai_socktype = SOCK_STREAM;
-	error = getaddrinfo(NULL, "printer", &hints, &res);
+	error = getaddrinfo(NULL, portstr, &hints, &res);
 	if (error) {
 		syslog(LOG_ERR, "%s", gai_strerror(error));
 		mcleanup(0);
@@ -946,9 +936,9 @@ static void
 usage(void)
 {
 #ifdef INET6
-	fprintf(stderr, "usage: lpd [-cdlsFW46] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlsFW46] [port]\n");
 #else
-	fprintf(stderr, "usage: lpd [-cdlsFW] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlsFW] [port]\n");
 #endif
 	exit(EX_USAGE);
 }
