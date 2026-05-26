@@ -1449,6 +1449,7 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 		int i;
 
 		memset(&log, 0, sizeof(log));
+		microuptime(&tv);
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			for (i = 0; i < TCP_NUM_CNT_COUNTERS; i++) {
 				log.u_raw.u64_flex[i] = tp->tcp_cnt_counters[i];
