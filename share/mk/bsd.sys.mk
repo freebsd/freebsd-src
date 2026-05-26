@@ -91,6 +91,8 @@ CWARNFLAGS.clang+=	-Wno-error=unused-but-set-parameter
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 190000
 # Similar to gcc >= 8.1 -Wno-error=cast-function-type below
 CWARNFLAGS.clang+=	-Wno-error=cast-function-type-mismatch
+CXXWARNFLAGS.clang+=	-Wno-c++14-extensions
+CXXWARNFLAGS.clang+=	-Wno-c++17-extensions
 CXXWARNFLAGS.clang+=	-Wno-c++20-extensions
 CXXWARNFLAGS.clang+=	-Wno-c++23-lambda-attributes
 CXXWARNFLAGS.clang+=	-Wno-nullability-completeness
