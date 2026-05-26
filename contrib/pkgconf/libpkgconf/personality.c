@@ -19,6 +19,12 @@
 #include <libpkgconf/stdinc.h>
 #include <libpkgconf/libpkgconf.h>
 
+#ifdef __FreeBSD__
+# include <sys/param.h>
+# include <sys/sysctl.h>
+# include <err.h>
+#endif
+
 /*
  * !doc
  *
@@ -89,6 +95,34 @@ build_default_search_path(pkgconf_list_t* dirlist)
 		free(paths);
 		paths = NULL;
 	}
+#elif defined(__FreeBSD__)
+	pkgconf_buffer_t path1 = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_buffer_t path2 = PKGCONF_BUFFER_INITIALIZER;
+	char const *localbase;
+	char buf[MAXPATHLEN];
+	size_t len;
+
+	localbase = getenv("LOCALBASE");
+
+	if (localbase == NULL) {
+		len = sizeof(buf);
+		if (sysctlbyname("user.localbase", &buf, &len, NULL, 0) < 0)
+			err(1, "sysctl(user.localbase)");
+
+		localbase = buf;
+	}
+
+	if (!pkgconf_buffer_append(&path1, localbase) ||
+			!pkgconf_buffer_append(&path1, "/libdata/pkgconfig"))
+		err(1, NULL);
+	pkgconf_path_add(pkgconf_buffer_str(&path1), dirlist, false);
+
+	pkgconf_path_add("/usr/libdata/pkgconfig", dirlist, false);
+
+	if (!pkgconf_buffer_append(&path2, localbase) ||
+			!pkgconf_buffer_append(&path2, "/share/pkgconfig"))
+		err(1, NULL);
+	pkgconf_path_add(pkgconf_buffer_str(&path2), dirlist, false);
 #else
 	pkgconf_path_split(PKG_DEFAULT_PATH, dirlist, false);
 #endif
@@ -324,6 +358,12 @@ pkgconf_cross_personality_find(const char *triplet)
 #if ! defined(_WIN32) && ! defined(__HAIKU__)
 	const char *envvar;
 #endif
+#if defined(__FreeBSD__)
+	pkgconf_buffer_t path = PKGCONF_BUFFER_INITIALIZER;
+	char const *localbase;
+	char buf[MAXPATHLEN];
+	size_t len;
+#endif
 
 	out = load_personality_with_path(triplet, NULL, false);
 	if (out != NULL)
@@ -362,7 +402,28 @@ pkgconf_cross_personality_find(const char *triplet)
 	pkgconf_path_free(&plist);
 #endif
 
+#ifdef __FreeBSD__
+	localbase = getenv("LOCALBASE");
+
+	if (localbase == NULL) {
+		len = sizeof(buf);
+		if (sysctlbyname("user.localbase", &buf, &len, NULL, 0) < 0)
+			err(1, "sysctl(user.localbase)");
+
+		localbase = buf;
+	}
+
+	pkgconf_path_add("/usr/share/pkgconfig/personality.d", &plist, true);
+	pkgconf_path_add("/etc/pkgconfig/personality.d", &plist, true);
+
+	if (!pkgconf_buffer_append(&path, localbase) ||
+			!pkgconf_buffer_append(&path,
+				"/etc/pkgconfig/personality.d"))
+		err(1, NULL);
+	pkgconf_path_add(pkgconf_buffer_str(&path), &plist, true);
+#else
 	pkgconf_path_split(PERSONALITY_PATH, &plist, true);
+#endif
 
 	PKGCONF_FOREACH_LIST_ENTRY(plist.head, n)
 	{

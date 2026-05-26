@@ -39,8 +39,6 @@ INCS+=		libpkgconf-api.h
 
 WARNS?=		3
 
-CFLAGS+=	-DPERSONALITY_PATH=\"/usr/share/pkgconfig/personality.d:/etc/pkgconfig/personality.d:${LOCALBASE:U/usr/local}/etc/pkgconfig/personality.d\"
-CFLAGS+=	-DPKG_DEFAULT_PATH=\"${LOCALBASE:U/usr/local}/libdata/pkgconfig:/usr/libdata/pkgconfig:${LOCALBASE:U/usr/local}/share/pkgconfig\"
 CFLAGS+=	-DSYSTEM_INCLUDEDIR=\"/usr/include\"
 CFLAGS+=	-DSYSTEM_LIBDIR=\"/usr/lib\"
 CFLAGS+=	-I${SRCTOP}/lib/libpkgconf -I${PKGCONFDIR}
