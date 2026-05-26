@@ -724,6 +724,7 @@ struct proc {
 	int		p_pendingexits; /* (c) Count of pending thread exits. */
 	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 	int		p_pdeathsig;	/* (c) Signal from parent on exit. */
+	u_int		p_execblock;	/* (c) Blockers for execve. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -852,7 +853,7 @@ struct proc {
 #define	P_STATCHILD	0x08000000	/* Child process stopped or exited. */
 #define	P_INMEM		0x10000000	/* Loaded into memory, always set. */
 #define	P_ASYNC_EXIT	0x20000000	/* XXX */
-#define	P_UNUSED2	0x40000000	/* --available-- */
+#define	P_INEXEC_WAIT	0x40000000	/* Waiters for P_INEXEC/p_execblock */
 #define	P_PPTRACE	0x80000000	/* PT_TRACEME by vforked child. */
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
