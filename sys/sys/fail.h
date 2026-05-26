@@ -71,6 +71,7 @@ struct fail_point {
 	                             * unfreed fail_point_setting
 	                             */
 	struct fail_point_setting * volatile fp_setting;
+	bool *fp_enabled;
 	int fp_flags;
 
 	/**< Function to call before sleep or pause */
@@ -93,14 +94,12 @@ struct fail_point {
 #define FAIL_POINT_NONSLEEPABLE 0x04
 
 #define FAIL_POINT_CV_DESC "fp cv no iterators"
-#define FAIL_POINT_IS_OFF(fp) (__predict_true((fp)->fp_setting == NULL) || \
-        __predict_true(fail_point_is_off(fp)))
 
 __BEGIN_DECLS
 
 /* Private failpoint eval function -- use fail_point_eval() instead. */
 enum fail_point_return_code fail_point_eval_nontrivial(struct fail_point *,
-        int *ret);
+        bool *fp_enabled, int *ret);
 
 /**
  * @addtogroup failpoint
@@ -185,26 +184,34 @@ void fail_point_destroy(struct fail_point *);
  * Evaluate a failpoint.
  */
 static inline enum fail_point_return_code
-fail_point_eval(struct fail_point *fp, int *ret)
+fail_point_eval(struct fail_point *fp, bool *fp_enabled, int *ret)
 {
-	if (__predict_true(fp->fp_setting == NULL))
+	/*
+	 * Set to true after fp_setting is non NULL. Bias to
+	 * assuming it's not set. true state is actually fp_setting != NULL
+	 */
+	if (__predict_true(*fp_enabled == false))
 		return (FAIL_POINT_RC_CONTINUE);
-	return (fail_point_eval_nontrivial(fp, ret));
+	return (fail_point_eval_nontrivial(fp, fp_enabled, ret));
 }
 
 __END_DECLS
 
 /* Declare a fail_point and its sysctl in a function. */
-#define KFAIL_POINT_DECLARE(name) \
-    extern struct fail_point _FAIL_POINT_NAME(name)
 #define _FAIL_POINT_NAME(name) _fail_point_##name
+#define _FAIL_POINT_NAME_ENABLED(name) _fail_point_##name##_enabled
+#define KFAIL_POINT_DECLARE(name) \
+    extern struct fail_point _FAIL_POINT_NAME(name); \
+    extern bool _FAIL_POINT_NAME_ENABLED(name)
 #define _FAIL_POINT_LOCATION() "(" __FILE__ ":" __XSTRING(__LINE__) ")"
 #define KFAIL_POINT_DEFINE(parent, name, flags) \
-	struct fail_point _FAIL_POINT_NAME(name) = { \
+	bool _FAIL_POINT_NAME_ENABLED(name) __section("failpoints") = false; \
+	static struct fail_point _FAIL_POINT_NAME(name) = { \
 	        .fp_name = #name, \
 	        .fp_location = _FAIL_POINT_LOCATION(), \
 	        .fp_ref_cnt = 0, \
 	        .fp_setting = NULL, \
+	        .fp_enabled = &_FAIL_POINT_NAME_ENABLED(name), \
 	        .fp_flags = (flags), \
 	        .fp_pre_sleep_fn = NULL, \
 	        .fp_pre_sleep_arg = NULL, \
@@ -213,8 +220,8 @@ __END_DECLS
 	}; \
 	SYSCTL_OID(parent, OID_AUTO, name, \
 	        CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, \
-	        &_FAIL_POINT_NAME(name), 0, fail_point_sysctl, \
-	        "A", ""); \
+	        &_FAIL_POINT_NAME(name), 0, \
+		fail_point_sysctl, "A", ""); \
 	SYSCTL_OID(parent, OID_AUTO, status_##name, \
 	        CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, \
 	        &_FAIL_POINT_NAME(name), 0, \
@@ -226,7 +233,9 @@ __END_DECLS
 	int RETURN_VALUE; \
  \
 	if (__predict_false(cond && \
-	        fail_point_eval(&_FAIL_POINT_NAME(name), &RETURN_VALUE))) { \
+	        fail_point_eval(&_FAIL_POINT_NAME(name), \
+		    &_FAIL_POINT_NAME_ENABLED(name), \
+		    &RETURN_VALUE))) { \
  \
 		code; \
  \
@@ -362,6 +371,7 @@ __END_DECLS
 
 #ifdef _KERNEL
 int fail_point_sysctl(SYSCTL_HANDLER_ARGS);
+int fail_point_enabled_sysctl(SYSCTL_HANDLER_ARGS);
 int fail_point_sysctl_status(SYSCTL_HANDLER_ARGS);
 
 /* The fail point sysctl tree. */
