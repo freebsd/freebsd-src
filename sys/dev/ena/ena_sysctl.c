@@ -1160,12 +1160,11 @@ ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS)
 	}
 
 	indir = adapter->rss_indir;
-	msg = indir->sysctl_buf;
-
 	if (unlikely(indir == NULL)) {
 		error = ENOTSUP;
 		goto unlock;
 	}
+	msg = indir->sysctl_buf;
 
 	error = sysctl_handle_string(oidp, msg, indir->record_size
 	    * indir->table_size, req);
