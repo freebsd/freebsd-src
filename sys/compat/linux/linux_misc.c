@@ -2006,6 +2006,7 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 	u_int which;
 	int flags;
 	int error;
+	bool exec_blocked;
 
 	if (args->new == NULL && args->old != NULL) {
 		if (linux_get_dummy_limit(args->resource, &rlim)) {
@@ -2033,6 +2034,7 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 			return (error);
 	}
 
+	exec_blocked = false;
 	flags = PGET_HOLD | PGET_NOTWEXIT;
 	if (args->new != NULL)
 		flags |= PGET_CANDEBUG;
@@ -2045,6 +2047,14 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 		error = pget(args->pid, flags, &p);
 		if (error != 0)
 			return (error);
+		exec_blocked = true;
+		PROC_LOCK(p);
+		execve_block_wait(td, p);
+		error = args->new != NULL ? p_candebug(td, p) :
+		    p_cansee(td, p);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			goto out;
 	}
 	if (args->old != NULL) {
 		PROC_LOCK(p);
@@ -2067,6 +2077,11 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 		error = kern_proc_setrlimit(td, p, which, &nrlim);
 
  out:
+	if (exec_blocked) {
+		PROC_LOCK(p);
+		execve_unblock(td, p);
+		PROC_UNLOCK(p);
+	}
 	PRELE(p);
 	return (error);
 }

@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/imgact.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -345,25 +346,93 @@ proc_sstep(struct thread *td)
 	PROC_ACTION(ptrace_single_step(td));
 }
 
+static int
+proc_vmspace_check_access(struct thread *td, struct proc *p, int flags)
+{
+	PROC_ASSERT_HELD(p);
+	if ((flags & PRVM_CHECK_DEBUG) != 0)
+		return (p_candebug(td, p));
+	if ((flags & PRVM_CHECK_VISIBILITY) != 0)
+		return (p_cansee(td, p));
+	return (0);
+}
+
 int
-proc_rwmem(struct proc *p, struct uio *uio)
+proc_vmspace_ref(struct thread *td, struct proc *p, int flags,
+    struct vmspace **vmp)
+{
+	struct vmspace *vm;
+	int error;
+
+	MPASS((flags & ~(PRVM_BLOCK_EXEC | PRVM_CHECK_VISIBILITY |
+	    PRVM_CHECK_DEBUG)) == 0);
+	MPASS((flags & (PRVM_CHECK_VISIBILITY | PRVM_CHECK_DEBUG)) !=
+	    (PRVM_CHECK_VISIBILITY | PRVM_CHECK_DEBUG));
+
+	PROC_LOCK(p);
+	if (p != td->td_proc) {
+		PROC_ASSERT_HELD(p);
+
+		/*
+		 * Make sure that the vmspace doesn't switch out from
+		 * under us.
+		 */
+		if ((flags & PRVM_BLOCK_EXEC) != 0) {
+			for (;;) {
+				if (!execve_block(td, p)) {
+					PROC_LOCK(p);
+					continue;
+				}
+				error = proc_vmspace_check_access(td, p, flags);
+				if (error != 0) {
+					execve_unblock(td, p);
+					PROC_UNLOCK(p);
+					return (error);
+				}
+				break;
+			}
+		} else {
+			error = proc_vmspace_check_access(td, p, flags);
+			if (error != 0) {
+				PROC_UNLOCK(p);
+				return (error);
+			}
+		}
+	}
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL) {
+		if (p != td->td_proc && (flags & PRVM_BLOCK_EXEC) != 0)
+			execve_unblock(td, p);
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	PROC_UNLOCK(p);
+	*vmp = vm;
+	return (0);
+}
+
+void
+proc_vmspace_unref(struct thread *td, struct proc *p, int flags,
+    struct vmspace *vm)
+{
+	vmspace_free(vm);
+	if (p != td->td_proc && (flags & PRVM_BLOCK_EXEC) != 0) {
+		PROC_LOCK(p);
+		PROC_ASSERT_HELD(p);
+		execve_unblock(td, p);
+		PROC_UNLOCK(p);
+	}
+}
+
+static int
+vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 {
 	vm_map_t map;
 	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
 	int error, fault_flags, page_offset, writing;
 
-	/*
-	 * Make sure that the process' vmspace remains live.
-	 */
-	if (p != curproc)
-		PROC_ASSERT_HELD(p);
-	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
-
-	/*
-	 * The map we want...
-	 */
-	map = &p->p_vmspace->vm_map;
+	map = &vm->vm_map;
 
 	/*
 	 * If we are writing, then we request vm_fault() to create a private
@@ -432,13 +501,30 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	return (error);
 }
 
-static ssize_t
-proc_iop(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
+int
+proc_rwmem(struct proc *p, struct uio *uio, int flags)
+{
+	struct vmspace *vm;
+	struct thread *td;
+	int error;
+
+	td = curthread;
+	error = proc_vmspace_ref(td, p, flags, &vm);
+	if (error != 0)
+		return (error);
+	error = vmspace_rwmem(vm, uio);
+	proc_vmspace_unref(td, p, flags, vm);
+	return (error);
+}
+
+ssize_t
+vmspace_iop(struct thread *td, struct vmspace *vm, vm_offset_t va, void *buf,
     size_t len, enum uio_rw rw)
 {
 	struct iovec iov;
 	struct uio uio;
 	ssize_t slen;
+	int error;
 
 	MPASS(len < SSIZE_MAX);
 	slen = (ssize_t)len;
@@ -452,8 +538,8 @@ proc_iop(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = rw;
 	uio.uio_td = td;
-	proc_rwmem(p, &uio);
-	if (uio.uio_resid == slen)
+	error = vmspace_rwmem(vm, &uio);
+	if (error != 0 || uio.uio_resid == slen)
 		return (-1);
 	return (slen - uio.uio_resid);
 }
@@ -463,7 +549,7 @@ proc_readmem(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
     size_t len)
 {
 
-	return (proc_iop(td, p, va, buf, len, UIO_READ));
+	return (vmspace_iop(td, p->p_vmspace, va, buf, len, UIO_READ));
 }
 
 ssize_t
@@ -471,7 +557,7 @@ proc_writemem(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
     size_t len)
 {
 
-	return (proc_iop(td, p, va, buf, len, UIO_WRITE));
+	return (vmspace_iop(td, p->p_vmspace, va, buf, len, UIO_WRITE));
 }
 
 static int
@@ -1465,7 +1551,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			goto out;
 		}
 		PROC_UNLOCK(p);
-		error = proc_rwmem(p, &uio);
+		error = proc_rwmem(p, &uio, 0);
 		piod->piod_len -= uio.uio_resid;
 		PROC_LOCK(p);
 		break;

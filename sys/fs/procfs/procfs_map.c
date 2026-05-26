@@ -42,6 +42,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
@@ -95,14 +96,13 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	bool wrap32;
 #endif
 
-	PROC_LOCK(p);
-	error = p_candebug(td, p);
-	PROC_UNLOCK(p);
-	if (error)
-		return (error);
-
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
+
+	error = proc_vmspace_ref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG,
+	    &vm);
+	if (error != 0)
+		return (error);
 
 #ifdef COMPAT_FREEBSD32
 	wrap32 = false;
@@ -113,9 +113,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	}
 #endif
 
-	vm = vmspace_acquire_ref(p);
-	if (vm == NULL)
-		return (ESRCH);
 	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	VM_MAP_ENTRY_FOREACH(entry, map) {
@@ -240,6 +237,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
+	proc_vmspace_unref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG, vm);
 	return (error);
 }

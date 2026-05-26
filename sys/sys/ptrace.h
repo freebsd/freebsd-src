@@ -249,7 +249,20 @@ int	proc_write_fpregs(struct thread *_td, struct fpreg *_fpreg);
 int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
-int	proc_rwmem(struct proc *_p, struct uio *_uio);
+
+#define	PRVM_BLOCK_EXEC		0x00000001
+#define	PRVM_CHECK_VISIBILITY	0x00000002
+#define	PRVM_CHECK_DEBUG	0x00000004
+
+#include <sys/_uio.h>
+struct vmspace;
+int	proc_vmspace_ref(struct thread *_td, struct proc *_p, int _flags,
+	    struct vmspace **_vmp);
+void	proc_vmspace_unref(struct thread *_td, struct proc *_p, int _flags,
+	    struct vmspace *_vm);
+ssize_t	vmspace_iop(struct thread *td, struct vmspace *vm, vm_offset_t va,
+	    void *buf, size_t len, enum uio_rw rw);
+int	proc_rwmem(struct proc *_p, struct uio *_uio, int _flags);
 ssize_t	proc_readmem(struct thread *_td, struct proc *_p, vm_offset_t _va,
 	    void *_buf, size_t _len);
 ssize_t	proc_writemem(struct thread *_td, struct proc *_p, vm_offset_t _va,
