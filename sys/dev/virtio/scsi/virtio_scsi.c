@@ -1787,6 +1787,27 @@ vtscsi_transport_reset_event(struct vtscsi_softc *sc,
 }
 
 static void
+vtscsi_param_change_event(struct vtscsi_softc *sc,
+    struct virtio_scsi_event *event)
+{
+	target_id_t target_id;
+	lun_id_t lun_id;
+
+	vtscsi_get_request_lun(event->lun, &target_id, &lun_id);
+
+	if (VIRTIO_SCSI_ASC(event->reason) == VIRTIO_SCSI_CAPACITY_CHNG_ASC &&
+	    VIRTIO_SCSI_ASCQ(event->reason) == VIRTIO_SCSI_CAPACITY_CHNG_ASCQ) {
+		/* Disk capacity has changed. */
+		vtscsi_announce(sc, AC_INQ_CHANGED, target_id, lun_id);
+	} else {
+		device_printf(sc->vtscsi_dev,
+		    "unhandled PARAM_CHANGE event. ASC: %02x, ASCQ: %02x\n",
+		    VIRTIO_SCSI_ASC(event->reason),
+		    VIRTIO_SCSI_ASCQ(event->reason));
+	}
+}
+
+static void
 vtscsi_handle_event(struct vtscsi_softc *sc, struct virtio_scsi_event *event)
 {
 	int error __diagused;
@@ -1795,6 +1816,9 @@ vtscsi_handle_event(struct vtscsi_softc *sc, struct virtio_scsi_event *event)
 		switch (event->event) {
 		case VIRTIO_SCSI_T_TRANSPORT_RESET:
 			vtscsi_transport_reset_event(sc, event);
+			break;
+		case VIRTIO_SCSI_T_PARAM_CHANGE:
+			vtscsi_param_change_event(sc, event);
 			break;
 		default:
 			device_printf(sc->vtscsi_dev,
