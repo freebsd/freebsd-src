@@ -54,8 +54,8 @@ enum p9_proto_versions {
 
 /* P9 Request exchanged between Host and Guest */
 struct p9_req_t {
-	struct p9_buffer *tc;	/* request buffer */
-	struct p9_buffer *rc;	/* response buffer */
+	struct p9_buffer tc;	/* request buffer */
+	struct p9_buffer rc;	/* response buffer */
 };
 
 /* 9P transport status */

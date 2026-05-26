@@ -112,7 +112,7 @@ SYSCTL_UINT(_vfs_9p, OID_AUTO, ackmaxidle, CTLFLAG_RW, &vt9p_ackmaxidle, 0,
 static int
 vt9p_req_wait(struct vt9p_softc *chan, struct p9_req_t *req)
 {
-	KASSERT(req->tc->tag != req->rc->tag,
+	KASSERT(req->tc.tag != req->rc.tag,
 	    ("%s: request %p already completed", __func__, req));
 
 	if (msleep(req, VT9P_MTX(chan), 0, "chan lock", vt9p_ackmaxidle * hz)) {
@@ -124,7 +124,7 @@ vt9p_req_wait(struct vt9p_softc *chan, struct p9_req_t *req)
 		    "for an ack from host\n", vt9p_ackmaxidle);
 		return (EIO);
 	}
-	KASSERT(req->tc->tag == req->rc->tag,
+	KASSERT(req->tc.tag == req->rc.tag,
 	    ("%s spurious event on request %p", __func__, req));
 	return (0);
 }
@@ -157,7 +157,7 @@ vt9p_request(void *handle, struct p9_req_t *req)
 req_retry:
 	sglist_reset(sg);
 	/* Handle out VirtIO ring buffers */
-	error = sglist_append(sg, req->tc->sdata, req->tc->size);
+	error = sglist_append(sg, req->tc.sdata, req->tc.size);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: sglist append failed\n", __func__);
 		VT9P_UNLOCK(chan);
@@ -165,7 +165,7 @@ req_retry:
 	}
 	readable = sg->sg_nseg;
 
-	error = sglist_append(sg, req->rc->sdata, req->rc->capacity);
+	error = sglist_append(sg, req->rc.sdata, req->rc.capacity);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: sglist append failed\n", __func__);
 		VT9P_UNLOCK(chan);
@@ -226,7 +226,7 @@ vt9p_intr_complete(void *xsc)
 	VT9P_LOCK(chan);
 again:
 	while ((curreq = virtqueue_dequeue(vq, NULL)) != NULL) {
-		curreq->rc->tag = curreq->tc->tag;
+		curreq->rc.tag = curreq->tc.tag;
 		wakeup_one(curreq);
 	}
 	if (virtqueue_enable_intr(vq) != 0) {

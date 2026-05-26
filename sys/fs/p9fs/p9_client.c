@@ -104,43 +104,33 @@ p9_parse_opts(struct mount  *mp, struct p9_client *clnt)
 }
 
 /* Allocate buffer for sending request and getting responses */
-static struct p9_buffer *
-p9_buffer_alloc(int alloc_msize)
+static void
+p9_buffer_alloc(struct p9_buffer *fc, int alloc_msize)
 {
-	struct p9_buffer *fc;
-
-	fc = uma_zalloc(p9fs_buf_zone, M_WAITOK | M_ZERO);
+	bzero(fc, sizeof(*fc));
 	fc->capacity = alloc_msize;
-	fc->offset = 0;
-	fc->size = 0;
-	fc->sdata = (char *)fc + sizeof(struct p9_buffer);
-
-	return (fc);
+	fc->sdata = uma_zalloc(p9fs_buf_zone, M_WAITOK);
 }
 
 /* Free memory used by request and response buffers */
 static void
-p9_buffer_free(struct p9_buffer **buf)
+p9_buffer_free(struct p9_buffer *buf)
 {
-
-	/* Free the sdata buffers first, then the whole structure*/
-	uma_zfree(p9fs_buf_zone, *buf);
-	*buf = NULL;
+	uma_zfree(p9fs_buf_zone, buf->sdata);
+	buf->sdata = NULL;
 }
 
 /* Free the request */
 static void
 p9_free_req(struct p9_client *clnt, struct p9_req_t *req)
 {
+	if (req == NULL)
+		return;
 
-	if (req->tc != NULL) {
-		if (req->tc->tag != P9_NOTAG)
-			p9_tag_destroy(clnt, req->tc->tag);
-		p9_buffer_free(&req->tc);
-	}
-
-	if (req->rc != NULL)
-		p9_buffer_free(&req->rc);
+	if (req->tc.tag != P9_NOTAG)
+		p9_tag_destroy(clnt, req->tc.tag);
+	p9_buffer_free(&req->tc);
+	p9_buffer_free(&req->rc);
 
 	uma_zfree(p9fs_req_zone, req);
 }
@@ -156,17 +146,17 @@ p9_get_request(struct p9_client *clnt, int *error)
 	alloc_msize = P9FS_MTU;
 
 	req = uma_zalloc(p9fs_req_zone, M_WAITOK | M_ZERO);
-	req->tc = p9_buffer_alloc(alloc_msize);
-	req->rc = p9_buffer_alloc(alloc_msize);
+	p9_buffer_alloc(&req->tc, alloc_msize);
+	p9_buffer_alloc(&req->rc, alloc_msize);
 
 	tag = p9_tag_create(clnt);
 	if (tag == P9_NOTAG) {
 		*error = EAGAIN;
-		req->tc->tag = P9_NOTAG;
+		req->tc.tag = P9_NOTAG;
 		p9_free_req(clnt, req);
 		return (NULL);
 	}
-	req->tc->tag = tag;
+	req->tc.tag = tag;
 	return (req);
 }
 
@@ -208,7 +198,7 @@ p9_client_check_return(struct p9_client *c, struct p9_req_t *req)
 	char *ename;
 
 	/* Check what we have in the receive bufer .*/
-	error = p9_parse_receive(req->rc, c);
+	error = p9_parse_receive(&req->rc, c);
 	if (error != 0)
 		goto out;
 
@@ -216,17 +206,17 @@ p9_client_check_return(struct p9_client *c, struct p9_req_t *req)
 	 * No error, We are done with the preprocessing. Return to the caller
 	 * and process the actual data.
 	 */
-	if (req->rc->id != P9PROTO_RERROR && req->rc->id != P9PROTO_RLERROR)
+	if (req->rc.id != P9PROTO_RERROR && req->rc.id != P9PROTO_RLERROR)
 		return (0);
 
 	/*
 	 * Interpreting the error is done in different ways for Linux and
 	 * Unix version. Make sure you interpret it right.
 	 */
-	if (req->rc->id == P9PROTO_RERROR) {
-	        error = p9_buf_readf(req->rc, c->proto_version, "s?d", &ename, &ecode);
-	} else if (req->rc->id == P9PROTO_RLERROR) {
-	        error = p9_buf_readf(req->rc, c->proto_version, "d", &ecode);
+	if (req->rc.id == P9PROTO_RERROR) {
+	        error = p9_buf_readf(&req->rc, c->proto_version, "s?d", &ename, &ecode);
+	} else if (req->rc.id == P9PROTO_RLERROR) {
+	        error = p9_buf_readf(&req->rc, c->proto_version, "d", &ecode);
 	} else {
 		goto out;
 	}
@@ -241,15 +231,15 @@ p9_client_check_return(struct p9_client *c, struct p9_req_t *req)
 	 * not present can hit this and return. Hence it is made a debug print.
 	 */
 	if (error != 0) {
-	        if (req->rc->id == P9PROTO_RERROR) {
+	        if (req->rc.id == P9PROTO_RERROR) {
 		        P9_DEBUG(PROTO, "RERROR error %d ename %s\n",
 			    error, ename);
-	        } else if (req->rc->id == P9PROTO_RLERROR) {
+	        } else if (req->rc.id == P9PROTO_RLERROR) {
 		        P9_DEBUG(PROTO, "RLERROR error %d\n", error);
 		}
 	}
 
-	if (req->rc->id == P9PROTO_RERROR) {
+	if (req->rc.id == P9PROTO_RERROR) {
 	        free(ename, M_TEMP);
 	}
 	return (error);
@@ -308,21 +298,21 @@ p9_client_prepare_req(struct p9_client *c, int8_t type,
 	}
 
 	/* Marshall the data according to QEMU standards */
-	*error = p9_buf_prepare(req->tc, type);
+	*error = p9_buf_prepare(&req->tc, type);
 	if (*error != 0) {
 		P9_DEBUG(ERROR, "%s: p9_buf_prepare failed: %d\n",
 		    __func__, *error);
 		goto out;
 	}
 
-	*error = p9_buf_vwritef(req->tc, c->proto_version, fmt, ap);
+	*error = p9_buf_vwritef(&req->tc, c->proto_version, fmt, ap);
 	if (*error != 0) {
 		P9_DEBUG(ERROR, "%s: p9_buf_vwrite failed: %d\n",
 		    __func__, *error);
 		goto out;
 	}
 
-	*error = p9_buf_finalize(c, req->tc);
+	*error = p9_buf_finalize(c, &req->tc);
 	if (*error != 0) {
 		P9_DEBUG(ERROR, "%s: p9_buf_finalize failed: %d \n",
 		    __func__, *error);
@@ -474,7 +464,7 @@ p9_client_version(struct p9_client *c)
 	if (error != 0)
 		return (error);
 
-	error = p9_buf_readf(req->rc, c->proto_version, "ds", &msize, &version);
+	error = p9_buf_readf(&req->rc, c->proto_version, "ds", &msize, &version);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: version error: %d\n", __func__, error);
 		goto out;
@@ -519,8 +509,7 @@ p9_init_zones(void)
 
 	/* Create the buffer zone */
 	p9fs_buf_zone = uma_zcreate("p9fs buf zone",
-	    sizeof(struct p9_buffer) + P9FS_MTU, NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    P9FS_MTU, NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 
 void
@@ -623,7 +612,7 @@ p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 	if (*error != 0)
 		goto out;
 
-	*error = p9_buf_readf(req->rc, clnt->proto_version, "Q", &qid);
+	*error = p9_buf_readf(&req->rc, clnt->proto_version, "Q", &qid);
 	if (*error != 0) {
 		P9_DEBUG(ERROR, "%s: p9_buf_readf failed: %d \n",
 		    __func__, *error);
@@ -777,7 +766,7 @@ p9_client_walk(struct p9_fid *oldfid, uint16_t nwnames, char **wnames,
 		return (NULL);
 	}
 
-	*error = p9_buf_readf(req->rc, clnt->proto_version, "R", &nwqids,
+	*error = p9_buf_readf(&req->rc, clnt->proto_version, "R", &nwqids,
 	    &wqids);
 	if (*error != 0)
 		goto out;
@@ -842,7 +831,7 @@ p9_client_open(struct p9_fid *fid, int mode)
 	if (error != 0)
 		return (error);
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "Qd", &fid->qid,
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "Qd", &fid->qid,
 	    &mtu);
 	if (error != 0)
 		goto out;
@@ -892,7 +881,7 @@ p9_client_readdir(struct p9_fid *fid, char *data, uint64_t offset,
 		return (-error);
 	}
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "D", &count,
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "D", &count,
 	    &dataptr);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: p0_buf_readf failed: %d\n",
@@ -945,7 +934,7 @@ p9_client_read(struct p9_fid *fid, uint64_t offset, uint32_t count, char *data)
 		return (-error);
 	}
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "D", &count,
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "D", &count,
 	    &dataptr);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: p9_buf_readf failed: %d\n",
@@ -1017,7 +1006,7 @@ p9_client_write(struct p9_fid *fid, uint64_t offset, uint32_t count, char *data)
 		return (-error);
 	}
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "d", &ret);
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "d", &ret);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: p9_buf_readf error: %d\n",
 		    __func__, error);
@@ -1069,7 +1058,7 @@ p9_client_file_create(struct p9_fid *fid, char *name, uint32_t perm, int mode,
 	if (error != 0)
 		return (error);
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "Qd", &qid, &mtu);
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "Qd", &qid, &mtu);
 	if (error != 0)
 		goto out;
 
@@ -1101,7 +1090,7 @@ p9_client_statfs(struct p9_fid *fid, struct p9_statfs *stat)
 		return (error);
 	}
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "ddqqqqqqd",
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "ddqqqqqqd",
 	    &stat->type, &stat->bsize, &stat->blocks, &stat->bfree,
 	    &stat->bavail, &stat->files, &stat->ffree, &stat->fsid,
 	    &stat->namelen);
@@ -1173,7 +1162,7 @@ p9_create_symlink(struct p9_fid *fid, char *name, char *symtgt, gid_t gid)
 	if (error != 0)
 		return (error);
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "Q", &qid);
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "Q", &qid);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: buf_readf failed %d\n", __func__, error);
 		return (error);
@@ -1226,7 +1215,7 @@ p9_readlink(struct p9_fid *fid, char **target)
 	if (error != 0)
 		return (error);
 
-	error = p9_buf_readf(req->rc, clnt->proto_version, "s", target);
+	error = p9_buf_readf(&req->rc, clnt->proto_version, "s", target);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: buf_readf failed %d\n", __func__, error);
 		return (error);
@@ -1260,7 +1249,7 @@ p9_client_getattr(struct p9_fid *fid, struct p9_stat_dotl *stat_dotl,
 		goto error;
 	}
 
-	err = p9_buf_readf(req->rc, clnt->proto_version, "A", stat_dotl);
+	err = p9_buf_readf(&req->rc, clnt->proto_version, "A", stat_dotl);
 	if (err != 0) {
 		P9_DEBUG(ERROR, "%s: buf_readf failed %d\n", __func__, err);
 		goto error;
