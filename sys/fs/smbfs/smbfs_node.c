@@ -212,6 +212,10 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 		SMBERROR("new vnode '%s' born without parent ?\n", np->n_name);
 	error = insmntque(vp, mp);
 	if (error) {
+		smbfs_name_free(np->n_name);
+		free(np->n_rpath, M_SMBNODENAME);
+		if (np->n_parent != NULL && (np->n_flag & NREFPARENT) != 0)
+			vrele(np->n_parent);
 		free(np, M_SMBNODE);
 		return (error);
 	}
