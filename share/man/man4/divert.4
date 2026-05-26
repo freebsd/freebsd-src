@@ -1,5 +1,4 @@
-.\"
-.Dd January 23, 2026
+.Dd April 21, 2026
 .Dt DIVERT 4
 .Os
 .Sh NAME
@@ -57,7 +56,26 @@ firewall processing at the next rule.
 .Pp
 By reading from and writing to a divert socket, matching packets
 can be passed through an arbitrary ``filter'' as they travel through
-the host machine, special routing tricks can be done, etc.
+the host machine, special routing tricks can be done, etc..
+.Pp
+Multiple divert sockets may be bound to the same port if the
+.Dv SO_REUSEPORT_LB
+socket option is set on all of them.
+In this case, the kernel will attempt to load-balance packets among
+the sockets.
+The implementation ensures that packets from the same flow are delivered
+to the same socket.
+To this end it relies on the firewall to provide a flow identifier with
+each diverted packet.
+When using the
+.Xr pf 4
+firewall, this is the associated state ID, if one exists, otherwise all
+packets are diverted to the first socket in the group.
+Currently the
+.Xr ipfw 4
+firewall does not provide a flow identifier, so all packets are diverted
+to the first socket in the group.
+At most 32 sockets can be bound to the same port.
 .Sh READING PACKETS
 Packets are diverted either as they are ``incoming'' or ``outgoing.''
 Incoming packets are diverted after reception on an IP interface,

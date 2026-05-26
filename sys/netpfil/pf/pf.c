@@ -11966,7 +11966,7 @@ done:
 					pd.m->m_flags &= ~M_FASTFWD_OURS;
 				}
 			}
-			ip_divert_ptr(*m0, dir == PF_IN);
+			ip_divert_ptr(*m0, s != NULL ? s->id : 0, dir == PF_IN);
 			*m0 = NULL;
 			return (action);
 		} else if (mtag == NULL) {
