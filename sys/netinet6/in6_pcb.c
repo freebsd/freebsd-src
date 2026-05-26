@@ -465,15 +465,6 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	bzero(&laddr6, sizeof(laddr6));
 	laddr6.sin6_family = AF_INET6;
 
-	if (V_fib_hash_outbound) {
-		uint32_t hash_type, hash_val;
-
-		hash_val = fib6_calc_software_hash(&inp->in6p_laddr,
-		    &sin6->sin6_addr, 0, sin6->sin6_port,
-		    inp->inp_socket->so_proto->pr_protocol, &hash_type);
-		inp->inp_flowid = hash_val;
-		inp->inp_flowtype = hash_type;
-	}
 	/*
 	 * Call inner routine, to assign local interface address.
 	 * in6_pcbladdr() may automatically fill in sin6_scope_id.
@@ -519,6 +510,16 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	} else
 		in_pcbrehash(inp);
 	INP_HASH_WUNLOCK(pcbinfo);
+
+	if (V_fib_hash_outbound) {
+		uint32_t hash_type, hash_val;
+
+		hash_val = fib6_calc_software_hash(&inp->in6p_laddr,
+		    &sin6->sin6_addr, 0, sin6->sin6_port,
+		    inp->inp_socket->so_proto->pr_protocol, &hash_type);
+		inp->inp_flowid = hash_val;
+		inp->inp_flowtype = hash_type;
+	}
 
 	return (0);
 }
