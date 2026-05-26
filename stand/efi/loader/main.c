@@ -365,6 +365,49 @@ try_as_currdev(pdinfo_t *hd, pdinfo_t *pp)
 }
 
 /*
+ * Search the boot device first (i.e. the ESP and any sibling partitions).
+ * Per the UEFI specification, filesystems on other devices must not be
+ * preferred until the boot device has been fully exhausted.
+ */
+static int
+try_boot_device_partitions(void)
+{
+	pdinfo_t *dp, *pp, *espdp;
+	CHAR16 *text;
+
+	dp = efiblk_get_pdinfo_by_handle(boot_img->DeviceHandle);
+	if (dp == NULL)
+		return (ENOENT);
+
+	text = efi_devpath_name(dp->pd_devpath);
+	if (text != NULL) {
+		printf("Trying ESP: %S\n", text);
+		efi_free_devpath_name(text);
+	}
+	set_currdev_pdinfo(dp);
+	if (sanity_check_currdev())
+		return (0);
+
+	if (dp->pd_parent == NULL)
+		return (ENOENT);
+
+	espdp = dp;
+	dp = dp->pd_parent;
+	STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
+		if (espdp == pp)
+			continue;
+		text = efi_devpath_name(pp->pd_devpath);
+		if (text != NULL) {
+			printf("Trying: %S\n", text);
+			efi_free_devpath_name(text);
+		}
+		if (try_as_currdev(dp, pp))
+			return (0);
+	}
+	return (ENOENT);
+}
+
+/*
  * Sometimes we get filenames that are all upper case
  * and/or have backslashes in them. Filter all this out
  * if it looks like we need to do so.
@@ -535,10 +578,9 @@ match_boot_info(char *boot_info, size_t bisz)
 static int
 find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 {
-	pdinfo_t *dp, *pp;
+	pdinfo_t *dp;
 	EFI_DEVICE_PATH *devpath, *copy;
 	EFI_HANDLE h;
-	CHAR16 *text;
 	struct devsw *dev;
 	int unit;
 	uint64_t extra;
@@ -606,65 +648,42 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 		return (0);
 #endif /* MD_IMAGE_SIZE */
 
+	if (try_boot_device_partitions() == 0)
+		return (0);
+
 #ifdef EFI_ZFS_BOOT
-	zfsinfo_list_t *zfsinfo = efizfs_get_zfsinfo_list();
-	zfsinfo_t *zi;
+	{
+		zfsinfo_list_t *zfsinfo = efizfs_get_zfsinfo_list();
+		zfsinfo_t *zi;
 
-	/*
-	 * First try the zfs pool(s) that were on the boot device, then
-	 * try any other pool if we have a relaxed policy. zfsinfo has
-	 * the pools that had elements on the boot device first.
-	 */
-	STAILQ_FOREACH(zi, zfsinfo, zi_link) {
-		if (boot_policy == STRICT &&
-		    zi->zi_handle != boot_img->DeviceHandle)
-			continue;
-		printf("Trying ZFS pool 0x%jx\n", zi->zi_pool_guid);
-		if (probe_zfs_currdev(zi->zi_pool_guid))
-			return (0);
-	}
-#endif /* EFI_ZFS_BOOT */
-
-	/*
-	 * Try to find the block device by its handle based on the
-	 * image we're booting. If we can't find a sane partition,
-	 * search all the other partitions of the disk. We do not
-	 * search other disks because it's a violation of the UEFI
-	 * boot protocol to do so. We fail and let UEFI go on to
-	 * the next candidate.
-	 */
-	dp = efiblk_get_pdinfo_by_handle(boot_img->DeviceHandle);
-	if (dp != NULL) {
-		text = efi_devpath_name(dp->pd_devpath);
-		if (text != NULL) {
-			printf("Trying ESP: %S\n", text);
-			efi_free_devpath_name(text);
+		/*
+		 * Try ZFS pool(s) on the boot device not reachable via
+		 * the partition walk above.
+		 */
+		STAILQ_FOREACH(zi, zfsinfo, zi_link) {
+			if (zi->zi_handle != boot_img->DeviceHandle)
+				continue;
+			printf("Trying ZFS pool 0x%jx\n", zi->zi_pool_guid);
+			if (probe_zfs_currdev(zi->zi_pool_guid))
+				return (0);
 		}
-		set_currdev_pdinfo(dp);
-		if (sanity_check_currdev())
-			return (0);
-		if (dp->pd_parent != NULL) {
-			pdinfo_t *espdp = dp;
-			dp = dp->pd_parent;
-			STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
-				/* Already tried the ESP */
-				if (espdp == pp)
+
+		/*
+		 * With a relaxed policy, try pools on other devices only
+		 * after the boot device has no bootable root.
+		 */
+		if (boot_policy == RELAXED) {
+			STAILQ_FOREACH(zi, zfsinfo, zi_link) {
+				if (zi->zi_handle == boot_img->DeviceHandle)
 					continue;
-				/*
-				 * Roll up the ZFS special case
-				 * for those partitions that have
-				 * zpools on them.
-				 */
-				text = efi_devpath_name(pp->pd_devpath);
-				if (text != NULL) {
-					printf("Trying: %S\n", text);
-					efi_free_devpath_name(text);
-				}
-				if (try_as_currdev(dp, pp))
+				printf("Trying ZFS pool 0x%jx\n",
+				    zi->zi_pool_guid);
+				if (probe_zfs_currdev(zi->zi_pool_guid))
 					return (0);
 			}
 		}
 	}
+#endif /* EFI_ZFS_BOOT */
 
 	/*
 	 * Try the device handle from our loaded image first.  If that
