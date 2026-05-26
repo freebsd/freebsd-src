@@ -59,7 +59,7 @@ extern struct vop_vector p9fs_vnops;
 
 /* option parsing */
 static const char *p9fs_opts[] = {
-        "from", "trans", "access", NULL
+        "from", "trans", "access", "msize", NULL
 };
 
 /* Dispose p9fs node, freeing it to the UMA zone */

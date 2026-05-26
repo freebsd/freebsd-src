@@ -95,7 +95,14 @@ p9_parse_opts(struct mount  *mp, struct p9_client *clnt)
 
 	/* These are defaults for now */
 	clnt->proto_version = p9_proto_2000L;
-	clnt->msize = 8192;
+	clnt->msize = P9FS_MTU;
+
+	vfs_scanopt(mp->mnt_optnew, "msize", "%u", &clnt->msize);
+	if (clnt->msize > P9FS_MTU) {
+		vfs_mount_error(mp, "msize %u is greater than max allowed %u",
+		    clnt->msize, P9FS_MTU);
+		return (EINVAL);
+	}
 
 	/* Get the default trans callback */
 	clnt->ops = p9_get_trans_by_name(trans);
