@@ -944,13 +944,9 @@ trap_diag(struct trapframe *frame, vm_offset_t eva, const char *type_str)
 {
 	int code;
 	u_int type;
-	struct soft_segment_descriptor softseg;
-	struct user_segment_descriptor *gdt;
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
-	gdt = *PCPU_PTR(gdt);
-	sdtossd(&gdt[IDXSEL(frame->tf_cs)], &softseg);
 
 	printf("\n%s trap %d: %s while in %s mode\n", type_str, type,
 	    type < nitems(trap_msg) ? trap_msg[type] : UNKNOWN,
@@ -975,11 +971,6 @@ trap_diag(struct trapframe *frame, vm_offset_t eva, const char *type_str)
 	    frame->tf_rsp);
 	printf("frame pointer	        = %#hx:%#lx\n", frame->tf_ss,
 	    frame->tf_rbp);
-	printf("code segment		= base 0x%lx, limit 0x%lx, type 0x%x\n",
-	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
-	printf("			= DPL %d, pres %d, long %d, def32 %d, gran %d\n",
-	       softseg.ssd_dpl, softseg.ssd_p, softseg.ssd_long, softseg.ssd_def32,
-	       softseg.ssd_gran);
 	printf("processor eflags	= ");
 	if (frame->tf_rflags & PSL_T)
 		printf("trace trap, ");
@@ -990,8 +981,9 @@ trap_diag(struct trapframe *frame, vm_offset_t eva, const char *type_str)
 	if (frame->tf_rflags & PSL_RF)
 		printf("resume, ");
 	printf("IOPL = %ld\n", (frame->tf_rflags & PSL_IOPL) >> 12);
-	printf("current process		= %d (%s)\n",
-	    curproc->p_pid, curthread->td_name);
+	printf("current thread		= %d/%d (%s/%s)\n",
+	    curproc->p_pid, curthread->td_tid, curproc->p_comm,
+	    curthread->td_name);
 
 	printf("rdi: %016lx rsi: %016lx rdx: %016lx\n", frame->tf_rdi,
 	    frame->tf_rsi, frame->tf_rdx);
@@ -1003,8 +995,6 @@ trap_diag(struct trapframe *frame, vm_offset_t eva, const char *type_str)
 	    frame->tf_r11, frame->tf_r12);
 	printf("r13: %016lx r14: %016lx r15: %016lx\n", frame->tf_r13,
 	    frame->tf_r14, frame->tf_r15);
-
-	printf("trap number		= %d\n", type);
 }
 
 static void
