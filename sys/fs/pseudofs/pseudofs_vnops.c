@@ -37,6 +37,7 @@
 #include <sys/ctype.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
+#include <sys/imgact.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -132,6 +133,7 @@ static int
 pfs_lookup_proc(pid_t pid, struct proc **p)
 {
 	struct proc *proc;
+	struct thread *td;
 
 	proc = pfind(pid);
 	if (proc == NULL)
@@ -141,8 +143,10 @@ pfs_lookup_proc(pid_t pid, struct proc **p)
 		return (0);
 	}
 	_PHOLD(proc);
-	PROC_UNLOCK(proc);
+	td = curthread;
+	execve_block_wait(td, proc);
 	*p = proc;
+	PROC_UNLOCK(proc);
 	return (1);
 }
 
@@ -672,6 +676,7 @@ pfs_read(struct vop_read_args *va)
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
 	struct proc *proc;
+	struct thread *td;
 	struct sbuf *sb = NULL;
 	int error, locked;
 	off_t buflen, buflim;
@@ -690,20 +695,29 @@ pfs_read(struct vop_read_args *va)
 	if (pn->pn_fill == NULL)
 		PFS_RETURN (EIO);
 
+	td = curthread;
+
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
+	if (!pfs_visible(td, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
-	if (proc != NULL) {
-		_PHOLD(proc);
-		PROC_UNLOCK(proc);
-	}
 
 	vhold(vn);
 	locked = VOP_ISLOCKED(vn);
 	VOP_UNLOCK(vn);
+
+	if (proc != NULL) {
+		_PHOLD(proc);
+		execve_block_wait(td, proc);
+		if (!pfs_visible_proc(td, pn, proc)) {
+			PROC_UNLOCK(proc);
+			error = EIO;
+			goto ret;
+		}
+		PROC_UNLOCK(proc);
+	}
 
 	if (pn->pn_flags & PFS_RAWRD) {
 		PFS_TRACE(("%zd resid", uio->uio_resid));
@@ -774,8 +788,12 @@ pfs_read(struct vop_read_args *va)
 ret:
 	vn_lock(vn, locked | LK_RETRY);
 	vdrop(vn);
-	if (proc != NULL)
-		PRELE(proc);
+	if (proc != NULL) {
+		PROC_LOCK(proc);
+		execve_unblock(td, proc);
+		_PRELE(proc);
+		PROC_UNLOCK(proc);
+	}
 	PFS_RETURN (error);
 }
 
@@ -846,6 +864,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	struct pfs_node *pd = pvd->pvd_pn;
 	pid_t pid = pvd->pvd_pid;
 	struct proc *p, *proc;
+	struct thread *td;
 	struct pfs_node *pn;
 	struct uio *uio;
 	struct pfsentry *pfsent, *pfsent2;
@@ -884,11 +903,13 @@ pfs_readdir(struct vop_readdir_args *va)
 	KASSERT(pid == NO_PID || proc != NULL,
 	    ("%s(): no process for pid %lu", __func__, (unsigned long)pid));
 
+	td = curthread;
 	if (pid != NO_PID) {
 		PROC_LOCK(proc);
 
 		/* check if the directory is visible to the caller */
 		if (!pfs_visible_proc(curthread, pd, proc)) {
+			execve_unblock(td, proc);
 			_PRELE(proc);
 			PROC_UNLOCK(proc);
 			pfs_unlock(pd);
@@ -956,6 +977,7 @@ pfs_readdir(struct vop_readdir_args *va)
 		resid -= PFS_DELEN;
 	}
 	if (proc != NULL) {
+		execve_unblock(td, proc);
 		_PRELE(proc);
 		PROC_UNLOCK(proc);
 	}
@@ -1080,6 +1102,7 @@ pfs_write(struct vop_write_args *va)
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
 	struct proc *proc;
+	struct thread *td;
 	struct sbuf sb;
 	int error;
 
@@ -1099,36 +1122,44 @@ pfs_write(struct vop_write_args *va)
 	if (uio->uio_resid > PFS_MAXBUFSIZ)
 		PFS_RETURN (EIO);
 
+	td = curthread;
+
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
+	if (!pfs_visible(td, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 	if (proc != NULL) {
 		_PHOLD(proc);
+		execve_block_wait(td, proc);
+		if (!pfs_visible_proc(td, pn, proc)) {
+			PROC_UNLOCK(proc);
+			error = EIO;
+			goto out;
+		}
 		PROC_UNLOCK(proc);
 	}
 
 	if (pn->pn_flags & PFS_RAWWR) {
 		error = pn_fill(curthread, proc, pn, NULL, uio);
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (error);
+		goto out;
 	}
 
 	sbuf_uionew(&sb, uio, &error);
-	if (error) {
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (error);
-	}
+	if (error != 0)
+		goto out;
 
 	error = pn_fill(curthread, proc, pn, &sb, uio);
 
 	sbuf_delete(&sb);
-	if (proc != NULL)
-		PRELE(proc);
+out:
+	if (proc != NULL) {
+		PROC_LOCK(proc);
+		execve_unblock(td, proc);
+		_PRELE(proc);
+		PROC_UNLOCK(proc);
+	}
 	PFS_RETURN (error);
 }
 

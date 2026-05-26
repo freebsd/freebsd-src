@@ -778,6 +778,7 @@ struct proc {
 
 	TAILQ_HEAD(, kq_timer_cb_data)	p_kqtim_stop;	/* (c) */
 	LIST_ENTRY(proc) p_jaillist;	/* (d) Jail process linkage. */
+	u_int		p_execblock;	/* (c) Blockers for execve. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -891,6 +892,8 @@ struct proc {
 						   sync core registered */
 #define	P2_MEMBAR_GLOBE		0x00400000	/* membar global expedited
 						   registered */
+#define	P2_INEXEC_WAIT		0x80000000	/* Not same as in HEAD.
+						   Waiters for P_INEXEC/p_execblock */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
