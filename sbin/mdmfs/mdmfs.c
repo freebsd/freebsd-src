@@ -49,13 +49,12 @@
 #include <paths.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
-
-typedef enum { false, true } bool;
 
 struct mtpt_info {
 	uid_t		 mi_uid;
