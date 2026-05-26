@@ -51,12 +51,14 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <net/vnet.h>
+
+#include <machine/atomic.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_private.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -153,7 +155,7 @@ struct divcblbgroup {
 	CK_SLIST_ENTRY(divcblbgroup) dl_next;
 	struct epoch_context	 dl_epochctx;
 	uint16_t	dl_port;
-	uint16_t	dl_count;
+	int		dl_count;
 #define	DIVCBLBGROUP_SIZE	32
 	struct divcb	*dl_dcb[DIVCBLBGROUP_SIZE];
 };
@@ -298,7 +300,7 @@ divert_packet(struct mbuf *m, uint64_t id, bool incoming)
 	CK_SLIST_FOREACH(dlb, &V_divlbhash[DIVHASH(nport)], dl_next) {
 		uint16_t count;
 
-		count = atomic_load_acq_16(&dlb->dl_count);
+		count = atomic_load_acq_int(&dlb->dl_count);
 		if (dlb->dl_port == nport && count > 0) {
 			uint32_t hash;
 
@@ -667,7 +669,7 @@ div_lbgroup_detach(struct divcb *dcb)
 			count = dlb->dl_count;
 			if (i != count - 1)
 				dlb->dl_dcb[i] = dlb->dl_dcb[count - 1];
-			atomic_store_rel_16(&dlb->dl_count, count - 1);
+			atomic_store_rel_int(&dlb->dl_count, count - 1);
 			if (count == 1) {
 				CK_SLIST_REMOVE(&V_divlbhash[DCBHASH(dcb)], dlb,
 				    divcblbgroup, dl_next);
@@ -744,7 +746,7 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			    ("div_bind: lbgroup %p has count 0", tmp));
 
 			tmp->dl_dcb[tmp->dl_count] = dcb;
-			atomic_store_rel_16(&tmp->dl_count, tmp->dl_count + 1);
+			atomic_store_rel_int(&tmp->dl_count, tmp->dl_count + 1);
 			free(dlb, M_PCB);
 		} else {
 			error = ENOSPC;
