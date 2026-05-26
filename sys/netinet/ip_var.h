@@ -324,7 +324,7 @@ VNET_DECLARE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr);
 #define	V_ip_fw_ctl_ptr		VNET(ip_fw_ctl_ptr)
 
 /* Divert hooks. */
-extern void	(*ip_divert_ptr)(struct mbuf *m, bool incoming);
+extern void	(*ip_divert_ptr)(struct mbuf *m, uint64_t id, bool incoming);
 /* ng_ipfw hooks -- XXX make it the same as divert and dummynet */
 extern int	(*ng_ipfw_input_p)(struct mbuf **, struct ip_fw_args *, bool);
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
