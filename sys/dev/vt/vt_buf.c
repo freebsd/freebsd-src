@@ -499,7 +499,6 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 {
 	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row, *oldrow;
 	unsigned int w, h, c, r, old_history_size;
-	size_t bufsize, rowssize;
 	int history_full;
 	const teken_attr_t *a;
 	term_char_t ch;
@@ -510,10 +509,10 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	history_size = MAX(history_size, p->tp_row);
 
 	/* Allocate new buffer. */
-	bufsize = history_size * p->tp_col * sizeof(term_char_t);
-	new = malloc(bufsize, M_VTBUF, M_WAITOK | M_ZERO);
-	rowssize = history_size * sizeof(term_pos_t *);
-	rows = malloc(rowssize, M_VTBUF, M_WAITOK | M_ZERO);
+	new = mallocarray(history_size, p->tp_col * sizeof(term_char_t),
+	    M_VTBUF, M_WAITOK | M_ZERO);
+	rows = mallocarray(history_size, sizeof(term_pos_t *), M_VTBUF,
+	    M_WAITOK | M_ZERO);
 
 	/* Toggle it. */
 	VTBUF_LOCK(vb);
