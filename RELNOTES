@@ -21,6 +21,62 @@ b92b9da33006, 13d3bd165e22:
 	table.  One can run a multicast routing daemon within each FIB; the FIB of
 	the routing socket determines the corresponding multicast routing table.
 
+5c2186b99254,628d7a3270b6:
+	When the sector size for an NVMe namespace changes, nda(4) now
+	reports this as a media change rather than a disk resize
+	event.  nda(4) also no longer reports a disk resize event in
+	some cases when the namespace's size had not changed.  nda(4)
+	also reprobes NVMe namespaces each time they are opened to
+	check for a new sector size or namespace size.
+
+7a323f873662:
+	Remove the le(4) driver.  This driver supported older 10Mbps
+	and 100Mbps Ethernet adapters.  True hardware devices have not
+	been used in FreeBSD systems in many years, but the driver was
+	previously retained for use with MIPS QEMU virtual machines.
+
+e51ef8ae490f:
+	Add initial support for instruction-based sampling (IBS)
+	performance counters on AMD processors to hwpmc(4).
+
+d69fc3a9dc71:
+	The EFI boot loader now tries all ZFS pools found during
+	probing when looking for a boot pool.  Previously it would try
+	only the first pool found.
+
+4d5c434ed16e:
+	Use the BSD-licensed implementation of diff3 instead of GNU diff3
+	by default.
+
+7f54c65abc67:
+	Update the smartpqi(4) driver to vendor version 14.4690.0.2008
+	- 15.2.0.2008.  This includes support for new controllers and
+	renaming Microsemi to Microchip.
+
+350c1232a57a:
+	nvmecontrol(8)'s telemetry-log now works reliably.
+
+d14e018024bb,b125c4d13095,1322760fd127,0730a05cd383:
+	Permit both SCHED_ULE and SCHED_4BSD to be compiled into the
+	same kernel.  The scheduler can be selected at boot time by
+	setting the kern.sched_name tunable to the scheduler name
+	("4BSD" or "ULE").  The default scheduler is ULE.  This is
+	currently enabled in amd64 kernels by default.
+
+90a7728cd890:
+	Update nuageinit to request configuration on all network
+	interfaces.  nuageinit will now issue DHCP requests on all
+	network interfaces and request configuration data from the
+	first interface which successfully obtains a lease.
+
+92ba9b2fe589:
+	Add RoCE support for Broadcom BCM576xx controllers.
+
+fb4b0c911951:
+	Add a facility to witness(4) to provide more detailed information
+	about lock order reversals detailing when initial lock orders were
+	established.
+
 65f5dd42f11c:
 	sh(1) add -l option which makes sh act as a login shell and read the profile.
 
