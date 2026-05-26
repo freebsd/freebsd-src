@@ -60,11 +60,7 @@ procfs_doprocmem(PFS_FILL_ARGS)
 	if (uio->uio_resid == 0)
 		return (0);
 
-	PROC_LOCK(p);
-	error = p_candebug(td, p);
-	PROC_UNLOCK(p);
-	if (error == 0)
-		error = proc_rwmem(p, uio);
+	error = proc_rwmem(p, uio, PRVM_CHECK_DEBUG | PRVM_BLOCK_EXEC);
 
 	return (error);
 }
