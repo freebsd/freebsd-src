@@ -43,6 +43,7 @@
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
+#include <sys/imgact.h>
 #include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -1838,8 +1839,8 @@ pargs_drop(struct pargs *pa)
 }
 
 static int
-proc_read_string(struct thread *td, struct proc *p, const char *sptr, char *buf,
-    size_t len)
+proc_read_string(struct thread *td, struct vmspace *vm, const char *sptr,
+    char *buf, size_t len)
 {
 	ssize_t n;
 
@@ -1848,7 +1849,7 @@ proc_read_string(struct thread *td, struct proc *p, const char *sptr, char *buf,
 	 * and is aligned at the end of the page, and the following page is not
 	 * mapped.
 	 */
-	n = proc_readmem(td, p, (vm_offset_t)sptr, buf, len);
+	n = vmspace_iop(td, vm, (vm_offset_t)sptr, buf, len, UIO_READ);
 	if (n <= 0)
 		return (ENOMEM);
 	return (0);
@@ -1864,8 +1865,8 @@ enum proc_vector_type {
 
 #ifdef COMPAT_FREEBSD32
 static int
-get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
-    size_t *vsizep, enum proc_vector_type type)
+get_proc_vector32(struct thread *td, struct proc *p, struct vmspace *vm,
+    char ***proc_vectorp, size_t *vsizep, enum proc_vector_type type)
 {
 	struct freebsd32_ps_strings pss;
 	Elf32_Auxinfo aux;
@@ -1876,8 +1877,8 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 	int i, error;
 
 	error = 0;
-	if (proc_readmem(td, p, PROC_PS_STRINGS(p), &pss, sizeof(pss)) !=
-	    sizeof(pss))
+	if (vmspace_iop(td, vm, PROC_PS_STRINGS(p), &pss, sizeof(pss),
+	    UIO_READ) != sizeof(pss))
 		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
@@ -1900,8 +1901,8 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 		if (vptr % 4 != 0)
 			return (ENOEXEC);
 		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
-			if (proc_readmem(td, p, ptr, &aux, sizeof(aux)) !=
-			    sizeof(aux))
+			if (vmspace_iop(td, vm, ptr, &aux, sizeof(aux),
+			    UIO_READ) != sizeof(aux))
 				return (ENOMEM);
 			if (aux.a_type == AT_NULL)
 				break;
@@ -1917,7 +1918,7 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 		return (EINVAL);
 	}
 	proc_vector32 = malloc(size, M_TEMP, M_WAITOK);
-	if (proc_readmem(td, p, vptr, proc_vector32, size) != size) {
+	if (vmspace_iop(td, vm, vptr, proc_vector32, size, UIO_READ) != size) {
 		error = ENOMEM;
 		goto done;
 	}
@@ -1938,8 +1939,8 @@ done:
 #endif
 
 static int
-get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
-    size_t *vsizep, enum proc_vector_type type)
+get_proc_vector(struct thread *td, struct proc *p, struct vmspace *vm,
+    char ***proc_vectorp, size_t *vsizep, enum proc_vector_type type)
 {
 	struct ps_strings pss;
 	Elf_Auxinfo aux;
@@ -1949,11 +1950,13 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 	int i;
 
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(p, SV_ILP32) != 0)
-		return (get_proc_vector32(td, p, proc_vectorp, vsizep, type));
+	if (SV_PROC_FLAG(p, SV_ILP32) != 0) {
+		return (get_proc_vector32(td, p, vm, proc_vectorp,
+		    vsizep, type));
+	}
 #endif
-	if (proc_readmem(td, p, PROC_PS_STRINGS(p), &pss, sizeof(pss)) !=
-	    sizeof(pss))
+	if (vmspace_iop(td, vm, PROC_PS_STRINGS(p), &pss, sizeof(pss),
+	    UIO_READ) != sizeof(pss))
 		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
@@ -1991,8 +1994,8 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 		 * to the allocated proc_vector.
 		 */
 		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
-			if (proc_readmem(td, p, ptr, &aux, sizeof(aux)) !=
-			    sizeof(aux))
+			if (vmspace_iop(td, vm, ptr, &aux, sizeof(aux),
+			    UIO_READ) != sizeof(aux))
 				return (ENOMEM);
 			if (aux.a_type == AT_NULL)
 				break;
@@ -2014,7 +2017,7 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 		return (EINVAL); /* In case we are built without INVARIANTS. */
 	}
 	proc_vector = malloc(size, M_TEMP, M_WAITOK);
-	if (proc_readmem(td, p, vptr, proc_vector, size) != size) {
+	if (vmspace_iop(td, vm, vptr, proc_vector, size, UIO_READ) != size) {
 		free(proc_vector, M_TEMP);
 		return (ENOMEM);
 	}
@@ -2030,6 +2033,7 @@ static int
 get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
     enum proc_vector_type type)
 {
+	struct vmspace *vm;
 	size_t done, len, nchr, vsize;
 	int error, i;
 	char **proc_vector, *sptr;
@@ -2042,9 +2046,14 @@ get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
 	 */
 	nchr = 2 * (PATH_MAX + ARG_MAX);
 
-	error = get_proc_vector(td, p, &proc_vector, &vsize, type);
+	error = proc_vmspace_ref(td, p, PRVM_BLOCK_EXEC |
+	    PRVM_CHECK_VISIBILITY, &vm);
 	if (error != 0)
 		return (error);
+
+	error = get_proc_vector(td, p, vm, &proc_vector, &vsize, type);
+	if (error != 0)
+		goto out;
 	for (done = 0, i = 0; i < (int)vsize && done < nchr; i++) {
 		/*
 		 * The program may have scribbled into its argv array, e.g. to
@@ -2054,7 +2063,7 @@ get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
 		if (proc_vector[i] == NULL)
 			break;
 		for (sptr = proc_vector[i]; ; sptr += GET_PS_STRINGS_CHUNK_SZ) {
-			error = proc_read_string(td, p, sptr, pss_string,
+			error = proc_read_string(td, vm, sptr, pss_string,
 			    sizeof(pss_string));
 			if (error != 0)
 				goto done;
@@ -2071,6 +2080,8 @@ get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
 	}
 done:
 	free(proc_vector, M_TEMP);
+out:
+	proc_vmspace_unref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_VISIBILITY, vm);
 	return (error);
 }
 
@@ -2091,11 +2102,17 @@ proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb)
 int
 proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 {
+	struct vmspace *vm;
 	size_t vsize, size;
 	char **auxv;
 	int error;
 
-	error = get_proc_vector(td, p, &auxv, &vsize, PROC_AUX);
+	error = proc_vmspace_ref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG,
+	    &vm);
+	if (error != 0)
+		return (error);
+	error = get_proc_vector(td, p, vm, &auxv, &vsize, PROC_AUX);
+	proc_vmspace_unref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG, vm);
 	if (error == 0) {
 #ifdef COMPAT_FREEBSD32
 		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
@@ -2408,6 +2425,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	int error, *name;
 	struct vnode *vp;
 	struct proc *p;
+	struct thread *td;
 	vm_map_t map;
 	struct vmspace *vm;
 
@@ -2416,11 +2434,12 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	name = (int *)arg1;
+	td = curthread;
 	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
 	if (error != 0)
 		return (error);
-	vm = vmspace_acquire_ref(p);
-	if (vm == NULL) {
+	error = proc_vmspace_ref(td, p, PRVM_CHECK_DEBUG, &vm);
+	if (error != 0) {
 		PRELE(p);
 		return (ESRCH);
 	}
@@ -2532,7 +2551,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
+	proc_vmspace_unref(td, p, PRVM_CHECK_DEBUG, vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
@@ -2627,6 +2646,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
+	struct thread *td;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
 	int error;
@@ -2638,10 +2658,11 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 	_PHOLD(p);
 	PROC_UNLOCK(p);
-	vm = vmspace_acquire_ref(p);
-	if (vm == NULL) {
+	td = curthread;
+	error = proc_vmspace_ref(td, p, PRVM_CHECK_DEBUG, &vm);
+	if (error != 0) {
 		PRELE(p);
-		return (ESRCH);
+		return (error);
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK | M_ZERO);
 
@@ -2745,7 +2766,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			if (vp != NULL) {
 				vn_fullpath(vp, &fullpath, &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
-				cred = curthread->td_ucred;
+				cred = td->td_ucred;
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_vn_fileid = va.va_fileid;
@@ -2801,7 +2822,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 		}
 	}
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
+	proc_vmspace_unref(td, p, PRVM_CHECK_DEBUG, vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
@@ -2840,7 +2861,7 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	struct kinfo_kstack *kkstp;
 	int error, i, *name, numthreads;
 	lwpid_t *lwpidarray;
-	struct thread *td;
+	struct thread *td, *ctd;
 	struct stack *st;
 	struct sbuf sb;
 	struct proc *p;
@@ -2851,7 +2872,8 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	name = (int *)arg1;
-	error = pget((pid_t)name[0], PGET_NOTINEXEC | PGET_WANTREAD, &p);
+	ctd = curthread;
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
 	if (error != 0)
 		return (error);
 
@@ -2860,6 +2882,14 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 
 	lwpidarray = NULL;
 	PROC_LOCK(p);
+	execve_block_wait(ctd, p);
+	error = p_candebug(ctd, p);
+	if (error != 0) {
+		execve_unblock(ctd, p);
+		_PRELE(p);
+		PROC_UNLOCK(p);
+		return (error);
+	}
 	do {
 		if (lwpidarray != NULL) {
 			free(lwpidarray, M_TEMP);
@@ -2872,15 +2902,6 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		PROC_LOCK(p);
 	} while (numthreads < p->p_numthreads);
 
-	/*
-	 * XXXRW: During the below loop, execve(2) and countless other sorts
-	 * of changes could have taken place.  Should we check to see if the
-	 * vmspace has been replaced, or the like, in order to prevent
-	 * giving a snapshot that spans, say, execve(2), with some threads
-	 * before and some after?  Among other things, the credentials could
-	 * have changed, in which case the right to extract debug info might
-	 * no longer be assured.
-	 */
 	i = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(i < numthreads,
@@ -2913,7 +2934,10 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
-	PRELE(p);
+	PROC_LOCK(p);
+	execve_unblock(ctd, p);
+	_PRELE(p);
+	PROC_UNLOCK(p);
 	if (lwpidarray != NULL)
 		free(lwpidarray, M_TEMP);
 	stack_destroy(st);
@@ -2969,8 +2993,9 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	u_int namelen = arg2;
 	struct rlimit rlim;
 	struct proc *p;
+	struct thread *td;
 	u_int which;
-	int flags, error;
+	int error;
 
 	if (namelen != 2)
 		return (EINVAL);
@@ -2982,23 +3007,24 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	if (req->newptr != NULL && req->newlen != sizeof(rlim))
 		return (EINVAL);
 
-	flags = PGET_HOLD | PGET_NOTWEXIT;
-	if (req->newptr != NULL)
-		flags |= PGET_CANDEBUG;
-	else
-		flags |= PGET_CANSEE;
-	error = pget((pid_t)name[0], flags, &p);
+	td = curthread;
+	error = pget((pid_t)name[0], PGET_NOTWEXIT, &p);
 	if (error != 0)
 		return (error);
+	_PHOLD(p);
+	execve_block_wait(td, p);
+	error = req->newptr != NULL ? p_candebug(td, p) : p_cansee(td, p);
+	if (error != 0)
+		goto errout1;
 
 	/*
 	 * Retrieve limit.
 	 */
 	if (req->oldptr != NULL) {
-		PROC_LOCK(p);
 		lim_rlimit_proc(p, which, &rlim);
-		PROC_UNLOCK(p);
 	}
+	PROC_UNLOCK(p);
+
 	error = SYSCTL_OUT(req, &rlim, sizeof(rlim));
 	if (error != 0)
 		goto errout;
@@ -3013,7 +3039,11 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	}
 
 errout:
-	PRELE(p);
+	PROC_LOCK(p);
+errout1:
+	_PRELE(p);
+	execve_unblock(td, p);
+	PROC_UNLOCK(p);
 	return (error);
 }
 
@@ -3102,39 +3132,38 @@ sysctl_kern_proc_osrel(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	int flags, error, osrel;
+	int flags, error, old_osrel, osrel;
 
 	if (namelen != 1)
 		return (EINVAL);
 
-	if (req->newptr != NULL && req->newlen != sizeof(osrel))
-		return (EINVAL);
-
-	flags = PGET_HOLD | PGET_NOTWEXIT;
-	if (req->newptr != NULL)
+	flags = PGET_NOTWEXIT;
+	if (req->newptr != NULL) {
+		if (req->newlen != sizeof(osrel))
+			return (EINVAL);
+		error = SYSCTL_IN(req, &osrel, sizeof(osrel));
+		if (error != 0)
+			return (error);
+		if (osrel < 0)
+			return (EINVAL);
 		flags |= PGET_CANDEBUG;
-	else
+	} else {
 		flags |= PGET_CANSEE;
+	}
 	error = pget((pid_t)name[0], flags, &p);
 	if (error != 0)
 		return (error);
-
-	error = SYSCTL_OUT(req, &p->p_osrel, sizeof(p->p_osrel));
-	if (error != 0)
-		goto errout;
-
-	if (req->newptr != NULL) {
-		error = SYSCTL_IN(req, &osrel, sizeof(osrel));
-		if (error != 0)
-			goto errout;
-		if (osrel < 0) {
-			error = EINVAL;
-			goto errout;
-		}
-		p->p_osrel = osrel;
+	if ((p->p_flag & P_INEXEC) != 0) {
+		error = EBUSY;
+	} else {
+		old_osrel = p->p_osrel;
+		if (req->newptr != NULL)
+			p->p_osrel = osrel;
 	}
-errout:
-	PRELE(p);
+	PROC_UNLOCK(p);
+
+	if (error == 0)
+		error = SYSCTL_OUT(req, &old_osrel, sizeof(old_osrel));
 	return (error);
 }
 
@@ -3271,6 +3300,7 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 {
 	struct kinfo_vm_layout kvm;
 	struct proc *p;
+	struct thread *td;
 	struct vmspace *vmspace;
 	int error, *name;
 
@@ -3278,6 +3308,7 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 	if ((u_int)arg2 != 1)
 		return (EINVAL);
 
+	td = curthread;
 	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
 	if (error != 0)
 		return (error);
@@ -3289,8 +3320,13 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 		}
 	}
 #endif
-	vmspace = vmspace_acquire_ref(p);
+	_PHOLD(p);
 	PROC_UNLOCK(p);
+	error = proc_vmspace_ref(td, p, PRVM_CHECK_DEBUG, &vmspace);
+	if (error != 0) {
+		PRELE(p);
+		return (error);
+	}
 
 	memset(&kvm, 0, sizeof(kvm));
 	kvm.kvm_min_user_addr = vm_map_min(&vmspace->vm_map);
@@ -3342,7 +3378,8 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 #ifdef COMPAT_FREEBSD32
 out:
 #endif
-	vmspace_free(vmspace);
+	proc_vmspace_unref(td, p, PRVM_CHECK_DEBUG, vmspace);
+	PRELE(p);
 	return (error);
 }
 

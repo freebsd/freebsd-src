@@ -323,6 +323,7 @@ exit1(struct thread *td, int rval, int signo)
 	while (p->p_lock > 0)
 		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 
+	MPASS(p->p_execblock == 0);
 	PROC_UNLOCK(p);
 	/* Drain the limit callout while we don't have the proc locked */
 	callout_drain(&p->p_limco);

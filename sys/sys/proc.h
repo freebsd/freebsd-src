@@ -777,6 +777,7 @@ struct proc {
 
 	TAILQ_HEAD(, kq_timer_cb_data)	p_kqtim_stop;	/* (c) */
 	LIST_ENTRY(proc) p_jaillist;	/* (d) Jail process linkage. */
+	u_int		p_execblock;	/* (c) Blockers for execve. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -843,7 +844,7 @@ struct proc {
 #define	P_STATCHILD	0x08000000	/* Child process stopped or exited. */
 #define	P_INMEM		0x10000000	/* Loaded into memory, always set. */
 #define	P_UNUSED1	0x20000000	/* --available-- */
-#define	P_UNUSED2	0x40000000	/* --available-- */
+#define	P_INEXEC_WAIT	0x40000000	/* Waiters for P_INEXEC/p_execblock */
 #define	P_PPTRACE	0x80000000	/* PT_TRACEME by vforked child. */
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
