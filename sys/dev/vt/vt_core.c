@@ -41,6 +41,7 @@
 #include <sys/kbio.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -2777,8 +2778,9 @@ skip_thunk:
 		/* XXX */
 		return (0);
 	case CONS_HISTORY:
-		if (*(int *)data < 0)
-			return EINVAL;
+		if (*(int *)data < 0 ||
+		    *(int *)data > UINT_MAX / USHRT_MAX / sizeof(term_char_t))
+			return (EINVAL);
 		if (*(int *)data != vw->vw_buf.vb_history_size)
 			vtbuf_sethistory_size(&vw->vw_buf, *(int *)data);
 		return (0);
