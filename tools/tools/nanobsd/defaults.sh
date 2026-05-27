@@ -719,7 +719,7 @@ nano_makefs() {
 	dir=$5
 
 	makefs ${options} -F "${metalog}" -N "${NANO_WORLDDIR}/etc" \
-	    -s "${size}b" -T "${NANO_TIMESTAMP}" -t ffs "${image}" "${dir}"
+	    -R "${size}b" -T "${NANO_TIMESTAMP}" -t ffs "${image}" "${dir}"
 }
 
 # Convenient spot to work around any umount issues that your build environment
