@@ -487,7 +487,7 @@ struct conf {
 	bool add_port(struct target *target, struct portal_group *pg,
 	    uint32_t ctl_port);
 	bool add_port(struct target *target, struct pport *pp);
-	bool add_port(struct kports &kports, struct target *target, int pp,
+	bool add_port(struct target *target, const std::string &pname, int pp,
 	    int vp);
 	bool add_pports(struct kports &kports);
 
