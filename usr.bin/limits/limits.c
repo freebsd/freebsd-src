@@ -247,7 +247,7 @@ static struct {
     { "kqueues",	login_getcapnum  },
     { "umtxp",		login_getcapnum  },
     { "pipebuf",	login_getcapnum  },
-    { "vmms",		login_getcapnum  },
+    { "vms",		login_getcapnum  },
 };
 
 _Static_assert(nitems(resources) == RLIM_NLIMITS,
