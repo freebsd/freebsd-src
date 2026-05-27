@@ -292,6 +292,8 @@ _create_diskimage() {
 
 	CODE_SIZE=$(awk '$3 == 1 {print $2}' "${NANO_LOG}/_.partitioning")
 	CODE_SIZE=$(_xxx_adjust_code_size "$CODE_SIZE")
+	CONF_SIZE=$(awk '$3 == 3 {print $2}' "${NANO_LOG}/_.partitioning")
+	DATA_SIZE=$(awk '$3 == 4 {print $2}' "${NANO_LOG}/_.partitioning")
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
 
 	if [ -f "${NANO_WORLDDIR}/${NANO_BOOTLOADER}" ]; then
@@ -327,7 +329,7 @@ _create_diskimage() {
 
 	# Create Config slice
 	_populate_cfg_part "${NANO_OBJ}/_.cfg.part" "${NANO_CFGDIR}" \
-	    "${NANO_SLICE_CFG}" "${NANO_CONFSIZE}" "${NANO_METALOG_CFG}"
+	    "${NANO_SLICE_CFG}" "${CONF_SIZE}" "${NANO_METALOG_CFG}"
 	cfgimage="-p freebsd:=${NANO_OBJ}/_.cfg.part"
 
 	# Create Data slice, if any.
@@ -339,7 +341,7 @@ _create_diskimage() {
 	fi
 	if [ "${NANO_DATASIZE}" -ne 0 ] && [ -n "${NANO_SLICE_DATA}" ] ; then
 		_populate_data_part "${NANO_OBJ}/_.data.part" "${NANO_DATADIR}" \
-		    "${NANO_SLICE_DATA}" "${NANO_DATASIZE}" "${NANO_METALOG_DATA}"
+		    "${NANO_SLICE_DATA}" "${DATA_SIZE}" "${NANO_METALOG_DATA}"
 		dataimage="-p freebsd:=${NANO_OBJ}/_.data.part"
 	fi
 
