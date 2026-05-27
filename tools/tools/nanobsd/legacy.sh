@@ -178,7 +178,7 @@ _create_code_slice() {
 	nano_makefs "-DxZ ${NANO_MAKEFS} -o minfree=0,optimization=space" \
 	    "${NANO_METALOG}" "$(( CODE_SIZE - METADATA_SECTS ))" \
 	    "${NANO_OBJ}/_.disk.part" "${NANO_WORLDDIR}"
-	mkimg -s bsd \
+	mkimg -s bsd -S 512 --capacity $(( CODE_SIZE * 512 )) \
 	    ${bootcode} \
 	    -p freebsd-ufs:="${NANO_OBJ}/_.disk.part" \
 	    -o "${IMG}"
@@ -318,7 +318,7 @@ _create_diskimage() {
 		if [ -f "${NANO_WORLDDIR}/boot/boot" ]; then
 			bootcode="-b ${NANO_WORLDDIR}/boot/boot"
 		fi
-		mkimg -s bsd \
+		mkimg -s bsd -S 512 --capacity $(( CODE_SIZE * 512 )) \
 		    ${bootcode} \
 		    -p freebsd-ufs:="${NANO_OBJ}/_.altroot.part" \
 		    -o "${NANO_OBJ}/_.altroot.image"
@@ -350,7 +350,7 @@ _create_diskimage() {
 	fi
 
 	echo "Writing out ${NANO_IMGNAME}..."
-	mkimg -s mbr \
+	mkimg -s mbr -S 512 --capacity $(( NANO_MEDIASIZE * 512 )) \
 	    ${bootloader} \
 	    ${diskimage} \
 	    ${altroot} \
