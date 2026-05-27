@@ -666,10 +666,11 @@ acpi_attach(device_t dev)
 
     /*
      * Pick the first valid sleep type for the sleep button default.  If that
-     * type was hibernate and we support s2idle, set it to that.  The sleep
-     * button prefers s2mem instead of s2idle at the moment as s2idle may not
-     * yet work reliably on all machines.  In the future, we should set this to
-     * s2idle when ACPI_FADT_LOW_POWER_S0 is set.
+     * type was hibernate and we support suspend_to_idle , set it to that.  The
+     * sleep button prefers fw_suspend instead of suspend_to_idle at the moment
+     * as suspend_to_idle may not yet work reliably on all machines. In the
+     * future, we should set this to suspend_to_idle when
+     * ACPI_FADT_LOW_POWER_S0 is set.
      */
     sc->acpi_sleep_button_stype = POWER_STYPE_UNKNOWN;
     for (stype = POWER_STYPE_STANDBY; stype <= POWER_STYPE_FW_HIBERNATE; stype++)
@@ -743,7 +744,7 @@ acpi_attach(device_t dev)
 	OID_AUTO, "lid_switch_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
-	"Lid ACPI sleep state. Set to s2idle or s2mem if you want to suspend "
+	"Lid ACPI sleep state. Set to suspend_to_idle or fw_suspend if you want to suspend "
 	"your laptop when you close the lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -2154,9 +2155,9 @@ acpi_device_pwr_for_sleep_sxd(device_t dev, ACPI_HANDLE handle, int state,
  * we are currently entering (sc->acpi_stype is set in acpi_EnterSleepState
  * before the ACPI bus gets suspended, and thus before this function is called).
  *
- * If entering s2idle, we will try to enter whichever D-state we would've been
- * transitioning to in S3. If we are entering an ACPI S-state, we evaluate the
- * relevant _SxD state instead (ACPI 7.3.16 - 7.3.19).
+ * If entering suspend_to_idle, we will try to enter whichever D-state we
+ * would've been transitioning to in S3. If we are entering an ACPI S-state, we
+ * evaluate the relevant _SxD state instead (ACPI 7.3.16 - 7.3.19).
  */
 int
 acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
