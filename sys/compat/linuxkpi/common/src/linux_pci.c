@@ -1916,7 +1916,7 @@ linux_dma_alloc_coherent(struct device *dev, size_t size,
 
 struct lkpi_devres_dmam_coherent {
 	size_t size;
-	dma_addr_t *handle;
+	dma_addr_t handle;
 	void *mem;
 };
 
@@ -1926,7 +1926,7 @@ lkpi_dmam_free_coherent(struct device *dev, void *p)
 	struct lkpi_devres_dmam_coherent *dr;
 
 	dr = p;
-	dma_free_coherent(dev, dr->size, dr->mem, *dr->handle);
+	dma_free_coherent(dev, dr->size, dr->mem, dr->handle);
 }
 
 static int
@@ -1952,7 +1952,7 @@ linuxkpi_dmam_free_coherent(struct device *dev, size_t size,
 {
 	struct lkpi_devres_dmam_coherent match = {
 		.size		= size,
-		.handle		= &dma_handle,
+		.handle		= dma_handle,
 		.mem		= addr
 	};
 	int error;
@@ -1979,7 +1979,7 @@ linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_ha
 
 	dr->size = size;
 	dr->mem = linux_dma_alloc_coherent(dev, size, dma_handle, flag);
-	dr->handle = dma_handle;
+	dr->handle = *dma_handle;
 	if (dr->mem == NULL) {
 		lkpi_devres_free(dr);
 		return (NULL);
