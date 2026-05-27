@@ -108,7 +108,7 @@ create_code_slice() {
 	pprint 3 "log: ${NANO_OBJ}/_.cs"
 
 	(
-	IMG=${NANO_DISKIMGDIR}/_.disk.image
+	IMG=${NANO_DISKIMGDIR}/${NANO_IMG1NAME}
 	MNT=${NANO_OBJ}/_.mnt
 	mkdir -p ${MNT}
 	CODE_SIZE=$(head -n 1 ${NANO_LOG}/_.partitioning | awk '{ print $2 }')
@@ -145,8 +145,8 @@ create_code_slice() {
 	nano_umount ${MNT}
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
-		echo "Writing out _.disk.image..."
-		dd conv=sparse if=/dev/${MD} of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+		echo "Writing out ${NANO_IMG1NAME}..."
+		dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
 	fi
 	mdconfig -d -u $MD
 
@@ -160,7 +160,7 @@ _create_code_slice() {
 	pprint 3 "log: ${NANO_OBJ}/_.cs"
 
 	(
-	IMG=${NANO_DISKIMGDIR}/_.disk.image
+	IMG=${NANO_DISKIMGDIR}/${NANO_IMG1NAME}
 	CODE_SIZE=$(head -n 1 "${NANO_LOG}/_.partitioning" | awk '{ print $2 }')
 	CODE_SIZE=$(_xxx_adjust_code_size "$CODE_SIZE")
 
@@ -177,7 +177,7 @@ _create_code_slice() {
 	mkimg -s bsd \
 	    ${bootcode} \
 	    -p freebsd-ufs:="${NANO_OBJ}/_.disk.part" \
-	    -o "${NANO_DISKIMGDIR}/_.disk.image"
+	    -o "${IMG}"
 	rm -f "${NANO_OBJ}/_.disk.part"
 
 	) > ${NANO_OBJ}/_.cs 2>&1
@@ -231,7 +231,7 @@ create_diskimage() {
 	fi
 
 	echo "Writing code image..."
-	dd conv=sparse if=${NANO_DISKIMGDIR}/_.disk.image of=/dev/${MD}${NANO_SLICE_ROOT} bs=64k
+	dd conv=sparse if=${NANO_DISKIMGDIR}/${NANO_IMG1NAME} of=/dev/${MD}${NANO_SLICE_ROOT} bs=64k
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
@@ -300,7 +300,7 @@ _create_diskimage() {
 		echo "Image will not be bootable"
 	fi
 
-	diskimage="-p freebsd:=${NANO_DISKIMGDIR}/_.disk.image"
+	diskimage="-p freebsd:=${NANO_DISKIMGDIR}/${NANO_IMG1NAME}"
 
 	if [ "$NANO_IMAGES" -gt 1 ] && [ "$NANO_INIT_IMG2" -gt 0 ] ; then
 		echo "Duplicating to second image..."
