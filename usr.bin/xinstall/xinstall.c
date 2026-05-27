@@ -88,7 +88,7 @@
 #define HAVE_STRUCT_STAT_ST_FLAGS 0
 #endif
 
-#define MAX_CMP_SIZE	(16 * 1024 * 1024)
+#define MAX_CMP_SIZE	(128 * 1024 * 1024)
 
 #define	LN_ABSOLUTE	0x01
 #define	LN_RELATIVE	0x02
