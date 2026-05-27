@@ -111,7 +111,7 @@ create_code_slice() {
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMG1NAME}
 	MNT=${NANO_OBJ}/_.mnt
 	mkdir -p ${MNT}
-	CODE_SIZE=$(head -n 1 ${NANO_LOG}/_.partitioning | awk '{ print $2 }')
+	CODE_SIZE=$(awk '$3 == 1 {print $2}' "${NANO_LOG}/_.partitioning")
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
 		MD=$(mdconfig -a -t swap -s ${CODE_SIZE} -x ${NANO_SECTS} \
@@ -161,7 +161,7 @@ _create_code_slice() {
 
 	(
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMG1NAME}
-	CODE_SIZE=$(head -n 1 "${NANO_LOG}/_.partitioning" | awk '{ print $2 }')
+	CODE_SIZE=$(awk '$3 == 1 {print $2}' "${NANO_LOG}/_.partitioning")
 	CODE_SIZE=$(_xxx_adjust_code_size "$CODE_SIZE")
 
 	echo "Writing code image..."
@@ -290,7 +290,7 @@ _create_diskimage() {
 	(
 	local altroot bootloader cfgimage dataimage diskimage
 
-	CODE_SIZE=$(head -n 1 "${NANO_LOG}/_.partitioning" | awk '{ print $2 }')
+	CODE_SIZE=$(awk '$3 == 1 {print $2}' "${NANO_LOG}/_.partitioning")
 	CODE_SIZE=$(_xxx_adjust_code_size "$CODE_SIZE")
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
 
