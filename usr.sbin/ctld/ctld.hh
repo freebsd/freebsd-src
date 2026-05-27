@@ -567,13 +567,9 @@ struct pport {
 	const char *name() const { return pp_name.c_str(); }
 	uint32_t ctl_port() const { return pp_ctl_port; }
 
-	bool linked() const { return pp_linked; }
-	void link() { pp_linked = true; }
-
 private:
 	std::string			pp_name;
 	uint32_t			pp_ctl_port;
-	bool				pp_linked = false;
 };
 
 struct kports {
