@@ -1953,6 +1953,9 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	struct pcm_channel *wrch, *rdch, *c;
 	int err;
 
+	if (*offset >= *offset + size)
+		return (EINVAL);
+
 	/*
 	 * Reject PROT_EXEC by default. It just doesn't makes sense.
 	 * Unfortunately, we have to give up this one due to linux_mmap
