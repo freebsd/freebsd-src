@@ -96,17 +96,6 @@ calculate_partitioning() {
 	' > ${NANO_LOG}/_.partitioning
 }
 
-_xxx_adjust_code_size()
-{
-	# XXX adjust the CODE_SIZE value by rounding it up to
-	# a bsize of 32768 (DFL_BLKSIZE).
-	# Otherwise makefs -s will fail because of the guard
-	# introduced in 5ad283b3c60d.
-	codesize=$1
-	bsize=32768
-	echo $(( ((codesize + (bsize - 1)) / bsize) * bsize ))
-}
-
 create_code_slice() {
 	pprint 2 "build code slice"
 	pprint 3 "log: ${NANO_OBJ}/_.cs"
@@ -166,7 +155,6 @@ _create_code_slice() {
 	(
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMG1NAME}
 	CODE_SIZE=$(awk '$3 == 1 {print $2}' "${NANO_LOG}/_.partitioning")
-	CODE_SIZE=$(_xxx_adjust_code_size "$CODE_SIZE")
 
 	echo "Writing code image..."
 	if [ -f "${NANO_WORLDDIR}/boot/boot" ]; then
@@ -295,7 +283,6 @@ _create_diskimage() {
 	local altroot bootloader cfgimage dataimage diskimage
 
 	CODE_SIZE=$(awk '$3 == 1 {print $2}' "${NANO_LOG}/_.partitioning")
-	CODE_SIZE=$(_xxx_adjust_code_size "$CODE_SIZE")
 	CONF_SIZE=$(awk '$3 == 3 {print $2}' "${NANO_LOG}/_.partitioning")
 	DATA_SIZE=$(awk '$3 == 4 {print $2}' "${NANO_LOG}/_.partitioning")
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
