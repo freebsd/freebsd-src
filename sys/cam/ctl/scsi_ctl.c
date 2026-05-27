@@ -522,7 +522,8 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		new_ccb->ccb_h.io_ptr = new_io;
 		LIST_INSERT_HEAD(&softc->atio_list, &new_ccb->ccb_h, periph_links.le);
 
-		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, CAM_PRIORITY_NONE);
+		xpt_setup_ccb(&new_ccb->ccb_h, periph->path,
+		    CAM_PRIORITY_NORMAL);
 		new_ccb->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
 		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
@@ -569,7 +570,8 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		new_ccb->ccb_h.io_ptr = new_io;
 		LIST_INSERT_HEAD(&softc->inot_list, &new_ccb->ccb_h, periph_links.le);
 
-		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, CAM_PRIORITY_NONE);
+		xpt_setup_ccb(&new_ccb->ccb_h, periph->path,
+		    CAM_PRIORITY_NORMAL);
 		new_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
 		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
@@ -1003,7 +1005,7 @@ ctlfe_requeue_ccb(struct cam_periph *periph, union ccb *ccb, int unlock)
 	 * target/lun.  Reset the target and LUN fields back to the wildcard
 	 * values before we send them back down to the SIM.
 	 */
-	xpt_setup_ccb_flags(&ccb->ccb_h, periph->path, CAM_PRIORITY_NONE,
+	xpt_setup_ccb_flags(&ccb->ccb_h, periph->path, CAM_PRIORITY_NORMAL,
 	    ccb->ccb_h.flags);
 
 	xpt_action(ccb);
