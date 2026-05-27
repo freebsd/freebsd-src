@@ -549,7 +549,7 @@ conf_new_from_kernel(struct kports &kports)
 			continue;
 
 		std::string name = port.port_name;
-		if (port.pp != 0) {
+		if (port.pp != 0 || port.vp != 0) {
 			name += "/" + std::to_string(port.pp);
 			if (port.vp != 0)
 				name += "/" + std::to_string(port.vp);
