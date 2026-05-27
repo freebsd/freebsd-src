@@ -117,6 +117,7 @@ main(int argc, char *argv[])
 
 	if (capdbp->close(capdbp) < 0)
 		err(1, "%s", capname);
+	free(capname);
 	capname = NULL;
 	exit(0);
 }
@@ -151,7 +152,7 @@ db_build(char **ifiles)
 
 	data.data = NULL;
 	key.data = NULL;
-	for (reccnt = 0, bplen = 0; (st = cgetnext(&bp, ifiles)) > 0;) {
+	for (reccnt = 0, bplen = 0; (st = cgetnext(&bp, ifiles)) > 0; free(bp)) {
 
 		/*
 		 * Allocate enough memory to store record, terminating
