@@ -1920,6 +1920,9 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	struct pcm_channel *wrch, *rdch, *c;
 	int err;
 
+	if (*offset >= *offset + size)
+		return (EINVAL);
+
 	/*
 	 * https://lists.freebsd.org/pipermail/freebsd-emulation/2007-June/003698.html
 	 */
