@@ -326,7 +326,7 @@ _create_diskimage() {
 			altroot="-p freebsd:=${NANO_OBJ}/_.altroot.image:+$(( NANO_SECTS * 512 ))"
 			rm -f "${NANO_OBJ}/_.altroot.part"
 		else
-			altroot="-p freebsd::${CODE_SIZE}b:+$(( NANO_SECTS * 512 ))"
+			altroot="-p freebsd::$(( CODE_SIZE * 512 )):+$(( NANO_SECTS * 512 ))"
 		fi
 	else
 		altroot="-p-"
