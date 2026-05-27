@@ -31,6 +31,10 @@
 [ -n "$NANO_SECTS" ] || NANO_SECTS=63
 [ -n "$NANO_HEADS" ] || NANO_HEADS=16
 
+# The first partition should start at offset 16,
+# because the first 16 sectors are reserved for metadata.
+METADATA_SECTS=16
+
 # Functions and variable definitions used by the legacy nanobsd
 # image building system.
 
@@ -127,7 +131,7 @@ create_code_slice() {
 	trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	gpart create -s bsd "${MD}"
-	gpart add -t freebsd-ufs -b 16 "${MD}"
+	gpart add -t freebsd-ufs -b "${METADATA_SECTS}" "${MD}"
 	if [ -f ${NANO_WORLDDIR}/boot/boot ]; then
 		echo "Making bootable partition"
 		gpart bootcode -b ${NANO_WORLDDIR}/boot/boot ${MD}
@@ -172,8 +176,8 @@ _create_code_slice() {
 		echo "Partition will not be bootable"
 	fi
 	nano_makefs "-DxZ ${NANO_MAKEFS} -o minfree=0,optimization=space" \
-	    "${NANO_METALOG}" "${CODE_SIZE}" "${NANO_OBJ}/_.disk.part" \
-	    "${NANO_WORLDDIR}"
+	    "${NANO_METALOG}" "$(( CODE_SIZE - METADATA_SECTS ))" \
+	    "${NANO_OBJ}/_.disk.part" "${NANO_WORLDDIR}"
 	mkimg -s bsd \
 	    ${bootcode} \
 	    -p freebsd-ufs:="${NANO_OBJ}/_.disk.part" \
@@ -308,8 +312,8 @@ _create_diskimage() {
 		echo "Duplicating to second image..."
 		tgt_switch_root_fstab "${NANO_SLICE_ROOT}" "${NANO_SLICE_ALTROOT}"
 		nano_makefs "-DxZ ${NANO_MAKEFS} -o minfree=0,optimization=space" \
-		    "${NANO_METALOG}" "${CODE_SIZE}" "${NANO_OBJ}/_.altroot.part" \
-		    "${NANO_WORLDDIR}"
+		    "${NANO_METALOG}" "$(( CODE_SIZE - METADATA_SECTS ))" \
+		    "${NANO_OBJ}/_.altroot.part" "${NANO_WORLDDIR}"
 		tgt_switch_root_fstab "${NANO_SLICE_ALTROOT}" "${NANO_SLICE_ROOT}"
 		if [ -f "${NANO_WORLDDIR}/boot/boot" ]; then
 			bootcode="-b ${NANO_WORLDDIR}/boot/boot"
