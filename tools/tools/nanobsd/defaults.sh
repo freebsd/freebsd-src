@@ -883,6 +883,7 @@ cust_comconsole() {
 
 	# Tell loader to use serial console early.
 	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
+	tgt_touch boot.config
 }
 
 #######################################################################
