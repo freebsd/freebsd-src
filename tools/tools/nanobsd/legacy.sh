@@ -308,27 +308,28 @@ _create_diskimage() {
 
 	diskimage="-p freebsd:=${NANO_DISKIMGDIR}/${NANO_IMG1NAME}:$(( NANO_SECTS * 512 ))"
 
-	if [ "$NANO_IMAGES" -gt 1 ] && [ "$NANO_INIT_IMG2" -gt 0 ] ; then
-		echo "Duplicating to second image..."
-		tgt_switch_root_fstab "${NANO_SLICE_ROOT}" "${NANO_SLICE_ALTROOT}"
-		nano_makefs "-DxZ ${NANO_MAKEFS} -o minfree=0,optimization=space" \
-		    "${NANO_METALOG}" "$(( CODE_SIZE - METADATA_SECTS ))" \
-		    "${NANO_OBJ}/_.altroot.part" "${NANO_WORLDDIR}"
-		tgt_switch_root_fstab "${NANO_SLICE_ALTROOT}" "${NANO_SLICE_ROOT}"
-		if [ -f "${NANO_WORLDDIR}/boot/boot" ]; then
-			bootcode="-b ${NANO_WORLDDIR}/boot/boot"
+	if [ "$NANO_IMAGES" -gt 1 ] ; then
+		if [ "$NANO_INIT_IMG2" -gt 0 ] ; then
+			echo "Duplicating to second image..."
+			tgt_switch_root_fstab "${NANO_SLICE_ROOT}" "${NANO_SLICE_ALTROOT}"
+			nano_makefs "-DxZ ${NANO_MAKEFS} -o minfree=0,optimization=space" \
+			    "${NANO_METALOG}" "$(( CODE_SIZE - METADATA_SECTS ))" \
+			    "${NANO_OBJ}/_.altroot.part" "${NANO_WORLDDIR}"
+			tgt_switch_root_fstab "${NANO_SLICE_ALTROOT}" "${NANO_SLICE_ROOT}"
+			if [ -f "${NANO_WORLDDIR}/boot/boot" ]; then
+				bootcode="-b ${NANO_WORLDDIR}/boot/boot"
+			fi
+			mkimg -s bsd -S 512 --capacity $(( CODE_SIZE * 512 )) \
+			    ${bootcode} \
+			    -p freebsd-ufs:="${NANO_OBJ}/_.altroot.part" \
+			    -o "${NANO_OBJ}/_.altroot.image"
+			altroot="-p freebsd:=${NANO_OBJ}/_.altroot.image:+$(( NANO_SECTS * 512 ))"
+			rm -f "${NANO_OBJ}/_.altroot.part"
+		else
+			altroot="-p freebsd::${CODE_SIZE}b:+$(( NANO_SECTS * 512 ))"
 		fi
-		mkimg -s bsd -S 512 --capacity $(( CODE_SIZE * 512 )) \
-		    ${bootcode} \
-		    -p freebsd-ufs:="${NANO_OBJ}/_.altroot.part" \
-		    -o "${NANO_OBJ}/_.altroot.image"
-		altroot="-p freebsd:=${NANO_OBJ}/_.altroot.image:+$(( NANO_SECTS * 512 ))"
-		rm -f "${NANO_OBJ}/_.altroot.part"
 	else
 		altroot="-p-"
-	fi
-	if [ "${NANO_INIT_IMG2}" -eq 0 ]; then
-		altroot="-p freebsd::${CODE_SIZE}b:+$(( NANO_SECTS * 512 ))"
 	fi
 
 	# Create Config slice
