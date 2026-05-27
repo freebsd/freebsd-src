@@ -291,6 +291,8 @@ extract_files(struct bsddialog_fileminibar *file)
 	/* If that went well, perform the extraction */
 	if (retval == ARCHIVE_OK)
 		retval = archive_read_extract(archive, entry,
+		    ARCHIVE_EXTRACT_SECURE_NODOTDOT |
+		    ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS |
 		    ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_OWNER |
 		    ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_ACL |
 		    ARCHIVE_EXTRACT_XATTR | ARCHIVE_EXTRACT_FFLAGS);
