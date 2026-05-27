@@ -1387,7 +1387,7 @@ kevent11_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd11_kevent_args *uap;
 	struct freebsd11_kevent kev11;
-	int error, i;
+	int error = 0, i;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct freebsd11_kevent_args *)arg;
@@ -1416,7 +1416,7 @@ kevent11_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd11_kevent_args *uap;
 	struct freebsd11_kevent kev11;
-	int error, i;
+	int error = 0, i;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct freebsd11_kevent_args *)arg;
