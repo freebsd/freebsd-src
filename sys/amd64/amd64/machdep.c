@@ -1827,29 +1827,35 @@ wrmsr_early_safe_start(void)
 {
 	struct region_descriptor efi_idt;
 	struct gate_descriptor *gpf_descr;
+	int i;
 
 	sidt(&wrmsr_early_safe_orig_efi_idt);
 	efi_idt.rd_limit = 32 * sizeof(idt0[0]);
 	efi_idt.rd_base = (uintptr_t)idt0;
 	lidt(&efi_idt);
 
-	gpf_descr = &idt0[IDT_GP];
-	gpf_descr->gd_looffset = (uintptr_t)wrmsr_early_safe_gp_handler;
-	gpf_descr->gd_hioffset = (uintptr_t)wrmsr_early_safe_gp_handler >> 16;
-	gpf_descr->gd_selector = rcs();
-	gpf_descr->gd_type = SDT_SYSTGT;
-	gpf_descr->gd_p = 1;
+	/* Setup handler for all possible exceptions. */
+	for (i = 0; i < 32; i++) {
+		gpf_descr = &idt0[i];
+		gpf_descr->gd_looffset =
+		    (uintptr_t)wrmsr_early_safe_gp_handler;
+		gpf_descr->gd_hioffset =
+		    (uintptr_t)wrmsr_early_safe_gp_handler >> 16;
+		gpf_descr->gd_selector = rcs();
+		gpf_descr->gd_type = SDT_SYSTGT;
+		gpf_descr->gd_p = 1;
+	}
 }
 
 void
 wrmsr_early_safe_end(void)
 {
-	struct gate_descriptor *gpf_descr;
+	int i;
 
 	lidt(&wrmsr_early_safe_orig_efi_idt);
 
-	gpf_descr = &idt0[IDT_GP];
-	memset_early(gpf_descr, 0, sizeof(*gpf_descr));
+	for (i = 0; i < 32; i++)
+		memset_early(&idt0[i], 0, sizeof(idt0[0]));
 }
 
 int

@@ -1566,20 +1566,19 @@ msr_onfault:
 	ret
 
 ENTRY(wrmsr_early_safe)
+	movq	%rsp,%r11
 	movl	%edi,%ecx
 	movl	%esi,%eax
 	sarq	$32,%rsi
 	movl	%esi,%edx
 	wrmsr
 	xorl	%eax,%eax
-wrmsr_early_faulted:
 	ret
 
 ENTRY(wrmsr_early_safe_gp_handler)
-	addq	$8,%rsp
+	movq	%r11,%rsp
 	movl	$EFAULT,%eax
-	movq	$wrmsr_early_faulted,(%rsp)
-	iretq
+	ret
 
 /*
  * void pmap_pti_pcid_invalidate(uint64_t ucr3, uint64_t kcr3);
