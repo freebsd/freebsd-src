@@ -80,7 +80,7 @@ static const void *ucode_data;
 static struct ucode_ops *ucode_loader;
 
 /* Variables used for reporting success or failure. */
-enum {
+static enum {
 	NO_ERROR,
 	NO_MATCH,
 	VERIFICATION_FAILED,
