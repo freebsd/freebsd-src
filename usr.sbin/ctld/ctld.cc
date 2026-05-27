@@ -1180,16 +1180,8 @@ conf::add_port(struct target *target, struct pport *pp)
 }
 
 bool
-conf::add_port(struct kports &kports, struct target *target, int pp, int vp)
+conf::add_port(struct target *target, const std::string &pname, int pp, int vp)
 {
-	struct pport *pport;
-
-	std::string pname = freebsd::stringf("ioctl/%d/%d", pp, vp);
-
-	pport = kports.find_port(pname);
-	if (pport != NULL)
-		return (add_port(target, pport));
-
 	std::string name = pname + "-" + target->name();
 	const auto &pair = conf_ports.try_emplace(name,
 	    std::make_unique<ioctl_port>(target, pp, vp));
@@ -1387,6 +1379,19 @@ target::set_auth_type(const char *type)
 bool
 target::add_physical_port(std::string_view pport)
 {
+	/* Normalize ioctl port names. */
+	std::string pname;
+	if (pport.compare(0, strlen("ioctl/"), "ioctl/") == 0) {
+		int ret, pp, vp;
+
+		pname = std::string(pport);
+		ret = sscanf(pname.c_str(), "ioctl/%d/%d", &pp, &vp);
+		if (ret == 2) {
+			pname = freebsd::stringf("ioctl/%d/%d", pp, vp);
+			pport = pname;
+		}
+	}
+
 	for (const auto &s : t_pports) {
 		if (s == pport) {
 			log_warnx("duplicate physical port \"%s\" for target "
@@ -2643,35 +2648,48 @@ conf::add_pports(struct kports &kports)
 		struct target *targ = kv.second.get();
 
 		for (const auto &pport : targ->pports()) {
-			ret = sscanf(pport.c_str(), "ioctl/%d/%d", &i_pp,
-			    &i_vp);
-			if (ret > 0) {
-				if (!add_port(kports, targ, i_pp, i_vp)) {
-					log_warnx("can't create new ioctl port "
-					    "for %s", targ->label());
+			/*
+			 * If this port is already present in the
+			 * kernel, reuse the existing port.
+			 */
+			pp = kports.find_port(pport);
+			if (pp != nullptr) {
+				if (pp->linked()) {
+					log_warnx("can't link port \"%s\" to "
+					    "%s, port already linked to some "
+					    "target", pport.c_str(),
+					    targ->label());
 					return (false);
 				}
 
+				if (!add_port(targ, pp)) {
+					log_warnx(
+					    "can't link port \"%s\" to %s",
+					    pport.c_str(), targ->label());
+					return (false);
+				}
 				continue;
 			}
 
-			pp = kports.find_port(pport);
-			if (pp == NULL) {
-				log_warnx("unknown port \"%s\" for %s",
-				    pport.c_str(), targ->label());
-				return (false);
+			/*
+			 * If this port is an ioctl port, create a new
+			 * port.
+			 */
+			ret = sscanf(pport.c_str(), "ioctl/%d/%d", &i_pp,
+			    &i_vp);
+			if (ret == 2) {
+				if (!add_port(targ, pport, i_pp, i_vp)) {
+					log_warnx("can't create new port %s "
+					    "for %s", pport.c_str(),
+					    targ->label());
+					return (false);
+				}
+				continue;
 			}
-			if (pp->linked()) {
-				log_warnx("can't link port \"%s\" to %s, "
-				    "port already linked to some target",
-				    pport.c_str(), targ->label());
-				return (false);
-			}
-			if (!add_port(targ, pp)) {
-				log_warnx("can't link port \"%s\" to %s",
-				    pport.c_str(), targ->label());
-				return (false);
-			}
+
+			log_warnx("unknown port \"%s\" for %s",
+			    pport.c_str(), targ->label());
+			return (false);
 		}
 	}
 	return (true);
