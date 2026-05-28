@@ -781,8 +781,8 @@ virtual_oss_process(void *arg __unused)
 
 			    /* check if compressor should be applied */
 			    voss_compressor(buffer_temp, pvp->rx_compressor_gain,
-				&pvp->rx_compressor_param, samples,
-			        samples * src_chans, (1ULL << (pvp->bits - 1)) - 1ULL);
+				&pvp->rx_compressor_param, samples * src_chans,
+				src_chans, (1ULL << (pvp->bits - 1)) - 1ULL);
 
 			    TAILQ_FOREACH(pvc, &pvp->head, entry) {
 
