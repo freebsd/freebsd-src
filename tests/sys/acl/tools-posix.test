@@ -80,7 +80,7 @@ $ getfacl -qh lll
 > group::r-x
 > other::r-x
 
-$ getfacl -q lll
+$ getfacl -nq lll
 > user::rw-
 > user:42:r--
 > group::r--
@@ -89,7 +89,7 @@ $ getfacl -q lll
 > other::r--
 
 $ setfacl -hm u:44:x,g:45:w lll
-$ getfacl -h lll
+$ getfacl -hn lll
 > # file: lll
 > # owner: root
 > # group: wheel
@@ -111,7 +111,7 @@ $ rm lll
 
 # Test removing entries.
 $ setfacl -x user:42: xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -369,7 +369,7 @@ $ rm ddd/xxx
 
 $ setfacl -dm u::rwx,g::rx,o::rx,mask::rwx ddd
 $ setfacl -dm g:42:rwx,u:43:r ddd
-$ getfacl -dq ddd
+$ getfacl -dnq ddd
 > user::rwx
 > user:43:r--
 > group::r-x
@@ -378,7 +378,7 @@ $ getfacl -dq ddd
 > other::r-x
 
 $ touch ddd/xxx
-$ getfacl -q ddd/xxx
+$ getfacl -nq ddd/xxx
 > user::rw-
 > user:43:r--
 > group::r-x		# effective: r--
@@ -387,7 +387,7 @@ $ getfacl -q ddd/xxx
 > other::r--
 
 $ mkdir ddd/ddd
-$ getfacl -q ddd/ddd
+$ getfacl -nq ddd/ddd
 > user::rwx
 > user:43:r--
 > group::r-x
@@ -405,7 +405,7 @@ $ ls -l fff | cut -d' ' -f1
 > prw-r--r--
 
 $ setfacl -m u:42:r,g:43:w fff
-$ getfacl fff
+$ getfacl -n fff
 > # file: fff
 > # owner: root
 > # group: wheel
