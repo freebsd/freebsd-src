@@ -503,6 +503,10 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	int error;
 	va_list ap;
 
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)dev, pic_post_filter) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)dev, pic_post_ithread) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)dev, pic_pre_ithread) != NULL);
+
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_dev = dev;
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
