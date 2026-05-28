@@ -253,14 +253,22 @@ inject_reply_cleanup()
 	ifconfig `cat tun.txt` destroy
 }
 
-atf_test_case timestamp_origin
+atf_test_case timestamp_origin cleanup
 timestamp_origin_head()
 {
 	atf_set "descr" "ICMP Originate Timestamp"
+	atf_set "require.user" "root"
+	atf_set "require.config" "allow_sysctl_side_effects"
 }
 timestamp_origin_body()
 {
 	require_ipv4
+	# The kernel only replies to ICMP timestamp requests when
+	# net.inet.icmp.tstamprepl is enabled.  Save the current value
+	# so the cleanup hook can restore it, then enable replies.
+	sysctl -n net.inet.icmp.tstamprepl > tstamprepl.txt
+	sysctl net.inet.icmp.tstamprepl=1
+
 	# Run ping timestamp
 	out=$(ping -Mt -c1 127.0.0.1)
 
@@ -284,6 +292,12 @@ timestamp_origin_body()
 	# Tolerate 2 seconds difference
 	if [ $diff -gt 2 ]; then
 		atf_fail "tso ($tso) differs from tsr ($tsr) by $diff seconds"
+	fi
+}
+timestamp_origin_cleanup()
+{
+	if [ -f tstamprepl.txt ]; then
+		sysctl net.inet.icmp.tstamprepl=`cat tstamprepl.txt`
 	fi
 }
 
