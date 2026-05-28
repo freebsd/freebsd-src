@@ -850,7 +850,7 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 	 *  biggest header is, instead of the whole 1530ish-byte frame.
 	 */
 	if (sc->fecflags & FECFLAG_RACC) {
-		m->m_data = mtod(m, uint8_t *) + 2;
+		m_adj(m, 2);
 	} else {
 		src = mtod(m, uint8_t*);
 		dst = src - ETHER_ALIGN;
