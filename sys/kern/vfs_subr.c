@@ -1936,9 +1936,14 @@ vtryrecycle(struct vnode *vp, bool isvnlru)
 	 * anyone picked up this vnode from another list.  If not, we will
 	 * mark it with DOOMED via vgonel() so that anyone who does find it
 	 * will skip over it.
+	 *
+	 * We cannot check only for v_usecount > 0 there, since
+	 * v_usecount increment is lockless.  Instead check for
+	 * v_holdcnt > 1, with the side effect that a parallel vhold()
+	 * also aborts freeing this vnode.
 	 */
 	VI_LOCK(vp);
-	if (vp->v_usecount) {
+	if (vp->v_holdcnt > 1) {
 		VOP_UNLOCK(vp);
 		vdropl_recycle(vp);
 		vn_finished_write(vnmp);
