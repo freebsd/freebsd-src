@@ -143,17 +143,17 @@ METHOD int teardown_intr {
 METHOD void post_filter {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
-};
+} DEFAULT NULL;
 
 METHOD void post_ithread {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
-};
+} DEFAULT NULL;
 
 METHOD void pre_ithread {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
-};
+} DEFAULT NULL;
 
 METHOD void init_secondary {
 	device_t	dev;
