@@ -4794,6 +4794,27 @@ struct intr_info {
 	const struct intr_action *actions;
 };
 
+/* Helper to clear interrupts that have IHF_CLR_DELAYED. */
+static void
+clear_int_cause_reg(struct adapter *sc, const struct intr_info *ii, int flags)
+{
+	u32 cause, ucause;
+
+	cause = ucause = t4_read_reg(sc, ii->cause_reg);
+	if (cause == 0)
+		return;
+	flags |= ii->flags;
+	if (flags & IHF_IGNORE_IF_DISABLED)
+		ucause &= t4_read_reg(sc, ii->enable_reg);
+	if (flags & IHF_CLR_ALL_SET) {
+		t4_write_reg(sc, ii->cause_reg, cause);
+		(void)t4_read_reg(sc, ii->cause_reg);
+	} else if (ucause != 0 && flags & IHF_CLR_ALL_UNIGNORED) {
+		t4_write_reg(sc, ii->cause_reg, ucause);
+		(void)t4_read_reg(sc, ii->cause_reg);
+	}
+}
+
 static inline char
 intr_alert_char(u32 cause, u32 enable, u32 fatal)
 {
@@ -4869,8 +4890,8 @@ t4_handle_intr(struct adapter *sc, const struct intr_info *ii, uint32_t acause,
 		}
 	}
 
-	/* clear */
-	if (cause != 0) {
+	/* Clear here unless delayed clear is requested. */
+	if (cause != 0 && (flags & IHF_CLR_DELAYED) == 0) {
 		if (flags & IHF_CLR_ALL_SET) {
 			t4_write_reg(sc, ii->cause_reg, cause);
 			(void)t4_read_reg(sc, ii->cause_reg);
@@ -5003,14 +5024,55 @@ static bool pcie_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = NULL,
 		.actions = NULL,
 	};
+	static const struct intr_details pcie_intr_cause_ext_details[] = {
+		{ F_IPFORMQPERR, "PCIe IP FormQ Buffer PERR" },
+		{ F_IPFORMQCERR, "PCIe IP FormQ Buffer CERR" },
+		{ F_TRGT1GRPCERR, "TRGT1 Group FIFOs CERR" },
+		{ F_IPSOTCERR, "PCIe IP SOT Buffer SRAM CERR" },
+		{ F_IPRETRYCERR, "PCIe IP Replay Buffer CERR" },
+		{ F_IPRXDATAGRPCERR, "PCIe IP Rx Data Group SRAMs CERR" },
+		{ F_IPRXHDRGRPCERR, "PCIe IP Rx Header Group SRAMs CERR" },
+		{ F_A0ARBRSPORDFIFOPERR, "A0 Arbiter Response Order FIFO Parity Error" },
+		{ F_HRSPCERR, "Master HMA Channel Response Data SRAM CERR" },
+		{ F_HREQRDCERR, "Master HMA Channel Read Request SRAM CERR" },
+		{ F_HREQWRCERR, "Master HMA Channel Write Request SRAM CERR" },
+		{ F_DRSPCERR, "Master DMA Channel Response Data SRAM CERR" },
+		{ F_DREQRDCERR, "Master DMA Channel Read Request SRAM CERR" },
+		{ F_DREQWRCERR, "Master DMA Channel Write Request SRAM CERR" },
+		{ F_CRSPCERR, "Master CMD Channel Response Data SRAM CERR" },
+		{ F_ARSPPERR, "Master ARM Channel Response Data SRAM PERR" },
+		{ F_AREQRDPERR, "Master ARM Channel Read Request SRAM PERR" },
+		{ F_AREQWRPERR, "Master ARM Channel Write Request SRAM PERR" },
+		{ F_PIOREQGRPCERR, "PIO Request Group FIFOs CERR" },
+		{ F_ARSPCERR, "Master ARM Channel Response Data SRAM CERR" },
+		{ F_AREQRDCERR, "Master ARM Channel Read Request SRAM CERR" },
+		{ F_AREQWRCERR, "Master ARM Channel Write Request SRAM CERR" },
+		{ F_MARSPPERR, "INIC MA Ctrl and Data Rsp Perr" },
+		{ F_INICMAWDATAORDPERR, "INIC Ma Arb Write Ord Data Fifo Perr" },
+		{ F_EMUPERR, "CFG EMU SRAM PERR" },
+		{ F_ERRSPPERR, "CFG EMU SRAM CERR" },
+		{ F_MSTGRPCERR, "Master Data Path and Response Read Queue SRAM CERR" },
+		{ 0 }
+	};
 	struct intr_info pcie_int_cause_ext = {
 		.name = "PCIE_INT_CAUSE_EXT",
 		.cause_reg = A_PCIE_INT_CAUSE_EXT,
 		.enable_reg = A_PCIE_INT_ENABLE_EXT,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = pcie_intr_cause_ext_details,
 		.actions = NULL,
+	};
+	static const struct intr_details pcie_intr_cause_x8_details[] = {
+		{ F_X8TGTGRPPERR, "x8 TGT Group FIFOs parity error" },
+		{ F_X8IPSOTPERR, "PCIe x8 IP SOT Buffer SRAM PERR" },
+		{ F_X8IPRETRYPERR, "PCIe x8 IP Replay Buffer PERR" },
+		{ F_X8IPRXDATAGRPPERR, "PCIe x8 IP Rx Data Group SRAMs PERR" },
+		{ F_X8IPRXHDRGRPPERR, "PCIe x8 IP Rx Header Group SRAMs PERR" },
+		{ F_X8IPCORECERR, "x8 IP SOT, Retry, RxData, RxHdr SRAM CERR" },
+		{ F_X8MSTGRPPERR, "x8 Master Data Path and Response Read Queue SRAM PERR" },
+		{ F_X8MSTGRPCERR, "x8 Master Data Path and Response Read Queue SRAM CERR" },
+		{ 0 }
 	};
 	struct intr_info pcie_int_cause_x8 = {
 		.name = "PCIE_INT_CAUSE_X8",
@@ -5018,7 +5080,7 @@ static bool pcie_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_PCIE_INT_ENABLE_X8,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = pcie_intr_cause_x8_details,
 		.actions = NULL,
 	};
 	bool fatal = false;
@@ -5050,23 +5112,75 @@ static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 		{ F_FLMTXFLSTEMPTY, "TP out of Tx pages" },
 		{ 0 }
 	};
-	static const struct intr_info tp_intr_info = {
+	static const struct intr_details t7_tp_intr_details[] = {
+		{ F_FLMTXFLSTEMPTY, "Offload memory manager Tx free list empty" },
+		{ F_TPCERR, "TP modules flagged Correctable Error" },
+		{ F_OTHERPERR, "TP Other modules (Core, TM, FLM, MMGR, DB) Parity Error" },
+		{ F_TPEING1PERR, "TP-ESide Ingress1 Parity Error" },
+		{ F_TPEING0PERR, "TP-ESide Ingress0 Parity Error" },
+		{ F_TPEEGPERR, "TP-ESide Egress Parity Error" },
+		{ F_TPCPERR, "TP-CSide Parity Error" },
+		{ 0 }
+	};
+	struct intr_info tp_intr_info = {
 		.name = "TP_INT_CAUSE",
 		.cause_reg = A_TP_INT_CAUSE,
 		.enable_reg = A_TP_INT_ENABLE,
 		.fatal = 0x7fffffff,
-		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = tp_intr_details,
-		.actions = NULL,
-	};
-	static const struct intr_info tp_inic_perr_cause = {
-		.name = "TP_INIC_PERR_CAUSE",
-		.cause_reg = A_TP_INIC_PERR_CAUSE,
-		.enable_reg = A_TP_INIC_PERR_ENABLE,
-		.fatal = 0xffffffff,
-		.flags = IHF_FATAL_IFF_ENABLED,
+		.flags = IHF_FATAL_IFF_ENABLED | IHF_CLR_DELAYED,
 		.details = NULL,
 		.actions = NULL,
+	};
+	static const struct intr_details tp_cerr_cause_details[] = {
+		{ F_TPCEGDATAFIFO, "TPCSide Egress Data FIFO" },
+		{ F_TPCLBKDATAFIFO, "TPCSide Loopback Data FIFO" },
+		{ F_RSSLKPSRAM, "RSS Lookup SRAM" },
+		{ F_SRQSRAM, "SRQ SRAM" },
+		{ F_ARPDASRAM, "ARP DA SRAM" },
+		{ F_ARPSASRAM, "ARP SA SRAM" },
+		{ F_ARPGRESRAM, "ARP GRE SRAM" },
+		{ F_ARPIPSECSRAM1, "ARP IPSec SRAM0" },
+		{ F_ARPIPSECSRAM0, "ARP IPSec SRAM1" },
+		{ 0 }
+	};
+	static const struct intr_info tp_cerr_cause = {
+		.name = "TP_CERR_CAUSE",
+		.cause_reg = A_TP_CERR_CAUSE,
+		.enable_reg = A_TP_CERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = tp_cerr_cause_details,
+		.actions = NULL,
+	};
+	static const struct intr_details tp_c_perr_details[] = {
+		{ F_DMXFIFOOVFL, "Demux FIFO Overflow" },
+		{ F_URX2TPCDDPINTF, "ULPRX to TPC DDP Interface and FIFO" },
+		{ F_TPCDISPTOKENFIFO, "TPC Dispatch Token FIFO" },
+		{ F_TPCDISPCPLFIFO3, "TPC Dispatch CPL FIFO Ch3" },
+		{ F_TPCDISPCPLFIFO2, "TPC Dispatch CPL FIFO Ch2" },
+		{ F_TPCDISPCPLFIFO1, "TPC Dispatch CPL FIFO Ch1" },
+		{ F_TPCDISPCPLFIFO0, "TPC Dispatch CPL FIFO Ch0" },
+		{ F_URXPLDINTFCRC3, "ULPRX to TPC Payload Interface CRC Error Ch3" },
+		{ F_URXPLDINTFCRC2, "ULPRX to TPC Payload Interface CRC Error Ch2" },
+		{ F_URXPLDINTFCRC1, "ULPRX to TPC Payload Interface CRC Error Ch1" },
+		{ F_URXPLDINTFCRC0, "ULPRX to TPC Payload Interface CRC Error Ch0" },
+		{ F_DMXDBFIFO, "Demux DB FIFO" },
+		{ F_DMXDBSRAM, "Demux DB SRAM" },
+		{ F_DMXCPLFIFO, "Demux CPL FIFO" },
+		{ F_DMXCPLSRAM, "Demux CPL SRAM" },
+		{ F_DMXCSUMFIFO, "Demux Checksum FIFO" },
+		{ F_DMXLENFIFO, "Demux Length FIFO" },
+		{ F_DMXCHECKFIFO, "Demux Check CRC16 FIFO" },
+		{ F_DMXWINFIFO, "Demux Winner FIFO" },
+		{ F_EGTOKENFIFO, "Egress Token FIFO Parity Error" },
+		{ F_EGDATAFIFO, "Egress FIFO Parity Error" },
+		{ F_UTX2TPCINTF3, "ULPTX to TPC Interface Parity Error Ch3" },
+		{ F_UTX2TPCINTF2, "ULPTX to TPC Interface Parity Error Ch2" },
+		{ F_UTX2TPCINTF1, "ULPTX to TPC Interface Parity Error Ch1" },
+		{ F_UTX2TPCINTF0, "ULPTX to TPC Interface Parity Error Ch0" },
+		{ F_LBKTOKENFIFO, "Loopback Token FIFO Parity Error" },
+		{ F_LBKDATAFIFO, "Loopback FIFO Parity Error" },
+		{ 0 }
 	};
 	static const struct intr_info tp_c_perr_cause = {
 		.name = "TP_C_PERR_CAUSE",
@@ -5074,8 +5188,37 @@ static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_TP_C_PERR_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = tp_c_perr_details,
 		.actions = NULL,
+	};
+	static const struct intr_details tp_e_eg_perr_details[] = {
+		{ F_MPSLPBKTOKENFIFO, "MPS Loopback Token FIFO parity error" },
+		{ F_MPSMACTOKENFIFO, "MPS MAC Token FIFO parity error" },
+		{ F_DISPIPSECFIFO3, "Ch3 Dispatch IPSec FIFO parity error" },
+		{ F_DISPTCPFIFO3, "Ch3 Dispatch TCP FIFO parity error" },
+		{ F_DISPIPFIFO3, "Ch3 Dispatch IP FIFO parity error" },
+		{ F_DISPETHFIFO3, "Ch3 Dispatch ETH FIFO parity error" },
+		{ F_DISPGREFIFO3, "Ch3 Dispatch GRE FIFO parity error" },
+		{ F_DISPCPL5FIFO3, "Ch3 Dispatch CPL5 FIFO parity error" },
+		{ F_DISPIPSECFIFO2, "Ch2 Dispatch IPSec FIFO parity error" },
+		{ F_DISPTCPFIFO2, "Ch2 Dispatch TCP FIFO parity error" },
+		{ F_DISPIPFIFO2, "Ch2 Dispatch IP FIFO parity error" },
+		{ F_DISPETHFIFO2, "Ch2 Dispatch ETH FIFO parity error" },
+		{ F_DISPGREFIFO2, "Ch2 Dispatch GRE FIFO parity error" },
+		{ F_DISPCPL5FIFO2, "Ch2 Dispatch CPL5 FIFO parity error" },
+		{ F_DISPIPSECFIFO1, "Ch1 Dispatch IPSec FIFO parity error" },
+		{ F_DISPTCPFIFO1, "Ch1 Dispatch TCP FIFO parity error" },
+		{ F_DISPIPFIFO1, "Ch1 Dispatch IP FIFO parity error" },
+		{ F_DISPETHFIFO1, "Ch1 Dispatch ETH FIFO parity error" },
+		{ F_DISPGREFIFO1, "Ch1 Dispatch GRE FIFO parity error" },
+		{ F_DISPCPL5FIFO1, "Ch1 Dispatch CPL5 FIFO parity error" },
+		{ F_DISPIPSECFIFO0, "Ch0 Dispatch IPSec FIFO parity error" },
+		{ F_DISPTCPFIFO0, "Ch0 Dispatch TCP FIFO parity error" },
+		{ F_DISPIPFIFO0, "Ch0 Dispatch IP FIFO parity error" },
+		{ F_DISPETHFIFO0, "Ch0 Dispatch ETH FIFO parity error" },
+		{ F_DISPGREFIFO0, "Ch0 Dispatch GRE FIFO parity error" },
+		{ F_DISPCPL5FIFO0, "Ch0 Dispatch CPL5 FIFO parity error" },
+		{ 0 }
 	};
 	static const struct intr_info tp_e_eg_perr_cause = {
 		.name = "TP_E_EG_PERR_CAUSE",
@@ -5083,8 +5226,38 @@ static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_TP_E_EG_PERR_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = tp_e_eg_perr_details,
 		.actions = NULL,
+	};
+	static const struct intr_details tp_e_in0_perr_details[] = {
+		{ F_DMXISSFIFO, "Demux ISS FIFO parity error" },
+		{ F_DMXERRFIFO, "Demux Error FIFO parity error" },
+		{ F_DMXATTFIFO, "Demux Attributes FIFO parity error" },
+		{ F_DMXTCPFIFO, "Demux TCP Fields FIFO parity error" },
+		{ F_DMXMPAFIFO, "Demux MPA FIFO parity error" },
+		{ F_DMXOPTFIFO, "Demux TCP Options FIFO parity error" },
+		{ F_INGTOKENFIFO, "Demux Ingress Token FIFO parity error" },
+		{ F_DMXPLDCHKOVFL1, "Ch1 PLD TxCheck FIFO Overflow" },
+		{ F_DMXPLDCHKFIFO1, "Ch1 PLD TxCheck FIFO parity error" },
+		{ F_DMXOPTFIFO1, "Ch1 Options buffer parity error" },
+		{ F_DMXMPAFIFO1, "Ch1 MPA FIFO parity error" },
+		{ F_DMXDBFIFO1, "Ch1 DB FIFO parity error" },
+		{ F_DMXATTFIFO1, "Ch1 Attribute FIFO parity error" },
+		{ F_DMXISSFIFO1, "Ch1 ISS FIFO parity error" },
+		{ F_DMXTCPFIFO1, "Ch1 TCP Fields FIFO parity error" },
+		{ F_DMXERRFIFO1, "Ch1 Error FIFO parity error" },
+		{ F_MPS2TPINTF1, "Ch1 MPS2TP Interface parity error" },
+		{ F_DMXPLDCHKOVFL0, "Ch0 PLD TxCheck FIFO Overflow" },
+		{ F_DMXPLDCHKFIFO0, "Ch0 PLD TxCheck FIFO parity error" },
+		{ F_DMXOPTFIFO0, "Ch0 Options buffer parity error" },
+		{ F_DMXMPAFIFO0, "Ch0 MPA FIFO parity error" },
+		{ F_DMXDBFIFO0, "Ch0 DB FIFO parity error" },
+		{ F_DMXATTFIFO0, "Ch0 Attribute FIFO parity error" },
+		{ F_DMXISSFIFO0, "Ch0 ISS FIFO parity error" },
+		{ F_DMXTCPFIFO0, "Ch0 TCP Fields FIFO parity error" },
+		{ F_DMXERRFIFO0, "Ch0 Error FIFO parity error" },
+		{ F_MPS2TPINTF0, "Ch0 MPS2TP Interface parity error" },
+		{ 0 }
 	};
 	static const struct intr_info tp_e_in0_perr_cause = {
 		.name = "TP_E_IN0_PERR_CAUSE",
@@ -5092,8 +5265,31 @@ static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_TP_E_IN0_PERR_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = tp_e_in0_perr_details,
 		.actions = NULL,
+	};
+	static const struct intr_details tp_e_in1_perr_details[] = {
+		{ F_DMXPLDCHKOVFL3, "Ch3 PLD TxCheck FIFO Overflow" },
+		{ F_DMXPLDCHKFIFO3, "Ch3 PLD TxCheck FIFO parity error" },
+		{ F_DMXOPTFIFO3, "Ch3 Options buffer parity error" },
+		{ F_DMXMPAFIFO3, "Ch3 MPA FIFO parity error" },
+		{ F_DMXDBFIFO3, "Ch3 DB FIFO parity error" },
+		{ F_DMXATTFIFO3, "Ch3 Attribute FIFO parity error" },
+		{ F_DMXISSFIFO3, "Ch3 ISS FIFO parity error" },
+		{ F_DMXTCPFIFO3, "Ch3 TCP Fields FIFO parity error" },
+		{ F_DMXERRFIFO3, "Ch3 Error FIFO parity error" },
+		{ F_MPS2TPINTF3, "Ch3 MPS2TP Interface parity error" },
+		{ F_DMXPLDCHKOVFL2, "Ch2 PLD TxCheck FIFO Overflow" },
+		{ F_DMXPLDCHKFIFO2, "Ch2 PLD TxCheck FIFO parity error" },
+		{ F_DMXOPTFIFO2, "Ch2 Options buffer parity error" },
+		{ F_DMXMPAFIFO2, "Ch2 MPA FIFO parity error" },
+		{ F_DMXDBFIFO2, "Ch2 DB FIFO parity error" },
+		{ F_DMXATTFIFO2, "Ch2 Attribute FIFO parity error" },
+		{ F_DMXISSFIFO2, "Ch2 ISS FIFO parity error" },
+		{ F_DMXTCPFIFO2, "Ch2 TCP Fields FIFO parity error" },
+		{ F_DMXERRFIFO2, "Ch2 Error FIFO parity error" },
+		{ F_MPS2TPINTF2, "Ch2 MPS2TP Interface parity error" },
+		{ 0 }
 	};
 	static const struct intr_info tp_e_in1_perr_cause = {
 		.name = "TP_E_IN1_PERR_CAUSE",
@@ -5101,8 +5297,36 @@ static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_TP_E_IN1_PERR_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = tp_e_in1_perr_details,
 		.actions = NULL,
+	};
+	static const struct intr_details tp_other_perr_details[] = {
+		{ F_DMARBTPERR, "DMARBT MA Rsp Interface parity Error" },
+		{ F_MMGRCACHEDATASRAM, "TP MMGR Cache Data SRAM" },
+		{ F_MMGRCACHETAGFIFO, "TP MMGR Cache Tag FIFO" },
+		{ F_DBL2TLUTPERR, "TP DB Lookup Table" },
+		{ F_DBTXTIDPERR, "TP DB FIFOs" },
+		{ F_DBEXTPERR, "TP DB Extended Opcode FIFO" },
+		{ F_DBOPPERR, "TP DB Opcode FIFO" },
+		{ F_TMCACHEPERR, "TP TM Cache SRAM" },
+		{ F_TPPROTOSRAM, "TP Protocol SRAM" },
+		{ F_HSPSRAM, "HighSpeed SRAM" },
+		{ F_RATEGRPSRAM, "Rate Group SRAM" },
+		{ F_TXFBSEQFIFO, "Tx Feedback Sequence Number FIFO" },
+		{ F_CMDATASRAM, "Cache Data SRAM" },
+		{ F_CMTAGFIFO, "Cache Tag FIFO" },
+		{ F_RFCOPFIFO, "RCF Opcode FIFO" },
+		{ F_DELINVFIFO, "Delete Invalid FIFO" },
+		{ F_RSSCFGSRAM, "RSS Config or Round-Robin SRAM" },
+		{ F_RSSKEYSRAM, "RSS Key SRAM" },
+		{ F_RSSLKPSRAM, "RSS Lookup SRAM" },
+		{ F_SRQSRAM, "SRQ SRAM" },
+		{ F_ARPDASRAM, "ARP DA SRAM" },
+		{ F_ARPSASRAM, "ARP SA SRAM" },
+		{ F_ARPGRESRAM, "ARP GRE SRAM" },
+		{ F_ARPIPSECSRAM1, "ARP IPSec SRAM0" },
+		{ F_ARPIPSECSRAM0, "ARP IPSec SRAM1" },
+		{ 0 }
 	};
 	static const struct intr_info tp_o_perr_cause = {
 		.name = "TP_O_PERR_CAUSE",
@@ -5110,20 +5334,25 @@ static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_TP_O_PERR_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = tp_other_perr_details,
 		.actions = NULL,
 	};
 	bool fatal;
 
-	fatal = t4_handle_intr(adap, &tp_intr_info, 0, flags);
 	if (chip_id(adap) > CHELSIO_T6) {
-		fatal |= t4_handle_intr(adap, &tp_inic_perr_cause, 0, flags);
+		tp_intr_info.details = t7_tp_intr_details;
+		fatal = t4_handle_intr(adap, &tp_intr_info, 0, flags);
+		fatal |= t4_handle_intr(adap, &tp_cerr_cause, 0, flags);
 		fatal |= t4_handle_intr(adap, &tp_c_perr_cause, 0, flags);
 		fatal |= t4_handle_intr(adap, &tp_e_eg_perr_cause, 0, flags);
 		fatal |= t4_handle_intr(adap, &tp_e_in0_perr_cause, 0, flags);
 		fatal |= t4_handle_intr(adap, &tp_e_in1_perr_cause, 0, flags);
 		fatal |= t4_handle_intr(adap, &tp_o_perr_cause, 0, flags);
+	} else {
+		tp_intr_info.details = tp_intr_details;
+		fatal = t4_handle_intr(adap, &tp_intr_info, 0, flags);
 	}
+	clear_int_cause_reg(adap, &tp_intr_info, flags);
 
 	return (fatal);
 }
@@ -5133,16 +5362,86 @@ static bool tp_intr_handler(struct adapter *adap, int arg, int flags)
  */
 static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 {
+	static const struct intr_details sge_int1_details[] = {
+		{ F_PERR_FLM_CREDITFIFO, "SGE FLM credit FIFO parity error" },
+		{ F_PERR_IMSG_HINT_FIFO, "SGE IMSG hint FIFO parity error" },
+		{ F_PERR_HEADERSPLIT_FIFO3 | F_PERR_HEADERSPLIT_FIFO2,
+			"SGE header split FIFO parity error" },
+		{ F_PERR_PAYLOAD_FIFO3 | F_PERR_PAYLOAD_FIFO2,
+			"SGE payload FIFO parity error" },
+		{ F_PERR_PC_RSP, "SGE PC response parity error" },
+		{ F_PERR_PC_REQ, "SGE PC request parity error" },
+		{ 0x003c0000, "SGE DBP PC response FIFO parity error" },
+		{ F_PERR_DMARBT, "SGE DMA RBT parity error" },
+		{ F_PERR_FLM_DBPFIFO, "SGE FLM DBP FIFO parity error" },
+		{ F_PERR_FLM_MCREQ_FIFO, "SGE FLM MC request FIFO parity error" },
+		{ F_PERR_FLM_HINTFIFO, "SGE FLM hint FIFO parity error" },
+		{ 0x00003c00, "SGE align control FIFO parity error" },
+		{ 0x000003c0, "SGE EDMA FIFO parity error" },
+		{ 0x0000003c, "SGE PD FIFO parity error" },
+		{ F_PERR_ING_CTXT_MIFRSP, "SGE Ingress context MIF response parity error" },
+		{ F_PERR_EGR_CTXT_MIFRSP, "SGE Egress context MIF response parity error" },
+		{ 0 }
+	};
 	static const struct intr_info sge_int1_info = {
 		.name = "SGE_INT_CAUSE1",
 		.cause_reg = A_SGE_INT_CAUSE1,
 		.enable_reg = A_SGE_INT_ENABLE1,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = sge_int1_details,
 		.actions = NULL,
 	};
-	static const struct intr_info sge_int2_info = {
+	static const struct intr_details t7_sge_int2_details[] = {
+		{ F_TF_FIFO_PERR, "SGE TF FIFO parity error" },
+		{ F_PERR_EGR_DBP_TX_COAL, "SGE egress DBP TX coal parity error" },
+		{ F_PERR_DBP_FL_FIFO, "SGE DBP FL FIFO parity error" },
+		{ F_DEQ_LL_PERR, "SGE linked list SRAM parity error" },
+		{ F_ENQ_PERR, "SGE enq tag SRAM parity error" },
+		{ F_DEQ_OUT_PERR, "SGE tbuf deq output FIFO parity error" },
+		{ F_BUF_PERR, "SGE tbuf main buffer parity error" },
+		{ F_PERR_CONM_SRAM, "SGE CONM SRAM parity error" },
+		{ F_PERR_ISW_IDMA3_FIFO | F_PERR_ISW_IDMA2_FIFO |
+		  F_PERR_ISW_IDMA1_FIFO | F_PERR_ISW_IDMA0_FIFO,
+		  "SGE ISW IDMA FIFO parity error" },
+		{ F_PERR_ISW_DBP_FIFO, "SGE ISW DBP FIFO parity error" },
+		{ F_PERR_ISW_GTS_FIFO, "SGE ISW GTS FIFO parity error" },
+		{ F_PERR_ITP_EVR, "SGE ITP EVR parity error" },
+		{ F_PERR_FLM_CNTXMEM, "SGE FLM context memory parity error" },
+		{ F_PERR_FLM_L1CACHE, "SGE FLM L1 cache parity error" },
+		{ F_SGE_IPP_FIFO_PERR, "SGE IPP FIFO parity error" },
+		{ F_PERR_DBP_HP_FIFO, "SGE DBP HP FIFO parity error" },
+		{ F_PERR_DB_FIFO, "SGE doorbell FIFO parity error" },
+		{ F_PERR_ING_CTXT_CACHE | F_PERR_EGR_CTXT_CACHE,
+		  "SGE context cache parity error" },
+		{ F_PERR_BASE_SIZE, "SGE base size parity error" },
+		{ 0 }
+	};
+	static const struct intr_details t6_sge_int2_details[] = {
+		{ F_PERR_DBP_HINT_FL_FIFO, "SGE DBP hint FL FIFO parity error" },
+		{ F_PERR_EGR_DBP_TX_COAL, "SGE egress DBP TX coal parity error" },
+		{ F_PERR_DBP_FL_FIFO, "SGE DBP FL FIFO parity error" },
+		{ F_DEQ_LL_PERR, "SGE tbuf dequeue linked list SRAM parity error" },
+		{ F_ENQ_PERR, "SGE tbuf enqueue tag SRAM parity error" },
+		{ F_DEQ_OUT_PERR, "SGE tbuf dequeue output FIFO parity error" },
+		{ F_BUF_PERR, "SGE tbuf main buffer parity error" },
+		{ F_PERR_CONM_SRAM, "SGE CONM SRAM parity error" },
+		{ F_PERR_ISW_IDMA1_FIFO, "SGE ISW IDMA FIFO parity error" },
+		{ F_PERR_ISW_IDMA0_FIFO, "SGE ISW IDMA FIFO parity error" },
+		{ F_PERR_ISW_DBP_FIFO, "SGE ISW DBP FIFO parity error" },
+		{ F_PERR_ISW_GTS_FIFO, "SGE ISW GTS FIFO parity error" },
+		{ F_PERR_ITP_EVR, "SGE ITP EVR parity error" },
+		{ F_PERR_FLM_CNTXMEM, "SGE FLM context memory parity error" },
+		{ F_PERR_FLM_L1CACHE, "SGE FLM L1 cache parity error" },
+		{ F_PERR_DBP_HINT_FIFO, "SGE DBP hint FIFO parity error" },
+		{ F_PERR_DBP_HP_FIFO, "SGE DBP high priority FIFO parity error" },
+		{ F_PERR_DB_FIFO, "SGE DBP merge DB FIFO parity error" },
+		{ F_PERR_ING_CTXT_CACHE, "SGE ingress context cache parity error" },
+		{ F_PERR_EGR_CTXT_CACHE, "SGE egress context cache parity error" },
+		{ F_PERR_BASE_SIZE, "SGE base size parity error" },
+		{ 0 }
+	};
+	struct intr_info sge_int2_info = {
 		.name = "SGE_INT_CAUSE2",
 		.cause_reg = A_SGE_INT_CAUSE2,
 		.enable_reg = A_SGE_INT_ENABLE2,
@@ -5231,16 +5530,105 @@ static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = NULL,
 		.actions = NULL,
 	};
+	static const struct intr_details sge_int4_details[] = {
+		{ F_ERR_ISHIFT_UR1 | F_ERR_ISHIFT_UR0, "SGE ishift underrun" },
+		{ F_BAR2_EGRESS_LEN_OR_ADDR_ERR, "SGE BAR2 PL access length or alignment error" },
+		{ F_ERR_CPL_EXCEED_MAX_IQE_SIZE1 | F_ERR_CPL_EXCEED_MAX_IQE_SIZE0,
+		  "SGE CPL exceeds max IQE size" },
+		{ F_ERR_WR_LEN_TOO_LARGE3 | F_ERR_WR_LEN_TOO_LARGE2 |
+		  F_ERR_WR_LEN_TOO_LARGE1 | F_ERR_WR_LEN_TOO_LARGE0,
+		  "SGE WR length too large" },
+		{ F_ERR_LARGE_MINFETCH_WITH_TXCOAL3 | F_ERR_LARGE_MINFETCH_WITH_TXCOAL2 |
+		  F_ERR_LARGE_MINFETCH_WITH_TXCOAL1 | F_ERR_LARGE_MINFETCH_WITH_TXCOAL0,
+		  "SGE invalid MinFetchBurst with TxCoalesce" },
+		{ F_COAL_WITH_HP_DISABLE_ERR, "SGE coalesce with HP disable error" },
+		{ F_BAR2_EGRESS_COAL0_ERR, "SGE BAR2 PL access addr offset 0" },
+		{ F_BAR2_EGRESS_SIZE_ERR, "SGE BAR2 illegal egress QID access" },
+		{ F_FLM_PC_RSP_ERR, "SGE FLM PC response error" },
+		{ F_ERR_TH3_MAX_FETCH | F_ERR_TH2_MAX_FETCH |
+		  F_ERR_TH1_MAX_FETCH | F_ERR_TH0_MAX_FETCH,
+		  "SGE max fetch violation" },
+		{ F_ERR_RX_CPL_PACKET_SIZE1 | F_ERR_RX_CPL_PACKET_SIZE0,
+		  "SGE CPL length mismatch error" },
+		{ F_ERR_BAD_UPFL_INC_CREDIT3 | F_ERR_BAD_UPFL_INC_CREDIT2 |
+		  F_ERR_BAD_UPFL_INC_CREDIT1 | F_ERR_BAD_UPFL_INC_CREDIT0,
+		  "SGE upfl credit wrap error" },
+		{ F_ERR_PHYSADDR_LEN0_IDMA1 | F_ERR_PHYSADDR_LEN0_IDMA0,
+		  "SGE CPL_RX_PHYS_ADDR length 0 error" },
+		{ F_ERR_FLM_INVALID_PKT_DROP1 | F_ERR_FLM_INVALID_PKT_DROP0,
+		  "SGE IDMA packet drop due to invalid FLM context" },
+		{ F_ERR_UNEXPECTED_TIMER, "SGE unexpected timer error" },
+		{ 0 }
+	};
 	static const struct intr_info sge_int4_info = {
 		.name = "SGE_INT_CAUSE4",
 		.cause_reg = A_SGE_INT_CAUSE4,
 		.enable_reg = A_SGE_INT_ENABLE4,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = sge_int4_details,
 		.actions = NULL,
 	};
-	static const struct intr_info sge_int5_info = {
+	static const struct intr_details t7_sge_int5_details[] = {
+		{ F_ERR_T_RXCRC, "SGE RxCRC error" },
+		{ F_PERR_MC_RSPDATA, "SGE MC response data parity error" },
+		{ F_PERR_PC_RSPDATA, "SGE PC response data parity error" },
+		{ F_PERR_PD_RDRSPDATA, "SGE PD read response data parity error" },
+		{ F_PERR_U_RXDATA, "SGE U Rx data parity error" },
+		{ F_PERR_UD_RXDATA, "SGE UD Rx data parity error" },
+		{ F_PERR_UP_DATA, "SGE uP data parity error" },
+		{ F_PERR_CIM2SGE_RXDATA, "SGE CIM2SGE Rx data parity error" },
+		{ F_PERR_IMSG_PD_FIFO, "SGE IMSG PD FIFO parity error" },
+		{ F_PERR_ULPTX_FIFO1 | F_PERR_ULPTX_FIFO0, "SGE ULPTX FIFO parity error" },
+		{ F_PERR_IDMA2IMSG_FIFO3 | F_PERR_IDMA2IMSG_FIFO2 |
+		  F_PERR_IDMA2IMSG_FIFO1 | F_PERR_IDMA2IMSG_FIFO0,
+		  "SGE IDMA2IMSG FIFO parity error" },
+		{ F_PERR_POINTER_DATA_FIFO3 | F_PERR_POINTER_DATA_FIFO2 |
+		  F_PERR_POINTER_DATA_FIFO1 | F_PERR_POINTER_DATA_FIFO0,
+		  "SGE pointer data FIFO parity error" },
+		{ F_PERR_POINTER_HDR_FIFO3 | F_PERR_POINTER_HDR_FIFO2 |
+		  F_PERR_POINTER_HDR_FIFO1 | F_PERR_POINTER_HDR_FIFO0,
+		  "SGE pointer header FIFO parity error" },
+		{ F_PERR_PAYLOAD_FIFO1 | F_PERR_PAYLOAD_FIFO0,
+		  "SGE payload FIFO parity error" },
+		{ F_PERR_MGT_BAR2_FIFO, "SGE MGT BAR2 FIFO parity error" },
+		{ F_PERR_HEADERSPLIT_FIFO1 | F_PERR_HEADERSPLIT_FIFO0,
+		  "SGE header split FIFO parity error" },
+		{ F_PERR_HINT_DELAY_FIFO, "SGE hint delay FIFO parity error" },
+		{ 0 }
+	};
+	static const struct intr_details t6_sge_int5_details[] = {
+		{ F_ERR_T_RXCRC, "SGE T RxCRC parity error" },
+		{ F_PERR_MC_RSPDATA, "SGE MC response data parity error" },
+		{ F_PERR_PC_RSPDATA, "SGE PC response data parity error" },
+		{ F_PERR_U_RXDATA | F_PERR_UD_RXDATA, "SGE ULP Rx data parity error" },
+		{ F_PERR_UP_DATA, "SGE uP data parity error" },
+		{ F_PERR_CIM2SGE_RXDATA, "SGE CIM2SGE Rx data parity error" },
+		{ F_PERR_HINT_DELAY_FIFO1 | F_PERR_HINT_DELAY_FIFO0,
+		  "SGE hint delay FIFO parity error" },
+		{ F_PERR_IMSG_PD_FIFO, "SGE IMSG PD FIFO parity error" },
+		{ F_PERR_ULPTX_FIFO1 | F_PERR_ULPTX_FIFO0,
+		  "SGE ULPTX FIFO parity error" },
+		{ F_PERR_IDMA2IMSG_FIFO1 | F_PERR_IDMA2IMSG_FIFO0,
+		  "SGE IDMA2IMSG FIFO parity error" },
+		{ F_PERR_POINTER_DATA_FIFO1 | F_PERR_POINTER_DATA_FIFO0,
+		  "SGE pointer data FIFO parity error" },
+		{ F_PERR_POINTER_HDR_FIFO1 | F_PERR_POINTER_HDR_FIFO0,
+		  "SGE pointer header FIFO parity error" },
+		{ F_PERR_PAYLOAD_FIFO1 | F_PERR_PAYLOAD_FIFO0,
+		  "SGE payload FIFO parity error" },
+		{ F_PERR_EDMA_INPUT_FIFO3 | F_PERR_EDMA_INPUT_FIFO2 |
+		  F_PERR_EDMA_INPUT_FIFO1 | F_PERR_EDMA_INPUT_FIFO0,
+		  "SGE EDMA input FIFO parity error" },
+		{ F_PERR_MGT_BAR2_FIFO, "SGE MGT BAR2 FIFO parity error" },
+		{ F_PERR_HEADERSPLIT_FIFO1 | F_PERR_HEADERSPLIT_FIFO0,
+		  "SGE header split FIFO parity error" },
+		{ F_PERR_CIM_FIFO1 | F_PERR_CIM_FIFO0, "SGE CIM FIFO parity error" },
+		{ F_PERR_IDMA_SWITCH_OUTPUT_FIFO1 | F_PERR_IDMA_SWITCH_OUTPUT_FIFO0,
+		  "SGE IDMA switch output FIFO parity error" },
+		{ 0 }
+	};
+	struct intr_info sge_int5_info = {
 		.name = "SGE_INT_CAUSE5",
 		.cause_reg = A_SGE_INT_CAUSE5,
 		.enable_reg = A_SGE_INT_ENABLE5,
@@ -5249,14 +5637,69 @@ static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = NULL,
 		.actions = NULL,
 	};
+	static const struct intr_details sge_int6_details[] = {
+		/* T7+ */
+		{ 0xe0000000, "SGE fatal DEQ0 DRDY error" },
+		{ 0x1c000000, "SGE fatal OUT0 DRDY error" },
+		{ F_IMSG_DBG3_STUCK | F_IMSG_DBG2_STUCK |
+		  F_IMSG_DBG1_STUCK | F_IMSG_DBG0_STUCK,
+		  "SGE IMSG stuck due to insufficient credits" },
+		/* T6 + */
+		{ F_ERR_DB_SYNC, "SGE doorbell sync failed" },
+		{ F_ERR_GTS_SYNC, "SGE GTS sync failed" },
+		{ F_FATAL_LARGE_COAL, "SGE BAR2 payload too large" },
+		{ F_PL_BAR2_FRM_ERR, "SGE BAR2 framing error" },
+		{ F_SILENT_DROP_TX_COAL, "SGE silent drop of Tx coal WR" },
+		{ F_ERR_INV_CTXT4, "SGE context access for invalid queue thread 4" },
+		{ F_ERR_BAD_DB_PIDX4, "SGE doorbell pidx too large thread 4" },
+		{ F_ERR_BAD_UPFL_INC_CREDIT4, "SGE upfl credit wrap thread 4" },
+		{ F_FATAL_TAG_MISMATCH, "SGE doorbell tag mismatch" },
+		{ F_FATAL_ENQ_CTL_RDY, "SGE enq_ctl_fifo overflow" },
+		{ F_ERR_PC_RSP_LEN3 | F_ERR_PC_RSP_LEN2 |
+		  F_ERR_PC_RSP_LEN1 | F_ERR_PC_RSP_LEN0,
+		  "SGE PCIe response error for DBP threads" },
+		{ F_FATAL_ENQ2LL_VLD, "SGE tbuf fatal_enq2ll_vld" },
+		{ F_FATAL_LL_EMPTY, "SGE tbuf fatal_ll_empty" },
+		{ F_FATAL_OFF_WDENQ, "SGE tbuf fatal_off_wdenq" },
+		{ 0x00000018, "SGE tbuf fatal_deq1_drdy" },
+		{ 0x00000006, "SGE tbuf fatal_out1_drdy" },
+		{ F_FATAL_DEQ, "SGE tbuf fatal_deq" },
+		{ 0 }
+	};
 	static const struct intr_info sge_int6_info = {
 		.name = "SGE_INT_CAUSE6",
 		.cause_reg = A_SGE_INT_CAUSE6,
 		.enable_reg = A_SGE_INT_ENABLE6,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = sge_int6_details,
 		.actions = NULL,
+	};
+	static const struct intr_details sge_int7_details[] = {
+		{ F_HINT_FIFO_FULL, "SGE hint FIFO full" },
+		{ F_CERR_HINT_DELAY_FIFO, "SGE hint delay FIFO ECC error" },
+		{ F_COAL_TIMER_FIFO_PERR, "SGE coalescing timer FIFO parity error" },
+		{ F_CMP_FIFO_PERR, "SGE CMP FIFO parity error" },
+		{ F_SGE_IPP_FIFO_CERR, "SGE IPP FIFO ECC error" },
+		{ F_CERR_ING_CTXT_CACHE | F_CERR_EGR_CTXT_CACHE,
+		  "SGE context cache ECC error" },
+		{ F_IMSG_CNTX_PERR, "SGE IMSG context parity error" },
+		{ F_PD_FIFO_PERR, "SGE PD FIFO parity error" },
+		{ F_IMSG_512_FIFO_PERR, "SGE IMSG 512 FIFO parity error" },
+		{ F_CPLSW_FIFO_PERR, "SGE CPLSW FIFO parity error" },
+		{ F_IMSG_FIFO_PERR, "SGE IMSG FIFO parity error" },
+		{ F_CERR_ITP_EVR, "SGE ITP EVR ECC error" },
+		{ F_CERR_CONM_SRAM, "SGE CONM SRAM ECC error" },
+		{ F_CERR_FLM_CNTXMEM, "SGE FLM context memory ECC error" },
+		{ F_CERR_FUNC_QBASE, "SGE function queue base ECC error" },
+		{ F_IMSG_CNTX_CERR, "SGE IMSG context ECC error" },
+		{ F_PD_FIFO_CERR, "SGE PD FIFO ECC error" },
+		{ F_IMSG_512_FIFO_CERR, "SGE IMSG 512 FIFO ECC error" },
+		{ F_CPLSW_FIFO_CERR, "SGE CPLSW FIFO ECC error" },
+		{ F_IMSG_FIFO_CERR, "SGE IMSG FIFO ECC error" },
+		{ 0x0000001e, "SGE header split FIFO ECC error" }, // Bits 4:1
+		{ F_CERR_FLM_L1CACHE, "SGE FLM L1 cache ECC error" },
+		{ 0 }
 	};
 	static const struct intr_info sge_int7_info = {
 		.name = "SGE_INT_CAUSE7",
@@ -5264,8 +5707,16 @@ static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_SGE_INT_ENABLE7,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = sge_int7_details,
 		.actions = NULL,
+	};
+	static const struct intr_details sge_int8_details[] = {
+		{ F_TRACE_RXPERR, "SGE trace packet parity error" },
+		{ F_U3_RXPERR | F_U2_RXPERR | F_U1_RXPERR | F_U0_RXPERR,
+		  "SGE ULP interface parity error" },
+		{ F_T3_RXPERR | F_T2_RXPERR | F_T1_RXPERR | F_T0_RXPERR,
+		  "SGE TP interface parity error" },
+		{ 0 }
 	};
 	static const struct intr_info sge_int8_info = {
 		.name = "SGE_INT_CAUSE8",
@@ -5273,7 +5724,7 @@ static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_SGE_INT_ENABLE8,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = sge_int8_details,
 		.actions = NULL,
 	};
 	bool fatal;
@@ -5281,8 +5732,14 @@ static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
 
 	if (chip_id(adap) <= CHELSIO_T5) {
 		sge_int3_info.details = sge_int3_details;
+	} else if (chip_id(adap) == CHELSIO_T6) {
+		sge_int3_info.details = t6_sge_int3_details;
+		sge_int2_info.details = t6_sge_int2_details;
+		sge_int5_info.details = t6_sge_int5_details;
 	} else {
 		sge_int3_info.details = t6_sge_int3_details;
+		sge_int2_info.details = t7_sge_int2_details;
+		sge_int5_info.details = t7_sge_int5_details;
 	}
 
 	fatal = false;
@@ -5316,6 +5773,19 @@ static bool sge_intr_handler(struct adapter *adap, int arg, int flags)
  */
 static bool cim_intr_handler(struct adapter *adap, int arg, int flags)
 {
+	static const struct intr_details cim_host_t7_intr_details[] = {
+		{ F_CORE7ACCINT, "CIM slave core 7 access interrupt "},
+		{ F_CORE6ACCINT, "CIM slave core 6 access interrupt "},
+		{ F_CORE5ACCINT, "CIM slave core 5 access interrupt "},
+		{ F_CORE4ACCINT, "CIM slave core 4 access interrupt "},
+		{ F_CORE3ACCINT, "CIM slave core 3 access interrupt "},
+		{ F_CORE2ACCINT, "CIM slave core 2 access interrupt "},
+		{ F_CORE1ACCINT, "CIM slave core 1 access interrupt "},
+		{ F_TIMER1INT, "CIM TIMER0 interrupt" },
+		{ F_TIMER0INT, "CIM TIMER0 interrupt" },
+		{ F_PREFDROPINT, "CIM control register prefetch drop" },
+		{ 0}
+	};
 	static const struct intr_details cim_host_intr_details[] = {
 		/* T6+ */
 		{ F_PCIE2CIMINTFPARERR, "CIM IBQ PCIe interface parity error" },
@@ -5328,8 +5798,8 @@ static bool cim_intr_handler(struct adapter *adap, int arg, int flags)
 		{ F_SGE2CIMINTFPARERR, "CIM IBQ SGE interface parity error" },
 		{ F_ULP2CIMINTFPARERR, "CIM IBQ ULP_TX interface parity error" },
 		{ F_TP2CIMINTFPARERR, "CIM IBQ TP interface parity error" },
-		{ F_OBQSGERX1PARERR, "CIM OBQ SGE1_RX parity error" },
-		{ F_OBQSGERX0PARERR, "CIM OBQ SGE0_RX parity error" },
+		{ F_OBQSGERX1PARERR, "CIM OBQ PCIE_RX parity error" },
+		{ F_OBQSGERX0PARERR, "CIM OBQ SGE_RX parity error" },
 
 		/* T4+ */
 		{ F_TIEQOUTPARERRINT, "CIM TIEQ outgoing FIFO parity error" },
@@ -5354,16 +5824,17 @@ static bool cim_intr_handler(struct adapter *adap, int arg, int flags)
 		{ F_PREFDROPINT, "CIM control register prefetch drop" },
 		{ 0}
 	};
-	static const struct intr_info cim_host_intr_info = {
+	struct intr_info cim_host_intr_info = {
 		.name = "CIM_HOST_INT_CAUSE",
 		.cause_reg = A_CIM_HOST_INT_CAUSE,
 		.enable_reg = A_CIM_HOST_INT_ENABLE,
 		.fatal = 0x007fffe6,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = cim_host_intr_details,
+		.details = NULL,
 		.actions = NULL,
 	};
 	static const struct intr_details cim_host_upacc_intr_details[] = {
+		{ F_CONWRERRINT, "CIM condition write error "},
 		{ F_EEPROMWRINT, "CIM EEPROM came out of busy state" },
 		{ F_TIMEOUTMAINT, "CIM PIF MA timeout" },
 		{ F_TIMEOUTINT, "CIM PIF timeout" },
@@ -5423,18 +5894,54 @@ static bool cim_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = NULL,
 		.actions = NULL,
 	};
+	static const struct intr_details cim_perr_cause_details[] = {
+		{ F_T7_MA_CIM_INTFPERR, "MA2CIM interface parity error" },
+		{ F_T7_MBHOSTPARERR, "Mailbox Host Read parity error" },
+		{ F_MAARBINVRSPTAG, "MA Arbiter Invalid Response Tag (Fatal)" },
+		{ F_MAARBFIFOPARERR, "MA Arbiter FIFO Parity Error" },
+		{ F_SEMSRAMPARERR, "Semaphore logic SRAM Parity Error" },
+		{ F_RSACPARERR, "RSA Code SRAM Parity Error" },
+		{ F_RSADPARERR, "RSA Data SRAM Parity Error" },
+		{ F_T7_PLCIM_MSTRSPDATAPARERR, "PL2CIM Master response data parity error" },
+		{ F_T7_PCIE2CIMINTFPARERR, "IBQ PCIE intf parity error" },
+		{ F_T7_NCSI2CIMINTFPARERR, "IBQ NCSI intf parity error" },
+		{ F_T7_SGE2CIMINTFPARERR, "IBQ SGE Intf Parity error" },
+		{ F_T7_ULP2CIMINTFPARERR, "IBQ ULP_TX intf parity error" },
+		{ F_T7_TP2CIMINTFPARERR, "IBQ TP intf parity error" },
+		{ F_CORE7PARERR, "Slave Core7 parity error" },
+		{ F_CORE6PARERR, "Slave Core6 parity error" },
+		{ F_CORE5PARERR, "Slave Core5 parity error" },
+		{ F_CORE4PARERR, "Slave Core4 parity error" },
+		{ F_CORE3PARERR, "Slave Core3 parity error" },
+		{ F_CORE2PARERR, "Slave Core2 parity error" },
+		{ F_CORE1PARERR, "Slave Core1 parity error" },
+		{ F_GFTPARERR, "GFT block Memory parity error" },
+		{ F_MPSRSPDATAPARERR, "MPS lookup interface Response parity error" },
+		{ F_ER_RSPDATAPARERR, "Expansion ROM/Flash Interface Response Parity Error" },
+		{ F_FLOWFIFOPARERR, "SGE FlowID Prefetch FIFO Parity Error" },
+		{ F_OBQSRAMPARERR, "OBQ SRAM Parity Error" },
+		{ F_TIEQOUTPARERR, "TIE Queue Outgoing FIFO parity error" },
+		{ F_TIEQINPARERR, "TIE Queue Incoming FIFO parity error" },
+		{ F_PIFRSPPARERR, "PIF Response interface FIFO Parity error" },
+		{ F_PIFREQPARERR, "PIF Request interface FIFO Parity error" },
+		{ 0 }
+	};
 	static const struct intr_info cim_perr_cause = {
 		.name = "CIM_PERR_CAUSE",
 		.cause_reg = A_CIM_PERR_CAUSE,
 		.enable_reg = A_CIM_PERR_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = cim_perr_cause_details,
 		.actions = NULL,
 	};
 	u32 val, fw_err;
 	bool fatal;
 
+	if (chip_id(adap) >= CHELSIO_T7)
+		cim_host_intr_info.details = cim_host_t7_intr_details;
+	else
+		cim_host_intr_info.details = cim_host_intr_details;
 	/*
 	 * When the Firmware detects an internal error which normally wouldn't
 	 * raise a Host Interrupt, it forces a CIM Timer0 interrupt in order
@@ -5477,14 +5984,79 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 		{ 0x007fffff, "ULPRX parity error" },
 		{ 0 }
 	};
-	static const struct intr_info ulprx_intr_info = {
+	static const struct intr_details t6_ulprx_int_cause_details[] = {
+		{ F_SE_CNT_MISMATCH_1, "SE count mismatch in channel1" },
+		{ F_SE_CNT_MISMATCH_0, "SE count mismatch in channel 0" },
+		{ F_CAUSE_CTX_1, "Context access error on channel 1" },
+		{ F_CAUSE_CTX_0, "Context access error on channel 0" },
+		{ F_CAUSE_FF, "filp-flop based fifos" },
+		{ F_CAUSE_APF_1, "Arb prefetch memory, channel 1" },
+		{ F_CAUSE_APF_0, "Arb prefetch memory, channel 0" },
+		{ F_CAUSE_AF_1, "Arb fetch memory, channel 1" },
+		{ F_CAUSE_AF_0, "Arb fetch memory, channel 0" },
+		{ F_CAUSE_DDPDF_1, "ddp_data_fifo Fifo, channel 1" },
+		{ F_CAUSE_DDPMF_1, "ddp_msg_fifo Fifo, channel 1" },
+		{ F_CAUSE_MEMRF_1, "mem_req_fifo_d Fifo, channel 1" },
+		{ F_CAUSE_PRSDF_1, "prsr_data_fifo Fifo, channel 1" },
+		{ F_CAUSE_DDPDF_0, "ddp_data_fifo Fifo, channel 0" },
+		{ F_CAUSE_DDPMF_0, "ddp_msg_fifo Fifo, channel 0" },
+		{ F_CAUSE_MEMRF_0, "mem_req_fifo_d Fifo, channel 0" },
+		{ F_CAUSE_PRSDF_0, "prsr_data_fifo Fifo, channel 0" },
+		{ F_CAUSE_PCMDF_1, "Pcmd Fifo, channel 1" },
+		{ F_CAUSE_TPTCF_1, "tpt_ctl_fifo Fifo, channel 1" },
+		{ F_CAUSE_DDPCF_1, "ddp_ctl_fifo Fifo, channel 1" },
+		{ F_CAUSE_MPARF_1, "mpar_ctl_fifo Fifo, channel 1" },
+		{ F_CAUSE_MPARC_1, "mpac_ctl_fifo Fifo, channel 1" },
+		{ F_CAUSE_PCMDF_0, "Pcmd Fifo, channel 0" },
+		{ F_CAUSE_TPTCF_0, "tpt_ctl_fifo Fifo, channel 0" },
+		{ F_CAUSE_DDPCF_0, "ddp_ctl_fifo Fifo, channel 0" },
+		{ F_CAUSE_MPARF_0, "mpar_ctl_fifo Fifo, channel 0" },
+		{ F_CAUSE_MPARC_0, "mpac_ctl_fifo Fifo, channel 0" },
+		{ 0 }
+	};
+	static const struct intr_details t7_ulprx_int_cause_details[] = {
+		{ F_CERR_PCMD_FIFO_3, "PCMD FIFO correctable Error3" },
+		{ F_CERR_PCMD_FIFO_2, "PCMD FIFO correctable Error2" },
+		{ F_CERR_PCMD_FIFO_1, "PCMD FIFO correctable Error1" },
+		{ F_CERR_PCMD_FIFO_0, "PCMD FIFO correctable Error0" },
+		{ F_CERR_DATA_FIFO_3, "DDP Data FIFO correctable Error3" },
+		{ F_CERR_DATA_FIFO_2, "DDP Data FIFO correctable Error2" },
+		{ F_CERR_DATA_FIFO_1, "DDP Data FIFO correctable Error1" },
+		{ F_CERR_DATA_FIFO_0, "DDP Data FIFO correctable Error0" },
+		{ F_SE_CNT_MISMATCH_3, "SE count mismatch in channel3" },
+		{ F_SE_CNT_MISMATCH_2, "SE count mismatch in channel2" },
+		{ F_T7_SE_CNT_MISMATCH_1, "SE count mismatch in channel1" },
+		{ F_T7_SE_CNT_MISMATCH_0, "SE count mismatch in channel 0" },
+		{ F_T7_ENABLE_CTX_3, "Context access error on channel 3" },
+		{ F_T7_ENABLE_CTX_2, "Context access error on channel 2" },
+		{ F_T7_ENABLE_CTX_1, "Context access error on channel 1" },
+		{ F_T7_ENABLE_CTX_0, "Context access error on channel 0" },
+		{ F_T7_ENABLE_ALN_SDC_ERR_3, "SDC error reported by aligner in channel3" },
+		{ F_T7_ENABLE_ALN_SDC_ERR_2, "SDC error reported by aligner in channel2" },
+		{ F_T7_ENABLE_ALN_SDC_ERR_1, "SDC error reported by aligner in channel1" },
+		{ F_T7_ENABLE_ALN_SDC_ERR_0, "SDC error reported by aligner in channel0" },
+		{ 0 }
+	};
+	struct intr_info ulprx_intr_info = {
 		.name = "ULP_RX_INT_CAUSE",
 		.cause_reg = A_ULP_RX_INT_CAUSE,
 		.enable_reg = A_ULP_RX_INT_ENABLE,
 		.fatal = 0x07ffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = ulprx_intr_details,
+		.details = NULL,
 		.actions = NULL,
+	};
+	static const struct intr_details ulprx_int_cause_2_details[] = {
+		{ F_ULPRX2MA_INTFPERR, "SDC error reported by ULPRX2MA interface parity checker" },
+		{ F_ALN_SDC_ERR_1, "SDC error reported by aligner in channel 1" },
+		{ F_ALN_SDC_ERR_0, "SDC error reported by aligner in channel 0" },
+		{ F_PF_UNTAGGED_TPT_1, "Parity error from Untagged TPT prefetch fifo channel 1" },
+		{ F_PF_UNTAGGED_TPT_0, "Parity error from Untagged TPT prefetch fifo channel 0" },
+		{ F_PF_PBL_1, "Parity error from PBL prefetch fifo channel 1" },
+		{ F_PF_PBL_0, "Parity error from PBL prefetch fifo channel 0" },
+		{ F_DDP_HINT_1, "DDP hint fifo Perr in channel 1" },
+		{ F_DDP_HINT_0, "DDP hint fifo Perr in channel 0" },
+		{ 0 }
 	};
 	static const struct intr_info ulprx_intr2_info = {
 		.name = "ULP_RX_INT_CAUSE_2",
@@ -5492,8 +6064,39 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_RX_INT_ENABLE_2,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ulprx_int_cause_2_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulprx_int_cause_pcmd_details[] = {
+		{ F_CAUSE_PCMD_SFIFO_3, "Small FIFOs, channel 3" },
+		{ F_CAUSE_PCMD_FIFO_3, "pcmd_ctl_fifo, channel 3" },
+		{ F_CAUSE_PCMD_DDP_HINT_3, "ddp_hint_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_PCMD_TPT_3, "tpt_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_PCMD_DDP_3, "ddp_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_PCMD_MPAR_3, "mpar_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_PCMD_MPAC_3, "mpac_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_PCMD_SFIFO_2, "Small FIFOs, channel 2" },
+		{ F_CAUSE_PCMD_FIFO_2, "pcmd_ctl_fifo, channel 2" },
+		{ F_CAUSE_PCMD_DDP_HINT_2, "ddp_hint_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_PCMD_TPT_2, "tpt_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_PCMD_DDP_2, "ddp_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_PCMD_MPAR_2, "mpar_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_PCMD_MPAC_2, "mpac_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_PCMD_SFIFO_1, "Small FIFOs, channel 1" },
+		{ F_CAUSE_PCMD_FIFO_1, "pcmd_ctl_fifo, channel 1" },
+		{ F_CAUSE_PCMD_DDP_HINT_1, "ddp_hint_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_PCMD_TPT_1, "tpt_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_PCMD_DDP_1, "ddp_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_PCMD_MPAR_1, "mpar_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_PCMD_MPAC_1, "mpac_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_PCMD_SFIFO_0, "Small FIFOs, channel 0" },
+		{ F_CAUSE_PCMD_FIFO_0, "pcmd_ctl_fifo, channel 0" },
+		{ F_CAUSE_PCMD_DDP_HINT_0, "ddp_hint_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_PCMD_TPT_0, "tpt_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_PCMD_DDP_0, "ddp_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_PCMD_MPAR_0, "mpar_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_PCMD_MPAC_0, "mpac_ctl_fifo FIFO, channel 0" },
+		{ 0 }
 	};
 	static const struct intr_info ulprx_int_cause_pcmd = {
 		.name = "ULP_RX_INT_CAUSE_PCMD",
@@ -5501,8 +6104,35 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_RX_INT_ENABLE_PCMD,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ulprx_int_cause_pcmd_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulprx_int_cause_data_details[] = {
+		{ F_CAUSE_DATA_SNOOP_3, "Snoop FIFO, channel 3" },
+		{ F_CAUSE_DATA_SFIFO_3, "Small FIFO, channel 3" },
+		{ F_CAUSE_DATA_FIFO_3, "data_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_DATA_DDP_3, "ddp_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_DATA_CTX_3, "ctx_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_DATA_PARSER_3, "parser_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_DATA_SNOOP_2, "Snoop FIFO, channel 2" },
+		{ F_CAUSE_DATA_SFIFO_2, "Small FIFO, channel 2" },
+		{ F_CAUSE_DATA_FIFO_2, "data_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_DATA_DDP_2, "ddp_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_DATA_CTX_2, "ctx_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_DATA_PARSER_2, "parser_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_DATA_SNOOP_1, "Snoop FIFO, channel 1" },
+		{ F_CAUSE_DATA_SFIFO_1, "Small FIFO, channel 1" },
+		{ F_CAUSE_DATA_FIFO_1, "data_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_DATA_DDP_1, "ddp_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_DATA_CTX_1, "ctx_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_DATA_PARSER_1, "parser_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_DATA_SNOOP_0, "Snoop FIFO, channel 0" },
+		{ F_CAUSE_DATA_SFIFO_0, "Small FIFO, channel 0" },
+		{ F_CAUSE_DATA_FIFO_0, "data_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_DATA_DDP_0, "ddp_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_DATA_CTX_0, "ctx_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_DATA_PARSER_0, "parser_ctl_fifo FIFO, channel 0" },
+		{ 0 }
 	};
 	static const struct intr_info ulprx_int_cause_data = {
 		.name = "ULP_RX_INT_CAUSE_DATA",
@@ -5510,8 +6140,27 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_RX_INT_ENABLE_DATA,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ulprx_int_cause_data_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulprx_int_cause_arb_details[] = {
+		{ F_CAUSE_ARB_PBL_PF_3, "pbl_pf_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_ARB_PF_3, "pf_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_ARB_TPT_PF_3, "tpt_pf_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_ARB_F_3, "f_ctl_fifo FIFO, channel 3" },
+		{ F_CAUSE_ARB_PBL_PF_2, "pbl_pf_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_ARB_PF_2, "pf_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_ARB_TPT_PF_2, "tpt_pf_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_ARB_F_2, "f_ctl_fifo FIFO, channel 2" },
+		{ F_CAUSE_ARB_PBL_PF_1, "pbl_pf_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_ARB_PF_1, "pf_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_ARB_TPT_PF_1, "tpt_pf_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_ARB_F_1, "f_ctl_fifo FIFO, channel 1" },
+		{ F_CAUSE_ARB_PBL_PF_0, "pbl_pf_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_ARB_PF_0, "pf_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_ARB_TPT_PF_0, "tpt_pf_ctl_fifo FIFO, channel 0" },
+		{ F_CAUSE_ARB_F_0, "f_ctl_fifo FIFO, channel 0" },
+		{ 0 }
 	};
 	static const struct intr_info ulprx_int_cause_arb = {
 		.name = "ULP_RX_INT_CAUSE_ARB",
@@ -5519,8 +6168,34 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_RX_INT_ENABLE_ARB,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ulprx_int_cause_arb_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulprx_int_cause_interface_details[] = {
+		{ F_CAUSE_ULPRX2SBT_RSPPERR, "ULPRX2SBT_RspPerr" },
+		{ F_CAUSE_ULPRX2MA_RSPPERR, "ULPRX2MA_RspPerr" },
+		{ F_CAUSE_PIO_BUS_PERR, "Pio_Bus_Perr" },
+		{ F_CAUSE_PM2ULP_SNOOPDATA_3, "PM2ULP_SnoopData, channel 3" },
+		{ F_CAUSE_PM2ULP_SNOOPDATA_2, "PM2ULP_SnoopData, channel 2" },
+		{ F_CAUSE_PM2ULP_SNOOPDATA_1, "PM2ULP_SnoopData, channel 1" },
+		{ F_CAUSE_PM2ULP_SNOOPDATA_0, "PM2ULP_SnoopData, channel 0" },
+		{ F_CAUSE_TLS2ULP_DATA_3, "TLS2ULP_Data, channel 3" },
+		{ F_CAUSE_TLS2ULP_DATA_2, "TLS2ULP_Data, channel 2" },
+		{ F_CAUSE_TLS2ULP_DATA_1, "TLS2ULP_Data, channel 1" },
+		{ F_CAUSE_TLS2ULP_DATA_0, "TLS2ULP_Data, channel 0" },
+		{ F_CAUSE_TLS2ULP_PLENDATA_3, "TLS2ULP_PLenData, channel 3" },
+		{ F_CAUSE_TLS2ULP_PLENDATA_2, "TLS2ULP_PLenData, channel 2" },
+		{ F_CAUSE_TLS2ULP_PLENDATA_1, "TLS2ULP_PLenData, channel 1" },
+		{ F_CAUSE_TLS2ULP_PLENDATA_0, "TLS2ULP_PLenData, channel 0" },
+		{ F_CAUSE_PM2ULP_DATA_3, "Pm2Ulp_Data, channel 3" },
+		{ F_CAUSE_PM2ULP_DATA_2, "Pm2Ulp_Data, channel 2" },
+		{ F_CAUSE_PM2ULP_DATA_1, "Pm2Ulp_Data, channel 1" },
+		{ F_CAUSE_PM2ULP_DATA_0, "Pm2Ulp_Data, channel 0" },
+		{ F_CAUSE_TP2ULP_PCMD_3, "Tp2Ulp_Pcmd, channel 3" },
+		{ F_CAUSE_TP2ULP_PCMD_2, "Tp2Ulp_Pcmd, channel 2" },
+		{ F_CAUSE_TP2ULP_PCMD_1, "Tp2Ulp_Pcmd, channel 1" },
+		{ F_CAUSE_TP2ULP_PCMD_0, "Tp2Ulp_Pcmd, channel 0" },
+		{ 0 }
 	};
 	static const struct intr_info ulprx_int_cause_intf = {
 		.name = "ULP_RX_INT_CAUSE_INTERFACE",
@@ -5528,10 +6203,17 @@ static bool ulprx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_RX_INT_ENABLE_INTERFACE,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ulprx_int_cause_interface_details,
 		.actions = NULL,
 	};
 	bool fatal = false;
+
+	if (chip_id(adap) <= CHELSIO_T5)
+		ulprx_intr_info.details = ulprx_intr_details;
+	else if (chip_id(adap) <= CHELSIO_T6)
+		ulprx_intr_info.details =  t6_ulprx_int_cause_details;
+	else
+		ulprx_intr_info.details = t7_ulprx_int_cause_details;
 
 	fatal |= t4_handle_intr(adap, &ulprx_intr_info, 0, flags);
 	if (chip_id(adap) < CHELSIO_T7)
@@ -5559,14 +6241,101 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		{ 0x0fffffff, "ULPTX parity error" },
 		{ 0 }
 	};
-	static const struct intr_info ulptx_intr_info = {
+	static const struct intr_details t6_ulptx_int_cause_details[] = {
+		{ F_PBL_BOUND_ERR_CH3 | F_PBL_BOUND_ERR_CH2 |
+		  F_PBL_BOUND_ERR_CH1 | F_PBL_BOUND_ERR_CH0,
+		  "PBL address out of bounds" },
+		{ F_SGE2ULP_FIFO_PERR_SET3 | F_SGE2ULP_FIFO_PERR_SET2 |
+		  F_SGE2ULP_FIFO_PERR_SET1 | F_SGE2ULP_FIFO_PERR_SET0,
+		  "SGE2ULP fifo parity error" },
+		{ F_CIM2ULP_FIFO_PERR_SET3 | F_CIM2ULP_FIFO_PERR_SET2 |
+		  F_CIM2ULP_FIFO_PERR_SET1 | F_CIM2ULP_FIFO_PERR_SET0,
+		  "CIM2ULP fifo parity error" },
+		{ F_CQE_FIFO_PERR_SET3 | F_CQE_FIFO_PERR_SET2 |
+		  F_CQE_FIFO_PERR_SET1 | F_CQE_FIFO_PERR_SET0,
+		  "CQE fifo parity error" },
+		{ F_PBL_FIFO_PERR_SET3 | F_PBL_FIFO_PERR_SET2 |
+		  F_PBL_FIFO_PERR_SET1 | F_PBL_FIFO_PERR_SET0,
+		  "PBL fifo parity error" },
+		{ F_CMD_FIFO_PERR_SET3 | F_CMD_FIFO_PERR_SET2 |
+		  F_CMD_FIFO_PERR_SET1 | F_CMD_FIFO_PERR_SET0,
+		  "Command fifo parity error" },
+		{ F_LSO_HDR_SRAM_PERR_SET3 | F_LSO_HDR_SRAM_PERR_SET2 |
+		  F_LSO_HDR_SRAM_PERR_SET1 | F_LSO_HDR_SRAM_PERR_SET0,
+		  "LSO hdr parity error" },
+		{ 0 }
+	};
+	struct intr_info ulptx_intr_info = {
 		.name = "ULP_TX_INT_CAUSE",
 		.cause_reg = A_ULP_TX_INT_CAUSE,
 		.enable_reg = A_ULP_TX_INT_ENABLE,
 		.fatal = 0x0fffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = ulptx_intr_details,
+		.details = NULL,
 		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_1_details[] = {
+		{ F_PBL_BOUND_ERR_CH3 | F_PBL_BOUND_ERR_CH2 |
+		  F_PBL_BOUND_ERR_CH1 | F_PBL_BOUND_ERR_CH0,
+		  "PBL address out of bounds (configured PBL_ULIMIT/LLIMIT)" },
+		{ F_SGE2ULP_FIFO_PERR_SET3 | F_SGE2ULP_FIFO_PERR_SET2 |
+		  F_SGE2ULP_FIFO_PERR_SET1 | F_SGE2ULP_FIFO_PERR_SET0,
+		  "SGE2ULP FIFO parity error" },
+		{ F_CIM2ULP_FIFO_PERR_SET3 | F_CIM2ULP_FIFO_PERR_SET2 |
+		  F_CIM2ULP_FIFO_PERR_SET1 | F_CIM2ULP_FIFO_PERR_SET0,
+		  "CIM2ULP FIFO parity error" },
+		{ F_CQE_FIFO_PERR_SET3 | F_CQE_FIFO_PERR_SET2 |
+		  F_CQE_FIFO_PERR_SET1 | F_CQE_FIFO_PERR_SET0,
+		  "CQE FIFO parity error" },
+		{ F_PBL_FIFO_PERR_SET3 | F_PBL_FIFO_PERR_SET2 |
+		  F_PBL_FIFO_PERR_SET1 | F_PBL_FIFO_PERR_SET0,
+		  "PBL FIFO parity error" },
+		{ F_CMD_FIFO_PERR_SET3 | F_CMD_FIFO_PERR_SET2 |
+		  F_CMD_FIFO_PERR_SET1 | F_CMD_FIFO_PERR_SET0,
+		  "Command FIFO parity error" },
+		{ F_LSO_HDR_SRAM_PERR_SET3 | F_LSO_HDR_SRAM_PERR_SET2 |
+		  F_LSO_HDR_SRAM_PERR_SET1 | F_LSO_HDR_SRAM_PERR_SET0,
+		  "LSO HDR parity error" },
+		{ F_TLS_DSGL_PARERR3 | F_TLS_DSGL_PARERR2 |
+		  F_TLS_DSGL_PARERR1 | F_TLS_DSGL_PARERR0,
+		  "TLS Glue DSGL FIFO parity error" },
+		{ 0 }
+	};
+	static const struct intr_info ulptx_intr_info1 = {
+		.name = "ULP_TX_INT_CAUSE_1",
+		.cause_reg = A_ULP_TX_INT_CAUSE_1,
+		.enable_reg = A_ULP_TX_INT_ENABLE_1,
+		.fatal = 0x0fffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = ulptx_int_cause_1_details,
+		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_2_details[] = {
+		{ F_EDMA_IN_FIFO_PERR_SET3 | F_EDMA_IN_FIFO_PERR_SET2 |
+		  F_EDMA_IN_FIFO_PERR_SET1 | F_EDMA_IN_FIFO_PERR_SET0,
+		  "EDMA input FIFO parity error" },
+		{ F_ALIGN_CTL_FIFO_PERR_SET3 | F_ALIGN_CTL_FIFO_PERR_SET2 |
+		  F_ALIGN_CTL_FIFO_PERR_SET1 | F_ALIGN_CTL_FIFO_PERR_SET0,
+		  "Align control FIFO parity error" },
+		{ F_SGE_FIFO_PERR_SET3 | F_SGE_FIFO_PERR_SET2 |
+		  F_SGE_FIFO_PERR_SET1 | F_SGE_FIFO_PERR_SET0,
+		  "SGE FIFO parity error" },
+		{ F_STAG_FIFO_PERR_SET3 | F_STAG_FIFO_PERR_SET2 |
+		  F_STAG_FIFO_PERR_SET1 | F_STAG_FIFO_PERR_SET0,
+		  "STAG FIFO parity error" },
+		{ F_MAP_FIFO_PERR_SET3 | F_MAP_FIFO_PERR_SET2 |
+		  F_MAP_FIFO_PERR_SET1 | F_MAP_FIFO_PERR_SET0,
+		  "MAP FIFO parity error" },
+		{ F_DMA_FIFO_PERR_SET3 | F_DMA_FIFO_PERR_SET2 |
+		  F_DMA_FIFO_PERR_SET1 | F_DMA_FIFO_PERR_SET0,
+		  "DMA FIFO parity error" },
+		{ F_FSO_HDR_SRAM_PERR_SET3 | F_FSO_HDR_SRAM_PERR_SET2 |
+		  F_FSO_HDR_SRAM_PERR_SET1 | F_FSO_HDR_SRAM_PERR_SET0,
+		  "FSO HDR memory parity error" },
+		{ F_T10_PI_SRAM_PERR_SET3 | F_T10_PI_SRAM_PERR_SET2 |
+		  F_T10_PI_SRAM_PERR_SET1 | F_T10_PI_SRAM_PERR_SET0,
+		  "T10 PI memory parity error" },
+		{ 0 }
 	};
 	static const struct intr_info ulptx_intr_info2 = {
 		.name = "ULP_TX_INT_CAUSE_2",
@@ -5574,8 +6343,36 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_TX_INT_ENABLE_2,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = ulptx_int_cause_2_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_3_details[] = {
+		{ F_GF_SGE_FIFO_PARERR3 | F_GF_SGE_FIFO_PARERR2 |
+		  F_GF_SGE_FIFO_PARERR1 | F_GF_SGE_FIFO_PARERR0,
+		  "GF SGE interface FIFO parity error" },
+		{ F_DEDUPE_SGE_FIFO_PARERR3 | F_DEDUPE_SGE_FIFO_PARERR2 |
+		  F_DEDUPE_SGE_FIFO_PARERR1 | F_DEDUPE_SGE_FIFO_PARERR0,
+		  "DeDupe SGE interface FIFO parity error" },
+		{ F_GF3_DSGL_FIFO_PARERR | F_GF2_DSGL_FIFO_PARERR |
+		  F_GF1_DSGL_FIFO_PARERR | F_GF0_DSGL_FIFO_PARERR,
+		  "GF DSGL FIFO parity error" },
+		{ F_DEDUPE3_DSGL_FIFO_PARERR | F_DEDUPE2_DSGL_FIFO_PARERR |
+		  F_DEDUPE1_DSGL_FIFO_PARERR | F_DEDUPE0_DSGL_FIFO_PARERR,
+		  "DeDupe DSGL FIFO parity error" },
+		{ F_XP10_SGE_FIFO_PARERR, "XP10 SGE FIFO parity error (Ch0)" },
+		{ F_DSGL_PAR_ERR, "XP10 DSGL interface parity error" },
+		{ F_CDDIP_INT, "XP10 decompression interrupt" },
+		{ F_CCEIP_INT, "XP10 compression interrupt" },
+		{ F_TLS_SGE_FIFO_PARERR3 | F_TLS_SGE_FIFO_PARERR2 |
+		  F_TLS_SGE_FIFO_PARERR1 | F_TLS_SGE_FIFO_PARERR0,
+		  "TLS Glue SGE FIFO parity error" },
+		{ F_ULP2SMARBT_RSP_PERR, "ULP2SMARBT response data/CTL parity error" },
+		{ F_ULPTX2MA_RSP_PERR, "ULP2MA response data/CTL parity error" },
+		{ F_PCIE2ULP_PERR3 | F_PCIE2ULP_PERR2 |
+		  F_PCIE2ULP_PERR1 | F_PCIE2ULP_PERR0,
+		  "PCIE2ULP EDMA response parity error" },
+		{ F_CIM2ULP_PERR, "CIM2ULP command parity error (all ports)" },
+		{ 0 }
 	};
 	static const struct intr_info ulptx_intr_info3 = {
 		.name = "ULP_TX_INT_CAUSE_3",
@@ -5583,8 +6380,19 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_TX_INT_ENABLE_3,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = ulptx_int_cause_3_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_4_details[] = {
+		{ F_XP10_2_ULP_PERR, "XP10 to ULP parity error" },
+		{ F_ULP_2_XP10_PERR, "ULP to XP10 parity error" },
+		{ F_CMD_FIFO_LB1 | F_CMD_FIFO_LB0,
+		  "Command FIFO LB error" },
+		{ F_TF_TP_PERR, "TF TP parity error" },
+		{ F_TF_SGE_PERR, "TF SGE parity error" },
+		{ F_TF_MEM_PERR, "TF memory parity error" },
+		{ F_TF_MP_PERR, "TF MP parity error" },
+		{ 0 }
 	};
 	static const struct intr_info ulptx_intr_info4 = {
 		.name = "ULP_TX_INT_CAUSE_4",
@@ -5592,8 +6400,24 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_TX_INT_ENABLE_4,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = ulptx_int_cause_4_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_5_details[] = {
+		{ F_DEDUPE_PERR3 | F_DEDUPE_PERR2 |
+		  F_DEDUPE_PERR1 | F_DEDUPE_PERR0,
+		  "DeDupe parity error" },
+		{ F_GF_PERR3 | F_GF_PERR2 |
+		  F_GF_PERR1 | F_GF_PERR0,
+		  "GF parity error" },
+		{ F_SGE2ULP_INV_PERR, "SGE2ULP invalid parity error" },
+		{ F_T7_PL_BUSPERR, "PL bus parity error" },
+		{ F_TLSTX2ULPTX_PERR3 | F_TLSTX2ULPTX_PERR2 |
+		  F_TLSTX2ULPTX_PERR1 | F_TLSTX2ULPTX_PERR0,
+		  "TLS to ULP parity error" },
+		{ F_XP10_2_ULP_PL_PERR, "XP10 to ULP PL parity error" },
+		{ F_ULP_2_XP10_PL_PERR, "ULP to XP10 PL parity error" },
+		{ 0 }
 	};
 	static const struct intr_info ulptx_intr_info5 = {
 		.name = "ULP_TX_INT_CAUSE_5",
@@ -5601,8 +6425,21 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_TX_INT_ENABLE_5,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = ulptx_int_cause_5_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_6_details[] = {
+		{ F_DDR_HDR_FIFO_PERR_SET3 | F_DDR_HDR_FIFO_PERR_SET2 |
+		  F_DDR_HDR_FIFO_PERR_SET1 | F_DDR_HDR_FIFO_PERR_SET0,
+		  "DDR HDR FIFO parity error" },
+		{ F_PRE_MP_RSP_PERR_SET3 | F_PRE_MP_RSP_PERR_SET2 |
+		  F_PRE_MP_RSP_PERR_SET1 | F_PRE_MP_RSP_PERR_SET0,
+		  "Pre-MP response parity error" },
+		{ F_PRE_CQE_FIFO_PERR_SET3 | F_PRE_CQE_FIFO_PERR_SET2 |
+		  F_PRE_CQE_FIFO_PERR_SET1 | F_PRE_CQE_FIFO_PERR_SET0,
+		  "Pre-CQE FIFO parity error" },
+		{ F_RSP_FIFO_PERR_SET, "Response FIFO parity error" },
+		{ 0 }
 	};
 	static const struct intr_info ulptx_intr_info6 = {
 		.name = "ULP_TX_INT_CAUSE_6",
@@ -5610,8 +6447,29 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_TX_INT_ENABLE_6,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = ulptx_int_cause_6_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_7_details[] = {
+		{ F_TLS_SGE_FIFO_CORERR3 | F_TLS_SGE_FIFO_CORERR2 |
+		  F_TLS_SGE_FIFO_CORERR1 | F_TLS_SGE_FIFO_CORERR0,
+		  "TLS SGE FIFO correctable error" },
+		{ F_LSO_HDR_SRAM_CERR_SET3 | F_LSO_HDR_SRAM_CERR_SET2 |
+		  F_LSO_HDR_SRAM_CERR_SET1 | F_LSO_HDR_SRAM_CERR_SET0,
+		  "LSO HDR SRAM correctable error" },
+		{ F_CORE_CMD_FIFO_CERR_SET_CH3_LB1 | F_CORE_CMD_FIFO_CERR_SET_CH2_LB1 |
+		  F_CORE_CMD_FIFO_CERR_SET_CH1_LB1 | F_CORE_CMD_FIFO_CERR_SET_CH0_LB1,
+		  "Core command FIFO LB1 correctable error" },
+		{ F_CORE_CMD_FIFO_CERR_SET_CH3_LB0 | F_CORE_CMD_FIFO_CERR_SET_CH2_LB0 |
+		  F_CORE_CMD_FIFO_CERR_SET_CH1_LB0 | F_CORE_CMD_FIFO_CERR_SET_CH0_LB0,
+		  "Core command FIFO LB0 correctable error" },
+		{ F_CQE_FIFO_CERR_SET3 | F_CQE_FIFO_CERR_SET2 |
+		  F_CQE_FIFO_CERR_SET1 | F_CQE_FIFO_CERR_SET0,
+		  "CQE FIFO correctable error" },
+		{ F_PRE_CQE_FIFO_CERR_SET3 | F_PRE_CQE_FIFO_CERR_SET2 |
+		  F_PRE_CQE_FIFO_CERR_SET1 | F_PRE_CQE_FIFO_CERR_SET0,
+		  "Pre-CQE FIFO correctable error" },
+		{ 0 }
 	};
 	static const struct intr_info ulptx_intr_info7 = {
 		.name = "ULP_TX_INT_CAUSE_7",
@@ -5619,8 +6477,33 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_TX_INT_ENABLE_7,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ulptx_int_cause_7_details,
 		.actions = NULL,
+	};
+	static const struct intr_details ulptx_int_cause_8_details[] = {
+		{ F_MEM_RSP_FIFO_CERR_SET3 | F_MEM_RSP_FIFO_CERR_SET2 |
+		  F_MEM_RSP_FIFO_CERR_SET1 | F_MEM_RSP_FIFO_CERR_SET0,
+		  "Memory response FIFO correctable error" },
+		{ F_PI_SRAM_CERR_SET3 | F_PI_SRAM_CERR_SET2 |
+		  F_PI_SRAM_CERR_SET1 | F_PI_SRAM_CERR_SET0,
+		  "PI SRAM correctable error" },
+		{ F_PRE_MP_RSP_CERR_SET3 | F_PRE_MP_RSP_CERR_SET2 |
+		  F_PRE_MP_RSP_CERR_SET1 | F_PRE_MP_RSP_CERR_SET0,
+		  "Pre-MP response correctable error" },
+		{ F_DDR_HDR_FIFO_CERR_SET3 | F_DDR_HDR_FIFO_CERR_SET2 |
+		  F_DDR_HDR_FIFO_CERR_SET1 | F_DDR_HDR_FIFO_CERR_SET0,
+		  "DDR HDR FIFO correctable error" },
+		{ F_CMD_FIFO_CERR_SET3 | F_CMD_FIFO_CERR_SET2 |
+		  F_CMD_FIFO_CERR_SET1 | F_CMD_FIFO_CERR_SET0,
+		  "Command FIFO correctable error" },
+		{ F_GF_SGE_FIFO_CORERR3 | F_GF_SGE_FIFO_CORERR2 |
+		  F_GF_SGE_FIFO_CORERR1 | F_GF_SGE_FIFO_CORERR0,
+		  "GF SGE FIFO correctable error" },
+		{ F_DEDUPE_SGE_FIFO_CORERR3 | F_DEDUPE_SGE_FIFO_CORERR2 |
+		  F_DEDUPE_SGE_FIFO_CORERR1 | F_DEDUPE_SGE_FIFO_CORERR0,
+		  "DeDupe SGE FIFO correctable error" },
+		{ F_RSP_FIFO_CERR_SET, "Response FIFO correctable error" },
+		{ 0 }
 	};
 	static const struct intr_info ulptx_intr_info8 = {
 		.name = "ULP_TX_INT_CAUSE_8",
@@ -5628,21 +6511,28 @@ static bool ulptx_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_ULP_TX_INT_ENABLE_8,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ulptx_int_cause_8_details,
 		.actions = NULL,
 	};
 	bool fatal = false;
 
-	fatal |= t4_handle_intr(adap, &ulptx_intr_info, 0, flags);
-	if (chip_id(adap) > CHELSIO_T4)
-		fatal |= t4_handle_intr(adap, &ulptx_intr_info2, 0, flags);
 	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info1, 0, flags);
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info2, 0, flags);
 		fatal |= t4_handle_intr(adap, &ulptx_intr_info3, 0, flags);
 		fatal |= t4_handle_intr(adap, &ulptx_intr_info4, 0, flags);
 		fatal |= t4_handle_intr(adap, &ulptx_intr_info5, 0, flags);
 		fatal |= t4_handle_intr(adap, &ulptx_intr_info6, 0, flags);
 		fatal |= t4_handle_intr(adap, &ulptx_intr_info7, 0, flags);
 		fatal |= t4_handle_intr(adap, &ulptx_intr_info8, 0, flags);
+	} else {
+		if (chip_id(adap) == CHELSIO_T6)
+			ulptx_intr_info.details = t6_ulptx_int_cause_details;
+		else
+			ulptx_intr_info.details = ulptx_intr_details;
+		fatal |= t4_handle_intr(adap, &ulptx_intr_info, 0, flags);
+		if (chip_id(adap) > CHELSIO_T4)
+			fatal |= t4_handle_intr(adap, &ulptx_intr_info2, 0, flags);
 	}
 
 	return (fatal);
@@ -5671,6 +6561,25 @@ static bool pmtx_dump_dbg_stats(struct adapter *adap, int arg, int flags)
  */
 static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
 {
+	static const struct intr_details t7_pmtx_int_cause_fields[] = {
+		{ F_MASTER_PERR, "PM_TX master parity error" },
+		{ F_T7_ZERO_C_CMD_ERROR, "PM_TX PCMD with zero length error" },
+		{ F_OESPI_COR_ERR, " oespi FIFO Correctable Error" },
+		{ F_ICSPI_COR_ERR, " icspi FIFO Correctable Error" },
+		{ F_ICSPI_OVFL, " icspi FIFO overflow" },
+		{ F_T7_PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large" },
+		{ F_T7_PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large" },
+		{ F_T7_PCMD_LEN_OVFL2, "PMTX channel 2 pcmd too large" },
+		{ F_PCMD_LEN_OVFL3, "PMTX channel 2 pcmd too large" },
+		{ F_T7_ZERO_C_CMD_ERROR, "PMTX 0-length pcmd" },
+		{ 0x00f00000, "PM_TX PCMD length larger than oespi capacity" },
+		{ 0x000f0000, "PM_TX icspi 2x FIFO Rx framing error" },
+		{ 0x0000f000, "PM_TX icspi FIFO Tx framing error" },
+		{ 0x00000f00, "PM_TX oespi FIFO Rx framing error" },
+		{ 0x000000f0, "PM_TX oespi FIFO Tx framing error" },
+		{ 0x0000000f, "PM_TX oespi 2x FIFO Tx framing error" },
+		{ 0 }
+	};
 	static const struct intr_details pmtx_int_cause_fields[] = {
 		{ F_PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large" },
 		{ F_PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large" },
@@ -5692,17 +6601,58 @@ static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
 		{ 0xffffffff, -1, pmtx_dump_dbg_stats },
 		{ 0 },
 	};
-	static const struct intr_info pmtx_int_cause = {
+	struct intr_info pmtx_int_cause = {
 		.name = "PM_TX_INT_CAUSE",
 		.cause_reg = A_PM_TX_INT_CAUSE,
 		.enable_reg = A_PM_TX_INT_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = 0,
-		.details = pmtx_int_cause_fields,
+		.flags = IHF_CLR_DELAYED,
+		.details = NULL,
 		.actions = pmtx_int_cause_actions,
 	};
+	static const struct intr_details pmtx_perr_cause_details[] = {
+		{ F_ICSPI_OVFL, "icspi FIFO Overflow" },
+		{ F_OSPI_OVERFLOW3_TX, " OSPI overflow on channel 3 error." },
+		{ F_OSPI_OVERFLOW2_TX, " OSPI overflow on channel 2 error." },
+		{ F_OSPI_OVERFLOW1_TX, " OSPI overflow on channel 1 error." },
+		{ F_OSPI_OVERFLOW0_TX, " OSPI overflow on channel 0 error." },
+		{ F_T7_BUNDLE_LEN_OVFL_EN, "This bit indicates bundle_len_ovfl_err." },
+		{ F_T7_M_INTFPERREN, "This bit indicates Parity error from MA interfaces." },
+		{ F_T7_1_SDC_ERR,
+			"SDC Error reported by Check PCMD which carries CRC16 from TP-CSide." },
+		{ F_MC_WCNT_FIFO_PERR, "MC Interface Write count FIFO Parity error" },
+		{ F_MC_WDATA_FIFO_PERR, "MC Interface Write Data FIFO Parity error" },
+		{ F_MC_RCNT_FIFO_PERR, "MC Interface Read count FIFO Parity error" },
+		{ F_MC_RDATA_FIFO_PERR, "MC Interface Read Data FIFO Parity error" },
+		{ F_TOKEN_PAR_ERROR, "c_pcmd, Token FIFO par error" },
+		{ F_BUNDLE_LEN_PAR_ERROR, "oespi par error" },
+		{ F_OESPI_PAR_ERROR, "oespi par error" },
+		{ F_DB_OPTIONS_PAR_ERROR, "db_options par error" },
+		{ F_ICSPI_PAR_ERROR, "icspi par error" },
+		{ F_C_PCMD_TOKEN_PAR_ERROR, "c_pcmd par error" },
+		{ 0 }
+	};
+	static struct intr_info pmtx_perr_cause = {
+		.name = "PM_TX_PERR_CAUSE",
+		.cause_reg = A_PM_TX_PERR_CAUSE,
+		.enable_reg = A_PM_TX_PERR_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = 0,
+		.details = pmtx_perr_cause_details,
+		.actions = NULL,
+	};
+	bool fatal;
 
-	return (t4_handle_intr(adap, &pmtx_int_cause, 0, flags));
+	if (chip_id(adap) >= CHELSIO_T7)
+		pmtx_int_cause.details = t7_pmtx_int_cause_fields;
+	else
+		pmtx_int_cause.details = pmtx_int_cause_fields;
+	fatal = t4_handle_intr(adap, &pmtx_int_cause, 0, flags);
+	if (chip_id(adap) >= CHELSIO_T7)
+		fatal |= t4_handle_intr(adap, &pmtx_perr_cause, 0, flags);
+	clear_int_cause_reg(adap, &pmtx_int_cause, flags);
+
+	return (fatal);
 }
 
 /*
@@ -5710,6 +6660,20 @@ static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
  */
 static bool pmrx_intr_handler(struct adapter *adap, int arg, int flags)
 {
+	static const struct intr_details t7_pmrx_int_cause_fields[] = {
+		{ F_MASTER_PERR, "PM_RX master parity error" },
+		{ 0x18000000, "PMRX ospi overflow" },
+		{ F_BUNDLE_LEN_OVFL, "PMRX bundle len FIFO overflow" },
+		{ F_SDC_ERR, "PMRX SDC error" },
+		{ F_ZERO_E_CMD_ERROR, "PMRX 0-length pcmd" },
+		{ 0x003c0000, "PMRX iespi FIFO2X Rx framing error" },
+		{ 0x0003c000, "PMRX iespi Rx framing error" },
+		{ 0x00003c00, "PMRX iespi Tx framing error" },
+		{ 0x00000300, "PMRX ocspi Rx framing error" },
+		{ 0x000000c0, "PMRX ocspi Tx framing error" },
+		{ 0x00000030, "PMRX ocspi FIFO2X Tx framing error" },
+		{ 0 }
+	};
 	static const struct intr_details pmrx_int_cause_fields[] = {
 		/* T6+ */
 		{ 0x18000000, "PMRX ospi overflow" },
@@ -5732,17 +6696,90 @@ static bool pmrx_intr_handler(struct adapter *adap, int arg, int flags)
 		{ F_E_PCMD_PAR_ERROR, "PMRX e_pcmd parity error"},
 		{ 0 }
 	};
-	static const struct intr_info pmrx_int_cause = {
+	struct intr_info pmrx_int_cause = {
 		.name = "PM_RX_INT_CAUSE",
 		.cause_reg = A_PM_RX_INT_CAUSE,
 		.enable_reg = A_PM_RX_INT_ENABLE,
 		.fatal = 0x1fffffff,
-		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = pmrx_int_cause_fields,
+		.flags = IHF_FATAL_IFF_ENABLED | IHF_CLR_DELAYED,
+		.details = NULL,
 		.actions = NULL,
 	};
+	static const struct intr_details pm_rx_int_cause_2_details[] = {
+		{ F_CACHE_SRAM_ODD_CERR, "Cache Data Odd SRAM Correctable Error" },
+		{ F_CACHE_SRAM_EVEN_CERR, "Cache Data Even SRAM Correctable Error" },
+		{ F_CACHE_LRU_LEFT_CERR, "Cache LRU Left SRAM Correctable Error" },
+		{ F_CACHE_LRU_RIGHT_CERR, "Cache LRU Right SRAM Correctable Error" },
+		{ F_CACHE_ISLAND_CERR, "Cache Island SRAM Correctable Error" },
+		{ F_OCSPI_CERR, "ocspi FIFO Correctable Error" },
+		{ F_IESPI_CERR, "iespi FIFO Correctable Error" },
+		{ F_OCSPI2_RX_FRAMING_ERROR, "ocspi FIFO channel 2 Rx/wr framing error" },
+		{ F_OCSPI3_RX_FRAMING_ERROR, "ocspi FIFO channel 3 Rx/wr framing error" },
+		{ F_OCSPI2_TX_FRAMING_ERROR, "ocspi FIFO channel 2 Tx/rd framing error" },
+		{ F_OCSPI3_TX_FRAMING_ERROR, "ocspi FIFO channel 3 Tx/rd framing error" },
+		{ F_OCSPI2_OFIFO2X_TX_FRAMING_ERROR, "ocspi 2x FIFO 2 Tx/rd framing error" },
+		{ F_OCSPI3_OFIFO2X_TX_FRAMING_ERROR, "ocspi 2x FIFO 3 Tx/rd framing error" },
+		{ 0 }
+	};
+	static struct intr_info pmrx_int_cause2 = {
+		.name = "PM_RX_INT_CAUSE_2",
+		.cause_reg = A_PM_RX_INT_CAUSE_2,
+		.enable_reg = A_PM_RX_INT_ENABLE_2,
+		.fatal = 0x1fffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = pm_rx_int_cause_2_details,
+		.actions = NULL,
+	};
+	static const struct intr_details pm_rx_perr_cause_details[] = {
+		{ F_T7_SDC_ERR, "SDC error. CRC provided by TP and PM didn't match." },
+		{ F_T7_MA_INTF_SDC_ERR, "MA intf SDC perr" },
+		{ F_E_PCMD_PERR, "ulp_rx 2 pm_rx PCMD interface parity error." },
+		{ F_CACHE_RSP_DFIFO_PERR, "Cache Response Data FIFO Parity error" },
+		{ F_CACHE_SRAM_ODD_PERR, "Cache Odd SRAM error" },
+		{ F_CACHE_SRAM_EVEN_PERR, "Cache Even SRAM error" },
+		{ F_CACHE_RSVD_PERR, "Cache Reserved Parity error" },
+		{ F_CACHE_LRU_LEFT_PERR, "Cache LRU Left SRAM error" },
+		{ F_CACHE_LRU_RIGHT_PERR, "Cache LRU Rigth SRAM error" },
+		{ F_CACHE_RSP_CMD_PERR, "Cache Response Command FIFO error" },
+		{ F_CACHE_SRAM_CMD_PERR, "Cache SRAM Command FIFO error" },
+		{ F_CACHE_MA_CMD_PERR, "Cache MA Command FIFO error" },
+		{ F_CACHE_TCAM_PERR, "Cache TCAM Parity error" },
+		{ F_CACHE_ISLAND_PERR, "Cache island SRAM Parity error" },
+		{ F_MC_WCNT_FIFO_PERR, "MC Interface Write count FIFO Parity error" },
+		{ F_MC_WDATA_FIFO_PERR, "MC Interface Write Data FIFO Parity error" },
+		{ F_MC_RCNT_FIFO_PERR, "MC Interface Read count FIFO Parity error" },
+		{ F_MC_RDATA_FIFO_PERR, "MC Interface Read Data FIFO Parity error" },
+		{ F_TOKEN_FIFO_PERR, "Token FIFO Parity error" },
+		{ F_T7_BUNDLE_LEN_PARERR, "Bundle len fifo had parity error." },
+		{ F_OCSPI_PAR_ERROR, "ocspi par error vector" },
+		{ F_DB_OPTIONS_PAR_ERROR, "db_options par error" },
+		{ F_IESPI_PAR_ERROR, "iespi par error" },
+		{ F_E_PCMD_PAR_ERROR, "e_pcmd par error" },
+		{ 0 }
+	};
+	static struct intr_info pmrx_perr_cause = {
+		.name = "PM_RX_PERR_CAUSE",
+		.cause_reg = A_PM_RX_PERR_CAUSE,
+		.enable_reg = A_PM_RX_PERR_ENABLE,
+		.fatal = 0x1fffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = pm_rx_perr_cause_details,
+		.actions = NULL,
+	};
+	bool fatal;
 
-	return (t4_handle_intr(adap, &pmrx_int_cause, 0, flags));
+	if (chip_id(adap) >= CHELSIO_T7) {
+		pmrx_int_cause.details = t7_pmrx_int_cause_fields;
+		fatal = t4_handle_intr(adap, &pmrx_int_cause, 0, flags);
+		fatal |= t4_handle_intr(adap, &pmrx_int_cause2, 0, flags);
+		fatal |= t4_handle_intr(adap, &pmrx_perr_cause, 0, flags);
+	} else {
+		pmrx_int_cause.details = pmrx_int_cause_fields;
+		fatal = t4_handle_intr(adap, &pmrx_int_cause, 0, flags);
+	}
+	clear_int_cause_reg(adap, &pmrx_int_cause, flags);
+
+	return (fatal);
 }
 
 /*
@@ -5751,6 +6788,9 @@ static bool pmrx_intr_handler(struct adapter *adap, int arg, int flags)
 static bool cplsw_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details cplsw_int_cause_fields[] = {
+		/* T7+ */
+		{ F_PERR_CPL_128TO128_3, "CPLSW 128TO128 FIFO3 parity error" },
+		{ F_PERR_CPL_128TO128_2, "CPLSW 128TO128 FIFO2 parity error" },
 		/* T5+ */
 		{ F_PERR_CPL_128TO128_1, "CPLSW 128TO128 FIFO1 parity error" },
 		{ F_PERR_CPL_128TO128_0, "CPLSW 128TO128 FIFO0 parity error" },
@@ -5803,6 +6843,8 @@ static bool le_intr_handler(struct adapter *adap, int arg, int flags)
 		{ 0 }
 	};
 	static const struct intr_details t6_le_intr_details[] = {
+		{ F_CACHEINTPERR, "Parity error in cache module" },
+		{ F_CACHESRAMPERR, "Parity error in data sram " },
 		{ F_CLIPSUBERR, "LE CLIP CAM reverse substitution error" },
 		{ F_CLCAMFIFOERR, "LE CLIP CAM internal FIFO error" },
 		{ F_CTCAMINVLDENT, "Invalid IPv6 CLIP TCAM entry" },
@@ -5865,14 +6907,80 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = mps_rx_perr_intr_details,
 		.actions = NULL,
 	};
+	static const struct intr_details mps_rx_func_intr_details[] = {
+		{ F_MTU_ERR3, "MTU error interrupt enable bit for loopback group 3" },
+		{ F_MTU_ERR2, "MTU error interrupt enable bit for loopback group 2" },
+		{ F_MTU_ERR1, "MTU error interrupt enable bit for loopback group 1" },
+		{ F_MTU_ERR0, "MTU error interrupt enable bit for loopback group 0" },
+		{ F_DBG_LEN_ERR, "Oring of len error in traffic transfer b/w internal modules" },
+		{ F_DBG_SPI_ERR, "Oring of spi error in traffic transfer b/w internal modules" },
+		{ F_DBG_SE_CNT_ERR, "Oring of se cnt error in traffic transfer" },
+		{ F_DBG_SPI_LEN_SE_CNT_ERR, "Oring of all se_cnt|len|spi errors" },
+		{ 0 }
+	};
+	static const struct intr_info mps_rx_func_intr_info = {
+		.name = "MPS_RX_FUNC_INT_CAUSE",
+		.cause_reg = A_MPS_RX_FUNC_INT_CAUSE,
+		.enable_reg = A_MPS_RX_FUNC_INT_ENABLE,
+		.fatal = 0xffffffff,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = mps_rx_func_intr_details,
+		.actions = NULL,
+	};
+	static const struct intr_details mpsrx_int_cause_2_details[] = {
+		{ F_CRYPTO2MPS_RX0_PERR | F_CRYPTO2MPS_RX1_PERR |
+			F_CRYPTO2MPS_RX2_PERR | F_CRYPTO2MPS_RX3_PERR,
+			"Crypto to MPS RX interface parity error" },
+		{ F_INIC2MPS_TX1_PERR | F_INIC2MPS_TX0_PERR,
+			"INIC to MPS TX interface parity error" },
+		{ F_XGMAC2MPS_RX1_PERR | F_XGMAC2MPS_RX0_PERR,
+			"XGMAC to MPS RX interface parity error" },
+		{ F_RX_FINAL_TF_FIFO_PERR,
+			"Final RX token FIFO output parity error" },
+		{ F_MPS_DWRR_FIFO_PERR,
+			"MPS DWRR MTU FIFO parity error" },
+		{ F_MAC_TF_FIFO_PERR,
+			"MAC token FIFO parity error" },
+		{ F_MAC2MPS_PT3_PERR | F_MAC2MPS_PT2_PERR |
+			F_MAC2MPS_PT1_PERR | F_MAC2MPS_PT0_PERR,
+			"MAC to MPS interface parity error" },
+		{ F_TP_LPBK_FIFO_PERR, "TP loopback FIFO parity error" },
+		{ F_TP_LPBK_TF_PERR, "Loopback token FIFO parity error" },
+		{ 0 }
+	};
 	static const struct intr_info mps_rx_perr_intr_info2 = {
 		.name = "MPS_RX_PERR_INT_CAUSE2",
 		.cause_reg = A_MPS_RX_PERR_INT_CAUSE2,
 		.enable_reg = A_MPS_RX_PERR_INT_ENABLE2,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = mpsrx_int_cause_2_details,
 		.actions = NULL,
+	};
+	static const struct intr_details mpsrx_int_cause_3_details[] = {
+		{ F_FIFO_REPL_CH3_CERR | F_FIFO_REPL_CH2_CERR |
+		  F_FIFO_REPL_CH1_CERR | F_FIFO_REPL_CH0_CERR,
+		  "Replication FIFO ECC error" },
+		{ F_VLAN_FILTER_RAM_CERR, "VLAN filter SRAM ECC error" },
+		{ F_MPS_RX_TD_STAT_FIFO_PERR_CH3 | F_MPS_RX_TD_STAT_FIFO_PERR_CH2 |
+		  F_MPS_RX_TD_STAT_FIFO_PERR_CH1 | F_MPS_RX_TD_STAT_FIFO_PERR_CH0,
+		  "MPS RX TD status descriptor FIFO parity error" },
+		{ F_RPLCT_HDR_FIFO_IN_PERR_CH3 | F_RPLCT_HDR_FIFO_IN_PERR_CH2 |
+		  F_RPLCT_HDR_FIFO_IN_PERR_CH1 | F_RPLCT_HDR_FIFO_IN_PERR_CH0,
+		  "MPS RX replication header input FIFO parity error" },
+		{ F_ID_FIFO_IN_PERR_CH3 | F_ID_FIFO_IN_PERR_CH2 |
+		  F_ID_FIFO_IN_PERR_CH1 | F_ID_FIFO_IN_PERR_CH0,
+		  "MPS RX replication ID input FIFO parity error" },
+		{ F_DESC_HDR2_PERR_CH3 | F_DESC_HDR2_PERR_CH2 |
+		  F_DESC_HDR2_PERR_CH1 | F_DESC_HDR2_PERR_CH0,
+		  "MPS RX replication descriptor/header2 FIFO parity error" },
+		{ F_FIFO_REPL_PERR_CH3 | F_FIFO_REPL_PERR_CH2 |
+		  F_FIFO_REPL_PERR_CH1 | F_FIFO_REPL_PERR_CH0,
+		  "Replication FIFO parity error" },
+		{ F_MPS_RX_TD_PERR_CH3 | F_MPS_RX_TD_PERR_CH2 |
+		  F_MPS_RX_TD_PERR_CH1 | F_MPS_RX_TD_PERR_CH0,
+		  "MPS RX TD input FIFO parity error" },
+		{ 0 }
 	};
 	static const struct intr_info mps_rx_perr_intr_info3 = {
 		.name = "MPS_RX_PERR_INT_CAUSE3",
@@ -5880,8 +6988,34 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_MPS_RX_PERR_INT_ENABLE3,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = mpsrx_int_cause_3_details,
 		.actions = NULL,
+	};
+	static const struct intr_details mpsrx_int_cause_4_details[] = {
+		{ F_VNI_MULTICAST_FIFO_ECC_ERR_CH3 | F_VNI_MULTICAST_FIFO_ECC_ERR_CH2,
+		  "RX out VNI multicast SRAM ECC error" },
+		{ F_HASH_SRAM_CLS_ENG1 | F_HASH_SRAM_CLS_ENG0,
+		  "Classification engine hash SRAM ECC error" },
+		{ F_CLS_TCAM_SRAM_CLS_ENG1 | F_CLS_TCAM_SRAM_CLS_ENG0,
+		  "Classification engine TCAM SRAM ECC error" },
+		{ F_CLS_TCAM_CRC_SRAM_CLS_ENG1 | F_CLS_TCAM_CRC_SRAM_CLS_ENG0,
+		  "Classification engine TCAM CRC SRAM ECC error" },
+		{ F_DWRR_CH_FIFO_ECC_ERR, "DWRR output FIFO ECC error" },
+		{ F_MAC_RX_FIFO_ECC_ERR, "MAC RX FIFO ECC error" },
+		{ F_LPBK_RX_FIFO_ECC_ERR, "Loopback RX FIFO ECC error" },
+		{ F_CRS_DATA_STORE_N_FWD_CH3 | F_CRS_DATA_STORE_N_FWD_CH2 |
+		  F_CRS_DATA_STORE_N_FWD_CH1 | F_CRS_DATA_STORE_N_FWD_CH0,
+		  "CRS store and forward FIFO ECC error" },
+		{ F_TRACE_FWD_FIFO_CERR_CH3 | F_TRACE_FWD_FIFO_CERR_CH2 |
+		  F_TRACE_FWD_FIFO_CERR_CH1 | F_TRACE_FWD_FIFO_CERR_CH0,
+		  "Trace packet forward FIFO ECC error" },
+		{ F_TRANSPARENT_ENCAP_FWD_FIFO_CERR_CH3 | F_TRANSPARENT_ENCAP_FWD_FIFO_CERR_CH2 |
+		  F_TRANSPARENT_ENCAP_FWD_FIFO_CERR_CH1 | F_TRANSPARENT_ENCAP_FWD_FIFO_CERR_CH0,
+		  "Transparent encap forward FIFO ECC error" },
+		{ F_PTP_TRACE_FWD_FIFO_CERR_CH3 | F_PTP_TRACE_FWD_FIFO_CERR_CH2 |
+		  F_PTP_TRACE_FWD_FIFO_CERR_CH1 | F_PTP_TRACE_FWD_FIFO_CERR_CH0,
+		  "PTP packet forward FIFO ECC error" },
+		{ 0 }
 	};
 	static const struct intr_info mps_rx_perr_intr_info4 = {
 		.name = "MPS_RX_PERR_INT_CAUSE4",
@@ -5889,8 +7023,36 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_MPS_RX_PERR_INT_ENABLE4,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = mpsrx_int_cause_4_details,
 		.actions = NULL,
+	};
+	static const struct intr_details mpsrx_int_cause_5_details[] = {
+		{ F_MPS2CRYP_RX_FIFO3_PERR | F_MPS2CRYP_RX_FIFO2_PERR |
+		  F_MPS2CRYP_RX_FIFO1_PERR | F_MPS2CRYP_RX_FIFO0_PERR,
+		  "MPS to Crypto RX interface FIFO parity error" },
+		{ F_VNI_MULTICAST_SRAM2_PERR | F_VNI_MULTICAST_SRAM1_PERR |
+		  F_VNI_MULTICAST_SRAM0_PERR,
+		  "VNI multicast SRAM parity error" },
+		{ F_MAC_MULTICAST_SRAM4_PERR | F_MAC_MULTICAST_SRAM3_PERR |
+		  F_MAC_MULTICAST_SRAM2_PERR | F_MAC_MULTICAST_SRAM1_PERR |
+		  F_MAC_MULTICAST_SRAM0_PERR,
+		  "MAC multicast SRAM parity error" },
+		{ F_MEM_WRAP_IPSEC_HDR_UPD_FIFO3_PERR | F_MEM_WRAP_IPSEC_HDR_UPD_FIFO2_PERR |
+		  F_MEM_WRAP_IPSEC_HDR_UPD_FIFO1_PERR | F_MEM_WRAP_IPSEC_HDR_UPD_FIFO0_PERR,
+		  "IPsec header update storing FIFO parity error" },
+		{ F_MEM_WRAP_CR2MPS_RX_FIFO3_PERR | F_MEM_WRAP_CR2MPS_RX_FIFO2_PERR |
+		  F_MEM_WRAP_CR2MPS_RX_FIFO1_PERR | F_MEM_WRAP_CR2MPS_RX_FIFO0_PERR,
+		  "IPsec storing FIFO parity error" },
+		{ F_MEM_WRAP_NON_IPSEC_FIFO3_PERR | F_MEM_WRAP_NON_IPSEC_FIFO2_PERR |
+		  F_MEM_WRAP_NON_IPSEC_FIFO1_PERR | F_MEM_WRAP_NON_IPSEC_FIFO0_PERR,
+		  "Non-IPsec storing FIFO parity error" },
+		{ F_MEM_WRAP_TP_DB_REQ_FIFO3_PERR | F_MEM_WRAP_TP_DB_REQ_FIFO2_PERR |
+		  F_MEM_WRAP_TP_DB_REQ_FIFO1_PERR | F_MEM_WRAP_TP_DB_REQ_FIFO0_PERR,
+		  "TP DB request storing FIFO parity error" },
+		{ F_MEM_WRAP_CNTRL_FIFO3_PERR | F_MEM_WRAP_CNTRL_FIFO2_PERR |
+		  F_MEM_WRAP_CNTRL_FIFO1_PERR | F_MEM_WRAP_CNTRL_FIFO0_PERR,
+		  "Header flit storing FIFO parity error" },
+		{ 0 }
 	};
 	static const struct intr_info mps_rx_perr_intr_info5 = {
 		.name = "MPS_RX_PERR_INT_CAUSE5",
@@ -5898,8 +7060,29 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_MPS_RX_PERR_INT_ENABLE5,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = mpsrx_int_cause_5_details,
 		.actions = NULL,
+	};
+	static const struct intr_details mpsrx_int_cause_6_details[] = {
+		{ F_T7_MEM_WRAP_IPSEC_HDR_UPD_FIFO3_PERR | F_T7_MEM_WRAP_IPSEC_HDR_UPD_FIFO2_PERR |
+		  F_T7_MEM_WRAP_IPSEC_HDR_UPD_FIFO1_PERR | F_T7_MEM_WRAP_IPSEC_HDR_UPD_FIFO0_PERR,
+		  "IPsec header update storing FIFO parity error" },
+		{ F_MEM_WRAP_CR2MPS_UPDTD_HDR_FIFO3_PERR | F_MEM_WRAP_CR2MPS_UPDTD_HDR_FIFO2_PERR |
+		  F_MEM_WRAP_CR2MPS_UPDTD_HDR_FIFO1_PERR | F_MEM_WRAP_CR2MPS_UPDTD_HDR_FIFO0_PERR,
+		  "IPsec updated header only storing FIFO parity error" },
+		{ F_MEM_WRAP_CR2MPS_RX_FIFO3_PERR | F_MEM_WRAP_CR2MPS_RX_FIFO2_PERR |
+		  F_MEM_WRAP_CR2MPS_RX_FIFO1_PERR | F_MEM_WRAP_CR2MPS_RX_FIFO0_PERR,
+		  "IPsec storing FIFO parity error" },
+		{ F_MEM_WRAP_NON_IPSEC_FIFO3_PERR | F_MEM_WRAP_NON_IPSEC_FIFO2_PERR |
+		  F_MEM_WRAP_NON_IPSEC_FIFO1_PERR | F_MEM_WRAP_NON_IPSEC_FIFO0_PERR,
+		  "Non-IPsec storing FIFO parity error" },
+		{ F_MEM_WRAP_TP_DB_REQ_FIFO3_PERR | F_MEM_WRAP_TP_DB_REQ_FIFO2_PERR |
+		  F_MEM_WRAP_TP_DB_REQ_FIFO1_PERR | F_MEM_WRAP_TP_DB_REQ_FIFO0_PERR,
+		  "TP DB request storing FIFO parity error" },
+		{ F_MEM_WRAP_CNTRL_FIFO3_PERR | F_MEM_WRAP_CNTRL_FIFO2_PERR |
+		  F_MEM_WRAP_CNTRL_FIFO1_PERR | F_MEM_WRAP_CNTRL_FIFO0_PERR,
+		  "Header flit storing FIFO parity error" },
+		{ 0 }
 	};
 	static const struct intr_info mps_rx_perr_intr_info6 = {
 		.name = "MPS_RX_PERR_INT_CAUSE6",
@@ -5907,8 +7090,22 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_MPS_RX_PERR_INT_ENABLE6,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = mpsrx_int_cause_6_details,
 		.actions = NULL,
+	};
+	static const struct intr_details t7_mpstx_int_cause_details[] = {
+		{ F_T7_PORTERR, "Tx received a frame for TP destined to a disable port" },
+		{ F_T7_FRMERR, "Framing error in received Data from TP or  Data to MAC" },
+		{ F_T7_SECNTERR, "SOP-EOP count error in received Data from TP or Data to MAC" },
+		{ F_T7_BUBBLE, "Valid is deasserted between SOP and EOP" },
+		{ F_TX_TF_FIFO_PERR, "Parity error of TX token fifo" },
+		{ F_TX_FIFO_PERR, "Parity error of TX MPS2MAC underrun fifo" },
+		{ 0x0003c000, "Parity error of fifo storing non-ipsec +1 flit ipsec pkt" },
+		{ 0x00003fc0, "Interface parity error on TP/Crypto to MPS TX" },
+		{ F_NCSI2MPS, "interface Parity Error on ncsi2mps_tx_ch3" },
+		{ F_NCSIFIFO, "Parity Error in mps_tx_arbiter input FIFO (from NCSI)" },
+		{ 0x0000000f, "Parity Error in mps_tx_arbiter input FIFO (from TP)" },
+		{ 0 }
 	};
 	static const struct intr_details mps_tx_intr_details[] = {
 		{ F_PORTERR, "MPS Tx destination port is disabled" },
@@ -5921,14 +7118,19 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		{ V_TPFIFO(M_TPFIFO), "MPS Tx TP FIFO parity error" },
 		{ 0 }
 	};
-	static const struct intr_info mps_tx_intr_info = {
+	struct intr_info mps_tx_intr_info = {
 		.name = "MPS_TX_INT_CAUSE",
 		.cause_reg = A_MPS_TX_INT_CAUSE,
 		.enable_reg = A_MPS_TX_INT_ENABLE,
 		.fatal = 0x1ffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = mps_tx_intr_details,
+		.details = NULL,
 		.actions = NULL,
+	};
+	static const struct intr_details mpstx_int_cause_2_details[] = {
+		{ F_TX_FIFO_PERR, "ECC error of TX MPS2MAC underrun fifo" },
+		{ 0x0000000f, "ECC error of fifo storing non-ipsec +1 flit ipsec pkt" },
+		{ 0 }
 	};
 	static const struct intr_info mps_tx_intr_info2 = {
 		.name = "MPS_TX_INT2_CAUSE",
@@ -5936,7 +7138,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_MPS_TX_INT2_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = mpstx_int_cause_2_details,
 		.actions = NULL,
 	};
 	static const struct intr_info mps_tx_intr_info3 = {
@@ -5972,14 +7174,30 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = mps_trc_intr_details,
 		.actions = NULL,
 	};
+	static const struct intr_details t7_mps_trc_intr_details[] = {
+		{ F_T7_TRCPLERRENB, "TRC PL error" },
+		{ F_T7_MISCPERR, "TRC header register parity error" },
+		{ 0x0000ff00, "TRC packet FIFO parity error" },
+		{ 0x000000ff, "TRC filter memory parity error" },
+		{ 0 }
+	};
 	static const struct intr_info t7_mps_trc_intr_info = {
 		.name = "MPS_TRC_INT_CAUSE",
 		.cause_reg = A_T7_MPS_TRC_INT_CAUSE,
 		.enable_reg = A_T7_MPS_TRC_INT_ENABLE,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = mps_trc_intr_details,
+		.details = t7_mps_trc_intr_details,
 		.actions = NULL,
+	};
+	static const struct intr_details t7_trc_int_cause2_details[] = {
+		{ 0x0001e000, "TRC Tx2Rx down-converter correctable error" },
+		{ 0x00001800, "TRC MPS2MAC down-converter correctable error" },
+		{ 0x00000600, "TRC MAC2MPS down-converter correctable error" },
+		{ 0x000001e0, "TRC Tx2Rx down-converter parity error" },
+		{ 0x00000018, "TRC MAC2MPS down-converter parity error" },
+		{ 0x00000006, "TRC MPS2MAC down-converter parity error" },
+		{ 0 }
 	};
 	static const struct intr_info t7_mps_trc_intr_info2 = {
 		.name = "MPS_TRC_INT_CAUSE2",
@@ -5987,7 +7205,20 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_MPS_TRC_INT_ENABLE2,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = t7_trc_int_cause2_details,
+		.actions = NULL,
+	};
+	static const struct intr_details mps_stat_intr_details[] = {
+		{ F_PLREADSYNCERR, "MPS pl read sync error" },
+		{ 0 }
+	};
+	static const struct intr_info mps_stat_intr_info = {
+		.name = "MPS_STAT_INT_CAUSE",
+		.cause_reg = A_MPS_STAT_INT_CAUSE,
+		.enable_reg = A_MPS_STAT_INT_ENABLE,
+		.fatal = 0xf,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = mps_stat_intr_details,
 		.actions = NULL,
 	};
 	static const struct intr_details mps_stat_sram_intr_details[] = {
@@ -6030,6 +7261,9 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.actions = NULL,
 	};
 	static const struct intr_details mps_cls_intr_details[] = {
+		{ F_T7_PLERRENB, "PL error"},
+		{ F_CIM2MPS_INTF_PAR, "cim2mps interface parity"},
+		{ F_TCAM_CRC_SRAM, "tcam crc sram parity error"},
 		{ F_HASHSRAM, "MPS hash SRAM parity error" },
 		{ F_MATCHTCAM, "MPS match TCAM parity error" },
 		{ F_MATCHSRAM, "MPS match SRAM parity error" },
@@ -6058,9 +7292,14 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		.actions = NULL,
 	};
 	bool fatal = false;
+	if (chip_id(adap) >= CHELSIO_T7)
+		mps_tx_intr_info.details = t7_mpstx_int_cause_details;
+	else
+		mps_tx_intr_info.details = mps_tx_intr_details;
 
 	fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info, 0, flags);
 	if (chip_id(adap) > CHELSIO_T6) {
+		fatal |= t4_handle_intr(adap, &mps_rx_func_intr_info, 0, flags);
 		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info2, 0, flags);
 		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info3, 0, flags);
 		fatal |= t4_handle_intr(adap, &mps_rx_perr_intr_info4, 0, flags);
@@ -6076,6 +7315,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 		fatal |= t4_handle_intr(adap, &t7_mps_trc_intr_info2, 0, flags);
 	} else
 		fatal |= t4_handle_intr(adap, &mps_trc_intr_info, 0, flags);
+	fatal |= t4_handle_intr(adap, &mps_stat_intr_info, 0, flags);
 	fatal |= t4_handle_intr(adap, &mps_stat_sram_intr_info, 0, flags);
 	fatal |= t4_handle_intr(adap, &mps_stat_tx_intr_info, 0, flags);
 	fatal |= t4_handle_intr(adap, &mps_stat_rx_intr_info, 0, flags);
@@ -6087,7 +7327,6 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 	t4_read_reg(adap, A_MPS_INT_CAUSE);	/* flush */
 
 	return (fatal);
-
 }
 
 /*
@@ -6096,7 +7335,7 @@ static bool mps_intr_handler(struct adapter *adap, int arg, int flags)
 static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 {
 	static const char name[4][5] = { "EDC0", "EDC1", "MC0", "MC1" };
-	unsigned int count_reg, v;
+	unsigned int count_reg = 0, v;
 	static const struct intr_details mem_intr_details[] = {
 		{ F_ECC_UE_INT_CAUSE, "Uncorrectable ECC data error(s)" },
 		{ F_ECC_CE_INT_CAUSE, "Correctable ECC data error(s)" },
@@ -6104,10 +7343,10 @@ static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 		{ 0 }
 	};
 	static const struct intr_details t7_mem_intr_details[] = {
-		{ F_DDRPHY_INT_CAUSE, "DDRPHY" },
-		{ F_DDRCTL_INT_CAUSE, "DDRCTL" },
-		{ F_T7_ECC_CE_INT_CAUSE, "Correctable ECC data error(s)" },
+		{ F_DDRPHY_INT_CAUSE, "DDR PHY" },
+		{ F_DDRCTL_INT_CAUSE, "DDR Controller" },
 		{ F_T7_ECC_UE_INT_CAUSE, "Uncorrectable ECC data error(s)" },
+		{ F_T7_ECC_CE_INT_CAUSE, "Correctable ECC data error(s)" },
 		{ F_PERR_INT_CAUSE, "FIFO parity error" },
 		{ 0 }
 	};
@@ -6115,8 +7354,8 @@ static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 	struct intr_info ii = {
 		.name = &rname[0],
 		.fatal = F_PERR_INT_CAUSE | F_ECC_UE_INT_CAUSE,
+		.flags = IHF_CLR_DELAYED,
 		.details = mem_intr_details,
-		.flags = 0,
 		.actions = NULL,
 	};
 	bool fatal = false;
@@ -6137,15 +7376,6 @@ static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 			count_reg = EDC_T5_REG(A_EDC_H_ECC_STATUS, i);
 		}
 		fatal |= t4_handle_intr(adap, &ii, 0, flags);
-		if (chip_id(adap) > CHELSIO_T6) {
-			snprintf(rname, sizeof(rname), "EDC%u_PAR_CAUSE", i);
-			ii.cause_reg = EDC_T5_REG(A_EDC_H_PAR_CAUSE, i);
-			ii.enable_reg = EDC_T5_REG(A_EDC_H_PAR_ENABLE, i);
-			ii.fatal = 0xffffffff;
-			ii.details = NULL;
-			ii.flags = IHF_FATAL_IFF_ENABLED;
-			fatal |= t4_handle_intr(adap, &ii, 0, flags);
-		}
 		break;
 	case MEM_MC1:
 		if (is_t4(adap) || is_t6(adap))
@@ -6167,52 +7397,30 @@ static bool mem_intr_handler(struct adapter *adap, int idx, int flags)
 			ii.enable_reg = MC_T7_REG(A_T7_MC_P_INT_ENABLE, i);
 			ii.fatal = F_PERR_INT_CAUSE | F_T7_ECC_UE_INT_CAUSE;
 			ii.details = t7_mem_intr_details;
-			count_reg = MC_T7_REG(A_T7_MC_P_ECC_STATUS, i);
 		}
 		fatal |= t4_handle_intr(adap, &ii, 0, flags);
-
-		snprintf(rname, sizeof(rname), "MC%u_PAR_CAUSE", i);
-		if (is_t4(adap)) {
-			ii.cause_reg = A_MC_PAR_CAUSE;
-			ii.enable_reg = A_MC_PAR_ENABLE;
-		} else if (chip_id(adap) < CHELSIO_T7) {
-			ii.cause_reg = MC_REG(A_MC_P_PAR_CAUSE, i);
-			ii.enable_reg = MC_REG(A_MC_P_PAR_ENABLE, i);
-		} else {
-			ii.cause_reg = MC_T7_REG(A_T7_MC_P_PAR_CAUSE, i);
-			ii.enable_reg = MC_T7_REG(A_T7_MC_P_PAR_ENABLE, i);
-		}
-		ii.fatal = 0xffffffff;
-		ii.details = NULL;
-		ii.flags = IHF_FATAL_IFF_ENABLED;
-		fatal |= t4_handle_intr(adap, &ii, 0, flags);
-
-		if (chip_id(adap) > CHELSIO_T6) {
-			snprintf(rname, sizeof(rname), "MC%u_DDRCTL_INT_CAUSE", i);
-			ii.cause_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_CAUSE, i);
-			ii.enable_reg = MC_T7_REG(A_MC_P_DDRCTL_INT_ENABLE, i);
-			fatal |= t4_handle_intr(adap, &ii, 0, flags);
-		}
 		break;
 	}
 
-	v = t4_read_reg(adap, count_reg);
-	if (v != 0) {
-		if (G_ECC_UECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
-			CH_ALERT(adap,
-			    "  %s: %u uncorrectable ECC data error(s)\n",
-			    name[idx], G_ECC_UECNT(v));
+	if (count_reg != 0) {
+		v = t4_read_reg(adap, count_reg);
+		if (v != 0) {
+			if (G_ECC_UECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
+				CH_ALERT(adap,
+				    "  %s: %u uncorrectable ECC data error(s)\n",
+				    name[idx], G_ECC_UECNT(v));
+			}
+			if (G_ECC_CECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
+				if (idx <= MEM_EDC1)
+					t4_edc_err_read(adap, idx);
+				CH_WARN_RATELIMIT(adap,
+				    "  %s: %u correctable ECC data error(s)\n",
+				    name[idx], G_ECC_CECNT(v));
+			}
+			t4_write_reg(adap, count_reg, 0xffffffff);
 		}
-		if (G_ECC_CECNT(v) != 0 && !(flags & IHF_NO_SHOW)) {
-			if (idx <= MEM_EDC1)
-				t4_edc_err_read(adap, idx);
-			CH_WARN_RATELIMIT(adap,
-			    "  %s: %u correctable ECC data error(s)\n",
-			    name[idx], G_ECC_CECNT(v));
-		}
-		t4_write_reg(adap, count_reg, 0xffffffff);
 	}
-
+	clear_int_cause_reg(adap, &ii, flags);
 	return (fatal);
 }
 
@@ -6231,14 +7439,13 @@ static bool ma_wrap_status(struct adapter *adap, int arg, int flags)
 	return (false);
 }
 
-
 /*
  * MA interrupt handler.
  */
 static bool ma_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_action ma_intr_actions[] = {
-		{ F_MEM_WRAP_INT_CAUSE, 0, ma_wrap_status },
+		{ F_MEM_WRAP_INT_CAUSE, -1, ma_wrap_status },
 		{ 0 },
 	};
 	static const struct intr_info ma_intr_info = {
@@ -6284,10 +7491,29 @@ static bool ma_intr_handler(struct adapter *adap, int arg, int flags)
  */
 static bool smb_intr_handler(struct adapter *adap, int arg, int flags)
 {
-	static const struct intr_details smb_int_cause_fields[] = {
-		{ F_MSTTXFIFOPARINT, "SMB master Tx FIFO parity error" },
-		{ F_MSTRXFIFOPARINT, "SMB master Rx FIFO parity error" },
-		{ F_SLVFIFOPARINT, "SMB slave FIFO parity error" },
+	static const struct intr_details smb_int_cause_details[] = {
+		{ F_MSTTXFIFOPARINT, "Master has Parity Error in Tx Fifo" },
+		{ F_MSTRXFIFOPARINT, "Master has Parity Error in Rx Fifo" },
+		{ F_SLVFIFOPARINT, "Slave  has Parity Error in Fifo" },
+		{ F_SLVUNEXPBUSSTOPINT, "Slave get Unexpected BusStop" },
+		{ F_SLVUNEXPBUSSTARTINT, "Slave get Unexpected BusStart" },
+		{ F_SLVCOMMANDCODEINVINT, "Slave get Invalid Command Code" },
+		{ F_SLVBYTECNTERRINT, "Slave get Erroneous ByteCount value" },
+		{ F_SLVUNEXPACKMSTINT, "Slave get Unexpected Ack from Master" },
+		{ F_SLVUNEXPNACKMSTINT, "Slave get Unexpected Nack from Master" },
+		{ F_SLVNOBUSSTOPINT, "Slave did not get Bus Stop" },
+		{ F_SLVNOREPSTARTINT, "Slave has no Repeated Start" },
+		{ F_SLVRXADDRINT, "Slave has Address Error" },
+		{ F_SLVRXPECERRINT, "Slave has Pec Error" },
+		{ F_SLVPREPTOARPINT, "PL has invalid request" },
+		{ F_SLVTIMEOUTINT, "Slave has timed out" },
+		{ F_SLVERRINT, "Slave detected error during the current transfer" },
+		{ F_SLVDONEINT, "Slave has completed the current transaction" },
+		{ F_SLVRXRDYINT, "Slave has received bytes to be processed by uP" },
+		{ F_MSTTIMEOUTINT, "Master has timed out" },
+		{ F_MSTNACKINT, "Master has detected a NAck on the transfer" },
+		{ F_MSTLOSTARBINT, "Master has lost arbitration all the timeline" },
+		{ F_MSTDONEINT, "Master has completed the current transaction" },
 		{ 0 }
 	};
 	static const struct intr_info smb_int_cause = {
@@ -6296,9 +7522,10 @@ static bool smb_intr_handler(struct adapter *adap, int arg, int flags)
 		.enable_reg = A_SMB_INT_ENABLE,
 		.fatal = F_SLVFIFOPARINT | F_MSTRXFIFOPARINT | F_MSTTXFIFOPARINT,
 		.flags = 0,
-		.details = smb_int_cause_fields,
+		.details = smb_int_cause_details,
 		.actions = NULL,
 	};
+
 	return (t4_handle_intr(adap, &smb_int_cause, 0, flags));
 }
 
@@ -6308,6 +7535,7 @@ static bool smb_intr_handler(struct adapter *adap, int arg, int flags)
 static bool ncsi_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details ncsi_int_cause_fields[] = {
+		{ F_CIM2NC_PERR, " CIM to NC parity error" },
 		{ F_CIM_DM_PRTY_ERR, "NC-SI CIM parity error" },
 		{ F_MPS_DM_PRTY_ERR, "NC-SI MPS parity error" },
 		{ F_TXFIFO_PRTY_ERR, "NC-SI Tx FIFO parity error" },
@@ -6324,13 +7552,31 @@ static bool ncsi_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = ncsi_int_cause_fields,
 		.actions = NULL,
 	};
+	static const struct intr_details ncsi_xgmac0_int_cause_details[] = {
+		{ F_XAUIPCSDECERR, "RGMII PCS DEC Error" },
+		{ F_RGMIIRXFIFOOVERFLOW, "RGMII receive FIFO over flow" },
+		{ F_RGMIIRXFIFOUNDERFLOW, "RGMII receive FIFO under flow" },
+		{ F_RXPKTSIZEERROR, "Receive over size packet" },
+		{ F_WOLPATDETECTED, "WOL pattern detected" },
+		{ 0x000e0000, "Tx FIFO parity error" },
+		{ 0x0001c000, "Rx FIFO parity error" },
+		{ F_TXFIFO_UNDERRUN, "Tx FIFO underrun" },
+		{ F_RXFIFO_OVERFLOW, "Rx FIFO overflow" },
+		{ 0x00000f00, "XAUI SERDES BIST error" },
+		{ 0x000000f0, "XAUI SERDES receive low signal change" },
+		{ F_XAUIPCSCTCERR, "XAUI PCS CTC FIFO error" },
+		{ F_XAUIPCSALIGNCHANGE, "XAUI PCS alignment change" },
+		{ F_RGMIILINKSTSCHANGE, "RGMII link status change" },
+		{ F_XGM_INT, "XGM Core embedded interrupt (2nd level)" },
+		{ 0 }
+	};
 	static const struct intr_info ncsi_xgmac0_int_cause = {
 		.name = "NCSI_XGMAC0_INT_CAUSE",
 		.cause_reg = A_NCSI_XGMAC0_INT_CAUSE,
 		.enable_reg = A_NCSI_XGMAC0_INT_ENABLE,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ncsi_xgmac0_int_cause_details,
 		.actions = NULL,
 	};
 	bool fatal = false;
@@ -6346,14 +7592,42 @@ static bool ncsi_intr_handler(struct adapter *adap, int arg, int flags)
  */
 static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 {
+	static const struct intr_details mac_int_cause_cmn_details[] = {
+		{ 0x3fffc0, "HSS PLL lock error " },
+		{ F_FLOCK_ASSERTED, "frequency lock coming out of DPLL sub-block is asserted" },
+		{ F_FLOCK_LOST, "frequency lock coming out of DPLL sub-blocki is lost." },
+		{ F_PHASE_LOCK_ASSERTED, "PHASE LOCK from DPLL sub-block is asserted" },
+		{ F_PHASE_LOCK_LOST, "PHASE LOCK from DPLL sub-block is lost." },
+		{ F_LOCK_ASSERTED, "Lock from frac_n PLL inside t7_clk module is asserted" },
+		{ F_LOCK_LOST, "Lock from frac_n PLL inside t7_clk module is lost " },
+		{ 0 }
+	};
 	static const struct intr_info mac_int_cause_cmn = {
 		.name = "MAC_INT_CAUSE_CMN",
 		.cause_reg = A_MAC_INT_CAUSE_CMN,
 		.enable_reg = A_MAC_INT_EN_CMN,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = mac_int_cause_cmn_details,
 		.actions = NULL,
+	};
+	static const struct intr_details mac_perr_int_cause_mtip_details[] = {
+		{ F_PERR_MAC0_TX, "MTIP MAC TX memory for MAC 0 (the 200G MAC for port 0)" },
+		{ F_PERR_MAC1_TX, "MTIP MAC TX memory for MAC 1 (the 200G MAC for port 1)" },
+		{ F_PERR_MAC2_TX, "MTIP MAC TX memory for MAC 2 (the 10-100G MAC for port 0)" },
+		{ F_PERR_MAC3_TX, "MTIP MAC TX memory for MAC 3 (the 10-100G MAC for port 1)" },
+		{ F_PERR_MAC4_TX, "MTIP MAC TX memory for MAC 4 (the 10-100G MAC for port 2)" },
+		{ F_PERR_MAC5_TX, "MTIP MAC TX memory for MAC 5 (the 10-100G MAC for port 3)" },
+		{ F_PERR_MAC0_RX, "MTIP MAC RX memory for MAC 0 (the 200G MAC for port 0)" },
+		{ F_PERR_MAC1_RX, "MTIP MAC RX memory for MAC 1 (the 200G MAC for port 1)" },
+		{ F_PERR_MAC2_RX, "MTIP MAC RX memory for MAC 2 (the 10-100G MAC for port 0)" },
+		{ F_PERR_MAC3_RX, "MTIP MAC RX memory for MAC 3 (the 10-100G MAC for port 1)" },
+		{ F_PERR_MAC4_RX, "MTIP MAC RX memory for MAC 4 (the 10-100G MAC for port 2)" },
+		{ F_PERR_MAC5_RX, "MTIP MAC RX memory for MAC 5 (the 10-100G MAC for port 3)" },
+		{ F_PERR_MAC_STAT_RX, "MTIP MAC RX statistics memory (1 for all 4 10-100G MACs)" },
+		{ F_PERR_MAC_STAT_TX, "MTIP MAC TX statistics memory (1 for all 4 10-100G MACs)" },
+		{ F_PERR_MAC_STAT_CAP, "MTIP MAC stat capture memory (1 for all 4 100G MACs)" },
+		{ 0 }
 	};
 	static const struct intr_info mac_perr_cause_mtip = {
 		.name = "MAC_PERR_INT_CAUSE_MTIP",
@@ -6361,17 +7635,28 @@ static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 		.enable_reg = A_MAC_PERR_INT_EN_MTIP,
 		.fatal = 0xffffffff,
 		.flags = IHF_FATAL_IFF_ENABLED | IHF_IGNORE_IF_DISABLED,
-		.details = NULL,
+		.details = mac_perr_int_cause_mtip_details,
 		.actions = NULL,
 	};
-	static const struct intr_info mac_cerr_cause_mtip = {
-		.name = "MAC_CERR_INT_CAUSE_MTIP",
-		.cause_reg = A_MAC_CERR_INT_CAUSE_MTIP,
-		.enable_reg = A_MAC_CERR_INT_EN_MTIP,
-		.fatal = 0,
-		.flags = 0,
-		.details = NULL,
-		.actions = NULL,
+	static const struct intr_details ios_intr_cause_quad0_details[] = {
+		{ F_Q0_MAILBOX_INT_ASSERT, "Etopus Quad0 Mailbox interrupt cause" },
+		{ 0x00f00000, "Etopus Quad0 training failure" },
+		{ 0x000f0000, "Etopus Quad0 training complete" },
+		{ 0x0000f000, "Etopus Quad0 AN TX interrupt" },
+		{ 0x00000f00, "Etopus Quad0 signal detect assertion" },
+		{ 0x000000f0, "Etopus Quad0 CDR LOL assertion" },
+		{ 0x0000000f, "Etopus Quad0 LOS signal assertion" },
+		{ 0 }
+	};
+	static const struct intr_details ios_intr_cause_quad1_details[] = {
+		{ F_Q1_MAILBOX_INT_ASSERT, "Etopus Quad1 Mailbox interrupt cause" },
+		{ 0x00f00000, "Etopus Quad1 training failure" },
+		{ 0x000f0000, "Etopus Quad1 training complete" },
+		{ 0x0000f000, "Etopus Quad1 AN TX interrupt" },
+		{ 0x00000f00, "Etopus Quad1 signal detect assertion" },
+		{ 0x000000f0, "Etopus Quad1 CDR LOL assertion" },
+		{ 0x0000000f, "Etopus Quad1 LOS signal assertion" },
+		{ 0 }
 	};
 	static const struct intr_info mac_ios_int_cause_quad0 = {
 		.name = "MAC_IOS_INTR_CAUSE_QUAD0",
@@ -6379,7 +7664,7 @@ static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 		.enable_reg = A_MAC_IOS_INTR_EN_QUAD0,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ios_intr_cause_quad0_details,
 		.actions = NULL,
 	};
 	static const struct intr_info mac_ios_int_cause_quad1 = {
@@ -6388,12 +7673,39 @@ static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 		.enable_reg = A_MAC_IOS_INTR_EN_QUAD1,
 		.fatal = 0,
 		.flags = 0,
-		.details = NULL,
+		.details = ios_intr_cause_quad1_details,
 		.actions = NULL,
 	};
 	static const struct intr_details mac_intr_details[] = {
 		{ F_TXFIFO_PRTY_ERR, "MAC Tx FIFO parity error" },
 		{ F_RXFIFO_PRTY_ERR, "MAC Rx FIFO parity error" },
+		{ 0 }
+	};
+	static const struct intr_details t7_mac_int_cause_details[] = {
+		{ F_MAC2MPS_PERR_CAUSE, "MPS2MAC Data parity error per port" },
+		{ F_MAC_PPS_INT_CAUSE, "One second interrupt based on PTP timer" },
+		{ F_MAC_TX_TS_AVAIL_INT_CAUSE,
+			"Time stamp is available for the last IEEE 1588 event frame" },
+		{ F_MAC_PATDETWAKE_INT_CAUSE, "Wake up pattern match packet received" },
+		{ F_MAC_MAGIC_WAKE_INT_CAUSE, "Magic packet received" },
+		{ F_MAC_SIGDETCHG_INT_CAUSE, "Signal Detect Change" },
+		{ F_MAC_PCS_LINK_GOOD_CAUSE, "PCS link good (xaui pcsr or 1g)" },
+		{ F_MAC_PCS_LINK_FAIL_CAUSE, "PCS Failure (xaui pcsr or 1g)" },
+		{ F_RXFIFOOVERFLOW, "RX Fifo Over flow error" },
+		{ F_MAC_REM_FAULT_INT_CAUSE, "Remote fault received by XGMAC" },
+		{ F_MAC_LOC_FAULT_INT_CAUSE, "Local fault received by XGMAC" },
+		{ F_MAC_LINK_DOWN_INT_CAUSE, "Link is down" },
+		{ F_MAC_LINK_UP_INT_CAUSE, "Link is up" },
+		{ F_MAC_AN_DONE_INT_CAUSE, "Autonegotiation complete" },
+		{ F_MAC_AN_PGRD_INT_CAUSE, "An page received" },
+		{ F_MAC_TXFIFO_ERR_INT_CAUSE, "Tx FIFO parity error" },
+		{ F_MAC_RXFIFO_ERR_INT_CAUSE, "Rx FIFO parity error" },
+		{ 0 }
+	};
+	static const struct intr_details mac_perr_int_cause_details[] = {
+		{ F_T6_PERR_PKT_RAM, "WoL packet data memory" },
+		{ F_T6_PERR_MASK_RAM, "WoL mask memory" },
+		{ F_T6_PERR_CRC_RAM, "WoL CRC memory" },
 		{ 0 }
 	};
 	char name[32];
@@ -6428,7 +7740,7 @@ static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_INT_EN);
 		ii.fatal = 0xffffffff;
 		ii.flags = IHF_FATAL_IFF_ENABLED;
-		ii.details = NULL;
+		ii.details = t7_mac_int_cause_details;
 		ii.actions = NULL;
 	}
 	fatal |= t4_handle_intr(adap, &ii, 0, flags);
@@ -6443,7 +7755,7 @@ static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 		ii.enable_reg = T7_PORT_REG(port, A_T7_MAC_PORT_PERR_INT_EN);
 		ii.fatal = 0xffffffff;
 		ii.flags = IHF_FATAL_IFF_ENABLED;
-		ii.details = NULL;
+		ii.details = mac_perr_int_cause_details;
 		ii.actions = NULL;
 	} else {
 		ii.name = &name[0];
@@ -6484,7 +7796,6 @@ static bool mac_intr_handler(struct adapter *adap, int port, int flags)
 	MPASS(chip_id(adap) >= CHELSIO_T7);
 	fatal |= t4_handle_intr(adap, &mac_int_cause_cmn, 0, flags);
 	fatal |= t4_handle_intr(adap, &mac_perr_cause_mtip, 0, flags);
-	fatal |= t4_handle_intr(adap, &mac_cerr_cause_mtip, 0, flags);
 	fatal |= t4_handle_intr(adap, &mac_ios_int_cause_quad0, 0, flags);
 	fatal |= t4_handle_intr(adap, &mac_ios_int_cause_quad1, 0, flags);
 
@@ -6506,28 +7817,40 @@ static bool pl_timeout_status(struct adapter *adap, int arg, int flags)
 static bool plpl_intr_handler(struct adapter *adap, int arg, int flags)
 {
 	static const struct intr_details plpl_int_cause_fields[] = {
+		{ F_FATALPERR, "Fatal parity error" },
+		{ F_PERRVFID, "VFID_MAP parity error" },
+		{ 0 }
+	};
+	static const struct intr_details t5_plpl_int_cause_fields[] = {
 		{ F_PL_BUSPERR, "Bus parity error" },
 		{ F_FATALPERR, "Fatal parity error" },
 		{ F_INVALIDACCESS, "Global reserved memory access" },
 		{ F_TIMEOUT,  "Bus timeout" },
 		{ F_PLERR, "Module reserved access" },
-		{ F_PERRVFID, "VFID_MAP parity error" },
 		{ 0 }
 	};
 	static const struct intr_action plpl_int_cause_actions[] = {
 		{ F_TIMEOUT, -1, pl_timeout_status },
 		{ 0 },
 	};
-	static const struct intr_info plpl_int_cause = {
+	struct intr_info plpl_int_cause = {
 		.name = "PL_PL_INT_CAUSE",
 		.cause_reg = A_PL_PL_INT_CAUSE,
 		.enable_reg = A_PL_PL_INT_ENABLE,
-		.fatal = F_FATALPERR | F_PERRVFID,
-		.flags = IHF_FATAL_IFF_ENABLED | IHF_IGNORE_IF_DISABLED,
-		.details = plpl_int_cause_fields,
-		.actions = plpl_int_cause_actions,
+		.fatal = F_FATALPERR,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = NULL,
+		.actions = NULL,
 	};
 
+	if (is_t4(adap)) {
+		plpl_int_cause.fatal |= F_PERRVFID;
+		plpl_int_cause.details = plpl_int_cause_fields;
+	} else {
+		plpl_int_cause.fatal |= F_INVALIDACCESS;
+		plpl_int_cause.details = t5_plpl_int_cause_fields;
+		plpl_int_cause.actions = plpl_int_cause_actions;
+	}
 	return (t4_handle_intr(adap, &plpl_int_cause, 0, flags));
 }
 
@@ -6587,7 +7910,7 @@ static bool hma_intr_handler(struct adapter *adap, int idx, int flags)
 		{ F_RTF_INT_CAUSE, "Region translation fault" },
 		{ F_PCIEMST_INT_CAUSE, "PCIe master access error" },
 		{ F_MAMST_INT_CAUSE, "MA master access error" },
-		{ 1, "FIFO parity error" },
+		{ F_PERR_INT_CAUSE, "FIFO parity error" },
 		{ 0 }
 	};
 	static const struct intr_info hma_int_cause = {
@@ -6682,15 +8005,6 @@ static bool gcache_intr_handler(struct adapter *adap, int idx, int flags)
 		{ F_ILLADDRACCESS0_INT_CAUSE, "GC0 illegal address access" },
 		{ 0 }
 	};
-	static const struct intr_info gcache_perr_cause = {
-		.name = "GCACHE_PAR_CAUSE",
-		.cause_reg = A_GCACHE_PAR_CAUSE,
-		.enable_reg = A_GCACHE_PAR_ENABLE,
-		.fatal = 0xffffffff,
-		.flags = IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
-		.actions = NULL,
-	};
 	static const struct intr_info gcache_int_cause = {
 		.name = "GCACHE_INT_CAUSE",
 		.cause_reg = A_GCACHE_INT_CAUSE,
@@ -6700,12 +8014,7 @@ static bool gcache_intr_handler(struct adapter *adap, int idx, int flags)
 		.details = gcache_int_cause_fields,
 		.actions = NULL,
 	};
-	bool fatal = false;
-
-	fatal |= t4_handle_intr(adap, &gcache_int_cause, 0, flags);
-	fatal |= t4_handle_intr(adap, &gcache_perr_cause, 0, flags);
-
-	return (fatal);
+	return (t4_handle_intr(adap, &gcache_int_cause, 0, flags));
 }
 
 /*
@@ -6713,14 +8022,91 @@ static bool gcache_intr_handler(struct adapter *adap, int idx, int flags)
  */
 static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
 {
+	static const struct intr_details arm_perr_int_cause0_details[] = {
+		{ F_INIC_WRDATA_FIFO_PERR, "INT CAUSE for INIC Write Data Fifo Parity Error" },
+		{ F_INIC_RDATA_FIFO_PERR, "INT CAUSE for INIC Read Data Fifo Parity Error" },
+		{ F_MSI_MEM_PERR, "INT CAUSE for MSI Memory Parity Error" },
+		{ 0x18000000, "INT CAUSE for ARM Doorbell SRAM Parity Error" },
+		{ F_EMMC_FIFOPARINT, "INT CAUSE for EMMC Fifo Parity Interrupt" },
+		{ F_ICB_RAM_PERR, "INT CAUSE for ICB SRAM Parity Error" },
+		{ F_MESS2AXI4_WRFIFO_PERR, "INT CAUSE for Message2AXI4 Write FIFO Parity Error" },
+		{ F_RC_WFIFO_OUTPERR, "INT CAUSE for AXI2RC Write FIFO Parity Error" },
+		{ 0x00600000, "INT CAUSE for AXI2RC SRAM Parity Error" },
+		{ F_MSI_FIFO_PAR_ERR, "INT CAUSE for APB2MSI FIFO Parity Error" },
+		{ F_INIC2MA_INTFPERR, "INT CAUSE for INIC to MA Interface Parity Error" },
+		{ F_RDATAFIFO0_PERR, "INT CAUSE for AXI2MA M0 Read Data Fifo Parity Error" },
+		{ F_RDATAFIFO1_PERR, "INT CAUSE for AXI2MA M1 Read Data Fifo Parity Error" },
+		{ F_WRDATAFIFO0_PERR, "INT CAUSE for AXI2MA M0 Write Data Fifo Parity Error" },
+		{ F_WRDATAFIFO1_PERR, "INT CAUSE for AXI2MA M1 Write Data Fifo Parity Error" },
+		{ F_WR512DATAFIFO0_PERR,
+			"INT CAUSE for AXI2MA M0 Write Data 512b Fifo Parity Error" },
+		{ F_WR512DATAFIFO1_PERR,
+			"INT CAUSE for AXI2MA M1 Write Data 512b Fifo Parity Error" },
+		{ F_ROBUFF_PARERR3, "INT CAUSE for Reorder Buffer Parity Error" },
+		{ F_ROBUFF_PARERR2, "INT CAUSE for Reorder Buffer Parity Error" },
+		{ F_ROBUFF_PARERR1, "INT CAUSE for Reorder Buffer Parity Error" },
+		{ F_ROBUFF_PARERR0, "INT CAUSE for Reorder Buffer Parity Error" },
+		{ F_MA2AXI_REQDATAPARERR, "INT CAUSE for MA2AXI Request Data Parity Error" },
+		{ F_MA2AXI_REQCTLPARERR, "INT CAUSE for MA2AXI Request Control Parity Error" },
+		{ F_MA_RSPPERR, "INT CAUSE for MA Response Parity Error" },
+		{ F_PCIE2MA_REQCTLPARERR, "INT CAUSE for PCIe to MA Control Parity Error" },
+		{ F_PCIE2MA_REQDATAPARERR, "INT CAUSE for PCIe to MA Data Parity Error" },
+		{ F_INIC2MA_REQCTLPARERR, "INT CAUSE for INIC to MA Control Parity Error" },
+		{ F_INIC2MA_REQDATAPARERR, "INT CAUSE for INIC to MA Data Parity Error" },
+		{ F_MA_RSPUE, "INT CAUSE for MA Response Uncorrectable Error" },
+		{ F_APB2PL_RSPDATAPERR, "INT CAUSE for APB2PL Response Data Parity Error" },
+		{ 0 }
+	};
 	static const struct intr_info arm_perr_cause0 = {
 		.name = "ARM_PERR_INT_CAUSE0",
 		.cause_reg = A_ARM_PERR_INT_CAUSE0,
 		.enable_reg = A_ARM_PERR_INT_ENB0,
 		.fatal = 0xffffffff,
 		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = arm_perr_int_cause0_details,
 		.actions = NULL,
+	};
+	static const struct intr_details arm_perr_int_cause1_details[] = {
+		{ F_ARWFIFO0_PERR, "AXI2MA M0 Read-Write FIFO Parity Error" },
+		{ F_ARWFIFO1_PERR, "AXI2MA M1 Read-Write FIFO Parity Error" },
+		{ F_ARWIDFIFO0_PERR, "AXI2MA M0 Read-Write ID FIFO Parity Error" },
+		{ F_ARWIDFIFO1_PERR, "AXI2MA M1 Read-Write ID FIFO Parity Error" },
+		{ F_ARIDFIFO0_PERR, "AXI2MA M0 Read FIFO Parity Error" },
+		{ F_ARIDFIFO1_PERR, "AXI2MA M1 Read FIFO Parity Error" },
+		{ F_RRSPADDR_FIFO0_PERR, "AXI2MA M0 Read Response Address FIFO Parity Error" },
+		{ F_RRSPADDR_FIFO1_PERR, "AXI2MA M1 Read Response Address FIFO Parity Error" },
+		{ F_WRSTRB_FIFO0_PERR, "AXI2MA M0 Write Strobe FIFO Parity Error" },
+		{ F_WRSTRB_FIFO1_PERR, "AXI2MA M1 Write Strobe FIFO Parity Error" },
+		{ F_MA2AXI_RSPDATAPARERR, "MA2AXI Response FIFO Parity Error" },
+		{ F_MA2AXI_DATA_PAR_ERR, "MA2AXI Write Data FIFO Parity Error" },
+		{ F_MA2AXI_WR_ORD_FIFO_PARERR, "MA2AXI Ordered Write Data FIFO Parity Error" },
+		{ F_NVME_DB_EMU_TRACKER_FIFO_PERR, "NVMe DB Emulation Tracker FIFO Parity Error" },
+		{ F_NVME_DB_EMU_QUEUE_AW_ADDR_FIFO_PERR,
+			"NVMe DB Emulation Queue AW Addr Parity Error" },
+		{ F_NVME_DB_EMU_INTERRUPT_OFFSET_FIFO_PERR,
+			"NVMe DB Emulation Interrupt Offset FIFO Parity Error" },
+		{ F_NVME_DB_EMU_ID_FIFO0_PERR, "NVMe DB Emulation ID FIFO0 Parity Error" },
+		{ F_NVME_DB_EMU_ID_FIFO1_PERR, "NVMe DB Emulation ID FIFO1 Parity Error" },
+		{ F_RC_ARWFIFO_PERR, "AXI2RC Read-Write FIFO Parity Error" },
+		{ F_RC_ARIDBURSTADDRFIFO_PERR,
+			"AXI2RC Read ID, Burst and Address FIFO Parity Error" },
+		{ F_RC_CFG_FIFO_PERR, "AXI2RC Config FIFO Parity Error" },
+		{ F_RC_RSPFIFO_PERR, "AXI2RC Response Parity Error" },
+		{ F_INIC_ARIDFIFO_PERR, "CCI2INIC Read ID FIFO Parity Error" },
+		{ F_INIC_ARWFIFO_PERR, "CCI2INIC Read-Write FIFO ontrol Parity Error" },
+		{ F_AXI2MA_128_RD_ADDR_SIZE_FIFO_PERR,
+			"AXI2MA(CCI2INIC) Read Address Size FIFO Parity Error" },
+		{ F_AXI2RC_128_RD_ADDR_SIZE_FIFO_PERR,
+			"AXI2RC Read Address Size FIFO Parity Error" },
+		{ F_ARM_MA_512B_RD_ADDR_SIZE_FIFO0_PERR,
+			"ARM_MA_512b Read Address Size FIFO0 Parity Error" },
+		{ F_ARM_MA_512B_RD_ADDR_SIZE_FIFO1_PERR,
+			"ARM_MA_512b Read Address Size FIFO1 Parity Error" },
+		{ F_ARM_MA_512B_ARB_FIFO_PERR, "ARM_MA_512b Arbiter FIFO Parity Error" },
+		{ F_PCIE_INIC_MA_ARB_FIFO_PERR, "PCIe-INIC Arbiter FIFO Parity Error" },
+		{ F_PCIE_INIC_ARB_RSPPERR, "PCIe-INIC Arbiter Response Parity Error" },
+		{ F_ITE_CACHE_PERR, "GIC500 ITE Cache SRAM Parity Error" },
+		{ 0 }
 	};
 	static const struct intr_info arm_perr_cause1 = {
 		.name = "ARM_PERR_INT_CAUSE1",
@@ -6728,8 +8114,17 @@ static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
 		.enable_reg = A_ARM_PERR_INT_ENB1,
 		.fatal = 0xffffffff,
 		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = arm_perr_int_cause1_details,
 		.actions = NULL,
+	};
+	static const struct intr_details arm_perr_int_cause2_details[] = {
+		{ F_INIC_WSTRB_FIFO_PERR, "AXI2MA_128 INIC Write Strobe FIFO Parity Error" },
+		{ F_INIC_BID_FIFO_PERR, "AXI2MA_128 INIC bID FIFO Parity Error" },
+		{ F_CC_SRAM_PKA_PERR, "CryptoCell ram_pka_wrapper FIFO Parity Error" },
+		{ F_CC_SRAM_SEC_PERR, "CryptoCell sec_sram_wrapper FIFO Parity Error" },
+		{ F_MESS2AXI4_PARERR, "Message2AXI4 IBQ I/P Interface Parity Error" },
+		{ F_CCI2INIC_INTF_PARERR, "CCI2INIC Response Interface Parity Error" },
+		{ 0 }
 	};
 	static const struct intr_info arm_perr_cause2 = {
 		.name = "ARM_PERR_INT_CAUSE2",
@@ -6737,26 +8132,69 @@ static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
 		.enable_reg = A_ARM_PERR_INT_ENB2,
 		.fatal = 0xffffffff,
 		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = arm_perr_int_cause2_details,
 		.actions = NULL,
 	};
+	static const struct intr_details arm_cerr_int_cause0_details[] = {
+		{ F_WRDATA_FIFO0_CERR, "AXI2MA M0 Write Data FIFO Correctable Error" },
+		{ F_WRDATA_FIFO1_CERR, "AXI2MA M1 Write Data FIFO Correctable Error" },
+		{ F_WR512DATAFIFO0_CERR, "AXI2MA M0 Write Data 512b FIFO Correctable Error" },
+		{ F_WR512DATAFIFO1_CERR, "AXI2MA M1 Write Data 512b FIFO Correctable Error" },
+		{ F_RDATAFIFO0_CERR, "AXI2MA M0 Read Data FIFO Correctable Error" },
+		{ F_RDATAFIFO1_CERR, "AXI2MA M1 Read Data FIFO Correctable Error" },
+		{ F_ROBUFF_CORERR0, "Reorder Buffer Correctable Error" },
+		{ F_ROBUFF_CORERR1, "Reorder Buffer Correctable Error" },
+		{ F_ROBUFF_CORERR2, "Reorder Buffer Correctable Error" },
+		{ F_ROBUFF_CORERR3, "Reorder Buffer Correctable Error" },
+		{ F_MA2AXI_RSPDATACORERR, "MA2AXI Response FIFO Correctable Error" },
+		{ 0x00180000, "AXI2RC SRAM Correctable Error" },
+		{ F_RC_WFIFO_OUTCERR, "AXI2RC Write FIFO Correctable Error" },
+		{ F_RC_RSPFIFO_CERR, "AXI2RC Response Correctable Error" },
+		{ F_MSI_MEM_CERR, "MSI Memory FIFO Correctable Error" },
+		{ F_INIC_WRDATA_FIFO_CERR, "INIC Write Data FIFO Correctable Error" },
+		{ F_INIC_RDATAFIFO_CERR, "INIC Read Data FIFO Correctable Error" },
+		{ 0x00003000, "ARM Doorbell SRAM Correctable Error" },
+		{ F_ICB_RAM_CERR, "ICB SRAM Parity Error" },
+		{ F_CC_SRAM_PKA_CERR, "CryptoCell ram_pka_wrapper FIFO Correctable Error" },
+		{ F_CC_SRAM_SEC_CERR, "CryptoCell sec_sram_wrapper FIFO Correctable Error" },
+		{ 0 }
+	};
 	static const struct intr_info arm_cerr_cause0 = {
-		.name = "ARM_CERR_INT_CAUSE",
+		.name = "ARM_CERR_INT_CAUSE0",
 		.cause_reg = A_ARM_CERR_INT_CAUSE0,
 		.enable_reg = A_ARM_CERR_INT_ENB0,
 		.fatal = 0,
 		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = arm_cerr_int_cause0_details,
 		.actions = NULL,
 	};
+	static const struct intr_details arm_err_int_cause0_details[] = {
+		{ F_STRB0_ERROR, "Strobe Error from AXI2MA 0" },
+		{ F_STRB1_ERROR, "Strobe Error from AXI2MA 1" },
+		{ F_PCIE_INIC_MA_ARB_INV_RSP_TAG, "Invalid Response Tag for PCIE-INIc MA ARB" },
+		{ F_ERROR0_NOCMD_DATA, "AXI2MA 0 No Command Data Error" },
+		{ F_ERROR1_NOCMD_DATA, "AXI2MA 1 No Command Data Error" },
+		{ F_INIC_STRB_ERROR, "AXI2MA_128b INIC Strobe Error" },
+		{ 0 }
+	};
 	static const struct intr_info arm_err_cause0 = {
-		.name = "ARM_ERR_INT_CAUSE",
+		.name = "ARM_ERR_INT_CAUSE0",
 		.cause_reg = A_ARM_ERR_INT_CAUSE0,
 		.enable_reg = A_ARM_ERR_INT_ENB0,
 		.fatal = 0,
 		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = arm_err_int_cause0_details,
 		.actions = NULL,
+	};
+
+	static const struct intr_details arm_peripheral_int_cause_details[] = {
+		{ F_TIMER_INT, "TIMER_INT" },
+		{ F_NVME_INT, "NVME_INT" },
+		{ F_EMMC_WAKEUP_INT, "EMMC_WAKEUP_INT" },
+		{ F_EMMC_INT, "EMMC_INT" },
+		{ F_USB_MC_INT, "USB_MC_INT" },
+		{ F_USB_DMA_INT, "USB_DMA_INT" },
+		{ 0 }
 	};
 	static const struct intr_info arm_periph_cause = {
 		.name = "ARM_PERIPHERAL_INT_CAUSE",
@@ -6764,8 +8202,30 @@ static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
 		.enable_reg = A_ARM_PERIPHERAL_INT_ENB,
 		.fatal = 0,
 		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = arm_peripheral_int_cause_details,
 		.actions = NULL,
+	};
+	static const struct intr_details arm_arm_uart_int_cause_details[] = {
+		{ F_RX_FIFO_NOT_EMPTY, "intcause for uart rx fifo" },
+		{ F_TX_FIFO_EMPTY, "intcause for uart tx fifo" },
+		{ 0 }
+	};
+	static const struct intr_info arm_uart_cause = {
+		.name = "ARM_ARM_UART_INT_CAUSE",
+		.cause_reg = A_ARM_ARM_UART_INT_CAUSE,
+		.enable_reg = A_ARM_ARM_UART_INT_EN,
+		.fatal = 0,
+		.flags = IHF_FATAL_IFF_ENABLED,
+		.details = arm_arm_uart_int_cause_details,
+		.actions = NULL,
+	};
+	static const struct intr_details arm_nvme_db_emu_int_cause_details[] = {
+		{ F_INVALID_BRESP, "Invalid CCI Write Response" },
+		{ F_DATA_LEN_OF,
+			"Incorrect Write Request to be written to incorrect Devices/Regions" },
+		{ F_INVALID_EMU_ADDR, "Invalid Emulation Address Range Configuration" },
+		{ F_INVALID_AXI_ADDR_CFG, "Invalid AXI Address Configuration" },
+		{ 0 }
 	};
 	static const struct intr_info arm_nvme_db_emu_cause = {
 		.name = "ARM_NVME_DB_EMU_INT_CAUSE",
@@ -6773,7 +8233,7 @@ static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
 		.enable_reg = A_ARM_NVME_DB_EMU_INT_ENABLE,
 		.fatal = 0,
 		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
-		.details = NULL,
+		.details = arm_nvme_db_emu_int_cause_details,
 		.actions = NULL,
 	};
 	bool fatal = false;
@@ -6785,12 +8245,13 @@ static bool arm_intr_handler(struct adapter *adap, int idx, int flags)
 	fatal |= t4_handle_intr(adap, &arm_err_cause0, 0, flags);
 	fatal |= t4_handle_intr(adap, &arm_periph_cause, 0, flags);
 	fatal |= t4_handle_intr(adap, &arm_nvme_db_emu_cause, 0, flags);
+	fatal |= t4_handle_intr(adap, &arm_uart_cause, 0, flags);
 
 	return (fatal);
 }
 
 static inline uint32_t
-get_perr_ucause(struct adapter *sc, const struct intr_info *ii)
+get_ucause(struct adapter *sc, const struct intr_info *ii)
 {
 	uint32_t cause;
 
@@ -6977,7 +8438,8 @@ bool t4_slow_intr_handler(struct adapter *adap, int flags)
 		.cause_reg = A_PL_PERR_CAUSE,
 		.enable_reg = A_PL_PERR_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED |
+		    IHF_CLR_DELAYED,
 		.details = pl_int_cause_fields,
 		.actions = NULL,
 	};
@@ -7117,7 +8579,8 @@ bool t4_slow_intr_handler(struct adapter *adap, int flags)
 		.cause_reg = A_PL_PERR_CAUSE,
 		.enable_reg = A_PL_PERR_ENABLE,
 		.fatal = 0xffffffff,
-		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED,
+		.flags = IHF_IGNORE_IF_DISABLED | IHF_FATAL_IFF_ENABLED |
+		    IHF_CLR_DELAYED,
 		.details = t7_pl_perr_cause_fields,
 		.actions = NULL,
 	};
@@ -7125,23 +8588,19 @@ bool t4_slow_intr_handler(struct adapter *adap, int flags)
 	uint32_t perr;
 
 	if (chip_id(adap) < CHELSIO_T7) {
-		perr = get_perr_ucause(adap, &pl_perr_cause);
-		fatal |= t4_handle_intr(adap, &pl_perr_cause, 0,
-		    flags & ~(IHF_CLR_ALL_SET | IHF_CLR_ALL_UNIGNORED));
+		perr = get_ucause(adap, &pl_perr_cause);
+		fatal |= t4_handle_intr(adap, &pl_perr_cause, 0, flags);
 		fatal |= t4_handle_intr(adap, &pl_int_cause,
 		    t4_perr_to_ic(adap, perr), flags);
-		t4_write_reg(adap, pl_perr_cause.cause_reg, perr);
-		(void)t4_read_reg(adap, pl_perr_cause.cause_reg);
+		clear_int_cause_reg(adap, &pl_perr_cause, flags);
 	} else {
-		perr = get_perr_ucause(adap, &t7_pl_perr_cause);
-		fatal |= t4_handle_intr(adap, &t7_pl_perr_cause, 0,
-		    flags & ~(IHF_CLR_ALL_SET | IHF_CLR_ALL_UNIGNORED));
+		perr = get_ucause(adap, &t7_pl_perr_cause);
+		fatal |= t4_handle_intr(adap, &t7_pl_perr_cause, 0, flags);
 		fatal |= t4_handle_intr(adap, &t7_pl_int_cause,
 		    t7_perr_to_ic1(perr), flags);
 		fatal |= t4_handle_intr(adap, &t7_pl_int_cause2,
 		    t7_perr_to_ic2(perr), flags);
-		t4_write_reg(adap, t7_pl_perr_cause.cause_reg, perr);
-		(void)t4_read_reg(adap, t7_pl_perr_cause.cause_reg);
+		clear_int_cause_reg(adap, &t7_pl_perr_cause, flags);
 	}
 	return (fatal);
 }
