@@ -3615,6 +3615,10 @@ ATF_TC_BODY(ptrace__PT_STEP_with_signal, tc)
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SI);
 	REQUIRE_EQ(pl.pl_siginfo.si_signo, SIGABRT);
 
+#if defined(__riscv)
+	atf_tc_expect_fail("PT_STEP not implemented on riscv, see sys/riscv/riscv/ptrace_machdep.c");
+#endif
+
 	/* Step the child process inserting SIGUSR1. */
 	REQUIRE_EQ(ptrace(PT_STEP, fpid, (caddr_t)1, SIGUSR1), 0);
 
@@ -3731,6 +3735,10 @@ ATF_TC_BODY(ptrace__step_siginfo, tc)
 	REQUIRE_EQ(wpid, fpid);
 	ATF_REQUIRE(WIFSTOPPED(status));
 	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+#if defined(__riscv)
+	atf_tc_expect_fail("PT_STEP not implemented on riscv, see sys/riscv/riscv/ptrace_machdep.c");
+#endif
 
 	/* Step the child ignoring the SIGSTOP. */
 	REQUIRE_EQ(ptrace(PT_STEP, fpid, (caddr_t)1, 0), 0);
