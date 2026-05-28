@@ -1093,6 +1093,7 @@ int
 main(int argc, char *argv[])
 {
 	const char *command;
+	unsigned int i;
 	int opt;
 
 	while ((opt = getopt(argc, argv, "BcD:d:g:lL:M:no:Uv")) != -1)
@@ -1155,8 +1156,8 @@ main(int argc, char *argv[])
 
 	set_defaults();
 
-	for (unsigned i = 0; commands[i].name != NULL; i++)
+	for (i = 0; commands[i].name != NULL; i++)
 		if (strcmp(command, commands[i].name) == 0)
-			exit(!!commands[i].func(argc, argv));
+			exit(commands[i].func(argc, argv) == 0 ? 0 : 1);
 	usage();
 }
