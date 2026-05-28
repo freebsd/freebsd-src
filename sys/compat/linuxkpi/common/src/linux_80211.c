@@ -1607,12 +1607,13 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	}
 	sta = LSTA_TO_STA(lsta);
 
-	keylen = k->wk_keylen;
+	keylen = ieee80211_crypto_get_key_len(k);
 	lcipher = lkpi_net80211_to_l80211_cipher_suite(
-	    k->wk_cipher->ic_cipher, k->wk_keylen);
+	    k->wk_cipher->ic_cipher, ieee80211_crypto_get_key_len(k));
 	switch (lcipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		keylen += 2 * k->wk_cipher->ic_miclen;
+		keylen += ieee80211_crypto_get_key_txmic_len(k);
+		keylen += ieee80211_crypto_get_key_rxmic_len(k);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
@@ -1643,8 +1644,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	kc->hw_key_idx = /* set by hw and needs to be passed for TX */;
 #endif
 	atomic64_set(&kc->tx_pn, k->wk_keytsc);
-	kc->keylen = k->wk_keylen;
-	memcpy(kc->key, k->wk_key, k->wk_keylen);
+	kc->keylen = ieee80211_crypto_get_key_len(k);
+	memcpy(kc->key, ieee80211_crypto_get_key_data(k),
+	    ieee80211_crypto_get_key_len(k));
 
 	if (k->wk_flags & (IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV))
 		kc->flags |= IEEE80211_KEY_FLAG_PAIRWISE;
@@ -1656,8 +1658,12 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 	switch (kc->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY, k->wk_txmic, k->wk_cipher->ic_miclen);
-		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY, k->wk_rxmic, k->wk_cipher->ic_miclen);
+		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY,
+		    ieee80211_crypto_get_key_txmic_data(k),
+		    ieee80211_crypto_get_key_txmic_len(k));
+		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY,
+		    ieee80211_crypto_get_key_rxmic_data(k),
+		    ieee80211_crypto_get_key_rxmic_len(k));
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
@@ -5531,10 +5537,10 @@ lkpi_hw_crypto_prepare_tkip(struct ieee80211_key *k,
 	 * "enmic" (though we do not do that).
 	 */
 	/* any conditions to not apply this? */
-	if (skb_tailroom(skb) < k->wk_cipher->ic_miclen)
+	if (skb_tailroom(skb) < ieee80211_crypto_get_key_txmic_len(k))
 		return (ENOBUFS);
 
-	p = skb_put(skb, k->wk_cipher->ic_miclen);
+	p = skb_put(skb, ieee80211_crypto_get_key_txmic_len(k));
 	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_MIC_SPACE) != 0)
 		goto encrypt;
 
