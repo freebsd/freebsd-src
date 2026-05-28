@@ -94,7 +94,7 @@
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
 static const Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
     const char *interp, int32_t *osrel, uint32_t *fctl0);
-static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
+static int __elfN(load_file)(struct thread *td, const char *file, u_long *addr,
     u_long *entry);
 static int __elfN(load_section)(const struct image_params *imgp,
     vm_ooffset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
@@ -780,8 +780,8 @@ __elfN(load_sections)(const struct image_params *imgp, const Elf_Ehdr *hdr,
  * the entry point for the loaded file.
  */
 static int
-__elfN(load_file)(struct proc *p, const char *file, u_long *addr,
-	u_long *entry)
+__elfN(load_file)(struct thread *td, const char *file, u_long *addr,
+    u_long *entry)
 {
 	struct {
 		struct nameidata nd;
@@ -802,7 +802,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 * XXXJA: This check can go away once we are sufficiently confident
 	 * that the checks in namei() are correct.
 	 */
-	if (IN_CAPABILITY_MODE(curthread))
+	if (IN_CAPABILITY_MODE(td))
 		return (ECAPMODE);
 #endif
 
@@ -814,7 +814,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	/*
 	 * Initialize part of the common data
 	 */
-	imgp->proc = p;
+	imgp->td = td;
+	imgp->proc = td->td_proc;
 	imgp->attr = attr;
 
 	NDINIT(nd, LOOKUP, ISOPEN | FOLLOW | LOCKSHARED | LOCKLEAF,
@@ -867,8 +868,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	if (error != 0)
 		goto fail;
 
-	if (p->p_sysent->sv_protect != NULL)
-		p->p_sysent->sv_protect(imgp, SVP_INTERP);
+	if (imgp->proc->p_sysent->sv_protect != NULL)
+		imgp->proc->p_sysent->sv_protect(imgp, SVP_INTERP);
 
 	*addr = base_addr;
 	*entry = (unsigned long)hdr->e_entry + rbase;
@@ -1008,15 +1009,12 @@ static int
 __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
     char **interpp, bool *free_interpp)
 {
-	struct thread *td;
 	char *interp;
 	int error, interp_name_len;
 
 	KASSERT(phdr->p_type == PT_INTERP,
 	    ("%s: p_type %u != PT_INTERP", __func__, phdr->p_type));
 	ASSERT_VOP_LOCKED(imgp->vp, __func__);
-
-	td = curthread;
 
 	/* Path to interpreter */
 	if (phdr->p_filesz < 2 || phdr->p_filesz > MAXPATHLEN) {
@@ -1045,8 +1043,8 @@ __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
 
 		error = vn_rdwr(UIO_READ, imgp->vp, interp,
 		    interp_name_len, phdr->p_offset,
-		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
-		    NOCRED, NULL, td);
+		    UIO_SYSSPACE, IO_NODELOCKED, imgp->td->td_ucred,
+		    NOCRED, NULL, imgp->td);
 		if (error != 0) {
 			free(interp, M_TEMP);
 			uprintf("i/o error PT_INTERP %d\n", error);
@@ -1079,13 +1077,13 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 	if (brand_info->interp_newpath != NULL &&
 	    (brand_info->interp_path == NULL ||
 	    strcmp(interp, brand_info->interp_path) == 0)) {
-		error = __elfN(load_file)(imgp->proc,
+		error = __elfN(load_file)(imgp->td,
 		    brand_info->interp_newpath, addr, entry);
 		if (error == 0)
 			return (0);
 	}
 
-	error = __elfN(load_file)(imgp->proc, interp, addr, entry);
+	error = __elfN(load_file)(imgp->td, interp, addr, entry);
 	if (error == 0)
 		return (0);
 
@@ -1102,7 +1100,6 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 static int
 __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
-	struct thread *td;
 	const Elf_Ehdr *hdr;
 	const Elf_Phdr *phdr;
 	Elf_Auxargs *elf_auxargs;
@@ -1152,7 +1149,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	entry = proghdr = 0;
 	interp = NULL;
 	free_interp = false;
-	td = curthread;
 
 	/*
 	 * Somewhat arbitrary, limit accepted max alignment for the
@@ -1329,7 +1325,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	map = &vmspace->vm_map;
 	maxv = sv->sv_usrstack;
 	if ((imgp->map_flags & MAP_ASLR_STACK) == 0)
-		maxv -= lim_max(td, RLIMIT_STACK);
+		maxv -= lim_max(imgp->td, RLIMIT_STACK);
 	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {
 		uprintf("Excessive mapping size\n");
 		error = ENOEXEC;
@@ -1339,7 +1335,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		KASSERT((map->flags & MAP_ASLR) != 0,
 		    ("ET_DYN_ADDR_RAND but !MAP_ASLR"));
 		error = __CONCAT(rnd_, __elfN(base))(map,
-		    vm_map_min(map) + mapsz + lim_max(td, RLIMIT_DATA),
+		    vm_map_min(map) + mapsz + lim_max(imgp->td, RLIMIT_DATA),
 		    /* reserve half of the address space to interpreter */
 		    maxv / 2, maxalign, &imgp->et_dyn_addr);
 	}
@@ -1362,7 +1358,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * calculation is that it leaves room for the heap to grow to
 	 * its maximum allowed size.
 	 */
-	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(td,
+	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(imgp->td,
 	    RLIMIT_DATA));
 	if ((map->flags & MAP_ASLR) != 0) {
 		maxv1 = maxv / 2 + addr / 2;
@@ -2809,7 +2805,7 @@ __elfN(parse_notes)(const struct image_params *imgp, const Elf_Note *checknote,
 		}
 		error = vn_rdwr(UIO_READ, imgp->vp, buf, pnote->p_filesz,
 		    pnote->p_offset, UIO_SYSSPACE, IO_NODELOCKED,
-		    curthread->td_ucred, NOCRED, NULL, curthread);
+		    imgp->td->td_ucred, NOCRED, NULL, imgp->td);
 		if (error != 0) {
 			uprintf("i/o error PT_NOTE\n");
 			goto retf;

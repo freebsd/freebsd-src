@@ -57,6 +57,7 @@ struct image_args {
 
 struct image_params {
 	struct proc *proc;		/* our process */
+	struct thread *td;
 	struct label *execlabel;	/* optional exec label */
 	struct vnode *vp;		/* pointer to vnode of file to exec */
 	struct vm_object *object;	/* The vm object for this vp */

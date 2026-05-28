@@ -448,6 +448,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	 */
 	bzero(imgp, sizeof(*imgp));
 	imgp->proc = p;
+	imgp->td = td;
 	imgp->attr = &attr;
 	imgp->args = args;
 	oldcred = p->p_ucred;
