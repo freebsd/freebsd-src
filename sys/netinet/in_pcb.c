@@ -2805,7 +2805,6 @@ in_pcbrehash(struct inpcb *inp)
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
 	uint32_t hash;
-	bool connected;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
@@ -2815,34 +2814,24 @@ in_pcbrehash(struct inpcb *inp)
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
+		MPASS(!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr));
 		hash = INP6_PCBHASH(&inp->in6p_faddr, inp->inp_lport,
 		    inp->inp_fport, pcbinfo->ipi_hashmask);
-		connected = !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr);
 	} else
 #endif
 	{
+		MPASS(!in_nullhost(inp->inp_faddr));
 		hash = INP_PCBHASH(&inp->inp_faddr, inp->inp_lport,
 		    inp->inp_fport, pcbinfo->ipi_hashmask);
-		connected = !in_nullhost(inp->inp_faddr);
 	}
 
 	/* See the comment in in_pcbinshash(). */
-	if (connected && (inp->inp_flags & INP_INLBGROUP) != 0)
+	if ((inp->inp_flags & INP_INLBGROUP) != 0)
 		in_pcbremlbgrouphash(inp);
 
-	/*
-	 * When rehashing, the caller must ensure that either the new or the old
-	 * foreign address was unspecified.
-	 */
-	if (connected) {
-		CK_LIST_REMOVE(inp, inp_hash_wild);
-		head = &pcbinfo->ipi_hash_exact[hash];
-		CK_LIST_INSERT_HEAD(head, inp, inp_hash_exact);
-	} else {
-		CK_LIST_REMOVE(inp, inp_hash_exact);
-		head = &pcbinfo->ipi_hash_wild[hash];
-		CK_LIST_INSERT_HEAD(head, inp, inp_hash_wild);
-	}
+	CK_LIST_REMOVE(inp, inp_hash_wild);
+	head = &pcbinfo->ipi_hash_exact[hash];
+	CK_LIST_INSERT_HEAD(head, inp, inp_hash_exact);
 }
 
 void
