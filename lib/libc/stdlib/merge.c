@@ -49,6 +49,7 @@
 #include <sys/param.h>
 
 #include <errno.h>
+#include <stdckdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -109,7 +110,7 @@ mergesort_b(void *base, size_t nmemb, size_t size, cmp_t cmp)
 mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 #endif
 {
-	size_t i;
+	size_t i, nbytes, asize;
 	int sense;
 	int big, iflag;
 	u_char *f1, *f2, *t, *b, *tp2, *q, *l1, *l2;
@@ -123,16 +124,21 @@ mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 	if (nmemb == 0)
 		return (0);
 
+	if (ckd_mul(&nbytes, nmemb, size) || ckd_add(&asize, nbytes, PSIZE)) {
+		errno = EINVAL;
+		return (-1);
+	}
+
 	iflag = 0;
 	if (__is_aligned(size, ISIZE) && __is_aligned(base, ISIZE))
 		iflag = 1;
 
-	if ((list2 = malloc(nmemb * size + PSIZE)) == NULL)
+	if ((list2 = malloc(asize)) == NULL)
 		return (-1);
 
 	list1 = base;
 	setup(list1, list2, nmemb, size, cmp);
-	last = list2 + nmemb * size;
+	last = list2 + nbytes;
 	i = big = 0;
 	while (*EVAL(list2) != last) {
 	    l2 = list1;
@@ -227,10 +233,10 @@ COPY:	    			b = t;
 	    tp2 = list1;	/* swap list1, list2 */
 	    list1 = list2;
 	    list2 = tp2;
-	    last = list2 + nmemb*size;
+	    last = list2 + nbytes;
 	}
 	if (base == list2) {
-		memmove(list2, list1, nmemb*size);
+		memmove(list2, list1, nbytes);
 		list2 = list1;
 	}
 	free(list2);
