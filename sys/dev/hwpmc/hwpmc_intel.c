@@ -266,6 +266,10 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_EMERALD_RAPIDS;
 			nclasses = 3;
 			break;
+		case 0x8F:
+			cputype = PMC_CPU_INTEL_SAPPHIRE_RAPIDS;
+			nclasses = 3;
+			break;
 		}
 		break;
 	}
