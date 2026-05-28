@@ -906,6 +906,13 @@ rk_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	RK_GPIO_UNLOCK(sc);
 }
 
+static void
+rk_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	panic("%s: not implemented\n", __func__);
+}
+
 /*
  * Called by INTRNG before delivering to the ithread.  Mask the source
  * so it cannot re-fire during the ithread window -- without this,
@@ -965,8 +972,9 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD(pic_teardown_intr,	rk_pic_teardown_intr),
 	DEVMETHOD(pic_disable_intr,	rk_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	rk_pic_enable_intr),
-	DEVMETHOD(pic_pre_ithread,	rk_pic_pre_ithread),
+	DEVMETHOD(pic_post_filter,	rk_pic_post_filter),
 	DEVMETHOD(pic_post_ithread,	rk_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread,	rk_pic_pre_ithread),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	rk_gpio_get_node),
