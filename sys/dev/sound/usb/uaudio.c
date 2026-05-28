@@ -5386,8 +5386,8 @@ uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int val)
 }
 
 static void
-uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc,
-    uint8_t chan, int val)
+uaudio_mixer_ctl_set(struct uaudio_softc *sc, unsigned index,
+    struct uaudio_mixer_node *mc, uint8_t chan, int val)
 {
 	val = uaudio_mixer_bsd2value(mc, val);
 
@@ -5396,7 +5396,9 @@ uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc,
 
 	/* start the transfer, if not already started */
 
+	mtx_lock(&sc->sc_child[index].mixer_lock);
 	usbd_transfer_start(sc->sc_mixer_xfer[0]);
+	mtx_unlock(&sc->sc_child[index].mixer_lock);
 }
 
 static void
@@ -5482,7 +5484,7 @@ uaudio_mixer_set(struct uaudio_softc *sc, struct snd_mixer *m,
 	for (mc = sc->sc_mixer_root; mc != NULL; mc = mc->next) {
 		if (mc->ctl == type) {
 			for (chan = 0; chan < mc->nchan; chan++) {
-				uaudio_mixer_ctl_set(sc, mc, chan,
+				uaudio_mixer_ctl_set(sc, index, mc, chan,
 				    chan == 0 ? left : right);
 			}
 		}
@@ -5523,7 +5525,7 @@ uaudio_mixer_setrecsrc(struct uaudio_softc *sc, struct snd_mixer *m, uint32_t sr
 			for (i = mc->minval; (i > 0) && (i <= mc->maxval); i++) {
 				if (temp != (1U << mc->slctrtype[i - 1]))
 					continue;
-				uaudio_mixer_ctl_set(sc, mc, 0, i);
+				uaudio_mixer_ctl_set(sc, index, mc, 0, i);
 				break;
 			}
 		}
