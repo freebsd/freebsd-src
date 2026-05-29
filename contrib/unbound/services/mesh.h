@@ -176,6 +176,12 @@ struct mesh_state {
 	struct module_qstate s;
 	/** the list of replies to clients for the results */
 	struct mesh_reply* reply_list;
+	/** if it has a first reply time */
+	int has_first_reply_time;
+	/** wall-clock time the first client reply was attached;
+	 *  used by mesh_make_new_space() so duplicate retransmits
+	 *  cannot reset jostle aging. */
+	struct timeval first_reply_time;
 	/** the list of callbacks for the results */
 	struct mesh_cb* cb_list;
 	/** set of superstates (that want this state's result) 

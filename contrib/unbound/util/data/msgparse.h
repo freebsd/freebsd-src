@@ -98,6 +98,10 @@ extern time_t SERVE_EXPIRED_REPLY_TTL;
 /** If we serve the original TTL or decrementing TTLs */
 extern int SERVE_ORIGINAL_TTL;
 
+/** Check if TTL is expired. 0 TTL is considered expired.
+ *  Used mainly to identify parts of the code that do this comparison. */
+#define TTL_IS_EXPIRED(ttl, now) ((ttl) <= (now))
+
 /**
  * Data stored in scratch pad memory during parsing.
  * Stores the data that will enter into the msgreply and packet result.
