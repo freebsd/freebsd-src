@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -130,6 +131,8 @@ user_sched_setparam(struct thread *td, pid_t pid,
 		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
+		if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		targetp = pfind(pid);
 		if (targetp == NULL)
 			return (ESRCH);
@@ -177,6 +180,8 @@ user_sched_getparam(struct thread *td, pid_t pid, struct sched_param *param)
 		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
+		if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		targetp = pfind(pid);
 		if (targetp == NULL) {
 			return (ESRCH);
@@ -231,6 +236,8 @@ user_sched_setscheduler(struct thread *td, pid_t pid, int policy,
 		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
+		if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		targetp = pfind(pid);
 		if (targetp == NULL)
 			return (ESRCH);
@@ -276,6 +283,8 @@ sys_sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
+		if (IN_CAPABILITY_MODE(td) && uap->pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		targetp = pfind(uap->pid);
 		if (targetp == NULL)
 			return (ESRCH);
@@ -369,6 +378,8 @@ kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 		targetp = td->td_proc;
 		PROC_LOCK(targetp);
 	} else {
+		if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		targetp = pfind(pid);
 		if (targetp == NULL)
 			return (ESRCH);
