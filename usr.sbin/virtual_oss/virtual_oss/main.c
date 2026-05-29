@@ -1858,6 +1858,15 @@ done:
 	nvlist_destroy(nvl);
 }
 
+static void
+cleanup_profile(vprofile_t *pvp)
+{
+	if (pvp->oss_dev != NULL)
+		cuse_dev_destroy(pvp->oss_dev);
+	if (pvp->wav_dev != NULL)
+		cuse_dev_destroy(pvp->wav_dev);
+}
+
 static const char *
 dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
     int tx_mute, int synchronized, int is_client)
@@ -1865,6 +1874,7 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 	vprofile_t *ptr;
 	struct cuse_dev *pdev;
 	struct group *gr;
+	const char *errstr;
 	gid_t gid;
 	int x, perm;
 
@@ -1937,9 +1947,10 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 		pdev = cuse_dev_create(&vclient_oss_methods, ptr, NULL,
 		    0, gid, perm, ptr->oss_name);
 		if (pdev == NULL) {
-			free(ptr);
-			return ("Could not create CUSE DSP device");
+			errstr = "Could not create CUSE DSP device";
+			goto err;
 		}
+		ptr->oss_dev = pdev;
 
 		/* register to sndstat */
 		ptr->fd_sta = open("/dev/sndstat", O_WRONLY);
@@ -1954,9 +1965,10 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 		pdev = cuse_dev_create(&vclient_wav_methods, ptr, NULL,
 		    0, gid, perm, ptr->wav_name);
 		if (pdev == NULL) {
-			free(ptr);
-			return ("Could not create CUSE WAV device");
+			errstr = "Could not create CUSE WAV device";
+			goto err;
 		}
+		ptr->wav_dev = pdev;
 	}
 
 	atomic_lock();
@@ -1991,6 +2003,13 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 	init_compressor(pvp);
 
 	return (voss_httpd_start(ptr));
+
+err:
+	cleanup_profile(ptr);
+	free(ptr);
+
+	return (errstr);
+
 }
 
 static void
@@ -2560,6 +2579,7 @@ main(int argc, char **argv)
 	const char *ptrerr;
 	struct sigaction sa;
 	struct cuse_dev *pdev = NULL;
+	struct virtual_profile *pvp;
 
 	TAILQ_INIT(&virtual_profile_client_head);
 	TAILQ_INIT(&virtual_profile_loopback_head);
@@ -2645,8 +2665,19 @@ main(int argc, char **argv)
 
 	destroy_threads();
 
+	/* Destroy CUSE devices */
+
 	if (voss_ctl_device[0] != 0)
 		cuse_dev_destroy(pdev);
+
+	TAILQ_FOREACH(pvp, &virtual_profile_client_head, entry) {
+		cleanup_profile(pvp);
+	}
+	TAILQ_FOREACH(pvp, &virtual_profile_loopback_head, entry) {
+		cleanup_profile(pvp);
+	}
+
+	cuse_uninit();
 
 	return (0);
 }
