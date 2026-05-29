@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\"
-.Dd October 6, 2025
+.Dd May 29, 2026
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -477,6 +477,13 @@ field to
 and leave the contents of the
 .Fa statp
 field undefined.
+The roots and any directories encountered during traversal
+.Po
+.Dv FTS_D ,
+.Dv FTS_DC ,
+.Dv FTS_DP
+.Pc
+are still fully populated.
 .It Dv FTS_PHYSICAL
 This option causes the
 .Nm
