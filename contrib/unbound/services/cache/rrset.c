@@ -149,6 +149,16 @@ need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
 		if(equal && cached->ttl >= timenow && 
 			cached->security == sec_status_bogus)
 			return 0;
+		/* ghost-domain: never let an NS overwrite extend lifetime
+		 * past the entry it replaces, regardless of trust. */
+		if(ns && !TTL_IS_EXPIRED(cached->ttl, timenow) &&
+			newd->ttl > cached->ttl) {
+			size_t i;
+			newd->ttl = cached->ttl;
+			for(i=0; i<(newd->count+newd->rrsig_count); i++)
+				if(newd->rr_ttl[i] > newd->ttl)
+					newd->rr_ttl[i] = newd->ttl;
+		}
                 return 1;
 	}
 	/*	o item in cache has expired */
