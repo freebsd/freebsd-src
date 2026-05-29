@@ -88,6 +88,10 @@ LIBADD=	pthread
 # Turn off the warning, because this is in contributed code.
 .if ${COMPILER_TYPE} == "clang"
 CWARNFLAGS+=	-Wno-null-pointer-arithmetic
+.if ${COMPILER_VERSION} >= 210000
+# XXX: Workaround for these warnings, which are fixed in ACPICA 20250807
+CWARNFLAGS+=	-Wno-unterminated-string-initialization
+.endif
 .endif
 
 # AcpiUtInitStackPtrTrace intentionally leaks a pointer to an
