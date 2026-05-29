@@ -336,6 +336,8 @@
 		    u_long flags
 		);
 	}
+; sync is technically a violation of "no global namespace access" in capability
+; mode, but does not expose or modify user-visible state.
 36	AUE_SYNC	STD|CAPENABLED {
 		int sync(void);
 	}
