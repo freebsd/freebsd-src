@@ -183,6 +183,8 @@
 #define	PMAP_SAN_PTE_BITS	(ATTR_DEFAULT | ATTR_S1_XN |	\
 	ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | ATTR_S1_AP(ATTR_S1_AP_RW))
 
+static bool __read_mostly pmap_multiple_tlbi = false;
+
 struct pmap_large_md_page {
 	struct rwlock   pv_lock;
 	struct md_page  pv_page;
@@ -1534,6 +1536,71 @@ pmap_init_pv_table(void)
 	}
 }
 
+
+static void
+pmap_init_multiple_tlbi(void *dummy __unused)
+{
+	u_int cpu, midr;
+
+	CPU_FOREACH(cpu) {
+		midr = pcpu_find(cpu)->pc_midr;
+
+		/*
+		 * ARM C1-Premium erratum 4193780
+		 * ARM C1-Ultra erratum 4193780
+		 * ARM Cortex-A76 erratum 4193800
+		 * ARM Cortex-A76AE erratum 4193801
+		 * ARM Cortex-A77 erratum 4193798
+		 * ARM Cortex-A78 erratum 4193791
+		 * ARM Cortex-A78AE erratum 4193793
+		 * ARM Cortex-A78C erratum 4193794
+		 * ARM Cortex-A710 erratum 4193788
+		 * ARM Cortex-X1 erratum 4193791
+		 * ARM Cortex-X1C erratum 4193792
+		 * ARM Cortex-X2 erratum 4193788
+		 * ARM Cortex-X3 erratum 4193786
+		 * ARM Cortex-X4 erratum 4118414
+		 * ARM Cortex-X925 erratum 4193781
+		 * ARM Neoverse-N1 erratum 4193800
+		 * ARM Neoverse-N2 erratum 4193789
+		 * ARM Neoverse-V1 erratum 4193790
+		 * ARM Neoverse-V2 erratum 4193787
+		 * ARM Neoverse-V3 erratum 4193784
+		 * ARM Neoverse-V3AE erratum 4193784
+		 * Present in all revisions
+		 */
+		if (CPU_IMPL(midr) == CPU_IMPL_ARM) {
+			switch(CPU_PART(midr)) {
+			case CPU_PART_C1_PREMIUM:
+			case CPU_PART_C1_ULTRA:
+			case CPU_PART_CORTEX_A76:
+			case CPU_PART_CORTEX_A76AE:
+			case CPU_PART_CORTEX_A77:
+			case CPU_PART_CORTEX_A78:
+			case CPU_PART_CORTEX_A78AE:
+			case CPU_PART_CORTEX_A78C:
+			case CPU_PART_CORTEX_A710:
+			case CPU_PART_CORTEX_X1:
+			case CPU_PART_CORTEX_X1C:
+			case CPU_PART_CORTEX_X2:
+			case CPU_PART_CORTEX_X3:
+			case CPU_PART_CORTEX_X4:
+			case CPU_PART_CORTEX_X925:
+			case CPU_PART_NEOVERSE_N1:
+			case CPU_PART_NEOVERSE_N2:
+			case CPU_PART_NEOVERSE_V1:
+			case CPU_PART_NEOVERSE_V2:
+			case CPU_PART_NEOVERSE_V3:
+			case CPU_PART_NEOVERSE_V3AE:
+				pmap_multiple_tlbi = true;
+				return;
+			}
+		}
+	}
+}
+SYSINIT(pmap_init_multiple_tlbi, SI_SUB_CPU, SI_ORDER_ANY,
+    pmap_init_multiple_tlbi, NULL);
+
 /*
  *	Initialize the pmap module.
  *
@@ -1652,6 +1719,10 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 		r |= ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		pmap_s1_invalidate_user(r, final_only);
 	}
+	if (pmap_multiple_tlbi) {
+		dsb(ish);
+		__asm __volatile("tlbi	vale1is, xzr" ::: "memory");
+	}
 	dsb(ish);
 	isb();
 }
@@ -1699,6 +1770,10 @@ pmap_s1_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		for (r = start; r < end; r += TLBI_VA_L3_INCR)
 			pmap_s1_invalidate_user(r, final_only);
 	}
+	if (pmap_multiple_tlbi) {
+		dsb(ish);
+		__asm __volatile("tlbi	vale1is, xzr" ::: "memory");
+	}
 	dsb(ish);
 	isb();
 }
@@ -1739,6 +1814,10 @@ pmap_s1_invalidate_all(pmap_t pmap)
 	} else {
 		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		__asm __volatile("tlbi aside1is, %0" : : "r" (r));
+	}
+	if (pmap_multiple_tlbi) {
+		dsb(ish);
+		__asm __volatile("tlbi	vale1is, xzr" ::: "memory");
 	}
 	dsb(ish);
 	isb();
