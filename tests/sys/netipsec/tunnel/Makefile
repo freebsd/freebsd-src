@@ -13,8 +13,8 @@ ATF_TESTS_SH+=	empty \
 		aesni_aes_gcm_256 \
 		chacha20_poly1305
 
-# Each test uses the same names for its jails, so they must be run serially.
-TEST_METADATA+=	is_exclusive=true
+TEST_METADATA+= execenv="jail" \
+		execenv_jail_params="vnet allow.raw_sockets"
 
 ${PACKAGE}FILES+=	utils.subr
 
