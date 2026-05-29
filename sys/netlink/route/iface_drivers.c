@@ -69,17 +69,16 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	int error;
 
 	if (lattrs->ifla_ifalias != NULL) {
-		if (nlp_has_priv(npt->nlp, PRIV_NET_SETIFDESCR)) {
-			int len = strlen(lattrs->ifla_ifalias) + 1;
-			char *buf = if_allocdescr(len, M_WAITOK);
-
-			memcpy(buf, lattrs->ifla_ifalias, len);
-			if_setdescr(ifp, buf);
-			if_setlastchange(ifp);
-		} else {
+		if (!nlp_has_priv(npt->nlp, PRIV_NET_SETIFDESCR)) {
 			nlmsg_report_err_msg(npt, "Not enough privileges to set descr");
 			return (EPERM);
 		}
+		int len = strlen(lattrs->ifla_ifalias) + 1;
+		char *buf = if_allocdescr(len, M_WAITOK);
+
+		memcpy(buf, lattrs->ifla_ifalias, len);
+		if_setdescr(ifp, buf);
+		if_setlastchange(ifp);
 	}
 
 	if ((lattrs->ifi_change & IFF_UP) != 0 || lattrs->ifi_change == 0) {
@@ -91,17 +90,16 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	}
 
 	if (lattrs->ifla_mtu > 0) {
-		if (nlp_has_priv(npt->nlp, PRIV_NET_SETIFMTU)) {
-			struct ifreq ifr = { .ifr_mtu = lattrs->ifla_mtu };
-			error = ifhwioctl(SIOCSIFMTU, ifp, (char *)&ifr,
-			    curthread);
-			if (error != 0) {
-				nlmsg_report_err_msg(npt, "Failed to set mtu");
-				return (error);
-			}
-		} else {
+		if (!nlp_has_priv(npt->nlp, PRIV_NET_SETIFMTU)) {
 			nlmsg_report_err_msg(npt, "Not enough privileges to set mtu");
 			return (EPERM);
+		}
+		struct ifreq ifr = { .ifr_mtu = lattrs->ifla_mtu };
+		error = ifhwioctl(SIOCSIFMTU, ifp, (char *)&ifr,
+		    curthread);
+		if (error != 0) {
+			nlmsg_report_err_msg(npt, "Failed to set mtu");
+			return (error);
 		}
 	}
 
@@ -117,20 +115,19 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 		if_setppromisc(ifp, (lattrs->ifi_flags & IFF_PROMISC) != 0);
 
 	if (lattrs->ifla_address != NULL) {
-		if (nlp_has_priv(npt->nlp, PRIV_NET_SETIFMAC)) {
-			error = if_setlladdr(ifp,
-			    NLA_DATA(lattrs->ifla_address),
-			    NLA_DATA_LEN(lattrs->ifla_address));
-			if (error != 0) {
-				nlmsg_report_err_msg(npt,
-				    "setting IFLA_ADDRESS failed with error code: %d",
-				    error);
-				return (error);
-			}
-		} else {
+		if (!nlp_has_priv(npt->nlp, PRIV_NET_SETIFMAC)) {
 			nlmsg_report_err_msg(npt,
 			    "Not enough privileges to set IFLA_ADDRESS");
 			return (EPERM);
+		}
+		error = if_setlladdr(ifp,
+		    NLA_DATA(lattrs->ifla_address),
+		    NLA_DATA_LEN(lattrs->ifla_address));
+		if (error != 0) {
+			nlmsg_report_err_msg(npt,
+			    "setting IFLA_ADDRESS failed with error code: %d",
+			    error);
+			return (error);
 		}
 	}
 
