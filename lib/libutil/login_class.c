@@ -63,9 +63,9 @@ static struct login_res {
     { "vmemoryuse",      login_getcapsize, RLIMIT_VMEM    },
     { "pseudoterminals", login_getcapnum,  RLIMIT_NPTS    },
     { "swapuse",         login_getcapsize, RLIMIT_SWAP    },
-    { "kqueues",         login_getcapsize, RLIMIT_KQUEUES },
+    { "kqueues",         login_getcapnum,  RLIMIT_KQUEUES },
     { "umtxp",           login_getcapnum,  RLIMIT_UMTXP   },
-    { "pipebuf",         login_getcapnum,  RLIMIT_PIPEBUF },
+    { "pipebuf",         login_getcapsize, RLIMIT_PIPEBUF },
     { "vms",             login_getcapnum,  RLIMIT_VMM     },
     { NULL,              0,                0              }
 };
