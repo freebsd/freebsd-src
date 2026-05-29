@@ -296,12 +296,14 @@ int mesh_make_new_space(struct mesh_area* mesh, sldns_buffer* qbuf)
 	if(mesh->num_reply_states < mesh->max_reply_states)
 		return 1;
 	/* try to kick out a jostle-list item */
-	if(m && m->reply_list && m->list_select == mesh_jostle_list) {
+	if(m && m->list_select == mesh_jostle_list) {
 		/* how old is it? */
 		struct timeval age;
-		timeval_subtract(&age, mesh->env->now_tv,
-			&m->reply_list->start_time);
-		if(timeval_smaller(&mesh->jostle_max, &age)) {
+		if(m->has_first_reply_time)
+			timeval_subtract(&age, mesh->env->now_tv,
+				&m->first_reply_time);
+		if(!m->has_first_reply_time ||
+			timeval_smaller(&mesh->jostle_max, &age)) {
 			/* its a goner */
 			log_nametypeclass(VERB_ALGO, "query jostled out to "
 				"make space for a new one",
@@ -1960,6 +1962,10 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 	r->qid = qid;
 	r->qflags = qflags;
 	r->start_time = *s->s.env->now_tv;
+	if(s->reply_list == NULL && !s->has_first_reply_time) {
+		s->first_reply_time = r->start_time;
+		s->has_first_reply_time = 1;
+	}
 	r->next = s->reply_list;
 	r->qname = regional_alloc_init(s->s.region, qinfo->qname,
 		s->s.qinfo.qname_len);
