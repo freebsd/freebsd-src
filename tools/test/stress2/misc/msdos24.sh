@@ -10,7 +10,7 @@ FILES=1000
 export LANG=$LOCALE
 
 randomfilename () {
-	name="f"
+	name=""
 	count=$(jot -r 1 10 3)
 	for r in $(jot -r $count 7 0); do
 		r=$(( r + 0 ))
@@ -41,13 +41,11 @@ randomfilename () {
 	cd $FS/test
 
 	for i in $(jot $FILES); do
-		newfile=$(randomfilename)
-		case $testfiles in
-		*"$newfile"*) continue;;
-		esac
-		testfiles="$(randomfilename)
-$testfiles"
+		testfiles="$testfiles
+$(randomfilename)"
 	done
+
+	testfiles=$(echo "$testfiles" | grep "." | sort -R | uniq)
 
 	for f in $testfiles; do
 		echo "$f" > $f
