@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
@@ -98,6 +99,13 @@ kern_getpriority(struct thread *td, int which, int who)
 	struct proc *p;
 	struct pgrp *pg;
 	int error, low;
+
+	if (IN_CAPABILITY_MODE(td)) {
+		if (which != PRIO_PROCESS)
+			return (ECAPMODE);
+		if (who != 0 && who != td->td_proc->p_pid)
+			return (ECAPMODE);
+	}
 
 	error = 0;
 	low = PRIO_MAX + 1;
@@ -189,6 +197,14 @@ kern_setpriority(struct thread *td, int which, int who, int prio)
 	int found = 0, error = 0;
 
 	curp = td->td_proc;
+
+	if (IN_CAPABILITY_MODE(td)) {
+		if (which != PRIO_PROCESS)
+			return (ECAPMODE);
+		if (who != 0 && who != curp->p_pid)
+			return (ECAPMODE);
+	}
+
 	switch (which) {
 	case PRIO_PROCESS:
 		if (who == 0) {
