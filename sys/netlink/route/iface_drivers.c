@@ -83,6 +83,10 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 
 	if ((lattrs->ifi_change & IFF_UP) != 0 || lattrs->ifi_change == 0) {
 		/* Request to up or down the interface */
+		if (!nlp_has_priv(npt->nlp, PRIV_NET_SETIFFLAGS)) {
+			nlmsg_report_err_msg(npt, "Not enough privileges to set flags");
+			return (EPERM);
+		}
 		if (lattrs->ifi_flags & IFF_UP)
 			if_up(ifp);
 		else
@@ -104,7 +108,7 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	}
 
 	if ((lattrs->ifi_change & IFF_PROMISC) != 0 ||
-	    lattrs->ifi_change == 0)
+	    lattrs->ifi_change == 0) {
 		/*
 		 * When asking for IFF_PROMISC, set permanent flag instead
 		 * (IFF_PPROMISC) as we have no way of doing promiscuity
@@ -112,7 +116,12 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 		 * function either sets or unsets IFF_PROMISC, and ifi_change
 		 * is usually set to 0xFFFFFFFF.
 		 */
+		if (!nlp_has_priv(npt->nlp, PRIV_NET_SETIFFLAGS)) {
+			nlmsg_report_err_msg(npt, "Not enough privileges to set promisc");
+			return (EPERM);
+		}
 		if_setppromisc(ifp, (lattrs->ifi_flags & IFF_PROMISC) != 0);
+	}
 
 	if (lattrs->ifla_address != NULL) {
 		if (!nlp_has_priv(npt->nlp, PRIV_NET_SETIFMAC)) {
