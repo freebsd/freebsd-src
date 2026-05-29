@@ -1829,7 +1829,6 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 }
 
 extern const char wrmsr_early_safe_gp_handler[];
-static struct region_descriptor wrmsr_early_safe_orig_efi_idt;
 
 void
 wrmsr_early_safe_start(void)
@@ -1838,7 +1837,6 @@ wrmsr_early_safe_start(void)
 	struct gate_descriptor *gpf_descr;
 	int i;
 
-	sidt(&wrmsr_early_safe_orig_efi_idt);
 	efi_idt.rd_limit = 32 * sizeof(idt0[0]);
 	efi_idt.rd_base = (uintptr_t)idt0;
 	lidt(&efi_idt);
@@ -1859,12 +1857,6 @@ wrmsr_early_safe_start(void)
 void
 wrmsr_early_safe_end(void)
 {
-	int i;
-
-	lidt(&wrmsr_early_safe_orig_efi_idt);
-
-	for (i = 0; i < 32; i++)
-		memset_early(&idt0[i], 0, sizeof(idt0[0]));
 }
 
 int
