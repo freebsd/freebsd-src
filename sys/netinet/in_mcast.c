@@ -2524,6 +2524,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct epoch_tracker	 et;
 	struct __msfilterreq	 msfr;
+	struct sockaddr_storage	*kss;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;
 	struct in_mfilter	*imf;
@@ -2535,9 +2536,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	    sizeof(struct __msfilterreq));
 	if (error)
 		return (error);
-
-	if (msfr.msfr_nsrcs > in_mcast_maxsocksrc)
-		return (ENOBUFS);
 
 	if ((msfr.msfr_fmode != MCAST_EXCLUDE &&
 	     msfr.msfr_fmode != MCAST_INCLUDE))
@@ -2551,13 +2549,24 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
+	if (msfr.msfr_nsrcs > in_mcast_maxsocksrc)
+		return (ENOBUFS);
+	kss = mallocarray(msfr.msfr_nsrcs, sizeof(struct sockaddr_storage),
+	    M_TEMP, M_WAITOK);
+	error = copyin(msfr.msfr_srcs, kss,
+	    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
+	if (error)
+		goto out_inp_unlocked;
+
 	gsa->sin.sin_port = 0;	/* ignore port */
 
 	NET_EPOCH_ENTER(et);
 	ifp = ifnet_byindex(msfr.msfr_ifindex);
 	NET_EPOCH_EXIT(et);	/* XXXGL: unsafe ifp */
-	if (ifp == NULL)
-		return (EADDRNOTAVAIL);
+	if (ifp == NULL) {
+		error = EADDRNOTAVAIL;
+		goto out_inp_unlocked;
+	}
 
 	IN_MULTI_LOCK();
 
@@ -2589,24 +2598,8 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (msfr.msfr_nsrcs > 0) {
 		struct in_msource	*lims;
 		struct sockaddr_in	*psin;
-		struct sockaddr_storage	*kss, *pkss;
+		struct sockaddr_storage	*pkss;
 		int			 i;
-
-		INP_WUNLOCK(inp);
-
-		CTR2(KTR_IGMPV3, "%s: loading %lu source list entries",
-		    __func__, (unsigned long)msfr.msfr_nsrcs);
-		kss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
-		    M_TEMP, M_WAITOK);
-		error = copyin(msfr.msfr_srcs, kss,
-		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
-		if (error) {
-			IN_MULTI_UNLOCK();
-			free(kss, M_TEMP);
-			return (error);
-		}
-
-		INP_WLOCK(inp);
 
 		/*
 		 * Mark all source filters as UNDEFINED at t1.
@@ -2642,7 +2635,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 				break;
 			lims->imsl_st[1] = imf->imf_st[1];
 		}
-		free(kss, M_TEMP);
 	}
 
 	if (error)
@@ -2679,6 +2671,8 @@ out_imf_rollback:
 out_inp_locked:
 	INP_WUNLOCK(inp);
 	IN_MULTI_UNLOCK();
+out_inp_unlocked:
+	free(kss, M_TEMP);
 	return (error);
 }
 
