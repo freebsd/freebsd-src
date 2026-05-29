@@ -1430,7 +1430,7 @@
 		    _Out_ _Contains_timet_ struct ffclock_estimate *cest
 		);
 	}
-244	AUE_NULL	STD {
+244	AUE_NULL	STD|CAPENABLED {
 		int clock_nanosleep(
 		    clockid_t clock_id,
 		    int flags,
