@@ -120,6 +120,8 @@ struct virtual_profile {
 	vclient_head_t head;
 	char oss_name[VMAX_STRING];
 	char wav_name[VMAX_STRING];
+	struct cuse_dev *oss_dev;
+	struct cuse_dev *wav_dev;
 	uint32_t rx_filter_size;
 	uint32_t tx_filter_size;
 	double *rx_filter_data[VMAX_CHAN];
