@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include <fts.h>
 #include <stdalign.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -113,6 +114,19 @@ static const char *ufslike_filesystems[] = {
 	"ext2fs",
 	0
 };
+
+/*
+ * POSIX provides nlink_t but unfortunately not NLINK_MAX.
+ */
+#define NLINK_MAX \
+	_Generic((nlink_t)0,						\
+		int16_t: INT16_MAX,					\
+		uint16_t: UINT16_MAX,					\
+		int32_t: INT32_MAX,					\
+		uint32_t: UINT32_MAX,					\
+		int64_t: INT64_MAX,					\
+		uint64_t: UINT64_MAX,					\
+		default: 0)
 
 static FTS *
 __fts_open(FTS *sp, char * const *argv)
@@ -736,7 +750,7 @@ fts_build(FTS *sp, int type)
 	int cderrno, descend, oflag, saved_errno, nostat, doadjust,
 	    readdir_errno;
 	long level;
-	long nlinks;	/* has to be signed because -1 is a magic value */
+	int64_t nlinks;	/* has to be signed because -1 is a magic value */
 	size_t dnamlen, len, maxlen, nitems;
 
 	/* Set current node pointer. */
@@ -759,16 +773,36 @@ fts_build(FTS *sp, int type)
 	}
 
 	/*
-	 * Nlinks is the number of possible entries of type directory in the
-	 * directory if we're cheating on stat calls, 0 if we're not doing
-	 * any stat calls at all, -1 if we're doing stats on everything.
+	 * In the FTS_PHYSICAL | FTS_NOSTAT case, we want to avoid calling
+	 * fstat() unnecessarily, but we still need to call it for
+	 * subdirectories.  The current directory's link count provides an
+	 * upper bound on the number of subdirectories we may encounter
+	 * (including . and .. in the FTS_SEEDOT case).  We initialize
+	 * nlinks to the current directory's link count, then decrement it
+	 * every time we encounter a directory, so when we hit zero we can
+	 * save some time by not calling fstat() on subsequent entries.
+	 *
+	 * If FTS_NOSTAT is not set, or the link count is less than two
+	 * (which should not be possible) or equal to NLINK_MAX (which
+	 * suggests that the actual value could be higher), or the current
+	 * filesystem is not known to provide reliable link counts, we
+	 * initialize nlinks to -1 and fstat() everything.
+	 *
+	 * In the rare case where we don't need to stat anything, even
+	 * subdirectories, we initialize nlinks to 0 regardless of the
+	 * actual link count.
+	 *
+	 * Note that we ignore the FTS_NOSTAT flag in the FTS_LOGICAL
+	 * case, although we could choose to only stat symbolic links.
+	 * Implementing this is left as an exercise for the reader.
 	 */
 	if (type == BNAMES) {
 		nlinks = 0;
 		/* Be quiet about nostat, GCC. */
 		nostat = 0;
 	} else if (ISSET(FTS_NOSTAT) && ISSET(FTS_PHYSICAL)) {
-		if (fts_ufslinks(sp, cur))
+		if (cur->fts_nlink >= 2 && cur->fts_nlink < NLINK_MAX &&
+		    cur->fts_nlink <= INT64_MAX && fts_ufslinks(sp, cur))
 			nlinks = cur->fts_nlink - (ISSET(FTS_SEEDOT) ? 0 : 2);
 		else
 			nlinks = -1;
