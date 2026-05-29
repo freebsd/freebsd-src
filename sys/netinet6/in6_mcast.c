@@ -2491,6 +2491,7 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct __msfilterreq	 msfr;
 	struct epoch_tracker	 et;
+	struct sockaddr_storage	*kss;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;
 	struct in6_mfilter	*imf;
@@ -2502,9 +2503,6 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	    sizeof(struct __msfilterreq));
 	if (error)
 		return (error);
-
-	if (msfr.msfr_nsrcs > in6_mcast_maxsocksrc)
-		return (ENOBUFS);
 
 	if (msfr.msfr_fmode != MCAST_EXCLUDE &&
 	    msfr.msfr_fmode != MCAST_INCLUDE)
@@ -2518,19 +2516,31 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN6_IS_ADDR_MULTICAST(&gsa->sin6.sin6_addr))
 		return (EINVAL);
 
+	if (msfr.msfr_nsrcs > in6_mcast_maxsocksrc)
+		return (ENOBUFS);
+	kss = mallocarray(msfr.msfr_nsrcs, sizeof(struct sockaddr_storage),
+	    M_TEMP, M_WAITOK);
+	error = copyin(msfr.msfr_srcs, kss,
+	    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
+	if (error)
+		goto out_in6p_unlocked;
+
 	gsa->sin6.sin6_port = 0;	/* ignore port */
 
 	NET_EPOCH_ENTER(et);
 	ifp = ifnet_byindex(msfr.msfr_ifindex);
 	NET_EPOCH_EXIT(et);
-	if (ifp == NULL)
-		return (EADDRNOTAVAIL);
+	if (ifp == NULL) {
+		error = EADDRNOTAVAIL;
+		goto out_in6p_unlocked;
+	}
 	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
 	/*
 	 * Take the INP write lock.
 	 * Check if this socket is a member of this group.
 	 */
+	IN6_MULTI_LOCK();
 	imo = in6p_findmoptions(inp);
 	imf = im6o_match_group(imo, ifp, &gsa->sa);
 	if (imf == NULL) {
@@ -2555,23 +2565,8 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (msfr.msfr_nsrcs > 0) {
 		struct in6_msource	*lims;
 		struct sockaddr_in6	*psin;
-		struct sockaddr_storage	*kss, *pkss;
+		struct sockaddr_storage	*pkss;
 		int			 i;
-
-		INP_WUNLOCK(inp);
-
-		CTR2(KTR_MLD, "%s: loading %lu source list entries",
-		    __func__, (unsigned long)msfr.msfr_nsrcs);
-		kss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
-		    M_TEMP, M_WAITOK);
-		error = copyin(msfr.msfr_srcs, kss,
-		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
-		if (error) {
-			free(kss, M_TEMP);
-			return (error);
-		}
-
-		INP_WLOCK(inp);
 
 		/*
 		 * Mark all source filters as UNDEFINED at t1.
@@ -2617,7 +2612,6 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 				break;
 			lims->im6sl_st[1] = imf->im6f_st[1];
 		}
-		free(kss, M_TEMP);
 	}
 
 	if (error)
@@ -2652,6 +2646,9 @@ out_im6f_rollback:
 
 out_in6p_locked:
 	INP_WUNLOCK(inp);
+	IN6_MULTI_UNLOCK();
+out_in6p_unlocked:
+	free(kss, M_TEMP);
 	return (error);
 }
 
