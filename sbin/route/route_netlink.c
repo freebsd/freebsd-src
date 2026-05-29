@@ -888,7 +888,8 @@ flushroutes_fib_nl(int fib, int af)
 			struct snl_msg_info attrs = {};
 			print_nlmsg(&h, hdr, &attrs);
 		}
-		if (r.rta_table != (uint32_t)fib || r.rtm_family != af)
+		if (r.rta_table != (uint32_t)fib ||
+		    (af != AF_UNSPEC && r.rtm_family != af))
 			continue;
 		if ((r.rta_rtflags & RTF_GATEWAY) == 0)
 			continue;
