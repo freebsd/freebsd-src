@@ -36,8 +36,8 @@
 struct ifinfomsg {
 	unsigned char	ifi_family;	/* not used */
 	unsigned char	__ifi_pad;
-	unsigned short	ifi_type;	/* ARPHRD_* */
-	int		ifi_index;	/* Inteface index */
+	unsigned short	ifi_type;	/* IFT_* (net/if_types.h) */
+	int		ifi_index;	/* Interface index */
 	unsigned	ifi_flags;	/* IFF_* flags */
 	unsigned	ifi_change;	/* IFF_* change mask */
 };
