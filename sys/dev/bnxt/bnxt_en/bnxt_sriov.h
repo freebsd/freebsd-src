@@ -8,10 +8,6 @@
 #include "opt_global.h"
 #include "bnxt.h"
 
-#ifndef PCI_IOV
-#define PCI_IOV 1
-#endif
-
 /* macro definations */
 
 #define BNXT_MAX_VFS 4
