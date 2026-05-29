@@ -7,6 +7,8 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_sriov.h"
 
+#ifdef PCI_IOV
+
 static int
 bnxt_set_vf_admin_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 		      const uint8_t *mac)
@@ -972,6 +974,43 @@ void bnxt_sriov_attach(struct bnxt_softc *softc)
 	if (rc)
 		device_printf(dev, "Failed to initialize SR-IOV (error=%d)\n", rc);
 }
+
+#else
+
+void
+bnxt_sriov_attach(struct bnxt_softc *softc __unused)
+{
+}
+
+int
+bnxt_cfg_hw_sriov(struct bnxt_softc *softc __unused,
+    uint16_t *num_vfs __unused, bool reset __unused)
+{
+	return (0);
+}
+
+int
+bnxt_approve_mac(struct bnxt_softc *sc __unused)
+{
+	return (0);
+}
+
+void
+bnxt_hwrm_exec_fwd_req(struct bnxt_softc *softc __unused)
+{
+}
+
+bool
+bnxt_promisc_ok(struct bnxt_softc *softc __unused)
+{
+	return (true);
+}
+
+void
+bnxt_update_vf_mac(struct bnxt_softc *sc __unused)
+{
+}
+#endif
 
 void bnxt_reenable_sriov(struct bnxt_softc *bp)
 {

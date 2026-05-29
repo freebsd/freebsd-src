@@ -2875,11 +2875,9 @@ bnxt_attach_post(if_ctx_t ctx)
 	bnxt_dcb_init(softc);
 	bnxt_rdma_aux_device_init(softc);
 
-#if PCI_IOV
 	/* SR-IOV attach */
 	if (BNXT_PF(softc) && BNXT_CHIP_P5_PLUS(softc))
 		bnxt_sriov_attach(softc);
-#endif
 
 failed:
 	return rc;
