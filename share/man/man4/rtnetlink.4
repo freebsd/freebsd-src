@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 1, 2022
+.Dd June 15, 2026
 .Dt RTNETLINK 4
 .Os
 .Sh NAME
@@ -272,12 +272,25 @@ All interface configuration messages share the common header:
 struct ifinfomsg {
 	unsigned char	ifi_family;	/* not used, set to 0 */
 	unsigned char	__ifi_pad;
-	unsigned short	ifi_type;	/* ARPHRD_* */
-	int		ifi_index;	/* Inteface index */
+	unsigned short	ifi_type;	/* IFT_* */
+	int		ifi_index;	/* Interface index */
 	unsigned	ifi_flags;	/* IFF_* flags */
 	unsigned	ifi_change;	/* IFF_* change mask */
 };
 .Ed
+.Pp
+.Sy Note :
+On
+.Fx
+the
+.Va ifi_type
+field uses
+.Dv IFT_*
+constants from
+.In net/if_types.h
+rather than
+.Dv ARPHRD_*
+as on Linux.
 .Ss RTM_NEWLINK
 Creates a new interface.
 The only mandatory TLV is
