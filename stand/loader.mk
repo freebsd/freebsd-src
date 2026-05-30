@@ -162,14 +162,14 @@ LIBFICL=	${BOOTOBJ}/ficl/libficl.a
 .if ${MACHINE} == "i386"
 LIBFICL32=	${LIBFICL}
 .else
-LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
+LIBFICL32=	${BOOTOBJ}/${"${LOADER}" == "loader_ia32":?efi/ficl32efi:ficl32}/libficl.a
 .endif
 
 LIBLUA=		${BOOTOBJ}/liblua/liblua.a
 .if ${MACHINE} == "i386"
 LIBLUA32=	${LIBLUA}
 .else
-LIBLUA32=	${BOOTOBJ}/liblua32/liblua.a
+LIBLUA32=	${BOOTOBJ}/${"${LOADER}" == "loader_ia32":?efi/liblua32efi:liblua32}/liblua.a
 .endif
 
 CLEANFILES+=	vers.c

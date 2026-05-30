@@ -8,6 +8,11 @@ LDFLAGS+=	-nostdlib
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-fshort-wchar
 CFLAGS+=	-mno-red-zone
+.if ${DO32:U0} == 1
+# This is needed so the EDK2 EFI structs have the correct layout for
+# the ia32 loader.
+CFLAGS+=	-malign-double
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
