@@ -62,6 +62,8 @@
 #define	LINUX_PR_SET_NO_NEW_PRIVS	38 /* Set no_new_privs attribute */
 #define	LINUX_PR_GET_NO_NEW_PRIVS	39 /* Get no_new_privs attribute */
 #define	LINUX_PR_SET_PTRACER	1499557217
+#define	LINUX_PR_SET_VMA	1398164801
+#define	LINUX_PR_SET_VMA_ANON_NAME	0
 
 #define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
 

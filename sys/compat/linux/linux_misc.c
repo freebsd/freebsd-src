@@ -1835,6 +1835,13 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		linux_msg(td, "unsupported prctl PR_SET_PTRACER");
 		error = EINVAL;
 		break;
+	case LINUX_PR_SET_VMA:
+		if (args->arg2 != LINUX_PR_SET_VMA_ANON_NAME) {
+			linux_msg(td, "unsupported prctl PR_SET_VMA attr %ju",
+			    (uintmax_t)args->arg2);
+			error = EINVAL;
+		}
+		break;
 	default:
 		linux_msg(td, "unsupported prctl option %d", args->option);
 		error = EINVAL;
