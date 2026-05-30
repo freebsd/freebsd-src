@@ -361,18 +361,20 @@ ucode_load_ap(int cpu)
 		(void)ucode_loader->load(ucode_data, UNSAFE, NULL, NULL);
 }
 
-static void *
-map_ucode(uintptr_t free, size_t len)
+static const void *
+map_ucode(const void *match, uintptr_t free, size_t len)
 {
 #ifdef __i386__
 	uintptr_t va;
 
 	for (va = free; va < free + len; va += PAGE_SIZE)
 		pmap_kenter(va, (vm_paddr_t)va);
+	memcpy_early(free, match, len);
+	return ((const void *)free);
 #else
 	(void)len;
+	return (match);
 #endif
-	return ((void *)free);
 }
 
 static void
@@ -405,7 +407,7 @@ ucode_load_bsp(uintptr_t free)
 		char vendor[13];
 	} cpuid;
 	const uint8_t *fileaddr, *match;
-	uint8_t *addr;
+	const uint8_t *addr;
 	char *type;
 	uint64_t nrev, orev;
 	caddr_t file;
@@ -440,14 +442,10 @@ ucode_load_bsp(uintptr_t free)
 		len = preload_fetch_size(file);
 		match = ucode_loader->match(fileaddr, &len);
 		if (match != NULL) {
-			addr = map_ucode(free, len);
-			/* We can't use memcpy() before ifunc resolution. */
-			memcpy_early(addr, match, len);
-			match = addr;
-
-			error = ucode_loader->load(match, EARLY, &nrev, &orev);
+			addr = map_ucode(match, free, len);
+			error = ucode_loader->load(addr, EARLY, &nrev, &orev);
 			if (error == 0) {
-				ucode_data = early_ucode_data = match;
+				ucode_data = early_ucode_data = addr;
 				ucode_nrev = nrev;
 				ucode_orev = orev;
 				return (len);
