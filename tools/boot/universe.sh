@@ -107,7 +107,7 @@ for i in \
 	i386/i386 \
 	; do
     ta=${i##*/}
-    dobuild $ta _.boot.${ta}.no_zfs.log "MK_LOADER_BIOS_TEXTONLY=no"
+    dobuild $ta _.boot.${ta}.no_vbe.log "MK_LOADER_BIOS_TEXTONLY=no"
 done
 
 # Build w/ BEARSSL
