@@ -241,6 +241,8 @@ CWARNFLAGS+=	-Wno-error=overflow
 # These warnings are raised by headers in libc++ so are disabled
 # globally for all C++
 CXXWARNFLAGS+=	-Wno-literal-suffix			\
+		-Wno-c++14-extensions			\
+		-Wno-c++17-extensions			\
 		-Wno-c++20-extensions			\
 		-Wno-error=unknown-pragmas
 .endif
