@@ -13,6 +13,7 @@
 #include <sys/module.h>
 
 #include <linux/pci.h>
+#include <dev/pci/pcivar.h>
 #include "linux_80211.h"
 
 #include <net80211/ieee80211_var.h>
@@ -139,7 +140,7 @@ lkpi_80211_pm_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Make sure this is PCI for now. */
-	if (device_get_devclass(parent) == devclass_find("pci"))
+	if (!is_pci_device(parent))
 		return;
 
 	if (BUS_ADD_CHILD(parent, 0, driver->name, DEVICE_UNIT_ANY) == NULL)
