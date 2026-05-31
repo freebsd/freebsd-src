@@ -119,6 +119,7 @@
 #define	ID_METEORLAKE			0x7e22
 #define	ID_METEORLAKE2			0x7f23
 #define	ID_METEORLAKE3			0xae22
+#define	ID_PANTHERLAKE			0xe422
 
 static const struct pci_device_table ichsmb_devices[] = {
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_82801AA),
@@ -280,6 +281,9 @@ static const struct pci_device_table ichsmb_devices[] = {
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_METEORLAKE3),
 	  .driver_data = (uintptr_t)ICHSMB_FEATURE_BLOCK_BUFFER,
 	  PCI_DESCR("Intel Meteor Lake SMBus controller") },
+	{ PCI_DEV(PCI_VENDOR_INTEL, ID_PANTHERLAKE),
+	  .driver_data = (uintptr_t)ICHSMB_FEATURE_BLOCK_BUFFER,
+	  PCI_DESCR("Intel Panther Lake SMBus controller") },
 };
 
 /* Internal functions */
