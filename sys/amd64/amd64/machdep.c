@@ -1273,6 +1273,13 @@ amd64_bsp_ist_init(struct pcpu *pc)
  * - there is a usable memory block right after the end of the
  *   mapped kernel and all modules/metadata, pointed to by
  *   physfree, for early allocations
+ *
+ * The memory block after the end of the kernel is important, loader
+ * must ensure that no critical data structures are put there.  Among
+ * them is the trampoline page table, which must not be overwritten by
+ * the allocations until pmap_bootstrap() switches %cr3 to the initial
+ * version of the kernel page table.  Size of the block is controlled
+ * by the 'staging_slop' command for loader.efi.
  */
 vm_paddr_t __nosanitizeaddress __nosanitizememory
 amd64_loadaddr(void)
