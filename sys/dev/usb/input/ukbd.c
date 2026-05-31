@@ -957,13 +957,6 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 			break;
 		sc->sc_flags &= ~UKBD_FLAG_SET_LEDS;
 
-		req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
-		req.bRequest = UR_SET_REPORT;
-		USETW2(req.wValue, UHID_OUTPUT_REPORT, 0);
-		req.wIndex[0] = sc->sc_iface_no;
-		req.wIndex[1] = 0;
-		req.wLength[1] = 0;
-
 		memset(sc->sc_buffer, 0, UKBD_BUFFER_SIZE);
 
 		id = 0;
@@ -1017,10 +1010,17 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 		} else {
 			usbd_copy_in(pc, 0, sc->sc_buffer + 1, len);
 		}
-		req.wLength[0] = len;
 		usbd_xfer_set_frame_len(xfer, 1, len);
 
 		DPRINTF("len=%d, id=%d\n", len, id);
+
+		req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
+		req.bRequest = UR_SET_REPORT;
+		USETW2(req.wValue, UHID_OUTPUT_REPORT, id);
+		req.wIndex[0] = sc->sc_iface_no;
+		req.wIndex[1] = 0;
+		req.wLength[0] = len;
+		req.wLength[1] = 0;
 
 		/* setup control request last */
 		pc = usbd_xfer_get_frame(xfer, 0);
