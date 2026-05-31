@@ -216,6 +216,12 @@ typedef struct teken_gfx {
 	struct gen_fb	tg_fb;
 	uint32_t	*tg_shadow_fb;		/* units of 4 bytes */
 	size_t		tg_shadow_sz;		/* units of pages */
+	/* Dirty rectangle for double-buffered flush */
+	uint32_t	tg_dirty_x1;
+	uint32_t	tg_dirty_y1;
+	uint32_t	tg_dirty_x2;
+	uint32_t	tg_dirty_y2;
+	bool		tg_dirty;
 	teken_funcs_t	*tg_functions;
 	void		*tg_private;
 } teken_gfx_t;
@@ -264,6 +270,7 @@ bool is_same_pixel(struct text_pixel *, struct text_pixel *);
 bool gfx_get_edid_resolution(struct vesa_edid_info *, edid_res_list_t *);
 void gfx_framework_init(void);
 void gfx_fb_cons_display(uint32_t, uint32_t, uint32_t, uint32_t, void *);
+void gfx_fb_flush(void);
 void gfx_fb_setpixel(uint32_t, uint32_t);
 void gfx_fb_drawrect(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 void gfx_term_drawrect(uint32_t, uint32_t, uint32_t, uint32_t);
