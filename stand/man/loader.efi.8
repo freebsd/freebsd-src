@@ -228,7 +228,10 @@ rootdev=disk0s1a
 .Ss Staging Slop
 The kernel must parse the firmware memory map tables to know what memory
 it can use.
+It also needs to allocate memory for the kernel page tables.
 Since it must allocate memory to do this,
+without overwriting important structures,
+for instance the trampoline page table,
 .Nm
 ensures there's extra memory available, called
 .Dq slop ,
