@@ -156,9 +156,10 @@ ficl_fb_setpixel(FICL_VM *pVM)
 	vmCheckStack(pVM, 2, 0);
 #endif
 
-        y = stackPopUNS(pVM->pStack);
-        x = stackPopUNS(pVM->pStack);
-        gfx_fb_setpixel(x, y);
+	y = stackPopUNS(pVM->pStack);
+	x = stackPopUNS(pVM->pStack);
+	gfx_fb_setpixel(x, y);
+	gfx_fb_flush();
 }
 
 void
