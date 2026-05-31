@@ -1437,6 +1437,11 @@ ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
 				    ENA_REGS_RESET_OS_TRIGGER);
 			}
 		}
+	} else {
+		/* Reconfigure RSS to reflect the new queue count.
+		 * When dev_was_up, this happens through ena_up().
+		 */
+		rc = ena_rss_configure(adapter);
 	}
 
 	return (rc);
