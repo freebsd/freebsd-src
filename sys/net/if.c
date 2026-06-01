@@ -1375,11 +1375,8 @@ if_addgroup(struct ifnet *ifp, const char *groupname)
 	ifgl->ifgl_group = ifg;
 	ifgm->ifgm_ifp = ifp;
 
-	IF_ADDR_WLOCK(ifp);
 	CK_STAILQ_INSERT_TAIL(&ifg->ifg_members, ifgm, ifgm_next);
 	CK_STAILQ_INSERT_TAIL(&ifp->if_groups, ifgl, ifgl_next);
-	IF_ADDR_WUNLOCK(ifp);
-
 	IFNET_WUNLOCK();
 
 	if (new)
@@ -1402,9 +1399,7 @@ _if_delgroup_locked(struct ifnet *ifp, struct ifg_list *ifgl,
 
 	IFNET_WLOCK_ASSERT();
 
-	IF_ADDR_WLOCK(ifp);
 	CK_STAILQ_REMOVE(&ifp->if_groups, ifgl, ifg_list, ifgl_next);
-	IF_ADDR_WUNLOCK(ifp);
 
 	CK_STAILQ_FOREACH(ifgm, &ifgl->ifgl_group->ifg_members, ifgm_next) {
 		if (ifgm->ifgm_ifp == ifp) {
@@ -1479,34 +1474,35 @@ if_delgroups(struct ifnet *ifp)
 static int
 if_getgroup(struct ifgroupreq *ifgr, struct ifnet *ifp)
 {
-	int			 len, error;
-	struct ifg_list		*ifgl;
-	struct ifg_req		 ifgrq, *ifgp;
+	struct ifg_list *ifgl;
+	struct ifg_req ifgrq, *ifgp;
+	int len, error;
 
-	NET_EPOCH_ASSERT();
-
+	IFNET_RLOCK();
 	if (ifgr->ifgr_len == 0) {
 		CK_STAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next)
 			ifgr->ifgr_len += sizeof(struct ifg_req);
-		return (0);
+		error = 0;
+	} else {
+		len = ifgr->ifgr_len;
+		ifgp = ifgr->ifgr_groups;
+		CK_STAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
+			if (len < sizeof(ifgrq)) {
+				error = EINVAL;
+				break;
+			}
+			bzero(&ifgrq, sizeof ifgrq);
+			strlcpy(ifgrq.ifgrq_group, ifgl->ifgl_group->ifg_group,
+			    sizeof(ifgrq.ifgrq_group));
+			if ((error = copyout(&ifgrq, ifgp, sizeof(struct ifg_req))))
+				break;
+			len -= sizeof(ifgrq);
+			ifgp++;
+		}
 	}
+	IFNET_RUNLOCK();
 
-	len = ifgr->ifgr_len;
-	ifgp = ifgr->ifgr_groups;
-	/* XXX: wire */
-	CK_STAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
-		if (len < sizeof(ifgrq))
-			return (EINVAL);
-		bzero(&ifgrq, sizeof ifgrq);
-		strlcpy(ifgrq.ifgrq_group, ifgl->ifgl_group->ifg_group,
-		    sizeof(ifgrq.ifgrq_group));
-		if ((error = copyout(&ifgrq, ifgp, sizeof(struct ifg_req))))
-			return (error);
-		len -= sizeof(ifgrq);
-		ifgp++;
-	}
-
-	return (0);
+	return (error);
 }
 
 /*
@@ -2756,14 +2752,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 	}
 	case SIOCGIFGROUP:
-	{
-		struct epoch_tracker et;
-
-		NET_EPOCH_ENTER(et);
 		error = if_getgroup((struct ifgroupreq *)data, ifp);
-		NET_EPOCH_EXIT(et);
 		break;
-	}
 
 	case SIOCDIFGROUP:
 	{
