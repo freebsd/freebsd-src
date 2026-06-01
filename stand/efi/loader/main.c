@@ -146,7 +146,7 @@ EFI_LOADED_IMAGE *boot_img;
 enum boot_policies {
 	STRICT,
 	RELAXED,
-} boot_policy = RELAXED;
+} boot_policy = STRICT;
 
 const char *policy_map[] = {
 	[STRICT] = "strict",
