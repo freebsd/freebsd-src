@@ -647,7 +647,8 @@ setinodebuf(int cg, ino_t inosused)
 	 * If for some reason getting the time fails, we will use
 	 * the last time that the superblock was updated.
 	 */
-	if (clock_gettime(CLOCK_REALTIME_FAST, &time) == 0)
+	if (clock_gettime(CLOCK_REALTIME_FAST, &time) == 0 &&
+	    time.tv_sec > sblock.fs_time)
 		now = time.tv_sec;
 	else
 		now = sblock.fs_time;
