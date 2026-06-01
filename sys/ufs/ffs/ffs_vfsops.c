@@ -189,8 +189,10 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 {
 	struct ufs1_dinode *dip1;
 	struct ufs2_dinode *dip2;
+	time_t now;
 	int error;
 
+	now = time_second > fs->fs_time ? time_second : fs->fs_time;
 	if (I_IS_UFS1(ip)) {
 		dip1 = ip->i_din1;
 		*dip1 =
@@ -203,7 +205,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		ip->i_gen = dip1->di_gen;
 		ip->i_uid = dip1->di_uid;
 		ip->i_gid = dip1->di_gid;
-		if (ffs_oldfscompat_inode_read(fs, ip->i_dp, time_second) &&
+		if (ffs_oldfscompat_inode_read(fs, ip->i_dp, now) &&
 		    fs->fs_ronly == 0)
 			UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 		return (0);
@@ -225,8 +227,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 	ip->i_gen = dip2->di_gen;
 	ip->i_uid = dip2->di_uid;
 	ip->i_gid = dip2->di_gid;
-	if (ffs_oldfscompat_inode_read(fs, ip->i_dp, time_second) &&
-	    fs->fs_ronly == 0)
+	if (ffs_oldfscompat_inode_read(fs, ip->i_dp, now) && fs->fs_ronly == 0)
 		UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 	return (0);
 }
