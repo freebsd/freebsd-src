@@ -390,6 +390,7 @@ toast_rules(struct rules *const rules)
 		free(rule->gids, M_MAC_DO);
 		free(rule, M_MAC_DO);
 	}
+	STAILQ_INIT(head);
 }
 
 static inline void
@@ -1071,13 +1072,13 @@ einval:
 /*
  * Parse rules specification and produce rule structures out of it.
  *
- * Must be called with '*parse_error' set to NULL.  Returns 0 on success, with
- * '*rulesp' made to point to a 'struct rule' representing the rules.  On error,
- * the returned value is non-zero and '*rulesp' is unchanged.  If 'string' has
- * length greater or equal to MAX_RULE_STRING_SIZE, ENAMETOOLONG is returned.  If
- * it is not in the expected format, EINVAL is returned.  If an error is
- * returned, '*parse_error' is set to point to a 'struct parse_error' giving an
- * error message for the problem.
+ * Must be called with '*parse_error' set to NULL.  Returns 0 on success,
+ * filling the passed '*rules' with 'struct rule' objects.  On error, the
+ * returned value is non-zero, and '*rules' may have been changed.  If 'string'
+ * has length greater or equal to MAX_RULE_STRING_SIZE, ENAMETOOLONG is
+ * returned.  If it is not in the expected format, EINVAL is returned.  If an
+ * error is returned, '*parse_error' is set to point to a 'struct parse_error'
+ * giving an error message for the problem.
  *
  * Expected format: A >-colon-separated list of rules of the form
  * "<from>><target>" (for backwards compatibility, a semi-colon ":" is accepted
@@ -1123,7 +1124,6 @@ parse_rules(const char *const string, struct rules *const rules,
 		error = parse_single_rule(rule, rules, parse_error);
 		if (error != 0) {
 			(*parse_error)->pos += rule - copy;
-			toast_rules(rules);
 			goto error;
 		}
 	}

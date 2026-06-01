@@ -72,6 +72,19 @@ rules_wrong_separator_body()
     sysctl_set_and_check_fails_rules "uid=1001>gid=0:gid=1001>gid=5"
 }
 
+# Added after observing a panic() in this situation because of a double-free
+# after introduction of "exec_paths".
+atf_test_case non_first_rule_unparseable
+non_first_rule_unparseable_head()
+{
+    atf_set descr "Non-first rule wrong"
+}
+
+non_first_rule_unparseable_body()
+{
+    sysctl_set_and_check_fails_rules "gid=1001>uid=0;hello"
+}
+
 
 atf_init_test_cases()
 {
@@ -83,4 +96,5 @@ atf_init_test_cases()
     atf_add_test_case rule_user_names_fail
     atf_add_test_case rule_group_names_fail
     atf_add_test_case rules_wrong_separator
+    atf_add_test_case non_first_rule_unparseable
 }
