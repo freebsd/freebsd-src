@@ -32,6 +32,7 @@
 #include "opt_snd.h"
 #endif
 
+#include <sys/refcount.h>
 #include <dev/sound/pcm/sound.h>
 
 #include "feeder_if.h"
@@ -46,6 +47,7 @@ sndbuf_create(device_t dev, char *drv, char *desc, struct pcm_channel *channel)
 	struct snd_dbuf *b;
 
 	b = malloc(sizeof(*b), M_DEVBUF, M_WAITOK | M_ZERO);
+	refcount_init(&b->refcount, 1);
 	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", drv, desc);
 	b->dev = dev;
 	b->channel = channel;
@@ -56,8 +58,30 @@ sndbuf_create(device_t dev, char *drv, char *desc, struct pcm_channel *channel)
 void
 sndbuf_destroy(struct snd_dbuf *b)
 {
-	sndbuf_free(b);
-	free(b, M_DEVBUF);
+	b->flags |= SNDBUF_F_DETACHED;
+	sndbuf_rele(b);
+}
+
+void
+sndbuf_ref(struct snd_dbuf *b)
+{
+	unsigned int count __diagused;
+
+	CHN_LOCK(b->channel);
+	count = refcount_acquire(&b->refcount);
+	KASSERT(count > 0, ("sndbuf %p refcount 0", b));
+	CHN_UNLOCK(b->channel);
+}
+
+void
+sndbuf_rele(struct snd_dbuf *b)
+{
+	if (refcount_release(&b->refcount)) {
+		sndbuf_free(b);
+		KASSERT(refcount_load(&b->refcount) == 0,
+		    ("sndbuf %p still referenced", b));
+		free(b, M_DEVBUF);
+	}
 }
 
 bus_addr_t
@@ -183,6 +207,11 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 
 	if (bufsize > b->allocsize ||
 	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
+		if (refcount_load(&b->refcount) > 1 ||
+		    (b->flags & SNDBUF_F_DETACHED) != 0) {
+			CHN_UNLOCK(b->channel);
+			return (EBUSY);
+		}
 		allocsize = round_page(bufsize);
 		CHN_UNLOCK(b->channel);
 		tmpbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
@@ -218,10 +247,15 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 	if (blkcnt < 2 || blksz < 16)
 		return EINVAL;
 
+	CHN_LOCKASSERT(b->channel);
+
 	bufsize = blksz * blkcnt;
 
 	if (bufsize > b->allocsize ||
 	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
+		if (refcount_load(&b->refcount) > 1 ||
+		    (b->flags & SNDBUF_F_DETACHED) != 0)
+			return (EBUSY);
 		allocsize = round_page(bufsize);
 		CHN_UNLOCK(b->channel);
 		buf = malloc(allocsize, M_DEVBUF, M_WAITOK);
