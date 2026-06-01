@@ -6610,6 +6610,7 @@ static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = NULL,
 		.actions = pmtx_int_cause_actions,
 	};
+#ifdef notyet
 	static const struct intr_details pmtx_perr_cause_details[] = {
 		{ F_ICSPI_OVFL, "icspi FIFO Overflow" },
 		{ F_OSPI_OVERFLOW3_TX, " OSPI overflow on channel 3 error." },
@@ -6641,6 +6642,7 @@ static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = pmtx_perr_cause_details,
 		.actions = NULL,
 	};
+#endif
 	bool fatal;
 
 	if (chip_id(adap) >= CHELSIO_T7)
@@ -6648,8 +6650,10 @@ static bool pmtx_intr_handler(struct adapter *adap, int arg, int flags)
 	else
 		pmtx_int_cause.details = pmtx_int_cause_fields;
 	fatal = t4_handle_intr(adap, &pmtx_int_cause, 0, flags);
+#ifdef notyet
 	if (chip_id(adap) >= CHELSIO_T7)
 		fatal |= t4_handle_intr(adap, &pmtx_perr_cause, 0, flags);
+#endif
 	clear_int_cause_reg(adap, &pmtx_int_cause, flags);
 
 	return (fatal);
@@ -6705,6 +6709,7 @@ static bool pmrx_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = NULL,
 		.actions = NULL,
 	};
+#ifdef notyet
 	static const struct intr_details pm_rx_int_cause_2_details[] = {
 		{ F_CACHE_SRAM_ODD_CERR, "Cache Data Odd SRAM Correctable Error" },
 		{ F_CACHE_SRAM_EVEN_CERR, "Cache Data Even SRAM Correctable Error" },
@@ -6766,13 +6771,16 @@ static bool pmrx_intr_handler(struct adapter *adap, int arg, int flags)
 		.details = pm_rx_perr_cause_details,
 		.actions = NULL,
 	};
+#endif
 	bool fatal;
 
 	if (chip_id(adap) >= CHELSIO_T7) {
 		pmrx_int_cause.details = t7_pmrx_int_cause_fields;
 		fatal = t4_handle_intr(adap, &pmrx_int_cause, 0, flags);
+#ifdef notyet
 		fatal |= t4_handle_intr(adap, &pmrx_int_cause2, 0, flags);
 		fatal |= t4_handle_intr(adap, &pmrx_perr_cause, 0, flags);
+#endif
 	} else {
 		pmrx_int_cause.details = pmrx_int_cause_fields;
 		fatal = t4_handle_intr(adap, &pmrx_int_cause, 0, flags);
