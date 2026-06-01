@@ -198,6 +198,8 @@ parse_conf(const char *config_path)
 			config.authpath= data;
 		else if (strcmp(word, "CERTFILE") == 0 && data != NULL)
 			config.certfile = data;
+		else if (strcmp(word, "LMTP") == 0 && data == NULL)
+			config.features |= LMTP;
 		else if (strcmp(word, "MAILNAME") == 0 && data != NULL)
 			config.mailname = data;
 		else if (strcmp(word, "MASQUERADE") == 0 && data != NULL) {
@@ -254,6 +256,11 @@ parse_conf(const char *config_path)
 
 	if ((config.features & NULLCLIENT) && config.smarthost == NULL) {
 		errlogx(EX_CONFIG, "%s: NULLCLIENT requires SMARTHOST", config_path);
+		/* NOTREACHED */
+	}
+
+	if ((config.features & LMTP) && (config.features & (TLS_OPP | STARTTLS | SECURETRANSFER))) {
+		errlogx(EX_CONFIG, "%s: LMTP does not support TLS", config_path);
 		/* NOTREACHED */
 	}
 

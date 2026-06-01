@@ -70,6 +70,7 @@
 #define FULLBOUNCE	0x040		/* Bounce the full message */
 #define TLS_OPP		0x080		/* Opportunistic STARTTLS */
 #define NULLCLIENT	0x100		/* Nullclient support */
+#define LMTP		0x400		/* Use LMTP instead of SMTP with the relay */
 
 #ifndef CONF_PATH
 #error Please define CONF_PATH
