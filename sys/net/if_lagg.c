@@ -1828,6 +1828,7 @@ lookup_snd_tag_port(struct ifnet *ifp, uint32_t flowid, uint32_t flowtype,
 	struct lagg_port *lp;
 	struct lagg_lb *lb;
 	uint32_t hash, p;
+	unsigned int count;
 	int err;
 
 	sc = ifp->if_softc;
@@ -1839,8 +1840,11 @@ lookup_snd_tag_port(struct ifnet *ifp, uint32_t flowid, uint32_t flowtype,
 		if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) == 0 ||
 		    flowtype == M_HASHTYPE_NONE)
 			return (NULL);
+		count = atomic_load_int(&sc->sc_count);
+		if (count == 0)
+			return (NULL);
 		p = flowid >> sc->flowid_shift;
-		p %= sc->sc_count;
+		p %= count;
 		lb = (struct lagg_lb *)sc->sc_psc;
 		lp = lb->lb_ports[p];
 		return (lagg_link_active(sc, lp));
@@ -2128,12 +2132,6 @@ lagg_transmit_ethernet(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
 #endif
-	/* We need at least one port */
-	if (sc->sc_count == 0) {
-		m_freem(m);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		return (ENXIO);
-	}
 
 	ETHER_BPF_MTAP(ifp, m);
 
@@ -2150,12 +2148,6 @@ lagg_transmit_infiniband(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
 #endif
-	/* We need at least one port */
-	if (sc->sc_count == 0) {
-		m_freem(m);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		return (ENXIO);
-	}
 
 	infiniband_bpf_mtap(ifp, m);
 
@@ -2421,13 +2413,20 @@ lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 {
 	struct lagg_port *lp;
 	uint32_t p;
+	unsigned int count;
 
+	count = atomic_load_int(&sc->sc_count);
+	if (__predict_false(count == 0)) {
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
+		m_freem(m);
+		return (ENETDOWN);
+	}
 	p = atomic_fetchadd_32(&sc->sc_seq, 1);
 	p /= sc->sc_stride;
-	p %= sc->sc_count;
-	lp = CK_SLIST_FIRST(&sc->sc_ports);
+	p %= count;
 
-	while (p--)
+	lp = CK_SLIST_FIRST(&sc->sc_ports);
+	while (p-- && lp != NULL)
 		lp = CK_SLIST_NEXT(lp, lp_entries);
 
 	/*
@@ -2611,13 +2610,20 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_lb *lb = (struct lagg_lb *)sc->sc_psc;
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
+	unsigned int count;
 
+	count = atomic_load_int(&sc->sc_count);
+	if (__predict_false(count == 0)) {
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
+		m_freem(m);
+		return (ENETDOWN);
+	}
 	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) &&
 	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		p = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		p = m_ether_tcpip_hash(sc->sc_flags, m, lb->lb_key);
-	p %= sc->sc_count;
+	p %= count;
 	lp = lb->lb_ports[p];
 
 	/*
