@@ -1731,7 +1731,8 @@ ipfw_nat64lsn(struct ip_fw_chain *ch, struct ip_fw_args *args,
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
 	    insntod(cmd, kidx)->kidx != V_nat64lsn_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
-	    (i = NAT64_LOOKUP(ch, icmd)) == NULL)
+	    (i = NAT64_LOOKUP(ch, icmd)) == NULL ||
+	    i->no.etlv != IPFW_TLV_NAT64LSN_NAME)
 		return (IP_FW_DENY);
 
 	*done = 1;	/* terminate the search */
