@@ -136,9 +136,10 @@ struct winentry {
 
 #ifdef _KERNEL
 struct mbnambuf {
-	size_t	nb_len;
-	int	nb_last_id;
-	char	nb_buf[WIN_MAXLEN + 1];
+	size_t		nb_len;
+	int		nb_last_id;
+	uint32_t	nb_surrogate;
+	char		nb_buf[WIN_MAXLEN + 1];
 };
 
 struct dirent;
@@ -152,7 +153,7 @@ int	dos2unixfn(u_char dn[11], u_char *un, int lower,
 int	unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	    struct msdosfsmount *pmp);
 int	unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
-	    int chksum, struct msdosfsmount *pmp);
+	    int chksum, uint32_t *surrogate, struct msdosfsmount *pmp);
 int	winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen,
 	    int chksum, struct msdosfsmount *pmp);
 int	win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
