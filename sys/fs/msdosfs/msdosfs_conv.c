@@ -63,9 +63,9 @@ extern struct iconv_functions *msdosfs_iconv;
 
 static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
 static u_char * dos2unixchr(u_char *, const u_char **, size_t *, int, struct msdosfsmount *);
-static uint16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
-static u_char * win2unixchr(u_char *, uint16_t, struct msdosfsmount *);
-static uint16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
+static uint32_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
+static u_char * win2unixchr(u_char *, uint32_t, struct msdosfsmount *);
+static uint32_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
 
 /*
  * 0 - character disallowed in long file name.
@@ -482,7 +482,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	if (gentext + sizeof(gentext) - wcp + 1 > 8 - i)
 		i = 8 - (gentext + sizeof(gentext) - wcp + 1);
 	/*
-	 * Correct posision to where insert the generation number
+	 * Correct position to where insert the generation number
 	 */
 	cp = dn;
 	i -= mbsadjpos((const char**)&cp, i, unlen, 1, pmp->pm_flags, pmp->pm_d2u);
@@ -516,22 +516,29 @@ done:
  */
 int
 unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
-    int chksum, struct msdosfsmount *pmp)
+    int chksum, uint32_t *surrogate, struct msdosfsmount *pmp)
 {
 	uint8_t *wcp;
 	int i, end;
-	uint16_t code;
+	uint32_t code;
 
 	/*
 	 * Drop trailing blanks and dots
 	 */
 	unlen = winLenFixup(un, unlen);
 
+#ifdef MSDOSFS_DEBUG
+	//printf("unix2winfn(%zd, '%.*s')\n", unlen, (int)unlen, un);
+#endif
 	/*
-	 * Cut *un for this slot
+	 * Cut *un for this slot.
+	 * If *surrogate is non-zero, allow for 14 UTF-16 symbols
+	 * since it means we start in the middle of a surrogate pair.
 	 */
-	unlen = mbsadjpos((const char **)&un, unlen, (cnt - 1) * WIN_CHARS, 2,
-			  pmp->pm_flags, pmp->pm_u2w);
+	code = *surrogate;
+	unlen = mbsadjpos((const char **)&un, unlen,
+	    (cnt - 1) * WIN_CHARS + ((code >> 16) != 0 ? 1 : 0), 2,
+	    pmp->pm_flags, pmp->pm_u2w);
 
 	/*
 	 * Initialize winentry to some useful default
@@ -548,27 +555,43 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 	 */
 	end = 0;
 	for (wcp = wep->wePart1, i = sizeof(wep->wePart1)/2; --i >= 0 && !end;) {
-		code = unix2winchr(&un, &unlen, 0, pmp);
+		code >>= 16;
+		if (code == 0)
+			code = unix2winchr(&un, &unlen, 0, pmp);
+#ifdef MSDOSFS_DEBUG
+		//printf("write(%d/%d)=%04x (%s)\n", cnt, 5-i, code, un);
+#endif
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
 			end = WIN_LAST;
 	}
 	for (wcp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0 && !end;) {
-		code = unix2winchr(&un, &unlen, 0, pmp);
+		code >>= 16;
+		if (code == 0)
+			code = unix2winchr(&un, &unlen, 0, pmp);
+#ifdef MSDOSFS_DEBUG
+		//printf("write(%d/%d)=%04x (%s)\n", cnt,11-i, code, un);
+#endif
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
 			end = WIN_LAST;
 	}
 	for (wcp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0 && !end;) {
-		code = unix2winchr(&un, &unlen, 0, pmp);
+		code >>= 16;
+		if (code == 0)
+			code = unix2winchr(&un, &unlen, 0, pmp);
+#ifdef MSDOSFS_DEBUG
+		//printf("write(%d/%d)=%04x (%s)\n", cnt, 13-i, code, un);
+#endif
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
 			end = WIN_LAST;
 	}
-	if (!unlen)
+	*surrogate = code;
+	if (!unlen && (code >> 16) == 0)
 		end = WIN_LAST;
 	wep->weCnt |= end;
 	return !end;
@@ -583,7 +606,7 @@ winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
     struct msdosfsmount *pmp)
 {
 	size_t len;
-	uint16_t c1, c2;
+	uint32_t c1, c2;
 	u_char *np;
 	struct dirent dirbuf;
 
@@ -632,7 +655,7 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	u_char *c, tmpbuf[5];
 	uint8_t *cp;
 	uint8_t *np, name[WIN_CHARS * 3 + 1];
-	uint16_t code;
+	uint32_t code, keep, kept;
 	int i;
 
 	if ((wep->weCnt&WIN_CNT) > howmany(WIN_MAXLEN, WIN_CHARS)
@@ -644,6 +667,7 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	 */
 	if (wep->weCnt&WIN_LAST) {
 		chksum = wep->weChksum;
+		nbp->nb_surrogate = 0;
 	} else if (chksum != wep->weChksum)
 		chksum = -1;
 	if (chksum == -1)
@@ -653,8 +677,36 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	 * Convert the name parts
 	 */
 	np = name;
+	keep = 0;
+	kept = nbp->nb_surrogate;
+	nbp->nb_surrogate = 0;
 	for (cp = wep->wePart1, i = sizeof(wep->wePart1)/2; --i >= 0;) {
 		code = (cp[1] << 8) | cp[0];
+		if (keep == 0) {
+			/* Not currently within a surrogate pair. */
+			if ((code & 0xfc00) == 0xd800) {
+				/* Found 1st half of a surrogate pair. */
+				keep = code;
+				cp += 2;
+				continue;
+			} else if ((code & 0xfc00) == 0xdc00) {
+				/*
+				 * Found 2nd part of surrogate pair without prior 1st part in
+				 * this directory slot. Keep it for combining with the surrogate
+				 * at the end of the next (i.e., logically preceding) slot.
+				 */
+				nbp->nb_surrogate = code;
+				cp += 2;
+				continue;
+			}
+		} else {
+			/*
+			 * Within a surrogate pair: put new value in upper half of the code
+			 * variable and combine with previous value in lower half.
+			 */
+			code = code << 16 | keep;
+			keep = 0;
+		}
 		switch (code) {
 		case 0:
 			*np = '\0';
@@ -675,6 +727,16 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	}
 	for (cp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0;) {
 		code = (cp[1] << 8) | cp[0];
+		if (keep == 0) {
+			if ((code & 0xfc00) == 0xd800) {
+				keep = code;
+				cp += 2;
+				continue;
+			}
+		} else {
+			code = code << 16 | keep;
+			keep = 0;
+		}
 		switch (code) {
 		case 0:
 			*np = '\0';
@@ -695,6 +757,31 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	}
 	for (cp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0;) {
 		code = (cp[1] << 8) | cp[0];
+		if (keep == 0) {
+			/* Not currently within a surrogate pair. */
+			if ((code & 0xfc00) == 0xd800) {
+				/* 1st part of a surrogate pair. */
+				if (i != 0) {
+					/*
+					 * Not on last symbol of this directory slot,
+					 * the 2nd part of the surrogate pair will follow.
+					 */
+					keep = code;
+					cp += 2;
+					continue;
+				}
+				/*
+				 * Last symbol in this directory slot is 1st part of
+				 * a surrogate pair. The 2nd part has been saved from
+				 * the last symbol in the previous directory slot
+				 * (which is logically succeeding this one.
+				 */
+				code |= (kept << 16);
+			}
+		} else {
+			code = code << 16 | keep;
+			keep = 0;
+		}
 		switch (code) {
 		case 0:
 			*np = '\0';
@@ -845,19 +932,19 @@ dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struc
 /*
  * Convert Local char to DOS char
  */
-static uint16_t
+static uint32_t
 unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 {
 	u_char c;
-	char *up, *outp, unicode[3], outbuf[3];
-	uint16_t wc;
+	char *up, *outp, unicode[4], outbuf[4];
+	uint32_t wc;
 	size_t len, ucslen, unixlen, olen;
 
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		/*
 		 * to hide an invisible character, using a unicode filter
 		 */
-		ucslen = 2;
+		ucslen = 4;
 		len = *ilen;
 		up = unicode;
 		msdosfs_iconv->convchr(pmp->pm_u2w, (const char **)instr,
@@ -891,7 +978,7 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 		*instr -= unixlen;
 		*ilen = len;
 
-		olen = len = 2;
+		olen = len = 4;
 		outp = outbuf;
 		msdosfs_iconv->convchr_case(pmp->pm_u2d, (const char **)instr,
 					  ilen, &outp, &olen, KICONV_FROM_UPPER);
@@ -916,25 +1003,27 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 	c = *(*instr)++;
 	c = l2u[c];
 	c = unix2dos[c];
-	return ((uint16_t)c);
+	return ((uint32_t)c);
 }
 
 /*
  * Convert Windows char to Local char
  */
 static u_char *
-win2unixchr(u_char *outbuf, uint16_t wc, struct msdosfsmount *pmp)
+win2unixchr(u_char *outbuf, uint32_t wc, struct msdosfsmount *pmp)
 {
-	u_char *inp, *outp, inbuf[3];
+	u_char *inp, *outp, inbuf[5];
 	size_t ilen, olen, len;
 
 	outp = outbuf;
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		inbuf[0] = (u_char)(wc>>8);
 		inbuf[1] = (u_char)wc;
-		inbuf[2] = '\0';
+		inbuf[2] = (u_char)(wc>>24);
+		inbuf[3] = (u_char)(wc>>16);
+		inbuf[4] = '\0';
 
-		ilen = 2;
+		ilen = 4;
 		olen = len = 4;
 		inp = inbuf;
 		msdosfs_iconv->convchr(pmp->pm_w2u, __DECONST(const char **,
@@ -947,7 +1036,7 @@ win2unixchr(u_char *outbuf, uint16_t wc, struct msdosfsmount *pmp)
 		if (len == 0)
 			*outp++ = '?';
 	} else {
-		*outp++ = (wc & 0xff00) ? '?' : (u_char)(wc & 0xff);
+		*outp++ = (wc & 0xffffff00) ? '?' : (u_char)(wc & 0xff);
 	}
 
 	*outp = '\0';
@@ -956,13 +1045,15 @@ win2unixchr(u_char *outbuf, uint16_t wc, struct msdosfsmount *pmp)
 }
 
 /*
- * Convert Local char to Windows char
+ * Convert Local char to Windows char (UTF-16).
+ * If a surrogate pair is required, then put the high part into the upper half
+ * of the word that is returned.
  */
-static uint16_t
+static uint32_t
 unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
 {
-	u_char *outp, outbuf[3];
-	uint16_t wc;
+	u_char *outp, outbuf[5];
+	uint32_t wc;
 	size_t olen;
 
 	if (*ilen == 0)
@@ -970,7 +1061,7 @@ unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *
 
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		outp = outbuf;
-		olen = 2;
+		olen = 4;
 		if (lower & (LCASE_BASE | LCASE_EXT))
 			msdosfs_iconv->convchr_case(pmp->pm_u2w, (const char **)instr,
 						  ilen, (char **)&outp, &olen,
@@ -982,10 +1073,12 @@ unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *
 		/*
 		 * return '0' if end of filename
 		 */
-		if (olen == 2)
+		if (olen == 4)
 			return (0);
 
 		wc = (outbuf[0]<<8) | outbuf[1];
+		if (olen == 0)
+			wc |= outbuf[2]<<24 | outbuf[3]<<16;
 
 		return (wc);
 	}
@@ -1044,8 +1137,11 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 		return (ENAMETOOLONG);
 	}
 
-	/* Shift suffix upwards by the amount length exceeds WIN_CHARS. */
-	if (count > WIN_CHARS && nbp->nb_len != 0) {
+	/*
+	 * Shift suffix upwards or downwards by the amount length differs
+	 * from WIN_CHARS.
+	 */
+	if (count != WIN_CHARS && nbp->nb_len != 0) {
 		if ((id * WIN_CHARS + count + nbp->nb_len) >
 		    sizeof(nbp->nb_buf))
 			return (ENAMETOOLONG);
