@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2015-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -26,6 +26,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * We have two ways to create a pci_dev (pdev):
+ * (1) coming from the device_attach DEVMETHOD, and
+ * (2) the other from manual creation via lkpinew_pci_dev().
+ *
+ * Only devices from (1) end up on our LinuxKPI global pci_devices list.
+ * All others are "place fillers" -- XXX if only "place filler" was always true.
  */
 
 #include <sys/param.h>
@@ -100,6 +109,7 @@ static int linux_backlight_get_status(device_t dev, struct backlight_props *prop
 static int linux_backlight_update_status(device_t dev, struct backlight_props *props);
 static int linux_backlight_get_info(device_t dev, struct backlight_info *info);
 static void lkpi_pcim_iomap_table_release(struct device *, void *);
+static void lkpinew_pci_dev_release(struct device *);
 
 static device_method_t pci_methods[] = {
 	DEVMETHOD(device_probe, linux_pci_probe),
@@ -337,9 +347,82 @@ lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 static void
 lkpi_pci_dev_release(struct device *dev)
 {
+	struct pci_dev *pdev;
 
+	/*
+	 * Before anything else, we have to free all the dynamic
+	 * resource which are on the devres list.
+	 * Otherwise we risk that supporting infrastructure
+	 * is gone and we panic 'randomly'.
+	 */
 	lkpi_devres_release_free_list(dev);
+
+	/*
+	 * Now undo linux_pci_attach_device() in reverse-ish
+	 * order.
+	 */
+	pdev = to_pci_dev(dev);
+
+	/*
+	 * pdrv->remove happens before pci_put_dev() in
+	 * linux_pci_detach_device(), which means the driver should have
+	 * cleaned up before we get here; see irqents and mmio below.
+	 */
+
+	/* Clear the hierarchy recursively to root. */
+	if (pdev->bus->self != pdev) {
+		pci_dev_put(pdev->bus->self);
+		pdev->bus->self = NULL;
+	}
+
+	if (pdev->root != NULL) {
+		lkpinew_pci_dev_release(&pdev->root->dev); /* pci_dev_put(pdev->root); ? */
+		pdev->root = NULL;
+	}
+
+	spin_lock(&pci_lock);
+	list_del(&pdev->links);
+	spin_unlock(&pci_lock);
+
+	linux_pdev_dma_uninit(pdev);
+
+	/* irq? */
+
+	/* Undo lkpifill_pci_dev(). */
+	/* devres is gone already; went at the very top. */
+	if (!list_empty_careful(&pdev->dev.irqents)) {
+		dev_warn(&pdev->dev, "%s: driver did not clean up; "
+		    "leaking IRQs\n", __func__);
+		/*
+		 * XXX add private function to interrupt.h/linux_interrupt.c
+		 * to walk the list and call free_irq on each if we have to.
+		 */
+	}
+
 	spin_lock_destroy(&dev->devres_lock);
+	spin_lock_destroy(&pdev->pcie_cap_lock);
+
+	if (!TAILQ_EMPTY(&pdev->mmio)) {
+		dev_warn(&pdev->dev, "%s: driver did not clean up; "
+		    "leaking mmio resources\n", __func__);
+		/* XXX we have two functions to walk and release in here. */
+	}
+
+	if (pdev->msi_desc != NULL) {
+		for (int i = pci_msi_count(pdev->dev.bsddev) - 1; i >= 0; i--)
+			free(pdev->msi_desc[i], M_DEVBUF);
+		free(pdev->msi_desc, M_DEVBUF);
+	}
+
+	free(pdev->bus, M_DEVBUF);
+	kfree(pdev->path_name);
+
+	/*
+	 * Lastly, apply an internal hack in order to signal
+	 * that this was run (device reference fully dropped).
+	 * See comment in linux_pci_detach_device().
+	 */
+	pdev->dev.release = NULL;
 }
 
 static int
@@ -666,14 +749,16 @@ static int
 linux_pci_detach(device_t dev)
 {
 	struct pci_dev *pdev;
+	int error;
 
 	pdev = device_get_softc(dev);
-
 	MPASS(pdev != NULL);
 
-	device_set_desc(dev, NULL);
+	error = linux_pci_detach_device(pdev);
+	if (error == 0)
+		device_set_desc(dev, NULL);
 
-	return (linux_pci_detach_device(pdev));
+	return (error);
 }
 
 int
@@ -682,21 +767,51 @@ linux_pci_detach_device(struct pci_dev *pdev)
 
 	linux_set_current(curthread);
 
+	/*
+	 * We cannot do much here as almost everything will have
+	 * to happen as the last reference to the LinuxKPI device
+	 * goes away.  That will call the release function,
+	 * which lkpifill_pci_dev() set.  That is were most
+	 * of the cleanup will happen.  But before that give
+	 * the driver a chance to cleanup.
+	 * The big problem is that the Linux KPI does not
+	 * report back if it was the last kref (well kref
+	 * does report back but then kobj, dev, pdev do not).
+	 * So we have little way of knowing if the release
+	 * happened or not.  We have to play tricks for that
+	 * and we can given the softc (pdev) is still valid
+	 * until we return from here.
+	 */
+
 	if (pdev->pdrv != NULL)
 		pdev->pdrv->remove(pdev);
 
-	if (pdev->root != NULL)
-		pci_dev_put(pdev->root);
-	free(pdev->bus, M_DEVBUF);
-	linux_pdev_dma_uninit(pdev);
+	pci_dev_put(pdev);
 
-	spin_lock(&pci_lock);
-	list_del(&pdev->links);
-	spin_unlock(&pci_lock);
-	spin_lock_destroy(&pdev->pcie_cap_lock);
-	put_device(&pdev->dev);
+	/*
+	 * We (ab)use the release function as a guard to
+	 * know if we made it there and the device is gone.
+	 */
+	if (pdev->dev.release != lkpi_pci_dev_release)
+		return (0);
 
-	return (0);
+	/*
+	 * Detach failed.
+	 * We need to re-acquire the ref and wait for
+	 * the other refs to be gone... In theory this
+	 * should never happen, so log it!
+	 * XXX I wish there was a KPI to query the ref.
+	 *
+	 * If we do not error and wait, we will have a
+	 * LinuxKPI device dangling active with pointers
+	 * but the FreeBSD device_t will be 'gone'.
+	 */
+	device_printf(pdev->dev.bsddev, "%s failed due to %u other pending "
+	    "references on the LinuxKPI device.\n", __func__,
+	    kref_read(&pdev->dev.kobj.kref));
+	pci_dev_get(pdev);
+
+	return (EBUSY);
 }
 
 static int
