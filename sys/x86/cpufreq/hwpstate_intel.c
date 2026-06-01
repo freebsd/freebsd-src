@@ -321,9 +321,19 @@ out:
 	return (ret);
 }
 
+static void
+intel_hwpstate_hybrid_cb(void *ctx)
+{
+	uint32_t *small_cores = ctx;
+
+	atomic_add_32(small_cores, PCPU_GET(small_core));
+}
+
 void
 intel_hwpstate_identify(driver_t *driver, device_t parent)
 {
+	uint32_t small_cores = 0;
+
 	if (device_find_child(parent, "hwpstate_intel", DEVICE_UNIT_ANY) != NULL)
 		return;
 
@@ -342,6 +352,17 @@ intel_hwpstate_identify(driver_t *driver, device_t parent)
 	 */
 	if ((cpu_power_eax & CPUTPM1_HWP) == 0)
 		return;
+
+	/*
+	 * On hybrid-core systems, package-level control cannot be used.
+	 * It may cause all cores to run at the E-core frequency because
+	 * the resulting package frequency depends on the last core that
+	 * sets the frequency.
+	 */
+	smp_rendezvous_cpus(all_cpus, smp_no_rendezvous_barrier,
+	    intel_hwpstate_hybrid_cb, smp_no_rendezvous_barrier, &small_cores);
+	if (small_cores > 0 && small_cores < mp_ncores)
+		hwpstate_pkg_ctrl_enable = false;
 
 	if (BUS_ADD_CHILD(parent, 10, "hwpstate_intel", device_get_unit(parent))
 	    == NULL)
