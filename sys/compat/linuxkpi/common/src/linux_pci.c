@@ -308,8 +308,9 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 struct pci_dev *
 lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 {
-	struct pci_dev *pdev, *found;
+	struct pci_dev *pdev, *found, *odev0;
 
+	odev0 = odev;
 	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
@@ -328,6 +329,7 @@ lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 	}
 	pci_dev_get(found);
 	spin_unlock(&pci_lock);
+	pci_dev_put(odev0);
 
 	return (found);
 }
