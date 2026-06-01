@@ -516,7 +516,7 @@ static const struct limits limits[] = {
 	{ "umtx shared locks",	(char *)0,	RLIMIT_UMTXP,	   1, 'o' },
 #endif
 #ifdef RLIMIT_PIPEBUF
-	{ "pipebuf",		(char *)0,	RLIMIT_PIPEBUF, 1024, 'y' },
+	{ "pipebuf",		"kbytes",	RLIMIT_PIPEBUF, 1024, 'y' },
 #endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
