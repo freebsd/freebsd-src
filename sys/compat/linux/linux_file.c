@@ -2034,23 +2034,17 @@ _Static_assert(LINUX_IN_ONESHOT == IN_ONESHOT,
 _Static_assert(LINUX_IN_EXCL_UNLINK == IN_EXCL_UNLINK,
     "IN_EXCL_UNLINK mismatch");
 
-static int
-linux_inotify_watch_flags(int l_flags)
-{
-	if ((l_flags & ~(LINUX_IN_ALL_EVENTS | LINUX_IN_ALL_FLAGS)) != 0) {
-		linux_msg(NULL, "inotify_add_watch unsupported flags 0x%x",
-		    l_flags);
-	}
-
-	return (l_flags);
-}
-
 int
 linux_inotify_add_watch(struct thread *td,
     struct linux_inotify_add_watch_args *args)
 {
+	if ((args->mask & ~(LINUX_IN_ALL_EVENTS | LINUX_IN_ALL_FLAGS)) != 0) {
+		linux_msg(NULL, "inotify_add_watch unsupported flags 0x%x",
+		    args->mask);
+		return (EINVAL);
+	}
 	return (kern_inotify_add_watch(args->fd, AT_FDCWD, args->pathname,
-	    linux_inotify_watch_flags(args->mask), td));
+	    args->mask, td));
 }
 
 int
