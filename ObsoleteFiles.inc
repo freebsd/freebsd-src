@@ -51,6 +51,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260602: Removed by 0a36787e4c1f on 20210723
+OLD_FILES+=usr/share/locale/hr_HR.ISO8859-2/LC_MESSAGES
+OLD_FILES+=usr/share/locale/nl_BE.ISO8859-1/LC_MESSAGES
+OLD_FILES+=usr/share/locale/nl_BE.ISO8859-15/LC_MESSAGES
+OLD_FILES+=usr/share/locale/sr_RS.ISO8859-2/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_NUMERIC
+
 # 20260430: Provide stdint.h macros unconditionally
 OLD_FILES+=usr/include/c++/v1/stdint.h
 
