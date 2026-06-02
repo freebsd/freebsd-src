@@ -8,6 +8,7 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel
 
 TESTSDIR=	${TESTSBASE}/sys/kern
 
+ATF_TESTS_C+=	aslr
 ATF_TESTS_C+=	basic_signal
 .if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH} != "powerpc" && \
 	${MACHINE_ARCH} != "powerpcspe"
@@ -72,6 +73,7 @@ PROGS+=		coredump_phnum_helper
 PROGS+=		pdeathsig_helper
 PROGS+=		sendfile_helper
 
+LIBADD.aslr+=				util
 LIBADD.jail_lookup_root+=		jail util
 CFLAGS.sys_getrandom+=			-I${SRCTOP}/sys/contrib/zstd/lib
 LIBADD.sys_getrandom+=			zstd

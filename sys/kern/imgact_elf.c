@@ -1230,11 +1230,39 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = ENOEXEC;
 		goto ret;
 	}
+
+	/*
+	 * Avoid a possible deadlock if the current address space is destroyed
+	 * and that address space maps the locked vnode.  In the common case,
+	 * the locked vnode's v_usecount is decremented but remains greater
+	 * than zero.  Consequently, the vnode lock is not needed by vrele().
+	 * However, in cases where the vnode lock is external, such as nullfs,
+	 * v_usecount may become zero.
+	 *
+	 * The VV_TEXT flag prevents modifications to the executable while
+	 * the vnode is unlocked.
+	 */
+	VOP_UNLOCK(imgp->vp);
+
+	/*
+	 * Decide whether to enable randomization of user mappings.  First,
+	 * reset user preferences for the setid binaries.  Then, account for the
+	 * support of randomization by the ABI, by user preferences, and make
+	 * special treatment for PIE binaries.
+	 */
+	if (imgp->credential_setid) {
+		PROC_LOCK(imgp->proc);
+		imgp->proc->p_flag2 &= ~(P2_ASLR_ENABLE | P2_ASLR_DISABLE |
+		    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC);
+		PROC_UNLOCK(imgp->proc);
+	}
+
 	sv = brand_info->sysvec;
 	if (hdr->e_type == ET_DYN) {
 		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
 			uprintf("Cannot execute shared object\n");
 			error = ENOEXEC;
+			(void)vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 			goto ret;
 		}
 		/*
@@ -1252,33 +1280,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			else
 				imgp->et_dyn_addr = __elfN(pie_base);
 		}
-	}
-
-	/*
-	 * Avoid a possible deadlock if the current address space is destroyed
-	 * and that address space maps the locked vnode.  In the common case,
-	 * the locked vnode's v_usecount is decremented but remains greater
-	 * than zero.  Consequently, the vnode lock is not needed by vrele().
-	 * However, in cases where the vnode lock is external, such as nullfs,
-	 * v_usecount may become zero.
-	 *
-	 * The VV_TEXT flag prevents modifications to the executable while
-	 * the vnode is unlocked.
-	 */
-	VOP_UNLOCK(imgp->vp);
-
-	/*
-	 * Decide whether to enable randomization of user mappings.
-	 * First, reset user preferences for the setid binaries.
-	 * Then, account for the support of the randomization by the
-	 * ABI, by user preferences, and make special treatment for
-	 * PIE binaries.
-	 */
-	if (imgp->credential_setid) {
-		PROC_LOCK(imgp->proc);
-		imgp->proc->p_flag2 &= ~(P2_ASLR_ENABLE | P2_ASLR_DISABLE |
-		    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC);
-		PROC_UNLOCK(imgp->proc);
 	}
 	if ((sv->sv_flags & SV_ASLR) == 0 ||
 	    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) != 0 ||
