@@ -1129,8 +1129,10 @@ lacp_compose_key(struct lacp_port *lp)
 {
 	struct lagg_port *lgp = lp->lp_lagg;
 	struct lagg_softc *sc = lgp->lp_softc;
+	uint64_t baudrate;
 	u_int media = lp->lp_media;
 	uint16_t key;
+	static bool warned;
 
 	if ((lp->lp_state & LACP_STATE_AGGREGATION) == 0) {
 		/*
@@ -1149,155 +1151,60 @@ lacp_compose_key(struct lacp_port *lp)
 		KASSERT(IFM_TYPE(media) == IFM_ETHER, ("invalid media type"));
 		KASSERT((media & IFM_FDX) != 0, ("aggregating HDX interface"));
 
-		/* bit 0..4:	IFM_SUBTYPE modulo speed */
-		switch (subtype) {
-		case IFM_10_T:
-		case IFM_10_2:
-		case IFM_10_5:
-		case IFM_10_STP:
-		case IFM_10_FL:
-			key = IFM_10_T;
+		baudrate = lp->lp_ifp->if_baudrate;
+		if (baudrate == 0)
+			baudrate = ifmedia_baudrate(media);
+		/* bit 0..4:	encoded speed */
+		switch (baudrate) {
+		case IF_Mbps(10):
+			key = 1;
 			break;
-		case IFM_100_TX:
-		case IFM_100_FX:
-		case IFM_100_T4:
-		case IFM_100_VG:
-		case IFM_100_T2:
-		case IFM_100_T:
-		case IFM_100_SGMII:
-		case IFM_100_BX:
-			key = IFM_100_TX;
+		case IF_Mbps(100):
+			key = 2;
 			break;
-		case IFM_1000_SX:
-		case IFM_1000_LX:
-		case IFM_1000_CX:
-		case IFM_1000_T:
-		case IFM_1000_KX:
-		case IFM_1000_SGMII:
-		case IFM_1000_CX_SGMII:
-		case IFM_1000_BX:
-			key = IFM_1000_SX;
+		case IF_Gbps(1):
+			key = 3;
 			break;
-		case IFM_10G_LR:
-		case IFM_10G_SR:
-		case IFM_10G_CX4:
-		case IFM_10G_TWINAX:
-		case IFM_10G_TWINAX_LONG:
-		case IFM_10G_LRM:
-		case IFM_10G_T:
-		case IFM_10G_KX4:
-		case IFM_10G_KR:
-		case IFM_10G_CR1:
-		case IFM_10G_ER:
-		case IFM_10G_SFI:
-		case IFM_10G_AOC:
-			key = IFM_10G_LR;
+		case IF_Mbps(2500):
+			key = 4;
 			break;
-		case IFM_20G_KR2:
-			key = IFM_20G_KR2;
+		case IF_Gbps(5):
+			key = 5;
 			break;
-		case IFM_2500_KX:
-		case IFM_2500_T:
-		case IFM_2500_X:
-			key = IFM_2500_KX;
+		case IF_Gbps(10):
+			key = 6;
 			break;
-		case IFM_5000_T:
-		case IFM_5000_KR:
-		case IFM_5000_KR_S:
-		case IFM_5000_KR1:
-			key = IFM_5000_T;
+		case IF_Gbps(20):
+			key = 7;
 			break;
-		case IFM_50G_PCIE:
-		case IFM_50G_CR2:
-		case IFM_50G_KR2:
-		case IFM_50G_KR4:
-		case IFM_50G_SR2:
-		case IFM_50G_LR2:
-		case IFM_50G_LAUI2_AC:
-		case IFM_50G_LAUI2:
-		case IFM_50G_AUI2_AC:
-		case IFM_50G_AUI2:
-		case IFM_50G_CP:
-		case IFM_50G_SR:
-		case IFM_50G_LR:
-		case IFM_50G_FR:
-		case IFM_50G_KR_PAM4:
-		case IFM_50G_AUI1_AC:
-		case IFM_50G_AUI1:
-			key = IFM_50G_PCIE;
+		case IF_Gbps(25):
+			key = 8;
 			break;
-		case IFM_56G_R4:
-			key = IFM_56G_R4;
+		case IF_Gbps(40):
+			key = 9;
 			break;
-		case IFM_25G_PCIE:
-		case IFM_25G_CR:
-		case IFM_25G_KR:
-		case IFM_25G_SR:
-		case IFM_25G_LR:
-		case IFM_25G_ACC:
-		case IFM_25G_AOC:
-		case IFM_25G_T:
-		case IFM_25G_CR_S:
-		case IFM_25G_CR1:
-		case IFM_25G_KR_S:
-		case IFM_25G_AUI:
-		case IFM_25G_KR1:
-			key = IFM_25G_PCIE;
+		case IF_Gbps(50):
+			key = 10;
 			break;
-		case IFM_40G_CR4:
-		case IFM_40G_SR4:
-		case IFM_40G_LR4:
-		case IFM_40G_LM4:
-		case IFM_40G_XLPPI:
-		case IFM_40G_KR4:
-		case IFM_40G_XLAUI:
-		case IFM_40G_XLAUI_AC:
-		case IFM_40G_ER4:
-			key = IFM_40G_CR4;
+		case IF_Gbps(56):
+			key = 11;
 			break;
-		case IFM_100G_CR4:
-		case IFM_100G_SR4:
-		case IFM_100G_KR4:
-		case IFM_100G_LR4:
-		case IFM_100G_CAUI4_AC:
-		case IFM_100G_CAUI4:
-		case IFM_100G_AUI4_AC:
-		case IFM_100G_AUI4:
-		case IFM_100G_CR_PAM4:
-		case IFM_100G_KR_PAM4:
-		case IFM_100G_CP2:
-		case IFM_100G_SR2:
-		case IFM_100G_DR:
-		case IFM_100G_KR2_PAM4:
-		case IFM_100G_CAUI2_AC:
-		case IFM_100G_CAUI2:
-		case IFM_100G_AUI2_AC:
-		case IFM_100G_AUI2:
-			key = IFM_100G_CR4;
+		case IF_Gbps(100):
+			key = 12;
 			break;
-		case IFM_200G_CR4_PAM4:
-		case IFM_200G_SR4:
-		case IFM_200G_FR4:
-		case IFM_200G_LR4:
-		case IFM_200G_DR4:
-		case IFM_200G_KR4_PAM4:
-		case IFM_200G_AUI4_AC:
-		case IFM_200G_AUI4:
-		case IFM_200G_AUI8_AC:
-		case IFM_200G_AUI8:
-			key = IFM_200G_CR4_PAM4;
+		case IF_Gbps(200):
+			key = 13;
 			break;
-		case IFM_400G_FR8:
-		case IFM_400G_LR8:
-		case IFM_400G_DR4:
-		case IFM_400G_AUI8_AC:
-		case IFM_400G_AUI8:
-		case IFM_400G_SR8:
-		case IFM_400G_CR8:
-			key = IFM_400G_FR8;
+		case IF_Gbps(400):
+			key = 14;
 			break;
 		default:
 			key = subtype;
+			if (!warned) {
+				printf("%s LACP: support %ju baudrate!\n",
+				    lp->lp_ifp->if_xname, baudrate);
+				warned = true;
+			}
 			break;
 		}
 		/* bit 5..14:	(some bits of) if_index of lagg device */
