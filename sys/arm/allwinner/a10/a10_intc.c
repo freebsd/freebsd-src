@@ -330,7 +330,7 @@ a10_aintc_attach(device_t dev)
 	    &rid, RF_ACTIVE);
 	if (!sc->aintc_res) {
 		device_printf(dev, "could not allocate resource\n");
-		goto error;
+		return (ENXIO);
 	}
 
 	sc->aintc_bst = rman_get_bustag(sc->aintc_res);
@@ -351,7 +351,7 @@ a10_aintc_attach(device_t dev)
 
 	if (a10_intr_pic_attach(sc) != 0) {
 		device_printf(dev, "could not attach PIC\n");
-		return (ENXIO);
+		goto error;
 	}
 
 	return (0);
