@@ -37,20 +37,11 @@
 
 #include "virtual_oss.h"
 
-static void
-message(const char *fmt, ...)
-{
-	va_list list;
-
-	va_start(list, fmt);
-	vfprintf(stderr, fmt, list);
-	va_end(list);
-}
-
-static void
+static void __dead2
 usage(void)
 {
-	message("Usage: virtual_oss_cmd /dev/vdsp.ctl [command line arguments to pass to virtual_oss]\n");
+	fprintf(stderr, "usage: %s <control_device> [virtual_oss(8) command "
+	    "line options]\n", getprogname());
 	exit(EX_USAGE);
 }
 
@@ -68,7 +59,7 @@ main(int argc, char **argv)
 
 	fd = open(argv[1], O_RDWR);
 	if (fd < 0)
-		errx(EX_SOFTWARE, "Could not open '%s'", argv[1]);
+		err(EX_SOFTWARE, "Could not open control device: %s", argv[1]);
 
 	for (int x = 2; x != argc; x++) {
 		size_t tmp = strlen(argv[x]) + 1;
