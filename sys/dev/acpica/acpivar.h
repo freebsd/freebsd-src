@@ -57,6 +57,10 @@ struct acpi_softc {
     enum power_stype	acpi_stype;
     int			acpi_sleep_disabled;
 
+    /* Supported sleep states and types. */
+    bool		acpi_supported_stypes[POWER_STYPE_COUNT];
+    bool		acpi_supported_sstates[ACPI_S_STATE_COUNT];
+
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
     enum power_stype	acpi_power_button_stype;

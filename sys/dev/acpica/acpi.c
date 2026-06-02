@@ -117,10 +117,6 @@ struct callout	acpi_sleep_timer;
 /* Bitmap of device quirks. */
 int		acpi_quirks;
 
-/* Supported sleep states and types. */
-static bool	acpi_supported_stypes[POWER_STYPE_COUNT];
-static bool	acpi_supported_sstates[ACPI_S_STATE_COUNT];
-
 static void	acpi_lookup(void *arg, const char *name, device_t *dev);
 static int	acpi_modevent(struct module *mod, int event, void *junk);
 
@@ -636,17 +632,17 @@ acpi_attach(device_t dev)
      * Probe all supported ACPI sleep states.  Awake (S0) is always supported,
      * and suspend-to-idle is always supported on x86 only (at the moment).
      */
-    acpi_supported_sstates[ACPI_STATE_S0] = true;
-    acpi_supported_stypes[POWER_STYPE_AWAKE] = true;
+    sc->acpi_supported_sstates[ACPI_STATE_S0] = true;
+    sc->acpi_supported_stypes[POWER_STYPE_AWAKE] = true;
 #if defined(__i386__) || defined(__amd64__)
-    acpi_supported_stypes[POWER_STYPE_SUSPEND_TO_IDLE] = true;
+    sc->acpi_supported_stypes[POWER_STYPE_SUSPEND_TO_IDLE] = true;
 #endif
     for (state = ACPI_STATE_S1; state <= ACPI_STATE_S5; state++) {
 	UINT8 TypeA, TypeB;
 
 	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB))) {
-	    acpi_supported_sstates[state] = true;
-	    acpi_supported_stypes[acpi_sstate_to_stype(state)] = true;
+	    sc->acpi_supported_sstates[state] = true;
+	    sc->acpi_supported_stypes[acpi_sstate_to_stype(state)] = true;
 	}
     }
 
@@ -654,14 +650,14 @@ acpi_attach(device_t dev)
      * Dispatch the default sleep type to devices.  The lid switch is set
      * to UNKNOWN by default to avoid surprising users.
      */
-    sc->acpi_power_button_stype = acpi_supported_stypes[POWER_STYPE_POWEROFF] ?
+    sc->acpi_power_button_stype = sc->acpi_supported_stypes[POWER_STYPE_POWEROFF] ?
 	POWER_STYPE_POWEROFF : POWER_STYPE_UNKNOWN;
     sc->acpi_lid_switch_stype = POWER_STYPE_UNKNOWN;
 
     sc->acpi_standby_sx = ACPI_STATE_UNKNOWN;
-    if (acpi_supported_sstates[ACPI_STATE_S1])
+    if (sc->acpi_supported_sstates[ACPI_STATE_S1])
 	sc->acpi_standby_sx = ACPI_STATE_S1;
-    else if (acpi_supported_sstates[ACPI_STATE_S2])
+    else if (sc->acpi_supported_sstates[ACPI_STATE_S2])
 	sc->acpi_standby_sx = ACPI_STATE_S2;
 
     /*
@@ -674,13 +670,13 @@ acpi_attach(device_t dev)
      */
     sc->acpi_sleep_button_stype = POWER_STYPE_UNKNOWN;
     for (stype = POWER_STYPE_STANDBY; stype <= POWER_STYPE_FW_HIBERNATE; stype++)
-	if (acpi_supported_stypes[stype]) {
+	if (sc->acpi_supported_stypes[stype]) {
 	    sc->acpi_sleep_button_stype = stype;
 	    break;
 	}
     if (sc->acpi_sleep_button_stype == POWER_STYPE_FW_HIBERNATE ||
 	sc->acpi_sleep_button_stype == POWER_STYPE_UNKNOWN) {
-	if (acpi_supported_stypes[POWER_STYPE_SUSPEND_TO_IDLE])
+	if (sc->acpi_supported_stypes[POWER_STYPE_SUSPEND_TO_IDLE])
 	    sc->acpi_sleep_button_stype = POWER_STYPE_SUSPEND_TO_IDLE;
     }
 
@@ -728,24 +724,25 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "supported_sleep_state",
 	CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	0, 0, acpi_supported_sleep_state_sysctl, "A",
+	sc, 0, acpi_supported_sleep_state_sysctl, "A",
 	"List supported ACPI sleep states.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "power_button_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_power_button_stype, 0, acpi_stype_sysctl, "A",
-	"Power button ACPI sleep state.");
+	sc, offsetof(struct acpi_softc, acpi_power_button_stype),
+	acpi_stype_sysctl, "A", "Power button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_button_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_sleep_button_stype, 0, acpi_stype_sysctl, "A",
+	sc, offsetof(struct acpi_softc, acpi_sleep_button_stype), acpi_stype_sysctl, "A",
 	"Sleep button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "lid_switch_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_lid_switch_stype, 0, acpi_stype_sysctl, "A",
-	"Lid ACPI sleep state. Set to suspend_to_idle or fw_suspend if you want to suspend "
-	"your laptop when you close the lid.");
+	sc, offsetof(struct acpi_softc, acpi_lid_switch_stype),
+	acpi_stype_sysctl, "A",
+	"Lid ACPI sleep state. Set to suspend_to_idle or fw_suspend "
+	"if you want to suspend your laptop when you close the lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	sc, 0, acpi_suspend_state_sysctl, "A",
@@ -754,7 +751,8 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "standby_state",
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A",
+	sc, offsetof(struct acpi_softc, acpi_standby_sx),
+	acpi_sleep_state_sysctl, "A",
 	"ACPI Sx state to use when going standby (usually S1 or S2).");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
@@ -783,7 +781,7 @@ acpi_attach(device_t dev)
 
     /* Register ACPI again to pass the correct argument of pm_func. */
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc,
-	acpi_supported_stypes);
+	sc->acpi_supported_stypes);
 
     acpi_platform_osc(dev);
 
@@ -3342,7 +3340,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, enum power_stype stype)
 
     if (stype < POWER_STYPE_AWAKE || stype >= POWER_STYPE_COUNT)
 	return (EINVAL);
-    if (!acpi_supported_stypes[stype])
+    if (!sc->acpi_supported_stypes[stype])
 	return (EOPNOTSUPP);
 
     /*
@@ -3637,7 +3635,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
 
     if (stype <= POWER_STYPE_AWAKE || stype >= POWER_STYPE_COUNT)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
-    if (!acpi_supported_stypes[stype]) {
+    if (!sc->acpi_supported_stypes[stype]) {
 	device_printf(sc->acpi_dev, "Sleep type %s not supported on this "
 	    "platform\n", power_stype_to_name(stype));
 	return (AE_SUPPORT);
@@ -4475,7 +4473,7 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	sstate = *(int *)addr;
 	if (sstate < ACPI_STATE_S0 || sstate > ACPI_STATE_S5)
 	    return (EINVAL);
-	if (!acpi_supported_sstates[sstate])
+	if (!sc->acpi_supported_sstates[sstate])
 	    return (EOPNOTSUPP);
 	if (ACPI_FAILURE(acpi_SetSleepState(sc, acpi_sstate_to_stype(sstate))))
 	    error = ENXIO;
@@ -4540,13 +4538,14 @@ acpi_sstate_to_sname(int state)
 static int
 acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 {
+    const struct acpi_softc *const sc = arg1;
     int error;
     struct sbuf sb;
     UINT8 state;
 
     sbuf_new(&sb, NULL, 32, SBUF_AUTOEXTEND);
     for (state = ACPI_STATE_S1; state < ACPI_S_STATE_COUNT; state++)
-	if (acpi_supported_sstates[state])
+	if (sc->acpi_supported_sstates[state])
 	    sbuf_printf(&sb, "%s ", acpi_sstate_to_sname(state));
     sbuf_trim(&sb);
     sbuf_finish(&sb);
@@ -4558,13 +4557,13 @@ acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    char name[10];
-    int err;
-    struct acpi_softc *sc = oidp->oid_arg1;
+    struct acpi_softc *const sc = oidp->oid_arg1;
+    const enum power_stype old_stype = power_suspend_stype;
     enum power_stype new_stype;
-    enum power_stype old_stype = power_suspend_stype;
     int old_sstate = acpi_stype_to_sstate(sc, old_stype);
     int new_sstate;
+    char name[10];
+    int err;
 
     strlcpy(name, acpi_sstate_to_sname(old_sstate), sizeof(name));
     err = sysctl_handle_string(oidp, name, sizeof(name), req);
@@ -4576,7 +4575,7 @@ acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
     new_stype = acpi_sstate_to_stype(new_sstate);
     if (new_sstate != ACPI_STATE_UNKNOWN &&
-	acpi_supported_stypes[new_stype] == false)
+	sc->acpi_supported_stypes[new_stype] == false)
 	return (EOPNOTSUPP);
 
     if (new_stype != old_stype)
@@ -4587,11 +4586,13 @@ acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 {
+    struct acpi_softc *const sc = arg1;
+    int *const state_field = (int *)((char *)sc + arg2);
+    const int old_sstate = *state_field;
     char sleep_state[10];
     int error;
-    int new_sstate, old_sstate;
+    int new_sstate;
 
-    old_sstate = *(int *)oidp->oid_arg1;
     strlcpy(sleep_state, acpi_sstate_to_sname(old_sstate), sizeof(sleep_state));
     error = sysctl_handle_string(oidp, sleep_state, sizeof(sleep_state), req);
     if (error == 0 && req->newptr != NULL) {
@@ -4599,10 +4600,10 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 	if (new_sstate < 0)
 	    return (EINVAL);
 	if (new_sstate < ACPI_S_STATE_COUNT &&
-	    !acpi_supported_sstates[new_sstate])
+	    !sc->acpi_supported_sstates[new_sstate])
 	    return (EOPNOTSUPP);
 	if (new_sstate != old_sstate)
-	    *(int *)oidp->oid_arg1 = new_sstate;
+	    *state_field = new_sstate;
     }
     return (error);
 }
@@ -4610,12 +4611,15 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_stype_sysctl(SYSCTL_HANDLER_ARGS)
 {
+    struct acpi_softc *const sc = arg1;
+    enum power_stype *const stype_field =
+	(enum power_stype *)((char *)sc + arg2);
+    const enum power_stype old_stype = *stype_field;
+    enum power_stype new_stype;
     char name[POWER_STYPE_NAME_LEN];
     int err;
     int sstate;
-    enum power_stype new_stype, old_stype;
 
-    old_stype = *(enum power_stype *)oidp->oid_arg1;
     strlcpy(name, power_stype_to_name(old_stype), sizeof(name));
     err = sysctl_handle_string(oidp, name, sizeof(name), req);
     if (err != 0 || req->newptr == NULL)
@@ -4633,16 +4637,16 @@ acpi_stype_sysctl(SYSCTL_HANDLER_ARGS)
 	           "an ACPI S-state has been passed to it. This functionality "
 	           "is deprecated; see acpi(4).\n", oidp->oid_name);
 	    MPASS(sstate < ACPI_S_STATE_COUNT);
-	    if (acpi_supported_sstates[sstate] == false)
+	    if (sc->acpi_supported_sstates[sstate] == false)
 		return (EOPNOTSUPP);
 	    new_stype = acpi_sstate_to_stype(sstate);
 	}
-	if (acpi_supported_stypes[new_stype] == false)
+	if (sc->acpi_supported_stypes[new_stype] == false)
 	    return (EOPNOTSUPP);
     }
 
     if (new_stype != old_stype)
-	*(enum power_stype *)oidp->oid_arg1 = new_stype;
+	*stype_field = new_stype;
     return (0);
 }
 
@@ -5076,15 +5080,3 @@ acpi_pm_func(u_long cmd, void *arg, enum power_stype stype)
 out:
 	return (error);
 }
-
-static void
-acpi_pm_register(void *arg)
-{
-    if (!cold || resource_disabled("acpi", 0))
-	return;
-
-    power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL,
-	acpi_supported_stypes);
-}
-
-SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, NULL);
