@@ -789,6 +789,7 @@ lsiginfo_to_siginfo(struct thread *td, const l_siginfo_t *lsi,
 			return (EPERM);
 		}
 		si->si_code = SI_LWP;
+		break;
 	case LINUX_SI_QUEUE:
 		si->si_code = SI_QUEUE;
 		break;
