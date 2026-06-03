@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.110 2024/11/27 15:37:00 christos Exp $
-.Dd November 27, 2024
+.\" $File: magic.man,v 1.115 2025/11/24 15:45:00 christos Exp $
+.Dd November 24, 2025
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -73,7 +73,8 @@ A 64-bit double precision IEEE floating point number in this machine's native by
 .It Dv string
 A string of bytes.
 The string type specification can be optionally followed by a /<width> 
-option and optionally followed by a set of flags /[bCcftTtWw]*.
+option and optionally followed by a set of flags [bCcftTtWw]*.
+Slash characters can be used to separate options for readability.
 The width limits the number of characters to be copied.
 Zero means all characters.
 The following flags are supported:
@@ -85,24 +86,31 @@ Use upper case insensitive matching: upper case
 characters in the magic match both lower and upper case characters in the
 target, whereas lower case characters in the magic only match upper case
 characters in the target.
+(not valid for regex)
 .It c
 Use lower case insensitive matching: lower case
 characters in the magic match both lower and upper case characters in the
 target, whereas upper case characters in the magic only match upper case
 characters in the target.
+(not valid for regex)
 To do a complete case insensitive match, specify both
 .Dq c
 and
 .Dq C .
 .It f
 Require that the matched string is a full word, not a partial word match.
+.It s
+Don't include the match length in the offset computation.
+(only valid for search and regex)
 .It T
 Trim the string, i.e. leading and trailing whitespace
+is deleted before the string is printed.
 .It t
 Force text file test.
 .It W
 Compact whitespace in the target, which must
 contain at least one whitespace character.
+(not valid for regex)
 If the magic has
 .Dv n
 consecutive blanks, the target needs at least
@@ -110,7 +118,7 @@ consecutive blanks, the target needs at least
 consecutive blanks to match.
 .It w
 Treat every blank in the magic as an optional blank.
-is deleted before the string is printed.
+(not valid for regex)
 .El
 .It Dv pstring
 A Pascal-style string where the first byte/short/int is interpreted as the
@@ -221,10 +229,10 @@ than UTC.
 An eight-byte value in little-endian byte order,
 interpreted as a Windows-style date.
 .It Dv lemsdosdate
-A two-byte value in big-endian byte order,
+A two-byte value in little-endian byte order,
 interpreted as FAT/DOS-style date.
 .It Dv lemsdostime
-A two-byte value in big-endian byte order,
+A two-byte value in little-endian byte order,
 interpreted as FAT/DOS-style time.
 .It Dv lestring16
 A two-byte unicode (UCS16) string in little-endian byte order.
@@ -253,7 +261,8 @@ magic entry, like a subroutine call.
 Named instance direct magic offsets are relative to the offset of the
 previous matched entry, but indirect offsets are relative to the beginning
 of the file as usual.
-Named magic entries always match.
+Named magic entries return true if there was a match in the evaluation
+of the entry, or if there was a previous existing match.
 .It Dv use
 Recursively call the named magic starting from the current offset.
 If the name of the referenced begins with a
@@ -459,11 +468,12 @@ matching a file, binary patterns are tried first; if no match is
 found, and the file looks like text, then its encoding is determined
 and the text patterns are tried.
 .Pp
-The numeric types may optionally be followed by
-.Dv \*[Am]
+The numeric types may optionally be followed by an operand
 and a numeric value,
-to specify that the value is to be AND'ed with the
+to specify that the value is to be modified according to the operand and the
 numeric value before any comparisons are done.
+The following operands are supported:
+.Dv \*[Am], \*[Ba], \*[ua], +, -, \&*, /, %.
 Prepending a
 .Dv u
 to the type indicates that ordered comparisons should be unsigned.

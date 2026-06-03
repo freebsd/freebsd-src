@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.133 2024/09/04 19:07:20 christos Exp $
+# $File: audio,v 1.136 2026/01/23 17:02:27 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -957,7 +957,7 @@
 >>3		byte		4	(With no LAME header)
 >>3		byte		5	Version 2.4
 
-0		string		ADRVPACK	AProSys	module
+0		string		ADRVPACK	AProSys module
 
 # ftp://ftp.modland.com/pub/documents/format_documentation/\
 # Art%20Of%20Noise%20(.aon).txt
@@ -1199,6 +1199,13 @@
 >4	beshort		0xFEFF
 >>0	use		\^nintendo-3ds-bcwav-fields
 
+
+# QOA Quite Okay Audio format
+# https://qoaformat.org/qoa-specification.pdf
+# added by alex myczko <tar@debian.org>
+0	string	qoaf	QOA audio data
+>4	belong	x	\b, %d samples per channel
+
 # Philips DSDIFF audio format (Direct Stream Digital Interchange File Format)
 # Used for DSD audio recordings and Super Audio CD (SACD) mastering annotations
 # https://dsd-guide.com/sites/default/files/white-papers/DSDIFF_1.5_Spec.pdf
@@ -1338,3 +1345,6 @@
 >50	leshort	x		\b, scaleX %d
 >52	byte	0		\b, percussive
 >52	byte	1		\b, melodic
+
+# https://pbat.ch/proj/protrekkr/
+0	string	PROTREKT	Protrekkr Module

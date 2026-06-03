@@ -1,0 +1,9 @@
+#------------------------------------------------------------------------------
+# $File: bgcode,v 1.1 2025/03/10 21:02:05 christos Exp $
+
+# BGCode
+0	string		GCDE	Binary G-code
+!:ext bgcode,bgc
+>4	ulelong		x		Version %u
+>>8 uleshort	0		\b, no checksum
+>>8 uleshort	1		\b, CRC32 checksum

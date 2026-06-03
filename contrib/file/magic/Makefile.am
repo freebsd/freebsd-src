@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.192 2024/10/02 01:45:32 christos Exp $
+# $File: Makefile.am,v 1.201 2026/02/01 16:25:09 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -41,6 +41,7 @@ $(MAGIC_FRAGMENT_DIR)/basis \
 $(MAGIC_FRAGMENT_DIR)/beetle \
 $(MAGIC_FRAGMENT_DIR)/ber \
 $(MAGIC_FRAGMENT_DIR)/bflt \
+$(MAGIC_FRAGMENT_DIR)/bgcode \
 $(MAGIC_FRAGMENT_DIR)/bhl \
 $(MAGIC_FRAGMENT_DIR)/bioinformatics \
 $(MAGIC_FRAGMENT_DIR)/biosig \
@@ -77,6 +78,7 @@ $(MAGIC_FRAGMENT_DIR)/console \
 $(MAGIC_FRAGMENT_DIR)/convex \
 $(MAGIC_FRAGMENT_DIR)/coverage \
 $(MAGIC_FRAGMENT_DIR)/cracklib \
+$(MAGIC_FRAGMENT_DIR)/creativeassembly \
 $(MAGIC_FRAGMENT_DIR)/crypto \
 $(MAGIC_FRAGMENT_DIR)/ctags \
 $(MAGIC_FRAGMENT_DIR)/ctf \
@@ -124,6 +126,7 @@ $(MAGIC_FRAGMENT_DIR)/gconv \
 $(MAGIC_FRAGMENT_DIR)/gentoo \
 $(MAGIC_FRAGMENT_DIR)/geo \
 $(MAGIC_FRAGMENT_DIR)/geos \
+$(MAGIC_FRAGMENT_DIR)/gguf \
 $(MAGIC_FRAGMENT_DIR)/gimp \
 $(MAGIC_FRAGMENT_DIR)/git \
 $(MAGIC_FRAGMENT_DIR)/glibc \
@@ -262,6 +265,7 @@ $(MAGIC_FRAGMENT_DIR)/pwsafe \
 $(MAGIC_FRAGMENT_DIR)/pyramid \
 $(MAGIC_FRAGMENT_DIR)/python \
 $(MAGIC_FRAGMENT_DIR)/qt \
+$(MAGIC_FRAGMENT_DIR)/r \
 $(MAGIC_FRAGMENT_DIR)/revision \
 $(MAGIC_FRAGMENT_DIR)/ringdove \
 $(MAGIC_FRAGMENT_DIR)/riff \
@@ -280,6 +284,7 @@ $(MAGIC_FRAGMENT_DIR)/selinux \
 $(MAGIC_FRAGMENT_DIR)/sendmail \
 $(MAGIC_FRAGMENT_DIR)/sequent \
 $(MAGIC_FRAGMENT_DIR)/sereal \
+$(MAGIC_FRAGMENT_DIR)/sf3 \
 $(MAGIC_FRAGMENT_DIR)/sgi \
 $(MAGIC_FRAGMENT_DIR)/sgml \
 $(MAGIC_FRAGMENT_DIR)/sharc \
@@ -300,9 +305,11 @@ $(MAGIC_FRAGMENT_DIR)/statistics \
 $(MAGIC_FRAGMENT_DIR)/subtitle \
 $(MAGIC_FRAGMENT_DIR)/sun \
 $(MAGIC_FRAGMENT_DIR)/svf \
+$(MAGIC_FRAGMENT_DIR)/syd \
 $(MAGIC_FRAGMENT_DIR)/sylk \
 $(MAGIC_FRAGMENT_DIR)/symbos \
 $(MAGIC_FRAGMENT_DIR)/sysex \
+$(MAGIC_FRAGMENT_DIR)/tapebackup \
 $(MAGIC_FRAGMENT_DIR)/tcl \
 $(MAGIC_FRAGMENT_DIR)/teapot \
 $(MAGIC_FRAGMENT_DIR)/terminfo \

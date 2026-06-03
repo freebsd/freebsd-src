@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.35 2024/11/09 23:04:46 christos Exp $
+# $File: games,v 1.38 2025/05/31 15:42:06 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -245,14 +245,14 @@
 # Type:	SGF Smart Game Format
 # URL:	https://www.red-bean.com/sgf/
 # From:	Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
-2	regex/c	\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
->2	regex/c	GM\\[1\\]			- Go Game
->2	regex/c	GM\\[6\\]			- BackGammon Game
->2	regex/c	GM\\[11\\]			- Hex Game
->2	regex/c	GM\\[18\\]			- Amazons Game
->2	regex/c	GM\\[19\\]			- Octi Game
->2	regex/c	GM\\[20\\]			- Gess Game
->2	regex/c	GM\\[21\\]			- twix Game
+2	regex	\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
+>2	regex	GM\\[1\\]			- Go Game
+>2	regex	GM\\[6\\]			- BackGammon Game
+>2	regex	GM\\[11\\]			- Hex Game
+>2	regex	GM\\[18\\]			- Amazons Game
+>2	regex	GM\\[19\\]			- Octi Game
+>2	regex	GM\\[20\\]			- Gess Game
+>2	regex	GM\\[21\\]			- twix Game
 
 # Epic Games/Unreal Engine Package
 # URL: https://docs.unrealengine.com/udk/Three/ContentCooking.html
@@ -436,7 +436,7 @@
 0	uleshort	0x0469    	GTA2 binary mission script (SCR), Industrial area (bil)
 
 0	string   	v9.6\0\0 	GTA2 replay file (REP),
->8	regex/30c	[a-z0-9:\ ]+\0\0	created on %s
+>8	regex/30	[a-z0-9:\ ]+\0\0	created on %s
 
 # GTA 3D-Era (III/VC/SA/LCS/VCS) - used by the RenderWare engine by Criterion Games
 
@@ -664,3 +664,47 @@
 >122	ubyte		0x01	pcxLib archive
 >>144	uleshort	0	\b, uncompressed
 >>144	uleshort	!0	\b, compressed
+
+# RGSSAD asset archive used in RPG Maker XP, VX and VX Ace
+0	string	RGSSAD\0
+>7	byte	x	RPG Maker RGSSAD asset archive. version %u
+!:ext rgssad/rgss2a/rgss3a
+
+# Panda3D BAM model format
+# From: Derzsi Daniel <daniel@tohka.us>
+# URL:  https://gist.github.com/rdb/13cb936f41e0339a9a9cf9651ea2b09f
+0	string	pbj\0\n\r	Panda3D BAM file
+>10	ubyte	x	version %u
+>12	ubyte	x	\b.%u
+# Version >= 5.0 has little-endian and big-endian formats
+>10	ubyte	>4
+>>14	ubyte	0	\b, big-endian vertex data
+>>14	ubyte	1	\b, little-endian vertex data
+>10	ubyte	<5	\b, little-endian vertex data
+# Version >= 6.27 has single-precision and double-precision floats
+>10	ubyte	=6
+>>12	ubyte	>26
+>>>15	ubyte	0	\b, single-precision floats
+>>>15	ubyte	1	\b, double-precision floats
+>>12	ubyte	<27	\b, single-precision floats
+>10	ubyte	>6
+>>15	ubyte	0	\b, single-precision floats
+>>15	ubyte	1	\b, double-precision floats
+>10	ubyte	<6	\b, single-precision floats
+
+# Panda3D Multifile archive format
+# From: Derzsi Daniel <daniel@tohka.us>
+# URL:  https://tohka.us/p/exploring-encrypted-multifiles-a-technical-overview
+0	string	pmf\0\n\r	Panda3D Multifile archive
+>6	uleshort	x	version %u
+>8	uleshort	x	\b.%u
+# Version >= 1.1 has creation date information, missing if set to zero
+>6	uleshort	=1
+>>8	uleshort	>0
+>>>14	uledate	=0	\b, unknown creation date
+>>>14	uledate	!0	\b, created: %s
+>>8	uleshort	<1	\b, unknown creation date
+>6	uleshort	>1
+>>14	uledate	=0	\b, unknown creation date
+>>14	uledate	!0	\b, created: %s
+>6	uleshort	<1	\b, unknown creation date

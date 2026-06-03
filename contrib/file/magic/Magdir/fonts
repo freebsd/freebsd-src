@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.52 2024/11/09 23:52:53 christos Exp $
+# $File: fonts,v 1.54 2025/02/10 22:01:36 rrt Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -276,14 +276,14 @@
 # maximal 27 tables found like in Skia.ttf
 # 46 different table names mentioned on Apple specification
 # skip 1st sequence of DOS 2 backup with path separator (\~92 or /~47) misinterpreted as table number
->4	ubeshort	<47		
+>4	ubeshort	<48
 # skip bad examples with garbage table names like in a5.show HYPERC MAC
 # tag names consist of up to four characters padded with spaces at end like
-# BASE DSIG OS/2 Zapf acnt glyf cvt vmtx xref ...
->>12	regex/4l	\^[A-Za-z][A-Za-z][A-Za-z/][A-Za-z2\ ]	
+# BASE C2PA DSIG OS/2 Zapf acnt glyf cvt vmtx xref ...
+>>12	regex/4l	\^[A-Za-z][A-Za-z2][A-Za-z/][A-Za-z2\ ]	
 #>>>0	ubelong	x	\b, sfnt version %#x
 >>>0	ubelong	!0x4f54544f	TrueType
-!:mime	font/sfnt
+!:mime	font/ttf
 !:apple	????tfil
 # .ttf for TrueType font
 # EUDC.tte created by privat character editor %WINDIR%\system32\eudcedit.exe
@@ -295,8 +295,8 @@
 !:ext	otf
 >>>0	ubelong	x		Font data
 # DSIG=44454947h table name implies a digitally signed font
-# search range = number of tables * 16 =< maximal number of tables * 16 = 27 * 16 = 432
->>>12	search/432	DSIG		\b, digitally signed
+# search range = number of tables * 16 =< maximal number of tables * 16 = 28 * 16 = 432
+>>>12	search/448	DSIG		\b, digitally signed
 >>>4	ubeshort	x		\b, %d tables
 # minimal 9 tables found like in NISC18030.ttf
 #>>>4	ubeshort	<10		TMIN

@@ -1,3 +1,36 @@
+2026-02-26  11:32  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.47
+
+2026-02-04  09:54  Christos Zoulas <christos@zoulas.com>
+	* Better multi-compound document identification by following the
+	  order of the directories entries. (Thomas Ledoux)
+
+2026-01-19  14:00  Christos Zoulas <christos@zoulas.com>
+	* if stat fails, don't attempt to restore times (Steven Grubb)
+
+2025-05-28  15:20  Christos Zoulas <christos@zoulas.com>
+
+	PR/622: Odd_Bloke: Handle negative offsets in file_buffer(),
+	when fd is not available.
+
+2025-05-28  12:50  Christos Zoulas <christos@zoulas.com>
+
+	* PR/655: jsummers: Obey str_flags in strings like we do for search
+	  and regex
+	* PR/659: Pitzl: Apply MAGIC_CONTINUE to annotations; i.e. print
+	  only the first, unless -k is specified.
+	
+2024-12-19  14:44  Christos Zoulas <christos@zoulas.com>
+
+	* PR/592: allow + in format strings
+	* PR/592: signed operations should be done in signed context
+
+2024-12-05  13:50 Christos Zoulas <christos@zoulas.com>
+
+	* PR/578: jsummers: Don't crash on cygwin when tm_mon == -1
+	* PR/579: net147: Fix stack overrun.
+
 2024-11-27  14:44  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.46

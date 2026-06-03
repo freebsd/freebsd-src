@@ -127,12 +127,14 @@ _setparam.argtypes = [magic_t, c_int, c_void_p]
 class Magic(object):
     def __init__(self, ms):
         self._magic_t = ms
+	self._close = _close
 
     def close(self):
         """
         Closes the magic database and deallocates any resources used.
         """
-        _close(self._magic_t)
+        if _close:
+            _close(self._magic_t)
 
     @staticmethod
     def __tostr(s):
