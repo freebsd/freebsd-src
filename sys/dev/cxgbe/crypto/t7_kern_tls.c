@@ -1557,7 +1557,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	    V_T7_ULP_TXPKT_CHANNELID(tlsp->vi->pi->port_id) |
 	    V_ULP_TXPKT_DEST(0) |
 	    V_ULP_TXPKT_CMDMORE(request_ghash ? 1 : 0) |
-	    V_ULP_TXPKT_FID(txq->eq.cntxt_id) | V_ULP_TXPKT_RO(1));
+	    V_ULP_TXPKT_FID(txq->eq.iqid) | V_ULP_TXPKT_RO(1));
 	txpkt->len = htobe32(howmany(txpkt_lens[0], 16));
 
 	/* ULPTX_IDATA sub-command */
@@ -1949,7 +1949,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		    V_ULP_TXPKT_DATAMODIFY(0) |
 		    V_T7_ULP_TXPKT_CHANNELID(tlsp->vi->pi->port_id) |
 		    V_ULP_TXPKT_DEST(0) |
-		    V_ULP_TXPKT_FID(txq->eq.cntxt_id) | V_ULP_TXPKT_RO(1));
+		    V_ULP_TXPKT_FID(txq->eq.iqid) | V_ULP_TXPKT_RO(1));
 		txpkt->len = htobe32(howmany(txpkt_lens[1], 16));
 
 		/* ULPTX_IDATA sub-command */
