@@ -161,29 +161,50 @@ export CONFIG_CACHE_OPTIMIZE
 # Build Rules
 # ============================================================================
 
-.PHONY: riscv-build riscv-clean riscv-menuconfig
-
-riscv-build:
-	@echo "Building Mobile OS for RISC-V..."
-	@echo "Target: $(RISCV_DEFAULT)"
-	@$(MAKE) -C kernel ARCH=riscv $(RISCV_FEATURES_MOBILE)
-
-riscv-clean:
-	@echo "Cleaning RISC-V build..."
-	@$(MAKE) -C kernel clean
-
-riscv-menuconfig:
-	@echo "Configuring RISC-V build..."
-	@menuconfig
+.PHONY: riscv-build riscv-clean riscv-qemu riscv-menuconfig
 
 riscv-check:
 	@echo "Checking RISC-V toolchain..."
 	@which riscv64-unknown-elf-gcc > /dev/null || \
 		(echo "Error: RISC-V toolchain not found"; exit 1)
 
+riscv-build:
+	@echo "Building Mobile OS for RISC-V..."
+	@echo "Target: $(RISCV_DEFAULT) / ISA: rv64imac"
+ifeq ($(QEMU),1)
+	@echo "Mode: QEMU virt (debug + virtio enabled)"
+	@$(MAKE) -C kernel ARCH=riscv \
+		CFLAGS="$(RISCV_CFLAGS_BASE) $(RISCV_CFLAGS_OPT) $(RISCV_CFLAGS_MOBILE)" \
+		CONFIG_QEMU=1 CONFIG_VIRTIO_BLK=1 CONFIG_VIRTIO_NET=1 \
+		CONFIG_RISCV_DEBUG=1 \
+		$(RISCV_FEATURES_MOBILE)
+else
+	@$(MAKE) -C kernel ARCH=riscv \
+		CFLAGS="$(RISCV_CFLAGS_BASE) $(RISCV_CFLAGS_OPT) $(RISCV_CFLAGS_MOBILE)" \
+		$(RISCV_FEATURES_MOBILE)
+endif
+
+riscv-qemu:
+	@echo "Building RISC-V kernel for QEMU virt..."
+	@$(MAKE) -C kernel ARCH=riscv QEMU=1 \
+		CFLAGS="$(RISCV_CFLAGS_BASE) $(RISCV_CFLAGS_OPT) $(RISCV_CFLAGS_MOBILE)" \
+		CONFIG_QEMU=1 CONFIG_VIRTIO_BLK=1 CONFIG_VIRTIO_NET=1 \
+		CONFIG_RISCV_DEBUG=1 \
+		$(RISCV_FEATURES_MOBILE)
+
+riscv-clean:
+	@echo "Cleaning RISC-V build..."
+	@$(MAKE) -C kernel ARCH=riscv clean
+
+riscv-menuconfig:
+	@echo "Configuring RISC-V build..."
+	@$(MAKE) -C kernel ARCH=riscv menuconfig || \
+		echo "menuconfig not available - edit config manually"
+
 riscv-info:
 	@echo "=== RISC-V Configuration ==="
 	@echo "Supported targets: $(RISCV_TARGETS)"
 	@echo "Default target: $(RISCV_DEFAULT)"
 	@echo "Compiler: riscv64-unknown-elf-gcc"
+	@echo "ISA: rv64imac"
 	@echo "Features: $(RISCV_FEATURES_MOBILE)"

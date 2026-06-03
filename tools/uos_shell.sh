@@ -32,8 +32,9 @@ run_menu() {
         echo -e "  ${GREEN}3)${NC} Build Qualcomm Kernel"
         echo -e "  ${GREEN}4)${NC} Build RISC-V Kernel"
         echo -e "  ${GREEN}5)${NC} Launch MediaTek QEMU (GUI Test)"
-        echo -e "  ${GREEN}6)${NC} Create MediaTek Disk Image"
-        echo -e "  ${GREEN}7)${NC} Clean & Full Build (World + Kernel)"
+        echo -e "  ${GREEN}6)${NC} Launch RISC-V QEMU (GUI Test)"
+        echo -e "  ${GREEN}7)${NC} Create MediaTek Disk Image"
+        echo -e "  ${GREEN}8)${NC} Clean & Full Build (World + Kernel)"
         echo -e "  ${GREEN}0)${NC} Exit\n"
         
         read -p "> " choice
@@ -87,6 +88,15 @@ run_menu() {
                 read -p "Press Enter to return to menu..."
                 ;;
             6)
+                echo -e "\n${CYAN}>>> Launching RISC-V QEMU Environment...${NC}"
+                if [ -f "$FREEBSD_SRC/tools/riscv/qemu-riscv-run.sh" ]; then
+                    bash "$FREEBSD_SRC/tools/riscv/qemu-riscv-run.sh"
+                else
+                    echo -e "${RED}Error: qemu-riscv-run.sh not found.${NC}"
+                fi
+                read -p "Press Enter to return to menu..."
+                ;;
+            7)
                 echo -e "\n${CYAN}>>> Creating MediaTek Disk Image...${NC}"
                 if [ -f "$FREEBSD_SRC/tools/mediatek/create-disk-image.sh" ]; then
                     bash "$FREEBSD_SRC/tools/mediatek/create-disk-image.sh"
@@ -95,7 +105,7 @@ run_menu() {
                 fi
                 read -p "Press Enter to return to menu..."
                 ;;
-            7)
+            8)
                 echo -e "\n${BLUE}>>> Initiating Clean Full build (World + MediaTek Kernel)...${NC}"
                 echo -e "${RED}WARNING: This takes 1-2 hours.${NC}"
                 read -p "Proceed? (y/N) " confirm

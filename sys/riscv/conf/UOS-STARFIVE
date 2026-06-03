@@ -13,9 +13,7 @@ ident		UOS_STARFIVE
 
 makeoptions	DEBUG=-g
 makeoptions	WITH_KERNEL_BIN=1
-makeoptions	WITH_CTF=1Notice Period*
-
-What is your current notice period?
+makeoptions	WITH_CTF=1
 
 # OpenBSD-style hardening compiler flags (Mapped to RISC-V equivalents)
 makeoptions	CFLAGS+="-fstack-protector-strong"

@@ -12,6 +12,25 @@ OBJECTS = $(SOURCES)
 
 all: vmlinux.riscv64
 
+config.h: Makefile
+	@echo "Generating config.h from build options..."
+	@echo "/* Auto-generated config */" > config.h
+	@echo "#ifndef __KERNEL_CONFIG_H__" >> config.h
+	@echo "#define __KERNEL_CONFIG_H__" >> config.h
+	@if [ "$(QEMU)" = "1" ]; then echo "#define CONFIG_QEMU 1" >> config.h; fi
+	@if [ "$(CONFIG_QEMU)" = "1" ]; then echo "#define CONFIG_QEMU 1" >> config.h; fi
+	@if [ "$(CONFIG_VIRTIO_BLK)" = "1" ]; then echo "#define CONFIG_VIRTIO_BLOCK 1" >> config.h; fi
+	@if [ "$(CONFIG_VIRTIO_NET)" = "1" ]; then echo "#define CONFIG_VIRTIO_NET 1" >> config.h; fi
+	@if [ "$(CONFIG_RISCV_DEBUG)" = "1" ]; then echo "#define CONFIG_DEBUG 1" >> config.h; fi
+	@echo "#define CONFIG_ARCH_RISCV64 1" >> config.h
+	@echo "#define CONFIG_ISA_RV64IMAC 1" >> config.h
+	@echo "#define KERNEL_BASE 0x80000000" >> config.h
+	@echo "#define PAGE_SIZE 4096" >> config.h
+	@echo "#endif" >> config.h
+
+vmlinux.riscv64: $(OBJECTS) config.h
+	$(LD) $(LDFLAGS) -o $@ $(OBJECTS)
+
 entry.o: entry.S
 	$(AS) $(ASFLAGS) -o $@ $<
 
