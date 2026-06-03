@@ -28,6 +28,8 @@
 #ifndef	_LINUXKPI_LINUX_PM_QOS_H
 #define	_LINUXKPI_LINUX_PM_QOS_H
 
+#include <linux/types.h>
+
 #define	PM_QOS_DEFAULT_VALUE	(-1)
 
 struct pm_qos_request {
