@@ -27,8 +27,11 @@
 
 atf_test_case incompatible_opts
 incompatible_opts_body() {
+	printf 'test\n123\r456\r\n789\0z' >testf
 	atf_check -s not-exit:0 -e match:"specified together" \
 	    install -s -d dir1
+	atf_check -s not-exit:0 -e match:"specified together" \
+	    install -s -l s testf copyf
 }
 
 atf_test_case copy_to_empty
