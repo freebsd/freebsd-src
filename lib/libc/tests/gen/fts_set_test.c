@@ -22,8 +22,6 @@
 
 #include <atf-c.h>
 
-#include "fts_test.h"
-
 /*
  * fts_set with invalid options must return non-zero with EINVAL.
  * Note: fts_set returns 1 (not -1) on error.
@@ -68,11 +66,10 @@ ATF_TC_BODY(again, tc)
 	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
 	ATF_REQUIRE_EQ(0, close(creat("dir/file", 0644)));
 
-	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
-	    fts_lexical_compar)) != NULL);
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
 	revisit_count = 0;
-	while ((ent = fts_read(fts)) != NULL) {
+	for (errno = 0; (ent = fts_read(fts)) != NULL; errno = 0) {
 		if (ent->fts_info == FTS_F && revisit_count == 0) {
 			ATF_REQUIRE_EQ_MSG(0,
 			    fts_set(fts, ent, FTS_AGAIN),
@@ -142,25 +139,24 @@ ATF_TC_BODY(follow_symlink_to_file, tc)
 	char *paths[] = { "dir", NULL };
 	FTS *fts;
 	FTSENT *ent;
-	int followed;
+	bool followed;
 
 	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
 	ATF_REQUIRE_EQ(0, close(creat("dir/target", 0644)));
 	ATF_REQUIRE_EQ(0, symlink("target", "dir/link"));
 
-	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
-	    fts_lexical_compar)) != NULL);
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
-	followed = 0;
+	followed = false;
 	while ((ent = fts_read(fts)) != NULL) {
 		if (ent->fts_info == FTS_SL &&
 		    strcmp(ent->fts_name, "link") == 0)
 			ATF_REQUIRE_EQ(0, fts_set(fts, ent, FTS_FOLLOW));
 		else if (ent->fts_info == FTS_F &&
 		    strcmp(ent->fts_name, "link") == 0)
-			followed = 1;
+			followed = true;
 	}
-	ATF_CHECK_MSG(followed != 0,
+	ATF_CHECK_MSG(followed,
 	    "FTS_FOLLOW on symlink-to-file must yield FTS_F");
 
 	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
@@ -181,17 +177,16 @@ ATF_TC_BODY(follow_symlink_to_dir, tc)
 	char *paths[] = { "dir", NULL };
 	FTS *fts;
 	FTSENT *ent;
-	int saw_inside;
+	bool saw_inside;
 
 	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
 	ATF_REQUIRE_EQ(0, mkdir("dir/real", 0755));
 	ATF_REQUIRE_EQ(0, close(creat("dir/real/inside", 0644)));
 	ATF_REQUIRE_EQ(0, symlink("real", "dir/link"));
 
-	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
-	    fts_lexical_compar)) != NULL);
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
-	saw_inside = 0;
+	saw_inside = false;
 	while ((ent = fts_read(fts)) != NULL) {
 		if (ent->fts_info == FTS_SL &&
 		    strcmp(ent->fts_name, "link") == 0)
@@ -199,9 +194,9 @@ ATF_TC_BODY(follow_symlink_to_dir, tc)
 		if (ent->fts_info == FTS_F &&
 		    strcmp(ent->fts_name, "inside") == 0 &&
 		    strcmp(ent->fts_path, "dir/link/inside") == 0)
-		    saw_inside = 1;
+		    saw_inside = true;
 	}
-	ATF_CHECK_MSG(saw_inside != 0,
+	ATF_CHECK_MSG(saw_inside,
 	    "FTS_FOLLOW on symlink-to-dir should descend and visit 'inside'");
 
 	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
@@ -259,25 +254,24 @@ ATF_TC_BODY(skip, tc)
 	char *paths[] = { "dir", NULL };
 	FTS *fts;
 	FTSENT *ent;
-	int saw_inside;
+	bool saw_inside;
 
 	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
 	ATF_REQUIRE_EQ(0, mkdir("dir/skip_me", 0755));
 	ATF_REQUIRE_EQ(0, close(creat("dir/skip_me/inside", 0644)));
 	ATF_REQUIRE_EQ(0, close(creat("dir/sibling", 0644)));
 
-	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
-	    fts_lexical_compar)) != NULL);
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
-	saw_inside = 0;
+	saw_inside = false;
 	while ((ent = fts_read(fts)) != NULL) {
 		if (ent->fts_info == FTS_D &&
 		    strcmp(ent->fts_name, "skip_me") == 0)
 			ATF_REQUIRE_EQ(0, fts_set(fts, ent, FTS_SKIP));
 		if (strcmp(ent->fts_name, "inside") == 0)
-			saw_inside = 1;
+			saw_inside = true;
 	}
-	ATF_CHECK_MSG(saw_inside == 0,
+	ATF_CHECK_MSG(!saw_inside,
 	    "FTS_SKIP: 'inside' must not have been visited");
 
 	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
@@ -295,18 +289,32 @@ ATF_TC_HEAD(clientptr_roundtrip, tc)
 }
 ATF_TC_BODY(clientptr_roundtrip, tc)
 {
-	char *paths[] = { ".", NULL };
+	char *paths[] = { "dir", NULL };
 	FTS *fts;
+	FTSENT *ent;
 	int value = 42;
+
+	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
+	ATF_REQUIRE_EQ(0, close(creat("dir/file", 0644)));
 
 	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
+	/* Initially NULL. */
 	ATF_CHECK_EQ(NULL, fts_get_clientptr(fts));
 
 	fts_set_clientptr(fts, &value);
-	ATF_CHECK_EQ_MSG(&value, fts_get_clientptr(fts),
-	    "fts_get_clientptr did not return the stored pointer");
 
+	while ((ent = fts_read(fts)) != NULL) {
+		/*
+		 * Verify the pointer is accessible and correct
+		 * while traversal is active.
+		 */
+		ATF_CHECK_EQ_MSG(&value, fts_get_clientptr(fts),
+		    "fts_get_clientptr did not return the stored pointer "
+		    "for entry '%s'", ent->fts_name);
+	}
+
+	/* Overwrite with NULL, verify. */
 	fts_set_clientptr(fts, NULL);
 	ATF_CHECK_EQ(NULL, fts_get_clientptr(fts));
 
@@ -346,7 +354,6 @@ ATF_TC_BODY(get_stream_backpointer, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-	fts_check_debug();
 	ATF_TP_ADD_TC(tp, invalid_options);
 	ATF_TP_ADD_TC(tp, again);
 	ATF_TP_ADD_TC(tp, again_consecutive);
