@@ -278,7 +278,7 @@ _tb_router_attach(struct router_softc *sc)
 	struct tb_cfg_router *cfg;
 	uint32_t *buf;
 	int error;
-	int up __diagused;
+	int up __maybe_unused;
 
 	buf = malloc(9 * 4, M_THUNDERBOLT, M_NOWAIT|M_ZERO);
 	if (buf == NULL)
@@ -720,7 +720,7 @@ router_notify_intr(void *context, union nhi_ring_desc *ring, struct nhi_cmd_fram
 	struct router_softc *sc;
 	struct router_command *cmd;
 	struct tb_cfg_notify event;
-	u_int adap __diagused;
+	u_int adap __maybe_unused;
 	u_int ev;
 
 	KASSERT(context != NULL, ("context cannot be NULL\n"));

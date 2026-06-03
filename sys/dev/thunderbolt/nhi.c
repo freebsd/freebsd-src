@@ -834,7 +834,7 @@ static int
 nhi_tx_complete(struct nhi_ring_pair *r, struct nhi_tx_buffer_desc *desc,
     struct nhi_cmd_frame *cmd)
 {
-	struct nhi_softc *sc __diagused;
+	struct nhi_softc *sc __maybe_unused;
 	struct nhi_pdf_dispatch *txpdf;
 	u_int sof;
 
@@ -868,10 +868,10 @@ static int
 nhi_rx_complete(struct nhi_ring_pair *r, struct nhi_rx_post_desc *desc,
     struct nhi_cmd_frame *cmd)
 {
-	struct nhi_softc *sc __diagused;
+	struct nhi_softc *sc __maybe_unused;
 	struct nhi_pdf_dispatch *rxpdf;
 	u_int eof;
-	u_int len __diagused;
+	u_int len __maybe_unused;
 
 	sc = r->sc;
 	eof = desc->eof_len >> RX_BUFFER_DESC_EOF_SHIFT;
