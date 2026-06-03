@@ -25,6 +25,12 @@
 #
 #
 
+atf_test_case incompatible_opts
+incompatible_opts_body() {
+	atf_check -s not-exit:0 -e match:"specified together" \
+	    install -s -d dir1
+}
+
 atf_test_case copy_to_empty
 copy_to_empty_body() {
 	printf 'test\n123\r456\r\n789\0z' >testf
@@ -549,6 +555,7 @@ digest_body() {
 }
 
 atf_init_test_cases() {
+	atf_add_test_case incompatible_opts
 	atf_add_test_case copy_to_empty
 	atf_add_test_case copy_to_nonexistent
 	atf_add_test_case copy_to_nonexistent_dir
