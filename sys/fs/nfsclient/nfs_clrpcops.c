@@ -5541,7 +5541,7 @@ nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
 		    NFSHASPNFSOPT(nmp)) {
 			NFSCL_DEBUG(1, "set PNFS\n");
 			NFSLOCKMNT(nmp);
-			nmp->nm_state |= NFSSTA_PNFS;
+			nmp->nm_state |= NFSSTA_PNFS | NFSSTA_FLEXFILE;
 			NFSUNLOCKMNT(nmp);
 			dsp->nfsclds_flags |= NFSCLDS_MDS;
 		}
@@ -8910,10 +8910,10 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 
 	if (laystat == NFSERR_UNKNLAYOUTTYPE) {
 		NFSLOCKMNT(nmp);
-		if (!NFSHASFLEXFILE(nmp)) {
-			/* Switch to using Flex File Layout. */
-			nmp->nm_state |= NFSSTA_FLEXFILE;
-		} else if (layouttype == NFSLAYOUT_FLEXFILE) {
+		if (NFSHASFLEXFILE(nmp)) {
+			/* Switch to using File 4.1 Layout. */
+			nmp->nm_state &= ~NFSSTA_FLEXFILE;
+		} else if (layouttype == NFSLAYOUT_NFSV4_1_FILES) {
 			/* Disable pNFS. */
 			NFSCL_DEBUG(1, "disable PNFS\n");
 			nmp->nm_state &= ~(NFSSTA_PNFS | NFSSTA_FLEXFILE);
