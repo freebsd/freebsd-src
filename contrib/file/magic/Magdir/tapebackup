@@ -1,0 +1,29 @@
+#------------------------------------------------------------------------------
+# $File: tapebackup,v 1.1 2026/01/10 15:45:02 christos Exp $
+# Dmitry Brant, 2026
+# tapebackup:  file(1) magic for different tape backup formats
+
+# QIC-80 tapes
+# https://www.qic.org/html/standards/8x.x/qic80n.pdf
+0	string		VTBL			QIC-80 tape volume header
+>8	string/44	x			\b, Volume label: %s
+
+0	lelong		0xaa55aa55
+>4	lelong		0x00000002		Colorado tape backup
+>>146	string/88	x			\b, Volume label: %s
+
+56	string		\<\<NoVaStOr\>\>	NovaStor tape backup
+
+0	lelong		0xdddddddd
+>512	lelong	0xabbaabba			ArcServe tape backup
+
+# IBM AS/400
+# https://www.ibm.com/docs/en/i/7.4.0?topic=ssw_ibm_i_74/cl/savlib.html
+0	belong		0xffffffff
+>4	belong		0xd8e2d9c4		AS/400 SAVLIB backup
+
+0	lelong		0x3a3a3a3a
+>12	lelong		0x3a3a3a20		TXPLUS tape backup
+
+0	lelong		0x55aa0004		Mountain FileSafe tape backup
+>93	string		x			\b, Volume label: %s

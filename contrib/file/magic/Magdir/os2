@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: os2,v 1.14 2022/03/21 21:25:50 christos Exp $
+# $File: os2,v 1.16 2024/12/26 19:34:28 christos Exp $
 # os2:  file(1) magic for OS/2 files
 #
 
@@ -167,20 +167,40 @@
 !:mime	application/x-os2-ini
 !:ext	ini
 
+# archive for the OS/2 WarpIN package manager
 # From:		Joerg Jenderek
 # URL:		http://warpin.netlabs.org/
 # Reference:    http://mark0.net/download/triddefs_xml.7z/defs/a/ark-wpi.trid.xml
 # Note:		called by TrID "WarpIN Installer"
-# probably magic at the beginning
-0	ubelong		=0x770402BE	WarpIN Installer
+# Revised by:	Anton Monroe December 2024
+# Reference:	http://trac.netlabs.org/warpin/browser/trunk/include/wiarchive/wiarchive.h
+# magic is 4 bytes at the beginning
+0	ubelong		=0x770402BE	OS/2 WarpIN Archive
 #>4	ubelong		=0x03000000
 #!:mime	application/octet-stream
 !:mime	application/x-os2-wpi
 !:ext	wpi
-# creator program name like: "reserved" or "WIC x.y.z"
->0x106	string		x		\b, created by %s
+# The compiler that created the archive: "WicPM" or "WIC <version>".
+# A few early archives say "reserved" or "Test application"
+>0x106	string		x		\b, created with %s
 # name like: "reserved" or "OS/2 Netlabs"
 >0x146	string		x		\b, '%s'
 # name like: "N/A" "http://warpin.netlabs.org"
 >0x186	string		x		\b, URL %s
 
+# self-extracting archive for the OS/2 WarpIN package manager
+# From:		Anton Monroe December 2024
+# Reference:	http://trac.netlabs.org/warpin/browser/trunk/include/wiarchive/wiarchive.h
+# look for "WarpIN self-extracting archive EXE stub" which is
+# usually somewhere between offset 40000 and 45000, but one was at 62000
+0		string/b	MZ
+>40000		search/25000	WarpIN\ self-extracting\ archive\ EXE\ stub
+>>&3		ubelong		=0x770402BE	OS/2 WarpIN self-extracting archive
+!:ext exe
+>>>&0x102	string		x		\b, created with %s
+
+# EXTPROC script
+# "extproc" is the OS/2 version of Unix "#!"
+0	string/tc	extproc\x20	EXTPROC script
+>&0	string		x		executed by %s
+!:ext cmd
