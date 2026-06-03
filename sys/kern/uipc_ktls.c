@@ -2337,8 +2337,10 @@ tls13_find_record_type(struct ktls_session *tls, struct mbuf *m, int tls_len,
  * Check if a mbuf chain is fully decrypted at the given offset and
  * length. Returns KTLS_MBUF_CRYPTO_ST_DECRYPTED if all data is
  * decrypted. KTLS_MBUF_CRYPTO_ST_MIXED if there is a mix of encrypted
- * and decrypted data. Else KTLS_MBUF_CRYPTO_ST_ENCRYPTED if all data
- * is encrypted.
+ * and decrypted data. KTLS_MBUF_CRYPTO_ST_ENCRYPTED if all data is
+ * encrypted. KTLS_MBUF_CRYPTO_ST_SHAREDMBUF if any mbuf points at
+ * shared data that must not be modified in place (non-anonymous
+ * M_EXTPG or sendfile M_EXT buffers).
  */
 ktls_mbuf_crypto_st_t
 ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len)
@@ -2354,6 +2356,13 @@ ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len)
 	offset += len;
 
 	for (; mb != NULL; mb = mb->m_next) {
+		if ((mb->m_flags & M_EXTPG) != 0 &&
+		    (mb->m_epg_flags & EPG_FLAG_ANON) == 0)
+			return (KTLS_MBUF_CRYPTO_ST_SHAREDMBUF);
+		if ((mb->m_flags & M_EXT) != 0 &&
+		    mb->m_ext.ext_type == EXT_SFBUF)
+			return (KTLS_MBUF_CRYPTO_ST_SHAREDMBUF);
+
 		m_flags_ored |= mb->m_flags;
 		m_flags_anded &= mb->m_flags;
 
@@ -2554,9 +2563,11 @@ ktls_decrypt(struct socket *so)
 				record_type = hdr->tls_type;
 			}
 			break;
-		default:
+		case KTLS_MBUF_CRYPTO_ST_SHAREDMBUF:
 			error = EINVAL;
 			break;
+		default:
+			__assert_unreachable();
 		}
 		if (error) {
 			counter_u64_add(ktls_offload_failed_crypto, 1);
