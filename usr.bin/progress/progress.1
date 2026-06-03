@@ -1,0 +1,147 @@
+.\"	$NetBSD: progress.1,v 1.15 2014/04/13 01:45:34 snj Exp $
+.\"
+.\" Copyright (c) 2003-2007 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by John Hawkinson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 6, 2007
+.Dt PROGRESS 1
+.Os
+.Sh NAME
+.Nm progress
+.Nd feed input to a command, displaying a progress bar
+.Sh SYNOPSIS
+.Nm
+.Op Fl ez
+.Op Fl b Ar buffersize
+.Op Fl f Ar file
+.Op Fl l Ar length
+.Op Fl p Ar prefix
+.Ar cmd
+.Op Ar args ...
+.Sh DESCRIPTION
+The
+.Nm
+utility opens a pipe to
+.Ar cmd
+and feeds an input stream into it, while displaying a progress bar to
+standard output.
+If no filename is specified,
+.Nm
+reads from standard input.
+Where feasible,
+.Nm
+.Xr fstat 2 Ns s
+the input to determine the length, so a time estimate can be calculated.
+.Pp
+If no length is specified or determined,
+.Nm
+simply displays a count of the data and the data rate.
+.Pp
+The options are as follows:
+.Bl -tag -width XlXlengthXX
+.It Fl b Ar buffersize
+Read in buffers of the specified size (default 64k).
+An optional suffix (per
+.Xr strsuftoll 3 )
+may be given.
+.It Fl e
+Display progress to standard error instead of standard output.
+.It Fl f Ar file
+Read from the specified
+.Ar file
+instead of standard input.
+.It Fl l Ar length
+Use the specified length for the time estimate, rather than attempting to
+.Xr fstat 2
+the input.
+An optional suffix (per
+.Xr strsuftoll 3 )
+may be given.
+.It Fl p Ar prefix
+Print the given
+.Dq prefix
+text before (left of) the progress bar.
+.It Fl z
+Filter the input through
+.Xr gunzip 1 .
+If
+.Fl f
+is specified, calculate the length using
+.Ic gzip -l .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The command
+.Dl progress -zf file.tar.gz tar xf -
+will extract the
+.Pa file.tar.gz
+displaying the progress bar as time passes:
+.Bd -literal
+  0% |                               |     0        0.00 KiB/s    --:-- ETA
+ 40% |********                       |   273 KiB  271.95 KiB/s    00:01 ETA
+ 81% |***********************        |   553 KiB  274.61 KiB/s    00:00 ETA
+100% |*******************************|   680 KiB  264.59 KiB/s    00:00 ETA
+.Ed
+.Pp
+If it is preferred to monitor the progress of the decompression
+process (unlikely), then
+.Dl progress -f file.tar.gz tar zxf -
+could be used.
+.Pp
+The command
+.Dl dd if=/dev/rwd0d ibs=64k | \e
+.Dl progress -l 120g dd of=/dev/rwd1d obs=64k
+will copy the 120 GiB disk
+.Sy wd0
+.Pa ( /dev/rwd0d )
+to
+.Sy wd1
+.Pa ( /dev/rwd1d ) ,
+displaying a progress bar during the operation.
+.Sh SEE ALSO
+.Xr ftp 1 ,
+.Xr strsuftoll 3
+.Sh HISTORY
+.Nm
+first appeared in
+.Nx 1.6.1 .
+The dynamic progress bar display code is part of
+.Xr ftp 1 .
+.Sh AUTHORS
+.Nm
+was written by
+.An John Hawkinson
+.Aq jhawk@NetBSD.org .
+.Xr ftp 1 Ns 's
+dynamic progress bar was written by Luke Mewburn.
+.Sh BUGS
+Since the progress bar is displayed asynchronously, it may be
+difficult to read some error messages, both those produced by the
+pipeline, as well as those produced by
+.Nm
+itself.
