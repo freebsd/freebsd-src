@@ -1,5 +1,3 @@
-/*	$NetBSD: progress.c,v 1.25 2021/08/17 07:18:43 gson Exp $ */
-
 /*-
  * Copyright (c) 2003 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -30,9 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
-__RCSID("$NetBSD: progress.c,v 1.25 2021/08/17 07:18:43 gson Exp $");
-#endif				/* not lint */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -50,15 +45,17 @@ __RCSID("$NetBSD: progress.c,v 1.25 2021/08/17 07:18:43 gson Exp $");
 #include <string.h>
 #include <unistd.h>
 
-#define GLOBAL			/* force GLOBAL decls in progressbar.h to be
-				 * declared */
+/* force GLOBAL decls in progressbar.h to be declared */
+#define GLOBAL
 #include "progressbar.h"
 
-static void broken_pipe(int unused);
-__dead static void usage(void);
+long long strsuftoll(const char *, const char *, long long, long long);
+
+static void broken_pipe(int);
+static void usage(void);
 
 static void
-broken_pipe(int unused)
+broken_pipe(int __unused unused)
 {
 	signal(SIGPIPE, SIG_DFL);
 	progressmeter(1);
@@ -87,7 +84,7 @@ main(int argc, char *argv[])
 	ssize_t nr, nw, off;
 	size_t buffersize;
 	struct stat statb;
-	struct ttysize ts;
+	struct winsize ts;
 
 	setprogname(argv[0]);
 
@@ -137,7 +134,8 @@ main(int argc, char *argv[])
 	/* stat() to get the filesize unless overridden, or -z */
 	if (!zflag && !lflag && (fstat(fd, &statb) == 0)) {
 		if (S_ISFIFO(statb.st_mode)) {
-			/* stat(2) on pipe may return only the
+			/*
+			 * stat(2) on pipe may return only the
 			 * first few bytes with more coming.
 			 * Don't trust!
 			 */
@@ -153,7 +151,7 @@ main(int argc, char *argv[])
 
 		/*
 		 * Read second word of last line of gzip -l output. Looks like:
-		 * % gzip -l ../etc.tgz 
+		 * % gzip -l ../etc.tgz
 		 *   compressed uncompressed  ratio uncompressed_name
 		 * 	 119737       696320  82.8% ../etc.tar
 		 */
@@ -199,10 +197,10 @@ main(int argc, char *argv[])
 	progress = 1;
 	ttyout = eflag ? stderr : stdout;
 
-	if (ioctl(fileno(ttyout), TIOCGSIZE, &ts) == -1)
+	if (ioctl(fileno(ttyout), TIOCGWINSZ, &ts) == -1)
 		ttywidth = 80;
 	else
-		ttywidth = ts.ts_cols;
+		ttywidth = ts.ws_col;
 
 	fb_buf = malloc(buffersize);
 	if (fb_buf == NULL)

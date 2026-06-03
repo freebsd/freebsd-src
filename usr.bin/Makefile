@@ -115,6 +115,7 @@ SUBDIR=	apply \
 	printf \
 	proccontrol \
 	procstat \
+	progress \
 	protect \
 	rctl \
 	renice \

@@ -1,12 +1,16 @@
-# $NetBSD: Makefile,v 1.2 2003/01/22 02:56:30 lukem Exp $
+.include <src.opts.mk>
 
-.include <bsd.own.mk>
+FTP=	${SRCTOP}/usr.bin/ftp
+TNFTP=	${SRCTOP}/contrib/tnftp
+
+.PATH:	${TNFTP}/src
 
 PROG=	progress
 SRCS=	progress.c progressbar.c
 
-CPPFLAGS+=-I${NETBSDSRCDIR}/usr.bin/ftp -DSTANDALONE_PROGRESS
+CFLAGS+= -I${.CURDIR} -I${FTP} -I${TNFTP} -I${TNFTP}/src -DSTANDALONE_PROGRESS
+LIBADD=	netbsd
 
-.PATH:	${NETBSDSRCDIR}/usr.bin/ftp
+WARNS?= 2
 
 .include <bsd.prog.mk>
