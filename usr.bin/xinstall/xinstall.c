@@ -293,6 +293,12 @@ main(int argc, char *argv[])
 		usage();
 	}
 
+	/* Cannot strip if creating a link. */
+	if (dostrip && dolink) {
+		warnx("-l and -s may not be specified together");
+		usage();
+	}
+
 	/*
 	 * Default permissions based on whether we're a directory or not, since
 	 * an +X may mean that we need to set the execute bit.
