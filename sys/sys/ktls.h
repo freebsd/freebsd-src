@@ -242,6 +242,7 @@ typedef enum {
 	KTLS_MBUF_CRYPTO_ST_MIXED = 0,
 	KTLS_MBUF_CRYPTO_ST_ENCRYPTED = 1,
 	KTLS_MBUF_CRYPTO_ST_DECRYPTED = -1,
+	KTLS_MBUF_CRYPTO_ST_SHAREDMBUF = -2,
 } ktls_mbuf_crypto_st_t;
 
 void ktls_check_rx(struct sockbuf *sb);
