@@ -31,10 +31,10 @@
 /*
  * We have two ways to create a pci_dev (pdev):
  * (1) coming from the device_attach DEVMETHOD, and
- * (2) the other from manual creation via lkpinew_pci_dev().
+ * (2) from manual creation via lkpinew_pci_dev(), in which case
+ *     we have no driver (pdev->pdrv).
  *
  * Only devices from (1) end up on our LinuxKPI global pci_devices list.
- * All others are "place fillers" -- XXX if only "place filler" was always true.
  */
 
 #include <sys/param.h>
@@ -109,7 +109,6 @@ static int linux_backlight_get_status(device_t dev, struct backlight_props *prop
 static int linux_backlight_update_status(device_t dev, struct backlight_props *props);
 static int linux_backlight_get_info(device_t dev, struct backlight_info *info);
 static void lkpi_pcim_iomap_table_release(struct device *, void *);
-static void lkpinew_pci_dev_release(struct device *);
 
 static device_method_t pci_methods[] = {
 	DEVMETHOD(device_probe, linux_pci_probe),
@@ -346,31 +345,14 @@ lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 	return (found);
 }
 
+/*
+ * Shared function releasing the bus resources which can be built independent
+ * of the way we allocate/initialization the pdev [pci_upstream_bridge(),
+ * pcie_find_root_port()].
+ */
 static void
-lkpi_pci_dev_release(struct device *dev)
+lkpi_pci_dev_bus_release(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev;
-
-	/*
-	 * Before anything else, we have to free all the dynamic
-	 * resource which are on the devres list.
-	 * Otherwise we risk that supporting infrastructure
-	 * is gone and we panic 'randomly'.
-	 */
-	lkpi_devres_release_free_list(dev);
-
-	/*
-	 * Now undo linux_pci_attach_device() in reverse-ish
-	 * order.
-	 */
-	pdev = to_pci_dev(dev);
-
-	/*
-	 * pdrv->remove happens before pci_put_dev() in
-	 * linux_pci_detach_device(), which means the driver should have
-	 * cleaned up before we get here; see irqents and mmio below.
-	 */
-
 	/* Clear the hierarchy recursively to root. */
 	if (pdev->bus->self != pdev) {
 		pci_dev_put(pdev->bus->self);
@@ -378,20 +360,19 @@ lkpi_pci_dev_release(struct device *dev)
 	}
 
 	if (pdev->root != NULL) {
-		lkpinew_pci_dev_release(&pdev->root->dev); /* pci_dev_put(pdev->root); ? */
+		pci_dev_put(pdev->root);
 		pdev->root = NULL;
 	}
+}
 
-	spin_lock(&pci_lock);
-	list_del(&pdev->links);
-	spin_unlock(&pci_lock);
+/* Release resources acquired by lkpifill_pci_dev(). */
+static void
+lkpi_pci_dev_fill_release(struct device *dev)
+{
+	struct pci_dev *pdev;
 
-	linux_pdev_dma_uninit(pdev);
+	pdev = to_pci_dev(dev);
 
-	/* irq? */
-
-	/* Undo lkpifill_pci_dev(). */
-	/* devres is gone already; went at the very top. */
 	if (!list_empty_careful(&pdev->dev.irqents)) {
 		dev_warn(&pdev->dev, "%s: driver did not clean up; "
 		    "leaking IRQs\n", __func__);
@@ -418,6 +399,47 @@ lkpi_pci_dev_release(struct device *dev)
 
 	free(pdev->bus, M_DEVBUF);
 	kfree(pdev->path_name);
+}
+
+static void
+lkpi_pci_dev_release(struct device *dev)
+{
+	struct pci_dev *pdev;
+
+	/*
+	 * Before anything else, we have to free all the dynamic
+	 * resource which are on the devres list.
+	 * Otherwise we risk that supporting infrastructure
+	 * is gone and we panic 'randomly'.
+	 */
+	lkpi_devres_release_free_list(dev);
+
+	/*
+	 * Now undo linux_pci_attach_device() in reverse-ish
+	 * order.
+	 */
+	pdev = to_pci_dev(dev);
+
+	/*
+	 * pdrv->remove happens before pci_put_dev() in
+	 * linux_pci_detach_device(), which means the driver should have
+	 * cleaned up before we get here; see irqents and mmio below.
+	 */
+
+	/* Clear the hierarchy recursively to root. */
+	lkpi_pci_dev_bus_release(pdev);
+
+	spin_lock(&pci_lock);
+	list_del(&pdev->links);
+	spin_unlock(&pci_lock);
+
+	linux_pdev_dma_uninit(pdev);
+
+	/* irq? */
+
+	/* Undo lkpifill_pci_dev(). */
+	/* devres is gone already; went at the very top. */
+	lkpi_pci_dev_fill_release(dev);
 
 	/*
 	 * Lastly, apply an internal hack in order to signal
@@ -487,24 +509,22 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	return (0);
 }
 
+/*
+ * This is the .release function called when the kobj reference drops to 0.
+ * There should be no direct calls of this.
+ */
 static void
 lkpinew_pci_dev_release(struct device *dev)
 {
 	struct pci_dev *pdev;
-	int i;
 
 	pdev = to_pci_dev(dev);
-	if (pdev->root != NULL)
-		pci_dev_put(pdev->root);
-	if (pdev->bus->self != pdev && pdev->bus->self != NULL)
-		pci_dev_put(pdev->bus->self);
-	free(pdev->bus, M_DEVBUF);
-	if (pdev->msi_desc != NULL) {
-		for (i = pci_msi_count(pdev->dev.bsddev) - 1; i >= 0; i--)
-			free(pdev->msi_desc[i], M_DEVBUF);
-		free(pdev->msi_desc, M_DEVBUF);
-	}
-	kfree(pdev->path_name);
+
+	/* The root/bus structure could be built up w/o us having asked for it. */
+	lkpi_pci_dev_bus_release(pdev);
+	/* Cleanup the lkpifill_pci_dev() resources. */
+	lkpi_pci_dev_fill_release(dev);
+
 	free(pdev, M_DEVBUF);
 }
 
