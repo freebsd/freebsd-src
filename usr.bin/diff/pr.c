@@ -71,8 +71,9 @@ start_pr(char *file1, char *file2)
 
 	posix_spawnattr_setprocdescp_np(&sa, &pr->procd, 0);
 
-	if (pfd[0] != STDIN_FILENO)
-		posix_spawn_file_actions_adddup2(&fa, pfd[0], STDIN_FILENO);
+	error = posix_spawn_file_actions_adddup2(&fa, pfd[0], STDIN_FILENO);
+	if (error != 0)
+		errc(2, error, "posix_spawn_file_actions_adddup2");
 
 	char *argv[] = { __DECONST(char *, _PATH_PR),
 	    __DECONST(char *, "-h"), header, NULL };
