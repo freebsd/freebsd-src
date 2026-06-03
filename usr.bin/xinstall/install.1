@@ -176,16 +176,19 @@ argument.
 Valid
 .Ar linkflags
 are:
-.Ar a
-(absolute),
-.Ar r
-(relative),
-.Ar h
-(hard),
-.Ar s
-(symbolic),
-.Ar m
-(mixed).
+.Bl -tag -width a -offset indent
+.It Sy a
+absolute
+.It Sy r
+relative
+.It Sy h
+hard
+.It Sy s
+symbolic
+.It Sy m
+mixed
+.El
+.Pp
 Absolute and relative have effect only for symbolic links.
 Mixed links
 are hard links for files on the same filesystem, symbolic otherwise.
