@@ -14,6 +14,7 @@ ATF_TESTS_C+=		fts_children_test
 ATF_TESTS_C+=		fts_misc_test
 ATF_TESTS_C+=		fts_open_test
 ATF_TESTS_C+=		fts_options_test
+ATF_TESTS_C+=		fts_regress_test
 ATF_TESTS_C+=		fts_set_test
 ATF_TESTS_C+=		ftw_test
 ATF_TESTS_C+=		getentropy_test
@@ -99,6 +100,7 @@ LIBADD.fpsetround_test+=m
 LIBADD.siginfo_test+=	m
 
 LIBADD.nice_test+=	pthread
+LIBADD.fts_regress_test+=	pthread
 LIBADD.syslog_test+=	pthread
 
 CFLAGS+=		-I${.CURDIR}
