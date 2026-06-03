@@ -365,9 +365,9 @@ typedef void acpi_subtable_handler(ACPI_SUBTABLE_HEADER *, void *);
 
 BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
-ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
+ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, const char *path,
 		    ACPI_HANDLE *result);
-ACPI_STATUS	acpi_GetProperty(device_t dev, ACPI_STRING propname,
+ACPI_STATUS	acpi_GetProperty(device_t dev, const char *propname,
 		    const ACPI_OBJECT **value);
 ACPI_BUFFER	*acpi_AllocBuffer(int size);
 ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp,
@@ -416,7 +416,7 @@ int		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 #define ACPI_MATCHHID_CID 2
 
 static __inline bool
-acpi_HasProperty(device_t dev, ACPI_STRING propname)
+acpi_HasProperty(device_t dev, const char *propname)
 {
 
 	return ACPI_SUCCESS(acpi_GetProperty(dev, propname, NULL));

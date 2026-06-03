@@ -1946,7 +1946,7 @@ acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match)
 }
 
 static ACPI_STATUS
-acpi_device_eval_obj(device_t bus, device_t dev, ACPI_STRING pathname,
+acpi_device_eval_obj(device_t bus, device_t dev, const char *pathname,
     ACPI_OBJECT_LIST *parameters, ACPI_BUFFER *ret)
 {
     ACPI_HANDLE h;
@@ -1955,11 +1955,12 @@ acpi_device_eval_obj(device_t bus, device_t dev, ACPI_STRING pathname,
 	h = ACPI_ROOT_OBJECT;
     else if ((h = acpi_get_handle(dev)) == NULL)
 	return (AE_BAD_PARAMETER);
-    return (AcpiEvaluateObject(h, pathname, parameters, ret));
+    return (AcpiEvaluateObject(h, __DECONST(char *, pathname), parameters,
+	ret));
 }
 
 static ACPI_STATUS
-acpi_device_get_prop(device_t bus, device_t dev, ACPI_STRING propname,
+acpi_device_get_prop(device_t bus, device_t dev, const char *propname,
     const ACPI_OBJECT **value)
 {
 	const ACPI_OBJECT *pkg, *name, *val;
@@ -2068,8 +2069,7 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 	ACPI_STATUS status;
 	const ACPI_OBJECT *obj;
 
-	status = acpi_device_get_prop(bus, child, __DECONST(char *, propname),
-		&obj);
+	status = acpi_device_get_prop(bus, child, propname, &obj);
 	if (ACPI_FAILURE(status))
 		return (-1);
 
@@ -2114,8 +2114,7 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 
 	case ACPI_TYPE_PACKAGE:
 		if (propvalue != NULL && size >= sizeof(ACPI_OBJECT *)) {
-			*((ACPI_OBJECT **) propvalue) =
-			    __DECONST(ACPI_OBJECT *, obj);
+			*((const ACPI_OBJECT **) propvalue) = obj;
 		}
 		return (sizeof(ACPI_OBJECT *));
 
@@ -2844,7 +2843,7 @@ acpi_MatchHid(ACPI_HANDLE h, const char *hid)
  * or one if its parents.
  */
 ACPI_STATUS
-acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
+acpi_GetHandleInScope(ACPI_HANDLE parent, const char *path, ACPI_HANDLE *result)
 {
     ACPI_HANDLE		r;
     ACPI_STATUS		status;
@@ -2866,8 +2865,7 @@ acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
 }
 
 ACPI_STATUS
-acpi_GetProperty(device_t dev, ACPI_STRING propname,
-    const ACPI_OBJECT **value)
+acpi_GetProperty(device_t dev, const char *propname, const ACPI_OBJECT **value)
 {
 	device_t bus = device_get_parent(dev);
 
@@ -4328,14 +4326,10 @@ acpi_lookup(void *arg, const char *name, device_t *dev)
      * starts with '\'.  We could restrict this to \_SB and friends,
      * but see acpi_probe_children() for notes on why we scan the entire
      * namespace for devices.
-     *
-     * XXX: The pathname argument to AcpiGetHandle() should be fixed to
-     * be const.
      */
     if (name[0] != '\\')
 	return;
-    if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, __DECONST(char *, name),
-	&handle)))
+    if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, name, &handle)))
 	return;
     *dev = acpi_get_device(handle);
 }

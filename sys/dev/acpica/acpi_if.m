@@ -102,7 +102,7 @@ METHOD int id_probe {
 # device_t dev:  evaluate the object relative to this device's handle.
 #   Specify NULL to begin the search at the ACPI root.
 #
-# ACPI_STRING pathname:  absolute or relative path to this object
+# const char *pathname:  absolute or relative path to this object
 #
 # ACPI_OBJECT_LIST *parameters:  array of arguments to pass to the object.
 #   Specify NULL if there are none.
@@ -115,7 +115,7 @@ METHOD int id_probe {
 METHOD ACPI_STATUS evaluate_object {
 	device_t	bus;
 	device_t	dev;
-	ACPI_STRING 	pathname;
+	const char	*pathname;
 	ACPI_OBJECT_LIST *parameters;
 	ACPI_BUFFER	*ret;
 };
@@ -127,7 +127,7 @@ METHOD ACPI_STATUS evaluate_object {
 #
 # device_t dev:  find property for this device's handle.
 #
-# const ACPI_STRING propname: name of the property
+# const char *propname: name of the property
 #
 # const ACPI_OBJECT **value: property value output
 #   Specify NULL if ignored
@@ -137,7 +137,7 @@ METHOD ACPI_STATUS evaluate_object {
 METHOD ACPI_STATUS get_property {
 	device_t	bus;
 	device_t	dev;
-	ACPI_STRING 	propname;
+	const char	*propname;
 	const ACPI_OBJECT	**value;
 };
 
