@@ -29,12 +29,10 @@
  */
 
 /*
- * We have two ways to create a pci_dev (pdev):
- * (1) coming from the device_attach DEVMETHOD, and
- * (2) from manual creation via lkpinew_pci_dev(), in which case
- *     we have no driver (pdev->pdrv).
- *
- * Only devices from (1) end up on our LinuxKPI global pci_devices list.
+ * This file contains multiple parts:
+ * (1) PCI
+ * (2) DMA
+ * (3) Backlight
  */
 
 #include <sys/param.h>
@@ -85,6 +83,17 @@
 #include "backlight_if.h"
 #include "pcib_if.h"
 
+/* -------------------------------------------------------------------------- */
+/*
+ * For PCI:
+ * we have two ways to create a pci_dev (pdev):
+ * (1) coming from the device_attach DEVMETHOD, and
+ * (2) from manual creation via lkpinew_pci_dev(), in which case
+ *     we have no driver (pdev->pdrv).
+ *
+ * Only devices from (1) end up on our LinuxKPI global lkpi_pci_devices list.
+ */
+
 /* Undef the linux function macro defined in linux/pci.h */
 #undef pci_get_class
 
@@ -109,6 +118,15 @@ static int linux_backlight_get_status(device_t dev, struct backlight_props *prop
 static int linux_backlight_update_status(device_t dev, struct backlight_props *props);
 static int linux_backlight_get_info(device_t dev, struct backlight_info *info);
 static void lkpi_pcim_iomap_table_release(struct device *, void *);
+
+static struct list_head lkpi_pci_drivers;
+static struct list_head lkpi_pci_devices;
+static spinlock_t lkpi_pci_lock;
+
+#define	LKPI_PCI_LOCK_INIT()		spin_lock_init(&lkpi_pci_lock)
+#define	LKPI_PCI_LOCK_DESTROY()		spin_lock_destroy(&lkpi_pci_lock)
+#define	LKPI_PCI_LOCK()			spin_lock(&lkpi_pci_lock)
+#define	LKPI_PCI_UNLOCK()		spin_unlock(&lkpi_pci_lock)
 
 static device_method_t pci_methods[] = {
 	DEVMETHOD(device_probe, linux_pci_probe),
@@ -299,20 +317,20 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 	subvendor = pci_get_subvendor(dev);
 	subdevice = pci_get_subdevice(dev);
 
-	spin_lock(&pci_lock);
-	list_for_each_entry(pdrv, &pci_drivers, node) {
+	LKPI_PCI_LOCK();
+	list_for_each_entry(pdrv, &lkpi_pci_drivers, node) {
 		for (id = pdrv->id_table; id->vendor != 0; id++) {
 			if (vendor == id->vendor &&
 			    (PCI_ANY_ID == id->device || device == id->device) &&
 			    (PCI_ANY_ID == id->subvendor || subvendor == id->subvendor) &&
 			    (PCI_ANY_ID == id->subdevice || subdevice == id->subdevice)) {
 				*idp = id;
-				spin_unlock(&pci_lock);
+				LKPI_PCI_UNLOCK();
 				return (pdrv);
 			}
 		}
 	}
-	spin_unlock(&pci_lock);
+	LKPI_PCI_UNLOCK();
 	return (NULL);
 }
 
@@ -323,8 +341,8 @@ lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 
 	odev0 = odev;
 	found = NULL;
-	spin_lock(&pci_lock);
-	list_for_each_entry(pdev, &pci_devices, links) {
+	LKPI_PCI_LOCK();
+	list_for_each_entry(pdev, &lkpi_pci_devices, links) {
 		/* Walk until we find odev. */
 		if (odev != NULL) {
 			if (pdev == odev)
@@ -339,7 +357,7 @@ lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 		}
 	}
 	pci_dev_get(found);
-	spin_unlock(&pci_lock);
+	LKPI_PCI_UNLOCK();
 	pci_dev_put(odev0);
 
 	return (found);
@@ -429,9 +447,9 @@ lkpi_pci_dev_release(struct device *dev)
 	/* Clear the hierarchy recursively to root. */
 	lkpi_pci_dev_bus_release(pdev);
 
-	spin_lock(&pci_lock);
+	LKPI_PCI_LOCK();
 	list_del(&pdev->links);
-	spin_unlock(&pci_lock);
+	LKPI_PCI_UNLOCK();
 
 	linux_pdev_dma_uninit(pdev);
 
@@ -723,9 +741,9 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	if (error)
 		goto out_err;
 
-	spin_lock(&pci_lock);
-	list_add(&pdev->links, &pci_devices);
-	spin_unlock(&pci_lock);
+	LKPI_PCI_LOCK();
+	list_add(&pdev->links, &lkpi_pci_devices);
+	LKPI_PCI_UNLOCK();
 
 	/*
 	 * Create the hierarchy now as we cannot on demand later.
@@ -1251,9 +1269,9 @@ _linux_pci_register_driver(struct pci_driver *pdrv, devclass_t dc)
 	int error;
 
 	linux_set_current(curthread);
-	spin_lock(&pci_lock);
-	list_add(&pdrv->node, &pci_drivers);
-	spin_unlock(&pci_lock);
+	LKPI_PCI_LOCK();
+	list_add(&pdrv->node, &lkpi_pci_drivers);
+	LKPI_PCI_UNLOCK();
 	if (pdrv->bsddriver.name == NULL)
 		pdrv->bsddriver.name = pdrv->name;
 	pdrv->bsddriver.methods = pci_methods;
@@ -1297,15 +1315,15 @@ lkpi_pci_find_irq_dev(unsigned int irq)
 	struct device *found;
 
 	found = NULL;
-	spin_lock(&pci_lock);
-	list_for_each_entry(pdev, &pci_devices, links) {
+	LKPI_PCI_LOCK();
+	list_for_each_entry(pdev, &lkpi_pci_devices, links) {
 		if (irq == pdev->dev.irq ||
 		    (irq >= pdev->dev.irq_start && irq < pdev->dev.irq_end)) {
 			found = &pdev->dev;
 			break;
 		}
 	}
-	spin_unlock(&pci_lock);
+	LKPI_PCI_UNLOCK();
 	return (found);
 }
 
@@ -1497,9 +1515,9 @@ linux_pci_unregister_driver(struct pci_driver *pdrv)
 
 	bus = devclass_find(pdrv->isdrm ? "vgapci" : "pci");
 
-	spin_lock(&pci_lock);
+	LKPI_PCI_LOCK();
 	list_del(&pdrv->node);
-	spin_unlock(&pci_lock);
+	LKPI_PCI_UNLOCK();
 	bus_topo_lock();
 	if (bus != NULL)
 		devclass_delete_driver(bus, &pdrv->bsddriver);
@@ -1513,9 +1531,9 @@ linux_pci_unregister_drm_driver(struct pci_driver *pdrv)
 
 	bus = devclass_find("vgapci");
 
-	spin_lock(&pci_lock);
+	LKPI_PCI_LOCK();
 	list_del(&pdrv->node);
-	spin_unlock(&pci_lock);
+	LKPI_PCI_UNLOCK();
 	bus_topo_lock();
 	if (bus != NULL)
 		devclass_delete_driver(bus, &pdrv->bsddriver);
@@ -1707,6 +1725,25 @@ linuxkpi_pci_unmap_rom(struct pci_dev *pdev, void *rom)
 
 	vga_pci_unmap_bios(device_get_parent(dev), rom);
 }
+
+static void
+lkpi_pci_init(void *arg __unused)
+{
+	INIT_LIST_HEAD(&lkpi_pci_drivers);
+	INIT_LIST_HEAD(&lkpi_pci_devices);
+	LKPI_PCI_LOCK_INIT();
+}
+SYSINIT(lkpi_pci_init, SI_SUB_DRIVERS, SI_ORDER_SECOND, lkpi_pci_init, NULL);
+
+static void
+lkpi_pci_uninit(void *arg __unused)
+{
+	LKPI_PCI_LOCK_DESTROY();
+}
+SYSUNINIT(lkpi_pci_uninit, SI_SUB_DRIVERS, SI_ORDER_SECOND, lkpi_pci_uninit, NULL);
+
+/* -------------------------------------------------------------------------- */
+/* DMA */
 
 CTASSERT(sizeof(dma_addr_t) <= sizeof(uint64_t));
 
@@ -2396,6 +2433,9 @@ linux_dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma_addr)
 
 	uma_zfree_arg(pool->pool_zone, obj, pool);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Backlight. */
 
 static int
 linux_backlight_get_status(device_t dev, struct backlight_props *props)

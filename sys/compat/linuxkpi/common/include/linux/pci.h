@@ -295,10 +295,6 @@ struct pci_bus {
 	int		number;
 };
 
-extern struct list_head pci_drivers;
-extern struct list_head pci_devices;
-extern spinlock_t pci_lock;
-
 #define	__devexit_p(x)	x
 
 #define	module_pci_driver(_drv)						\
