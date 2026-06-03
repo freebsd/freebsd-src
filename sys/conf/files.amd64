@@ -381,6 +381,16 @@ dev/smartpqi/smartpqi_sis.c     optional 	smartpqi
 dev/smartpqi/smartpqi_tag.c     optional 	smartpqi
 dev/sume/if_sume.c		optional	sume
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
+dev/thunderbolt/hcm.c		optional	thunderbolt
+dev/thunderbolt/nhi.c		optional	thunderbolt
+dev/thunderbolt/nhi_pci.c	optional	thunderbolt
+dev/thunderbolt/nhi_wmi.c	optional	acpi acpi_wmi thunderbolt
+dev/thunderbolt/router.c	optional	thunderbolt
+dev/thunderbolt/tb_acpi_pcib.c	optional	acpi thunderbolt
+dev/thunderbolt/tb_debug.c	optional	thunderbolt
+dev/thunderbolt/tb_dev.c	optional	thunderbolt
+dev/thunderbolt/tb_if.m		optional	thunderbolt
+dev/thunderbolt/tb_pcib.c	optional	acpi thunderbolt
 dev/tpm/tpm_crb.c		optional	tpm acpi
 dev/p2sb/p2sb.c			optional	p2sb pci
 dev/p2sb/lewisburg_gpiocm.c	optional	lbggpiocm p2sb

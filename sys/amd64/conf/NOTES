@@ -61,6 +61,10 @@ device		tdfx			# Enable 3Dfx Voodoo support
 #XXX this stores pointers in a 32bit field that is defined by the hardware
 #device	pst
 
+# Thunderbolt (USB 4.0) support
+device		thunderbolt
+options		THUNDERBOLT_DEBUG
+
 #
 # Microsemi smartpqi controllers.
 # These controllers have a SCSI-like interface, and require the

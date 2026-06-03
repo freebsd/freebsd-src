@@ -343,6 +343,7 @@ device		uhci			# UHCI PCI->USB interface
 device		ohci			# OHCI PCI->USB interface
 device		ehci			# EHCI PCI->USB interface (USB 2.0)
 device		xhci			# XHCI PCI->USB interface (USB 3.0)
+device		thunderbolt		# Thunderbolt PCI->USB interface (USB 4.0)
 device		usb			# USB Bus (required)
 device		usbhid			# USB HID Transport
 device		hkbd			# HID Keyboard
