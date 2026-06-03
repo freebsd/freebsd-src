@@ -33,7 +33,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.123 2023/12/29 18:04:48 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.125 2026/01/19 18:53:58 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -205,7 +205,7 @@ get_default_magic(void)
 		}
 	}
 
-	if (asprintf(&default_magic, "%s:%s", hmagicpath, MAGIC) < 0)
+	if (asprintf(&default_magic, "%s%c%s", hmagicpath, PATHSEP, MAGIC) < 0)
 		goto out;
 	free(hmagicpath);
 	return default_magic;
@@ -368,29 +368,30 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 		return;
 	(void) close(fd);
 
-	if ((ms->flags & MAGIC_PRESERVE_ATIME) != 0) {
-		/*
-		 * Try to restore access, modification times if read it.
-		 * This is really *bad* because it will modify the status
-		 * time of the file... And of course this will affect
-		 * backup programs
-		 */
+	if (sb == NULL || (ms->flags & MAGIC_PRESERVE_ATIME) == 0)
+		return;
+
+	/*
+	 * Try to restore access, modification times if read it.
+	 * This is really *bad* because it will modify the status
+	 * time of the file... And of course this will affect
+	 * backup programs
+	 */
 #ifdef HAVE_UTIMES
-		struct timeval  utsbuf[2];
-		(void)memset(utsbuf, 0, sizeof(utsbuf));
-		utsbuf[0].tv_sec = sb->st_atime;
-		utsbuf[1].tv_sec = sb->st_mtime;
+	struct timeval  utsbuf[2];
+	(void)memset(utsbuf, 0, sizeof(utsbuf));
+	utsbuf[0].tv_sec = sb->st_atime;
+	utsbuf[1].tv_sec = sb->st_mtime;
 
-		(void) utimes(name, utsbuf); /* don't care if loses */
+	(void) utimes(name, utsbuf); /* don't care if loses */
 #elif defined(HAVE_UTIME_H) || defined(HAVE_SYS_UTIME_H)
-		struct utimbuf  utbuf;
+	struct utimbuf  utbuf;
 
-		(void)memset(&utbuf, 0, sizeof(utbuf));
-		utbuf.actime = sb->st_atime;
-		utbuf.modtime = sb->st_mtime;
-		(void) utime(name, &utbuf); /* don't care if loses */
+	(void)memset(&utbuf, 0, sizeof(utbuf));
+	utbuf.actime = sb->st_atime;
+	utbuf.modtime = sb->st_mtime;
+	(void) utime(name, &utbuf); /* don't care if loses */
 #endif
-	}
 }
 
 #ifndef COMPILE_ONLY
@@ -530,7 +531,8 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	}
 
 	(void)memset(buf + nbytes, 0, SLOP); /* NUL terminate */
-	if (file_buffer(ms, fd, okstat ? &sb : NULL, inname, buf, CAST(size_t, nbytes)) == -1)
+	if (file_buffer(ms, fd, okstat ? &sb : NULL, inname, buf,
+	    CAST(size_t, nbytes)) == -1)
 		goto done;
 	rv = 0;
 done:
@@ -538,7 +540,7 @@ done:
 	if (fd != -1) {
 		if (pos != CAST(off_t, -1))
 			(void)lseek(fd, pos, SEEK_SET);
-		close_and_restore(ms, inname, fd, &sb);
+		close_and_restore(ms, inname, fd, okstat ? &sb : NULL);
 	}
 out:
 	return rv == 0 ? file_getbuffer(ms) : NULL;

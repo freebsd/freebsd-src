@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.165 2024/09/01 15:51:51 christos Exp $
+# $File: filesystems,v 1.169 2025/12/27 15:29:44 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -1950,8 +1950,23 @@
 >36865	string    BEA01     +
 >>36864	use       extendedarea
 
-37633	string    CD001     ISO 9660 CD-ROM filesystem data (raw 2352 byte sectors)
-!:mime	application/x-iso9660-image
+# ISO 9660 as part of various raw CD-ROM image formats.
+# Usually the BIN file of a CUE/BIN pair or the IMG of a CCD/IMG/SUB triplet.
+
+# MODE1/2352 (2352*16 + 16 + 1)
+37649	string    CD001     ISO 9660 CD-ROM filesystem data
+>0	default	x	(CD-ROM Mode 1 image, 2352 byte sectors)
+!:ext	bin/img
+
+# MODE2/2352 (2352*16 + 24 + 1)
+37657	string    CD001     ISO 9660 CD-ROM filesystem data
+>0	default	x	(CD-ROM XA Mode 2 image, 2352 byte sectors)
+!:ext	bin/img
+
+# MODE2/2336 (2336*16 + 8 + 1)
+37385	string    CD001     ISO 9660 CD-ROM filesystem data
+>0	default	x	(CD-ROM XA Mode 2 image, 2336 byte sectors)
+!:ext	bin
 
 # URL:		http://fileformats.archiveteam.org/wiki/High_Sierra
 # Update:	Joerg Jenderek
@@ -2607,7 +2622,7 @@
 >12	use next
 
 # bcachefs
-# From: Thomas Weiﬂschuh <thomas@t-8ch.de>
+# From: Thomas Weissschuh <thomas@t-8ch.de>
 
 0	name	bcachefs-uuid
 >0	ubelong		x	\b%08x
@@ -2654,7 +2669,8 @@
 #>1060		lelong		x		\b, blocks=%d
 #>1064		lelong		x		\b, metadata@%#x
 #>1068		lelong		x		\b, xattr@%#x
->1072		guid		x		\b, uuid=%s
+>1072		guid		x		\b, uuid=
+>1072		use		bcachefs-uuid
 >1088		string		>0		\b, name=%s
 >1104		lelong		>0		\b, incompat:
 >>1104		lelong		&1		LZ4_0PADDING
@@ -2763,3 +2779,8 @@
 0x0		string	\x10\x00\x4e\x57\x20
 >0x10000	string	\x4e\x57\x00\x00\x01
 >0x100A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 64KiB page size
+
+# YBLOB mini object storage
+# PIN-protected storage format based on the PIV application
+# https://github.com/douzebis/yb
+0    lelong    0xF2ED5F0B    yblob object store image data

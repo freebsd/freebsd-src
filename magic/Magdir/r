@@ -1,0 +1,86 @@
+
+#------------------------------------------------------------------------------
+# $File: r,v 1.1 2025/02/10 17:48:42 christos Exp $
+#    file(1) magic for R's RDS and RData file formats
+#    Copyright (C) 2025 Gert Hulselmans <hulselmansgert@gmail.com>
+#
+#    URLS:
+#      https://cran.r-project.org/doc/manuals/r-release/R-ints.html#Serialization-Formats
+#      https://rdata.readthedocs.io/en/latest/_modules/rdata/parser/_parser.html
+#
+#    Example files:
+#      https://github.com/vnmabus/rdata/tree/develop/rdata/tests/data
+#
+###############################################################################
+
+
+###############################################################################
+# RDS format
+###############################################################################
+
+0	name	RDS
+# Check for RDS ASCII formats.
+>0	string	A\n2\n	R RDS (ASCII format v2)
+>0	string	A\n3\n	R RDS (ASCII format v3)
+>0	string	A\r\n2\r\n	R RDS (ASCII CRLF format v2)
+>0	string	A\r\n3\r\n	R RDS (ASCII CRLF format v3)
+# Check for RDS binary formats with native word order.
+>0	string	B\n\0\0\0	R RDS (Native (big-endian) word order format
+>>0	use RDS_binary_version_info
+>0	string	B\n\2\0\0	R RDS (Native (little-endian) word order format
+>>0	use ^RDS_binary_version_info
+>0	string	B\n\3\0\0	R RDS (Native (little-endian) word order format
+>>0	use ^RDS_binary_version_info
+# Check for RDS XDR binary save format.
+>0	string	X\n\0\0\0	R RDS (XDR binary save format
+>>0	use RDS_binary_version_info
+
+
+# Parse version numbers from RDS if it was one of the binary versions.
+0	name	RDS_binary_version_info
+>2	belong	>-1	v%d)
+>6	beshort	>-1	\b, written by R v%d.
+>8	byte	>-1	\b%d.
+>9	byte	>-1	\b%d
+>10	beshort	>-1	\b, readable from R v%d.
+>12	byte	>-1	\b%d.
+>13	byte	>-1	\b%d
+>2	belong	>2
+>>14	pstring/L	x	\b, %s encoded
+
+
+# Check if file is one of the RDS ASCII formats.
+0	string	A
+>0	use RDS	not_printed
+!:ext	rds
+
+# Check if file is RDS binary native format.
+0	string	B
+>0	use RDS	not_printed
+!:ext	rds
+
+# Check if file is RDS XDR binary save format.
+0	string	X
+>0	use RDS	not_printed
+!:ext	rds
+
+
+###############################################################################
+# RData file formats: magic bytes followed by RDS container.
+###############################################################################
+
+0	string	RDA2\n	R RData version 2 (ASCII),
+!:ext	rda/rdata
+>5	use	RDS
+
+0	string	RDA3\n	R RData version 3 (ASCII),
+!:ext	rda/rdata
+>5	use	RDS
+
+0	string	RDX2\n	R RData version 2 (binary),
+!:ext	rda/rdata
+>5	use	RDS
+
+0	string	RDX3\n	R RData version 3 (binary),
+!:ext	rda/rdata
+>5	use	RDS

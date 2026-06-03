@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: xilinx,v 1.12 2024/09/04 19:06:12 christos Exp $
+# $File: xilinx,v 1.13 2025/03/30 20:29:30 christos Exp $
 # This is Aaron's attempt at a MAGIC file for Xilinx .bit files.
 # Xilinx-Magic@RevRagnarok.com
 # Got the info from FPGA-FAQ 0026
@@ -14,26 +14,26 @@
 >2 	belong	=0x0ff00ff0
 >>&0	belong  =0x0ff00ff0
 >>>&0	byte    =0x00
->>>>&1   beshort =0x0001
->>>>>&3	string	a	Xilinx BIT data
+>>>&1   beshort =0x0001
+>>>&3	string	a	Xilinx BIT data
 # Next is a Pascal-style string with the NCD name. We want to capture that.
->>>>>>&0	   pstring/H	x	- from %s
+>>>>&0	   pstring/H	x	- from %s
 # And then 'b'
->>>>>>>&1    string b
+>>>>>&1    string b
 # Then the model / part number:
->>>>>>>>&0   pstring/H    x       - for %s
+>>>>>>&0   pstring/H    x       - for %s
 # Then 'c'
->>>>>>>>>&1 string c
+>>>>>>>&1 string c
 # Then the build-date
->>>>>>>>>>&0 pstring/H    x       - built %s
+>>>>>>>>&0 pstring/H    x       - built %s
 # Then 'd'
->>>>>>>>>>>&1   string d
+>>>>>>>>>&1   string d
 # Then the build-time
->>>>>>>>>>>>&0  pstring/H x        \b(%s)
+>>>>>>>>>>&0  pstring/H x        \b(%s)
 # Then 'e'
->>>>>>>>>>>>>&1  string e
+>>>>>>>>>>>&1  string e
 # And length of data
->>>>>>>>>>>>>>&0 belong x          - data length %#x
+>>>>>>>>>>>>&0 belong x          - data length %#x
 
 # Raw bitstream files
 0      long    0xffffffff

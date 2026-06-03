@@ -1,0 +1,26 @@
+
+#--------------------------------------------------------------
+# $File: creativeassembly,v 1.1 2026/02/01 16:25:09 christos Exp $
+# creativeassembly: file(1) magic for various Creative Assembly files
+#
+# Community file formats documentation: 
+# 	<https://github.com/TotalWar-Modding/docs>
+
+# Benedikt Radtke <benediktradtke@gmail.com>
+# PFH4 Archive
+0	lelong		0x34484650	Creative Assembly Archive version 4
+
+# Benedikt Radtke <benediktradtke@gmail.com>
+# PFH5 Archive
+0	lelong		0x35484650	Creative Assembly Archive version 5
+>&0	lelong&0xf	0x00		\b, boot archive
+>&0	lelong&0xf	0x01		\b, release archive
+>&0	lelong&0xf	0x02		\b, patch archive
+>&0	lelong&0xf	0x03		\b, mod archive
+>&0	lelong&0xf	0x04		\b, movie archive
+>&0	lelong&0x10	0x10		\b, data encrypted
+>&0	lelong&0x40	0x40		\b, timestamped files
+>&0	lelong&0x80	0x80		\b, index encrypted
+>&0	lelong&0x100	0x100		\b, big header
+>&0x0c	lelong		x		\b, %d files
+#>0x14	ledate		x		\b, created on %s
