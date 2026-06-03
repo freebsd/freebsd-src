@@ -1,0 +1,112 @@
+
+#------------------------------------------------------------------------------
+# $File: sf3,v 1.1 2025/06/27 15:13:53 christos Exp $
+# sfr: SF3 [Simple File Format Family] files
+# (Yukari Hafner, shinmera@tymoon.eu)
+# 
+# Reference: https://shirakumo.org/docs/sf3
+# Samples: https://shirakumo.org/projects/sf3/tree/master/samples/
+
+0	name		SF3-archive
+>0	ulequad		x		\b, %llu files
+!:mime	application/x.sf3-archive
+
+0	name		SF3-audio
+>0	ulelong		>1		\b, %dHz
+>4	ubyte		>0		\b, %d channels
+>5	byte		0x01	\b, A-law
+>5	byte		0x02	\b, 16-bit signed PCM
+>5	byte		0x04	\b, 32-bit signed PCM
+>5	byte		0x08	\b, 64-bit signed PCM
+>5	byte		0x11	\b, u-law
+>5	byte		0x12	\b, 16-bit unsigned PCM
+>5	byte		0x14	\b, 32-bit unsigned PCM
+>5	byte		0x18	\b, 64-bit unsigned PCM
+>5	byte		0x22	\b, half-float PCM
+>5	byte		0x24	\b, single-float PCM
+>5	byte		0x28	\b, double-float PCM
+!:mime	audio/x.sf3
+
+0	name		SF3-image
+>0	ulelong		>0		\b, %d
+>4	ulelong		>0		\bx%d
+>8	ulelong		>0		\bx%d
+>12	byte		0x01	\b, grayscale
+>12	byte		0x02	\b, grayscale-alpha
+>12	byte		0x03	\b, RGB
+>12	byte		0x04	\b, RGBA
+>12	byte		0x12	\b, grayscale-alpha
+>12	byte		0x13	\b, BGR
+>12	byte		0x14	\b, ABGR
+>12	byte		0x24	\b, ARGB
+>12	byte		0x34	\b, BGRA
+>12	byte		0x44	\b, CMYK
+>12	byte		0x54	\b, KYMC
+>13	byte		0x01	\b, 8-bit signed
+>13	byte		0x02	\b, 16-bit signed
+>13	byte		0x04	\b, 32-bit signed
+>13	byte		0x08	\b, 64-bit signed
+>13	byte		0x11	\b, 8-bit unsigned
+>13	byte		0x12	\b, 16-bit unsigned
+>13	byte		0x14	\b, 32-bit unsigned
+>13	byte		0x18	\b, 64-bit unsigned
+>13	byte		0x22	\b, half-float
+>13	byte		0x24	\b, single-float
+>13	byte		0x28	\b, double-float
+!:mime	image/x.sf3
+
+0	name		SF3-log
+>0	leqdate		x		\b, from %s
+>8	leqdate		x		\b, to %s
+>16	uleshort	x		\b, %d chunks
+!:mime	application/x.sf3-log
+
+0	name		SF3-model
+>(2.l+22)		ulelong	x	\b, %d face indices
+>>&(&-20.l*4)	ulelong	x	\b, %d vertex attributes
+!:mime	model/x.sf3
+
+0	name		SF3-physics-model
+>0	lefloat		x	\b, %f kg
+>40	uleshort	x	\b, %d shapes
+!:mime	model/x.sf3-physics
+
+0	name		SF3-table
+>0	uleshort	x	\b, %d columns
+>10	ulequad		x	\b, %llu rows
+!:mime	application/x.sf3-table
+
+0	name		SF3-text
+>8	ulelong		x	\b, %d markup options
+>(0.q+28)	ulequad	x	\b, %llu bytes of text
+!:mime	application/x.sf3-text
+
+0	name		SF3-vector-graphic
+>0	ulelong		>0	\b, %d
+>4	ulelong		>0	\bx%d
+>8	ulelong		x	\b, %d instructions
+!:mime	image/x.sf3-vector
+
+# Generic SF3 Header
+0	string		\x81SF3\x00\xE0\xD0\x0D\x0A\x0A	SF3
+>10	byte		0x01	archive
+>>16	use			SF3-archive
+>10	byte		0x02	audio file
+>>16	use			SF3-audio
+>10	byte		0x03	image file
+>>16	use			SF3-image
+>10	byte		0x04	log file
+>>16	use			SF3-log
+>10	byte		0x05	3D model
+>>16	use			SF3-model
+>10	byte		0x06	physics model
+>>16	use			SF3-physics-model
+>10	byte		0x07	table
+>>16	use			SF3-table
+>10	byte		0x08	text file
+>>16	use			SF3-text
+>10	byte		0x09	vector graphic
+>>16	use			SF3-vector-graphic
+>10	byte		>9	file of unknown type (%d)
+!:mime	application/x.sf3
+!:ext   sf3

@@ -1,0 +1,23 @@
+
+#------------------------------------------------------------------------------
+# $File: gguf,v 1.2 2025/03/10 20:50:40 christos Exp $
+# 
+#
+# GGUF: magic file for GGUF-models
+# URL:  https://github.com/ggml-org/ggml/
+# From: Noah Peterson <noahbpeterson1997@gmail.com>
+
+0          string      GGUF               GGUF file format
+>4         byte        x                  version %d
+>8         quad        x                  \b, %llu tensors
+>16        quad        >0                 \b, %llu metadata entries
+>&8        search/256  general.architecture    
+>>&12      regex       ([A-Za-z0-9-]+)   \b, Architecture: %s
+>&8        search/256  general.name    
+>>&12      regex       ([A-Za-z0-9\ -]+) \b, Name: %s
+>&0        search/512  .block_count
+>>&4       long        x                  \b, Block Count: %u
+>&0        search/512  context_length
+>>&4       long        x                  \b, Context Length: %u
+>&0        search/512  embedding_length
+>>&4       long        x                  \b, Embedding Length: %u

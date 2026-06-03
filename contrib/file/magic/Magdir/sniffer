@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sniffer,v 1.36 2024/06/16 15:09:26 christos Exp $
+# $File: sniffer,v 1.39 2025/07/02 17:35:12 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -240,7 +240,7 @@
 >20	belong&0x03FFFFFF		255		(Bluetooth Basic Rate/Enhanced Data Rate baseband packets
 >20	belong&0x03FFFFFF		256		(Bluetooth Low Energy air interface with pseudo-header
 >20	belong&0x03FFFFFF		257		(PROFIBUS data link layer
->20	belong&0x03FFFFFF		258		(Apple DLT_PKTAP
+>20	belong&0x03FFFFFF		258		(Apple PKTAP
 >20	belong&0x03FFFFFF		259		(Ethernet with 802.3 Clause 65 EPON preamble
 >20	belong&0x03FFFFFF		260		(IPMI trace packets
 >20	belong&0x03FFFFFF		261		(Z-Wave RF profile R1 and R2 packets
@@ -249,7 +249,7 @@
 >20	belong&0x03FFFFFF		264		(ISO 14443 messages
 >20	belong&0x03FFFFFF		265		(IEC 62106 Radio Data System groups
 >20	belong&0x03FFFFFF		266		(USB with Darwin header
->20	belong&0x03FFFFFF		267		(OpenBSD DLT_OPENFLOW
+>20	belong&0x03FFFFFF		267		(OpenBSD OpenFlow
 >20	belong&0x03FFFFFF		268		(IBM SDLC frames
 >20	belong&0x03FFFFFF		269		(TI LLN sniffer frames
 >20	belong&0x03FFFFFF		271		(Linux vsock
@@ -312,12 +312,15 @@
 #
 0	ubelong		0x0a0d0d0a
 >8	ubelong		0x1a2b3c4d	pcapng capture file
+!:mime	application/x-pcapng
 >>12	beshort		x		- version %d
 >>14	beshort		x		\b.%d
 0	ulelong		0x0a0d0d0a
 >8	ulelong		0x1a2b3c4d	pcapng capture file
+!:mime	application/x-pcapng
 >>12	leshort		x		- version %d
 >>14	leshort		x		\b.%d
+
 
 #
 # AIX "iptrace" capture files.

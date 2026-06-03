@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: rtf,v 1.9 2020/12/12 20:01:47 christos Exp $
+# $File: rtf,v 1.10 2025/03/21 17:11:56 christos Exp $
 # rtf:	file(1) magic for Rich Text Format (RTF)
 #
 # Duncan P. Simpson, D.P.Simpson@dcs.warwick.ac.uk
@@ -91,4 +91,9 @@
 # PWT for template
 !:ext	pwd/psw/pwt
 >0	use		rtf-info
+
+# https://en.wikipedia.org/wiki/Rich_Text_Format_Directory
+# https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/rtfd
+0	string		rtfd\0\0\0\0		Rich Text Format Directory
+!:ext	rtfd
 

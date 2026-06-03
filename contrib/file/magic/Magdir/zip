@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: zip,v 1.8 2021/10/24 15:53:56 christos Exp $
+# $File: zip,v 1.10 2025/10/22 19:31:31 christos Exp $
 # zip:  file(1) magic for zip files; this is not use
 # Note the version of magic in archive is currently stronger, this is
 # just an example until negative offsets are supported better
@@ -17,7 +17,6 @@
 >>6	leshort		x		\b, extract using at least
 >>6	use		zipversion
 # This is DOS date like: ledate 21:00:48 19 Dec 2001 != DOS 00:00 1 Jan 2010 ~ 0000213C
->>12	ulelong		x		\b, last modified
 >>14	lemsdosdate	x		\b, last modified %s
 >>12	lemsdostime	x		%s
 # uncompressed size of 1st entry; FFffFFff means real value stored in ZIP64 record
@@ -124,3 +123,9 @@
 #>>20	uleshort	>0		\b, comment length %u
 # archive comment
 >>20	pstring/l	>0		\b, %s
+
+# The end directory record does not work for piped input
+# so try one that looks from the beginning of the file.
+0	string		PK\003\004
+>0	search/1024	PK\001\002
+>>&-4 	use		zipcd

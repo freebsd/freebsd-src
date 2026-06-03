@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.73 2024/11/09 19:54:36 christos Exp $
+# $File: database,v 1.75 2025/11/10 16:06:19 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -909,3 +909,103 @@
 # so we check both to detect them also on hosts with differnet endianess
 16      lelong    0xED0CDAED      BoltDB database
 16      belong    0xED0CDAED      BoltDB database, big-endian
+
+# https://en.wikipedia.org/wiki/HCL_Notes
+0	string	\x1A\x00\x00\x03\x00\x00	Notes Storage Facility database
+
+# PostgreSQL WAL segment
+# repo: https://git.postgresql.org/gitweb/?p=postgresql.git;a=summary
+# file: src/include/access/xlog_internal.h
+# header structure is XLogPageHeaderData+XLogLongPageHeaderData
+# magic header numbers are defined in XLOG_PAGE_MAGIC
+# The magic number is too short to safely identify a file; but since the
+# WAL log pages repeat in a file, we can test the magic number on the
+# headers of more than one page to make a safer match. Two is ok for now.
+
+0        short 0xd118
+(0x24.l) short 0xd118 PostgreSQL 18 
+>0 use pgwal
+
+0        short 0xd116
+(0x24.l) short 0xd116 PostgreSQL 17 
+>0 use pgwal
+
+0        short 0xd113
+(0x24.l) short 0xd113 PostgreSQL 16 
+>0 use pgwal
+
+0        short 0xd110
+(0x24.l) short 0xd110 PostgreSQL 15 
+>0 use pgwal
+
+0        short 0xd10d
+(0x24.l) short 0xd10d PostgreSQL 14 
+>0 use pgwal
+
+0        short 0xd106
+(0x24.l) short 0xd106 PostgreSQL 13 
+>0 use pgwal
+
+0        short 0xd101
+(0x24.l) short 0xd101 PostgreSQL 12 
+>0 use pgwal
+
+0        short 0xd098
+(0x24.l) short 0xd098 PostgreSQL 11 
+>0 use pgwal
+
+0        short 0xd097
+(0x24.l) short 0xd097 PostgreSQL 10 
+>0 use pgwal
+
+0        short 0xd093
+(0x24.l) short 0xd093 PostgreSQL 9.6 
+>0 use pgwal
+
+0        short 0xd087
+(0x24.l) short 0xd087 PostgreSQL 9.5 
+>0 use pgwal
+
+0        short 0xd07e
+(0x24.l) short 0xd07e PostgreSQL 9.4 
+>0 use pgwal
+
+0        short 0xd075
+(0x24.l) short 0xd075 PostgreSQL 9.3 
+>0 use pgwal
+
+0        short 0xd071
+(0x24.l) short 0xd071 PostgreSQL 9.2 
+>0 use pgwal
+
+0        short 0xd066
+(0x24.l) short 0xd066 PostgreSQL 9.1 
+>0 use pgwal
+
+0        short 0xd064
+(0x24.l) short 0xd064 PostgreSQL 9.0 
+>0 use pgwal
+
+0        short 0xd063
+(0x24.l) short 0xd063 PostgreSQL 8.4 
+>0 use pgwal
+
+0        short 0xd062
+(0x24.l) short 0xd062 PostgreSQL 8.3 
+>0 use pgwal
+
+0        short 0xd05e
+(0x24.l) short 0xd05e PostgreSQL 8.2 
+>0 use pgwal
+
+0        short 0xd05d
+(0x24.l) short 0xd05d PostgreSQL 8.1 
+>0 use pgwal
+
+0        short 0xd05c
+(0x24.l) short 0xd05c PostgreSQL 8.0 
+>0 use pgwal
+
+0     name  pgwal     WAL segment file
+>0x18 quad  x         (System ID %lld,
+>0x04 long  x         Timeline %d)

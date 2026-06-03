@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: firmware,v 1.13 2024/09/04 19:04:03 christos Exp $
+# $File: firmware,v 1.17 2025/04/06 18:37:40 christos Exp $
 # firmware:  file(1) magic for firmware files
 #
 
@@ -110,7 +110,7 @@
 >>28	ulelong&0x1	1		\b, encrypted
 
 # ESP-IDF application image
-# From: Alexandre Iooss <erdnaxe@crans.org>
+# From: A. Iooss <aiooss@crans.org>
 # Update:	Joerg Jenderek
 # URL: https://github.com/espressif/esp-idf/blob/v5.0/components/bootloader_support/include/esp_app_format.h
 # Reference:	https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html
@@ -134,12 +134,33 @@
 >>12	uleshort	0x000D		for ESP32-C6
 >>12	uleshort	0x000E		for ESP32-H2 Beta2
 >>12	uleshort	0x0010		for ESP32-H2
->>80	string/32	x		\b, project name: "%s"
->>48	string/32	x		\b, version %s
+>>80	byte		!0
+>>>80	string/32	x		\b, project name: "%s"
+>>48	byte		!0
+>>>48	string/32	x		\b, version %s
 >>128	string/16	x		\b, compiled on %s
 >>>112	string/16	x		%s
 >>144	string/32	x		\b, IDF version: %s
 >>4	ulelong		x		\b, entry address: 0x%08X
+
+# ESP8266/ESP32 firmware image
+# Note: contain partition table entries and ESP-IDF application image
+# From: A. Iooss <aiooss@crans.org>
+# Reference: https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/firmware-image-format.html
+0	byte		0xE9
+>2	byte		<4
+>>7	byte		0x40		ESP firmware image
+# ESP8266 does not have Extended File Header
+>>>12	uleshort	0x0000		for ESP32
+>>>12	uleshort	0x0002		for ESP32-S2
+>>>12	uleshort	0x0005		for ESP32-C3
+>>>12	uleshort	0x0009		for ESP32-S3
+>>>12	uleshort	0x000A		for ESP32-H2 Beta1
+>>>12	uleshort	0x000C		for ESP32-C2
+>>>12	uleshort	0x000D		for ESP32-C6
+>>>12	uleshort	0x000E		for ESP32-H2 Beta2
+>>>12	uleshort	0x0010		for ESP32-H2
+>>>4	ulelong		x		\b, entry point 0x%08X
 
 # AVR firmware
 # From: Alexandre Iooss <erdnaxe@crans.org>
@@ -174,7 +195,7 @@
 # Reference:	http://www.piclist.com/techref/fileext/hex/intel.htm
 #		http://mark0.net/download/triddefs_xml.7z/defs/h/hex-intel.trid.xml
 # From:		Joerg Jenderek
-# Note:		called "Intel Hexadecimal object format" by TrID, "Intel® hexadecimal object file" on Linux
+# Note:		called "Intel Hexadecimal object format" by TrID, "Intel(R) hexadecimal object file" on Linux
 #		and "Intel HEX binary data" by Notepad++
 # look for start code; 1 character, an ASCII colon ':'; all characters preceding this symbol should be ignored
 0	ubyte		0x3A
@@ -275,3 +296,117 @@
 >-10	string		\x1A\x01UFD
 >>-12	uleshort	x		\b, for device %04X:
 >>-14	uleshort	x		\b%04X
+
+# Allwinner eGON Boot Image
+# Reference: https://linux-sunxi.org/EGON
+
+0	name	egon-details
+# ARM b instruction
+>0	ulelong&0xff000000	0xea000000	(ARM)
+# RISC-V jal instruction
+>0	ulelong&0x00000fff	0x0000006f	(RISC-V)
+>16	ulelong	x	\b, size %u
+
+4	string	eGON.BT0	Allwinner eGON.BT0 Boot Image
+>0	use	egon-details
+
+4	string	eGON.BT1	Allwinner eGON.BT1 Boot Image
+>0	use	egon-details
+
+# Allwinner TOC0 Boot Image
+# Reference: https://linux-sunxi.org/TOC0
+0	name	toc0-item
+>0	ulelong	0x010101	certificate
+>0	ulelong	0x010202	firmware
+>0	ulelong	0x010303	key
+>4	ulelong	x	(offset 0x%x
+>8	ulelong	x	\b, size 0x%x)
+
+8	ulelong	0x89119800	Allwinner TOC0 Boot Image
+>24	ulelong	x	with %u items
+# each item is 32 bytes
+# item 0
+>24	ulelong	>0	\b:
+>>48	use	toc0-item
+# item 1
+>24	ulelong	>1	\b,
+>>80	use	toc0-item
+# item 2
+>24	ulelong	>2	\b,
+>>112	use	toc0-item
+# item 3
+>24	ulelong	>3	\b,
+>>144	use	toc0-item
+# item 4
+>24	ulelong	>4	\b,
+>>176	use	toc0-item
+# item 5+
+>24	ulelong	>5	\b, ...
+
+# Allwinner TOC1 Boot Image
+# Reference: https://lore.kernel.org/all/20211015040811.56856-2-samuel@sholland.org/T/
+0	name	toc1-item
+>0	string/64/T	x	%s
+>64	ulelong	x	(offset 0x%x
+>68	ulelong	x	\b, size 0x%x)
+
+16	ulelong	0x89119800	Allwinner TOC1 Boot Image
+>0	string/16/T	>\0	(name "%s")
+>32	ulelong	x	with %u items
+# each item is 368 bytes
+# item 0
+>32	ulelong	>0	\b:
+>>64	use	toc1-item
+# item 1
+>32	ulelong	>1	\b,
+>>432	use	toc1-item
+# item 2
+>32	ulelong	>2	\b,
+>>800	use	toc1-item
+# item 3
+>32	ulelong	>3	\b,
+>>1168	use	toc1-item
+# item 4
+>32	ulelong	>4	\b,
+>>1536	use	toc1-item
+# item 5+
+>32	ulelong	>5	\b, ...
+
+# https://github.com/o-gs/dji-firmware-tools/blob/master/dji_imah_fwsig.py#L404
+0	string		IM*H	DJI firmware update
+>40	string/4	>\0	(auth %s,
+>44	string/4	>\0	enc %s)
+>44	string/4	=\0	no enc)
+
+# NXP i.MX RT firmware image
+# From: A. Iooss <aiooss@crans.org>
+# Reference: Table 8-2 in MCU_Flashloader_Reference_Manual.pdf
+# URL: https://github.com/tock/tock/blob/master/boards/teensy40/layout.ld
+# Image starts with a NOR FlexSPI Configuration Block (FCB) of 3kB or 4kB
+0		string			FCFB
+>7		string			V		NXP i.MX RT bootable image
+!:ext		bin
+>>6		byte			x		\b, version %d
+>>5		byte			x		\b.%d
+>>4		byte			x		\b.%d
+# then a Image Vector Table of 4kB
+>>3072		ulelong&0xFCFFFFFF	0x402000D1
+>>>7168		use			flexspi-fw
+>>4096		ulelong&0xFDFFFFFF	0x402000D1
+>>>5120		use			flexspi-fw
+>>4096		ulelong&0xFDFFFFFF	0x412000D1
+>>>8192		use			flexspi-fw
+# then maybe a ARM Cortex-M program, but with vector table pointing to peripheral memory
+0		name			flexspi-fw
+>3		byte			0x20
+>>4		ulelong&1		1
+>>>8		ulelong&1		1
+>>>>12		ulelong&1		1
+>>>>>44		ulelong&1		1
+>>>>>>56	ulelong&1		1		\b, ARM Cortex-M
+>>>>>>>0	ulelong			>0		\b, initial SP at 0x%08x
+>>>>>>>4	ulelong^1		x		\b, reset at 0x%08x
+>>>>>>>8	ulelong^1		x		\b, NMI at 0x%08x
+>>>>>>>12	ulelong^1		x		\b, HardFault at 0x%08x
+>>>>>>>44	ulelong^1		x		\b, SVCall at 0x%08x
+>>>>>>>56	ulelong^1		x		\b, PendSV at 0x%08x
