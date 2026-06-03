@@ -70,13 +70,15 @@ stdout_head()
 stdout_body()
 {
 	local dir=$(atf_get_srcdir)
-	(
+	mkfifo fifo
+	: <fifo &
+	{
+		wait
 		trap "" PIPE
-		sleep 1
 		ident "${dir}"/test.in 2>stderr
-		echo $? >result
-	) | true
-	atf_check -o inline:"1\n" cat result
+		result=$?
+	} >fifo
+	atf_check_equal 1 "$result"
 	atf_check -o match:"stdout" cat stderr
 }
 

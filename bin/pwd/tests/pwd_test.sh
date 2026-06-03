@@ -75,14 +75,15 @@ stdout_body()
 {
 	pwd=$(which pwd)
 	[ -f "$pwd" ] || atf_skip "unable to distinguish binary from builtin"
-	(
+	mkfifo fifo
+	: <fifo &
+	{
+		wait
 		trap "" PIPE
-		# Give true(1) some time to exit.
-		sleep 1
-		$pwd 2>stderr
-		echo $? >result
-	) | true
-	atf_check -o inline:"1\n" cat result
+		"$pwd" 2>stderr
+		result=$?
+	} >fifo
+	atf_check_equal 1 "$result"
 	atf_check -o match:"stdout" cat stderr
 }
 
