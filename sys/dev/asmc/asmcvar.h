@@ -53,6 +53,11 @@ struct asmc_softc {
 	struct resource 	*sc_ioport;
 	struct resource 	*sc_irq;
 	void 			*sc_cookie;
+	/* MMIO backend (T2 Macs) */
+	int			sc_rid_mem;
+	struct resource		*sc_iomem;
+	int			sc_is_mmio;
+	int			sc_is_t2;	/* T2 fan float + per-fan manual */
 	int 			sc_sms_intrtype;
 	struct taskqueue 	*sc_sms_tq;
 	struct task 		sc_sms_task;
