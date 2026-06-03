@@ -12576,7 +12576,7 @@ get_sge_context(struct adapter *sc, int mem_id, uint32_t cid, int len,
 		goto done;
 	}
 
-	if (sc->flags & FW_OK) {
+	if (sc->flags & FW_OK && !is_t7(sc)) {
 		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cid, mem_id, data);
 		if (rc == 0)
 			goto done;
