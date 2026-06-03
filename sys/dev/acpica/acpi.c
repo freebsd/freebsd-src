@@ -748,7 +748,7 @@ acpi_attach(device_t dev)
 	"your laptop when you close the lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	NULL, 0, acpi_suspend_state_sysctl, "A",
+	sc, 0, acpi_suspend_state_sysctl, "A",
 	"Current ACPI suspend state. This sysctl is deprecated; you probably "
 	"want to use kern.power.suspend instead.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
