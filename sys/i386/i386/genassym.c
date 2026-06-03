@@ -45,6 +45,7 @@
 #endif
 #include <sys/proc.h>
 #include <sys/errno.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>

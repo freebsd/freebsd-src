@@ -260,7 +260,10 @@ genoffset_test.o: $S/kern/genoffset.c offset.inc
 assym.inc: $S/kern/genassym.sh genassym.o genoffset_test.o
 	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
-genassym.o: $S/$M/$M/genassym.c  offset.inc
+# vnode_if.h added for the sake of i386 only to fix commit 72ab129799a2 ("x86:
+# remove sys/mount.h from genassym.c"). Can be removed as soon as i386 kernels
+# are dropped, or if the <sys/mount.h> -> <sys/vnode.h> dependency vanishes.
+genassym.o: $S/$M/$M/genassym.c offset.inc vnode_if.h
 	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} \
 	    -fcommon $S/$M/$M/genassym.c
 
