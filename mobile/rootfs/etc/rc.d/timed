@@ -1,0 +1,14 @@
+#!/bin/sh
+# PROVIDE: uos_timed
+# REQUIRE: uos_networkd
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="uos_timed"
+rcvar=uos_timed_enable
+command="/mobile/bin/timed"
+
+load_rc_config $name
+: ${uos_timed_enable:="NO"}
+run_rc_command "$1"

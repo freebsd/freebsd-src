@@ -1,0 +1,40 @@
+# UOS Mobile OS - rc.d Startup Scripts
+
+## Available rc.d Scripts
+
+### displayd - Display Manager
+- **Starts after**: sysctl, framebuffer
+- **Depends on**: kernel modules loaded, /dev/fb0 available
+- **Purpose**: Initializes display, starts compositor, manages screen state
+
+### powerd - Power Management
+- **Starts after**: displayd
+- **Depends on**: battery sysfs interface
+- **Purpose**: CPU frequency scaling, thermal management, battery monitoring
+
+### networkd - Network Manager
+- **Starts after**: sysctl
+- **Depends on**: network interfaces up
+- **Purpose**: DHCP, WiFi management, DNS configuration
+
+### audiod - Audio Service
+- **Starts after**: sysctl
+- **Depends on**: audio device nodes
+- **Purpose**: PCM management, mixer control, audio routing
+
+### timed - Time Service
+- **Starts after**: networkd
+- **Depends on**: network connectivity
+- **Purpose**: NTP sync, system clock, timezone
+
+### pkgd - Package Manager Daemon
+- **Starts after**: networkd
+- **Depends on**: network connectivity, /var/db writable
+- **Purpose**: Automatic package index updates, dependency resolution
+
+## Adding a Service
+
+1. Create script in `rootfs/etc/rc.d/`
+2. Add KEYWORD and PROVIDES
+3. Add to `/etc/rc.conf` as `uos_servicename_enable="YES"`
+4. Install to target rootfs

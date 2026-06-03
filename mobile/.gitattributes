@@ -1,0 +1,9 @@
+mobile/*.sh text eol=lf
+mobile/*.c text eol=lf
+mobile/*.h text eol=lf
+mobile/**/*.c text eol=lf
+mobile/**/*.h text eol=lf
+mobile/**/*.sh text eol=lf
+mobile/**/Makefile text eol=lf
+mobile/**/*.conf text eol=lf
+mobile/**/*.md text eol=lf

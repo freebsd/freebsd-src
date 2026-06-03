@@ -1,0 +1,14 @@
+#!/bin/sh
+# PROVIDE: uos_pkgd
+# REQUIRE: uos_networkd
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="uos_pkgd"
+rcvar=uos_pkgd_enable
+command="/mobile/bin/pkgd"
+
+load_rc_config $name
+: ${uos_pkgd_enable:="NO"}
+run_rc_command "$1"

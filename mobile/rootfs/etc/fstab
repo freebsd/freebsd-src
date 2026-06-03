@@ -1,0 +1,7 @@
+# Device        Mountpoint      FStype  Options         Dump    Pass
+/dev/vtbd0s1a   /               ufs     rw              1       1
+/dev/vtbd0s1b   none            swap    sw              0       0
+tmpfs           /tmp            tmpfs   rw,mode=1777    0       0
+tmpfs           /var/run        tmpfs   rw              0       0
+procfs          /proc           procfs  rw              0       0
+devfs           /dev            devfs   rw              0       0

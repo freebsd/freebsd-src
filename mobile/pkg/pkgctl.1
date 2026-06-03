@@ -1,0 +1,63 @@
+.\" $Id$
+.Dd $Mdocdate: June 3 2026$
+.Dt PKGCTL 1
+.Os BSD Mobile
+.Sh NAME
+Nm pkgctl
+.Nd BSD-based package manager for mobile OS
+.Sh SYNOPSIS
+Nm pkgctl
+.Op Fl h
+.Op Fl v
+.Op Ar command [ Ar arguments ]
+.Sh DESCRIPTION
+pkgctl is a command-line interface for managing packages on a BSD-derived mobile operating system.
+It provides functions to install, remove, query, and update packages and repositories.
+.Sh COMMANDS
+.Bl -tag -width install
+.It Ar install Ar package
+Install a package from the configured repositories.
+.It Ar remove Ar package
+Remove an installed package.
+.It Ar query Ar package
+Query the package database for information about a package.
+.It Ar repo Ar subcommand Ar arguments
+Manage package repositories.
+.It Ar update
+Update the local package database from repositories.
+.It Ar upgrade
+Upgrade all installed packages to their latest versions.
+.It Ar search Ar keyword
+Search for packages matching a keyword.
+.It Ar info Ar package
+Show detailed information about an installed package.
+.El
+.Sh EXAMPLES
+Install a package:
+.Bd -literal
+$ pkgctl install vim
+.Ed
+Remove a package:
+.Bd -literal
+$ pkgctl remove vim
+.Ed
+Search for packages:
+.Bd -literal
+$ pkgctl search editor
+.Ed
+.Sh FILES
+.Bl -tag -width /etc/pkgctl/repos.conf -compact
+.It /var/db/pkgctl/
+Directory containing the package database.
+.It /var/db/pkgctl/pkglist.txt
+List of installed packages in the format "name:version:description".
+.It /etc/pkgctl/repos.conf
+Configuration file containing repository URLs, one per line.
+.El
+.Sh SEE ALSO
+pkg_add(8), pkg_delete(8), pkg_info(1), pkg_version(1)
+.Sh HISTORY
+pkgctl was first introduced in FreeBSD Mobile 13.0.
+.Sh AUTHORS
+.An -nosplit
+The FreeBSD Mobile Project

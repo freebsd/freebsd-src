@@ -1,0 +1,14 @@
+#!/bin/sh
+# PROVIDE: uos_networkd
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="uos_networkd"
+rcvar=uos_networkd_enable
+command="/mobile/bin/networkd"
+
+load_rc_config $name
+: ${uos_networkd_enable:="NO"}
+run_rc_command "$1"

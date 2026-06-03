@@ -1,0 +1,14 @@
+#!/bin/sh
+# PROVIDE: uos_powerd
+# REQUIRE: uos_displayd
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="uos_powerd"
+rcvar=uos_powerd_enable
+command="/mobile/bin/powerd"
+
+load_rc_config $name
+: ${uos_powerd_enable:="NO"}
+run_rc_command "$1"

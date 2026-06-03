@@ -1,0 +1,14 @@
+#!/bin/sh
+# PROVIDE: uos_audiod
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="uos_audiod"
+rcvar=uos_audiod_enable
+command="/mobile/bin/audiod"
+
+load_rc_config $name
+: ${uos_audiod_enable:="NO"}
+run_rc_command "$1"
