@@ -3641,8 +3641,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
 	return (AE_SUPPORT);
     }
 
-    acpi_sstate = acpi_stype_to_sstate(sc, stype);
-
     /* Re-entry once we're suspending is not allowed. */
     status = acpi_sleep_disable(sc);
     if (ACPI_FAILURE(status)) {
@@ -3678,14 +3676,14 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
     }
 #endif
 
+    slp_state = ACPI_SS_NONE;
+    sc->acpi_stype = stype;
+    acpi_sstate = acpi_stype_to_sstate(sc, stype);
+
     /*
      * Be sure to hold bus topology lock across DEVICE_SUSPEND/RESUME.
      */
     bus_topo_lock();
-
-    slp_state = ACPI_SS_NONE;
-
-    sc->acpi_stype = stype;
 
     /* Enable any GPEs as appropriate and requested by the user. */
     acpi_wake_prep_walk(sc, stype);
