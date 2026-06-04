@@ -1,24 +1,22 @@
 /* Minimal kernel init for UOS(m) - User OS Mobile
  *
- * This is a minimal bootstrap that:
- *  - Initializes the framebuffer console (VGA-style, 1280x720x32)
- *  - Prints boot messages to BOTH serial and framebuffer
- *  - Initializes core subsystems
- *  - Hands off to the scheduler
+ * Serial-only early boot (works with QEMU -nographic).
+ * The framebuffer console is NOT used here because -nographic provides
+ * no VGA device; use --vnc mode instead for graphical output.
  */
 
 #include "config.h"
 #include "framebuffer_console.h"
 
-/* UART for serial console */
 #define UART_BASE   0x10000000UL
 #define UART_TX     0x0
 #define UART_LSR    0x5
 #define UART_LSR_TX 0x20
 
-static inline void uart_putc(char c) {
-    volatile unsigned char *uart = (volatile unsigned char *)UART_BASE;
-    while ((uart[UART_LSR] & UART_LSR_TX) == 0) { /* wait */ }
+static volatile unsigned char *uart = (volatile unsigned char *)UART_BASE;
+
+static void uart_putc(char c) {
+    while ((uart[UART_LSR] & UART_LSR_TX) == 0) { }
     uart[UART_TX] = (unsigned char)c;
 }
 
@@ -29,7 +27,15 @@ static void uart_puts(const char *s) {
 static void early_putc(char c) { uart_putc(c); }
 static void early_puts(const char *s) { while (*s) uart_putc(*s++); }
 
-/* External subsystem init functions */
+#define CHECK(n, label) do { \
+    early_puts("[" #n "] " label "\r\n"); \
+} while(0)
+
+#define HALT(msg) do { \
+    early_puts("HALT: " msg "\r\n"); \
+    for (;;) { asm volatile("wfi"); } \
+} while(0)
+
 extern int mem_init(void);
 extern int task_init(void);
 extern int scheduler_init(void);
@@ -43,71 +49,69 @@ extern int pmp_init(void);
 extern int syscall_security_init(void);
 extern int aslr_init(void);
 extern int stack_canary_init(void);
+extern int virtio_net_init(void);
+extern int virtio_blk_init(void);
 
 void kernel_init(unsigned long hartid, void *dtb) {
-    const char boot_msg[]     = "\n\ruOS(m) - User OS Mobile booting...\r\n";
-    const char hart_msg[]     = "Hart ID: ";
-    const char hybrid_msg[]   = "Hybrid kernel initialized\r\n";
-    const char posix_msg[]    = "POSIX API ready\r\n";
-    const char subsys_msg[]   = "\r\n=== Initializing Kernel Subsystems ===\r\n";
-    const char ready_msg[]    = "=== All subsystems ready ===\r\n";
-    const char arch_msg[]     = "Arch: Hybrid Kernel | POSIX | IPC | VM (SV39) | VFS\r\n\n";
-
     (void)hartid;
     (void)dtb;
 
-    /* Boot log to serial */
-    early_puts(boot_msg);
-    early_puts(hart_msg);
+    uart_puts("\r\nuOS(m) boot start\r\n");
+
+    CHECK(1, "uart");
     early_putc('0' + (int)hartid);
-    early_puts("\r\n");
-    early_puts(hybrid_msg);
-    early_puts(posix_msg);
+    uart_puts("\r\n");
 
-    /* Initialize framebuffer console (visible in VNC) */
-    fb_console_init();
+    CHECK(2, "mem_init");
+    if (mem_init())     HALT("mem_init");
 
-    /* Mirror boot log to framebuffer */
-    fb_console_write(boot_msg);
-    fb_console_write(hart_msg);
-    fb_console_putc('0' + (int)hartid);
-    fb_console_write("\r\n");
-    fb_console_write(hybrid_msg);
-    fb_console_write(posix_msg);
+    CHECK(3, "vm_init");
+    if (vm_init())      HALT("vm_init");
 
-    /* Initialize kernel subsystems */
-    fb_console_write(subsys_msg);
-    early_puts(subsys_msg);
+    CHECK(4, "pmp_init");
+    if (pmp_init())     HALT("pmp_init");
 
-    mem_init();       early_puts("  [OK] memory\r\n");       fb_console_write("  [OK] memory\r\n");
-    vm_init();        early_puts("  [OK] virtual memory\r\n"); fb_console_write("  [OK] virtual memory\r\n");
-    pmp_init();       early_puts("  [OK] PMP\r\n");           fb_console_write("  [OK] PMP\r\n");
-    syscall_security_init(); early_puts("  [OK] syscall security\r\n"); fb_console_write("  [OK] syscall security\r\n");
-    aslr_init();      early_puts("  [OK] ASLR\r\n");          fb_console_write("  [OK] ASLR\r\n");
-    stack_canary_init(); early_puts("  [OK] stack canary\r\n"); fb_console_write("  [OK] stack canary\r\n");
-    vfs_init();       early_puts("  [OK] VFS\r\n");           fb_console_write("  [OK] VFS\r\n");
-    chardev_init();   early_puts("  [OK] character devices\r\n"); fb_console_write("  [OK] character devices\r\n");
-    uart_chardev_init(); early_puts("  [OK] UART driver\r\n"); fb_console_write("  [OK] UART driver\r\n");
-    interrupt_init(); early_puts("  [OK] interrupt controller\r\n"); fb_console_write("  [OK] interrupt controller\r\n");
+    CHECK(5, "syscall_security");
+    if (syscall_security_init()) HALT("syscall_security");
 
-    fb_console_write("\r\n");
-    early_puts("\r\n");
+    CHECK(6, "aslr_init");
+    if (aslr_init())    HALT("aslr_init");
 
-    fb_console_write(ready_msg);
-    early_puts(ready_msg);
-    fb_console_write(arch_msg);
-    early_puts(arch_msg);
+    CHECK(7, "stack_canary");
+    if (stack_canary_init()) HALT("stack_canary");
 
-    /* Initialize task subsystem and start scheduler */
+    CHECK(8, "vfs_init");
+    if (vfs_init())     HALT("vfs_init");
+
+    CHECK(9, "chardev_init");
+    if (chardev_init()) HALT("chardev_init");
+
+    CHECK(10, "uart_chardev");
+    if (uart_chardev_init()) HALT("uart_chardev");
+
+    CHECK(11, "interrupt_init");
+    if (interrupt_init()) HALT("interrupt_init");
+
+    CHECK(12, "virtio_blk");
+    if (virtio_blk_init()) HALT("virtio_blk");
+
+    CHECK(13, "virtio_net");
+    if (virtio_net_init()) HALT("virtio_net");
+
+    uart_puts("[14] subsystems ready\r\n");
+
+    CHECK(15, "task_init");
     task_init();
+
+    CHECK(16, "ipc_init");
     ipc_init();
+
+    CHECK(17, "scheduler_init");
     scheduler_init();
 
-    /* Should never reach here */
-    early_puts("HALT\r\n");
-    fb_console_write("HALT\r\n");
-    while (1) {
-        /* Wait for interrupt */
+    uart_puts("[18] entering scheduler (should not return)\r\n");
+
+    for (;;) {
         asm volatile("wfi");
     }
 }
