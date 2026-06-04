@@ -93,6 +93,9 @@ local function dirname(oldpath)
 	end
 	local path = oldpath:gsub("[^/]+/*$", "")
 	if path == "" then
+		if oldpath:sub(1, 1) == "/" then
+			return "/"
+		end
 		return nil
 	end
 	return path
