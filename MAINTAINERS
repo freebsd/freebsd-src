@@ -52,17 +52,18 @@ contrib/pjdfstest	asomers,ngie,pjd,#test	Pre-commit review requested.
 			code, please have patches reviewed by secteam.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
-fetch		des	Pre-commit review requested, email only.
+fetch		des	Pre-commit review requested.
+fts		des	Pre-commit review requested.
 fusefs(4)	asomers	Pre-commit review requested.
 geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 libdpv		dteske	Pre-commit review requested. Keep in sync with dpv(1).
-libfetch	des	Pre-commit review requested
+libfetch	des	Pre-commit review requested.
 libfigpar	dteske	Pre-commit review requested.
 libm		freebsd-numerics	Send email with patches to freebsd-numerics@
-libpam		des	Pre-commit review requested, email only.
-linprocfs	des	Pre-commit review requested, email only.
+libpam		des	Pre-commit review requested.
+linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 nanobsd		imp,jlduran	Pre-commit phabricator review requested.
@@ -75,13 +76,14 @@ nvd(4)		imp	Pre-commit review requested.
 nvme(4)		imp	Pre-commit review requested.
 nvmecontrol(8)	imp	Pre-commit review requested.
 opencrypto	jhb	Pre-commit review requested.
+openpam		des	Pre-commit review required.
 openssh		emaste	Pre-commit review requested.
 openssl		benl	Pre-commit review requested.
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/dev/pci	imp,jhb	Pre-commit review requested.
 pmcstudy(8)	rrs		Pre-commit review requested.
-procfs		des	Pre-commit review requested, email only.
-pseudofs	des	Pre-commit review requested, email only.
+procfs		des	Pre-commit review requested.
+pseudofs	des	Pre-commit review requested.
 random(4),
 random(9)	csprng	Pre-commit discussion and review required,
 release/release.sh	re	Pre-commit review and regression tests
@@ -98,6 +100,7 @@ share/mk/*.test.mk	imp,bapt,bdrewery,	Pre-commit review requested.
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
 stand			imp	Pre-commit review strongly requested.
+stdio			des	Pre-commit review requested
 sys/compat/linuxkpi		pre-commit review requested via #linuxkpi phabricator group.
 sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
 sys/netpfil/ipfilter	cy	Pre-commit review requested.

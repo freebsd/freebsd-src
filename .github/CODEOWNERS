@@ -45,7 +45,7 @@
 /contrib/netbsd-tests/crypto/opencrypto/	@jmgurney
 /contrib/netbsd-tests/kernel/kqueue/	@jmgurney
 /contrib/one-true-awk/		@bsdimp
-/contrib/openpam/lib/libpam/		@dag-erling
+/contrib/openpam/		@dag-erling
 /contrib/pjdfstest	@ngie-eign @asomers
 /contrib/wpa		@cschuber
 /crypto/heimdal		@cschuber
@@ -59,10 +59,13 @@
 /lib/libblocklist	@jlduran
 /lib/libc/string/	@fuz
 /lib/libc/*/string/	@fuz
+/lib/libc/gen/fts.?	@dag-erling
+/lib/libc/stdio/	@dag-erling
 /lib/libc/sys/kevent.c	@jmgurney
+/lib/libc/tests/gen/fts*	@dag-erling
+/lib/libc/tests/stdio/	@dag-erling
 /lib/libefivar/	@bsdimp
 /lib/libfetch	@dag-erling
-/lib/libfigpar	@dag-erling
 /lib/libpam/		@dag-erling
 /lib/libsecureboot/	@stephane-rochoy-stormshield
 /lib/libveriexec/	@stephane-rochoy-stormshield
