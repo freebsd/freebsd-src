@@ -56,6 +56,7 @@
  *	need a proper out-of-band
  */
 
+#include "opt_capsicum.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -65,8 +66,10 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/hash.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -77,6 +80,7 @@
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
+#include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
@@ -288,14 +292,82 @@ static struct mtx	unp_defers_lock;
 #define	UNP_PCB_LOCK_ASSERT(unp)	mtx_assert(&(unp)->unp_mtx, MA_OWNED)
 #define	UNP_PCB_UNLOCK_ASSERT(unp)	mtx_assert(&(unp)->unp_mtx, MA_NOTOWNED)
 
+/*
+ * Abstract namespace.
+ *
+ * Sockets bound with sun_path[0] == '\0' live in a kernel-only hash table
+ * keyed by (prison, socket type, sun_path). No filesystem objects created.
+ * Names are length-delimited, not NUL-terminated, thus treated as opaque byte
+ * sequences.
+ *
+ * Bindings are prison-local (pointer identity, not prison_check() visibility).
+ * Parent jails cannot see child bindings. This mirrors Linux's per-netns model.
+ *
+ * Lifetime: Each binding owns a heap-allocated struct unp_absent which is on
+ * the hash table from bind until the socket is closed. The unpcb has a
+ * back-pointer to its entry; both pointer and table linkage are protected by
+ * unp_abstract_mtx.
+ *
+ * Lock order: unp_abstract_mtx is acquired before any per-pcb mutex.  Connect
+ * holds it from lookup until the connection is established, as the vnode pool
+ * lock is held for pathname sockets, so that it cannot race with uipc_close()
+ * unlinking the binding: a closed socket is never handed a new connection.
+ *
+ * Abstract names are a global namespace, so they are off limits in capability
+ * mode, even through bindat(2) and connectat(2) with a directory descriptor.
+ */
+struct unp_absent {
+	LIST_ENTRY(unp_absent) link;	/* (h) hash bucket linkage */
+	struct unpcb	*unp;		/* (c) owning unpcb */
+	struct prison	*pr;		/* (c) prison; refcount held */
+	int		 so_type;	/* (c) socket type */
+	int		 pathlen;	/* (c) length incl. leading NUL */
+	char		 path[];	/* (c) raw sun_path bytes */
+};
+LIST_HEAD(unp_abshead, unp_absent);
+
+static struct unp_abshead	*unp_abstract_hashtbl;
+static u_long			 unp_abstract_hashmask;
+static struct mtx		 unp_abstract_mtx;
+MTX_SYSINIT(unp_abstract, &unp_abstract_mtx, "unp_abstract", MTX_DEF);
+static MALLOC_DEFINE(M_UNPABS, "unpabs", "abstract Unix socket entries");
+
+/*
+ * Hash an abstract socket name to a bucket index using the tuple
+ * (prison, socket type, raw sun_path bytes).  The same fields are compared
+ * while walking the bucket so the hash only improves distribution.
+ *
+ * Linux also hashes the socket type so different socket types may bind the
+ * same abstract name.
+ */
+static inline uint32_t
+unp_abs_hashkey(const struct prison *pr, int so_type, const char *path,
+    int pathlen)
+{
+	uintptr_t prp;
+	uint32_t h;
+
+	prp = (uintptr_t)pr;
+	h = hash32_buf(&prp, sizeof(prp), HASHINIT);
+	h = hash32_buf(&so_type, sizeof(so_type), h);
+	h = hash32_buf(path, pathlen, h);
+
+	return (h);
+}
+
+#define UNP_ABS_BUCKET(pr, so_type, path, pathlen)		\
+	(&unp_abstract_hashtbl[unp_abs_hashkey((pr), (so_type),	\
+	(path), (pathlen)) & unp_abstract_hashmask])
+
 static int	uipc_connect2(struct socket *, struct socket *);
 static int	uipc_ctloutput(struct socket *, struct sockopt *);
 static int	unp_connectat(int, struct socket *, const char *, int,
 		    struct thread *, struct socket **);
 static int	unp_connect_peer(struct socket *, struct unpcb *,
 		    struct sockaddr **, struct thread *, bool);
-static int	unp_connectat_peer(struct thread *, int, const char *,
-		    struct socket **, struct mtx **, struct vnode **);
+static int	unp_connectat_peer(struct thread *, struct socket *, int,
+		    const char *, int, struct socket **, struct mtx **,
+		    struct vnode **);
 static int	unp_vnode_peer(struct vnode *, struct thread *,
 		    struct socket **, struct mtx **, struct vnode **);
 static void	unp_connect2(struct socket *, struct socket *, bool);
@@ -566,6 +638,191 @@ common:
 }
 
 /*
+ * Abstract names are not reachable in capability mode.
+ */
+static int
+unp_abstract_capcheck(struct thread *td)
+{
+#ifdef CAPABILITY_MODE
+	if (CAP_TRACING(td))
+		ktrcapfail(CAPFAIL_NAMEI, "abstract socket");
+	if (IN_CAPABILITY_MODE(td))
+		return (ECAPMODE);
+#endif
+	return (0);
+}
+
+/*
+ * Look up an abstract binding in pr's namespace and return a referenced peer
+ * socket in '*so2p', or ECONNREFUSED if no socket is bound to the name.  On
+ * success unp_abstract_mtx is left held and returned in '*mtxp', to be dropped
+ * once the connection is established; this keeps uipc_close() from unlinking
+ * the peer in the meantime.  The caller must release the returned socket with
+ * sorele() after dropping the mutex.
+ *
+ * A socket that is never closed is unlinked in uipc_detach() instead, after
+ * the last socket reference is gone, so entries whose socket is being torn
+ * down are skipped.
+ */
+static int
+unp_abstract_peer(struct prison *pr, int so_type, const char *path,
+    int pathlen, struct socket **so2p, struct mtx **mtxp)
+{
+	struct unp_absent *abs;
+	struct unp_abshead *bucket;
+	struct unpcb *unp;
+	struct socket *so;
+
+	bucket = UNP_ABS_BUCKET(pr, so_type, path, pathlen);
+	mtx_lock(&unp_abstract_mtx);
+	LIST_FOREACH(abs, bucket, link) {
+		if (abs->pr != pr || abs->so_type != so_type ||
+		    abs->pathlen != pathlen ||
+		    memcmp(abs->path, path, pathlen) != 0)
+			continue;
+
+		unp = abs->unp;
+		UNP_PCB_LOCK(unp);
+		so = unp->unp_socket;
+		if (so == NULL ||
+		    !refcount_acquire_if_not_zero(&so->so_count)) {
+			UNP_PCB_UNLOCK(unp);
+			continue;
+		}
+		UNP_PCB_UNLOCK(unp);
+		*so2p = so;
+		*mtxp = &unp_abstract_mtx;
+		return (0);
+	}
+	mtx_unlock(&unp_abstract_mtx);
+	return (ECONNREFUSED);
+}
+
+/*
+ * Bind unp into the abstract namespace.
+ *
+ * Lock acquisition order is hash -> pcb across the commit critical section.
+ * The collision scan and insert happen under the hash lock; the pcb lock is
+ * taken inside it to publish the binding atomically.
+ */
+static int
+unp_bind_abstract(struct socket *so, struct sockaddr *nam, int pathlen,
+    struct thread *td)
+{
+	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
+	struct sockaddr_un *new_addr;
+	struct unp_absent *abs, *cur;
+	struct unp_abshead *bucket;
+	struct unpcb *unp;
+	struct prison *pr;
+
+	unp = sotounpcb(so);
+
+	UNP_PCB_LOCK(unp);
+	if (unp->unp_addr != NULL) {
+		UNP_PCB_UNLOCK(unp);
+		return (EINVAL);
+	}
+	if ((unp->unp_flags & UNP_BINDING) != 0) {
+		UNP_PCB_UNLOCK(unp);
+		return (EALREADY);
+	}
+	unp->unp_flags |= UNP_BINDING;
+	UNP_PCB_UNLOCK(unp);
+
+	pr = td->td_ucred->cr_prison;
+	prison_hold(pr);
+
+	abs = malloc(sizeof(*abs) + pathlen, M_UNPABS, M_WAITOK | M_ZERO);
+	abs->unp = unp;
+	abs->pr = pr;
+	abs->so_type = so->so_type;
+	abs->pathlen = pathlen;
+	memcpy(abs->path, soun->sun_path, pathlen);
+
+	new_addr = (struct sockaddr_un *)sodupsockaddr(nam, M_WAITOK);
+
+	bucket = UNP_ABS_BUCKET(pr, so->so_type, soun->sun_path, pathlen);
+	mtx_lock(&unp_abstract_mtx);
+	LIST_FOREACH(cur, bucket, link) {
+		if (cur->pr != pr || cur->so_type != so->so_type ||
+		    cur->pathlen != pathlen ||
+		    memcmp(cur->path, soun->sun_path, pathlen) != 0)
+			continue;
+
+		mtx_unlock(&unp_abstract_mtx);
+		free(new_addr, M_SONAME);
+		free(abs, M_UNPABS);
+		prison_free(pr);
+		UNP_PCB_LOCK(unp);
+		unp->unp_flags &= ~UNP_BINDING;
+		UNP_PCB_UNLOCK(unp);
+		return (EADDRINUSE);
+	}
+	LIST_INSERT_HEAD(bucket, abs, link);
+	UNP_PCB_LOCK(unp);
+	unp->unp_absent = abs;
+	unp->unp_addr = new_addr;
+	unp->unp_flags &= ~UNP_BINDING;
+	UNP_PCB_UNLOCK(unp);
+	mtx_unlock(&unp_abstract_mtx);
+	return (0);
+}
+
+/*
+ * Autobind: assign a kernel-chosen abstract name of the form \0NNNNN
+ * (NUL marker + 5 lowercase hex digits).  As on Linux, this is requested by
+ * binding an empty sun_path; a lone NUL is the ordinary name "\0".
+ */
+static int
+unp_bind_abstract_auto(struct socket *so, struct thread *td)
+{
+	struct sockaddr_un sun;
+	uint32_t n, start;
+	int error;
+
+	memset(&sun, 0, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	sun.sun_len = offsetof(struct sockaddr_un, sun_path) + 6;
+	sun.sun_path[0] = '\0';
+
+	start = arc4random() & 0xfffff;
+	n = start;
+	do {
+		(void)snprintf(sun.sun_path + 1, 6, "%05x", n);
+		error = unp_bind_abstract(so, (struct sockaddr *)&sun, 6, td);
+		if (error != EADDRINUSE)
+			return (error);
+		n = (n + 1) & 0xfffff;
+	} while (n != start);
+
+	return (EADDRINUSE);
+}
+
+static void
+unp_abstract_detach(struct unpcb *unp)
+{
+	struct unp_absent *abs;
+
+	UNP_PCB_UNLOCK_ASSERT(unp);
+
+	mtx_lock(&unp_abstract_mtx);
+	UNP_PCB_LOCK(unp);
+	abs = unp->unp_absent;
+	if (abs != NULL) {
+		LIST_REMOVE(abs, link);
+		unp->unp_absent = NULL;
+	}
+	UNP_PCB_UNLOCK(unp);
+	mtx_unlock(&unp_abstract_mtx);
+
+	if (abs != NULL) {
+		prison_free(abs->pr);
+		free(abs, M_UNPABS);
+	}
+}
+
+/*
  * Validate a bind/connect address as AF_UNIX and hand back its sun_path
  * and the path length.
  *
@@ -608,8 +865,14 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = unp_sun_path(nam, &path, &namelen);
 	if (error != 0)
 		return (error);
-	if (namelen == 0)
-		return (EINVAL);
+	if (namelen == 0 || path[0] == '\0') {
+		error = unp_abstract_capcheck(td);
+		if (error != 0)
+			return (error);
+		if (namelen == 0)
+			return (unp_bind_abstract_auto(so, td));
+		return (unp_bind_abstract(so, nam, namelen, td));
+	}
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_bind: unp == NULL"));
@@ -624,7 +887,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	 * implementation and avoids a great many possible failure modes.
 	 */
 	UNP_PCB_LOCK(unp);
-	if (unp->unp_vnode != NULL) {
+	if (unp->unp_vnode != NULL || unp->unp_absent != NULL) {
 		UNP_PCB_UNLOCK(unp);
 		return (EINVAL);
 	}
@@ -770,6 +1033,10 @@ uipc_close(struct socket *so)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_close: unp == NULL"));
 
+	/* Like a pathname, an abstract name must not reach a closed socket. */
+	if (unp->unp_absent != NULL)
+		unp_abstract_detach(unp);
+
 	vplock = NULL;
 	if ((vp = unp->unp_vnode) != NULL) {
 		vplock = mtx_pool_find(unp_vp_mtxpool, vp);
@@ -807,7 +1074,8 @@ uipc_chmod(struct socket *so, mode_t mode, struct ucred *cred __unused,
 	error = 0;
 	unp = sotounpcb(so);
 	UNP_PCB_LOCK(unp);
-	if (unp->unp_vnode != NULL || (unp->unp_flags & UNP_BINDING) != 0)
+	if (unp->unp_vnode != NULL || (unp->unp_flags & UNP_BINDING) != 0 ||
+	    unp->unp_absent != NULL)
 		error = EINVAL;
 	else
 		unp->unp_mode = mode;
@@ -859,6 +1127,9 @@ uipc_detach(struct socket *so)
 	unp->unp_gencnt = ++unp_gencnt;
 	--unp_count;
 	UNP_LINK_WUNLOCK();
+
+	if (unp->unp_absent != NULL)
+		unp_abstract_detach(unp);
 
 	UNP_PCB_LOCK(unp);
 	KASSERT(unp->unp_vnode == NULL,
@@ -3013,11 +3284,12 @@ unp_connectat(int fd, struct socket *so, const char *path, int len,
 	 *
 	 * If the peer is bound to a name in the filesystem, then we hold
 	 * the vnode pool lock until the connection is established, so as to
-	 * avoid racing with a close of the peer listening socket.  If the peer
-	 * is referenced by a file descriptor, then that reference prevents the
-	 * race, so no extra synchronization is needed.
+	 * avoid racing with a close of the peer listening socket; for an
+	 * abstract name, unp_abstract_mtx plays that role and no vnode is
+	 * returned.  If the peer is referenced by a file descriptor, then that
+	 * reference prevents the race, so no extra synchronization is needed.
 	 */
-	error = unp_connectat_peer(td, fd, buf, &so2, &mtxp, &vp);
+	error = unp_connectat_peer(td, so, fd, buf, len, &so2, &mtxp, &vp);
 	if (error == 0) {
 		error = unp_connect_peer(so, sotounpcb(so2), &sa, td,
 		    referenced_peerp != NULL);
@@ -3032,7 +3304,8 @@ unp_connectat(int fd, struct socket *so, const char *path, int len,
 		 */
 		if (mtxp != NULL) {
 			mtx_unlock(mtxp);
-			vput(vp);
+			if (vp != NULL)
+				vput(vp);
 		}
 		if (so2 != NULL)
 			sorele(so2);
@@ -3112,21 +3385,24 @@ unp_dupfd_peer(struct vnode *vp, struct thread *td, struct socket **so2p)
 }
 
 /*
- * Resolve a connectat(2) target -- descriptor 'fd' together with the pathname
- * in 'buf' (null when len == 0) -- to a referenced peer unix socket in
- * '*so2p', covering all four ways a peer can be named:
+ * Resolve a connectat(2) target -- descriptor 'fd' together with the 'len'
+ * bytes of sun_path in 'buf' (null when len == 0) -- to a referenced peer unix
+ * socket in '*so2p', covering all five ways a peer can be named:
  *
  *	empty path + socket fd		the descriptor is the peer socket
  *	empty path + O_PATH vnode	EMPTYPATH resolves the socket's vnode
+ *	NUL-leading nonempty path	an abstract name; 'fd' is ignored
  *	/dev/fd/N pathname		fdescfs names a descriptor
  *	ordinary pathname		a bound socket looked up by path
  *
  * The caller must release the returned socket with sorele().  If the mutex
- * and vnode pointers are filled, they must be released as well.
+ * and vnode pointers are filled, they must be released as well; an abstract
+ * peer fills only the mutex.
  */
 static int
-unp_connectat_peer(struct thread *td, int fd, const char *buf,
-    struct socket **so2p, struct mtx **mtxp, struct vnode **vpp)
+unp_connectat_peer(struct thread *td, struct socket *so, int fd,
+    const char *buf, int len, struct socket **so2p, struct mtx **mtxp,
+    struct vnode **vpp)
 {
 	struct nameidata nd;
 	cap_rights_t rights;
@@ -3135,6 +3411,18 @@ unp_connectat_peer(struct thread *td, int fd, const char *buf,
 	*so2p = NULL;
 	*mtxp = NULL;
 	*vpp = NULL;
+
+	/*
+	 * A nonempty sun_path starting with NUL is an abstract name, looked
+	 * up in the caller's prison rather than in the filesystem.
+	 */
+	if (len > 0 && *buf == '\0') {
+		error = unp_abstract_capcheck(td);
+		if (error != 0)
+			return (error);
+		return (unp_abstract_peer(td->td_ucred->cr_prison,
+		    so->so_type, buf, len, so2p, mtxp));
+	}
 
 	/*
 	 * An empty sun_path means 'fd' names the peer directly.  If it is a
@@ -3935,6 +4223,8 @@ unp_init(void *arg __unused)
 	LIST_INIT(&unp_dhead);
 	LIST_INIT(&unp_shead);
 	LIST_INIT(&unp_sphead);
+	unp_abstract_hashtbl = hashinit(MAX(maxsockets / 16, 16),
+	    M_UNPABS, &unp_abstract_hashmask);
 	SLIST_INIT(&unp_defers);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &unp_gc_task, 0, unp_gc, NULL);
 	TASK_INIT(&unp_defer_task, 0, unp_process_defers, NULL);
