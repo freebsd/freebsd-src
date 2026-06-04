@@ -113,7 +113,7 @@ SDT_PROBE_DEFINE4(vfs, namei, lookup, return, "int", "struct vnode *", "bool",
 uma_zone_t namei_zone;
 
 /* Placeholder vnode for mp traversal. */
-static struct vnode *vp_crossmp;
+struct vnode *vp_crossmp;
 
 static int
 crossmp_vop_islocked(struct vop_islocked_args *ap)

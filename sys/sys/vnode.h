@@ -470,6 +470,7 @@ extern	struct mount *rootdevmp;	/* "/dev" mount */
 extern	u_long desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
 extern	struct vattr va_null;		/* predefined null vattr structure */
+extern	struct vnode *vp_crossmp;
 
 extern	u_int vn_lock_pair_pause_max;
 
