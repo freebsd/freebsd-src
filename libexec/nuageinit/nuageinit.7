@@ -164,6 +164,12 @@ will be used as the name of the group, the
 .Qq Ar value
 is expected to be a list of members (array), specified by name.
 .El
+.It Ic ssh_deletekeys
+Boolean which determines if the existing SSH host keys in
+.Pa /etc/ssh
+should be removed on first boot.
+New host keys will be generated automatically by
+.Xr sshd 8 .
 .It Ic ssh_keys
 An object of multiple key/values,
 .Qq Cm keys
@@ -183,6 +189,30 @@ boolean which determines the value of the
 .Qq Ic PasswordAuthentication
 configuration in
 .Pa /etc/ssh/sshd_config
+.It Ic disable_root
+Boolean which determines if root login via SSH should be disabled.
+If set to
+.Ar true ,
+sets
+.Qq Ic PermitRootLogin
+to
+.Ar no
+.Pq or the value specified in Ic disable_root_opts
+in
+.Pa /etc/ssh/sshd_config .
+.It Ic disable_root_opts
+String or array of options used to set the value of
+.Qq Ic PermitRootLogin
+in
+.Pa /etc/ssh/sshd_config ,
+when
+.Ic disable_root
+is set to
+.Ar true .
+If not specified, defaults to
+.Ar no .
+.Pp
+Only the first value is used when an array is provided.
 .It Ic network
 Network configuration parameters.
 .Pp
@@ -410,6 +440,8 @@ package_update: true
 package_upgrade: true
 runcmd:
   - logger -t nuageinit "boot finished"
+ssh_deletekeys: true
+disable_root: true
 ssh_keys:
   ed25519_private: |
     -----BEGIN OPENSSH PRIVATE KEY-----

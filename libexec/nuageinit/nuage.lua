@@ -539,6 +539,19 @@ local function update_sshd_config(key, value)
 	os.rename(sshd_config .. ".nuageinit", sshd_config)
 end
 
+local function delete_ssh_host_keys(root)
+	local ssh_dir = root .. "/etc/ssh"
+	local attrs = lfs.attributes(ssh_dir)
+	if not attrs or attrs.mode ~= "directory" then
+		return
+	end
+	for entry in lfs.dir(ssh_dir) do
+		if entry:match("^ssh_host_.*key") or entry:match("^ssh_host_.*key%.pub") then
+			os.remove(ssh_dir .. "/" .. entry)
+		end
+	end
+end
+
 local function exec_change_password(user, password, type, expire)
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	local cmd = "pw "
@@ -761,6 +774,7 @@ local n = {
 	addgroup = addgroup,
 	addsshkey = addsshkey,
 	update_sshd_config = update_sshd_config,
+	delete_ssh_host_keys = delete_ssh_host_keys,
 	chpasswd = chpasswd,
 	pkg_bootstrap = pkg_bootstrap,
 	install_package = install_package,
