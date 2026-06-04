@@ -1,17 +1,14 @@
 .include <src.opts.mk>
 
+.include "Makefile.inc"
+
 PACKAGE=lib${LIB}
-_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 LIB=	archive
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
 SHLIB_MAJOR= 7
-
-CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/lib
-.include "Makefile.inc"
 
 .if ${MACHINE_ARCH:Marm*} != "" || ${MACHINE_ARCH:Mpowerpc*} != ""
 NO_WCAST_ALIGN=	yes

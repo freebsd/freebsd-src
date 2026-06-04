@@ -1,7 +1,8 @@
+.include <src.opts.mk>
+
+.include "${SRCTOP}/lib/libarchive/Makefile.inc"
 
 PACKAGE=	tests
-
-_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
@@ -9,13 +10,10 @@ BINDIR=		${TESTSDIR}
 
 PROGS+=		bsdcpio_test
 
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
-
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I${_LIBARCHIVEDIR}/cpio -I${_LIBARCHIVEDIR}/cpio/test
-CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
-CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe -I${_LIBARCHIVEDIR}/test_utils
+CFLAGS+=	-I${_LIBARCHIVEDIR}/cpio
+CFLAGS+=	-I${_LIBARCHIVEDIR}/cpio/test
+CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
