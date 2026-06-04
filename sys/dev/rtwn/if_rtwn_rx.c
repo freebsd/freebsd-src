@@ -435,7 +435,7 @@ rtwn_get_multi_pos(const uint8_t maddr[])
 }
 
 static u_int
-rtwm_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+rtwn_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
 	uint32_t *mfilt = arg;
 	uint8_t pos;
@@ -463,7 +463,7 @@ rtwn_set_multi(struct rtwn_softc *sc)
 		 */
 		mfilt[0] = mfilt[1] = 0;
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-			if_foreach_llmaddr(vap->iv_ifp, rtwm_hash_maddr, mfilt);
+			if_foreach_llmaddr(vap->iv_ifp, rtwn_hash_maddr, mfilt);
 	} else
 		mfilt[0] = mfilt[1] = ~0;
 
