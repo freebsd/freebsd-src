@@ -39,17 +39,17 @@ static char sccsid[] = "@(#)getent.c	8.2 (Berkeley) 12/15/93";
 #include "misc-proto.h"
 
 static char *area;
-static char gettytab[] = "/etc/gettytab";
+static const char * const dba[] = { "/etc/gettytab", NULL };
 
 /*ARGSUSED*/
 int
 getent(char *cp __unused, const char *name)
 {
 	int retval;
-	char *tempnam, *dba[2] = { gettytab, NULL };
+	char *tempnam;
 
 	tempnam = strdup(name);
-	retval =  cgetent(&area, dba, tempnam) == 0 ? 1 : 0;
+	retval = cgetent(&area, dba, tempnam) == 0 ? 1 : 0;
 	free(tempnam);
 	return(retval);
 }

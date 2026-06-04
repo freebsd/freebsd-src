@@ -299,8 +299,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	const char  *msg = NULL;
 	const char  *dir;
 	char	    userpath[MAXPATHLEN];
-
-	static char *login_dbarray[] = { NULL, NULL, NULL };
+	const char *login_dbarray[] = { NULL, NULL, NULL };
 
 	me = (name != NULL && strcmp(name, LOGIN_MECLASS) == 0);
 	dir = (!me || pwd == NULL) ? NULL : pwd->pw_dir;

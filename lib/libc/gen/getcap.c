@@ -62,7 +62,8 @@ static char	*toprec;	/* Additional record specified by cgetset() */
 static int	 gottoprec;	/* Flag indicating retrieval of toprecord */
 
 static int	cdbget(DB *, char **, const char *);
-static int 	getent(char **, u_int *, char **, int, const char *, int, char *);
+static int 	getent(char **, u_int *, const char * const *, int,
+    const char *, int, char *);
 static int	nfcmp(char *, char *);
 
 /*
@@ -154,7 +155,7 @@ cgetcap(char *buf, const char *cap, int type)
  * reference loop is detected.
  */
 int
-cgetent(char **buf, char **db_array, const char *name)
+cgetent(char **buf, const char * const *db_array, const char *name)
 {
 	u_int dummy;
 
@@ -180,11 +181,12 @@ cgetent(char **buf, char **db_array, const char *name)
  *	  MAX_RECURSION.
  */
 static int
-getent(char **cap, u_int *len, char **db_array, int fd, const char *name,
-    int depth, char *nfield)
+getent(char **cap, u_int *len, const char * const *db_array, int fd,
+    const char *name, int depth, char *nfield)
 {
 	DB *capdbp;
-	char *r_end, *rp, **db_p;
+	const char * const *db_p;
+	char *r_end, *rp;
 	int myfd, eof, foundit, retval;
 	char *record, *cbuf;
 	int tc_not_resolved;
@@ -611,7 +613,7 @@ cgetmatch(const char *buf, const char *name)
 
 
 int
-cgetfirst(char **buf, char **db_array)
+cgetfirst(char **buf, const char * const *db_array)
 {
 	(void)cgetclose();
 	return (cgetnext(buf, db_array));
@@ -619,7 +621,7 @@ cgetfirst(char **buf, char **db_array)
 
 static FILE *pfp;
 static int slash;
-static char **dbp;
+static const char * const *dbp;
 
 int
 cgetclose(void)
@@ -640,7 +642,7 @@ cgetclose(void)
  * upon returning an entry with more remaining, and -1 if an error occurs.
  */
 int
-cgetnext(char **bp, char **db_array)
+cgetnext(char **bp, const char * const *db_array)
 {
 	size_t len;
 	int done, hadreaderr, savederrno, status;

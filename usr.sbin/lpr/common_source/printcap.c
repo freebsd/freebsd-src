@@ -54,7 +54,7 @@
 /*
  * Routines and data used in processing the printcap file.
  */
-static char	*printcapdb[] = { __DECONST(char *, _PATH_PRINTCAP), NULL };
+static const char *printcapdb[] = { _PATH_PRINTCAP, NULL };
 
 static char 	*capdb_canonical_name(const char *_bp);
 static int	 capdb_getaltlog(char *_bp, const char *_shrt,

@@ -53,7 +53,7 @@ static char *capstrings[] = {
 	"di", "es", "ex", "fo", "rc", "re", "pa", 0
 };
 
-static char	*db_array[3] = { _PATH_REMOTE, 0, 0 };
+static const char *db_array[] = { _PATH_REMOTE, NULL, NULL };
 
 #define cgetflag(f)	(cgetcap(bp, f, ':') != NULL)
 
