@@ -22,8 +22,6 @@
 
 #include <atf-c.h>
 
-#include "fts_test.h"
-
 /*
  * fts_set with invalid options must return non-zero with EINVAL.
  * Note: fts_set returns 1 (not -1) on error.
@@ -71,8 +69,7 @@ ATF_TC_BODY(again, tc)
 	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
 	revisit_count = 0;
-	errno = 0;
-	while ((ent = fts_read(fts)) != NULL) {
+	for (errno = 0; (ent = fts_read(fts)) != NULL; errno = 0) {
 		if (ent->fts_info == FTS_F && revisit_count == 0) {
 			ATF_REQUIRE_EQ_MSG(0,
 			    fts_set(fts, ent, FTS_AGAIN),
