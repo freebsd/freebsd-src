@@ -119,6 +119,33 @@ local function sethostname(hostname)
 	if hostname == nil then
 		return
 	end
+	-- Basic hostname validation (RFC 952/1123)
+	if #hostname == 0 then
+		warnmsg("hostname is empty, ignoring")
+		return
+	end
+	if #hostname > 253 then
+		warnmsg("hostname too long (" .. #hostname .. " > 253), ignoring")
+		return
+	end
+	if hostname:match("[^a-zA-Z0-9%.%-]") then
+		warnmsg("hostname contains invalid characters: " .. hostname)
+		return
+	end
+	if hostname:match("^[%.%-]") or hostname:match("[%.%-]$") then
+		warnmsg("hostname must not start or end with a dot or hyphen: " .. hostname)
+		return
+	end
+	for label in hostname:gmatch("[^.]+") do
+		if #label > 63 then
+			warnmsg("hostname label too long (" .. #label .. " > 63): " .. label)
+			return
+		end
+		if label:match("^-") or label:match("-$") then
+			warnmsg("hostname label starts or ends with hyphen: " .. label)
+			return
+		end
+	end
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	if not root then
 		root = ""
