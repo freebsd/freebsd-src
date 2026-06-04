@@ -457,10 +457,10 @@ ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 		    struct acpi_parse_resource_set *set, void *arg);
 
 /* ACPI event handling */
-UINT32		acpi_event_power_button_sleep(void *context);
-UINT32		acpi_event_power_button_wake(void *context);
-UINT32		acpi_event_sleep_button_sleep(void *context);
-UINT32		acpi_event_sleep_button_wake(void *context);
+UINT32		acpi_event_power_button_sleep(struct acpi_softc *sc);
+UINT32		acpi_event_power_button_wake(struct acpi_softc *sc);
+UINT32		acpi_event_sleep_button_sleep(struct acpi_softc *sc);
+UINT32		acpi_event_sleep_button_wake(struct acpi_softc *sc);
 
 #define ACPI_EVENT_PRI_FIRST      0
 #define ACPI_EVENT_PRI_DEFAULT    10000
