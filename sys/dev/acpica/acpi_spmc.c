@@ -473,9 +473,9 @@ acpi_spmc_attach(device_t dev)
 		    "will not check for them before suspend\n", error);
 
 	sc->eh_suspend = EVENTHANDLER_REGISTER(acpi_post_dev_suspend,
-	    acpi_spmc_suspend, dev, 0);
+	    acpi_spmc_suspend, dev, EVENTHANDLER_PRI_ANY);
 	sc->eh_resume = EVENTHANDLER_REGISTER(acpi_pre_dev_resume,
-	    acpi_spmc_resume, dev, 0);
+	    acpi_spmc_resume, dev, EVENTHANDLER_PRI_ANY);
 
 	return (0);
 }

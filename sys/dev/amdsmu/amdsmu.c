@@ -458,9 +458,9 @@ amdsmu_attach(device_t dev)
 	 * event as we want this to be called before the SPMC hook.
 	 */
 	sc->eh_suspend = EVENTHANDLER_REGISTER(acpi_post_dev_suspend,
-	    amdsmu_suspend, dev, -10);
+	    amdsmu_suspend, dev, EVENTHANDLER_PRI_LAST);
 	sc->eh_resume = EVENTHANDLER_REGISTER(acpi_pre_dev_resume,
-	    amdsmu_resume, dev, 10);
+	    amdsmu_resume, dev, EVENTHANDLER_PRI_FIRST);
 #endif
 
 	return (0);
