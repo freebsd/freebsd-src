@@ -3855,6 +3855,9 @@ again1:
 			vfs_rel(tmp);
 			tmp = NULL;
 		}
+		error = sig_intr();
+		if (error != 0)
+			return (error);
 		error = vn_start_write(NULL, &mp, V_XSLEEP | V_PCATCH);
 		if (error != 0)
 			return (error);
@@ -3937,8 +3940,11 @@ out:
 out1:
 	if (error == ERESTART)
 		return (0);
-	if (error == ERELOOKUP)
-		goto again;
+	if (error == ERELOOKUP) {
+		error = sig_intr();
+		if (error == 0)
+			goto again;
+	}
 	return (error);
 }
 
