@@ -403,7 +403,20 @@ struct nfsdontlist {
  * in the metadata file's extended attribute called pnfsd.dsfile.
  */
 #define	PNFS_FILENAME_LEN	(2 * sizeof(fhandle_t))
+struct opnfsdsfile {
+	fhandle_t	dsf_fh;
+	uint32_t	dsf_dir;
+	union {
+		struct sockaddr_in	sin;
+		struct sockaddr_in6	sin6;
+	} dsf_nam;
+	char		dsf_filename[PNFS_FILENAME_LEN + 1];
+};
+
+/* New structure with stripe fields. */
 struct pnfsdsfile {
+	uint32_t	dsf_stripecnt;
+	uint64_t	dsf_stripesiz;
 	fhandle_t	dsf_fh;
 	uint32_t	dsf_dir;
 	union {

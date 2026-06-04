@@ -5133,11 +5133,15 @@ nfsrvd_layoutget(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 
 	layp = NULL;
+#ifdef notnow
 	if (layouttype == NFSLAYOUT_NFSV4_1_FILES && nfsrv_maxpnfsmirror == 1)
 		layp = malloc(NFSX_V4FILELAYOUT, M_TEMP, M_WAITOK);
 	else if (layouttype == NFSLAYOUT_FLEXFILE)
-		layp = malloc(NFSX_V4FLEXLAYOUT(nfsrv_maxpnfsmirror), M_TEMP,
-		    M_WAITOK);
+#else
+	if (layouttype == NFSLAYOUT_FLEXFILE)
+#endif
+		layp = malloc(NFSX_V4FLEXLAYOUT(NFSDEV_MAXMIRRORS,
+		    NFSDEV_MAXSTRIPE), M_TEMP, M_WAITOK);
 	else
 		nd->nd_repstat = NFSERR_UNKNLAYOUTTYPE;
 	if (layp != NULL)
@@ -5692,7 +5696,7 @@ nfsrvd_allocate(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	nfsattrbit_t attrbits;
 
-	if (!nfsrv_doallocate) {
+	if (!nfsrv_doallocate || nfsrv_devidcnt > 0) {
 		/*
 		 * If any exported file system, such as a ZFS one, cannot
 		 * do VOP_ALLOCATE(), this operation cannot be supported
@@ -5824,9 +5828,9 @@ nfsrvd_deallocate(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	stp->ls_stateid.other[2] = *tl++;
 	/*
-	 * Don't allow this to be done for a DS.
+	 * Don't allow this to be done for a DS or MDS.
 	 */
-	if ((nd->nd_flag & ND_DSSERVER) != 0)
+	if ((nd->nd_flag & ND_DSSERVER) != 0 || nfsrv_devidcnt > 0)
 		nd->nd_repstat = NFSERR_NOTSUPP;
 	/* However, allow the proxy stateid. */
 	if (stp->ls_stateid.seqid == 0xffffffff &&
@@ -6361,6 +6365,8 @@ nfsrvd_seek(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_WRONGTYPE;
 	if (nd->nd_repstat == 0 && off < 0)
 		nd->nd_repstat = NFSERR_NXIO;
+	if (nd->nd_repstat == 0 && nfsrv_devidcnt > 0)
+		nd->nd_repstat = NFSERR_NOTSUPP;
 	if (nd->nd_repstat == 0) {
 		/* Check permissions for the input file. */
 		NFSZERO_ATTRBIT(&attrbits);

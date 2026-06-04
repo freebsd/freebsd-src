@@ -199,9 +199,12 @@ struct nfsd_nfsd_args {
  * NFSDEV_MAXMIRRORS - Maximum level of mirroring for a DS.
  * (Most will only put files on two DSs, but this setting allows up to 4.)
  * NFSDEV_MAXVERS - maximum number of NFS versions supported by Flex File.
+ * NFSDEV_MAXSTRIPE - sanity limit for maximum number of DSs used to stripe a
+ * file, which is nfsrv_maxstripecnt set by the nfsd option.
  */
 #define	NFSDEV_MAXMIRRORS	4
 #define	NFSDEV_MAXVERS		4
+#define NFSDEV_MAXSTRIPE	1024
 
 struct nfsd_pnfsd_args {
 	int	op;		/* Which pNFSd op to perform. */

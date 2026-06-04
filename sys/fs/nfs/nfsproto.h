@@ -282,9 +282,19 @@
 #define	NFSX_V4NAMEDATTRFH	3
 #define	NFSX_V4FILELAYOUT	(4 * NFSX_UNSIGNED + NFSX_V4DEVICEID +	\
 				 NFSX_HYPER + NFSM_RNDUP(NFSX_V4PNFSFH))
-#define	NFSX_V4FLEXLAYOUT(m)	(NFSX_HYPER + 3 * NFSX_UNSIGNED +		\
-    ((m) * (NFSX_V4DEVICEID + NFSX_STATEID + NFSM_RNDUP(NFSX_V4PNFSFH) +	\
-    8 * NFSX_UNSIGNED)))
+
+/*
+ * NFSX_V4FLEXLAYOUT() is the size in bytes of the XDR for ff_layout4, given
+ * m - # of mirrors
+ * s - # of stripes
+ * NFSX_HYPER is for ffl_stripe_unit
+ * "m + 3" calculates the counts of ffl_mirrors and ffm_data_servers plus
+ *   ffl_flags and ffl_stats_collect_hint.
+ * The final section calculates the size of ff_data_server4.
+ */
+#define	NFSX_V4FLEXLAYOUT(m, s)	(NFSX_HYPER + ((m) + 3) * NFSX_UNSIGNED +		\
+    (((m) * (s)) * (NFSX_V4DEVICEID + NFSX_STATEID +				\
+    NFSM_RNDUP(NFSX_V4PNFSFH) + 7 * NFSX_UNSIGNED)))
 
 /* sizes common to multiple NFS versions */
 #define	NFSX_FHMAX		(NFSX_V4FHMAX)
