@@ -493,30 +493,49 @@ local function update_sshd_config(key, value)
 	if root then
 		sshd_config = root .. sshd_config
 	end
-	local f = assert(io.open(sshd_config, "r+"))
-	local tgt = assert(io.open(sshd_config .. ".nuageinit", "w"))
+	local f = io.open(sshd_config, "r")
+	if not f then
+		-- File does not exist, create it with the given key/value
+		f = io.open(sshd_config, "w")
+		if not f then
+			warnmsg("Unable to open " .. sshd_config .. " for writing")
+			return
+		end
+		f:write(key .. " " .. value .. "\n")
+		f:close()
+		return
+	end
+	-- Read existing content
+	local lines = {}
 	local found = false
 	local pattern = "^%s*"..key:lower().."%s+(%w+)%s*#?.*$"
-	while true do
-		local line = f:read()
-		if line == nil then break end
+	for line in f:lines() do
 		local _, _, val = line:lower():find(pattern)
 		if val then
 			found = true
-			if val == value then
-				assert(tgt:write(line .. "\n"))
+			if val ~= value then
+				table.insert(lines, key .. " " .. value)
 			else
-				assert(tgt:write(key .. " " .. value .. "\n"))
+				table.insert(lines, line)
 			end
 		else
-			assert(tgt:write(line .. "\n"))
+			table.insert(lines, line)
 		end
 	end
+	f:close()
 	if not found then
-		assert(tgt:write(key .. " " .. value .. "\n"))
+		table.insert(lines, key .. " " .. value)
 	end
-	assert(f:close())
-	assert(tgt:close())
+	-- Write back
+	f = io.open(sshd_config .. ".nuageinit", "w")
+	if not f then
+		warnmsg("Unable to open " .. sshd_config .. ".nuageinit for writing")
+		return
+	end
+	for _, l in ipairs(lines) do
+		f:write(l .. "\n")
+	end
+	f:close()
 	os.rename(sshd_config .. ".nuageinit", sshd_config)
 end
 
