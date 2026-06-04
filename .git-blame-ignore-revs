@@ -8,6 +8,10 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# sys/sys/assert.h whitespace
+7487932f4fbc5a71231d3b1fc93d160253f38c83
+439710cf003b7849d2119e9a7694d7b27ab6d70f
+157c184689ea3d7b8b6bd89aff849e94f004aa0e
 # asmc style cleanup
 d76bb14e0224e235209d8c07ec132d602b18648b
 # sys/bus.h style fixes
