@@ -246,7 +246,7 @@ static struct {
     { "swapuse",	login_getcapsize },
     { "kqueues",	login_getcapnum  },
     { "umtxp",		login_getcapnum  },
-    { "pipebuf",	login_getcapnum  },
+    { "pipebuf",	login_getcapsize },
     { "vms",		login_getcapnum  },
 };
 
