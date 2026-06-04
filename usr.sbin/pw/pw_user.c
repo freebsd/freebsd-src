@@ -464,7 +464,7 @@ shell_path(char const * path, char *shells[], char *sh)
 						return shellpath;
 				}
 		}
-		if (sh == NULL)
+		if (sh != NULL)
 			errx(EX_OSFILE, "can't find shell `%s' in shell paths", sh);
 		errx(EX_CONFIG, "no default shell available or defined");
 		return NULL;
