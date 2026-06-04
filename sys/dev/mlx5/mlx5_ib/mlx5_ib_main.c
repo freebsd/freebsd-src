@@ -3251,9 +3251,17 @@ static void mlx5_disable_roce(struct mlx5_ib_dev *dev)
 
 static void mlx5_ib_dealloc_q_port_counter(struct mlx5_ib_dev *dev, u8 port_num)
 {
-	mlx5_vport_dealloc_q_counter(dev->mdev,
-				     MLX5_INTERFACE_PROTOCOL_IB,
-				     dev->port[port_num].q_cnt_id);
+	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(dealloc_q_counter_out)] = {};
+
+	if (!dev->port[port_num].q_cnt_id)
+		return;
+
+	MLX5_SET(dealloc_q_counter_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
+	MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
+		 dev->port[port_num].q_cnt_id);
+	mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 	dev->port[port_num].q_cnt_id = 0;
 }
 
@@ -3267,19 +3275,31 @@ static void mlx5_ib_dealloc_q_counters(struct mlx5_ib_dev *dev)
 
 static int mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev)
 {
+	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {};
 	int i;
 	int ret;
 
+	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
+	/*
+	 * On devices that support user contexts, allocate the queue counters
+	 * as a shared resource so QPs owned by a user context (DEVX uid) can
+	 * reference them; otherwise RST2INIT_QP fails with a firmware "bad
+	 * resource state" error.
+	 */
+	if (MLX5_CAP_GEN(dev->mdev, log_max_uctx))
+		MLX5_SET(alloc_q_counter_in, in, uid, MLX5_SHARED_RESOURCE_UID);
+
 	for (i = 0; i < dev->num_ports; i++) {
-		ret = mlx5_vport_alloc_q_counter(dev->mdev,
-						 MLX5_INTERFACE_PROTOCOL_IB,
-						 &dev->port[i].q_cnt_id);
+		ret = mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 		if (ret) {
 			mlx5_ib_warn(dev,
 				     "couldn't allocate queue counter for port %d, err %d\n",
 				     i + 1, ret);
 			goto dealloc_counters;
 		}
+		dev->port[i].q_cnt_id = MLX5_GET(alloc_q_counter_out, out,
+						 counter_set_id);
 	}
 
 	return 0;
