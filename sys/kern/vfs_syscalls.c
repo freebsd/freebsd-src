@@ -3823,6 +3823,15 @@ again:
 	}
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
+	if (tdvp == vp_crossmp) {
+		/*
+		 * Rename of the root vnode of the mounted
+		 * filesystem. It is possible to get there with the
+		 * nullfs mount over the regular file.
+		 */
+		error = EBUSY;
+		goto out;
+	}
 	if (tvp != NULL && (flags & AT_RENAME_NOREPLACE) != 0) {
 		/*
 		 * Often filesystems need to relock the vnodes in
