@@ -123,20 +123,22 @@ _Static_assert(sizeof(uid_t) == sizeof(u_int) && (uid_t)-1 >= 0 &&
  * encoding for simplicity.
  *
  * There is currently room for "only" 16 bits.  As these flags are purely
- * internal, they can be renumbered and/or their type changed as needed.
+ * internal, they can be renumbered and/or the underlying type changed as
+ * needed.
  *
  * See also the check_*() functions below.
  */
 typedef uint16_t	flags_t;
 
-/* (i,gid) Specification concerns primary groups. */
+/* (i,gid) Group can appear as a primary group. */
 #define MDF_PRIMARY	(1u << 0)
-/* (i,gid) Specification concerns supplementary groups. */
+/* (i,gid) Group can appear as a supplementary group. */
 #define MDF_SUPP_ALLOW	(1u << 1)
 /* (i,gid) Group must appear as a supplementary group. */
 #define MDF_SUPP_MUST	(1u << 2)
 /* (i,gid) Group must not appear as a supplementary group. */
 #define MDF_SUPP_DONT	(1u << 3)
+/* (i,gid) Mask to detect a supplementary group specification. */
 #define MDF_SUPP_MASK	(MDF_SUPP_ALLOW | MDF_SUPP_MUST | MDF_SUPP_DONT)
 #define MDF_ID_MASK	(MDF_PRIMARY | MDF_SUPP_MASK)
 
@@ -144,8 +146,8 @@ typedef uint16_t	flags_t;
  * (t) All IDs allowed.
  *
  * For GIDs, MDF_ANY only concerns primary groups.  The MDF_PRIMARY and
- * MDF_SUPP_* flags never apply to MDF_ANY, but can be present if MDF_CURRENT is
- * present also, as usual.
+ * MDF_SUPP_* flags do not apply to MDF_ANY, but can be present if MDF_CURRENT
+ * is present also, as for explicit IDs.
  */
 #define MDF_ANY			(1u << 8)
 /* (t) Current IDs allowed. */
