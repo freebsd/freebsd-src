@@ -349,23 +349,31 @@ local function addgroup(grp)
 end
 
 local function addsshkey(homedir, key)
-	local chownak = false
-	local chowndotssh = false
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	if root then
 		homedir = root .. "/" .. homedir
 	end
 	local ak_path = homedir .. "/.ssh/authorized_keys"
 	local dotssh_path = homedir .. "/.ssh"
-	local dirattrs = lfs.attributes(ak_path)
-	if dirattrs == nil then
-		chownak = true
-		dirattrs = lfs.attributes(dotssh_path)
-		if dirattrs == nil then
-			assert(lfs.mkdir(dotssh_path))
-			chowndotssh = true
-			dirattrs = lfs.attributes(homedir)
+
+	-- Check what already exists before creating anything
+	local ak_exists = lfs.attributes(ak_path) ~= nil
+	local dotssh_exists = lfs.attributes(dotssh_path) ~= nil
+
+	-- Ensure .ssh directory exists
+	if not dotssh_exists then
+		local r, err = mkdir_p(dotssh_path)
+		if not r then
+			warnmsg("cannot create " .. dotssh_path .. ": " .. err)
+			return
 		end
+	end
+
+	-- Get homedir attributes for ownership
+	local dirattrs = lfs.attributes(homedir)
+	if not dirattrs then
+		warnmsg("cannot get attributes for " .. homedir)
+		return
 	end
 
 	local f = io.open(ak_path, "a")
@@ -375,19 +383,19 @@ local function addsshkey(homedir, key)
 	end
 	f:write(key .. "\n")
 	f:close()
-	if chownak then
+
+	-- Set permissions and ownership on newly created files/dirs
+	if not ak_exists then
 		chmod(ak_path, "0600")
 		chown(ak_path, dirattrs.uid, dirattrs.gid)
 	end
-	if chowndotssh then
+	if not dotssh_exists then
 		chmod(dotssh_path, "0700")
 		chown(dotssh_path, dirattrs.uid, dirattrs.gid)
 	end
 end
 
 local function adddoas(pwd)
-	local chmodetcdir = false
-	local chmoddoasconf = false
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	local localbase = getlocalbase()
 	local etcdir = localbase .. "/etc"
@@ -395,18 +403,19 @@ local function adddoas(pwd)
 		etcdir= root .. etcdir
 	end
 	local doasconf = etcdir .. "/doas.conf"
-	local doasconf_attr = lfs.attributes(doasconf)
-	if doasconf_attr == nil then
-		chmoddoasconf = true
-		local dirattrs = lfs.attributes(etcdir)
-		if dirattrs == nil then
-			local r, err = mkdir_p(etcdir)
-			if not r then
-				return nil, err .. " (creating " .. etcdir .. ")"
-			end
-			chmodetcdir = true
+
+	local doasconf_exists = lfs.attributes(doasconf) ~= nil
+	local etcdir_exists = lfs.attributes(etcdir) ~= nil
+
+	-- Ensure etc directory exists
+	if not etcdir_exists then
+		local r, err = mkdir_p(etcdir)
+		if not r then
+			warnmsg("cannot create " .. etcdir .. ": " .. err)
+			return
 		end
 	end
+
 	local f = io.open(doasconf, "a")
 	if not f then
 		warnmsg("impossible to open " .. doasconf)
@@ -424,17 +433,17 @@ local function adddoas(pwd)
 		end
 	end
 	f:close()
-	if chmoddoasconf then
+
+	-- Set permissions on newly created files/dirs
+	if not doasconf_exists then
 		chmod(doasconf, "0640")
 	end
-	if chmodetcdir then
+	if not etcdir_exists then
 		chmod(etcdir, "0755")
 	end
 end
 
 local function addsudo(pwd)
-	local chmodsudoersd = false
-	local chmodsudoers = false
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	local localbase = getlocalbase()
 	local sudoers_dir = localbase .. "/etc/sudoers.d"
@@ -442,18 +451,19 @@ local function addsudo(pwd)
 		sudoers_dir= root .. sudoers_dir
 	end
 	local sudoers = sudoers_dir .. "/90-nuageinit-users"
-	local sudoers_attr = lfs.attributes(sudoers)
-	if sudoers_attr == nil then
-		chmodsudoers = true
-		local dirattrs = lfs.attributes(sudoers_dir)
-		if dirattrs == nil then
-			local r, err = mkdir_p(sudoers_dir)
-			if not r then
-				return nil, err .. " (creating " .. sudoers_dir .. ")"
-			end
-			chmodsudoersd = true
+
+	local sudoers_exists = lfs.attributes(sudoers) ~= nil
+	local sudoers_dir_exists = lfs.attributes(sudoers_dir) ~= nil
+
+	-- Ensure sudoers.d directory exists
+	if not sudoers_dir_exists then
+		local r, err = mkdir_p(sudoers_dir)
+		if not r then
+			warnmsg("cannot create " .. sudoers_dir .. ": " .. err)
+			return
 		end
 	end
+
 	local f = io.open(sudoers, "a")
 	if not f then
 		warnmsg("impossible to open " .. sudoers)
@@ -467,10 +477,12 @@ local function addsudo(pwd)
 		end
 	end
 	f:close()
-	if chmodsudoers then
+
+	-- Set permissions on newly created files/dirs
+	if not sudoers_exists then
 		chmod(sudoers, "0440")
 	end
-	if chmodsudoersd then
+	if not sudoers_dir_exists then
 		chmod(sudoers_dir, "0750")
 	end
 end
