@@ -612,9 +612,8 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	buf[namelen] = 0;
 
 restart:
-	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | NOCACHE |
-	    EMPTYPATH, UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights,
-	    CAP_BINDAT));
+	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | NOCACHE,
+	    UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights, CAP_BINDAT));
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
