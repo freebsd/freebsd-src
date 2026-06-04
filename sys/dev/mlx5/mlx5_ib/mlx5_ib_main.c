@@ -47,6 +47,12 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
+#include <rdma/uverbs_types.h>
+#include <rdma/uverbs_std_types.h>
+#define UVERBS_MODULE_NAME mlx5_ib
+#include <rdma/uverbs_named_ioctl.h>
+#include <rdma/mlx5_user_ioctl_cmds.h>
+#include <rdma/mlx5_user_ioctl_verbs.h>
 #include <linux/in.h>
 #include <linux/etherdevice.h>
 #include <dev/mlx5/fs.h>
@@ -1534,15 +1540,44 @@ static int mlx5_ib_mmap_clock_info_page(struct mlx5_ib_dev *dev,
 	return -EOPNOTSUPP;
 }
 
+static int mlx5_cmd_uar_alloc(struct mlx5_core_dev *dev, u32 *uarn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(alloc_uar_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(alloc_uar_in)] = {};
+	int err;
+
+	MLX5_SET(alloc_uar_in, in, opcode, MLX5_CMD_OP_ALLOC_UAR);
+	MLX5_SET(alloc_uar_in, in, uid, uid);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*uarn = MLX5_GET(alloc_uar_out, out, uar);
+	return 0;
+}
+
+static int mlx5_cmd_uar_dealloc(struct mlx5_core_dev *dev, u32 uarn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(dealloc_uar_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(dealloc_uar_in)] = {};
+
+	MLX5_SET(dealloc_uar_in, in, opcode, MLX5_CMD_OP_DEALLOC_UAR);
+	MLX5_SET(dealloc_uar_in, in, uar, uarn);
+	MLX5_SET(dealloc_uar_in, in, uid, uid);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 static void mlx5_ib_mmap_free(struct rdma_user_mmap_entry *entry)
 {
 	struct mlx5_user_mmap_entry *mentry = to_mmmap(entry);
 	struct mlx5_ib_dev *dev = to_mdev(entry->ucontext->device);
+	struct mlx5_ib_ucontext *context = to_mucontext(entry->ucontext);
 
 	switch (mentry->mmap_flag) {
 	case MLX5_IB_MMAP_TYPE_UAR_WC:
 	case MLX5_IB_MMAP_TYPE_UAR_NC:
-		mlx5_cmd_free_uar(dev->mdev, mentry->page_idx);
+		mlx5_cmd_uar_dealloc(dev->mdev, mentry->page_idx,
+				     context->devx_uid);
 		kfree(mentry);
 		break;
 	default:
@@ -3328,8 +3363,134 @@ free:
 	return ARRAY_SIZE(names);
 }
 
+/*
+ * MLX5_IB_OBJECT_UAR: allocate a dedicated UAR for user space and expose it
+ * through an mmap entry.  Modern libmlx5 uses this (dynamic UAR) to obtain the
+ * UAR backing CQ/QP doorbells instead of the legacy static UAR pages.
+ */
+static int mmap_obj_cleanup(struct ib_uobject *uobject,
+			    enum rdma_remove_reason why,
+			    struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_user_mmap_entry *obj = uobject->object;
+
+	rdma_user_mmap_entry_remove(&obj->rdma_entry);
+	return 0;
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_UAR_OBJ_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
+		MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE);
+	enum mlx5_ib_uapi_uar_alloc_type alloc_type;
+	struct mlx5_user_mmap_entry *entry;
+	struct mlx5_ib_ucontext *c;
+	struct mlx5_ib_dev *dev;
+	u32 uar_index;
+	u32 length = PAGE_SIZE;
+	u64 mmap_offset;
+	int err;
+
+	c = to_mucontext(ib_uverbs_get_ucontext(attrs));
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	dev = to_mdev(c->ibucontext.device);
+
+	err = uverbs_get_const(&alloc_type, attrs,
+			       MLX5_IB_ATTR_UAR_OBJ_ALLOC_TYPE);
+	if (err)
+		return err;
+
+	if (alloc_type != MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF &&
+	    alloc_type != MLX5_IB_UAPI_UAR_ALLOC_TYPE_NC)
+		return -EOPNOTSUPP;
+
+	if (alloc_type == MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF && !dev->wc_support)
+		return -EOPNOTSUPP;
+
+	err = mlx5_cmd_uar_alloc(dev->mdev, &uar_index, c->devx_uid);
+	if (err)
+		return err;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		err = -ENOMEM;
+		goto err_uar;
+	}
+
+	entry->mmap_flag = (alloc_type == MLX5_IB_UAPI_UAR_ALLOC_TYPE_NC) ?
+		MLX5_IB_MMAP_TYPE_UAR_NC : MLX5_IB_MMAP_TYPE_UAR_WC;
+	entry->page_idx = uar_index;
+	entry->address = uar_index2pfn(dev, uar_index) << PAGE_SHIFT;
+
+	err = rdma_user_mmap_entry_insert(&c->ibucontext, &entry->rdma_entry,
+					  length);
+	if (err)
+		goto err_entry;
+
+	mmap_offset = rdma_user_mmap_get_offset(&entry->rdma_entry);
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
+			     &mmap_offset, sizeof(mmap_offset));
+	if (err)
+		goto err_insert;
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
+			     &length, sizeof(length));
+	if (err)
+		goto err_insert;
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
+			     &uar_index, sizeof(uar_index));
+	if (err)
+		goto err_insert;
+
+	uobj->object = entry;
+	return 0;
+
+err_insert:
+	/* Removing the entry frees the UAR and the entry itself. */
+	rdma_user_mmap_entry_remove(&entry->rdma_entry);
+	return err;
+err_entry:
+	kfree(entry);
+err_uar:
+	mlx5_cmd_uar_dealloc(dev->mdev, uar_index, c->devx_uid);
+	return err;
+}
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_UAR_OBJ_ALLOC,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE,
+			MLX5_IB_OBJECT_UAR,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_UAR_OBJ_ALLOC_TYPE,
+			     enum mlx5_ib_uapi_uar_alloc_type,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
+			    UVERBS_ATTR_TYPE(u32),
+			    UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
+			    UVERBS_ATTR_TYPE(u32),
+			    UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
+			    UVERBS_ATTR_TYPE(u64),
+			    UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	MLX5_IB_METHOD_UAR_OBJ_DESTROY,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_UAR_OBJ_DESTROY_HANDLE,
+			MLX5_IB_OBJECT_UAR,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_UAR,
+			    UVERBS_TYPE_ALLOC_IDR(mmap_obj_cleanup),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_UAR_OBJ_ALLOC),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_UAR_OBJ_DESTROY));
+
 static const struct uapi_definition mlx5_ib_defs[] = {
 	UAPI_DEF_CHAIN(mlx5_ib_devx_defs),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_UAR),
 	{}
 };
 
