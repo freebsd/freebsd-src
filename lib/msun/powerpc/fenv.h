@@ -142,6 +142,15 @@ int feholdexcept(fenv_t *);
 int fesetenv(const fenv_t *);
 int feupdateenv(const fenv_t *);
 
+/*
+ * C permits a standard library function to also be exposed as a function-like
+ * macro (C23 7.1.4), and msun uses that here to inline the fast path.  C++
+ * forbids it: <cfenv> imports these names into namespace std (using
+ * ::feclearexcept; etc.), so std::feclearexcept() and friends must denote the
+ * actual functions.  Expose the inlining macros to C only; C++ uses the real
+ * extern functions (defined in the matching lib/msun/<arch>/fenv.c).
+ */
+#ifndef __cplusplus
 #define	feclearexcept(a)	__feclearexcept_int(a)
 #define	fegetexceptflag(e, a)	__fegetexceptflag_int(e, a)
 #define	fesetexceptflag(e, a)	__fesetexceptflag_int(e, a)
@@ -153,6 +162,7 @@ int feupdateenv(const fenv_t *);
 #define	feholdexcept(e)		__feholdexcept_int(e)
 #define	fesetenv(e)		__fesetenv_int(e)
 #define	feupdateenv(e)		__feupdateenv_int(e)
+#endif /* !__cplusplus */
 
 __fenv_static inline int
 __feclearexcept_int(int __excepts)
@@ -289,8 +299,10 @@ __feupdateenv_int(const fenv_t *__envp)
 int feenableexcept(int);
 int fedisableexcept(int);
 
+#ifndef __cplusplus	/* see the note above; C++ uses the real functions */
 #define	feenableexcept(a)	__feenableexcept_int(a)
 #define	fedisableexcept(a)	__fedisableexcept_int(a)
+#endif
 
 __fenv_static inline int
 __feenableexcept_int(int __mask)
