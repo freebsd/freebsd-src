@@ -67,10 +67,12 @@ typedef uint64_t unp_gen_t;
  * (a) Atomic
  * (c) Constant
  * (g) Locked using linkage lock
+ * (h) Locked using the abstract-namespace hash lock
  * (l) Locked using list lock
  * (p) Locked using pcb lock
  */
 LIST_HEAD(unp_head, unpcb);
+struct unp_absent;
 
 struct unpcb {
 	/* Cache line 1 */
@@ -95,6 +97,7 @@ struct unpcb {
 	ino_t	unp_ino;		/* (g) fake inode number */
 	mode_t  unp_mode;		/* (g) initial pre-bind() mode */
 	LIST_ENTRY(unpcb) unp_dead;	/* (g) link in dead list */
+	struct unp_absent *unp_absent;	/* (h) abstract namespace binding */
 } __aligned(CACHE_LINE_SIZE);
 
 /*
