@@ -271,7 +271,6 @@ local function adduser(pwd)
 	if not pwd.shell then
 		pwd.shell = "/bin/sh"
 	end
-	local precmd = ""
 	local postcmd = ""
 	local input = nil
 	if pwd.passwd then
@@ -281,7 +280,7 @@ local function adduser(pwd)
 		input = pwd.plain_text_passwd
 		postcmd = " -h 0"
 	end
-	cmd = precmd .. "pw "
+	cmd = "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
@@ -293,7 +292,7 @@ local function adduser(pwd)
 	if input then
 		f:write(input)
 	end
-	local r = f:close(cmd)
+	local r = f:close()
 	if not r then
 		warnmsg("fail to add user " .. pwd.name)
 		warnmsg(cmd)
@@ -536,7 +535,7 @@ local function exec_change_password(user, password, type, expire)
 		f:write(input)
 	end
 	-- ignore stdout to avoid printing the password in case of random password
-	local r = f:close(cmd)
+	local r = f:close()
 	if not r then
 		warnmsg("fail to change user password ".. user)
 		warnmsg(cmd)
