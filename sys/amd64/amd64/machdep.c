@@ -87,6 +87,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
+#include <sys/uio.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
