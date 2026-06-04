@@ -170,7 +170,7 @@ static void	acpi_probe_children(device_t bus);
 static void	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 		    void *context, void **status);
-static void	acpi_sleep_enable(void *arg);
+static void	acpi_sleep_enable_locked(void *arg);
 static ACPI_STATUS acpi_sleep_disable(struct acpi_softc *sc);
 static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc,
 		    enum power_stype stype);
@@ -801,7 +801,7 @@ acpi_attach(device_t dev)
     /* Allow sleep request after a while. */
     callout_init_mtx(&acpi_sleep_timer, &acpi_mutex, 0);
     callout_reset(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME,
-	acpi_sleep_enable, sc);
+	acpi_sleep_enable_locked, sc);
 
     error = 0;
 
@@ -3470,7 +3470,7 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
 }
 
 static void
-acpi_sleep_enable(void *arg)
+acpi_sleep_enable_locked(void *arg)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)arg;
 
