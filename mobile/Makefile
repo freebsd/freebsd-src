@@ -113,7 +113,10 @@ quick:
 	cd kernel && $(MAKE) all QEMU=1 CONFIG_QEMU=1
 
 qemu: quick
-	bash tools/riscv/qemu-riscv-run.sh
+	bash tools/run-uos-qemu.sh
+
+vm-test: quick
+	bash tools/run-uos-qemu.sh --headless --cores 4 --mem 2G
 
 test:
 	bash tools/run_unified_tests.sh

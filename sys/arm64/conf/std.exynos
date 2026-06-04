@@ -1,0 +1,59 @@
+#
+# std.exynos -- Samsung Exynos SoC standard support
+#               UOS Mobile OS (FreeBSD-based)
+#
+# Covers Exynos 850, 9825, 990, 1330, 1380, 2100, 2200 series
+#
+
+# SoC identification
+options		SOC_SAMSUNG
+options		SOC_EXYNOS
+
+# Exynos clock drivers
+device		exynos_clk		# Exynos top-level clock controller
+device		exynos_cmu		# Clock management unit
+
+# PMU (Power Management Unit)
+device		exynos_pmu
+
+# CPU frequency scaling
+options		EXYNOS_CPUFREQ
+
+# Thermal management
+options		EXYNOS_THERMAL
+
+# GPIO / Pinctrl
+device		exynos_gpio
+device		exynos_pinctrl
+
+# Serial (UART)
+device		uart
+device		uart_ns8250
+
+# I2C
+device		iicbus
+device		iic
+device		exynos_i2c
+
+# SPI
+device		spibus
+device		exynos_spi
+
+# USB
+options		EXYNOS_USB
+options		EXYNOS_TYPEC
+options		EXYNOS_USBPD
+device		exynos_usb
+device		dwc3			# DesignWare USB3
+
+# Storage
+options		EXYNOS_FSD
+options		EXYNOS_MC
+device		exynos_ufs
+device		exynos_mmc
+
+# FDT / Device Tree
+options		FDT
+
+# DTB modules
+makeoptions	MODULES_EXTRA+="dtb/samsung_exynos"
