@@ -825,7 +825,6 @@ acpi_stype_to_sstate(const struct acpi_softc *const sc,
 	case POWER_STYPE_POWEROFF:
 		return (ACPI_STATE_S5);
 	case POWER_STYPE_SUSPEND_TO_IDLE:
-	case POWER_STYPE_COUNT:
 	case POWER_STYPE_UNKNOWN:
 		return (ACPI_STATE_UNKNOWN);
 	}
@@ -3734,7 +3733,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
 #endif
     case POWER_STYPE_AWAKE:
     case POWER_STYPE_POWEROFF:
-    case POWER_STYPE_COUNT:
     case POWER_STYPE_UNKNOWN:
 	__unreachable();
     }
