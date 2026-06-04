@@ -502,6 +502,28 @@ local function ssh_pwauth(obj)
 	nuage.update_sshd_config("PasswordAuthentication", value)
 end
 
+local function ssh_deletekeys(obj)
+	if obj.ssh_deletekeys == nil then return end
+	if obj.ssh_deletekeys then
+		nuage.delete_ssh_host_keys(root)
+	end
+end
+
+local function disable_root(obj)
+	if obj.disable_root == nil then return end
+	if obj.disable_root then
+		local value = "no"
+		if obj.disable_root_opts then
+			if type(obj.disable_root_opts) == "string" then
+				value = obj.disable_root_opts
+			elseif type(obj.disable_root_opts) == "table" then
+				value = obj.disable_root_opts[1]
+			end
+		end
+		nuage.update_sshd_config("PermitRootLogin", value)
+	end
+end
+
 local function runcmd(obj)
 	if obj.runcmd == nil then return end
 	local f = nil
@@ -776,8 +798,10 @@ elseif line == "#cloud-config" then
 		settimezone,
 		groups,
 		create_default_user,
+		ssh_deletekeys,
 		ssh_keys,
 		network_config,
+		disable_root,
 		ssh_pwauth,
 		runcmd,
 		write_files_not_deferred,
