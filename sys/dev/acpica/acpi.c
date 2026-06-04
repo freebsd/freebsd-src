@@ -4118,8 +4118,7 @@ acpi_system_eventhandler_sleep(void *arg, enum power_stype stype)
 	return;
 
     /*
-     * Request that the system prepare to enter the given suspend state. We can
-     * totally pass an ACPI S-state to an enum power_stype.
+     * Request that the system prepare to enter the given suspend state.
      */
     ret = acpi_ReqSleepState(sc, stype);
     if (ret != 0)
