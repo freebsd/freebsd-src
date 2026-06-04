@@ -504,42 +504,32 @@ diffnode()
 		$COMPARE_EQUAL)
 			;;
 		$COMPARE_ONLYFIRST)
-			echo
 			echo "Removed: $3"
-			echo
 			;;
 		$COMPARE_ONLYSECOND)
-			echo
 			echo "Added: $3"
-			echo
 			;;
 		$COMPARE_DIFFTYPE)
 			first=`file_type $1/$3`
 			second=`file_type $2/$3`
-			echo
 			echo "Node changed from a $first to a $second: $3"
-			echo
 			;;
 		$COMPARE_DIFFLINKS)
 			first=`readlink $1/$file`
 			second=`readlink $2/$file`
-			echo
 			echo "Link changed: $file"
 			rule "="
 			echo "-$first"
 			echo "+$second"
-			echo
 			;;
 		$COMPARE_DIFFFILES)
 			if [ -n "$difflistonly" ]; then
-				echo
 				echo "Changed: $3"
-				echo
-				break;
+			else
+				echo "Index: $3"
+				rule "="
+				diff -u $diffargs -L "$3 ($4)" -L "$3 ($5)" $1/$3 $2/$3
 			fi
-			echo "Index: $3"
-			rule "="
-			diff -u $diffargs -L "$3 ($4)" -L "$3 ($5)" $1/$3 $2/$3
 			;;
 	esac
 }
