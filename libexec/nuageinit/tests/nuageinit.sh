@@ -19,6 +19,7 @@ atf_test_case config2_pubkeys_user_data
 atf_test_case config2_pubkeys_meta_data
 atf_test_case config2_network
 atf_test_case config2_network_static_v4
+atf_test_case config2_network_dns
 atf_test_case config2_ssh_keys
 atf_test_case nocloud_userdata_cloudconfig_ssh_pwauth
 atf_test_case nocloud_userdata_cloudconfig_chpasswd
@@ -458,6 +459,51 @@ static_routes="cloudinit1_${myiface}"
 EOF
 	atf_check -o file:network cat "${PWD}"/etc/rc.conf.d/network
 	atf_check -o file:routing cat "${PWD}"/etc/rc.conf.d/routing
+}
+
+config2_network_dns_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	mynetworks=$(ifconfig -l ether)
+	if [ -z "$mynetworks" ]; then
+		atf_skip "a network interface is needed"
+	fi
+	set -- $mynetworks
+	myiface=$1
+	myaddr=$(ifconfig $myiface ether | awk '/ether/ { print $2 }')
+cat > media/nuageinit/network_data.json << EOF
+{
+    "links": [
+        {
+            "ethernet_mac_address": "$myaddr",
+            "id": "iface0",
+            "mtu": null
+        }
+    ],
+    "networks": [
+        {
+            "id": "network0",
+            "link": "iface0",
+            "type": "ipv4_dhcp"
+        }
+    ],
+    "services": [
+        {
+            "type": "dns",
+            "address": "9.9.9.9"
+        },
+        {
+            "type": "dns",
+            "address": "149.112.112.112"
+        }
+    ]
+}
+EOF
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:'name_servers="9.9.9.9 149.112.112.112"\n' \
+		cat "${PWD}"/etc/resolvconf.conf
 }
 
 config2_ssh_keys_head()
@@ -938,6 +984,7 @@ atf_init_test_cases()
 	atf_add_test_case config2_pubkeys_meta_data
 	atf_add_test_case config2_network
 	atf_add_test_case config2_network_static_v4
+	atf_add_test_case config2_network_dns
 	atf_add_test_case config2_ssh_keys
 	atf_add_test_case nocloud_userdata_cloudconfig_ssh_pwauth
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd
