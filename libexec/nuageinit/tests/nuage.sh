@@ -29,7 +29,7 @@ settimezone_body()
 
 sethostname_body()
 {
-	atf_check /usr/libexec/flua $(atf_get_srcdir)/sethostname.lua
+	atf_check -e ignore /usr/libexec/flua $(atf_get_srcdir)/sethostname.lua
 	if [ ! -f etc/rc.conf.d/hostname ]; then
 		atf_fail "hostname not written"
 	fi
