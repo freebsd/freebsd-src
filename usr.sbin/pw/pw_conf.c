@@ -156,22 +156,22 @@ static char const *kwds[] =
 };
 
 static char    *
-unquote(char const * str)
+unquote(char * str)
 {
 	if (str && (*str == '"' || *str == '\'')) {
 		char           *p = strchr(str + 1, *str);
 
 		if (p != NULL)
 			*p = '\0';
-		return (char *) (*++str ? str : NULL);
+		return (*++str ? str : NULL);
 	}
-	return (char *) str;
+	return (str);
 }
 
 int
 boolean_val(char const * str, int dflt)
 {
-	if ((str = unquote(str)) != NULL) {
+	if ((str = unquote((char *)str)) != NULL) {
 		int             i;
 
 		for (i = 0; booltrue[i]; i++)
@@ -187,7 +187,7 @@ boolean_val(char const * str, int dflt)
 int
 passwd_val(char const * str, int dflt)
 {
-	if ((str = unquote(str)) != NULL) {
+	if ((str = unquote((char *)str)) != NULL) {
 		int             i;
 
 		for (i = 0; booltrue[i]; i++)
@@ -228,7 +228,7 @@ newstr(char const * p)
 {
 	char	*q;
 
-	if ((p = unquote(p)) == NULL)
+	if ((p = unquote((char *)p)) == NULL)
 		return (NULL);
 
 	if ((q = strdup(p)) == NULL)
