@@ -1250,17 +1250,20 @@ tryagain:
 				if (bcmp(sep->nfsess_sessionid,
 				    nd->nd_sessionid, NFSX_V4SESSIONID) == 0 &&
 				    sep->nfsess_defunct == 0) {
-					printf("Initiate recovery. If server "
-					    "has not rebooted, "
-					    "check NFS clients for unique "
-					    "/etc/hostid's\n");
 					/* Initiate recovery. */
 					sep->nfsess_defunct = 1;
 					NFSCL_DEBUG(1, "Marked defunct\n");
-					if (nmp->nm_clp != NULL) {
+					if (nmp->nm_clp != NULL &&
+					    (nmp->nm_clp->nfsc_flags &
+					     (NFSCLFLAGS_RECVRINPROG |
+					      NFSCLFLAGS_RECOVER)) == 0) {
 						nmp->nm_clp->nfsc_flags |=
 						    NFSCLFLAGS_RECOVER;
 						wakeup(nmp->nm_clp);
+						printf("Initiate recovery. If "
+						    "server has not rebooted, "
+						    "check NFS clients for "
+						    "unique /etc/hostid's\n");
 					}
 				}
 				NFSUNLOCKCLSTATE();
