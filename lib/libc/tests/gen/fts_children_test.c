@@ -21,7 +21,11 @@
 
 #include <atf-c.h>
 
-#include "fts_test.h"
+static int
+fts_lexical_compar(const FTSENT * const *a, const FTSENT * const *b)
+{
+	return (strcmp((*a)->fts_name, (*b)->fts_name));
+}
 
 /*
  * fts_children() before fts_read() returns the list of root entries.
@@ -164,8 +168,7 @@ ATF_TC_BODY(called_twice, tc)
 	ATF_REQUIRE_EQ(0, close(creat("dir/x", 0644)));
 	ATF_REQUIRE_EQ(0, close(creat("dir/y", 0644)));
 
-	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
-	    fts_lexical_compar)) != NULL);
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
 	ent = fts_read(fts);
 	ATF_REQUIRE(ent != NULL);
@@ -218,8 +221,7 @@ ATF_TC_BODY(nameonly, tc)
 	ATF_REQUIRE_EQ(0, close(creat("dir/f1", 0644)));
 	ATF_REQUIRE_EQ(0, close(creat("dir/f2", 0644)));
 
-	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
-	    fts_lexical_compar)) != NULL);
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
 	ent = fts_read(fts);
 	ATF_REQUIRE(ent != NULL);
@@ -266,8 +268,7 @@ ATF_TC_BODY(nondirectory, tc)
 	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
 	ATF_REQUIRE_EQ(0, close(creat("dir/file", 0644)));
 
-	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
-	    fts_lexical_compar)) != NULL);
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
 
 	ent = fts_read(fts);	/* FTS_D dir */
 	ATF_REQUIRE(ent != NULL);
@@ -310,7 +311,6 @@ ATF_TC_BODY(invalid_options, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-	fts_check_debug();
 	ATF_TP_ADD_TC(tp, before_read);
 	ATF_TP_ADD_TC(tp, empty_dir);
 	ATF_TP_ADD_TC(tp, nonempty_dir);
