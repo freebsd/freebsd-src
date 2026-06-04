@@ -70,4 +70,11 @@ if read_config() ~= "PasswordAuthentication yes\n" then
 	n.err("Extra spaces handling failed: '" .. read_config() .. "'")
 end
 
+-- File does not exist: should be created with key/value
+os.remove(sshd_config)
+n.update_sshd_config("PasswordAuthentication", "yes")
+if read_config() ~= "PasswordAuthentication yes\n" then
+	n.err("Missing file: should create: '" .. read_config() .. "'")
+end
+
 os.exit(0)
