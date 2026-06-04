@@ -1,17 +1,18 @@
+.include <src.opts.mk>
+
+.include "${SRCTOP}/lib/libarchive/Makefile.inc"
+
 PACKAGE=	tests
 
 WARNS?=		3
-
-_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
 BINDIR=		${TESTSDIR}
 
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
-CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
-CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/tar/test
+CFLAGS+=	-I${.OBJDIR}
+CFLAGS+=	-I${_LIBARCHIVEDIR}/tar
+CFLAGS+=	-I${_LIBARCHIVEDIR}/tar/test
 CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
 
 CFLAGS.test_utils.c+=	-Wno-cast-align
