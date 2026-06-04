@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 8, 2026
+.Dd June 4, 2026
 .Dt CORE.LUA 8
 .Os
 .Sh NAME
@@ -175,6 +175,12 @@ returns true, then the boot environment is retained in the list.
 Otherwise, the boot environment is hidden.
 The old filter, if any, is returned to allow the caller to compose a filter on
 top of another filter.
+.It Fn core.bootenvIter
+Returns an iterator over the known boot environment list.
+The returned boot environment names do not include the boot environmnt root,
+which would need to be added back on from the
+.Ev zfs_be_root
+environment variable.
 .It Fn core.bootenvList
 Returns a table of boot environments, or an empty table.
 These will be picked up using the
@@ -229,6 +235,15 @@ If there are no elements, this returns nil and nil.
 If there is one element, this returns the front element and an empty table.
 This will not operate on truly associative tables; numeric indices are
 required.
+.It Fn core.switchBE beName
+Switch to the requested
+.Fa beName .
+It may be either be formatted as a fully-qualified loader dataset path
+.Dq zfs:pool/ROOT/beName ,
+or like one of
+.Dq pool/ROOT/beName
+or
+.Dq beName .
 .It Fn core.loaderTooOld
 Returns true if the loader is too old.
 Specifically, this means, is the loader old enough to require one or more

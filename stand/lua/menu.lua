@@ -53,12 +53,7 @@ local function OnOff(str, value)
 end
 
 local function bootenvSet(env)
-	loader.setenv("vfs.root.mountfrom", env)
-	loader.setenv("currdev", env .. ":")
-	config.reload()
-	if loader.getenv("kernelname") ~= nil then
-		loader.perform("unload")
-	end
+	core.switchBE(env)
 end
 
 local function multiUserPrompt()

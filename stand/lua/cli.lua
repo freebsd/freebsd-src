@@ -172,6 +172,29 @@ cli["disable-module"] = function(...)
 	setModule(argv[1], false)
 end
 
+cli['be-list'] = function(...)
+	local _, argv = cli.arguments(...)
+	if #argv ~= 0 then
+		print("usage error: be-list")
+		return
+	end
+
+	for _, bootenv in core.bootenvIter() do
+		print(bootenv)
+	end
+end
+
+cli['be-switch'] = function(...)
+	local _, argv = cli.arguments(...)
+	if #argv == 0 then
+		print("usage error: be-switch beName")
+		return
+	end
+
+	local env = argv[1]
+	core.switchBE(env)
+end
+
 cli["toggle-module"] = function(...)
 	local _, argv = cli.arguments(...)
 	if #argv == 0 then
