@@ -6,6 +6,11 @@
  * (c) UNIX System Laboratories, Inc.
  * Copyright (c) 2000-2001 Robert N. M. Watson.
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Olivier Certner
+ * <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+ * Foundation.
  *
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
