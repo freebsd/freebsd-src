@@ -123,7 +123,7 @@ mkdir_home_parents(int dfd, const char *dir)
 					    dirs);
 				if (fchownat(dfd, dirs, 0, 0, 0) != 0)
 					warn("chown(%s)", dirs);
-				metalog_emit(dir,
+				metalog_emit(dirs,
 				    (_DEF_DIRMODE | S_IFDIR) & ~pumask, 0, 0,
 				    0);
 			}
