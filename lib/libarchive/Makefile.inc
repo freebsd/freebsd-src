@@ -5,7 +5,7 @@
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 LIBARCHIVE_VERSION_ONLY_STRING!= \
 	sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.],,gp;q;}' \
-	    ${LIBARCHIVEDIR}/libarchive/archive.h
+	    ${_LIBARCHIVEDIR}/libarchive/archive.h
 
 LIBADD+=	z bz2 lzma bsdxml zstd
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
