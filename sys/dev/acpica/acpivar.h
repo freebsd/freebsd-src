@@ -475,6 +475,9 @@ EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_post_dev_suspend, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_pre_dev_resume, acpi_event_handler_t);
 
+void		acpi_invoke_sleep_eventhandler(const enum power_stype *stype);
+void		acpi_invoke_wake_eventhandler(const enum power_stype *stype);
+
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);

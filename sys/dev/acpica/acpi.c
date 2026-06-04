@@ -4142,13 +4142,13 @@ acpi_system_eventhandler_wakeup(struct acpi_softc *const sc,
 /*
  * ACPICA Event Handlers (FixedEvent, also called from button notify handler)
  */
-static void
+void
 acpi_invoke_sleep_eventhandler(const enum power_stype *const stype)
 {
     EVENTHANDLER_INVOKE(acpi_sleep_event, *stype);
 }
 
-static void
+void
 acpi_invoke_wake_eventhandler(const enum power_stype *const stype)
 {
     EVENTHANDLER_INVOKE(acpi_wakeup_event, *stype);
