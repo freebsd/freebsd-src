@@ -185,10 +185,10 @@ static int	acpi_wake_prep_walk(struct acpi_softc *sc, enum power_stype stype);
 static int	acpi_wake_sysctl_walk(device_t dev);
 static int	acpi_wake_set_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
-static void	acpi_system_eventhandler_sleep(void *arg,
-		    enum power_stype stype);
-static void	acpi_system_eventhandler_wakeup(void *arg,
-		    enum power_stype stype);
+static void	acpi_system_eventhandler_sleep(struct acpi_softc *const sc,
+		    const enum power_stype stype);
+static void	acpi_system_eventhandler_wakeup(struct acpi_softc *const sc,
+		    const enum power_stype stype);
 static enum power_stype	acpi_sstate_to_stype(int sstate);
 static int	acpi_sname_to_sstate(const char *sname);
 static const char	*acpi_sstate_to_sname(int sstate);
@@ -4106,9 +4106,9 @@ out:
 /* System Event Handlers (registered by EVENTHANDLER_REGISTER) */
 
 static void
-acpi_system_eventhandler_sleep(void *arg, enum power_stype stype)
+acpi_system_eventhandler_sleep(struct acpi_softc *const sc,
+    const enum power_stype stype)
 {
-    struct acpi_softc *sc = (struct acpi_softc *)arg;
     int ret;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, stype);
@@ -4130,13 +4130,12 @@ acpi_system_eventhandler_sleep(void *arg, enum power_stype stype)
 }
 
 static void
-acpi_system_eventhandler_wakeup(void *arg, enum power_stype stype)
+acpi_system_eventhandler_wakeup(struct acpi_softc *const sc,
+    const enum power_stype stype)
 {
-
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, stype);
 
     /* Currently, nothing to do for wakeup. */
-
     return_VOID;
 }
 
