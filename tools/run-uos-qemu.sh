@@ -2,22 +2,16 @@
 # =============================================================================
 # UOS(m) — QEMU-based VM Test & Experience Script
 # =============================================================================
-# This is the PRIMARY entry point for experiencing UOS(m) without
-# physical hardware. It:
-#
-#   1. Validates the host environment (qemu, toolchain, dtc)
-#   2. Builds the RISC-V mini-kernel (auto-rebuild if stale)
-#   3. Prepares the disk image and rootfs
-#   4. Prints a friendly access summary
-#   5. Launches QEMU with VirtIO devices
+# One-command build + QEMU launch. Output goes to the serial console
+# (this terminal). Use --headless + VNC if you want a separate window.
 #
 # Usage:
-#   bash tools/run-uos-qemu.sh                    # defaults: 4 vCPUs, 2G RAM
-#   bash tools/run-uos-qemu.sh --cores 8 --mem 4G # beefy host
-#   bash tools/run-uos-qemu.sh --headless          # no GUI, VNC on :5900
-#   bash tools/run-uos-qemu.sh --gdb               # GDB stub on :1234
+#   bash tools/run-uos-qemu.sh                      # defaults: 4 vCPUs, 2G RAM
+#   bash tools/run-uos-qemu.sh --cores 8 --mem 4G   # beefy host
+#   bash tools/run-uos-qemu.sh --headless            # VNC on :5900
+#   bash tools/run-uos-qemu.sh --gdb                 # GDB stub on :1234
 #
-# Environment overrides:
+# Environment:
 #   FREEBSD_SRC       Repo root (auto-detected)
 #   UOS_QEMU_SMP      vCPU count (default: 4)
 #   UOS_QEMU_MEM      Memory (default: 2G)
@@ -59,8 +53,21 @@ while [ $# -gt 0 ]; do
         --mem)           MEM="$2"; shift 2 ;;
         --headless|--no-display) HEADLESS_MODE=1; shift ;;
         --gdb)           GDB_MODE=1; shift ;;
-        --help|-h)       usage ;;
-        *)               error "Unknown option: $1 (try --help)" ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --cores, --smp N   vCPU count (default: 4)"
+            echo "  --mem SIZE         RAM size, e.g. 512M, 1G, 2G, 4G (default: 2G)"
+            echo "  --headless         No local display; use VNC on :5900"
+            echo "  --gdb              Wait for GDB stub on :1234 before starting CPU"
+            echo "  --help             Show this help"
+            echo ""
+            echo "The OS output appears on the serial console (this terminal)."
+            echo "Connect via SSH with: ssh -p 2222 root@localhost"
+            exit 0
+            ;;
+        *) error "Unknown option: $1 (try --help)" ;;
     esac
 done
 
@@ -72,7 +79,6 @@ banner ""
 banner "  ╔══════════════════════════════════════════════════════════════╗"
 banner "  ║                                                              ║"
 banner "  ║   UOS(m) Mobile OS  —  QEMU Test & Experience               ║"
-banner "  ║   Build the kernel, create the disk image, launch QEMU      ║"
 banner "  ║                                                              ║"
 banner "  ╚══════════════════════════════════════════════════════════════╝"
 banner ""
@@ -81,31 +87,23 @@ echo ""
 # ---------------------------------------------------------------------------
 # Phase 1: Dependency check
 # ---------------------------------------------------------------------------
-banner "Phase 1/4: Checking dependencies..."
-
-MISSING=0
+banner "Phase 1/5: Checking dependencies..."
 
 check_cmd() {
     if command -v "$1" &>/dev/null; then
-        v=$("$1" --version 2>&1 | head -1)
-        success "$1 found ($v)"
+        success "$1 found"
     else
-        error "$1 not found. Install it first."
+        error "$1 not found. Install it first (see mobile/TESTING.md)"
     fi
 }
 
 check_cmd qemu-system-riscv64
+check_cmd qemu-img
 
 if command -v riscv64-unknown-elf-gcc &>/dev/null; then
     success "RISC-V toolchain found ($(riscv64-unknown-elf-gcc --version | head -1))"
 else
     warn "riscv64-unknown-elf-gcc not found — will attempt build anyway"
-fi
-
-if command -v qemu-img &>/dev/null; then
-    success "qemu-img found"
-else
-    error "qemu-img not found (install qemu-utils)"
 fi
 
 if [ "$GDB_MODE" -eq 1 ] && ! command -v riscv64-unknown-elf-gdb &>/dev/null; then
@@ -115,9 +113,38 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Phase 2: Build the kernel
+# Phase 2: Locate OpenSBI firmware
 # ---------------------------------------------------------------------------
-banner "Phase 2/4: Building RISC-V mini-kernel"
+banner "Phase 2/5: Locating RISC-V firmware (OpenSBI)"
+
+OPENBI_CANDIDATES=(
+    "/usr/share/qemu/opensbi-riscv64-virt-fw_jump.bin"
+    "/usr/share/opensbi/generic/fw_jump.bin"
+    "/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_jump.bin"
+    "/usr/libexec/opensbi/generic/fw_jump.bin"
+    "/usr/share/opensbi/qemu-riscv64-fw_jump.bin"
+)
+
+OPENBI_FOUND=""
+for p in "${OPENBI_CANDIDATES[@]}"; do
+    if [ -f "$p" ]; then
+        OPENBI_FOUND="$p"
+        break
+    fi
+done
+
+if [ -z "$OPENBI_FOUND" ]; then
+    error "OpenSBI firmware not found. Tried: ${OPENBI_CANDIDATES[*]}"
+    error "Install it: sudo apt-get install opensbi"
+fi
+
+success "Firmware: $OPENBI_FOUND"
+echo ""
+
+# ---------------------------------------------------------------------------
+# Phase 3: Build the kernel
+# ---------------------------------------------------------------------------
+banner "Phase 3/5: Building RISC-V mini-kernel"
 
 mkdir -p "$IMG_DIR"
 
@@ -125,7 +152,7 @@ NEED_BUILD=1
 if [ -f "$KERNEL_BIN" ]; then
     KERNEL_SIZE=$(stat -c %s "$KERNEL_BIN" 2>/dev/null || stat -f %z "$KERNEL_BIN" 2>/dev/null || echo 0)
     if [ "$KERNEL_SIZE" -gt 0 ]; then
-        info "Kernel exists ($(du -h "$KERNEL_BIN" | cut -f1)) — checking freshness..."
+        info "Kernel exists ($(du -h "$KERNEL_BIN" | cut -f1)) — skipping rebuild"
         NEED_BUILD=0
     fi
 fi
@@ -143,11 +170,12 @@ if [ ! -f "$KERNEL_BIN" ] || [ "$(stat -c %s "$KERNEL_BIN" 2>/dev/null || echo 0
 fi
 
 success "Kernel ready: $KERNEL_BIN ($(du -h "$KERNEL_BIN" | cut -f1))"
+echo ""
 
 # ---------------------------------------------------------------------------
-# Phase 3: Prepare disk image and rootfs
+# Phase 4: Prepare disk image and rootfs
 # ---------------------------------------------------------------------------
-banner "Phase 3/4: Preparing disk image"
+banner "Phase 4/5: Preparing disk image"
 
 if [ ! -f "$IMG_FILE" ]; then
     info "Creating 4G raw disk image..."
@@ -165,26 +193,28 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Phase 4: Assemble and show QEMU config
+# Phase 5: Assemble QEMU command
 # ---------------------------------------------------------------------------
-banner "Phase 4/4: QEMU configuration"
+banner "Phase 5/5: QEMU configuration"
 
 EXTRA_ARGS=()
 if [ -f "$DTB_BIN" ]; then
     EXTRA_ARGS+=(-dtb "$DTB_BIN")
+    info "Custom DTB: $DTB_BIN"
 else
     warn "No custom DTB, QEMU will use its built-in virt device tree"
 fi
 
-# Detect best display mode
+# Display mode
 DISPLAY_OPTS=()
+FORCE_GRAPHICAL=0
+
 if [ "$HEADLESS_MODE" -eq 1 ]; then
     warn "Headless mode — using VNC on :5900"
     DISPLAY_OPTS=(-display none -vnc :5900)
-elif [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
-    warn "No display server — falling back to VNC on :5900"
-    DISPLAY_OPTS=(-display none -vnc :5900)
-else
+elif [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    # We have a display server — try graphical backends
+    FORCE_GRAPHICAL=1
     if qemu-system-riscv64 -display gtk,gl=on -version &>/dev/null 2>&1; then
         DISPLAY_OPTS=(-display gtk,gl=on,show-cursor=on -device virtio-gpu-pci,xres=1280,yres=800)
         success "Display: GTK + OpenGL"
@@ -192,6 +222,10 @@ else
         DISPLAY_OPTS=(-display sdl -device virtio-gpu-pci,xres=1280,yres=800)
         success "Display: SDL"
     fi
+else
+    # No DISPLAY or WAYLAND (e.g. WSL, SSH session) — use VNC + serial
+    warn "No local display server detected — using VNC on :5900"
+    DISPLAY_OPTS=(-display none -vnc :5900)
 fi
 
 BOOTARG="console=ttyS0 root=/dev/vda rw earlyprintk=ttyS0"
@@ -202,7 +236,7 @@ QEMU_CMD=(
     -cpu rv64
     -smp "$NCPU"
     -m "$MEM"
-    -bios /usr/share/qemu/opensbi-riscv64-virt-fw_jump.bin
+    -bios "$OPENBI_FOUND"
     -kernel "$KERNEL_BIN"
     -append "$BOOTARG"
     -drive "file=$IMG_FILE,format=raw,if=virtio"
@@ -228,26 +262,32 @@ fi
 # Summary
 echo ""
 echo -e "  ${CYAN}Kernel:${NC}        $KERNEL_BIN"
+echo -e "  ${CYAN}Firmware:${NC}      $OPENBI_FOUND"
 echo -e "  ${CYAN}Disk:${NC}          $IMG_FILE"
 echo -e "  ${CYAN}Architecture:${NC}  RISC-V RV64GC (QEMU virt)"
 echo -e "  ${CYAN}CPUs:${NC}          $NCPU"
 echo -e "  ${CYAN}Memory:${NC}        $MEM"
 echo -e "  ${CYAN}Boot args:${NC}     $BOOTARG"
 echo ""
-echo -e "  ${YELLOW}Serial console:${NC}     this terminal"
-echo -e "  ${YELLOW}SSH:${NC}                 ssh -p 2222 root@localhost"
+echo -e "  ${YELLOW}━━━ IMPORTANT ━━━${NC}"
+echo -e "  The OS prints its boot log and login prompt to ${YELLOW}this terminal${NC}"
+echo -e "  (serial console). The QEMU display window will be blank."
+echo -e "  Login here, or SSH from another terminal:"
+echo -e "    ${GREEN}ssh -p 2222 root@localhost${NC}"
+echo ""
 if [ "$HEADLESS_MODE" -eq 1 ]; then
-    echo -e "  ${YELLOW}VNC:${NC}                 localhost:5900"
+    echo -e "  ${YELLOW}VNC desktop:${NC}    localhost:5900 (password: uos)"
+    echo -e "  ${YELLOW}Serial:${NC}         also visible in this terminal"
+else
+    echo -e "  ${YELLOW}VNC (headless):${NC} localhost:5900"
+    echo -e "  ${YELLOW}Serial:${NC}         this terminal (primary output)"
 fi
-echo -e "  ${YELLOW}QEMU monitor:${NC}       telnet localhost 4445"
-echo -e "  ${YELLOW}Host fileshare:${NC}     9p mount tag=hostshare"
-if [ "$GDB_MODE" -eq 1 ]; then
-    echo -e "  ${YELLOW}GDB stub:${NC}           localhost:1234"
-fi
+echo -e "  ${YELLOW}QEMU monitor:${NC}  telnet localhost 4445"
+echo -e "  ${YELLOW}GDB stub:${NC}      localhost:1234 (--gdb)"
 echo ""
-echo -e "  ${MAGENTA}$0${NC} has finished its work — QEMU is starting now."
+echo -e "  ${MAGENTA}Press Ctrl+A then X to stop QEMU.${NC}"
 echo ""
-sleep 1
+sleep 2
 
 # ---------------------------------------------------------------------------
 # exec: replace this shell with QEMU
