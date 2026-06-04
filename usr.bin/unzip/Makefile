@@ -1,12 +1,8 @@
 .include <src.opts.mk>
 
-_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
-_LIBARCHIVECONFDIR=	${SRCTOP}/lib/libarchive
+.include "${SRCTOP}/lib/libarchive/Makefile.inc"
 
 PROG=	bsdunzip
-
-BSDUNZIP_VERSION_STRING!= sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.],,gp;q;}' \
-			${_LIBARCHIVEDIR}/libarchive/archive.h
 
 .PATH:	${_LIBARCHIVEDIR}/unzip
 SRCS=	bsdunzip.c
@@ -14,11 +10,10 @@ SRCS=	bsdunzip.c
 .PATH:	${_LIBARCHIVEDIR}/libarchive_fe
 SRCS+=	cmdline.c lafe_err.c lafe_getline.c passphrase.c
 
-CFLAGS+= -DBSDUNZIP_VERSION_STRING=\"${BSDUNZIP_VERSION_STRING}\"
-CFLAGS+= -DPLATFORM_CONFIG_H=\"${_LIBARCHIVECONFDIR}/config_freebsd.h\"
-CFLAGS+= -I${_LIBARCHIVEDIR}/unzip -I${_LIBARCHIVEDIR}/libarchive_fe
-
 LIBADD=	archive
+
+CFLAGS+= -DBSDUNZIP_VERSION_STRING=\"${LIBARCHIVE_VERSION_ONLY_STRING}\"
+CFLAGS+= -I${_LIBARCHIVEDIR}/unzip
 
 SYMLINKS=bsdunzip ${BINDIR}/unzip
 MLINKS= bsdunzip.1 unzip.1
@@ -27,4 +22,3 @@ HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
-# DO NOT DELETE

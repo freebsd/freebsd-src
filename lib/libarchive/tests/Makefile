@@ -1,10 +1,10 @@
 .include <src.opts.mk>
 
+.include "${SRCTOP}/lib/libarchive/Makefile.inc"
+
 PACKAGE=	tests
 
 WARNS?=		3
-
-_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
@@ -14,8 +14,8 @@ BINDIR=	${TESTSDIR}
 
 PROGS+=	libarchive_test
 
-CFLAGS+= -I${.CURDIR} -I${.CURDIR:H} -I${.OBJDIR}
-CFLAGS+= -I${_LIBARCHIVEDIR}/libarchive -I${_LIBARCHIVEDIR}/libarchive/test
+CFLAGS+= -I${.OBJDIR}
+CFLAGS+= -I${_LIBARCHIVEDIR}/libarchive/test
 CFLAGS+= -I${_LIBARCHIVEDIR}/test_utils
 CFLAGS+= -I${SRCTOP}/sys/contrib/zstd/lib
 
