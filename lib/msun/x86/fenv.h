@@ -150,12 +150,22 @@ int fesetround(int);
 int fegetround(void);
 int fesetenv(const fenv_t *);
 
+/*
+ * C permits a standard library function to also be exposed as a function-like
+ * macro (C23 7.1.4), and msun uses that here to inline the fast path.  C++
+ * forbids it: <cfenv> imports these names into namespace std (using
+ * ::feclearexcept; etc.), so std::feclearexcept() and friends must denote the
+ * actual functions.  Expose the inlining macros to C only; C++ uses the real
+ * extern functions (defined in the matching lib/msun/<arch>/fenv.c).
+ */
+#ifndef __cplusplus
 #define	feclearexcept(a)	__feclearexcept_int(a)
 #define	fegetexceptflag(e, a)	__fegetexceptflag_int(e, a)
 #define	fetestexcept(a)		__fetestexcept_int(a)
 #define	fesetround(a)		__fesetround_int(a)
 #define	fegetround()		__fegetround_int()
 #define	fesetenv(a)		__fesetenv_int(a)
+#endif /* !__cplusplus */
 
 #ifdef __i386__
 
