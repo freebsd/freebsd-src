@@ -298,10 +298,16 @@ read_userconfig(char const * file)
 					? "/home" : newstr(q);
 				break;
 			case _UC_HOMEMODE:
-				modeset = setmode(q);
-				config.homemode = (q == NULL || !boolean_val(q, 1))
-					? _DEF_DIRMODE : getmode(modeset, _DEF_DIRMODE);
-				free(modeset);
+				if (q == NULL || !boolean_val(q, 1)) {
+					config.homemode = _DEF_DIRMODE;
+				} else {
+					modeset = setmode(q);
+					if (modeset == NULL)
+						errx(1, "Invalid mode: '%s'", q);
+					config.homemode = getmode(modeset,
+					    _DEF_DIRMODE);
+					free(modeset);
+				}
 				break;
 			case _UC_SHELLPATH:
 				config.shelldir = (q == NULL || !boolean_val(q, 1))

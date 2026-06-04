@@ -19,7 +19,19 @@ modify_config_uid_gid_boundaries_body() {
 		cat ${HOME}/foo.conf
 }
 
+atf_test_case homemode_boolean_no_crash
+homemode_boolean_no_crash_head() {
+	atf_set "descr" "Verify that homemode = yes in config gives a clean error"
+}
+homemode_boolean_no_crash_body() {
+	echo 'homemode = yes' > ${HOME}/bad.conf
+	populate_etc_skel
+	atf_check -s exit:1 -e inline:"pw: Invalid mode: 'yes'\n" \
+		${PW} useradd -D -C ${HOME}/bad.conf
+}
+
 atf_init_test_cases() {
 	atf_add_test_case generate_config
 	atf_add_test_case modify_config_uid_gid_boundaries
+	atf_add_test_case homemode_boolean_no_crash
 }
