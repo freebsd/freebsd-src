@@ -200,23 +200,19 @@ local function getgroups()
 	return splitlines(groups)
 end
 
-local function checkgroup(group)
-	local groups = getgroups()
-
-	for _, group2chk in ipairs(groups) do
-		if group == group2chk then
-			return true
-		end
-	end
-
-	return false
-end
-
 local function purge_group(groups)
+	local existing = getgroups()
 	local ret = {}
 
 	for _, group in ipairs(groups) do
-		if checkgroup(group) then
+		local found = false
+		for _, eg in ipairs(existing) do
+			if group == eg then
+				found = true
+				break
+			end
+		end
+		if found then
 			ret[#ret + 1] = group
 		else
 			warnmsg("ignoring non-existent group '" .. group .. "'")
