@@ -3,23 +3,28 @@ ENTRY(_start)
 
 SECTIONS
 {
+    /* Kernel loaded at 0x8020_0000 in physical memory */
     . = 0x80200000;
 
-    .text : {
+    .text.entry : {
         *(.text.entry)
-        *(.text)
-        *(.rodata)
+    }
+
+    .text : {
+        *(.text*)
+        *(.rodata*)
     }
 
     .data : {
-        *(.data)
+        *(.data*)
     }
 
     .bss : {
         __bss_start = .;
-        *(.bss)
+        *(.bss*)
+        *(COMMON)
         __bss_end = .;
     }
 
-    . = ALIGN(8);
+    . = ALIGN(0x1000);
 }
