@@ -367,7 +367,7 @@ pw_group_del(int argc, char **argv, char *arg1)
 {
 	struct userconf *cnf = NULL;
 	struct group *grp = NULL;
-	char *name;
+	char *name = NULL;
 	const char *cfg = NULL;
 	intmax_t id = -1;
 	int ch, rc;
