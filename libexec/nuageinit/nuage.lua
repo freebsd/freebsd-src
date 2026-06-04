@@ -605,26 +605,20 @@ local function chpasswd(obj)
 	if obj.users ~= nil then
 		if type(obj.users) ~= "table" then
 			warnmsg("Invalid type for chpasswd.users, expecting a list, got a ".. type(obj.users))
-			goto list
-		end
-		for _, u in ipairs(obj.users) do
-			if type(u) ~= "table" then
-				warnmsg("Invalid chpasswd.users entry, expecting an object, got a " .. type(u))
-				goto next
+		else
+			for _, u in ipairs(obj.users) do
+				if type(u) ~= "table" then
+					warnmsg("Invalid chpasswd.users entry, expecting an object, got a " .. type(u))
+				elseif not u.name then
+					warnmsg("Invalid entry for chpasswd.users: missing 'name'")
+				elseif not u.password then
+					warnmsg("Invalid entry for chpasswd.users: missing 'password'")
+				else
+					exec_change_password(u.name, u.password, u.type, expire)
+				end
 			end
-			if not u.name then
-				warnmsg("Invalid entry for chpasswd.users: missing 'name'")
-				goto next
-			end
-			if not u.password then
-				warnmsg("Invalid entry for chpasswd.users: missing 'password'")
-				goto next
-			end
-			exec_change_password(u.name, u.password, u.type, expire)
-			::next::
 		end
 	end
-	::list::
 	if obj.list ~= nil then
 		warnmsg("chpasswd.list is deprecated consider using chpasswd.users")
 		if type(obj.list) == "string" then
