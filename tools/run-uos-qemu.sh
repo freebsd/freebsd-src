@@ -52,6 +52,7 @@ while [ $# -gt 0 ]; do
         --cores|--smp)   NCPU="$2"; shift 2 ;;
         --mem)           MEM="$2"; shift 2 ;;
         --headless|--no-display) HEADLESS_MODE=1; shift ;;
+        --vnc)                HEADLESS_MODE=1; shift ;;
         --gdb)           GDB_MODE=1; shift ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
@@ -59,12 +60,13 @@ while [ $# -gt 0 ]; do
             echo "Options:"
             echo "  --cores, --smp N   vCPU count (default: 4)"
             echo "  --mem SIZE         RAM size, e.g. 512M, 1G, 2G, 4G (default: 2G)"
-            echo "  --headless         No local display; use VNC on :5900"
+            echo "  --headless, --vnc  No local window; access via VNC on :5900"
             echo "  --gdb              Wait for GDB stub on :1234 before starting CPU"
             echo "  --help             Show this help"
             echo ""
-            echo "The OS output appears on the serial console (this terminal)."
-            echo "Connect via SSH with: ssh -p 2222 root@localhost"
+            echo "Primary output: serial console in this terminal."
+            echo "Graphical output: VNC on localhost:5900 (use any VNC viewer)."
+            echo "SSH: ssh -p 2222 root@localhost"
             exit 0
             ;;
         *) error "Unknown option: $1 (try --help)" ;;
@@ -205,26 +207,28 @@ else
     warn "No custom DTB, QEMU will use its built-in virt device tree"
 fi
 
-# Display mode
+# Display mode — prefer working GTK/SDL, always expose VNC
+HAS_DISPLAY=0
+if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    HAS_DISPLAY=1
+fi
 DISPLAY_OPTS=()
-FORCE_GRAPHICAL=0
-
 if [ "$HEADLESS_MODE" -eq 1 ]; then
     warn "Headless mode — using VNC on :5900"
     DISPLAY_OPTS=(-display none -vnc :5900)
-elif [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-    # We have a display server — try graphical backends
-    FORCE_GRAPHICAL=1
+elif [ "$HAS_DISPLAY" -eq 1 ]; then
     if qemu-system-riscv64 -display gtk,gl=on -version &>/dev/null 2>&1; then
         DISPLAY_OPTS=(-display gtk,gl=on,show-cursor=on -device virtio-gpu-pci,xres=1280,yres=800)
         success "Display: GTK + OpenGL"
-    else
+    elif qemu-system-riscv64 -display sdl -version &>/dev/null 2>&1; then
         DISPLAY_OPTS=(-display sdl -device virtio-gpu-pci,xres=1280,yres=800)
         success "Display: SDL"
+    else
+        warn "GUI backend unavailable — falling back to VNC on :5900"
+        DISPLAY_OPTS=(-display none -vnc :5900)
     fi
 else
-    # No DISPLAY or WAYLAND (e.g. WSL, SSH session) — use VNC + serial
-    warn "No local display server detected — using VNC on :5900"
+    warn "No DISPLAY detected (WSL/SSS/headless) — using VNC on :5900"
     DISPLAY_OPTS=(-display none -vnc :5900)
 fi
 
@@ -269,23 +273,22 @@ echo -e "  ${CYAN}CPUs:${NC}          $NCPU"
 echo -e "  ${CYAN}Memory:${NC}        $MEM"
 echo -e "  ${CYAN}Boot args:${NC}     $BOOTARG"
 echo ""
-echo -e "  ${YELLOW}━━━ IMPORTANT ━━━${NC}"
-echo -e "  The OS prints its boot log and login prompt to ${YELLOW}this terminal${NC}"
-echo -e "  (serial console). The QEMU display window will be blank."
-echo -e "  Login here, or SSH from another terminal:"
-echo -e "    ${GREEN}ssh -p 2222 root@localhost${NC}"
+echo -e "  ${YELLOW}━━━ VIEW THE DESKTOP ━━━${NC}"
+echo -e "  Open a VNC viewer and connect to ${YELLOW}localhost:5900${NC}"
+echo -e "  (On Windows/WSL, use your host VNC client; on Linux, use any VNC viewer.)"
+echo -e "  Serial / boot log: ${YELLOW}this terminal${NC}"
+echo -e "  SSH: ${GREEN}ssh -p 2222 root@localhost${NC}"
 echo ""
-if [ "$HEADLESS_MODE" -eq 1 ]; then
-    echo -e "  ${YELLOW}VNC desktop:${NC}    localhost:5900 (password: uos)"
-    echo -e "  ${YELLOW}Serial:${NC}         also visible in this terminal"
+if [ "$HEADLESS_MODE" -eq 1 ] || [ "$HAS_DISPLAY" -eq 0 ]; then
+    echo -e "  ${YELLOW}VNC:${NC}            localhost:5900 (primary desktop access)"
 else
-    echo -e "  ${YELLOW}VNC (headless):${NC} localhost:5900"
-    echo -e "  ${YELLOW}Serial:${NC}         this terminal (primary output)"
+    echo -e "  ${YELLOW}VNC:${NC}            localhost:5900 (also available)"
 fi
+echo -e "  ${YELLOW}Serial:${NC}         this terminal (boot log)"
 echo -e "  ${YELLOW}QEMU monitor:${NC}  telnet localhost 4445"
 echo -e "  ${YELLOW}GDB stub:${NC}      localhost:1234 (--gdb)"
 echo ""
-echo -e "  ${MAGENTA}Press Ctrl+A then X to stop QEMU.${NC}"
+echo -e "  ${MAGENTA}Stop QEMU: Ctrl+A then X${NC}"
 echo ""
 sleep 2
 

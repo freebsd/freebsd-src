@@ -16,9 +16,9 @@ SECTIONS
     }
 
     .bss : {
-        bss_start = .;
+        __bss_start = .;
         *(.bss)
-        bss_end = .;
+        __bss_end = .;
     }
 
     . = ALIGN(8);

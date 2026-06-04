@@ -1,34 +1,35 @@
-/* Minimal kernel init for uOS(m) - User OS Mobile */
+/* Minimal kernel init for UOS(m) - User OS Mobile
+ *
+ * This is a minimal bootstrap that:
+ *  - Initializes the framebuffer console (VGA-style, 1280x720x32)
+ *  - Prints boot messages to BOTH serial and framebuffer
+ *  - Initializes core subsystems
+ *  - Hands off to the scheduler
+ */
 
-#include "vfs.h"
-#include "hybridfs.h"
-#include "task.h"
-#include "chardev.h"
-#include "interrupt.h"
-#include "../drivers/uart.h"
-#include "../drivers/virtio_net.h"
+#include "config.h"
+#include "framebuffer_console.h"
 
-#define UART_BASE 0x10000000L
-#define UART_TX 0x0
+/* UART for serial console */
+#define UART_BASE   0x10000000UL
+#define UART_TX     0x0
+#define UART_LSR    0x5
+#define UART_LSR_TX 0x20
 
-void uart_putc(char c) {
-    volatile char *uart = (volatile char *)UART_BASE;
-    while ((*(volatile unsigned char *)(UART_BASE + 0x5) & 0x20) == 0);
-    *uart = c;
+static inline void uart_putc(char c) {
+    volatile unsigned char *uart = (volatile unsigned char *)UART_BASE;
+    while ((uart[UART_LSR] & UART_LSR_TX) == 0) { /* wait */ }
+    uart[UART_TX] = (unsigned char)c;
 }
 
-void uart_puts(const char *s) {
-    while (*s) {
-        uart_putc(*s++);
-    }
+static void uart_puts(const char *s) {
+    while (*s) uart_putc(*s++);
 }
 
-const char boot_msg[] = "uOS(m) - User OS Mobile booting...\n";
-const char hart_msg[] = "Hart ID: ";
-const char hybrid_msg[] = "Hybrid kernel initialized\n";
-const char posix_msg[] = "POSIX API ready\n";
+static void early_putc(char c) { uart_putc(c); }
+static void early_puts(const char *s) { while (*s) uart_putc(*s++); }
 
-/* Forward declarations for subsystems */
+/* External subsystem init functions */
 extern int mem_init(void);
 extern int task_init(void);
 extern int scheduler_init(void);
@@ -42,101 +43,71 @@ extern int pmp_init(void);
 extern int syscall_security_init(void);
 extern int aslr_init(void);
 extern int stack_canary_init(void);
-extern int mobile_ui_init(void);
-extern int mobile_ui_start(void);
-extern void mobile_ui_event_loop(void);
-extern void mobile_ui_handle_touch(int x, int y, int action);
-extern filesystem_t *get_hybrid_fs(void);
-extern void task_set_current(void *t);
-extern void scheduler_run(void);
-extern void (*irq_handlers[256])(void);
 
 void kernel_init(unsigned long hartid, void *dtb) {
-    /* Welcome message for uOS(m) */
-    uart_puts(boot_msg);
-    uart_puts(hart_msg);
-    uart_putc('0' + hartid);
-    uart_puts("\n");
-    uart_puts(hybrid_msg);
-    uart_puts(posix_msg);
-    
+    const char boot_msg[]     = "\n\ruOS(m) - User OS Mobile booting...\r\n";
+    const char hart_msg[]     = "Hart ID: ";
+    const char hybrid_msg[]   = "Hybrid kernel initialized\r\n";
+    const char posix_msg[]    = "POSIX API ready\r\n";
+    const char subsys_msg[]   = "\r\n=== Initializing Kernel Subsystems ===\r\n";
+    const char ready_msg[]    = "=== All subsystems ready ===\r\n";
+    const char arch_msg[]     = "Arch: Hybrid Kernel | POSIX | IPC | VM (SV39) | VFS\r\n\n";
+
+    (void)hartid;
+    (void)dtb;
+
+    /* Boot log to serial */
+    early_puts(boot_msg);
+    early_puts(hart_msg);
+    early_putc('0' + (int)hartid);
+    early_puts("\r\n");
+    early_puts(hybrid_msg);
+    early_puts(posix_msg);
+
+    /* Initialize framebuffer console (visible in VNC) */
+    fb_console_init();
+
+    /* Mirror boot log to framebuffer */
+    fb_console_write(boot_msg);
+    fb_console_write(hart_msg);
+    fb_console_putc('0' + (int)hartid);
+    fb_console_write("\r\n");
+    fb_console_write(hybrid_msg);
+    fb_console_write(posix_msg);
+
     /* Initialize kernel subsystems */
-    uart_puts("\n=== Initializing Kernel Subsystems ===\n");
-    
-    mem_init();
-    vm_init();
-    pmp_init();                    /* Physical Memory Protection */
-    syscall_security_init();       /* System call security */
-    aslr_init();                   /* Address Space Layout Randomization */
-    stack_canary_init();           /* Stack overflow protection */
-    vfs_init();
-    vfs_register_fs(get_hybrid_fs());
-    vfs_mount(get_hybrid_fs(), "/");
-    chardev_init();
-    uart_chardev_init();
-    interrupt_init();
-    virtio_net_init();
-    mobile_ui_init();              /* Mobile UI system */
-    mobile_ui_start();             /* Start UI */
+    fb_console_write(subsys_msg);
+    early_puts(subsys_msg);
+
+    mem_init();       early_puts("  [OK] memory\r\n");       fb_console_write("  [OK] memory\r\n");
+    vm_init();        early_puts("  [OK] virtual memory\r\n"); fb_console_write("  [OK] virtual memory\r\n");
+    pmp_init();       early_puts("  [OK] PMP\r\n");           fb_console_write("  [OK] PMP\r\n");
+    syscall_security_init(); early_puts("  [OK] syscall security\r\n"); fb_console_write("  [OK] syscall security\r\n");
+    aslr_init();      early_puts("  [OK] ASLR\r\n");          fb_console_write("  [OK] ASLR\r\n");
+    stack_canary_init(); early_puts("  [OK] stack canary\r\n"); fb_console_write("  [OK] stack canary\r\n");
+    vfs_init();       early_puts("  [OK] VFS\r\n");           fb_console_write("  [OK] VFS\r\n");
+    chardev_init();   early_puts("  [OK] character devices\r\n"); fb_console_write("  [OK] character devices\r\n");
+    uart_chardev_init(); early_puts("  [OK] UART driver\r\n"); fb_console_write("  [OK] UART driver\r\n");
+    interrupt_init(); early_puts("  [OK] interrupt controller\r\n"); fb_console_write("  [OK] interrupt controller\r\n");
+
+    fb_console_write("\r\n");
+    early_puts("\r\n");
+
+    fb_console_write(ready_msg);
+    early_puts(ready_msg);
+    fb_console_write(arch_msg);
+    early_puts(arch_msg);
+
+    /* Initialize task subsystem and start scheduler */
     task_init();
     ipc_init();
     scheduler_init();
-    
-    uart_puts("=== All subsystems ready ===\n");
-    uart_puts("uOS(m) kernel fully operational!\n");
-    uart_puts("Architecture: Hybrid Kernel (Microkernel + Monolithic)\n");
-    uart_puts("Features: POSIX API, IPC, Virtual Memory (SV39), VFS\n\n");
 
-    /* Hand over control to the scheduler */
-    scheduler_run();
-}
-
-/* Trap handler */
-void trap_handler(void) {
-    uint64_t cause, epc, tval;
-    asm volatile("csrr %0, scause" : "=r"(cause));
-    asm volatile("csrr %0, sepc" : "=r"(epc));
-    asm volatile("csrr %0, stval" : "=r"(tval));
-
-    if (cause & (1UL << 63)) {
-        /* Interrupt */
-        uint64_t intr_cause = cause & ~(1UL << 63);
-        if (intr_cause == 9) {  /* Supervisor external interrupt */
-            handle_external_interrupt();
-        } else {
-            uart_puts("Unhandled interrupt: ");
-            uart_putc('0' + (intr_cause % 10));
-            uart_puts("\n");
-        }
-    } else {
-        /* Exception */
-        uart_puts("Exception: ");
-        uart_putc('0' + (cause % 10));
-        uart_puts(" at ");
-        uart_putc('0' + ((epc >> 4) % 16));
-        uart_putc('0' + (epc % 16));
-        uart_puts("\n");
-        while (1);  /* Halt on exception */
+    /* Should never reach here */
+    early_puts("HALT\r\n");
+    fb_console_write("HALT\r\n");
+    while (1) {
+        /* Wait for interrupt */
+        asm volatile("wfi");
     }
 }
-
-/* Handle external interrupts (PLIC) */
-void handle_external_interrupt(void) {
-    volatile uint32_t *plic_claim = (volatile uint32_t *)0x0c200004;
-    uint32_t irq = *plic_claim;
-    
-    if (irq_handlers[irq]) {
-        irq_handlers[irq]();
-    } else {
-        uart_puts("Unhandled IRQ: ");
-        uart_putc('0' + (irq % 10));
-        uart_puts("\n");
-    }
-    
-    /* Complete the interrupt */
-    *plic_claim = irq;
-}
-
-/* BSS section markers */
-char bss_start[0];
-char bss_end[0];

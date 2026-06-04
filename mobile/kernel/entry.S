@@ -34,15 +34,15 @@ _start:
     mul t0, a0, t0              /* t0 = hart_id * 4KB */
     sub sp, sp, t0              /* Reserve stack space per hart */
 
-    /* Clear BSS section */
-    la t0, bss_start
-    la t1, bss_end
-
+/* Clear BSS section using linker-generated region symbols */
+    li t0, 0
+    la t2, __bss_start
+    la t3, __bss_end
 bss_clear:
-    bge t0, t1, bss_done
-    sd zero, 0(t0)
-    addi t0, t0, 8
-    jal zero, bss_clear
+    beq t2, t3, bss_done
+    sd t0, 0(t2)
+    addi t2, t2, 8
+    j bss_clear
 
 bss_done:
     /* Set up trap vector */
@@ -105,7 +105,6 @@ trap_vector:
 
     /* Restore context */
     ld ra, 0(sp)
-    ld sp, 8(sp)
     ld gp, 16(sp)
     ld tp, 24(sp)
     ld t0, 32(sp)
@@ -148,6 +147,6 @@ stack_space:
     .space 0x40000              /* 256KB total stack space */
 stack_top:
 
-/* BSS markers for cleanup */
-.extern bss_start
-.extern bss_end
+/* BSS markers provided by linker.ld */
+.extern __bss_start
+.extern __bss_end
