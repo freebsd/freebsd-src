@@ -20,6 +20,9 @@ local function getlocalbase()
 end
 
 local function decode_base64(input)
+	if input == nil or #input == 0 then
+		return ""
+	end
 	local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 	input = string.gsub(input, '[^'..b..'=]', '')
 
