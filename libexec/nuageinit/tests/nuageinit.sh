@@ -36,6 +36,7 @@ atf_test_case config2_userdata_bootcmd
 atf_test_case config2_userdata_manage_etc_hosts
 atf_test_case config2_userdata_mounts
 atf_test_case config2_userdata_resolv_conf
+atf_test_case config2_userdata_keyboard
 atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
 
@@ -1167,7 +1168,33 @@ resolv_conf:
     - 192.168.1.0/255.255.255.0
 EOF
 	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
-	atf_check -o inline:"domain mydomain.local\nsearch example.com test.local\nsortlist 192.168.1.0/255.255.255.0\noptions timeout:1 attempts:2\nnameserver 9.9.9.9\nnameserver 149.112.112.112\n" cat etc/resolv.conf
+	atf_check -o match:"domain mydomain.local" cat etc/resolv.conf
+	atf_check -o match:"search example.com test.local" cat etc/resolv.conf
+	atf_check -o match:"sortlist 192.168.1.0/255.255.255.0" cat etc/resolv.conf
+	atf_check -o match:"nameserver 9.9.9.9" cat etc/resolv.conf
+	atf_check -o match:"nameserver 149.112.112.112" cat etc/resolv.conf
+	atf_check -o match:"options.*timeout:1" cat etc/resolv.conf
+	atf_check -o match:"options.*attempts:2" cat etc/resolv.conf
+	true
+}
+
+config2_userdata_keyboard_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_keyboard_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+keyboard:
+  layout: fr
+  variant: acc
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:'keymap="fr.acc"\n' cat etc/rc.conf.d/keymap
 	true
 }
 
@@ -1222,6 +1249,7 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_manage_etc_hosts
 	atf_add_test_case config2_userdata_mounts
 	atf_add_test_case config2_userdata_resolv_conf
+	atf_add_test_case config2_userdata_keyboard
 	atf_add_test_case config2_userdata_fqdn_and_hostname
 	atf_add_test_case config2_userdata_write_files
 }
