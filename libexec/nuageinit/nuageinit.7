@@ -212,6 +212,16 @@ A list of IP/netmask sortlist entries.
 .It options
 A dictionary of resolver options.
 .El
+.It Ic locale
+Set the system locale by appending
+.Qq Cm export
+statements to
+.Pa /etc/profile .
+.Pp
+If the value is a string, it is used as the
+.Dq Cm LANG
+value.
+If the value is an object mapping, each key-value pair is exported.
 .It Ic keyboard
 An object configuring the keyboard layout.
 .Pp
@@ -442,6 +452,45 @@ List of packages to be installed.
 Update the remote package metadata.
 .It Ic package_upgrade
 Upgrade the packages installed to their latest version.
+.It Ic power_state
+An object controlling the power state of the instance after configuration.
+The following keys are recognized:
+.Bl -tag -width "condition"
+.It Ic delay
+Time to wait before the action.
+Can be
+.Qq now
+or a time accepted by
+.Xr shutdown 8
+(e.g.,
+.Qq +5
+for five minutes).
+Defaults to
+.Qq now .
+.It Ic mode
+The action to take:
+.Qq poweroff ,
+.Qq reboot ,
+or
+.Qq halt .
+Defaults to
+.Qq poweroff .
+.It Ic message
+Optional message to display to users.
+.It Ic timeout
+Not supported on
+.Fx ,
+silently ignored.
+.It Ic condition
+Boolean or command string.
+If
+.Qq false ,
+the action is skipped.
+If a string, it is run as a command; the action is only taken if the command
+succeeds.
+Defaults to
+.Qq true .
+.El
 .It Ic users
 Specify a list of users to be created:
 .Bl -tag -width "ssh_authorized_keys"
