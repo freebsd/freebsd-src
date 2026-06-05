@@ -204,27 +204,48 @@ reap_status(struct thread *td, struct proc *p, void *data)
 }
 
 static int
+reap_getpids_count(struct proc **reapp, struct proc *p,
+    const struct procctl_reaper_pids *rp)
+{
+	struct proc *reap, *p2;
+	int n;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+
+	reap = get_reaper_or_p(p);
+	n = 0;
+	LIST_FOREACH(p2, &reap->p_reaplist, p_reapsibling)
+		n++;
+	if (rp->rp_count < n)
+		n = rp->rp_count;
+	*reapp = reap;
+	return (n);
+}
+
+static int
 reap_getpids(struct thread *td, struct proc *p, void *data)
 {
 	struct proc *reap, *p2;
 	struct procctl_reaper_pidinfo *pi, *pip;
 	struct procctl_reaper_pids *rp;
-	u_int i, n;
+	u_int i, n, n1;
 	int error;
 
 	rp = data;
 	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_UNLOCK(p);
-	reap = (p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p;
-	n = i = 0;
-	error = 0;
-	LIST_FOREACH(p2, &reap->p_reaplist, p_reapsibling)
-		n++;
-	sx_unlock(&proctree_lock);
-	if (rp->rp_count < n)
-		n = rp->rp_count;
-	pi = malloc(n * sizeof(*pi), M_TEMP, M_WAITOK);
-	sx_slock(&proctree_lock);
+	i = 0;
+	for (;;) {
+		n1 = reap_getpids_count(&reap, p, rp);
+		sx_unlock(&proctree_lock);
+		pi = mallocarray(n1, sizeof(*pi), M_TEMP, M_WAITOK);
+		sx_slock(&proctree_lock);
+		n = reap_getpids_count(&reap, p, rp);
+		if (n <= n1)
+			break;
+		free(pi, M_TEMP);
+	}
+
 	LIST_FOREACH(p2, &reap->p_reaplist, p_reapsibling) {
 		if (i == n)
 			break;
