@@ -862,11 +862,9 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	ulen = m->m_pkthdr.len;
 	plen = sizeof(struct udphdr) + ulen;
 	hlen = sizeof(struct ip6_hdr);
-
 	if (plen > IPV6_MAXPAYLOAD) {
-		m_freem(control);
-		m_freem(m);
-		return (EMSGSIZE);
+		error = EMSGSIZE;
+		goto release;
 	}
 
 	/*
