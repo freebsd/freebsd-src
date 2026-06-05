@@ -89,7 +89,7 @@ elf64_exec(struct preloaded_file *fp)
 	Elf_Ehdr 		*ehdr;
 	vm_offset_t		modulep, kernend, trampcode, trampstack;
 	int			err, i;
-	bool			copy_auto;
+	bool			copy_auto, needs_pt4;
 
 	copy_auto = copy_staging == COPY_STAGING_AUTO;
 	if (copy_auto)
@@ -156,6 +156,7 @@ elf64_exec(struct preloaded_file *fp)
 			PT2[i] = (pd_entry_t)i * M(2);
 			PT2[i] |= PG_V | PG_RW | PG_PS;
 		}
+		needs_pt4 = false;
 	} else {
 		PT4 = (pml4_entry_t *)G(4);
 		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 9,
@@ -167,7 +168,35 @@ elf64_exec(struct preloaded_file *fp)
 				copy_staging = COPY_STAGING_AUTO;
 			return (ENOMEM);
 		}
+		needs_pt4 = true;
+	}
 
+	printf("%scopying staging tramp %p PT4 %p\n",
+	    copy_staging == COPY_STAGING_ENABLE ? "" : "not ",
+	    trampoline, PT4);
+	printf("Start @ 0x%lx ...\n", ehdr->e_entry);
+
+	/*
+	 * we have to cleanup here because net_cleanup() doesn't work after
+	 * we call ExitBootServices
+	 */
+	dev_cleanup();
+
+	efi_time_fini();
+	err = bi_load(fp->f_args, &modulep, &kernend, true);
+	if (err != 0) {
+		efi_time_init();
+		if (copy_auto)
+			copy_staging = COPY_STAGING_AUTO;
+		return (err);
+	}
+
+	/*
+	 * staging might move in bi_load because we automatiaclly move when we
+	 * copy data in. At this point, staging can't move anymore, so create
+	 * PT4 with the correct value.
+	 */
+	if (needs_pt4) {
 		bzero(PT4, 9 * EFI_PAGE_SIZE);
 
 		PT3_l = &PT4[NPML4EPG * 1];
@@ -202,26 +231,6 @@ elf64_exec(struct preloaded_file *fp)
 			    ((pd_entry_t)i - 1) * NBPDR) |
 			    PG_V | PG_RW | PG_PS;
 		}
-	}
-
-	printf("staging %#lx (%scopying) tramp %p PT4 %p\n",
-	    staging, copy_staging == COPY_STAGING_ENABLE ? "" : "not ",
-	    trampoline, PT4);
-	printf("Start @ 0x%lx ...\n", ehdr->e_entry);
-
-	/*
-	 * we have to cleanup here because net_cleanup() doesn't work after
-	 * we call ExitBootServices
-	 */
-	dev_cleanup();
-
-	efi_time_fini();
-	err = bi_load(fp->f_args, &modulep, &kernend, true);
-	if (err != 0) {
-		efi_time_init();
-		if (copy_auto)
-			copy_staging = COPY_STAGING_AUTO;
-		return (err);
 	}
 
 	trampoline(trampstack, copy_staging == COPY_STAGING_ENABLE ?
