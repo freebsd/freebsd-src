@@ -784,6 +784,30 @@ local function power_state_change(obj)
 	os.execute(cmd)
 end
 
+local function get_uptime()
+	-- Get system uptime in seconds
+	local f = io.popen("sysctl -n kern.boottime 2>/dev/null")
+	local boottime = f:read("*a")
+	f:close()
+	local sec = boottime:match("sec = (%d+)")
+	if sec then
+		return os.time() - tonumber(sec)
+	end
+	return 0
+end
+
+local function final_message(obj)
+	if obj.final_message == nil then return end
+	local msg = obj.final_message
+	if type(msg) ~= "string" then
+		nuage.warn("final_message must be a string")
+		return
+	end
+	local uptime = tostring(math.floor(get_uptime()))
+	msg = msg:gsub("%$UPTIME", uptime)
+	nuage.warn(msg, false)
+end
+
 local function chpasswd(obj)
 	if obj.chpasswd == nil then return end
 	nuage.chpasswd(obj.chpasswd)
@@ -1090,6 +1114,7 @@ elseif line == "#cloud-config" then
 		users,
 		chpasswd,
 		write_files_deferred,
+		final_message,
 		power_state_change,
 	}
 

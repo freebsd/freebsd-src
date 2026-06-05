@@ -45,6 +45,8 @@ atf_test_case config2_userdata_power_state
 atf_test_case config2_userdata_locale
 atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
+atf_test_case config2_userdata_encode_base64
+atf_test_case config2_userdata_final_message
 
 setup_test_adduser()
 {
@@ -1382,6 +1384,38 @@ EOF
 	atf_check -o inline:"hostname=\"host\"\n" cat ${PWD}/etc/rc.conf.d/hostname
 }
 
+config2_userdata_encode_base64_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	atf_check -o inline:"dGVzdA==\n" \
+	    /usr/libexec/flua -e "print(require('nuage').encode_base64('test'))"
+	atf_check -o inline:"dA==\n" \
+	    /usr/libexec/flua -e "print(require('nuage').encode_base64('t'))"
+	atf_check -o inline:"dGU=\n" \
+	    /usr/libexec/flua -e "print(require('nuage').encode_base64('te'))"
+	# Roundtrip test
+	atf_check -o inline:"hello world\n" \
+	    /usr/libexec/flua -e "print(require('nuage').decode_base64(require('nuage').encode_base64('hello world')))"
+	# Empty input
+	atf_check -o inline:"\n" \
+	    /usr/libexec/flua -e "print(require('nuage').encode_base64(''))"
+}
+
+config2_userdata_final_message_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	export NUAGE_RUN_TESTS=1
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+final_message: "System ready after $UPTIME seconds"
+EOF
+	atf_check -e match:"System ready after [0-9]+ seconds" \
+	    /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -1422,4 +1456,6 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_locale
 	atf_add_test_case config2_userdata_fqdn_and_hostname
 	atf_add_test_case config2_userdata_write_files
+	atf_add_test_case config2_userdata_encode_base64
+	atf_add_test_case config2_userdata_final_message
 }
