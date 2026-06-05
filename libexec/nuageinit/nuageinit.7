@@ -146,6 +146,19 @@ Specify a fully qualified domain name for the instance.
 Specify the hostname of the instance if
 .Qq Ic fqdn
 is not set.
+.It Ic manage_etc_hosts
+Boolean which determines whether the hostname should be added to
+.Pa /etc/hosts
+on the
+.Qq 127.0.0.1
+and
+.Qq ::1
+localhost lines.
+Defaults to
+.Ar true .
+Set to
+.Ar false
+to skip this behaviour.
 .It Ic timezone
 Sets the system timezone based on the value provided.
 .Pp
