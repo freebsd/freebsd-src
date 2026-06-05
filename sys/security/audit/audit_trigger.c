@@ -33,8 +33,10 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/selinfo.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -46,8 +48,6 @@
  * used to communicate with userland.  /dev/audit reliably delivers one-byte
  * messages to a listening application (or discards them if there is no
  * listening application).
- *
- * Currently, select/poll are not supported on the trigger device.
  */
 struct trigger_info {
 	unsigned int			trigger;
@@ -59,6 +59,7 @@ static struct cdev *audit_dev;
 static int audit_isopen = 0;
 static TAILQ_HEAD(, trigger_info) trigger_list;
 static struct mtx audit_trigger_mtx;
+static struct selinfo audit_trigger_rsel;
 
 static int
 audit_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
@@ -128,6 +129,22 @@ audit_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (EOPNOTSUPP);
 }
 
+static int
+audit_poll(struct cdev *dev, int events, struct thread *td)
+{
+	int revents = 0;
+
+	if (events & (POLLIN | POLLRDNORM)) {
+		mtx_lock(&audit_trigger_mtx);
+		if (!TAILQ_EMPTY(&trigger_list))
+			revents = events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(td, &audit_trigger_rsel);
+		mtx_unlock(&audit_trigger_mtx);
+	}
+	return (revents);
+}
+
 int
 audit_send_trigger(unsigned int trigger)
 {
@@ -143,6 +160,7 @@ audit_send_trigger(unsigned int trigger)
 	}
 	ti->trigger = trigger;
 	TAILQ_INSERT_TAIL(&trigger_list, ti, list);
+	selwakeup(&audit_trigger_rsel);
 	wakeup(&trigger_list);
 	mtx_unlock(&audit_trigger_mtx);
 	return (0);
@@ -154,6 +172,7 @@ static struct cdevsw audit_cdevsw = {
 	.d_close =	audit_close,
 	.d_read =	audit_read,
 	.d_write =	audit_write,
+	.d_poll =	audit_poll,
 	.d_name =	"audit"
 };
 
