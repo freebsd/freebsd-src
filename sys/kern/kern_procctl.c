@@ -49,6 +49,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
 
 static int
 protect_setchild(struct thread *td, struct proc *p, int flags)
@@ -366,13 +367,7 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 {
 	struct reap_kill_tracker *t;
 
-	PROC_LOCK(p2);
-	if ((p2->p_flag2 & P2_WEXIT) != 0) {
-		PROC_UNLOCK(p2);
-		return;
-	}
-	_PHOLD(p2);
-	PROC_UNLOCK(p2);
+	PROC_TREE_REF(p2);
 	t = malloc(sizeof(struct reap_kill_tracker), M_TEMP, M_WAITOK);
 	t->parent = p2;
 	TAILQ_INSERT_TAIL(tracker, t, link);
@@ -381,7 +376,7 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 static void
 reap_kill_sched_free(struct reap_kill_tracker *t)
 {
-	PRELE(t->parent);
+	PROC_TREE_UNREF(t->parent);
 	free(t, M_TEMP);
 }
 
@@ -416,16 +411,17 @@ reap_kill_children(struct thread *td, struct proc *reaper,
 }
 
 static bool
-reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
+reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc **reaperp,
     struct unrhdr *pids, struct reap_kill_proc_work *w)
 {
 	struct reap_kill_tracker_head tracker;
 	struct reap_kill_tracker *t;
-	struct proc *p2;
+	struct proc *p2, *reaper, *old_reaper;
 	bool proctree_dropped, res;
 
 	res = false;
 	TAILQ_INIT(&tracker);
+	reaper = *reaperp;
 	reap_kill_sched(&tracker, reaper);
 	while ((t = TAILQ_FIRST(&tracker)) != NULL) {
 		TAILQ_REMOVE(&tracker, t, link);
@@ -483,8 +479,24 @@ again:
 			}
 			PROC_UNLOCK(p2);
 			res = true;
-			if (proctree_dropped)
+			if (proctree_dropped) {
+				old_reaper = reaper;
+				reaper = get_reaper_or_p(p);
+				if (old_reaper != reaper) {
+					*reaperp = reaper;
+					PROC_TREE_REF(reaper);
+					PROC_TREE_UNREF(old_reaper);
+					reap_kill_sched(&tracker, reaper);
+					/*
+					 * Already scheduled kill
+					 * actions should be kept on
+					 * the schedule, the processes
+					 * are inherited by the new
+					 * reaper.
+					 */
+				}
 				goto again;
+			}
 		}
 		reap_kill_sched_free(t);
 	}
@@ -492,7 +504,7 @@ again:
 }
 
 static void
-reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
+reap_kill_subtree(struct thread *td, struct proc *p, struct proc **reaperp,
     struct reap_kill_proc_work *w)
 {
 	struct unrhdr pids;
@@ -512,7 +524,7 @@ reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
 		goto out;
 	}
 	PROC_UNLOCK(td->td_proc);
-	while (reap_kill_subtree_once(td, p, reaper, &pids, w))
+	while (reap_kill_subtree_once(td, p, reaperp, &pids, w))
 	       ;
 
 	ihandle = create_iter_unr(&pids);
@@ -562,6 +574,7 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 		return (EINVAL);
 	PROC_UNLOCK(p);
 	reaper = get_reaper_or_p(p);
+
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = rk->rk_sig;
 	ksi.ksi_code = SI_USER;
@@ -577,7 +590,9 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 		w.ksi = &ksi;
 		w.rk = rk;
 		w.error = &error;
-		reap_kill_subtree(td, p, reaper, &w);
+		PROC_TREE_REF(reaper);
+		reap_kill_subtree(td, p, &reaper, &w);
+		PROC_TREE_UNREF(reaper);
 		crfree(w.cr);
 	}
 	PROC_LOCK(p);
