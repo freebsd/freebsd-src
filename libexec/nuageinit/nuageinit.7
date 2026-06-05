@@ -362,6 +362,9 @@ does not automatically install them.
 Ensure the relevant command is listed in your
 .Nm packages
 section.
+.It Ic bootcmd
+An array of commands to be run early in the boot process,
+before the hostname is set and before the network is configured.
 .It Ic chpasswd
 Change the passwords for users, it accepts the following keys:
 .Bl -tag -width "expire"
@@ -424,6 +427,8 @@ Here is an example of a YAML configuration for
 .Nm :
 .Bd -literal
 #cloud-config
+bootcmd:
+  - kldload if_bridge
 fqdn: myhost.mynetwork.tld
 users:
   - default
