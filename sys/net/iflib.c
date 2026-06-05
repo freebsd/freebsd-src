@@ -1051,6 +1051,19 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 			}
 
 			if (!(slot->flags & NS_MOREFRAG)) {
+				/*
+				 * Skip zero-length packets. Don't advance nic_i
+				 * to avoid gaps in the NIC descriptor ring.
+				 */
+				if (seg_idx == 0) {
+					slot->flags &= ~(NS_REPORT |
+					    NS_BUF_CHANGED);
+					nm_i = nm_next(nm_i, lim);
+					nic_i_start = -1;
+					flags = 0;
+					continue;
+				}
+
 				pi.ipi_len = pkt_len;
 				pi.ipi_nsegs = seg_idx;
 				pi.ipi_pidx = nic_i_start;
