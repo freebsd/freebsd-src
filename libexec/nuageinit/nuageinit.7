@@ -195,6 +195,23 @@ The pass number for
 .Xr fsck 8 ,
 defaults to 0.
 .El
+.It Ic resolv_conf
+An object configuring the content of
+.Pa /etc/resolv.conf .
+.Pp
+The following keys are recognized:
+.Bl -tag -width "nameservers"
+.It nameservers
+A list of IP addresses for DNS name servers.
+.It searchdomains
+A list of search domains.
+.It domain
+A single domain name.
+.It sortlist
+A list of IP/netmask sortlist entries.
+.It options
+A dictionary of resolver options.
+.El
 .It Ic timezone
 Sets the system timezone based on the value provided.
 .Pp

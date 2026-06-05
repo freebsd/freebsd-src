@@ -35,6 +35,7 @@ atf_test_case config2_userdata_disable_root
 atf_test_case config2_userdata_bootcmd
 atf_test_case config2_userdata_manage_etc_hosts
 atf_test_case config2_userdata_mounts
+atf_test_case config2_userdata_resolv_conf
 atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
 
@@ -1140,6 +1141,36 @@ EOF
 	true
 }
 
+config2_userdata_resolv_conf_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_resolv_conf_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+resolv_conf:
+  nameservers:
+    - 9.9.9.9
+    - 149.112.112.112
+  searchdomains:
+    - example.com
+    - test.local
+  domain: mydomain.local
+  options:
+    timeout: "1"
+    attempts: "2"
+  sortlist:
+    - 192.168.1.0/255.255.255.0
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"domain mydomain.local\nsearch example.com test.local\nsortlist 192.168.1.0/255.255.255.0\noptions timeout:1 attempts:2\nnameserver 9.9.9.9\nnameserver 149.112.112.112\n" cat etc/resolv.conf
+	true
+}
+
 config2_userdata_fqdn_and_hostname_body()
 {
 	mkdir -p media/nuageinit
@@ -1190,6 +1221,7 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_bootcmd
 	atf_add_test_case config2_userdata_manage_etc_hosts
 	atf_add_test_case config2_userdata_mounts
+	atf_add_test_case config2_userdata_resolv_conf
 	atf_add_test_case config2_userdata_fqdn_and_hostname
 	atf_add_test_case config2_userdata_write_files
 }

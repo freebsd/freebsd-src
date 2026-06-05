@@ -531,6 +531,11 @@ local function disable_root(obj)
 	end
 end
 
+local function resolv_conf(obj)
+	if obj.resolv_conf == nil then return end
+	nuage.write_resolv_conf(root, obj.resolv_conf)
+end
+
 local function mounts(obj)
 	if obj.mounts == nil then return end
 	for _, m in ipairs(obj.mounts) do
@@ -870,6 +875,7 @@ elseif line == "#cloud-config" then
 		ssh_deletekeys,
 		ssh_keys,
 		network_config,
+		resolv_conf,
 		disable_root,
 		ssh_pwauth,
 		runcmd,
