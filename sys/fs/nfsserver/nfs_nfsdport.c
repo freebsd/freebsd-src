@@ -71,7 +71,7 @@ extern int nfs_bufpackets;
 extern u_long sb_max_adj;
 extern struct nfsv4lock nfsv4rootfs_lock;
 
-static uint64_t nfsrv_stripesiz = 0;
+uint64_t nfsrv_stripesiz = 0;
 static int nfsrv_maxstripecnt = 1;
 
 VNET_DECLARE(int, nfsrv_numnfsd);
@@ -4761,6 +4761,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	struct ucred *tcred;
 	int *dsdir, error, i, j, mirrorcnt, ret, stripecnt;
 	int failpos, timo;
+	uint64_t stripesiz;
 
 	/* Get a DS server directory in a round-robin order. */
 	mirrorcnt = 1;
@@ -4771,6 +4772,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	    M_TEMP, M_WAITOK);
 	dsdir = malloc(sizeof(*dsdir) * nfsrv_maxpnfsmirror *
 	    nfsrv_maxstripecnt, M_TEMP, M_WAITOK);
+	stripesiz = nfsrv_stripesiz;
 	NFSDDSLOCK();
 	/*
 	 * Search for the first entry that handles this MDS fs, but use the
@@ -4783,9 +4785,13 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 				ds = tds;
 			else if (tds->nfsdev_mdsisset != 0 && fsidcmp(
 			    &mp->mnt_stat.f_fsid, &tds->nfsdev_mdsfsid) == 0) {
-				if (j == 0)
+				if (j == 0) {
 					ds = fds = tds;
-				if (nfsrv_stripesiz == 0)
+					if (nfsrv_maxstripecnt > 1)
+						stripesiz =
+						    tds->nfsdev_mdsstripesiz;
+				}
+				if (stripesiz == 0)
 					break;
 				j++;
 			}
@@ -4804,7 +4810,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	 * of devices devided by the number of mirrors.
 	 */
 	stripecnt = 0;
-	if (nfsrv_stripesiz > 0) {
+	if (stripesiz > 0) {
 		if (j > 0)
 			stripecnt = j / nfsrv_maxpnfsmirror;
 		else
@@ -4886,7 +4892,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	failpos = -1;
 	for (i = 0; i < j - 1 && error == 0; i++, tpf++, tdsc++) {
 		tpf->dsf_stripecnt = stripecnt;
-		tpf->dsf_stripesiz = nfsrv_stripesiz;
+		tpf->dsf_stripesiz = stripesiz;
 		tpf->dsf_dir = dsdir[i];
 		tdsc->tcred = tcred;
 		tdsc->p = p;
@@ -4918,7 +4924,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	}
 	if (error == 0) {
 		tpf->dsf_stripecnt = stripecnt;
-		tpf->dsf_stripesiz = nfsrv_stripesiz;
+		tpf->dsf_stripesiz = stripesiz;
 		tpf->dsf_dir = dsdir[j - 1];
 		error = nfsrv_dscreate(dvp[j - 1], vap, &va, &fh, tpf,
 		    &dsattr, NULL, tcred, p, NULL);

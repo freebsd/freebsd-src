@@ -357,6 +357,7 @@ struct nfsdevice {
 	char			*nfsdev_flexaddr;
 	char			*nfsdev_host;
 	fsid_t			nfsdev_mdsfsid;
+	uint64_t		nfsdev_mdsstripesiz;
 	uint32_t		nfsdev_nextdir;
 	bool			nfsdev_nospc;
 	vnode_t			nfsdev_dsdir[0];

@@ -63,6 +63,7 @@ extern struct nfsdontlisthead nfsrv_dontlisthead;
 extern volatile int nfsrv_devidcnt;
 extern struct nfslayouthead nfsrv_recalllisthead;
 extern char *nfsrv_zeropnfsdat;
+extern uint64_t nfsrv_stripesiz;
 
 SYSCTL_DECL(_vfs_nfsd);
 int	nfsrv_statehashsize = NFSSTATEHASHSIZE;
@@ -7537,8 +7538,9 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 	struct nfsdevice *ds;
 	struct mount *mp;
 	int error, i;
-	char *dsdirpath;
+	char *cp, *dsdirpath, *endcp;
 	size_t dsdirsize;
+	u_quad_t stripesiz;
 
 	NFSD_DEBUG(4, "setdssrv path=%s\n", dspathp);
 	*dsp = NULL;
@@ -7576,6 +7578,7 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 	    M_NFSDSTATE, M_WAITOK | M_ZERO);
 	ds->nfsdev_dvp = nd.ni_vp;
 	ds->nfsdev_nmp = VFSTONFS(nd.ni_vp->v_mount);
+	ds->nfsdev_mdsstripesiz = nfsrv_stripesiz;
 	NFSVOPUNLOCK(nd.ni_vp);
 
 	dsdirsize = strlen(dspathp) + 16;
@@ -7608,6 +7611,9 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 	free(dsdirpath, M_TEMP);
 
 	if (strlen(mdspathp) > 0) {
+		cp = strchr(mdspathp, '@');
+		if (cp != NULL)
+			*cp = '\0';
 		/*
 		 * This DS stores file for a specific MDS exported file
 		 * system.
@@ -7635,6 +7641,19 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 		ds->nfsdev_mdsfsid = mp->mnt_stat.f_fsid;
 		ds->nfsdev_mdsisset = 1;
 		vput(nd.ni_vp);
+		if (cp != NULL) {
+			/* There is a stripesiz specified. */
+			endcp = NULL;
+			if (*(cp + 1) != '\0')
+				stripesiz = strtouq(cp + 1, &endcp, 10);
+			if (endcp == NULL || *endcp != '\0') {
+				error = ENXIO;
+				NFSD_DEBUG(4, "mds stripesiz invalid\n");
+				goto out;
+			}
+			ds->nfsdev_mdsstripesiz = stripesiz;
+			*cp = '@';
+		}
 	}
 
 out:
