@@ -44,7 +44,7 @@
 .Ft FTSENT *
 .Fn fts_children "FTS *ftsp" "int options"
 .Ft int
-.Fn fts_set "FTS *ftsp" "FTSENT *f" "int options"
+.Fn fts_set "FTS *ftsp" "FTSENT *f" "int instr"
 .Ft void
 .Fn fts_set_clientptr "FTS *ftsp" "void *clientdata"
 .Ft void *
@@ -745,8 +745,9 @@ The
 .Fn fts_set
 function
 returns 0 on success, and \-1 if an error occurs.
-.Em Option
-must be set to one of the following values:
+Its
+.Fa instr
+argument must have one of the following values:
 .Bl -tag -width FTS_PHYSICAL
 .It Dv FTS_AGAIN
 Re-visit the file; any file type may be re-visited.
@@ -900,7 +901,7 @@ to an appropriate non-zero value.
 The
 .Fn fts_set
 function returns 0 on success and \-1 if its
-.Fa options
+.Fa instr
 argument is invalid.
 .Pp
 The
