@@ -50,13 +50,13 @@
  */
 struct trigger_info {
 	unsigned int			trigger;
-	TAILQ_ENTRY(trigger_info)	list;
+	STAILQ_ENTRY(trigger_info)	list;
 };
 
 static MALLOC_DEFINE(M_AUDITTRIGGER, "audit_trigger", "Audit trigger events");
 static struct cdev *audit_dev;
 static int audit_isopen = 0;
-static TAILQ_HEAD(, trigger_info) trigger_list;
+static STAILQ_HEAD(, trigger_info) trigger_list;
 static struct mtx audit_trigger_mtx;
 static struct selinfo audit_trigger_rsel;
 
@@ -85,9 +85,9 @@ audit_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	/* Flush the queue of pending trigger events. */
 	mtx_lock(&audit_trigger_mtx);
 	audit_isopen = 0;
-	while (!TAILQ_EMPTY(&trigger_list)) {
-		ti = TAILQ_FIRST(&trigger_list);
-		TAILQ_REMOVE(&trigger_list, ti, list);
+	while (!STAILQ_EMPTY(&trigger_list)) {
+		ti = STAILQ_FIRST(&trigger_list);
+		STAILQ_REMOVE_HEAD(&trigger_list, list);
 		free(ti, M_AUDITTRIGGER);
 	}
 	mtx_unlock(&audit_trigger_mtx);
@@ -102,15 +102,15 @@ audit_read(struct cdev *dev, struct uio *uio, int ioflag)
 	struct trigger_info *ti = NULL;
 
 	mtx_lock(&audit_trigger_mtx);
-	while (TAILQ_EMPTY(&trigger_list)) {
+	while (STAILQ_EMPTY(&trigger_list)) {
 		error = msleep(&trigger_list, &audit_trigger_mtx,
 		    PSOCK | PCATCH, "auditd", 0);
 		if (error)
 			break;
 	}
 	if (!error) {
-		ti = TAILQ_FIRST(&trigger_list);
-		TAILQ_REMOVE(&trigger_list, ti, list);
+		ti = STAILQ_FIRST(&trigger_list);
+		STAILQ_REMOVE_HEAD(&trigger_list, list);
 	}
 	mtx_unlock(&audit_trigger_mtx);
 	if (!error) {
@@ -135,7 +135,7 @@ audit_poll(struct cdev *dev, int events, struct thread *td)
 
 	if (events & (POLLIN | POLLRDNORM)) {
 		mtx_lock(&audit_trigger_mtx);
-		if (!TAILQ_EMPTY(&trigger_list))
+		if (!STAILQ_EMPTY(&trigger_list))
 			revents = events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &audit_trigger_rsel);
@@ -158,7 +158,7 @@ audit_send_trigger(unsigned int trigger)
 		return (ENODEV);
 	}
 	ti->trigger = trigger;
-	TAILQ_INSERT_TAIL(&trigger_list, ti, list);
+	STAILQ_INSERT_TAIL(&trigger_list, ti, list);
 	selwakeup(&audit_trigger_rsel);
 	wakeup(&trigger_list);
 	mtx_unlock(&audit_trigger_mtx);
@@ -179,7 +179,7 @@ void
 audit_trigger_init(void)
 {
 
-	TAILQ_INIT(&trigger_list);
+	STAILQ_INIT(&trigger_list);
 	mtx_init(&audit_trigger_mtx, "audit_trigger_mtx", NULL, MTX_DEF);
 }
 
