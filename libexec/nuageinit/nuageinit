@@ -915,6 +915,44 @@ local function load_userdata()
 		f:close()
 		return
 	end
+	if line:match("^Content%-Type: multipart/") then
+		local rest = f:read("*a")
+		f:close()
+		local full = line .. "\n" .. rest
+		local parts = nuage.parse_mime_multipart(full)
+		if parts then
+			local cc_body = nil
+			for _, p in ipairs(parts) do
+				if p.content_type == "text/cloud-config" then
+					cc_body = p.body
+				elseif p.content_type:match("x%-shellscript") or p.content_type:match("x%-sh") then
+					if citype ~= "postnet" then
+						nuage.mkdir_p(root .. "/var/cache/nuageinit")
+						local spath = root .. "/var/cache/nuageinit/multipart_script"
+						local sf = io.open(spath, "w")
+						if sf then
+							sf:write(p.body .. "\n")
+							sf:close()
+							nuage.chmod(spath, "0755")
+						end
+					end
+				end
+			end
+			if cc_body then
+				local obj = yaml.load(cc_body)
+				if obj then
+					if citype ~= "postnet" then
+						nuage.mkdir_p(root .. "/var/cache/nuageinit")
+						local tof = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
+						tof:write("#cloud-config\n" .. cc_body)
+						tof:close()
+					end
+					return "#cloud-config", obj
+				end
+			end
+		end
+		return nil, nil
+	end
 	if citype ~= "postnet" then
 		local content = f:read("*a")
 		if not content or #string.gsub(content, "^%s*(.-)%s*$", "%1") == 0 then

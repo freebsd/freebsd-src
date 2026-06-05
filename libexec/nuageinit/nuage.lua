@@ -896,6 +896,50 @@ local function remove_fstab_entry(root, mount_point)
 	nf:close()
 end
 
+local function parse_mime_multipart(data)
+	local boundary = data:match("boundary=\"([^\"]+)\"")
+	if not boundary then
+		boundary = data:match("boundary=([^%s;]+)")
+	end
+	if not boundary then
+		return nil
+	end
+	local parts = {}
+	local pos = data:find("\n") or 1
+	local first = data:find("--" .. boundary, pos, true)
+	if not first then
+		return nil
+	end
+	pos = data:find("\n", first)
+	if not pos then return nil end
+	pos = pos + 1
+	while true do
+		local nextb = data:find("--" .. boundary, pos, true)
+		if not nextb then break end
+		local part = data:sub(pos, nextb - 1)
+		part = part:gsub("^\r?\n", ""):gsub("\r?\n$", "")
+		local header_end = part:find("\r?\n\r?\n")
+		local headers_str, body
+		if header_end then
+			headers_str = part:sub(1, header_end - 1)
+			body = part:sub(header_end + 2):gsub("^\r?\n", ""):gsub("\r?\n$", "")
+		else
+			body = part
+		end
+		local ct = "text/plain"
+		if headers_str then
+			local m = headers_str:match("[Cc]ontent%-[Tt]ype:%s*([^%s;]+)")
+			if m then ct = m:lower() end
+		end
+		table.insert(parts, {content_type = ct, body = body})
+		local after = data:sub(nextb + 2 + #boundary, nextb + 3 + #boundary)
+		if after == "--" then break end
+		pos = data:find("\n", nextb) or nextb
+		if pos then pos = pos + 1 end
+	end
+	return parts
+end
+
 local n = {
 	shell_escape = shell_escape,
 	warn = warnmsg,
@@ -923,6 +967,7 @@ local n = {
 	add_fstab_entry = add_fstab_entry,
 	remove_fstab_entry = remove_fstab_entry,
 	write_resolv_conf = write_resolv_conf,
+	parse_mime_multipart = parse_mime_multipart,
 }
 
 return n
