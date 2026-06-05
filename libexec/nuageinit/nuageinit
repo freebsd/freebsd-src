@@ -509,6 +509,29 @@ local function ssh_pwauth(obj)
 	nuage.update_sshd_config("PasswordAuthentication", value)
 end
 
+local function ssh_authkey_fingerprints(obj)
+	if obj.ssh_authkey_fingerprints ~= true then return end
+	local ssh_dir = root .. "/etc/ssh"
+	local attrs = lfs.attributes(ssh_dir)
+	if not attrs or attrs.mode ~= "directory" then
+		return
+	end
+	for entry in lfs.dir(ssh_dir) do
+		if entry:match("^ssh_host_.*_key$") then
+			local keypath = ssh_dir .. "/" .. entry
+			local f = io.popen("ssh-keygen -l -f " ..
+			    nuage.shell_escape(keypath), "r")
+			if f then
+				local fingerprint = f:read("*a")
+				f:close()
+				if fingerprint and fingerprint ~= "" then
+					io.stderr:write(fingerprint)
+				end
+			end
+		end
+	end
+end
+
 local function ssh_deletekeys(obj)
 	if obj.ssh_deletekeys == nil then return end
 	if obj.ssh_deletekeys then
@@ -897,6 +920,7 @@ elseif line == "#cloud-config" then
 		create_default_user,
 		ssh_deletekeys,
 		ssh_keys,
+		ssh_authkey_fingerprints,
 		network_config,
 		resolv_conf,
 		keyboard,
