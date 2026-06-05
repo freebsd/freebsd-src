@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 30, 2026
+.Dd May 27, 2026
 .Dt ETCUPDATE 8
 .Os
 .Sh NAME
@@ -31,7 +31,8 @@
 .Nd "manage updates to system files not updated by installworld"
 .Sh SYNOPSIS
 .Nm
-.Op Fl npBFN
+.Op Fl npFN
+.Op Fl B | Fl b
 .Op Fl d Ar workdir
 .Op Fl r | Fl s Ar source | Fl t Ar tarball
 .Op Fl A Ar patterns
@@ -42,7 +43,8 @@
 .Op Fl m Ar make
 .Nm
 .Cm build
-.Op Fl BN
+.Op Fl N
+.Op Fl B | Fl b
 .Op Fl d Ar workdir
 .Op Fl s Ar source
 .Op Fl L Ar logfile
@@ -58,7 +60,8 @@
 .Op Fl L Ar logfile
 .Nm
 .Cm extract
-.Op Fl BN
+.Op Fl N
+.Op Fl B | Fl b
 .Op Fl d Ar workdir
 .Op Fl s Ar source | Fl t Ar tarball
 .Op Fl D Ar destdir
@@ -388,15 +391,16 @@ variable or the
 option will not be installed.
 .It Fl B
 Do not build generated files in a private object tree.
-Instead,
-reuse the generated files from a previously built object tree that matches
-the source tree.
-This can be useful to avoid gratuitous conflicts in
-.Xr sendmail 8
-configuration
-files when bootstrapping.
-It can also be useful for building a tarball that matches a specific
-world build.
+Instead, reuse the generated files from a previously built object tree
+that matches the source tree.
+This is the default.
+.It Fl b
+Build generated files in a private object tree before trying to
+compare anything.
+This is necessary in the uncommon case where
+.Nm
+is not run after a
+.Cm buildworld .
 .It Fl D Ar destdir
 Specify an alternate destination directory as the target of a merge.
 This is analogous to the

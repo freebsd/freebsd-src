@@ -1780,12 +1780,15 @@ rerun=
 always=
 dryrun=
 ignore=
-nobuild=
+nobuild=YES
 preworld=
 noroot=
 difflistonly=
-while getopts "d:lm:nprs:t:A:BD:FI:L:M:N" option; do
+while getopts "bd:lm:nprs:t:A:BD:FI:L:M:N" option; do
 	case "$option" in
+		b)
+			nobuild=
+			;;
 		d)
 			WORKDIR=$OPTARG
 			;;
