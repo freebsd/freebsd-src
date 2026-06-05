@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 27, 2025
+.Dd June 5, 2026
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -244,19 +244,19 @@ Machine-dependent type sizes:
 .Sy time_t
 is 8 bytes on all supported architectures except i386.
 .Ss Endianness and Char Signedness
-.Bl -column -offset indent "Architecture" "Endianness" "char Signedness"
-.It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
-.It aarch64     Ta little Ta unsigned
-.It aarch64c    Ta little Ta unsigned
-.It amd64       Ta little Ta   signed
-.It armv7       Ta little Ta unsigned
-.It i386        Ta little Ta   signed
-.It powerpc     Ta big    Ta unsigned
-.It powerpcspe  Ta big    Ta unsigned
-.It powerpc64   Ta big    Ta unsigned
-.It powerpc64le Ta little Ta unsigned
-.It riscv64     Ta little Ta   signed
-.It riscv64c    Ta little Ta   signed
+.Bl -column -offset indent "Architecture" "Endianness" "char Signedness" "wchar_t Signedness"
+.It Sy Architecture Ta Sy Endianness Ta Sy char Signedness Ta Sy wchar_t Signedness
+.It aarch64     Ta little Ta unsigned Ta unsigned
+.It aarch64c    Ta little Ta unsigned Ta unsigned
+.It amd64       Ta little Ta   signed Ta signed
+.It armv7       Ta little Ta unsigned Ta unsigned
+.It i386        Ta little Ta   signed Ta signed
+.It powerpc     Ta big    Ta unsigned Ta signed
+.It powerpcspe  Ta big    Ta unsigned Ta signed
+.It powerpc64   Ta big    Ta unsigned Ta signed
+.It powerpc64le Ta little Ta unsigned Ta signed
+.It riscv64     Ta little Ta   signed Ta signed
+.It riscv64c    Ta little Ta   signed Ta signed
 .El
 .Ss Page Size
 .Bl -column -offset indent "Architecture" "Page Sizes"
