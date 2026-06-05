@@ -30,6 +30,10 @@ atf_test_case config2_userdata_packages
 atf_test_case config2_userdata_update_packages
 atf_test_case config2_userdata_upgrade_packages
 atf_test_case config2_userdata_shebang
+atf_test_case config2_userdata_ssh_deletekeys
+atf_test_case config2_userdata_disable_root
+atf_test_case config2_userdata_bootcmd
+atf_test_case config2_userdata_manage_etc_hosts
 atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
 
@@ -950,6 +954,165 @@ EOF
 	atf_check -o inline:"bob" cat foo
 }
 
+config2_userdata_ssh_deletekeys_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_ssh_deletekeys_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+ssh_deletekeys: true
+EOF
+	mkdir -p etc/ssh
+	touch etc/ssh/ssh_host_rsa_key
+	touch etc/ssh/ssh_host_rsa_key.pub
+	touch etc/ssh/ssh_host_ed25519_key
+	touch etc/ssh/ssh_host_ed25519_key.pub
+	touch etc/ssh/ssh_host_ecdsa_key
+	touch etc/ssh/ssh_host_ecdsa_key.pub
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	test -f etc/ssh/ssh_host_rsa_key && atf_fail "ssh_host_rsa_key not deleted"
+	test -f etc/ssh/ssh_host_rsa_key.pub && atf_fail "ssh_host_rsa_key.pub not deleted"
+	test -f etc/ssh/ssh_host_ed25519_key && atf_fail "ssh_host_ed25519_key not deleted"
+	test -f etc/ssh/ssh_host_ed25519_key.pub && atf_fail "ssh_host_ed25519_key.pub not deleted"
+	test -f etc/ssh/ssh_host_ecdsa_key && atf_fail "ssh_host_ecdsa_key not deleted"
+	test -f etc/ssh/ssh_host_ecdsa_key.pub && atf_fail "ssh_host_ecdsa_key.pub not deleted"
+	true
+}
+
+config2_userdata_disable_root_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_disable_root_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+disable_root: true
+EOF
+	mkdir -p etc/ssh
+	touch etc/ssh/sshd_config
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"PermitRootLogin no\n" cat etc/ssh/sshd_config
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+disable_root: true
+disable_root_opts: "without-password"
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"PermitRootLogin without-password\n" cat etc/ssh/sshd_config
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+disable_root: true
+disable_root_opts:
+  - "prohibit-password"
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"PermitRootLogin prohibit-password\n" cat etc/ssh/sshd_config
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+disable_root: false
+EOF
+	echo "PermitRootLogin yes" > etc/ssh/sshd_config
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"PermitRootLogin yes\n" cat etc/ssh/sshd_config
+}
+
+config2_userdata_bootcmd_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_bootcmd_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+bootcmd:
+  - kldload if_bridge
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	test -f var/cache/nuageinit/bootcmds || atf_fail "bootcmds file not created"
+	atf_check -o inline:"#!/bin/sh\nkldload if_bridge\n" cat var/cache/nuageinit/bootcmds
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+bootcmd:
+  - sysctl net.inet.ip.forwarding=1
+  - kldload if_bridge
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"#!/bin/sh\nsysctl net.inet.ip.forwarding=1\nkldload if_bridge\n" cat var/cache/nuageinit/bootcmds
+	# Test 3: empty list (clean up from previous tests first)
+	rm -f var/cache/nuageinit/bootcmds
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+bootcmd: []
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	test -f var/cache/nuageinit/bootcmds && atf_fail "bootcmds should not have been created for empty list"
+	true
+}
+
+config2_userdata_manage_etc_hosts_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_manage_etc_hosts_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	# Test 1: manage_etc_hosts adds hostname when /etc/hosts does not exist
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+hostname: mycloud
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"::1\t\tlocalhost mycloud\n127.0.0.1\t\tlocalhost mycloud\n" cat etc/hosts
+	# Test 2: manage_etc_hosts appends hostname to existing localhost lines
+	cat > etc/hosts <<EOF
+::1		localhost
+127.0.0.1		localhost
+EOF
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+hostname: myvm
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"::1\t\tlocalhost myvm\n127.0.0.1\t\tlocalhost myvm\n" cat etc/hosts
+	# Test 3: hostname already present in /etc/hosts, no change
+	cat > etc/hosts <<EOF
+::1		localhost myvm
+127.0.0.1		localhost myvm
+EOF
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+hostname: myvm
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"::1\t\tlocalhost myvm\n127.0.0.1\t\tlocalhost myvm\n" cat etc/hosts
+	# Test 4: manage_etc_hosts: false disables the behaviour
+	cat > etc/hosts <<EOF
+::1		localhost
+127.0.0.1		localhost
+EOF
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+hostname: nope
+manage_etc_hosts: false
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"::1\t\tlocalhost\n127.0.0.1\t\tlocalhost\n" cat etc/hosts
+}
+
 config2_userdata_fqdn_and_hostname_body()
 {
 	mkdir -p media/nuageinit
@@ -995,6 +1158,10 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_update_packages
 	atf_add_test_case config2_userdata_upgrade_packages
 	atf_add_test_case config2_userdata_shebang
+	atf_add_test_case config2_userdata_ssh_deletekeys
+	atf_add_test_case config2_userdata_disable_root
+	atf_add_test_case config2_userdata_bootcmd
+	atf_add_test_case config2_userdata_manage_etc_hosts
 	atf_add_test_case config2_userdata_fqdn_and_hostname
 	atf_add_test_case config2_userdata_write_files
 }
