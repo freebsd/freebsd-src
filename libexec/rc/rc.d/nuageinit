@@ -89,6 +89,10 @@ nuageinit_start()
 		/usr/libexec/nuageinit /media/nuageinit $citype 2>&1 | tee -a /var/log/nuageinit.log
 		;;
 	esac
+	if [ -x /var/cache/nuageinit/bootcmds ]; then
+		echo "Executing 'bootcmd'" | tee -a /var/log/nuageinit.log
+		/var/cache/nuageinit/bootcmds 2>&1 | tee -a /var/log/nuageinit.log
+	fi
 	if [ -n "$drive" ]; then
 		umount /media/nuageinit
 		rmdir /media/nuageinit

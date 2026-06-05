@@ -524,6 +524,23 @@ local function disable_root(obj)
 	end
 end
 
+local function bootcmd(obj)
+	if obj.bootcmd == nil then return end
+	local f = nil
+	for _, c in ipairs(obj.bootcmd) do
+		if f == nil then
+			nuage.mkdir_p(root .. "/var/cache/nuageinit")
+			f = assert(io.open(root .. "/var/cache/nuageinit/bootcmds", "w"))
+			f:write("#!/bin/sh\n")
+		end
+		f:write(c .. "\n")
+	end
+	if f ~= nil then
+		f:close()
+		nuage.chmod(root .. "/var/cache/nuageinit/bootcmds", "0755")
+	end
+end
+
 local function runcmd(obj)
 	if obj.runcmd == nil then return end
 	local f = nil
@@ -794,6 +811,7 @@ if line == nil then
 --  YAML user-data
 elseif line == "#cloud-config" then
 	local pre_network_calls = {
+		bootcmd,
 		sethostname,
 		settimezone,
 		groups,
