@@ -551,6 +551,20 @@ A boolean to specify that the files should be created after the packages are
 installed and the users are created.
 .El
 .El
+.Pp
+Additionally, user-data can be provided as a MIME multipart message
+with content type
+.Qq multipart/mixed .
+Each part is handled according to its
+.Qq Content-Type
+header.
+Supported part types:
+.Bl -tag -width "text/x-shellscript"
+.It text/cloud-config
+Processed as a cloud-config YAML document.
+.It text/x-shellscript
+Saved as an executable script for later execution.
+.El
 .Sh EXAMPLES
 Here is an example of a YAML configuration for
 .Nm :

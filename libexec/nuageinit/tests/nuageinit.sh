@@ -40,6 +40,7 @@ atf_test_case config2_userdata_keyboard
 atf_test_case config2_userdata_ssh_authkey_fingerprints
 atf_test_case config2_userdata_ntp
 atf_test_case config2_userdata_ca_certs
+atf_test_case config2_userdata_multipart
 atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
 
@@ -1274,6 +1275,39 @@ EOF
 	true
 }
 
+config2_userdata_multipart_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_multipart_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<'EOF'
+Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+
+--==BOUNDARY==
+Content-Type: text/cloud-config; charset="us-ascii"
+
+#cloud-config
+hostname: multipart-host
+
+--==BOUNDARY==
+Content-Type: text/x-shellscript
+
+#!/bin/sh
+echo "multipart script executed"
+
+--==BOUNDARY==--
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"hostname=\"multipart-host\"\n" cat etc/rc.conf.d/hostname
+	atf_check -o inline:"#!/bin/sh\necho \"multipart script executed\"\n" cat var/cache/nuageinit/multipart_script
+	test -x var/cache/nuageinit/multipart_script || atf_fail "multipart_script not executable"
+	true
+}
+
 config2_userdata_fqdn_and_hostname_body()
 {
 	mkdir -p media/nuageinit
@@ -1329,6 +1363,7 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_ssh_authkey_fingerprints
 	atf_add_test_case config2_userdata_ntp
 	atf_add_test_case config2_userdata_ca_certs
+	atf_add_test_case config2_userdata_multipart
 	atf_add_test_case config2_userdata_fqdn_and_hostname
 	atf_add_test_case config2_userdata_write_files
 }
