@@ -237,6 +237,27 @@ Boolean which determines whether fingerprints of SSH host keys
 should be logged to the console.
 Defaults to
 .Ar false .
+.It Ic ntp
+An object configuring the NTP daemon by writing
+.Pa /etc/ntp.conf .
+.Pp
+The following keys are recognized:
+.Bl -tag -width "enabled"
+.It servers
+A list of NTP server addresses.
+.It pools
+A list of NTP pool addresses.
+.It enabled
+Boolean, defaults to
+.Ar true .
+Set to
+.Ar false
+to skip NTP configuration.
+.El
+.Pp
+Alternatively,
+.Ic ntp
+can be a list of server addresses (legacy format).
 .It Ic timezone
 Sets the system timezone based on the value provided.
 .Pp

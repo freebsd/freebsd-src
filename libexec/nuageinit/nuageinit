@@ -532,6 +532,42 @@ local function ssh_authkey_fingerprints(obj)
 	end
 end
 
+local function ntp(obj)
+	if obj.ntp == nil then return end
+	if type(obj.ntp) == "table" and obj.ntp.enabled == false then
+		return
+	end
+	local servers = {}
+	if type(obj.ntp) == "table" then
+		if obj.ntp[1] then
+			servers = obj.ntp
+		else
+			for _, s in ipairs(obj.ntp.servers or {}) do
+				table.insert(servers, "server " .. s .. " iburst")
+			end
+			for _, p in ipairs(obj.ntp.pools or {}) do
+				table.insert(servers, "pool " .. p .. " iburst")
+			end
+		end
+	elseif type(obj.ntp) == "string" then
+		table.insert(servers, "server " .. obj.ntp .. " iburst")
+	end
+	if #servers == 0 then return end
+	local path = root .. "/etc/ntp.conf"
+	local f = io.open(path, "w")
+	if not f then
+		warnmsg("unable to open " .. path .. " for writing")
+		return
+	end
+	for _, line in ipairs(servers) do
+		f:write(line .. "\n")
+	end
+	f:write("leapfile /var/db/ntpd.leap-seconds.list\n")
+	f:write("restrict default limited kod nomodify notrap nopeer noquery\n")
+	f:write("restrict source  limited kod nomodify notrap noquery\n")
+	f:close()
+end
+
 local function ssh_deletekeys(obj)
 	if obj.ssh_deletekeys == nil then return end
 	if obj.ssh_deletekeys then
@@ -931,6 +967,7 @@ elseif line == "#cloud-config" then
 	}
 
 	local post_network_calls = {
+		ntp,
 		packages,
 		users,
 		chpasswd,
