@@ -162,6 +162,67 @@ local function sethostname(hostname)
 	f:close()
 end
 
+local function update_etc_hosts(root, hostname)
+	if hostname == nil or hostname == "" then
+		return
+	end
+	local hosts_path = root .. "/etc/hosts"
+	local lines = {}
+	local already_present = false
+
+	local f = io.open(hosts_path, "r")
+	if not f then
+		-- File doesn't exist, create a minimal one
+		local nf = io.open(hosts_path, "w")
+		if not nf then
+			warnmsg("unable to create " .. hosts_path)
+			return
+		end
+		nf:write("::1\t\tlocalhost " .. hostname .. "\n")
+		nf:write("127.0.0.1\t\tlocalhost " .. hostname .. "\n")
+		nf:close()
+		return
+	end
+
+	for line in f:lines() do
+		if line:find(hostname, 1, true) then
+			already_present = true
+		end
+		table.insert(lines, line)
+	end
+	f:close()
+
+	if already_present then
+		return
+	end
+
+	-- Not present, append to localhost lines
+	local new_lines = {}
+	local found_localhost = false
+	for _, line in ipairs(lines) do
+		if (line:match("^127%.0%.0%.1%s") or line:match("^::1%s")) and line:find("localhost", 1, true) then
+			table.insert(new_lines, line .. " " .. hostname)
+			found_localhost = true
+		else
+			table.insert(new_lines, line)
+		end
+	end
+
+	if not found_localhost then
+		table.insert(new_lines, "127.0.0.1\t\tlocalhost " .. hostname)
+	end
+
+	f = io.open(hosts_path, "w")
+	if not f then
+		warnmsg("unable to open " .. hosts_path .. " for writing")
+		return
+	end
+	for _, line in ipairs(new_lines) do
+		f:write(line .. "\n")
+	end
+	f:close()
+end
+
 local function splitlist(list)
 	local ret = {}
 	if type(list) == "string" then
@@ -775,6 +836,7 @@ local n = {
 	addsshkey = addsshkey,
 	update_sshd_config = update_sshd_config,
 	delete_ssh_host_keys = delete_ssh_host_keys,
+	update_etc_hosts = update_etc_hosts,
 	chpasswd = chpasswd,
 	pkg_bootstrap = pkg_bootstrap,
 	install_package = install_package,

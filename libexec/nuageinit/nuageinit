@@ -99,16 +99,23 @@ local function get_ifaces_by_mac()
 	return myifaces
 end
 
-local function sethostname(obj, metadata)
-	-- always prefer fqdn if specified over hostname
+local function resolve_hostname(obj, metadata)
 	if obj and obj.fqdn then
-		nuage.sethostname(obj.fqdn)
+		return obj.fqdn
 	elseif obj and obj.hostname then
-		nuage.sethostname(obj.hostname)
+		return obj.hostname
 	elseif metadata["local-hostname"] then
-		nuage.sethostname(metadata["local-hostname"])
+		return metadata["local-hostname"]
 	elseif metadata["hostname"] then
-		nuage.sethostname(metadata["hostname"])
+		return metadata["hostname"]
+	end
+	return nil
+end
+
+local function sethostname(obj, metadata)
+	local hostname = resolve_hostname(obj, metadata)
+	if hostname then
+		nuage.sethostname(hostname)
 	end
 end
 
@@ -541,6 +548,16 @@ local function bootcmd(obj)
 	end
 end
 
+local function manage_etc_hosts(obj, metadata)
+	if obj.manage_etc_hosts == false then
+		return
+	end
+	local hostname = resolve_hostname(obj, metadata)
+	if hostname then
+		nuage.update_etc_hosts(root, hostname)
+	end
+end
+
 local function runcmd(obj)
 	if obj.runcmd == nil then return end
 	local f = nil
@@ -813,6 +830,7 @@ elseif line == "#cloud-config" then
 	local pre_network_calls = {
 		bootcmd,
 		sethostname,
+		manage_etc_hosts,
 		settimezone,
 		groups,
 		create_default_user,
