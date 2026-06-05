@@ -808,6 +808,79 @@ local function final_message(obj)
 	nuage.warn(msg, false)
 end
 
+local function phone_home(obj, metadata)
+	if obj.phone_home == nil then return end
+	local ph = obj.phone_home
+	if type(ph) ~= "table" then
+		nuage.warn("phone_home must be an object")
+		return
+	end
+	if not ph.url then
+		nuage.warn("phone_home.url is required")
+		return
+	end
+	local url = ph.url
+	local tries = ph.tries or 1
+	if type(tries) ~= "number" or tries < 1 then
+		tries = 1
+	end
+
+	-- Collect data to post
+	local data = {}
+	local post = ph.post
+	if post == "all" then
+		post = {"pub_key_rsa", "pub_key_ecdsa", "pub_key_ed25519",
+		    "instance_id", "hostname", "fqdn"}
+	end
+	if type(post) == "table" then
+		for _, key in ipairs(post) do
+			if key == "hostname" then
+				if metadata.hostname then
+					table.insert(data, "hostname=" .. metadata.hostname)
+				end
+			elseif key == "fqdn" then
+				if metadata.hostname then
+					table.insert(data, "fqdn=" .. metadata.hostname)
+				end
+			elseif key == "instance_id" then
+				if metadata.uuid then
+					table.insert(data, "instance_id=" .. metadata.uuid)
+				end
+			elseif key:match("^pub_key_") then
+				local algo = key:match("^pub_key_(.+)$")
+				if metadata.public_keys then
+					for _, k in ipairs(metadata.public_keys) do
+						if algo == "rsa" and k:match("^ssh%-rsa ") then
+							table.insert(data, key .. "=" .. nuage.encode_base64(k))
+						elseif algo == "ecdsa" and k:match("^ecdsa%-") then
+							table.insert(data, key .. "=" .. nuage.encode_base64(k))
+						elseif algo == "ed25519" and k:match("^ssh%-ed25519 ") then
+							table.insert(data, key .. "=" .. nuage.encode_base64(k))
+						end
+					end
+				end
+			end
+		end
+	end
+	local post_data = table.concat(data, "&")
+	local cmd = "fetch -q -o /dev/null --post-data " .. nuage.shell_escape(post_data)
+	cmd = cmd .. " " .. nuage.shell_escape(url)
+
+	if os.getenv("NUAGE_RUN_TESTS") then
+		print(cmd)
+		return
+	end
+	for i = 1, tries do
+		if os.execute(cmd) then
+			break
+		end
+		if i < tries then
+			-- wait 1 second before retrying
+			os.execute("sleep 1")
+		end
+	end
+end
+
 local function chpasswd(obj)
 	if obj.chpasswd == nil then return end
 	nuage.chpasswd(obj.chpasswd)
@@ -973,10 +1046,23 @@ local function load_metadata(citype)
 			nuage.err("error parsing nocloud meta-data")
 		end
 		return obj
-	elseif citype ~= "postnet" then
+	elseif citype == "postnet" then
+		-- reload metadata: try config-2 format first, then nocloud
+		local parser = ucl.parser()
+		local res, err = parser:parse_file(ni_path .. "/meta_data.json")
+		if res then
+			return parser:get_object()
+		end
+		local f = io.open(ni_path .. "/meta-data")
+		if f then
+			local obj = yaml.load(f:read("*a"))
+			f:close()
+			if obj then return obj end
+		end
+		return {}
+	else
 		nuage.err("Unknown cloud init type: " .. citype)
 	end
-	return {}
 end
 
 local function load_userdata()
@@ -1114,6 +1200,7 @@ elseif line == "#cloud-config" then
 		users,
 		chpasswd,
 		write_files_deferred,
+		phone_home,
 		final_message,
 		power_state_change,
 	}

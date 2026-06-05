@@ -47,6 +47,7 @@ atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
 atf_test_case config2_userdata_encode_base64
 atf_test_case config2_userdata_final_message
+atf_test_case config2_userdata_phone_home
 
 setup_test_adduser()
 {
@@ -1416,6 +1417,37 @@ EOF
 	    /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
+config2_userdata_phone_home_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	export NUAGE_RUN_TESTS=1
+	printf '{"hostname": "myhost", "uuid": "abc-123", "public_keys": ["ssh-rsa AAAAB...", "ssh-ed25519 AAAAC..."]}' > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+phone_home:
+  url: "http://example.com/endpoint"
+  post:
+    - hostname
+    - instance_id
+  tries: 1
+EOF
+	atf_check -o match:"fetch -q -o /dev/null --post-data 'hostname=myhost&instance_id=abc-123' 'http://example.com/endpoint'" \
+	    /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+
+	# Test "all" post
+	printf '{"hostname": "myhost"}' > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+phone_home:
+  url: "http://example.com/endpoint"
+  post: all
+  tries: 1
+EOF
+	atf_check -o match:"fetch -q -o /dev/null --post-data 'hostname=myhost&fqdn=myhost' 'http://example.com/endpoint'" \
+	    /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -1458,4 +1490,5 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_write_files
 	atf_add_test_case config2_userdata_encode_base64
 	atf_add_test_case config2_userdata_final_message
+	atf_add_test_case config2_userdata_phone_home
 }
