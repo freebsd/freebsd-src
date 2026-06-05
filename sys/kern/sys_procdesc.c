@@ -273,6 +273,14 @@ procdesc_finit(struct procdesc *pdp, struct file *fp)
 }
 
 static void
+procdesc_destroy(struct procdesc *pd)
+{
+	knlist_destroy(&pd->pd_selinfo.si_note);
+	PROCDESC_LOCK_DESTROY(pd);
+	free(pd, M_PROCDESC);
+}
+
+static void
 procdesc_free(struct procdesc *pd)
 {
 
@@ -292,9 +300,7 @@ procdesc_free(struct procdesc *pd)
 			proc_id_clear(PROC_ID_PID, pd->pd_pid);
 
 		seldrain(&pd->pd_selinfo);
-		knlist_destroy(&pd->pd_selinfo.si_note);
-		PROCDESC_LOCK_DESTROY(pd);
-		free(pd, M_PROCDESC);
+		procdesc_destroy(pd);
 	}
 }
 
