@@ -837,6 +837,37 @@ local function add_fstab_entry(root, device, mount_point, fstype, options, dump_
 	return true
 end
 
+local function write_resolv_conf(root, config)
+	local path = root .. "/etc/resolv.conf"
+	local f = io.open(path, "w")
+	if not f then
+		warnmsg("unable to open " .. path .. " for writing")
+		return
+	end
+	if config.domain then
+		f:write("domain " .. config.domain .. "\n")
+	end
+	if config.searchdomains then
+		f:write("search " .. table.concat(config.searchdomains, " ") .. "\n")
+	end
+	if config.sortlist then
+		f:write("sortlist " .. table.concat(config.sortlist, " ") .. "\n")
+	end
+	if config.options then
+		local opts = {}
+		for k, v in pairs(config.options) do
+			table.insert(opts, k .. ":" .. v)
+		end
+		f:write("options " .. table.concat(opts, " ") .. "\n")
+	end
+	if config.nameservers then
+		for _, ns in ipairs(config.nameservers) do
+			f:write("nameserver " .. ns .. "\n")
+		end
+	end
+	f:close()
+end
+
 local function remove_fstab_entry(root, mount_point)
 	local fstab_path = root .. "/etc/fstab"
 	local f = io.open(fstab_path, "r")
@@ -891,6 +922,7 @@ local n = {
 	addfile = addfile,
 	add_fstab_entry = add_fstab_entry,
 	remove_fstab_entry = remove_fstab_entry,
+	write_resolv_conf = write_resolv_conf,
 }
 
 return n
