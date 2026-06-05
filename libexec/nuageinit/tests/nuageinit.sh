@@ -41,6 +41,8 @@ atf_test_case config2_userdata_ssh_authkey_fingerprints
 atf_test_case config2_userdata_ntp
 atf_test_case config2_userdata_ca_certs
 atf_test_case config2_userdata_multipart
+atf_test_case config2_userdata_power_state
+atf_test_case config2_userdata_locale
 atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
 
@@ -1308,6 +1310,58 @@ EOF
 	true
 }
 
+config2_userdata_power_state_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_power_state_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	export NUAGE_RUN_TESTS=1
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+power_state:
+  delay: "+5"
+  mode: reboot
+  message: "Rebooting after configuration is complete"
+  timeout: 30
+  condition: true
+EOF
+	atf_check -o inline:"shutdown -r +5 'Rebooting after configuration is complete'\n" \
+	    /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	true
+}
+
+config2_userdata_locale_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_locale_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+locale: fr_FR.UTF-8
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"export LANG=fr_FR.UTF-8\n" cat etc/profile
+
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+locale:
+  LANG: de_DE.UTF-8
+  LC_ALL: de_DE.UTF-8
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o match:"export LANG=de_DE.UTF-8" cat etc/profile
+	atf_check -o match:"export LC_ALL=de_DE.UTF-8" cat etc/profile
+	true
+}
+
 config2_userdata_fqdn_and_hostname_body()
 {
 	mkdir -p media/nuageinit
@@ -1364,6 +1418,8 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_ntp
 	atf_add_test_case config2_userdata_ca_certs
 	atf_add_test_case config2_userdata_multipart
+	atf_add_test_case config2_userdata_power_state
+	atf_add_test_case config2_userdata_locale
 	atf_add_test_case config2_userdata_fqdn_and_hostname
 	atf_add_test_case config2_userdata_write_files
 }

@@ -637,6 +637,28 @@ local function keyboard(obj)
 	f:close()
 end
 
+local function locale(obj)
+	if obj.locale == nil then return end
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	if not root then root = "" end
+	local profile_path = root .. "/etc/profile"
+	local f = io.open(profile_path, "a")
+	if not f then
+		nuage.warn("unable to open " .. profile_path .. " for writing")
+		return
+	end
+	if type(obj.locale) == "string" then
+		f:write("export LANG=" .. obj.locale .. "\n")
+	elseif type(obj.locale) == "table" then
+		for k, v in pairs(obj.locale) do
+			f:write("export " .. k .. "=" .. v .. "\n")
+		end
+	else
+		nuage.warn("locale: invalid type " .. type(obj.locale) .. ", expecting string or object")
+	end
+	f:close()
+end
+
 local function mounts(obj)
 	if obj.mounts == nil then return end
 	for _, m in ipairs(obj.mounts) do
@@ -723,6 +745,43 @@ local function packages(obj)
 	if obj.packages then
 		install_packages(obj.packages)
 	end
+end
+
+local function power_state_change(obj)
+	if obj.power_state == nil then return end
+	local ps = obj.power_state
+	local delay = ps.delay or "now"
+	local mode = ps.mode or "poweroff"
+	local message = ps.message
+	local condition = ps.condition
+	if condition == nil then condition = true end
+
+	-- Evaluate condition
+	if condition == false then return end
+	if type(condition) == "string" then
+		local ret = os.execute(condition)
+		if not ret then return end
+	end
+
+	-- Map mode to shutdown flag
+	local mode_map = {poweroff = "p", reboot = "r", halt = "h"}
+	local flag = mode_map[mode]
+	if not flag then
+		nuage.warn("power_state: invalid mode '" .. mode .. "', using poweroff")
+		flag = "p"
+	end
+
+	-- Build shutdown command
+	local cmd = "shutdown -" .. flag .. " " .. delay
+	if message then
+		cmd = cmd .. " " .. nuage.shell_escape(message)
+	end
+
+	if os.getenv("NUAGE_RUN_TESTS") then
+		print(cmd)
+		return
+	end
+	os.execute(cmd)
 end
 
 local function chpasswd(obj)
@@ -1018,6 +1077,7 @@ elseif line == "#cloud-config" then
 		network_config,
 		resolv_conf,
 		keyboard,
+		locale,
 		disable_root,
 		ssh_pwauth,
 		runcmd,
@@ -1030,6 +1090,7 @@ elseif line == "#cloud-config" then
 		users,
 		chpasswd,
 		write_files_deferred,
+		power_state_change,
 	}
 
 	local calls_table = pre_network_calls
