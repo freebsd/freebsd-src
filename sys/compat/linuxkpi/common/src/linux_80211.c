@@ -5473,7 +5473,7 @@ lkpi_xmit(struct ieee80211_node *ni, struct mbuf *m,
 #endif
 		LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 		if (freem)
-			m_free(m);
+			m_freem(m);
 		return (ENETDOWN);
 	}
 
@@ -5482,7 +5482,7 @@ lkpi_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (error != 0) {
 		LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 		if (freem)
-			m_free(m);
+			m_freem(m);
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_TX)
 			ic_printf(ni->ni_ic, "%s: mbufq_enqueue failed: %d\n",
