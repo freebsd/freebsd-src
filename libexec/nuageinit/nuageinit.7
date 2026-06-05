@@ -159,6 +159,42 @@ Defaults to
 Set to
 .Ar false
 to skip this behaviour.
+.It Ic mounts
+A list of mount points to configure.
+Each entry is written to
+.Pa /etc/fstab
+and the mount point directory is created.
+.Pp
+Each entry can be specified as a list:
+.Bd -literal -offset indent
+[ device, mountpoint, fstype ]
+.Ed
+.Pp
+or as an object:
+.Bd -literal -offset indent
+{ device: "...", mountpoint: "...", type: "...", options: "..." }
+.Ed
+.Pp
+The following keys are recognized:
+.Bl -tag -width "options"
+.It device (or name, spec)
+The device to mount.
+.It mountpoint (or mount_point)
+The mount point directory.
+.It type (or fstype, filesystem)
+The filesystem type.
+.It options (or opts)
+The mount options, defaults to
+.Qq rw .
+.It dump
+The dump frequency for
+.Xr dump 8 ,
+defaults to 0.
+.It passno
+The pass number for
+.Xr fsck 8 ,
+defaults to 0.
+.El
 .It Ic timezone
 Sets the system timezone based on the value provided.
 .Pp
