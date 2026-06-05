@@ -531,6 +531,38 @@ local function disable_root(obj)
 	end
 end
 
+local function mounts(obj)
+	if obj.mounts == nil then return end
+	for _, m in ipairs(obj.mounts) do
+		local device, mount_point, fstype, options, dump_freq, passno
+		if type(m) == "table" then
+			if m[1] then
+				-- List format: [device, mount_point, fstype, options, dump_freq, passno]
+				device = m[1]
+				mount_point = m[2]
+				fstype = m[3]
+				options = m[4]
+				dump_freq = tonumber(m[5]) or 0
+				passno = tonumber(m[6]) or 0
+			else
+				-- Dict format
+				device = m.name or m.device or m.spec
+				mount_point = m.mount_point or m.mountpoint
+				fstype = m.type or m.filesystem or m.fstype
+				options = m.options or m.opts
+				dump_freq = tonumber(m.dump) or 0
+				passno = tonumber(m.passno) or tonumber(m.pass_no) or 0
+			end
+		end
+		if device and mount_point and fstype then
+			nuage.mkdir_p(root .. mount_point)
+			nuage.add_fstab_entry(root, device, mount_point, fstype, options, dump_freq, passno)
+		else
+			warnmsg("Invalid mount entry, skipping")
+		end
+	end
+end
+
 local function bootcmd(obj)
 	if obj.bootcmd == nil then return end
 	local f = nil
@@ -828,6 +860,7 @@ if line == nil then
 --  YAML user-data
 elseif line == "#cloud-config" then
 	local pre_network_calls = {
+		mounts,
 		bootcmd,
 		sethostname,
 		manage_etc_hosts,

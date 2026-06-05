@@ -821,6 +821,50 @@ local function addfile(file, defer)
 	return true
 end
 
+local function add_fstab_entry(root, device, mount_point, fstype, options, dump_freq, passno)
+	local fstab_path = root .. "/etc/fstab"
+	local f = io.open(fstab_path, "a")
+	if not f then
+		warnmsg("unable to open " .. fstab_path .. " for writing")
+		return false
+	end
+	options = options or "rw"
+	dump_freq = dump_freq or 0
+	passno = passno or 0
+	f:write(string.format("%s\t\t%s\t\t%s\t\t%s\t\t%d\t\t%d\n",
+	    device, mount_point, fstype, options, dump_freq, passno))
+	f:close()
+	return true
+end
+
+local function remove_fstab_entry(root, mount_point)
+	local fstab_path = root .. "/etc/fstab"
+	local f = io.open(fstab_path, "r")
+	if not f then
+		return
+	end
+	local lines = {}
+	for line in f:lines() do
+		local fields = {}
+		for field in line:gmatch("%S+") do
+			table.insert(fields, field)
+		end
+		if fields[2] ~= mount_point then
+			table.insert(lines, line)
+		end
+	end
+	f:close()
+	local nf = io.open(fstab_path, "w")
+	if not nf then
+		warnmsg("unable to open " .. fstab_path .. " for writing")
+		return
+	end
+	for _, line in ipairs(lines) do
+		nf:write(line .. "\n")
+	end
+	nf:close()
+end
+
 local n = {
 	shell_escape = shell_escape,
 	warn = warnmsg,
@@ -844,7 +888,9 @@ local n = {
 	upgrade_packages = upgrade_packages,
 	addsudo = addsudo,
 	adddoas = adddoas,
-	addfile = addfile
+	addfile = addfile,
+	add_fstab_entry = add_fstab_entry,
+	remove_fstab_entry = remove_fstab_entry,
 }
 
 return n
