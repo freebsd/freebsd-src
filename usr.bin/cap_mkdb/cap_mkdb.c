@@ -40,7 +40,7 @@
 #include <string.h>
 #include <unistd.h>
 
-static void	 db_build(const char * const *);
+static void	 db_build(char **);
 static void	 dounlink(void);
 static void	 usage(void);
 
@@ -113,7 +113,7 @@ main(int argc, char *argv[])
 	if (atexit(dounlink))
 		err(1, "atexit");
 
-	db_build((const char * const *)argv);
+	db_build(argv);
 
 	if (capdbp->close(capdbp) < 0)
 		err(1, "%s", capname);
@@ -142,7 +142,7 @@ dounlink(void)
  * details above.
  */
 static void
-db_build(const char * const *ifiles)
+db_build(char **ifiles)
 {
 	DBT key, data;
 	recno_t reccnt;

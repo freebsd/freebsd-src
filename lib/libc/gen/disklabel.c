@@ -54,8 +54,6 @@ gettype(char *t, const char **names)
 	return (0);
 }
 
-static const char *db_array[] = { _PATH_DISKTAB, NULL };
-
 struct disklabel *
 getdiskbyname(const char *name)
 {
@@ -63,12 +61,13 @@ getdiskbyname(const char *name)
 	struct	disklabel *dp = &disk;
 	struct partition *pp;
 	char	*buf;
+	char  	*db_array[2] = { _PATH_DISKTAB, 0 };
 	char	*cp, *cq;	/* can't be register */
 	char	p, max, psize[3], pbsize[3],
 		pfsize[3], poffset[3], ptype[3];
 	u_int32_t *dx;
 
-	if (cgetent(&buf, db_array, name) < 0)
+	if (cgetent(&buf, db_array, (char *) name) < 0)
 		return NULL;
 
 	bzero((char *)&disk, sizeof(disk));
