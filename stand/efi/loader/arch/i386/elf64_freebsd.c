@@ -99,6 +99,7 @@ elf64_exec(struct preloaded_file *fp)
 	struct user_segment_descriptor *gdt;
 	vm_offset_t		modulep, kernend, trampstack;
 	int i;
+	bool needs_pt4;
 
 	switch (copy_staging) {
 	case COPY_STAGING_ENABLE:
@@ -199,10 +200,8 @@ elf64_exec(struct preloaded_file *fp)
 			 */
 			PT2[i] = (i * M(2)) | PG_V | PG_RW | PG_PS;
 		}
+		needs_pt4 = false;
 	} else {
-		pdpt_entry_t	*PT3_l, *PT3_u;
-		pd_entry_t	*PT2_l0, *PT2_l1, *PT2_l2, *PT2_l3, *PT2_u0, *PT2_u1;
-
 		err = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
 		    EFI_SIZE_TO_PAGES(512 * 9 * sizeof(uint64_t)), &ptr);
 		if (EFI_ERROR(err)) {
@@ -212,6 +211,38 @@ elf64_exec(struct preloaded_file *fp)
 			return (ENOMEM);
 		}
 		PT4 = (pml4_entry_t *)(uintptr_t)ptr;
+
+		needs_pt4 = true;
+	}
+
+	printf("%scopying staging tramp %p PT4 %p GDT %p\n"
+	    "Start @ %#llx ...\n",
+	    type == AllocateMaxAddress ? "" : "not ", trampoline, PT4, gdt,
+	    ehdr->e_entry
+	);
+
+
+	/*
+	 * we have to cleanup here because net_cleanup() doesn't work after
+	 * we call ExitBootServices
+	 */
+	dev_cleanup();
+
+	efi_time_fini();
+	err = bi_load(fp->f_args, &modulep, &kernend, true);
+	if (err != 0) {
+		efi_time_init();
+		return (err);
+	}
+
+	/*
+	 * staging might move in bi_load because we automatiaclly move when we
+	 * copy data in. At this point, staging can't move anymore, so create
+	 * PT4 with the correct value.
+	 */
+	if (needs_pt4) {
+		pdpt_entry_t	*PT3_l, *PT3_u;
+		pd_entry_t	*PT2_l0, *PT2_l1, *PT2_l2, *PT2_l3, *PT2_u0, *PT2_u1;
 
 		PT3_l = &PT4[512];
 		PT3_u = &PT3_l[512];
@@ -243,27 +274,6 @@ elf64_exec(struct preloaded_file *fp)
 			PT2_u0[i] = (staging + (i - 1) * M(2))
 			| PG_V | PG_RW | PG_PS;
 		}
-	}
-
-	printf(
-	    "staging %#llx (%scopying) tramp %p PT4 %p GDT %p\n"
-	    "Start @ %#llx ...\n", staging,
-	    type == AllocateMaxAddress ? "" : "not ", trampoline, PT4, gdt,
-	    ehdr->e_entry
-	);
-
-
-	/*
-	 * we have to cleanup here because net_cleanup() doesn't work after
-	 * we call ExitBootServices
-	 */
-	dev_cleanup();
-
-	efi_time_fini();
-	err = bi_load(fp->f_args, &modulep, &kernend, true);
-	if (err != 0) {
-		efi_time_init();
-		return (err);
 	}
 
 	trampoline(trampstack, type == AllocateMaxAddress ? efi_copy_finish :

@@ -210,6 +210,16 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	}
 #endif
 
+#if defined(__amd64__) || defined(__i386__)
+	/*
+	 * Staging can't move after this point, so report the final value before
+	 * we try to exit boot services below. The metadata added is added to
+	 * the malloced arena that we setup when we started and doesn't interact
+	 * with boot services.
+	 */
+	printf("staging %#jx\n", (uintmax_t)staging);
+#endif
+
 	do_vmap = true;
 	efi_novmap = getenv("efi_disable_vmap");
 	if (efi_novmap != NULL)
@@ -299,14 +309,20 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	 * loader.conf(5). By default we will setup the virtual
 	 * map entries.
 	 */
-
 	if (do_vmap)
 		efi_do_vmap(mm, sz, dsz, mmver);
+
+	/*
+	 * Add the memory map to the metadata. addmetadata copies the data into
+	 * the malloc arena, so we can safely free the memory map pages after.
+	 * Or could if boot services was still running.
+	 */
 	efihdr->memory_size = sz;
 	efihdr->descriptor_size = dsz;
 	efihdr->descriptor_version = mmver;
 	file_addmetadata(kfp, MODINFOMD_EFI_MAP, efisz + sz,
 	    efihdr);
+	/* BS->FreePages(addr, pages); */
 
 	return (0);
 }
