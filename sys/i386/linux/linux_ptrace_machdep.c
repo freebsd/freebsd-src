@@ -377,10 +377,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		}
 
 		if (req == PTRACE_GETFPXREGS) {
-			_PHOLD(p);	/* may block */
 			td2 = FIRST_THREAD_IN_PROC(p);
 			error = linux_proc_read_fpxregs(td2, &r.fpxreg);
-			_PRELE(p);
 			PROC_UNLOCK(p);
 			if (error == 0)
 				error = copyout(&r.fpxreg, (void *)uap->data,
@@ -388,10 +386,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		} else {
 			/* clear dangerous bits exactly as Linux does*/
 			r.fpxreg.mxcsr &= 0xffbf;
-			_PHOLD(p);	/* may block */
 			td2 = FIRST_THREAD_IN_PROC(p);
 			error = linux_proc_write_fpxregs(td2, &r.fpxreg);
-			_PRELE(p);
 			PROC_UNLOCK(p);
 		}
 		break;
