@@ -291,7 +291,7 @@ free_nat_instance(struct cfg_nat *ptr)
 static int
 ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 {
-	struct mbuf *mcl;
+	struct mbuf *mcl, *mfree __diagused;
 	struct ip *ip;
 	/* XXX - libalias duct tape */
 	int ldt, retval, found;
@@ -396,7 +396,8 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	    (retval == PKT_ALIAS_IGNORED &&
 	    (t->mode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
 		/* XXX - should i add some logging? */
-		m_free(mcl);
+		mfree = m_free(mcl);
+		MPASS(mfree == NULL);
 		args->m = NULL;
 		return (IP_FW_DENY);
 	}
