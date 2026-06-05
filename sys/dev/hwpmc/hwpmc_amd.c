@@ -869,6 +869,8 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 struct pmc_mdep *
 pmc_amd_initialize(void)
 {
+	int status;
+	uint64_t reg;
 	struct pmc_classdep *pcd;
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_cputype cputype;
@@ -903,6 +905,36 @@ pmc_amd_initialize(void)
 		printf("pmc: Unknown AMD CPU %x %d-%d.\n", cpu_id, family,
 		    model);
 		return (NULL);
+	}
+
+	/*
+	 * Unforunately, there is no way to communicate that the original four
+	 * core counters are disabled through CPUIDs alone.  We attempt to
+	 * write and read back the MSR to validate it is working.
+	 *
+	 * Referenced the BIOS and Kernel Developer Guide for AMD Athlon 64 and
+	 * AMD Opteron Processors 26094 Rev. 3.24 January, 2005 to ensure these
+	 * fields are valid.
+	 */
+	if ((amd_feature2 & AMDID2_PCXC) == 0) {
+		status = wrmsr_safe(AMD_PMC_EVSEL_0, AMD_PMC_OS | AMD_PMC_USR);
+		if (status != 0) {
+			printf("hwpmc: AMD evsel 0 wrmsr failed!\n");
+			return (NULL);
+		}
+
+		status = rdmsr_safe(AMD_PMC_EVSEL_0, &reg);
+		if (status != 0) {
+			printf("hwpmc: AMD evsel 0 rdmsr failed!\n");
+			return (NULL);
+		}
+
+		if (reg == 0) {
+			printf("hwpmc: AMD evsel returned invalid value! You may be in a VM without PMC support.\n");
+			return (NULL);
+		}
+
+		wrmsr(AMD_PMC_EVSEL_0, 0);
 	}
 
 	/*
