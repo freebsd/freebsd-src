@@ -218,6 +218,8 @@ lkpi_80211_mo_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct lkpi_hw *lhw;
 	int error;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	/*
 	 * MUST NOT return EPERM as that is a "magic number 1" based on rtw88
 	 * driver indicating hw_scan is not supported despite the ops call
@@ -243,6 +245,8 @@ void
 lkpi_80211_mo_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct lkpi_hw *lhw;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->cancel_hw_scan == NULL)
@@ -291,6 +295,8 @@ lkpi_80211_mo_prepare_multicast(struct ieee80211_hw *hw,
 	struct lkpi_hw *lhw;
 	u64 ptr;
 
+	/* This seems fine without the wiphy lock. */
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->prepare_multicast == NULL)
 		return (0);
@@ -305,6 +311,8 @@ lkpi_80211_mo_configure_filter(struct ieee80211_hw *hw, unsigned int changed_fla
     unsigned int *total_flags, u64 mc_ptr)
 {
 	struct lkpi_hw *lhw;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->configure_filter == NULL)
@@ -429,6 +437,8 @@ lkpi_80211_mo_config(struct ieee80211_hw *hw, uint32_t changed)
 	struct lkpi_hw *lhw;
 	int error;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->config == NULL) {
 		error = EOPNOTSUPP;
@@ -497,6 +507,9 @@ lkpi_80211_mo_add_chanctx(struct ieee80211_hw *hw,
 	struct lkpi_chanctx *lchanctx;
 	int error;
 
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->add_chanctx == NULL) {
 		error = EOPNOTSUPP;
@@ -520,6 +533,9 @@ lkpi_80211_mo_change_chanctx(struct ieee80211_hw *hw,
 {
 	struct lkpi_hw *lhw;
 
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->change_chanctx == NULL)
 		return;
@@ -534,6 +550,9 @@ lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
 {
 	struct lkpi_hw *lhw;
 	struct lkpi_chanctx *lchanctx;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->remove_chanctx == NULL)
