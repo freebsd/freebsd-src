@@ -536,6 +536,29 @@ local function resolv_conf(obj)
 	nuage.write_resolv_conf(root, obj.resolv_conf)
 end
 
+local function keyboard(obj)
+	if obj.keyboard == nil then return end
+	local layout = obj.keyboard.layout
+	local variant = obj.keyboard.variant
+	if layout == nil then
+		warnmsg("keyboard: missing layout")
+		return
+	end
+	local keymap = layout
+	if variant then
+		keymap = layout .. "." .. variant
+	end
+	local path = root .. "/etc/rc.conf.d/keymap"
+	nuage.mkdir_p(root .. "/etc/rc.conf.d")
+	local f = io.open(path, "w")
+	if not f then
+		warnmsg("unable to open " .. path .. " for writing")
+		return
+	end
+	f:write('keymap="' .. keymap .. '"\n')
+	f:close()
+end
+
 local function mounts(obj)
 	if obj.mounts == nil then return end
 	for _, m in ipairs(obj.mounts) do
@@ -876,6 +899,7 @@ elseif line == "#cloud-config" then
 		ssh_keys,
 		network_config,
 		resolv_conf,
+		keyboard,
 		disable_root,
 		ssh_pwauth,
 		runcmd,

@@ -212,6 +212,26 @@ A list of IP/netmask sortlist entries.
 .It options
 A dictionary of resolver options.
 .El
+.It Ic keyboard
+An object configuring the keyboard layout.
+.Pp
+Sets the
+.Va keymap
+variable in
+.Pa /etc/rc.conf.d/keymap .
+.Pp
+The following keys are recognized:
+.Bl -tag -width "variant"
+.It layout
+The keyboard layout (e.g.,
+.Qq fr ,
+.Qq de ,
+.Qq us ) .
+.It variant
+The keyboard variant (e.g.,
+.Qq acc ,
+.Qq nodeadkeys ) .
+.El
 .It Ic timezone
 Sets the system timezone based on the value provided.
 .Pp
