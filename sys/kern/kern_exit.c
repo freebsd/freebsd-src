@@ -204,9 +204,8 @@ exit_onexit(struct proc *p)
 int
 sys__exit(struct thread *td, struct _exit_args *uap)
 {
-
-	exit1(td, uap->rval, 0);
-	__unreachable();
+	kern_exit(td, uap->rval, 0);
+	return (0);
 }
 
 void
@@ -214,6 +213,48 @@ proc_set_p2_wexit(struct proc *p)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_flag2 |= P2_WEXIT;
+}
+
+static void
+ast_async_exit(struct thread *td, int asts)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+	if ((p->p_flag & P_ASYNC_EXIT) != 0)
+		exit1(td, p->p_xexit, p->p_asig);
+}
+
+/*
+ * The variation on exit1() intended to be used in the syscall
+ * handlers.  Unlike exit1(), it might delay the current process exit
+ * to ast.  This is needed e.g. when _exit(2) is executed due to the
+ * ptrace(PT_SC_REMOTERQ), which must do more work after the syscall
+ * handler call.
+ */
+void
+kern_exit(struct thread *td, int rval, int signo)
+{
+	struct proc *p;
+
+	KASSERT(rval == 0 || signo == 0,
+	    ("kern_exit rv %d sig %d", rval, signo));
+
+	p = td->td_proc;
+	if ((td->td_dbgflags & TDB_SCREMOTEREQ) != 0) {
+		PROC_LOCK(p);
+		p->p_xexit = rval;
+		p->p_asig = signo;
+		p->p_flag |= P_ASYNC_EXIT;
+		ast_sched(td, TDA_ASYNC_EXIT);
+		PROC_UNLOCK(p);
+		return;
+	}
+	if ((p->p_flag & P_ASYNC_EXIT) != 0) {
+		rval = p->p_xexit;
+		signo = p->p_asig;
+	}
+	exit1(td, rval, signo);
 }
 
 /*
@@ -231,6 +272,7 @@ exit1(struct thread *td, int rval, int signo)
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(rval == 0 || signo == 0, ("exit1 rv %d sig %d", rval, signo));
+	MPASS((td->td_dbgflags & TDB_SCREMOTEREQ) == 0);
 	TSPROCEXIT(td->td_proc->p_pid);
 
 	p = td->td_proc;
@@ -828,7 +870,7 @@ out:
 	sbuf_delete(sb);
 	PROC_LOCK(p);
 	sigexit(td, sig);
-	/* NOTREACHED */
+	return (0);
 }
 
 #ifdef COMPAT_43
@@ -1627,3 +1669,10 @@ proc_reparent(struct proc *child, struct proc *parent, bool set_oppid)
 	if (set_oppid)
 		child->p_oppid = parent->p_pid;
 }
+
+static void
+initexit(void *dummy __unused)
+{
+	ast_register(TDA_ASYNC_EXIT, ASTR_ASTF_REQUIRED, 0, ast_async_exit);
+}
+SYSINIT(exit, SI_SUB_EXEC, SI_ORDER_ANY, initexit, NULL);
