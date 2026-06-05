@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 20, 2024
+.Dd June 4, 2026
 .Dt RC 8
 .Os
 .Sh NAME
@@ -96,6 +96,16 @@ The
 command provides a scripting interface to modify system config files.
 .Ss Operation of Nm
 .Bl -enum
+.It
+Verify that
+.Pa /dev/null
+exists and is a character device.
+If that is not the case,
+.Nm
+prints an error message and terminates.
+This is normally caused by forgetting to enable
+.Xr devfs 5
+in a jail's configuration.
 .It
 If autobooting, set
 .Va autoboot Ns = Ns Li yes
