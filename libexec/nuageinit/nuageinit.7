@@ -258,6 +258,23 @@ to skip NTP configuration.
 Alternatively,
 .Ic ntp
 can be a list of server addresses (legacy format).
+.It Ic ca_certs
+An object managing CA certificates.
+.Pp
+The following keys are recognized:
+.Bl -tag -width "remove_defaults"
+.It trusted
+A list of PEM-encoded CA certificates to add to the system trust store.
+Certificates are written to
+.Pa /etc/ssl/certs/
+and
+.Xr certctl 8
+rehash is executed.
+.It remove_defaults
+Boolean, if
+.Ar true ,
+remove the default CA certificates.
+.El
 .It Ic timezone
 Sets the system timezone based on the value provided.
 .Pp

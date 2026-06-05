@@ -39,6 +39,7 @@ atf_test_case config2_userdata_resolv_conf
 atf_test_case config2_userdata_keyboard
 atf_test_case config2_userdata_ssh_authkey_fingerprints
 atf_test_case config2_userdata_ntp
+atf_test_case config2_userdata_ca_certs
 atf_test_case config2_userdata_fqdn_and_hostname
 atf_test_case config2_userdata_write_files
 
@@ -1245,6 +1246,34 @@ EOF
 	true
 }
 
+config2_userdata_ca_certs_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_ca_certs_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<'EOF'
+#cloud-config
+ca_certs:
+  trusted:
+    - |
+      -----BEGIN CERTIFICATE-----
+      dGVzdGNlcnQx
+      -----END CERTIFICATE-----
+    - |
+      -----BEGIN CERTIFICATE-----
+      dGVzdGNlcnQy
+      -----END CERTIFICATE-----
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o match:"dGVzdGNlcnQx" cat etc/ssl/certs/nuageinit-1.pem
+	atf_check -o match:"dGVzdGNlcnQy" cat etc/ssl/certs/nuageinit-2.pem
+	true
+}
+
 config2_userdata_fqdn_and_hostname_body()
 {
 	mkdir -p media/nuageinit
@@ -1299,6 +1328,7 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_keyboard
 	atf_add_test_case config2_userdata_ssh_authkey_fingerprints
 	atf_add_test_case config2_userdata_ntp
+	atf_add_test_case config2_userdata_ca_certs
 	atf_add_test_case config2_userdata_fqdn_and_hostname
 	atf_add_test_case config2_userdata_write_files
 }
