@@ -1545,8 +1545,8 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	 * SIGNAL_EXIT_GROUP is set. We ignore that (temporarily?)
 	 * as it doesnt occur often.
 	 */
-	exit1(td, args->error_code, 0);
-		/* NOTREACHED */
+	kern_exit(td, args->error_code, 0);
+	return (0);
 }
 
 #define _LINUX_CAPABILITY_VERSION_1  0x19980330

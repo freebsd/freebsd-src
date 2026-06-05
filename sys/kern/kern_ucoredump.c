@@ -46,6 +46,7 @@
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rmlock.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/ucoredump.h>
@@ -197,8 +198,7 @@ sigexit(struct thread *td, int sig)
 			    err != NULL ? err : "");
 	} else
 		PROC_UNLOCK(p);
-	exit1(td, 0, sig);
-	/* NOTREACHED */
+	kern_exit(td, 0, sig);
 }
 
 

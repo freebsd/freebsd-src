@@ -136,6 +136,7 @@ int	kern_cpuset_setid(struct thread *td, cpuwhich_t which,
 int	kern_dup(struct thread *td, u_int mode, int flags, int old, int new);
 int	kern_execve(struct thread *td, struct image_args *args,
 	    struct mac *mac_p, struct vmspace *oldvmspace);
+void	kern_exit(struct thread *, int, int);
 int	kern_extattr_delete_fd(struct thread *td, int fd, int attrnamespace,
 	    const char *attrname);
 int	kern_extattr_delete_path(struct thread *td, const char *path,

@@ -66,6 +66,7 @@
 #include <sys/signalvar.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
@@ -1258,7 +1259,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 	 * If the prison was killed mid-fork, die along with it.
 	 */
 	if (!prison_isalive(td->td_ucred->cr_prison))
-		exit1(td, 0, SIGKILL);
+		kern_exit(td, 0, SIGKILL);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))

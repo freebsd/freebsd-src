@@ -341,11 +341,11 @@ post_execve(struct thread *td, int error, struct vmspace *oldvmspace)
 }
 
 /*
- * kern_execve() has the astonishing property of not always returning to
- * the caller.  If sufficiently bad things happen during the call to
- * do_execve(), it can end up calling exit1(); as a result, callers must
- * avoid doing anything which they might need to undo (e.g., allocating
- * memory).
+ * kern_execve() has the astonishing property of not always returning
+ * to the caller.  If sufficiently bad things happen during the call
+ * to do_execve(), it can end up calling exit2(). Callers must avoid
+ * doing anything which they might need to undo (e.g., allocating
+ * memory), unless called from the ptrace(PT_SC_REMOTERQ) handler.
  */
 int
 kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
@@ -1042,8 +1042,7 @@ exec_fail:
 	if (error && imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
 		exec_cleanup(td, oldvmspace);
-		exit1(td, 0, SIGABRT);
-		/* NOT REACHED */
+		kern_exit(td, 0, SIGABRT);
 	}
 
 #ifdef KTRACE

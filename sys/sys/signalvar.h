@@ -399,7 +399,7 @@ int	sigacts_shared(struct sigacts *ps);
 int	sig_ast_checksusp(struct thread *td);
 int	sig_ast_needsigchk(struct thread *td);
 void	sig_drop_caught(struct proc *p);
-void	sigexit(struct thread *td, int sig) __dead2;
+void	sigexit(struct thread *td, int sig);
 int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
 void	sigfastblock_clear(struct thread *td);
 void	sigfastblock_fetch(struct thread *td);
