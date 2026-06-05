@@ -801,13 +801,13 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	 */
 	nh = fib6_lookup(sc->sc_fibnum, &ip6->ip6_dst, 0, 0, 0);
 	if (nh == NULL) {
-		m_free(m);
+		m_freem(m);
 		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
 	if ((nh->nh_ifp == ifp) &&
 	    (!IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &nh->gw6_sa.sin6_addr))) {
-		m_free(m);
+		m_freem(m);
 		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
 		return (IPPROTO_DONE);
 	}
