@@ -1058,6 +1058,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		pages = kstack_pages;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
+	PROC_TREE_REF(newproc);
 	td2 = FIRST_THREAD_IN_PROC(newproc);
 	if (td2 == NULL) {
 		td2 = thread_alloc(pages);
@@ -1138,7 +1139,7 @@ fail1:
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
-	uma_zfree(proc_zone, newproc);
+	PROC_TREE_UNREF(newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);
