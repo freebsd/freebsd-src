@@ -2147,7 +2147,11 @@ pfsync_undefer_state_locked(struct pf_kstate *st, int drop)
 		}
 	}
 
-	panic("%s: unable to find deferred state", __func__);
+	/*
+	 * If we don't find this state in b_deferrals that might be because we
+	 * overflowed the list (see pfsync_defer()'s >= 128 check') or because
+	 * the deferral timed out already (see pfsync_defer_tomo()).
+	 */
 }
 
 static void
