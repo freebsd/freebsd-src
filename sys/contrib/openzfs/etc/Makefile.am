@@ -1,10 +1,4 @@
 # SPDX-License-Identifier: CDDL-1.0
-sudoersddir = $(sysconfdir)/sudoers.d
-sudoersd_DATA = \
-	%D%/sudoers.d/zfs
-
-dist_noinst_DATA += $(sudoersd_DATA)
-
 
 sysconf_zfsdir = $(sysconfdir)/zfs
 
@@ -87,8 +81,6 @@ systemdgenerator_PROGRAMS = \
 
 %C%_systemd_system_generators_zfs_mount_generator_LDADD = \
 	libzfs.la
-
-%C%_systemd_system_generators_zfs_mount_generator_LDFLAGS = -pthread
 
 CPPCHECKTARGETS += $(systemdgenerator_PROGRAMS)
 endif

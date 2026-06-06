@@ -163,6 +163,8 @@ KERNEL_C = \
 	vdev_root.c \
 	vdev_trim.c \
 	zap.c \
+	zap_fat.c \
+	zap_impl.c \
 	zap_leaf.c \
 	zap_micro.c \
 	zcp.c \

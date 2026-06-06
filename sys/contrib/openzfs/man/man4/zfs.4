@@ -4,6 +4,7 @@
 .\" Copyright (c) 2019, 2021 by Delphix. All rights reserved.
 .\" Copyright (c) 2019 Datto Inc.
 .\" Copyright (c) 2023, 2024, 2025, Klara, Inc.
+.\" Copyright (c) 2026, Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
 .\" The contents of this file are subject to the terms of the Common Development
 .\" and Distribution License (the "License").  You may not use this file except
@@ -18,7 +19,7 @@
 .\" own identifying information:
 .\" Portions Copyright [yyyy] [name of copyright owner]
 .\"
-.Dd September 15, 2025
+.Dd May 8, 2026
 .Dt ZFS 4
 .Os
 .
@@ -389,6 +390,18 @@ this is
 or
 .Em 2*1024 Pq with Sy ashift Ns = Ns Sy 12 .
 .
+.It Sy metaslab_df_alloc_threshold Ns = Ns Sy 131072 Ns B Po 128 KiB Pc Pq u64
+Minimum size which forces the dynamic allocator to change its allocation
+strategy.
+Once the space map cannot satisfy an allocation of this size, it switches to a
+more aggressive strategy (searching by size rather than offset).
+.
+.It Sy metaslab_df_free_pct Ns = Ns Sy 4 Ns % Pq uint
+The minimum free space, in percent, which must be available in a space map to
+continue allocations in a first-fit fashion.
+Once free space drops below this level, allocations switch to a best-fit
+strategy.
+.
 .It Sy metaslab_df_use_largest_segment Ns = Ns Sy 0 Ns | Ns 1 Pq int
 If not searching forward (due to
 .Sy metaslab_df_max_search , metaslab_df_free_pct ,
@@ -444,6 +457,32 @@ When not trying hard, we only consider this number of the best metaslabs.
 This improves performance, especially when there are many metaslabs per vdev
 and the allocation can't actually be satisfied
 (so we would otherwise iterate all metaslabs).
+.
+.It Sy zfs_metaslab_sm_blksz_no_log Ns = Ns Sy 16384 Ns B Po 16 KiB Pc Pq int
+Block size for the metaslab space maps in pools where the
+.Sy log_spacemap
+feature is disabled.
+Multiple metaslabs are modified per transaction group, so a smaller block size
+lets more, scattered I/O operations be issued.
+Must be a power of 2 greater than
+.Sy 4096 .
+This parameter can only be set at module load time.
+.
+.It Sy zfs_metaslab_sm_blksz_with_log Ns = Ns Sy 131072 Ns B Po 128 KiB Pc Pq int
+Block size for the metaslab space maps in pools where the
+.Sy log_spacemap
+feature is enabled.
+Changes are batched in the per-pool log spacemap and flushed to each metaslab's
+space map only occasionally, so a larger block size is more efficient.
+Must be a power of 2 greater than
+.Sy 4096 .
+This parameter can only be set at module load time.
+.
+.It Sy zfs_metaslab_condense_pct Ns = Ns Sy 200 Ns % Pq uint
+Condense an on-disk space map when its size exceeds this percentage of
+the in-memory representation.
+The minimum is
+.Sy 100 .
 .
 .It Sy zfs_vdev_default_ms_count Ns = Ns Sy 200 Pq uint
 When a vdev is added, target this number of metaslabs per top-level vdev.
@@ -768,9 +807,15 @@ See also
 which serves a similar purpose but has a higher priority if nonzero.
 .
 .It Sy zfs_arc_dnode_reduce_percent Ns = Ns Sy 10 Ns % Pq u64
-Percentage of ARC dnodes to try to scan in response to demand for non-metadata
-when the number of bytes consumed by dnodes exceeds
-.Sy zfs_arc_dnode_limit .
+Percentage used to size dnode prune requests.
+The request size is the larger of two values:
+.Sy zfs_arc_dnode_reduce_percent
+applied to the dnode count above
+.Sy zfs_arc_dnode_limit ,
+or
+.Sy zfs_arc_dnode_reduce_percent
+applied to the total dnode count
+when non-evictable metadata exceeds 3/4 of the metadata target.
 .
 .It Sy zfs_arc_average_blocksize Ns = Ns Sy 8192 Ns B Po 8 KiB Pc Pq uint
 The ARC's buffer hash table is sized based on the assumption of an average
@@ -911,6 +956,19 @@ but that was not proven to be useful.
 Number of missing top-level vdevs which will be allowed during
 pool import (only in read-only mode).
 .
+.It Sy zfs_max_missing_tvds_cachefile Ns = Ns Sy 2 Pq u64
+Number of missing top-level vdevs tolerated when importing a pool
+from a cachefile, before the trusted config is read from the MOS.
+A cachefile can fall out of sync with the on-disk config after a
+device removal that did not rewrite the cachefile, so the default
+of 2 still lets the import reach a copy of the MOS.
+.
+.It Sy zfs_max_missing_tvds_scan Ns = Ns Sy 0 Pq u64
+Number of missing top-level vdevs tolerated when importing a pool
+by scanning device paths, before the trusted config is read from
+the MOS.
+Defaults to 0 because a scan should detect every present device.
+.
 .It Sy zfs_max_nvlist_src_size Ns = Sy 0 Pq u64
 Maximum size in bytes allowed to be passed as
 .Sy zc_nvlist_src_size
@@ -948,8 +1006,6 @@ equivalent to the greater of the number of online CPUs and
 If less than
 .Sy arc_c No >> Sy zfs_arc_no_grow_shift
 free memory is available, the ARC is not allowed to grow.
-This parameter is
-.Fx Ns -specific .
 .
 .It Sy zfs_arc_overflow_shift Ns = Ns Sy 8 Pq int
 The ARC size is considered to be overflowing if it exceeds the current

@@ -8333,12 +8333,20 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 		return (spa_vdev_exit(spa, newrootvd, txg, error));
 
 	/*
-	 * log, dedup and special vdevs should not be replaced by spares.
+	 * Spares can't replace logs
 	 */
-	if ((oldvd->vdev_top->vdev_alloc_bias != VDEV_BIAS_NONE ||
-	    oldvd->vdev_top->vdev_islog) && newvd->vdev_isspare) {
+	if (oldvd->vdev_top->vdev_islog && newvd->vdev_isspare)
 		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
-	}
+
+	/*
+	 * For special and dedup vdevs a spare must have matching rotational
+	 * characteristics.  A rotating spare replacing a non-rotating vdev
+	 * would silently degrade pool performance, so we reject the mismatch.
+	 */
+	if (newvd->vdev_isspare &&
+	    oldvd->vdev_top->vdev_alloc_bias != VDEV_BIAS_NONE &&
+	    newvd->vdev_nonrot != oldvd->vdev_nonrot)
+		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
 
 	/*
 	 * A dRAID spare can only replace a child of its parent dRAID vdev.
@@ -11011,6 +11019,10 @@ spa_sync(spa_t *spa, uint64_t txg)
 		ASSERT0(spa->spa_vdev_removal->svr_bytes_done[txg & TXG_MASK]);
 	}
 
+	for (vd = txg_list_head(&spa->spa_vdev_txg_list, TXG_CLEAN(txg)); vd;
+	    vd = txg_list_next(&spa->spa_vdev_txg_list, vd, TXG_CLEAN(txg)))
+		vdev_sync_dispatch(vd, txg);
+
 	spa_sync_rewrite_vdev_config(spa, tx);
 	dmu_tx_commit(tx);
 
@@ -11035,9 +11047,6 @@ spa_sync(spa_t *spa, uint64_t txg)
 
 	dsl_pool_sync_done(dp, txg);
 
-	/*
-	 * Update usable space statistics.
-	 */
 	while ((vd = txg_list_remove(&spa->spa_vdev_txg_list, TXG_CLEAN(txg)))
 	    != NULL)
 		vdev_sync_done(vd, txg);
@@ -11810,6 +11819,12 @@ ZFS_MODULE_PARAM(zfs_zio, zio_, taskq_batch_tpq, UINT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, max_missing_tvds, U64, ZMOD_RW,
 	"Allow importing pool with up to this number of missing top-level "
 	"vdevs (in read-only mode)");
+
+ZFS_MODULE_PARAM(zfs, zfs_, max_missing_tvds_cachefile, U64, ZMOD_RW,
+	"Allow importing pools with missing top-level vdevs in cache file");
+
+ZFS_MODULE_PARAM(zfs, zfs_, max_missing_tvds_scan, U64, ZMOD_RW,
+	"Allow importing pools with missing top-level vdevs during scan");
 
 ZFS_MODULE_PARAM(zfs_livelist_condense, zfs_livelist_condense_, zthr_pause, INT,
 	ZMOD_RW, "Set the livelist condense zthr to pause");

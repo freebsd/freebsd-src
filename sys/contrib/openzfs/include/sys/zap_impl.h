@@ -26,6 +26,7 @@
  * Copyright (c) 2013, 2016 by Delphix. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.
  * Copyright (c) 2024, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef	_SYS_ZAP_IMPL_H
@@ -33,7 +34,6 @@
 
 #include <sys/zap.h>
 #include <sys/zfs_context.h>
-#include <sys/avl.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -62,8 +62,9 @@ typedef struct mzap_phys {
 	uint64_t mz_salt;
 	uint64_t mz_normflags;
 	uint64_t mz_pad[5];
-	mzap_ent_phys_t mz_chunk[1];
+
 	/* actually variable size depending on block size */
+	mzap_ent_phys_t mz_chunk[];
 } mzap_phys_t;
 
 typedef struct mzap_ent {
@@ -170,6 +171,9 @@ typedef struct zap {
 	} zap_u;
 } zap_t;
 
+#define	zap_f	zap_u.zap_fat
+#define	zap_m	zap_u.zap_micro
+
 static inline zap_phys_t *
 zap_f_phys(zap_t *zap)
 {
@@ -182,6 +186,10 @@ zap_m_phys(zap_t *zap)
 	return (zap->zap_dbuf->db_data);
 }
 
+/*
+ * zap_name_t carries the original key and whatever we've derived from it
+ * (normalised form, hash, etc) as we work through completing the operation.
+ */
 typedef struct zap_name {
 	zap_t *zn_zap;
 	int zn_key_intlen;
@@ -196,25 +204,94 @@ typedef struct zap_name {
 	char zn_normbuf[];
 } zap_name_t;
 
-#define	zap_f	zap_u.zap_fat
-#define	zap_m	zap_u.zap_micro
+/*
+ * Allocate a zap_name_t. The longname flag ensures there is enough room to
+ * hold a long filename when the 'longname' pool feature is active.
+ */
+zap_name_t *zap_name_alloc(zap_t *zap, boolean_t longname);
 
+/*
+ * Allocate a zap_name_t for the given key. zap_name_init_str() will be
+ * called to normalise the key and initialise the struct.
+ */
+zap_name_t *zap_name_alloc_str(zap_t *zap, const char *key, matchtype_t mt);
+
+/*
+ * Allocate a zap_name_t for a uint64 array key.
+ */
+zap_name_t *zap_name_alloc_uint64(zap_t *zap, const uint64_t *key, int numints);
+
+/*
+ * Free a zap_name_t.
+ */
+void zap_name_free(zap_name_t *zn);
+
+/*
+ * Initialise an existing zap_name_t with the normalised form of the key,
+ * computed according to the given matchtype.
+ */
+int zap_name_init_str(zap_name_t *zn, const char *key, matchtype_t mt);
+
+/*
+ * Compare 'matchname' with the name represented by the zap_name_t, applying
+ * the same normalisation method first. Returns true if the normalised forms
+ * match, false otherwise.
+ */
 boolean_t zap_match(zap_name_t *zn, const char *matchname);
-int zap_lockdir(objset_t *os, uint64_t obj, dmu_tx_t *tx,
+
+/*
+ * Compute and return the 64-bit hash for the name, according to the name
+ * type and hash flags.
+ */
+uint64_t zap_hash(zap_name_t *zn);
+
+/*
+ * Return a zap_t for the given on-disk object, locked and ready for use.
+ * The zap_t will be allocated and loaded from disk if its not already loaded.
+ */
+int zap_lock(objset_t *os, uint64_t obj, dmu_tx_t *tx,
     krw_t lti, boolean_t fatreader, boolean_t adding, const void *tag,
     zap_t **zapp);
-void zap_unlockdir(zap_t *zap, const void *tag);
+int zap_lock_by_dnode(dnode_t *dn, dmu_tx_t *tx,
+    krw_t lti, boolean_t fatreader, boolean_t adding, const void *tag,
+    zap_t **zapp);
+
+/* Unlock and release a zap_t. */
+void zap_unlock(zap_t *zap, const void *tag);
+
+/*
+ * Try to upgrade a zap lock from READER to WRITER. If the upgrade is not
+ * possible without blocking, returns 0. If the upgrade happened, returns 1.
+ */
+int zap_lock_try_upgrade(zap_t *zap, dmu_tx_t *tx);
+
+/*
+ * Upgrade a zap lock from READER to WRITER. If it can't be upgraded
+ * immediately it will block.
+ */
+void zap_lock_upgrade(zap_t *zap, dmu_tx_t *tx);
+
+/* zap_t release function for when associated dbuf is evicted. */
 void zap_evict_sync(void *dbu);
-zap_name_t *zap_name_alloc_str(zap_t *zap, const char *key, matchtype_t mt);
-void zap_name_free(zap_name_t *zn);
+
+/* Misc internal state & config. */
 int zap_hashbits(zap_t *zap);
 uint32_t zap_maxcd(zap_t *zap);
 uint64_t zap_getflags(zap_t *zap);
 
+/* Microzap implementation. */
+zap_t *mzap_open(dmu_buf_t *db);
+int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
+mzap_ent_t *mze_find(zap_name_t *zn, zfs_btree_index_t *idx);
+boolean_t mze_canfit_fzap_leaf(zap_name_t *zn, uint64_t hash);
+void mze_destroy(zap_t *zap);
+boolean_t mzap_normalization_conflict(zap_t *zap, zap_name_t *zn,
+    mzap_ent_t *mze, zfs_btree_index_t *idx);
+void mzap_addent(zap_name_t *zn, uint64_t value);
+void mzap_byteswap(mzap_phys_t *buf, size_t size);
 uint64_t zap_get_micro_max_size(spa_t *spa);
 
-#define	ZAP_HASH_IDX(hash, n) (((n) == 0) ? 0 : ((hash) >> (64 - (n))))
-
+/* Fatzap implementation. */
 void fzap_byteswap(void *buf, size_t size);
 int fzap_count(zap_t *zap, uint64_t *count);
 int fzap_lookup(zap_name_t *zn,
@@ -223,20 +300,17 @@ int fzap_lookup(zap_name_t *zn,
     uint64_t *actual_num_integers);
 void fzap_prefetch(zap_name_t *zn);
 int fzap_add(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
-    const void *val, const void *tag, dmu_tx_t *tx);
-int fzap_update(zap_name_t *zn,
-    int integer_size, uint64_t num_integers, const void *val,
-    const void *tag, dmu_tx_t *tx);
+    const void *val, dmu_tx_t *tx);
+int fzap_update(zap_name_t *zn, int integer_size, uint64_t num_integers,
+    const void *val, dmu_tx_t *tx);
 int fzap_length(zap_name_t *zn,
     uint64_t *integer_size, uint64_t *num_integers);
 int fzap_remove(zap_name_t *zn, dmu_tx_t *tx);
 int fzap_cursor_retrieve(zap_t *zap, zap_cursor_t *zc, zap_attribute_t *za);
 void fzap_get_stats(zap_t *zap, zap_stats_t *zs);
 void zap_put_leaf(struct zap_leaf *l);
-
-int fzap_add_cd(zap_name_t *zn,
-    uint64_t integer_size, uint64_t num_integers,
-    const void *val, uint32_t cd, const void *tag, dmu_tx_t *tx);
+int fzap_add_cd(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
+    const void *val, uint32_t cd, dmu_tx_t *tx);
 void fzap_upgrade(zap_t *zap, dmu_tx_t *tx, zap_flags_t flags);
 
 #ifdef	__cplusplus

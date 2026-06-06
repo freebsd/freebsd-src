@@ -550,10 +550,11 @@ zpl_prune_sb(uint64_t nr_to_scan, void *arg)
  *
  * Finally, all filesystems get automatic handling for the 'source' option,
  * that is, the "name" of the filesystem (the first column of df(1)'s output).
- * However, this only happens if the handler does not otherwise handle
- * the 'source' option. Since we handle _all_ options because of 'sloppy', we
- * deal with this explicitly by calling into the kernel's helper for this,
- * vfs_parse_fs_param_source(), which sets up fc->source.
+ * However, this only happens if the handler does not otherwise handle the
+ * 'source' option. Since we handle _all_ options because of 'sloppy', we have
+ * ot handle it ourselves. Normally we would call vfs_parse_fs_param_source()
+ * to deal with this, but that didn't appear until 5.14, and it's small enough
+ * that we can just handle it ourselves.
  *
  *	source
  *
@@ -565,6 +566,7 @@ zpl_prune_sb(uint64_t nr_to_scan, void *arg)
  */
 
 enum {
+	Opt_source,
 	Opt_exec, Opt_suid, Opt_dev,
 	Opt_atime, Opt_relatime, Opt_strictatime,
 	Opt_saxattr, Opt_dirxattr, Opt_noxattr,
@@ -574,6 +576,8 @@ enum {
 };
 
 static const struct fs_parameter_spec zpl_param_spec[] = {
+	fsparam_string("source",	Opt_source),
+
 	fsparam_flag_no("exec",		Opt_exec),
 	fsparam_flag_no("suid",		Opt_suid),
 	fsparam_flag_no("dev",		Opt_dev),
@@ -609,18 +613,34 @@ static const struct fs_parameter_spec zpl_param_spec[] = {
 	{}
 };
 
+/*
+ * Before 5.6, fs_parse() took a struct fs_parameter_description
+ * which wraps the parameter specs with name and enum pointers. From 5.6,
+ * the description struct was removed and fs_parse() accepts the
+ * fs_parameter_spec directly.
+ */
+static int
+zpl_fs_parse(struct fs_context *fc, struct fs_parameter *param,
+	struct fs_parse_result *result)
+{
+#ifdef HAVE_FS_PARSE_TAKES_SPEC
+	return (fs_parse(fc, zpl_param_spec, param, result));
+#else
+	static const struct fs_parameter_description zpl_param_desc = {
+		.name = "zfs",
+		.specs = zpl_param_spec,
+	};
+	return (fs_parse(fc, &zpl_param_desc, param, result));
+#endif
+}
+
 static int
 zpl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	vfs_t *vfs = fc->fs_private;
 
-	/* Handle 'source' explicitly so we don't trip on it as an unknown. */
-	int opt = vfs_parse_fs_param_source(fc, param);
-	if (opt != -ENOPARAM)
-		return (opt);
-
 	struct fs_parse_result result;
-	opt = fs_parse(fc, zpl_param_spec, param, &result);
+	int opt = zpl_fs_parse(fc, param, &result);
 	if (opt == -ENOPARAM) {
 		/*
 		 * Convert unknowns to warnings, to work around the whole
@@ -632,6 +652,16 @@ zpl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		return (opt);
 
 	switch (opt) {
+	case Opt_source:
+		if (fc->source != NULL) {
+			cmn_err(CE_NOTE,
+			    "ZFS: multiple 'source' options not supported");
+			return (-SET_ERROR(EINVAL));
+		}
+		fc->source = param->string;
+		param->string = NULL;
+		break;
+
 	case Opt_exec:
 		vfs->vfs_exec = !result.negated;
 		vfs->vfs_do_exec = B_TRUE;
@@ -794,7 +824,7 @@ zpl_parse_monolithic(struct fs_context *fc, void *data)
 
 		/* Check if this is one of our options. */
 		struct fs_parse_result result;
-		int opt = fs_parse(fc, zpl_param_spec, &param, &result);
+		int opt = zpl_fs_parse(fc, &param, &result);
 		if (opt >= 0) {
 			/*
 			 * We already know this one of our options, so a
@@ -874,9 +904,14 @@ zpl_get_tree(struct fs_context *fc)
 	if (sb->s_root == NULL) {
 		vfs_t *vfs = fc->fs_private;
 
-		/* Apply readonly flag as mount option */
-		if (fc->sb_flags & SB_RDONLY) {
-			vfs->vfs_readonly = B_TRUE;
+		/*
+		 * If SB_RDONLY was set/cleared from mount options, update
+		 * them in the options struct so we set up the filesystem
+		 * in the proper state.
+		 */
+		if (fc->sb_flags_mask & SB_RDONLY) {
+			vfs->vfs_readonly =
+			    (fc->sb_flags & SB_RDONLY) ? B_TRUE : B_FALSE;
 			vfs->vfs_do_readonly = B_TRUE;
 		}
 

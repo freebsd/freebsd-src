@@ -832,6 +832,8 @@ typedef struct arc_stats {
 	 * due to ARC_FLAG_UNCACHED being set.
 	 */
 	kstat_named_t arcstat_uncached_evictable_metadata;
+	/* Number of L2ARC devices currently attached across all pools. */
+	kstat_named_t arcstat_l2_ndev;
 	kstat_named_t arcstat_l2_hits;
 	kstat_named_t arcstat_l2_misses;
 	/*
@@ -1103,7 +1105,7 @@ extern arc_sums_t arc_sums;
 extern hrtime_t arc_growtime;
 extern boolean_t arc_warm;
 extern uint_t arc_grow_retry;
-extern uint_t arc_no_grow_shift;
+extern uint_t zfs_arc_no_grow_shift;
 extern uint_t arc_shrink_shift;
 extern kmutex_t arc_prune_mtx;
 extern list_t arc_prune_list;
@@ -1134,6 +1136,7 @@ extern int param_set_arc_int(ZFS_MODULE_PARAM_ARGS);
 extern int param_set_arc_min(ZFS_MODULE_PARAM_ARGS);
 extern int param_set_arc_max(ZFS_MODULE_PARAM_ARGS);
 extern int param_set_l2arc_dwpd_limit(ZFS_MODULE_PARAM_ARGS);
+extern int param_set_arc_no_grow_shift(ZFS_MODULE_PARAM_ARGS);
 extern void l2arc_dwpd_bump_reset(void);
 
 /* used in zdb.c */

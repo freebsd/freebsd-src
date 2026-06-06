@@ -460,6 +460,7 @@ vdev_prop_get_objid(vdev_t *vd, uint64_t *objid)
 	} else if (vd->vdev_leaf_zap != 0) {
 		*objid = vd->vdev_leaf_zap;
 	} else {
+		*objid = 0;
 		return (EINVAL);
 	}
 
@@ -474,8 +475,11 @@ vdev_prop_get_int(vdev_t *vd, vdev_prop_t prop, uint64_t *value)
 	uint64_t objid;
 	int err;
 
-	if (vdev_prop_get_objid(vd, &objid) != 0)
-		return (EINVAL);
+	if (vdev_prop_get_objid(vd, &objid) != 0) {
+		/* No ZAP: property was never set, return the default. */
+		*value = vdev_prop_default_numeric(prop);
+		return (ENOENT);
+	}
 
 	err = zap_lookup(mos, objid, vdev_prop_to_name(prop),
 	    sizeof (uint64_t), 1, value);
@@ -963,6 +967,20 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 	    &vd->vdev_wholedisk) != 0)
 		vd->vdev_wholedisk = -1ULL;
 
+	/*
+	 * Restore the last-known rotational status for leaf vdevs.  vdev_open()
+	 * will overwrite this with the hardware value when the device is
+	 * accessible; the persisted value acts as a fallback for failed or
+	 * missing devices so that spare selection can still match on device
+	 * type even when the original disk is gone.
+	 */
+	if (vd->vdev_ops->vdev_op_leaf) {
+		uint64_t rotational = 0;
+		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_VDEV_ROTATIONAL,
+		    &rotational) == 0)
+			vd->vdev_nonrot = !rotational;
+	}
+
 	vic = &vd->vdev_indirect_config;
 
 	ASSERT0(vic->vic_mapping_object);
@@ -1117,6 +1135,11 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 	if (top_level && (ops == &vdev_raidz_ops || ops == &vdev_draid_ops))
 		vd->vdev_autosit =
 		    vdev_prop_default_numeric(VDEV_PROP_AUTOSIT);
+	if (ops == &vdev_root_ops)
+		vd->vdev_failfast =
+		    vdev_prop_default_numeric(VDEV_PROP_FAILFAST);
+	else
+		vd->vdev_failfast = ZPROP_BOOLEAN_INHERIT;
 
 	/*
 	 * Add ourselves to the parent's list of children.
@@ -3912,10 +3935,9 @@ vdev_load(vdev_t *vd)
 		    vdev_prop_to_name(VDEV_PROP_FAILFAST), sizeof (failfast),
 		    1, &failfast);
 		if (error == 0) {
-			vd->vdev_failfast = failfast & 1;
+			vd->vdev_failfast = failfast;
 		} else if (error == ENOENT) {
-			vd->vdev_failfast = vdev_prop_default_numeric(
-			    VDEV_PROP_FAILFAST);
+			vd->vdev_failfast = ZPROP_BOOLEAN_INHERIT;
 		} else {
 			vdev_dbgmsg(vd,
 			    "vdev_load: zap_lookup(top_zap=%llu) "
@@ -4224,17 +4246,39 @@ vdev_remove_empty_log(vdev_t *vd, uint64_t txg)
 	dmu_tx_commit(tx);
 }
 
+static void
+metaslab_sync_done_task(void *arg)
+{
+	metaslab_t *msp = arg;
+	spa_t *spa = msp->ms_group->mg_vd->vdev_spa;
+	metaslab_sync_done(msp, spa_syncing_txg(spa));
+}
+
+void
+vdev_sync_dispatch(vdev_t *vd, uint64_t txg)
+{
+	spa_t *spa = vd->vdev_spa;
+
+	ASSERT(vdev_is_concrete(vd));
+
+	for (metaslab_t *msp = txg_list_head(&vd->vdev_ms_list, TXG_CLEAN(txg));
+	    msp; msp = txg_list_next(&vd->vdev_ms_list, msp, TXG_CLEAN(txg))) {
+		(void) taskq_dispatch(spa->spa_sync_tq,
+		    metaslab_sync_done_task, msp, TQ_SLEEP);
+	}
+}
+
 void
 vdev_sync_done(vdev_t *vd, uint64_t txg)
 {
-	metaslab_t *msp;
 	boolean_t reassess = !txg_list_empty(&vd->vdev_ms_list, TXG_CLEAN(txg));
 
 	ASSERT(vdev_is_concrete(vd));
 
-	while ((msp = txg_list_remove(&vd->vdev_ms_list, TXG_CLEAN(txg)))
-	    != NULL)
-		metaslab_sync_done(msp, txg);
+	taskq_wait(vd->vdev_spa->spa_sync_tq);
+
+	while (txg_list_remove(&vd->vdev_ms_list, TXG_CLEAN(txg)) != NULL)
+		;
 
 	if (reassess) {
 		metaslab_sync_reassess(vd->vdev_mg);
@@ -6093,6 +6137,29 @@ vdev_props_set_sync(void *arg, dmu_tx_t *tx)
 				    strval);
 			}
 			break;
+		case VDEV_PROP_ALLOC_BIAS: {
+			intval = fnvpair_value_uint64(elem);
+			ASSERT3U(intval, !=, VDEV_BIAS_LOG);
+			const char *bias_str =
+			    (intval == VDEV_BIAS_SPECIAL) ?
+			    VDEV_ALLOC_BIAS_SPECIAL :
+			    (intval == VDEV_BIAS_DEDUP) ?
+			    VDEV_ALLOC_BIAS_DEDUP : NULL;
+			if (bias_str == NULL) {
+				(void) zap_remove(mos, objid,
+				    VDEV_TOP_ZAP_ALLOCATION_BIAS, tx);
+			} else {
+				VERIFY0(zap_update(mos, objid,
+				    VDEV_TOP_ZAP_ALLOCATION_BIAS,
+				    1, strlen(bias_str) + 1, bias_str, tx));
+				spa_activate_allocation_classes(spa, tx);
+			}
+			spa_history_log_internal(spa, "vdev set", tx,
+			    "vdev_guid=%llu: alloc_bias=%s",
+			    (u_longlong_t)vdev_guid,
+			    bias_str != NULL ? bias_str : "none");
+			break;
+		}
 		default:
 			/* normalize the property name */
 			propname = vdev_prop_to_name(prop);
@@ -6207,11 +6274,14 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				error = spa_vdev_alloc(spa, vdev_guid);
 			break;
 		case VDEV_PROP_FAILFAST:
-			if (nvpair_value_uint64(elem, &intval) != 0) {
+			if (nvpair_value_uint64(elem, &intval) != 0 ||
+			    intval > ZPROP_BOOLEAN_INHERIT ||
+			    (intval == ZPROP_BOOLEAN_INHERIT &&
+			    vd->vdev_ops == &vdev_root_ops)) {
 				error = EINVAL;
 				break;
 			}
-			vd->vdev_failfast = intval & 1;
+			vd->vdev_failfast = intval;
 			break;
 		case VDEV_PROP_SIT_OUT:
 			/* Only expose this for a draid or raidz leaf */
@@ -6319,6 +6389,53 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 			}
 			vd->vdev_scheduler = intval;
 			break;
+		case VDEV_PROP_ALLOC_BIAS:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			if (vd != vd->vdev_top || vd->vdev_top_zap == 0) {
+				error = ENOTSUP;
+				break;
+			}
+			/* Log vdevs are not supported: remove and re-add. */
+			if (vd->vdev_islog) {
+				error = ENOTSUP;
+				break;
+			}
+			/* special/dedup needs allocation_classes feature */
+			if (intval != VDEV_BIAS_NONE &&
+			    ((intval != VDEV_BIAS_SPECIAL &&
+			    intval != VDEV_BIAS_DEDUP) ||
+			    !spa_feature_is_enabled(spa,
+			    SPA_FEATURE_ALLOCATION_CLASSES))) {
+				error = ENOTSUP;
+				break;
+			}
+			/*
+			 * Disallow converting the last normal vdev to
+			 * avoid pool suspension on failed allocations.
+			 */
+			if (intval != VDEV_BIAS_NONE &&
+			    vd->vdev_alloc_bias == VDEV_BIAS_NONE) {
+				vdev_t *rvd = spa->spa_root_vdev;
+				int normal = 0;
+				for (uint64_t c = 0;
+				    c < rvd->vdev_children; c++) {
+					vdev_t *cvd = rvd->vdev_child[c];
+					if (vdev_is_concrete(cvd) &&
+					    cvd->vdev_alloc_bias ==
+					    VDEV_BIAS_NONE &&
+					    !cvd->vdev_noalloc)
+						normal++;
+				}
+				if (normal <= 1) {
+					error = ENOTSUP;
+					break;
+				}
+			}
+			vd->vdev_alloc_bias = (vdev_alloc_bias_t)intval;
+			break;
 		default:
 			/* Most processing is done in vdev_props_set_sync */
 			break;
@@ -6350,7 +6467,7 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 	spa_t *spa = vd->vdev_spa;
 	objset_t *mos = spa->spa_meta_objset;
 	int err = 0;
-	uint64_t objid;
+	uint64_t objid = 0;
 	uint64_t vdev_guid;
 	nvpair_t *elem = NULL;
 	nvlist_t *nvprops = NULL;
@@ -6369,9 +6486,15 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 
 	nvlist_lookup_nvlist(innvl, ZPOOL_VDEV_PROPS_GET_PROPS, &nvprops);
 
-	if (vdev_prop_get_objid(vd, &objid) != 0)
-		return (SET_ERROR(EINVAL));
-	ASSERT(objid != 0);
+	/*
+	 * A missing ZAP is normal for spare and L2ARC vdevs, which are
+	 * not part of the main vdev tree and never get ZAPs allocated.
+	 * Many properties are sourced directly from vdev_t fields and
+	 * work fine without one; ZAP-backed properties will return their
+	 * default values.  objid is set to 0 when absent and the few
+	 * cases that call zap_lookup directly guard against this below.
+	 */
+	(void) vdev_prop_get_objid(vd, &objid);
 
 	mutex_enter(&spa->spa_props_lock);
 
@@ -6694,18 +6817,28 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				break;
 			case VDEV_PROP_FAILFAST:
 				src = ZPROP_SRC_LOCAL;
-				strval = NULL;
 
-				err = zap_lookup(mos, objid, nvpair_name(elem),
-				    sizeof (uint64_t), 1, &intval);
+				if (objid != 0) {
+					err = zap_lookup(mos, objid,
+					    nvpair_name(elem),
+					    sizeof (uint64_t), 1, &intval);
+				} else {
+					err = ENOENT;
+				}
 				if (err == ENOENT) {
-					intval = vdev_prop_default_numeric(
-					    prop);
+					if (vd->vdev_ops == &vdev_root_ops)
+						intval =
+						    vdev_prop_default_numeric(
+						    prop);
+					else
+						intval = ZPROP_BOOLEAN_INHERIT;
 					err = 0;
 				} else if (err) {
 					break;
 				}
-				if (intval == vdev_prop_default_numeric(prop))
+				if (intval == ZPROP_BOOLEAN_INHERIT ||
+				    (vd->vdev_ops == &vdev_root_ops &&
+				    intval == 1))
 					src = ZPROP_SRC_DEFAULT;
 
 				vdev_prop_add_list(outnvl, propname, strval,
@@ -6746,6 +6879,17 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				vdev_prop_add_list(outnvl, propname, NULL,
 				    boolval, src);
 				break;
+			case VDEV_PROP_ALLOC_BIAS:
+				if (vd == vd->vdev_top) {
+					vdev_prop_add_list(outnvl, propname,
+					    NULL, vd->vdev_alloc_bias,
+					    ZPROP_SRC_NONE);
+				}
+				continue;
+			case VDEV_PROP_ROTATIONAL:
+				vdev_prop_add_list(outnvl, propname, NULL,
+				    !vd->vdev_nonrot, ZPROP_SRC_NONE);
+				continue;
 			case VDEV_PROP_CHECKSUM_N:
 			case VDEV_PROP_CHECKSUM_T:
 			case VDEV_PROP_IO_N:
@@ -6771,6 +6915,8 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				/* FALLTHRU */
 			case VDEV_PROP_USERPROP:
 				/* User Properites */
+				if (objid == 0)
+					continue;
 				src = ZPROP_SRC_LOCAL;
 
 				err = zap_length(mos, objid, nvpair_name(elem),

@@ -79,6 +79,7 @@ function do_builtin_build() {
 
   cd $HOME/linux-$fullver
   ./scripts/config --enable ZFS
+  ./scripts/config --enable ZFS_DEBUG
   yes "" | make oldconfig
   make -j `nproc`
   ) &> /var/tmp/builtin.txt || rc=$?
@@ -185,6 +186,13 @@ case "$OS" in
     sudo mount -o noatime /dev/vdb /var/tmp
     sudo chmod 1777 /var/tmp
     sudo mv -f /tmp/*.txt /var/tmp
+
+    # Allow for longer RCU timeouts due to the heavily virtualized and
+    # potentially oversubscribed nature of the CI environment.
+    rcu_cpu_stall_timeout="/sys/module/rcupdate/parameters/rcu_cpu_stall_timeout"
+    if test -f $rcu_cpu_stall_timeout; then
+        echo 120 | sudo sh -c "cat > '$rcu_cpu_stall_timeout'"
+    fi
     ;;
 esac
 

@@ -398,14 +398,14 @@ uint_t zfs_arc_pc_percent = 0;
 
 /*
  * log2(fraction of ARC which must be free to allow growing).
- * I.e. If there is less than arc_c >> arc_no_grow_shift free memory,
+ * I.e. If there is less than arc_c >> zfs_arc_no_grow_shift free memory,
  * when reading a new block into the ARC, we will evict an equal-sized block
  * from the ARC.
  *
  * This must be less than arc_shrink_shift, so that when we shrink the ARC,
  * we will still not allow it to grow.
  */
-uint_t		arc_no_grow_shift = 5;
+uint_t		zfs_arc_no_grow_shift = 5;
 
 
 /*
@@ -586,6 +586,7 @@ arc_stats_t arc_stats = {
 	{ "uncached_metadata",		KSTAT_DATA_UINT64 },
 	{ "uncached_evictable_data",	KSTAT_DATA_UINT64 },
 	{ "uncached_evictable_metadata", KSTAT_DATA_UINT64 },
+	{ "l2_ndev",			KSTAT_DATA_UINT64 },
 	{ "l2_hits",			KSTAT_DATA_UINT64 },
 	{ "l2_misses",			KSTAT_DATA_UINT64 },
 	{ "l2_prefetch_asize",		KSTAT_DATA_UINT64 },
@@ -4975,7 +4976,7 @@ arc_reap_cb_check(void *arg, zthr_t *zthr)
 		 */
 		arc_growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
 		return (B_TRUE);
-	} else if (free_memory < arc_c >> arc_no_grow_shift) {
+	} else if (free_memory < arc_c >> zfs_arc_no_grow_shift) {
 		arc_no_grow = B_TRUE;
 	} else if (gethrtime() >= arc_growtime) {
 		arc_no_grow = B_FALSE;
@@ -5569,20 +5570,6 @@ arc_buf_access(arc_buf_t *buf)
 	ARCSTAT_BUMP(arcstat_hits);
 	ARCSTAT_CONDSTAT(B_TRUE /* demand */, demand, prefetch,
 	    !HDR_ISTYPE_METADATA(hdr), data, metadata, hits);
-}
-
-/* a generic arc_read_done_func_t which you can use */
-void
-arc_bcopy_func(zio_t *zio, const zbookmark_phys_t *zb, const blkptr_t *bp,
-    arc_buf_t *buf, void *arg)
-{
-	(void) zio, (void) zb, (void) bp;
-
-	if (buf == NULL)
-		return;
-
-	memcpy(arg, buf->b_data, arc_buf_size(buf));
-	arc_buf_destroy(buf, arg);
 }
 
 /* a generic arc_read_done_func_t */
@@ -7440,6 +7427,7 @@ arc_kstat_update(kstat_t *ksp, int rw)
 	    aggsum_value(&arc_sums.arcstat_dnode_size);
 	as->arcstat_bonus_size.value.ui64 =
 	    wmsum_value(&arc_sums.arcstat_bonus_size);
+	as->arcstat_l2_ndev.value.ui64 = l2arc_ndev;
 	as->arcstat_l2_hits.value.ui64 =
 	    wmsum_value(&arc_sums.arcstat_l2_hits);
 	as->arcstat_l2_misses.value.ui64 =
@@ -7654,7 +7642,8 @@ arc_tuning_update(boolean_t verbose)
 	/* Valid range: 1 - N */
 	if (zfs_arc_shrink_shift) {
 		arc_shrink_shift = zfs_arc_shrink_shift;
-		arc_no_grow_shift = MIN(arc_no_grow_shift, arc_shrink_shift -1);
+		zfs_arc_no_grow_shift = MIN(zfs_arc_no_grow_shift,
+		    arc_shrink_shift - 1);
 	}
 
 	/* Valid range: 1 - N ms */
@@ -11683,6 +11672,7 @@ EXPORT_SYMBOL(arc_write);
 EXPORT_SYMBOL(arc_read);
 EXPORT_SYMBOL(arc_buf_info);
 EXPORT_SYMBOL(arc_getbuf_func);
+EXPORT_SYMBOL(arc_buf_destroy);
 EXPORT_SYMBOL(arc_add_prune_callback);
 EXPORT_SYMBOL(arc_remove_prune_callback);
 
@@ -11700,6 +11690,10 @@ ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, grow_retry, param_set_arc_int,
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, shrink_shift, param_set_arc_int,
 	param_get_uint, ZMOD_RW, "log2(fraction of ARC to reclaim)");
+
+ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, no_grow_shift,
+	param_set_arc_no_grow_shift, param_get_uint, ZMOD_RW,
+	"log2(fraction of ARC which must be free to allow growing)");
 
 #ifdef _KERNEL
 ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, pc_percent, UINT, ZMOD_RW,

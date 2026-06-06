@@ -374,10 +374,16 @@ vdev_prop_init(void)
 		{ "on",		1},
 		{ NULL }
 	};
+	static const zprop_index_t boolean_inherit_table[] = {
+		{ "off",	0},
+		{ "on",		1},
+		{ "inherit",	ZPROP_BOOLEAN_INHERIT},
+		{ NULL }
+	};
 	static const zprop_index_t boolean_na_table[] = {
 		{ "off",	0},
 		{ "on",		1},
-		{ "-",		2},	/* ZPROP_BOOLEAN_NA */
+		{ "-",		ZPROP_BOOLEAN_NA},
 		{ NULL }
 	};
 
@@ -385,6 +391,14 @@ vdev_prop_init(void)
 		{ "auto",	VDEV_SCHEDULER_AUTO },
 		{ "on",		VDEV_SCHEDULER_ON },
 		{ "off",	VDEV_SCHEDULER_OFF },
+		{ NULL }
+	};
+
+	static const zprop_index_t vdev_alloc_bias_table[] = {
+		{ "none",	VDEV_BIAS_NONE },
+		{ "log",	VDEV_BIAS_LOG },
+		{ "special",	VDEV_BIAS_SPECIAL },
+		{ "dedup",	VDEV_BIAS_DEDUP },
 		{ NULL }
 	};
 
@@ -547,8 +561,8 @@ vdev_prop_init(void)
 
 	/* default index properties */
 	zprop_register_index(VDEV_PROP_FAILFAST, "failfast", B_TRUE,
-	    PROP_DEFAULT, ZFS_TYPE_VDEV, "on | off", "FAILFAST", boolean_table,
-	    sfeatures);
+	    PROP_DEFAULT, ZFS_TYPE_VDEV, "on | off | inherit", "FAILFAST",
+	    boolean_inherit_table, sfeatures);
 	zprop_register_index(VDEV_PROP_SLOW_IO_EVENTS, "slow_io_events",
 	    B_TRUE, PROP_DEFAULT, ZFS_TYPE_VDEV, "on | off",
 	    "SLOW_IO_EVENTS", boolean_table, sfeatures);
@@ -556,6 +570,13 @@ vdev_prop_init(void)
 	    VDEV_SCHEDULER_AUTO, PROP_DEFAULT, ZFS_TYPE_VDEV,
 	    "auto | on | off", "IO_SCHEDULER",
 	    vdevschedulertype_table, sfeatures);
+	zprop_register_index(VDEV_PROP_ALLOC_BIAS, "alloc_bias",
+	    VDEV_BIAS_NONE, PROP_DEFAULT, ZFS_TYPE_VDEV,
+	    "none | log | special | dedup", "ALLOC_BIAS",
+	    vdev_alloc_bias_table, sfeatures);
+	zprop_register_index(VDEV_PROP_ROTATIONAL, "rotational", 0,
+	    PROP_READONLY, ZFS_TYPE_VDEV, "on | off", "ROTATIONAL",
+	    boolean_table, sfeatures);
 
 	/* hidden properties */
 	zprop_register_hidden(VDEV_PROP_NAME, "name", PROP_TYPE_STRING,

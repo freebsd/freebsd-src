@@ -292,7 +292,7 @@ param_set_arc_no_grow_shift(SYSCTL_HANDLER_ARGS)
 {
 	int err, val;
 
-	val = arc_no_grow_shift;
+	val = zfs_arc_no_grow_shift;
 	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
@@ -300,7 +300,7 @@ param_set_arc_no_grow_shift(SYSCTL_HANDLER_ARGS)
 	if (val < 0 || val >= arc_shrink_shift)
 		return (EINVAL);
 
-	arc_no_grow_shift = val;
+	zfs_arc_no_grow_shift = val;
 
 	if (arg2 != 0)
 		warn_deprecated_sysctl("arc_no_grow_shift", "arc.no_grow_shift");
@@ -541,14 +541,14 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, sm_blksz_with_log,
 
 /*
  * The in-core space map representation is more compact than its on-disk form.
- * The zfs_condense_pct determines how much more compact the in-core
+ * The zfs_metaslab_condense_pct determines how much more compact the in-core
  * space map representation must be before we compact it on-disk.
  * Values should be greater than or equal to 100.
  */
-extern uint_t zfs_condense_pct;
+extern uint_t zfs_metaslab_condense_pct;
 
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, condense_pct,
-	CTLFLAG_RWTUN, &zfs_condense_pct, 0,
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, metaslab_condense_pct,
+	CTLFLAG_RWTUN, &zfs_metaslab_condense_pct, 0,
 	"Condense on-disk spacemap when it is more than this many percents"
 	" of in-memory counterpart");
 
@@ -616,18 +616,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, ccw_retry_interval,
 	CTLFLAG_RWTUN, &zfs_ccw_retry_interval, 0,
 	"Configuration cache file write, retry after failure, interval"
 	" (seconds)");
-
-extern uint64_t zfs_max_missing_tvds_cachefile;
-
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, max_missing_tvds_cachefile,
-	CTLFLAG_RWTUN, &zfs_max_missing_tvds_cachefile, 0,
-	"Allow importing pools with missing top-level vdevs in cache file");
-
-extern uint64_t zfs_max_missing_tvds_scan;
-
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, max_missing_tvds_scan,
-	CTLFLAG_RWTUN, &zfs_max_missing_tvds_scan, 0,
-	"Allow importing pools with missing top-level vdevs during scan");
 
 /* spa_misc.c */
 

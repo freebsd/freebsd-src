@@ -376,6 +376,8 @@ nobase_dist_datadir_zfs_tests_tests_DATA += \
 	functional/rsend/rsend.kshlib \
 	functional/scrub_mirror/default.cfg \
 	functional/scrub_mirror/scrub_mirror_common.kshlib \
+	functional/send_xdr_encoding/send_xdr_encoding.cfg \
+	functional/send_xdr_encoding/send_xdr_encoding.kshlib \
 	functional/slog/slog.cfg \
 	functional/slog/slog.kshlib \
 	functional/snapshot/snapshot.cfg \
@@ -434,6 +436,8 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/alloc_class/alloc_class_011_neg.ksh \
 	functional/alloc_class/alloc_class_012_pos.ksh \
 	functional/alloc_class/alloc_class_013_pos.ksh \
+	functional/alloc_class/alloc_class_014_pos.ksh \
+	functional/alloc_class/alloc_class_015_neg.ksh \
 	functional/alloc_class/alloc_class_016_pos.ksh \
 	functional/alloc_class/cleanup.ksh \
 	functional/alloc_class/setup.ksh \
@@ -648,6 +652,10 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zdb/zdb_encrypted.ksh \
 	functional/cli_root/zdb/zdb_encrypted_raw.ksh \
 	functional/cli_root/zdb/zdb_label_checksum.ksh \
+	functional/cli_root/zdb/zdb_file_layout_001.ksh \
+	functional/cli_root/zdb/zdb_file_layout_002.ksh \
+	functional/cli_root/zdb/zdb_file_layout_003.ksh \
+	functional/cli_root/zdb/zdb_file_layout_neg.ksh \
 	functional/cli_root/zdb/zdb_object_range_neg.ksh \
 	functional/cli_root/zdb/zdb_object_range_pos.ksh \
 	functional/cli_root/zdb/zdb_objset_id.ksh \
@@ -806,6 +814,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zfs_mount/zfs_mount_encrypted.ksh \
 	functional/cli_root/zfs_mount/zfs_mount_recursive.ksh \
 	functional/cli_root/zfs_mount/zfs_mount_remount.ksh \
+	functional/cli_root/zfs_mount/zfs_mount_ro_rw.ksh \
 	functional/cli_root/zfs_mount/zfs_mount_test_race.ksh \
 	functional/cli_root/zfs_mount/zfs_multi_mount.ksh \
 	functional/cli_root/zfs_program/cleanup.ksh \
@@ -1295,6 +1304,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_set/zpool_set_002_neg.ksh \
 	functional/cli_root/zpool_set/zpool_set_003_neg.ksh \
 	functional/cli_root/zpool_set/zpool_set_ashift.ksh \
+	functional/cli_root/zpool_set/zpool_set_inherit.ksh \
 	functional/cli_root/zpool_set/user_property_001_pos.ksh \
 	functional/cli_root/zpool_set/user_property_002_neg.ksh \
 	functional/cli_root/zpool_set/zpool_set_features.ksh \
@@ -1495,6 +1505,8 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/deadman/deadman_zio.ksh \
 	functional/dedup/cleanup.ksh \
 	functional/dedup/setup.ksh \
+	functional/dedup/dedup_bclone.ksh \
+	functional/dedup/dedup_bclone_pruned.ksh \
 	functional/dedup/dedup_fdt_create.ksh \
 	functional/dedup/dedup_fdt_import.ksh \
 	functional/dedup/dedup_fdt_pacing.ksh \
@@ -1608,6 +1620,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/fault/auto_spare_001_pos.ksh \
 	functional/fault/auto_spare_002_pos.ksh \
 	functional/fault/auto_spare_ashift.ksh \
+	functional/fault/auto_spare_rotational.ksh \
 	functional/fault/auto_spare_double.ksh \
 	functional/fault/auto_spare_multiple.ksh \
 	functional/fault/auto_spare_shared.ksh \
@@ -2123,6 +2136,22 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/scrub_mirror/scrub_mirror_003_pos.ksh \
 	functional/scrub_mirror/scrub_mirror_004_pos.ksh \
 	functional/scrub_mirror/setup.ksh \
+	functional/send_xdr_encoding/cleanup.ksh \
+	functional/send_xdr_encoding/setup.ksh \
+	functional/send_xdr_encoding/xdr_bookmark_raw.ksh \
+	functional/send_xdr_encoding/xdr_bookmark_raw_with_write.ksh \
+	functional/send_xdr_encoding/xdr_incr_from_bookmark.ksh \
+	functional/send_xdr_encoding/xdr_incr_from_redacted.ksh \
+	functional/send_xdr_encoding/xdr_raw.ksh \
+	functional/send_xdr_encoding/xdr_redacted_full.ksh \
+	functional/send_xdr_encoding/xdr_redacted_received.ksh \
+	functional/send_xdr_encoding/xdr_redacted_received_raw.ksh \
+	functional/send_xdr_encoding/xdr_replication.ksh \
+	functional/send_xdr_encoding/xdr_resume.ksh \
+	functional/send_xdr_encoding/xdr_resume_bookmark_raw.ksh \
+	functional/send_xdr_encoding/xdr_resume_bookmark_raw_with_write.ksh \
+	functional/send_xdr_encoding/xdr_resume_raw.ksh \
+	functional/send_xdr_encoding/xdr_resume_redacted.ksh \
 	functional/slog/cleanup.ksh \
 	functional/slog/setup.ksh \
 	functional/slog/slog_001_pos.ksh \
@@ -2264,6 +2293,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/vdev_zaps/vdev_zaps_005_pos.ksh \
 	functional/vdev_zaps/vdev_zaps_006_pos.ksh \
 	functional/vdev_zaps/vdev_zaps_007_pos.ksh \
+	functional/vdev_zaps/vdev_zaps_008_pos.ksh \
 	functional/write_dirs/cleanup.ksh \
 	functional/write_dirs/setup.ksh \
 	functional/write_dirs/write_dirs_001_pos.ksh \

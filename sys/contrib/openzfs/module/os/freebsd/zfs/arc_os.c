@@ -72,9 +72,6 @@ SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, free_target,
     param_set_arc_free_target, 0, CTLFLAG_RW,
 	"Desired number of free pages below which ARC triggers reclaim");
-ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, no_grow_shift,
-    param_set_arc_no_grow_shift, 0, ZMOD_RW,
-	"log2(fraction of ARC which must be free to allow growing)");
 
 int64_t
 arc_available_memory(void)

@@ -45,13 +45,11 @@ function cleanup
 
 log_onexit cleanup
 
-# create a pool with legacy dedup enabled. we disable block cloning to ensure
-# it doesn't get in the way of dedup, and we disable compression so our writes
+# create a pool with legacy dedup enabled. we disable compression so our writes
 # create predictable results on disk
 # Use 'xattr=sa' to prevent selinux xattrs influencing our accounting
 log_must zpool create -f \
     -o feature@fast_dedup=disabled \
-    -o feature@block_cloning=disabled \
     -O compression=off \
     -O xattr=sa \
     $TESTPOOL $DISKS
@@ -101,5 +99,7 @@ log_must test $(zdb -dddd $TESTPOOL 1 | grep DDT-blake3 | wc -l) -eq 1
 # containing object has one ZAP inside
 obj=$(zdb -dddd $TESTPOOL 1 | grep DDT-blake3 | awk '{ print $NF }')
 log_must test $(zdb -dddd $TESTPOOL $obj | grep DDT-.*-zap- | wc -l) -eq 1
+
+log_must zdb -b $TESTPOOL
 
 log_pass "legacy and FDT dedup tables on the same pool can happily coexist"

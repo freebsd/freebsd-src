@@ -2434,9 +2434,13 @@ top:
 	    &zp->z_pflags, sizeof (zp->z_pflags));
 
 	if (attrzp) {
+		/*
+		 * attrzp is zp's hidden xattr directory, so the second
+		 * znode lock acquisition is nested rather than recursive.
+		 */
 		if (mask & (ATTR_UID|ATTR_GID|ATTR_MODE))
-			mutex_enter(&attrzp->z_acl_lock);
-		mutex_enter(&attrzp->z_lock);
+			mutex_enter_nested(&attrzp->z_acl_lock, NESTED_SINGLE);
+		mutex_enter_nested(&attrzp->z_lock, NESTED_SINGLE);
 		SA_ADD_BULK_ATTR(xattr_bulk, xattr_count,
 		    SA_ZPL_FLAGS(zfsvfs), NULL, &attrzp->z_pflags,
 		    sizeof (attrzp->z_pflags));
@@ -4074,18 +4078,32 @@ zfs_inactive(struct inode *ip)
 {
 	znode_t	*zp = ITOZ(ip);
 	zfsvfs_t *zfsvfs = ITOZSB(ip);
+	krwlock_t *zti_lock = &zfsvfs->z_teardown_inactive_lock;
 	uint64_t atime[2];
 	int error;
 	int need_unlock = 0;
+	boolean_t no_lockdep = B_FALSE;
 
 	/* Only read lock if we haven't already write locked, e.g. rollback */
-	if (!RW_WRITE_HELD(&zfsvfs->z_teardown_inactive_lock)) {
+	if (!RW_WRITE_HELD(zti_lock)) {
 		need_unlock = 1;
-		rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
+		/*
+		 * kswapd reaches evict_inode() with fs_reclaim held.  Suppress
+		 * lockdep only for this reclaim-thread acquire/release pair.
+		 */
+		no_lockdep = current_is_reclaim_thread();
+		if (no_lockdep)
+			rw_enter_nolockdep(zti_lock, RW_READER);
+		else
+			rw_enter(zti_lock, RW_READER);
 	}
 	if (zp->z_sa_hdl == NULL) {
-		if (need_unlock)
-			rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		if (need_unlock) {
+			if (no_lockdep)
+				rw_exit_nolockdep(zti_lock);
+			else
+				rw_exit(zti_lock);
+		}
 		return;
 	}
 
@@ -4111,8 +4129,12 @@ zfs_inactive(struct inode *ip)
 	}
 
 	zfs_zinactive(zp);
-	if (need_unlock)
-		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+	if (need_unlock) {
+		if (no_lockdep)
+			rw_exit_nolockdep(zti_lock);
+		else
+			rw_exit(zti_lock);
+	}
 }
 
 /*

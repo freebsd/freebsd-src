@@ -46,11 +46,9 @@ function cleanup
 
 log_onexit cleanup
 
-# Create a pool with fast dedup enabled. We disable block cloning to ensure
-# it doesn't get in the way of dedup.
+# Create a pool with fast dedup enabled.
 log_must zpool create -f \
     -o feature@fast_dedup=enabled \
-    -o feature@block_cloning=disabled \
     $TESTPOOL $DISKS
 
 # Create a filesystem with a small recordsize so that we get more DDT entries,
@@ -106,5 +104,7 @@ log_entries3=$(get_ddt_log_entries)
 
 # Verify there are 256 entries in the unique table.
 log_must eval "zdb -D $TESTPOOL | grep -q 'DDT-sha256-zap-unique:.*entries=256'"
+
+log_must zdb -b $TESTPOOL
 
 log_pass "dedup (FDT) paces out log entries appropriately"

@@ -215,7 +215,7 @@ case "$1" in
   tumbleweed)
     tumbleweed
     ;;
-  ubuntu*)
+  ubuntu22|ubuntu24)
     debian
     echo "##[group]Install Ubuntu specific"
     sudo apt-get install -yq linux-tools-common libtirpc-dev \
@@ -225,6 +225,27 @@ case "$1" in
     # Need 'build-essential' explicitly for ARM builder
     # https://github.com/actions/runner-images/issues/9946
     sudo apt-get install -yq build-essential
+
+    echo "##[endgroup]"
+    echo "##[group]Delete Ubuntu OpenZFS modules"
+    for i in $(find /lib/modules -name zfs -type d); do sudo rm -rvf $i; done
+    echo "##[endgroup]"
+    ;;
+  ubuntu26)
+    debian
+    echo "##[group]Install Ubuntu specific"
+    # Skip linux-modules-extra which is already installed
+    sudo apt-get install -yq linux-tools-common
+    sudo apt-get install -yq libtirpc-dev
+    sudo apt-get install -yq dh-sequence-dkms
+
+    # Need 'build-essential' explicitly for ARM builder
+    # https://github.com/actions/runner-images/issues/9946
+    sudo apt-get install -yq build-essential
+
+    # Replace sudo-rs with sudo for now because the Rust version
+    # does not support -E to preserve the entire environment
+    sudo update-alternatives --set sudo /usr/bin/sudo.ws
 
     echo "##[endgroup]"
     echo "##[group]Delete Ubuntu OpenZFS modules"
@@ -267,8 +288,19 @@ case "$1" in
     ;;
   debian*|ubuntu*)
     sudo -E systemctl enable nfs-kernel-server
-    sudo -E systemctl enable qemu-guest-agent
     sudo -E systemctl enable smbd
+
+    # enable usershares (disabled by default on ubuntu 26.04)
+    sudo -E sed -i '/usershare max shares/s/^#//' /etc/samba/smb.conf
+
+    # add systemd drop-in to allow the service to be enabled
+    sudo -E mkdir -p /etc/systemd/system/qemu-guest-agent.service.d/
+    sudo -E tee /etc/systemd/system/qemu-guest-agent.service.d/override.conf <<EOF
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo -E systemctl daemon-reload
+    sudo -E systemctl enable qemu-guest-agent
     ;;
   *)
     # All other linux distros
@@ -292,7 +324,7 @@ case "$1" in
     echo 'GRUB_SERIAL_COMMAND="serial --speed=115200"' \
       | sudo tee -a /etc/default/grub >/dev/null
     ;;
-  ubuntu24)
+  ubuntu24|ubuntu26)
     GRUB_CFG="/boot/grub/grub.cfg"
     GRUB_MKCONFIG="grub-mkconfig"
     echo 'GRUB_DISABLE_OS_PROBER="false"' \

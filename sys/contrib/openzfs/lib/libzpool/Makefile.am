@@ -166,6 +166,8 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/vdev_root.c \
 	module/zfs/vdev_trim.c \
 	module/zfs/zap.c \
+	module/zfs/zap_fat.c \
+	module/zfs/zap_impl.c \
 	module/zfs/zap_leaf.c \
 	module/zfs/zap_micro.c \
 	module/zfs/zcp.c \
@@ -212,7 +214,7 @@ libzpool_la_LIBADD = \
 
 libzpool_la_LIBADD += $(LIBCLOCK_GETTIME) $(ZLIB_LIBS) -lm
 
-libzpool_la_LDFLAGS = -pthread
+libzpool_la_LDFLAGS = -version-info 7:0:0
 
 if !ASAN_ENABLED
 libzpool_la_LDFLAGS += -Wl,-z,defs
@@ -221,8 +223,6 @@ endif
 if BUILD_FREEBSD
 libzpool_la_LIBADD += -lgeom
 endif
-
-libzpool_la_LDFLAGS += -version-info 7:0:0
 
 if TARGET_CPU_POWERPC
 module/zfs/libzpool_la-vdev_raidz_math_powerpc_altivec.$(OBJEXT) : CFLAGS += -maltivec

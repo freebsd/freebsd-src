@@ -411,6 +411,24 @@ param_set_arc_int(const char *buf, zfs_kernel_param_t *kp)
 }
 
 int
+param_set_arc_no_grow_shift(const char *buf, zfs_kernel_param_t *kp)
+{
+	unsigned long val;
+	int error;
+
+	error = kstrtoul(buf, 0, &val);
+	if (error)
+		return (SET_ERROR(error));
+
+	if (val >= arc_shrink_shift)
+		return (-SET_ERROR(EINVAL));
+
+	zfs_arc_no_grow_shift = val;
+
+	return (0);
+}
+
+int
 param_set_l2arc_dwpd_limit(const char *buf, zfs_kernel_param_t *kp)
 {
 	uint64_t old_val = l2arc_dwpd_limit;

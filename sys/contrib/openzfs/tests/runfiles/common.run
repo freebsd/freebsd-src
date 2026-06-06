@@ -37,7 +37,8 @@ tests = ['alloc_class_001_pos', 'alloc_class_002_neg', 'alloc_class_003_pos',
     'alloc_class_004_pos', 'alloc_class_005_pos', 'alloc_class_006_pos',
     'alloc_class_007_pos', 'alloc_class_008_pos', 'alloc_class_009_pos',
     'alloc_class_010_pos', 'alloc_class_011_neg', 'alloc_class_012_pos',
-    'alloc_class_013_pos', 'alloc_class_016_pos']
+    'alloc_class_013_pos', 'alloc_class_014_pos', 'alloc_class_015_neg',
+    'alloc_class_016_pos']
 tags = ['functional', 'alloc_class']
 
 [tests/functional/append]
@@ -172,9 +173,10 @@ tests = ['zdb_002_pos', 'zdb_003_pos', 'zdb_004_pos', 'zdb_005_pos',
     'zdb_006_pos', 'zdb_args_neg', 'zdb_args_pos',
     'zdb_block_size_histogram', 'zdb_checksum', 'zdb_decompress',
     'zdb_display_block', 'zdb_encrypted', 'zdb_encrypted_raw',
-    'zdb_label_checksum', 'zdb_object_range_neg', 'zdb_object_range_pos',
-    'zdb_objset_id', 'zdb_decompress_zstd', 'zdb_recover', 'zdb_recover_2',
-    'zdb_backup', 'zdb_tunables']
+    'zdb_file_layout_001', 'zdb_file_layout_002', 'zdb_file_layout_003',
+    'zdb_file_layout_neg', 'zdb_label_checksum', 'zdb_object_range_neg',
+    'zdb_object_range_pos', 'zdb_objset_id', 'zdb_decompress_zstd',
+    'zdb_recover', 'zdb_recover_2', 'zdb_backup', 'zdb_tunables']
 pre =
 post =
 tags = ['functional', 'cli_root', 'zdb']
@@ -269,8 +271,8 @@ tests = ['zfs_mount_001_pos', 'zfs_mount_002_pos', 'zfs_mount_003_pos',
     'zfs_mount_004_pos', 'zfs_mount_005_pos', 'zfs_mount_007_pos',
     'zfs_mount_009_neg', 'zfs_mount_010_neg', 'zfs_mount_011_neg',
     'zfs_mount_012_pos', 'zfs_mount_all_001_pos', 'zfs_mount_encrypted',
-    'zfs_mount_remount', 'zfs_mount_all_fail', 'zfs_mount_all_mountpoints',
-    'zfs_mount_test_race', 'zfs_mount_recursive']
+    'zfs_mount_remount', 'zfs_mount_ro_rw', 'zfs_mount_all_fail',
+    'zfs_mount_all_mountpoints', 'zfs_mount_test_race', 'zfs_mount_recursive']
 tags = ['functional', 'cli_root', 'zfs_mount']
 
 [tests/functional/cli_root/zfs_program]
@@ -571,8 +573,8 @@ tags = ['functional', 'cli_root', 'zpool_scrub']
 
 [tests/functional/cli_root/zpool_set]
 tests = ['zpool_set_001_pos', 'zpool_set_002_neg', 'zpool_set_003_neg',
-    'zpool_set_ashift', 'zpool_set_features', 'vdev_set_001_pos',
-    'user_property_001_pos', 'user_property_002_neg',
+    'zpool_set_ashift', 'zpool_set_features', 'zpool_set_inherit',
+    'vdev_set_001_pos', 'user_property_001_pos', 'user_property_002_neg',
     'zpool_set_clear_userprop','vdev_set_scheduler']
 tags = ['functional', 'cli_root', 'zpool_set']
 
@@ -715,10 +717,11 @@ post =
 tags = ['functional', 'deadman']
 
 [tests/functional/dedup]
-tests = ['dedup_fdt_create', 'dedup_fdt_import', 'dedup_fdt_pacing',
-    'dedup_legacy_create', 'dedup_legacy_import', 'dedup_legacy_fdt_upgrade',
-    'dedup_legacy_fdt_mixed', 'dedup_quota', 'dedup_prune', 'dedup_prune_leak',
-    'dedup_zap_shrink']
+tests = ['dedup_bclone', 'dedup_bclone_pruned', 'dedup_fdt_create',
+    'dedup_fdt_import',
+    'dedup_fdt_pacing', 'dedup_legacy_create', 'dedup_legacy_import',
+    'dedup_legacy_fdt_upgrade', 'dedup_legacy_fdt_mixed', 'dedup_quota',
+    'dedup_prune', 'dedup_prune_leak', 'dedup_zap_shrink']
 pre =
 post =
 tags = ['functional', 'dedup']
@@ -1023,6 +1026,15 @@ tests = ['scrub_mirror_001_pos', 'scrub_mirror_002_pos',
     'scrub_mirror_003_pos', 'scrub_mirror_004_pos']
 tags = ['functional', 'scrub_mirror']
 
+[tests/functional/send_xdr_encoding]
+tests = ['xdr_bookmark_raw', 'xdr_bookmark_raw_with_write',
+    'xdr_incr_from_bookmark', 'xdr_incr_from_redacted', 'xdr_raw',
+    'xdr_redacted_full', 'xdr_redacted_received',
+    'xdr_redacted_received_raw', 'xdr_replication', 'xdr_resume',
+    'xdr_resume_bookmark_raw', 'xdr_resume_bookmark_raw_with_write',
+    'xdr_resume_raw', 'xdr_resume_redacted']
+tags = ['functional', 'send_xdr_encoding']
+
 [tests/functional/slog]
 tests = ['slog_001_pos', 'slog_002_pos', 'slog_003_pos', 'slog_004_pos',
     'slog_005_pos', 'slog_006_pos', 'slog_007_pos', 'slog_008_neg',
@@ -1099,7 +1111,7 @@ tags = ['functional', 'vdev_disk']
 [tests/functional/vdev_zaps]
 tests = ['vdev_zaps_001_pos', 'vdev_zaps_002_pos', 'vdev_zaps_003_pos',
     'vdev_zaps_004_pos', 'vdev_zaps_005_pos', 'vdev_zaps_006_pos',
-    'vdev_zaps_007_pos']
+    'vdev_zaps_007_pos', 'vdev_zaps_008_pos']
 tags = ['functional', 'vdev_zaps']
 
 [tests/functional/write_dirs]
