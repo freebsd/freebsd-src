@@ -204,7 +204,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 		return EINVAL;
 	}
 
-	/* XXX allow bus explore packets only after bus rest */
+	/* Reject non-CSR transactions until bus exploration completes */
 	if ((fc->status < FWBUSEXPLORE) &&
 	    ((tcode != FWTCODE_RREQQ) || (fp->mode.rreqq.dest_hi != 0xffff) ||
 	    (fp->mode.rreqq.dest_lo  < 0xf0000000) ||
@@ -305,7 +305,7 @@ fw_asystart(struct fw_xfer *xfer)
 	xfer->q->queued++;
 #endif
 	FW_GUNLOCK(fc);
-	/* XXX just queue for mbuf */
+	/* Kick DMA for non-mbuf xfers */
 	if (xfer->mbuf == NULL)
 		xfer->q->start(fc);
 	return;
@@ -531,7 +531,7 @@ firewire_detach(device_t dev)
 	callout_stop(&fc->bmr_callout);
 	callout_stop(&fc->busprobe_callout);
 
-	/* XXX xfer_free and untimeout on all xfers */
+	/* TODO: cancel pending xfers in atq/ats queues */
 	for (fwdev = STAILQ_FIRST(&fc->devices); fwdev != NULL;
 	     fwdev = fwdev_next) {
 		fwdev_next = STAILQ_NEXT(fwdev, link);
@@ -688,7 +688,7 @@ fw_reset_crom(struct firewire_comm *fc)
 
 	bzero(root, sizeof(struct crom_chunk));
 	crom_add_chunk(src, NULL, root, 0);
-	crom_add_entry(root, CSRKEY_NCAP, 0x0083c0); /* XXX */
+	crom_add_entry(root, CSRKEY_NCAP, 0x0083c0);
 	/* private company_id */
 	crom_add_entry(root, CSRKEY_VENDOR, CSRVAL_VENDOR_PRIVATE);
 	crom_add_simple_text(src, root, &buf->vendor, "FreeBSD Project");
@@ -1249,7 +1249,6 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 	if (gap_count >= 0)
 		fp->mode.ld[1] |= (1 << 22) | (gap_count & 0x3f) << 16;
 	fp->mode.ld[2] = ~fp->mode.ld[1];
-/* XXX Dangerous, how to pass PHY packet to device driver */
 	fp->mode.common.tcode |= FWTCODE_PHY;
 
 	if (firewire_debug)
@@ -1328,7 +1327,6 @@ void fw_sidrcv(struct firewire_comm *fc, uint32_t *sid, u_int len)
 			node = self_id->p0.phy_id;
 			if (fc->max_node < node)
 				fc->max_node = self_id->p0.phy_id;
-			/* XXX I'm not sure this is the right speed_map */
 			fc->speed_map->speed[node][node] =
 			    self_id->p0.phy_speed;
 			for (j = 0; j < node; j++) {
@@ -1477,7 +1475,7 @@ fw_explore_csrblock(struct fw_device *fwdev, int offset, int recur)
 	if (err)
 		return (-1);
 
-	/* XXX check CRC */
+	/* TODO: validate directory CRC */
 
 	off = CSRROMOFF + offset + sizeof(uint32_t) * (dir->crc_len - 1);
 	if (fwdev->rommax < off)
@@ -2062,10 +2060,8 @@ fw_rcv(struct fw_rcv_buf *rb)
 			printf("receive queue is full\n");
 			return;
 		}
-		/* XXX get xfer from xfer queue, we don't need copy for
-			per packet mode */
-		rb->xfer = fw_xfer_alloc_buf(M_FWXFER, 0, /* XXX */
-						vec[0].iov_len);
+		rb->xfer = fw_xfer_alloc_buf(M_FWXFER, 0,
+		    vec[0].iov_len);
 		if (rb->xfer == NULL)
 			return;
 		fw_rcv_copy(rb)
@@ -2170,7 +2166,7 @@ fw_try_bmr(void *arg)
 #ifdef FW_VMACCESS
 /*
  * Software implementation for physical memory block access.
- * XXX:Too slow, useful for debug purpose only.
+ * Debug only, too slow for production use.
  */
 static void
 fw_vmaccess(struct fw_xfer *xfer)
@@ -2193,7 +2189,6 @@ fw_vmaccess(struct fw_xfer *xfer)
 	}
 	rfp = (struct fw_pkt *)xfer->recv.buf;
 	switch (rfp->mode.hdr.tcode) {
-		/* XXX need fix for 64bit arch */
 		case FWTCODE_WREQB:
 			xfer->send.buf = malloc(12, M_FW, M_NOWAIT);
 			xfer->send.len = 12;
@@ -2287,15 +2282,13 @@ fw_bmr(struct firewire_comm *fc)
 	/* Check to see if the current root node is cycle master capable */
 	self_id = fw_find_self_id(fc, fc->max_node);
 	if (fc->max_node > 0) {
-		/* XXX check cmc bit of businfo block rather than contender */
 		if (self_id->p0.link_active && self_id->p0.contender)
 			cmstr = fc->max_node;
 		else {
 			device_printf(fc->bdev,
 			    "root node is not cycle master capable\n");
-			/* XXX shall we be the cycle master? */
+			/* TODO: issue PHY config to force root change + bus reset */
 			cmstr = fc->nodeid;
-			/* XXX need bus reset */
 		}
 	} else
 		cmstr = -1;
