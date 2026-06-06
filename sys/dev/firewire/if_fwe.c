@@ -548,6 +548,7 @@ fwe_as_input(struct fw_xferq *xferq)
 	struct fwe_softc *fwe;
 	struct fw_bulkxfer *sxfer;
 	struct fw_pkt *fp;
+	struct epoch_tracker et;
 #if 0
 	u_char *c;
 #endif
@@ -599,7 +600,9 @@ fwe_as_input(struct fw_xferq *xferq)
 			 c[20], c[21], c[22], c[23]
 		);
 #endif
+		NET_EPOCH_ENTER(et);
 		if_input(ifp, m);
+		NET_EPOCH_EXIT(et);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
 	if (STAILQ_FIRST(&xferq->stfree) != NULL)
