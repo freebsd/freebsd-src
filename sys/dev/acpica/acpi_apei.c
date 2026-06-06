@@ -237,7 +237,7 @@ apei_mem_handler(ACPI_HEST_GENERIC_DATA *ged)
 }
 
 static int
-apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
+apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged, bool fatal)
 {
 	struct apei_pcie_error *p = (struct apei_pcie_error *)GED_DATA(ged);
 	int off;
@@ -246,7 +246,8 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 	int h = 0, sev;
 
 	if ((p->ValidationBits & 0x8) == 0x8) {
-		mtx_lock(&Giant);
+		if (!fatal)
+			mtx_lock(&Giant);
 		dev = pci_find_dbsf((uint32_t)p->DeviceID[10] << 8 |
 		    p->DeviceID[9], p->DeviceID[11], p->DeviceID[8],
 		    p->DeviceID[7]);
@@ -264,9 +265,11 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 			}
 			pcie_apei_error(dev, sev,
 			    (p->ValidationBits & 0x80) ? p->AERInfo : NULL);
-			h = 1;
+			if (!fatal)
+				h = 1;
 		}
-		mtx_unlock(&Giant);
+		if (!fatal)
+			mtx_unlock(&Giant);
 	}
 	if (h)
 		return (h);
@@ -322,8 +325,8 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 	return (0);
 }
 
-static void
-apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
+static const char *
+apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged, bool fatal)
 {
 	ACPI_HEST_GENERIC_DATA_V300 *ged3 = (ACPI_HEST_GENERIC_DATA_V300 *)ged;
 	/* A5BC1114-6F64-4EDE-B863-3E83ED7C83B1 */
@@ -342,12 +345,12 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 	if (memcmp(mem_uuid, ged->SectionType, ACPI_UUID_LENGTH) == 0) {
 		h = apei_mem_handler(ged);
 	} else if (memcmp(pcie_uuid, ged->SectionType, ACPI_UUID_LENGTH) == 0) {
-		h = apei_pcie_handler(ged);
+		h = apei_pcie_handler(ged, fatal);
 	} else {
 		if (!log_corrected &&
 		    (ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_CORRECTED ||
 		    ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_NONE))
-			return;
+			return (NULL);
 
 		t = ged->SectionType;
 		printf("APEI %s Error %02x%02x%02x%02x-%02x%02x-"
@@ -364,7 +367,7 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 		}
 	}
 	if (h)
-		return;
+		return (NULL);
 
 	printf(" Flags: 0x%x\n", ged->Flags);
 	if (ged->ValidationBits & ACPI_HEST_GEN_VALID_FRU_ID) {
@@ -379,6 +382,19 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 	if (ged->Revision >= 0x300 &&
 	    ged->ValidationBits & ACPI_HEST_GEN_VALID_TIMESTAMP)
 		printf(" Timestamp: %016jx\n", ged3->TimeStamp);
+	if (fatal) {
+		printf(" Error Data:\n");
+		t = (uint8_t *)GED_DATA(ged);
+		for (off = 0; off < ged->ErrorDataLength; off++) {
+			printf(" %02x", t[off]);
+			if ((off % 16) == 15 ||
+			    off + 1 == ged->ErrorDataLength)
+				printf("\n");
+		}
+	}
+	if (ged->ValidationBits & ACPI_HEST_GEN_VALID_FRU_STRING)
+		return ((const char *)ged->FruText);
+	return (NULL);
 }
 
 static int
@@ -387,23 +403,27 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	uint8_t *buf = copy ? ge->copybuf : ge->buf;
 	ACPI_HEST_GENERIC_STATUS *ges = (ACPI_HEST_GENERIC_STATUS *)buf;
 	ACPI_HEST_GENERIC_DATA *ged;
+	const char *fru, *f;
 	size_t off, len;
-	uint32_t sev;
 	int i, c;
+	bool fatal;
 
 	if (ges == NULL || ges->BlockStatus == 0)
 		return (0);
 
 	c = (ges->BlockStatus >> 4) & 0x3ff;
-	sev = ges->ErrorSeverity;
+	fatal = (ges->ErrorSeverity == ACPI_HEST_GEN_ERROR_FATAL);
 
 	/* Process error entries. */
+	fru = NULL;
 	len = MIN(ge->v1.ErrorBlockLength - sizeof(*ges), ges->DataLength);
 	for (off = i = 0; i < c && off + sizeof(*ged) <= len; i++) {
 		ged = (ACPI_HEST_GENERIC_DATA *)&buf[sizeof(*ges) + off];
 		if ((uint64_t)GED_SIZE(ged) + ged->ErrorDataLength > len - off)
 			break;
-		apei_ged_handler(ged);
+		f = apei_ged_handler(ged, fatal);
+		if (f != NULL && fru == NULL)
+			fru = f;
 		off += GED_SIZE(ged) + ged->ErrorDataLength;
 	}
 
@@ -418,8 +438,9 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	}
 
 	/* If ACPI told the error is fatal -- make it so. */
-	if (sev == ACPI_HEST_GEN_ERROR_FATAL)
-		panic("APEI Fatal Hardware Error!");
+	if (fatal)
+		panic("APEI Fatal Hardware Error: %.20s",
+		    fru != NULL ? fru : "unknown");
 
 	return (1);
 }
@@ -450,9 +471,9 @@ apei_nmi_handler(void)
 		if (ges == NULL || ges->BlockStatus == 0)
 			continue;
 
-		/* If ACPI told the error is fatal -- make it so. */
+		/* Log and panic via apei_ge_handler(); does not return. */
 		if (ges->ErrorSeverity == ACPI_HEST_GEN_ERROR_FATAL)
-			panic("APEI Fatal Hardware Error!");
+			apei_ge_handler(ge, false);
 
 		/* Copy the buffer for later processing. */
 		gesc = (ACPI_HEST_GENERIC_STATUS *)ge->copybuf;
