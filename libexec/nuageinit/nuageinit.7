@@ -3,7 +3,7 @@
 .\" Copyright (c) 2025 Baptiste Daroussin <bapt@FreeBSD.org>
 .\" Copyright (c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 .\"
-.Dd February 26, 2026
+.Dd June 6, 2026
 .Dt NUAGEINIT 7
 .Os
 .Sh NAME
@@ -491,6 +491,37 @@ succeeds.
 Defaults to
 .Qq true .
 .El
+.It Ic phone_home
+An object configuring the posting of instance data to a URL.
+.Pp
+The following keys are recognized:
+.Bl -tag -width "tries"
+.It Ic url
+The target URL to which the data will be posted.
+.It Ic post
+A list of data items to send, or the string
+.Qq all
+to send all supported items.
+Supported items are:
+.Qq hostname ,
+.Qq fqdn ,
+.Qq instance_id ,
+.Qq pub_key_rsa ,
+.Qq pub_key_ecdsa ,
+and
+.Qq pub_key_ed25519 .
+.It Ic tries
+Number of retry attempts.
+Defaults to 1.
+.El
+.Pp
+The data is posted using
+.Xr fetch 1 .
+.It Ic final_message
+A string message to be displayed at the end of the boot process.
+The placeholder
+.Qq $UPTIME
+is replaced with the system uptime in seconds.
 .It Ic users
 Specify a list of users to be created:
 .Bl -tag -width "ssh_authorized_keys"
