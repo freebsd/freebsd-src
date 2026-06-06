@@ -1107,7 +1107,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 
 	KASSERT(FIRST_THREAD_IN_PROC(p),
 	    ("proc_reap: no residual thread!"));
-	uma_zfree(proc_zone, p);
+	PROC_TREE_UNREF(p);
 	atomic_add_int(&nprocs, -1);
 }
 

@@ -279,6 +279,7 @@ proc_init(void *mem, int size, int flags)
 	p->p_pgrp = NULL;
 	TAILQ_INIT(&p->p_kqtim_stop);
 	STAILQ_INIT(&p->p_ktr);
+	refcount_init(&p->p_tree_refcnt, 0);
 	return (0);
 }
 
