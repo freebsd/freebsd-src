@@ -132,6 +132,13 @@ protect_set(struct thread *td, struct proc *p, void *data)
 	return (0);
 }
 
+static struct proc *
+get_reaper_or_p(struct proc *p)
+{
+	sx_assert(&proctree_lock, SX_LOCKED);
+	return ((p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p);
+}
+
 static int
 reap_acquire(struct thread *td, struct proc *p, void *data __unused)
 {
@@ -172,12 +179,9 @@ reap_status(struct thread *td, struct proc *p, void *data)
 
 	rs = data;
 	sx_assert(&proctree_lock, SX_LOCKED);
-	if ((p->p_treeflag & P_TREE_REAPER) == 0) {
-		reap = p->p_reaper;
-	} else {
-		reap = p;
+	reap = get_reaper_or_p(p);
+	if (reap == p)
 		rs->rs_flags |= REAPER_STATUS_OWNED;
-	}
 	if (reap == initproc)
 		rs->rs_flags |= REAPER_STATUS_REALINIT;
 	rs->rs_reaper = reap->p_pid;
@@ -536,7 +540,7 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 	    (REAPER_KILL_CHILDREN | REAPER_KILL_SUBTREE))
 		return (EINVAL);
 	PROC_UNLOCK(p);
-	reaper = (p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p;
+	reaper = get_reaper_or_p(p);
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = rk->rk_sig;
 	ksi.ksi_code = SI_USER;
