@@ -572,7 +572,7 @@ local function ca_certs(obj)
 	if obj.ca_certs == nil then return end
 	local trusted = obj.ca_certs.trusted
 	if trusted == nil or #trusted == 0 then return end
-	local certdir = root .. "/etc/ssl/certs"
+	local certdir = root .. "/usr/share/certs/trusted"
 	nuage.mkdir_p(certdir)
 	for i, cert in ipairs(trusted) do
 		local certpath = certdir .. "/nuageinit-" .. i .. ".pem"
