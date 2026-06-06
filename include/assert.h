@@ -53,35 +53,15 @@
 #endif /* __BSD_VISIBLE */
 #else
 #ifdef __cplusplus
-#if __cplusplus < 202002L
-/*
- * C++ modes prior to C++20 cannot simultaneously satisfy all three
- * desirable properties of the sanitiser:
- *
- *   Approach                       No double-eval  Lambda support  Arity check
- *   -----------------------------  --------------  --------------  -----------
- *   sizeof(cast(expression))       yes             no              yes
- *   static_cast<bool>(expression)  no              yes             no
- *   (void)bool(expression)         no              yes             no
- *
- *   NOTE: C++20 introduced lambdas in unevaluated contexts; see P0315R4.
- *
- * Since no approach satisfies all three below C++20, the least harmful
- * choice is to forgo the check entirely rather than silently break one
- * of the remaining guarantees.
- *
- */
-#define __assert_sanitize(...)	((void)0)
+#define assert(...)	((void)(bool(__VA_ARGS__) ? ((void)0) :           \
+			    __assert(__func__, __FILE__, __LINE__,        \
+			    #__VA_ARGS__)))
 #else
-#define __assert_sanitize(...)	(void)sizeof(((bool(*)(bool))0)(__VA_ARGS__))
-#endif /* __cplusplus < 202002L */
-#else
-#define __assert_sanitize(...)	(void)sizeof(((_Bool(*)(_Bool))0)(__VA_ARGS__))
-#endif /* __cplusplus */
-#define assert(...)	(__assert_sanitize(__VA_ARGS__),       \
-			    (__VA_ARGS__) ? (void)0 :          \
-			    __assert(__func__, __FILE__,       \
+#define assert(...)	((void)sizeof(((_Bool(*)(_Bool))0)(__VA_ARGS__)), \
+			    (__VA_ARGS__) ? (void)0 :                     \
+			    __assert(__func__, __FILE__,                  \
 			    __LINE__, #__VA_ARGS__))
+#endif /* __cplusplus */
 #define _assert(...)	assert(__VA_ARGS__)
 #if __BSD_VISIBLE
 #define __assert_unreachable()	assert(0 && "unreachable segment reached")
