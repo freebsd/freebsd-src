@@ -765,19 +765,15 @@ aslr_status(struct thread *td, struct proc *p, void *data)
 		d = PROC_ASLR_FORCE_DISABLE;
 		break;
 	}
-	if ((p->p_flag & P_WEXIT) == 0) {
-		_PHOLD(p);
-		PROC_UNLOCK(p);
-		vm = vmspace_acquire_ref(p);
-		if (vm != NULL) {
-			if ((vm->vm_map.flags & MAP_ASLR) != 0)
-				d |= PROC_ASLR_ACTIVE;
-			vmspace_free(vm);
-		}
-		PROC_LOCK(p);
-		_PRELE(p);
+	PROC_UNLOCK(p);
+	vm = vmspace_acquire_ref(p);
+	if (vm != NULL) {
+		if ((vm->vm_map.flags & MAP_ASLR) != 0)
+			d |= PROC_ASLR_ACTIVE;
+		vmspace_free(vm);
 	}
 	*(int *)data = d;
+	PROC_LOCK(p);
 	return (0);
 }
 
@@ -844,14 +840,11 @@ wxmap_ctl(struct thread *td, struct proc *p, void *data)
 	int state;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_flag & P_WEXIT) != 0)
-		return (ESRCH);
 	state = *(int *)data;
 
 	switch (state) {
 	case PROC_WX_MAPPINGS_PERMIT:
 		p->p_flag2 |= P2_WXORX_DISABLE;
-		_PHOLD(p);
 		PROC_UNLOCK(p);
 		vm = vmspace_acquire_ref(p);
 		if (vm != NULL) {
@@ -862,7 +855,6 @@ wxmap_ctl(struct thread *td, struct proc *p, void *data)
 			vmspace_free(vm);
 		}
 		PROC_LOCK(p);
-		_PRELE(p);
 		break;
 	case PROC_WX_MAPPINGS_DISALLOW_EXEC:
 		p->p_flag2 |= P2_WXORX_ENABLE_EXEC;
@@ -881,15 +873,12 @@ wxmap_status(struct thread *td, struct proc *p, void *data)
 	int d;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_flag & P_WEXIT) != 0)
-		return (ESRCH);
 
 	d = 0;
 	if ((p->p_flag2 & P2_WXORX_DISABLE) != 0)
 		d |= PROC_WX_MAPPINGS_PERMIT;
 	if ((p->p_flag2 & P2_WXORX_ENABLE_EXEC) != 0)
 		d |= PROC_WX_MAPPINGS_DISALLOW_EXEC;
-	_PHOLD(p);
 	PROC_UNLOCK(p);
 	vm = vmspace_acquire_ref(p);
 	if (vm != NULL) {
@@ -897,9 +886,8 @@ wxmap_status(struct thread *td, struct proc *p, void *data)
 			d |= PROC_WXORX_ENFORCE;
 		vmspace_free(vm);
 	}
-	PROC_LOCK(p);
-	_PRELE(p);
 	*(int *)data = d;
+	PROC_LOCK(p);
 	return (0);
 }
 
@@ -1175,9 +1163,15 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 static int
 kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
 {
+	int error;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	return (procctl_cmds_info[com].exec(td, p, data));
+	if ((p->p_flag & P_WEXIT) != 0)
+		return (ESRCH);
+	_PHOLD(p);
+	error = procctl_cmds_info[com].exec(td, p, data);
+	_PRELE(p);
+	return (error);
 }
 
 int
