@@ -993,6 +993,7 @@ local n = {
 	addsudo = addsudo,
 	adddoas = adddoas,
 	addfile = addfile,
+	decode_base64 = decode_base64,
 	encode_base64 = encode_base64,
 	add_fstab_entry = add_fstab_entry,
 	remove_fstab_entry = remove_fstab_entry,
