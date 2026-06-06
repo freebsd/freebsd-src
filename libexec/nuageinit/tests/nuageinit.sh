@@ -1275,8 +1275,8 @@ ca_certs:
       -----END CERTIFICATE-----
 EOF
 	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
-	atf_check -o match:"dGVzdGNlcnQx" cat etc/ssl/certs/nuageinit-1.pem
-	atf_check -o match:"dGVzdGNlcnQy" cat etc/ssl/certs/nuageinit-2.pem
+	atf_check -o match:"dGVzdGNlcnQx" cat usr/share/certs/trusted/nuageinit-1.pem
+	atf_check -o match:"dGVzdGNlcnQy" cat usr/share/certs/trusted/nuageinit-2.pem
 	true
 }
 
