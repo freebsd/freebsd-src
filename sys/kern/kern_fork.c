@@ -674,11 +674,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	callout_init_mtx(&p2->p_itcallout, &p2->p_mtx, 0);
 
-	/*
-	 * This begins the section where we must prevent the parent
-	 * from being swapped.
-	 */
-	_PHOLD(p1);
 	PROC_UNLOCK(p1);
 
 	/*
@@ -785,10 +780,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 */
 	knote_fork(p1->p_klist, p2->p_pid);
 
-	/*
-	 * Now can be swapped.
-	 */
-	_PRELE(p1);
 	PROC_UNLOCK(p1);
 	SDT_PROBE3(proc, , , create, p2, p1, fr->fr_flags);
 
