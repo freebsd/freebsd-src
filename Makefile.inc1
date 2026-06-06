@@ -3540,6 +3540,15 @@ check-old-libs: .PHONY
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			echo "${DESTDIR}/$${file}"; \
+			if packages=$$(${LOCALBASE:Q}/sbin/pkg -r ${DESTDIR:U/} \
+			    shlib -qP $${file##*/} 2>/dev/null) && \
+			    [ -n "$${packages}" ]; then \
+				echo "    also provided by:" $${packages}; \
+			elif packages=$$(${LOCALBASE:Q}/sbin/pkg -r ${DESTDIR:U/} \
+			    shlib -qR $${file##*/} 2>/dev/null) && \
+			    [ -n "$${packages}" ]; then \
+				echo "    required by:" $${packages}; \
+			fi; \
 		fi; \
 		for ext in debug symbols; do \
 		  if [ -f "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}" ]; then \
