@@ -2310,11 +2310,11 @@ p_candebug(struct thread *td, struct proc *p)
 	}
 
 	/*
-	 * Can't trace a process that's currently exec'ing.
-	 *
-	 * XXX: Note, this is not a security policy decision, it's a
-	 * basic correctness/functionality decision.  Therefore, this check
-	 * should be moved to the caller's of p_candebug().
+	 * Can't trace a process that's currently exec'ing.  Otherwise
+	 * the process vmspace might change, and the target might be
+	 * loading a setugid image.  The execve_block(9) and
+	 * proc_vmspace_ref(9) allow to get the stable credentials and
+	 * vmspace reference.
 	 */
 	if ((p->p_flag & P_INEXEC) != 0)
 		return (EBUSY);
