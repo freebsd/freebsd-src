@@ -1837,8 +1837,8 @@ pargs_drop(struct pargs *pa)
 }
 
 static int
-proc_read_string(struct thread *td, struct proc *p, const char *sptr, char *buf,
-    size_t len)
+proc_read_string(struct thread *td, struct vmspace *vm, const char *sptr,
+    char *buf, size_t len)
 {
 	ssize_t n;
 
@@ -1847,7 +1847,7 @@ proc_read_string(struct thread *td, struct proc *p, const char *sptr, char *buf,
 	 * and is aligned at the end of the page, and the following page is not
 	 * mapped.
 	 */
-	n = proc_readmem(td, p, (vm_offset_t)sptr, buf, len);
+	n = vmspace_iop(td, vm, (vm_offset_t)sptr, buf, len, UIO_READ);
 	if (n <= 0)
 		return (ENOMEM);
 	return (0);
@@ -1863,8 +1863,8 @@ enum proc_vector_type {
 
 #ifdef COMPAT_FREEBSD32
 static int
-get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
-    size_t *vsizep, enum proc_vector_type type)
+get_proc_vector32(struct thread *td, struct proc *p, struct vmspace *vm,
+    char ***proc_vectorp, size_t *vsizep, enum proc_vector_type type)
 {
 	struct freebsd32_ps_strings pss;
 	Elf32_Auxinfo aux;
@@ -1875,8 +1875,8 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 	int i, error;
 
 	error = 0;
-	if (proc_readmem(td, p, PROC_PS_STRINGS(p), &pss, sizeof(pss)) !=
-	    sizeof(pss))
+	if (vmspace_iop(td, vm, PROC_PS_STRINGS(p), &pss, sizeof(pss),
+	    UIO_READ) != sizeof(pss))
 		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
@@ -1899,8 +1899,8 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 		if (vptr % 4 != 0)
 			return (ENOEXEC);
 		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
-			if (proc_readmem(td, p, ptr, &aux, sizeof(aux)) !=
-			    sizeof(aux))
+			if (vmspace_iop(td, vm, ptr, &aux, sizeof(aux),
+			    UIO_READ) != sizeof(aux))
 				return (ENOMEM);
 			if (aux.a_type == AT_NULL)
 				break;
@@ -1916,7 +1916,7 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 		return (EINVAL);
 	}
 	proc_vector32 = malloc(size, M_TEMP, M_WAITOK);
-	if (proc_readmem(td, p, vptr, proc_vector32, size) != size) {
+	if (vmspace_iop(td, vm, vptr, proc_vector32, size, UIO_READ) != size) {
 		error = ENOMEM;
 		goto done;
 	}
@@ -1937,8 +1937,8 @@ done:
 #endif
 
 static int
-get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
-    size_t *vsizep, enum proc_vector_type type)
+get_proc_vector(struct thread *td, struct proc *p, struct vmspace *vm,
+    char ***proc_vectorp, size_t *vsizep, enum proc_vector_type type)
 {
 	struct ps_strings pss;
 	Elf_Auxinfo aux;
@@ -1948,11 +1948,13 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 	int i;
 
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(p, SV_ILP32) != 0)
-		return (get_proc_vector32(td, p, proc_vectorp, vsizep, type));
+	if (SV_PROC_FLAG(p, SV_ILP32) != 0) {
+		return (get_proc_vector32(td, p, vm, proc_vectorp,
+		    vsizep, type));
+	}
 #endif
-	if (proc_readmem(td, p, PROC_PS_STRINGS(p), &pss, sizeof(pss)) !=
-	    sizeof(pss))
+	if (vmspace_iop(td, vm, PROC_PS_STRINGS(p), &pss, sizeof(pss),
+	    UIO_READ) != sizeof(pss))
 		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
@@ -1990,8 +1992,8 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 		 * to the allocated proc_vector.
 		 */
 		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
-			if (proc_readmem(td, p, ptr, &aux, sizeof(aux)) !=
-			    sizeof(aux))
+			if (vmspace_iop(td, vm, ptr, &aux, sizeof(aux),
+			    UIO_READ) != sizeof(aux))
 				return (ENOMEM);
 			if (aux.a_type == AT_NULL)
 				break;
@@ -2013,7 +2015,7 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 		return (EINVAL); /* In case we are built without INVARIANTS. */
 	}
 	proc_vector = malloc(size, M_TEMP, M_WAITOK);
-	if (proc_readmem(td, p, vptr, proc_vector, size) != size) {
+	if (vmspace_iop(td, vm, vptr, proc_vector, size, UIO_READ) != size) {
 		free(proc_vector, M_TEMP);
 		return (ENOMEM);
 	}
@@ -2029,6 +2031,7 @@ static int
 get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
     enum proc_vector_type type)
 {
+	struct vmspace *vm;
 	size_t done, len, nchr, vsize;
 	int error, i;
 	char **proc_vector, *sptr;
@@ -2041,9 +2044,14 @@ get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
 	 */
 	nchr = 2 * (PATH_MAX + ARG_MAX);
 
-	error = get_proc_vector(td, p, &proc_vector, &vsize, type);
+	error = proc_vmspace_ref(td, p, PRVM_BLOCK_EXEC |
+	    PRVM_CHECK_VISIBILITY, &vm);
 	if (error != 0)
 		return (error);
+
+	error = get_proc_vector(td, p, vm, &proc_vector, &vsize, type);
+	if (error != 0)
+		goto out;
 	for (done = 0, i = 0; i < (int)vsize && done < nchr; i++) {
 		/*
 		 * The program may have scribbled into its argv array, e.g. to
@@ -2053,7 +2061,7 @@ get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
 		if (proc_vector[i] == NULL)
 			break;
 		for (sptr = proc_vector[i]; ; sptr += GET_PS_STRINGS_CHUNK_SZ) {
-			error = proc_read_string(td, p, sptr, pss_string,
+			error = proc_read_string(td, vm, sptr, pss_string,
 			    sizeof(pss_string));
 			if (error != 0)
 				goto done;
@@ -2070,6 +2078,8 @@ get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
 	}
 done:
 	free(proc_vector, M_TEMP);
+out:
+	proc_vmspace_unref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_VISIBILITY, vm);
 	return (error);
 }
 
@@ -2090,11 +2100,17 @@ proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb)
 int
 proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 {
+	struct vmspace *vm;
 	size_t vsize, size;
 	char **auxv;
 	int error;
 
-	error = get_proc_vector(td, p, &auxv, &vsize, PROC_AUX);
+	error = proc_vmspace_ref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG,
+	    &vm);
+	if (error != 0)
+		return (error);
+	error = get_proc_vector(td, p, vm, &auxv, &vsize, PROC_AUX);
+	proc_vmspace_unref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG, vm);
 	if (error == 0) {
 #ifdef COMPAT_FREEBSD32
 		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
