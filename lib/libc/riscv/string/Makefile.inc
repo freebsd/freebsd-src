@@ -5,5 +5,4 @@ MDSRCS+= \
 	memcpy.S \
 	memset.S \
 	strlen.S \
-	strchrnul.S \
-	strrchr.S
+	strchrnul.S
