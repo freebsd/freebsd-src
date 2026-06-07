@@ -513,33 +513,6 @@ param_set_active_allocator(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * In pools where the log space map feature is not enabled we touch
- * multiple metaslabs (and their respective space maps) with each
- * transaction group. Thus, we benefit from having a small space map
- * block size since it allows us to issue more I/O operations scattered
- * around the disk. So a sane default for the space map block size
- * is 8~16K.
- */
-extern int zfs_metaslab_sm_blksz_no_log;
-
-SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, sm_blksz_no_log,
-	CTLFLAG_RDTUN, &zfs_metaslab_sm_blksz_no_log, 0,
-	"Block size for space map in pools with log space map disabled.  "
-	"Power of 2 greater than 4096.");
-
-/*
- * When the log space map feature is enabled, we accumulate a lot of
- * changes per metaslab that are flushed once in a while so we benefit
- * from a bigger block size like 128K for the metaslab space maps.
- */
-extern int zfs_metaslab_sm_blksz_with_log;
-
-SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, sm_blksz_with_log,
-	CTLFLAG_RDTUN, &zfs_metaslab_sm_blksz_with_log, 0,
-	"Block size for space map in pools with log space map enabled.  "
-	"Power of 2 greater than 4096.");
-
-/*
  * The in-core space map representation is more compact than its on-disk form.
  * The zfs_metaslab_condense_pct determines how much more compact the in-core
  * space map representation must be before we compact it on-disk.
@@ -547,7 +520,7 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, sm_blksz_with_log,
  */
 extern uint_t zfs_metaslab_condense_pct;
 
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, metaslab_condense_pct,
+SYSCTL_UINT(_vfs_zfs_metaslab, OID_AUTO, condense_pct,
 	CTLFLAG_RWTUN, &zfs_metaslab_condense_pct, 0,
 	"Condense on-disk spacemap when it is more than this many percents"
 	" of in-memory counterpart");
@@ -564,32 +537,6 @@ extern int zfs_removal_suspend_progress;
 SYSCTL_INT(_vfs_zfs, OID_AUTO, removal_suspend_progress,
 	CTLFLAG_RWTUN, &zfs_removal_suspend_progress, 0,
 	"Ensures certain actions can happen while in the middle of a removal");
-
-/*
- * Minimum size which forces the dynamic allocator to change
- * it's allocation strategy.  Once the space map cannot satisfy
- * an allocation of this size then it switches to using more
- * aggressive strategy (i.e search by size rather than offset).
- */
-extern uint64_t metaslab_df_alloc_threshold;
-
-SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold,
-	CTLFLAG_RWTUN, &metaslab_df_alloc_threshold, 0,
-	"Minimum size which forces the dynamic allocator to change its"
-	" allocation strategy");
-
-/*
- * The minimum free space, in percent, which must be available
- * in a space map to continue allocations in a first-fit fashion.
- * Once the space map's free space drops below this level we dynamically
- * switch to using best-fit allocations.
- */
-extern uint_t metaslab_df_free_pct;
-
-SYSCTL_UINT(_vfs_zfs_metaslab, OID_AUTO, df_free_pct,
-	CTLFLAG_RWTUN, &metaslab_df_free_pct, 0,
-	"The minimum free space, in percent, which must be available in a"
-	" space map to continue allocations in a first-fit fashion");
 
 /* mmp.c */
 
