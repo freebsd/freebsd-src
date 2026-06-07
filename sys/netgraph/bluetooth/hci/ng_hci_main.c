@@ -34,11 +34,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/syslog.h>
+#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/sbuf.h>
 #include <sys/queue.h>
+#include <sys/devctl.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -110,6 +114,19 @@ static int ng_hci_linktype_to_addrtype(int linktype)
 	}
 	return BDADDR_BREDR;
 }
+
+/*
+ * Format bdaddr_t as "xx:xx:xx:xx:xx:xx" into buf.
+ */
+
+static void
+ng_hci_bdaddr_to_str(const bdaddr_t *ba, char buf[18])
+{
+	snprintf(buf, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
+		ba->b[5], ba->b[4], ba->b[3],
+		ba->b[2], ba->b[1], ba->b[0]);
+} /* ng_hci_bdaddr_to_str */
+
 /*****************************************************************************
  *****************************************************************************
  **                   Netgraph methods implementation
@@ -268,6 +285,27 @@ ng_hci_disconnect(hook_p hook)
 		/* Connection terminated by local host */
 		ng_hci_unit_clean(unit, 0x16);
 		unit->state &= ~(NG_HCI_UNIT_CONNECTED|NG_HCI_UNIT_INITED);
+
+		/* Signal power off to devd */
+		{
+			char	bdstr[18];
+			struct sbuf *sb;
+
+			sb = sbuf_new_auto();
+			ng_hci_bdaddr_to_str(&unit->bdaddr, bdstr);
+			sbuf_printf(sb, "node=%s bdaddr=%s\n",
+				NG_NODE_NAME(NG_HOOK_NODE(hook)), bdstr);
+
+			if (sbuf_finish(sb) > 0) {
+				log(LOG_WARNING,
+					"hci: failed to signal bt device power off to devd: %s\n",
+					bdstr);
+			} else {
+				devctl_notify("BLUETOOTH", "HCI", "POWERED_OFF", sbuf_data(sb));
+			}
+
+			sbuf_delete(sb);
+		}
 	} else
 		return (EINVAL);
 
@@ -371,6 +409,28 @@ ng_hci_default_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			ng_hci_node_is_up(unit->node, unit->acl, NULL, 0);
 			ng_hci_node_is_up(unit->node, unit->sco, NULL, 0);
+
+			 /* Signal init to devd */
+			{
+				char	bdstr[18];
+				struct sbuf *sb;
+
+				sb = sbuf_new_auto();
+				ng_hci_bdaddr_to_str(&unit->bdaddr, bdstr);
+				sbuf_printf(sb, "node=%s bdaddr=%s\n",
+					NG_NODE_NAME(node), bdstr);
+
+				if (sbuf_finish(sb) > 0) {
+					log(LOG_WARNING,
+						"hci: failed to signal bt device init to devd: %s\n",
+						bdstr);
+				} else {
+					devctl_notify("BLUETOOTH", "HCI", "INITIALIZED", sbuf_data(sb));
+				}
+
+				sbuf_delete(sb);
+			}
+
 			break;
 
 		/* Get node debug level */
