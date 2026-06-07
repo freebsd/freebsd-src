@@ -531,7 +531,7 @@ fi
 
 if [ ${MACHINE} = riscv ]; then
 	# 20251031  df21a004be23  libc: scalar strrchr() in RISC-V assembly
-	clean_dep   lib/libc strrchr c
+	#clean_dep   lib/libc strrchr c
 
 	# 20251031  563efdd3bd5d  libc: scalar memchr() in RISC-V assembly
 	clean_dep   lib/libc memchr c
@@ -555,8 +555,11 @@ if [ ${MACHINE} = riscv ]; then
 	clean_dep   lib/libc bcopy c "libc.string.bcopy.c"
 	clean_dep   lib/libc bzero c "libc.string.bzero.c"
 
-	# 20260307  2a4e3112c811   libc/riscv64: temporarily disable strnlen() implementation until a fix is developed
+	# 20260307  2a4e3112c811  libc/riscv64: temporarily disable strnlen() implementation until a fix is developed
 	clean_dep   lib/libc strnlen S
+
+	# 20260607  4996ebdb7200  libc/riscv64: temporarily disable strrchr() implementation until a fix is developed
+	clean_dep   lib/libc strrchr S
 fi
 
 if [ ${MACHINE_ARCH} = "aarch64" ]; then
