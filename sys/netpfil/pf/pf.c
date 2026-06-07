@@ -10852,10 +10852,6 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 		}
 	}
 
-	if (s == NULL) {
-		pf_free_match_rules(mr);
-	}
-
 	if (a != NULL) {
 		pf_rule_counters_inc(pd, a, dir_out, op_r_pass, af,
 		    src_host, dst_host);
@@ -10867,6 +10863,10 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 	}
 
 	pf_counter_u64_critical_exit();
+
+	if (s == NULL) {
+		pf_free_match_rules(mr);
+	}
 }
 
 static void
