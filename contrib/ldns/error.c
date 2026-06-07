@@ -184,6 +184,19 @@ ldns_lookup_table ldns_error_str[] = {
 	{ LDNS_STATUS_INVALID_SVCPARAM_VALUE,
 		"Invalid wireformat of a value "
 		"in the ServiceParam rdata field of SVCB or HTTPS RR" },
+	{ LDNS_STATUS_NOT_EDE, 
+		"The EDNS option is not an extended error code" },
+	{ LDNS_STATUS_EDE_OPTION_MALFORMED,
+		"The extended error code option is malformed, expected "
+		"at least 2 bytes of option data" },
+	{ LDNS_STATUS_EQUAL_RR,
+		"An identical RR already existed in the zone" },
+	{ LDNS_STATUS_ID_DID_NOT_MATCH,
+		"Response ID did not match the query ID" },
+	{ LDNS_STATUS_QDCOUNT_MUST_BE_ONE,
+		"The query section MUST contain exactly one question" },
+	{ LDNS_STATUS_QUERY_DID_NOT_MATCH,
+		"The question in the response did not match the query" },
 	{ 0, NULL }
 };
 
