@@ -441,6 +441,50 @@ ldns_udp_bgsend2(ldns_buffer *qbin,
 	return ldns_udp_bgsend_from(qbin, to, tolen, NULL, 0, timeout);
 }
 
+/** helper sockaddr compare function. returns -1, 0 or 1. */
+static int
+ldns_sockaddr_cmp(const struct sockaddr_storage* addr1, socklen_t len1,
+	const struct sockaddr_storage* addr2, socklen_t len2)
+{
+	struct sockaddr_in* p1_in = (struct sockaddr_in*)addr1;
+	struct sockaddr_in* p2_in = (struct sockaddr_in*)addr2;
+	struct sockaddr_in6* p1_in6 = (struct sockaddr_in6*)addr1;
+	struct sockaddr_in6* p2_in6 = (struct sockaddr_in6*)addr2;
+	if(len1 < len2)
+		return -1;
+	if(len1 > len2)
+		return 1;
+	assert(len1 == len2);
+	if( p1_in->sin_family < p2_in->sin_family)
+		return -1;
+	if( p1_in->sin_family > p2_in->sin_family)
+		return 1;
+	assert( p1_in->sin_family == p2_in->sin_family );
+	/* compare ip4 */
+	if( p1_in->sin_family == AF_INET ) {
+		/* just order it, ntohs not required */
+		if(p1_in->sin_port < p2_in->sin_port)
+			return -1;
+		if(p1_in->sin_port > p2_in->sin_port)
+			return 1;
+		assert(p1_in->sin_port == p2_in->sin_port);
+		return memcmp(&p1_in->sin_addr, &p2_in->sin_addr,
+			sizeof(p1_in->sin_addr));
+	} else if (p1_in6->sin6_family == AF_INET6) {
+		/* just order it, ntohs not required */
+		if(p1_in6->sin6_port < p2_in6->sin6_port)
+			return -1;
+		if(p1_in6->sin6_port > p2_in6->sin6_port)
+			return 1;
+		assert(p1_in6->sin6_port == p2_in6->sin6_port);
+		return memcmp(&p1_in6->sin6_addr, &p2_in6->sin6_addr,
+			sizeof(p1_in6->sin6_addr));
+	} else {
+		/* eek unknown type, perform this comparison for sanity. */
+		return memcmp(addr1, addr2, len1);
+	}
+}
+
 static ldns_status
 ldns_udp_send_from(uint8_t **result, ldns_buffer *qbin,
 		const struct sockaddr_storage *to  , socklen_t tolen,
@@ -449,6 +493,8 @@ ldns_udp_send_from(uint8_t **result, ldns_buffer *qbin,
 {
 	int sockfd;
 	uint8_t *answer;
+	struct sockaddr_storage reply_addr;
+	socklen_t reply_addr_len;
 
 	sockfd = ldns_udp_bgsend_from(qbin, to, tolen, from, fromlen, timeout);
 
@@ -467,11 +513,19 @@ ldns_udp_send_from(uint8_t **result, ldns_buffer *qbin,
          * but returns a 'NETWORK_ERROR' much like a timeout. */
         ldns_sock_nonblock(sockfd);
 
-	answer = ldns_udp_read_wire(sockfd, answer_size, NULL, NULL);
+	reply_addr_len = sizeof(reply_addr);
+	memset(&reply_addr, 0, reply_addr_len);
+	answer = ldns_udp_read_wire(sockfd, answer_size, &reply_addr,
+		&reply_addr_len);
 	close_socket(sockfd);
 
 	if (!answer) {
 		/* oops */
+		return LDNS_STATUS_NETWORK_ERR;
+	}
+	/* Check that the reply came from the to addr. */
+	if(ldns_sockaddr_cmp(to, tolen, &reply_addr, reply_addr_len) != 0) {
+		free(answer);
 		return LDNS_STATUS_NETWORK_ERR;
 	}
 
@@ -511,6 +565,10 @@ ldns_send_buffer(ldns_pkt **result, ldns_resolver *r, ldns_buffer *qb, ldns_rdf 
 	ldns_status status, send_status;
 
 	assert(r != NULL);
+
+	/* The query should at least have one question */
+	if(ldns_buffer_limit(qb) < 6 || ldns_buffer_read_u16_at(qb, 4) != 1)
+		return LDNS_STATUS_QDCOUNT_MUST_BE_ONE;
 
 	status = LDNS_STATUS_OK;
 	rtt = ldns_resolver_rtt(r);
@@ -599,6 +657,16 @@ ldns_send_buffer(ldns_pkt **result, ldns_resolver *r, ldns_buffer *qb, ldns_rdf 
 			ldns_resolver_set_nameserver_rtt(r, i, LDNS_RESOLV_RTT_INF);
 			status = send_status;
 		}
+		if(reply_bytes && ldns_buffer_limit(qb) >= 2) {
+			uint16_t txid = ldns_buffer_read_u16_at(qb, 0);
+			if(reply_size < 2 ||
+				ldns_read_uint16(reply_bytes) != txid) {
+				status = LDNS_STATUS_ID_DID_NOT_MATCH;
+				LDNS_FREE(reply_bytes);
+				reply_bytes = NULL;
+				reply_size = 0;
+			}
+		}
 		
 		/* obey the fail directive */
 		if (!reply_bytes) {
@@ -608,7 +676,7 @@ ldns_send_buffer(ldns_pkt **result, ldns_resolver *r, ldns_buffer *qb, ldns_rdf 
 					LDNS_FREE(src);
 				}
 				LDNS_FREE(ns);
-				return LDNS_STATUS_ERR;
+				return status ? status : LDNS_STATUS_ERR;
 			} else {
 				LDNS_FREE(ns);
 				continue;
@@ -670,6 +738,26 @@ ldns_send_buffer(ldns_pkt **result, ldns_resolver *r, ldns_buffer *qb, ldns_rdf 
 #endif /* HAVE_SSL */
 
 	LDNS_FREE(reply_bytes);
+	if (reply) {
+		ldns_pkt *query = NULL;
+
+		if(ldns_pkt_qdcount(reply) != 1) {
+			status = LDNS_STATUS_QDCOUNT_MUST_BE_ONE;
+			ldns_pkt_free(reply);
+			reply = NULL;
+
+		} else if(ldns_wire2pkt(&query
+		                , ldns_buffer_begin(qb)
+		                , ldns_buffer_position(qb)) != LDNS_STATUS_OK
+		|| ldns_pkt_qdcount(query) != 1
+		|| ldns_rr_compare(ldns_rr_list_rr(ldns_pkt_question(query),0)
+		                  ,ldns_rr_list_rr(ldns_pkt_question(reply),0))){
+			status = LDNS_STATUS_QUERY_DID_NOT_MATCH;
+			ldns_pkt_free(reply);
+			reply = NULL;
+		}
+		ldns_pkt_free(query);
+	}
 	if (result) {
 		*result = reply;
 	}
