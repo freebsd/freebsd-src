@@ -916,7 +916,7 @@ cuse_proc2proc_copy(struct proc *proc_s, vm_offset_t data_s,
 		};
 
 		PHOLD(proc_s);
-		error = proc_rwmem(proc_s, &uio);
+		error = proc_rwmem(proc_s, &uio, 0);
 		PRELE(proc_s);
 
 	} else if (proc_cur == proc_s) {
@@ -935,7 +935,7 @@ cuse_proc2proc_copy(struct proc *proc_s, vm_offset_t data_s,
 		};
 
 		PHOLD(proc_d);
-		error = proc_rwmem(proc_d, &uio);
+		error = proc_rwmem(proc_d, &uio, 0);
 		PRELE(proc_d);
 	} else {
 		error = EINVAL;

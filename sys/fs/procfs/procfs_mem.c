@@ -64,7 +64,7 @@ procfs_doprocmem(PFS_FILL_ARGS)
 	error = p_candebug(td, p);
 	PROC_UNLOCK(p);
 	if (error == 0)
-		error = proc_rwmem(p, uio);
+		error = proc_rwmem(p, uio, 0);
 
 	return (error);
 }
