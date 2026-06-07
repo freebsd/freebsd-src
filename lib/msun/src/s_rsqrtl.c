@@ -108,7 +108,7 @@ rsqrtl(long double x)
 	}
 	u.bits.exp = 0x3ffe;
 
-	/* m is odd.  Put x into [0.25,5) and increase m. */
+	/* m is odd.  Put x into [0.25,0.5) and increase m. */
 	if (m & 1) {
 	    u.e /= 2;
 	    m += 1;
@@ -141,8 +141,9 @@ long double
 rsqrtl(long double x)
 {
 	volatile static const double vzero = 0;
+	static const double half = 0.5;
 	int hx, m, rnd;
-	long double y;
+	long double h, ph, pl, rh, rl, y, zh, zl;
 
 	/* x = +-0.  Raise exception. */
 	if (x == 0)
@@ -182,9 +183,6 @@ rsqrtl(long double x)
 
 	y = 1 / sqrt((double)x);	/* ~52-bit estimate. */
 	y -= y * (x * y * y - 1) / 2;	/* ~104-bit estimate. */
-
-	static const double half = 0.5;
-	long double h, ph, pl, rh, rl, zh, zl;
 
 	h = y / 2;
 

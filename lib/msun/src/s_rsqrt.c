@@ -108,14 +108,14 @@ rsqrt(double x)
 	hx = (hx & 0x000fffff) | 0x3fe00000;
 	SET_HIGH_WORD(x, hx);
 
-	/* m is odd.  Put x into [0.25,5) and increase m. */
+	/* m is odd.  Put x into [0.25,0.5) and increase m. */
 	if (m & 1) {
 	    x /= 2;
 	    m += 1;
 	}
 	m = -(m >> 1);			/* Prepare for 2^(-m/2). */
 
-	y = 1 / sqrt(x);	/* ~52-bit estimate. */
+	y = 1 / sqrt(x);		/* ~52-bit estimate. */
 
 	h = y / 2;
 

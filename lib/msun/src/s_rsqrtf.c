@@ -108,7 +108,7 @@ rsqrtf(float x)
 	ix = (ix & 0x007fffff) | 0x3f000000;
 	SET_FLOAT_WORD(x, ix);		/* x is in [0.5,1). */
 
-	/* m is odd.  Put x into [0.25,5) and increase m. */
+	/* m is odd.  Put x into [0.25,0.5) and increase m. */
 	if (m & 1) {
 	    x /= 2;
 	    m += 1;
@@ -122,32 +122,39 @@ rsqrtf(float x)
 	 * a max ulp of ~1.49.
 	 */
 	y = 1 / sqrtf(x);
-
 	h = y / 2;
 
 	/*
-	 * For values of x with a representation of 0x1.fffffcpN with
-	 * N an odd integer, the computed rsqrtf() is not correctly
-	 * rounded in round-to-nearest without toggling the rounding
-	 * mode  to FE_TOWARDZERO.  Note, FE_DOWNWARD also works.
-	 * However, messing with the rounding mode is expensive, so
-	 * only do it when necessary. Example, x = 0x1.fffffcp3 gives
-	 * y --> 0x3f800001.
+	 * For values of x with representations of the forms 0x1.fffffcpN
+	 * or 0x1.13e07pN with N an odd integer, the computed rsqrtf() is
+	 * not correctly rounded in round-to-nearest without fiddling with
+	 * the rounding mode and/or bits of x.
 	 */
 	GET_FLOAT_WORD(ix, y);
-	if ((ix & 0x000fffff) == 1) {
+	if ((ix & 0x000fffff) == 1) {			/* 0x1.fffffcpN */
 	    rnd = fegetround();
-	    fesetround(FE_TOWARDZERO);
+	    fesetround(FE_DOWNWARD);
 	    _MUL(x, y, zh, zl);
 	    _XMUL(zh, zl, h, 0, ph, pl);
-	   fesetround(rnd);
+	    fesetround(rnd);
+            _XADD(-ph, -pl, half, 0, rh, rl);
+            y = h + h * rh;
+	} else if((ix & 0x00ffffff) == 0x00ae6055) {	/* 0x1.13e07pN */
+	    GET_FLOAT_WORD(ix, x);
+	    SET_FLOAT_WORD(x, ix - 1);
+	    rnd = fegetround();
+	    fesetround(FE_DOWNWARD);
+	    _MUL(x, y, zh, zl);
+	    _XMUL(zh, zl, h, 0, ph, pl);
+            _XADD(-ph, -pl, half, 0, rh, rl);
+            y = h + h * rh;
+	    fesetround(rnd);
 	} else {
 	    _MUL(x, y, zh, zl);
 	    _XMUL(zh, zl, h, 0, ph, pl);
+	    _XADD(-ph, -pl, half, 0, rh, rl);
+	    y = h * rh + h;
 	}
-
-	_XADD(-ph, -pl, half, 0, rh, rl);
-	y = h * rh + h;
 
 	ix = (uint32_t)(m + 128) << 23;
 	SET_FLOAT_WORD(x, ix);
