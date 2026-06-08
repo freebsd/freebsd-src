@@ -3579,6 +3579,16 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	dev->mdev = mdev;
 
+	/*
+	 * Write-combining is required to expose BlueFlame (WC) UARs through the
+	 * dynamic MLX5_IB_OBJECT_UAR ioctl path.  The legacy static UAR path
+	 * already maps doorbell pages with pgprot_writecombine(), so advertise
+	 * WC support whenever the platform actually provides it.
+	 */
+#if defined(VM_MEMATTR_WRITE_COMBINING)
+	dev->wc_support = true;
+#endif
+
 	dev->port = kcalloc(MLX5_CAP_GEN(mdev, num_ports), sizeof(*dev->port),
 			    GFP_KERNEL);
 	if (!dev->port)
