@@ -46,8 +46,8 @@
 #undef __assert_unreachable
 
 #ifdef NDEBUG
-#define assert(e)	((void)0)
-#define _assert(e)	((void)0)
+#define assert(...)	((void)0)
+#define _assert(...)	((void)0)
 #if __BSD_VISIBLE
 #define __assert_unreachable()	__unreachable()
 #endif /* __BSD_VISIBLE */
