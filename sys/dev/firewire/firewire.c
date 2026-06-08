@@ -372,23 +372,21 @@ firewire_xfer_timeout(void *arg, int pending)
 static void
 firewire_watchdog(void *arg)
 {
-	struct firewire_comm *fc;
-	static int watchdog_clock = 0;
-
-	fc = arg;
+	struct firewire_softc *sc = arg;
+	struct firewire_comm *fc = sc->fc;
 
 	/*
 	 * At boot stage, the device interrupt is disabled and
-	 * We encounter a timeout easily. To avoid this,
-	 * ignore clock interrupt for a while.
+	 * we encounter a timeout easily. To avoid this,
+	 * ignore clock ticks for a while.
 	 */
-	if (watchdog_clock > WATCHDOG_HZ * 15)
+	if (sc->watchdog_clock > WATCHDOG_HZ * 15)
 		taskqueue_enqueue(fc->taskqueue, &fc->task_timeout);
 	else
-		watchdog_clock++;
+		sc->watchdog_clock++;
 
 	callout_reset(&fc->timeout_callout, hz / WATCHDOG_HZ,
-	    firewire_watchdog, fc);
+	    firewire_watchdog, sc);
 }
 
 /*
@@ -444,8 +442,9 @@ firewire_attach(device_t dev)
 	CALLOUT_INIT(&fc->busprobe_callout);
 	TASK_INIT(&fc->task_timeout, 0, firewire_xfer_timeout, fc);
 
+	sc->watchdog_clock = 0;
 	callout_reset(&sc->fc->timeout_callout, hz,
-	    firewire_watchdog, sc->fc);
+	    firewire_watchdog, sc);
 
 	/* create thread */
 	kproc_create(fw_bus_probe_thread, fc, &fc->probe_thread,
@@ -1048,39 +1047,47 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 }
 
 /*
- * To obtain XFER structure by transaction label.
+ * Look up an XFER by transaction label.
+ * Removes the xfer from fc->tlabels only when AT transmit has completed
+ * (FWXF_SENT); FWXF_START xfers remain so fw_drain_txq() can find them
+ * on a bus reset.
  */
 static struct fw_xfer *
 fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel, int tcode)
 {
 	struct fw_xfer *xfer;
-	int s = splfw();
 	int req;
 
 	mtx_lock(&fc->tlabel_lock);
-	STAILQ_FOREACH(xfer, &fc->tlabels[tlabel], tlabel)
-		if (xfer->send.hdr.mode.hdr.dst == node) {
+	STAILQ_FOREACH(xfer, &fc->tlabels[tlabel], tlabel) {
+		if (xfer->send.hdr.mode.hdr.dst != node)
+			continue;
+		/* Validate tcode match before claiming the xfer. */
+		req = xfer->send.hdr.mode.hdr.tcode;
+		if (xfer->fc->tcode[req].valid_res != tcode) {
+			printf("%s: invalid response tcode "
+			    "(0x%x for 0x%x)\n", __func__, tcode, req);
 			mtx_unlock(&fc->tlabel_lock);
-			splx(s);
-			KASSERT(xfer->tl == tlabel,
-				("xfer->tl 0x%x != 0x%x", xfer->tl, tlabel));
-			/* extra sanity check */
-			req = xfer->send.hdr.mode.hdr.tcode;
-			if (xfer->fc->tcode[req].valid_res != tcode) {
-				printf("%s: invalid response tcode "
-				    "(0x%x for 0x%x)\n", __FUNCTION__,
-				    tcode, req);
-				return (NULL);
-			}
-
-			if (firewire_debug > 2)
-				printf("fw_tl2xfer: found tl=%d\n", tlabel);
-			return (xfer);
+			return (NULL);
 		}
+		/*
+		 * Remove from tlabels only after AT transmit completes
+		 * (FWXF_SENT).  Early responses (FWXF_START) must stay
+		 * in the list until fwohci_txd() drains the descriptor.
+		 */
+		if (xfer->flag & FWXF_SENT) {
+			STAILQ_REMOVE(&fc->tlabels[tlabel], xfer,
+			    fw_xfer, tlabel);
+			xfer->tl = -1;
+		}
+		mtx_unlock(&fc->tlabel_lock);
+		if (firewire_debug > 2)
+			printf("fw_tl2xfer: found tl=%d\n", tlabel);
+		return (xfer);
+	}
 	mtx_unlock(&fc->tlabel_lock);
 	if (firewire_debug > 1)
 		printf("fw_tl2xfer: not found tl=%d\n", tlabel);
-	splx(s);
 	return (NULL);
 }
 

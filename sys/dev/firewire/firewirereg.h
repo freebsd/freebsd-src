@@ -69,6 +69,7 @@ struct fw_device {
 struct firewire_softc {
 	struct cdev *dev;
 	struct firewire_comm *fc;
+	int watchdog_clock;
 };
 
 #define FW_MAX_DMACH 0x20
