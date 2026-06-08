@@ -2316,10 +2316,21 @@ linux_sockopt_copyout(struct thread *td, void *val, socklen_t len,
     struct linux_getsockopt_args *args)
 {
 	int error;
+	l_int loptlen;
+	socklen_t optlen;
 
-	error = copyout(val, PTRIN(args->optval), len);
-	if (error == 0)
-		error = copyout(&len, PTRIN(args->optlen), sizeof(len));
+	error = copyin(PTRIN(args->optlen), &loptlen, sizeof(loptlen));
+	if (error != 0)
+		return (error);
+	if (loptlen < 0)
+		return (EINVAL);
+
+	optlen = (socklen_t)loptlen;
+	error = copyout(val, PTRIN(args->optval), min(len, optlen));
+	if (error == 0) {
+		loptlen = (l_int)len;
+		error = copyout(&loptlen, PTRIN(args->optlen), sizeof(loptlen));
+	}
 	return (error);
 }
 
