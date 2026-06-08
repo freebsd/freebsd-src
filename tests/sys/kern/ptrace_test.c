@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <sys/cpuset.h>
 #include <sys/elf.h>
+#define	_WANT_KERNEL_ERRNO
+#include <sys/errno.h>
 #include <sys/event.h>
 #include <sys/file.h>
 #include <sys/mman.h>
@@ -4464,6 +4466,215 @@ ATF_TC_BODY(ptrace__PT_SC_REMOTE_syscall_validation, tc)
 	ATF_REQUIRE(ptrace(PT_DETACH, fpid, (caddr_t)1, 0) != -1);
 }
 
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SC_REMOTE_exit);
+ATF_TC_BODY(ptrace__PT_SC_REMOTE_exit, tc)
+{
+	struct ptrace_sc_remote pscr;
+	syscallarg_t args[1];
+	pid_t fpid, wpid;
+	int status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		exit(0);
+	}
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	args[0] = 42;
+	pscr.pscr_syscall = SYS_exit;
+	pscr.pscr_nargs = 1;
+	pscr.pscr_args = args;
+	ATF_REQUIRE(ptrace(PT_SC_REMOTE, fpid, (caddr_t)&pscr,
+	    sizeof(pscr)) != -1);
+
+        wpid = waitpid(fpid, &status, 0);
+        REQUIRE_EQ(wpid, fpid);
+        ATF_REQUIRE(WIFSTOPPED(status));
+        ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) != -1);
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 42);
+}
+
+/*
+ * Trace a forking process with FOLLOW_FORK.  Once the child stops in
+ * fork_return(), use PT_SC_REMOTE to force it to call exit().
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SC_REMOTE_exit_child);
+ATF_TC_BODY(ptrace__PT_SC_REMOTE_exit_child, tc)
+{
+	struct ptrace_sc_remote pscr;
+	syscallarg_t args[1];
+	pid_t child, fpid, wpid;
+	int status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		follow_fork_parent(false);
+	}
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	ATF_REQUIRE(ptrace(PT_LWP_EVENTS, fpid, NULL, 1) != -1);
+	ATF_REQUIRE(ptrace(PT_FOLLOW_FORK, fpid, NULL, 1) != -1);
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) != -1);
+
+	child = handle_fork_events(fpid, NULL);
+	ATF_REQUIRE(child > 0);
+
+	args[0] = 42;
+	pscr.pscr_syscall = SYS_exit;
+	pscr.pscr_nargs = 1;
+	pscr.pscr_args = args;
+
+	/* The child must be at the syscall boundary. */
+	ATF_REQUIRE_ERRNO(EBUSY,
+	    ptrace(PT_SC_REMOTE, child, (caddr_t)&pscr, sizeof(pscr)) == -1);
+
+	/* Resume the child and ask it to stop during syscall exits. */
+	ATF_REQUIRE(ptrace(PT_TO_SCX, child, (caddr_t)1, 0) != -1);
+
+	wpid = waitpid(child, &status, 0);
+	REQUIRE_EQ(wpid, child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+
+	ATF_REQUIRE(ptrace(PT_SC_REMOTE, child, (caddr_t)&pscr, sizeof(pscr)) !=
+	    -1);
+
+        wpid = waitpid(child, &status, 0);
+        REQUIRE_EQ(wpid, child);
+        ATF_REQUIRE(WIFSTOPPED(status));
+        ATF_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
+
+	wpid = waitpid(child, &status, 0);
+	REQUIRE_EQ(wpid, child);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 42);
+}
+
+/*
+ * Use PT_SC_REMOTE to ask the tracee to exit, then send SIGKILL before
+ * continuing it.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SC_REMOTE_exit_sigkill);
+ATF_TC_BODY(ptrace__PT_SC_REMOTE_exit_sigkill, tc)
+{
+	struct ptrace_sc_remote pscr;
+	syscallarg_t args[1];
+	pid_t fpid, wpid;
+	int status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		exit(0);
+	}
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	args[0] = 42;
+	pscr.pscr_syscall = SYS_exit;
+	pscr.pscr_nargs = 1;
+	pscr.pscr_args = args;
+	ATF_REQUIRE(ptrace(PT_SC_REMOTE, fpid, (caddr_t)&pscr,
+	    sizeof(pscr)) != -1);
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, SIGKILL) != -1);
+
+	/* The child should honour the original exit() call. */
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 42);
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SC_REMOTE_execve);
+ATF_TC_BODY(ptrace__PT_SC_REMOTE_execve, tc)
+{
+	struct ptrace_sc_remote pscr;
+	syscallarg_t args[3];
+	char *ping_path;
+	char *argv[5];
+	char *envp[1];
+	pid_t fpid, wpid;
+	int status;
+
+	ping_path = __DECONST(char *, "/sbin/ping");
+	argv[0] = ping_path;
+	argv[1] = __DECONST(char *, "-c");
+	argv[2] = __DECONST(char *, "1");
+	argv[3] = __DECONST(char *, "localhost");
+	argv[4] = NULL;
+	envp[0] = NULL;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		exit(0);
+	}
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	args[0] = (syscallarg_t)ping_path;
+	args[1] = (syscallarg_t)argv;
+	args[2] = (syscallarg_t)envp;
+	pscr.pscr_syscall = SYS_execve;
+	pscr.pscr_nargs = 3;
+	pscr.pscr_args = args;
+	ATF_REQUIRE(ptrace(PT_SC_REMOTE, fpid, (caddr_t)&pscr,
+	    sizeof(pscr)) != -1);
+	/* EJUSTRETURN here is an implementation detail. */
+	REQUIRE_EQ(pscr.pscr_ret.sr_error, EJUSTRETURN);
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	{
+		struct kinfo_proc kp;
+		size_t len;
+		int mib[4];
+
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_PROC;
+		mib[2] = KERN_PROC_PID;
+		mib[3] = fpid;
+		len = sizeof(kp);
+		ATF_REQUIRE(sysctl(mib, nitems(mib), &kp, &len, NULL, 0) == 0);
+		ATF_REQUIRE_STREQ(kp.ki_comm, "ping");
+	}
+
+	/* Let the child (now ping) run to completion. */
+	ATF_REQUIRE(ptrace(PT_DETACH, fpid, (caddr_t)1, 0) != -1);
+
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 0);
+}
+
 /*
  * Ensure that procctl(PROC_REAP_KILL) won't block forever waiting for a target
  * process that stopped to report its status to a debugger.
@@ -4704,6 +4915,10 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_reparent_wait_child);
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_getpid);
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_syscall_validation);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_exit);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_exit_child);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_exit_sigkill);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_execve);
 	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_no_EINTR);
 	ATF_TP_ADD_TC(tp, ptrace__PT_DETACH_continued);
