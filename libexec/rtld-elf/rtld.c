@@ -3159,7 +3159,8 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 				for (index = elm->obj->fini_array_num - 1;
 				    index >= 0; index--) {
 					if (fini_addr[index] != 0 &&
-					    fini_addr[index] != 1) {
+					    fini_addr[index] != 1 &&
+					    fini_addr[index] != (Elf_Addr)-1) {
 				dbg("calling fini function for %s at %p",
 						    elm->obj->path,
 						    (void *)fini_addr[index]);
@@ -3265,7 +3266,8 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 			for (index = 0; index < elm->obj->init_array_num;
 			    index++) {
 				if (init_addr[index] != 0 &&
-				    init_addr[index] != 1) {
+				    init_addr[index] != 1 &&
+				    init_addr[index] != (Elf_Addr)-1) {
 				dbg("calling init function for %s at %p",
 					    elm->obj->path,
 					    (void *)init_addr[index]);
