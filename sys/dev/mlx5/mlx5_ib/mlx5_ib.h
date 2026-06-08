@@ -66,6 +66,17 @@ enum {
 	MLX5_IB_MMAP_CMD_MASK	= 0xff,
 };
 
+/*
+ * Reserved mmap command range used to encode rdma_user_mmap entry page
+ * offsets (e.g. dynamically allocated UARs).  Keeping these above the legacy
+ * MLX5_IB_MMAP_* commands ensures mlx5_ib_mmap() routes them to the
+ * rdma_user_mmap offset handler instead of the legacy bfreg uar_mmap() path.
+ */
+enum {
+	MLX5_IB_MMAP_OFFSET_START	= 9,
+	MLX5_IB_MMAP_OFFSET_END		= 255,
+};
+
 enum {
 	MLX5_RES_SCAT_DATA32_CQE	= 0x1,
 	MLX5_RES_SCAT_DATA64_CQE	= 0x2,

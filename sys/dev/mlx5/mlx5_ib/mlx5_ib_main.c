@@ -1703,6 +1703,25 @@ static unsigned long mlx5_vma_to_pgoff(struct vm_area_struct *vma)
 	return (command << 16 | idx);
 }
 
+static u64 mlx5_entry_to_mmap_offset(struct mlx5_user_mmap_entry *entry)
+{
+	u64 cmd = (entry->rdma_entry.start_pgoff >> 16) & 0xFFFF;
+	u64 index = entry->rdma_entry.start_pgoff & 0xFFFF;
+
+	return (((index >> 8) << 16) | (cmd << MLX5_IB_MMAP_CMD_SHIFT) |
+		(index & 0xFF)) << PAGE_SHIFT;
+}
+
+static int mlx5_rdma_user_mmap_entry_insert(struct mlx5_ib_ucontext *c,
+					    struct mlx5_user_mmap_entry *entry,
+					    size_t length)
+{
+	return rdma_user_mmap_entry_insert_range(
+		&c->ibucontext, &entry->rdma_entry, length,
+		(MLX5_IB_MMAP_OFFSET_START << 16),
+		((MLX5_IB_MMAP_OFFSET_END << 16) + (1UL << 16) - 1));
+}
+
 static int mlx5_ib_mmap_offset(struct mlx5_ib_dev *dev,
 			       struct vm_area_struct *vma,
 			       struct ib_ucontext *ucontext)
@@ -3444,12 +3463,11 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_UAR_OBJ_ALLOC)(
 	entry->page_idx = uar_index;
 	entry->address = uar_index2pfn(dev, uar_index) << PAGE_SHIFT;
 
-	err = rdma_user_mmap_entry_insert(&c->ibucontext, &entry->rdma_entry,
-					  length);
+	err = mlx5_rdma_user_mmap_entry_insert(c, entry, length);
 	if (err)
 		goto err_entry;
 
-	mmap_offset = rdma_user_mmap_get_offset(&entry->rdma_entry);
+	mmap_offset = mlx5_entry_to_mmap_offset(entry);
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
 			     &mmap_offset, sizeof(mmap_offset));
 	if (err)
