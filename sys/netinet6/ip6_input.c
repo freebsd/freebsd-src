@@ -421,24 +421,9 @@ ip6_input_hbh(struct mbuf **mp, uint32_t *rtalert, int *off,
 		goto out;	/* m have already been freed */
 	}
 
-	/* adjust pointer */
 	m = *mp;
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	/*
-	 * If the payload length field is 0 and the next header field indicates
-	 * Hop-by-Hop Options header, then a Jumbo Payload option MUST be
-	 * included. We no not support Jumbo Payloads so report an error.
-	 */
-	if (ip6->ip6_plen == 0) {
-		IP6STAT_INC(ip6s_badoptions);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
-		icmp6_error(m, ICMP6_PARAM_PROB,
-			    ICMP6_PARAMPROB_HEADER,
-			    (caddr_t)&ip6->ip6_plen - (caddr_t)ip6);
-		goto out;
-	}
 	/* ip6_hopopts_input() ensures that mbuf is contiguous */
 	hbh = (struct ip6_hbh *)(ip6 + 1);
 	*nxt = hbh->ip6h_nxt;
@@ -760,8 +745,11 @@ passin:
 	 * We don't support Jumbograms, reject packets with plen == 0 as early
 	 * as we can.
 	 */
-	if (plen == 0)
+	if (__predict_false(plen == 0)) {
+		IP6STAT_INC(ip6s_tooshort);
+		in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
 		goto bad;
+	}
 
 	/*
 	 * Disambiguate address scope zones (if there is ambiguity).
