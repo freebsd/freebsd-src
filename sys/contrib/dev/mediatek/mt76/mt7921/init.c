@@ -308,6 +308,9 @@ int mt7921_register_device(struct mt792x_dev *dev)
 
 	INIT_WORK(&dev->reset_work, mt7921_mac_reset_work);
 	INIT_WORK(&dev->init_work, mt7921_init_work);
+#if defined(__FreeBSD__)
+	init_completion(&dev->mt76.drv_start_complete);
+#endif
 
 	INIT_WORK(&dev->phy.roc_work, mt7921_roc_work);
 	timer_setup(&dev->phy.roc_timer, mt792x_roc_timer, 0);
@@ -358,6 +361,10 @@ int mt7921_register_device(struct mt792x_dev *dev)
 	dev->mphy.hw->wiphy->available_antennas_tx = dev->mphy.chainmask;
 
 	queue_work(system_percpu_wq, &dev->init_work);
+
+#if defined(__FreeBSD__)
+	wait_for_completion(&dev->mt76.drv_start_complete);
+#endif
 
 	return 0;
 }
