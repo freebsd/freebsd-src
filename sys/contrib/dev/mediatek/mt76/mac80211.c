@@ -814,6 +814,10 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	set_bit(MT76_STATE_REGISTERED, &phy->state);
 	sched_set_fifo_low(dev->tx_worker.task);
 
+#if defined(__FreeBSD__)
+	complete(&dev->drv_start_complete);
+#endif
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_register_device);

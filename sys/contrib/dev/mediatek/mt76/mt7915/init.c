@@ -862,6 +862,9 @@ mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
+#if defined(__FreeBSD__)
+	init_completion(&dev->mt76.drv_start_complete);
+#endif
 
 	ret = mt7915_dma_init(dev, phy2);
 	if (ret)
@@ -1298,6 +1301,9 @@ int mt7915_register_device(struct mt7915_dev *dev)
 	}
 
 	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
+#if defined(__FreeBSD__)
+	wait_for_completion(&dev->mt76.drv_start_complete);
+#endif
 
 	dev->recovery.hw_init_done = true;
 
