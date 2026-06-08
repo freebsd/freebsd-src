@@ -45,7 +45,11 @@ to the global file system namespace at the location indicated by
 .Ar node .
 .Pp
 The options are as follows:
-.Bl -tag -width indent
+.Bl -tag -width "-C charset"
+.It Fl C Ar charset
+Specify local
+.Ar charset
+to convert Unicode file names.
 .It Fl o
 Options are specified with a
 .Fl o
@@ -53,13 +57,8 @@ flag followed by a comma separated string of options.
 See the
 .Xr mount 8
 man page for possible options and their meanings.
-The following UDF specific options are available:
 .It Fl v
 Be verbose about mounting the UDF file system.
-.It Fl C Ar charset
-Specify local
-.Ar charset
-to convert Unicode file names.
 .El
 .Sh SEE ALSO
 .Xr cdcontrol 1 ,
