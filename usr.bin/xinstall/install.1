@@ -33,7 +33,7 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm
-.Op Fl bCcpSsUvz
+.Op Fl bCcpSsUv
 .Op Fl B Ar suffix
 .Op Fl D Ar destdir
 .Op Fl f Ar flags
@@ -45,10 +45,9 @@
 .Op Fl N Ar dbdir
 .Op Fl o Ar owner
 .Op Fl T Ar tags
-.Op Fl z Ar size
 .Ar file1 file2
 .Nm
-.Op Fl bCcpSsUvz
+.Op Fl bCcpSsUv
 .Op Fl B Ar suffix
 .Op Fl D Ar destdir
 .Op Fl f Ar flags
@@ -60,7 +59,6 @@
 .Op Fl N Ar dbdir
 .Op Fl o Ar owner
 .Op Fl T Ar tags
-.Op Fl z Ar size
 .Ar file1 ... fileN directory
 .Nm
 .Fl d
@@ -273,13 +271,6 @@ Cause
 .Nm
 to be verbose,
 showing files as they are installed or backed up.
-.It Fl z Ar maxsize
-Limit the comparison feature of
-.Fl C
-to files no larger than
-.Ar maxsize .
-Files exceeding this limit bypass the comparison step and are directly overwritten.
-The default maximum size is 128MiB.
 .El
 .Pp
 By default,

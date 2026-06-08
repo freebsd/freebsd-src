@@ -57,7 +57,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <util.h>
 #include <vis.h>
 
 #include "mtree.h"
@@ -87,8 +86,6 @@
 #else
 #define HAVE_STRUCT_STAT_ST_FLAGS 0
 #endif
-
-#define MAX_CMP_SIZE	(128 * 1024 * 1024)
 
 #define	LN_ABSOLUTE	0x01
 #define	LN_RELATIVE	0x02
@@ -138,7 +135,6 @@ static FILE *metafp;
 static const char *group, *owner;
 static const char *suffix = BACKUP_SUFFIX;
 static char *destdir, *digest, *fflags, *metafile, *tags;
-static size_t max_compare_size = MAX_CMP_SIZE;
 
 static int	compare(int, const char *, size_t, int, const char *, size_t,
 		    char **);
@@ -170,13 +166,12 @@ main(int argc, char *argv[])
 	u_int iflags;
 	char *p;
 	const char *to_name;
-	uint64_t num;
 
 	fset = 0;
 	iflags = 0;
 	set = NULL;
 	group = owner = NULL;
-	while ((ch = getopt(argc, argv, "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uvz:")) !=
+	while ((ch = getopt(argc, argv, "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uv")) !=
 	     -1)
 		switch((char)ch) {
 		case 'B':
@@ -272,13 +267,6 @@ main(int argc, char *argv[])
 			break;
 		case 'v':
 			verbose = 1;
-			break;
-		case 'z':
-			if (expand_number(optarg, &num) != 0 || num == 0) {
-				errx(EX_USAGE, "invalid max compare filesize:"
-				    " %s", optarg);
-			}
-			max_compare_size = num;
 			break;
 		case '?':
 		default:
@@ -1099,8 +1087,11 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 	int to_fd, const char *to_name __unused, size_t to_len,
 	char **dresp)
 {
-	int rv;
+	static char *buf, *buf1, *buf2;
+	static size_t bufsize;
 	int do_digest;
+	int n1, n2;
+	int rv;
 	DIGEST_CTX ctx;
 
 	if (from_len != to_len)
@@ -1108,53 +1099,47 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 
 	do_digest = (digesttype != DIGEST_NONE && dresp != NULL &&
 	    *dresp == NULL);
-	if (from_len <= max_compare_size) {
-		static char *buf, *buf1, *buf2;
-		static size_t bufsize;
-		int n1, n2;
 
-		if (do_digest)
-			digest_init(&ctx);
+	if (do_digest)
+		digest_init(&ctx);
 
-		if (buf == NULL) {
-			/*
-			 * Note that buf and bufsize are static. If
-			 * malloc() fails, it will fail at the start
-			 * and not copy only some files.
-			 */
-			if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
-				bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
-			else
-				bufsize = BUFSIZE_SMALL;
-			buf = malloc(bufsize * 2);
-			if (buf == NULL)
-				err(1, "Not enough memory");
-			buf1 = buf;
-			buf2 = buf + bufsize;
-		}
-		rv = 0;
-		lseek(from_fd, 0, SEEK_SET);
-		lseek(to_fd, 0, SEEK_SET);
-		while (rv == 0) {
-			n1 = read(from_fd, buf1, bufsize);
-			if (n1 == 0)
-				break;		/* EOF */
-			else if (n1 > 0) {
-				n2 = read(to_fd, buf2, n1);
-				if (n2 == n1)
-					rv = memcmp(buf1, buf2, n1);
-				else
-					rv = 1;	/* out of sync */
-			} else
-				rv = 1;		/* read failure */
-			if (do_digest)
-				digest_update(&ctx, buf1, n1);
-		}
-		lseek(from_fd, 0, SEEK_SET);
-		lseek(to_fd, 0, SEEK_SET);
-	} else {
-		rv = 1;	/* don't bother in this case */
+	if (buf == NULL) {
+		/*
+		 * Note that buf and bufsize are static. If
+		 * malloc() fails, it will fail at the start
+		 * and not copy only some files.
+		 */
+		if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
+			bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
+		else
+			bufsize = BUFSIZE_SMALL;
+		buf = malloc(bufsize * 2);
+		if (buf == NULL)
+			err(1, "Not enough memory");
+		buf1 = buf;
+		buf2 = buf + bufsize;
 	}
+
+	rv = 0;
+	lseek(from_fd, 0, SEEK_SET);
+	lseek(to_fd, 0, SEEK_SET);
+	while (rv == 0) {
+		n1 = read(from_fd, buf1, bufsize);
+		if (n1 == 0)
+			break;		/* EOF */
+		else if (n1 > 0) {
+			n2 = read(to_fd, buf2, n1);
+			if (n2 == n1)
+				rv = memcmp(buf1, buf2, n1);
+			else
+				rv = 1;	/* out of sync */
+		} else
+			rv = 1;		/* read failure */
+		if (do_digest)
+			digest_update(&ctx, buf1, n1);
+	}
+	lseek(from_fd, 0, SEEK_SET);
+	lseek(to_fd, 0, SEEK_SET);
 
 	if (do_digest) {
 		if (rv == 0)
@@ -1500,11 +1485,11 @@ usage(void)
 {
 	(void)fprintf(stderr,
 "usage: install [-bCcpSsUv] [-f flags] [-g group] [-m mode] [-o owner]\n"
-"               [-M log] [-D dest] [-h hash] [-T tags] [-z maxcmpsize]\n"
+"               [-M log] [-D dest] [-h hash] [-T tags]\n"
 "               [-B suffix] [-l linkflags] [-N dbdir]\n"
 "               file1 file2\n"
 "       install [-bCcpSsUv] [-f flags] [-g group] [-m mode] [-o owner]\n"
-"               [-M log] [-D dest] [-h hash] [-T tags] [-z maxcmpsize]\n"
+"               [-M log] [-D dest] [-h hash] [-T tags]\n"
 "               [-B suffix] [-l linkflags] [-N dbdir]\n"
 "               file1 ... fileN directory\n"
 "       install -dU [-vU] [-g group] [-m mode] [-N dbdir] [-o owner]\n"
