@@ -506,12 +506,16 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 }
 
 /*
- * This function cancels the given work structure in a synchronous
- * fashion. It returns true if the work was successfully
- * cancelled. Else the work was already cancelled.
+ * This function cancels the given delayed work structure in a
+ * synchronous fashion. It returns true if pending delayed work was
+ * cancelled. Else the work was not pending.
+ *
+ * If the work restarted itself or was busy while being cancelled,
+ * retry_needed is set to true so the caller can re-check the state.
  */
 static bool
-linux_cancel_delayed_work_sync_int(struct delayed_work *dwork)
+linux_cancel_delayed_work_sync_int(struct delayed_work *dwork,
+	bool *retry_needed)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
@@ -523,6 +527,9 @@ linux_cancel_delayed_work_sync_int(struct delayed_work *dwork)
 	struct taskqueue *tq;
 	int ret, state;
 	bool cancelled;
+	u_int pending = 0;
+
+	*retry_needed = false;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "linux_cancel_delayed_work_sync() might sleep");
@@ -538,19 +545,23 @@ linux_cancel_delayed_work_sync_int(struct delayed_work *dwork)
 		cancelled = (callout_stop(&dwork->timer.callout) == 1);
 
 		tq = dwork->work.work_queue->taskqueue;
-		ret = taskqueue_cancel(tq, &dwork->work.work_task, NULL);
+		ret = taskqueue_cancel(tq, &dwork->work.work_task, &pending);
 		mtx_unlock(&dwork->timer.mtx);
 
 		callout_drain(&dwork->timer.callout);
 		taskqueue_drain(tq, &dwork->work.work_task);
-		return (cancelled || (ret != 0));
+		if (ret != 0)
+			*retry_needed = true;
+		return (cancelled || pending != 0);
 	default:
 		tq = dwork->work.work_queue->taskqueue;
-		ret = taskqueue_cancel(tq, &dwork->work.work_task, NULL);
+		ret = taskqueue_cancel(tq, &dwork->work.work_task, &pending);
 		mtx_unlock(&dwork->timer.mtx);
-		if (ret != 0)
+		if (ret != 0) {
 			taskqueue_drain(tq, &dwork->work.work_task);
-		return (ret != 0);
+			*retry_needed = true;
+		}
+		return (pending != 0);
 	}
 }
 
@@ -558,10 +569,17 @@ bool
 linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 {
 	bool res;
+	bool ret;
+	bool retry_needed = false;
 
-	res = false;
-	while (linux_cancel_delayed_work_sync_int(dwork))
-		res = true;
+	ret = linux_cancel_delayed_work_sync_int(dwork, &retry_needed);
+	res = ret;
+
+	while (ret || retry_needed) {
+		ret = linux_cancel_delayed_work_sync_int(dwork, &retry_needed);
+		res = res || ret;
+	}
+
 	return (res);
 }
 
