@@ -34,6 +34,7 @@
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/syslog.h>
 #else
@@ -61,6 +62,10 @@
 
 #include "alias_db.h"
 
+#ifdef _KERNEL
+static struct mtx list_mtx;
+MTX_SYSINIT(libalias_list, &list_mtx, "libalias list lock", MTX_DEF);
+#endif
 static LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead);
 int LibAliasTime;
 
@@ -2100,7 +2105,13 @@ LibAliasInit(struct libalias *la)
 		if (LIST_EMPTY(&instancehead))
 			atexit(finishoff);
 #endif
+#ifdef _KERNEL
+		mtx_lock(&list_mtx);
+#endif
 		LIST_INSERT_HEAD(&instancehead, la, instancelist);
+#ifdef _KERNEL
+		mtx_unlock(&list_mtx);
+#endif
 
 #ifdef _KERNEL
 		LibAliasTime = time_uptime;
@@ -2168,7 +2179,13 @@ LibAliasUninit(struct libalias *la)
 #ifndef NO_FW_PUNCH
 	UninitPunchFW(la);
 #endif
+#ifdef _KERNEL
+	mtx_lock(&list_mtx);
+#endif
 	LIST_REMOVE(la, instancelist);
+#ifdef _KERNEL
+	mtx_unlock(&list_mtx);
+#endif
 	LIBALIAS_UNLOCK(la);
 	LIBALIAS_LOCK_DESTROY(la);
 	free(la);
