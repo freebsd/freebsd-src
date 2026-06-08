@@ -745,6 +745,8 @@ static void rdma_umap_close(struct vm_area_struct *vma)
 	 * this point.
 	 */
 	mutex_lock(&ufile->umap_lock);
+	if (priv->entry)
+		rdma_user_mmap_entry_put(priv->entry);
 
 	list_del(&priv->list);
 	mutex_unlock(&ufile->umap_lock);
