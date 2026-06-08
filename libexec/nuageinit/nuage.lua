@@ -832,6 +832,7 @@ local function addfile(file, defer)
 		root = ""
 	end
 	local filepath = root .. file.path
+	mkdir_p(dirname(filepath))
 	local f = assert(io.open(filepath, mode))
 	if content then
 		f:write(content)
