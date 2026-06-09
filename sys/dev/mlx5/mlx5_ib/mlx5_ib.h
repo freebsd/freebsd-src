@@ -1082,6 +1082,7 @@ void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev);
 void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev);
 bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type);
 bool mlx5_ib_devx_is_flow_counter(void *obj, u32 offset, u32 *counter_id);
+extern const struct uapi_definition mlx5_ib_devx_defs[];
 #else
 static inline int
 mlx5_ib_devx_create(struct mlx5_ib_dev *dev,

@@ -3328,6 +3328,11 @@ free:
 	return ARRAY_SIZE(names);
 }
 
+static const struct uapi_definition mlx5_ib_defs[] = {
+	UAPI_DEF_CHAIN(mlx5_ib_devx_defs),
+	{}
+};
+
 static int mlx5_ib_stage_bfreg_init(struct mlx5_ib_dev *dev)
 {
 	int err;
@@ -3402,6 +3407,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.num_comp_vectors    =
 		dev->mdev->priv.eq_table.num_comp_vectors;
 	dev->ib_dev.dma_device	= &mdev->pdev->dev;
+	dev->ib_dev.driver_def	= mlx5_ib_defs;
 
 	dev->ib_dev.uverbs_abi_ver	= MLX5_IB_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask	=
@@ -3567,9 +3573,18 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	if (err)
 		goto err_q_cnt;
 
+	/*
+	 * Initialize the DEVX event table before ib_register_device().
+	 * Registration merges ib_dev.driver_def into the uverbs uapi, which
+	 * makes the DEVX object tree live immediately; initializing the event
+	 * table afterwards would leave a window where a DEVX ioctl could touch
+	 * an uninitialized dev->devx_event_table.
+	 */
+	mlx5_ib_devx_init_event_table(dev);
+
 	err = ib_register_device(&dev->ib_dev, NULL);
 	if (err)
-		goto err_bfreg;
+		goto err_devx;
 
 	err = create_umr_res(dev);
 	if (err)
@@ -3596,7 +3611,9 @@ err_umrc:
 err_dev:
 	ib_unregister_device(&dev->ib_dev);
 
-err_bfreg:
+err_devx:
+	mlx5_ib_devx_cleanup_event_table(dev);
+
 	mlx5_ib_stage_bfreg_cleanup(dev);
 
 err_q_cnt:
@@ -3628,6 +3645,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	struct mlx5_ib_dev *dev = context;
 	enum rdma_link_layer ll = mlx5_ib_port_link_layer(&dev->ib_dev, 1);
 
+	mlx5_ib_devx_cleanup_event_table(dev);
 	mlx5_ib_cleanup_congestion(dev);
 	mlx5_remove_roce_notifier(dev);
 	ib_unregister_device(&dev->ib_dev);
