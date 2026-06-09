@@ -47,7 +47,7 @@
 /contrib/openpam/lib/libpam/		@dag-erling
 /contrib/pjdfstest	@ngie-eign @asomers
 /crypto/openssh	@dag-erling
-/crypto/openssl/	@juikim
+/crypto/openssl/	@ngie-eign
 /etc/mail	@gshapiro
 /etc/sendmail	@gshapiro
 /lib/libc/sys/kevent.c	@jmgurney
@@ -59,7 +59,9 @@
 /libexec/nuageinit/	@bapt
 /libexec/rc/rc.d/rctl/	@trasz
 /sbin/mount_fusefs @asomers
-/secure/usr.bin/openssl/	@juikim
+/secure/lib/libcrypto/	@ngie-eign
+/secure/lib/libssl/	@ngie-eign
+/secure/usr.bin/openssl/	@ngie-eign
 /share/mk	@bsdimp @bapt @bdrewery @emaste
 /stand		@bsdimp
 /stand/lua	@kevans91
@@ -72,7 +74,7 @@
 /sys/compat/linprocfs/	@dag-erling
 /sys/compat/linuxkpi	@hselasky
 /sys/netpfil/ipfilter	@cschuber
-/sys/crypto/openssl/	@juikim
+/sys/crypto/openssl/	@ngie-eign
 /sys/dev/drm2	@bsdimp
 /sys/dev/iscsi/	@trasz
 /sys/dev/pci	@bsdimp @bsdjhb
