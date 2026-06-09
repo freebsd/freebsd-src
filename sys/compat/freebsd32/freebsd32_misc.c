@@ -233,11 +233,9 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 	else
 		rup = NULL;
 	error = kern_wait(td, uap->pid, &status, uap->options, rup);
-	if (error)
-		return (error);
-	if (uap->status != NULL)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->rusage != NULL && error == 0) {
+	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0) {
 		freebsd32_rusage_out(&ru, &ru32);
 		error = copyout(&ru32, uap->rusage, sizeof(ru32));
 	}
@@ -264,11 +262,9 @@ freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
 		sip = NULL;
 	error = kern_wait6(td, uap->idtype, PAIR32TO64(id_t, uap->id),
 	    &status, uap->options, wrup, sip);
-	if (error != 0)
-		return (error);
-	if (uap->status != NULL)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->wrusage != NULL && error == 0) {
+	if (uap->wrusage != NULL && error == 0 && td->td_retval[0] != 0) {
 		freebsd32_rusage_out(&wru.wru_self, &wru32.wru_self);
 		freebsd32_rusage_out(&wru.wru_children, &wru32.wru_children);
 		error = copyout(&wru32, uap->wrusage, sizeof(wru32));
