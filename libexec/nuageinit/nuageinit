@@ -240,37 +240,11 @@ local function nameservers(interface, obj)
 	local resolvconf_conf_handler = open_resolvconf_conf()
 
 	if obj.search then
-		local with_space = false
-
-		resolvconf_conf_handler:write('search_domains="')
-
-		for _, d in ipairs(obj.search) do
-			if with_space then
-				resolvconf_conf_handler:write(" " .. d)
-			else
-				resolvconf_conf_handler:write(d)
-				with_space = true
-			end
-		end
-
-		resolvconf_conf_handler:write('"\n')
+		resolvconf_conf_handler:write("search_domains=" .. nuage.shell_escape(table.concat(obj.search, " ")) .. "\n")
 	end
 
 	if obj.addresses then
-		local with_space = false
-
-		resolvconf_conf_handler:write('name_servers="')
-
-		for _, a in ipairs(obj.addresses) do
-			if with_space then
-				resolvconf_conf_handler:write(" " .. a)
-			else
-				resolvconf_conf_handler:write(a)
-				with_space = true
-			end
-		end
-
-		resolvconf_conf_handler:write('"\n')
+		resolvconf_conf_handler:write("name_servers=" .. nuage.shell_escape(table.concat(obj.addresses, " ")) .. "\n")
 	end
 
 	resolvconf_conf_handler:close()
@@ -455,18 +429,18 @@ local function network_config(obj)
 				local ifaces = get_ifaces_by_mac()
 				local matched = ifaces[v.match.macaddress]
 				if matched and matched == interface then
-					network:write("ifconfig_" .. interface .. '_name=' .. v["set-name"] .. '\n')
+					network:write("ifconfig_" .. interface .. "_name=" .. nuage.shell_escape(v["set-name"]) .. "\n")
 					interface = v["set-name"]
 				end
 			end
 			if v.dhcp4 then
-				network:write("ifconfig_" .. interface .. '="DHCP"' .. extra_opts .. '\n')
+				network:write("ifconfig_" .. interface .. "=" .. nuage.shell_escape("DHCP" .. extra_opts) .. "\n")
 			elseif v.addresses then
 				for _, a in pairs(v.addresses) do
 					if a:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)") then
-						network:write("ifconfig_" .. interface .. '="inet ' .. a .. extra_opts .. '"\n')
+						network:write("ifconfig_" .. interface .. "=" .. nuage.shell_escape("inet " .. a .. extra_opts) .. "\n")
 					else
-						network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. a .. extra_opts .. '"\n')
+						network:write("ifconfig_" .. interface .. "_ipv6=" .. nuage.shell_escape("inet6 " .. a .. extra_opts) .. "\n")
 						ipv6[#ipv6 + 1] = interface
 					end
 				end
@@ -476,24 +450,22 @@ local function network_config(obj)
 				end
 				if set_defaultrouter and v.gateway4 then
 					set_defaultrouter = false
-					routing:write('defaultrouter="' .. v.gateway4 .. '"\n')
+					routing:write("defaultrouter=" .. nuage.shell_escape(v.gateway4) .. "\n")
 				end
 				if v.gateway6 then
 					if set_defaultrouter6 then
 						set_defaultrouter6 = false
-						routing:write('ipv6_defaultrouter="' .. v.gateway6 .. '"\n')
+						routing:write("ipv6_defaultrouter=" .. nuage.shell_escape(v.gateway6) .. "\n")
 					end
-					routing:write("ipv6_route_" .. interface .. '="' .. v.gateway6)
-					routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+					routing:write("ipv6_route_" .. interface .. "=" .. nuage.shell_escape(v.gateway6 .. " -prefixlen 128 -interface " .. interface) .. "\n")
 				end
 			end
 		end
 		::next::
 	end
 	if #ipv6 > 0 then
-		network:write('ipv6_network_interfaces="')
-		network:write(table.concat(ipv6, " ") .. '"\n')
-		network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
+		network:write("ipv6_network_interfaces=" .. nuage.shell_escape(table.concat(ipv6, " ")) .. "\n")
+		network:write("ipv6_default_interface=" .. nuage.shell_escape(ipv6[1]) .. "\n")
 	end
 	network:close()
 	routing:close()
@@ -633,7 +605,7 @@ local function keyboard(obj)
 		warnmsg("unable to open " .. path .. " for writing")
 		return
 	end
-	f:write('keymap="' .. keymap .. '"\n')
+	f:write("keymap=" .. nuage.shell_escape(keymap) .. "\n")
 	f:close()
 end
 
@@ -648,10 +620,14 @@ local function locale(obj)
 		return
 	end
 	if type(obj.locale) == "string" then
-		f:write("export LANG=" .. obj.locale .. "\n")
+		f:write("export LANG=" .. nuage.shell_escape(obj.locale) .. "\n")
 	elseif type(obj.locale) == "table" then
 		for k, v in pairs(obj.locale) do
-			f:write("export " .. k .. "=" .. v .. "\n")
+			if not k:match("^[a-zA-Z_][a-zA-Z0-9_]*$") then
+				nuage.warn("locale: invalid variable name '" .. k .. "', skipping")
+			else
+				f:write("export " .. k .. "=" .. nuage.shell_escape(v) .. "\n")
+			end
 		end
 	else
 		nuage.warn("locale: invalid type " .. type(obj.locale) .. ", expecting string or object")
@@ -920,14 +896,14 @@ local function config2_network(p)
 	for _, v in pairs(obj["networks"]) do
 		local interface = mylinks[v["link"]]
 		if v["type"] == "ipv4_dhcp" then
-			network:write("ifconfig_" .. interface .. '="DHCP"\n')
+			network:write("ifconfig_" .. interface .. "=" .. nuage.shell_escape("DHCP") .. "\n")
 		end
 		if v["type"] == "ipv4" then
 			network:write(
-				"ifconfig_" .. interface .. '="inet ' .. v["ip_address"] .. " netmask " .. v["netmask"] .. '"\n'
+				"ifconfig_" .. interface .. "=" .. nuage.shell_escape("inet " .. v["ip_address"] .. " netmask " .. v["netmask"]) .. "\n"
 			)
 			if v["gateway"] then
-				routing:write('defaultrouter="' .. v["gateway"] .. '"\n')
+				routing:write("defaultrouter=" .. nuage.shell_escape(v["gateway"]) .. "\n")
 			end
 			if v["routes"] then
 				for i, r in ipairs(v["routes"]) do
@@ -936,11 +912,10 @@ local function config2_network(p)
 						goto next
 					end
 					if r["network"] == "0.0.0.0" then
-						routing:write('defaultrouter="' .. r["gateway"] .. '"\n')
+						routing:write("defaultrouter=" .. nuage.shell_escape(r["gateway"]) .. "\n")
 						goto next
 					end
-					routing:write("route_" .. rname .. '="-net ' .. r["network"] .. " ")
-					routing:write(r["gateway"] .. " " .. r["netmask"] .. '"\n')
+					routing:write("route_" .. rname .. "=" .. nuage.shell_escape("-net " .. r["network"] .. " " .. r["gateway"] .. " " .. r["netmask"]) .. "\n")
 					ipv4[#ipv4 + 1] = rname
 					::next::
 				end
@@ -949,11 +924,10 @@ local function config2_network(p)
 		if v["type"] == "ipv6" then
 			ipv6[#ipv6 + 1] = interface
 			ipv6_routes[#ipv6_routes + 1] = interface
-			network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. v["ip_address"] .. '"\n')
+			network:write("ifconfig_" .. interface .. "_ipv6=" .. nuage.shell_escape("inet6 " .. v["ip_address"]) .. "\n")
 			if v["gateway"] then
-				routing:write('ipv6_defaultrouter="' .. v["gateway"] .. '"\n')
-				routing:write("ipv6_route_" .. interface .. '="' .. v["gateway"])
-				routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+				routing:write("ipv6_defaultrouter=" .. nuage.shell_escape(v["gateway"]) .. "\n")
+				routing:write("ipv6_route_" .. interface .. "=" .. nuage.shell_escape(v["gateway"] .. " -prefixlen 128 -interface " .. interface) .. "\n")
 			end
 			-- TODO compute the prefixlen for the routes
 			--if v["routes"] then
@@ -988,17 +962,14 @@ local function config2_network(p)
 	end
 
 	if #ipv4 > 0 then
-		routing:write('static_routes="')
-		routing:write(table.concat(ipv4, " ") .. '"\n')
+		routing:write("static_routes=" .. nuage.shell_escape(table.concat(ipv4, " ")) .. "\n")
 	end
 	if #ipv6 > 0 then
-		network:write('ipv6_network_interfaces="')
-		network:write(table.concat(ipv6, " ") .. '"\n')
-		network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
+		network:write("ipv6_network_interfaces=" .. nuage.shell_escape(table.concat(ipv6, " ")) .. "\n")
+		network:write("ipv6_default_interface=" .. nuage.shell_escape(ipv6[1]) .. "\n")
 	end
 	if #ipv6_routes > 0 then
-		routing:write('ipv6_static_routes="')
-		routing:write(table.concat(ipv6, " ") .. '"\n')
+		routing:write("ipv6_static_routes=" .. nuage.shell_escape(table.concat(ipv6, " ")) .. "\n")
 	end
 	network:close()
 	routing:close()
