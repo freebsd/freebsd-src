@@ -341,7 +341,7 @@ struct iwi_tx_desc {
 #define IWI_DATA_XFLAG_QOS	0x10
 
 	uint8_t		wep_txkey;
-	uint8_t		wepkey[IEEE80211_KEYBUF_SIZE];
+	uint8_t		wepkey[IEEE80211_KEYBUF_128_SIZE]; /* XXX hardware specific */
 	uint8_t		rate;
 	uint8_t		antenna;
 	uint8_t		reserved3[10];
@@ -530,7 +530,7 @@ struct iwi_wep_key {
 	uint8_t	seq;
 	uint8_t	idx;
 	uint8_t	len;
-	uint8_t	key[IEEE80211_KEYBUF_SIZE];
+	uint8_t	key[IEEE80211_KEYBUF_128_SIZE]; /* XXX hardware specific */
 } __packed;
 
 /* structure for command IWI_CMD_SET_WME_PARAMS */

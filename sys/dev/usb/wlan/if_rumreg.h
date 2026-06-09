@@ -45,7 +45,7 @@
 /*
  * H/w encryption/decryption support
  */
-#define KEY_SIZE		(IEEE80211_KEYBUF_SIZE + IEEE80211_MICBUF_SIZE)
+#define KEY_SIZE		(IEEE80211_KEYBUF_128_SIZE + IEEE80211_MICBUF_128_SIZE)
 #define RT2573_ADDR_MAX		64
 #define RT2573_SKEY_MAX		4
 

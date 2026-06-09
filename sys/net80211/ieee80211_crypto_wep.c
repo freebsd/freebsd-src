@@ -348,7 +348,7 @@ wep_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 	struct wep_ctx *ctx = key->wk_private;
 	struct ieee80211vap *vap = ctx->wc_vap;
 	struct mbuf *m = m0;
-	uint8_t rc4key[IEEE80211_WEP_IVLEN + IEEE80211_KEYBUF_SIZE];
+	uint8_t rc4key[IEEE80211_WEP_IVLEN + IEEE80211_KEYBUF_128_SIZE];
 	uint8_t icv[IEEE80211_WEP_CRCLEN];
 	uint32_t i, j, k, crc;
 	size_t buflen, data_len;
@@ -431,7 +431,7 @@ wep_decrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 	struct wep_ctx *ctx = key->wk_private;
 	struct ieee80211vap *vap = ctx->wc_vap;
 	struct mbuf *m = m0;
-	uint8_t rc4key[IEEE80211_WEP_IVLEN + IEEE80211_KEYBUF_SIZE];
+	uint8_t rc4key[IEEE80211_WEP_IVLEN + IEEE80211_KEYBUF_128_SIZE];
 	uint8_t icv[IEEE80211_WEP_CRCLEN];
 	uint32_t i, j, k, crc;
 	size_t buflen, data_len;

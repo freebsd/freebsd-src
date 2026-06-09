@@ -332,9 +332,9 @@ struct malo_cmd_wepkey {
 	uint8_t			len;
 	uint8_t			flags;
 	uint16_t		index;
-	uint8_t			value[IEEE80211_KEYBUF_SIZE];
-	uint8_t			txmickey[IEEE80211_WEP_MICLEN];
-	uint8_t			rxmickey[IEEE80211_WEP_MICLEN];
+	uint8_t			value[IEEE80211_KEYBUF_128_SIZE]; /* XXX hardware */
+	uint8_t			txmickey[IEEE80211_WEP_MICLEN]; /* XXX hardware */
+	uint8_t			rxmickey[IEEE80211_WEP_MICLEN]; /* XXX hardware */
 	uint64_t		rxseqctr;
 	uint64_t		txseqctr;
 } __packed;

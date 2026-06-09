@@ -2867,10 +2867,10 @@ rum_common_key_set(struct rum_softc *sc, struct ieee80211_key *k,
 		return EIO;
 
 	if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_TKIP) {
-		if (rum_write_multi(sc, base + IEEE80211_KEYBUF_SIZE,
+		if (rum_write_multi(sc, base + IEEE80211_KEYBUF_128_SIZE,
 		    ieee80211_crypto_get_key_txmic_data(k), 8))
 			return EIO;
-		if (rum_write_multi(sc, base + IEEE80211_KEYBUF_SIZE + 8,
+		if (rum_write_multi(sc, base + IEEE80211_KEYBUF_128_SIZE + 8,
 		    ieee80211_crypto_get_key_rxmic_data(k), 8))
 			return EIO;
 	}
