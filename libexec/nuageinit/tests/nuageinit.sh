@@ -80,13 +80,13 @@ nocloud_body()
 	atf_check -s exit:1 -e match:"nuageinit: error parsing nocloud.*" /usr/libexec/nuageinit "${PWD}"/media/nuageinit/ nocloud
 	printf "instance-id: iid-local01\nlocal-hostname: cloudimg\n" > "${PWD}"/media/nuageinit/meta-data
 	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
-	atf_check -o inline:"hostname=\"cloudimg\"\n" cat etc/rc.conf.d/hostname
+	atf_check -o inline:"hostname='cloudimg'\n" cat etc/rc.conf.d/hostname
 	cat > media/nuageinit/meta-data << EOF
 instance-id: iid-local01
 hostname: myhost
 EOF
 	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
-	atf_check -o inline:"hostname=\"myhost\"\n" cat etc/rc.conf.d/hostname
+	atf_check -o inline:"hostname='myhost'\n" cat etc/rc.conf.d/hostname
 }
 
 nocloud_userdata_script_body()
@@ -250,7 +250,7 @@ config2_body()
 }
 EOF
 	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
-	atf_check -o inline:"hostname=\"cloudimg\"\n" cat etc/rc.conf.d/hostname
+	atf_check -o inline:"hostname='cloudimg'\n" cat etc/rc.conf.d/hostname
 }
 
 config2_pubkeys_head()
@@ -1307,7 +1307,7 @@ echo "multipart script executed"
 --==BOUNDARY==--
 EOF
 	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
-	atf_check -o inline:"hostname=\"multipart-host\"\n" cat etc/rc.conf.d/hostname
+	atf_check -o inline:"hostname='multipart-host'\n" cat etc/rc.conf.d/hostname
 	atf_check -o inline:"#!/bin/sh\necho \"multipart script executed\"\n" cat var/cache/nuageinit/multipart_script
 	test -x var/cache/nuageinit/multipart_script || atf_fail "multipart_script not executable"
 	true
@@ -1376,13 +1376,13 @@ fqdn: host.domain.tld
 hostname: host
 EOF
 	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
-	atf_check -o inline:"hostname=\"host.domain.tld\"\n" cat ${PWD}/etc/rc.conf.d/hostname
+	atf_check -o inline:"hostname='host.domain.tld'\n" cat ${PWD}/etc/rc.conf.d/hostname
 	cat > media/nuageinit/user_data <<EOF
 #cloud-config
 hostname: host
 EOF
 	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
-	atf_check -o inline:"hostname=\"host\"\n" cat ${PWD}/etc/rc.conf.d/hostname
+	atf_check -o inline:"hostname='host'\n" cat ${PWD}/etc/rc.conf.d/hostname
 }
 
 config2_userdata_encode_base64_body()

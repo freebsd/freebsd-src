@@ -187,7 +187,7 @@ local function sethostname(hostname)
 		warnmsg("Impossible to open " .. hostnamepath .. ":" .. err)
 		return
 	end
-	f:write('hostname="' .. hostname:gsub('"', '\\"') .. '"\n')
+	f:write("hostname=" .. shell_escape(hostname) .. "\n")
 	f:close()
 end
 

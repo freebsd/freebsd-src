@@ -33,7 +33,7 @@ sethostname_body()
 	if [ ! -f etc/rc.conf.d/hostname ]; then
 		atf_fail "hostname not written"
 	fi
-	atf_check -o inline:"hostname=\"myhostname\"\n" cat etc/rc.conf.d/hostname
+	atf_check -o inline:"hostname='myhostname'\n" cat etc/rc.conf.d/hostname
 }
 
 addsshkey_body()
