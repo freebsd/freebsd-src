@@ -20,7 +20,7 @@ local function check_hostname(expected)
 	end
 	local content = f:read("*a")
 	f:close()
-	local expected_content = 'hostname="' .. expected:gsub('"', '\\"') .. '"\n'
+	local expected_content = "hostname=" .. n.shell_escape(expected) .. "\n"
 	if content ~= expected_content then
 		n.err("hostname mismatch: got '" .. content ..
 		    "', expected '" .. expected_content .. "'")
