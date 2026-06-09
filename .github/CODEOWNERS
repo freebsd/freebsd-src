@@ -51,7 +51,7 @@
 /crypto/heimdal		@cschuber
 /crypto/krb5		@cschuber
 /crypto/openssh	@dag-erling @emaste
-/crypto/openssl/	@juikim
+/crypto/openssl/	@ngie-eign
 /etc/mail	@gshapiro
 /etc/sendmail	@gshapiro
 /kerberos5	@cschuber
@@ -76,7 +76,8 @@
 /sbin/mount_fusefs @asomers
 /sbin/nvmecontrol @bsdimp
 /sbin/veriexec/	@stephane-rochoy-stormshield
-/secure/usr.bin/openssl/	@juikim
+/secure/lib/libcrypto/	@ngie-eign
+/secure/lib/libssl/	@ngie-eign
 /share/man/		@concussious
 /share/mk	@bsdimp @bapt @bdrewery @brooksdavis @emaste
 /stand		@bsdimp
@@ -90,7 +91,7 @@
 /sys/arm64/rockchip	@evadot
 /sys/arm64/vmm		@zxombie
 /sys/compat/linprocfs/	@dag-erling
-/sys/crypto/openssl/	@juikim
+/sys/crypto/openssl/	@ngie-eign
 /sys/dev/drm2	@bsdimp
 /sys/dev/ftgpio/	@stephane-rochoy-stormshield
 /sys/dev/ftwd/	@stephane-rochoy-stormshield

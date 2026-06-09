@@ -77,8 +77,8 @@ nvme(4)		imp	Pre-commit review requested.
 nvmecontrol(8)	imp	Pre-commit review requested.
 opencrypto	jhb	Pre-commit review requested.
 openpam		des	Pre-commit review required.
+openssl		ngie	Pre-commit review requested.
 openssh		emaste	Pre-commit review requested.
-openssl		benl	Pre-commit review requested.
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/dev/pci	imp,jhb	Pre-commit review requested.
 pmcstudy(8)	rrs		Pre-commit review requested.
