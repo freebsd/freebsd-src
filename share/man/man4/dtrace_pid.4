@@ -1,9 +1,9 @@
 .\"
-.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2025-2026 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd November 6, 2025
+.Dd September 19, 2026
 .Dt DTRACE_PID 4
 .Os
 .Sh NAME
@@ -73,6 +73,26 @@ Note that all probe arguments within the
 .Nm pid
 provider are of type
 .Ft uint64_t .
+.Sh EXAMPLES
+.Ss Example 1: Listing Program's Function Entries
+The following example lists the entry probes of
+.Xr cat 1 Ap s
+global functions:
+.Bd -literal -offset indent
+# dtrace -l -c cat -n 'pid$target:cat::entry'
+    ID   PROVIDER     MODULE                FUNCTION NAME
+106058   pid34639        cat   __do_global_dtors_aux entry
+106059   pid34639        cat                   usage entry
+106060   pid34639        cat               scanfiles entry
+106061   pid34639        cat                cook_cat entry
+106062   pid34639        cat   __do_global_ctors_aux entry
+106063   pid34639        cat                  _start entry
+106064   pid34639        cat                    main entry
+.Ed
+.Pp
+This example will not work without
+.Xr cat 1
+debug symbols.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
 .Xr dtrace_fbt 4 ,
