@@ -1640,6 +1640,7 @@ struct voss_backend *voss_tx_backend;
 static int voss_dups;
 static int voss_ntds;
 static pthread_t *voss_tds;
+static int voss_fd_sta = -1;
 
 /* XXX I do not like the prefix argument... */
 static struct voss_backend *
@@ -1845,7 +1846,7 @@ init_sndstat(vprofile_t *ptr)
 		warn("Failed to pack nvlist");
 		goto done;
 	}
-	err = ioctl(ptr->fd_sta, SNDSTIOC_ADD_USER_DEVS, &arg);
+	err = ioctl(voss_fd_sta, SNDSTIOC_ADD_USER_DEVS, &arg);
 	free(arg.buf);
 	if (err != 0) {
 		warn("Failed to issue ioctl(SNDSTIOC_ADD_USER_DEVS)");
@@ -1912,7 +1913,6 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 	memcpy(ptr, pvp, sizeof(*ptr));
 
 	ptr->synchronized = synchronized;
-	ptr->fd_sta = -1;
 	TAILQ_INIT(&ptr->head);
 
 	for (x = 0; x != ptr->channels; x++) {
@@ -1953,12 +1953,13 @@ dup_profile(vprofile_t *pvp, int *pamp, int pol, int rx_mute,
 		ptr->oss_dev = pdev;
 
 		/* register to sndstat */
-		ptr->fd_sta = open("/dev/sndstat", O_WRONLY);
-		if (ptr->fd_sta < 0) {
-			warn("Could not open /dev/sndstat");
-		} else {
-			init_sndstat(ptr);
+		if (voss_fd_sta < 0) {
+			if ((voss_fd_sta = open("/dev/sndstat", O_WRONLY)) < 0) {
+				errstr = "Could not open /dev/sndstat";
+				goto err;
+			}
 		}
+		init_sndstat(ptr);
 	}
 	/* create WAV device */
 	if (ptr->wav_name[0] != 0) {
@@ -2678,6 +2679,7 @@ main(int argc, char **argv)
 	}
 
 	cuse_uninit();
+	close(voss_fd_sta);
 
 	return (0);
 }
