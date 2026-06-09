@@ -219,23 +219,16 @@ skipped.
 .Pp
 Test suites are configured by defining their configuration
 variables in
-.Pa /etc/kyua/kyua.conf .
-The format of this file is detailed in
+.Pa /etc/kyua/kyua.conf
+or on the command line.
+The format of the configuration file is detailed in
 .Xr kyua.conf 5 .
 .Pp
 The following configuration variables are available in the
 .Fx
-Test Suite:
+Test Suite; all of the variable names are prefixed with
+.Va test_suites.FreeBSD. .
 .Bl -tag -width "allow_sysctl_side_effects"
-.It Va allow_devfs_side_effects
-If defined, enables tests that may destroy and recreate semipermanent device
-nodes, like disk devices.
-Without this variable, tests may still create and destroy devices nodes that
-are normally transient, like /dev/tap* and /dev/pts*, as long as they clean
-them up afterwards.
-However, tests that require this variable have a relaxed cleanup requirement;
-they must recreate any devices that they destroyed, but not necessarily with
-the same devnames.
 .It Va allow_sysctl_side_effects
 Enables tests that change globally significant
 .Xr sysctl 8
