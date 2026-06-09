@@ -429,8 +429,12 @@ local function network_config(obj)
 				local ifaces = get_ifaces_by_mac()
 				local matched = ifaces[v.match.macaddress]
 				if matched and matched == interface then
-					network:write("ifconfig_" .. interface .. "_name=" .. nuage.shell_escape(v["set-name"]) .. "\n")
-					interface = v["set-name"]
+					if not v["set-name"]:match("^[a-zA-Z0-9]+$") then
+						nuage.warn("set-name contains invalid characters, ignoring: " .. v["set-name"])
+					else
+						network:write("ifconfig_" .. interface .. "_name=" .. nuage.shell_escape(v["set-name"]) .. "\n")
+						interface = v["set-name"]
+					end
 				end
 			end
 			if v.dhcp4 then
