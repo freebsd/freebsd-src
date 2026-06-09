@@ -68,6 +68,9 @@ TEST_METADATA.unix_passfd_stream+=	is_exclusive="true"
 ATF_TESTS_C+=	unix_seqpacket_test
 TEST_METADATA.unix_seqpacket_test+=	timeout="15"
 ATF_TESTS_C+=	unix_stream
+ATF_TESTS_C+=	unix_abstract
+TEST_METADATA.unix_abstract+=	is_exclusive="true"
+TEST_METADATA.unix_abstract+=	timeout="60"
 ATF_TESTS_C+=	waitpid_nohang
 ATF_TESTS_C+=	pdeathsig
 ATF_TESTS_C+=	sigsys
@@ -117,6 +120,7 @@ LIBADD.ktrace_test+=			sysdecode
 LIBADD.unix_passfd_dgram+=		jail
 LIBADD.unix_passfd_stream+=		jail
 LIBADD.unix_stream+=			pthread
+LIBADD.unix_abstract+=			jail pthread
 
 NETBSD_ATF_TESTS_C+=	lockf_test
 NETBSD_ATF_TESTS_C+=	mqueue_test
