@@ -142,7 +142,6 @@ struct virtual_profile {
 	double rx_compressor_gain[VMAX_CHAN];
 	uint8_t synchronized;
 	uint32_t rec_delay;
-	int fd_sta;
 	struct {
 		const char * host;
 		const char * port;
