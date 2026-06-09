@@ -2357,12 +2357,21 @@ static bool mlx5_devx_event_notifier(struct mlx5_core_dev *mdev,
 	bool is_unaffiliated;
 	u32 obj_id;
 
-	/* Explicit filtering to kernel events which may occur frequently */
+	/*
+	 * Command completions and page requests must be processed by the
+	 * mlx5_core default EQ handler.  Returning true here tells
+	 * mlx5_eq_int() the event was consumed and skips core processing,
+	 * which stalls the firmware command interface and page supply and
+	 * wedges the device.  Return false so the core handler runs for
+	 * these frequent kernel events.
+	 */
 	if (event_type == MLX5_EVENT_TYPE_CMD ||
 	    event_type == MLX5_EVENT_TYPE_PAGE_REQUEST)
-		return true;
+		return false;
 
-	dev = mdev->priv.eq_table.dev;
+	dev = READ_ONCE(mdev->priv.eq_table.dev);
+	if (dev == NULL)
+		return false;
 	table = &dev->devx_event_table;
 	is_unaffiliated = is_unaffiliated_event(dev->mdev, event_type);
 
@@ -2401,8 +2410,14 @@ void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev)
 
 	xa_init_flags(&table->event_xa, 0);
 	mutex_init(&table->event_xa_lock);
-	dev->mdev->priv.eq_table.dev = dev;
-	dev->mdev->priv.eq_table.cb = mlx5_devx_event_notifier;
+	/*
+	 * Publish dev before cb.  The EQ interrupt handler loads cb with
+	 * acquire semantics and the notifier then dereferences eq_table.dev,
+	 * so dev must be visible to that handler once cb is observed.
+	 */
+	WRITE_ONCE(dev->mdev->priv.eq_table.dev, dev);
+	smp_store_release(&dev->mdev->priv.eq_table.cb,
+			  mlx5_devx_event_notifier);
 }
 
 void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev)
@@ -2413,8 +2428,14 @@ void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev)
 	void *entry;
 	unsigned long id;
 
-	dev->mdev->priv.eq_table.cb = NULL;
-	dev->mdev->priv.eq_table.dev = NULL;
+	/*
+	 * Stop new dispatch by clearing cb, then wait for any in-flight EQ
+	 * callback to finish its RCU read section before clearing dev and
+	 * tearing down the event table.
+	 */
+	WRITE_ONCE(dev->mdev->priv.eq_table.cb, NULL);
+	synchronize_rcu();
+	WRITE_ONCE(dev->mdev->priv.eq_table.dev, NULL);
 	mutex_lock(&dev->devx_event_table.event_xa_lock);
 	xa_for_each(&table->event_xa, id, entry) {
 		event = entry;
