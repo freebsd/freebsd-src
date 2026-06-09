@@ -748,7 +748,7 @@ local function power_state_change(obj)
 	end
 
 	-- Build shutdown command
-	local cmd = "shutdown -" .. flag .. " " .. delay
+	local cmd = "shutdown -" .. flag .. " " .. nuage.shell_escape(delay)
 	if message then
 		cmd = cmd .. " " .. nuage.shell_escape(message)
 	end

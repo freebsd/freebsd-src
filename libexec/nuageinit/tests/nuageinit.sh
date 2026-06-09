@@ -1332,7 +1332,7 @@ power_state:
   timeout: 30
   condition: true
 EOF
-	atf_check -o inline:"shutdown -r +5 'Rebooting after configuration is complete'\n" \
+	atf_check -o inline:"shutdown -r '+5' 'Rebooting after configuration is complete'\n" \
 	    /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	true
 }
