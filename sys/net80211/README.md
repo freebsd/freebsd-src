@@ -101,7 +101,7 @@ with the protocol definitions.
  * Debugging - (@ref md_net80211_DEBUG)
  * Top-level device layout (ieee80211com)
  * Data / Control Path Overview (@ref md_net80211_DATAPATH_TRANSMIT), (@ref md_net80211_DATAPATH_RECEIVE)
- * Deferred work
+ * Deferred work (@ref md_net80211_DEFERRED_WORK)
  * Regulatory
  * Virtual interfaces
  * Operating Modes
