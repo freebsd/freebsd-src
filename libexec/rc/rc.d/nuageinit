@@ -26,6 +26,29 @@ fetch_openstack()
 	cd -
 }
 
+fetch_hcloud()
+{
+    cd /media/nuageinit
+    for file in metadata userdata; do
+        out_file=$(echo "$file" | sed -E 's/(user|meta)data/\1-data/')
+        fetch -o $out_file http://169.254.169.254/hetzner/v1/$file
+    done
+    cd -
+}
+
+init_network()
+{
+    ifaces=$(ifconfig -l ether)
+	for iface in $ifaces; do
+		dhclient -p /tmp/ephemeraldhcp.$iface.pid $iface
+	done
+	pids=$(cat /tmp/ephemeraldhcp.*.pid)
+	left=$(pwait -op $pids 2>/dev/null)
+	for iface in $left; do
+		kill -15 $left
+	done
+}
+
 nuageinit_start()
 {
 	local citype
@@ -55,18 +78,16 @@ nuageinit_start()
 		case "$product" in
 		OpenStack*)
 			mkdir -p /media/nuageinit/openstack/latest
-			ifaces=$(ifconfig -l ether)
-			for iface in $ifaces; do
-				dhclient -p /tmp/ephemeraldhcp.$iface.pid $iface
-			done
-			pids=$(cat /tmp/ephemeraldhcp.*.pid)
-			left=$(pwait -op $pids 2>/dev/null)
-			for iface in $left; do
-				kill -15 $left
-			done
+			init_network
 			fetch_openstack
 			citype=config-2
 			;;
+		vServer*)
+		    mkdir -p /media/nuageinit
+			init_network
+			fetch_hetzner
+			citype=nocloud
+		    ;;
 		*)
 			# try to detect networked based instance
 			err 1 "Impossible to find a cloud init provider"
