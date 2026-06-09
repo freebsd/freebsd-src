@@ -24,6 +24,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/nv.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -1443,6 +1444,233 @@ ATF_TC_BODY(capnet__limits_deprecated_connecttodns, tc)
 	cap_close(capnet);
 }
 
+ATF_TC(capnet__limits_name2addr_partial_drops_family);
+ATF_TC_HEAD(capnet__limits_name2addr_partial_drops_family, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
+ATF_TC_BODY(capnet__limits_name2addr_partial_drops_family, tc)
+{
+	cap_channel_t *capnet;
+	cap_net_limit_t *limit;
+	int family = AF_INET6;
+
+	capnet = create_network_service();
+
+	/* Tighten: only AF_INET6 allowed under name2addr. */
+	limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_name2addr_family(limit, &family, 1);
+	ATF_REQUIRE(cap_net_limit(limit) == 0);
+
+	ATF_REQUIRE(test_getaddrinfo(capnet, AF_INET, TEST_DOMAIN_0, NULL) ==
+	    ENOTCAPABLE);
+
+	/* Replacement omits "family"; must be rejected. */
+	limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_name2addr(limit, TEST_DOMAIN_0, NULL);
+	ATF_REQUIRE(cap_net_limit(limit) != 0);
+
+	ATF_REQUIRE(test_getaddrinfo(capnet, AF_INET, TEST_DOMAIN_0, NULL) ==
+	    ENOTCAPABLE);
+
+	cap_close(capnet);
+}
+
+ATF_TC(capnet__limits_name2addr_partial_drops_hosts);
+ATF_TC_HEAD(capnet__limits_name2addr_partial_drops_hosts, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
+ATF_TC_BODY(capnet__limits_name2addr_partial_drops_hosts, tc)
+{
+	cap_channel_t *capnet;
+	cap_net_limit_t *limit;
+	int family = AF_INET;
+
+	capnet = create_network_service();
+
+	/* Tighten: only TEST_DOMAIN_0 allowed. */
+	limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_name2addr(limit, TEST_DOMAIN_0, NULL);
+	ATF_REQUIRE(cap_net_limit(limit) == 0);
+
+	ATF_REQUIRE(test_getaddrinfo(capnet, AF_INET, TEST_DOMAIN_1, NULL) ==
+	    ENOTCAPABLE);
+
+	/* Replacement omits "hosts"; must be rejected. */
+	limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_name2addr_family(limit, &family, 1);
+	ATF_REQUIRE(cap_net_limit(limit) != 0);
+
+	ATF_REQUIRE(test_getaddrinfo(capnet, AF_INET, TEST_DOMAIN_1, NULL) ==
+	    ENOTCAPABLE);
+
+	cap_close(capnet);
+}
+
+ATF_TC(capnet__limits_addr2name_partial_drops_family);
+ATF_TC_HEAD(capnet__limits_addr2name_partial_drops_family, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
+ATF_TC_BODY(capnet__limits_addr2name_partial_drops_family, tc)
+{
+	cap_channel_t *capnet;
+	cap_net_limit_t *limit;
+	struct sockaddr_in ipaddrv4;
+	int family = AF_INET6;
+
+	capnet = create_network_service();
+
+	memset(&ipaddrv4, 0, sizeof(ipaddrv4));
+	ipaddrv4.sin_family = AF_INET;
+	inet_pton(AF_INET, TEST_IPV4, &ipaddrv4.sin_addr);
+
+	/* Tighten: only AF_INET6 allowed under addr2name. */
+	limit = cap_net_limit_init(capnet, CAPNET_ADDR2NAME);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_addr2name_family(limit, &family, 1);
+	ATF_REQUIRE(cap_net_limit(limit) == 0);
+
+	ATF_REQUIRE(test_getnameinfo(capnet, AF_INET, TEST_IPV4) ==
+	    ENOTCAPABLE);
+
+	/* Replacement omits "family". Must be rejected. */
+	limit = cap_net_limit_init(capnet, CAPNET_ADDR2NAME);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_addr2name(limit, (struct sockaddr *)&ipaddrv4,
+	    sizeof(ipaddrv4));
+	ATF_REQUIRE(cap_net_limit(limit) != 0);
+
+	ATF_REQUIRE(test_getnameinfo(capnet, AF_INET, TEST_IPV4) ==
+	    ENOTCAPABLE);
+
+	cap_close(capnet);
+}
+
+ATF_TC(capnet__limits_addr2name_partial_drops_sockaddr);
+ATF_TC_HEAD(capnet__limits_addr2name_partial_drops_sockaddr, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
+ATF_TC_BODY(capnet__limits_addr2name_partial_drops_sockaddr, tc)
+{
+	cap_channel_t *capnet;
+	cap_net_limit_t *limit;
+	struct sockaddr_in6 ipaddrv6;
+	int family = AF_INET6;
+
+	capnet = create_network_service();
+
+	memset(&ipaddrv6, 0, sizeof(ipaddrv6));
+	ipaddrv6.sin6_family = AF_INET6;
+	inet_pton(AF_INET6, TEST_IPV6, &ipaddrv6.sin6_addr);
+
+	/* Tighten: only TEST_IPV6 allowed under addr2name. */
+	limit = cap_net_limit_init(capnet, CAPNET_ADDR2NAME);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_addr2name(limit, (struct sockaddr *)&ipaddrv6,
+	    sizeof(ipaddrv6));
+	ATF_REQUIRE(cap_net_limit(limit) == 0);
+
+	/* Replacement omits "sockaddr". Must be rejected. */
+	limit = cap_net_limit_init(capnet, CAPNET_ADDR2NAME);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_addr2name_family(limit, &family, 1);
+	ATF_REQUIRE(cap_net_limit(limit) != 0);
+
+	cap_close(capnet);
+}
+
+/*
+ * The public helpers drop empty sublimits during pack, so the empty-{}
+ * variant is only reachable via libnv + cap_limit_set() directly.
+ */
+ATF_TC(capnet__limits_connect_partial_drops_sockaddr);
+ATF_TC_HEAD(capnet__limits_connect_partial_drops_sockaddr, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
+ATF_TC_BODY(capnet__limits_connect_partial_drops_sockaddr, tc)
+{
+	cap_channel_t *capnet;
+	cap_net_limit_t *limit;
+	struct sockaddr_in ipv4;
+	nvlist_t *lnvl;
+
+	capnet = create_network_service();
+
+	memset(&ipv4, 0, sizeof(ipv4));
+	ipv4.sin_family = AF_INET;
+	ipv4.sin_port = htons(TEST_PORT);
+	inet_pton(AF_INET, TEST_IPV4, &ipv4.sin_addr);
+
+	/* Tighten: only TEST_IPV4:TEST_PORT allowed under connect. */
+	limit = cap_net_limit_init(capnet, CAPNET_CONNECT);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_connect(limit, (struct sockaddr *)&ipv4, sizeof(ipv4));
+	ATF_REQUIRE(cap_net_limit(limit) == 0);
+
+	ATF_REQUIRE(test_connect(capnet, TEST_IPV4, TEST_PORT) == 0);
+	ATF_REQUIRE(test_connect(capnet, "8.8.8.8", TEST_PORT) == ENOTCAPABLE);
+
+	/* Build connect={} (no sockaddr subkey) directly. Must be rejected. */
+	lnvl = nvlist_create(0);
+	nvlist_add_number(lnvl, "mode", CAPNET_CONNECT);
+	nvlist_add_nvlist(lnvl, "connect", nvlist_create(0));
+	ATF_REQUIRE(cap_limit_set(capnet, lnvl) != 0);
+
+	ATF_REQUIRE(test_connect(capnet, "8.8.8.8", TEST_PORT) == ENOTCAPABLE);
+
+	cap_close(capnet);
+}
+
+/*
+ * The public helpers drop empty sublimits during pack, so the empty-{}
+ * variant is only reachable via libnv + cap_limit_set() directly.
+ */
+ATF_TC(capnet__limits_bind_partial_drops_sockaddr);
+ATF_TC_HEAD(capnet__limits_bind_partial_drops_sockaddr, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
+ATF_TC_BODY(capnet__limits_bind_partial_drops_sockaddr, tc)
+{
+	cap_channel_t *capnet;
+	cap_net_limit_t *limit;
+	struct sockaddr_in ipv4;
+	nvlist_t *lnvl;
+
+	capnet = create_network_service();
+
+	memset(&ipv4, 0, sizeof(ipv4));
+	ipv4.sin_family = AF_INET;
+	inet_pton(AF_INET, TEST_BIND_IPV4, &ipv4.sin_addr);
+
+	/* Tighten: only TEST_BIND_IPV4 allowed under bind. */
+	limit = cap_net_limit_init(capnet, CAPNET_BIND);
+	ATF_REQUIRE(limit != NULL);
+	cap_net_limit_bind(limit, (struct sockaddr *)&ipv4, sizeof(ipv4));
+	ATF_REQUIRE(cap_net_limit(limit) == 0);
+
+	ATF_REQUIRE(test_bind(capnet, TEST_BIND_IPV4) == 0);
+	ATF_REQUIRE(test_bind(capnet, "127.0.0.2") == ENOTCAPABLE);
+
+	/* Build bind={} (no sockaddr subkey) directly. Must be rejected. */
+	lnvl = nvlist_create(0);
+	nvlist_add_number(lnvl, "mode", CAPNET_BIND);
+	nvlist_add_nvlist(lnvl, "bind", nvlist_create(0));
+	ATF_REQUIRE(cap_limit_set(capnet, lnvl) != 0);
+
+	ATF_REQUIRE(test_bind(capnet, "127.0.0.2") == ENOTCAPABLE);
+
+	cap_close(capnet);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -1482,6 +1710,13 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, capnet__limits_connecttodns);
 	ATF_TP_ADD_TC(tp, capnet__limits_deprecated_connecttodns);
+
+	ATF_TP_ADD_TC(tp, capnet__limits_name2addr_partial_drops_family);
+	ATF_TP_ADD_TC(tp, capnet__limits_name2addr_partial_drops_hosts);
+	ATF_TP_ADD_TC(tp, capnet__limits_addr2name_partial_drops_family);
+	ATF_TP_ADD_TC(tp, capnet__limits_addr2name_partial_drops_sockaddr);
+	ATF_TP_ADD_TC(tp, capnet__limits_connect_partial_drops_sockaddr);
+	ATF_TP_ADD_TC(tp, capnet__limits_bind_partial_drops_sockaddr);
 
 	return (atf_no_error());
 }
