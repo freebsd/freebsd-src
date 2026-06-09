@@ -1097,14 +1097,17 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			 * Look up and create jails based on the
 			 * descriptor's prison.
 			 */
-			prison_free(mypr);
-			error = jaildesc_find(td, jfd_in, &mypr, NULL);
+			struct prison *jdpr;
+
+			error = jaildesc_find(td, jfd_in, &jdpr, NULL);
 			if (error != 0) {
 				vfs_opterror(opts, error == ENOENT ?
 				    "descriptor to dead jail" :
 				    "not a jail descriptor");
 				goto done_errmsg;
 			}
+			prison_free(mypr);
+			mypr = jdpr;
 			if ((flags & JAIL_CREATE) && mypr->pr_childmax == 0) {
 				error = EPERM;
 				goto done_free;
@@ -2545,14 +2548,17 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		}
 		if (flags & JAIL_AT_DESC) {
 			/* Look up jails based on the descriptor's prison. */
-			prison_free(mypr);
-			error = jaildesc_find(td, jfd_in, &mypr, NULL);
+			struct prison *jdpr;
+
+			error = jaildesc_find(td, jfd_in, &jdpr, NULL);
 			if (error != 0) {
 				vfs_opterror(opts, error == ENOENT ?
 				    "descriptor to dead jail" :
 				    "not a jail descriptor");
 				goto done;
 			}
+			prison_free(mypr);
+			mypr = jdpr;
 		}
 		if (flags & (JAIL_GET_DESC | JAIL_OWN_DESC)) {
 			/* Allocate a jail descriptor to return later. */
