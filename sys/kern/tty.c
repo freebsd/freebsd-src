@@ -102,7 +102,7 @@ SYSCTL_INT(_kern, OID_AUTO, tty_drainwait, CTLFLAG_RWTUN,
     &tty_drainwait, 0, "Default output drain timeout in seconds");
 
 static bool tty_tiocsti = true;
-SYSCTL_BOOL(_security_bsd, OID_AUTO, tiocsti, CTLFLAG_RWTUN,
+SYSCTL_BOOL(_security_bsd, OID_AUTO, allow_tiocsti, CTLFLAG_RWTUN,
     &tty_tiocsti, 0, "Allow TIOCSTI ioctl");
 
 /*
