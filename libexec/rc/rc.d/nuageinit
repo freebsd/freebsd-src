@@ -85,7 +85,7 @@ nuageinit_start()
 		vServer*)
 		    mkdir -p /media/nuageinit
 			init_network
-			fetch_hetzner
+			fetch_hcloud
 			citype=nocloud
 		    ;;
 		*)
