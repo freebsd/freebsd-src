@@ -50,14 +50,6 @@
 #define	IEEE80211_KEYBUF_SIZE		IEEE80211_KEYBUF_128_SIZE
 #define	IEEE80211_MICBUF_SIZE		IEEE80211_MICBUF_128_SIZE
 
-/*
- * Old WEP-style key.  Deprecated.
- */
-struct ieee80211_wepkey {
-	u_int		wk_len;		/* key length in bytes */
-	uint8_t		wk_key[IEEE80211_KEYBUF_SIZE];
-};
-
 struct ieee80211_rsnparms {
 	uint8_t		rsn_mcastcipher;	/* mcast/group cipher */
 	uint8_t		rsn_mcastkeylen;	/* mcast key length */
