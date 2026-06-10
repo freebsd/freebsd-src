@@ -48,8 +48,8 @@ struct chap {
   } child;
   struct authinfo auth;
   struct {
-    u_char local[CHAPCHALLENGELEN + AUTHLEN];	/* I invented this one */
-    u_char peer[CHAPCHALLENGELEN + AUTHLEN];	/* Peer gave us this one */
+    u_char local[CHAPCHALLENGELEN + 1 + AUTHLEN]; /* I invented this one */
+    u_char peer[CHAPCHALLENGELEN + 1 + AUTHLEN];  /* Peer gave us this one */
   } challenge;
 #ifndef NODES
   unsigned NTRespSent : 1;		/* Our last response */
