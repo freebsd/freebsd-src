@@ -1060,6 +1060,12 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
     m_freem(bp);
     return;
   }
+  if (ntohs(lh.length) < sizeof(lh)) {
+    log_Printf(LogWARN, "%s: Header length %d is too small - dropped\n",
+	fp->link->name, (int)ntohs(lh.length));
+    m_freem(bp);
+    return;
+  }
 
   if (lh.code < fp->min_code || lh.code > fp->max_code ||
       lh.code > sizeof FsmCodes / sizeof *FsmCodes) {
