@@ -405,7 +405,7 @@ ChaCha20_ctr32_vsx_p10:
 .type	ChaCha20_ctr32_vsx_8x,@function
 .align	5
 ChaCha20_ctr32_vsx_8x:
-	stwu	1,-232(1)
+	stwu	1,-400(1)
 	mflr	0
 	li	10,103
 	li	11,119
@@ -424,9 +424,30 @@ ChaCha20_ctr32_vsx_8x:
 	addi	11,11,32
 	stvx	30,10,1
 	stvx	31,11,1
+	stfd	14,232(1)
+	stfd	15,240(1)
+	stfd	16,248(1)
+	stfd	17,256(1)
+	stfd	18,264(1)
+	stfd	19,272(1)
+	stfd	20,280(1)
+	stfd	21,288(1)
+	stfd	22,296(1)
+	stfd	23,304(1)
+	stfd	24,312(1)
+	stfd	25,320(1)
+	stfd	26,328(1)
+	li	10,351
+	li	11,367
+	stvx	20,10,1
+	addi	10,10,32
+	stvx	21,11,1
+	addi	11,11,32
+	stvx	22,10,1
+	stvx	23,11,1
 	stw	12,228(1)
 	li	12,-4096+63
-	stw	0, 236(1)
+	stw	0, 404(1)
 	mtspr	256,12
 
 	bl	.Lconsts
@@ -1131,9 +1152,30 @@ ChaCha20_ctr32_vsx_8x:
 
 .Ldone_vsx_8x:
 	lwz	12,228(1)
+	lfd	14,232(1)
+	lfd	15,240(1)
+	lfd	16,248(1)
+	lfd	17,256(1)
+	lfd	18,264(1)
+	lfd	19,272(1)
+	lfd	20,280(1)
+	lfd	21,288(1)
+	lfd	22,296(1)
+	lfd	23,304(1)
+	lfd	24,312(1)
+	lfd	25,320(1)
+	lfd	26,328(1)
+	li	10,351
+	li	11,367
+	lvx	20,10,1
+	addi	10,10,32
+	lvx	21,11,1
+	addi	11,11,32
+	lvx	22,10,1
+	lvx	23,11,1
 	li	10,103
 	li	11,119
-	lwz	0, 236(1)
+	lwz	0, 404(1)
 	mtspr	256,12
 	lvx	24,10,1
 	addi	10,10,32
@@ -1150,7 +1192,7 @@ ChaCha20_ctr32_vsx_8x:
 	lvx	30,10,1
 	lvx	31,11,1
 	mtlr	0
-	addi	1,1,232
+	addi	1,1,400
 	blr	
 
 .align	4

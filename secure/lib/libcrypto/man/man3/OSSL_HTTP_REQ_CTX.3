@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_HTTP_REQ_CTX 3ossl"
-.TH OSSL_HTTP_REQ_CTX 3ossl 2026-04-07 3.5.6 OpenSSL
+.TH OSSL_HTTP_REQ_CTX 3ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,9 +148,12 @@ For backward compatibility, \fIpath\fR may begin with \f(CW\*(C`http://\*(C'\fR 
 an absoluteURI. In this case it indicates HTTP proxy use and provides also the
 server (and optionally the port) that the proxy shall forward the request to.
 In this case the \fIserver\fR and \fIport\fR arguments must be NULL.
+The \fIserver\fR, \fIport\fR, and \fIpath\fR arguments must not contain CR or LF
+characters.
 .PP
 \&\fBOSSL_HTTP_REQ_CTX_add1_header()\fR adds header \fIname\fR with value \fIvalue\fR to the
 context \fIrctx\fR. It can be called more than once to add multiple header lines.
+The \fIname\fR and \fIvalue\fR arguments must not contain CR or LF characters.
 For example, to add a \f(CW\*(C`Host\*(C'\fR header for \f(CW\*(C`example.com\*(C'\fR you would call:
 .PP
 .Vb 1
@@ -207,6 +210,7 @@ The HTTP header \f(CW\*(C`Content\-Length\*(C'\fR is filled out with the length 
 \&\fIcontent_type\fR must be NULL if \fIreq\fR is NULL.
 If \fIcontent_type\fR isn\*(Aqt NULL,
 the HTTP header \f(CW\*(C`Content\-Type\*(C'\fR is also added with the given string value.
+The \fIcontent_type\fR argument must not contain CR or LF characters.
 The header lines are added to the internal memory \fBBIO\fR for the request header.
 .PP
 \&\fBOSSL_HTTP_REQ_CTX_nbio()\fR attempts to send the request prepared in \fIrctx\fR
@@ -347,7 +351,7 @@ and the server did not disagree on keeping the connection open, else 0.
 All other functions described here were added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2015\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

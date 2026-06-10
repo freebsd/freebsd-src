@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_ADD 3ossl"
-.TH BN_ADD 3ossl 2026-04-07 3.5.6 OpenSSL
+.TH BN_ADD 3ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -170,8 +170,10 @@ function when \fBm\fR is even and any of the parameters have the
 places the result in \fIr\fR. \fIr\fR may be the same \fBBIGNUM\fR as \fIa\fR or
 \&\fIb\fR.
 .PP
-For all functions, \fIctx\fR is a previously allocated \fBBN_CTX\fR used for
-temporary variables; see \fBBN_CTX_new\fR\|(3).
+For all functions that take a \fIctx\fR parameter, it must be a previously
+allocated \fBBN_CTX\fR used for temporary variables; see \fBBN_CTX_new\fR\|(3).
+Unless stated otherwise in the documentation for a specific function,
+the \fIctx\fR parameter must not be NULL.
 .PP
 Unless noted otherwise, the result \fBBIGNUM\fR must be different from
 the arguments.
@@ -193,7 +195,7 @@ The error codes can be obtained by \fBERR_get_error\fR\|(3).
 \&\fBBN_add_word\fR\|(3), \fBBN_set_bit\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
