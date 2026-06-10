@@ -491,6 +491,35 @@ litexec(const struct pat *pat, const char *string, size_t nmatch,
 #define iswword(x)	(iswalnum((x)) || (x) == L'_')
 
 /*
+ * Check if the byte at the given offset in the line is a word character
+ * (alphanumeric or _).  Handles ASCII fast path, UTF-8 continuation bytes,
+ * and multi-byte decoding via mbrtowc(3).
+ */
+static bool
+iswordchar(const char *dat, size_t len, size_t offset)
+{
+	unsigned char ch;
+	mbstate_t mbstate;
+	wchar_t wc;
+	size_t n;
+
+	if (offset >= len)
+		return (false);
+
+	ch = (unsigned char)dat[offset];
+	if (ch < 0x80)
+		return (isalnum(ch) || ch == '_');
+	if ((ch & 0xC0) == 0x80)
+		/* Continuation byte: part of a word */
+		return (true);
+
+	/* Multi-byte start byte: decode with mbrtowc */
+	memset(&mbstate, 0, sizeof(mbstate));
+	n = mbrtowc(&wc, &dat[offset], MB_CUR_MAX, &mbstate);
+	return (n == (size_t)-1 || n == (size_t)-2 || iswword(wc));
+}
+
+/*
  * Processes a line comparing it with the specified patterns.  Each pattern
  * is looped to be compared along with the full string, saving each and every
  * match, which is necessary to colorize the output and to count the
@@ -501,7 +530,6 @@ static bool
 procline(struct parsec *pc)
 {
 	regmatch_t pmatch, lastmatch, chkmatch;
-	wchar_t wbegin, wend;
 	size_t st, nst;
 	unsigned int i;
 	int r = 0, leflags = eflags;
@@ -567,18 +595,14 @@ procline(struct parsec *pc)
 				continue;
 			/* Check for whole word match */
 			if (wflag) {
-				wbegin = wend = L' ';
 				if (pmatch.rm_so != 0 &&
-				    sscanf(&pc->ln.dat[pmatch.rm_so - 1],
-				    "%lc", &wbegin) != 1)
+				    iswordchar(pc->ln.dat, pc->ln.len,
+				    pmatch.rm_so - 1))
 					r = REG_NOMATCH;
-				else if ((size_t)pmatch.rm_eo !=
+				if (r == 0 && (size_t)pmatch.rm_eo !=
 				    pc->ln.len &&
-				    sscanf(&pc->ln.dat[pmatch.rm_eo],
-				    "%lc", &wend) != 1)
-					r = REG_NOMATCH;
-				else if (iswword(wbegin) ||
-				    iswword(wend))
+				    iswordchar(pc->ln.dat, pc->ln.len,
+				    pmatch.rm_eo))
 					r = REG_NOMATCH;
 				/*
 				 * If we're doing whole word matching and we
