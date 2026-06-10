@@ -864,15 +864,83 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 }
 
 /*
+ * Check that the PMC hardware is safe to use.  First, we check that the PMCs
+ * are not in use by firmware or another module.  Second, if none of the PMC
+ * feature flags are set, we check that the event selector is working, because
+ * virtual machines have no way to communicate the absence of PMCs.
+ */
+static int
+amd_hwcheck(void)
+{
+	uint64_t reg;
+	int error, i;
+
+	/*
+	 * Some PC vendors enable the core counters in firmware to track
+	 * performance.  The best guess is that this is being used to control
+	 * power management from within the SMM mode.  We shouldn't just take
+	 * over the PMCs in this case.  The user should try disabling any
+	 * performance monitoring or power management functions in the BIOS to
+	 * safely make use of the counters.
+	 */
+	for (i = 0; i < amd_core_npmcs; i++) {
+		error = rdmsr_safe(amd_pmcdesc[i].pm_evsel, &reg);
+		if (error != 0) {
+			printf("hwpmc: AMD evsel %d rdmsr failed!\n", i);
+			return (-1);
+		}
+
+		if ((reg & AMD_PMC_ENABLE) != 0) {
+			printf("hwpmc: PMCs maybe in use by firmware!\n");
+			printf("hwpmc: Disable the PMC use in the BIOS before loading\n");
+			return (-1);
+		}
+	}
+
+	/*
+	 * Unfortunately, there is no way to communicate that the original four
+	 * core counters are disabled through CPUIDs alone.  We attempt to
+	 * write and read back the MSR to validate that it is working.
+	 *
+	 * Referenced the BIOS and Kernel Developer Guide for AMD Athlon 64 and
+	 * AMD Opteron Processors 26094 Rev. 3.24 January, 2005 to ensure these
+	 * fields are valid.
+	 */
+	if ((amd_feature2 & AMDID2_PCXC) == 0) {
+		error = wrmsr_safe(AMD_PMC_EVSEL_0, AMD_PMC_OS | AMD_PMC_USR);
+		if (error != 0) {
+			printf("hwpmc: AMD evsel 0 wrmsr failed!\n");
+			return (-1);
+		}
+
+		error = rdmsr_safe(AMD_PMC_EVSEL_0, &reg);
+		if (error != 0) {
+			printf("hwpmc: AMD evsel 0 rdmsr failed!\n");
+			return (-1);
+		}
+
+		if (reg == 0) {
+			printf("hwpmc: AMD evsel returned invalid value! "
+			    "You may be in a VM without PMC support.\n");
+			return (-1);
+		}
+
+		wrmsr(AMD_PMC_EVSEL_0, 0);
+	}
+
+	return (0);
+}
+
+/*
  * Initialize ourselves.
  */
 struct pmc_mdep *
 pmc_amd_initialize(void)
 {
+	u_int regs[4];
 	struct amd_descr *d;
 	struct pmc_classdep *pcd;
 	struct pmc_mdep *pmc_mdep;
-	uint64_t reg;
 	enum pmc_cputype cputype;
 	int ncpus, nclasses, i;
 	int family, model, stepping;
@@ -908,37 +976,6 @@ pmc_amd_initialize(void)
 	}
 
 	/*
-	 * Unforunately, there is no way to communicate that the original four
-	 * core counters are disabled through CPUIDs alone.  We attempt to
-	 * write and read back the MSR to validate that it is working.
-	 *
-	 * Referenced the BIOS and Kernel Developer Guide for AMD Athlon 64 and
-	 * AMD Opteron Processors 26094 Rev. 3.24 January, 2005 to ensure these
-	 * fields are valid.
-	 */
-	if ((amd_feature2 & AMDID2_PCXC) == 0) {
-		error = wrmsr_safe(AMD_PMC_EVSEL_0, AMD_PMC_OS | AMD_PMC_USR);
-		if (error != 0) {
-			printf("hwpmc: AMD evsel 0 wrmsr failed!\n");
-			return (NULL);
-		}
-
-		error = rdmsr_safe(AMD_PMC_EVSEL_0, &reg);
-		if (error != 0) {
-			printf("hwpmc: AMD evsel 0 rdmsr failed!\n");
-			return (NULL);
-		}
-
-		if (reg == 0) {
-			printf("hwpmc: AMD evsel returned invalid value! "
-			    "You may be in a VM without PMC support.\n");
-			return (NULL);
-		}
-
-		wrmsr(AMD_PMC_EVSEL_0, 0);
-	}
-
-	/*
 	 * From PPR for AMD Family 1Ah, a new cpuid leaf specifies the maximum
 	 * number of PMCs of each type.  If we do not have that leaf, we use
 	 * the prior default values that are only valid if we have the feature
@@ -953,7 +990,6 @@ pmc_amd_initialize(void)
 	amd_df_npmcs = AMD_PMC_DF_DEFAULT;
 
 	if (cpu_exthigh >= CPUID_EXTPERFMON) {
-		u_int regs[4];
 		do_cpuid(CPUID_EXTPERFMON, regs);
 		if (regs[1] != 0) {
 			amd_core_npmcs = EXTPERFMON_CORE_PMCS(regs[1]);
@@ -1018,6 +1054,14 @@ pmc_amd_initialize(void)
 			d->pm_subclass = PMC_AMD_SUB_CLASS_DATA_FABRIC;
 		}
 		amd_npmcs += amd_df_npmcs;
+	}
+
+	/*
+	 * Sanity check that the hardware is safe to use.  Do not read or write
+	 * any of the PMC MSRs until after this check passes.
+	 */
+	if (amd_hwcheck() < 0) {
+		return (NULL);
 	}
 
 	/*
