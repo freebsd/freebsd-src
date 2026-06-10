@@ -58,7 +58,7 @@
 #define DEVICE_LEN SCRIPT_LEN	/* Size of individual devices */
 #define AUTHLEN 100 		/* Size of authname/authkey */
 #define CHAPDIGESTLEN 100	/* Maximum chap digest */
-#define CHAPCHALLENGELEN 48	/* Maximum chap challenge */
+#define CHAPCHALLENGELEN 255	/* Maximum chap challenge */
 #define CHAPAUTHRESPONSELEN 48	/* Maximum chap authresponse (chap81) */
 #define MAXARGS 40		/* How many args per config line */
 #define NCP_IDLE_TIMEOUT 180	/* Drop all links */

@@ -238,7 +238,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge
     MD5Init(&MD5context);
     MD5Update(&MD5context, &id, 1);
     MD5Update(&MD5context, key, klen);
-    MD5Update(&MD5context, challenge + 1, *challenge);
+    MD5Update(&MD5context, challenge + 1, (u_char)*challenge);
     MD5Final(digest, &MD5context);
 
     memcpy(digest + 16, name, nlen);
@@ -913,7 +913,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
               if (myans == NULL)
                 key = NULL;
               else {
-                if (!chap_Cmp(myans + 1, *myans, ans + 1, alen
+                if (!chap_Cmp(myans + 1, (u_char)*myans, ans + 1, alen
 #ifndef NODES
                               , p->link.lcp.want_authtype, lanman
 #endif
