@@ -464,6 +464,7 @@ cd9660_rrip_loop(struct iso_directory_record *isodir, ISO_RRIP_ANALYZE *ana,
 	RRIP_TABLE *ptable;
 	ISO_SUSP_HEADER *phead;
 	ISO_SUSP_HEADER *pend;
+	ISO_SUSP_HEADER *pnext;
 	struct buf *bp = NULL;
 	char *pwhead;
 	u_short c;
@@ -495,6 +496,21 @@ cd9660_rrip_loop(struct iso_directory_record *isodir, ISO_RRIP_ANALYZE *ana,
 		 * Note: "pend" should be more than one SUSP header
 		 */
 		while (pend >= phead + 1) {
+			/* Validate length. */
+			if (isonum_711(phead->length) < sizeof(*phead))
+				break;
+
+			/*
+			 * Next SUSP
+			 * Hopefully this works with newer versions, too
+			 */
+			pnext = (ISO_SUSP_HEADER *)((char *)phead +
+			    isonum_711(phead->length));
+
+			/* If the record doesn't fit, break out of the loop. */
+			if (pnext > pend)
+				break;
+
 			if (isonum_711(phead->version) == 1) {
 				for (ptable = table; ptable->func; ptable++) {
 					if (phead->type[0] == ptable->type[0] &&
@@ -510,14 +526,8 @@ cd9660_rrip_loop(struct iso_directory_record *isodir, ISO_RRIP_ANALYZE *ana,
 				result &= ~ISO_SUSP_STOP;
 				break;
 			}
-			/* plausibility check */
-			if (isonum_711(phead->length) < sizeof(*phead))
-				break;
-			/*
-			 * move to next SUSP
-			 * Hopefully this works with newer versions, too
-			 */
-			phead = (ISO_SUSP_HEADER *)((char *)phead + isonum_711(phead->length));
+
+			phead = pnext;
 		}
 
 		if (ana->fields && ana->iso_ce_len) {
