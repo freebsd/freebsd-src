@@ -445,9 +445,16 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
 	eth_proto_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
 	    eth_proto_oper);
+	if (eth_proto_oper == 0) {
+		priv->media_active_last = IFM_ETHER;
+		if_setbaudrate(priv->ifp, 1);
+		mlx5_en_err(priv->ifp, "eth_proto_oper is 0\n");
+		return;
+	}
 	connector_type = MLX5_GET(ptys_reg, out, connector_type);
 	if (connector_type >= MLX5E_CONNECTOR_TYPE_NUMBER)
 		connector_type = MLX5E_PORT_UNKNOWN;
+
 	i = ilog2(eth_proto_oper);
 
 	if (ext) {
