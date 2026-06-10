@@ -393,7 +393,7 @@ main(int argc, char **argv)
 		default:
 			syslog(LOG_ERR,
 				"usage: inetd [-dlWw] [-a address] [-C rate]"
-				" [-c maximum] [-p filename] [-R rate]"
+				" [-c maximum] [-p pidfile] [-R rate]"
 				" [-s maximum] [configuration_file]");
 			exit(EX_USAGE);
 		}

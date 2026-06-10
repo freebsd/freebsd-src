@@ -27,7 +27,7 @@
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
 .\"
-.Dd September 29, 2022
+.Dd June 10, 2026
 .Dt INETD 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Op Fl a Ar address
 .Op Fl C Ar rate
 .Op Fl c Ar maximum
-.Op Fl p Ar filename
+.Op Fl p Ar pidfile
 .Op Fl R Ar rate
 .Op Fl s Ar maximum
 .Op Ar configuration_file
@@ -117,7 +117,7 @@ parameter.
 Turn on debugging.
 .It Fl l
 Turn on logging of successful connections.
-.It Fl p
+.It Fl p Ar pidfile
 Specify an alternate file in which to store the process ID.
 .It Fl R Ar rate
 Specify the maximum number of times a service can be invoked
