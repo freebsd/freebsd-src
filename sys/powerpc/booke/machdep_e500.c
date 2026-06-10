@@ -30,8 +30,11 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -136,3 +139,71 @@ cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)
 	*ucode = BUS_OBJERR;
 	return (SIGBUS);
 }
+
+/*
+ * Book-E watchdog timer is a simple check of a single bit in the timebase
+ * register.  When that bit rolls over from 0 to 1 the state machine activates.
+ * In our case, we want it to trigger an interrupt to the core first, then
+ * reboot on the second interrupt.
+ *
+ * With all PowerPC numbering, 0 is the MSB, and 63 is LSB.
+ */
+/* Arg is the timebase bit number 1-based (flsll result) */
+static void
+booke_watchdog_cpu(void *arg)
+{
+	uint32_t tcr;
+	int bitno = (uintptr_t)arg;
+
+	/* First pet the watchdog */
+	mtspr(SPR_TSR, TSR_ENW | TSR_WIS);
+
+	tcr = mfspr(SPR_TCR);
+	tcr &= ~(TCR_WP_MASK | TCR_WPEXT_MASK);
+	tcr |= TCR_MAKE_WP(bitno);
+
+	tcr |= TCR_WRC_CHIP | TCR_WIE;
+
+	mtspr(SPR_TCR, tcr);
+}
+
+static void
+booke_watchdog_fn(void *priv, sbintime_t sbt, sbintime_t *esbt, int *err)
+{
+	struct cpuref cpuref;
+	uintptr_t tb_bit;
+	uint64_t freq, tb, ticks;
+
+	/* Once enabled it cannot be disabled */
+	if (sbt == 0) {
+		*err = EOPNOTSUPP;
+		return;
+	}
+	cpuref.cr_hwref = 0;
+	cpuref.cr_cpuid = 0;
+	freq = platform_timebase_freq(&cpuref);
+	ticks = 1000000000 / freq;	/* Ticks/s -> ns/tick */
+	ticks = sbttons(sbt) / ticks;
+
+	/*
+	 * To get the next rollover bit add the current timbase to the tick
+	 * count, using only a mask of the current timebase matching the tick
+	 * size.  This will give us the next rollover bit *beyond* the timeout.
+	 */
+	tb = mftb() & ((1 << flsll(ticks)) - 1);
+	tb += ticks;
+
+	tb_bit = 64 - flsll(tb);
+
+	smp_rendezvous(NULL, booke_watchdog_cpu, NULL, (void *)tb_bit);
+	*err = 0;
+}
+
+static void
+booke_watchdog_register(void *arg)
+{
+	printf("Registering booke watchdog timer\n");
+	EVENTHANDLER_REGISTER(watchdog_sbt_list, booke_watchdog_fn, NULL, 0);
+}
+
+SYSINIT(booke_watchdog, SI_SUB_LAST, SI_ORDER_ANY, booke_watchdog_register, NULL);

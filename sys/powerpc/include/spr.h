@@ -549,6 +549,9 @@
 #define	  TCR_FP_2_21		  0x03000000 /* 2**21 clocks */
 #define	  TCR_FIE		  0x00800000 /* FIT Interrupt Enable */
 #define	  TCR_ARE		  0x00400000 /* Auto Reload Enable */
+#define	  TCR_WPEXT_MASK	  0x003c0000
+#define	  TCR_FPEXT_MASK	  0x0003c000
+#define	  TCR_MAKE_WP(c)	  (((c & 0x3) << 30) | (c & 0x3c) << 15)
 
 #define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
