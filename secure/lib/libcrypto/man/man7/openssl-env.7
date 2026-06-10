@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-ENV 7ossl"
-.TH OPENSSL-ENV 7ossl 2026-04-07 3.5.6 OpenSSL
+.TH OPENSSL-ENV 7ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -197,6 +197,8 @@ See \fBRAND_load_file\fR\|(3).
 .IP "\fBSSL_CERT_DIR\fR, \fBSSL_CERT_FILE\fR" 4
 .IX Item "SSL_CERT_DIR, SSL_CERT_FILE"
 Specify the default directory or file containing CA certificates.
+\&\fBSSL_CERT_DIR\fR can contain multiple directories separated by colons
+(or semicolons on Windows).
 See \fBSSL_CTX_load_verify_locations\fR\|(3).
 .IP \fBTSGET\fR 4
 .IX Item "TSGET"

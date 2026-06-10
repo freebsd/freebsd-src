@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SESSION_ID_CONTEXT 3ossl"
-.TH SSL_CTX_SET_SESSION_ID_CONTEXT 3ossl 2026-04-07 3.5.6 OpenSSL
+.TH SSL_CTX_SET_SESSION_ID_CONTEXT 3ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -99,9 +99,6 @@ is set by the SSL/TLS server. The \fBSSL_CTX_set_session_id_context()\fR and
 \&\fBSSL_set_session_id_context()\fR functions are therefore only useful on the
 server side.
 .PP
-OpenSSL clients will check the session id context returned by the server
-when reusing a session.
-.PP
 The maximum length of the \fBsid_ctx\fR is limited to
 \&\fBSSL_MAX_SID_CTX_LENGTH\fR.
 .SH WARNINGS
@@ -111,11 +108,23 @@ certificates are used, stored sessions
 will not be reused but a fatal error will be flagged and the handshake
 will fail.
 .PP
-If a server returns a different session id context to an OpenSSL client
-when reusing a session, an error will be flagged and the handshake will
-fail. OpenSSL servers will always return the correct session id context,
-as an OpenSSL server checks the session id context itself before reusing
-a session as described above.
+If a client attempts to resume a session and the server detects that the session
+id context associated with the session is different to the current session id
+context then the resumption will fail. The handshake will continue normally but
+no resumption will occur.
+.PP
+It is vital that the session id context is set before any session resumption
+occurs. Sessions get created early in the handshake. If the session id context
+is not set by the time the session gets created then the session will be
+associated with an empty session id context. The already created session will
+not get updated if the  session id context is later set. In particular the
+callback set via the \fBSSL_CTX_set_tlsext_servername_callback\fR\|(3) function will
+be invoked after the session gets created, so if the session id context is set
+in the callback then this will be too late for the current handshake and the
+session id context setting will be ignored with respect to resumption. Typically
+the session id context should be set before the TLS handshake starts, but it may
+occur as late as in the callback set via the \fBSSL_CTX_set_client_hello_cb\fR\|(3)
+function.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBSSL_CTX_set_session_id_context()\fR and \fBSSL_set_session_id_context()\fR
@@ -132,7 +141,7 @@ The operation succeeded.
 \&\fBssl\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2001\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

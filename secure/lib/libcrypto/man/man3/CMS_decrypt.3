@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_DECRYPT 3ossl"
-.TH CMS_DECRYPT 3ossl 2026-04-07 3.5.6 OpenSSL
+.TH CMS_DECRYPT 3ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -129,7 +129,7 @@ then the above behaviour is modified and an error \fBis\fR returned if no
 recipient encrypted key can be decrypted \fBwithout\fR generating a random
 content encryption key. Applications should use this flag with
 \&\fBextreme caution\fR especially in automated gateways as it can leave them
-open to attack.
+open to attack. See \fBEVP_PKEY_decrypt\fR\|(3) for more details.
 .PP
 It is possible to determine the correct recipient key by other means (for
 example looking them up in a database) and setting them in the CMS structure
@@ -161,14 +161,14 @@ The lack of single pass processing and the need to hold all data in memory as
 mentioned in \fBCMS_verify()\fR also applies to \fBCMS_decrypt()\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBERR_get_error\fR\|(3), \fBCMS_encrypt\fR\|(3)
+\&\fBERR_get_error\fR\|(3), \fBCMS_encrypt\fR\|(3), \fBEVP_PKEY_decrypt\fR\|(3)
 .SH HISTORY
 .IX Header "HISTORY"
 \&\fBCMS_decrypt_set1_pkey_and_peer()\fR and \fBCMS_decrypt_set1_password()\fR
 were added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2008\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

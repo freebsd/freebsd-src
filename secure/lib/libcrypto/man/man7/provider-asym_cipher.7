@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PROVIDER-ASYM_CIPHER 7ossl"
-.TH PROVIDER-ASYM_CIPHER 7ossl 2026-04-07 3.5.6 OpenSSL
+.TH PROVIDER-ASYM_CIPHER 7ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -98,9 +98,9 @@ provider\-asym_cipher \- The asym_cipher library <\-> provider functions
 \&
 \& /* Asymmetric Cipher parameters */
 \& int OSSL_FUNC_asym_cipher_get_ctx_params(void *ctx, OSSL_PARAM params[]);
-\& const OSSL_PARAM *OSSL_FUNC_asym_cipher_gettable_ctx_params(void *provctx);
+\& const OSSL_PARAM *OSSL_FUNC_asym_cipher_gettable_ctx_params(void *ctx, void *provctx);
 \& int OSSL_FUNC_asym_cipher_set_ctx_params(void *ctx, const OSSL_PARAM params[]);
-\& const OSSL_PARAM *OSSL_FUNC_asym_cipher_settable_ctx_params(void *provctx);
+\& const OSSL_PARAM *OSSL_FUNC_asym_cipher_settable_ctx_params(void *ctx, void *provctx);
 .Ve
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
@@ -325,7 +325,7 @@ The Asymmetric Cipher Parameters "fips\-indicator" and "key\-check"
 were added in OpenSSL 3.4.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

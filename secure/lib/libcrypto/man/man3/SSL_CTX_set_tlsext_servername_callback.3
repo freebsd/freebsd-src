@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_TLSEXT_SERVERNAME_CALLBACK 3ossl"
-.TH SSL_CTX_SET_TLSEXT_SERVERNAME_CALLBACK 3ossl 2026-04-07 3.5.6 OpenSSL
+.TH SSL_CTX_SET_TLSEXT_SERVERNAME_CALLBACK 3ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -91,7 +91,11 @@ still necessary in order to acknowledge the servername requested by the client.
 \&\fBSSL_CTX_set_tlsext_servername_callback()\fR sets the application callback \fBcb\fR
 used by a server to perform any actions or configuration required based on
 the servername extension received in the incoming connection. When \fBcb\fR
-is NULL, SNI is not used.
+is NULL, SNI is not used. Note that this callback occurs late in the processing
+of the ClientHello message. In particular it happens after session resumption
+has occurred, and so typically this callback should not call functions such
+as \fBSSL_set_session_id_context\fR\|(3) since it is too late to affect the session
+resumption for the current handshake.
 .PP
 The servername callback should return one of the following values:
 .IP SSL_TLSEXT_ERR_OK 4
@@ -204,7 +208,7 @@ servername requested in the original handshake. This has now been changed to
 NULL.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2017\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

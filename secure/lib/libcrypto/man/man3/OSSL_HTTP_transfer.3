@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_HTTP_TRANSFER 3ossl"
-.TH OSSL_HTTP_TRANSFER 3ossl 2026-04-07 3.5.6 OpenSSL
+.TH OSSL_HTTP_TRANSFER 3ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -224,6 +224,7 @@ pre\-established with a TLS proxy using the HTTP CONNECT method,
 optionally using proxy client credentials \fIproxyuser\fR and \fIproxypass\fR,
 to connect with TLS protection ultimately to \fIserver\fR and \fIport\fR.
 If the \fIport\fR argument is NULL or the empty string it defaults to "443".
+The \fIserver\fR and \fIport\fR arguments must not contain CR or LF characters.
 If the \fItimeout\fR parameter is > 0 this indicates the maximum number of
 seconds the connection setup is allowed to take.
 A value <= 0 enables waiting indefinitely, i.e., no timeout.
@@ -244,6 +245,8 @@ else HTTP POST with the contents of \fIreq\fR and optional \fIcontent_type\fR, w
 the length of the data in \fIreq\fR does not need to be determined in advance: the
 BIO will be read on\-the\-fly while sending the request, which supports streaming.
 The optional list \fIheaders\fR may contain additional custom HTTP header lines.
+The \fIpath\fR, \fIheaders\fR names and values, and \fIcontent_type\fR must not contain
+CR or LF characters.
 The \fImax_resp_len\fR parameter specifies the maximum allowed
 response content length, where the value 0 indicates no limit.
 For the meaning of the \fIexpected_content_type\fR, \fIexpect_asn1\fR, \fItimeout\fR,
@@ -336,7 +339,7 @@ The caller is responsible for freeing the BIO pointer obtained.
 All the functions described here were added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
