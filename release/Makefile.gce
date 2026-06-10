@@ -87,6 +87,7 @@ gce-do-upload-${_FS}:
 		--architecture=${GCE_ARCH} \
 		--family=${GCE_FAMILY}-${_FS}${GCE_FAMILY_SUFX} ${GCE_LICENSE} \
 		--guest-os-features=GVNIC,UEFI_COMPATIBLE \
+		--labels=public-image=true \
 		--source-uri gs://${GCE_BUCKET}/${GCE_TARGET_${_FS}}.tar.gz
 	touch ${.OBJDIR}/${.TARGET}
 .endfor
