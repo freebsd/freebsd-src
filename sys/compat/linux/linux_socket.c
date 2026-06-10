@@ -591,9 +591,7 @@ linux_to_bsd_tcp_sockopt(int opt)
 	case LINUX_TCP_KEEPCNT:
 		return (TCP_KEEPCNT);
 	case LINUX_TCP_INFO:
-		LINUX_RATELIMIT_MSG_OPT1(
-		    "unsupported TCP socket option TCP_INFO (%d)", opt);
-		return (-2);
+		return (TCP_INFO);
 	case LINUX_TCP_MD5SIG:
 		return (TCP_MD5SIG);
 	case LINUX_TCP_USER_TIMEOUT:
@@ -2407,6 +2405,42 @@ linux_getsockopt_so_linger(struct thread *td,
 	return (linux_sockopt_copyout(td, &ling, len, args));
 }
 
+static int
+linux_getsockopt_tcp_info(struct thread *td,
+    struct linux_getsockopt_args *args)
+{
+	struct tcp_info tinfo;
+	struct l_tcp_info l_tinfo;
+	socklen_t len;
+	int error;
+
+	len = sizeof(tinfo);
+	error = kern_getsockopt(td, args->s, IPPROTO_TCP, TCP_INFO, &tinfo,
+	    UIO_SYSSPACE, &len);
+	if (error != 0)
+		return (error);
+	memset(&l_tinfo, 0, sizeof(l_tinfo));
+	l_tinfo.tcpi_state         = tinfo.tcpi_state;
+	l_tinfo.tcpi_options       = tinfo.tcpi_options;
+	l_tinfo.tcpi_snd_wscale    = tinfo.tcpi_snd_wscale;
+	l_tinfo.tcpi_rcv_wscale    = tinfo.tcpi_rcv_wscale;
+	l_tinfo.tcpi_rto           = tinfo.tcpi_rto;
+	l_tinfo.tcpi_snd_mss       = tinfo.tcpi_snd_mss;
+	l_tinfo.tcpi_rcv_mss       = tinfo.tcpi_rcv_mss;
+	l_tinfo.tcpi_last_data_recv = tinfo.tcpi_last_data_recv;
+	l_tinfo.tcpi_rtt           = tinfo.tcpi_rtt;
+	l_tinfo.tcpi_rttvar        = tinfo.tcpi_rttvar;
+	l_tinfo.tcpi_snd_ssthresh  = tinfo.tcpi_snd_ssthresh;
+	l_tinfo.tcpi_snd_cwnd      = tinfo.tcpi_snd_cwnd;
+	l_tinfo.tcpi_rcv_space     = tinfo.tcpi_rcv_space;
+	l_tinfo.tcpi_snd_wnd       = tinfo.tcpi_snd_wnd;
+	l_tinfo.tcpi_rcv_ooopack   = tinfo.tcpi_rcv_ooopack;
+	/* Eqivalent */
+	l_tinfo.tcpi_total_retrans = tinfo.tcpi_snd_rexmitpack;
+
+	return (linux_sockopt_copyout(td, &l_tinfo, len, args));
+}
+
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 {
@@ -2505,6 +2539,13 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		name = linux_to_bsd_ip6_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
+		switch (args->optname) {
+		case LINUX_TCP_INFO:
+			return (linux_getsockopt_tcp_info(td, args));
+			/* NOTREACHED */
+		default:
+			break;
+		}
 		name = linux_to_bsd_tcp_sockopt(args->optname);
 		switch (name) {
 		case TCP_MAXUNACKTIME:

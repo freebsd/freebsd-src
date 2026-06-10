@@ -360,6 +360,98 @@ struct l_ifreq {
 };
 
 /*
+ * Linux TCP_INFO structure as of v6.19.8
+ *
+ * Comments indicate last field for the given kernel version
+ */
+struct l_tcp_info {
+	uint8_t	tcpi_state;
+	uint8_t	tcpi_ca_state;
+	uint8_t	tcpi_retransmits;
+	uint8_t	tcpi_probes;
+	uint8_t	tcpi_backoff;
+	uint8_t	tcpi_options;
+	uint8_t	tcpi_snd_wscale : 4, tcpi_rcv_wscale : 4;
+	uint8_t	tcpi_delivery_rate_app_limited:1, tcpi_fastopen_client_fail:2;
+
+	uint32_t	tcpi_rto;
+	uint32_t	tcpi_ato;
+	uint32_t	tcpi_snd_mss;
+	uint32_t	tcpi_rcv_mss;
+
+	uint32_t	tcpi_unacked;
+	uint32_t	tcpi_sacked;
+	uint32_t	tcpi_lost;
+	uint32_t	tcpi_retrans;
+	uint32_t	tcpi_fackets;
+
+	uint32_t	tcpi_last_data_sent;
+	uint32_t	tcpi_last_ack_sent;
+	uint32_t	tcpi_last_data_recv;
+	uint32_t	tcpi_last_ack_recv;
+
+	uint32_t	tcpi_pmtu;
+	uint32_t	tcpi_rcv_ssthresh;
+	uint32_t	tcpi_rtt;
+	uint32_t	tcpi_rttvar;
+	uint32_t	tcpi_snd_ssthresh;
+	uint32_t	tcpi_snd_cwnd;
+	uint32_t	tcpi_advmss;
+	uint32_t	tcpi_reordering;
+
+	uint32_t	tcpi_rcv_rtt;
+	uint32_t	tcpi_rcv_space;
+
+	uint32_t	tcpi_total_retrans;		/* v3.6 */
+
+	uint64_t	tcpi_pacing_rate;
+	uint64_t	tcpi_max_pacing_rate;	/* v3.14 */
+	uint64_t	tcpi_bytes_acked;
+	uint64_t	tcpi_bytes_received;
+	uint32_t	tcpi_segs_out;
+	uint32_t	tcpi_segs_in;					/* v4.1 */
+
+	uint32_t	tcpi_notsent_bytes;
+	uint32_t	tcpi_min_rtt;
+	uint32_t	tcpi_data_segs_in;
+	uint32_t	tcpi_data_segs_out;		/* v4.5 */
+
+	uint64_t   tcpi_delivery_rate;	/* v4.8 */
+
+	uint64_t	tcpi_busy_time;
+	uint64_t	tcpi_rwnd_limited;
+	uint64_t	tcpi_sndbuf_limited;	/* v4.9 */
+
+	uint32_t	tcpi_delivered;
+	uint32_t	tcpi_delivered_ce;		/* v4.16 */
+
+	uint64_t	tcpi_bytes_sent;
+	uint64_t	tcpi_bytes_retrans;
+	uint32_t	tcpi_dsack_dups;
+	uint32_t	tcpi_reord_seen;			/* v4.18 */
+
+	uint32_t	tcpi_rcv_ooopack;
+
+	uint32_t	tcpi_snd_wnd;					/* v5.3 */
+	uint32_t	tcpi_rcv_wnd;
+
+	uint32_t  tcpi_rehash;					/* v6.1 */
+
+	uint16_t	tcpi_total_rto;
+	uint16_t	tcpi_total_rto_recoveries;
+	uint32_t	tcpi_total_rto_time;	/* v6.6 */
+	uint32_t	tcpi_received_ce;
+	uint32_t	tcpi_delivered_e1_bytes;
+	uint32_t	tcpi_delivered_e0_bytes;
+	uint32_t	tcpi_delivered_ce_bytes;
+	uint32_t	tcpi_received_e1_bytes;
+	uint32_t	tcpi_received_e0_bytes;
+	uint32_t	tcpi_received_ce_bytes;
+	uint16_t	tcpi_accecn_fail_mode;
+	uint16_t	tcpi_accecn_opt_seen;	/* v6.17 */
+};
+
+/*
  * Define here members which are not exists in the FreeBSD struct ifreq.
  */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
