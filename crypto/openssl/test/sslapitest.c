@@ -1451,6 +1451,144 @@ end:
     return testresult;
 }
 
+#ifndef OSSL_NO_USABLE_TLS1_3
+/*
+ * Test kTLS with SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER: retry SSL_write() after
+ * SSL_ERROR_WANT_WRITE using a different buffer pointer (same content) and
+ * verify that the data arrives intact.
+ */
+static int test_ktls_moving_write_buffer(void)
+{
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    BIO *bio_retry = NULL, *bio_orig = NULL;
+    int testresult = 0, cfd = -1, sfd = -1;
+    unsigned char *buf_orig = NULL, *buf_retry = NULL;
+    unsigned char outbuf[1024];
+    const size_t bufsz = sizeof(outbuf);
+    size_t written, readbytes, totread = 0, i;
+
+    /* kTLS requires real sockets */
+    if (!TEST_true(create_test_sockets(&cfd, &sfd, SOCK_STREAM, NULL)))
+        goto end;
+
+    /* Skip if the kernel does not support kTLS */
+    if (!ktls_chk_platform(cfd)) {
+        testresult = TEST_skip("Kernel does not support KTLS");
+        goto end;
+    }
+
+    if (!TEST_true(create_ssl_ctx_pair(libctx,
+            TLS_server_method(), TLS_client_method(),
+            TLS1_3_VERSION, TLS1_3_VERSION,
+            &sctx, &cctx, cert, privkey)))
+        goto end;
+
+    if (!TEST_true(SSL_CTX_set_ciphersuites(cctx, "TLS_AES_128_GCM_SHA256"))
+        || !TEST_true(SSL_CTX_set_ciphersuites(sctx, "TLS_AES_128_GCM_SHA256")))
+        goto end;
+
+    if (!TEST_true(create_ssl_objects2(sctx, cctx, &serverssl,
+            &clientssl, sfd, cfd)))
+        goto end;
+
+    /* Enable kTLS on the writing side (client) */
+    if (!TEST_true(SSL_set_options(clientssl, SSL_OP_ENABLE_KTLS)))
+        goto end;
+
+    SSL_set_mode(clientssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+    SSL_set_mode(clientssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+
+    if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+        goto end;
+
+    /* Get a reference to the original BIO to replace it later. */
+    bio_orig = SSL_get_wbio(clientssl);
+    if (!TEST_ptr(bio_orig) || !TEST_true(BIO_up_ref(bio_orig))) {
+        bio_orig = NULL;
+        goto end;
+    }
+
+    /* Skip if kTLS TX was not activated for this cipher */
+    if (!BIO_get_ktls_send(bio_orig)) {
+        testresult = TEST_skip("kTLS send not supported");
+        goto end;
+    }
+
+    /* Swap write BIO to force WANT_WRITE */
+    bio_retry = BIO_new(bio_s_always_retry());
+    if (!TEST_ptr(bio_retry))
+        goto end;
+
+    SSL_set0_wbio(clientssl, bio_retry);
+    bio_retry = NULL; /* ownership transferred to clientssl */
+
+    /* Allocate two buffers with identical content but different addresses */
+    buf_orig = OPENSSL_malloc(bufsz);
+    buf_retry = OPENSSL_malloc(bufsz);
+    if (!TEST_ptr(buf_orig) || !TEST_ptr(buf_retry))
+        goto end;
+
+    for (i = 0; i < bufsz; i++)
+        buf_orig[i] = buf_retry[i] = (unsigned char)(i & 0xff);
+
+    /* First write attempt - will fail with WANT_WRITE */
+    if (!TEST_false(SSL_write_ex(clientssl, buf_orig, bufsz, &written))
+        || !TEST_int_eq(SSL_get_error(clientssl, 0), SSL_ERROR_WANT_WRITE))
+        goto end;
+
+    /* Restore the real socket BIO so the retry can actually send data */
+    SSL_set0_wbio(clientssl, bio_orig);
+    bio_orig = NULL;
+
+    /* Poison and free the original buffer */
+    memset(buf_orig, 0xDE, bufsz);
+    OPENSSL_free(buf_orig);
+    buf_orig = NULL;
+
+    /* Retry with a different buffer pointer */
+    if (!TEST_true(SSL_write_ex(clientssl, buf_retry, bufsz, &written)))
+        goto end;
+
+    /* Read the data on the server side */
+    totread = 0;
+    while (totread < bufsz) {
+        if (!SSL_read_ex(serverssl, outbuf + totread, bufsz - totread,
+                &readbytes)) {
+            if (!TEST_int_eq(SSL_get_error(serverssl, 0), SSL_ERROR_WANT_READ))
+                goto end;
+        } else {
+            totread += readbytes;
+        }
+    }
+
+    /* Verify data integrity */
+    if (!TEST_mem_eq(buf_retry, bufsz, outbuf, totread))
+        goto end;
+
+    testresult = 1;
+end:
+    OPENSSL_free(buf_orig);
+    OPENSSL_free(buf_retry);
+    if (clientssl != NULL) {
+        SSL_shutdown(clientssl);
+        SSL_free(clientssl);
+    }
+    if (serverssl != NULL) {
+        SSL_shutdown(serverssl);
+        SSL_free(serverssl);
+    }
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+    BIO_free_all(bio_orig);
+    if (cfd != -1)
+        close(cfd);
+    if (sfd != -1)
+        close(sfd);
+    return testresult;
+}
+#endif /* !defined(OSSL_NO_USABLE_TLS1_3) */
+
 static struct ktls_test_cipher {
     int tls_version;
     const char *cipher;
@@ -3136,6 +3274,52 @@ static int test_ssl_bio_change_rbio(void)
 static int test_ssl_bio_change_wbio(void)
 {
     return execute_test_ssl_bio(0, CHANGE_WBIO);
+}
+
+/*
+ * Regression for GH #30458: tls_set1_bio() must BIO_free_all the old chain
+ * when the write BIO is replaced, not only the top BIO.
+ */
+static int test_ssl_set_wbio_chain_no_leak(void)
+{
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
+    BIO *bio = NULL, *filter = NULL, *chain1 = NULL;
+    int testresult = 0;
+
+    if (!TEST_ptr(ctx = SSL_CTX_new_ex(libctx, NULL, TLS_method())))
+        goto end;
+    if (!TEST_ptr(ssl = SSL_new(ctx)))
+        goto end;
+
+    if (!TEST_ptr(filter = BIO_new(BIO_f_nbio_test())))
+        goto end;
+    if (!TEST_ptr(bio = BIO_new(BIO_s_mem()))) {
+        BIO_free(filter);
+        filter = NULL;
+        goto end;
+    }
+    if (!TEST_ptr(chain1 = BIO_push(filter, bio))) {
+        BIO_free_all(filter);
+        filter = bio = NULL;
+        goto end;
+    }
+    filter = bio = NULL;
+
+    SSL_set0_wbio(ssl, chain1);
+    chain1 = NULL;
+    SSL_set0_wbio(ssl, NULL);
+
+    testresult = 1;
+
+end:
+    BIO_free(filter);
+    BIO_free(bio);
+    BIO_free(chain1);
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+
+    return testresult;
 }
 
 #if !defined(OPENSSL_NO_TLS1_2) || defined(OSSL_NO_USABLE_TLS1_3)
@@ -8784,6 +8968,106 @@ end:
 }
 
 /*
+ * Callback that always returns ABORT for successfully decrypted tickets.
+ * Used by test_ticket_abort_session_leak to exercise the error path in
+ * tls_parse_ctos_psk() that previously leaked the SSL_SESSION.
+ */
+static SSL_TICKET_RETURN dec_tick_abort_cb(SSL *s, SSL_SESSION *ss,
+    const unsigned char *keyname,
+    size_t keyname_length,
+    SSL_TICKET_STATUS status,
+    void *arg)
+{
+    if (status == SSL_TICKET_SUCCESS || status == SSL_TICKET_SUCCESS_RENEW)
+        return SSL_TICKET_RETURN_ABORT;
+
+    return SSL_TICKET_RETURN_IGNORE_RENEW;
+}
+
+/*
+ * Test that returning SSL_TICKET_RETURN_ABORT from the decrypt ticket callback
+ * during TLS 1.3 resumption does not leak the SSL_SESSION allocated by
+ * tls_decrypt_ticket().  Before the fix, tls_parse_ctos_psk() would execute a
+ * bare "return 0" instead of "goto err", bypassing SSL_SESSION_free(sess).
+ * When run under LeakSanitizer the leaked session will be reported.
+ */
+static int test_ticket_abort_session_leak(void)
+{
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    SSL_SESSION *clntsess = NULL;
+    int testresult = 0;
+
+#ifdef OSSL_NO_USABLE_TLS1_3
+    return 1;
+#endif
+
+    if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
+            TLS_client_method(),
+            TLS1_3_VERSION, TLS1_3_VERSION,
+            &sctx, &cctx, cert, privkey)))
+        goto end;
+
+    if (!TEST_true(SSL_CTX_set_session_cache_mode(sctx, SSL_SESS_CACHE_OFF)))
+        goto end;
+
+    /* First handshake: use the normal gen/dec callbacks to get a ticket */
+    if (!TEST_true(SSL_CTX_set_session_ticket_cb(sctx, gen_tick_cb, dec_tick_cb,
+            NULL)))
+        goto end;
+
+    gen_tick_called = dec_tick_called = tick_key_cb_called = 0;
+    tick_dec_ret = SSL_TICKET_RETURN_USE_RENEW;
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
+            NULL, NULL))
+        || !TEST_true(create_ssl_connection(serverssl, clientssl,
+            SSL_ERROR_NONE)))
+        goto end;
+
+    clntsess = SSL_get1_session(clientssl);
+    if (!TEST_ptr(clntsess))
+        goto end;
+
+    SSL_shutdown(clientssl);
+    SSL_shutdown(serverssl);
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    serverssl = clientssl = NULL;
+
+    /*
+     * Second handshake (resumption): switch to the abort callback.
+     * The server will decrypt the ticket, allocate an SSL_SESSION, then the
+     * callback returns ABORT.  The handshake must fail, and the session
+     * allocated inside tls_decrypt_ticket() must be freed (not leaked).
+     */
+    if (!TEST_true(SSL_CTX_set_session_ticket_cb(sctx, gen_tick_cb,
+            dec_tick_abort_cb, NULL)))
+        goto end;
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
+            NULL, NULL))
+        || !TEST_true(SSL_set_session(clientssl, clntsess)))
+        goto end;
+
+    /* Resumption should fail because the callback aborts */
+    if (!TEST_false(create_ssl_connection(serverssl, clientssl,
+            SSL_ERROR_SSL)))
+        goto end;
+
+    testresult = 1;
+
+end:
+    SSL_SESSION_free(clntsess);
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+
+    return testresult;
+}
+
+/*
  * Test incorrect shutdown.
  * Test 0: client does not shutdown properly,
  *         server does not set SSL_OP_IGNORE_UNEXPECTED_EOF,
@@ -9146,6 +9430,17 @@ static int cert_cb(SSL *s, void *arg)
         int rv;
 
         chain = sk_X509_new_null();
+#ifndef OPENSSL_NO_ML_DSA
+        if (SSL_version(s) >= TLS1_3_VERSION
+            && fips_provider_version_ge(libctx, 3, 5, 0)) {
+            if (!TEST_ptr(chain)
+                || !TEST_true(load_chain("root-ml-dsa-44-cert.pem", NULL, NULL, chain))
+                || !TEST_true(load_chain("server-ml-dsa-44-cert.pem", NULL, &x509, NULL))
+                || !TEST_true(load_chain("server-ml-dsa-44-key.pem", &pkey, NULL, NULL)))
+                goto out;
+            goto check;
+        }
+#endif
         if (!TEST_ptr(chain)
             || !TEST_true(load_chain("ca-cert.pem", NULL, NULL, chain))
             || !TEST_true(load_chain("root-cert.pem", NULL, NULL, chain))
@@ -9154,6 +9449,10 @@ static int cert_cb(SSL *s, void *arg)
             || !TEST_true(load_chain("p256-ee-rsa-ca-key.pem", &pkey,
                 NULL, NULL)))
             goto out;
+
+#ifndef OPENSSL_NO_ML_DSA
+    check:
+#endif
         rv = SSL_check_chain(s, x509, pkey, chain);
         /*
          * If the cert doesn't show as valid here (e.g., because we don't
@@ -9196,7 +9495,7 @@ static int test_cert_cb_int(int prot, int tst)
     int testresult = 0, ret;
 
 #ifdef OPENSSL_NO_EC
-    /* We use an EC cert in these tests, so we skip in a no-ec build */
+    /* We use an EC cert in these tests with TLS 1.2 or absent ML-DSA */
     if (tst >= 3)
         return 1;
 #endif
@@ -9227,21 +9526,34 @@ static int test_cert_cb_int(int prot, int tst)
             NULL, NULL)))
         goto end;
 
-    if (tst == 4) {
+    if (tst == 3) {
+        if (!TEST_true(SSL_set1_sigalgs_list(clientssl,
+                "rsa_pss_rsae_sha256:rsa_pkcs1_sha256:"
+                "?ecdsa_secp256r1_sha256:?mldsa44"))
+            || !TEST_true(SSL_set1_sigalgs_list(serverssl,
+                "rsa_pss_rsae_sha256:rsa_pkcs1_sha256:"
+                "?ecdsa_secp256r1_sha256:?mldsa44")))
+            goto end;
+    } else if (tst == 4) {
         /*
          * We cause SSL_check_chain() to fail by specifying sig_algs that
-         * the chain doesn't meet (the root uses an RSA cert)
+         * the chain doesn't meet (root either RSA or ML-DSA).
          */
         if (!TEST_true(SSL_set1_sigalgs_list(clientssl,
-                "ecdsa_secp256r1_sha256")))
+                "ecdsa_secp256r1_sha256"))
+            || !TEST_true(SSL_set1_sigalgs_list(serverssl,
+                "?ecdsa_secp256r1_sha256:?mldsa44")))
             goto end;
     } else if (tst == 5) {
         /*
          * We cause SSL_check_chain() to fail by specifying sig_algs that
-         * the ee cert doesn't meet (the ee uses an ECDSA cert)
+         * the ee cert doesn't meet (the ee uses an ECDSA or ML-DSA cert)
          */
         if (!TEST_true(SSL_set1_sigalgs_list(clientssl,
-                "rsa_pss_rsae_sha256:rsa_pkcs1_sha256")))
+                "rsa_pss_rsae_sha256:rsa_pkcs1_sha256"))
+            || !TEST_true(SSL_set1_sigalgs_list(serverssl,
+                "rsa_pss_rsae_sha256:rsa_pkcs1_sha256:"
+                "?ecdsa_secp256r1_sha256:?mldsa44")))
             goto end;
     }
 
@@ -10595,11 +10907,13 @@ static int secret_cb(SSL *s, void *secretin, int *secret_len,
 /*
  * Test the session_secret_cb which is designed for use with EAP-FAST
  */
-static int test_session_secret_cb(void)
+static int test_session_secret_cb(int idx)
 {
     SSL_CTX *cctx = NULL, *sctx = NULL;
     SSL *clientssl = NULL, *serverssl = NULL;
-    SSL_SESSION *secret_sess = NULL;
+    SSL_SESSION *secret_sess = NULL, *server_sess = NULL;
+    unsigned int sess_len;
+    const unsigned char *sessid;
     int testresult = 0;
 
     if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
@@ -10633,12 +10947,20 @@ static int test_session_secret_cb(void)
             NULL, NULL)))
         goto end;
 
-    /*
-     * No session ids for EAP-FAST - otherwise the state machine gets very
-     * confused.
-     */
-    if (!TEST_true(SSL_SESSION_set1_id(secret_sess, NULL, 0)))
-        goto end;
+    if (idx == 0) {
+        /*
+         * Normal case: no session id
+         */
+        if (!TEST_true(SSL_SESSION_set1_id(secret_sess, NULL, 0)))
+            goto end;
+    } else {
+        /*
+         * Set an explicit session id. Normally we don't support this, but we
+         * can get away with it if we reset the session id later
+         */
+        if (!TEST_true(SSL_SESSION_set1_id(secret_sess, (unsigned char *)"sessionid", 9)))
+            goto end;
+    }
 
     if (!TEST_true(SSL_set_min_proto_version(clientssl, TLS1_2_VERSION))
         || !TEST_true(SSL_set_max_proto_version(serverssl, TLS1_2_VERSION))
@@ -10649,13 +10971,39 @@ static int test_session_secret_cb(void)
         || !TEST_true(SSL_set_session(clientssl, secret_sess)))
         goto end;
 
+    if (idx == 1) {
+        /*
+         * We just send the ClientHello here. We expect this to fail with
+         * SSL_ERROR_WANT_READ
+         */
+        if (!TEST_int_le(SSL_connect(clientssl), 0))
+            goto end;
+        /* Reset the session id to avoid confusing the state machine */
+        if (!TEST_true(SSL_SESSION_set1_id(secret_sess, NULL, 0)))
+            goto end;
+    }
     if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
         goto end;
 
+    /* Check that session resumption was successful */
+    if (!TEST_true(SSL_session_reused(clientssl))
+        || !TEST_true(SSL_session_reused(serverssl)))
+        goto end;
+
+    if (idx == 1) {
+        server_sess = SSL_get1_session(serverssl);
+        if (!TEST_ptr(server_sess))
+            goto end;
+        sessid = SSL_SESSION_get_id(server_sess, &sess_len);
+
+        if (!TEST_mem_eq(sessid, sess_len, "sessionid", 9))
+            goto end;
+    }
     testresult = 1;
 
 end:
     SSL_SESSION_free(secret_sess);
+    SSL_SESSION_free(server_sess);
     SSL_free(serverssl);
     SSL_free(clientssl);
     SSL_CTX_free(sctx);
@@ -12996,6 +13344,42 @@ static int alert_cb(SSL *s, unsigned char alert_code, void *arg)
     return 1;
 }
 
+/* Extension id reserved for private use by IANA */
+#define TEST_TLS_EXTENSION_ID 65282
+
+static int add_ext_cb_called = 0;
+static int parse_ext_cb_called = 0;
+
+static int add_old_ext(SSL *s, unsigned int ext_type,
+    const unsigned char **out, size_t *outlen,
+    int *al, void *add_arg)
+{
+    static const unsigned char data = 0xff;
+
+    add_ext_cb_called++;
+    *out = &data;
+    *outlen = 1;
+    return 1;
+}
+
+static void free_old_ext(SSL *s, unsigned int ext_type,
+    const unsigned char *out, void *add_arg)
+{
+    /* Do nothing */
+}
+
+static int parse_old_ext(SSL *s, unsigned int ext_type,
+    const unsigned char *in, size_t inlen,
+    int *al, void *parse_arg)
+{
+    parse_ext_cb_called++;
+    if (inlen != 1 || *in != 0xff) {
+        *al = SSL_AD_DECODE_ERROR;
+        return 0;
+    }
+    return 1;
+}
+
 /*
  * Test the QUIC TLS API
  * Test 0: Normal run
@@ -13050,9 +13434,30 @@ static int test_quic_tls(int idx)
         goto end;
 
     if (idx == 5) {
+        static int dummy = 1;
+
         if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(), NULL,
                 TLS1_3_VERSION, 0,
                 &sctx2, NULL, cert, privkey)))
+            goto end;
+
+        /*
+         * We add an old style custom extension to ensure that it gets correctly
+         * handled when we copy QUIC's connection specific custom extensions.
+         */
+        add_ext_cb_called = 0;
+        parse_ext_cb_called = 0;
+        if (!TEST_true(SSL_CTX_add_client_custom_ext(cctx,
+                TEST_TLS_EXTENSION_ID,
+                add_old_ext, free_old_ext, &dummy, parse_old_ext, &dummy)))
+            goto end;
+        if (!TEST_true(SSL_CTX_add_server_custom_ext(sctx,
+                TEST_TLS_EXTENSION_ID,
+                add_old_ext, free_old_ext, &dummy, parse_old_ext, &dummy)))
+            goto end;
+        if (!TEST_true(SSL_CTX_add_server_custom_ext(sctx2,
+                TEST_TLS_EXTENSION_ID,
+                add_old_ext, free_old_ext, &dummy, parse_old_ext, &dummy)))
             goto end;
 
         /* Set up SNI */
@@ -13143,6 +13548,18 @@ static int test_quic_tls(int idx)
         || !TEST_true(cdata.renc_level == OSSL_RECORD_PROTECTION_LEVEL_APPLICATION)
         || !TEST_true(cdata.wenc_level == OSSL_RECORD_PROTECTION_LEVEL_APPLICATION))
         goto end;
+
+    /*
+     * We only expect the add cb to have actually been called because we are
+     * using the old style callbacks that only apply to TLSv1.2. Since we are
+     * using TLSv1.3 here, the add will be called for the ClientHello but
+     * nothing else.
+     */
+    if (idx == 5) {
+        if (!TEST_int_eq(add_ext_cb_called, 1)
+            || !TEST_int_eq(parse_ext_cb_called, 0))
+            goto end;
+    }
 
     testresult = 1;
 end:
@@ -13732,6 +14149,9 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_ktls, NUM_KTLS_TEST_CIPHERS * 4);
     ADD_ALL_TESTS(test_ktls_sendfile, NUM_KTLS_TEST_CIPHERS * 2);
 #endif
+#ifndef OSSL_NO_USABLE_TLS1_3
+    ADD_TEST(test_ktls_moving_write_buffer);
+#endif
 #endif
     ADD_TEST(test_large_message_tls);
     ADD_TEST(test_large_message_tls_read_ahead);
@@ -13758,6 +14178,7 @@ int setup_tests(void)
     ADD_TEST(test_ssl_bio_pop_ssl_bio);
     ADD_TEST(test_ssl_bio_change_rbio);
     ADD_TEST(test_ssl_bio_change_wbio);
+    ADD_TEST(test_ssl_set_wbio_chain_no_leak);
 #if !defined(OPENSSL_NO_TLS1_2) || defined(OSSL_NO_USABLE_TLS1_3)
     ADD_ALL_TESTS(test_set_sigalgs, OSSL_NELEM(testsigalgs) * 2);
     ADD_TEST(test_keylog);
@@ -13844,6 +14265,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_ssl_pending, 2);
     ADD_ALL_TESTS(test_ssl_get_shared_ciphers, OSSL_NELEM(shared_ciphers_data));
     ADD_ALL_TESTS(test_ticket_callbacks, 20);
+    ADD_TEST(test_ticket_abort_session_leak);
     ADD_ALL_TESTS(test_shutdown, 7);
     ADD_TEST(test_async_shutdown);
     ADD_ALL_TESTS(test_incorrect_shutdown, 2);
@@ -13868,7 +14290,7 @@ int setup_tests(void)
 #endif
 #ifndef OPENSSL_NO_TLS1_2
     ADD_TEST(test_ssl_dup);
-    ADD_TEST(test_session_secret_cb);
+    ADD_ALL_TESTS(test_session_secret_cb, 2);
 #ifndef OPENSSL_NO_DH
     ADD_ALL_TESTS(test_set_tmp_dh, 11);
     ADD_ALL_TESTS(test_dh_auto, 7);

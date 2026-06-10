@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,22 +35,8 @@ static unsigned char out[80];
 static const unsigned char text[] = "Hello to all people out there";
 
 static const unsigned char cfb_key[16] = {
-    0xe1,
-    0xf0,
-    0xc3,
-    0xd2,
-    0xa5,
-    0xb4,
-    0x87,
-    0x96,
-    0x69,
-    0x78,
-    0x4b,
-    0x5a,
-    0x2d,
-    0x3c,
-    0x0f,
-    0x1e,
+    0xe1, 0xf0, 0xc3, 0xd2, 0xa5, 0xb4, 0x87, 0x96, 0x69, 0x78,
+    0x4b, 0x5a, 0x2d, 0x3c, 0x0f, 0x1e
 };
 static const unsigned char cfb_iv[80] = {
     0x34, 0x12, 0x78, 0x56, 0xab, 0x90, 0xef, 0xcd

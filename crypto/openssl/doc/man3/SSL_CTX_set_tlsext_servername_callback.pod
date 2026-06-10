@@ -29,7 +29,11 @@ still necessary in order to acknowledge the servername requested by the client.
 SSL_CTX_set_tlsext_servername_callback() sets the application callback B<cb>
 used by a server to perform any actions or configuration required based on
 the servername extension received in the incoming connection. When B<cb>
-is NULL, SNI is not used.
+is NULL, SNI is not used. Note that this callback occurs late in the processing
+of the ClientHello message. In particular it happens after session resumption
+has occurred, and so typically this callback should not call functions such
+as L<SSL_set_session_id_context(3)> since it is too late to affect the session
+resumption for the current handshake.
 
 The servername callback should return one of the following values:
 
@@ -169,7 +173,7 @@ NULL.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
