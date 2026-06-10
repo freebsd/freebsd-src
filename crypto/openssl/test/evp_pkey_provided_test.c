@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -902,34 +902,9 @@ static int test_fromdata_dh_named_group(void)
      *                 -pkeyopt priv_len:224 -text
      */
     static const unsigned char priv_data[] = {
-        0x88,
-        0x85,
-        0xe7,
-        0x9f,
-        0xee,
-        0x6d,
-        0xc5,
-        0x7c,
-        0x78,
-        0xaf,
-        0x63,
-        0x5d,
-        0x38,
-        0x2a,
-        0xd0,
-        0xed,
-        0x56,
-        0x4b,
-        0x47,
-        0x21,
-        0x2b,
-        0xfa,
-        0x55,
-        0xfa,
-        0x87,
-        0xe8,
-        0xa9,
-        0x7b,
+        0x88, 0x85, 0xe7, 0x9f, 0xee, 0x6d, 0xc5, 0x7c, 0x78, 0xaf,
+        0x63, 0x5d, 0x38, 0x2a, 0xd0, 0xed, 0x56, 0x4b, 0x47, 0x21,
+        0x2b, 0xfa, 0x55, 0xfa, 0x87, 0xe8, 0xa9, 0x7b
     };
     static const unsigned char pub_data[] = {
         0x00, 0xd6, 0x2d, 0x77, 0xe0, 0xd3, 0x7d, 0xf8, 0xeb, 0x98, 0x50, 0xa1,
@@ -1142,34 +1117,9 @@ static int test_fromdata_dh_fips186_4(void)
      *                 -pkeyopt group:ffdhe2048 -pkeyopt priv_len:224 -text
      */
     static const unsigned char priv_data[] = {
-        0x88,
-        0x85,
-        0xe7,
-        0x9f,
-        0xee,
-        0x6d,
-        0xc5,
-        0x7c,
-        0x78,
-        0xaf,
-        0x63,
-        0x5d,
-        0x38,
-        0x2a,
-        0xd0,
-        0xed,
-        0x56,
-        0x4b,
-        0x47,
-        0x21,
-        0x2b,
-        0xfa,
-        0x55,
-        0xfa,
-        0x87,
-        0xe8,
-        0xa9,
-        0x7b,
+        0x88, 0x85, 0xe7, 0x9f, 0xee, 0x6d, 0xc5, 0x7c, 0x78, 0xaf,
+        0x63, 0x5d, 0x38, 0x2a, 0xd0, 0xed, 0x56, 0x4b, 0x47, 0x21,
+        0x2b, 0xfa, 0x55, 0xfa, 0x87, 0xe8, 0xa9, 0x7b
     };
     static const unsigned char pub_data[] = {
         0xd6, 0x2d, 0x77, 0xe0, 0xd3, 0x7d, 0xf8, 0xeb, 0x98, 0x50, 0xa1, 0x82,
@@ -1648,6 +1598,11 @@ static int test_fromdata_ec(void)
     BIGNUM *a = NULL;
     BIGNUM *b = NULL;
     BIGNUM *p = NULL;
+    OSSL_PARAM probe[2] = {
+        OSSL_PARAM_DEFN(OSSL_PKEY_PARAM_PRIV_KEY, OSSL_PARAM_UNSIGNED_INTEGER,
+            NULL, 0),
+        OSSL_PARAM_END
+    };
 
     if (!TEST_ptr(bld = OSSL_PARAM_BLD_new()))
         goto err;
@@ -1733,6 +1688,18 @@ static int test_fromdata_ec(void)
 
         if (!TEST_BN_eq(group_p, p) || !TEST_BN_eq(group_a, a)
             || !TEST_BN_eq(group_b, b))
+            goto err;
+
+        /*
+         * Probe the EC private-key BN length via the explicit-params
+         * path; with NULL data, return_size receives the required
+         * (padded) buffer size, which equals the byte length of the
+         * group order.
+         */
+        probe[0].return_size = OSSL_PARAM_UNMODIFIED;
+        if (!TEST_true(EVP_PKEY_get_params(pk, probe))
+            || !TEST_size_t_eq(probe[0].return_size,
+                BN_num_bytes(EC_GROUP_get0_order(group))))
             goto err;
 
         EC_GROUP_free(group);

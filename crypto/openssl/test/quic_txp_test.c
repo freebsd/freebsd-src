@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,22 +27,8 @@ static const QUIC_CONN_ID cid_1 = {
 };
 
 static const unsigned char reset_token_1[16] = {
-    0x99,
-    0x88,
-    0x77,
-    0x66,
-    0x55,
-    0x44,
-    0x33,
-    0x22,
-    0x11,
-    0xaa,
-    0xbb,
-    0xcc,
-    0xdd,
-    0xee,
-    0xff,
-    0x12,
+    0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0xaa,
+    0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x12
 };
 
 static const unsigned char secret_1[32] = {
