@@ -110,7 +110,7 @@ wdog_kern_pat(u_int utim)
 	if (utim == WD_TO_NEVER)
 		sbt = 0;
 	else
-		sbt = nstosbt(1 << utim);
+		sbt = nstosbt(1ULL << utim);
 
 	return (wdog_kern_pat_sbt(sbt));
 }
@@ -142,7 +142,7 @@ wdog_kern_pat_sbt(sbintime_t sbt)
 
 	/* legacy uses power-of-2-nanoseconds time. */
 	if (sbt != 0) {
-		pow2ns = flsl(sbttons(sbt));
+		pow2ns = flsll(sbttons(sbt));
 	}
 	if (wd_last_sbt != sbt) {
 		wd_last_u = pow2ns;
