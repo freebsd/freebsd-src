@@ -145,7 +145,10 @@ ID0open(const char *path, int flags, ...)
 
   va_start(ap, flags);
   ID0set0();
-  ret = open(path, flags, va_arg(ap, int));
+  if (flags & O_CREAT)
+	  ret = open(path, flags, va_arg(ap, int));
+  else
+	  ret = open(path, flags);
   log_Printf(LogID0, "%d = open(\"%s\", %d)\n", ret, path, flags);
   ID0setuser();
   va_end(ap);
