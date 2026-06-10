@@ -14,7 +14,7 @@ MT76_USB=		0
 # General options for common code so drivers can check.
 MT76_ACPI?=		0
 MT76_CONFIG_PM?=	0
-MT76_DEBUGFS?=		0
+MT76_DEBUGFS?=		1
 MT76_SOC_WED?=		0
 
 # Other
