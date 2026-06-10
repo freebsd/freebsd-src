@@ -294,7 +294,7 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 				in.body.read.offset,
 				in.body.read.size);
 			if (verbosity > 1)
-				printf(" flags=%#x", in.body.read.flags);
+				printf(" fh=%#" PRIx64 " flags=%#x", in.body.read.fh, in.body.read.flags);
 			break;
 		case FUSE_READDIR:
 			printf(" fh=%#" PRIx64 " offset=%" PRIu64 " size=%u",

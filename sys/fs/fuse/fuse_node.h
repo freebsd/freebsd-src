@@ -71,8 +71,6 @@
 #include "fuse_file.h"
 
 #define	FN_REVOKED		0x00000020
-#define	FN_FLUSHINPROG		0x00000040
-#define	FN_FLUSHWANT		0x00000080
 /* 
  * Indicates that the file's size is dirty; the kernel has changed it but not
  * yet send the change to the daemon.  When this bit is set, the
