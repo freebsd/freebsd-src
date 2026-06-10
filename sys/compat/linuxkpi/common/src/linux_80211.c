@@ -8798,13 +8798,13 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
-		printf("TX-STATUS: %s: hw %p skb %p status %d : flags %#x "
+		printf("TX-STATUS: %s: hw %p skb %p status %d : flags %b "
 		    "band %u hw_queue %u tx_time_est %d : "
 		    "rates [ %u %u %#x, %u %u %#x, %u %u %#x, %u %u %#x ] "
 		    "ack_signal %u ampdu_ack_len %u ampdu_len %u antenna %u "
-		    "tx_time %u flags %#x "
+		    "tx_time %u flags %b "
 		    "status_driver_data [ %p %p ]\n",
-		    __func__, hw, skb, status, info->flags,
+		    __func__, hw, skb, status, info->flags, IEEE80211_TX_INFO_FLAGS,
 		    info->band, info->hw_queue, info->tx_time_est,
 		    info->status.rates[0].idx, info->status.rates[0].count,
 		    info->status.rates[0].flags,
@@ -8816,7 +8816,7 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		    info->status.rates[3].flags,
 		    info->status.ack_signal, info->status.ampdu_ack_len,
 		    info->status.ampdu_len, info->status.antenna,
-		    info->status.tx_time, info->status.flags,
+		    info->status.tx_time, info->status.flags, IEEE80211_TX_STATUS_FLAGS,
 		    info->status.status_driver_data[0],
 		    info->status.status_driver_data[1]);
 #endif
