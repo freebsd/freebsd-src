@@ -1139,7 +1139,8 @@ fail1:
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
-	PROC_TREE_UNREF(newproc);
+	if (newproc != NULL)
+		PROC_TREE_UNREF(newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);
