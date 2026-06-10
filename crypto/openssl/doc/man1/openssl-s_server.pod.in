@@ -334,8 +334,8 @@ Download CRLs from distribution points given in CDP extensions of certificates
 
 =item B<-verifyCAfile> I<filename>
 
-A file in PEM format CA containing trusted certificates to use
-for verifying client certificates.
+A file in PEM format containing trusted CA certificates (root and/or
+intermediate) used to verify the client certificate chain.
 
 =item B<-verifyCApath> I<dir>
 
@@ -348,6 +348,15 @@ see L<openssl-verify(1)> for more information.
 
 The URI of a store containing trusted certificates to use
 for verifying client certificates.
+
+When any of B<-verifyCAfile>, B<-verifyCApath>, or B<-verifyCAstore> is
+specified, they are loaded into a separate verification store (via
+L<SSL_CTX_set1_verify_cert_store(3)>) and used for client certificate
+verification instead of the store built from B<-CAfile>, B<-CApath>, and
+B<-CAstore>. Note that B<-CAfile> is the sole source of acceptable issuing
+CA names sent to the client in the Certificate Request message during the
+handshake; B<-CApath>, B<-CAstore>, and the B<-verifyCA*> options do not
+contribute to this list.
 
 =item B<-chainCAfile> I<file>
 
@@ -763,6 +772,10 @@ has been negotiated, and early data is enabled on the server. A full handshake
 is forced if a session ticket is used a second or subsequent time. Any early
 data that was sent will be rejected.
 
+Note that the server manages an internal cache of session tickets. If a client
+closes the connection without sending the close_notify alert, the
+corresponding session ticket is removed and a full handshake is forced.
+
 =item B<-tfo>
 
 Enable acceptance of TCP Fast Open (RFC7413) connections.
@@ -927,7 +940,7 @@ options were added in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

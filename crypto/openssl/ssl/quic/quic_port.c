@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -551,9 +551,10 @@ static QUIC_CHANNEL *port_make_channel(QUIC_PORT *port, SSL *tls, OSSL_QRX *qrx,
      * If we're using qlog, make sure the tls get further configured properly
      */
     ch->use_qlog = 1;
-    if (ch->tls->ctx->qlog_title != NULL) {
+    if (ch->tls != NULL && ch->tls->ctx->qlog_title != NULL) {
+        OPENSSL_free(ch->qlog_title);
         if ((ch->qlog_title = OPENSSL_strdup(ch->tls->ctx->qlog_title)) == NULL) {
-            OPENSSL_free(ch);
+            ossl_quic_channel_free(ch);
             return NULL;
         }
     }
@@ -731,7 +732,7 @@ static void port_rx_pre(QUIC_PORT *port)
  * to *new_ch.
  */
 static void port_bind_channel(QUIC_PORT *port, const BIO_ADDR *peer,
-    const QUIC_CONN_ID *scid, const QUIC_CONN_ID *dcid,
+    const QUIC_CONN_ID *dcid,
     const QUIC_CONN_ID *odcid, OSSL_QRX *qrx,
     QUIC_CHANNEL **new_ch)
 {
@@ -768,8 +769,10 @@ static void port_bind_channel(QUIC_PORT *port, const BIO_ADDR *peer,
         if (!ossl_quic_provide_initial_secret(ch->port->engine->libctx,
                 ch->port->engine->propq,
                 dcid, /* is_server */ 1,
-                ch->qrx, NULL))
+                ch->qrx, NULL)) {
+            ossl_quic_channel_free(ch);
             return;
+        }
 
     if (odcid->id_len != 0) {
         /*
@@ -778,7 +781,7 @@ static void port_bind_channel(QUIC_PORT *port, const BIO_ADDR *peer,
          * See RFC 9000 s. 8.1
          */
         ossl_quic_tx_packetiser_set_validated(ch->txp);
-        if (!ossl_quic_bind_channel(ch, peer, scid, dcid, odcid)) {
+        if (!ossl_quic_bind_channel(ch, peer, dcid, odcid)) {
             ossl_quic_channel_free(ch);
             return;
         }
@@ -787,7 +790,7 @@ static void port_bind_channel(QUIC_PORT *port, const BIO_ADDR *peer,
          * No odcid means we didn't do server validation, so we need to
          * generate a cid via ossl_quic_channel_on_new_conn
          */
-        if (!ossl_quic_channel_on_new_conn(ch, peer, scid, dcid)) {
+        if (!ossl_quic_channel_on_new_conn(ch, peer, dcid)) {
             ossl_quic_channel_free(ch);
             return;
         }
@@ -1334,8 +1337,7 @@ static void port_send_version_negotiation(QUIC_PORT *port, BIO_ADDR *peer,
  *   configurable in the future.
  */
 static int port_validate_token(QUIC_PKT_HDR *hdr, QUIC_PORT *port,
-    BIO_ADDR *peer, QUIC_CONN_ID *odcid,
-    QUIC_CONN_ID *scid, uint8_t *gen_new_token)
+    BIO_ADDR *peer, QUIC_CONN_ID *odcid, uint8_t *gen_new_token)
 {
     int ret = 0;
     QUIC_VALIDATION_TOKEN token = { 0 };
@@ -1395,11 +1397,9 @@ static int port_validate_token(QUIC_PKT_HDR *hdr, QUIC_PORT *port,
                 != 0)
             goto err;
         *odcid = token.odcid;
-        *scid = token.rscid;
     } else {
         if (!ossl_quic_lcidm_get_unused_cid(port->lcidm, odcid))
             goto err;
-        *scid = hdr->src_conn_id;
     }
 
     /*
@@ -1488,7 +1488,7 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
     PACKET pkt;
     QUIC_PKT_HDR hdr;
     QUIC_CHANNEL *ch = NULL, *new_ch = NULL;
-    QUIC_CONN_ID odcid, scid;
+    QUIC_CONN_ID odcid;
     uint8_t gen_new_token = 0;
     OSSL_QRX *qrx = NULL, *qrx_ref;
     OSSL_QRX *qrx_src = NULL;
@@ -1516,6 +1516,13 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
      * we assume this is an attempt to make a new connection.
      */
     if (!port->allow_incoming)
+        goto undesirable;
+
+    /*
+     * packet without destination connection id is invalid/corrupted here.
+     * stop wasting CPU cycles now.
+     */
+    if (dcid == NULL)
         goto undesirable;
 
     /*
@@ -1638,8 +1645,7 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
      */
     if (hdr.token != NULL
         && port_validate_token(&hdr, port, &e->peer,
-               &odcid, &scid,
-               &gen_new_token)
+               &odcid, &gen_new_token)
             == 0) {
         /*
          * RFC 9000 s 8.1.3
@@ -1688,7 +1694,7 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
         if (qrx_ref == NULL)
             goto undesirable;
     }
-    port_bind_channel(port, &e->peer, &scid, &hdr.dst_conn_id,
+    port_bind_channel(port, &e->peer, &hdr.dst_conn_id,
         &odcid, qrx_ref, &new_ch);
 
     /*

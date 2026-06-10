@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1625,27 +1625,19 @@ err:
 
 /* is_minimal=0 test */
 static const unsigned char non_minimal_1[] = {
-    0x40,
-    0x00,
+    0x40, 0x00
 };
 
 static const unsigned char non_minimal_2[] = {
-    0x40,
-    0x3F,
+    0x40, 0x3F
 };
 
 static const unsigned char non_minimal_3[] = {
-    0x80,
-    0x00,
-    0x00,
-    0x00,
+    0x80, 0x00, 0x00, 0x00
 };
 
 static const unsigned char non_minimal_4[] = {
-    0x80,
-    0x00,
-    0x3F,
-    0xFF,
+    0x80, 0x00, 0x3F, 0xFF
 };
 
 static const unsigned char non_minimal_5[] = {
