@@ -5844,6 +5844,10 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	}
 	info->control.vif = vif;
 
+	/* IMPROVE("MLO"); */
+	info->control.flags |=
+	    u32_encode_bits(IEEE80211_LINK_UNSPECIFIED, IEEE80211_TX_CTRL_MLO_LINK);
+
 	if (tid != IEEE80211_NONQOS_TID) {
 		struct ieee80211_tx_ampdu *tap;
 
