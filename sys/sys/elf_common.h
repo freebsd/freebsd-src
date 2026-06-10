@@ -863,6 +863,9 @@ typedef struct {
 #define	NT_ARM_SVE	0x405	/* ARM SVE registers */
 #define	NT_ARM_ADDR_MASK	0x406	/* arm64 address mask (e.g. for TBI) */
 
+/* FDO (freedesktop.org) note types. */
+#define	NT_FDO_PACKAGING_METADATA		0xcafe1a7e
+
 /* GNU note types. */
 #define	NT_GNU_ABI_TAG		1
 #define	NT_GNU_HWCAP		2
