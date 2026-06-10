@@ -121,4 +121,9 @@ void debugfs_create_str(const char *name, umode_t mode, struct dentry *parent,
 struct dentry *debugfs_create_blob(const char *name, umode_t mode,
     struct dentry *parent, struct debugfs_blob_wrapper *value);
 
+struct device;
+struct dentry;
+void debugfs_create_devm_seqfile(struct device *, const char *, struct dentry *,
+    int (*)(struct seq_file *, void *));
+
 #endif /* _LINUXKPI_LINUX_DEBUGFS_H_ */
