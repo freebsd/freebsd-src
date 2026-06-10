@@ -352,4 +352,7 @@ MODULE_DEPEND(mt7921_usb, mt76_core, 1, 1, 1);
 MODULE_DEPEND(mt7921_usb, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mt7921_usb, linuxkpi_wlan, 1, 1, 1);
 MODULE_DEPEND(mt7921_usb, linuxkpi_usb, 1, 1, 1);
+#if defined(CONFIG_MT7921_DEBUGFS)
+MODULE_DEPEND(mt7921_usb, lindebugfs, 1, 1, 1);
+#endif
 #endif
