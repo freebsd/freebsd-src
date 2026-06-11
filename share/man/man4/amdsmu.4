@@ -5,7 +5,7 @@
 .\" This software was developed by Aymeric Wibo <obiwac@freebsd.org>
 .\" under sponsorship from the FreeBSD Foundation.
 .\"
-.Dd May 30, 2026
+.Dd June 11, 2026
 .Dt AMDSMU 4
 .Os
 .Sh NAME
@@ -171,13 +171,14 @@ driver first appeared in
 .An Aymeric Wibo Aq Mt obiwac@FreeBSD.org
 .Pp
 Development was sponsored by the
+.An -nosplit
 .An FreeBSD Foundation .
 .Sh BUGS
 The
 .Va dev.amdsmu.%d.ip_blocks.USB4_0.last_time
 value typically contains garbage and should not be relied upon.
 .Pp
-USB4 blocking S0i3 entry appears to be reported through the
+USB4 blocking S0i3 entry appears to be reported by the
 .Va USB3_0
 through
 .Va USB3_4
