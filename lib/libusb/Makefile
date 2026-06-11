@@ -194,6 +194,7 @@ MLINKS += libusb20.3 libusb20_tr_get_actual_length.3
 MLINKS += libusb20.3 libusb20_tr_get_max_frames.3
 MLINKS += libusb20.3 libusb20_tr_get_max_packet_length.3
 MLINKS += libusb20.3 libusb20_tr_get_max_total_length.3
+MLINKS += libusb20.3 libusb20_tr_get_flags.3
 MLINKS += libusb20.3 libusb20_tr_get_status.3
 MLINKS += libusb20.3 libusb20_tr_pending.3
 MLINKS += libusb20.3 libusb20_tr_callback_wrapper.3

@@ -62,6 +62,8 @@ USB access library (libusb -lusb)
 .Ft uint32_t
 .Fn libusb20_tr_get_max_total_length "struct libusb20_transfer *xfer"
 .Ft uint8_t
+.Fn libusb20_tr_get_flags "struct libusb20_transfer *xfer"
+.Ft uint8_t
 .Fn libusb20_tr_get_status "struct libusb20_transfer *xfer"
 .Ft uint8_t
 .Fn libusb20_tr_pending "struct libusb20_transfer *xfer"
@@ -356,6 +358,15 @@ length of the SETUP packet, 8 bytes, which is part of frame zero.
 The returned value of this function is always aligned to the maximum
 packet size, wMaxPacketSize, of the endpoint which the USB transfer is
 bound to.
+.
+.Pp
+.
+.Fn libusb20_tr_get_flags
+will return the transfer flags of an USB transfer.
+.
+Flag values are defined by a set of LIBUSB20_TRANSFER_XXX enums and can
+be set using
+.Fn libusb20_tr_set_flags .
 .
 .Pp
 .

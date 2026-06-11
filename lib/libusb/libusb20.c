@@ -370,6 +370,12 @@ libusb20_tr_set_flags(struct libusb20_transfer *xfer, uint8_t flags)
 	return;
 }
 
+uint8_t
+libusb20_tr_get_flags(struct libusb20_transfer *xfer)
+{
+	return (xfer->flags);
+}
+
 uint32_t
 libusb20_tr_get_length(struct libusb20_transfer *xfer, uint16_t frIndex)
 {

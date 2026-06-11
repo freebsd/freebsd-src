@@ -214,6 +214,7 @@ uint32_t libusb20_tr_get_actual_length(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_max_frames(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_max_packet_length(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_max_total_length(struct libusb20_transfer *xfer);
+uint8_t	libusb20_tr_get_flags(struct libusb20_transfer *xfer);
 uint8_t	libusb20_tr_get_status(struct libusb20_transfer *xfer);
 uint8_t	libusb20_tr_pending(struct libusb20_transfer *xfer);
 void	libusb20_tr_callback_wrapper(struct libusb20_transfer *xfer);
