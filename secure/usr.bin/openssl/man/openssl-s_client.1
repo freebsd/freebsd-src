@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-S_CLIENT 1ossl"
-.TH OPENSSL-S_CLIENT 1ossl 2026-04-07 3.0.20 OpenSSL
+.TH OPENSSL-S_CLIENT 1ossl 2026-06-09 3.0.21 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -429,6 +429,12 @@ see \fBopenssl\-verify\fR\|(1) for more information.
 .IX Item "-verifyCAstore uri"
 The URI of a store containing trusted certificates to use
 for verifying the server\*(Aqs certificate.
+.Sp
+When any of \fB\-verifyCAfile\fR, \fB\-verifyCApath\fR, or \fB\-verifyCAstore\fR is
+specified, they are loaded into a separate verification store (via
+\&\fBSSL_CTX_set1_verify_cert_store\fR\|(3)) and used for server certificate
+verification instead of the store built from \fB\-CAfile\fR, \fB\-CApath\fR, and
+\&\fB\-CAstore\fR.
 .IP "\fB\-chainCAfile\fR \fIfile\fR" 4
 .IX Item "-chainCAfile file"
 A file in PEM format containing trusted certificates to use
@@ -771,9 +777,6 @@ The \fIprotocols\fR list is a comma\-separated list of protocol names that
 the client should advertise support for. The list should contain the most
 desirable protocols first.  Protocol names are printable ASCII strings,
 for example "http/1.1" or "spdy/3".
-An empty list of protocols is treated specially and will cause the
-client to advertise support for the TLS extension but disconnect just
-after receiving ServerHello with a list of server supported protocols.
 The flag \fB\-nextprotoneg\fR cannot be specified if \fB\-tls1_3\fR is used.
 .IP "\fB\-ct\fR, \fB\-noct\fR" 4
 .IX Item "-ct, -noct"
@@ -1023,7 +1026,7 @@ The \fB\-certform\fR option has become obsolete in OpenSSL 3.0.0 and has no effe
 The \fB\-engine\fR option was deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

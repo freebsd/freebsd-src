@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-SMIME 1ossl"
-.TH OPENSSL-SMIME 1ossl 2026-04-07 3.0.20 OpenSSL
+.TH OPENSSL-SMIME 1ossl 2026-06-09 3.0.21 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -151,8 +151,9 @@ openssl\-smime \- S/MIME command
 \&\fIrecipcert\fR ...
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
-This command handles S/MIME mail. It can encrypt, decrypt, sign
-and verify S/MIME messages.
+This command handles S/MIME according to RFC 2311 (1998) with no CMS support. 
+It can encrypt, decrypt, sign and verify S/MIME 2.0 messages. For newer messages
+use the OpenSSL CMS tool.
 .SH OPTIONS
 .IX Header "OPTIONS"
 There are six operation options that set the type of operation to be performed.
@@ -556,7 +557,7 @@ The \-no_alt_chains option was added in OpenSSL 1.1.0.
 The \fB\-engine\fR option was deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

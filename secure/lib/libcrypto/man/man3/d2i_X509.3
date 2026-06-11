@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "D2I_X509 3ossl"
-.TH D2I_X509 3ossl 2026-04-07 3.0.20 OpenSSL
+.TH D2I_X509 3ossl 2026-06-09 3.0.21 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -436,21 +436,29 @@ encoding.  Unlike the C structures which can have pointers to sub\-objects
 within, the DER is a serialized encoding, suitable for sending over the
 network, writing to a file, and so on.
 .PP
-\&\fBd2i_\fR\f(BITYPE\fR() attempts to decode \fIlen\fR bytes at \fI*ppin\fR. If successful a
-pointer to the \fB\fR\f(BITYPE\fR\fB\fR structure is returned and \fI*ppin\fR is incremented to
-the byte following the parsed data.  If \fIa\fR is not NULL then a pointer
-to the returned structure is also written to \fI*a\fR.  If an error occurred
-then NULL is returned. The caller retains ownership of the
-returned object and needs to free it when it is no longer needed, e.g.
-using \fBX509_free()\fR for X509 objects or \fBDSA_SIG_free()\fR for DSA_SIG objects.
+\&\fBd2i_\fR\f(BITYPE\fR() attempts to decode \fIlen\fR bytes at \fI*ppin\fR.
+When there is no error, a pointer to a \fB\fR\f(BITYPE\fR\fB\fR object is returned and \fI*ppin\fR is
+incremented to the byte following the parsed data.
+The caller owns the returned object and needs to free it when it is no longer needed, 
+e.g., via \fBX509_free()\fR for \fBX509\fR objects.
 .PP
-On a successful return, if \fI*a\fR is not NULL then it is assumed that \fI*a\fR
-contains a valid \fR\f(BITYPE\fR\fB\fR structure and an attempt is made to reuse it.
-For \fB\fR\f(BITYPE\fR\fB\fR structures where it matters it is possible to set up a library
-context on the decoded structure this way (see the \fBEXAMPLES\fR section).
-However using the "reuse" capability for other purposes is \fBstrongly
-discouraged\fR (see \fBBUGS\fR below, and the discussion in the \fBRETURN VALUES\fR
-section).
+If either \fIa\fR or \fI*a\fR is NULL, then fresh storage is allocated for the
+returned object, and if \fIa\fR is not NULL then \fI*a\fR is set equal to the
+returned pointer.
+.PP
+When both \fIa\fR and \fI*a\fR are not NULL, \fI*a\fR MUST be a pointer to an
+existing \fITYPE\fR object, which is reused to hold the decoded result.
+On error (NULL return value), the object is freed and \fI*a\fR is set to NULL.
+.PP
+From OpenSSL 3.x onwards, reuse is only supported when \fI*a\fR points to a newly
+allocated, and not otherwise modified, \fITYPE\fR object.
+Allocation can be via one of the various \fB_ex()\fR routines, which make it possible
+to associate the allocated object with a chosen \fIlibctx\fR (library context)
+or \fIpropq\fR (property query), see the \fBEXAMPLES\fR section.
+No other reuse is supported (see \fBBUGS\fR below, and the discussion in the
+\&\fBRETURN VALUES\fR section).
+The returned object is not suitable for another reuse: each reuse attempt MUST
+start with a newly allocated object.
 .PP
 \&\fBd2i_\fR\f(BITYPE\fR\fB_bio\fR() is similar to \fBd2i_\fR\f(BITYPE\fR() except it attempts
 to parse data from BIO \fIbp\fR.
@@ -665,7 +673,7 @@ serialization. This is because some objects cache the encoding for
 efficiency reasons.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 1998\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

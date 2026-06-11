@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -713,7 +713,8 @@ int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
         /* if it went, fall through and send more stuff */
     }
 
-    if (s->rlayer.numwpipes < numpipes) {
+    if (s->rlayer.numwpipes != numpipes) {
+        ssl3_release_write_buffer(s);
         if (!ssl3_setup_write_buffer(s, numpipes, 0)) {
             /* SSLfatal() already called */
             return -1;
