@@ -293,7 +293,7 @@ freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
 						NULL, 0);
 		}
 	}
-	return (ret);
+	return (ret == 0 ? EJUSTRETURN : ret);
 }
 
 int
@@ -341,7 +341,7 @@ freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
 			}
 		}
 	}
-	return (ret);
+	return (ret == 0 ? EJUSTRETURN : ret);
 }
 
 void
