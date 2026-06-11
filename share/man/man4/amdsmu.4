@@ -1,0 +1,184 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 The FreeBSD Foundation
+.\"
+.\" This software was developed by Aymeric Wibo <obiwac@freebsd.org>
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.Dd May 30, 2026
+.Dt AMDSMU 4
+.Os
+.Sh NAME
+.Nm amdsmu
+.Nd device driver for the AMD System Management Unit
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device amdsmu"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr rc.conf 5 :
+.Bd -literal -offset indent
+kld_list="amdsmu"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the System Management Unit
+.Pq SMU
+for certain AMD mobile processors.
+The SMU is a firmware component responsible for managing system power states,
+and in particular for coordinating entry into and exit from the
+S0ix suspend-to-idle sleep states.
+.Pp
+The driver communicates with the SMU over a register-based mailbox interface
+to query firmware version information, retrieve power management metrics,
+and hint to the SMU when the system is entering or leaving sleep.
+The driver registers ACPI suspend and resume event handlers to send the
+sleep hint to the SMU and refresh metrics after each sleep cycle.
+.Pp
+The following AMD processors are supported:
+.Pp
+.Bl -bullet -compact
+.It
+Cezanne
+.It
+Rembrandt
+.It
+Phoenix
+.It
+Krackan Point
+.El
+.Sh SYSCTL VARIABLES
+The driver exposes information through the following
+.Xr sysctl 8
+variables under the
+.Va dev.amdsmu.%d
+tree.
+.Ss Firmware version
+.Bl -tag -width indent
+.It Va dev.amdsmu.%d.program
+SMU program number.
+.It Va dev.amdsmu.%d.version_major
+SMU firmware major version number.
+.It Va dev.amdsmu.%d.version_minor
+SMU firmware minor version number.
+.It Va dev.amdsmu.%d.version_revision
+SMU firmware revision number.
+.El
+.Ss Power management metrics
+The following variables are located under
+.Va dev.amdsmu.%d.metrics
+and reflect measurements from the most recent sleep cycle.
+Time values are in microseconds.
+.Bl -tag -width indent
+.It Va dev.amdsmu.%d.metrics.table_version
+Version of the SMU metrics table reported by the firmware.
+.It Va dev.amdsmu.%d.metrics.hint_count
+Number of times the sleep hint has been sent to the SMU.
+Incremented each time the system enters suspend-to-idle.
+.It Va dev.amdsmu.%d.metrics.s0i3_last_entry_status
+Set to 1 if the last S0i3 entry was successful, 0 otherwise.
+Useful for diagnosing failed S0i3 transitions.
+.It Va dev.amdsmu.%d.metrics.time_last_in_s0i2
+Time spent in S0i2 during the last sleep cycle.
+This is not relevant most of the time.
+.It Va dev.amdsmu.%d.metrics.time_last_entering_s0i3
+Time spent transitioning into S0i3 during the last sleep cycle.
+.It Va dev.amdsmu.%d.metrics.total_time_entering_s0i3
+Total cumulative time spent transitioning into S0i3 across all sleep cycles.
+.It Va dev.amdsmu.%d.metrics.time_last_resuming
+Time spent resuming from the last sleep cycle.
+.It Va dev.amdsmu.%d.metrics.total_time_resuming
+Total cumulative time spent resuming from sleep.
+.It Va dev.amdsmu.%d.metrics.time_last_in_s0i3
+Time spent in S0i3 during the last sleep cycle.
+.It Va dev.amdsmu.%d.metrics.total_time_in_s0i3
+Total cumulative time spent in S0i3 across all sleep cycles.
+.It Va dev.amdsmu.%d.metrics.time_last_in_sw_drips
+Time the system spent awake
+.Pq i.e., not in S0i3
+during the last sleep cycle.
+The term "SW DRIPS" is a bit of a misnomer.
+.It Va dev.amdsmu.%d.metrics.total_time_in_sw_drips
+Total cumulative time the system has spent awake during sleep cycles.
+.El
+.Ss IP blocks
+Each hardware IP block that the SMU tracks is exposed under
+.Va dev.amdsmu.%d.ip_blocks.<name> ,
+where
+.Sy <name>
+is one of
+.Sy DISPLAY ,
+.Sy CPU ,
+.Sy GFX ,
+.Sy VDD ,
+.Sy ACP ,
+.Sy VCN ,
+.Sy ISP ,
+.Sy NBIO ,
+.Sy DF ,
+.Sy LAPIC ,
+.Sy USB3_0
+through
+.Sy USB3_4 ,
+.Sy USB4_0 ,
+.Sy USB4_1 ,
+.Sy MPM ,
+.Sy JPEG ,
+.Sy IPU ,
+.Sy UMSCH ,
+or
+.Sy VPE
+(availability depends on the processor model).
+Each IP block node contains the following variables:
+.Bl -tag -width indent
+.It Va dev.amdsmu.%d.ip_blocks.<name>.active
+Boolean indicating whether this IP block is active
+i.e., whether it could potentially constrain S0i3 entry.
+.It Va dev.amdsmu.%d.ip_blocks.<name>.last_time
+Time in microseconds that this IP block spent active
+.Pq and thus blocking S0i3 entry
+during the last sleep cycle.
+If this value equals the value of
+.Va dev.amdsmu.%d.metrics.time_last_in_sw_drips ,
+then this IP block was preventing entry into S0i3 during the last cycle.
+.El
+.Ss Idlemask
+.Bl -tag -width indent
+.It Va dev.amdsmu.%d.idlemask
+Raw idlemask value read from the SMU.
+This is an undocumented register intended to assist AMD in debugging
+power management issues.
+Its interpretation is hardware-specific and not defined by any public
+specification.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr amdsmn 4 ,
+.Xr amdtemp 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+.An Aymeric Wibo Aq Mt obiwac@FreeBSD.org
+.Pp
+Development was sponsored by the
+.An FreeBSD Foundation .
+.Sh BUGS
+The
+.Va dev.amdsmu.%d.ip_blocks.USB4_0.last_time
+value typically contains garbage and should not be relied upon.
+.Pp
+USB4 blocking S0i3 entry appears to be reported through the
+.Va USB3_0
+through
+.Va USB3_4
+IP block metrics rather than through the dedicated USB4 blocks.

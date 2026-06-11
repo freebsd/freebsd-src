@@ -50,6 +50,7 @@ MAN=	aac.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \
 	${_amdsmn.4} \
+	${_amdsmu.4} \
 	${_amdtemp.4} \
 	${_bxe.4} \
 	${_aout.4} \
@@ -855,6 +856,7 @@ _aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdsmn.4=	amdsmn.4
+_amdsmu.4=	amdsmu.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _atopcase.4=	atopcase.4
