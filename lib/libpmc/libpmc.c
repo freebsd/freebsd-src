@@ -700,13 +700,14 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
     struct pmc_op_pmcallocate *pmc_config)
 {
 	char *e, *p, *q;
-	uint64_t ctl, ldlat;
+	uint64_t ctl, ctl2, ldlat, fetchlat;
 	u_int ibs_features;
 	u_int regs[4];
 
 	pmc_config->pm_caps |=
 	    (PMC_CAP_SYSTEM | PMC_CAP_EDGE | PMC_CAP_PRECISE);
 	pmc_config->pm_md.pm_ibs.ibs_ctl = 0;
+	pmc_config->pm_md.pm_ibs.ibs_ctl2 = 0;
 
 	/* setup parsing tables */
 	switch (pe) {
@@ -735,6 +736,7 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	/* parse parameters */
 	ctl = 0;
+	ctl2 = 0;
 	if (pe == PMC_EV_IBS_FETCH) {
 		while ((p = strsep(&ctrspec, ",")) != NULL) {
 			if (KWMATCH(p, "l3miss")) {
@@ -744,6 +746,37 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				ctl |= IBS_FETCH_CTL_L3MISSONLY;
 			} else if (KWMATCH(p, "randomize")) {
 				ctl |= IBS_FETCH_CTL_RANDOMIZE;
+			} else if (KWPREFIXMATCH(p, "fetchlat=")) {
+				if ((ibs_features & CPUID_IBSID_FETCHLATFILTERING) == 0)
+					return (-1);
+
+				q = strchr(p, '=');
+				if (*++q == '\0')
+					return (-1);
+
+				fetchlat = strtoull(q, &e, 0);
+				if (e == q || *e != '\0')
+					return (-1);
+
+				if (fetchlat < IBS_FETCH_CTL2_LAT_MIN ||
+				    fetchlat > IBS_FETCH_CTL2_LAT_MAX)
+					return (-1);
+				if ((fetchlat % IBS_FETCH_CTL2_LAT_STEP) != 0)
+					return (-1);
+
+				/* clear prior threshold */
+				ctl2 &= ~IBS_FETCH_CTL2_LATFILTERMASK;
+				ctl2 |= IBS_FETCH_CTL2_LAT_TO_CTL(fetchlat);
+			} else if (KWMATCH(p, "usr")) {
+				if ((ibs_features & CPUID_IBSID_ADDRBIT63FILTERING) == 0)
+					return (-1);
+
+				pmc_config->pm_caps |= PMC_CAP_USER;
+			} else if (KWMATCH(p, "os")) {
+				if ((ibs_features & CPUID_IBSID_ADDRBIT63FILTERING) == 0)
+					return (-1);
+
+				pmc_config->pm_caps |= PMC_CAP_SYSTEM;
 			} else {
 				return (-1);
 			}
@@ -783,6 +816,9 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				 */
 				if (ldlat < 128 || ldlat > 2048)
 					return (-1);
+
+				/* clear prior ldlat threshold */
+				ctl &= ~IBS_OP_CTL_LDLATTRSHMASK;
 				ctl |= IBS_OP_CTL_LDLAT_TO_CTL(ldlat);
 				ctl |= IBS_OP_CTL_L3MISSONLY | IBS_OP_CTL_LATFLTEN;
 			} else if (KWMATCH(p, "opcount")) {
@@ -790,6 +826,21 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
 					return (-1);
 
 				ctl |= IBS_OP_CTL_COUNTERCONTROL;
+			} else if (KWMATCH(p, "usr")) {
+				if ((ibs_features & CPUID_IBSID_ADDRBIT63FILTERING) == 0)
+					return (-1);
+
+				pmc_config->pm_caps |= PMC_CAP_USER;
+			} else if (KWMATCH(p, "os")) {
+				if ((ibs_features & CPUID_IBSID_ADDRBIT63FILTERING) == 0)
+					return (-1);
+
+				pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+			} else if (KWMATCH(p, "streamstore")) {
+				if ((ibs_features & CPUID_IBSID_STRMSTANDRMTSOCKET) == 0)
+					return (-1);
+
+				ctl2 |= IBS_OP_CTL2_STRMSTFILTER;
 			} else {
 				return (-1);
 			}
@@ -806,8 +857,8 @@ ibs_allocate_pmc(enum pmc_event pe, char *ctrspec,
 		ctl |= IBS_OP_INTERVAL_TO_CTL(pmc_config->pm_count);
 	}
 
-
 	pmc_config->pm_md.pm_ibs.ibs_ctl |= ctl;
+	pmc_config->pm_md.pm_ibs.ibs_ctl2 |= ctl2;
 
 	return (0);
 }
