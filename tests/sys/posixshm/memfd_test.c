@@ -294,8 +294,11 @@ ATF_TC_BODY(hugetlb, tc)
 		if (!MFD_HUGE_SUPPORTED(pgsize))
 			continue;
 
-		ATF_REQUIRE_MSG((fd = memfd_create("...",
-		    MFD_HUGETLB | MFD_HUGE_FLAGS(pgsize))) != -1,
+		fd = memfd_create("...", MFD_HUGETLB | MFD_HUGE_FLAGS(pgsize));
+		if (fd == -1 && errno == ENOTTY)
+			atf_tc_skip("large page requests are not supported on the current platform");
+
+		ATF_REQUIRE_MSG(fd != -1,
 		    "Creating a %zu-size hugetlb memfd", pgsize);
 	}
 
