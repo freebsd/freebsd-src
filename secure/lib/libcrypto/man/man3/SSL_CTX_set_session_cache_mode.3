@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SESSION_CACHE_MODE 3ossl"
-.TH SSL_CTX_SET_SESSION_CACHE_MODE 3ossl 2026-04-07 3.0.20 OpenSSL
+.TH SSL_CTX_SET_SESSION_CACHE_MODE 3ossl 2026-06-09 3.0.21 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -70,8 +70,8 @@ SSL_CTX_set_session_cache_mode, SSL_CTX_get_session_cache_mode \- enable/disable
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
-\& long SSL_CTX_set_session_cache_mode(SSL_CTX ctx, long mode);
-\& long SSL_CTX_get_session_cache_mode(SSL_CTX ctx);
+\& long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode);
+\& long SSL_CTX_get_session_cache_mode(SSL_CTX *ctx);
 .Ve
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
@@ -180,7 +180,7 @@ The default mode is SSL_SESS_CACHE_SERVER.
 \&\fBSSL_CTX_flush_sessions\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2001\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

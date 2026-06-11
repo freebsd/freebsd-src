@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_HTTP_PARSE_URL 3ossl"
-.TH OSSL_HTTP_PARSE_URL 3ossl 2026-04-07 3.0.20 OpenSSL
+.TH OSSL_HTTP_PARSE_URL 3ossl 2026-06-09 3.0.21 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -96,7 +96,9 @@ see \fBopenssl_user_macros\fR\|(7):
 .Ve
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
-\&\fBOSSL_HTTP_adapt_proxy()\fR takes an optional proxy hostname \fIproxy\fR
+\&\fBOSSL_HTTP_adapt_proxy()\fR determines whether a proxy should be used
+when connecting to the given \fIserver\fR.
+It takes an optional proxy hostname \fIproxy\fR
 and returns it transformed according to the optional \fIno_proxy\fR parameter,
 \&\fIserver\fR, \fIuse_ssl\fR, and the applicable environment variable, as follows.
 If \fIproxy\fR is NULL, take any default value from the \f(CW\*(C`http_proxy\*(C'\fR
@@ -104,11 +106,13 @@ environment variable, or from \f(CW\*(C`https_proxy\*(C'\fR if \fIuse_ssl\fR is 
 If this still does not yield a proxy hostname,
 take any further default value from the \f(CW\*(C`HTTP_PROXY\*(C'\fR
 environment variable, or from \f(CW\*(C`HTTPS_PROXY\*(C'\fR if \fIuse_ssl\fR is nonzero.
-If \fIno_proxy\fR is NULL, take any default exclusion value from the \f(CW\*(C`no_proxy\*(C'\fR
-environment variable, or else from \f(CW\*(C`NO_PROXY\*(C'\fR.
-Return the determined proxy host unless the exclusion value,
-which is a list of proxy hosts separated by \f(CW\*(C`,\*(C'\fR and/or whitespace,
-contains \fIserver\fR.
+Return the determined proxy host if \fIserver\fR is the empty string
+or \fIserver\fR is not in the exclusion list.
+The exclusion list is a list of server hosts separated by \f(CW\*(C`,\*(C'\fR
+and/or whitespace.
+They may be given via the \fIno_proxy\fR parameter.
+If it is NULL, the exclusion list is taken from the \f(CW\*(C`no_proxy\*(C'\fR
+environment variable if set, otherwise from \f(CW\*(C`NO_PROXY\*(C'\fR.
 Otherwise return NULL.
 When \fIserver\fR is a string delimited by \f(CW\*(C`[\*(C'\fR and \f(CW\*(C`]\*(C'\fR, which are used for IPv6
 addresses, the enclosing \f(CW\*(C`[\*(C'\fR and \f(CW\*(C`]\*(C'\fR are stripped prior to comparison.
@@ -162,7 +166,7 @@ return 1 on success, 0 on error.
 \&\fBOCSP_parse_url()\fR was deprecated in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

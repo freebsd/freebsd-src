@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-REHASH 1ossl"
-.TH OPENSSL-REHASH 1ossl 2026-04-07 3.0.20 OpenSSL
+.TH OPENSSL-REHASH 1ossl 2026-06-09 3.0.21 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -107,8 +107,8 @@ directories to be set up like this in order to find certificates.
 .PP
 If any directories are named on the command line, then those are
 processed in turn. If not, then the \fBSSL_CERT_DIR\fR environment variable
-is consulted; this should be a colon\-separated list of directories,
-like the Unix \fBPATH\fR variable.
+is consulted; this should be a colon\-separated list of directories
+(or semicolon\-separated on Windows), like the \fBPATH\fR variable.
 If that is not set then the default directory (installation\-specific
 but often \fI/usr/local/ssl/certs\fR) is processed.
 .PP
@@ -198,7 +198,7 @@ Ignored if directories are listed on the command line.
 \&\fBopenssl\-x509\fR\|(1)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

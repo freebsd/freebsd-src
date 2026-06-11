@@ -1726,6 +1726,29 @@ out:
     return ret;
 }
 
+#ifndef OPENSSL_NO_POLY1305
+/* Test that EVP_MAC_final fails for Poly1305 when no key was set */
+static int test_evp_mac_poly1305_no_key(void)
+{
+    int ret = 0;
+    EVP_MAC *mac = NULL;
+    EVP_MAC_CTX *ctx = NULL;
+    unsigned char out[16];
+    size_t outl = 0;
+
+    if (!TEST_ptr(mac = EVP_MAC_fetch(testctx, "Poly1305", testpropq))
+        || !TEST_ptr(ctx = EVP_MAC_CTX_new(mac))
+        || !TEST_int_eq(EVP_MAC_init(ctx, NULL, 0, NULL), 1)
+        || !TEST_int_eq(EVP_MAC_final(ctx, out, &outl, sizeof(out)), 0))
+        goto err;
+    ret = 1;
+err:
+    EVP_MAC_CTX_free(ctx);
+    EVP_MAC_free(mac);
+    return ret;
+}
+#endif
+
 static int test_d2i_AutoPrivateKey(int i)
 {
     int ret = 0;
@@ -2067,9 +2090,10 @@ static int test_EVP_SM2(void)
 
     uint8_t ciphertext[128];
     size_t ctext_len = sizeof(ciphertext);
-
+    size_t ctext_len_param = 0;
     uint8_t plaintext[8];
     size_t ptext_len = sizeof(plaintext);
+    size_t ptext_len_param = 0;
 
     uint8_t sm2_id[] = { 1, 2, 3, 4, 'l', 'e', 't', 't', 'e', 'r' };
 
@@ -2199,7 +2223,8 @@ static int test_EVP_SM2(void)
         if (!TEST_true(EVP_PKEY_CTX_set_params(cctx, sparams)))
             goto done;
 
-        if (!TEST_true(EVP_PKEY_encrypt(cctx, ciphertext, &ctext_len, kMsg,
+        ctext_len_param = ctext_len;
+        if (!TEST_true(EVP_PKEY_encrypt(cctx, ciphertext, &ctext_len_param, kMsg,
                 sizeof(kMsg))))
             goto done;
 
@@ -2209,8 +2234,9 @@ static int test_EVP_SM2(void)
         if (!TEST_true(EVP_PKEY_CTX_set_params(cctx, sparams)))
             goto done;
 
-        if (!TEST_int_gt(EVP_PKEY_decrypt(cctx, plaintext, &ptext_len, ciphertext,
-                             ctext_len),
+        ptext_len_param = ptext_len;
+        if (!TEST_int_gt(EVP_PKEY_decrypt(cctx, plaintext, &ptext_len_param, ciphertext,
+                             ctext_len_param),
                 0))
             goto done;
 
@@ -2230,7 +2256,7 @@ static int test_EVP_SM2(void)
             goto done;
         }
 
-        if (!TEST_true(ptext_len == sizeof(kMsg)))
+        if (!TEST_true(ptext_len_param == sizeof(kMsg)))
             goto done;
 
         if (!TEST_true(memcmp(plaintext, kMsg, sizeof(kMsg)) == 0))
@@ -3047,6 +3073,85 @@ err:
     EVP_PKEY_free(key);
     EVP_PKEY_CTX_free(key_ctx);
 
+    return ret;
+}
+
+static int test_RSA_verify_recover_rejects_short_buffer(void)
+{
+    int ret = 0;
+    int recovered_cap = 0;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *sign_ctx = NULL, *verify_ctx = NULL;
+    unsigned char *sig = NULL, *recovered = NULL;
+    size_t sig_len = 0, recovered_len = 0;
+    unsigned long err = 0;
+    unsigned char shortbuf[] = { 0xa5, 0x5a };
+    const unsigned char shortbuf_expected[] = { 0xa5, 0x5a };
+    unsigned char digest[32];
+    size_t i;
+
+    for (i = 0; i < sizeof(digest); i++)
+        digest[i] = (unsigned char)i;
+
+    if (OSSL_PROVIDER_available(testctx, "fips"))
+        return TEST_skip("Test skipped for FIPS provider");
+
+    if (!TEST_ptr(pkey = load_example_rsa_key())
+        || !TEST_ptr(sign_ctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, NULL))
+        || !TEST_int_gt(EVP_PKEY_sign_init(sign_ctx), 0)
+        || !TEST_int_gt(EVP_PKEY_CTX_set_rsa_padding(sign_ctx,
+                            RSA_PKCS1_PADDING),
+            0)
+        || !TEST_int_gt(EVP_PKEY_CTX_set_signature_md(sign_ctx, EVP_sha256()),
+            0)
+        || !TEST_int_gt(EVP_PKEY_sign(sign_ctx, NULL, &sig_len, digest,
+                            sizeof(digest)),
+            0)
+        || !TEST_ptr(sig = OPENSSL_malloc(sig_len))
+        || !TEST_int_gt(EVP_PKEY_sign(sign_ctx, sig, &sig_len, digest,
+                            sizeof(digest)),
+            0)
+        || !TEST_int_gt(recovered_cap = EVP_PKEY_get_size(pkey), 0)
+        || !TEST_ptr(recovered = OPENSSL_malloc(recovered_cap))
+        || !TEST_ptr(verify_ctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey,
+                         NULL))
+        || !TEST_int_gt(EVP_PKEY_verify_recover_init(verify_ctx), 0)
+        || !TEST_int_gt(EVP_PKEY_CTX_set_rsa_padding(verify_ctx,
+                            RSA_PKCS1_PADDING),
+            0)
+        || !TEST_int_gt(EVP_PKEY_CTX_set_signature_md(verify_ctx, EVP_sha256()),
+            0))
+        goto done;
+
+    recovered_len = (size_t)recovered_cap;
+    if (!TEST_int_gt(EVP_PKEY_verify_recover(verify_ctx, recovered,
+                         &recovered_len, sig, sig_len),
+            0)
+        || !TEST_size_t_eq(recovered_len, sizeof(digest))
+        || !TEST_mem_eq(recovered, recovered_len, digest, sizeof(digest)))
+        goto done;
+
+    ERR_clear_error();
+    recovered_len = 1;
+    if (!TEST_int_le(EVP_PKEY_verify_recover(verify_ctx, shortbuf,
+                         &recovered_len, sig, sig_len),
+            0))
+        goto done;
+
+    err = ERR_peek_error();
+    if (!TEST_int_eq(ERR_GET_LIB(err), ERR_LIB_PROV)
+        || !TEST_int_eq(ERR_GET_REASON(err), PROV_R_OUTPUT_BUFFER_TOO_SMALL)
+        || !TEST_mem_eq(shortbuf, sizeof(shortbuf), shortbuf_expected,
+            sizeof(shortbuf_expected)))
+        goto done;
+
+    ret = 1;
+done:
+    EVP_PKEY_CTX_free(sign_ctx);
+    EVP_PKEY_CTX_free(verify_ctx);
+    EVP_PKEY_free(pkey);
+    OPENSSL_free(sig);
+    OPENSSL_free(recovered);
     return ret;
 }
 
@@ -5530,6 +5635,333 @@ end:
     return ret;
 }
 
+/*
+ * Cross-driver round-trip test for AEAD one-shot vs streaming paths.
+ *
+ * The streaming path (EVP_CipherUpdate/Final, dispatched to
+ * OSSL_FUNC_CIPHER_UPDATE/_FINAL) is treated as the oracle.  For each
+ * AEAD configuration we encrypt and decrypt the same (key, iv, aad, pt),
+ * driving the body in two combinations:
+ *
+ *   1.  body encrypt via EVP_Cipher() (one-shot, OSSL_FUNC_CIPHER_CIPHER),
+ *       body decrypt via EVP_CipherUpdate (streaming).
+ *   2.  body encrypt via EVP_CipherUpdate, body decrypt via EVP_Cipher().
+ *
+ * Both combinations must recover the plaintext and verify the tag.  AAD
+ * is always fed via EVP_CipherUpdate(NULL, ...): OCB's one-shot is body
+ * only and the asymmetric "AAD streaming, body one-shot" call shape is
+ * the natural pattern a caller reaching for EVP_Cipher() for throughput
+ * would write anyway.
+ *
+ * CVE-2026-45445 (AES-OCB EVP_Cipher() ignored IV) was a silent failure
+ * in this matrix: the one-shot encrypt path produced ciphertext under
+ * Offset_0 = 0 regardless of IV, which the streaming decrypt path then
+ * could not verify.  Adding this cross-check catches the same class of
+ * bug for any future AEAD whose one-shot dispatch diverges from its
+ * streaming dispatch.
+ */
+typedef struct {
+    const char *name; /* EVP_CIPHER fetch name */
+    size_t keylen;
+    size_t ivlen;
+    size_t taglen;
+    int is_ccm; /* needs length-up-front + tag-before-body dance */
+} AEAD_ONESHOT_CFG;
+
+static const AEAD_ONESHOT_CFG aead_oneshot_cfgs[] = {
+    { "AES-128-GCM", 16, 12, 16, 0 },
+    { "AES-256-GCM", 32, 12, 16, 0 },
+    { "AES-128-CCM", 16, 12, 16, 1 },
+    { "AES-256-CCM", 32, 12, 16, 1 },
+    { "AES-128-OCB", 16, 12, 16, 0 },
+    { "AES-256-OCB", 32, 12, 16, 0 },
+    { "ChaCha20-Poly1305", 32, 12, 16, 0 }
+};
+
+/*
+ * Drive an encrypt or decrypt operation.  AAD always via EVP_CipherUpdate.
+ * Body via EVP_Cipher() when oneshot_body is non-zero, EVP_CipherUpdate
+ * otherwise.  On encrypt, fills *out and the caller-provided tag buffer.
+ * On decrypt, reads from in and verifies tag; returns 0 if verification
+ * fails (the test asserts the expected outcome).
+ */
+static int aead_oneshot_op(const AEAD_ONESHOT_CFG *cfg, int enc,
+    int oneshot_body, const unsigned char *key,
+    const unsigned char *iv, const unsigned char *aad,
+    size_t aad_len, const unsigned char *in, size_t in_len,
+    unsigned char *out, unsigned char *tag, const char **why)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_CIPHER *cipher = NULL;
+    int outl = 0, tmpl = 0;
+    int ok = 0;
+    int body_rv;
+
+    *why = NULL;
+
+    if (!TEST_ptr(cipher = EVP_CIPHER_fetch(testctx, cfg->name, testpropq))) {
+        *why = "CIPHER_FETCH";
+        goto end;
+    }
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())) {
+        *why = "CTX_NEW";
+        goto end;
+    }
+    if (!TEST_true(EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, enc))) {
+        *why = "INIT_CIPHER";
+        goto end;
+    }
+    if (!TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+                         (int)cfg->ivlen, NULL),
+            0)) {
+        *why = "SET_IVLEN";
+        goto end;
+    }
+    if (cfg->is_ccm) {
+        /* Placeholder taglen on encrypt, real tag on decrypt; both before key+iv. */
+        if (!TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                             (int)cfg->taglen, enc ? NULL : tag),
+                0)) {
+            *why = "CCM_SET_TAG";
+            goto end;
+        }
+    }
+    if (!TEST_true(EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc))) {
+        *why = "INIT_KEY_IV";
+        goto end;
+    }
+    if (cfg->is_ccm) {
+        if (!TEST_true(EVP_CipherUpdate(ctx, NULL, &outl, NULL, (int)in_len))) {
+            *why = "CCM_LEN_DECL";
+            goto end;
+        }
+    }
+    if (aad_len > 0
+        && !TEST_true(EVP_CipherUpdate(ctx, NULL, &outl, aad, (int)aad_len))) {
+        *why = "AAD";
+        goto end;
+    }
+    if (!enc && !cfg->is_ccm
+        && !TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                            (int)cfg->taglen, tag),
+            0)) {
+        *why = "SET_TAG";
+        goto end;
+    }
+
+    if (oneshot_body) {
+        body_rv = EVP_Cipher(ctx, out, in, (unsigned int)in_len);
+        if (cfg->is_ccm && !enc) {
+            /* CCM decrypt: 0 means tag verify failed, < 0 means error. */
+            if (!TEST_int_gt(body_rv, 0)) {
+                *why = "ONESHOT_DECRYPT";
+                goto end;
+            }
+        } else {
+            if (!TEST_int_ge(body_rv, 0)) {
+                *why = "ONESHOT_BODY";
+                goto end;
+            }
+        }
+        outl = (int)in_len;
+    } else {
+        if (!TEST_true(EVP_CipherUpdate(ctx, out, &outl, in, (int)in_len))) {
+            *why = enc ? "STREAM_BODY_ENC" : "STREAM_BODY_DEC";
+            goto end;
+        }
+    }
+
+    if (!cfg->is_ccm) {
+        if (!TEST_true(EVP_CipherFinal_ex(ctx, out + outl, &tmpl))) {
+            *why = enc ? "FINAL_ENC" : "FINAL_DEC";
+            goto end;
+        }
+    }
+
+    if (enc) {
+        if (!TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+                             (int)cfg->taglen, tag),
+                0)) {
+            *why = "GET_TAG";
+            goto end;
+        }
+    }
+    ok = 1;
+end:
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(cipher);
+    return ok;
+}
+
+/*
+ * For each AEAD row we run two AAD modes, and within each AAD mode two
+ * cross-driver round trips:
+ *
+ *   aad_mode 0:  no AAD.  Critical for catching the OCB-style bug: any
+ *                EVP_CipherUpdate(NULL, aad, ...) call before the body
+ *                would itself pass through the (correct) streaming
+ *                handler and apply the buffered IV, masking the one-shot
+ *                handler's failure to do so.  With aad_len == 0 we make
+ *                EVP_Cipher() the very first cipher operation on the
+ *                context, which is the shape the bug requires.
+ *
+ *   aad_mode 1:  with AAD via streaming.  Catches divergence between the
+ *                drivers when AAD is in play.
+ *
+ *   leg 0:       encrypt-oneshot   + decrypt-streaming
+ *   leg 1:       encrypt-streaming + decrypt-oneshot
+ *
+ * The test index encodes (cipher, aad_mode) so a failure points at both.
+ */
+static int test_aead_oneshot_roundtrip(int idx)
+{
+    static const unsigned char fixed_key[32] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    static const unsigned char fixed_iv[12] = {
+        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab
+    };
+    static const unsigned char fixed_aad[] = "extra:context";
+    static const unsigned char fixed_pt[] = "THE QUICK BROWN FOX JUMPS OVER LAZY!!";
+    const AEAD_ONESHOT_CFG *cfg = &aead_oneshot_cfgs[idx / 2];
+    int with_aad = idx % 2;
+    size_t aad_len = with_aad ? sizeof(fixed_aad) - 1 : 0;
+    size_t pt_len = sizeof(fixed_pt) - 1;
+    EVP_CIPHER *probe = NULL;
+    unsigned char ct[64], pt[64];
+    unsigned char tag_oneshot[16], tag_stream[16];
+    const char *why = NULL;
+    int leg, ok = 0;
+
+    /*
+     * Probe for the cipher: a build with no-ocb / no-chacha / etc. will
+     * not have it, and we treat that as a pass (nothing to test here).
+     */
+    ERR_set_mark();
+    probe = EVP_CIPHER_fetch(testctx, cfg->name, testpropq);
+    ERR_pop_to_mark();
+    if (probe == NULL) {
+        TEST_info("skipping, '%s' is not available", cfg->name);
+        return 1;
+    }
+    EVP_CIPHER_free(probe);
+
+    for (leg = 0; leg <= 1; leg++) {
+        int enc_oneshot = (leg == 0);
+        unsigned char *tag = enc_oneshot ? tag_oneshot : tag_stream;
+
+        memset(ct, 0, sizeof(ct));
+        memset(pt, 0, sizeof(pt));
+        memset(tag, 0, cfg->taglen);
+
+        if (!aead_oneshot_op(cfg, /*enc=*/1, /*oneshot_body=*/enc_oneshot,
+                fixed_key, fixed_iv, fixed_aad, aad_len,
+                fixed_pt, pt_len, ct, tag, &why)) {
+            TEST_error("%s (%s): encrypt leg %d (%s body) failed at %s",
+                cfg->name, with_aad ? "with AAD" : "no AAD",
+                leg, enc_oneshot ? "oneshot" : "stream",
+                why ? why : "?");
+            goto end;
+        }
+        if (!aead_oneshot_op(cfg, /*enc=*/0, /*oneshot_body=*/!enc_oneshot,
+                fixed_key, fixed_iv, fixed_aad, aad_len,
+                ct, pt_len, pt, tag, &why)) {
+            TEST_error("%s (%s): decrypt leg %d (%s body) failed at %s",
+                cfg->name, with_aad ? "with AAD" : "no AAD",
+                leg, enc_oneshot ? "stream" : "oneshot",
+                why ? why : "?");
+            goto end;
+        }
+        if (!TEST_mem_eq(pt, pt_len, fixed_pt, pt_len)) {
+            TEST_error("%s (%s): leg %d: recovered plaintext differs",
+                cfg->name, with_aad ? "with AAD" : "no AAD", leg);
+            goto end;
+        }
+    }
+
+    /*
+     * Both legs share the same (key, iv, aad, pt) and must therefore
+     * agree on the tag bit-for-bit, regardless of which driver computed
+     * it.  This catches the OCB-style failure where the one-shot path
+     * silently emits a different ciphertext/tag from the streaming path.
+     */
+    if (!TEST_mem_eq(tag_oneshot, cfg->taglen, tag_stream, cfg->taglen)) {
+        TEST_error("%s (%s): oneshot-encrypt tag != streaming-encrypt tag",
+            cfg->name, with_aad ? "with AAD" : "no AAD");
+        goto end;
+    }
+    ok = 1;
+end:
+    return ok;
+}
+
+#ifndef OPENSSL_NO_DES
+static int test_EVP_CIPHER_get_type_des_ede3(void)
+{
+    const EVP_CIPHER *cipher = NULL;
+    int base_type, variant_type, nid;
+    int ret = 0;
+
+    /* Get the base type from CFB64 (should be NID_des_ede3_cfb64) */
+    cipher = EVP_des_ede3_cfb64();
+    base_type = EVP_CIPHER_get_type(cipher);
+
+    /* Test CFB64 - should map to the same base_type */
+    variant_type = EVP_CIPHER_get_type(cipher);
+    nid = EVP_CIPHER_get_nid(cipher);
+
+    /* Verify the returned type */
+    if (!TEST_int_eq(variant_type, base_type))
+        goto end;
+
+    /* Verify that variant_type and nid are same for 64-bit variants */
+    if (!TEST_int_eq(variant_type, nid))
+        goto end;
+
+    if (!TEST_int_eq(NID_des_ede3_cfb64, variant_type))
+        goto end;
+
+    /* Test CFB8 - should map to the same base_type */
+    cipher = EVP_des_ede3_cfb8();
+    variant_type = EVP_CIPHER_get_type(cipher);
+    nid = EVP_CIPHER_get_nid(cipher);
+
+    /* Verify the returned type */
+    if (!TEST_int_eq(variant_type, base_type))
+        goto end;
+
+    /* Verify that variant_type and nid are different for variants */
+    if (!TEST_int_ne(variant_type, nid))
+        goto end;
+
+    if (!TEST_int_eq(NID_des_ede3_cfb64, variant_type))
+        goto end;
+
+    /* Test CFB1 - should map to the same base_type */
+    cipher = EVP_des_ede3_cfb1();
+    variant_type = EVP_CIPHER_get_type(cipher);
+    nid = EVP_CIPHER_get_nid(cipher);
+
+    /* Verify the returned type */
+    if (!TEST_int_eq(variant_type, base_type))
+        goto end;
+
+    /* Verify that variant_type and nid are different for variants */
+    if (!TEST_int_ne(variant_type, nid))
+        goto end;
+
+    if (!TEST_int_eq(NID_des_ede3_cfb64, variant_type))
+        goto end;
+
+    ret = 1;
+end:
+    return ret;
+}
+#endif /*OPENSSL_NO_DES */
+
 int setup_tests(void)
 {
     OPTION_CHOICE o;
@@ -5570,6 +6002,9 @@ int setup_tests(void)
 #endif
     ADD_TEST(test_EVP_Digest);
     ADD_TEST(test_EVP_md_null);
+#ifndef OPENSSL_NO_POLY1305
+    ADD_TEST(test_evp_mac_poly1305_no_key);
+#endif
     ADD_ALL_TESTS(test_EVP_PKEY_sign, 3);
 #ifndef OPENSSL_NO_DEPRECATED_3_0
     ADD_ALL_TESTS(test_EVP_PKEY_sign_with_app_method, 2);
@@ -5619,6 +6054,7 @@ int setup_tests(void)
     ADD_TEST(test_RSA_get_set_params);
     ADD_TEST(test_RSA_OAEP_set_get_params);
     ADD_TEST(test_RSA_OAEP_set_null_label);
+    ADD_TEST(test_RSA_verify_recover_rejects_short_buffer);
     ADD_TEST(test_RSA_encrypt);
 #if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
     ADD_TEST(test_decrypt_null_chunks);
@@ -5642,7 +6078,8 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_evp_iv_aes, 12);
 #ifndef OPENSSL_NO_DES
     ADD_ALL_TESTS(test_evp_iv_des, 6);
-#endif
+    ADD_TEST(test_EVP_CIPHER_get_type_des_ede3);
+#endif /* OPENSSL_NO_DES */
 #ifndef OPENSSL_NO_BF
     ADD_ALL_TESTS(test_evp_bf_default_keylen, 4);
 #endif
@@ -5694,6 +6131,8 @@ int setup_tests(void)
 #ifndef OPENSSL_NO_RC4
     ADD_TEST(test_aes_rc4_keylen_change_cve_2023_5363);
 #endif
+
+    ADD_ALL_TESTS(test_aead_oneshot_roundtrip, 2 * OSSL_NELEM(aead_oneshot_cfgs));
 
     /* Test case for CVE-2026-45446 */
     ADD_TEST(test_aes_siv_ctx_reuse);
