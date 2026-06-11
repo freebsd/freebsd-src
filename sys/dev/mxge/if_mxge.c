@@ -2815,7 +2815,7 @@ mxge_media_init(mxge_softc_t *sc)
 	mxge_media_set(sc, IFM_AUTO);
 
 	/*
-	 * parse the product code to deterimine the interface type
+	 * parse the product code to determine the interface type
 	 * (CX4, XFP, Quad Ribbon Fiber) by looking at the character
 	 * after the 3rd dash in the driver's cached copy of the
 	 * EEPROM's product code string.
