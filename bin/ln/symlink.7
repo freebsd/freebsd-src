@@ -1,4 +1,6 @@
-.\"-
+.\"
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1992, 1993, 1994
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -68,9 +70,9 @@ in which case the links are dereferenced until an object that is
 not a symbolic link is found,
 a symbolic link which references a file which does not exist is found,
 or a loop is detected.
-(Loop detection is done by placing an upper limit on the number of
+Loop detection is done by placing an upper limit on the number of
 links that may be followed, and an error results if this limit is
-exceeded.)
+exceeded.
 .Pp
 There are four separate areas that need to be discussed.
 They are as follows:
@@ -84,11 +86,11 @@ Mount options to ignore symbolic links.
 Symbolic links specified as command line arguments to utilities that
 are not traversing a file tree.
 .It
-Symbolic links encountered by utilities that are traversing a file tree
-(either specified on the command line or encountered as part of the
-file hierarchy walk).
+Symbolic links encountered by utilities that are traversing a file tree,
+either specified on the command line or encountered as part of the
+file hierarchy walk.
 .El
-.Ss System calls.
+.Ss System calls
 The first area is symbolic links used as file name arguments for
 system calls.
 .Pp
@@ -182,19 +184,26 @@ system call was added later when the limitations of the new
 became apparent.
 .Ss Mount options
 .Fx
-has a 
+has a
 .Xr mount 8
-option nosymfollow. When this option is enabled, the kernel
-does not follow symlinks on the mounted file system and return EACCES.
+option
+.Cm nosymfollow .
+When this option is enabled, the kernel
+does not follow symlinks on the mounted file system and return
+.Er EACCES .
 You can still create or remove symlinks, or read the value of a symbolic link.
 .Pp
 This option is intended to be used when mounting file systems from
-untrusted external storage systems or public writable /tmp file systems
+untrusted external storage systems or public writable
+.Pa /tmp
+file systems
 to prevent symlink-based privilege escalation and sandbox escape attacks.
 .Pp
-The mount option nosymfollow first appeared in
+The mount option
+.Cm nosymfollow
+first appeared in
 .Fx 3.0
-.Ss Commands not traversing a file tree.
+.Ss Commands not traversing a file tree
 The second area is symbolic links, specified as command line file
 name arguments, to commands which are not traversing a file tree.
 .Pp
@@ -215,7 +224,7 @@ optionally traverse file trees, e.g.\& the command
 is included in this rule, while the command
 .Dq Li "chown -R file"
 is not.
-(The latter is described in the third area, below.)
+The latter is described in the third area, below.
 .Pp
 If it is explicitly intended that the command operate on the symbolic
 link instead of following the symbolic link, e.g., it is desired that
@@ -242,20 +251,20 @@ and
 .Xr rm 1
 commands do not follow symbolic links named as arguments,
 but respectively attempt to rename and delete them.
-(Note, if the symbolic link references a file via a relative path,
+Note, if the symbolic link references a file via a relative path,
 moving it to another directory may very well cause it to stop working,
-since the path may no longer be correct.)
+since the path may no longer be correct.
 .Pp
 The
 .Xr ls 1
 command is also an exception to this rule.
 For compatibility with historic systems (when
-.Nm ls
+.Xr ls 1
 is not doing a tree walk, i.e., the
 .Fl R
 option is not specified),
 the
-.Nm ls
+.Xr ls 1
 command follows symbolic links named as arguments if the
 .Fl H
 or
@@ -267,14 +276,14 @@ or if the
 or
 .Fl l
 options are not specified.
-(The
-.Nm ls
+The
+.Xr ls 1
 command is the only command where the
 .Fl H
 and
 .Fl L
 options affect its behavior even though it is not doing a walk of
-a file tree.)
+a file tree.
 .Pp
 The
 .Xr file 1
@@ -292,11 +301,11 @@ The
 system differs from historical
 .Bx 4
 systems in that the
-.Nm chown
+.Sy chown
 and
-.Nm chgrp
+.Sy chgrp
 commands follow symbolic links specified on the command line.
-.Ss Commands traversing a file tree.
+.Ss Commands traversing a file tree
 The following commands either optionally or always traverse file trees:
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
@@ -328,7 +337,7 @@ as well as any symbolic links encountered in the tree traversal of
 .Dq Li directory ,
 because symbolic links may be removed.
 In no case will
-.Nm rm
+.Xr rm 1
 affect the file which
 .Dq Li slink
 references in any way.
@@ -342,22 +351,21 @@ This is often referred to as a
 .Dq physical
 walk, as opposed to a
 .Dq logical
-walk (where symbolic links referencing directories are followed).
+walk where symbolic links referencing directories are followed.
 .Pp
 As consistently as possible, you can make commands doing a file tree
 walk follow any symbolic links named on the command line, regardless
 of the type of file they reference, by specifying the
 .Fl H
-(for
-.Dq half\-logical )
+.Pq Dq half-logical
 flag.
 This flag is intended to make the command line name space look
 like the logical name space.
-(Note, for commands that do not always do file tree traversals, the
+Note, for commands that do not always do file tree traversals, the
 .Fl H
 flag will be ignored if the
 .Fl R
-flag is not also specified.)
+flag is not also specified.
 .Pp
 For example, the command
 .Dq Li "chown -HR user slink"
@@ -380,16 +388,15 @@ walk follow any symbolic links named on the command line, as well as
 any symbolic links encountered during the traversal, regardless of
 the type of file they reference, by specifying the
 .Fl L
-(for
-.Dq logical )
+.Pq Dq logical
 flag.
 This flag is intended to make the entire name space look like
 the logical name space.
-(Note, for commands that do not always do file tree traversals, the
+Note, for commands that do not always do file tree traversals, the
 .Fl L
 flag will be ignored if the
 .Fl R
-flag is not also specified.)
+flag is not also specified.
 .Pp
 For example, the command
 .Dq Li "chown -LR user slink"
@@ -398,19 +405,18 @@ will change the owner of the file referenced by
 If
 .Dq Li slink
 references a directory,
-.Nm chown
+.Xr chown 1
 will traverse the file hierarchy rooted in the directory that it
 references.
 In addition, if any symbolic links are encountered in any file tree that
-.Nm chown
+.Xr chown 1
 traverses, they will be treated in the same fashion as
 .Dq Li slink .
 .Pp
 As consistently as possible, you can specify the default behavior by
 specifying the
 .Fl P
-(for
-.Dq physical )
+.Pq Dq physical
 flag.
 This flag is intended to make the entire name space look like the
 physical name space.
@@ -439,11 +445,11 @@ and
 .Xr rm 1
 commands have exceptions to these rules.
 The
-.Nm rm
+.Xr rm 1
 command operates on the symbolic link, and not the file it references,
 and therefore never follows a symbolic link.
 The
-.Nm rm
+.Xr rm 1
 command does not support the
 .Fl H ,
 .Fl L
@@ -453,7 +459,7 @@ options.
 .Pp
 To maintain compatibility with historic systems,
 the
-.Nm ls
+.Xr ls 1
 command acts a little differently.
 If you do not specify the
 .Fl F ,
@@ -461,12 +467,12 @@ If you do not specify the
 or
 .Fl l
 options,
-.Nm ls
+.Xr ls 1
 will follow symbolic links specified on the command line.
 If the
 .Fl L
 flag is specified,
-.Nm ls
+.Xr ls 1
 follows all symbolic links,
 regardless of their type,
 whether specified on the command line or encountered in the tree walk.
