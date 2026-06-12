@@ -230,8 +230,16 @@ FTS *
 fts_open(char * const *argv, int options,
     int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
+	return (fts_openat(AT_FDCWD, argv, options, compar));
+}
+
+FTS *
+fts_openat(int dirfd, char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+{
 	struct _fts_private *priv;
 	FTS *sp;
+	int rootfd;
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -239,7 +247,7 @@ fts_open(char * const *argv, int options,
 		return (NULL);
 	}
 
-	/* fts_open() requires at least one path */
+	/* fts_openat() requires at least one path */
 	if (*argv == NULL) {
 		errno = EINVAL;
 		return (NULL);
@@ -251,8 +259,14 @@ fts_open(char * const *argv, int options,
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
+	if (dirfd == AT_FDCWD)
+		rootfd = AT_FDCWD;
+	else if ((rootfd = _dup(dirfd)) < 0) {
+		free(priv);
+		return (NULL);
+	}
 
-	return (__fts_open(sp, argv, AT_FDCWD));
+	return (__fts_open(sp, argv, rootfd));
 }
 
 #ifdef __BLOCKS__
