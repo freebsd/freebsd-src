@@ -1957,6 +1957,7 @@ dsp_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 	struct snddev_info *d;
 	struct pcm_channel *c;
 	int err;
+	bool dealloc;
 
 	if (*offset >= *offset + size)
 		return (EINVAL);
@@ -2008,12 +2009,25 @@ dsp_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 	*object = cdev_pager_allocate(handle, OBJT_DEVICE, &dsp_dev_pager_ops,
 	    size, nprot, *offset, curthread->td_ucred);
 	PCM_GIANT_LEAVE(d);
-	if (*object == NULL) {
+	if (*object != NULL) {
+		err = 0;
+		dealloc = false;
+		CHN_LOCK(c);
+		if (c->flags & CHN_F_MMAP_INVALID) {
+			c->flags &= ~CHN_F_MMAP;
+			err = EINVAL;
+			dealloc = true;
+		}
+		CHN_UNLOCK(c);
+		/* We use a helper bool to keep the channel locking simpler. */
+		if (dealloc)
+			vm_object_deallocate(*object);
+	} else {
 		free(handle, M_DEVBUF);
-		return (EINVAL);
+		err = ENOMEM;
 	}
 
-	return (0);
+	return (err);
 }
 
 static const char *dsp_aliases[] = {
