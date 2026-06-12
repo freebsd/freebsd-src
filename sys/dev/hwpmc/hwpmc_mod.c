@@ -62,6 +62,9 @@
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_HWPMC_MOD
+#include <sys/exterrvar.h>
+
 #include <sys/linker.h>		/* needs to be after <sys/malloc.h> */
 
 #include <machine/atomic.h>
@@ -3144,8 +3147,12 @@ pmc_start(struct pmc *pm)
 	 */
 	pmc_save_cpu_binding(&pb);
 	cpu = PMC_TO_CPU(pm);
-	if (!pmc_cpu_is_active(cpu))
-		return (ENXIO);
+	if (!pmc_cpu_is_active(cpu)) {
+		pmc_restore_cpu_binding(&pb);
+		return (EXTERROR(ENXIO,
+		    "PMC CPU %ju is not active for start",
+		    (uintmax_t)cpu));
+	}
 	pmc_select_cpu(cpu);
 
 	/*
@@ -3211,8 +3218,12 @@ pmc_stop(struct pmc *pm)
 	cpu = PMC_TO_CPU(pm);
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[pmc,%d] illegal cpu=%d", __LINE__, cpu));
-	if (!pmc_cpu_is_active(cpu))
-		return (ENXIO);
+	if (!pmc_cpu_is_active(cpu)) {
+		pmc_restore_cpu_binding(&pb);
+		return (EXTERROR(ENXIO,
+		    "PMC CPU %ju is not active for stop",
+		    (uintmax_t)cpu));
+	}
 
 	pmc_select_cpu(cpu);
 
@@ -3307,29 +3318,39 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	cpu   = pa->pm_cpu;
 
 	p = td->td_proc;
-
 	/* Requested mode must exist. */
 	if ((mode != PMC_MODE_SS && mode != PMC_MODE_SC &&
 	     mode != PMC_MODE_TS && mode != PMC_MODE_TC))
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Invalid PMC mode %ju",
+		    (uintmax_t)mode));
 
 	/* Requested CPU must be valid. */
 	if (cpu != PMC_CPU_ANY && cpu >= pmc_cpu_max())
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Invalid PMC CPU %ju",
+		    (uintmax_t)cpu));
 
 	/*
 	 * Virtual PMCs should only ask for a default CPU.
 	 * System mode PMCs need to specify a non-default CPU.
 	 */
 	if ((PMC_IS_VIRTUAL_MODE(mode) && cpu != PMC_CPU_ANY) ||
-	    (PMC_IS_SYSTEM_MODE(mode) && cpu == PMC_CPU_ANY))
-		return (EINVAL);
+	    (PMC_IS_SYSTEM_MODE(mode) && cpu == PMC_CPU_ANY)) {
+		if (PMC_IS_VIRTUAL_MODE(mode)) {
+			return (EXTERROR(EINVAL,
+			    "PMC mode %ju requires the default CPU",
+			    (uintmax_t)mode));
+		}
+		return (EXTERROR(EINVAL,
+		    "PMC mode %ju requires an explicit CPU",
+		    (uintmax_t)mode));
+	}
 
 	/*
 	 * Check that an inactive CPU is not being asked for.
 	 */
 	if (PMC_IS_SYSTEM_MODE(mode) && !pmc_cpu_is_active(cpu))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "PMC CPU %ju is not active",
+		    (uintmax_t)cpu));
 
 	/*
 	 * Refuse an allocation for a system-wide PMC if this process has been
@@ -3352,22 +3373,26 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	if ((flags & ~(PMC_F_DESCENDANTS | PMC_F_LOG_PROCCSW |
 	    PMC_F_LOG_PROCEXIT | PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN |
 	    PMC_F_EV_PMU)) != 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Invalid PMC flags %#jx",
+		    (uintmax_t)flags));
 
 	/* PMC_F_USERCALLCHAIN is only valid with PMC_F_CALLCHAIN. */
 	if ((flags & (PMC_F_CALLCHAIN | PMC_F_USERCALLCHAIN)) ==
 	    PMC_F_USERCALLCHAIN)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "PMC_F_USERCALLCHAIN requires PMC_F_CALLCHAIN"));
 
 	/* PMC_F_USERCALLCHAIN is only valid for sampling mode. */
 	if ((flags & PMC_F_USERCALLCHAIN) != 0 && mode != PMC_MODE_TS &&
 	    mode != PMC_MODE_SS)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "PMC_F_USERCALLCHAIN requires sampling mode"));
 
 	/* Process logging options are not allowed for system PMCs. */
 	if (PMC_IS_SYSTEM_MODE(mode) &&
 	    (flags & (PMC_F_LOG_PROCCSW | PMC_F_LOG_PROCEXIT)) != 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "Process logging flags are not valid for system PMCs"));
 
 	/*
 	 * All sampling mode PMCs need to be able to interrupt the CPU.
@@ -3378,11 +3403,14 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	/* A valid class specifier should have been passed in. */
 	pcd = pmc_class_to_classdep(class);
 	if (pcd == NULL)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Invalid PMC class %ju",
+		    (uintmax_t)class));
 
 	/* The requested PMC capabilities should be feasible. */
 	if ((pcd->pcd_caps & caps) != caps)
-		return (EOPNOTSUPP);
+		return (EXTERROR(EOPNOTSUPP,
+		    "Requested PMC capabilities %#jx are not supported",
+		    (uintmax_t)caps));
 
 	PMCDBG4(PMC,ALL,2, "event=%d caps=0x%x mode=%d cpu=%d", pa->pm_ev,
 	    caps, mode, cpu);
@@ -3460,7 +3488,11 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 
 	if (n == md->pmd_npmc) {
 		pmc_destroy_pmc_descriptor(pmc);
-		return (EINVAL);
+		/* Preserve a more specific error from the class allocator. */
+		if ((td->td_pflags2 & TDP2_EXTERR) != 0)
+			return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "No PMC row accepted the allocation request"));
 	}
 
 	/* Fill in the correct value in the ID field. */
@@ -3487,12 +3519,21 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 		phw = pmc_pcpu[cpu]->pc_hwpmcs[n];
 		pcd = pmc_ri_to_classdep(md, n, &adjri);
 
-		if ((phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) == 0 ||
-		    (error = pcd->pcd_config_pmc(cpu, adjri, pmc)) != 0) {
+		if ((phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) == 0) {
 			(void)pcd->pcd_release_pmc(cpu, adjri, pmc);
 			pmc_destroy_pmc_descriptor(pmc);
 			pmc_restore_cpu_binding(&pb);
-			return (EPERM);
+			return (EXTERROR(EPERM,
+			    "PMC row %ju on CPU %ju is not enabled",
+			    (uintmax_t)n, (uintmax_t)cpu));
+		}
+		if ((error = pcd->pcd_config_pmc(cpu, adjri, pmc)) != 0) {
+			(void)pcd->pcd_release_pmc(cpu, adjri, pmc);
+			pmc_destroy_pmc_descriptor(pmc);
+			pmc_restore_cpu_binding(&pb);
+			return (EXTERROR(EPERM,
+			    "PMC configuration failed for row %ju on CPU %ju",
+			    (uintmax_t)n, (uintmax_t)cpu));
 		}
 
 		pmc_restore_cpu_binding(&pb);
@@ -3516,7 +3557,7 @@ pmc_do_op_pmcallocate(struct thread *td, struct pmc_op_pmcallocate *pa)
 	if (error != 0) {
 		pmc_release_pmc_descriptor(pmc);
 		pmc_destroy_pmc_descriptor(pmc);
-		return (error);
+		return (EXTERROR(error, "Failed to register PMC owner"));
 	}
 
 	/*
@@ -3539,7 +3580,8 @@ pmc_do_op_pmcattach(struct thread *td, struct pmc_op_pmcattach a)
 	sx_assert(&pmc_sx, SX_XLOCKED);
 
 	if (a.pm_pid < 0) {
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Invalid PMC attach pid %jd",
+		    (intmax_t)a.pm_pid));
 	} else if (a.pm_pid == 0) {
 		a.pm_pid = td->td_proc->p_pid;
 	}
@@ -3549,14 +3591,18 @@ pmc_do_op_pmcattach(struct thread *td, struct pmc_op_pmcattach a)
 		return (error);
 
 	if (PMC_IS_SYSTEM_MODE(PMC_TO_MODE(pm)))
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "Cannot attach a system-mode PMC to a process"));
 
 	/* PMCs may be (re)attached only when allocated or stopped */
 	if (pm->pm_state == PMC_STATE_RUNNING) {
-		return (EBUSY);
+		return (EXTERROR(EBUSY,
+		    "PMC must be stopped before attach"));
 	} else if (pm->pm_state != PMC_STATE_ALLOCATED &&
 	    pm->pm_state != PMC_STATE_STOPPED) {
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "PMC state %ju does not allow attach",
+		    (uintmax_t)pm->pm_state));
 	}
 
 	/* lookup pid */
@@ -3595,7 +3641,8 @@ pmc_do_op_pmcdetach(struct thread *td, struct pmc_op_pmcattach a)
 	int error;
 
 	if (a.pm_pid < 0) {
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Invalid PMC detach pid %jd",
+		    (intmax_t)a.pm_pid));
 	} else if (a.pm_pid == 0)
 		a.pm_pid = td->td_proc->p_pid;
 
@@ -3673,7 +3720,8 @@ pmc_do_op_pmcrw(const struct pmc_op_pmcrw *prw, pmc_value_t *valp)
 
 	/* Must have at least one flag set. */
 	if ((prw->pm_flags & (PMC_F_OLDVALUE | PMC_F_NEWVALUE)) == 0)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "PMCRW requires PMC_F_OLDVALUE and/or PMC_F_NEWVALUE"));
 
 	/* Locate PMC descriptor. */
 	error = pmc_find_pmc(prw->pm_pmcid, &pm);
@@ -3684,12 +3732,15 @@ pmc_do_op_pmcrw(const struct pmc_op_pmcrw *prw, pmc_value_t *valp)
 	if (pm->pm_state != PMC_STATE_ALLOCATED &&
 	    pm->pm_state != PMC_STATE_STOPPED &&
 	    pm->pm_state != PMC_STATE_RUNNING)
-		return (EINVAL);
+		return (EXTERROR(EINVAL,
+		    "PMC state %ju does not allow read/write",
+		    (uintmax_t)pm->pm_state));
 
 	/* Writing a new value is allowed only for 'STOPPED' PMCs. */
 	if (pm->pm_state == PMC_STATE_RUNNING &&
 	    (prw->pm_flags & PMC_F_NEWVALUE) != 0)
-		return (EBUSY);
+		return (EXTERROR(EBUSY,
+		    "Cannot write a PMC while it is running"));
 
 	if (PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm))) {
 		/*
@@ -3729,7 +3780,9 @@ pmc_do_op_pmcrw(const struct pmc_op_pmcrw *prw, pmc_value_t *valp)
 		pcd = pmc_ri_to_classdep(md, ri, &adjri);
 
 		if (!pmc_cpu_is_active(cpu))
-			return (ENXIO);
+			return (EXTERROR(ENXIO,
+			    "PMC CPU %ju is not active for read/write",
+			    (uintmax_t)cpu));
 
 		/* Move this thread to CPU 'cpu'. */
 		pmc_save_cpu_binding(&pb);
