@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
@@ -724,12 +725,36 @@ grep_strdup(const char *str)
  * Print an entire line as-is, there are no inline matches to consider. This is
  * used for printing context.
  */
-void grep_printline(struct str *line, int sep) {
+static struct timespec printline_last_flush = { 0, 0 };
+
+static void
+flush_if_stalled(void)
+{
+	struct timespec now;
+
+	if (lbflag && fileeol == '\n')
+		return;
+
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	if (now.tv_sec > printline_last_flush.tv_sec ||
+	    (now.tv_sec == printline_last_flush.tv_sec &&
+	    now.tv_nsec - printline_last_flush.tv_nsec > 100000000)) {
+		fflush(stdout);
+		printline_last_flush = now;
+	}
+}
+
+void
+grep_printline(struct str *line, int sep)
+{
 	printline_metadata(line, sep);
 	fwrite(line->dat, line->len, 1, stdout);
 	putchar(fileeol);
 
-	fflush(stdout);
+	if (lbflag)
+		fflush(stdout);
+	else
+		flush_if_stalled();
 }
 
 static void
@@ -836,7 +861,7 @@ printline(struct parsec *pc, int sep, size_t *last_out)
 				*last_out = pc->ln.len;
 			}
 			putchar('\n');
-			fflush(stdout);
+			flush_if_stalled();
 		} else if (!oflag) {
 			/*
 			 * -o is terminated on every match output, so this
@@ -847,7 +872,7 @@ printline(struct parsec *pc, int sep, size_t *last_out)
 			 */
 			terminated = false;
 		} else {
-			fflush(stdout);
+			flush_if_stalled();
 		}
 	} else
 		grep_printline(&pc->ln, sep);
