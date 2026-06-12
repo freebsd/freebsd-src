@@ -1993,7 +1993,7 @@ dsp_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 
 	CHN_LOCK(c);
 	if ((c->flags & CHN_F_MMAP_INVALID) ||
-	    *offset + size > c->bufsoft->allocsize) {
+	    c->bufsoft->allocsize < *offset + size) {
 		CHN_UNLOCK(c);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
