@@ -16,6 +16,7 @@ ATF_TESTS_C+=		fts_blocks_test
 ATF_TESTS_C+=		fts_children_test
 ATF_TESTS_C+=		fts_misc_test
 ATF_TESTS_C+=		fts_open_test
+ATF_TESTS_C+=		fts_openat_test
 ATF_TESTS_C+=		fts_options_test
 ATF_TESTS_C+=		fts_regress_test
 ATF_TESTS_C+=		fts_set_test
