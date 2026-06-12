@@ -144,24 +144,6 @@ dsp_destroy_dev(device_t dev)
 	destroy_dev(d->dsp_dev);
 }
 
-static void
-dsp_lock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
-{
-	if (priv->rdch != NULL && DSP_F_READ(prio))
-		CHN_LOCK(priv->rdch);
-	if (priv->wrch != NULL && DSP_F_WRITE(prio))
-		CHN_LOCK(priv->wrch);
-}
-
-static void
-dsp_unlock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
-{
-	if (priv->rdch != NULL && DSP_F_READ(prio))
-		CHN_UNLOCK(priv->rdch);
-	if (priv->wrch != NULL && DSP_F_WRITE(prio))
-		CHN_UNLOCK(priv->wrch);
-}
-
 static int
 dsp_chn_alloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
     int flags, struct thread *td)
@@ -1973,7 +1955,7 @@ dsp_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 	struct dsp_mmap_handle *handle;
 	struct dsp_cdevpriv *priv;
 	struct snddev_info *d;
-	struct pcm_channel *wrch, *rdch, *c;
+	struct pcm_channel *c;
 	int err;
 
 	if (*offset >= *offset + size)
@@ -1987,11 +1969,6 @@ dsp_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 	    SV_CURPROC_ABI() != SV_ABI_LINUX)))
 		return (EINVAL);
 
-	/*
-	 * PROT_READ (alone) selects the input buffer.
-	 * PROT_WRITE (alone) selects the output buffer.
-	 * PROT_WRITE|PROT_READ together select the output buffer.
-	 */
 	if ((nprot & (PROT_READ | PROT_WRITE)) == 0)
 		return (EINVAL);
 
@@ -2003,27 +1980,27 @@ dsp_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 
 	PCM_GIANT_ENTER(d);
 
-	dsp_lock_chans(priv, FREAD | FWRITE);
-	wrch = priv->wrch;
-	rdch = priv->rdch;
-
-	c = ((nprot & PROT_WRITE) != 0) ? wrch : rdch;
-	if (c == NULL || (c->flags & CHN_F_MMAP_INVALID) ||
-	    (*offset  + size) > c->bufsoft->allocsize ||
-	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
-	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
-		dsp_unlock_chans(priv, FREAD | FWRITE);
+	/*
+	 * PROT_READ (alone) selects the input buffer.
+	 * PROT_WRITE (alone) selects the output buffer.
+	 * PROT_WRITE|PROT_READ together select the output buffer.
+	 */
+	c = ((nprot & PROT_WRITE) != 0) ? priv->wrch : priv->rdch;
+	if (c == NULL) {
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	}
 
-	if (wrch != NULL)
-		wrch->flags |= CHN_F_MMAP;
-	if (rdch != NULL)
-		rdch->flags |= CHN_F_MMAP;
-
+	CHN_LOCK(c);
+	if ((c->flags & CHN_F_MMAP_INVALID) ||
+	    *offset + size > c->bufsoft->allocsize) {
+		CHN_UNLOCK(c);
+		PCM_GIANT_EXIT(d);
+		return (EINVAL);
+	}
+	c->flags |= CHN_F_MMAP;
 	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
-	dsp_unlock_chans(priv, FREAD | FWRITE);
+	CHN_UNLOCK(c);
 
 	handle = malloc(sizeof(*handle), M_DEVBUF, M_WAITOK);
 	handle->cdev = cdev;
