@@ -147,9 +147,14 @@ ibs_init_policy(void)
 static int
 ibs_validate_fetch_config(uint64_t config)
 {
+	uint64_t allowed_mask;
 
-	if ((config & ~(ibs_fetch_allowed_mask | ibs_fetch_extra_mask)) != 0)
-		return (EINVAL);
+	allowed_mask = ibs_fetch_allowed_mask | ibs_fetch_extra_mask;
+	if ((config & ~allowed_mask) != 0) {
+		return (EXTERROR(EINVAL,
+		    "IBS fetch ctl config 0x%jx has bits outside allowed mask"
+		    " 0x%jx", (uintmax_t)config, (uintmax_t)allowed_mask));
+	}
 
 	return (0);
 }
@@ -163,22 +168,27 @@ ibs_validate_op_config(uint64_t config)
 
 	if ((config & IBS_OP_CTL_LATFLTEN) != 0) {
 		if ((ibs_features & CPUID_IBSID_IBSLOADLATENCYFILT) == 0)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+			    "IBS op load-latency filter is not supported"));
 		/*
 		 * Zen 6 decouples L3MISSONLY from load-latency filtering
 		 * (AMD pub 69205); enforce the pairing only on older parts.
 		 */
 		if ((ibs_features & CPUID_IBSID_IBSDIS) == 0 &&
 		    (config & IBS_OP_CTL_L3MISSONLY) == 0)
-			return (EINVAL);
+			return (EXTERROR(EINVAL,
+			    "IBS op load-latency filter requires l3miss"));
 
 		allowed_mask |= IBS_OP_CTL_LDLATMASK | IBS_OP_CTL_L3MISSONLY;
 	}
 
 	allowed_mask |= ibs_op_extra_mask;
 
-	if ((config & ~allowed_mask) != 0)
-		return (EINVAL);
+	if ((config & ~allowed_mask) != 0) {
+		return (EXTERROR(EINVAL,
+		    "IBS op ctl config 0x%jx has bits outside allowed mask"
+		    " 0x%jx", (uintmax_t)config, (uintmax_t)allowed_mask));
+	}
 
 	return (0);
 }
@@ -197,10 +207,11 @@ ibs_validate_fetch_ctl2_config(uint64_t config)
 
 	allowed_mask = ibs_fetch_ctl2_allowed_mask | ibs_fetch_ctl2_extra_mask;
 
-	if ((config & ~allowed_mask) != 0)
+	if ((config & ~allowed_mask) != 0) {
 		return (EXTERROR(EINVAL,
 		    "IBS fetch ctl2 config 0x%jx has bits outside allowed"
-		    " mask 0x%jx", (uint64_t)config, (uint64_t)allowed_mask));
+		    " mask 0x%jx", (uintmax_t)config, (uintmax_t)allowed_mask));
+	}
 
 	return (0);
 }
@@ -219,10 +230,11 @@ ibs_validate_op_ctl2_config(uint64_t config)
 
 	allowed_mask = ibs_op_ctl2_allowed_mask | ibs_op_ctl2_extra_mask;
 
-	if ((config & ~allowed_mask) != 0)
+	if ((config & ~allowed_mask) != 0) {
 		return (EXTERROR(EINVAL,
 		    "IBS op ctl2 config 0x%jx has bits outside allowed mask"
-		    " 0x%jx", (uint64_t)config, (uint64_t)allowed_mask));
+		    " 0x%jx", (uintmax_t)config, (uintmax_t)allowed_mask));
+	}
 
 	return (0);
 }
@@ -244,7 +256,8 @@ ibs_validate_pmc_config(int ri, uint64_t config, uint64_t config2)
 			return (error);
 		return (ibs_validate_op_ctl2_config(config2));
 	default:
-		return (EXTERROR(EINVAL, "invalid IBS PMC index %d", ri));
+		return (EXTERROR(EINVAL, "Unsupported IBS PMC type %ju",
+		    (uintmax_t)ri));
 	}
 }
 
@@ -364,13 +377,11 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 	KASSERT(ri >= 0 && ri < IBS_NPMCS,
 	    ("[ibs,%d] illegal row index %d", __LINE__, ri));
 
-	/* check class match */
+	/* Row discriminators; the allocation loop probes every row. */
 	if (a->pm_class != PMC_CLASS_IBS)
-		return (EXTERROR(EINVAL, "PMC class is not IBS"));
+		return (EINVAL);
 	if (a->pm_md.pm_ibs.ibs_type != ri)
-		return (EXTERROR(EINVAL,
-		    "IBS type %ju does not match PMC index %ju",
-		    (uint64_t)a->pm_md.pm_ibs.ibs_type, (uint64_t)ri));
+		return (EINVAL);
 
 	caps = pm->pm_caps;
 
@@ -390,7 +401,7 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 	}
 
 	if (!PMC_IS_SAMPLING_MODE(a->pm_mode))
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "IBS only supports sampling mode"));
 
 	config = a->pm_md.pm_ibs.ibs_ctl;
 	config2 = a->pm_md.pm_ibs.ibs_ctl2;
