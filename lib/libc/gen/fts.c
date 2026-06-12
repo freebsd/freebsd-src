@@ -81,6 +81,8 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
 #define	SET(opt)	(sp->fts_options |= (opt))
 
 #define	FCHDIR(sp, fd)	(!ISSET(FTS_NOCHDIR) && fchdir(fd))
+#define	FTSP(sp)	((struct _fts_private *)(sp))
+#define	ROOTFD(sp)	(FTSP(sp)->ftsp_rootfd)
 
 /* fts_build flags */
 #define	BCHILD		1		/* fts_children */
@@ -97,6 +99,7 @@ struct _fts_private {
 	struct statfs	ftsp_statfs;
 	dev_t		ftsp_dev;
 	int		ftsp_linksreliable;
+	int		ftsp_rootfd;
 };
 
 /*
@@ -212,9 +215,9 @@ __fts_open(FTS *sp, char * const *argv)
 	 * descriptor we run anyway, just more slowly.
 	 */
 	if (!ISSET(FTS_NOCHDIR) &&
-	    (sp->fts_rfd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+	    (sp->fts_rfd = _openat(ROOTFD(sp), ".", O_RDONLY |
+	    O_CLOEXEC, 0)) < 0)
 		SET(FTS_NOCHDIR);
-
 	return (sp);
 
 mem3:	fts_lfree(root);
@@ -246,6 +249,7 @@ fts_open(char * const *argv, int options,
 	/* Allocate/initialize the stream. */
 	if ((priv = calloc(1, sizeof(*priv))) == NULL)
 		return (NULL);
+	priv->ftsp_rootfd = AT_FDCWD;
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
@@ -439,8 +443,8 @@ fts_read(FTS *sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = _open(".", O_RDONLY | O_CLOEXEC,
-			    0)) < 0) {
+			if ((p->fts_symfd = _openat(ROOTFD(sp), ".",
+                            O_RDONLY | O_CLOEXEC, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
 			} else
@@ -532,7 +536,8 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
+                                    _openat(ROOTFD(sp), ".", O_RDONLY |
+                                    O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
 				} else
@@ -671,7 +676,7 @@ fts_children(FTS *sp, int instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+	if ((fd = _openat(ROOTFD(sp), ".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
 	serrno = (sp->fts_child == NULL) ? errno : 0;
