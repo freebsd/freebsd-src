@@ -2,7 +2,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2019-2022 Netflix, Inc
-.\" Copyright (c) 2022 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2022-2026 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\" Copyright 2022 The FreeBSD Foundation
 .\"
 .\" Part of this documentation was written by
@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 11, 2026
+.Dd June 8, 2026
 .Dt LOADER.EFI 8
 .Os
 .Sh NAME
@@ -50,13 +50,15 @@ when installed as the default EFI boot program as described in
 or when configured as an EFI boot entry with
 .Xr efibootmgr 8 .
 .Pp
-On systems upgraded from FreeBSD 10 or earlier, the EFI System Partition (ESP)
+On systems upgraded from
+.Fx 10
+or earlier, the EFI System Partition (ESP)
 can be too small to accommodate
 .Nm .
 In such cases,
 .Xr boot1.efi 8
-may be retained as the firmware boot program. It
-will chain-load the current
+may be retained as the firmware boot program.
+It will chain-load the current
 .Pa /boot/loader.efi ,
 which is updated during the
 .Cm installworld
@@ -159,7 +161,7 @@ with the proper port address.
 PCI or memory mapped ports are beyond the scope of this man page.
 .Pp
 The serial ports are assigned as follows on IBM PC compatible systems:
-.Bl -column -offset indent ".Sy Windows Name" ".Sy I/O Port Address" ".Sy Typical FreeBSD device"
+.Bl -column -offset indent "Windows Name" "I/O Port Address" "Typical FreeBSD device"
 .It Sy Windows Name Ta Sy I/O Port Address Ta Sy Typical FreeBSD device
 .It COM1 Ta 0x3f8 Ta Pa /dev/uart0
 .It COM2 Ta 0x2f8 Ta Pa /dev/uart1
@@ -172,7 +174,6 @@ Though
 and
 .Dv COM4
 can vary.
-.Pp
 .Ss Primary Console
 The primary console is set using the boot flags.
 These command line arguments set corresponding flags for the kernel.
@@ -185,8 +186,8 @@ Boot flags may be set on the command line to the boot command.
 Inside the kernel, the RB_ flags are used to control behavior, sometimes
 in architecturally specific ways and are included to aid in discovery
 of any behavior not covered in this document.
-.Bl -column -offset indent ".Sy boot flag" ".Sy loader variable" ".Sy Kernel RB_ flag"
-.It Sy boot flag Ta Sy loader variable Ta Sy Kernel RB_ flag
+.Bl -column -offset indent "boot flag" "loader variable" "Kernel RB_ flag"
+.It Sy Boot Flag Ta Sy Loader Variable Ta Sy Kernel RB_ Flag
 .It Fl a Ta Dv boot_askme Ta Va RB_ASKNAME
 .It Fl c Ta Dv boot_cdrom Ta Va RB_CDROM
 .It Fl d Ta Dv boot_ddb Ta Va RB_KDB
@@ -202,7 +203,7 @@ of any behavior not covered in this document.
 .El
 .Pp
 And the following flags determine the primary console:
-.Bl -column -offset xxx "Flags" "RB_SERIAL | RB_MULTIPLE" "Kernel Consoles" "Primary Console"
+.Bl -column -offset indent "Flags" "RB_SERIAL | RB_MULTIPLE" "Kernel Consoles" "Primary Console"
 .It Sy Flags Ta Sy Kernel Flags Ta Sy Kernel Consoles Ta Sy Primary Console
 .It none Ta 0 Ta Video Ta Video
 .It Fl h Ta RB_SERIAL Ta Serial Ta Serial
@@ -220,7 +221,9 @@ serial console otherwise.
 can set variables early in startup from a file on the EFI partition.
 By default, that file is
 .Pa /efi/freebsd/loader.env .
-It can be changed by setting the FreeBSD EFI variable
+It can be changed by setting the
+.Fx
+EFI variable
 .Va LoaderEnv ,
 as in:
 .Bd -literal -offset indent
@@ -317,9 +320,8 @@ Riscv, 32-bit arm and arm64 have always loaded at any
 .Ad 2MB
 aligned location, so do not provide
 .Ic copy_staging .
-.Pp
 .Bd -ragged -offset indent
-.Sy Note.
+.Sy Note .
 BIOS loaders on i386 and amd64 put the staging area starting
 at the physical address
 .Ad 2M ,
@@ -378,7 +380,8 @@ The location of the UEFI kernel loader within the system.
 .El
 .Ss EFI System Partition
 .Nm
-is installed on the ESP (EFI System Partition) in one of the following locations:
+is installed on the ESP (EFI System Partition)
+in one of the following locations:
 .Bl -tag -width "efi/freebsd/loader.efi"
 .It Pa efi/boot/bootXXX.efi
 The default location for any EFI loader
@@ -470,7 +473,9 @@ However, care must be taken: some multiple-boot environments rely on a special
 to function.
 Before updating a
 .Pa bootXXX.efi
-file, make sure it is the FreeBSD boot loader before updating it:
+file, make sure it is the
+.Fx
+boot loader before updating it:
 .Bd -literal -offset indent
 # strings /boot/efi/EFI/BOOT/BOOTX64.EFI | grep FreeBSD | grep EFI
 FreeBSD/amd64 EFI loader, Revision 3.0
@@ -523,12 +528,18 @@ In addition,
 .Pa efibootmgr
 is not supported on armv7 or riscv.
 In these instances, the user has to understand what was booted to update
-it properly (and in most cases, it will be the FreeBSD path and the UEFI default
+it properly (and in most cases, it will be the
+.Fx
+path and the UEFI default
 so just copy loader.efi there if there are loaders there).
-Typically in these embedded situations, there is only one .efi file (loader.efi
-or a copy of loader.efi).
+Typically in these embedded situations, there is only one
+.Pa .efi
+file (
+.Pa loader.efi
+or a copy of
+.Pa loader.efi ) .
 The path to this file is typically the default removable path above.
 .Pp
-Managing booting multiple OSes on UEFI varies greatly, so extra caution is required
+Managing booting multiple OSes on UEFI varies greatly,
+so extra caution is required
 when updating the UEFI default loader.
-.Pp
