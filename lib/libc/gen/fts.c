@@ -67,6 +67,7 @@ static FTSENT	*fts_build(FTS *, int);
 static void	 fts_lfree(FTSENT *);
 static void	 fts_load(FTS *, FTSENT *);
 static size_t	 fts_maxarglen(char * const *);
+static FTS	*__fts_open(FTS *, char * const *, int);
 static void	 fts_padjust(FTS *, FTSENT *);
 static int	 fts_palloc(FTS *, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
@@ -129,7 +130,7 @@ static const char *ufslike_filesystems[] = {
 		default: 0)
 
 static FTS *
-__fts_open(FTS *sp, char * const *argv)
+__fts_open(FTS *sp, char * const *argv, int rootfd)
 {
 	FTSENT *p, *root;
 	FTSENT *parent, *tmp;
@@ -212,7 +213,7 @@ __fts_open(FTS *sp, char * const *argv)
 	 * descriptor we run anyway, just more slowly.
 	 */
 	if (!ISSET(FTS_NOCHDIR) &&
-	    (sp->fts_rfd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+	    (sp->fts_rfd = _openat(rootfd, ".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		SET(FTS_NOCHDIR);
 
 	return (sp);
@@ -228,8 +229,16 @@ FTS *
 fts_open(char * const *argv, int options,
     int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
+	return (fts_openat(AT_FDCWD, argv, options, compar));
+}
+
+FTS *
+fts_openat(int dirfd, char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+{
 	struct _fts_private *priv;
 	FTS *sp;
+	int rootfd;
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -237,7 +246,7 @@ fts_open(char * const *argv, int options,
 		return (NULL);
 	}
 
-	/* fts_open() requires at least one path */
+	/* fts_openat() requires at least one path */
 	if (*argv == NULL) {
 		errno = EINVAL;
 		return (NULL);
@@ -249,8 +258,14 @@ fts_open(char * const *argv, int options,
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
+	if (dirfd == AT_FDCWD)
+		rootfd = AT_FDCWD;
+	else if ((rootfd = _dup(dirfd)) < 0) {
+		free(priv);
+		return (NULL);
+	}
 
-	return (__fts_open(sp, argv));
+	return (__fts_open(sp, argv, rootfd));
 }
 
 #ifdef __BLOCKS__
@@ -304,7 +319,7 @@ fts_open_b(char * const *argv, int options, fts_block compar)
 	sp->fts_compar_b = compar;
 	sp->fts_options = options | FTS_COMPAR_B;
 
-	if ((sp = __fts_open(sp, argv)) == NULL) {
+	if ((sp = __fts_open(sp, argv, AT_FDCWD)) == NULL) {
 #ifdef __BLOCKS__
 		Block_release(compar);
 #else
