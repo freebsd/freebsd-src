@@ -102,10 +102,38 @@ ATF_TC_BODY(mmap_buffer_lifetime, tc)
 	ATF_REQUIRE(munmap(buf, len) == 0);
 }
 
+ATF_TC(mmap_reject_prot_exec);
+ATF_TC_HEAD(mmap_reject_prot_exec, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "mmap PROT_EXEC rejection test");
+	atf_tc_set_md_var(tc, "require.kmods", "snd_dummy");
+}
+
+ATF_TC_BODY(mmap_reject_prot_exec, tc)
+{
+	uint8_t *buf;
+	size_t len;
+	int fd;
+
+	fd = open("/dev/dsp.dummy", O_RDWR);
+	ATF_REQUIRE_MSG(fd >= 0, FMT_ERR("open"));
+
+	len = 8;
+
+	buf = mmap(NULL, len, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED,
+	    fd, 0);
+	ATF_REQUIRE_MSG(buf == MAP_FAILED, FMT_ERR("mmap"));
+
+	munmap(buf, len);
+
+	close(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, mmap_offset_overflow);
 	ATF_TP_ADD_TC(tp, mmap_buffer_lifetime);
+	ATF_TP_ADD_TC(tp, mmap_reject_prot_exec);
 
 	return (atf_no_error());
 }
