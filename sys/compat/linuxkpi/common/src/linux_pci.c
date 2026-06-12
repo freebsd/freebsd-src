@@ -1663,6 +1663,33 @@ pci_device_is_present(struct pci_dev *pdev)
 	return (bus_child_present(dev));
 }
 
+void *
+linuxkpi_pci_map_rom(struct pci_dev *pdev, size_t *size)
+{
+	device_t dev;
+
+	dev = pdev->dev.bsddev;
+
+	if (pci_get_class(dev) != PCIC_DISPLAY &&
+	    (pci_get_class(dev) != PCIC_OLD ||
+	     pci_get_subclass(dev) != PCIS_OLD_VGA)) {
+		pr_debug("%s: TODO\n", __func__);
+		return (NULL);
+	}
+
+	return (vga_pci_map_bios(device_get_parent(dev), size));
+}
+
+void
+linuxkpi_pci_unmap_rom(struct pci_dev *pdev, void *rom)
+{
+	device_t dev;
+
+	dev = pdev->dev.bsddev;
+
+	vga_pci_unmap_bios(device_get_parent(dev), rom);
+}
+
 CTASSERT(sizeof(dma_addr_t) <= sizeof(uint64_t));
 
 struct linux_dma_obj {
