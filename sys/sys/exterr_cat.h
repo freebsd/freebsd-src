@@ -42,6 +42,6 @@
 #define	EXTERR_CAT_VMM		17
 #define	EXTERR_CAT_HWPMC_IBS	18
 #define	EXTERR_CAT_LINKER	19
+#define	EXTERR_CAT_HWPMC_AMD	20
 
 #endif
-

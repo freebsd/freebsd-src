@@ -2,6 +2,7 @@
  * Automatically @generated, use
  * tools/build/make_libc_exterr_cat_filenames.sh
  */
+	[EXTERR_CAT_HWPMC_AMD] = "dev/hwpmc/hwpmc_amd.c",
 	[EXTERR_CAT_HWPMC_IBS] = "dev/hwpmc/hwpmc_ibs.c",
 	[EXTERR_CAT_VMM] = "dev/vmm/vmm_dev.c",
 	[EXTERR_CAT_FUSE_DEVICE] = "fs/fuse/fuse_device.c",
