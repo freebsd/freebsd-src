@@ -12,6 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260616:
+	15.1-RELEASE.
+
 20260609:
 	15.1-RC3-p1	EN-26:15.openssl
 			SA-26:25.thr
