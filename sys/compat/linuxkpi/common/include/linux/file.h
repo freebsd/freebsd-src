@@ -184,6 +184,8 @@ static inline struct fd fdget(unsigned int fd)
 	return (struct fd){f};
 }
 
+LINUXKPI_DEFINE_CLASS(fd, struct fd, fdput(_T), fdget(fd), int fd)
+
 #define	fd_file(fd)	((fd).linux_file)
 
 static inline bool

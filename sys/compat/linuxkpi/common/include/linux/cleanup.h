@@ -21,6 +21,32 @@
 	CLEANUP_NAME(_n, _create)
 
 /*
+ * On Linux, the following macro is called `DEFINE_CLASS()`. However it
+ * conflicts with FreeBSD's macro defined in <sys/kobj.h>.
+ *
+ * Note: "_T" are special as they are exposed into common code for
+ * statements.  Extra care should be taken when changing the code.
+ */
+#define	LINUXKPI_DEFINE_CLASS(_name, _type, _exit, _init, _init_args...)\
+    typedef _type class_##_name##_t;					\
+									\
+    static inline _type class_##_name##_constructor(_init_args)		\
+    {									\
+	_type v = _init;						\
+	return (v);							\
+    }									\
+									\
+    static inline void class_##_name##_destructor(_type *p)		\
+    {									\
+	_type _T = *p;							\
+	_exit;								\
+    }
+
+#define	CLASS(_name, _var)						\
+    class_##_name##_t _var __cleanup(class_##_name##_destructor) =	\
+	class_##_name##_constructor
+
+/*
  * Note: "_T" are special as they are exposed into common code for
  * statements.  Extra care should be taken when changing the code.
  */
