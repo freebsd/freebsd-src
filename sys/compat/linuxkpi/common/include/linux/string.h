@@ -31,6 +31,7 @@
 
 #include <sys/ctype.h>
 
+#include <linux/args.h>
 #include <linux/array_size.h>
 #include <linux/types.h>
 #include <linux/gfp.h>
@@ -245,7 +246,7 @@ strreplace(char *str, char old, char new)
 }
 
 static inline ssize_t
-strscpy(char* dst, const char* src, size_t len)
+sized_strscpy(char* dst, const char* src, size_t len)
 {
 	size_t i;
 
@@ -260,14 +261,24 @@ strscpy(char* dst, const char* src, size_t len)
 	return (-E2BIG);
 }
 
+#define	__strscpy0(dst, src, ...)	sized_strscpy(dst, src, sizeof(dst))
+#define	__strscpy1(dst, src, len)	sized_strscpy(dst, src, len)
+#define	strscpy(dst, src, ...)		\
+    CONCATENATE(__strscpy, COUNT_ARGS(__VA_ARGS__))(dst, src, __VA_ARGS__)
+
 static inline ssize_t
-strscpy_pad(char* dst, const char* src, size_t len)
+sized_strscpy_pad(char* dst, const char* src, size_t len)
 {
 
 	bzero(dst, len);
 
 	return (strscpy(dst, src, len));
 }
+
+#define	__strscpy_pad0(dst, src, ...)	sized_strscpy_pad(dst, src, sizeof(dst))
+#define	__strscpy_pad1(dst, src, len)	sized_strscpy_pad(dst, src, len)
+#define	strscpy_pad(dst, src, ...)	\
+    CONCATENATE(__strscpy_pad, COUNT_ARGS(__VA_ARGS__))(dst, src, __VA_ARGS__)
 
 static inline char *
 strnchr(const char *cp, size_t n, int ch)
