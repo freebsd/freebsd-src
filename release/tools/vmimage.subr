@@ -81,6 +81,7 @@ vm_base_packages_list() {
 		echo FreeBSD-set-lib32
 		[ -z "${WITHOUT_DEBUG_FILES}" ] && echo FreeBSD-set-lib32-dbg
 	esac
+	[ -n "${WITH_SRC}" ] && echo FreeBSD-set-src
 	echo FreeBSD-set-tests
 	# Also install pkg, since systems with a packaged base system should
 	# have the tools to upgrade themselves.
