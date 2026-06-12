@@ -60,7 +60,22 @@ struct kobject {
 	struct kref		kref;
 	const struct kobj_type	*ktype;
 	struct list_head	entry;
-	struct sysctl_oid	*oidp;
+	union {
+		struct sysctl_oid	*oidp;
+
+		/*
+		 * On Linux, a `struct kernfs_node *` pointer, representing a
+		 * directory in sysfs, is kept in the `sd` struct field.
+		 *
+		 * We don't have that on FreeBSD because we use sysctls
+		 * instead. Let's alias the sysctl OID pointer to `sd`. This
+		 * pointer is checked by the DRM drivers using:
+		 *     if (var->kobj.sd) {
+		 *         ...
+		 *     }
+		 */
+		void			*sd;
+	};
 	struct kset		*kset;
 };
 
