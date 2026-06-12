@@ -120,8 +120,7 @@ ATF_TC_BODY(poll_close_race, tc)
 	error = pthread_create(&thr, NULL, poll_jaildesc, &jd);
 	ATF_REQUIRE_MSG(error == 0, "pthread_create: %s", strerror(error));
 
-	/* Wait for the thread to block in poll(2). */
-	usleep(250000);
+	wait_for_naptime(getpid(), "select");
 
 	ATF_REQUIRE_MSG(close(jd) == 0, "close: %s", strerror(errno));
 
@@ -150,8 +149,7 @@ ATF_TC_BODY(poll_remove_wakeup, tc)
 	error = pthread_create(&thr, NULL, poll_jaildesc, &jd);
 	ATF_REQUIRE_MSG(error == 0, "pthread_create: %s", strerror(error));
 
-	/* Wait for the thread to block in poll(2). */
-	usleep(250000);
+	wait_for_naptime(getpid(), "select");
 
 	ATF_REQUIRE_MSG(jail_remove_jd(jd) == 0,
 	    "jail_remove_jd: %s", strerror(errno));
@@ -219,8 +217,7 @@ ATF_TC_BODY(poll_close_race_get_desc, tc)
 	error = pthread_create(&thr, NULL, poll_jaildesc, &jd);
 	ATF_REQUIRE_MSG(error == 0, "pthread_create: %s", strerror(error));
 
-	/* Wait for the thread to block in poll(2). */
-	usleep(250000);
+	wait_for_naptime(getpid(), "select");
 
 	ATF_REQUIRE_MSG(close(jd) == 0, "close: %s", strerror(errno));
 
