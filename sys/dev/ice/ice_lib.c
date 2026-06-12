@@ -9654,8 +9654,7 @@ ice_apply_saved_phy_req_to_cfg(struct ice_softc *sc,
 
 finalize_link_speed:
 
-	/* Cache new user settings for speeds */
-	pi->phy.curr_user_speed_req = phy_data.user_speeds_intr;
+	/* Update phy types in config */
 	cfg->phy_type_low = htole64(phy_low);
 	cfg->phy_type_high = htole64(phy_high);
 
@@ -9961,16 +9960,21 @@ ice_init_saved_phy_cfg(struct ice_softc *sc)
 	device_t dev = sc->dev;
 	int status;
 	u64 phy_low, phy_high;
-	u8 report_mode = ICE_AQC_REPORT_TOPO_CAP_MEDIA;
 
+	/*
+	 * If the FW supports Link Management V2 we don't need
+	 * to save initial PHY configuration as it can be always
+	 * read from FW.
+	 */
 	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LINK_MGMT_VER_2))
-		report_mode = ICE_AQC_REPORT_DFLT_CFG;
-	status = ice_aq_get_phy_caps(pi, false, report_mode, &pcaps, NULL);
+		return;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+	    &pcaps, NULL);
 	if (status) {
 		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps (%s) failed; status %s, aq_err %s\n",
+		    "%s: ice_aq_get_phy_caps failed; status %s, aq_err %s\n",
 		    __func__,
-		    report_mode == ICE_AQC_REPORT_DFLT_CFG ? "DFLT" : "w/MEDIA",
 		    ice_status_str(status),
 		    ice_aq_str(hw->adminq.sq_last_status));
 		return;
