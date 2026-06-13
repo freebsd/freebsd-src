@@ -158,7 +158,7 @@ format_additional_id(char *str, size_t size, const acl_entry_t entry)
 		id = (uid_t *)acl_get_qualifier(entry);
 		if (id == NULL)
 			return (-1);
-		snprintf(str, size, ":%d", (unsigned int)*id);
+		snprintf(str, size, ":%ju", (uintmax_t)*id);
 		acl_free(id);
 	}
 
