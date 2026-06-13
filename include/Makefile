@@ -59,6 +59,7 @@ LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/union geom/virstor \
+	geom/zoned \
 	net/altq \
 	net/route \
 	netgraph/netflow \

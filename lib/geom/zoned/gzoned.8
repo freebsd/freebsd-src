@@ -1,0 +1,273 @@
+.\" Copyright (c) 2026 voidanix <voidanix@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 13, 2026
+.Dt GZONED 8
+.Os
+.Sh NAME
+.Nm gzoned
+.Nd "emulate a host-managed zoned device on top of a regular provider"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl uv
+.Op Fl s Ar zonesize
+.Op Fl c Ar zones
+.Op Fl m Ar maxopen
+.Ar dev
+.Nm
+.Cm fault
+.Op Fl v
+.Fl z Ar zone
+.Fl s Ar state
+.Ar name
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar dev ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility presents to the system a host-managed zoned block device backed by a
+regular, non-zoned provider.
+The exposed device is of the kind described by the
+SCSI Zoned Block Commands (ZBC) and ATA Zoned ATA Command Set (ZAC)
+specifications.
+.Pp
+The backing provider is divided into equally sized, sequential-write-required
+zones, unless marked conventional by the
+.Fl c
+option.
+For each zone the GEOM class maintains a write pointer and answers the
+zone-management commands
+.Pq see Xr zonectl 8
+issued through the
+.Dv DIOCZONECMD
+ioctl.
+.Pp
+Resetting a write pointer issues a best-effort
+.Dv BIO_DELETE
+for the zone's range to the backing provider, resembling a real drives
+de-allocating a reset zone.
+.Dv BIO_DELETE
+requests to the zoned device itself are rejected, as zoned devices have no
+unmap.
+Sequential zones are reclaimed by resetting the write pointer.
+.Pp
+The configuration for a device is persistent.
+A metadata block and the per-zone state are stored in a small area reserved at
+the tail of the backing provider, so the zoned device is recreated
+automatically whenever the provider appears
+.Pq at boot, module load or hot-plug ,
+with its write pointers restored.
+Note that because of the metadata location on the backing provider, the zoned
+device is torn down if the backing provider is resized with unflushed zone state
+changes being discarded.
+Zone state changes are committed to the backing provider on a BIO_FLUSH.
+Changes made since the last flush may be rolled back by an unclean shutdown,
+resembling a drive whose zone state is volatile until flushed.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm destroy"
+.It Cm create
+Mark
+.Ar dev
+as zoned, creating a device named after the backing provider with
+.Dq .zoned
+appended
+.Pq e.g. Pa /dev/da0.zoned .
+The number of zones is the usable size of
+.Ar dev
+divided by
+.Ar zonesize ;
+a small reservation at the tail of
+.Ar dev
+holds the zone metadata; any trailing space that does not make up a full zone
+is not exposed.
+.It Cm fault
+Inject a zone fault into the running device
+.Ar name .
+.Fl z Ar zone
+selects the zone by number and
+.Fl s Ar state
+is one of
+.Ar ro
+.Pq Ar readonly ,
+.Ar offline ,
+.Ar reset
+.Pq zone needs a write-pointer reset
+or
+.Ar clear
+.Pq return the zone to its normal state implied by its write pointer .
+Readonly and offline zones reject writes and zone-management commands;
+the fault persists with the rest of the zone state until cleared.
+.It Cm clear
+Permanently un-zone the given backing device(s) by clearing the on-disk
+metadata.
+The live zoned device, if any, is torn down.
+.It Cm stop
+Tear down the given zoned device(s) without touching the on-disk metadata.
+.Ar name
+is the zoned device
+.Pq e.g. Pa da0.zoned .
+Unflushed zone state is committed to the backing provider first.
+The device comes back the next time the backing provider is tasted
+.Pq e.g. at boot or when it is opened and closed again .
+.It Cm destroy
+Same as
+.Cm stop .
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options:
+.Bl -tag -width ".Fl s Ar zonesize"
+.It Fl c Ar zones
+Mark the given zones as conventional
+.Pq randomly writable, no write pointer .
+.Ar zones
+is a comma-separated list of zone numbers and inclusive ranges, counted
+from zero, e.g.\&
+.Ar 60 ,
+.Ar 60-70
+or
+.Ar 0-3,60,90-95 .
+At most 16 comma-separated entries may be given.
+By default all zones are sequential-write-required.
+.It Fl f
+Tear down the device even if it is still open.
+.It Fl m Ar maxopen
+Limit the number of simultaneously open sequential zones.
+Once the limit is reached, implicitly opened zones are implicitly closed to make
+room.
+If every open zone was opened explicitly, further writes and explicit opens fail
+with
+.Er ENOSPC .
+The default of 0 means unlimited.
+.It Fl s Ar zonesize
+Size of a single zone.
+The value must be a multiple of the backing provider's sector size and may use
+the usual size suffixes
+.Pq e.g. Ar 7G , 64M .
+The default is
+.Ar 256M .
+.It Fl u
+Restrict reads in sequential-write-required zones
+.Pq unset URSWRZ bit .
+Similarly to real zoned drives, the device supports unrestricted reads that are
+passed through unchecked by default.
+With
+.Fl u
+the device instead reports URSWRZ as unset and rejects with
+.Er EIO
+any read in a sequential zone that extends beyond that zone's write pointer, as
+well as any read that crosses out of a conventional zone into a sequential one.
+Note that this renders the device unreadable to zone-unaware consumers.
+Tasting the zoned provider
+.Pq e.g. partition table scanning
+will also fail until the accessed zones have been written.
+.It Fl v
+Be more verbose.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variable can be used to control the behavior of the
+.Nm ZONED
+GEOM class.
+.Bl -tag -width indent
+.It Va kern.geom.zoned.debug : No 0
+Debug level of the
+.Nm ZONED
+GEOM class.
+This can be set to a number between 0 and 3 inclusive.
+If set to 0, minimal debug information is printed; if set to 3, the maximum
+amount of debug information is printed.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Expose the memory disk
+.Pa /dev/md0
+as a host-managed zoned device
+.Pa /dev/md0.zoned
+with one-gigabyte zones, the first four of which are conventional.
+Inspect its zones, then permanently un-zone it:
+.Bd -literal -offset indent
+mdconfig -t malloc -s 10G -u md0
+gzoned create -s 1G -c 0-3 /dev/md0
+zonectl -d /dev/md0.zoned -c params
+zonectl -d /dev/md0.zoned -c rz
+gzoned clear /dev/md0
+.Ed
+.Pp
+The same operations are also available through the
+.Xr geom 8
+front end:
+.Bd -literal -offset indent
+geom zoned create -s 128M /dev/da0
+geom zoned stop da0.zoned
+geom zoned clear /dev/da0
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr md 4 ,
+.Xr geom 8 ,
+.Xr mdconfig 8 ,
+.Xr zonectl 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An voidanix Aq Mt voidanix@FreeBSD.org
