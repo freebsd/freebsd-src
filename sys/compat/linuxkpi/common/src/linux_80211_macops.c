@@ -801,6 +801,22 @@ lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		goto out;
 	}
 
+	/*
+	 * Drivers will apply different logic depending on sta being set
+	 * here or not and that depends on whether we have an address or
+	 * not.  wpa_spplucoant::driver_bsd::bsd_set_key() will set a
+	 * broadcast address if we do not have one;  further up in
+	 * wpa_supplicant something presumably sets the broadcast address
+	 * for group keys as well.
+	 * We have to "undo" this here and set sta to NULL to avoid
+	 * problems with hw_crypto in various drivers.
+	 * We do this here so all set_key calls for (SET_KEY and DISABLE_KEY)
+	 * are covered.
+	 */
+	MPASS(kc->_k != NULL);
+	if (is_broadcast_ether_addr(kc->_k->wk_macaddr))
+		sta = NULL;
+
 	LKPI_80211_TRACE_MO("hw %p cmd %d vif %p sta %p kc %p", hw, cmd, vif, sta, kc);
 	error = lhw->ops->set_key(hw, cmd, vif, sta, kc);
 
