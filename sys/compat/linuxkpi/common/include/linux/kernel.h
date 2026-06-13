@@ -67,6 +67,9 @@
 
 #include <linux/stdarg.h>
 
+#define	KERNEL_VERSION(a,b,c)						\
+    (((a) << 16) + ((b) << 8) + ((c) > 255 ? 255 : (c)))
+
 #define KERN_CONT       ""
 #define	KERN_EMERG	"<0>"
 #define	KERN_ALERT	"<1>"
