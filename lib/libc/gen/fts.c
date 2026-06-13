@@ -443,7 +443,7 @@ fts_read(FTS *sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = _openat(ROOTFD(sp), ".",
+			if ((p->fts_symfd = _openat(AT_FDCWD, ".",
                             O_RDONLY | O_CLOEXEC, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
@@ -536,8 +536,8 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-                                    _openat(ROOTFD(sp), ".", O_RDONLY |
-                                    O_CLOEXEC, 0)) < 0) {
+				    _openat(AT_FDCWD, ".", O_RDONLY |
+				    O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
 				} else
@@ -676,7 +676,7 @@ fts_children(FTS *sp, int instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = _openat(ROOTFD(sp), ".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+	if ((fd = _openat(AT_FDCWD, ".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
 	serrno = (sp->fts_child == NULL) ? errno : 0;
