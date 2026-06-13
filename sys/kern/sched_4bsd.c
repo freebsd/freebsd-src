@@ -70,11 +70,7 @@
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
  */
-#ifdef SMP
-#define	INVERSE_ESTCPU_WEIGHT	(8 * smp_cpus)
-#else
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
-#endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 #define	ESTCPULIM(e)							\
 	min((e), INVERSE_ESTCPU_WEIGHT *				\
