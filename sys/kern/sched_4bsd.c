@@ -78,8 +78,8 @@
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 #define	ESTCPULIM(e)							\
 	min((e), INVERSE_ESTCPU_WEIGHT *				\
-	    (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) +			\
-	    PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)			\
+	    (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE -			\
+	    (PRIO_MAX - PRIO_MIN) * NICE_WEIGHT)			\
 	    + INVERSE_ESTCPU_WEIGHT - 1)
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
@@ -596,11 +596,13 @@ resetpriority(struct thread *td)
 
 	if (td->td_pri_class != PRI_TIMESHARE)
 		return;
-	newpriority = PUSER +
+	newpriority = PRI_MIN_TIMESHARE +
 	    td_get_sched(td)->ts_estcpu / INVERSE_ESTCPU_WEIGHT +
 	    NICE_WEIGHT * (td->td_proc->p_nice - PRIO_MIN);
-	newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
-	    PRI_MAX_TIMESHARE);
+	KASSERT(PRI_MIN_TIMESHARE <= newpriority &&
+	    newpriority <= PRI_MAX_TIMESHARE,
+	    ("Out-of-bounds priority, probably 'ts_estcpu' not clamped "
+	    "correctly, see ESTCPULIM()"));
 	sched_user_prio(td, newpriority);
 }
 
