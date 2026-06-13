@@ -1570,6 +1570,7 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	struct ieee80211_sta *sta;
 	struct ieee80211_node *ni;
 	struct ieee80211_key_conf *kc;
+	struct ieee80211_key *wk;
 	uint32_t lcipher;
 	uint16_t exp_flags;
 	uint8_t keylen;
@@ -1705,6 +1706,16 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		    kc, kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
+	/*
+	 * Getting here means we support HW crypto offload.
+	 * Some drivers do not set the wiphy [n_]cipher_suites and thus we
+	 * never populate ic_cryptocaps. which means SWCRYPT will be set and we
+	 * should disable this now (before possibly setting other SW flags
+	 * again for when we need partial SW support).
+	 */
+	wk = __DECONST(struct ieee80211_key *, k);
+	wk->wk_flags &= ~IEEE80211_KEY_SWCRYPT;
+
 	exp_flags = 0;
 	switch (kc->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -1724,8 +1735,8 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 #ifdef __notyet__
 		/* Do flags surgery; special see linuxkpi_ieee80211_ifattach(). */
 		if ((kc->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) != 0) {
-			k->wk_flags &= ~(IEEE80211_KEY_NOMICMGT|IEEE80211_KEY_NOMIC);
-			k->wk_flags |= IEEE80211_KEY_SWMIC;
+			wk->wk_flags &= ~(IEEE80211_KEY_NOMICMGT|IEEE80211_KEY_NOMIC);
+			wk->wk_flags |= IEEE80211_KEY_SWMIC;
 			ic->ic_cryptocaps &= ~IEEE80211_CRYPTO_TKIPMIC
 		}
 #endif
@@ -1748,9 +1759,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 #ifdef __notyet__
 	/* Do flags surgery. */
 	if ((kc->flags & IEEE80211_KEY_FLAG_GENERATE_IV_MGMT) == 0)
-		k->wk_flags |= IEEE80211_KEY_NOIVMGT;
+		wk->wk_flags |= IEEE80211_KEY_NOIVMGT;
 	if ((kc->flags & IEEE80211_KEY_FLAG_GENERATE_IV) == 0)
-		k->wk_flags |= IEEE80211_KEY_NOIV;
+		wk->wk_flags |= IEEE80211_KEY_NOIV;
 #endif
 
 	ieee80211_free_node(ni);
