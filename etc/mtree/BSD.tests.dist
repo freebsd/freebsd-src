@@ -871,6 +871,8 @@
                 ..
                 virstor
                 ..
+                zoned
+                ..
             ..
         ..
         kern
@@ -1322,6 +1324,8 @@
         sysrc
         ..
         traceroute
+        ..
+        zonectl
         ..
     ..
 ..

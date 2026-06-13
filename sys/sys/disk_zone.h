@@ -45,9 +45,9 @@
 
 /*
  * There are currently three types of zoned devices:
- * 
+ *
  * Drive Managed:
- * Drive Managed drives look and act just like a standard random access 
+ * Drive Managed drives look and act just like a standard random access
  * block device, but underneath, the drive reads and writes the bulk of
  * its capacity using SMR zones.  Sequential writes will yield better
  * performance, but writing sequentially is not required.
@@ -58,7 +58,7 @@
  * is not required to manage the zones on the drive, though.  Sequential
  * writes will yield better performance in Sequential Write Preferred
  * zones, but the host can write randomly in those zones.
- * 
+ *
  * Host Managed:
  * Host Managed drives expose the underlying zone layout via SCSI or ATA
  * commands.  The host is required to access the zones according to the
@@ -130,15 +130,27 @@ struct disk_zone_rep_entry {
 #define	DISK_ZONE_COND_IMPLICIT_OPEN	0x02
 #define	DISK_ZONE_COND_EXPLICIT_OPEN	0x03
 #define	DISK_ZONE_COND_CLOSED		0x04
+#define	DISK_ZONE_COND_INACTIVE		0x05
 #define	DISK_ZONE_COND_READONLY		0x0D
 #define	DISK_ZONE_COND_FULL		0x0E
 #define	DISK_ZONE_COND_OFFLINE		0x0F
 	uint8_t		zone_flags;
 #define	DISK_ZONE_FLAG_RESET		0x01 /* Zone needs RWP */
-#define	DISK_ZONE_FLAG_NON_SEQ		0x02 /* Zone accssessed nonseq */
+#define	DISK_ZONE_FLAG_NON_SEQ		0x02 /* Zone accessed nonseq */
 	uint64_t	zone_length;
 	uint64_t	zone_start_lba;
 	uint64_t	write_pointer_lba;
+	/*
+	 * Only zone conditions that have a write pointer report one
+	 * here; ZBC and ZAC leave the field undefined otherwise, and
+	 * drives disagree on what they put in it.
+	 */
+#define	DISK_ZONE_WP_INVALID(cond)					\
+	((cond) == DISK_ZONE_COND_NOT_WP ||				\
+	 (cond) == DISK_ZONE_COND_INACTIVE ||				\
+	 (cond) == DISK_ZONE_COND_READONLY ||				\
+	 (cond) == DISK_ZONE_COND_FULL ||				\
+	 (cond) == DISK_ZONE_COND_OFFLINE)
 	/* XXX KDM padding space may not be a good idea inside the bio */
 	uint8_t		reserved[32];
 };
