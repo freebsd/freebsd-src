@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 8, 2026
+.Dd June 14, 2026
 .Dt LOADER.EFI 8
 .Os
 .Sh NAME
@@ -346,7 +346,7 @@ Eventually,
 and the kernel were improved to avoid this problem.
 .Ed
 .Ss amd64 Faults
-Because it executes in x86 protected mode, the amd64 version of
+Because it executes in 64-bit long mode, the amd64 version of
 .Nm
 is susceptible to CPU faults due to programmer mistakes and
 memory corruption.
