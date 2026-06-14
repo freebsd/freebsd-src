@@ -373,6 +373,18 @@ command produces a fault in the
 environment for testing purposes, by executing the
 .Ic ud2
 processor instruction.
+.Ss i386 firmware on amd64 machines
+Some devices have 64-bit (long mode) capable CPUs, but come with a
+32-bit (protected mode) UEFI implementation.
+.Pa /boot/loader_ia32.efi
+is provided for such devices.
+It switches to long mode right before executing the kernel.
+Note that since the firmware expects its runtime EFI functions to be
+executed in 32-bit protected mode, EFI runtime services are not
+available to the kernel.
+Which means that programs like
+.Xr efibootmgr 8
+will not work.
 .Sh FILES
 .Bl -tag -width "/boot/loader.efi"
 .It Pa /boot/loader.efi
