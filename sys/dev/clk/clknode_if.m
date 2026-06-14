@@ -51,7 +51,7 @@ METHOD int recalc_freq {
 #
 # Set frequency
 #     fin - parent (input)frequency.
-#     fout - requested output freqency. If clock cannot change frequency,
+#     fout - requested output frequency. If clock cannot change frequency,
 #	    then must return new requested frequency for his parent
 METHOD int set_freq {
 	struct clknode	*clk;
