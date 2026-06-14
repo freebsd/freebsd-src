@@ -165,6 +165,8 @@ struct nvme_qpair {
 
 	uint32_t		num_entries;
 	uint32_t		num_trackers;
+	uint32_t		sqe_shift;	/* SQE size shift: sqes_max - 6; 0 = 64 bytes, 1 = 128 bytes */
+	uint16_t		cid_base;	/* CID offset for SHARED_TAGS IO queues */
 	uint32_t		sq_tdbl_off;
 	uint32_t		cq_hdbl_off;
 
@@ -220,10 +222,16 @@ struct nvme_controller {
 	int			domain;
 	uint32_t		ready_timeout_in_ms;
 	uint32_t		quirks;
+	uint8_t			max_identify_cns;	/* max CNS value for IDENTIFY (0 = no limit) */
 #define	QUIRK_DELAY_B4_CHK_RDY	1		/* Can't touch MMIO on disable */
 #define	QUIRK_DISABLE_TIMEOUT	2		/* Disable broken completion timeout feature */
 #define	QUIRK_INTEL_ALIGNMENT	4		/* Pre NVMe 1.3 performance alignment */
 #define QUIRK_AHCI		8		/* Attached via AHCI redirect */
+#define	QUIRK_APPLE_IDENTIFY_CNS_BROKEN		0x10	/* Reject IDENTIFY with CNS >= max_identify_cns */
+#define	NVME_APPLE_ANS2_MAX_CNS			1	/* T2: highest CNS accepted (Identify Controller) */
+#define	QUIRK_APPLE_SHARED_CID_SPACE		0x20	/* Admin/IO share a single CID table */
+#define	QUIRK_APPLE_NO_ASYNC_EVENT		0x40	/* Skip NVMe async event requests */
+#define	QUIRK_APPLE_SINGLE_VECTOR		0x80	/* Single MSI vector, one IO queue */
 
 	int			resource_id;
 	struct resource		*resource;
@@ -321,6 +329,12 @@ struct nvme_controller {
 	/* Statistics */
 	counter_u64_t			alignment_splits;
 };
+
+/*
+ * Access the idx'th submission queue entry.
+ * sqe_shift is sqes_max - 6: 0 for standard 64-byte SQEs, 1 for 128-byte.
+ */
+#define	NVME_SQE(qpair, idx)	(&(qpair)->cmd[(idx) << (qpair)->sqe_shift])
 
 #define nvme_mmio_offsetof(reg)						       \
 	offsetof(struct nvme_registers, reg)
