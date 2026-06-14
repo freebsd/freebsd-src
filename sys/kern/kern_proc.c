@@ -3293,6 +3293,7 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 {
 	struct kinfo_vm_layout kvm;
 	struct proc *p;
+	struct thread *td;
 	struct vmspace *vmspace;
 	int error, *name;
 
@@ -3300,6 +3301,7 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 	if ((u_int)arg2 != 1)
 		return (EINVAL);
 
+	td = curthread;
 	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
 	if (error != 0)
 		return (error);
@@ -3311,8 +3313,13 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 		}
 	}
 #endif
-	vmspace = vmspace_acquire_ref(p);
+	_PHOLD(p);
 	PROC_UNLOCK(p);
+	error = proc_vmspace_ref(td, p, PRVM_CHECK_DEBUG, &vmspace);
+	if (error != 0) {
+		PRELE(p);
+		return (error);
+	}
 
 	memset(&kvm, 0, sizeof(kvm));
 	kvm.kvm_min_user_addr = vm_map_min(&vmspace->vm_map);
@@ -3364,7 +3371,8 @@ sysctl_kern_proc_vm_layout(SYSCTL_HANDLER_ARGS)
 #ifdef COMPAT_FREEBSD32
 out:
 #endif
-	vmspace_free(vmspace);
+	proc_vmspace_unref(td, p, PRVM_CHECK_DEBUG, vmspace);
+	PRELE(p);
 	return (error);
 }
 
