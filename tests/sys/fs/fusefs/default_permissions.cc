@@ -1562,6 +1562,59 @@ TEST_F(Unlink, sticky_directory)
 	ASSERT_EQ(EPERM, errno);
 }
 
+/*
+ * When trying to delete or rename a file, we must check its parent directory's
+ * sticky bit.  That may entail a FUSE_GETATTR.  If that operation fails, then
+ * we must fail the rename or delete.
+ */
+TEST_F(Unlink, sticky_directory_io_during_getattr)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	Sequence seq;
+	uint64_t ino = 42;
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == FUSE_ROOT_ID);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = FUSE_ROOT_ID;
+		out.body.attr.attr.mode = S_IFDIR | 0177;
+		/*
+		 * Realistically, the parent directory's attributes will almost
+		 * always be cached when we try to lookup the sticky bit.  For
+		 * this test case, set attr_valid to 0 so that won't be the
+		 * case.
+		 */
+		out.body.attr.attr_valid = 0;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == FUSE_ROOT_ID);
+		}, Eq(true)),
+		_)
+	).Times(1)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnErrno(EIO)));
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, 0);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_UNLINK);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	ASSERT_EQ(-1, unlink(FULLPATH));
+	ASSERT_EQ(EIO, errno);
+}
+
 /* A write by a non-owner should clear a file's SUID bit */
 TEST_F(Write, clear_suid)
 {

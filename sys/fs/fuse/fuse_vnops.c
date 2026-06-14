@@ -1743,14 +1743,16 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				 * Need to figure out the vnode locking to make
 				 * this work.
 				 */
-				fuse_internal_getattr(dvp, &dvattr, cred, td);
-				if ((dvattr.va_mode & S_ISTXT) &&
+				err = fuse_internal_getattr(dvp, &dvattr, cred,
+						td);
+				if (err == 0 &&
+					(dvattr.va_mode & S_ISTXT) &&
 					fuse_internal_access(dvp, VADMIN, td,
 						cred) &&
 					fuse_internal_access(*vpp, VADMIN, td,
-						cred)) {
+						cred))
+				{
 					err = EPERM;
-					goto out;
 				}
 			}
 		}
