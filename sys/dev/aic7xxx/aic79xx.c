@@ -6439,7 +6439,7 @@ ahd_init(struct ahd_softc *ahd)
 		goto init_done;
 	}
 
-	/* Diable current sensing. */
+	/* Disable current sensing. */
 	ahd_write_flexport(ahd, FLXADDR_ROMSTAT_CURSENSECTL, 0);
 
 #ifdef AHD_DEBUG
