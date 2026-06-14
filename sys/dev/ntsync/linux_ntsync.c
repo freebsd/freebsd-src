@@ -231,6 +231,10 @@ linux_ntsync_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		}
 		break;
 	case LNTSYNC_IOC_SEM_RELEASE:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = copyin(data, &val, sizeof(val));
 		if (error == 0) {
 			error = ntsync_sem_release(td, fp, &val);
@@ -239,6 +243,10 @@ linux_ntsync_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		}
 		break;
 	case LNTSYNC_IOC_SEM_READ:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = ntsync_sem_read(td, fp, &sa);
 		if (error == 0) {
 			ntsync_sa_to_lsa(&lsa, &sa);
@@ -246,6 +254,10 @@ linux_ntsync_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		}
 		break;
 	case LNTSYNC_IOC_MUTEX_UNLOCK:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = copyin(data, &lma, sizeof(lma));
 		ntsync_lma_to_ma(&ma, &lma);
 		if (error == 0) {
@@ -257,11 +269,19 @@ linux_ntsync_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		}
 		break;
 	case LNTSYNC_IOC_MUTEX_KILL:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = copyin(data, &val, sizeof(val));
 		if (error == 0)
 			error = ntsync_mutex_kill(td, fp, val);
 		break;
 	case LNTSYNC_IOC_MUTEX_READ:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = ntsync_mutex_read(td, fp, &ma, &doco);
 		if (doco) {
 			ntsync_ma_to_lma(&lma, &ma);
@@ -271,21 +291,37 @@ linux_ntsync_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		}
 		break;
 	case LNTSYNC_IOC_EVENT_SET:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = ntsync_event_set(td, fp, &val);
 		if (error == 0)
 			error = copyout(&val, data, sizeof(val));
 		break;
 	case LNTSYNC_IOC_EVENT_RESET:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = ntsync_event_reset(td, fp, &val);
 		if (error == 0)
 			error = copyout(&val, data, sizeof(val));
 		break;
 	case LNTSYNC_IOC_EVENT_PULSE:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = ntsync_event_pulse(td, fp, &val);
 		if (error == 0)
 			error = copyout(&val, data, sizeof(val));
 		break;
 	case LNTSYNC_IOC_EVENT_READ:
+		if (fp->f_type != DTYPE_NTSYNC) {
+			error = ENOTTY;
+			break;
+		}
 		error = ntsync_event_read(td, fp, &ea);
 		if (error == 0) {
 			ntsync_ea_to_lea(&lea, &ea);
