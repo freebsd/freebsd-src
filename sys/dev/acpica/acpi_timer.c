@@ -344,7 +344,7 @@ acpi_timer_get_timecount_safe(struct timecounter *tc)
 }
 
 /*
- * Timecounter freqency adjustment interface.
+ * Timecounter frequency adjustment interface.
  */ 
 static int
 acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
