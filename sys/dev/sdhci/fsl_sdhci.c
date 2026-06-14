@@ -574,7 +574,7 @@ fsl_sdhc_set_clock(struct fsl_sdhci_softc *sc, uint16_t val)
 	/*
 	 * Save the frequency-setting bits in SDHCI format so that we can play
 	 * them back in get_clock without complex decoding of hardware regs,
-	 * then deal with the freqency part of the value based on hardware type.
+	 * then deal with the frequency part of the value based on hardware type.
 	 */
 	sc->sdclockreg_freq_bits = val & SDHCI_DIVIDERS_MASK;
 	if (sc->hwtype == HWTYPE_ESDHC) {
