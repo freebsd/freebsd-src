@@ -447,7 +447,7 @@ select_out:
 		or	SXFRCTL0, CLRSTCNT|CLRCHN;
 
 		/*
-		 * Put tag in connonical location since not
+		 * Put tag in canonical location since not
 		 * all connections have an SCB.
 		 */
 		mov	INITIATOR_TAG, SCB_TARGET_ITAG;
