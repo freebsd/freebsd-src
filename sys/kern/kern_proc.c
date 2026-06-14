@@ -2425,6 +2425,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	int error, *name;
 	struct vnode *vp;
 	struct proc *p;
+	struct thread *td;
 	vm_map_t map;
 	struct vmspace *vm;
 
@@ -2433,11 +2434,12 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	name = (int *)arg1;
+	td = curthread;
 	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
 	if (error != 0)
 		return (error);
-	vm = vmspace_acquire_ref(p);
-	if (vm == NULL) {
+	error = proc_vmspace_ref(td, p, PRVM_CHECK_DEBUG, &vm);
+	if (error != 0) {
 		PRELE(p);
 		return (ESRCH);
 	}
@@ -2549,7 +2551,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
+	proc_vmspace_unref(td, p, PRVM_CHECK_DEBUG, vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
@@ -2644,6 +2646,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
+	struct thread *td;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
 	int error;
@@ -2655,10 +2658,11 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 	_PHOLD(p);
 	PROC_UNLOCK(p);
-	vm = vmspace_acquire_ref(p);
-	if (vm == NULL) {
+	td = curthread;
+	error = proc_vmspace_ref(td, p, PRVM_CHECK_DEBUG, &vm);
+	if (error != 0) {
 		PRELE(p);
-		return (ESRCH);
+		return (error);
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK | M_ZERO);
 
@@ -2762,7 +2766,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			if (vp != NULL) {
 				vn_fullpath(vp, &fullpath, &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
-				cred = curthread->td_ucred;
+				cred = td->td_ucred;
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_vn_fileid = va.va_fileid;
@@ -2818,7 +2822,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 		}
 	}
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
+	proc_vmspace_unref(td, p, PRVM_CHECK_DEBUG, vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
