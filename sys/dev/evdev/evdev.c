@@ -283,6 +283,11 @@ evdev_sysctl_create(struct evdev_dev *evdev)
 	    SYSCTL_CHILDREN(ev_sysctl_tree), OID_AUTO, "sw_bits", CTLFLAG_RD,
 	    evdev->ev_sw_flags, sizeof(evdev->ev_sw_flags), "",
 	    "Input device supported switch events");
+
+	SYSCTL_ADD_U64(&evdev->ev_sysctl_ctx,
+	    SYSCTL_CHILDREN(ev_sysctl_tree), OID_AUTO, "devnum", CTLFLAG_RD,
+	    &evdev->ev_devnum, 0,
+	    "Input device number");
 }
 
 static int
@@ -328,6 +333,7 @@ evdev_register_common(struct evdev_dev *evdev)
 	ret = evdev_cdev_create(evdev);
 	if (ret != 0)
 		goto bail_out;
+	evdev->ev_devnum = dev2udev(evdev->ev_cdev);
 
 	/* Create sysctls (for device enumeration without /dev/input access rights) */
 	evdev_sysctl_create(evdev);
