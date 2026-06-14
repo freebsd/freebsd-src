@@ -397,7 +397,7 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	/* Read the UECPA register to clear */
 	ufshci_mmio_read_4(ctrlr, uecpa);
 
-	/* Diable Auto-hibernate */
+	/* Disable Auto-hibernate */
 	ahit = 0;
 	ufshci_mmio_write_4(ctrlr, ahit, ahit);
 
