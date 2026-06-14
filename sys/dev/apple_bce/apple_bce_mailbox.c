@@ -57,6 +57,11 @@ bce_mailbox_send(struct bce_mailbox *mb, uint64_t msg, uint64_t *recv,
 	bus_write_4(mb->reg, BCE_REG_MBOX_OUT + 8, 0);
 	bus_write_4(mb->reg, BCE_REG_MBOX_OUT + 12, 0);
 
+	if (recv == NULL) {
+		atomic_store_int(&mb->status, 0);
+		return (0);
+	}
+
 	/* Wait for interrupt-driven reply */
 	if (sema_timedwait(&mb->mb_cmpl, hz * timeout_ms / 1000) != 0) {
 		/* Timeout -- reset to idle */

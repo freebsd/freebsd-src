@@ -27,7 +27,7 @@
 #define BCE_PCI_DEVICE_T2	0x1801
 
 #define BCE_MAX_QUEUE_COUNT	0x100
-#define BCE_MAX_CQ_COUNT	16	/* Max completion queues tracked */
+#define BCE_MAX_CQ_COUNT	64	/* Max completion queues tracked */
 #define BCE_QUEUE_USER_MIN	2
 #define BCE_QUEUE_USER_MAX	(BCE_MAX_QUEUE_COUNT - 1)
 #define BCE_CMD_SIZE		0x40
@@ -286,6 +286,7 @@ struct apple_bce_softc {
 	struct mtx		sc_queues_lock;
 	struct bce_queue_cq	*sc_cq_list[BCE_MAX_CQ_COUNT];
 	struct bce_queue_sq	*sc_int_sq_list[BCE_MAX_QUEUE_COUNT];
+	device_t		sc_vhci_dev;
 };
 
 /* Inline helpers */

@@ -32,10 +32,13 @@
 #include "apple_bce.h"
 #include "apple_bce_mailbox.h"
 #include "apple_bce_queue.h"
+#include "apple_bce_vhci.h"
 
 static int	apple_bce_probe(device_t dev);
 static int	apple_bce_attach(device_t dev);
 static int	apple_bce_detach(device_t dev);
+static int	apple_bce_suspend(device_t dev);
+static int	apple_bce_resume(device_t dev);
 static void	apple_bce_timestamp_cb(void *arg);
 static void	apple_bce_timestamp_init(struct apple_bce_softc *sc);
 static void	apple_bce_timestamp_start(struct apple_bce_softc *sc,
@@ -516,6 +519,12 @@ apple_bce_attach(device_t dev)
 		goto fail;
 
 	device_printf(dev, "Apple T2 BCE initialized\n");
+
+	/* Create VHCI child for virtual USB */
+	error = bce_vhci_attach(sc);
+	if (error != 0)
+		goto fail;
+
 	return (0);
 
 fail:
@@ -530,6 +539,9 @@ static int
 apple_bce_detach(device_t dev)
 {
 	struct apple_bce_softc *sc = device_get_softc(dev);
+
+	/* 0. Detach VHCI child first (before destroying parent resources) */
+	bce_vhci_detach(sc);
 
 	/* 1. Stop timestamp */
 	if (sc->sc_bar4 != NULL && mtx_initialized(&sc->sc_timestamp_lock))
@@ -616,10 +628,85 @@ apple_bce_detach(device_t dev)
 	return (0);
 }
 
+static int
+apple_bce_suspend(device_t dev)
+{
+	struct apple_bce_softc *sc = device_get_softc(dev);
+	int error, restore_error;
+
+	apple_bce_timestamp_stop(sc);
+
+	error = bce_vhci_detach(sc);
+	if (error != 0) {
+		device_printf(dev, "failed to detach VHCI for suspend: %d\n",
+		    error);
+		apple_bce_timestamp_start(sc, 0);
+		return (error);
+	}
+
+	error = bce_mailbox_send(&sc->sc_mbox,
+	    BCE_MB_MSG(BCE_MB_SLEEP_NO_STATE, 0), NULL,
+	    BCE_MBOX_TIMEOUT_MS);
+	if (error != 0) {
+		device_printf(dev,
+		    "failed to send SLEEP_NO_STATE mailbox command: %d\n",
+		    error);
+		restore_error = bce_vhci_attach(sc);
+		if (restore_error != 0) {
+			device_printf(dev,
+			    "failed to reattach VHCI after suspend error: %d\n",
+			    restore_error);
+		}
+		apple_bce_timestamp_start(sc, 0);
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
+apple_bce_resume(device_t dev)
+{
+	struct apple_bce_softc *sc = device_get_softc(dev);
+	uint64_t reply;
+	int error;
+
+	error = bce_mailbox_send(&sc->sc_mbox,
+	    BCE_MB_MSG(BCE_MB_RESTORE_NO_STATE, 0), &reply,
+	    BCE_MBOX_TIMEOUT_MS);
+	if (error != 0) {
+		device_printf(dev,
+		    "failed to send RESTORE_NO_STATE mailbox command: %d\n",
+		    error);
+		return (error);
+	}
+
+	if (BCE_MB_TYPE(reply) != BCE_MB_RESTORE_NO_STATE) {
+		device_printf(dev,
+		    "unexpected RESTORE_NO_STATE reply: type=%u val=0x%llx\n",
+		    BCE_MB_TYPE(reply),
+		    (unsigned long long)BCE_MB_VALUE(reply));
+		return (EINVAL);
+	}
+
+	error = bce_vhci_attach(sc);
+	if (error != 0) {
+		device_printf(dev, "failed to reattach VHCI after resume: %d\n",
+		    error);
+		apple_bce_timestamp_start(sc, 0);
+		return (error);
+	}
+
+	apple_bce_timestamp_start(sc, 0);
+	return (0);
+}
+
 static device_method_t apple_bce_methods[] = {
 	DEVMETHOD(device_probe,		apple_bce_probe),
 	DEVMETHOD(device_attach,	apple_bce_attach),
 	DEVMETHOD(device_detach,	apple_bce_detach),
+	DEVMETHOD(device_suspend,	apple_bce_suspend),
+	DEVMETHOD(device_resume,	apple_bce_resume),
 	DEVMETHOD_END
 };
 
