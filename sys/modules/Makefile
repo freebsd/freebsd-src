@@ -43,6 +43,7 @@ SUBDIR=	\
 	${_allwinner} \
 	${_armv8crypto} \
 	${_armv8_rng} \
+	${_apple_bce} \
 	${_asmc} \
 	ata \
 	${_aq} \
@@ -863,6 +864,7 @@ _x86bios=	x86bios
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _amdgpio=	amdgpio
+_apple_bce=	apple_bce
 _asmc=		asmc
 _ccp=		ccp
 _enic=		enic
