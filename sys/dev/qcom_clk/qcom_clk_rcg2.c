@@ -137,7 +137,7 @@ qcom_clk_rcg2_calc_rate(uint64_t rate, uint32_t mode, uint32_t m, uint32_t n,
 
 /*
  * The inverse of calc_rate() - calculate the required input frequency
- * given the desired output freqency and m/n:d configuration.
+ * given the desired output frequency and m/n:d configuration.
  */
 static uint64_t
 qcom_clk_rcg2_calc_input_freq(uint64_t freq, uint32_t m, uint32_t n,
