@@ -83,6 +83,7 @@ static struct ath3k_devid ath3k_list[] = {
 	{ .vendor_id = 0x0CF3, .product_id = 0x817a, .is_3012 = 1 },
 	{ .vendor_id = 0x0cf3, .product_id = 0xe004, .is_3012 = 1 },
 	{ .vendor_id = 0x0cf3, .product_id = 0xe005, .is_3012 = 1 },
+	{ .vendor_id = 0x0cf3, .product_id = 0xe006, .is_3012 = 1 },
 	{ .vendor_id = 0x0cf3, .product_id = 0xe003, .is_3012 = 1 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3362, .is_3012 = 1 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3375, .is_3012 = 1 },
