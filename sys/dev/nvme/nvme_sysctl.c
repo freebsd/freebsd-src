@@ -69,7 +69,7 @@ nvme_dump_queue(struct nvme_qpair *qpair)
 
 	printf("Submission queue:\n");
 	for (i = 0; i < qpair->num_entries; i++) {
-		cmd = &qpair->cmd[i];
+		cmd = NVME_SQE(qpair, i);
 		printf("%05d: ", i);
 		nvme_qpair_print_command(qpair, cmd);
 	}
