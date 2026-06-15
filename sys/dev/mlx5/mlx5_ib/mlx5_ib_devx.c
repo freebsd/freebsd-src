@@ -2006,6 +2006,12 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 		if (!event_sub)
 			goto err;
 
+		event_sub->cookie = cookie;
+		event_sub->ev_file = ev_file;
+		event_sub->xa_key_level1 = key_level1;
+		event_sub->xa_key_level2 = obj_id;
+		INIT_LIST_HEAD(&event_sub->obj_list);
+
 		list_add_tail(&event_sub->event_list, &sub_list);
 		uverbs_uobject_get(&ev_file->uobj);
 		if (use_eventfd) {
@@ -2017,13 +2023,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 				goto err;
 			}
 		}
-
-		event_sub->cookie = cookie;
-		event_sub->ev_file = ev_file;
-		/* May be needed upon cleanup the devx object/subscription */
-		event_sub->xa_key_level1 = key_level1;
-		event_sub->xa_key_level2 = obj_id;
-		INIT_LIST_HEAD(&event_sub->obj_list);
 	}
 
 	/* Once all the allocations and the XA data insertions were done we
