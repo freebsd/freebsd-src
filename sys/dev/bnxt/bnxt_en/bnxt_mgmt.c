@@ -26,9 +26,10 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "bnxt_mgmt.h" 
+#include "bnxt_mgmt.h"
 #include "bnxt.h"
-#include "bnxt_hwrm.h" 
+#include "bnxt_hwrm.h"
+#include "bnxt_log.h"
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <sys/endian.h>
@@ -54,6 +55,217 @@ struct mtx		mgmt_lock;
 
 MALLOC_DEFINE(M_BNXT, "bnxt_mgmt_buffer", "buffer for bnxt_mgmt module");
 
+
+static uint32_t
+bnxt_get_driver_coredump_len(struct bnxt_softc *softc)
+{
+
+	uint32_t type, i, j, n;
+	uint32_t buf_size = 0;
+	int ctx_page_count = 0;
+	int segment_len = 0;
+	int driver_segment_record_len = 0;
+	uint32_t dump_len = 0;
+	int record_len = sizeof(struct bnxt_driver_segment_record);
+	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
+
+	if (!ctx)
+		return (dump_len);
+
+	for (type = BNXT_CTX_SRT_TRACE; type <= BNXT_CTX_ROCE_HWRM_TRACE;
+	     type++) {
+		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
+
+		if (!ctx_pg)
+			continue;
+
+		if (ctxm->instance_bmap)
+			n = bitcount32(ctxm->instance_bmap);
+		else
+			n = 1;
+
+		for (i = 0; i < n; i++) {
+			struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+
+			if (ctx_pg->nr_pages > MAX_CTX_PAGES ||
+			    ctx_pg->ctx_pg_tbl) {
+				int k = 0, nr_tbls = rmem->nr_pages;
+
+				for (k = 0; k < nr_tbls; k++) {
+					struct bnxt_ctx_pg_info *pg_tbl;
+					struct bnxt_ring_mem_info *rmem2;
+
+					pg_tbl = ctx_pg->ctx_pg_tbl[k];
+					if (!pg_tbl)
+						continue;
+					rmem2 = &pg_tbl->ring_mem;
+					for (j = 0; j < rmem2->nr_pages; j++) {
+						if (!rmem2->pg_arr[j].idi_vaddr)
+							continue;
+						ctx_page_count++;
+					}
+				}
+			} else {
+				struct bnxt_ring_mem_info *rmem2 = rmem;
+
+				for (j = 0; j < rmem2->nr_pages; j++) {
+					if (!rmem2->pg_arr[j].idi_vaddr)
+						continue;
+					ctx_page_count++;
+				}
+			}
+		}
+		segment_len += 64;
+		driver_segment_record_len += record_len;
+	}
+
+	buf_size = driver_segment_record_len + segment_len +
+	    (ctx_page_count * 4096);
+
+	return (buf_size);
+}
+
+inline void
+bnxt_bs_trace_check_wrapping(struct bnxt_bs_trace_info *bs_trace,
+    u32 offset)
+{
+        if (!bs_trace->wrapped &&
+            *bs_trace->magic_byte != BNXT_TRACE_BUF_MAGIC_BYTE)
+                bs_trace->wrapped = 1;
+        bs_trace->last_offset = offset;
+}
+
+
+
+static int
+bnxt_hwrm_dbg_log_buffer_flush(struct bnxt_softc *bp, u16 type, u32 flags,
+    u32 *offset)
+{
+        int  status = 0;
+
+        hwrm_dbg_log_buffer_flush_input_t buff_flush_req;
+        hwrm_dbg_log_buffer_flush_output_t *buff_flush_resp =
+            (hwrm_dbg_log_buffer_flush_output_t *)(void *)
+            bp->hwrm_cmd_resp.idi_vaddr;
+        bnxt_hwrm_cmd_hdr_init(bp, &buff_flush_req, HWRM_DBG_LOG_BUFFER_FLUSH);
+        buff_flush_req.type = type;
+        buff_flush_req.flags = flags;
+
+        status = hwrm_send_message(bp, &buff_flush_req, sizeof(buff_flush_req));
+        if (!status)
+                *offset = buff_flush_resp->current_buffer_offset;
+        return (status);
+}
+
+static void
+bnxt_fill_driver_segment_record(struct bnxt_softc *bp,
+    struct bnxt_driver_segment_record *drv_seg_rec,
+    struct bnxt_ctx_mem_type *ctxm, uint16_t type)
+{
+        struct bnxt_bs_trace_info *bs_trace = &bp->bs_trace[type];
+        uint32_t offset;
+
+        if (bnxt_hwrm_dbg_log_buffer_flush(bp, type, 0, &offset) == 0) {
+                bnxt_bs_trace_check_wrapping(bs_trace, offset);
+        }
+        drv_seg_rec->max_entries = ctxm->max_entries;
+        drv_seg_rec->entry_size = ctxm->entry_size;
+        drv_seg_rec->offset = bs_trace->last_offset;
+        drv_seg_rec->wrapped = bs_trace->wrapped;
+}
+
+static void
+bnxt_retrieve_driver_coredump(struct bnxt_softc *softc, void *buf,
+    uint16_t type, uint32_t *seg_len)
+{
+	struct bnxt_driver_segment_record drv_seg_rec = {0};
+	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
+	struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+	struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
+	uint32_t dump_len, data_offset, record_len, seg_hdr_len;
+	uint32_t i, j, k, n = 1, nr_tbls;
+
+	dump_len = 0;
+
+	record_len = sizeof(struct bnxt_driver_segment_record);
+	seg_hdr_len = sizeof(struct bnxt_coredump_segment_hdr);
+	data_offset = seg_hdr_len + record_len;
+
+	bnxt_fill_driver_segment_record(softc, &drv_seg_rec, ctxm,
+	    (type - BNXT_CTX_SRT_TRACE));
+
+	for (i = 0; i < n; i++) {
+		struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+
+		if (ctx_pg->nr_pages > MAX_CTX_PAGES || ctx_pg->ctx_pg_tbl) {
+			nr_tbls = rmem->nr_pages;
+			for (j = 0; j < nr_tbls; j++) {
+				struct bnxt_ctx_pg_info *pg_tbl;
+				struct bnxt_ring_mem_info *rmem2;
+
+				pg_tbl = ctx_pg->ctx_pg_tbl[j];
+				if (!pg_tbl)
+					continue;
+				rmem2 = &pg_tbl->ring_mem;
+				for (k = 0; k < rmem2->nr_pages; k++) {
+					if (!rmem2->pg_arr[k].idi_vaddr)
+						continue;
+					memcpy((uint8_t *)buf + data_offset,
+					    rmem2->pg_arr[k].idi_vaddr,
+					    rmem2->page_size);
+					data_offset += rmem2->page_size;
+					dump_len += rmem2->page_size;
+				}
+			}
+		} else {
+			for (k = 0; k < rmem->nr_pages; k++) {
+				if (!rmem->pg_arr[k].idi_vaddr)
+					continue;
+				memcpy((uint8_t *)buf + data_offset,
+				    rmem->pg_arr[k].idi_vaddr,
+				    rmem->page_size);
+				data_offset += rmem->page_size;
+				dump_len += rmem->page_size;
+			}
+		}
+	}
+	memcpy((uint8_t *)buf + seg_hdr_len, &drv_seg_rec, record_len);
+	*seg_len = dump_len + record_len;
+}
+
+void
+bnxt_get_ctx_coredump(struct bnxt_softc *softc, void *buf)
+{
+	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
+	struct bnxt_coredump_segment_hdr seg_hdr;
+	uint32_t type = 0, i = 0;
+	uint32_t seg_hdr_len = 0;
+
+	seg_hdr_len = sizeof(seg_hdr);
+	for (type = BNXT_CTX_SRT_TRACE, i = DRV_SRT_TRACE_SEG_ID;
+	     type <= BNXT_CTX_ROCE_HWRM_TRACE; type++, i++) {
+		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		uint16_t comp_id = DRV_COREDUMP_COMP_ID;
+		uint16_t seg_id = i;
+		uint32_t seg_len = 0;
+
+		ctxm = &ctx->ctx_arr[type];
+
+		if (!(ctxm->flags & BNXT_CTX_MEM_TYPE_VALID) ||
+		    !ctxm->mem_valid)
+			continue;
+
+		bnxt_retrieve_driver_coredump(softc, buf, type, &seg_len);
+
+		bnxt_fill_coredump_seg_hdr(softc, &seg_hdr, NULL, seg_len,
+		    0, 0, 0, comp_id, seg_id);
+
+		memcpy((uint8_t *)buf, &seg_hdr, seg_hdr_len);
+		buf = (uint8_t *)buf + seg_hdr_len + seg_len;
+	}
+}
+
 /*
  * This function is called by the kld[un]load(2) system calls to
  * determine what actions to take when a module is loaded or unloaded.
@@ -76,7 +288,7 @@ bnxt_mgmt_loader(struct module *m, int what, void *arg)
 		if (error != 0) {
 			printf("%s: %s:%s:%d Failed to create the"
 			       "bnxt_mgmt device node\n", DRIVER_NAME,
-			       __FILE__, __FUNCTION__, __LINE__);
+			       __FILE__, __func__, __LINE__);
 			return (error);
 		}
 
@@ -107,14 +319,14 @@ bnxt_mgmt_process_dcb(struct cdev *dev, u_long cmd, caddr_t data,
 	memcpy(&user_ptr, data, sizeof(user_ptr));
 	if (copyin(user_ptr, &mgmt_dcb, sizeof(mgmt_dcb))) {
 		printf("%s: %s:%d Failed to copy data from user\n",
-			DRIVER_NAME, __FUNCTION__, __LINE__);
+			DRIVER_NAME, __func__, __LINE__);
 		return -EFAULT;
 	}
 	softc = bnxt_find_dev(mgmt_dcb.hdr.domain, mgmt_dcb.hdr.bus,
 			      mgmt_dcb.hdr.devfn, NULL);
 	if (!softc) {
 		printf("%s: %s:%d unable to find softc reference\n",
-			DRIVER_NAME, __FUNCTION__, __LINE__);
+			DRIVER_NAME, __func__, __LINE__);
 		return -ENODEV;
 	}
 
@@ -144,14 +356,14 @@ bnxt_mgmt_process_dcb(struct cdev *dev, u_long cmd, caddr_t data,
 		break;
 	default:
 		device_printf(softc->dev, "%s:%d Invalid op 0x%x\n",
-			      __FUNCTION__, __LINE__, mgmt_dcb.op);
+			      __func__, __LINE__, mgmt_dcb.op);
 		ret = -EFAULT;
 		goto end;
 	}
 
 	if (copyout(&mgmt_dcb, user_ptr, sizeof(mgmt_dcb))) {
 		device_printf(softc->dev, "%s:%d Failed to copy response to user\n",
-			      __FUNCTION__, __LINE__);
+			      __func__, __LINE__);
 		ret = -EFAULT;
 		goto end;
 	}
@@ -173,35 +385,35 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 	uint16_t num_ind = 0;
 
 	memcpy(&user_ptr, data, sizeof(user_ptr));
-	if (copyin(user_ptr, &mgmt_req, sizeof(struct bnxt_mgmt_req))) {	
+	if (copyin(user_ptr, &mgmt_req, sizeof(struct bnxt_mgmt_req))) {
 		printf("%s: %s:%d Failed to copy data from user\n",
-			DRIVER_NAME, __FUNCTION__, __LINE__);
+			DRIVER_NAME, __func__, __LINE__);
 		return -EFAULT;
 	}
 	softc = bnxt_find_dev(mgmt_req.hdr.domain, mgmt_req.hdr.bus,
 			      mgmt_req.hdr.devfn, NULL);
 	if (!softc) {
 		printf("%s: %s:%d unable to find softc reference\n",
-			DRIVER_NAME, __FUNCTION__, __LINE__);
+			DRIVER_NAME, __func__, __LINE__);
 		return -ENODEV;
 	}
 
 	if (copyin((void*)mgmt_req.req.hreq, &msg_temp, sizeof(msg_temp))) {
 		device_printf(softc->dev, "%s:%d Failed to copy data from user\n",
-			      __FUNCTION__, __LINE__);
+			      __func__, __LINE__);
 		return -EFAULT;
 	}
 
 	if (msg_temp.len_req > BNXT_MGMT_MAX_HWRM_REQ_LENGTH ||
 			msg_temp.len_resp > BNXT_MGMT_MAX_HWRM_RESP_LENGTH) {
-		device_printf(softc->dev, "%s:%d Invalid length\n", 
-			      __FUNCTION__, __LINE__);
+		device_printf(softc->dev, "%s:%d Invalid length\n",
+			      __func__, __LINE__);
 		return -EINVAL;
 	}
 
 	if (msg_temp.num_dma_indications > 1) {
 		device_printf(softc->dev, "%s:%d Max num_dma_indications "
-			      "supported is 1 \n", __FUNCTION__, __LINE__);
+			      "supported is 1\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
@@ -210,7 +422,7 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 
 	if (copyin((void *)msg_temp.usr_req, req, msg_temp.len_req)) {
 		device_printf(softc->dev, "%s:%d Failed to copy data from user\n",
-			      __FUNCTION__, __LINE__);
+			      __func__, __LINE__);
 		ret = -EFAULT;
 		goto end;
 	}
@@ -222,35 +434,35 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 		void *dma_ptr;
 		uint64_t *dmap;
 
-		size = sizeof(struct bnxt_mgmt_fw_msg) + 
+		size = sizeof(struct bnxt_mgmt_fw_msg) +
 			     (num_ind * sizeof(struct dma_info));
 
 		msg2 = malloc(size, M_BNXT, M_WAITOK | M_ZERO);
 
-		if (copyin((void *)mgmt_req.req.hreq, msg2, size)) { 
+		if (copyin((void *)mgmt_req.req.hreq, msg2, size)) {
 			device_printf(softc->dev, "%s:%d Failed to copy"
-				      "data from user\n", __FUNCTION__, __LINE__);
+				      "data from user\n", __func__, __LINE__);
 			ret = -EFAULT;
 			goto end;
 		}
 		msg = msg2;
-		
+
 		ret = iflib_dma_alloc(softc->ctx, msg->dma[0].length, &dma_data,
 				    BUS_DMA_NOWAIT);
 		if (ret) {
 			device_printf(softc->dev, "%s:%d iflib_dma_alloc"
-				      "failed with ret = 0x%x\n", __FUNCTION__,
+				      "failed with ret = 0x%x\n", __func__,
 				      __LINE__, ret);
 			ret = -ENOMEM;
 			goto end;
 		}
 
 		if (!(msg->dma[0].read_or_write)) {
-			if (copyin((void *)msg->dma[0].data, 
-				   dma_data.idi_vaddr, 
+			if (copyin((void *)msg->dma[0].data,
+				   dma_data.idi_vaddr,
 				   msg->dma[0].length)) {
 				device_printf(softc->dev, "%s:%d Failed to copy"
-					      "data from user\n", __FUNCTION__,
+					      "data from user\n", __func__,
 					      __LINE__);
 				ret = -EFAULT;
 				goto end;
@@ -260,27 +472,27 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 		dmap = dma_ptr;
 		*dmap = htole64(dma_data.idi_paddr);
 	}
-   		
+
 	ret = bnxt_hwrm_passthrough(softc, req, msg->len_req, resp, msg->len_resp, msg->timeout);
 	if(ret)
 		goto end;
-	
+
 	if (num_ind) {
 		if ((msg->dma[0].read_or_write)) {
-			if (copyout(dma_data.idi_vaddr, 
-				    (void *)msg->dma[0].data, 
+			if (copyout(dma_data.idi_vaddr,
+				    (void *)msg->dma[0].data,
 				    msg->dma[0].length)) {
 				device_printf(softc->dev, "%s:%d Failed to copy data"
-					      "to user\n", __FUNCTION__, __LINE__);
+					      "to user\n", __func__, __LINE__);
 				ret = -EFAULT;
 				goto end;
 			}
 		}
 	}
-	
+
 	if (copyout(resp, (void *) msg->usr_resp, msg->len_resp)) {
 		device_printf(softc->dev, "%s:%d Failed to copy response to user\n",
-			      __FUNCTION__, __LINE__);
+			      __func__, __LINE__);
 		ret = -EFAULT;
 		goto end;
 	}
@@ -313,14 +525,14 @@ bnxt_mgmt_get_dev_info(struct cdev *dev, u_long cmd, caddr_t data,
 	memcpy(&user_ptr, data, sizeof(user_ptr));
 	if (copyin(user_ptr, &dev_info, sizeof(dev_info))) {
 		printf("%s: %s:%d Failed to copy data from user\n",
-			DRIVER_NAME, __FUNCTION__, __LINE__);
+			DRIVER_NAME, __func__, __LINE__);
 		return -EFAULT;
 	}
-	
+
 	softc = bnxt_find_dev(0, 0, 0, dev_info.nic_info.dev_name);
 	if (!softc) {
 		printf("%s: %s:%d unable to find softc reference\n",
-			DRIVER_NAME, __FUNCTION__, __LINE__);
+			DRIVER_NAME, __func__, __LINE__);
 		return -ENODEV;
 	}
 
@@ -339,7 +551,7 @@ bnxt_mgmt_get_dev_info(struct cdev *dev, u_long cmd, caddr_t data,
 	dev_info.pci_info.chip_rev_id |= dev_info.pci_info.revision;
 	if (pci_find_extcap(softc->dev, PCIZ_SERNUM, &dev_sn_offset)) {
 		device_printf(softc->dev, "%s:%d device serial number is not found"
-			      "or not supported\n", __FUNCTION__, __LINE__);
+			      "or not supported\n", __func__, __LINE__);
 	} else {
 		dev_sn_lo = pci_read_config(softc->dev, dev_sn_offset + 4, 4);
 		dev_sn_hi = pci_read_config(softc->dev, dev_sn_offset + 8, 4);
@@ -354,27 +566,103 @@ bnxt_mgmt_get_dev_info(struct cdev *dev, u_long cmd, caddr_t data,
 			 (dev_sn_hi >> 24 ) & 0xFF);
 		strncpy(dev_info.nic_info.device_serial_number, dsn, sizeof(dsn));
 	}
-	
+
 	if_t ifp = iflib_get_ifp(softc->ctx);
 	dev_info.nic_info.mtu = if_getmtu(ifp);
 	memcpy(dev_info.nic_info.mac, softc->func.mac_addr, ETHER_ADDR_LEN);
-	
+
 	if (pci_find_cap(softc->dev, PCIY_EXPRESS, &capreg)) {
 		device_printf(softc->dev, "%s:%d pci link capability is not found"
-			      "or not supported\n", __FUNCTION__, __LINE__);
+			      "or not supported\n", __func__, __LINE__);
 	} else {
 		lnk = pci_read_config(softc->dev, capreg + PCIER_LINK_STA, 2);
 		dev_info.nic_info.pci_link_speed = (lnk & PCIEM_LINK_STA_SPEED);
 		dev_info.nic_info.pci_link_width = (lnk & PCIEM_LINK_STA_WIDTH) >> 4;
 	}
-	
+
 	if (copyout(&dev_info, user_ptr, sizeof(dev_info))) {
 		device_printf(softc->dev, "%s:%d Failed to copy data to user\n",
-			      __FUNCTION__, __LINE__);
-		return -EFAULT;
+			      __func__, __LINE__);
+		return (-EFAULT);
 	}
 
-	return 0;
+	return (0);
+}
+
+static int
+bnxt_mgmt_drv_dump(struct cdev *dev, u_long cmd, caddr_t data,
+		       int flag, struct thread *td)
+{
+	struct bnxt_softc *softc = NULL;
+	void *buf = NULL;
+	struct bnxt_logger *logger = NULL, *lg_tmp;
+	int buf_sz = 0;
+	struct bnxt_mgmt_drv_dump mgmt_drv_dump = {};
+	void *user_ptr;
+	int ret = 0, offset = 0;
+
+	memcpy(&user_ptr, data, sizeof(user_ptr));
+	if (copyin(user_ptr, &mgmt_drv_dump, sizeof(mgmt_drv_dump))) {
+		printf("%s: %s:%d Failed to copy data from user\n",
+			DRIVER_NAME, __func__, __LINE__);
+		return (-EFAULT);
+	}
+	softc = bnxt_find_dev(mgmt_drv_dump.hdr.domain, mgmt_drv_dump.hdr.bus,
+			      mgmt_drv_dump.hdr.devfn, NULL);
+	if (!softc) {
+		printf("%s: %s:%d unable to find softc reference\n",
+			DRIVER_NAME, __func__, __LINE__);
+		return (-ENODEV);
+	}
+
+	switch (mgmt_drv_dump.op) {
+	case BNXT_MGMT_GET_DRV_DUMP_SIZE:
+		mtx_lock(&softc->log_lock);
+		TAILQ_FOREACH_SAFE(logger, &softc->loggers_list, list, lg_tmp)
+			buf_sz += logger->buffer_size;
+		mtx_unlock(&softc->log_lock);
+
+		mgmt_drv_dump.buf_size = buf_sz +
+		    bnxt_get_driver_coredump_len(softc);
+		if (copyout(&mgmt_drv_dump, user_ptr, sizeof(mgmt_drv_dump))) {
+			device_printf(softc->dev,
+			    "%s:%d Failed to copy response to user\n",
+			    __func__, __LINE__);
+			ret = -EFAULT;
+		}
+		break;
+	case BNXT_MGMT_GET_DRV_DUMP:
+		buf = malloc(mgmt_drv_dump.buf_size, M_BNXT, M_WAITOK);
+		/*Dump the driver logs */
+		memset(buf, 0, mgmt_drv_dump.buf_size);
+		offset = bnxt_start_logging_driver_coredump(softc, buf);
+
+		if (!offset) {
+			device_printf(softc->dev,
+			    "%s:%d Drivers logs are empty\n",
+			    __func__, __LINE__);
+		}
+
+		/* Dump the ctx logs*/
+		if (softc->ctx_mem)
+			bnxt_get_ctx_coredump(softc, (uint8_t *)buf + offset);
+
+		if (copyout(buf, mgmt_drv_dump.buf, mgmt_drv_dump.buf_size)) {
+			device_printf(softc->dev,
+			    "%s:%d Failed to copy response to user\n",
+			    __func__, __LINE__);
+			ret = -EFAULT;
+		}
+
+		free(buf, M_BNXT);
+		break;
+	default:
+		device_printf(softc->dev, "%s:%d Invalid op 0x%x\n",
+			      __func__, __LINE__, mgmt_drv_dump.op);
+		ret = -EFAULT;
+	}
+
+	return (ret);
 }
 
 /*
@@ -385,7 +673,7 @@ bnxt_mgmt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		struct thread *td)
 {
 	int ret = 0;
-	
+
 	switch(cmd) {
 	case IO_BNXT_MGMT_OPCODE_GET_DEV_INFO:
 	case IOW_BNXT_MGMT_OPCODE_GET_DEV_INFO:
@@ -401,13 +689,17 @@ bnxt_mgmt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	case IOW_BNXT_MGMT_OPCODE_DCB_OPS:
 		ret = bnxt_mgmt_process_dcb(dev, cmd, data, flag, td);
 		break;
+	case IO_BNXT_MGMT_OPCODE_DRV_DUMP:
+	case IOW_BNXT_MGMT_OPCODE_DRV_DUMP:
+		ret = bnxt_mgmt_drv_dump(dev, cmd, data, flag, td);
+		break;
 	default:
 		printf("%s: Unknown command 0x%lx\n", DRIVER_NAME, cmd);
 		ret = -EINVAL;
 		break;
 	}
 
-	return ret;		
+	return (ret);
 }
 
 static int

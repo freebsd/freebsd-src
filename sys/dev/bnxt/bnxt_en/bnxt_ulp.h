@@ -57,6 +57,7 @@ struct bnxt_ulp_ops {
 	void (*ulp_shutdown)(void *);
 	void (*ulp_irq_stop)(void *);
 	void (*ulp_irq_restart)(void *, struct bnxt_msix_entry *);
+	void (*ulp_log_live)(void *handle);
 };
 
 struct bnxt_fw_msg {
@@ -162,8 +163,11 @@ void bnxt_ulp_shutdown(struct bnxt_softc *bp);
 void bnxt_ulp_irq_stop(struct bnxt_softc *bp);
 void bnxt_ulp_irq_restart(struct bnxt_softc *bp, int err);
 void bnxt_ulp_async_events(struct bnxt_softc *bp, struct hwrm_async_event_cmpl *cmpl);
+void bnxt_ulp_log_live(struct bnxt_en_dev *edev, u16 logger_id,
+		       const char *format, ...);
 struct bnxt_en_dev *bnxt_ulp_probe(struct net_device *dev);
 void bnxt_aux_dev_release(struct device *dev);
 int bnxt_rdma_aux_device_add(struct bnxt_softc *bp);
 int bnxt_rdma_aux_device_del(struct bnxt_softc *bp);
+void bnxt_logger_ulp_live_data(void *d);
 #endif
