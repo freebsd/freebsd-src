@@ -1760,7 +1760,7 @@ sched_priority(struct thread *td)
 	} else {
 		const struct td_sched *const ts = td_get_sched(td);
 		const u_int run = SCHED_TICK_RUN_SHIFTED(ts);
-		const u_int run_unshifted __unused = (run +
+		const u_int run_unshifted __diagused = (run +
 		    (1 << SCHED_TICK_SHIFT) / 2) >> SCHED_TICK_SHIFT;
 		const u_int len = SCHED_TICK_LENGTH(ts);
 		const u_int nice_pri_off = SCHED_PRI_NICE(nice);
