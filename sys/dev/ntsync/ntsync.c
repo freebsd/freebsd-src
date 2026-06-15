@@ -215,7 +215,7 @@ ntsync_wait_locked(struct ntsync_wait_state *state, struct thread *td)
 		if (state->ready)
 			break;
 		error = msleep_sbt(state, &state->owner->lock,
-		    PCATCH, "ntsync", state->sb, 0,
+		    PCATCH, "ntsync", state->sb, state->prec,
 		    C_ABSOLUTE /* | C_HARDCLOCK XXXKIB */);
 
 		/*
@@ -1195,7 +1195,6 @@ ntsync_wait_state_get(struct ntsync_wait_args *nwa, u_long cmd,
 {
 	struct ntsync_wait_state *state;
 	struct ntsync_obj *obj;
-	struct bintime btb;
 	int error, i, j;
 
 	if (nwa->count > NTSYNC_MAX_WAIT_COUNT)
@@ -1270,14 +1269,23 @@ ntsync_wait_state_get(struct ntsync_wait_args *nwa, u_long cmd,
 		}
 	}
 
+	state->prec = 0;
 	if (nwa->timeout == UINT64_MAX) {
 		state->sb = 0;
 	} else {
 		state->sb = nstosbt(nwa->timeout);
 		if ((nwa->flags & NTSYNC_WAIT_REALTIME) != 0) {
-			getboottimebin(&btb);
-			state->sb += bttosbt(btb);
+			struct bintime btb;
+
+			bintime(&btb);
+			state->sb -= bttosbt(btb);
+		} else {
+			struct timespec ts;
+
+			nanouptime(&ts);
+			state->sb -= tstosbt(ts);
 		}
+		state->sb += sbinuptime();
 	}
 
 	*statep = state;
