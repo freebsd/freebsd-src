@@ -747,7 +747,7 @@ fts_build(FTS *sp, int type)
 	DIR *dirp;
 	void *oldaddr;
 	char *cp;
-	int cderrno, descend, oflag, saved_errno, nostat, doadjust,
+	int oflag, saved_errno, nostat, doadjust,
 	    readdir_errno;
 	long level;
 	int64_t nlinks;	/* has to be signed because -1 is a magic value */
@@ -818,32 +818,14 @@ fts_build(FTS *sp, int type)
 	    ISSET(FTS_NOSTAT), ISSET(FTS_PHYSICAL), ISSET(FTS_SEEDOT));
 #endif
 	/*
-	 * If we're going to need to stat anything or we want to descend
-	 * and stay in the directory, chdir.  If this fails we keep going,
-	 * but set a flag so we don't chdir after the post-order visit.
-	 * We won't be able to stat anything, but we can still return the
-	 * names themselves.  Note, that since fts_read won't be able to
-	 * chdir into the directory, it will have to return different path
-	 * names than before, i.e. "a/b" instead of "b".  Since the node
-	 * has already been visited in pre-order, have to wait until the
-	 * post-order visit to return the error.  There is a special case
-	 * here, if there was nothing to stat then it's not an error to
-	 * not be able to stat.  This is all fairly nasty.  If a program
-	 * needed sorted entries or stat information, they had better be
-	 * checking FTS_NS on the returned nodes.
-	 */
-	cderrno = 0;
-	if (nlinks || type == BREAD) {
-		if (fts_safe_changedir(sp, cur, _dirfd(dirp), NULL)) {
-			if (nlinks && type == BREAD)
-				cur->fts_errno = errno;
-			cur->fts_flags |= FTS_DONTCHDIR;
-			descend = 0;
-			cderrno = errno;
-		} else
-			descend = 1;
-	} else
-		descend = 0;
+         * Save the directory fd for openat() calls during traversal.
+         * We use openat() instead of chdir() + open() to avoid changing
+         * the process CWD, which makes fts compatible with Capsicum
+         * capability mode.
+         */
+
+        if (nlinks || type == BREAD) 
+                sp->fts_rfd = _dirfd(dirp);
 
 	/*
 	 * Figure out the max file name length that can be stored in the
@@ -856,13 +838,8 @@ fts_build(FTS *sp, int type)
 	 * each new name into the path.
 	 */
 	len = NAPPEND(cur);
-	if (ISSET(FTS_NOCHDIR)) {
-		cp = sp->fts_path + len;
-		*cp++ = '/';
-	} else {
-		/* GCC, you're too verbose. */
-		cp = NULL;
-	}
+	cp = sp->fts_path + len;
+	*cp++ = '/';
 	len++;
 	maxlen = sp->fts_pathlen - len;
 
@@ -900,8 +877,7 @@ mem1:				saved_errno = errno;
 			/* Did realloc() change the pointer? */
 			if (oldaddr != sp->fts_path) {
 				doadjust = 1;
-				if (ISSET(FTS_NOCHDIR))
-					cp = sp->fts_path + len;
+				cp = sp->fts_path + len;
 			}
 			maxlen = sp->fts_pathlen - len;
 		}
@@ -913,28 +889,15 @@ mem1:				saved_errno = errno;
 		if (dp->d_type == DT_WHT)
 			p->fts_flags |= FTS_ISW;
 
-		if (cderrno) {
-			if (nlinks) {
-				p->fts_info = FTS_NS;
-				p->fts_errno = cderrno;
-			} else
-				p->fts_info = FTS_NSOK;
-			p->fts_accpath = cur->fts_accpath;
-		} else if (nlinks == 0 || (nostat &&
+		if (nlinks == 0 || (nostat &&
 		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)) {
-			p->fts_accpath =
-			    ISSET(FTS_NOCHDIR) ? p->fts_path : p->fts_name;
+			p->fts_accpath = p->fts_path;
 			p->fts_info = FTS_NSOK;
 		} else {
 			/* Build a file name for fts_stat to stat. */
-			if (ISSET(FTS_NOCHDIR)) {
 				p->fts_accpath = p->fts_path;
 				memmove(cp, p->fts_name, p->fts_namelen + 1);
 				p->fts_info = fts_stat(sp, p, 0, _dirfd(dirp));
-			} else {
-				p->fts_accpath = p->fts_name;
-				p->fts_info = fts_stat(sp, p, 0, -1);
-			}
 
 			/* Decrement link count if applicable. */
 			if (nlinks > 0 && (p->fts_info == FTS_D ||
@@ -995,25 +958,8 @@ mem1:				saved_errno = errno;
 	 * If not changing directories, reset the path back to original
 	 * state.
 	 */
-	if (ISSET(FTS_NOCHDIR))
-		sp->fts_path[cur->fts_pathlen] = '\0';
 
-	/*
-	 * If descended after called from fts_children or after called from
-	 * fts_read and nothing found, get back.  At the root level we use
-	 * the saved fd; if one of fts_open()'s arguments is a relative path
-	 * to an empty directory, we wind up here with no other way back.  If
-	 * can't get back, we're done.
-	 */
-	if (descend && (type == BCHILD || !nitems) &&
-	    (cur->fts_level == FTS_ROOTLEVEL ?
-	    FCHDIR(sp, sp->fts_rfd) :
-	    fts_safe_changedir(sp, cur->fts_parent, -1, ".."))) {
-		fts_lfree(head);
-		cur->fts_info = FTS_ERR;
-		SET(FTS_STOP);
-		return (NULL);
-	}
+	sp->fts_path[cur->fts_pathlen] = '\0';
 
 	/* If didn't find anything, return NULL. */
 	if (!nitems) {
@@ -1121,6 +1067,7 @@ err:		memset(sbp, 0, sizeof(struct stat));
 		return (FTS_F);
 	return (FTS_DEFAULT);
 }
+
 
 static FTSENT *
 fts_sort(FTS *sp, FTSENT *head, size_t nitems)
