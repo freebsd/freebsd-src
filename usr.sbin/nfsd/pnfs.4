@@ -215,7 +215,7 @@ set the sysctl
 .Dq vfs.nfsd.flexlinuxhack
 to one so that it works around
 the Linux client driver's limitations.
-Wihout this sysctl being set, there will be access errors, since the Linux
+Without this sysctl being set, there will be access errors, since the Linux
 client will use the authenticator in the layout (uid=999, gid=999) and not
 the authenticator specified in the RPC header.
 .Pp
