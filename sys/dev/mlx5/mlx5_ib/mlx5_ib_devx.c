@@ -44,6 +44,7 @@
 #include <linux/rculist.h>
 #include <linux/srcu.h>
 #include <linux/file.h>
+#include <linux/eventfd.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
 
@@ -102,7 +103,7 @@ struct devx_event_subscription {
 	struct rcu_head	rcu;
 	u64 cookie;
 	struct devx_async_event_file *ev_file;
-	struct fd eventfd;
+	struct eventfd_ctx *eventfd;
 };
 
 struct devx_async_event_file {
@@ -2016,10 +2017,11 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 		uverbs_uobject_get(&ev_file->uobj);
 		if (use_eventfd) {
 			event_sub->eventfd =
-				fdget(redirect_fd);
+				eventfd_ctx_fdget(redirect_fd);
 
-			if (event_sub->eventfd.file == NULL) {
-				err = -EBADF;
+			if (IS_ERR(event_sub->eventfd)) {
+				err = PTR_ERR(event_sub->eventfd);
+				event_sub->eventfd = NULL;
 				goto err;
 			}
 		}
@@ -2070,8 +2072,8 @@ err:
 					   obj,
 					   obj_id);
 
-		if (event_sub->eventfd.file)
-			fdput(event_sub->eventfd);
+		if (event_sub->eventfd)
+			eventfd_ctx_put(event_sub->eventfd);
 		uverbs_uobject_put(&event_sub->ev_file->uobj);
 		kfree(event_sub);
 	}
@@ -2338,8 +2340,8 @@ static void dispatch_event_fd(struct list_head *fd_list,
 	struct devx_event_subscription *item;
 
 	list_for_each_entry_rcu(item, fd_list, xa_list) {
-		if (item->eventfd.file != NULL)
-			linux_poll_wakeup(item->eventfd.file);
+		if (item->eventfd != NULL)
+			eventfd_signal(item->eventfd);
 		else
 			deliver_event(item, data);
 	}
@@ -2629,8 +2631,8 @@ static void devx_free_subscription(struct rcu_head *rcu)
 	struct devx_event_subscription *event_sub =
 		container_of(rcu, struct devx_event_subscription, rcu);
 
-	if (event_sub->eventfd.file)
-		fdput(event_sub->eventfd);
+	if (event_sub->eventfd)
+		eventfd_ctx_put(event_sub->eventfd);
 	uverbs_uobject_put(&event_sub->ev_file->uobj);
 	kfree(event_sub);
 }
