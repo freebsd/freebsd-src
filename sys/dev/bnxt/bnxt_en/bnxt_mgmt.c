@@ -29,6 +29,7 @@
 #include "bnxt_mgmt.h"
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
+#include "bnxt_coredump.h"
 #include "bnxt_log.h"
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -264,6 +265,152 @@ bnxt_get_ctx_coredump(struct bnxt_softc *softc, void *buf)
 		memcpy((uint8_t *)buf, &seg_hdr, seg_hdr_len);
 		buf = (uint8_t *)buf + seg_hdr_len + seg_len;
 	}
+}
+
+/* DDR Crash Dump IOCTL handler */
+static int
+bnxt_mgmt_crash_dump(struct cdev *dev, u_long cmd, caddr_t data,
+		       int flag, struct thread *td)
+{
+	struct bnxt_softc *softc = NULL;
+	struct bnxt_mgmt_crash_dump mgmt_crash_dump = {0};
+	void *user_ptr;
+	int ret = 0;
+	void *dump_buf = NULL;
+	uint32_t dump_len;
+
+	memcpy(&user_ptr, data, sizeof(user_ptr));
+	if (copyin(user_ptr, &mgmt_crash_dump, sizeof(mgmt_crash_dump))) {
+		printf("%s: %s:%d Failed to copy data from user\n",
+			DRIVER_NAME, __func__, __LINE__);
+		return (-EFAULT);
+	}
+	softc = bnxt_find_dev(mgmt_crash_dump.hdr.domain,
+			      mgmt_crash_dump.hdr.bus,
+			      mgmt_crash_dump.hdr.devfn, NULL);
+	if (!softc) {
+		printf("%s: %s:%d unable to find softc reference\n",
+			DRIVER_NAME, __func__, __LINE__);
+		return (-ENODEV);
+	}
+
+	switch (mgmt_crash_dump.op) {
+	case BNXT_MGMT_SET_DUMP_FLAG:
+		if (mgmt_crash_dump.req.set_flag.dump_flag >
+		    BNXT_DUMP_LIVE_WITH_CTX_L1_CACHE) {
+			device_printf(softc->dev,
+			    "Supports only Live(0), Crash(1), Driver(2), "
+			    "Live with cached context(3) dumps.\n");
+			ret = -EINVAL;
+			break;
+		}
+
+		if (mgmt_crash_dump.req.set_flag.dump_flag == BNXT_DUMP_CRASH) {
+			if (softc->fw_dbg_cap & BNXT_FW_DBG_CAP_CRASHDUMP_SOC) {
+				device_printf(softc->dev,
+				    "Cannot collect crash dump as TEE is not supported.\n");
+				ret = -ENOTSUP;
+				break;
+			} else if (!(softc->fw_dbg_cap &
+				     BNXT_FW_DBG_CAP_CRASHDUMP_HOST)) {
+				device_printf(softc->dev,
+				    "FW does not support crash dump collection.\n");
+				ret = -ENOTSUP;
+				break;
+			}
+		}
+
+		softc->dump_flag = mgmt_crash_dump.req.set_flag.dump_flag;
+		break;
+
+	case BNXT_MGMT_GET_DUMP_FLAG:
+		if (softc->hwrm_spec_code < 0x10801) {
+			ret = -ENOTSUP;
+			break;
+		}
+
+		/* Build FW version - same as Linux bnxt_get_dump_flag() */
+		mgmt_crash_dump.req.get_flag.version =
+			(softc->ver_resp.hwrm_fw_maj_8b << 24) |
+			(softc->ver_resp.hwrm_fw_min_8b << 16) |
+			(softc->ver_resp.hwrm_fw_bld_8b << 8) |
+			(softc->ver_resp.hwrm_fw_rsvd_8b);
+
+		mgmt_crash_dump.req.get_flag.dump_flag = softc->dump_flag;
+		mgmt_crash_dump.req.get_flag.dump_len =
+			bnxt_get_coredump_length(softc, softc->dump_flag);
+		break;
+
+	case BNXT_MGMT_GET_DUMP_DATA:
+		if (softc->hwrm_spec_code < 0x10801) {
+			ret = -ENOTSUP;
+			break;
+		}
+
+		dump_len = bnxt_get_coredump_length(softc,
+			mgmt_crash_dump.req.get_data.dump_flag);
+		if (dump_len == 0) {
+			device_printf(softc->dev, "No dump data available\n");
+			ret = -ENOENT;
+			break;
+		}
+
+		if (mgmt_crash_dump.req.get_data.buffer_size < dump_len) {
+			device_printf(softc->dev,
+			    "Buffer too small: need %u bytes, got %zu bytes\n",
+			    dump_len, mgmt_crash_dump.req.get_data.buffer_size);
+			mgmt_crash_dump.req.get_data.dump_len = dump_len;
+			ret = -ENOSPC;
+			break;
+		}
+
+		dump_buf = malloc(dump_len, M_BNXT, M_WAITOK);
+		if (!dump_buf) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		ret = bnxt_get_coredump(softc,
+		    mgmt_crash_dump.req.get_data.dump_flag,
+		    dump_buf, &dump_len);
+		if (ret) {
+			device_printf(softc->dev,
+			    "Failed to get coredump: %d\n", ret);
+			free(dump_buf, M_BNXT);
+			break;
+		}
+
+		if (copyout(dump_buf,
+		    mgmt_crash_dump.req.get_data.dump_buffer, dump_len)) {
+			device_printf(softc->dev,
+			    "%s:%d Failed to copy dump data to user\n",
+			    __func__, __LINE__);
+			ret = -EFAULT;
+			free(dump_buf, M_BNXT);
+			break;
+		}
+
+		mgmt_crash_dump.req.get_data.dump_len = dump_len;
+		mgmt_crash_dump.req.get_data.dump_flag = softc->dump_flag;
+		free(dump_buf, M_BNXT);
+		break;
+
+	default:
+		device_printf(softc->dev, "%s:%d Invalid op 0x%x\n",
+			      __func__, __LINE__, mgmt_crash_dump.op);
+		ret = -EFAULT;
+		break;
+	}
+
+	if (!ret && copyout(&mgmt_crash_dump, user_ptr,
+	    sizeof(mgmt_crash_dump))) {
+		device_printf(softc->dev,
+		    "%s:%d Failed to copy response to user\n",
+		    __func__, __LINE__);
+		ret = -EFAULT;
+	}
+
+	return (ret);
 }
 
 /*
@@ -692,6 +839,10 @@ bnxt_mgmt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	case IO_BNXT_MGMT_OPCODE_DRV_DUMP:
 	case IOW_BNXT_MGMT_OPCODE_DRV_DUMP:
 		ret = bnxt_mgmt_drv_dump(dev, cmd, data, flag, td);
+		break;
+	case IO_BNXT_MGMT_OPCODE_CRASH_DUMP:
+	case IOW_BNXT_MGMT_OPCODE_CRASH_DUMP:
+		ret = bnxt_mgmt_crash_dump(dev, cmd, data, flag, td);
 		break;
 	default:
 		printf("%s: Unknown command 0x%lx\n", DRIVER_NAME, cmd);

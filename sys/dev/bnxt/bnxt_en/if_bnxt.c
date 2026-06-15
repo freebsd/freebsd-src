@@ -73,6 +73,7 @@
 #include "bnxt_auxbus_compat.h"
 #include "bnxt_log.h"
 #include "bnxt_log_data.h"
+#include "bnxt_coredump.h"
 
 /*
  * PCI Device ID Table
@@ -273,6 +274,7 @@ static void bnxt_queue_fw_reset_work(struct bnxt_softc *bp, unsigned long delay)
 void bnxt_queue_sp_work(struct bnxt_softc *bp);
 
 void bnxt_fw_reset(struct bnxt_softc *bp);
+static int bnxt_crash_dump_init(struct bnxt_softc *softc);
 /*
  * Device Interface Declaration
  */
@@ -1107,9 +1109,10 @@ static int bnxt_alloc_ctx_mem_blk(struct bnxt_softc *softc,
 	return bnxt_alloc_ring(softc, rmem);
 }
 
-static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
-				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size,
-				  u8 depth, struct bnxt_ctx_mem_type *ctxm)
+int
+bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
+    struct bnxt_ctx_pg_info *ctx_pg, uint32_t mem_size, uint8_t depth,
+    struct bnxt_ctx_mem_type *ctxm)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 	int rc;
@@ -1167,8 +1170,8 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 	return rc;
 }
 
-static void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
-				  struct bnxt_ctx_pg_info *ctx_pg)
+void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
+			   struct bnxt_ctx_pg_info *ctx_pg)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 
@@ -2248,6 +2251,8 @@ static int bnxt_open(struct bnxt_softc *bp)
 		return rc;
 	(void)bnxt_hwrm_port_led_qcaps(bp);
 
+	bnxt_hwrm_dbg_qcaps(bp);
+
 	/* Register the driver with the FW */
 	rc = bnxt_drv_rgtr(bp);
 	if (rc)
@@ -2399,6 +2404,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bnxt_ulp_start(bp, 0);
 		clear_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
 		set_bit(BNXT_STATE_OPEN, &bp->state);
+		bnxt_crash_dump_init(bp);
 #ifdef PCI_IOV
 		bnxt_reenable_sriov(bp);
 #endif
@@ -2523,6 +2529,29 @@ bnxt_log_live_data(void *d)
 	struct bnxt_softc *bp = d;
 
 	bnxt_log_ring_states(bp);
+}
+
+/* DDR Crash Dump Setup */
+static int
+bnxt_crash_dump_init(struct bnxt_softc *softc)
+{
+	int rc;
+
+	rc = bnxt_alloc_crash_dump_mem(softc);
+	if (rc) {
+		device_printf(softc->dev,
+		    "crash dump mem alloc failure rc: %d\n", rc);
+		return (rc);
+	}
+
+	rc = bnxt_hwrm_crash_dump_mem_cfg(softc);
+	if (rc) {
+		bnxt_free_crash_dump_mem(softc);
+		device_printf(softc->dev,
+		    "hwrm crash dump mem failure rc: %d\n", rc);
+	}
+
+	return (rc);
 }
 
 /* Device setup and teardown */
@@ -2718,6 +2747,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 		}
 	}
 
+	bnxt_hwrm_dbg_qcaps(softc);
+
 	/*
 	 * Register the driver with the FW
 	 * Register the async events with the FW
@@ -2905,6 +2936,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	return (rc);
 
+
 failed:
 	bnxt_free_sysctl_ctx(softc);
 init_sysctl_failed:
@@ -2964,6 +2996,11 @@ bnxt_attach_post(if_ctx_t ctx)
 	if (BNXT_PF(softc) && BNXT_CHIP_P5_PLUS(softc))
 		bnxt_sriov_attach(softc);
 
+	rc = bnxt_crash_dump_init(softc);
+	if (rc)
+		device_printf(softc->dev,
+		    "crash dump init failure rc: %d\n", rc);
+
 failed:
 	return rc;
 }
@@ -2985,6 +3022,7 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_wol_config(ctx);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_free_sysctl_ctx(softc);
+	bnxt_free_crash_dump_mem(softc);
 	bnxt_hwrm_func_reset(softc);
 	bnxt_free_ctx_mem(softc);
 	bnxt_clear_ids(softc);

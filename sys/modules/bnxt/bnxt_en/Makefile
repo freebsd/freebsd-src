@@ -13,6 +13,7 @@ SRCS	+= bnxt_sriov.c bnxt_sriov.h
 SRCS	+= bnxt_ulp.c bnxt_ulp.h
 SRCS	+= bnxt_log.c bnxt_log.h
 SRCS	+= bnxt_log_data.c bnxt_log_data.h
+SRCS	+= bnxt_coredump.c bnxt_coredump.h
 SRCS	+= ${LINUXKPI_GENSRCS}
 
 CFLAGS+= -DIFLIB
