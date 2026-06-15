@@ -1397,6 +1397,9 @@ struct bnxt_softc {
 	struct mtx              log_lock; /* logging ops lock */
 	struct callout		time_sync_callout;
 	struct bnxt_bs_trace_info bs_trace[BNXT_CTX_TRACE_BUF_COUNT];
+
+#define MAX_NUM_DMA_INDICATIONS 10
+	struct iflib_dma_info	mgmt_dma_data[MAX_NUM_DMA_INDICATIONS];
 };
 
 struct bnxt_filter_info {
