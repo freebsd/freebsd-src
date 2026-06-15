@@ -1129,6 +1129,18 @@ struct bnxt_softc {
 
 	uint16_t		hwrm_cmd_seq;
 	uint32_t		hwrm_cmd_timeo;	/* milliseconds */
+
+	/* DDR Crash Dump Support */
+	struct bnxt_ctx_pg_info *fw_crash_mem;
+	uint32_t fw_crash_len;
+	uint32_t fw_dbg_cap;
+	#define BNXT_FW_DBG_CAP_CRASHDUMP_SOC		0x00000001
+	#define BNXT_FW_DBG_CAP_CRASHDUMP_HOST		0x00000002
+	uint16_t dump_flag;
+	#define BNXT_DUMP_LIVE                    0
+	#define BNXT_DUMP_CRASH                   1
+	#define BNXT_DUMP_DRIVER                  2
+	#define BNXT_DUMP_LIVE_WITH_CTX_L1_CACHE  3
 	struct iflib_dma_info	hwrm_cmd_resp;
 	struct iflib_dma_info	hwrm_short_cmd_req_addr;
 	/* Interrupt info for HWRM */
@@ -1220,6 +1232,7 @@ struct bnxt_softc {
 	struct sysctl_oid	*dcb_oid;
 
 	struct bnxt_ver_info	*ver_info;
+	struct hwrm_ver_get_output      ver_resp;
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
 	bool is_dev_init;
@@ -1439,5 +1452,10 @@ int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
     size_t nitems, int *num_inputs);
 void bnxt_set_flags_by_devid(struct bnxt_softc *softc);
 int bnxt_hwrm_reserve_rings(struct bnxt_softc *softc);
-
+void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
+				struct bnxt_ctx_pg_info *ctx_pg);
+int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
+			    struct bnxt_ctx_pg_info *ctx_pg,
+			    uint32_t mem_size, uint8_t depth,
+			    struct bnxt_ctx_mem_type *ctxm);
 #endif /* _BNXT_H */
