@@ -3121,39 +3121,38 @@ sysctl_kern_proc_osrel(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	int flags, error, osrel;
+	int flags, error, old_osrel, osrel;
 
 	if (namelen != 1)
 		return (EINVAL);
 
-	if (req->newptr != NULL && req->newlen != sizeof(osrel))
-		return (EINVAL);
-
-	flags = PGET_HOLD | PGET_NOTWEXIT;
-	if (req->newptr != NULL)
+	flags = PGET_NOTWEXIT;
+	if (req->newptr != NULL) {
+		if (req->newlen != sizeof(osrel))
+			return (EINVAL);
+		error = SYSCTL_IN(req, &osrel, sizeof(osrel));
+		if (error != 0)
+			return (error);
+		if (osrel < 0)
+			return (EINVAL);
 		flags |= PGET_CANDEBUG;
-	else
+	} else {
 		flags |= PGET_CANSEE;
+	}
 	error = pget((pid_t)name[0], flags, &p);
 	if (error != 0)
 		return (error);
-
-	error = SYSCTL_OUT(req, &p->p_osrel, sizeof(p->p_osrel));
-	if (error != 0)
-		goto errout;
-
-	if (req->newptr != NULL) {
-		error = SYSCTL_IN(req, &osrel, sizeof(osrel));
-		if (error != 0)
-			goto errout;
-		if (osrel < 0) {
-			error = EINVAL;
-			goto errout;
-		}
-		p->p_osrel = osrel;
+	if ((p->p_flag & P_INEXEC) != 0) {
+		error = EBUSY;
+	} else {
+		old_osrel = p->p_osrel;
+		if (req->newptr != NULL)
+			p->p_osrel = osrel;
 	}
-errout:
-	PRELE(p);
+	PROC_UNLOCK(p);
+
+	if (error == 0)
+		error = SYSCTL_OUT(req, &old_osrel, sizeof(old_osrel));
 	return (error);
 }
 
