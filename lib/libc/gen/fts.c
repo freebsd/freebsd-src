@@ -343,7 +343,6 @@ int
 fts_close(FTS *sp)
 {
 	FTSENT *freep, *p;
-	int saved_errno;
 
 	/*
 	 * This still works if we haven't read anything -- the dummy structure
@@ -377,20 +376,6 @@ fts_close(FTS *sp)
 #endif /* __BLOCKS__ */
 	}
 
-	/* Return to original directory, save errno if necessary. */
-	if (!ISSET(FTS_NOCHDIR)) {
-		saved_errno = fchdir(sp->fts_rfd) ? errno : 0;
-		(void)_close(sp->fts_rfd);
-
-		/* Set errno and return. */
-		if (saved_errno != 0) {
-			/* Free up the stream pointer. */
-			free(sp);
-			errno = saved_errno;
-			return (-1);
-		}
-	}
-
 	/* Free up the stream pointer. */
 	free(sp);
 	return (0);
@@ -410,7 +395,6 @@ fts_read(FTS *sp)
 	FTSENT *p, *tmp;
 	int instr;
 	char *t;
-	int saved_errno;
 
 	/* If finished or unrecoverable error, return NULL. */
 	if (sp->fts_cur == NULL || ISSET(FTS_STOP))
@@ -438,14 +422,6 @@ fts_read(FTS *sp)
 	if (instr == FTS_FOLLOW &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
-		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = _open(".", O_RDONLY | O_CLOEXEC,
-			    0)) < 0) {
-				p->fts_errno = errno;
-				p->fts_info = FTS_ERR;
-			} else
-				p->fts_flags |= FTS_SYMFOLLOW;
-		}
 		return (p);
 	}
 
@@ -470,29 +446,15 @@ fts_read(FTS *sp)
 			fts_lfree(sp->fts_child);
 			sp->fts_child = NULL;
 		}
-
+		
 		/*
-		 * Cd to the subdirectory.
-		 *
-		 * If have already read and now fail to chdir, whack the list
-		 * to make the names come out right, and set the parent errno
-		 * so the application will eventually get an error condition.
-		 * Set the FTS_DONTCHDIR flag so that when we logically change
-		 * directories back to the parent we don't do a chdir.
-		 *
-		 * If haven't read do so.  If the read fails, fts_build sets
-		 * FTS_STOP or the fts_info field of the node.
-		 */
-		if (sp->fts_child != NULL) {
-			if (fts_safe_changedir(sp, p, -1, p->fts_accpath)) {
-				p->fts_errno = errno;
-				p->fts_flags |= FTS_DONTCHDIR;
-				for (p = sp->fts_child; p != NULL;
-				    p = p->fts_link)
-					p->fts_accpath =
-					    p->fts_parent->fts_accpath;
-			}
-		} else if ((sp->fts_child = fts_build(sp, BREAD)) == NULL) {
+                 * Descend into the subdirectory.  If not yet read,
+                 * call fts_build.  If the read fails, fts_build sets
+                 * FTS_STOP or the fts_info field of the node.
+                 */
+		
+		if (sp->fts_child == NULL &&
+                    (sp->fts_child = fts_build(sp, BREAD)) == NULL) {
 			if (ISSET(FTS_STOP))
 				return (NULL);
 			return (p);
@@ -510,10 +472,6 @@ next:	tmp = p;
 		 * the root of the tree), and load the paths for the next root.
 		 */
 		if (p->fts_level == FTS_ROOTLEVEL) {
-			if (FCHDIR(sp, sp->fts_rfd)) {
-				SET(FTS_STOP);
-				return (NULL);
-			}
 			free(tmp);
 			fts_load(sp, p);
 			return (sp->fts_cur = p);
@@ -530,14 +488,6 @@ next:	tmp = p;
 		}
 		if (p->fts_instr == FTS_FOLLOW) {
 			p->fts_info = fts_stat(sp, p, 1, -1);
-			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-				if ((p->fts_symfd =
-				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
-					p->fts_errno = errno;
-					p->fts_info = FTS_ERR;
-				} else
-					p->fts_flags |= FTS_SYMFOLLOW;
-			}
 			p->fts_instr = FTS_NOINSTR;
 		}
 
@@ -571,25 +521,6 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 	 * a symlink, go back through the file descriptor.  Otherwise, cd up
 	 * one directory.
 	 */
-	if (p->fts_level == FTS_ROOTLEVEL) {
-		if (FCHDIR(sp, sp->fts_rfd)) {
-			SET(FTS_STOP);
-			return (NULL);
-		}
-	} else if (p->fts_flags & FTS_SYMFOLLOW) {
-		if (FCHDIR(sp, p->fts_symfd)) {
-			saved_errno = errno;
-			(void)_close(p->fts_symfd);
-			errno = saved_errno;
-			SET(FTS_STOP);
-			return (NULL);
-		}
-		(void)_close(p->fts_symfd);
-	} else if (!(p->fts_flags & FTS_DONTCHDIR) &&
-	    fts_safe_changedir(sp, p->fts_parent, -1, "..")) {
-		SET(FTS_STOP);
-		return (NULL);
-	}
 	free(tmp);
 	p->fts_info = p->fts_errno ? FTS_ERR : FTS_DP;
 	return (sp->fts_cur = p);
