@@ -81,6 +81,7 @@ struct ntsync_wait_state {
 	struct ntsync_obj *objs[NTSYNC_MAX_WAIT_COUNT + 1];
 	struct ntsync_obj_event *alert_event;
 	sbintime_t sb;
+	sbintime_t prec;
 	int error;
 	int index;
 	bool any;
