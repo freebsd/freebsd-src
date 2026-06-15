@@ -28,25 +28,43 @@
 
 union IEEEl2bits {
 	long double	e;
-	struct {
 #if _BYTE_ORDER == _LITTLE_ENDIAN
-		unsigned int	manl	:32;
-		unsigned int	manh	:20;
-		unsigned int	exp	:11;
+	struct {
+		unsigned long	manl	:64;
+		unsigned long	manh	:48;
+		unsigned int	exp	:15;
 		unsigned int	sign	:1;
+	} bits;
+	struct {
+		unsigned long	manl	:64;
+		unsigned long	manh	:48;
+		unsigned int	expsign	:16;
+	} xbits;
 #else	/* _BYTE_ORDER == _LITTLE_ENDIAN */
+	struct {
 		unsigned int		sign	:1;
 		unsigned int		exp	:11;
 		unsigned int		manh	:20;
 		unsigned int		manl	:32;
-#endif
 	} bits;
+#endif
 };
 
 #define	mask_nbit_l(u)	((void)0)
 #define	LDBL_IMPLICIT_NBIT
 #define	LDBL_NBIT	0
 
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+#define	LDBL_MANH_SIZE	48
+#define	LDBL_MANL_SIZE	64
+
+#define	LDBL_TO_ARRAY32(u, a) do {			\
+	(a)[0] = (uint32_t)(u).bits.manl;		\
+	(a)[1] = (uint32_t)((u).bits.manl >> 32);	\
+	(a)[2] = (uint32_t)(u).bits.manh;		\
+	(a)[3] = (uint32_t)((u).bits.manh >> 32);	\
+} while(0)
+#else	/* _BYTE_ORDER == _LITTLE_ENDIAN */
 #define	LDBL_MANH_SIZE	20
 #define	LDBL_MANL_SIZE	32
 
@@ -54,3 +72,4 @@ union IEEEl2bits {
 	(a)[0] = (uint32_t)(u).bits.manl;		\
 	(a)[1] = (uint32_t)(u).bits.manh;		\
 } while(0)
+#endif	/* _BYTE_ORDER == _LITTLE_ENDIAN */

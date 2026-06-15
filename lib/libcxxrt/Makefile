@@ -33,11 +33,19 @@ VERSION_MAP=	Version-32.map
 VERSION_MAP=	Version-64.map
 .endif
 
+# On powerpc64le long double is IEEE binary128, which clang mangles as
+# u9__ieee128 ("__ieee128" demangled) instead of the generic "long double" (e).
+# Rewrite the typeinfo entries so the version script matches the emitted symbols.
+LDBL_SED=
+.if ${MACHINE_ARCH} == "powerpc64le"
+LDBL_SED=	-e 's/long double/__ieee128/g'
+.endif
+
 Version-32.map: Version.map
-	sed 's/%%NEW_DELETE_TYPE%%/int/' ${.ALLSRC} > ${.TARGET}
+	sed -e 's/%%NEW_DELETE_TYPE%%/int/' ${LDBL_SED} ${.ALLSRC} > ${.TARGET}
 
 Version-64.map: Version.map
-	sed 's/%%NEW_DELETE_TYPE%%/long/' ${.ALLSRC} > ${.TARGET}
+	sed -e 's/%%NEW_DELETE_TYPE%%/long/' ${LDBL_SED} ${.ALLSRC} > ${.TARGET}
 .endif
 
 .include <bsd.lib.mk>

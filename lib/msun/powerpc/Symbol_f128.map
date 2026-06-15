@@ -1,0 +1,36 @@
+/*
+ */
+FBSD_1.9 {
+	acosf128;
+	asinf128;
+	atanf128;
+	atan2f128;
+	ceilf128;
+	cosf128;
+	coshf128;
+	expf128;
+	exp2f128;
+	floorf128;
+	fmaf128;
+	fmaxf128;
+	fminf128;
+	fmodf128;
+	ldexpf128;
+	llroundf128;
+	logf128;
+	log10f128;
+	log2f128;
+	lroundf128;
+	modff128;
+	nearbyintf128;
+	powf128;
+	rintf128;
+	roundf128;
+	sincosf128;
+	sinf128;
+	sinhf128;
+	sqrtf128;
+	tanf128;
+	tanhf128;
+	truncf128;
+};

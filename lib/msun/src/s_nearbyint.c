@@ -29,6 +29,8 @@
 #include <fenv.h>
 #include <math.h>
 
+#pragma STDC FENV_ACCESS ON
+
 /*
  * We save and restore the floating-point environment to avoid raising
  * an inexact exception.  We can get away with using fesetenv()
@@ -36,9 +38,12 @@
  * because the only exception defined for rint() is overflow, and
  * rounding can't overflow as long as emax >= p.
  *
- * The volatile keyword is needed below because clang incorrectly assumes
- * that rint won't raise any floating-point exceptions. Declaring ret volatile
- * is sufficient to trick the compiler into doing the right thing.
+ * FENV_ACCESS ON is required so the compiler does not move the rounding
+ * (which it may inline as a hardware round-to-integer instruction) across
+ * the fegetenv()/fesetenv() calls.  Without it, clang hoists the rounding
+ * before fegetenv() on the binary128 path, so the saved environment already
+ * carries the inexact flag and fesetenv() restores it, leaking the exception.
+ * The volatile keyword on ret is kept as a belt-and-suspenders guard.
  */
 #define	DECL(type, fn, rint)	\
 type				\

@@ -4,6 +4,12 @@ CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/:C/powerpc/ppc/}
 
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
 
+.if ${MACHINE_ARCH} == "powerpc64le"
+# Long double is IEEE binary128.  Search the generic builtins first so the
+# IEEE-128 sources win over the IBM double-double versions of the same file
+# names in the ppc/ directory.
+.PATH:		${CRTSRC}
+.endif
 .PATH:		${CRTSRC}/${CRTARCH}
 .PATH:		${CRTSRC}
 
@@ -205,6 +211,59 @@ SRCF+=		subtf3
 SRCF+=		trunctfdf2
 SRCF+=		trunctfhf2
 SRCF+=		trunctfsf2
+.endif
+
+#
+# IEEE binary128 long double support for powerpc64le.  PowerPC names the
+# IEEE-128 soft-float builtins with a "kf" infix (KFmode) instead of the
+# generic "tf" (see clang's PPCSystemLibrary in RuntimeLibcalls.td), so build
+# the generic IEEE-128 sources but rename each exported symbol to its kf name.
+# The .PATH reordering above makes these resolve to the generic implementations
+# rather than the IBM double-double versions in ppc/.
+#
+.if ${MACHINE_ARCH} == "powerpc64le"
+.for _f _old _new in \
+	addtf3		__addtf3	__addkf3 \
+	subtf3		__subtf3	__subkf3 \
+	multf3		__multf3	__mulkf3 \
+	divtf3		__divtf3	__divkf3 \
+	powitf2		__powitf2	__powikf2 \
+	extendsftf2	__extendsftf2	__extendsfkf2 \
+	extenddftf2	__extenddftf2	__extenddfkf2 \
+	trunctfsf2	__trunctfsf2	__trunckfsf2 \
+	trunctfdf2	__trunctfdf2	__trunckfdf2 \
+	fixtfsi		__fixtfsi	__fixkfsi \
+	fixtfdi		__fixtfdi	__fixkfdi \
+	fixtfti		__fixtfti	__fixkfti \
+	fixunstfsi	__fixunstfsi	__fixunskfsi \
+	fixunstfdi	__fixunstfdi	__fixunskfdi \
+	fixunstfti	__fixunstfti	__fixunskfti \
+	floatsitf	__floatsitf	__floatsikf \
+	floatditf	__floatditf	__floatdikf \
+	floattitf	__floattitf	__floattikf \
+	floatunsitf	__floatunsitf	__floatunsikf \
+	floatunditf	__floatunditf	__floatundikf \
+	floatuntitf	__floatuntitf	__floatuntikf
+SRCF+=			${_f}
+CFLAGS.${_f}.c+=	-D${_old}=${_new}
+.endfor
+
+# subtf3.c implements __subtf3 as __addtf3(a, -b), so its hardcoded call to
+# __addtf3 must also be renamed to resolve to the kf-named add.
+CFLAGS.subtf3.c+=	-D__addtf3=__addkf3
+
+# Complex IEEE-128 multiply/divide keep the generic tf names: PowerPC does not
+# override MUL_C128/DIV_C128, so clang emits __multc3/__divtc3 for IEEE-128.
+SRCF+=		divtc3
+SRCF+=		multc3
+
+# The kf comparisons cannot use a -D rename of comparetf2.c because its internal
+# COMPILER_RT_ALIAS stringizes the (unrenamed) target name; provide them here.
+# comparekf2.c is FreeBSD-local, so put its directory on .PATH: this fragment is
+# also .include'd by libgcc_s/libgcc_eh, whose .CURDIR differs from ours.
+.PATH:		${SRCTOP}/lib/libcompiler_rt
+SRCS+=		comparekf2.c
+CFLAGS.comparekf2.c+=	-I${CRTSRC}
 .endif
 
 # These are already shipped by libc.a on some architectures.

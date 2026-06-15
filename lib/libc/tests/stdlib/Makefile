@@ -30,6 +30,7 @@ CFLAGS+=	-D__HAVE_FENV
 .if ${MACHINE_CPUARCH} == "aarch64" || \
     ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_ARCH} == "powerpc64le" || \
     ${MACHINE_CPUARCH} == "riscv"
 CFLAGS+=	-D__HAVE_LONG_DOUBLE
 .endif
