@@ -52,6 +52,7 @@
 #include "ib_verbs.h"
 #include "bnxt_re-abi.h"
 #include "bnxt.h"
+#include "bnxt_log.h"
 
 static char drv_version[] =
 		"Broadcom NetXtreme-C/E RoCE Driver " ROCE_DRV_MODULE_NAME \
@@ -112,6 +113,7 @@ static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 static int bnxt_re_ib_init(struct bnxt_re_dev *rdev);
 static void bnxt_re_ib_init_2(struct bnxt_re_dev *rdev);
 void _bnxt_re_remove(struct auxiliary_device *adev);
+
 void writel_fbsd(struct bnxt_softc *bp, u32, u8, u32);
 u32 readl_fbsd(struct bnxt_softc *bp, u32, u8);
 static int bnxt_re_hwrm_dbr_pacing_qcfg(struct bnxt_re_dev *rdev);
@@ -1327,6 +1329,68 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 }
 
 /*
+ * bnxt_re_create_snapdump_logs - Collect required debug data for snapdump.
+ * @rdev     -   rdma device instance
+ *
+ * This function will use bnxt_ulp_log_live API and dump all
+ * the required information for debugging.
+ *
+ * Returns: Nothing
+ */
+static void
+bnxt_re_create_snapdump_logs(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_re_ext_rstat *ext_s;
+
+	ext_s = &rdev->stats.dstat.ext_rstat[0];
+
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_atomic_req: %llu", ext_s->tx.atomic_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_atomic_req: %llu", ext_s->rx.atomic_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_read_req: %llu\n", ext_s->tx.read_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_read_resp: %llu\n", ext_s->tx.read_resp);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_read_req: %llu\n", ext_s->rx.read_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_read_resp: %llu\n", ext_s->rx.read_resp);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_write_req: %llu\n", ext_s->tx.write_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_write_req: %llu\n", ext_s->rx.write_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_send_req: %llu\n", ext_s->tx.send_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_send_req: %llu\n", ext_s->rx.send_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_good_pkts: %llu\n", ext_s->grx.rx_pkts);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_good_bytes: %llu\n", ext_s->grx.rx_bytes);
+}
+
+/*
+ * bnxt_re_ulp_log_live - Callback from L2 driver to collect snapdump
+ * @handle     -   en_dev information. L2 and RoCE device information
+ *
+ * This function is callback to support L2 and RoCE common API.
+ * bnxt_ulp_ops.ulp_log_live().
+ *
+ * Returns: Nothing
+ */
+static void
+bnxt_re_ulp_log_live(void *handle)
+{
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
+
+	if (!en_info || !en_info->rdev)
+		return;
+
+	bnxt_re_create_snapdump_logs(en_info->rdev);
+}
+
+/*
  * Except for ulp_async_notifier, the remaining ulp_ops
  * below are called with rtnl_lock held
  */
@@ -1337,6 +1401,7 @@ static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 	.ulp_shutdown = bnxt_re_shutdown,
 	.ulp_irq_stop = bnxt_re_stop_irq,
 	.ulp_irq_restart = bnxt_re_start_irq,
+	.ulp_log_live = bnxt_re_ulp_log_live,
 };
 
 static inline const char *bnxt_re_netevent(unsigned long event)

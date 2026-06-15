@@ -829,9 +829,33 @@ struct bnxt_ctx_mem_type {
 #define BNXT_CTX_L2_MAX (BNXT_CTX_FTQM + 1)
 
 #define BNXT_CTX_V2_MAX (HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE + 1)
-#define BNXT_CTX_SRT_TRACE		HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_SRT_TRACE
-#define BNXT_CTX_ROCE_HWRM_TRACE	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE
+
+#define BNXT_CTX_SRT_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_SRT_TRACE
+
+#define BNXT_CTX_SRT2_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_SRT2_TRACE
+
+#define BNXT_CTX_CRT_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_CRT_TRACE
+
+#define BNXT_CTX_CRT2_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_CRT2_TRACE
+
+#define BNXT_CTX_RIGP0_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_RIGP0_TRACE
+
+#define BNXT_CTX_L2_HWRM_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_L2_HWRM_TRACE
+
+#define BNXT_CTX_ROCE_HWRM_TRACE \
+	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE
+
 #define BNXT_CTX_INV	((u16)-1)
+
+#define BNXT_CTX_TRACE_BUF_COUNT	\
+	(BNXT_CTX_ROCE_HWRM_TRACE - BNXT_CTX_SRT_TRACE + 1)
+
 
 struct bnxt_ctx_mem_info {
 	u8	tqm_fp_rings_count;
@@ -1044,6 +1068,17 @@ struct bnxt_fw_health {
 
 #define DB_RING_IDX(ring, idx, bit)    (((idx) & (ring)->db_ring_mask) | \
                                        ((bit) << (24)))
+
+struct bnxt_bs_trace_info {
+        u8 *magic_byte;
+#define BNXT_TRACE_BUF_MAGIC_BYTE ((uint8_t)0xBC)
+        u32 last_offset;
+        u8 wrapped:1;
+        u16 ctx_type;
+        u16 trace_type;
+};
+
+struct bnxt_logger;
 
 struct bnxt_softc {
 	device_t	dev;
@@ -1344,6 +1379,11 @@ struct bnxt_softc {
 
 	struct bnxt_fw_health	*fw_health;
 	char			board_partno[64];
+	TAILQ_HEAD(, bnxt_logger) loggers_list;
+	void                    *debug_buf;
+	struct mtx              log_lock; /* logging ops lock */
+	struct callout		time_sync_callout;
+	struct bnxt_bs_trace_info bs_trace[BNXT_CTX_TRACE_BUF_COUNT];
 };
 
 struct bnxt_filter_info {
