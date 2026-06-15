@@ -297,6 +297,7 @@ ntsync_create_obj(struct ntsync_obj *obj, struct fileops *fops,
 	finit(fp, FREAD | FWRITE, DTYPE_NTSYNC, obj, fops);
 	error = finstall(td, fp, &fd, 0, NULL);
 	if (error != 0) {
+		finit(fp, FREAD | FWRITE, DTYPE_NONE, NULL, &badfileops);
 		NTSYNC_PRIV_LOCK(priv);
 		MPASS(priv->objs_cnt > 0);
 		priv->objs_cnt--;
