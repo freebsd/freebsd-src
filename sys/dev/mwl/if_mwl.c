@@ -2165,7 +2165,7 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 	bf = malloc(bsize, M_MWLDEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
 		device_printf(sc->sc_dev, "malloc of %u rx buffers failed\n", bsize);
-		return error;
+		return ENOMEM;
 	}
 	sc->sc_rxdma.dd_bufptr = bf;
 
