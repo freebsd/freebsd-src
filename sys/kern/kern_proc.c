@@ -43,6 +43,7 @@
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
+#include <sys/imgact.h>
 #include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -2861,7 +2862,7 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	struct kinfo_kstack *kkstp;
 	int error, i, *name, numthreads;
 	lwpid_t *lwpidarray;
-	struct thread *td;
+	struct thread *td, *ctd;
 	struct stack *st;
 	struct sbuf sb;
 	struct proc *p;
@@ -2872,7 +2873,8 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	name = (int *)arg1;
-	error = pget((pid_t)name[0], PGET_NOTINEXEC | PGET_WANTREAD, &p);
+	ctd = curthread;
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
 	if (error != 0)
 		return (error);
 
@@ -2881,6 +2883,14 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 
 	lwpidarray = NULL;
 	PROC_LOCK(p);
+	execve_block_wait(ctd, p);
+	error = p_candebug(ctd, p);
+	if (error != 0) {
+		execve_unblock(ctd, p);
+		_PRELE(p);
+		PROC_UNLOCK(p);
+		return (error);
+	}
 	do {
 		if (lwpidarray != NULL) {
 			free(lwpidarray, M_TEMP);
@@ -2893,15 +2903,6 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		PROC_LOCK(p);
 	} while (numthreads < p->p_numthreads);
 
-	/*
-	 * XXXRW: During the below loop, execve(2) and countless other sorts
-	 * of changes could have taken place.  Should we check to see if the
-	 * vmspace has been replaced, or the like, in order to prevent
-	 * giving a snapshot that spans, say, execve(2), with some threads
-	 * before and some after?  Among other things, the credentials could
-	 * have changed, in which case the right to extract debug info might
-	 * no longer be assured.
-	 */
 	i = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(i < numthreads,
@@ -2934,7 +2935,10 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
-	PRELE(p);
+	PROC_LOCK(p);
+	execve_unblock(ctd, p);
+	_PRELE(p);
+	PROC_UNLOCK(p);
 	if (lwpidarray != NULL)
 		free(lwpidarray, M_TEMP);
 	stack_destroy(st);
