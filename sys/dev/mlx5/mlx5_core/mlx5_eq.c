@@ -271,7 +271,7 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			devx_cb = smp_load_acquire(&dev->priv.eq_table.cb);
 			if (devx_cb != NULL)
 				devx_consumed =
-				    devx_cb(dev, eqe->type, &eqe->data);
+				    devx_cb(dev, eqe->type, eqe);
 			rcu_read_unlock();
 		}
 
