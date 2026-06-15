@@ -52,7 +52,7 @@ static struct cdevsw bnxt_mgmt_cdevsw = {
 
 /* Global vars */
 static struct cdev *bnxt_mgmt_dev;
-struct mtx		mgmt_lock;
+struct sx	mgmt_lock;
 
 MALLOC_DEFINE(M_BNXT, "bnxt_mgmt_buffer", "buffer for bnxt_mgmt module");
 
@@ -439,11 +439,11 @@ bnxt_mgmt_loader(struct module *m, int what, void *arg)
 			return (error);
 		}
 
-		mtx_init(&mgmt_lock, "BNXT MGMT Lock", NULL, MTX_DEF);
+		sx_init(&mgmt_lock, "BNXT MGMT Lock");
 
 		break;
 	case MOD_UNLOAD:
-		mtx_destroy(&mgmt_lock);
+		sx_destroy(&mgmt_lock);
 		destroy_dev(bnxt_mgmt_dev);
 		break;
 	default:
@@ -526,9 +526,8 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 	struct bnxt_softc *softc = NULL;
 	struct bnxt_mgmt_req mgmt_req = {};
 	struct bnxt_mgmt_fw_msg msg_temp, *msg, *msg2 = NULL;
-	struct iflib_dma_info dma_data = {};
 	void *user_ptr, *req, *resp;
-	int ret = 0;
+	int ret = 0, num_allocated = 0, i;
 	uint16_t num_ind = 0;
 
 	memcpy(&user_ptr, data, sizeof(user_ptr));
@@ -558,9 +557,10 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 		return -EINVAL;
 	}
 
-	if (msg_temp.num_dma_indications > 1) {
+	if (msg_temp.num_dma_indications > MAX_NUM_DMA_INDICATIONS) {
 		device_printf(softc->dev, "%s:%d Max num_dma_indications "
-			      "supported is 1\n", __func__, __LINE__);
+			      "supported is %d\n", __func__, __LINE__,
+			      MAX_NUM_DMA_INDICATIONS);
 		return -EINVAL;
 	}
 
@@ -594,43 +594,58 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 		}
 		msg = msg2;
 
-		ret = iflib_dma_alloc(softc->ctx, msg->dma[0].length, &dma_data,
-				    BUS_DMA_NOWAIT);
-		if (ret) {
-			device_printf(softc->dev, "%s:%d iflib_dma_alloc"
-				      "failed with ret = 0x%x\n", __func__,
-				      __LINE__, ret);
-			ret = -ENOMEM;
-			goto end;
-		}
+		for (i = 0; i < num_ind; i++) {
 
-		if (!(msg->dma[0].read_or_write)) {
-			if (copyin((void *)msg->dma[0].data,
-				   dma_data.idi_vaddr,
-				   msg->dma[0].length)) {
-				device_printf(softc->dev, "%s:%d Failed to copy"
-					      "data from user\n", __func__,
-					      __LINE__);
-				ret = -EFAULT;
+			if (msg->dma[i].length == 0) {
+				device_printf(softc->dev,
+					"%s:%d i:%d Invalid DMA memory length\n",
+					__func__, __LINE__, i);
+				ret = -ENOMEM;
 				goto end;
 			}
+
+			memset(&softc->mgmt_dma_data[i], 0, sizeof(struct iflib_dma_info));
+
+			ret = iflib_dma_alloc(softc->ctx, msg->dma[i].length, &softc->mgmt_dma_data[i],
+				BUS_DMA_WAITOK);
+			if (ret) {
+				device_printf(softc->dev,
+					"%s:%d iflib_dma_alloc failed with ret = 0x%x\n",
+					__func__, __LINE__, ret);
+				ret = -ENOMEM;
+				goto end;
+			}
+
+			num_allocated++;
+			if (!(msg->dma[i].read_or_write)) {
+				if (copyin((void *)msg->dma[i].data,
+				    softc->mgmt_dma_data[i].idi_vaddr,
+				    msg->dma[i].length)) {
+					device_printf(softc->dev,
+						"%s:%d Failed to copy data from user\n",
+						__func__, __LINE__);
+					ret = -EFAULT;
+					goto end;
+				}
+			}
+			dma_ptr = (void *) ((uint64_t) req + msg->dma[i].offset);
+			dmap = dma_ptr;
+			*dmap = htole64(softc->mgmt_dma_data[i].idi_paddr);
 		}
-		dma_ptr = (void *) ((uint64_t) req + msg->dma[0].offset);
-		dmap = dma_ptr;
-		*dmap = htole64(dma_data.idi_paddr);
 	}
 
 	ret = bnxt_hwrm_passthrough(softc, req, msg->len_req, resp, msg->len_resp, msg->timeout);
-	if(ret)
+	if (ret)
 		goto end;
 
-	if (num_ind) {
-		if ((msg->dma[0].read_or_write)) {
-			if (copyout(dma_data.idi_vaddr,
-				    (void *)msg->dma[0].data,
-				    msg->dma[0].length)) {
-				device_printf(softc->dev, "%s:%d Failed to copy data"
-					      "to user\n", __func__, __LINE__);
+	for (i = 0; i < num_ind; i++) {
+		if ((msg->dma[i].read_or_write)) {
+			if (copyout(softc->mgmt_dma_data[i].idi_vaddr,
+			    (void *)msg->dma[i].data,
+			    msg->dma[i].length)) {
+				device_printf(softc->dev,
+					"%s:%d Failed to copy data to user\n",
+					__func__, __LINE__);
 				ret = -EFAULT;
 				goto end;
 			}
@@ -651,8 +666,11 @@ end:
 		free(resp, M_BNXT);
 	if (msg2)
 		free(msg2, M_BNXT);
-	if (dma_data.idi_paddr)
-		iflib_dma_free(&dma_data);
+	if (num_allocated) {
+		for (i = 0; i < num_allocated; i++)
+			if (softc->mgmt_dma_data[i].idi_paddr)
+				iflib_dma_free(&softc->mgmt_dma_data[i]);
+	}
 	return ret;
 }
 
@@ -828,9 +846,9 @@ bnxt_mgmt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		break;
 	case IO_BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM:
 	case IOW_BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM:
-		mtx_lock(&mgmt_lock);
+		sx_xlock(&mgmt_lock);
 		ret = bnxt_mgmt_process_hwrm(dev, cmd, data, flag, td);
-		mtx_unlock(&mgmt_lock);
+		sx_xunlock(&mgmt_lock);
 		break;
 	case IO_BNXT_MGMT_OPCODE_DCB_OPS:
 	case IOW_BNXT_MGMT_OPCODE_DCB_OPS:
