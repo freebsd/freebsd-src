@@ -1210,7 +1210,7 @@ ntsync_wait_state_get(struct ntsync_wait_args *nwa, u_long cmd,
 	error = copyin((void *)(uintptr_t)nwa->objs, &state->fds[0],
 	    nwa->count * sizeof(state->fds[0]));
 	if (error != 0)
-		return (error);
+		goto error_ret;
 
 	i = 0;
 	if (nwa->alert != 0) {
@@ -1296,6 +1296,8 @@ error_out:
 		fdrop(state->fps[j], td);
 	if (state->fp_alert != NULL)
 		fdrop(state->fp_alert, td);
+error_ret:
+	free(state, M_NTSYNC);
 	return (error);
 }
 
