@@ -7212,7 +7212,7 @@ struct mlx5_ifc_destroy_rmp_out_bits {
 
 struct mlx5_ifc_destroy_rmp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];

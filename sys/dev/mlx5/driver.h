@@ -481,6 +481,7 @@ struct mlx5_sq_bfreg {
 struct mlx5_core_srq {
 	struct mlx5_core_rsc_common	common; /* must be first */
 	u32				srqn;
+	u16				uid;
 	int				max;
 	size_t				max_gs;
 	size_t				max_avail_gather;
