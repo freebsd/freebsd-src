@@ -3687,8 +3687,9 @@ defrag:
 				remap = 1;
 				goto defrag;
 			}
+			goto defrag_failed;
 		}
-		goto defrag_failed;
+		goto out_with_error;
 	}
 	/*
 	 * err can't possibly be non-zero here, so we don't neet to test it
@@ -3697,13 +3698,15 @@ defrag:
 	return (err);
 
 defrag_failed:
+	err = ENOMEM;
 	txq->ift_mbuf_defrag_failed++;
+out_with_error:
 	txq->ift_map_failed++;
 	m_freem(*m_headp);
 	DBG_COUNTER_INC(tx_frees);
 	*m_headp = NULL;
 	DBG_COUNTER_INC(encap_txd_encap_fail);
-	return (ENOMEM);
+	return (err);
 }
 
 static void
