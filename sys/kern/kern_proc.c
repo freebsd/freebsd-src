@@ -2995,8 +2995,9 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	u_int namelen = arg2;
 	struct rlimit rlim;
 	struct proc *p;
+	struct thread *td;
 	u_int which;
-	int flags, error;
+	int error;
 
 	if (namelen != 2)
 		return (EINVAL);
@@ -3008,23 +3009,24 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	if (req->newptr != NULL && req->newlen != sizeof(rlim))
 		return (EINVAL);
 
-	flags = PGET_HOLD | PGET_NOTWEXIT;
-	if (req->newptr != NULL)
-		flags |= PGET_CANDEBUG;
-	else
-		flags |= PGET_CANSEE;
-	error = pget((pid_t)name[0], flags, &p);
+	td = curthread;
+	error = pget((pid_t)name[0], PGET_NOTWEXIT, &p);
 	if (error != 0)
 		return (error);
+	_PHOLD(p);
+	execve_block_wait(td, p);
+	error = req->newptr != NULL ? p_candebug(td, p) : p_cansee(td, p);
+	if (error != 0)
+		goto errout1;
 
 	/*
 	 * Retrieve limit.
 	 */
 	if (req->oldptr != NULL) {
-		PROC_LOCK(p);
 		lim_rlimit_proc(p, which, &rlim);
-		PROC_UNLOCK(p);
 	}
+	PROC_UNLOCK(p);
+
 	error = SYSCTL_OUT(req, &rlim, sizeof(rlim));
 	if (error != 0)
 		goto errout;
@@ -3039,7 +3041,11 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	}
 
 errout:
-	PRELE(p);
+	PROC_LOCK(p);
+errout1:
+	_PRELE(p);
+	execve_unblock(td, p);
+	PROC_UNLOCK(p);
 	return (error);
 }
 
