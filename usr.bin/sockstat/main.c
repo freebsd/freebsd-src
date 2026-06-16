@@ -58,7 +58,6 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <jail.h>
-#include <netdb.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -107,14 +106,51 @@ static bool	 is_xo_style_encoding;
 static bool	 show_path_state = false;
 
 /*
- * Default protocols to use if no -P was defined.
+ * Protocols that we support.
+ * TODO: merge unix(4) protocols into here.
  */
-static const char *default_protos[] = {"sctp", "tcp", "udp", "udplite",
-    "divert" };
-static size_t	   default_numprotos = nitems(default_protos);
-
-static int	*protos;	/* protocols to use */
-static size_t	 numprotos;	/* allocated size of protos[] */
+struct proto;
+typedef void gather_func_t(struct proto *);
+static gather_func_t gather_sctp, gather_inet;
+static struct proto {
+	gather_func_t	*gather;
+	const char	*name;
+	const char	*pcblist;
+	union {
+			int protonum;	/* gather_inet() */
+	};
+	bool disabled;
+} protos[] = {
+	{
+		.name = "sctp",
+		.gather = gather_sctp,
+		.pcblist = "net.inet.sctp.assoclist",
+		.protonum = IPPROTO_SCTP,
+	},
+	{
+		.name = "tcp",
+		.gather = gather_inet,
+		.pcblist = "net.inet.tcp.pcblist",
+		.protonum = IPPROTO_TCP,
+	},
+	{
+		.name = "udp",
+		.gather = gather_inet,
+		.pcblist = "net.inet.udp.pcblist",
+		.protonum = IPPROTO_UDP,
+	},
+	{
+		.name = "udplite",
+		.gather = gather_inet,
+		.pcblist = "net.inet.udplite.pcblist",
+		.protonum = IPPROTO_UDPLITE,
+	},
+	{
+		.name = "divert",
+		.gather = gather_inet,
+		.pcblist = "net.inet.divert.pcblist",
+	},
+};
 
 /*
  * Show sockets for user username or UID specified
@@ -236,63 +272,26 @@ need_nosocks(void)
 	return !(opt_F || (opt_j >= 0));
 }
 
-static int
-get_proto_type(const char *proto)
-{
-	struct protoent *pent;
-
-	if (strlen(proto) == 0)
-		return (0);
-	if (capnetdb != NULL)
-		pent = cap_getprotobyname(capnetdb, proto);
-	else
-		pent = getprotobyname(proto);
-	if (pent == NULL) {
-		xo_warn("cap_getprotobyname");
-		return (-1);
-	}
-	return (pent->p_proto);
-}
-
 static void
-init_protos(int num)
-{
-	int proto_count = 0;
-
-	if (num > 0) {
-		proto_count = num;
-	} else {
-		/* Find the maximum number of possible protocols. */
-		while (getprotoent() != NULL)
-			proto_count++;
-		endprotoent();
-	}
-
-	if ((protos = malloc(sizeof(int) * proto_count)) == NULL)
-		xo_err(1, "malloc");
-	numprotos = proto_count;
-}
-
-static int
 parse_protos(char *protospec)
 {
 	char *prot;
-	int proto_type, proto_index;
+	u_int i;
 
-	if (protospec == NULL)
-		return (-1);
+	for (i = 0; i < nitems(protos); i++)
+		protos[i].disabled = true;
 
-	init_protos(0);
-	proto_index = 0;
 	while ((prot = strsep(&protospec, ",")) != NULL) {
 		if (strlen(prot) == 0)
 			continue;
-		proto_type = get_proto_type(prot);
-		if (proto_type != -1)
-			protos[proto_index++] = proto_type;
+		for (i = 0; i < nitems(protos); i++)
+			if (strcmp(prot, protos[i].name) == 0) {
+				protos[i].disabled = false;
+				break;
+			}
+		if (i == nitems(protos))
+			xo_errx(1, "protocol %s not supported", prot);
 	}
-	numprotos = proto_index;
-	return (proto_index);
 }
 
 static void
@@ -349,7 +348,7 @@ free_socket(struct sock *sock)
 }
 
 static void
-gather_sctp(void)
+gather_sctp(struct proto *proto)
 {
 	struct sock *sock;
 	struct addr *laddr, *prev_laddr, *faddr, *prev_faddr;
@@ -357,7 +356,6 @@ gather_sctp(void)
 	struct xsctp_tcb *xstcb;
 	struct xsctp_raddr *xraddr;
 	struct xsctp_laddr *xladdr;
-	const char *varname;
 	size_t len, offset;
 	char *buf;
 	int vflag;
@@ -369,8 +367,7 @@ gather_sctp(void)
 	if (opt_6)
 		vflag |= INP_IPV6;
 
-	varname = "net.inet.sctp.assoclist";
-	if (cap_sysctlbyname(capsysctl, varname, 0, &len, 0, 0) < 0) {
+	if (cap_sysctlbyname(capsysctl, proto->pcblist, 0, &len, 0, 0) < 0) {
 		if (errno != ENOENT)
 			xo_err(1, "cap_sysctlbyname()");
 		return;
@@ -379,7 +376,7 @@ gather_sctp(void)
 		xo_err(1, "malloc()");
 		return;
 	}
-	if (cap_sysctlbyname(capsysctl, varname, buf, &len, 0, 0) < 0) {
+	if (cap_sysctlbyname(capsysctl, proto->pcblist, buf, &len, 0, 0) < 0) {
 		xo_err(1, "cap_sysctlbyname()");
 		free(buf);
 		return;
@@ -618,7 +615,7 @@ gather_sctp(void)
 }
 
 static void
-gather_inet(int proto)
+gather_inet(struct proto *proto)
 {
 	struct xinpgen *xig, *exig;
 	struct xinpcb *xip;
@@ -626,7 +623,7 @@ gather_inet(int proto)
 	struct xsocket *so;
 	struct sock *sock;
 	struct addr *laddr, *faddr;
-	const char *varname, *protoname;
+	const char *protoname = proto->name;
 	size_t len, bufsize;
 	void *buf;
 	int retry, vflag;
@@ -637,27 +634,6 @@ gather_inet(int proto)
 	if (opt_6)
 		vflag |= INP_IPV6;
 
-	switch (proto) {
-	case IPPROTO_TCP:
-		varname = "net.inet.tcp.pcblist";
-		protoname = "tcp";
-		break;
-	case IPPROTO_UDP:
-		varname = "net.inet.udp.pcblist";
-		protoname = "udp";
-		break;
-	case IPPROTO_UDPLITE:
-		varname = "net.inet.udplite.pcblist";
-		protoname = "udplite";
-		break;
-	case IPPROTO_DIVERT:
-		varname = "net.inet.divert.pcblist";
-		protoname = "div";
-		break;
-	default:
-		xo_errx(1, "protocol %d not supported", proto);
-	}
-
 	buf = NULL;
 	bufsize = 8192;
 	retry = 5;
@@ -666,8 +642,8 @@ gather_inet(int proto)
 			if ((buf = realloc(buf, bufsize)) == NULL)
 				xo_err(1, "realloc()");
 			len = bufsize;
-			if (cap_sysctlbyname(capsysctl, varname, buf, &len,
-			    NULL, 0) == 0)
+			if (cap_sysctlbyname(capsysctl, proto->pcblist, buf,
+			    &len, NULL, 0) == 0)
 				break;
 			if (errno == ENOENT)
 				goto out;
@@ -689,23 +665,17 @@ gather_inet(int proto)
 		xig = (struct xinpgen *)(void *)((char *)xig + xig->xig_len);
 		if (xig >= exig)
 			break;
-		switch (proto) {
-		case IPPROTO_TCP:
+		if (proto->protonum == IPPROTO_TCP) {
 			xtp = (struct xtcpcb *)xig;
 			xip = &xtp->xt_inp;
 			if (!check_ksize(xtp->xt_len, struct xtcpcb))
 				goto out;
-			protoname = xtp->t_flags & TF_TOE ? "toe" : "tcp";
-			break;
-		case IPPROTO_UDP:
-		case IPPROTO_UDPLITE:
-		case IPPROTO_DIVERT:
+			if (xtp->t_flags & TF_TOE)
+				protoname = "toe";
+		} else {
 			xip = (struct xinpcb *)xig;
 			if (!check_ksize(xip->xi_len, struct xinpcb))
 				goto out;
-			break;
-		default:
-			xo_errx(1, "protocol %d not supported", proto);
 		}
 		so = &xip->xi_socket;
 		if ((xip->inp_vflag & vflag) == 0)
@@ -743,7 +713,7 @@ gather_inet(int proto)
 		sock->socket = so->xso_so;
 		sock->pcb = so->so_pcb;
 		sock->splice_socket = so->so_splice_so;
-		sock->proto = proto;
+		sock->proto = proto->protonum;
 		sock->inp_gencnt = xip->inp_gencnt;
 		sock->fibnum = so->so_fibnum;
 		if (xip->inp_vflag & INP_IPV4) {
@@ -759,14 +729,14 @@ gather_inet(int proto)
 			sockaddr(&faddr->address, sock->family,
 			    &xip->in6p_faddr, xip->inp_fport);
 		}
-		if (proto == IPPROTO_TCP)
+		if (proto->protonum == IPPROTO_TCP)
 			faddr->encaps_port = xtp->xt_encaps_port;
 		laddr->next = NULL;
 		faddr->next = NULL;
 		sock->laddr = laddr;
 		sock->faddr = faddr;
 		sock->vflag = xip->inp_vflag;
-		if (proto == IPPROTO_TCP) {
+		if (proto->protonum == IPPROTO_TCP) {
 			sock->state = xtp->t_state;
 			sock->bblog_state = xtp->t_logstate;
 			memcpy(sock->stack, xtp->xt_stack,
@@ -1776,26 +1746,6 @@ out:
 	cap_endpwent(cappwd);
 }
 
-static int
-set_default_protos(void)
-{
-	struct protoent *prot;
-	const char *pname;
-	size_t pindex;
-
-	init_protos(default_numprotos);
-
-	for (pindex = 0; pindex < default_numprotos; pindex++) {
-		pname = default_protos[pindex];
-		prot = cap_getprotobyname(capnetdb, pname);
-		if (prot == NULL)
-			xo_err(1, "cap_getprotobyname: %s", pname);
-		protos[pindex] = prot->p_proto;
-	}
-	numprotos = pindex;
-	return (pindex);
-}
-
 /*
  * Return the vnet property of the jail, or -1 on error.
  */
@@ -1881,8 +1831,8 @@ main(int argc, char *argv[])
 	cap_net_limit_t *limit;
 	const char *pwdcmds[] = { "setpassent", "getpwuid", "getpwnam" };
 	const char *pwdfields[] = { "pw_name", "pw_uid" };
-	int protos_defined = -1;
-	int o, i, err;
+	bool protos_defined = false;
+	int o, err;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
@@ -1953,7 +1903,8 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'P':
-			protos_defined = parse_protos(optarg);
+			parse_protos(optarg);
+			protos_defined = true;
 			break;
 		case 'q':
 			opt_q = true;
@@ -2032,24 +1983,19 @@ main(int argc, char *argv[])
 	if (opt_F && !parse_filter_user())
 		xo_errx(1, "Invalid username or UID specified");
 
-	if ((!opt_4 && !opt_6) && protos_defined != -1)
+	if ((!opt_4 && !opt_6) && protos_defined)
 		opt_4 = opt_6 = true;
 	if (!opt_4 && !opt_6 && !opt_u)
 		opt_4 = opt_6 = opt_u = true;
-	if ((opt_4 || opt_6) && protos_defined == -1)
-		protos_defined = set_default_protos();
 	if (!opt_c && !opt_l)
 		opt_c = opt_l = true;
 
-	if (opt_4 || opt_6) {
-		for (i = 0; i < protos_defined; i++)
-			if (protos[i] == IPPROTO_SCTP)
-				gather_sctp();
-			else
-				gather_inet(protos[i]);
-	}
+	if (opt_4 || opt_6)
+		for (u_int i = 0; i < nitems(protos); i++)
+			if (!protos[i].disabled)
+				protos[i].gather(&protos[i]);
 
-	if (opt_u || (protos_defined == -1 && !opt_4 && !opt_6)) {
+	if (opt_u || (!protos_defined && !opt_4 && !opt_6)) {
 		gather_unix(SOCK_STREAM);
 		gather_unix(SOCK_DGRAM);
 		gather_unix(SOCK_SEQPACKET);
