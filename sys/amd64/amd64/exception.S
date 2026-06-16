@@ -1161,12 +1161,15 @@ do_segs:
 	.globl	ld_fs
 ld_fs:
 	movw	%ax,%fs
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jnz	after_ld_fsbase
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
 	.globl	ld_fsbase
 ld_fsbase:
 	wrmsr
+after_ld_fsbase:
 	/* Restore %gs and gsbase */
 	movw	TF_GS(%rsp),%si
 	pushfq
@@ -1179,6 +1182,8 @@ ld_fsbase:
 	.globl	ld_gs
 ld_gs:
 	movw	%si,%gs
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jnz	ld_gsbase_32
 	/* Restore kernel %gs base */
 	movl	%r12d,%eax
 	movl	%r13d,%edx
@@ -1194,6 +1199,8 @@ ld_gs:
 	.globl	ld_gsbase
 ld_gsbase:
 	wrmsr	/* May trap if non-canonical, but only for TLS. */
+
+after_ld_gsbase:
 	.globl	ld_es
 ld_es:
 	movw	TF_ES(%rsp),%es
@@ -1240,6 +1247,30 @@ ld_regs:
 	.globl	doreti_iret
 doreti_iret:
 	iretq
+
+	/*
+	 * 32bit gsbase path.
+	 * The KGSBASE is not loaded from the pcb_gsbase, instead we move
+	 * the GSBASE value into KGSBASE right after loading user %gs, then
+	 * restore kernel gsbase.
+	 */
+ld_gsbase_32:
+	/* Read the user gsbase into %r14d:%r15d. */
+	movl	$MSR_GSBASE,%ecx
+	rdmsr
+	movl	%eax,%r14d
+	movl	%edx,%r15d
+	/* Restore kernel %gs base */
+	movl	%r12d,%eax
+	movl	%r13d,%edx
+	wrmsr
+	popfq
+	/* Load the user gsbase into KGSBASE. */
+	movl	$MSR_KGSBASE,%ecx
+	movl	%r14d,%eax
+	movl	%r15d,%edx
+	wrmsr
+	jmp	after_ld_gsbase
 
 set_segs:
 	movw	$KUDSEL,%ax
