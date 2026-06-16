@@ -119,7 +119,10 @@ Recognized protocols are
 .Qq tcp ,
 .Qq sctp ,
 .Qq udp ,
-.Qq udplite
+.Qq udplite ,
+.Qq unix/stream ,
+.Qq unix/dgram ,
+.Qq unix/seqpack ,
 and
 .Qq divert .
 .It Fl q
@@ -255,6 +258,13 @@ $ sockstat -L -P tcp,udp
 Show TCP IPv6 sockets which are listening and connected (default):
 .Bd -literal -offset indent
 $ sockstat -6 -P tcp
+.Ed
+.Pp
+Show all listening
+.Xr unix 4
+datagram sockets:
+.Bd -literal -offset indent
+$ sockstat -P unix/dgram -l
 .Ed
 .Pp
 Show all sockets in JSON format with neat alignment:
