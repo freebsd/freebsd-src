@@ -2721,7 +2721,7 @@ sched_ule_clock(struct thread *td, int cnt)
 	if (tdq->tdq_ts_off == tdq->tdq_ts_deq_off) {
 		tdq->tdq_ts_ticks += cnt;
 		tdq->tdq_ts_off = (tdq->tdq_ts_off + 2 * cnt -
-		    tdq-> tdq_ts_ticks / 4) % RQ_TS_POL_MODULO;
+		    tdq->tdq_ts_ticks / 4) % RQ_TS_POL_MODULO;
 		tdq->tdq_ts_ticks %= 4;
 		tdq_advance_ts_deq_off(tdq, false);
 	}
