@@ -58,6 +58,7 @@
 
 #include <netinet/in.h>
 #include <net/radix.h>
+#include <sys/netexport.h>
 
 #include <rpc/types.h>
 #include <rpc/auth.h>
@@ -72,30 +73,12 @@ static struct radix_node_head *vfs_create_addrlist_af(
 		    struct radix_node_head **prnh, int off);
 #endif
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
+static struct netexport *vfs_netexport_alloc(void);
+static void	vfs_netexport_reset(struct netexport *nep);
 static void	vfs_free_addrlist_af(struct radix_node_head **prnh);
 static int	vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		    struct export_args *argp);
 static struct netcred *vfs_export_lookup(struct mount *, struct sockaddr *);
-
-/*
- * Network address lookup element
- */
-struct netcred {
-	struct	radix_node netc_rnodes[2];
-	uint64_t netc_exflags;
-	struct	ucred *netc_anon;
-	int	netc_numsecflavors;
-	int	netc_secflavors[MAXSECFLAVORS];
-};
-
-/*
- * Network export information
- */
-struct netexport {
-	struct	netcred ne_defexported;		      /* Default export */
-	struct 	radix_node_head	*ne4;
-	struct 	radix_node_head	*ne6;
-};
 
 /*
  * Build hash lists of net addresses and hang them off the mount point.
@@ -350,7 +333,7 @@ vfs_export(struct mount *mp, struct export_args *argp, bool do_exjail)
 		}
 		vfs_free_addrlist(nep);
 		mp->mnt_export = NULL;
-		free(nep, M_MOUNT);
+		vfs_netexport_release(nep);
 		nep = NULL;
 		MNT_ILOCK(mp);
 		cr = mp->mnt_exjail;
@@ -369,7 +352,7 @@ vfs_export(struct mount *mp, struct export_args *argp, bool do_exjail)
 			MNT_IUNLOCK(mp);
 			if (do_exjail && nep != NULL) {
 				vfs_free_addrlist(nep);
-				memset(nep, 0, sizeof(*nep));
+				vfs_netexport_reset(nep);
 				new_nep = true;
 			}
 		} else if (mp->mnt_exjail->cr_prison != pr) {
@@ -379,16 +362,14 @@ vfs_export(struct mount *mp, struct export_args *argp, bool do_exjail)
 		} else
 			MNT_IUNLOCK(mp);
 		if (nep == NULL) {
-			nep = malloc(sizeof(struct netexport), M_MOUNT,
-			    M_WAITOK | M_ZERO);
-			mp->mnt_export = nep;
+			nep = mp->mnt_export = vfs_netexport_alloc();
 			new_nep = true;
 		}
 		if (argp->ex_flags & MNT_EXPUBLIC) {
 			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0) {
 				if (new_nep) {
 					mp->mnt_export = NULL;
-					free(nep, M_MOUNT);
+					vfs_netexport_release(nep);
 				}
 				goto out;
 			}
@@ -408,7 +389,7 @@ vfs_export(struct mount *mp, struct export_args *argp, bool do_exjail)
 		if ((error = vfs_hang_addrlist(mp, nep, argp))) {
 			if (new_nep) {
 				mp->mnt_export = NULL;
-				free(nep, M_MOUNT);
+				vfs_netexport_release(nep);
 			}
 			goto out;
 		}
@@ -507,7 +488,7 @@ tryagain:
 				mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 				MNT_IUNLOCK(mp);
 				vfs_free_addrlist(mp->mnt_export);
-				free(mp->mnt_export, M_MOUNT);
+				vfs_netexport_release(mp->mnt_export);
 				mp->mnt_export = NULL;
 			} else
 				MNT_IUNLOCK(mp);
@@ -697,4 +678,46 @@ vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, uint64_t *extflagsp,
 		    sizeof(int));
 	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
 	return (0);
+}
+
+static struct netexport *
+vfs_netexport_alloc(void)
+{
+	struct netexport *nep;
+
+	nep = malloc(sizeof(struct netexport), M_MOUNT, M_WAITOK | M_ZERO);
+	refcount_init(&nep->ne_ref, 1);
+	mtx_init(&nep->ne_mtx, "mntexplock", NULL, MTX_DEF);
+	return (nep);
+}
+
+static void
+vfs_netexport_reset(struct netexport *nep)
+{
+
+	KASSERT(refcount_load(&nep->ne_ref) > 0,
+	    ("vfs_netexport_reset: invalid refcount"));
+	memset(&nep->ne_startzero, 0, __rangeof(struct netexport, ne_startzero,
+	    ne_endzero));
+}
+
+u_int
+vfs_netexport_acquire(struct netexport *nep)
+{
+
+	KASSERT(refcount_load(&nep->ne_ref) > 0,
+	    ("vfs_netexport_acquire: invalid refcount"));
+	return (refcount_acquire(&nep->ne_ref));
+}
+
+void
+vfs_netexport_release(struct netexport *nep)
+{
+
+	KASSERT(refcount_load(&nep->ne_ref) > 0,
+	    ("vfs_netexport_release: invalid refcount"));
+	if (!refcount_release(&nep->ne_ref))
+		return;
+	mtx_destroy(&nep->ne_mtx);
+	free(nep, M_MOUNT);
 }

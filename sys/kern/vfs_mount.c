@@ -765,7 +765,7 @@ vfs_mount_destroy(struct mount *mp)
 	}
 	if (mp->mnt_export != NULL) {
 		vfs_free_addrlist(mp->mnt_export);
-		free(mp->mnt_export, M_MOUNT);
+		vfs_netexport_release(mp->mnt_export);
 	}
 	vfsconf_lock();
 	mp->mnt_vfc->vfc_refcount--;

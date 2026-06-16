@@ -1061,6 +1061,8 @@ void	vfs_exjail_delete(struct prison *);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *, bool);
 void	vfs_free_addrlist(struct netexport *);
+u_int	vfs_netexport_acquire(struct netexport *);
+void	vfs_netexport_release(struct netexport *);
 void	vfs_allocate_syncvnode(struct mount *);
 void	vfs_deallocate_syncvnode(struct mount *);
 int	vfs_donmount(struct thread *td, uint64_t fsflags,
