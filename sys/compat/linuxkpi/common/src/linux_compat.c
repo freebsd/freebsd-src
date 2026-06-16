@@ -51,6 +51,7 @@
 #include <sys/mman.h>
 #include <sys/stack.h>
 #include <sys/stdarg.h>
+#include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/user.h>
@@ -926,19 +927,39 @@ linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
 	struct task_struct *task = current;
 	unsigned size;
 	int error;
+	bool direct;
 
 	size = IOCPARM_LEN(cmd);
 	/* refer to logic in sys_ioctl() */
+	direct = false;
 	if (size > 0) {
 		/*
 		 * Setup hint for linux_copyin() and linux_copyout().
 		 *
-		 * Background: Linux code expects a user-space address
-		 * while FreeBSD supplies a kernel-space address.
+		 * Background: Linux kernel code expects to operate on
+		 * userspace addresses, but FreeBSD's kern_ioctl()
+		 * will generally provide a kernel address.  For the
+		 * native process ABI, where we know how to find the
+		 * original address, we reach directly into the system
+		 * call args to get it.  Then, if the Linux driver
+		 * copied out to that address, we copy the whole block
+		 * back into the kernel buffer allocated by
+		 * kern_ioctl() so that kern_ioctl() itself doesn't
+		 * clobber the driver's data.
+		 *
+		 * Otherwise, fall back to the LINUX_IOCTL_MIN_PTR
+		 * hack.
 		 */
 		task->bsd_ioctl_data = data;
 		task->bsd_ioctl_len = size;
-		data = (void *)LINUX_IOCTL_MIN_PTR;
+		if ((td->td_pflags & TDP_KTHREAD) == 0 &&
+		    SV_PROC_ABI(td->td_proc) == SV_ABI_FREEBSD &&
+		    td->td_sa.code == SYS_ioctl) {
+			direct = true;
+			data = (void *)(uintptr_t)td->td_sa.args[2];
+		} else {
+			data = (void *)LINUX_IOCTL_MIN_PTR;
+		}
 	} else {
 		/* fetch user-space pointer */
 		data = *(void **)data;
@@ -968,11 +989,30 @@ linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
 			error = ENOTTY;
 		}
 	}
+	if (error == 0 && size > 0 && (cmd & IOC_OUT) != 0 && direct) {
+		void *xdata;
+		int error1;
+
+		/*
+		 * Ensure that the copyout in sys_generic.c copies
+		 * over the data which is possibly modified by the
+		 * driver.  A possible error from the copyin() is
+		 * ignored since it is formally possible for the memory
+		 * to become unaccessible in the meantime.  Do the copying
+		 * through the intermediate buffer instead of copying
+		 * directly to bsd_ioctl_data, to ensure atomicity of
+		 * the change with respect to the error.
+		 */
+		xdata = malloc(size, M_TEMP, M_WAITOK);
+		error1 = copyin(data, xdata, size);
+		if (error1 == 0)
+			memcpy(task->bsd_ioctl_data, xdata, size);
+		free(xdata, M_TEMP);
+	}
 	if (size > 0) {
 		task->bsd_ioctl_data = NULL;
 		task->bsd_ioctl_len = 0;
 	}
-
 	if (error == EWOULDBLOCK) {
 		/* update kqfilter status, if any */
 		linux_file_kqfilter_poll(filp,
