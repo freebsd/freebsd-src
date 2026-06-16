@@ -1355,7 +1355,7 @@ pfa_table_addrs(u_int sidx, struct pfr_table *pt)
 	struct pfr_table tbl = { 0 };
 	struct pfr_astats *t = NULL;
 	struct pfa_entry *e;
-	int i, numaddrs = 1, outnum;
+	int error, i, numaddrs = 1, outnum;
 
 	if (pt == NULL)
 		return (-1);
@@ -1373,9 +1373,9 @@ pfa_table_addrs(u_int sidx, struct pfr_table *pt)
 		}
 
 		outnum = numaddrs;
-		if (pfctl_get_astats(pfh, &tbl, t, &outnum, 0) != 0) {
+		if ((error = pfctl_get_astats(pfh, &tbl, t, &outnum, 0)) != 0) {
 			syslog(LOG_ERR, "pfa_table_addrs(): ioctl() on %s: %s",
-			    pt->pfrt_name, strerror(errno));
+			    pt->pfrt_name, strerror(error));
 			numaddrs = -1;
 			break;
 		}

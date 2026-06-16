@@ -3877,10 +3877,8 @@ pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	uint32_t seq_id;
 
 	if (tbl == NULL || size == NULL || *size < 0 ||
-	    (*size && as == NULL)) {
-		errno = EINVAL;
-		return (-1);
-	}
+	    (*size && as == NULL))
+		return (EINVAL);
 
 	snl_init_writer(&h->ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, h->family_id,
