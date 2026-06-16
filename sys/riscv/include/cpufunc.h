@@ -126,6 +126,34 @@ hfence_gvma(void)
 	__asm __volatile("hfence.gvma" ::: "memory");
 }
 
+static __inline void
+sfence_inval_ir(void)
+{
+
+	__asm __volatile("sfence.inval.ir" ::: "memory");
+}
+
+static __inline void
+sfence_w_inval(void)
+{
+
+	__asm __volatile("sfence.w.inval" ::: "memory");
+}
+
+static __inline void
+sinval_vma_page(uintptr_t addr)
+{
+
+	__asm __volatile("sinval.vma %0, zero" :: "r" (addr) : "memory");
+}
+
+static __inline void
+sinval_vma_page_asid(uintptr_t addr, uint64_t asid)
+{
+
+	__asm __volatile("sinval.vma %0, %1" :: "r" (addr), "r" (asid) : "memory");
+}
+
 #define	rdcycle()			csr_read64(cycle)
 #define	rdtime()			csr_read64(time)
 #define	rdinstret()			csr_read64(instret)
