@@ -833,7 +833,7 @@ rge_encap(struct rge_softc *sc, struct rge_queues *q, struct mbuf *m, int idx)
 	/* Set up hardware VLAN tagging */
 	if (m->m_flags & M_VLANTAG) {
 		sc->sc_drv_stats.tx_offload_vlan_tag_set++;
-		cflags |= htole16(m->m_pkthdr.ether_vtag) | RGE_TDEXTSTS_VTAG;
+		cflags |= htons(m->m_pkthdr.ether_vtag) | RGE_TDEXTSTS_VTAG;
 	}
 
 	cur = idx;
