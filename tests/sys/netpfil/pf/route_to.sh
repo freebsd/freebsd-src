@@ -29,10 +29,10 @@
 common_dir=$(atf_get_srcdir)/../common
 
 # We need to somehow test if the random algorithm of pf_map_addr() is working.
-# The table or prefix contains multiple IP next-hop addresses, for each one try
-# to establish up to 10 connections. Fail the test if with this many attempts
-# the "good" target has not been chosen. However this choice is random,
-# the check might still ocasionally fail.
+# The table or prefix contains multiple IP next-hop addresses. For each one,
+# repeatedly try to establish connections until the "good" target has been chosen.
+# However, since this choice is random, the test might still ocasionally fail
+# due to timeout.
 check_random() {
 	if [ "$1" = "IPv4" ]; then
 		ping_from="${net_clients_4}.1"
@@ -47,8 +47,9 @@ check_random() {
 	port=42000
 	states=$(mktemp) || exit 1
 	for good_target in $good_targets; do
-		found="no"
-		for attempt in $(seq 1 10); do
+		# Loop until either the "good" target has been chosen
+		# or the test times out.
+		while :; do
 			port=$(( port + 1 ))
 			jexec router pfctl -Fs
 			atf_check -s exit:0 ${common_dir}/pft_ping.py \
@@ -65,13 +66,9 @@ check_random() {
 				done
 			fi;
 			if grep -qE "route-to: ${good_target}@" $states; then
-				found=yes
 				break
 			fi
 		done
-		if [ "${found}" = "no" ]; then
-			atf_fail "Target ${good_target} not selected after ${attempt} attempts!"
-		fi
 	done
 }
 
@@ -1428,8 +1425,7 @@ prefer_ipv6_nexthop_mixed_af_roundrobin_ipv6_body()
 	# The "random" flag will pick random hosts from the table but will
 	# not dive into prefixes, always choosing the 0th address.
 	# Proper address family will be choosen. The choice being random makes
-	# testing it non-trivial. We do 10 attempts to have each target chosen.
-	# Hopefully this is enough to have this test pass often enough.
+	# testing it non-trivial.
 
 	# pf_map_addr() starts iterating over hosts of the pool from the 2nd
 	# host. This behaviour was here before adding prefer-ipv6-nexthop
