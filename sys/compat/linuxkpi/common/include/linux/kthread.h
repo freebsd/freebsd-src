@@ -110,6 +110,17 @@ task_fn_t lkpi_kthread_worker_init_fn;
 	__w;								\
 })
 
+/*
+ * On Linux, `kthread_run_worker()` differs from `kthread_create_worker()` by
+ * waking up the task after creating it with `kthread_create_worker()`.
+ *
+ * On FreeBSD, we already execute it and wait for it, so probably no need to do
+ * anything further. Therefore, `kthread_run_worker()` is an alias to
+ * `kthread_create_worker()`.
+ */
+#define	kthread_run_worker(flags, fmt, ...)				\
+	kthread_create_worker(flags, fmt, ##__VA_ARGS__)
+
 static inline void
 kthread_destroy_worker(struct kthread_worker *worker)
 {
