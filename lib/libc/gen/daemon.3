@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 27, 2023
+.Dd June 1, 2026
 .Dt DAEMON 3
 .Os
 .Sh NAME
@@ -44,6 +44,13 @@ The
 .Fn daemon
 function is for programs wishing to detach themselves from the
 controlling terminal and run in the background as system daemons.
+The
+.Xr fork 2
+system call is used; see
+.Sx CAVEATS
+below about the environment after a
+.Fn fork
+.Pq without a corresponding call to one of the exec routines .
 .Pp
 If the argument
 .Fa nochdir
@@ -89,7 +96,7 @@ and
 function may fail and set
 .Va errno
 for any of the errors specified for the library functions
-.Xr fork 2
+.Xr fork 2 ,
 .Xr open 2 ,
 and
 .Xr setsid 2 .
@@ -107,6 +114,21 @@ The
 function first appeared in
 .Fx 12.0 .
 .Sh CAVEATS
+In multithreaded programs, the child process after
+.Fn fork
+inherits copies of all mutexes and other synchronization state, but only the
+calling thread survives.
+Any locks held by other threads at the time of the call will remain permanently
+acquired in the child, causing deadlocks in any code that attempts to
+acquire them.
+Until one of the
+.Xr exec 3
+functions is called, the child should restrict itself to async-signal safe
+operations
+.Po see
+.Xr sigaction 2
+.Pc .
+.Pp
 Unless the
 .Fa noclose
 argument is non-zero,
