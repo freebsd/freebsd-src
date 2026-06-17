@@ -197,7 +197,8 @@ static int	acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_stype_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
-static int	acpi_stype_to_sstate(struct acpi_softc *sc, enum power_stype stype);
+static int	acpi_stype_to_sstate(const struct acpi_softc *const sc,
+		     const enum power_stype stype);
 static int	acpi_pm_func(u_long cmd, void *arg, enum power_stype stype);
 static void	acpi_enable_pcie(void);
 static void	acpi_reset_interfaces(device_t dev);
@@ -808,7 +809,8 @@ acpi_attach(device_t dev)
 }
 
 static int
-acpi_stype_to_sstate(struct acpi_softc *sc, enum power_stype stype)
+acpi_stype_to_sstate(const struct acpi_softc *const sc,
+    const enum power_stype stype)
 {
 	switch (stype) {
 	case POWER_STYPE_AWAKE:
@@ -2160,7 +2162,7 @@ acpi_device_pwr_for_sleep_sxd(device_t dev, ACPI_HANDLE handle, int state,
 int
 acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
 {
-	struct acpi_softc *sc = device_get_softc(bus);
+	const struct acpi_softc *const sc = device_get_softc(bus);
 	ACPI_HANDLE handle = acpi_get_handle(dev);
 	int state;
 
@@ -3846,7 +3848,7 @@ acpi_wake_set_enable(device_t dev, int enable)
 }
 
 static int
-acpi_wake_sleep_prep(struct acpi_softc *sc, ACPI_HANDLE handle,
+acpi_wake_sleep_prep(struct acpi_softc *const sc, ACPI_HANDLE handle,
     enum power_stype stype)
 {
     int sstate;
@@ -3884,7 +3886,7 @@ acpi_wake_sleep_prep(struct acpi_softc *sc, ACPI_HANDLE handle,
 }
 
 static int
-acpi_wake_run_prep(struct acpi_softc *sc, ACPI_HANDLE handle,
+acpi_wake_run_prep(struct acpi_softc *const sc, ACPI_HANDLE handle,
     enum power_stype stype)
 {
     int sstate;
@@ -4557,7 +4559,7 @@ acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_suspend_state_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    struct acpi_softc *const sc = oidp->oid_arg1;
+    const struct acpi_softc *const sc = oidp->oid_arg1;
     const enum power_stype old_stype = power_suspend_stype;
     enum power_stype new_stype;
     int old_sstate = acpi_stype_to_sstate(sc, old_stype);
