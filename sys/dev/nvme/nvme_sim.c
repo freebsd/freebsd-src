@@ -324,6 +324,9 @@ nvme_sim_probe(device_t dev)
 	if (nvme_use_nvd)
 		return (ENXIO);
 
+	if (!NVME_IS_STORAGE_DEVICE(device_get_parent(dev)))
+		return (ENXIO);
+
 	device_set_desc(dev, "nvme cam");
 	return (BUS_PROBE_DEFAULT);
 }

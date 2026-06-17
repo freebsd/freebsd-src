@@ -38,11 +38,15 @@
 
 #include "nvme_private.h"
 
+#include "nvme_if.h"
+
 static int    nvme_pci_probe(device_t);
 static int    nvme_pci_attach(device_t);
 static int    nvme_pci_detach(device_t);
 static int    nvme_pci_suspend(device_t);
 static int    nvme_pci_resume(device_t);
+static bool   nvme_pci_is_storage_device(device_t);
+
 
 static int nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
 
@@ -54,6 +58,7 @@ static device_method_t nvme_pci_methods[] = {
 	DEVMETHOD(device_suspend,   nvme_pci_suspend),
 	DEVMETHOD(device_resume,    nvme_pci_resume),
 	DEVMETHOD(device_shutdown,  nvme_shutdown),
+	DEVMETHOD(nvme_is_storage_device, nvme_pci_is_storage_device),
 	DEVMETHOD_END
 };
 
@@ -420,4 +425,14 @@ nvme_pci_resume(device_t dev)
 
 	ctrlr = DEVICE2SOFTC(dev);
 	return (nvme_ctrlr_resume(ctrlr));
+}
+
+static bool
+nvme_pci_is_storage_device(device_t dev)
+{
+	/*
+	 * NVMHCI 1.0 interfaces are the only devices that
+	 * have namespaces with LBA ranges.
+	 */
+	return (pci_get_progif(dev) == PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0);
 }
