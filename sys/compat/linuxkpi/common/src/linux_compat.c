@@ -2907,6 +2907,7 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86 = CPUID_TO_FAMILY(cpu_id);
 	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
 	boot_cpu_data.x86_vendor = x86_vendor;
+	boot_cpu_data.x86_stepping = CPUID_TO_STEPPING(cpu_id);
 
 	__cpu_data = kmalloc_array(mp_maxid + 1,
 	    sizeof(*__cpu_data), M_WAITOK | M_ZERO);
