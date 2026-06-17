@@ -3020,10 +3020,20 @@ dsp_kqevent(struct knote *kn, long hint)
 	}
 	kn->kn_data = 0;
 	if (chn_polltrigger(ch)) {
-		if (kn->kn_filter == EVFILT_READ)
+		if (kn->kn_filter == EVFILT_READ) {
 			kn->kn_data = sndbuf_getready(ch->bufsoft);
-		else
+			if (ch->flags & CHN_F_MMAP)
+				kn->kn_kevent.ext[0] = sndbuf_getfreeptr(ch->bufsoft);
+			else
+				kn->kn_kevent.ext[0] = sndbuf_getready(ch->bufsoft) / ch->bufsoft->align;
+		} else {
 			kn->kn_data = sndbuf_getfree(ch->bufsoft);
+			if (ch->flags & CHN_F_MMAP)
+				kn->kn_kevent.ext[0] = sndbuf_getreadyptr(ch->bufsoft);
+			else
+				kn->kn_kevent.ext[0] = sndbuf_getready(ch->bufsoft) / ch->bufsoft->align;
+		}
+		kn->kn_kevent.ext[1] = ch->xruns;
 	}
 
 	return (kn->kn_data > 0);
