@@ -509,6 +509,82 @@ See
 for a complete list of the supported
 .Fn ioctl
 functions.
+.Ss kqueue Support
+The
+.Va kevent
+structure's fields are defined as follows:
+.Bl -tag -width "Fa filter"
+.It Fa ident
+The file descriptor for the device.
+.It Fa filter
+The kernel filter used to process the event.
+This is either
+.Dv EVFILT_READ
+for recording or
+.Dv EVFILT_WRITE
+for playback.
+.It Fa data
+The number of bytes available to be read or written.
+.It Fa ext
+.Bl -bullet -compact
+.It
+.Va ext[0]
+For devices that use
+.Xr mmap 2 ,
+it contains the
+.Va count_info.ptr
+field reported by
+.Va SNDCTL_DSP_GETIPTR
+for recording or
+.Va SNDCTL_DSP_GETOPTR
+for playback, whereas for devices that do not use
+.Xr mmap 2 ,
+it contains the
+.Va oss_count_t.fifo_samples
+field reported by
+.Va SNDCTL_DSP_CURRENT_IPTR
+for recording or
+.Va SNDCTL_DSP_CURRENT_OPTR
+for playback.
+.It
+.Va ext[1]
+contains the
+.Va audio_errinfo.rec_overruns
+field for recording events, or the
+.Va audio_errinfo.play_underruns
+field for playback events, as reported by
+.Va SNDCTL_DSP_GETERROR .
+.Pp
+This allows a single
+.Va kevent
+to report that data is ready, how many bytes can be read or written, the
+current buffer position, and the current error count.
+This is especially useful for scenarios that use
+.Xr mmap 2 ,
+because without
+.Xr kqueue 2
+the typical processing loop consists of:
+.Bl -bullet -compact
+.It
+Calculating the wait time and calling
+.Xr clock_nanosleep 2 .
+.It
+Calling
+.Xr ioctl 2
+for
+.Va SNDCTL_DSP_GETIPTR
+or
+.Va SNDCTL_DSP_GETOPTR
+to get the pointer into the memory-mapped buffer where new data starts.
+.It
+Calling
+.Xr ioctl 2
+for
+.Va SNDCTL_DSP_GETERROR
+to get over/underruns and handle them.
+.El
+.El
+.El
 .Sh FILES
 The
 .Nm
