@@ -250,10 +250,6 @@ ATF_TC_BODY(accuracy_tests, tc)
 ATF_TC_WITHOUT_HEAD(log1p_accuracy_tests);
 ATF_TC_BODY(log1p_accuracy_tests, tc)
 {
-#if LDBL_MANT_DIG > 64
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_expect_fail("https://bugs.freebsd.org/253984");
-#endif
 #if defined(__riscv)
 	atf_tc_expect_death("https://bugs.freebsd.org/290099");
 #endif
@@ -261,6 +257,9 @@ ATF_TC_BODY(log1p_accuracy_tests, tc)
 		 1.82321546859847114303367992804596800640e-1L, FLT_ULP());
 	test_tol(log1p, 0x0.3333333333333p0,
 		 1.82321556793954589204283870982629267635e-1L, DBL_ULP());
+#if LDBL_MANT_DIG > 64
+	atf_tc_expect_fail("https://bugs.freebsd.org/253984");
+#endif
 	test_tol(log1pl, 0x0.33333333333333332p0L,
 		 1.82321556793954626202683007050468762914e-1L, LDBL_ULP());
 
