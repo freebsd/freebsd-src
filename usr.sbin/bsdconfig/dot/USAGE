@@ -107,7 +107,7 @@ EXAMPLES:
 		convert bsdconfig.ps bsdconfig.pdf
 		xpdf bsdconfig.pdf
 
-			NOTE: Requires both `graphics/ImageMagick' and
+			NOTE: Requires both `graphics/GraphicsMagick' and
 			      `graphics/xdpf' from ports/packages.
 
 			NOTE: The converted PDF file is not suitable for
