@@ -51,13 +51,6 @@ EXAMPLES:
 
 		or
 
-		gx bsdconfig.svg
-
-			NOTE: Image is scaled to fit window on launch.
-			NOTE: Requires `graphics/gx' from ports/packages.
-
-		or
-
 		eog bsdconfig.svg
 
 			NOTE: Requires `graphics/eog' from ports/packages.
