@@ -2,6 +2,26 @@
 
 #define	IFM(_fam, _model)	VFM_MAKE(X86_VENDOR_INTEL, _fam, _model)
 
+#define	INTEL_KABYLAKE_L		IFM(6, 0x8E)
+
+#define	INTEL_KABYLAKE			IFM(6, 0x9E)
+
+#define	INTEL_COMETLAKE			IFM(6, 0xA5)
+#define	INTEL_COMETLAKE_L		IFM(6, 0xA6)
+
+#define	INTEL_CANNONLAKE_L		IFM(6, 0x66)
+
+#define	INTEL_ICELAKE_X			IFM(6, 0x6A)
+#define	INTEL_ICELAKE_D			IFM(6, 0x6C)
+#define	INTEL_ICELAKE			IFM(6, 0x7D)
+#define	INTEL_ICELAKE_L			IFM(6, 0x7E)
+#define	INTEL_ICELAKE_NNPI		IFM(6, 0x9D)
+
+#define	INTEL_ROCKETLAKE		IFM(6, 0xA7)
+
+#define	INTEL_TIGERLAKE_L		IFM(6, 0x8C)
+#define	INTEL_TIGERLAKE			IFM(6, 0x8D)
+
 #define	INTEL_ALDERLAKE			IFM(6, 0x97)
 #define	INTEL_ALDERLAKE_L		IFM(6, 0x9A)
 
