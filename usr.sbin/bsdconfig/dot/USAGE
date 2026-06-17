@@ -86,12 +86,6 @@ EXAMPLES:
 
 	View the above-rendered PostScript poster using X11:
 
-		gsview bsdconfig.ps
-
-			NOTE: Requires `print/gsview' from ports/packages.
-
-		or
-
 		convert bsdconfig.ps bsdconfig.pdf
 		xpdf bsdconfig.pdf
 
