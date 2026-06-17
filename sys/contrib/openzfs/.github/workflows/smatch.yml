@@ -3,6 +3,14 @@ name: smatch
 on:
   push:
   pull_request:
+    paths-ignore:
+      - 'man/**'
+      - '**.md'
+      - 'AUTHORS'
+      - 'COPYRIGHT'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '.gitignore'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -10,6 +18,7 @@ concurrency:
 
 jobs:
   smatch:
+    if: github.event_name == 'pull_request' || github.repository != 'openzfs/zfs'
     runs-on: ubuntu-24.04
     steps:
     - name: Checkout smatch

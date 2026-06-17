@@ -710,10 +710,10 @@ post =
 tags = ['functional', 'deadman']
 
 [tests/functional/dedup]
-tests = ['dedup_fdt_create', 'dedup_fdt_import', 'dedup_fdt_pacing',
-    'dedup_legacy_create', 'dedup_legacy_import', 'dedup_legacy_fdt_upgrade',
-    'dedup_legacy_fdt_mixed', 'dedup_quota', 'dedup_prune', 'dedup_prune_leak',
-    'dedup_zap_shrink']
+tests = ['dedup_bclone_pruned', 'dedup_fdt_create', 'dedup_fdt_import',
+    'dedup_fdt_pacing', 'dedup_legacy_create', 'dedup_legacy_import',
+    'dedup_legacy_fdt_upgrade', 'dedup_legacy_fdt_mixed', 'dedup_quota',
+    'dedup_prune', 'dedup_prune_leak', 'dedup_zap_shrink']
 pre =
 post =
 tags = ['functional', 'dedup']
@@ -901,7 +901,8 @@ tags = ['functional', 'quota']
 [tests/functional/redacted_send]
 tests = ['redacted_compressed', 'redacted_contents', 'redacted_deleted',
     'redacted_disabled_feature', 'redacted_embedded', 'redacted_holes',
-    'redacted_incrementals', 'redacted_largeblocks', 'redacted_many_clones',
+    'redacted_incrementals', 'redacted_largeblocks', 'redacted_max_blkid',
+    'redacted_many_clones',
     'redacted_mixed_recsize', 'redacted_mounts', 'redacted_negative',
     'redacted_origin', 'redacted_panic', 'redacted_props', 'redacted_resume',
     'redacted_size', 'redacted_volume']
@@ -953,7 +954,7 @@ tests = ['removal_all_vdev', 'removal_cancel', 'removal_check_space',
     'removal_with_write', 'removal_with_zdb', 'remove_expanded',
     'remove_mirror', 'remove_mirror_sanity', 'remove_raidz',
     'remove_indirect', 'remove_attach_mirror', 'removal_reservation',
-    'removal_with_hole']
+    'removal_with_hole', 'removal_with_missing_log']
 tags = ['functional', 'removal']
 
 [tests/functional/rename_dirs]

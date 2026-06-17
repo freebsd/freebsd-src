@@ -52,7 +52,7 @@ All RHEL (and compatible systems: AlmaLinux OS, Rocky Linux, etc) on the **full*
 
 All Ubuntu **LTS** releases are supported.
 
-**Supported Ubuntu releases**: **24.04 “Noble”**, **22.04 “Jammy”**.
+**Supported Ubuntu releases**: **26.04 “Resolute”**, **24.04 “Noble”**, **22.04 “Jammy”**.
 
 ### Debian
 
@@ -68,4 +68,4 @@ Generally, if a distribution is following an LTS kernel, it should work well wit
 
 All FreeBSD releases receiving **security support** are supported by OpenZFS.
 
-**Supported FreeBSD releases**: **15.0**, **14.3**, **13.5**.
+**Supported FreeBSD releases**: **15.0**, **14.4**.

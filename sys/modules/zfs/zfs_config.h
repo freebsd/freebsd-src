@@ -298,6 +298,9 @@
 /* fs_context exists */
 /* #undef HAVE_FS_CONTEXT */
 
+/* fs_parse() takes fs_parameter_spec directly */
+/* #undef HAVE_FS_PARSE_TAKES_SPEC */
+
 /* yes */
 /* #undef HAVE_GENERIC_FADVISE */
 
@@ -886,7 +889,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.2-1-FreeBSD_g6330a45b0"
+#define ZFS_META_ALIAS "zfs-2.4.3-1-FreeBSD_g83020cf82"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -916,10 +919,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "1-FreeBSD_g6330a45b0"
+#define ZFS_META_RELEASE "1-FreeBSD_g83020cf82"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.4.2"
+#define ZFS_META_VERSION "2.4.3"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
