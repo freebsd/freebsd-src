@@ -2797,14 +2797,14 @@ assemble_segments(iflib_rxq_t rxq, if_rxd_info_t ri, if_rxsd_t sd, int *pf_rv)
 		if (ri->iri_frags[i].irf_len == 0 || consumed ||
 		    *pf_rv == PFIL_CONSUMED || *pf_rv == PFIL_DROPPED) {
 			if (mh == NULL) {
-				/* everything saved here */
 				consumed = true;
 				pf_rv_ptr = NULL;
-				continue;
 			}
 			/* XXX we can save the cluster here, but not the mbuf */
-			m_init(m, M_NOWAIT, MT_DATA, 0);
-			m_free(m);
+			if (m != NULL) {
+				m_init(m, M_NOWAIT, MT_DATA, 0);
+				m_free(m);
+			}
 			continue;
 		}
 		if (mh == NULL) {
