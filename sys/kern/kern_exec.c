@@ -441,6 +441,21 @@ execve_unblock(struct thread *td, struct proc *p)
 	}
 }
 
+void
+execve_block_pass(struct thread *td)
+{
+	struct proc *p;
+
+	MPASS(td == curthread);
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	
+	while (p->p_execblock != 0) {
+		p->p_flag |= P_INEXEC_WAIT;
+		msleep(&p->p_execblock, &p->p_mtx, 0, "exeblk", 0);
+	}
+}
+
 /*
  * In-kernel implementation of execve().  All arguments are assumed to be
  * userspace pointers from the passed thread.
@@ -496,10 +511,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
-	while (p->p_execblock != 0) {
-		p->p_flag |= P_INEXEC_WAIT;
-		msleep(&p->p_execblock, &p->p_mtx, 0, "exeblk", 0);
-	}
+	execve_block_pass(td);
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);
 
