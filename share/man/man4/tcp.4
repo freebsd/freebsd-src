@@ -33,7 +33,7 @@
 .\"
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\"
-.Dd June 26, 2025
+.Dd June 17, 2026
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -598,7 +598,7 @@ On the transition from enabled to disabled, the client cookie cache is cleared
 and disabled.
 The transition from enabled to disabled does not affect any active TFO
 connections in progress; it only prevents new ones from being established.
-The default is 0.
+The default is 1.
 .It Va fastopen.keylen
 The key length in bytes.
 Read-only.

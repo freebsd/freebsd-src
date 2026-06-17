@@ -84,7 +84,7 @@
  * net.inet.tcp.fastopen.ccache_list (RO)
  *     Print the client cookie cache.
  *
- * net.inet.tcp.fastopen.client_enable (RW, default 0)
+ * net.inet.tcp.fastopen.client_enable (RW, default 1)
  *     When zero, no new active (i.e., client) TFO connections can be
  *     created.  On the transition from enabled to disabled, the client
  *     cookie cache is cleared and disabled.  The transition from enabled to
