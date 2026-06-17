@@ -86,7 +86,7 @@ EXAMPLES:
 
 	View the above-rendered PostScript poster using X11:
 
-		convert bsdconfig.ps bsdconfig.pdf
+		gm convert bsdconfig.ps bsdconfig.pdf
 		xpdf bsdconfig.pdf
 
 			NOTE: Requires both `graphics/GraphicsMagick' and
