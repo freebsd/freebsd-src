@@ -1181,11 +1181,15 @@ est_msr_info(device_t dev, uint64_t msr, freq_info **freqs, size_t *freqslen)
 	/* Figure out the bus clock. */
 	freq = atomic_load_acq_64(&tsc_freq) / 1000000;
 	id = msr >> 32;
+	if ((id >> 8) == 0)
+		return (EOPNOTSUPP);
 	bus = freq / (id >> 8);
 	device_printf(dev, "Guessed bus clock (high) of %d MHz\n", bus);
 	if (!bus_speed_ok(bus)) {
 		/* We may be running on the low frequency. */
 		id = msr >> 48;
+		if ((id >> 8) == 0)
+			return (EOPNOTSUPP);
 		bus = freq / (id >> 8);
 		device_printf(dev, "Guessed bus clock (low) of %d MHz\n", bus);
 		if (!bus_speed_ok(bus))
