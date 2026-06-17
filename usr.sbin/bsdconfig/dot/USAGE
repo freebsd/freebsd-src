@@ -44,12 +44,6 @@ EXAMPLES:
 
 	View the above-rendered SVG file using your favorite X11-based viewer:
 
-		gimmage bsdconfig.svg
-
-			NOTE: Requires `graphics/gimmage' from ports/packages.
-
-		or
-
 		gthumb bsdconfig.svg
 
 			NOTE: Image is scaled to fit window on launch.
