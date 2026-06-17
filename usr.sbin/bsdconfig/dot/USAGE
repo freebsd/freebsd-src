@@ -51,12 +51,6 @@ EXAMPLES:
 
 		or
 
-		gqview bsdconfig.svg
-
-			NOTE: Requires `graphics/gqview' from ports/packages.
-
-		or
-
 		gx bsdconfig.svg
 
 			NOTE: Image is scaled to fit window on launch.
