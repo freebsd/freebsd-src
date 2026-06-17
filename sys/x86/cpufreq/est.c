@@ -1046,9 +1046,10 @@ est_get_info(device_t dev)
 		error = est_msr_info(dev, msr, &sc->freq_list, &sc->flist_len);
 
 	if (error) {
-		printf(
-	"est: CPU supports Enhanced Speedstep, but is not recognized.\n"
-	"est: cpu_vendor %s, msr %0jx\n", cpu_vendor, msr);
+		if (bootverbose)
+			printf(
+		"est: CPU supports Enhanced Speedstep, but is not recognized.\n"
+		"est: cpu_vendor %s, msr %0jx\n", cpu_vendor, msr);
 		return (ENXIO);
 	}
 
