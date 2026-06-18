@@ -545,6 +545,16 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		NFSVNO_SETATTRVAL(&nva2, btime, nva.na_btime);
 		nd->nd_repstat = nfsvno_setattr(vp, &nva2, nd->nd_cred, p,
 		    exp);
+		/*
+		 * ZFS stores with early versions do not support va_birthtime
+		 * and will reply EINVAL when setting is attempted.  This
+		 * breaks the MacOS NFSv4 client, so pretend it succeeded if
+		 * ctime and/or mtime were set as well.
+		 */
+		if (nd->nd_repstat == EINVAL &&
+		    (NFSISSET_ATTRBIT(&retbits, NFSATTRBIT_TIMEACCESSSET) ||
+		     NFSISSET_ATTRBIT(&retbits, NFSATTRBIT_TIMEMODIFYSET)))
+			nd->nd_repstat = 0;
 		if (!nd->nd_repstat)
 		    NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_TIMECREATE);
 	    }
