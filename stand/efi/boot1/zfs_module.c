@@ -205,7 +205,7 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_NOT_FOUND);
 	}
 
-	if ((err = zfs_lookup(&zmount, filepath, &dn)) != 0) {
+	if ((err = zfs_lookup(&zmount, filepath, &dn, NULL)) != 0) {
 		if (err == ENOENT) {
 			DPRINTF("Failed to find '%s' on pool '%s' (%d)\n",
 			    filepath, spa->spa_name, err);
@@ -216,7 +216,8 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_INVALID_PARAMETER);
 	}
 
-	if ((err = zfs_dnode_stat(spa, &dn, &st)) != 0) {
+	/* Only st_size is inspected here, so identity is irrelevant. */
+	if ((err = zfs_dnode_stat(spa, &dn, &st, 0, 0)) != 0) {
 		printf("Failed to stat '%s' on pool '%s' (%d)\n", filepath,
 		    spa->spa_name, err);
 		return (EFI_INVALID_PARAMETER);
