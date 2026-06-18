@@ -1,0 +1,39 @@
+.\"
+.\" Copyright (c) 2026 Alexander Ziaee. Ohio.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd June 17, 2026
+.Dt UVIDEO 4
+.Os
+.Sh NAME
+.Nm uvideo
+.Nd USB video class webcam and capture driver
+.Sh SYNOPSIS
+.Cd device uvideo
+.Sh HARDWARE
+The
+.Nm
+driver supports USB Video Class
+.Pq UVC
+devices such as:
+.Pp
+.Bl -bullet -compact
+.It
+Cameras
+.It
+Capture devices
+.El
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Ox 4.4
+and
+.Fx 16.0 .
+.Pp
+Historically, these devices were supported by
+.Sy webcamd
+from the
+.Fx
+Ports Collection.

@@ -1133,6 +1133,7 @@ MAN+=	\
 	usbhid.4 \
 	usfs.4 \
 	uslcom.4 \
+	uvideo.4 \
 	uvisor.4 \
 	uvscom.4 \
 	veriexec.4 \
