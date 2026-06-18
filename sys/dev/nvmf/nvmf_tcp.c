@@ -1092,11 +1092,8 @@ nvmf_tcp_receive(void *arg)
 	SOCKBUF_LOCK(&so->so_rcv);
 	while (!qp->rx_shutdown) {
 		/* Wait until there is enough data for the next step. */
-		if (so->so_error != 0 || so->so_rerror != 0) {
-			if (so->so_error != 0)
-				error = so->so_error;
-			else
-				error = so->so_rerror;
+		if (soerror(so)) {
+			error = soerror(so);
 			SOCKBUF_UNLOCK(&so->so_rcv);
 		error:
 			m_freem(m);

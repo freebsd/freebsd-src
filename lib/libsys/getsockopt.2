@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 21, 2026
+.Dd May 26, 2026
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -517,6 +517,9 @@ returns any pending error on the socket and clears
 the error status.
 It may be used to check for asynchronous errors on connected
 datagram sockets or for other asynchronous errors.
+Note that more than one error may be pending on the socket when
+.Dv SO_RERROR
+is set.
 .Dv SO_RERROR
 indicates that receive buffer overflows should be handled as errors.
 Historically receive buffer overflows have been ignored and programs
