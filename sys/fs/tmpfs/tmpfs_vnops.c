@@ -963,6 +963,89 @@ releout:
 }
 
 static int
+tmpfs_rename_check_parent(struct tmpfs_mount *tmp, struct tmpfs_node *fdnode,
+    struct vnode *fvp, struct tmpfs_node *fnode, struct tmpfs_dirent *de,
+    struct tmpfs_node *tdnode, struct ucred *tcred)
+{
+	struct tmpfs_node *n;
+	int error;
+
+	TMPFS_NODE_LOCK(fnode);
+	error = tmpfs_access_locked(fvp, fnode, VWRITE, tcred);
+	TMPFS_NODE_UNLOCK(fnode);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Ensure the target directory is not a child of the
+	 * directory being moved.  Otherwise, we'd end up
+	 * with stale nodes.
+	 *
+	 * TMPFS_LOCK guarantees that no nodes are freed while
+	 * traversing the list. Nodes can only be marked as
+	 * removed: tn_parent == NULL.
+	 */
+	n = tdnode;
+	TMPFS_LOCK(tmp);
+	TMPFS_NODE_LOCK(n);
+	while (n != n->tn_dir.tn_parent) {
+		struct tmpfs_node *parent;
+
+		if (n == fnode) {
+			TMPFS_NODE_UNLOCK(n);
+			TMPFS_UNLOCK(tmp);
+			return (EINVAL);
+		}
+		parent = n->tn_dir.tn_parent;
+		TMPFS_NODE_UNLOCK(n);
+		if (parent == NULL) {
+			n = NULL;
+			break;
+		}
+		TMPFS_NODE_LOCK(parent);
+		if (parent->tn_dir.tn_parent == NULL) {
+			TMPFS_NODE_UNLOCK(parent);
+			n = NULL;
+			break;
+		}
+		n = parent;
+	}
+	TMPFS_UNLOCK(tmp);
+	if (n == NULL)
+		return (EINVAL);
+
+	TMPFS_NODE_UNLOCK(n);
+
+	return (0);
+}
+
+static void
+tmpfs_rename_set_parent(struct tmpfs_node *fdnode, struct tmpfs_node *fnode,
+    struct tmpfs_dirent *de, struct tmpfs_node *tdnode)
+{
+	/* Adjust the parent pointer. */
+	TMPFS_VALIDATE_DIR(fnode);
+	TMPFS_NODE_LOCK(de->td_node);
+	de->td_node->tn_dir.tn_parent = tdnode;
+	TMPFS_NODE_UNLOCK(de->td_node);
+
+	/*
+	 * As a result of changing the target of the '..'
+	 * entry, the link count of the source and target
+	 * directories has to be adjusted.
+	 */
+	TMPFS_NODE_LOCK(tdnode);
+	TMPFS_ASSERT_LOCKED(tdnode);
+	tdnode->tn_links++;
+	TMPFS_NODE_UNLOCK(tdnode);
+
+	TMPFS_NODE_LOCK(fdnode);
+	TMPFS_ASSERT_LOCKED(fdnode);
+	fdnode->tn_links--;
+	TMPFS_NODE_UNLOCK(fdnode);
+}
+
+static int
 tmpfs_rename(struct vop_rename_args *v)
 {
 	struct vnode *fdvp = v->a_fdvp;
@@ -1129,86 +1212,14 @@ tmpfs_rename(struct vop_rename_args *v)
 		 * In case we are moving a directory, we have to adjust its
 		 * parent to point to the new parent.
 		 */
-		if (de->td_node->tn_type == VDIR) {
-			struct tmpfs_node *n;
-
-			TMPFS_NODE_LOCK(fnode);
-			error = tmpfs_access_locked(fvp, fnode, VWRITE,
-			    tcnp->cn_cred);
-			TMPFS_NODE_UNLOCK(fnode);
-			if (error) {
-				if (newname != NULL)
-					free(newname, M_TMPFSNAME);
+		if (fnode->tn_type == VDIR) {
+			error = tmpfs_rename_check_parent(tmp, fdnode, fvp,
+			    fnode, de, tdnode, tcnp->cn_cred);
+			if (error != 0) {
+				free(newname, M_TMPFSNAME);
 				goto out_locked;
 			}
-
-			/*
-			 * Ensure the target directory is not a child of the
-			 * directory being moved.  Otherwise, we'd end up
-			 * with stale nodes.
-			 */
-			n = tdnode;
-			/*
-			 * TMPFS_LOCK guaranties that no nodes are freed while
-			 * traversing the list. Nodes can only be marked as
-			 * removed: tn_parent == NULL.
-			 */
-			TMPFS_LOCK(tmp);
-			TMPFS_NODE_LOCK(n);
-			while (n != n->tn_dir.tn_parent) {
-				struct tmpfs_node *parent;
-
-				if (n == fnode) {
-					TMPFS_NODE_UNLOCK(n);
-					TMPFS_UNLOCK(tmp);
-					error = EINVAL;
-					if (newname != NULL)
-						free(newname, M_TMPFSNAME);
-					goto out_locked;
-				}
-				parent = n->tn_dir.tn_parent;
-				TMPFS_NODE_UNLOCK(n);
-				if (parent == NULL) {
-					n = NULL;
-					break;
-				}
-				TMPFS_NODE_LOCK(parent);
-				if (parent->tn_dir.tn_parent == NULL) {
-					TMPFS_NODE_UNLOCK(parent);
-					n = NULL;
-					break;
-				}
-				n = parent;
-			}
-			TMPFS_UNLOCK(tmp);
-			if (n == NULL) {
-				error = EINVAL;
-				if (newname != NULL)
-					    free(newname, M_TMPFSNAME);
-				goto out_locked;
-			}
-			TMPFS_NODE_UNLOCK(n);
-
-			/* Adjust the parent pointer. */
-			TMPFS_VALIDATE_DIR(fnode);
-			TMPFS_NODE_LOCK(de->td_node);
-			de->td_node->tn_dir.tn_parent = tdnode;
-			TMPFS_NODE_UNLOCK(de->td_node);
-
-			/*
-			 * As a result of changing the target of the '..'
-			 * entry, the link count of the source and target
-			 * directories has to be adjusted.
-			 */
-			TMPFS_NODE_LOCK(tdnode);
-			TMPFS_ASSERT_LOCKED(tdnode);
-			tdnode->tn_links++;
-			TMPFS_NODE_UNLOCK(tdnode);
-
-			TMPFS_NODE_LOCK(fdnode);
-			TMPFS_ASSERT_LOCKED(fdnode);
-			fdnode->tn_links--;
-			TMPFS_NODE_UNLOCK(fdnode);
+			tmpfs_rename_set_parent(fdnode, fnode, de, tdnode);
 		}
 	}
 
