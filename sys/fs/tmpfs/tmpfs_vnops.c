@@ -1055,7 +1055,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	struct vnode *tvp = v->a_tvp;
 	struct componentname *tcnp = v->a_tcnp;
 	char *newname;
-	struct tmpfs_dirent *de;
+	struct tmpfs_dirent *de, *tde;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *fdnode;
 	struct tmpfs_node *fnode;
@@ -1063,8 +1063,11 @@ tmpfs_rename(struct vop_rename_args *v)
 	struct tmpfs_node *tdnode;
 	int error;
 	bool want_seqc_end;
+	bool exchange;
 
 	want_seqc_end = false;
+	newname = NULL;
+	error = 0;
 
 	/*
 	 * Disallow cross-device renames.
@@ -1076,16 +1079,15 @@ tmpfs_rename(struct vop_rename_args *v)
 		goto out;
 	}
 
-	if ((v->a_flags & ~(AT_RENAME_NOREPLACE)) != 0) {
+	if ((v->a_flags & ~(AT_RENAME_NOREPLACE | AT_RENAME_EXCHANGE)) != 0) {
 		error = EOPNOTSUPP;
 		goto out;
 	}
 
 	/* If source and target are the same file, there is nothing to do. */
-	if (fvp == tvp) {
-		error = 0;
+	if (fvp == tvp)
 		goto out;
-	}
+	exchange = (v->a_flags & AT_RENAME_EXCHANGE) != 0;
 
 	/*
 	 * If we need to move the directory between entries, lock the
@@ -1138,6 +1140,8 @@ tmpfs_rename(struct vop_rename_args *v)
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
+	if (exchange)
+		tde = tmpfs_dir_lookup(tdnode, tnode, tcnp);
 
 	/*
 	 * Entry can disappear before we lock fdvp.
@@ -1151,6 +1155,13 @@ tmpfs_rename(struct vop_rename_args *v)
 		goto out_locked;
 	}
 	MPASS(de->td_node == fnode);
+	if (exchange) {
+		if (tde == NULL) {
+			error = ENOENT;
+			goto out_locked;
+		}
+		MPASS(tde->td_node == tnode);
+	}
 
 	/*
 	 * If re-naming a directory to another preexisting directory
@@ -1168,22 +1179,27 @@ tmpfs_rename(struct vop_rename_args *v)
 			goto out_locked;
 		}
 
-		if (fnode->tn_type == VDIR && tnode->tn_type == VDIR) {
-			if (tnode->tn_size != 0 &&
-			    ((tcnp->cn_flags & IGNOREWHITEOUT) == 0 ||
-			    tnode->tn_size > tnode->tn_dir.tn_wht_size)) {
-				error = ENOTEMPTY;
+		if (!exchange) {
+			if (fnode->tn_type == VDIR && tnode->tn_type == VDIR) {
+				if (tnode->tn_size != 0 &&
+				    ((tcnp->cn_flags & IGNOREWHITEOUT) == 0 ||
+				    tnode->tn_size >
+				    tnode->tn_dir.tn_wht_size)) {
+					error = ENOTEMPTY;
+					goto out_locked;
+				}
+			} else if (fnode->tn_type == VDIR &&
+			    tnode->tn_type != VDIR) {
+				error = ENOTDIR;
 				goto out_locked;
+			} else if (fnode->tn_type != VDIR &&
+			    tnode->tn_type == VDIR) {
+				error = EISDIR;
+				goto out_locked;
+			} else {
+				MPASS(fnode->tn_type != VDIR &&
+				    tnode->tn_type != VDIR);
 			}
-		} else if (fnode->tn_type == VDIR && tnode->tn_type != VDIR) {
-			error = ENOTDIR;
-			goto out_locked;
-		} else if (fnode->tn_type != VDIR && tnode->tn_type == VDIR) {
-			error = EISDIR;
-			goto out_locked;
-		} else {
-			MPASS(fnode->tn_type != VDIR &&
-				tnode->tn_type != VDIR);
 		}
 	}
 
@@ -1197,11 +1213,9 @@ tmpfs_rename(struct vop_rename_args *v)
 	 * Ensure that we have enough memory to hold the new name, if it
 	 * has to be changed.
 	 */
-	if (fcnp->cn_namelen != tcnp->cn_namelen ||
-	    bcmp(fcnp->cn_nameptr, tcnp->cn_nameptr, fcnp->cn_namelen) != 0) {
+	if (!exchange && (fcnp->cn_namelen != tcnp->cn_namelen ||
+	    bcmp(fcnp->cn_nameptr, tcnp->cn_nameptr, fcnp->cn_namelen) != 0))
 		newname = malloc(tcnp->cn_namelen, M_TMPFSNAME, M_WAITOK);
-	} else
-		newname = NULL;
 
 	/*
 	 * If the node is being moved to another directory, we have to do
@@ -1219,8 +1233,38 @@ tmpfs_rename(struct vop_rename_args *v)
 				free(newname, M_TMPFSNAME);
 				goto out_locked;
 			}
-			tmpfs_rename_set_parent(fdnode, fnode, de, tdnode);
 		}
+		if (exchange && tnode->tn_type == VDIR) {
+			MPASS(newname == NULL);
+			error = tmpfs_rename_check_parent(tmp, tdnode, tvp,
+			    tnode, tde, fdnode, fcnp->cn_cred);
+			if (error != 0)
+				goto out_locked;
+		}
+		if (fnode->tn_type == VDIR)
+			tmpfs_rename_set_parent(fdnode, fnode, de, tdnode);
+		if (exchange && tnode->tn_type == VDIR)
+			tmpfs_rename_set_parent(tdnode, tnode, tde, fdnode);
+	}
+	if (exchange) {
+		de->td_node = tnode;
+		tde->td_node = fnode;
+		if (tmpfs_use_nc(fvp)) {
+			cache_purge(fvp);
+			cache_purge(tvp);
+			cache_enter(tdvp, fvp, tcnp);
+			cache_enter(fdvp, tvp, fcnp);
+		}
+		fdnode->tn_status |= TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED;
+		fdnode->tn_accessed = true;
+		tmpfs_update(fdvp);
+		if (fdvp != tdvp) {
+			tdnode->tn_status |= TMPFS_NODE_MODIFIED |
+			    TMPFS_NODE_CHANGED;
+			tdnode->tn_accessed = true;
+			tmpfs_update(tdvp);
+		}
+		goto out_locked;
 	}
 
 	/*
