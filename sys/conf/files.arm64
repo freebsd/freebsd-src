@@ -61,6 +61,7 @@ arm64/arm64/gic_v3_acpi.c			optional acpi
 arm64/arm64/gic_v3_fdt.c			optional fdt
 arm64/arm64/gicv5.c				standard
 arm64/arm64/gicv5_fdt.c				optional fdt
+arm64/arm64/gicv5_its.c				optional fdt
 arm64/arm64/hyp_stub.S				standard
 arm64/arm64/identcpu.c				standard
 arm64/arm64/kexec_support.c			standard
