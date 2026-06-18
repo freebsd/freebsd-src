@@ -973,6 +973,9 @@ ATF_TC_HEAD(rtm_add_v4_temporal1_success, tc)
 ATF_TC_BODY(rtm_add_v4_temporal1_success, tc)
 {
 	DECLARE_TEST_VARS;
+	char buffer2[2048];
+	struct rt_msghdr *rtm2 = (struct rt_msghdr *)buffer2;
+	int seq;
 
 	c = presetup_ipv4(tc);
 
@@ -984,6 +987,7 @@ ATF_TC_BODY(rtm_add_v4_temporal1_success, tc)
 
 	prepare_route_message(rtm, RTM_ADD, (struct sockaddr *)&net4,
 	    (struct sockaddr *)&mask4, (struct sockaddr *)&gw4);
+	seq = rtm->rtm_seq;
 
 	/* Set expire time to now */
 	struct timeval tv;
@@ -992,17 +996,24 @@ ATF_TC_BODY(rtm_add_v4_temporal1_success, tc)
 	rtm->rtm_inits |= RTV_EXPIRE;
 
 	rtsock_send_rtm(c->rtsock_fd, rtm);
-	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
 	ATF_REQUIRE_MSG(rtm != NULL, "unable to get rtsock reply for RTM_ADD");
+	if (rtm->rtm_type == RTM_DELETE) {
+		/* The messages arrived swapped, so swap them back when verifying. */
+		rtm = (struct rt_msghdr *)buffer2;
+		rtm2 = (struct rt_msghdr *)buffer;
+	}
+	rtsock_read_rtm(c->rtsock_fd, buffer2, sizeof(buffer2));
+
+	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_pid == getpid() && rtm->rtm_seq == seq,
+		"Unmatched rtsock reply for RTM_ADD");
 	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_inits & RTV_EXPIRE, "RTV_EXPIRE not set");
 
-	/* The next should be route deletion */
-	rtm = rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
-
-	verify_route_message(rtm, RTM_DELETE, (struct sockaddr *)&net4,
+	verify_route_message(rtm2, RTM_DELETE, (struct sockaddr *)&net4,
 	    (struct sockaddr *)&mask4, (struct sockaddr *)&gw4);
 
-	verify_route_message_extra(rtm, c->ifindex,
+	verify_route_message_extra(rtm2, c->ifindex,
 	    RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 }
 
@@ -1020,6 +1031,9 @@ ATF_TC_HEAD(rtm_add_v6_temporal1_success, tc)
 ATF_TC_BODY(rtm_add_v6_temporal1_success, tc)
 {
 	DECLARE_TEST_VARS;
+	char buffer2[2048];
+	struct rt_msghdr *rtm2 = (struct rt_msghdr *)buffer2;
+	int seq;
 
 	c = presetup_ipv6(tc);
 
@@ -1031,6 +1045,7 @@ ATF_TC_BODY(rtm_add_v6_temporal1_success, tc)
 
 	prepare_route_message(rtm, RTM_ADD, (struct sockaddr *)&net6,
 	    (struct sockaddr *)&mask6, (struct sockaddr *)&gw6);
+	seq = rtm->rtm_seq;
 
 	/* Set expire time to now */
 	struct timeval tv;
@@ -1039,17 +1054,24 @@ ATF_TC_BODY(rtm_add_v6_temporal1_success, tc)
 	rtm->rtm_inits |= RTV_EXPIRE;
 
 	rtsock_send_rtm(c->rtsock_fd, rtm);
-	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
 	ATF_REQUIRE_MSG(rtm != NULL, "unable to get rtsock reply for RTM_ADD");
+	if (rtm->rtm_type == RTM_DELETE) {
+		/* The messages arrived swapped, so swap them back when verifying. */
+		rtm = (struct rt_msghdr *)buffer2;
+		rtm2 = (struct rt_msghdr *)buffer;
+	}
+	rtsock_read_rtm(c->rtsock_fd, buffer2, sizeof(buffer2));
+
+	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_pid == getpid() && rtm->rtm_seq == seq,
+		"Unmatched rtsock reply for RTM_ADD");
 	RTSOCK_ATF_REQUIRE_MSG(rtm, rtm->rtm_inits & RTV_EXPIRE, "RTV_EXPIRE not set");
 
-	/* The next should be route deletion */
-	rtm = rtsock_read_rtm(c->rtsock_fd, buffer, sizeof(buffer));
-
-	verify_route_message(rtm, RTM_DELETE, (struct sockaddr *)&net6,
+	verify_route_message(rtm2, RTM_DELETE, (struct sockaddr *)&net6,
 	    (struct sockaddr *)&mask6, (struct sockaddr *)&gw6);
 
-	verify_route_message_extra(rtm, c->ifindex,
+	verify_route_message_extra(rtm2, c->ifindex,
 	    RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 }
 
