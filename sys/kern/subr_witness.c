@@ -404,17 +404,22 @@ SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RWTUN, &witness_trace, 0, ""
 #endif /* DDB || KDB */
 
 #ifdef WITNESS_SKIPSPIN
-int	witness_skipspin = 1;
+static bool witness_skipspin = true;
 #else
-int	witness_skipspin = 0;
+static bool witness_skipspin = false;
 #endif
-SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin, 0, "");
+SYSCTL_BOOL(_debug_witness, OID_AUTO, skipspin,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_skipspin, 0,
+    "Skip all witness checks on spin locks");
+TUNABLE_BOOL("debug.witness.skipspin", &witness_skipspin);
 
 int badstack_sbuf_size;
 
-int witness_count = WITNESS_COUNT;
-SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN,
-    &witness_count, 0, "");
+static u_long witness_count = WITNESS_COUNT;
+SYSCTL_ULONG(_debug_witness, OID_AUTO, witness_count,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_count, 0,
+    "Maximum count of lock type entries");
+TUNABLE_ULONG("debug.witness.witness_count", &witness_count);
 
 /*
  * Output channel for witness messages.  By default we print to the console.
@@ -790,7 +795,8 @@ witness_startup_count(void)
 /*
  * The WITNESS-enabled diagnostic code.  Note that the witness code does
  * assume that the early boot is single-threaded at least until after this
- * routine is completed.
+ * routine is completed.  This routine runs during SI_SUB_VM.  Any read-only
+ * tunables need to have been initialized by now.
  */
 void
 witness_startup(void *mem)
