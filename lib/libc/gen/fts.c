@@ -912,6 +912,7 @@ mem1:				saved_errno = errno;
 		}
 
 		p->fts_level = level;
+		p->fts_dirfd = _dirfd(dirp);
 		p->fts_parent = sp->fts_cur;
 		p->fts_pathlen = len + dnamlen;
 
@@ -1190,6 +1191,7 @@ fts_alloc(FTS *sp, char *name, size_t namelen)
 		return (NULL);
 
 	p->fts_symfd = -1;
+	p->fts_dirfd = -1;
 	p->fts_path = sp->fts_path;
 	p->fts_name = (char *)(p + 1);
 	p->fts_namelen = namelen;
